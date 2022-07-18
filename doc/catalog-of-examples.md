@@ -2,16 +2,17 @@
 To prove your program correct, prove that the low-level program (such as a C program) correctly implements a functional model, then (separately) prove that the functional model correctly satisfies a high-level specification.
 
 Ideally, many of the following requirements should be satisfied.  Henceforth we will refer to the low-level program as a "C program" but the concept generalizes to Rust, Java, etc.
-- **Multilevel:**  The C program must not only be proved to implement a functional mode, the functional model must be proved to actually do the desired thing.
+- **Multilevel:**  The C program must not only be proved to implement a functional model, the functional model must be proved to actually do the desired thing.
+Or at least, *High-level:** a high-level correctness property is proved about the C program, without an intermediate functional-model layer.
 - **Unified:**  The C-program proof and high-level proof should be done in the same logical framework so that they can be composed into a single, machine-checkable, end-to-end theorem.
 - **Composable:** Even if they are not in the same logical framework, the _specification_ of the C-program proof should be able to mention operators from the functional model (function names and other abstractions) so that the low-level and high-level theorems can be composed "on paper".
 - **Low-expressive:** The proof system for C-program proofs should be expressive enough to verify "dusty deck" programs that do all-too-clever things with data representations.
 - **High-expressive:** The proof system for high-level proofs should be expressive enough to verify high-level specifications with entirely nontrivial application-specific mathematics.
-- **Modular:**  The verification should be in a style of "modular verification of modular programs with data abstraction".  In VST (for example) the verification
-should be in the form of a [Verified Software Unit (VSU)](https://softwarefoundations.cis.upenn.edu/vc-current/VSU_intro.html).  Many verifications
-listed in this catalog are not "modular" in the VSU sense, but even those
-are modular in the sense that each function is verified w.r.t. its
-own function-spec, and the verification of caller is depends only
+- **Modular or Semimodular:**  The verification should be in a style of "modular verification of modular programs with data abstraction".  In VST (for example) the verification
+should be in the form of a [Verified Software Unit (VSU)](https://softwarefoundations.cis.upenn.edu/vc-current/VSU_intro.html).
+If not *modular,* then at least,
+*semimodular,* meaning that each function is verified w.r.t. its
+own function-spec, and the verification of the caller depends only
 on the *specification* of the callee, and not on its function-body.
 - **Open-source:** The C program and its proofs (low-level and high-level) should be open-source so that people can examine and compare them.
 - **Documented:** The verification should be (if possible) documented in a paper so people can understand what it's about.
@@ -39,10 +40,11 @@ variables and data structures of the C program encode the values of the function
 - High-level spec: Proposition in Coq giving the claimed high-level property of the functional model.
 - High-level proof: Proof in Coq that the functional model satisfies the high-level specification.
 
+-----------------------------------------------------
 
 ### SHA-256
 - Yes:  Low-expressive, Open-source, Documented, 32-bit
-- Not: Multilevel, hence not Unified or High-Expressive
+- Not: Multilevel or High-level, hence not Unified or High-Expressive
 
 Secure Hash Algorithm from an early release of OpenSSL.
 We include this here because it is an important component of HMAC and HMAC-DRBG.
@@ -117,11 +119,12 @@ Where to find it:
 - [High-level proof: ReedSolomon.v](https://github.com/verified-network-toolchain/Verified-FEC/blob/master/proofs/RS/ReedSolomon.v)
 
 ### Quicksort
-- Yes:  Low-expressive, Open-source, Documented, Unified, High-Expressive, 64-bit
-- Not: Multilevel; that is, a single-layer proof directly proves that the C program sorts correctly, there is no functional model in between.
+- Yes:  Low-expressive, Open-source, Documented, High-level, Unified, High-Expressive, 64-bit
 
 These are three different versions of quicksort, of increasing generality and modularity, 
 from [Freek Wiedijk's benchmark suite](https://github.com/cverified/cbench).
+A single-layer proof directly proves that the C program sorts correctly, there is no functional model in between.
+
 
 - The paper: [A benchmark for C program verification](https://arxiv.org/abs/1904.01009), by Eekelen and 8 others and Wiedijk.
 - C programs: [qsort1.c](https://github.com/cverified/cbench-vst/blob/master/qsort/qsort1.c),
@@ -181,8 +184,7 @@ Numerical-method Stoermer-Verlet integration of the differential equation for a 
 
 ### Concurrent messaging system
 
-- Yes:  Low-expressive, Open-source, Documented, Unified, High-Expressive, 32-bit
-- Not: Multilevel; that is, a single-layer proof directly proves the high-level spec from the C program, there is no functional model in between.
+- Yes:  Low-expressive, Open-source, Documented, High-level, Unified, High-Expressive, 32-bit
 
 - The paper: [A verified messaging system](https://dl.acm.org/doi/10.1145/3133911), by William Mansky, Andrew W. Appel, and Aleksey Nogin. *Proceedings of the ACM on Programming Languages (PACM/PL)* volume 1, issue OOPSLA, paper 87, 2017.
 - [C program: mailbox.c](https://github.com/PrincetonUniversity/VST/blob/master/mailbox/mailbox.c)
@@ -190,8 +192,7 @@ Numerical-method Stoermer-Verlet integration of the differential equation for a 
 - [Low+High-level proofs: verif_mailbox_all.v](https://github.com/PrincetonUniversity/VST/blob/master/mailbox/verif_mailbox_all.v)
 
 ### Generational garbage collector
-- Yes:  Low-expressive, Open-source, Documented, Unified, High-Expressive, 32/64-bit
-- Not: Multilevel; that is, a single-layer proof directly proves high-level spec from the C program, there is no functional model in between.
+- Yes:  Low-expressive, Open-source, Documented, High-level, Unified, High-Expressive, 32/64-bit
 
 - The paper: [Certifying Graph-Manipulating C Programs via Localizations within Data Structures](https://dl.acm.org/doi/abs/10.1145/3360597), by Shengyi Wang, Qinxiang Cao, Anshuman Mohan, Aquinas Hobor. *Proceedings of the ACM on Programming Languages* volume 3, issue OOPSLA, October 2019, Article 171, pp 1–30.
 - [C program: gc.c](https://github.com/CertiGraph/CertiGraph/blob/live/CertiGC/GC%20Source/gc.c)
@@ -200,8 +201,9 @@ Numerical-method Stoermer-Verlet integration of the differential equation for a 
 - [Low+High-level proof: gc_correct.v](https://github.com/CertiGraph/CertiGraph/blob/live/CertiGC/gc_correct.v)
 
 ### Malloc-free system with size classes
-- Yes:  Low-expressive, Open-source, Documented, Unified, High-Expressive, Modular, 32-bit
-- Not: Multilevel; that is, a single-layer proof directly proves a high-level spec from the C program, there is no functional model in between.  However, it *is* multilevel in a different sense: there is a refinement/subsumption proof between the resource-tracking spec proved about the code and the resource-insensitive Posix-like spec used by most clients.
+- Yes:  Low-expressive, Open-source, Documented, High-level, Unified, High-Expressive, Modular, 32-bit
+
+A size-class-array implementation of the C malloc/free library.
 
 - The paper: [Verified sequential malloc/free](https://www.cs.princeton.edu/~appel/papers/memmgr.pdf), by Andrew W. Appel and David A. Naumann, in *2020 ACM SIGPLAN International Symposium on Memory Management,* June 2020.
 - [C program: malloc.c](https://github.com/PrincetonUniversity/VST/blob/master/progs/memmgr/malloc.c)
@@ -211,7 +213,12 @@ Numerical-method Stoermer-Verlet integration of the differential equation for a 
 ### Abstract and concrete data types
 - Yes:  Low-expressive, Open-source, Documented, Multilevel, Unified, High-Expressive, Modular, 32-bit
 
-- The paper: [Verified Software Units](https://doi.org/10.1007/978-3-030-72019-3_5), by Lennart Beringer, in *ESOP 2021: European Symposium on Programming*, LNCS 12648.
+The "pile" program that is the running example in the
+Abstraction and Subsumption paper, but
+verified in the style of Verified Software Units.
+
+- The papers: [Abstraction and Subsumption in Modular Verification of C Programs](https://www.cs.princeton.edu/~appel/papers/abstraction-subsumption-full.pdf), by A. W. Appel and L. Beringer; 
+[Verified Software Units](https://link.springer.com/content/pdf/10.1007/978-3-030-72019-3_5.pdf), by Lennart Beringer, in *ESOP 2021: European Symposium on Programming*, LNCS 12648.
 - [C program](https://github.com/PrincetonUniversity/VST/tree/master/progs/VSUpile): pile.c, onepile.c, apile.c, stdlib.c, triang.c, main.c.
 - [Low-level spec, High-level spec](https://github.com/PrincetonUniversity/VST/tree/master/progs/VSUpile):  In a VSU-style verification,
  these are done on a per-module basis.  These specs are all in
