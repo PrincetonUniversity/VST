@@ -1197,7 +1197,7 @@ Proof.
   rewrite <- !sepcon_assoc; apply sepcon_derives, derives_refl.
   rewrite sepcon_comm, (sepcon_comm _ (iter_sepcon _ _)), <- !sepcon_assoc.
   rewrite sepcon_assoc; apply sepcon_derives.
-  { rewrite iter_sepcon_Znth with (i := Z.of_nat i)(l := upto _)
+  { rewrite (iter_sepcon_Znth _ (upto _) (Z.of_nat i))
       by (rewrite Zlength_upto; split; [|apply Nat2Z.inj_lt]; lia).
     rewrite Znth_upto, Znth_replace_nth by lia.
     apply sepcon_derives; [apply derives_refl|].
@@ -1285,9 +1285,9 @@ Proof.
       destruct (eq_dec x i); [subst; rewrite nth_replace_nth in Hin by lia; discriminate|].
       rewrite nth_replace_nth' in Hin by auto; constructor; auto.
       intros X; inv X; contradiction. }
-  { rewrite iter_sepcon_Znth with (i := Z.of_nat i)
+  { rewrite (iter_sepcon_Znth _ _ (Z.of_nat i))
       by (rewrite Zlength_upto; split; [|apply Nat2Z.inj_lt]; lia).
-    rewrite iter_sepcon_Znth with (i := Z.of_nat i)(l := upto _)
+    rewrite (iter_sepcon_Znth _ (upto _) (Z.of_nat i))
       by (rewrite Zlength_upto; split; [|apply Nat2Z.inj_lt]; lia).
     rewrite !Znth_upto, !Znth_replace_nth by lia.
     rewrite Hi.
