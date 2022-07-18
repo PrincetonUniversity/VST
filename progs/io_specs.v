@@ -16,7 +16,7 @@ Definition stdout := 1%nat.
 
 Section specs.
 
-Context {E : Type -> Type} {IO_E:  IO_event(file_id := nat) -< E}.
+Context {E : Type -> Type} `{IO_event(file_id := nat) -< E}.
 
 Definition putchar_spec :=
   WITH c : byte, k : IO_itree
@@ -28,8 +28,7 @@ Definition putchar_spec :=
    EX i : int,
     PROP (Int.signed i = -1 \/ Int.signed i = Byte.unsigned c)
     LOCAL (temp ret_temp (Vint i))
-    SEP (ITREE (if eq_dec (Int.signed i) (-1) 
-                    then (write stdout c ;; k)%itree else k)).
+    SEP (ITREE (if eq_dec (Int.signed i) (-1) then (write stdout c ;; k)%itree else k)).
 
 Definition getchar_spec :=
   WITH k : byte -> IO_itree
@@ -41,8 +40,7 @@ Definition getchar_spec :=
    EX i : int,
     PROP (-1 <= Int.signed i <= Byte.max_unsigned)
     LOCAL (temp ret_temp (Vint i))
-    SEP (ITREE (if eq_dec (Int.signed i) (-1) 
-                     then (r <- read stdin ;; k r)%itree else k (Byte.repr (Int.signed i)))).
+    SEP (ITREE (if eq_dec (Int.signed i) (-1) then (r <- read stdin ;; k r)%itree else k (Byte.repr (Int.signed i)))).
 
 (* Build the external specification. *)
 Program Definition IO_void_Espec : OracleKind := ok_void_spec (@IO_itree E).
