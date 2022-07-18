@@ -1165,7 +1165,7 @@ Proof.
     rewrite Zlength_correct; lia. }
   destruct b.
   erewrite ghost_list_nth with (n := i) by (rewrite nth_map' with (d' := None), Hi'; eauto; lia).
-  rewrite iter_sepcon_Znth with (i := Z.of_nat i)
+  rewrite (iter_sepcon_Znth _ _ (Z.of_nat i))
     by (rewrite Zlength_upto; split; [|apply Nat2Z.inj_lt]; lia).
   rewrite Znth_upto, Hi by lia.
   rewrite (sepcon_assoc (agree _ _)), (sepcon_comm (agree _ _)), <- !sepcon_assoc, sepcon_comm, <- !sepcon_assoc, sepcon_assoc.
