@@ -98,7 +98,7 @@ jobs:
             bit_size: 32
           - bit_size: 64
             make_target: test3
-          - bit_size: 64
+          - bit_size: 32
             make_target: test4
           - bit_size: 64
             make_target: test5

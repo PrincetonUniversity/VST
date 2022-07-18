@@ -425,10 +425,10 @@ Proof.
     split; auto.
 Qed.
 
-Require Import VST.progs64.os_combine.
-Require Import VST.progs64.io_combine.
-Require Import VST.progs64.io_os_specs.
-Require Import VST.progs64.io_os_connection.
+Require Import VST.progs.os_combine.
+Require Import VST.progs.io_combine.
+Require Import VST.progs.io_os_specs.
+Require Import VST.progs.io_os_connection.
 
 (* correctness down to OS traces, with relationship between syscall events and actual external reads/writes *)
 Theorem prog_OS_correct : forall {H : io_os_specs.ThreadsConfigurationOps},
