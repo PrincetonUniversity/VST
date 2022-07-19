@@ -8,6 +8,9 @@ Require Export VST.zlist.sublist.
 Import SublistInternalLib.
 Require Export VST.zlist.Zlength_solver.
 
+(** Ignore Hint Rewrite global attribute for Coq 8.13 *)
+Set Warnings "-unsupported-attributes".
+
 (** This file provides a almost-complete solver for list with concatenation.
   Its core symbols include:
     Zlength
