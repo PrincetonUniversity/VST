@@ -540,12 +540,12 @@ Import Ensembles.
 
 Lemma Union_comm: forall {A} S T, Union A S T = Union A T S.
 Proof.
-  intros; apply Extensionality_Ensembles; split; intros ? H; inv H; solve [constructor 1; auto] || solve [constructor 2; auto].
+  intros; extensionality; apply prop_ext; split; intro H; inv H; solve [constructor 1; auto] || solve [constructor 2; auto].
 Qed.
 
 Lemma Union_assoc: forall {A} S T U, Union A (Union A S T) U = Union A S (Union A T U).
 Proof.
-  intros; apply Extensionality_Ensembles; split; intros ? H; inv H.
+  intros; extensionality; apply prop_ext; split; intro H; inv H.
   - inv H0; [constructor 1 | constructor 2; constructor 1]; auto.
   - constructor 2; constructor 2; auto.
   - constructor 1; constructor 1; auto.
@@ -554,26 +554,26 @@ Qed.
 
 Lemma Union_Empty : forall {A} S, Union A (Empty_set A) S = S.
 Proof.
-  intros; apply Extensionality_Ensembles; split; intros ? H.
+  intros; extensionality; apply prop_ext; split; intro H.
   - inv H; auto; contradiction.
   - constructor 2; auto.
 Qed.
 
 Lemma Intersection_comm: forall {A} S T, Intersection A S T = Intersection A T S.
 Proof.
-  intros; apply Extensionality_Ensembles; split; intros ? H; inv H; constructor; auto.
+  intros; extensionality; apply prop_ext; split; intro H; inv H; constructor; auto.
 Qed.
 
 Lemma Intersection_assoc: forall {A} S T U, Intersection A (Intersection A S T) U = Intersection A S (Intersection A T U).
 Proof.
-  intros; apply Extensionality_Ensembles; split; intros ? H; inv H.
+  intros; extensionality; apply prop_ext; split; intro H; inv H.
   - inv H0; repeat constructor; auto.
   - inv H1; repeat constructor; auto.
 Qed.
 
 Lemma Intersection_Empty : forall {A} S, Intersection A (Empty_set A) S = Empty_set A.
 Proof.
-  intros; apply Extensionality_Ensembles; split; intros ? H; inv H; auto.
+  intros; extensionality; apply prop_ext; split; intro H; inv H; auto.
 Qed.
 
 Global Arguments Union {_} _ _.
@@ -621,7 +621,7 @@ Next Obligation.
         intros x X; inv X; contradiction (H0 x); constructor; auto.
       * apply Union_comm.
     + intros ???? [] []; subst.
-      apply Extensionality_Ensembles; constructor; intros ? X.
+      extensionality; apply prop_ext; split; intro X.
       { left; auto. }
       rewrite H2; left; auto.
 Qed.
@@ -651,10 +651,9 @@ Proof.
   split.
   - constructor; intros ? X; inv X.
     inv H1; contradiction.
-  - apply Extensionality_Ensembles; constructor; intros ? X.
+  - extensionality; apply prop_ext; split; intro X.
     + destruct (Hdec x); [left | right; constructor]; auto.
-    + inv X; auto.
-      inv H0; auto.
+    + destruct X. apply H; auto. inv H0; auto. 
 Qed.
 
 Corollary ghost_set_remove : forall g a s,
@@ -931,8 +930,7 @@ Proof.
   rewrite <- sepcon_assoc, sepcon_comm, sepcon_assoc; apply sepcon_derives; [apply derives_refl|].
   rewrite sepcon_assoc; apply sepcon_derives.
   { match goal with |-?P |-- ?Q => replace P with Q; [apply derives_refl|] end.
-    f_equal; apply Extensionality_Ensembles.
-    constructor; intros ? X; unfold In in *.
+    f_equal. extensionality; apply prop_ext; split; intro X.
     - rewrite !app_nth, nth_repeat in X.
       repeat destruct (lt_dec _ _); auto; try discriminate.
       destruct (x - _)%nat; [|destruct n0]; inv X.
@@ -1060,8 +1058,7 @@ Proof.
   rewrite <- sepcon_assoc, sepcon_comm, sepcon_assoc; apply sepcon_derives; [apply derives_refl|].
   rewrite sepcon_assoc; apply sepcon_derives.
   { match goal with |-?P |-- ?Q => replace P with Q; [apply derives_refl|] end.
-    f_equal; apply Extensionality_Ensembles.
-    constructor; intros ? X; unfold In in *.
+    f_equal. extensionality; apply prop_ext; split; intro X.
     - rewrite !app_nth, nth_repeat in X.
       repeat destruct (lt_dec _ _); auto; try discriminate.
       destruct (x - _)%nat; [|destruct n0]; inv X.
@@ -1186,12 +1183,13 @@ Proof.
   rewrite ghost_set_join, !sepcon_andp_prop1; apply prop_andp_left; intros.
   rewrite !sepcon_assoc; apply sepcon_derives.
   { match goal with |- ghost_set _ ?A |-- ghost_set _ ?B =>
-      rewrite (Extensionality_Ensembles _ A B) end; [apply derives_refl|].
-    split.
-    + intros ? Hin; inv Hin; unfold In in *.
+      replace B with A end.
+    apply derives_refl.
+    extensionality; apply prop_ext; split; intro Hin.
+    + inv Hin.
       * inv H3. rewrite nth_replace_nth; auto; lia.
       * destruct (eq_dec x i); [subst; rewrite nth_replace_nth | rewrite nth_replace_nth']; auto; lia.
-    + intros ? Hin; unfold In in Hin.
+    + 
       destruct (eq_dec x i); [subst; constructor 1; constructor|].
       rewrite nth_replace_nth' in Hin; auto; constructor 2; auto. }
   rewrite <- !sepcon_assoc; apply sepcon_derives, derives_refl.
@@ -1276,12 +1274,12 @@ Proof.
   apply sepcon_derives.
   rewrite !sepcon_assoc; apply sepcon_derives.
   { match goal with |- ghost_set _ ?A |-- ghost_set _ ?B =>
-      rewrite (Extensionality_Ensembles _ A B) end; [apply derives_refl|].
-    split.
-    + intros ? Hin; inv Hin; unfold In in *.
+      replace B with A end; [apply derives_refl|].
+    extensionality; apply prop_ext; split; intro Hin.
+    + inv Hin.
       destruct (eq_dec x i); [subst; contradiction H4; constructor|].
       rewrite nth_replace_nth'; auto.
-    + intros ? Hin; unfold In in Hin.
+    +
       destruct (eq_dec x i); [subst; rewrite nth_replace_nth in Hin by lia; discriminate|].
       rewrite nth_replace_nth' in Hin by auto; constructor; auto.
       intros X; inv X; contradiction. }
@@ -1397,8 +1395,7 @@ Proof.
   - constructor.
     intros ? X; inv X.
     inv H0.
-  - apply Extensionality_Ensembles.
-    constructor; intros ? X; [left | inv X]; auto.
+  - extensionality; apply prop_ext; split; intro X; [left | inv X]; auto.
     inv H.
 Qed.
 
@@ -1438,8 +1435,8 @@ Proof.
     replace (fun i : iname => match i with
                                      | 0%nat | _ => None
                                      end = Some false) with (@Ensembles.Empty_set nat); auto.
-    apply Ensembles.Extensionality_Ensembles; split.
-    + intros ? H; inv H.
-    + intros ? H; hnf in H.
+    extensionality; apply prop_ext; split; intro H.
+    + inv H.
+    + hnf in H.
       destruct x; inv H.
 Qed.

@@ -4,7 +4,7 @@ Require Import Coq.ZArith.ZArith.
 
 Require Import VST.zlist.sublist.
 Require Import VST.veric.invariants.
-Require Import VST.floyd.proofauto.
+Require Import VST.floyd.base2.
 
 Import ListNotations.
 Local Open Scope Z.

@@ -464,7 +464,7 @@ Proof.
       * eexists; repeat constructor.
   - constructor; intros ? X; inv X.
     inv H.
-  - apply Ensembles.Extensionality_Ensembles; split; intros; intros ??; unfold Ensembles.In in *.
+  - extensionality; apply prop_ext; split; intro.
     + inv H.
     + destruct x; inv H.
 Qed.
