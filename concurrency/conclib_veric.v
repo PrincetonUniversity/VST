@@ -645,7 +645,7 @@ Qed.
 
 Lemma sepcon_derives_prop : forall P Q R, (P |-- !!R) -> P * Q |-- !!R.
 Proof.
-  intros; eapply derives_trans; [apply saturate_aux20 with (Q' := True); eauto|].
+  intros; eapply derives_trans; [apply saturate_aux20 with (Q' := True);[eauto|]|].
   - entailer!.
   - apply prop_left; intros (? & ?); apply prop_right; auto.
 Qed.
@@ -734,7 +734,7 @@ Lemma valid_pointer_isptr : forall v, valid_pointer v |-- !!(is_pointer_or_null 
 Proof.
 Transparent mpred.
 Transparent predicates_hered.pred.
-  destruct v; simpl; auto; try apply derives_refl.
+  destruct v; simpl; try apply derives_refl.
   apply prop_right; auto.
 Opaque mpred. Opaque predicates_hered.pred.
 Qed.

@@ -1406,7 +1406,7 @@ Proof.
   - Exists (fun _ : nat => @None hist_el); apply andp_right, derives_refl.
     apply prop_right; split; [apply hist_list_nil|].
     split; auto.
-    if_tac; auto.
+    if_tac; [auto|].
     reflexivity.
 Qed.
 
