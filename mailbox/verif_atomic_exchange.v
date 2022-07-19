@@ -3,18 +3,14 @@ Require Import VST.concurrency.conclib.
 Require Import VST.concurrency.ghosts.
 Require Import VST.floyd.library.
 Require Import VST.zlist.sublist.
+Require Import VST.concurrency.lock_specs.
+Require Import VST.atomics.verif_lock.
 Require Import mailbox.atomic_exchange.
 Require Import Lia.
-
-Set Bullet Behavior "Strict Subproofs".
 
 (* standard VST prelude *)
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
-
-(* import funspecs from concurrency library *)
-Definition acquire_spec := DECLARE _acquire acquire_spec.
-Definition release_spec := DECLARE _release release_spec.
 
 Section AEHist.
 
@@ -74,10 +70,8 @@ Lemma AE_loc_super_non_expansive : forall n sh l p g i R h,
   compcert_rmaps.RML.R.approx n (AE_loc sh l p g i (fun h v => compcert_rmaps.RML.R.approx n (R h v)) h).
 Proof.
   intros; unfold AE_loc.
-  rewrite !approx_sepcon.
-  rewrite (nonexpansive_super_non_expansive (fun R => lock_inv sh l R)) by (apply nonexpansive_lock_inv).
-  setoid_rewrite (nonexpansive_super_non_expansive (fun R => lock_inv sh l R)) at 2;
-    [|apply nonexpansive_lock_inv].
+  rewrite !approx_sepcon; f_equal.
+  setoid_rewrite lock_inv_super_non_expansive; do 2 f_equal.
   rewrite AE_inv_super_non_expansive; auto.
 Qed.
 
@@ -87,20 +81,33 @@ Definition AE_spec i P R Q := ALL hc : _, ALL hx : _, ALL vc : _, ALL vx : _,
   ((R hx vx * P hc vc) -* (|==> R (hx ++ [AE vx vc]) vc *
     Q (map_upd hc (length hx) (AE vx vc)) vx)).
 
+Lemma AE_spec_super_non_expansive : forall n i P R Q, compcert_rmaps.RML.R.approx n (AE_spec i P R Q) =
+  compcert_rmaps.RML.R.approx n (AE_spec i (fun h v => compcert_rmaps.RML.R.approx n (P h v))
+                                           (fun h v => compcert_rmaps.RML.R.approx n (R h v))
+                                           (fun h v => compcert_rmaps.RML.R.approx n (Q h v))).
+Proof.
+  intros; unfold AE_spec.
+  rewrite !(approx_allp _ _ _ empty_map); apply f_equal; extensionality.
+  rewrite !(approx_allp _ _ _ []); apply f_equal; extensionality.
+  rewrite !(approx_allp _ _ _ Vundef); apply f_equal; extensionality.
+  rewrite !(approx_allp _ _ _ Vundef); apply f_equal; extensionality.
+  setoid_rewrite approx_imp; f_equal; f_equal.
+  rewrite view_shift_nonexpansive, !approx_sepcon; auto.
+Qed.
+
 Definition AE_type := ProdType (ProdType (ProdType
-  (ConstType (share * val * gname * val * val * val * hist))
+  (ConstType (share * val * gname * lock_handle * val * val * hist))
   (ArrowType (ConstType hist) (ArrowType (ConstType val) Mpred)))
   (ArrowType (ConstType (list AE_hist_el)) (ArrowType (ConstType val) Mpred)))
   (ArrowType (ConstType hist) (ArrowType (ConstType val) Mpred)).
 
 (* specification of atomic exchange *)
 Program Definition atomic_exchange_spec := DECLARE _simulate_atomic_exchange
-  TYPE AE_type WITH lsh : share, tgt : val, g : gname, l : val,
+  TYPE AE_type WITH lsh : share, tgt : val, g : gname, l : lock_handle,
     i : val, v : val, h : hist, P : hist -> val -> mpred, R : list AE_hist_el -> val -> mpred, Q : hist -> val -> mpred
-  PRE [ (*_tgt OF*) tptr tint, (*_l OF*) tptr (Tstruct _lock_t noattr), (*_v OF*) tint ]
+  PRE [ tptr tint, tptr t_lock, tint ]
    PROP (tc_val tint v; readable_share lsh)
-   (*LOCAL (temp _tgt tgt; temp _l l; temp _v v)*)
-   PARAMS (tgt;l;v) GLOBALS ()
+   PARAMS (tgt; ptr_of l; v) GLOBALS ()
    SEP (AE_loc lsh l tgt g i R h; P h v; AE_spec i P R Q)
   POST [ tint ]
    EX t : nat, EX v' : val,
@@ -113,15 +120,9 @@ Proof.
   destruct x as (((((((((?, ?), ?), ?), ?), ?), ?), P), R), Q); simpl.
   unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl; rewrite !approx_andp; f_equal; f_equal;
     rewrite !sepcon_emp, ?approx_sepcon, ?approx_idem.
-  rewrite AE_loc_super_non_expansive; f_equal; f_equal.
-  unfold AE_spec.
-(*  rewrite !(approx_allp _ _ _ empty_map); apply f_equal; extensionality hc.
-  rewrite !(approx_allp _ _ _ []); apply f_equal; extensionality hv.
-  rewrite !(approx_allp _ _ _ Vundef); apply f_equal; extensionality vc.
-  rewrite !(approx_allp _ _ _ Vundef); apply f_equal; extensionality vx.
-  setoid_rewrite approx_imp; f_equal; f_equal.
-  rewrite view_shift_nonexpansive, !approx_sepcon; auto.
-Qed.*)Admitted.
+  rewrite AE_loc_super_non_expansive; do 3 f_equal.
+  apply AE_spec_super_non_expansive.
+Qed.
 Next Obligation.
 Proof.
   repeat intro.
@@ -139,7 +140,7 @@ Lemma body_atomic_exchange : semax_body Vprog Gprog f_simulate_atomic_exchange a
 Proof. 
   start_dep_function.
   unfold AE_loc; Intros.
-  forward_call (l, lsh, AE_inv tgt g i R).
+  forward_call (lsh, l, AE_inv tgt g i R).
   unfold AE_inv at 2; Intros h' v'.
   assert (lsh <> Share.bot).
   { intro; subst; contradiction unreadable_bot. }
@@ -157,20 +158,21 @@ Proof.
     apply prop_right; eapply hist_sub_list_incl; eauto. }
   viewshift_SEP 0
     (ghost_hist lsh (map_upd h (length h') (AE v' v)) g * ghost_ref (h' ++ [AE v' v]) g)
-    by (go_lower; apply hist_add').
+    by (go_lower; eapply derives_trans, bupd_fupd; apply hist_add').
   gather_SEP (AE_spec _ _ _ _) (R h' v') (P h v); rewrite sepcon_assoc; simpl.
   viewshift_SEP 0 (R (h' ++ [AE v' v]) v * Q (map_upd h (length h') (AE v' v)) v').
   { go_lower; unfold AE_spec.
+    eapply derives_trans, bupd_fupd.
     eapply derives_trans; [apply allp_sepcon1 | apply allp_left with h].
     eapply derives_trans; [apply allp_sepcon1 | apply allp_left with h'].
     eapply derives_trans; [apply allp_sepcon1 | apply allp_left with (Vint v)].
     eapply derives_trans; [apply allp_sepcon1 | apply allp_left with (Vint v')].
     rewrite prop_imp by auto.
     rewrite sepcon_comm; apply modus_ponens_wand. }
-  forward_call (l, lsh, AE_inv tgt g i R).
+  forward_call release_simple (lsh, l, AE_inv tgt g i R).
   { lock_props.
     unfold AE_inv.
-    Exists (h' ++ [AE v' v]) v; entailer!.
+    Exists (h' ++ [AE v' v]) v; entailer!; cancel.
   }
   forward.
   Exists (length h') (Vint v'). unfold AE_loc; entailer!.

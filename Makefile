@@ -42,6 +42,10 @@ endif
 # COMPCERT=src_dir      (build and use in source folder COMPCERT_SRC_DIR the variant specified by ARCH and BITSIZE)
 # COMPCERT=inst_dir     (use prebuilt CompCert in COMPCERT_INST_DIR - BITSIZE and ARCH can be left empty or must match)
 #
+# # Choosing VST zlist #
+# ZLIST=platform     (use zlist from installed library)
+# ZLIST=bundled      (default, build and use bundled zlist)
+#
 # # Choosing BITSIZE #
 # BITSIZE=32 
 # BITSIZE=64
@@ -62,6 +66,7 @@ endif
 
 # # User settable variables #
 COMPCERT ?= platform
+ZLIST ?= bundled
 ARCH ?= 
 BITSIZE ?=
 
@@ -235,7 +240,11 @@ endif
 
 # ########## Flags ##########
 
-VSTDIRS= msl sepcomp veric zlist floyd $(PROGSDIR) concurrency ccc26x86 atomics
+ifeq ($(ZLIST),platform)
+  VSTDIRS= msl sepcomp veric floyd $(PROGSDIR) concurrency ccc26x86 atomics
+else
+  VSTDIRS= msl sepcomp veric zlist floyd $(PROGSDIR) concurrency ccc26x86 atomics
+endif
 OTHERDIRS= wand_demo sha hmacfcf tweetnacl20140427 hmacdrbg aes mailbox boringssl_fips_20180730
 DIRS = $(VSTDIRS) $(OTHERDIRS)
 
@@ -302,6 +311,7 @@ $(info ===== CONFIGURATION SUMMARY =====)
 $(info COMPCERT=$(COMPCERT))
 $(info COMPCERT_SRC_DIR=$(COMPCERT_SRC_DIR))
 $(info COMPCERT_INST_DIR=$(COMPCERT_INST_DIR))
+$(info ZLIST=$(ZLIST))
 $(info BITSIZE=$(BITSIZE))
 $(info ARCH=$(ARCH))
 $(info INSTALLDIR=$(INSTALLDIR))
@@ -688,17 +698,17 @@ ifeq ($(BITSIZE),64)
 test: vst progs64
 	@# need this tab here to turn of special behavior of 'test' target
 test2: io
-tests: test test2
+test4: mailbox 
+tests: test test2 test4
 all: tests
 else
 test: vst progs
 	@# need this tab here to turn of special behavior of 'test' target
 test2: io
 test3: sha hmac 
-test4: mailbox 
 test5: VSUpile
-tests: test test2 test3 test4 test5
-all: vst files tests hmacdrbg tweetnacl aes
+tests: test test2 test3 test5
+all: vst files tests memmgr hmacdrbg tweetnacl aes
 endif
 
 files: _CoqProject $(FILES:.v=.vo)
@@ -733,8 +743,8 @@ hkdf:    _CoqProject $(HKDF_FILES:%.v=sha/%.vo)
 # drbg: _CoqProject $(DRBG_FILES:%.v=verifiedDrbg/%.vo)
 mailbox: _CoqProject mailbox/verif_mailbox_all.vo
 # atomics: _CoqProject atomics/verif_kvnode_atomic.vo atomics/verif_kvnode_atomic_ra.vo atomics/verif_hashtable_atomic.vo atomics/verif_hashtable_atomic_ra.vo
-atomics: _CoqProject atomics/verif_hashtable_atomic.vo $(PROGSDIR)/verif_incr_atomic.vo atomics/lock.vo atomics/verif_lock.vo
-io: _CoqProject $(PROGSDIR)/verif_printf.vo $(PROGSDIR)/verif_io.vo $(PROGSDIR)/verif_io_mem.vo $(PROGSDIR)/io_specs.vo floyd/printf.vo
+atomics: _CoqProject atomics/verif_hashtable_atomic.vo $(PROGSDIR)/verif_incr_atomic.vo atomics/verif_lock.vo atomics/verif_lock_atomic.vo
+io: _CoqProject $(PROGSDIR)/os_combine.vo $(PROGSDIR)/verif_printf.vo $(PROGSDIR)/verif_io.vo $(PROGSDIR)/verif_io_mem.vo $(PROGSDIR)/io_specs.vo floyd/printf.vo
 
 $(CVOFILES): compcert
 
@@ -842,6 +852,7 @@ endif
 clean:
 	rm -f $(addprefix veric/version., v vo vos vok glob) .lia.cache .nia.cache floyd/floyd.coq .depend _CoqProject _CoqProject-export $(wildcard */.*.aux)  $(wildcard */*.glob) $(wildcard */*.vo */*.vos */*.vok) compcert/*/*.{vo,vos,vok} compcert/*/*/*.{vo,vos,vok}  compcert_new/*/*.{vo,vos,vok} compcert_new/*/*/*.{vo,vos,vok}
 	rm -f progs/VSUpile/{*,*/*}.{vo,vos,vok,glob}
+	rm -f progs/memmgr/*.{vo,vos,vok,glob}
 	rm -f coq-ext-lib/theories/*.{vo,vos,vok,glob} InteractionTrees/theories/{*,*/*}.{vo,vos,vok,glob}
 	rm -f paco/src/*.{vo,vos,vok,glob}
 	rm -f fcf/src/FCF/*.{vo,vos,vok,glob}
@@ -877,7 +888,9 @@ progs64v: progs64c $(V64_ORDINARY:%.v=progs64/%.v) $(C64_ORDINARY:%.c=progs64/%.
 progs64: _CoqProject  $(PROGS64_FILES:%.v=progs64/%.vo)
 
 VSUpile: floyd/proofauto.vo floyd/library.vo floyd/VSU.vo
-	cd progs/VSUpile; $(MAKE) BUNDLED=true
+	cd progs/VSUpile; $(MAKE) VST_LOC=../..
+memmgr:  floyd/proofauto.vo floyd/library.vo floyd/VSU.vo
+	cd progs/memmgr; $(MAKE) VST_LOC=../..
 
 nothing: # need this target for the degenerate case of "make -tk */*.vo" in coq-action.yml
 

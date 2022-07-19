@@ -1194,4 +1194,3 @@ rewrite H in *; auto.
 apply ghost_of_approx.
 Defined.
 
-

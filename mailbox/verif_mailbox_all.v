@@ -12,8 +12,6 @@ Require Import mailbox.verif_mailbox_reader.
 Require Import mailbox.verif_mailbox_writer.
 Require Import mailbox.verif_mailbox_main.
 
-Set Bullet Behavior "Strict Subproofs".
-
 Definition extlink := ext_link_prog prog.
 Definition Espec := add_funspecs (Concurrent_Espec unit _ extlink) extlink Gprog.
 #[export] Existing Instance Espec.
@@ -29,11 +27,17 @@ repeat (eapply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | LookupI
 repeat semax_func_cons_ext.
 semax_func_cons body_malloc. apply semax_func_cons_malloc_aux.
 repeat semax_func_cons_ext.
-{ unfold PROPx, LOCALx, local, lift1, liftx, lift; simpl.
+{ unfold PROPx, LOCALx, SEPx, local, lift1, liftx, lift; simpl.
+  unfold liftx, lift; simpl.
+  Intros x; subst.
+  sep_apply lock_inv_isptr; Intros.
+  apply prop_right; unfold make_ext_rval, eval_id in *; simpl in *.
+  destruct ret; simpl in *; subst; auto. }
+{ unfold PROPx, LOCALx, SEPx, local, lift1, liftx, lift; simpl.
   unfold liftx, lift; simpl.
   Intros; subst.
   apply prop_right; unfold make_ext_rval, eval_id in *; simpl in *.
-  destruct ret; auto. }
+  destruct ret; simpl in *; subst; auto. }
 semax_func_cons body_surely_malloc.
 semax_func_cons body_memset.
 semax_func_cons body_initialize_channels.

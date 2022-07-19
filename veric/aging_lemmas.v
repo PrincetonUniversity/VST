@@ -112,65 +112,24 @@ Proof.
     lia.
 Qed.
 
-Lemma jsafeN__age {G C Z HH Sem Jspec ge ora q n} jm jmaged :
+Lemma jsafeN__age {G C Z HH Sem Jspec ge ora q} jm jmaged :
   ext_spec_stable age (JE_spec _ Jspec) ->
   age jm jmaged ->
-  Peano.le n (level jmaged) ->
-  @jsafeN_ G Z C HH Sem Jspec ge n ora q jm ->
-  @jsafeN_ G Z C HH Sem Jspec ge n ora q jmaged.
+  @jsafeN_ G Z C HH Sem Jspec ge ora q jm ->
+  @jsafeN_ G Z C HH Sem Jspec ge ora q jmaged.
 Proof.
-  revert q jm jmaged; induction n.
-  - constructor 1.
-  - intros ??? heredspec A L Safe.
-    inv Safe.
-    + destruct (jstep_age_sim A H0 ltac:(lia)) as [jmaged' [A' step']].
-      econstructor 2; eauto.
-      intros gh Hg J.
-      rewrite (age1_ghost_of _ _ (age_jm_phi A')) in J.
-      destruct (own.ghost_joins_approx _ _ _ J) as (J' & Hd').
-      rewrite <- level_juice_level_phi in *.
-      rewrite <- (age_level _ _ A') in *.
-      rewrite level_juice_level_phi, ghost_of_approx in J'.
-      destruct (H1 (own.make_join (ghost_of (m_phi m')) gh)) as (b & ? & Hupd & Hsafe); auto.
-      { eapply make_join_ext; eauto. }
-      destruct (jm_update_age _ _ _ Hupd A') as (b' & Hupd' & Hage').
-      eapply IHn in Hsafe; eauto.
-      eexists; split; [|eauto].
-      rewrite (age1_ghost_of _ _ (age_jm_phi Hage')).
-      rewrite <- level_juice_level_phi.
-      destruct Hupd' as (_ & -> & _); auto.
-      { destruct Hupd' as (_ & -> & _).
-        apply age_level in A'.
-        destruct H0 as (? & ? & ? & ?).
-        apply age_level in A.
-        lia. }
-    + econstructor 3.
-      * unfold j_at_external in *; rewrite <- (age_jm_dry A); eassumption.
-      * eapply (proj1 heredspec); eauto.
-      * intros ret jm' z' n' Hargsty Hretty H rel post.
-        destruct (H2 ret jm' z' n' Hargsty Hretty H) as (c' & atex' & safe'); eauto.
-        unfold Hrel in *.
-        split;[|split]; try apply rel.
-        -- apply age_level in A; lia.
-        -- apply age_jm_phi in A.
-           unshelve eapply (pures_eq_unage _ A), rel.
-           do 2 rewrite <-level_juice_level_phi.
-           lia.
-    + econstructor 4. eauto.
-      eapply (proj2 heredspec); eauto.
+  intros; eapply age_safe; eauto.
 Qed.
 
-Lemma jsafeN__age_to {G C Z HH Sem Jspec ge ora q n} l jm :
+Lemma jsafeN__age_to {G C Z HH Sem Jspec ge ora q} l jm :
   ext_spec_stable age (JE_spec _ Jspec) ->
-  Peano.le n l ->
-  @jsafeN_ G Z C HH Sem Jspec ge n ora q jm ->
-  @jsafeN_ G Z C HH Sem Jspec ge n ora q (age_to l jm).
+  @jsafeN_ G Z C HH Sem Jspec ge ora q jm ->
+  @jsafeN_ G Z C HH Sem Jspec ge ora q (age_to l jm).
 Proof.
   intros Stable nl.
-  apply age_to_ind_refined.
+  apply age_to_ind_refined; auto.
   intros x y H L.
   apply jsafeN__age; auto.
-  lia.
 Qed.
 
 Lemma m_dry_age_to n jm : m_dry (age_to n jm) = m_dry jm.

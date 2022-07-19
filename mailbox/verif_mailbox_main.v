@@ -5,7 +5,6 @@ Require Import VST.floyd.library.
 Require Import VST.zlist.sublist.
 Require Import mailbox.mailbox.
 Require Import mailbox.verif_mailbox_specs.
-Set Bullet Behavior "Strict Subproofs".
 
 Opaque upto.
 
@@ -21,11 +20,11 @@ Proof.
   start_function.
   sep_apply (create_mem_mgr gv).
   do 3 sep_apply (data_at_data_at_ Ews (tarray (tptr tint) 3)).
-  sep_apply (data_at_data_at_ Ews (tarray (tptr (Tstruct _lock_t noattr)) 3)).
+  sep_apply (data_at_data_at_ Ews (tarray (tptr t_lock) 3)).
   sep_apply (data_at_data_at_ Ews (tarray (tptr (Tstruct _buffer noattr)) 5)).
-  simpl readonly2share.  (* TODO: delete this line when possible *)
+(*  simpl readonly2share.  (* TODO: delete this line when possible *)*)
   exploit (split_shares (Z.to_nat N) Ews); auto; intros (sh0 & shs & ? & ? & ? & ?).
-  rewrite (data_at__eq _ (tarray (tptr (Tstruct _lock_t noattr)) N)), lock_struct_array.
+  rewrite (data_at__eq _ (tarray (tptr t_lock) N)).
   forward_call (sh0, shs, gv).
   Intros x; destruct x as ((((((((comms, locks), bufs), reads), lasts), g), g0), g1), g2).
   assert_PROP (Zlength comms = N).
@@ -45,11 +44,11 @@ Proof.
     do 2 eexists; eauto.
     eapply readable_share_list_join; eauto.
     inv H1; auto; discriminate. }
-  forward_spawn _writer (vint 0) (locks, comms, bufs, sh0, sh0, sh0, shs, g, g0, g1, g2, gv).
- { rewrite !sepcon_andp_prop'.
+  forward_spawn _writer (vptrofs 0) (locks, comms, bufs, sh0, gsh1, sh0, shs, g, g0, g1, g2, gv).
+  { rewrite !sepcon_andp_prop'.
     apply andp_right; [apply prop_right; repeat (split; auto)|].
-    unfold comm_loc; erewrite map_ext;
-      [|intro; erewrite <- AE_loc_join with (h1 := empty_map)(h2 := empty_map);
+    erewrite (map_ext (fun r => comm_loc _ _ _ _ _ _ _ _ _ _ _));
+      [|intro; unfold comm_loc; erewrite <- AE_loc_join with (h1 := empty_map)(h2 := empty_map);
         try apply incl_compatible; eauto; reflexivity].
     rewrite !sepcon_map.
     do 3 (erewrite <- (data_at_shares_join_old Ews); eauto).
@@ -62,8 +61,8 @@ Proof.
       rewrite Zlength_map.
       rewrite Zlength_sublist; unfold B, N in *; lia.
     }
-    fast_cancel.
-    rewrite <- !sepcon_assoc, (sepcon_comm _ (fold_right sepcon emp (upd_Znth 0 _ _))), !sepcon_assoc.
+    unfold comm_loc; cancel.
+    rewrite (sepcon_comm _ (fold_right sepcon emp (upd_Znth 0 _ _))), !sepcon_assoc.
     rewrite <- !sepcon_assoc, (sepcon_comm _ (data_at sh0 tbuffer _ _)), !sepcon_assoc.
     rewrite <- sepcon_assoc; apply sepcon_derives; [|cancel].
     assert (Zlength (data_at sh0 tbuffer (vint 0) (Znth 0 bufs)
@@ -95,17 +94,15 @@ Proof.
    SEP (EX sh' : share, !!(sepalg_list.list_join sh0 (sublist i N shs) sh') &&
           data_at sh' (tarray (tptr tint) N) lasts (gv _last_read) * data_at sh' (tarray (tptr tint) N) reads (gv _reading);
         fold_right sepcon emp (map (fun sh => data_at sh (tarray (tptr tint) N) comms (gv _comm)) (sublist i N shs));
-        fold_right sepcon emp (map (fun sh => data_at sh (tarray (tptr tlock) N) locks (gv _lock)) (sublist i N shs));
+        fold_right sepcon emp (map (fun sh => data_at sh (tarray (tptr t_lock) N) (map ptr_of locks) (gv _lock)) (sublist i N shs));
         fold_right sepcon emp (map (fun sh => data_at sh (tarray (tptr tbuffer) B) bufs (gv _bufs)) (sublist i N shs));
-        fold_right sepcon emp (map (fun x => comm_loc sh2 (Znth x locks) (Znth x comms)
+        fold_right sepcon emp (map (fun x => comm_loc gsh2 (Znth x locks) (Znth x comms)
           (Znth x g) (Znth x g0) (Znth x g1) (Znth x g2) bufs (Znth x shs) gsh2
           empty_map) (sublist i N (upto (Z.to_nat N))));
-        fold_right sepcon emp (map (ghost_hist(hist_el := AE_hist_el) Ish empty_map) g);
         fold_right sepcon emp (map (ghost_var gsh1 (vint 1)) (sublist i N g0));
         fold_right sepcon emp (map (data_at_ Ews tint) (sublist i N reads));
         fold_right sepcon emp (map (data_at_ Ews tint) (sublist i N lasts));
         fold_right sepcon emp (map (malloc_token Ews tint) comms);
-        fold_right sepcon emp (map (malloc_token Ews tlock) locks);
         fold_right sepcon emp (map (malloc_token Ews tbuffer) bufs);
         fold_right sepcon emp (map (malloc_token Ews tint) reads);
         fold_right sepcon emp (map (malloc_token Ews tint) lasts);
@@ -124,7 +121,7 @@ Proof.
     apply sepalg.join_comm in Hj1; destruct (sepalg_list.list_join_assoc1 Hj1 Hj2) as (sh1' & ? & Hj').
     assert_PROP (isptr d) by entailer!.
     forward_spawn _reader d (i, reads, lasts, locks, comms,
-      bufs, Znth i shs, sh2, Znth i shs, Znth i g, Znth i g0, Znth i g1, Znth i g2, gv).
+      bufs, Znth i shs, gsh2, Znth i shs, Znth i g, Znth i g0, Znth i g1, Znth i g2, gv).
     - rewrite !sepcon_andp_prop'.
       apply andp_right; [apply prop_right; repeat (split; auto)|].
       { apply Forall_Znth; auto; match goal with H : Zlength shs = _ |- _ => setoid_rewrite H; auto end. }

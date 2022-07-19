@@ -50,10 +50,8 @@ void initialize_channels(){
     reading[r] = c;
     c = surely_malloc(sizeof(buf_id));
     last_read[r] = c;
-    lock_t *l = surely_malloc(sizeof(lock_t));
-    lock[r] = l;
-    makelock(l);
-    release(l);
+    lock[r] = makelock();
+    release(lock[r]);
   }
 }
 
@@ -134,7 +132,7 @@ void finish_write(){
   writing = Empty;
 }
 
-void *reader(void *arg){
+int reader(void *arg){
   int r = *(int *)arg;
   initialize_reader(r);
   while(1){
@@ -144,10 +142,10 @@ void *reader(void *arg){
     //   printf("Reader %d read %d\n", r, v);
     finish_read(r);
   }
-  return NULL;
+  return 0;
 }
 
-void *writer(void *arg){
+int writer(void *arg){
   initialize_writer();
   unsigned v = 0;
   while(1){
@@ -157,7 +155,7 @@ void *writer(void *arg){
     finish_write();
     v++;
   }
-  return NULL;
+  return 0;
 }
 
 int main(){
@@ -173,4 +171,3 @@ int main(){
 
   while(1);
 }
-

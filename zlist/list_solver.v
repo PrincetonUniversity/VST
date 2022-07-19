@@ -1755,12 +1755,9 @@ Proof. intros. apply I. Qed.
 
 (* These must be Global because they are inside a Module.
   That's a problem; we should fix this somehow. *)
-#[global]
-Hint Rewrite Z.add_0_r : Z_normalize_0.
-#[global]
-Hint Rewrite Z.add_0_l : Z_normalize_0.
-#[global]
-Hint Rewrite Z.sub_0_r : Z_normalize_0.
+Global Hint Rewrite Z.add_0_r : Z_normalize_0.
+Global Hint Rewrite Z.add_0_l : Z_normalize_0.
+Global Hint Rewrite Z.sub_0_r : Z_normalize_0.
 
 Ltac pose_range_saturate_shift l s :=
   let H := fresh in

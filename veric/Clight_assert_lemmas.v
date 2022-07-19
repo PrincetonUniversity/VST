@@ -18,6 +18,10 @@ Qed.
 
 #[export] Hint Resolve corable_funassert : core.
 
+Section invs.
+
+Context {inv_names : invariants.invG}.
+
 Definition allp_fun_id (Delta : tycontext) (rho : environ): pred rmap :=
  ALL id : ident , ALL fs : funspec ,
   !! ((glob_specs Delta) ! id = Some fs) -->
@@ -138,6 +142,7 @@ Proof.
   intros. eapply derives_trans. apply funassert_allp_fun_id_sigcc.
   apply allp_fun_id_sigcc_sub; trivial.
 Qed.
+
 (*
 Lemma corable_jam: forall {B} {S': B -> Prop} (S: forall l, {S' l}+{~ S' l}) (P Q: B -> pred rmap),
     (forall loc, corable (P loc)) ->
@@ -338,3 +343,5 @@ destruct H0; subst; auto.
 Qed.
 
 End STABILITY.
+
+End invs.

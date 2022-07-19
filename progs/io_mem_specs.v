@@ -16,7 +16,7 @@ Notation "' p <- t1 ;; t2" :=
 
 Section specs.
 
-Context {E : Type -> Type} {IO_E: IO_event(file_id := nat) -< E}.
+Context {E : Type -> Type} `{IO_event(file_id := nat) -< E}.
 
 Fixpoint read_list_aux f n d : itree E (list byte) :=
   match n with

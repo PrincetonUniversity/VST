@@ -7,6 +7,15 @@ Import List.
 
 (* Lemmas about ghost state, proved with Iris bupd *)
 
+#[export] Instance unfash_persistent P : Persistent (alg_seplog.unfash P).
+Proof.
+  change unfash with (@subtypes.unfash rmap _ _).
+  constructor; intros ??; hnf.
+  unfold bi_persistently; simpl.
+  unfold unfash in *; simpl in *.
+  rewrite level_core; auto.
+Qed.
+
 Section ghost.
 
 Context {RA: Ghost}.
@@ -147,6 +156,12 @@ Notation ghost_var := (@ghost_var A).
 Lemma ghost_var_update : forall v p v', ghost_var Tsh v p |-- (|==> ghost_var Tsh v' p)%I.
 Proof.
   exact ghost_var_update.
+Qed.
+
+Lemma ghost_var_update' : forall g (v1 v2 v : A), ghost_var gsh1 v1 g * ghost_var gsh2 v2 g |--
+  |==> !!(v1 = v2) && (ghost_var gsh1 v g * ghost_var gsh2 v g).
+Proof.
+  exact ghost_var_update'.
 Qed.
 
 End GVar.

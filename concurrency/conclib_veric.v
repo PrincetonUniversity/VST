@@ -1,5 +1,6 @@
 Require Import VST.msl.predicates_hered.
 Require Import VST.veric.ghosts.
+Require Import VST.veric.invariants.
 Require Import VST.msl.iter_sepcon.
 Require Import VST.msl.ageable.
 Require Import VST.msl.age_sepalg.
