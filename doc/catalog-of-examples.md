@@ -50,6 +50,10 @@ Secure Hash Algorithm from an early release of OpenSSL.
 We include this here because it is an important component of HMAC and HMAC-DRBG.
 Even though nobody knows how to do the high-level proof (whether in a proof assistant or in just "mathematics") that SHA-256 is collision-resistant, everybody assumes that's true, and based on that assumption one can do high-level proofs (in math or in Coq) of the properties of HMAC and HMAC-DRBG; see below.
 
+*Warning: These proofs are very old (dating originally from 2013), and
+therefore clumsy and cumbersome, because they often do not take
+advantage of more modern VST-Floyd proof automation.*
+
 Where to find it:
 - The paper: [Second Edition: Verification of a Cryptographic Primitive: SHA-256](https://www.cs.princeton.edu/~appel/papers/verif-sha-2.pdf). This is a very minor revision of Verification of a Cryptographic Primitive: SHA-256, by Andrew W. Appel, *ACM Transactions on Programming Languages and Systems* 37(2) 7:1-7:31, April 2015.
 - [C program: sha.c](https://github.com/PrincetonUniversity/VST/blob/master/sha/sha.c)
@@ -69,6 +73,10 @@ from compiling OpenSSL 0.9.1c using CompCert, correctly implements the FIPS stan
 SHA, and implements a cryptographically secure PRF (pseudorandom function)
 subject to the usual assumptions about SHA.
 
+*Warning: These proofs are very old (dating originally from 2014), and
+therefore clumsy and cumbersome, because they often do not take
+advantage of more modern VST-Floyd proof automation.*
+
 Where to find it:
 - The paper: [Verified Correctness and Security of OpenSSL HMAC](https://www.cs.princeton.edu/~appel/papers/verified-hmac.pdf), by Lennart Beringer, Adam Petcher, Katherine Q. Ye, and Andrew W. Appel. *24th USENIX Security Symposium,* pages 207-221, August 2015.
 - [C program: hmac.c](https://github.com/PrincetonUniversity/VST/blob/master/sha/hmac.c)
@@ -82,6 +90,11 @@ Where to find it:
 - Yes:  Low-expressive, Open-source, Documented, Multilevel, Unified, High-Expressive, 32-bit
 
 Widely used cryptographic random number generator standardized by NIST and implemented in mbedTLS open-source library: takes a small sequence of truly random bits and expands to a much longer sequence of hard-to-predict bits.
+
+*Warning: These proofs are very old (dating originally from 2016),
+done by a novice VST user, 
+ and are therefore clumsy and cumbersome, because they often do not take
+advantage of more modern VST-Floyd proof automation.*
 
 **Theorem.**
 1.  Verson 2.1.1 of the mbedTLS
@@ -186,6 +199,10 @@ Numerical-method Stoermer-Verlet integration of the differential equation for a 
 
 - Yes:  Low-expressive, Open-source, Documented, High-level, Unified, High-Expressive, 32-bit
 
+*Warning: These proofs are moderately old (dating originally from 2015), and
+therefore clumsy and cumbersome, because they often do not take
+advantage of more modern VST-Floyd proof automation.*
+
 - The paper: [A verified messaging system](https://dl.acm.org/doi/10.1145/3133911), by William Mansky, Andrew W. Appel, and Aleksey Nogin. *Proceedings of the ACM on Programming Languages (PACM/PL)* volume 1, issue OOPSLA, paper 87, 2017.
 - [C program: mailbox.c](https://github.com/PrincetonUniversity/VST/blob/master/mailbox/mailbox.c)
 - [Low+High-level spec: verif_mailbox_specs.v](https://github.com/PrincetonUniversity/VST/blob/master/mailbox/verif_mailbox_specs.v)
@@ -232,6 +249,10 @@ verified in the style of Verified Software Units.
 
 These are small C programs of just one or two functions each,
 that serve as primitive test cases for VST verifications.
+
+*Warning: Some of these proofs are very old (from 2013), and
+therefore clumsy and cumbersome, because they often do not take
+advantage of more modern VST-Floyd proof automation.*
 
 - [32/64-bit portable C programs](https://github.com/PrincetonUniversity/VST/tree/master/progs64): reverse.c revarray.c sumarray.c append.c bin_search.c 
     bst.c field_loadstore.c float.c object.c global.c min.c min64.c nest2.c
