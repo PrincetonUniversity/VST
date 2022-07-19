@@ -37,16 +37,16 @@ eapply derives_trans; [ apply H|].
 apply derives_refl.
 Qed.
 
-Lemma SEP_entail'_bupd:
+Lemma SEP_entail'_fupd:
  forall R' Delta P Q R, 
-   ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- ` (|==> fold_right_sepcon R') -> 
-   ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- |==> PROPx P (LOCALx Q (SEPx R')).
+   ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- ` (|={Ensembles.Full_set}=> fold_right_sepcon R') -> 
+   ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- |={Ensembles.Full_set}=> PROPx P (LOCALx Q (SEPx R')).
 Proof.
 intros.
-eapply derives_trans, corable_andp_bupd, corable_prop.
+eapply derives_trans, corable_andp_fupd, corable_prop.
 apply andp_right.
 apply andp_left2; apply andp_left1; auto.
-eapply derives_trans, local_andp_bupd.
+eapply derives_trans, local_andp_fupd.
 apply andp_right.
 do 2 apply andp_left2; apply andp_left1; auto.
 eapply derives_trans; [ apply H|].

@@ -741,8 +741,9 @@ Proof.
   apply semax_seq' with inv0; [exact INIT | clear INIT].
   apply (semax_loop _ inv0 (EX i: Z, !! (m <= i < n) && inv2 i));
     [apply semax_seq with (EX i : Z, !! (m <= i < n) && inv1 i) |].
-  + apply semax_pre with (tc_expr Delta (Eunop Onotbool (Ebinop Olt (Etempvar _i type_i) hi tint) (Tint I32 Signed noattr)) && inv0).
+  + apply semax_pre with (|> (tc_expr Delta (Eunop Onotbool (Ebinop Olt (Etempvar _i type_i) hi tint) (Tint I32 Signed noattr)) && inv0)).
     {
+      eapply derives_trans, now_later.
       apply andp_right; [| solve_andp].
       eapply Sfor_loop_cond_tc; eauto.
     }

@@ -19,11 +19,21 @@ Definition null_extension_juicyspec : external_specification juicy_mem external_
      (*ext_spec_exit*)
      (fun rv m z => True).
 
+(* If an inline external call can run on a memory m, then it should produce the same return value
+   and perform the same memory operations when run on a memory m1 that has more permissions than m
+   but is otherwise identical. c.f. Events.ec_mem_extends *)
+Definition ec_mem_sub := forall ef se lv m t v m' (EFI : ef_inline ef = true) m1
+  (EFC : Events.external_call ef se lv m t v m'), mem_sub m m1 ->
+  exists m1' (EFC1 : Events.external_call ef se lv m1 t v m1'),
+    mem_sub m' m1' /\ proj1_sig (Clight_core.inline_external_call_mem_events _ _ _ _ _ _ _ EFI EFC1) =
+    proj1_sig (Clight_core.inline_external_call_mem_events _ _ _ _ _ _ _ EFI EFC).
+
 Theorem VST_sound: 
   {Espec : OracleKind 
   | JMeq.JMeq (JE_spec _ (@OK_spec Espec)) null_extension_juicyspec /\
   let dryspec :=  juicy_dry_ext_spec_make _ null_extension_juicyspec in 
   forall (CS: compspecs)
+     (Jsub: ec_mem_sub)
      (prog: Clight.program) (initial_oracle: OK_ty)
      (V : mpred.varspecs) (G : mpred.funspecs) (m: mem),
      @semax_prog Espec CS prog initial_oracle V G ->

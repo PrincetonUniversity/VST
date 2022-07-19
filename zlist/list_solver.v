@@ -1752,9 +1752,9 @@ Proof. intros. apply I. Qed.
 
 (* These must be Global because they are inside a Module.
   That's a problem; we should fix this somehow. *)
-(*after Coq 8.13: Global*) Hint Rewrite Z.add_0_r : Z_normalize_0.
-(*after Coq 8.13: Global*) Hint Rewrite Z.add_0_l : Z_normalize_0.
-(*after Coq 8.13: Global*) Hint Rewrite Z.sub_0_r : Z_normalize_0.
+Global Hint Rewrite Z.add_0_r : Z_normalize_0.
+Global Hint Rewrite Z.add_0_l : Z_normalize_0.
+Global Hint Rewrite Z.sub_0_r : Z_normalize_0.
 
 Ltac pose_range_saturate_shift l s :=
   let H := fresh in

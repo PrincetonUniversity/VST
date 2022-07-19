@@ -390,6 +390,126 @@ rewrite <- approx_oo_approx.
 auto.
 Qed.
 
+(* The initial state is compatible with the ghost-state machinery for invariants. *)
+
+Require Import VST.veric.invariants.
+Require Import VST.veric.juicy_extspec.
+
+Definition wsat_ghost : ghost :=
+  (None ::
+   Some (existT _ (ghosts.snap_PCM(ORD := list_order own.gname)) (exist _ (Tsh, nil) I), NoneP) ::
+   Some (existT _ set_PCM (exist _ Ensembles.Full_set I), NoneP) ::
+   Some (existT _ (list_PCM token_PCM) (exist _ nil I), NoneP) ::
+   nil).
+
+Program Definition wsat_rmap (r : rmap) :=
+  proj1_sig (make_rmap (resource_at (core r)) wsat_ghost (level r) _ _).
+Next Obligation.
+Proof.
+  extensionality l; unfold compose. rewrite <- core_resource_at. apply resource_fmap_core.
+Qed.
+
+Lemma wsat_rmap_wsat : forall r, (wsat * ghost_set g_en Ensembles.Full_set)%pred (wsat_rmap r).
+Proof.
+  intros.
+  unfold wsat.
+  do 3 (rewrite exp_sepcon1; exists nil).
+  rewrite prop_true_andp by auto.
+  rewrite !sepcon_assoc, (sepcon_comm (iter_sepcon _ _)).
+  rewrite <- (sepcon_assoc (ghost_set _ _)), ghost_set_join.
+  replace (fun i : iname => nth i nil None = Some false) with (Ensembles.Empty_set(U := iname)).
+  rewrite prop_true_andp, Union_Empty.
+  destruct (make_rmap (resource_at (core r)) (None :: Some (existT _ (ghosts.snap_PCM(ORD := list_order own.gname)) (exist _ (Tsh, nil) I), NoneP) :: nil) (level r))
+    as (r_inv & ? & Hr1 & Hg1).
+  { extensionality l; unfold compose. rewrite <- core_resource_at. apply resource_fmap_core. }
+  { auto. }
+  destruct (make_rmap (resource_at (core r)) (None :: None :: Some (existT _ set_PCM (exist _ Ensembles.Full_set I), NoneP) ::
+   Some (existT _ (list_PCM token_PCM) (exist _ nil I), NoneP) :: nil) (level r))
+    as (r_rest & ? & Hr2 & Hg2).
+  { extensionality l; unfold compose. rewrite <- core_resource_at. apply resource_fmap_core. }
+  { auto. }
+  exists r_inv, r_rest; split.
+  { unfold wsat_rmap; apply resource_at_join2; rewrite ?level_make_rmap, ?resource_at_make_rmap, ?ghost_of_make_rmap; auto.
+    + intros; rewrite Hr1, Hr2; apply resource_at_join, core_duplicable.
+    + rewrite Hg1, Hg2; unfold wsat_ghost; repeat constructor. }
+  split.
+  - simpl.
+    exists I.
+    rewrite Hr1, Hg1; split.
+    + apply resource_at_core_identity.
+    + apply join_sub_refl.
+  - destruct (make_rmap (resource_at (core r)) (None :: None :: Some (existT _ set_PCM (exist _ Ensembles.Full_set I), NoneP) ::
+     None :: nil) (level r))
+      as (r_en & ? & Hr3 & Hg3).
+    { extensionality l; unfold compose. rewrite <- core_resource_at. apply resource_fmap_core. }
+    { auto. }
+    destruct (make_rmap (resource_at (core r)) (None :: None :: None ::
+     Some (existT _ (list_PCM token_PCM) (exist _ nil I), NoneP) :: nil) (level r))
+      as (r_dis & ? & Hr4 & Hg4).
+    { extensionality l; unfold compose. rewrite <- core_resource_at. apply resource_fmap_core. }
+    { auto. }
+    exists r_dis, r_en; split.
+    { apply resource_at_join2; try congruence.
+      + intros; rewrite Hr2, Hr3, Hr4; apply resource_at_join, core_duplicable.
+      + rewrite Hg2, Hg3, Hg4; repeat constructor. }
+    simpl iter_sepcon; rewrite sepcon_emp.
+    split; simpl.
+    + exists I.
+      rewrite Hr4, Hg4; split.
+      * apply resource_at_core_identity.
+      * apply join_sub_refl.
+    + exists I.
+      rewrite Hr3, Hg3; split.
+      * apply resource_at_core_identity.
+      * eexists; repeat constructor.
+  - constructor; intros ? X; inv X.
+    inv H.
+  - apply Ensembles.Extensionality_Ensembles; split; intros; intros ??; unfold Ensembles.In in *.
+    + inv H.
+    + destruct x; inv H.
+Qed.
+
+Lemma wsat_no : forall r, (ALL l, noat l) (wsat_rmap r).
+Proof.
+  simpl; intros; unfold wsat_rmap.
+  rewrite resource_at_make_rmap; apply resource_at_core_identity.
+Qed.
+
+Corollary wsat_rmap_resource : forall r r', join r (wsat_rmap r) r' -> resource_at r' = resource_at r.
+Proof.
+  intros.
+  extensionality l; apply (resource_at_join _ _ _ l) in H.
+  apply join_comm, wsat_no in H; auto.
+Qed.
+
+Lemma wsat_rmap_ghost : forall r r', joins r (wsat_rmap r) -> level r' = level r -> ghost_of r' = ghost_of r ->
+  joins r' (wsat_rmap r').
+Proof.
+  intros ?? [z ?] Hl Hg.
+  destruct (make_rmap (resource_at r') (ghost_of z) (level r')) as (z' & ? & Hr' & Hg').
+  { extensionality l; apply resource_at_approx. }
+  { rewrite Hl; apply join_level in H as [->]; apply ghost_of_approx. }
+  exists z'; apply resource_at_join2; auto.
+  - unfold wsat_rmap; rewrite level_make_rmap; auto.
+  - intros l; apply (resource_at_join _ _ _ l) in H.
+    unfold wsat_rmap; rewrite resource_at_make_rmap, Hr'.
+    apply join_comm, resource_at_join, core_unit.
+  - rewrite Hg, Hg'.
+    apply ghost_of_join in H.
+    unfold wsat_rmap in *; rewrite ghost_of_make_rmap in *; auto.
+Qed.
+
+Lemma age_to_wsat_rmap : forall n r, (n <= level r)%nat -> age_to n (wsat_rmap r) = wsat_rmap (age_to n r).
+Proof.
+  intros; apply rmap_ext.
+  - unfold wsat_rmap; rewrite level_make_rmap, !level_age_to; auto.
+    rewrite level_make_rmap; auto.
+  - intros; unfold wsat_rmap; rewrite resource_at_make_rmap, <- core_resource_at, !age_to_resource_at,
+      resource_at_make_rmap.
+    rewrite <- core_resource_at, resource_fmap_core'; auto.
+  - unfold wsat_rmap; rewrite ghost_of_make_rmap, !age_to_ghost_of, ghost_of_make_rmap; auto.
+Qed.
+
 Lemma list_disjoint_rev2:
    forall A (l1 l2: list A), list_disjoint l1 (rev l2) = list_disjoint l1 l2.
 Proof.

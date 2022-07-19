@@ -14,6 +14,7 @@ Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
 Require Import VST.veric.expr_lemmas.
 Require Import VST.veric.own.
+Require Import VST.veric.fupd.
 Import compcert.lib.Maps.
 
 Import Ctypes Clight_core.
@@ -70,30 +71,33 @@ Definition assert_safe'_
        m_phi jm = w ->
        forall (LW: level w > O),
        match ctl with
-       | Stuck => False
+       | Stuck => jm_fupd ora Ensembles.Full_set Ensembles.Full_set (fun _ => False) jm
        | Cont (Kseq s ctl') => 
-             jsafeN (@OK_spec Espec) ge (level w) ora (State f s ctl' ve te) jm
+             jm_fupd ora Ensembles.Full_set Ensembles.Full_set (jsafeN (@OK_spec Espec) ge ora (State f s ctl' ve te)) jm
        | Cont (Kloop1 body incr ctl') =>
-             jsafeN (@OK_spec Espec) ge (level w) ora (State f Sskip (Kloop1 body incr ctl') ve te) jm
+             jm_fupd ora Ensembles.Full_set Ensembles.Full_set (jsafeN (@OK_spec Espec) ge ora (State f Sskip (Kloop1 body incr ctl') ve te)) jm
        | Cont (Kloop2 body incr ctl') =>
-             jsafeN (@OK_spec Espec) ge (level w) ora (State f (Sloop body incr) ctl' ve te) jm
+             jm_fupd ora Ensembles.Full_set Ensembles.Full_set (jsafeN (@OK_spec Espec) ge ora (State f (Sloop body incr) ctl' ve te)) jm
        | Cont (Kcall id' f' ve' te' k') => 
-               jsafeN (@OK_spec Espec) ge (level w) ora (State f (Sreturn None) (Kcall id' f' ve' te' k') ve te) jm
+             jm_fupd ora Ensembles.Full_set Ensembles.Full_set (jsafeN (@OK_spec Espec) ge ora (State f (Sreturn None) (Kcall id' f' ve' te' k') ve te)) jm
        | Cont Kstop =>
-               jsafeN (@OK_spec Espec) ge (level w) ora (State f (Sreturn None) Kstop ve te) jm
-       | Cont _ => False
+             jm_fupd ora Ensembles.Full_set Ensembles.Full_set (jsafeN (@OK_spec Espec) ge ora (State f (Sreturn None) Kstop ve te)) jm
+       | Cont _ => jm_fupd ora Ensembles.Full_set Ensembles.Full_set (fun _ => False) jm
        | Ret None ctl' =>
-                jsafeN (@OK_spec Espec) ge (level w) ora (State f (Sreturn None) ctl' ve te) jm
-       | Ret (Some v) ctl' =>  forall e v',
+                jsafeN (@OK_spec Espec) ge ora (State f (Sreturn None) ctl' ve te) jm
+       | Ret (Some v) ctl' => forall e v',
                   Clight.eval_expr ge ve te (m_dry jm) e v' ->
                   Cop.sem_cast v' (typeof e) (fn_return f) (m_dry jm) = Some v ->
-              jsafeN (@OK_spec Espec) ge (level w) ora (State f (Sreturn (Some e)) ctl' ve te) jm
+              jsafeN (@OK_spec Espec) ge ora (State f (Sreturn (Some e)) ctl' ve te) jm
        end.
+(* upd in assert_safe'_, everywhere except ret? *)
+
+Notation fupd := (fupd Ensembles.Full_set Ensembles.Full_set).
 
 Program Definition assert_safe
      (Espec : OracleKind) (ge: genv) (f: function) (ve: env) (te: temp_env) 
      (ctl: contx) : assert :=
-  fun rho => bupd (assert_safe'_ (Espec : OracleKind) ge f ve te ctl rho).
+  fun rho => assert_safe'_ (Espec : OracleKind) ge f ve te ctl rho.
 Next Obligation.
   split; repeat intro.
    subst.
@@ -104,19 +108,11 @@ Next Obligation.
    specialize (H0 (eq_refl _) H3).
    spec H0. apply age_level in H. lia.
   subst.
-  change (level (m_phi jm)) with (level jm).
-  change (level (m_phi jm0)) with (level jm0) in *.
-  destruct ctl; auto. destruct c; try contradiction.
-  eapply age_safe; eauto.
-  eapply age_safe; eauto.
-  eapply age_safe; eauto.
-  eapply age_safe; eauto.
+  destruct ctl; [|destruct c|]; try (eapply jm_fupd_age; eauto).
   destruct o; intros; auto;
   eapply age_safe; eauto.
-  destruct o; intros; auto.
-  eapply age_safe; eauto.
-  apply (H0 e v'); auto;  rewrite (age_jm_dry H2); auto.
-  eapply age_safe; eauto.
+  rewrite (age_jm_dry H2) in *.
+  eapply H0; eauto.
 
   subst. destruct (ext_ord_juicy_mem' _ _ H) as (? & Hd & Ha).
   destruct (proj1 (rmap_order _ _) H) as (Hl & Hr & Hg).
@@ -129,20 +125,66 @@ Next Obligation.
    spec H0. rewrite Hl; auto.
   subst.
   rewrite <- Hjm in *.
-  change (level (m_phi jm)) with (level jm).
-  change (level (m_phi jm0)) with (level jm0) in *.
   assert (ext_order jm0 jm) by (split; auto; congruence).
-  destruct ctl; auto. destruct c; try contradiction.
-  eapply ext_safe; eauto.
-  eapply ext_safe; eauto.
-  eapply ext_safe; eauto.
-  eapply ext_safe; eauto.
+  destruct ctl; [|destruct c|];
+    try (eapply jm_fupd_ext; eauto; intros; eapply ext_safe; eauto).
   destruct o; intros; auto;
   eapply ext_safe; eauto.
-  destruct o; intros; auto.
-  eapply ext_safe; eauto.
-  apply (H0 e v'); auto; rewrite Hdry; auto.
-  eapply ext_safe; eauto.
+  rewrite Hdry in *; eapply H0; eauto.
+Qed.
+
+Lemma assert_safe_derives : forall (Espec : OracleKind) (ge ge': genv) (f f': function) (ve ve': env) (te te': temp_env)
+     (ctl ctl': contx) rho rho',
+  (forall w ora (jm:juicy_mem),
+       ext_compat ora w ->
+       rho' = construct_rho (filter_genv ge') ve' te' ->
+       m_phi jm = w ->
+       forall (LW: level w > O), rho = construct_rho (filter_genv ge) ve te /\
+      ((match ctl with
+       | Stuck => jm_fupd ora Ensembles.Full_set Ensembles.Full_set (fun _ => False) jm
+       | Cont (Kseq s ctl') => 
+             jm_fupd ora Ensembles.Full_set Ensembles.Full_set (jsafeN (@OK_spec Espec) ge ora (State f s ctl' ve te)) jm
+       | Cont (Kloop1 body incr ctl') =>
+             jm_fupd ora Ensembles.Full_set Ensembles.Full_set (jsafeN (@OK_spec Espec) ge ora (State f Sskip (Kloop1 body incr ctl') ve te)) jm
+       | Cont (Kloop2 body incr ctl') =>
+             jm_fupd ora Ensembles.Full_set Ensembles.Full_set (jsafeN (@OK_spec Espec) ge ora (State f (Sloop body incr) ctl' ve te)) jm
+       | Cont (Kcall id' f' ve' te' k') => 
+             jm_fupd ora Ensembles.Full_set Ensembles.Full_set (jsafeN (@OK_spec Espec) ge ora (State f (Sreturn None) (Kcall id' f' ve' te' k') ve te)) jm
+       | Cont Kstop =>
+             jm_fupd ora Ensembles.Full_set Ensembles.Full_set (jsafeN (@OK_spec Espec) ge ora (State f (Sreturn None) Kstop ve te)) jm
+       | Cont _ => jm_fupd ora Ensembles.Full_set Ensembles.Full_set (fun _ => False) jm
+       | Ret None ctl' =>
+                jsafeN (@OK_spec Espec) ge ora (State f (Sreturn None) ctl' ve te) jm
+       | Ret (Some v) ctl' => forall e v',
+                  Clight.eval_expr ge ve te (m_dry jm) e v' ->
+                  Cop.sem_cast v' (typeof e) (fn_return f) (m_dry jm) = Some v ->
+              jsafeN (@OK_spec Espec) ge ora (State f (Sreturn (Some e)) ctl' ve te) jm
+       end) ->
+       match ctl' with
+       | Stuck => jm_fupd ora Ensembles.Full_set Ensembles.Full_set (fun _ => False) jm
+       | Cont (Kseq s ctl') => 
+             jm_fupd ora Ensembles.Full_set Ensembles.Full_set (jsafeN (@OK_spec Espec) ge' ora (State f' s ctl' ve' te')) jm
+       | Cont (Kloop1 body incr ctl') =>
+             jm_fupd ora Ensembles.Full_set Ensembles.Full_set (jsafeN (@OK_spec Espec) ge' ora (State f' Sskip (Kloop1 body incr ctl') ve' te')) jm
+       | Cont (Kloop2 body incr ctl') =>
+             jm_fupd ora Ensembles.Full_set Ensembles.Full_set (jsafeN (@OK_spec Espec) ge' ora (State f' (Sloop body incr) ctl' ve' te')) jm
+       | Cont (Kcall id' f'' ve'' te'' k') => 
+             jm_fupd ora Ensembles.Full_set Ensembles.Full_set (jsafeN (@OK_spec Espec) ge' ora (State f' (Sreturn None) (Kcall id' f'' ve'' te'' k') ve' te')) jm
+       | Cont Kstop =>
+             jm_fupd ora Ensembles.Full_set Ensembles.Full_set (jsafeN (@OK_spec Espec) ge' ora (State f' (Sreturn None) Kstop ve' te')) jm
+       | Cont _ => jm_fupd ora Ensembles.Full_set Ensembles.Full_set (fun _ => False) jm
+       | Ret None ctl' =>
+                jsafeN (@OK_spec Espec) ge' ora (State f' (Sreturn None) ctl' ve' te') jm
+       | Ret (Some v) ctl' => forall e v',
+                  Clight.eval_expr ge' ve' te' (m_dry jm) e v' ->
+                  Cop.sem_cast v' (typeof e) (fn_return f') (m_dry jm) = Some v ->
+              jsafeN (@OK_spec Espec) ge' ora (State f' (Sreturn (Some e)) ctl' ve' te') jm
+       end)) ->
+  assert_safe Espec ge f ve te ctl rho |-- assert_safe Espec ge' f' ve' te' ctl' rho'.
+Proof.
+  repeat intro.
+  edestruct H as [? Hsafe]; eauto.
+  apply Hsafe, H0; auto.
 Qed.
 
 Definition list2opt {T: Type} (vl: list T) : option T :=
@@ -295,6 +337,7 @@ Lemma semax_external_funspec_sub
                      (map typ_of_type argtypes)
                      (rettype_of_type rtype) cc):
   @semax.semax_external Espec ef A1 P1 Q1 |-- @semax.semax_external Espec ef A P Q.
+  (* This needs a fupd, but it's unclear how, since it's a pred nat. *)
 Proof.
 apply allp_derives; intros g.
 apply allp_right; intros ts.
@@ -303,12 +346,12 @@ destruct Hsub as [_ H]; simpl in H.
 intros n N m NM F typs vals y MY ? z YZ EZ [HT HP].
 simpl in HP.
 rewrite HSIG in HT; simpl in HT.
-eapply sepcon_derives, bupd_frame_r in HP; [| intros ??; eapply H; split; eauto | apply derives_refl].
+eapply sepcon_derives, fupd_frame_r in HP; [| intros ??; eapply H; split; eauto | apply derives_refl].
 2: { clear -HT. 
   apply has_type_list_Forall2 in HT.
   eapply Forall2_implication; [ | apply HT]; auto.
 }
-clear H.
+clear H. (*
 edestruct HP as (? & ? & z0 & ? & ? & ? & H); subst.
 { eexists. rewrite ghost_fmap_core. apply join_comm, core_unit. }
 destruct H as [z1 [z2 [JZ [[ts1 [x1 [FRM [[z11 [z12 [JZ1 [H_FRM H_P1]]]] HQ]]]] Z2]]]].
@@ -320,16 +363,13 @@ edestruct (N _ NM (sepcon F FRM) typs vals jm0) as [est [EST1 EST2]]; clear N; e
 { rewrite HSIG; simpl. split; trivial.
   exists z12, zz; split3. trivial. trivial.
   exists z2, z11; split3; trivial. }
+exists est; split.
+{ simpl. intros. apply EST1; auto. apply necR_trans with z; auto.*)
 contradiction DISABLE.  (* 
     This lemma is not true as written because it needs a ghost-state
     update operator somewhere.  
 *)
-(*
-exists est; split.
-{ simpl. intros.
-   eapply JE_pre_hered; [ | apply (EST1 b)].
-
-  rewrite age_to.necR_age_to_iff. admit.
+  (*rewrite age_to.necR_age_to_iff. admit.
 simpl; intros.
 destruct (EST2 b b0 b1 _ H _ H0 H1) as [u1 [u2 [JU [U1 U2]]]]; clear EST2.
 destruct U2 as [w1 [w2 [JW [W1 W2]]]]. apply join_comm in JU.

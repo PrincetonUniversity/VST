@@ -6,8 +6,6 @@ Require Import VST.zlist.sublist.
 Require Import mailbox.mailbox.
 Require Import mailbox.verif_mailbox_specs.
 
-Set Bullet Behavior "Strict Subproofs".
-
 Lemma body_initialize_reader : semax_body Vprog Gprog f_initialize_reader initialize_reader_spec.
 Proof.
   start_function.
@@ -16,6 +14,7 @@ Proof.
   assert (0 <= r < N) as Hr.
   { exploit (Znth_inbounds r reads); [|lia].
     intro Heq; rewrite Heq in *; contradiction. }
+  assert (N < Int.max_signed) by computable.
   forward.
   forward.
   forward.
@@ -31,10 +30,11 @@ Proof.
   assert (0 <= r < N) as Hr.
   { exploit (Znth_inbounds r reads); [|lia].
     intro Heq; rewrite Heq in *; contradiction. }
+  assert (N < Int.max_signed) by computable.
   forward.
   rewrite comm_loc_isptr; Intros.
-  rewrite <- lock_struct_array.
   forward.
+  { entailer!. rewrite Znth_map; [auto|]. rewrite Zlength_map in *; simpl in *; lia. }
   forward.
   forward.
   set (c := Znth r comms).
@@ -45,6 +45,7 @@ Proof.
     comm_R bufs sh gsh2 g0 g1 g2, fun h b => EX b' : Z, !!((if eq_dec b Empty then b' = b0 else b = vint b') /\
       -1 <= b' < B /\ latest_read h (vint b')) &&
       (EX v : Z, data_at sh tbuffer (vint v) (Znth b' bufs)) * ghost_var gsh1 (vint b') g0).
+  { entailer!. rewrite Znth_map; rewrite Zlength_map in *; auto; lia. }
   { unfold comm_loc; entailer!.
     rewrite <- emp_sepcon at 1; apply sepcon_derives; [|cancel].
     unfold AE_spec.
@@ -115,7 +116,7 @@ Proof.
          data_at_ Ews tint (Znth r reads);
          data_at Ews tint (vint (if eq_dec b (-1) then b0 else b)) (Znth r lasts);
          data_at sh1 (tarray (tptr tint) N) comms (gv _comm);
-         data_at sh1 (tarray (tptr (Tstruct _lock_t noattr)) N) locks (gv _lock))).
+         data_at sh1 (tarray (tptr t_lock) N) (map ptr_of locks) (gv _lock))).
   - forward.
     simpl eq_dec; destruct (eq_dec b (-1)); [match goal with H : _ <> _ |- _ => contradiction H; auto end|].
     entailer!.
@@ -133,7 +134,7 @@ Proof.
         subst; rewrite eq_dec_refl; auto.
       + destruct (eq_dec b (-1)); [subst; contradiction n; auto|].
         split; auto; split; auto; apply latest_read_new; auto. }
-    rewrite lock_struct_array; subst c l; cancel.
+    subst c l; cancel.
     destruct (eq_dec b (-1)); subst; auto.
 Qed.
 
@@ -145,6 +146,7 @@ Proof.
   assert (0 <= r < N) as Hr.
   { exploit (Znth_inbounds r reads); [|lia].
     intro Heq; rewrite Heq in *; contradiction. }
+  assert (N < Int.max_signed) by computable.
   forward.
   forward.
   entailer!.

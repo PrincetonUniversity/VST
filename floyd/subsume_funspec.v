@@ -68,14 +68,12 @@ simpl in H0.
 specialize (H0 ts1). destruct H0 as [H0 H0'].
 rewrite H0.
 eapply derives_trans; [apply H3 | clear H3 ].
-eapply derives_trans; [|apply bupd_intro].
+eapply derives_trans; [|apply fupd_intro].
 apply (exp_right (@nil Type)). simpl.
 apply exp_derives; intros x2.
 apply exp_derives; intros F.
 apply andp_derives; trivial. simpl. apply prop_derives. intros.
-rewrite H0'. eapply derives_trans.
-2: { eapply derives_trans. 2: apply bupd_intro. apply H1. }
-clear H1. apply andp_derives; trivial; try apply derives_refl.
+rewrite H0'. apply H1.
 Qed.
 
 (*
