@@ -575,6 +575,12 @@ Qed.
 
 Definition main_block := proj1_sig main_block_exists.
 
+Axiom (Jsub: forall ef se lv m t v m' (EFI : ef_inline ef = true) m1
+       (EFC : Events.external_call ef se lv m t v m'), juicy_mem.mem_sub m m1 ->
+       exists m1' (EFC1 : Events.external_call ef se lv m1 t v m1'),
+         juicy_mem.mem_sub m' m1' /\ proj1_sig (Clight_core.inline_external_call_mem_events _ _ _ _ _ _ _ EFI EFC1) =
+         proj1_sig (Clight_core.inline_external_call_mem_events _ _ _ _ _ _ _ EFI EFC)).
+
 Theorem prog_toplevel : exists q,
   semantics.initial_core (Clight_core.cl_core_sem (globalenv prog)) 0 init_mem q init_mem (Vptr main_block Ptrofs.zero) [] /\
   forall n, @step_lemmas.dry_safeN _ _ _ _ semax.genv_symb_injective (Clight_core.cl_core_sem (globalenv prog))
@@ -583,8 +589,11 @@ Theorem prog_toplevel : exists q,
 Proof.
   edestruct whole_program_sequential_safety_ext with (V := Vprog) as (b & q & Hb & Hq & Hsafe).
   - repeat intro; simpl. apply I.
+  - apply Jsub.
+  - apply add_funspecs_frame.
   - apply juicy_dry_specs.
   - apply dry_spec_mem.
+  - intros; apply I.
   - apply CSHL_Sound.semax_prog_sound, prog_correct.
   - apply (proj2_sig init_mem_exists).
   - exists q.

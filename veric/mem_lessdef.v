@@ -10,8 +10,7 @@ Require Import VST.msl.Coqlib2.
 Require Import VST.msl.eq_dec.
 Require Import VST.msl.seplog.
 Require Import VST.veric.Memory.
-Require Import VST.veric.juicy_mem. 
-Require Import VST.veric.juicy_extspec.
+Require Import VST.veric.juicy_mem.
 
 Require Import VST.veric.res_predicates.
 
@@ -596,4 +595,44 @@ Proof.
   destruct m1, m2; simpl in *.
   intros <- <- <- .
   f_equal; apply proof_irr.
+Qed.
+
+(* relationships between memory orders *)
+Lemma mem_sub_loadbytes : forall m1 m2 b ofs len v, mem_sub m1 m2 ->
+  Mem.loadbytes m1 b ofs len = Some v -> Mem.loadbytes m2 b ofs len = Some v.
+Proof.
+  unfold Mem.loadbytes; intros.
+  if_tac in H0; inv H0.
+  destruct H as (-> & _ & ?).
+  rewrite if_true; auto.
+  intros ??; auto.
+Qed.
+
+Lemma memval_lessdef_refl : forall v, memval_lessdef v v.
+Proof.
+  destruct v; constructor.
+  apply val_inject_id, Val.lessdef_refl.
+Qed.
+
+Lemma list_memval_lessdef_refl : forall l, list_forall2 memval_lessdef l l.
+Proof.
+  induction l; constructor; auto.
+  apply memval_lessdef_refl.
+Qed.
+
+Lemma mem_sub_lessdef : forall m1 m2, mem_sub m1 m2 -> mem_lessdef m1 m2.
+Proof.
+  intros; repeat split; intros; auto.
+  - eapply mem_sub_loadbytes in H0; eauto.
+    do 2 eexists; eauto; apply list_memval_lessdef_refl.
+  - destruct H as (? & ? & ?); auto.
+  - destruct H as (? & -> & ?); lia.
+Qed.
+
+Lemma mem_extends_lessdef : forall m1 m2, Mem.extends m1 m2 -> mem_lessdef m1 m2.
+Proof.
+  intros; repeat split; intros.
+  - eapply Mem.loadbytes_extends; eauto.
+  - eapply Mem.perm_extends; eauto.
+  - destruct H; lia.
 Qed.

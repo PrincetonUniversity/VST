@@ -6,8 +6,6 @@ Require Import VST.zlist.sublist.
 Require Import mailbox.mailbox.
 Require Import mailbox.verif_mailbox_specs.
 
-Set Bullet Behavior "Strict Subproofs".
-
 Opaque upto.
 
 Ltac entailer_for_load_tac ::= unfold tc_efield; go_lower; entailer'.
@@ -16,6 +14,7 @@ Ltac entailer_for_store_tac ::= unfold tc_efield; go_lower; entailer'.
 Lemma body_writer : semax_body Vprog Gprog f_writer writer_spec.
 Proof.
   start_function.
+  assert (B < Int.max_signed) as HB by computable.
   forward_call gv.
   forward.
   forward_loop (EX v : Z, EX b0 : Z, EX lasts : list Z, EX h : list hist,
@@ -23,7 +22,7 @@ Proof.
    LOCAL (temp _v (vint v); temp _arg arg; gvars gv)
    SEP (data_at Ews tint Empty (gv _writing); data_at Ews tint (vint b0) (gv _last_given);
    data_at Ews (tarray tint N) (map (fun x => vint x) lasts) (gv _last_taken);
-   data_at sh1 (tarray (tptr tint) N) comms (gv _comm); data_at sh1 (tarray (tptr tlock) N) locks (gv _lock);
+   data_at sh1 (tarray (tptr tint) N) comms (gv _comm); data_at sh1 (tarray (tptr t_lock) N) (map ptr_of locks) (gv _lock);
    data_at sh1 (tarray (tptr tbuffer) B) bufs (gv _bufs);
    fold_right sepcon emp (map (fun r0 => comm_loc lsh (Znth r0 locks) (Znth r0 comms)
      (Znth r0 g) (Znth r0 g0) (Znth r0 g1) (Znth r0 g2) bufs

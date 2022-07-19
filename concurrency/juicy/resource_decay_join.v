@@ -10,17 +10,12 @@ Require Import VST.veric.Clight_new.
 Require Import VST.veric.semax.
 Require Import VST.veric.semax_ext.
 Require Import VST.veric.juicy_extspec.
-Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.res_predicates.
 Require Import VST.veric.coqlib4.
 Require Import VST.veric.age_to_resource_at.
 Require Import VST.concurrency.common.permjoin.
 Require Import VST.concurrency.juicy.sync_preds_defs.
-
-Set Bullet Behavior "Strict Subproofs".
-
-(* @andrew those lemmas already somewhere? *)
 
 Lemma NO_ext: forall sh1 sh2 p1 p2, sh1=sh2 -> NO sh1 p1 = NO sh2 p2.
 Proof.

@@ -256,32 +256,40 @@ Proof. induction es; simpl.
               right. apply H0. exists x, x0 , x1. split; trivial. split; trivial.
 Qed.
 
-Lemma freelist_mem_access_1 b ofs p: forall l m (ACC:(Mem.mem_access m) !! b ofs Cur = Some p)
-                                       m1 (FL: Mem.free_list m1 l = Some m), (Mem.mem_access m1) !! b ofs Cur = Some p.
+Lemma freelist_mem_access_1 b ofs p: forall k l m (ACC:(Mem.mem_access m) !! b ofs k = Some p)
+                                       m1 (FL: Mem.free_list m1 l = Some m), (Mem.mem_access m1) !! b ofs k = Some p.
 Proof. induction l; simpl; intros. inv FL; trivial.
-       destruct a. destruct p0.
-       case_eq (Mem.free m1 b0 z0 z); intros; rewrite H in FL; try discriminate.
+       destruct a as ((?, ?), ?).
+       case_eq (Mem.free m1 b0 z z0); intros; rewrite H in FL; try discriminate.
        eapply free_access_inv; eauto.
 Qed.
 
-Lemma freelist_access_2 b ofs: forall l  (FL: in_free_list b ofs l)
+Lemma freelist_access_2' b ofs: forall l  (FL: in_free_list b ofs l)
                                  m m' (FR : Mem.free_list m l = Some m'),
-    (Mem.mem_access m') !! b ofs Cur = None /\ Mem.valid_block m' b.
+    (forall k, (Mem.mem_access m') !! b ofs k = None) /\ Mem.valid_block m' b.
 Proof. intros l FL. destruct FL as [[[? ?] ?] [? [? ?]]]; subst b0.
        induction l; simpl; intros.
        - inv H.
        - destruct H.
          * subst. case_eq (Mem.free m b z z0); intros; rewrite H in FR; try discriminate.
-           clear IHl. case_eq ((Mem.mem_access m') !! b ofs Cur); intros; trivial.
-           ++ exploit freelist_mem_access_1. eassumption. eassumption. intros XX.
+           clear IHl. split.
+           ++ intros; case_eq ((Mem.mem_access m') !! b ofs k); trivial; intros.
+              exploit freelist_mem_access_1. eassumption. eassumption. intros XX.
               exfalso. apply Mem.free_result in H. subst m0. simpl in XX.
               rewrite PMap.gss in XX. case_eq (zle z ofs && zlt ofs z0); intros; rewrite H in *; try discriminate.
-              destruct (zle z ofs); try lia; simpl  in *. destruct ( zlt ofs z0); try lia. inv H.
-           ++ split; trivial. eapply freelist_forward; eauto.
+              destruct (zle z ofs); try lia; simpl in *. destruct (zlt ofs z0); try lia. inv H.
+           ++ eapply freelist_forward; eauto.
               exploit Mem.free_range_perm. eassumption. eassumption. intros.
               eapply Mem.valid_block_free_1; try eassumption. eapply Mem.perm_valid_block; eauto.
-         * destruct a. destruct p.
-           case_eq (Mem.free m b0 z2 z1); intros; rewrite H0 in FR; try discriminate. eauto.
+         * destruct a as ((?, ?), ?).
+           case_eq (Mem.free m b0 z1 z2); intros; rewrite H0 in FR; try discriminate. eauto.
+Qed.
+
+Lemma freelist_access_2 b ofs: forall l  (FL: in_free_list b ofs l)
+                                 m m' (FR : Mem.free_list m l = Some m'),
+    (Mem.mem_access m') !! b ofs Cur = None /\ Mem.valid_block m' b.
+Proof.
+  intros; edestruct freelist_access_2'; eauto.
 Qed.
 
 Lemma freelist_access_3 b ofs: forall l m (ACC: (Mem.mem_access m) !! b ofs Cur = None)
@@ -441,16 +449,16 @@ Proof.
     right; intros N. destruct N; contradiction.
 Qed.
 
-Lemma freelist_access_1 b ofs: forall l,
+Lemma freelist_access_1 b ofs: forall k l,
     ~ in_free_list b ofs l ->
-    forall m m' : mem, Mem.free_list m l = Some m' -> (Mem.mem_access m') !! b ofs Cur = (Mem.mem_access m) !! b ofs Cur.
+    forall m m' : mem, Mem.free_list m l = Some m' -> (Mem.mem_access m') !! b ofs k = (Mem.mem_access m) !! b ofs k.
 Proof.
   induction l; simpl; intros. inv H0. trivial.
   destruct a as [[? ?] ?].
   remember (Mem.free m b0 z z0) as q; destruct q; try discriminate. symmetry in Heqq.
   assert (~ in_free_list b ofs l). { intros N. elim H. destruct N as [? [? ?]]. exists x. split; eauto. right; trivial. }
                                    rewrite (IHl H1 _ _ H0). clear IHl H0.
-  Transparent Mem.free. unfold Mem.free in Heqq.
+  Transparent Mem.free. unfold Mem.free in Heqq. Opaque Mem.free.
   remember (Mem.range_perm_dec m b0 z z0 Cur Freeable).
   destruct s; inv Heqq; clear Heqs. simpl.
   rewrite PMap.gsspec. destruct (peq b b0); subst; trivial.

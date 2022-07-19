@@ -75,7 +75,7 @@ author="da Rocha Pinto, Pedro
 and Dinsdale-Young, Thomas
 and Gardner, Philippa",
 editor="Jones, Richard",
-title="TaDA: A Logic for Time and Data Abstraction",
+title="{TaDA}: A Logic for Time and Data Abstraction",
 booktitle="ECOOP 2014 -- Object-Oriented Programming",
 year="2014",
 publisher="Springer Berlin Heidelberg",
@@ -116,4 +116,76 @@ numpages = {14},
 keywords = {verification, local reasoning, dependent type theory, rely-guarantee thinking, concurrency},
 location = {Rome, Italy},
 series = {POPL ’13}
+}
+
+@article{iris-guide,
+  author    = {Elizabeth Dietrich},
+  title     = {A beginner guide to {Iris}, {Coq} and separation logic},
+  journal   = {CoRR},
+  volume    = {abs/2105.12077},
+  year      = {2021},
+  url       = {https://arxiv.org/abs/2105.12077},
+  eprinttype = {arXiv},
+  eprint    = {2105.12077},
+  timestamp = {Tue, 01 Jun 2021 18:07:59 +0200},
+  biburl    = {https://dblp.org/rec/journals/corr/abs-2105-12077.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+
+@article{rustbelt,
+    author = {Jung, Ralf and Jourdan, Jacques-Henri and Krebbers, Robbert and Dreyer, Derek},
+    title = {{RustBelt}: Securing the Foundations of the Rust Programming Language},
+    year = {2017},
+    issue_date = {January 2018},
+    publisher = {Association for Computing Machinery},
+    address = {New York, NY, USA},
+    volume = {2},
+    number = {POPL},
+    url = {https://doi.org/10.1145/3158154},
+    doi = {10.1145/3158154},
+    abstract = {Rust is a new systems programming language that promises to overcome the seemingly fundamental tradeoff between high-level safety guarantees and low-level control over resource management. Unfortunately, none of Rust's safety claims have been formally proven, and there is good reason to question whether they actually hold. Specifically, Rust employs a strong, ownership-based type system, but then extends the expressive power of this core type system through libraries that internally use unsafe features. In this paper, we give the first formal (and machine-checked) safety proof for a language representing a realistic subset of Rust. Our proof is extensible in the sense that, for each new Rust library that uses unsafe features, we can say what verification condition it must satisfy in order for it to be deemed a safe extension to the language. We have carried out this verification for some of the most important libraries that are used throughout the Rust ecosystem.},
+    journal = {Proc. ACM Program. Lang.},
+    month = {Dec},
+    articleno = {66},
+    numpages = {34},
+    keywords = {logical relations, type systems, Rust, concurrency, separation logic}
+    }
+    
+@article{rustbelt-relaxed,
+  author    = {Hoang{-}Hai Dang and
+               Jacques{-}Henri Jourdan and
+               Jan{-}Oliver Kaiser and
+               Derek Dreyer},
+  title     = {RustBelt meets relaxed memory},
+  journal   = {Proc. {ACM} Program. Lang.},
+  volume    = {4},
+  number    = {{POPL}},
+  pages     = {34:1--34:29},
+  year      = {2020},
+  url       = {https://doi.org/10.1145/3371102},
+  doi       = {10.1145/3371102},
+  timestamp = {Wed, 17 Feb 2021 08:54:07 +0100},
+  biburl    = {https://dblp.org/rec/journals/pacmpl/DangJKD20.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+
+@article{iris-vst-arxiv,
+  doi = {10.48550/ARXIV.2207.06574},
+  
+  journal   = {CoRR},
+  volume    = {abs/2207.06574},
+
+  url = {https://arxiv.org/abs/2207.06574},
+  
+  author = {Mansky, William},
+  
+  keywords = {Programming Languages (cs.PL), FOS: Computer and information sciences, FOS: Computer and information sciences, F.3.1},
+  
+  title = {Bringing {Iris} into the {Verified Software Toolchain}},
+  
+  publisher = {arXiv},
+  
+  year = {2022},
+  
+  copyright = {Creative Commons Attribution Non Commercial Share Alike 4.0 International}
 }

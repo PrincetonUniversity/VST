@@ -103,7 +103,7 @@ Definition print_int_spec :=
 Definition read_sum n d : IO_itree :=
    ITree.iter (fun '(n, d) =>
        if zlt n 1000 then if zlt d 10 then
-         write_list stdout (chars_of_Z (n + d));; @write _ (@IO_event nat) _ stdout (Byte.repr newline);;
+         write_list stdout (chars_of_Z (n + d));; write stdout (Byte.repr newline);;
               c <- read stdin;;
               Ret (inl (n + d, Byte.unsigned c - char0)) (* loop again with these parameters *)
        else Ret (inr tt) else Ret (inr tt)) (* inr to end the loop *)
@@ -398,6 +398,12 @@ Qed.
 
 Definition main_block := proj1_sig main_block_exists.
 
+Axiom (Jsub: forall ef se lv m t v m' (EFI : ef_inline ef = true) m1
+       (EFC : Events.external_call ef se lv m t v m'), juicy_mem.mem_sub m m1 ->
+       exists m1' (EFC1 : Events.external_call ef se lv m1 t v m1'),
+         juicy_mem.mem_sub m' m1' /\ proj1_sig (Clight_core.inline_external_call_mem_events _ _ _ _ _ _ _ EFI EFC1) =
+         proj1_sig (Clight_core.inline_external_call_mem_events _ _ _ _ _ _ _ EFI EFC)).
+
 Theorem prog_ext_correct : exists q,
   semantics.initial_core (Clight_core.cl_core_sem (globalenv prog)) 0 init_mem q init_mem (Vptr main_block Ptrofs.zero) [] /\
   forall n, @step_lemmas.dry_safeN _ _ _ _ semax.genv_symb_injective (Clight_core.cl_core_sem (globalenv prog))
@@ -407,8 +413,11 @@ Proof.
   edestruct whole_program_sequential_safety_ext with (V := Vprog) as (b & q & Hb & Hq & Hsafe).
   - repeat intro; hnf.
     apply I.
+  - apply Jsub.
+  - apply add_funspecs_frame.
   - apply juicy_dry_specs.
   - apply dry_spec_mem.
+  - intros; apply I.
   - apply CSHL_Sound.semax_prog_sound, prog_correct.
   - apply (proj2_sig init_mem_exists).
   - exists q.
@@ -427,11 +436,12 @@ Theorem prog_OS_correct : forall {H : io_os_specs.ThreadsConfigurationOps},
   semantics.initial_core (Clight_core.cl_core_sem (globalenv prog)) 0 init_mem q init_mem (Vptr main_block Ptrofs.zero) [] /\
      forall n s0, s0.(io_log) = [] -> s0.(console) = {| cons_buf := []; rpos := 0 |} ->
     exists traces, OS_safeN_trace prog n Traces.TEnd traces main_itree s0 q init_mem /\
-     forall t s, Ensembles.In traces (t, s) -> exists z', consume_trace main_itree z' t /\ t = trace_of_ostrace s.(io_log) /\
+     forall t s, traces (t, s) -> exists z', consume_trace main_itree z' t /\ t = trace_of_ostrace s.(io_log) /\
       valid_trace_user s.(io_log).
 Proof.
   intros.
   edestruct IO_OS_ext with (V := Vprog) as (b & q & Hb & Hq & Hsafe).
+  - apply Jsub.
   - apply prog_correct.
   - apply (proj2_sig init_mem_exists).
   - exists q.

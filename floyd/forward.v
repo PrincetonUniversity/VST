@@ -2713,8 +2713,9 @@ Ltac forward_if'_new :=
   check_Delta; check_POSTCONDITION;
  repeat apply -> semax_seq_skip;
  repeat (apply seq_assoc1; try apply -> semax_seq_skip);
+ hoist_later_in_pre;
 match goal with
-| |- @semax ?CS _ ?Delta ?Pre (Sifthenelse ?e ?c1 ?c2) _ =>
+| |- @semax ?CS _ ?Delta (|> ?Pre) (Sifthenelse ?e ?c1 ?c2) _ =>
    let HRE := fresh "H" in let v := fresh "v" in
     do_compute_expr1 CS Delta Pre e;
     match goal with v' := _, H:_ |- _ => rename H into HRE; rename v' into v end;
@@ -2733,7 +2734,7 @@ match goal with
        repeat apply -> semax_skip_seq;
        abbreviate_semax
      ]
-| |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Ssequence (Sifthenelse ?e ?c1 ?c2) _) _ =>
+| |- semax ?Delta (|> PROPx ?P (LOCALx ?Q (SEPx ?R))) (Ssequence (Sifthenelse ?e ?c1 ?c2) _) _ =>
     tryif (unify (orb (quickflow c1 nofallthrough) (quickflow c2 nofallthrough)) true)
     then (apply semax_if_seq; forward_if'_new)
     else fail "Because your if-statement is followed by another statement, you need to do 'forward_if Post', where Post is a postcondition of type (environ->mpred) or of type Prop"

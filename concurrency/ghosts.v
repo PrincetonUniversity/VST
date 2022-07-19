@@ -2,10 +2,10 @@ Require Export VST.msl.ghost.
 Require Export VST.veric.ghosts.
 Require Import VST.veric.compcert_rmaps.
 Require Import VST.concurrency.conclib.
+Require Import VST.concurrency.lock_specs.
 Import List.
 
 (* Lemmas about ghost state and common instances, part 2 *)
-(* Where should this sit? *)
 
 #[export] Hint Resolve Share.nontrivial : core.
 
@@ -109,6 +109,29 @@ Proof.
   intros ? (? & ? & _).
   exists (Some v'); split; simpl; auto; inv H; constructor.
   inv H1.
+Qed.
+
+(* lift from veric.invariants *)
+#[export] Instance set_PCM : Ghost := invariants.set_PCM.
+
+Definition ghost_set g s := own(RA := set_PCM) g s NoneP.
+
+Lemma ghost_set_join : forall g s1 s2,
+  ghost_set g s1 * ghost_set g s2 = !!(Ensembles.Disjoint s1 s2) && ghost_set g (Ensembles.Union s1 s2).
+Proof.
+  apply invariants.ghost_set_join.
+Qed.
+
+Lemma ghost_set_subset : forall g s s' (Hdec : forall a, Ensembles.In s' a \/ ~Ensembles.In s' a),
+  Ensembles.Included s' s -> ghost_set g s = ghost_set g s' * ghost_set g (Ensembles.Setminus s s').
+Proof.
+  apply invariants.ghost_set_subset.
+Qed.
+
+Corollary ghost_set_remove : forall g a s,
+  Ensembles.In s a -> ghost_set g s = ghost_set g (Ensembles.Singleton a) * ghost_set g (Ensembles.Subtract s a).
+Proof.
+  apply invariants.ghost_set_remove.
 Qed.
 
 Section Snapshot.
@@ -484,6 +507,14 @@ Proof.
   intros [[]|] ([[]|] & J & ?); inv J.
   - destruct H1 as (? & ?%join_Tsh & ?); tauto.
   - exists (Some (Tsh, v')); split; [constructor | auto].
+Qed.
+
+Lemma ghost_var_update' : forall g (v1 v2 v : A), ghost_var gsh1 v1 g * ghost_var gsh2 v2 g |--
+  |==> !!(v1 = v2) && (ghost_var gsh1 v g * ghost_var gsh2 v g).
+Proof.
+  intros; erewrite ghost_var_share_join' by eauto.
+  Intros; subst; erewrite ghost_var_share_join by eauto.
+  rewrite -> prop_true_andp by auto; apply ghost_var_update.
 Qed.
 
 Lemma ghost_var_exclusive : forall sh v p, sh <> Share.bot -> exclusive_mpred (ghost_var sh v p).
@@ -1669,74 +1700,22 @@ End GHist.
 (*#[export] Hint Resolve ghost_var_precise ghost_var_precise'.*)
 #[export] Hint Resolve (*ghost_var_init*) master_init (*ghost_map_init*) ghost_hist_init : init.
 
-Ltac ghost_alloc G :=
-  match goal with |-semax _ (PROPx ?P (LOCALx ?Q (SEPx ?R))) _ _ =>
-    apply (semax_pre_bupd (PROPx P (LOCALx Q (SEPx ((EX g : _, G g) :: R)))));
-  [go_lower; erewrite !prop_true_andp by (repeat (split; auto));
-   rewrite <- emp_sepcon at 1; eapply derives_trans, ghost_seplog.bupd_frame_r;
-   apply sepcon_derives, derives_refl; apply own_alloc; auto; simpl; auto with init share ghost|] end.
-
-Ltac ghosts_alloc G n :=
-  match goal with |-semax _ (PROPx ?P (LOCALx ?Q (SEPx ?R))) _ _ =>
-    apply (semax_pre_bupd (PROPx P (LOCALx Q (SEPx ((EX lg : _, !!(Zlength lg = n) && iter_sepcon G lg) :: R)))));
-  [go_lower; erewrite !prop_true_andp by (repeat (split; auto));
-   rewrite <- emp_sepcon at 1; eapply derives_trans, bupd_frame_r;
-   apply sepcon_derives, derives_refl; apply own_list_alloc'; auto; simpl; auto with init share ghost|] end.
-
 Lemma wand_nonexpansive_l: forall P Q n,
   approx n (P -* Q)%logic = approx n (approx n P  -* Q)%logic.
 Proof.
-  repeat intro.
-  apply (nonexpansive_super_non_expansive (fun P => predicates_sl.wand P Q)).
-  split; intros ???? Hshift ??????.
-  - eapply Hshift; eauto.
-    apply necR_level in H1; apply ext_level in H2; apply necR_level in H3.
-    apply join_level in H4 as [].
-    eapply (H y0); auto; lia.
-  - eapply Hshift; eauto.
-    apply necR_level in H1; apply ext_level in H2; apply necR_level in H3.
-    apply join_level in H4 as [].
-    eapply (H y0); auto; lia.
+  apply wand_nonexpansive_l.
 Qed.
 
 Lemma wand_nonexpansive_r: forall P Q n,
   approx n (P -* Q)%logic = approx n (P  -* approx n Q)%logic.
 Proof.
-  repeat intro.
-  apply (nonexpansive_super_non_expansive (fun Q => predicates_sl.wand P Q)).
-  split; intros ???? Hshift ??????.
-  - eapply Hshift in H5; eauto.
-    apply necR_level in H1; apply ext_level in H2; apply necR_level in H3.
-    apply join_level in H4 as [].
-    eapply (H z); auto; lia.
-  - eapply Hshift in H5; eauto.
-    apply necR_level in H1; apply ext_level in H2; apply necR_level in H3.
-    apply join_level in H4 as [].
-    eapply (H z); auto; lia.
-Qed.
-
-Lemma approx_bupd: forall P n, (approx n (own.bupd P) = (own.bupd (approx n P)))%logic.
-Proof.
-  intros; apply predicates_hered.pred_ext.
-  - intros ? [? HP].
-    change ((own.bupd (approx n P)) a).
-    intros ? J.
-    destruct (HP _ J) as (? & ? & m' & ? & ? & ? & ?);
-      eexists; split; eauto; eexists; split; eauto; repeat split; auto; lia.
-  - intros ? HP.
-    destruct (HP nil) as (? & ? & m' & ? & ? & ? & []).
-    { eexists; constructor. }
-    split; [lia|].
-    change ((own.bupd P) a).
-    intros ? J.
-    destruct (HP _ J) as (? & ? & m'' & ? & ? & ? & []);
-      eexists; split; eauto; eexists; split; eauto; repeat split; auto.
+  apply wand_nonexpansive_r.
 Qed.
 
 Lemma wand_nonexpansive: forall P Q n,
   approx n (P -* Q)%logic = approx n (approx n P  -* approx n Q)%logic.
 Proof.
-  intros; rewrite wand_nonexpansive_l, wand_nonexpansive_r; reflexivity.
+  apply wand_nonexpansive.
 Qed.
 
 Corollary view_shift_nonexpansive : forall P Q n,
@@ -1745,3 +1724,15 @@ Proof.
   intros.
   rewrite wand_nonexpansive, approx_bupd; reflexivity.
 Qed.
+
+Ltac ghost_alloc G :=
+  match goal with |-semax _ (PROPx _ (LOCALx _ (SEPx (?R1 :: _)))) _ _ =>
+    rewrite <- (emp_sepcon R1) at 1; Intros; viewshift_SEP 0 (EX g : _, G g);
+  [go_lowerx; eapply derives_trans; [|unseal_derives; apply fupd.bupd_fupd]; rewrite ?emp_sepcon;
+   apply own_alloc; auto; simpl; auto with init share ghost|] end.
+
+Ltac ghosts_alloc G n :=
+  match goal with |-semax _ (PROPx _ (LOCALx _ (SEPx (?R1 :: _)))) _ _ =>
+    rewrite <- (emp_sepcon R1) at 1; Intros; viewshift_SEP 0 (EX lg : _, !!(Zlength lg = n) && iter_sepcon G lg);
+  [go_lowerx; eapply derives_trans; [|unseal_derives; apply fupd.bupd_fupd]; rewrite ?emp_sepcon;
+   apply own_list_alloc'; auto; simpl; auto with init share ghost|] end.

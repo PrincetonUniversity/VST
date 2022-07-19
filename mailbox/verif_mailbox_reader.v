@@ -6,14 +6,13 @@ Require Import VST.zlist.sublist.
 Require Import mailbox.mailbox.
 Require Import mailbox.verif_mailbox_specs.
 
-Set Bullet Behavior "Strict Subproofs".
-
 Ltac entailer_for_load_tac ::= unfold tc_efield; go_lower; entailer'.
 Ltac entailer_for_store_tac ::= unfold tc_efield; go_lower; entailer'.
 
 Lemma body_reader : semax_body Vprog Gprog f_reader reader_spec.
 Proof.
   start_function.
+  assert (B < Int.max_signed) by computable.
   rewrite (data_at_isptr _ tint); Intros.
   replace_SEP 0 (data_at Ews tint (vint r) (force_val (sem_cast_pointer arg))).
   { rewrite sem_cast_neutral_ptr; auto; go_lowerx; cancel. }
@@ -28,7 +27,7 @@ Proof.
          data_at Ews tint Empty (Znth r reads); data_at Ews tint (vint b0) (Znth r lasts);
          data_at Ews tint (vint r) (force_val (sem_cast_pointer arg)); malloc_token Ews tint arg;
          data_at sh1 (tarray (tptr tint) N) comms (gv _comm);
-         data_at sh1 (tarray (tptr tlock) N) locks (gv _lock);
+         data_at sh1 (tarray (tptr t_lock) N) (map ptr_of locks) (gv _lock);
          data_at sh1 (tarray (tptr tbuffer) B) bufs (gv _bufs);
          comm_loc sh2 l c g g0 g1 g2 bufs sh gsh2 h;
          EX v : Z, @data_at CompSpecs sh tbuffer (vint v) (Znth b0 bufs);

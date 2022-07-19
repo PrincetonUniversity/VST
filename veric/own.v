@@ -259,19 +259,40 @@ Proof.
     do 2 eexists; eauto.
 Qed.
 
-Lemma bupd_andp_prop : forall P Q, bupd (!! P && Q) = !! P && bupd Q.
+Lemma corable_resource_at : forall P, corable P ->
+  forall a b, level a = level b -> resource_at a = resource_at b -> P a -> P b.
+Proof.
+  intros.
+  apply (H (id_core a)); [eapply H; eauto|].
+  - right; left; eexists; apply id_core_unit.
+  - left. exists b.
+    apply resource_at_join2; auto.
+    + rewrite id_core_level; auto.
+    + intros; rewrite id_core_resource.
+      rewrite <- core_resource_at, H1; apply core_unit.
+    + rewrite id_core_ghost; constructor.
+Qed.
+
+Lemma bupd_andp_corable : forall P Q, corable P -> bupd (P && Q) = P && bupd Q.
 Proof.
   intros; apply pred_ext.
   - intros ??; simpl in *.
     split.
-    + destruct (H _ (joins_approx_core _)) as (? & ? & ? & ? & ? & ? & ? & ?); auto.
-    + intros ? J; destruct (H _ J) as (? & ? & m & ? & ? & ? & ? & ?).
+    + destruct (H0 _ (joins_approx_core _)) as (? & ? & ? & ? & ? & ? & ? & ?); auto.
+      eapply corable_resource_at; eauto.
+    + intros ? J; destruct (H0 _ J) as (? & ? & m & ? & ? & ? & ? & ?).
       do 2 eexists; eauto.
   - intros ? [? HQ] ? J.
     destruct (HQ _ J) as (? & ? & m & ? & ? & ? & ?).
     do 2 eexists; eauto.
     do 2 eexists; eauto.
     repeat split; auto.
+    eapply corable_resource_at, H0; auto.
+Qed.
+
+Lemma bupd_andp_prop : forall P Q, bupd (!! P && Q) = !! P && bupd Q.
+Proof.
+  intros; apply bupd_andp_corable, corable_prop.
 Qed.
 
 Lemma subp_bupd: forall (G : pred nat) (P P' : pred rmap), (G |-- P >=> P') ->
