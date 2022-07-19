@@ -4,11 +4,12 @@ Require Import VST.veric.invariants.
 Require Import VST.msl.iter_sepcon.
 Require Import VST.msl.ageable.
 Require Import VST.msl.age_sepalg.
-Require Import VST.floyd.proofauto.
-Require Import VST.floyd.library.
+From VST.floyd Require Import base2 client_lemmas data_at_rec_lemmas 
+   field_at reptype_lemmas mapsto_memory_block aggregate_pred
+   nested_field_lemmas call_lemmas entailer.
 Require Import VST.zlist.sublist.
 Import FashNotation.
-Import LiftNotation.
+Import LiftNotation ListNotations.
 Import compcert.lib.Maps.
 
 Require Import VST.concurrency.conclib_coqlib.
@@ -535,7 +536,7 @@ Proof.
   intros; unfold data_at, field_at, at_offset; Intros.
   apply andp_right; [apply prop_right; auto|].
   rewrite !data_at_rec_eq; simpl.
-  unfold array_pred, aggregate_pred.array_pred; Intros.
+  unfold aggregate_pred.array_pred, array_pred; Intros.
   apply andp_right; [apply prop_right; auto|].
   rewrite Z.sub_0_r in *.
   erewrite aggregate_pred.rangespec_ext by (intros; rewrite Z.sub_0_r; apply f_equal; auto).
@@ -563,7 +564,7 @@ Proof.
   intros until t; type_induction.type_induction t; intros; rewrite !data_at_rec_eq; simpl; auto;
   try destruct i; try destruct s; try destruct f;
     try solve [destruct (attr_volatile _); [cancel | apply mapsto_value_cohere; auto]].
-  - unfold array_pred, aggregate_pred.array_pred.
+  - unfold aggregate_pred.array_pred, array_pred.
     rewrite sepcon_andp_prop, !sepcon_andp_prop'.
     repeat (apply derives_extract_prop; intro); entailer'.
     rewrite Z.sub_0_r in *.

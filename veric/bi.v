@@ -309,9 +309,10 @@ Lemma coPset_to_Ensemble_union : forall E1 E2,
   coPset_to_Ensemble (E1 ∪ E2) = Ensembles.Union (coPset_to_Ensemble E1) (coPset_to_Ensemble E2).
 Proof.
   intros.
-  unfold coPset_to_Ensemble; apply Ensembles.Extensionality_Ensembles; constructor; intros ? X.
-  - unfold Ensembles.In in X; apply elem_of_union in X as [|]; [left | right]; auto.
-  - unfold Ensembles.In; inv X; [apply elem_of_union_l | apply elem_of_union_r]; auto.
+  unfold coPset_to_Ensemble.
+  extensionality; apply prop_ext; split; intro X.
+  - apply elem_of_union in X as [|]; [left | right]; auto.
+  - inv X; [apply elem_of_union_l | apply elem_of_union_r]; auto.
 Qed.
 
 Lemma coPset_to_Ensemble_disjoint : forall E1 E2,
