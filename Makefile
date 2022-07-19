@@ -42,6 +42,10 @@ endif
 # COMPCERT=src_dir      (build and use in source folder COMPCERT_SRC_DIR the variant specified by ARCH and BITSIZE)
 # COMPCERT=inst_dir     (use prebuilt CompCert in COMPCERT_INST_DIR - BITSIZE and ARCH can be left empty or must match)
 #
+# # Choosing VST zlist #
+# ZLIST=platform     (use zlist from installed library)
+# ZLIST=bundled      (default, build and use bundled zlist)
+#
 # # Choosing BITSIZE #
 # BITSIZE=32 
 # BITSIZE=64
@@ -62,6 +66,7 @@ endif
 
 # # User settable variables #
 COMPCERT ?= platform
+ZLIST ?= bundled
 ARCH ?= 
 BITSIZE ?=
 
@@ -235,7 +240,11 @@ endif
 
 # ########## Flags ##########
 
-VSTDIRS= msl sepcomp veric zlist floyd $(PROGSDIR) concurrency ccc26x86 atomics
+ifeq ($(ZLIST),platform)
+  VSTDIRS= msl sepcomp veric floyd $(PROGSDIR) concurrency ccc26x86 atomics
+else
+  VSTDIRS= msl sepcomp veric zlist floyd $(PROGSDIR) concurrency ccc26x86 atomics
+endif
 OTHERDIRS= wand_demo sha hmacfcf tweetnacl20140427 hmacdrbg aes mailbox boringssl_fips_20180730
 DIRS = $(VSTDIRS) $(OTHERDIRS)
 
@@ -302,6 +311,7 @@ $(info ===== CONFIGURATION SUMMARY =====)
 $(info COMPCERT=$(COMPCERT))
 $(info COMPCERT_SRC_DIR=$(COMPCERT_SRC_DIR))
 $(info COMPCERT_INST_DIR=$(COMPCERT_INST_DIR))
+$(info ZLIST=$(ZLIST))
 $(info BITSIZE=$(BITSIZE))
 $(info ARCH=$(ARCH))
 $(info INSTALLDIR=$(INSTALLDIR))
