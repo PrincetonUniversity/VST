@@ -3,7 +3,7 @@ This is a library of list operations using Z as index, and a simple yet powerful
 ## Installation
 This is a component of VST but can also be installed separately.  When used within VST does not need a separate opam install, but when used independently of vst then:
 ```
-opam install coq-vst-zlist
+opam pin coq-vst-zlist https://github.com/PrincetonUniversity/VST.git
 ```
 This is compatible with VST of the same version.
 
