@@ -1,8 +1,8 @@
 Set Implicit Arguments.
 
-Require Import fcf.FCF.
-Require Import fcf.CompFold.
-Require Import fcf.PRF.
+Require Import FCF.FCF.
+Require Import FCF.CompFold.
+Require Import FCF.PRF.
 
 Section PRG_Nonadaptive.
 
