@@ -1,12 +1,9 @@
-(* WARNING: This file has not been maintained since approximately June 2019,
-   and may need minor updating for current versions of FCF and Coq.
-*)
 Set Implicit Arguments.
 
-Require Import fcf.FCF.
-Require Import fcf.CompFold.
-Require Import fcf.PRF.
-Require Import PRG_NA.
+Require Import FCF.FCF.
+Require Import FCF.CompFold.
+Require Import FCF.PRF.
+Require Import hmacdrbg.PRG_NA.
 
 Local Open Scope list_scope.
 Section HMAC_DRBG_PRG_NA.
@@ -188,7 +185,7 @@ Definition HMAC_DRBG_PRG_NA :=
   (ret requestList) A <= (numCalls / 1) * Gi_Gi_plus_1_bound.
 
 (* The proof of this property is imported and applied below *)
-Require Import HMAC_DRBG_nonadaptive.
+Require Import hmacdrbg.HMAC_DRBG_nonadaptive.
 
 Theorem Generate_rb_eq_ideal : 
   forall b x,

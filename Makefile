@@ -564,6 +564,7 @@ HMACDRBG_FILES = \
   entropy.v entropy_lemmas.v DRBG_functions.v HMAC_DRBG_algorithms.v \
   HMAC256_DRBG_functional_prog.v HMAC_DRBG_pure_lemmas.v \
   map_swap.v PRF_DRBG.v HMAC_DRBG_nonadaptive.v \
+  PRG_NA.v HMAC_DRBG_nonadaptive.v \
   HMAC_DRBG_update.v \
   hmac_drbg.v hmac_drbg_compspecs.v \
   spec_hmac_drbg.v HMAC256_DRBG_bridge_to_FCF.v spec_hmac_drbg_pure_lemmas.v \
