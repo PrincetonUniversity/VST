@@ -293,6 +293,20 @@ Section PROOFS.
     iExists true; iFrame.
   Qed.
 
+  Lemma make_lock_inv_0_self : forall v N R sh1 sh2, sh1 <> Share.bot -> sepalg.join sh1 sh2 Tsh ->
+    (atomic_int_at Ews (vint 0) v * R) |-- @fupd mpred (bi_fupd_fupd(BiFUpd := mpred_bi_fupd)) ⊤ ⊤ (EX h, !!(ptr_of h = v /\ name_of h = N) && lock_inv sh1 h (R * self_part sh2 h)).
+  Proof.
+    intros.
+    iIntros "[a R]".
+    iDestruct (atomic_int_isptr with "a") as %Ha.
+    iMod (own_alloc(RA := share_ghost) with "[$]") as (g) "g"; first done.
+    setoid_rewrite (own_op(RA := share_ghost) _ _ _ _ _ H0); iDestruct "g" as "[g1 g2]".
+    iMod (inv_alloc with "[a R g2]") as "I";
+      [| iExists (v, N, g); unfold lock_inv; simpl; iFrame; auto].
+    iIntros "!>"; unfold inv_for_lock.
+    iLeft; iExists false; iFrame; auto.
+  Qed.
+
   Lemma make_lock_inv_0' : forall v N (R : lock_handle -> mpred), (atomic_int_at Ews (vint 0) v * ALL g, R g) |-- @fupd mpred (bi_fupd_fupd(BiFUpd := mpred_bi_fupd)) ⊤ ⊤ (EX h, !!(ptr_of h = v /\ name_of h = N) && lock_inv Tsh h (R h)).
   Proof.
     intros.
