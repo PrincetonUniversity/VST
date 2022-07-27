@@ -1,6 +1,7 @@
 Require Import VST.veric.rmaps.
 Require Import VST.concurrency.conclib.
 Require Import VST.floyd.library.
+Import FashNotation.
 
 (* lock invariants should be exclusive *)
 Definition exclusive_mpred P := P * P |-- FF.
@@ -150,6 +151,15 @@ Class lock_impl := { t_lock : type; lock_handle : Type; ptr_of : lock_handle -> 
 Section lock_specs.
 
   Context {LI : lock_impl}.
+
+  Lemma lock_inv_nonexpansive2 : forall {A} (P Q : A -> mpred) sh p x, (ALL x : _, |> (P x <=> Q x) |--
+    |> lock_inv sh p (P x) <=> |> lock_inv sh p (Q x))%logic.
+  Proof.
+    intros.
+    apply allp_left with x.
+    eapply derives_trans, eqp_later1; apply later_derives.
+    apply nonexpansive_entail; apply lock_inv_nonexpansive.
+  Qed.
 
   Lemma lock_inv_super_non_expansive : forall sh h R n,
     compcert_rmaps.RML.R.approx n (lock_inv sh h R) = compcert_rmaps.RML.R.approx n (lock_inv sh h (compcert_rmaps.RML.R.approx n R)).
