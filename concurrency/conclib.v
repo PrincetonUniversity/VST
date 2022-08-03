@@ -345,7 +345,8 @@ Ltac forward_spawn id arg wit :=
         instantiate (1 := fun '(a, b) => _ a) in (value of R));
         etransitivity; [|symmetry; apply PROP_into_SEP_LAMBDA]; f_equal; f_equal; f_equal;
         [ instantiate (1 := fun _ => _) in (value of Q); subst Q; f_equal; simpl; reflexivity
-        | unfold SEPx; extensionality; simpl; rewrite sepcon_emp; instantiate (1 := fun _ => _);
+        | unfold SEPx; extensionality; simpl; rewrite sepcon_emp;
+          unfold R; instantiate (1 := fun _ => _);
           reflexivity]
   ];
   forward_call [A] funspec_sub_refl (f, arg, Q, wit, R); subst Q R;
