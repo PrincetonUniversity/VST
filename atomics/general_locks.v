@@ -53,6 +53,74 @@ Proof.
   iApply (part_ref_update(P := P) with "H"); auto.
 Qed.
 
+(* lock_inv with share implies TaDA lock specs with share *)
+Context {LI : lock_impl}.
+
+Definition lock_state g (b : bool) := ghost_var (if b then Tsh else gsh2) tt g.
+Definition lock_ref sh p g := lock_inv sh p (ghost_var gsh1 tt g).
+
+  Program Definition release_spec :=
+    ATOMIC TYPE (rmaps.ConstType _) INVS empty
+    WITH sh, p, g
+    PRE [ tptr t_lock ]
+       PROP (sh <> Share.bot)
+       PARAMS (ptr_of p)
+       SEP (lock_ref sh p g) | (lock_state g true)
+    POST [ tvoid ]
+       PROP ()
+       LOCAL ()
+       SEP (lock_ref sh p g) | (lock_state g false).
+
+  Program Definition acquire_spec :=
+    ATOMIC TYPE (rmaps.ConstType _) OBJ l INVS empty
+    WITH sh, p, g
+    PRE [ tptr t_lock ]
+       PROP (sh <> Share.bot)
+       PARAMS (ptr_of p)
+       SEP (lock_ref sh p g) | (lock_state g l)
+    POST [ tvoid ]
+       PROP ()
+       LOCAL ()
+       SEP (lock_ref sh p g) | (!!(l = false) && lock_state g true).
+(* it's inelegant but seems inevitable that we need the lock_inv locally here. This seems
+   to be a consequence of baking share ownership into the lock_inv assertion. *)
+
+Lemma acquire_tada : funspec_sub lock_specs.acquire_spec acquire_spec.
+Proof.
+    apply prove_funspec_sub.
+    split; auto. intros. simpl in *. Intros.
+    unfold rev_curry, tcurry; simpl. iIntros "H !>". destruct x2 as (((sh, h), g), Q).
+    set (AS := atomic_shift _ _ _ _ _). iExists nil, (sh, h, ghost_var gsh1 tt g), AS.
+    iSplit.
+    - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl.
+      iDestruct "H" as "(% & % & % & $ & $ & _)"; auto.
+    - iPureIntro. intros. Intros. (* need fupd in postcondition *)
+Admitted.
+
+Lemma release_tada : funspec_sub lock_specs.release_spec release_spec.
+Proof.
+    apply prove_funspec_sub.
+    split; auto. intros. simpl in *. Intros.
+    unfold rev_curry, tcurry; simpl. iIntros "H". destruct x2 as (((sh, h), g), Q).
+    unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl.
+    iDestruct "H" as "([% _] & % & % & AS & l & _)".
+    iMod "AS" as (_) "[lock Hclose]".
+    unfold lock_state at 1.
+    erewrite <- ghost_var_share_join; try apply gsh1_gsh2_join; auto.
+    iDestruct "lock" as "[g1 g2]"; iDestruct "Hclose" as "[_ Hclose]".
+    iMod ("Hclose" $! tt with "[$g2]") as "Q".
+    iExists nil, (sh, h, ghost_var gsh1 tt g, ghost_var gsh1 tt g, lock_ref sh h g), Q.
+    iModIntro; iSplit.
+    - iFrame; do 2 (iSplit; [auto|]).
+      iSplitL ""; [|iSplit; [|iSplit]; auto; iIntros "$"].
+      iApply exclusive_weak_exclusive; auto.
+      unfold exclusive_mpred.
+      rewrite ghost_var_share_join_gen; Intros sh'.
+      apply join_self, identity_share_bot in H4; contradiction.
+    - iPureIntro. intros. entailer!.
+Qed.
+
+
 Definition sync_inv g sh R := EX a : G, R g a * my_half g sh a.
 
 Lemma sync_inv_exclusive : forall g sh (R : gname -> G -> mpred), exclusive_mpred (sync_inv g sh R).
