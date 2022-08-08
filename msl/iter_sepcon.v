@@ -495,3 +495,79 @@ Qed.
 
 End IterPredSepCon.
 
+Lemma pred_sepcon_isolate:
+  forall {A B: Type}{NA: NatDed A}{SA: SepLog A}
+  (x: B)
+  (DECB: forall x y: B, {x=y}+{x<>y})
+  (f: B -> A) (u: B -> Prop),
+  (u x) ->
+  pred_sepcon f u = pred_sepcon f (fun y => u y /\ y<>x) * f x.
+Proof.
+intros.
+rewrite !pred_sepcon_eq.
+pose (neqx y := if DECB x y then false else true).
+apply pred_ext.
+apply exp_left; intro l.
+normalize.
+destruct H0.
+apply exp_right with (filter neqx l).
+rewrite prop_true_andp.
+apply derives_trans with (iter_sepcon f (x :: filter neqx l)).
+apply derives_refl'.
+apply iter_sepcon_permutation.
+apply NoDup_Permutation; auto.
+constructor.
+intro. apply filter_In in H2. destruct H2.
+unfold neqx in H3.
+destruct (DECB x x). inversion H3. contradiction n; auto.
+apply NoDup_filter; auto.
+intro.
+split; intro.
+destruct (DECB x0 x).
+subst. left; auto. right. apply filter_In. split; auto.
+unfold neqx.
+destruct (DECB x x0); auto.
+destruct H2.
+subst.
+rewrite <- H0 in H. auto.
+apply filter_In in H2. destruct H2; auto.
+simpl. rewrite sepcon_comm; auto.
+split.
+intro. split; intro.
+apply filter_In in H2. destruct H2.
+rewrite H0 in H2.
+split; auto.
+intro; subst.
+unfold neqx in H3.
+destruct (DECB x x); auto. inv H3.
+destruct H2.
+apply filter_In. split; auto.
+rewrite H0; auto.
+unfold neqx.
+destruct (DECB x x0); auto.
+apply NoDup_filter. auto.
+normalize.
+destruct H0.
+apply exp_right with (x::l).
+rewrite prop_true_andp.
+simpl.
+rewrite sepcon_comm; auto.
+split.
+intro.
+specialize (H0 x0).
+simpl. rewrite H0.
+split; intro.
+destruct H2.
+subst; auto.
+destruct H2. auto.
+destruct (DECB x0 x).
+subst.
+auto.
+right; auto.
+constructor; auto.
+rewrite H0.
+intros [? ?].
+contradiction.
+Qed.
+
+
