@@ -1136,4 +1136,44 @@ Qed.
 #[export] Hint Extern 2 (field_compatible _ _ (offset_val _ _)) =>
   (eapply field_compatible_byvalue'; [ reflexivity | eassumption | reflexivity..]) : field_compatible.
 
+#[export] Hint Extern 2 (field_address _ _ _ = field_address _ _ _) =>
+  (do 2 rewrite field_address_offset by auto with field_compatible;
+   reflexivity) : field_compatible.
 
+#[export] Hint Extern 2 (field_address _ _ _ = field_address0 _ _ _) =>
+  (rewrite field_address_offset by auto with field_compatible;
+   rewrite field_address0_offset by auto with field_compatible;
+   reflexivity) : field_compatible.
+
+#[export] Hint Extern 2 (field_address0 _ _ _ = field_address _ _ _) =>
+  (rewrite field_address_offset by auto with field_compatible;
+   rewrite field_address0_offset by auto with field_compatible;
+   reflexivity) : field_compatible.
+
+#[export] Hint Extern 2 (field_address0 _ _ _ = field_address0 _ _ _) =>
+  (do 2 rewrite field_address0_offset by auto with field_compatible;
+   reflexivity) : field_compatible.
+
+Lemma split2_data_at__Tarray_app {cs: compspecs}
+     : forall (mid n : Z) (sh : Share.t) (t : type) (p : val),
+       0 <= mid <= n ->
+       data_at_ sh (tarray t n) p = data_at_ sh (tarray t mid) p
+                                                * data_at_ sh (tarray t (n - mid)) 
+                                                    (field_address0 (tarray t n) (SUB mid) p).
+Proof.
+intros.
+unfold tarray.
+rewrite !data_at__Tarray.
+fold (tarray t n). fold (tarray t mid). fold (tarray t (n-mid)).
+rewrite <- split2_data_at_Tarray_app by list_solve.
+f_equal. rewrite Zrepeat_app by list_solve. f_equal. lia.
+Qed.
+
+Lemma data__at_singleton_array_eq:
+  forall {cs : compspecs} (sh : Share.t) (t : type) (p : val), 
+  data_at_ sh (tarray t 1) p = data_at_ sh t p.
+Proof.
+intros.
+apply data_at_singleton_array_eq.
+reflexivity.
+Qed.

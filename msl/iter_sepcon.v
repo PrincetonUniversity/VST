@@ -493,6 +493,19 @@ Proof.
     apply derives_refl.
 Qed.
 
+Lemma pred_sepcon_False':
+ forall (P: B -> Prop) (p : B -> A),
+  (forall x, ~ P x) ->
+  pred_sepcon p P = emp.
+Proof.
+intros.
+replace P with (fun _:B  => False).
+apply pred_sepcon_False.
+extensionality i.
+apply prop_ext; split; intros. contradiction.
+apply (H i); auto. 
+Qed.
+
 End IterPredSepCon.
 
 Lemma pred_sepcon_isolate:
