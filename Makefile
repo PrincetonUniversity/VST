@@ -593,7 +593,7 @@ AES_FILES = \
 # SINGLE_C_FILES are those to be clightgen'd individually with -normalize flag
 # LINKED_C_FILES are those that need to be clightgen'd in a batch with others
 
-SINGLE_C_FILES = reverse.c reverse_client.c revarray.c queue.c queue2.c message.c object.c insertionsort.c float.c global.c logical_compare.c nest2.c nest3.c ptr_compare.c load_demo.c store_demo.c dotprod.c string.c field_loadstore.c merge.c append.c bin_search.c bst.c bst_oo.c min.c min64.c switch.c funcptr.c floyd_tests.c incr.c cond.c sumarray.c sumarray2.c int_or_ptr.c union.c cast_test.c strlib.c tree.c fib.c loop_minus1.c libglob.c peel.c structcopy.c printf.c stackframe_demo.c rotate.c \
+SINGLE_C_FILES = reverse.c reverse_client.c revarray.c queue.c queue2.c message.c object.c insertionsort.c float.c global.c logical_compare.c nest2.c nest3.c ptr_compare.c load_demo.c store_demo.c dotprod.c string.c field_loadstore.c merge.c append.c bin_search.c bst.c bst_oo.c min.c min64.c switch.c funcptr.c floyd_tests.c cond.c sumarray.c sumarray2.c int_or_ptr.c union.c cast_test.c strlib.c tree.c fib.c loop_minus1.c libglob.c peel.c structcopy.c printf.c stackframe_demo.c rotate.c \
   objectSelf.c objectSelfFancy.c objectSelfFancyOverriding.c io.c io_mem.c incr.c incrN.c
 
 
@@ -709,7 +709,7 @@ test2: io
 test3: sha hmac 
 test5: VSUpile
 tests: test test2 test3 test5
-all: vst files tests memmgr hmacdrbg tweetnacl aes
+all: vst files tests hmacdrbg tweetnacl aes
 endif
 
 files: _CoqProject $(FILES:.v=.vo)
@@ -785,7 +785,7 @@ ifdef CLIGHTGEN
 all-cv-files: $(patsubst %.c,$(PROGSDIR)/%.v, $(SINGLE_C_FILES) even.c odd.c) \
               $(patsubst %.c,%.v, $(SHA_C_FILES)) \
               aes/aes.v tweetnacl20140427/tweetnaclVerifiableC.v \
-              mailbox/mailbox.v
+              mailbox/mailbox.v concurrency/threads.v atomics/SC_atomics.v
 ifneq (, $(findstring -short-idents, $(CGFLAGS)))
 $(patsubst %.c,%.v, $(SHA_C_FILES)) &: $(SHA_C_FILES)
 	$(CLIGHTGEN) ${CGFLAGS} $^
@@ -799,6 +799,10 @@ endif
 $(patsubst %.c,%.v, $(SHA_C_FILES)): %.v: %.c
 	$(CLIGHTGEN) ${CGFLAGS} $^
 endif
+concurrency/threads.v: concurrency/threads.c
+	$(CLIGHTGEN) -normalize $^
+atomics/SC_atomics.v: atomics/SC_atomics.c
+	$(CLIGHTGEN) -normalize $^
 aes/aes.v: aes/mbedtls/library/aes.c aes/mbedtls/include/mbedtls/config.h \
               aes/mbedtls/include/mbedtls/check_config.h
 	$(CLIGHTGEN) ${CGFLAGS} -Iaes/mbedtls/include $<; mv aes/mbedtls/library/aes.v aes/aes.v
