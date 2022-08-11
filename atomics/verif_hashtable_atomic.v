@@ -1168,24 +1168,6 @@ Proof.
     + apply derives_refl.
 Qed.
 
-Lemma f_inv_exclusive : forall sh gsh (entries : list (val * val)) gh p t locksp lockt resultsp res gv,
-  sh <> Share.bot ->
-  exclusive_mpred (f_lock_inv sh gsh entries gh p t locksp lockt resultsp res gv).
-Proof.
-  intros; unfold f_lock_inv.
-  eapply derives_exclusive, exclusive_sepcon1 with
-    (P := @data_at CompSpecs sh (tarray tentry size) entries p)(Q := EX b1 : bool, EX b2 : bool,
-    EX b3 : bool, EX h : nat -> option hashtable_hist_el, _), data_at_exclusive; auto.
-  - Intros b1 b2 b3 h; Exists b1 b2 b3 h.
-    rewrite -> (sepcon_comm (ghost_hist _ _ _)), !sepcon_assoc.
-    apply sepcon_derives; auto.
-  - intros X%identity_share_bot; contradiction.
-  - simpl.
-    pose proof size_pos.
-    rewrite Z.max_r; lia.
-Qed.
-#[local] Hint Resolve f_inv_exclusive : exclusive.
-
 Lemma apply_hist_app : forall h1 h2 H, apply_hist H (h1 ++ h2) =
   match apply_hist H h1 with Some H' => apply_hist H' h2 | None => None end.
 Proof.
@@ -1772,12 +1754,9 @@ Proof.
     forward_call acquire_inv_simple (gsh1, Znth i locks, f_lock i (Znth i locks) (Znth i res)).
     unfold f_lock at 2; unfold f_lock_pred.
     rewrite later_sepcon; Intros.
+    unfold f_lock, f_lock_pred.
     forward_call freelock_self (gsh1, gsh2, Znth i locks,
       f_lock_inv (Znth i shs) (Znth i shs') entries gh (gv _m_entries) i (gv _thread_locks) (ptr_of (Znth i locks)) (gv _results) (Znth i res) gv).
-    { lock_props.
-      { subst f_lock; simpl; apply f_inv_exclusive; auto.
-        eapply Forall_Znth, Forall_impl; eauto. lia. intros ???; subst; contradiction bot_unreadable. }
-      unfold f_lock, f_lock_pred; cancel. }
     unfold f_lock_inv at 1; Intros b1 b2 b3 hi.
     assert (0 <= i < Zlength shs) by lia.
     assert (readable_share (Znth i shs)) by (apply Forall_Znth; auto).

@@ -82,14 +82,6 @@ Proof.
 Qed.
 #[export] Hint Resolve ctr_inv_exclusive : core.
 
-Lemma thread_inv_exclusive : forall sh1 sh h g1 g2 p,
-  exclusive_mpred (thread_lock_R sh1 sh h g1 g2 p).
-Proof.
-  intros; unfold thread_lock_R.
-  apply exclusive_sepcon2, ghost_var_exclusive; auto.
-Qed.
-#[export] Hint Resolve thread_inv_exclusive : core.
-
 Lemma ghost_var_incr : forall g1 g2 x y n (left : bool), ghost_var gsh1 x g1 * ghost_var gsh1 y g2 * ghost_var gsh2 n (if left then g1 else g2) |--
   |==> !!((if left then x else y) = n) && ghost_var gsh1 (n+1) (if left then g1 else g2) * ghost_var gsh2 (n+1) (if left then g1 else g2) * ghost_var gsh1 (if left then y else x) (if left then g2 else g1).
 Proof.
@@ -202,10 +194,8 @@ Proof.
   (* We've proved that t is 2! *)
   forward.
   forward_call (gsh1, lock, cptr_lock_inv g1 g2 (gv _c)).
-  forward_call freelock_self (gsh1, gsh2, lockt, thread_lock_R sh2 gsh2 lock g1 g2 ctr).
-  { lock_props.
-    unfold thread_lock_inv, thread_lock_R; subst ctr; cancel. }
-  unfold thread_lock_R; Intros.
+  forward_call freelock_self (gsh1, gsh2, lockt, thread_lock_R sh2 gsh2 lock g1 g2 (gv _c)).
+  { unfold thread_lock_inv, selflock; cancel. }
   forward.
   forward_call freelock_simple (lock, cptr_lock_inv g1 g2 (gv _c)).
   { lock_props.

@@ -10,6 +10,7 @@ Require Import VST.concurrency.threads.
 #[export] Program Instance atom_impl : atomic_int_impl := { atomic_int := Tstruct _atom_int noattr }.
 Next Obligation. Admitted.
 Next Obligation. Admitted.
+Next Obligation. Admitted.
 Axiom atomic_int_isptr : forall sh v p, atomic_int_at sh v p |-- !! isptr p.
 #[export] Hint Resolve atomic_int_isptr : saturate_local.
 Axiom atomic_int_timeless : forall sh v p, fupd.timeless' (atomic_int_at sh v p).
@@ -82,8 +83,8 @@ Section PROOFS.
     apply sepalg.join_self, identity_share_bot in H0; contradiction.
   Qed.
 
-  Lemma self_part_eq : forall sh1 sh2 h R, sh2 <> Share.bot -> lock_inv sh1 h (self_part sh2 h * R) * self_part sh2 h * R =
-    lock_inv sh1 h (self_part sh2 h * R) * lock_inv sh2 h (self_part sh2 h * R) * R.
+  Lemma self_part_eq : forall sh1 sh2 h R, sh2 <> Share.bot -> lock_inv sh1 h (self_part sh2 h * R) * self_part sh2 h =
+    lock_inv sh1 h (self_part sh2 h * R) * lock_inv sh2 h (self_part sh2 h * R).
   Proof.
     intros.
     simpl; unfold atomic_lock_inv; destruct h as ((?, ?), ?).
@@ -92,7 +93,7 @@ Section PROOFS.
     destruct (isptr_dec v).
     rewrite !prop_true_andp by auto.
     unfold self_part at 2; rewrite cinvariant_dup at 1.
-    rewrite <- !sepcon_assoc; do 2 f_equal.
+    rewrite <- !sepcon_assoc; f_equal.
     rewrite (sepcon_comm (_ * _) (cinvariant _ _ _)), <- sepcon_assoc; reflexivity.
     { rewrite prop_false_andp, !FF_sepcon; auto; intros []; contradiction. }
   Qed.
@@ -131,23 +132,55 @@ Section PROOFS.
   Lemma body_freelock: semax_body Vprog Gprog f_freelock freelock_spec.
   Proof.
     start_function.
-    destruct h as ((p, i), g).
-    viewshift_SEP 0 (|> inv_for_lock p R).
+    destruct h as ((p, i), g); simpl; Intros.
+    gather_SEP (cinvariant _ _ _) (cinv_own _ _); viewshift_SEP 0 (cinvariant i g (inv_for_lock p R) * |> inv_for_lock p R).
     { go_lower; simpl; Intros.
-      apply cinv_cancel; auto. }
-    unfold inv_for_lock.
+      rewrite cinvariant_dup at 1; unfold cinvariant at 1; sep_apply (inv_open Ensembles.Full_set); auto.
+      eapply derives_trans, fupd_elim; [apply fupd_frame_r|].
+      rewrite later_orp, !distrib_orp_sepcon; apply orp_left.
+      - sep_apply (modus_ponens_wand' (cinv_own g Tsh)).
+        { apply orp_right2, now_later. }
+        sep_apply fupd_frame_r; rewrite emp_sepcon.
+        sep_apply fupd_frame_r; rewrite sepcon_comm; apply derives_refl.
+      - eapply derives_trans, except_0_fupd.
+        apply orp_right1.
+        rewrite sepcon_assoc; eapply derives_trans; [apply sepcon_derives, now_later; apply derives_refl|].
+        rewrite <- later_sepcon; apply later_derives.
+        sep_apply cinv_own_excl.
+        rewrite FF_sepcon; auto. }
+    unfold inv_for_lock at 2.
     rewrite (later_exp' _ true); Intros b.
-    simpl.
-    assert_PROP (is_pointer_or_null p) by entailer!.
-    forward_call (p).
-    - Exists (Val.of_bool b); cancel.
-    - destruct b; [entailer!|].
-      + apply andp_left2; auto.
-      + eapply derives_trans, FF_left.
-        entailer!.
-        eapply derives_trans, modus_ponens_wand.
-        rewrite (sepcon_comm R).
-        apply sepcon_derives, andp_left1; apply derives_refl.
+    destruct b.
+    - assert_PROP (is_pointer_or_null p) by entailer!.
+      forward_call (p).
+      { Exists (Val.of_bool true); cancel. }
+      entailer!.
+      rewrite <- emp_sepcon; apply sepcon_derives, andp_left2, derives_refl.
+      apply inv_dealloc.
+    - gather_SEP 0 1 2 3.
+      viewshift_SEP 0 FF.
+      go_lower.
+      rewrite cinvariant_dup at 1.
+      unfold cinvariant at 1; sep_apply (inv_open Ensembles.Full_set); auto.
+      eapply derives_trans, fupd_elim; [apply fupd_frame_r|].
+      rewrite <- !sepcon_assoc, (sepcon_comm _ (|> _)), <- !sepcon_assoc.
+      rewrite 3sepcon_assoc; eapply derives_trans; [apply sepcon_derives, derives_refl|].
+      { rewrite <- later_sepcon; apply later_derives.
+        rewrite distrib_orp_sepcon2; apply orp_left, derives_refl.
+        unfold inv_for_lock; Intros b.
+        sep_apply atomic_int_conflict; auto.
+        rewrite FF_sepcon; apply FF_left. }
+      rewrite <- !sepcon_assoc, (sepcon_comm _ (_ -* _)).
+      rewrite !later_sepcon, <- !sepcon_assoc, 4sepcon_assoc.
+      eapply derives_trans; [apply sepcon_derives; [apply derives_refl|]|].
+      rewrite <- !sepcon_assoc; eapply derives_trans, modus_ponens_wand.
+      eapply sepcon_derives, derives_trans; [|apply now_later | rewrite later_andp, later_wand; apply andp_left1, derives_refl].
+      rewrite !later_sepcon; entailer!.
+      { rewrite sepcon_assoc, <- later_sepcon, sepcon_FF.
+        eapply derives_trans; [apply sepcon_derives, derives_refl; apply now_later|].
+        rewrite <- later_sepcon, sepcon_FF.
+        eapply derives_trans, except_0_fupd; apply orp_right1; auto. }
+      { eapply semax_pre, semax_ff; entailer!. }
   Qed.
 
   Lemma body_release: semax_body Vprog Gprog f_release release_spec.
@@ -240,11 +273,11 @@ Program Definition freelock_spec_self :=
   PRE [ tptr t_lock ]
      PROP (sh2 <> Share.bot; sepalg.join sh1 sh2 Tsh)
      PARAMS (ptr_of h)
-     SEP (weak_exclusive_mpred R && emp; lock_inv sh1 h (self_part sh2 h * R); self_part sh2 h; R)
+     SEP (lock_inv sh1 h (self_part sh2 h * R); self_part sh2 h)
   POST [ tvoid ]
      PROP ()
      LOCAL ()
-     SEP (R).
+     SEP ().
 Next Obligation.
 Proof.
   repeat intro.
@@ -252,8 +285,6 @@ Proof.
   unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl; rewrite !approx_andp; do 3 f_equal;
     rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
   f_equal.
-  { rewrite !approx_andp; f_equal.
-    apply exclusive_mpred_super_non_expansive. }
   setoid_rewrite (@lock_inv_super_non_expansive atomic_impl); do 2 f_equal.
   rewrite !approx_sepcon, approx_idem; auto.
 Qed.
@@ -263,7 +294,6 @@ Proof.
   destruct x as (((?, ?), ?), ?); simpl.
   unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 f_equal;
     rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
-  reflexivity.
 Qed.
 
 Program Definition release_spec_self :=
@@ -324,15 +354,17 @@ Proof.
   unfold funspec_sub; simpl.
   split; auto; intros ? (((sh1, sh2), h), R) ?; Intros.
   eapply derives_trans, fupd_intro.
-  Exists (nil : list Type) (h, self_part sh2 h * R, R) emp; entailer!.
+  Exists (nil : list Type) (h, self_part sh2 h * R, emp) emp; entailer!.
+  { intros; unfold PROPx, LOCALx, SEPx; simpl; entailer!. }
   unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl.
   set (P := _ * _); entailer!; subst P.
-  rewrite sepcon_emp, <- (sepcon_assoc _ _ R); setoid_rewrite self_part_eq; auto.
+  rewrite sepcon_emp; setoid_rewrite self_part_eq; auto.
   saturate_local.
   erewrite lock_inv_share_join by eauto; simpl; cancel.
-  apply andp_right, andp_left2; auto.
-  rewrite <- wand_sepcon_adjoint.
-  sep_apply weak_exclusive_conflict.
+  apply andp_right; auto.
+  rewrite <- wand_sepcon_adjoint, emp_sepcon.
+  destruct h as ((p, i), g); simpl; Intros.
+  sep_apply cinv_own_excl.
   rewrite FF_sepcon; auto.
 Qed.
 

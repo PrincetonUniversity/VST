@@ -136,19 +136,6 @@ Proof.
 Qed.
 #[export] Hint Resolve ctr_inv_exclusive : core.
 
-Lemma thread_inv_exclusive : forall sh1 sh g ctr lock,
-  exclusive_mpred (thread_lock_R sh1 sh g ctr lock).
-Proof.
-  intros; unfold thread_lock_R.
-  apply exclusive_sepcon2; unfold exclusive_mpred.
-  unfold ctr_handle, ghost_part, ghosts.ghost_part.
-  sep_apply own_op'; Intros x.
-  destruct H as [H _]; hnf in H.
-  destruct x as ([(?, ?)|], ?); try contradiction; simpl in H.
-  destruct H as (? & _ & J & _); apply sepalg.join_self, identity_share_bot in J; contradiction.
-Qed.
-#[export] Hint Resolve thread_inv_exclusive : core.
-
 Lemma ctr_handle_share_join : forall sh1 sh2 sh h g ctr v1 v2, sh1 <> Share.bot -> sh2 <> Share.bot -> sepalg.join sh1 sh2 sh ->
   ctr_handle sh1 h g ctr v1 * ctr_handle sh2 h g ctr v2 = ctr_handle sh h g ctr (v1 + v2)%nat.
 Proof.
@@ -329,10 +316,10 @@ Proof.
     { cancel. }
     unfold thread_lock_inv at 2; unfold thread_lock_R, selflock; Intros.
     forward.
+    unfold thread_lock_inv.
     forward_call freelock_self (gsh1, gsh2, Znth i ll, thread_lock_R (Znth i shs) (Znth i gshs) g (gv _c) h).
     { rewrite Znth_map by (simpl in *; lia); entailer!. }
-    { lock_props.
-      unfold thread_lock_inv, thread_lock_R, selflock; cancel. }
+    { unfold selflock; cancel. }
     erewrite <- sublist_same with (al := shs) in Hshs by eauto.
     erewrite <- sublist_same with (al := gshs) in Hgshs by eauto.
     rewrite sublist_split with (mid := i) in Hshs, Hgshs by lia.
