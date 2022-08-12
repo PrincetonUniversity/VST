@@ -4,7 +4,7 @@ Require Import VST.veric.invariants.
 Require Import VST.msl.iter_sepcon.
 Require Import VST.msl.ageable.
 Require Import VST.msl.age_sepalg.
-From VST.floyd Require Import base2 client_lemmas data_at_rec_lemmas 
+From VST.floyd Require Import base2 client_lemmas data_at_rec_lemmas
    field_at reptype_lemmas mapsto_memory_block aggregate_pred
    nested_field_lemmas call_lemmas entailer.
 Require Import VST.zlist.sublist.
@@ -12,7 +12,6 @@ Import FashNotation.
 Import LiftNotation ListNotations.
 Import compcert.lib.Maps.
 
-Require Import VST.concurrency.conclib_coqlib.
 Require Import VST.concurrency.conclib_sublist.
 
 (* general list lemmas *)
