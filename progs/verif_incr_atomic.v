@@ -81,14 +81,6 @@ Proof.
 Qed.
 #[local] Hint Resolve ctr_inv_exclusive : core.
 
-Lemma thread_inv_exclusive : forall sh1 sh gv l g g1,
-  exclusive_mpred (thread_lock_R sh1 sh gv l g g1).
-Proof.
-  intros; unfold thread_lock_R.
-  apply exclusive_sepcon2, ghost_var_exclusive; auto with share.
-Qed.
-#[local] Hint Resolve thread_inv_exclusive : core.
-
 Lemma body_incr: semax_body Vprog Gprog f_incr incr_spec.
 Proof.
   start_function.
@@ -316,10 +308,8 @@ Proof.
   Intros v; subst.
   forward.
   forward_call acquire_inv_simple (gsh1, lock, ctr_inv gv g).
+  unfold thread_lock_inv.
   forward_call freelock_self (gsh1, gsh2, ht, thread_lock_R sh2 gsh2 gv lock g g1).
-  { lock_props.
-    unfold thread_lock_inv, thread_lock_R; cancel. }
-  unfold thread_lock_R; Intros.
   forward.
   forward_call freelock_simple (lock, ctr_inv gv g).
   { lock_props.

@@ -237,8 +237,8 @@ Section PROOFS.
     apply sepalg.join_self, identity_share_bot in H0; contradiction.
   Qed.
 
-  Lemma self_part_eq : forall sh1 sh2 h R, sh2 <> Share.bot -> lock_inv sh1 h (self_part sh2 h * R) * self_part sh2 h * R =
-    lock_inv sh1 h (self_part sh2 h * R) * lock_inv sh2 h (self_part sh2 h * R) * R.
+  Lemma self_part_eq : forall sh1 sh2 h R, sh2 <> Share.bot -> lock_inv sh1 h (self_part sh2 h * R) * self_part sh2 h =
+    lock_inv sh1 h (self_part sh2 h * R) * lock_inv sh2 h (self_part sh2 h * R).
   Proof.
     intros; unfold lock_inv; destruct h as ((v, N), g); simpl.
     destruct (eq_dec sh1 Share.bot).
@@ -246,7 +246,7 @@ Section PROOFS.
     destruct (isptr_dec v).
     rewrite -> !prop_true_andp by auto.
     unfold self_part at 2; rewrite {1}(bi.persistent_sep_dup (cinv N g _)).
-    rewrite <- !sepcon_assoc; do 2 f_equal.
+    rewrite <- !sepcon_assoc; f_equal.
     rewrite -> (sepcon_comm (_ * _) (cinv _ _ _)), <- sepcon_assoc; reflexivity.
     { rewrite -> prop_false_andp, !FF_sepcon; auto; intros []; contradiction. }
   Qed.
@@ -854,19 +854,22 @@ Section PROOFS.
     unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl.
     rewrite !sepcon_emp. iDestruct "H" as "(_ & % & % & H1 & HP & R)".
     unfold lock_inv; simpl; unfold atomic_lock_inv; destruct h as ((v, i), g).
-    iDestruct "H1" as "(([_ %] & H) & H2)".
-    iMod (cinv_cancel with "[$H $H2]") as "inv"; first done.
-    unfold inv_for_lock.
+    iDestruct "H1" as "(([% %] & #H) & H2)".
+    iInv "H" as "[inv | inv]" "Hclose".
     iDestruct "inv" as (b) "[>a HR]".
     destruct b.
     iMod "HR" as "_"; iDestruct "R" as "_".
+    iMod ("Hclose" with "[H2]") as "_".
+    { iRight; auto. }
     iFrame "HP"; iModIntro; iSplit.
     - do 3 (iSplit; auto).
       iExists _; iApply "a".
     - iPureIntro; intros; Intros; cancel.
       apply andp_left2; auto.
-    - iAssert (|>FF) with "[R HP HR]" as ">[]".
-      iNext; iApply "R"; iFrame.
+    - iAssert (|>FF) with "[R HP HR H2]" as ">[]".
+      iNext; iApply "R"; iFrame; iSplit; auto.
+    - iAssert (|>FF) with "[H2 inv]" as ">[]".
+      iNext; iApply cinv_own_excl; [|iFrame]; auto.
   Qed.
 
   Lemma freelock_simple: funspec_sub (snd freelock_spec) freelock_spec_simple.
@@ -880,11 +883,11 @@ Section PROOFS.
     PRE [ tptr t_lock ]
        PROP (sh2 <> Share.bot; sepalg.join sh1 sh2 Tsh)
        PARAMS (ptr_of h)
-       SEP (weak_exclusive_mpred R && emp; lock_inv sh1 h (self_part sh2 h * R); self_part sh2 h; R)
+       SEP (lock_inv sh1 h (self_part sh2 h * R); self_part sh2 h)
     POST [ tvoid ]
        PROP ()
        LOCAL ()
-       SEP (R).
+       SEP ().
   Next Obligation.
   Proof.
     repeat intro.
@@ -892,8 +895,6 @@ Section PROOFS.
     unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl; rewrite !approx_andp; do 3 f_equal;
       rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
     f_equal.
-    { rewrite !approx_andp; f_equal.
-      apply exclusive_mpred_super_non_expansive. }
     setoid_rewrite (@lock_inv_super_non_expansive atomic_impl); do 2 f_equal.
     rewrite !approx_sepcon approx_idem; auto.
   Qed.
@@ -903,7 +904,6 @@ Section PROOFS.
     destruct x as (((?, ?), ?), ?); simpl.
     unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 f_equal;
       rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
-    reflexivity.
   Qed.
 
   Lemma lock_inv_share : forall sh h R, lock_inv sh h R |-- !!(sh <> Share.bot /\ isptr (ptr_of h)).
@@ -917,19 +917,19 @@ Section PROOFS.
     apply prove_funspec_sub.
     split; auto; intros ? (((sh1, sh2), h), R) ?; Intros; simpl.
     iIntros "H !>".
-    iExists nil, (h, self_part sh2 h * R, R), emp.
+    iExists nil, (h, self_part sh2 h * R, emp), emp.
     unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl.
     rewrite !emp_sepcon !sepcon_emp.
-    iDestruct "H" as "((% & % & _) & % & % & H1 & H)".
+    iDestruct "H" as "((% & % & _) & % & % & H)".
     iSplit; [do 3 (iSplit; [auto|])|].
-    - rewrite <- sepcon_assoc, self_part_eq by auto.
-      iAssert (⌜sh1 <> Share.bot⌝) with "[H]" as %?.
-      { iDestruct "H" as "[[l _] _]"; iDestruct (lock_inv_share with "l") as %[]; auto. }
-      erewrite lock_inv_share_join by eauto.
-      iDestruct "H" as "[$ $]".
-      iSplit; auto.
-      iIntros "(R1 & ? & R2)".
-      iApply (weak_exclusive_conflict with "[$H1 $R1 $R2]").
+    - iAssert (⌜sh1 <> Share.bot⌝) with "[H]" as %?.
+      { iDestruct "H" as "[l _]"; iDestruct (lock_inv_share with "l") as %[]; auto. }
+      erewrite -> self_part_eq, lock_inv_share_join by eauto; iFrame.
+      iSplit; auto; iIntros "H".
+      rewrite <- sepcon_assoc, self_part_eq by auto.
+      destruct h as ((p, i), g); unfold lock_inv; simpl.
+      iDestruct "H" as "[[[_ g1] [_ g2]] _]".
+      iApply (cinv_own_excl with "[$g1 $g2]"); auto.
     - iPureIntro; intros; Intros.
       rewrite emp_sepcon; apply andp_left2; auto.
   Qed.

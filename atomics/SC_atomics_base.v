@@ -15,9 +15,11 @@ Require Import VST.zlist.sublist.
    There's probably a more systematic approach possible. *)
 
 Class atomic_int_impl := { atomic_int : type; atomic_int_at : share -> val -> val -> mpred;
-  atomic_int_at__ : forall sh v p, atomic_int_at sh v p |-- atomic_int_at sh Vundef p }.
+  atomic_int_at__ : forall sh v p, atomic_int_at sh v p |-- atomic_int_at sh Vundef p;
+  atomic_int_conflict : forall sh v v' p, sepalg.nonidentity sh -> atomic_int_at sh v p * atomic_int_at sh v' p |-- FF }.
 
-Class atomic_ptr_impl := { atomic_ptr : type; atomic_ptr_at : share -> val -> val -> mpred }.
+Class atomic_ptr_impl := { atomic_ptr : type; atomic_ptr_at : share -> val -> val -> mpred;
+  atomic_ptr_conflict : forall sh v v' p, sepalg.nonidentity sh -> atomic_ptr_at sh v p * atomic_ptr_at sh v' p |-- FF }.
 
 Section SC_atomics.
 
@@ -69,9 +71,7 @@ Definition free_atomic_int_spec :=
     LOCAL ()
     SEP ().
 
-Definition AL_type := ProdType (ProdType (ProdType (ConstType val)
-  (ConstType (Ensemble nat))) (ConstType (Ensemble nat)))
-  (ArrowType (ConstType val) Mpred).
+Definition AL_type := ProdType (ConstType (val * Ensemble nat * Ensemble nat)) (ArrowType (ConstType val) Mpred).
 
 Program Definition atomic_load_spec := TYPE AL_type
   WITH p : val, Eo : Ensemble nat, Ei : Ensemble nat, Q : val -> mpred
@@ -92,8 +92,8 @@ Proof.
   unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl; rewrite !approx_andp; f_equal;
     f_equal; f_equal; rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
   setoid_rewrite fupd_nonexpansive; do 2 f_equal.
-  rewrite !approx_exp; apply f_equal; extensionality sh.
-  rewrite !approx_exp; apply f_equal; extensionality v.
+  rewrite !approx_exp; apply f_equal; extensionality.
+  rewrite !approx_exp; apply f_equal; extensionality.
   rewrite !approx_sepcon; f_equal.
   setoid_rewrite wand_nonexpansive_r; f_equal; f_equal.
   apply fupd_nonexpansive.
@@ -102,13 +102,12 @@ Next Obligation.
 Proof.
   repeat intro.
   destruct x as (((?, ?), ?), ?); simpl.
-  rewrite !approx_exp; apply f_equal; extensionality v.
+  rewrite !approx_exp; apply f_equal; extensionality.
   unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 apply f_equal;
     rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem; auto.
 Qed.
 
-Definition AS_type := ProdType (ProdType (ProdType (ConstType (val * val))
-  (ConstType (Ensemble nat))) (ConstType (Ensemble nat))) Mpred.
+Definition AS_type := ProdType (ConstType (val * val * Ensemble nat * Ensemble nat)) Mpred.
 
 Program Definition atomic_store_spec := TYPE AS_type
   WITH p : val, v : val, Eo : Ensemble nat, Ei : Ensemble nat, Q : mpred

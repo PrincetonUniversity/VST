@@ -64,7 +64,6 @@ Proof.
     apply orp_right1.
     rewrite sepcon_assoc; eapply derives_trans; [apply sepcon_derives, now_later; apply derives_refl|].
     rewrite <- later_sepcon; apply later_derives.
-    rewrite (sepcon_comm _ (cinv_own g Tsh)), <- sepcon_assoc.
     sep_apply cinv_own_excl; auto with share.
     rewrite FF_sepcon; auto.
 Qed.

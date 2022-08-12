@@ -202,7 +202,7 @@ Section lock_specs.
     PRE [ tptr t_lock ]
      PROP ()
      PARAMS (ptr_of h)
-     SEP (lock_inv Tsh h R; P; (P * R -* FF) && emp)
+     SEP (lock_inv Tsh h R; P; (P * lock_inv Tsh h R * R -* FF) && emp)
    POST[ tvoid ]
      PROP ()
      LOCAL ()
@@ -218,6 +218,7 @@ Section lock_specs.
     f_equal.
     rewrite !approx_andp; f_equal.
     setoid_rewrite wand_nonexpansive; rewrite !approx_sepcon; do 2 f_equal; rewrite !approx_idem; auto.
+    do 2 f_equal; apply lock_inv_super_non_expansive.
   Qed.
   Next Obligation.
   Proof.
@@ -268,6 +269,7 @@ Section lock_specs.
     unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl; entailer!.
     apply andp_right, andp_left2; auto.
     rewrite <- wand_sepcon_adjoint; sep_apply weak_exclusive_conflict; auto.
+    rewrite FF_sepcon; auto.
   Qed.
 
   Program Definition acquire_spec :=
