@@ -352,7 +352,7 @@ Proof.
   { rewrite Forall_forall; intros (?, ?) Hin.
     exploit (Forall2_In_r (failed_CAS k)); eauto.
     intros ((?, ?) & ? & ? & r1 & ? & ? & ? & ? & ? & ?); simpl in *; subst.
-    unfold value_of_hist; rewrite last_snoc; simpl.
+    unfold value_of_hist; rewrite last_last; simpl.
     destruct (eq_dec (Vint r1) (vint 0)); auto. }
   assert (h' = sublist 0 i h' ++ Znth i h' ([], []) :: sublist (i + 1) (Zlength h') h') as Hh'.
   { rewrite <- sublist_next, sublist_rejoin, sublist_same; auto; try lia; rewrite Hlen; auto. }
@@ -360,7 +360,7 @@ Proof.
   { if_tac; auto.
     destruct Hr; [absurd (r = vint 0)|]; auto. }
   assert (value_of_hist (fst (Znth i h' ([], []))) = vint k) as Hk'.
-  { unfold value_of_hist; rewrite Hi; simpl; rewrite last_snoc; auto. }
+  { unfold value_of_hist; rewrite Hi; simpl; rewrite last_last; auto. }
   assert (wf_hists h' (Z.max (i + 1) l)) as Hwf'; [|split; auto; split; [|split]].
   - split.
     + rewrite Hh'; clear Hh'; rewrite Forall_app; split; [|constructor].
@@ -427,7 +427,7 @@ Proof.
       rewrite !Znth_sublist, Z.add_0_r in Heq2 by lia.
       rewrite !Znth_sublist, Z.add_0_r by lia.
       rewrite Heq1, Heq2; simpl; split; auto.
-      unfold value_of_hist in *; rewrite last_snoc; simpl.
+      unfold value_of_hist in *; rewrite last_last; simpl.
       destruct (eq_dec (Vint r1) (vint 0)); [absurd (r1 = Int.zero); auto; inv e; auto | auto]. }
     replace h with (sublist 0 l h ++ sublist l (Zlength h) h) at 1
       by (rewrite sublist_rejoin, sublist_same; auto; lia).
@@ -471,7 +471,7 @@ Proof.
     { rewrite Forall_forall; intros (hk', hv') Hin.
       exploit (Forall2_In_r _ (hk', hv') _ _ Hfail); auto.
       intros (? & ? & ? & r1 & ? & Heqi & ? & ? & ? & ?); subst.
-      unfold value_of_hist; rewrite Heqi, last_snoc; simpl.
+      unfold value_of_hist; rewrite Heqi, last_last; simpl.
       destruct (eq_dec (Vint r1) (vint 0)); simpl.
       { absurd (r1 = Int.zero); auto; inv e; auto. }
       intro; absurd (r1 = Int.repr k); subst; auto.
@@ -479,7 +479,7 @@ Proof.
     rewrite make_map_app at 1 by auto.
     rewrite index_of_app, index_of_out, make_map_length by (auto; apply make_map_no_key; auto); simpl.
     rewrite Hi; simpl.
-    unfold value_of_hist; rewrite !last_snoc; simpl.
+    unfold value_of_hist; rewrite !last_last; simpl.
     rewrite Hif; simpl.
     rewrite !Int.signed_repr; auto.
     destruct (eq_dec k 0); [contradiction Hk; auto|].
@@ -631,7 +631,7 @@ Proof.
   { rewrite Forall_forall; intros (?, ?) Hin.
     exploit (Forall2_In_r (failed_load k)); eauto.
     intros ((?, ?) & ? & ? & r1 & ? & ? & ? & ? & ? & ?); simpl in *; subst.
-    unfold value_of_hist; rewrite last_snoc; simpl.
+    unfold value_of_hist; rewrite last_last; simpl.
     intro X; absurd (r1 = Int.zero); auto; inv X; auto. }
   assert (h' = sublist 0 i h' ++ Znth i h' ([], []) :: sublist (i + 1) (Zlength h') h') as Hh'.
   { rewrite <- sublist_next, sublist_rejoin, sublist_same; auto; try lia; rewrite Hlen; auto. }
@@ -653,7 +653,7 @@ Proof.
   { clear Hh'; rewrite Forall_forall; intros (hk', hv') Hin.
     exploit (Forall2_In_r _ (hk', hv') _ _ Hfail); auto.
     intros (? & ? & ? & r1 & ? & Heqi & ? & ? & ? & ?); subst.
-    unfold value_of_hist; rewrite Heqi, last_snoc; simpl.
+    unfold value_of_hist; rewrite Heqi, last_last; simpl.
     intro; absurd (r1 = Int.repr k); subst; auto.
     rewrite Int.repr_signed; auto. }
   unfold get; destruct (index_of (make_map h') k) eqn: Hindex; simpl.
@@ -661,7 +661,7 @@ Proof.
       by (auto; apply make_map_no_key; auto).
     simpl in Hindex.
     destruct (Znth i h' ([], [])) as (hk', hv') eqn: Hhi'; simpl in *; subst hk'.
-    unfold value_of_hist in Hindex; rewrite last_snoc in Hindex; simpl in Hindex.
+    unfold value_of_hist in Hindex; rewrite last_last in Hindex; simpl in Hindex.
     destruct Hi2 as [(? & ? & ?) | (? & tv & ? & ?)]; subst r hv'; [discriminate|].
     rewrite Int.signed_repr in Hindex by auto.
     destruct (eq_dec k 0); [contradiction Hk; auto|].
@@ -686,7 +686,7 @@ Proof.
         rewrite sublist_sublist, !Z.add_0_r by lia.
         rewrite Forall_app; split; auto.
         rewrite sublist_0_cons by lia.
-        constructor; [unfold value_of_hist; simpl; rewrite last_snoc; auto|].
+        constructor; [unfold value_of_hist; simpl; rewrite last_last; auto|].
         rewrite sublist_sublist by lia.
         rewrite <- Z.sub_add_distr, Z.sub_simpl_r.
         rewrite Z.add_0_l, sublist_parts2; try lia.
@@ -699,19 +699,19 @@ Proof.
         rewrite sublist_same, sublist_len_1 with (d := ([], [])), Znth_0_cons;
           rewrite ?Zlength_cons, ?Zlength_sublist; auto; try lia; simpl.
         rewrite Forall_app; split; auto.
-        constructor; auto; unfold value_of_hist; simpl; rewrite last_snoc; auto.
+        constructor; auto; unfold value_of_hist; simpl; rewrite last_last; auto.
     + rewrite Znth_make_map, Hhi'; simpl.
-      unfold value_of_hist; rewrite last_snoc; simpl.
+      unfold value_of_hist; rewrite last_last; simpl.
       apply Int.signed_repr; auto.
       { lia. }
       { rewrite sublist_split with (mid := i), Forall_app by lia; split; auto.
         erewrite sublist_len_1, Hhi' by lia; repeat constructor; simpl.
-        unfold value_of_hist; rewrite last_snoc; auto. }
+        unfold value_of_hist; rewrite last_last; auto. }
       { eapply Forall_sublist, Forall_impl, Hwf'; tauto. }
     + unfold set.
       rewrite Hh'; clear Hh'.
       rewrite make_map_app by auto; simpl.
-      unfold value_of_hist; rewrite !last_snoc; simpl.
+      unfold value_of_hist; rewrite !last_last; simpl.
       rewrite !Int.signed_repr by auto.
       destruct (eq_dec k 0); [contradiction Hk; auto|].
       assert (0 <= Z.min i l <= Zlength h) as (? & ?).
@@ -742,7 +742,7 @@ Proof.
         rewrite !Znth_sublist, Z.add_0_r in Heq1, Heq2 by lia.
         rewrite !Znth_sublist, Z.add_0_r by lia.
         rewrite Heq1, Heq2; simpl; split; auto.
-        unfold value_of_hist in *; rewrite last_snoc; simpl.
+        unfold value_of_hist in *; rewrite last_last; simpl.
         destruct (eq_dec (Vint r1) (vint 0)); [absurd (r1 = Int.zero); auto; inv e; auto | auto]. }
       destruct (Z.min_spec i l) as [(? & Hmin) | (? & Hmin)]; rewrite Hmin in *.
       * erewrite sublist_next with (i0 := i) by lia.
@@ -797,10 +797,10 @@ Proof.
       * rewrite Forall_forall; intros.
         exploit (Forall2_In_r (failed_load k)); eauto.
         intros ((?, ?) & ? & ? & r1 & ? & -> & ? & ? & ? & ?); simpl in *; subst.
-        unfold value_of_hist; rewrite last_snoc; simpl.
+        unfold value_of_hist; rewrite last_last; simpl.
         intro X; absurd (r1 = Int.zero); auto; inv X; auto.
       * erewrite sublist_next by lia; constructor;
-          [rewrite Hi1; unfold value_of_hist; rewrite last_snoc; auto|].
+          [rewrite Hi1; unfold value_of_hist; rewrite last_last; auto|].
         rewrite <- Hrest.
         replace (i + 1) with (i + 1 - l + l) by (apply Z.sub_simpl_r).
         rewrite <- sublist_suffix by lia; apply Forall_sublist; auto.
@@ -825,19 +825,19 @@ Proof.
       rewrite !Znth_sublist, Z.add_0_r in Heq1, Heq2 by lia.
       rewrite !Znth_sublist, Z.add_0_r by lia.
       rewrite Heq1, Heq2; simpl; split; auto.
-      unfold value_of_hist at 2; rewrite last_snoc; auto.
+      unfold value_of_hist at 2; rewrite last_last; auto.
       { replace l with (Z.min l i) by (apply Z.min_l; lia).
         rewrite <- sublist_prefix; apply Forall_sublist; auto. }
       { eapply Forall_sublist, Forall_impl, Hwf'; tauto. }
     + contradiction Hindex.
       assert (Forall (fun x => value_of_hist (fst x) <> vint 0) (sublist 0 i h' ++ [Znth i h' ([], [])])).
       { rewrite Forall_app; split; auto; repeat constructor.
-        rewrite Hi1; unfold value_of_hist; rewrite last_snoc; auto. }
+        rewrite Hi1; unfold value_of_hist; rewrite last_last; auto. }
       assert (Forall (fun x => Forall int_op (map snd (fst x))) (sublist 0 (i + 1) h')) as Hints.
       { eapply Forall_sublist, Forall_impl, Hwf'; tauto. }
       rewrite in_map_iff; exists (Znth i (make_map h') (0, 0)); split.
       * rewrite Znth_make_map; auto; simpl.
-        rewrite Hi1; unfold value_of_hist; rewrite last_snoc; simpl.
+        rewrite Hi1; unfold value_of_hist; rewrite last_last; simpl.
         rewrite Int.signed_repr; auto.
         { lia. }
         { erewrite sublist_split with (mid := i), sublist_len_1 by lia; eauto. }

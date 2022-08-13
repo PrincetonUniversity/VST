@@ -78,7 +78,7 @@ Proof.
   { assert (0 <= i < Zlength lasts) by lia.
     forward.
     forward_if (PROP ( )
-      LOCAL (temp _last (vint (Znth i lasts 0)); temp _r (vint i); temp _i (vint B); lvar _available (tarray tint 5) v_available; 
+      LOCAL (temp _last (vint (Znth i lasts 0)); temp _r (vint i); temp _i (vint B); lvar _available (tarray tint 5) v_available;
              gvar _writing writing; gvar _last_given last_given; gvar _last_taken last_taken)
       SEP (field_at Tsh (tarray tint B) [] (map (fun x => vint (if eq_dec x b0 then 0
              else if in_dec eq_dec x (sublist 0 (i + 1) lasts) then 0 else 1)) (upto (Z.to_nat B))) v_available;
@@ -580,7 +580,7 @@ Proof.
   apply derives_refl'; f_equal.
   match goal with |- ?l = _ => assert (Zlength l = B) as Hlen end.
   { destruct (eq_dec b' (-1)); auto; rewrite upd_Znth_Zlength; auto; lia. }
-  apply list_Znth_eq' with (d := FF).
+  apply Znth_eq_ext with (d := FF).
   { rewrite Hlen, Zlength_map, Zlength_upto; auto. }
   rewrite Hlen; intros.
   assert (0 <= j <= B) by lia.

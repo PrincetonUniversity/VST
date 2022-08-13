@@ -651,3 +651,8 @@ Proof.
   pose proof (Z_mod_lt d c Hc).
   destruct (Zmod_smallish (a mod c + b mod c) c), (Zmod_smallish (d mod c + b mod c) c); lia.
 Qed.
+
+Lemma lt_le_1 : forall (i j: Z), i < j <-> i + 1 <= j.
+Proof.
+  intros; lia.
+Qed.

@@ -74,7 +74,7 @@ Proof.
       eapply Zmult_gt_0_reg_l.
       + exact H2.
       + rewrite <- H0, Z.mul_comm; lia.
-    } 
+    }
     rewrite <- (Z.mul_1_l m) at 2.
     apply Zmult_ge_compat_r; lia.
 Qed.
@@ -196,20 +196,6 @@ Proof.
   induction n; simpl; auto.
 Qed.
 
-Lemma combine_app : forall {A B} (l1 l2 : list A) (l1' l2' : list B), length l1 = length l1' ->
-  combine (l1 ++ l2) (l1' ++ l2') = combine l1 l1' ++ combine l2 l2'.
-Proof.
-  induction l1; destruct l1'; intros; try discriminate; auto; simpl in *.
-  rewrite IHl1; auto.
-Qed.
-
-Lemma combine_app' : forall {A B} (l1 l2 : list A) (l1' l2' : list B), Zlength l1 = Zlength l1' ->
-  combine (l1 ++ l2) (l1' ++ l2') = combine l1 l1' ++ combine l2 l2'.
-Proof.
-  intros; apply combine_app.
-  rewrite !Zlength_correct in *; lia.
-Qed.
-
 Lemma combine_fst : forall {A B} (l : list A) (l' : list B), length l = length l' ->
   map fst (combine l l') = l.
 Proof.
@@ -222,14 +208,6 @@ Lemma combine_snd : forall {A B} (l : list A) (l' : list B), length l = length l
 Proof.
   induction l; destruct l'; try discriminate; auto; intros.
   inv H; simpl; rewrite IHl; auto.
-Qed.
-
-Lemma rev_combine : forall {A B} (l1 : list A) (l2 : list B), length l1 = length l2 ->
-  rev (combine l1 l2) = combine (rev l1) (rev l2).
-Proof.
-  induction l1; destruct l2; try discriminate; auto; simpl; intros.
-  inv H; rewrite combine_app; [|rewrite !rev_length; auto].
-  rewrite IHl1; auto.
 Qed.
 
 Lemma combine_map_snd : forall {A B C} (l1 : list A) (l2 : list B) (f : B -> C),
@@ -435,7 +413,7 @@ Proof.
     apply Permutation_app_tail.
     apply Permutation_app_comm.
   + eapply Permutation_trans; eauto.
-Qed.    
+Qed.
 
 Lemma Permutation_app_comm_trans:
  forall (A: Type) (a b c : list A),
@@ -501,7 +479,7 @@ Qed.
 
 Lemma Zrange_pred_dec: forall (P: Z -> Prop),
   (forall z, {P z} + {~ P z}) ->
-  forall l r,  
+  forall l r,
     {forall z, l <= z < r -> P z} + {~ forall z, l <= z < r -> P z}.
 Proof.
   intros.

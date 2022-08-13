@@ -166,7 +166,7 @@ Proof.
       match goal with H : typed_false _ _ |- _ => setoid_rewrite Znth_map in H; [rewrite Znth_upto in H|];
         try assumption; rewrite ?Zlength_upto, ?Z2Nat.id; try lia; unfold typed_true in H; simpl in H; inv H end.
       destruct (eq_dec _ _); auto.
-      destruct (in_dec _ _ _); auto; discriminate. 
+      destruct (in_dec _ _ _); auto; discriminate.
         all: change B with 5 in * ; lia. }
     instantiate (1 := EX i : Z, PROP (0 <= i < B; Znth i available = vint 0;
       forall j : Z, 0 <= j < i -> Znth j available = vint 0)
@@ -569,9 +569,9 @@ Proof.
   apply derives_refl'; f_equal.
   match goal with |- ?l = _ => assert (Zlength l = B) as Hlen end.
   { destruct (eq_dec v' (-1)); auto; rewrite upd_Znth_Zlength; auto; lia. }
-  apply list_Znth_eq'.
+  apply Znth_eq_ext.
   { rewrite Hlen, Zlength_map, Zlength_upto; auto. }
-  rewrite Hlen; intros.
+  rewrite Hlen; intros j ?.
   assert (0 <= j <= B) by lia.
   erewrite Znth_map, Znth_upto; auto.
   destruct (eq_dec j lasti); [|destruct (eq_dec j b0)]; subst.
@@ -1037,7 +1037,7 @@ Proof.
         intros ??? Ha; unfold singleton.
         if_tac; intro X; inv X.
         rewrite newer_out in Ha; [discriminate|].
-        rewrite sublist_all in H13 by lia.
+        rewrite sublist_same_gen in H13 by lia.
         apply Forall2_Znth; auto; lia. }
       apply map_ext; intro.
       f_equal; extensionality; f_equal; f_equal; apply prop_ext.

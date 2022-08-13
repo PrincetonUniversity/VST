@@ -23,7 +23,7 @@ destruct E; auto.
 contradiction.
 Qed.
 
-Tactic Notation "if_tac" := 
+Tactic Notation "if_tac" :=
   match goal with |- context [if ?a then _ else _] =>
     lazymatch type of a with
     | sumbool _ _ =>destruct a as [?H | ?H]
@@ -517,7 +517,7 @@ change (Inhabitant A) with A.
 rewrite <- Zlength_correct. lia.
 Qed.
 
-#[export] Hint Rewrite 
+#[export] Hint Rewrite
    (@Znth_map Z _) (@Znth_map nat _) (@Znth_map positive _)
     using (auto; rewrite ?Zlength_map in *; lia) : sublist.
 
@@ -1646,7 +1646,7 @@ f_equal; auto.
 Qed.
 
 Lemma repeat_app':
- forall {A: Type} a b (x:A), 
+ forall {A: Type} a b (x:A),
     0 <= a -> 0 <= b ->
     repeat x (Z.to_nat a) ++ repeat x (Z.to_nat b) = repeat x (Z.to_nat (a+b)).
 Proof.
@@ -1656,7 +1656,7 @@ Proof.
 Qed.
 
 Lemma Zrepeat_app:
- forall {A: Type} (a b: Z) (x:A), 
+ forall {A: Type} (a b: Z) (x:A),
     0 <= a -> 0 <= b ->
     Zrepeat x a ++ Zrepeat x b = Zrepeat x (a+b).
 Proof.
@@ -1758,7 +1758,7 @@ Proof.
 intros. induction n; simpl; f_equal; auto.
 Qed.
 
-Lemma map_Zrepeat: forall {A B} (f: A->B) n (x:A), 
+Lemma map_Zrepeat: forall {A B} (f: A->B) n (x:A),
     map f (Zrepeat x n) = Zrepeat (f x) n.
 Proof.
 intros.
@@ -1835,7 +1835,7 @@ Proof.
   - now apply Znth_In.
 Qed.
 
-Lemma Znth_combine : forall {A B} {a: Inhabitant A} {b: Inhabitant B} i (l1: list A) (l2: list B), 
+Lemma Znth_combine : forall {A B} {a: Inhabitant A} {b: Inhabitant B} i (l1: list A) (l2: list B),
    Zlength l1 = Zlength l2 ->
   Znth i (combine l1 l2) = (Znth i l1, Znth i l2).
 Proof.
@@ -1975,7 +1975,7 @@ Proof.
   - exfalso; lia.
 Qed.
 
-Lemma Znth_cons_eq : forall {A}{d : Inhabitant A} i x l, 
+Lemma Znth_cons_eq : forall {A}{d : Inhabitant A} i x l,
    Znth i (x :: l) = if Z.eq_dec i 0 then x else Znth (i - 1) l.
 Proof.
   intros.
@@ -2273,7 +2273,7 @@ Proof.
   apply Forall2_Zlength in H; lia.
 Qed.
 
-Lemma Znth_inbounds : forall {A}{d: Inhabitant A} i (l : list A), 
+Lemma Znth_inbounds : forall {A}{d: Inhabitant A} i (l : list A),
     Znth i l <> default -> 0 <= i < Zlength l.
 Proof.
   intros.
@@ -2367,7 +2367,7 @@ Proof.
   destruct (Z.to_nat n); auto.
 Qed.
 
-Lemma Znth_upto : forall d m n, 
+Lemma Znth_upto : forall d m n,
   0 <= n < Z.of_nat m -> @Znth _ d n (upto m) = n.
 Proof.
   induction m; simpl; intros.
@@ -2534,3 +2534,196 @@ Proof.
 Qed.
 
 #[global] Hint Mode Inhabitant + : typeclass_instances.
+
+Definition remove_Znth {A} i (al : list A) :=
+  sublist 0 i al ++ sublist (i + 1) (Zlength al) al.
+
+Lemma remove_Znth0 : forall {A} (l : list A), remove_Znth 0 l = sublist 1 (Zlength l) l.
+Proof.
+  intros; unfold remove_Znth.
+  rewrite sublist_nil; auto.
+Qed.
+
+Lemma remove_Znth_cons : forall {A} i a (l : list A), i > 0 ->
+  remove_Znth i (a :: l) = a :: remove_Znth (i - 1) l.
+Proof.
+  intros; unfold remove_Znth.
+  rewrite sublist_0_cons, sublist_S_cons, Zlength_cons; auto; try lia.
+  simpl; f_equal; f_equal; f_equal; lia.
+Qed.
+
+Lemma Zlength_remove_Znth : forall {A} i (l : list A), 0 <= i < Zlength l ->
+  Zlength (remove_Znth i l) = Zlength l - 1.
+Proof.
+  intros; unfold remove_Znth.
+  rewrite Zlength_app, !Zlength_sublist; lia.
+Qed.
+
+Lemma remove_upd_Znth: forall {A} i l (a : A), 0 <= i < Zlength l ->
+  remove_Znth i (upd_Znth i l a) = remove_Znth i l.
+Proof.
+  intros; unfold remove_Znth.
+  rewrite upd_Znth_Zlength, sublist_upd_Znth_l, sublist_upd_Znth_r; auto; lia.
+Qed.
+
+Lemma remove_Znth_map: forall {A B} (f : A -> B) i l,
+  remove_Znth i (map f l) = map f (remove_Znth i l).
+Proof.
+  intros; unfold remove_Znth.
+  rewrite map_app, Zlength_map, !sublist_map; auto.
+Qed.
+
+Lemma sublist_nil_gen' : forall {A} (l : list A) i j, j <= 0 -> sublist i j l = [].
+Proof.
+  intros.
+  unfold sublist.
+  replace (Z.to_nat j) with O.
+  - rewrite skipn_nil. auto.
+  - apply Zle_lt_or_eq in H. destruct H.
+    + symmetry; apply Z2Nat_neg; auto.
+    + subst. reflexivity.
+Qed.
+
+Lemma sublist_0_cons' : forall {A} i j (x : A) l, i <= 0 -> j > 0 -> sublist i j (x :: l) =
+  x :: sublist i (j - 1) l.
+Proof.
+  intros; unfold sublist.
+  replace (Z.to_nat i) with O; simpl.
+  assert (Z.to_nat j > 0)%nat by (apply (Z2Nat.inj_lt 0 j); lia).
+  destruct (Z.to_nat j) eqn: Hj; [lia|].
+  simpl; f_equal; f_equal.
+  rewrite Z2Nat.inj_sub; simpl; lia.
+  destruct (Z.eq_dec i 0); subst; auto.
+  rewrite Z2Nat_neg; auto; lia.
+Qed.
+
+Lemma sublist_combine : forall {A B} (l1 : list A) (l2 : list B) i j,
+  sublist i j (combine l1 l2) = combine (sublist i j l1) (sublist i j l2).
+Proof.
+  induction l1; simpl; intros.
+  - unfold sublist; rewrite !firstn_nil, !skipn_nil; auto.
+  - destruct l2.
+    + unfold sublist at 1 3; rewrite !firstn_nil, !skipn_nil.
+      destruct (sublist i j (a :: l1)); auto.
+    + destruct (Z_le_dec j 0); [rewrite !sublist_nil_gen'; auto|].
+      destruct (Z_le_dec i 0).
+      * subst; rewrite !sublist_0_cons'; try lia.
+        simpl; rewrite IHl1; auto.
+      * rewrite !sublist_S_cons; try lia.
+        apply IHl1; lia.
+Qed.
+
+Lemma combine_app : forall {A B} (l1 l2 : list A) (l1' l2' : list B), length l1 = length l1' ->
+  combine (l1 ++ l2) (l1' ++ l2') = combine l1 l1' ++ combine l2 l2'.
+Proof.
+  induction l1; destruct l1'; intros; try discriminate; auto; simpl in *.
+  rewrite IHl1; auto.
+Qed.
+
+Lemma combine_app' : forall {A B} (l1 l2 : list A) (l1' l2' : list B), Zlength l1 = Zlength l1' ->
+  combine (l1 ++ l2) (l1' ++ l2') = combine l1 l1' ++ combine l2 l2'.
+Proof.
+  intros; apply combine_app.
+  rewrite !Zlength_correct in *; lia.
+Qed.
+
+Lemma rev_combine : forall {A B} (l1 : list A) (l2 : list B), length l1 = length l2 ->
+  rev (combine l1 l2) = combine (rev l1) (rev l2).
+Proof.
+  induction l1; destruct l2; try discriminate; auto; simpl; intros.
+  inv H; rewrite combine_app; [|rewrite !rev_length; auto].
+  rewrite IHl1; auto.
+Qed.
+
+Lemma remove_Znth_combine: forall {A B} i (l1 : list A) (l2 : list B),
+  0 <= i < Zlength l1 -> Zlength l1 = Zlength l2 ->
+  remove_Znth i (combine l1 l2) = combine (remove_Znth i l1) (remove_Znth i l2).
+Proof.
+  intros; unfold remove_Znth.
+  rewrite !sublist_combine, combine_app' by (rewrite !Zlength_sublist; lia).
+  rewrite Zlength_combine, Z.min_l by lia.
+  congruence.
+Qed.
+
+Lemma In_sublist_upto : forall n x i j, List.In x (sublist i j (upto n)) -> 0 <= i ->
+  i <= x < j /\ x < Z.of_nat n.
+Proof.
+  induction n; intros.
+  - unfold sublist in H; simpl in H; rewrite firstn_nil, skipn_nil in H; contradiction.
+  - rewrite Nat2Z.inj_succ; simpl in *.
+    destruct (Z_lt_dec 0 j).
+    destruct (Z.eq_dec i 0).
+    + subst; rewrite sublist_0_cons in H; try lia; destruct H; [lia|].
+      rewrite sublist_map, in_map_iff in H; destruct H as (? & ? & H); subst.
+      destruct (Z_lt_dec 0 (j - 1)).
+      * specialize (IHn _ _ _ H ltac:(lia)). lia.
+      * rewrite sublist_nil_gen in H; [contradiction | lia].
+    + rewrite sublist_S_cons in H; [|lia].
+      rewrite sublist_map, in_map_iff in H; destruct H as (? & ? & H); subst.
+      destruct (Z_lt_dec 0 (j - 1)).
+      * specialize (IHn _ _ _ H ltac:(lia)). lia.
+      * rewrite sublist_nil_gen in H; [contradiction | lia].
+    + rewrite sublist_nil_gen in H; [contradiction | lia].
+Qed.
+
+Lemma In_remove_upto : forall i j k, 0 <= j -> In i (remove_Znth j (upto k)) ->
+  0 <= i < Z.of_nat k /\ i <> j.
+Proof.
+  unfold remove_Znth; intros ???? Hin%in_app_iff.
+  destruct Hin as [Hin | Hin]; apply In_sublist_upto in Hin; lia.
+Qed.
+
+Lemma In_remove_upto' : forall i j k, 0 <= j < Z.of_nat k -> In i (remove_Znth j (upto k)) <->
+  0 <= i < Z.of_nat k /\ i <> j.
+Proof.
+  unfold remove_Znth; split.
+  - intros Hin%in_app_iff.
+    destruct Hin as [Hin | Hin]; apply In_sublist_upto in Hin; lia.
+  - intros []; rewrite Zlength_upto.
+    rewrite !sublist_upto by lia; simpl.
+    rewrite Nat2Z.id, Nat.sub_0_r, !Nat.min_r by lia.
+    rewrite in_app_iff; destruct (Z_lt_dec i j); [left | right]; rewrite in_map_iff; do 2 eexists; rewrite ?In_upto.
+    + rewrite Z.add_0_l; reflexivity.
+    + lia.
+    + apply Zplus_minus.
+    + lia.
+Qed.
+
+Lemma remove_Znth_app : forall {A} i (l1 l2 : list A), 0 <= i < Zlength l1 + Zlength l2 -> remove_Znth i (l1 ++ l2) =
+  if Z_lt_dec i (Zlength l1) then remove_Znth i l1 ++ l2 else l1 ++ remove_Znth (i - Zlength l1) l2.
+Proof.
+  intros; unfold remove_Znth.
+  rewrite sublist_app by lia.
+  pose proof (Zlength_nonneg l1).
+  pose proof (Zlength_nonneg l2).
+  rewrite Z.min_l, Z.max_r by lia.
+  rewrite Zlength_app, sublist_app by lia.
+  rewrite Z.add_simpl_l, (Z.min_r (_ + Zlength l2)), (Z.max_l (Zlength l2)) by lia.
+  if_tac.
+  - rewrite Z.min_l, Z.max_r, sublist_nil, app_nil_r by lia.
+    rewrite Z.min_l, Z.max_r by lia.
+    rewrite app_assoc, (sublist_same _ _ l2) by lia; auto.
+  - rewrite Z.min_r, Z.max_l, sublist_same by lia.
+    rewrite Z.min_r, Z.max_l, sublist_nil by lia; simpl.
+    rewrite app_assoc; f_equal; f_equal; lia.
+Qed.
+
+Lemma In_remove_upto2: forall (i j k : Z) (l : nat), 0 <= j < Z.of_nat l -> 0 <= k < Z.of_nat l -> j <> k ->
+  In i (remove_Znth (if Z_lt_dec j k then j else j - 1) (remove_Znth k (upto l))) -> 0 <= i < Z.of_nat l /\ i <> j /\ i <> k.
+Proof.
+  unfold remove_Znth at 2; intros ??????? Hin.
+  assert (Zlength (sublist 0 k (upto l)) = k) as Hk.
+  { rewrite Zlength_sublist; rewrite ?Zlength_upto; lia. }
+  rewrite remove_Znth_app in Hin; rewrite Hk, Zlength_upto in *.
+  destruct (Z_lt_dec j k).
+  - rewrite if_true in Hin by auto.
+    apply in_app_iff in Hin as [Hin|Hin].
+    + rewrite sublist_upto, remove_Znth_map, in_map_iff in Hin by lia; destruct Hin as (? & ? & ?%In_remove_upto); try lia.
+    + rewrite sublist_upto, in_map_iff in Hin by lia; destruct Hin as (? & ? & ?%In_upto); try lia.
+  - rewrite if_false in Hin by lia.
+    apply in_app_iff in Hin as [Hin|Hin].
+    + rewrite sublist_upto, in_map_iff in Hin by lia; destruct Hin as (? & ? & ?%In_upto); try lia.
+    + rewrite sublist_upto, remove_Znth_map, in_map_iff in Hin by lia; destruct Hin as (? & ? & ?%In_remove_upto); try lia.
+  - rewrite Zlength_sublist by (rewrite ?Zlength_upto; lia).
+    if_tac; lia.
+Qed.
