@@ -53,6 +53,8 @@ Definition tbuffer := Tstruct _buffer noattr.
 
 Definition Empty := vint (-1).
 
+Opaque eq_dec.
+
 (* operations on histories *)
 Fixpoint find_read h d :=
   match h with

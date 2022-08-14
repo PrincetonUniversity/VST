@@ -9,6 +9,8 @@ Require Import VST.atomics.SC_atomics_base.
 Require Import VST.floyd.library.
 Require Import VST.zlist.sublist.
 
+Opaque eq_dec.
+
 (* Warning: it is UNSOUND to use both this file and acq_rel_atomics.v in the same proof! There is
    not yet an operational model that can validate the use of both SC and RA atomics. *)
 

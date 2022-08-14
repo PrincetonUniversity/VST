@@ -20,6 +20,8 @@ Require Import VST.progs64.os_combine.
 Require Import VST.progs64.dry_mem_lemmas.
 Import Maps.
 
+Opaque eq_dec.eq_dec.
+
 Section IO_safety.
 
 Context `{Config : ThreadsConfigurationOps}.
@@ -113,7 +115,7 @@ Proof.
     + destruct w as (? & _ & ? & ?).
       destruct H1 as (? & ? & Hpre); subst.
       destruct s; simpl in *.
-      rewrite if_true in H3 by auto.  
+      rewrite if_true in H3 by auto.
       destruct (get_sys_arg1 _) eqn:Harg; try discriminate.
       destruct (eq_dec _ _); subst; try discriminate.
       destruct (sys_putc_spec _) eqn:Hspec; inv H3.
@@ -123,8 +125,8 @@ Proof.
     + destruct w as (? & _ & ?).
       destruct H1 as (? & ? & Hpre); subst.
       destruct s; simpl in *.
-      rewrite if_false in H3 by auto.  
-      rewrite if_true in H3 by auto.  
+      rewrite if_false in H3 by auto.
+      rewrite if_true in H3 by auto.
       unfold sys_getc_wrap_spec in *.
       destruct (sys_getc_spec) eqn:Hspec; inv H3.
       assert (sig_res (ef_sig e) <> AST.Tvoid).
@@ -150,7 +152,7 @@ Notation ge := (globalenv prog).
 Definition trace_set := @trace (@io_events.IO_event nat) unit * RData -> Prop.
 
   Inductive OS_safeN_trace : nat -> @trace io_events.IO_event unit ->
-               trace_set -> 
+               trace_set ->
                OK_ty -> RData -> CC_core -> mem -> Prop :=
   | OS_safeN_trace_0: forall t z s c m, OS_safeN_trace O t (fun x => x = (TEnd, s)) z s c m
   | OS_safeN_trace_step:
@@ -368,7 +370,7 @@ Theorem IO_OS_ext:
  forall {CS: compspecs} (initial_oracle: OK_ty) V G m,
    semax_prog prog initial_oracle V G ->
    Genv.init_mem prog = Some m ->
-   exists b, exists q, 
+   exists b, exists q,
      Genv.find_symbol (Genv.globalenv prog) (AST.prog_main prog) = Some b /\
      initial_core (cl_core_sem (globalenv prog))
          0 m q m (Vptr b Ptrofs.zero) nil /\

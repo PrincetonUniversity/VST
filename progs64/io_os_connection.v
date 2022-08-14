@@ -16,6 +16,8 @@ Require Import VST.zlist.sublist.
 Require Import VST.progs64.os_combine.
 Import ExtLib.Structures.Monad.
 
+Opaque eq_dec.eq_dec.
+
 Local Ltac inj :=
   repeat match goal with
   | H: _ = _ |- _ => assert_succeeds (injection H); Coqlib.inv H

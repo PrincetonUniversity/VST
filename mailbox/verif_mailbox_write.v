@@ -63,11 +63,12 @@ Proof.
     simpl Datatypes.length.
     change (Z.to_nat B) with 5%nat.
     apply map_ext_in; intros ? Hin.
-    rewrite In_upto in Hin.
-    destruct (eq_dec a b0); auto.
+    rewrite In_upto in Hin. unfold eq_dec, EqDec_Z, zeq.
+    destruct (Z.eq_dec a b0); auto.
     rewrite if_false.
     rewrite Znth_repeat' by auto. auto.
     list_solve. }
+  Opaque eq_dec.
   { assert (0 <= i < Zlength lasts) by lia.
     forward.
     forward_if (PROP ( )
@@ -85,10 +86,10 @@ Proof.
       erewrite Znth_map, Znth_upto; simpl; auto; try lia.
       erewrite sublist_split with (mid := i)(hi := i + 1), sublist_len_1; auto; try lia.
       destruct (in_dec eq_dec a (sublist 0 i lasts ++ [Znth i lasts])); rewrite in_app in *.
-      + destruct (eq_dec a (Znth i lasts)); destruct (eq_dec a b0); auto.
+      + destruct (Z.eq_dec a (Znth i lasts)); destruct (eq_dec a b0); auto.
         destruct (in_dec eq_dec a (sublist 0 i lasts)); auto.
         destruct i0 as [? | [? | ?]]; subst; try contradiction.
-      + destruct (eq_dec a (Znth i lasts)).
+      + destruct (Z.eq_dec a (Znth i lasts)).
         { subst; contradiction n; simpl; auto. }
         destruct (eq_dec a b0); auto.
         destruct (in_dec eq_dec a (sublist 0 i lasts)); auto; contradiction n; auto.
@@ -997,7 +998,7 @@ Proof.
           [|rewrite !Zlength_map, Zlength_upto; unfold N in *; auto].
         apply map_ext_in; intros; rewrite In_upto in *.
         replace (Zlength t') with (Zlength h').
-        destruct (eq_dec a (Zlength h')).
+        destruct (Z.eq_dec a (Zlength h')).
         -- subst; rewrite app_Znth2, Zminus_diag, Znth_0_cons; auto; clear; lia.
         -- rewrite !Znth_map, Znth_upto; try lia; try assumption.
            destruct (zlt a (Zlength t')); [rewrite app_Znth1 | rewrite Znth_overflow]; auto; try lia.

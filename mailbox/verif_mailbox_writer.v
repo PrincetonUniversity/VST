@@ -7,6 +7,8 @@ Require Import mailbox.mailbox.
 Require Import mailbox.verif_mailbox_specs.
 
 Opaque upto.
+Opaque eq_dec.
+
 
 Ltac entailer_for_load_tac ::= unfold tc_efield; go_lower; entailer'.
 Ltac entailer_for_store_tac ::= unfold tc_efield; go_lower; entailer'.

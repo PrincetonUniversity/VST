@@ -533,6 +533,7 @@ Proof.
         apply Z_mod_lt; auto. }
       Intros k1.
       focus_SEP 2.
+      Opaque eq_dec.
       match goal with |- semax _ (PROP () (LOCALx (_ :: _ :: ?Q) (SEPx (_ :: ?R)))) _ _ =>
         forward_if (PROP () ((LOCALx Q) (SEPx (ghost_snap k (Znth (i1 mod size) lg) :: R)))) end.
       * if_tac; [discriminate|].
