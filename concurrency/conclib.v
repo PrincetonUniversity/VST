@@ -13,7 +13,6 @@ Import FashNotation.
 Import LiftNotation.
 Import compcert.lib.Maps.
 
-Require Export VST.concurrency.conclib_sublist.
 Require Export VST.concurrency.conclib_veric.
 
 Lemma wsat_fupd : forall E P Q, (wsat * P |-- |==> wsat * Q) -> P |-- fupd.fupd E E Q.

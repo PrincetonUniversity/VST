@@ -656,3 +656,20 @@ Lemma lt_le_1 : forall (i j: Z), i < j <-> i + 1 <= j.
 Proof.
   intros; lia.
 Qed.
+
+Lemma Permutation_filter : forall {A} (f : A -> bool) l1 l2, Permutation l1 l2 ->
+  Permutation (filter f l1) (filter f l2).
+Proof.
+  induction 1; simpl; auto.
+  - destruct (f x); auto.
+  - destruct (f x); auto. destruct (f y); auto.
+    constructor.
+  - etransitivity; eauto.
+Qed.
+
+Lemma Permutation_Zlength : forall {A} (l1 l2 : list A), Permutation l1 l2 ->
+  Zlength l1 = Zlength l2.
+Proof.
+  intros. rewrite !Zlength_correct. f_equal.
+  apply Permutation_length; auto.
+Qed.

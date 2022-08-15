@@ -12,8 +12,6 @@ Import FashNotation.
 Import LiftNotation ListNotations.
 Import compcert.lib.Maps.
 
-Require Import VST.concurrency.conclib_sublist.
-
 (* general list lemmas *)
 Notation vint z := (Vint (Int.repr z)).
 Notation vptrofs z := (Vptrofs (Ptrofs.repr z)).
