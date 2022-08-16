@@ -1177,3 +1177,74 @@ intros.
 apply data_at_singleton_array_eq.
 reflexivity.
 Qed.
+
+Lemma field_address0_SUB_SUB {cs: compspecs}:
+ forall t n1 n2 i j p,
+ n2 = j+n1 ->
+ 0 <= i <= n1 -> 0 <= j ->
+ field_address0 (tarray t n1) (SUB i) (field_address0 (tarray t n2) (SUB j) p) =
+ field_address0 (tarray t n2) (SUB (i+j)) p.
+Proof.
+Transparent sizeof.
+intros * Hn2 Hn1 Hj.
+subst n2.
+unfold field_address0.
+destruct (field_compatible0_dec (tarray t (j + n1)) (SUB (i + j)) p).
+-
+rewrite !if_true.
++ unfold nested_field_offset; simpl. rewrite offset_offset_val. f_equal. lia.
++
+eapply field_compatible0_array_smaller1; try eassumption; lia.
++
+rewrite if_true by (eapply field_compatible0_array_smaller1; try eassumption; lia).
+simpl.
+destruct f as [? [? [? [? [? ?]]]]].
+split3; auto. split3; [ | | split]; auto.
+*
+destruct p; try contradiction.
+red in H1|-*.
+unfold nested_field_offset; simpl.
+unfold sizeof in *.
+simpl Ctypes.sizeof in *.
+rewrite Z.max_r in * by lia.
+rewrite Z.mul_add_distr_l in H1.
+pose proof (Ctypes.sizeof_pos t).
+unfold nested_field_offset; simpl.
+rewrite <- (Ptrofs.repr_unsigned i0).
+rewrite ptrofs_add_repr.
+rewrite Ptrofs.unsigned_repr.
+lia.
+assert (Ctypes.sizeof t * n1 >= 0) by nia.
+rep_lia.
+*
+destruct p; try contradiction.
+simpl in H4.
+red in H2|-*; unfold nested_field_offset in *; simpl in H2|-*.
+apply align_compatible_rec_Tarray. intros.
+eapply align_compatible_rec_Tarray_inv with (i:=i1+j) in H2; try lia.
+rewrite Z.mul_add_distr_l in H2.
+rewrite <- (Ptrofs.repr_unsigned i0), ptrofs_add_repr.
+rewrite Ptrofs.unsigned_repr.
+unfold sizeof.
+replace  (Ptrofs.unsigned i0 + (Ctypes.sizeof t * j) + Ctypes.sizeof t * i1)
+ with   (Ptrofs.unsigned i0 + (Ctypes.sizeof t * i1 + Ctypes.sizeof t * j))
+  by lia; auto.
+unfold sizeof.
+pose proof (Ctypes.sizeof_pos t).
+assert (0 <= Ctypes.sizeof t * j <= Ctypes.sizeof t * j + Ctypes.sizeof t * i1) by nia.
+red in H1.
+simpl in H1.
+rewrite Z.max_r in H1 by lia.
+rewrite Z.mul_add_distr_l in H1.
+assert (Ctypes.sizeof t * i1 <= Ctypes.sizeof t * n1) by nia.
+rep_lia.
+-
+if_tac; auto.
+if_tac; auto.
+contradiction n. clear n.
+simpl in H.
+auto with field_compatible.
+Opaque sizeof.
+Qed.
+
+

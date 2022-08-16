@@ -115,11 +115,14 @@ Proof.
       destruct s; simpl in *.
       rewrite if_true in H3 by auto.  
       destruct (get_sys_arg1 _) eqn:Harg; try discriminate.
-      destruct (eq_dec _ _); subst; try discriminate.
+      destruct i1.
+      destruct (zeq _ _); subst; try discriminate.
       destruct (sys_putc_spec _) eqn:Hspec; inv H3.
       assert (sig_res (ef_sig e) <> AST.Tvoid).
       { destruct e; inv H2; discriminate. }
       eapply sys_putc_correct in Hspec as (? & -> & [? Hpost ?]); eauto.
+      rewrite Harg. unfold Vubyte. f_equal.
+      unfold Int.repr. f_equal. apply proof_irr.
     + destruct w as (? & _ & ?).
       destruct H1 as (? & ? & Hpre); subst.
       destruct s; simpl in *.

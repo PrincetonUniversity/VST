@@ -1913,7 +1913,7 @@ Import functional_base.
       split; auto; cbn in *.
       rewrite Int.signed_repr by (cbn; lia).
       destruct (Coqlib.zeq z1 (-1)); subst; auto.
-      destruct (eq_dec.eq_dec _ _); try easy.
+      if_tac; try easy.
       rewrite Zle_imp_le_bool by lia.
       destruct Hput as (? & [(? & ?) | (? & ?)]); subst; auto; try lia.
       rewrite Zmod_small; auto; functional_base.rep_lia.
