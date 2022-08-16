@@ -88,9 +88,16 @@ Proof.
   apply orp_right1; trivial.
   apply orp_right2; apply orp_right1; trivial.
   do 2 apply orp_right2; auto.
-  do 2 apply orp_right1; trivial. 
+  do 2 apply orp_right1; trivial.
   apply orp_right1. apply orp_right2; trivial.
   apply orp_right2; auto.
+Qed.
+
+Lemma exp_comm : forall {A} {NA: NatDed A} {B C} (P: B -> C -> A),
+  (EX x : B, EX y : C, P x y) = EX y : C, EX x : B, P x y.
+Proof.
+  intros; apply pred_ext; apply exp_left; intros x; apply exp_left; intros y;
+    apply exp_right with y; apply exp_right with x; auto.
 Qed.
 
 Class CCCviaNatDed (A: Type) (prod expo: A -> A -> A) {ND: NatDed A}: Prop :=
@@ -502,7 +509,7 @@ Proof.
     - rewrite <- imp_andp_adjoint.
       apply orp_right2; solve_andp.
 Qed.
-    
+
 Lemma prop_derives {A}{ND: NatDed A}:
  forall (P Q: Prop), (P -> Q) -> prop P |-- prop Q.
 Proof.
@@ -1665,7 +1672,7 @@ Qed.
 
 Import List.
 
-Lemma sepcon_app  {A} {NA: NatDed A}{SA: SepLog A}{CA: ClassicalSep A}: 
+Lemma sepcon_app  {A} {NA: NatDed A}{SA: SepLog A}{CA: ClassicalSep A}:
    forall l1 l2, fold_right sepcon emp (l1 ++ l2) =
   fold_right sepcon emp l1 * fold_right sepcon emp l2.
 Proof.
@@ -1674,7 +1681,7 @@ Proof.
   - rewrite IHl1, sepcon_assoc; auto.
 Qed.
 
-Lemma sepcon_rev {A} {NA: NatDed A}{SA: SepLog A}{CA: ClassicalSep A}: 
+Lemma sepcon_rev {A} {NA: NatDed A}{SA: SepLog A}{CA: ClassicalSep A}:
   forall l, fold_right sepcon emp (rev l) = fold_right sepcon emp l.
 Proof.
   induction l; simpl; auto.

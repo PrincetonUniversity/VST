@@ -563,10 +563,10 @@ Proof.
     by (rewrite name_member_get; auto).
   f_equal.
   f_equal.
-  rewrite name_member_get. 
+  rewrite name_member_get.
   change (sizeof ?A) with (expr.sizeof A) in *.
   rewrite sizeof_Tstruct. lia.
-  f_equal. f_equal. 
+  f_equal. f_equal.
   rewrite name_member_get.  lia.
   match goal with |- data_at_rec _ _ _ ?A = data_at_rec _ _ _ ?B => replace B with A end.
  2:{ f_equal. f_equal.
@@ -932,7 +932,7 @@ Proof.
     - rewrite data_at_isptr.
       normalize.
 Qed.
-  
+
 Lemma split3seg_array_at': forall sh t gfs lo ml mr hi v p,
   lo <= ml ->
   ml <= mr ->
@@ -1028,8 +1028,8 @@ Proof.
 Qed.
 
 Lemma mapsto_zero_data_at_zero:
-  forall t sh p, 
-    readable_share sh -> 
+  forall t sh p,
+    readable_share sh ->
     complete_legal_cosu_type t = true ->
     fully_nonvolatile (rank_type cenv_cs t) t = true ->
     field_compatible t nil p ->
@@ -1313,7 +1313,7 @@ Proof.
   end.
 
   Opaque union_pred. eapply @RAMIF_Q.trans. Transparent union_pred.
-  2:{ 
+  2:{
     apply (union_pred_ramif (m::m0)
             (fun it v p =>
               withspacer sh
@@ -1568,7 +1568,7 @@ Proof.
     unfold expr.sizeof in *.
     lia.
   }
-  clear - H H1 H8.  
+  clear - H H1 H8.
   eapply derives_trans.
   + apply sepcon_derives.
     apply field_at_field_at_; try assumption; auto.
@@ -1713,7 +1713,7 @@ Qed.
 
 #[export] Hint Resolve valid_pointer_weak' : valid_pointer.
 
-Lemma valid_pointer_offset_zero: forall P q, 
+Lemma valid_pointer_offset_zero: forall P q,
    (P |-- valid_pointer (offset_val 0 q)) ->
    P |-- valid_pointer q.
 Proof.
@@ -1729,7 +1729,7 @@ Qed.
 
 #[export] Hint Extern 1 (_ |-- valid_pointer ?Q) =>
   lazymatch Q with
-  | offset_val _ _ => fail 
+  | offset_val _ _ => fail
   | _ => apply valid_pointer_offset_zero
   end : core.
 
@@ -1762,9 +1762,9 @@ Ltac data_at_conflict_neq_aux1 A sh fld E x y :=
    apply derives_trans with (!! (~ E) && A);
    [apply andp_right; [ | apply derives_refl];
     let H := fresh in
-    apply not_prop_right; intro H; 
-    (rewrite H || rewrite (ptr_eq_e _ _ H)); 
-    field_at_conflict y fld 
+    apply not_prop_right; intro H;
+    (rewrite H || rewrite (ptr_eq_e _ _ H));
+    field_at_conflict y fld
    | apply derives_extract_prop;
      let H1 := fresh in intro H1;
      rewrite (eq_True _ H1)
@@ -2082,7 +2082,7 @@ Lemma field_at_ptr_neq{cs: compspecs} :
 Proof.
    intros.
    apply not_prop_right; intros.
-  rewrite -> (ptr_eq_e _ _ H1).   
+  rewrite -> (ptr_eq_e _ _ H1).
    apply field_at_conflict; try assumption.
 Qed.
 
@@ -2422,7 +2422,7 @@ Proof.
   rewrite ptrofs_add_repr_0_r. auto.
 Qed.
 
-Lemma headptr_field_compatible: forall {cs: compspecs} t path p, 
+Lemma headptr_field_compatible: forall {cs: compspecs} t path p,
    headptr p ->
    complete_legal_cosu_type t = true ->
    legal_nested_field t path ->
@@ -2521,7 +2521,7 @@ Proof.
 Qed.
 
 Lemma data_at_ext_derives {cs} sh t v v' p q: v=v' -> p=q -> @data_at cs sh t v p |-- @data_at cs sh t v' q.
-Proof. intros; subst. 
+Proof. intros; subst.
 apply derives_refl.
 Qed.
 
@@ -2574,7 +2574,7 @@ Lemma data_at_data_at_cancel  {cs: compspecs}: forall sh t v v' p,
   v = v' ->
   data_at sh t v p |-- data_at sh t v' p.
 Proof. intros. subst. apply derives_refl. Qed.
- 
+
 #[export] Hint Resolve data_at_data_at_cancel : cancel.
 
 
@@ -2582,7 +2582,7 @@ Lemma field_at_field_at_cancel  {cs: compspecs}: forall sh t gfs v v' p,
   v = v' ->
   field_at sh t gfs v p |-- field_at sh t gfs v' p.
 Proof. intros. subst. apply derives_refl. Qed.
- 
+
 #[export] Hint Resolve data_at_data_at_cancel : cancel.
 #[export] Hint Resolve field_at_field_at_cancel : cancel.
 
@@ -2591,6 +2591,76 @@ Lemma data_at__data_at {cs: compspecs}:
 Proof.
 intros; subst; unfold data_at_; apply derives_refl.
 Qed.
+
+Lemma data_at__eq : forall {cs : compspecs} sh t p, data_at_ sh t p = data_at sh t (default_val t) p.
+Proof.
+  intros; unfold data_at_, data_at, field_at_; auto.
+Qed.
+
+Lemma data_at_shares_join : forall {cs} sh t v p shs sh1 (Hsplit : sepalg_list.list_join sh1 shs sh),
+  @data_at cs sh1 t v p * iter_sepcon.iter_sepcon (fun sh => data_at sh t v p) shs =
+  data_at sh t v p.
+Proof.
+  induction shs; intros; simpl.
+  - inv Hsplit.
+    rewrite sepcon_emp; auto.
+  - inv Hsplit.
+    erewrite <- sepcon_assoc, data_at_share_join; eauto.
+Qed.
+
+Lemma data_at_shares_join_old : forall {cs} sh t v p shs sh1 (Hsplit : sepalg_list.list_join sh1 shs sh),
+  @data_at cs sh1 t v p * fold_right sepcon emp (map (fun sh => data_at sh t v p) shs) =
+  data_at sh t v p.
+Proof.
+  induction shs; intros; simpl.
+  - inv Hsplit.
+    rewrite sepcon_emp; auto.
+  - inv Hsplit.
+    erewrite <- sepcon_assoc, data_at_share_join; eauto.
+Qed.
+
+Lemma struct_pred_value_cohere : forall {cs : compspecs} m sh1 sh2 p t f off v1 v2
+  (Hsh1 : readable_share sh1) (Hsh2 : readable_share sh2)
+  (IH : Forall (fun it : member => forall v1 v2 (p : val),
+        readable_share sh1 -> readable_share sh2 ->
+        data_at_rec sh1 (t it) v1 p * data_at_rec sh2 (t it) v2 p |--
+        data_at_rec sh1 (t it) v1 p * data_at_rec sh2 (t it) v1 p) m),
+  struct_pred m (fun (it : member) v =>
+    withspacer sh1 (f it + sizeof (t it)) (off it) (at_offset (data_at_rec sh1 (t it) v) (f it))) v1 p *
+  struct_pred m (fun (it : member) v =>
+    withspacer sh2 (f it + sizeof (t it)) (off it) (at_offset (data_at_rec sh2 (t it) v) (f it))) v2 p |--
+  struct_pred m (fun (it : member) v =>
+    withspacer sh1 (f it + sizeof (t it)) (off it) (at_offset (data_at_rec sh1 (t it) v) (f it))) v1 p *
+  struct_pred m (fun (it : member) v =>
+    withspacer sh2 (f it + sizeof (t it)) (off it) (at_offset (data_at_rec sh2 (t it) v) (f it))) v1 p.
+Proof.
+  intros.
+  revert v1 v2; induction m; auto; intros.
+  apply derives_refl.
+  inv IH.
+  destruct m.
+  - unfold withspacer, at_offset; simpl.
+    if_tac; auto.
+    match goal with |- (?P1 * ?Q1) * (?P2 * ?Q2) |-- _ => apply derives_trans with (Q := (P1 * P2) * (Q1 * Q2));
+      [cancel|] end.
+    eapply derives_trans; [apply sepcon_derives, derives_refl|].
+    { apply H1; auto. }
+    cancel.
+  - rewrite !struct_pred_cons2.
+    match goal with |- (?P1 * ?Q1) * (?P2 * ?Q2) |-- _ => apply derives_trans with (Q := (P1 * P2) * (Q1 * Q2));
+      [cancel|] end.
+    match goal with |- _ |-- (?P1 * ?Q1) * (?P2 * ?Q2) => apply derives_trans with (Q := (P1 * P2) * (Q1 * Q2));
+      [|cancel] end.
+    apply sepcon_derives; [|auto].
+    unfold withspacer, at_offset; simpl.
+    if_tac; auto.
+    match goal with |- (?P1 * ?Q1) * (?P2 * ?Q2) |-- _ => apply derives_trans with (Q := (P1 * P2) * (Q1 * Q2));
+      [cancel|] end.
+    eapply derives_trans; [apply sepcon_derives, derives_refl|].
+    { apply H1; auto. }
+    cancel.
+Qed.
+
 
 Lemma field_at__field_at {cs: compspecs} :
    forall sh t gfs v p, v = default_val (nested_field_type t gfs) -> field_at_ sh t gfs p |-- field_at sh t gfs v p.
@@ -2617,12 +2687,12 @@ Qed.
 #[export] Hint Resolve field_at__data_at : cancel.
 
 #[export] Hint Extern 1 (_ = @default_val _ _) =>
- match goal with |- ?A = ?B => 
+ match goal with |- ?A = ?B =>
      let x := fresh "x" in set (x := B); hnf in x; subst x;
      match goal with |- ?A = ?B => constr_eq A B; reflexivity
   end end : core.
 
-#[export] Hint Extern 1 (_ = _) => 
+#[export] Hint Extern 1 (_ = _) =>
   match goal with |- ?A = ?B => constr_eq A B; reflexivity end : cancel.
 
 (* enhance cancel to solve field_at and data_at *)
@@ -2646,7 +2716,7 @@ Qed.
 
 Lemma data_at__Tarray:
   forall {CS: compspecs} sh t n a,
-  data_at_ sh (Tarray t n a) = 
+  data_at_ sh (Tarray t n a) =
   data_at sh (Tarray t n a) (Zrepeat (default_val t) n).
 Proof.
 intros.
@@ -2658,12 +2728,12 @@ Qed.
 
 Lemma data_at__tarray:
   forall {CS: compspecs} sh t n,
-  data_at_ sh (tarray t n) = 
+  data_at_ sh (tarray t n) =
   data_at sh (tarray t n) (Zrepeat (default_val t) n).
 Proof. intros; apply data_at__Tarray; auto. Qed.
 
 Lemma data_at__Tarray':
-  forall {CS: compspecs} sh t n a v, 
+  forall {CS: compspecs} sh t n a v,
   v = Zrepeat (default_val t) n ->
   data_at_ sh (Tarray t n a) = data_at sh (Tarray t n a) v.
 Proof.
@@ -2677,7 +2747,7 @@ reflexivity.
 Qed.
 
 Lemma data_at__tarray':
-  forall {CS: compspecs} sh t n v, 
+  forall {CS: compspecs} sh t n v,
   v = Zrepeat (default_val t) n ->
   data_at_ sh (tarray t n) = data_at sh (tarray t n) v.
 Proof. intros; apply data_at__Tarray'; auto. Qed.
@@ -2690,10 +2760,10 @@ Ltac unfold_data_at_ p :=
    match goal with |- ?G d => set (g:=G) end;
   revert d;
   match t with
-   | Tarray ?t1 ?n _ => 
+   | Tarray ?t1 ?n _ =>
           erewrite data_at__Tarray' by apply eq_refl;
           try change (default_val t1) with Vundef
-   | tarray ?t1 ?n => 
+   | tarray ?t1 ?n =>
           erewrite data_at__tarray' by apply eq_refl;
           try change (default_val t1) with Vundef
    | _ => change (data_at_ sh t p) with (data_at sh t (default_val t) p);
@@ -2708,9 +2778,9 @@ Lemma change_compspecs_field_at_cancel:
         (v1: @reptype cs1 (@nested_field_type cs1 t1 gfs))
         (v2: @reptype cs2 (@nested_field_type cs2 t2 gfs))
         (p: val),
-    t1 = t2 -> 
+    t1 = t2 ->
     cs_preserve_type cs1 cs2 (@coeq cs1 cs2 CCE) t1 = true ->
-   JMeq v1 v2 -> 
+   JMeq v1 v2 ->
    @field_at cs1 sh t1 gfs v1 p |-- @field_at cs2 sh t2 gfs v2 p.
 Proof.
 intros.
@@ -2725,9 +2795,9 @@ Lemma change_compspecs_data_at_cancel:
         (sh: share) (t1 t2: type)
         (v1: @reptype cs1 t1) (v2: @reptype cs2 t2)
         (p: val),
-    t1 = t2 -> 
+    t1 = t2 ->
     cs_preserve_type cs1 cs2 (@coeq cs1 cs2 CCE) t1 = true ->
-   JMeq v1 v2 -> 
+   JMeq v1 v2 ->
    @data_at cs1 sh t1 v1 p |-- @data_at cs2 sh t2 v2 p.
 Proof.
 intros.
@@ -2738,7 +2808,7 @@ Lemma change_compspecs_field_at_cancel2:
   forall {cs1 cs2: compspecs} {CCE : change_composite_env cs1 cs2}
         (sh: share) (t1 t2: type) gfs
         (p: val),
-    t1 = t2 -> 
+    t1 = t2 ->
     cs_preserve_type cs1 cs2 (@coeq cs1 cs2 CCE) t1 = true ->
    @field_at_ cs1 sh t1 gfs p |-- @field_at_ cs2 sh t2 gfs p.
 Proof.
@@ -2755,7 +2825,7 @@ Lemma change_compspecs_data_at_cancel2:
   forall {cs1 cs2: compspecs} {CCE : change_composite_env cs1 cs2}
         (sh: share) (t1 t2: type)
         (p: val),
-    t1 = t2 -> 
+    t1 = t2 ->
     cs_preserve_type cs1 cs2 (@coeq cs1 cs2 CCE) t1 = true ->
    @data_at_ cs1 sh t1 p |-- @data_at_ cs2 sh t2 p.
 Proof.
@@ -2768,7 +2838,7 @@ Lemma change_compspecs_field_at_cancel3:
         (sh: share) (t1 t2: type) gfs
         (v1: @reptype cs1 (@nested_field_type cs1 t1 gfs))
         (p: val),
-    t1 = t2 -> 
+    t1 = t2 ->
     cs_preserve_type cs1 cs2 (@coeq cs1 cs2 CCE) t1 = true ->
    @field_at cs1 sh t1 gfs v1 p |-- @field_at_ cs2 sh t2 gfs p.
 Proof.
@@ -2784,7 +2854,7 @@ Lemma change_compspecs_data_at_cancel3:
         (sh: share) (t1 t2: type)
         (v1: @reptype cs1 t1)
         (p: val),
-    t1 = t2 -> 
+    t1 = t2 ->
     cs_preserve_type cs1 cs2 (@coeq cs1 cs2 CCE) t1 = true ->
    @data_at cs1 sh t1 v1 p |-- @data_at_ cs2 sh t2 p.
 Proof.
@@ -2802,7 +2872,7 @@ Qed.
 
 #[export] Hint Extern 2 (@data_at ?cs1 ?sh _ _ ?p |-- @data_at ?cs2 ?sh _ _ ?p) =>
     (tryif constr_eq cs1 cs2 then fail
-     else simple apply change_compspecs_data_at_cancel; 
+     else simple apply change_compspecs_data_at_cancel;
        [ reflexivity | reflexivity | apply JMeq_refl]) : cancel.
 
 #[export] Hint Extern 2 (@field_at_ ?cs1 ?sh _ ?gfs ?p |-- @field_at_ ?cs2 ?sh _ ?gfs ?p) =>
@@ -2815,11 +2885,11 @@ Qed.
 
 #[export] Hint Extern 2 (@field_at ?cs1 ?sh _ ?gfs _ ?p |-- @field_at ?cs2 ?sh _ ?gfs _ ?p) =>
     (tryif constr_eq cs1 cs2 then fail
-     else simple apply change_compspecs_field_at_cancel; 
+     else simple apply change_compspecs_field_at_cancel;
         [ reflexivity | reflexivity | apply JMeq_refl]) : cancel.
 
 Lemma data_at_nullptr:
- forall {cs: compspecs} sh t p, 
+ forall {cs: compspecs} sh t p,
   data_at sh size_t nullval p =
   data_at sh (tptr t) nullval p.
 Proof.
@@ -2863,7 +2933,7 @@ Proof.
  f_equal.
  unfold align_compatible.
  destruct p; auto.
- apply prop_ext; split; intro; 
+ apply prop_ext; split; intro;
   eapply align_compatible_rec_by_value_inv in H;
    try reflexivity;
   try (eapply align_compatible_rec_by_value; eauto).
@@ -2890,7 +2960,7 @@ Proof.
  f_equal.
  unfold align_compatible.
  destruct p; auto.
- apply prop_ext; split; intro; 
+ apply prop_ext; split; intro;
   eapply align_compatible_rec_by_value_inv in H;
    try reflexivity;
   try (eapply align_compatible_rec_by_value; eauto).

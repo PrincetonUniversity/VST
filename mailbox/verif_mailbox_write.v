@@ -400,7 +400,7 @@ Proof.
     exploit (Znth_In j (t :: shs)); [rewrite Zlength_cons; auto|].
     intro Hin'; apply in_split in Hin'.
     destruct Hin' as (? & ? & Heq); rewrite Heq in Hsh1.
-    apply list_join_comm in Hsh1; inv Hsh1; eauto. }
+    apply sepalg_list.list_join_comm in Hsh1; inv Hsh1; eauto. }
   destruct (eq_dec j 0).
   - subst j; rewrite Znth_0_cons in Hj; rewrite Znth_0_cons; subst.
     rewrite eq_dec_refl in Hsh2.
@@ -433,7 +433,7 @@ Proof.
     exploit (Znth_In j (t :: shs)); [rewrite Zlength_cons; auto|].
     intro Hin'; apply in_split in Hin'.
     destruct Hin' as (? & ? & Heq); rewrite Heq in Hsh1.
-    apply list_join_comm in Hsh1; inv Hsh1; eauto. }
+    apply sepalg_list.list_join_comm in Hsh1; inv Hsh1; eauto. }
   destruct (eq_dec j 0).
   { subst; rep_lia. }
   rewrite Znth_pos_cons; [|lia].
@@ -592,14 +592,14 @@ Proof.
       erewrite make_shares_ext, Hshs2.
       apply prop_ext; split.
       * intros (? & Hj1 & Hj2).
-        apply list_join_comm.
+        apply sepalg_list.list_join_comm.
         apply sepalg.join_comm in Hj2; destruct (sepalg_list.list_join_assoc2 Hj1 Hj2) as (? & ? & ?).
         econstructor. apply sepalg.join_comm; eassumption.
-        apply list_join_comm; auto.
-      * intro Hj; apply list_join_comm in Hj.
+        apply sepalg_list.list_join_comm; auto.
+      * intro Hj; apply sepalg_list.list_join_comm in Hj.
         inversion Hj as [|????? Hj1 Hj2]; subst.
         apply sepalg.join_comm in Hj1; destruct (sepalg_list.list_join_assoc1 Hj1 Hj2) as (? & ? & ?).
-        do 2 eexists. apply list_join_comm; eassumption. apply sepalg.join_comm; eassumption.
+        do 2 eexists. apply sepalg_list.list_join_comm; eassumption. apply sepalg.join_comm; eassumption.
       * rewrite upd_Znth_Zlength; rewrite !Zlength_map; auto.
       * rewrite Zlength_map, Zlength_upto; intros.
         rewrite Znth_map, Znth_upto; try lia; try assumption.
@@ -667,8 +667,8 @@ Proof.
       apply prop_ext; split.
       * intros (? & Hj1 & Hj2).
         apply sepalg.join_comm in Hj2; destruct (sepalg_list.list_join_assoc2 Hj1 Hj2) as (? & ? & ?).
-        apply list_join_comm; econstructor; try eassumption. apply sepalg.join_comm; eauto.
-      * intro Hj; apply list_join_comm in Hj; inversion Hj as [|????? Hj1 Hj2]; subst.
+        apply sepalg_list.list_join_comm; econstructor; try eassumption. apply sepalg.join_comm; eauto.
+      * intro Hj; apply sepalg_list.list_join_comm in Hj; inversion Hj as [|????? Hj1 Hj2]; subst.
         apply sepalg.join_comm in Hj1; destruct (sepalg_list.list_join_assoc1 Hj1 Hj2) as (? & ? & ?).
         do 2 eexists; eauto. apply sepalg.join_comm; eauto.
       * lia.
@@ -780,7 +780,7 @@ Proof.
     match goal with H : if eq_dec b b then _ else _ |- _ => rewrite eq_dec_refl in H end.
     match goal with H : sepalg_list.list_join _ (sublist i N shs) _ |- _ =>
       rewrite sublist_split with (mid := i + 1) in H; try lia;
-      apply list_join_comm, sepalg_list.list_join_unapp in H; destruct H as (bsh' & ? & Hsh) end.
+      apply sepalg_list.list_join_comm, sepalg_list.list_join_unapp in H; destruct H as (bsh' & ? & Hsh) end.
     rewrite sublist_len_1, <- sepalg_list.list_join_1 in Hsh; [|lia].
     rewrite (extract_nth_sepcon (map _ (upto (Z.to_nat N))) i); [|rewrite Zlength_map; auto].
     rewrite (extract_nth_sepcon (map _ (upto (Z.to_nat N))) i); [|rewrite Zlength_map; auto].

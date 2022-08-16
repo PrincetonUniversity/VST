@@ -1,5 +1,7 @@
 Require Import VST.msl.msl_standard.
 Require Import VST.msl.Coqlib2.
+Require Import Coq.ZArith.ZArith.
+Require Import VST.zlist.sublist.
 Set Implicit Arguments.
 
 Inductive fold_rel (A: Type) (f: A -> A -> A -> Prop):  A -> list A -> A -> Prop :=
@@ -201,6 +203,48 @@ Proof.
   induction b; intros; inv Hc; inv Hc'; auto.
   assert (w0 = w1) by (eapply join_eq; eauto).
   subst; eapply IHb; eauto.
+Qed.
+
+Lemma join_shares_nth : forall {A} {JA: Join A} {PA: Perm_alg A} {dI: Inhabitant A}
+                          (shs: list A) (sh1 sh: A) (i: Z),
+    list_join sh1 shs sh -> (0 <= i < Zlength shs)%Z ->
+  exists (sh': A), list_join (Znth i shs) (remove_Znth i shs) sh' /\ join sh1 sh' sh.
+Proof.
+  induction shs; simpl; intros.
+  { rewrite Zlength_nil in *; lia. }
+  inv H.
+  destruct (Z.eq_dec i 0).
+  - subst; rewrite remove_Znth0, sublist_1_cons, Zlength_cons, sublist_same, Znth_0_cons; auto; try lia.
+    eapply list_join_assoc1; eauto.
+  - rewrite Zlength_cons in *. generalize (IHshs w1 sh (i - 1)%Z H6 ltac:(lia)).
+    intros (sh2 & ? & ?).
+    rewrite Znth_pos_cons, remove_Znth_cons; try lia.
+    generalize (join_sub_joins_trans(a := a)(b := sh2)(c := w1)
+                  ltac:(eexists; eapply join_comm; eauto)
+                         ltac:(eexists; eapply join_comm; eauto)).
+    intros (sh' & ?); exists sh'; split.
+    + generalize (list_join_assoc2(a := a)(b := Znth (i - 1) shs)
+                    (cl := remove_Znth (i - 1) shs)(e := sh')(f := sh2) H ltac:(auto)).
+      intros (d & ? & ?). apply join_comm in H3.
+      econstructor; eauto.
+    + pose proof (join_assoc(a := sh1)(b := a)(c := sh2)(d := w1)(e := sh)) as X.
+      repeat match goal with X : ?a -> _, H : ?a |- _ => specialize (X H) end.
+      destruct X as (f & Ha' & ?).
+      assert (f = sh') by (eapply join_eq; eauto).
+      subst; auto.
+Qed.
+
+Lemma list_join_comm : forall {A} {JA: Join A} {PA: Perm_alg A} (l1 l2 : list A) a b,
+    list_join a (l1 ++ l2) b -> list_join a (l2 ++ l1) b.
+Proof.
+  induction l1; intros; [rewrite app_nil_r; auto|].
+  inversion H as [|????? H1 H2]; subst.
+  apply IHl1, list_join_unapp in H2.
+  destruct H2 as (c & Hl2 & Hl1).
+  apply join_comm in H1.
+  destruct (list_join_assoc1 H1 Hl2) as (? & ? & ?).
+  eapply list_join_app; eauto.
+  apply join_comm in H2. econstructor; eauto.
 Qed.
 
 (*****************************)
