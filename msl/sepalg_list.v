@@ -195,6 +195,14 @@ repeat split; auto.
 econstructor 2; eauto.
 Qed.
 
+Lemma list_join_eq : forall {A} {JA: Join A} {PA: Perm_alg A} (b : list A) a c c'
+  (Hc : list_join a b c) (Hc' : list_join a b c'), c = c'.
+Proof.
+  induction b; intros; inv Hc; inv Hc'; auto.
+  assert (w0 = w1) by (eapply join_eq; eauto).
+  subst; eapply IHb; eauto.
+Qed.
+
 (*****************************)
 
 Lemma list_join_comparable {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{FA: Flat_alg A}:
@@ -492,4 +500,3 @@ exists x0; exists y0.
 split; auto.
 split; econstructor 3; eauto.
 Qed.
-

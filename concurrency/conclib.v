@@ -2,6 +2,7 @@ Require Import VST.msl.predicates_hered.
 Require Import VST.veric.ghosts.
 Require Import VST.veric.invariants.
 Require Import VST.veric.fupd.
+Require Export VST.veric.slice.
 Require Export VST.msl.iter_sepcon.
 Require Import VST.msl.ageable.
 Require Import VST.msl.age_sepalg.
@@ -350,3 +351,5 @@ Ltac forward_spawn id arg wit :=
   forward_call [A] funspec_sub_refl (f, arg, Q, wit, R); subst Q R;
            [ .. | subst f]; try (subst f; simpl; cancel_for_forward_spawn)
   end end.
+
+#[export] Hint Resolve unreadable_bot : core.

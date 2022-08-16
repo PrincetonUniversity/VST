@@ -684,7 +684,7 @@ Proof.
       apply pred_ext.
       * Exists bsh'; entailer!.
       * Intros sh.
-        assert (sh = bsh') by (eapply list_join_eq; eauto; apply HshP).
+        assert (sh = bsh') by (eapply sepalg_list.list_join_eq; eauto; apply HshP).
         subst; auto.
     + rewrite upd_Znth_diff; auto.
       erewrite Znth_map, Znth_upto; auto.

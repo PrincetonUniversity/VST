@@ -3417,3 +3417,17 @@ Proof.
   rewrite filter_In, In_upto, Z2Nat.id in Hin; [|rewrite Zlength_correct in *; lia].
   destruct Hin; destruct (in_dec Z.eq_dec z l); try discriminate; eauto.
 Qed.
+
+Lemma combine_fst : forall {A B} (l : list A) (l' : list B), length l = length l' ->
+  map fst (combine l l') = l.
+Proof.
+  induction l; destruct l'; try discriminate; auto; intros.
+  inv H; simpl; rewrite IHl; auto.
+Qed.
+
+Lemma combine_snd : forall {A B} (l : list A) (l' : list B), length l = length l' ->
+  map snd (combine l l') = l'.
+Proof.
+  induction l; destruct l'; try discriminate; auto; intros.
+  inv H; simpl; rewrite IHl; auto.
+Qed.

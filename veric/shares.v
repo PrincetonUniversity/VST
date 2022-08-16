@@ -1,5 +1,7 @@
 Require Import VST.msl.msl_standard.
 Require Import VST.msl.Coqlib2.
+Require VST.msl.sepalg_list.
+(* Require VST.veric.slice. *)
 
 Set Implicit Arguments.
 
@@ -81,6 +83,12 @@ rewrite H in H0,H1.
 split; apply Share.ord_antisym; auto; apply Share.bot_correct.
 Qed.
 
+Lemma join_Bot : forall a b, sepalg.join a b Share.bot -> a = Share.bot /\ b = Share.bot.
+Proof.
+  intros ?? (? & ?).
+  apply lub_bot_e; auto.
+Qed.
+
 Lemma glb_less_both:
   forall a L b R,
    Share.Ord a L -> Share.Ord b R ->
@@ -140,7 +148,6 @@ Definition readable_share (sh: share) :=
 Definition writable_share (sh: share) :=
     nonempty_share (Share.glb Share.Lsh sh) /\ join_sub Share.Rsh sh.
 
-
 Lemma lub_Lsh_Rsh:
  Share.lub Share.Lsh Share.Rsh = Share.top.
 Proof.
@@ -155,6 +162,13 @@ Proof.
 unfold Share.Lsh, Share.Rsh.
 destruct (Share.split Share.top) eqn:H; simpl.
 apply (Share.split_disjoint _ _ _ H).
+Qed.
+
+Lemma join_Tsh : forall a b, sepalg.join Tsh a b -> b = Tsh /\ a = Share.bot.
+Proof.
+  intros ?? (? & ?).
+  rewrite Share.glb_commute, Share.glb_top in H; subst; split; auto.
+  apply Share.lub_bot.
 Qed.
 
 Lemma readable_share_dec:
@@ -176,7 +190,7 @@ Proof.
  +
   split. unfold nonempty_share, nonidentity. contradict n.
   apply identity_share_bot; auto.
-  clear n.  
+  clear n.
   exists (Share.glb Share.Lsh sh).
   split.
   -
@@ -285,7 +299,7 @@ Proof.
 red.
 split.
 *
-rewrite Share.glb_top. 
+rewrite Share.glb_top.
 unfold Share.Lsh.
 intro.
 destruct (Share.split Share.top) eqn:?H.
@@ -310,7 +324,7 @@ Qed.
 
 Definition extern_retainer := fst (Share.split Share.Lsh).
 
-Definition Ews (* extern_write_share *) := 
+Definition Ews (* extern_write_share *) :=
   Share.lub extern_retainer Share.Rsh.
 
 Lemma writable_Ews: writable_share Ews.
@@ -348,7 +362,7 @@ Abort.  (* Not true any more *)
 
 #[export] Hint Resolve writable_Ews : core.
 
-Definition Ers (* Extern read share *) := 
+Definition Ers (* Extern read share *) :=
   Share.lub extern_retainer (fst (Share.split Share.Rsh)).
 
 Lemma readable_nonidentity: forall sh, readable_share sh -> sepalg.nonidentity sh.
@@ -601,7 +615,24 @@ Proof.
 Qed.
 Arguments readable_not_identity sh P _ _ : clear implicits.
 
-Lemma comp_parts:  
+Lemma readable_share_list_join : forall sh shs sh', sepalg_list.list_join sh shs sh' ->
+  readable_share sh \/ Exists readable_share shs -> readable_share sh'.
+Proof.
+  induction 1; intros [? | Hexists]; try inv Hexists; auto.
+  - apply IHfold_rel; left; eapply readable_share_join; eauto.
+  - apply IHfold_rel; left; eapply readable_share_join; eauto.
+Qed.
+
+#[export] Hint Resolve bot_unreadable : share.
+
+Lemma readable_not_bot : forall sh, readable_share sh -> ~sh = Share.bot.
+Proof.
+  repeat intro; subst; auto with share.
+Qed.
+
+#[export] Hint Resolve readable_not_bot : share.
+
+Lemma comp_parts:
   forall L R : Share.t,
   Share.comp L = R ->
   forall sh: Share.t, sh = Share.lub (Share.glb L sh) (Share.glb R sh).
@@ -614,7 +645,7 @@ rewrite Share.comp1.
 rewrite Share.glb_top. auto.
 Qed.
 
-Lemma join_comp_parts:  
+Lemma join_comp_parts:
   forall L R : Share.t,
   Share.comp L = R ->
   forall a b c : Share.t,
@@ -659,8 +690,8 @@ Qed.
 Lemma join_pure_readable:
   forall sh1 sh2 sh3,
     join sh1 sh2 sh3 ->
-    pure_readable_share sh1 -> 
-    pure_readable_share sh2 -> 
+    pure_readable_share sh1 ->
+    pure_readable_share sh2 ->
     pure_readable_share sh3.
 Proof.
 intros.
@@ -670,7 +701,6 @@ destruct (join_comp_parts comp_Lsh_Rsh H).
 rewrite H0,H1 in *. apply join_unit1_e in H4; auto.
 eapply readable_share_join; eauto.
 Qed.
-
 
 #[export] Instance Join_rshare: Join rshare :=
   fun a b c => join (proj1_sig a) (proj1_sig b) (proj1_sig c).
@@ -682,7 +712,7 @@ Proof.
 *
   destruct z, z'. apply exist_ext.
   do 2 red in H, H0. simpl in *. eapply join_eq; eauto.
-* 
+*
   destruct a,b,c,d,e; do 2 red in H,H0. simpl in *.
   destruct (join_assoc H H0) as [a [? ?]].
   assert (pure_readable_share a).
@@ -733,7 +763,7 @@ Lemma join_readable_part_eq:
   forall sh1 (rsh1: readable_share sh1)
          sh2 (nsh2: ~readable_share sh2)
          sh3 (rsh3: readable_share sh3),
-        join sh1 sh2 sh3 -> 
+        join sh1 sh2 sh3 ->
         readable_part rsh1 = readable_part rsh3.
 Proof.
  intros.
@@ -780,7 +810,7 @@ Proof.
  unfold readable_share, retainer_part, nonempty_share, nonidentity.
  intro. apply H; clear H.
  rewrite <- Share.glb_assoc.
- rewrite (Share.glb_commute Share.Rsh). 
+ rewrite (Share.glb_commute Share.Rsh).
  rewrite glb_Lsh_Rsh.
  rewrite Share.glb_commute, Share.glb_bot.
  apply bot_identity.
@@ -800,7 +830,7 @@ rewrite H0.
 apply bot_identity.
 Qed.
 
-Lemma retainer_part_join: forall sh1 sh2 sh3, 
+Lemma retainer_part_join: forall sh1 sh2 sh3,
   join sh1 sh2 sh3 -> join (retainer_part sh1) (retainer_part sh2) (retainer_part sh3).
 Proof.
 intros.
@@ -808,7 +838,7 @@ intros.
  destruct H; subst; simpl  in *; split.
  rewrite Share.glb_assoc. rewrite (Share.glb_commute sh1).
  rewrite <- Share.glb_assoc. rewrite <- Share.glb_assoc. rewrite Share.glb_idem.
- rewrite Share.glb_assoc. rewrite (Share.glb_commute sh2). rewrite H. 
+ rewrite Share.glb_assoc. rewrite (Share.glb_commute sh2). rewrite H.
  apply Share.glb_bot.
  rewrite <- Share.distrib1. auto.
 Qed.
@@ -822,7 +852,7 @@ apply identity_share_bot in H. auto.
 Qed.
 
 Lemma join_parts1:
-  forall L R (HC: Share.comp L = R) sh1 sh2 sh,         
+  forall L R (HC: Share.comp L = R) sh1 sh2 sh,
          join sh1 sh2 (Share.glb L sh) ->
          Share.glb L sh1 = sh1 /\
          Share.glb R sh1 = Share.bot.
@@ -851,7 +881,7 @@ auto.
 Qed.
 
 Lemma join_parts:
-  forall L R (HC: Share.comp L = R) sh1 sh2 sh,         
+  forall L R (HC: Share.comp L = R) sh1 sh2 sh,
          join sh1 sh2 (Share.glb L sh) ->
          Share.glb L sh1 = sh1 /\
          Share.glb R sh1 = Share.bot /\
@@ -964,6 +994,14 @@ rewrite Share.glb_top.
 auto.
 Qed.
 
+Lemma comp_join_top : forall sh, sepalg.join sh (Share.comp sh) Tsh.
+Proof.
+  intro; pose proof (Share.comp1 sh).
+  apply comp_parts_join with (L := sh)(R := Share.comp sh); auto;
+    rewrite Share.glb_idem, Share.glb_top.
+  - rewrite Share.comp2. apply join_bot_eq.
+  - rewrite Share.glb_commute, Share.comp2; auto.
+Qed.
 
 Lemma left_right_join:
  forall a b c,
@@ -1006,7 +1044,7 @@ exists sh2; auto.
 Qed.
 
 Lemma join_writable_readable:
-  forall {sh1 sh2 sh}, 
+  forall {sh1 sh2 sh},
    join sh1 sh2 sh -> writable_share sh1 -> readable_share sh2 -> False.
 Proof.
 intros.
@@ -1053,7 +1091,7 @@ Proof.
 Qed.
 
 Lemma join_writable0_readable:
-  forall {sh1 sh2 sh}, 
+  forall {sh1 sh2 sh},
    join sh1 sh2 sh -> writable0_share sh1 -> readable_share sh2 -> False.
 Proof.
 intros.
@@ -1251,7 +1289,7 @@ Lemma readable_glb:
     rewrite Share.glb_bot in H.
     apply H; auto.
   Qed.
-  
+
 Lemma join_comp_Tsh:
   forall sh, sepalg.join sh (Share.comp sh) Tsh.
 Proof.

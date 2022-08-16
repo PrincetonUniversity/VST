@@ -61,7 +61,7 @@ Proof.
       destruct (eq_dec 1 a); [contradiction n0; auto|].
        rewrite Heq; auto; [|lia].
       apply pred_ext; Intros sh; Exists sh; entailer!.
-      eapply list_join_eq; eauto. }
+      eapply sepalg_list.list_join_eq; eauto. }
   Intros v b0 lasts h.
   rewrite sepcon_map; Intros.
   forward_call (b0, lasts, gv).
@@ -80,7 +80,7 @@ Proof.
     unfold unfold_reptype in *; simpl in *.
     rewrite Zlength_map in *; auto. }
   rewrite make_shares_out in *; auto; [|setoid_rewrite H; auto].
-  assert (sh = Ews) by (eapply list_join_eq; eauto); subst.
+  assert (sh = Ews) by (eapply sepalg_list.list_join_eq; eauto); subst.
   forward.
   gather_SEP (fold_right sepcon emp (map (fun x : Z => ghost_var gsh1 (vint b0) _) _))
                      (fold_right sepcon emp (map (fun x : Z => ghost_var gsh1 (vint (Znth x lasts)) _) _)).

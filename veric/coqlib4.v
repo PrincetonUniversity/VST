@@ -196,20 +196,6 @@ Proof.
   induction n; simpl; auto.
 Qed.
 
-Lemma combine_fst : forall {A B} (l : list A) (l' : list B), length l = length l' ->
-  map fst (combine l l') = l.
-Proof.
-  induction l; destruct l'; try discriminate; auto; intros.
-  inv H; simpl; rewrite IHl; auto.
-Qed.
-
-Lemma combine_snd : forall {A B} (l : list A) (l' : list B), length l = length l' ->
-  map snd (combine l l') = l'.
-Proof.
-  induction l; destruct l'; try discriminate; auto; intros.
-  inv H; simpl; rewrite IHl; auto.
-Qed.
-
 Lemma combine_map_snd : forall {A B C} (l1 : list A) (l2 : list B) (f : B -> C),
   combine l1 (map f l2) = map (fun x => let '(a, b) := x in (a, f b)) (combine l1 l2).
 Proof.
