@@ -2661,6 +2661,123 @@ Proof.
     cancel.
 Qed.
 
+Lemma mapsto_value_eq: forall sh1 sh2 t p v1 v2, readable_share sh1 -> readable_share sh2 ->
+  v1 <> Vundef -> v2 <> Vundef -> mapsto sh1 t p v1 * mapsto sh2 t p v2 |-- !!(v1 = v2).
+Proof.
+  intros; unfold mapsto.
+  destruct (access_mode t); try solve [rewrite FF_sepcon; apply FF_left].
+  destruct (type_is_volatile t); try solve [rewrite FF_sepcon; apply FF_left].
+  destruct p; try solve [rewrite FF_sepcon; apply FF_left].
+  destruct (readable_share_dec sh1); [|contradiction n; auto].
+  destruct (readable_share_dec sh2); [|contradiction n; auto].
+
+  Transparent mpred.
+  rewrite !prop_false_andp with (P := v1 = Vundef), !orp_FF; auto; Intros.
+  rewrite !prop_false_andp with (P := v2 = Vundef), !orp_FF; auto; Intros.
+  Opaque mpred.
+  constructor; apply res_predicates.address_mapsto_value_cohere.
+Qed.
+
+Lemma mapsto_value_cohere: forall sh1 sh2 t p v1 v2, readable_share sh1 ->
+  mapsto sh1 t p v1 * mapsto sh2 t p v2 |-- mapsto sh1 t p v1 * mapsto sh2 t p v1.
+Proof.
+  intros; unfold mapsto.
+  destruct (access_mode t); try simple apply derives_refl.
+  destruct (type_is_volatile t); try simple apply derives_refl.
+  destruct p; try simple apply derives_refl.
+  destruct (readable_share_dec sh1); [|contradiction n; auto].
+  destruct (eq_dec v1 Vundef).
+  Transparent mpred.
+  - subst; rewrite !prop_false_andp with (P := tc_val t Vundef), !FF_orp, prop_true_andp; auto;
+      try apply tc_val_Vundef.
+    cancel.
+    rewrite prop_true_andp with (P := Vundef = Vundef); auto.
+    if_tac.
+    + apply orp_left; Intros; auto.
+      Exists v2; auto.
+    + Intros. apply andp_right; auto. apply prop_right; split; auto. hnf; intros. contradiction H3; auto.
+  - rewrite !prop_false_andp with (P := v1 = Vundef), !orp_FF; auto; Intros.
+    apply andp_right; [apply prop_right; auto|].
+    if_tac.
+    eapply derives_trans with (Q := _ * EX v2' : val,
+      res_predicates.address_mapsto m v2' _ _);
+      [apply sepcon_derives; [apply derives_refl|]|].
+    + destruct (eq_dec v2 Vundef).
+      * subst; rewrite prop_false_andp with (P := tc_val t Vundef), FF_orp;
+          try apply tc_val_Vundef.
+        rewrite prop_true_andp with (P := Vundef = Vundef); auto.  apply derives_refl.
+      * rewrite prop_false_andp with (P := v2 = Vundef), orp_FF; auto; Intros.
+        Exists v2; auto.
+    + Intro v2'.
+      assert_PROP (v1 = v2') by (constructor; apply res_predicates.address_mapsto_value_cohere).
+      subst. apply sepcon_derives; auto. apply andp_right; auto.
+      apply prop_right; auto.
+    + apply sepcon_derives; auto.
+      Intros. apply andp_right; auto.
+      apply prop_right; split; auto.
+      intro; auto.
+Opaque mpred.
+Qed.
+
+Lemma data_at_value_cohere : forall {cs : compspecs} sh1 sh2 t v1 v2 p, readable_share sh1 ->
+  type_is_by_value t = true -> type_is_volatile t = false ->
+  data_at sh1 t v1 p * data_at sh2 t v2 p |--
+  data_at sh1 t v1 p * data_at sh2 t v1 p.
+Proof.
+  intros; unfold data_at, field_at, at_offset; Intros.
+  apply andp_right; [apply prop_right; auto|].
+  rewrite !by_value_data_at_rec_nonvolatile by auto.
+  apply mapsto_value_cohere; auto.
+Qed.
+
+Lemma data_at_value_eq : forall {cs : compspecs} sh1 sh2 t v1 v2 p,
+  readable_share sh1 -> readable_share sh2 ->
+  is_pointer_or_null v1 -> is_pointer_or_null v2 ->
+  data_at sh1 (tptr t) v1 p * data_at sh2 (tptr t) v2 p |-- !! (v1 = v2).
+Proof.
+  intros; unfold data_at, field_at, at_offset; Intros.
+  rewrite !by_value_data_at_rec_nonvolatile by auto.
+  apply mapsto_value_eq; auto.
+  { intros X; subst; contradiction. }
+  { intros X; subst; contradiction. }
+Qed.
+
+Lemma data_at_array_value_cohere : forall {cs : compspecs} sh1 sh2 t z a v1 v2 p, readable_share sh1 ->
+  type_is_by_value t = true -> type_is_volatile t = false ->
+  data_at sh1 (Tarray t z a) v1 p * data_at sh2 (Tarray t z a) v2 p |--
+  data_at sh1 (Tarray t z a) v1 p * data_at sh2 (Tarray t z a) v1 p.
+Proof.
+  intros; unfold data_at, field_at, at_offset; Intros.
+  apply andp_right; [apply prop_right; auto|].
+  rewrite !data_at_rec_eq; simpl.
+  unfold array_pred, aggregate_pred.array_pred. Intros.
+  apply andp_right; [apply prop_right; auto|].
+  rewrite Z.sub_0_r in *.
+  erewrite aggregate_pred.rangespec_ext by (intros; rewrite Z.sub_0_r; apply f_equal; auto).
+  setoid_rewrite aggregate_pred.rangespec_ext at 2; [|intros; rewrite Z.sub_0_r; apply f_equal; auto].
+  setoid_rewrite aggregate_pred.rangespec_ext at 4; [|intros; rewrite Z.sub_0_r; apply f_equal; auto].
+  clear H3 H4.
+  rewrite Z2Nat_max0 in *.
+  forget (offset_val 0 p) as p'; forget (Z.to_nat z) as n; forget 0 as lo; revert dependent lo; induction n; auto; simpl; intros.
+ apply derives_refl.
+  match goal with |- (?P1 * ?Q1) * (?P2 * ?Q2) |-- _ =>
+    eapply derives_trans with (Q := (P1 * P2) * (Q1 * Q2)); [cancel|] end.
+  eapply derives_trans; [apply sepcon_derives|].
+  - unfold at_offset.
+    rewrite 2by_value_data_at_rec_nonvolatile by auto.
+    apply mapsto_value_cohere; auto.
+  - apply IHn.
+  - unfold at_offset; rewrite 2by_value_data_at_rec_nonvolatile by auto; cancel.
+Qed.
+
+Lemma field_at_array_inbounds : forall {cs : compspecs} sh t z a i v p,
+  field_at sh (Tarray t z a) (ArraySubsc i :: nil) v p |-- !!(0 <= i < z).
+Proof.
+  intros. rewrite field_at_compatible'.
+  apply derives_extract_prop. intros.
+  apply prop_right.
+  destruct H as (_ & _ & _ & _ & _ & ?); auto.
+Qed.
 
 Lemma field_at__field_at {cs: compspecs} :
    forall sh t gfs v p, v = default_val (nested_field_type t gfs) -> field_at_ sh t gfs p |-- field_at sh t gfs v p.
