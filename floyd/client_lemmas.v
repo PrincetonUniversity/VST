@@ -5,8 +5,8 @@ Import compcert.lib.Maps.
 Local Open Scope logic.
 
 Lemma SEP_entail:
- forall R' Delta P Q R, 
-   (fold_right_sepcon R |-- fold_right_sepcon R') -> 
+ forall R' Delta P Q R,
+   (fold_right_sepcon R |-- fold_right_sepcon R') ->
    ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- PROPx P (LOCALx Q (SEPx R')).
 Proof.
 intros.
@@ -24,8 +24,8 @@ Ltac refold_right_sepcon R :=
  end.
 
 Lemma SEP_entail':
- forall R' Delta P Q R, 
-   ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- ` (fold_right_sepcon R') -> 
+ forall R' Delta P Q R,
+   ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- ` (fold_right_sepcon R') ->
    ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- PROPx P (LOCALx Q (SEPx R')).
 Proof.
 intros.
@@ -38,8 +38,8 @@ apply derives_refl.
 Qed.
 
 Lemma SEP_entail'_fupd:
- forall R' Delta P Q R, 
-   ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- ` (|={Ensembles.Full_set}=> fold_right_sepcon R') -> 
+ forall R' Delta P Q R,
+   ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- ` (|={Ensembles.Full_set}=> fold_right_sepcon R') ->
    ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- |={Ensembles.Full_set}=> PROPx P (LOCALx Q (SEPx R')).
 Proof.
 intros.
@@ -73,7 +73,7 @@ apply andp_left1. apply func_ptr_isptr.
 Qed.
 #[export] Hint Resolve func_ptr'_isptr: saturate_local.
 
-Lemma split_func_ptr': 
+Lemma split_func_ptr':
  forall fs p, func_ptr' fs p = func_ptr' fs p * func_ptr' fs p.
 Proof.
 intros.
@@ -301,7 +301,7 @@ Qed.
 Lemma bool_val_notbool_ptr:
     forall v t m,
    match t with Tpointer _ _ => True | _ => False end ->
-   (Cop.bool_val (force_val (Cop.sem_notbool v t m)) type_bool m = Some true) 
+   (Cop.bool_val (force_val (Cop.sem_notbool v t m)) type_bool m = Some true)
         = (v = nullval).
 Proof.
  intros.
@@ -402,7 +402,7 @@ Lemma overridePost_normal_right:
   forall P Q R,
    (P |-- Q) ->
    P |-- RA_normal (overridePost Q R).
-Proof. intros. 
+Proof. intros.
   destruct R; simpl; auto.
 Qed.
 
@@ -560,12 +560,12 @@ Lemma sem_cast_pointer2':
   forall (v : val) (t1 t2: type),
   match t1 with
   | Tpointer _ _ => is_true (negb (eqb_type t1 int_or_ptr_type))
-  | Tint I32 _ _ => if Archi.ptr64 then False else True 
+  | Tint I32 _ _ => if Archi.ptr64 then False else True
   | Tlong _ _ => if Archi.ptr64 then True else False
   | _ => False end ->
   match t2 with
   | Tpointer _ _ => is_true (negb (eqb_type t2 int_or_ptr_type))
-  | Tint I32 _ _ => if Archi.ptr64 then False else True 
+  | Tint I32 _ _ => if Archi.ptr64 then False else True
   | Tlong _ _ => if Archi.ptr64 then True else False
   | _ => False end ->
   is_pointer_or_null v -> force_val (sem_cast t1 t2 v) = v.
@@ -908,31 +908,31 @@ Definition do_canon (x y : environ->mpred) := (sepcon x y).
 Ltac strip1_later P cP :=
  lazymatch P with
  | do_canon ?L ?R =>
-     let cL := (fun L' => 
+     let cL := (fun L' =>
           let cR := (fun R' => let P' := constr:(do_canon L' R') in cP P')
            in  strip1_later R cR)
       in strip1_later L cL
  | PROPx ?A ?QR =>
-           let cQR := (fun QR' => let P' := constr:(PROPx A QR') in cP P') 
+           let cQR := (fun QR' => let P' := constr:(PROPx A QR') in cP P')
             in strip1_later QR cQR
  | LOCALx ?Q ?R =>
-           let cR := (fun R' => let P' := constr:(LOCALx Q R') in cP P') 
+           let cR := (fun R' => let P' := constr:(LOCALx Q R') in cP P')
             in strip1_later R cR
- | @SEPx environ ?R => 
+ | @SEPx environ ?R =>
     let cR := fun R' => (let P' := constr:(@SEPx environ R') in cP P') in
      strip1_later R cR
  | ?L :: ?R =>
-      let cL := (fun L' => 
+      let cL := (fun L' =>
           let cR := (fun R' => let P' := constr:(L'::R') in cP P') in
           strip1_later R cR)
        in strip1_later L cL
  | ?L && ?R =>
-      let cL := (fun L' => 
+      let cL := (fun L' =>
           let cR := (fun R' => let P' := constr:(L'&&R') in cP P') in
           strip1_later R cR)
        in strip1_later L cL
  | sepcon ?L ?R =>
-      let cL := (fun L' => 
+      let cL := (fun L' =>
           let cR := (fun R' => let P' := constr:(sepcon L' R') in cP P') in
           strip1_later R cR)
        in strip1_later L cL
@@ -957,13 +957,13 @@ intros. rewrite later_sepcon. apply sepcon_derives; auto. Qed.
   compatibility with old-style funspecs (see funspec_old.v) *)
 Definition convertPre (f: funsig) A
   (Pre: A -> environ -> mpred)  (w: A) (ae: argsEnviron) : mpred :=
- !! (length (snd ae) = length (fst f)) && 
- Pre w (make_args (map fst (fst f)) (snd ae) 
+ !! (length (snd ae) = length (fst f)) &&
+ Pre w (make_args (map fst (fst f)) (snd ae)
     (mkEnviron (fst ae)   (Map.empty (block*type)) (Map.empty val))).
 
 Definition NDmk_funspec' (f: funsig) (cc: calling_convention)
   (A: Type) (Pre Post: A -> environ -> mpred): funspec :=
-  NDmk_funspec (compcert_rmaps.typesig_of_funsig f) cc 
+  NDmk_funspec (compcert_rmaps.typesig_of_funsig f) cc
   A (convertPre f A Pre) Post.
 
 Declare Scope funspec_scope.
@@ -1354,7 +1354,168 @@ Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7
              x10 at level 0, x11 at level 0, x12 at level 0, x13 at level 0, x14 at level 0,
              x15 at level 0, x16 at level 0, x17 at level 0, x18 at level 0, x19 at level 0,
              x20 at level 0, x21 at level 0, x22 at level 0,
-             P at level 100, Q at level 100) : funspec_scope.
+              P at level 100, Q at level 100) : funspec_scope.
+
+(* Notations for dependent funspecs *)
+
+Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 'PRE'  [ ] P 'POST' [ tz ] Q" :=
+     (mk_funspec (nil, tz) cc_default A
+  (fun (ts: list Type) (x: t1*t2) =>
+     match x with (x1,x2) => P%argsassert end)
+  (fun (ts: list Type) (x: t1*t2) =>
+     match x with (x1,x2) => Q%assert end) _ _)
+            (at level 200, x1 at level 0, x2 at level 0,
+             P at level 100, Q at level 100).
+
+Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
+     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
+  (fun (ts: list Type) (x: t1*t2) =>
+     match x with (x1,x2) => P%argsassert end)
+  (fun (ts: list Type) (x: t1*t2) =>
+     match x with (x1,x2) => Q%assert end) _ _)
+            (at level 200, x1 at level 0, x2 at level 0,
+             P at level 100, Q at level 100).
+
+Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
+     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
+  (fun (ts: list Type) (x: t1*t2*t3) =>
+     match x with (x1,x2,x3) => P%argsassert end)
+  (fun (ts: list Type) (x: t1*t2*t3) =>
+     match x with (x1,x2,x3) => Q%assert end) _ _)
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0,
+             P at level 100, Q at level 100).
+
+Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 'PRE'  [ ] P 'POST' [ tz ] Q" :=
+     (mk_funspec (nil, tz) cc_default A
+  (fun (ts: list Type) (x: t1*t2*t3) =>
+     match x with (x1,x2,x3) => P%argsassert end)
+  (fun (ts: list Type) (x: t1*t2*t3) =>
+     match x with (x1,x2,x3) => Q%assert end) _ _)
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0,
+             P at level 100, Q at level 100).
+
+Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
+     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
+  (fun (ts: list Type) (x: t1*t2*t3*t4) =>
+     match x with (x1,x2,x3,x4) => P%argsassert end)
+  (fun (ts: list Type) (x: t1*t2*t3*t4) =>
+     match x with (x1,x2,x3,x4) => Q%assert end) _ _)
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
+             P at level 100, Q at level 100).
+
+Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
+     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
+  (fun (ts: list Type) (x: t1*t2*t3*t4*t5) =>
+     match x with (x1,x2,x3,x4,x5) => P%argsassert end)
+  (fun (ts: list Type) (x: t1*t2*t3*t4*t5) =>
+     match x with (x1,x2,x3,x4,x5) => Q%assert end) _ _)
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
+             x5 at level 0,
+             P at level 100, Q at level 100).
+
+Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
+     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
+  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6) =>
+     match x with (x1,x2,x3,x4,x5,x6) => P%argsassert end)
+  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6) =>
+     match x with (x1,x2,x3,x4,x5,x6) => Q%assert end) _ _)
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
+             x5 at level 0, x6 at level 0,
+             P at level 100, Q at level 100).
+
+Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
+     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
+  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7) =>
+     match x with (x1,x2,x3,x4,x5,x6,x7) => P%argsassert end)
+  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7) =>
+     match x with (x1,x2,x3,x4,x5,x6,x7) => Q%assert end) _ _)
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
+             x5 at level 0, x6 at level 0, x7 at level 0,
+             P at level 100, Q at level 100).
+
+Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
+     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
+  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8) =>
+     match x with (x1,x2,x3,x4,x5,x6,x7,x8) => P%argsassert end)
+  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8) =>
+     match x with (x1,x2,x3,x4,x5,x6,x7,x8) => Q%assert end) _ _)
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
+             x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0,
+             P at level 100, Q at level 100).
+
+Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
+     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
+  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9) =>
+     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9) => P%argsassert end)
+  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9) =>
+     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9) => Q%assert end) _ _)
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
+             x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0,
+             P at level 100, Q at level 100).
+
+Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
+     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
+  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10) =>
+     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10) => P%argsassert end)
+  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10) =>
+     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10) => Q%assert end) _ _)
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
+             x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0, x10 at level 0,
+             P at level 100, Q at level 100).
+
+Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
+     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
+  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10) =>
+     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10) => P%argsassert end)
+  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10) =>
+     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10) => Q%assert end) _ _)
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
+             x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0, x10 at level 0,
+             P at level 100, Q at level 100).
+
+Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
+     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
+  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11) =>
+     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11) => P%argsassert end)
+  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11) =>
+     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11) => Q%assert end) _ _)
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
+             x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0,
+              x10 at level 0, x11 at level 0,
+             P at level 100, Q at level 100).
+
+Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 , x12 : t12 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
+     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
+  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12) =>
+     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12) => P%argsassert end)
+  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12) =>
+     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12) => Q%assert end) _ _)
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
+             x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0,
+              x10 at level 0, x11 at level 0, x12 at level 0,
+             P at level 100, Q at level 100).
+
+Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 , x12 : t12 , x13 : t13 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
+     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
+  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13) =>
+     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13) => P%argsassert end)
+  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13) =>
+     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13) => Q%assert end) _ _)
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
+             x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0,
+              x10 at level 0, x11 at level 0, x12 at level 0, x13 at level 0,
+             P at level 100, Q at level 100).
+
+Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 , x12 : t12 , x13 : t13 , x14 : t14 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
+     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
+  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13*t14) =>
+     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14) => P%argsassert end)
+  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13*t14) =>
+     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14) => Q%assert end) _ _)
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
+             x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0,
+              x10 at level 0, x11 at level 0, x12 at level 0, x13 at level 0, x14 at level 0,
+             P at level 100, Q at level 100).
 
 Fixpoint split_as_gv_temps (l: list localdef) : option ((list globals) * (list (ident * val))) :=
   match l with
@@ -1419,15 +1580,15 @@ intros. rewrite and_assoc'; auto.
 Qed.
 
 
-#[export] Hint Rewrite and_assoc_splittablex using 
+#[export] Hint Rewrite and_assoc_splittablex using
     match goal with |- splittablex ?A => splittablex_tac A end : normalize.
-#[export] Hint Rewrite and_assoc_splittablex using 
+#[export] Hint Rewrite and_assoc_splittablex using
     match goal with |- splittablex ?A => splittablex_tac A end : gather_prop.
 
 Ltac hoist_later_left :=
    match goal with
   | |- (?P |-- _) =>
-        let cP := (fun P' => 
+        let cP := (fun P' =>
                    apply derives_trans with (|>P');
                     [ solve [ auto 50 with derives ] | ])
      in strip1_later P cP
@@ -1469,7 +1630,7 @@ Ltac simpl_tc_expr :=
     match goal with |- context [tc_expr ?A ?B] =>
         change (tc_expr A B) with (denote_tc_assert (typecheck_expr A B));
      (* These uses of 'simpl' are not too dangerous, for two reasons:
-          (1) simpl_tc_expr is not used by any parts of Floyd except explicitly deprecated parts 
+          (1) simpl_tc_expr is not used by any parts of Floyd except explicitly deprecated parts
           (2) the simpl is unlikely to blow up, because the arguments are just
                   clightgen-produced ASTs *)
         simpl typecheck_expr; simpl denote_tc_assert
@@ -1769,7 +1930,7 @@ Ltac check_mpreds2 R :=
  lazymatch R with
  | @sepcon mpred _ _ ?a ?b => check_mpreds2 a; check_mpreds2 b
  | _ => match type of R with ?t =>
-                          first [constr_eq t mpred 
+                          first [constr_eq t mpred
                                  | fail 10 "The conjunct" R "has type" t "but should have type mpred; these two types may be convertible but they are not identical"]
                      end
  | nil => idtac
@@ -2050,7 +2211,7 @@ lazymatch goal with
  | |- _ => idtac
  end;
  tryif Intro_prop' then idtac
- else tryif progress autorewrite with gather_prop_core 
+ else tryif progress autorewrite with gather_prop_core
     then first [Intro_prop' | progress gather_prop; Intro_prop']
     else (progress gather_prop; Intro_prop')
  ].
@@ -2090,7 +2251,7 @@ Ltac finish_Intros :=
 repeat Intro_prop;
 (* Do this next part for backwards compatibility *)
 lazymatch goal with
- | |- ?A _ => let x := fresh "x" in set(x:=A); 
+ | |- ?A _ => let x := fresh "x" in set(x:=A);
         gather_prop; subst x
 end.
 

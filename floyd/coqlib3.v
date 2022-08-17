@@ -144,13 +144,13 @@ Ltac inv_int i :=
   let H0 := fresh "H" in
   let H1 := fresh "H" in
  match type of i with
- | int => 
+ | int =>
   pose proof Int.repr_unsigned i as H;
   pose proof Int.unsigned_range i as H0;
   remember (Int.unsigned i) as ofs eqn:H1;
   rewrite <- H in *;
   clear H H1; try clear i
- | ptrofs => 
+ | ptrofs =>
   pose proof Ptrofs.repr_unsigned i as H;
   pose proof Ptrofs.unsigned_range i as H0;
   remember (Ptrofs.unsigned i) as ofs eqn:H1;
@@ -166,7 +166,7 @@ Solve_mod_modulus
 
 Definition int_modm x := x mod Int.modulus.
 
-Lemma int_modm_mod_eq: 
+Lemma int_modm_mod_eq:
   forall x y, Zbits.eqmod Int.modulus x y -> x mod Int.modulus = int_modm y.
 Proof.
   intros.
@@ -318,7 +318,7 @@ Ltac solve_mod_modulus :=
          rewrite (ptrofs_modm_repr_eq A _ H);
          clear H
   end;
-  unfold int_modm, int_reprm, ptrofs_modm, ptrofs_reprm in *.  
+  unfold int_modm, int_reprm, ptrofs_modm, ptrofs_reprm in *.
 
 (**************************************************
 
@@ -575,13 +575,13 @@ Qed.
 #[export] Hint Rewrite proj_sumbool_is_true using (solve [auto 3]) : norm.
 #[export] Hint Rewrite proj_sumbool_is_false using (solve [auto 3]) : norm.
 
-Lemma ptrofs_to_int_repr: 
+Lemma ptrofs_to_int_repr:
  forall x, (Ptrofs.to_int (Ptrofs.repr x)) = Int.repr x.
 Proof.
 intros.
 destruct Archi.ptr64 eqn:Hp.
 *
-unfold Ptrofs.to_int. 
+unfold Ptrofs.to_int.
 apply Int.eqm_samerepr.
 unfold Int.eqm.
 rewrite Ptrofs.unsigned_repr_eq.
@@ -604,12 +604,12 @@ apply Ptrofs.agree32_repr.
 auto.
 Qed.
 
-Lemma ptrofs_to_int64_repr: 
+Lemma ptrofs_to_int64_repr:
  Archi.ptr64 = true ->
  forall x, (Ptrofs.to_int64 (Ptrofs.repr x)) = Int64.repr x.
 Proof.
 intros Hp x.
-unfold Ptrofs.to_int64. 
+unfold Ptrofs.to_int64.
 apply Int64.eqm_samerepr.
 unfold Int64.eqm.
 rewrite Ptrofs.unsigned_repr_eq.
@@ -628,7 +628,48 @@ exists 1.
 reflexivity.
 Qed.
 
+Lemma app_cons_assoc : forall {A} l1 (x : A) l2, l1 ++ x :: l2 = (l1 ++ (x :: nil)) ++ l2.
+Proof.
+  intros; rewrite <- app_assoc; auto.
+Qed.
 
+Lemma Zmod_smallish : forall x y, y <> 0 -> 0 <= x < 2 * y ->
+  x mod y = x \/ x mod y = x - y.
+Proof.
+  intros.
+  destruct (zlt x y); [left; apply Zmod_small; lia|].
+  rewrite <- Z.mod_add with (b := -1) by auto.
+  right; apply Zmod_small; lia.
+Qed.
 
+Lemma Zmod_plus_inv : forall a b c d (Hc : c > 0) (Heq : (a + b) mod c = (d + b) mod c),
+  a mod c = d mod c.
+Proof.
+  intros; rewrite Zplus_mod, (Zplus_mod d) in Heq.
+  pose proof (Z_mod_lt a c Hc).
+  pose proof (Z_mod_lt b c Hc).
+  pose proof (Z_mod_lt d c Hc).
+  destruct (Zmod_smallish (a mod c + b mod c) c), (Zmod_smallish (d mod c + b mod c) c); lia.
+Qed.
 
+Lemma lt_le_1 : forall (i j: Z), i < j <-> i + 1 <= j.
+Proof.
+  intros; lia.
+Qed.
 
+Lemma Permutation_filter : forall {A} (f : A -> bool) l1 l2, Permutation l1 l2 ->
+  Permutation (filter f l1) (filter f l2).
+Proof.
+  induction 1; simpl; auto.
+  - destruct (f x); auto.
+  - destruct (f x); auto. destruct (f y); auto.
+    constructor.
+  - etransitivity; eauto.
+Qed.
+
+Lemma Permutation_Zlength : forall {A} (l1 l2 : list A), Permutation l1 l2 ->
+  Zlength l1 = Zlength l2.
+Proof.
+  intros. rewrite !Zlength_correct. f_equal.
+  apply Permutation_length; auto.
+Qed.

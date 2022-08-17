@@ -346,7 +346,7 @@ Proof.
           rewrite prop_true_andp by auto.
           assert_PROP (vs = vals).
           { assert_PROP (forall i, 0 <= i < Zlength vs -> Znth i vs = Znth i vals);
-              [|eapply prop_right, list_Znth_eq'; auto; omega].
+              [|eapply prop_right, Znth_eq_ext; auto; omega].
             rewrite prop_forall; apply allp_right; intro i.
             rewrite prop_forall; apply allp_right; intro.
             apply Forall_Znth with (i0 := i) in Hvers; [|omega].

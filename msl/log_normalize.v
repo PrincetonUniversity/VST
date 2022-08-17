@@ -88,9 +88,16 @@ Proof.
   apply orp_right1; trivial.
   apply orp_right2; apply orp_right1; trivial.
   do 2 apply orp_right2; auto.
-  do 2 apply orp_right1; trivial. 
+  do 2 apply orp_right1; trivial.
   apply orp_right1. apply orp_right2; trivial.
   apply orp_right2; auto.
+Qed.
+
+Lemma exp_comm : forall {A} {NA: NatDed A} {B C} (P: B -> C -> A),
+  (EX x : B, EX y : C, P x y) = EX y : C, EX x : B, P x y.
+Proof.
+  intros; apply pred_ext; apply exp_left; intros x; apply exp_left; intros y;
+    apply exp_right with y; apply exp_right with x; auto.
 Qed.
 
 Class CCCviaNatDed (A: Type) (prod expo: A -> A -> A) {ND: NatDed A}: Prop :=
@@ -502,7 +509,7 @@ Proof.
     - rewrite <- imp_andp_adjoint.
       apply orp_right2; solve_andp.
 Qed.
-    
+
 Lemma prop_derives {A}{ND: NatDed A}:
  forall (P Q: Prop), (P -> Q) -> prop P |-- prop Q.
 Proof.
@@ -1663,9 +1670,12 @@ Qed.
 
 (****** End contractiveness *****)
 
-Import List.
+Require Import Coq.ZArith.ZArith.
+Require Import VST.zlist.sublist.
+Require Import Coq.Lists.List.
+Require Import Coq.micromega.Lia.
 
-Lemma sepcon_app  {A} {NA: NatDed A}{SA: SepLog A}{CA: ClassicalSep A}: 
+Lemma sepcon_app  {A} {NA: NatDed A}{SA: SepLog A}{CA: ClassicalSep A}:
    forall l1 l2, fold_right sepcon emp (l1 ++ l2) =
   fold_right sepcon emp l1 * fold_right sepcon emp l2.
 Proof.
@@ -1674,12 +1684,110 @@ Proof.
   - rewrite IHl1, sepcon_assoc; auto.
 Qed.
 
-Lemma sepcon_rev {A} {NA: NatDed A}{SA: SepLog A}{CA: ClassicalSep A}: 
+Lemma sepcon_rev {A} {NA: NatDed A}{SA: SepLog A}{CA: ClassicalSep A}:
   forall l, fold_right sepcon emp (rev l) = fold_right sepcon emp l.
 Proof.
   induction l; simpl; auto.
   rewrite sepcon_app; simpl.
   rewrite sepcon_emp, sepcon_comm, IHl; auto.
+Qed.
+
+Lemma extract_nth_sepcon : forall {A} {NA: NatDed A} {SL: SepLog A} {d: Inhabitant A}
+                             {CA: ClassicalSep A} l i,
+    (0 <= i < Zlength l)%Z ->
+    fold_right sepcon emp l = Znth i l * fold_right sepcon emp (upd_Znth i l emp).
+Proof.
+  intros.
+  erewrite <- sublist_same with (al := l) at 1; auto.
+  rewrite sublist_split with (mid := i); try lia.
+  rewrite (sublist_next i); try lia.
+  rewrite sepcon_app; simpl.
+  rewrite <- sepcon_assoc, (sepcon_comm _ (Znth i l)).
+  unfold_upd_Znth_old; rewrite sepcon_app, sepcon_assoc; simpl.
+  rewrite emp_sepcon; auto.
+Qed.
+
+Lemma replace_nth_sepcon : forall {A} {NA: NatDed A} {SL: SepLog A} {d: Inhabitant A}
+                             {CA: ClassicalSep A} P l i,
+    (0 <= i < Zlength l)%Z ->
+    P * fold_right sepcon emp (upd_Znth i l emp) =
+    fold_right sepcon emp (upd_Znth i l P).
+Proof.
+  intros; unfold_upd_Znth_old.
+  rewrite !sepcon_app; simpl.
+  rewrite emp_sepcon, <- !sepcon_assoc, (sepcon_comm P); auto.
+Qed.
+
+Lemma sepcon_derives_prop : forall {A} {NA: NatDed A} {SL: SepLog A} {CA: ClassicalSep A}
+                              P Q R, (P |-- !!R) -> P * Q |-- !!R.
+Proof.
+  intros. eapply derives_trans with (!! (R /\ True)).
+  - rewrite <- sepcon_prop_prop. apply sepcon_derives; auto. apply prop_True_right.
+  - apply prop_left; intros (? & ?); apply prop_right; auto.
+Qed.
+
+Lemma sepcon_map : forall {A B} {NA: NatDed A} {SL: SepLog A} {CA: ClassicalSep A}
+                     (P Q: B -> A) (l : list B),
+    fold_right sepcon emp (map (fun x => P x * Q x) l) =
+      fold_right sepcon emp (map P l) * fold_right sepcon emp (map Q l).
+Proof.
+  induction l; simpl.
+  - rewrite sepcon_emp; auto.
+  - rewrite !sepcon_assoc, <- (sepcon_assoc (fold_right _ _ _) (Q a)), (sepcon_comm (fold_right _ _ _) (Q _)).
+    rewrite IHl; rewrite sepcon_assoc; auto.
+Qed.
+
+Lemma sepcon_list_derives : forall {A} {NA: NatDed A} {SL: SepLog A} {d: Inhabitant A}
+                              l1 l2 (Hlen : Zlength l1 = Zlength l2)
+  (Heq : forall i, (0 <= i < Zlength l1)%Z -> Znth i l1 |-- Znth i l2),
+  fold_right sepcon emp l1 |-- fold_right sepcon emp l2.
+Proof.
+  induction l1; destruct l2; auto; simpl; intros; rewrite ?Zlength_nil, ?Zlength_cons in *;
+    try (rewrite Zlength_correct in *; lia).
+  apply sepcon_derives.
+  - specialize (Heq 0%Z); rewrite !Znth_0_cons in Heq; apply Heq.
+    rewrite Zlength_correct; lia.
+  - apply IHl1; [lia|].
+    intros; specialize (Heq (i + 1)%Z); rewrite !Znth_pos_cons, !Z.add_simpl_r in Heq; try lia.
+    apply Heq; lia.
+Qed.
+
+Lemma sepcon_rotate : forall {A} {NA: NatDed A} {SL: SepLog A} {CA: ClassicalSep A} lP m n,
+    (0 <= n - m < Zlength lP)%Z ->
+    fold_right sepcon emp lP = fold_right sepcon emp (rotate lP m n).
+Proof.
+  intros.
+  unfold rotate.
+  rewrite sepcon_app, sepcon_comm, <- sepcon_app, sublist_rejoin, sublist_same by lia; auto.
+Qed.
+
+Lemma sepcon_In : forall {A} {NA: NatDed A} {SL: SepLog A} l P,
+    In P l -> exists Q, fold_right sepcon emp l = P * Q.
+Proof.
+  induction l; [contradiction|].
+  intros ? [|]; simpl; subst; eauto.
+  destruct (IHl _ H) as [? ->].
+  rewrite sepcon_comm, sepcon_assoc; eauto.
+Qed.
+
+Lemma extract_wand_sepcon : forall {A} {NA: NatDed A} {SL: SepLog A}
+                              l P, In P l ->
+  fold_right sepcon emp l = P * (P -* fold_right sepcon emp l).
+Proof.
+  intros.
+  destruct (sepcon_In _ _ H).
+  eapply wand_eq; eauto.
+Qed.
+
+Lemma wand_sepcon_map : forall {A B} {NA: NatDed A} {SL: SepLog A} (R : B -> A)
+                          {CA: ClassicalSep A} l P Q
+                          (HR : forall i, In i l -> R i = P i * Q i),
+    fold_right sepcon emp (map R l) = fold_right sepcon emp (map P l) *
+    (fold_right sepcon emp (map P l) -* fold_right sepcon emp (map R l)).
+Proof.
+  intros; eapply wand_eq.
+  erewrite map_ext_in, sepcon_map; eauto.
+  apply HR.
 Qed.
 
 Require Import VST.msl.ghost_seplog.

@@ -609,7 +609,7 @@ Definition value_of_hist (h : hist) := value_of (snd (last h (O, Store (vint 0))
 
 Lemma value_of_hist_snoc : forall h t e, value_of_hist (h ++ [(t, e)]) = value_of e.
 Proof.
-  intros; unfold value_of_hist; rewrite last_snoc; auto.
+  intros; unfold value_of_hist; rewrite last_last; auto.
 Qed.
 
 Notation ordered_hist := (ordered_hist (Store (vint 0))).

@@ -653,7 +653,7 @@ Proof.
     inv H1; contradiction.
   - extensionality; apply prop_ext; split; intro X.
     + destruct (Hdec x); [left | right; constructor]; auto.
-    + destruct X. apply H; auto. inv H0; auto. 
+    + destruct X. apply H; auto. inv H0; auto.
 Qed.
 
 Corollary ghost_set_remove : forall g a s,
@@ -1090,8 +1090,6 @@ Proof.
     rewrite <- !sepcon_assoc, sepcon_comm, !sepcon_assoc; apply derives_refl.
 Qed.
 
-Definition remove_Znth {A} i (al : list A) := sublist 0 i al ++ sublist (i + 1) (Zlength al) al.
-
 Lemma iter_sepcon_Znth: forall {A} {d : Inhabitant A} f (l : list A) i, 0 <= i < Zlength l ->
   iter_sepcon f l = (f (Znth i l) * iter_sepcon f (remove_Znth i l))%pred.
 Proof.
@@ -1110,27 +1108,6 @@ Proof.
   intros.
   revert R; induction n; destruct R; simpl; auto.
   f_equal; auto.
-Qed.
-
-Lemma In_sublist_upto : forall n x i j, List.In x (sublist i j (upto n)) -> 0 <= i ->
-  i <= x < j /\ x < Z.of_nat n.
-Proof.
-  induction n; intros.
-  - unfold sublist in H; simpl in H; rewrite firstn_nil, skipn_nil in H; contradiction.
-  - rewrite Nat2Z.inj_succ; simpl in *.
-    destruct (zlt 0 j).
-    destruct (eq_dec i 0).
-    + subst; rewrite sublist_0_cons in H; try lia; destruct H; [lia|].
-      rewrite sublist_map, in_map_iff in H; destruct H as (? & ? & H); subst.
-      destruct (zlt 0 (j - 1)).
-      exploit IHn; eauto; lia.
-      { rewrite sublist_nil_gen in H; [contradiction | lia]. }
-    + rewrite sublist_S_cons in H; [|lia].
-      rewrite sublist_map, in_map_iff in H; destruct H as (? & ? & H); subst.
-      destruct (zlt 0 (j - 1)).
-      exploit IHn; eauto; lia.
-      { rewrite sublist_nil_gen in H; [contradiction | lia]. }
-    + rewrite sublist_nil_gen in H; [contradiction | lia].
 Qed.
 
 Lemma wsat_open : forall i P,
@@ -1189,7 +1166,7 @@ Proof.
     + inv Hin.
       * inv H3. rewrite nth_replace_nth; auto; lia.
       * destruct (eq_dec x i); [subst; rewrite nth_replace_nth | rewrite nth_replace_nth']; auto; lia.
-    + 
+    +
       destruct (eq_dec x i); [subst; constructor 1; constructor|].
       rewrite nth_replace_nth' in Hin; auto; constructor 2; auto. }
   rewrite <- !sepcon_assoc; apply sepcon_derives, derives_refl.

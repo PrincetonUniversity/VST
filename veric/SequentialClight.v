@@ -25,11 +25,11 @@ Definition ignores_juice Z (J: external_specification juicy_mem external_functio
     ext_spec_pre J e t b tl vl x jm ->
     ext_spec_pre J e t b tl vl x jm') /\
  (forall ef t b ot v x jm jm',
-     m_dry jm = m_dry jm' -> 
+     m_dry jm = m_dry jm' ->
     ext_spec_post J ef t b ot v x jm ->
     ext_spec_post J ef t b ot v x jm') /\
  (forall v x jm jm',
-     m_dry jm = m_dry jm' -> 
+     m_dry jm = m_dry jm' ->
      ext_spec_exit J v x jm ->
      ext_spec_exit J v x jm').
 
@@ -82,7 +82,7 @@ Proof.
     destruct H0; subst; auto.
 Qed.
 
-Definition ext_spec_mem_evolve (Z: Type) 
+Definition ext_spec_mem_evolve (Z: Type)
   (D: external_specification mem external_function Z) :=
  forall ef w b tl vl ot v z m z' m',
     ext_spec_pre D ef w b tl vl z m ->
@@ -111,7 +111,7 @@ Definition juicy_dry_ext_spec (Z: Type)
 (* This will probably never be useful, since the witness from semax_ext
    always includes a frame rmap, which doesn't make sense in the witness
    of a dry spec.*)
-Definition juicy_dry_ext_spec_make (Z: Type) 
+Definition juicy_dry_ext_spec_make (Z: Type)
    (J: external_specification juicy_mem external_function Z) :
    external_specification mem external_function Z.
 destruct J.
@@ -125,9 +125,9 @@ apply (forall jm, m_dry jm = m -> ext_spec_exit v x jm).
 Defined.
 
 
-Definition dessicate_id Z 
+Definition dessicate_id Z
    (J: external_specification juicy_mem external_function Z) :
-   forall ef (jm : juicy_mem), ext_spec_type J ef -> 
+   forall ef (jm : juicy_mem), ext_spec_type J ef ->
        ext_spec_type (juicy_dry_ext_spec_make Z J) ef.
 intros.
 destruct J; simpl in *. apply X.
@@ -186,7 +186,7 @@ Qed.
 
 Lemma set_ghost_cohere:
  forall m phi g H,
-    mem_rmap_cohere m phi -> 
+    mem_rmap_cohere m phi ->
    mem_rmap_cohere m (initial_world.set_ghost phi g H).
 Proof.
 intros.
@@ -397,20 +397,20 @@ specialize (JMalloc loc).
 rewrite (JMaccess loc) in *.
 destruct (phi @ loc) eqn:?H.
 simpl in H. if_tac in H.
-destruct loc as [b z]. 
+destruct loc as [b z].
 rewrite nextblock_access_empty in *by auto.
 subst.
 simpl.
 f_equal. apply proof_irr.
-destruct loc as [b z]. 
+destruct loc as [b z].
 rewrite nextblock_access_empty in * by auto.
 contradiction.
-destruct loc as [b z]. 
+destruct loc as [b z].
 rewrite nextblock_access_empty in * by auto.
 simpl.
 destruct k; auto; try contradiction H.
 simpl in H.
-destruct loc as [b z]. 
+destruct loc as [b z].
 rewrite nextblock_access_empty in * by auto.
 contradiction.
 Qed.
@@ -653,15 +653,15 @@ Proof.
         by (destruct (perm_of_res _); inv Hm1; auto).
       apply semax_call.perm_of_res_val in Hperm1 as (? & ? & Hp); rewrite Hp in J.
       inv J.
-      * apply ghosts.join_Tsh in RJ as []; subst.
+      * apply join_Tsh in RJ as []; subst.
         constructor; auto.
-      * apply ghosts.join_Tsh in RJ as []; subst.
+      * apply join_Tsh in RJ as []; subst.
         contradiction bot_unreadable.
     + assert (fst l >= Mem.nextblock (m_dry jm2))%positive.
       { destruct Hmem as (_ & <- & _); auto. }
       rewrite (juicy_mem_alloc_cohere jm2) in * by auto.
       inv J; constructor.
-      apply ghosts.join_Bot in RJ as []; subst; auto.
+      apply join_Bot in RJ as []; subst; auto.
     + destruct k; try discriminate.
       unfold perm_of_sh in JMaccess; repeat if_tac in JMaccess; try discriminate; subst.
       contradiction.
@@ -669,7 +669,7 @@ Proof.
     rewrite Hnew; simpl.
     rewrite (juicy_mem_alloc_cohere jm2) in * by auto.
     inv J; simpl.
-    apply ghosts.join_Bot in RJ as []; subst.
+    apply join_Bot in RJ as []; subst.
     eapply ev_elim_alloc in Helim1; eauto.
     rewrite juicy_mem_access in Helim1.
     apply semax_call.perm_of_res_val in Helim1 as (? & ? & Hp); rewrite Hp.
@@ -816,7 +816,7 @@ Proof.
 Qed.
 
 Lemma whole_program_sequential_safety_ext:
-   forall {CS: compspecs} {Espec: OracleKind} (initial_oracle: OK_ty) 
+   forall {CS: compspecs} {Espec: OracleKind} (initial_oracle: OK_ty)
      (EXIT: semax_prog.postcondition_allows_exit Espec tint)
      (Jsub: forall ef se lv m t v m' (EFI : ef_inline ef = true) m1
        (EFC : Events.external_call ef se lv m t v m'), mem_sub m m1 ->
@@ -842,11 +842,11 @@ Lemma whole_program_sequential_safety_ext:
         @dry_safeN _ _ _ OK_ty (semax.genv_symb_injective)
             (cl_core_sem (globalenv prog))
             dryspec
-            (Build_genv (Genv.globalenv prog) (prog_comp_env prog)) 
+            (Build_genv (Genv.globalenv prog) (prog_comp_env prog))
              n initial_oracle q m.
 Proof.
  intros.
- destruct (@semax_prog_rule Espec CS _ _ _ _ 
+ destruct (@semax_prog_rule Espec CS _ _ _ _
      0 (*additional temporary argument - TODO (Santiago): FIXME*)
      initial_oracle EXIT H H0) as [b [q [[H1 H2] H3]]].
  destruct (H3 O) as [jmx [H4x [H5x [H6x [H6'x [H7x _]]]]]].
@@ -969,7 +969,7 @@ Proof.
                     /\ juicy_safety.pures_eq (m_phi z) (m_phi jm')
                     /\ resource_at (m_phi jm') = resource_fmap (approx (level jm')) (approx (level jm')) oo juicy_mem_lemmas.rebuild_juicy_mem_fmap z (m_dry jm')
                     /\ compcert_rmaps.RML.R.ghost_of (m_phi jm') = Some (ghost_PCM.ext_ghost z', compcert_rmaps.RML.R.NoneP) :: ghost_fmap (approx (level jm')) (approx (level jm')) (tl (ghost_of (m_phi z)))). {
-     destruct (juicy_mem_lemmas.rebuild_juicy_mem_rmap z m') 
+     destruct (juicy_mem_lemmas.rebuild_juicy_mem_rmap z m')
           as [phi [? [? ?]]].
      assert (own.ghost_approx phi (Some (ghost_PCM.ext_ghost z', NoneP) :: tl (compcert_rmaps.RML.R.ghost_of phi)) =
         Some (ghost_PCM.ext_ghost z', NoneP) :: tl (compcert_rmaps.RML.R.ghost_of phi)) as Happrox.

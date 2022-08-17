@@ -736,6 +736,29 @@ rewrite <- (Int.unsigned_repr j) by rep_lia.
 congruence.
 Qed.
 
+Lemma repr_inj_unsigned64:
+  forall i j,
+    0 <= i <= Int64.max_unsigned ->
+    0 <= j <= Int64.max_unsigned ->
+    Int64.repr i = Int64.repr j -> i=j.
+Proof.
+intros.
+rewrite <- (Int64.unsigned_repr i) by rep_lia.
+rewrite <- (Int64.unsigned_repr j) by rep_lia.
+congruence.
+Qed.
+
+Lemma ptrofs_repr_inj_unsigned:
+  forall i j,
+    0 <= i <= Ptrofs.max_unsigned ->
+    0 <= j <= Ptrofs.max_unsigned ->
+    Ptrofs.repr i = Ptrofs.repr j -> i=j.
+Proof.
+intros.
+rewrite <- (Ptrofs.unsigned_repr i) by rep_lia.
+rewrite <- (Ptrofs.unsigned_repr j) by rep_lia.
+congruence.
+Qed.
 
 Lemma repr_inj_signed':
   forall i j,
@@ -839,4 +862,40 @@ Qed.
 
 #[export] Hint Extern 2 (repable_signed ?i) =>
   (putable i; split; computable) : core.
+
+Lemma divu_repr:
+ forall i j,
+  0 <= i <= Int.max_unsigned ->
+  0 <= j <= Int.max_unsigned ->
+  Int.divu (Int.repr i) (Int.repr j) = Int.repr (i / j).
+Proof.
+intros.
+unfold Int.divu.
+rewrite !Int.unsigned_repr; auto.
+Qed.
+
+Lemma divu_repr64:
+ forall i j,
+  0 <= i <= Int64.max_unsigned ->
+  0 <= j <= Int64.max_unsigned ->
+  Int64.divu (Int64.repr i) (Int64.repr j) = Int64.repr (i / j).
+Proof.
+intros.
+unfold Int64.divu.
+rewrite !Int64.unsigned_repr; auto.
+Qed.
+
+Lemma ptrofs_divu_repr:
+ forall i j,
+  0 <= i <= Ptrofs.max_unsigned ->
+  0 <= j <= Ptrofs.max_unsigned ->
+  Ptrofs.divu (Ptrofs.repr i) (Ptrofs.repr j) = Ptrofs.repr (i / j).
+Proof.
+intros.
+unfold Ptrofs.divu.
+rewrite !Ptrofs.unsigned_repr; auto.
+Qed.
+
+#[export] Hint Rewrite divu_repr divu_repr64 ptrofs_divu_repr
+          using rep_lia : norm.
 

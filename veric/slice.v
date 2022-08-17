@@ -3,6 +3,7 @@ Require Import VST.msl.msl_standard.
 Require Import VST.veric.shares.
 Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.res_predicates.
+Require Import VST.zlist.sublist.
 
 Local Open Scope pred.
 
@@ -185,8 +186,8 @@ auto.
 Qed.
 
 Definition split_resource r :=
-  match r with YES sh rsh k pp => 
-               (YES (fst (cleave sh)) (cleave_readable1 _ rsh) k pp , 
+  match r with YES sh rsh k pp =>
+               (YES (fst (cleave sh)) (cleave_readable1 _ rsh) k pp ,
                 YES (snd (cleave sh)) (cleave_readable2 _ rsh) k pp)
              | PURE k pp => (PURE k pp, PURE k pp)
              | NO sh nsh => (NO (fst (cleave sh)) (cleave_nonreadable1 _ nsh),
@@ -298,7 +299,7 @@ Definition split_rmap (m: rmap) : rmap * rmap :=
   proj1_sig (make_rmap _ (split_rmap_valid2 m) (level m) (split_rmap_ok2 m))).
 *)
 
-Lemma split_resource_join: 
+Lemma split_resource_join:
   forall r, join (fst (split_resource r)) (snd (split_resource r)) r.
 Proof.
 intro.
@@ -420,7 +421,7 @@ destruct H0 as [rsh3 [k [? ?]]].
 exists rsh1, k; split; auto.
 clear H0.
 case_eq (w @ l'); intros.
-inversion2 H0 H3. 
+inversion2 H0 H3.
 destruct p.
 inversion2 H0 H3.
 generalize (resource_at_join _ _ _ l' H1); intro.
@@ -431,7 +432,7 @@ rewrite H4.
 rewrite if_true in H4|-* by auto.
 simpl.
 destruct (readable_share_dec sh1); [ | contradiction].
-replace (level f) with (level w). 
+replace (level f) with (level w).
 rewrite H7.
 f_equal. apply proof_irr.
 apply join_level in H1; intuition.
@@ -454,7 +455,7 @@ Proof.
    apply YES_not_identity in H. contradiction.
 Qed.
 
-Definition splittable {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}{EO: Ext_ord A}{EA: Ext_alg A} (Q: Share.t -> pred A) := 
+Definition splittable {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}{EO: Ext_ord A}{EA: Ext_alg A} (Q: Share.t -> pred A) :=
   forall (sh1 sh2 sh3: Share.t) (rsh1: readable_share sh1) (rsh2: readable_share sh2),
     join sh1 sh2 sh3 ->
     Q sh1 * Q sh2 = Q sh3.
@@ -475,15 +476,15 @@ apply pred_ext; intro w; simpl.
   - intros.
     specialize (PARAMETRIC l l').
     destruct PARAMETRIC as [pp [ok ?]].
-    rewrite H4 in H2. destruct H2 as [rsh1' [k1 [G1 H1']]]. 
-    rewrite H4 in H3; destruct H3 as [rsh2' [k2 [G2 H2']]]. 
+    rewrite H4 in H2. destruct H2 as [rsh1' [k1 [G1 H1']]].
+    rewrite H4 in H3; destruct H3 as [rsh2' [k2 [G2 H2']]].
     rewrite H4.
     assert (rsh3 := join_readable1 H rsh1).
     exists rsh3.
     exists k2.
     generalize (resource_at_join _ _ _ l' H0); rewrite H1'; rewrite H2'; intro Hx.
     generalize H; clear H.
-    inv Hx. 
+    inv Hx.
     split; auto.
     simpl.
     replace (level w1) with (level w) by (apply join_level in H0; intuition).
@@ -706,8 +707,8 @@ Definition share_oblivious (P: pred rmap) :=
      P w' -> P w.
 
 (*Lemma intersection_splittable:
-    forall (S': address -> address -> Prop) S P Q, 
-         spec_parametric P -> 
+    forall (S': address -> address -> Prop) S P Q,
+         spec_parametric P ->
          (forall l, share_oblivious (Q l)) ->
     forall l, splittable (fun sh => allp (@jam _ _ _ _ _ _ (S' l) (S l) (P l sh) noat) && Q l).
 Proof.
@@ -724,7 +725,7 @@ intro.
 generalize (resource_at_join _ _ _ l0 H3).
 case_eq (w2 @ l0); case_eq (w @ l0); intros; auto; try solve [inv H10].
 case_eq (w1 @ l0); intros.
-rewrite H11 in H10; inv H10. 
+rewrite H11 in H10; inv H10.
 rewrite H11 in H10; inv H10.
 specialize (H4 l0).
 specialize (H6 l0).
@@ -750,7 +751,7 @@ apply (H0 l w1 w).
 intro l0; generalize (resource_at_join _ _ _ l0 H3).
 case_eq (w @ l0); case_eq (w1 @ l0); intros; auto; try solve [inv H9].
 case_eq (w2 @ l0); intros.
-rewrite H10 in H9; inv H9. 
+rewrite H10 in H9; inv H9.
 rewrite H10 in H9; inv H9.
 specialize (H l l0).
 destruct H as [pp [ok ?]].
@@ -762,7 +763,7 @@ rewrite H in H4,H5.
 destruct H4 as [? [? [? ?]]].
 destruct H5 as [? [? [? ?]]].
 congruence.
-do 3 red in H5. rewrite H10 in H5. 
+do 3 red in H5. rewrite H10 in H5.
 contradiction (YES_not_identity _ _ _ _ H5).
 rewrite H10 in H9; inv H9.
 inv H9; auto.
@@ -953,7 +954,7 @@ Lemma address_mapsto_share_join:
  forall (sh1 sh2 sh : share) ch v a,
    join sh1 sh2 sh ->
    readable_share sh1 -> readable_share sh2 ->
-   address_mapsto ch v sh1 a * address_mapsto ch v sh2 a 
+   address_mapsto ch v sh1 a * address_mapsto ch v sh2 a
     = address_mapsto ch v sh a.
 Proof.
   intros ? ? ? ? ? ? H rsh1 rsh2.
@@ -1003,7 +1004,7 @@ Proof.
         destruct (readable_share_dec sh); [| contradiction].
         destruct (readable_share_dec sh2); [| contradiction].
         f_equal.
-        auto with extensionality. 
+        auto with extensionality.
     - simpl; intros.
       destruct H1,H2. repeat proof_irr.
       exists (join_readable1 H rsh1).
@@ -1051,7 +1052,7 @@ Lemma nonlock_permission_bytes_address_mapsto_join:
    join sh1 sh2 sh ->
    readable_share sh2 ->
    nonlock_permission_bytes sh1 a (Memdata.size_chunk ch)
-     * address_mapsto ch v sh2 a 
+     * address_mapsto ch v sh2 a
     = address_mapsto ch v sh a.
 Proof.
 intros. rename H0 into rsh2.
@@ -1081,12 +1082,12 @@ apply pred_ext.
     hnf. rewrite <- H8; clear H8.
     f_equal. apply proof_irr.
   -
-   clear H1'.  inv H3. 
+   clear H1'.  inv H3.
    hnf. rewrite <- H10. clear H10. simpl.
     pose proof (join_eq H RJ); subst sh4. clear RJ.
    f_equal. apply proof_irr.
  +
-   do 3 red in H1,H2|-*. 
+   do 3 red in H1,H2|-*.
    apply join_unit1_e in H3; auto.
    rewrite <- H3; auto.
 *
@@ -1094,17 +1095,17 @@ apply pred_ext.
   intros w ?.
   destruct (make_core_slice_rmap w _ (adr_range_dec a (size_chunk ch)) sh1)
    as [w1 [? ?]].
-  intros. specialize (H0 l). simpl in H0. rewrite if_false in H0; auto. 
+  intros. specialize (H0 l). simpl in H0. rewrite if_false in H0; auto.
   destruct (make_slice_rmap w _ (adr_range_dec a (size_chunk ch)) sh2)
    as [w2 [? ?]].
-  intros. specialize (H0 l). simpl in H0. rewrite if_false in H0; auto. 
+  intros. specialize (H0 l). simpl in H0. rewrite if_false in H0; auto.
   exists w1, w2.
   destruct H2 as [H2 Hg1], H4 as [H4 Hg2].
   split3.
  +
    eapply resource_at_join2; try lia.
   intro . rewrite H2,H4. clear dependent w1. clear dependent w2.
-  specialize (H0 loc). hnf in H0.  
+  specialize (H0 loc). hnf in H0.
   if_tac in H0. destruct H0 as [rsh' H0]. proof_irr. rewrite H0.
   unfold slice_resource.
   destruct (readable_share_dec sh2); [ | contradiction]. proof_irr.
@@ -1153,7 +1154,7 @@ Proof.
   symmetry.
   apply allp_jam_share_split.
   do 3 eexists.
-  exists sh, sh1, sh2. 
+  exists sh, sh1, sh2.
   split; [| split; [| split; [| split; [| split]]]].
   + apply is_resource_pred_YES_VAL.
   + apply is_resource_pred_YES_VAL.
@@ -1295,4 +1296,78 @@ Proof.
       eapply join_eq; eauto.
     - exists (join_readable1 H rsh1). subst. inv H0. apply YES_ext.
       eapply join_eq; eauto.
+Qed.
+
+(* It's often useful to split Tsh in half. *)
+Definition gsh1 := fst (slice.cleave Tsh).
+Definition gsh2 := snd (slice.cleave Tsh).
+
+Lemma readable_gsh1 : readable_share gsh1.
+Proof.
+  apply slice.cleave_readable1; auto.
+Qed.
+
+Lemma readable_gsh2 : readable_share gsh2.
+Proof.
+  apply slice.cleave_readable2; auto.
+Qed.
+
+Lemma gsh1_gsh2_join : sepalg.join gsh1 gsh2 Tsh.
+Proof.
+  apply slice.cleave_join; unfold gsh1, gsh2; destruct (slice.cleave Tsh); auto.
+Qed.
+
+#[export] Hint Resolve readable_gsh1 readable_gsh2 gsh1_gsh2_join : core.
+
+Lemma gsh1_not_bot : gsh1 <> Share.bot.
+Proof.
+  intro X; contradiction bot_unreadable; rewrite <- X; auto.
+Qed.
+
+Lemma gsh2_not_bot : gsh2 <> Share.bot.
+Proof.
+  intro X; contradiction bot_unreadable; rewrite <- X; auto.
+Qed.
+#[export] Hint Resolve gsh1_not_bot gsh2_not_bot : core.
+
+Lemma split_readable_share sh :
+  readable_share sh ->
+  exists sh1, exists sh2,
+    readable_share sh1 /\
+    readable_share sh2 /\
+    sepalg.join sh1 sh2 sh.
+Proof.
+  intros.
+  pose proof (slice.cleave_readable1 _ H); pose proof (slice.cleave_readable2 _ H).
+  destruct (slice.cleave sh) as (sh1, sh2) eqn: Hsplit.
+  exists sh1, sh2; split; [|split]; auto.
+  replace sh1 with (fst (slice.cleave sh)) by (rewrite Hsplit; auto).
+  replace sh2 with (snd (slice.cleave sh)) by (rewrite Hsplit; auto).
+  apply slice.cleave_join; auto.
+Qed.
+
+Lemma split_Ews :
+  exists sh1, exists sh2,
+    readable_share sh1 /\
+    readable_share sh2 /\
+    sepalg.join sh1 sh2 Ews.
+Proof.
+  apply split_readable_share; auto.
+Qed.
+
+(* Split a share into an arbitrary number of subshares. *)
+Lemma split_shares : forall n sh, readable_share sh ->
+  exists sh1 shs, Zlength shs = Z.of_nat n /\ readable_share sh1 /\ Forall readable_share shs /\
+                  sepalg_list.list_join sh1 shs sh.
+Proof.
+  induction n; intros.
+  - exists sh, nil; repeat split; auto.
+    apply sepalg_list.fold_rel_nil.
+  - destruct (split_readable_share _ H) as (sh1 & sh2 & H1 & ? & ?).
+    destruct (IHn _ H1) as (sh1' & shs & ? & ? & ? & ?).
+    exists sh1', (shs ++ sh2 :: nil).
+    rewrite Nat2Z.inj_succ, Zlength_app, Zlength_cons, Zlength_nil; split; [lia|].
+    rewrite Forall_app; repeat split; auto.
+    eapply sepalg_list.list_join_app; eauto.
+    rewrite <- sepalg_list.list_join_1; auto.
 Qed.

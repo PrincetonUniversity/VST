@@ -29,7 +29,7 @@ Proof.
   intros.
   destruct (L k) eqn: Hk.
   specialize (Hlength _ eq_refl).
-  apply f_equal, list_Znth_eq'; auto.
+  apply f_equal, Znth_eq_ext; auto.
   rewrite Hlength; intros j Hj; specialize (Hall _ Hj).
   unfold map_Znth in Hall; rewrite Hk in Hall; inv Hall; auto.
   { lapply (Hall 0).

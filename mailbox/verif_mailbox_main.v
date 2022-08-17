@@ -7,6 +7,7 @@ Require Import mailbox.mailbox.
 Require Import mailbox.verif_mailbox_specs.
 
 Opaque upto.
+Opaque eq_dec.
 
 Lemma iter_sepcon_fold_right_sepcon:
   forall {A} (f: A -> mpred) (al: list A), iter_sepcon f al = fold_right sepcon emp (map f al).

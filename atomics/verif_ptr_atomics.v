@@ -271,7 +271,7 @@ Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 
      match x with (x1,x2,x3,x4,x5,x6) => P%assert end)
   (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6) =>
      match x with (x1,x2,x3,x4,x5,x6) => Q%assert end) _ _)
-            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0, 
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
              x5 at level 0, x6 at level 0,
              P at level 100, Q at level 100).
 
@@ -770,7 +770,7 @@ Definition value_of_hist (h : hist) := value_of (snd (last h (O, Store (vint 0))
 
 Lemma value_of_hist_snoc : forall h t e, value_of_hist (h ++ [(t, e)]) = value_of e.
 Proof.
-  intros; unfold value_of_hist; rewrite last_snoc; auto.
+  intros; unfold value_of_hist; rewrite last_last; auto.
 Qed.
 
 Notation ordered_hist := (ordered_hist (Store (vint 0))).
@@ -896,7 +896,7 @@ Proof.
   intros.
   assert (Zlength l = Z.of_nat n).
   { rewrite <- (mem_lemmas.Forall2_Zlength H), Zlength_repeat; auto. }
-  intros; eapply list_Znth_eq'.
+  intros; eapply Znth_eq_ext.
   { rewrite Zlength_repeat; auto. }
   intros; rewrite Znth_repeat.
   eapply Forall2_Znth with (i := j)(d2 := vint 0) in H; [|rewrite Zlength_repeat; omega].

@@ -48,11 +48,7 @@ Proof.
   forward_for_simple_bound n (EX i : Z, PROP ()
     LOCAL (temp _p p; temp _s p; temp _c (vint c); temp _n (vptrofs (4 * n)))
     SEP (data_at sh (tarray tint n) (repeat (vint c) (Z.to_nat i) ++ repeat Vundef (Z.to_nat (n - i))) p)).
-  { rewrite Int64.repr_unsigned.
-    unfold Int64.divu.
-    rewrite (Int64.unsigned_repr 4) by rep_lia.
-    rewrite (Int64.unsigned_repr (4 * n)) by rep_lia.
-    rewrite Z.mul_comm, Z_div_mult by lia; auto. }
+  { rewrite Z.mul_comm, Z_div_mult by lia; auto. }
   { entailer!.
     apply derives_trans with (Q := data_at_ sh (tarray tint n) p).
     - rewrite !data_at__memory_block; simpl.

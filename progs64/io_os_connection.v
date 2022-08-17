@@ -16,6 +16,8 @@ Require Import VST.zlist.sublist.
 Require Import VST.progs64.os_combine.
 Import ExtLib.Structures.Monad.
 
+Opaque eq_dec.eq_dec.
+
 Local Ltac inj :=
   repeat match goal with
   | H: _ = _ |- _ => assert_succeeds (injection H); Coqlib.inv H
@@ -596,7 +598,7 @@ Section Invariants.
   Proof.
     unfold enumerate; intros * Heq.
     apply (f_equal (map fst)) in Heq.
-    rewrite coqlib4.combine_fst, map_app in Heq; cbn in Heq.
+    rewrite combine_fst, map_app in Heq; cbn in Heq.
     apply seq_nth_app in Heq; subst; cbn; auto using map_length.
     rewrite <- Nat2Z.id, <- Zlength_length; rewrite <- Zlength_correct.
     - rewrite !Zlength_correct, seq_length; auto.

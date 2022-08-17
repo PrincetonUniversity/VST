@@ -2054,3 +2054,17 @@ end;
  repeat simplify_value_fits'.
 
 (*** end tactics for value_fits ***)
+
+Lemma value_defined_tarray {cs: compspecs}:
+ forall t n vl,
+  Zlength vl = n -> 
+  Forall (value_defined t) vl ->
+  value_defined (tarray t n) vl.
+Proof.
+intros.
+red. rewrite type_induction.type_func_eq. unfold tarray.
+split; auto.
+subst.
+unfold unfold_reptype. simpl. rep_lia.
+Qed.
+
