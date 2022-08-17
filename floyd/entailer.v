@@ -936,7 +936,7 @@ apply efield_lemmas.Ptrofs_repr_Int64_unsigned_special; auto.
 Qed.
 
 (* new experiment *)
-#[export] Hint Rewrite ptrofs_of_int64_int64_repr using reflexivity : norm rep_lia.
-#[export] Hint Rewrite Ptrofs.signed_repr using rep_lia : norm rep_lia.
-#[export] Hint Rewrite Ptrofs.unsigned_repr using rep_lia : norm rep_lia. 
+(* #[export] Hint Rewrite ptrofs_of_int64_int64_repr using reflexivity : norm rep_lia. *)
+#[export] Hint Rewrite Ptrofs.signed_repr using rep_lia : norm.
+#[export] Hint Rewrite Ptrofs.unsigned_repr using rep_lia : norm. 
 (* end new experiment *)
