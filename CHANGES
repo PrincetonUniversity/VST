@@ -1,3 +1,31 @@
+CHANGES IN RELEASE 2.11 (August 2022)
+
+- Lemma base needed for user concurrency reasoning now provided
+  in standard VST opam/platform distribution
+- Improved lemmas for reasoning about data_at share splitting,
+   data_at_ array slicing, and field_compatible
+
+CHANGES IN RELEASE 2.10 (July 2022)
+
+- Compatible with Coq 8.14, 8.15, or (probably) 8.16.
+- Compatible with Compcert 3.11
+- zlist folder (by Qinshi Wang) now buildable as a separate package
+   (but VST uses it as an internal set of .vo files, not as a library)
+- Incorporates the "Iris in VST" system by William Mansky et alia,
+    for Iris-style proofs about concurrent C programs
+- Supports both fine-grain "atomic load/store" and coarse-grain 
+   "locks/semaphore" concurrency
+- Improved VST's internal CI system   
+- Simplified VST's LICENSE to straightforward BSD-2-clause
+- New "fast_forward" system for multistep proof automation (Zain Aamer)
+- Fix issue #562 (use typeclasses eauto)
+- Fix issue #560 (bad error message when Clight import missing)
+- Fix issue #558 (custom definition of skipn)
+- Fix issue #561 (missing check for long-long signed overflow)
+- Improvements to entailer
+   
+
+
 CHANGES IN RELEASE 2.9 (November 2021)
 
 - Compatible with Coq 8.14 or 8.13 and with CompCert 3.10.
