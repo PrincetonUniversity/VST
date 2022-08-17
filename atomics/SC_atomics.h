@@ -1,3 +1,6 @@
+/* C11-style atomic loads and stores (etc.), sequentially consistent mode,
+   specified by Mansky et al. using the Verified Software Toolchain. */
+
 #ifndef _SC_ATOMIC_H_
 #define _SC_ATOMIC_H_
 #include <stdlib.h>
