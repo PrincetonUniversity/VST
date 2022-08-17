@@ -872,7 +872,11 @@ Ltac solve_Int64_eqm_unsigned :=
 
 Ltac prove_Int6432_val :=
   first [ apply Int_64_eqm_unsigned_repr; solve_Int64_eqm_unsigned
-        | apply Int_32_eqm_unsigned_repr; solve_Int_eqm_unsigned].
+        | apply Int_32_eqm_unsigned_repr; solve_Int_eqm_unsigned
+        | constructor;
+           match goal with |- _ ?x ?y =>
+             fail 3 "In evaluating upper bound of for loop, cannot unify" x "with" y
+         end].
 
 Ltac prove_Sfor_inv_rec :=
   match goal with

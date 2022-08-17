@@ -505,15 +505,7 @@ forward_loop (EX i : Z,
            repeat Vundef (Z.to_nat (n - (Zlength ld + j)))) dest;
          data_at sh' (tarray tschar (Zlength ls + 1))
            (map Vbyte (ls ++ [Byte.zero])) src)).
-  (* before loop2 *)
-  finish.
-  (* loop2 body and return *)
-  {
-  finish.
-  (* - list_prop_solve.
-  - list_solve.
-  - fold_Vbyte. list_solve. *)
-  }
+ all: finish.
 Qed.
 
 Lemma body_strcmp: semax_body Vprog Gprog f_strcmp strcmp_spec.

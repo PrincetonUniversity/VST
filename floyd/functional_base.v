@@ -106,43 +106,7 @@ Proof. intros; unfold offset_val.
 Qed.
 #[export] Hint Rewrite offset_offset_val: norm.
 
-
-Lemma divu_repr:
- forall i j,
-  0 <= i <= Int.max_unsigned ->
-  0 <= j <= Int.max_unsigned ->
-  Int.divu (Int.repr i) (Int.repr j) = Int.repr (i / j).
-Proof.
-intros.
-unfold Int.divu.
-rewrite !Int.unsigned_repr; auto.
-Qed.
-
-Lemma divu_repr64:
- forall i j,
-  0 <= i <= Int64.max_unsigned ->
-  0 <= j <= Int64.max_unsigned ->
-  Int64.divu (Int64.repr i) (Int64.repr j) = Int64.repr (i / j).
-Proof.
-intros.
-unfold Int64.divu.
-rewrite !Int64.unsigned_repr; auto.
-Qed.
-
-
-Lemma ptrofs_divu_repr:
- forall i j,
-  0 <= i <= Ptrofs.max_unsigned ->
-  0 <= j <= Ptrofs.max_unsigned ->
-  Ptrofs.divu (Ptrofs.repr i) (Ptrofs.repr j) = Ptrofs.repr (i / j).
-Proof.
-intros.
-unfold Ptrofs.divu.
-rewrite !Ptrofs.unsigned_repr; auto.
-Qed.
-
 #[export] Hint Rewrite add_repr add64_repr ptrofs_add_repr : norm.
-#[export] Hint Rewrite divu_repr divu_repr64 ptrofs_divu_repr : norm.
 #[export] Hint Rewrite mul_repr mul64_repr ptrofs_mul_repr : norm.
 #[export] Hint Rewrite sub_repr sub64_repr ptrofs_sub_repr : norm.
 #[export] Hint Rewrite and_repr and64_repr : norm.
@@ -898,4 +862,40 @@ Qed.
 
 #[export] Hint Extern 2 (repable_signed ?i) =>
   (putable i; split; computable) : core.
+
+Lemma divu_repr:
+ forall i j,
+  0 <= i <= Int.max_unsigned ->
+  0 <= j <= Int.max_unsigned ->
+  Int.divu (Int.repr i) (Int.repr j) = Int.repr (i / j).
+Proof.
+intros.
+unfold Int.divu.
+rewrite !Int.unsigned_repr; auto.
+Qed.
+
+Lemma divu_repr64:
+ forall i j,
+  0 <= i <= Int64.max_unsigned ->
+  0 <= j <= Int64.max_unsigned ->
+  Int64.divu (Int64.repr i) (Int64.repr j) = Int64.repr (i / j).
+Proof.
+intros.
+unfold Int64.divu.
+rewrite !Int64.unsigned_repr; auto.
+Qed.
+
+Lemma ptrofs_divu_repr:
+ forall i j,
+  0 <= i <= Ptrofs.max_unsigned ->
+  0 <= j <= Ptrofs.max_unsigned ->
+  Ptrofs.divu (Ptrofs.repr i) (Ptrofs.repr j) = Ptrofs.repr (i / j).
+Proof.
+intros.
+unfold Ptrofs.divu.
+rewrite !Ptrofs.unsigned_repr; auto.
+Qed.
+
+#[export] Hint Rewrite divu_repr divu_repr64 ptrofs_divu_repr
+          using rep_lia : norm.
 
