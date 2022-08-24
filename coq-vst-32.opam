@@ -34,7 +34,7 @@ run-test: [
 ]
 depends: [
   "coq" {>= "8.14" & < "8.17~"}
-  "coq-compcert" {= "3.11"}
+  "coq-compcert" {>= "3.11"}
   "coq-vst-zlist" {>= "2.11"}
   "coq-flocq" {>= "4.1.0"}
 ]
