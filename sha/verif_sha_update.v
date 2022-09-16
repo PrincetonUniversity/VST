@@ -9,40 +9,6 @@ Require Import sha.call_memcpy.
 Local Open Scope Z.
 Local Open Scope logic.
 
-(*
-Lemma overridePost_derives:
-  forall D F F' G G' ek vl,
-     D && F |-- F'  ->
-     D && G ek vl |-- G' ek vl ->
-     D && overridePost F G ek vl |-- overridePost F' G' ek vl.
-Proof.
-intros.
-unfold overridePost.
-if_tac.
-normalize.
-auto.
-Qed.
-
-Lemma function_body_ret_assert_derives:
-  forall F F' sf t ek vl,
-    F |-- F' ->
-  frame_ret_assert (function_body_ret_assert t F) sf ek vl
-    |-- frame_ret_assert (function_body_ret_assert t F') sf ek vl.
-Proof.
-intros.
-unfold frame_ret_assert, function_body_ret_assert.
-destruct ek; auto.
-unfold bind_ret.
-destruct vl; auto.
-apply sepcon_derives; auto.
-apply andp_derives; auto.
-unfold_lift. intro rho. apply H.
-destruct t; auto.
-apply sepcon_derives; auto.
-intro rho. apply H.
-Qed.
-*)
-
 Lemma body_SHA256_Update: semax_body Vprog Gtot f_SHA256_Update SHA256_Update_spec.
 Proof.
 start_function.
@@ -208,10 +174,6 @@ forward_if (   PROP  ()
    (*len*) (len - b4d)
         Frame); try reflexivity; auto; try MyOmega.
   entailer!.
-  make_Vptr c.
-  rewrite field_address_offset by auto with field_compatible.
-  rewrite field_address0_offset by auto with field_compatible.
-  reflexivity.
   rewrite map_Vubyte_eq'. cancel.
  -
  simpl tc_environ.

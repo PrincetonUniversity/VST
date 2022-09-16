@@ -596,7 +596,7 @@ Section Invariants.
   Proof.
     unfold enumerate; intros * Heq.
     apply (f_equal (map fst)) in Heq.
-    rewrite coqlib4.combine_fst, map_app in Heq; cbn in Heq.
+    rewrite combine_fst, map_app in Heq; cbn in Heq.
     apply seq_nth_app in Heq; subst; cbn; auto using map_length.
     rewrite <- Nat2Z.id, <- Zlength_length; rewrite <- Zlength_correct.
     - rewrite !Zlength_correct, seq_length; auto.
@@ -1913,7 +1913,7 @@ Import functional_base.
       split; auto; cbn in *.
       rewrite Int.signed_repr by (cbn; lia).
       destruct (Coqlib.zeq z1 (-1)); subst; auto.
-      destruct (eq_dec.eq_dec _ _); try easy.
+      if_tac; try easy.
       rewrite Zle_imp_le_bool by lia.
       destruct Hput as (? & [(? & ?) | (? & ?)]); subst; auto; try lia.
       rewrite Zmod_small; auto; functional_base.rep_lia.

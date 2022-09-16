@@ -1,8 +1,8 @@
 \documentclass[12pt,fleqn,openany,oneside,showtrims]{memoir}
 
-\newcommand\vstversion{2.9}
-\newcommand\coqversion{8.13}
-\newcommand\compcertversion{3.10}
+\newcommand\vstversion{2.11}
+\newcommand\coqversion{8.15}
+\newcommand\compcertversion{3.11}
 
 \usepackage{xr-hyper}
 \input{setup}
@@ -1630,7 +1630,7 @@ H2 : 0 $\le$ n $\le$ Int.max_signed   (* this example in progs/tutorial1.v *)
 ------------------------
 Int.min_signed $\le$ 0 $\le$ n
 \end{lstlisting}
-you can use the \lstinline{rep_lia} tactic (see \autoref{rep-lia}),
+you can use the \lstinline{rep_lia} tactic (see \autoref{refcard:rep-lia}),
 which is basically just \lstinline{lia} with
 knowledge of the values of
 \lstinline{Int.min_signed},

@@ -505,7 +505,7 @@ Lemma upd_entries : forall T lgk lgv i k lv v, value_of lv v -> (k = 0 -> v = 0)
   upd_Znth i (map (hashtable_entry T lgk lgv) (upto (Z.to_nat size)))
     (ghost_master gsh1 k (Znth i lgk) * @ghost_master _ _ fmap_order gsh1 lv (Znth i lgv)).
 Proof.
-  intros; apply list_Znth_eq'.
+  intros; apply Znth_eq_ext.
   { rewrite ->upd_Znth_Zlength; rewrite ->!Zlength_map; auto.
     rewrite ->Zlength_upto, Z2Nat.id; auto; omega. }
   rewrite ->Zlength_map; intros.
@@ -538,7 +538,7 @@ Proof.
   rewrite -> iter_sepcon_map'.
   transitivity (iter_sepcon id (upd_Znth i (map (hashtable_entry_A T lgk lgv entries) (upto (Z.to_nat size))) (k_state i lgk pk k * v_state i lgv pv lv))).
   - f_equal.
-    apply list_Znth_eq'.
+    apply Znth_eq_ext.
     { rewrite ->upd_Znth_Zlength; rewrite ->!Zlength_map; auto.
       rewrite ->Zlength_upto, Z2Nat.id; auto; omega. }
     rewrite ->Zlength_map; intros.
@@ -1552,7 +1552,7 @@ Lemma hists_eq : forall lr (Hlr : Forall (fun '(h, ls) => add_events []
   (Hlens : Forall (fun '(_, ls) => Zlength ls = 3) lr),
   map snd lr = map (fun x => map (fun e => match snd e with | HAdd _ _ b => b | _ => false end) (fst x)) lr.
 Proof.
-  intros; apply list_Znth_eq' with (d := []); rewrite ->!Zlength_map; auto.
+  intros; apply Znth_eq_ext with (d := []); rewrite ->!Zlength_map; auto.
   intros.
   rewrite ->!Znth_map with (d' := ([], [])) by auto.
   apply Forall_Znth with (i := j)(d := ([], [])) in Hlr; auto.

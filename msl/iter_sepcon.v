@@ -1,13 +1,14 @@
 (* This file are developed by Qinxiang Cao, Shengyi Wang and Aquinas Hobor in 2015 *)
 (* summer in Yale-NUS.                                                             *)
 
-
 Require Import VST.msl.base.
 Require Import VST.msl.Extensionality.
 Require Import VST.msl.simple_CCC.
 Require Import VST.msl.seplog.
 Require Import VST.msl.log_normalize.
+Require Import VST.zlist.sublist.
 Require Import Coq.Lists.List.
+Require Import Coq.ZArith.ZArith.
 Require Import Coq.Sorting.Permutation.
 Require Export Coq.Classes.Morphisms.
 
@@ -159,7 +160,7 @@ Proof. intros; reflexivity. Qed.
 
 End SingleSepPred.
 
-Lemma iter_sepcon_sepcon: forall (f g1 g2: B -> A) l, 
+Lemma iter_sepcon_sepcon: forall (f g1 g2: B -> A) l,
      (forall b : B, f b = g1 b * g2 b) ->
   iter_sepcon f l = iter_sepcon g1 l * iter_sepcon g2 l.
 Proof.
@@ -174,7 +175,13 @@ Proof.
   apply sepcon_comm.
 Qed.
 
-Lemma iter_sepcon_derives : 
+Lemma iter_sepcon_sepcon': forall g1 g2 (l : list B),
+  iter_sepcon (fun x => g1 x * g2 x) l = iter_sepcon g1 l * iter_sepcon g2 l.
+Proof.
+  intros. apply iter_sepcon_sepcon. easy.
+Qed.
+
+Lemma iter_sepcon_derives :
    forall f g (l : list B), (forall x, In x l -> f x |-- g x) -> iter_sepcon f l |-- iter_sepcon g l.
 Proof.
   induction l; simpl; auto; intros.
@@ -195,7 +202,7 @@ Proof.
     - apply IHl.
       intros; apply H.
       simpl; auto.
-Qed. 
+Qed.
 
 #[global] Instance iter_sepcon_permutation_proper : Proper ((pointwise_relation B eq) ==> (@Permutation B) ==> eq) iter_sepcon.
 Proof.
@@ -203,6 +210,71 @@ Proof.
   + apply iter_sepcon_permutation. auto.
   + apply iter_sepcon_func.
     exact H.
+Qed.
+
+Lemma iter_sepcon_Znth: forall {d : Inhabitant B} f (l : list B) (i: Z), (0 <= i < Zlength l)%Z ->
+  iter_sepcon f l = f (Znth i l) * iter_sepcon f (remove_Znth i l).
+Proof.
+  intros; unfold remove_Znth.
+  rewrite <- sublist_same at 1 by auto.
+  rewrite sublist_split with (mid := i) by lia.
+  rewrite (sublist_next i) by lia.
+  rewrite !iter_sepcon_app; simpl.
+  rewrite <- !sepcon_assoc. f_equal.
+  apply sepcon_comm.
+Qed.
+
+#[global] Arguments iter_sepcon_Znth {d} f l i.
+
+Lemma iter_sepcon_Znth_remove : forall {d : Inhabitant B} f (l: list B) i j,
+  (0 <= i < Zlength l)%Z -> (0 <= j < Zlength l)%Z -> i <> j ->
+  iter_sepcon f (remove_Znth j l) =
+  f (Znth i l) * iter_sepcon f (remove_Znth (if Z_lt_dec i j then i else i - 1) (remove_Znth j l)).
+Proof.
+  intros ????? Hi Hj Hn.
+  pose proof (Zlength_remove_Znth _ _ Hj) as Hlen.
+  unfold remove_Znth at 1 2; rewrite Hlen.
+  unfold remove_Znth in *.
+  destruct (Z_lt_dec i j).
+  - rewrite -> !sublist_app by (rewrite -> ?Zlength_app in *; lia).
+    autorewrite with sublist.
+    rewrite -> (sublist_split 0 i j) by lia.
+    rewrite !iter_sepcon_app.
+    rewrite -> (sublist_next i _) by lia; simpl.
+    replace (Zlength l - _ - _ + _)%Z with (Zlength l) by lia.
+    rewrite <- !sepcon_assoc. do 2 f_equal. apply sepcon_comm.
+  - rewrite -> !sublist_app by (rewrite -> ?Zlength_app in *; lia).
+    autorewrite with sublist.
+    rewrite -> (sublist_split (j + 1) i (Zlength l)) by lia.
+    rewrite !iter_sepcon_app.
+    rewrite -> (sublist_next i _) by lia; simpl.
+    replace (Zlength l - _ - _ + _)%Z with (Zlength l) by lia.
+    replace (i - _ - _ + _)%Z with i by lia.
+    replace (i - _ + _)%Z with (i + 1)%Z by lia.
+    rewrite (sepcon_comm (f _) (_ * _ * _)).
+    rewrite <- !sepcon_assoc. do 2 rewrite (sepcon_assoc (_ * _)).
+    f_equal. apply sepcon_comm.
+Qed.
+
+Lemma iter_sepcon_Znth' : forall {d : Inhabitant B} f (l: list B) i,
+  (0 <= i < Zlength l)%Z -> iter_sepcon f l = f (Znth i l) * (f (Znth i l) -* iter_sepcon f l).
+Proof.
+  intros; eapply wand_eq, iter_sepcon_Znth; auto.
+Qed.
+
+Lemma iter_sepcon_remove_wand : forall {d : Inhabitant B} f (l: list B) i,
+  (0 <= i < Zlength l)%Z -> iter_sepcon f (remove_Znth i l) |-- f (Znth i l) -* iter_sepcon f l.
+Proof.
+  intros; rewrite <- wand_sepcon_adjoint.
+  erewrite (iter_sepcon_Znth _ l) by eauto.
+  rewrite sepcon_comm. auto.
+Qed.
+
+Lemma iter_sepcon_In : forall (x : B) f (l: list B), In x l -> iter_sepcon f l = f x * (f x -* iter_sepcon f l).
+Proof.
+  intros.
+  apply (@In_Znth _ x) in H as (? & ? & Heq).
+  rewrite <- Heq; apply iter_sepcon_Znth'; auto.
 Qed.
 
 End IterSepCon.
@@ -272,6 +344,31 @@ Proof.
       apply derives_refl.
 Qed.
 
+Lemma iter_sepcon2_Znth: forall {d1 : Inhabitant B1} {d2 : Inhabitant B2}
+  (l1 : list B1) (l2 : list B2) i, (0 <= i < Zlength l1)%Z -> Zlength l1 = Zlength l2 ->
+  iter_sepcon2 l1 l2 =
+  p (Znth i l1) (Znth i l2) * iter_sepcon2 (remove_Znth i l1) (remove_Znth i l2).
+Proof.
+  intros; rewrite !iter_sepcon2_spec.
+  apply pred_ext.
+  - apply exp_left. intros l. apply derives_extract_prop. intros [? ?].
+    subst. rewrite Zlength_map in *.
+    rewrite !remove_Znth_map, !Znth_map, (iter_sepcon_Znth (uncurry p) l i) by auto.
+    unfold uncurry at 1. apply sepcon_derives; auto.
+    apply exp_right with (remove_Znth i l). apply prop_and_same_derives.
+    apply prop_right. auto.
+  - rewrite exp_sepcon2. apply exp_left; intros l. apply exp_right with (combine l1 l2).
+    rewrite sepcon_andp_prop. apply derives_extract_prop. intros [? ?].
+    rewrite combine_fst, combine_snd
+      by (rewrite <- !ZtoNat_Zlength; apply Nat2Z.inj; rewrite !Z2Nat.id; lia).
+    rewrite (iter_sepcon_Znth _ (combine _ _) i)
+      by (rewrite Zlength_combine, Z.min_l; lia).
+    rewrite Znth_combine, remove_Znth_combine by auto.
+    rewrite H1, H2, combine_eq; unfold uncurry. cbn [fst snd].
+    apply prop_and_same_derives. apply prop_right. auto.
+all:    apply derives_refl.  (*  We need this for Coq 8.14 and before. *)
+Qed.
+
 End IterSepCon2.
 
 Section IterPredSepCon.
@@ -286,7 +383,7 @@ Definition pred_sepcon (p: B -> A) (P: B -> Prop): A :=
   EX l: list B, !! (forall x, In x l <-> P x) && !! NoDup l && iter_sepcon p l.
 
 Lemma pred_sepcon_eq: forall (P: B -> Prop) (p: B -> A),
-    pred_sepcon p P = 
+    pred_sepcon p P =
     (EX l: list B, !! ((forall x, In x l <-> P x) /\ NoDup l) && iter_sepcon p l).
 Proof.
   intros. unfold pred_sepcon. f_equal. extensionality l. rewrite prop_and. auto.
@@ -493,5 +590,92 @@ Proof.
     apply derives_refl.
 Qed.
 
+Lemma pred_sepcon_False':
+ forall (P: B -> Prop) (p : B -> A),
+  (forall x, ~ P x) ->
+  pred_sepcon p P = emp.
+Proof.
+intros.
+replace P with (fun _:B  => False).
+apply pred_sepcon_False.
+extensionality i.
+apply prop_ext; split; intros. contradiction.
+apply (H i); auto.
+Qed.
+
 End IterPredSepCon.
 
+Lemma pred_sepcon_isolate:
+  forall {A B: Type}{NA: NatDed A}{SA: SepLog A}
+  (x: B)
+  (DECB: forall x y: B, {x=y}+{x<>y})
+  (f: B -> A) (u: B -> Prop),
+  (u x) ->
+  pred_sepcon f u = pred_sepcon f (fun y => u y /\ y<>x) * f x.
+Proof.
+intros.
+rewrite !pred_sepcon_eq.
+pose (neqx y := if DECB x y then false else true).
+apply pred_ext.
+apply exp_left; intro l.
+normalize.
+destruct H0.
+apply exp_right with (filter neqx l).
+rewrite prop_true_andp.
+apply derives_trans with (iter_sepcon f (x :: filter neqx l)).
+apply derives_refl'.
+apply iter_sepcon_permutation.
+apply NoDup_Permutation; auto.
+constructor.
+intro. apply filter_In in H2. destruct H2.
+unfold neqx in H3.
+destruct (DECB x x). inversion H3. contradiction n; auto.
+apply NoDup_filter; auto.
+intro.
+split; intro.
+destruct (DECB x0 x).
+subst. left; auto. right. apply filter_In. split; auto.
+unfold neqx.
+destruct (DECB x x0); auto.
+destruct H2.
+subst.
+rewrite <- H0 in H. auto.
+apply filter_In in H2. destruct H2; auto.
+simpl. rewrite sepcon_comm; auto.
+split.
+intro. split; intro.
+apply filter_In in H2. destruct H2.
+rewrite H0 in H2.
+split; auto.
+intro; subst.
+unfold neqx in H3.
+destruct (DECB x x); auto. inv H3.
+destruct H2.
+apply filter_In. split; auto.
+rewrite H0; auto.
+unfold neqx.
+destruct (DECB x x0); auto.
+apply NoDup_filter. auto.
+normalize.
+destruct H0.
+apply exp_right with (x::l).
+rewrite prop_true_andp.
+simpl.
+rewrite sepcon_comm; auto.
+split.
+intro.
+specialize (H0 x0).
+simpl. rewrite H0.
+split; intro.
+destruct H2.
+subst; auto.
+destruct H2. auto.
+destruct (DECB x0 x).
+subst.
+auto.
+right; auto.
+constructor; auto.
+rewrite H0.
+intros [? ?].
+contradiction.
+Qed.

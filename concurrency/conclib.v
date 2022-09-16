@@ -2,6 +2,7 @@ Require Import VST.msl.predicates_hered.
 Require Import VST.veric.ghosts.
 Require Import VST.veric.invariants.
 Require Import VST.veric.fupd.
+Require Export VST.veric.slice.
 Require Export VST.msl.iter_sepcon.
 Require Import VST.msl.ageable.
 Require Import VST.msl.age_sepalg.
@@ -9,13 +10,17 @@ Require Export VST.concurrency.semax_conc_pred.
 Require Export VST.concurrency.semax_conc.
 Require Export VST.floyd.proofauto.
 Require Export VST.zlist.sublist.
+
 Import FashNotation.
 Import LiftNotation.
 Import compcert.lib.Maps.
 
-Require Export VST.concurrency.conclib_coqlib.
-Require Export VST.concurrency.conclib_sublist.
-Require Export VST.concurrency.conclib_veric.
+(* Require Export VST.concurrency.conclib_veric. *)
+
+Notation vint z := (Vint (Int.repr z)).
+Notation vptrofs z := (Vptrofs (Ptrofs.repr z)).
+
+Open Scope logic.
 
 Lemma wsat_fupd : forall E P Q, (wsat * P |-- |==> wsat * Q) -> P |-- fupd.fupd E E Q.
 Proof.
@@ -141,166 +146,6 @@ eapply (semax_fun_id'' _f); try reflexivity.
 (* legacy *)
 Ltac start_dep_function := start_function.
 
-(* Notations for dependent funspecs *)
-Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 'PRE'  [ ] P 'POST' [ tz ] Q" :=
-     (mk_funspec (nil, tz) cc_default A
-  (fun (ts: list Type) (x: t1*t2) =>
-     match x with (x1,x2) => P%argsassert end)
-  (fun (ts: list Type) (x: t1*t2) =>
-     match x with (x1,x2) => Q%assert end) _ _)
-            (at level 200, x1 at level 0, x2 at level 0,
-             P at level 100, Q at level 100).
-
-Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
-     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
-  (fun (ts: list Type) (x: t1*t2) =>
-     match x with (x1,x2) => P%argsassert end)
-  (fun (ts: list Type) (x: t1*t2) =>
-     match x with (x1,x2) => Q%assert end) _ _)
-            (at level 200, x1 at level 0, x2 at level 0,
-             P at level 100, Q at level 100).
-
-Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
-     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
-  (fun (ts: list Type) (x: t1*t2*t3) =>
-     match x with (x1,x2,x3) => P%argsassert end)
-  (fun (ts: list Type) (x: t1*t2*t3) =>
-     match x with (x1,x2,x3) => Q%assert end) _ _)
-            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0,
-             P at level 100, Q at level 100).
-
-Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 'PRE'  [ ] P 'POST' [ tz ] Q" :=
-     (mk_funspec (nil, tz) cc_default A
-  (fun (ts: list Type) (x: t1*t2*t3) =>
-     match x with (x1,x2,x3) => P%argsassert end)
-  (fun (ts: list Type) (x: t1*t2*t3) =>
-     match x with (x1,x2,x3) => Q%assert end) _ _)
-            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0,
-             P at level 100, Q at level 100).
-
-Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
-     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
-  (fun (ts: list Type) (x: t1*t2*t3*t4) =>
-     match x with (x1,x2,x3,x4) => P%argsassert end)
-  (fun (ts: list Type) (x: t1*t2*t3*t4) =>
-     match x with (x1,x2,x3,x4) => Q%assert end) _ _)
-            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
-             P at level 100, Q at level 100).
-
-Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
-     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
-  (fun (ts: list Type) (x: t1*t2*t3*t4*t5) =>
-     match x with (x1,x2,x3,x4,x5) => P%argsassert end)
-  (fun (ts: list Type) (x: t1*t2*t3*t4*t5) =>
-     match x with (x1,x2,x3,x4,x5) => Q%assert end) _ _)
-            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
-             x5 at level 0,
-             P at level 100, Q at level 100).
-
-Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
-     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
-  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6) =>
-     match x with (x1,x2,x3,x4,x5,x6) => P%argsassert end)
-  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6) =>
-     match x with (x1,x2,x3,x4,x5,x6) => Q%assert end) _ _)
-            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
-             x5 at level 0, x6 at level 0,
-             P at level 100, Q at level 100).
-
-Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
-     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
-  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7) =>
-     match x with (x1,x2,x3,x4,x5,x6,x7) => P%argsassert end)
-  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7) =>
-     match x with (x1,x2,x3,x4,x5,x6,x7) => Q%assert end) _ _)
-            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
-             x5 at level 0, x6 at level 0, x7 at level 0,
-             P at level 100, Q at level 100).
-
-Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
-     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
-  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8) =>
-     match x with (x1,x2,x3,x4,x5,x6,x7,x8) => P%argsassert end)
-  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8) =>
-     match x with (x1,x2,x3,x4,x5,x6,x7,x8) => Q%assert end) _ _)
-            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
-             x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0,
-             P at level 100, Q at level 100).
-
-Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
-     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
-  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9) =>
-     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9) => P%argsassert end)
-  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9) =>
-     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9) => Q%assert end) _ _)
-            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
-             x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0,
-             P at level 100, Q at level 100).
-
-Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
-     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
-  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10) =>
-     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10) => P%argsassert end)
-  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10) =>
-     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10) => Q%assert end) _ _)
-            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
-             x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0, x10 at level 0,
-             P at level 100, Q at level 100).
-
-Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
-     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
-  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10) =>
-     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10) => P%argsassert end)
-  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10) =>
-     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10) => Q%assert end) _ _)
-            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
-             x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0, x10 at level 0,
-             P at level 100, Q at level 100).
-
-Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
-     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
-  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11) =>
-     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11) => P%argsassert end)
-  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11) =>
-     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11) => Q%assert end) _ _)
-            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
-             x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0,
-              x10 at level 0, x11 at level 0,
-             P at level 100, Q at level 100).
-
-Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 , x12 : t12 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
-     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
-  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12) =>
-     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12) => P%argsassert end)
-  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12) =>
-     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12) => Q%assert end) _ _)
-            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
-             x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0,
-              x10 at level 0, x11 at level 0, x12 at level 0,
-             P at level 100, Q at level 100).
-
-Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 , x12 : t12 , x13 : t13 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
-     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
-  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13) =>
-     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13) => P%argsassert end)
-  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13) =>
-     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13) => Q%assert end) _ _)
-            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
-             x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0,
-              x10 at level 0, x11 at level 0, x12 at level 0, x13 at level 0,
-             P at level 100, Q at level 100).
-
-Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 , x12 : t12 , x13 : t13 , x14 : t14 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
-     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
-  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13*t14) =>
-     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14) => P%argsassert end)
-  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13*t14) =>
-     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14) => Q%assert end) _ _)
-            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
-             x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0,
-              x10 at level 0, x11 at level 0, x12 at level 0, x13 at level 0, x14 at level 0,
-             P at level 100, Q at level 100).
-
 (* automation for dependent funspecs moved to call_lemmas and forward.v*)
 
 Lemma PROP_into_SEP : forall P Q R, PROPx P (LOCALx Q (SEPx R)) =
@@ -345,9 +190,28 @@ Ltac forward_spawn id arg wit :=
         instantiate (1 := fun '(a, b) => _ a) in (value of R));
         etransitivity; [|symmetry; apply PROP_into_SEP_LAMBDA]; f_equal; f_equal; f_equal;
         [ instantiate (1 := fun _ => _) in (value of Q); subst Q; f_equal; simpl; reflexivity
-        | unfold SEPx; extensionality; simpl; rewrite sepcon_emp; instantiate (1 := fun _ => _);
+        | unfold SEPx; extensionality; simpl; rewrite sepcon_emp;
+          unfold R; instantiate (1 := fun _ => _);
           reflexivity]
   ];
   forward_call [A] funspec_sub_refl (f, arg, Q, wit, R); subst Q R;
            [ .. | subst f]; try (subst f; simpl; cancel_for_forward_spawn)
   end end.
+
+#[export] Hint Resolve unreadable_bot : core.
+
+(* The following lemma is used in atomics/verif_ptr_atomics.v which is
+   not in the Makefile any more. So I comment out the
+   lemma. Furthermore, it should be replaced by
+   valid_pointer_is_pointer_or_null. *)
+
+(* Lemma valid_pointer_isptr : forall v, valid_pointer v |-- !!(is_pointer_or_null v). *)
+(* Proof. *)
+(* Transparent mpred. *)
+(* Transparent predicates_hered.pred. *)
+(*   destruct v; simpl; try apply derives_refl. *)
+(*   apply prop_right; auto. *)
+(* Opaque mpred. Opaque predicates_hered.pred. *)
+(* Qed. *)
+
+(* #[export] Hint Resolve valid_pointer_isptr : saturate_local. *)

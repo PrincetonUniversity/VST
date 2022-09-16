@@ -45,10 +45,10 @@ Definition offset_val (ofs: Z) (v: val) : val :=
   | _ => Vundef
  end.
 
-Definition range_s32 (i: Z) : bool := 
+Definition range_s32 (i: Z) : bool :=
    andb (Z.leb Int.min_signed i) (Z.leb i Int.max_signed).
 
-Definition range_s64 (i: Z) : bool := 
+Definition range_s64 (i: Z) : bool :=
    andb (Z.leb Int64.min_signed i) (Z.leb i Int64.max_signed).
 
 Definition is_long (v: val) :=
@@ -268,4 +268,21 @@ apply Int.unsigned_range.
 assert (two_p n <= two_p j); try lia.
 apply two_p_monotone.
 lia.
+Qed.
+
+Lemma signed_inj : forall i1 i2, Int.signed i1 = Int.signed i2 -> i1 = i2.
+Proof.
+  intros.
+  apply int_eq_e.
+  rewrite Int.eq_signed, H.
+  apply zeq_true.
+Qed.
+
+Lemma mods_repr : forall a b, 0 <= a <= Int.max_signed -> 0 < b <= Int.max_signed ->
+  Int.mods (Int.repr a) (Int.repr b) = Int.repr (a mod b).
+Proof.
+  intros.
+  unfold Int.mods.
+  pose proof Int.min_signed_neg.
+  rewrite Zquot.Zrem_Zmod_pos; repeat rewrite Int.signed_repr; auto; lia.
 Qed.

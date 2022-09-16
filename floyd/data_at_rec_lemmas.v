@@ -1127,15 +1127,15 @@ Proof.
     rewrite sepcon_comm; apply derives_left_sepcon_right_corable; auto.
 Qed. 
 
-Lemma mapsto_share_join_values_cohere:
-  forall sh1 sh2 sh t (R:type_is_by_value t = true) b ofs,
-    sepalg.join sh1 sh2 sh -> 
+Lemma mapsto_values_cohere:
+  forall sh1 sh2 t (R:type_is_by_value t = true) b ofs,
     type_is_volatile t = false ->
     readable_share sh1 -> readable_share sh2 -> 
   forall (v1 v2:val) (V1: ~ JMeq v1 Vundef) (V2: ~ JMeq v2 Vundef),
     mapsto sh1 t (Vptr b ofs) v1 * mapsto sh2 t (Vptr b ofs) v2 |-- !!(v1=v2).
-Proof. intros; destruct t; try discriminate R; unfold mapsto; simpl; simpl in *.
- + destruct i; destruct s; simpl; rewrite ! if_true by trivial; rewrite H0.
+Proof.
+intros; destruct t; try discriminate R; unfold mapsto; simpl; simpl in *.
+ + destruct i; destruct s; simpl; rewrite ! if_true by trivial; rewrite H.
     - eapply derives_trans.
       { apply sepcon_derives.
         + apply orp_left; [ apply derives_refl |].
@@ -1200,7 +1200,7 @@ Proof. intros; destruct t; try discriminate R; unfold mapsto; simpl; simpl in *.
           apply andp_left1. apply prop_left. intros; subst. elim V2. apply JMeq_refl. }
       normalize. rewrite derives_eq.
       apply res_predicates.address_mapsto_value_cohere.
-  + rewrite H0; clear R. rewrite ! if_true by trivial.
+  + rewrite H; clear R. rewrite ! if_true by trivial.
     - eapply derives_trans.
       { apply sepcon_derives.
         + apply orp_left; [ apply derives_refl |].
@@ -1209,7 +1209,7 @@ Proof. intros; destruct t; try discriminate R; unfold mapsto; simpl; simpl in *.
           apply andp_left1. apply prop_left. intros; subst. elim V2. apply JMeq_refl. }
       normalize. rewrite derives_eq.
       apply res_predicates.address_mapsto_value_cohere.
-  + rewrite H0; clear R. destruct f; rewrite ! if_true by trivial.
+  + rewrite H; clear R. destruct f; rewrite ! if_true by trivial.
     - eapply derives_trans.
       { apply sepcon_derives.
         + apply orp_left; [ apply derives_refl |].
@@ -1226,7 +1226,7 @@ Proof. intros; destruct t; try discriminate R; unfold mapsto; simpl; simpl in *.
           apply andp_left1. apply prop_left. intros; subst. elim V2. apply JMeq_refl. }
       normalize. rewrite derives_eq.
       apply res_predicates.address_mapsto_value_cohere.
-  + rewrite H0; clear R. rewrite ! if_true by trivial.
+  + rewrite H; clear R. rewrite ! if_true by trivial.
     - eapply derives_trans.
       { apply sepcon_derives.
         + apply orp_left; [ apply derives_refl |].
@@ -1237,19 +1237,301 @@ Proof. intros; destruct t; try discriminate R; unfold mapsto; simpl; simpl in *.
       apply res_predicates.address_mapsto_value_cohere.
 Qed.
 
-Lemma data_at_rec_share_join_values_cohere:
-  forall sh1 sh2 sh t (R:type_is_by_value t = true) b ofs,
-    sepalg.join sh1 sh2 sh -> 
-    type_is_volatile t = false ->
-    readable_share sh1 -> readable_share sh2 ->
-  forall (v1 v2:reptype t) (V1: ~ JMeq v1 Vundef) (V2: ~ JMeq v2 Vundef),
-    data_at_rec sh1 t v1 (Vptr b ofs) * data_at_rec sh2 t v2 (Vptr b ofs) |-- !!(v1=v2).
+Definition value_defined_byvalue t v :=
+if type_is_volatile t then False else tc_val t (repinject t v).
+
+Definition value_defined : forall t, reptype t -> Prop :=
+  type_func (fun t => reptype t -> Prop)
+    value_defined_byvalue
+    (fun t n a P v => Zlength (unfold_reptype v) =  Z.max 0 n /\ Forall P (unfold_reptype v))
+    (fun id a P v => struct_value_fits_aux (co_members (get_co id)) (co_members (get_co id)) P (unfold_reptype v))
+    (fun id a P v => False). (* don't permit unions, for now ; otherwise: 
+                 union_value_fits_aux (co_members (get_co id)) (co_members (get_co id)) P (unfold_reptype v))
+*)
+
+Lemma value_defined_eq:
+  forall t v,
+  value_defined t v =
+  match t as t0 return (reptype t0 -> Prop)  with
+  | Tarray t' n a => fun v0 : reptype (Tarray t' n a) =>
+    (fun v1 : list (reptype t') =>
+     Zlength v1 = Z.max 0 n /\ Forall (value_defined t') v1)
+      (unfold_reptype v0)
+| Tstruct i a =>
+    fun v0 : reptype (Tstruct i a) =>
+     struct_Prop (co_members (get_co i))
+       (fun it : member =>
+        value_defined (field_type (name_member it) (co_members (get_co i)))) (unfold_reptype v0)
+| Tunion i a =>
+    fun v0 : reptype (Tunion i a) =>
+     False (*
+     union_Prop (co_members (get_co i))
+       (fun it : member =>
+        value_defined (field_type (name_member it) (co_members (get_co i)))) (unfold_reptype v0)
+      *)
+  | t0 => value_defined_byvalue t0
+  end v.
 Proof.
-  intros.
-  revert v1 v2 ofs H0 H1 H2 R V1 V2.
-  pattern t; type_induction t; intros; try discriminate R; simpl in R;
+intros.
+unfold value_defined.
+rewrite type_func_eq.
+destruct t; auto.
+apply struct_value_fits_aux_spec.
+(* apply union_value_fits_aux_spec. *)
+Qed.
+
+Lemma value_defined_not_volatile:
+  forall t v, value_defined t v -> type_is_volatile t = false.
+Proof.
+intros.
+destruct t; try reflexivity; 
+do 5 red in H;
+destruct (type_is_volatile _); auto; contradiction.
+Qed.
+
+Local Definition field_atx sh m (sz: Z) (it : member)
+                   (v : reptype
+                           (field_type (name_member it) m))
+       := 
+                 withspacer sh
+                   (field_offset (@cenv_cs cs) (name_member it) m
+                      + sizeof
+                          (field_type (name_member it) m))
+                   (field_offset_next (@cenv_cs cs) (name_member it) m sz)
+                   (at_offset
+                      (data_at_rec sh
+                         (field_type (name_member it) m) v)
+                      (field_offset cenv_cs (name_member it) m)).
+
+Local Definition field_cohere sh1 sh2 
+  m b it :=
+ forall (v1 v2: reptype (field_type (name_member it) m)) ofs,
+        type_is_volatile
+          (field_type (name_member it) m) = false ->
+        value_defined
+          (field_type (name_member it) m) v1 ->
+        value_defined
+          (field_type (name_member it) m) v2 ->
+        data_at_rec sh1
+          (field_type (name_member it) m) v1
+          (Vptr b ofs)
+          * data_at_rec sh2
+              (field_type (name_member it) m) v2
+              (Vptr b ofs) |-- !! (v1 = v2).
+
+Lemma data_at_rec_values_cohere:
+       forall (sh1 sh2 : share) (t : type),
+       forall (b : block) (ofs : ptrofs),
+       readable_share sh1 ->
+       readable_share sh2 ->
+       forall v1 v2 : reptype t,
+       value_defined t v1 ->
+       value_defined t v2 ->
+       data_at_rec sh1 t v1 (Vptr b ofs)
+         * data_at_rec sh2 t v2 (Vptr b ofs) 
+        |-- !! (v1 = v2).
+Proof.
+  intros *. pose proof I. intros.
+  clear H. pose proof (value_defined_not_volatile _ _ H2).
+  red in H2, H3.
+  revert v1 v2 ofs H H2 H3.
+  pattern t; type_induction t; intros;
   rewrite !data_at_rec_eq; try solve [ normalize];
-  rewrite H0; apply (mapsto_share_join_values_cohere sh1 sh2 sh); trivial.
+try solve [
+  do 4 red in H2, H3;
+  rewrite ?H in *;
+ try (
+   apply (mapsto_values_cohere sh1 sh2); trivial;
+  try destruct f;
+   (intro H5; apply JMeq_eq in H5; subst; try contradiction));
+  try (hnf in H2; destruct (eqb_type _ _) in H2; contradiction);
+  try (hnf in H3; destruct (eqb_type _ _) in H3; contradiction)].
+- (* array *)
+destruct H2.
+change (Forall (value_defined t) (unfold_reptype v1)) in H4.
+destruct H3.
+change (Forall (value_defined t) (unfold_reptype v2)) in H5.
+unfold array_pred.
+destruct (zle z 0).
+rewrite Z.max_l in * by lia.
+apply prop_right.
+rewrite Zlength_length in H2,H3 by lia.
+destruct v1; inv H2. destruct v2; inv H3. auto.
+rewrite Z.max_r in * by lia.
+clear H.
+pose proof (Z2Nat.id z) ltac:(lia).
+set (n := Z.to_nat z) in *.
+clearbody n.
+rewrite <- H in *.
+subst z.
+change (@unfold_reptype cs (Tarray t (Z.of_nat n) a) v1) with v1 in *.
+change (@unfold_reptype cs (Tarray t (Z.of_nat n) a) v2) with v2 in *.
+assert (type_is_volatile t = false). {
+ clear - H2 H4 g.
+ destruct v1. rewrite Zlength_nil in H2. lia.
+ inv H4.
+ apply value_defined_not_volatile in H1; auto.
+}
+clear g.
+change (list (reptype t)) in v1,v2.
+revert v1 v2 H5 H3 H4 H2; induction n; intros.
+apply prop_right.
+clear - H3 H2.
+rewrite Zlength_length in H2,H3 by lia.
+destruct v1; inv H2. destruct v2; inv H3. auto.
+rewrite inj_S in *.
+rewrite !(split_array_pred 0 (Z.of_nat n) (Z.succ (Z.of_nat n))) by lia.
+rewrite !Z.sub_0_r.
+rewrite !(sublist_one (Z.of_nat n)) by lia.
+unfold Z.succ.
+rewrite !array_pred_len_1.
+match goal with |- (?a*?b)*(?c*?d) |-- _ =>
+    apply derives_trans with ((a*c)*(b*d)); [ cancel | ] end.
+apply derives_trans 
+  with (!! (sublist 0 (Z.of_nat n) v1 = sublist 0 (Z.of_nat n) v2) 
+           * !! (Znth (Z.of_nat n) v1 = Znth (Z.of_nat n) v2)).
+apply sepcon_derives.
+apply IHn.
+apply Forall_sublist; auto.
+Zlength_solve.
+apply Forall_sublist; auto.
+Zlength_solve.
+unfold at_offset.
+apply IH; auto.
+apply Forall_Znth; auto; lia.
+apply Forall_Znth; auto; lia.
+rewrite sepcon_prop_prop.
+apply prop_derives; intros [? ?].
+replace v1 with (sublist 0 (Z.of_nat n) v1 ++ (Znth (Z.of_nat n) v1 :: nil)).
+replace v2 with (sublist 0 (Z.of_nat n) v2 ++ (Znth (Z.of_nat n) v2 :: nil)).
+rewrite H6,H7; auto.
+clear - H3.
+rewrite <- sublist_last_1 by lia.
+apply sublist_same; lia.
+clear - H2.
+rewrite <- sublist_last_1 by lia.
+apply sublist_same; lia.
+-
+cbv zeta in IH.
+clear H.
+change (type_func _ _ _ _ _ ) with value_defined in *.
+unfold aggregate_pred.struct_pred.
+rewrite value_defined_eq in H2, H3.
+cbv zeta in IH.
+fold (field_atx sh1 (co_members (get_co id)) (co_sizeof (get_co id))).
+fold (field_atx sh2 (co_members (get_co id)) (co_sizeof (get_co id))).
+fold (field_cohere sh1 sh2 (co_members (get_co id)) b) in IH.
+eapply derives_trans with (!! (unfold_reptype v1 = unfold_reptype v2)).
+2:{  clear. 
+       apply prop_derives; intro.
+       unfold reptype, unfold_reptype in *.
+       unfold eq_rect in *.
+        destruct (reptype_eq (Tstruct id a)).
+         auto.
+}
+set (u1 := unfold_reptype v1) in *.
+set (u2 := unfold_reptype v2) in *.
+clearbody u1. clearbody u2.
+simpl in u1,u2. clear v1 v2.
+destruct (get_co id); simpl in *.
+rename co_sizeof into sz.
+rename co_alignof into al.
+rename co_rank into rank.
+rename co_members into m.
+unfold reptype_structlist in u1,u2.
+assert (
+forall sh1 sh2 b m0 m
+ (IH : Forall (field_cohere sh1 sh2 m0 b) m)
+ (ofs : ptrofs)
+ (u1 u2 : compact_prod
+       (map (fun it : member => reptype (field_type (name_member it) m0))
+          m))
+ (H2 : struct_Prop m
+       (fun it : member =>
+        value_defined
+          match Ctypes.field_type (name_member it) m0 with
+          | Errors.OK t => t
+          | Errors.Error _ => Tvoid
+          end) u1)
+ (H3 : struct_Prop m
+       (fun it : member =>
+        value_defined
+          match Ctypes.field_type (name_member it) m0 with
+          | Errors.OK t => t
+          | Errors.Error _ => Tvoid
+          end) u2),
+struct_pred m (field_atx sh1 m0 sz) u1 (Vptr b ofs)
+  * struct_pred m (field_atx sh2 m0 sz) u2 (Vptr b ofs) |-- !! (u1 = u2)).
+2: eauto.
+clear.
+intros.
+destruct m as [ | a0 m].
+apply prop_right; destruct u1,u2; auto.
+revert a0 IH u1 u2 H2 H3.
+induction m as [ | a1 m]; intros.
++
+simpl.
+inv IH. clear H4.
+red in H1.
+unfold field_atx.
+rewrite !withspacer_spacer.
+rewrite !spacer_memory_block by (simpl; auto).
+set (x1 := memory_block sh1 _ _).
+set (x2 := memory_block sh2 _ _).
+clearbody x1 x2.
+unfold at_offset, offset_val.
+set (ofs' := Ptrofs.add _ _). clearbody ofs'.
+specialize  (H1 u1 u2 ofs'
+                 (value_defined_not_volatile _ _ H3) H2 H3).
+clear - H1.
+set (y1 := data_at_rec sh1 _ _ _) in *.
+set (y2 := data_at_rec sh2 _ _ _) in *.
+apply derives_trans with ((y1*y2)*(x1*x2)). cancel.
+eapply derives_trans. apply sepcon_derives. apply H1. apply TT_right.
+rewrite prop_sepcon. Intros. apply prop_right; auto.
++
+repeat change (struct_pred (a0 :: a1 :: m) ?P ?u ?p)
+      with (P a0 (fst u) p * struct_pred (a1 :: m) P (snd u) p).
+inv IH.
+specialize (IHm _ H4).
+destruct u1 as [v1 u1], u2 as [v2 u2].
+destruct H2 as [H2v H2], H3 as [H3v H3].
+specialize (IHm u1 u2 H2 H3).
+clear H2 H3.
+unfold snd. unfold fst.
+match goal with |- ?a * ?b * (?c * ?d) |-- _ => 
+   apply derives_trans with ((a*c)*(b*d)); [cancel | ]
+end.
+apply derives_trans with (!!(v1=v2) * !!(u1=u2)).
+apply sepcon_derives; auto.
+unfold field_atx.
+rewrite !withspacer_spacer.
+rewrite !spacer_memory_block by (simpl; auto).
+set (x1 := memory_block sh1 _ _).
+set (x2 := memory_block sh2 _ _).
+clearbody x1 x2.
+unfold at_offset, offset_val.
+set (ofs' := Ptrofs.add _ _). clearbody ofs'. 
+specialize (H1 v1 v2 ofs').
+match goal with |- ?a * ?b * (?c * ?d) |-- _ => 
+   apply derives_trans with ((a*c)*(b*d)); [cancel | ]
+end.
+apply derives_trans with (TT * !!(v1=v2)).
+apply sepcon_derives; auto.
+apply H1; auto.
+eapply value_defined_not_volatile; eauto.
+rewrite (sepcon_comm TT), prop_sepcon.
+normalize.
+rewrite prop_sepcon.
+rewrite (sepcon_comm TT), prop_sepcon.
+normalize.
+-
+cbv zeta in IH.
+clear H.
+change (type_func _ _ _ _ _ ) with value_defined in *.
+unfold aggregate_pred.union_pred.
+rewrite value_defined_eq in H2, H3.
+contradiction.
 Qed.
 
 Lemma data_at_rec_share_join:
@@ -1772,3 +2054,17 @@ end;
  repeat simplify_value_fits'.
 
 (*** end tactics for value_fits ***)
+
+Lemma value_defined_tarray {cs: compspecs}:
+ forall t n vl,
+  Zlength vl = n -> 
+  Forall (value_defined t) vl ->
+  value_defined (tarray t n) vl.
+Proof.
+intros.
+red. rewrite type_induction.type_func_eq. unfold tarray.
+split; auto.
+subst.
+unfold unfold_reptype. simpl. rep_lia.
+Qed.
+

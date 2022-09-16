@@ -2837,3 +2837,127 @@ Proof. intros. simpl.
 Qed.
 
 #[export] Hint Extern 1 (isptr (eval_var _ _ _)) => (eapply lvar_isptr_eval_var; eassumption) : norm2.
+
+Lemma semax_extract_later_prop'':
+  forall {CS : compspecs} {Espec: OracleKind},
+    forall (Delta : tycontext) (PP : Prop) P Q R c post P1 P2,
+      (P2 |-- !!PP) ->
+      (PP -> semax Delta (PROPx P (LOCALx Q (SEPx (P1 && |>P2 :: R)))) c post) ->
+      semax Delta (PROPx P (LOCALx Q (SEPx (P1 && |>P2 :: R)))) c post.
+Proof.
+  intros.
+  erewrite (add_andp P2) by eauto.
+  apply semax_pre0 with (P' := |>!!PP && PROPx P (LOCALx Q (SEPx (P1 && |>P2 :: R)))).
+  { go_lowerx.
+    rewrite later_andp, <- andp_assoc, andp_comm, corable_andp_sepcon1; auto.
+    apply corable_later; auto. }
+  apply semax_extract_later_prop; auto.
+Qed.
+
+Lemma approx_imp : forall n P Q, compcert_rmaps.RML.R.approx n (predicates_hered.imp P Q) =
+  compcert_rmaps.RML.R.approx n (predicates_hered.imp (compcert_rmaps.RML.R.approx n P)
+    (compcert_rmaps.RML.R.approx n Q)).
+Proof.
+  intros; apply predicates_hered.pred_ext; intros ? (? & Himp); split; auto; intros ? ? Ha' Hext HP.
+  - destruct HP; split; eauto.
+  - eapply Himp; eauto; split; auto.
+    pose proof (ageable.necR_level _ _ Ha'); apply predicates_hered.ext_level in Hext; lia.
+Qed.
+
+Definition super_non_expansive' {A} P := forall n ts x, compcert_rmaps.RML.R.approx n (P ts x) =
+  compcert_rmaps.RML.R.approx n (P ts (functors.MixVariantFunctor.fmap (rmaps.dependent_type_functor_rec ts A)
+        (compcert_rmaps.RML.R.approx n) (compcert_rmaps.RML.R.approx n) x)).
+
+Lemma approx_0 : forall P, compcert_rmaps.RML.R.approx 0 P = FF.
+Proof.
+  intros; apply predicates_hered.pred_ext.
+  - intros ? []; lia.
+  - intros ??; contradiction.
+Qed.
+
+Require Import VST.msl.predicates_hered.
+Require Import VST.msl.ageable.
+Require Import VST.msl.iter_sepcon.
+Require Import VST.msl.age_sepalg.
+Import FashNotation.
+
+Lemma approx_eq : forall n (P : mpred) r, app_pred (compcert_rmaps.RML.R.approx n P) r = (if lt_dec (level r) n then app_pred P r else False).
+Proof.
+  intros; apply prop_ext; split.
+  - intros []; if_tac; auto.
+  - if_tac; split; auto; lia.
+Qed.
+
+Lemma approx_iter_sepcon' : forall {B} n f (lP : list B) P,
+  compcert_rmaps.RML.R.approx n (iter_sepcon f lP)  * compcert_rmaps.RML.R.approx n P =
+  iter_sepcon (compcert_rmaps.RML.R.approx n oo f) lP * compcert_rmaps.RML.R.approx n P.
+Proof.
+  induction lP; simpl; intros.
+  - apply predicates_hered.pred_ext; intros ? (? & ? & ? & ? & ?).
+    + destruct H0; do 3 eexists; eauto.
+    + do 3 eexists; eauto; split; auto; split; auto.
+      destruct H1; apply join_level in H as []; lia.
+  - rewrite approx_sepcon, !sepcon_assoc, IHlP; auto.
+Qed.
+
+Corollary approx_iter_sepcon: forall {B} n f (lP : list B), lP <> nil ->
+  compcert_rmaps.RML.R.approx n (iter_sepcon f lP) =
+  iter_sepcon (compcert_rmaps.RML.R.approx n oo f) lP.
+Proof.
+  destruct lP; [contradiction | simpl].
+  intros; rewrite approx_sepcon, !(sepcon_comm (compcert_rmaps.RML.R.approx n (f b))), approx_iter_sepcon'; auto.
+Qed.
+
+Lemma approx_FF : forall n, compcert_rmaps.RML.R.approx n FF = FF.
+Proof.
+  intro; apply predicates_hered.pred_ext; intros ??; try contradiction.
+  destruct H; contradiction.
+Qed.
+
+Lemma later_nonexpansive' : nonexpansive (@later mpred _ _).
+Proof.
+  apply contractive_nonexpansive, later_contractive.
+  intros ??; auto.
+Qed.
+
+Lemma later_nonexpansive : forall n P, compcert_rmaps.RML.R.approx n (|> P)%pred =
+  compcert_rmaps.RML.R.approx n (|> compcert_rmaps.RML.R.approx n P)%pred.
+Proof.
+  intros.
+  intros; apply predicates_hered.pred_ext.
+  - intros ? []; split; auto.
+    intros ? Hlater; split; auto.
+    apply laterR_level in Hlater; lia.
+  - intros ? []; split; auto.
+    intros ? Hlater.
+    specialize (H0 _ Hlater) as []; auto.
+Qed.
+
+Lemma allp_nonexpansive : forall {A} n P, compcert_rmaps.RML.R.approx n (ALL y : A, P y)%pred =
+  compcert_rmaps.RML.R.approx n (ALL y, compcert_rmaps.RML.R.approx n (P y))%pred.
+Proof.
+  intros.
+  apply predicates_hered.pred_ext; intros ? [? Hall]; split; auto; intro; simpl in *.
+  - split; auto.
+  - apply Hall.
+Qed.
+
+Lemma fold_right_sepcon_nonexpansive : forall lP1 lP2, Zlength lP1 = Zlength lP2 ->
+  ((ALL i : Z, Znth i lP1 <=> Znth i lP2) |--
+  fold_right sepcon emp lP1 <=> fold_right sepcon emp lP2).
+Proof.
+  induction lP1; intros.
+  - symmetry in H; apply Zlength_nil_inv in H; subst.
+    apply eqp_refl.
+  - destruct lP2; [apply Zlength_nil_inv in H; discriminate|].
+    rewrite !Zlength_cons in H.
+    simpl fold_right; apply eqp_sepcon.
+    + apply predicates_hered.allp_left with 0.
+      rewrite !Znth_0_cons; auto.
+    + eapply predicates_hered.derives_trans, IHlP1; [|lia].
+      apply predicates_hered.allp_right; intro i.
+      apply predicates_hered.allp_left with (i + 1).
+      destruct (zlt i 0).
+      { rewrite !(Znth_underflow _ _ l); apply eqp_refl. }
+      rewrite !Znth_pos_cons, Z.add_simpl_r by lia; auto.
+Qed.

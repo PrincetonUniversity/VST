@@ -1498,3 +1498,31 @@ Proof.
 Qed.
 
 End DataAtNumeric.
+
+Lemma field_at_values_cohere {cs:compspecs}:
+  forall sh1 sh2 t gfs
+            (v1 v2 : reptype (nested_field_type t gfs))
+             (p: val),
+       value_defined (nested_field_type t gfs) v1 ->
+       value_defined (nested_field_type t gfs) v2 ->
+    readable_share sh1 -> readable_share sh2 ->
+   field_at sh1 t gfs v1 p * field_at sh2 t gfs v2 p |-- !!(v1=v2).
+Proof. intros.
+  unfold field_at, at_offset; Intros.
+  destruct H3 as [? _]. destruct p; try contradiction.
+  apply data_at_rec_values_cohere; auto.
+Qed.
+
+Lemma data_at_values_cohere {cs:compspecs}:
+  forall sh1 sh2 t
+            (v1 v2 : reptype t)
+             (p: val),
+       value_defined t v1 ->
+       value_defined t v2 ->
+    readable_share sh1 -> readable_share sh2 ->
+   data_at sh1 t v1 p * data_at sh2 t v2 p |-- !!(v1=v2).
+Proof. intros.
+  apply field_at_values_cohere; auto.
+Qed.
+
+

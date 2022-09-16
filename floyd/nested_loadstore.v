@@ -603,3 +603,22 @@ Proof.
     rewrite (IHgfs1 tts1 H1).
     reflexivity.
 Qed.
+
+Lemma field_at_app {cs: compspecs}:
+ forall sh t gfs1 gfs2 v v' p,
+ field_compatible t nil p ->
+ JMeq v v' ->
+ field_at sh t (gfs1++gfs2) v p =
+ field_at sh (nested_field_type t gfs2) gfs1 v' (field_address t gfs2 p).
+Proof.
+intros.
+rewrite !field_at_data_at.
+rewrite (data_at_type_changeable sh
+   (nested_field_type t (gfs1 ++ gfs2))
+  (nested_field_type (nested_field_type t gfs2) gfs1) v v'); auto.
+f_equal.
+apply field_address_app.
+symmetry; apply nested_field_type_nested_field_type.
+Qed.
+
+

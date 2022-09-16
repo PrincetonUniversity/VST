@@ -2,7 +2,6 @@ Require Import VST.veric.juicy_mem.
 Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.initial_world.
 Require Import VST.veric.ghost_PCM.
-Require Import VST.concurrency.conclib_veric.
 Require Import VST.veric.SequentialClight.
 Require Import VST.veric.mem_lessdef.
 Require Import VST.floyd.proofauto.
@@ -132,7 +131,7 @@ Proof.
   inv H2.
 Qed.
 
-Lemma ghost_not_both : forall {Z} (a1 a2 : Z) (p1 p2 : preds), 
+Lemma ghost_not_both : forall {Z} (a1 a2 : Z) (p1 p2 : preds),
   Some (ext_ghost a1, p1) <> Some (ext_both a2, p2).
 Proof.
   repeat intro.

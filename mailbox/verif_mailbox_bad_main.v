@@ -224,7 +224,7 @@ Proof.
     rewrite !sem_cast_neutral_ptr by auto.
     erewrite map_ext_in; [unfold comm_loc; cancel|].
     intros; rewrite In_upto, <- Zlength_correct in *.
-    rewrite !app_Znth1; try lia; reflexivity. 
+    rewrite !app_Znth1; try lia; reflexivity.
     { apply map_ext; intro.
       if_tac.
       - rewrite emp_sepcon; f_equal; tauto.
@@ -250,7 +250,7 @@ Proof.
   eapply semax_seq'; [|apply semax_ff].
   set (c := Znth r comms Vundef).
   eapply semax_pre with (P' := EX b0 : Z, EX h : hist, PROP (0 <= b0 < B; latest_read h b0)
-    LOCAL (temp _r (vint r); temp _arg arg; gvar _reading reading; gvar _last_read last_read; 
+    LOCAL (temp _r (vint r); temp _arg arg; gvar _reading reading; gvar _last_read last_read;
            gvar _comm comm; gvar _bufs buf)
     SEP (data_at sh1 (tarray (tptr tint) N) reads reading; data_at sh1 (tarray (tptr tint) N) lasts last_read;
          data_at Tsh tint Empty (Znth r reads Vundef); data_at Tsh tint (vint b0) (Znth r lasts Vundef);
@@ -759,7 +759,7 @@ repeat semax_func_cons_ext.
 semax_func_cons body_malloc. apply semax_func_cons_malloc_aux.
 assert (forall m0 l m2 gx ret, step_lemmas.has_opttyp ret (opttyp_of_type tint) ->
  EX x : Z, (PROP (repable_signed x) LOCAL (temp ret_temp (vint x))
-   SEP (fold_right sepcon emp (map (fun p : Z => invariant (m0 p)) l); m2 x)) 
+   SEP (fold_right sepcon emp (map (fun p : Z => invariant (m0 p)) l); m2 x))
   (make_ext_rval gx ret) |-- !! is_int I32 Signed (force_val ret)).
 { intros; unfold PROPx, LOCALx, local, lift1, liftx; simpl; unfold liftx, lift; simpl.
   Intros x; apply prop_right.

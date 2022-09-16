@@ -50,12 +50,6 @@ Section Reference.
    partial knowledge. When a client recovers all pieces, it can gain full knowledge. *)
 (* This is related to the snapshot PCM, but the snapshots aren't duplicable. *)
 
-Lemma join_Bot : forall a b, sepalg.join a b Share.bot -> a = Share.bot /\ b = Share.bot.
-Proof.
-  intros ?? (? & ?).
-  apply lub_bot_e; auto.
-Qed.
-
 Global Program Instance pos_PCM (P : Ghost) : Ghost := { G := option (share * G);
   valid a := match a with Some (sh, _) => sh <> Share.bot | _ => True end;
   Join_G a b c := match a, b, c with
@@ -402,13 +396,6 @@ Proof.
       rewrite prop_true_andp; auto.
       rewrite sepcon_comm, IHlv by auto.
       apply prop_andp_right; auto.
-Qed.
-
-Lemma join_Tsh : forall a b, sepalg.join Tsh a b -> b = Tsh /\ a = Share.bot.
-Proof.
-  intros ?? (? & ?).
-  rewrite Share.glb_commute, Share.glb_top in H; subst; split; auto.
-  apply Share.lub_bot.
 Qed.
 
 Lemma master_update : forall v v' p, ord v v' -> ghost_master Tsh v p |-- |==> ghost_master Tsh v' p.

@@ -63,11 +63,12 @@ Proof.
     simpl Datatypes.length.
     change (Z.to_nat B) with 5%nat.
     apply map_ext_in; intros ? Hin.
-    rewrite In_upto in Hin.
-    destruct (eq_dec a b0); auto.
+    rewrite In_upto in Hin. unfold eq_dec, EqDec_Z, zeq.
+    destruct (Z.eq_dec a b0); auto.
     rewrite if_false.
     rewrite Znth_repeat' by auto. auto.
     list_solve. }
+  Opaque eq_dec.
   { assert (0 <= i < Zlength lasts) by lia.
     forward.
     forward_if (PROP ( )
@@ -85,10 +86,10 @@ Proof.
       erewrite Znth_map, Znth_upto; simpl; auto; try lia.
       erewrite sublist_split with (mid := i)(hi := i + 1), sublist_len_1; auto; try lia.
       destruct (in_dec eq_dec a (sublist 0 i lasts ++ [Znth i lasts])); rewrite in_app in *.
-      + destruct (eq_dec a (Znth i lasts)); destruct (eq_dec a b0); auto.
+      + destruct (Z.eq_dec a (Znth i lasts)); destruct (eq_dec a b0); auto.
         destruct (in_dec eq_dec a (sublist 0 i lasts)); auto.
         destruct i0 as [? | [? | ?]]; subst; try contradiction.
-      + destruct (eq_dec a (Znth i lasts)).
+      + destruct (Z.eq_dec a (Znth i lasts)).
         { subst; contradiction n; simpl; auto. }
         destruct (eq_dec a b0); auto.
         destruct (in_dec eq_dec a (sublist 0 i lasts)); auto; contradiction n; auto.
@@ -166,7 +167,7 @@ Proof.
       match goal with H : typed_false _ _ |- _ => setoid_rewrite Znth_map in H; [rewrite Znth_upto in H|];
         try assumption; rewrite ?Zlength_upto, ?Z2Nat.id; try lia; unfold typed_true in H; simpl in H; inv H end.
       destruct (eq_dec _ _); auto.
-      destruct (in_dec _ _ _); auto; discriminate. 
+      destruct (in_dec _ _ _); auto; discriminate.
         all: change B with 5 in * ; lia. }
     instantiate (1 := EX i : Z, PROP (0 <= i < B; Znth i available = vint 0;
       forall j : Z, 0 <= j < i -> Znth j available = vint 0)
@@ -399,7 +400,7 @@ Proof.
     exploit (Znth_In j (t :: shs)); [rewrite Zlength_cons; auto|].
     intro Hin'; apply in_split in Hin'.
     destruct Hin' as (? & ? & Heq); rewrite Heq in Hsh1.
-    apply list_join_comm in Hsh1; inv Hsh1; eauto. }
+    apply sepalg_list.list_join_comm in Hsh1; inv Hsh1; eauto. }
   destruct (eq_dec j 0).
   - subst j; rewrite Znth_0_cons in Hj; rewrite Znth_0_cons; subst.
     rewrite eq_dec_refl in Hsh2.
@@ -432,7 +433,7 @@ Proof.
     exploit (Znth_In j (t :: shs)); [rewrite Zlength_cons; auto|].
     intro Hin'; apply in_split in Hin'.
     destruct Hin' as (? & ? & Heq); rewrite Heq in Hsh1.
-    apply list_join_comm in Hsh1; inv Hsh1; eauto. }
+    apply sepalg_list.list_join_comm in Hsh1; inv Hsh1; eauto. }
   destruct (eq_dec j 0).
   { subst; rep_lia. }
   rewrite Znth_pos_cons; [|lia].
@@ -569,9 +570,9 @@ Proof.
   apply derives_refl'; f_equal.
   match goal with |- ?l = _ => assert (Zlength l = B) as Hlen end.
   { destruct (eq_dec v' (-1)); auto; rewrite upd_Znth_Zlength; auto; lia. }
-  apply list_Znth_eq'.
+  apply Znth_eq_ext.
   { rewrite Hlen, Zlength_map, Zlength_upto; auto. }
-  rewrite Hlen; intros.
+  rewrite Hlen; intros j ?.
   assert (0 <= j <= B) by lia.
   erewrite Znth_map, Znth_upto; auto.
   destruct (eq_dec j lasti); [|destruct (eq_dec j b0)]; subst.
@@ -591,14 +592,14 @@ Proof.
       erewrite make_shares_ext, Hshs2.
       apply prop_ext; split.
       * intros (? & Hj1 & Hj2).
-        apply list_join_comm.
+        apply sepalg_list.list_join_comm.
         apply sepalg.join_comm in Hj2; destruct (sepalg_list.list_join_assoc2 Hj1 Hj2) as (? & ? & ?).
         econstructor. apply sepalg.join_comm; eassumption.
-        apply list_join_comm; auto.
-      * intro Hj; apply list_join_comm in Hj.
+        apply sepalg_list.list_join_comm; auto.
+      * intro Hj; apply sepalg_list.list_join_comm in Hj.
         inversion Hj as [|????? Hj1 Hj2]; subst.
         apply sepalg.join_comm in Hj1; destruct (sepalg_list.list_join_assoc1 Hj1 Hj2) as (? & ? & ?).
-        do 2 eexists. apply list_join_comm; eassumption. apply sepalg.join_comm; eassumption.
+        do 2 eexists. apply sepalg_list.list_join_comm; eassumption. apply sepalg.join_comm; eassumption.
       * rewrite upd_Znth_Zlength; rewrite !Zlength_map; auto.
       * rewrite Zlength_map, Zlength_upto; intros.
         rewrite Znth_map, Znth_upto; try lia; try assumption.
@@ -666,8 +667,8 @@ Proof.
       apply prop_ext; split.
       * intros (? & Hj1 & Hj2).
         apply sepalg.join_comm in Hj2; destruct (sepalg_list.list_join_assoc2 Hj1 Hj2) as (? & ? & ?).
-        apply list_join_comm; econstructor; try eassumption. apply sepalg.join_comm; eauto.
-      * intro Hj; apply list_join_comm in Hj; inversion Hj as [|????? Hj1 Hj2]; subst.
+        apply sepalg_list.list_join_comm; econstructor; try eassumption. apply sepalg.join_comm; eauto.
+      * intro Hj; apply sepalg_list.list_join_comm in Hj; inversion Hj as [|????? Hj1 Hj2]; subst.
         apply sepalg.join_comm in Hj1; destruct (sepalg_list.list_join_assoc1 Hj1 Hj2) as (? & ? & ?).
         do 2 eexists; eauto. apply sepalg.join_comm; eauto.
       * lia.
@@ -683,7 +684,7 @@ Proof.
       apply pred_ext.
       * Exists bsh'; entailer!.
       * Intros sh.
-        assert (sh = bsh') by (eapply list_join_eq; eauto; apply HshP).
+        assert (sh = bsh') by (eapply sepalg_list.list_join_eq; eauto; apply HshP).
         subst; auto.
     + rewrite upd_Znth_diff; auto.
       erewrite Znth_map, Znth_upto; auto.
@@ -779,7 +780,7 @@ Proof.
     match goal with H : if eq_dec b b then _ else _ |- _ => rewrite eq_dec_refl in H end.
     match goal with H : sepalg_list.list_join _ (sublist i N shs) _ |- _ =>
       rewrite sublist_split with (mid := i + 1) in H; try lia;
-      apply list_join_comm, sepalg_list.list_join_unapp in H; destruct H as (bsh' & ? & Hsh) end.
+      apply sepalg_list.list_join_comm, sepalg_list.list_join_unapp in H; destruct H as (bsh' & ? & Hsh) end.
     rewrite sublist_len_1, <- sepalg_list.list_join_1 in Hsh; [|lia].
     rewrite (extract_nth_sepcon (map _ (upto (Z.to_nat N))) i); [|rewrite Zlength_map; auto].
     rewrite (extract_nth_sepcon (map _ (upto (Z.to_nat N))) i); [|rewrite Zlength_map; auto].
@@ -997,7 +998,7 @@ Proof.
           [|rewrite !Zlength_map, Zlength_upto; unfold N in *; auto].
         apply map_ext_in; intros; rewrite In_upto in *.
         replace (Zlength t') with (Zlength h').
-        destruct (eq_dec a (Zlength h')).
+        destruct (Z.eq_dec a (Zlength h')).
         -- subst; rewrite app_Znth2, Zminus_diag, Znth_0_cons; auto; clear; lia.
         -- rewrite !Znth_map, Znth_upto; try lia; try assumption.
            destruct (zlt a (Zlength t')); [rewrite app_Znth1 | rewrite Znth_overflow]; auto; try lia.
@@ -1037,7 +1038,7 @@ Proof.
         intros ??? Ha; unfold singleton.
         if_tac; intro X; inv X.
         rewrite newer_out in Ha; [discriminate|].
-        rewrite sublist_all in H13 by lia.
+        rewrite sublist_same_gen in H13 by lia.
         apply Forall2_Znth; auto; lia. }
       apply map_ext; intro.
       f_equal; extensionality; f_equal; f_equal; apply prop_ext.

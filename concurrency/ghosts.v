@@ -9,6 +9,8 @@ Import List.
 
 #[export] Hint Resolve Share.nontrivial : core.
 
+Opaque eq_dec.
+
 Definition gname := own.gname.
 
 #[export] Instance Inhabitant_preds : Inhabitant preds := NoneP.
@@ -450,7 +452,7 @@ Qed.
 End Reference.
 
 #[export] Hint Resolve part_ref_valid : init.
- 
+
 #[export] Hint Resolve self_completable : init.
 
 Section GVar.

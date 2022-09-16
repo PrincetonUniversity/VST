@@ -3,6 +3,8 @@ Require Import VST.zlist.sublist.
 
 Set Bullet Behavior "Strict Subproofs".
 
+Opaque eq_dec.
+
 (* Maps are represented as partial association lists, with entries with key 0 considered to be empty. *)
 Fixpoint index_of (m : list (Z * Z)) (k : Z) :=
   match m with
