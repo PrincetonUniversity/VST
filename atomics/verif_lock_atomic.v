@@ -481,7 +481,7 @@ Section PROOFS.
         * iIntros "H1"; iFrame "excl"; iApply "Hclose".
           iFrame "R"; iExists true; iFrame.
         * iIntros (_) "[H1 _]".
-          iDestruct "excl" as "[_ >_]".
+          iDestruct "excl" as "_".
           iDestruct "Hclose" as "[_ Hclose]"; iApply ("Hclose" $! tt).
           rewrite sepcon_emp; iExists false; iFrame.
       + iAssert (|> FF) with "[excl R R1]" as ">[]".
@@ -599,7 +599,7 @@ Section PROOFS.
         * iIntros "H1"; iFrame "excl"; iApply "Hclose".
           iFrame "R"; iExists true; iFrame.
         * iIntros (_) "[H1 _]".
-          iDestruct "excl" as "[_ >_]".
+          iDestruct "excl" as "_".
           iDestruct "Hclose" as "[_ Hclose]"; iApply ("Hclose" $! tt).
           rewrite sepcon_emp; iExists false; iFrame.
       + iAssert (|> FF) with "[excl R R1]" as ">[]".
@@ -731,8 +731,8 @@ Section PROOFS.
         iFrame "H1"; iSplit.
         * iIntros "H1". iFrame. iMod "Hclose'"; iApply "Hclose".
           iLeft; unfold inv_for_lock; iExists true; iFrame; auto.
-        * iIntros (_) "[H1 _]". iDestruct "H5" as "[_ >_]". iPoseProof ("H4" with "[$H2 $H3]") as "[$ HR]"; auto.
-          iMod "Hclose'"; iApply "Hclose".
+        * iIntros (_) "[H1 _]". iDestruct "H5" as "_". iPoseProof ("H4" with "[$H2 $H3]") as "[$ HR]"; auto.
+          iMod "Hclose'"; iMod ("Hclose" with "[-]"); last done.
           iLeft; unfold inv_for_lock; iExists false; iFrame; auto.
       + iPoseProof ("H4" with "[$H2 $H3]") as "[$ HR]"; auto.
         iAssert (|>FF) with "[H5 R HR]" as ">[]".
@@ -768,7 +768,7 @@ Section PROOFS.
         iFrame "H1"; iSplit.
         * iIntros "H1". iFrame. iMod "Hclose'"; iApply "Hclose".
           iLeft; unfold inv_for_lock; iExists true; iFrame; auto.
-        * iIntros (_) "[H1 _]". iDestruct "H5" as "[_ >_]". iDestruct "R" as ">_". iFrame "H H2".
+        * iIntros (_) "[H1 _]". iDestruct "H5" as "_". iDestruct "R" as ">_". iFrame "H H2".
           iMod "Hclose'"; iApply "Hclose".
           iLeft; unfold inv_for_lock; iExists false; iFrame; auto.
       + iAssert (|>FF) with "[H5 R H3]" as ">[]".

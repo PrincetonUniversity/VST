@@ -459,6 +459,8 @@ Section GVar.
 
 Context {A : Type}.
 
+Notation ghost_var_PCM A := (@pos_PCM (discrete_PCM A)).
+
 Definition ghost_var (sh : share) (v : A) g :=
   own(RA := @pos_PCM (discrete_PCM A)) g (Some (sh, v)) NoneP.
 

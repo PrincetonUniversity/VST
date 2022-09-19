@@ -291,6 +291,18 @@ Canonical Structure mpredI : bi :=
   {| bi_ofe_mixin := mpred_ofe_mixin; bi_bi_mixin := mpred_bi_mixin;
      bi_bi_later_mixin := mpred_bi_later_mixin |}.
 
+(* an Iris extension that is satisfied by most but not all BI instances *)
+Global Instance mpred_later_contractive : BiLaterContractive mpredI.
+Proof.
+  intros ????.
+  unfold dist_later in H; change (approx (S n) (|> x) = approx (S n) (|> y))%logic.
+  rewrite !approx_later.
+  destruct n.
+  - rewrite !approx_0; auto.
+  - rewrite H; auto.
+Qed.
+
+(* updates *)
 Lemma mpred_bupd_mixin : BiBUpdMixin mpredI ghost_seplog.bupd.
 Proof.
   split.
