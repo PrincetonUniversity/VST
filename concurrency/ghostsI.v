@@ -214,3 +214,58 @@ End GHist.
 
 (* speed up destructs of the form [% H] *)
 #[export] Existing Instance class_instances.into_sep_and_persistent_l.
+
+Require Import iris.algebra.gmap.
+
+(* universe inconsistency
+#[local] Program Instance RA_ghost (A : cmra) : Ghost := { G := cmra_car A; Join_G a b c := cmra_op A a b = c }.
+*)
+
+Section gmap_ghost.
+
+Context {K} `{Countable K} {A : Type}.
+
+Program Instance gmap_ghost : Ghost := { G := gmap K A; Join_G a b c := forall k, Join_lower (Join_equiv _) (a !! k) (b !! k) (c !! k);
+  valid a := True%type }.
+Next Obligation.
+Proof.
+  exists (fun m => m); intros.
+  - hnf; intros.
+    destruct (t !! k); repeat constructor.
+  - eexists; eauto.
+  - auto.
+Defined.
+Next Obligation.
+Proof.
+  constructor; intros.
+  - apply map_eq; intros k.
+    specialize (H0 k); specialize (H1 k).
+    inv H0; inv H1; auto; try congruence.
+    inv H5; inv H8; congruence.
+  - exists (merge (union_with (fun a b => Some a)) b c); split; hnf; intros k;
+      specialize (H0 k); specialize (H1 k); rewrite lookup_merge; unfold diag_None, union_with, option_union_with.
+    + inv H0; inv H1; try constructor; try destruct (b !! k); try destruct (c !! k); try constructor; try congruence.
+      * inv H6.
+        hnf; split; congruence.
+      * inv H5; inv H8; congruence.
+      * inv H5; inv H8; congruence.
+    + inv H0.
+      * rewrite H5; inv H1; try solve [try destruct (d !! k); try destruct (c !! k); try constructor; congruence].
+        inv H6; constructor.
+      * rewrite H5; inv H1; try solve [try destruct (d !! k); try destruct (c !! k); try constructor; congruence].
+      * inv H5.
+        rewrite -H4 in H1; inv H1; repeat constructor.
+        inv H7; auto.
+  - hnf; intros.
+    specialize (H0 k); apply sepalg.join_comm; auto.
+  - apply map_eq; intros k.
+    specialize (H0 k); specialize (H1 k).
+    inv H0; inv H1; try congruence.
+    inv H5; auto.
+Qed.
+Next Obligation.
+Proof.
+  auto.
+Qed.
+
+End gmap_ghost.
