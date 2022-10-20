@@ -268,4 +268,37 @@ Proof.
   auto.
 Qed.
 
+#[export] Instance gmap_order : PCM_order (@subseteq _ map_subseteq).
+Proof.
+  constructor.
+  - apply (map_included_preorder(M := gmap K)), _.
+  - intros; exists (merge (union_with (fun a b => Some a)) a b); split.
+    + intros k.
+      rewrite lookup_merge; unfold diag_None, union_with, option_union_with.
+      destruct (a !! k) eqn: Ha, (b !! k) eqn: Hb; rewrite Ha Hb; constructor.
+      eapply lookup_weaken in H0; eauto.
+      eapply lookup_weaken in H1; eauto.
+      rewrite H0 in H1; inv H1; auto.
+    + intros k.
+      rewrite lookup_merge; unfold diag_None, union_with, option_union_with.
+      destruct (a !! k) eqn: Ha; rewrite Ha; [|destruct (b !! k) eqn: Hb; rewrite Hb].
+      * eapply lookup_weaken in H0; [|eauto]; rewrite H0.
+        destruct (b !! k) eqn: Hb; rewrite Hb; simpl; auto.
+      * eapply lookup_weaken in H1; eauto.
+        rewrite H1; simpl; auto.
+      * simpl.
+        destruct (c !! k) eqn: Hc; rewrite Hc; auto.
+  - split; intros k; specialize (H0 k); inv H0; simpl; auto.
+    + destruct (b !! k) eqn: Hb; rewrite Hb; auto.
+    + destruct (a !! k) eqn: Ha; rewrite Ha; simpl; auto.
+    + inv H4; auto.
+    + destruct (b !! k) eqn: Hb; rewrite Hb; simpl; auto.
+    + destruct (a !! k) eqn: Ha; rewrite Ha; auto.
+    + inv H4; auto.
+  - intros ??? k.
+    destruct (b !! k) eqn: Hb; rewrite Hb; [|constructor].
+    eapply lookup_weaken in H0; [|eauto]; rewrite H0; constructor; auto.
+Qed.
+
+
 End gmap_ghost.
