@@ -62,6 +62,8 @@ compcert/doc/html/
 compcert/extraction/
 compcert/test/
 
+progs/alias
+
 *.vo
 *.vos
 *.vok
