@@ -50,5 +50,34 @@ gcc   -m32 -O3 -w alias.c -o alias && ./alias; echo $?
 
 alias.v was generated using the following invocation:
 
-../../CompCert/clightgen -normalize -nostdinc -P -std=c11 alias.c
+../../CompCert/clightgen -dall -normalize -nostdinc -P -std=c11 alias.c
+
+The corresponding clight file returns 0 in all tested invocations:
+
+clang -O0 -w alias.light.c -o alias && ./alias; echo $?
+gcc   -O0 -w alias.light.c -o alias && ./alias; echo $?
+gcc   -O1 -w alias.light.c -o alias && ./alias; echo $?
+clang -fno-strict-aliasing -O1 -w alias.light.c -o alias && ./alias; echo $?
+clang -fno-strict-aliasing -O2 -w alias.light.c -o alias && ./alias; echo $?
+clang -fno-strict-aliasing -O3 -w alias.light.c -o alias && ./alias; echo $?
+gcc   -fno-strict-aliasing -O2 -w alias.light.c -o alias && ./alias; echo $?
+gcc   -fno-strict-aliasing -O3 -w alias.light.c -o alias && ./alias; echo $?
+clang -m32 -O0 -w alias.light.c -o alias && ./alias; echo $?
+gcc   -m32 -O0 -w alias.light.c -o alias && ./alias; echo $?
+gcc   -m32 -O1 -w alias.light.c -o alias && ./alias; echo $?
+clang -m32 -fno-strict-aliasing -O1 -w alias.light.c -o alias && ./alias; echo $?
+clang -m32 -fno-strict-aliasing -O2 -w alias.light.c -o alias && ./alias; echo $?
+clang -m32 -fno-strict-aliasing -O3 -w alias.light.c -o alias && ./alias; echo $?
+gcc   -m32 -fno-strict-aliasing -O2 -w alias.light.c -o alias && ./alias; echo $?
+gcc   -m32 -fno-strict-aliasing -O3 -w alias.light.c -o alias && ./alias; echo $?
+clang -O1 -w alias.light.c -o alias && ./alias; echo $?
+clang -O2 -w alias.light.c -o alias && ./alias; echo $?
+clang -O3 -w alias.light.c -o alias && ./alias; echo $?
+gcc   -O2 -w alias.light.c -o alias && ./alias; echo $?
+gcc   -O3 -w alias.light.c -o alias && ./alias; echo $?
+clang -m32 -O1 -w alias.light.c -o alias && ./alias; echo $?
+clang -m32 -O2 -w alias.light.c -o alias && ./alias; echo $?
+clang -m32 -O3 -w alias.light.c -o alias && ./alias; echo $?
+gcc   -m32 -O2 -w alias.light.c -o alias && ./alias; echo $?
+gcc   -m32 -O3 -w alias.light.c -o alias && ./alias; echo $?
 */
