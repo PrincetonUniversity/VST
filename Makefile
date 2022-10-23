@@ -500,7 +500,7 @@ PROGS32_FILES= \
   printf.v stackframe_demo.v verif_stackframe_demo.v \
 	rotate.v verif_rotate.v \
   verif_objectSelf.v verif_objectSelfFancy.v verif_objectSelfFancyOverriding.v \
-  alias.v verif_alias.v alias2.v verif_alias2.v
+  alias.v verif_alias.v
 # verif_insertion_sort.v
 
 C64_ORDINARY = reverse.c revarray.c sumarray.c append.c bin_search.c \

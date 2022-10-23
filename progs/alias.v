@@ -85,7 +85,7 @@ Definition _t'1 : ident := 128%positive.
 Definition f_foo := {|
   fn_return := tint;
   fn_callconv := cc_default;
-  fn_params := ((_p, (tptr tint)) :: (_q, (tptr tint)) :: nil);
+  fn_params := ((_p, (tptr tint)) :: (_q, (tptr (tptr tvoid))) :: nil);
   fn_vars := nil;
   fn_temps := ((_t'1, tint) :: nil);
   fn_body :=
@@ -93,7 +93,7 @@ Definition f_foo := {|
   (Sassign (Ederef (Etempvar _p (tptr tint)) tint)
     (Econst_int (Int.repr 1) tint))
   (Ssequence
-    (Sassign (Ederef (Etempvar _q (tptr tint)) tint)
+    (Sassign (Ederef (Etempvar _q (tptr (tptr tvoid))) (tptr tvoid))
       (Econst_int (Int.repr 0) tint))
     (Ssequence
       (Sset _t'1 (Ederef (Etempvar _p (tptr tint)) tint))
@@ -110,7 +110,8 @@ Definition f_main := {|
 (Ssequence
   (Ssequence
     (Scall (Some _t'1)
-      (Evar _foo (Tfunction (Tcons (tptr tint) (Tcons (tptr tint) Tnil)) tint
+      (Evar _foo (Tfunction
+                   (Tcons (tptr tint) (Tcons (tptr (tptr tvoid)) Tnil)) tint
                    cc_default))
       ((Eaddrof (Evar _x tint) (tptr tint)) ::
        (Eaddrof (Evar _x tint) (tptr tint)) :: nil))

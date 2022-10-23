@@ -18,9 +18,9 @@ extern long long __compcert_i64_sar(long long, int);
 extern long long __compcert_i64_smulh(long long, long long);
 extern unsigned long long __compcert_i64_umulh(unsigned long long, unsigned long long);
 extern void __builtin_debug(int, ...);
-int foo(int *, int *);
+int foo(int *, void **);
 int main(void);
-int foo(int *$p, int *$q)
+int foo(int *$p, void **$q)
 {
   register int $128;
   *$p = 1;

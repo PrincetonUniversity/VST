@@ -66,10 +66,6 @@ progs/alias
 progs/alias.compcert.c
 progs/alias.i
 progs/alias.parsed.c
-progs/alias2
-progs/alias2.compcert.c
-progs/alias2.i
-progs/alias2.parsed.c
 
 *.vo
 *.vos
