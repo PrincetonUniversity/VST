@@ -137,7 +137,7 @@ Proof.
       + destruct (eq_dec b (-1)); [subst; contradiction n; auto|].
         split; auto; split; auto; apply latest_read_new; auto. }
     subst c l; cancel.
-    destruct (eq_dec b (-1)); subst; auto.
+    destruct (eq_dec b (-1)); subst; apply derives_refl.
 Qed.
 
 Lemma body_finish_read : semax_body Vprog Gprog f_finish_read finish_read_spec.
