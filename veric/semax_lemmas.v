@@ -579,8 +579,8 @@ auto.
 apply necR_level in H6.
 apply necR_level in Hw4.
 apply ext_level in Hext3, Hext4.
-eapply le_trans; try eassumption.
-eapply le_trans; try eassumption.
+eapply Nat.le_trans; try eassumption.
+eapply Nat.le_trans; try eassumption.
 rewrite Hext3; setoid_rewrite <- Hext4; auto.
 
 specialize (H5 (conj H8 H10)). clear H8 H9 H10.
@@ -594,8 +594,8 @@ apply sepcon_subp' with (level w2); auto.
 apply necR_level in H6.
 apply necR_level in Hw4.
 apply ext_level in Hext3, Hext4.
-eapply le_trans; try eassumption.
-eapply le_trans; try eassumption.
+eapply Nat.le_trans; try eassumption.
+eapply Nat.le_trans; try eassumption.
 rewrite Hext3; setoid_rewrite <- Hext4; auto.
 Qed.
 
@@ -608,7 +608,7 @@ Lemma semax_extensionality1 {CS: compspecs} {Espec: OracleKind}:
 Proof.
 intros.
 intros n ?.
-apply (semax_extensionality0 n I Delta Delta' P P' c R R' _ (le_refl _) _ _ (necR_refl _) (ext_refl _)).
+apply (semax_extensionality0 n I Delta Delta' P P' c R R' _ (Nat.le_refl _) _ _ (necR_refl _) (ext_refl _)).
 destruct H0;
 split; auto.
 destruct H0;

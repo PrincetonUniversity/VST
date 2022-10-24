@@ -526,7 +526,7 @@ Proof.
         rewrite <- !Z.add_assoc. f_equal. simpl Ctypes.sizeof. replace (Z.max 0 m) with m by lia.
         rewrite <- Z.mul_assoc. rewrite <- Z.mul_add_distr_l. f_equal.
         replace (Z.max 0 m) with m by lia.
-        rewrite <- Z_div_mod_eq. reflexivity. lia.
+        rewrite <- Z_div_mod_eq_full. reflexivity.
     - split. assumption. inversion Hal2; subst. inversion H.
       inversion Hal1; subst. inversion H.  apply align_compatible_rec_Tarray. intros j Hj.
       apply align_compatible_rec_Tarray. intros k Hk.

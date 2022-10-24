@@ -302,7 +302,7 @@ rewrite H5 in H2.
 unfold nat_of_P in H2.
 generalize (le_Pmult_nat p 1) as H6; intro.
 rewrite Pmult_nat_mult in H6.
-rewrite mult_1_r in H6.
+rewrite Nat.mul_1_r in H6.
 change (Pos.to_nat p) with (Z.to_nat (Z.pos p)) in H6.
 rewrite H2 in H6.
 lia.

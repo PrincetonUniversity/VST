@@ -242,8 +242,8 @@ Proof.
   rewrite app_length in Hn; simpl in Hn.
   destruct (eq_dec n (length l)).
   - subst.
-    erewrite app_nth2, minus_diag in Hjoin by lia; simpl in Hjoin.
-    erewrite replace_nth_app, if_false, minus_diag by lia; simpl.
+    erewrite app_nth2, Nat.sub_diag in Hjoin by lia; simpl in Hjoin.
+    erewrite replace_nth_app, if_false, Nat.sub_diag by lia; simpl.
     apply list_join_app; try (rewrite repeat_length; auto).
     + apply list_join_None; auto.
     + repeat constructor; auto.
@@ -344,7 +344,7 @@ Proof.
 Qed.
 
 Lemma list_join_max : forall {P : Ghost} l1 l2 l3, list_join l1 l2 l3 ->
-  length l3 = Max.max (length l1) (length l2).
+  length l3 = Nat.max (length l1) (length l2).
 Proof.
   induction 1; simpl; auto.
   rewrite Nat.max_l; auto; lia.
@@ -446,7 +446,7 @@ Proof.
             split.
             ++ apply list_join_alt; intro.
                pose proof (list_join_max _ _ _ H2) as Hlen.
-               destruct (Max.max_spec (length (removelast a)) (length b)) as [[? Hmax] | [? Hmax]];
+               destruct (Nat.max_spec (length (removelast a)) (length b)) as [[? Hmax] | [? Hmax]];
                  setoid_rewrite Hmax in Hlen; try lia.
                hnf in H2; erewrite list_join_alt in H2.
                specialize (H2 n0).
@@ -457,7 +457,7 @@ Proof.
                   erewrite nth_error_replace_nth' by lia; auto.
                ** erewrite nth_error_app2 by lia.
                   destruct (eq_dec n0 (length (removelast a))).
-                  { subst; rewrite minus_diag; simpl.
+                  { subst; rewrite Nat.sub_diag; simpl.
                     erewrite nth_error_replace_nth by (simpl in *; lia).
                     destruct (nth_error b (length (removelast a))) eqn: Hb; setoid_rewrite Hb; constructor.
                     destruct o; constructor.
@@ -467,7 +467,7 @@ Proof.
                     apply Hc in H7.
                     destruct H as [_ Hc'].
                     specialize (Hc' (length (removelast a))).
-                    erewrite app_nth2, minus_diag in Hc' by auto.
+                    erewrite app_nth2, Nat.sub_diag in Hc' by auto.
                     setoid_rewrite Hc' in H7; [|reflexivity].
                     inv H7; constructor; auto. }
                   { destruct (_ - _)%nat eqn: Hminus; [lia | simpl].
@@ -483,7 +483,7 @@ Proof.
                subst; erewrite nth_replace_nth in Hnth by (simpl in *; lia).
                inv Hnth.
                apply H.
-               erewrite app_nth2, minus_diag; auto.
+               erewrite app_nth2, Nat.sub_diag; auto.
          -- exists c'; split; auto.
             erewrite (app_removelast_last None), Ha by auto.
             apply @list_join_filler with (n := 1%nat); auto; simpl in *; lia.
@@ -707,7 +707,7 @@ Lemma nth_singleton : forall {A} n (a : A) d, nth n (list_singleton n a) d = Som
 Proof.
   intros; unfold list_singleton.
   rewrite app_nth2; rewrite repeat_length; auto.
-  rewrite minus_diag; auto.
+  rewrite Nat.sub_diag; auto.
 Qed.
 
 Lemma list_join_singleton_inv : forall {P : Ghost} n a b l,
@@ -798,7 +798,7 @@ Proof.
         rewrite nth_repeat; discriminate.
       * rewrite app_nth2; rewrite repeat_length; try lia.
         destruct (eq_dec n0 n); [|erewrite nth_overflow by (simpl; lia); discriminate].
-        subst; rewrite minus_diag; simpl.
+        subst; rewrite Nat.sub_diag; simpl.
         intro X; inv X; auto.
 Qed.
 
@@ -874,7 +874,7 @@ Proof.
     apply join_comm in H1.
     pose proof (list_join_length _ _ _ H1) as Hlen'.
     apply (join_comm(Perm_alg := list_Perm)), (list_join_over c).
-    { erewrite app_length, map_length, repeat_length, le_plus_minus_r; auto. }
+    { erewrite app_length, map_length, repeat_length, Nat.add_comm, Nat.sub_add; auto. }
     apply (join_comm(Perm_alg := list_Perm)), (list_join_filler(P := token_PCM));
       [|rewrite map_length; auto].
     apply join_comm in H1; auto. }
@@ -993,13 +993,13 @@ Proof.
     rewrite map_length in Hlen.
     split.
     { exists (i - length lg)%nat; rewrite H, H0; split; auto.
-      rewrite le_plus_minus_r; auto; lia. }
+      rewrite Nat.add_comm, Nat.sub_add; auto; lia. }
     exists (x ++ repeat None (i - length x) ++ [Some (Some tt)]); split; simpl; auto.
     erewrite !map_app, own.map_repeat; simpl.
     apply join_comm in H1.
     rewrite app_assoc; apply (join_comm(Perm_alg := list_Perm)), (list_join_over c).
     { apply list_join_length in H1.
-      rewrite app_length, map_length, repeat_length, le_plus_minus_r; auto; lia. }
+      rewrite app_length, map_length, repeat_length, Nat.add_comm, Nat.sub_add; auto; lia. }
     replace (i - length lb)%nat with ((length x - length lb) + (i - length x))%nat by lia.
     rewrite repeat_app, app_assoc; apply (list_join_over c).
     { apply list_join_length in H1.

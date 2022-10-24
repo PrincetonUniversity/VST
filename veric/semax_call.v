@@ -1494,7 +1494,7 @@ apply (pred_nec_hereditary _ _ (level m')) in H15.
 apply (pred_nec_hereditary _ _ (level m')) in H15;
  [ | apply nec_nat; lia].
 rewrite Eef in *.
-specialize (H15 m' (le_refl _) _ _ (necR_refl _) (ext_refl _) H6).
+specialize (H15 m' (Nat.le_refl _) _ _ (necR_refl _) (ext_refl _) H6).
 assert (LAT: laterM (level (m_phi jm)) (level jm')). { simpl; apply laterR_level'. constructor. apply age_jm_phi. apply Hage. }
 apply (pred_nec_hereditary _ _ _ (laterR_necR LAT)) in H1.
 
@@ -2201,7 +2201,7 @@ apply guard_fallthrough_return; auto.
  intros wx ? ? w' ? Hext ?.
  assert (level jmx >= level w')%nat.
  { apply necR_level in H9.
-   apply le_trans with (level wx); auto.
+   apply Nat.le_trans with (level wx); auto.
    apply ext_level in Hext as <-; auto. }
  clear wx H8 H9.
  simpl; intros ora' jm' Hora' VR ?.
@@ -2965,7 +2965,7 @@ intros tx vx.
 intros ? ? ? ? NecR_ya' Hext [[TC3 ?] funassertDelta'].
 
 assert (NecR_wa': necR w (level a')).
-{ apply nec_nat. apply necR_level in NecR_ya'. apply le_trans with (level y); auto. }
+{ apply nec_nat. apply necR_level in NecR_ya'. apply Nat.le_trans with (level y); auto. }
 eapply pred_nec_hereditary in RGUARD; [ | apply NecR_wa'].
 eapply pred_nec_hereditary in Prog_OK; [ | apply NecR_wa'].
 clear w NecR_wa' NecR_ya' y H.
@@ -3236,7 +3236,7 @@ intros tx vx.
 intros ? ? ? ? NecR_ya' Hext [[TC3 ?] funassertDelta'].
 
 assert (NecR_wa': necR w (level a')).
-{ apply nec_nat. apply necR_level in NecR_ya'. apply le_trans with (level y); auto. }
+{ apply nec_nat. apply necR_level in NecR_ya'. apply Nat.le_trans with (level y); auto. }
 eapply pred_nec_hereditary in RGUARD; [ | apply NecR_wa'].
 eapply pred_nec_hereditary in Prog_OK; [ | apply NecR_wa'].
 clear w NecR_wa' NecR_ya' y H.
@@ -3689,7 +3689,7 @@ Proof.
   {
     apply nec_nat.
     apply necR_level in H2.
-    apply le_trans with (level n); auto.
+    apply Nat.le_trans with (level n); auto.
     apply ext_level in Hext' as <-; auto.
   }
   apply (pred_nec_hereditary _ _ _ H4) in H0.
@@ -3718,7 +3718,7 @@ Proof.
   }
   clear H1; rename H1' into H1.
   specialize (H0 EK_return (cast_expropt ret (ret_type Delta') rho) te ve).
-  specialize (H0 _ (le_refl _) _ _ (necR_refl _) (ext_refl _)).
+  specialize (H0 _ (Nat.le_refl _) _ _ (necR_refl _) (ext_refl _)).
   spec H0.
   {
     rewrite <- Heqrho.

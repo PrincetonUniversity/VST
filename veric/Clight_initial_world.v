@@ -172,7 +172,7 @@ simpl in H1,Hm.
 invSome.
 specialize (IHdl _ Hm).
 destruct (eq_dec (Pos.to_nat b) (S (length dl))).
-+ rewrite e, minus_diag in H5. simpl in H5.
++ rewrite e, Nat.sub_diag in H5. simpl in H5.
   inversion H5; clear H5; subst a.
   apply alloc_globals_rev_nextblock in Hm.
   rewrite Zlength_correct in Hm.
@@ -353,7 +353,7 @@ simpl in H1,Hm.
 invSome.
 specialize (IHdl _ Hm).
 destruct (eq_dec (Pos.to_nat b) (S (length dl))).
-+ rewrite e, minus_diag in H5. simpl in H5.
++ rewrite e, Nat.sub_diag in H5. simpl in H5.
   inversion H5; clear H5; subst a.
   apply alloc_globals_rev_nextblock in Hm.
   rewrite Zlength_correct in Hm.

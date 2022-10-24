@@ -502,7 +502,7 @@ Proof.
     eapply subp_trans'; [ | eapply (H3 EK_return) ; eauto].
     simpl proj_ret_assert. destruct POST; simpl tycontext.RA_return.
     apply subp_refl'. }
-  specialize (H' tx vx _ (le_refl _) _ _ (necR_refl _) (ext_refl _)); spec H'.
+  specialize (H' tx vx _ (Nat.le_refl _) _ _ (necR_refl _) (ext_refl _)); spec H'.
   { subst; split; auto; split; auto. }
  auto.
 Qed.

@@ -352,12 +352,12 @@ Lemma ghost_fp_update_approx: forall a b n, ghost_fp_update a b ->
 Proof.
   intros; intros m c J.
   rewrite ghost_fmap_fmap in *.
-  replace (approx m oo approx n) with (approx (min m n)) in *.
-  replace (approx n oo approx m) with (approx (min m n)) in *.
+  replace (approx m oo approx n) with (approx (Nat.min m n)) in *.
+  replace (approx n oo approx m) with (approx (Nat.min m n)) in *.
   auto.
-  { destruct (Min.min_spec m n) as [[? ->] | [? ->]];
+  { destruct (Nat.min_spec m n) as [[? ->] | [? ->]];
       [rewrite approx'_oo_approx | rewrite approx_oo_approx']; auto; lia. }
-  { destruct (Min.min_spec m n) as [[? ->] | [? ->]];
+  { destruct (Nat.min_spec m n) as [[? ->] | [? ->]];
       [rewrite approx_oo_approx' | rewrite approx'_oo_approx]; auto; lia. }
 Qed.
 
@@ -591,7 +591,7 @@ Proof.
     assert (m2 = m3) by (inv H5; auto).
     inv H2; eauto.
   - rewrite app_nth2; rewrite repeat_length; auto.
-    rewrite minus_diag; split; [constructor | simpl; eauto].
+    rewrite Nat.sub_diag; split; [constructor | simpl; eauto].
   - assert (a2 = a3) by (inv H2; auto).
     destruct (IHk _ _ _ H5) as (? & ? & ? & ?); subst; eauto.
 Qed.
@@ -678,7 +678,7 @@ Lemma list_set_set : forall {A} n l (a b : A), (n <= length l)%nat ->
 Proof.
   intros; unfold list_set.
   rewrite (proj2 (Nat.sub_0_le _ _) H).
-  rewrite !app_length, !skipn_app, firstn_app, firstn_length, min_l, minus_diag, app_nil_r, repeat_length by auto.
+  rewrite !app_length, !skipn_app, firstn_app, firstn_length, min_l, Nat.sub_diag, app_nil_r, repeat_length by auto.
   rewrite firstn_firstn, min_l by auto; f_equal.
   unfold length; setoid_rewrite skipn_length; f_equal.
   - f_equal. lia.
