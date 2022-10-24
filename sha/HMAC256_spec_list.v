@@ -104,7 +104,7 @@ Proof.
     rewrite -> toBlocks_equation.
     destruct full.
       assert (@length bool nil = length (front ++ back)). rewrite <- H0; reflexivity.
-      rewrite app_length, H in H1. remember (length back). clear - H1. rewrite plus_comm in H1. simpl in H1. lia.
+      rewrite app_length, H in H1. remember (length back). clear - H1. rewrite Nat.add_comm in H1. simpl in H1. lia.
     rewrite H0, app_length, H, leb_correct_conv. 2: lia.
     rewrite -> firstn_exact; trivial.
     rewrite -> skipn_exact; trivial.
@@ -234,8 +234,8 @@ Proof. intros.
   remember (l1 ++ l2).
   destruct l.
   { assert (@length bool nil = length (l1 ++ l2)). rewrite <- Heql; trivial.
-    rewrite app_length, H in H0. rewrite plus_comm in H0. simpl in H0. lia. }
-  { rewrite  leb_correct_conv. 2: rewrite H, plus_comm; lia.
+    rewrite app_length, H in H0. rewrite Nat.add_comm in H0. simpl in H0. lia. }
+  { rewrite  leb_correct_conv. 2: rewrite H, Nat.add_comm; lia.
     remember (toBlocks l2).
     rewrite toBlocks_equation.
     destruct l1. simpl in H; lia.

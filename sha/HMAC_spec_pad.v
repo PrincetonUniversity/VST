@@ -293,8 +293,8 @@ Proof.
           3: assumption.
           apply InBlocks_len. rewrite bytesToBits_len, length_intlist_to_bytelist.
              rewrite <- DB32. destruct (GAP bits). rewrite H. exists x.
-             rewrite mult_comm, mult_assoc.
-             assert ((8*4= 32)%nat) by lia. rewrite H0. rewrite mult_comm, <- mult_assoc. trivial.
+             rewrite Nat.mul_comm, Nat.mul_assoc.
+             assert ((8*4= 32)%nat) by lia. rewrite H0. rewrite Nat.mul_comm, <- Nat.mul_assoc. trivial.
           apply InBlocks_len. apply GAP.
         }
     }
@@ -384,7 +384,7 @@ Proof. intros.
     { subst bytes. unfold generate_and_pad'.
       rewrite pure_lemmas.Zlist_to_intlist_to_Zlist; trivial.
         destruct (pad_len_64_nat (bitsToBytes bits0)). rewrite H.
-          exists ((x*16)%nat). rewrite mult_comm, <- mult_assoc. reflexivity.
+          exists ((x*16)%nat). rewrite Nat.mul_comm, <- Nat.mul_assoc. reflexivity.
         apply pad_isbyteZ. eapply bitsToBytes_isbyteZ. reflexivity. }
     apply (bytesBitsLists_isbyteZ _ _ H).
   intros; unfold HP.SHA256.Hash.
