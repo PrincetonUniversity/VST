@@ -668,7 +668,7 @@ Proof.
  symmetry in Heqq. apply GenUpdate_original_core_length in Heqq.
  assert (Datatypes.length (bitsToBytes (Fold.flatten (map Vector.to_list l))) = (32*n)%nat).
  apply bitsToBytes_len_gen. rewrite CompFold.length_flatten. simpl. rewrite CompFold.fold_left_map_eq.
- subst n. rewrite fold_vector_length. simpl. rewrite (mult_comm 32). rewrite <- mult_assoc.
+ subst n. rewrite fold_vector_length. simpl. rewrite (Nat.mul_comm 32). rewrite <- Nat.mul_assoc.
  replace (32*8)%nat with 256%nat. trivial. lia.
  rewrite H. lia.
 Qed.  

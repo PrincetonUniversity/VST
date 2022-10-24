@@ -107,10 +107,10 @@ Proof.
   intros.
   change 10 with (Z.of_nat 10).
   rewrite <- (Z2Nat.id n) by lia.
-  rewrite <- div_Zdiv by discriminate.
+  rewrite <- Nat2Z.inj_div by discriminate.
   rewrite !Nat2Z.id.
   apply Nat2Z.inj_lt.
-  rewrite div_Zdiv, Z2Nat.id by lia; simpl.
+  rewrite Nat2Z.inj_div, Z2Nat.id by lia; simpl.
   apply Z.div_lt; auto; lia.
 Qed.
 

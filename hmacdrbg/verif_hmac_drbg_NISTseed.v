@@ -67,7 +67,7 @@ Proof. intros.
   destruct d. eexists; eexists; trivial.
   symmetry in H; symmetry in Heqd.
   specialize (Entropy_addError _ (n-m)%nat _ _ _ Heqd).
-     rewrite le_plus_minus_r; trivial.
+     rewrite Nat.add_comm, Nat.sub_add; trivial.
   intros HH; rewrite HH in *. discriminate.
 Qed.
 
@@ -81,12 +81,12 @@ Proof. intros.
   symmetry in Heqr.
   remember (ENTROPY.get_bytes (n-m)%nat s0) as t.
   destruct t; symmetry in Heqt.
-  - specialize (Entropy_addSuccess1 m (n-m)%nat s s0). rewrite Heqr, Heqt, le_plus_minus_r; trivial.
+  - specialize (Entropy_addSuccess1 m (n-m)%nat s s0). rewrite Heqr, Heqt, Nat.add_comm, Nat.sub_add; trivial.
     intros X. rewrite (X _ _ _ (eq_refl _) (eq_refl _)) in H; clear X Heqr Heqt. inv H. exists l1; split; trivial.
-  - specialize (Entropy_addSuccess2 m (n-m)%nat s s0). rewrite Heqr, Heqt, le_plus_minus_r; trivial.
+  - specialize (Entropy_addSuccess2 m (n-m)%nat s s0). rewrite Heqr, Heqt, Nat.add_comm, Nat.sub_add; trivial.
     intros X. rewrite (X _ _ _ (eq_refl _) (eq_refl _)) in H; clear X Heqr Heqt. inv H.
 + symmetry in Heqr; exfalso. 
-  specialize (Entropy_addError m (n-m)%nat s). rewrite Heqr, le_plus_minus_r; trivial.
+  specialize (Entropy_addError m (n-m)%nat s). rewrite Heqr, Nat.add_comm, Nat.sub_add; trivial.
   intros X. rewrite (X _ _ (eq_refl _)) in H. inv H.
 Qed.
 

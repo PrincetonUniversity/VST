@@ -2457,14 +2457,14 @@ Module Share <: SHARE_MODEL.
   Fixpoint tree_heightP (t : ShareTree) : nat :=
    match t with
    | Leaf b  => 0
-   | Node l r => (max (tree_heightP l) (tree_heightP r)) + 1
+   | Node l r => (Nat.max (tree_heightP l) (tree_heightP r)) + 1
   end.
 
   Definition tree_height (t : canonTree) := tree_heightP (proj1_sig t).
   Definition tree_height_zero (t : canonTree) : {tree_height t = 0} + {tree_height t <> 0}.
     destruct t. destruct x.
     left. reflexivity.
-    right. unfold tree_height. simpl. intro. rewrite plus_comm in H. inversion H.
+    right. unfold tree_height. simpl. intro. rewrite Nat.add_comm in H. inversion H.
   Defined.
   #[global] Instance tree_heightable : heightable t :=
     Heightable tree_height tree_height_zero.
@@ -2494,9 +2494,9 @@ Proof.
  inv teq1.
  destruct c as [? [? [? ?]]].
  unfold tree_height. simpl.
- remember (max (tree_heightP s1) (tree_heightP s2) + 1).
- assert (n1 <= max n1 (tree_heightP s0)).
-   apply le_max_l.
+ remember (Nat.max (tree_heightP s1) (tree_heightP s2) + 1).
+ assert (n1 <= Nat.max n1 (tree_heightP s0)).
+   apply Nat.le_max_l.
  lia.
 Set Warnings "-funind-cannot-build-inversion,-funind-cannot-define-graph".
  Defined.
@@ -2696,8 +2696,8 @@ Qed.
                                       mkCanon (union_tree t1 t2).
  Proof.
     intros.
-    assert (exists n, n >= max (tree_heightP t1) (tree_heightP t2)).
-      exists (max (tree_heightP t1) (tree_heightP t2));lia.
+    assert (exists n, n >= Nat.max (tree_heightP t1) (tree_heightP t2)).
+      exists (Nat.max (tree_heightP t1) (tree_heightP t2));lia.
     destruct H.
     revert H.
     revert t2 t1.
@@ -2706,13 +2706,13 @@ Qed.
       remember (tree_heightP (Node t2_1 t2_2)).
       icase n.
       inversion Heqn.
-      destruct (max (tree_heightP t2_1) (tree_heightP t2_2));elimtype False ;lia.
+      destruct (Nat.max (tree_heightP t2_1) (tree_heightP t2_2));elimtype False ;lia.
       inversion H.
       inversion H.
-      destruct (max (tree_heightP t1_1) (tree_heightP t1_2));inversion H1.
+      destruct (Nat.max (tree_heightP t1_1) (tree_heightP t1_2));inversion H1.
       inversion H.
-      destruct (max (tree_heightP t1_1) (tree_heightP t1_2));
-      destruct (max (tree_heightP t2_1) (tree_heightP t2_2));
+      destruct (Nat.max (tree_heightP t1_1) (tree_heightP t1_2));
+      destruct (Nat.max (tree_heightP t2_1) (tree_heightP t2_2));
       inversion H1.
     icase t1;icase t2.
     replace (mkCanon (Leaf b)) with (Leaf b) by apply mkCanon_Leaf.
@@ -2730,54 +2730,54 @@ Qed.
     unfold union_tree.
     apply mkCanon_double.
 
-    assert (x >= max (tree_heightP t1_1) (tree_heightP t2_1)).
+    assert (x >= Nat.max (tree_heightP t1_1) (tree_heightP t2_1)).
       simpl in H.
-      replace (max (tree_heightP t1_1) (tree_heightP t1_2) + 1)
-      with (S (max (tree_heightP t1_1) (tree_heightP t1_2)))
+      replace (Nat.max (tree_heightP t1_1) (tree_heightP t1_2) + 1)
+      with (S (Nat.max (tree_heightP t1_1) (tree_heightP t1_2)))
       in H by lia.
-      replace (max (tree_heightP t2_1) (tree_heightP t2_2) + 1)
-      with (S (max (tree_heightP t2_1) (tree_heightP t2_2)))
+      replace (Nat.max (tree_heightP t2_1) (tree_heightP t2_2) + 1)
+      with (S (Nat.max (tree_heightP t2_1) (tree_heightP t2_2)))
       in H by lia.
-      generalize (succ_max_distr ((max (tree_heightP t1_1) (tree_heightP t1_2)))
-      ((max (tree_heightP t2_1) (tree_heightP t2_2))));intro.
+      generalize (Nat.succ_max_distr ((Nat.max (tree_heightP t1_1) (tree_heightP t1_2)))
+      ((Nat.max (tree_heightP t2_1) (tree_heightP t2_2))));intro.
       rewrite<- H0 in H;clear H0.
-      assert (x >= max (max (tree_heightP t1_1) (tree_heightP t1_2))
-         (max (tree_heightP t2_1) (tree_heightP t2_2))) by lia.
-      assert (max (max (tree_heightP t1_1) (tree_heightP t1_2))
-       (max (tree_heightP t2_1) (tree_heightP t2_2)) >= max (tree_heightP t1_1) (tree_heightP t1_2)).
-       apply le_max_l.
-      assert (max (max (tree_heightP t1_1) (tree_heightP t1_2))
-       (max (tree_heightP t2_1) (tree_heightP t2_2)) >= max (tree_heightP t2_1) (tree_heightP t2_2)).
-       apply le_max_r.
-      assert (max (tree_heightP t1_1) (tree_heightP t1_2) >= tree_heightP t1_1).
-       apply le_max_l.
-      assert (max (tree_heightP t2_1) (tree_heightP t2_2) >= tree_heightP t2_1).
-       apply le_max_l.
-      apply max_lub;lia.
-    assert (x >= max (tree_heightP t1_2) (tree_heightP t2_2)).
+      assert (x >= Nat.max (Nat.max (tree_heightP t1_1) (tree_heightP t1_2))
+         (Nat.max (tree_heightP t2_1) (tree_heightP t2_2))) by lia.
+      assert (Nat.max (Nat.max (tree_heightP t1_1) (tree_heightP t1_2))
+       (Nat.max (tree_heightP t2_1) (tree_heightP t2_2)) >= Nat.max (tree_heightP t1_1) (tree_heightP t1_2)).
+       apply Nat.le_max_l.
+      assert (Nat.max (Nat.max (tree_heightP t1_1) (tree_heightP t1_2))
+       (Nat.max (tree_heightP t2_1) (tree_heightP t2_2)) >= Nat.max (tree_heightP t2_1) (tree_heightP t2_2)).
+       apply Nat.le_max_r.
+      assert (Nat.max (tree_heightP t1_1) (tree_heightP t1_2) >= tree_heightP t1_1).
+       apply Nat.le_max_l.
+      assert (Nat.max (tree_heightP t2_1) (tree_heightP t2_2) >= tree_heightP t2_1).
+       apply Nat.le_max_l.
+      apply Nat.max_lub;lia.
+    assert (x >= Nat.max (tree_heightP t1_2) (tree_heightP t2_2)).
       simpl in H.
-      replace (max (tree_heightP t1_1) (tree_heightP t1_2) + 1)
-      with (S (max (tree_heightP t1_1) (tree_heightP t1_2)))
+      replace (Nat.max (tree_heightP t1_1) (tree_heightP t1_2) + 1)
+      with (S (Nat.max (tree_heightP t1_1) (tree_heightP t1_2)))
       in H by lia.
-      replace (max (tree_heightP t2_1) (tree_heightP t2_2) + 1)
-      with (S (max (tree_heightP t2_1) (tree_heightP t2_2)))
+      replace (Nat.max (tree_heightP t2_1) (tree_heightP t2_2) + 1)
+      with (S (Nat.max (tree_heightP t2_1) (tree_heightP t2_2)))
       in H by lia.
-      generalize (succ_max_distr ((max (tree_heightP t1_1) (tree_heightP t1_2)))
-      ((max (tree_heightP t2_1) (tree_heightP t2_2))));intro.
+      generalize (Nat.succ_max_distr ((Nat.max (tree_heightP t1_1) (tree_heightP t1_2)))
+      ((Nat.max (tree_heightP t2_1) (tree_heightP t2_2))));intro.
       rewrite<- H1 in H;clear H1.
-      assert (x >= max (max (tree_heightP t1_1) (tree_heightP t1_2))
-         (max (tree_heightP t2_1) (tree_heightP t2_2))) by lia.
-      assert (max (max (tree_heightP t1_1) (tree_heightP t1_2))
-       (max (tree_heightP t2_1) (tree_heightP t2_2)) >= max (tree_heightP t1_1) (tree_heightP t1_2)).
-       apply le_max_l.
-      assert (max (max (tree_heightP t1_1) (tree_heightP t1_2))
-       (max (tree_heightP t2_1) (tree_heightP t2_2)) >= max (tree_heightP t2_1) (tree_heightP t2_2)).
-       apply le_max_r.
-      assert (max (tree_heightP t1_1) (tree_heightP t1_2) >= tree_heightP t1_2).
-       apply le_max_r.
-      assert (max (tree_heightP t2_1) (tree_heightP t2_2) >= tree_heightP t2_2).
-       apply le_max_r.
-      apply max_lub;lia.
+      assert (x >= Nat.max (Nat.max (tree_heightP t1_1) (tree_heightP t1_2))
+         (Nat.max (tree_heightP t2_1) (tree_heightP t2_2))) by lia.
+      assert (Nat.max (Nat.max (tree_heightP t1_1) (tree_heightP t1_2))
+       (Nat.max (tree_heightP t2_1) (tree_heightP t2_2)) >= Nat.max (tree_heightP t1_1) (tree_heightP t1_2)).
+       apply Nat.le_max_l.
+      assert (Nat.max (Nat.max (tree_heightP t1_1) (tree_heightP t1_2))
+       (Nat.max (tree_heightP t2_1) (tree_heightP t2_2)) >= Nat.max (tree_heightP t2_1) (tree_heightP t2_2)).
+       apply Nat.le_max_r.
+      assert (Nat.max (tree_heightP t1_1) (tree_heightP t1_2) >= tree_heightP t1_2).
+       apply Nat.le_max_r.
+      assert (Nat.max (tree_heightP t2_1) (tree_heightP t2_2) >= tree_heightP t2_2).
+       apply Nat.le_max_r.
+      apply Nat.max_lub;lia.
     generalize (IHx _ _ H0);intro.
     generalize (IHx _ _ H1);intro.
     remember (mkCanon (Node t1_1 t1_2));
@@ -3421,7 +3421,7 @@ Qed.
     generalize (IHn t0_2 H0);intro.
     rewrite H1.
     rewrite H2.
-    rewrite max_l; lia.
+    rewrite Nat.max_l; lia.
   Qed.
 
   Lemma fullTreeP_combine : forall t1 t2 n, fullTreeP t1 n -> fullTreeP t2 n ->
@@ -3443,12 +3443,12 @@ Qed.
    remember (tree_heightP (Node t0 t0)).
    icase n.
    simpl in  Heqn.
-   rewrite max_l in Heqn; trivial.
+   rewrite Nat.max_l in Heqn; trivial.
    destruct (tree_heightP t0);
    inversion Heqn.
    apply fullTreeP_combine;
    simpl in Heqn;
-   rewrite max_l in Heqn;trivial;
+   rewrite Nat.max_l in Heqn;trivial;
    assert (n = tree_heightP t0) by lia;
    rewrite H0;
    trivial.
@@ -3464,7 +3464,7 @@ Qed.
     remember (tree_heightP (Node t1 t2)).
     icase n.
     simpl in Heqn.
-    destruct ( max (tree_heightP t1) (tree_heightP t2));
+    destruct ( Nat.max (tree_heightP t1) (tree_heightP t2));
     inversion Heqn.
     generalize (fullTreeP_subL n t1 t2 H);intro.
     generalize (fullTreeP_subR n t1 t2 H);intro.
@@ -3482,8 +3482,8 @@ Qed.
     simpl in *.
     rewrite H1 in *.
     split.
-    destruct (max (tree_heightP t2) (tree_heightP t2));lia.
-    rewrite max_l;trivial.
+    destruct (Nat.max (tree_heightP t2) (tree_heightP t2));lia.
+    rewrite Nat.max_l;trivial.
     replace (tree_heightP t2 + 1 - 1) with (tree_heightP t2) in * by lia.
     tauto.
   Qed.
@@ -3501,7 +3501,7 @@ Qed.
     specialize ( IHn (Leaf b) s Heqo).
     inversion H1.
     simpl.
-    rewrite max_l;trivial.
+    rewrite Nat.max_l;trivial.
     lia.
     inversion H1.
     remember (mkFull n t0_1).
@@ -3516,7 +3516,7 @@ Qed.
     simpl.
     rewrite H0.
     rewrite H2.
-    rewrite max_l;trivial.
+    rewrite Nat.max_l;trivial.
     lia.
     inversion H1.
     inversion H1.
@@ -3624,7 +3624,7 @@ Qed.
    inversion H.
    inversion H.
    simpl in H.
-   assert (n < max (tree_heightP t0_1) (tree_heightP t0_2)) by lia.
+   assert (n < Nat.max (tree_heightP t0_1) (tree_heightP t0_2)) by lia.
    generalize (Nat.max_lt_iff);intro.
    specialize ( H1 (tree_heightP t0_1) (tree_heightP t0_2) n).
    destruct H1 as [? _].
@@ -3656,9 +3656,9 @@ Qed.
     exists (Node x x).
     trivial.
     simpl in H.
-    assert (n >= max (tree_heightP t0_1) (tree_heightP t0_2)) by lia.
-    generalize (le_max_l (tree_heightP t0_1) (tree_heightP t0_2));intro.
-    generalize (le_max_r (tree_heightP t0_1) (tree_heightP t0_2));intro.
+    assert (n >= Nat.max (tree_heightP t0_1) (tree_heightP t0_2)) by lia.
+    generalize (Nat.le_max_l (tree_heightP t0_1) (tree_heightP t0_2));intro.
+    generalize (Nat.le_max_r (tree_heightP t0_1) (tree_heightP t0_2));intro.
     assert (n >= tree_heightP t0_1) by lia.
     assert (n >= tree_heightP t0_2) by lia.
     generalize (IHn _ H3);intro.
@@ -3711,10 +3711,10 @@ Qed.
    specialize ( IHt0_1 t'1 H0).
    specialize (IHt0_2 t'2 H1).
    simpl.
-   assert (max (tree_heightP t'1) (tree_heightP t'2) <= max (tree_heightP t0_1) (tree_heightP t0_2) ).
-    generalize (le_max_l (tree_heightP t0_1) (tree_heightP t0_2));intro.
-    generalize (le_max_r (tree_heightP t0_1) (tree_heightP t0_2));intro.
-    apply max_lub;lia.
+   assert (Nat.max (tree_heightP t'1) (tree_heightP t'2) <= Nat.max (tree_heightP t0_1) (tree_heightP t0_2) ).
+    generalize (Nat.le_max_l (tree_heightP t0_1) (tree_heightP t0_2));intro.
+    generalize (Nat.le_max_r (tree_heightP t0_1) (tree_heightP t0_2));intro.
+    apply Nat.max_lub;lia.
    lia.
   Qed.
 
@@ -3759,11 +3759,11 @@ Qed.
   Qed.
 
   Lemma mkCanon_height_split : forall n t11 t12 t21 t22,
-        max (tree_heightP (mkCanon (Node t11 t12)))
+        Nat.max (tree_heightP (mkCanon (Node t11 t12)))
             (tree_heightP (mkCanon (Node t21 t22))) < S (S n) ->
-        max (tree_heightP (mkCanon t11))
+        Nat.max (tree_heightP (mkCanon t11))
             (tree_heightP (mkCanon t21)) < S n /\
-        max (tree_heightP (mkCanon t12))
+        Nat.max (tree_heightP (mkCanon t12))
             (tree_heightP (mkCanon t22)) < S n.
   Proof.
    intros.
@@ -3785,10 +3785,10 @@ Qed.
    destruct H2 as [H21 H22].
    rewrite H11,H12,H21,H22.
    simpl in H.
-   assert (max (tree_heightP s0_1) (tree_heightP s0_2) < S n) by lia.
+   assert (Nat.max (tree_heightP s0_1) (tree_heightP s0_2) < S n) by lia.
    simpl.
-   generalize (le_max_l (tree_heightP s0_1) (tree_heightP s0_2));intro H31.
-   generalize (le_max_r (tree_heightP s0_1) (tree_heightP s0_2));intro H32.
+   generalize (Nat.le_max_l (tree_heightP s0_1) (tree_heightP s0_2));intro H31.
+   generalize (Nat.le_max_r (tree_heightP s0_1) (tree_heightP s0_2));intro H32.
    lia.
 
    symmetry in Heqs.
@@ -3797,21 +3797,21 @@ Qed.
    destruct H1 as [H11 H12].
    destruct H2 as [H21 H22].
    rewrite H11,H12,H21,H22.
-   replace (max (tree_heightP (Node s1 s2)) (tree_heightP (Leaf b)))
-   with (max (tree_heightP (Leaf b)) (tree_heightP (Node s1 s2)) ) in H
-   by apply max_comm.
-   replace (max (tree_heightP s1) (tree_heightP (Leaf b)))
-   with (max (tree_heightP (Leaf b)) (tree_heightP s1))
-   by apply max_comm.
-   replace (max (tree_heightP s2) (tree_heightP (Leaf b)))
-   with (max (tree_heightP (Leaf b)) (tree_heightP s2))
-   by apply max_comm.
+   replace (Nat.max (tree_heightP (Node s1 s2)) (tree_heightP (Leaf b)))
+   with (Nat.max (tree_heightP (Leaf b)) (tree_heightP (Node s1 s2)) ) in H
+   by apply Nat.max_comm.
+   replace (Nat.max (tree_heightP s1) (tree_heightP (Leaf b)))
+   with (Nat.max (tree_heightP (Leaf b)) (tree_heightP s1))
+   by apply Nat.max_comm.
+   replace (Nat.max (tree_heightP s2) (tree_heightP (Leaf b)))
+   with (Nat.max (tree_heightP (Leaf b)) (tree_heightP s2))
+   by apply Nat.max_comm.
    simpl in H.
    simpl.
-   assert (max (tree_heightP s1) (tree_heightP s2) < S n) by lia.
+   assert (Nat.max (tree_heightP s1) (tree_heightP s2) < S n) by lia.
    simpl.
-   generalize (le_max_l (tree_heightP s1) (tree_heightP s2));intro H31.
-   generalize (le_max_r (tree_heightP s1) (tree_heightP s2));intro H32.
+   generalize (Nat.le_max_l (tree_heightP s1) (tree_heightP s2));intro H31.
+   generalize (Nat.le_max_r (tree_heightP s1) (tree_heightP s2));intro H32.
    lia.
 
    symmetry in Heqs,Heqs0.
@@ -3821,27 +3821,27 @@ Qed.
    destruct H2 as [H21 H22].
    rewrite H11,H12,H21,H22.
    simpl in H.
-   generalize (plus_max_distr_r (max (tree_heightP s1) (tree_heightP s2))
-                                (max (tree_heightP s0_1) (tree_heightP s0_2))
+   generalize (Nat.add_max_distr_r (Nat.max (tree_heightP s1) (tree_heightP s2))
+                                (Nat.max (tree_heightP s0_1) (tree_heightP s0_2))
                                  1);
    intro H3.
    rewrite H3 in H.
-   assert (max (max (tree_heightP s1) (tree_heightP s2))
-               (max (tree_heightP s0_1) (tree_heightP s0_2)) < S n) by lia.
-   generalize (le_max_r (max (tree_heightP s1) (tree_heightP s2))
-                        (max (tree_heightP s0_1) (tree_heightP s0_2)));intro H4.
-   generalize (le_max_l (max (tree_heightP s1) (tree_heightP s2))
-                        (max (tree_heightP s0_1) (tree_heightP s0_2)));intro H5.
-   generalize (le_max_r (tree_heightP s1) (tree_heightP s2));intro H6.
-   generalize (le_max_l (tree_heightP s1) (tree_heightP s2));intro H7.
-   generalize (le_max_r (tree_heightP s0_1) (tree_heightP s0_2));intro H8.
-   generalize (le_max_l (tree_heightP s0_1) (tree_heightP s0_2));intro H9.
+   assert (Nat.max (Nat.max (tree_heightP s1) (tree_heightP s2))
+               (Nat.max (tree_heightP s0_1) (tree_heightP s0_2)) < S n) by lia.
+   generalize (Nat.le_max_r (Nat.max (tree_heightP s1) (tree_heightP s2))
+                        (Nat.max (tree_heightP s0_1) (tree_heightP s0_2)));intro H4.
+   generalize (Nat.le_max_l (Nat.max (tree_heightP s1) (tree_heightP s2))
+                        (Nat.max (tree_heightP s0_1) (tree_heightP s0_2)));intro H5.
+   generalize (Nat.le_max_r (tree_heightP s1) (tree_heightP s2));intro H6.
+   generalize (Nat.le_max_l (tree_heightP s1) (tree_heightP s2));intro H7.
+   generalize (Nat.le_max_r (tree_heightP s0_1) (tree_heightP s0_2));intro H8.
+   generalize (Nat.le_max_l (tree_heightP s0_1) (tree_heightP s0_2));intro H9.
    assert (tree_heightP s1 <= n) by lia.
    assert (tree_heightP s2 <= n) by lia.
    assert (tree_heightP s0_1 <= n) by lia.
    assert (tree_heightP s0_2 <= n) by lia.
-   generalize (max_lub _ _ _ H1 H10);intro H14.
-   generalize (max_lub _ _ _ H2 H13);intro H15.
+   generalize (Nat.max_lub _ _ _ H1 H10);intro H14.
+   generalize (Nat.max_lub _ _ _ H2 H13);intro H15.
    lia.
   Qed.
 
@@ -3870,11 +3870,11 @@ Qed.
 
   Lemma canonTree_combine : forall t1 t2, canonicalTree t1 ->
                                           canonicalTree t2 ->
-                                          max (tree_heightP t1) (tree_heightP t2) > 0 ->
+                                          Nat.max (tree_heightP t1) (tree_heightP t2) > 0 ->
                                           canonicalTree (Node t1 t2).
   Proof.
     intros.
-    generalize (max_dec (tree_heightP t1) (tree_heightP t2));intro H2.
+    generalize (Nat.max_dec (tree_heightP t1) (tree_heightP t2));intro H2.
     destruct H2.
     rewrite e in H1.
     icase t1.
@@ -3892,8 +3892,8 @@ Qed.
                                           mkCanon (intersect_tree t1 t2).
   Proof.
     intros.
-    assert (exists n, n >= max (tree_heightP t1) (tree_heightP t2)).
-      exists (max (tree_heightP t1) (tree_heightP t2));lia.
+    assert (exists n, n >= Nat.max (tree_heightP t1) (tree_heightP t2)).
+      exists (Nat.max (tree_heightP t1) (tree_heightP t2));lia.
     destruct H.
     revert H.
     revert t2 t1.
@@ -3902,13 +3902,13 @@ Qed.
       remember (tree_heightP (Node t2_1 t2_2)).
       icase n.
       inversion Heqn.
-      destruct (max (tree_heightP t2_1) (tree_heightP t2_2));elimtype False ;lia.
+      destruct (Nat.max (tree_heightP t2_1) (tree_heightP t2_2));elimtype False ;lia.
       inversion H.
       inversion H.
-      destruct (max (tree_heightP t1_1) (tree_heightP t1_2));inversion H1.
+      destruct (Nat.max (tree_heightP t1_1) (tree_heightP t1_2));inversion H1.
       inversion H.
-      destruct (max (tree_heightP t1_1) (tree_heightP t1_2));
-      destruct (max (tree_heightP t2_1) (tree_heightP t2_2));
+      destruct (Nat.max (tree_heightP t1_1) (tree_heightP t1_2));
+      destruct (Nat.max (tree_heightP t2_1) (tree_heightP t2_2));
       inversion H1.
     icase t1;icase t2.
     replace (mkCanon (Leaf b)) with (Leaf b) by apply mkCanon_Leaf.
@@ -3926,54 +3926,54 @@ Qed.
     unfold intersect_tree.
     apply mkCanon_double.
 
-    assert (x >= max (tree_heightP t1_1) (tree_heightP t2_1)).
+    assert (x >= Nat.max (tree_heightP t1_1) (tree_heightP t2_1)).
       simpl in H.
-      replace (max (tree_heightP t1_1) (tree_heightP t1_2) + 1)
-      with (S (max (tree_heightP t1_1) (tree_heightP t1_2)))
+      replace (Nat.max (tree_heightP t1_1) (tree_heightP t1_2) + 1)
+      with (S (Nat.max (tree_heightP t1_1) (tree_heightP t1_2)))
       in H by lia.
-      replace (max (tree_heightP t2_1) (tree_heightP t2_2) + 1)
-      with (S (max (tree_heightP t2_1) (tree_heightP t2_2)))
+      replace (Nat.max (tree_heightP t2_1) (tree_heightP t2_2) + 1)
+      with (S (Nat.max (tree_heightP t2_1) (tree_heightP t2_2)))
       in H by lia.
-      generalize (succ_max_distr ((max (tree_heightP t1_1) (tree_heightP t1_2)))
-      ((max (tree_heightP t2_1) (tree_heightP t2_2))));intro.
+      generalize (Nat.succ_max_distr ((Nat.max (tree_heightP t1_1) (tree_heightP t1_2)))
+      ((Nat.max (tree_heightP t2_1) (tree_heightP t2_2))));intro.
       rewrite<- H0 in H;clear H0.
-      assert (x >= max (max (tree_heightP t1_1) (tree_heightP t1_2))
-         (max (tree_heightP t2_1) (tree_heightP t2_2))) by lia.
-      assert (max (max (tree_heightP t1_1) (tree_heightP t1_2))
-       (max (tree_heightP t2_1) (tree_heightP t2_2)) >= max (tree_heightP t1_1) (tree_heightP t1_2)).
-       apply le_max_l.
-      assert (max (max (tree_heightP t1_1) (tree_heightP t1_2))
-       (max (tree_heightP t2_1) (tree_heightP t2_2)) >= max (tree_heightP t2_1) (tree_heightP t2_2)).
-       apply le_max_r.
-      assert (max (tree_heightP t1_1) (tree_heightP t1_2) >= tree_heightP t1_1).
-       apply le_max_l.
-      assert (max (tree_heightP t2_1) (tree_heightP t2_2) >= tree_heightP t2_1).
-       apply le_max_l.
-      apply max_lub;lia.
-    assert (x >= max (tree_heightP t1_2) (tree_heightP t2_2)).
+      assert (x >= Nat.max (Nat.max (tree_heightP t1_1) (tree_heightP t1_2))
+         (Nat.max (tree_heightP t2_1) (tree_heightP t2_2))) by lia.
+      assert (Nat.max (Nat.max (tree_heightP t1_1) (tree_heightP t1_2))
+       (Nat.max (tree_heightP t2_1) (tree_heightP t2_2)) >= Nat.max (tree_heightP t1_1) (tree_heightP t1_2)).
+       apply Nat.le_max_l.
+      assert (Nat.max (Nat.max (tree_heightP t1_1) (tree_heightP t1_2))
+       (Nat.max (tree_heightP t2_1) (tree_heightP t2_2)) >= Nat.max (tree_heightP t2_1) (tree_heightP t2_2)).
+       apply Nat.le_max_r.
+      assert (Nat.max (tree_heightP t1_1) (tree_heightP t1_2) >= tree_heightP t1_1).
+       apply Nat.le_max_l.
+      assert (Nat.max (tree_heightP t2_1) (tree_heightP t2_2) >= tree_heightP t2_1).
+       apply Nat.le_max_l.
+      apply Nat.max_lub;lia.
+    assert (x >= Nat.max (tree_heightP t1_2) (tree_heightP t2_2)).
       simpl in H.
-      replace (max (tree_heightP t1_1) (tree_heightP t1_2) + 1)
-      with (S (max (tree_heightP t1_1) (tree_heightP t1_2)))
+      replace (Nat.max (tree_heightP t1_1) (tree_heightP t1_2) + 1)
+      with (S (Nat.max (tree_heightP t1_1) (tree_heightP t1_2)))
       in H by lia.
-      replace (max (tree_heightP t2_1) (tree_heightP t2_2) + 1)
-      with (S (max (tree_heightP t2_1) (tree_heightP t2_2)))
+      replace (Nat.max (tree_heightP t2_1) (tree_heightP t2_2) + 1)
+      with (S (Nat.max (tree_heightP t2_1) (tree_heightP t2_2)))
       in H by lia.
-      generalize (succ_max_distr ((max (tree_heightP t1_1) (tree_heightP t1_2)))
-      ((max (tree_heightP t2_1) (tree_heightP t2_2))));intro.
+      generalize (Nat.succ_max_distr ((Nat.max (tree_heightP t1_1) (tree_heightP t1_2)))
+      ((Nat.max (tree_heightP t2_1) (tree_heightP t2_2))));intro.
       rewrite<- H1 in H;clear H1.
-      assert (x >= max (max (tree_heightP t1_1) (tree_heightP t1_2))
-         (max (tree_heightP t2_1) (tree_heightP t2_2))) by lia.
-      assert (max (max (tree_heightP t1_1) (tree_heightP t1_2))
-       (max (tree_heightP t2_1) (tree_heightP t2_2)) >= max (tree_heightP t1_1) (tree_heightP t1_2)).
-       apply le_max_l.
-      assert (max (max (tree_heightP t1_1) (tree_heightP t1_2))
-       (max (tree_heightP t2_1) (tree_heightP t2_2)) >= max (tree_heightP t2_1) (tree_heightP t2_2)).
-       apply le_max_r.
-      assert (max (tree_heightP t1_1) (tree_heightP t1_2) >= tree_heightP t1_2).
-       apply le_max_r.
-      assert (max (tree_heightP t2_1) (tree_heightP t2_2) >= tree_heightP t2_2).
-       apply le_max_r.
-      apply max_lub;lia.
+      assert (x >= Nat.max (Nat.max (tree_heightP t1_1) (tree_heightP t1_2))
+         (Nat.max (tree_heightP t2_1) (tree_heightP t2_2))) by lia.
+      assert (Nat.max (Nat.max (tree_heightP t1_1) (tree_heightP t1_2))
+       (Nat.max (tree_heightP t2_1) (tree_heightP t2_2)) >= Nat.max (tree_heightP t1_1) (tree_heightP t1_2)).
+       apply Nat.le_max_l.
+      assert (Nat.max (Nat.max (tree_heightP t1_1) (tree_heightP t1_2))
+       (Nat.max (tree_heightP t2_1) (tree_heightP t2_2)) >= Nat.max (tree_heightP t2_1) (tree_heightP t2_2)).
+       apply Nat.le_max_r.
+      assert (Nat.max (tree_heightP t1_1) (tree_heightP t1_2) >= tree_heightP t1_2).
+       apply Nat.le_max_r.
+      assert (Nat.max (tree_heightP t2_1) (tree_heightP t2_2) >= tree_heightP t2_2).
+       apply Nat.le_max_r.
+      apply Nat.max_lub;lia.
     generalize (IHx _ _ H0);intro.
     generalize (IHx _ _ H1);intro.
     remember (mkCanon (Node t1_1 t1_2));
@@ -4312,8 +4312,8 @@ Qed.
 
    simpl in H.
    assert ( n > tree_heightP x1 /\ n > tree_heightP x2).
-     generalize (le_max_l (tree_heightP x1) (tree_heightP x2)).
-     generalize (le_max_r (tree_heightP x1) (tree_heightP x2)).
+     generalize (Nat.le_max_l (tree_heightP x1) (tree_heightP x2)).
+     generalize (Nat.le_max_r (tree_heightP x1) (tree_heightP x2)).
      intros.
      lia.
    destruct H0 as [H1 H2].
@@ -4545,29 +4545,29 @@ Qed.
   compute;split;try lia;try f_equal;try apply exist_ext;trivial.
   elimtype False;lia.
   elimtype False;clear -H1.
-  assert (0 = max (max (tree_heightP x1_1) (tree_heightP x1_2) + 1) 0) by lia;
+  assert (0 = Nat.max (Nat.max (tree_heightP x1_1) (tree_heightP x1_2) + 1) 0) by lia;
   clear H1.
-  generalize (max_0_r (max (tree_heightP x1_1) (tree_heightP x1_2) + 1));intro.
+  generalize (Nat.max_0_r (Nat.max (tree_heightP x1_1) (tree_heightP x1_2) + 1));intro.
   rewrite H0 in H;clear H0.
   lia.
   elimtype False;clear -H1.
-  assert (0 = max (max (tree_heightP x1_1) (tree_heightP x1_2) + 1)
-       (max (tree_heightP x2_1) (tree_heightP x2_2) + 1)) by lia;
+  assert (0 = Nat.max (Nat.max (tree_heightP x1_1) (tree_heightP x1_2) + 1)
+       (Nat.max (tree_heightP x2_1) (tree_heightP x2_2) + 1)) by lia;
   clear H1.
-  generalize (plus_max_distr_r (max (tree_heightP x1_1) (tree_heightP x1_2))
-                               (max (tree_heightP x2_1) (tree_heightP x2_2)) 1);intro.
+  generalize (Nat.add_max_distr_r (Nat.max (tree_heightP x1_1) (tree_heightP x1_2))
+                               (Nat.max (tree_heightP x2_1) (tree_heightP x2_2)) 1);intro.
   rewrite H0 in H;lia.
 
   remember (S n) as nk.
   unfold tree_height in H.
   simpl in H.
-  assert (nk = max (tree_heightP x1) (tree_heightP x2)) by lia;clear H.
+  assert (nk = Nat.max (tree_heightP x1) (tree_heightP x2)) by lia;clear H.
   generalize (lt_dec (tree_heightP x1) (tree_heightP x2) );intro H.
   destruct H.
 
   assert (nk = tree_heightP x2).
     assert (tree_heightP x1 <= tree_heightP x2 ) by lia.
-    generalize (max_r _ _ H);intro.
+    generalize (Nat.max_r _ _ H);intro.
     congruence.
   rewrite<- H in l.
   copy c.
@@ -4621,7 +4621,7 @@ Qed.
   assert (tree_heightP x1 <= n) by lia;clear l.
   unfold tree_height in *;simpl in *.
   assert (tree_heightP (Node x1 x) <= S n).
-   generalize (max_lub _ _ _ H H22);intro.
+   generalize (Nat.max_lub _ _ _ H H22);intro.
    simpl.
    lia.
   assert (mkCanon (Node x1 x) = mkCanon (Node x1 x)) by trivial.
@@ -4634,7 +4634,7 @@ Qed.
   destruct H.
 
   rewrite<- H in H0.
-  generalize (max_idempotent (tree_heightP x1));intro.
+  generalize (Nat.max_idempotent (tree_heightP x1));intro.
   rewrite H1 in H0.
   rewrite<- H0 in H.
   clear n0 H1.
@@ -4701,7 +4701,7 @@ Qed.
   simpl in *.
   subst nk.
   assert (tree_heightP (Node x x0) <= S n).
-   generalize (max_lub _ _ _ H12 H22);intro.
+   generalize (Nat.max_lub _ _ _ H12 H22);intro.
    simpl.
    lia.
   assert (mkCanon (Node x x0) = mkCanon (Node x x0)) by trivial.
@@ -4711,7 +4711,7 @@ Qed.
 
   assert (nk = tree_heightP x1).
     assert (tree_heightP x2 <= tree_heightP x1 ) by lia.
-    generalize (max_l _ _ H1);intro.
+    generalize (Nat.max_l _ _ H1);intro.
     congruence.
   rewrite<- H1 in H.
   copy c.
@@ -4765,7 +4765,7 @@ Qed.
   assert (tree_heightP x2 <= n) by lia;clear H.
   unfold tree_height in *;simpl in *.
   assert (tree_heightP (Node x x2) <= S n).
-   generalize (max_lub _ _ _ H12 H0);intro.
+   generalize (Nat.max_lub _ _ _ H12 H0);intro.
    simpl.
    lia.
   assert (mkCanon (Node x x2) = mkCanon (Node x x2)) by trivial.
@@ -4946,8 +4946,8 @@ Qed.
 
    simpl in H.
    assert ( n > tree_heightP x1 /\ n > tree_heightP x2).
-     generalize (le_max_l (tree_heightP x1) (tree_heightP x2)).
-     generalize (le_max_r (tree_heightP x1) (tree_heightP x2)).
+     generalize (Nat.le_max_l (tree_heightP x1) (tree_heightP x2)).
+     generalize (Nat.le_max_r (tree_heightP x1) (tree_heightP x2)).
      intros.
      lia.
    destruct H0 as [H1 H2].
@@ -5179,29 +5179,29 @@ Qed.
   compute;split;try lia;try f_equal;try apply exist_ext;trivial.
   elimtype False;lia.
   elimtype False;clear -H1.
-  assert (0 = max (max (tree_heightP x1_1) (tree_heightP x1_2) + 1) 0) by lia;
+  assert (0 = Nat.max (Nat.max (tree_heightP x1_1) (tree_heightP x1_2) + 1) 0) by lia;
   clear H1.
-  generalize (max_0_r (max (tree_heightP x1_1) (tree_heightP x1_2) + 1));intro.
+  generalize (Nat.max_0_r (Nat.max (tree_heightP x1_1) (tree_heightP x1_2) + 1));intro.
   rewrite H0 in H;clear H0.
   lia.
   elimtype False;clear -H1.
-  assert (0 = max (max (tree_heightP x1_1) (tree_heightP x1_2) + 1)
-       (max (tree_heightP x2_1) (tree_heightP x2_2) + 1)) by lia;
+  assert (0 = Nat.max (Nat.max (tree_heightP x1_1) (tree_heightP x1_2) + 1)
+       (Nat.max (tree_heightP x2_1) (tree_heightP x2_2) + 1)) by lia;
   clear H1.
-  generalize (plus_max_distr_r (max (tree_heightP x1_1) (tree_heightP x1_2))
-                               (max (tree_heightP x2_1) (tree_heightP x2_2)) 1);intro.
+  generalize (Nat.add_max_distr_r (Nat.max (tree_heightP x1_1) (tree_heightP x1_2))
+                               (Nat.max (tree_heightP x2_1) (tree_heightP x2_2)) 1);intro.
   rewrite H0 in H;lia.
 
   remember (S n) as nk.
   unfold tree_height in H.
   simpl in H.
-  assert (nk = max (tree_heightP x1) (tree_heightP x2)) by lia;clear H.
+  assert (nk = Nat.max (tree_heightP x1) (tree_heightP x2)) by lia;clear H.
   generalize (lt_dec (tree_heightP x1) (tree_heightP x2) );intro H.
   destruct H.
 
   assert (nk = tree_heightP x2).
     assert (tree_heightP x1 <= tree_heightP x2 ) by lia.
-    generalize (max_r _ _ H);intro.
+    generalize (Nat.max_r _ _ H);intro.
     congruence.
   rewrite<- H in l.
   copy c.
@@ -5255,7 +5255,7 @@ Qed.
   assert (tree_heightP x1 <= n) by lia;clear l.
   unfold tree_height in *;simpl in *.
   assert (tree_heightP (Node x1 x) <= S n).
-   generalize (max_lub _ _ _ H H22);intro.
+   generalize (Nat.max_lub _ _ _ H H22);intro.
    simpl.
    lia.
   assert (mkCanon (Node x1 x) = mkCanon (Node x1 x)) by trivial.
@@ -5268,7 +5268,7 @@ Qed.
   destruct H.
 
   rewrite<- H in H0.
-  generalize (max_idempotent (tree_heightP x1));intro.
+  generalize (Nat.max_idempotent (tree_heightP x1));intro.
   rewrite H1 in H0.
   rewrite<- H0 in H.
   clear n0 H1.
@@ -5335,7 +5335,7 @@ Qed.
   simpl in *.
   subst nk.
   assert (tree_heightP (Node x x0) <= S n).
-   generalize (max_lub _ _ _ H12 H22);intro.
+   generalize (Nat.max_lub _ _ _ H12 H22);intro.
    simpl.
    lia.
   assert (mkCanon (Node x x0) = mkCanon (Node x x0)) by trivial.
@@ -5345,7 +5345,7 @@ Qed.
 
   assert (nk = tree_heightP x1).
     assert (tree_heightP x2 <= tree_heightP x1 ) by lia.
-    generalize (max_l _ _ H1);intro.
+    generalize (Nat.max_l _ _ H1);intro.
     congruence.
   rewrite<- H1 in H.
   copy c.
@@ -5399,7 +5399,7 @@ Qed.
   assert (tree_heightP x2 <= n) by lia;clear H.
   unfold tree_height in *;simpl in *.
   assert (tree_heightP (Node x x2) <= S n).
-   generalize (max_lub _ _ _ H12 H0);intro.
+   generalize (Nat.max_lub _ _ _ H12 H0);intro.
    simpl.
    lia.
   assert (mkCanon (Node x x2) = mkCanon (Node x x2)) by trivial.
@@ -5511,9 +5511,9 @@ Qed.
     apply tree_avg_Leaf.
     simpl in H.
     assert (tree_heightP x1 < n /\ tree_heightP x2 < n).
-      assert (max (tree_heightP x1) (tree_heightP x2) < n) by lia.
-      generalize (le_max_l (tree_heightP x1) (tree_heightP x2));intro.
-      generalize (le_max_r (tree_heightP x1) (tree_heightP x2));intro.
+      assert (Nat.max (tree_heightP x1) (tree_heightP x2) < n) by lia.
+      generalize (Nat.le_max_l (tree_heightP x1) (tree_heightP x2));intro.
+      generalize (Nat.le_max_r (tree_heightP x1) (tree_heightP x2));intro.
       split;lia.
     destruct H0 as [? ?].
     copy c.
@@ -5541,7 +5541,7 @@ Qed.
 
   (*L30*)
   Lemma tree_avg_None : forall n t1 t2,
-   n <= max (height t1) (height t2) ->
+   n <= Nat.max (height t1) (height t2) ->
    avg n t1 t2 = None.
   Proof.
    unfold avg,avgable_tree in *.
@@ -5549,7 +5549,7 @@ Qed.
    intros.
    icase n.
    assert (n < tree_height t1 \/n < tree_height t2).
-    assert (n < max (tree_height t1) (tree_height t2)) by lia.
+    assert (n < Nat.max (tree_height t1) (tree_height t2)) by lia.
     apply Nat.max_lt_iff.
     trivial.
    destruct t1;destruct t2;
@@ -5974,7 +5974,7 @@ Qed.
   Qed.
 
   Lemma tree_avg_increase : forall n t1 t2,
-   t1 <> t2 -> max (height t1) (height t2) < n ->
+   t1 <> t2 -> Nat.max (height t1) (height t2) < n ->
    exists t3, avg n t1 t2 = Some t3 /\ height t3 = n.
   Proof.
    simpl.
@@ -5986,9 +5986,9 @@ Qed.
    destruct t1 as [x1 c1];
    destruct t2 as [x2 c2].
    simpl in H0.
-   assert (max (tree_heightP x1) (tree_heightP x2) = 0) by lia.
-   generalize (le_max_l (tree_heightP x1) (tree_heightP x2));intro H2.
-   generalize (le_max_r (tree_heightP x1) (tree_heightP x2));intro H3.
+   assert (Nat.max (tree_heightP x1) (tree_heightP x2) = 0) by lia.
+   generalize (Nat.le_max_l (tree_heightP x1) (tree_heightP x2));intro H2.
+   generalize (Nat.le_max_r (tree_heightP x1) (tree_heightP x2));intro H3.
    assert (tree_heightP x1 = 0) by lia.
    assert (tree_heightP x2 = 0) by lia.
    icase x1;icase x2.
@@ -6031,7 +6031,7 @@ Qed.
      tauto.
      trivial.
    assert (tree_heightP (mkCanon t11) < S n).
-     generalize (le_max_l (tree_heightP (mkCanon t11)) (tree_heightP (mkCanon t21)));intro.
+     generalize (Nat.le_max_l (tree_heightP (mkCanon t11)) (tree_heightP (mkCanon t21)));intro.
      lia.
    generalize (tree_avg_identity (S n)
               (exist (fun t => canonicalTree t) (mkCanon t11) (mkCanon_correct _)) H8);
@@ -6069,12 +6069,12 @@ Qed.
    unfold tree_height,proj1_sig in *.
    rewrite H16.
    simpl.
-   replace (max (tree_heightP (mkCanon t11)) (tree_heightP x3) + 1) with
-   (S (max (tree_heightP (mkCanon t11)) (tree_heightP x3))) by lia.
+   replace (Nat.max (tree_heightP (mkCanon t11)) (tree_heightP x3) + 1) with
+   (S (Nat.max (tree_heightP (mkCanon t11)) (tree_heightP x3))) by lia.
    f_equal.
    assert (tree_heightP (mkCanon t11) <= tree_heightP x3 ) by lia.
    rewrite<- H12.
-   apply max_r;trivial.
+   apply Nat.max_r;trivial.
 
    generalize (shareTree_dec_eq (mkCanon t12) (mkCanon t22));intro H8.
    unfold proj1_sig in *.
@@ -6086,7 +6086,7 @@ Qed.
    destruct H8 as [t3 [H8 H9]].
    rewrite e in H6.
    assert (tree_heightP (mkCanon t22) < S n).
-     generalize (le_max_r (tree_heightP (mkCanon t22))
+     generalize (Nat.le_max_r (tree_heightP (mkCanon t22))
                           (tree_heightP (mkCanon t22)));intro.
      lia.
    generalize (tree_avg_identity (S n) (exist (fun t => canonicalTree t)
@@ -6114,12 +6114,12 @@ Qed.
    icase x3.
    rewrite H.
    simpl.
-   assert (max (tree_heightP x3) (tree_heightP (mkCanon t22)) + 1 =
-           S (max (tree_heightP x3) (tree_heightP (mkCanon t22)))) by lia.
+   assert (Nat.max (tree_heightP x3) (tree_heightP (mkCanon t22)) + 1 =
+           S (Nat.max (tree_heightP x3) (tree_heightP (mkCanon t22)))) by lia.
    rewrite H0;f_equal.
    rewrite<- H9 in *.
    assert (tree_heightP (mkCanon t22) <= tree_heightP x3) by lia.
-   apply max_l;trivial.
+   apply Nat.max_l;trivial.
 
    assert (exist (fun t => canonicalTree t) (mkCanon t11) (mkCanon_correct _) <>
            exist (fun t => canonicalTree t) (mkCanon t21) (mkCanon_correct _)).
@@ -6153,7 +6153,7 @@ Qed.
    icase x3;icase x4.
    simpl in *;clear -H10 H12.
    rewrite H10,H12.
-   generalize (max_idempotent (S n));intro H.
+   generalize (Nat.max_idempotent (S n));intro H.
    rewrite H.
    lia.
   Qed.
@@ -6171,7 +6171,7 @@ Qed.
    exists t1.
    apply tree_avg_identity.
    trivial.
-   assert (H2 : max (height t1) (height t2) < n).
+   assert (H2 : Nat.max (height t1) (height t2) < n).
     apply Nat.max_lub_lt;trivial.
    assert (H3 := tree_avg_increase _ _ _ H1 H2).
    destruct H3 as [t3 [H3 H4]].
@@ -6322,9 +6322,9 @@ Qed.
     destruct c1 as [? [? [? ?]]].
     inv H0.
     unfold tree_height in *;simpl in *.
-    assert (max (tree_heightP x2) (tree_heightP x3) <= n) by lia.
-    generalize (max_lub_l _ _ _ H0);intro.
-    generalize (max_lub_r _ _ _ H0);intro.
+    assert (Nat.max (tree_heightP x2) (tree_heightP x3) <= n) by lia.
+    generalize (Nat.max_lub_l _ _ _ H0);intro.
+    generalize (Nat.max_lub_r _ _ _ H0);intro.
     tauto.
   Qed.
  (*L7*)
@@ -6404,9 +6404,9 @@ Proof.
   inv H;
   unfold tree_height in *;simpl in *.
   lia.
-  assert (max (tree_heightP s1) (tree_heightP s2) <= n) by lia.
-  generalize (max_lub_l _ _ _ H);intro.
-  generalize (max_lub_r _ _ _ H);intro.
+  assert (Nat.max (tree_heightP s1) (tree_heightP s2) <= n) by lia.
+  generalize (Nat.max_lub_l _ _ _ H);intro.
+  generalize (Nat.max_lub_r _ _ _ H);intro.
   tauto.
 Qed.
 (*12*)
@@ -6892,23 +6892,23 @@ Proof.
  unfold tree_height,proj1_sig in *.
  simpl in H,H0,H1,H2.
  spec H1.
- assert (Help := le_max_l (tree_heightP s1_1) (tree_heightP s1_2));clear -H Help;lia.
+ assert (Help := Nat.le_max_l (tree_heightP s1_1) (tree_heightP s1_2));clear -H Help;lia.
  spec H1.
- assert (Help := le_max_l (tree_heightP s2_1) (tree_heightP s2_2));clear -H0 Help;lia.
+ assert (Help := Nat.le_max_l (tree_heightP s2_1) (tree_heightP s2_2));clear -H0 Help;lia.
  spec H2.
- assert (Help := le_max_r (tree_heightP s1_1) (tree_heightP s1_2));clear -H Help;lia.
+ assert (Help := Nat.le_max_r (tree_heightP s1_1) (tree_heightP s1_2));clear -H Help;lia.
  spec H2.
- assert (Help := le_max_r (tree_heightP s2_1) (tree_heightP s2_2));clear -H0 Help;lia.
+ assert (Help := Nat.le_max_r (tree_heightP s2_1) (tree_heightP s2_2));clear -H0 Help;lia.
  simpl.
  icase (mkCanon (intersect_tree s1_1 s2_1));
  icase (mkCanon (intersect_tree s1_2 s2_2)).
  icase b;icase b0;compute;lia.
  simpl in *;lia.
  simpl in *.
- rewrite max_0_r.
+ rewrite Nat.max_0_r.
  lia.
  simpl in *.
- assert (H3 := max_lub _ _ _ H1 H2).
+ assert (H3 := Nat.max_lub _ _ _ H1 H2).
  lia.
 Qed.
 
@@ -6959,22 +6959,22 @@ Qed.
   assert (H2 := IHn (exist (fun t => canonicalTree t) s1_2 c0)(exist (fun t => canonicalTree t) s2_2 c2)).
   unfold tree_height,proj1_sig in *;simpl in *.
   spec H1.
-  assert (Help := le_max_l (tree_heightP s1_1) (tree_heightP s1_2));clear -H Help;lia.
+  assert (Help := Nat.le_max_l (tree_heightP s1_1) (tree_heightP s1_2));clear -H Help;lia.
   spec H1.
-  assert (Help := le_max_l (tree_heightP s2_1) (tree_heightP s2_2));clear -H0 Help;lia.
+  assert (Help := Nat.le_max_l (tree_heightP s2_1) (tree_heightP s2_2));clear -H0 Help;lia.
   spec H2.
-  assert (Help := le_max_r (tree_heightP s1_1) (tree_heightP s1_2));clear -H Help;lia.
+  assert (Help := Nat.le_max_r (tree_heightP s1_1) (tree_heightP s1_2));clear -H Help;lia.
   spec H2.
-  assert (Help := le_max_r (tree_heightP s2_1) (tree_heightP s2_2));clear -H0 Help;lia.
+  assert (Help := Nat.le_max_r (tree_heightP s2_1) (tree_heightP s2_2));clear -H0 Help;lia.
   icase (mkCanon (union_tree s1_1 s2_1));
   icase (mkCanon (union_tree s1_2 s2_2)).
   icase b;icase b0;compute;lia.
   simpl in *;lia.
   simpl in *.
-  rewrite max_0_r.
+  rewrite Nat.max_0_r.
   lia.
   simpl in *.
-  assert (H3 := max_lub _ _ _ H1 H2).
+  assert (H3 := Nat.max_lub _ _ _ H1 H2).
   lia.
  Qed.
 

@@ -70,7 +70,7 @@ Definition ipad_v: Bvector b := of_list_length _ ipad_length.
 Lemma fpad_length (v:Bvector c): length (fpad (Vector.to_list v)) = p.
 Proof. unfold fpad, fpad_inner. rewrite bytesToBits_len.
   repeat rewrite app_length. rewrite repeat_length, length_intlist_to_bytelist.
-  rewrite (mult_comm 4), plus_comm, Zlength_correct.
+  rewrite (Nat.mul_comm 4), Nat.add_comm, Zlength_correct.
   rewrite bitsToBytes_len_gen with (n:=32%nat).
     reflexivity.
     apply VectorToList_length.

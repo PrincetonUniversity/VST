@@ -2159,7 +2159,7 @@ rewrite Pos_to_nat_eq_S.
   spec H6. 
   simpl length.
   replace (Pos.to_nat (nextblock m0)) with (S (length vl)).
-  rewrite minus_diag. reflexivity.
+  rewrite Nat.sub_diag. reflexivity.
   clear - H90. rewrite Zlength_correct in H90. apply inj_eq_rev.
   rewrite inj_S. rewrite <- H90. clear.
   rewrite Pos_to_nat_eq_S.

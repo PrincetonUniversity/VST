@@ -467,7 +467,7 @@ Definition choose_Generate (i : nat) (sn : nat * KV) (n : nat)
   let Generate_v_choose := if lt_dec callsSoFar i (* callsSoFar < i (override all else) *)
                           then Generate_rb_intermediate
                           (* first call does not update v, to make proving equiv. easier*)
-                          else if beq_nat callsSoFar O then Generate_noV
+                          else if Nat.eqb callsSoFar O then Generate_noV
                           else Generate_v in
   (* note: have to use intermediate, not final Generate_rb here *)
   [bits, state'] <-$2 Generate_v_choose state n;
@@ -542,7 +542,7 @@ Qed.
 Lemma compFold_Generate_v_choose_Generate :
   forall (calls : list nat) (l : list (list (Bvector eta))) (k v : Bvector eta)
          (callsSoFar : nat),
-    beq_nat callsSoFar 0%nat = false ->
+    Nat.eqb callsSoFar 0%nat = false ->
    comp_spec
      (fun (x : list (list (Bvector eta)) * KV)
         (y : list (list (Bvector eta)) * (nat * KV)) =>
@@ -564,7 +564,7 @@ Proof.
   * simpl.
     fcf_spec_ret.
   * simpl.
-    destruct (beq_nat callsSoFar 0).
+    destruct (Nat.eqb callsSoFar 0).
     - inversion H.
     - simpl.
       fcf_inline_first.
@@ -955,9 +955,9 @@ Definition Oi_oc' (i : nat) (sn : nat * KV) (n : nat)
       (* this behavior (applied with f_oracle) needs to match that of choose_Generate's *)
       if lt_dec callsSoFar i (* callsSoFar < i (override all else) *)
            then Generate_rb_intermediate_oc (* this implicitly has no v to update *)
-      else if beq_nat callsSoFar O (* use oracle on 1st call w/o updating v *)
+      else if Nat.eqb callsSoFar O (* use oracle on 1st call w/o updating v *)
            then Generate_noV_oc 
-      else if beq_nat callsSoFar i (* callsSoFar = i *)
+      else if Nat.eqb callsSoFar i (* callsSoFar = i *)
            then Generate_v_oc    (* uses provided oracle (PRF or RF) *)
       else Generate_v_PRF_oc in        (* uses PRF with (k,v) updating *)
   [bits, state'] <--$2 Generate_v_choose state n;
@@ -1511,7 +1511,7 @@ Proof.
       (* casework on `i = 0`, `calls = i` and `calls > i` *)
       destruct (lt_dec i i). lia. 
       clear n.
-      destruct (beq_nat i 0).
+      destruct (Nat.eqb i 0).
       -
         fcf_skip; kv_exist.
         instantiate (1 := (fun x y => fst x = fst (fst y) /\ snd x = snd (fst y))).
@@ -1530,8 +1530,8 @@ Proof.
 
       - Opaque Generate_v.
         simpl.
-        assert (beq_nat i i = true) by apply Nat.eqb_refl.
-        destruct (beq_nat i i).
+        assert (Nat.eqb i i = true) by apply Nat.eqb_refl.
+        destruct (Nat.eqb i i).
         2: inversion H.
         clear H.
         fcf_skip; kv_exist.
@@ -1579,18 +1579,18 @@ Proof.
           Transparent choose_Generate. Transparent Oi_oc'.
           unfold choose_Generate. unfold Oi_oc'.
           (* calls > i implies S calls != i *)
-          assert (H_false : beq_nat (S calls) i = false).
+          assert (H_false : Nat.eqb (S calls) i = false).
           { apply Nat.eqb_neq. lia. }
-          destruct (beq_nat (S calls) i). inversion H_false.
+          destruct (Nat.eqb (S calls) i). inversion H_false.
           clear H_false.
           simplify.
           destruct (lt_dec calls i). lia. (* contradiction *)
           apply not_lt in n.
-          assert (beq_nat calls 0 = false).
+          assert (Nat.eqb calls 0 = false).
           { apply Nat.eqb_neq. lia. }
           rewrite H0. Opaque Generate_v.
           simpl.
-          assert (beq_nat calls i = false).
+          assert (Nat.eqb calls i = false).
           { apply Nat.eqb_neq. lia. }
           rewrite H1.
           Transparent Generate_v. simpl. fcf_inline_first.
@@ -2029,9 +2029,9 @@ Print Gen_loop_oc.*)
 (*    if lt_dec callsSoFar i *)
 (*    then Generate_rb_intermediate_oc *)
 (*    else *)
-(*     if beq_nat callsSoFar 0 *)
+(*     if Nat.eqb callsSoFar 0 *)
 (*     then Generate_noV_oc *)
-(*     else if beq_nat callsSoFar i then Generate_v_oc else Generate_v_PRF_oc in *)
+(*     else if Nat.eqb callsSoFar i then Generate_v_oc else Generate_v_PRF_oc in *)
 (*  z <--$ Generate_v_choose state n; *)
 (*  [bits, state']<-2 z; $ ret (bits, (S callsSoFar, state'))) *)
 
@@ -2043,9 +2043,9 @@ Definition Oi_oc'' (i : nat) (sn : nat * KV) (n : nat)
   let Generate_v_choose :=
       if lt_dec callsSoFar i
       then Generate_rb_intermediate_oc (* CHANGE: uses the last v *)
-      else if beq_nat callsSoFar O
+      else if Nat.eqb callsSoFar O
            then Generate_noV_oc_k (* CHANGE: k pulled to beginning; does use last v *)
-           else if beq_nat callsSoFar i (* callsSoFar = i *)
+           else if Nat.eqb callsSoFar i (* callsSoFar = i *)
                 then Generate_v_oc_instantiate   (* CHANGE: kv pulled to beginning; does use last v *)
                 else Generate_v_PRF_oc in
   [bits, state'] <--$2 Generate_v_choose state n;
@@ -2059,10 +2059,10 @@ Definition Oi_oc''' (i : nat) (sn : nat * KV) (n : nat)
   let Generate_v_choose :=
       if lt_dec callsSoFar i
       then Generate_rb_intermediate_oc
-      else if beq_nat callsSoFar O
+      else if Nat.eqb callsSoFar O
            then Generate_rb_intermediate_oc_noV (* no k-sampling or v-sampling *)
            (* CHANGE: diff b/t Generate_v_oc_k and this fn is, this one removes the k sampling before bit gen *)
-           else if beq_nat callsSoFar i (* callsSoFar = i *)
+           else if Nat.eqb callsSoFar i (* callsSoFar = i *)
                 then Generate_rb_intermediate_oc (* no k-sampling, only v-sampling *)
                 (* diff b/t Generate_v_oc_instantiate and this fn is, this one removes the k sampling before bit gen *)
                 else Generate_v_PRF_oc in
@@ -2231,7 +2231,7 @@ Proof.
     +
       instantiate (1 := (fun x y => fst x = fst y)). (* rb state might not be equal *)
       simplify. Transparent Oi_oc'. Transparent Oi_oc''. simpl.
-      destruct (beq_nat calls i).
+      destruct (Nat.eqb calls i).
       (* calls = i *)
       { destruct (lt_dec calls i).
         { (* calls < i *)
@@ -2247,7 +2247,7 @@ Proof.
         }
         (* calls >= i *)
         apply not_lt in n.
-        destruct (beq_nat calls 0). 
+        destruct (Nat.eqb calls 0). 
         (* calls = 0 *)
         - apply Generate_v_swap_k_loop_eq.
         - (* calls != 0 *)
@@ -2266,14 +2266,14 @@ Proof.
           - assert (beq_dec : calls = 0 \/ calls <> 0) by lia.
             destruct beq_dec as [beqtrue | beqfalse ].
             apply not_lt in n.
-            apply beq_nat_true_iff in beqtrue.
+            apply Nat.eqb_eq in beqtrue.
             rewrite beqtrue.
 
             (* same case as above with k-sampling-swapping *)
              apply Generate_v_swap_k_loop_eq.
 
-            (* SearchAbout (beq_nat _ _). *)
-            apply beq_nat_false_iff in beqfalse. rewrite beqfalse.
+            (* SearchAbout (Nat.eqb _ _). *)
+            apply Nat.eqb_neq in beqfalse. rewrite beqfalse.
             simplify. fcf_spec_ret.
         } 
 
@@ -2318,10 +2318,10 @@ Proof.
   - simplify.
     destruct (lt_dec calls i). lia.
     assert (calls_neq_i : calls <> i) by lia.
-    apply beq_nat_false_iff in calls_neq_i.
+    apply Nat.eqb_neq in calls_neq_i.
     rewrite calls_neq_i. 
     assert (calls_neq_0 : calls <> 0) by lia.
-    apply beq_nat_false_iff in calls_neq_0.
+    apply Nat.eqb_neq in calls_neq_0.
     rewrite calls_neq_0.
     simplify. fcf_skip; kv_exist.
     simplify. simpl in *. destruct l1. destruct p. inversion H2. subst.
@@ -2332,7 +2332,7 @@ Qed.
 
 (* Oi_oc'' to Oi_oc''', case: i = 0 *)
 Lemma oracleCompMap_rb_instantiate_outer_i_eq_0 : forall l i state,
-    beq_nat i 0 = true ->                                        (* separate theorem *)
+    Nat.eqb i 0 = true ->                                        (* separate theorem *)
     comp_spec (fun x y => fst (fst x) = fst (fst y)) (* weaker precondition--just k's equal? *)
               ([k, v] <-$2 Instantiate;
                a <-$
@@ -2379,7 +2379,7 @@ Proof.
     (* Skip the two initial Instantiates *)
     fcf_skip_eq; kv_exist. simplify.
     Transparent Oi_oc''. Transparent Oi_oc'''.
-    simpl. apply beq_nat_true in i_eq_0. subst. simplify.
+    simpl. apply Nat.eqb_eq in i_eq_0. subst. simplify.
     (* Generate_noV_oc_k is inlined in first, Generate_rb_intermediate_oc_v in second *)
 (*    Print Generate_noV_oc_k.*)
 (*    Print Generate_rb_intermediate_oc.*) (* like the above but with no k sampling *)
@@ -2521,7 +2521,7 @@ Qed.
 (* states same or different? going to have same so i can do eq (diff might let IH apply) *)
 Lemma oracleCompMap_rb_instantiate_outer_i_neq_0 : forall l calls i state,
     calls <= i ->
-    beq_nat i 0 = false ->                                        (* separate theorem *)
+    Nat.eqb i 0 = false ->                                        (* separate theorem *)
     comp_spec (fun x y => fst (fst x) = fst (fst y)) (* weaker precondition *)
               ([k, v] <-$2 Instantiate;
                a <-$
@@ -2721,7 +2721,7 @@ Proof.
       (* fcf_irr_l. wfi. simplify. *)
       Transparent Oi_oc''. Transparent Oi_oc'''.
       simpl.
-      assert (beq_nat calls i = true).
+      assert (Nat.eqb calls i = true).
       { apply Nat.eqb_eq. auto. }
       rewrite H1.
       destruct (lt_dec calls i). lia. (* we have calls = i *)
@@ -2732,7 +2732,7 @@ in i = 0: in the former, there's only k updating inside. in the latter, there's 
 that would work but would that still apply to prove the top-level theorem??
        *)
       rewrite <- H0 in i_neq_0.
-      destruct (beq_nat calls 0).
+      destruct (Nat.eqb calls 0).
       { inversion i_neq_0. }
 
       (* i != 0 *)
@@ -2823,7 +2823,7 @@ Proof.
       2: lia. clear l.
       assert (idec : i = 0 \/ i <> 0) by lia.
       destruct idec as [ itrue | ifalse].
-      apply beq_nat_true_iff in itrue.
+      apply Nat.eqb_eq in itrue.
       rewrite itrue.
       (* i = 0? shouldn't matter whether the v is updated an additional time in the latter *)
       (* TODO wait, i might need to pass the i=0 and i!=0 hypotheses down here? *)
@@ -2852,9 +2852,9 @@ Proof.
         destruct b. simpl in *. destruct k0. simpl in *. subst. auto.
       -
         (* presumably now `i <> 0`? what assumptions hold here? *)
-        assert (H_i_eq : beq_nat i i = true) by apply Nat.eqb_refl.
+        assert (H_i_eq : Nat.eqb i i = true) by apply Nat.eqb_refl.
         rewrite H_i_eq.
-        apply beq_nat_false_iff in ifalse.
+        apply Nat.eqb_neq in ifalse.
         rewrite ifalse. simplify.
         fcf_skip; kv_exist.
         simplify.
@@ -2910,10 +2910,10 @@ Proof.
           (* simplify. *)
           destruct (lt_dec calls (S i)). lia. (* calls > i, so ~(calls < S i) *)
           destruct (lt_dec calls i). lia.     (* calls > i, so ~(calls < i) *)
-          assert (beq_nat calls 0 = false) as calls_neq_0.
+          assert (Nat.eqb calls 0 = false) as calls_neq_0.
           { apply Nat.eqb_neq. lia. }
           rewrite calls_neq_0. Opaque Generate_v.
-          assert (beq_nat calls i = false) as calls_neq_i.
+          assert (Nat.eqb calls i = false) as calls_neq_i.
           { apply Nat.eqb_neq. lia. }
           rewrite calls_neq_i.
           Transparent Generate_v.
@@ -3091,7 +3091,7 @@ Proof.
 
   (* casework on i, apply second or third theorems *)
   flip. 
-  assert (i_cases: beq_nat i 0 = true \/ beq_nat i 0 = false).
+  assert (i_cases: Nat.eqb i 0 = true \/ Nat.eqb i 0 = false).
   { destruct i; auto. }
   destruct i_cases.
 
@@ -3390,9 +3390,9 @@ Theorem oracleCompMap_inner_wf :
   destruct (lt_dec a0 i).
   apply Generate_rb_intermediate_oc_wf.
   
-  destruct (beq_nat a0 0).
+  destruct (Nat.eqb a0 0).
   apply Generate_noV_oc_wf.
-  destruct (beq_nat a0 i).
+  destruct (Nat.eqb a0 i).
   apply Generate_v_oc_wf.
   eapply Generate_v_PRF_oc_wf.
 
@@ -3784,10 +3784,10 @@ Proof.
   - simplify.
     destruct (lt_dec callsSoFar i). lia.
     assert (nonzero : callsSoFar <> 0) by lia.
-    apply beq_nat_false_iff in nonzero.
+    apply Nat.eqb_neq in nonzero.
     rewrite nonzero.
     assert (neq_i : callsSoFar <> i) by lia.
-    apply beq_nat_false_iff in neq_i.
+    apply Nat.eqb_neq in neq_i.
     rewrite neq_i.
     simplify.
     
@@ -3869,7 +3869,7 @@ Proof.
           repeat rewrite to_list_length in *.
           unfold zeroes in *.
           rewrite length_replicate in len_eq.
-          rewrite plus_comm in len_eq.
+          rewrite Nat.add_comm in len_eq.
           simpl in *.
           lia.
         }
@@ -3885,14 +3885,14 @@ Proof.
           unfold to_list in *.
           apply inputs_len in H1; simpl in *; rewrite app_length in H1;
             unfold zeroes in H1; rewrite length_replicate in H1;
-              rewrite plus_comm in H1; simpl in *.
+              rewrite Nat.add_comm in H1; simpl in *.
           rewrite to_list_length in *. lia.
           
           (* match goal with  *)
           (*   | [ H1:  In (to_list key_input ++ zeroes, _) init |- _ ] =>  *)
           (*      apply inputs_len in H1; simpl in *; rewrite app_length in H1; *)
           (*      unfold zeroes in H1; rewrite length_replicate in H1; *)
-          (*      rewrite plus_comm in H1; simpl in *; discriminate *)
+          (*      rewrite Nat.add_comm in H1; simpl in *; discriminate *)
           (* end. *)
         }
       }
@@ -4211,11 +4211,10 @@ Proof.
       }
       (* i <> 0 *)
       { assert (i_neq_0 : i <> 0) by lia.
-        apply beq_nat_false_iff in i_neq_0.
+        apply Nat.eqb_neq in i_neq_0.
         rewrite i_neq_0.
-        pose proof (beq_nat_refl i) as i_refl.
-        rewrite <- i_refl.
-        clear i_neq_0 i_refl.
+        rewrite (Nat.eqb_refl i).
+        clear i_neq_0.
 
         (* replace v_prev with v, since the const vector in front doesn't matter *)
         eapply comp_spec_eq_trans_r.
@@ -4302,7 +4301,7 @@ Proof.
   unfold hasInputDups.
   Transparent hasDups.          (* init=nil *)
   simpl. Opaque hasDups.
-  rewrite plus_comm. simpl.
+  rewrite Nat.add_comm. simpl.
   Opaque map.
 
   (* preemptively discharge the two last equality cases *)
@@ -4358,7 +4357,7 @@ Theorem compMap_hasDups_cons_prob :
   eapply leRat_terms; trivial.
   simpl.
   apply le_S.
-  apply plus_le_compat; try lia.
+  apply Nat.add_le_mono; try lia.
 Qed.
 
 Close Scope nat.

@@ -47,7 +47,7 @@ assert (H1: firstn 1 (skipn (16 - S n) b) =
  unfold nth at 1 in H1.
  subst.
  rewrite Z.sub_diag. rewrite Z.add_0_l.
- rewrite plus_0_l.
+ rewrite Nat.add_0_l.
  rewrite Zminus_mod.
  rewrite Z.mod_same by lia. rewrite Z.sub_0_r.
  rewrite Z.mod_mod by lia.

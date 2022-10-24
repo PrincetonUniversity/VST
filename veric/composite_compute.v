@@ -220,8 +220,8 @@ Proof.
     induction (co_members co) as [| [i0 t0 |]].
     - constructor.
     - simpl in H0; rewrite andb_true_iff in H0; destruct H0.
-      simpl in H1; pose proof Max.max_lub_r _ _ _ H1.
-      apply Max.max_lub_l in H1.
+      simpl in H1; pose proof Nat.max_lub_r _ _ _ H1.
+      apply Nat.max_lub_l in H1.
       constructor; auto; clear IHm H2 H3.
       simpl.
       induction t0; try solve [simpl; auto].

@@ -54,8 +54,8 @@ Proof.
     simpl in RANK.
     destruct a.
     *
-     pose proof Max.le_max_l (rank_type cenv t) (rank_members cenv m).
-     pose proof Max.le_max_r (rank_type cenv t) (rank_members cenv m).
+     pose proof Nat.le_max_l (rank_type cenv t) (rank_members cenv m).
+     pose proof Nat.le_max_r (rank_type cenv t) (rank_members cenv m).
      constructor.
      - apply IHn; simpl; lia.
      - apply IHm; lia.
@@ -72,8 +72,8 @@ Proof.
     simpl in RANK.
     destruct a.
     *
-     pose proof Max.le_max_l (rank_type cenv t) (rank_members cenv m).
-     pose proof Max.le_max_r (rank_type cenv t) (rank_members cenv m).
+     pose proof Nat.le_max_l (rank_type cenv t) (rank_members cenv m).
+     pose proof Nat.le_max_r (rank_type cenv t) (rank_members cenv m).
      constructor.
      - apply IHn; simpl; lia.
      - apply IHm; lia.

@@ -342,9 +342,7 @@ Lemma length_mul_split A k (K:(0<k)%nat) n (N:(0<n)%nat): forall (l:list A), len
       exists l1, exists l2, l=l1++l2 /\ length l1=n /\ length l2 = ((k-1) * n)%nat.
 Proof.
   intros.
-  assert ((k * n = n + (k-1) * n)%nat). rewrite mult_minus_distr_r. simpl. rewrite plus_0_r.
-      rewrite le_plus_minus_r. (* NPeano.Nat.add_sub_assoc. rewrite minus_plus. *) trivial.
-      specialize (mult_le_compat_r 1 k n). simpl; rewrite plus_0_r. simpl; intros. apply H0. lia.
+  assert ((k * n = n + (k-1) * n)%nat) by nia.
   rewrite H0 in H; clear H0.
   apply (list_splitLength _ _ _ H).
 Qed.

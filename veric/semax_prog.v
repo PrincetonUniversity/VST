@@ -1653,7 +1653,7 @@ destruct H5 as [H5|H5].
  specialize (H5 psi ts a (level jm)).
  spec H5. constructor. reflexivity.
  specialize (H5 TT (typlist_of_typelist (typelist_of_type_list params)) args).
- specialize (H5 jm (le_refl _) _ _ (necR_refl _) (ext_refl _)).
+ specialize (H5 jm (Nat.le_refl _) _ _ (necR_refl _) (ext_refl _)).
  rewrite TTL2 in *.
  spec H5. { clear H5.
  split. simpl.

@@ -373,7 +373,7 @@ Proof.
   revert dependent phi; revert dependent lo.
   induction n; intros; subst.
   - unfold sublist; simpl.
-    rewrite skipn_firstn,  Z.add_0_l, minus_diag.
+    rewrite skipn_firstn,  Z.add_0_l, Nat.sub_diag.
     apply Mem.loadbytes_empty; reflexivity.
   - simpl in Hbuf.
     destruct Hbuf as (phi0 & ? & J' & Hbyte & Hbytes).
@@ -393,7 +393,7 @@ Proof.
     replace (Ptrofs.unsigned (Ptrofs.add _ _)) with (Ptrofs.unsigned i +lo) in Hbyte.
     rewrite if_true in Hbyte by (split; auto; lia).
     destruct Hbyte as [? Hval].
-    rewrite Zminus_diag in Hval.
+    rewrite Z.sub_diag in Hval.
     destruct mv; try discriminate.
     unfold decode_val in Hdecode; simpl in *.
     rewrite Z.sub_0_r in *.
@@ -827,7 +827,7 @@ Proof.
     + destruct Hval1 as (mv & rsh & ->); exists rsh.
       destruct l as (b', o'); destruct H1; subst.
       assert (o' = Ptrofs.unsigned o + lo) by lia; subst; simpl.
-      rewrite Zminus_diag; simpl; f_equal; f_equal.
+      rewrite Z.sub_diag; simpl; f_equal; f_equal.
       Transparent Mem.storebytes.
       unfold Mem.storebytes in Hstore.
       Opaque Mem.storebytes.

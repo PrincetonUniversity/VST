@@ -103,7 +103,7 @@ Proof.
     erewrite <- data_at_complete_split with (length:=384)(AB:=repeat (Vint Int.zero) (Z.to_nat 384)); repeat rewrite Zlength_repeat; trivial; try lia.
     solve [go_lower; apply derives_refl]. 
     solve [rewrite Zplus_minus; assumption].
-    rewrite <- repeat_app, Z2Nat.inj_sub; try lia. rewrite le_plus_minus_r; trivial. apply Z2Nat.inj_le; try lia.
+    rewrite <- repeat_app, Z2Nat.inj_sub; try lia. rewrite Nat.add_comm, Nat.sub_add; trivial. apply Z2Nat.inj_le; try lia.
   }
   Intros.
 
