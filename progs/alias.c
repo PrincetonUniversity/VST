@@ -1,10 +1,10 @@
-int foo(int *p, void **q) {
+long foo(long *p, void **q) {
   *p = 1;
   *q = 0;
   return *p;
 }
 int main() {
-  int x;
+  long x;
   return foo(&x, &x);
 }
 
@@ -16,10 +16,10 @@ From the perspective that pointers are addresses and memory maps addresses to
 bytes, we have two writes and one read of the same 4-byte memory region, and
 main returns 0. Yet ISO C17 § 6.5.7 limits the lvalue types through which the
 value of a declared object can be accessed to a fixed list of variations on the
-declared type plus char. Here the declared type is int, so the modification
+declared type plus char. Here the declared type is long, so the modification
 through *p is consistent with these rules, but the modification through *q (of
-type void *) is not, even though int and void * have size and alignment. The
-ubiquitous compiler flag -fno-strict-aliasing lifts these restrictions.
+type void*) is not, even though long and void* have the same size and alignment.
+The ubiquitous compiler flag -fno-strict-aliasing lifts these restrictions.
 
 To show that this complication is relevant in practice, the example was tested
 using clang 14.0.6, gcc 12.2.0, and CompCert a1f01c84 (3.11++).
@@ -38,6 +38,7 @@ gcc   -m32 -fno-strict-aliasing -O3 -w alias.c -o alias && ./alias; echo $?
 It also returns 0 with CompCert:
 
 ../../CompCert/ccomp alias.c -c alias.o && gcc -m32 alias.o -o alias && ./alias; echo $?
+../../CompCert/ccomp -interp alias.c
 
 It returns 1 in the following invocations:
 
