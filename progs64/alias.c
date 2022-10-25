@@ -21,6 +21,10 @@ through *p is consistent with these rules, but the modification through *q (of
 type void*) is not, even though long and void* have the same size and alignment.
 The ubiquitous compiler flag -fno-strict-aliasing lifts these restrictions.
 
+VST is proved sound only for CompCert, which always uses -fno-strict-aliasing.
+While VST also enforces many other additional requirements of the C standard,
+it is not sound for use with other compilers without -fno-strict-aliasing.
+
 To show that this complication is relevant in practice, the example was tested
 using clang 14.0.6, gcc 12.2.0, and CompCert a1f01c84 (3.11++).
 
