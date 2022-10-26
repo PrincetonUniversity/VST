@@ -1,7 +1,6 @@
-VSTlib
+# VSTlib
 
-Standard Libraries for the Verified Software Toolchain,
-in the form of Verified Software Units
+## Standard Libraries for the Verified Software Toolchain, in the form of Verified Software Units
 
 In doing VST verifications of application software, one may want
 to call upon library functions that have standard specifications.
