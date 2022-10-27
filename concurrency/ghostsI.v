@@ -221,17 +221,27 @@ Require Import iris.algebra.gmap.
 
 Section gmap_ghost.
 
-Context {K} `{Countable K} {A : Type}.
+Context {K} `{Countable K} {A : Ghost}.
 
-Program Instance gmap_ghost : Ghost := { G := gmap K A; Join_G a b c := forall k, Join_lower (Join_equiv _) (a !! k) (b !! k) (c !! k);
+Program Instance gmap_ghost : Ghost := { G := gmap K G; Join_G a b c := forall k, sepalg.join (a !! k) (b !! k) (c !! k);
   valid a := True%type }.
 Next Obligation.
 Proof.
-  exists (fun m => m); intros.
-  - hnf; intros.
-    destruct (t !! k); repeat constructor.
-  - eexists; eauto.
-  - auto.
+  exists (fun m => gmap_fmap _ _ sepalg.core m); intros.
+  - intros k.
+    rewrite lookup_fmap.
+    destruct (t !! k); constructor.
+    apply core_unit.
+  - exists (gmap_fmap _ _ sepalg.core c); intros k.
+    rewrite !lookup_fmap.
+    specialize (H0 k); inv H0; try constructor.
+    + destruct (a !! k); constructor.
+      apply core_duplicable.
+    + eapply core_sub_join, join_core_sub, H4.
+  - apply map_eq; intros k.
+    rewrite !lookup_fmap.
+    destruct (a !! k); auto; simpl.
+    rewrite core_idem; auto.
 Defined.
 Next Obligation.
 Proof.
@@ -239,63 +249,72 @@ Proof.
   - apply map_eq; intros k.
     specialize (H0 k); specialize (H1 k).
     inv H0; inv H1; auto; try congruence.
-    inv H5; inv H8; congruence.
-  - exists (merge (union_with (fun a b => Some a)) b c); split; hnf; intros k;
-      specialize (H0 k); specialize (H1 k); rewrite lookup_merge; unfold diag_None, union_with, option_union_with.
-    + inv H0; inv H1; try constructor; try destruct (b !! k); try destruct (c !! k); try constructor; try congruence.
-      * inv H6.
-        hnf; split; congruence.
-      * inv H5; inv H8; congruence.
-      * inv H5; inv H8; congruence.
-    + inv H0.
-      * rewrite H5; inv H1; try solve [try destruct (d !! k); try destruct (c !! k); try constructor; congruence].
-        inv H6; constructor.
-      * rewrite H5; inv H1; try solve [try destruct (d !! k); try destruct (c !! k); try constructor; congruence].
-      * inv H5.
-        rewrite -H4 in H1; inv H1; repeat constructor.
-        inv H7; auto.
-  - hnf; intros.
-    specialize (H0 k); apply sepalg.join_comm; auto.
+    rewrite <- H2 in H0; inv H0.
+    rewrite <- H3 in H6; inv H6.
+    f_equal; eapply join_eq; eauto.
+  - exists (map_imap (fun k _ => projT1 (join_assoc (H0 k) (H1 k))) (merge (union_with (fun a b => Some a)) b c)).
+    split; intros k; pose proof (H0 k) as Hj1; pose proof (H1 k) as Hj2;
+      rewrite map_lookup_imap lookup_merge; unfold union_with, diag_None; destruct (join_assoc (H0 k) (H1 k)) as (? & ? & ?);
+      destruct (b !! k) eqn: Hb; simpl; auto.
+    + inv j; constructor; auto.
+    + inv j; [|constructor].
+      destruct (c !! k); constructor.
+    + inv j; auto.
+    + inv j; auto.
+      destruct (c !! k); auto.
+  - intros k; specialize (H0 k).
+    apply sepalg.join_comm; auto.
   - apply map_eq; intros k.
     specialize (H0 k); specialize (H1 k).
     inv H0; inv H1; try congruence.
-    inv H5; auto.
+    rewrite <- H2 in H7; inv H7.
+    rewrite <- H0 in H4; inv H4.
+    f_equal; eapply join_positivity; eauto.
 Qed.
 Next Obligation.
 Proof.
   auto.
 Qed.
 
-#[export] Instance gmap_order : PCM_order (@subseteq _ map_subseteq).
+Context `{A_order : PCM_order(P := A)}.
+
+Lemma map_included_option_ord : forall (a b : gmap K G), map_included ord a b -> forall k, option_ord(ord := ord) (a !! k) (b !! k).
+Proof.
+  intros.
+  specialize (H0 k); destruct (a !! k), (b !! k); simpl; auto.
+Qed.
+
+#[export] Instance gmap_order : PCM_order (map_included ord).
 Proof.
   constructor.
   - apply (map_included_preorder(M := gmap K)), _.
-  - intros; exists (merge (union_with (fun a b => Some a)) a b); split.
-    + intros k.
-      rewrite lookup_merge; unfold diag_None, union_with, option_union_with.
-      destruct (a !! k) eqn: Ha, (b !! k) eqn: Hb; rewrite Ha Hb; constructor.
-      eapply lookup_weaken in H0; eauto.
-      eapply lookup_weaken in H1; eauto.
-      rewrite H0 in H1; inv H1; auto.
-    + intros k.
-      rewrite lookup_merge; unfold diag_None, union_with, option_union_with.
-      destruct (a !! k) eqn: Ha; rewrite Ha; [|destruct (b !! k) eqn: Hb; rewrite Hb].
-      * eapply lookup_weaken in H0; [|eauto]; rewrite H0.
-        destruct (b !! k) eqn: Hb; rewrite Hb; simpl; auto.
-      * eapply lookup_weaken in H1; eauto.
-        rewrite H1; simpl; auto.
-      * simpl.
-        destruct (c !! k) eqn: Hc; rewrite Hc; auto.
+  - intros.
+    pose proof (map_included_option_ord _ _ H0) as Ha.
+    pose proof (map_included_option_ord _ _ H1) as Hb.
+    exists (map_imap (fun k _ => proj1_sig (ord_lub(PCM_order := option_order(ORD := A_order)) _ _ _ (Ha k) (Hb k))) (merge (union_with (fun a b => Some a)) a b)).
+    split; intros k; pose proof (H0 k) as Hj1; pose proof (H1 k) as Hj2;
+      rewrite map_lookup_imap lookup_merge; unfold union_with, diag_None; destruct (ord_lub _ _ _ (Ha k) (Hb k)) as (? & ? & ?); simpl;
+      destruct (a !! k) eqn: Ha1; rewrite Ha1 in j |- *; simpl; auto.
+    + destruct (b !! k) eqn: Hb1; rewrite Hb1 in j |- *; simpl; auto.
+    + destruct (b !! k) eqn: Hb1; rewrite Hb1 in j |- *; simpl; auto; constructor.
+    + destruct (b !! k) eqn: Hb1; rewrite Hb1 in j |- *;
+        destruct x, (c !! k) eqn: Hc; rewrite Hc in o |- *; simpl; auto.
+    + destruct (b !! k) eqn: Hb1; rewrite Hb1 in j |- *;
+        destruct x, (c !! k) eqn: Hc; rewrite Hc in o |- *; simpl; auto.
   - split; intros k; specialize (H0 k); inv H0; simpl; auto.
     + destruct (b !! k) eqn: Hb; rewrite Hb; auto.
     + destruct (a !! k) eqn: Ha; rewrite Ha; simpl; auto.
-    + inv H4; auto.
+      reflexivity.
+    + apply join_ord in H4 as []; auto.
     + destruct (b !! k) eqn: Hb; rewrite Hb; simpl; auto.
+      reflexivity.
     + destruct (a !! k) eqn: Ha; rewrite Ha; auto.
-    + inv H4; auto.
+    + apply join_ord in H4 as []; auto.
   - intros ??? k.
-    destruct (b !! k) eqn: Hb; rewrite Hb; [|constructor].
-    eapply lookup_weaken in H0; [|eauto]; rewrite H0; constructor; auto.
+    specialize (H0 k).
+    destruct (b !! k) eqn: Hb; rewrite Hb in H0 |- *; [|constructor].
+    destruct (a !! k) eqn: Ha; rewrite Ha in H0 |- *; [|contradiction].
+    constructor; apply ord_join; auto.
 Qed.
 
 
