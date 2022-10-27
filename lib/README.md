@@ -30,8 +30,8 @@ those with `"quotes"` are in VSTlib's include directory.
 |------|--------|-----|-----|-------|----------|
 | math | `<math.h>`| verif_math.MathVSU | Axiomized | partly | see below |
 | memmgr| `"memmgr.h"`| | Proved | soon | custom, verified allocator |
-| malloc| `"memmgr.h"`| | Axiomatized | soon | standard system allocator |
-| atomics|            | | Axiomatized | soon | atomic load, store, CAS, etc.|
+| malloc| `<stdlib.h>`| | Axiomatized | Done | standard system allocator |
+| atomics|            | | Axiomatized | in progress | atomic load, store, CAS, etc.|
 | locks |             | | Proved | soon | busy-wait locks based on atomics |
 
 Additional details:

@@ -11,10 +11,10 @@ KNOWNFILES   := Makefile _CoqProject
 ifneq ($(MAKECMDGOALS),run-clightgen)
 ifneq ($(MAKECMDGOALS),clean)
 CoqMakefile: Makefile _CoqProject
-	$(COQBIN)coq_makefile -f _CoqProject -o CoqMakefile
+	$(COQBIN)coq_makefile -docroot VSTlib -f _CoqProject -o CoqMakefile
 
 invoke-coqmakefile: CoqMakefile
-	$(MAKE) --no-print-directory -docroot VSTlib -f CoqMakefile $(filter-out $(KNOWNTARGETS),$(MAKECMDGOALS))
+	$(MAKE) --no-print-directory -f CoqMakefile $(filter-out $(KNOWNTARGETS),$(MAKECMDGOALS))
 
 .PHONY: invoke-coqmakefile $(KNOWNFILES)
 endif
@@ -23,10 +23,18 @@ endif
 ##                      Your targets here                         ##
 ####################################################################
 
-run-clightgen: proof/math.v
+run-clightgen: proof/math.v proof/malloc.v proof/SC_atomics.v
 
 proof/math.v: src/math.c
 	clightgen -flongdouble -normalize $<
+	mv `dirname $<`/`basename -s .c $<`.v proof
+
+proof/malloc.v: src/malloc.c
+	clightgen -normalize $<
+	mv `dirname $<`/`basename -s .c $<`.v proof
+
+proof/SC_atomics.v: src/SC_atomics.c
+	clightgen -Iinclude -normalize $<
 	mv `dirname $<`/`basename -s .c $<`.v proof
 
 clean:
