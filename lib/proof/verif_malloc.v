@@ -1,12 +1,12 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.VSU.
 Require Import VST.floyd.library. (*for body_lemma_of_funspec *)
-Require Import malloc.
+Require Import malloc_extern.
 Require Import spec_malloc.
 
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 
-Parameter M: MallocFreeAPD.
+Parameter M: MallocAPD.
 
 Axiom mem_mgr_rep: forall gv, emp |-- mem_mgr M gv.
 
@@ -34,7 +34,7 @@ Definition malloc_placeholder_spec :=
  POST [ tint ]
    PROP() LOCAL() SEP().
 
-  Definition MF_ASI: funspecs := MallocFreeASI M.
+  Definition MF_ASI: funspecs := MallocASI M.
 
   Definition MF_imported_specs:funspecs :=  nil.
 
@@ -75,7 +75,7 @@ Qed.
 
 Definition MF_E : funspecs := MF_ASI.
 
-Definition MallocFreeVSU: @VSU NullExtension.Espec
+Definition MallocVSU: @VSU NullExtension.Espec
          MF_E MF_imported_specs ltac:(QPprog prog) MF_ASI (mem_mgr M).
   Proof. 
     mkVSU prog MF_internal_specs.

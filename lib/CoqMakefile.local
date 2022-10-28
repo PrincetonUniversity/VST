@@ -1,0 +1,11 @@
+proof/math_extern.v: src/math_extern.c
+	clightgen -flongdouble -normalize $<
+	mv `dirname $<`/`basename -s .c $<`.v proof
+
+proof/malloc_extern.v: src/malloc_extern.c
+	clightgen -normalize $<
+	mv `dirname $<`/`basename -s .c $<`.v proof
+
+proof/SC_atomics_extern.v: src/SC_atomics_extern.c
+	clightgen -Iinclude -normalize $<
+	mv `dirname $<`/`basename -s .c $<`.v proof

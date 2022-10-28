@@ -23,22 +23,13 @@ endif
 ##                      Your targets here                         ##
 ####################################################################
 
-run-clightgen: proof/math.v proof/malloc.v proof/SC_atomics.v
+run-clightgen: proof/math_extern.v proof/malloc_extern.v proof/SC_atomics_extern.v
 
-proof/math.v: src/math.c
-	clightgen -flongdouble -normalize $<
-	mv `dirname $<`/`basename -s .c $<`.v proof
-
-proof/malloc.v: src/malloc.c
-	clightgen -normalize $<
-	mv `dirname $<`/`basename -s .c $<`.v proof
-
-proof/SC_atomics.v: src/SC_atomics.c
-	clightgen -Iinclude -normalize $<
-	mv `dirname $<`/`basename -s .c $<`.v proof
+include CoqMakefile.local
 
 clean:
-	rm -f proof/{*.vo,*.vos,*.vok,*.glob} proof/math.v
+	rm -f proof/{*.vo,*.vos,*.vok,*.glob} 
+	rm -f proof/{math_extern.v,malloc_extern.v,SC_atomics_extern.v}
 	rm -f CoqMakefile CoqMakefile.conf
 
 # This should be the last rule, to handle any targets not declared above

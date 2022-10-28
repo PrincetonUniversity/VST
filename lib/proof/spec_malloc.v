@@ -1,9 +1,9 @@
 Require Import VST.floyd.proofauto.
-Require Import malloc.
+Require Import malloc_extern.
 
 Local Open Scope assert.
 
-Record MallocFreeAPD := {
+Record MallocAPD := {
    mem_mgr: globals -> mpred;
    malloc_token': share -> Z -> val -> mpred;
    malloc_token'_valid_pointer: forall sh sz p, 
@@ -13,7 +13,7 @@ Record MallocFreeAPD := {
       malloc_token' sh sz p |-- !! malloc_compatible sz p
 }.
 
-Definition malloc_token {cs: compspecs} (M:MallocFreeAPD) sh t v := 
+Definition malloc_token {cs: compspecs} (M:MallocAPD) sh t v := 
    !! field_compatible t [] v && 
    malloc_token' M sh (sizeof t) v.
 
@@ -37,8 +37,8 @@ Qed.
 #[export] Hint Resolve malloc_token'_local_facts : saturate_local.
 #[export] Hint Resolve malloc_token_local_facts : saturate_local.
 
-Section MallocFreeASI.
-Variable M:MallocFreeAPD.
+Section MallocASI.
+Variable M:MallocAPD.
 
 Definition malloc_spec' :=
  DECLARE _malloc
@@ -137,6 +137,6 @@ unfold malloc_token; entailer!.
 Qed.
 
 
-Definition MallocFreeASI:funspecs := [ malloc_spec'; free_spec' (*; exit_spec*)].
+Definition MallocASI:funspecs := [ malloc_spec'; free_spec' (*; exit_spec*)].
 
-End MallocFreeASI.
+End MallocASI.

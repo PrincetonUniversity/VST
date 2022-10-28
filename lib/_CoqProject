@@ -1,12 +1,12 @@
 -Q ../../vcfloat/vcfloat vcfloat
 -R proof VSTlib
-proof/math.v
+proof/math_extern.v
 proof/spec_math.v
 proof/verif_math.v
-proof/malloc.v
+proof/malloc_extern.v
 proof/spec_malloc.v
 proof/verif_malloc.v
-proof/SC_atomics.v
+proof/SC_atomics_extern.v
 proof/spec_SC_atomics.v
 proof/verif_SC_atomics.v
 
