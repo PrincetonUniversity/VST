@@ -24,7 +24,7 @@ destruct args as [ | a r].
 exact (precond -> exists delta epsilon,
                   (Rabs delta <= rel /\ Rabs epsilon <= abs /\
                    FT2R f = rf * (1+delta) + epsilon)%R).
-exact (forall z: ftype a, 
+exact (forall z: ftype a, Binary.is_finite (fprec a) (femax a) z = true ->
             acc_prop r result rel abs (precond (FT2R z)) (rf (FT2R z)) (f z)).
 Defined.
 
@@ -115,37 +115,157 @@ Ltac floatspec f :=
    let a := eval simpl in a in
    exact a.
 
-Locate sin.
+Lemma generic_round_property:
+  forall (t: type) (x: R),
+exists delta epsilon : R,
+  (Rabs delta <= default_rel t)%R /\
+  (Rabs epsilon <= default_abs t)%R /\
+   Generic_fmt.round Zaux.radix2
+              (SpecFloat.fexp (fprec t) (femax t))
+              (BinarySingleNaN.round_mode BinarySingleNaN.mode_NE)
+               x = (x * (1+delta)+epsilon)%R.
+Proof.
+intros.
+destruct (Relative.error_N_FLT Zaux.radix2 (SpecFloat.emin (fprec t) (femax t)) (fprec t) 
+             (fprec_gt_0 t) (fun x0 : Z => negb (Z.even x0)) x)
+  as [delta [epsilon [? [? [? ?]]]]].
+exists delta, epsilon.
+split3; auto.
+Qed.
+
+Definition sqrt_ff (t: type) : floatfunc  [ t ] t (fun _ => True) R_sqrt.sqrt (default_rel t) (default_abs t).
+apply (Build_floatfunc  [ t ] t _ _ _ _ (BSQRT t)).
+intros x ? ?.
+unfold BSQRT, UNOP .
+destruct (Binary.Bsqrt_correct (fprec t) (femax t)  (fprec_gt_0 t) (fprec_lt_femax t) (sqrt_nan t)
+                      BinarySingleNaN.mode_NE x) as [? _].
+change (Binary.B2R (fprec t) (femax t) ?x) with (@FT2R t x) in *.
+rewrite H1; clear H1.
+apply generic_round_property.
+Defined.
+
+
+(* BEGIN definitions adapted from [the open-source part of] CompCert  *)
+
+(** Transform a Nan payload to a quiet Nan payload. *)
+
+Definition quiet_nan_payload (t: type) (p: positive) :=
+  Z.to_pos (Zbits.P_mod_two_p (Pos.lor p ((Zaux.iter_nat xO (Z.to_nat (fprec t - 2)) 1%positive))) (Z.to_nat (fprec t - 1))).
+
+Lemma quiet_nan_proof (t: type): forall p, Binary.nan_pl (fprec t) (quiet_nan_payload t p) = true.
+Proof. 
+intros.
+pose proof (fprec_gt_one t).
+ apply normalized_nan; auto; lia.
+Qed.
+
+Definition quiet_nan (t: type) (sp: bool * positive) : {x : ftype t | Binary.is_nan _ _ x = true} :=
+  let (s, p) := sp in
+  exist _ (Binary.B754_nan (fprec t) (femax t) s (quiet_nan_payload t p) (quiet_nan_proof t p)) (eq_refl true).
+
+Definition default_nan (t: type) := (fst Archi.default_nan_64, iter_nat (Z.to_nat (fprec t - 2)) _ xO xH).
+
+Inductive NAN_SCHEME := NAN_SCHEME_ARM | NAN_SCHEME_X86 | NAN_SCHEME_RISCV.
+
+Definition the_nan_scheme : NAN_SCHEME.
+try (unify Archi.choose_nan_64 Archi.default_nan_64; exact NAN_SCHEME_RISCV);
+try (unify Archi.choose_nan_64 (fun l => match l with nil => Archi.default_nan_64 | n::_ => n end);
+      exact NAN_SCHEME_X86);
+try (let p := constr:(Archi.choose_nan_64) in
+      let p := eval red in p in
+      match p with _ (fun p => negb (Pos.testbit p 51)) _ => idtac end;
+      exact NAN_SCHEME_ARM).
+Defined.
+
+Definition ARMchoose_nan (is_signaling: positive -> bool) 
+                      (default: bool * positive)
+                      (l0: list (bool * positive)) : bool * positive :=
+  let fix choose_snan (l1: list (bool * positive)) :=
+    match l1 with
+    | nil =>
+        match l0 with nil => default | n :: _ => n end
+    | ((s, p) as n) :: l1 =>
+        if is_signaling p then n else choose_snan l1
+    end
+  in choose_snan l0.
+
+Definition choose_nan (t: type) : list (bool * positive) -> bool * positive :=
+ match the_nan_scheme with
+ | NAN_SCHEME_RISCV => fun _ => default_nan t
+ | NAN_SCHEME_X86 => fun l => match l with nil => default_nan t | n :: _ => n end
+ | NAN_SCHEME_ARM => ARMchoose_nan (fun p => negb (Pos.testbit p (Z.to_N (fprec t - 2))))
+                                          (default_nan t)
+ end.
+
+Definition cons_pl {t: type} (x : ftype t) (l : list (bool * positive)) :=
+match x with
+| Binary.B754_nan _ _ s p _ => (s, p) :: l
+| _ => l
+end.
+
+Definition fma_nan_1 (t: type) (x y z: ftype t) : {x : ftype t | @Binary.is_nan (fprec t) (femax t) x = true} :=
+  let '(a, b, c) := Archi.fma_order x y z in
+  quiet_nan t (choose_nan t (cons_pl a (cons_pl b (cons_pl c [])))).
+
+Definition fma_nan (t: type) (x y z: ftype t) : {x : ftype t | Binary.is_nan _ _ x = true} :=
+  match x, y with
+  | Binary.B754_infinity _ _ _, Binary.B754_zero _ _ _ | Binary.B754_zero _ _ _, Binary.B754_infinity _ _ _ =>
+      if Archi.fma_invalid_mul_is_nan
+      then quiet_nan t (choose_nan t (default_nan t :: cons_pl z []))
+      else fma_nan_1 t x y z
+  | _, _ =>
+      fma_nan_1 t x y z
+  end.
+(* END definitions adapted from [the open-source part of] CompCert  *)
+
+Definition fma_no_overflow (t: type) (x y z: R) : Prop :=
+  (Rabs ( Generic_fmt.round Zaux.radix2
+              (SpecFloat.fexp (fprec t) (femax t))
+              (BinarySingleNaN.round_mode
+                 BinarySingleNaN.mode_NE)  (x * y + z)) < Raux.bpow Zaux.radix2 (femax t))%R.
+
+Definition fma_ff (t: type) : floatfunc  [ t;t;t ] t (fma_no_overflow t) (fun x y z => x*y+z)%R (default_rel t) (default_abs t).
+apply (Build_floatfunc [t;t;t] t _ _ _ _ 
+          (Binary.Bfma (fprec t) (femax t) (fprec_gt_0 t) (fprec_lt_femax t) 
+               (fma_nan t) BinarySingleNaN.mode_NE)).
+intros x ? y ? z ? ?.
+pose proof (Binary.Bfma_correct  (fprec t) (femax t)  (fprec_gt_0 t) (fprec_lt_femax t) (fma_nan t)
+                      BinarySingleNaN.mode_NE x y z H H0 H1).
+change (Binary.B2R (fprec t) (femax t) ?x) with (@FT2R t x) in *.
+cbv zeta in H3.
+pose proof (
+   Raux.Rlt_bool_spec
+        (Rabs
+           (Generic_fmt.round Zaux.radix2
+              (SpecFloat.fexp (fprec t) (femax t))
+              (BinarySingleNaN.round_mode
+                 BinarySingleNaN.mode_NE) (FT2R x * FT2R y + FT2R z)))
+        (Raux.bpow Zaux.radix2 (femax t))).
+destruct H4.
+-
+destruct H3 as [? _].
+rewrite H3.
+apply generic_round_property.
+-
+red in H2.
+Lra.lra.
+Defined.
 
 Module Type MathFunctions.
 
-Definition Rsqrt' (x: R) : R :=
-match Rle_dec 0 x with
-| left a => Rsqrt {| nonneg := x; cond_nonneg := a |}
-| right b => 0%R
-end.
-
-Parameter sqrt : floatfunc [ Tdouble ] Tdouble (Rle 0) Rsqrt' (default_rel Tdouble) (default_abs Tdouble).
-Parameter sqrtf : floatfunc [ Tsingle ] Tsingle  (Rle 0)  Rsqrt' (default_rel Tsingle) (default_abs Tsingle).
-
 Parameter sin: floatfunc [Tdouble] Tdouble (fun _ => True) Rtrigo_def.sin (2*default_rel Tdouble) (3*default_abs Tdouble).
 Parameter sinf: floatfunc [Tsingle] Tsingle (fun _ => True) Rtrigo_def.sin (default_rel Tsingle) (default_abs Tsingle).
-
-Parameter fma: floatfunc [Tdouble;Tdouble;Tdouble] Tdouble (fun _ _ _ =>True) 
-           (fun x y z => x*y+z)%R (default_rel Tdouble) (default_abs Tdouble).
-Parameter fmaf: floatfunc [Tsingle;Tsingle;Tsingle] Tsingle (fun _ _ _ =>True) 
-           (fun x y z => x*y+z)%R (default_rel Tsingle) (default_abs Tsingle).
 
 End MathFunctions.
 
 Declare Module MF: MathFunctions.
 
-Definition sqrt_spec := DECLARE _sqrt ltac:(floatspec MF.sqrt).
-Definition sqrtf_spec := DECLARE _sqrtf ltac:(floatspec MF.sqrtf).
+Definition sqrt_spec := DECLARE _sqrt ltac:(floatspec (sqrt_ff Tdouble)).
+Definition sqrtf_spec := DECLARE _sqrtf ltac:(floatspec (sqrt_ff Tsingle)).
 Definition sin_spec := DECLARE _sin ltac:(floatspec MF.sin).
 Definition sinf_spec := DECLARE _sinf ltac:(floatspec MF.sinf).
-Definition fma_spec := DECLARE _fma ltac:(floatspec MF.fma).
-Definition fmaf_spec := DECLARE _fmaf ltac:(floatspec MF.fmaf).
+Definition fma_spec := DECLARE _fma ltac:(floatspec (fma_ff Tdouble)).
+Definition fmaf_spec := DECLARE _fmaf ltac:(floatspec (fma_ff Tsingle)).
 
 Definition MathASI:funspecs := [ 
   sqrt_spec; sqrtf_spec; sin_spec; sinf_spec;
@@ -153,24 +273,21 @@ Definition MathASI:funspecs := [
 ].
 
 Remark sqrt_accurate: forall x, 
-  (0 <= FT2R x  ->
-  exists delta, exists epsilon,
+  (0 <= FT2R x ->
+   Binary.is_finite (fprec Tdouble) (femax Tdouble) x = true ->
+   exists delta, exists epsilon,
    Rabs delta <= default_rel Tdouble /\
    Rabs epsilon <= default_abs Tdouble /\ 
    exists x', nonneg x' = FT2R x /\
-   FT2R (ff_func MF.sqrt x) = Rsqrt x' * (1+delta) + epsilon)%R.
+   FT2R (ff_func (sqrt_ff Tdouble) x) = sqrt x' * (1+delta) + epsilon)%R.
 Proof.
 intros.
-destruct (ff_acc MF.sqrt _ H) as [delta [epsilon ?]].
+destruct (ff_acc (sqrt_ff Tdouble) x H0 I) as [delta [epsilon [? [? ?]]]].
 exists delta, epsilon.
-destruct H0 as [? [? ?]].
 split3; auto.
+destruct (Rcase_abs (FT2R x)). Lra.lra.
 exists {| nonneg:= FT2R x; cond_nonneg := H |}.
 split; auto.
-rewrite H2.
-unfold MF.Rsqrt'.
-destruct (Rle_dec _ _); try contradiction.
-repeat f_equal.
-apply proof_irr.
 Qed.
+
 
