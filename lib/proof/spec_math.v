@@ -144,6 +144,60 @@ rewrite H1; clear H1.
 apply generic_round_property.
 Defined.
 
+Definition abs_ff (t: type) : floatfunc  [ t ] t (fun _ => True) Rabs 0%R 0%R.
+apply (Build_floatfunc  [ t ] t _ _ _ _ (BABS t)).
+intros x ? ?.
+unfold BABS, UNOP .
+pose proof (Binary.B2R_Babs (fprec t) (femax t)  (FPCore.abs_nan t)
+                       x).
+change (Binary.B2R (fprec t) (femax t) ?x) with (@FT2R t x) in *.
+rewrite H1; clear H1.
+exists 0%R, 0%R. 
+split; simpl;
+rewrite Rabs_R0;
+try match goal with |- context [Raux.bpow ?a ?b] =>
+  pose proof (Raux.bpow_gt_0 a b)
+end;
+Lra.nra.
+Defined.
+
+Lemma trunc_ff_aux: forall t (x: ftype t),
+  Binary.is_finite (fprec t) (femax t) x = true ->
+  (Rabs (FT2R x) < Raux.bpow Zaux.radix2 (femax t - 1))%R ->
+  (Rabs  (Generic_fmt.round Zaux.radix2
+            (SpecFloat.fexp (fprec t) (femax t))
+            (BinarySingleNaN.round_mode BinarySingleNaN.mode_NE)
+            (IZR (Binary.Btrunc (fprec t) (femax t) x)))
+           <  Raux.bpow Zaux.radix2 (femax t) )%R.
+Admitted. (* might be true *)
+
+
+Definition trunc_ff (t: type) : floatfunc  [ t ] t 
+      (fun x => Rlt (Rabs x) (Raux.bpow Zaux.radix2 (femax t - 1))) (Generic_fmt.round Zaux.radix2 (FIX.FIX_exp 0) Raux.Ztrunc)
+                   (default_rel t) (default_abs t).
+apply (Build_floatfunc  [ t ] t _ _ _ _ 
+              (fun x => IEEE754_extra.BofZ (fprec t) (femax t)  
+                           (fprec_gt_0 t) (fprec_lt_femax t)
+                      (Binary.Btrunc (fprec t) (femax t) x))).
+intros x ? ?.
+pose proof (Binary.Btrunc_correct (fprec t) (femax t) (fprec_lt_femax t) x).
+change (Binary.B2R (fprec t) (femax t) ?x) with (@FT2R t x) in *.
+rewrite <- H1; clear H1.
+pose proof IEEE754_extra.BofZ_correct (fprec t) (femax t) (fprec_gt_0 t) (fprec_lt_femax t) 
+            (Binary.Btrunc (fprec t) (femax t) x).
+match type of H1 with if Raux.Rlt_bool ?a ?b then _ else _ => 
+  destruct (Raux.Rlt_bool_spec a b)
+end.
+-
+change (Binary.B2R (fprec t) (femax t) ?x) with (@FT2R t x) in *.
+destruct H1 as [? [? ?]].
+rewrite H1.
+apply generic_round_property.
+-
+elimtype False; clear - H H0 H2.
+pose proof trunc_ff_aux t x H.
+Lra.lra.
+Defined.
 
 (* BEGIN definitions adapted from [the open-source part of] CompCert  *)
 
@@ -250,6 +304,55 @@ apply generic_round_property.
 red in H2.
 Lra.lra.
 Defined.
+Print mode.
+
+Definition ldexp_spec' (t: type) :=
+   WITH x : ftype t, i: Z
+   PRE [ reflect_to_ctype t , tint ]
+       PROP (Int.min_signed <= i <= Int.max_signed)
+       PARAMS (reflect_to_val t x; Vint (Int.repr i))
+       SEP ()
+    POST [ reflect_to_ctype t ]
+       PROP ()
+       RETURN (reflect_to_val t 
+                       ((Binary.Bldexp (fprec t) (femax t) 
+                           (fprec_gt_0 t) (fprec_lt_femax t) BinarySingleNaN.mode_NE x i)))
+       SEP ().
+
+Locate emptyCS.
+
+Definition frexp_spec' (t: type) :=
+   WITH x : ftype t, p: val, sh: share
+   PRE [ reflect_to_ctype t , tptr tint ]
+       PROP (writable_share sh)
+       PARAMS (reflect_to_val t x; p)
+       SEP (@data_at_ emptyCS sh tint p)
+    POST [ reflect_to_ctype t ]
+       PROP ()
+       RETURN (reflect_to_val t 
+                        (fst (Binary.Bfrexp (fprec t) (femax t)  (fprec_gt_0 t) x)))
+       SEP (@data_at emptyCS sh tint (Vint (Int.repr 
+                         (snd (Binary.Bfrexp (fprec t) (femax t)  (fprec_gt_0 t) x))))
+                         p).
+
+Definition nextafter (t: type) (x y: ftype t) : ftype t := 
+ match Binary.Bcompare (fprec t) (femax t) x y with
+  | Some Lt => Binary.Bsucc (fprec t) (femax t)  (fprec_gt_0 t) (fprec_lt_femax t) x
+  | Some Eq => y
+  | Some Gt => Binary.Bpred (fprec t) (femax t)  (fprec_gt_0 t) (fprec_lt_femax t) x
+  | None => proj1_sig (quiet_nan t (default_nan t))  (* this is probably the wrong NaN *)
+  end.
+
+Definition nextafter_spec' (t: type) :=
+   WITH x : ftype t, y: ftype t
+   PRE [ reflect_to_ctype t , reflect_to_ctype t ]
+       PROP ()
+       PARAMS (reflect_to_val t x; reflect_to_val t y)
+       SEP ()
+    POST [ reflect_to_ctype t ]
+       PROP ()
+       RETURN (reflect_to_val t (nextafter t x y))
+       SEP ().
 
 Module Type MathFunctions.
 
@@ -260,16 +363,34 @@ End MathFunctions.
 
 Declare Module MF: MathFunctions.
 
+Ltac reduce1 t := 
+    let p := eval red in t in 
+   let a := eval cbv [reflect_to_ctype reflect_to_val reflect_to_val_constructor] in p in 
+   let a := eval simpl in a in
+   exact a.
+
+
+Definition fabs_spec := DECLARE _sqrt ltac:(floatspec (abs_ff Tdouble)).
+Definition fabsf_spec := DECLARE _sqrtf ltac:(floatspec (abs_ff Tsingle)).
 Definition sqrt_spec := DECLARE _sqrt ltac:(floatspec (sqrt_ff Tdouble)).
 Definition sqrtf_spec := DECLARE _sqrtf ltac:(floatspec (sqrt_ff Tsingle)).
 Definition sin_spec := DECLARE _sin ltac:(floatspec MF.sin).
 Definition sinf_spec := DECLARE _sinf ltac:(floatspec MF.sinf).
 Definition fma_spec := DECLARE _fma ltac:(floatspec (fma_ff Tdouble)).
 Definition fmaf_spec := DECLARE _fmaf ltac:(floatspec (fma_ff Tsingle)).
+Definition frexp_spec := DECLARE _frexp ltac:(reduce1 (frexp_spec' Tdouble)).
+Definition frexpf_spec := DECLARE _frexpf ltac:(reduce1 (frexp_spec' Tsingle)).
+Definition ldexp_spec := DECLARE _ldexp ltac:(reduce1 (ldexp_spec' Tdouble)).
+Definition ldexpf_spec := DECLARE _ldexpf ltac:(reduce1 (ldexp_spec' Tsingle)).
+Definition nextafter_spec := DECLARE _nextafter ltac:(reduce1 (nextafter_spec' Tdouble)).
+Definition nextafterf_spec := DECLARE _nextafterf ltac:(reduce1 (nextafter_spec' Tsingle)).
+Definition trunc_spec := DECLARE _sqrt ltac:(floatspec (trunc_ff Tdouble)).
+Definition truncf_spec := DECLARE _sqrtf ltac:(floatspec (trunc_ff Tsingle)).
 
 Definition MathASI:funspecs := [ 
-  sqrt_spec; sqrtf_spec; sin_spec; sinf_spec;
-  fma_spec; fmaf_spec 
+  fabs_spec; fabsf_spec; sqrt_spec; sqrtf_spec; sin_spec; sinf_spec;
+  fma_spec; fmaf_spec; frexp_spec; frexpf_spec; ldexp_spec; ldexpf_spec; 
+  nextafter_spec; nextafterf_spec; trunc_spec; truncf_spec
 ].
 
 Remark sqrt_accurate: forall x, 
