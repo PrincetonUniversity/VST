@@ -30,14 +30,27 @@ Defined.
 
 Record floatfunc (args: list FPCore.type) (result: FPCore.type) 
      (precond: function_type (map RR args) Prop)
+     (realfunc: function_type (map RR args) R) := 
+ {ff_func: function_type (map ftype' args) (ftype' result);
+  ff_rel: R;
+  ff_abs: R;
+  ff_acc: acc_prop args result ff_rel ff_abs precond realfunc ff_func
+ }.
+
+(*
+Record floatfunc (args: list FPCore.type) (result: FPCore.type) 
+     (precond: function_type (map RR args) Prop)
      (realfunc: function_type (map RR args) R)
      (rel abs: R) :=
  {ff_func: function_type (map ftype' args) (ftype' result);
   ff_acc: acc_prop args result rel abs precond realfunc ff_func
  }.
+*)
 
-Arguments ff_func [args result precond realfunc rel abs].
-Arguments ff_acc [args result precond realfunc rel abs].
+Arguments ff_func [args result precond realfunc].
+Arguments ff_acc [args result precond realfunc].
+Arguments ff_rel [args result precond realfunc].
+Arguments ff_abs [args result precond realfunc].
 
 Definition default_rel (t: FPCore.type) : R :=
   / 2 * Raux.bpow Zaux.radix2 (- fprec t + 1).
@@ -71,8 +84,8 @@ Definition vacuous_funspec' args result : funspec :=
      (args_const_super_non_expansive _ _) (const_super_non_expansive _ _).
 
 Definition floatspec {args result} :
-  forall {precond rfunc rel abs} 
-       (ff: floatfunc args result precond rfunc rel abs), funspec.
+  forall {precond rfunc} 
+       (ff: floatfunc args result precond rfunc), funspec.
 refine (match args with [a1] => _ | [a1;a2] => _ | [a1;a2;a3] => _ | _ => _ end); 
   intros.
 exact (vacuous_funspec' args result).
@@ -133,8 +146,8 @@ exists delta, epsilon.
 split3; auto.
 Qed.
 
-Definition sqrt_ff (t: type) : floatfunc  [ t ] t (fun _ => True) R_sqrt.sqrt (default_rel t) (default_abs t).
-apply (Build_floatfunc  [ t ] t _ _ _ _ (BSQRT t)).
+Definition sqrt_ff (t: type) : floatfunc  [ t ] t (fun _ => True) R_sqrt.sqrt.
+apply (Build_floatfunc  [ t ] t _ _ (BSQRT t)  (default_rel t) (default_abs t)).
 intros x ? ?.
 unfold BSQRT, UNOP .
 destruct (Binary.Bsqrt_correct (fprec t) (femax t)  (fprec_gt_0 t) (fprec_lt_femax t) (sqrt_nan t)
@@ -144,8 +157,8 @@ rewrite H1; clear H1.
 apply generic_round_property.
 Defined.
 
-Definition abs_ff (t: type) : floatfunc  [ t ] t (fun _ => True) Rabs 0%R 0%R.
-apply (Build_floatfunc  [ t ] t _ _ _ _ (BABS t)).
+Definition abs_ff (t: type) : floatfunc  [ t ] t (fun _ => True) Rabs.
+apply (Build_floatfunc  [ t ] t _ _ (BABS t)  0%R 0%R).
 intros x ? ?.
 unfold BABS, UNOP .
 pose proof (Binary.B2R_Babs (fprec t) (femax t)  (FPCore.abs_nan t)
@@ -173,12 +186,13 @@ Admitted. (* might be true *)
 
 
 Definition trunc_ff (t: type) : floatfunc  [ t ] t 
-      (fun x => Rlt (Rabs x) (Raux.bpow Zaux.radix2 (femax t - 1))) (Generic_fmt.round Zaux.radix2 (FIX.FIX_exp 0) Raux.Ztrunc)
-                   (default_rel t) (default_abs t).
-apply (Build_floatfunc  [ t ] t _ _ _ _ 
+      (fun x => Rlt (Rabs x) (Raux.bpow Zaux.radix2 (femax t - 1))) 
+           (Generic_fmt.round Zaux.radix2 (FIX.FIX_exp 0) Raux.Ztrunc).
+apply (Build_floatfunc  [ t ] t _ _ 
               (fun x => IEEE754_extra.BofZ (fprec t) (femax t)  
                            (fprec_gt_0 t) (fprec_lt_femax t)
-                      (Binary.Btrunc (fprec t) (femax t) x))).
+                      (Binary.Btrunc (fprec t) (femax t) x))
+                      (default_rel t) (default_abs t)).
 intros x ? ?.
 pose proof (Binary.Btrunc_correct (fprec t) (femax t) (fprec_lt_femax t) x).
 change (Binary.B2R (fprec t) (femax t) ?x) with (@FT2R t x) in *.
@@ -278,10 +292,11 @@ Definition fma_no_overflow (t: type) (x y z: R) : Prop :=
               (BinarySingleNaN.round_mode
                  BinarySingleNaN.mode_NE)  (x * y + z)) < Raux.bpow Zaux.radix2 (femax t))%R.
 
-Definition fma_ff (t: type) : floatfunc  [ t;t;t ] t (fma_no_overflow t) (fun x y z => x*y+z)%R (default_rel t) (default_abs t).
-apply (Build_floatfunc [t;t;t] t _ _ _ _ 
+Definition fma_ff (t: type) : floatfunc  [ t;t;t ] t (fma_no_overflow t) (fun x y z => x*y+z)%R.
+apply (Build_floatfunc [t;t;t] t _ _ 
           (Binary.Bfma (fprec t) (femax t) (fprec_gt_0 t) (fprec_lt_femax t) 
-               (fma_nan t) BinarySingleNaN.mode_NE)).
+               (fma_nan t) BinarySingleNaN.mode_NE)
+           (default_rel t) (default_abs t)).
 intros x ? y ? z ? ?.
 pose proof (Binary.Bfma_correct  (fprec t) (femax t)  (fprec_gt_0 t) (fprec_lt_femax t) (fma_nan t)
                       BinarySingleNaN.mode_NE x y z H H0 H1).
@@ -304,7 +319,6 @@ apply generic_round_property.
 red in H2.
 Lra.lra.
 Defined.
-Print mode.
 
 Definition ldexp_spec' (t: type) :=
    WITH x : ftype t, i: Z
@@ -318,8 +332,6 @@ Definition ldexp_spec' (t: type) :=
                        ((Binary.Bldexp (fprec t) (femax t) 
                            (fprec_gt_0 t) (fprec_lt_femax t) BinarySingleNaN.mode_NE x i)))
        SEP ().
-
-Locate emptyCS.
 
 Definition frexp_spec' (t: type) :=
    WITH x : ftype t, p: val, sh: share
@@ -354,10 +366,77 @@ Definition nextafter_spec' (t: type) :=
        RETURN (reflect_to_val t (nextafter t x y))
        SEP ().
 
-Module Type MathFunctions.
+Definition copysign (t: type) (x y: ftype t) :=
+ match x with
+ | Binary.B754_zero _ _ _ => Binary.B754_zero _ _ (Binary.Bsign _ _ y)
+ | Binary.B754_infinity _ _ _ => Binary.B754_infinity _ _ (Binary.Bsign _ _ y)
+ | Binary.B754_finite _ _ _ m e H => Binary.B754_finite _ _ (Binary.Bsign _ _ y) m e H
+ | Binary.B754_nan _ _ _ pl H => Binary.B754_nan _ _ (Binary.Bsign _ _ y) pl H
+end.
 
-Parameter sin: floatfunc [Tdouble] Tdouble (fun _ => True) Rtrigo_def.sin (2*default_rel Tdouble) (3*default_abs Tdouble).
-Parameter sinf: floatfunc [Tsingle] Tsingle (fun _ => True) Rtrigo_def.sin (default_rel Tsingle) (default_abs Tsingle).
+Definition copysign_spec' (t: type) :=
+   WITH x : ftype t, y : ftype t
+   PRE [ reflect_to_ctype t , reflect_to_ctype t ]
+       PROP ()
+       PARAMS (reflect_to_val t x; reflect_to_val t y) 
+       SEP ()
+    POST [ reflect_to_ctype t ]
+       PROP ()
+       RETURN (reflect_to_val t (copysign t x y))
+       SEP ().
+
+Definition nan_spec' (t: type) :=
+   WITH p: val
+   PRE [ tptr tschar ]
+       PROP ()
+       PARAMS (p) 
+       SEP ()
+    POST [ reflect_to_ctype t ]
+       PROP ()
+       RETURN (reflect_to_val t (proj1_sig (quiet_nan t (default_nan t))))
+       SEP ().
+
+Definition arccosh (x: R) := Rabs (Rpower.arcsinh (sqrt (Rsqr x - 1)))%R.
+Definition arctanh (x: R) := (/2 * ln ((1+x)/(1-x)) )%R.
+
+Module Type MathFunctions.
+Parameter acos: floatfunc [Tdouble] Tdouble (fun _ => True) Ratan.acos. 
+Parameter acosf: floatfunc [Tsingle] Tsingle (fun _ => True) Ratan.acos.
+Parameter acosh: floatfunc [Tdouble] Tdouble (fun _ => True) arccosh.
+Parameter acoshf: floatfunc [Tsingle] Tsingle (fun _ => True) arccosh.
+Parameter asin: floatfunc [Tdouble] Tdouble (fun _ => True) Ratan.asin.
+Parameter asinf: floatfunc [Tsingle] Tsingle (fun _ => True) Ratan.asin.
+Parameter asinh: floatfunc [Tdouble] Tdouble (fun _ => True) Rpower.arcsinh.
+Parameter asinhf: floatfunc [Tsingle] Tsingle (fun _ => True) Rpower.arcsinh.
+Parameter atan: floatfunc [Tdouble] Tdouble (fun _ => True) Ratan.atan. 
+Parameter atanf: floatfunc [Tsingle] Tsingle (fun _ => True) Ratan.atan.
+Parameter atan2: floatfunc [Tdouble;Tdouble] Tdouble (fun _ _ => True) (fun y x => Ratan.atan(y/x))%R. 
+Parameter atan2f: floatfunc [Tsingle;Tsingle] Tsingle (fun _ _ => True) (fun y x => Ratan.atan(y/x))%R. 
+Parameter atanh: floatfunc [Tdouble] Tdouble (fun _ => True) arctanh.
+Parameter atanhf: floatfunc [Tsingle] Tsingle (fun _ => True) arctanh.
+Parameter cbrt: floatfunc [Tdouble] Tdouble (fun _ => True) (fun x => Rpower x (/3))%R.
+Parameter cbrtf: floatfunc [Tsingle] Tsingle (fun _ => True) (fun x => Rpower x (/3))%R.
+Parameter cos: floatfunc [Tdouble] Tdouble (fun _ => True) Rtrigo_def.cos. 
+Parameter cosf: floatfunc [Tsingle] Tsingle (fun _ => True) Rtrigo_def.cos.
+Parameter cosh: floatfunc [Tdouble] Tdouble (fun _ => True) Rtrigo_def.cosh.
+Parameter coshf: floatfunc [Tsingle] Tsingle (fun _ => True) Rtrigo_def.cosh.
+Parameter exp:  floatfunc [Tdouble] Tdouble (fun _ => True) Rtrigo_def.exp.
+Parameter expf:  floatfunc [Tsingle] Tsingle (fun _ => True) Rtrigo_def.exp.
+Parameter exp2:  floatfunc [Tdouble] Tdouble (fun _ => True) (Rpower 2%R).
+Parameter exp2f:  floatfunc [Tsingle] Tsingle (fun _ => True)  (Rpower 2%R).
+Parameter expm1:  floatfunc [Tdouble] Tdouble (fun _ => True) (fun x => Rtrigo_def.exp x - 1)%R.
+Parameter expm1f:  floatfunc [Tsingle] Tsingle (fun _ => True) (fun x => Rtrigo_def.exp x - 1)%R.
+Parameter pow: floatfunc [Tdouble;Tdouble] Tdouble (fun _ _ => True) Rpower. 
+Parameter powf: floatfunc [Tsingle;Tsingle] Tsingle (fun _ _ => True) Rpower. 
+
+Parameter sin: floatfunc [Tdouble] Tdouble (fun _ => True) Rtrigo_def.sin.
+Parameter sinf: floatfunc [Tsingle] Tsingle (fun _ => True) Rtrigo_def.sin.
+Parameter sinh: floatfunc [Tdouble] Tdouble (fun _ => True) Rtrigo_def.sinh.
+Parameter sinhf: floatfunc [Tsingle] Tsingle (fun _ => True) Rtrigo_def.sinh.
+Parameter tan: floatfunc [Tdouble] Tdouble (fun _ => True) Rtrigo1.tan.
+Parameter tanf: floatfunc [Tsingle] Tsingle (fun _ => True) Rtrigo1.tan.
+Parameter tanh: floatfunc [Tdouble] Tdouble (fun _ => True) Rtrigo_def.tanh.
+Parameter tanhf: floatfunc [Tsingle] Tsingle (fun _ => True) Rtrigo_def.tanh.
 
 End MathFunctions.
 
@@ -369,31 +448,81 @@ Ltac reduce1 t :=
    let a := eval simpl in a in
    exact a.
 
-
-Definition fabs_spec := DECLARE _sqrt ltac:(floatspec (abs_ff Tdouble)).
-Definition fabsf_spec := DECLARE _sqrtf ltac:(floatspec (abs_ff Tsingle)).
+Definition acos_spec := DECLARE _acos ltac:(floatspec MF.acos).
+Definition acosf_spec := DECLARE _acosf ltac:(floatspec MF.acosf).
+Definition acosh_spec := DECLARE _acosh ltac:(floatspec MF.acosh).
+Definition acoshf_spec := DECLARE _acoshf ltac:(floatspec MF.acoshf).
+Definition asin_spec := DECLARE _asin ltac:(floatspec MF.asin).
+Definition asinf_spec := DECLARE _asinf ltac:(floatspec MF.asinf).
+Definition asinh_spec := DECLARE _asinh ltac:(floatspec MF.asinh).
+Definition asinhf_spec := DECLARE _asinhf ltac:(floatspec MF.asinhf).
+Definition atan_spec := DECLARE _atan ltac:(floatspec MF.atan).
+Definition atanf_spec := DECLARE _atanf ltac:(floatspec MF.atanf).
+Definition atan2_spec := DECLARE _atan2 ltac:(floatspec MF.atan2).
+Definition atan2f_spec := DECLARE _atan2f ltac:(floatspec MF.atan2f).
+Definition atanh_spec := DECLARE _atanh ltac:(floatspec MF.atanh).
+Definition atanhf_spec := DECLARE _atanhf ltac:(floatspec MF.atanhf).
+Definition cbrt_spec := DECLARE _cbrt ltac:(floatspec MF.cbrt).
+Definition cbrtf_spec := DECLARE _cbrtf ltac:(floatspec MF.cbrtf).
+Definition copysign_spec := DECLARE _copysign ltac:(reduce1 (copysign_spec' Tdouble)).
+Definition copysignf_spec := DECLARE _copysignf ltac:(reduce1 (copysign_spec' Tsingle)).
+Definition cos_spec := DECLARE _cos ltac:(floatspec MF.cos).
+Definition cosf_spec := DECLARE _cosf ltac:(floatspec MF.cosf).
+Definition cosh_spec := DECLARE _cosh ltac:(floatspec MF.cosh).
+Definition coshf_spec := DECLARE _coshf ltac:(floatspec MF.coshf).
+Definition exp_spec := DECLARE _exp ltac:(floatspec MF.exp).
+Definition expf_spec := DECLARE _expf ltac:(floatspec MF.expf).
+Definition exp2_spec := DECLARE _exp2 ltac:(floatspec MF.exp2).
+Definition exp2f_spec := DECLARE _exp2f ltac:(floatspec MF.exp2f).
+Definition expm1_spec := DECLARE _expm1 ltac:(floatspec MF.expm1).
+Definition expm1f_spec := DECLARE _expm1f ltac:(floatspec MF.expm1f).
+Definition fabs_spec := DECLARE _fabs ltac:(floatspec (abs_ff Tdouble)).
+Definition fabsf_spec := DECLARE _fabsf ltac:(floatspec (abs_ff Tsingle)).
+Definition pow_spec := DECLARE _pow ltac:(floatspec MF.pow).
+Definition powf_spec := DECLARE _powf ltac:(floatspec MF.powf).
 Definition sqrt_spec := DECLARE _sqrt ltac:(floatspec (sqrt_ff Tdouble)).
 Definition sqrtf_spec := DECLARE _sqrtf ltac:(floatspec (sqrt_ff Tsingle)).
 Definition sin_spec := DECLARE _sin ltac:(floatspec MF.sin).
 Definition sinf_spec := DECLARE _sinf ltac:(floatspec MF.sinf).
+Definition sinh_spec := DECLARE _sinh ltac:(floatspec MF.sinh).
+Definition sinhf_spec := DECLARE _sinhf ltac:(floatspec MF.sinhf).
+Definition tan_spec := DECLARE _tan ltac:(floatspec MF.tan).
+Definition tanf_spec := DECLARE _tanf ltac:(floatspec MF.tanf).
+Definition tanh_spec := DECLARE _tanh ltac:(floatspec MF.tanh).
+Definition tanhf_spec := DECLARE _tanhf ltac:(floatspec MF.tanhf).
+
 Definition fma_spec := DECLARE _fma ltac:(floatspec (fma_ff Tdouble)).
 Definition fmaf_spec := DECLARE _fmaf ltac:(floatspec (fma_ff Tsingle)).
 Definition frexp_spec := DECLARE _frexp ltac:(reduce1 (frexp_spec' Tdouble)).
 Definition frexpf_spec := DECLARE _frexpf ltac:(reduce1 (frexp_spec' Tsingle)).
 Definition ldexp_spec := DECLARE _ldexp ltac:(reduce1 (ldexp_spec' Tdouble)).
 Definition ldexpf_spec := DECLARE _ldexpf ltac:(reduce1 (ldexp_spec' Tsingle)).
+Definition nan_spec := DECLARE _nan ltac:(reduce1 (nan_spec' Tdouble)).
+Definition nanf_spec := DECLARE _nanf ltac:(reduce1 (nan_spec' Tsingle)).
 Definition nextafter_spec := DECLARE _nextafter ltac:(reduce1 (nextafter_spec' Tdouble)).
 Definition nextafterf_spec := DECLARE _nextafterf ltac:(reduce1 (nextafter_spec' Tsingle)).
-Definition trunc_spec := DECLARE _sqrt ltac:(floatspec (trunc_ff Tdouble)).
-Definition truncf_spec := DECLARE _sqrtf ltac:(floatspec (trunc_ff Tsingle)).
+Definition trunc_spec := DECLARE _trunc ltac:(floatspec (trunc_ff Tdouble)).
+Definition truncf_spec := DECLARE _truncf ltac:(floatspec (trunc_ff Tsingle)).
 
 Definition MathASI:funspecs := [ 
-  fabs_spec; fabsf_spec; sqrt_spec; sqrtf_spec; sin_spec; sinf_spec;
+  acos_spec; acosf_spec; acosh_spec; acoshf_spec; asin_spec; asinf_spec; asinh_spec; asinhf_spec;
+  atan_spec; atanf_spec; atan2_spec; atan2f_spec; atanh_spec; atanhf_spec;
+  cbrt_spec; cbrtf_spec; copysign_spec; copysignf_spec;
+  cos_spec; cosf_spec; cosh_spec; coshf_spec; 
+  exp_spec; expf_spec; exp2_spec; exp2f_spec; expm1_spec; expm1f_spec;
+  fabs_spec; fabsf_spec; pow_spec; powf_spec; sqrt_spec; sqrtf_spec; 
+  sin_spec; sinf_spec; sinh_spec; sinhf_spec;
+  tan_spec; tanf_spec; tanh_spec; tanhf_spec; 
   fma_spec; fmaf_spec; frexp_spec; frexpf_spec; ldexp_spec; ldexpf_spec; 
-  nextafter_spec; nextafterf_spec; trunc_spec; truncf_spec
+  nan_spec; nanf_spec; nextafter_spec; nextafterf_spec; trunc_spec; truncf_spec
 ].
 
-Remark sqrt_accurate: forall x, 
+Goal map string_of_ident (duplicate_ids (map fst MathASI)) = nil.
+compute.
+reflexivity. (* If this line fails, then it lists the duplicate names in your DECLARE statements above *)
+Abort.
+
+Local Remark sqrt_accurate: forall x, 
   (0 <= FT2R x ->
    Binary.is_finite (fprec Tdouble) (femax Tdouble) x = true ->
    exists delta, exists epsilon,
