@@ -13,7 +13,7 @@ Section atomicity.
 (* for people who don't want telescope notation *)
 Definition tele_unwrap {A} (x : tele_arg (TeleS (fun _ : A => TeleO))) :=
   match x with
-  | TargS _ _ x _ => x
+  | TeleArgCons x _ => x
   end.
 
 Definition atomic_shift {A B} (a : A -> mpred) Eo Ei (b : A -> B -> mpred) (Q : B -> mpred) : mpred :=
@@ -80,22 +80,13 @@ Proof.
   intros; unfold atomic_shift.
   destruct n as [|n].
   { rewrite !approx_0; auto. }
-  unshelve eapply (atomic_update_ne _ _ n (λ.. x : [tele _ : A], a (tele_unwrap x))).
-  { intros a1; simpl. dependent destruction a1; simpl.
-    dependent destruction a1; simpl. hnf.
+  unshelve eapply (atomic_update_ne(TA := TeleS (fun _ => TeleO)) _ _ n (λ.. x : [tele _ : A], a (tele_unwrap x))).
+  { intros [? []]; hnf; simpl.
     rewrite approx_idem; auto. }
-  { intros a1 b1; simpl.
-    dependent destruction a1; simpl.
-    dependent destruction a1; simpl.
-    dependent destruction b1; simpl.
-    dependent destruction b1; simpl.
-    hnf. rewrite approx_idem; auto. }
-  { intros a1 b1; simpl.
-    dependent destruction a1; simpl.
-    dependent destruction a1; simpl.
-    dependent destruction b1; simpl.
-    dependent destruction b1; simpl.
-    hnf. rewrite approx_idem; auto. }
+  { intros [? []] [? []]; hnf; simpl.
+    rewrite approx_idem; auto. }
+  { intros [? []] [? []]; hnf; simpl.
+    rewrite approx_idem; auto. }
 Qed.
 
 Lemma atomic_shift_derives_frame : forall {A A' B B'} (a : A -> mpred) (a' : A' -> mpred) Eo Ei

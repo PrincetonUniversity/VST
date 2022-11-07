@@ -183,7 +183,7 @@ Proof.
   unfold_lock_inv; Intros.
   rewrite -> prop_true_andp by auto.
   iIntros "[[[#inv0 sh] #inv] g]".
-  iAuIntro; rewrite /atomic_acc /=.
+  unfold atomic_shift; iAuIntro; rewrite /atomic_acc /=.
   iMod (into_acc_cinv with "inv0 sh") as (_) "[[>i sh] Hclose0]". done.
   iInv "inv" as (x y) ">[[g1 g2] c]" "Hclose"; auto.
   unfold ctr_state at 1.
@@ -276,7 +276,7 @@ Proof.
   { iIntros "(((((((? & g1) & lock) & g2) & inv) & ?) & ?) & ?)"; iSplitL "g1 g2 inv lock"; [|iVST; cancel_frame].
     unfold_lock_inv; iDestruct "lock" as "[[[% %] #inv0] sh]".
     iDestruct "inv" as "#inv".
-    iAuIntro; rewrite /atomic_acc /=.
+    unfold atomic_shift; iAuIntro; rewrite /atomic_acc /=.
     iMod (into_acc_cinv with "inv0 sh") as (_) "[[>i sh] Hclose0]". done.
     iInv "inv" as (x y) ">[gs c]" "Hclose"; auto.
     iExists (x + y)%nat; iFrame "c i".

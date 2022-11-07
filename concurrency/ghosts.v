@@ -401,10 +401,9 @@ Proof.
   intros; apply ref_update_gen.
 Qed.
 
-Lemma part_ref_update : forall g sh a r a' r' pp
+Lemma part_ref_update : forall g sh a r a' r'
   (Ha' : forall b, join a b r -> join a' b r' /\ (a = r -> a' = r')),
-  own(RA := ref_PCM P) g (Some (sh, a), Some r) pp |-- |==>
-  own(RA := ref_PCM P) g (Some (sh, a'), Some r') pp.
+  ghost_part_ref sh a r g |-- |==> ghost_part_ref sh a' r' g.
 Proof.
   intros; apply own_update.
   intros (c, ?) ((x, ?) & [J1 J2] & [? Hvalid]); simpl in *.
@@ -437,10 +436,9 @@ Proof.
       apply join_comm, core_unit.
 Qed.
 
-Corollary ref_add : forall g sh a r b a' r' pp
+Corollary ref_add : forall g sh a r b a' r'
   (Ha : join a b a') (Hr : join r b r'),
-  own(RA := ref_PCM P) g (Some (sh, a), Some r) pp |-- |==>
-  own(RA := ref_PCM P) g (Some (sh, a'), Some r') pp.
+  ghost_part_ref sh a r g |-- |==> ghost_part_ref sh a' r' g.
 Proof.
   intros; apply part_ref_update; intros c J.
   destruct (join_assoc (join_comm J) Hr) as (? & ? & ?).
@@ -458,6 +456,8 @@ End Reference.
 Section GVar.
 
 Context {A : Type}.
+
+Notation ghost_var_PCM A := (@pos_PCM (discrete_PCM A)).
 
 Definition ghost_var (sh : share) (v : A) g :=
   own(RA := @pos_PCM (discrete_PCM A)) g (Some (sh, v)) NoneP.
