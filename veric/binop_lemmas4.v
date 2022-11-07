@@ -856,10 +856,10 @@ repeat match goal with
  rewrite ?(proj2 (eqb_type_false _ _)) by auto 1;
  try reflexivity;
  try solve [simple apply test_eq_relate'; auto;
-               try (apply denote_tc_test_eq_xx; assumption);
-               try (apply denote_tc_test_eq_yy; assumption);
-               try (eapply test_eq_fiddle_signed_xx; eassumption);
-               try (eapply test_eq_fiddle_signed_yy; eassumption)];
+               try (simple apply denote_tc_test_eq_xx; assumption);
+               try (simple apply denote_tc_test_eq_yy; assumption);
+               try (simple eapply test_eq_fiddle_signed_xx; eassumption);
+               try (simple eapply test_eq_fiddle_signed_yy; eassumption)];
  try solve [simple apply test_order_relate'; auto; 
                try (eapply test_order_fiddle_signed_xx; eassumption);
                try (eapply test_order_fiddle_signed_yy; eassumption)];

@@ -68,8 +68,7 @@ Proof.
     destruct (pad_len_64_nat (bitsToBytes bits)).
      rewrite pure_lemmas.length_bytelist_to_intlist with (n:=(x*16)%nat).
        exists x. trivial.
-     rewrite H. unfold WORD. rewrite (mult_comm (Z.to_nat 4)). rewrite mult_comm.
-        rewrite <- mult_assoc. reflexivity.
+     rewrite H. unfold WORD. lia.
 Qed.
 
 

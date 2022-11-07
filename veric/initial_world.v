@@ -704,7 +704,7 @@ Proof.
  destruct (eq_dec n (length vl)).
  subst.
  pattern (length vl) at 1; rewrite <- rev_length.
- rewrite <- (plus_0_r (length (rev vl))).
+ rewrite <- (Nat.add_0_r (length (rev vl))).
  rewrite nth_error_app.
  case_eq (length vl); intros. simpl. auto.
  replace (S n - n - 1)%nat with O by lia.

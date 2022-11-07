@@ -348,7 +348,7 @@ assert ((d-1)/16*16 + 15 >= d-1); [ | lia].
 assert (d-1>=0) by lia.
 forget (d-1) as e.
 clear - H.
-pattern e at 2; rewrite (Z_div_mod_eq e 16) by lia.
+pattern e at 2; rewrite (Z_div_mod_eq_full e 16).
 rewrite Z.mul_comm.
  assert (15 >= e mod 16); [| lia].
 destruct (Z.mod_pos_bound e 16); lia.
@@ -602,14 +602,13 @@ remember (Z.to_nat (Zlength msg / 4)) as n.
 change PADDED with (skipn 0 PADDED).
 change msg with (skipn 0 msg) at 3.
 change 0 with (Z.of_nat 0).
-replace 0%nat with ((Z.to_nat (Zlength msg / 4) - n)*4)%nat
- by (rewrite Heqn, minus_diag; reflexivity).
+replace 0%nat with ((Z.to_nat (Zlength msg / 4) - n)*4)%nat by lia.
 assert (H88: (n * 4 <= length msg)%nat). {
  subst n.
  apply Nat2Z.inj_le.
  rewrite <- Zlength_correct. rewrite Nat2Z.inj_mul.
  rewrite Z2Nat.id.
- rewrite (Z_div_mod_eq (Zlength msg) 4) at 2 by lia.
+ rewrite (Z_div_mod_eq_full (Zlength msg) 4) at 2.
  change (Z.of_nat 4) with 4. rewrite <- Z.mul_comm.
  pose proof (Z.mod_pos_bound (Zlength msg) 4); lia.
  apply Z.div_pos; try rewrite Zlength_correct; lia.
@@ -622,7 +621,7 @@ rewrite Nat.sub_0_r.
 rewrite Nat2Z.inj_mul.
 assert (0 <= Zlength msg) by (rewrite Zlength_correct; lia).
 assert (0 <= Zlength msg / 4) by (apply Z.div_pos; lia).
-pose proof (Z_div_mod_eq (Zlength msg) 4). spec H2; [lia|].
+pose proof (Z_div_mod_eq_full (Zlength msg) 4).
 assert (H99: (Z.to_nat (Zlength msg / 4) * 4 <= length msg)%nat).
 apply Nat2Z.inj_le.
 rewrite <- Zlength_correct.
@@ -648,7 +647,7 @@ assert (HQ: (Zlength msg + 8) / 64 * 16 + 15 - (Zlength msg + 8) / 4 >= 0). {
 clear - H0.
 assert (0 <= Zlength msg + 8) by lia.
 clear H0. forget (Zlength msg + 8) as a.
-pose proof (Z_div_mod_eq a 64); spec H0; [lia|].
+pose proof (Z_div_mod_eq_full a 64).
 rewrite H0 at 2.
 rewrite (Z.mul_comm 64).
 change 64 with (16*4) at 3.
@@ -863,7 +862,7 @@ Lemma nth_generate_word_S:
    nth (i+k) (generate_word b' (n+k)) = nth i (generate_word b' n).
 Proof.
 induction k; intros.
-repeat rewrite plus_0_r. auto.
+repeat rewrite Nat.add_0_r. auto.
 replace (n + S k)%nat with (S (n + k))%nat by lia.
 unfold generate_word; fold generate_word.
 replace (i + S k)%nat with (S i + k)%nat by lia.
@@ -927,7 +926,7 @@ rewrite rev_nth by lia.
 repeat rewrite rev_nth
  by (rewrite H1; change 64%nat with (Z.to_nat 64); apply Z2Nat.inj_lt; lia).
 rewrite H1.
-rewrite <- (plus_0_l (64 - S i)).
+rewrite <- (Nat.add_0_l (64 - S i)).
 assert (48 = (i - 16) + 1 + (64 - S i))%nat by (clear - H0; lia).
 rewrite H2 at 2.
 rewrite nth_generate_word_S.

@@ -509,7 +509,7 @@ eapply semax_pre_post.
 + 
   split; trivial. split; trivial. simpl.
   unfold innerShaInit, s256a_len.
-  rewrite Zlength_app, Zlength_mkArgZ, mkKey_length, Min.min_idempotent.
+  rewrite Zlength_app, Zlength_mkArgZ, mkKey_length, Nat.min_id.
   simpl. rewrite (Z.add_comm 64), <- Z.mul_add_distr_r, Z.add_assoc. 
   assert (Tpp: (two_power_pos 64 = two_power_pos 61 * 8)%Z) by reflexivity.
   rewrite Tpp.  

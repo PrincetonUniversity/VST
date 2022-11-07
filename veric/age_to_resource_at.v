@@ -123,8 +123,7 @@ Proof.
       (match age1 phi with Some w' => ageN n' w' | None => None end) in H.
     destruct (age1 phi) eqn: Hage; [|discriminate].
     pose proof (age_level _ _ Hage) as Hl.
-    assert (n' = level r - n).
-    { rewrite Hl, <- Minus.minus_Sn_m in Heqn' by lia; inversion Heqn'; auto. }
+    assert (n' = level r - n). lia.
     rewrite (IHn' _ H n), (age1_ghost_of _ _ Hage) by (auto; lia).
     rewrite ghost_fmap_fmap, approx_oo_approx', approx'_oo_approx by lia; auto.
 Qed.

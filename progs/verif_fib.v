@@ -24,8 +24,8 @@ Proof. reflexivity. Qed.
 Theorem fib_rec: forall n, n >= 0 -> fib_of_Z (n + 2) = fib_of_Z n + fib_of_Z (n + 1).
 Proof.
   intros.
-  unfold fib_of_Z.
-  rewrite !Z2Nat.inj_add, !(plus_comm (Z.to_nat n)) by lia.
+  unfold fib_of_Z. 
+  rewrite !Z2Nat.inj_add, !(Nat.add_comm (Z.to_nat n)) by lia.
   reflexivity.
 Qed.
 

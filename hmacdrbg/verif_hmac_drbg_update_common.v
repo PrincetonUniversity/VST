@@ -45,7 +45,7 @@ Lemma HMAC_DRBG_update_round_incremental:
                            (hmac256drbgabs_value initial_state_abs) (n + 1).
 Proof.
   intros.
-  rewrite plus_comm.
+  rewrite Nat.add_comm.
   simpl.
   rewrite <- H.
   reflexivity.

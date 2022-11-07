@@ -278,9 +278,6 @@ apply length_hash_block; auto. (* fixme *) change 16%nat with LBLOCK.
 rewrite firstn_length. apply min_l.
 Psatz.nia.
 rewrite skipn_length.
-apply plus_reg_l with LBLOCK.
-rewrite plus_comm.
-rewrite Nat.sub_add by Psatz.lia.
 lia.
 Qed.
 
@@ -307,9 +304,8 @@ rewrite hash_blocks_equation'; auto.
 forget (i::blocks) as bb.
 apply IHn0; auto.
 apply length_hash_block; auto. (* fixme *) change 16%nat with LBLOCK.
-rewrite firstn_length. apply min_l. simpl in H0. Psatz.nia.
-rewrite skipn_length. rewrite H0; clear - POS.  simpl.
-rewrite plus_comm. rewrite Nat.add_sub. auto.
+rewrite firstn_length. nia. 
+rewrite skipn_length. nia.
 Qed.
 
 Theorem Zmod_mod_mult :

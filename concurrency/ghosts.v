@@ -1354,12 +1354,12 @@ Proof.
   unfold hist_list, map_upd; split.
   - if_tac.
     + intro X; inv X.
-      erewrite nth_error_app2, minus_diag; auto.
+      erewrite nth_error_app2, Nat.sub_diag; auto.
     + rewrite H.
       intro X; rewrite nth_error_app1; auto.
       rewrite <- nth_error_Some, X; discriminate.
   - if_tac.
-    + subst; rewrite nth_error_app2, minus_diag; auto.
+    + subst; rewrite nth_error_app2, Nat.sub_diag; auto.
     + intro X; apply H; rewrite nth_error_app1 in X; auto.
       assert (t < length (l ++ [e]))%nat; [|rewrite app_length in *; simpl in *; lia].
       rewrite <- nth_error_Some, X; discriminate.
@@ -1524,7 +1524,7 @@ Proof.
   induction l using rev_ind; intros.
   - apply hist_list_nil_inv2 in Hl; subst; auto.
   - destruct (Hl (length l) x) as (_ & H); exploit H.
-    { rewrite nth_error_app2, minus_diag by lia; auto. }
+    { rewrite nth_error_app2, Nat.sub_diag by lia; auto. }
     intro Hx.
     set (h0 := fun k => if eq_dec k (length l) then None else h k).
     replace h with (map_upd h0 (length l) x).

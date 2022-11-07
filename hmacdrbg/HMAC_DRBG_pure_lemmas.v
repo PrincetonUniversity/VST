@@ -20,7 +20,7 @@ Proof.
   generalize dependent z.
   induction (Z.to_nat n); intros.
   {
-    rewrite (Z_div_mod_eq z 32); try lia.
+    rewrite (Z_div_mod_eq_full z 32).
     rewrite HMAC_DRBG_generate_helper_Z_equation.
     rewrite <- Heqn.
     change (Z.of_nat 0) with 0.
@@ -38,7 +38,7 @@ Proof.
     }
   }
   {
-    rewrite (Z_div_mod_eq z 32); try lia.
+    rewrite (Z_div_mod_eq_full z 32).
     rewrite <- Heqn.
     assert (Hn: 32 * Z.of_nat (S n0) + z mod 32 = 32 * Z.of_nat n0 + z mod 32 + 32).
     {

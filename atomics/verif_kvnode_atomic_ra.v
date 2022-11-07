@@ -357,8 +357,8 @@ Proof.
   - split; auto; omega.
   - rewrite list_max_max.
     destruct (IHl (Z.max a v)) as [H]; split; [|repeat constructor; auto].
-    + etransitivity; eauto; apply Zle_max_r.
-    + etransitivity; eauto; apply Zle_max_l.
+    + etransitivity; eauto; apply Nat.le_max_r.
+    + etransitivity; eauto; apply Nat.le_max_l.
 Qed.
 
 Lemma node_state_snap : forall sh L v version locs g,

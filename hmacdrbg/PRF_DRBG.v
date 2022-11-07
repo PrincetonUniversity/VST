@@ -934,14 +934,14 @@ Check PRF_DRBG_f_bad_2.
      
      (* The rest is just arithmetic. *)
      simpl.
-     rewrite mult_1_r.
+     rewrite Nat.mul_1_r.
      enough ( S (length ls + length ls * S (length ls)) =  (S (length ls) + length ls * S (length ls)))%nat as ->.
      rewrite ratAdd_num.
      eapply ratAdd_leRat_compat.
      eapply leRat_terms;
      lia.
      eapply leRat_terms.
-     eapply mult_le_compat; lia.
+     eapply Nat.mul_le_mono; lia.
      trivial.
      lia.
    Qed.
@@ -956,7 +956,7 @@ Check PRF_DRBG_f_bad_2.
      
      simpl.
      rewrite forNats_length.
-     rewrite mult_1_r.
+     rewrite Nat.mul_1_r.
      reflexivity.
    Qed.
 

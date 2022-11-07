@@ -237,7 +237,7 @@ Proof.
   + subst lo.
     change (Z.of_nat 0) with 0 in *.
     simpl rangespec at 2. rewrite emp_sepcon.
-    rewrite Z.sub_0_r, Z.sub_diag, plus_0_l.
+    rewrite Z.sub_0_r, Z.sub_diag, Nat.add_0_l.
     apply rangespec_ext; intros.
     rewrite Z2Nat.id in H0 by lia.
     f_equal.
