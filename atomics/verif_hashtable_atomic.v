@@ -374,6 +374,13 @@ Proof.
   intro; do 3 eexists; apply derives_refl.
 Qed.
 
+Lemma upto_sub : forall n m, (n <= m)%nat -> upto m = upto n ++ map (Z.add n) (upto (m - n)).
+Proof.
+  intros.
+  replace m with (n + (m - n))%nat by lia.
+  rewrite upto_app; repeat f_equal; lia.
+Qed.
+
 Notation empty := (@empty coPset _).
 Notation top := (@top coPset _).
 
@@ -629,13 +636,18 @@ Proof.
     forward.
     { entailer!.
       rewrite -> (Int.signed_repr 1) by computable; lia. }
-    Exists (i + 1) (i1 + 1) keys; entailer!.
-    split.
-    { rewrite <- Zplus_mod_idemp_l.
-      replace (i1 mod _) with ((i + hash k) mod size); simpl.
-      rewrite -> Zplus_mod_idemp_l, <- Z.add_assoc, (Z.add_comm _ 1), Z.add_assoc; auto. }
-    admit. (* list is long enough *)
-Admitted.
+    Exists ((i + 1) mod size) (i1 + 1) keys; entailer!.
+    + split; [|split].
+      * rewrite <- Zplus_mod_idemp_l.
+        replace (i1 mod _) with ((i + hash k) mod size); simpl.
+        rewrite -> !Zplus_mod_idemp_l, <- Z.add_assoc, (Z.add_comm _ 1), Z.add_assoc; auto.
+      * apply Z.mod_bound_pos; lia.
+      * erewrite <- sublist_sublist00; [apply Forall_sublist; eauto|].
+        split; [apply Z.mod_bound_pos | apply Zmod_le]; lia.
+    + erewrite -> upto_sub, iter_sepcon_app; first by iIntros "[$ ?]"; iApply snaps_dealloc.
+      apply Z2Nat.inj_le, Zmod_le; try lia.
+      apply Z.mod_bound_pos; lia.
+Qed.
 
 Lemma body_get_item : semax_body Vprog Gprog f_get_item get_item_spec.
 Proof.
@@ -822,13 +834,18 @@ Proof.
     forward.
     { entailer!.
       rewrite -> (Int.signed_repr 1) by computable; lia. }
-    Exists (i + 1) (i1 + 1) keys; entailer!.
-    split.
-    { rewrite <- Zplus_mod_idemp_l.
-      replace (i1 mod _) with ((i + hash k) mod size); simpl.
-      rewrite -> Zplus_mod_idemp_l, <- Z.add_assoc, (Z.add_comm _ 1), Z.add_assoc; auto. }
-    admit. (* list is long enough *)
-Admitted.
+    Exists ((i + 1) mod size) (i1 + 1) keys; entailer!.
+    + split; [|split].
+      * rewrite <- Zplus_mod_idemp_l.
+        replace (i1 mod _) with ((i + hash k) mod size); simpl.
+        rewrite -> !Zplus_mod_idemp_l, <- Z.add_assoc, (Z.add_comm _ 1), Z.add_assoc; auto.
+      * apply Z.mod_bound_pos; lia.
+      * erewrite <- sublist_sublist00; [apply Forall_sublist; eauto|].
+        split; [apply Z.mod_bound_pos | apply Zmod_le]; lia.
+    + erewrite -> upto_sub, iter_sepcon_app; first by iIntros "[$ ?]"; iApply snaps_dealloc.
+      apply Z2Nat.inj_le, Zmod_le; try lia.
+      apply Z.mod_bound_pos; lia.
+Qed.
 
 Lemma body_add_item : semax_body Vprog Gprog f_add_item add_item_spec.
 Proof.
@@ -1101,13 +1118,18 @@ Proof.
     forward.
     { entailer!.
       rewrite -> (Int.signed_repr 1) by computable; lia. }
-    Exists (i + 1) (i1 + 1) keys; entailer!.
-    split.
-    { rewrite <- Zplus_mod_idemp_l.
-      replace (i1 mod _) with ((i + hash k) mod size); simpl.
-      rewrite -> Zplus_mod_idemp_l, <- Z.add_assoc, (Z.add_comm _ 1), Z.add_assoc; auto. }
-    admit. (* list is long enough *)
-Admitted.
+    Exists ((i + 1) mod size) (i1 + 1) keys; entailer!.
+    + split; [|split].
+      * rewrite <- Zplus_mod_idemp_l.
+        replace (i1 mod _) with ((i + hash k) mod size); simpl.
+        rewrite -> !Zplus_mod_idemp_l, <- Z.add_assoc, (Z.add_comm _ 1), Z.add_assoc; auto.
+      * apply Z.mod_bound_pos; lia.
+      * erewrite <- sublist_sublist00; [apply Forall_sublist; eauto|].
+        split; [apply Z.mod_bound_pos | apply Zmod_le]; lia.
+    + erewrite -> upto_sub, iter_sepcon_app; first by iIntros "[$ ?]"; iApply snaps_dealloc.
+      apply Z2Nat.inj_le, Zmod_le; try lia.
+      apply Z.mod_bound_pos; lia.
+Qed.
 
 Opaque Znth.
 

@@ -215,7 +215,7 @@ End GHist.
 
 Require Import iris.algebra.gmap.
 
-(* universe inconsistency
+(* universe inconsistency, reflecting a real difference in expressive power
 #[local] Program Instance RA_ghost (A : cmra) : Ghost := { G := cmra_car A; Join_G a b c := cmra_op A a b = c }.
 *)
 
@@ -252,9 +252,9 @@ Proof.
     rewrite <- H2 in H0; inv H0.
     rewrite <- H3 in H6; inv H6.
     f_equal; eapply join_eq; eauto.
-  - exists (map_imap (fun k _ => projT1 (join_assoc (H0 k) (H1 k))) (merge (union_with (fun a b => Some a)) b c)).
+  - exists (map_imap (fun k _ => projT1 (join_assoc (H0 k) (H1 k))) (b ∪ c)).
     split; intros k; pose proof (H0 k) as Hj1; pose proof (H1 k) as Hj2;
-      rewrite map_lookup_imap lookup_merge; unfold union_with, diag_None; destruct (join_assoc (H0 k) (H1 k)) as (? & ? & ?);
+      rewrite map_lookup_imap lookup_union; destruct (join_assoc (H0 k) (H1 k)) as (? & ? & ?);
       destruct (b !! k) eqn: Hb; simpl; auto.
     + inv j; constructor; auto.
     + inv j; [|constructor].
@@ -291,9 +291,9 @@ Proof.
   - intros.
     pose proof (map_included_option_ord _ _ H0) as Ha.
     pose proof (map_included_option_ord _ _ H1) as Hb.
-    exists (map_imap (fun k _ => proj1_sig (ord_lub(PCM_order := option_order(ORD := A_order)) _ _ _ (Ha k) (Hb k))) (merge (union_with (fun a b => Some a)) a b)).
+    exists (map_imap (fun k _ => proj1_sig (ord_lub(PCM_order := option_order(ORD := A_order)) _ _ _ (Ha k) (Hb k))) (map_union a b)).
     split; intros k; pose proof (H0 k) as Hj1; pose proof (H1 k) as Hj2;
-      rewrite map_lookup_imap lookup_merge; unfold union_with, diag_None; destruct (ord_lub _ _ _ (Ha k) (Hb k)) as (? & ? & ?); simpl;
+      rewrite map_lookup_imap lookup_union; destruct (ord_lub _ _ _ (Ha k) (Hb k)) as (? & ? & ?); simpl;
       destruct (a !! k) eqn: Ha1; rewrite Ha1 in j |- *; simpl; auto.
     + destruct (b !! k) eqn: Hb1; rewrite Hb1 in j |- *; simpl; auto.
     + destruct (b !! k) eqn: Hb1; rewrite Hb1 in j |- *; simpl; auto; constructor.
