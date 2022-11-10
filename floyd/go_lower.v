@@ -5,6 +5,7 @@ Require Import VST.floyd.local2ptree_denote.
 Require Import VST.floyd.local2ptree_eval.
 Require Import VST.floyd.local2ptree_typecheck.
 Require Import VST.floyd.semax_tactics.
+Require Export VST.ltac2.simpl_by_cbv.
 Import LiftNotation.
 Import compcert.lib.Maps.
 
@@ -912,7 +913,7 @@ unfold fold_right_sepcon; fold fold_right_sepcon; rewrite ?sepcon_emp; (* for th
 unfold_for_go_lower;
 simpl tc_val; 
 cbv [typecheck_exprlist typecheck_expr]; simpl tc_andp;
-simpl msubst_denote_tc_assert;
+simpl_msubst_denote_tc_assert; (* HERE *)
 try clear dependent rho;
 clear_Delta
 ].
