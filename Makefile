@@ -653,6 +653,11 @@ INSTALL_FILES_SRC=$(shell COMPCERT=$(COMPCERT) COMPCERT_INST_DIR=$(COMPCERT_INST
 INSTALL_FILES_VO=$(patsubst %.v,%.vo,$(INSTALL_FILES_SRC))
 INSTALL_FILES=$(sort $(INSTALL_FILES_SRC) $(INSTALL_FILES_VO))
 
+# IRIS_INSTALL_FILES_BASE=$(shell COMPCERT=$(COMPCERT) COMPCERT_INST_DIR=$(COMPCERT_INST_DIR) ZLIST=$(ZLIST) BITSIZE=$(BITSIZE) ARCH=$(ARCH) IGNORECOQVERSION=$(IGNORECOQVERSION) MAKE=$(MAKE) util/calc_install_files atomics)
+# IRIS_INSTALL_FILES_SRC=$(filter-out $(INSTALL_FILES_SRC),$(IRIS_INSTALL_FILES_BASE))
+# IRIS_INSTALL_FILES_VO=$(patsubst %.v,%.vo,$(IRIS_INSTALL_FILES_SRC))
+# IRIS_INSTALL_FILES=$(sort $(IRIS_INSTALL_FILES_SRC) $(IRIS_INSTALL_FILES_VO))
+
 # ########## Rules ##########
 
 %_stripped.v: %.v
@@ -768,6 +773,14 @@ install: VST.config
 	for d in $(sort $(dir $(INSTALL_FILES) $(EXTRA_INSTALL_FILES))); do install -d "$(INSTALLDIR)/$$d"; done
 	for f in $(INSTALL_FILES); do install -m 0644 $$f "$(INSTALLDIR)/$$(dirname $$f)"; done
 	for f in $(EXTRA_INSTALL_FILES); do install -m 0644 $$f "$(INSTALLDIR)/$$(dirname $$f)"; done
+
+#install-iris: VST.config
+#	install -d "$(INSTALLDIR)"
+#	for d in $(sort $(dir $(IRIS_INSTALL_FILES))); do install -d "$(INSTALLDIR)/$$d"; done
+#	for f in $(IRIS_INSTALL_FILES); do install -m 0644 $$f "$(INSTALLDIR)/$$(dirname $$f)"; done
+
+#install-iris-test: VST.config
+#  echo $(IRIS_INSTALL_FILES)
 
 dochtml:
 	mkdir -p doc/html
