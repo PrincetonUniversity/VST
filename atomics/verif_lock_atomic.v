@@ -338,7 +338,7 @@ Section PROOFS.
     apply make_lock_inv_1.
   Qed.
 
-  Global Obligation Tactic := atomic_nonexpansive_tac.
+  #[local] Obligation Tactic := atomic_nonexpansive_tac.
 
   Lemma inv_for_lock_super_non_expansive : forall p R n,
     compcert_rmaps.RML.R.approx n (inv_for_lock p R) =
