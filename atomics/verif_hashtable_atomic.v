@@ -1595,8 +1595,8 @@ Proof.
   forward.
   forward_call gv.
   Intros x; destruct x as ((entries, g), lg).
-  ghost_alloc (ghost_hist_ref(hist_el := hashtable_hist_el) Tsh empty_map empty_map).
-  { split; auto with share; apply @self_completable. }
+  ghost_alloc (ghost_hist_ref(hist_el := hashtable_hist_el) Tsh empty_map empty_map);
+    try solve [split; auto with share; apply @self_completable].
   Intro gh.
   rewrite <- hist_ref_join_nil by (apply Share.nontrivial); Intros.
   rewrite <- (emp_sepcon (ghost_hist _ _ _)); Intros.

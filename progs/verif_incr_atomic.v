@@ -273,7 +273,7 @@ Proof.
   forward_call acquire_inv_simple (gsh1, ht, thread_lock_inv sh2 gsh2 gv lock g g1 ht).
   unfold thread_lock_inv at 2; unfold thread_lock_R; rewrite -> 3later_sepcon; Intros.
   forward_call (sh1, ptr_of lock, g, gv, fun n => !!(n = 2)%nat && lock_inv gsh1 lock (ctr_inv gv g) * ghost_var gsh2 1%nat g1).
-  { iIntros "(((((((? & g1) & lock) & g2) & inv) & ?) & ?) & ?)"; iSplitL "g1 g2 inv lock"; [|iVST; cancel_frame].
+  { iIntros "((((((? & g1) & lock) & g2) & inv) & ?) & ?)"; iSplitL "g1 g2 inv lock"; [|iVST; cancel_frame].
     unfold_lock_inv; iDestruct "lock" as "[[[% %] #inv0] sh]".
     iDestruct "inv" as "#inv".
     unfold atomic_shift; iAuIntro; rewrite /atomic_acc /=.
