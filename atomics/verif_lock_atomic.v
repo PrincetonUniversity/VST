@@ -348,6 +348,43 @@ Section PROOFS.
   Qed.
   #[local] Hint Resolve inv_for_lock_super_non_expansive : core.
 
+  (* Yet another variant: we only learn the lock invariant after a successful acquire. *)
+  Program Definition acquire_spec_inv_atomic1 :=
+    ATOMIC TYPE (ConstType _) OBJ R INVS empty
+    WITH p
+    PRE [ tptr t_lock ]
+       PROP ()
+       PARAMS (p)
+       SEP () | (inv_for_lock p R)
+    POST [ tvoid ]
+       PROP ()
+       LOCAL ()
+       SEP () | (inv_for_lock p R * R).
+
+  Lemma acquire_inv_atomic: funspec_sub (snd acquire_spec) acquire_spec_inv_atomic1.
+  Proof.
+    apply prove_funspec_sub.
+    split; auto. intros. simpl in *. destruct x2 as (p, Q). Intros.
+    unfold rev_curry, tcurry; simpl. iIntros "H !>". iExists nil.
+    iExists (p, Q), emp; simpl.
+    rewrite emp_sepcon. iSplit.
+    - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl.
+      iDestruct "H" as "(% & % & _ & H & _)".
+      do 4 (iSplit; auto).
+      unfold atomic_shift; iAuIntro; unfold atomic_acc; simpl.
+      iMod "H" as (R) "[H Hclose]".
+      unfold inv_for_lock at 1.
+      iDestruct "H" as (b) "[H1 R]"; iExists b; iFrame "H1".
+      iModIntro; iSplit.
+      + iIntros "H1"; iApply "Hclose".
+        iExists b; iFrame.
+      + iIntros (_) "[[% H1] _]"; subst.
+        iDestruct "Hclose" as "[_ Hclose]"; iApply ("Hclose" $! tt).
+        rewrite sepcon_emp; iFrame "R"; iExists true; iFrame.
+    - iPureIntro. iIntros (rho') "[% [_ H]]".
+      unfold PROPx, LOCALx, SEPx; simpl; auto.
+  Qed.
+
   Program Definition acquire_spec_inv_atomic :=
     ATOMIC TYPE (ProdType (ConstType _) Mpred) INVS empty
     WITH p, R
