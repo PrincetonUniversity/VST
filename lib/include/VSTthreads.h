@@ -16,4 +16,6 @@ void release(lock_t lock);
 
 void spawn(int (*f)(void*), void* args);
 
+void exit_thread(int r);
+
 #endif

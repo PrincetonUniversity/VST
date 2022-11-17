@@ -9,3 +9,11 @@ proof/malloc_extern.v: src/malloc_extern.c
 proof/SC_atomics_extern.v: src/SC_atomics_extern.c
 	clightgen -Iinclude -normalize $<
 	mv `dirname $<`/`basename -s .c $<`.v proof
+
+proof/threads.v: src/threads.c
+	clightgen -Iinclude -normalize $<
+	mv `dirname $<`/`basename -s .c $<`.v proof
+
+proof/locks.v: src/locks.c
+	clightgen -Iinclude -normalize $<
+	mv `dirname $<`/`basename -s .c $<`.v proof
