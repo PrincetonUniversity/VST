@@ -775,7 +775,8 @@ install: VST.config
 	for f in $(EXTRA_INSTALL_FILES); do install -m 0644 $$f "$(INSTALLDIR)/$$(dirname $$f)"; done
 
 build-iris: _CoqProject
-	$(MAKE) $(IRIS_INSTALL_FILES)
+	$(COQC) $(COQFLAGS) $(PROGSDIR)/incr.v
+	for f in $(IRIS_INSTALL_FILES_SRC); do if [ "$${f##*.}" = "v" ]; then echo COQC $$f; $(COQC) $(COQFLAGS) $$f; fi; done
 
 install-iris: VST.config
 	install -d "$(INSTALLDIR)"
