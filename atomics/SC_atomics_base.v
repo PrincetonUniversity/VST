@@ -219,4 +219,159 @@ Proof.
     rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem; auto.
 Qed.
 
+(* specs for pointer operations *)
+
+Definition ALI_ptr_type := ProdType (ProdType (ProdType (ConstType val)
+  (ConstType (Ensemble nat))) (ConstType (Ensemble nat)))
+  (ArrowType (ConstType val) Mpred).
+
+Program Definition atomic_load_ptr_spec := TYPE ALI_ptr_type
+  WITH p : val, Eo : (Ensemble nat), Ei : (Ensemble nat), Q : val -> mpred
+  PRE [ tptr atomic_ptr ]
+   PROP (Included Ei Eo)
+   PARAMS (p)
+   SEP (|={Eo,Ei}=> EX sh : share, EX v : val, !!(readable_share sh) &&
+              atomic_ptr_at sh v p * (atomic_ptr_at sh v p -* |={Ei,Eo}=> Q v))
+  POST [ tptr Tvoid ]
+   EX v : val,
+   PROP ()
+   LOCAL (temp ret_temp v)
+   SEP (Q v).
+Next Obligation.
+Proof.
+  repeat intro.
+  destruct x as (((?, ?), ?), ?); simpl.
+  unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl; rewrite !approx_andp; f_equal;
+    f_equal; f_equal; rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
+  setoid_rewrite fupd_nonexpansive; do 2 f_equal.
+  rewrite !approx_exp; apply f_equal; extensionality sh.
+  rewrite !approx_exp; apply f_equal; extensionality v.
+  rewrite !approx_sepcon; f_equal.
+  setoid_rewrite ghosts.wand_nonexpansive_r; do 2 f_equal.
+  apply fupd_nonexpansive.
+Qed.
+Next Obligation.
+Proof.
+  repeat intro.
+  destruct x as (((?, ?), ?), ?); simpl.
+  rewrite !approx_exp; apply f_equal; extensionality v.
+  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 apply f_equal;
+    rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem; auto.
+Qed.
+
+
+Definition ASI_ptr_type := ProdType (ProdType (ProdType (ConstType (val * val))
+  (ConstType (Ensemble nat))) (ConstType (Ensemble nat))) Mpred.
+
+Program Definition atomic_store_ptr_spec := TYPE ASI_ptr_type
+  WITH p : val, v : val, Eo : (Ensemble nat), Ei : (Ensemble nat), Q : mpred
+  PRE [ tptr atomic_ptr, tptr Tvoid ]
+   PROP (Included Ei Eo)
+   PARAMS (p; v)
+   SEP (|={Eo,Ei}=> EX sh : share, !!(writable_share sh) && atomic_ptr_at sh Vundef p *
+      (atomic_ptr_at sh v p -* |={Ei,Eo}=> Q))
+  POST [ tvoid ]
+   PROP ()
+   LOCAL ()
+   SEP (Q).
+Next Obligation.
+Proof.
+  repeat intro.
+  destruct x as ((((?, ?), ?), ?), ?); simpl.
+  unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl; rewrite !approx_andp; f_equal;
+    f_equal; f_equal; rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
+  setoid_rewrite fupd_nonexpansive; do 2 f_equal.
+  rewrite !approx_exp; apply f_equal; extensionality sh.
+  rewrite !approx_sepcon; f_equal.
+  setoid_rewrite ghosts.wand_nonexpansive_r; do 2 f_equal.
+  apply fupd_nonexpansive.
+Qed.
+Next Obligation.
+Proof.
+  repeat intro.
+  destruct x as ((((?, ?), ?), ?), ?); simpl.
+  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 apply f_equal;
+    rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem; auto.
+Qed.
+
+
+Definition ACASI_ptr_type := ProdType (ProdType (ProdType (ConstType (val * share * val * val * val))
+  (ConstType (Ensemble nat))) (ConstType (Ensemble nat)))
+  (ArrowType (ConstType val) Mpred).
+
+Program Definition atomic_CAS_ptr_spec := TYPE ACASI_ptr_type
+  WITH p : val, shc : share, pc : val, c : val, v : val, Eo : (Ensemble nat), Ei : (Ensemble nat), Q : val -> mpred
+  PRE [ tptr atomic_ptr, tptr (tptr Tvoid), tptr Tvoid ]
+   PROP (readable_share shc; Included Ei Eo)
+   PARAMS (p; pc; v)
+   SEP (data_at shc (tptr Tvoid) c pc; |={Eo,Ei}=> EX sh : share, EX v0 : val,
+      !!(writable_share sh ) && atomic_ptr_at sh v0 p *
+           (atomic_ptr_at sh (if eq_dec v0 c then v else v0) p -* |={Ei,Eo}=> Q v0))
+  POST [ tint ]
+   EX v' : val,
+   PROP ()
+   LOCAL (temp ret_temp (vint (if eq_dec v' c then 1 else 0)))
+   SEP (data_at shc (tptr Tvoid) c pc; Q v').
+Next Obligation.
+Proof.
+  repeat intro.
+  destruct x as (((((((?, ?), ?), ?), ?), ?), ?), ?); simpl.
+  unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl; rewrite !approx_andp; f_equal;
+    f_equal; f_equal; rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
+  setoid_rewrite fupd_nonexpansive; do 3 f_equal.
+  rewrite !approx_exp; apply f_equal; extensionality sh.
+  rewrite !approx_exp; apply f_equal; extensionality v'.
+  rewrite !approx_sepcon; f_equal.
+  setoid_rewrite ghosts.wand_nonexpansive_r; do 2 f_equal.
+  apply fupd_nonexpansive.
+Qed.
+Next Obligation.
+Proof.
+  repeat intro.
+  destruct x as (((((((?, ?), ?), ?), ?), ?), ?), ?); simpl.
+  rewrite !approx_exp; apply f_equal; extensionality vr.
+  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 apply f_equal;
+    rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem; auto.
+Qed.
+
+
+Definition AEXI_ptr_type := ProdType (ProdType (ProdType (ConstType (val * val))
+  (ConstType (Ensemble nat))) (ConstType (Ensemble nat)))
+  (ArrowType (ConstType val) Mpred).
+
+Program Definition atomic_exchange_ptr_spec := TYPE AEXI_ptr_type
+  WITH p : val, v : val, Eo : (Ensemble nat), Ei : (Ensemble nat), Q : val -> mpred
+  PRE [ tptr atomic_ptr, tptr Tvoid ]
+   PROP (Included Ei Eo)
+   PARAMS (p; v)
+   SEP (|={Eo,Ei}=> EX sh : share, EX v0 : val, !!(writable_share sh ) &&
+              atomic_ptr_at sh v0 p *
+        (atomic_ptr_at sh v p -* |={Ei,Eo}=> Q v0))
+  POST [ tint ]
+   EX v' : val,
+   PROP ()
+   LOCAL (temp ret_temp v')
+   SEP (Q v').
+Next Obligation.
+Proof.
+  repeat intro.
+  destruct x as ((((?, ?), ?), ?), ?); simpl.
+  unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl; rewrite !approx_andp; f_equal;
+    f_equal; f_equal; rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
+  setoid_rewrite fupd_nonexpansive; do 2 f_equal.
+  rewrite !approx_exp; apply f_equal; extensionality sh.
+  rewrite !approx_exp; apply f_equal; extensionality v'.
+  rewrite !approx_sepcon; f_equal.
+  setoid_rewrite ghosts.wand_nonexpansive_r; do 2 f_equal.
+  apply fupd_nonexpansive.
+Qed.
+Next Obligation.
+Proof.
+  repeat intro.
+  destruct x as ((((?, ?), ?), ?), ?); simpl.
+  rewrite !approx_exp; apply f_equal; extensionality vr.
+  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 apply f_equal;
+    rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem; auto.
+Qed.
+
 End SC_atomics.
