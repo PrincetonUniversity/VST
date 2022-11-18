@@ -9,18 +9,23 @@ Require Import Ensembles.
 Notation vint z := (Vint (Int.repr z)).
 
 
-Record AtomicsAPD := {
+#[export] Class AtomicsAPD := {
    atomic_int : type := Tstruct _atom_int noattr;
    atomic_int_at: share -> val -> val -> mpred;
    atomic_int_at__ : forall sh v p, atomic_int_at sh v p |-- atomic_int_at sh Vundef p;
    atomic_int_conflict : forall sh v v' p, sepalg.nonidentity sh -> atomic_int_at sh v p * atomic_int_at sh v' p |-- FF ;
+   atomic_int_isptr : forall sh v p, atomic_int_at sh v p |-- !! isptr p;
+   atomic_int_timeless : forall sh v p, fupd.timeless' (atomic_int_at sh v p);
    atomic_ptr : type := Tstruct _atom_ptr noattr; 
    atomic_ptr_at : share -> val -> val -> mpred;
   atomic_ptr_conflict : forall sh v v' p, sepalg.nonidentity sh -> atomic_ptr_at sh v p * atomic_ptr_at sh v' p |-- FF 
 }.
 
+#[export] Hint Resolve atomic_int_isptr : saturate_local.
+#[export] Hint Resolve atomic_int_timeless : core.
+
 Section AtomicsASI.
-Variable M: AtomicsAPD.
+Context {M: AtomicsAPD}.
 
 Definition make_atomic_spec :=
   WITH v : val
@@ -28,11 +33,11 @@ Definition make_atomic_spec :=
     PROP ()
     PARAMS (v)
     SEP ()
-  POST [ tptr M.(atomic_int) ]
+  POST [ tptr atomic_int ]
    EX p : val,
     PROP ()
     RETURN (p)
-    SEP (M.(atomic_int_at) Ews v p).
+    SEP (atomic_int_at Ews v p).
 
 Definition make_atomic_ptr_spec :=
   WITH v : val
@@ -40,18 +45,18 @@ Definition make_atomic_ptr_spec :=
     PROP ()
     PARAMS (v)
     SEP ()
-  POST [ tptr M.(atomic_ptr) ]
+  POST [ tptr atomic_ptr ]
    EX p : val,
     PROP (is_pointer_or_null p)
     RETURN (p)
-    SEP (M.(atomic_ptr_at) Ews v p).
+    SEP (atomic_ptr_at Ews v p).
 
 Definition free_atomic_ptr_spec :=
   WITH p : val
-  PRE [ tptr M.(atomic_ptr) ]
+  PRE [ tptr atomic_ptr ]
     PROP (is_pointer_or_null p)
     PARAMS (p)
-    SEP (EX v : val, M.(atomic_ptr_at) Ews v p)
+    SEP (EX v : val, atomic_ptr_at Ews v p)
   POST[ tvoid ]
     PROP ()
     LOCAL ()
@@ -59,10 +64,10 @@ Definition free_atomic_ptr_spec :=
 
 Definition free_atomic_int_spec :=
   WITH p : val
-  PRE [ tptr M.(atomic_int) ]
+  PRE [ tptr atomic_int ]
     PROP (is_pointer_or_null p)
     PARAMS (p)
-    SEP (EX v : val, M.(atomic_int_at) Ews v p)
+    SEP (EX v : val, atomic_int_at Ews v p)
   POST[ tvoid ]
     PROP ()
     LOCAL ()
@@ -72,11 +77,11 @@ Definition AL_type := ProdType (ConstType (val * Ensemble nat * Ensemble nat)) (
 
 Program Definition atomic_load_spec := TYPE AL_type
   WITH p : val, Eo : Ensemble nat, Ei : Ensemble nat, Q : val -> mpred
-  PRE [ tptr M.(atomic_int) ]
+  PRE [ tptr atomic_int ]
    PROP (Included Ei Eo)
    PARAMS (p)
    SEP (|={Eo,Ei}=> EX sh : share, EX v : val, !!(readable_share sh) &&
-              M.(atomic_int_at) sh v p * (M.(atomic_int_at) sh v p -* |={Ei,Eo}=> Q v))
+              atomic_int_at sh v p * (atomic_int_at sh v p -* |={Ei,Eo}=> Q v))
   POST [ tint ]
    EX v : val,
    PROP ()
@@ -108,11 +113,11 @@ Definition AS_type := ProdType (ConstType (val * val * Ensemble nat * Ensemble n
 
 Program Definition atomic_store_spec := TYPE AS_type
   WITH p : val, v : val, Eo : Ensemble nat, Ei : Ensemble nat, Q : mpred
-  PRE [ tptr M.(atomic_int), tint ]
+  PRE [ tptr atomic_int, tint ]
    PROP (Included Ei Eo)
    PARAMS (p; v)
-   SEP (|={Eo,Ei}=> EX sh : share, !!(writable_share sh) && M.(atomic_int_at) sh Vundef p *
-      (M.(atomic_int_at) sh v p -* |={Ei,Eo}=> Q))
+   SEP (|={Eo,Ei}=> EX sh : share, !!(writable_share sh) && atomic_int_at sh Vundef p *
+      (atomic_int_at sh v p -* |={Ei,Eo}=> Q))
   POST [ tvoid ]
    PROP ()
    LOCAL ()
@@ -143,12 +148,12 @@ Definition ACAS_type := ProdType (ProdType (ProdType (ConstType (val * share * v
 
 Program Definition atomic_CAS_spec := TYPE ACAS_type
   WITH p : val, shc : share, pc : val, c : val, v : val, Eo : Ensemble nat, Ei : Ensemble nat, Q : val -> mpred
-  PRE [ tptr M.(atomic_int), tptr tint, tint ]
+  PRE [ tptr atomic_int, tptr tint, tint ]
    PROP (readable_share shc; Included Ei Eo)
    PARAMS (p; pc; v)
    SEP (data_at shc tint c pc; |={Eo,Ei}=> EX sh : share, EX v0 : val,
-      !!(writable_share sh) && M.(atomic_int_at) sh v0 p *
-           (M.(atomic_int_at) sh (if eq_dec v0 c then v else v0) p -* |={Ei,Eo}=> Q v0))
+      !!(writable_share sh) && atomic_int_at sh v0 p *
+           (atomic_int_at sh (if eq_dec v0 c then v else v0) p -* |={Ei,Eo}=> Q v0))
   POST [ tint ]
    EX v' : val,
    PROP ()

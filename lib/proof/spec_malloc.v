@@ -3,7 +3,7 @@ Require Import malloc_extern.
 
 Local Open Scope assert.
 
-Record MallocAPD := {
+Class MallocAPD := {
    mem_mgr: globals -> mpred;
    malloc_token': share -> Z -> val -> mpred;
    malloc_token'_valid_pointer: forall sh sz p, 
@@ -13,12 +13,12 @@ Record MallocAPD := {
       malloc_token' sh sz p |-- !! malloc_compatible sz p
 }.
 
-Definition malloc_token {cs: compspecs} (M:MallocAPD) sh t v := 
+Definition malloc_token {cs: compspecs} {M:MallocAPD} sh t v := 
    !! field_compatible t [] v && 
-   malloc_token' M sh (sizeof t) v.
+   malloc_token' sh (sizeof t) v.
 
-Lemma malloc_token_valid_pointer: forall {cs: compspecs} M sh t p, 
-      malloc_token M sh t p |-- valid_pointer p.
+Lemma malloc_token_valid_pointer: forall {cs: compspecs} {M: MallocAPD} sh t p, 
+      malloc_token sh t p |-- valid_pointer p.
 Proof. intros. unfold malloc_token.
  apply andp_left2. apply malloc_token'_valid_pointer.
 Qed.
@@ -26,8 +26,8 @@ Qed.
 #[export] Hint Resolve malloc_token'_valid_pointer : valid_pointer.
 #[export] Hint Resolve malloc_token_valid_pointer : valid_pointer.
 
-Lemma malloc_token_local_facts:  forall {cs: compspecs} M sh t p,
-      malloc_token M sh t p |-- !! (field_compatible t [] p /\ malloc_compatible (sizeof t) p).
+Lemma malloc_token_local_facts:  forall {cs: compspecs} {M: MallocAPD} sh t p,
+      malloc_token sh t p |-- !! (field_compatible t [] p /\ malloc_compatible (sizeof t) p).
 Proof. intros.
  unfold malloc_token.
  normalize. rewrite prop_and.
@@ -38,7 +38,7 @@ Qed.
 #[export] Hint Resolve malloc_token_local_facts : saturate_local.
 
 Section MallocASI.
-Variable M:MallocAPD.
+Context {M:MallocAPD}.
 
 Definition malloc_spec' :=
  DECLARE _malloc
@@ -46,13 +46,13 @@ Definition malloc_spec' :=
    PRE [ size_t ]
        PROP (0 <= n <= Ptrofs.max_unsigned)
        PARAMS (Vptrofs (Ptrofs.repr n)) GLOBALS (gv)
-       SEP (mem_mgr M gv)
+       SEP (mem_mgr gv)
     POST [ tptr tvoid ] EX p:_,
        PROP ()
        LOCAL (temp ret_temp p)
-       SEP (mem_mgr M gv;
+       SEP (mem_mgr gv;
              if eq_dec p nullval then emp
-            else (malloc_token' M Ews n p * memory_block Ews n p)).
+            else (malloc_token' Ews n p * memory_block Ews n p)).
 
 Definition free_spec' :=
  DECLARE _free
@@ -60,23 +60,13 @@ Definition free_spec' :=
    PRE [ tptr tvoid ]
        PROP ()
        PARAMS (p) GLOBALS (gv)
-       SEP (mem_mgr M gv;
+       SEP (mem_mgr gv;
               if eq_dec p nullval then emp
-              else (malloc_token' M Ews n p * memory_block Ews n p))
+              else (malloc_token' Ews n p * memory_block Ews n p))
     POST [ Tvoid ]
        PROP ()
        LOCAL ()
-       SEP (mem_mgr M gv).
-
-(*
-Definition exit_spec :=
- DECLARE _exit
- WITH i: Z
- PRE [tint]
-   PROP () PARAMS (Vint (Int.repr i)) GLOBALS () SEP()
- POST [ tvoid ]
-   PROP(False) LOCAL() SEP().
-*)
+       SEP (mem_mgr gv).
 
 Definition malloc_spec  {cs: compspecs} (t: type) :=
  DECLARE _malloc
@@ -86,13 +76,13 @@ Definition malloc_spec  {cs: compspecs} (t: type) :=
                 complete_legal_cosu_type t = true;
                 natural_aligned natural_alignment t = true)
        PARAMS (Vptrofs (Ptrofs.repr (sizeof t))) GLOBALS (gv)
-       SEP (mem_mgr M gv)
+       SEP (mem_mgr gv)
     POST [ tptr tvoid ] EX p:_,
        PROP ()
        LOCAL (temp ret_temp p)
-       SEP (mem_mgr M gv;
+       SEP (mem_mgr gv;
              if eq_dec p nullval then emp
-            else (malloc_token M Ews t p * data_at_ Ews t p)).
+            else (malloc_token Ews t p * data_at_ Ews t p)).
 
 Definition free_spec  {cs: compspecs} (t: type) :=
  DECLARE _free
@@ -100,13 +90,13 @@ Definition free_spec  {cs: compspecs} (t: type) :=
    PRE [ tptr tvoid ]
        PROP ()
        PARAMS (p) GLOBALS (gv)
-       SEP (mem_mgr M gv;
+       SEP (mem_mgr gv;
               if eq_dec p nullval then emp
-              else (malloc_token M Ews t p * data_at_ Ews t p))
+              else (malloc_token Ews t p * data_at_ Ews t p))
     POST [ Tvoid ]
        PROP ()
        LOCAL ()
-       SEP (mem_mgr M gv).
+       SEP (mem_mgr gv).
 
 Lemma malloc_spec_sub:
  forall {cs: compspecs} (t: type), 

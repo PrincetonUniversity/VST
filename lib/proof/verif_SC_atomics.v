@@ -7,48 +7,48 @@ Require Import spec_SC_atomics.
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
-Parameter M: AtomicsAPD.
+#[export] Declare Instance M: AtomicsAPD.
 
 Parameter body_make_atomic: 
  forall {Espec: OracleKind} ,
    VST.floyd.library.body_lemma_of_funspec 
         (EF_external "make_atomic" (mksignature (AST.Tint :: nil) AST.Tlong cc_default))
-       (make_atomic_spec M). 
+       make_atomic_spec. 
 
 Parameter body_make_atomic_ptr:
  forall {Espec: OracleKind}  ,
    VST.floyd.library.body_lemma_of_funspec 
        (EF_external "make_atomic_ptr"
                    (mksignature (AST.Tlong :: nil) AST.Tlong cc_default))
-       (make_atomic_ptr_spec M).
+       make_atomic_ptr_spec.
 
 Parameter body_free_atomic: 
  forall {Espec: OracleKind}  ,
    VST.floyd.library.body_lemma_of_funspec 
         (EF_external "free_atomic"
                    (mksignature (AST.Tlong :: nil) AST.Tvoid cc_default))
-       (free_atomic_int_spec M).
+       free_atomic_int_spec.
 
 Parameter body_free_atomic_ptr: 
  forall {Espec: OracleKind}  ,
    VST.floyd.library.body_lemma_of_funspec 
         (EF_external "free_atomic_ptr"
                    (mksignature (AST.Tlong :: nil) AST.Tvoid cc_default))
-       (free_atomic_ptr_spec M).
+       free_atomic_ptr_spec.
 
 Parameter body_atom_load: 
  forall {Espec: OracleKind}  ,
    VST.floyd.library.body_lemma_of_funspec 
         (EF_external "atom_load"
                    (mksignature (AST.Tlong :: nil) AST.Tint cc_default))
-       (atomic_load_spec M).
+       atomic_load_spec.
 
 Parameter body_atom_store: 
  forall {Espec: OracleKind}  ,
    VST.floyd.library.body_lemma_of_funspec 
         (EF_external "atom_store"
                    (mksignature (AST.Tlong :: AST.Tint :: nil) AST.Tvoid cc_default))
-       (atomic_store_spec M).
+       atomic_store_spec.
 
 Parameter body_atom_CAS: 
  forall {Espec: OracleKind}  ,
@@ -56,7 +56,7 @@ Parameter body_atom_CAS:
         (EF_external "atom_CAS"
                    (mksignature (AST.Tlong :: AST.Tlong :: AST.Tint :: nil)
                      AST.Tint cc_default))
-       (atomic_CAS_spec M).
+       atomic_CAS_spec.
 
 
 Parameter body_atom_exchange: 
@@ -65,7 +65,7 @@ Parameter body_atom_exchange:
         (EF_external "atom_exchange"
                    (mksignature (AST.Tlong :: AST.Tint :: nil) AST.Tint
                      cc_default))
-       (atomic_exchange_spec).
+       atomic_exchange_spec.
 
 Definition SC_atomics_placeholder_spec :=
  DECLARE _SC_atomics_placeholder
@@ -75,7 +75,7 @@ Definition SC_atomics_placeholder_spec :=
  POST [ tint ]
    PROP() LOCAL() SEP().
 
-  Definition SCA_ASI: funspecs := AtomicsASI M.
+  Definition SCA_ASI: funspecs := AtomicsASI.
 
   Definition SCA_imported_specs:funspecs :=  nil.
 

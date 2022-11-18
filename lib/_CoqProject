@@ -13,4 +13,4 @@ proof/threads.v
 proof/locks.v
 proof/spec_threads.v
 proof/spec_locks.v
-
+proof/verif_locks.v

@@ -6,17 +6,17 @@ Require Import spec_malloc.
 
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 
-Parameter M: MallocAPD.
+#[export] Declare Instance M: MallocAPD.
 
-Axiom mem_mgr_rep: forall gv, emp |-- mem_mgr M gv.
+Axiom mem_mgr_rep: forall gv, emp |-- mem_mgr gv.
 
 Parameter body_malloc:
  forall {Espec: OracleKind} {cs: compspecs} ,
-   VST.floyd.library.body_lemma_of_funspec EF_malloc (snd (malloc_spec' M)).
+   VST.floyd.library.body_lemma_of_funspec EF_malloc (snd malloc_spec').
 
 Parameter body_free:
  forall {Espec: OracleKind} {cs: compspecs} ,
-   VST.floyd.library.body_lemma_of_funspec EF_free (snd (free_spec' M)).
+   VST.floyd.library.body_lemma_of_funspec EF_free (snd free_spec').
 
 (*
 Parameter body_exit:
@@ -34,7 +34,7 @@ Definition malloc_placeholder_spec :=
  POST [ tint ]
    PROP() LOCAL() SEP().
 
-  Definition MF_ASI: funspecs := MallocASI M.
+  Definition MF_ASI: funspecs := MallocASI.
 
   Definition MF_imported_specs:funspecs :=  nil.
 
@@ -43,7 +43,7 @@ Definition malloc_placeholder_spec :=
   Definition MFVprog : varspecs. mk_varspecs prog. Defined.
   Definition MFGprog: funspecs := MF_imported_specs ++ MF_internal_specs.
 
-  Lemma MF_Init: VSU_initializer prog (mem_mgr M).
+  Lemma MF_Init: VSU_initializer prog mem_mgr.
   Proof. InitGPred_tac. apply mem_mgr_rep. Qed.
 
 Lemma body_malloc_placeholder: semax_body MFVprog MFGprog f_malloc_placeholder malloc_placeholder_spec.
@@ -57,7 +57,7 @@ Lemma semax_func_cons_malloc_aux {cs: compspecs} (gv: globals) (gx : genviron) (
   (EX p : val,
    PROP ( )
         LOCAL (temp ret_temp p)
-        SEP (mem_mgr M gv; if eq_dec p nullval then emp else malloc_token' M Ews z p * memory_block Ews z p))%assert
+        SEP (mem_mgr gv; if eq_dec p nullval then emp else malloc_token' Ews z p * memory_block Ews z p))%assert
     (make_ext_rval gx (rettype_of_type (tptr tvoid)) ret) |-- !! is_pointer_or_null (force_val ret).
 Proof.
  intros.
@@ -76,7 +76,7 @@ Qed.
 Definition MF_E : funspecs := MF_ASI.
 
 Definition MallocVSU: @VSU NullExtension.Espec
-         MF_E MF_imported_specs ltac:(QPprog prog) MF_ASI (mem_mgr M).
+         MF_E MF_imported_specs ltac:(QPprog prog) MF_ASI mem_mgr.
   Proof. 
     mkVSU prog MF_internal_specs.
     - solve_SF_internal body_malloc_placeholder.
@@ -85,6 +85,5 @@ Definition MallocVSU: @VSU NullExtension.Espec
       apply (semax_func_cons_malloc_aux gv gx ret n).
       destruct ret; simpl; trivial.
     - solve_SF_external (@body_free NullExtension.Espec CompSpecs).
-(*    - solve_SF_external (@body_exit NullExtension.Espec). *)
     - apply MF_Init.
 Qed.

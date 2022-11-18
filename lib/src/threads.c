@@ -2,7 +2,6 @@
 
 #include <stdlib.h>
 #include <threads.h>
-#include <SC_atomics.h>
 #include <VSTthreads.h>
 
 void spawn(int (*f)(void*), void* args) {
