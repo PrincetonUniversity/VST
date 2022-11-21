@@ -774,9 +774,7 @@ Context {A B : Type} {A_eq : EqDec A}.
 
 Implicit Types (k : A) (v : B) (m : A -> option B).
 
-Inductive discrete_ord : B -> B -> Prop := discrete_ordI x : discrete_ord x x.
-
-Global Instance discrete_order : PCM_order(P := discrete_PCM B) discrete_ord.
+Global Instance discrete_order : PCM_order(P := discrete_PCM B) eq.
 Proof.
   constructor.
   - constructor.
@@ -790,7 +788,7 @@ Proof.
   - inversion 1; constructor; auto.
 Qed.
 
-Local Notation map_incl := (@map_incl A (discrete_PCM B) discrete_ord).
+Local Notation map_incl := (@map_incl A (discrete_PCM B) eq).
 
 Global Instance map_incl_antisym : Antisymmetric _ eq map_incl.
 Proof.
@@ -798,7 +796,6 @@ Proof.
   extensionality a.
   specialize (Hx a); specialize (Hy a).
   destruct (x a), (y a); simpl in *; auto; try contradiction.
-  inv Hx; auto.
 Qed.
 
 Lemma map_add_incl_compat : forall m1 m2 m3, map_incl m1 m2 -> map_incl (map_add m3 m1) (map_add m3 m2).
@@ -855,7 +852,6 @@ Lemma map_incl_add : forall m1 m2, map_incl m1 (map_add m1 m2).
 Proof.
   repeat intro; unfold map_add.
   destruct (m1 k); simpl; auto.
-  constructor.
 Qed.
 
 Lemma map_incl_compatible : forall m1 m2 m3 (Hincl1 : map_incl m1 m3) (Hincl2 : map_incl m2 m3),
@@ -1204,7 +1200,7 @@ Context {hist_el : Type}.
 
 Notation hist_part := (nat -> option hist_el).
 
-Local Notation map_incl := (@map_incl _ (discrete_PCM hist_el) discrete_ord).
+Local Notation map_incl := (@map_incl _ (discrete_PCM hist_el) eq).
 
 Definition hist_sub sh (h : hist_part) hr := sh <> Share.bot /\ if eq_dec sh Tsh then h = hr
   else map_incl h hr.

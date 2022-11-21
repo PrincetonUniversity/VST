@@ -13,7 +13,7 @@ bug-reports: "https://github.com/PrincetonUniversity/VST/issues"
 license: "https://raw.githubusercontent.com/PrincetonUniversity/VST/master/LICENSE"
 
 build: [
-  [make "-j%{jobs}%" "atomics" "IGNORECOQVERSION=true" "ZLIST=platform" "BITSIZE=64"]
+  [make "-j%{jobs}%" "build-iris" "IGNORECOQVERSION=true" "ZLIST=platform" "BITSIZE=64"]
 ]
 install: [
   [make "install-iris" "IGNORECOQVERSION=true" "ZLIST=platform" "BITSIZE=64"]
