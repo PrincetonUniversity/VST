@@ -33,22 +33,6 @@ Definition atomic_lock_inv sh h R := let '(v, i, g) := h in !!(sh <> Share.bot /
   lock_handle := val * invariants.iname * ghosts.gname;
   ptr_of h := let '(v, i, g) := h in v; 
   lock_inv := atomic_lock_inv }.
-(*
-  lock_handle : Type;
-  ptr_of : lock_handle -> val;
-  lock_inv : share -> lock_handle -> mpred -> mpred;
-  lock_inv_nonexpansive : forall sh h, nonexpansive (lock_inv sh h);
-  lock_inv_share_join : forall sh1 sh2 sh3 h R, sh1 <> Share.bot -> sh2 <> Share.bot ->
-    sepalg.join sh1 sh2 sh3 -> lock_inv sh1 h R * lock_inv sh2 h R = lock_inv sh3 h R;
-  lock_inv_exclusive : forall sh h R, exclusive_mpred (lock_inv sh h R);
-  lock_inv_isptr : forall sh h R, lock_inv sh h R |-- !! isptr (ptr_of h) 
-}.
-
-
-  #[export] Program Instance atomic_impl : lock_impl := { t_lock := Tstruct _atom_int noattr; 
-lock_handle := val * invariants.iname * ghosts.gname;
-    ptr_of h := let '(v, i, g) := h in v; lock_inv := atomic_lock_inv }.
-*)
   Next Obligation.
   Proof.
     unfold atomic_lock_inv.
@@ -110,7 +94,15 @@ lock_handle := val * invariants.iname * ghosts.gname;
   Definition acquire_spec := DECLARE _acquire spec_locks.acquire_spec.
   Definition release_spec := DECLARE _release spec_locks.release_spec.
 
-  Definition Gprog : funspecs := AtomicsASI ++ MallocASI.
+Definition lockImports : funspecs :=
+  (* AtomicsASI ++ MallocASI    (* should be able to write this *) *)
+  (* Bug? must list exactly and only the actual imports used: *)
+  [(SC_atomics_extern._make_atomic, make_atomic_spec);
+ (SC_atomics_extern._free_atomic, free_atomic_int_spec);
+ (SC_atomics_extern._atom_store, atomic_store_spec);
+ (SC_atomics_extern._atom_CAS, atomic_CAS_spec)].
+
+Definition Gprog := lockImports ++ lockASI.
 
   Lemma body_makelock: semax_body Vprog Gprog f_makelock makelock_spec.
   Proof.
@@ -384,6 +376,12 @@ Opaque self_part.
 Arguments ptr_of : simpl never.
 Arguments lock_inv : simpl never.
 
-TODO:
-Finish the VSU
-get rid of lock_specs from ghost.
+Definition lockVSU: @VSU NullExtension.Espec
+         nil lockImports ltac:(QPprog prog) lockASI emp.
+  Proof. 
+    mkVSU prog lockASI.
+    - solve_SF_internal body_makelock.
+    - solve_SF_internal body_freelock.
+    - solve_SF_internal body_acquire.
+    - solve_SF_internal body_release.
+  Qed.
