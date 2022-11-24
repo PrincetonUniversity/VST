@@ -2,6 +2,13 @@
 
 If symbols are missing in the delta list, the resulting terms can become very large and it can take minutes to run cbv.
 
+## Using `Set Debug "Cbv"`
+
+Coq has a command `Set Debug "Cbv".`. If enabled, it dumps all delta expansion decisions. A few hints:
+
+- This cannot be undone - one has to restart coqtop to disable this setting.
+- Interesting are typically the `[Cbv] Not unfolding` lines - I usually grep the output for it and `sort | uniq` the result
+
 ## Using Coqtop and batch debug
 
 Usually coqtop is faster in displaying terms than most IDEs - also it obeys `Set Printing Depth`.
