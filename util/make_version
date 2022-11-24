@@ -12,7 +12,7 @@ printf >>$F 'Definition release := "'
 tr -d '[:cntrl:]' <VERSION >>$F
 printf >>$F '".\n'
 printf >>$F 'Definition date := "'
-date --rfc-3339=date | tr -d '[:cntrl:]' >>$F
+date -Idate | tr -d '[:cntrl:]' >>$F
 printf >>$F '".\n'
 printf >>$F 'Definition bitsize : Z := %d.\n' $1
 printf >>$F 'Definition compcert_version := "%s".' $2
