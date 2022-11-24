@@ -301,8 +301,10 @@ Ltac2 cbv_ds_uao_afr_vstl (delta_symbols : Std.reference list) (head : constr) :
 
 (** ** Special tactics for VST *)
 
-(* Ltac simpl_msubst_denote_tc_assert := simpl VST.floyd.local2ptree_typecheck.msubst_denote_tc_assert. *)
-Ltac simpl_msubst_denote_tc_assert := ltac2:(cbv_ds_uao_lr_vstl (reduction_symbol_list_msubst_denote_tc_assert ()) '@VST.floyd.local2ptree_typecheck.msubst_denote_tc_assert).
+(** The whole essence of this file is currently disabled, because not all of VST compiles with it cause of entialer changes.
+    To enable it, comment the line below and uncomment the second line below *)
+Ltac simpl_msubst_denote_tc_assert := simpl VST.floyd.local2ptree_typecheck.msubst_denote_tc_assert.
+(* Ltac simpl_msubst_denote_tc_assert := ltac2:(cbv_ds_uao_lr_vstl (reduction_symbol_list_msubst_denote_tc_assert ()) '@VST.floyd.local2ptree_typecheck.msubst_denote_tc_assert). *)
 
 (** ** Tests *)
 
