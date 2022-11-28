@@ -213,79 +213,6 @@ pose proof trunc_ff_aux t x H.
 Lra.lra.
 Defined.
 
-(* BEGIN definitions adapted from [the open-source part of] CompCert  *)
-
-(** Transform a Nan payload to a quiet Nan payload. *)
-
-Definition quiet_nan_payload (t: type) (p: positive) :=
-  Z.to_pos (Zbits.P_mod_two_p (Pos.lor p ((Zaux.iter_nat xO (Z.to_nat (fprec t - 2)) 1%positive))) (Z.to_nat (fprec t - 1))).
-
-Lemma quiet_nan_proof (t: type): forall p, Binary.nan_pl (fprec t) (quiet_nan_payload t p) = true.
-Proof. 
-intros.
-pose proof (fprec_gt_one t).
- apply normalized_nan; auto; lia.
-Qed.
-
-Definition quiet_nan (t: type) (sp: bool * positive) : {x : ftype t | Binary.is_nan _ _ x = true} :=
-  let (s, p) := sp in
-  exist _ (Binary.B754_nan (fprec t) (femax t) s (quiet_nan_payload t p) (quiet_nan_proof t p)) (eq_refl true).
-
-Definition default_nan (t: type) := (fst Archi.default_nan_64, iter_nat (Z.to_nat (fprec t - 2)) _ xO xH).
-
-Inductive NAN_SCHEME := NAN_SCHEME_ARM | NAN_SCHEME_X86 | NAN_SCHEME_RISCV.
-
-Definition the_nan_scheme : NAN_SCHEME.
-try (unify Archi.choose_nan_64 Archi.default_nan_64; exact NAN_SCHEME_RISCV);
-try (unify Archi.choose_nan_64 (fun l => match l with nil => Archi.default_nan_64 | n::_ => n end);
-      exact NAN_SCHEME_X86);
-try (let p := constr:(Archi.choose_nan_64) in
-      let p := eval red in p in
-      match p with _ (fun p => negb (Pos.testbit p 51)) _ => idtac end;
-      exact NAN_SCHEME_ARM).
-Defined.
-
-Definition ARMchoose_nan (is_signaling: positive -> bool) 
-                      (default: bool * positive)
-                      (l0: list (bool * positive)) : bool * positive :=
-  let fix choose_snan (l1: list (bool * positive)) :=
-    match l1 with
-    | nil =>
-        match l0 with nil => default | n :: _ => n end
-    | ((s, p) as n) :: l1 =>
-        if is_signaling p then n else choose_snan l1
-    end
-  in choose_snan l0.
-
-Definition choose_nan (t: type) : list (bool * positive) -> bool * positive :=
- match the_nan_scheme with
- | NAN_SCHEME_RISCV => fun _ => default_nan t
- | NAN_SCHEME_X86 => fun l => match l with nil => default_nan t | n :: _ => n end
- | NAN_SCHEME_ARM => ARMchoose_nan (fun p => negb (Pos.testbit p (Z.to_N (fprec t - 2))))
-                                          (default_nan t)
- end.
-
-Definition cons_pl {t: type} (x : ftype t) (l : list (bool * positive)) :=
-match x with
-| Binary.B754_nan _ _ s p _ => (s, p) :: l
-| _ => l
-end.
-
-Definition fma_nan_1 (t: type) (x y z: ftype t) : {x : ftype t | @Binary.is_nan (fprec t) (femax t) x = true} :=
-  let '(a, b, c) := Archi.fma_order x y z in
-  quiet_nan t (choose_nan t (cons_pl a (cons_pl b (cons_pl c [])))).
-
-Definition fma_nan (t: type) (x y z: ftype t) : {x : ftype t | Binary.is_nan _ _ x = true} :=
-  match x, y with
-  | Binary.B754_infinity _ _ _, Binary.B754_zero _ _ _ | Binary.B754_zero _ _ _, Binary.B754_infinity _ _ _ =>
-      if Archi.fma_invalid_mul_is_nan
-      then quiet_nan t (choose_nan t (default_nan t :: cons_pl z []))
-      else fma_nan_1 t x y z
-  | _, _ =>
-      fma_nan_1 t x y z
-  end.
-(* END definitions adapted from [the open-source part of] CompCert  *)
-
 Definition fma_no_overflow (t: type) (x y z: R) : Prop :=
   (Rabs ( Generic_fmt.round Zaux.radix2
               (SpecFloat.fexp (fprec t) (femax t))
@@ -347,12 +274,16 @@ Definition frexp_spec' (t: type) :=
                          (snd (Binary.Bfrexp (fprec t) (femax t)  (fprec_gt_0 t) x))))
                          p).
 
+Definition bogus_nan t := 
+   (* This is probably not the right NaN to use, wherever you see it used *)
+   FMA_NAN.quiet_nan t (FMA_NAN.default_nan t). 
+
 Definition nextafter (t: type) (x y: ftype t) : ftype t := 
  match Binary.Bcompare (fprec t) (femax t) x y with
   | Some Lt => Binary.Bsucc (fprec t) (femax t)  (fprec_gt_0 t) (fprec_lt_femax t) x
   | Some Eq => y
   | Some Gt => Binary.Bpred (fprec t) (femax t)  (fprec_gt_0 t) (fprec_lt_femax t) x
-  | None => proj1_sig (quiet_nan t (default_nan t))  (* this is probably the wrong NaN *)
+  | None => proj1_sig (bogus_nan t)
   end.
 
 Definition nextafter_spec' (t: type) :=
@@ -393,7 +324,8 @@ Definition nan_spec' (t: type) :=
        SEP ()
     POST [ reflect_to_ctype t ]
        PROP ()
-       RETURN (reflect_to_val t (proj1_sig (quiet_nan t (default_nan t))))
+        (* here it _is_ actually permissible to use bogus_nan *)
+       RETURN (reflect_to_val t (proj1_sig (bogus_nan t)))
        SEP ().
 
 Definition arccosh (x: R) := Rabs (Rpower.arcsinh (sqrt (Rsqr x - 1)))%R.
