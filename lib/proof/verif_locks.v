@@ -102,7 +102,7 @@ Definition lockImports : funspecs :=
  (SC_atomics_extern._atom_store, atomic_store_spec);
  (SC_atomics_extern._atom_CAS, atomic_CAS_spec)].
 
-Definition Gprog := lockImports ++ lockASI.
+Definition Gprog := lockImports ++ LockASI.
 
   Lemma body_makelock: semax_body Vprog Gprog f_makelock makelock_spec.
   Proof.
@@ -376,10 +376,10 @@ Opaque self_part.
 Arguments ptr_of : simpl never.
 Arguments lock_inv : simpl never.
 
-Definition lockVSU: @VSU NullExtension.Espec
-         nil lockImports ltac:(QPprog prog) lockASI emp.
+Definition LockVSU: @VSU NullExtension.Espec
+         nil lockImports ltac:(QPprog prog) LockASI emp.
   Proof. 
-    mkVSU prog lockASI.
+    mkVSU prog LockASI.
     - solve_SF_internal body_makelock.
     - solve_SF_internal body_freelock.
     - solve_SF_internal body_acquire.

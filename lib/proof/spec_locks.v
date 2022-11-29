@@ -385,7 +385,7 @@ Section lock_specs.
     apply wand_refl_cancel_right.
   Qed.
 
-Definition lockASI:funspecs := [
+Definition LockASI:funspecs := [
    (_makelock, makelock_spec);
    (_freelock, freelock_spec);
    (_acquire, acquire_spec);
