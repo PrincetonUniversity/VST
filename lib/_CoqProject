@@ -1,5 +1,6 @@
 -Q ../../vcfloat/vcfloat vcfloat
--R proof VSTlib
+-Q proof VSTlib
+-Q test VSTlibtest
 proof/math_extern.v
 proof/spec_math.v
 proof/verif_math.v
@@ -14,3 +15,5 @@ proof/locks.v
 proof/spec_threads.v
 proof/spec_locks.v
 proof/verif_locks.v
+test/incr.v
+test/verif_incr.v

@@ -17,3 +17,7 @@ proof/threads.v: src/threads.c
 proof/locks.v: src/locks.c
 	clightgen -Iinclude -normalize $<
 	mv `dirname $<`/`basename -s .c $<`.v proof
+
+test/incr.v: test/incr.c
+	clightgen -Iinclude -normalize $<
+
