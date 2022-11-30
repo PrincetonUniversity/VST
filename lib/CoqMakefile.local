@@ -20,4 +20,6 @@ proof/locks.v: src/locks.c
 
 test/incr.v: test/incr.c
 	clightgen -Iinclude -normalize $<
+test/incr_main.v: test/incr_main.c
+	clightgen -Iinclude -normalize $<
 

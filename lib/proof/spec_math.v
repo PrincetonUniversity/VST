@@ -1,5 +1,5 @@
 Require Import VST.floyd.proofauto.
-Require Import math_extern.
+Require Import VSTlib.math_extern.
 Require Import vcfloat.FPCompCert.
 Require Import Reals.
 Import ListNotations.

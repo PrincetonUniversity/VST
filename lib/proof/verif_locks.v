@@ -218,8 +218,9 @@ split; intros [? ?]; discriminate.
 
 #[global] Opaque M.
 
-Definition LockVSU: @VSU NullExtension.Espec
-         nil lockImports ltac:(QPprog prog) LockASI emp.
+#[local] Existing Instance NullExtension.Espec.  (* FIXME *)
+
+Definition LockVSU: VSU nil lockImports ltac:(QPprog prog) LockASI emp.
   Proof. 
     mkVSU prog LockASI.
     - solve_SF_internal body_makelock.

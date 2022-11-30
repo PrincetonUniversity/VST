@@ -1,8 +1,8 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.VSU.
 Require VST.floyd.library. (*for body_lemma_of_funspec *)
-Require Import SC_atomics_extern.
-Require Import spec_SC_atomics.
+Require Import VSTlib.SC_atomics_extern.
+Require Import VSTlib.spec_SC_atomics.
 
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
@@ -106,24 +106,25 @@ Ltac check_mpreds2 R ::= (* Patch for https://github.com/PrincetonUniversity/VST
  | nil => idtac
  end.
 
-Definition SCAVSU: @VSU NullExtension.Espec
-         SCA_E SCA_imported_specs ltac:(QPprog prog) SCA_ASI emp.
+#[local] Existing Instance NullExtension.Espec.  (* FIXME *)
+
+Definition SCAVSU: VSU SCA_E SCA_imported_specs ltac:(QPprog prog) SCA_ASI emp.
   Proof. 
     mkVSU prog SCA_internal_specs.
     - solve_SF_internal body_SC_atomics_placeholder.
-    - solve_SF_external (@body_make_atomic NullExtension.Espec).
+    - solve_SF_external body_make_atomic.
        admit.
-    - solve_SF_external (@body_make_atomic_ptr NullExtension.Espec).
+    - solve_SF_external body_make_atomic_ptr.
        admit.
-    - solve_SF_external (@body_free_atomic_ptr NullExtension.Espec).
-    - solve_SF_external (@body_free_atomic NullExtension.Espec).
-    - solve_SF_external (@body_atom_load NullExtension.Espec).
+    - solve_SF_external body_free_atomic_ptr.
+    - solve_SF_external body_free_atomic.
+    - solve_SF_external body_atom_load.
         simpl. admit.
-    - solve_SF_external (@body_atom_store NullExtension.Espec).
+    - solve_SF_external body_atom_store.
         simpl. admit.
-    - solve_SF_external (@body_atom_CAS NullExtension.Espec).
+    - solve_SF_external body_atom_CAS.
         simpl. admit.
-    - solve_SF_external (@body_atom_exchange NullExtension.Espec).
+    - solve_SF_external body_atom_exchange.
         simpl. admit.
 Admitted.  (* all these admits are undoubtedly provable; see for example 
                             Lemma RETURN_tc_option_val_float  in verif_math.v *)

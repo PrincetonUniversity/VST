@@ -1,8 +1,8 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.VSU.
 Require Import VST.floyd.library. (*for body_lemma_of_funspec *)
-Require Import math_extern.
-Require Import spec_math.
+Require Import VSTlib.math_extern.
+Require Import VSTlib.spec_math.
 
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 

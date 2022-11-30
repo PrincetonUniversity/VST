@@ -1,11 +1,12 @@
 Require Import VST.floyd.proofauto.
-Require Import threads.
-Local Existing Instance emptyCS.
+Require Import VSTlib.threads.
+
+#[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Import VST.veric.rmaps.
 Require Import Ensembles.
 Notation vint z := (Vint (Int.repr z)).
-
 
 Local Open Scope logic.
 
@@ -137,7 +138,7 @@ Definition exit_thread_spec :=
     RETURN ()
     SEP ().
 
-Definition SpawnASI:funspecs := [
+Definition ThreadsASI:funspecs := [
     (_spawn, spawn_spec); exit_thread_spec
  ].
 

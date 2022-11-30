@@ -65,15 +65,23 @@ Definition thread_func_spec :=
          RETURN (Vint Int.zero)
          SEP ().
 
-Definition main_spec :=
- DECLARE _main
-  WITH gv : globals
-  PRE  [] main_pre prog tt gv
-  POST [ tint ] main_post prog gv.
+Definition compute2_spec :=
+ DECLARE _compute2
+ WITH gv: globals
+ PRE [] PROP() PARAMS() GLOBALS(gv)
+          SEP(mem_mgr gv; 
+                data_at Ews t_counter (Vint (Int.repr 0), Vundef) (gv _c); 
+                has_ext tt)
+ POST [ tint ] PROP() RETURN (Vint (Int.repr 2)) 
+                    SEP(mem_mgr gv; data_at_ Ews t_counter (gv _c); has_ext tt).
 
-Definition Gprog : funspecs :=   
-  [incr_spec; read_spec; thread_func_spec; main_spec] ++
-  LockASI ++ SpawnASI.
+Definition SpawnASI_without_exit := 
+    (* it's really a bug in the VSU system that we have to do this *)
+    [(threads._spawn, spec_threads.spawn_spec)].
+
+Definition incrImports := LockASI ++ SpawnASI_without_exit.
+Definition incrInternals := [incr_spec; read_spec; thread_func_spec; compute2_spec].
+Definition Gprog : funspecs :=   incrInternals ++ incrImports.
 
 Lemma ctr_inv_exclusive : forall g1 g2 p,
   exclusive_mpred (cptr_lock_inv g1 g2 p).
@@ -161,7 +169,15 @@ Proof.
   forward.
 Qed.
 
-Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
+Lemma ghost_dealloc:
+  forall {A} sh a pp, @ghost_var A sh a pp |-- emp.
+Proof.
+intros.
+unfold ghost_var.
+apply own_dealloc.
+Qed.
+
+Lemma body_compute2:  semax_body Vprog Gprog f_compute2 compute2_spec.
 Proof.
   start_function.
   set (ctr := gv _c).
@@ -170,7 +186,6 @@ Proof.
   Intro g1.
   ghost_alloc (ghost_var Tsh 0).
   Intro g2.
-  sep_apply (make_mem_mgr gv).
   forward_call (gv, fun _ : lock_handle => cptr_lock_inv g1 g2 ctr).
   Intros lock.
   forward.
@@ -206,31 +221,31 @@ Proof.
   { lock_props.
     erewrite <- (lock_inv_share_join _ _ Tsh); try apply gsh1_gsh2_join; auto; subst ctr; cancel. }
   forward.
+  unfold_data_at (data_at_ _ _ _).
+  simpl.
+  unfold cptr_lock_inv. Intros z x y.
+  sep_apply (field_at_share_join sh1 sh2 Ews).
+  cancel.
+  repeat sep_apply (@ghost_dealloc Z).
+  cancel.
 Qed.
 
-(* THE REST OF THIS FILE needs to be replaced by VSU creation ...
-Definition extlink := ext_link_prog prog.
+(*
+
+Definition extlink := ext_link_prog prog. (* this is wrong, because
+       it doesn't include the programs of all the imported VSUs *)
 Definition Espec := add_funspecs (Concurrent_Espec unit _ extlink) extlink Gprog.
-#[export] Existing Instance Espec.
-
-Lemma prog_correct:
-  semax_prog prog tt Vprog Gprog.
-Proof.
-prove_semax_prog.
-repeat (apply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | ]).
-semax_func_cons_ext.
-{ simpl.
-  Intros h.
-  unfold PROPx, LOCALx, SEPx, local, lift1; simpl; unfold liftx; simpl; unfold lift; Intros.
-  destruct ret; unfold eval_id in H0; simpl in H0; subst; simpl; [|contradiction].
-  saturate_local; apply prop_right; auto. }
-semax_func_cons_ext.
-semax_func_cons_ext.
-semax_func_cons_ext.
-semax_func_cons_ext.
-semax_func_cons body_incr.
-semax_func_cons body_read.
-semax_func_cons body_thread_func.
-semax_func_cons body_main.
-Qed.
 *)
+
+#[local] Existing Instance NullExtension.Espec.  (* FIXME *)
+
+Require Import VST.floyd.VSU.
+
+Definition IncrVSU: VSU nil incrImports ltac:(QPprog prog) [compute2_spec] (InitGPred (Vardefs (QPprog prog))).
+  Proof. 
+    mkVSU prog incrInternals.
+    - solve_SF_internal body_incr.
+    - solve_SF_internal body_read.
+    - solve_SF_internal body_thread_func.
+    - solve_SF_internal body_compute2.
+  Qed.

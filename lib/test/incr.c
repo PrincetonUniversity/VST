@@ -24,7 +24,7 @@ int thread_func(void *thread_lock) {
   return 0;
 }
 
-int main(void)
+int compute2(void)
 {
   c.ctr = 0;
   c.lock = makelock();
@@ -48,3 +48,10 @@ int main(void)
 
   return t;
 }
+
+/*
+int main(void) {
+ return compute2();
+}
+*/
+

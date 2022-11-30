@@ -1,8 +1,8 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.VSU.
 Require Import VST.floyd.library. (*for body_lemma_of_funspec *)
-Require Import malloc_extern.
-Require Import spec_malloc.
+Require Import VSTlib.malloc_extern.
+Require Import VSTlib.spec_malloc.
 
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 

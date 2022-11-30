@@ -1,5 +1,5 @@
 Require Import VST.floyd.proofauto.
-Require Import malloc_extern.
+Require Import VSTlib.malloc_extern.
 
 Local Open Scope assert.
 

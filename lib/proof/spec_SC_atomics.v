@@ -1,8 +1,10 @@
 (* SC atomics without importing Iris *)
 
 Require Import VST.floyd.proofauto.
-Require Import SC_atomics_extern.
-Local Existing Instance emptyCS.
+Require Import VSTlib.SC_atomics_extern.
+
+#[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Import VST.veric.rmaps.
 Require Import Ensembles.
