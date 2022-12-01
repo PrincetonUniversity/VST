@@ -878,12 +878,12 @@ Ltac intro_PROP :=
 Ltac check_mpreds R :=
  lazymatch R with
  | ?a :: ?al => match type of a with ?t =>
-                          first [constr_eq t mpred | fail 10 "The SEP conjunct" a "has type" t "but should have type mpred; these two types may be convertible but they are not identical"]
+                          first [constr_eq t mpred | fail 4 "The SEP conjunct" a "has type" t "but should have type mpred; these two types may be convertible but they are not identical"]
                      end; check_mpreds al
  | nil => idtac
  | _ => match type of R with ?t => 
                first [constr_eq t (list mpred)
-                      | fail 10 "The SEP list" R "has type" t "but should have type (list mpred); these two types may be convertible but they are not identical"]
+                      | fail 4 "The SEP list" R "has type" t "but should have type (list mpred); these two types may be convertible but they are not identical"]
             end
  end.
 

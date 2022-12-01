@@ -1931,7 +1931,7 @@ Ltac check_mpreds2 R :=
  | @sepcon mpred _ _ ?a ?b => check_mpreds2 a; check_mpreds2 b
  | _ => match type of R with ?t =>
                           first [constr_eq t mpred
-                                 | fail 10 "The conjunct" R "has type" t "but should have type mpred; these two types may be convertible but they are not identical"]
+                                 | fail 4 "The conjunct" R "has type" t "but should have type mpred; these two types may be convertible but they are not identical"]
                      end
  | nil => idtac
  end.

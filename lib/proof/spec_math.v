@@ -6,6 +6,109 @@ Import ListNotations.
 
 Local Open Scope assert.
 
+Module GNU_Errors.
+Definition Generic : nat := 0.
+Definition AArch64 : nat := 1.
+Definition ARM : nat := 2.
+Definition PowerPC : nat := 3.
+Definition RISCV32 : nat := 4.
+Definition RISCV64 : nat := 5.
+Definition i686 : nat := 6.
+Definition x86_64 : nat := 7.
+Open Scope string.
+Definition arch': nat :=
+ match Info.arch, Info.bitsize with
+ | "arm", 32 => ARM
+ | "powerpc", 32 => PowerPC
+ | "x86", 32 => i686
+ | "x86", 64 => x86_64
+ | "riscV", 64 => RISCV64
+ | "riscV", 32 => RISCV32
+ | "aarch64", 64 => AArch64
+ | _, _ => Generic
+ end.
+
+Definition arch : nat := ltac:(let x := constr:(arch') in let x := eval compute in x in exact x).
+
+Lemma architecture_is_known: arch <> Generic.
+Proof. compute. lia. Abort.
+
+Definition process_GNU_errors (al: list (ident * list Z)) :=
+ List.fold_left (fun m il => Maps.PTree.set (fst il) (nth arch (snd il) 0) m)
+  al (Maps.PTree.empty Z).
+
+Definition GNU_errors : Maps.PTree.t Z.
+pose (j := process_GNU_errors
+  (* This information is taken from 
+      https://www.gnu.org/software/libc/manual/html_node/Errors-in-Math-Functions.html 
+Function; AArch64; ARM; PowerPC; RISC0V 320bit; RISC0V 640bit; i686; x86_64 *)
+[
+(_acosf, [0; 1; 1; 1; 1; 1; 0; 1]);
+(_acos, [0; 1; 1; 1; 0; 1; 1; 1]);
+(_acoshf, [0; 2; 2; 2; 2; 2; 0; 2]);
+(_acosh, [0; 2; 2; 2; 2; 2; 1; 2]);
+(_asinf, [0; 1; 1; 1; 1; 1; 0; 1]);
+(_asin, [0; 1; 1; 1; 0; 1; 1; 1]);
+(_asinhf, [0; 2; 2; 2; 2; 2; 0; 2]);
+(_asinh, [0; 2; 2; 2; 1; 2; 1; 2]);
+(_atanf, [0; 1; 1; 1; 1; 1; 0; 1]);
+(_atan, [0; 1; 1; 1; 0; 1; 1; 1]);
+(_atan2f, [0; 1; 2; 1; 1; 1; 0; 2]);
+(_atan2, [0; 0; 0; 0; 0; 0; 1; 0]);
+(_atanhf, [0; 2; 2; 2; 2; 2; 0; 2]);
+(_atanh, [0; 2; 2; 2; 2; 2; 1; 2]);
+(_cbrtf, [0; 1; 1; 1; 1; 1; 1; 1]);
+(_cbrt, [0; 4; 4; 4; 3; 4; 1; 4]);
+(_cosf, [0; 1; 1; 3; 1; 1; 1; 1]);
+(_cos, [0; 1; 1; 1; 1; 1; 1; 1]);
+(_coshf, [0; 2; 2; 2; 2; 2; 2; 2]);
+(_cosh, [0; 2; 2; 2; 1; 2; 1; 2]);
+(_erff, [0; 1; 1; 1; 1; 1; 1; 1]);
+(_erf, [0; 1; 1; 1; 1; 1; 1; 1]);
+(_erfcf, [0; 2; 3; 2; 2; 2; 3; 3]);
+(_erfc, [0; 2; 5; 2; 2; 2; 5; 5]);
+(_expf, [0; 1; 1; 1; 1; 1; 1; 1]);
+(_exp, [0; 1; 1; 1; 0; 1; 1; 1]);
+(_exp2f, [0; 1; 1; 0; 0; 0; 0; 1]);
+(_exp2, [0; 1; 1; 1; 1; 1; 1; 1]);
+(_expm1f, [0; 1; 1; 1; 1; 1; 0; 1]);
+(_expm1, [0; 1; 1; 1; 1; 1; 1; 1]);
+(_fmodf, [0; 0; 0; 0; 0; 0; 0; 0]);
+(_fmod, [0; 0; 0; 0; 0; 0; 0; 0]);
+(_hypotf, [0; 0; 0; 0; 0; 0; 0; 0]);
+(_hypot, [0; 1; 1; 1; 1; 1; 1; 1]);
+(_lgammaf, [0; 4; 7; 4; 3; 3; 5; 7]);
+(_lgamma, [0; 3; 4; 3; 3; 3; 4; 4]);
+(_logf, [0; 1; 1; 1; 0; 0; 0; 1]);
+(_log, [0; 1; 0; 1; 0; 1; 1; 1]);
+(_log10f, [0; 2; 2; 2; 2; 2; 0; 2]);
+(_log10, [0; 2; 2; 2; 2; 2; 1; 2]);
+(_log1pf, [0; 1; 1; 1; 1; 1; 0; 1]);
+(_log1p, [0; 1; 1; 1; 1; 1; 1; 1]);
+(_log2f, [0; 1; 1; 1; 1; 1; 1; 1]);
+(_log2, [0; 1; 2; 1; 1; 1; 1; 2]);
+(_powf, [0; 1; 1; 1; 0; 0; 0; 1]);
+(_pow, [0; 1; 1; 1; 1; 1; 1; 1]);
+(_sinf, [0; 1; 1; 1; 1; 1; 1; 1]);
+(_sin, [0; 1; 1; 1; 1; 1; 1; 1]);
+(_sinhf, [0; 2; 2; 2; 2; 2; 2; 2]);
+(_sinh, [0; 2; 2; 2; 2; 2; 2; 2]);
+(_sqrtf, [0; 0; 0; 0; 0; 0; 0; 0]);
+(_sqrt, [0; 0; 0; 0; 0; 0; 0; 0]);
+(_tanf, [0; 1; 1; 3; 1; 1; 1; 1]);
+(_tan, [0; 0; 0; 0; 0; 0; 0; 0]);
+(_tanhf, [0; 2; 2; 2; 2; 2; 2; 2]);
+(_tanh, [0; 2; 2; 2; 2; 2; 2; 2]);
+(_tgammaf, [0; 8; 8; 8; 8; 8; 8; 8]);
+(_tgamma, [0; 9; 9; 9; 5; 9; 9; 9])]).
+compute in j.
+exact j.
+Defined.
+End GNU_Errors.
+
+Definition GNU_error (i: ident) : Z := 
+ match Maps.PTree.get i GNU_Errors.GNU_errors with Some z => z | None => 0 end.
+
 Fixpoint function_type (args: list Type) (rhs: Type) : Type :=
   match args with
   | nil => rhs
@@ -331,44 +434,64 @@ Definition nan_spec' (t: type) :=
 Definition arccosh (x: R) := Rabs (Rpower.arcsinh (sqrt (Rsqr x - 1)))%R.
 Definition arctanh (x: R) := (/2 * ln ((1+x)/(1-x)) )%R.
 
-Module Type MathFunctions.
-Parameter acos: floatfunc [Tdouble] Tdouble (fun _ => True) Ratan.acos. 
-Parameter acosf: floatfunc [Tsingle] Tsingle (fun _ => True) Ratan.acos.
-Parameter acosh: floatfunc [Tdouble] Tdouble (fun _ => True) arccosh.
-Parameter acoshf: floatfunc [Tsingle] Tsingle (fun _ => True) arccosh.
-Parameter asin: floatfunc [Tdouble] Tdouble (fun _ => True) Ratan.asin.
-Parameter asinf: floatfunc [Tsingle] Tsingle (fun _ => True) Ratan.asin.
-Parameter asinh: floatfunc [Tdouble] Tdouble (fun _ => True) Rpower.arcsinh.
-Parameter asinhf: floatfunc [Tsingle] Tsingle (fun _ => True) Rpower.arcsinh.
-Parameter atan: floatfunc [Tdouble] Tdouble (fun _ => True) Ratan.atan. 
-Parameter atanf: floatfunc [Tsingle] Tsingle (fun _ => True) Ratan.atan.
-Parameter atan2: floatfunc [Tdouble;Tdouble] Tdouble (fun _ _ => True) (fun y x => Ratan.atan(y/x))%R. 
-Parameter atan2f: floatfunc [Tsingle;Tsingle] Tsingle (fun _ _ => True) (fun y x => Ratan.atan(y/x))%R. 
-Parameter atanh: floatfunc [Tdouble] Tdouble (fun _ => True) arctanh.
-Parameter atanhf: floatfunc [Tsingle] Tsingle (fun _ => True) arctanh.
-Parameter cbrt: floatfunc [Tdouble] Tdouble (fun _ => True) (fun x => Rpower x (/3))%R.
-Parameter cbrtf: floatfunc [Tsingle] Tsingle (fun _ => True) (fun x => Rpower x (/3))%R.
-Parameter cos: floatfunc [Tdouble] Tdouble (fun _ => True) Rtrigo_def.cos. 
-Parameter cosf: floatfunc [Tsingle] Tsingle (fun _ => True) Rtrigo_def.cos.
-Parameter cosh: floatfunc [Tdouble] Tdouble (fun _ => True) Rtrigo_def.cosh.
-Parameter coshf: floatfunc [Tsingle] Tsingle (fun _ => True) Rtrigo_def.cosh.
-Parameter exp:  floatfunc [Tdouble] Tdouble (fun _ => True) Rtrigo_def.exp.
-Parameter expf:  floatfunc [Tsingle] Tsingle (fun _ => True) Rtrigo_def.exp.
-Parameter exp2:  floatfunc [Tdouble] Tdouble (fun _ => True) (Rpower 2%R).
-Parameter exp2f:  floatfunc [Tsingle] Tsingle (fun _ => True)  (Rpower 2%R).
-Parameter expm1:  floatfunc [Tdouble] Tdouble (fun _ => True) (fun x => Rtrigo_def.exp x - 1)%R.
-Parameter expm1f:  floatfunc [Tsingle] Tsingle (fun _ => True) (fun x => Rtrigo_def.exp x - 1)%R.
-Parameter pow: floatfunc [Tdouble;Tdouble] Tdouble (fun _ _ => True) Rpower. 
-Parameter powf: floatfunc [Tsingle;Tsingle] Tsingle (fun _ _ => True) Rpower. 
+Fixpoint always_true (args: list type) : function_type (map RR args) Prop :=
+ match args with
+ | nil => True
+ | _ :: args' => fun _ => always_true args'
+ end.
 
-Parameter sin: floatfunc [Tdouble] Tdouble (fun _ => True) Rtrigo_def.sin.
-Parameter sinf: floatfunc [Tsingle] Tsingle (fun _ => True) Rtrigo_def.sin.
-Parameter sinh: floatfunc [Tdouble] Tdouble (fun _ => True) Rtrigo_def.sinh.
-Parameter sinhf: floatfunc [Tsingle] Tsingle (fun _ => True) Rtrigo_def.sinh.
-Parameter tan: floatfunc [Tdouble] Tdouble (fun _ => True) Rtrigo1.tan.
-Parameter tanf: floatfunc [Tsingle] Tsingle (fun _ => True) Rtrigo1.tan.
-Parameter tanh: floatfunc [Tdouble] Tdouble (fun _ => True) Rtrigo_def.tanh.
-Parameter tanhf: floatfunc [Tsingle] Tsingle (fun _ => True) Rtrigo_def.tanh.
+Parameter c_function: forall (i: ident) (args: list type) (res: type) (f: function_type (map RR args) R),
+   {ff: function_type (map ftype' args) (ftype res) 
+   | acc_prop args res (IZR (1 + 2 * GNU_error i) * default_rel res)%R (default_abs res)
+                   (always_true args) f ff}.
+
+Ltac floatfunc' i args res f :=
+ let r := constr:(1 + 2 * GNU_error i) in
+ let r := eval compute in r in 
+ let rel := constr:((IZR r * default_rel res)%R) in
+ let abs := constr:(default_abs res) in
+ let cf := constr:(c_function i args res f) in 
+ exact (Build_floatfunc args res (always_true args) f (proj1_sig cf) rel abs (proj2_sig cf)).
+
+
+
+Module Type MathFunctions.
+Definition acos := ltac:(floatfunc' _acos [Tdouble] Tdouble Ratan.acos).
+Definition acosf := ltac:(floatfunc' _acos [Tsingle] Tsingle Ratan.acos).
+Definition acosh := ltac:(floatfunc' _acosh [Tdouble] Tdouble arccosh).
+Definition acoshf := ltac:(floatfunc' _acoshf [Tsingle] Tsingle arccosh).
+Definition asin := ltac:(floatfunc' _asin [Tdouble] Tdouble Ratan.asin).
+Definition asinf := ltac:(floatfunc' _asinf [Tsingle] Tsingle Ratan.asin).
+Definition asinh := ltac:(floatfunc' _asinh [Tdouble] Tdouble Rpower.arcsinh).
+Definition asinhf := ltac:(floatfunc' _asinhf [Tsingle] Tsingle Rpower.arcsinh).
+Definition atan := ltac:(floatfunc' _atan [Tdouble] Tdouble Ratan.atan). 
+Definition atanf := ltac:(floatfunc' _atanf [Tsingle] Tsingle Ratan.atan).
+Definition atan2 := ltac:(floatfunc' _atan2 [Tdouble;Tdouble] Tdouble (fun y x => Ratan.atan(y/x))%R). 
+Definition atan2f := ltac:(floatfunc' _atan2f [Tsingle;Tsingle] Tsingle (fun y x => Ratan.atan(y/x))%R). 
+Definition atanh := ltac:(floatfunc' _atanh [Tdouble] Tdouble arctanh).
+Definition atanhf := ltac:(floatfunc' _atanhf [Tsingle] Tsingle arctanh).
+Definition cbrt := ltac:(floatfunc' _cbrt [Tdouble] Tdouble (fun x => Rpower x (/3))%R).
+Definition cbrtf := ltac:(floatfunc' _cbrtf [Tsingle] Tsingle (fun x => Rpower x (/3))%R).
+Definition cos := ltac:(floatfunc' _cos [Tdouble] Tdouble Rtrigo_def.cos). 
+Definition cosf := ltac:(floatfunc' _cosf [Tsingle] Tsingle Rtrigo_def.cos).
+Definition cosh := ltac:(floatfunc' _cosh [Tdouble] Tdouble Rtrigo_def.cosh).
+Definition coshf := ltac:(floatfunc' _coshf [Tsingle] Tsingle Rtrigo_def.cosh).
+Definition exp := ltac:( floatfunc' _exp [Tdouble] Tdouble Rtrigo_def.exp).
+Definition expf := ltac:( floatfunc' _expf [Tsingle] Tsingle Rtrigo_def.exp).
+Definition exp2 := ltac:( floatfunc' _exp2 [Tdouble] Tdouble (Rpower 2%R)).
+Definition exp2f := ltac:( floatfunc' _exp2f [Tsingle] Tsingle  (Rpower 2%R)).
+Definition expm1 := ltac:( floatfunc' _expm1 [Tdouble] Tdouble (fun x => Rtrigo_def.exp x - 1)%R).
+Definition expm1f := ltac:( floatfunc' _expm1f [Tsingle] Tsingle (fun x => Rtrigo_def.exp x - 1)%R).
+Definition pow := ltac:(floatfunc' _pow [Tdouble;Tdouble] Tdouble Rpower). 
+Definition powf := ltac:(floatfunc' _powf [Tsingle;Tsingle] Tsingle Rpower). 
+Definition sin := ltac:(floatfunc' _sin [Tdouble] Tdouble Rtrigo_def.sin).
+Definition sinf := ltac:(floatfunc' _sinf [Tsingle] Tsingle Rtrigo_def.sin).
+Definition sinh := ltac:(floatfunc' _sinh [Tdouble] Tdouble Rtrigo_def.sinh).
+Definition sinhf := ltac:(floatfunc' _sinhf [Tsingle] Tsingle Rtrigo_def.sinh).
+Definition tan := ltac:(floatfunc' _tan [Tdouble] Tdouble Rtrigo1.tan).
+Definition tanf := ltac:(floatfunc' _tanf [Tsingle] Tsingle Rtrigo1.tan).
+Definition tanh := ltac:(floatfunc' _tanh [Tdouble] Tdouble Rtrigo_def.tanh).
+Definition tanhf := ltac:(floatfunc' _tanhf [Tsingle] Tsingle Rtrigo_def.tanh).
 
 End MathFunctions.
 

@@ -859,7 +859,9 @@ Ltac SC_tac :=
  repeat (apply conj; hnf);
  lazymatch goal with
          | |- Funspecs_must_match ?i _ _ =>
-                 try solve [constructor; unfold abbreviate; repeat f_equal]
+                 try solve [constructor; unfold abbreviate; 
+                 try simple apply eq_refl;
+                 repeat f_equal]
          | |- Identifier_not_found ?i ?fds2 =>
                  fail "identifer" i "not found in funspecs" fds2
          | |- True => trivial
