@@ -45,3 +45,9 @@ Additional details:
 - memmgr:  This is the "[Verified Sequential Malloc/Free](https://dl.acm.org/doi/10.1145/3381898.3397211)" published by Naumann and Appel.
 - malloc:  This is an axiomatized version of standard Posix malloc/free, for those users who want to call
     the standard library implementations.
+
+## Testing and demonstration examples
+
+Example clients that demonstrate how to use these VSUs can be found
+in the VSTlib/test directory; see [test/README.md](test/README.md).
+

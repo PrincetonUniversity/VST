@@ -41,7 +41,7 @@ Definition GNU_errors : Maps.PTree.t Z.
 pose (j := process_GNU_errors
   (* This information is taken from 
       https://www.gnu.org/software/libc/manual/html_node/Errors-in-Math-Functions.html 
-Function; AArch64; ARM; PowerPC; RISC0V 320bit; RISC0V 640bit; i686; x86_64 *)
+Function; Generic; AArch64; ARM; PowerPC; RISCV32; RISCV64; i686; x86_64 *)
 [
 (_acosf, [0; 1; 1; 1; 1; 1; 0; 1]);
 (_acos, [0; 1; 1; 1; 0; 1; 1; 1]);
