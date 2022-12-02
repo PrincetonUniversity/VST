@@ -20,3 +20,5 @@ test/incr.v
 test/incr_main.v
 test/verif_incr.v
 test/verif_incr_main.v
+test/testmath.v
+test/verif_testmath.v

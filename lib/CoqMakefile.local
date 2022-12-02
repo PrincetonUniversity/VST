@@ -22,4 +22,5 @@ test/incr.v: test/incr.c
 	clightgen -Iinclude -normalize $<
 test/incr_main.v: test/incr_main.c
 	clightgen -Iinclude -normalize $<
-
+test/testmath.v: test/testmath.c
+	clightgen -Iinclude -normalize $<

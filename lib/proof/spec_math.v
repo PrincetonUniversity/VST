@@ -124,7 +124,9 @@ Fixpoint acc_prop  (args: list FPCore.type) (result: FPCore.type)
              (rf: function_type (map RR args) R)
              (f: function_type (map ftype' args) (ftype' result)) {struct args} : Prop.
 destruct args as [ | a r].
-exact (precond -> exists delta epsilon,
+exact (precond ->
+                   Binary.is_finite _ _ f = true /\ 
+                   exists delta epsilon,
                   (Rabs delta <= rel /\ Rabs epsilon <= abs /\
                    FT2R f = rf * (1+delta) + epsilon)%R).
 exact (forall z: ftype a, Binary.is_finite (fprec a) (femax a) z = true ->
@@ -249,14 +251,33 @@ exists delta, epsilon.
 split3; auto.
 Qed.
 
-Definition sqrt_ff (t: type) : floatfunc  [ t ] t (fun _ => True) R_sqrt.sqrt.
+Definition sqrt_ff (t: type) : floatfunc  [ t ] t (Rle 0) R_sqrt.sqrt.
 apply (Build_floatfunc  [ t ] t _ _ (BSQRT t)  (default_rel t) (default_abs t)).
 intros x ? ?.
 unfold BSQRT, UNOP .
 destruct (Binary.Bsqrt_correct (fprec t) (femax t)  (fprec_gt_0 t) (fprec_lt_femax t) (sqrt_nan t)
-                      BinarySingleNaN.mode_NE x) as [? _].
+                      BinarySingleNaN.mode_NE x) as [? [??]].
 change (Binary.B2R (fprec t) (femax t) ?x) with (@FT2R t x) in *.
 rewrite H1; clear H1.
+split.
+-
+destruct x; try destruct s; simpl in H; try discriminate; auto.
+elimtype False. clear - H0.
+simpl in H0.
+unfold Defs.F2R in H0.
+simpl in H0.
+unfold IZR in H0. rewrite Raux.bpow_powerRZ in H0.
+simpl in H0.
+Search powerRZ.
+pose proof (powerRZ_lt 2 e ltac:(Lra.lra)).
+pose proof (Pos2Nat.is_pos m).
+rewrite <- INR_IPR in H0.
+assert (0 < INR (Pos.to_nat m) * powerRZ 2 e)%R.
+apply Rmult_lt_0_compat; auto.
+change 0%R with (INR 0).
+apply lt_INR. auto.
+Lra.lra.
+-
 apply generic_round_property.
 Defined.
 
@@ -268,6 +289,8 @@ pose proof (Binary.B2R_Babs (fprec t) (femax t)  (FPCore.abs_nan t)
                        x).
 change (Binary.B2R (fprec t) (femax t) ?x) with (@FT2R t x) in *.
 rewrite H1; clear H1.
+split.
+rewrite Binary.is_finite_Babs; auto.
 exists 0%R, 0%R. 
 split; simpl;
 rewrite Rabs_R0;
@@ -309,6 +332,7 @@ end.
 change (Binary.B2R (fprec t) (femax t) ?x) with (@FT2R t x) in *.
 destruct H1 as [? [? ?]].
 rewrite H1.
+split; [ auto | ].
 apply generic_round_property.
 -
 elimtype False; clear - H H0 H2.
@@ -342,8 +366,9 @@ pose proof (
         (Raux.bpow Zaux.radix2 (femax t))).
 destruct H4.
 -
-destruct H3 as [? _].
+destruct H3 as [? [? ?]].
 rewrite H3.
+split; auto.
 apply generic_round_property.
 -
 red in H2.
@@ -580,6 +605,7 @@ Abort.
 Local Remark sqrt_accurate: forall x, 
   (0 <= FT2R x ->
    Binary.is_finite (fprec Tdouble) (femax Tdouble) x = true ->
+   Binary.is_finite _ _ (ff_func (sqrt_ff Tdouble) x) = true /\
    exists delta, exists epsilon,
    Rabs delta <= default_rel Tdouble /\
    Rabs epsilon <= default_abs Tdouble /\ 
@@ -587,12 +613,14 @@ Local Remark sqrt_accurate: forall x,
    FT2R (ff_func (sqrt_ff Tdouble) x) = sqrt x' * (1+delta) + epsilon)%R.
 Proof.
 intros.
-destruct (ff_acc (sqrt_ff Tdouble) x H0 I) as [delta [epsilon [? [? ?]]]].
+destruct (ff_acc (sqrt_ff Tdouble) x H0 H) as [FIN [delta [epsilon [? [? ?]]]]].
+split; auto.
 exists delta, epsilon.
 split3; auto.
 destruct (Rcase_abs (FT2R x)). Lra.lra.
 exists {| nonneg:= FT2R x; cond_nonneg := H |}.
 split; auto.
 Qed.
+
 
 
