@@ -89,3 +89,10 @@ wand/vfa/*.mli
 *.vos
 doc/concurrency.synctex.gz
 a.exe
+
+lib/CoqMakefile
+lib/CoqMakefile.conf
+lib/.CoqMakefile.d
+lib/proof/math_extern.v
+lib/proof/malloc_extern.v
+lib/proof/SC_atomics_extern.v

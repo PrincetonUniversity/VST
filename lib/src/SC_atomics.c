@@ -1,0 +1,64 @@
+/* C11-style atomic loads and stores (etc.), sequentially consistent mode,
+   specified by Mansky et al. using the Verified Software Toolchain.
+
+CLIGHTGEN CANNOT COMPILE THIS FILE,
+   for clightgen use SC_atomics_extern.c instead 
+*/
+
+#include <stdatomic.h>
+#include "SC_atomics.h"
+
+struct atom_int { atomic_int i; };
+struct atom_ptr { _Atomic(void *) p; };
+
+atom_int *make_atomic(int v){
+  atom_int *r = malloc(sizeof(atom_int));
+  r->i = v;
+  return r;
+}
+
+int atom_load(atom_int *tgt){
+  return atomic_load(&tgt->i);
+}
+
+void atom_store(atom_int *tgt, int v){
+  atomic_store(&tgt->i, v);
+}
+
+int atom_CAS(atom_int *tgt, int *c, int v){
+  return atomic_compare_exchange_strong(&tgt->i, c, v);
+}
+
+int atom_exchange(atom_int *tgt, int v){
+  return atomic_exchange(&tgt->i, v);
+}
+
+void free_atomic(atom_int *tgt) {
+  free(tgt);
+}
+
+atom_ptr *make_atom_ptr(void *v){
+  atom_ptr *r = malloc(sizeof(atom_ptr));
+  r->p = v;
+  return r;
+}
+
+void* atomic_load_ptr(atom_ptr *tgt){
+  return atomic_load(&tgt->p);
+}
+
+void atomic_store_ptr(atom_ptr *tgt, void *v){
+  atomic_store(&tgt->p, v);
+}
+
+int atomic_CAS_ptr(atom_ptr *tgt, void **c, void *v){
+  return atomic_compare_exchange_strong(&tgt->p, c, v);
+}
+
+void* atomic_exchange_ptr(atom_ptr *tgt, void *v){
+  return atomic_exchange(&tgt->p, v);
+}
+
+void free_atomic_ptr(atom_ptr *tgt) {
+  free(tgt);
+}

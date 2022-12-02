@@ -2,7 +2,6 @@ Require Export VST.msl.ghost.
 Require Export VST.veric.ghosts.
 Require Import VST.veric.compcert_rmaps.
 Require Import VST.concurrency.conclib.
-Require Import VST.concurrency.lock_specs.
 Import List.
 
 (* Lemmas about ghost state and common instances, part 2 *)
