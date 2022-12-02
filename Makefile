@@ -228,7 +228,14 @@ FLOCQ=         # this mode to use the flocq packaged with Coq or opam
 
 # ##### Configure installation folder #####
 
-ifeq ($(ARCH),x86)
+MACHINE_ARCH=$(shell uname -m)
+X86_ALIASES:=x86 x86_32 x86_64 i686
+ARM_ALIASES:=arm64 aarch64
+IS_X86=$(and $(filter $(ARCH),$(X86_ALIASES)),$(filter $(MACHINE_ARCH),$(X86_ALIASES)))
+IS_ARM=$(and $(filter $(ARCH),$(ARM_ALIASES)),$(filter $(MACHINE_ARCH),$(ARM_ALIASES)))
+THE_SAME=$(and $(findstring $(ARCH),$(MACHINE_ARCH)),$(findstring $(MACHINE_ARCH),$(ARCH)))
+
+ifneq ($(or $(IS_X86),$(IS_ARM),$(THE_SAME)),)
   ifeq ($(BITSIZE),64)
     INSTALLDIR ?= $(COQLIB)/user-contrib/VST
   else
