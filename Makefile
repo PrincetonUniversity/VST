@@ -227,15 +227,25 @@ FLOCQ=         # this mode to use the flocq packaged with Coq or opam
 # FLOCQ= -Q $(COMPCERT_INST_DIR)/flocq Flocq  # this mode to use the flocq built into compcert
 
 # ##### Configure installation folder #####
-
+#  1. (if present) the VST installation for reasoning about 64-bit C programs
+#     on the host  architecture will be in $(COQLIB)/user-contrib/VST, 
+#  2. (if present) the VST installation for reasoning about 32 C programs 
+#    for the 32-bit analogue of the host architecture 
+#    will be in $(COQLIB)/../coq-variant/VST32/VST
+#  3. (if present) a VST installation for reasoning about C programs compiled
+#     for a _different_ architecture will be in 
+#     $(COQLIB)/../coq-variant/VST_otherarch_bitsize/VST
+#  Not all of this logic is right here in this makefile; some of it is done
+#  in the CompCert install, in choosing how to configure CompCert itself,
+#  creating the values of $(ARCH) and $(BITSIZE)
 MACHINE_ARCH=$(shell uname -m)
 X86_ALIASES:=x86 x86_32 x86_64 i686
 ARM_ALIASES:=arm64 aarch64
-IS_X86=$(and $(filter $(ARCH),$(X86_ALIASES)),$(filter $(MACHINE_ARCH),$(X86_ALIASES)))
-IS_ARM=$(and $(filter $(ARCH),$(ARM_ALIASES)),$(filter $(MACHINE_ARCH),$(ARM_ALIASES)))
+BOTH_X86=$(and $(filter $(ARCH),$(X86_ALIASES)),$(filter $(MACHINE_ARCH),$(X86_ALIASES)))
+BOTH_ARM=$(and $(filter $(ARCH),$(ARM_ALIASES)),$(filter $(MACHINE_ARCH),$(ARM_ALIASES)))
 THE_SAME=$(and $(findstring $(ARCH),$(MACHINE_ARCH)),$(findstring $(MACHINE_ARCH),$(ARCH)))
 
-ifneq ($(or $(IS_X86),$(IS_ARM),$(THE_SAME)),)
+ifneq ($(or $(BOTH_X86),$(BOTH_ARM),$(THE_SAME)),)
   ifeq ($(BITSIZE),64)
     INSTALLDIR ?= $(COQLIB)/user-contrib/VST
   else
