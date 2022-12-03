@@ -26,7 +26,7 @@ Ltac check_mpreds2 R ::= (* Patch for https://github.com/PrincetonUniversity/VST
  | nil => idtac
  end.
 
-Existing Instance NullExtension.Espec.   (* FIXME *)
+#[local] Existing Instance NullExtension.Espec.   (* FIXME *)
 
 Definition ThreadsVSU: VSU Threads_E Threads_imported_specs ltac:(QPprog prog) ThreadsASI emp.
   Proof. 
