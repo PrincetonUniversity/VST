@@ -1,22 +1,17 @@
 proof/math_extern.v: src/math_extern.c
-	clightgen -flongdouble -normalize $<
-	mv `dirname $<`/`basename -s .c $<`.v proof
+	clightgen -flongdouble -normalize $< -o $@ 
 
 proof/malloc_extern.v: src/malloc_extern.c
-	clightgen -normalize $<
-	mv `dirname $<`/`basename -s .c $<`.v proof
+	clightgen -normalize $< -o $@ 
 
 proof/SC_atomics_extern.v: src/SC_atomics_extern.c
-	clightgen -Iinclude -normalize $<
-	mv `dirname $<`/`basename -s .c $<`.v proof
+	clightgen -Iinclude -normalize $< -o $@
 
 proof/threads.v: src/threads.c
-	clightgen -Iinclude -normalize $<
-	mv `dirname $<`/`basename -s .c $<`.v proof
+	clightgen -Iinclude -normalize $< -o $@
 
 proof/locks.v: src/locks.c
-	clightgen -Iinclude -normalize $<
-	mv `dirname $<`/`basename -s .c $<`.v proof
+	clightgen -Iinclude -normalize $< -o $@
 
 test/incr.v: test/incr.c
 	clightgen -Iinclude -normalize $<
