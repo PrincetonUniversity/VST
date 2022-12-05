@@ -90,16 +90,14 @@ Definition type_hibound (t: type) :=
   (Raux.bpow Zaux.radix2 (femax t) - Raux.bpow Zaux.radix2 (femax t - fprec t))%R.
 
 Lemma ROUND_error: forall {NAN: Nans} t (x: R),
-  (Rabs x <= type_hibound t)%R ->
-  (exists delta : R,  Rabs delta <= default_rel t /\
-   exists epsilon : R,  Rabs epsilon <= default_abs t /\
+  (exists delta : R, exists epsilon : R, 
+    Rabs delta <= default_rel t /\
+    Rabs epsilon <= default_abs t /\
    ROUND t x = x * (1+delta) + epsilon)%R.
 Proof.
 intros.
-unfold ROUND.
-erewrite Round.round_NE_correct.
-3: left; reflexivity.
-Admitted.
+apply generic_round_property.
+Qed.
 
 Require Import Interval.Tactic.
 
@@ -135,10 +133,9 @@ rewrite Raux.Rlt_bool_true in Mxx.
 2:{
 rewrite Hx.
 match goal with |- context [ROUND ?t ?x] =>
-  destruct (ROUND_error t x) as [dr [? [er [? Hxx]]]]
+  destruct (ROUND_error t x) as [dr [er [? [? Hxx]]]]
 end.
-2: rewrite Hxx; interval.
-interval.
+rewrite Hxx; interval.
 }
 destruct Mxx as [Mxx [FINxx _]].
 simpl in FINxx; rewrite FINx in FINxx; simpl in FINxx.
@@ -149,10 +146,9 @@ rewrite Raux.Rlt_bool_true in Myy.
 2:{
 rewrite Hy.
 match goal with |- context [ROUND ?t ?x] =>
-  destruct (ROUND_error t x) as [dr [? [er [? Hyy]]]]
+  destruct (ROUND_error t x) as [dr [er [? [? Hyy]]]]
 end.
-2: rewrite Hyy; interval.
-interval.
+rewrite Hyy; interval.
 }
 destruct Myy as [Myy [FINyy _]].
 simpl in FINyy; rewrite FINy in FINyy; simpl in FINyy.
@@ -164,19 +160,16 @@ rewrite Raux.Rlt_bool_true in H6.
 rewrite Mxx, Myy.
 clear - H0 H1 H2 H3 H4 H5.
 match goal with |- context [ROUND ?t (?x * _)] =>
-  destruct (ROUND_error t (x*x)) as [dr [? [er [? ?]]]]
+  destruct (ROUND_error t (x*x)) as [dr [er [? [? ?]]]]
 end.
-interval.
 rewrite H7; clear H7.
 match goal with |- context [ROUND ?t (?x * _)] =>
-  destruct (ROUND_error t (x*x)) as [dr' [? [er' [? ?]]]]
+  destruct (ROUND_error t (x*x)) as [dr' [er' [? [? ?]]]]
 end.
-interval.
  rewrite H9; clear H9.
 match goal with |- context [ROUND ?t ?x] =>
-  destruct (ROUND_error t x) as [dr'' [? [er'' [? ?]]]]
+  destruct (ROUND_error t x) as [dr'' [er'' [? [? ?]]]]
 end.
-interval.
 rewrite H11. clear H11.
 unfold default_rel, default_abs in *; simpl in *.
 interval.
@@ -187,19 +180,16 @@ rewrite H6.
 rewrite Mxx, Myy. 
 clear H6 Mxx Myy.
 match goal with |- context [ROUND ?t (?x * _)] =>
-  destruct (ROUND_error t (x*x)) as [dr [? [er [? ?]]]]
+  destruct (ROUND_error t (x*x)) as [dr [er [? [? ?]]]]
 end.
-interval.
 rewrite H9; clear H9.
 match goal with |- context [ROUND ?t (?x * _)] =>
-  destruct (ROUND_error t (x*x)) as [dr' [? [er' [? ?]]]]
+  destruct (ROUND_error t (x*x)) as [dr' [er' [? [? ?]]]]
 end.
-interval.
 rewrite H11; clear H11.
 match goal with |- context [ROUND ?t ?x] =>
-  destruct (ROUND_error t x) as [dr'' [? [er'' [? ?]]]]
+  destruct (ROUND_error t x) as [dr'' [er'' [? [? ?]]]]
 end.
-interval.
 rewrite H13; clear H13.
 simpl in *.
 unfold ulp, default_rel, default_abs in *; simpl in *.
