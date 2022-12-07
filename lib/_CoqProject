@@ -1,4 +1,3 @@
--Q ../../vcfloat/vcfloat vcfloat
 -Q proof VSTlib
 -Q test VSTlibtest
 proof/math_extern.v
