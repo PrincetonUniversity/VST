@@ -7,6 +7,6 @@ HFILES= SC_atomics.h VSTthreads.h
 
 install-extra::
 	install -d "$(COQLIBINSTALL)/VSTlib/src"
-	cd src; install -m 0644 $(CFILES) "$(COQLIBINSTALL)/VSTlib/src"
+	cd $(SRC); install -m 0644 $(CFILES) "$(COQLIBINSTALL)/VSTlib/src"
 	install -d "$(COQLIBINSTALL)/VSTlib/include"
-	cd include; install -m 0644 $(HFILES) "$(COQLIBINSTALL)/VSTlib/include"
+	cd $(INCLUDE); install -m 0644 $(HFILES) "$(COQLIBINSTALL)/VSTlib/include"

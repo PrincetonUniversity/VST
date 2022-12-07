@@ -1,21 +1,24 @@
-proof/math_extern.v: src/math_extern.c
+SRC=proof/src
+INCLUDE=proof/include
+
+proof/math_extern.v: $(SRC)/math_extern.c
 	clightgen -flongdouble -normalize $< -o $@ 
 
-proof/malloc_extern.v: src/malloc_extern.c
+proof/malloc_extern.v: $(SRC)/malloc_extern.c
 	clightgen -normalize $< -o $@ 
 
-proof/SC_atomics_extern.v: src/SC_atomics_extern.c
-	clightgen -Iinclude -normalize $< -o $@
+proof/SC_atomics_extern.v: $(SRC)/SC_atomics_extern.c
+	clightgen -I$(INCLUDE) -normalize $< -o $@
 
-proof/threads.v: src/threads.c
-	clightgen -Iinclude -normalize $< -o $@
+proof/threads.v: $(SRC)/threads.c
+	clightgen -I$(INCLUDE) -normalize $< -o $@
 
-proof/locks.v: src/locks.c
-	clightgen -Iinclude -normalize $< -o $@
+proof/locks.v: $(SRC)/locks.c
+	clightgen -I$(INCLUDE) -normalize $< -o $@
 
 test/incr.v: test/incr.c
-	clightgen -Iinclude -normalize $<
+	clightgen -I$(INCLUDE) -normalize $<
 test/incr_main.v: test/incr_main.c
-	clightgen -Iinclude -normalize $<
+	clightgen -I$(INCLUDE) -normalize $<
 test/testmath.v: test/testmath.c
-	clightgen -Iinclude -normalize $<
+	clightgen -I$(INCLUDE) -normalize $<
