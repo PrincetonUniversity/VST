@@ -1,0 +1,34 @@
+(* WARNING: This opam file has not been tested *)
+opam-version: "2.0"
+version: "dev"
+synopsis: "VSTlib: VST-verified C library for VST-verified clients"
+description: "These program modules, in the form of Verified Software Units,
+may be linked with client-module code  (at the .c/.o level) and proofs (at the .v level)."
+authors: [
+  "Andrew W. Appel"
+]
+maintainer: "Andrew W. Appel"
+homepage: "http://"
+dev-repo: "git+https://github.com/PrincetonUniversity/VST"
+bug-reports: "https://github.com/PrincetonUniversity/VST/issues"
+license: "BSD-2-Clause"
+
+build: [
+  [cd lib; make "-j%{jobs}%" "proof-only"]
+]
+install: [
+  [cd lib; make "install" "INSTALLDIR=%{lib}%/coq/user-contrib/VSTlib"]
+]
+run-test: [
+  [cd lib; make "-j%{jobs}%" "test-only"]
+]
+depends: [
+  "coq" {>= "8.14" & < "8.17~"}
+  "coq-compcert" {>= "3.10"}
+  "coq-flocq" {>= "4.1.0" & < "5.0"}
+  "coq-vcfloat" {>= "2.0"}
+  "coq-vst" {>= "2.11"}
+]
+url {
+  src: "git+https://github.com/PrincetonUniversity/VST.git#master"
+}

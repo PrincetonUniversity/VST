@@ -1,0 +1,12 @@
+FILESTOINSTALL := $(filter proof/%, $(FILESTOINSTALL))
+proof-only: $(filter proof/%, $(VOFILES))
+test-only: $(filter test/%, $(VOFILES))
+
+CFILES= locks.c math_extern.c malloc_extern.c SC_atomics.c threads.c
+HFILES= SC_atomics.h VSTthreads.h
+
+install-extra::
+	install -d "$(COQLIBINSTALL)/VSTlib/src"
+	cd $(SRC); install -m 0644 $(CFILES) "$(COQLIBINSTALL)/VSTlib/src"
+	install -d "$(COQLIBINSTALL)/VSTlib/include"
+	cd $(INCLUDE); install -m 0644 $(HFILES) "$(COQLIBINSTALL)/VSTlib/include"
