@@ -6,12 +6,12 @@ on:
     branches:
       - master
     paths-ignore:
-      - lib/**
+      - 'lib/**'
   pull_request:
     branches:
       - '**'
     paths-ignore:
-      - lib/**
+      - 'lib/**'
 
 jobs:
   build:
