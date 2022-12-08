@@ -50,4 +50,3 @@ Additional details:
 
 Example clients that demonstrate how to use these VSUs can be found
 in the VSTlib/test directory; see [test/README.md](test/README.md).
-
