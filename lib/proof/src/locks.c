@@ -2,7 +2,6 @@
    using the Verified Software Toolchain */
 
 #include <stdlib.h>
-#include <threads.h>
 #include <SC_atomics.h>
 #include <VSTthreads.h>
 
