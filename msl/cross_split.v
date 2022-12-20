@@ -254,12 +254,12 @@ intros [[b Hb]|].
  [assert (a=z) by (inv H; auto); subst z; clear H;
    rewrite (proof_irr Hz Ha) in X1; clear Hz; exists b; exists None;
     split; [split|]; auto
- | elimtype False; inv H];
+ | exfalso; inv H];
   [ econstructor  | ]; constructor.
 intros [[c Hc]|].
 2: intros ? ? ?; exists None; exists None; split; [split|]; econstructor; econstructor.
 intros [[z Hz]|] H Hj.
-2: elimtype False; inv H.
+2: exfalso; inv H.
 destruct (X0 a b c z) as [a' [b' [[? ?] ?]]].
 inv H. apply H3.
 inversion Hj.
@@ -315,7 +315,7 @@ Proof.
   apply join_unit2_e in H0; [ | apply None_identity]. subst z.
   exists (Some (exist nonunit _ Na), None,Some (exist nonunit _ Nb),None); repeat split; auto; constructor; auto.
 }
-  destruct z as [[z Nz] | ]; [ | elimtype False; inv H].
+  destruct z as [[z Nz] | ]; [ | exfalso; inv H].
   destruct (X0 a b c d z) as [[[[ac ad] bc] bd] [? [? [? ?]]]]; try (inv H; inv H0; auto). clear H H0.
   destruct (X ac) as [Nac | Nac ].
   apply Nac in H1. subst ad. apply Nac in H3. subst bc.
@@ -418,7 +418,7 @@ Proof.
   clear H H0.
   destruct (CrB _ _ _ _ _ H1 H2) as [[[[s p] q] r] [? [? [? ?]]]].
   exists (Some s, Some p, Some q, Some r); repeat split; try constructor; auto.
-  intros. elimtype False; inv H.
+  intros. exfalso; inv H.
   intros. assert (z = Some c) by (clear - H0; inv H0; auto).
   subst. assert (join a b c) by   (clear - H; inv H; auto).
   exists (Some a, None, Some b, None); repeat split; try constructor; auto.
@@ -427,7 +427,7 @@ Proof.
   assert (z=Some d) by (clear - H0; inv H0; auto). subst z.
   exists (None, Some a, None, Some b); repeat split; try constructor; auto.
   clear - H; inv H; auto.
-  elimtype False; inv H0; inv H.
+  exfalso; inv H0; inv H.
   destruct c as [c|]. destruct d as [d|].
   intros.
   assert (z = Some a) by (clear - H; inv H; auto). subst z.

@@ -476,7 +476,7 @@ Proof.
   intuition.
   split; auto.
 
-  elimtype False.
+  exfalso.
   simpl in H4.
   elim H4.
   destruct H as [e [He [? ?]]].

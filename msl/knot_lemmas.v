@@ -66,7 +66,7 @@ Module Knot_Lemmas (K : KNOT).
     unfold approx, compose; simpl.
     destruct (Compare_dec.le_gt_dec n (level k)); auto.
     destruct (Compare_dec.le_gt_dec (m+n) (level k)); auto.
-    elimtype False; lia.
+    exfalso; lia.
   Qed.
 
   Lemma approx_approx2 : forall m n,
@@ -77,7 +77,7 @@ Module Knot_Lemmas (K : KNOT).
     unfold approx, compose; simpl.
     destruct (Compare_dec.le_gt_dec (m+n) (level k)); auto.
     destruct (Compare_dec.le_gt_dec n (level k)); auto.
-    elimtype False; lia.
+    exfalso; lia.
   Qed.
 
   (* These are provided since sometimes it is tedious to break things out;

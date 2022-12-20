@@ -65,11 +65,11 @@ Ltac ccf_SEP id0 R :=
  end.
 
 Ltac ccf2 id0 argsig retsig A Pre Post :=
- try (test_stuck; elimtype False);
+ try (test_stuck; exfalso);
  let F := fresh "F" in
  intro F;
  let x := fresh "x" in
- assert (x:A) by (elimtype False; apply F);
+ assert (x:A) by (exfalso; apply F);
  pose (xPre := Pre x); cbv beta in xPre;
  pose (xPost := Post x); cbv beta in xPost;
  repeat (match type of x with (_*_)%type =>
@@ -88,7 +88,7 @@ Ltac ccf2 id0 argsig retsig A Pre Post :=
                      (because_Precondition_not_canonical PP))
  end;
  first [test_stuck |
-  elimtype False;
+  exfalso;
   revert xPost; try rewrite no_post_exists_unit;
   repeat match goal with
   |- let _ := (EX _:_, EX _:_, _) in _ => rewrite exp_uncurry
@@ -96,7 +96,7 @@ Ltac ccf2 id0 argsig retsig A Pre Post :=
   match goal with
   | |- let _ := @exp _ _ ?B ?p in _ =>
     let w := fresh "w" in
-    assert (w:B) by (elimtype False; apply F);
+    assert (w:B) by (exfalso; apply F);
     intro xPost; clear xPost;
     pose (xPost := p w); cbv beta in xPost; revert xPost;
     repeat (match type of w with (_*_)%type =>
@@ -116,7 +116,7 @@ Ltac ccf2 id0 argsig retsig A Pre Post :=
    ccf_SEP id0 R]]
   end;
   first [test_stuck |
-   elimtype False;
+   exfalso;
    apply F]]].
 
 Ltac check_WITH_reptype id A :=
@@ -143,7 +143,7 @@ Ltac ccf1 fs :=
   end.
 
 Ltac check_canonical_funspec fs :=
-    try (test_stuck; elimtype False);
+    try (test_stuck; exfalso);
     first [ccf1 fs; [test_stuck | ] | idtac].
 
 (* Change goal to [message arg], without failing *)

@@ -132,7 +132,7 @@ rename H0 into H1.
      Int.unsigned (lo_part n)) by normalize.
  clear H1.
  destruct (Int.unsigned_add_either (lo_part n) (Int.repr (len*8))) as [H9|H9].
- elimtype False; rewrite H9 in H0; clear H9.
+ exfalso; rewrite H9 in H0; clear H9.
  destruct (Int.unsigned_range (Int.repr (len*8))) as [? _]; lia.
  clear H0.
  unfold Int.add in H9.

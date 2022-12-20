@@ -286,7 +286,7 @@ Module Concur.
         destruct H as [sh H].
         specialize (H' (b,ofs0) ltac:(rewrite MAP'; auto)).
         destruct H' as [sh' H'].
-        elimtype False.
+        exfalso.
         clear - H ineq H'. simpl in *.
         specialize (H (ofs0-ofs)). spec H. omega.
         specialize (H' 0). spec H'. omega. replace (ofs0+0) with (ofs+(ofs0-ofs)) in H' by omega.

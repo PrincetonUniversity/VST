@@ -758,7 +758,7 @@ inv H.
 destruct a3; destruct H3 as [? [? ?]].  simpl in H,H1,H2; subst.
 destruct (dec_share_identity x).
 generalize (split_identity _ _ j i); intro.
-elimtype False; clear - H1.
+exfalso; clear - H1.
 revert H1; apply nonunit_nonidentity.
 apply pshare_nonunit.
 constructor; auto. constructor; auto. simpl. apply join_equiv_refl.
@@ -1085,10 +1085,10 @@ apply pshareval_join_e in H0.
 apply pshareval_join_e in H1.
 destruct a as [[[sa pa] va]|];
 destruct b as [[[sb pb] vb]|];
-destruct ab as [[[sab pab] vab]|]; try solve [elimtype False; inv H];
+destruct ab as [[[sab pab] vab]|]; try solve [exfalso; inv H];
 destruct c as [[[sc pc] vc]|];
-destruct bc as [[[sbc pbc] vbc]|]; try solve [elimtype False; inv H0];
-destruct ac as [[[sac pac] vac]|]; try solve [elimtype False; inv H1];
+destruct bc as [[[sbc pbc] vbc]|]; try solve [exfalso; inv H0];
+destruct ac as [[[sac pac] vac]|]; try solve [exfalso; inv H1];
 simpl in *;
 try (assert (Hx: join sa sb sab /\ va = vb /\ vb = vab)
      by (inv H; simpl in *; intuition;

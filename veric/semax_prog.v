@@ -418,7 +418,7 @@ apply inj_pair2 in H6. apply inj_pair2 in H7.
 subst.
 split; auto.
 rewrite PTree.gso in H0 by auto.
-elimtype False.
+exfalso.
 destruct H1 as [b' [? ?]].
 symmetry in H2; inv H2.
 assert (In id' (map (@fst _ _) G')).
@@ -770,7 +770,7 @@ assert (exists f, In (id, f) (prog_funct prog)). {
   forget (prog_funct prog) as g.
   clear - H1 H0.
   revert G H1 H0; induction g; destruct G; intros; simpl in *.
-  elimtype False.
+  exfalso.
   rewrite PTree.gempty in H1; inv H1.
   inv H0.
   destruct a; simpl in *; subst.
@@ -878,7 +878,7 @@ simpl in H1.
 forget (prog_funct prog) as g.
 clear - H1 H0.
 revert G H1 H0; induction g; destruct G; intros; simpl in *.
-elimtype False.
+exfalso.
 rewrite PTree.gempty in H1; inv H1.
 inv H0.
 destruct a; simpl in *; subst.
@@ -1219,7 +1219,7 @@ left; exists fspec.  inv H; auto.
 f_equal.
 destruct H as [[f [? ?]]| ?].
 destruct H. inv H. auto.
-elimtype False; clear - H3 H H6.
+exfalso; clear - H3 H H6.
 apply H3; apply in_app_iff. left; eapply match_fdecs_in; eauto.
 apply in_map_fst in H; auto.
 contradiction H3. apply in_app_iff; right.
@@ -1644,7 +1644,7 @@ destruct H5 as [H5|H5].
   destruct f; try contradiction.
  destruct H5 as [[[? [? [? Hinline]]] ?] ?].
  destruct Hinline as [Hinline|Hempty].
- 2:{ elimtype False; clear - a Hempty. eapply Hempty; eauto. }
+ 2:{ exfalso; clear - a Hempty. eapply Hempty; eauto. }
  subst c.
  simpl in H4.
  injection H; clear H; intros.

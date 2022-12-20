@@ -47,13 +47,13 @@ destruct v.
 destruct (eq_nat_dec n O).
 right; intros Contra.
 destruct Contra as [n' [H H0]]. inv H.
-inv H1. elimtype False; auto.
+inv H1. exfalso; auto.
 inv H1.
 left; eexists; split; eauto.
 destruct (eq_nat_dec a 0).
 right; intros Contra; auto.
 destruct Contra as [n'' [H H0]]. inv H.
-inv H1. inv H1. elimtype False; auto.
+inv H1. inv H1. exfalso; auto.
 left; eexists; split; eauto.
 right; intros Contra.
 destruct Contra as [n' [H H0]]. inv H; inv H1.
@@ -393,7 +393,7 @@ Proof.
 intros.
 destruct k. inv H0.
 destruct s; try solve
-  [elimtype False; apply (H u k); auto
+  [exfalso; apply (H u k); auto
   |inv H0; inv H1; split; auto].
 inv H0; inv H1; split;
 destruct H8; destruct H9; congruence.

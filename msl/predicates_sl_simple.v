@@ -261,7 +261,7 @@ Proof.
   hnf in H6.
   rewrite H5 in H6; discriminate.
   clear -H1 H5.
-  elimtype False.
+  exfalso.
   revert H5; induction H1; auto.
   intros.
   unfold age in H.

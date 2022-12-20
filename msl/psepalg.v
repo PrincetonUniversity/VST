@@ -307,7 +307,7 @@ Qed.
   Proof.
     intros.
     icase a; icase b; icase c;
-    try solve [elimtype False; inv H];
+    try solve [exfalso; inv H];
     try solve [right; exists a; exists a0; exists a1; inv H; intuition].
     left; right; inv H; auto.
     left; left; inv H; auto.

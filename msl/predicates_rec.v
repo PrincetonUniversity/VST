@@ -77,7 +77,7 @@ Section HORec.
    specialize (Hcont (fun _ => FF) (HORec' 0)).
    specialize (Hcont O).
    spec Hcont. repeat (hnf; intros). simpl in *.
-   rewrite laterR_nat in H; elimtype False; lia.
+   rewrite laterR_nat in H; exfalso; lia.
    specialize ( Hcont x).
     simpl in *. auto.
    intro x.
@@ -148,7 +148,7 @@ Proof.
     destruct (@Hcont (fun _ => FF) (HORec f) (level a)) with x a; try lia.
      rewrite H0.
     repeat (hnf; intros); split; hnf; simpl; intros.
-    simpl in H2.  apply laterR_level in H2. elimtype False; lia.
+    simpl in H2.  apply laterR_level in H2. exfalso; lia.
         simpl in H2.  apply laterR_level in H2. clear - H2. simpl in H2.  unfold natLevel in H2; lia.
      specialize (H1 _ _ (necR_refl _) (ext_refl _)). rewrite H0 in H1. simpl in H1.
      eapply H2; auto.
@@ -159,7 +159,7 @@ Proof.
     specialize (Hcont (HORec f) (fun _ => FF)).
     specialize (Hcont 0).
     spec Hcont.
-    simpl. intros. apply laterR_level in H2. simpl in H2. unfold natLevel in H2. elimtype False; lia.
+    simpl. intros. apply laterR_level in H2. simpl in H2. unfold natLevel in H2. exfalso; lia.
     specialize ( Hcont x).
     hnf in Hcont. specialize ( Hcont x'). spec Hcont. lia.
     eapply Hcont; auto.

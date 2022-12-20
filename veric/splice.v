@@ -350,7 +350,7 @@ apply bot_identity.
 rewrite <- share_rel_unrel' in H.
 apply rel_nontrivial in H.
 destruct H; auto.
-elimtype False.
+exfalso.
 apply identity_share_bot in H.
 unfold Share.Rsh in H.
 destruct (Share.split Share.top) eqn:?. simpl in H. subst.

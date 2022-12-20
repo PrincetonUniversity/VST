@@ -121,7 +121,7 @@ rewrite H1 in H0.
 inv H0. apply YES_ext; auto.
 constructor; auto.
 intros.
-elimtype False.
+exfalso.
 eapply necR_PURE in H1.
 2: constructor 1; eassumption.
 congruence.
@@ -251,7 +251,7 @@ f_equal; auto.
 specialize ( H (b, ofs)).
 cut (adr_range (b, ofs) z (b, ofs)); [intro H6|].
 destruct (adr_range_dec (b, ofs) z (b, ofs)).
-  2: elimtype False; auto.
+  2: exfalso; auto.
 simpl in H.
 cut (Z.to_nat (ofs - ofs) = O); [intro H7|].
 rewrite H7 in H.
@@ -343,7 +343,7 @@ assert (Z.to_nat (snd loc' - (ofs + 1)) = n).
   rewrite Z2Nat.id in H4; try solve [lia].
 rewrite H4.
 apply H.
-elimtype False. auto.
+exfalso. auto.
 auto.
 unfold adr_range.
 destruct loc' as (b', ofs').
@@ -376,7 +376,7 @@ specialize (H (b, ofs')).
 hnf in H.
 destruct (adr_range_dec (b, ofs) (size_chunk ch) (b, ofs')) as [H5|H5].
   2: unfold adr_range in H5.
-  2: elimtype False; apply H5; split; auto.
+  2: exfalso; apply H5; split; auto.
 destruct H as [sh [rsh H]].
 simpl in H.
 unfold access_cohere in H0.
@@ -416,7 +416,7 @@ generalize (core_load_getN ch v b ofs bl (m_phi m) (m_dry m) H3) as H7; intro.
 rewrite <- H7; auto.
 unfold core_load'.
 repeat split; auto.
-elimtype False.
+exfalso.
 apply H5.
 eapply core_load_valid; eauto.
 apply juicy_mem_access.
@@ -611,7 +611,7 @@ specialize (H (b, ofs')).
 hnf in H.
 destruct (adr_range_dec (b, ofs) (size_chunk ch) (b, ofs')) as [H5|H5].
   2: unfold adr_range in H5.
-  2: elimtype False; apply H5; split; auto.
+  2: exfalso; apply H5; split; auto.
 hnf in H.
 destruct H as [pf H].
 hnf in H.
@@ -652,7 +652,7 @@ specialize (H (b, ofs')).
 hnf in H.
 destruct (adr_range_dec (b, ofs) (size_chunk ch) (b, ofs')) as [H5|H5].
   2: unfold adr_range in H5.
-  2: elimtype False; apply H5; split; auto.
+  2: exfalso; apply H5; split; auto.
 hnf in H.
 destruct H as [pf H].
 hnf in H.
@@ -885,7 +885,7 @@ f_equal. apply proof_irr.
     constructor. apply join_unit1; auto.
     constructor. apply join_unit1; auto.
 
-    elimtype False.
+    exfalso.
     clear - H2 Hm1 H0 H6.
     assert (core (m1 @ (b0,ofs0)) = core (m_phi j @ (b0,ofs0))).
     do 2 rewrite core_resource_at.  unfold Join_rmap in *;  unfold Sep_rmap in  *; congruence.

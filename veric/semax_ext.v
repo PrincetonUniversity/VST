@@ -292,7 +292,7 @@ Lemma add_funspecs_pre  (ext_link: Strings.String.string -> ident)
     /\ forall z, ext_compat z (m_phi m) ->
           ext_spec_pre (add_funspecs_rec ext_link Z Espec fs) ef x' ge_s tys args z m.
 Proof.
-induction fs; [intros; elimtype False; auto|]; intros ef H H1 H2 Hargsty Hpre.
+induction fs; [intros; exfalso; auto|]; intros ef H H1 H2 Hargsty Hpre.
 destruct H1 as [H1|H1].
 
 {
@@ -302,7 +302,7 @@ destruct sig; simpl.
 if_tac [e0|e0].
 intros x Hjoin Hp. exists (phi1, x). split; eauto.
 split; eauto 6.
-elimtype False; auto.
+exfalso; auto.
 }
 
 {
@@ -313,9 +313,9 @@ destruct (IHfs Hb H1 H2 Hargsty Hpre) as [x' H3].
 clear -Ha Hin H1 H3; revert x' Ha Hin H1 H3.
 destruct a; simpl; destruct f; simpl; destruct t; simpl; unfold funspec2pre; simpl.
 if_tac [e|e].
-* injection e as E; subst i; destruct fs; [solve[simpl; intros; elimtype False; auto]|].
+* injection e as E; subst i; destruct fs; [solve[simpl; intros; exfalso; auto]|].
   intros x' Ha Hb; simpl in Ha, Hb.
-  elimtype False; auto.
+  exfalso; auto.
 * intros; eexists; eauto.
 }
 Qed.
@@ -335,7 +335,7 @@ Lemma add_funspecs_pre_void  (ext_link: Strings.String.string -> ident)
     /\ forall z, ext_compat z (m_phi m) ->
           ext_spec_pre (add_funspecs_rec ext_link Z Espec fs) ef x' ge_s tys args z m.
 Proof.
-induction fs; [intros; elimtype False; auto|]; intros ef H H1 H2 Hargsty Hpre.
+induction fs; [intros; exfalso; auto|]; intros ef H H1 H2 Hargsty Hpre.
 destruct H1 as [H1|H1].
 
 {
@@ -347,7 +347,7 @@ unfold funsig2signature in e.
 simpl in e.
 split; eauto 6.
 
-elimtype False; auto.
+exfalso; auto.
 }
 
 {
@@ -358,9 +358,9 @@ destruct (IHfs Hb H1 H2 Hargsty Hpre) as [x' H3].
 clear -Ha Hin H1 H3; revert x' Ha Hin H1 H3.
 destruct a; simpl; destruct f; simpl; destruct t; simpl; unfold funspec2pre; simpl.
 if_tac [e|e].
-* injection e as E; subst i; destruct fs; [solve[simpl; intros; elimtype False; auto]|].
+* injection e as E; subst i; destruct fs; [solve[simpl; intros; exfalso; auto]|].
   intros x' Ha Hb; simpl in Ha, Hb.
-  elimtype False; auto.
+  exfalso; auto.
 * intros; eexists; eauto.
 }
 Qed.
@@ -377,7 +377,7 @@ Lemma add_funspecs_post_void (ext_link: Strings.String.string -> ident)
     /\ JMeq x (phi1', x')
     /\ Q (projT1 x') (projT2 x') (make_ext_rval (filter_genv (symb2genv ge_s)) tret ret) phi0.
 Proof.
-induction fs; [intros; elimtype False; auto|]; intros ef H H1 Hpost.
+induction fs; [intros; exfalso; auto|]; intros ef H H1 Hpost.
 destruct H1 as [H1|H1].
 
 {
@@ -387,7 +387,7 @@ if_tac [e|e].
 intros x [phi0 [phi1 [Hjoin [Hq Hnec]]]].
 exists phi0, phi1, (fst x), (snd x).
 split; auto. split; auto. destruct x; simpl in *. split; destruct s; auto.
-elimtype False; auto.
+exfalso; auto.
 }
 
 {
@@ -398,9 +398,9 @@ clear -Ha Hin H1 Hb Hpost IHfs; revert x Ha Hin H1 Hb Hpost IHfs.
 destruct a; simpl; destruct f; simpl; unfold funspec2post; simpl.
 destruct t; simpl.
 if_tac [e|e].
-* injection e as E; subst i; destruct fs; [solve[simpl; intros; elimtype False; auto]|].
+* injection e as E; subst i; destruct fs; [solve[simpl; intros; exfalso; auto]|].
   intros x' Ha Hb; simpl in Ha, Hb.
-  elimtype False; auto.
+  exfalso; auto.
 * intros. apply IHfs; auto.
 }
 Qed.
@@ -416,7 +416,7 @@ Lemma add_funspecs_post (ext_link: Strings.String.string -> ident){Z Espec tret 
     /\ JMeq x (phi1',x')
     /\ Q (projT1 x') (projT2 x') (make_ext_rval (filter_genv (symb2genv ge_s)) tret ret) phi0.
 Proof.
-induction fs; [intros; elimtype False; auto|]; intros ef H H1 Hpost.
+induction fs; [intros; exfalso; auto|]; intros ef H H1 Hpost.
 destruct H1 as [H1|H1].
 
 {
@@ -427,7 +427,7 @@ if_tac [e|e].
 intros x [phi0 [phi1 [Hjoin [Hq Hnec]]]].
 exists phi0, phi1, (fst x), (snd x).
 split; auto. split; auto. destruct x; simpl in *. split; auto.
-elimtype False; auto.
+exfalso; auto.
 }
 
 {
@@ -438,9 +438,9 @@ clear -Ha Hin H1 Hb Hpost IHfs; revert x Ha Hin H1 Hb Hpost IHfs.
 destruct a; simpl; destruct f; simpl; unfold funspec2post; simpl.
 destruct t; simpl.
 if_tac [e|e].
-* injection e as E; subst i; destruct fs; [solve[simpl; intros; elimtype False; auto]|].
+* injection e as E; subst i; destruct fs; [solve[simpl; intros; exfalso; auto]|].
   intros x' Ha Hb; simpl in Ha, Hb.
-  elimtype False; auto.
+  exfalso; auto.
 * intros. apply IHfs; auto.
 }
 Qed.

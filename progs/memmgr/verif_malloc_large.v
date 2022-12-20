@@ -25,7 +25,7 @@ forward_if. (*! if (p==NULL) !*)
 - (* case p <> NULL *) 
   if_tac. (* cases in post of mmap *)
   + (* impossible case *)
-    elimtype False. destruct p; try contradiction; simpl in *.
+    exfalso. destruct p; try contradiction; simpl in *.
   + assert_PROP (
         (force_val
            (sem_add_ptr_int tuint Signed
@@ -75,7 +75,7 @@ forward_if. (*! if (p==NULL) !*)
     entailer!.
     simpl.
     if_tac. 
-    { elimtype False. destruct p; try contradiction; simpl in *. 
+    { exfalso. destruct p; try contradiction; simpl in *. 
       match goal with | HA: Vptr _ _  = nullval |- _ => inv HA end. }
     unfold malloc_token'.
     Exists n.

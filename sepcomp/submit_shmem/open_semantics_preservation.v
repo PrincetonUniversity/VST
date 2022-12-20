@@ -375,7 +375,7 @@ assert (MATCH: match_state cd j c m d tm) by (inv TRMATCH; auto).
 inv STEP. rename H6 into STEP.
 
 { (*internal step case*)
-elimtype False.
+exfalso.
 apply corestep_not_at_external in STEP.
 simpl in ATEXTSRC; rewrite STEP in ATEXTSRC; inv ATEXTSRC. }
 
@@ -427,7 +427,7 @@ set (frgnSrc' := fun b : block =>
        && REACH m' (exportedSrc nu2 (rv :: nil)) b)).
 
 assert (exists trv0, trv = Some trv0) as [trv0 ->].
-  { simpl in RVALINJ; destruct trv as [trv|]; try solve[elimtype False; auto].
+  { simpl in RVALINJ; destruct trv as [trv|]; try solve[exfalso; auto].
     solve[exists trv; auto]. }
 
 set (frgnTgt' := fun b : block =>
@@ -530,7 +530,7 @@ assert (NU2_INJ: Mem.inject (as_inj nu2) m' tm2).
     unfold mu in INCR; destruct INCR as [X _].
     rewrite as_inj_marshal in X; auto.
     intros b LOC LOCOF; case_eq (as_inj mu2 b); auto.
-    intros [b0 d0] ASINJ; elimtype False.
+    intros [b0 d0] ASINJ; exfalso.
     destruct NUMU2_SEP as [X Y].
     cut (as_inj nu b = None). intro ASINJ'.
     destruct (X _ _ _ ASINJ' ASINJ).

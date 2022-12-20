@@ -176,10 +176,10 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
       (* saf_assoc *)
       intros a b c d e H1 H2.
       icase d. exists c. inv H1. inv H2; split; constructor.
-      icase c. 3: elimtype False; inv H2. exists b. inv H2. split; auto. icase b. constructor. constructor. inv H1.
-      icase b. 3: elimtype False; inv H1. exists (YES' PRED p1 k0 p2). split. constructor. inv H1. apply H2.
-      icase a. 3: elimtype False; inv H1. exists e. inv H1. split; auto. icase e. constructor. constructor. inv H2.
-      icase e. 3: elimtype False; inv H2. elimtype False. inv H2.
+      icase c. 3: exfalso; inv H2. exists b. inv H2. split; auto. icase b. constructor. constructor. inv H1.
+      icase b. 3: exfalso; inv H1. exists (YES' PRED p1 k0 p2). split. constructor. inv H1. apply H2.
+      icase a. 3: exfalso; inv H1. exists e. inv H1. split; auto. icase e. constructor. constructor. inv H2.
+      icase e. 3: exfalso; inv H2. exfalso. inv H2.
       destruct (@join_assoc _ _ _ p5 p3 p1 p p7) as [sh' [? ?]]. inv H1; auto. inv H2; auto.
       exists (YES' PRED sh' k p0).
       inv H1. inv H2. split; constructor; auto.
@@ -219,16 +219,16 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
     icase z. exists (NO' _). exists (NO' _). simpl in *. inv H. split. constructor. tauto.
     2: exists (PURE' _ k p); exists (PURE' _ k p); simpl in *; inv H; split; [constructor | tauto].
     icase x'. exists (NO' _). exists (YES' _ p k p0). split. constructor. split; auto. simpl in *; inv H. trivial.
-    2: elimtype False; inv H.
+    2: exfalso; inv H.
     icase y. exists (YES' _ p k p0). exists (NO' _). split. constructor. split; auto. simpl in *. inv H. trivial.
-    2: elimtype False; inv H.
+    2: exfalso; inv H.
     exists (YES' _ p1 k0 p0). exists (YES' _ p3 k1 p0). simpl in *. inv H. split. constructor. trivial. split; congruence.
     icase z'. exists (NO' _). exists (NO' _). simpl. icase x; inv H. split. constructor. tauto.
-    destruct x; destruct y; try (elimtype False; inv H; fail).
+    destruct x; destruct y; try (exfalso; inv H; fail).
     exists (YES' _ p1 k0 p2). exists (YES' _ p1 k0 p2). split. constructor. simpl in *. inv H. split; congruence.
     exists (NO' _). exists (YES' _ p1 k0 p2). split. constructor. simpl in *. inv H. split; congruence.
     exists (YES' _ p3 k1 p2). exists (YES' _ p k p2). simpl in *. inv H. split. constructor. trivial. split; congruence.
-    destruct x; destruct y; try (elimtype False; inv H; fail). unfold fmap in H. unfold f_res in H. unfold res_fmap in H.
+    destruct x; destruct y; try (exfalso; inv H; fail). unfold fmap in H. unfold f_res in H. unfold res_fmap in H.
     exists (PURE' _ k0 p0). exists (PURE' _ k0 p0). split. constructor. inv H. simpl. split; congruence.
   Qed.
 
@@ -553,13 +553,13 @@ Module Rmaps (AV':ADR_VAL) : RMAPS with Module AV:=AV'.
       intros a b c d e H1 H2.
       destruct d. exists c. inv H1. inv H2; split; constructor.
       2: exists (PURE k p); inv H1; inv H2; split; constructor.
-      destruct e; try (elimtype False; inv H2; fail).
+      destruct e; try (exfalso; inv H2; fail).
       destruct c. exists b. inv H2. split; auto. destruct b; try constructor. inv H1.
-      2: elimtype False; inv H2.
+      2: exfalso; inv H2.
       destruct b. exists (YES p3 k1 p4). split. constructor. inv H1. trivial.
-      2: elimtype False; inv H1.
+      2: exfalso; inv H1.
       destruct a. exists (YES p1 k0 p2). inv H1. split; trivial. constructor.
-      2: elimtype False; inv H1.
+      2: exfalso; inv H1.
       destruct (@join_assoc _ _ _ p7 p5 p3 p p1) as [sh' [? ?]].
       inv H1; auto. inv H2; auto.
       exists (YES sh' k p0). inv H1. inv H2. split; constructor; trivial.

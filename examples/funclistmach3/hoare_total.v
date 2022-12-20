@@ -180,7 +180,7 @@ admit.
   exists (n1+n2). right.
 admit.
   clear H.
-  exists n1. left. intro. elimtype False; omega.
+  exists n1. left. intro. exfalso; omega.
   exists (n1+1). right.
   repeat intro.
   hnf in  H. spec H. omega.

@@ -45,7 +45,7 @@ Proof.
 *
   apply eval_lvalue_any; auto.
 * destruct (eval_expr e any_environ) eqn:?; simpl in *;
-  [elimtype False; apply H0; clear;
+  [exfalso; apply H0; clear;
    try destruct u;
    destruct (typeof e) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
    try reflexivity
@@ -54,7 +54,7 @@ Proof.
   simpl. unfold Cop2.bool_val; simple_if_tac; reflexivity.
 *
   destruct (eval_expr e1 any_environ) eqn:?; simpl in *;
-  [ elimtype False; apply H0; clear
+  [ exfalso; apply H0; clear
   | rewrite (IHe1 _ (eq_refl _)) by congruence; auto .. ].
  {
   destruct b;
@@ -82,7 +82,7 @@ Proof.
   destruct (eval_expr e2 any_environ); reflexivity.
  }
 all:  destruct (eval_expr e2 any_environ) eqn:?; simpl in *;
-  [ elimtype False; apply H0; clear
+  [ exfalso; apply H0; clear
   | rewrite (IHe2 _ (eq_refl _)) by congruence; auto .. ];
    destruct b;
    destruct (typeof e1) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
@@ -110,7 +110,7 @@ all:  destruct (eval_expr e2 any_environ) eqn:?; simpl in *;
    destruct t as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
    destruct (typeof e) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
   (destruct (eval_expr e any_environ) eqn:?; simpl in *;
-  [elimtype False; apply H0; clear
+  [exfalso; apply H0; clear
   | try rewrite (IHe _ (eq_refl _)) by congruence;
      auto .. ]); auto;
   try (unfold Clight_Cop2.sem_cast, Clight_Cop2.classify_cast; repeat simple_if_tac; reflexivity).

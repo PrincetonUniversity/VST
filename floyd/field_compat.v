@@ -1077,7 +1077,7 @@ split3.
 -
   clear - H7 NS NB.
   destruct gfs. apply I.
-  elimtype False.
+  exfalso.
   revert g H7; induction gfs; intros. destruct H7.
    unfold nested_field_type in H0. simpl in H0.
  destruct big as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | |  ]; inv NB; contradiction.

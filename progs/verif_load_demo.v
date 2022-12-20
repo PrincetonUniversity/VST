@@ -103,7 +103,7 @@ assert_PROP (Zlength contents = n) as LEN. {
   forget (Int.unsigned (Int.shru (Int.repr tag) (Int.repr 10))) as n.
   clear - H0.
   rewrite Zlength_cons, !Zlength_map in H0.
-  destruct (zlt n 0); [elimtype False | ].
+  destruct (zlt n 0); [exfalso | ].
   rewrite Z.max_l in H0 by lia.
   pose proof (Zlength_nonneg contents).
   lia.

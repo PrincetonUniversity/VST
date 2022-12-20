@@ -262,7 +262,7 @@ rewrite H1; clear H1.
 split.
 -
 destruct x; try destruct s; simpl in H; try discriminate; auto.
-elimtype False. clear - H0.
+exfalso. clear - H0.
 simpl in H0.
 unfold Defs.F2R in H0.
 simpl in H0.
@@ -335,7 +335,7 @@ rewrite H1.
 split; [ auto | ].
 apply generic_round_property.
 -
-elimtype False; clear - H H0 H2.
+exfalso; clear - H H0 H2.
 pose proof trunc_ff_aux t x H.
 Lra.lra.
 Defined.

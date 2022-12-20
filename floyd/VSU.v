@@ -2382,7 +2382,7 @@ revert G G_LNR Gsub; induction builtins as [|[i?]]; [ simpl; induction fs as [|[
   destruct (IHfs G); auto.
   intros.
   destruct (ident_eq i0 i). subst.
-  elimtype False. clear - H1 H4. apply delete_id_None in H1. contradiction.
+  exfalso. clear - H1 H4. apply delete_id_None in H1. contradiction.
   apply Gsub in H4. destruct H4; auto. simpl in H4. congruence.
   rename x into G1.
   rewrite H4.
