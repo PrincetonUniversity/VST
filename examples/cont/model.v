@@ -243,8 +243,8 @@ Proof.
   induction 1. intros. reflexivity.
   intros. simpl in *.
   destruct (@eq_dec adr _ i i0). subst.
-  clear - H2. destruct (boundary p'). elimtype False; omega.
- generalize (Max.le_max_l i0 n); intro. elimtype False. omega.
+  clear - H2. destruct (boundary p'). exfalso; omega.
+ generalize (Max.le_max_l i0 n); intro. exfalso. omega.
  apply IHmatch_specs.
  destruct (boundary p'); try omega.
  generalize (Max.le_max_r i0 n0);  omega.
@@ -277,7 +277,7 @@ Proof.
  intros i P w ? ?.
  hnf.
  case_eq (table_get G i); intros. eauto.
- elimtype False.
+ exfalso.
  hnf in H0.
  case_eq (make_world G h n @ i); intros.
  apply (necR_NO _ _ i H) in H2. inversion2 H0 H2.
@@ -299,7 +299,7 @@ Proof.
  unfold  initial_heap. simpl. unfold heap_get.
   rename p0 into i.
  destruct (lt_dec i (boundary p)).
- split; intro. inv H0. elimtype False.
+ split; intro. inv H0. exfalso.
  revert H0; case_eq (table_get G i); intros. destruct f as [nargs P].
  inv H1. inv H1.
  rewrite (match_specs_boundary p G i); auto; try omega.

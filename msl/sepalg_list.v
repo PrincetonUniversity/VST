@@ -505,7 +505,7 @@ unfold age in H0.
 inversion2 H H0.
 generalize (comparable_common_unit H1); intros [e1 [? ?]].
 case_eq (age1 phi'); [intros w ? | intro]; auto.
-elimtype False.
+exfalso.
 generalize (age1_join2 _ H2 H3); intros [a [b [? [? ?]]]].
 generalize (age1_join _ H0 H5); intros [c [d [? [? ?]]]].
 unfold age in H8; inversion2 H H8.

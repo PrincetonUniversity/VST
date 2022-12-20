@@ -924,7 +924,7 @@ Module Share <: SHARE_MODEL.
     rewrite <- IHa1_2; auto.
     intro; apply n; simpl; auto.
     intro; apply n; simpl; auto.
-    elimtype False; intuition.
+    exfalso; intuition.
   Qed.
 
   Lemma relativ_stupid1 : forall x y a,
@@ -1017,7 +1017,7 @@ Module Share <: SHARE_MODEL.
     simpl in *.
     destruct a2; simpl in *.
     destruct b; try discriminate.
-    elimtype False; clear -H H0.
+    exfalso; clear -H H0.
     revert H0.
     intros.
     apply (relativ_stupid3 _ _ _ H H0).
@@ -1733,7 +1733,7 @@ Module Share <: SHARE_MODEL.
       simpl.
       case_eq (mkCanon (split_tok2 n0 t0)); intros.
       destruct b.
-      elimtype False.
+      exfalso.
       clear - H H1.
       revert n0 H H1.
       induction t0; simpl; intros.
@@ -2207,7 +2207,7 @@ Module Share <: SHARE_MODEL.
       apply union_upper_bound.
       elim (tokenFactory_nonbot fac'2 (n0+x)); auto.
       destruct x.
-      elimtype False.
+      exfalso.
       invert_ord.
       destruct (fac_tok_classification fac'2 (n0+0)) with t0 n0
         as [? [? ?]]; auto.
@@ -2244,7 +2244,7 @@ Module Share <: SHARE_MODEL.
       apply union_upper_bound.
       elim (tokenFactory_nonbot fac'2 (S (n0+x))); auto.
       destruct x.
-      elimtype False.
+      exfalso.
       destruct (fac_tok_classification fac'2 (S (n0 + 0))) with t0 (S n0)
         as [? [? ?]]; auto.
       spec H0; [ lia |].
@@ -2257,7 +2257,7 @@ Module Share <: SHARE_MODEL.
       invert_ord; auto.
       simpl.
       destruct x.
-      elimtype False.
+      exfalso.
       destruct (fac_tok_classification fac'2 (n0 + 0)) with t0 (S n0)
         as [? [? ?]]; auto.
       elim H0; lia.
@@ -2522,7 +2522,7 @@ Proof.
   icase t0_1;icase t0_2.
   icase (bool_dec b b0).
   subst.
-  elimtype False.
+  exfalso.
   icase b0;compute in  H;compute in H0; firstorder with bool.
 Qed.
 
@@ -2583,7 +2583,7 @@ Proof.
   rewrite H0.
   apply rel_top2.
 
-  elimtype False.
+  exfalso.
   apply H.
   assert (exist (fun t0 : ShareTree => canonicalTree t0) (Leaf false) c =
                  core (exist (fun t0 : ShareTree => canonicalTree t0) (Leaf false) c)).
@@ -2706,7 +2706,7 @@ Qed.
       remember (tree_heightP (Node t2_1 t2_2)).
       icase n.
       inversion Heqn.
-      destruct (Nat.max (tree_heightP t2_1) (tree_heightP t2_2));elimtype False ;lia.
+      destruct (Nat.max (tree_heightP t2_1) (tree_heightP t2_2));exfalso ;lia.
       inversion H.
       inversion H.
       destruct (Nat.max (tree_heightP t1_1) (tree_heightP t1_2));inversion H1.
@@ -3096,7 +3096,7 @@ Proof.
     icase x2_1;icase x2_2.
     icase b;icase b0;
     simpl;
-    elimtype False; firstorder with bool.
+    exfalso; firstorder with bool.
   rewrite H1.
   simpl.
   destruct H0 as [? [? [? ?]]].
@@ -3179,7 +3179,7 @@ Qed.
     icase x1_1;icase x1_2.
     icase b;icase b0;
     simpl;
-    elimtype False; firstorder with bool.
+    exfalso; firstorder with bool.
   rewrite H1.
   simpl.
   destruct H0 as [? [? [? ?]]].
@@ -3646,7 +3646,7 @@ Qed.
     exists (Leaf b).
     compute;trivial.
     inversion H.
-    elimtype False;lia.
+    exfalso;lia.
     assert (n >= tree_heightP (Leaf b)).
       compute;lia.
     specialize ( IHn (Leaf b) H0).
@@ -3902,7 +3902,7 @@ Qed.
       remember (tree_heightP (Node t2_1 t2_2)).
       icase n.
       inversion Heqn.
-      destruct (Nat.max (tree_heightP t2_1) (tree_heightP t2_2));elimtype False ;lia.
+      destruct (Nat.max (tree_heightP t2_1) (tree_heightP t2_2));exfalso ;lia.
       inversion H.
       inversion H.
       destruct (Nat.max (tree_heightP t1_1) (tree_heightP t1_2));inversion H1.
@@ -4384,14 +4384,14 @@ Qed.
     generalize (tree_round_left_one _ _ _ _ H2);intro H3.
     destruct H3 as [b31 [b32 [H31 [H32 H33]]]];subst.
     destruct H as [_ H].
-    elimtype False;clear-H.
+    exfalso;clear-H.
     inv H.
     icase b.
 
    generalize (tree_round_left_one _ _ _ _ H1);intro H3.
    destruct H3 as [b31 [b32 [H31 [H32 H33]]]];subst.
    destruct H as [H3 H4].
-   elimtype False;clear-H3 H4 c0.
+   exfalso;clear-H3 H4 c0.
    inv H3.
    inv H4.
    generalize (mkCanon_identity _ c0);intro.
@@ -4425,7 +4425,7 @@ Qed.
 
    generalize (tree_round_left_one _ _ _ _ H0);intro H3.
    destruct H3 as [b31 [b32 [H31 [H32 H33]]]];subst.
-   elimtype False;clear -H c.
+   exfalso;clear -H c.
    destruct H as [H1 H2].
    inv H1;inv H2.
    generalize (mkCanon_identity _ c);intro.
@@ -4543,14 +4543,14 @@ Qed.
   icase x1;icase x2;unfold tree_height in *;inversion H.
   exists (exist (fun t => canonicalTree t) (Leaf b) (canonTree_Leaf _)).
   compute;split;try lia;try f_equal;try apply exist_ext;trivial.
-  elimtype False;lia.
-  elimtype False;clear -H1.
+  exfalso;lia.
+  exfalso;clear -H1.
   assert (0 = Nat.max (Nat.max (tree_heightP x1_1) (tree_heightP x1_2) + 1) 0) by lia;
   clear H1.
   generalize (Nat.max_0_r (Nat.max (tree_heightP x1_1) (tree_heightP x1_2) + 1));intro.
   rewrite H0 in H;clear H0.
   lia.
-  elimtype False;clear -H1.
+  exfalso;clear -H1.
   assert (0 = Nat.max (Nat.max (tree_heightP x1_1) (tree_heightP x1_2) + 1)
        (Nat.max (tree_heightP x2_1) (tree_heightP x2_2) + 1)) by lia;
   clear H1.
@@ -5018,14 +5018,14 @@ Qed.
     generalize (tree_round_right_one _ _ _ _ H2);intro H3.
     destruct H3 as [b31 [b32 [H31 [H32 H33]]]];subst.
     destruct H as [_ H].
-    elimtype False;clear-H.
+    exfalso;clear-H.
     inv H.
     icase b.
 
    generalize (tree_round_right_one _ _ _ _ H1);intro H3.
    destruct H3 as [b31 [b32 [H31 [H32 H33]]]];subst.
    destruct H as [H3 H4].
-   elimtype False;clear-H3 H4 c0.
+   exfalso;clear-H3 H4 c0.
    inv H3.
    inv H4.
    generalize (mkCanon_identity _ c0);intro.
@@ -5059,7 +5059,7 @@ Qed.
 
    generalize (tree_round_right_one _ _ _ _ H0);intro H3.
    destruct H3 as [b31 [b32 [H31 [H32 H33]]]];subst.
-   elimtype False;clear -H c.
+   exfalso;clear -H c.
    destruct H as [H1 H2].
    inv H1;inv H2.
    generalize (mkCanon_identity _ c);intro.
@@ -5177,14 +5177,14 @@ Qed.
   icase x1;icase x2;unfold tree_height in *;inversion H.
   exists (exist (fun t => canonicalTree t) (Leaf b0) (canonTree_Leaf _)).
   compute;split;try lia;try f_equal;try apply exist_ext;trivial.
-  elimtype False;lia.
-  elimtype False;clear -H1.
+  exfalso;lia.
+  exfalso;clear -H1.
   assert (0 = Nat.max (Nat.max (tree_heightP x1_1) (tree_heightP x1_2) + 1) 0) by lia;
   clear H1.
   generalize (Nat.max_0_r (Nat.max (tree_heightP x1_1) (tree_heightP x1_2) + 1));intro.
   rewrite H0 in H;clear H0.
   lia.
-  elimtype False;clear -H1.
+  exfalso;clear -H1.
   assert (0 = Nat.max (Nat.max (tree_heightP x1_1) (tree_heightP x1_2) + 1)
        (Nat.max (tree_heightP x2_1) (tree_heightP x2_2) + 1)) by lia;
   clear H1.
@@ -5536,7 +5536,7 @@ Qed.
     icase (mkCanon s1);
     icase (mkCanon s2).
     icase b; icase b0;simpl in *;
-    elimtype False; firstorder with bool.
+    exfalso; firstorder with bool.
   Qed.
 
   (*L30*)
@@ -5763,7 +5763,7 @@ Qed.
     simpl.
     apply f_equal;apply exist_ext.
     icase b1;icase b2;compute in c3.
-    elimtype False.
+    exfalso.
     destruct c3 as [c3 ?].
     destruct c3;
     inv H0.
@@ -5997,7 +5997,7 @@ Qed.
    intro;apply H.
    rewrite H6;apply exist_ext;trivial.
    icase b;icase b0;simpl.
-   try (elimtype False; tauto). (*useless in Coq.8.6 but required in Coq.8.6 *)
+   try (exfalso; tauto). (*useless in Coq.8.6 but required in Coq.8.6 *)
    exists (exist (fun t0 : ShareTree => canonicalTree t0)
           (Node (Leaf true) (Leaf false))
           (mkCanon_correct (Node (Leaf true) (Leaf false)))).
@@ -6006,10 +6006,10 @@ Qed.
           (Node (Leaf false) (Leaf true))
           (mkCanon_correct (Node (Leaf false) (Leaf true)))).
    split;trivial.
-   try (elimtype False; tauto). (*useless in Coq.8.6 but required in Coq.8.6 *)
-   inv H5;inv H4;elimtype False;lia.
-   inv H5;inv H4;elimtype False;lia.
-   inv H5;inv H4;elimtype False;lia.
+   try (exfalso; tauto). (*useless in Coq.8.6 but required in Coq.8.6 *)
+   inv H5;inv H4;exfalso;lia.
+   inv H5;inv H4;exfalso;lia.
+   inv H5;inv H4;exfalso;lia.
 
    generalize (canonTree_rewrite1 t1);intro H3.
    generalize (canonTree_rewrite1 t2);intro H4.
@@ -6253,7 +6253,7 @@ Qed.
     icase (bool_dec b b0);try subst b0;
     simpl;
     apply exist_ext;trivial.
-    icase b; elimtype False; firstorder with bool.
+    icase b; exfalso; firstorder with bool.
 
     f_equal;
     apply proof_irr.
@@ -6301,7 +6301,7 @@ Qed.
   rewrite H;rewrite H0.
   icase x1;icase x2.
   icase b;icase b0;
-  elimtype False; firstorder with bool.
+  exfalso; firstorder with bool.
   f_equal;apply exist_ext;
   rewrite H in H1;rewrite H0 in H1;
   icase x1;icase x2;try icase b;try icase b0;inv H1;auto.
@@ -6448,7 +6448,7 @@ Proof.
  assert (H2 := canonTree_eq_dec s12 s22).
  destruct H2 as [H2|H2].
  subst s12.
- elimtype False.
+ exfalso.
  apply H.
  rewrite<- H1 in H0.
  assert (H2 : recompose (decompose s1) = recompose (decompose s2)).
@@ -6532,17 +6532,17 @@ Proof.
   unfold countBLeafCT;simpl.
   icase s1.
   icase b.
-  elimtype False.
+  exfalso.
   apply H0.
   apply ord_antisym.
   apply H.
   apply top_correct.
   icase s2.
   icase b.
-  elimtype False.
+  exfalso.
   apply H0.
   f_equal.
-  elimtype False.
+  exfalso.
   unfold tree_height in H1.
   simpl in H1.
   lia.
@@ -6553,7 +6553,7 @@ Proof.
     apply H.
     apply bot_correct.
   inv H2.
-  elimtype False.
+  exfalso.
   unfold tree_height in H1.
   simpl in H1.
   lia.
@@ -6852,7 +6852,7 @@ Qed.
   right;unfold bot;f_equal;apply proof_irr.
   unfold tree_height in H.
   simpl in H.
-  elimtype False;lia.
+  exfalso;lia.
  Qed.
 
  (*L55*)
@@ -7031,7 +7031,7 @@ Qed.
   simpl.
   lia.
   unfold bot;f_equal;apply proof_irr.
-  elimtype False.
+  exfalso.
   destruct H as [H1 H2].
   assert (tree_height (exist (fun t : ShareTree => canonicalTree t) (Leaf b) pf1) <= 0) by (compute;lia).
   assert (tree_height (exist (fun t : ShareTree => canonicalTree t) (Leaf b0) pf2) <= 0) by (compute;lia).
@@ -7174,7 +7174,7 @@ Definition share_metric (n : nat) (s : canonTree) : nat :=
   simpl.
   icase (le_dec (tree_height s) n).
   unfold height in H;simpl in H.
-  elimtype False;lia.
+  exfalso;lia.
  Qed.
  (*L50*)
  Lemma share_metric_height_monotonic : forall s n1 n2,
@@ -7335,7 +7335,7 @@ Definition share_metric (n : nat) (s : canonTree) : nat :=
   simpl in H.
   unfold tree_height in H.
   simpl in H.
-  elimtype False.
+  exfalso.
   lia.
  Defined.
 (*D10*)
@@ -7412,7 +7412,7 @@ Definition share_metric (n : nat) (s : canonTree) : nat :=
   split;intros.
   inv H.
   destruct H.
-  elimtype False;apply n.
+  exfalso;apply n.
   rewrite<- H0.
   rewrite glb_commute.
   rewrite distrib1.

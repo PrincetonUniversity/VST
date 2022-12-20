@@ -261,7 +261,7 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
     case_eq (decompose_nat (S x) n); intros.
     destruct s.
     destruct n.
-    elimtype False; lia.
+    exfalso; lia.
     assert (S x1 = x0) by lia; subst x0.
     revert H0.
     unfold unstratify.
@@ -282,7 +282,7 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
 
     case_eq (decompose_nat (S x) n); intros.
     destruct s.
-    elimtype False; lia.
+    exfalso; lia.
     revert H0.
     unfold unstratify.
     rewrite H; rewrite H1; auto.
@@ -300,7 +300,7 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
     destruct (decompose_nat x n).
     destruct s.
     simpl in H0.
-    2: simpl in *; elimtype False; lia.
+    2: simpl in *; exfalso; lia.
     clear H0.
     revert p H.
     generalize e.
@@ -364,7 +364,7 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
     replace e with (refl_equal (m2 + S n)).
     simpl; tauto.
     apply proof_irr.
-    elimtype False; lia.
+    exfalso; lia.
   Qed.
 
   Lemma stratify_unstratify : forall n p H,
@@ -396,7 +396,7 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
     replace e with (refl_equal (S n)) by apply proof_irr.
     simpl.
     split; auto.
-    elimtype False; lia.
+    exfalso; lia.
   Qed.
 
 
@@ -533,7 +533,7 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
     simpl in *.
     replace e with (refl_equal (S x)) by apply proof_irr; simpl.
     tauto.
-    elimtype False; lia.
+    exfalso; lia.
     destruct (stratify (unstratify (S x) k)
       (unstratify_hered (S x) k) x).
     simpl; auto.

@@ -467,13 +467,13 @@ unfold all_but_link.
 unfold add_link_back.
 unfold list_rect at 1.
 simpl @fst.
-destruct (ident_eq list_link list_link); [ | elimtype False; congruence]; intro.
+destruct (ident_eq list_link list_link); [ | exfalso; congruence]; intro.
 simpl. reflexivity.
  apply struct_pred_type_changable; auto.
  clear.
  revert v.
  simpl.
- destruct (ident_eq list_link list_link); [ | elimtype False; congruence]; intro.
+ destruct (ident_eq list_link list_link); [ | exfalso; congruence]; intro.
  simpl. reflexivity.
 * (* list link is not the first field *)
  specialize (H' H).

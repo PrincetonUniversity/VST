@@ -140,7 +140,7 @@ pose (D := fun x: {it: member | In it (co_members c)} =>
                 align_compatible_rec cenv_cs (type_member (proj1_sig x)) (z + FO (name_member (proj1_sig x)))).
 assert (H1: forall x, {D x} + {~ D x}). {
  subst D. intros. destruct x as [[id t0|] ?].
-2:{ elimtype False. clear - i0 PLAIN. 
+2:{ exfalso. clear - i0 PLAIN. 
    induction (co_members c) as [|[|]]; simpl in *; try discriminate; auto. destruct i0; auto. discriminate.
  }
  simpl.
@@ -167,7 +167,7 @@ destruct (Forall_dec D H1 (make_in_list (co_members c))) as [H2|H2]; clear H1; [
  intros.
  subst D. simpl.
  destruct x as [[id t0|] ?].
-2:{ elimtype False. clear - i0 PLAIN. 
+2:{ exfalso. clear - i0 PLAIN. 
    induction (co_members c) as [|[|]]; simpl in *; try discriminate; auto. destruct i0; auto. discriminate.
  }
  eapply align_compatible_rec_Tstruct_inv in H2; try eassumption.
@@ -180,7 +180,7 @@ destruct (Forall_dec D H1 (make_in_list (co_members c))) as [H2|H2]; clear H1; [
  simpl in H1. destruct (id_in_list id0 (map name_member m)) eqn:?; try discriminate.
  destruct i0. inv H. auto.
  apply id_in_list_false in Heqb.
- elimtype False. apply Heqb. apply (in_map name_member) in H. apply H.
+ exfalso. apply Heqb. apply (in_map name_member) in H. apply H.
  apply IHm. auto.
  destruct i0. inv H0. contradiction. auto.
  simpl in H1. destruct (id_in_list id0 (map name_member m)) eqn:?; try discriminate.
@@ -199,7 +199,7 @@ pose (D := fun x: {it: member | In it (co_members c)} =>
                 align_compatible_rec cenv_cs (type_member (proj1_sig x)) z).
 assert (H1: forall x, {D x} + {~ D x}). {
  subst D. intros. destruct x as [[id t0|] ?].
-2:{ elimtype False. clear - i0 PLAIN. 
+2:{ exfalso. clear - i0 PLAIN. 
    induction (co_members c) as [|[|]]; simpl in *; try discriminate; auto. destruct i0; auto. discriminate.
  }
  simpl.
@@ -222,7 +222,7 @@ destruct (Forall_dec D H1 (make_in_list (co_members c))) as [H2|H2]; clear H1; [
  intros.
  subst D. simpl.
  destruct x as [[id t0|] ?].
-2:{ elimtype False. clear - i0 PLAIN. 
+2:{ exfalso. clear - i0 PLAIN. 
    induction (co_members c) as [|[|]]; simpl in *; try discriminate; auto. destruct i0; auto. discriminate.
  }
  eapply align_compatible_rec_Tunion_inv in H2; try eassumption.
@@ -235,7 +235,7 @@ destruct (Forall_dec D H1 (make_in_list (co_members c))) as [H2|H2]; clear H1; [
  simpl in H1. destruct (id_in_list id0 (map name_member m)) eqn:?; try discriminate.
  destruct i0. inv H. auto.
  apply id_in_list_false in Heqb.
- elimtype False. apply Heqb. apply (in_map name_member) in H. apply H.
+ exfalso. apply Heqb. apply (in_map name_member) in H. apply H.
  apply IHm; auto.  
  destruct i0. inv H0. contradiction. auto.
  simpl in H1. destruct (id_in_list id0 (map name_member m)) eqn:?; try discriminate.

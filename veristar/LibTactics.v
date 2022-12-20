@@ -715,7 +715,7 @@ Tactic Notation "constructors" :=
     anything else *)
 
 Tactic Notation "false_goal" :=
-  elimtype False.
+  exfalso.
 
 (** [false_post] is the underlying tactic used to prove goals
     of the form [False]. In the default implementation, it proves
@@ -4081,7 +4081,7 @@ Ltac skip_with_existential :=
 Variable skip_axiom : False.
   (* To obtain a safe development, change to [skip_axiom : True] *)
 Ltac skip_with_axiom :=
-  elimtype False; apply skip_axiom.
+  exfalso; apply skip_axiom.
 
 Tactic Notation "skip" :=
    skip_with_axiom.

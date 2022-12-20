@@ -682,7 +682,7 @@ Proof.
   + assert (true = true) by auto; tauto.
   + destruct (id_in_list (name_member m) (map name_member m0)) eqn:HH.
     - apply id_in_list_true in HH.
-       split; intros. inv H.  destruct H. elimtype False; apply H.
+       split; intros. inv H.  destruct H. exfalso; apply H.
       apply HH.
     - apply id_in_list_false in HH.
       split; intros. split; auto. destruct H; auto.
@@ -855,7 +855,7 @@ Proof.
       pose proof Z.le_max_r (Ctypes.sizeof t0) (sizeof_union env m).
       lia.
   + simpl in *.
-    elimtype False; clear - H. destruct sz; lia.
+    exfalso; clear - H. destruct sz; lia.
 Qed.
 
 Definition in_map: forall {A B : Type} (f : A -> B) (l : list A) (x : A),

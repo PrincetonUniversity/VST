@@ -222,7 +222,7 @@ set (H2 := proj1 _ _) in H0.
 clearbody H2.
 assert (ce ! i = None).
 destruct (ce ! i) eqn:?H; auto.
-elimtype False.
+exfalso.
 apply PTree.elements_correct in H1.
 assert (In i (map fst  (QP_list_helper (PTree.elements ce) H2))). {
  clear - H1; induction (PTree.elements ce) as [|[??]].

@@ -558,7 +558,7 @@ destruct H.
 apply IHV in H1; clear IHV.
 auto.
 clear H1.
-elimtype False.
+exfalso.
 induction G.
 inv H0.
 destruct H0.

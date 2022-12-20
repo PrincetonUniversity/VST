@@ -771,7 +771,7 @@ Proof. intros.
   case_eq (Int.eq_dec Int.zero Int.zero). intros ? e.
   solve[rewrite D; auto].
   intros CONTRA.
-  solve[elimtype False; auto].
+  solve[exfalso; auto].
   destruct InitMem as [m0 [INIT_MEM [A B]]].
   split.
     eapply SMC_callstate with (cenv:=PTree.empty _)(cs := @nil frame); try eassumption.

@@ -2035,7 +2035,7 @@ Proof. intros.
   case_eq (Int.eq_dec Int.zero Int.zero). intros ? e.
   solve[rewrite D; auto].
   intros CONTRA.
-  solve[elimtype False; auto].
+  solve[exfalso; auto].
   destruct InitMem as [m0 [INIT_MEM [A B]]].
 destruct (core_initial_wd ge tge _ _ _ _ _ _ _  Inj
     VInj J RCH PG GDE HDomS HDomT _ (eq_refl _))

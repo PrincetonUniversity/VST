@@ -907,7 +907,7 @@ Ltac lookup_spec_and_change_compspecs CS id ::=
       match goal with
        | |- mk_funspec _ _ ?t1 _ _ = mk_funspec _ _ ?t2 _ _ =>
          first [unify t1 t2
-           | elimtype False; elimtype (Witness_type_of_forward_call_does_not_match_witness_type_of_funspec
+           | exfalso; elimtype (Witness_type_of_forward_call_does_not_match_witness_type_of_funspec
       t2 t1)]
       end]
    end)

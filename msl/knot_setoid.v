@@ -387,9 +387,9 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
     unfold unstratify.
     simpl.
     destruct (decompose_nat n (m2 + S n)) as [[r Hr]|Hr].
-    2: elimtype False; lia.
+    2: exfalso; lia.
     destruct (decompose_nat n (m1 + S n)) as [[s Hs]|Hs].
-    2: elimtype False; lia.
+    2: exfalso; lia.
     assert (m2 = r) by lia; subst r.
     assert (m1 = s) by lia; subst s.
     replace Hr with (refl_equal (m2 + S n)) by (apply proof_irr_nat).
@@ -417,7 +417,7 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
     hnf; intros.
     destruct a0; destruct a'0; destruct H; simpl.
     destruct (decompose_nat n (S n)).
-    2: elimtype False; lia.
+    2: exfalso; lia.
     destruct s.
     assert (x = 0) by lia; subst x; simpl in *.
     replace e with (refl_equal (S n)) by (apply proof_irr_nat; auto); simpl.
@@ -433,7 +433,7 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
     destruct w as [nw rm]; simpl.
     destruct nw as [nw e].
     destruct (decompose_nat nw O) as [[r Hr]|?].
-    elimtype False; lia.
+    exfalso; lia.
     apply le_T_bot.
 
     (* S n case *)
@@ -462,7 +462,7 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
     assert (x = r) by lia; subst x.
     replace Hx with (refl_equal (r + S nw)) by apply proof_irr_nat.
     simpl; auto.
-    elimtype False; lia.
+    exfalso; lia.
     apply le_T_bot.
   Qed.
 
@@ -502,9 +502,9 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
     assert (y = r) by lia; subst y.
     replace Hy with (refl_equal (r + S x)) by apply proof_irr_nat.
     simpl; auto.
-    elimtype False; lia.
+    exfalso; lia.
     simpl in *.
-    elimtype False; lia.
+    exfalso; lia.
   Qed.
 
   Lemma unstratify_stratify3 : forall n (p:predicate) w,
@@ -514,7 +514,7 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
     destruct w; simpl in *.
     destruct s; simpl in *.
     destruct (decompose_nat x n) as [[r Hr]|?].
-    elimtype False; lia.
+    exfalso; lia.
     apply le_T_bot.
   Qed.
 

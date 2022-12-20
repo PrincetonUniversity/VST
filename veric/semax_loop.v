@@ -528,7 +528,7 @@ Proof.
   rename H0 into Hora; intros.
   destruct (break_cont k) eqn: Hcont.
   { eapply jm_fupd_mono; [apply H0 | contradiction]. }
-2:{ elimtype False; clear - Hcont. revert k c Hcont; induction k; simpl; intros; try discriminate. eauto. }
+2:{ exfalso; clear - Hcont. revert k c Hcont; induction k; simpl; intros; try discriminate. eauto. }
   destruct c; eapply jm_fupd_mono; eauto; clear H0; intros; try contradiction.
 - 
   induction k; try discriminate.
@@ -694,7 +694,7 @@ destruct (continue_cont k) eqn:Hcont; try (eapply jm_fupd_mono; eauto; contradic
   eapply age_safe; try eassumption.
   eapply IHk; eauto.
 -
-  elimtype False; clear - Hcont.
+  exfalso; clear - Hcont.
   revert c o Hcont; induction k; simpl; intros; try discriminate; eauto.
 Qed.
 

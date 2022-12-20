@@ -90,7 +90,7 @@ subst k.
 assert (k'<16)%nat by lia.
 clear H.
 do 16 (destruct k'; try reflexivity).
-elimtype False; lia.
+exfalso; lia.
 Qed.
 
 Lemma extract_from_b:
@@ -138,7 +138,7 @@ rewrite !sublist_map.
 rewrite <- !map_cons, <- !map_app.
 f_equal.
 repeat match type of H0 with
-| (64 <= _ < _)%Z => elimtype False; lia
+| (64 <= _ < _)%Z => exfalso; lia
 | (?A <= _ < _)%Z =>
  assert (H9: i=A \/ (A+1 <= i < 64)%Z) by lia;
  clear H0; destruct H9 as [H0|H0];

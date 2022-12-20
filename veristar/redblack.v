@@ -492,7 +492,7 @@ case_eq (member x t); intuition.
 clear - H0; induction t; simpl in *. inv H0.
 do_compare x t2; [constructor 1 | constructor 2 | constructor 3]; auto.
 inv H1.
-elimtype False; revert H0 H1; induction H; intros; simpl in *.
+exfalso; revert H0 H1; induction H; intros; simpl in *.
 inv H1.
 inv H2.
 rewrite H8 in H1; rewrite compare_refl in H1; inv H1.
@@ -715,7 +715,7 @@ Lemma searchtree_append_aux:
                searchtree lo hi (append(tl,tr)).
 Proof.
 induction n; intros.
-destruct tl; destruct tr; elimtype False; omega.
+destruct tl; destruct tr; exfalso; omega.
 rewrite append_equation.
 inv H0.
 eapply searchtree_expand_left; eauto.
@@ -883,7 +883,7 @@ Lemma append_shape_aux:
            (forall n, is_redblack tl Red n -> is_redblack tr Red n -> is_redblack (append (tl,tr)) Black n).
 Proof.
 induction sz; intros.
-elimtype False; omega.
+exfalso; omega.
 split; intros; rewrite append_equation.
 inv H0. hax.
 inv H2; inv H3.
@@ -1176,7 +1176,7 @@ Lemma interp_append_aux:
      (interp (append(tl,tr)) x <-> (interp tl x \/ interp tr x)).
 Proof.
 induction sz; simpl; intros.
-elimtype False; omega.
+exfalso; omega.
 rewrite append_equation.
 unfold balleft.
 intuition; jax.
@@ -1463,7 +1463,7 @@ Lemma interp_gopher: forall s k, interp (gopher s) k <-> interp s k.
   clear - H.
   revert s H; induction n; intros.
   destruct s; simpl in H. simpl; intuition.
-  elimtype False; omega.
+  exfalso; omega.
   destruct s; simpl; intuition.
   destruct (IHn s1). simpl in H; omega.
   revert H0 H1 H2; case_eq (gopher s1); intros.
@@ -1570,7 +1570,7 @@ Lemma interp_rgopher: forall s k, interp (rgopher s) k <-> interp s k.
   clear - H.
   revert s H; induction n; intros.
   destruct s; simpl in H. simpl; intuition.
-  elimtype False; omega.
+  exfalso; omega.
   destruct s; simpl; intuition.
   destruct (IHn s2). simpl in H; omega.
   revert H0 H1 H2; case_eq (rgopher s2); intros.
@@ -1710,7 +1710,7 @@ Lemma compare'_interp_aux:
   assert (interp a k). apply H2. constructor 3; auto.
   apply H0 in H16. apply H13 in H16.
   inv H16.
-  elimtype False.
+  exfalso.
   clear - e H22 H14 H6.
   destruct (interp_range _ _ _ _ H14 H6).
   simpl in H. rewrite H22 in H. rewrite e in H. apply (lt_irrefl H).
@@ -1719,7 +1719,7 @@ Lemma compare'_interp_aux:
   apply H1. apply H3. constructor 3; auto.
   apply H7 in H16.
   inv H16.
-  elimtype False; clear - H22 H6 H15 e.
+  exfalso; clear - H22 H6 H15 e.
   rewrite e in H22.
   destruct (interp_range _ _ _ _ H15 H6).
   simpl in H. rewrite H22 in H. apply (lt_irrefl H).
@@ -2041,7 +2041,7 @@ Lemma treeify_g_induc:
  (* case 1 of 11 *)
   generalize (treeify_f_length n' l0); rewrite e0; simpl; intro.
   spec H8; [ omega |].
-  elimtype False;  omega.
+  exfalso;  omega.
  (* case 2 of 11 *)
   generalize (treeify_f_length n' l0); rewrite e0; simpl; intro.
   spec H9; [omega|].
@@ -2053,7 +2053,7 @@ Lemma treeify_g_induc:
    generalize (nat_of_P_pos n'); intro.
   spec H8; [omega|].
   spec H6; [omega|].
-  elimtype False. omega.
+  exfalso. omega.
   (* case 4 of 11 *)
   subst.
    generalize (nat_of_P_pos n'); intro POS.
@@ -2061,14 +2061,14 @@ Lemma treeify_g_induc:
   eapply H0; eauto. omega. omega. apply H6. omega.
   apply H7. omega.
   (* case 5 of 11 *)
-  elimtype False; omega.
+  exfalso; omega.
   (* case 6 of 11 *)
   eapply H1; eauto.
   (* case 7 of 11 *)
   generalize (treeify_f_length n' l0); rewrite e0; simpl in *; intro.
   spec H8; [omega|].
   generalize (nat_of_P_pos n'); intro.
-  elimtype False.      generalize (nat_of_P_pos n'); intro. omega.
+  exfalso.      generalize (nat_of_P_pos n'); intro. omega.
   (* case 8 of 11 *)
   generalize (treeify_f_length n' l0); rewrite e0; simpl in *; intro.
   spec H6; [omega|]. spec H7; [omega|]. spec H9; [omega|].
@@ -2077,7 +2077,7 @@ Lemma treeify_g_induc:
   spec H6; [omega|].
   generalize (treeify_g_length n' l0); rewrite e0; simpl in *; intro.
   spec H8; [omega|].
-  elimtype False; omega.
+  exfalso; omega.
   (* case 10 of 11 *)
   generalize (treeify_g_length n' l0); rewrite e0; simpl in *; intro.
   spec H9; [omega|]. spec H6; [omega|]. spec H7; [omega|].
@@ -2176,17 +2176,17 @@ Proof.
  spec H0; [omega|].
   destruct (treeify_f n l).
   simpl in H0. destruct l0.
- simpl in H0; elimtype False; omega.
+ simpl in H0; exfalso; omega.
   destruct (treeify_f n l0); simpl; congruence.
  generalize (treeify_f_length n l); intro.
  spec H0; [omega|].
   destruct (treeify_f n l).
   simpl in H0. destruct l0.
- simpl in H0; elimtype False.
+ simpl in H0; exfalso.
   generalize (nat_of_P_pos n); intro; omega.
   destruct (treeify_g n l0); simpl; congruence.
   destruct l; simpl in H.
-  elimtype False; omega.
+  exfalso; omega.
   simpl; congruence.
 Qed.
 
@@ -2416,7 +2416,7 @@ assert (exists N, size s1 + size s2 < N).
 exists (S (size s1 + size s2)); omega.
 destruct H as [N ?].
 revert s1 s2 H; induction N; intros.
-elimtype False; omega.
+exfalso; omega.
 rewrite linear_inter_aux_equation in H2.
 simpl in H2.
 generalize(shape_rgopher s1); intro.
@@ -2587,7 +2587,7 @@ assert (exists N, size s1 + size s2 < N).
 exists (S (size s1 + size s2)); omega.
 destruct H as [N ?].
 revert s1 s2 H; induction N; intros.
-elimtype False; omega.
+exfalso; omega.
 rewrite linear_union_aux_equation in H2.
 simpl in H2.
 generalize(shape_rgopher s1); intro.
@@ -2791,7 +2791,7 @@ assert (exists N, size s1 + size s2 < N).
 exists (S (size s1 + size s2)); omega.
 destruct H as [N ?].
 revert s1 s2 H; induction N; intros.
-elimtype False; omega.
+exfalso; omega.
 rewrite linear_diff_aux_equation in H2.
 simpl in H2.
 generalize(shape_rgopher s1); intro.
@@ -2857,7 +2857,7 @@ generalize (interp_rgopher s1 x); rewrite <- Heqs1'; intro.
 generalize (interp_rgopher s2 x); rewrite <- Heqs2'; intro.
 intuition etac. left; split; auto. intro. apply H3 in H4. inv H4; intuition etac.
 destruct (interp_range _ _ _ _ H11 H0). simpl in H6. rewrite H13 in H6. apply (lt_irrefl  H6).
-inv H4. elimtype False; apply H5; apply H. constructor 1. rewrite H12; auto.
+inv H4. exfalso; apply H5; apply H. constructor 1. rewrite H12; auto.
 left; split; auto. inv H12.
 (* case t0<t1 *)
 rewrite Heqs1' in H2.
@@ -3144,7 +3144,7 @@ Lemma tree_similar_lemma':
           contradiction (lt_irrefl (lt_trans H4 l)).
        inv H16.
        destruct (interp_range _ _ _ _ H12 H16). simpl in H2.
-       elimtype False.
+       exfalso.
        destruct (H1 k') as [_ ?].
        absurd (interp (T c EE k s) k').
         intro Hx; inv Hx.  rewrite H19 in H2. contradiction (lt_irrefl  H2). inv H19.
@@ -3363,7 +3363,7 @@ Lemma filter'_spec : forall s x f,
   generalize (treeify_g_length n l); intro.
   spec H8; [omega|].
   rewrite H3 in H8.
-  destruct (snd (treeify_g n l)); [ | elimtype False; simpl in H8; clear - H8; omega].
+  destruct (snd (treeify_g n l)); [ | exfalso; simpl in H8; clear - H8; omega].
   clear; intuition etac.
 Qed.
 
@@ -3382,7 +3382,7 @@ Qed.
    Lemma choose'_spec2 : forall s, choose' s = None -> s=EE.
    Proof.
      induction s; simpl; intros; auto.
-     elimtype False. destruct s1. inv H.
+     exfalso. destruct s1. inv H.
      apply IHs1 in H. inv H.
    Qed.
 
@@ -3617,7 +3617,7 @@ Lemma lt'_strorder : StrictOrder lt'.
   rewrite compare'_equation in H, H0 |- *.
   remember (gopher a) as a'. remember (gopher b) as b'. remember (gopher c) as c'.
   destruct c'.
-  elimtype False; clear - H0; destruct b'; inv H0. destruct b'1; inv H1.
+  exfalso; clear - H0; destruct b'; inv H0. destruct b'1; inv H1.
   destruct a'; auto.
   destruct a'1.
   2: clear - H; destruct b'; inv H.
@@ -4077,7 +4077,7 @@ Proof.
   destruct (f a0); simpl in *; auto.
   apply IHel; auto.
   destruct (f a); simpl in H0; auto.
-  elimtype False; clear - H0. revert H0; induction el; simpl; intros; try discriminate.
+  exfalso; clear - H0. revert H0; induction el; simpl; intros; try discriminate.
   destruct (f a); simpl in H0; auto.
   case_eq (f a); simpl; intros.
   apply IHel; intros. eapply H0; eauto.
@@ -4225,7 +4225,7 @@ Lemma lt_compat: Proper (eq ==> eq ==> iff) lt.
             b' lob' hib' STb' b lob hib STb
             EQab EQa'b' H1;
    induction n; simpl; intros.
-   elimtype False; omega.
+   exfalso; omega.
    rewrite compare'_equation in H1; rewrite compare'_equation.
    rewrite <- (size_gopher a') in H.
    rewrite (searchtree_gopher a') in STa'.
@@ -4245,7 +4245,7 @@ Lemma lt_compat: Proper (eq ==> eq ==> iff) lt.
    destruct (gopher a'); try discriminate.
    destruct t0_1; try contradiction.
    destruct (gopher b).
-   2: elimtype False; clear - Gab; destruct (Gab t1);
+   2: exfalso; clear - Gab; destruct (Gab t1);
         absurd (interp EE t1); [intro Hx; inv Hx
                                      | apply H0; constructor 1; reflexivity].
    destruct (gopher b'); auto.
@@ -4292,7 +4292,7 @@ Lemma lt_compat: Proper (eq ==> eq ==> iff) lt.
             b' lob' hib' STb' b lob hib STb
             EQab EQa'b' H1;
    induction n; simpl; intros.
-   elimtype False; omega.
+   exfalso; omega.
    rewrite compare'_equation in H1; rewrite compare'_equation.
    rewrite <- (size_gopher a') in H.
    rewrite (searchtree_gopher a') in STa'.
@@ -4312,7 +4312,7 @@ Lemma lt_compat: Proper (eq ==> eq ==> iff) lt.
    destruct (gopher b'); try discriminate.
    destruct t0_1; try contradiction.
    destruct (gopher a).
-   2: elimtype False; clear - Gab; destruct (Gab t1);
+   2: exfalso; clear - Gab; destruct (Gab t1);
         absurd (interp EE t1); [intro Hx; inv Hx
                                      | apply H; constructor 1; reflexivity].
    destruct (gopher a'); auto.
@@ -4456,7 +4456,7 @@ Proof.
  rewrite <- is_empty_spec. unfold is_empty; simpl. destruct s; auto.
  clear s0 e.
  simpl in H.
- elimtype False; revert t0 H; induction s2; intros. inv H.
+ exfalso; revert t0 H; induction s2; intros. inv H.
  simpl in H. eapply IHs2_2; eauto.
 Qed.
 

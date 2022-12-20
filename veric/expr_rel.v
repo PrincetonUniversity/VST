@@ -302,7 +302,7 @@ match goal with |- context [decode_val ?A ?B] =>
   pose proof (decode_val_type A B);
     destruct (decode_val A B); auto; 
     try solve [inv H];
-    try solve [hnf in H; elimtype False; congruence]
+    try solve [hnf in H; exfalso; congruence]
 end];
 try solve [
   unfold decode_val; simpl;

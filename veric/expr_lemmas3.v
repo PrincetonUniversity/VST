@@ -34,7 +34,7 @@ Lemma Zle_bool_rev: forall x y, Zle_bool x y = Zge_bool y x.
 Proof.
 intros. pose proof (Zle_cases x y). pose proof (Zge_cases y x).
 destruct (Zle_bool x y); destruct (Zge_bool y x); auto;
-elimtype False; lia.
+exfalso; lia.
 Qed.
 
 (** Typechecking soundness **)

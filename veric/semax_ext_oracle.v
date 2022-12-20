@@ -213,7 +213,7 @@ Lemma add_funspecs_pre  (ext_link: Strings.String.string -> ident)
     JMeq (phi1, x) x'
     /\ ext_spec_pre (add_funspecsOracle_rec ext_link Z Espec fs) ef x' ge_s tys args z m.
 Proof.
-induction fs; [intros; elimtype False; auto|]; intros ef H H1 H2 Hpre.
+induction fs; [intros; exfalso; auto|]; intros ef H H1 H2 Hpre.
 destruct H1 as [H1|H1].
 
 {
@@ -223,7 +223,7 @@ destruct sig; simpl.
 if_tac [e0|e0].
 rewrite fst_split.
 intros x Hjoin Hp. exists (phi1,x). split; eauto.
-elimtype False; auto.
+exfalso; auto.
 }
 
 {
@@ -234,9 +234,9 @@ destruct (IHfs Hb H1 H2 Hpre) as [x' H3].
 clear -Ha Hin H1 H3; revert x' Ha Hin H1 H3.
 destruct a; simpl; destruct f; simpl; destruct f; simpl; unfold funspecOracle2pre; simpl.
 if_tac [e|e].
-* injection e as E; subst i; destruct fs; [solve[simpl; intros; elimtype False; auto]|].
+* injection e as E; subst i; destruct fs; [solve[simpl; intros; exfalso; auto]|].
   intros x' Ha Hb; simpl in Ha, Hb.
-  elimtype False; auto.
+  exfalso; auto.
 * intros; eexists; eauto.
 }
 Qed.
@@ -255,7 +255,7 @@ Lemma add_funspecs_post (ext_link: Strings.String.string -> ident)
     /\ JMeq x (phi1', x')
     /\ Q x' z (make_ext_rval (filter_genv (symb2genv ge_s)) tret ret) phi0.
 Proof.
-induction fs; [intros; elimtype False; auto|]; intros ef H H1 Hid Hpost.
+induction fs; [intros; exfalso; auto|]; intros ef H H1 Hid Hpost.
 destruct H1 as [H1|H1].
 
 {
@@ -266,7 +266,7 @@ if_tac [e0|e0].
 intros x [phi0 [phi1 [Hjoin [Hq Hnec]]]].
 exists phi0, phi1, (fst x), (snd x).
 split; auto. split; auto. destruct x; simpl in *. split; auto.
-elimtype False; auto.
+exfalso; auto.
 }
 
 {
@@ -277,9 +277,9 @@ clear -Ha Hin H1 Hb Hpost IHfs; revert x Ha Hin H1 Hb Hpost IHfs.
 destruct a; simpl; destruct f; simpl; unfold funspecOracle2post; simpl.
 destruct f; simpl.
 if_tac [e|e].
-* injection e as E; subst i; destruct fs; [solve[simpl; intros; elimtype False; auto]|].
+* injection e as E; subst i; destruct fs; [solve[simpl; intros; exfalso; auto]|].
   intros x' Ha Hb; simpl in Ha, Hb.
-  elimtype False; auto.
+  exfalso; auto.
 * intros. apply IHfs; auto.
 }
 Qed.

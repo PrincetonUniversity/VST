@@ -81,11 +81,11 @@ Proof.
   intros until r0. repeat rewrite PTree.gsspec.
   destruct (peq id1 name); destruct (peq id2 name).
   congruence.
-  intros. inv H. elimtype False.
+  intros. inv H. exfalso.
   apply valid_fresh_absurd with r0 s1.
   apply H1. left; exists id2; auto.
   eauto with rtlg.
-  intros. inv H2. elimtype False.
+  intros. inv H2. exfalso.
   apply valid_fresh_absurd with r0 s1.
   apply H1. left; exists id1; auto.
   eauto with rtlg.
@@ -2095,7 +2095,7 @@ Proof. intros.
     solve[rewrite D; auto].
 
     intros CONTRA.
-    solve[elimtype False; auto].
+    solve[exfalso; auto].
 (*  assert (exists targs tres, type_of_fundef f = Tfunction targs tres).
          destruct f; simpl. eexists; eexists. reflexivity.
          eexists; eexists. reflexivity.

@@ -179,14 +179,14 @@ Proof with auto.
   eapply ijoin_eq; eauto.
   eapply join_eq; eauto.
 
-  elimtype False; clear - pa_A sa_A H1 H4 A_top_full.
+  exfalso; clear - pa_A sa_A H1 H4 A_top_full.
   destruct sh; destruct sh0; destruct sh1.
   red in H1; red in H4; simpl in H4.
   generalize (join_eq H1 H4); intro; subst x1.
   unfold midObj in *.
   tauto.
 
-  elimtype False; clear - pa_A sa_A H2 H3 A_top_full.
+  exfalso; clear - pa_A sa_A H2 H3 A_top_full.
   destruct sh;destruct sh0;destruct sh1.
   red in H3; red in H2; simpl in H2.
   generalize (join_eq H2 H3);intro;subst x1.
@@ -394,7 +394,7 @@ Proof.
   apply identity_combiner in H0.
   inversion H0.
 
-  elimtype False.
+  exfalso.
   spec H sh.
   destruct H as [sh' ?].
   destruct (join_ex_identities v) as [v0 [? ?]].

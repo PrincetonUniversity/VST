@@ -534,7 +534,7 @@ induction n.
 intros.
 replace j with 0%nat ; try lia.
 apply X; intros.
-elimtype False; lia.
+exfalso; lia.
 intros.  apply X. intros.
 apply IHn.
 lia.

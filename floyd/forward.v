@@ -795,7 +795,7 @@ Ltac lookup_spec id :=
       match goal with
        | |- mk_funspec _ _ ?t1 _ _ = mk_funspec _ _ ?t2 _ _ =>
          first [unify t1 t2
-           | elimtype False; elimtype (Witness_type_of_forward_call_does_not_match_witness_type_of_funspec
+           | exfalso; elimtype (Witness_type_of_forward_call_does_not_match_witness_type_of_funspec
       t2 t1)]
       end]
    end
@@ -1166,7 +1166,7 @@ Inductive Ridiculous: Type := .
 
 Ltac check_witness_type ts A witness :=
   (unify A (rmaps.ConstType Ridiculous); (* because [is_evar A] doesn't seem to work *)
-             elimtype False)
+             exfalso)
  ||
  let TA := constr:(functors.MixVariantFunctor._functor
      (rmaps.dependent_type_functor_rec ts A) mpred) in

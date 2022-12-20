@@ -1145,7 +1145,7 @@ apply TC3.
 split; [split3 | ].
 *   rewrite <- (age_jm_dry H); constructor; auto.
   destruct (sem_cast (typeof e1) t1 v2) eqn:EC.
-  2: elimtype False; clear - EC TC3;
+  2: exfalso; clear - EC TC3;
     unfold eval_cast, force_val1 in TC3; rewrite EC in TC3;
     destruct t1; try destruct f;
     try destruct (eqb_type _ _); contradiction.

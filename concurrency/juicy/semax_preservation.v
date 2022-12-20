@@ -458,7 +458,7 @@ Proof.
         inv J'.
         apply join_bot_bot_eq in RJ; subst.
         simpl. if_tac. auto. tauto.
-      * elimtype False; clear - RJ rsh2.  apply join_top_l in RJ. subst.
+      * exfalso; clear - RJ rsh2.  apply join_top_l in RJ. subst.
          apply shares.bot_unreadable; auto.
 
   - (* Proving alloc_cohere *)

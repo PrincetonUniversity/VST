@@ -715,7 +715,7 @@ spec IHl.
 { clear IHl H4. intros.
   destruct (ident_eq i0 i). subst.
  split; intros; try contradiction.
- elimtype False; clear - H. subst Q'.
+ exfalso; clear - H. subst Q'.
  admit. (* easy *)
  specialize (H2 i0). 
  assert (In i0 (temps_of_localdef Q) <-> In i0 (temps_of_localdef Q'))
@@ -829,7 +829,7 @@ spec IHl.
 { intros. specialize (H2 i0). 
   destruct (ident_eq i i0). subst.
   split; intros; try contradiction.
-  elimtype False; clear - H. admit. (* easy *)
+  exfalso; clear - H. admit. (* easy *)
   clear - H2 n.
   split; intros. 
   assert (In i0 (temps_of_localdef Q)) by admit. (* easy *)
