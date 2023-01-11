@@ -527,6 +527,47 @@ Section PROOFS.
       unfold PROPx, LOCALx, SEPx; simpl; auto.
   Qed.
 
+  Program Definition release_spec_inv_atomic1 :=
+    ATOMIC TYPE (ConstType _) OBJ R INVS empty
+    WITH p
+    PRE [ tptr t_lock ]
+       PROP ()
+       PARAMS (p)
+       SEP () | ((weak_exclusive_mpred R && emp) * R * inv_for_lock p R)
+    POST [ tvoid ]
+       PROP ()
+       LOCAL ()
+       SEP () | (inv_for_lock p R).
+
+  Lemma release_inv_atomic: funspec_sub (snd release_spec) release_spec_inv_atomic1.
+  Proof.
+    apply prove_funspec_sub.
+    split; auto. intros. simpl in *. destruct x2 as (p, Q). Intros.
+    unfold rev_curry, tcurry; simpl. iIntros "H !>". iExists nil.
+    iExists (p, Q), emp; simpl.
+    rewrite emp_sepcon. iSplit.
+    - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl.
+      iDestruct "H" as "(% & % & _ & H & _)".
+      do 4 (iSplit; auto).
+      unfold atomic_shift; iAuIntro; unfold atomic_acc; simpl.
+      iMod "H" as (R) "[H Hclose]".
+      unfold inv_for_lock at 1.
+      iDestruct "H" as "[[excl R] H1]"; iExists tt.
+      iDestruct "H1" as (b) "[H1 R1]".
+      destruct b.
+      iFrame "H1".
+      iModIntro; iSplit.
+      + iIntros "H1"; iApply "Hclose".
+        iFrame "excl R"; iExists true; iFrame.
+      + iIntros (_) "[H1 _]".
+        iDestruct "Hclose" as "[_ Hclose]"; iApply ("Hclose" $! tt).
+        rewrite sepcon_emp; iExists false; iFrame.
+      + iAssert (|> FF) with "[excl R R1]" as ">[]".
+        iNext. iApply weak_exclusive_conflict; iFrame; iFrame.
+    - iPureIntro. iIntros (rho') "[% [_ H]]".
+      unfold PROPx, LOCALx, SEPx; simpl; auto.
+  Qed.
+
   Definition exclusive_mpred' {A} (P : A -> mpred) := forall x y, P x * P y |-- FF.
 
   Definition weak_exclusive_mpred' {A} (P : A -> mpred) := unfash (fash (ALL x y, P x * P y --> FF)).
