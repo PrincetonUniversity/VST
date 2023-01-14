@@ -103,6 +103,351 @@ Definition Gprog : funspecs :=[ reverse_spec ].
  ** (in this case, reverse_spec).
  **)
 
+(* unknown function body *)
+Record incomplete_function := { ifn_return : type; ifn_callconv : calling_convention; ifn_params : list (ident * type);
+  ifn_vars : list (ident * type); ifn_temps : list (ident * type) (* can we figure these out as we go too? *) }.
+
+Definition forget_body f := {| ifn_return := fn_return f; ifn_callconv := fn_callconv f; ifn_params := fn_params f;
+  ifn_vars := fn_vars f; ifn_temps := fn_temps f |}.
+Definition ifn_funsig f := (ifn_params f, ifn_return f).
+Definition ifn_tycontext func V G A := make_tycontext (ifn_params func) (ifn_temps func) (ifn_vars func) (ifn_return func) V G A.
+Definition ifn_stackframe {cs : compspecs} f := fold_right sepcon emp (map (var_block Tsh) (ifn_vars f)).
+
+Definition semax_incomplete_body
+   (V: varspecs) (G: funspecs) {C: compspecs} (f: incomplete_function) (spec: ident * funspec) :=
+{ body | match spec with (_, mk_funspec fsig cc A P Q _ _) =>
+  fst fsig = map snd (fst (ifn_funsig f)) /\ 
+  snd fsig = snd (ifn_funsig f) /\
+forall Espec ts x,
+  @semax C Espec (ifn_tycontext f V G nil)
+      (fun rho => close_precondition (map fst f.(ifn_params)) (P ts x) rho * ifn_stackframe f rho)%logic
+       body
+      (frame_ret_assert (function_body_ret_assert (ifn_return f) (Q ts x)) (ifn_stackframe f))
+end}.
+
+Ltac ifn_unsupported_features spec := check_callconv (ifn_callconv spec);
+   (let al := constr:((map snd (ifn_params spec))) in
+    let al := eval compute in al in
+    check_struct_params al).
+
+Ltac start_function1 ::=
+ leaf_function;
+ lazymatch goal with |- @semax_incomplete_body ?V ?G ?cs ?F ?spec =>
+    ifn_unsupported_features F;
+    let s := fresh "spec" in
+    pose (s:=spec); hnf in s; cbn zeta in s; (* dependent specs defined with Program Definition often have extra lets *)
+   repeat lazymatch goal with
+    | s := (_, NDmk_funspec _ _ _ _ _) |- _ => fail
+    | s := (_, mk_funspec _ _ _ _ _ _ _) |- _ => fail
+    | s := (_, ?a _ _ _ _) |- _ => unfold a in s
+    | s := (_, ?a _ _ _) |- _ => unfold a in s
+    | s := (_, ?a _ _) |- _ => unfold a in s
+    | s := (_, ?a _) |- _ => unfold a in s
+    | s := (_, ?a) |- _ => unfold a in s
+    end;
+    lazymatch goal with
+    | s :=  (_,  WITH _: globals
+               PRE  [] main_pre _ _ _
+               POST [ tint ] _) |- _ => idtac
+    | s := ?spec' |- _ => check_canonical_funspec spec'
+   end;
+   change (@semax_incomplete_body V G cs F s); subst s;
+   unfold NDmk_funspec'
+ end;
+ let DependedTypeList := fresh "DependedTypeList" in
+ unfold NDmk_funspec; 
+ match goal with |- semax_incomplete_body _ _ _ (pair _ (mk_funspec _ _ _ ?Pre _ _ _)) =>
+
+   eexists; split3; [check_parameter_types' | check_return_type | ];
+    match Pre with
+   | (fun _ => convertPre _ _ (fun i => _)) =>  intros Espec DependedTypeList i
+   | (fun _ x => match _ with (a,b) => _ end) => intros Espec DependedTypeList [a b]
+   | (fun _ i => _) => intros Espec DependedTypeList i
+   end;
+   simpl ifn_params; simpl ifn_return
+ end;
+ try match goal with |- semax _ (fun rho => ?A rho * ?B rho)%logic _ _ =>
+     change (fun rho => ?A rho * ?B rho)%logic with (A * B)%logic
+  end;
+ simpl functors.MixVariantFunctor._functor in *;
+ simpl rmaps.dependent_type_functor_rec;
+ clear DependedTypeList;
+ rewrite_old_main_pre;
+ repeat match goal with
+ | |- @semax _ _ _ (match ?p with (a,b) => _ end * _)%logic _ _ =>
+             destruct p as [a b]
+ | |- @semax _ _ _ (close_precondition _ match ?p with (a,b) => _ end * _)%logic _ _ =>
+             destruct p as [a b]
+ | |- @semax _ _ _ ((match ?p with (a,b) => _ end) eq_refl * _)%logic _ _ =>
+             destruct p as [a b]
+ | |- @semax _ _ _ (close_precondition _ ((match ?p with (a,b) => _ end) eq_refl) * _)%logic _ _ =>
+             destruct p as [a b]
+ | |- semax _ (close_precondition _
+                                                (fun ae => !! (Datatypes.length (snd ae) = ?A) && ?B
+                                                      (make_args ?C (snd ae) (mkEnviron (fst ae) _ _))) * _) _ _ =>
+          match B with match ?p with (a,b) => _ end => destruct p as [a b] end
+       end;
+(* this speeds things up, but only in the very rare case where it applies,
+   so maybe not worth it ...
+  repeat match goal with H: reptype _ |- _ => progress hnf in H; simpl in H; idtac "reduced a reptype" end;
+*)
+ try start_func_convert_precondition.
+
+Ltac simplify_func_tycontext' DD ::=
+  match DD with
+  | context [ ifn_tycontext ?f ?V ?G ?A ] =>
+      let D1 := fresh "D1" in
+      let Delta := fresh "Delta" in
+      pose (D1 := ifn_tycontext f V G A); pose (Delta := @abbreviate tycontext D1);
+       change (ifn_tycontext f V G A) with Delta;
+       unfold ifn_tycontext, make_tycontext in D1;
+       (let DS := fresh "Delta_specs" in
+        let d := constr:((make_tycontext_s G)) in
+        let d := make_ground_PTree d in
+        pose (DS := @abbreviate (Maps.PTree.t funspec) d); change (make_tycontext_s G) with DS in D1;
+         cbv-[DS] in D1; subst D1; check_ground_Delta)
+  end.
+
+Ltac process_ifn_stackframe :=
+ lazymatch goal with |- semax _ (_ * ifn_stackframe ?F)%logic _ _ =>
+   let sf := fresh "sf" in set (sf:= ifn_stackframe F) at 1;
+     unfold ifn_stackframe in sf; simpl map in sf; subst sf
+  end;
+ repeat
+   lazymatch goal with |- semax _ (_ * fold_right sepcon emp (var_block _ (?i,_) :: _))%logic _ _ =>
+     simple apply var_block_lvar2;
+       [ reflexivity | reflexivity | reflexivity | reflexivity | let n := fresh "v" i in intros n ]
+   end;
+  repeat (simple apply postcondition_var_block;
+   [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity |  ]);
+ change (fold_right sepcon emp (@nil (environ->mpred))) with
+   (@emp (environ->mpred) _ _);
+ rewrite ?sepcon_emp, ?emp_sepcon.
+
+Ltac start_function3 ::=
+ simpl app;
+ simplify_func_tycontext;
+ repeat match goal with
+ | |- context [Sloop (Ssequence (Sifthenelse ?e Sskip Sbreak) ?s) Sskip] =>
+       fold (Swhile e s)
+ | |- context [Ssequence ?s1 (Sloop (Ssequence (Sifthenelse ?e Sskip Sbreak) ?s2) ?s3) ] =>
+      match s3 with
+      | Sset ?i _ => match s1 with Sset ?i' _ => unify i i' | Sskip => idtac end
+      end;
+      fold (Sfor s1 e s2 s3)
+ end;
+ try expand_main_pre;
+ process_ifn_stackframe;
+ repeat change_mapsto_gvar_to_data_at;  (* should really restrict this to only in main,
+                                  but it needs to come after process_stackframe_of *)
+ repeat rewrite <- data_at__offset_zero;
+ try simple apply start_function_aux1;
+ repeat (apply semax_extract_PROP;
+              match goal with
+              | |- _ ?sh -> _ =>
+                 match type of sh with
+                 | share => intros ?SH
+                 | Share.t => intros ?SH
+                 | _ => intro
+                 end
+               | |- _ => intro
+               end);
+ abbreviate_semax;
+ lazymatch goal with 
+ | |- semax ?Delta (PROPx _ (LOCALx ?L _)) _ _ => check_parameter_vals Delta L
+ | _ => idtac
+ end;
+ try match goal with DS := @abbreviate (Maps.PTree.t funspec) ?DS1 |- _ =>
+     unify DS1 (Maps.PTree.empty funspec); clearbody DS
+ end;
+ start_function_hint.
+
+(* don't look at the loop body! *)
+Tactic Notation "iforward_while" constr(Inv) :=
+  repeat (apply -> seq_assoc; abbreviate_semax);
+  match goal with
+  | |- semax _ _ (Ssequence _ _) _ => idtac 
+  | Post := @abbreviate ret_assert ?P' |- semax _ _ (Swhile _ _) ?P =>
+       constr_eq P Post;
+       tryif (no_evars P') then forward_while_advise_loop else idtac;
+      apply <- semax_seq_skip
+  | |- semax _ _ (Swhile _ _) ?P => 
+       tryif (no_evars P) then forward_while_advise_loop else idtac;
+      apply <- semax_seq_skip
+  | _ => apply <- semax_seq_skip 
+  end;
+  first [ignore (Inv: environ->mpred)
+         | fail 1 "Invariant (first argument to forward_while) must have type (environ->mpred)"];
+  apply semax_pre with Inv;
+    [ unfold_function_derives_right
+    | repeat match goal with
+       | |- semax _ (exp _) _ _ => fail 1
+       | |- semax _ (PROPx _ _) _ _ => fail 1
+       | |- semax _ ?Pre _ _ => match Pre with context [ ?F ] => unfold F end
+       end;
+       match goal with
+       | |- semax _ (exp (fun a1 => _)) _ _ =>
+             let a := fresh a1 in pose (a := EXP_NAME)
+       | |- semax _ (PROPx ?P ?QR) _ _ =>
+             let a := fresh "u" in pose (a := EXP_UNIT);
+                  rewrite (trivial_exp (PROPx P QR))
+       end;
+       repeat match goal with |- semax _ (exp (fun a1 => (exp (fun a2 => _)))) _ _ =>
+          let a := fresh a2 in pose (a := EXP_NAME);
+          rewrite exp_uncurry
+      end;
+      eapply semax_seq;
+      [match goal with |- @semax ?CS _ ?Delta ?Pre (Swhile ?e ?s) _ =>
+        (* skip this check 
+        tryif (unify (nobreaksx s) true) then idtac 
+        else fail "Your while-loop has a break command in the body.  Therefore, you should use forward_loop to prove it, since the standard while-loop postcondition (Invariant & ~test) may not hold at the break statement";*)
+        match goal with [ |- semax _ (@exp _ _ ?A _) _ _ ] => eapply (@semax_while_3g1 _ _ A) end;
+        (* check if we can revert back to the previous version with coq 8.5.
+           (as of December 2015 with compcert 2.6 the above fix is still necessary)
+           The bug happens when we destruct the existential variable of the loop invariant:
+
+             (* example.c program: *)
+             int main(){int i=0; while(i);}
+
+             (* verif_example.v file (+you have to Require Import the example.v file produced by clightgen) *)
+             Require Import VST.floyd.proofauto.
+             #[export] Instance CompSpecs : compspecs. Proof. make_compspecs prog. Defined.
+             Local Open Scope logic.
+
+             Lemma body_main : semax_body [] [] f_main
+               (DECLARE _main WITH u : unit
+                PRE  [] main_pre prog u
+                POST [ tint ] main_post prog u).
+             start_function.
+             forward.
+             pose (Inv := (EX b : bool, PROP () LOCAL (temp _i (Vint (Int.repr (if b then 1 else 0)))) SEP ())).
+             forward_while Inv. (** FAILS WITH THE FORMER VERSION OF forward_while **)
+         *)
+        simpl typeof;  (* this 'simpl' should be fine, since its argument is just clightgen-produced ASTs *)
+       [ reflexivity
+       | special_intros_EX
+       | (do_compute_expr1 CS Delta Pre e; eassumption) ||
+         fail "The loop invariant is not strong enough to guarantee evaluation of the loop-test expression.
+Loop invariant:" Pre
+"
+Loop test expression:" e
+       | special_intros_EX;
+         let HRE := fresh "HRE" in apply semax_extract_PROP; intro HRE;
+         do_repr_inj HRE;
+         repeat (apply semax_extract_PROP; intro);
+         normalize in HRE
+        ]
+       end
+       | apply extract_exists_pre; special_intros_EX;
+         let HRE := fresh "HRE" in apply semax_extract_PROP; intro HRE;
+         do_repr_inj HRE;
+         repeat (apply semax_extract_PROP; intro);
+         normalize in HRE
+       ]
+    ]; abbreviate_semax; 
+    simpl_ret_assert.
+
+Lemma body_reverse: semax_incomplete_body Vprog Gprog (forget_body f_reverse) reverse_spec.
+Proof.
+start_function.
+(* (Ssequence
+  (Sset _w (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
+  (Ssequence
+    (Sset _v (Etempvar _p (tptr (Tstruct _list noattr))))
+    (Ssequence
+      (Swhile
+        (Etempvar _v (tptr (Tstruct _list noattr)))
+        (Ssequence
+          (Sset _t
+            (Efield
+              (Ederef (Etempvar _v (tptr (Tstruct _list noattr)))
+                (Tstruct _list noattr)) _tail (tptr (Tstruct _list noattr))))
+          (Ssequence
+            (Sassign
+              (Efield
+                (Ederef (Etempvar _v (tptr (Tstruct _list noattr)))
+                  (Tstruct _list noattr)) _tail
+                (tptr (Tstruct _list noattr)))
+              (Etempvar _w (tptr (Tstruct _list noattr))))
+            (Ssequence
+              (Sset _w (Etempvar _v (tptr (Tstruct _list noattr))))
+              (Sset _v (Etempvar _t (tptr (Tstruct _list noattr))))))))
+      (Sreturn (Some (Etempvar _w (tptr (Tstruct _list noattr)))))))) *)
+instantiate (1 := Ssequence (Sset _w (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid))) _).
+forward.  (* w = NULL; *)
+instantiate (1 := Ssequence (Sset _v (Etempvar _p (tptr (Tstruct _list noattr)))) _).
+forward.  (* v = p; *)
+instantiate (1 := Ssequence (Swhile
+        (Etempvar _v (tptr (Tstruct _list noattr))) _) _).
+iforward_while
+   (EX s1: list val, EX s2 : list val, 
+    EX w: val, EX v: val,
+     PROP (sigma = rev s1 ++ s2)
+     LOCAL (temp _w w; temp _v v)
+     SEP (listrep s1 w; listrep s2 v)).
+* (* Prove that precondition implies loop invariant *)
+Exists (@nil val) sigma nullval p.
+entailer!.
+unfold listrep.
+entailer!.
+* (* Prove that loop invariant implies typechecking of loop condition *)
+entailer!.
+* (* Prove that loop body preserves invariant *)
+destruct s2 as [ | h r].
+ - unfold listrep at 2. 
+   Intros. subst. contradiction.
+ - unfold listrep at 2; fold listrep.
+   Intros y.
+   instantiate (1 := Ssequence (Sset _t
+            (Efield
+              (Ederef (Etempvar _v (tptr (Tstruct _list noattr)))
+                (Tstruct _list noattr)) _tail (tptr (Tstruct _list noattr)))) _).
+   forward. (* t = v->tail *)
+   instantiate (1 := Ssequence (Sassign
+              (Efield
+                (Ederef (Etempvar _v (tptr (Tstruct _list noattr)))
+                  (Tstruct _list noattr)) _tail
+                (tptr (Tstruct _list noattr)))
+              (Etempvar _w (tptr (Tstruct _list noattr)))) _).
+   forward. (* v->tail = w; *)
+   instantiate (1 := Ssequence (Sset _w (Etempvar _v (tptr (Tstruct _list noattr)))) _).
+   forward. (* w = v; *)
+   instantiate (1 := Ssequence (Sset _v (Etempvar _t (tptr (Tstruct _list noattr)))) _).
+   forward. (* v = t; *)
+   (* we don't know we're done until we see the closing brace, so we'll have an extra skip *)
+   instantiate (1 := Sskip).
+   forward.
+   (* At end of loop body; reestablish invariant *)
+   entailer!.
+   Exists (h::s1,r,v,y).
+   entailer!.
+   + simpl. rewrite app_ass. auto.
+   + unfold listrep at 3; fold listrep.
+     Exists w. entailer!.
+* (* after the loop *)
+instantiate (1 := Sreturn (Some (Etempvar _w (tptr (Tstruct _list noattr))))).
+forward.  (* return w; *)
+Exists w; entailer!.
+rewrite (proj1 H1) by auto.
+unfold listrep at 2; fold listrep.
+entailer!.
+rewrite <- app_nil_end, rev_involutive.
+auto.
+Defined.
+
+Eval simpl in proj1_sig body_reverse. (* we made a program! *)
+
+Definition complete_function f body := mkfunction (ifn_return f) (ifn_callconv f) (ifn_params f) (ifn_vars f) (ifn_temps f) body.
+
+Lemma complete_semax_body : forall V G C f spec (P : @semax_incomplete_body V G C f spec),
+  @semax_body V G C (complete_function f (proj1_sig P)) spec.
+Proof.
+  destruct P; auto.
+Qed.
+
+
+
+(* unknown postcondition *)
 Inductive funspec_part :=
    mk_funspec_part: compcert_rmaps.typesig -> calling_convention -> forall (A: rmaps.TypeTree)
      (P: forall ts, functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec ts (ArgsTT A)) mpred)
@@ -189,8 +534,7 @@ Ltac start_function1 ::=
 *)
  try start_func_convert_precondition.
 
-Lemma body_reverse: semax_body_part Vprog Gprog
-                                    f_reverse reverse_spec_part.
+Lemma body_reverse: semax_body_part Vprog Gprog f_reverse reverse_spec_part.
 Proof.
 start_function.
 (** For each assignment statement, "symbolically execute" it
@@ -234,6 +578,7 @@ destruct s2 as [ | h r].
      Exists w. entailer!.
 * (* after the loop *)
 unfold POSTCONDITION, abbreviate.
+(* There's a step of logic here (eliminating the empty list), and we also need to know to quantify over w. *)
 instantiate (1 := fun '(sigma, p) => EX w, PROP () RETURN (w) SEP (listrep (rev sigma) w)).
 forward.  (* return w; *)
 Exists w; entailer!.
@@ -245,3 +590,18 @@ auto.
 Defined.
 
 Eval simpl in projT1 body_reverse.
+
+Fail Definition reverse_spec := (_reverse, match snd reverse_spec_part with
+| mk_funspec_part s c A P P_ne => mk_funspec s c A P (projT1 body_reverse) P_ne (const_super_non_expansive _ (projT1 body_reverse)) end).
+
+Definition reverse_spec' := (_reverse, mk_funspec ([tptr t_struct_list], tptr t_struct_list)
+  cc_default (rmaps.ConstType (list val * val)) reverse_pre (projT1 body_reverse)
+  (args_const_super_non_expansive _ reverse_pre) (const_super_non_expansive _ (projT1 body_reverse))).
+
+Lemma body_reverse' : semax_body Vprog Gprog f_reverse reverse_spec'.
+Proof.
+  unfold semax_body, reverse_spec'; simpl.
+  destruct body_reverse as (Q, H) eqn: Hbody; inv Hbody; simpl in *.
+  destruct H as (? & ? & H); split; auto; split; auto; intros.
+  specialize (H Espec ts x); destruct x; auto.
+Qed.
