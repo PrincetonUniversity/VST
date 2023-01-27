@@ -1,3 +1,6 @@
+CHANGES IN RELEASE 2.11.1 (December 2022)
+- Compatible with Coq 8.16.1, 8.15, and (perhaps) 8.14.
+
 CHANGES IN RELEASE 2.11 (August 2022)
 
 - Lemma base needed for user concurrency reasoning now provided
