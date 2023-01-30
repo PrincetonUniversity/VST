@@ -636,6 +636,17 @@ Proof.
   eapply clean_LOCAL_right_aux; eauto.
 Qed.
 
+(* This version of clean_LOCAL_right (with "bangbang") is to
+ support then entailer!! tactic [notation] that avoids putting above 
+ the line all the type-checking consequences of the LOCAL defs. *)
+Axiom clean_LOCAL_right_spec_bangbang: forall gvar_ident
+   (Delta: tycontext) (T1: Maps.PTree.t val) (T2: Maps.PTree.t (Ctypes.type * val)) (GV: option globals) P Q R S S'
+  (LEGAL: fold_right andb true (map (legal_glob_ident Delta) gvar_ident) = true),
+  local2ptree Q = (T1, T2, nil, GV) ->
+  clean_LOCAL_right Delta T1 T2 GV S S' ->
+  (local (tc_environ Delta) && PROPx P (LOCALx nil (SEPx R)) |-- liftx S') ->
+  local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R)) |-- S.
+
 Lemma clean_LOCAL_right_bupd_spec: forall gvar_ident (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t (type * val)) (GV: option globals) P Q R S S'
   (LEGAL: fold_right andb true (map (legal_glob_ident Delta) gvar_ident) = true),
   local2ptree Q = (T1, T2, nil, GV) ->
@@ -732,6 +743,17 @@ Ltac solve_clean_LOCAL_right :=
     | fail 1000 "The right hand side is messed up; perhaps you inadvertently did something like 'simpl in *' that changes POSTCONDITION into a form that Floyd cannot recognize.  You may do 'unfold abbreviate in POSTCONDITION' in your previous proof steps to inspect it"
     ].
 
+Inductive bangbang : Prop := bangbang_i.
+
+(* The trick here is that if there is a "bangbang" hypothesis above the line,
+ then eapply_clean_LOCAL_right_spec_rec will use the _bangbang form
+ of the clean_LOCAL_right_spec lemma; otherwise the default version *)
+Ltac choose_clean_LOCAL_right_spec L :=
+ lazymatch goal with 
+ | H: bangbang |- _ => eapply (@clean_LOCAL_right_spec_bangbang L)
+ | |- _ => eapply (@clean_LOCAL_right_spec L)
+ end.
+
 Ltac eapply_clean_LOCAL_right_spec_rec gv L :=
   match goal with
   | |- context [gv ?i] =>
@@ -746,7 +768,7 @@ Ltac eapply_clean_LOCAL_right_spec_rec gv L :=
       end
   | _ => match goal with
          | |- _ |-- |==> _ => eapply (@clean_LOCAL_right_bupd_spec L)
-         | _ => eapply (@clean_LOCAL_right_spec L)
+         | _ => choose_clean_LOCAL_right_spec L
          end
   end.
 
@@ -775,33 +797,10 @@ Ltac eapply_clean_LOCAL_right_spec :=
    | |- context [gvars ?gv] => 
           eapply_clean_LOCAL_right_spec_rec gv (@nil ident)
    | _ => match goal with
-         | |- _ |-- |==> _ => eapply (clean_LOCAL_right_bupd_spec nil)
-         | _ => eapply (clean_LOCAL_right_spec nil)
+         | |- _ |-- |==> _ => eapply (clean_LOCAL_right_bupd_spec (@nil ident))
+         | _ => choose_clean_LOCAL_right_spec (@nil ident)
          end
   end.
-
-(*
-Ltac eapply_clean_LOCAL_right_spec'' R :=
-  match R with context [?CS] => 
-     lazymatch type of CS with compspecs =>
-       eapply_clean_LOCAL_right_spec' CS || fail 1
-     end
-  | _ => eapply_clean_LOCAL_right_spec' emptyCS
-  end.
-
-Ltac eapply_clean_LOCAL_right_spec :=
- (* could also add special cases to make the bupd versions faster too *)
- lazymatch goal with
- | |- _ |-- prop _ => eapply_clean_LOCAL_right_spec' emptyCS
- | |- _ |-- @tc_expr ?CS _ _ => eapply_clean_LOCAL_right_spec' CS
- | |- _ |-- @tc_exprlist ?CS _ _ _ => eapply_clean_LOCAL_right_spec' CS
- | |- _ |-- @denote_tc_assert ?CS _ => eapply_clean_LOCAL_right_spec' CS
- | |- _ |-- local (liftx (tc_val _ _)) => eapply_clean_LOCAL_right_spec' emptyCS
- | |- _ |-- PROPx _ (LOCALx _ (SEPx ?R)) =>
-                          eapply_clean_LOCAL_right_spec'' R
- | |- _ |-- ?R => eapply_clean_LOCAL_right_spec'' R
- end.
-*)
 
 Ltac simpl_app_localdefs_tc :=
   unfold localdefs_tc, localdef_tc;

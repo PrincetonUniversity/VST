@@ -634,7 +634,10 @@ Ltac entbang :=
                            arbitrarily complex user expressions, it is ASTs
                            produced by clightgen *)
         sem_cast;
- saturate_local;
+ lazymatch goal with 
+   | H: bangbang |- _ => idtac
+   | |- _ => saturate_local
+ end;
  ent_iter;
  repeat change (mapsto_memory_block.spacer _ _ _ _) with emp;
  first [ contradiction
@@ -649,6 +652,13 @@ Ltac entbang :=
         ].
 
 Tactic Notation "entailer" "!" := entbang.
+
+Ltac entbangbang :=
+ let B := fresh "BangBang" in assert (BangBang :=bangbang_i);
+ entbang;
+ clear B.
+
+Tactic Notation "entailer" "!!" := entbangbang.
 
 Ltac elim_hyps :=  (* not in use anywhere? *)
  repeat lazymatch goal with

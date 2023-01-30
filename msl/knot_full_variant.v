@@ -4,6 +4,7 @@ Require Import VST.msl.functors.
 Require Import VST.msl.predicates_hered.
 Import VST.msl.functors.MixVariantFunctor.
 Import VST.msl.functors.MixVariantFunctorLemmas.
+Require Import Arith.
 
 Module Type KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL.
   Parameter F : functor.
@@ -557,7 +558,7 @@ Module Knot_MixVariantHeredTOthRel (KI':KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL) 
     simpl.
     unfold knot_level_def; simpl; auto.
     auto.
-    eapply Le.le_trans; eauto.
+    eapply Nat.le_trans; eauto.
     inv H0.
     unfold knot_level_def; simpl; auto.
 

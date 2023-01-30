@@ -7,6 +7,8 @@ Require Import VST.msl.base.
 Require Import VST.msl.ageable.
 Require Import VST.msl.predicates_hered.
 
+Import Arith.
+
 Local Open Scope pred.
 
 Section Fash.
@@ -96,7 +98,7 @@ intros.
 split; induction 1; simpl; intros.
 unfold age, age1 in H; simpl in H; unfold natAge1 in H. destruct x; inv H.
 auto.
-apply Gt.gt_trans with y; auto.
+apply Nat.lt_trans with y; auto.
 constructor 1. unfold age, age1; simpl. auto.
 constructor 2 with m; auto.
 constructor 1. unfold age, age1; simpl. auto.
@@ -501,7 +503,7 @@ Lemma eqp_nat: forall P Q: pred nat, (P <=> Q) = (P <--> Q).
 Proof.
 intros.
 apply pred_ext; intros w ?.
-specialize (H _ (Le.le_refl _)); auto.
+specialize (H _ (Nat.le_refl _)); auto.
 intros n' ?. inv H0; auto.
 eapply pred_nec_hereditary; try apply H.
 apply nec_nat.
