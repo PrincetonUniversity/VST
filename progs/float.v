@@ -55,36 +55,38 @@ Definition ___builtin_va_end : ident := 27%positive.
 Definition ___builtin_va_start : ident := 24%positive.
 Definition ___builtin_write16_reversed : ident := 38%positive.
 Definition ___builtin_write32_reversed : ident := 39%positive.
-Definition ___compcert_i64_dtos : ident := 50%positive.
-Definition ___compcert_i64_dtou : ident := 51%positive.
-Definition ___compcert_i64_sar : ident := 62%positive.
-Definition ___compcert_i64_sdiv : ident := 56%positive.
-Definition ___compcert_i64_shl : ident := 60%positive.
-Definition ___compcert_i64_shr : ident := 61%positive.
-Definition ___compcert_i64_smod : ident := 58%positive.
-Definition ___compcert_i64_smulh : ident := 63%positive.
-Definition ___compcert_i64_stod : ident := 52%positive.
-Definition ___compcert_i64_stof : ident := 54%positive.
-Definition ___compcert_i64_udiv : ident := 57%positive.
-Definition ___compcert_i64_umod : ident := 59%positive.
-Definition ___compcert_i64_umulh : ident := 64%positive.
-Definition ___compcert_i64_utod : ident := 53%positive.
-Definition ___compcert_i64_utof : ident := 55%positive.
-Definition ___compcert_va_composite : ident := 49%positive.
-Definition ___compcert_va_float64 : ident := 48%positive.
-Definition ___compcert_va_int32 : ident := 46%positive.
-Definition ___compcert_va_int64 : ident := 47%positive.
+Definition ___compcert_i64_dtos : ident := 51%positive.
+Definition ___compcert_i64_dtou : ident := 52%positive.
+Definition ___compcert_i64_sar : ident := 63%positive.
+Definition ___compcert_i64_sdiv : ident := 57%positive.
+Definition ___compcert_i64_shl : ident := 61%positive.
+Definition ___compcert_i64_shr : ident := 62%positive.
+Definition ___compcert_i64_smod : ident := 59%positive.
+Definition ___compcert_i64_smulh : ident := 64%positive.
+Definition ___compcert_i64_stod : ident := 53%positive.
+Definition ___compcert_i64_stof : ident := 55%positive.
+Definition ___compcert_i64_udiv : ident := 58%positive.
+Definition ___compcert_i64_umod : ident := 60%positive.
+Definition ___compcert_i64_umulh : ident := 65%positive.
+Definition ___compcert_i64_utod : ident := 54%positive.
+Definition ___compcert_i64_utof : ident := 56%positive.
+Definition ___compcert_va_composite : ident := 50%positive.
+Definition ___compcert_va_float64 : ident := 49%positive.
+Definition ___compcert_va_int32 : ident := 47%positive.
+Definition ___compcert_va_int64 : ident := 48%positive.
+Definition _a : ident := 42%positive.
 Definition _foo : ident := 4%positive.
-Definition _main : ident := 45%positive.
+Definition _main : ident := 46%positive.
 Definition _s : ident := 41%positive.
 Definition _x : ident := 1%positive.
-Definition _x1 : ident := 43%positive.
+Definition _x1 : ident := 44%positive.
 Definition _y : ident := 2%positive.
-Definition _y1 : ident := 42%positive.
-Definition _y2 : ident := 44%positive.
+Definition _y1 : ident := 43%positive.
+Definition _y2 : ident := 45%positive.
 Definition _z : ident := 3%positive.
-Definition _t'1 : ident := 65%positive.
-Definition _t'2 : ident := 66%positive.
+Definition _t'1 : ident := 66%positive.
+Definition _t'2 : ident := 67%positive.
+Definition _t'3 : ident := 68%positive.
 
 Definition v_s := {|
   gvar_info := (Tstruct _foo noattr);
@@ -95,28 +97,48 @@ Definition v_s := {|
   gvar_volatile := false
 |}.
 
+Definition v_a := {|
+  gvar_info := (tarray tdouble 2);
+  gvar_init := (Init_float64 (Float.of_bits (Int64.repr 0)) ::
+                Init_float64 (Float.of_bits (Int64.repr 4607632778762754458)) ::
+                nil);
+  gvar_readonly := false;
+  gvar_volatile := false
+|}.
+
 Definition f_main := {|
   fn_return := tint;
   fn_callconv := cc_default;
   fn_params := nil;
   fn_vars := nil;
   fn_temps := ((_y1, tdouble) :: (_x1, tint) :: (_y2, tint) ::
-               (_t'2, tfloat) :: (_t'1, tfloat) :: nil);
+               (_t'3, tfloat) :: (_t'2, tfloat) :: (_t'1, tdouble) :: nil);
   fn_body :=
 (Ssequence
   (Ssequence
     (Ssequence
-      (Sset _t'2 (Efield (Evar _s (Tstruct _foo noattr)) _y tfloat))
-      (Sset _y1 (Ecast (Etempvar _t'2 tfloat) tdouble)))
+      (Sset _t'3 (Efield (Evar _s (Tstruct _foo noattr)) _y tfloat))
+      (Sset _y1 (Ecast (Etempvar _t'3 tfloat) tdouble)))
     (Ssequence
       (Sset _x1 (Efield (Evar _s (Tstruct _foo noattr)) _x tint))
       (Ssequence
         (Ssequence
-          (Sset _t'1 (Efield (Evar _s (Tstruct _foo noattr)) _y tfloat))
-          (Sset _y2 (Ecast (Etempvar _t'1 tfloat) tint)))
+          (Sset _t'2 (Efield (Evar _s (Tstruct _foo noattr)) _y tfloat))
+          (Sset _y2 (Ecast (Etempvar _t'2 tfloat) tint)))
         (Ssequence
           (Sset _y1 (Efield (Evar _s (Tstruct _foo noattr)) _z tdouble))
-          (Sreturn (Some (Econst_int (Int.repr 0) tint)))))))
+          (Ssequence
+            (Ssequence
+              (Sset _t'1
+                (Ederef
+                  (Ebinop Oadd (Evar _a (tarray tdouble 2))
+                    (Econst_int (Int.repr 1) tint) (tptr tdouble)) tdouble))
+              (Sassign
+                (Ederef
+                  (Ebinop Oadd (Evar _a (tarray tdouble 2))
+                    (Econst_int (Int.repr 0) tint) (tptr tdouble)) tdouble)
+                (Etempvar _t'1 tdouble)))
+            (Sreturn (Some (Econst_int (Int.repr 0) tint))))))))
   (Sreturn (Some (Econst_int (Int.repr 0) tint))))
 |}.
 
@@ -388,10 +410,10 @@ Definition global_definitions : list (ident * globdef fundef type) :=
                      {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|}))
      (Tcons tint Tnil) tvoid
      {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|})) ::
- (_s, Gvar v_s) :: (_main, Gfun(Internal f_main)) :: nil).
+ (_s, Gvar v_s) :: (_a, Gvar v_a) :: (_main, Gfun(Internal f_main)) :: nil).
 
 Definition public_idents : list ident :=
-(_main :: _s :: ___builtin_debug :: ___builtin_write32_reversed ::
+(_main :: _a :: _s :: ___builtin_debug :: ___builtin_write32_reversed ::
  ___builtin_write16_reversed :: ___builtin_read32_reversed ::
  ___builtin_read16_reversed :: ___builtin_fnmsub :: ___builtin_fnmadd ::
  ___builtin_fmsub :: ___builtin_fmadd :: ___builtin_fmin ::

@@ -586,6 +586,238 @@ Proof.
   apply derives_refl.
 Qed.
 
+Definition float_type (sz: floatsize) : Type :=
+   match sz with F32 => float32 | F64 => float end.
+
+Definition float_constructor (sz: floatsize) :  float_type sz -> val
+ :=   match sz with F32 => Vsingle | F64 => Vfloat end.
+
+Definition floattype2init_data (sz: floatsize) : (float_type sz -> init_data) :=
+ match sz with F32 => Init_float32 | F64 => Init_float64 end.
+
+Lemma id2pred_star_ZnthV_tfloat  {cs: compspecs}:
+ forall Delta sz gz sh n (v: val) (data: list (float_type sz)) mdata,
+  n = Zlength mdata ->
+  mdata = map (floattype2init_data sz) data ->
+  !! isptr v && !! align_compatible (Tfloat sz noattr) v &&
+  !! offset_strict_in_range (sizeof (Tfloat sz noattr) * n) v &&
+  `(id2pred_star Delta gz sh v mdata) |--
+  `(data_at sh (tarray (Tfloat sz noattr) n) (map  (float_constructor sz) data) v).
+Proof. intros.
+  subst n mdata.
+  replace (Zlength (map  (floattype2init_data sz) data)) with (Zlength data)
+    by (repeat rewrite Zlength_correct; rewrite map_length; auto).
+  go_lowerx.
+  match goal with |- ?F _ _ _ _ _ _ |-- _ => change F with @id2pred_star end.
+  change (offset_strict_in_range (sizeof (Tfloat sz noattr) * Zlength data) v) in H1.
+  assert (offset_strict_in_range (sizeof (Tfloat sz noattr) * 0) v) by
+    (unfold offset_strict_in_range; destruct v; auto; pose proof Ptrofs.unsigned_range i; lia).
+unfold tarray.
+set (t := Tfloat sz noattr) in *.
+revert v H H0 H1 H2; induction data; intros.
+*
+  rewrite Zlength_nil. unfold data_at, field_at; simpl.
+  unfold at_offset; simpl.
+   unfold nested_field_type; simpl.
+   rewrite data_at_rec_eq. unfold  aggregate_pred.aggregate_pred.array_pred.
+  unfold aggregate_pred.array_pred. simpl.
+  repeat apply andp_right; auto; try apply prop_right; try reflexivity.  
+  hnf. simpl.
+  split3; auto.
+  split3; auto.
+  hnf. destruct v; auto. replace (sizeof (Tarray (Tfloat sz noattr) 0 noattr)) with 0 by (destruct sz; simpl; auto).
+  pose proof Ptrofs.unsigned_range i; lia.
+  hnf; destruct v; auto. apply align_compatible_rec_Tarray. intros. lia.
+*
+rewrite Zlength_cons.
+simpl map.
+unfold id2pred_star; fold @id2pred_star.
+erewrite (split2_data_at_Tarray sh t (Z.succ (Zlength data)) 1).
+4: rewrite sublist_same.
+4: apply eq_refl.
+2: list_solve.
+2: list_solve. 2: auto. 2: list_solve. 2: apply eq_refl. 2: apply eq_refl.
+rewrite (sublist_one) by list_solve.
+autorewrite with sublist.
+rewrite sublist_1_cons.
+rewrite sublist_same by list_solve.
+apply sepcon_derives.
++
+clear IHdata.
+fold (tarray t 1). erewrite data_at_singleton_array_eq by apply eq_refl.
+rewrite <- (mapsto_data_at sh t (float_constructor sz a)
+                          (float_constructor sz a) v); try reflexivity; auto.
+2: subst t; destruct sz; reflexivity.
+2:{
+destruct v; auto. red.
+assert (sizeof t > 0).
+subst t; unfold sizeof; simpl. destruct sz; computable.
+clearbody t.
+clear - H1 H3.
+rewrite Zlength_cons in H1. simpl in H1.
+unfold Z.succ in H1. rewrite Z.mul_add_distr_l in H1.
+pose proof (Zlength_nonneg data).
+rewrite Z.mul_1_r in H1.
+assert (0 <= sizeof t * Zlength data)
+  by (apply Z.mul_nonneg_nonneg; lia).
+ lia.
+}
+subst t.
+normalize.
+unfold init_data2pred', inttype2init_data.
+destruct sz; apply derives_refl.
++
+  replace (init_data_size (floattype2init_data sz a)) with (sizeof t) 
+      by (subst t; destruct sz; simpl; auto).
+  assert (H8: align_compatible t (offset_val (sizeof t) v)
+                /\  offset_strict_in_range (sizeof t * Zlength data) (offset_val (sizeof t) v)
+               /\ offset_strict_in_range (sizeof t * 0) (offset_val (sizeof t) v)).  {
+   clear IHdata.
+   rewrite Zlength_cons in H1. unfold Z.succ in H1.
+   rewrite Z.mul_add_distr_l in H1. rewrite Z.mul_1_r in H1.
+   rewrite Z.mul_0_r in H2.
+   pose proof (sizeof_pos t). pose proof (Zlength_nonneg data).
+   destruct v; try contradiction.
+   pose proof (Ptrofs.unsigned_range i).
+   assert (Ptrofs.max_unsigned = Ptrofs.modulus-1) by computable.
+   rewrite Z.mul_0_r in *.
+   assert (0 <= sizeof t * Zlength data) by (apply Z.mul_nonneg_nonneg; lia).
+   unfold offset_strict_in_range, offset_val in *.
+   unfold align_compatible in H0|-*.
+   unfold Ptrofs.add.
+   rewrite (Ptrofs.unsigned_repr (sizeof t)) 
+    by (unfold sizeof, Ptrofs.max_unsigned, Ptrofs.modulus, Ptrofs.wordsize, Wordsize_Ptrofs.wordsize;
+          clear; subst t; destruct sz, Archi.ptr64; simpl; lia).
+  rewrite Ptrofs.unsigned_repr.
+  split3; try lia.
+   assert (exists ch, access_mode t = By_value ch)
+     by (clear; subst t; destruct sz; eexists; reflexivity).
+  destruct H8 as [ch ?].
+  apply align_compatible_rec_by_value_inv with (ch:=ch) in H0; auto.
+  apply align_compatible_rec_by_value with (ch:=ch); auto.
+   apply Z.divide_add_r; auto.
+  clear - H8. subst t. 
+  destruct sz; inv H8; simpl; (apply Zmod_divide; [lia | reflexivity]).
+  unfold Ptrofs.max_unsigned.
+  lia.
+ }
+ destruct H8 as [H8a [H8b H8c]].
+  eapply derives_trans; [ apply IHdata | ]; clear IHdata; auto.
+  replace (Z.succ (Zlength data) - 1) with (Zlength data) by (clear; lia).
+   apply derives_refl'; f_equal.
+ unfold field_address0.
+  rewrite if_true.
+  unfold offset_val. destruct v; simpl; auto. f_equal.
+  subst t; destruct sz; reflexivity.
+  eapply field_compatible0_cons_Tarray.
+  reflexivity.
+  hnf; simpl. split3; auto. 
+  destruct v; try contradiction.
+  split3; auto; red.
+  unfold sizeof, Ctypes.sizeof;  fold Ctypes.sizeof. fold (sizeof t).
+  pose proof (Zlength_nonneg data).
+  rewrite Z.max_r by lia.
+  unfold offset_strict_in_range in H1. rewrite Zlength_cons in H1.
+  lia.
+  apply align_compatible_rec_Tarray; intros.
+  unfold align_compatible, offset_val in H8a.
+  assert (exists ch, access_mode t = By_value ch)
+     by (clear; subst t; destruct sz; eexists; reflexivity).
+   destruct H4 as [ch ?].
+  eapply align_compatible_rec_by_value; try eassumption.
+  simpl in H0.
+  eapply align_compatible_rec_by_value_inv in H0; try eassumption.
+  apply Z.divide_add_r; auto.
+  apply Z.divide_mul_l; auto.
+  clear - t H4.
+  subst t.
+  destruct sz; inv H4; simpl; (apply Zmod_divide; [lia | reflexivity]).
+  pose proof (Zlength_nonneg data); lia.
+Qed.
+
+Lemma unpack_globvar_array_float  {cs: compspecs}:
+  forall t sz (data: list (float_type sz))  n Delta gz i gv,
+   (var_types Delta) ! i = None ->
+   (glob_types Delta) ! i = Some (gvar_info gv) ->
+   gvar_info gv = tarray t n ->
+   gvar_volatile gv = false ->
+   t = Tfloat sz noattr ->
+   n = Zlength (gvar_init gv) ->
+   gvar_init gv = map (floattype2init_data sz) data ->
+   init_data_list_size (gvar_init gv) <= sizeof (gvar_info gv) <= Ptrofs.max_unsigned ->
+   local (`and (tc_environ Delta) (fun rho =>gz = globals_of_env rho)) && `(globvar2pred gz(i, gv)) |--
+      `(data_at (readonly2share (gvar_readonly gv))
+         (tarray (Tfloat sz noattr) n)
+         (map (float_constructor sz) data)
+         (gz i)).
+Proof.
+  intros. subst t.
+  match goal with |- ?A |-- _ =>
+    erewrite (add_andp A (local (tc_environ Delta)))
+  end.
+ 2: solve [apply andp_left1; unfold local, lift1; intro rho; apply prop_derives; intros [? ?]; auto].
+  match goal with |- ?A |-- _ =>
+    erewrite (add_andp A (local (`isptr (eval_var i (tarray (Tfloat sz noattr) n)))))
+  end.
+  2:{
+    go_lowerx. apply prop_right. eapply eval_var_isptr; eauto.
+    right; split; auto. rewrite <- H1; auto.
+   }
+  eapply derives_trans.
+  apply andp_right.
+  apply andp_left1. apply andp_left1. apply andp_left1. apply derives_refl.
+  apply andp_derives; [ apply andp_derives;
+    [ eapply unpack_globvar_star; try eassumption; try reflexivity
+    | apply derives_refl]  | apply derives_refl].
+  rewrite H5.
+  rewrite <- andp_assoc.
+  apply andp_left1.
+  go_lowerx. 
+  eapply derives_trans; [| apply (id2pred_star_ZnthV_tfloat Delta sz (globals_of_env rho)); auto].
+  instantiate (1 := rho).
+ 2: rewrite <- H5; auto.
+ match goal with |- ?F _ _ _ _ _ _ |-- _ => change F with @id2pred_star end.
+  subst gz.
+  normalize. clear H8.
+  rewrite H1 in H6.
+  assert (headptr (globals_of_env rho i)). {
+    unfold globals_of_env. destruct  (globvar_eval_var _ _ _ _ H3 H H0) as [b [_ H10]]. rewrite H10.
+    exists b; auto. 
+  }
+  assert (align_compatible (Tfloat sz noattr) (globals_of_env rho i)). {
+    destruct H7 as [b ?]. rewrite H7.
+   assert (exists ch, access_mode (Tfloat sz noattr) = By_value ch)
+     by (clear; destruct sz; eexists; reflexivity).
+   destruct H8 as [ch ?].
+    eapply align_compatible_rec_by_value; try eassumption.
+    rewrite Ptrofs.unsigned_zero.
+    apply Z.divide_0_r.
+  }
+ apply headptr_isptr in H7.
+ simpl andp. fold (sizeof (Tfloat sz noattr)).
+  assert (offset_strict_in_range (sizeof (Tfloat sz noattr) * n) (globals_of_env rho i)). {
+    unfold offset_strict_in_range.
+    destruct (globals_of_env rho i) eqn:?H; auto.
+    rewrite H5 in H6; simpl in H6. unfold sizeof in H6; simpl in H6.
+    pose proof initial_world.zlength_nonneg _ (gvar_init gv).
+    rewrite Z.max_r in H6 by lia.
+   change (match sz with F32 => 4 | F64 => 8 end)
+    with (sizeof (Tfloat sz noattr)) in H6.
+    unfold Ptrofs.max_unsigned in H6.
+    pose proof init_data_list_size_pos (gvar_init gv).
+    simpl in H8.
+    unfold globals_of_env in H9. destruct (Map.get (ge_of rho) i) eqn:?H; inv H9.
+    rewrite Ptrofs.unsigned_zero.
+    split; try lia. 
+    rewrite Z.add_0_l.
+    apply Z.mul_nonneg_nonneg.
+    clear; pose proof (sizeof_pos (Tfloat sz noattr)); lia.
+    apply Zlength_nonneg.
+  }
+  normalize.
+  apply derives_refl.
+Qed.
+
 Definition gv_globvars2pred (gv: ident->val) (vl: list (ident * globvar type)) : mpred :=
   (fold_right_sepcon (map (globvar2pred gv) vl)).
 
@@ -742,6 +974,46 @@ Proof.
 intros.
 pose proof (unpack_globvar_array _ _ _ _ _ _ gz _ _ H H0 H1 H2 H3 H4 H5 H6 H7).
 clear H H0 H1 H2 H3 H4 H5 H6 H7.
+unfold globvars_in_process.
+unfold globvars2pred.
+change (lift_S (LiftEnviron Prop)) with environ in *.
+unfold lift2.
+change  (fun rho : environ => gz = globals_of_env rho)
+  with (locald_denote (gvars gz)) in H8|-*.
+go_lowerx.
+normalize.
+pull_right (fold_right_sepcon done).
+apply sepcon_derives; auto.
+apply sepcon_derives; auto.
+unfold local, lift1 in H8. specialize (H8 rho). simpl in H8. rewrite prop_true_andp in H8 by (split; auto).
+apply H8.
+Qed.
+
+Lemma process_globvar_array_float:
+  forall {cs: compspecs} Delta done gz (i: ident)
+          gv al (n: Z) (t: type)  (sz : floatsize)
+         (data : list (float_type sz)),
+       Maps.PTree.get i (var_types Delta) = None ->
+       Maps.PTree.get i (glob_types Delta) = Some (gvar_info gv) ->
+       gvar_info gv = tarray t n ->
+       gvar_volatile gv = false ->
+       t = Tfloat sz noattr ->
+       n = Zlength (gvar_init gv) ->
+       gvar_init gv = map (floattype2init_data sz) data ->
+       init_data_list_size (gvar_init gv) <= sizeof (gvar_info gv) <=
+       Ptrofs.max_unsigned ->
+  ENTAIL Delta,   
+       globvars_in_process gz done emp ((i,gv)::al) |--
+    globvars_in_process gz 
+        (data_at
+                   (readonly2share (gvar_readonly gv))
+                   (tarray (Tfloat sz noattr) n)
+                   (map (float_constructor sz) data) (gz i) :: done)
+        emp al.
+Proof.
+intros.
+assert (H8 := unpack_globvar_array_float _ _ _ _ _ gz _ _ H H0 H1 H2 H3 H4 H5 H6).
+clear H H0 H1 H2 H3 H4 H5 H6.
 unfold globvars_in_process.
 unfold globvars2pred.
 change (lift_S (LiftEnviron Prop)) with environ in *.
@@ -1281,6 +1553,15 @@ Ltac process_one_globvar' :=
       | compute; clear; congruence
       | repeat eapply map_instantiate; symmetry; apply map_nil
       | compute; split; clear; congruence  ]
+  | match goal with |- ENTAIL ?Delta, globvars_in_process ?gv _ emp ((?i,?v)::_) |-- _ =>
+        (* need this hack because, for some reason, simple eapply does not work here *)
+           unify (is_array_type (gvar_info v)) true
+     end;
+      eapply process_globvar_array_float;
+      [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
+      | reflexivity
+      | repeat eapply map_instantiate; symmetry; apply map_nil
+      | compute; split; clear; congruence  ]
   | simple eapply process_globvar_star';
         [reflexivity | reflexivity | reflexivity ]
   | simple eapply halfprocess_globvar_star;
@@ -1288,7 +1569,7 @@ Ltac process_one_globvar' :=
          simpl; compute; split; clear; congruence ]
   ].
 Ltac process_one_globvar :=
-  eapply ENTAIL_trans; [process_one_globvar' | ].
+  eapply ENTAIL_trans; [process_one_globvar' | simpl float_constructor].
 
 Lemma move_globfield_into_done:
  forall Delta gv done S1 R al R',
