@@ -4967,6 +4967,10 @@ for the user to prove.
 (tactic; \autopageref{refcard:entailer}, \autopageref{refcard:entailments})
 Like \lstinline{entailer}, but faster and more powerful---however,
 it sometimes turns a provable goal into an unprovable goal.
+\item[\textsf{entailer!!}]
+(tactic; \autopageref{refcard:entailer}, \autopageref{refcard:entailments})
+  Like \lstinline{entailer!}, but does not put hypotheses above the line
+  derived from SEP and LOCAL clauses.
 
 \item[\textsf{Exists} $v$]
 (tactic; \autoref{refcard:EX})
@@ -5046,6 +5050,12 @@ component to the application of a sequence of initializations to the
 host function's func\_tycontext.  Used to prepare the current
 proof goal for abstracting/factoring out as a separate lemma.
 % Superordinate tactics:  $\mathit{semax\_subcommand}$\\
+
+\item[\textsf{rep\_lia}]
+  (tactic; \autopageref{refcard:rep-lia})
+  Solves goals in linear integer arithmetic (like \lstinline{lia}) enhanced
+  by extra facts about 32-bit and 64-bit modular representations of integers
+  (Int and Int64 modules).
 
 \item[\textsf{semax\_subcommand\ $V$\ $G$\ $F$}]
 (tactic)
