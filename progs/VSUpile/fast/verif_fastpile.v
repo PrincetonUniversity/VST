@@ -81,22 +81,22 @@ start_function.
 simpl pilerep. unfold fastprep.
 Intros s.
 forward.
-forward_if (temp _t'1 (if zle 0 n then if zle n (Int.max_signed-s) then Vtrue else Vfalse else Vfalse)).
+forward_if (temp _t'1 (bool2val (zle 0 n && zle n (Int.max_signed-s)))).
+(* (if zle 0 n then if zle n (Int.max_signed-s) then Vtrue else Vfalse else Vfalse)).*)
 forward.
 entailer!.
 destruct (zle 0 n); [ | lia].
+unfold Int.cmp, Int.lt.
 destruct (zle _ _).
-unfold Int.lt. rewrite zlt_false.
+rewrite zlt_false by (normalize; rep_lia).
 reflexivity.
-normalize. rep_lia.
-unfold Int.lt. rewrite zlt_true.
+rewrite zlt_true by (normalize; rep_lia).
 reflexivity.
-normalize.
-rep_lia.
 forward.
 entailer!.
-destruct (zle 0 n); try lia. clear l.
+destruct (zle 0 n); try lia. simpl andb. clear l.
 destruct (zle n (Int.max_signed - s)).
+simpl bool2val.
 -
 forward_if (PROP()LOCAL (temp _pp p)
    SEP(data_at Ews tpile (Vint (Int.repr (s+n))) p;
@@ -118,7 +118,7 @@ apply sumlist_nonneg in H1; lia.
 forward_if (PROP()LOCAL (temp _pp p)
    SEP(data_at Ews tpile (Vint (Int.repr s)) p;
          mem_mgr M gv)).
-contradiction H3'; auto.
+discriminate.
 forward.
 entailer!.
 forward.

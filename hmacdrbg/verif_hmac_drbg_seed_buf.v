@@ -79,7 +79,7 @@ Proof.
     (repeat (Vint Int.one) (Z.to_nat 32),
      (Vint (Int.repr reseed_counter),
       (Vint (Int.repr entropy_len),
-       (Val.of_bool prediction_resistance,
+       (bool2val prediction_resistance,
         (Vint (Int.repr reseed_interval)))))))). eexists; reflexivity.
   destruct H as [xx XX].
 
@@ -248,7 +248,7 @@ Proof.
     (repeat (Vint Int.one) (Z.to_nat 32),
      (Vint (Int.repr reseed_counter),
       (Vint (Int.repr entropy_len),
-       (Val.of_bool prediction_resistance,
+       (bool2val prediction_resistance,
         (Vint (Int.repr reseed_interval)))))))). eexists; reflexivity.
   destruct H1 as [xx XX].
 

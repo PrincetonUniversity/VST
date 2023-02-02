@@ -917,6 +917,15 @@ rewrite <- Z.leb_le;
 reflexivity.
 Qed.
 
+Lemma tc_bool2val:
+ forall x i3 s3 a3, tc_val (Tint i3 s3 a3) (bool2val x).
+Proof.
+intros.
+destruct x, i3,s3; simpl; try split; auto;
+rewrite <- Z.leb_le;
+reflexivity.
+Qed.
+
 Lemma tc_val_sem_cmp:
  forall op v1 t1 v2 t2 i3 s3 a3,
  tc_numeric_val v1 t1 ->
@@ -932,7 +941,7 @@ destruct v1;
 destruct v2;
   destruct t2 as  [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ];
  try contradiction H0;
- apply tc_val_of_bool.
+ apply tc_bool2val.
 Transparent tc_val.
 Qed.
 
@@ -944,7 +953,7 @@ Proof.
   unfold sem_cmp_pp, option_map in H.
   forget (if Archi.ptr64 then Val.cmplu_bool true2 cmp v1 v2 else Val.cmpu_bool true2 cmp v1 v2) as v0.
   destruct v0; inv H.
-  intros _; apply tc_val_of_bool.
+  intros _; apply tc_bool2val.
 Qed.
 
 Lemma tc_val'_sem_cmp: forall cmp t v1 v2 t1 t2,
@@ -993,7 +1002,7 @@ Proof.
       destruct v0; inv H.
       destruct v2'; [| inv H1].
       destruct v0; inv H1.
-      intros _; apply tc_val_of_bool.
+      intros _; apply tc_bool2val.
     - unfold both_long in H.
       forget (Clight_Cop2.sem_cast t1 (Cop.binarith_type (Cop.bin_case_l s0)) v1) as v1'.
       forget (Clight_Cop2.sem_cast t2 (Cop.binarith_type (Cop.bin_case_l s0)) v2) as v2'.
@@ -1001,7 +1010,7 @@ Proof.
       destruct v0; inv H.
       destruct v2'; [| inv H1].
       destruct v0; inv H1.
-      intros _; apply tc_val_of_bool.
+      intros _; apply tc_bool2val.
     - unfold both_float in H.
       forget (Clight_Cop2.sem_cast t1 (Cop.binarith_type (Cop.bin_case_f)) v1) as v1'.
       forget (Clight_Cop2.sem_cast t2 (Cop.binarith_type (Cop.bin_case_f)) v2) as v2'.
@@ -1009,7 +1018,7 @@ Proof.
       destruct v0; inv H.
       destruct v2'; [| inv H1].
       destruct v0; inv H1.
-      intros _; apply tc_val_of_bool.
+      intros _; apply tc_bool2val.
     - unfold both_single in H.
       forget (Clight_Cop2.sem_cast t1 (Cop.binarith_type (Cop.bin_case_s)) v1) as v1'.
       forget (Clight_Cop2.sem_cast t2 (Cop.binarith_type (Cop.bin_case_s)) v2) as v2'.
@@ -1017,7 +1026,7 @@ Proof.
       destruct v0; inv H.
       destruct v2'; [| inv H1].
       destruct v0; inv H1.
-      intros _; apply tc_val_of_bool.
+      intros _; apply tc_bool2val.
     - inv H.
 Qed.
 
@@ -1044,7 +1053,7 @@ unfold Clight_Cop2.sem_cmp, classify_cmp, typeconv,
   Clight_Cop2.sem_binarith, sem_cast, classify_cast, sem_cmp_lp, sem_cmp_pp;
  simpl; try rewrite H;
  try reflexivity;
- try apply tc_val_of_bool).
+ try apply tc_bool2val).
 Transparent tc_val.
 all: try solve [hnf in H0; destruct (eqb_type _ _); inv H0].
 Abort.
@@ -1072,7 +1081,7 @@ unfold Clight_Cop2.sem_cmp, classify_cmp, typeconv,
   sem_binarith, sem_cast, classify_cast, sem_cmp_pl, sem_cmp_pp;
  simpl; try rewrite H;
  try reflexivity;
- try apply tc_val_of_bool).
+ try apply tc_bool2val).
 Transparent tc_val.
 Abort.
 

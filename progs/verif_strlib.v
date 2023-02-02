@@ -288,7 +288,7 @@ forward_loop (EX i : Z,
     intro X; lapply (Znth_In i ls2); [|lia]. cstring. }
   forward.
   forward. fold_Vbyte.
-  forward_if (temp _t'1 (Val.of_bool (Z.eqb i (Zlength ls1) && Z.eqb i (Zlength ls2)))).
+  forward_if (temp _t'1 (bool2val (Z.eqb i (Zlength ls1) && Z.eqb i (Zlength ls2)))).
   { forward.
     simpl force_val.
     rewrite Hs1 in *.
@@ -300,13 +300,13 @@ forward_loop (EX i : Z,
      rewrite (proj2 (Z.eqb_eq i (Zlength ls2)) H7).
      entailer!.
   +
-    rewrite Int.eq_false.
-     rewrite (proj2 (Z.eqb_eq i (Zlength ls1)) H6).
-     rewrite Hs2 in n.
-     rewrite (proj2 (Z.eqb_neq i (Zlength ls2))) by auto.
-    entailer!.
-     contradict n.
-     apply repr_inj_signed in n; try rep_lia.  autorewrite with norm in n. auto.
+    entailer!!. unfold bool2val. f_equal. rewrite Z.eqb_refl.
+    assert (Zlength ls1 <> Zlength ls2) by list_solve.
+    rewrite (proj2 (Z.eqb_neq _ _) H6).
+    unfold Int.cmp.
+    rewrite (Int.eq_false (Int.repr (Byte.signed _))). reflexivity.
+    contradict n.
+    apply repr_inj_signed in n; try rep_lia.  autorewrite with norm in n. auto.
  }
   { forward.
     entailer!.
@@ -524,10 +524,12 @@ forward_loop (EX i : Z,
           (map Vbyte (ls2 ++ [Byte.zero])) str2)).
 - finish.
 - fastforward.
-  forward_if (temp _t'1 (Val.of_bool (Z.eqb i (Zlength ls1) && Z.eqb i (Zlength ls2)))).
+  forward_if (temp _t'1 (bool2val (Z.eqb i (Zlength ls1) && Z.eqb i (Zlength ls2)))).
   (* these two parts are not much simplified *)
   { forward. cstring1. entailer!.
+    unfold bool2val; f_equal.
     rewrite (proj2 (Z.eqb_eq _ _)) by auto.
+    unfold Int.cmp.
     destruct (Int.eq (Int.repr (Byte.signed (Znth (Zlength ls1) (ls2 ++ [Byte.zero])))) (Int.repr 0)) eqn:Heqb;
     do_repr_inj Heqb. (* utilize this internal tactic *)
     - rewrite (proj2 (Z.eqb_eq _ _)) by cstring.

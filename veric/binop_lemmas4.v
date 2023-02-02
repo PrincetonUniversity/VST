@@ -163,6 +163,7 @@ Proof.
 intros.
 unfold cmp_ptr, sem_cmp_pp.
 unfold denote_tc_test_eq in H.
+ rewrite bool2val_eq.
  destruct v1; try contradiction; auto;
  destruct v2; try contradiction; auto.
 *
@@ -300,8 +301,9 @@ Proof.
   intros.
   unfold denote_tc_test_order in H.
   destruct v1; try contradiction; auto;
-  destruct v2; try contradiction; auto.
-  unfold cmp_ptr, sem_cmp_pp; simpl.
+  destruct v2; try contradiction; auto;
+  unfold cmp_ptr, sem_cmp_pp; simpl;
+  rewrite bool2val_eq; auto.
   unfold test_order_ptrs in *.
   unfold sameblock in H.
   destruct (peq b b0);
@@ -822,8 +824,7 @@ try rewrite <- ?classify_add_eq , <- ?classify_sub_eq, <- ?classify_cmp_eq, <- ?
             end;
  try clear CS; try clear m;
  try change (Ctypes.sizeof ty) with (sizeof ty).
-Time
-all: try ( (
+all: try solve [ (
 red in TC1,TC2;
 destruct (typeof e1)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
 try discriminate C;
@@ -843,6 +844,7 @@ repeat match goal with
                                                          rewrite ?eq_block_lem'
  | H: is_numeric_type _ = true |- _  => inv H
  end;
+ rewrite ?bool2val_eq;
  try simple apply eq_refl;
  rewrite ?sem_cast_long_intptr_lemma in *;
  rewrite ?sem_cast_int_intptr_lemma in *;
@@ -875,6 +877,5 @@ repeat match goal with
  erewrite ?denote_tc_test_eq_Vint_r' by eassumption;
  erewrite ?denote_tc_test_eq_Vlong_l' by eassumption;
  erewrite ?denote_tc_test_eq_Vlong_r' by eassumption;
- reflexivity)).  (* 292 sec *)
-
+ reflexivity)].
 Time Qed.  (* 31.5 sec *)

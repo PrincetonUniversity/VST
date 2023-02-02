@@ -256,6 +256,7 @@ simpl.
 clear MT_1 MT_2.
 unfold mapsto_ in MT1, MT2.
 unfold mapsto in MT1,MT2.
+rewrite bool2val_eq.
 destruct (access_mode t1) eqn:?A1;
  try solve [simpl in MT1; contradiction].
 destruct (access_mode t2) eqn:?A2;
@@ -330,11 +331,15 @@ destruct Archi.ptr64 eqn:Hp;
 destruct cmp; inv H;
 unfold sem_cmp; simpl;
 if_tac; auto; simpl; try of_bool_destruct; auto;
-try apply is_int_of_bool.
-
-Transparent Int.repr.
-all: destruct i3,s3; simpl; auto; compute; try split; congruence.
-Opaque Int.repr.
+try apply is_int_of_bool;
+subst;
+try match goal with |- context [Z.b2z ?A] => destruct A end.
+all: clear; destruct i3,s3; simpl; auto;
+try change (Int.signed _) with 0;
+try change (Int.signed _) with 1;
+try change (Int.unsigned _) with 0;
+try change (Int.unsigned _) with 1.
+all: compute; try split; congruence.
 Qed.
 
 Definition weak_mapsto_ sh e rho :=

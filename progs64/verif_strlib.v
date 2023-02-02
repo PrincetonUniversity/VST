@@ -301,13 +301,13 @@ forward_loop (EX i : Z,
      rewrite (proj2 (Z.eqb_eq i (Zlength ls2)) H7).
      entailer!.
   +
-    rewrite Int.eq_false.
-     rewrite (proj2 (Z.eqb_eq i (Zlength ls1)) H6).
-     rewrite Hs2 in n.
-     rewrite (proj2 (Z.eqb_neq i (Zlength ls2))) by auto.
-    entailer!.
-     contradict n.
-     apply repr_inj_signed in n; try rep_lia.  autorewrite with norm in n. auto.
+    entailer!!. unfold bool2val. f_equal. rewrite Z.eqb_refl.
+    assert (Zlength ls1 <> Zlength ls2) by list_solve.
+    rewrite (proj2 (Z.eqb_neq _ _) H6).
+    unfold Int.cmp.
+    rewrite (Int.eq_false (Int.repr (Byte.signed _))). reflexivity.
+    contradict n.
+    apply repr_inj_signed in n; try rep_lia.  autorewrite with norm in n. auto.
  }
   { forward.
     entailer!.
