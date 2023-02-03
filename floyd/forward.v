@@ -1927,16 +1927,6 @@ Lemma typed_false_of_bool':
   forall x : bool, typed_false tint (Vint (Int.repr (Z.b2z x))) -> x = false.
 Proof. exact typed_false_of_bool. Qed.
 
-Lemma typed_true_nullptr3':
-     forall p : val,
-      typed_true tint
-       match sem_cmp_pp Ceq p (Vint (Int.repr 0)) with
-      | Some v' => v'
-      | None => Vundef
-      end ->
-      p = nullval.
-Proof. exact typed_true_nullptr3. Qed.
-
 Lemma typed_true_Ceq_eq'
      : forall x y : val,
        typed_true tint 
@@ -1946,16 +1936,6 @@ Lemma typed_true_Ceq_eq'
        end 
         -> x = y.
 Proof. exact typed_true_Ceq_eq. Qed.
-
-Lemma typed_true_nullptr4':
-     forall p : val,
-      typed_true tint
-       match sem_cmp_pp Cne p (Vint (Int.repr 0)) with
-      | Some v' => v'
-      | None => Vundef
-      end ->
-      p <> nullval.
-Proof. exact typed_true_nullptr4. Qed.
 
 Lemma typed_true_Cne_neq'
      : forall x y : val,
@@ -1967,6 +1947,7 @@ Lemma typed_true_Cne_neq'
         -> x <> y.
 Proof. exact typed_true_Cne_neq. Qed.
 
+(* NOTE: lemmas like this,
 Lemma typed_false_nullptr3':
      forall p : val,
       typed_false tint
@@ -1975,7 +1956,9 @@ Lemma typed_false_nullptr3':
       | None => Vundef
       end ->
       p <> nullval.
-Proof. exact typed_false_nullptr3. Qed.
+ i.e., versions of typed_true_nullptr3, typed_false_nullptr4, etc.,
+ with second argument in unfolded form,  CANNOT BE USED,
+  because they are not 32/64-bit portable *)
 
 Lemma typed_false_Ceq_neq':
      forall x y : val,
@@ -1986,16 +1969,6 @@ Lemma typed_false_Ceq_neq':
        end 
         -> x <> y.
 Proof. exact typed_false_Ceq_neq. Qed.
-
-Lemma typed_false_nullptr4':
-     forall p : val,
-      typed_false tint
-       match sem_cmp_pp Cne p (Vint (Int.repr 0)) with
-      | Some v' => v'
-      | None => Vundef
-      end ->
-      p = nullval.
-Proof. exact typed_false_nullptr4. Qed.
 
 Lemma typed_false_Cne_eq'
      : forall x y : val,
@@ -2024,9 +1997,9 @@ Ltac do_repr_inj H :=
                | simple apply typed_true_ptr' in H
                | apply typed_true_negb_bool_val_p in H
                | simple apply typed_true_tint_Vint in H
-               | simple apply typed_true_nullptr3' in H
+               | apply typed_true_nullptr3 in H
                | simple apply typed_true_Ceq_eq' in H
-               | simple apply typed_true_nullptr4' in H
+               | apply typed_true_nullptr4 in H
                | simple apply typed_true_Cne_neq' in H
               ]
       | typed_false _ ?A => 
@@ -2038,9 +2011,9 @@ Ltac do_repr_inj H :=
                | simple apply typed_false_negb_bool_val_p in H; [| solve [auto]]
                | apply typed_false_negb_bool_val_p' in H
                | simple apply typed_false_tint_Vint in H
-               | simple apply typed_false_nullptr3' in H
+               | apply typed_false_nullptr3 in H
                | simple apply typed_false_Ceq_neq' in H
-               | simple apply typed_false_nullptr4' in H
+               | apply typed_false_nullptr4 in H
                | simple apply typed_false_Cne_eq' in H
                ]
      | _ => idtac
