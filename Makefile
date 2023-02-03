@@ -574,8 +574,8 @@ TWEETNACL_FILES = \
   verif_fcore_jbody.v verif_fcore_loop3.v \
   verif_fcore_epilogue_hfalse.v verif_fcore_epilogue_htrue.v \
   verif_fcore.v verif_crypto_core.v \
-  verif_crypto_stream_salsa20_xor.v verif_crypto_stream.v \
-  verif_verify.v
+  verif_crypto_stream_salsa20_xor1.v verif_crypto_stream_salsa20_xor.v \
+  verif_crypto_stream.v verif_verify.v
 
 HMACDRBG_FILES = \
   entropy.v entropy_lemmas.v DRBG_functions.v HMAC_DRBG_algorithms.v \
