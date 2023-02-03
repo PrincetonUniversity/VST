@@ -824,13 +824,13 @@ try rewrite <- ?classify_add_eq , <- ?classify_sub_eq, <- ?classify_cmp_eq, <- ?
             end;
  try clear CS; try clear m;
  try change (Ctypes.sizeof ty) with (sizeof ty).
-all: try solve [ (
+all: try abstract (
 red in TC1,TC2;
 destruct (typeof e1)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
 try discriminate C;
-try solve [contradiction TC1];
+try solve [contradiction];
 destruct (typeof e2)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
-try solve [contradiction TC2];
+try solve [contradiction];
 try discriminate C; try discriminate C0;
 repeat match goal with
  | H: typecheck_error _ |- _ => contradiction H
@@ -877,5 +877,5 @@ repeat match goal with
  erewrite ?denote_tc_test_eq_Vint_r' by eassumption;
  erewrite ?denote_tc_test_eq_Vlong_l' by eassumption;
  erewrite ?denote_tc_test_eq_Vlong_r' by eassumption;
- reflexivity)].
+ reflexivity).
 Time Qed.  (* 31.5 sec *)

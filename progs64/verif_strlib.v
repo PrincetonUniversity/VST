@@ -289,7 +289,7 @@ forward_loop (EX i : Z,
     intro X; lapply (Znth_In i ls2); [|lia]. cstring. }
   forward.
   forward. fold_Vbyte.
-  forward_if (temp _t'1 (Val.of_bool (Z.eqb i (Zlength ls1) && Z.eqb i (Zlength ls2)))).
+  forward_if (temp _t'1 (bool2val (Z.eqb i (Zlength ls1) && Z.eqb i (Zlength ls2)))).
   { forward.
     simpl force_val.
     rewrite Hs1 in *.
@@ -525,10 +525,12 @@ forward_loop (EX i : Z,
           (map Vbyte (ls2 ++ [Byte.zero])) str2)).
 - finish.
 - fastforward.
-  forward_if (temp _t'1 (Val.of_bool (Z.eqb i (Zlength ls1) && Z.eqb i (Zlength ls2)))).
+  forward_if (temp _t'1 (bool2val (Z.eqb i (Zlength ls1) && Z.eqb i (Zlength ls2)))).
   (* these two parts are not much simplified *)
   { forward. cstring1. entailer!.
+    unfold bool2val; f_equal.
     rewrite (proj2 (Z.eqb_eq _ _)) by auto.
+    unfold Int.cmp.
     destruct (Int.eq (Int.repr (Byte.signed (Znth (Zlength ls1) (ls2 ++ [Byte.zero])))) (Int.repr 0)) eqn:Heqb;
     do_repr_inj Heqb. (* utilize this internal tactic *)
     - rewrite (proj2 (Z.eqb_eq _ _)) by cstring.
