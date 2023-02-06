@@ -3680,6 +3680,72 @@ try match goal with
          simpl in x; unfold x; clear x
 end.
 
+Lemma lt_repr_zlt:
+ forall i j: Z,
+    repable_signed i -> repable_signed j ->
+    Int.lt (Int.repr i) (Int.repr j) = proj_sumbool (zlt i j).
+Proof.
+intros.
+unfold Int.lt.
+rewrite !Int.signed_repr by rep_lia.
+reflexivity.
+Qed.
+
+Lemma ltu_repr_zlt:
+ forall i j: Z,
+    0 <= i <= Int.max_unsigned -> 0 <= j <= Int.max_unsigned ->
+    Int.ltu (Int.repr i) (Int.repr j) = proj_sumbool (zlt i j).
+Proof.
+intros.
+unfold Int.ltu.
+rewrite !Int.unsigned_repr by rep_lia.
+reflexivity.
+Qed.
+
+Lemma eq_repr_zeq:
+ forall i j: Z,
+    0 <= i <= Int.max_unsigned -> 0 <= j <= Int.max_unsigned ->
+    Int.eq (Int.repr i) (Int.repr j) = proj_sumbool (zeq i j).
+Proof.
+intros.
+unfold Int.eq.
+rewrite !Int.unsigned_repr by rep_lia.
+reflexivity.
+Qed.
+
+Lemma simplify_bool2val_case1:
+ forall b,
+  Vint (if Int.eq (Int.repr (Z.b2z b)) Int.zero then Int.zero else Int.one) =
+  bool2val b.
+Proof.
+destruct b; reflexivity.
+Qed.
+
+#[export] Hint Rewrite simplify_bool2val_case1 add_repr mul_repr sub_repr
+   lt_repr_zlt ltu_repr_zlt eq_repr_zeq using rep_lia : simplify_new_temp.
+
+Ltac simplify_new_temp' e :=
+ lazymatch e with
+ | context [Z.b2z] => idtac
+ | context [Int.cmp] => idtac
+ end;
+ pattern e;
+ match goal with |- ?A _ => 
+   let CTX := fresh "CTX" in set (CTX := A);
+   unfold Int.cmp;
+   autorewrite with simplify_new_temp;
+   subst CTX; cbv beta
+ end.
+
+Ltac simplify_new_temp :=
+ lazymatch goal with
+ | |- semax _ (PROPx _ (LOCALx (temp _ ?e :: _) _)) _ _ =>
+       try simplify_new_temp' e
+ | |- ENTAIL _, PROPx _ (LOCALx (temp _ ?e :: _) _) |-- _ =>
+       try simplify_new_temp' e
+ | |- _ => idtac
+end.
+
 Ltac fwd_result :=
   repeat
    (let P := fresh "P" in
@@ -3690,7 +3756,8 @@ Ltac fwd_result :=
          subst P
     end);
   unfold replace_nth, repinject; cbv beta iota zeta;
-  repeat simpl_proj_reptype.
+  repeat simpl_proj_reptype;
+  simplify_new_temp.
 
 Ltac check_precondition :=
   lazymatch goal with

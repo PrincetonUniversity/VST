@@ -98,18 +98,15 @@ Proof.
     - do 2 eexists; eauto; split; [lia|].
       destruct (eq_dec b' (-1)); [subst; contradiction n; auto | auto]. }
   exploit repable_buf; eauto; intro; subst.
-  match goal with |- semax _ (PROP () (LOCALx ?Q (SEPx ?R))) _ _ =>
-    forward_if (PROP () (LOCALx (temp _t'2 (vint (if eq_dec b (-1) then 0 else 1)) :: Q) (SEPx R))) end.
-  { forward.
-    entailer!.
-    if_tac; try lia.
-    unfold Int.cmp.
-    destruct (Int.lt (Int.repr b) (Int.repr (3 + 2))) eqn: Hlt; auto.
-    apply lt_repr_false in Hlt; auto; unfold repable_signed; try computable.
+  forward_if (temp _t'2 (bool2val (negb (eq_dec b (-1))))).
+  { if_tac in H13; try lia.
+    forward.
+    entailer!!.
+    destruct (zlt _ _); auto.
     unfold B, N in *; lia. }
   { forward.
     destruct (eq_dec b (-1)); [|lia].
-    entailer!. }
+    entailer!!. }
   forward_if (PROP () LOCAL (temp _b (vint (if eq_dec b (-1) then b0 else b)); temp _rr (Znth r reads);
       temp _r (vint r); gvars gv)
     SEP (comm_loc sh2 l c g g0 g1 g2 bufs sh gsh2 (map_upd h t (AE (vint b) Empty));
@@ -120,12 +117,11 @@ Proof.
          data_at Ews tint (vint (if eq_dec b (-1) then b0 else b)) (Znth r lasts);
          data_at sh1 (tarray (tptr tint) N) comms (gv _comm);
          data_at sh1 (tarray (tptr t_lock) N) (map ptr_of locks) (gv _lock))).
-  - forward.
-    simpl eq_dec; destruct (eq_dec b (-1)); [match goal with H : _ <> _ |- _ => contradiction H; auto end|].
-    entailer!.
-  - forward.
-    simpl eq_dec; destruct (eq_dec b (-1)); [|discriminate].
-    entailer!.
+  -
+    forward. if_tac; inv H11.
+    entailer!!.
+  - forward. if_tac; inv H11.
+    entailer!!.
   - forward.
     forward.
     Exists (if eq_dec b (-1) then b0 else b) t (vint b) v.
