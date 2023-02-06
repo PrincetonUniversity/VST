@@ -101,8 +101,9 @@ Proof.
   match goal with |- semax _ (PROP () (LOCALx ?Q (SEPx ?R))) _ _ =>
     forward_if (PROP () (LOCALx (temp _t'2 (vint (if eq_dec b (-1) then 0 else 1)) :: Q) (SEPx R))) end.
   { forward.
-    destruct (eq_dec b (-1)); [lia|].
     entailer!.
+    if_tac; try lia.
+    unfold Int.cmp.
     destruct (Int.lt (Int.repr b) (Int.repr (3 + 2))) eqn: Hlt; auto.
     apply lt_repr_false in Hlt; auto; unfold repable_signed; try computable.
     unfold B, N in *; lia. }
