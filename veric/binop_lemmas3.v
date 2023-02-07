@@ -237,20 +237,21 @@ Qed.
 
 
 Lemma int_type_tc_val_of_bool:
-  forall t b, is_int_type t = true -> tc_val t (Val.of_bool b).
+  forall t b, is_int_type t = true -> tc_val t (bool2val b).
 Proof.
 intros.
     destruct t as [| [| | |] [|] | | | | | | |]; 
  try discriminate; hnf; auto; clear H;
  destruct b; simpl; auto;
-change (Int.signed Int.one) with 1;
-change (Int.signed Int.zero) with 0;
-change (Int.unsigned Int.one) with 1;
-change (Int.unsigned Int.zero) with 0;
+change (Int.signed (Int.repr 1)) with 1;
+change (Int.signed (Int.repr 0)) with 0;
+change (Int.unsigned (Int.repr 1)) with 1;
+change (Int.unsigned (Int.repr 0)) with 0;
 change Byte.min_signed with (-128);
 change Byte.max_signed with 127;
 change Byte.max_unsigned with 255;
-try lia.
+try lia;
+intro Hx; inv Hx.
 Qed.
 
 Lemma Ptrofs_to_of64_lemma:
@@ -416,10 +417,10 @@ Lemma tc_val_sem_cmp_binarith': forall sem_int sem_long sem_float sem_single t1 
   tc_val t
     (force_val
       (Clight_Cop2.sem_binarith
-        (fun s n1 n2 => Some (Val.of_bool (sem_int s n1 n2)))
-        (fun s n1 n2 => Some (Val.of_bool (sem_long s n1 n2)))
-        (fun n1 n2 => Some (Val.of_bool (sem_float n1 n2)))
-        (fun n1 n2 => Some (Val.of_bool (sem_single n1 n2)))
+        (fun s n1 n2 => Some (bool2val (sem_int s n1 n2)))
+        (fun s n1 n2 => Some (bool2val (sem_long s n1 n2)))
+        (fun n1 n2 => Some (bool2val (sem_float n1 n2)))
+        (fun n1 n2 => Some (bool2val (sem_single n1 n2)))
         t1 t2 v1 v2)).
 Proof.
   intros.
@@ -435,7 +436,7 @@ Proof.
   destruct v2; try solve [inv TV2];
   inv H1;
   simpl;
-  apply tc_val_of_bool; auto.
+  apply tc_bool2val; auto.
   destruct t1 as [|  [| | |] [|] | | [ | ] ? | | | | |]; inv H;
   destruct t2 as [|  [| | |] [|] | | [ | ] ? | | | | |]; inv H0;
   inv H1.

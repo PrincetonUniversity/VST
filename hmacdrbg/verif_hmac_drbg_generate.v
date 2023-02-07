@@ -446,7 +446,7 @@ Definition postReseedCtx s key V reseed_counter entropy_len prediction_resistanc
            (mc1, (mc2, mc3),
            (map Vint (map Int.repr RSVal),
            (Vint (Int.repr aa),
-           (Vint (Int.repr entropy_len), (Val.of_bool cc, Vint (Int.repr reseed_interval))))))
+           (Vint (Int.repr entropy_len), (bool2val cc, Vint (Int.repr reseed_interval))))))
            (Vptr b i)
    | _ => FF
   end.
@@ -460,7 +460,7 @@ Definition postReseedCtx (CTX:reptype t_struct_hmac256drbg_context_st) s key V r
            (mc,
            (map Vint (map Int.repr RSVal),
            (Vint (Int.repr aa),
-           (Vint (Int.repr entropy_len), (Val.of_bool cc, Vint (Int.repr reseed_interval))))))
+           (Vint (Int.repr entropy_len), (bool2val cc, Vint (Int.repr reseed_interval))))))
    | _ => False
   end.
 
@@ -512,7 +512,7 @@ Definition mkCTX1 (should_reseed:bool) (ctx ctx1:reptype t_struct_hmac256drbg_co
            ctx1 = (mc,
                   (map Vint (map Int.repr RSVal),
                   (Vint (Int.repr aa),
-                  (Vint (Int.repr entropy_len), (Val.of_bool cc, Vint (Int.repr reseed_interval))))))
+                  (Vint (Int.repr entropy_len), (bool2val cc, Vint (Int.repr reseed_interval))))))
       | ENTROPY.error _ _ => False
        end
      else ctx1 = ctx.
@@ -559,7 +559,7 @@ Lemma entailment1: forall (contents : list byte) (additional: val) (sha: share) 
                  (map Vubyte V,
                  (Vint (Int.repr reseed_counter),
                  (Vint (Int.repr entropy_len),
-                 (Val.of_bool prediction_resistance,
+                 (bool2val prediction_resistance,
                  Vint (Int.repr reseed_interval))))))
               : mdstate * (list val * (val * (val * (val * val)))))
   (Hout_lenb : (out_len >? 1024) = false)
@@ -665,7 +665,7 @@ if b then
             (map Vubyte VV,
             (Vint (Int.repr aa),
             (Vint (Int.repr EL),
-            (Val.of_bool cc, Vint (Int.repr RI))))))
+            (bool2val cc, Vint (Int.repr RI))))))
 else s'=s /\ K'=K /\ ctx'=IS.
 
 Definition POSTUPDATE (b:bool) additional c key V (mc:mdstate) RC EL PR RI ctx1 key1 K' (ctx':reptype t_struct_hmac256drbg_context_st): Prop :=
@@ -679,7 +679,7 @@ Definition POSTUPDATE (b:bool) additional c key V (mc:mdstate) RC EL PR RI ctx1 
          (map Vubyte UVal,
          (Vint (Int.repr RC),
          (Vint (Int.repr EL),
-         (Val.of_bool PR, Vint (Int.repr RI)))))))
+         (bool2val PR, Vint (Int.repr RI)))))))
   else (ctx' = ctx1 /\ K'=key1). 
 
 Lemma body_hmac_drbg_generate: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs 
@@ -710,7 +710,7 @@ Proof.
         (map Vubyte V,
         (Vint (Int.repr reseed_counter),
         (Vint (Int.repr entropy_len),
-        (Val.of_bool prediction_resistance, Vint (Int.repr reseed_interval))))))) in *.
+        (bool2val prediction_resistance, Vint (Int.repr reseed_interval))))))) in *.
 
   (* mbedtls_hmac_drbg_context *ctx = p_rng; *)
   forward. 
@@ -727,11 +727,6 @@ Proof.
   rewrite data_at_isptr with (p:=mc1). Intros.
   freeze [0;1;3; 4;5;6] FR0. 
   Time forward. (*Coq8.5pl2:3secs - and without the freezer it is virtually nonterminating*)
-  {
-    (* typechecking *)
-    entailer!.
-    destruct prediction_resistance; constructor.
-  }
 
   (* reseed_counter = ctx->reseed_counter *)
   forward.
@@ -817,7 +812,7 @@ Proof.
 
   (*1. (aka VII and IX) Check reseed counter and PR*)
   set (should_reseed := orb prediction_resistance (reseed_counter >? reseed_interval)) in *.
-  forward_if (temp _t'4 (Val.of_bool should_reseed)).
+  forward_if (temp _t'4 (bool2val should_reseed)).
   {
     forward.
     entailer!.
@@ -829,29 +824,20 @@ Proof.
   }
   {
     rename H into Hpr.
-    destruct prediction_resistance; try solve [inversion Hpr].
+    destruct prediction_resistance.
+    contradiction Hpr; reflexivity.
     simpl in should_reseed; clear Hpr. 
     forward.
     entailer!.
     
-    subst should_reseed; rewrite Z.gtb_ltb.
-    unfold Int.lt.
+    subst should_reseed.
+    unfold bool2val. f_equal.
+    unfold Int.cmp, Int.lt.
       unfold hmac256drbgabs_reseed_counter in Hreseed_counter_in_range.
-    destruct Hreseed_interval as [AA BB]. simpl in *. (*red in AA. *)
-    remember (reseed_interval <? reseed_counter) as r; simpl. destruct r. 
-    {
-      (* reseed_interval < reseed_counter *)
-      symmetry in Heqr; apply Zlt_is_lt_bool in Heqr. unfold Int.lt.
-      rewrite zlt_true; [reflexivity | ].
-      rewrite !Int.signed_repr; change Int.min_signed with (-2147483648); change Int.max_signed with (2147483647) in *; try lia.
-    }
-    { (*subst initial_state_abs.
-      assert (Hltb: 10000 <? reseed_counter = false) by (rewrite Z.ltb_nlt; assumption).
-      rewrite Hltb.*)
-      symmetry in Heqr; apply Z.ltb_ge in Heqr. unfold Int.lt.
-      rewrite zlt_false; [reflexivity | ].
-      rewrite !Int.signed_repr; change Int.min_signed with (-2147483648); change Int.max_signed with (2147483647) in *; try lia.
-    }
+    red in Hreseed_interval.
+    rewrite !Int.signed_repr by rep_lia.
+    destruct (zlt  _ _). apply Z.gtb_lt in l; rewrite l. reflexivity.
+    rewrite (proj1 (Zgt_is_gt_bool_f _ _)). reflexivity. lia.
   }
   set (after_reseed_add_len := if should_reseed then 0 else Zlength contents) in *.
 
@@ -871,11 +857,11 @@ Proof.
    LOCAL (temp _md_len (Vint (Int.repr 32)); temp _info mc1;
    temp _reseed_interval (Vint (Int.repr reseed_interval));
    temp _reseed_counter (Vint (Int.repr reseed_counter));
-   temp _prediction_resistance (Val.of_bool prediction_resistance); 
+   temp _prediction_resistance (bool2val prediction_resistance); 
    temp _out output; temp _left (Vint (Int.repr out_len)); temp _ctx (Vptr b i);
    temp _p_rng (Vptr b i); temp _output output; temp _out_len (Vint (Int.repr out_len));
    temp _additional additional; temp _add_len (Vint (Int.repr after_reseed_add_len));
-   gvars gv; temp _t'4 (Val.of_bool should_reseed))
+   gvars gv; temp _t'4 (bool2val should_reseed))
    SEP (EX stream1 :ENTROPY.stream, EX key1:list byte, EX ctx1: reptype t_struct_hmac256drbg_context_st,
         (!! POSTRESEED initial_state should_reseed s (mc1, (mc2,mc3)) key V reseed_counter entropy_len
             prediction_resistance reseed_interval
@@ -931,12 +917,13 @@ Proof.
             (map Vint (map Int.repr VV),
             (Vint (Int.repr aa),
             (Vint (Int.repr entropy_len),
-            (Val.of_bool cc, Vint (Int.repr reseed_interval)))))).*)
+            (bool2val cc, Vint (Int.repr reseed_interval)))))).*)
      unfold reseedPOST; simpl.
      remember ((zlt 256 (Zlength contents)
        || zlt 384 (entropy_len + Zlength contents))%bool) as d.
      destruct (zlt 256 (Zlength contents)); simpl in Heqd; [ lia |].
      destruct (zlt 384 (entropy_len + Zlength contents)); simpl in Heqd; subst d; [ simpl in *; lia |].
+     pose proof I.
      Intros. (* cancel.*)
      unfold return_value_relate_result in H2.
      remember (mbedtls_HMAC256_DRBG_reseed_function s
@@ -953,7 +940,7 @@ Proof.
        Exists s0 RSKey (mc1, (mc2, mc3),
          (map Vubyte RSVal,
          (Vint (Int.repr aa),
-         (Vint (Int.repr entropy_len), (Val.of_bool cc, Vint (Int.repr reseed_interval)))))).
+         (Vint (Int.repr entropy_len), (bool2val cc, Vint (Int.repr reseed_interval)))))).
        unfold hmac256drbgabs_common_mpreds.
        simpl; normalize.
        apply andp_right; [ apply prop_right | cancel].
@@ -984,7 +971,7 @@ Proof.
 
   set (na:=(negb (eq_dec additional nullval) && negb (eq_dec ((if should_reseed then 0 else Zlength contents)) 0))%bool) in *.
  
-  forward_if (temp _t'5 (Val.of_bool na)).
+  forward_if (temp _t'5 (bool2val na)).
   { destruct additional; simpl in PNadditional; try contradiction.
     + subst i0; entailer.
     + rewrite da_emp_ptr. normalize.
@@ -997,10 +984,10 @@ Proof.
     destruct should_reseed; simpl; trivial. rewrite andb_false_r. reflexivity.
     destruct (EqDec_Z (Zlength contents)  0); simpl. 
     + rewrite e. simpl. rewrite andb_false_r. reflexivity.
-    + rewrite Int.eq_false; simpl. 
-      destruct (EqDec_val additional nullval); try reflexivity. contradiction. 
-      intros N. assert (U: Int.unsigned (Int.repr (Zlength contents)) = Int.unsigned (Int.repr 0)). rewrite N; trivial. clear N.
-      rewrite Int.unsigned_repr in U; trivial. rewrite U in n. elim n; trivial. 
+    + unfold bool2val; f_equal.
+        rewrite (Int.eq_false (Int.repr (Zlength contents))); simpl.
+      destruct (EqDec_val additional nullval); try reflexivity. contradiction.
+      contradict n. apply repr_inj_unsigned in n; auto. rep_lia. 
   }
   { forward. rewrite H in *. entailer!. }
 
@@ -1010,13 +997,13 @@ Proof.
    LOCAL (temp _md_len (Vint (Int.repr 32)); temp _info mc1;
    temp _reseed_interval (Vint (Int.repr reseed_interval));
    temp _reseed_counter (Vint (Int.repr reseed_counter));
-   temp _prediction_resistance (Val.of_bool prediction_resistance);
+   temp _prediction_resistance (bool2val prediction_resistance);
    temp _out output; temp _left (Vint (Int.repr out_len)); 
    temp _ctx (Vptr b i); temp _p_rng (Vptr b i); temp _output output;
    temp _out_len (Vint (Int.repr out_len)); temp _additional additional;
    temp _add_len (Vint (Int.repr after_reseed_add_len)); 
-   gvars gv; temp _t'4 (Val.of_bool should_reseed);
-   temp _t'5 (Val.of_bool na))
+   gvars gv; temp _t'4 (bool2val should_reseed);
+   temp _t'5 (bool2val na))
    SEP (FRZL FR3; K_vector gv;
    da_emp sha (tarray tuchar (Zlength contents)) (map Vubyte contents) additional;
     data_at shc t_struct_hmac256drbg_context_st ctx2 (Vptr b i) *
@@ -1048,7 +1035,7 @@ Proof.
             (map Vubyte VV,
             (Vint (Int.repr reseed_counter),
             (Vint (Int.repr entropy_len),
-            (Val.of_bool prediction_resistance,
+            (bool2val prediction_resistance,
             Vint (Int.repr reseed_interval)))))) KK.
          normalize.  
          apply andp_right; [ apply prop_right | thaw FR3; cancel].
@@ -1105,7 +1092,7 @@ apply semax_pre with (P':=
    LOCAL (temp _md_len (Vint (Int.repr 32)); temp _info mc1;
    temp _reseed_interval (Vint (Int.repr reseed_interval));
    temp _reseed_counter (Vint (Int.repr reseed_counter));
-   temp _prediction_resistance (Val.of_bool prediction_resistance); 
+   temp _prediction_resistance (bool2val prediction_resistance); 
    temp _out output; temp _left (Vint (Int.repr out_len)); 
    temp _ctx (Vptr b i); temp _p_rng (Vptr b i); temp _output output;
    temp _out_len (Vint (Int.repr out_len)); temp _additional additional;
@@ -1168,7 +1155,7 @@ set (HLP := HMAC_DRBG_generate_helper_Z HMAC256 (*after_update_key after_update_
       LOCAL  (temp _md_len (*md_len*)(Vint (Int.repr 32)); temp _info mc1(*(let (x, _) := md_ctx' in x)*);
       temp _reseed_interval (Vint (Int.repr reseed_interval));
       temp _reseed_counter (Vint (Int.repr reseed_counter));
-      temp _prediction_resistance (Val.of_bool prediction_resistance);
+      temp _prediction_resistance (bool2val prediction_resistance);
       temp _out (offset_val done output); temp _left (Vint (Int.repr (out_len - done))); 
       temp _ctx (*ctx*)(Vptr b i); temp _p_rng (*ctx*)(Vptr b i); temp _output output;
       temp _out_len (Vint (Int.repr out_len)); temp _additional additional;
@@ -1253,7 +1240,7 @@ Opaque hmac256drbgabs_reseed.
           (map Vubyte V0,
           (Vint (Int.repr reseed_counter0),
           (Vint (Int.repr entropy_len0),
-          (Val.of_bool prediction_resistance0, Vint (Int.repr reseed_interval0))))))) in *.
+          (bool2val prediction_resistance0, Vint (Int.repr reseed_interval0))))))) in *.
   thaw StreamAdd.
   Intros.
   freeze [3;5] StreamOut. 
@@ -1325,7 +1312,7 @@ Opaque hmac256drbgabs_reseed.
   simpl in H6. sep_apply H6; clear H6.
   + red in Hreseed_interval; red; simpl in *. repeat split; trivial; try lia.
   + unfold drbg_protocol_specs.AREP, drbg_protocol_specs.REP, hmac256drbgabs_common_mpreds, hmac256drbgstate_md_info_pointer;
-    normalize. rewrite <- H7.
+    normalize. rewrite <- H6.
     remember (mbedtls_HMAC256_DRBG_generate_function s
        (HMAC256DRBGabs key V reseed_counter entropy_len prediction_resistance reseed_interval) out_len
        (contents_with_add additional (Zlength contents) contents)).

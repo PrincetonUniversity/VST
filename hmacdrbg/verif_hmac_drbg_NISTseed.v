@@ -157,7 +157,7 @@ Definition hmac_drbg_seed_simple_spec :=
             else md_empty (fst Ctx) *
                  EX p:val,
                  match (fst Ctx, fst handle_ss) with ((M1, (M2, M3)), ((((newV, newK), newRC), newEL), newPR))
-                   => let CtxFinal := ((info, (M2, p)), (map Vubyte newV, (Vint (Int.repr newRC), (Vint (Int.repr 32), (Val.of_bool newPR, Vint (Int.repr 10000)))))) in
+                   => let CtxFinal := ((info, (M2, p)), (map Vubyte newV, (Vint (Int.repr newRC), (Vint (Int.repr 32), (bool2val newPR, Vint (Int.repr 10000)))))) in
                       !!(ret_value = Int.zero) 
                       && data_at Ews t_struct_hmac256drbg_context_st CtxFinal ctx *
                          hmac256drbg_relate (HMAC256DRBGabs newK newV newRC 32 newPR 10000) CtxFinal *
@@ -232,10 +232,10 @@ Proof.
   freeze [0;4;5;6;7] FIELDS2.
   freeze [0;1;2;3;4;5;6;7;8;9] ALLSEP.
   forward_if (temp _t'4 (Vint (Int.repr 32))).
-  { elim H; trivial. }
+  { discriminate. }
   { clear H.
     forward_if.
-    + elim H; trivial. 
+    + discriminate. 
     + clear H. forward. forward. entailer!. }
   forward. simpl. deadvars!. (*drop_LOCAL 7%nat. _t'4*)
 
@@ -249,7 +249,7 @@ Proof.
   set (myABS := HMAC256DRBGabs initial_key initial_value rc 48 pr_flag 10000) in *.
   assert (myST: exists ST:hmac256drbgstate, ST =
     ((info, (M2, p)), (map Vint (repeat Int.one 32), (Vint (Int.repr rc),
-        (Vint (Int.repr 48), (Val.of_bool pr_flag, Vint (Int.repr 10000))))))). eexists; reflexivity.
+        (Vint (Int.repr 48), (bool2val pr_flag, Vint (Int.repr 10000))))))). eexists; reflexivity.
   destruct myST as [ST HST].
 
   freeze [0;3;4;5;9] FR_CTX.
@@ -383,7 +383,7 @@ Definition hmac_drbg_seed_full_spec :=
                    then !!(ret_value = Int.repr (-5)) &&
                      (Stream s *
                      ( let CtxFinal:= ((info, (M2, p)), (repeat (Vint Int.one) 32, (Vint (Int.repr rc),
-                                       (Vint (Int.repr 48), (Val.of_bool pr_flag, Vint (Int.repr 10000)))))) in
+                                       (Vint (Int.repr 48), (bool2val pr_flag, Vint (Int.repr 10000)))))) in
                        let CTXFinal:= HMAC256DRBGabs initial_key initial_value rc 48 pr_flag 10000 in
                        data_at Ews t_struct_hmac256drbg_context_st CtxFinal ctx *
                                      hmac256drbg_relate CTXFinal CtxFinal))
@@ -397,13 +397,13 @@ Definition hmac_drbg_seed_full_spec :=
                                | ENTROPY.catastrophic_error => Vint ret_value = Vint (Int.repr (-9))
                               end) && (Stream ss *
                                        let CtxFinal:= ((info, (M2, p)), (repeat (Vint Int.one) 32, (Vint (Int.repr rc),
-                                                (Vint (Int.repr 48), (Val.of_bool pr_flag, Vint (Int.repr 10000)))))) in
+                                                (Vint (Int.repr 48), (bool2val pr_flag, Vint (Int.repr 10000)))))) in
                                        let CTXFinal:= HMAC256DRBGabs initial_key initial_value rc 48 pr_flag 10000 in
                                        data_at Ews t_struct_hmac256drbg_context_st CtxFinal ctx *
                                        hmac256drbg_relate CTXFinal CtxFinal))
                         | ENTROPY.success handle ss => !!(ret_value = Int.zero) &&
                                     match handle with ((((newV, newK), newRC), newEL), newPR) =>
-                                      let CtxFinal := ((info, (M2, p)), (map Vubyte newV, (Vint (Int.repr newRC), (Vint (Int.repr 32), (Val.of_bool newPR, Vint (Int.repr 10000)))))) in
+                                      let CtxFinal := ((info, (M2, p)), (map Vubyte newV, (Vint (Int.repr newRC), (Vint (Int.repr 32), (bool2val newPR, Vint (Int.repr 10000)))))) in
                                       let CTXFinal := HMAC256DRBGabs newK newV newRC 32 newPR 10000 in
                                     data_at Ews t_struct_hmac256drbg_context_st CtxFinal ctx *
                                     hmac256drbg_relate CTXFinal CtxFinal *
@@ -486,10 +486,10 @@ Proof.
   freeze [0;1;2;3;4;5;6;7;8;9] ALLSEP.
 
   forward_if (temp _t'4 (Vint (Int.repr 32))).
-  { elim H; trivial. }
+  { discriminate. }
   { clear H.
     forward_if.
-    + elim H; trivial. 
+    + discriminate.
     + clear H. forward. forward. entailer!. }
   forward. simpl. deadvars!. (*drop_LOCAL 7%nat. _t'4*)
 
@@ -503,7 +503,7 @@ Proof.
   set (myABS := HMAC256DRBGabs initial_key initial_value rc 48 pr_flag 10000) in *.
   assert (myST: exists ST:hmac256drbgstate, ST =
     ((info, (M2, p)), (map Vint (repeat Int.one 32), (Vint (Int.repr rc),
-        (Vint (Int.repr 48), (Val.of_bool pr_flag, Vint (Int.repr 10000))))))). eexists; reflexivity.
+        (Vint (Int.repr 48), (bool2val pr_flag, Vint (Int.repr 10000))))))). eexists; reflexivity.
   destruct myST as [ST HST].
 
   freeze [0;3;4;5;9] FR_CTX.
@@ -632,7 +632,7 @@ Definition preseed_relate V rc pr ri (r : hmac256drbgstate):mpred:=
         Vint (Int.repr rc) = reseed_counter'(* /\
         Vint (Int.repr entropy_len) = entropy_len'*) /\
         Vint (Int.repr ri) = reseed_interval' /\
-        Val.of_bool pr = prediction_resistance')
+        bool2val pr = prediction_resistance')
    end.
 
 Definition hmac_drbg_seed_spec :=
@@ -676,7 +676,7 @@ Definition hmac_drbg_seed_spec :=
                    then !!(ret_value = Int.repr (-5)) &&
                      (Stream s *
                      ( let CtxFinal:= ((info, (M2, p)), (repeat (Vint Int.one) 32, (Vint (Int.repr rc),
-                                       (Vint (Int.repr 48), (Val.of_bool pr, Vint (Int.repr 10000)))))) in
+                                       (Vint (Int.repr 48), (bool2val pr, Vint (Int.repr 10000)))))) in
                        let CTXFinal:= HMAC256DRBGabs VV (repeat Byte.one 32) rc 48 pr 10000 in
                        data_at Ews t_struct_hmac256drbg_context_st CtxFinal ctx *
                                      hmac256drbg_relate CTXFinal CtxFinal))
@@ -691,13 +691,13 @@ Definition hmac_drbg_seed_spec :=
                                | ENTROPY.catastrophic_error => Vint ret_value = Vint (Int.repr (-9))
                               end) && (Stream ss *
                                        let CtxFinal:= ((info, (M2, p)), (repeat (Vint Int.one) 32, (Vint (Int.repr rc),
-                                                (Vint (Int.repr 48), (Val.of_bool pr, Vint (Int.repr 10000)))))) in
+                                                (Vint (Int.repr 48), (bool2val pr, Vint (Int.repr 10000)))))) in
                                        let CTXFinal:= HMAC256DRBGabs VV (repeat Byte.one 32) rc 48 pr 10000 in
                                        data_at Ews t_struct_hmac256drbg_context_st CtxFinal ctx *
                                        hmac256drbg_relate CTXFinal CtxFinal))
                         | ENTROPY.success handle ss => !!(ret_value = Int.zero) &&
                                     match handle with ((((newV, newK), newRC), newEL), newPR) =>
-                                      let CtxFinal := ((info, (M2, p)), (map Vubyte newV, (Vint (Int.repr newRC), (Vint (Int.repr 32), (Val.of_bool newPR, Vint (Int.repr 10000)))))) in
+                                      let CtxFinal := ((info, (M2, p)), (map Vubyte newV, (Vint (Int.repr newRC), (Vint (Int.repr 32), (bool2val newPR, Vint (Int.repr 10000)))))) in
                                       let CTXFinal := HMAC256DRBGabs newK newV newRC 32 newPR 10000 in
                                     data_at Ews t_struct_hmac256drbg_context_st CtxFinal ctx *
                                     hmac256drbg_relate CTXFinal CtxFinal *
@@ -783,10 +783,10 @@ Proof.
 (*  set (ent_len := new_ent_len (Zlength V0)) in *.*)
 
   forward_if (temp _t'4 (Vint (Int.repr 32))).
-  { elim H; trivial. }
+  { discriminate. }
   { clear H.
     forward_if.
-    { elim H; trivial. }
+    { discriminate. }
     { clear H. forward. forward. entailer!. }
   }
   forward. simpl. drop_LOCAL 1%nat. (*_t'4*)
@@ -802,7 +802,7 @@ Proof.
   set (myABS := HMAC256DRBGabs VV (repeat Byte.one 32) rc 48 pr 10000) in *.
   assert (myST: exists ST:hmac256drbgstate, ST =
     ((info, (M2, p)), (map Vint (repeat Int.one 32), (Vint (Int.repr rc),
-        (Vint (Int.repr 48), (Val.of_bool pr, Vint (Int.repr 10000))))))). eexists; reflexivity.
+        (Vint (Int.repr 48), (bool2val pr, Vint (Int.repr 10000))))))). eexists; reflexivity.
   destruct myST as [ST HST].
 
   freeze FR_CTX := (data_at _ _ _ (Vptr b (Ptrofs.add i (Ptrofs.repr 12))))

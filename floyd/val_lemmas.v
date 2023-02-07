@@ -378,18 +378,14 @@ rewrite H1; reflexivity.
 Qed.
 
 Lemma typed_false_of_bool:
- forall x, typed_false tint (Val.of_bool x) -> (x=false).
+ forall x, typed_false tint (bool2val x) -> (x=false).
 Proof.
-unfold typed_false; simpl.
-unfold strict_bool_val, Val.of_bool; simpl.
 destruct x; simpl; intros; [inversion H | auto].
 Qed.
 
 Lemma typed_true_of_bool:
- forall x, typed_true tint (Val.of_bool x) -> (x=true).
+ forall x, typed_true tint (bool2val x) -> (x=true).
 Proof.
-unfold typed_true; simpl.
-unfold strict_bool_val, Val.of_bool; simpl.
 destruct x; simpl; intros; [auto | inversion H].
 Qed.
 

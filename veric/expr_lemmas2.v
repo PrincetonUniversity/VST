@@ -275,7 +275,7 @@ Qed.
 
 Lemma tc_val_of_bool_int_type:
  forall b t, is_int_type t = true ->
-  tc_val t (Val.of_bool b).
+  tc_val t (bool2val b).
 Proof.
  intros.
  destruct t as [ | [ | | | ] [ | ] | | [ | ] | | | | | ];

@@ -125,7 +125,7 @@ Global Transparent Archi.ptr64.
 
 (* A better way to deal with sem_cast_i2bool *)
 Lemma sem_cast_i2bool_of_bool : forall (b : bool),
-  sem_cast_i2bool (Val.of_bool b) = Some (Val.of_bool b).
+  sem_cast_i2bool (Val.of_bool b) = Some (bool2val b).
 Proof.
   destruct b; auto.
 Qed.

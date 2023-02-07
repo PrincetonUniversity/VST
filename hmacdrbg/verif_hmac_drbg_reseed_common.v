@@ -52,7 +52,7 @@ Lemma reseed_REST: forall (Espec : OracleKind) (contents : list byte) additional
   (XH6 : Vint (Int.repr reseed_counter) = reseed_counter')
   (XH7 : Vint (Int.repr entropy_len) = entropy_len')
   (XH8 : Vint (Int.repr reseed_interval) = reseed_interval')
-  (XH9 : Val.of_bool prediction_resistance = prediction_resistance')
+  (XH9 : bool2val prediction_resistance = prediction_resistance')
   (PNadditional : is_pointer_or_null additional)
   (Pctx : isptr ctx) (shc: share)
   (ELnonneg : 0 <= entropy_len)
@@ -167,7 +167,7 @@ Proof.
       temp _entropy_len (Vint (Int.repr entropy_len));
       lvar _seed (tarray tuchar 384) seed; temp _ctx ctx;
       temp _additional additional; temp _len (Vint (Int.repr add_len));
-      temp _t'3 (Val.of_bool non_empty_additional);
+      temp _t'3 (bool2val non_empty_additional);
       gvars gv)
       SEP  (FRZL FR7; da_emp sha (tarray tuchar add_len) (map Vubyte contents) additional)).
   { destruct additional; simpl in PNadditional; try contradiction.
@@ -179,10 +179,10 @@ Proof.
     forward. entailer!. simpl.
     destruct (EqDec_Z (Zlength contents) 0).
     + rewrite e. simpl. reflexivity.
-    + simpl in *. rewrite Int.eq_false; simpl. reflexivity.
-      intros N.
-      assert (Y: Int.unsigned (Int.repr (Zlength contents)) = Int.unsigned (Int.repr 0)) by (rewrite N; trivial).
-      clear N. rewrite Int.unsigned_repr in Y. 2: lia. rewrite Int.unsigned_repr in Y; lia.
+    + simpl in *.
+        rewrite Int.eq_false; simpl. reflexivity.
+        contradict n.
+        apply repr_inj_unsigned; auto. lia.
   }
   { (*nullval additional*)
     rewrite H in *.
@@ -363,7 +363,7 @@ Proof.
                  (map Vubyte V,
                  (Vint (Int.repr reseed_counter),
                  (Vint (Int.repr entropy_len),
-                 (Val.of_bool prediction_resistance, Vint (Int.repr reseed_interval)))))),
+                 (bool2val prediction_resistance, Vint (Int.repr reseed_interval)))))),
                 (HMAC256DRBGabs key V reseed_counter entropy_len prediction_resistance reseed_interval),
                 info_contents, gv).
   {

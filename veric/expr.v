@@ -1040,6 +1040,7 @@ end.
 Ltac of_bool_destruct :=
 match goal with
   | [ |- context[Val.of_bool ?X] ] => destruct X
+  | [ |- context[bool2val ?X] ] => destruct X
 end.
 
 Lemma orb_if : forall {D} b c (d:D) (e:D), (if (b || c) then d else e) = if b then d else if c then d else e.

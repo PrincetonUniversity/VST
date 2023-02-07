@@ -22,7 +22,7 @@ Proof.
     simpl in PNctx; subst i. rewrite da_emp_null; trivial.
     forward_if (liftx FF).
     + forward. apply tt.
-    + inv H.
+    + contradiction H; reflexivity.
     + apply semax_ff.
   - (*isptr ctx*)
     rewrite if_false; try discriminate.
