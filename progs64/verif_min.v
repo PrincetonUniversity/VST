@@ -98,9 +98,7 @@ Definition Gprog : funspecs :=
 Lemma body_min: semax_body Vprog Gprog f_minimum minimum_spec.
 Proof.
 start_function.
-assert_PROP (Zlength al = n). {
-  entailer!. autorewrite with sublist; auto.
-}
+assert_PROP (Zlength al = n) by (entailer!; list_solve).
 forward.  (* min = a[0]; *)
 forward_for_simple_bound n
   (EX i:Z,
@@ -110,7 +108,7 @@ forward_for_simple_bound n
           temp _n (Vint (Int.repr n)))
     SEP(data_at Ews (tarray tint n) (map Vint (map Int.repr al)) a)).
 * (* Prove that the precondition implies the loop invariant *)
-  entailer!.
+  entailer!!.
 * (* Prove that the loop body preserves the loop invariant *)
  forward. (* j = a[i]; *)
  assert (repable_signed (Znth i al))
@@ -127,15 +125,15 @@ forward_for_simple_bound n
  forward_if.
  +
  forward. (* min = j; *)
- entailer!.
+ entailer!!.
  rewrite Z.min_r; auto; lia.
  +
  forward. (* skip; *)
- entailer!.
+ entailer!!.
  rewrite Z.min_l; auto; lia.
 * (* After the loop *)
  forward. (* return *)
- entailer!.
+ entailer!!.
  autorewrite with sublist.
  destruct al; simpl; auto.
 Qed.
@@ -145,9 +143,7 @@ Qed.
 Lemma body_min': semax_body Vprog Gprog f_minimum minimum_spec.
 Proof.
 start_function.
-assert_PROP (Zlength al = n). {
-  entailer!. autorewrite with sublist; auto.
-}
+assert_PROP (Zlength al = n) by (entailer!; list_solve).
 revert POSTCONDITION;
  replace (hd 0 al) with (Znth 0 al) by (destruct al; reflexivity);
  intro POSTCONDITION.
@@ -161,9 +157,9 @@ pose (Inv d (f: Z->Prop) (i: Z) :=
 forward_for (Inv 0 (fun _ => True)) continue: (Inv 1 (Z.gt n)).
 *
 forward.
-Exists 0. unfold Inv; entailer!.
+Exists 0. unfold Inv; entailer!!.
 *
-entailer!.
+entailer!!.
 *
 match goal with
 | P := @abbreviate ret_assert _ |- _ => unfold abbreviate in P; subst P
@@ -200,7 +196,7 @@ rename a0 into i.
  entailer!. rewrite Z.min_r; auto; lia.
  +
  forward. (* skip; *)
- entailer!. rewrite Z.min_l; auto; lia.
+ entailer!!. rewrite Z.min_l; auto; lia.
  +
  intros.
  subst POSTCONDITION; unfold abbreviate. (* TODO: some of these lines should all be done by forward_if *)
@@ -238,7 +234,7 @@ Exists i. apply ENTAIL_refl.
  rename a0 into i.
  forward.
  Exists (i+1).
- entailer!.
+ entailer!!.
 *
  autorewrite with sublist.
  forward.
@@ -263,9 +259,7 @@ Definition minimum_spec2 :=
 Lemma body_min2: semax_body Vprog Gprog f_minimum minimum_spec2.
 Proof.
 start_function.
-assert_PROP (Zlength al = n). {
-  entailer!. autorewrite with sublist; auto.
-}
+assert_PROP (Zlength al = n) by (entailer!; list_solve).
 forward.  (* min = a[0]; *)
 forward_for_simple_bound n
   (EX i:Z, EX j:Z,
@@ -280,7 +274,7 @@ forward_for_simple_bound n
 * (* Show that the precondition entails the loop invariant *)
 Exists (Znth 0 al).
 autorewrite with sublist.
-entailer!.
+entailer!!.
 rewrite sublist_one by lia.
 constructor; auto.
 * (* Show that the loop body preserves the loop invariant *)
@@ -295,7 +289,7 @@ forward_if.
  + (* Then clause *)
  forward. (* min = j; *)
  Exists (Znth i al).
- entailer!.
+ entailer!!.
  rewrite Z.max_r by lia.
  rewrite (sublist_split 0 i (i+1)) by lia.
  rewrite (sublist_one i (i+1) al) by lia.
@@ -308,7 +302,7 @@ forward_if.
  + (* Else clause *)
  forward. (* skip; *)
  Exists j.
- entailer!.
+ entailer!!.
  rewrite Z.max_r by lia.
  split.
  destruct (zlt 1 i).
@@ -327,5 +321,5 @@ forward_if.
  autorewrite with sublist in *.
  forward. (* return *)
  Exists x.
- entailer!.
+ entailer!!.
 Qed.

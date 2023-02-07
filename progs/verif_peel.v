@@ -117,10 +117,10 @@ eapply semax_while_peel.
              LOCAL(temp _i (Vint (Int.repr i)); temp _b (Vint (Int.repr b)); temp _a (Vint (Int.repr (i+1))))
              SEP()).
  *
-  Exists b; entailer!.
+  Exists b; entailer!!.
   f_equal; f_equal; lia.
  *
-   entailer!.
+   entailer!!.
    split. 
    pose proof (Z.square_nonneg i). rep_lia.
    assert (i*i <= (b+1)*(b+1)) by (apply Z.square_le_mono_nonneg; lia).
@@ -141,7 +141,7 @@ eapply semax_while_peel.
  *
    forward.
    Exists (i+1).
-   entailer!.
+   entailer!!.
    rewrite Z.add_simpl_r.
    assert (i*i <= (b+1)*(b+1)) by (apply Z.square_le_mono_nonneg; lia).
    pose proof (Z.square_nonneg i).
@@ -153,5 +153,5 @@ abbreviate_semax.
 Intros a.
 forward.
 Exists a.
-entailer!.
+entailer!!.
 Qed.

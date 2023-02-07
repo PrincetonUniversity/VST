@@ -92,7 +92,7 @@ forward_if.
  subst x. rewrite listrep_null.  Intros.  subst.
  forward.
  Exists y.
- entailer!.
+ entailer!!.
  simpl; auto.
 *
  forward.
@@ -111,9 +111,9 @@ forward_if.
                    listrep sh s2 y))%assert.
 + (* current assertion implies loop invariant *)
    Exists v s1' x u.
-   subst s1. entailer!. simpl. cancel_wand.
+   subst s1. entailer!!. simpl. cancel_wand.
 + (* loop test is safe to execute *)
-   entailer!.
+   entailer!!.
 + (* loop body preserves invariant *)
    clear v Heqs1.
    destruct s1b; unfold listrep at 3; fold listrep. Intros. contradiction.
@@ -122,7 +122,7 @@ forward_if.
    forward.
    Exists (v,s1b,u0,z). unfold fst, snd.
    simpl app.
-   entailer!.
+   entailer!!.
    rewrite sepcon_comm.
    apply RAMIF_PLAIN.trans''.
    apply wand_sepcon_adjoint.
@@ -136,7 +136,7 @@ forward_if.
    Exists x.
    simpl app.
    clear.
-   entailer!.
+   entailer!!.
    unfold listrep at 3; fold listrep. Intros.
    pull_right (listrep sh (a :: s2) t -* listrep sh (s1 ++ s2) x).
    apply modus_ponens_wand'.
@@ -158,7 +158,7 @@ forward_if.
  subst x. rewrite listrep_null. Intros; subst. 
  forward.
  Exists y.
- entailer!.
+ entailer!!.
  simpl; auto.
 *
  forward.
@@ -175,10 +175,10 @@ forward_if.
                    listrep sh s1b u;
                    listrep sh s2 y))%assert.
 + (* current assertion implies loop invariant *)
-   Exists (@nil val) v s1' x u.  entailer!.
+   Exists (@nil val) v s1' x u.  entailer!!.
    unfold lseg. apply allp_right; intro. simpl. cancel_wand.
 + (* loop test is safe to execute *)
-   entailer!.
+   entailer!!.
 + (* loop body preserves invariant *)
    clear v Heqs1. subst s1.
    destruct s1b; unfold listrep; fold listrep. Intros; contradiction.
@@ -187,7 +187,7 @@ forward_if.
    forward.
    Exists (s1a++[a],v,s1b,u0,z). unfold fst, snd.
    rewrite !app_ass. simpl app.
-   entailer!.
+   entailer!!.
    unfold lseg.
    rewrite sepcon_comm.
    clear.
@@ -197,7 +197,7 @@ forward_if.
    unfold listrep at 2; fold listrep; Exists u0.  apply derives_refl.
  + (* after the loop *)
    forward. forward.
-   Exists x. entailer!.
+   Exists x. entailer!!.
    destruct H3 as [? _]. specialize (H3 (eq_refl _)). subst s1b.
    unfold listrep at 1.  Intros. autorewrite with norm.  rewrite H0. rewrite app_ass. simpl app.
    unfold lseg.
@@ -298,7 +298,7 @@ Lemma lseg_cons': forall sh (v u x a b: val) ,
 Proof.
 intros.
      unfold lseg. Exists u. 
-     entailer.
+     entailer!.
 Qed.
 
 Lemma lseg_app': forall sh s1 s2 (a w x y z: val),
@@ -361,7 +361,7 @@ forward_if.
  subst x. rewrite lseg_null. Intros. subst.
  forward.
  Exists y.
- entailer!.
+ entailer!!.
  simpl; auto.
 *
  forward.
@@ -385,7 +385,7 @@ forward_if.
      entailer.
 (*     sep_apply (lseg_cons sh v u x s1'); auto. *)
  + (* loop test is safe to execute *)
-     entailer!.
+     entailer!!.
  + (* loop body preserves invariant *)
     destruct s1b; unfold lseg at 2; fold lseg.
     Intros. contradiction.
@@ -404,7 +404,7 @@ forward_if.
     forward.
     forward.
     Exists x. 
-    entailer!.
+    entailer!!.
     sep_apply (lseg_cons sh a y t s2); auto.
     sep_apply (lseg_app_null sh [a] s2 t y); auto.
     rewrite app_ass.
