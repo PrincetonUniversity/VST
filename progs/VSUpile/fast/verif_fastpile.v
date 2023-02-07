@@ -82,53 +82,40 @@ simpl pilerep. unfold fastprep.
 Intros s.
 forward.
 forward_if (temp _t'1 (bool2val (zle 0 n && zle n (Int.max_signed-s)))).
-(* (if zle 0 n then if zle n (Int.max_signed-s) then Vtrue else Vfalse else Vfalse)).*)
+-
 forward.
-entailer!.
+entailer!!.
 destruct (zle 0 n); [ | lia].
-unfold Int.cmp, Int.lt.
 destruct (zle _ _).
-rewrite zlt_false by (normalize; rep_lia).
+destruct (zlt _ _); [ rep_lia | ].
 reflexivity.
-rewrite zlt_true by (normalize; rep_lia).
+destruct (zlt _ _); [ | rep_lia].
 reflexivity.
-forward.
-entailer!.
-destruct (zle 0 n); try lia. simpl andb. clear l.
-destruct (zle n (Int.max_signed - s)).
-simpl bool2val.
 -
-forward_if (PROP()LOCAL (temp _pp p)
-   SEP(data_at Ews tpile (Vint (Int.repr (s+n))) p;
-         mem_mgr M gv)).
 forward.
-entailer!.
-inversion H3.
-forward.
-simpl pilerep. unfold fastprep.
-Exists (s+n).
-entailer!.
-split.
-constructor; auto. lia.
-simpl. intros.
-rewrite H2.
-lia.
-apply sumlist_nonneg in H1; lia.
+entailer!!.
 -
-forward_if (PROP()LOCAL (temp _pp p)
-   SEP(data_at Ews tpile (Vint (Int.repr s)) p;
-         mem_mgr M gv)).
-discriminate.
+forward_if.
++
+destruct (zle _ _); try discriminate H3.
+destruct (zle _ _); try discriminate H3.
 forward.
-entailer!.
+entailer!!.
+simpl pilerep. unfold fastprep. 
+Exists (s+n); entailer!!.
+simpl in *. rewrite H2. lia.
+apply sumlist_nonneg in H1.
+rep_lia.
++
+destruct (zle _ _); try discriminate H3; [ | lia].
+destruct (zle _ _); try discriminate H3.
+clear H3.
 forward.
+entailer!!.
 simpl pilerep. unfold fastprep.
 Exists s.
-entailer!.
-split.
-constructor; auto.
-lia.
-simpl.
+entailer!!.
+simpl in *.
 apply sumlist_nonneg in H1; lia.
 Qed.
 

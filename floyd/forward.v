@@ -3691,6 +3691,30 @@ rewrite !Int.signed_repr by rep_lia.
 reflexivity.
 Qed.
 
+Lemma lt64_repr_zlt:
+ forall i j: Z,
+    Int64.min_signed <= i <= Int64.max_signed ->
+    Int64.min_signed <= j <= Int64.max_signed ->
+    Int64.lt (Int64.repr i) (Int64.repr j) = proj_sumbool (zlt i j).
+Proof.
+intros.
+unfold Int64.lt.
+rewrite !Int64.signed_repr by rep_lia.
+reflexivity.
+Qed.
+
+Lemma ltptrofs_repr_zlt:
+ forall i j: Z,
+    Ptrofs.min_signed <= i <= Ptrofs.max_signed ->
+    Ptrofs.min_signed <= j <= Ptrofs.max_signed ->
+    Ptrofs.lt (Ptrofs.repr i) (Ptrofs.repr j) = proj_sumbool (zlt i j).
+Proof.
+intros.
+unfold Ptrofs.lt.
+rewrite !Ptrofs.signed_repr by rep_lia.
+reflexivity.
+Qed.
+
 Lemma ltu_repr_zlt:
  forall i j: Z,
     0 <= i <= Int.max_unsigned -> 0 <= j <= Int.max_unsigned ->
@@ -3699,6 +3723,28 @@ Proof.
 intros.
 unfold Int.ltu.
 rewrite !Int.unsigned_repr by rep_lia.
+reflexivity.
+Qed.
+
+Lemma ltu64_repr_zlt:
+ forall i j: Z,
+    0 <= i <= Int64.max_unsigned -> 0 <= j <= Int64.max_unsigned ->
+    Int64.ltu (Int64.repr i) (Int64.repr j) = proj_sumbool (zlt i j).
+Proof.
+intros.
+unfold Int64.ltu.
+rewrite !Int64.unsigned_repr by rep_lia.
+reflexivity.
+Qed.
+
+Lemma ltuptrofs_repr_zlt:
+ forall i j: Z,
+    0 <= i <= Ptrofs.max_unsigned -> 0 <= j <= Ptrofs.max_unsigned ->
+    Ptrofs.ltu (Ptrofs.repr i) (Ptrofs.repr j) = proj_sumbool (zlt i j).
+Proof.
+intros.
+unfold Ptrofs.ltu.
+rewrite !Ptrofs.unsigned_repr by rep_lia.
 reflexivity.
 Qed.
 
@@ -3713,6 +3759,28 @@ rewrite !Int.unsigned_repr by rep_lia.
 reflexivity.
 Qed.
 
+Lemma eq64_repr_zeq:
+ forall i j: Z,
+    0 <= i <= Int64.max_unsigned -> 0 <= j <= Int64.max_unsigned ->
+    Int64.eq (Int64.repr i) (Int64.repr j) = proj_sumbool (zeq i j).
+Proof.
+intros.
+unfold Int64.eq.
+rewrite !Int64.unsigned_repr by rep_lia.
+reflexivity.
+Qed.
+
+Lemma eqptrofs_repr_zeq:
+ forall i j: Z,
+    0 <= i <= Ptrofs.max_unsigned -> 0 <= j <= Ptrofs.max_unsigned ->
+    Ptrofs.eq (Ptrofs.repr i) (Ptrofs.repr j) = proj_sumbool (zeq i j).
+Proof.
+intros.
+unfold Ptrofs.eq.
+rewrite !Ptrofs.unsigned_repr by rep_lia.
+reflexivity.
+Qed.
+
 Lemma simplify_bool2val_case1:
  forall b,
   Vint (if Int.eq (Int.repr (Z.b2z b)) Int.zero then Int.zero else Int.one) =
@@ -3721,18 +3789,23 @@ Proof.
 destruct b; reflexivity.
 Qed.
 
-#[export] Hint Rewrite simplify_bool2val_case1 add_repr mul_repr sub_repr
-   lt_repr_zlt ltu_repr_zlt eq_repr_zeq using rep_lia : simplify_new_temp.
+#[export] Hint Rewrite simplify_bool2val_case1 
+   add_repr mul_repr sub_repr
+   lt_repr_zlt lt64_repr_zlt ltptrofs_repr_zlt
+   ltu_repr_zlt ltu64_repr_zlt ltuptrofs_repr_zlt
+   eq_repr_zeq eq64_repr_zeq eqptrofs_repr_zeq 
+   using rep_lia : simplify_new_temp.
 
 Ltac simplify_new_temp' e :=
  lazymatch e with
  | context [Z.b2z] => idtac
  | context [Int.cmp] => idtac
+ | context [Int.cmpu] => idtac
  end;
  pattern e;
  match goal with |- ?A _ => 
    let CTX := fresh "CTX" in set (CTX := A);
-   unfold Int.cmp;
+   unfold Int.cmp, Int.cmpu;
    autorewrite with simplify_new_temp;
    subst CTX; cbv beta
  end.

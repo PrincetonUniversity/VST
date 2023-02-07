@@ -179,8 +179,9 @@ Proof.
     forward. entailer!. simpl.
     destruct (EqDec_Z (Zlength contents) 0).
     + rewrite e. simpl. reflexivity.
-    + simpl in *. rewrite Int.eq_false; simpl. reflexivity.
-        rewrite Int.eq_false. intro Hx; inv Hx. contradict n.
+    + simpl in *.
+        rewrite Int.eq_false; simpl. reflexivity.
+        contradict n.
         apply repr_inj_unsigned; auto. lia.
   }
   { (*nullval additional*)

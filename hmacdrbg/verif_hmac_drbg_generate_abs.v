@@ -354,7 +354,7 @@ Proof.
   freeze [0;1;3;4] FR4.
 
   set (na:=(negb (eq_dec additional nullval) && negb (eq_dec ((if should_reseed then 0 else Zlength contents)) 0))%bool) in *.
- 
+
   forward_if (temp _t'5 (bool2val na)).
   { destruct additional; simpl in PNadditional; try contradiction.
     + subst i0; entailer!.
@@ -370,7 +370,6 @@ Proof.
     + rewrite e. simpl. rewrite andb_false_r. reflexivity.
     + rewrite Int.eq_false; simpl. 
       destruct (EqDec_val additional nullval); try reflexivity. contradiction. 
-      rewrite Int.eq_false. intro Hx; inv Hx.
       contradict n. apply repr_inj_unsigned in n; lia.
   }
   { forward. rewrite H in *. entailer!. }
