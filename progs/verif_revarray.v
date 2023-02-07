@@ -121,14 +121,14 @@ assert_PROP (Zlength (map Vint contents) = size)
 forward_while (reverse_Inv a0 sh (map Vint contents) size).
 * (* Prove that current precondition implies loop invariant *)
 Exists 0.
-entailer!.
+entailer!!.
 unfold flip_ends; autorewrite with sublist; auto.
 * (* Prove that loop invariant implies typechecking condition *)
 entailer!.
 * (* Prove that loop body preserves invariant *)
 forward. (* t = a[lo]; *)
 {
-  entailer!.
+  entailer!!.
   clear - H0 HRE.
   autorewrite with sublist in *|-*.
   rewrite flip_ends_map.
@@ -137,7 +137,7 @@ forward. (* t = a[lo]; *)
 }
 forward.  (* s = a[hi-1]; *)
 {
-  entailer!.
+  entailer!!.
   clear - H H0 HRE.
   autorewrite with sublist in *|-*.
   rewrite flip_ends_map.
@@ -151,7 +151,7 @@ forward. (* lo++; *)
 forward. (* hi--; *)
 (* Prove postcondition of loop body implies loop invariant *)
  Exists (Z.succ j).
- entailer!.
+ entailer!!.
  f_equal; f_equal; lia.
  simpl.
  apply derives_refl'.
@@ -164,7 +164,7 @@ forward. (* hi--; *)
  list_solve.
 * (* after the loop *)
 forward. (* return; *)
-entailer!.
+entailer!!.
 rewrite map_rev. rewrite flip_fact_1; try lia; auto.
 cancel.
 Qed.

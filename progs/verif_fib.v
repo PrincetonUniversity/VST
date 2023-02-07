@@ -97,7 +97,7 @@ Proof.
      LOCAL (temp _a1 (Vint (Int.repr (fib_of_Z (i + 1)))); temp _a0 (Vint (Int.repr (fib_of_Z i))); temp _n (Vint (Int.repr n)))
      SEP ()))%assert.
   { (* Prove that loop invariant implies typechecking of loop condition *)
-    entailer!.
+    entailer!!.
   }
   { (* Prove that loop body preserves invariant *)
     assert (0 <= fib_of_Z i < Int.max_signed /\
@@ -110,7 +110,7 @@ Proof.
     forward. (* a2 = a0 + a1; *)
     forward. (* a0 = a1; *)
     forward. (* a1 = a2; *)
-    entailer!.
+    entailer!!.
     rewrite <- fib_rec by lia.
     do 3 f_equal; lia.
   }
@@ -135,7 +135,7 @@ Proof.
     split; [| split]; apply fib_bound; lia.
   }
   forward.
-  entailer!.
+  entailer!!.
   replace (n - 1) with (n - 2 + 1) by lia.
   rewrite <- fib_rec by lia.
   do 3 f_equal; lia.
@@ -167,7 +167,7 @@ Proof.
     2:{ (* Else branch *)
       forward. (* break; *)
       assert (i = n) by lia.
-      entailer!.
+      entailer!!.
     }
     (* Then branch and other loop body *)
     assert (0 <= fib_of_Z i < Int.max_signed /\
@@ -181,7 +181,7 @@ Proof.
     forward. (* a0 = a1 - a0; *)
     forward. (* -- n *)
     Exists (i + 1).
-    entailer!.
+    entailer!!.
     split3.
     + rewrite <- fib_rec by lia.
       do 3 f_equal; lia.

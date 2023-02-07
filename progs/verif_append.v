@@ -42,7 +42,7 @@ forward_if.
  forward.
  Exists y.
  simpl app.
- entailer!.
+ entailer!!.
 *
  forward.
  apply semax_lseg_nonnull; [ | intros a s3 u ? ?].
@@ -59,8 +59,8 @@ forward_if.
                    field_at sh list_struct [StructField _tail] u t;
                    lseg LS sh s1b u nullval;
                    lseg LS sh s2 y nullval))%assert.
- + Exists (@nil val) s3 x u a.  entailer.
- + entailer!.
+ + Exists (@nil val) s3 x u a.  entailer!. cancel.
+ + entailer!!.
  + clear u H1; rename u0 into u. clear a s3 H0. rename a0 into a.
    gather_SEP (list_cell _ _ _ _) (field_at _ _ _ _ _) (lseg _ _ _ x _) (lseg _ _ _ u _).
    replace_SEP 0 (lseg LS sh (s1a++[a]) x u * lseg LS sh s1b u nullval)%logic.
@@ -81,7 +81,7 @@ forward_if.
     clear a s3 H0. subst u0. rewrite lseg_eq by reflexivity. Intros. subst s1 s1b.
     forward.
     forward.
-    Exists x. entailer!.
+    Exists x. entailer!!.
     apply derives_trans with (lseg LS sh (s1a++[a0]) x y * lseg LS sh s2 y nullval)%logic.
     eapply derives_trans; [ | apply (lseg_cons_right_list LS) with (y:=t)]; auto.
     simpl valinject.

@@ -122,7 +122,7 @@ forward_for_simple_bound n
       SEP (data_at Tsh (tarray tdouble n) (map Vfloat fx) x;
              data_at Tsh (tarray tdouble n) (map Vfloat fy) y)).
 * (* initializer *)
-entailer!.
+entailer!!.
 * (* body *)
 assert_PROP (Zlength fx = n /\ Zlength fy = n). {
     entailer!. autorewrite with sublist in *; split; auto.
@@ -131,7 +131,7 @@ forward.
 forward. 
 rewrite !Znth_map by lia.
 forward. 
-  entailer!.
+  entailer!!.
   autorewrite with sublist in *.
   f_equal.
   rewrite (sublist_split 0 i _ fx) by lia.
@@ -145,7 +145,7 @@ forward.
  forward.
  autorewrite with sublist in *.
  autorewrite with sublist.
- entailer!.
+ entailer!!.
 Qed.
 
 Lemma body_add:  semax_body Vprog Gprog f_add add_spec.
@@ -165,12 +165,12 @@ forward_for_simple_bound 3
    data_at Tsh (tarray tdouble 3) (map Vfloat fy) y;
    data_at Tsh (tarray tdouble 3) (map Vfloat fz) z)).
 * (* initializer *)
-entailer!; simpl; entailer!.
+simpl app; entailer!!.
 * (* body *)
 forward. (* x[i] = y[i] + z[i]; *)
 forward.
 forward.
-entailer!. {
+entailer!!. {
   simpl force_val.
   #[export] Hint Rewrite (Znth_map2 _ _ _ Inhabitant_float Inhabitant_float Inhabitant_float) using Zlength_solve : Znth.
   #[export] Hint Rewrite (@Znth_map _ Inhabitant_float) using Zlength_solve : Znth.

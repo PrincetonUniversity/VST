@@ -132,7 +132,7 @@ Proof.
 start_function.
 eapply semax_seq'; [do_semax_shortcut_logical | abbreviate_semax].
 forward.
-destruct H,H0; subst; simpl; entailer!.
+destruct H,H0; subst; simpl; entailer!!.
 Qed.
 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.

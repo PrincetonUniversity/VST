@@ -61,7 +61,7 @@ assert_PROP (force_val (sem_add_ptr_int tuint Signed p (eval_unop Oneg tint (Vin
 
 (* Now "forward" succeeds, but leaves a goal open to be proved manually: *)
 forward.
-entailer!.
+entailer!!.
 rewrite upd_Znth0.
 rewrite ?Zlength_map. replace (Z.succ (Zlength contents) - 1) with (Zlength contents) by lia.
 apply derives_refl.
@@ -83,7 +83,7 @@ assert_PROP (offset_val 8 (force_val (sem_add_ptr_int (Tstruct _pair_pair noattr
 }
 (* p->snd = v; *)
 forward.
-entailer!.
+entailer!!.
 Qed.
 
 Lemma body_set22_full_expr: semax_body Vprog Gprog f_set22 set22_spec.
@@ -106,7 +106,7 @@ assert_PROP (
 }
 (* int res = p->snd; *)
 forward.
-entailer!.
+entailer!!.
 Qed.
 
 Lemma body_set22_alt: semax_body Vprog Gprog f_set22 set22_spec.
@@ -127,5 +127,5 @@ assert_PROP (offset_val 8 (force_val (sem_add_ptr_int (Tstruct _pair_pair noattr
 rewrite E. clear E.
 (* int res = p->snd; *)
 forward.
-entailer!.
+entailer!!.
 Qed.

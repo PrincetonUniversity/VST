@@ -196,10 +196,10 @@ Proof.
     { split; try rep_lia.
       rewrite intr_lt; try lia. }
     forward.
-    { entailer!.
+    { entailer!!.
       split; try rep_lia.
       rewrite intr_lt; try lia. }
-    entailer!.
+    entailer!!.
     { rewrite intr_lt by lia; auto. }
     rewrite (intr_eq i).
     destruct (i <=? 0) eqn: Hi; [apply Zle_bool_imp_le in Hi; lia|].
@@ -214,10 +214,10 @@ Proof.
     { lia. }
     { rewrite Zlength_map, intr_lt; rep_lia. }
   - forward.
-    entailer!.
+    entailer!!.
     rewrite replace_list_nil by rep_lia; auto.
   - forward.
-    rewrite Z.sub_simpl_r; entailer!.
+    rewrite Z.sub_simpl_r; entailer!!.
 Qed.
 
 Lemma chars_of_Z_eq : forall n, chars_of_Z n =
@@ -293,10 +293,10 @@ Proof.
   { split; auto; simpl; computable. }
   Intro buf.
   forward_if (buf <> nullval).
-  { if_tac; entailer!. }
+  { if_tac; entailer!!. }
   { forward_call 1; contradiction. }
   { forward.
-    entailer!. }
+    entailer!!. }
   Intros; rewrite if_false by auto.
   forward_if (PROP ()
     LOCAL (temp _buf buf; gvars gv; temp _i (Vint (Int.repr i));
@@ -309,7 +309,7 @@ Proof.
     forward.
     forward.
     forward.
-    entailer!.
+    entailer!!.
   - Intros.
     sep_apply data_at__data_at.
     unfold default_val; simpl.
@@ -319,10 +319,10 @@ Proof.
     { rewrite !Zlength_cons, Zlength_nil.
       simpl; repeat (split; auto); rep_lia. }
     forward.
-    { entailer!.
+    { entailer!!.
       rewrite !Zlength_cons, Zlength_nil; rep_lia. }
     forward.
-    entailer!.
+    entailer!!.
     { rewrite Zlength_app, Zlength_cons, Zlength_nil, chars_of_Z_intr.
       destruct (Z.leb_spec i 0); auto; lia. }
     unfold replace_list; simpl.
@@ -406,7 +406,7 @@ Proof.
   { simpl; repeat (split; auto); rep_lia. }
   Intro buf.
   forward_if (buf <> nullval).
-  { if_tac; entailer!. }
+  { if_tac; entailer!!. }
   { forward_call 1; contradiction. }
   { forward.
     entailer!. }
@@ -421,8 +421,8 @@ Proof.
     SEP (ITREE (read_sum n lc); data_at Ews (tarray tuchar 4) (map Vubyte lc) buf;
       mem_mgr gv; malloc_token Ews (tarray tuchar 4) buf)).
   forward_while Inv.
-  { Exists 0 lc; entailer!. }
-  { entailer!. }
+  { Exists 0 lc; entailer!!. }
+  { entailer!!. }
   - clear dependent lc; rename lc0 into lc.
     rewrite read_sum_eq.
     rewrite if_true by auto; simpl ITREE.
@@ -436,8 +436,7 @@ Proof.
      SEP (ITREE (b <- for_loop j 4
          (read_sum_inner n nums) ;; if (b : bool) then Ret tt else lc' <- read_list stdin 4 ;; read_sum (n + sum_Z nums) lc');
              data_at Ews (tarray tuchar 4) (map Vubyte lc) buf; mem_mgr gv; malloc_token Ews (tarray tuchar 4) buf)).
-    + entailer!.
-      { lia. }
+    + entailer!!. lia.
     + simpl.
       forward.
       { entailer!.
@@ -453,7 +452,7 @@ Proof.
       { forward_call (tarray tuchar 4, buf, gv).
         { rewrite if_false by auto; cancel. }
         forward.
-        entailer!.
+        entailer!!.
         rewrite for_loop_eq.
         destruct (Z.ltb_spec i 4); try lia.
         unfold read_sum_inner at 1.
@@ -465,7 +464,7 @@ Proof.
           rewrite Int.unsigned_repr in * by (unfold char0 in *; rep_lia).
           left; apply Z.leb_le; unfold char0 in *; lia. } }
       { forward.
-        entailer!.
+        entailer!!.
         rewrite Int.unsigned_repr_eq in *.
         destruct (zlt (Byte.unsigned (Znth i lc)) char0).
         { unfold char0 in *; rewrite <- Z_mod_plus_full with (b := 1), Zmod_small in *; rep_lia. }
@@ -486,7 +485,7 @@ Proof.
         rewrite Znth_map by lia; auto. }
       forward_call (gv, n + sum_Z (sublist 0 (i + 1) nums),
         b <- for_loop (i + 1) 4 (read_sum_inner n nums) ;; if (b : bool) then Ret tt else lc' <- read_list stdin 4 ;; read_sum (n + sum_Z nums) lc').
-      { entailer!.
+      { entailer!!.
         rewrite Hi, sum_Z_app; simpl.
         rewrite Z.add_assoc, Z.add_0_r; auto. }
       { rewrite sepcon_assoc; apply sepcon_derives; cancel.
@@ -496,7 +495,7 @@ Proof.
         intros [].
         rewrite bind_ret_l; reflexivity. }
       { rewrite Hi, sum_Z_app; simpl; lia. }
-      entailer!.
+      entailer!!.
       { rewrite Hi, sum_Z_app; simpl.
         rewrite Z.add_0_r, Z.add_assoc; split; auto; lia. }
       { rewrite Int.unsigned_repr by rep_lia.

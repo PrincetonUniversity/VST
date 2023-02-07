@@ -75,12 +75,10 @@ Lemma initial:
   forall gv, initialized_globals gv |-- data 3 gv.
 Proof.
 intros.
-unfold initialized_globals.
-entailer!.
-unfold data.
-apply orp_right2.
-entailer!.
+unfold initialized_globals, data.
 rewrite !data_at_tuint_tint.
+entailer!.
+apply orp_right2.
 cancel.
 unfold_data_at (data_at _ (Tstruct _foo _) _ _).
 rewrite sepcon_comm.
@@ -207,12 +205,11 @@ forward.
 forward_if (PROP() LOCAL() SEP(LG.data_ok n gv)).
 forward.
 forward.
-entailer!.
 unfold LG.data_ok.
-entailer!.
+entailer!!.
 forward.
 unfold LG.data_ok.
-entailer!.
+entailer!!.
 Qed.
 
 Lemma body_bump:  semax_body Vprog Gprog f_LG_bump bump_spec.
@@ -225,7 +222,7 @@ forward.
 forward.
 forward.
 forward.
-entailer!.
+entailer!!.
 unfold LG.data.
 apply orp_right1.
 unfold LG.data_ok.
@@ -245,14 +242,14 @@ forward.
 unfold LG.data.
 apply orp_right1.
 unfold LG.data_ok.
-entailer!.
+entailer!!.
 *
 forward.
 forward.
 unfold LG.data.
 apply orp_right1.
 unfold LG.data_ok.
-entailer!.
+entailer!!.
 *
 Intros. contradiction.
 Qed.

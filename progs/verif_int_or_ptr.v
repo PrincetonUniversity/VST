@@ -187,7 +187,7 @@ Proof.
  - (* then clause *)
    forward. simpl.
    Exists (Vint (Int.repr(i+i+1))).
-   entailer!.
+   entailer!!.
  - (* else clause *)
   inv H0.
 * (* NODE *) 
@@ -230,7 +230,7 @@ Proof.
   forward_call r.
   forward. simpl.
   Exists r p q p1 p2.
-  entailer!.
+  entailer!!.
 Qed.
 
 
