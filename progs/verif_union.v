@@ -307,7 +307,7 @@ forward.
 forward.
 forward.
 forward.
-entailer!.
+entailer!!.
 f_equal.
 apply FABS_STUFF.fabs_float32_lemma.
 Qed.

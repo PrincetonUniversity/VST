@@ -77,5 +77,5 @@ Time forward.
 Time match goal with |- context [data_at _ _ ?X _] =>
   set (v1 := X) (* do this so the forward doesn't blow up *)
 end.
-entailer!.
+entailer!!.
 Time Qed. (* 2.74 sec *)

@@ -148,16 +148,16 @@ Proof.
   forward.
   forward_while (EX i : int, PROP (-1 <= Int.signed i <= two_p 8 - 1) LOCAL (temp _r (Vint i))
     SEP (ITREE (if eq_dec (Int.signed i) (-1) then (r <- read stdin;; k r) else k (Byte.repr (Int.signed i))))).
-  - Exists (Int.neg (Int.repr 1)); entailer!.
+  - Exists (Int.neg (Int.repr 1)); entailer!!.
     { simpl; lia. }
     rewrite if_true; auto.
-  - entailer!.
+  - entailer!!.
   - subst; rewrite Int.signed_repr by rep_lia.
     rewrite if_true by auto.
     forward_call k.
     Intros i.
     forward.
-    Exists i; entailer!.
+    Exists i; entailer!!.
   - assert (Int.signed i <> -1).
     { intro X.
       apply f_equal with (f := Int.repr) in X.
@@ -177,7 +177,7 @@ Proof.
   forward.
   forward_while (EX i : int, PROP (Int.signed i = -1 \/ Int.signed i = Byte.unsigned c) LOCAL (temp _r (Vint i); temp _c (Vubyte c))
     SEP (ITREE (if eq_dec (Int.signed i) (-1) then (r <- write stdout c;; k) else k))).
-  - Exists (Int.neg (Int.repr 1)); entailer!.
+  - Exists (Int.neg (Int.repr 1)); entailer!!.
     rewrite if_true; auto.
   - entailer!.
   - subst; rewrite Int.signed_repr by rep_lia.
@@ -185,7 +185,7 @@ Proof.
     forward_call (c, k).
     Intros i.
     forward.
-    Exists i; entailer!.
+    Exists i; entailer!!.
   - assert (Int.signed i <> -1).
     { intro X.
       apply f_equal with (f := Int.repr) in X.
@@ -193,7 +193,7 @@ Proof.
     rewrite if_false by auto.
     destruct H; [contradiction | subst].
     forward.
-    entailer!.
+    entailer!!.
     unfold Vubyte.
     rewrite <- H, Int.repr_signed; auto.
 Qed.
@@ -212,14 +212,14 @@ Proof.
     { split; [apply Z.div_pos; lia | apply Z.div_le_upper_bound; lia]. }
     simpl write_list.
     forward_call (Byte.repr (i mod 10 + char0), tr).
-    { entailer!.
+    { entailer!!.
       unfold Vubyte; rewrite Byte.unsigned_repr; auto.
       pose proof (Z_mod_lt i 10); unfold char0; rep_lia. }
     { rewrite <- sepcon_emp at 1; apply sepcon_derives; [|cancel].
       rewrite bind_ret'; auto. }
-    entailer!.
+    entailer!!.
   - forward.
-    subst; entailer!.
+    subst; entailer!!.
     simpl.
     rewrite bind_ret_l; auto.
 Qed.
@@ -265,10 +265,10 @@ Proof.
     { rewrite chars_of_Z_eq; simpl.
       erewrite <- sepcon_emp at 1; apply sepcon_derives; [|cancel].
       rewrite bind_ret'; apply derives_refl. }
-    entailer!.
+    entailer!!.
   - forward_call (i, tr).
     { rewrite chars_of_Z_intr by lia; cancel. }
-    entailer!.
+    entailer!!.
 Qed.
 
 Lemma read_sum_eq : forall n d, read_sum n d ≈
@@ -312,14 +312,14 @@ Proof.
     LOCAL (temp _c (Vubyte c); temp _n (Vint (Int.repr n)))
     SEP (ITREE (read_sum n (Byte.unsigned c - char0)))).
   unfold Swhile; forward_loop Inv break: Inv.
-  { Exists 0 c; entailer!. }
+  { Exists 0 c; entailer!!. }
   subst Inv.
   clear dependent c; Intros n c.
   forward_if.
   forward.
   forward_if.
   { forward.
-    Exists n c; entailer!. }
+    Exists n c; entailer!!. }
   forward.
   destruct (zlt (Byte.unsigned c) char0).
   { rewrite Int.unsigned_repr_eq in H1.
@@ -335,9 +335,9 @@ Proof.
   Intros c'.
   forward.
   rewrite zero_ext_inrange by (pose proof (signed_char_unsigned c'); rewrite Int.unsigned_repr; rep_lia).
-  Exists (n + (Byte.unsigned c - char0)) c'; entailer!.
+  Exists (n + (Byte.unsigned c - char0)) c'; entailer!!.
   { forward.
-    Exists n c; entailer!. }
+    Exists n c; entailer!!. }
   subst Inv.
   Intros n c'.
   forward.

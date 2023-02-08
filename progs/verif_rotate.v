@@ -58,9 +58,9 @@ Proof.
     SEP (mem_mgr gv; malloc_token Ews (tarray tint n) b; data_at_ Ews (tarray tint n) b;
       data_at sh (tarray tint n) (map Vint (map Int.repr s)) a)
   ).
-  { if_tac; entailer!. }
+  { if_tac; entailer!!. }
   { forward_call (-1). inv H3. }
-  { forward. entailer!. if_tac; auto. congruence. }
+  { forward. entailer!!. if_tac; auto. congruence. }
   freeze [0; 1] FR.
   assert_PROP (n = Zlength s). { entailer!. list_solve. }
   forward_for_simple_bound (n-k) (EX i : Z,
@@ -68,11 +68,11 @@ Proof.
     LOCAL (temp _b b; temp _a a; temp _n (Vint (Int.repr n)); temp _k (Vint (Int.repr k)); gvars gv)
     SEP (FRZL FR; data_at Ews (tarray tint n) (map Vint (map Int.repr (sublist k (k+i) s)) ++ Zrepeat Vundef (n-i)) b; data_at sh (tarray tint n) (map Vint (map Int.repr s)) a)
   ).
-  { entailer!. rewrite data_at__tarray. list_solve. }
+  { entailer!!. rewrite data_at__tarray. list_solve. }
   { forward.
     forward.
-    entailer!.
-    Time list_solve.
+    entailer!!.
+    list_solve.
   }
   forward_for_simple_bound n (EX i : Z,
     PROP (n-k <= i)
@@ -85,8 +85,8 @@ Proof.
   { Intros.
     forward.
     forward.
-    entailer!.
-    Time list_solve.
+    entailer!!.
+    list_solve.
   }
   forward_for_simple_bound n (EX i : Z,
     PROP ( )
@@ -95,19 +95,19 @@ Proof.
       data_at sh (tarray tint n) (map Vint (map Int.repr (sublist 0 i (sublist k n s ++ sublist 0 k s) ++ sublist i n s))) a
     )
   ).
-  { entailer!. apply sepcon_derives; list_solve. }
+  { entailer!!. apply sepcon_derives; list_solve. }
   { forward.
     forward.
-    entailer!.
-    Time list_solve.
+    entailer!!.
+    list_solve.
   }
   thaw FR.
   forward_call (tarray tint n, b, gv).
   { if_tac; entailer!. }
-  entailer!.
+  entailer!!.
   unfold rotate.
-  Time list_solve.
-Time Qed.
+   list_solve.
+Qed.
 
 Lemma sorted_rotate_body : semax_body Vprog Gprog f_sorted_rotate sorted_rotate_spec.
 Proof.
@@ -131,23 +131,23 @@ Proof.
         ++ sublist (i-(n-k)) k s1)
     )) a)
   ).
-  { forward. Exists (n-k). entailer!. list_solve. }
+  { forward. Exists (n-k). entailer!!. list_solve. }
   { Intros.
     forward.
     exploit (H3 (i-(n-k))). list_solve. intros.
     forward.
-    { entailer!. autorewrite with Znth in *.
+    { entailer!!. autorewrite with Znth in *.
       replace (Znth _ s1) with (Znth (i - (Zlength (s1 ++ s2) - Zlength s1)) s1) by list_solve.
       do 2 rewrite Int.signed_repr by rep_lia. rep_lia.
     }
-    entailer!. Time list_solve.
+    entailer!!.  list_solve.
   }
-  unfold sorted_rotate. entailer!.
+  unfold sorted_rotate. entailer!!.
   {
     unfold sorted. intros.
     Time list_prop_solve'.
   }
   {
-    Time list_solve.
+     list_solve.
   }
-Time Qed.
+Qed.

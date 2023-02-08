@@ -58,7 +58,7 @@ Next Obligation.
 compute; split; congruence.
 Qed.
 Next Obligation.
-  entailer!.
+  entailer!!.
   change 8 with (sizeof (tarray tint 2)).
   apply data_at_memory_block.
 Qed.
@@ -145,7 +145,7 @@ forward. (* return 8; *)
 Exists 8.
 unfold mf_restbuf. simpl.
 rewrite memory_block_zero.
-entailer!.
+entailer!!.
 Qed.
 
 Lemma body_intpair_deserialize: semax_body Vprog Gprog f_intpair_deserialize intpair_deserialize_spec.
@@ -164,7 +164,7 @@ entailer!.
 split; simpl; auto.
 unfold mf_assert.
 simpl.
-entailer!.
+entailer!!.
 Qed.
 
 Lemma body_main: semax_body Vprog Gprog f_main main_spec.
@@ -241,5 +241,5 @@ sep_apply (data_at_memory_block Tsh (tarray tint 2) [Vint (Int.repr 1); Vint (In
 unfold sizeof; simpl Ctypes.sizeof.
 sep_apply (memory_block_data_at__tarray_tuchar Tsh v_buf 8).
    computable.
-entailer!.
+entailer!!.
 Qed.

@@ -95,9 +95,7 @@ Definition Gprog : funspecs :=
 Lemma body_min: semax_body Vprog Gprog f_minimum minimum_spec.
 Proof.
 start_function.
-assert_PROP (Zlength al = n). {
-  entailer!. autorewrite with sublist; auto.
-}
+assert_PROP (Zlength al = n) by (entailer!; list_solve).
 forward.  (* min = a[0]; *)
 forward_for_simple_bound n
   (EX i:Z,
@@ -107,7 +105,7 @@ forward_for_simple_bound n
           temp _n (Vlong (Int64.repr n)))
     SEP(data_at Ews (tarray tint n) (map Vint (map Int.repr al)) a)).
 * (* Prove that the precondition implies the loop invariant *)
-  entailer!.
+  entailer!!.
 * (* Prove that the loop body preserves the loop invariant *)
  forward. (* j = a[i]; *)
  forward. (* a[i] = j; *)
@@ -136,7 +134,7 @@ forward_for_simple_bound n
  rewrite Z.min_l; auto; lia.
 * (* After the loop *)
  forward. (* return *)
- entailer!.
+ entailer!!.
  autorewrite with sublist.
  destruct al; simpl; auto.
 Qed.
