@@ -152,7 +152,7 @@ forward. (* lo++; *)
 forward. (* hi--; *)
 (* Prove postcondition of loop body implies loop invariant *)
  Exists (Z.succ j).
- entailer!!.
+ entailer!.
  f_equal; f_equal; lia.
  simpl.
  apply derives_refl'.

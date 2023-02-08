@@ -250,13 +250,13 @@ Proof. induction n; simpl; intros.
 Qed.
 
 
-Definition i_8_16_inv F x z c b m nonce k zbytes gv: environ -> mpred := 
+Definition i_8_16_inv F x z c b m k zbytes gv: environ -> mpred := 
 EX i:_,
   (PROP  ()
    LOCAL  (temp _u (Vint (fst (ZZ zbytes (Z.to_nat (i-8)))));
      lvar _x (Tarray tuchar 64 noattr) x;
      lvar _z (Tarray tuchar 16 noattr) z; temp _c c; temp _m m;
-     temp _b b; temp _n nonce; temp _k k; gvars gv)
+     temp _b b; temp _k k; gvars gv)
    SEP  (F; data_at Tsh (Tarray tuchar 16 noattr) (Bl2VL (snd (ZZ zbytes (Z.to_nat (i-8))))) z)).
 
 Definition for_loop_statement:=
@@ -283,26 +283,25 @@ Sfor (Sset _i (Econst_int (Int.repr 8) tint))
      (Sset _i
         (Ebinop Oadd (Etempvar _i tuint) (Econst_int (Int.repr 1) tint) tuint)).
 
-Lemma For_i_8_16_loop Espec F x z c m b nonce k zbytes gv:
+Lemma For_i_8_16_loop Espec F x z c m b k zbytes gv:
 @semax CompSpecs Espec 
   (func_tycontext f_crypto_stream_salsa20_tweet_xor SalsaVarSpecs SalsaFunSpecs nil)
   (PROP  ()
    LOCAL  (temp _u (Vint (Int.repr 1)); lvar _x (Tarray tuchar 64 noattr) x;
    lvar _z (Tarray tuchar 16 noattr) z; temp _c c; temp _m m;
-   temp _b b; temp _n nonce;
-   temp _k k; gvars gv)
+   temp _b b; temp _k k; gvars gv)
    SEP  (F; data_at Tsh (Tarray tuchar 16 noattr) (Bl2VL zbytes) z))
  for_loop_statement
  (normal_ret_assert 
   ( PROP ()
     LOCAL (lvar _x (Tarray tuchar 64 noattr) x;
            lvar _z (Tarray tuchar 16 noattr) z; temp _c c; temp _m m;
-           temp _b b; temp _n nonce; temp _k k; gvars gv)
+           temp _b b; temp _k k; gvars gv)
     SEP (F; data_at Tsh (Tarray tuchar 16 noattr) (Bl2VL (snd (ZZ zbytes 8))) z))).
 Proof.
 unfold for_loop_statement.
-forward_for_simple_bound 16 (i_8_16_inv F x z c b m nonce k zbytes gv).
-{ entailer!. }
+forward_for_simple_bound 16 (i_8_16_inv F x z c b m k zbytes gv).
+{ entailer!!. }
 { rename H into I.
   remember (ZZ zbytes (Z.to_nat (i - 8))) as X. destruct X as [ui Zi]. 
   assert_PROP (Zlength (Bl2VL Zi) = 16) as L by entailer!.
@@ -313,22 +312,17 @@ forward_for_simple_bound 16 (i_8_16_inv F x z c b m nonce k zbytes gv).
   2: lia.
   inv Vi. unfold Bl2VL.
   forward.
-  { entailer!.
-    autorewrite with sublist in *.
+  { entailer!!. list_simplify.
     red. rewrite Int.unsigned_repr by rep_lia. rep_lia.
   } 
-  simpl. rewrite Znth_map; [| lia].
-    rewrite Zlength_map in L.
-    rewrite Znth_map; try lia.
-    rewrite Zlength_map in L.
-    rewrite Znth_map; try lia. 
+  simpl. list_simplify. 
   forward.
   forward.
   assert (Q: Z.to_nat (i + 1 - 8) = S (Z.to_nat (i-8))).
-    rewrite <- Z2Nat.inj_succ. f_equal. lia. lia.
+    rewrite <- Z2Nat.inj_succ by lia. f_equal. lia.
   forward.
   assert_PROP (isptr z) as PtrZ by entailer!.
-  entailer!. rewrite Q; simpl; rewrite <- HeqX; simpl.
+  entailer!!. rewrite Q; simpl; rewrite <- HeqX; simpl.
   f_equal. assert (W:Z.of_nat (Z.to_nat (i - 8)) + 8 = i).
      rewrite Z2Nat.id; lia.
      rewrite W. f_equal.
@@ -336,7 +330,7 @@ forward_for_simple_bound 16 (i_8_16_inv F x z c b m nonce k zbytes gv).
 
   apply derives_refl'. f_equal.
   clear H2. unfold Bl2VL.
-  rewrite Q; simpl; rewrite <- HeqX. 
+  rewrite Q; simpl; rewrite <- HeqX.
   rewrite upd_Znth_map. f_equal. simpl.
   assert (W:Z.of_nat (Z.to_nat (i - 8)) + 8 = i). rewrite Z2Nat.id; lia.
   rewrite W. do 2 rewrite <- upd_Znth_map.
@@ -352,7 +346,7 @@ forward_for_simple_bound 16 (i_8_16_inv F x z c b m nonce k zbytes gv).
     lia. rewrite byte_unsigned_max_eq; lia.
 }
 Opaque ZZ.
-entailer!.
+entailer!!.
 Qed.
 
 Definition null_or_offset x q y :=
@@ -422,7 +416,7 @@ Sfor (Sset _i (Econst_int (Int.repr 0) tint))
      (Sset _i
         (Ebinop Oadd (Etempvar _i tuint) (Econst_int (Int.repr 1) tint) tuint)).
 
-Lemma loop1 Espec F x z c mInit b nonce k m xbytes mbytes gv cLen 
+Lemma loop1 Espec F x z c mInit b k m xbytes mbytes gv cLen 
       q (M: null_or_offset mInit q m)
       (Q: 0 <= q <= (Zlength mbytes) - 64) (CL: 64 <= cLen):
 @semax CompSpecs Espec 
@@ -430,7 +424,7 @@ Lemma loop1 Espec F x z c mInit b nonce k m xbytes mbytes gv cLen
   (PROP  ()
    LOCAL  (lvar _x (Tarray tuchar 64 noattr) x;
    lvar _z (Tarray tuchar 16 noattr) z; temp _c c; temp _m m;
-   temp _b b; temp _n nonce;
+   temp _b b;
    temp _k k; gvars gv)
    SEP  (F;
    data_at Tsh (tarray tuchar 64)
@@ -442,7 +436,7 @@ loop1_statement
   ( PROP  ()
     LOCAL  (temp _i (Vint (Int.repr 64)); lvar _x (Tarray tuchar 64 noattr) x;
        lvar _z (Tarray tuchar 16 noattr) z; temp _c c; temp _m m; temp _b b;
-       temp _n nonce; temp _k k; gvars gv)
+       temp _k k; gvars gv)
     SEP  (F;
           data_at Tsh (tarray tuchar 64)
              (map Vint (map Int.repr (map Byte.unsigned xbytes))) x;
@@ -458,8 +452,7 @@ forward_for_simple_bound 64 (EX i:Z,
   (PROP  ()
    LOCAL  (lvar _x (Tarray tuchar 64 noattr) x;
    lvar _z (Tarray tuchar 16 noattr) z; temp _c c; temp _m m;
-   temp _b b; temp _n nonce;
-   temp _k k; gvars gv)
+   temp _b b; temp _k k; gvars gv)
    SEP (F;
      data_at Tsh (tarray tuchar 64)
        (map Vint (map Int.repr (map Byte.unsigned xbytes))) x;
@@ -469,26 +462,19 @@ forward_for_simple_bound 64 (EX i:Z,
                = Some l)
          && data_at Tsh (Tarray tuchar cLen noattr)
                         (Bl2VL l ++ repeat Vundef (Z.to_nat (cLen - i))) c))).
-{ entailer!. autorewrite with sublist.
+{ entailer!!. autorewrite with sublist.
   Exists (@nil byte). 
   unfold Bl2VL; simpl.
-  entailer!.
+  entailer!!.
   destruct mInit; simpl in M; try contradiction.
   destruct M; subst; simpl; trivial.
   subst; simpl. autorewrite with sublist. trivial. }
 rename H into I.
   Intros l. rename H into XOR.
   assert_PROP (isptr c) as C by entailer!.
-  assert_PROP (Zlength xbytes = 64) as XL.
-  { entailer!. repeat rewrite Zlength_map in H1. trivial. } 
+  assert_PROP (Zlength xbytes = 64) as XL by (entailer!; list_solve).
   freeze [0;1;3] FR1.
-  forward_if
-  (PROP  ()
-   LOCAL  (temp _i (Vint (Int.repr i)); lvar _x (Tarray tuchar 64 noattr) x;
-      lvar _z (Tarray tuchar 16 noattr) z; temp _c c; temp _m m;
-      temp _b b; temp _n nonce; temp _k k; gvars gv;
-      temp _t'1 (Vint (Int.repr (Byte.unsigned (byte_at mInit (i+q) mbytes)))))
-   SEP  (FRZL FR1; message_at mbytes mInit)).
+  forward_if (temp _t'1 (Vint (Int.repr (Byte.unsigned (byte_at mInit (i+q) mbytes))))).
   { apply denote_tc_test_eq_split.
     + clear H XOR. destruct mInit; simpl in M; try contradiction.
       - destruct M. subst m. apply valid_pointer_null.
@@ -514,7 +500,7 @@ rename H into I.
     2:{ elim n; clear n. apply field_compatible0_cons. simpl. split; trivial. lia. }
     assert (X: 0 + 1 * q = q) by lia. rewrite X; clear X. 
     forward; unfold Bl2VL; autorewrite with sublist. 
-    + entailer!. 
+    + entailer!!. 
         apply Byte.unsigned_range_2.
     + forward. erewrite (split2_data_at_Tarray_tuchar _ (Zlength mbytes) q).
       2: lia. 2: unfold Bl2VL; repeat rewrite Zlength_map; trivial. 
@@ -526,13 +512,13 @@ rename H into I.
   { rewrite H in *; simpl in *. 
     destruct mInit; simpl in M; try contradiction.
     destruct M as [M _]. 2: discriminate.
-    forward. entailer!.
+    forward. entailer!!.
   }  
   destruct (Znth_mapVint (map Int.repr (map Byte.unsigned xbytes)) i) as  [xi Xi].
     repeat rewrite Zlength_map. lia.
   thaw FR1. freeze [0;2;3] FR2.
   forward; change (@Znth val Vundef) with (@Znth val _); rewrite Xi.
-  { entailer!.
+  { entailer!!.
    rewrite ?Znth_map in Xi by list_solve.
    inv Xi. 
    rewrite Int.unsigned_repr. apply Byte.unsigned_range_2. apply byte_unsigned_range_int_unsigned_max.
@@ -570,13 +556,12 @@ rename H into I.
 apply andp_left2. apply derives_refl.
 Qed.
 
-Definition loop2Inv F x z c mInit m b nonce k gv q xbytes mbytes cLen: environ -> mpred:=
+Definition loop2Inv F x z c mInit m b k gv q xbytes mbytes cLen: environ -> mpred:=
 EX i:Z, 
   (PROP  ()
    LOCAL  (lvar _x (Tarray tuchar 64 noattr) x;
    lvar _z (Tarray tuchar 16 noattr) z; temp _c c; temp _m m;
-   temp _b b; temp _n nonce;
-   temp _k k; gvars gv)
+   temp _b b; temp _k k; gvars gv)
    SEP (F;
      data_at Tsh (tarray tuchar 64)
        (map Vint (map Int.repr (map Byte.unsigned xbytes))) x;
@@ -612,7 +597,7 @@ Sfor (Sset _i (Econst_int (Int.repr 0) tint))
      (Sset _i
         (Ebinop Oadd (Etempvar _i tuint) (Econst_int (Int.repr 1) tint) tuint)).
 
-Lemma loop2 Espec F x z c mInit m b nonce k xbytes mbytes gv
+Lemma loop2 Espec F x z c mInit m b k xbytes mbytes gv
       q (M: null_or_offset mInit q m) (Q: 0 <= q) (QB: q+Int64.unsigned b = Zlength mbytes) (*(CL: 64 > cLen) *) (*should be b <= cLen or so?*)
       (B: Int64.unsigned b < 64):
 @semax CompSpecs Espec
@@ -620,8 +605,7 @@ Lemma loop2 Espec F x z c mInit m b nonce k xbytes mbytes gv
   (PROP  ()
    LOCAL  (lvar _x (Tarray tuchar 64 noattr) x;
    lvar _z (Tarray tuchar 16 noattr) z; temp _c c; temp _m m;
-   temp _b (Vlong b); temp _n nonce;
-   temp _k k; gvars gv)
+   temp _b (Vlong b); temp _k k; gvars gv)
    SEP  (F; data_at Tsh (tarray tuchar 64)
               (map Vint (map Int.repr (map Byte.unsigned xbytes))) x;
          data_at_ Tsh (Tarray tuchar (Int64.unsigned b) noattr) c;
@@ -631,9 +615,9 @@ Lemma loop2 Espec F x z c mInit m b nonce k xbytes mbytes gv
 
   (normal_ret_assert 
   ( PROP  ()
-    LOCAL  ((*temp _i (Vlong b); *) lvar _x (Tarray tuchar 64 noattr) x;
+    LOCAL  (lvar _x (Tarray tuchar 64 noattr) x;
        lvar _z (Tarray tuchar 16 noattr) z; temp _c c; temp _m m; temp _b (Vlong b);
-       temp _n nonce; temp _k k; gvars gv)
+       temp _k k; gvars gv)
     SEP  (F;
           data_at Tsh (tarray tuchar 64)
              (map Vint (map Int.repr (map Byte.unsigned xbytes))) x;
@@ -646,8 +630,8 @@ destruct (Int64.unsigned_range_2 b) as [bLo bHi].
 abbreviate_semax.
 unfold loop2_statement.
 forward_for_simple_bound (Int64.unsigned b)
-  (loop2Inv F x z c mInit m (Vlong b) nonce k gv q xbytes mbytes (Int64.unsigned b)).
-  + entailer!.
+  (loop2Inv F x z c mInit m (Vlong b) k gv q xbytes mbytes (Int64.unsigned b)).
+  + entailer!!.
     autorewrite with sublist. Exists (@nil byte).
     unfold Bl2VL; simpl. entailer!.
     destruct mInit; simpl in M; try contradiction.
@@ -660,13 +644,7 @@ forward_for_simple_bound (Int64.unsigned b)
   { entailer!. repeat rewrite Zlength_map in H0. trivial. }
  
   freeze [0;1;3] FR1.
-  forward_if
-  (PROP  ()
-   LOCAL  (temp _i (Vint (Int.repr i)); lvar _x (Tarray tuchar 64 noattr) x;
-      lvar _z (Tarray tuchar 16 noattr) z; temp _c c; temp _m m;
-      temp _b (Vlong b); temp _n nonce; temp _k k; gvars gv;
-      temp _t'2 (Vint (Int.repr (Byte.unsigned (byte_at mInit (i+q) mbytes)))))
-   SEP  (FRZL FR1; message_at mbytes mInit)).
+  forward_if (temp _t'2 (Vint (Int.repr (Byte.unsigned (byte_at mInit (i+q) mbytes))))).
   { apply denote_tc_test_eq_split.
     + clear H XOR. destruct mInit; simpl in M; try contradiction.
       - destruct M. subst m. apply valid_pointer_null.
@@ -692,9 +670,9 @@ forward_for_simple_bound (Int64.unsigned b)
     2:{ elim n; clear n. apply field_compatible0_cons. simpl. split; trivial. lia. }
     assert (X: 0 + 1 * q = q) by lia. rewrite X; clear X.
     forward; unfold Bl2VL; autorewrite with sublist.
-    { entailer!.
+    { entailer!!.
       apply Byte.unsigned_range_2.  }
-    forward. entailer!.
+    forward. entailer!!.
     erewrite (split2_data_at_Tarray_tuchar _ (Zlength mbytes) q).
       2: lia. 2: unfold Bl2VL; repeat rewrite Zlength_map; trivial. 
       unfold field_address0. simpl. 
@@ -704,16 +682,13 @@ forward_for_simple_bound (Int64.unsigned b)
   { rewrite H in *; simpl in *. 
     destruct mInit; simpl in M; try contradiction.
     destruct M as [M _]. 2: discriminate.
-    forward. entailer!.
+    forward. entailer!!.
   } 
-(*  forward. drop_LOCAL 10%nat. (*variable 187*) *)
   destruct (Znth_mapVint (map Int.repr (map Byte.unsigned xbytes)) i) as  [xi Xi].
     repeat rewrite Zlength_map. lia.
-(*  rewrite Znth_map with (d':=Int.zero) in Xi.
-  rewrite Znth_map with (d':=Z0) in Xi. inv Xi.*)
   thaw FR1. freeze [0;2;3] FR2.
-  forward (*; rewrite Xi*).
-  { entailer!.
+  forward.
+  { entailer!!.
     do 2 rewrite Znth_map by list_solve. red.
     rewrite Int.unsigned_repr. apply Byte.unsigned_range_2. 
     apply Byte_unsigned_range_32.
@@ -748,8 +723,8 @@ forward_for_simple_bound (Int64.unsigned b)
         try apply byte_unsigned_range_3.
       assert (X:Int64.unsigned b - Zlength l - 1 = Int64.unsigned b - (Zlength l + 1)) by lia.
       rewrite X; trivial.
-+ entailer!.
++ entailer!!.
 Intros l; Exists l.
 rewrite Zminus_diag, repeat_0, app_nil_r.
-entailer!.
+entailer!!.
 Qed.

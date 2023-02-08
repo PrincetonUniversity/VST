@@ -21,7 +21,7 @@ Definition Inv cInit mInit bInit k nonce x z Nonce K mcont zcont gv:=
           /\ CONTENT SIGMA K mInit mcont zcont rounds zbytesR srbytes)
    LOCAL  (lvar _x (Tarray tuchar 64 noattr) x;
            lvar _z (Tarray tuchar 16 noattr) z; temp _c c; temp _m m;
-           temp _b (Vlong b); temp _n nonce; temp _k k; gvars gv)
+           temp _b (Vlong b); temp _k k; gvars gv)
    SEP (data_at Tsh (Tarray tuchar 16 noattr) (Bl2VL zbytesR) z;
      data_at_ Tsh (Tarray tuchar 64 noattr) x; Sigma_vector (gv _sigma);
      data_at Tsh (Tarray tuchar 16 noattr) (SixteenByte2ValList Nonce) nonce;
@@ -34,8 +34,6 @@ Definition IfPost z x b Nonce K mCont cLen nonce c k m zbytes gv :=
   PROP ()
   LOCAL (lvar _x (Tarray tuchar 64 noattr) x;
    lvar _z (Tarray tuchar 16 noattr) z;
-(*   temp _c c; temp _m m;*)
-   (*temp _b (Vlong (Int64.sub bInit (Int64.repr r64)));*) temp _n nonce;
    temp _k k; gvars gv)
   SEP (data_at_ Tsh (Tarray tuchar 16 noattr) z;
       data_at_ Tsh (Tarray tuchar 64 noattr) x; Sigma_vector (gv _sigma);
@@ -111,8 +109,7 @@ forward_for_simple_bound 8 (EX i:Z,
   list_simplify. subst i0. simpl.
   rewrite zero_ext8_byte; auto.
 }
-(* BUG:  deadvars  incorrectly deletes  temp _n at this point. *)
-drop_LOCAL 0%nat. (*remove temp i*)
+deadvars!.
 
 (*Verification of loop while (b >=64) ...*)
 rename c into cInit. rename m into mInit. rename b into bInit. thaw FR2.
@@ -188,16 +185,15 @@ assert(INT64SUB: Int64.sub bInit (Int64.repr (r64 + 64)) =
   repeat rewrite Int64.unsigned_repr; try lia. f_equal; lia.
 } 
 
-(* assert_PROP (isptr c) as C by entailer!. *)
 rewrite SNR.
 forward_seq. 
-apply (loop1 Espec (FRZL FR3) v_x v_z c mInit (Vlong (Int64.sub bInit (Int64.repr r64))) nonce k m sr_bytes mCont).
+apply (loop1 Espec (FRZL FR3) v_x v_z c mInit (Vlong (Int64.sub bInit (Int64.repr r64))) k m sr_bytes mCont).
     eassumption.
     clear - SRL R64next R64old HRE Heqr64 MLEN; lia. lia.
 
 (*continuation after the FOR(i,64) loop*)
 Opaque prepare_data.
-drop_LOCAL 0%nat.  (* delete temp _i *)
+deadvars!.
 Intros xorlist. rename H into XOR.
 rewrite sublist_same in XOR; try lia.
 forward.
@@ -206,7 +202,7 @@ freeze [1;2;3;4;5;6;7] FR4.
 unfold SByte. 
 forward_seq. rewrite D.
   apply (For_i_8_16_loop Espec (FRZL FR4) v_x v_z c m 
-           (Vlong (Int64.sub bInit (Int64.repr r64))) nonce k zbytesR gv).
+           (Vlong (Int64.sub bInit (Int64.repr r64))) k zbytesR gv).
 freeze [0;1] FR5.
 forward.
 forward.
@@ -224,7 +220,7 @@ forward_if (EX m:_,
         (Int64.sub (Int64.sub bInit (Int64.repr r64))
            (Int64.repr (Int.signed (Int.repr 64)))));
    lvar _x (Tarray tuchar 64 noattr) v_x; lvar _z (Tarray tuchar 16 noattr) v_z;
-   temp _m m; temp _n nonce; temp _k k; gvars gv)  SEP  (FRZL FR5))).
+   temp _m m; temp _k k; gvars gv)  SEP  (FRZL FR5))).
 {  clear H v. apply denote_tc_test_eq_split; auto with valid_pointer.
    destruct mInit; simpl in M; try contradiction.
    destruct M as [II M]; rewrite M in *; auto with valid_pointer.
@@ -376,7 +372,7 @@ forward_if (IfPost v_z v_x bInit (N0, N1, N2, N3) K mCont (Int64.unsigned bInit)
     repeat rewrite map_app. autorewrite with sublist.
     unfold Sigma_vector. cancel. 
     rewrite field_address0_clarify; simpl.
-    rewrite (*Heqc, *)Zplus_0_l, Z.mul_1_l; trivial.
+    rewrite Zplus_0_l, Z.mul_1_l; trivial.
     unfold field_address0; simpl.
     rewrite Zplus_0_l, Z.mul_1_l, if_true; trivial. 
     apply field_compatible_isptr in H13. 
@@ -394,7 +390,7 @@ forward_if (IfPost v_z v_x bInit (N0, N1, N2, N3) K mCont (Int64.unsigned bInit)
   entailer!.
   rewrite Zminus_diag in *; rewrite Tarray_0_emp_iff_; try assumption.
   rewrite Int64.eq_false. 2: assumption.
-  unfold (*liftx, lift, *) SByte. simpl. cancel.
+  unfold SByte. simpl. cancel.
   Exists srbytes. apply andp_right; trivial.
   apply prop_right. red. rewrite XX, Heqr64. 
   rewrite if_true. 
@@ -404,10 +400,10 @@ forward_if (IfPost v_z v_x bInit (N0, N1, N2, N3) K mCont (Int64.unsigned bInit)
 }
 unfold IfPost. 
 forward.
+unfold crypto_stream_xor_postsep.
 unfold tarray; entailer!!.
-unfold crypto_stream_xor_postsep. cancel.
 destruct (Int64.eq bInit Int64.zero). trivial.
-Intros l. Exists l. apply andp_right; trivial.
-apply prop_right. exists zbytes. split; assumption.
+Intros l. Exists l. entailer!!.
+exists zbytes. split; assumption.
 all: fail.  (* make sure we're really done *)
 Admitted.  (* Qed blows up *)
