@@ -49,12 +49,12 @@ Lemma BMULT_correct {NAN: Nans} {t} (x y: ftype t) :
          (Rabs (ROUND t (FT2R x * FT2R y)))
          (Raux.bpow Zaux.radix2 emax)
        then
-        FT2R (BMULT t x y) = ROUND t (FT2R x * FT2R y) /\
-        is_finite _ _ (BMULT t x y) = andb (is_finite _ _ x) (is_finite _ _ y) /\
-        (is_nan _ _ (BMULT t x y) = false ->
-         Bsign _ _ (BMULT t x y) = xorb (Bsign _ _ x) (Bsign _ _ y))
+        FT2R (BMULT x y) = ROUND t (FT2R x * FT2R y) /\
+        is_finite _ _ (BMULT x y) = andb (is_finite _ _ x) (is_finite _ _ y) /\
+        (is_nan _ _ (BMULT x y) = false ->
+         Bsign _ _ (BMULT x y) = xorb (Bsign _ _ x) (Bsign _ _ y))
        else
-        B2FF _ _ (BMULT t x y) = 
+        B2FF _ _ (BMULT x y) = 
         binary_overflow prec emax BinarySingleNaN.mode_NE
                     (xorb (Bsign _ _ x) (Bsign _ _ y)).
 Proof.
@@ -68,9 +68,9 @@ Lemma BPLUS_correct {NAN: Nans} {t} (x y: ftype t) :
   is_finite _ _ y = true ->
   if   Raux.Rlt_bool (Rabs (ROUND t (FT2R x + FT2R y)))
           (Raux.bpow Zaux.radix2 emax)
-  then FT2R (BPLUS t x y) = ROUND t (FT2R x + FT2R y)%R /\
-        is_finite _ _ (BPLUS t x y) = true /\
-        Bsign _ _ (BPLUS t x y) = match
+  then FT2R (BPLUS x y) = ROUND t (FT2R x + FT2R y)%R /\
+        is_finite _ _ (BPLUS x y) = true /\
+        Bsign _ _ (BPLUS x y) = match
                     Raux.Rcompare (FT2R x + FT2R y)%R 0
                   with
                   | Eq => (Bsign prec emax x &&
@@ -78,7 +78,7 @@ Lemma BPLUS_correct {NAN: Nans} {t} (x y: ftype t) :
                   | Lt => true
                   | Gt => false
                   end
-       else B2FF _ _  (BPLUS t x y) = 
+       else B2FF _ _  (BPLUS x y) = 
                  binary_overflow prec emax BinarySingleNaN.mode_NE  (Bsign _ _ x) /\  
               Bsign _ _ x = Bsign _ _ y.
 Proof.
@@ -154,7 +154,7 @@ destruct Myy as [Myy [FINyy _]].
 simpl in FINyy; rewrite FINy in FINyy; simpl in FINyy.
 
 rewrite Hx, Hy in *. clear Hx Hy.
-pose proof (BPLUS_correct (BMULT Tdouble x x) (BMULT Tdouble y y) FINxx FINyy).
+pose proof (BPLUS_correct (BMULT x x) (BMULT y y) FINxx FINyy).
 rewrite Raux.Rlt_bool_true in H6.
 2:{
 rewrite Mxx, Myy.
