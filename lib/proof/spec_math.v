@@ -268,7 +268,6 @@ unfold Defs.F2R in H0.
 simpl in H0.
 unfold IZR in H0. rewrite Raux.bpow_powerRZ in H0.
 simpl in H0.
-Search powerRZ.
 pose proof (powerRZ_lt 2 e ltac:(Lra.lra)).
 pose proof (Pos2Nat.is_pos m).
 rewrite <- INR_IPR in H0.
@@ -282,7 +281,7 @@ apply generic_round_property.
 Defined.
 
 Definition abs_ff (t: type) : floatfunc  [ t ] t (fun _ => True) Rabs.
-apply (Build_floatfunc  [ t ] t _ _ (BABS t)  0%R 0%R).
+apply (Build_floatfunc  [ t ] t _ _ BABS  0%R 0%R).
 intros x ? ?.
 unfold BABS, UNOP .
 pose proof (Binary.B2R_Babs (fprec t) (femax t)  (FPCore.abs_nan t)
