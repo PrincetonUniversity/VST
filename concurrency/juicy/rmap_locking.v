@@ -29,12 +29,10 @@ Require Import VST.veric.coqlib4.
 Require Import VST.floyd.type_induction.
 (*Require Import VST.concurrency.permjoin.*)
 Require Import VST.concurrency.juicy.sync_preds_defs.
-Require Import VST.concurrency.juicy.semax_conc_pred.
+Require Import VST.concurrency.semax_conc_pred.
 Require Import VST.concurrency.common.lksize.
 
 Require Import Setoid.
-
-Set Bullet Behavior "Strict Subproofs".
 
 Local Open Scope Z_scope.
 

@@ -35,8 +35,8 @@ Require Import VST.veric.seplog.
 Require Import VST.floyd.coqlib3.
 Require Import VST.sepcomp.step_lemmas.
 Require Import VST.sepcomp.event_semantics.
-Require Import VST.concurrency.juicy.semax_conc_pred.
-Require Import VST.concurrency.juicy.semax_conc.
+Require Import VST.concurrency.semax_conc_pred.
+Require Import VST.concurrency.semax_conc.
 Require Import VST.concurrency.common.threadPool.
 Require Import VST.concurrency.juicy.juicy_machine.
 Require Import VST.concurrency.common.HybridMachineSig.

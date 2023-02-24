@@ -35,7 +35,7 @@ Require Import VST.sepcomp.step_lemmas.
 Require Import VST.sepcomp.event_semantics.
 Require Import VST.sepcomp.semantics_lemmas.
 Require Import VST.concurrency.common.permjoin.
-Require Import VST.concurrency.juicy.semax_conc.
+Require Import VST.concurrency.semax_conc.
 Require Import VST.concurrency.juicy.semax_invariant.
 Require Import VST.concurrency.juicy.sync_preds_defs.
 

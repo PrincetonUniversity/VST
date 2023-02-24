@@ -33,8 +33,8 @@ Require Import VST.veric.juicy_safety.
 Require Import VST.floyd.coqlib3.
 Require Import VST.sepcomp.step_lemmas.
 Require Import VST.sepcomp.event_semantics.
-Require Import VST.concurrency.juicy.semax_conc_pred.
-Require Import VST.concurrency.juicy.semax_conc.
+Require Import VST.concurrency.semax_conc_pred.
+Require Import VST.concurrency.semax_conc.
 Require Import VST.concurrency.juicy.juicy_machine.
 Require Import VST.concurrency.common.HybridMachineSig.
 Require Import VST.concurrency.common.scheduler.
@@ -44,8 +44,6 @@ Require Import VST.concurrency.juicy.JuicyMachineModule.
 Require Import VST.concurrency.juicy.sync_preds_defs.
 Require Import VST.concurrency.juicy.semax_invariant.
 Require Import VST.concurrency.juicy.sync_preds.
-
-Set Bullet Behavior "Strict Subproofs".
 
 (*+ Initial state *)
 

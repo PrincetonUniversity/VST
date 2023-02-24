@@ -14,13 +14,11 @@ Require Import compcert.common.Values.
 Require Import VST.msl.Coqlib2.
 Require Import VST.msl.eq_dec.
 Require Import VST.msl.seplog.
-Require Import VST.veric.Clight_new.
+Require Import VST.veric.Clight_core.
 Require Import VST.veric.coqlib4.
 Require Import VST.sepcomp.Address.
 Require Import VST.sepcomp.mem_lemmas.
 Require Import VST.concurrency.common.permissions.
-
-Set Bullet Behavior "Strict Subproofs".
 
 (** * Results on cl_step *)
 

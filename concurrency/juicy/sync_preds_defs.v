@@ -7,8 +7,6 @@ Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.res_predicates.
 
-Set Bullet Behavior "Strict Subproofs".
-
 (* Those were overwritten in structured_injections *)
 Notation join := sepalg.join.
 Notation join_assoc := sepalg.join_assoc.
@@ -131,12 +129,12 @@ Ltac range_tac :=
     repeat split; auto;
     try unfold Ptrofs.unsigned;
     pose proof LKSIZE_pos;
-    omega
+    lia
   | H : ~ adr_range ?l _ ?l |- _ =>
     destruct l;
     exfalso; apply H;
     repeat split; auto;
     try unfold Ptrofs.unsigned;
     pose proof LKSIZE_pos;
-    omega
+    lia
   end.

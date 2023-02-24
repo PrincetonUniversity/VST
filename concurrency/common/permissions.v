@@ -867,7 +867,6 @@ Proof.*)
       unfold permMapsDisjoint.
       unfold empty_map; intros; simpl.
       unfold Maps.PMap.get; simpl.
-      rewrite Maps.PTree.gempty; simpl.
       exists None; reflexivity.
   Qed.
 
@@ -1117,7 +1116,7 @@ Proof.*)
          generalize dependent ofs'.
          induction sz; simpl in *; intros.
          - unfold setPerm.
-           exfalso. destruct Hofs. omega.
+           exfalso. destruct Hofs. lia.
          - unfold setPerm.
            rewrite PMap.gss.
            destruct (compcert.lib.Coqlib.zeq (ofs + Z.of_nat sz) ofs');
@@ -1127,7 +1126,7 @@ Proof.*)
            destruct Hofs.
            split; auto.
            clear - H0 n.
-           zify. omega.
+           zify. lia.
   Qed.
 
   Lemma setPermBlock_other_1:
@@ -1142,11 +1141,11 @@ Proof.*)
          - rewrite Maps.PMap.gss.
            destruct (compcert.lib.Coqlib.zeq (ofs + Z.of_nat sz) ofs') as [Hcontra | ?].
            subst. exfalso.
-           destruct Hofs; zify; omega.
+           destruct Hofs; zify; lia.
            simpl. eapply IHsz.
            destruct Hofs; auto.
            right.
-           zify. omega.
+           zify. lia.
   Qed.
 
   Lemma setPermBlock_other_2:
@@ -1221,11 +1220,11 @@ Proof.*)
     - rewrite Maps.PMap.gss.
       destruct (compcert.lib.Coqlib.zeq (ofs + Z.of_nat sz) ofs') as [Hcontra | ?].
       subst. exfalso.
-      destruct Hofs; zify; omega.
+      destruct Hofs; zify; lia.
       simpl. eapply IHsz.
       destruct Hofs; auto.
       right.
-      zify. omega.
+      zify. lia.
   Qed.
 
   Lemma setPermBlock_var_same:
@@ -1238,20 +1237,18 @@ Proof.*)
     generalize dependent ofs'.
     induction sz; simpl in *; intros.
     - unfold setPerm.
-      exfalso. destruct Hofs. omega.
+      exfalso. destruct Hofs. lia.
     - unfold setPerm.
       rewrite PMap.gss.
       destruct (compcert.lib.Coqlib.zeq (ofs + Z.of_nat sz) ofs'); simpl.
       + f_equal. rewrite -e.
         replace (ofs + Z.of_nat sz - ofs +1 )%Z with
-            (Z.of_nat sz + 1)%Z; try omega.
-        rewrite <- (coqlib4.nat_of_Z_eq sz.+1); f_equal.
-        apply Nat2Z.inj_succ.
-        apply IHsz; simpl. 
+            (Z.of_nat sz + 1)%Z; try lia.
+        apply IHsz; simpl.
         rewrite Zpos_P_of_succ_nat in Hofs.
         replace (ofs + Z.succ (Z.of_nat sz))%Z with
             (Z.succ (ofs + Z.of_nat sz))%Z in Hofs;
-          omega.
+          lia.
   Qed.
 
   Lemma setPermBlock_setPermBlock_var:
@@ -1337,7 +1334,7 @@ Proof.*)
       + destruct sz_nat; first by (simpl; eauto).
         erewrite setPermBlock_other_1
           by (eapply Intv.range_notin in n;
-              simpl; eauto; zify; omega).
+              simpl; eauto; zify; lia).
         assumption.
     - erewrite setPermBlock_other_2 by eauto.
       assumption.
@@ -1361,7 +1358,7 @@ Proof.*)
     generalize dependent ofs'.
     induction sz; simpl in *; intros.
     - unfold setPerm.
-      exfalso. destruct Hofs. omega.
+      exfalso. destruct Hofs. lia.
     - unfold setPerm.
       rewrite PMap.gss.
       destruct (compcert.lib.Coqlib.zeq (ofs + Z.of_nat sz) ofs');
@@ -1371,7 +1368,7 @@ Proof.*)
       destruct Hofs.
       split; auto.
       clear - H0 n.
-      zify. omega.
+      zify. lia.
   Qed.
 
   Lemma setPermBlockFunc_other_1:
@@ -1387,11 +1384,11 @@ Proof.*)
     - rewrite Maps.PMap.gss.
       destruct (compcert.lib.Coqlib.zeq (ofs + Z.of_nat sz) ofs') as [Hcontra | ?].
       subst. exfalso.
-      destruct Hofs; zify; omega.
+      destruct Hofs; zify; lia.
       simpl. eapply IHsz.
       destruct Hofs; auto.
       right.
-      zify. omega.
+      zify. lia.
   Qed.
 
   Lemma setPermBlockFunc_other_2:
@@ -1429,7 +1426,7 @@ Proof.*)
         erewrite setPermBlock_other_1.
         assumption.
         apply Intv.range_notin in n; eauto.
-        simpl. rewrite Zpos_P_of_succ_nat. omega.
+        simpl. rewrite Zpos_P_of_succ_nat. lia.
     - erewrite setPermBlock_other_2 by eauto.
       assumption.
   Qed.
@@ -1763,7 +1760,7 @@ Proof.*)
         auto.
     - unfold canonicalPMap in HGet. simpl in HGet.
       apply canonicalPTree_get_sound in HGet.
-      destruct n. exfalso. auto. destruct n. exfalso. ssromega.
+      destruct n. exfalso. auto. destruct n. exfalso. ssrlia.
       exfalso. apply HGet. apply mkBlockList_include; auto.
       assumption. clear HGet.
       eapply leq_ltn_trans; eauto.
@@ -1777,9 +1774,9 @@ Proof.*)
     intro. induction n; intros. unfold canonicalPMap. simpl.
     unfold PMap.get.
     rewrite PTree.gempty. reflexivity.
-    assert (Hkn': n <= k) by ssromega.
+    assert (Hkn': n <= k) by ssrlia.
     unfold canonicalPMap.
-    destruct n. simpl. unfold PMap.get. simpl. rewrite PTree.gempty. reflexivity.
+    destruct n. simpl. unfold PMap.get. simpl. reflexivity.
     unfold PMap.get.
     rewrite <- mkBlockList_unfold'. rewrite <- PList_cons.
     unfold canonicalPTree.
@@ -1787,7 +1784,7 @@ Proof.*)
     specialize (IHn _ m fn Hkn').
     unfold canonicalPMap, PMap.get, snd in IHn.
     destruct ((canonicalPTree (PList fn (mkBlockList n.+1) m)) ! (Pos.of_nat k)); auto.
-    unfold fst. intros HContra. apply Nat2Pos.inj_iff in HContra; subst; ssromega.
+    unfold fst. intros HContra. apply Nat2Pos.inj_iff in HContra; subst; ssrlia.
   Qed.
 
   Definition setMaxPerm (m : mem) : mem.
@@ -1805,7 +1802,7 @@ Proof.*)
           | [|- match ?Expr with _ => _ end] => destruct Expr
           end; constructor.
           apply/ltP/Pos2Nat.is_pos.
-          ssromega. }
+          ssrlia. }
       { intros b ofs k H.
         replace b with (Pos.of_nat (Pos.to_nat b)) by (rewrite Pos2Nat.id; done).
         erewrite canonicalPMap_default. reflexivity.
@@ -1831,15 +1828,15 @@ Proof.*)
       rewrite Hb.
       rewrite <- canonicalPMap_sound.
       reflexivity.
-      assert (H := Pos2Nat.is_pos b). ssromega.
-      apply Pos2Nat.inj_lt in Hvalid. ssromega.
+      assert (H := Pos2Nat.is_pos b). ssrlia.
+      apply Pos2Nat.inj_lt in Hvalid. ssrlia.
     }
     { intros Hinvalid.
       unfold permission_at, setMaxPerm. simpl.
       rewrite Hb.
       rewrite canonicalPMap_default. reflexivity.
       apply Pos.le_nlt in Hinvalid.
-      apply Pos2Nat.inj_le in Hinvalid. ssromega.
+      apply Pos2Nat.inj_le in Hinvalid. ssrlia.
     }
   Qed.
 
@@ -1873,14 +1870,14 @@ Proof.*)
     rewrite Hb.
     destruct (compcert.lib.Coqlib.plt b (Mem.nextblock m)) as [Hvalid | Hinvalid].
     rewrite <- canonicalPMap_sound. reflexivity.
-    assert (H := Pos2Nat.is_pos b). ssromega.
-    apply Pos2Nat.inj_lt in Hvalid. ssromega.
+    assert (H := Pos2Nat.is_pos b). ssrlia.
+    apply Pos2Nat.inj_lt in Hvalid. ssrlia.
     rewrite canonicalPMap_default.
     apply Mem.nextblock_noaccess with (ofs := ofs) (k := Cur) in Hinvalid.
     rewrite <- Hb.
     rewrite Hinvalid. reflexivity.
     apply Pos.le_nlt in Hinvalid.
-    apply Pos2Nat.inj_le in Hinvalid. ssromega.
+    apply Pos2Nat.inj_le in Hinvalid. ssrlia.
   Qed.
 
   Definition makeCurMax_map (mem_access:PMap.t (Z -> perm_kind -> option permission)):
@@ -2205,7 +2202,7 @@ Lemma restrPermMap_irr:
           erewrite <- canonicalPMap_sound. simpl.
           constructor.
           apply/ltP/Pos2Nat.is_pos.
-          ssromega. }
+          ssrlia. }
       { intros b ofs k H.
         replace b with (Pos.of_nat (Pos.to_nat b)) by (rewrite Pos2Nat.id; done).
         erewrite canonicalPMap_default. reflexivity.
@@ -2231,15 +2228,15 @@ Lemma restrPermMap_irr:
       rewrite Hb.
       rewrite <- canonicalPMap_sound.
       reflexivity.
-      assert (H := Pos2Nat.is_pos b). ssromega.
-      apply Pos2Nat.inj_lt in Hvalid. ssromega.
+      assert (H := Pos2Nat.is_pos b). ssrlia.
+      apply Pos2Nat.inj_lt in Hvalid. ssrlia.
     }
     { intros Hinvalid.
       unfold permission_at, setMaxPerm. simpl.
       rewrite Hb.
       rewrite canonicalPMap_default. reflexivity.
       apply Pos.le_nlt in Hinvalid.
-      apply Pos2Nat.inj_le in Hinvalid. ssromega.
+      apply Pos2Nat.inj_le in Hinvalid. ssrlia.
     }
   Qed.
 
@@ -2455,14 +2452,14 @@ Transparent Mem.alloc.
 unfold Mem.alloc in H.
 inv H.
 simpl. rewrite PMap.gss.
-destruct (zle lo ofs); try omega.
-destruct (zlt ofs hi); try omega; auto.
+destruct (zle lo ofs); try lia.
+destruct (zlt ofs hi); try lia; auto.
 right.
 intros.
 inv H; simpl.
 rewrite PMap.gss.
-destruct (zle lo ofs); try omega;
-destruct (zlt ofs hi); try omega; auto.
+destruct (zle lo ofs); try lia;
+destruct (zlt ofs hi); try lia; auto.
 contradiction H0.
 pose proof (Mem.valid_block_alloc_inv _ _ _ _ _ H b H1).
 destruct H2. subst. contradiction n; auto.
@@ -2506,14 +2503,14 @@ rewrite H2 in H1.
 destruct ((Mem.mem_access m) !! b ofs Max); inv H1; auto.
 simpl.
 rewrite PMap.gss.
-destruct (zle lo ofs); try omega.
-destruct (zlt ofs hi); try omega.
+destruct (zle lo ofs); try lia.
+destruct (zlt ofs hi); try lia.
 simpl. auto.
 right.
 intros.
 simpl.
 rewrite PMap.gss.
-destruct (zle lo ofs); destruct (zlt ofs hi); try omega; auto.
+destruct (zle lo ofs); destruct (zlt ofs hi); try lia; auto.
 split.
 intros.
 contradiction H0.
@@ -2584,16 +2581,16 @@ Proof.
   { induction m.
     - intros ?. simpl; right.
       unfold Intv.In; simpl. clear.
-      intros ?; omega.
+      intros ?; lia.
     -  intros ?.
        specialize (Hno_overlap
                      _ _ _ _ _ _
                      ofs0 (ofs+Z.of_nat m)%Z
                      Hneq Hinj1 Hinj2).
        apply Hno_overlap in Hperm1.
-       2: { eapply Hrange_perm2. omega.     }
+       2: { eapply Hrange_perm2. lia.     }
        destruct Hperm1 as [Hperm1|Hperm1]; auto.
-       specialize (IHm ltac:(omega)).
+       specialize (IHm ltac:(lia)).
        destruct IHm as [IHm|IHm]; auto.
        right; clear - IHm Hperm1.
        intros [? ?]; eapply IHm.
@@ -2601,7 +2598,7 @@ Proof.
        unfold Intv.In; simpl in *.
        clear IHm H.
        rewrite Zpos_P_of_succ_nat in H0.
-       omega. }
+       lia. }
 
   specialize (H _ ltac:(reflexivity)).
   destruct H; auto.
@@ -2758,9 +2755,9 @@ Qed.
         simpl. unfold PMap.map; simpl.
         f_equal.
         repeat rewrite map_map1; simpl.
-        unfold PTree.map.
-        rewrite xmap_compose.
-        reflexivity.
+        apply PTree.extensionality; intros.
+        rewrite !PTree.gmap; unfold option_map.
+        destruct PTree.get; reflexivity.
       Qed.
       
       Lemma setPermBlock_setPermBlock_var':

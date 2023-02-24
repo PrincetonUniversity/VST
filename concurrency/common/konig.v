@@ -1,5 +1,5 @@
 Require Import Coq.Logic.ChoiceFacts.
-Require Import Coq.omega.Omega.
+Require Import Arith Lia.
 
 Tactic Notation "assert_specialize" hyp(H) :=
   match type of H with
@@ -37,12 +37,12 @@ Proof.
   intros y.
   destruct (ia (x + y)) as (a' & La' & Ha').
   exists a'; split.
-  - omega.
+  - lia.
   - split. auto.
     apply DN; intros nB.
     apply Nex.
     exists a'; split.
-    + omega.
+    + lia.
     + split; auto.
 Qed.
 
@@ -85,7 +85,7 @@ Proof.
         destruct bound as (i & Li & E).
         exists i; split; auto.
         rewrite <-E in N'x.
-        cut (i <> n); [ omega | ]. intros ->.
+        cut (i <> n); [ lia | ]. intros ->.
         unfold image in N'x.
         destruct N'x as (x' & N'x'& Efx').
         compute in *; tauto.
@@ -135,28 +135,28 @@ Qed.
 
 Lemma zip_1 {X} f1 f2 n : @zip X f1 f2 (2 * n) = f1 n.
 Proof.
-  replace (f1 n) with (f1 (0 + n)) by (f_equal; omega).
+  replace (f1 n) with (f1 (0 + n)) by (f_equal; lia).
   transitivity (zip (fun n => f1 (0 + n)) (fun n => f2 (0 + n)) (2 * n)).
   - apply zip_ext; intros; auto.
   - generalize 0 at 1 2 4 as k; induction n; auto; intros k.
-    replace (2 * S n) with (S (S (2 * n))) by omega.
+    replace (2 * S n) with (S (S (2 * n))) by lia.
     unfold zip; fold (@zip X).
-    replace (k + S n) with (S k + n) by omega.
+    replace (k + S n) with (S k + n) by lia.
     rewrite <-IHn.
-    apply zip_ext; intros; f_equal; omega.
+    apply zip_ext; intros; f_equal; lia.
 Qed.
 
 Lemma zip_2 {X} f1 f2 n : @zip X f1 f2 (1 + 2 * n) = f2 n.
 Proof.
-  replace (f2 n) with (f2 (0 + n)) by (f_equal; omega).
+  replace (f2 n) with (f2 (0 + n)) by (f_equal; lia).
   transitivity (zip (fun n => f1 (0 + n)) (fun n => f2 (0 + n)) (1 + 2 * n)).
   - apply zip_ext; intros; auto.
   - generalize 0 at 1 2 5 as k; induction n; auto; intros k.
-    replace (1 + 2 * S n) with (S (S (1 + 2 * n))) by omega.
+    replace (1 + 2 * S n) with (S (S (1 + 2 * n))) by lia.
     unfold zip; fold (@zip X).
-    replace (k + S n) with (S k + n) by omega.
+    replace (k + S n) with (S k + n) by lia.
     rewrite <-IHn.
-    apply zip_ext; intros; f_equal; omega.
+    apply zip_ext; intros; f_equal; lia.
 Qed.
 
 Lemma finite_union_intersection {X Y} (A1 A2 : X -> Prop) (P : Y -> X -> Prop) :
@@ -169,9 +169,9 @@ Proof.
   exists (2 * n1 + 1 + 2 * n2), (zip f1 f2).
   intros n (x & ([a1 | a2], Pnx)).
   - destruct (H1 n) as (i & ln & <-); eauto.
-    exists (2 * i); split. omega. apply zip_1.
+    exists (2 * i); split. lia. apply zip_1.
   - destruct (H2 n) as (i & ln & <-); eauto.
-    exists (1 + 2 * i); split. omega. apply zip_2.
+    exists (1 + 2 * i); split. lia. apply zip_2.
 Qed.
 
 Lemma finite_product:
@@ -191,29 +191,25 @@ Proof.
   exists (ia + ib * NA); split.
   - replace (NB * NA) with (( 1 + ( NB - 1)) * NA).
 
-    Focus 2.  f_equal.
-    symmetry. apply le_plus_minus.
-    apply lt_le_S.
-    eapply Nat.le_lt_trans; eauto. omega.
+    2: { f_equal. lia. }
 
-
-    rewrite Nat.mul_add_distr_r.
+    rewrite PeanoNat.Nat.mul_add_distr_r.
     apply plus_lt_le_compat.
-    omega.
+    lia.
 
     eapply mult_le_compat_r.
-    omega.
+    lia.
   - f_equal.
     + rewrite Nat.mod_add.
       eapply Nat.mod_small_iff in ineqa.
       rewrite ineqa; auto.
-      omega.
-      omega.
+      lia.
+      lia.
     + rewrite Nat.div_add.
       eapply Nat.div_small_iff in ineqa.
       rewrite ineqa; auto.
-      omega.
-      omega.
+      lia.
+      lia.
 Qed.
 
 (* We have a simpler characterization of finite for subsets of nat  *)
@@ -224,9 +220,9 @@ Proof.
     pose (sumf := fix sum n := match n with O => O | S n => f n + sum n end).
     exists (1 + sumf c).
     intros x Ax; destruct (Hf x Ax) as (i & Hi & <-).
-    replace c with (c - S i + S i) by omega.
+    replace c with (c - S i + S i) by lia.
     clear. generalize (c - S i); intros k.
-    induction k; simpl; omega.
+    induction k; simpl; lia.
   - intros (b, Hb). exists b, id; intros x Ax; specialize (Hb x Ax); eauto.
 Qed.
 
@@ -238,7 +234,7 @@ Lemma finite_union_intersection_nat {X} (A1 A2 : X -> Prop) (P : nat -> X -> Pro
 Proof.
   repeat rewrite finite_nat_bound.
   intros (n1 & H1) (n2 & H2); exists (n1 + n2); intros a (x & m & p).
-  cut (a < n1 \/ a < n2); [omega|].
+  cut (a < n1 \/ a < n2); [lia|].
   destruct m; eauto.
 Qed.
 
@@ -254,12 +250,12 @@ Proof.
       apply nfin. exists b; intros a. apply ABS; auto.
     + apply ninf; intros b. destruct (nfin' b) as (a, Ha).
       exists a; split.
-      * cut (~ a < b); auto. omega.
+      * cut (~ a < b); auto. lia.
       * apply ABS; tauto.
   - intros fin inf; apply finite_nat_bound in fin.
     destruct fin as (b & Hb).
     destruct (inf b) as (x & lx & Ax).
-    specialize (Hb x Ax). omega.
+    specialize (Hb x Ax). lia.
 Qed.
 
 Lemma ramsey_inf_bin {X} (A1 A2 : X -> Prop) (P : nat -> X -> Prop) :
@@ -292,7 +288,7 @@ Proof.
   assert (HA : forall x, A x <-> Or b x). {
     intros x; split.
     - intros Ax; destruct (bound x Ax) as (i & li & <-).
-      replace b with (1 + (b - i - 1) + i) by omega.
+      replace b with (1 + (b - i - 1) + i) by lia.
       generalize (b - i - 1) as k; intros k.
       induction k.
       + compute; tauto.
@@ -358,6 +354,7 @@ Section Safety.
       generalize n at 1 3 5; intros i Hi; induction i. apply safeO.
       apply safeS with (f (n - i))...
       replace (n - i) with (1 + (n - S i))...
+      lia.
   Qed.
 
   (** Coinductive safety & corresponding Knaster-Tarski definition *)
@@ -434,7 +431,7 @@ Section Safety.
 
   Lemma safeN_le n n' x : n <= n' -> safeN n' x -> safeN n x.
   Proof.
-    intros l; replace n' with ((n' - n) + n) by omega.
+    intros l; replace n' with ((n' - n) + n) by lia.
     generalize (n' - n) as k; clear l; induction k; auto.
     intros H; apply IHk. apply safeN_S; auto.
   Qed.

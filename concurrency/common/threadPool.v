@@ -1,6 +1,7 @@
 
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 
+Require Import Lia.
 Require Import compcert.common.Memory.
 Require Import compcert.common.Values. (*for val*)
 Require Import VST.concurrency.common.scheduler.
@@ -15,6 +16,8 @@ Require Import Coq.ZArith.ZArith.
 Require Import VST.msl.Coqlib2.
 
 Require Import VST.concurrency.common.lksize.
+
+Import Address.
 
 Set Implicit Arguments.
 
@@ -468,11 +471,11 @@ Module OrdinalPool.
         end.
 
     Lemma is_pos: forall n, (0 < S n)%coq_nat.
-    Proof. move=> n; omega. Qed.
+    Proof. move=> n; lia. Qed.
     Definition mk_pos_S (n:nat):= mkPos (is_pos n).
     Lemma lt_decr: forall n m: nat, S n < m -> n < m.
     Proof. move=> m n /ltP LE.
-           assert (m < n )%coq_nat by omega.
+           assert (m < n )%coq_nat by lia.
              by move: H => /ltP. Qed.
     Program Fixpoint find_thread' {st:t}{filter:ctl -> bool} n (P: n < num_threads st) {struct n}:=
       if filter (@pool st (@Ordinal (num_threads st) n P))
@@ -492,7 +495,7 @@ Module OrdinalPool.
       intros. subst; reflexivity.
     Defined.
     Definition pos_pred (n:pos): nat.
-    Proof. destruct n. destruct n eqn:AA; [omega|].
+    Proof. destruct n. destruct n eqn:AA; [lia|].
            exact n0.
     Defined.
 
@@ -501,7 +504,7 @@ Module OrdinalPool.
     Next Obligation.
       rewrite /pos_pred /= => st filter.
       elim (num_threads st) => n N_pos /=.
-      destruct n; try omega; eauto.
+      destruct n; try lia; eauto.
     Qed.
 
     Import Coqlib.
@@ -565,7 +568,7 @@ Module OrdinalPool.
       intros.
       eapply lockSet_spec_2; eauto.
       unfold Intv.In.
-      simpl. pose proof LKSIZE_pos; rewrite Z2Nat.id; omega.
+      simpl. pose proof LKSIZE_pos; rewrite Z2Nat.id; lia.
     Qed.
 
     Open Scope nat_scope.
@@ -814,14 +817,14 @@ Module OrdinalPool.
       destruct (j < (num_threads tp)) eqn:Hlt.
       left.
       split;
-        by [auto | ssromega].
+        by [auto | ssrlia].
       right.
       rewrite ltnS in H.
       rewrite leq_eqVlt in H.
       move/orP:H=> [H | H];
                     first by move/eqP:H.
       exfalso.
-        by ssromega.
+        by ssrlia.
     Qed.
 
     Lemma contains_add_latest: forall ds p a r,
@@ -829,7 +832,7 @@ Module OrdinalPool.
                        (latestThread ds).
     Proof. intros.
            simpl. unfold containsThread, latestThread.
-           simpl. ssromega.
+           simpl. ssrlia.
     Qed.
 
     Lemma updLock_updThread_comm:
@@ -1041,20 +1044,20 @@ Module OrdinalPool.
         { (exists z, z <= ofs < z+LKSIZE /\ lockRes tp (b,z) )%Z  } + {(forall z, z <= ofs < z+LKSIZE -> lockRes tp (b,z) = None)%Z }.
     Proof.
       intros tp b ofs.
-      assert (H : (0 <= LKSIZE)%Z) by (pose proof LKSIZE_pos; omega).
+      assert (H : (0 <= LKSIZE)%Z) by (pose proof LKSIZE_pos; lia).
       destruct (@RiemannInt_SF.IZN_var _ H) as (n, ->).
       induction n.
-      - right. simpl. intros. omega.
+      - right. simpl. intros. lia.
       - destruct IHn as [IHn | IHn].
         + left; destruct IHn as (z & r & Hz).
-          exists z; split; auto. zify. omega.
+          exists z; split; auto. zify. lia.
         + destruct (lockRes tp (b, (ofs - Z.of_nat n)%Z)) eqn:Ez.
           * left. exists (ofs - Z.of_nat n)%Z; split. 2:rewrite Ez; auto.
-            zify; omega.
+            zify; lia.
           * right; intros z r.
             destruct (zeq ofs (z + Z.of_nat n)%Z).
-            -- subst; auto. rewrite <-Ez; do 2 f_equal. omega.
-            -- apply IHn. zify. omega.
+            -- subst; auto. rewrite <-Ez; do 2 f_equal. lia.
+            -- apply IHn. zify. lia.
     Qed.
 
     Lemma lockSet_spec_3:
@@ -1115,13 +1118,13 @@ Module OrdinalPool.
       * hnf in H.
         destruct (lockRes ds (b,z)) eqn:?; inv H1.
       + destruct (lockRes ds (b,ofs)) eqn:?; inv H4.
-        assert (z <= ofs < z+2 * size_chunk AST.Mptr \/ ofs <= z <= ofs+2 * size_chunk AST.Mptr)%Z by omega.
+        assert (z <= ofs < z+2 * size_chunk AST.Mptr \/ ofs <= z <= ofs+2 * size_chunk AST.Mptr)%Z by lia.
         destruct H1.
       - specialize (H b z). rewrite Heqo in H. unfold LKSIZE in H.
-        specialize (H ofs). spec H; [omega|]. congruence.
+        specialize (H ofs). spec H; [lia|]. congruence.
       - specialize (H b ofs). rewrite Heqo0 in H. specialize (H z).
         unfold LKSIZE in H.
-        spec H; [omega|]. congruence.
+        spec H; [lia|]. congruence.
         + unfold lockRes, remLockSet.  simpl.
           assert (H8 := @AMap.remove_3 _ (lockGuts ds) (b,ofs) (b,z)).
           destruct (AMap.find (b, z) (AMap.remove (b, ofs) (lockGuts ds))) eqn:?; auto.
@@ -1167,7 +1170,7 @@ Module OrdinalPool.
         assert (ofs <> z).
         { intros AA. inversion AA.
           apply H0. hnf.
-          simpl; omega. }
+          simpl; lia. }
         erewrite lockSet_spec_2.
         erewrite lockSet_spec_2; auto.
         + hnf; simpl; eauto.
@@ -1354,7 +1357,7 @@ Module OrdinalPool.
       destruct o.
       simpl in *.
       subst. exfalso;
-               ssromega.
+               ssrlia.
       rewrite H. by reflexivity.
     Qed.
 
@@ -1380,7 +1383,7 @@ Module OrdinalPool.
                          != (Ordinal (n:=(num_threads tp).+1) (m:=j) cntj')).
       { apply/eqP. intros Hcontra.
         unfold ordinal_pos_incr in Hcontra.
-        inversion Hcontra; auto. subst. by ssromega.
+        inversion Hcontra; auto. subst. by ssrlia.
       }
       apply unlift_some in Hcontra. rewrite Hunlift in Hcontra.
       destruct Hcontra; by discriminate.
@@ -1401,7 +1404,7 @@ Module OrdinalPool.
       apply unlift_m_inv in H.
       destruct o. simpl in *.
       subst. exfalso;
-               ssromega.
+               ssrlia.
       rewrite H.
         by reflexivity.
     Qed.
@@ -1431,7 +1434,7 @@ Module OrdinalPool.
       { apply/eqP. intros Hcontra.
         unfold ordinal_pos_incr in Hcontra.
         inversion Hcontra; auto. subst.
-          by ssromega.
+          by ssrlia.
       }
       apply unlift_some in Hcontra. rewrite Hunlift in Hcontra.
       destruct Hcontra;
@@ -1480,7 +1483,7 @@ Module OrdinalPool.
             unfold containsThread in *; simpl in *.
             unfold ordinal_pos_incr in Hcontra.
             inversion Hcontra. subst.
-              by ssromega.
+              by ssrlia.
           }
           apply unlift_some in Hcontra. simpl in Hcontra.
           rewrite Hunlift in Hcontra.
@@ -1534,7 +1537,7 @@ Module OrdinalPool.
             unfold containsThread in *; simpl in *.
             unfold ordinal_pos_incr in Hcontra.
             inversion Hcontra. subst.
-              by ssromega.
+              by ssrlia.
           }
           apply unlift_some in Hcontra. simpl in Hcontra.
           rewrite Hunlift in Hcontra.
@@ -1839,7 +1842,7 @@ Module OrdinalPool.
         (Maps.PMap.get b (lockSet tp)) ofs'.
     Proof.
       intros.
-      apply gsoLockSet_12. intros [? ?]. unfold LKSIZE_nat in *; rewrite Z2Nat.id in Hofs; simpl in *; omega.
+      apply gsoLockSet_12. intros [? ?]. unfold LKSIZE_nat in *; rewrite Z2Nat.id in Hofs; simpl in *; lia.
     Qed.
 
     Lemma gsoLockSet_2 :
@@ -1889,25 +1892,25 @@ Module OrdinalPool.
       destruct n0; auto.
       destruct (Hcnt 0).
       exfalso.
-      specialize (H0 ltac:(ssromega));
-        by ssromega.
+      specialize (H0 ltac:(ssrlia));
+        by ssrlia.
       destruct n0.
       exfalso.
       destruct (Hcnt 0).
-      specialize (H ltac:(ssromega));
-        by ssromega.
+      specialize (H ltac:(ssrlia));
+        by ssrlia.
       erewrite IHn; eauto.
       intros; split; intro H.
-      assert (i.+1 < n.+1) by ssromega.
+      assert (i.+1 < n.+1) by ssrlia.
       specialize (fst (Hcnt (i.+1)) H0).
       intros.
       clear -H1;
-        by ssromega.
-      assert (i.+1 < n0.+1) by ssromega.
+        by ssrlia.
+      assert (i.+1 < n0.+1) by ssrlia.
       specialize (snd (Hcnt (i.+1)) H0).
       intros.
       clear -H1;
-        by ssromega.
+        by ssrlia.
       subst.
         by erewrite proof_irr with (a1 := N_pos) (a2 := N_pos0).
     Qed.
@@ -1915,13 +1918,13 @@ Module OrdinalPool.
     Lemma leq_stepdown:
       forall {m n},
         S n <= m -> n <= m.
-    Proof. intros; ssromega. Qed.
+    Proof. intros; ssrlia. Qed.
     
     Lemma lt_sub:
       forall {m n},
         S n <= m ->
         m - (S n) <  m.
-    Proof. intros; ssromega. Qed.
+    Proof. intros; ssrlia. Qed.
 
     
     Fixpoint containsList_upto_n (n m:nat): n <= m -> seq.seq (sigT (fun i => i < m)):=
@@ -1940,32 +1943,32 @@ Module OrdinalPool.
     Proof.
       intros.
       remember (n - i) as k.
-      assert (HH: n = i + k) by ssromega.
+      assert (HH: n = i + k) by ssrlia.
       clear Heqk.
       revert m n H cnti H0 HH.
       induction i.
       intros.
-      - destruct n; try (exfalso; ssromega).
+      - destruct n; try (exfalso; ssrlia).
         simpl. f_equal.
         eapply ProofIrrelevance.ProofIrrelevanceTheory.subsetT_eq_compat.
-        ssromega.
+        ssrlia.
       - intros.
-        assert (n = (n - 1).+1) by ssromega.
+        assert (n = (n - 1).+1) by ssrlia.
         revert H cnti .
         dependent rewrite H1.
         intros H cnti.
         simpl.
         rewrite IHi.
-        + ssromega.
+        + ssrlia.
         + intros. f_equal.
           eapply ProofIrrelevance.ProofIrrelevanceTheory.subsetT_eq_compat.
           clear - H.
-          ssromega.
-        + ssromega.
-        + ssromega.
+          ssrlia.
+        + ssrlia.
+        + ssrlia.
     Qed.
       
-    Lemma leq_refl: forall n, n <= n. Proof. intros; ssromega. Qed.
+    Lemma leq_refl: forall n, n <= n. Proof. intros; ssrlia. Qed.
     
     Definition containsList' (n:nat): seq.seq (sigT (fun i => i < n)):=
       containsList_upto_n n n (leq_refl n).
@@ -1985,10 +1988,10 @@ Module OrdinalPool.
       intros.
       unfold containsList'.
       - rewrite containsList_upto_n_spec.
-        + simpl in cnti; ssromega.
+        + simpl in cnti; ssrlia.
         + intros. f_equal.
           eapply ProofIrrelevance.ProofIrrelevanceTheory.subsetT_eq_compat.
-          simpl in cnti; ssromega.
+          simpl in cnti; ssrlia.
         + assumption.
     Qed.
 
@@ -2023,7 +2026,7 @@ Module OrdinalPool.
       unfold getThreadR; simpl.
       simpl in *.
       induction n.
-      - exfalso. ssromega.
+      - exfalso. ssrlia.
       - unfold resourceList.
         rewrite list_map_nth.
         rewrite containsList_spec.
