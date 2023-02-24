@@ -433,7 +433,7 @@ Definition postReseedCtx s key V reseed_counter entropy_len prediction_resistanc
            (mc1, (mc2, mc3),
            (map Vint (map Int.repr RSVal),
            (Vint (Int.repr aa),
-           (Vint (Int.repr entropy_len), (Val.of_bool cc, Vint (Int.repr reseed_interval))))))
+           (Vint (Int.repr entropy_len), (bool2val cc, Vint (Int.repr reseed_interval))))))
            (Vptr b i)
    | _ => FF
   end.
@@ -447,7 +447,7 @@ Definition postReseedCtx (CTX:reptype t_struct_hmac256drbg_context_st) s key V r
            (mc,
            (map Vint (map Int.repr RSVal),
            (Vint (Int.repr aa),
-           (Vint (Int.repr entropy_len), (Val.of_bool cc, Vint (Int.repr reseed_interval))))))
+           (Vint (Int.repr entropy_len), (bool2val cc, Vint (Int.repr reseed_interval))))))
    | _ => False
   end.
 
@@ -499,7 +499,7 @@ Definition mkCTX1 (should_reseed:bool) (ctx ctx1:reptype t_struct_hmac256drbg_co
            ctx1 = (mc,
                   (map Vint (map Int.repr RSVal),
                   (Vint (Int.repr aa),
-                  (Vint (Int.repr entropy_len), (Val.of_bool cc, Vint (Int.repr reseed_interval))))))
+                  (Vint (Int.repr entropy_len), (bool2val cc, Vint (Int.repr reseed_interval))))))
       | ENTROPY.error _ _ => False
        end
      else ctx1 = ctx.
@@ -547,7 +547,7 @@ Lemma entailment1: forall (contents : list byte) (additional: val) (sha: share) 
                  (map Vubyte V,
                  (Vint (Int.repr reseed_counter),
                  (Vint (Int.repr entropy_len),
-                 (Val.of_bool prediction_resistance,
+                 (bool2val prediction_resistance,
                  Vint (Int.repr reseed_interval))))))
               : mdstate * (list val * (val * (val * (val * val)))))
   (WFI: WF I)
@@ -709,7 +709,7 @@ field_at shc t_struct_hmac256drbg_context_st [StructField _md_ctx]
     (Vint (Int.repr entropy_len1)) (Vptr b i) *
   (field_at shc t_struct_hmac256drbg_context_st
      [StructField _prediction_resistance]
-     (Val.of_bool prediction_resistance1) (Vptr b i) *
+     (bool2val prediction_resistance1) (Vptr b i) *
    (field_at shc t_struct_hmac256drbg_context_st
       [StructField _reseed_interval] (Vint (Int.repr reseed_interval1))
       (Vptr b i) * (data_at shc t_struct_mbedtls_md_info Info mc1 * emp))))) *
@@ -1052,7 +1052,7 @@ Lemma loopbody_explicit (StreamAdd:list mpred) : forall (Espec : OracleKind)
                  (map Vubyte V,
                  (Vint (Int.repr reseed_counter),
                  (Vint (Int.repr entropy_len),
-                 (Val.of_bool prediction_resistance,
+                 (bool2val prediction_resistance,
                  Vint (Int.repr reseed_interval))))))
               : mdstate * (list val * (val * (val * (val * val)))))
 (PNadditional : is_pointer_or_null additional)
@@ -1107,7 +1107,7 @@ Lemma loopbody_explicit (StreamAdd:list mpred) : forall (Espec : OracleKind)
    LOCAL (temp _md_len (Vint (Int.repr 32)); temp _info mc1;
    temp _reseed_interval (Vint (Int.repr reseed_interval));
    temp _reseed_counter (Vint (Int.repr reseed_counter));
-   temp _prediction_resistance (Val.of_bool prediction_resistance);
+   temp _prediction_resistance (bool2val prediction_resistance);
    temp _out (offset_val done output);
    temp _left (Vint (Int.repr (out_len - done))); temp _ctx (Vptr b i);
    temp _p_rng (Vptr b i); temp _output output;
@@ -1209,7 +1209,7 @@ Lemma loopbody_explicit (StreamAdd:list mpred) : forall (Espec : OracleKind)
       LOCAL (temp _md_len (Vint (Int.repr 32)); temp _info mc1;
       temp _reseed_interval (Vint (Int.repr reseed_interval));
       temp _reseed_counter (Vint (Int.repr reseed_counter));
-      temp _prediction_resistance (Val.of_bool prediction_resistance);
+      temp _prediction_resistance (bool2val prediction_resistance);
       temp _out (offset_val a output);
       temp _left (Vint (Int.repr (out_len - a))); temp _ctx (Vptr b i);
       temp _p_rng (Vptr b i); temp _output output;
@@ -1226,13 +1226,13 @@ Lemma loopbody_explicit (StreamAdd:list mpred) : forall (Espec : OracleKind)
      (overridePost
         (EX a : Z,
          PROP (typed_false tint
-                 (Val.of_bool
+                 (bool2val
                     (negb (Int.eq (Int.repr (out_len - a)) (Int.repr 0))));
          0 <= a <= out_len; is_multiple a 32 \/ a = out_len)
          LOCAL (temp _md_len (Vint (Int.repr 32)); temp _info mc1;
          temp _reseed_interval (Vint (Int.repr reseed_interval));
          temp _reseed_counter (Vint (Int.repr reseed_counter));
-         temp _prediction_resistance (Val.of_bool prediction_resistance);
+         temp _prediction_resistance (bool2val prediction_resistance);
          temp _out (offset_val a output);
          temp _left (Vint (Int.repr (out_len - a))); temp _ctx (Vptr b i);
          temp _p_rng (Vptr b i); temp _output output;
@@ -1713,7 +1713,7 @@ Lemma generate_loopbody: forall (StreamAdd: list mpred)
      (map Vubyte V,
      (Vint (Int.repr reseed_counter),
      (Vint (Int.repr entropy_len),
-     (Val.of_bool prediction_resistance, Vint (Int.repr reseed_interval))))))
+     (bool2val prediction_resistance, Vint (Int.repr reseed_interval))))))
   : mdstate * (list val * (val * (val * (val * val)))))
 (Pmc1 : isptr mc1)
 (Hout_len : 0 <= out_len <= 1024)
@@ -1757,7 +1757,7 @@ Lemma generate_loopbody: forall (StreamAdd: list mpred)
    LOCAL (temp _md_len (Vint (Int.repr 32)); temp _info mc1;
    temp _reseed_interval (Vint (Int.repr reseed_interval));
    temp _reseed_counter (Vint (Int.repr reseed_counter));
-   temp _prediction_resistance (Val.of_bool prediction_resistance);
+   temp _prediction_resistance (bool2val prediction_resistance);
    temp _out (offset_val done output);
    temp _left (Vint (Int.repr (out_len - done))); temp _ctx (Vptr b i);
    temp _p_rng (Vptr b i); temp _output output;
@@ -1859,7 +1859,7 @@ Lemma generate_loopbody: forall (StreamAdd: list mpred)
       LOCAL (temp _md_len (Vint (Int.repr 32)); temp _info mc1;
       temp _reseed_interval (Vint (Int.repr reseed_interval));
       temp _reseed_counter (Vint (Int.repr reseed_counter));
-      temp _prediction_resistance (Val.of_bool prediction_resistance);
+      temp _prediction_resistance (bool2val prediction_resistance);
       temp _out (offset_val a0 output);
       temp _left (Vint (Int.repr (out_len - a0))); temp _ctx (Vptr b i);
       temp _p_rng (Vptr b i); temp _output output;

@@ -34,7 +34,7 @@ Proof.
   destruct H0.
   + apply Z.divide_add_cancel_r with (b * (c * a / b))%Z.
     apply Z.divide_mul_l; auto.
-    rewrite <- Z_div_mod_eq; auto.
+    rewrite <- Z_div_mod_eq_full; auto.
     apply Z.divide_mul_r, Z.divide_refl.
   + destruct H0.
     subst.

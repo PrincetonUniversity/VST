@@ -843,7 +843,7 @@ Proof.
   intros.
   case_eq (age1 m); intros.
   exists r. auto.
-  elimtype False.
+  exfalso.
   eapply age1None_levelS_absurd in H0; eauto.
 Qed.
 
@@ -872,7 +872,7 @@ Proof.
   rewrite ageN1 in H0.
   constructor 1.
   auto.
-  elimtype False.
+  exfalso.
   eapply age1None_levelS_absurd in H0; eauto.
 Qed.
 
@@ -1181,7 +1181,7 @@ assert (z=YES c k0 p0) by (inv H0; auto). clear H0; subst.
 assert (Hz: k0=k /\ p0=p) by (inv H; auto); destruct Hz; subst.
 exists (YES a k p, NO, YES b k p, NO); simpl; split; auto.
 constructor. inv H; split3; constructor; auto.
-destruct z as [|z|z].  elimtype False; inv H0.
+destruct z as [|z|z].  exfalso; inv H0.
 assert (Hx: k=k2 /\ k0=k2 /\ k1=k2 /\ p=p2 /\ p0=p2 /\ p1=p2) by  (inv H0; inv H; auto 50).
 destruct Hx as [? [? [? [? [? ?]]]]]; subst.
 assert (join c d z) by (inv H0; auto).
@@ -1226,10 +1226,10 @@ rename k2 into k; rename p2 into p.
 exists (YES (mk_lifted _ (nonidentity_nonunit n)) k p, YES (mk_lifted _ (nonidentity_nonunit n0)) k p,
        YES (mk_lifted _ (nonidentity_nonunit n1)) k p,  YES (mk_lifted _ (nonidentity_nonunit n2)) k p); split; simpl; auto.
 constructor; auto.  split3; constructor; auto.
-elimtype False; inv H0.
-elimtype False; inv H0.
-elimtype False; inv H0; inv H.
-elimtype False; inv H.
+exfalso; inv H0.
+exfalso; inv H0.
+exfalso; inv H0; inv H.
+exfalso; inv H.
 exists (PURE a p, PURE a p, PURE a p, PURE a p).
 inv H. inv H0.
 repeat split; constructor; auto.

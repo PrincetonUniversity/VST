@@ -416,8 +416,8 @@ intros; inv H; split; constructor.
 intros; inv H; split; constructor.
 apply PrimcomErasure.
 apply PrimcomSafety.
-intros; elimtype False; eapply PrimexprErasure; eauto.
-intros; elimtype False; eapply PrimexprSafety; eauto.
+intros; exfalso; eapply PrimexprErasure; eauto.
+intros; exfalso; eapply PrimexprSafety; eauto.
 Qed.
 
 #[export] Existing Instance stratsem.

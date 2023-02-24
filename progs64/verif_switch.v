@@ -39,12 +39,12 @@ Lemma body_twice: semax_body Vprog Gprog f_twice twice_spec.
 Proof.
 start_function.
 forward_if (PROP() LOCAL(temp _n (Vint (Int.repr (n+n)))) SEP()).
-repeat forward; entailer!.
-repeat forward; entailer!.
-repeat forward; entailer!.
-repeat forward; entailer!.
-repeat forward; entailer!.
-repeat forward; entailer!.
+repeat forward; entailer!!.
+repeat forward; entailer!!.
+repeat forward; entailer!!.
+repeat forward; entailer!!.
+repeat forward; entailer!!.
+repeat forward; entailer!!.
 Qed.
 
 Lemma body_f: semax_body Vprog Gprog f_f f_spec.

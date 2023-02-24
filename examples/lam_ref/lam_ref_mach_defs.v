@@ -13,7 +13,7 @@ Require Import msl.msl_standard.
 (* Some custom tactics, maybe move into msl in base.v *)
 
 Tactic Notation "omegac" :=
-  (elimtype False; omega).
+  (exfalso; omega).
 
 Lemma IF_then_else_True:
   forall a b c : Prop, a -> (IF a then b else c) = b.

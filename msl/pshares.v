@@ -111,7 +111,7 @@ Proof.
 Qed.
 
 Ltac pfullshare_join :=
-  elimtype False;
+  exfalso;
   solve [ eapply pshare_join_full_false1; eauto
     | eapply pshare_join_full_false2; eauto
     | eapply pshare_join_full_false3; eauto

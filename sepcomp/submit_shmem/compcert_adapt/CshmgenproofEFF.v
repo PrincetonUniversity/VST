@@ -2212,7 +2212,7 @@ Proof. intros.
     solve[rewrite D; auto].
 
     intros CONTRA.
-    solve[elimtype False; auto].
+    solve[exfalso; auto].
   assert (exists targs tres, type_of_fundef f = Tfunction targs tres).
          destruct f; simpl. eexists; eexists. reflexivity.
          eexists; eexists. reflexivity.

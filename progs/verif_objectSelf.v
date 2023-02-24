@@ -485,7 +485,7 @@ start_function.
 (*New:*) rewrite foo_obj_invariant_fold_unfold. Intros m; unfold foo_data.
 unfold withspacer; simpl; Intros.
 forward.  (* self->data=0; *)
-entailer!.
+entailer!!.
 (*New:*) rewrite foo_obj_invariant_fold_unfold, <- foo_obj_invariant_fold_unfold. Exists m; unfold foo_data.
 all: unfold withspacer; simpl; entailer!.  (* needed if Archi.ptr64=true *)
 Qed.
@@ -497,9 +497,9 @@ start_function.
 (*New:*) Intros m; unfold foo_data.
 unfold withspacer; simpl; Intros.
 forward.  (* self->data=0; *)
-entailer!.
+entailer!!.
 (*New:*) Exists m; unfold foo_data.
-all: unfold withspacer; simpl; entailer!.  (* needed if Archi.ptr64=true *)
+all: unfold withspacer; simpl; entailer!!.  (* needed if Archi.ptr64=true *)
 Qed.
 
 Lemma body_foo_twiddle: semax_body Vprog Gprog f_foo_twiddle foo_twiddle_spec.
@@ -513,19 +513,19 @@ forward.  (* d = self->data; *)
 forward.  (* self -> data = d+2*i; *) 
 { set (j:= Int.max_signed / 4) in *; compute in j; subst j.
   forget (fold_right Z.add 0 (*history*)(fst hs)) as h.
-  entailer!. }
+  entailer!!. }
 forward.  (* return d+i; *)
 { simpl.
   set (j:= Int.max_signed / 4) in *; compute in j; subst j.
   forget (fold_right Z.add 0 (*history*)(fst hs)) as h.
-  entailer!. }
+  entailer!!. }
 Exists (2 * fold_right Z.add 0 (*history*)(fst hs) + i).
 (*New:*) Exists m; unfold foo_data.
 simpl;
-entailer!.
+entailer!!.
 rewrite Z.mul_add_distr_l, Z.add_comm.
 unfold withspacer; simpl.
-entailer!.
+entailer!!.
 Qed.
 
 (*Moved here from further below, and added twiddleR*)
@@ -541,7 +541,7 @@ Proof.
   intros.
   unfold object_methods.
   Exists sh reset twiddle twiddleR.
-  entailer!.
+  entailer!!.
 Qed.
 
 Lemma make_object_methods_later:
@@ -571,7 +571,7 @@ unfold object_methods. Intros sh r t tR.
 forward. (*_s_reset = (_mtable -> _reset);*)
 forward_call hs. 
 { rewrite foo_obj_invariant_fold_unfold'.
-  Exists m. unfold foo_data, withspacer; simpl. entailer!.
+  Exists m. unfold foo_data, withspacer; simpl. entailer!!.
   sep_apply make_object_methods_later. cancel. }
 (*The spec has folded the object, so need to unfold again*)
 deadvars!. clear - H H0.
@@ -581,19 +581,19 @@ forward.  (* self -> data = d+2*i; *)
 { set (j:= Int.max_signed / 4) in *; compute in j; subst j.
   forget (fold_right Z.add 0 (*history*)(fst hs)) as h.
   rewrite field_at_isptr; Intros.
-  entailer!. }
+  entailer!!. }
 forward.  (* return d+i; *)
 { simpl.
   set (j:= Int.max_signed / 4) in *; compute in j; subst j.
   forget (fold_right Z.add 0 (*history*)(fst hs)) as h.
-  entailer!. }
+  entailer!!. }
 Exists (2 * fold_right Z.add 0 (*history*)(fst hs) + i).
 (*New:*) Exists m; unfold foo_data.
 simpl;
 entailer!.
 rewrite Z.mul_add_distr_l, Z.add_comm.
 unfold withspacer; simpl.
-entailer!.
+entailer!!.
 Qed.
 
 Lemma split_object_methods:
@@ -609,7 +609,7 @@ Exists (snd (slice.cleave sh)) reset twiddle twiddleR.
 rewrite (split_func_ptr' (reset_spec instance) reset) at 1.
 rewrite (split_func_ptr' (twiddle_spec instance) twiddle) at 1.
 rewrite (split_func_ptr' (twiddle_spec instance) twiddleR) at 1.
-entailer!.
+entailer!!.
 split.
 apply slice.cleave_readable1; auto.
 apply slice.cleave_readable2; auto.
@@ -657,7 +657,7 @@ forward_if
           object_methods foo_obj_invariant (gv _foo_methods))).
 *
 change (EqDec_val p nullval) with (eq_dec p nullval).
-if_tac; entailer!.
+if_tac; entailer!!.
 *
 forward_call 1.
 contradiction.
@@ -665,7 +665,7 @@ contradiction.
 rewrite if_false by auto.
 Intros.
 forward.  (*  /*skip*/;  *)
-entailer!.
+entailer!!.
 *
 unfold data_at_, field_at_, default_val; simpl.
 forward. (* p->mtable = &foo_methods; *)
@@ -673,11 +673,11 @@ forward. (* p->data = 0; *)
 forward. (* return (struct object * ) p; *)
 Exists p.
 sep_apply (split_object_methods foo_obj_invariant (gv _foo_methods)).
-entailer!.
+entailer!!.
 unfold object_mpred.
 
 (*slight variation of Andrew's proof from here on*)
-Exists foo_data. entailer!. 1: solve [apply foo_data_HOcontr].
+Exists foo_data. entailer!!. 1: solve [apply foo_data_HOcontr].
 rewrite ObjMpred_fold_unfold by (apply foo_data_HOcontr).
 Exists (gv _foo_methods). simpl. normalize.
 rewrite ! sepcon_assoc. apply sepcon_derives. apply now_later.
@@ -783,7 +783,7 @@ forward_call (* p_reset(p); *)
 { (*NEW subgoal*)
    sep_apply make_object_methods_later.
    rewrite ObjMpred_fold_unfold, <- ObjMpred_fold_unfold by trivial.
-   Exists mtable0. entailer!. } 
+   Exists mtable0. entailer!!. } 
 (* WAS (*Finish the method-call by regathering the object p back together *)
 sep_apply (make_object_methods sh instance r0 t0 mtable0); auto.
 sep_apply (object_mpred_i [] p instance mtable0).*)
@@ -810,7 +810,7 @@ forward_call (* i = p_twiddle(p,3); *)
 { (*NEW subgoal*)
    sep_apply make_object_methods_later.
    rewrite ObjMpred_fold_unfold, <- ObjMpred_fold_unfold by trivial.
-   Exists mtable0. entailer!. }
+   Exists mtable0. entailer!!. }
 { simpl. repeat split; try trivial; computable. }
 Intros i.
 simpl in H0. (*
@@ -824,7 +824,7 @@ deadvars!.
 
 (* 6. return *)
 forward.  (* return i; *)
-Exists i; entailer!.
+Exists i; entailer!!.
 Qed.
 
 

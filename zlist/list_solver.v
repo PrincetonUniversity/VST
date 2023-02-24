@@ -1773,7 +1773,7 @@ Ltac loop2 :=
     | H2 : range_saturate_shift l2 ?s2 |- _ =>
       tryif assert (s1 + s = s2) by Zlength_solve
       then idtac
-      else idtac "Entangled: because" s1 "+" s "=" s2 "is not provable."; fail 1
+      else (idtac "Entangled: because" s1 "+" s "=" s2 "is not provable."; fail 1)
     | |- _ =>
       pose_range_saturate_shift l2 (s1 + s)
     end;
@@ -1790,7 +1790,7 @@ Ltac loop2 :=
       | H2 : range_saturate_shift l2 ?s2 |- _ =>
         tryif assert (s1 + s = s2) by Zlength_solve
         then idtac
-        else idtac "Entangled: because " s1 "+" s "=" s2 "is not provable."; fail 1
+        else (idtac "Entangled: because " s1 "+" s "=" s2 "is not provable."; fail 1)
       | |- _ =>
         pose_range_saturate_shift l2 (s1 + s)
       end;

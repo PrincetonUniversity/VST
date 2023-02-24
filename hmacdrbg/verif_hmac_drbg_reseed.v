@@ -59,7 +59,7 @@ Proof.
   (* if (len > MBEDTLS_HMAC_DRBG_MAX_INPUT ||
         entropy_len + len > MBEDTLS_HMAC_DRBG_MAX_SEED_INPUT) *)
   freeze [0;1] FR2.
-  forward_if (temp _t'1 (Val.of_bool add_len_too_high)).
+  forward_if (temp _t'1 (bool2val add_len_too_high)).
   { forward. entailer!. }
   { forward. entailer!. simpl.
       unfold Int.ltu; simpl.

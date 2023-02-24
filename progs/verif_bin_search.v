@@ -198,12 +198,12 @@ Proof.
            temp _lo (Vint (Int.repr lo')); temp _hi (Vint (Int.repr hi')))
     SEP   (data_at sh (tarray tint (Zlength contents))
                    (map Vint (map Int.repr contents)) a)).
- * Exists lo; Exists hi; entailer!.
- * entailer!.
+ * Exists lo; Exists hi; entailer!!.
+ * entailer!!.
  *
   match goal with H : _ <-> _ |- _ => rename H into H_tgt_sublist end.
   forward.  (* mid =  (lo + hi) >> 1; *) {
-   entailer!.
+   entailer!!.
    clear - H8 HRE H7.
    set (j := Int.max_signed / 2) in *; compute in j; subst j.
    set (j := Int.max_signed) in *; compute in j; subst j.
@@ -231,13 +231,13 @@ Proof.
   autorewrite with sublist.
   forward_if.
   - forward. (* return mid; *)
-    Exists mid; entailer!.
+    Exists mid; entailer!!.
     rewrite if_true; auto. 
     rewrite H_tgt_sublist.
     apply Znth_In_sublist; lia.
   - forward_if.
     + forward. (*  lo = mid + 1; *)
-      Exists ((mid + 1), hi'); simpl fst; simpl snd; entailer!.
+      Exists ((mid + 1), hi'); simpl fst; simpl snd; entailer!!.
       rewrite H_tgt_sublist.
       split; intro Hin'.
       eapply In_sorted_gt; eauto; lia.

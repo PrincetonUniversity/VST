@@ -276,7 +276,7 @@ destruct (access_at m' loc Cur) as [[ | | | ] | ]  eqn:?H; try solve [contradict
 destruct H; discriminate.
 destruct H; discriminate.
 destruct H; discriminate.
-elimtype False; clear - r H1.
+exfalso; clear - r H1.
 unfold perm_of_sh in H1. if_tac in H1. if_tac in H1; inv H1.
 rewrite if_true in H1 by auto. inv H1.
 destruct (access_at m' loc Cur) as [[ | | | ] | ]  eqn:?H; try solve [contradiction]; try discriminate; auto.
@@ -357,7 +357,7 @@ destruct (access_at m' loc Cur). destruct p0; try contradiction.
 match goal with |- Mem.perm_order'' _ ?A =>
   destruct A; try constructor
 end.
-elimtype False.
+exfalso.
 clear - H1 r.
 unfold perm_of_sh in H1.
 if_tac in H1. if_tac in H1. inv H1; constructor.

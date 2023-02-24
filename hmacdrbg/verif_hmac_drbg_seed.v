@@ -96,10 +96,10 @@ Proof.
   freeze [0;1;2;3;4;5;6;7;8;9] ALLSEP.
 
   forward_if (temp _t'4 (Vint (Int.repr 32))).
-  { elim H; trivial. }
+  { discriminate. }
   { clear H.
     forward_if.
-    + elim H; trivial. 
+    + discriminate. 
     + clear H. forward. forward. entailer!.  }
   forward.
   deadvars!.
@@ -114,7 +114,7 @@ Proof.
   set (myABS := HMAC256DRBGabs initial_key initial_value rc 48 pr_flag 10000) in *.
   assert (myST: exists ST:hmac256drbgstate, ST =
     ((info, (M2, p)), (map Vint (repeat Int.one 32), (Vint (Int.repr rc),
-        (Vint (Int.repr 48), (Val.of_bool pr_flag, Vint (Int.repr 10000))))))). eexists; reflexivity.
+        (Vint (Int.repr 48), (bool2val pr_flag, Vint (Int.repr 10000))))))). eexists; reflexivity.
   destruct myST as [ST HST].
 
   freeze [0;2;3;4;8] FR_CTX.

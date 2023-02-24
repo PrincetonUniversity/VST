@@ -4,6 +4,7 @@ Require Import VST.msl.functors.
 Require Import VST.msl.predicates_hered.
 Import VST.msl.functors.MixVariantFunctor.
 Import VST.msl.functors.MixVariantFunctorLemmas.
+Require Import Arith.
 
 Module Type KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL.
   Parameter F : functor.
@@ -371,7 +372,7 @@ Module Knot_MixVariantHeredTOthRel (KI':KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL) 
     case_eq (decompose_nat x n); intros.
     destruct s.
     destruct n.
-    elimtype False; lia.
+    exfalso; lia.
     assert (S x0 = x1) by lia; subst x1.
     revert H1.
     generalize e e0; revert p; rewrite e; intros.
@@ -385,7 +386,7 @@ Module Knot_MixVariantHeredTOthRel (KI':KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL) 
     destruct Hs.
     simpl in H2.
     eapply H2; auto.
-    elimtype False.
+    exfalso.
     lia.
     apply T_rel_bot.
     apply T_rel_refl.
@@ -414,7 +415,7 @@ Module Knot_MixVariantHeredTOthRel (KI':KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL) 
     destruct (decompose_nat x n).
     destruct s.
     simpl in H0.
-    2: simpl in *; elimtype False; lia.
+    2: simpl in *; exfalso; lia.
     clear H0.
     revert p H.
     generalize e.
@@ -478,7 +479,7 @@ Module Knot_MixVariantHeredTOthRel (KI':KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL) 
     replace e with (refl_equal (m2 + S n)).
     simpl; tauto.
     apply proof_irr.
-    elimtype False; lia.
+    exfalso; lia.
   Qed.
 
   Lemma stratify_unstratify : forall n p H,
@@ -510,7 +511,7 @@ Module Knot_MixVariantHeredTOthRel (KI':KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL) 
     replace e with (refl_equal (S n)) by apply proof_irr.
     simpl.
     split; auto.
-    elimtype False; lia.
+    exfalso; lia.
   Qed.
 
   Definition strat (n:nat) (p:predicate) : sinv n :=
@@ -544,7 +545,7 @@ Module Knot_MixVariantHeredTOthRel (KI':KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL) 
     destruct (Compare_dec.le_gt_dec n (knot_level_def k)).
     apply T_rel_bot.
     destruct (Compare_dec.le_gt_dec n (knot_level_def k'')).
-    elimtype False.
+    exfalso.
     cut (knot_level_def k'' <= knot_level_def k).
     lia.
     replace (knot_level_def k'') with (knot_level_def k').
@@ -557,7 +558,7 @@ Module Knot_MixVariantHeredTOthRel (KI':KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL) 
     simpl.
     unfold knot_level_def; simpl; auto.
     auto.
-    eapply Le.le_trans; eauto.
+    eapply Nat.le_trans; eauto.
     inv H0.
     unfold knot_level_def; simpl; auto.
 
@@ -604,7 +605,7 @@ Module Knot_MixVariantHeredTOthRel (KI':KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL) 
     unfold knot_level_def in l.
     simpl in *.
     destruct (decompose_nat x0 n); simpl.
-    destruct s; simpl; elimtype False; lia.
+    destruct s; simpl; exfalso; lia.
     auto.
     destruct x as [x Hx]; simpl.
     destruct (stratify x Hx n); simpl.
@@ -652,7 +653,7 @@ Module Knot_MixVariantHeredTOthRel (KI':KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL) 
     revert k.
     induction x; simpl; intuition.
     destruct (decompose_nat 0 0); auto.
-    destruct s; elimtype False; lia.
+    destruct s; exfalso; lia.
     eapply (stratifies_unstratify_more x 0 1).
     simpl; reflexivity.
     simpl.
@@ -663,16 +664,16 @@ Module Knot_MixVariantHeredTOthRel (KI':KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL) 
     assert (x0 = 0) by lia; subst x0.
     simpl in *.
     replace e with (refl_equal (S x)) by apply proof_irr; auto.
-    elimtype False; lia.
+    exfalso; lia.
     destruct (decompose_nat x (S x)).
     destruct s.
     assert (x0 = 0) by lia; subst x0.
     simpl in *.
     destruct (decompose_nat (S x) (S x)).
-    destruct s; elimtype False; lia.
+    destruct s; exfalso; lia.
     auto.
     destruct (decompose_nat (S x) (S x)).
-    destruct s; elimtype False; lia.
+    destruct s; exfalso; lia.
     auto.
 
     destruct (stratify (unstratify x k) (unstratify_hered x k) (S x)).
@@ -704,7 +705,7 @@ Module Knot_MixVariantHeredTOthRel (KI':KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL) 
     simpl in *.
     replace e with (refl_equal (S x)) by apply proof_irr; simpl.
     tauto.
-    elimtype False; lia.
+    exfalso; lia.
     destruct (stratify (unstratify (S x) k)
       (unstratify_hered (S x) k) x).
     simpl; auto.
@@ -731,7 +732,7 @@ Module Knot_MixVariantHeredTOthRel (KI':KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL) 
     simpl in *.
     replace e with (refl_equal (S x)); simpl; auto.
     apply proof_irr.
-    elimtype False; lia.
+    exfalso; lia.
   Qed.
 
   Lemma age1_eq : forall k,
@@ -835,7 +836,7 @@ Module Knot_MixVariantHeredTOthRel (KI':KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL) 
     destruct (decompose_nat x0 x).
     destruct s.
     destruct (Compare_dec.le_gt_dec (S x) x0).
-    elimtype False; lia.
+    exfalso; lia.
     simpl.
     destruct (decompose_nat x0 x).
     destruct s.
@@ -843,11 +844,11 @@ Module Knot_MixVariantHeredTOthRel (KI':KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL) 
     subst x2.
     replace e0 with e by apply proof_irr.
     auto.
-    elimtype False; lia.
+    exfalso; lia.
     destruct (Compare_dec.le_gt_dec (S x) x0); auto.
     simpl.
     destruct (decompose_nat x0 x); auto.
-    destruct s. elimtype False. lia.
+    destruct s. exfalso. lia.
 
     intro.
     unfold knot_age1_def, knot_level_def.
@@ -1101,7 +1102,7 @@ Proof.
     simpl.
     destruct (Compare_dec.le_gt_dec n (level k)); auto.
     destruct (Compare_dec.le_gt_dec (m+n) (level k)); auto.
-    elimtype False; lia.
+    exfalso; lia.
   + intros.
     extensionality p.
     apply pred_ext.
@@ -1111,7 +1112,7 @@ Proof.
     simpl.
     destruct (Compare_dec.le_gt_dec (m+n) (level k)); auto.
     destruct (Compare_dec.le_gt_dec n (level k)); auto.
-    elimtype False; lia.
+    exfalso; lia.
 Qed.
 
 End KnotLemmas2.

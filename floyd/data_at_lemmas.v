@@ -661,7 +661,7 @@ Proof.
   (*This is not particularly elegant; is there a way to get an implication out directly?*)
   assert (0 <= i < Zlength contents \/ ~ (0 <= i < Zlength contents)) as [Hlt | Hgt] by lia; [| entailer ].
   sep_apply (iter_sepcon_arrays_Znth _ _ _ Heq Hlt).
-  assert (forall m P Q, P -> (m |-- !! Q) -> (m |-- !! (P -> Q))). { intros. sep_apply H. entailer!. }
+  assert (forall m (P : Type) Q, P -> (m |-- !! Q) -> (m |-- !! (P -> Q))). { intros. sep_apply H. entailer!. }
   apply H. assumption. entailer!.
 Qed.
 

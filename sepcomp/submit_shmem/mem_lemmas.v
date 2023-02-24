@@ -134,7 +134,7 @@ split; auto.
 intros H1.
 destruct (Mem.perm_dec m b ofs k p).
 solve[f_equal; apply proof_irr].
-solve[elimtype False; auto].
+solve[exfalso; auto].
 Qed.
 
 Lemma flatinj_E: forall b b1 b2 delta (H:Mem.flat_inj b b1 = Some (b2, delta)),

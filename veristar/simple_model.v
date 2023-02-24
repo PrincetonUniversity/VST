@@ -101,7 +101,7 @@ unfold env_get, env_set; intros.
 destruct v.
 destruct (Ident.eq_dec x x); auto.
 contradiction n0; auto.
-elimtype False; apply H; auto.
+exfalso; apply H; auto.
 Qed.
 
 Lemma gso_env (x y : var) (v: val) (s: env) :
@@ -131,7 +131,7 @@ Lemma env_reset2 s x z : env_set x (env_get s x) (env_set x z s) = s.
 unfold env_set, env_get; extensionality.
 destruct (Ident.eq_dec x x0); auto. subst; auto.
 destruct z; auto.
-destruct (Ident.eq_dec x x0); auto. subst; elimtype False; auto.
+destruct (Ident.eq_dec x x0); auto. subst; exfalso; auto.
 Qed.
 
 Definition heap := loc -> val.
@@ -147,7 +147,7 @@ Definition emp_at (l: loc) (h: heap) := h l = None.
 
 Lemma heap_gempty h l : identity h -> emp_at l h.
 unfold emp_at; case_eq (h l); intros ? H1; auto.
-intros H2; elimtype False.
+intros H2; exfalso.
 specialize (H2 (fun _ => None) h); rewrite <-H2 in H1; inv H1.
 intro; constructor.
 Qed.
@@ -180,7 +180,7 @@ Lemma rawnext_at1 : forall {x y h1 h2 h},
   rawnext' x y h1 -> join h1 h2 h -> emp_at x h2 /\ rawnext' x y h.
 unfold rawnext', emp_at, rawnext; intros.
 destruct H as [h' [? [? [? [? ?]]]]].
-destruct y; [ | elimtype False; apply H1; auto].
+destruct y; [ | exfalso; apply H1; auto].
 clear H1. destruct H as [h'' ?]. generalize (H x); intros.
 rewrite H3 in H1. inv H1; [ | solve [inv H8]].
 generalize (H0 x); rewrite <- H8; intro.
@@ -282,7 +282,7 @@ destruct (eq_nat_dec (e z) 0).
 subst; left; auto.
 right; exists (e z); simpl.
 destruct (e z); auto.
-elimtype False; omega.
+exfalso; omega.
 Qed.
 
 End BarebonesLogic.

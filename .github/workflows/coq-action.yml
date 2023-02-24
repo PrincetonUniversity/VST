@@ -5,9 +5,11 @@ on:
   push:
     branches:
       - master
+    paths-ignore:
+      - 'lib/**'
   pull_request:
-    branches:
-      - '**'
+    paths-ignore:
+      - 'lib/**'
 
 jobs:
   build:

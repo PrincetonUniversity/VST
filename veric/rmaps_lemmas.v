@@ -579,7 +579,7 @@ Lemma YES_join_full:
 Proof.
   intros.
   inv H. eauto.
-  elimtype False; clear - RJ H0 rsh2.
+  exfalso; clear - RJ H0 rsh2.
   destruct RJ.
   destruct H0. destruct H0. destruct rsh2. subst sh sh3.
   rewrite Share.glb_commute, Share.distrib1 in H.
@@ -1087,7 +1087,7 @@ Proof.
   intros.
   case_eq (age1 m); intros.
   exists r. auto.
-  elimtype False.
+  exfalso.
   eapply age1None_levelS_absurd in H0; eauto.
 Qed.
 
@@ -1116,7 +1116,7 @@ Proof.
   rewrite ageN1 in H0.
   constructor 1.
   auto.
-  elimtype False.
+  exfalso.
   eapply age1None_levelS_absurd in H0; eauto.
 Qed.
 
@@ -1361,19 +1361,19 @@ end.
 Proof.
 intro; intros.
 destruct a as [ra | ra sa ka pa | ka pa | ma].
-destruct b as [rb | rb sb kb pb | kb pb |]; try solve [elimtype False; inv H].
-destruct z as [rz | rz sz kz pz | kz pz |]; try solve [elimtype False; inv H].
-destruct c as [rc | rc sc kc pc | kc pc |]; try solve [elimtype False; inv H0].
-destruct d as [rd | rd sd kd pd | kd pd |]; try solve [elimtype False; inv H0].
+destruct b as [rb | rb sb kb pb | kb pb |]; try solve [exfalso; inv H].
+destruct z as [rz | rz sz kz pz | kz pz |]; try solve [exfalso; inv H].
+destruct c as [rc | rc sc kc pc | kc pc |]; try solve [exfalso; inv H0].
+destruct d as [rd | rd sd kd pd | kd pd |]; try solve [exfalso; inv H0].
 assert (J1: join ra rb rz) by (inv H; auto).
 assert (J2: join rc rd rz) by (inv H0; auto).
 destruct (share_cross_split _ _ _ _ _ J1 J2) as [[[[ac ad] bc] bd] [Ha [Hb [Hc Hd]]]].
 readable_unreadable_join_prover.
 exists (NO ac Hac,NO ad Had, NO bc Hbc, NO bd Hbd); 
   repeat split; simpl; auto; constructor; auto.
-destruct z as [rz | rz sz kz pz | kz pz |]; try solve [elimtype False; inv H].
-destruct c as [rc | rc sc kc pc | kc pc |]; try solve [elimtype False; inv H0].
-destruct d as [rd | rd sd kd pd | kd pd |]; try solve [elimtype False; inv H0].
+destruct z as [rz | rz sz kz pz | kz pz |]; try solve [exfalso; inv H].
+destruct c as [rc | rc sc kc pc | kc pc |]; try solve [exfalso; inv H0].
+destruct d as [rd | rd sd kd pd | kd pd |]; try solve [exfalso; inv H0].
 assert (J1: join ra rb rz) by (inv H; auto).
 assert (J2: join rc rd rz) by (inv H0; auto).
 destruct (share_cross_split _ _ _ _ _ J1 J2) as [[[[ac ad] bc] bd] [Ha [Hb [Hc Hd]]]].
@@ -1381,7 +1381,7 @@ readable_unreadable_join_prover.
 exists (NO ac Hac, NO ad Had, NO bc Hbc, YES bd Hbd kb pb); inv H; inv H0;
   repeat split; simpl; auto; try constructor; auto.
 assert (J1: join ra rb rz) by (inv H; auto).
-destruct d as [rd | rd sd kd pd | kd pd |]; try solve [elimtype False; inv H0].
+destruct d as [rd | rd sd kd pd | kd pd |]; try solve [exfalso; inv H0].
 assert (J2: join rc rd rz) by (inv H0; auto).
 destruct (share_cross_split _ _ _ _ _ J1 J2) as [[[[ac ad] bc] bd] [Ha [Hb [Hc Hd]]]].
 readable_unreadable_join_prover.
@@ -1392,17 +1392,17 @@ destruct (share_cross_split _ _ _ _ _ J1 J2) as [[[[ac ad] bc] bd] [Ha [Hb [Hc H
 readable_unreadable_join_prover.
 exists (NO ac Hac, NO ad Had, YES bc Hbc kb pb, YES bd Hbd kd pd); inv H; inv H0;
   repeat split; simpl; auto; try constructor; auto.
-destruct b as [rb | rb sb kb pb | kb pb |]; try solve [elimtype False; inv H].
-destruct z as [rz | rz sz kz pz | kz pz |]; try solve [elimtype False; inv H].
+destruct b as [rb | rb sb kb pb | kb pb |]; try solve [exfalso; inv H].
+destruct z as [rz | rz sz kz pz | kz pz |]; try solve [exfalso; inv H].
 assert (J1: join ra rb rz) by (inv H; auto).
-destruct c as [rc | rc sc kc pc | kc pc |]; try solve [elimtype False; inv H0].
-destruct d as [rd | rd sd kd pd | kd pd |]; try solve [elimtype False; inv H0].
+destruct c as [rc | rc sc kc pc | kc pc |]; try solve [exfalso; inv H0].
+destruct d as [rd | rd sd kd pd | kd pd |]; try solve [exfalso; inv H0].
 assert (J2: join rc rd rz) by (inv H0; auto).
 destruct (share_cross_split _ _ _ _ _ J1 J2) as [[[[ac ad] bc] bd] [Ha [Hb [Hc Hd]]]].
 readable_unreadable_join_prover.
 exists (NO ac Hac, YES ad Had kd pd, NO bc Hbc, NO bd Hbd); inv H; inv H0;
   repeat split; simpl; auto; try constructor; auto.
-destruct d as [rd | rd sd kd pd | kd pd |]; try solve [elimtype False; inv H0].
+destruct d as [rd | rd sd kd pd | kd pd |]; try solve [exfalso; inv H0].
 assert (J2: join rc rd rz) by (inv H0; auto).
 destruct (share_cross_split _ _ _ _ _ J1 J2) as [[[[ac ad] bc] bd] [Ha [Hb [Hc Hd]]]].
 readable_unreadable_join_prover.
@@ -1413,16 +1413,16 @@ destruct (share_cross_split _ _ _ _ _ J1 J2) as [[[[ac ad] bc] bd] [Ha [Hb [Hc H
 readable_unreadable_join_prover.
 exists (YES ac Hac kc pc, YES ad Had kd pd, NO bc Hbc, NO bd Hbd); inv H; inv H0;
   repeat split; simpl; auto; try constructor; auto.
-destruct z as [rz | rz sz kz pz | kz pz |]; try solve [elimtype False; inv H].
+destruct z as [rz | rz sz kz pz | kz pz |]; try solve [exfalso; inv H].
 assert (J1: join ra rb rz) by (inv H; auto).
-destruct c as [rc | rc sc kc pc | kc pc |]; try solve [elimtype False; inv H0].
-destruct d as [rd | rd sd kd pd | kd pd |]; try solve [elimtype False; inv H0].
+destruct c as [rc | rc sc kc pc | kc pc |]; try solve [exfalso; inv H0].
+destruct d as [rd | rd sd kd pd | kd pd |]; try solve [exfalso; inv H0].
 assert (J2: join rc rd rz) by (inv H0; auto).
 destruct (share_cross_split _ _ _ _ _ J1 J2) as [[[[ac ad] bc] bd] [Ha [Hb [Hc Hd]]]].
 readable_unreadable_join_prover.
 exists (NO ac Hac, YES ad Had kd pd, NO bc Hbc, YES bd Hbd kd pd); inv H; inv H0;
   repeat split; simpl; auto; try constructor; auto.
-destruct d as [rd | rd sd kd pd | kd pd |]; try solve [elimtype False; inv H0].
+destruct d as [rd | rd sd kd pd | kd pd |]; try solve [exfalso; inv H0].
 assert (J2: join rc rd rz) by (inv H0; auto).
 destruct (share_cross_split _ _ _ _ _ J1 J2) as [[[[ac ad] bc] bd] [Ha [Hb [Hc Hd]]]].
 readable_unreadable_join_prover.
@@ -1456,10 +1456,10 @@ exists (YES ac Hac ka pa, YES ad Had ka pa,
 exists (PURE ka pa, PURE ka pa, PURE ka pa, PURE ka pa).
 inv H. inv H0.
 repeat split; constructor; auto.
-destruct b as [| | | mb]; try solve [elimtype False; inv H].
-destruct z as [| | | mz]; try solve [elimtype False; inv H].
-destruct c as [| | | mc]; try solve [elimtype False; inv H0].
-destruct d as [| | | md]; try solve [elimtype False; inv H0].
+destruct b as [| | | mb]; try solve [exfalso; inv H].
+destruct z as [| | | mz]; try solve [exfalso; inv H].
+destruct c as [| | | mc]; try solve [exfalso; inv H0].
+destruct d as [| | | md]; try solve [exfalso; inv H0].
 (* relies on cross-split for ghost state *)
 Qed.*)
 

@@ -53,14 +53,16 @@ intros.
  apply prop_derives; intro.
  unfold tptr in H; simpl in H. unfold sem_binary_operation' in H.
  simpl in H. rewrite !andb_false_r in H.
- destruct (v rho); inv H.
- unfold sem_cmp_pp, strict_bool_val, nullval in *.
- destruct Archi.ptr64  eqn:Hp; simpl in H1;
- try solve [inv H1];
- try solve [pose proof (Int64.eq_spec i Int64.zero);
-                destruct (Int64.eq i Int64.zero); inv H1; auto];
- try solve [pose proof (Int.eq_spec i Int.zero);
-                destruct (Int.eq i Int.zero); inv H1; auto].
+ simpl in H.
+ red in H.
+ forget (v rho) as x. clear - H.
+ unfold sem_cmp_pp, strict_bool_val, nullval in *; simpl in *.
+ destruct Archi.ptr64; simpl in H;
+ destruct x; inv H.
+ - pose proof (Int64.eq_spec i Int64.zero);
+                destruct (Int64.eq i Int64.zero); inv H1; auto.
+ - pose proof (Int.eq_spec i Int.zero);
+                destruct (Int.eq i Int.zero); inv H1; auto.
 Qed.
 
 Definition  binary_operation_to_comparison (op: Cop.binary_operation) :=

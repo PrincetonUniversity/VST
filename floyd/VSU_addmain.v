@@ -375,7 +375,7 @@ Proof.
     inv H0.
     destruct a. destruct g; simpl in *. if_tac. congruence.
     apply IHl; auto. inv H; auto.
-    if_tac. subst p0. elimtype False; clear - H0 H.
+    if_tac. subst p0. exfalso; clear - H0 H.
     inv H. apply H3; clear H3 H4. induction l; simpl in *. inv H0. destruct a. destruct g; auto.
     simpl in *. if_tac in H0; auto. apply IHl; auto. inv H; auto.
 + apply list_norepet_map_fst_filter; auto.

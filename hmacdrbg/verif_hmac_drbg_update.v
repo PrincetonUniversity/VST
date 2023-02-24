@@ -85,7 +85,7 @@ Proof. intros. do 2 pose proof I.
   (*change (Z.of_nat SHA256.DigestLength) with 32.*)
   remember (andb (negb (eq_dec additional nullval)) (negb (eq_dec add_len 0))) as na.
   freeze [0;1] FR2. clear PIS1a.
-  forward_if (temp _t'2 (Val.of_bool na)).
+  forward_if (temp _t'2 (bool2val na)).
   {
     (* show that add_len <> 0 implies the post condition *)
     forward.

@@ -969,7 +969,7 @@ Lemma pjoinable_emp_None {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:
 Proof.
 intros.
 destruct w; auto.
-elimtype False.
+exfalso.
 specialize (H None (Some l)).
 spec H.
 constructor.

@@ -2465,7 +2465,8 @@ The \lstinline{ecancel} tactic does instantiate evars
 
 \ychapter{entailer!}{(PLCC Ch.~\ref{ch:clight-auto})}
 \label{refcard:entailer}
-The \lstinline{entailer} and \lstinline{entailer!} tactics
+The \lstinline{entailer}, \lstinline{entailer!}, 
+and \lstinline{entailer!!} tactics
 simplify (or solve entirely) entailments in either the
 lifted or base-level separation logic.  The \lstinline{entailer}
 never turns a provable entailment into an unprovable one;
@@ -2474,9 +2475,11 @@ but sometimes (rarely) turns a provable entailment into an unprovable one.
 We recommend trying \lstinline{entailer!} first.
 
 When \lstinline{go_lower} is applicable, the entailers start by applying it
-(see \autoref{refcard:go-lower}).
+(see \autoref{refcard:go-lower})---but \lstinline{entailer!!}
+uses a streamlined version of go-lower, see below.
 
-Then: \lstinline{saturate_local} (see \autoref{refcard:saturate-local}).
+Then: \lstinline{saturate_local} (see \autoref{refcard:saturate-local})---but
+\lstinline{entailer!!} leaves this out, see below.
 
 \textsc{Next:} on each side of the entailment, gather the propositions to the left:
 \(
@@ -2491,6 +2494,14 @@ If the r.h.s. or its first conjunct is a ``valid\_pointer'' goal (or one of its 
 At this point, \lstinline{entailer} tries \lstinline{normalize} and (if progress) back to \textsc{Next;} \lstinline{entailer!} applies \lstinline{cancel} to the spatial terms and \lstinline{prove_it_now} to each propositional conjunct.
 
 The result is that either the goal is entirely solved, or a residual entailment or proposition is left for the user to prove.
+
+\paragraph{entailer!!}  The \lstinline{entailer!} tactic extracts
+propositional information from \LOCAL{} and \SEP{} clauses,
+and puts it above the line.  Examples: from \lstinline{LOCAL(lvar $i$ $t$ $p$)}
+or \lstinline{SEP(data_at sh $t$ $v$ $p$)},
+\lstinline{entailer!} asserts that $p$ is a pointer \lstinline{(isptr p)}.
+If you don't need all this extra information above the line when
+proving your goal, use \lstinline{entailer!!} instead.
 
 \chapter{normalize}
 \label{refcard:normalize}
@@ -4956,6 +4967,10 @@ for the user to prove.
 (tactic; \autopageref{refcard:entailer}, \autopageref{refcard:entailments})
 Like \lstinline{entailer}, but faster and more powerful---however,
 it sometimes turns a provable goal into an unprovable goal.
+\item[\textsf{entailer!!}]
+(tactic; \autopageref{refcard:entailer}, \autopageref{refcard:entailments})
+  Like \lstinline{entailer!}, but does not put hypotheses above the line
+  derived from SEP and LOCAL clauses.
 
 \item[\textsf{Exists} $v$]
 (tactic; \autoref{refcard:EX})
@@ -5035,6 +5050,12 @@ component to the application of a sequence of initializations to the
 host function's func\_tycontext.  Used to prepare the current
 proof goal for abstracting/factoring out as a separate lemma.
 % Superordinate tactics:  $\mathit{semax\_subcommand}$\\
+
+\item[\textsf{rep\_lia}]
+  (tactic; \autopageref{refcard:rep-lia})
+  Solves goals in linear integer arithmetic (like \lstinline{lia}) enhanced
+  by extra facts about 32-bit and 64-bit modular representations of integers
+  (Int and Int64 modules).
 
 \item[\textsf{semax\_subcommand\ $V$\ $G$\ $F$}]
 (tactic)

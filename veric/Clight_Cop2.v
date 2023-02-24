@@ -310,8 +310,17 @@ Definition sem_cast (t1 t2: type): val -> option val :=
 
 (** *** Boolean negation *) 
 
+(* Use bool2val instead of Val.of_bool because it partial-evaluates
+ better; see https://github.com/PrincetonUniversity/VST/issues/625 *)
+Definition bool2val (b: bool) : val := Vint (Int.repr (Z.b2z  b)).
+
+Lemma bool2val_eq: Val.of_bool = bool2val.
+Proof.
+extensionality b. destruct b; reflexivity.
+Qed.
+
 Definition sem_notbool (t: type) (v: val) : option val :=
-  option_map (fun b => Val.of_bool (negb b)) (Cop2.bool_val t v).
+  option_map (fun b => bool2val (negb b)) (Cop2.bool_val t v).
 
 (** *** Opposite *)
 
@@ -650,7 +659,7 @@ Definition sem_shr (t1:type) (t2:type) (v1:val) (v2: val)  : option val :=
 Definition true2 (b : block) (i : Z) := true.
 
 Definition sem_cmp_pp c v1 v2 :=
-  option_map Val.of_bool
+  option_map bool2val
    (if Archi.ptr64
     then Val.cmplu_bool true2 c v1 v2
     else Val.cmpu_bool true2 c v1 v2).
@@ -686,13 +695,13 @@ Definition sem_cmp_lp c v1 v2 :=
 Definition sem_cmp_default c t1 t2 :=
  sem_binarith
         (fun sg n1 n2 =>
-            Some(Val.of_bool(match sg with Signed => Int.cmp c n1 n2 | Unsigned => Int.cmpu c n1 n2 end)))
+            Some(bool2val(match sg with Signed => Int.cmp c n1 n2 | Unsigned => Int.cmpu c n1 n2 end)))
         (fun sg n1 n2 =>
-            Some(Val.of_bool(match sg with Signed => Int64.cmp c n1 n2 | Unsigned => Int64.cmpu c n1 n2 end)))
+            Some(bool2val(match sg with Signed => Int64.cmp c n1 n2 | Unsigned => Int64.cmpu c n1 n2 end)))
         (fun n1 n2 =>
-            Some(Val.of_bool(Float.cmp c n1 n2)))
+            Some(bool2val(Float.cmp c n1 n2)))
         (fun n1 n2 =>
-            Some(Val.of_bool(Float32.cmp c n1 n2)))
+            Some(bool2val(Float32.cmp c n1 n2)))
         t1 t2 .
 
 Definition sem_cmp (c:comparison) (t1: type) (t2: type) : val -> val ->  option val :=

@@ -1842,7 +1842,7 @@ Qed.
 Lemma typed_false_of_bool':
  forall x (P: Prop),
     ((x=false) -> P) ->
-    (typed_false tint (Val.of_bool x) -> P).
+    (typed_false tint (bool2val x) -> P).
 Proof.
 intuition.
 apply H, typed_false_of_bool; auto.
@@ -1851,7 +1851,7 @@ Qed.
 Lemma typed_true_of_bool':
  forall x (P: Prop),
     ((x=true) -> P) ->
-    (typed_true tint (Val.of_bool x) -> P).
+    (typed_true tint (bool2val x) -> P).
 Proof.
 intuition.
 apply H, typed_true_of_bool; auto.
@@ -1881,9 +1881,9 @@ Ltac intro_if_new :=
           let H := fresh "P" x in intro H
   | |- is_pointer_or_null ?x =>
           let H := fresh "PN" x in intro H
-  | |- typed_false _ (Val.of_bool _) -> _ =>
+  | |- typed_false _ (bool2val _) -> _ =>
           simple apply typed_false_of_bool'
-  | |- typed_true _ (Val.of_bool _) -> _ =>
+  | |- typed_true _ (bool2val _) -> _ =>
           simple apply typed_true_of_bool'
   | |- ptr_eq _ _ -> _ =>
           apply ptr_eq_e'
@@ -1931,7 +1931,7 @@ Ltac check_mpreds2 R :=
  | @sepcon mpred _ _ ?a ?b => check_mpreds2 a; check_mpreds2 b
  | _ => match type of R with ?t =>
                           first [constr_eq t mpred
-                                 | fail 10 "The conjunct" R "has type" t "but should have type mpred; these two types may be convertible but they are not identical"]
+                                 | fail 4 "The conjunct" R "has type" t "but should have type mpred; these two types may be convertible but they are not identical"]
                      end
  | nil => idtac
  end.

@@ -35,7 +35,7 @@ specialize (H loc).
 rewrite jam_true in H; auto.
 simpl in H.
 destruct (m @ loc); try destruct k;
-try solve [elimtype False; destruct H as [? [? ?]]; inv H].
+try solve [exfalso; destruct H as [? [? ?]]; inv H].
 assert (readable_share sh) by (destruct H as [? [? ?]]; auto).
 exists (m0, H1).
 simpl.
@@ -607,7 +607,7 @@ intros.
         clear H; destruct H0.
         destruct (eq_dec id a).
          subst id.
-         split; intro; try congruence. elimtype False.
+         split; intro; try congruence. exfalso.
          clear IHdl.
          assert (~In a (map fst (((p::dl)++(i,g)::nil)))).
              rewrite map_app. rewrite in_app_iff.
@@ -842,10 +842,10 @@ Proof. intros. subst.
       split; intro.
       - assert (H': b = Pos.of_nat (S (length (rev vl)))) by congruence.
         clear H; rename H' into H.
-          subst b. elimtype False; apply n; clear.
+          subst b. exfalso; apply n; clear.
           rewrite <- Zlength_rev. rewrite Zlength_correct. forget (length (rev vl)) as i.
           rewrite Zpos_Posofnat by lia. rewrite Nat2Z.inj_succ. unfold Z.succ.  lia.
-     - elimtype False.
+     - exfalso.
        assert (Z.pos b-1 >= 0) by (clear - Hb; lia).
        pose proof (Z2Nat.id _ (Z.ge_le _ _ H0)).
        clear - H1 H H2 n.
@@ -857,7 +857,7 @@ Proof. intros. subst.
            by (rewrite map_length; rewrite rev_length; auto).
        forget (map fst (rev vl)) as al.
        revert al H2 H; clear; induction j; destruct al; simpl; intros; auto. inv H; intuition.
-       elimtype False; clear - H; induction j; inv H; auto.
+       exfalso; clear - H; induction j; inv H; auto.
        f_equal. apply IHj; auto.
     + rewrite PTree.gso by auto.
       rewrite map_app.
@@ -1007,14 +1007,14 @@ rewrite alloc_globals_app.
 exists m0; split; auto.
 simpl. rewrite H0; auto.
 case_eq (Genv.alloc_globals ge m (rev vl ++ a :: nil)); intros; auto.
-elimtype False.
+exfalso.
 apply alloc_globals_app in H1.
 destruct H1 as [m' [? ?]].
 inversion2 H H1.
 simpl in H2.
 rewrite H0 in H2; inv H2.
 case_eq (Genv.alloc_globals ge m (rev vl ++ a :: nil)); intros; auto.
-elimtype False.
+exfalso.
 apply alloc_globals_app in H0.
 destruct H0 as [m' [? ?]].
 inversion2 H H0.

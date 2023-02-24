@@ -414,7 +414,7 @@ Proof.
         change (if ident_eq i (name_member a1) then a1 else get_member i m)
                     with (get_member i (a1::m)) in H0.
         destruct (member_dec (get_member i (a1::m)) a0); [ | exact H0].
-        elimtype False; clear - e H2. subst a0.
+        exfalso; clear - e H2. subst a0.
         rewrite name_member_get in H2. contradiction.
 Qed.
 
@@ -511,7 +511,7 @@ Proof.
         simpl.
         change (if ident_eq i (name_member a1) then a1 else get_member i m) with (get_member i (a1::m)).
         destruct (member_dec (get_member i (a1::m)) a0).
-        elimtype False. clear - H0 H1 e. subst. apply H1. 
+        exfalso. clear - H0 H1 e. subst. apply H1. 
         rewrite name_member_get. auto.
         auto.
 Qed.
@@ -566,7 +566,7 @@ Proof.
       simpl. 
       destruct (member_dec _ _).
       change (get_member i (a1::m) = a0) in e.
-      elimtype False; clear - e H0 H1. subst. apply H1. rewrite name_member_get. auto.
+      exfalso; clear - e H0 H1. subst. apply H1. rewrite name_member_get. auto.
       f_equal.
       * unfold P'; simpl.
         rewrite if_false by (simpl; congruence).
@@ -762,7 +762,7 @@ Proof.
          specialize (H1 d0 d1).
          unfold compact_sum_inj, proj_compact_sum, list_rect in H1.
         destruct (member_dec (get_member i (a1::m)) a0).
-        elimtype False. clear - e H4. subst. rewrite name_member_get in H4. congruence.
+        exfalso. clear - e H4. subst. rewrite name_member_get in H4. congruence.
         apply (H1 H2 H3).
 Qed.
 
@@ -805,7 +805,7 @@ Proof.
       specialize (H1 i).
      change (get_member i (a0::a1::m)) with (if ident_eq i (name_member a0) then a0 else get_member i (a1::m)) in *.
       destruct (ident_eq i (name_member a0)).
-      elimtype False; clear - H0 H3 e. subst. unfold members_no_replicate in H0. apply compute_list_norepet_e in H0. inv H0.
+      exfalso; clear - H0 H3 e. subst. unfold members_no_replicate in H0. apply compute_list_norepet_e in H0. inv H0.
       apply H2. apply H3. 
       apply H1.
       right; auto.
@@ -846,7 +846,7 @@ Proof.
       contradict H1. subst; auto. 
     - change (if ident_eq i (name_member a1) then a1 else get_member i m) with (get_member i (a1::m)) in *.
        destruct (member_dec _ _).
-       elimtype False; clear - n e. subst.
+       exfalso; clear - n e. subst.
        rewrite name_member_get in *. congruence.
        destruct v.
        unfold union_pred. unfold list_rect.
@@ -890,12 +890,12 @@ Proof.
     -
        change (get_member i (a0::a1::m)) with (if ident_eq i (name_member a0) then a0 else get_member i (a1::m)) in *.
       destruct (ident_eq _ _).
-      elimtype False; clear - e H H0 H1. subst.
+      exfalso; clear - e H H0 H1. subst.
       apply compute_list_norepet_e in H. inv H. apply H4.
       destruct H0. left; auto. right; auto.
       unfold union_pred. unfold list_rect.
       destruct (member_dec _ _).
-      elimtype False.
+      exfalso.
       clear - H H0 H1 e. forget (a1::m) as m1. subst a0. 
       apply compute_list_norepet_e in H. inv H. rewrite name_member_get in H4. contradiction.
       apply (IHm a1); auto.
@@ -1027,7 +1027,7 @@ Proof.
       simpl in *.
       destruct (ident_eq _ _); [tauto |].
       destruct (member_dec _ _).
-      elimtype False; clear - e n.
+      exfalso; clear - e n.
       change (if  ident_eq i (name_member a1) then a1 else get_member i m) 
        with (get_member i (a1::m))  in e. subst. rewrite name_member_get in n. contradiction.
       apply IHm; auto.
@@ -1090,7 +1090,7 @@ Proof.
       simpl in H|-*.
       destruct (member_dec _ _).
       subst a0.
-      elimtype False; clear - j H1. subst j. rewrite name_member_get in H1. contradiction.
+      exfalso; clear - j H1. subst j. rewrite name_member_get in H1. contradiction.
       destruct v; [ tauto | ]. 
       apply IHm; auto.
 Qed.

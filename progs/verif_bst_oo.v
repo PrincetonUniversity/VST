@@ -389,7 +389,7 @@ Proof.
     forward. (* Sskip *)
     destruct t1; simpl treebox_rep at 1.
     + forward. (* p = *t; *)
-      forward_if; [clear H | inversion H]. (* then clause *)
+      forward_if; [clear H | contradiction H; auto]. (* then clause *)
       forward_call (sizeof t_struct_tree).
       Intros p1.
       rewrite memory_block_data_at_ by auto.

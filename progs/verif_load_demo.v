@@ -75,13 +75,13 @@ Proof.
 start_function.
 assert (BMU: Byte.max_unsigned=255) by reflexivity.
 forward.
-entailer!. solve_arr_range H0.
+entailer!!. solve_arr_range H0.
 forward.
 forward.
-entailer!. solve_arr_range H0.
+entailer!!. solve_arr_range H0.
 forward.
 forward.
-entailer!. solve_arr_range H0.
+entailer!!. solve_arr_range H0.
 forward.
 entailer!. solve_arr_range H0.
 forward.
@@ -103,7 +103,7 @@ assert_PROP (Zlength contents = n) as LEN. {
   forget (Int.unsigned (Int.shru (Int.repr tag) (Int.repr 10))) as n.
   clear - H0.
   rewrite Zlength_cons, !Zlength_map in H0.
-  destruct (zlt n 0); [elimtype False | ].
+  destruct (zlt n 0); [exfalso | ].
   rewrite Z.max_l in H0 by lia.
   pose proof (Zlength_nonneg contents).
   lia.
@@ -144,7 +144,7 @@ forward_for_simple_bound (Int.unsigned (Int.shru (Int.repr tag) (Int.repr 10))) 
   SEP (data_at Ews (tarray tuint (1 + n)) (map Vint (map Int.repr (tag :: contents)))
           (offset_val (- sizeof tuint) p))).
 - (* precondition implies invariant: *)
-  entailer!.
+  entailer!!.
 - (* body preserves invariant: *)
   (* forward fails, but tells us to prove this: *)
   assert_PROP (force_val (sem_add_ptr_int tuint Unsigned p (Vint (Int.repr i)))
@@ -167,7 +167,7 @@ forward_for_simple_bound (Int.unsigned (Int.shru (Int.repr tag) (Int.repr 10))) 
   replace (1 + i - 1) with i by lia.
   rewrite uint_sum_app. f_equal. simpl. apply Int.add_zero_l.
 - (* return sum; *)
-  forward. rewrite sublist_same by auto. entailer!.
+  forward. rewrite sublist_same by auto. entailer!!.
 Qed.
 
 Lemma body_get22_root_expr: semax_body Vprog Gprog f_get22 get22_spec.

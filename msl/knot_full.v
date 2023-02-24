@@ -342,7 +342,7 @@ Module KnotFull (TF':TY_FUNCTOR_FULL) : KNOT_FULL with Module TF:=TF'.
     case_eq (decompose_nat x n); intros.
     destruct s.
     destruct n.
-    elimtype False; lia.
+    exfalso; lia.
     assert (S x0 = x1) by lia; subst x1.
     revert H1.
     generalize e e0; revert p; rewrite e; intros.
@@ -356,7 +356,7 @@ Module KnotFull (TF':TY_FUNCTOR_FULL) : KNOT_FULL with Module TF:=TF'.
     destruct Hs.
     simpl in H2.
     eapply H2; auto.
-    elimtype False.
+    exfalso.
     lia.
     apply T_rel_bot.
     apply T_rel_refl.
@@ -385,7 +385,7 @@ Module KnotFull (TF':TY_FUNCTOR_FULL) : KNOT_FULL with Module TF:=TF'.
     destruct (decompose_nat x n).
     destruct s.
     simpl in H0.
-    2: simpl in *; elimtype False; lia.
+    2: simpl in *; exfalso; lia.
     clear H0.
     revert p H.
     generalize e.
@@ -449,7 +449,7 @@ Module KnotFull (TF':TY_FUNCTOR_FULL) : KNOT_FULL with Module TF:=TF'.
     replace e with (refl_equal (m2 + S n)).
     simpl; tauto.
     apply proof_irr.
-    elimtype False; lia.
+    exfalso; lia.
   Qed.
 
   Lemma stratify_unstratify : forall n p H,
@@ -481,7 +481,7 @@ Module KnotFull (TF':TY_FUNCTOR_FULL) : KNOT_FULL with Module TF:=TF'.
     replace e with (refl_equal (S n)) by apply proof_irr.
     simpl.
     split; auto.
-    elimtype False; lia.
+    exfalso; lia.
   Qed.
 
   Definition strat (n:nat) (p:predicate) : sinv n :=
@@ -515,7 +515,7 @@ Module KnotFull (TF':TY_FUNCTOR_FULL) : KNOT_FULL with Module TF:=TF'.
     destruct (Compare_dec.le_gt_dec n (knot_level_def k)).
     apply T_rel_bot.
     destruct (Compare_dec.le_gt_dec n (knot_level_def k'')).
-    elimtype False.
+    exfalso.
     cut (knot_level_def k'' <= knot_level_def k).
     lia.
     replace (knot_level_def k'') with (knot_level_def k').
@@ -575,7 +575,7 @@ Module KnotFull (TF':TY_FUNCTOR_FULL) : KNOT_FULL with Module TF:=TF'.
     unfold knot_level_def in l.
     simpl in *.
     destruct (decompose_nat x0 n); simpl.
-    destruct s; simpl; elimtype False; lia.
+    destruct s; simpl; exfalso; lia.
     auto.
     destruct x as [x Hx]; simpl.
     destruct (stratify x Hx n); simpl.
@@ -633,7 +633,7 @@ Module KnotFull (TF':TY_FUNCTOR_FULL) : KNOT_FULL with Module TF:=TF'.
     revert k.
     induction x; simpl; intuition.
     destruct (decompose_nat 0 0); auto.
-    destruct s; elimtype False; lia.
+    destruct s; exfalso; lia.
     eapply (stratifies_unstratify_more x 0 1).
     simpl; reflexivity.
     simpl.
@@ -644,16 +644,16 @@ Module KnotFull (TF':TY_FUNCTOR_FULL) : KNOT_FULL with Module TF:=TF'.
     assert (x0 = 0) by lia; subst x0.
     simpl in *.
     replace e with (refl_equal (S x)) by apply proof_irr; auto.
-    elimtype False; lia.
+    exfalso; lia.
     destruct (decompose_nat x (S x)).
     destruct s.
     assert (x0 = 0) by lia; subst x0.
     simpl in *.
     destruct (decompose_nat (S x) (S x)).
-    destruct s; elimtype False; lia.
+    destruct s; exfalso; lia.
     auto.
     destruct (decompose_nat (S x) (S x)).
-    destruct s; elimtype False; lia.
+    destruct s; exfalso; lia.
     auto.
 
     destruct (stratify (unstratify x k) (unstratify_hered x k) (S x)).
@@ -685,7 +685,7 @@ Module KnotFull (TF':TY_FUNCTOR_FULL) : KNOT_FULL with Module TF:=TF'.
     simpl in *.
     replace e with (refl_equal (S x)) by apply proof_irr; simpl.
     tauto.
-    elimtype False; lia.
+    exfalso; lia.
     destruct (stratify (unstratify (S x) k)
       (unstratify_hered (S x) k) x).
     simpl; auto.
@@ -712,7 +712,7 @@ Module KnotFull (TF':TY_FUNCTOR_FULL) : KNOT_FULL with Module TF:=TF'.
     simpl in *.
     replace e with (refl_equal (S x)); simpl; auto.
     apply proof_irr.
-    elimtype False; lia.
+    exfalso; lia.
   Qed.
 
   Lemma age1_eq : forall k,
@@ -816,7 +816,7 @@ Module KnotFull (TF':TY_FUNCTOR_FULL) : KNOT_FULL with Module TF:=TF'.
     destruct (decompose_nat x0 x).
     destruct s.
     destruct (Compare_dec.le_gt_dec (S x) x0).
-    elimtype False; lia.
+    exfalso; lia.
     simpl.
     destruct (decompose_nat x0 x).
     destruct s.
@@ -824,11 +824,11 @@ Module KnotFull (TF':TY_FUNCTOR_FULL) : KNOT_FULL with Module TF:=TF'.
     subst x2.
     replace e0 with e by apply proof_irr.
     auto.
-    elimtype False; lia.
+    exfalso; lia.
     destruct (Compare_dec.le_gt_dec (S x) x0); auto.
     simpl.
     destruct (decompose_nat x0 x); auto.
-    destruct s. elimtype False. lia.
+    destruct s. exfalso. lia.
 
     intro.
     unfold knot_age1_def, knot_level_def.
@@ -994,7 +994,7 @@ Module KnotFull_Lemmas (K : KNOT_FULL).
     simpl.
     destruct (Compare_dec.le_gt_dec n (level k)); auto.
     destruct (Compare_dec.le_gt_dec (m+n) (level k)); auto.
-    elimtype False; lia.
+    exfalso; lia.
   Qed.
 
   Lemma approx_approx2 : forall m n,
@@ -1009,7 +1009,7 @@ Module KnotFull_Lemmas (K : KNOT_FULL).
     simpl.
     destruct (Compare_dec.le_gt_dec (m+n) (level k)); auto.
     destruct (Compare_dec.le_gt_dec n (level k)); auto.
-    elimtype False; lia.
+    exfalso; lia.
   Qed.
 
 

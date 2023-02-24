@@ -108,7 +108,7 @@ Ltac id_comp x y H1 H2 H3 :=
   destruct (CompSpec2Type (Ident.compare_spec x y)) as [H1|H2|H3].
 
 Lemma id2pos_inj x y : id2pos x = id2pos y -> x=y.
-introv H; id_comp x y H1 H2 H3; [auto|elimtype False; gen H2|gen H3];
+introv H; id_comp x y H1 H2 H3; [auto|exfalso; gen H2|gen H3];
 done (tapp Ilt_morphism; rewrite H; tapp Pos.lt_irrefl).
 Qed.
 

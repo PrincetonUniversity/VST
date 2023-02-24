@@ -94,7 +94,7 @@ Proof.
          clear - H1 H4.
          unfold proj_compact_prod. unfold list_rect; cbv beta iota.
          destruct (member_dec (get_member i (a1 :: m)) a0).
-         elimtype False. subst a0. rewrite name_member_get in H1, H4. contradiction.
+         exfalso. subst a0. rewrite name_member_get in H1, H4. contradiction.
          reflexivity.
       rewrite H5 in H0; clear H5.
       assert (proj_compact_prod (get_member i (a1 :: m))
@@ -104,7 +104,7 @@ Proof.
          clear - H1 H4.
          unfold proj_compact_prod. unfold list_rect; cbv beta iota.
          destruct (member_dec (get_member i (a1 :: m)) a0).
-         elimtype False. subst a0. rewrite name_member_get in H1, H4. contradiction.
+         exfalso. subst a0. rewrite name_member_get in H1, H4. contradiction.
          reflexivity.
       rewrite H5 in H0; clear H5.
      apply H0; auto.

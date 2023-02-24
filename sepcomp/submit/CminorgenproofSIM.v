@@ -322,7 +322,7 @@ Proof. intros.
   case_eq (Int.eq_dec Int.zero Int.zero). intros ? e.
   solve[rewrite D; auto].
   intros CONTRA.
-  solve[elimtype False; auto].
+  solve[exfalso; auto].
   eapply MC_callstate with (cenv:=PTree.empty _)(cs := @nil frame); try eassumption.
   destruct INIT_MEM as [m0 [INIT_MEM [A B]]].
   assert (Genv.init_mem tprog = Some m0).

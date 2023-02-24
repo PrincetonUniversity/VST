@@ -77,7 +77,7 @@ Require Import VST.msl.sepalg.
     constructor. auto with typeclass_instances.
     intros; inv H; inv H0; hnf; auto.
     repeat intro; hnf in *; subst; auto.
-    intros. icase a; icase b; icase d; try solve [elimtype False; (inv H || inv H0)].
+    intros. icase a; icase b; icase d; try solve [exfalso; (inv H || inv H0)].
     exists c; inv H0; split; constructor.
     exists true; inv H0; split; constructor.
     exists c; inv H0; split; constructor.
@@ -102,8 +102,8 @@ Require Import VST.msl.sepalg.
 
   #[global] Instance Cross_bool: Cross_alg bool.
   Proof. repeat intro.
-     icase a; icase b; try solve [elimtype False; (try inv H; inv H0)];
-    icase z; icase c; icase d; try solve [elimtype False; (try inv H; inv H0)].
+     icase a; icase b; try solve [exfalso; (try inv H; inv H0)];
+    icase z; icase c; icase d; try solve [exfalso; (try inv H; inv H0)].
      exists (true,false,false,false); repeat split; constructor.
      exists (false,true,false,false); repeat split; constructor.
      exists (false,false,true,false); repeat split; constructor.
@@ -609,8 +609,8 @@ Section sa_list.
     f_equal. eapply join_eq; eauto. eapply IHx; eauto.
 
     induction a; intros;
-    destruct b; destruct d; try (elimtype False; inv H; fail);
-    destruct c; destruct e; try (elimtype False; inv H0; fail).
+    destruct b; destruct d; try (exfalso; inv H; fail);
+    destruct c; destruct e; try (exfalso; inv H0; fail).
     exists nil. split; constructor.
     assert (join a a1 a2) by (inv H; auto).
     assert (join a2 a3 a4) by (inv H0; auto).

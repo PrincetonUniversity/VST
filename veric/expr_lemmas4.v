@@ -482,8 +482,6 @@ unfold denote_tc_test_eq in H;
 rewrite Heqv, Hp in H; destruct H;
 apply weak_valid_pointer_dry in H1;
 unfold Mem.weak_valid_pointer; rewrite H1, Hp; reflexivity].
-all: try solve [inv Hp].
-all: simpl in H0; rewrite Hp in H0; inv H0.
 Qed.
 
 Lemma isBinOpResultType_binop_stable: forall {CS: compspecs} b e1 e2 t rho phi,
@@ -573,6 +571,7 @@ destruct u;
   try contradiction; try reflexivity;
  unfold Cop.sem_notbool; simpl;
  unfold Cop.bool_val, bool_val;
+ rewrite bool2val_eq; try reflexivity;
  apply tc_bool_e in H1; apply negb_true_iff in H1; rewrite H1;
  try reflexivity;
  unfold classify_bool, typeconv, remove_attributes, change_attributes;

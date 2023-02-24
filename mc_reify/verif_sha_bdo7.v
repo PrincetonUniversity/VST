@@ -306,7 +306,7 @@ subst k.
 assert (k'<16)%nat by omega.
 clear H.
 do 16 (destruct k'; try reflexivity).
-elimtype False; omega.
+exfalso; omega.
 Qed.
 
 Lemma extract_from_b:
@@ -364,7 +364,7 @@ change nat_of_Z with Z.to_nat.
 rewrite Z2Nat.inj_add by omega.
 change (Z.to_nat 1) with 1%nat.
 repeat match type of H0 with
-| (64 <= _ < _)%nat => elimtype False; omega
+| (64 <= _ < _)%nat => exfalso; omega
 | (?A <= _ < _)%nat =>
  assert (H9: i=A \/ (A+1 <= i < 64)%nat) by omega;
  clear H0; destruct H9 as [H0|H0];

@@ -286,42 +286,42 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
 *     (* saf_assoc *)
       intros a b c d e H1 H2.
       destruct d as [rd | rd sd kd pd | kd pd].
-      destruct a as [ra | | ]; try solve [elimtype False; inv H1].
-      destruct b as [rb| | ]; try solve [elimtype False; inv H1].
+      destruct a as [ra | | ]; try solve [exfalso; inv H1].
+      destruct b as [rb| | ]; try solve [exfalso; inv H1].
       assert (join ra rb rd) by (inv H1; auto).
-      destruct c as [rc | rc sc kc pc | kc pc]; try solve [elimtype False; inv H2].
-      destruct e as [re | re se ke pe | ke pe]; try solve [elimtype False; inv H2].
+      destruct c as [rc | rc sc kc pc | kc pc]; try solve [exfalso; inv H2].
+      destruct e as [re | re se ke pe | ke pe]; try solve [exfalso; inv H2].
       assert (join rd rc re) by (inv H2; auto).
       destruct (join_assoc H H0) as [rf [? ?]].
       exists (NO' _ rf (join_unreadable_shares H3 n1 n2)); split; constructor; auto.
-      destruct e as [re | re se ke pe | ke pe]; try solve [elimtype False; inv H2].
+      destruct e as [re | re se ke pe | ke pe]; try solve [exfalso; inv H2].
       assert (join rd rc re) by (inv H2; auto).
       destruct (join_assoc H H0) as [rf [? ?]].
       exists (YES' _ rf (join_readable2 H3 sc) kc pc).
       inv H2. split; constructor; auto.
-      destruct c as [rc | rc sc kc pc | kc pc]; try solve [elimtype False; inv H2].
-      destruct e as [re | re se ke pe | ke pe]; try solve [elimtype False; inv H2].
+      destruct c as [rc | rc sc kc pc | kc pc]; try solve [exfalso; inv H2].
+      destruct e as [re | re se ke pe | ke pe]; try solve [exfalso; inv H2].
       assert (H0: join rd rc re) by (inv H2; auto).
-      destruct a as [ra | ra sa ka pa | ka pa ]; try solve [elimtype False; inv H1].
-      destruct b as [ | rb sb kb pb | ]; try solve [elimtype False; inv H1].
+      destruct a as [ra | ra sa ka pa | ka pa ]; try solve [exfalso; inv H1].
+      destruct b as [ | rb sb kb pb | ]; try solve [exfalso; inv H1].
       assert (H: join ra rb rd) by (inv H1; auto).
       destruct (join_assoc H H0) as [rf [? ?]].
       exists (YES' _ rf (join_readable1 H3 sb) kd pd).  inv H1; inv H2; split; constructor; auto.
-      destruct b as [ rb | rb sb kb pb | ]; try solve [elimtype False; inv H1].
+      destruct b as [ rb | rb sb kb pb | ]; try solve [exfalso; inv H1].
       assert (H: join ra rb rd) by (inv H1; auto).
       destruct (join_assoc H H0) as [rf [? ?]].
       exists (NO' _ rf (join_unreadable_shares H3 n0 n)).  inv H1; inv H2; split; constructor; auto.
       assert (H: join ra rb rd) by (inv H1; auto).
       destruct (join_assoc H H0) as [rf [? ?]].
       exists (YES' _ rf (join_readable1 H3 sb) kb pb).  inv H1; inv H2; split; constructor; auto.
-      destruct e as [re | re se ke pe | ke pe]; try solve [elimtype False; inv H2].
+      destruct e as [re | re se ke pe | ke pe]; try solve [exfalso; inv H2].
       assert (H0: join rd rc re) by (inv H2; auto).
-      destruct b as [ rb | rb sb kb pb | ]; try solve [elimtype False; inv H1].
-      destruct a as [ra | ra sa ka pa | ka pa ]; try solve [elimtype False; inv H1].
+      destruct b as [ rb | rb sb kb pb | ]; try solve [exfalso; inv H1].
+      destruct a as [ra | ra sa ka pa | ka pa ]; try solve [exfalso; inv H1].
       assert (H: join ra rb rd) by (inv H1; auto).
       destruct (join_assoc H H0) as [rf [? ?]].
       exists (YES' _ rf (join_readable2 H3 sc) kc pc).  inv H1; inv H2; split; constructor; auto.
-      destruct a as [ra | ra sa ka pa | ka pa ]; try solve [elimtype False; inv H1].
+      destruct a as [ra | ra sa ka pa | ka pa ]; try solve [exfalso; inv H1].
       assert (H: join ra rb rd) by (inv H1; auto).
       destruct (join_assoc H H0) as [rf [? ?]].
       exists (YES' _ rf (join_readable1 H3 sb) kb pb).  inv H1; inv H2; split; try constructor; auto.
@@ -358,27 +358,27 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
       whatever... *)
    inv H; simpl; constructor; trivial.
    destruct z as [ rz | rz sz kz pz | kz pz ].
-   destruct x' as [ rx' | rx' sx' kx' px' | kx' px' ]; try solve [elimtype False; inv H].
-   destruct y as [ ry | ry sy ky py | ky py ]; try solve [elimtype False; inv H].
+   destruct x' as [ rx' | rx' sx' kx' px' | kx' px' ]; try solve [exfalso; inv H].
+   destruct y as [ ry | ry sy ky py | ky py ]; try solve [exfalso; inv H].
    exists (NO' _ rx' n0); exists (NO' _ ry n1); inv H; split; constructor; tauto.
-   destruct x' as [ rx' | rx' sx' kx' px' | kx' px' ]; try solve [elimtype False; inv H].
-   destruct y as [ ry | ry sy ky py | ky py ]; try solve [elimtype False; inv H].
+   destruct x' as [ rx' | rx' sx' kx' px' | kx' px' ]; try solve [exfalso; inv H].
+   destruct y as [ ry | ry sy ky py | ky py ]; try solve [exfalso; inv H].
    exists (NO' _ rx' n); exists (YES' _ ry sy kz pz); inv H; split; constructor; auto. simpl in *; f_equal; auto.
-   destruct y as [ ry | ry sy ky py | ky py ]; try solve [elimtype False; inv H].
+   destruct y as [ ry | ry sy ky py | ky py ]; try solve [exfalso; inv H].
    exists (YES' _ rx' sx' kx' pz); exists (NO' _ ry n); inv H; split; constructor; auto.
    exists (YES' _ rx' sx' kx' pz); exists (YES' _ ry sy ky pz); inv H; split; constructor; auto; simpl; f_equal; auto.
    exists (PURE' _ kz pz); exists (PURE' _ kz pz); simpl in *; inv H; split; [constructor | tauto].
 
-   destruct x as [ rx | rx sx kx px | kx px ]; try solve [elimtype False; inv H].
-   destruct y as [ ry | ry sy ky py | ky py ]; try solve [elimtype False; inv H].
-   destruct z' as [ rz | rz sz kz pz | kz pz ]; try solve [elimtype False; inv H].
+   destruct x as [ rx | rx sx kx px | kx px ]; try solve [exfalso; inv H].
+   destruct y as [ ry | ry sy ky py | ky py ]; try solve [exfalso; inv H].
+   destruct z' as [ rz | rz sz kz pz | kz pz ]; try solve [exfalso; inv H].
    exists (NO' _ ry n0); exists (NO' _ rz n1); inv H; split; constructor; auto.
-   destruct z' as [ rz | rz sz kz pz | kz pz ]; try solve [elimtype False; inv H].
+   destruct z' as [ rz | rz sz kz pz | kz pz ]; try solve [exfalso; inv H].
    exists (YES' _ ry sy ky py); exists (YES' _ rz sz ky py); inv H; split; constructor; auto.
-   destruct y as [ ry | ry sy ky py | ky py ]; try solve [elimtype False; inv H].
-   destruct z' as [ rz | rz sz kz pz | kz pz ]; try solve [elimtype False; inv H].
+   destruct y as [ ry | ry sy ky py | ky py ]; try solve [exfalso; inv H].
+   destruct z' as [ rz | rz sz kz pz | kz pz ]; try solve [exfalso; inv H].
    exists (NO' _ ry n); exists (YES' _ rz sz kx px); inv H; split; constructor; auto.
-   destruct z' as [ rz | rz sz kz pz | kz pz ]; try solve [elimtype False; inv H].
+   destruct z' as [ rz | rz sz kz pz | kz pz ]; try solve [exfalso; inv H].
    exists (YES' _ ry sy kx px); exists (YES' _ rz sz kx px); inv H; split; constructor; auto. simpl; f_equal; auto.
    exists (PURE' _ kx px); exists (PURE' _ kx px); inv H; split; constructor; auto.
   Qed.
@@ -1022,42 +1022,42 @@ Module Rmaps (AV':ADR_VAL): RMAPS with Module AV:=AV'.
   * (* saf_assoc *)
       intros a b c d e H1 H2.
       destruct d as [rd | rd sd kd pd | kd pd].
-      destruct a as [ra | | ]; try solve [elimtype False; inv H1].
-      destruct b as [rb| | ]; try solve [elimtype False; inv H1].
+      destruct a as [ra | | ]; try solve [exfalso; inv H1].
+      destruct b as [rb| | ]; try solve [exfalso; inv H1].
       assert (join ra rb rd) by (inv H1; auto).
-      destruct c as [rc | rc sc kc pc | kc pc]; try solve [elimtype False; inv H2].
-      destruct e as [re | re se ke pe | ke pe]; try solve [elimtype False; inv H2].
+      destruct c as [rc | rc sc kc pc | kc pc]; try solve [exfalso; inv H2].
+      destruct e as [re | re se ke pe | ke pe]; try solve [exfalso; inv H2].
       assert (join rd rc re) by (inv H2; auto).
       destruct (join_assoc H H0) as [rf [? ?]].
       exists (NO rf (join_unreadable_shares H3 n1 n2)); split; constructor; auto.
-      destruct e as [re | re se ke pe | ke pe]; try solve [elimtype False; inv H2].
+      destruct e as [re | re se ke pe | ke pe]; try solve [exfalso; inv H2].
       assert (join rd rc re) by (inv H2; auto).
       destruct (join_assoc H H0) as [rf [? ?]].
       exists (YES rf (join_readable2 H3 sc) kc pc).
       inv H2. split; constructor; auto.
-      destruct c as [rc | rc sc kc pc | kc pc]; try solve [elimtype False; inv H2].
-      destruct e as [re | re se ke pe | ke pe]; try solve [elimtype False; inv H2].
+      destruct c as [rc | rc sc kc pc | kc pc]; try solve [exfalso; inv H2].
+      destruct e as [re | re se ke pe | ke pe]; try solve [exfalso; inv H2].
       assert (H0: join rd rc re) by (inv H2; auto).
-      destruct a as [ra | ra sa ka pa | ka pa ]; try solve [elimtype False; inv H1].
-      destruct b as [ | rb sb kb pb | ]; try solve [elimtype False; inv H1].
+      destruct a as [ra | ra sa ka pa | ka pa ]; try solve [exfalso; inv H1].
+      destruct b as [ | rb sb kb pb | ]; try solve [exfalso; inv H1].
       assert (H: join ra rb rd) by (inv H1; auto).
       destruct (join_assoc H H0) as [rf [? ?]].
       exists (YES rf (join_readable1 H3 sb) kd pd).  inv H1; inv H2; split; constructor; auto.
-      destruct b as [ rb | rb sb kb pb | ]; try solve [elimtype False; inv H1].
+      destruct b as [ rb | rb sb kb pb | ]; try solve [exfalso; inv H1].
       assert (H: join ra rb rd) by (inv H1; auto).
       destruct (join_assoc H H0) as [rf [? ?]].
       exists (NO rf (join_unreadable_shares H3 n0 n)).  inv H1; inv H2; split; constructor; auto.
       assert (H: join ra rb rd) by (inv H1; auto).
       destruct (join_assoc H H0) as [rf [? ?]].
       exists (YES rf (join_readable1 H3 sb) kb pb).  inv H1; inv H2; split; constructor; auto.
-      destruct e as [re | re se ke pe | ke pe]; try solve [elimtype False; inv H2].
+      destruct e as [re | re se ke pe | ke pe]; try solve [exfalso; inv H2].
       assert (H0: join rd rc re) by (inv H2; auto).
-      destruct b as [ rb | rb sb kb pb | ]; try solve [elimtype False; inv H1].
-      destruct a as [ra | ra sa ka pa | ka pa ]; try solve [elimtype False; inv H1].
+      destruct b as [ rb | rb sb kb pb | ]; try solve [exfalso; inv H1].
+      destruct a as [ra | ra sa ka pa | ka pa ]; try solve [exfalso; inv H1].
       assert (H: join ra rb rd) by (inv H1; auto).
       destruct (join_assoc H H0) as [rf [? ?]].
       exists (YES rf (join_readable2 H3 sc) kc pc).  inv H1; inv H2; split; constructor; auto.
-      destruct a as [ra | ra sa ka pa | ka pa ]; try solve [elimtype False; inv H1].
+      destruct a as [ra | ra sa ka pa | ka pa ]; try solve [exfalso; inv H1].
       assert (H: join ra rb rd) by (inv H1; auto).
       destruct (join_assoc H H0) as [rf [? ?]].
       exists (YES rf (join_readable1 H3 sb) kb pb).  inv H1; inv H2; split; try constructor; auto.

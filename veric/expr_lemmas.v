@@ -708,7 +708,7 @@ induction e; simpl; intros; auto; super_unfold_lift.
   clear - CSUB IHe1 IHe2 H.
   destruct (Val.eq v1 Vundef); [ | destruct (Val.eq v2 Vundef)].
   * subst.
-   elimtype False; apply H; clear.
+   exfalso; apply H; clear.
    unfold sem_binary_operation'.
    destruct b; auto;
   destruct (typeof e1)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ]; auto;
@@ -720,7 +720,7 @@ induction e; simpl; intros; auto; super_unfold_lift.
   try simple_if_tac; auto;
   try solve [unfold sem_cmp; simpl; simple_if_tac; auto].
  * subst.
-   elimtype False; apply H; clear.
+   exfalso; apply H; clear.
    unfold sem_binary_operation'.
    destruct b; auto;
   destruct (typeof e1)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ]; auto;
@@ -756,7 +756,7 @@ all: try (
   clear - CSUB IHe H.
   destruct (Val.eq v Vundef).
   *
-    subst. clear IHe.  elimtype False; apply H; clear H.
+    subst. clear IHe.  exfalso; apply H; clear H.
   unfold sem_cast.
   destruct (classify_cast (typeof e) t); auto.
   * rewrite <- IHe; auto.
@@ -765,7 +765,7 @@ all: try (
   destruct (Val.eq (@eval_expr CS e rho) Vundef).
   *
   clear IHe.
-  elimtype False; apply H; clear H;
+  exfalso; apply H; clear H;
   unfold eval_field;
   destruct (typeof e); auto;
   destruct ((@cenv_cs CS) ! i0) eqn:?H; auto;

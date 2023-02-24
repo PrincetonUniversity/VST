@@ -219,7 +219,7 @@ case_eq (at_external sem c); auto.
 intros [[ef sig] args] AT.
 generalize (@at_external_halted_excl _ _ _ sem c).
 rewrite AT. intros [|W]; try congruence; auto.
-intros CONTRA; elimtype False; apply CONTRA.
+intros CONTRA; exfalso; apply CONTRA.
 left; exists ef, sig, args; auto.
 Qed.
 
@@ -232,7 +232,7 @@ generalize (@at_external_halted_excl _ _ _ sem c).
 rewrite AT. intros [|W]; try congruence; auto. intros AT.
 case_eq (core_semantics.halted sem c); auto.
 intros v HALT.
-intros CONTRA; elimtype False; apply CONTRA.
+intros CONTRA; exfalso; apply CONTRA.
 right; exists v; auto.
 Qed.
 

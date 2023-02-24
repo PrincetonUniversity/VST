@@ -116,7 +116,7 @@ Definition drbg_setPredictionResistance_spec_abs :=
    WITH sh: share, ctx:val, A:_, r:bool, gv:globals
     PRE [ tptr (Tstruct _mbedtls_hmac_drbg_context noattr), tint ]
        PROP (writable_share sh)
-       PARAMS (ctx; Val.of_bool r) GLOBALS ()
+       PARAMS (ctx; bool2val r) GLOBALS ()
        SEP (AREP sh gv A ctx)
     POST [ tvoid ]
        PROP ()

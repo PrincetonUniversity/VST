@@ -457,7 +457,7 @@ Proof.
   destruct H4 as [[[? ?] ?] ?].
   destruct H4 as [_ [? _]].
   destruct H4 as [? [? ?]].
-  destruct x. elimtype False; omega.
+  destruct x. exfalso; omega.
   assert (funptr l A lP lQ (p',(r,t'))).
   apply H5. auto.
   apply pred_nec_hereditary with (p,(r,t')); auto.
@@ -527,7 +527,7 @@ Proof.
   hnf in H12. rewrite H12 in H11. discriminate.
   eapply IHn; eauto.
   rewrite (af_level1 age_facts) in H11.
-  intro. elimtype False. omega.
+  intro. exfalso. omega.
 Qed.
 
 

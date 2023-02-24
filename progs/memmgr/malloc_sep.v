@@ -282,10 +282,10 @@ Lemma mmlist_unroll_nonempty:
 Proof.
   intros. apply pred_ext.
   - (* LHS |-- RHS *)
-    destruct len. elimtype False; simpl in *; lia.
+    destruct len. exfalso; simpl in *; lia.
     simpl. Intros q; Exists q. entailer.
   - (* RHS |-- LHS *)
-    Intros q. destruct len. elimtype False; simpl in *; lia.
+    Intros q. destruct len. exfalso; simpl in *; lia.
     simpl. Exists q. entailer!.
 Qed.
 

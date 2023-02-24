@@ -61,9 +61,9 @@ Proof.
   clear - H4.
   induction bytes.
   constructor.
-  constructor. destruct a. inv H4. simpl in H1. elimtype False; auto.
+  constructor. destruct a. inv H4. simpl in H1. exfalso; auto.
   constructor.
-  inv H4. simpl in H1. elimtype False; auto.
+  inv H4. simpl in H1. exfalso; auto.
   inv H4.
   solve[eapply IHbytes; auto].
   intros [m2' [C D]].
@@ -84,9 +84,9 @@ Proof.
   clear - H4.
   induction bytes.
   constructor.
-  constructor. destruct a. inv H4. simpl in H1. elimtype False; auto.
+  constructor. destruct a. inv H4. simpl in H1. exfalso; auto.
   constructor.
-  inv H4. simpl in H1. elimtype False; auto.
+  inv H4. simpl in H1. exfalso; auto.
   solve[inv H4; auto].
 Qed.
 
@@ -411,7 +411,7 @@ simpl in H4.
 inv H4.
 simpl.
 if_tac.
-elimtype False; auto.
+exfalso; auto.
 intros H2.
 unfold Mem.loadbytes in H2.
 if_tac in H2; try congruence.

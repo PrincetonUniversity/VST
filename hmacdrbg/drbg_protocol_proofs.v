@@ -79,7 +79,7 @@ Exists (info, (M2, p),
   (map Vubyte newV,
   (Vint (Int.repr newRc),
   (Vint (Int.repr 32),
-  (Val.of_bool newPR, Vint (Int.repr 10000)))))).
+  (bool2val newPR, Vint (Int.repr 10000)))))).
 unfold instantiate_function_256 in H3.
 destruct (Zlength (contents_with_add data (Zlength Data) Data) >?
        max_personalization_string_length) eqn:?.
@@ -165,7 +165,7 @@ Proof.
     (repeat (Vint Int.one) (Z.to_nat 32),
      (Vint (Int.repr reseed_counter),
       (Vint (Int.repr entropy_len),
-       (Val.of_bool prediction_resistance,
+       (bool2val prediction_resistance,
         (Vint (Int.repr reseed_interval)))))))). eexists; reflexivity.
   destruct H as [xx XX].
 
@@ -207,7 +207,7 @@ Proof.
           (map Vubyte VALUE,
           (Vint (Int.repr reseed_counter),
           (Vint (Int.repr entropy_len),
-          (Val.of_bool prediction_resistance, Vint (Int.repr reseed_interval)))))); simpl.
+          (bool2val prediction_resistance, Vint (Int.repr reseed_interval)))))); simpl.
   entailer!.
   red; simpl. intuition.
 Time Qed. (*Coq 8.10.1: 2.5s; Coq8.6: 12secs*)
@@ -258,7 +258,7 @@ Proof.
   (* if (len > MBEDTLS_HMAC_DRBG_MAX_INPUT ||
         entropy_len + len > MBEDTLS_HMAC_DRBG_MAX_SEED_INPUT) *)
   freeze [0;1] FR2.
-  forward_if (temp _t'1 (Val.of_bool add_len_too_high)).
+  forward_if (temp _t'1 (bool2val add_len_too_high)).
   { forward. entailer!. }
   { forward. (*red in WFI; simpl in WFI.*) entailer!. simpl.
       unfold Int.ltu; simpl.
@@ -280,7 +280,7 @@ Proof.
             (map Vubyte V,
             (Vint (Int.repr reseed_counter),
             (Vint (Int.repr entropy_len),
-            (Val.of_bool prediction_resistance, Vint (Int.repr reseed_interval)))))).
+            (bool2val prediction_resistance, Vint (Int.repr reseed_interval)))))).
     simpl; cancel. entailer!.
     thaw FR1. cancel.
   }
@@ -360,7 +360,7 @@ Proof.
          (map Vubyte V,
          (Vint (Int.repr reseed_counter),
          (Vint (Int.repr entropy_len),
-         (Val.of_bool prediction_resistance, Vint (Int.repr reseed_interval)))))).
+         (bool2val prediction_resistance, Vint (Int.repr reseed_interval)))))).
 
     unfold return_value_relate_result, get_entropy in ENT.
     simpl in ENT.
@@ -602,7 +602,7 @@ Proof. start_function.
 
   remember (andb (negb (eq_dec additional nullval)) (negb (eq_dec add_len 0))) as na.
   freeze [0;1] FR2. clear PIS1a.
-  forward_if (temp _t'2 (Val.of_bool na)).
+  forward_if (temp _t'2 (bool2val na)).
   {
     (* show that add_len <> 0 implies the post condition *)
     forward.
@@ -957,7 +957,7 @@ Proof.
   Exists Info (md_ctx,
      (map Vubyte VV,
      (Vint (Int.repr RC),
-     (Vint (Int.repr l), (Val.of_bool PR, Vint (Int.repr RI)))))).
+     (Vint (Int.repr l), (bool2val PR, Vint (Int.repr RI)))))).
   simpl; entailer!.
   + red in H0; simpl in H0. red; simpl. intuition. 
   + unfold_data_at 1%nat; thaw FR; cancel.
@@ -981,7 +981,7 @@ Proof.
   Exists Info (md_ctx,
      (map Vubyte VV,
      (Vint (Int.repr RC),
-     (Vint (Int.repr EL), (Val.of_bool r, Vint (Int.repr RI)))))).
+     (Vint (Int.repr EL), (bool2val r, Vint (Int.repr RI)))))).
   simpl; entailer!.
   unfold_data_at 1%nat; thaw FR; cancel.
 Time Qed. (*1.8s*)
@@ -1004,7 +1004,7 @@ Proof.
   Exists Info (md_ctx,
      (map Vubyte VV,
      (Vint (Int.repr RC),
-     (Vint (Int.repr EL), (Val.of_bool PR, Vint (Int.repr ri)))))).
+     (Vint (Int.repr EL), (bool2val PR, Vint (Int.repr ri)))))).
   simpl; entailer!. 
   + red; simpl. red in H0; simpl in H0. intuition.
   + unfold_data_at 1%nat; thaw FR; cancel. 

@@ -84,16 +84,16 @@ forward_loop (EX i : Z,
   SEP (data_at sh (tarray tschar (Zlength ls + 1))
           (map Vbyte (ls ++ [Byte.zero])) str)).
 *
-Exists 0. entailer!.
+Exists 0. entailer!!.
 *
 Intros i.
 forward.
 forward_if.
 forward.
-entailer!. repeat f_equal. cstring.
+entailer!!. repeat f_equal. cstring.
 forward. 
 Exists (i+1).
-entailer!. cstring.
+entailer!!. cstring.
 Qed.
 
 Lemma body_strchr: semax_body Vprog Gprog f_strchr strchr_spec.
@@ -108,7 +108,7 @@ forward_loop (EX i : Z,
   LOCAL (temp _str str; temp _c (Vbyte c); temp _i (Vptrofs (Ptrofs.repr i)))
   SEP (data_at sh (tarray tschar (Zlength ls + 1))
           (map Vbyte (ls ++ [Byte.zero])) str)).
-  Exists 0; rewrite sublist_nil; entailer!.
+  Exists 0; rewrite sublist_nil; entailer!!.
 - Intros i. 
   assert (Zlength (ls ++ [Byte.zero]) = Zlength ls + 1) by (autorewrite with sublist; auto).
   forward.
@@ -116,7 +116,7 @@ forward_loop (EX i : Z,
  forward_if.
   { forward. simpl. 
     Exists (offset_val i str).
-    entailer!.
+    entailer!!.
     left. exists i. split3; auto. rewrite app_Znth1; auto. cstring. }
   { forward_if.
     { forward.
@@ -175,7 +175,7 @@ forward_loop (EX i : Z,
    data_at sh' (tarray tschar (Zlength ls + 1))
      (map Vbyte (ls ++ [Byte.zero])) src)).
 -
-  Exists 0; entailer!.
+  Exists 0; entailer!!.
 -
   Intros i.
   forward.
@@ -185,7 +185,7 @@ forward_loop (EX i : Z,
   forward.
   forward_if.
   + forward.
-    entailer!. f_equal. f_equal. cstring.
+    entailer!!. f_equal. f_equal. cstring.
   +
     forward.
     Exists (i+1); entailer!. cstring.
@@ -213,7 +213,7 @@ forward_loop (EX i : Z,
   forward.  autorewrite with norm.
   forward. fold_Vbyte.
   forward.
-  entailer!.
+  entailer!!.
   clear H3.
   rewrite upd_Znth_app2 by list_solve.
   autorewrite with sublist.
@@ -239,7 +239,7 @@ forward_loop (EX i : Z,
   forward.
   Exists (j+1).
   destruct (zlt j (Zlength ls)); [ | cstring].
-  entailer!.
+  entailer!!.
   change (field_at Tsh (tarray tschar n) []) with (data_at Tsh (tarray tschar n)).
   rewrite (sublist_split 0 j (j+1)) by rep_lia.
   rewrite (app_assoc ld). rewrite !map_app.
@@ -272,7 +272,7 @@ forward_loop (EX i : Z,
           (map Vbyte (ls1 ++ [Byte.zero])) str1;
        data_at sh2 (tarray tschar (Zlength ls2 + 1))
           (map Vbyte (ls2 ++ [Byte.zero])) str2)).
-- Exists 0; entailer!.
+- Exists 0; entailer!!.
 - Intros i.
   assert (Zlength (ls1 ++ [Byte.zero]) = Zlength ls1 + 1) by (autorewrite with sublist; auto).
   forward. autorewrite with norm.
@@ -288,7 +288,7 @@ forward_loop (EX i : Z,
     intro X; lapply (Znth_In i ls2); [|lia]. cstring. }
   forward.
   forward. fold_Vbyte.
-  forward_if (temp _t'1 (Val.of_bool (Z.eqb i (Zlength ls1) && Z.eqb i (Zlength ls2)))).
+  forward_if (temp _t'1 (bool2val (Z.eqb i (Zlength ls1) && Z.eqb i (Zlength ls2)))).
   { forward.
     simpl force_val.
     rewrite Hs1 in *.
@@ -298,18 +298,18 @@ forward_loop (EX i : Z,
         rewrite  (proj2 Hs1 H6).
      rewrite (proj2 (Z.eqb_eq i (Zlength ls1)) H6).
      rewrite (proj2 (Z.eqb_eq i (Zlength ls2)) H7).
-     entailer!.
+     entailer!!.
   +
-    rewrite Int.eq_false.
-     rewrite (proj2 (Z.eqb_eq i (Zlength ls1)) H6).
-     rewrite Hs2 in n.
-     rewrite (proj2 (Z.eqb_neq i (Zlength ls2))) by auto.
-    entailer!.
-     contradict n.
-     apply repr_inj_signed in n; try rep_lia.  autorewrite with norm in n. auto.
+    entailer!!. unfold bool2val. f_equal. rewrite Z.eqb_refl.
+    assert (Zlength ls1 <> Zlength ls2) by list_solve.
+    rewrite (proj2 (Z.eqb_neq _ _) H6).
+    unfold Int.cmp.
+    rewrite (Int.eq_false (Int.repr (Byte.signed _))). reflexivity.
+    contradict n.
+    apply repr_inj_signed in n; try rep_lia.  autorewrite with norm in n. auto.
  }
   { forward.
-    entailer!.
+    entailer!!.
     destruct (i =? Zlength ls1) eqn: Heq; auto.
     rewrite Z.eqb_eq in Heq; tauto. }
   forward_if.
@@ -318,14 +318,14 @@ forward_loop (EX i : Z,
   rewrite Z.eqb_eq in H6,H7.
   forward.
   Exists (Int.repr 0).
-  entailer!. simpl.
+  entailer!!. simpl.
   autorewrite with sublist in H3.
   auto.
  +
   rewrite andb_false_iff in H6. rewrite !Z.eqb_neq in H6.
   forward_if.
   *
-    forward. Exists (Int.repr (-1)). entailer!.
+    forward. Exists (Int.repr (-1)). entailer!!.
     simpl. intro; subst. lia.
  *
    forward_if.
@@ -337,10 +337,7 @@ forward_loop (EX i : Z,
    autorewrite with norm in H17. clear H7 H8.
    forward.
    Exists (i+1).
-   entailer!.
-   clear H7 H8.
-   clear H13 H14 H12 PNstr1 PNstr2.
-   clear H10 H11 H9.
+   entailer!!.
    destruct (zlt i (Zlength ls1)).
   2:{
          rewrite app_Znth2 in Hs1 by rep_lia.
@@ -399,7 +396,7 @@ forward_loop (EX i : Z,
  forward.
  forward_if.
 + forward.
-   entailer!.
+   entailer!!.
   assert (i = Zlength ls) by cstring. subst i.
   change (field_at Tsh (tarray tschar n) []) with (data_at Tsh (tarray tschar n)).
   rewrite upd_Znth_app2 by list_solve.
@@ -417,7 +414,7 @@ forward_loop (EX i : Z,
 +
    assert (i < Zlength ls) by cstring.
   forward.
-  Exists (i+1). entailer!. 
+  Exists (i+1). entailer!!. 
   autorewrite with sublist.
   rewrite (sublist_split 0 i (i+1)) by list_solve.
   rewrite !map_app. rewrite <- app_assoc.
@@ -524,10 +521,12 @@ forward_loop (EX i : Z,
           (map Vbyte (ls2 ++ [Byte.zero])) str2)).
 - finish.
 - fastforward.
-  forward_if (temp _t'1 (Val.of_bool (Z.eqb i (Zlength ls1) && Z.eqb i (Zlength ls2)))).
+  forward_if (temp _t'1 (bool2val (Z.eqb i (Zlength ls1) && Z.eqb i (Zlength ls2)))).
   (* these two parts are not much simplified *)
-  { forward. cstring1. entailer!.
+  { forward. cstring1. entailer!!.
+    unfold bool2val; f_equal.
     rewrite (proj2 (Z.eqb_eq _ _)) by auto.
+    unfold Int.cmp.
     destruct (Int.eq (Int.repr (Byte.signed (Znth (Zlength ls1) (ls2 ++ [Byte.zero])))) (Int.repr 0)) eqn:Heqb;
     do_repr_inj Heqb. (* utilize this internal tactic *)
     - rewrite (proj2 (Z.eqb_eq _ _)) by cstring.
@@ -536,14 +535,14 @@ forward_loop (EX i : Z,
       auto.
   }
   {
-    forward. entailer!.
+    forward. entailer!!.
     rewrite (proj2 (Z.eqb_neq _ _)) by cstring.
     auto.
   }
   fastforward.
-  { finish. }
-  { finish. }
-  { finish. }
+    finish.
+    finish. 
+    finish.
   assert (HZnth: Byte.signed (Znth i (ls1 ++ [Byte.zero])) =
     Byte.signed (Znth i (ls2 ++ [Byte.zero]))) by lia.
   finish.

@@ -106,8 +106,8 @@ unfold foo_reset_spec, foo_invariant, reset_spec.
 start_function.
 unfold withspacer; simpl; Intros.
 forward.  (* self->data=0; *)
-entailer!.
-all: unfold withspacer; simpl; entailer!.  (* needed if Archi.ptr64=true *)
+entailer!!.
+all: unfold withspacer; simpl; entailer!!.  (* needed if Archi.ptr64=true *)
 Qed.
 
 Lemma body_foo_twiddle: semax_body Vprog Gprog f_foo_twiddle foo_twiddle_spec.
@@ -120,18 +120,18 @@ forward.  (* d = self->data; *)
 forward.  (* self -> data = d+2*i; *) 
  set (j:= Int.max_signed / 4) in *; compute in j; subst j.
  forget (fold_right Z.add 0 history) as h.
- entailer!.
+ entailer!!.
 forward.  (* return d+i; *)
 simpl.
  set (j:= Int.max_signed / 4) in *; compute in j; subst j.
  forget (fold_right Z.add 0 history) as h.
- entailer!.
+ entailer!!.
 Exists (2 * fold_right Z.add 0 history + i).
 simpl;
-entailer!.
+entailer!!.
 rewrite Z.mul_add_distr_l, Z.add_comm.
 unfold withspacer; simpl.
-entailer!.
+entailer!!.
 Qed.
 
 Lemma split_object_methods:
@@ -146,7 +146,7 @@ Exists (fst (slice.cleave sh)) reset twiddle.
 Exists (snd (slice.cleave sh)) reset twiddle.
 rewrite (split_func_ptr' (reset_spec instance) reset) at 1.
 rewrite (split_func_ptr' (twiddle_spec instance) twiddle) at 1.
-entailer!.
+entailer!!.
 split.
 apply slice.cleave_readable1; auto.
 apply slice.cleave_readable2; auto.
@@ -170,7 +170,7 @@ forward_if
           object_methods foo_invariant (gv _foo_methods))).
 *
 change (EqDec_val p nullval) with (eq_dec p nullval).
-if_tac; entailer!.
+if_tac; entailer!!.
 *
 forward_call 1.
 contradiction.
@@ -178,7 +178,7 @@ contradiction.
 rewrite if_false by auto.
 Intros.
 forward.  (*  /*skip*/;  *)
-entailer!.
+entailer!!.
 *
 unfold data_at_, field_at_, default_val; simpl.
 forward. (* p->mtable = &foo_methods; *)
@@ -189,7 +189,7 @@ unfold object_mpred.
 Exists foo_invariant (gv _foo_methods).
 sep_apply (split_object_methods foo_invariant (gv _foo_methods)).
 unfold foo_invariant at 4.
-entailer!.
+entailer!!.
 simpl.
 unfold_data_at (field_at _ _ nil _ p).
 cancel.
@@ -233,7 +233,7 @@ Proof.
   intros.
   unfold object_methods.
   Exists sh reset twiddle.
-  entailer!.
+  entailer!!.
 Qed.
 
 Ltac method_call witness hist' result :=
@@ -339,7 +339,7 @@ simpl in H1.
 
 (* 6. return *)
 forward.  (* return i; *)
-Exists i; entailer!.
+Exists i; entailer!!.
 Qed.
 
 

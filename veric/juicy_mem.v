@@ -333,11 +333,11 @@ exists (y',z').
 simpl.
 split; auto.
 apply (age1_joinx x y z x' y' z' H1 H2 H3 H0).
-elimtype False.
+exfalso.
 destruct (age1_join _ H0 H1) as [? [? [? [? ?]]]].
 unfold age in *.
 congruence.
-elimtype False.
+exfalso.
 destruct (age1_join _ H0 H1) as [? [? [? [? ?]]]].
 unfold age in *.
 congruence.
@@ -2044,7 +2044,7 @@ destruct (age1_juicy_mem_unpack _ _ H0).
 eexists; eauto.
 apply age1_juicy_mem_None1 in H0.
 rewrite H0 in H.
-elimtype False; inversion H.
+exfalso; inversion H.
 Qed.
 
 

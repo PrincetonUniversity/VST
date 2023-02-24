@@ -1105,7 +1105,7 @@ Proof.
     contradict H1. right; auto.
     pose proof (eqb_ident_spec (fst a) id).
     destruct (eqb_ident (fst a) id) eqn:?; auto.
-    elimtype False; apply H1. left. rewrite <- H; auto.
+    exfalso; apply H1. left. rewrite <- H; auto.
     transitivity
      (var_block Share.top a (construct_rho (filter_genv ge) ve te) *
          F vl (construct_rho (filter_genv ge) ve te)); [ | reflexivity].
@@ -1459,7 +1459,7 @@ specialize (H15 (rettype_of_type retty)).
 do 3 red in H15.
 destruct Hinline as [Hinline|Hempty].
 2:{
-elimtype False; clear - Hempty x.
+exfalso; clear - Hempty x.
 eapply Hempty. eassumption.
 }
 assert (Hty: typelist_of_type_list params = tys) by (rewrite H7, TTL3; trivial).
@@ -2110,7 +2110,7 @@ simpl exit_cont.
 apply derives_subp.
 apply assert_safe_derives; split; auto; simpl; intros.
 destruct ctl; try (apply jm_fupd_intro'; auto);
-elimtype False; clear - H; simpl in H; set (k:=ctl) in *;
+exfalso; clear - H; simpl in H; set (k:=ctl) in *;
 unfold k at 1 in H; clearbody k;
 induction ctl; try discriminate; eauto.
 Qed.

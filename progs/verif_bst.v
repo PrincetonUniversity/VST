@@ -88,9 +88,9 @@ Proof.
   f_equal.
   extensionality p.
   destruct t; simpl.
-  + apply pred_ext; entailer!.
+  + apply pred_ext; entailer!!.
   + unfold treebox_rep.
-    apply pred_ext; entailer!.
+    apply pred_ext; entailer!!.
     - Intros pa pb.
       Exists pb pa.
       unfold_data_at (data_at _ _ _ p).
@@ -245,7 +245,7 @@ Lemma tree_rep_saturate_local:
    forall t p, tree_rep t p |-- !! is_pointer_or_null p.
 Proof.
 destruct t; simpl; intros.
-entailer!.
+entailer!!.
 Intros pa pb. entailer!.
 Qed.
 
@@ -291,7 +291,7 @@ Lemma tree_rep_nullval: forall t,
   tree_rep t nullval |-- !! (t = E).
 Proof.
   intros.
-  destruct t; [entailer! |].
+  destruct t; [entailer!! |].
   simpl tree_rep.
   Intros pa pb. entailer!.
 Qed.
@@ -304,7 +304,7 @@ Lemma treebox_rep_leaf: forall x p b (v: val),
   data_at Tsh t_struct_tree (Vint (Int.repr x), (v, (nullval, nullval))) p * data_at Tsh (tptr t_struct_tree) p b |-- treebox_rep (T E x v E) b.
 Proof.
   intros.
-  unfold treebox_rep, tree_rep. Exists p nullval nullval. entailer!.
+  unfold treebox_rep, tree_rep. Exists p nullval nullval. entailer!!.
 Qed.
 
 Lemma bst_left_entail: forall (t1 t1' t2: tree val) k (v p1 p2 p b: val),
@@ -330,7 +330,7 @@ Proof.
   simpl.
   Intros p1.
   Exists p1 p2.
-  entailer!.
+  entailer!!.
   unfold_data_at (data_at _ _ _ p).
   rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
   cancel.
@@ -359,7 +359,7 @@ Proof.
   simpl.
   Intros p2.
   Exists p1 p2.
-  entailer!.
+  entailer!!.
   unfold_data_at (data_at _ _ _ p).
   rewrite (field_at_data_at _ t_struct_tree [StructField _right]).
   cancel.
@@ -408,8 +408,7 @@ Proof.
       forward. (* p->value=value; *)
       forward. (* p->left=NULL; *)
       forward. (* p->right=NULL; *)
-      assert_PROP (t1= (@E _)).
-        1: entailer!.
+      assert_PROP (t1= (@E _)) by entailer!.
       subst t1. simpl tree_rep. rewrite !prop_true_andp by auto.
       forward. (* *t = p; *)
       forward. (* return; *)
@@ -460,7 +459,7 @@ Proof.
         simpl_compb.
         apply modus_ponens_wand'.
         unfold treebox_rep. Exists p.
-        simpl tree_rep. Exists pa pb. entailer!.
+        simpl tree_rep. Exists pa pb. entailer!!.
   * (* After the loop *)
     forward.
     apply andp_left2. auto.
@@ -479,7 +478,7 @@ Proof.
   apply (semax_post_ret1 nil
           (data_at Tsh (tptr t_struct_tree) p b :: tree_rep t p :: nil)).
   1: intro HH; inversion HH.
-  1: unfold treebox_rep; Exists p; entailer!.
+  1: unfold treebox_rep; Exists p; entailer!!.
   apply semax_frame''.
   forward_while (lookup_inv b p t x).
   * (* precondition implies loop invariant *)
@@ -495,7 +494,7 @@ Proof.
     + (* then clause: x<y *)
       forward. (* p=p<-left *)
       Exists (pa,t0_1). unfold fst,snd.
-      entailer!.
+      entailer!!.
       - rewrite <- H0; simpl.
         simpl_compb; auto.
       - (* TODO: merge the following 2 lines *)
@@ -505,7 +504,7 @@ Proof.
     + (* else-then clause: y<x *)
       forward. (* p=p<-right *)
       Exists (pb,t0_2). unfold fst,snd.
-      entailer!.
+      entailer!!.
       - rewrite <- H0; simpl.
         simpl_compb; simpl_compb; auto.
       - (* TODO: merge the following 2 lines *)
@@ -516,12 +515,12 @@ Proof.
       assert (x=k) by lia. subst x. clear H H3 H4.
       forward. (* v=p->value *)
       forward. (* return v; *) simpl.
-      entailer!.
+      entailer!!.
       - rewrite <- H0. simpl.
         simpl_compb; simpl_compb; auto.
       - (* TODO: merge the following 2 lines *)
         apply modus_ponens_wand'.
-        Exists pa pb; entailer!.
+        Exists pa pb; entailer!!.
   * (* after the loop *)
     forward. (* return NULL; *)
     entailer!.
@@ -538,10 +537,10 @@ Proof.
   forward. (* r->left=l *)
   forward. (* _l = r *)
   Exists pc.
-  entailer!.
+  entailer!!.
   simpl.
   Exists pa pb.
-  entailer!.
+  entailer!!.
 Qed.
 
 Definition pushdown_left_inv (b_res: val) (t_res: tree val): environ -> mpred :=
@@ -580,11 +579,11 @@ Proof.
   + (* Precondition *)
     unfold pushdown_left_inv.
     Exists b ta x v tb.
-    entailer!.
+    entailer!!.
     eapply derives_trans; [| apply ramify_PPQQ].
     rewrite (treebox_rep_spec (T ta x v tb)).
     Exists p.
-    entailer!.
+    entailer!!.
   + (* Loop body *)
     unfold pushdown_left_inv.
     clear x v H H0.
@@ -600,8 +599,7 @@ Proof.
     forward. (* q = p->right *)
     forward_if.
     - subst.
-      assert_PROP (tbc0 = (@E _)).
-        1: entailer!.
+      assert_PROP (tbc0 = (@E _)) by entailer!.
       subst.
       forward. (* q=p->left *)
       forward. (* *t=q *)
@@ -615,7 +613,7 @@ Proof.
       simpl.
       apply modus_ponens_wand'.
       Exists pa.
-      entailer!.
+      entailer!!.
     - destruct tbc0 as [| tb0 y vy tc0].
         { simpl tree_rep. Intros; contradiction. }
       Time forward_call (ta0, x, vx, tb0, y, vy, tc0, b0, p0, pa, pbc). (* turn_left(t, p, q); *)
@@ -655,15 +653,14 @@ Proof.
     forward_if.
     + (* then clause *)
       subst p1.
-      assert_PROP (t1= (@E _)).
-        1: entailer!.
+      assert_PROP (t1= (@E _)) by entailer!.
       subst t1. simpl tree_rep. rewrite !prop_true_andp by auto.
       forward. (* return; *)
       unfold treebox_rep at 1.
       apply modus_ponens_wand'.
       Exists nullval.
       simpl tree_rep.
-      entailer!.
+      entailer!!.
     + (* else clause *)
       destruct t1.
         { simpl tree_rep.  Intros; contradiction. }
@@ -717,10 +714,10 @@ Proof.
                         (tree_rep _ pb).
         replace_SEP 0 (treebox_rep t1_2 (field_address t_struct_tree [StructField _right] p1)).
         {
-          unfold treebox_rep; entailer!.
+          unfold treebox_rep; entailer!!.
           Exists pb.
           rewrite field_at_data_at.
-          entailer!.
+          entailer!!.
         }
         Time forward_call (t1_1, k, v, t1_2, b1, p1);
                     [entailer! .. | ].
@@ -742,7 +739,7 @@ Proof.
   rewrite memory_block_data_at_ by auto.
   forward.
   forward.
-  Exists p. entailer!.
+  Exists p. entailer!!.
 Qed.
 
 Lemma body_tree_free: semax_body Vprog Gprog f_tree_free tree_free_spec.
@@ -762,10 +759,10 @@ Proof.
     }
     Time forward_call (t1,pa).
     Time forward_call (t2,pb).
-    entailer!.
+    entailer!!.
   + forward.
     subst.
-    entailer!. simpl. entailer!.
+    unfold tree_rep; entailer!.
   + forward.
 Qed.
 
@@ -881,24 +878,24 @@ destruct args; inv H1. simpl in *.
 unfold env_set, eval_id in *. simpl in *. subst. 
 unfold tmap_rep.
 Intros t.
-Exists (b, x, v, t) emp. simpl. entailer!.
+Exists (b, x, v, t) emp. simpl. entailer!!.
 intros. Exists (insert x v t).
-entailer!. apply insert_relate; trivial.
+entailer!!. apply insert_relate; trivial.
 Qed.
 
 Lemma subsume_treebox_new:
  funspec_sub (snd treebox_new_spec) (snd abs_treebox_new_spec).
 Proof.
 do_funspec_sub. unfold convertPre. simpl; Intros.
-Exists emp. entailer!.
-intros tau ? ?. Exists (eval_id ret_temp tau). entailer!.
+Exists emp. entailer!!.
+intros tau ? ?. Exists (eval_id ret_temp tau). entailer!!.
 unfold tmap_rep.
 Exists (empty_tree val).
 unfold treebox_rep.
 Exists nullval.
-entailer!.
+entailer!!.
 constructor.
-simpl. entailer!. 
+simpl. entailer!!. 
 Qed.
 
 Lemma subsume_treebox_free:
@@ -909,7 +906,7 @@ subst.
 unfold env_set, eval_id in *. simpl in *. 
 unfold tmap_rep.
 Intros t.
-Exists (t,p) emp. entailer!.
+Exists (t,p) emp. entailer!!.
 Qed.
 
 Lemma body_main: semax_body Vprog Gprog f_main main_spec.

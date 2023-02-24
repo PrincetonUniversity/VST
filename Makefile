@@ -126,8 +126,10 @@ endif
 CV1=$(shell cat $(COMPCERT_INFO_PATH_REF)/VERSION | grep "version=")
 CV2=$(shell cat $(COMPCERT_INST_DIR)/VERSION | grep "version=")
 
-ifneq ($(CV1), $(CV2))
-  $(error COMPCERT VERSION MISMATCH: COMPCERT_VERSION=$(CV1) but $(COMPCERT_INST_DIR)/VERSION=$(CV2))
+ifneq ($(IGNORECOMPCERTVERSION),true)
+  ifneq ($(CV1), $(CV2))
+    $(error COMPCERT VERSION MISMATCH: COMPCERT_VERSION=$(CV1) but $(COMPCERT_INST_DIR)/VERSION=$(CV2))
+  endif
 endif
 
 # Verify that the version of the supplied clightgen matches the version of the internal compcert
@@ -227,8 +229,25 @@ FLOCQ=         # this mode to use the flocq packaged with Coq or opam
 # FLOCQ= -Q $(COMPCERT_INST_DIR)/flocq Flocq  # this mode to use the flocq built into compcert
 
 # ##### Configure installation folder #####
+#  1. (if present) the VST installation for reasoning about 64-bit C programs
+#     on the host  architecture will be in $(COQLIB)/user-contrib/VST, 
+#  2. (if present) the VST installation for reasoning about 32 C programs 
+#    for the 32-bit analogue of the host architecture 
+#    will be in $(COQLIB)/../coq-variant/VST32/VST
+#  3. (if present) a VST installation for reasoning about C programs compiled
+#     for a _different_ architecture will be in 
+#     $(COQLIB)/../coq-variant/VST_otherarch_bitsize/VST
+#  Not all of this logic is right here in this makefile; some of it is done
+#  in the CompCert install, in choosing how to configure CompCert itself,
+#  creating the values of $(ARCH) and $(BITSIZE)
+MACHINE_ARCH=$(shell uname -m)
+X86_ALIASES:=x86 x86_32 x86_64 i686
+ARM_ALIASES:=arm64 aarch64
+BOTH_X86=$(and $(filter $(ARCH),$(X86_ALIASES)),$(filter $(MACHINE_ARCH),$(X86_ALIASES)))
+BOTH_ARM=$(and $(filter $(ARCH),$(ARM_ALIASES)),$(filter $(MACHINE_ARCH),$(ARM_ALIASES)))
+THE_SAME=$(and $(findstring $(ARCH),$(MACHINE_ARCH)),$(findstring $(MACHINE_ARCH),$(ARCH)))
 
-ifeq ($(ARCH),x86)
+ifneq ($(or $(BOTH_X86),$(BOTH_ARM),$(THE_SAME)),)
   ifeq ($(BITSIZE),64)
     INSTALLDIR ?= $(COQLIB)/user-contrib/VST
   else
@@ -557,8 +576,8 @@ TWEETNACL_FILES = \
   verif_fcore_jbody.v verif_fcore_loop3.v \
   verif_fcore_epilogue_hfalse.v verif_fcore_epilogue_htrue.v \
   verif_fcore.v verif_crypto_core.v \
-  verif_crypto_stream_salsa20_xor.v verif_crypto_stream.v \
-  verif_verify.v
+  verif_crypto_stream_salsa20_xor1.v verif_crypto_stream_salsa20_xor.v \
+  verif_crypto_stream.v verif_verify.v
 
 HMACDRBG_FILES = \
   entropy.v entropy_lemmas.v DRBG_functions.v HMAC_DRBG_algorithms.v \

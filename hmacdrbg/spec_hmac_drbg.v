@@ -259,7 +259,7 @@ Definition hmac256drbg_relate (a: hmac256drbgabs) (r: hmac256drbgstate) : mpred 
                               /\ Vint (Int.repr reseed_counter) = reseed_counter'
                               /\ Vint (Int.repr entropy_len) = entropy_len'
                               /\ Vint (Int.repr reseed_interval) = reseed_interval'
-                              /\ Val.of_bool prediction_resistance = prediction_resistance'
+                              /\ bool2val prediction_resistance = prediction_resistance'
                              )
                end
   end.
@@ -323,7 +323,7 @@ Definition t_struct_hmac256drbg_context_st := Tstruct _mbedtls_hmac_drbg_context
 Definition hmac256drbgabs_to_state (a: hmac256drbgabs) (old: hmac256drbgstate):hmac256drbgstate :=
   match a with HMAC256DRBGabs key V reseed_counter entropy_len prediction_resistance reseed_interval =>
                match old with (md_ctx', _) =>
-                            (md_ctx', (map Vubyte V, (Vint (Int.repr reseed_counter), (Vint (Int.repr entropy_len), (Val.of_bool prediction_resistance, Vint (Int.repr reseed_interval))))))
+                            (md_ctx', (map Vubyte V, (Vint (Int.repr reseed_counter), (Vint (Int.repr entropy_len), (bool2val prediction_resistance, Vint (Int.repr reseed_interval))))))
                end
   end.
 
@@ -750,7 +750,7 @@ Definition preseed_relate d rc pr ri (r : hmac256drbgstate):mpred:=
         (Vint (Int.repr rc) = reseed_counter')  (*Explicitly reset in sucessful runs of reseed and hence seed*)
         (*Vint (Int.repr entropy_len) = entropy_len' Explicitly set in seed*) /\
         Vint (Int.repr ri) = reseed_interval' /\
-        Val.of_bool pr = prediction_resistance')
+        bool2val pr = prediction_resistance')
    end.
 
 (*specification for the expected case, in which 0<=len<=256.
@@ -794,7 +794,7 @@ Definition hmac_drbg_seed_inst256_spec :=
                  match (fst Ctx, fst handle_ss) with
                      ((M1, (M2, M3)), ((((newV, newK), newRC), newEL), newPR)) =>
                    let CtxFinal := ((info, (M2, p)),
-                                            (map Vubyte newV, (Vint (Int.repr newRC), (Vint (Int.repr 32), (Val.of_bool newPR, Vint (Int.repr 10000)))))) 
+                                            (map Vubyte newV, (Vint (Int.repr newRC), (Vint (Int.repr 32), (bool2val newPR, Vint (Int.repr 10000)))))) 
                    in data_at shc t_struct_hmac256drbg_context_st CtxFinal ctx *
                       hmac256drbg_relate (HMAC256DRBGabs newK newV newRC 32 newPR 10000) CtxFinal *
                       Stream (snd handle_ss) 
@@ -818,15 +818,15 @@ Definition hmac_drbg_setPredictionResistance_spec :=
     PRE [(*_ctx OF*) tptr (Tstruct _mbedtls_hmac_drbg_context noattr),
          (*_resistance OF*) tint ]
        PROP ( writable_share shc)
-       (*LOCAL (temp _ctx ctx; temp _resistance (Val.of_bool r))*)
-       PARAMS (ctx; Val.of_bool r) GLOBALS ()
+       (*LOCAL (temp _ctx ctx; temp _resistance (bool2val r))*)
+       PARAMS (ctx; bool2val r) GLOBALS ()
        SEP (data_at shc t_struct_hmac256drbg_context_st CTX ctx;
             hmac256drbg_relate ABS CTX)
     POST [ tvoid ]
        PROP () 
        LOCAL ()
-       SEP (data_at shc t_struct_hmac256drbg_context_st (setPR_CTX (Val.of_bool r) CTX) ctx;
-            hmac256drbg_relate (setPR_ABS r ABS) (setPR_CTX (Val.of_bool r) CTX)).
+       SEP (data_at shc t_struct_hmac256drbg_context_st (setPR_CTX (bool2val r) CTX) ctx;
+            hmac256drbg_relate (setPR_ABS r ABS) (setPR_CTX (bool2val r) CTX)).
 
 Definition setEL_ABS el (a: hmac256drbgabs): hmac256drbgabs :=
   match a with HMAC256DRBGabs key V x _ pr reseed_interval => 

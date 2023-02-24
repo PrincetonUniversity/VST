@@ -652,7 +652,7 @@ Proof.
            iter_sepcon (uncurry xtree_rep) (map (fun tp => (x_add1 (fst tp), snd tp)) tl)))%assert.
   {
     Exists (@nil (XTree * val)) tl q_root.
-    entailer!.
+    entailer!!.
     apply GeneralLseg.emp_lseg_nil.
   }
   {
@@ -685,7 +685,7 @@ Proof.
     forward_call (p', t).
     forward.
     Exists (tl1 ++ (x_add1 t, p') :: nil) tl2 q'.
-    entailer!.
+    entailer!!.
     + rewrite <- app_assoc; auto.
     + change (xtree_rep (x_add1 t) p') with (uncurry xtree_rep (x_add1 t, p')).
       rewrite iter_sepcon_app; simpl.
@@ -699,13 +699,13 @@ Proof.
       Exists q'.
       cancel.
   }
-  entailer!.
+  entailer!!.
   Exists q_root. cancel.
   Exists (map snd tl).
   cancel.
   rewrite iter_sepcon2_spec.
   Exists (map (fun tp : XTree * val => (x_add1 (fst tp), snd tp)) tl); cancel.
-  entailer!.
+  entailer!!.
   rewrite !map_map.
   split; f_equal.
 Qed.
@@ -735,7 +735,7 @@ Proof.
   replace_SEP 0 (xtree_rep (XNode tl v) v_q).
   {
     simpl xtree_rep.
-    entailer!.
+    entailer!!.
     Exists q r.
     entailer!.
   }
@@ -752,14 +752,14 @@ Proof.
   replace_SEP 0 (xtree_rep (XNode (map x_add1 tl) (v + 1)) p).
   {
     simpl xtree_rep.
-    entailer!.
+    entailer!!.
     Exists q' r'.
     entailer!.
   }
   change ((XNode (map x_add1 tl) (v + 1))) with (x_add1 (XNode tl v)).
   forget (XNode tl v) as t.
   Exists (x_add1 t).
-  entailer!.
+  entailer!!.
   apply add1_pos; auto.
 Qed.
 
@@ -820,7 +820,7 @@ Proof.
   replace_SEP 0 (lt_ytree_rep t' y).
   {
     unfold lt_ytree_rep.
-    entailer!.
+    entailer!!.
     Exists r; cancel.
   }
   forward_call (y, t').
@@ -863,7 +863,7 @@ Proof.
   replace_SEP 0 (t_ytree_rep a pa).
   {
     unfold t_ytree_rep.
-    entailer!.
+    entailer!!.
     Exists s1; cancel.
   }
   forward_call (pa, a).

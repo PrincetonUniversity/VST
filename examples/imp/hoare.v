@@ -414,7 +414,7 @@ Proof.
   eapply LocalsMap.map_set_share2; eauto.
   intros.
   case_eq (LocalsMap.map_val i' r); auto; intros.
-  elimtype False.
+  exfalso.
   erewrite <- LocalsMap.map_gso_val in H8.
   3: eauto.
   rewrite H4 in H8; auto. discriminate.

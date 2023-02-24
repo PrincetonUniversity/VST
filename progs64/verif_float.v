@@ -15,15 +15,16 @@ Definition main_spec :=
 
 Definition t_struct_foo := Tstruct _foo noattr.
 
-Definition Vprog : varspecs := (_s, t_struct_foo)::nil.
+Definition Vprog : varspecs := (_s, t_struct_foo)::(_a, tarray tdouble 2)::nil.
 
 Definition Gprog : funspecs :=   ltac:(with_library prog [main_spec]).
 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
 start_function.
+match goal with |- context [SEPx(?A::_)] => freeze FR1 := A end.
 pose (f :=  PROP () LOCAL (gvars gv)
-  SEP (data_at Ews t_struct_foo (Vint (Int.repr 5),
+  SEP (FRZL FR1; data_at Ews t_struct_foo (Vint (Int.repr 5),
           (Vsingle (Float32.of_bits (Int.repr 1079655793)),
            Vfloat (Float.of_bits (Int64.repr 0)))) (gv _s); has_ext tt)).
 apply semax_pre with f; subst f. (* factored out "f" to work around a bug
@@ -47,6 +48,9 @@ forward.
 forward.
 forward.
 forward.
+forward.
+forward.
+thaw FR1.
 forward.
 forward.
 forward.

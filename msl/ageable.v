@@ -670,7 +670,7 @@ case_eq (ageN b phi); intros.
 rename a0 into phi0.
 generalize (ageN_compose a b (a+b) phi1 _ _ H0 H1 (refl_equal _)); intro.
 rewrite H in H2; auto.
-elimtype False.
+exfalso.
 revert phi1 phi H H1 H0; induction a; intros.
 simpl in *.
 inv H0.
@@ -681,7 +681,7 @@ simpl in *.
 case_eq (age1 phi1); intros; rewrite H2 in H; try discriminate.
 rewrite H2 in H0.
 eapply IHa; eauto.
-elimtype False.
+exfalso.
 unfold ageN in *.
 revert phi1 H H0; induction a; intros.
 simpl in *. discriminate.
@@ -748,7 +748,7 @@ assert (forall m, (m <= n)%nat ->
          (exists i, F i /\ (i<m)%nat /\ ~ F (S i))).
 induction m.
 left; intros.
-elimtype False; lia.
+exfalso; lia.
 intro.
 assert (m<=n)%nat; try lia.
 destruct (IHm H2).
@@ -899,10 +899,10 @@ destruct (necR_linear H0 H1).
 clear - H2 H3.
 apply nec_refl_or_later in H3.
 destruct H3; auto.
-apply laterR_level in H0; unfold fashionR in H2; elimtype False; lia.
+apply laterR_level in H0; unfold fashionR in H2; exfalso; lia.
 apply nec_refl_or_later in H3.
 destruct H3; auto.
-apply laterR_level in H3; unfold fashionR in H2; elimtype False; lia.
+apply laterR_level in H3; unfold fashionR in H2; exfalso; lia.
 Qed.
 
 Lemma laterR_necR {A} `{agA : ageable A}:
