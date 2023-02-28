@@ -146,7 +146,7 @@ Module Concur.
 
     Fixpoint join_list (ls: seq.seq res) r:=
       if ls is phi::ls' then exists r', join phi r' r /\ join_list ls' r' else
-        app_pred emp r.  (*Or is is just [amp r]?*)
+        identity r.  (*Or is is just [amp r]?*)
     Definition join_threads (tp : thread_pool) r:= join_list (getThreadsR tp) r.
 
     Lemma list_nth_error_eq : forall {A} (l1 l2 : list A)
@@ -161,16 +161,16 @@ Module Concur.
     Lemma nth_error_enum : forall n m (H : (n <= m)%coq_nat) i, i < n ->
       exists Hlt, nth_error (enum_from H) i = Some (@Ordinal m (n - 1 - i)%coq_nat Hlt).
     Proof.
-      intros ??; induction n; simpl; intros; [ssromega|].
+      intros ??; induction n; simpl; intros; [ssrlia|].
       destruct i; simpl.
-      - replace (n.+1 - 1 - 0)%coq_nat with n by ssromega; eauto.
-      - replace (n.+1 - 1 - i.+1)%coq_nat with (n - 1 - i)%coq_nat by abstract ssromega; eauto.
+      - replace (n.+1 - 1 - 0)%coq_nat with n by ssrlia; eauto.
+      - replace (n.+1 - 1 - i.+1)%coq_nat with (n - 1 - i)%coq_nat by abstract ssrlia; eauto.
     Qed.
 
     Lemma minus_comm : forall a b c, ((a - b)%coq_nat - c = (a - c)%coq_nat - b)%coq_nat.
     Proof.
       intros.
-      omega.
+      lia.
     Qed.
 
     Lemma getThreadsR_addThread tp v1 v2 phi :
@@ -184,21 +184,21 @@ Module Concur.
         destruct (lt_dec j (num_threads tp)).
         erewrite !initial_world.nth_error_rev by (rewrite length_enum_from; auto).
         rewrite !length_enum_from.
-        assert (((num_threads tp - j)%coq_nat - 1)%coq_nat < num_threads tp) by ssromega.
+        assert (((num_threads tp - j)%coq_nat - 1)%coq_nat < num_threads tp) by ssrlia.
         repeat match goal with |-context[nth_error (enum_from ?H) ?i] =>
           destruct (nth_error_enum H i) as [? ->]; auto end; simpl.
         match goal with |-context[unlift ?a ?b] => destruct (@unlift_some _ a b) as [[] ? Heq] end.
         { apply eq_true_not_negb.
           rewrite eq_op_false; [discriminate|].
           intro X; inv X.
-          rewrite (Nat.add_sub_eq_l _ _ j) in H1; try omega.
-          rewrite minus_comm Nat.sub_add; auto; omega. }
+          rewrite (Nat.add_sub_eq_l _ _ j) in H1; try lia.
+          rewrite minus_comm Nat.sub_add; auto; lia. }
         rewrite Heq; simpl in *; f_equal; f_equal.
         apply ord_inj.
         apply unlift_m_inv in Heq; auto.
         { repeat match goal with |-context[nth_error ?l ?i] =>
             destruct (nth_error_None l i) as [_ H];
-            erewrite H by (rewrite rev_length length_enum_from; omega); clear H end; auto. }
+            erewrite H by (rewrite rev_length length_enum_from; lia); clear H end; auto. }
       - unfold ordinal_pos_incr; simpl.
         replace (introT _ _) with (pos_incr_lt (num_threads tp)) by apply proof_irr.
         rewrite unlift_none; auto.
@@ -241,11 +241,11 @@ Module Concur.
       intros lset juice HH loc FIND.
       apply HH in FIND.
       destruct FIND as [sh FIND].
-       specialize (FIND 0). spec FIND. pose proof LKSIZE_pos. omega.
+       specialize (FIND 0). spec FIND. pose proof LKSIZE_pos. lia.
          replace (loc.1, loc.2+0) with loc in FIND.
        destruct FIND as [sh' [psh' [P [? FIND]]]];   rewrite FIND; simpl.
        constructor.
-      destruct loc; simpl; f_equal; auto; omega.
+      destruct loc; simpl; f_equal; auto; lia.
       (*- destruct (eq_dec sh0 Share.bot); constructor.*)
     Qed.
 
@@ -288,10 +288,10 @@ Module Concur.
         destruct H' as [sh' H'].
         exfalso.
         clear - H ineq H'. simpl in *.
-        specialize (H (ofs0-ofs)). spec H. omega.
-        specialize (H' 0). spec H'. omega. replace (ofs0+0) with (ofs+(ofs0-ofs)) in H' by omega.
+        specialize (H (ofs0 - ofs)). spec H. lia.
+        specialize (H' 0). spec H'. lia. replace (ofs0+0) with (ofs+(ofs0 - ofs)) in H' by lia.
          destruct H as [sh0 [psh [P [J H]]]]; destruct H' as [sh0' [psh' [P' [J' H']]]].
-        rewrite H' in H. inv H. omega.
+        rewrite H' in H. inv H. lia.
     Qed.
 
     Lemma compat_lr_valid: forall js m,
@@ -316,17 +316,17 @@ Module Concur.
       assert (forall n, (exists ofs0, Intv.In ofs (ofs0, (ofs0 + Z.of_nat n)%Z) /\ lockRes js (b, ofs0)) \/
         (forall ofs0, (ofs0 <= ofs < ofs0 + Z.of_nat n)%Z -> lockRes js (b, ofs0) = None)) as Hdec.
       { clear; induction n.
-        { right; simpl; intros; omega. }
+        { right; simpl; intros; lia. }
         destruct IHn; auto.
         - destruct H as (? & ? & ?); left; eexists; split; eauto.
-          unfold Intv.In, fst, snd in *; zify; omega.
+          unfold Intv.In, fst, snd in *; zify; lia.
         - destruct (lockRes js (b, (ofs - Z.of_nat n)%Z)) eqn: Hres.
           + left; eexists; split; [|erewrite Hres; auto].
-            unfold Intv.In, fst, snd in *; zify; omega.
+            unfold Intv.In, fst, snd in *; zify; lia.
           + right; intro.
             destruct (eq_dec ofs0 (ofs - Z.of_nat n)%Z); [subst; auto|].
             intro; apply H.
-            zify; omega. }
+            zify; lia. }
       destruct (Hdec LKSIZE_nat) as [(ofs0 & ? & ?)|].
       - erewrite lockSet_spec_2 by eauto.
         simpl in *.
@@ -529,7 +529,7 @@ Qed.
            assert (H2 :( b > (TreeMaxIndex (mem_access#2)))%positive ).
            { assert (HH:= Pos.le_max_l (TreeMaxIndex (mem_access#2) + 1) nextblock).
              apply Pos.lt_gt. eapply Pos.lt_le_trans; eauto.
-             xomega. }
+             lia. }
            specialize (nextblock_noaccess b loc k H1).
            apply max_works in H2. rewrite H2 in nextblock_noaccess.
            assumption.
@@ -810,14 +810,14 @@ Qed.
       revert H H0; clear; revert r0; induction el; intros. inv H.
       unfold in_mem in H. unfold pred_of_mem in H. simpl in H.
       pose proof @orP.
-      specialize (H1 (j == a)(pred_of_eq_seq (T:=ordinal_eqType (n num_threads0)) el j)).
+      specialize (H1 (j == a)(mem_seq (T:=ordinal_eqType (n num_threads0)) el j)).
       destruct ((j == a)
-                || pred_of_eq_seq (T:=ordinal_eqType (n num_threads0)) el j); inv H.
+                || mem_seq (T:=ordinal_eqType (n num_threads0)) el j); inv H.
       inv H1. destruct H.
       pose proof (@eqP _ j a). destruct (j==a); inv H; inv H1.
       simpl in H0. destruct H0 as [? [? ?]].
       exists x; auto.
-      unfold pred_of_eq_seq in H.
+      unfold mem_seq in H.
       destruct H0 as [? [? ?]].
       apply (IHel x) in H; auto. apply join_sub_trans with x; auto. eexists; eauto.
 
@@ -1029,7 +1029,7 @@ Qed.
       unfold OrdinalPool.containsThread.
       destruct num_threads.
       simpl.
-      ssromega.
+      ssrlia.
     Defined.
 
     Program Definition level_tp (tp : thread_pool) := level (first_phi tp).
@@ -1104,8 +1104,8 @@ Qed.
       join_list l Phi ->
       join_list (map (age_to k) l) (age_to k Phi).
     Proof.
-      revert Phi. induction l as [| phi l IHl]; intros Phi L; simpl.
-      - apply age_to_identy.
+      revert Phi. induction l as [| phi l IHl]; intros Phi L.
+      - unfold join_list, map. apply age_to_identy.
       - intros [a [aphi la]].
         apply IHl in la.
         + exists (age_to k a); split; auto.
@@ -1200,7 +1200,7 @@ Qed.
       specialize (H loc).
       destruct (rm @ loc) eqn:res.
       - simpl (perm_of_res (NO sh n)).
-        destruct (eq_dec sh Share.bot); auto; constructor.
+        if_tac; auto; constructor.
       - destruct k;
           try (simpl; constructor).
         specialize (H sh r (VAL m) p ltac:(reflexivity) m).
@@ -1446,7 +1446,7 @@ Qed.
         inversion H; subst.
         assert (cntj:=cntj').
         eapply cnt_age in cntj.
-        eapply cntUpdate' with(c0:=Krun c')(p:=m_phi jm') in cntj; eauto.
+        eapply cntUpdate' with(c:=Krun c')(p:=m_phi jm') in cntj; eauto.
         exists cntj.
         destruct (NatTID.eq_tid_dec i j).
         + subst j; exists c.
@@ -1552,11 +1552,8 @@ Qed.
 
 
 
-          Grab Existential Variables.
-          eauto. eauto. eauto. eauto. eauto. eauto.
-          eauto. eauto. eauto. eauto. eauto. eauto.
-          eauto. eauto. eauto. apply cntAdd. eauto.
-          eauto. eauto.
+          Unshelve. all: eauto.
+          apply cntAdd. eauto.
   Qed.
 
 
@@ -1778,15 +1775,15 @@ Qed.
            revert H H0; clear; revert r0; induction el; intros. inv H.
             unfold in_mem in H. unfold pred_of_mem in H. simpl in H.
            pose proof @orP.
-           specialize (H1 (j == a)(pred_of_eq_seq (T:=ordinal_eqType (n (num_threads js))) el j)).
+           specialize (H1 (j == a)(mem_seq (T:=ordinal_eqType (n (num_threads js))) el j)).
         destruct ((j == a)
-       || pred_of_eq_seq (T:=ordinal_eqType (n (num_threads js))) el j); inv H.
+       || mem_seq (T:=ordinal_eqType (n (num_threads js))) el j); inv H.
     inv H1. destruct H.
     pose proof (@eqP _ j a). destruct (j==a); inv H; inv H1.
     simpl in H0.
  destruct H0 as [? [? ?]].
     exists x; auto.
-    unfold pred_of_eq_seq in H.
+    unfold mem_seq in H.
     destruct H0 as [? [? ?]].
     apply (IHel x) in H. apply join_sub_trans with x; auto. eexists; eauto.
     auto.

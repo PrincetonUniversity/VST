@@ -32,6 +32,7 @@
 
 Require Import Strings.String.
 Require Import Coq.ZArith.ZArith.
+Require Import Lia.
 
 From mathcomp.ssreflect Require Import ssreflect seq ssrbool.
 Require Import compcert.common.Memory.
@@ -55,17 +56,19 @@ Require Import Coq.Program.Program.
 (*Require Import VST.concurrency.safety.
 Require Import VST.concurrency.coinductive_safety.*)
 
+Import Address.
+
 Notation EXIT :=
-  (EF_external "EXIT" (mksignature (AST.Tint::nil) None)).
-Notation CREATE_SIG := (mksignature (AST.Tint::AST.Tint::nil) None cc_default).
+  (EF_external "EXIT" (mksignature (AST.Tint::nil) Tvoid)).
+Notation CREATE_SIG := (mksignature (AST.Tint::AST.Tint::nil) Tvoid cc_default).
 Notation CREATE := (EF_external "spawn" CREATE_SIG).
 Notation MKLOCK :=
-  (EF_external "makelock" (mksignature (AST.Tptr::nil) None cc_default)).
+  (EF_external "makelock" (mksignature (AST.Tptr::nil) Tvoid cc_default)).
 Notation FREE_LOCK :=
-  (EF_external "freelock" (mksignature (AST.Tptr::nil) None cc_default)).
-Notation LOCK_SIG := (mksignature (AST.Tptr::nil) None cc_default).
+  (EF_external "freelock" (mksignature (AST.Tptr::nil) Tvoid cc_default)).
+Notation LOCK_SIG := (mksignature (AST.Tptr::nil) Tvoid cc_default).
 Notation LOCK := (EF_external "acquire" LOCK_SIG).
-Notation UNLOCK_SIG := (mksignature (AST.Tptr::nil) None cc_default).
+Notation UNLOCK_SIG := (mksignature (AST.Tptr::nil) Tvoid cc_default).
 Notation UNLOCK := (EF_external "release" UNLOCK_SIG).
 
 Module Events.
@@ -562,8 +565,9 @@ Module HybridMachineSig.
               {ThreadPool : ThreadPool.ThreadPool}
               {machineSig: MachineSig}.
 
-      Instance DilMem : DiluteMem :=
+      Program Instance DilMem : DiluteMem :=
         {| diluteMem := fun x => x |}.
+      Next Obligation.
       intros.
       split; auto.
       Defined.
@@ -628,14 +632,14 @@ Module HybridMachineSig.
       Proof.
         intros until 1; revert m.
         induction H; intros.
-        - assert (m0 = 0) by omega; subst; constructor.
+        - assert (m0 = 0) by lia; subst; constructor.
         - apply HaltedSafe; auto.
         - destruct m0; [constructor|].
           eapply CoreSafe; eauto.
-          apply IHcsafe; omega.
+          apply IHcsafe; lia.
         - destruct m0; [constructor|].
           eapply AngelSafe; eauto.
-          intro; apply H; omega.
+          intro; apply H; lia.
       Qed.
 
       Lemma schedSkip_id: forall U, schedSkip U = U -> U = nil.

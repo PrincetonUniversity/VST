@@ -34,7 +34,6 @@ Import ListNotations.
 Import ThreadPool.
 Import event_semantics.
 
-Set Bullet Behavior "Strict Subproofs".
 Set Nested Proofs Allowed.
 
 Section Clight_safety_equivalence.

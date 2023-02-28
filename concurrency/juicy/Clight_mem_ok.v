@@ -28,8 +28,6 @@ Require Import BinNums.
 Require Import List. Import ListNotations.
 Require Import VST.msl.Coqlib2.
 
-Set Bullet Behavior "Strict Subproofs".
-
 
 Section GE.
 Variable ge: Clight.genv.

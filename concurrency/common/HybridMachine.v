@@ -421,7 +421,7 @@ Module DryHybridMachine.
       - intros [cntj' [ q' running]].
         inversion H; subst.
         assert (cntj:=cntj').
-        eapply cntUpdate' with(c0:=Krun c')(p:=(getCurPerm m', (getThreadR cnt)#2)) in cntj; eauto.
+        eapply cntUpdate' with(c:=Krun c')(p:=(getCurPerm m', (getThreadR cnt)#2)) in cntj; eauto.
         exists cntj.
         destruct (NatTID.eq_tid_dec i j).
         + subst j; exists c.
@@ -513,7 +513,7 @@ Module DryHybridMachine.
               discriminate. }
           { (*remove lock*)
             pose proof (cntUpdate' _ _ cnt (cntRemoveL' _ cntj)) as cnti.
-            erewrite  gRemLockSetCode with (cnti0 := cntRemoveL' _ cntj) in running.
+            erewrite  gRemLockSetCode with (cnti := cntRemoveL' _ cntj) in running.
             rewrite gssThreadCode in running.
             discriminate. }
           { (*acquire lock*)
@@ -548,7 +548,7 @@ Module DryHybridMachine.
             * pose proof (cntUpdate' _ _ _ HH) as cntj0.
               exists cntj0, q.
               rewrite <- running.
-              erewrite gsoAddCode with (cntj1 := HH).
+              erewrite gsoAddCode with (cntj := HH).
               rewrite gsoThreadCode;
                 now eauto.
             * exfalso.
@@ -575,7 +575,7 @@ Module DryHybridMachine.
              reflexivity.
           - do 2 eexists;
               now eauto.
-            Grab Existential Variables.
+            Unshelve.
             apply cntUpdate;
               now eauto.
     Qed.

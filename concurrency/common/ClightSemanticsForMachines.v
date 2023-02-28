@@ -34,8 +34,9 @@ Arguments sizeof {env} !t / .
 Require Import VST.veric.Clight_core.
 Require Import VST.veric.Clightcore_coop. 
 Require Import VST.sepcomp.event_semantics.
+Require Import VST.veric.Clight_evsem. (* makes this file redundant *)
 
-Set Bullet Behavior "Strict Subproofs".
+(*Set Bullet Behavior "Strict Subproofs".
 
 Lemma extcall_malloc_sem_inv: forall g v m t res m2 (E:Events.extcall_malloc_sem g v m t res m2),
   exists m1 b (sz : ptrofs), v=[Vptrofs sz] /\ t= Events.E0 /\ res=Vptr b Ptrofs.zero /\
@@ -656,7 +657,7 @@ apply H0. clear H0.
 simpl in *.
 apply CLC_evstep_ax1 in H.
 auto.
-Qed.
+Qed.*)
 
   Lemma at_external_SEM_eq:
      forall ge c m, semantics.at_external (CLC_evsem ge) c m =
@@ -670,7 +671,7 @@ Qed.
   Instance ClightSem ge : Semantics :=
     { semG := G; semC := C; semSem := CLC_evsem ge; the_ge := ge }.
 
-  Inductive builtin_event: external_function -> mem -> list val -> list mem_event -> Prop :=
+(*  Inductive builtin_event: external_function -> mem -> list val -> list mem_event -> Prop :=
   BE_malloc: forall m n m'' b m'
          (ALLOC: Mem.alloc m (-size_chunk Mptr) (Ptrofs.unsigned n) = (m'', b))
          (ALGN : (align_chunk Mptr | (-size_chunk Mptr)))
@@ -824,5 +825,4 @@ Proof.
   rewrite <- app_assoc.
   eapply ev_plus_left; eauto. eapply ev_star_trans; eauto.
 Qed.
-
-
+*)

@@ -1,4 +1,4 @@
-Require Import Omega.
+Require Import Lia.
 
 Require Import Coq.Classes.Morphisms.
 Require Import Relation_Definitions.
@@ -45,7 +45,7 @@ not_evar R; class_apply @part_reflexive_proper_proxy;
 (* We present two more relations that help take advantage of the above.*)
 Inductive trieq {A : Type} (x : A) : A -> A -> Prop :=
 | triew_refl: trieq x x x.
-Hint Resolve (triew_refl).
+Hint Resolve (@triew_refl).
 Instance trieq_PartReflexive: forall A (x:A), PartReflexive (eq x) (trieq x).
 Proof. constructor; intros; subst; constructor. Qed.
 Global Instance Symmetric_trieq:
@@ -134,7 +134,7 @@ Proof.
   destruct_address_range y0 y1 b ofs y3.
   - unfold Intv.In in *; simpl in *.
     repeat rewrite setPermBlock_same; auto.
-  - eapply Intv.range_notin in Hrange; simpl; try omega.
+  - eapply Intv.range_notin in Hrange; simpl; try lia.
     repeat rewrite setPermBlock_other_1; auto.
     rewrite H2; auto.
   - subst.

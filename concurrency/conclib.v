@@ -218,8 +218,7 @@ Ltac forward_spawn id arg wit :=
 
 Definition exclusive_mpred P := P * P |-- FF.
 
-Program Definition weak_exclusive_mpred (P: mpred): mpred :=
-  unfash (fash ((P * P) --> FF)).
+Definition weak_exclusive_mpred (P: mpred): mpred := unfash (fash ((P * P) --> FF)).
 
 Lemma corable_weak_exclusive R : seplog.corable (weak_exclusive_mpred R).
 Proof.

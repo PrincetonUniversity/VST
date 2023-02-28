@@ -1,4 +1,4 @@
-Require Import Coq.omega.Omega.
+Require Import Lia.
 Require Import Coq.Setoids.Setoid.
 Require Import Coq.Classes.Morphisms.
 Require Import Coq.Lists.List.
@@ -80,7 +80,7 @@ Proof.
     exists r; split; eauto.
 Qed.
 
-Lemma app_joinlist {A} {JA : Join A} {SA : Sep_alg A} {PA : Perm_alg A} l1 l2 x :
+(*Lemma app_joinlist {A} {JA : Join A} {SA : Sep_alg A} {PA : Perm_alg A} l1 l2 x :
   joinlist (l1 ++ l2) x ->
   exists x1 x2,
     joinlist l1 x1 /\
@@ -97,7 +97,7 @@ Proof.
     apply join_comm in ayx.
     destruct (join_assoc j ayx) as (r & ? & ?).
     exists r, x2. eauto.
-Qed.
+Qed.*)
 
 Lemma joinlist_merge {A} {JA : Join A} {PA : Perm_alg A} (a b c x : A) l :
   join a b c -> joinlist (a :: b :: l) x <-> joinlist (c :: l) x.
@@ -171,7 +171,7 @@ Lemma all_but_app {A} i (l l' : list A) :
 Proof.
   revert l l'; induction i; intros [ | x l ] l' len; simpl; auto.
   all: try solve [inversion len].
-  f_equal. apply IHi. simpl in *; omega.
+  f_equal. apply IHi. simpl in *; lia.
 Qed.
 
 Lemma all_but_map {A B} (f : A -> B) i l :
@@ -231,7 +231,7 @@ Proof.
       transitivity (lt i (List.length l)).
       * rewrite <- IHl; clear IHl.
         simpl. destruct (upd i x l); split; congruence.
-      * simpl; split; omega.
+      * simpl; split; lia.
 Qed.
 
 Lemma upd_app_Some {A} i x (l1 l1' l2 : list A) :
@@ -254,7 +254,7 @@ Lemma upd_app_None {A} i x (l1 l2 : list A) :
   option_map (app l1) (upd (i - List.length l1) x l2).
 Proof.
   revert i; induction l1; intros i.
-  - simpl. intros _. replace (i - 0)%nat with i by omega.
+  - simpl. intros _. replace (i - 0)%nat with i by lia.
     destruct (upd i x l2); auto.
   - destruct i; simpl; intros E. discriminate.
     destruct (upd i x l1) as [o|] eqn:Eo. discriminate.
@@ -267,8 +267,8 @@ Lemma upd_last {A} i l (a x : A) :
   upd i x (l ++ a :: nil) = Some (l ++ x :: nil).
 Proof.
   revert l a x; induction i; intros l a x.
-  - destruct l. reflexivity. simpl. omega.
-  - destruct l. simpl; omega. simpl.
+  - destruct l. reflexivity. simpl. lia.
+  - destruct l. simpl; lia. simpl.
     injection 1 as ->. rewrite IHi; auto.
 Qed.
 
@@ -280,18 +280,18 @@ Proof.
   - destruct i; auto.
   - simpl rev; simpl List.length.
     destruct (eq_dec i (List.length l)).
-    + subst i. simpl. replace (List.length l - 0 - List.length l)%nat with O by omega.
+    + subst i. simpl. replace (List.length l - 0 - List.length l)%nat with O by lia.
       simpl.
       apply upd_last. symmetry. apply List.rev_length.
     + simpl in li.
-      assert (U : (i < List.length l)%nat) by omega.
+      assert (U : (i < List.length l)%nat) by lia.
       pose proof U as Hi.
       rewrite <- List.rev_length in U.
       rewrite <-(upd_lt _ x) in U.
       destruct (upd i x (rev l)) as [o|] eqn:Eo. 2:tauto. clear U.
       specialize (IHl i Hi).
       rewrite Eo in IHl.
-      replace (S (List.length l) - 1 - i)%nat with (S (List.length l - 1 - i)) by omega.
+      replace (S (List.length l) - 1 - i)%nat with (S (List.length l - 1 - i)) by lia.
       simpl.
       destruct (upd (List.length l - 1 - i) x l) as [o'|] eqn:Eo'. 2: discriminate.
       simpl in *.
@@ -304,32 +304,32 @@ Require Import VST.msl.age_sepalg.
 Lemma age_by_overflow {A} {_ : ageable A} {JA: Join A} (x : A) n : le (level x) n -> age_by n x = age_by (level x) x.
 Proof.
   intros l.
-  replace n with ((n - level x) + level x)%nat by omega.
+  replace n with ((n - level x) + level x)%nat by lia.
   generalize (n - level x)%nat; intros k. clear n l.
   revert x; induction k; intros x. reflexivity.
   simpl. rewrite IHk.
   unfold age1' in *.
   destruct (age1 (age_by (level x) x)) eqn:E. 2:reflexivity. exfalso.
   eapply age1_level0_absurd. eauto.
-  rewrite level_age_by. omega.
+  rewrite level_age_by. lia.
 Qed.
 
 Lemma age_by_minusminus {A} {_ : ageable A} {JA: Join A} (x : A) n : age_by (level x - (level x - n)) x = age_by n x.
 Proof.
-  assert (D : le (level x) n \/ lt n (level x)). omega.
+  assert (D : le (level x) n \/ lt n (level x)). lia.
   destruct D as [D|D].
-  - replace (level x - (level x - n))%nat with (level x) by omega.
+  - replace (level x - (level x - n))%nat with (level x) by lia.
     symmetry; apply age_by_overflow, D.
-  - f_equal; omega.
+  - f_equal; lia.
 Qed.
 
-Lemma age_by_join {A} {JA: Join A} {PA: Perm_alg A} {agA: ageable A} {AgeA: Age_alg A} :
+Lemma age_by_join {A} {JA: Join A} {PA: Perm_alg A} {agA: ageable A} {SA: Sep_alg A} {AgeA: Age_alg A} {EO: predicates_hered.Ext_ord A} :
   forall k x1 x2 x3,
     join x1 x2 x3 ->
     join (age_by k x1) (age_by k x2) (age_by k x3).
 Proof.
   intros k x1 x2 x3 H.
-  pose proof age_to_join_eq (level x3 - k) x1 x2 x3 H ltac:(omega) as G.
+  pose proof age_to_join_eq (level x3 - k) x1 x2 x3 H ltac:(lia) as G.
   pose proof join_level _ _ _ H as [e1 e2].
   exact_eq G; f_equal; unfold age_to.
   - rewrite <-e1; apply age_by_minusminus.
@@ -338,7 +338,7 @@ Proof.
 Qed.
 
 (* this generalizes [age_to_join_eq], but we do use [age_to_join_eq] inside this proof *)
-Lemma age_to_join {A} {JA: Join A} {PA: Perm_alg A} {agA: ageable A} {AgeA: Age_alg A} :
+Lemma age_to_join {A} {JA: Join A} {PA: Perm_alg A} {agA: ageable A} {SA: Sep_alg A} {AgeA: Age_alg A} {EO: predicates_hered.Ext_ord A} :
   forall k x1 x2 x3,
     join x1 x2 x3 ->
     join (age_to k x1) (age_to k x2) (age_to k x3).
@@ -350,7 +350,7 @@ Proof.
   all: apply join_level in J; destruct J; congruence.
 Qed.
 
-Lemma age_by_joins {A} {JA: Join A} {PA: Perm_alg A} {agA: ageable A} {AgeA: Age_alg A} :
+Lemma age_by_joins {A} {JA: Join A} {PA: Perm_alg A} {agA: ageable A} {SA: Sep_alg A} {AgeA: Age_alg A} {EO: predicates_hered.Ext_ord A} :
   forall k x1 x2,
     joins x1 x2 ->
     joins (age_by k x1) (age_by k x2).
@@ -359,7 +359,7 @@ Proof.
   eexists; apply age_by_join; eauto.
 Qed.
 
-Lemma age_to_joins {A} {JA: Join A} {PA: Perm_alg A} {agA: ageable A} {AgeA: Age_alg A} :
+Lemma age_to_joins {A} {JA: Join A} {PA: Perm_alg A} {agA: ageable A} {SA: Sep_alg A} {AgeA: Age_alg A} {EO: predicates_hered.Ext_ord A} :
   forall k x1 x2,
     joins x1 x2 ->
     joins (age_to k x1) (age_to k x2).
@@ -368,7 +368,7 @@ Proof.
   eexists; apply age_to_join; eauto.
 Qed.
 
-Lemma age_to_join_sub {A} {JA: Join A} {PA: Perm_alg A} {agA: ageable A} {AgeA: Age_alg A} :
+Lemma age_to_join_sub {A} {JA: Join A} {PA: Perm_alg A} {agA: ageable A} {SA: Sep_alg A} {AgeA: Age_alg A} {EO: predicates_hered.Ext_ord A} :
   forall k x1 x2,
     join_sub x1 x2 ->
     join_sub (age_to k x1) (age_to k x2).
@@ -377,7 +377,7 @@ Proof.
   eexists; apply age_to_join; eauto.
 Qed.
 
-Lemma joinlist_level {A} `{agA : ageable A} {J : Join A} {_ : Perm_alg A} {_ : Age_alg A} (x : A) l Phi :
+Lemma joinlist_level {A} `{agA : ageable A} {J : Join A} {_ : Perm_alg A} {SA: Sep_alg A} {AgeA: Age_alg A} (x : A) l Phi :
   joinlist l Phi ->
   In x l -> level x = level Phi.
 Proof.
@@ -386,7 +386,7 @@ Proof.
   apply join_level in Hy. apply Hy.
 Qed.
 
-Lemma joinlist_age1' {A} `{agA : ageable A} {J : Join A} {_ : Age_alg A} {_ : Perm_alg A} (l : list A) (x : A) :
+Lemma joinlist_age1' {A} `{agA : ageable A} {J : Join A} {SA: Sep_alg A} {AgeA: Age_alg A} {_ : Perm_alg A} (l : list A) (x : A) :
   joinlist l x ->
   joinlist (map age1' l) (age1' x).
 Proof.
@@ -406,7 +406,7 @@ Proof.
       rewrite Ex, Ey. auto.
 Qed.
 
-Lemma joinlist_age_to {A} `{agA : ageable A} {J : Join A} {_ : Age_alg A} {_ : Perm_alg A} n (l : list A) (x : A) :
+Lemma joinlist_age_to {A} `{agA : ageable A} {J : Join A} {SA: Sep_alg A} {AgeA: Age_alg A} {_ : Perm_alg A} n (l : list A) (x : A) :
   joinlist l x ->
   joinlist (map (age_to n) l) (age_to n x).
 Proof.
@@ -497,10 +497,10 @@ Proof.
     + apply join_list'_None in h.
       simpl in *; rewrite h.
       simpl.
-      exists (core phi).
+      exists (id_core phi).
       split.
-      * apply core_identity.
-      * apply join_comm, core_unit.
+      * apply id_core_identity.
+      * apply join_comm, id_core_unit.
     + inversion j; subst; simpl; eauto.
   - inversion j; subst; simpl; eauto.
 Qed.
@@ -526,6 +526,25 @@ Proof.
     exists (Some phi); split; eauto. constructor.
 Qed.
 
+Lemma app_join_list {A} {JA : Join A} {SA : Sep_alg A} {PA : Perm_alg A} l1 l2 x :
+  join_list (l1 ++ l2) x ->
+  exists x1 x2,
+    join_list l1 x1 /\
+    join_list l2 x2 /\
+    join x1 x2 x.
+Proof.
+  revert l2 x; induction l1; intros l2 x j; simpl in *.
+  - exists (id_core x), x; split.
+    + apply id_core_identity.
+    + split; auto. apply id_core_unit.
+  - destruct j as (y & ayx & h).
+    destruct (IHl1 _ _ h) as (x1 & x2 & h1 & h2 & j).
+    apply join_comm in j.
+    apply join_comm in ayx.
+    destruct (join_assoc j ayx) as (r & ? & ?).
+    exists r, x2. eauto.
+Qed.
+
 Lemma join_all_joinlist tp : join_all tp = joinlist (maps tp).
 Proof.
   extensionality phi. apply prop_ext. split.
@@ -547,14 +566,15 @@ Proof.
       apply jt.
   - intros j.
     unfold maps in j.
-    apply app_joinlist in j.
+    rewrite <- join_list_joinlist in j.
+    apply app_join_list in j.
     destruct j as (rt & rl & jt & jl & j).
     set (l' := getLocksR tp).
     assert (D:l' = nil \/ l' <> nil)
       by (destruct l'; [left|right]; congruence).
     destruct D as [D|D].
     + exists rt None; unfold l' in *; simpl in *.
-      * hnf. rewrite join_list_joinlist. apply jt.
+      * hnf. apply jt.
       * hnf. unfold l' in D.
         rewrite join_list'_None.
         simpl in *.
@@ -565,8 +585,9 @@ Proof.
         pose proof join_unit2_e _ _ jl j. subst.
         constructor.
     + exists rt (Some rl).
-      * hnf. rewrite join_list_joinlist. apply jt.
+      * hnf. apply jt.
       * hnf. apply join_list'_Some'; auto.
+        rewrite <- join_list_joinlist; auto.
       * constructor; auto.
 Qed.
 
@@ -581,7 +602,7 @@ Qed.
 
 Lemma minus_plus a b c : a - (b + c) = a - b - c.
 Proof.
-  omega.
+  lia.
 Qed.
 
 Lemma nth_error_enum_from n m i Hn Hi :
@@ -616,7 +637,7 @@ Proof.
       * f_equal.
         rewrite <- Nat.sub_add_distr.
         reflexivity.
-      * omega.
+      * lia.
 Qed.
 
 Lemma nth_error_enum n i pr :
@@ -631,22 +652,22 @@ Proof.
     + pose proof pr as H.
       exact_eq H. do 2 f_equal.
       pose proof (ssrbool.elimT ssrnat.leP pr).
-      omega.
+      lia.
     + match goal with
         |- Some (fintype.Ordinal (n:=n) (m:=n - 1 - (n - i - 1)) ?H) = _ =>
         generalize H
       end.
       pose proof (ssrbool.elimT ssrnat.leP pr).
-      assert (R : (n - 1 - (n - i - 1) = i)%nat) by omega.
+      assert (R : (n - 1 - (n - i - 1) = i)%nat) by lia.
       rewrite R in *.
       intros pr'.
       do 2 f_equal.
       apply proof_irr.
     + pose proof (ssrbool.elimT ssrnat.leP pr).
-      omega.
+      lia.
 Qed.
 
-Instance JSem : Semantics := ClightSemanticsForMachines.Clight_newSem ge.
+Instance JSem : Semantics := ClightSemanticsForMachines.ClightSem ge.
 
 Lemma getThreadR_nth i tp cnti :
   nth_error (getThreadsR tp) i = Some (@getThreadR _ _ _ i tp cnti).
@@ -735,20 +756,19 @@ Proof.
     change (Some (a x)) with (option_map a (Some x))
   end.
   f_equal.
-  Set Printing Implicit.
   generalize (Nat.le_refl n) as pr.
   rename n into m.
   assert (Ei : (i = (m - 1 - (m - 1 - i)))%nat). {
     pose proof (ssrbool.elimT ssrnat.leP cnti).
     rewrite <- !Nat.sub_add_distr, Nat.add_comm, Nat.sub_add_distr.
-    replace (m - (m - (1 + i)))%nat with (S i); omega.
+    replace (m - (m - (1 + i)))%nat with (S i); lia.
   }
   assert (cnti' : is_true (ssrnat.leq (S (m - 1 - (m - 1 - i))) m))
     by congruence.
   replace (@fintype.Ordinal m i cnti)
   with (@fintype.Ordinal m (m - 1 - (m - 1 - i)) cnti')
     by (revert cnti'; rewrite <-Ei; intros; f_equal; apply proof_irr).
-  assert (li' : (m - 1 - i < m)%nat) by (clear -li; omega).
+  assert (li' : (m - 1 - i < m)%nat) by (clear -li; lia).
   clear cnti Ei. revert li' cnti'.
   generalize (m - 1 - i)%nat; clear i li; intros i.
   generalize m at 1 2 4 7 13 14; intros n; revert i.
@@ -760,27 +780,27 @@ Proof.
     f_equal.
     f_equal.
     + unfold f; simpl.
-      rewrite eqtype_refl'. reflexivity. omega.
+      rewrite eqtype_refl'. reflexivity. lia.
     + clear.
       unfold f; clear f. simpl in cnti.
       simpl.
-      revert cnti; replace (n - 0 - 0)%nat with n by omega; intros cnti.
+      revert cnti; replace (n - 0 - 0)%nat with n by lia; intros cnti.
       revert cnti; assert (H : le n n) by auto; revert H.
       generalize n at 2 3 9; intros a la cnta.
       induction n. auto.
       simpl; f_equal.
-      * rewrite eqtype_neq. 2:omega.
+      * rewrite eqtype_neq. 2:lia.
         auto.
-      * unshelve erewrite IHn. 2:omega.
+      * unshelve erewrite IHn. 2:lia.
         auto.
   - simpl.
     erewrite IHn.
-    2:omega.
+    2:lia.
     f_equal.
     f_equal.
     + unfold f.
       simpl.
-      rewrite eqtype_neq. 2:omega.
+      rewrite eqtype_neq. 2:lia.
       reflexivity.
     + unfold f.
       f_equal.
@@ -789,12 +809,12 @@ Proof.
       destruct (eq_dec j (n - 1 - i)%nat).
       * rewrite eqtype_refl'; auto.
         rewrite eqtype_refl'; auto.
-        omega.
+        lia.
       * rewrite eqtype_neq; auto.
         rewrite eqtype_neq; auto.
-        omega.
+        lia.
   Unshelve. (* unshelving at "erewrite IHn." above makes the proof fail *)
-  clear -cnti. exact_eq cnti; do 3 f_equal. omega.
+  clear -cnti. exact_eq cnti; do 3 f_equal. lia.
 Qed.
 
 Lemma updThread_but i tp cnti c phi :
@@ -997,14 +1017,14 @@ Proof.
   apply juicy_mem.rmap_join_sub_eq_level, compatible_threadRes_sub, j.
 Qed.
 
-Lemma join_sub_level {A} `{JA : sepalg.Join A} `{_ : ageable A} {_ : Perm_alg A} {_ : Age_alg A} :
+Lemma join_sub_level {A} `{JA : sepalg.Join A} `{_ : ageable A} {_ : Perm_alg A} {_ : Sep_alg A} {_ : Age_alg A} :
   forall x y : A, join_sub x y -> level x = level y.
 Proof.
   intros x y (z, j).
   apply (join_level _ _ _ j).
 Qed.
 
-Lemma joins_level {A} `{JA : sepalg.Join A} `{_ : ageable A} {_ : Perm_alg A} {_ : Age_alg A} :
+Lemma joins_level {A} `{JA : sepalg.Join A} `{_ : ageable A} {_ : Perm_alg A} {_ : Sep_alg A} {_ : Age_alg A} :
   forall x y : A, joins x y -> level x = level y.
 Proof.
   intros x y (z, j).

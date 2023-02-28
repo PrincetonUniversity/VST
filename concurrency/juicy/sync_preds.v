@@ -18,8 +18,8 @@ Require Import VST.veric.juicy_mem.
 Require Import VST.veric.juicy_mem_lemmas.
 Require Import VST.veric.semax_prog.
 Require Import VST.veric.compcert_rmaps.
-Require Import VST.veric.Clight_new.
-Require Import VST.veric.Clightnew_coop.
+Require Import VST.veric.Clight_core.
+Require Import VST.veric.Clightcore_coop.
 Require Import VST.veric.semax.
 Require Import VST.veric.semax_ext.
 Require Import VST.veric.juicy_extspec.
@@ -31,8 +31,9 @@ Require Import VST.veric.age_to_resource_at.
 Require Import VST.veric.coqlib4.
 Require Import VST.sepcomp.step_lemmas.
 Require Import VST.sepcomp.event_semantics.
-Require Import VST.concurrency.semax_conc_pred.
-Require Import VST.concurrency.semax_conc.
+Require Import VST.concurrency.conclib.
+Require Import VST.concurrency.juicy.semax_conc_pred.
+Require Import VST.concurrency.juicy.semax_conc.
 Require Import VST.concurrency.juicy.juicy_machine.
 Require Import VST.concurrency.common.HybridMachineSig.
 Require Import VST.concurrency.common.semantics.
@@ -46,7 +47,7 @@ Import threadPool.
 
 Set Bullet Behavior "Strict Subproofs".
 
-(** * Results related to resouce_decay *)
+(** * Results related to resource_decay *)
 
 (* todo: maybe remove one of those lemmas *)
 
@@ -94,7 +95,7 @@ Lemma fst_snd0: forall loc: address,
    (fst loc, (snd loc + 0)%Z) = loc.
 Proof.
 intros.
- pose proof (LKSIZE_pos). destruct loc; simpl; f_equal; auto. omega.
+ pose proof (LKSIZE_pos). destruct loc; simpl; f_equal; auto. lia.
 Qed.
 
 
@@ -122,10 +123,10 @@ Proof.
   simpl in *.
   destruct (AMap.find (elt:=option rmap) (b, ofs) lset). 2:inversion IN.
   specialize (LW eq_refl).
-  cut (~ ~ (b < Mem.nextblock m)%positive). zify. omega. intros L.
+  cut (~ ~ (b < Mem.nextblock m)%positive). zify. lia. intros L.
   specialize (LW ofs).
   assert (Intv.In ofs (ofs, (ofs + LKSIZE)%Z)).
-  { split; simpl; pose proof LKSIZE_pos; omega. }
+  { split; simpl; pose proof LKSIZE_pos; lia. }
   autospec LW.
   rewrite (Mem.nextblock_noaccess _ _ ofs Max L) in LW.
   inversion LW.
@@ -137,7 +138,7 @@ Lemma join_all_age_updThread_level (tp : jstate ge) i (cnti : ThreadPool.contain
 Proof.
   intros J; symmetry.
   remember (level phi) as n.
-  rewrite <- (level_age_to n phi). 2:omega.
+  rewrite <- (level_age_to n phi). 2:lia.
   apply rmap_join_sub_eq_level.
   assert (cnti' : containsThread (updThread cnti c phi) i) by eauto with *.
   rewrite (cnt_age_iff (n := n)) in cnti'.
@@ -189,7 +190,7 @@ Proof.
   destruct tp; simpl.
   unfold OrdinalPool.updThread in *; simpl.
   f_equal. extensionality j.
-  unfold "oo".
+  unfold compose.
   do 2 match goal with
          |- context [if ?a then _ else _] =>
          let E := fresh "E" in
@@ -373,7 +374,7 @@ Proof.
     auto.
 Qed.
 
-Lemma PTree_xmap_ext (A B : Type) (f f' : positive -> A -> B) t :
+(*Lemma PTree_xmap_ext (A B : Type) (f f' : positive -> A -> B) t :
   (forall a, f a = f' a) ->
   PTree.xmap f t = PTree.xmap f' t.
 Proof.
@@ -387,7 +388,7 @@ Proof.
   - simpl.
     rewrite IH1, IH2.
     reflexivity.
-Qed.
+Qed.*)
 
 Lemma juicyRestrictCur_ext m phi phi'
       (coh : access_cohere' m phi)
@@ -399,27 +400,16 @@ Proof.
   unfold juicyRestrict in *.
   unfold restrPermMap in *; simpl.
   f_equal.
-  unfold PTree.map in *.
-  eapply equal_f.
-  apply PTree_xmap_ext.
-  intros b.
+  apply PTree.extensionality; intros.
+  rewrite !PTree.gmap; f_equal.
   extensionality f ofs k.
   destruct k; auto.
-  unfold juice2Perm in *.
-  unfold mapmap in *.
-  simpl.
-  unfold PTree.map in *.
-  eapply equal_f.
-  f_equal.
-  f_equal.
-  eapply equal_f.
-  apply PTree_xmap_ext.
-  intros.
-  extensionality c ofs0.
-  apply same.
+  unfold juice2Perm.
+  repeat f_equal.
+  extensionality b a o; auto.
 Qed.
 
-Lemma PTree_xmap_self A f (m : PTree.t A) i :
+(*Lemma PTree_xmap_self A f (m : PTree.t A) i :
   (forall p a, m ! p = Some a -> f (PTree.prev_append i p) a = a) ->
   PTree.xmap f m i = m.
 Proof.
@@ -436,14 +426,17 @@ Proof.
     + apply IHm2.
       intros p a; specialize (E (xI p) a).
       apply E.
-Qed.
+Qed.*)
 
 Lemma PTree_map_self (A : Type) (f : positive -> A -> A) t :
   (forall b a, t ! b = Some a -> f b a = a) ->
   PTree.map f t = t.
 Proof.
   intros H.
-  apply PTree_xmap_self, H.
+  apply PTree.extensionality; intros.
+  rewrite PTree.gmap.
+  specialize (H i); destruct (t ! i); auto; simpl.
+  rewrite H; auto.
 Qed.
 
 Lemma juicyRestrictCur_unchanged m phi
@@ -456,32 +449,21 @@ Proof.
   unfold access_at in *.
   destruct (Mem.mem_access m) as (a, t) eqn:Eat.
   simpl.
-  f_equal.
+  apply f_equal2.
   - extensionality ofs k.
     destruct k. auto.
     pose proof Mem_canonical_useful m as H.
     rewrite Eat in H.
     auto.
-  - apply PTree_xmap_self.
-    intros b f E.
-    extensionality ofs k.
-    destruct k; auto.
-    specialize (pres (b, ofs)).
-    unfold PMap.get in pres.
-    simpl in pres.
-    rewrite E in pres.
-    rewrite <-pres.
-    simpl.
-    unfold juice2Perm in *.
-    unfold mapmap in *.
-    unfold PMap.get.
-    simpl.
-    rewrite Eat; simpl.
+  - apply PTree.extensionality; intros.
     rewrite PTree.gmap.
-    rewrite PTree.gmap1.
-    rewrite E.
-    simpl.
-    reflexivity.
+    destruct (t ! i) eqn: Hi; auto; simpl.
+    f_equal; extensionality ofs k.
+    destruct k; auto.
+    rewrite <- juic2Perm_correct; auto.
+    rewrite pres; simpl.
+    unfold PMap.get; simpl.
+    rewrite Hi; auto.
 Qed.
 
 Lemma ZIndexed_index_surj p : { z : Z | ZIndexed.index z = p }.
@@ -530,7 +512,6 @@ Lemma exclusive_joins_false R phi1 phi2 :
   False.
 Proof.
   unfold exclusive_mpred; intros.
-  change (predicates_hered.derives (R * R) FF) in H.
   destruct H2.
   eapply H.
   do 3 eexists; eauto.
@@ -545,13 +526,13 @@ Lemma weak_exclusive_joins_false R phi phi1 phi2 :
   False.
 Proof.
   intros.
-  simpl in H0.
-  change (predicates_hered.derives (approx (S (level phi)) R * approx (S (level phi)) R) FF) in H0.
-  destruct H3.
+  unfold weak_exclusive_mpred in H0.
+  destruct H3 as [phi3 J].
+  specialize (H0 phi3).
+  spec H0; [apply join_level in J as []; lia|].
+  specialize (H0 _ _ (necR_refl _) (ext_refl _)).
   eapply H0.
   do 3 eexists; eauto.
-  apply join_level in H3.
-  repeat split; auto; omega.
 Qed.
 
 (*
@@ -657,7 +638,7 @@ Lemma predat4 {phi b ofs sh R} :
   predat phi (b, Ptrofs.unsigned ofs) (approx (level phi) R).
 Proof.
   unfold lock_inv in *.
-  intros (b' & ofs' & E & lk & _).
+  intros (b' & ofs' & E & lk).
   injection E as <- <-.
   specialize (lk (b, Ptrofs.unsigned ofs)); simpl in lk.
   if_tac in lk. 2:range_tac.
@@ -678,7 +659,7 @@ Proof.
   unfold lkat in *.
   intros H. specialize (H loc).
   spec H.
-  { destruct loc. split; auto; pose proof LKSIZE_pos; omega. }
+  { destruct loc. split; auto; pose proof LKSIZE_pos; lia. }
   destruct H as (sh & rsh & ->).
   do 3 eexists. rewrite Z.sub_diag; 
   eauto.
@@ -700,7 +681,7 @@ Lemma lock_inv_at sh v R phi :
   app_pred (lock_inv sh v R) phi ->
   exists b ofs, v = Vptr b ofs /\ exists R, islock_pred R (phi @ (b, Ptrofs.unsigned ofs)).
 Proof.
-  intros (b & ofs & Ev & lk & _).
+  intros (b & ofs & Ev & lk).
   exists b, ofs. split. now apply Ev.
   specialize (lk (b, Ptrofs.unsigned ofs)).
   exists (approx (level phi) R).
@@ -711,7 +692,7 @@ Proof.
     unfold adr_range in *.
     intuition.
     pose proof LKSIZE_pos.
-    omega.
+    lia.
   }
   destruct lk as [p lk].
   rewrite lk.
@@ -730,7 +711,7 @@ Proof.
   unfold sync_preds_defs.pack_res_inv in *.
   f_equal. extensionality Ts.
   pose proof approx_oo_approx' (level phi') (level phi) as RR.
-  spec RR. apply age_level in A. omega.
+  spec RR. apply age_level in A. lia.
   unfold "oo" in *.
   apply (equal_f RR R).
 Qed.

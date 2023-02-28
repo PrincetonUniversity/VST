@@ -977,23 +977,8 @@ Module OrdinalPool.
         lockRes js a.
     Proof.
       intros.
-      unfold lockRes, remLockSet; simpl. unfold AMap.find, AMap.remove; simpl.
-      destruct js; simpl. destruct lset0; simpl.
-      rename this into el.
-      induction sorted; simpl; auto.
-      destruct a0 as [b ?].
-      destruct (AddressOrdered.compare loc b); simpl; address_ordered_auto;
-        destruct (AddressOrdered.compare a b); simpl; address_ordered_auto.
-      assert (forall (y: address * lock_info), SetoidList.InA (@AMap.Raw.PX.eqk _) y l -> AMap.Raw.PX.ltk (b,l0) y).
-      apply SetoidList.InfA_alt; auto with typeclass_instances.
-      specialize (H1 (a,l0)).
-      assert (~SetoidList.InA (AMap.Raw.PX.eqk (elt:=lock_info)) (a, l0) l ).
-      intro. specialize (H1 H2).
-      change (AddressOrdered.lt b a) in H1. address_ordered_auto.
-      clear - H2.
-      induction l as [| [b ?]]; simpl in *; auto.
-      destruct (AddressOrdered.compare a b); simpl; address_ordered_auto.
-      contradiction H2. left; auto.
+      unfold lockRes, remLockSet; simpl.
+      rewrite AMap_find_remove if_false; auto.
     Qed.
 
 

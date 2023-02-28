@@ -16,8 +16,8 @@ Require Import VST.veric.juicy_mem.
 Require Import VST.veric.juicy_mem_lemmas.
 Require Import VST.veric.semax_prog.
 Require Import VST.veric.compcert_rmaps.
-Require Import VST.veric.Clight_new.
-Require Import VST.veric.Clightnew_coop.
+Require Import VST.veric.Clight_core.
+Require Import VST.veric.Clightcore_coop.
 Require Import VST.veric.semax.
 Require Import VST.veric.semax_ext.
 Require Import VST.veric.juicy_extspec.
@@ -30,8 +30,8 @@ Require Import VST.veric.seplog.
 Require Import VST.floyd.coqlib3.
 Require Import VST.sepcomp.step_lemmas.
 Require Import VST.sepcomp.event_semantics.
-Require Import VST.concurrency.semax_conc_pred.
-Require Import VST.concurrency.semax_conc.
+Require Import VST.concurrency.juicy.semax_conc_pred.
+Require Import VST.concurrency.juicy.semax_conc.
 Require Import VST.concurrency.juicy.juicy_machine.
 Require Import VST.concurrency.common.HybridMachineSig.
 Require Import VST.concurrency.common.semantics.
