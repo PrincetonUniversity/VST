@@ -513,6 +513,29 @@ eapply perm_order_trans211; eauto.
 apply (access_cur_max _ (_, _)).
 Qed.
 
+Lemma maxedmem_store : forall m c b o v m', Mem.store c m b o v = Some m' -> Mem.store c (maxedmem m) b o v = Some (maxedmem m').
+Proof.
+Admitted.
+
+Lemma mem_wellformed_store : forall m c b o v m', Val.inject (Mem.flat_inj (Mem.nextblock m)) v v ->
+  Mem.store c m b o v = Some m' -> mem_wellformed m -> mem_wellformed m'.
+Proof.
+  intros ???????? []; unfold mem_wellformed.
+  erewrite Mem.nextblock_store by eauto.
+  split; [|auto].
+  apply maxedmem_store in H0.
+  eapply Mem.store_inject_neutral; eauto.
+  apply Mem.store_storebytes, Mem.storebytes_range_perm in H0.
+  specialize (H0 o); spec H0.
+  { rewrite encode_val_length. destruct (size_chunk_nat_pos c). lia. }
+  pose proof (Mem.nextblock_noaccess (maxedmem m) b o Cur) as Haccess.
+  unfold Mem.perm, maxedmem in *.
+  pose proof (restrPermMap_Cur (mem_max_lt_max m) b o) as Hperm; unfold permission_at in *; rewrite Hperm, getMaxPerm_correct in *.
+  destruct (plt b (Mem.nextblock m)); auto.
+  autospec Haccess.
+  rewrite Haccess in H0; inv H0.
+Qed.
+
 Inductive state_invariant Gamma (n : nat) : cm_state -> Prop :=
   | state_invariant_c
       (m : mem) (tr : event_trace) (sch : schedule) (tp : jstate ge) (PHI : rmap)

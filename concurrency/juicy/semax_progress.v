@@ -18,8 +18,8 @@ Require Import VST.veric.juicy_mem.
 Require Import VST.veric.juicy_mem_lemmas.
 Require Import VST.veric.semax_prog.
 Require Import VST.veric.compcert_rmaps.
-Require Import VST.veric.Clight_new.
-Require Import VST.veric.Clightnew_coop.
+Require Import VST.veric.Clight_core.
+Require Import VST.veric.Clightcore_coop.
 Require Import VST.veric.semax.
 Require Import VST.veric.semax_ext.
 Require Import VST.veric.juicy_extspec.
@@ -118,10 +118,10 @@ Proof.
     rewrite PTree.gmap1.
     unfold option_map.
     simpl.
-    destruct ((snd (mem_access m)) ! b) eqn:E. 2:tauto. clear notnone.
+    destruct ((snd (mem_access m)) ! b) eqn:E; [|tauto]. clear notnone.
     unfold perm_of_res_lock in *.
-    destruct lk as [lk Hg]; specialize (lk (b, ofs')). simpl in lk.
-    if_tac [r'|nr] in lk. 2:now destruct nr; split; auto; lkomega.
+    specialize (lk (b, ofs')). simpl in lk.
+    if_tac [r'|nr] in lk; [|now destruct nr; split; auto; lkomega].
     apply resource_at_join with (loc := (b, ofs')) in j.
     + destruct lk as (p & E0). rewrite E0 in j. inv j.
       * unfold block in *.
@@ -143,21 +143,20 @@ Lemma valid_access_restrPermMap ge m i tp Phi b ofs ophi
   (lock_coh : lock_coherence'(ge := ge) tp Phi m compat)
   (cnti : containsThread tp i)
   (Efind : AMap.find (elt:=option rmap) (b, Ptrofs.unsigned ofs) (lset tp) = Some ophi)
-  (align : (4 | snd (b, Ptrofs.unsigned ofs)))
+  (align : (size_chunk Mint32 | snd (b, Ptrofs.unsigned ofs)))
   (Hlt' : permMapLt
            (setPermBlock (Some Writable) b (Ptrofs.intval ofs) (juice2Perm_locks (getThreadR cnti) m) LKSIZE_nat)
            (getMaxPerm m)) :
   valid_access (restrPermMap Hlt') Mint32 b (Ptrofs.intval ofs) Writable.
 Proof.
-  split. 2:exact align.
+  split; [|exact align].
   intros ofs' r.
   unfold perm in *.
   pose proof restrPermMap_Cur as RR.
   unfold permission_at in *.
   rewrite RR.
-  simpl.
   pose proof compat.(loc_writable) as LW.
-  specialize (LW b (Ptrofs.unsigned ofs)). cleanup. rewrite Efind in LW. autospec LW. specialize (LW ofs').
+  specialize (LW b (Ptrofs.unsigned ofs)). setoid_rewrite Efind in LW. autospec LW. specialize (LW ofs').
   rewrite setPermBlock_lookup.
   repeat (if_tac; [constructor |]).
   exfalso.
@@ -178,16 +177,15 @@ Lemma permMapLt_local_locks ge m i (tp : jstate ge) Phi b ofs ophi
                   (juice2Perm_locks (getThreadR cnti) m) LKSIZE_nat)
     (getMaxPerm m).
 Proof.
-  simpl.
   intros b' ofs'.
   assert (RR: (getMaxPerm m) !! b' ofs' = (mem_access m) !! b' ofs' Max)
     by (unfold getMaxPerm in *; rewrite PMap.gmap; reflexivity).
 
   pose proof compat.(loc_writable) as LW.
-  specialize (LW b (Ptrofs.unsigned ofs)). cleanup. rewrite Efind in LW. autospec LW. specialize (LW ofs').
+  specialize (LW b (Ptrofs.unsigned ofs)). setoid_rewrite Efind in LW. autospec LW. specialize (LW ofs').
   rewrite RR.
   rewrite setPermBlock_lookup; if_tac.
-  { unfold LKSIZE_nat in H; rewrite Z2Nat.id in H by (pose proof LKSIZE_pos; omega).
+  { unfold LKSIZE_nat in H; rewrite Z2Nat.id in H by lkomega.
     destruct H; subst; auto. }
   rewrite <-RR.
   apply juice2Perm_locks_cohere, mem_compat_thread_max_cohere.
@@ -232,22 +230,7 @@ Section Progress.
       exists state. subst. constructor.
     }
 
-    destruct (ssrnat.leq (S i) tp.(num_threads).(pos.n)) eqn:Ei; swap 1 2.
-
-    (* bad schedule *)
-    {
-      eexists.
-      (* split. *)
-      (* -  *)constructor.
-        apply JuicyMachine.schedfail with i.
-        + reflexivity.
-        + simpl.
-          unfold OrdinalPool.containsThread.
-          now setoid_rewrite Ei; auto.
-        + constructor.
-        + eexists; eauto.
-        + reflexivity.
-    }
+    destruct (ssrnat.leq (S i) tp.(num_threads).(pos.n)) eqn:Ei.
 
     (* the schedule selected one thread *)
     assert (cnti : ThreadPool.containsThread tp i) by apply Ei.
@@ -259,45 +242,63 @@ Section Progress.
         | (* Kresume *) ci v
         | (* Kinit *) v1 v2 ].
 
+    (* note: halted is no longer fake, so JuicyMachine needs a step for halted threads, analogous to schedfail *)
+
     (* thread[i] is running *)
     {
       pose (jmi := jm_ cnti compat).
       (* pose (phii := m_phi jmi). *)
       (* pose (mi := m_dry jmi). *)
 
-      destruct ci as [ve te k | ef args lid ve te k] eqn:Heqc.
+      destruct (j_at_external (cl_core_sem ge) ci (jm_ cnti compat)) eqn: Hext.
+
+      (* thread[i] is running and about to call an external: Krun (at_ex c) -> Kblocked c *)
+      {
+        eexists.
+        (* taking the step *)
+        constructor.
+        eapply JuicyMachine.suspend_step.
+        + reflexivity.
+        + reflexivity.
+        + econstructor.
+          * eassumption.
+          * reflexivity.
+          * eauto.
+          * constructor.
+          * reflexivity.
+      } (* end of Krun (at_ex c) -> Kblocked c *)
 
       (* thread[i] is running and some internal step *)
       {
         (* get the next step of this particular thread (with safety for all oracles) *)
         assert (next: exists ci' jmi',
                    corestep (juicy_core_sem (cl_core_sem ge)) ci jmi ci' jmi'
-                   /\ forall ora, jm_bupd ora (jsafeN Jspec' ge n ora ci') jmi').
-        {
-          specialize (safety i cnti).
+                   (*/\ forall ora, jm_bupd ora (jsafeN Jspec' ge ora ci') jmi'*)).
+        { specialize (safety i cnti).
           pose proof (safety tt) as safei.
           rewrite Eci in *.
-          inversion safei as [ | ? ? ? ? c' m' step safe H H2 H3 H4 | | ]; subst.
-          2: now match goal with H : j_at_external _ _ _ = _ |- _ => inversion H end.
-          2: now match goal with H : halted _ _ _ |- _ => inversion H end.
-          exists c', m'. split; [ apply step | ].
-          revert step safety safe; clear.
+          inversion safei as [ | ? ? ? c' m' step | | ]; subst.
+          { rewrite level_jm_ in H; setoid_rewrite H in En; discriminate. }
+          exists c', m'. apply step.
+(*          revert step safety; clear.
           generalize (jm_ cnti compat).
-          generalize (State ve te k).
           unfold jsafeN.
           intros c j step safety safe ora.
           eapply semax_lemmas.jsafe_corestep_forward.
           - apply step.
-          - apply safety.
+          - apply safety.*)
+          congruence.
+          simpl in H.
         }
 
-        destruct next as (ci' & jmi' & stepi & safei').
+        destruct next as (ci' & jmi' & stepi (*& safei'*)).
         pose (tp' := age_tp_to (level jmi') tp).
         pose (tp'' := @updThread _ _ _ i tp' (cnt_age' cnti) (Krun ci') (m_phi jmi')).
         pose (cm' := (m_dry jmi', (tr, i :: sch, tp''))).
         exists cm'.
         apply state_step_c; [].
-        rewrite <- (seq.cats0 tr) at 2.
+        match goal with |-@machine_step ?a ?b ?c ?d ?e ?f ?g ?h ?i ?j ?k ?l ?m ?n =>
+          replace _ with (@machine_step a b c d e f g h i j k (seq.cat l nil) m n) by (rewrite seq.cats0; reflexivity) end.
         apply @JuicyMachine.thread_step with (DilMem := HybridCoarseMachine.DilMem)
         (tid := i)
           (ev := nil)
@@ -320,21 +321,58 @@ Section Progress.
       }
       (* end of internal step *)
 
-      (* thread[i] is running and about to call an external: Krun (at_ex c) -> Kblocked c *)
-      {
-        eexists.
-        (* taking the step *)
-        constructor.
-        eapply JuicyMachine.suspend_step.
+      destruct ef.
+      (* internal function call *)
+      { (* get the next step of this particular thread (with safety for all oracles) *)
+        assert (next: exists ci' jmi',
+                   corestep (juicy_core_sem (cl_core_sem ge)) ci jmi ci' jmi'
+                   (*/\ forall ora, jm_bupd ora (jsafeN Jspec' ge ora ci') jmi'*)).
+        { specialize (safety i cnti).
+          pose proof (safety tt) as safei.
+          rewrite Eci in *.
+          inversion safei as [ | ? ? ? c' m' step | | ]; subst.
+          { rewrite level_jm_ in H; setoid_rewrite H in En; discriminate. }
+          exists c', m'. apply step.
+(*          revert step safety; clear.
+          generalize (jm_ cnti compat).
+          unfold jsafeN.
+          intros c j step safety safe ora.
+          eapply semax_lemmas.jsafe_corestep_forward.
+          - apply step.
+          - apply safety.*)
+          now match goal with H : j_at_external _ _ _ = _ |- _ => inversion H end.
+          contradiction.
+        }
+
+        destruct next as (ci' & jmi' & stepi (*& safei'*)).
+        pose (tp' := age_tp_to (level jmi') tp).
+        pose (tp'' := @updThread _ _ _ i tp' (cnt_age' cnti) (Krun ci') (m_phi jmi')).
+        pose (cm' := (m_dry jmi', (tr, i :: sch, tp''))).
+        exists cm'.
+        apply state_step_c; [].
+        match goal with |-@machine_step ?a ?b ?c ?d ?e ?f ?g ?h ?i ?j ?k ?l ?m ?n =>
+          replace _ with (@machine_step a b c d e f g h i j k (seq.cat l nil) m n) by (rewrite seq.cats0; reflexivity) end.
+        apply @JuicyMachine.thread_step with (DilMem := HybridCoarseMachine.DilMem)
+        (tid := i)
+          (ev := nil)
+          (Htid := cnti)
+          (Hcmpt := mem_compatible_forget compat); [|]. reflexivity.
+        eapply step_juicy; [ | | | | | ].
+        + reflexivity.
+        + now constructor.
+        + exact Eci.
+        + destruct stepi as [stepi decay].
+          split.
+          * simpl.
+            subst.
+            apply stepi.
+          * simpl.
+            exact_eq decay.
+            reflexivity.
         + reflexivity.
         + reflexivity.
-        + econstructor.
-          * eassumption.
-          * instantiate (2 := mem_compatible_forget compat); reflexivity.
-          * reflexivity.
-          * constructor.
-          * reflexivity.
-      } (* end of Krun (at_ex c) -> Kblocked c *)
+      }
+
     } (* end of Krun *)
 
     (* thread[i] is in Kblocked *)
@@ -1475,6 +1513,22 @@ Section Progress.
           * reflexivity.
     }
     (* end of Kinit *)
+
+    (* bad schedule *)
+    {
+      eexists.
+      (* split. *)
+      (* -  *)constructor.
+        apply JuicyMachine.schedfail with i.
+        + reflexivity.
+        + simpl.
+          unfold OrdinalPool.containsThread.
+          now setoid_rewrite Ei; auto.
+        + constructor.
+        + eexists; eauto.
+        + reflexivity.
+    }
+
     Unshelve.
      eexists; eauto.
 Admitted. (* Theorem progress *)

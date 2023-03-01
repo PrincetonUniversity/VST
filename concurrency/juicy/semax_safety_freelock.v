@@ -18,8 +18,8 @@ Require Import VST.veric.juicy_mem.
 Require Import VST.veric.juicy_mem_lemmas.
 Require Import VST.veric.semax_prog.
 Require Import VST.veric.compcert_rmaps.
-Require Import VST.veric.Clight_new.
-Require Import VST.veric.Clightnew_coop.
+Require Import VST.veric.Clight_core.
+Require Import VST.veric.Clightcore_coop.
 Require Import VST.veric.semax.
 Require Import VST.veric.semax_ext.
 Require Import VST.veric.juicy_extspec.
@@ -58,6 +58,10 @@ Require Import VST.concurrency.common.lksize.
 Require Import VST.concurrency.juicy.rmap_locking.
 Require Import VST.concurrency.juicy.semax_conc_pred.
 Import Events.
+
+(* why do we need this? *)
+#[global] Existing Instance SeparationLogic.Cveric.
+#[global] Existing Instance SeparationLogic.CSLveric.
 
 Local Arguments getThreadR {_} {_} {_} _ _ _.
 Local Arguments getThreadC {_} {_} {_} _ _ _.
@@ -111,11 +115,12 @@ Proof.
 
   rewrite Eci in safei.
   fixsafe safei.
+  destruct ci as [| ?? k |]; try discriminate.
   inversion safei
-    as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ].
+    as [ | ????? bad | z c m0 e args0 x at_ex Pre SafePost | ????? bad ]; last contradiction.
+  { rewrite level_jm_ in H; setoid_rewrite H in En; discriminate. }
   apply (corestep_not_at_external (juicy_core_sem _)) in bad. exfalso; subst; clear - bad atex.
    simpl in bad. unfold cl_at_external in *; simpl in *. rewrite atex in bad; inv bad.
-  2: inversion bad.
   subst.
   simpl in at_ex.
   unfold cl_at_external in atex, at_ex.
@@ -139,11 +144,11 @@ Proof.
   simpl (and _).
   intros Post.
 
-  destruct Precond as [[Hwritable _] [[[B1 _] _] AT]].
+  destruct Precond as [[Hwritable _] [B1 [_ AT]]].
   assert (Hreadable : readable_share shx) by (apply writable_readable; auto).
 
   (* [data_at_] from the precondition *)
-  unfold canon.SEPx in *.
+  unfold SeparationLogic.argsassert2assert, canon.SEPx in *.
   simpl in AT.
   rewrite seplog.sepcon_emp in AT.
 
@@ -153,23 +158,21 @@ Proof.
   unfold lift, liftx in B1. simpl in B1.
   rewrite lockinv_isptr in AT.
   rewrite log_normalize.sepcon_andp_prop' in AT.
-  rewrite seplog.corable_andp_sepcon1 in AT; swap 1 2.
-  { apply corable_weak_exclusive. }
+  rewrite seplog.corable_andp_sepcon1 in AT by (apply conclib.corable_weak_exclusive).
   destruct AT as (Hexclusive, AT).
   rewrite seplog.sepcon_comm in AT.
   rewrite seplog.sepcon_emp in AT.
   destruct AT as (IsPtr, AT).
   destruct vx as [ | | | | | b ofs ]; try inversion IsPtr; [ clear IsPtr ].
 
-  assert (Eargs : args = Vptr b ofs :: nil)
-    by (eapply shape_of_args; eauto).
+  assert (Eargs : args = Vptr b ofs :: nil) by auto.
 
   destruct AT as (phi0lockinv & phi0sat & jphi0 & Hlockinv & Hsat).
 
   assert (locked : lockRes tp (b, Ptrofs.intval ofs) = Some None). {
     specialize (lock_coh (b, Ptrofs.intval ofs)). cleanup.
     destruct (AMap.find _ _) as [[phi_sat|]|] eqn:Ephi_sat; [ exfalso | reflexivity | exfalso ].
-    - destruct lock_coh as (_&_&_&R&lk&[sat|?]). 2:omega.
+    - destruct lock_coh as (_&_&_&R&lk&[sat|?]); [|lia].
 
       assert (J0 : join_sub phi0 Phi). {
         apply join_sub_trans with (getThreadR i tp cnti). eexists; eauto.
@@ -197,32 +200,32 @@ Proof.
       pose proof exclusive_joins_false
            (approx (level Phi) Rx) (age_by 1 phi_sat) (age_by 1 phi0sat) as PP.
       apply PP.
-      + (* exclusive *)
+      + (* exclusive *) (* should be weak *)
         apply exclusive_approx with (n := level Phi) in Hexclusive.
         rewrite (compose_rewr (approx _) (approx _)) in Hexclusive.
         replace (level phi0) with (level Phi) in Hexclusive. 2:join_level_tac.
         exact_eq Hexclusive; f_equal.
-        rewrite approx_oo_approx'. auto. omega.
+        rewrite approx_oo_approx'. auto. lia.
 
       + (* sat 1 *)
         split.
-        * rewrite level_age_by. rewrite Ra. omega.
+        * rewrite level_age_by. rewrite Ra. lia.
         * revert sat.
           apply approx_eq_app_pred with (level Phi).
-          -- rewrite level_age_by. rewr (level phi_sat). omega.
+          -- rewrite level_age_by. rewr (level phi_sat). lia.
           -- eapply predat_inj; eauto.
              apply predat6 in lk; eauto.
              exact_eq E3. f_equal. f_equal. auto.
 
       + (* sat 2 *)
         split.
-        -- rewrite level_age_by. cut (level phi0sat = level Phi). omega. join_level_tac.
+        -- rewrite level_age_by. cut (level phi0sat = level Phi). lia. join_level_tac.
         -- (* cut (app_pred (Interp Rx) (age_by 1 phi0sat)).
            ++ apply approx_eq_app_pred with (S n).
-              ** rewrite level_age_by. rewrite Ra0. omega.
+              ** rewrite level_age_by. rewrite Ra0. lia.
               ** pose proof (predat_inj E1 E3) as G.
                  exact_eq G; do 2 f_equal; auto.
-                 omega.
+                 lia.
            ++ *)
            revert Hsat. apply age_by_ind.
            destruct Rx.
@@ -301,7 +304,7 @@ Proof.
   assert (Ephi : level (getThreadR _ _ cnti) = S n). {
     rewrite getThread_level with (Phi0 := Phi). auto. apply compat.
   }
-  assert (El : (level (getThreadR _ _ cnti) - 1 = n)%nat) by omega.
+  assert (El : (level (getThreadR _ _ cnti) - 1 = n)%nat) by lia.
   cleanup.
   rewrite El.
 
@@ -323,7 +326,7 @@ Proof.
     rewrite (age_resource_at APhi' (loc := loc)) in E''.
     destruct (Phi' @ loc); simpl in E''; try congruence.
     injection E''; intros <- <- <- ; eexists; split. apply YES_ext. reflexivity.
-    rewrite level_age_to. 2:omega. reflexivity.
+    rewrite level_age_to. 2:lia. reflexivity.
   }
 
   assert (mcompat' : mem_compatible_with' (age_tp_to n (remLockSet (updThread i tp cnti (Kresume ci Vundef) phi') (b, Ptrofs.intval ofs))) m (age_to n Phi')).
@@ -331,7 +334,7 @@ Proof.
     constructor.
     + (* join_all *)
       (* rewrite <-Hpersonal_juice. autospec El. cleanup. rewrite El. *)
-      apply join_all_age_to. cleanup. omega.
+      apply join_all_age_to. cleanup. lia.
       pose proof juice_join compat as j.
       rewrite join_all_joinlist.
       rewrite join_all_joinlist in j.
@@ -397,7 +400,7 @@ Proof.
           intros [<- _].
           specialize (A (b, Ptrofs.intval ofs) out).
           specialize (inside (b, Ptrofs.unsigned ofs)).
-          spec inside. split; auto. lkomega.
+          spec inside. split; auto. lklia.
           unfold Ptrofs.unsigned in *.
           breakhyps. }
         specialize (A loc out).
@@ -423,10 +426,10 @@ Proof.
       rewrite AMap_find_remove. if_tac [<- | ne].
       * exfalso.
         destruct Hrmap' as (_ & outside & inside & _).
-        specialize (inside (b, Ptrofs.intval ofs)). spec inside. now split; auto; unfold Ptrofs.unsigned; omega.
+        specialize (inside (b, Ptrofs.intval ofs)). spec inside. now split; auto; unfold Ptrofs.unsigned; lia.
         breakhyps.
         unfold Ptrofs.unsigned in *. rewrite Z.sub_diag in H7.
-        destruct (E'' 0) as [? [? [? E3]]]. pose proof LKSIZE_pos; omega.
+        destruct (E'' 0) as [? [? [? E3]]]. pose proof LKSIZE_pos; lia.
         rewrite age_to_resource_at in E3. simpl in E3. rewrite Z.add_0_r in E3.
         rewrite H5 in E3.
         discriminate.
@@ -466,7 +469,7 @@ Proof.
              exfalso. destruct inside as [sh [psh [? [? inside]]]].
              specialize (J _ H0). destruct J as [? [? [? [? J]]]]. rewrite inside in J. inv J.
              destruct loc,a; subst. simpl in H5,H6.
-             apply H; simpl; f_equal. unfold Ptrofs.unsigned in *; omega.
+             apply H; simpl; f_equal. unfold Ptrofs.unsigned in *; lia.
         -- intros. specialize (J _ H0). destruct J as [sh2 [psh2 [P2 [? J]]]].
              exists sh2, psh2. eexists; split; auto. 
              rewrite outside in J.
@@ -476,11 +479,11 @@ Proof.
   left.
   unshelve eapply state_invariant_c with (PHI := age_to n Phi') (mcompat := mcompat').
   - (* level *)
-    apply level_age_to. omega.
+    apply level_age_to. lia.
 
   - (* env_coherence *)
     apply env_coherence_age_to.
-    apply env_coherence_pures_eq with Phi; auto. omega.
+    apply env_coherence_pures_eq with Phi; auto. lia.
     apply pures_same_pures_eq. auto.
     eapply rmap_freelock_pures_same; eauto.
   - auto.
@@ -504,7 +507,7 @@ Proof.
     if_tac; simpl.
     + destruct Hrmap' as (_ & _ & inside & _).
       specialize (inside loc). subst loc. rewrite isLK_age_to.
-      spec inside. split; auto; unfold Ptrofs.unsigned in *; omega.
+      spec inside. split; auto; unfold Ptrofs.unsigned in *; lia.
       unfold Ptrofs.unsigned in *.
       destruct inside as (sh & rsh & ? & wsh & ?). intros HH.
       unfold isLK in *. breakhyps.
@@ -529,9 +532,9 @@ Proof.
           unfold far in *.
           unfold Ptrofs.unsigned in *.
           zify.
-          lkomega.
+          lklia.
         }
-        destruct lock_coh_ as (LOAD & align & bound & R & lk & [sat | ?]). 2:omega.
+        destruct lock_coh_ as (LOAD & align & bound & R & lk & [sat | ?]). 2:lia.
         split; [ | split; [ | split ]]; auto.
         -- (* use sparsity to prove the load_at is the same *)
            clear -LOAD SparseX locked sparse.
@@ -556,7 +559,7 @@ Proof.
               cleanup.
               setoid_rewrite A2PMap_option_map.
               pose proof SparseX as SparseX'.
-              specialize (SparseX (b0, ofs0)). spec SparseX. split; auto; lkomega.
+              specialize (SparseX (b0, ofs0)). spec SparseX. split; auto; lklia.
               unfold Mem.valid_access in *.
               unfold Mem.range_perm in *.
               erewrite AMap_Equal_PMap_eq in v1.
@@ -564,7 +567,7 @@ Proof.
               rewrite A2PMap_add_outside in v1.
               if_tac [r|nr] in v1. 2:assumption.
               exfalso.
-              specialize (SparseX' (b0, ofs1)). spec SparseX'. split; auto; lkomega.
+              specialize (SparseX' (b0, ofs1)). spec SparseX'. split; auto; lklia.
               destruct r; subst b0. simpl in sparse.
               destruct sparse. contradiction H; auto. destruct H as [_ sparse].
               red in sparse.
@@ -575,7 +578,7 @@ Proof.
               assert (~ (Ptrofs.unsigned ofs <= ofs1 < Ptrofs.unsigned ofs + LKSIZE)%Z)
                       by (contradict SparseX'; auto).
               clear - r1 H0 H H1 sparse.
-              omega.
+              lia.
         -- exists R; split.
            ++ (* sparsity again, if easier or just the rmap_freelock *)
               intros x r.
@@ -588,19 +591,19 @@ Proof.
               destruct sparse. contradiction H; auto. destruct H as [_ sparse].
               change Ptrofs.intval with Ptrofs.unsigned in *.
               red in sparse.
-              destruct (Zabs_dec (z - Ptrofs.unsigned ofs)); omega.
+              destruct (Zabs_dec (z - Ptrofs.unsigned ofs)); lia.
               rewrite age_to_resource_at.
               rewrite <-outside. clear outside.
               unfold sync_preds_defs.pack_res_inv in *.
               rewrite level_age_to.
               ** breakhyps.
                  all: rewr (Phi @ x); simpl; eauto.
-                 all: rewrite approx_approx'; eauto; omega.
-              ** omega.
+                 all: rewrite approx_approx'; eauto; lia.
+              ** lia.
            ++ left. unfold age_to.
               replace (level uphi) with (level Phi); swap 1 2.
               { symmetry. eapply join_all_level_lset. apply compat. eassumption. }
-              rewrite En. replace (S n - n)%nat with 1%nat by omega.
+              rewrite En. replace (S n - n)%nat with 1%nat by lia.
               apply pred_age1', sat.
 
       * (* Lock found, unlocked *)
@@ -620,7 +623,7 @@ Proof.
           assert (ofs0 <> Ptrofs.intval ofs) by congruence. clear H.
           unfold far in *.
           zify.
-          lkomega.
+          lklia.
         }
         destruct lock_coh_ as (LOAD & align & bound & R & lk).
         split; [ | split; [ | split ]]; auto.
@@ -646,7 +649,7 @@ Proof.
               cleanup.
               setoid_rewrite A2PMap_option_map.
               pose proof SparseX as SparseX'.
-              specialize (SparseX (b0, ofs0)). spec SparseX. split; auto; lkomega.
+              specialize (SparseX (b0, ofs0)). spec SparseX. split; auto; lklia.
               unfold Mem.valid_access in *.
               unfold Mem.range_perm in *.
               (* say that "lset = ADD (REMOVE lset)" and use result about ADD? *)
@@ -655,7 +658,7 @@ Proof.
               rewrite A2PMap_add_outside in v1.
               if_tac [r|nr] in v1. 2:assumption.
               exfalso.
-              specialize (SparseX' (b0, ofs1)). spec SparseX'. split; auto; lkomega.
+              specialize (SparseX' (b0, ofs1)). spec SparseX'. split; auto; lklia.
               simpl in sparse. 
               destruct r; subst b0.
               clear - SparseX SparseX' H0 r1 sparse. simpl in *.
@@ -665,7 +668,7 @@ Proof.
                       by (contradict SparseX; auto).
               assert (~ (Ptrofs.unsigned ofs <= ofs1 < Ptrofs.unsigned ofs + LKSIZE)%Z)
                       by (contradict SparseX'; auto).
-              clear - r1 H0 H H1 sparse. omega.
+              clear - r1 H0 H H1 sparse. lia.
         -- exists R.
            (* sparsity again, if easier or just the rmap_freelock *)
            intros x r.
@@ -678,15 +681,15 @@ Proof.
               destruct sparse. contradiction H; auto. destruct H as [_ sparse].
               change Ptrofs.intval with Ptrofs.unsigned in *.
               red in sparse.
-              destruct (Zabs_dec (z - Ptrofs.unsigned ofs)); omega.
+              destruct (Zabs_dec (z - Ptrofs.unsigned ofs)); lia.
            rewrite age_to_resource_at.
            rewrite <-outside. clear outside.
            unfold sync_preds_defs.pack_res_inv in *.
            rewrite level_age_to.
            ++ breakhyps.
               all: rewr (Phi @ x); simpl; eauto.
-              all: rewrite approx_approx'; eauto; omega.
-           ++ omega.
+              all: rewrite approx_approx'; eauto; lia.
+           ++ lia.
 
       * (* Lock not found, unlocked *)
         rewrite age_to_resource_at.
@@ -739,19 +742,19 @@ Proof.
               REWR.
               REWR.
               rewrite level_age_to; auto.
-              replace (level phi') with (level Phi). omega.
+              replace (level phi') with (level Phi). lia.
               transitivity (level (getThreadR i tp cnti)); join_level_tac.
             }
             assert (level phi' = S n). {
-              cleanup. replace (level phi') with (S n). omega. join_level_tac.
+              cleanup. replace (level phi') with (S n). lia. join_level_tac.
             }
 
             split; [ | split].
             * auto.
-            * rewr (level jm'). rewrite level_jm_. cleanup. omega.
+            * rewr (level jm'). rewrite level_jm_. cleanup. lia.
             * simpl. rewrite Ejm'. do 3 REWR.
               eapply pures_same_eq_l.
-              2:apply pures_eq_age_to; omega.
+              2:apply pures_eq_age_to; lia.
               apply pures_same_trans with phi1.
               -- apply pures_same_sym. apply join_sub_pures_same. exists phi0'. apply join_comm. assumption.
               -- apply join_sub_pures_same. exists phi0. apply join_comm. assumption.
