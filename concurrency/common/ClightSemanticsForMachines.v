@@ -18,7 +18,7 @@ Require Import ProofIrrelevance.
 Require Import List. Import ListNotations.
 
 (* The concurrent machinery*)
-Require Import VST.concurrency.common.core_semantics.
+(*Require Import VST.concurrency.common.core_semantics.*)
 Require Import VST.concurrency.common.scheduler.
 Require Import VST.concurrency.common.HybridMachineSig.
 Require Import VST.concurrency.common.semantics.

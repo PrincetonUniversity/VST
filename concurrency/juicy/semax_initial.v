@@ -17,8 +17,8 @@ Require Import VST.veric.juicy_mem.
 Require Import VST.veric.juicy_mem_lemmas.
 Require Import VST.veric.semax_prog.
 Require Import VST.veric.compcert_rmaps.
-Require Import VST.veric.Clight_new.
-Require Import VST.veric.Clightnew_coop.
+Require Import VST.veric.Clight_core.
+Require Import VST.veric.Clightcore_coop.
 Require Import VST.veric.semax.
 Require Import VST.veric.semax_ext.
 Require Import VST.veric.juicy_extspec.
@@ -33,8 +33,8 @@ Require Import VST.veric.juicy_safety.
 Require Import VST.floyd.coqlib3.
 Require Import VST.sepcomp.step_lemmas.
 Require Import VST.sepcomp.event_semantics.
-Require Import VST.concurrency.semax_conc_pred.
-Require Import VST.concurrency.semax_conc.
+Require Import VST.concurrency.juicy.semax_conc_pred.
+Require Import VST.concurrency.juicy.semax_conc.
 Require Import VST.concurrency.juicy.juicy_machine.
 Require Import VST.concurrency.common.HybridMachineSig.
 Require Import VST.concurrency.common.scheduler.
@@ -47,7 +47,7 @@ Require Import VST.concurrency.juicy.sync_preds.
 
 (*+ Initial state *)
 
-Lemma initmem_maxedmem:
+(*Lemma initmem_maxedmem:
   forall prog m, @Genv.init_mem Clight.fundef type  prog = Some m -> 
     mem_equiv.mem_equiv (maxedmem m) m.
 Proof.
@@ -76,13 +76,13 @@ apply initialize.store_init_data_list_access in H3.
 apply store_zeros_access in H2.
 rewrite H2 in H3; clear dependent m2.
 admit.
-Admitted. 
+Admitted. *)
 
 Section Initial_State.
   Variables
     (CS : compspecs) (V : varspecs) (G : funspecs)
     (ext_link : string -> ident) (prog : Clight.program)
-    (all_safe : semax_prog.semax_prog (Concurrent_Espec unit CS ext_link) prog V G)
+    (all_safe : semax_prog.semax_prog (Concurrent_Espec unit CS ext_link) prog tt V G)
     (init_mem_not_none : Genv.init_mem prog <> None).
 
   Definition Jspec := @OK_spec (Concurrent_Espec unit CS ext_link).
@@ -96,12 +96,12 @@ Section Initial_State.
   Definition initial_state (n : nat) (sch : schedule) : cm_state :=
     (proj1_sig init_m,
      (nil, sch,
-      let spr := semax_prog_rule'
+      let spr := semax_prog_rule
                    (Concurrent_Espec unit CS ext_link) V G prog
-                   (proj1_sig init_m) 0 all_safe (proj2_sig init_m) in
-      let q : corestate := projT1 (projT2 spr) in
+                   (proj1_sig init_m) 0 tt all_safe (proj2_sig init_m) in
+      let q := projT1 (projT2 spr) in
       let jm : juicy_mem := proj1_sig (snd (projT2 (projT2 spr)) n tt) in
-      @OrdinalPool.mk LocksAndResources (ClightSemanticsForMachines.Clight_newSem (globalenv prog))
+      @OrdinalPool.mk LocksAndResources (ClightSemanticsForMachines.ClightSem (globalenv prog))
         (pos.mkPos (le_n 1))
         (* (fun _ => Kresume q Vundef) *)
         (fun _ => Krun q)

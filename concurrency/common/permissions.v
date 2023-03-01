@@ -2422,7 +2422,8 @@ Ltac unfold_getPerm:=
   try unfold_getMaxPerm;
   try unfold_getCurPerm.
 
-Require Import VST.concurrency.common.core_semantics.
+(*Require Import VST.concurrency.common.core_semantics.*)
+Require Export VST.sepcomp.semantics.
 Require Import compcert.lib.Coqlib.
 
 Lemma storebytes_decay:

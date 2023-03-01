@@ -85,7 +85,7 @@ Inductive state_step : cm_state -> cm_state -> Prop :=
       (m, (tr, nil, jstate))
       (m, (tr, nil, jstate))
 | state_step_c m m' tr tr' sch sch' jstate jstate':
-    @JuicyMachine.machine_step _ (Clight_newSem ge) _ HybridCoarseMachine.DilMem JuicyMachineShell HybridMachineSig.HybridCoarseMachine.scheduler sch tr jstate m sch' tr' jstate' m' ->
+    @JuicyMachine.machine_step _ (ClightSem ge) _ HybridCoarseMachine.DilMem JuicyMachineShell HybridMachineSig.HybridCoarseMachine.scheduler sch tr jstate m sch' tr' jstate' m' ->
     state_step
       (m, (tr, sch, jstate))
       (m',(tr', sch', jstate')).
@@ -105,7 +105,7 @@ Inductive cohere_res_lock : forall (resv : option (option rmap)) (wetv : resourc
     R phi ->
     cohere_res_lock (Some (Some phi)) wetv (Byte (Integers.Byte.one)).
 
-Definition load_at m loc := Mem.load Mint32 m (fst loc) (snd loc).
+Definition load_at m loc := Mem.load Mptr m (fst loc) (snd loc).
 
 Definition lock_coherence (lset : AMap.t (option rmap)) (phi : rmap) (m : mem) : Prop :=
   forall loc : address,
@@ -117,14 +117,14 @@ Definition lock_coherence (lset : AMap.t (option rmap)) (phi : rmap) (m : mem) :
     (* locked lock *)
     | Some None =>
       load_at m loc = Some (Vint Int.zero) /\
-      (4 | snd loc) /\
+      (size_chunk Mptr | snd loc) /\
       (snd loc + LKSIZE < Ptrofs.modulus)%Z /\
       exists R, lkat R loc phi
 
     (* unlocked lock *)
     | Some (Some lockphi) =>
       load_at m loc = Some (Vint Int.one) /\
-      (4 | snd loc) /\
+      (size_chunk Mptr | snd loc) /\
       (snd loc + LKSIZE < Ptrofs.modulus)%Z /\
       exists (R : mpred),
         lkat R loc phi /\
@@ -146,7 +146,7 @@ Proof.
   unfold far; simpl.
   intros H1 H2.
   zify.
-  omega.
+  lia.
 Qed.
 
 Definition lock_sparsity {A} (lset : AMap.t A) : Prop :=
@@ -249,45 +249,45 @@ Qed.
 
 (*! Invariant (= above properties + safety + uniqueness of Krun) *)
 
-Definition jsafe_phi ge n ora c phi :=
+Definition jsafe_phi ge ora c phi :=
   forall jm,
     m_phi jm = phi ->
-    @semax.jsafeN ZT Jspec ge n ora c jm.
+    @semax.jsafeN ZT Jspec ge ora c jm.
 
-Definition jsafe_phi_bupd ge n ora c phi :=
+Definition jsafe_phi_bupd ge ora c phi :=
   forall jm,
     m_phi jm = phi ->
-    jm_bupd ora (@semax.jsafeN ZT Jspec ge n ora c) jm.
+    jm_bupd ora (@semax.jsafeN ZT Jspec ge ora c) jm.
 
-Lemma jsafe_phi_jsafeN n ora c i (tp : jstate ge) m (cnti : containsThread tp i) Phi compat :
-  @jsafe_phi ge n ora c (getThreadR cnti) ->
-  @semax.jsafeN ZT Jspec ge n ora c (@jm_ tp m Phi i cnti compat).
+Lemma jsafe_phi_jsafeN ora c i (tp : jstate ge) m (cnti : containsThread tp i) Phi compat :
+  @jsafe_phi ge ora c (getThreadR cnti) ->
+  @semax.jsafeN ZT Jspec ge ora c (@jm_ tp m Phi i cnti compat).
 Proof.
   intros S; apply S, eq_refl.
 Qed.
 
-Definition threads_safety m (tp : jstate ge) PHI (mcompat : mem_compatible_with tp m PHI) n :=
+Definition threads_safety m (tp : jstate ge) PHI (mcompat : mem_compatible_with tp m PHI) :=
   forall i (cnti : containsThread tp i) (ora : ZT),
     match getThreadC cnti with
-    | Krun c => semax.jsafeN Jspec ge n ora c (jm_ cnti mcompat)
+    | Krun c => semax.jsafeN Jspec ge ora c (jm_ cnti mcompat)
     | Kblocked c =>
       (* The dry memory will change, so when we prove safety after an
       external we must only inspect the rmap m_phi part of the juicy
       memory.  This means more proof for each of the synchronisation
       primitives. *)
-      jsafe_phi ge n ora c (getThreadR cnti)
+      jsafe_phi ge ora c (getThreadR cnti)
     | Kresume c v =>
       forall c',
         (* [v] is not used here. The problem is probably coming from
            the definition of JuicyMachine.resume_thread'. *)
         cl_after_external None c = Some c' ->
         (* same quantification as in Kblocked *)
-        jsafe_phi_bupd ge n ora c' (getThreadR cnti)
+        jsafe_phi_bupd ge ora c' (getThreadR cnti)
     | Kinit v1 v2 =>
-      val_inject (Mem.flat_inj (Mem.nextblock m)) v2 v2 /\
+      Val.inject (Mem.flat_inj (Mem.nextblock m)) v2 v2 /\
       exists q_new,
-      cl_initial_core ge v1 (v2 :: nil) q_new /\
-      jsafe_phi ge n ora q_new (getThreadR cnti)
+      cl_initial_core ge v1 (v2 :: nil) = Some q_new /\
+      jsafe_phi ge ora q_new (getThreadR cnti)
     end.
 
 Definition threads_wellformed (tp : jstate ge) :=
@@ -299,10 +299,10 @@ Definition threads_wellformed (tp : jstate ge) :=
     | Kinit _ _ => Logic.True
     end.
 
-(* Havent' move this, but it's already defined in the concurrent_machien...
+(* Haven't move this, but it's already defined in the concurrent_machine...
  * Probably in the wrong part...
  * SC: I had to change unique_Krun to include ~ Halted. Because halted
- * threads are still in Krun. (Although, ass you know right now there are no Hatled
+ * threads are still in Krun. (Although, as you know right now there are no Halted
  * threads...)  *)
 Definition unique_Krun (tp : jstate ge) sch :=
   (lt 1 tp.(num_threads).(pos.n) -> forall i cnti q,
@@ -405,7 +405,7 @@ Proof.
   remember (pos.n n) as k; clear Heqk n.
   apply ssr_leP_inv in cnti.
   apply ssr_leP_inv in cntj.
-  omega.
+  lia.
 Qed.
 
 Lemma unique_Krun_no_Krun tp i sch cnti :
@@ -472,11 +472,11 @@ Import ghost_PCM.
 
 Definition env_coherence {Z} Jspec (ge : genv) (Gamma : funspecs) PHI :=
   matchfunspecs ge Gamma PHI /\
-  exists prog CS V,
-    @semax_prog {|OK_ty := Z; OK_spec := Jspec|} CS prog V Gamma /\
+  exists prog ora CS V,
+    @semax_prog {|OK_ty := Z; OK_spec := Jspec|} CS prog ora V Gamma /\
     ge = globalenv prog /\
     app_pred
-      (funassert (Delta_types V Gamma (Tpointer Tvoid noattr :: nil))
+      (funassert (make_tycontext ((*Tpointer Ctypes.Tvoid noattr ::*) nil) nil nil Ctypes.Tvoid V Gamma nil)
                  (empty_environ ge)) PHI.
 
 Definition maxedmem (m: mem) :=
@@ -493,7 +493,7 @@ Lemma maxedmem_neutral:
 Proof.
 intros.
 unfold Mem.inject_neutral in *.
-inv H. 
+inv H.
 constructor; intros; simpl in *.
 unfold Mem.flat_inj in H.
 if_tac in H; try discriminate.
@@ -505,8 +505,13 @@ unfold maxedmem.
 rewrite mem_equiv.restr_Max_equiv. eauto.
 apply mi_memval; auto.
 clear - H0.
-unfold maxedmem.
-Admitted.  (* Santiago will finish this one *)
+unfold maxedmem, Mem.perm in *.
+setoid_rewrite restrPermMap_Cur.
+unfold getMaxPerm.
+rewrite PMap.gmap.
+eapply perm_order_trans211; eauto.
+apply (access_cur_max _ (_, _)).
+Qed.
 
 Inductive state_invariant Gamma (n : nat) : cm_state -> Prop :=
   | state_invariant_c
@@ -518,7 +523,7 @@ Inductive state_invariant Gamma (n : nat) : cm_state -> Prop :=
       (extcompat : joins (ghost_of PHI) (Some (ext_ref tt, NoneP) :: nil))
       (lock_sparse : lock_sparsity (lset tp))
       (lock_coh : lock_coherence' tp PHI m mcompat)
-      (safety : threads_safety m tp PHI mcompat n)
+      (safety : threads_safety m tp PHI mcompat)
       (wellformed : threads_wellformed tp)
       (uniqkrun :  unique_Krun tp sch)
     : state_invariant Gamma n (m, (tr, sch, tp)).
@@ -595,6 +600,24 @@ Proof.
   destruct (getLocksR tp); [auto | intros; right; eapply joinlist_inj; eauto; discriminate].
 Qed.
 
+Lemma funspec_sub_si_fash : forall a b, funspec_sub_si a b |-- !#funspec_sub_si a b.
+Proof.
+  intros; unfold funspec_sub_si.
+  destruct a, b; repeat intro.
+  destruct H; split; auto.
+  intros ??.
+  destruct (level a) eqn: Hl.
+  { apply laterR_level in H2; lia. }
+  symmetry in Hl; apply levelS_age in Hl as (a1 & ? & ?); subst.
+  specialize (H1 a1); spec H1.
+  { constructor; auto. }
+  match goal with |-context[allp ?a] => remember (allp a) as pred end.
+  simpl in *.
+  eapply pred_nec_hereditary, H1.
+  apply nec_nat.
+  apply laterR_level in H2; lia.
+Qed.
+
 (* Ghost update only affects safety; the rest of the invariant is preserved. *)
 Lemma state_inv_upd : forall Gamma (n : nat)
   (m : mem) (tr : event_trace) (sch : schedule) (tp : jstate ge) (PHI : rmap)
@@ -609,7 +632,7 @@ Lemma state_inv_upd : forall Gamma (n : nat)
         joins (ghost_of PHI) (ghost_fmap (approx (level PHI)) (approx (level PHI)) C) ->
         exists tp' PHI' (Hupd : tp_update tp PHI tp' PHI'),
         joins (ghost_of PHI') (ghost_fmap (approx (level PHI)) (approx (level PHI)) C) /\
-        threads_safety m tp' PHI' (mem_compatible_upd _ _ _ _ _ mcompat Hupd) n)
+        threads_safety m tp' PHI' (mem_compatible_upd _ _ _ _ _ mcompat Hupd))
       (wellformed : threads_wellformed tp)
       (uniqkrun :  unique_Krun tp sch),
   state_bupd (state_invariant Gamma n) (m, (tr, sch, tp)).
@@ -620,9 +643,9 @@ Proof.
   assert (join_all tp PHI) as HPHI by (clear - mcompat; inv mcompat; auto).
   destruct (join_all_eq _ _ _ H HPHI) as [(Ht & ? & ? & ?)|].
   { exists nil; split.
-    { eexists; erewrite <- ghost_core; apply core_unit. }
+    { eexists; constructor. }
     exists phi, tp; split; [apply tp_update_refl; auto|].
-    split; [erewrite <- ghost_core; apply identity_core, ghost_of_identity; auto|].
+    split; [apply ghost_identity, ghost_of_identity; auto|].
     apply state_invariant_c with (mcompat := mcompat); auto.
     repeat intro.
     generalize (getThreadR_nth _ _ cnti); setoid_rewrite Ht; rewrite nth_error_nil; discriminate. }
@@ -635,10 +658,21 @@ Proof.
   - auto.
   - destruct envcoh as [mtch coh]; split.
     + repeat intro.
-      simpl in H0.
-      rewrite Hl, Hr in H0; rewrite Hl; auto.
-    + destruct coh as (? & ? & ? & ? & ? & Happ).
-      do 4 eexists; eauto; split; auto.
+      destruct (necR_same_level _ _ _ H0 Hl) as (PHIa & Hnec & Hla).
+      destruct (mtch b b0 _ _ Hnec (ext_refl _)) as (? & ? & ? & ?).
+      * destruct b0; simpl in *.
+        pose proof (necR_level _ _ Hnec). pose proof (necR_level _ _ H0).
+        apply necR_age_to in Hnec; rewrite Hnec, age_to_resource_at.age_to_resource_at.
+        rewrite <- Hla, <- Hr.
+        apply rmap_order in H1 as (Hl1 & Hr1 & _).
+        rewrite <- Hl1, <- Hr1 in H2.
+        apply necR_age_to in H0; rewrite H0, age_to_resource_at.age_to_resource_at in H2; rewrite H2.
+        rewrite !level_age_to; auto; lia.
+      * do 3 eexists; simpl in *; eauto.
+        eapply funspec_sub_si_fash; eauto.
+        apply rmap_order in H1 as (? & ? & ?); lia.
+    + destruct coh as (? & ? & ? & ? & ? & ? & Happ).
+      do 5 eexists; eauto; split; auto.
       eapply semax_lemmas.funassert_resource, Happ; auto.
   - auto.
   - eapply joins_comm, join_sub_joins_trans, joins_comm, J'.
@@ -699,7 +733,7 @@ Ltac absurd_ext_link_naming :=
   end.
 
 Ltac funspec_destruct s :=
-  simpl (ext_spec_pre _); simpl (ext_spec_type _); simpl (ext_spec_post _);
+  simpl (extspec.ext_spec_pre _); simpl (extspec.ext_spec_type _); simpl (extspec.ext_spec_post _);
   unfold funspec2pre, funspec2post;
   let Heq_name := fresh "Heq_name" in
   destruct (oi_eq_dec (Some (_ s, _)) (ef_id_sig _ (EF_external _ _)))

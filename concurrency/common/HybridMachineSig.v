@@ -42,7 +42,7 @@ Require Import compcert.common.Values. (*for val*)
 Require Import compcert.common.Globalenvs.
 Require Import compcert.lib.Integers.
 
-Require Import VST.concurrency.common.core_semantics.
+(*Require Import VST.concurrency.common.core_semantics.*)
 Require Import VST.sepcomp.event_semantics.
 Require Export VST.concurrency.common.semantics.
 Require Import VST.concurrency.common.threadPool.

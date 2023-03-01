@@ -9,7 +9,7 @@ Require Import compcert.lib.Integers.
 
 Require Import VST.msl.Axioms.
 Require Import Coq.ZArith.ZArith.
-Require Import VST.concurrency.common.core_semantics.
+(*Require Import VST.concurrency.common.core_semantics.*)
 Require Import VST.sepcomp.event_semantics.
 Require Export VST.concurrency.common.semantics.
 Require Export VST.concurrency.common.lksize.
