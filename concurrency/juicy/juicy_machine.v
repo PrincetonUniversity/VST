@@ -1271,7 +1271,7 @@ Qed.
             (HJcanwrite: lock_at_least sh R phi b (Ptrofs.intval ofs))
             (Hrestrict_map0: juicyRestrict_locks
                               (mem_compat_thread_max_cohere Hcompat cnt0) = m0)
-            (Hload: Mem.load Mint32 m0 b (Ptrofs.intval ofs) = Some (Vint Int.one))
+            (Hload: Mem.load Mptr m0 b (Ptrofs.intval ofs) = Some (Vint Int.one))
             (*Hrestrict_pmap:
                permissions.restrPermMap
                  (mem_compatible_locks_ltwritable Hcompatible)
@@ -1282,7 +1282,7 @@ Qed.
             (* This following condition is not needed:
                It should follow from the mem_compat statement... somehow... *)
             (Hrestrict_pmap: restrPermMap Hlt' = m1)
-            (Hstore: Mem.store Mint32 m1 b (Ptrofs.intval ofs) (Vint Int.zero) = Some m')
+            (Hstore: Mem.store Mptr m1 b (Ptrofs.intval ofs) (Vint Int.zero) = Some m')
             (His_unlocked: lockRes tp (b, Ptrofs.intval ofs) = SSome d_phi )
             (Hadd_lock_res: join phi d_phi phi')
             (Htp': tp' = updThread cnt0 (Kresume c Vundef) phi')
@@ -1304,7 +1304,7 @@ Qed.
             (HJcanwrite: lock_at_least sh R phi b (Ptrofs.intval ofs))
             (Hrestrict_map0: juicyRestrict_locks
                               (mem_compat_thread_max_cohere Hcompat cnt0) = m0)
-            (Hload: Mem.load Mint32 m0 b (Ptrofs.intval ofs) = Some (Vint Int.zero))
+            (Hload: Mem.load Mptr m0 b (Ptrofs.intval ofs) = Some (Vint Int.zero))
             (*Hrestrict_pmap:
                permissions.restrPermMap
                  (mem_compatible_locks_ltwritable Hcompatible)
@@ -1315,7 +1315,7 @@ Qed.
             (* This following condition is not needed:
                It should follow from the mem_compat statement... somehow... *)
             (Hrestrict_pmap: restrPermMap Hlt' = m1)
-            (Hstore: Mem.store Mint32 m1 b (Ptrofs.intval ofs) (Vint Int.one) = Some m')
+            (Hstore: Mem.store Mptr m1 b (Ptrofs.intval ofs) (Vint Int.one) = Some m')
             (His_locked: lockRes tp (b, Ptrofs.intval ofs) = SNone )
             (Hsat_lock_inv: R (age_by 1 d_phi))
             (Hrem_lock_res: join d_phi phi' phi)
@@ -1357,7 +1357,7 @@ Qed.
             (*Check I have the right permission to mklock and the right value (i.e. 0) *)
             (*Haccess: address_mapsto LKCHUNK (Vint Int.zero) sh Share.top (b, Ptrofs.intval ofs) phi*)
             (Hstore:
-               Mem.store Mint32 (m_dry jm) b (Ptrofs.intval ofs) (Vint Int.zero) = Some m')
+               Mem.store Mptr (m_dry jm) b (Ptrofs.intval ofs) (Vint Int.zero) = Some m')
             (* [Hrmap] replaced: [Hct], [Hlock], [Hj_forward] and [levphi'].
                This says that phi and phi' coincide everywhere except in adr_range,
                and specifies how phi and phi' should differ in adr_range
@@ -1400,7 +1400,7 @@ Qed.
                               (mem_compat_thread_max_cohere Hcompat cnt0) = m1)
             (sh:Share.t) (R:pred rmap)
             (HJcanwrite: lock_at_least sh R phi b (Ptrofs.intval ofs))
-            (Hload: Mem.load Mint32 m1 b (Ptrofs.intval ofs) = Some (Vint Int.zero)),
+            (Hload: Mem.load Mptr m1 b (Ptrofs.intval ofs) = Some (Vint Int.zero)),
             syncStep' cnt0 Hcompat tp m (failacq (b,Ptrofs.intval ofs)).
 
     Definition threadStep : forall {tid0 ms m},

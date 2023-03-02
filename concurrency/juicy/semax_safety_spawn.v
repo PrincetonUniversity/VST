@@ -18,8 +18,8 @@ Require Import VST.veric.juicy_mem.
 Require Import VST.veric.juicy_mem_lemmas.
 Require Import VST.veric.semax_prog.
 Require Import VST.veric.compcert_rmaps.
-Require Import VST.veric.Clight_new.
-Require Import VST.veric.Clightnew_coop.
+Require Import VST.veric.Clight_core.
+Require Import VST.veric.Clightcore_coop.
 Require Import VST.veric.semax.
 Require Import VST.veric.semax_ext.
 Require Import VST.veric.juicy_extspec.
@@ -75,7 +75,7 @@ Definition Jspec'_juicy_mem_equiv_def CS ext_link :=
 Definition Jspec'_hered_def CS ext_link :=
    ext_spec_stable age (JE_spec _ ( @OK_spec (Concurrent_Espec unit CS ext_link))).
 
-Lemma shape_of_args2 (F V : Type) (args : list val) v (ge : Genv.t F V) :
+(*Lemma shape_of_args2 (F V : Type) (args : list val) v (ge : Genv.t F V) :
   Val.has_type_list args (sig_args (ef_sig CREATE)) ->
   v <> Vundef ->
   v =
@@ -119,7 +119,7 @@ Proof.
   + simpl in E. inversion E. eauto.
   + inversion E. f_equal.
     inversion L.
-Qed.
+Qed.*)
 
 Lemma lock_coherence_age_to ge n m (tp : jstate ge) Phi :
   lock_coherence (lset tp) Phi m ->
@@ -137,8 +137,8 @@ Proof.
       unfold age_to in *.
       rewrite age_by_age_by.
       apply age_by_age_by_pred.
-      omega.
-    * cut (level (age_to n Phi) <= 0)%nat. omega.
+      lia.
+    * cut (level (age_to n Phi) <= 0)%nat. lia.
       rewrite <-E. apply level_age_to_le.
   - destruct C as (A&B&C&R&D).
     repeat split; auto.
@@ -168,7 +168,7 @@ Proof.
   apply E.
 Qed.
 
-Lemma prop_app_pred {A} `{_ : ageable A} (P : Prop) (phi : A) : P -> app_pred (!! P) phi.
+Lemma prop_app_pred {A} `{_ : ageable A} {EO : Ext_ord A} (P : Prop) (phi : A) : P -> app_pred (!! P) phi.
 Proof.
   intro p. apply p.
 Qed.
@@ -202,38 +202,38 @@ Proof.
   rewrite Eci in safei.
 
   fixsafe safei.
+  destruct ci as [| ?? k |]; try discriminate.
   inversion safei
-    as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ].
+    as [ | ????? bad | z c m0 e args0 x at_ex Pre SafePost | ???? bad ]; last contradiction.
+  { rewrite level_jm_ in H; setoid_rewrite H in En; discriminate. }
   apply (corestep_not_at_external (juicy_core_sem _)) in bad. exfalso; subst; clear - bad atex.
    simpl in bad. unfold cl_at_external in *; simpl in *. rewrite atex in bad; inv bad.
-  2: inversion bad.
   subst.
   simpl in at_ex.
   unfold cl_at_external in atex, at_ex.
   assert (args0 = args) by congruence; subst args0.
   assert (e = CREATE) by congruence; subst e.
+  destruct f; [discriminate|].
+  destruct (ef_inline e); inv atex; clear at_ex.
   hnf in x.
   revert x Pre SafePost.
 
-  assert (H_spawn : Some (ext_link "spawn", ef_sig CREATE) = ef_id_sig ext_link CREATE). reflexivity.
+  assert (H_spawn : Some (ext_link "spawn", ef_sig CREATE) = ef_id_sig ext_link CREATE) by reflexivity.
 
   (* dependent destruction *)
-  funspec_destruct "acquire".
+(*  funspec_destruct "acquire".
   funspec_destruct "release".
   funspec_destruct "makelock".
-  funspec_destruct "freelock".
-  funspec_destruct "spawn".
+  funspec_destruct "freelock".*)
+  funspec_destruct "spawn"; [|intros []].
   intros (phix, (ts, ((((f,b), globals), f_with_x) , f_with_Pre)))  (Hargsty, Pre) Post.
 (*  intros (phix, (ts, ((((xf, xarg), globals), f_with_x), f_with_Pre))) (Hargsty, Pre). *)
   simpl (and _) in Post.
   destruct Pre as (phi0 & phi1 & jphi & A). simpl in A.
-  destruct A as (((PreA & PreA') & (([PreB1 _] & [PreB2 _] & PreB3) & [phi00 [phi01 [jphi0 [[_y [Func Hphi00]] fPRE]]]])) & necr).
-  change Logic.True in PreA'. clear PreA'.
-(*destruct A as ((PreA & (PreB1 & PreB2 & PreB3) & phi00 & phi01 & jphi0 & (_y & Func) & fPRE) & necr).*)
+  destruct A as (((PreA & _) & (PreB1 & PreB2 & [phi00 [phi01 [jphi0 [[Func Hphi00] fPRE]]]])) & necr).
   simpl in fPRE.
   rewrite seplog.sepcon_emp in fPRE.
-  hnf in PreB1,  PreB2.
-  clear Heq_name Heq_name0 Heq_name1 Heq_name2 Heq_name3.
+  clear Heq_name.
 
 
   assert (li : level (getThreadR i tp cnti) = S n).
@@ -247,31 +247,25 @@ Proof.
   assert (l01 : level phi01 = S n).
   { rewrite <-l0. apply join_sub_level. eexists; eauto. }
 Print Module SeparationLogicSoundness.VericSound.
-  Import SeparationLogic Clight_initial_world Clightdefs. 
+  Import SeparationLogic Clight_initial_world Clightdefs.
 (*  Import VericMinimumSeparationLogic.CSHL_Defs *)
 (*   Import SeparationLogicSoundness.VericSound.CSHL_Defs. *)
-  assert (phi01 = phi0). {
+(*  assert (phi01 = phi0). {
     eapply join_unit1_e; eauto.
     assumption.
-  }
-  pose proof func_ptr_isptr _ _ _ Func as isp.
+  }*)
+  epose proof func_ptr_isptr _ _ as [isp]; specialize (isp _ Func).
   unfold val_lemmas.isptr in *.
   destruct f as [ | | | | | f_b f_ofs]; try contradiction.
-(*  destruct b as [ | | | | | b_b b_ofs]; try contradiction. *)
   clear isp.
   destruct args as [ | args1 args]; [contradiction Hargsty | ].
   destruct args as [ | args2 args]; [destruct Hargsty; contradiction | ].
   destruct args as [ | args]; [ | destruct Hargsty as [_ [_ Hargsty]]; contradiction ].
 
-  apply shape_of_args3 in PreB1; auto. 2: congruence.
-  apply shape_of_args2 in PreB2; auto.
-   2: clear - PreA; hnf in PreA; destruct b; try contradiction; congruence.
-
-  destruct PreB1 as (arg1, Eargs). symmetry in Eargs; inv Eargs.
-  destruct PreB2 as [arg1 PreB2]. inv PreB2.
+  inv PreB1.
 
   destruct ((fun x => x) envcoh) as (gam, SP).
-  destruct SP as (prog & CS_ & V & semaxprog & Ege & FA).
+  destruct SP as (prog & ora & CS_ & V & semaxprog & Ege & FA).
 
   unfold SeparationLogic.NDmk_funspec in Func.
   match type of Func with
@@ -290,40 +284,17 @@ Print Module SeparationLogicSoundness.VericSound.
     join_sub_tac.
   }
 
-  specialize (gam0 f_b ((_y, Tpointer Tvoid noattr) :: nil, tptr Tvoid) cc_default).
+  specialize (gam0 f_b).
 
   destruct Func as (b' & E' & FAT). injection E' as <- ->.
-
-  unfold SeparationLogic.NDmk_funspec in *.
-  (* before merge, FAT had the following type.
-     We will use that in the mean time.
-   *)
-  assert (FAT': (func_at
-           (mk_funspec ((_y, tptr tvoid) :: nil, tptr tvoid) cc_default
-              (rmaps.ConstType (val * nth 0 ts unit))
-              (fun (_ : list Type) (x0 : val * nth 0 ts unit) =>
-               let (y, x) := x0 in
-               canon.PROPx nil
-                 (canon.LOCALx (canon.temp _y y :: canon.gvars (globals x) :: nil)
-                    (canon.SEPx (f_with_Pre x y :: nil))))
-              (fun (_ : list Type) (x0 : val * nth 0 ts unit) =>
-               let (_, _) := x0 in canon.PROPx nil (canon.LOCALx nil (canon.SEPx nil)))
-              (const_super_non_expansive (val * nth 0 ts unit)
-                 (fun (_ : list Type) (x0 : val * nth 0 ts unit) =>
-                  let (y, x) := x0 in
-                  canon.PROPx nil
-                    (canon.LOCALx (canon.temp _y y :: canon.gvars (globals x) :: nil)
-                       (canon.SEPx (f_with_Pre x y :: nil)))))
-              (const_super_non_expansive (val * nth 0 ts unit)
-                 (fun (_ : list Type) (x0 : val * nth 0 ts unit) =>
-                  let (_, _) := x0 in canon.PROPx nil (canon.LOCALx nil (canon.SEPx nil))))) 
-           (f_b, 0)) phi00) by admit.
-  specialize (gam0 _ _ _ FAT').
-  destruct gam0 as (id_fun & P' & Q' & NEP' & NEQ' & Eb & Eid & Heq_P & Heq_Q).
+  destruct FAT as (gs & Hsub & FAT').
+  specialize (gam0 _ _ _ (necR_refl _) (ext_refl _) FAT').
+  destruct gam0 as (id_fun & fs0 & ? & Hsub0).
+  destruct fs0 as [sig' cc' A' P' Q' NEP' NEQ'].
   unfold filter_genv in *.
 
   pose proof semax_prog_entry_point (Concurrent_Espec unit CS ext_link) V Gamma prog f_b
-       id_fun _y b A P' Q' NEP' NEQ' 0 semaxprog as HEP.
+       id_fun (tptr tvoid :: nil) (b :: nil) A' P' Q' NEP' NEQ' 0 ora allows_exit semaxprog as HEP.
 
   subst ge.
   rewrite <-make_tycontext_s_find_id in HEP.
@@ -347,7 +318,7 @@ Print Module SeparationLogicSoundness.VericSound.
     intros ts0 a rho phi ff. hnf.
     apply cond_approx_eq_sym in Heq_Q.
     pose proof @cond_approx_eq_app _ (rmaps.ConstType (val * nth 0 ts unit)) _ _ (age_to n phi) Heq_Q as HQ.
-    spec HQ. eapply le_lt_trans with n. 2:omega.
+    spec HQ. eapply le_lt_trans with n. 2:lia.
     { apply level_age_to_le'. }
     spec HQ ts0 a rho.
     spec HQ. now apply age_to_pred, ff.
@@ -430,12 +401,12 @@ clear - Initcore.
 
   apply (@mem_compatible_with_age _ n) in compat'.
   replace (level _) with (S n) by (simpl; join_level_tac).
-  replace (S n - 1)%nat with n by omega.
+  replace (S n - 1)%nat with n by lia.
 
   apply state_invariant_c with (mcompat := compat').
 
   - (* level *)
-    apply level_age_to. cleanup. omega.
+    apply level_age_to. cleanup. lia.
 
   - (* env_coherence *)
     apply env_coherence_age_to; auto.
@@ -508,7 +479,7 @@ clear - Initcore.
       intros Ejm.
       replace (level jm) with n in Safety; swap 1 2.
       { rewrite <-level_m_phi, Ejm. symmetry. apply level_age_to.
-        cut (level phi0 = level Phi). cleanup. intros ->. omega.
+        cut (level phi0 = level Phi). cleanup. intros ->. lia.
         apply join_sub_level.
         apply join_sub_trans with (getThreadR _ _ cnti). exists phi1. auto.
         apply compatible_threadRes_sub. apply compat. }
@@ -521,7 +492,7 @@ clear - Initcore.
         eauto.
 
         (* level *)
-        rewrite level_age_to. omega. cleanup. omega.
+        rewrite level_age_to. lia. cleanup. lia.
 
         (* PROP / LOCAL / SEP *)
         simpl.
@@ -569,8 +540,8 @@ clear - Initcore.
       * (* funnassert *)
         rewrite Ejm.
         apply funassert_pures_eq with Phi.
-        { rewrite level_age_to. omega. cleanup. omega. }
-        { apply pures_same_eq_l with phi0. 2: now apply pures_eq_age_to; omega.
+        { rewrite level_age_to. lia. cleanup. lia. }
+        { apply pures_same_eq_l with phi0. 2: now apply pures_eq_age_to; lia.
           apply join_sub_pures_same. subst.
           apply join_sub_trans with (getThreadR i tp cnti). exists phi1; auto.
           apply compatible_threadRes_sub, compat. }
@@ -592,11 +563,11 @@ clear - Initcore.
       specialize (Post None jm ora n Hargsty Logic.I (le_refl _)).
 
       spec Post. (* Hrel *)
-      { split. rewrite <-level_m_phi, Ejm. symmetry. apply level_age_to. cleanup; omega.
+      { split. rewrite <-level_m_phi, Ejm. symmetry. apply level_age_to. cleanup; lia.
         rewrite <-!level_m_phi. rewrite m_phi_jm_, Ejm. split.
-        rewrite level_age_to. cleanup; omega. cleanup; omega.
+        rewrite level_age_to. cleanup; lia. cleanup; lia.
         apply pures_same_eq_l with phi1. apply join_sub_pures_same. exists phi0. auto.
-        apply pures_eq_age_to. omega. }
+        apply pures_eq_age_to. lia. }
 
       spec Post. (* Postcondition *)
       { exists (age_to n phi00), (age_to n phi1); split; [ | split3].

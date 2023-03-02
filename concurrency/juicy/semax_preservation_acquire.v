@@ -67,9 +67,6 @@ Local Arguments juicyRestrict : clear implicits.
 
 Set Bullet Behavior "Strict Subproofs".
 
-(* why do we need this? *)
-#[global] Existing Instance SeparationLogic.Cveric.
-
 Open Scope string_scope.
 
 Lemma listoption_inv_In : forall {A} (x : A) l, In (Some x) l -> In x (listoption_inv l).
@@ -319,7 +316,7 @@ Proof.
   + (* env_coherence *)
     apply env_coherence_age_to. auto.
   + inv INV. clear -mwellformed Hstore.
-      eapply mem_wellformed_store; eauto.
+    eapply mem_wellformed_store; [.. | apply Hstore |]; auto.
   + rewrite age_to_ghost_of.
     destruct extcompat as [? J]; eapply ghost_fmap_join in J; eexists; eauto.
 

@@ -72,6 +72,11 @@ Ltac join_level_tac :=
 
 Notation event_trace := (seq.seq machine_event).
 
+Lemma allows_exit {CS} {ext_link} : postcondition_allows_exit (Concurrent_Espec unit CS ext_link) Ctypesdefs.tint.
+Proof.
+  repeat intro; apply I.
+Qed.
+
 Section Machine.
 
 Context {ZT : Type} (Jspec : juicy_ext_spec ZT) {ge : genv}.
@@ -259,6 +264,11 @@ Definition jsafe_phi_bupd ge ora c phi :=
     m_phi jm = phi ->
     jm_bupd ora (@semax.jsafeN ZT Jspec ge ora c) jm.
 
+Definition jsafe_phi_fupd ge ora c phi :=
+  forall jm,
+    m_phi jm = phi ->
+    jm_fupd ora Ensembles.Full_set Ensembles.Full_set (@semax.jsafeN ZT Jspec ge ora c) jm.
+
 Lemma jsafe_phi_jsafeN ora c i (tp : jstate ge) m (cnti : containsThread tp i) Phi compat :
   @jsafe_phi ge ora c (getThreadR cnti) ->
   @semax.jsafeN ZT Jspec ge ora c (@jm_ tp m Phi i cnti compat).
@@ -282,7 +292,7 @@ Definition threads_safety m (tp : jstate ge) PHI (mcompat : mem_compatible_with 
            the definition of JuicyMachine.resume_thread'. *)
         cl_after_external None c = Some c' ->
         (* same quantification as in Kblocked *)
-        jsafe_phi_bupd ge ora c' (getThreadR cnti)
+        jsafe_phi_fupd ge ora c' (getThreadR cnti)
     | Kinit v1 v2 =>
       Val.inject (Mem.flat_inj (Mem.nextblock m)) v2 v2 /\
       exists q_new,
@@ -513,29 +523,6 @@ eapply perm_order_trans211; eauto.
 apply (access_cur_max _ (_, _)).
 Qed.
 
-Lemma maxedmem_store : forall m c b o v m', Mem.store c m b o v = Some m' -> Mem.store c (maxedmem m) b o v = Some (maxedmem m').
-Proof.
-Admitted.
-
-Lemma mem_wellformed_store : forall m c b o v m', Val.inject (Mem.flat_inj (Mem.nextblock m)) v v ->
-  Mem.store c m b o v = Some m' -> mem_wellformed m -> mem_wellformed m'.
-Proof.
-  intros ???????? []; unfold mem_wellformed.
-  erewrite Mem.nextblock_store by eauto.
-  split; [|auto].
-  apply maxedmem_store in H0.
-  eapply Mem.store_inject_neutral; eauto.
-  apply Mem.store_storebytes, Mem.storebytes_range_perm in H0.
-  specialize (H0 o); spec H0.
-  { rewrite encode_val_length. destruct (size_chunk_nat_pos c). lia. }
-  pose proof (Mem.nextblock_noaccess (maxedmem m) b o Cur) as Haccess.
-  unfold Mem.perm, maxedmem in *.
-  pose proof (restrPermMap_Cur (mem_max_lt_max m) b o) as Hperm; unfold permission_at in *; rewrite Hperm, getMaxPerm_correct in *.
-  destruct (plt b (Mem.nextblock m)); auto.
-  autospec Haccess.
-  rewrite Haccess in H0; inv H0.
-Qed.
-
 Inductive state_invariant Gamma (n : nat) : cm_state -> Prop :=
   | state_invariant_c
       (m : mem) (tr : event_trace) (sch : schedule) (tp : jstate ge) (PHI : rmap)
@@ -733,6 +720,117 @@ Proof.
 Qed.
 
 End Machine.
+
+Lemma restr_restr : forall m p Hlt p' Hlt', exists Hlt'',
+  @restrPermMap p' (@restrPermMap p m Hlt) Hlt' = @restrPermMap p' m Hlt''.
+Proof.
+  intros.
+  unshelve eexists.
+  { rewrite restr_Max_eq in Hlt'; auto. }
+  apply mem_lessdef.mem_ext; auto; simpl.
+  f_equal.
+  - extensionality o k; destruct k; auto.
+  - apply PTree.extensionality; intros.
+    rewrite !PTree.gmap.
+    destruct (_ ! _); auto.
+Qed.
+
+Lemma maxedmem_restr : forall m p Hlt, maxedmem (@restrPermMap p m Hlt) = maxedmem m.
+Proof.
+  intros; unfold maxedmem.
+  edestruct (restr_restr _ _ Hlt) as [? ->].
+  apply restrPermMap_irr; auto.
+  apply restr_Max_eq.
+Qed.
+
+Lemma mem_wellformed_restr : forall {ge} m p Hlt, @mem_wellformed ge m -> @mem_wellformed ge (@restrPermMap p m Hlt).
+Proof.
+  intros ???? []; unfold mem_wellformed; simpl.
+  split; auto.
+  rewrite maxedmem_restr; auto.
+Qed.
+
+Lemma maxedmem_storebytes : forall m b o v m', Mem.storebytes m b o v = Some m' -> Mem.storebytes (maxedmem m) b o v = Some (maxedmem m').
+Proof.
+  intros.
+  edestruct (Mem.range_perm_storebytes (maxedmem m)).
+  { apply Mem.storebytes_range_perm in H.
+    intros ? Hrange; specialize (H _ Hrange).
+    unfold Mem.perm, maxedmem in *.
+    setoid_rewrite restrPermMap_Cur.
+    rewrite getMaxPerm_correct; unfold permission_at.
+    eapply perm_order_trans211, H.
+    apply Mem.access_max. }
+  rewrite e; f_equal.
+  apply mem_lessdef.mem_ext; simpl.
+  - erewrite Mem.storebytes_mem_contents, (Mem.storebytes_mem_contents _ _ _ _ m') by eauto; auto.
+  - erewrite Mem.storebytes_access, (Mem.storebytes_access _ _ _ _ m') by eauto; simpl.
+    f_equal.
+    apply PTree.extensionality; intros.
+    rewrite !PTree.gmap.
+    destruct (_ ! _); auto; simpl.
+    f_equal; extensionality ofs k.
+    destruct k; auto.
+    rewrite !getMaxPerm_correct; unfold permission_at.
+    erewrite (Mem.storebytes_access _ _ _ _ m') by eauto; auto.
+  - erewrite Mem.nextblock_storebytes, (Mem.nextblock_storebytes _ _ _ _ m') by eauto; auto.
+Qed.
+
+Lemma maxedmem_store : forall m c b o v m', Mem.store c m b o v = Some m' -> Mem.store c (maxedmem m) b o v = Some (maxedmem m').
+Proof.
+  intros.
+  pose proof (Mem.store_valid_access_3 _ _ _ _ _ _ H) as Hvalid.
+  apply Mem.store_storebytes, maxedmem_storebytes in H.
+  apply Mem.storebytes_store; auto.
+  apply Hvalid.
+Qed.
+
+(*Lemma mem_wellformed_storebytes : forall {ge} m b o v m', list_forall2 (memval_inject (Mem.flat_inj (Mem.nextblock m))) v v ->
+  Mem.storebytes m b o v = Some m' -> @mem_wellformed ge m -> @mem_wellformed ge m'.
+Proof.
+  intros ???????? []; unfold mem_wellformed.
+  erewrite Mem.nextblock_storebytes by eauto.
+  split; [|auto].
+  apply maxedmem_storebytes in H0.
+  eapply Mem.store_inject_neutral; eauto.
+  apply Mem.storebytes_range_perm in H0.
+  specialize (H0 o); spec H0.
+  { rewrite encode_val_length. destruct (size_chunk_nat_pos c). lia. }
+  pose proof (Mem.nextblock_noaccess (maxedmem m) b o Cur) as Haccess.
+  unfold Mem.perm, maxedmem in *.
+  pose proof (restrPermMap_Cur (mem_max_lt_max m) b o) as Hperm; unfold permission_at in *; rewrite Hperm, getMaxPerm_correct in *.
+  destruct (plt b (Mem.nextblock m)); auto.
+  autospec Haccess.
+  rewrite Haccess in H0; inv H0.
+Qed.*)
+
+Lemma mem_wellformed_store : forall {ge} m c b o v m', Val.inject (Mem.flat_inj (Mem.nextblock m)) v v ->
+  Mem.store c m b o v = Some m' -> @mem_wellformed ge m -> @mem_wellformed ge m'.
+Proof.
+  intros ????????? []; unfold mem_wellformed.
+  erewrite Mem.nextblock_store by eauto.
+  split; [|auto].
+  apply maxedmem_store in H0.
+  eapply Mem.store_inject_neutral; eauto.
+  apply Mem.store_storebytes, Mem.storebytes_range_perm in H0.
+  specialize (H0 o); spec H0.
+  { rewrite encode_val_length. destruct (size_chunk_nat_pos c). lia. }
+  pose proof (Mem.nextblock_noaccess (maxedmem m) b o Cur) as Haccess.
+  unfold Mem.perm, maxedmem in *.
+  pose proof (restrPermMap_Cur (mem_max_lt_max m) b o) as Hperm; unfold permission_at in *; rewrite Hperm, getMaxPerm_correct in *.
+  destruct (plt b (Mem.nextblock m)); auto.
+  autospec Haccess.
+  rewrite Haccess in H0; inv H0.
+Qed.
+
+Lemma mem_wellformed_step : forall {ge} m m', mem_step m m' -> @mem_wellformed ge m -> @mem_wellformed ge m'.
+Proof.
+  induction 1.
+  - admit.
+  - admit.
+  - admit.
+  - auto.
+Admitted.
 
 Ltac fixsafe H :=
   unshelve eapply jsafe_phi_jsafeN in H; eauto.

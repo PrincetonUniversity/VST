@@ -159,11 +159,6 @@ Section Initial_State.
     | None => fun H => (fun Heq => False_rect _ (H Heq)) eq_refl
     end init_mem_not_none.
 
-  Lemma allows_exit : postcondition_allows_exit (Concurrent_Espec unit CS ext_link) Ctypesdefs.tint.
-  Proof.
-    repeat intro; apply I.
-  Qed.
-
   Definition initial_state (n : nat) (sch : schedule) : cm_state :=
     (proj1_sig init_m,
      (nil, sch,

@@ -18,8 +18,8 @@ Require Import VST.veric.juicy_mem.
 Require Import VST.veric.juicy_mem_lemmas.
 Require Import VST.veric.semax_prog.
 Require Import VST.veric.compcert_rmaps.
-Require Import VST.veric.Clight_new.
-Require Import VST.veric.Clightnew_coop.
+Require Import VST.veric.Clight_core.
+Require Import VST.veric.Clightcore_coop.
 Require Import VST.veric.semax.
 Require Import VST.veric.semax_ext.
 Require Import VST.veric.juicy_extspec.
@@ -110,11 +110,12 @@ Proof.
   rewrite Eci in safei.
 
   fixsafe safei.
+  destruct ci as [| ?? k |]; try discriminate.
   inversion safei
-    as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ].
+    as [ | ????? bad | z c m0 e args0 x at_ex Pre SafePost | ???? bad ]; last contradiction.
+  { rewrite level_jm_ in H; setoid_rewrite H in En; discriminate. }
   apply (corestep_not_at_external (juicy_core_sem _)) in bad. exfalso; subst; clear - bad atex.
    simpl in bad. unfold cl_at_external in *; simpl in *. rewrite atex in bad; inv bad.
-  2: inversion bad.
   subst.
   simpl in at_ex.
   unfold cl_at_external in atex, at_ex.
@@ -137,11 +138,11 @@ Proof.
   simpl (and _).
   intros Post.
 
-  destruct Precond as [[Hwritable _] [[[B1 _] _] AT]].
+  destruct Precond as [[Hwritable _] [B1 [_ AT]]].
   assert (Hreadable : readable_share shx) by (apply writable_readable; auto).
 
   (* [data_at_] from the precondition *)
-  unfold canon.SEPx in *.
+  unfold SeparationLogic.argsassert2assert, canon.SEPx in *.
   simpl in AT.
   rewrite seplog.sepcon_emp in AT.
 
@@ -153,10 +154,9 @@ Proof.
   destruct AT as (IsPtr, AT).
   destruct vx as [ | | | | | b ofs ]; try inversion IsPtr; [ clear IsPtr ].
 
-  assert (Eargs : args = Vptr b ofs :: nil)
-    by (eapply shape_of_args; eauto).
+  assert (Eargs : args = Vptr b ofs :: nil) by auto.
 
-  assert (Hm' : exists m', Mem.store Mint32 (m_dry (personal_mem _ _ (thread_mem_compatible (mem_compatible_forget compat) cnti))) b (Ptrofs.intval ofs) (Vint Int.zero) = Some m'). {
+  assert (Hm' : exists m', Mem.store Mptr (m_dry (personal_mem _ _ (thread_mem_compatible (mem_compatible_forget compat) cnti))) b (Ptrofs.intval ofs) (Vint Int.zero) = Some m'). {
     clear -AT Join Hwritable.
     unfold tlock in AT.
     destruct AT as (AT1, AT2).
@@ -176,36 +176,33 @@ Proof.
      *)
     unfold SeparationLogic.mapsto in *.
     simpl in B.
-    destruct (readable_share_dec shx) as [n|n]. 2: now destruct n; apply writable_readable; auto.
-    autorewrite with norm in B.
-    rewrite !FF_orp in B.
-    autorewrite with norm in B.
-    destruct B as [v1' B]. 
-    autorewrite with norm in B.
-    destruct B as [v2' B]. 
-    rewrite !TT_andp in B.
-    apply mapsto_can_store with (v := v2') (sh := shx); try assumption.
+    destruct (readable_share_dec shx) as [n|n]; [|now destruct n; apply writable_readable; auto].
+    rewrite log_normalize.prop_false_andp, FF_orp, log_normalize.prop_true_andp, log_normalize.prop_false_andp, FF_orp, log_normalize.prop_true_andp in B by auto.
+    rewrite log_normalize.exp_sepcon1 in B; destruct B as [v1' B].
+    rewrite log_normalize.exp_sepcon2 in B; destruct B as [v2' B].
+    rewrite !reptype_lemmas.ptrofs_add_repr_0_r in B.
+    apply mapsto_can_store with (v := v1') (sh := shx); try assumption.
     auto.
     simpl (m_phi _).
     destruct B as [phi0a [phi0b [? [? ?]]]].
     destruct (join_assoc H Join) as [f [? ?]].
-    exists phi0a, f; split; auto.
+    exists phi0a, f; split; auto; split; auto.
   }
   destruct Hm' as (m', Hstore).
 
   unfold tlock in *.
-  match type of AT with context[Tarray _ ?n] => assert (Hpos' : (0 < n)%Z) by omega end.
+  match type of AT with context[Tarray _ ?n] => assert (Hpos' : (0 < n)%Z) by lia end.
   pose proof data_at_rmap_makelock CS as RL.
   specialize (RL shx b ofs Rx phi0 _ Hpos' (writable_writable0 Hwritable) AT).
   destruct RL as (phi0' & RL0 & Hlkat).
 
-  match type of Hlkat with context[LK_at _ ?n] => assert (Hpos'' : (0 < n)%Z) by (rewrite size_chunk_Mptr in *; destruct Archi.ptr64; omega) end.
+  match type of Hlkat with context[LK_at _ ?n] => assert (Hpos'' : (0 < n)%Z) by (rewrite size_chunk_Mptr in *; destruct Archi.ptr64; lia) end.
   pose proof rmap_makelock_join _ _ _ _ _ _ _ Hpos'' RL0 Join as Hrmap.
   pose proof Hrmap as Hrmap_.
   destruct Hrmap_ as (phi' & RLphi & j').
   pose proof juice_join compat as j.
   rewrite join_all_joinlist in j.
-  rewrite maps_getthread with (cnti0 := cnti) in j.
+  rewrite maps_getthread with (cnti := cnti) in j.
   destruct j as (psi & jpsi1 & jpsi).
   pose proof rmap_makelock_join _ _ _ _ _ _ _ Hpos'' RLphi jpsi as Hrmap'.
   destruct Hrmap' as (Phi' & Hrmap' & J').
@@ -221,8 +218,8 @@ Proof.
     with (Htid := cnti) (Hcmpt := mem_compatible_forget compat); auto.
 
     eapply step_mklock
-    with (c := ci) (Hcompatible := mem_compatible_forget compat)
-                   (R := Rx) (phi'0 := phi');
+    with (Hcompatible := mem_compatible_forget compat)
+                   (R := Rx) (phi' := phi');
     try eassumption; try reflexivity.
     subst tpx; reflexivity.
   }
@@ -234,7 +231,7 @@ Proof.
   assert (Ephi : level (getThreadR _ _ cnti) = S n). {
     rewrite getThread_level with (Phi0 := Phi). auto. apply compat.
   }
-  replace (level (getThreadR _ _ cnti) - 1)%nat with n by omega.
+  replace (level (getThreadR _ _ cnti) - 1)%nat with n by lia.
 
   (*
   assert (j : join_sub (getThreadR i tp cnti) Phi) by apply compatible_threadRes_sub, compat.
@@ -252,10 +249,10 @@ Proof.
     destruct C as (R' & At).
     destruct Hrmap' as (_ & _ & inside & _).
     specialize (inside (b, Ptrofs.intval ofs)).
-    spec inside. split; auto; unfold Ptrofs.unsigned in *; lkomega.
+    spec inside. split; auto; unfold Ptrofs.unsigned in *; lklia.
     destruct inside as (val' & sh'' & rsh'' & E & _).
     specialize (At (b, Ptrofs.intval ofs)). simpl in At.
-    spec At. now split; auto; lkomega.
+    spec At. now split; auto; lklia.
     destruct At as [sh [rsh  At]].
     progress breakhyps.
   }
@@ -277,7 +274,7 @@ Proof.
     injection E''; intros <- <- <-.
     apply YES_inj in E''. exists p; simpl.
     split. apply YES_ext; reflexivity.
-    rewrite level_age_to. 2:omega. reflexivity.
+    rewrite level_age_to. 2:lia. reflexivity.
   }
 
 
@@ -285,7 +282,7 @@ Proof.
     constructor.
     + (* join_all *)
       (* rewrite <-Hpersonal_juice. autospec El. cleanup. rewrite El. *)
-      apply join_all_age_to. cleanup. omega.
+      apply join_all_age_to. cleanup. lia.
       rewrite join_all_joinlist.
       rewrite maps_updlock1.
       rewrite maps_remLockSet_updThread.
@@ -311,7 +308,7 @@ Proof.
              specialize (outside b1 ofs1).
              destruct outside as [(->, r) | same].
              - exfalso. apply nr. split; auto.
-                change Ptrofs.unsigned with Ptrofs.intval; lkomega.
+                change Ptrofs.unsigned with Ptrofs.intval; lklia.
              - rewrite <-same.
                unfold personal_mem.
                change (m_dry (mkJuicyMem ?m _ _ _ _ _)) with m.
@@ -355,7 +352,7 @@ Proof.
           intros [<- _].
           specialize (A (b, Ptrofs.intval ofs) out).
           specialize (inside (b, Ptrofs.unsigned ofs)).
-          spec inside. split; auto. lkomega.
+          spec inside. split; auto. lklia.
           unfold Ptrofs.unsigned in *.
           breakhyps. }
         specialize (A loc out).
@@ -421,7 +418,7 @@ Proof.
       rewrite Hlkat, E' in H1. inv H1.
       destruct loc as [b0 ofs0]. simpl in *. destruct H. subst b0. assert (Ptrofs.intval ofs <> ofs0) by congruence.
       unfold Ptrofs.unsigned in *.
-      inv H2. omega. omega.
+      inv H2. lia. lia.
     + (* lockSet_in_juicyLocks *)
       cleanup.
       pose proof lset_in_juice compat as J.
@@ -435,7 +432,7 @@ Proof.
          exists Share.Rsh. intros. simpl.
         destruct Hrmap' as (_ & _ & inside & _). specialize (inside (b, Ptrofs.unsigned ofs + i0)). spec inside.
         change (size_chunk Mptr * 2) with LKSIZE in *.
-        { split; auto; omega. }
+        { split; auto; lia. }
         simpl in inside|-*.
         destruct inside as [v [sh [rsh [? [? ?]]]]].
         exists sh, rsh.
@@ -445,7 +442,7 @@ Proof.
         breakhyps.
         rewr (Phi' @ (b, Ptrofs.unsigned ofs + i0)). simpl.
         eexists. change (size_chunk Mptr * 2) with LKSIZE in *.
-        replace (Ptrofs.unsigned ofs + i0 - Ptrofs.unsigned ofs) with i0 by omega. reflexivity.
+        replace (Ptrofs.unsigned ofs + i0 - Ptrofs.unsigned ofs) with i0 by lia. reflexivity.
       * intros tr0. specialize (J tr0). destruct J as [sh ?].
         destruct Hrmap' as (_ & outside & inside & _).
         exists sh. intros.
@@ -454,7 +451,7 @@ Proof.
         { intros r. destruct loc as [b0 ofs0]; simpl in *; change (size_chunk Mptr * 2) with LKSIZE in *.
            destruct r; subst b0. specialize (inside (b,ofs0+i0)). spec inside; auto.
             destruct inside as [v [sh' [rsh' [? _]]]].
-           specialize (H0 i0). destruct H0 as [sh8 [psh8 [P' [? ?]]]]. pose proof LKSIZE_pos; omega.
+           specialize (H0 i0). destruct H0 as [sh8 [psh8 [P' [? ?]]]]. pose proof LKSIZE_pos; lia.
            congruence.
        }
        destruct (H0 _ H1) as [sh' [psh' [P [? ?]]]]. rewrite outside in H3.
@@ -480,7 +477,7 @@ Proof.
       - auto.
       - intros _ found2.
         specialize (H loc2). spec H. destruct (AMap.find loc2 _); auto; congruence.
-        breakhyps. right. right. split; auto. unfold far in *; auto. zify. omega.
+        breakhyps. right. right. split; auto. unfold far in *; auto. zify. lia.
       - intros found1 _.
         specialize (H loc1). spec H. destruct (AMap.find loc1 _); auto; congruence.
         auto.
@@ -498,7 +495,7 @@ Proof.
     pose proof AT' as AT''.
     specialize (AT' loc).
     destruct Hrmap' as (_ & outside & inside & _).
-    spec AT'. destruct loc; split; auto; lkomega.
+    spec AT'. destruct loc; split; auto; lklia.
     specialize (outside loc). assert_specialize outside as nr. {
       intros r. specialize (inside loc r).
       breakhyps.
@@ -509,23 +506,23 @@ Proof.
     destruct (eq_dec b b') as [<- | ?]; [ | now auto ].
     right; split; auto.
     specialize (AT'' (b, Ptrofs.intval ofs)).
-    specialize (inside (b, Ptrofs.intval ofs)). spec inside. now split; auto; lkomega.
+    specialize (inside (b, Ptrofs.intval ofs)). spec inside. now split; auto; lklia.
     destruct (adr_range_dec (b, ofs') LKSIZE (b, Ptrofs.intval ofs)) as [r|nr'].
     + autospec AT''. breakhyps.
     + clear -nr nr'. simpl in nr'. unfold LKSIZE in *.
       do 2 match goal with H : ~(b = b /\ ?P) |- _ => assert (~P) by tauto; clear H end.
-      zify. omega.
+      zify. lia.
   }
   left.
   unshelve erewrite updLock_updThread_comm in mcompat', sparse' |- *; try (apply cntUpdateL; auto).
   unshelve erewrite age_to_updThread in mcompat', sparse' |- *; try (apply cnt_age', cntUpdateL; auto).
   apply state_invariant_c with (PHI := age_to n Phi') (mcompat := mcompat').
   - (* level *)
-    apply level_age_to. omega.
+    apply level_age_to. lia.
 
   - (* env_coherence *)
     apply env_coherence_age_to.
-    apply env_coherence_pures_eq with Phi; auto. omega.
+    apply env_coherence_pures_eq with Phi; auto. lia.
     apply pures_same_pures_eq. auto.
     eapply rmap_makelock_pures_same; eauto.
   - clear -Hstore mwellformed.
@@ -560,7 +557,7 @@ Proof.
         if_tac [va|nva];swap 1 2.
         {
           destruct nva. simpl.
-          apply islock_valid_access. destruct AT as [(_ & _ & _ & AT & _) _]. inv AT; try discriminate. lapply (H3 0%Z); [|omega]. rewrite Z.mul_0_r, Z.add_0_r. intro X; inv X. inv H; auto.
+          apply islock_valid_access. destruct AT as [(_ & _ & _ & AT & _) _]. inv AT; try discriminate. lapply (H3 0%Z); [|lia]. rewrite Z.mul_0_r, Z.add_0_r. intro X; inv X. inv H; auto.
           2:congruence.
           cleanup.
           setoid_rewrite AMap_find_map_option_map.
@@ -573,10 +570,10 @@ Proof.
 
       * (* LK_at *)
         subst loc. simpl.
-        split. destruct AT as [(_ & _ & _ & AT & _) _]. inv AT; try discriminate. lapply (H3 0%Z); [|omega]. rewrite Z.mul_0_r, Z.add_0_r. intro X; inv X. inv H; auto.
+        split. destruct AT as [(_ & _ & _ & AT & _) _]. inv AT; try discriminate. lapply (H3 0%Z); [|lia]. rewrite Z.mul_0_r, Z.add_0_r. intro X; inv X. inv H; auto.
         split.
         destruct AT as [(_ & _ & H5 & _) _]; simpl in H5.
-        unfold LKSIZE; rewrite size_chunk_Mptr; unfold Ptrofs.unsigned in *; omega.
+        unfold LKSIZE; rewrite size_chunk_Mptr; unfold Ptrofs.unsigned in *; lia.
         exists Rx.
         intros loc r.
         destruct Hrmap' as (_ & _ & inside & _). specialize (inside loc).
@@ -591,8 +588,8 @@ Proof.
            eexists x0, x1.
            f_equal. f_equal. extensionality Ts.
            eauto.
-           rewrite level_age_to. 2:omega.
-           apply approx_approx'. omega.
+           rewrite level_age_to. 2:lia.
+           apply approx_approx'. lia.
 
     + specialize (lock_coh loc).
       destruct (AMap.find loc _) as [o|] eqn:Eo.
@@ -624,8 +621,8 @@ Proof.
           if_tac. 2:reflexivity.
           change (Some Writable = (lockSet tp) !! b' ofs0).
           symmetry. apply lockSet_spec_2 with ofs'.
-          unfold LKSIZE_nat; rewrite Z2Nat.id by (pose proof LKSIZE_pos; omega).
-          clear - r0; hnf; simpl in *; lkomega.
+          unfold LKSIZE_nat; rewrite Z2Nat.id by (pose proof LKSIZE_pos; lia).
+          clear - r0; hnf; simpl in *; lklia.
           cleanup. rewrite Eo. reflexivity.
         }
 
@@ -641,10 +638,10 @@ Proof.
                         ZMap.get z (Mem.mem_contents m) !! b' =
                         ZMap.get z (Mem.mem_contents m') !! b').
               { intros C. f_equal. f_equal.
-                f_equal. apply C. omega.
-                f_equal. apply C. omega.
-                f_equal. apply C. omega.
-                f_equal. apply C. omega. }
+                f_equal. apply C. lia.
+                f_equal. apply C. lia.
+                f_equal. apply C. lia.
+                f_equal. apply C. lia. }
               intros z rz.
               pose proof store_outside' _ _ _ _ _ _ Hstore as Hm'.
               destruct Hm' as (Hm', _).
@@ -665,7 +662,7 @@ Proof.
               clear -rz H Far r1.
               unfold far in Far.
               zify.
-              lkomega.
+              lklia.
 
            ++ rewrite VAEQ in va. tauto.
            ++ rewrite VAEQ in nva. tauto.
@@ -682,10 +679,10 @@ Proof.
                         ZMap.get z (Mem.mem_contents m) !! b' =
                         ZMap.get z (Mem.mem_contents m') !! b').
               { intros C. f_equal. f_equal.
-                f_equal. apply C. omega.
-                f_equal. apply C. omega.
-                f_equal. apply C. omega.
-                f_equal. apply C. omega. }
+                f_equal. apply C. lia.
+                f_equal. apply C. lia.
+                f_equal. apply C. lia.
+                f_equal. apply C. lia. }
               intros z rz.
               pose proof store_outside' _ _ _ _ _ _ Hstore as Hm'.
               destruct Hm' as (Hm', _).
@@ -706,7 +703,7 @@ Proof.
               clear -rz H Far r1.
               unfold far in Far.
               zify.
-              lkomega.
+              lklia.
            ++ rewrite VAEQ in va. tauto.
            ++ rewrite VAEQ in nva. tauto.
            ++ reflexivity.
@@ -726,10 +723,10 @@ Proof.
               rewrite <-outside.
               rewrite LPhi'.
               eauto.
-           ++ destruct sat as [sat | ?]. 2:omega. left.
+           ++ destruct sat as [sat | ?]. 2:lia. left.
               unfold age_to. replace (level r) with (level Phi); swap 1 2.
               { symmetry. apply join_sub_level. eapply compatible_lockRes_sub_all; simpl; eauto. apply compat. }
-              rewr (level Phi). replace (S n - n)%nat with 1%nat by omega.
+              rewr (level Phi). replace (S n - n)%nat with 1%nat by lia.
               apply age_by_ind. destruct R as [x h]. apply h. apply sat.
 
         -- (* lkat *)
@@ -753,7 +750,7 @@ Proof.
            destruct inside as [? [? [? [? [? inside]]]]].
            rewrite inside. intro. hnf in H2. destruct H2 as [? [? [? [? H2]]]]; inv H2.
            clear - H r H6. destruct loc; destruct r; simpl in *; subst. contradiction H.  f_equal.
-           unfold Ptrofs.unsigned in *; omega.
+           unfold Ptrofs.unsigned in *; lia.
         -- destruct Hrmap' as (_ & outside & _).
            rewrite age_to_resource_at.
            specialize (outside loc nr).
@@ -772,11 +769,11 @@ Proof.
             (z' := tt) (n' := n) as (c'' & Ec'' & Safe'); auto.
       { apply Logic.I. }
       { unfold Hrel.
-        assert (level phi' = S n) as Hl' by (destruct (join_level _ _ _ J'); omega).
+        assert (level phi' = S n) as Hl' by (destruct (join_level _ _ _ J'); lia).
         rewrite level_jm_, m_phi_jm_, level_juice_level_phi, Hjm, level_age_to by (setoid_rewrite Hl'; auto).
         split; auto; split; [setoid_rewrite En; auto|].
         eapply pures_same_eq_l.
-        2:apply pures_eq_age_to; omega.
+        2:apply pures_eq_age_to; lia.
         eapply pures_same_sym, rmap_makelock_pures_same; eauto. }
       { (* we must satisfy the post condition *)
         exists (age_to n phi0'), (age_to n phi1).
@@ -805,8 +802,8 @@ Proof.
             injection E as -> <-.
             rewrite E'. simpl.
             unfold pfullshare.
-            rewrite approx_approx'. 2: join_level_tac; omega.
-            rewrite level_age_to.  2: join_level_tac; omega.
+            rewrite approx_approx'. 2: join_level_tac; lia.
+            rewrite level_age_to.  2: join_level_tac; lia.
             apply YES_ext.
             reflexivity.
           - if_tac in Hbefore. tauto.

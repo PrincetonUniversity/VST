@@ -60,6 +60,10 @@ Import ghost_PCM.
 
 Set Bullet Behavior "Strict Subproofs".
 
+(* why do we need this? *)
+#[global] Existing Instance SeparationLogic.Cveric.
+#[global] Existing Instance SeparationLogic.CSLveric.
+
 Lemma flat_inj_incr : forall b b', (b <= b')%positive ->
   inject_incr (Mem.flat_inj b) (Mem.flat_inj b').
 Proof.
