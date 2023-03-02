@@ -153,8 +153,8 @@ Proof.
   destruct fs; auto.
 Qed.
 
-Lemma cond_approx_eq_app n A P1 P2 phi :
-  cond_approx_eq n A P1 P2 ->
+Lemma args_cond_approx_eq_app n A P1 P2 phi :
+  args_cond_approx_eq n A P1 P2 ->
   (level phi < n)%nat ->
   forall ts y z,
     app_pred (P1 ts (fmap (rmaps.dependent_type_functor_rec ts A) (approx n) (approx n) y) z) phi ->
@@ -225,7 +225,7 @@ Proof.
   funspec_destruct "release".
   funspec_destruct "makelock".
   funspec_destruct "freelock".*)
-  funspec_destruct "spawn"; [|intros []].
+  funspec_destruct "spawn".
   intros (phix, (ts, ((((f,b), globals), f_with_x) , f_with_Pre)))  (Hargsty, Pre) Post.
 (*  intros (phix, (ts, ((((xf, xarg), globals), f_with_x), f_with_Pre))) (Hargsty, Pre). *)
   simpl (and _) in Post.
@@ -441,53 +441,24 @@ specialize (all_coh0 (b, Ptrofs.unsigned i0)); spec all_coh0; auto.
       rewrite gssAddCode by reflexivity.
       exists q_new.
       split.
-{
-      destruct (Initcore (jm_ cnti compat)) as [? [? [? ?]]]; auto.
-      clear Initcore Post lj ora Safety FAT' Heq_P Heq_Q Eid Eb NEP' NEQ' P' Q' NEQ NEP P Q FA semaxprog.
-      clear jphi' jphi1' q_new id_fun A cc fsig CS_ V gam.
-      clear l1 l0 l00 l01 necr li fPRE FAT PreA PreB3.
-      clear Hargsty f_with_Pre f_with_x Hphi00 _y globals ts H_spawn unique wellformed at_ex En.
-      clear atex safei safety lock_coh.
+      {
+      destruct (Initcore (jm_ cnti compat)) as [? Hinit]; [|apply Hinit].
       simpl Mem.nextblock.
-      destruct mwellformed. split; auto.
-      clear - H.
+      destruct mwellformed as [Hinj ?]. split; auto.
+      clear - Hinj.
       change (Mem.nextblock m)
        with (Mem.nextblock (m_dry (@jm_ (globalenv prog) tp m Phi i cnti compat))).
-      apply  maxedmem_neutral.
-      assert (mem_equiv.mem_equiv (maxedmem (m_dry (@jm_ (globalenv prog) tp m Phi i cnti compat)))
-                  (maxedmem m)). {
-         clear. simpl.
-         unfold maxedmem, juicyRestrict.
-     set (j := (juice2Perm
-           (@OrdinalPool.getThreadR LocksAndResources
-              (@JSem (globalenv prog)) i tp cnti) m)).
-     set (k := (@juice2Perm_cohere
-           (@OrdinalPool.getThreadR LocksAndResources
-              (@JSem (globalenv prog)) i tp cnti))).
-     set (q := (@acc_coh m
-              (@OrdinalPool.getThreadR LocksAndResources
-                 (@JSem (globalenv prog)) i tp cnti)
-              (@thread_mem_compatible (@JSem (globalenv prog)) tp m
-                 (@mem_compatible_forget (globalenv prog) tp m Phi
-                    compat) i cnti))).
-   clearbody q. clearbody k.
-   admit.  (* for Santiago to do. *)
-  }
-  red. simpl Mem.nextblock. rewrite H0. auto.
-}
-      intros jm. REWR. rewrite gssAddRes. 2:reflexivity.
+      apply  maxedmem_neutral; simpl.
+      unfold juicyRestrict; rewrite maxedmem_restr; auto.
+      }
+
+      intros jm. REWR. rewrite gssAddRes by reflexivity.
       specialize (Safety jm ts).
       intros Ejm.
-      replace (level jm) with n in Safety; swap 1 2.
-      { rewrite <-level_m_phi, Ejm. symmetry. apply level_age_to.
-        cut (level phi0 = level Phi). cleanup. intros ->. lia.
-        apply join_sub_level.
-        apply join_sub_trans with (getThreadR _ _ cnti). exists phi1. auto.
-        apply compatible_threadRes_sub. apply compat. }
-
-      eapply Safety.
+      destruct ora; eapply Safety.
       * rewrite Ejm.
-        eapply cond_approx_eq_app with (A := rmaps.ConstType (val * nth 0 ts unit)) (y := (b, f_with_x)).
+        (* need to use funspec_sub *)
+        eapply args_cond_approx_eq_app with (y := (b, f_with_x)).
 
         (* cond_approx_eq *)
         eauto.

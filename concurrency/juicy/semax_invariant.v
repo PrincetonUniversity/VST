@@ -121,14 +121,14 @@ Definition lock_coherence (lset : AMap.t (option rmap)) (phi : rmap) (m : mem) :
 
     (* locked lock *)
     | Some None =>
-      load_at m loc = Some (Vint Int.zero) /\
+      load_at m loc = Some (Vptrofs Ptrofs.zero) /\
       (size_chunk Mptr | snd loc) /\
       (snd loc + LKSIZE < Ptrofs.modulus)%Z /\
       exists R, lkat R loc phi
 
     (* unlocked lock *)
     | Some (Some lockphi) =>
-      load_at m loc = Some (Vint Int.one) /\
+      load_at m loc = Some (Vptrofs Ptrofs.one) /\
       (size_chunk Mptr | snd loc) /\
       (snd loc + LKSIZE < Ptrofs.modulus)%Z /\
       exists (R : mpred),

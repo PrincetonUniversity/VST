@@ -19,4 +19,10 @@ Proof.
   rewrite size_chunk_Mptr; destruct Archi.ptr64; lia.
 Qed.
 
-Ltac lkomega := pose proof LKSIZE_pos; pose proof LKSIZE_int; simpl in *; try lia.
+Lemma LKSIZE_long : (size_chunk Mint64 <= LKSIZE)%Z.
+Proof.
+  unfold LKSIZE; simpl.
+  rewrite size_chunk_Mptr; destruct Archi.ptr64; lia.
+Qed.
+
+Ltac lkomega := pose proof LKSIZE_pos; pose proof LKSIZE_int; pose proof LKSIZE_long; simpl in *; lia.

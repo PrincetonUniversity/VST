@@ -276,7 +276,7 @@ Module DryHybridMachine.
             (* To check if the machine is at an external step and load its arguments install the thread data permissions*)
             (Hrestrict_pmap_arg: restrPermMap (Hcompat tid0 cnt0).1 = marg)
             (Hat_external: semantics.at_external semSem c marg = Some (CREATE, Vptr b ofs::arg::nil))
-            (Harg: Val.inject (Mem.flat_inj (Mem.nextblock m)) arg arg)
+(*            (Harg: Val.inject (Mem.flat_inj (Mem.nextblock m)) arg arg) *)
             (** we do not need to enforce the almost empty predicate on thread
            spawn as long as it's considered a synchronizing operation *)
             (Hangel1: permMapJoin newThreadPerm.1 threadPerm'.1 (getThreadR cnt0).1)

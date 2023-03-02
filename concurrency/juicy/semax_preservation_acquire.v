@@ -99,13 +99,13 @@ Lemma preservation_acquire
      : forall ge (m m' : Memory.mem) (i : nat) (tp : jstate ge),
        forall (cnti : containsThread tp i) (b : block) (ofs : ptrofs) (ophi : option rmap)
          (ophi' : lock_info) (c' : ctl) (phi' : res)
-         (z : int) (Hcmpt : mem_compatible tp m)
+         z (Hcmpt : mem_compatible tp m)
          (Hcmpt : mem_compatible tp m)
          (His_unlocked : AMap.find (elt:=option rmap) (b, Ptrofs.intval ofs) (lset tp) = Some ophi)
          (Hlt' : permMapLt
               (setPermBlock (Some Writable) b (Ptrofs.intval ofs) (juice2Perm_locks (getThreadR i tp cnti) m)
                  LKSIZE_nat) (getMaxPerm m))
-         (Hstore : Mem.store Mint32 (restrPermMap Hlt') b (Ptrofs.intval ofs) (Vint z) = Some m'),
+         (Hstore : Mem.store Mptr (restrPermMap Hlt') b (Ptrofs.intval ofs) (Vptrofs z) = Some m'),
        lockSet_Writable (lset (updLockSet (updThread i tp cnti c' phi') (b, Ptrofs.intval ofs) ophi')) m')
   (mem_cohere'_store : forall ge m (tp : jstate ge) m' b ofs j i Phi (cnti : containsThread tp i)
     (Hcmpt : mem_compatible tp m)
@@ -113,7 +113,7 @@ Lemma preservation_acquire
     (Hlt' : permMapLt
            (setPermBlock (Some Writable) b (Ptrofs.intval ofs) (juice2Perm_locks (getThreadR i tp cnti) m)
               LKSIZE_nat) (getMaxPerm m))
-    (Hstore : Mem.store Mint32 (restrPermMap Hlt') b (Ptrofs.intval ofs) (Vint j) = Some m'),
+    (Hstore : Mem.store Mptr (restrPermMap Hlt') b (Ptrofs.intval ofs) (Vptrofs j) = Some m'),
     mem_compatible_with tp m Phi ->
     (exists phi, join_sub phi Phi /\ exists sh R, LKspec LKSIZE sh R (b, Ptrofs.intval ofs) phi) ->
     mem_cohere' m' Phi)
@@ -165,15 +165,13 @@ Lemma preservation_acquire
   (Hthread : getThreadC i tp cnti = Kblocked c)
   (Hat_external : at_external (Clight_evsem.CLC_evsem ge) c m = Some (LOCK, Vptr b ofs :: nil))
   (His_unlocked : lockRes tp (b, Ptrofs.intval ofs) = Some (Some d_phi))
-  (Hload : Mem.load Mint32 (juicyRestrict_locks (mem_compat_thread_max_cohere Hcmpt cnti))
+  (Hload : Mem.load Mptr (juicyRestrict_locks (mem_compat_thread_max_cohere Hcmpt cnti))
                     b (Ptrofs.intval ofs) =
-          Some (Vint Int.one))
+          Some (Vptrofs Ptrofs.one))
   (Hlt' : permMapLt
            (setPermBlock (Some Writable) b (Ptrofs.intval ofs) (juice2Perm_locks (getThreadR i tp cnti) m)
               LKSIZE_nat) (getMaxPerm m))
-  (Hstore : Mem.store Mint32 (restrPermMap Hlt') b (Ptrofs.intval ofs) (Vint Int.zero) = Some m')
-  (* (Hstore : Mem.store Mint32 (juicyRestrict_locks (mem_compat_thread_max_cohere Hcmpt cnti)) *)
-  (*                     b (Ptrofs.intval ofs) (Vint Int.zero) = Some m') *)
+  (Hstore : Mem.store Mptr (restrPermMap Hlt') b (Ptrofs.intval ofs) (Vptrofs Ptrofs.zero) = Some m')
 (*  (HJcanwrite : lock_at_least sh R (getThreadR i tp cnti) b (Ptrofs.intval ofs)) *)
 (* forall j, 0 <= j < LKSIZE -> getThreadR i tp cnti @ (b, Ptrofs.intval ofs+j) = YES sh psh (LK LKSIZE j) (pack_res_inv R)) *)
   (Hadd_lock_res : join (getThreadR i tp cnti) d_phi phi')
@@ -220,7 +218,7 @@ Proof.
     - (* mem_cohere' *)
       pose proof juice_join compat as J.
       pose proof all_cohere compat as MC.
-      eapply (mem_cohere'_store _ _ tp _ _ _ (Int.zero) _ _ cnti Hcmpt).
+      eapply (mem_cohere'_store _ _ tp _ _ _ (Ptrofs.zero) _ _ cnti Hcmpt).
       + cleanup.
         rewrite His_unlocked. simpl. congruence.
       + (* there is this hcmpt which is redundant, we can prove they're equal or think more to factorize it *)
@@ -317,6 +315,7 @@ Proof.
     apply env_coherence_age_to. auto.
   + inv INV. clear -mwellformed Hstore.
     eapply mem_wellformed_store; [.. | apply Hstore |]; auto.
+    apply mem_wellformed_restr; auto.
   + rewrite age_to_ghost_of.
     destruct extcompat as [? J]; eapply ghost_fmap_join in J; eexists; eauto.
 
@@ -368,7 +367,7 @@ Proof.
             * congruence.
 
         - (* the rmap is unchanged (but we lose the SAT information) *)
-          cut ((4 | Ptrofs.intval ofs) /\  (Ptrofs.intval ofs + LKSIZE < Ptrofs.modulus)%Z /\
+          cut ((size_chunk Mptr | Ptrofs.intval ofs) /\  (Ptrofs.intval ofs + LKSIZE < Ptrofs.modulus)%Z /\
                exists R0, (lkat R0 (b, Ptrofs.intval ofs)) Phi).
           { intros (align & bound & R0 & AP). repeat (split; auto).
             exists R0. revert AP. apply age_to_ind, lkat_hered. }
@@ -379,12 +378,7 @@ Proof.
       }
 
     * (* not the current lock *)
-      destruct (AMap.find (elt:=option rmap) loc (lset tp)) as [o|] eqn:Eo; swap 1 2.
-      {
-        simpl.
-        clear -lock_coh.
-        rewrite isLK_age_to(* , isCT_age_to *). auto.
-      }
+      destruct (AMap.find (elt:=option rmap) loc (lset tp)) as [o|] eqn:Eo; [|rewrite isLK_age_to; auto].
       set (u := load_at _ _).
       set (v := load_at _ _) in lock_coh.
       assert (L : forall val, v = Some val -> u = Some val); unfold u, v in *.
@@ -402,28 +396,25 @@ Proof.
         unfold Mem.load in *.
         if_tac [V|V]; [ | congruence].
         if_tac [V'|V'].
-        - do 2 rewrite restrPermMap_mem_contents.
+        - rewrite !restrPermMap_mem_contents.
           intros G; exact_eq G.
           f_equal.
           f_equal.
           f_equal.
-          simpl.
 
           pose proof store_outside' _ _ _ _ _ _ Hstore as OUT.
           destruct OUT as (OUT, _).
           cut (forall z,
-                  (0 <= z < 4)%Z ->
+                  (0 <= z < size_chunk Mptr)%Z ->
                   ZMap.get (ofs' + z)%Z (Mem.mem_contents m) !! b' =
                   ZMap.get (ofs' + z)%Z (Mem.mem_contents m') !! b').
           {
-            intros G.
+            intros G; simpl.
             repeat rewrite <- Z.add_assoc.
             f_equal.
-            - specialize (G 0%Z ltac:(lia)).
+            - specialize (G 0%Z ltac:(simpl; lia)).
               exact_eq G. repeat f_equal; auto with zarith.
-            - f_equal; [apply G; lia | ].
-              f_equal; [apply G; lia | ].
-              f_equal; apply G; lia.
+            - repeat (f_equal; [apply G; simpl; lia | ]); f_equal; apply G; simpl; lia.
           }
           intros z Iz.
           specialize (OUT b' (ofs' + z)%Z).
@@ -435,9 +426,9 @@ Proof.
             * instantiate (1 := z).
               unfold size_chunk in *.
               unfold LKSIZE in *.
-              rewrite size_chunk_Mptr; simple_if_tac; lia.
+              destruct Mptr; simpl in *; lia.
             * unfold LKSIZE in *.
-              rewrite size_chunk_Mptr; simple_if_tac; lia.
+              destruct Mptr; simpl in *; lia.
           + unfold contents_at in *.
             simpl in OUT.
             apply OUT.
@@ -445,7 +436,7 @@ Proof.
         - exfalso.
           apply V'; clear V'.
           unfold Mem.valid_access in *.
-          split. 2:apply V. destruct V as [V _].
+          split; [|apply V]. destruct V as [V _].
           unfold Mem.range_perm in *.
           intros ofs0 int0; specialize (V ofs0 int0).
           unfold Mem.perm in *.
@@ -460,19 +451,18 @@ Proof.
           destruct SPA as [bOUT | [<- ofsOUT]].
           + rewrite OrdinalPool.gsoLockSet_2; auto.
             apply OrdinalPool.lockSet_spec_2 with ofs'.
-            * hnf; simpl. eauto. clear - int0; simpl in *; unfold LKSIZE_nat; rewrite Z2Nat.id by (pose proof LKSIZE_pos; lia); unfold LKSIZE; rewrite size_chunk_Mptr; simple_if_tac; lia.
+            * hnf; simpl. eauto. lkomega.
             * cleanup. rewrite Eo. reflexivity.
           + rewrite OrdinalPool.gsoLockSet_1; auto.
             * apply OrdinalPool.lockSet_spec_2 with ofs'.
-              -- hnf; simpl. eauto. clear - int0; simpl in *; unfold LKSIZE_nat; rewrite Z2Nat.id by (pose proof LKSIZE_pos; lia); unfold LKSIZE; rewrite size_chunk_Mptr; simple_if_tac; lia.
+              -- hnf; simpl. eauto. lkomega.
               -- cleanup. rewrite Eo. reflexivity.
             * unfold far in *.
               simpl in *.
               clear - int0 ofsOUT H.
               pose proof LKSIZE_pos.
-              unfold LKSIZE_nat; rewrite Z2Nat.id by lia.
               zify.
-              unfold LKSIZE in *; rewrite size_chunk_Mptr in *; simple_if_tac; lia.
+              unfold LKSIZE in *; simpl in *; lia.
       }
       destruct o; destruct lock_coh as (Load & align & bound & R' & lks); split.
       -- now intuition.
@@ -512,8 +502,9 @@ Proof.
         rewrite Hthread in wellformed.
         intros c' Ec'.
 
-        eapply jsafe_phi_jsafeN with (compat0 := compat) in safety.
-        inversion safety as [ | ?????? step | ??????? ae Pre Post Safe | ????? Ha]; swap 2 3.
+        eapply jsafe_phi_jsafeN with (compat := compat) in safety.
+        inversion safety as [ | ????? step | ?????? ae Pre Post Safe | ???? Ha]; last (destruct c; try discriminate; contradiction).
+        - rewrite level_jm_ in H; setoid_rewrite H in lev; discriminate.
         - (* not corestep *)
           exfalso.
           clear -Hat_external step.
@@ -526,16 +517,13 @@ Proof.
          }
           congruence.
 
-        - (* not halted *)
-          contradiction.
-
         - (* at_external : we can now use safety *)
           subst z c0 m0.
           intros jm' Ejm'.
           destruct Post with
           (ret := @None val)
             (m' := jm')
-            (z' := ora) (n' := n) as (c'' & Ec'' & Safe').
+            (z' := ora) as (c'' & Ec'' & Safe').
 
           + assert (e = LOCK).
             { simpl in ae.
@@ -547,8 +535,7 @@ Proof.
               clear - ae Hat_external. rewrite ClightSemanticsForMachines.at_external_SEM_eq in Hat_external.
               unfold j_at_external in ae. unfold cl_at_external in ae.
               congruence. }
-            subst e args; simpl.
-            unfold Tptr; simple_if_tac; auto.
+            subst e args; simpl; auto.
 
           + assert (e = LOCK).
             { simpl in ae.
@@ -557,8 +544,6 @@ Proof.
               congruence. }
             subst e.
             apply Logic.I.
-
-          + auto.
 
           + (* proving Hrel *)
             hnf.
@@ -571,19 +556,17 @@ Proof.
               rewrite level_age_to; auto.
               replace (level phi') with (level Phi). lia.
               transitivity (level (getThreadR i tp cnti)); join_level_tac.
-              setoid_rewrite getThread_level with (Phi0 := Phi). auto. apply compat.
+              setoid_rewrite getThread_level with (Phi := Phi). auto. apply compat.
             }
             assert (level phi' = S n). {
               transitivity (level (getThreadR i tp cnti)); join_level_tac.
-              setoid_rewrite getThread_level with (Phi0 := Phi). auto. apply compat.
+              setoid_rewrite getThread_level with (Phi := Phi). auto. apply compat.
             }
 
-            split; [ | split].
-            * auto.
+            split.
             * rewr (level jm'). rewrite level_jm_. cleanup. lia.
-            * simpl. rewrite Ejm'. do 3 REWR.
-              eapply pures_same_eq_l.
-              2:apply pures_eq_age_to; lia.
+            * simpl. rewrite Ejm'. REWR. REWR. REWR.
+              eapply pures_same_eq_l, pures_eq_age_to; [|lia].
               apply pures_same_sym.
               apply join_sub_pures_same. exists d_phi. assumption.
 
@@ -595,10 +578,7 @@ Proof.
               congruence. }
             subst e.
             revert x Pre Post.
-            funspec_destruct "acquire"; swap 1 2.
-            { exfalso. unfold ef_id_sig, ef_sig in *.
-              unfold funsig2signature in Heq_name; simpl in Heq_name.
-              contradiction Heq_name; auto. }
+            funspec_destruct "acquire".
             intros x (Hargsty, Pre) Post.
             simpl.
             destruct Pre as (phi0 & phi1 & j & Pre).
@@ -616,12 +596,9 @@ Proof.
                 simpl (fst _) in *; simpl (snd _) in *; simpl (projT2 _) in *.
               clear ts.
               cbv iota beta in Pre.
-              Unset Printing Implicit.
-              destruct Pre as [[[A B] [[C _] D]] E].
-Opaque age_tp_to.
-              simpl in *.
-              split3. 2:eapply necR_trans; [ | apply  age_to_necR ]; auto.
-              2: destruct E; auto.
+              destruct Pre as (([A _] & B & _ & D) & E & F).
+Opaque age_tp_to. Opaque LKSIZE_nat.
+              split; [|eapply necR_trans; [ | apply  age_to_necR ]; auto].
               split. now auto.
               split. now auto.
               unfold canon.SEPx in *.
@@ -634,28 +611,11 @@ Opaque age_tp_to.
                  cleanup.
                  rewrite His_unlocked in lock_coh.
                  destruct lock_coh as [_ (align & bound & R' & lkat & sat)].
-                 destruct sat as [sat | ?]. 2:congruence.
+                 destruct sat as [sat | ?]; [|congruence].
                  pose proof predat6 lkat as ER'.
-                 assert (args = Vptr b ofs :: nil). {
-                   revert Hat_external ae; clear.
-                   intros. unfold cl_at_external in *.
-                   congruence.
-                 }
+                 assert (args = vx :: nil) by auto.
                  subst args.
-                 assert (vx = Vptr b ofs). {
-                   destruct C as [-> _].
-                   clear.
-                   unfold eval_id in *.
-                   unfold val_lemmas.force_val in *.
-                   unfold make_ext_args in *.
-                   unfold te_of in *.
-                   unfold filter_genv in *.
-                   unfold Genv.find_symbol in *.
-                   unfold env_set in *.
-                   rewrite Map.gss.
-                   auto.
-                 }
-                 subst vx.
+                 rewrite Hat_external in ae; inversion ae; subst vx.
                  pose proof predat4 D as ERx.
                  assert (join_sub phi0 Phi).
                  { join_sub_tac.
@@ -665,15 +625,12 @@ Opaque age_tp_to.
                  apply (@predat_join_sub _ Phi) in ERx; auto.
                  unfold Ptrofs.unsigned in *.
                  pose proof predat_inj ER' ERx as ER.
-                 replace (age_by 1 d_phi) with (age_to n d_phi) in sat; swap 1 2.
+                 assert (age_by 1 d_phi = age_to n d_phi) as Heq; [|setoid_rewrite Heq in sat].
                  {
                    unfold age_to in *. f_equal.
-                   replace (level d_phi) with (level Phi); swap 1 2.
-                   {
-                     pose proof @compatible_lockRes_sub_all _ _ _ _ His_unlocked Phi ltac:(apply compat).
-                     join_level_tac.
-                   }
-                   lia.
+                   replace (level d_phi) with (level Phi). lia.
+                   pose proof @compatible_lockRes_sub_all _ _ _ _ His_unlocked Phi ltac:(apply compat).
+                   join_level_tac.
                  }
                  replace (level phi0) with (level Phi) in * by join_level_tac.
                  rewrite lev in *.
@@ -682,29 +639,9 @@ Opaque age_tp_to.
                  rewrite level_age_to. auto.
                  replace (level d_phi) with (level Phi) in * by join_level_tac.
                  lia.
-              -- unshelve setoid_rewrite <- getThreadR_age; auto.
-                   rewrite age_to_ghost_of.
-                   unshelve setoid_rewrite OrdinalPool.gLockSetRes; auto.
-                   rewrite OrdinalPool.gssThreadRes.
-                   destruct E as [_ E].
-                   apply ext_join_approx.
-                   pose proof (juice_join compat) as H; inv H.
-                   destruct ora.
-                   eapply join_sub_joins_trans, extcompat.
-                   apply lockRes_thread in His_unlocked.
-                   inv H2.
-                   { apply join_list'_None in H1; setoid_rewrite H1 in His_unlocked; contradiction. }
-                   apply join_list'_Some in H1.
-                   eapply joinlist_join_sub in H1; eauto.
-                   unfold join_threads in H0.
-                   rewrite join_list_joinlist in H0.
-                   eapply joinlist_join_sub in H0; [|eapply nth_error_In, (getThreadR_nth _ _ cnti)].
-                   destruct H0 as (x1 & J1), H1 as (x2 & J2).
-                   destruct (join_assoc (join_comm J1) H5) as (? & J1' & Ja).
-                   destruct (join_assoc (join_comm J2) (join_comm J1')) as (? & J & Jb).
-                   pose proof (join_eq (join_comm J) Hadd_lock_res); subst.
-                   destruct (join_assoc (join_comm Jb) (join_comm Ja)) as (? & ? & ?).
-                   eexists; apply ghost_of_join; eauto.
+            * exfalso. unfold ef_id_sig, ef_sig in *.
+              unfold funsig2signature in Heq_name; simpl in Heq_name.
+              contradiction Heq_name; auto.
 
           + exact_eq Safe'.
             unfold jsafeN in *.
@@ -718,13 +655,11 @@ Opaque age_tp_to.
     * repeat REWR.
       destruct (getThreadC j tp lj) eqn:Ej.
       -- edestruct (unique_Krun_neq(ge := ge) i j); eauto.
-      -- apply jsafe_phi_age_to; auto. apply jsafe_phi_downward. assumption.
-      -- intros c' Ec'; specialize (safety c' Ec'). apply jsafe_phi_bupd_age_to; auto.
-         apply jsafe_phi_bupd_downward. assumption.
-      -- destruct safety as (? & q_new & Einit & safety).
-         split; [erewrite Mem.nextblock_store by eauto; auto|].
+      -- apply jsafe_phi_age_to; auto.
+      -- intros c' Ec'; specialize (safety c' Ec'). apply jsafe_phi_fupd_age_to; auto.
+      -- destruct safety as (q_new & Einit & safety).
          exists q_new; split; auto.
-         apply jsafe_phi_age_to; auto. apply jsafe_phi_downward, safety.
+         apply jsafe_phi_age_to; auto.
 
   + (* well_formedness *)
     intros j lj.
@@ -747,4 +682,4 @@ Opaque age_tp_to.
     eapply unique_Krun_no_Krun. eassumption.
     instantiate (1 := cnti). rewrite Hthread.
     congruence.
-Admitted. (* preservation_acquire *)
+Qed. (* preservation_acquire *)

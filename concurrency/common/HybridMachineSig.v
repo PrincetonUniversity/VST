@@ -58,9 +58,11 @@ Require Import VST.concurrency.coinductive_safety.*)
 
 Import Address.
 
+Set Bullet Behavior "Strict Subproofs".
+
 Notation EXIT :=
   (EF_external "EXIT" (mksignature (AST.Tint::nil) Tvoid)).
-Notation CREATE_SIG := (mksignature (AST.Tint::AST.Tint::nil) Tvoid cc_default).
+Notation CREATE_SIG := (mksignature (AST.Tptr::AST.Tptr::nil) Tvoid cc_default).
 Notation CREATE := (EF_external "spawn" CREATE_SIG).
 Notation MKLOCK :=
   (EF_external "makelock" (mksignature (AST.Tptr::nil) Tvoid cc_default)).
@@ -312,6 +314,17 @@ Module HybridMachineSig.
   Definition suspend_thread: forall (m: mem) {tid0 ms},
       containsThread ms tid0 -> machine_state -> Prop:=
     @suspend_thread'.
+
+  Inductive halted_thread': forall {tid0} {ms:machine_state},
+      containsThread ms tid0 -> int -> Prop:=
+  | HaltedThread: forall tid0 ms c i (ctn: containsThread ms tid0)
+                     (Hcode: getThreadC ctn = Krun c)
+                     (Hhalt: halted semSem c i),
+      halted_thread' ctn i.
+  Definition halted_thread: forall {tid0 ms},
+      containsThread ms tid0 -> int -> Prop:=
+    @halted_thread'.
+
     (** Provides control over scheduling. For example,
         for FineMach this is schedSkip, for CoarseMach this is just id *)
   Class Scheduler :=
@@ -357,6 +370,13 @@ Module HybridMachineSig.
           (Hcmpt: mem_compatible ms m)
           (Htstep: syncStep isCoarse Htid Hcmpt ms' m' ev),
           machine_step U tr ms m U' (tr ++ [:: external tid ev]) ms' m'
+    | halted_step:
+        forall tid U U' ms m tr i
+          (HschedN: schedPeek U = Some tid)
+          (Htid: containsThread ms tid)
+          (Hhalt: halted_thread Htid i)
+          (HschedS: schedSkip U = U'),        (*Schedule Forward*)
+          machine_step U tr ms m U' tr ms m
     | schedfail :
         forall tid U U' ms m tr
           (HschedN: schedPeek U = Some tid)
@@ -476,6 +496,13 @@ Module HybridMachineSig.
             (Hcmpt: mem_compatible ms m)
             (Htstep: syncStep isCoarse Htid Hcmpt ms' m' ev),
             external_step U tr ms m  U' (tr ++ [:: external tid ev]) ms' m'
+      | halted_step':
+        forall tid U U' ms m tr i
+          (HschedN: schedPeek U = Some tid)
+          (Htid: containsThread ms tid)
+          (Hhalt: halted_thread Htid i)
+          (HschedS: schedSkip U = U'),        (*Schedule Forward*)
+          external_step U tr ms m U' tr ms m
       | schedfail':
           forall tid U U' ms m tr
             (HschedN: schedPeek U = Some tid)
@@ -516,10 +543,10 @@ Module HybridMachineSig.
                  solve[econstructor 2 ; eauto]|
                  solve[econstructor 4 ; eauto]|
                  solve[econstructor 5 ; eauto]|
-                 solve[econstructor 6 ; eauto]].
+                 solve[econstructor 6 ; eauto]|
+                 solve[econstructor 7 ; eauto]].
       Qed.
 
-      Set Printing Implicit.
       Program Definition new_MachineSemantics (op_m:option Mem.mem):
         @ConcurSemantics G nat schedule event_trace machine_state mem res (*@semC Sem*).
       apply (@Build_ConcurSemantics _ nat schedule event_trace machine_state _ _ (*_*)
@@ -680,6 +707,10 @@ Module HybridMachineSig.
         - subst.
           eapply AngelSafe; [|intro; eapply IHn0; eauto].
           erewrite cats0.
+          eapply halted_step; eauto.
+        - subst.
+          eapply AngelSafe; [|intro; eapply IHn0; eauto].
+          erewrite cats0.
           eapply schedfail; eauto.
       Qed.
 
@@ -725,6 +756,8 @@ Module HybridMachineSig.
           + setoid_rewrite List.app_nil_r.
             eapply suspend_step; eauto.
           + eapply sync_step; eauto.
+          + setoid_rewrite List.app_nil_r.
+            eapply halted_step; eauto.
           + setoid_rewrite List.app_nil_r.
             eapply schedfail; eauto.
       Qed.
