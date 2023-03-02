@@ -1331,7 +1331,7 @@ Qed.
             (Hthread: getThreadC cnt0 = Kblocked c)
             (Hat_external: at_external the_sem c m =
                            Some (CREATE, vf::arg::nil))
-            (Harg: Val.inject (Mem.flat_inj (Mem.nextblock m)) arg arg)
+(*            (Harg: Val.inject (Mem.flat_inj (Mem.nextblock m)) arg arg) *)
             (Hfun_sepc: vf = Vptr b ofs)
             (Hcompatible: mem_compatible tp m)
             (Hpersonal_perm:

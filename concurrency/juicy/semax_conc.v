@@ -701,7 +701,7 @@ Definition spawn_pre :=
                LOCAL ()
                SEP   ())
            f);
-         valid_pointer b && pre w b)))
+         valid_pointer b && pre w b))) (* Do we need the valid_pointer here? *)
    end).
 
 Definition spawn_post :=

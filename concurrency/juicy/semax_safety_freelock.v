@@ -754,21 +754,20 @@ Proof.
               apply age_to_pred.
               assumption.
               apply age_to_pred. assumption.
-          + exact_eq Safe'.
-            unfold jsafeN.
-            f_equal.
-            congruence.
+          + simpl in Ec'.
+            destruct f; inv Ec'; inv Ec''.
+            apply Safe'.
       }
 
     * repeat REWR.
       destruct (getThreadC j tp lj) eqn:Ej.
       -- edestruct (unique_Krun_neq(ge := ge) i j); eauto.
-      -- apply jsafe_phi_age_to; auto. apply jsafe_phi_downward. assumption.
-      -- intros c' Ec'; specialize (safety c' Ec'). apply jsafe_phi_bupd_age_to; auto. apply jsafe_phi_bupd_downward. assumption.
+      -- apply jsafe_phi_age_to; auto.
+      -- intros c' Ec'; specialize (safety c' Ec'). apply jsafe_phi_fupd_age_to; auto.
       -- destruct safety as (? & q_new & Einit & safety).
          split; auto.
          exists q_new; split; auto.
-         apply jsafe_phi_age_to; auto. apply jsafe_phi_downward, safety.
+         apply jsafe_phi_age_to; auto.
     }
 
   - (* threads_wellformed *)
@@ -778,10 +777,8 @@ Proof.
     unshelve erewrite gRemLockSetCode; auto.
     destruct (eq_dec i j).
     + subst j.
-      rewrite gssThreadCode.
-      replace lj with cnti in wellformed by apply proof_irr.
-      simpl in wellformed; rewrite Eci in wellformed.
-      destruct ci; auto.
+      rewrite gssThreadCode; simpl.
+      rewrite atex; split; auto; discriminate.
     + unshelve erewrite gsoThreadCode; auto.
 
   - (* unique_Krun *)

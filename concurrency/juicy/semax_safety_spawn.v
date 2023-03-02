@@ -289,21 +289,20 @@ Print Module SeparationLogicSoundness.VericSound.
   destruct Func as (b' & E' & FAT). injection E' as <- ->.
   destruct FAT as (gs & Hsub & FAT').
   specialize (gam0 _ _ _ (necR_refl _) (ext_refl _) FAT').
-  destruct gam0 as (id_fun & fs0 & ? & Hsub0).
+  destruct gam0 as (id_fun & fs0 & [? Eid] & Hsub0).
   destruct fs0 as [sig' cc' A' P' Q' NEP' NEQ'].
-  unfold filter_genv in *.
+  assert (sig' = fsig /\ cc' = cc) as []; subst.
+  { destruct gs; simpl in *.
+    destruct Hsub0 as [[] _], Hsub as [[] _]; subst; auto. }
 
   pose proof semax_prog_entry_point (Concurrent_Espec unit CS ext_link) V Gamma prog f_b
-       id_fun (tptr tvoid :: nil) (b :: nil) A' P' Q' NEP' NEQ' 0 ora allows_exit semaxprog as HEP.
+       id_fun (tptr tvoid :: nil) (b :: nil) A' P' Q' NEP' NEQ' 0 ora (allows_exit ext_link) semaxprog as HEP.
 
-  subst ge.
   rewrite <-make_tycontext_s_find_id in HEP.
   spec HEP. auto.
 
   spec HEP. {
-    unfold A.
-    rewrite <-Eid.
-    apply make_tycontext_s_find_id.
+    rewrite make_tycontext_s_find_id; auto.
   }
 
   (*
@@ -332,35 +331,37 @@ Print Module SeparationLogicSoundness.VericSound.
   }
   *)
 
-  specialize (HEP PreA).
+  spec HEP.
+  { split; simpl; auto. }
   destruct HEP as (q_new & Initcore & Safety).
 (*  specialize (Initcore (jm_ cnti compat)). 
 clear - Initcore.
   change (initial_core (juicy_core_sem cl_core_sem) _) with cl_initial_core in Initcore.
 *)
 
-  apply join_comm in jphi0.
+(*  apply join_comm in jphi0.
   destruct (join_assoc jphi0 jphi) as (phi1' & jphi1' & jphi').
   assert (phi1 = phi1'). {
     eapply join_unit1_e; eauto.
     eassumption.
   }
-  subst phi1'.
+  subst phi1'.*)
 
-  assert (val_inject (Mem.flat_inj (Mem.nextblock m)) b b) as Hinj.
-  { destruct fPRE as [Hvalid _].
-    destruct b; try constructor; simpl in Hvalid.
+(*  assert (val_inject (Mem.flat_inj (Mem.nextblock m)) b b) as Hinj.
+  { (*destruct fPRE as [Hvalid _].*)
+    destruct b; try constructor.
     destruct (compatible_threadRes_cohere cnti (mem_compatible_forget compat)).
     destruct (plt b (Mem.nextblock m)).
     econstructor; [|symmetry; apply Ptrofs.add_zero].
     unfold Mem.flat_inj; rewrite if_true; auto.
-    { specialize (all_coh0 (b, Ptrofs.unsigned i0)); spec all_coh0; auto.
+    { Search b.
+specialize (all_coh0 (b, Ptrofs.unsigned i0)); spec all_coh0; auto.
       rewrite m_phi_jm_ in jphi.
       apply (resource_at_join _ _ _ (b, Ptrofs.unsigned i0)) in jphi.
       rewrite all_coh0 in jphi.
       rewrite Z.add_0_r in Hvalid; destruct (phi0 @ _) eqn: Hb; inv jphi.
       apply join_to_bot_l in RJ; subst.
-      contradiction Hvalid; apply bot_identity. } }
+      contradiction Hvalid; apply bot_identity. } }*)
   eexists.
   split.
   {
@@ -385,6 +386,7 @@ clear - Initcore.
   of the spawner, but also for the safety of the spawned thread,
   because the precondition is stored in the current rmap *)
 
+  set (ci := Clight_core.Callstate _ _ _).
   assert (compat' :
             mem_compatible_with
               (addThread (updThread i tp cnti (Kresume ci Vundef) phi1)
@@ -431,13 +433,12 @@ clear - Initcore.
        - new thread #n+1 (spawned),
        - thread #i (after spawning),
        - other threads *)
-    intros j lj ora.
+    intros j lj [].
     destruct (eq_dec j tp.(num_threads).(pos.n)); [ | destruct (eq_dec i j)].
     + (* safety of new thread *)
       subst j.
       REWR.
-      rewrite gssAddCode. 2:reflexivity.
-      split; auto.
+      rewrite gssAddCode by reflexivity.
       exists q_new.
       split.
 {

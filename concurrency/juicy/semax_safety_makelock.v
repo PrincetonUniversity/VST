@@ -243,7 +243,7 @@ Proof.
 
   assert (notfound : lockRes tp (b, Ptrofs.intval ofs) = None). {
     specialize (lock_coh (b, Ptrofs.intval ofs)). cleanup.
-    destruct (AMap.find _ _) as [o|] eqn:Eo. 2:reflexivity. exfalso.
+    destruct (AMap.find _ _) as [o|] eqn:Eo; [|reflexivity]. exfalso.
     assert (C : exists (R : pred rmap), (lkat R (b, Ptrofs.intval ofs)) Phi)
       by (destruct o; breakhyps; eauto). clear lock_coh.
     destruct C as (R' & At).
@@ -287,7 +287,7 @@ Proof.
       rewrite maps_updlock1.
       rewrite maps_remLockSet_updThread.
       rewrite maps_updthread.
-      rewrite maps_getlock1. 2:assumption.
+      rewrite maps_getlock1 by assumption.
       exists psi; auto.
 
     + (* mem_cohere' *)

@@ -578,6 +578,28 @@ Proof.
   apply jsafe_phi_bupd_age; auto.
 Qed.
 
+Lemma jsafe_phi_fupd_age Z Jspec ge ora q phi phiaged :
+  ext_spec_stable age (JE_spec _ Jspec) ->
+  age phi phiaged ->
+  @jsafe_phi_fupd Z Jspec ge ora q phi ->
+  @jsafe_phi_fupd Z Jspec ge ora q phiaged.
+Proof.
+  intros stable A S jm' E.
+  destruct (oracle_unage jm' phi) as (jm & Aj & <-). congruence.
+  eapply jm_fupd_age; eauto.
+Qed.
+
+Lemma jsafe_phi_fupd_age_to Z Jspec ge ora q l phi :
+  ext_spec_stable age (JE_spec _ Jspec) ->
+  @jsafe_phi_fupd Z Jspec ge ora q phi ->
+  @jsafe_phi_fupd Z Jspec ge ora q (age_to l phi).
+Proof.
+  intros Stable nl.
+  apply age_to_ind_refined; auto.
+  intros x y H L.
+  apply jsafe_phi_fupd_age; auto.
+Qed.
+
 Lemma m_phi_jm_ ge m (tp : jstate ge) phi i cnti compat :
   m_phi (@jm_ ge tp m phi i cnti compat) = @getThreadR _ _ _ i tp cnti.
 Proof.
@@ -814,7 +836,7 @@ Proof.
   inversion 1; constructor; repeat intro; rewrite H0 in *; eauto.
 Qed.
 
-Lemma state_inv_upd1 : forall {Z} (Jspec : juicy_ext_spec Z) Gamma (n : nat)
+(*Lemma state_inv_upd1 : forall {Z} (Jspec : juicy_ext_spec Z) Gamma (n : nat)
   (m : mem) (ge : genv) (tr : event_trace) (sch : schedule) (tp : ThreadPool.t) (PHI : rmap)
       (lev : level PHI = n)
       (envcoh : env_coherence Jspec ge Gamma PHI)
@@ -903,13 +925,7 @@ Proof.
       unfold jm_, personal_mem, m_dry, juicyRestrict.
       apply restrPermMap_irr'.
       rewrite Heq; auto.
-Qed.
-
-(*
-assert (cnti = Htid) by apply proof_irr; subst Htid).
-assert (ctn = cnti) by apply proof_irr; subst cnt).
-destruct (cntAdd' _ _ _ cnti) as [(cnti', ne) | Ei].
-*)
+Qed.*)
 
 Ltac join_sub_tac :=
   try

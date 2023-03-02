@@ -164,7 +164,7 @@ Section Initial_State.
      (nil, sch,
       let spr := semax_prog_rule
                    (Concurrent_Espec unit CS ext_link) V G prog
-                   (proj1_sig init_m) 0 tt allows_exit all_safe (proj2_sig init_m) in
+                   (proj1_sig init_m) 0 tt (allows_exit ext_link) all_safe (proj2_sig init_m) in
       let q := projT1 (projT2 spr) in
       let jm : juicy_mem := proj1_sig (snd (projT2 (projT2 spr)) n) in
       @OrdinalPool.mk LocksAndResources (ClightSemanticsForMachines.ClightSem (globalenv prog))
@@ -194,7 +194,7 @@ Section Initial_State.
   Proof.
     unfold initial_state.
     destruct init_m as [m Hm]; simpl proj1_sig; simpl proj2_sig.
-    set (spr := semax_prog_rule (Concurrent_Espec unit CS ext_link) V G prog m 0 tt allows_exit all_safe Hm).
+    set (spr := semax_prog_rule (Concurrent_Espec unit CS ext_link) V G prog m 0 tt (allows_exit ext_link) all_safe Hm).
     set (q := projT1 (projT2 spr)).
     set (jm := proj1_sig (snd (projT2 (projT2 spr)) n)).
     match goal with |- _ _ _ (_, (_, ?TP)) => set (tp := TP) end.

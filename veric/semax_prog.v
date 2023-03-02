@@ -1519,7 +1519,7 @@ Lemma semax_prog_entry_point {CS: compspecs} V G prog b id_fun params args A
   let gargs := (filter_genv (globalenv prog), args) in
   { q : CC_core |
    (forall jm,
-     Forall (fun v => Val.inject (Mem.flat_inj (nextblock (m_dry jm))) v v)  args->
+(*     Forall (fun v => Val.inject (Mem.flat_inj (nextblock (m_dry jm))) v v)  args->*)
      inject_neutral (nextblock (m_dry jm)) (m_dry jm) /\
      Coqlib.Ple (Genv.genv_next (Genv.globalenv prog)) (nextblock (m_dry jm)) ->
     exists jm', semantics.initial_core

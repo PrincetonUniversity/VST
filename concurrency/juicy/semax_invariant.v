@@ -72,7 +72,7 @@ Ltac join_level_tac :=
 
 Notation event_trace := (seq.seq machine_event).
 
-Lemma allows_exit {CS} {ext_link} : postcondition_allows_exit (Concurrent_Espec unit CS ext_link) Ctypesdefs.tint.
+Lemma allows_exit {CS} ext_link : postcondition_allows_exit (Concurrent_Espec unit CS ext_link) Ctypesdefs.tint.
 Proof.
   repeat intro; apply I.
 Qed.
@@ -294,7 +294,7 @@ Definition threads_safety m (tp : jstate ge) PHI (mcompat : mem_compatible_with 
         (* same quantification as in Kblocked *)
         jsafe_phi_fupd ge ora c' (getThreadR cnti)
     | Kinit v1 v2 =>
-      Val.inject (Mem.flat_inj (Mem.nextblock m)) v2 v2 /\
+(*      Val.inject (Mem.flat_inj (Mem.nextblock m)) v2 v2 /\ *)
       exists q_new,
       cl_initial_core ge v1 (v2 :: nil) = Some q_new /\
       jsafe_phi ge ora q_new (getThreadR cnti)
@@ -310,10 +310,7 @@ Definition threads_wellformed (tp : jstate ge) :=
     end.
 
 (* Haven't move this, but it's already defined in the concurrent_machine...
- * Probably in the wrong part...
- * SC: I had to change unique_Krun to include ~ Halted. Because halted
- * threads are still in Krun. (Although, as you know right now there are no Halted
- * threads...)  *)
+ * Probably in the wrong part... *)
 Definition unique_Krun (tp : jstate ge) sch :=
   (lt 1 tp.(num_threads).(pos.n) -> forall i cnti q,
       @getThreadC _ _ _ i tp cnti = Krun q ->
