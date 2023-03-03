@@ -764,7 +764,7 @@ Proof.
       -- intros c' Ec'; specialize (safety c' Ec'). apply jsafe_phi_fupd_age_to; auto.
       -- destruct safety as (q_new & Einit & safety).
          exists q_new; split; auto.
-         apply jsafe_phi_age_to; auto.
+         apply jsafe_phi_fupd_age_to; auto.
     }
 
   - (* threads_wellformed *)

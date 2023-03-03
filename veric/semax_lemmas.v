@@ -1430,6 +1430,51 @@ Proof.
   destruct H6; split; auto. inv H6; econstructor; simpl; eauto.
 Qed.
 
+Definition assert_safe0_ {Espec : OracleKind} ge ve te q w := forall (ora : OK_ty) (jm : juicy_mem),
+    ext_compat ora w ->
+    construct_rho (filter_genv ge) ve te = construct_rho (filter_genv ge) ve te ->
+    m_phi jm = w ->
+    (level w > 0)%nat -> jm_fupd ora Ensembles.Full_set Ensembles.Full_set (jsafeN (@OK_spec Espec) ge ora q) jm.
+
+Program Definition assert_safe0 {Espec} ge ve te q : mpred := @assert_safe0_ Espec ge ve te q.
+Next Obligation.
+Proof.
+  split; unfold assert_safe0_; intros ?; intros.
+  - subst.
+    destruct (oracle_unage _ _ H) as [jm0 [? ?]]; subst.
+    eapply jm_fupd_age; eauto.
+    apply H0; auto.
+    + eapply ext_compat_unage; eauto.
+    + apply age_level in H. lia.
+  - subst. destruct (ext_ord_juicy_mem' _ _ H) as (? & Hd & Ha); subst.
+    eapply jm_fupd_ext; [| split; eauto | intros; eapply ext_safe; eauto].
+    apply H0; auto.
+    + eapply ext_compat_unext; eauto.
+    + apply rmap_order in H as [? _]; lia.
+Qed.
+
+Definition assert_safe1_ {Espec : OracleKind} ge q w := forall (ora : OK_ty) (jm : juicy_mem),
+    ext_compat ora w ->
+    m_phi jm = w ->
+    (level w > 0)%nat -> jm_fupd ora Ensembles.Full_set Ensembles.Full_set (jsafeN (@OK_spec Espec) ge ora q) jm.
+
+Program Definition assert_safe1 {Espec} ge q : mpred := @assert_safe1_ Espec ge q.
+Next Obligation.
+Proof.
+  split; unfold assert_safe1_; intros ?; intros.
+  - subst.
+    destruct (oracle_unage _ _ H) as [jm0 [? ?]]; subst.
+    eapply jm_fupd_age; eauto.
+    apply H0; auto.
+    + eapply ext_compat_unage; eauto.
+    + apply age_level in H. lia.
+  - subst. destruct (ext_ord_juicy_mem' _ _ H) as (? & Hd & Ha); subst.
+    eapply jm_fupd_ext; [| split; eauto | intros; eapply ext_safe; eauto].
+    apply H0; auto.
+    + eapply ext_compat_unext; eauto.
+    + apply rmap_order in H as [? _]; lia.
+Qed.
+
 Lemma fupd_jm_fupd : forall {Espec: OracleKind} ge (ora : OK_ty) ve te P Q jm,
   fupd Q (m_phi jm) ->
   proj1_sig Q = (fun w => forall (ora : OK_ty) (jm : juicy_mem),
@@ -1464,6 +1509,25 @@ Proof.
   + eapply join_sub_joins_trans; [eexists; apply ghost_of_join; eauto|].
     eapply joins_comm, join_sub_joins_trans; [|apply joins_comm; eauto].
     destruct H5 as [? J']; eapply ghost_fmap_join in J'; eexists; eauto.
+Qed.
+
+Lemma assert_safe0_fupd : forall {Espec: OracleKind} ge (ora : OK_ty) ve te q jm,
+  fupd (assert_safe0 ge ve te q) (m_phi jm) ->
+  jm_fupd ora Ensembles.Full_set Ensembles.Full_set (jsafeN (@OK_spec Espec) ge ora q) jm.
+Proof.
+  intros.
+  eapply fupd_jm_fupd with (P := fun ora => jsafeN OK_spec ge ora q); eauto.
+  reflexivity.
+Qed.
+
+Lemma assert_safe1_fupd : forall {Espec: OracleKind} ge (ora : OK_ty) q jm,
+  fupd (assert_safe1 ge q) (m_phi jm) ->
+  jm_fupd ora Ensembles.Full_set Ensembles.Full_set (jsafeN (@OK_spec Espec) ge ora q) jm.
+Proof.
+  intros.
+  eapply assert_safe0_fupd with (ve := empty_env)(te := PTree.empty _).
+  eapply fupd.fupd_mono, H.
+  intros ???; auto.
 Qed.
 
 Lemma assert_safe_fupd : forall {Espec: OracleKind} ge f ve te c rho,

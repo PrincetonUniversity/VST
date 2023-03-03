@@ -298,7 +298,7 @@ Lemma invariant_thread_step
   (unique : unique_Krun tp (i :: sch))
   (cnti : containsThread tp i)
   (stepi : corestep (juicy_core_sem (cl_core_sem ge)) ci (jm_ cnti compat) ci' jmi')
-  (safei' : forall ora, jm_bupd ora (jsafeN Jspec ge ora ci') jmi')
+  (safei' : forall ora, jm_fupd ora Ensembles.Full_set Ensembles.Full_set (jsafeN Jspec ge ora ci') jmi')
   (Eci : getThreadC i tp cnti = Krun ci)
   (tp' := age_tp_to (level jmi') tp)
   (tp'' := updThread i tp' (cnt_age' cnti) (Krun ci') (m_phi jmi') : jstate ge)
@@ -810,7 +810,7 @@ Proof.
         REWR.
         REWR.
         intros c' Ec'; specialize (safej c' Ec').
-        apply jsafe_phi_bupd_age_to; auto.
+        apply jsafe_phi_fupd_age_to; auto.
       * destruct safej as (Harg & q_new & Einit & safej); split.
         { destruct stepi as (stepi & _).
           apply (corestep_mem (msem (Clight_evsem.CLC_evsem ge))), mem_step_nextblock'

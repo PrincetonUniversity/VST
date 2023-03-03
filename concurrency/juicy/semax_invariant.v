@@ -297,7 +297,7 @@ Definition threads_safety m (tp : jstate ge) PHI (mcompat : mem_compatible_with 
 (*      Val.inject (Mem.flat_inj (Mem.nextblock m)) v2 v2 /\ *)
       exists q_new,
       cl_initial_core ge v1 (v2 :: nil) = Some q_new /\
-      jsafe_phi ge ora q_new (getThreadR cnti)
+      jsafe_phi_fupd ge ora q_new (getThreadR cnti)
     end.
 
 Definition threads_wellformed (tp : jstate ge) :=

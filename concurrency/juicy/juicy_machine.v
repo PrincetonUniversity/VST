@@ -47,14 +47,14 @@ Set Nested Proofs Allowed.
 Require Import (*compcert_linking*) VST.concurrency.common.permissions VST.concurrency.common.threadPool.
 Import OrdinalPool ThreadPool.
 
-(* There are some overlaping definition conflicting.
+(* There are some overlapping definitions conflicting.
    Here we fix that. But this is obviously ugly and
    the conflicts should be removed by renaming!     *)
 Notation "x <= y" := (x <= y)%nat.
 Notation "x < y" := (x < y)%nat.
 
 
-Instance LocksAndResources : Resources := { res := rmap; lock_info := option rmap }.
+#[export] Instance LocksAndResources : Resources := { res := rmap; lock_info := option rmap }.
 
 Module ThreadPool.
   Section ThreadPool.

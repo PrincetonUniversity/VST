@@ -948,7 +948,7 @@ Proof.
     destruct SO as (_ & _ & <-). auto.
 Qed.
 
-(*Lemma state_inv_upd1 : forall {Z} (Jspec : juicy_ext_spec Z) Gamma (n : nat)
+Lemma state_inv_upd1 : forall {Z} (Jspec : juicy_ext_spec Z) Gamma (n : nat)
   (m : mem) (ge : genv) (tr : event_trace) (sch : schedule) (tp : ThreadPool.t) (PHI : rmap)
       (lev : level PHI = n)
       (envcoh : env_coherence Jspec ge Gamma PHI)
@@ -958,17 +958,11 @@ Qed.
       (lock_sparse : lock_sparsity (lset tp))
       (lock_coh : lock_coherence' tp PHI m mcompat)
       (safety : exists i (cnti : containsThread tp i), let phi := getThreadR cnti in
-       (exists k, getThreadC cnti = Krun k /\
-       forall c, join_sub (Some (ext_ref tt, NoneP) :: nil) c ->
-          joins (ghost_of phi) (ghost_fmap (approx (level phi)) (approx (level phi)) c) ->
-        exists b, joins b (ghost_fmap (approx (level phi)) (approx (level phi)) c) /\
-        exists phi' (Hr : resource_at phi' = resource_at phi), level phi' = level phi /\ ghost_of phi' = b /\
-        forall ora, jsafeN Jspec ge ora k
-          (personal_mem (mem_cohere'_res _ _ _ (compatible_threadRes_cohere cnti (mem_compatible_forget mcompat)) Hr))) /\
+       (exists k, getThreadC cnti = Krun k /\ fupd (semax_lemmas.assert_safe1 ge k) phi) /\
        forall j (cntj : containsThread tp j), j <> i -> thread_safety Jspec m ge tp PHI mcompat j cntj)
       (wellformed : threads_wellformed tp)
       (uniqkrun :  unique_Krun tp sch),
-  state_bupd (state_invariant Jspec Gamma n) (m, (tr, sch, tp)).
+  state_fupd (state_invariant Jspec Gamma n) (m, (tr, sch, tp)).
 Proof.
   intros; apply state_inv_upd with (mcompat := mcompat); auto; intros.
   destruct safety as (i & cnti & [(k & Hk & Hsafe) Hrest]).

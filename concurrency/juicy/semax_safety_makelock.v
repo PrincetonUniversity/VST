@@ -814,7 +814,7 @@ Proof.
       * intros ? Hc'; apply jsafe_phi_fupd_age_to; auto.
       * destruct safety as (q_new & Einit & safety).
         exists q_new; split; auto.
-        apply jsafe_phi_age_to; auto. }
+        apply jsafe_phi_fupd_age_to; auto. }
 
   - (* threads_wellformed *)
     intros j lj.
