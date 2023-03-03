@@ -1263,7 +1263,6 @@ Qed.
             (Hthread: getThreadC cnt0 = Kblocked c)
             (Hat_external: at_external the_sem c m =
                            Some (LOCK, Vptr b ofs::nil))
-            (Hcompatible: mem_compatible tp m)
             (*Hpersonal_perm:
                personal_mem cnt0 Hcompatible = jm*)
             (Hpersonal_juice: getThreadR cnt0 = phi)
@@ -1296,7 +1295,6 @@ Qed.
             (Hthread: getThreadC cnt0 = Kblocked c)
             (Hat_external: at_external the_sem c m =
                            Some (UNLOCK, Vptr b ofs::nil))
-            (Hcompatible: mem_compatible tp m)
             (* Hpersonal_perm:
                personal_mem cnt0 Hcompatible = jm *)
             (Hpersonal_juice: getThreadR cnt0 = phi)
@@ -1333,9 +1331,8 @@ Qed.
                            Some (CREATE, vf::arg::nil))
 (*            (Harg: Val.inject (Mem.flat_inj (Mem.nextblock m)) arg arg) *)
             (Hfun_sepc: vf = Vptr b ofs)
-            (Hcompatible: mem_compatible tp m)
             (Hpersonal_perm:
-               personal_mem (thread_mem_compatible Hcompatible cnt0) = jm)
+               personal_mem (thread_mem_compatible Hcompat cnt0) = jm)
             (Hrem_fun_res: join d_phi phi' (m_phi jm))
             (Htp': tp_upd = updThread cnt0 (Kresume c Vundef) phi')
             (Htp'': tp' = age_tp_to (level (m_phi jm) - 1)%coq_nat (addThread tp_upd vf arg d_phi)),
@@ -1349,10 +1346,9 @@ Qed.
             (Hthread: getThreadC cnt0 = Kblocked c)
             (Hat_external: at_external the_sem c m =
                            Some (MKLOCK, Vptr b ofs::nil))
-            (Hcompatible: mem_compatible tp m)
             (*Hright_juice:  m = m_dry jm*)
             (Hpersonal_perm:
-               personal_mem (thread_mem_compatible Hcompatible cnt0) = jm)
+               personal_mem (thread_mem_compatible Hcompat cnt0) = jm)
             (Hpersonal_juice: getThreadR cnt0 = phi)
             (*Check I have the right permission to mklock and the right value (i.e. 0) *)
             (*Haccess: address_mapsto LKCHUNK (Vint Int.zero) sh Share.top (b, Ptrofs.intval ofs) phi*)
@@ -1374,7 +1370,6 @@ Qed.
             (Hthread: getThreadC cnt0 = Kblocked c)
             (Hat_external: at_external the_sem c m =
                            Some (FREE_LOCK, Vptr b ofs::nil))
-            (Hcompatible: mem_compatible tp m)
             (Hpersonal_juice: getThreadR cnt0 = phi)
             (*First check the lock is acquired:*)
             (His_acq: lockRes tp (b, (Ptrofs.intval ofs)) = SNone)
@@ -1393,9 +1388,8 @@ Qed.
             (Hthread: getThreadC cnt0 = Kblocked c)
             (Hat_external: at_external the_sem c m =
                            Some (LOCK, Vptr b ofs::nil))
-            (Hcompatible: mem_compatible tp m)
             (Hpersonal_perm:
-               personal_mem (thread_mem_compatible Hcompatible cnt0) = jm)
+               personal_mem (thread_mem_compatible Hcompat cnt0) = jm)
             (Hrestrict_map: juicyRestrict_locks
                               (mem_compat_thread_max_cohere Hcompat cnt0) = m1)
             (sh:Share.t) (R:pred rmap)

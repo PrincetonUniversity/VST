@@ -277,7 +277,6 @@ Proof.
                    (R := Rx) (phi' := phi').
     all: try reflexivity.
     all: try eassumption.
-    apply (mem_compatible_forget compat).
   }
 
   (* we move on to the preservation part *)
@@ -417,7 +416,7 @@ Proof.
         discriminate.
       *
        apply (jloc_in_set compat loc).
-       intros.  
+       intros.
         destruct Hrmap' as (_ & outside & inside & _).
         rewrite outside.
         destruct (E'' _ H) as [? [? [? E3]]].

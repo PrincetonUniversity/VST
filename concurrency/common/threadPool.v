@@ -322,7 +322,7 @@ es (filter i) *)
                lr_valid (lockRes tp) ->
                lr_valid (lockRes (updThread cnti c' m'))
 
-        (*New Axioms, to avoid breaking the modularity *)
+        (*New axioms, to avoid breaking the modularity *)
         ; lockSet_spec_2 :
             forall (js : t) (b : block) (ofs ofs' : Z),
               Intv.In ofs' (ofs, (ofs + Z.of_nat lksize.LKSIZE_nat)%Z) ->

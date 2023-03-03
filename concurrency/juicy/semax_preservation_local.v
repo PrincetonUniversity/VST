@@ -303,7 +303,7 @@ Lemma invariant_thread_step
   (tp' := age_tp_to (level jmi') tp)
   (tp'' := updThread i tp' (cnt_age' cnti) (Krun ci') (m_phi jmi') : jstate ge)
   (cm' := (m_dry jmi', (tr, i :: sch, tp''))) :
-  state_bupd (state_invariant Jspec Gamma n) cm'.
+  state_fupd (state_invariant Jspec Gamma n) cm'.
 Proof.
   (** * Two steps : [x] -> [x'] -> [x'']
           1. we age [x] to get [x'], the level decreasing

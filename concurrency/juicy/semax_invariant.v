@@ -581,6 +581,27 @@ Proof.
   apply mcompat.
 Qed.
 
+(*Definition state_fupd P (state : cm_state) := let '(m, (tr, sch, tp)) := state in
+  tp_fupd (fun tp' => P (m, (tr, sch, tp'))) tp.
+
+Lemma state_fupd_intro : forall (P : _ -> Prop) m tr sch tp phi, join_all tp phi ->
+  joins (ghost_of phi) (Some (ext_ref tt, NoneP) :: nil) ->
+  P (m, (tr, sch, tp)) -> state_fupd P (m, (tr, sch, tp)).
+Proof.
+  intros; split; eauto; intros.
+  eexists; split; eauto.
+  eexists _, _; split; [apply tp_update_refl|]; auto.
+Qed.
+
+Lemma state_fupd_intro' : forall Gamma n s,
+  state_invariant Gamma n s ->
+  state_fupd (state_invariant Gamma n) s.
+Proof.
+  inversion 1; subst.
+  eapply state_fupd_intro; eauto.
+  apply mcompat.
+Qed.*)
+
 Lemma mem_compatible_upd : forall tp m phi tp' phi', mem_compatible_with tp m phi ->
   tp_update(ge := ge) tp phi tp' phi' -> mem_compatible_with tp' m phi'.
 Proof.
@@ -626,7 +647,8 @@ Proof.
 Qed.
 
 (* Ghost update only affects safety; the rest of the invariant is preserved. *)
-Lemma state_inv_upd : forall Gamma (n : nat)
+(* Is this relevant anymore? *)
+Lemma state_inv_bupd : forall Gamma (n : nat)
   (m : mem) (tr : event_trace) (sch : schedule) (tp : jstate ge) (PHI : rmap)
       (lev : level PHI = n)
       (envcoh : env_coherence Jspec ge Gamma PHI)
@@ -715,6 +737,97 @@ Proof.
     replace (num_threads tp') with (num_threads tp) in *; eauto.
     symmetry; apply contains_iff_num; auto.
 Qed.
+
+(*(* Is this provable? *)
+Lemma state_inv_fupd : forall Gamma (n : nat)
+  (m : mem) (tr : event_trace) (sch : schedule) (tp : jstate ge) (PHI : rmap)
+      (lev : level PHI = n)
+      (envcoh : env_coherence Jspec ge Gamma PHI)
+      (mwellformed: mem_wellformed m)
+      (mcompat : mem_compatible_with tp m PHI)
+      (extcompat : joins (ghost_of PHI) (Some (ext_ref tt, NoneP) :: nil))
+      (lock_sparse : lock_sparsity (lset tp))
+      (lock_coh : lock_coherence' tp PHI m mcompat)
+      (safety : forall C, join_sub (Some (ext_ref tt, NoneP) :: nil) C ->
+        joins (ghost_of PHI) (ghost_fmap (approx (level PHI)) (approx (level PHI)) C) ->
+        exists tp' PHI' (Hupd : tp_update tp PHI tp' PHI'),
+        joins (ghost_of PHI') (ghost_fmap (approx (level PHI)) (approx (level PHI)) C) /\
+        threads_safety m tp' PHI' (mem_compatible_upd _ _ _ _ _ mcompat Hupd))
+      (wellformed : threads_wellformed tp)
+      (uniqkrun :  unique_Krun tp sch),
+  state_fupd (state_invariant Gamma n) (m, (tr, sch, tp)).
+Proof.
+  intros.
+  split; [eexists; split; eauto; apply mcompat|].
+  intros ??? Hc J.
+  assert (join_all tp PHI) as HPHI by (clear - mcompat; inv mcompat; auto).
+  destruct (join_all_eq _ _ _ H HPHI) as [(Ht & ? & ? & ?)|].
+  { exists nil; split.
+    { eexists; constructor. }
+    exists phi, tp; split; [apply tp_update_refl; auto|].
+    split; [apply ghost_identity, ghost_of_identity; auto|].
+    apply state_invariant_c with (mcompat := mcompat); auto.
+    repeat intro.
+    generalize (getThreadR_nth _ _ cnti); setoid_rewrite Ht; rewrite nth_error_nil; discriminate. }
+  subst.
+  specialize (safety _ Hc J) as (tp' & PHI' & Hupd & J' & safety).
+  eexists; split; eauto; do 2 eexists; split; eauto; split; auto.
+  pose proof (mem_compatible_upd _ _ _ _ _ mcompat Hupd) as mcompat'.
+  destruct Hupd as (Hl & Hr & Hj & Hiff & Hthreads & Hguts & Hlset & Hres & Hlatest).
+  apply state_invariant_c with (mcompat := mcompat').
+  - auto.
+  - destruct envcoh as [mtch coh]; split.
+    + repeat intro.
+      destruct (necR_same_level _ _ _ H0 Hl) as (PHIa & Hnec & Hla).
+      destruct (mtch b b0 _ _ Hnec (ext_refl _)) as (? & ? & ? & ?).
+      * destruct b0; simpl in *.
+        pose proof (necR_level _ _ Hnec). pose proof (necR_level _ _ H0).
+        apply necR_age_to in Hnec; rewrite Hnec, age_to_resource_at.age_to_resource_at.
+        rewrite <- Hla, <- Hr.
+        apply rmap_order in H1 as (Hl1 & Hr1 & _).
+        rewrite <- Hl1, <- Hr1 in H2.
+        apply necR_age_to in H0; rewrite H0, age_to_resource_at.age_to_resource_at in H2; rewrite H2.
+        rewrite !level_age_to; auto; lia.
+      * do 3 eexists; simpl in *; eauto.
+        eapply funspec_sub_si_fash; eauto.
+        apply rmap_order in H1 as (? & ? & ?); lia.
+    + destruct coh as (? & ? & ? & ? & ? & ? & Happ).
+      do 5 eexists; eauto; split; auto.
+      eapply semax_lemmas.funassert_resource, Happ; auto.
+  - auto.
+  - eapply joins_comm, join_sub_joins_trans, joins_comm, J'.
+    destruct Hc as [? Hc].
+    eapply ghost_fmap_join in Hc; eexists; eauto.
+  - repeat intro.
+    setoid_rewrite Hguts in H0; setoid_rewrite Hguts in H1; auto.
+  - repeat intro.
+    specialize (lock_coh loc).
+    simpl in Hguts.
+    unfold OrdinalPool.lockGuts in Hguts.
+    rewrite Hguts, Hl, Hr.
+    destruct (AMap.find _ _); auto.
+    assert (forall R, lkat R loc PHI -> lkat R loc PHI').
+    { repeat intro; rewrite Hl, Hr; auto. }
+    replace (load_at (restrPermMap (mem_compatible_locks_ltwritable (mem_compatible_forget mcompat'))) loc)
+      with (load_at (restrPermMap (mem_compatible_locks_ltwritable (mem_compatible_forget mcompat))) loc).
+    destruct o; repeat (split; try tauto).
+    + destruct lock_coh as (? & ? & ? & ? & ? & ?); eauto.
+    + destruct lock_coh as (? & ? & ? & ? & ?); eauto.
+    + erewrite restrPermMap_irr'; [reflexivity | auto].
+  - erewrite (proof_irr mcompat'); eauto.
+  - repeat intro.
+    pose proof (proj1 (Hiff _) cnti) as cnti0.
+    destruct (Hthreads _ cnti0) as (HC & _).
+    replace (proj2 (Hiff i) cnti0) with cnti in HC by (apply proof_irr).
+    rewrite <- HC; apply wellformed.
+  - repeat intro.
+    pose proof (proj1 (Hiff _) cnti) as cnti0.
+    destruct (Hthreads _ cnti0) as (HC & _).
+    replace (proj2 (Hiff i) cnti0) with cnti in HC by (apply proof_irr).
+    rewrite <- HC in *.
+    replace (num_threads tp') with (num_threads tp) in *; eauto.
+    symmetry; apply contains_iff_num; auto.
+Qed.*)
 
 End Machine.
 
@@ -822,12 +935,14 @@ Qed.
 
 Lemma mem_wellformed_step : forall {ge} m m', mem_step m m' -> @mem_wellformed ge m -> @mem_wellformed ge m'.
 Proof.
-  induction 1.
-  - admit.
-  - admit.
-  - admit.
-  - auto.
-Admitted.
+(* not true in general, because mem_step doesn't rule out storing invalid pointers *)
+Abort.
+
+Lemma mem_wellformed_step : forall {ge} m m' c c', cl_step ge c m c' m' -> @mem_wellformed ge m -> @mem_wellformed ge m'.
+Proof.
+  induction 1; auto; intros []; unfold mem_wellformed.
+  - Search expr.valid_pointer.
+Abort.
 
 Ltac fixsafe H :=
   unshelve eapply jsafe_phi_jsafeN in H; eauto.

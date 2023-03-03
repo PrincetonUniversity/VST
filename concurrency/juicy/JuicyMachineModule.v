@@ -68,6 +68,25 @@ Module THE_JUICY_MACHINE.
        joins b (ghost_fmap (approx (level phi)) (approx (level phi)) c) /\
        exists phi' tp', tp_update tp phi tp' phi' /\ ghost_of phi' = b /\ P tp'.
 
+Print juicy_extspec.jm_fupd. (*
+(* Should we do a fupd on threadpools, or explicitly represent the wsat the way we represent lock invariants?
+   Probably the latter, but the former might be easier to write. *)
+  Definition tp_fupd P (tp : jstate) :=
+  (* Without this initial condition, a thread pool could be vacuously safe by being inconsistent
+     with itself or the external environment. Since we want juicy safety to imply dry safety,
+     we need to rule out the vacuous case. *)
+  exists phi, join_all tp phi /\ joins (ghost_of phi) (Some (ghost_PCM.ext_ref tt, NoneP) :: nil) /\
+    forall phi' w z phiz, necR phi phi' -> join_all z phiz -> join phi' w phiz ->
+    (invariants.wsat * invariants.ghost_set invariants.g_en E1) w ->
+    tp_bupd (fun z2 => exists tp2 phi2 w2 phiz2, join_all z2 phi2 /\ join phi2 w2 ) z.
+
+  forall phi, join_all tp phi ->
+    forall c : ghost, join_sub (Some (ghost_PCM.ext_ref tt, NoneP) :: nil) c ->
+     joins (ghost_of phi) (ghost_fmap (approx (level phi)) (approx (level phi)) c) ->
+     exists b : ghost,
+       joins b (ghost_fmap (approx (level phi)) (approx (level phi)) c) /\
+       exists phi' tp', tp_update tp phi tp' phi' /\ ghost_of phi' = b /\ P tp'.*)
+
   Existing Instance JuicyMachineShell.
   Existing Instance HybridMachineSig.HybridCoarseMachine.DilMem.
   Existing Instance HybridMachineSig.HybridCoarseMachine.scheduler.

@@ -69,7 +69,7 @@ Set Bullet Behavior "Strict Subproofs".
 
 Open Scope string_scope.
 
-(* to make the proof faster, we avoid unfolding of those definitions *)
+(* to make the proof faster, we avoid unfolding these definitions *)
 Definition Jspec'_juicy_mem_equiv_def CS ext_link :=
   ext_spec_stable juicy_mem_equiv (JE_spec _ ( @OK_spec (Concurrent_Espec unit CS ext_link))).
 
@@ -107,10 +107,9 @@ Proof.
 
   fixsafe safei.
   inversion safei
-    as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ];
-    [ now erewrite cl_corestep_not_at_external in atex; [ discriminate | eapply bad ]
-    | subst | now inversion bad ].
-  subst.
+    as [ | ????? bad | z c m0 e args0 x at_ex Pre SafePost | ???? bad ]; last contradiction.
+  { rewrite level_jm_ in H; setoid_rewrite H in En; discriminate. }
+  { now erewrite cl_corestep_not_at_external in atex; [ discriminate | eapply bad ]. }
   simpl in at_ex. assert (args0 = args) by congruence; subst args0.
   assert (e = UNLOCK) by congruence; subst e.
   hnf in x.

@@ -259,19 +259,15 @@ Section Progress.
         eapply JuicyMachine.suspend_step.
         + reflexivity.
         + reflexivity.
-        + econstructor.
-          * eassumption.
-          * reflexivity.
-          * eauto.
-          * constructor.
-          * reflexivity.
+        + unshelve econstructor; try reflexivity; try eassumption.
+          eexists; eauto.
       } (* end of Krun (at_ex c) -> Kblocked c *)
 
       destruct (cl_halted ci) eqn: Hhalt.
 
       (* thread[i] is halted *)
       { eexists; constructor.
-        eapply halted_step.
+        eapply halted_step with (i := Int.zero). (* Why doesn't cl_halted check the value? *)
         + reflexivity.
         + econstructor; eauto; simpl.
           rewrite Hhalt; discriminate.
@@ -441,7 +437,6 @@ Section Progress.
              split the current rmap.
          *)
 
-
         (* next step depends on status of lock: *)
         pose proof (lock_coh (b, Ptrofs.unsigned ofs)) as lock_coh'.
         destruct (AMap.find (elt:=option rmap) (b, Ptrofs.unsigned ofs) (lset tp))
@@ -550,7 +545,6 @@ Section Progress.
             * eassumption.
             * simpl.
               inv H_acquire; auto.
-            * apply (mem_compatible_forget compat).
             * reflexivity.
             * instantiate (1:=shx). hnf; intros.
               specialize (ex i0 H).
@@ -633,7 +627,7 @@ Section Progress.
 
             inversion J; subst.
 
-            * eapply step_acqfail with (Hcompatible := mem_compatible_forget compat)
+            * eapply step_acqfail with (Hcompat := mem_compatible_forget compat)
                                        (R := approx (level phi0) Rx).
               all: try solve [ constructor | eassumption | reflexivity ].
                 (* [ > idtac ]. *)
@@ -647,7 +641,7 @@ Section Progress.
               inv Join; replace (Ptrofs.intval ofs + i0 - Ptrofs.intval ofs) with i0 in * by lia.
               exists sh4, rsh2; split; auto. eexists; eassumption.
               exists sh4, rsh4; split; auto. eexists; eassumption.              
-            * eapply step_acqfail with (Hcompatible := mem_compatible_forget compat)
+            * eapply step_acqfail with (Hcompat := mem_compatible_forget compat)
                                        (R := approx (level phi0) Rx).
               all: try solve [ constructor | eassumption | reflexivity ].
               simpl.
@@ -889,7 +883,6 @@ Section Progress.
           destruct Hlockinv as (b00 & ofs00 & E & WOB); injection E as <- <-.
           eapply load_at_phi_restrict with (phi0 := phi_lockinv) (cnti := cnti) in LOAD; try eassumption.
           eapply step_release with (d_phi := phi_sat); try eassumption; try reflexivity.
-          + apply (mem_compatible_forget compat).
           + clear - jphi SAT SUB En.
               split; auto. rewrite level_age_by. apply join_level in jphi as [H ->].
               apply join_sub_level in SUB. lia.
@@ -1006,8 +999,7 @@ Section Progress.
         eexists (m', (seq.cat tr _, sch, _)).
         constructor.
 
-        eapply JuicyMachine.sync_step
-        with (Htid := cnti); auto.
+        eapply JuicyMachine.sync_step with (Htid := cnti); auto.
 
         eapply step_mklock; try eassumption; auto.
         + constructor.
@@ -1215,9 +1207,7 @@ Section Progress.
         eexists (m, (seq.cat tr _, sch, _)).
         constructor.
 
-        eapply JuicyMachine.sync_step
-        with (Htid := cnti); auto.
-
+        eapply JuicyMachine.sync_step with (Htid := cnti); auto.
         eapply step_freelock.
 
         all: try match goal with |- invariant _ => now constructor end.
@@ -1226,10 +1216,11 @@ Section Progress.
         all: try match goal with |- personal_mem _ = _ => reflexivity end.
         - eassumption.
         - eassumption.
-        - exists Phi; apply compat.
         - reflexivity.
         - assumption.
         - eassumption.
+        Unshelve.
+        eexists; eauto.
       }
       { (* the case of spawn *)
 
@@ -1271,73 +1262,41 @@ Section Progress.
     (* thread[i] is in Kresume *)
     {
       (* goes to Krun ci' with after_ex ci = ci'  *)
-      destruct ci as [ | e ? k | ] eqn:Heqc.
-
-      - (* contradiction: has to be an extcall *)
-        specialize (wellformed i cnti).
-        rewrite Eci in wellformed.
-        simpl in wellformed.
-        tauto.
-
-      - (* extcall *)
-        (* taking the step Kresume->Krun *)
-        eexists; constructor.
-        apply @JuicyMachine.resume_step with (tid := i) (Htid := cnti).
-        { reflexivity. }
-        eapply JuicyMachine.ResumeThread with (Hcmpt := mem_compatible_forget compat)
-              (c := ci);
-              simpl in *; try rewrite Clight_evsem.CLC_msem in *;
-              simpl.
-            -- reflexivity.
-            -- subst.
-               reflexivity.
-            -- subst.
-               destruct lid.
-               ++ specialize (wellformed i cnti). simpl in wellformed. rewrite Eci in wellformed. destruct wellformed.
-                  unfold ci'. reflexivity.
-               ++ reflexivity.
-            -- setoid_rewrite Eci.
-               subst ci.
-               f_equal.
-               specialize (wellformed i cnti).
-               simpl in wellformed. rewrite Eci in wellformed.
-               simpl in wellformed.
-               tauto.
-            -- constructor.
-            -- reflexivity.
+      specialize (wellformed i cnti).
+      rewrite Eci in wellformed.
+      destruct wellformed as [H ?]; subst.
+      destruct ci as [ | f | ] eqn: Hci; try contradiction; simpl in H.
+      destruct f; try contradiction.
+      destruct (ef_inline e) eqn: Hinline; try contradiction.
+      eexists; constructor.
+      apply @JuicyMachine.resume_step with (tid := i) (Htid := cnti).
+      { reflexivity. }
+      eapply JuicyMachine.ResumeThread with (Hcmpt := mem_compatible_forget compat)(c := ci);
+        simpl in *; try rewrite Clight_evsem.CLC_msem in *; simpl.
+      -- reflexivity.
+      -- rewrite Hci; simpl.
+         rewrite Hinline; reflexivity.
+      -- rewrite Hci; simpl; reflexivity.
+      -- setoid_rewrite Eci; rewrite Hci; reflexivity.
+      -- constructor.
+      -- reflexivity.
     }
     (* end of Kresume *)
 
     (* thread[i] is in Kinit *)
     {
       specialize (safety i cnti tt). rewrite Eci in safety.
-      destruct safety as (? & q_new & Einit & safety).
+      destruct safety as (q_new & Einit & safety).
       eexists(* ; split *).
       - constructor.
         apply JuicyMachine.start_step with (tid := i) (Htid := cnti).
         + reflexivity.
         + eapply JuicyMachine.StartThread with (c_new := q_new)(Hcmpt := mem_compatible_forget compat).
           * apply Eci.
-          * simpl; reflexivity.
-          * split3; eauto.
-            repeat constructor; auto.
-            split. reflexivity. simpl.
-            destruct mwellformed; split; auto.
-            clear - H0.
-             change (Mem.nextblock m) with 
-               (Mem.nextblock (@install_perm (ClightSemanticsForMachines.Clight_newSem ge) tp m
-              i (@mem_compatible_forget ge tp m Phi compat) cnti)).
-      apply  maxedmem_neutral.
-      simpl nextblock.
-      assert (mem_equiv.mem_equiv (maxedmem (@install_perm (ClightSemanticsForMachines.Clight_newSem ge) tp
-        m i (@mem_compatible_forget ge tp m Phi compat) cnti))
-                  (maxedmem m)). {
-         clear. simpl.
-         unfold install_perm. simpl.
-         admit.  (* for Santiago to do. *)
-         }
-         red. rewrite H. auto.
           * reflexivity.
+          * instantiate (1 := install_perm (mem_compatible_forget compat) cnti). (* weird that cl_initial_core lets threads start with arbitrary memory *)
+            auto.
+          * constructor.
           * reflexivity.
     }
     (* end of Kinit *)
@@ -1357,8 +1316,6 @@ Section Progress.
         + reflexivity.
     }
 
-    Unshelve.
-     eexists; eauto.
-Admitted. (* Theorem progress *)
+Qed. (* Theorem progress *)
 
 End Progress.
