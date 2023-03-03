@@ -1520,8 +1520,8 @@ Lemma semax_prog_entry_point {CS: compspecs} V G prog b id_fun params args A
   { q : CC_core |
    (forall jm,
 (*     Forall (fun v => Val.inject (Mem.flat_inj (nextblock (m_dry jm))) v v)  args->*)
-     inject_neutral (nextblock (m_dry jm)) (m_dry jm) /\
-     Coqlib.Ple (Genv.genv_next (Genv.globalenv prog)) (nextblock (m_dry jm)) ->
+(*     inject_neutral (nextblock (m_dry jm)) (m_dry jm) /\ *)
+(*     Coqlib.Ple (Genv.genv_next (Genv.globalenv prog)) (nextblock (m_dry jm)) ->*)
     exists jm', semantics.initial_core
     (juicy_core_sem (cl_core_sem (globalenv prog))) h
     jm q jm' (Vptr b Ptrofs.zero) args) /\
@@ -1781,13 +1781,11 @@ cut ((!! guard_environ (func_tycontext' f Delta) f rhox &&
   - destruct H10; auto.
   - auto.
   - apply H8.
-  -
-    subst a'.
-     eapply predicates_sl.sepcon_derives; try apply H9; auto.
-  -
-     set (rho' := construct_rho (filter_genv psi)
+  - subst a'.
+    eapply predicates_sl.sepcon_derives; try apply H9; auto.
+  - set (rho' := construct_rho (filter_genv psi)
             ve te) in *.
-     destruct H10 as [COMPLETE [_ [H17' _]]].
+    destruct H10 as [COMPLETE [_ [H17' _]]].
   assert (H10:=I).
  assert (SFFB := stackframe_of_freeable_blocks Delta f rho' (globalenv prog) ve
      HGG COMPLETE H17'  (eq_refl _) H8).
@@ -2035,12 +2033,6 @@ Proof.
   destruct SPEP as [q [? ?]].
   exists b, q.
   split; [split |]; auto.
- -
-  intros. apply H7; clear H7; auto.
-  clear - H1 H10.
-  rewrite H10.
-  split.  red.  apply neutral_inject. eapply Genv.initmem_inject; eauto.
-  erewrite Genv.init_mem_genv_next; eauto. apply Coqlib.Ple_refl.
  - clear H7.
   intro n.
   pose (jm := initial_jm_ext z prog m G n H1 H0 H2).

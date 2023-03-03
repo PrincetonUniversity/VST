@@ -269,13 +269,13 @@ Section Initial_State.
       split.
       + apply MFS.
       + exists prog, tt, CS, V. auto.
-    - clear - Hm.
+(*    - clear - Hm.
       split.
       pose proof ( Genv.initmem_inject _ Hm).
       apply initmem_maxedmem in Hm.
       red. rewrite Hm. apply H.
       apply Genv.init_mem_genv_next in Hm. rewrite <- Hm.
-     unfold globalenv. simpl. apply Ple_refl.
+     unfold globalenv. simpl. apply Ple_refl. *)
     - (*! external coherence *)
       destruct (snd (projT2 (projT2 spr))) as (jm' & D & H & E & A & NL & MFS & FA).
       simpl in jm. unfold jm.

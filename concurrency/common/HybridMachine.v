@@ -35,7 +35,7 @@ Require Import VST.concurrency.common.HybridMachineSig.
 Module DryHybridMachine.
   Import Events ThreadPool.
 
-  Instance dryResources: Resources:=
+  #[export] Instance dryResources: Resources:=
     {| res := access_map * access_map;
        lock_info := access_map * access_map |}.
 
@@ -678,7 +678,7 @@ Module DryHybridMachine.
            (cnt:containsThread st i) m:=
       { th_comp: permMapLt (thread_perms _ _ cnt) (getMaxPerm m);
         lock_comp: permMapLt (lock_perms _ _ cnt) (getMaxPerm m)}.
-    Instance thread_compat_proper st i:
+    #[export] Instance thread_compat_proper st i:
         Proper (Logic.eq ==> Max_equiv ==> iff) (@thread_compat st i).
       Proof. setoid_help.proper_iff;
                setoid_help.proper_intros; subst.

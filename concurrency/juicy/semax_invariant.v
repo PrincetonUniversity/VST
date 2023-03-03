@@ -502,15 +502,16 @@ intros.
 unfold Mem.inject_neutral in *.
 inv H.
 constructor; intros; simpl in *.
-unfold Mem.flat_inj in H.
+- unfold Mem.flat_inj in H.
 if_tac in H; try discriminate.
 inv H.
 rewrite Z.add_0_r. auto.
-eapply mi_align; eauto.
+- eapply mi_align; eauto.
 intros ? ?.
 unfold maxedmem.
-rewrite mem_equiv.restr_Max_equiv. eauto.
-apply mi_memval; auto.
+unfold Mem.perm; setoid_rewrite restrPermMap_Max; rewrite getMaxPerm_correct.
+apply H0; eauto.
+- apply mi_memval; auto.
 clear - H0.
 unfold maxedmem, Mem.perm in *.
 setoid_rewrite restrPermMap_Cur.
@@ -525,7 +526,7 @@ Inductive state_invariant Gamma (n : nat) : cm_state -> Prop :=
       (m : mem) (tr : event_trace) (sch : schedule) (tp : jstate ge) (PHI : rmap)
       (lev : level PHI = n)
       (envcoh : env_coherence Jspec ge Gamma PHI)
-      (mwellformed: mem_wellformed m)
+(*      (mwellformed: mem_wellformed m) *)
       (mcompat : mem_compatible_with tp m PHI)
       (extcompat : joins (ghost_of PHI) (Some (ext_ref tt, NoneP) :: nil))
       (lock_sparse : lock_sparsity (lset tp))
@@ -541,9 +542,9 @@ Lemma state_invariant_sch_irr Gamma n m i tr sch sch' tp :
   state_invariant Gamma n (m, (tr, i :: sch', tp)).
 Proof.
   intros INV.
-  inversion INV as [m0 tr0 sch0 tp0 PHI lev envcoh mwellformed compat extcompat sparse lock_coh safety wellformed uniqkrun H0];
+  inversion INV as [m0 tr0 sch0 tp0 PHI lev envcoh (*mwellformed*) compat extcompat sparse lock_coh safety wellformed uniqkrun H0];
     subst m0 tr0 sch0 tp0.
-  refine (state_invariant_c Gamma n m tr (i :: sch') tp PHI lev envcoh mwellformed compat extcompat sparse lock_coh safety wellformed _).
+  refine (state_invariant_c Gamma n m tr (i :: sch') tp PHI lev envcoh (*mwellformed*) compat extcompat sparse lock_coh safety wellformed _).
   clear -uniqkrun.
   intros H i0 cnti q H0.
   destruct (uniqkrun H i0 cnti q H0) as [sch'' E].
@@ -648,11 +649,11 @@ Qed.
 
 (* Ghost update only affects safety; the rest of the invariant is preserved. *)
 (* Is this relevant anymore? *)
-Lemma state_inv_bupd : forall Gamma (n : nat)
+(*Lemma state_inv_bupd : forall Gamma (n : nat)
   (m : mem) (tr : event_trace) (sch : schedule) (tp : jstate ge) (PHI : rmap)
       (lev : level PHI = n)
       (envcoh : env_coherence Jspec ge Gamma PHI)
-      (mwellformed: mem_wellformed m)
+(*      (mwellformed: mem_wellformed m) *)
       (mcompat : mem_compatible_with tp m PHI)
       (extcompat : joins (ghost_of PHI) (Some (ext_ref tt, NoneP) :: nil))
       (lock_sparse : lock_sparsity (lset tp))
@@ -736,7 +737,7 @@ Proof.
     rewrite <- HC in *.
     replace (num_threads tp') with (num_threads tp) in *; eauto.
     symmetry; apply contains_iff_num; auto.
-Qed.
+Qed.*)
 
 (*(* Is this provable? *)
 Lemma state_inv_fupd : forall Gamma (n : nat)
@@ -938,11 +939,11 @@ Proof.
 (* not true in general, because mem_step doesn't rule out storing invalid pointers *)
 Abort.
 
-Lemma mem_wellformed_step : forall {ge} m m' c c', cl_step ge c m c' m' -> @mem_wellformed ge m -> @mem_wellformed ge m'.
+(*Lemma mem_wellformed_step : forall {ge} m m' c c', cl_step ge c m c' m' -> @mem_wellformed ge m -> @mem_wellformed ge m'.
 Proof.
   induction 1; auto; intros []; unfold mem_wellformed.
   - Search expr.valid_pointer.
-Abort.
+Abort.*)
 
 Ltac fixsafe H :=
   unshelve eapply jsafe_phi_jsafeN in H; eauto.

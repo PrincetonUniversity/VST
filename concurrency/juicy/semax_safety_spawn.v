@@ -194,7 +194,7 @@ Lemma safety_induction_spawn ge Gamma n state
      state_invariant Jspec' Gamma (S n) state').
 Proof.
   intros isspawn I.
-  inversion I as [m tr sch_ tp Phi En envcoh mwellformed compat extcompat sparse lock_coh safety wellformed unique E]. rewrite <-E in *.
+  inversion I as [m tr sch_ tp Phi En envcoh (*mwellformed*) compat extcompat sparse lock_coh safety wellformed unique E]. rewrite <-E in *.
   unfold blocked_at_external in *.
   destruct isspawn as (i & cnti & sch & ci & args & -> & Eci & atex).
   pose proof (safety i cnti tt) as safei.
@@ -246,7 +246,6 @@ Proof.
   { rewrite <-l0. apply join_sub_level. eexists; eauto. }
   assert (l01 : level phi01 = S n).
   { rewrite <-l0. apply join_sub_level. eexists; eauto. }
-Print Module SeparationLogicSoundness.VericSound.
   Import SeparationLogic Clight_initial_world Clightdefs.
 (*  Import VericMinimumSeparationLogic.CSHL_Defs *)
 (*   Import SeparationLogicSoundness.VericSound.CSHL_Defs. *)
@@ -376,7 +375,6 @@ specialize (all_coh0 (b, Ptrofs.unsigned i0)); spec all_coh0; auto.
     { reflexivity. }
 
     eapply step_create with
-      (Hcompatible := mem_compatible_forget compat)
       (phi' := phi1)
       (d_phi := phi0); try reflexivity; try eassumption; simpl; auto.
   }
@@ -412,7 +410,6 @@ specialize (all_coh0 (b, Ptrofs.unsigned i0)); spec all_coh0; auto.
 
   - (* env_coherence *)
     apply env_coherence_age_to; auto.
-  - auto.
   - rewrite age_to_ghost_of.
     destruct extcompat as [? J]; eapply ghost_fmap_join in J; eexists; eauto.
 
@@ -441,16 +438,7 @@ specialize (all_coh0 (b, Ptrofs.unsigned i0)); spec all_coh0; auto.
       rewrite gssAddCode by reflexivity.
       exists q_new.
       split.
-      {
-      destruct (Initcore (jm_ cnti compat)) as [? Hinit]; [|apply Hinit].
-      simpl Mem.nextblock.
-      destruct mwellformed as [Hinj ?]. split; auto.
-      clear - Hinj.
-      change (Mem.nextblock m)
-       with (Mem.nextblock (m_dry (@jm_ (globalenv prog) tp m Phi i cnti compat))).
-      apply  maxedmem_neutral; simpl.
-      unfold juicyRestrict; rewrite maxedmem_restr; auto.
-      }
+      { destruct (Initcore (jm_ cnti compat)) as [? Hinit]; apply Hinit. }
 
       intros jm. REWR. rewrite gssAddRes by reflexivity.
       specialize (Safety jm ts).

@@ -36,7 +36,7 @@ Qed.
 (* This ensures that when ProperProxy is ebing resolved,
    partial reflexivity is considered
  *)
-Hint Extern 3 (ProperProxy ?R _) => 
+#[export] Hint Extern 3 (ProperProxy ?R _) => 
 not_evar R; class_apply @part_reflexive_proper_proxy;
   try typeclasses eauto; eauto
                          : typeclass_instances.
@@ -45,8 +45,8 @@ not_evar R; class_apply @part_reflexive_proper_proxy;
 (* We present two more relations that help take advantage of the above.*)
 Inductive trieq {A : Type} (x : A) : A -> A -> Prop :=
 | triew_refl: trieq x x x.
-Hint Resolve (@triew_refl).
-Instance trieq_PartReflexive: forall A (x:A), PartReflexive (eq x) (trieq x).
+#[export] Hint Constructors trieq : core.
+#[export] Instance trieq_PartReflexive: forall A (x:A), PartReflexive (eq x) (trieq x).
 Proof. constructor; intros; subst; constructor. Qed.
 Global Instance Symmetric_trieq:
   forall {A} (x:A), Symmetric (trieq x).
@@ -61,7 +61,7 @@ Qed.
 
 Definition eq_P {A : Type} (P:A -> Prop) (x y: A) : Prop := 
   (x = y) /\ P x.
-Instance eq_P_PartReflexive: forall {A P}, PartReflexive P (@eq_P A P).
+#[export] Instance eq_P_PartReflexive: forall {A P}, PartReflexive P (@eq_P A P).
 Proof. constructor; intros; subst; constructor; auto. Qed.
 Global Instance Symmetric_eq_P:
   forall {A P}, Symmetric (@eq_P A P).
@@ -105,7 +105,7 @@ Ltac rewrite_getPerm := first [rewrite_getPerm_goal|rewrite_getPerm_hyp].
 
 Definition access_map_equiv (a1 a2: access_map): Prop :=
   forall b, a1 !! b =  a2 !! b.
-Instance access_map_equiv_Equivalence: Equivalence access_map_equiv.
+#[export] Instance access_map_equiv_Equivalence: Equivalence access_map_equiv.
 Proof.
   constructor; try constructor; intros ?; intros.
   - unfold access_map_equiv in *; auto.
@@ -124,7 +124,7 @@ Ltac destruct_address_range b ofs b0 ofs0 n:=
   | ].
 
 
-Instance setPermBlock_access_map_equiv:
+#[export] Instance setPermBlock_access_map_equiv:
   Proper (eq ==> eq ==> eq ==>
              access_map_equiv ==> eq_P (lt 0) ==>  access_map_equiv)
          (setPermBlock ).
@@ -208,7 +208,7 @@ Proof.
     econstructor; etransitivity; eauto.
 Qed.
 
-Instance Proper_perm_max:
+#[export] Instance Proper_perm_max:
   Proper (Max_equiv ==> eq ==> eq ==> (trieq Max) ==> eq ==> iff) Mem.perm.
 Proof.
   proper_iff; proper_intros; subst.
@@ -218,7 +218,7 @@ Proof.
     repeat rewrite_getPerm.
   rewrite <- H; auto.
 Qed.
-Instance Proper_perm_cur:
+#[export] Instance Proper_perm_cur:
   Proper (Cur_equiv ==> eq ==> eq ==> (trieq Cur) ==> eq ==> iff) Mem.perm.
 Proof.
   proper_iff; proper_intros; subst.
@@ -229,14 +229,14 @@ Proof.
   - rewrite <- H; auto.
 Qed.
 
-Instance Proper_perm:
+#[export] Instance Proper_perm:
   Proper (mem_equiv ==> eq ==> eq ==> eq ==> eq ==> iff) Mem.perm.
 Proof.
   proper_iff; proper_intros; subst.
   destruct y2; [rewrite <- (max_eqv _ _ H)| erewrite <- (cur_eqv _ _ H)];
     assumption.
 Qed.
-Instance Proper_perm_Max:
+#[export] Instance Proper_perm_Max:
   Proper (Max_equiv ==> eq ==> eq ==> trieq Max ==> eq ==> iff) Mem.perm.
 Proof.
   proper_iff; unfold Mem.perm; proper_intros; subst.
@@ -245,14 +245,14 @@ Proof.
   rewrite <- H; assumption.
 Qed.
 
-Instance range_perm_mem_equiv:
+#[export] Instance range_perm_mem_equiv:
   Proper (mem_equiv ==> eq ==>  eq ==>  eq ==>  eq ==>  eq ==> iff) Mem.range_perm.
 Proof.
   proper_iff; proper_intros; subst.
   unfold Mem.range_perm in *; intros.
   rewrite <- H. eapply H5; auto.
 Qed.
-Instance range_perm_mem_equiv_Max:
+#[export] Instance range_perm_mem_equiv_Max:
   Proper (Max_equiv ==> eq ==>  eq ==>  eq ==>  trieq Max  ==>  eq ==> iff) Mem.range_perm.
 Proof.
   proper_iff; proper_intros; subst.
@@ -260,7 +260,7 @@ Proof.
   unfold Mem.range_perm in *; intros.
   rewrite <- H. eapply H5; auto.
 Qed.
-Instance range_perm_mem_equiv_Cur:
+#[export] Instance range_perm_mem_equiv_Cur:
   Proper (Cur_equiv ==> eq ==>  eq ==>  eq ==>  trieq Cur  ==>  eq ==> iff) Mem.range_perm.
 Proof.
   proper_iff; proper_intros; subst.
@@ -269,7 +269,7 @@ Proof.
   rewrite <- H. eapply H5; auto.
 Qed.
 
-Instance mem_inj_equiv:
+#[export] Instance mem_inj_equiv:
   Proper ( eq ==> mem_equiv ==> mem_equiv ==> iff) Mem.mem_inj.
 Proof.
   proper_iff. proper_intros; subst.
@@ -287,11 +287,11 @@ Proof.
     eapply H2; eauto.
 Qed.
 
-Instance Proper_nextblock:
+#[export] Instance Proper_nextblock:
   Proper (mem_equiv ==> Logic.eq) Mem.nextblock.
 Proof. intros ???. erewrite nextblock_eqv; auto. Qed.
 
-Instance Proper_valid_block:
+#[export] Instance Proper_valid_block:
   Proper (mem_equiv ==> Logic.eq ==> Logic.eq) Mem.valid_block.
 Proof.
   intros ??????.
@@ -300,7 +300,7 @@ Proof.
 Qed.
 
 
-Instance Proper_no_overlap_max_equiv:
+#[export] Instance Proper_no_overlap_max_equiv:
   Proper (Logic.eq ==> Max_equiv ==> iff)
          Mem.meminj_no_overlap.
 Proof.
@@ -314,7 +314,7 @@ Proof.
 Qed.
 
 
-Instance Proper_no_overlap_mem_equiv:
+#[export] Instance Proper_no_overlap_mem_equiv:
   Proper (eq ==> mem_equiv ==> iff) Mem.meminj_no_overlap.
 Proof.
   proper_iff. proper_intros; subst.
@@ -322,7 +322,7 @@ Proof.
   symmetry; apply H0.
 Qed.
 
-Instance mem_inject_equiv:
+#[export] Instance mem_inject_equiv:
   Proper  ( eq ==> mem_equiv ==> mem_equiv ==> iff) Mem.inject.
 Proof.
   proper_iff.
@@ -342,7 +342,7 @@ Proof.
     apply Hinj; auto.
 Qed.
 
-Instance permMapLt_equiv:
+#[export] Instance permMapLt_equiv:
   Proper (access_map_equiv ==> access_map_equiv ==> iff)
          permMapLt.
 Proof. proper_iff. intros ?????? HH ??; rewrite <- H, <- H0; auto. Qed.
@@ -435,7 +435,7 @@ Lemma restr_proof_irr_equiv:
 Qed.
 
 
-Instance valid_access_Proper:
+#[export] Instance valid_access_Proper:
   Proper (mem_equiv  ==> Logic.eq ==> Logic.eq  ==>
                      Logic.eq ==> Logic.eq ==> iff) Mem.valid_access.
 Proof.
@@ -443,7 +443,7 @@ Proof.
   setoid_help.proper_iff; setoid_help.proper_intros; subst.
   rewrite <- H; auto.
 Qed.
-Instance load_Proper:
+#[export] Instance load_Proper:
   Proper (Logic.eq ==> mem_equiv ==> Logic.eq ==> Logic.eq  ==> Logic.eq) Mem.load.
 Proof.
   setoid_help.proper_intros; subst.
@@ -462,7 +462,7 @@ Proof.
   - reflexivity.
 Qed.
 
-Instance loadv_Proper:
+#[export] Instance loadv_Proper:
   Proper (Logic.eq ==> mem_equiv ==> Logic.eq  ==> Logic.eq) Mem.loadv.
 Proof. intros ??? ??? ???; subst.
        destruct y1; auto.

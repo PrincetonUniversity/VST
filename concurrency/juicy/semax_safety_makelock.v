@@ -102,7 +102,7 @@ Proof.
   assert (Hpos : (0 < LKSIZE)%Z) by reflexivity.
   intros ismakelock.
   intros I.
-  inversion I as [m tr sch_ tp Phi En envcoh mwellformed compat extcompat sparse lock_coh safety wellformed unique E]. rewrite <-E in *.
+  inversion I as [m tr sch_ tp Phi En envcoh (*mwellformed*) compat extcompat sparse lock_coh safety wellformed unique E]. rewrite <-E in *.
   unfold blocked_at_external in *.
   destruct ismakelock as (i & cnti & sch & ci & args & -> & Eci & atex).
   pose proof (safety i cnti tt) as safei.
@@ -217,8 +217,7 @@ Proof.
     eapply JuicyMachine.sync_step
     with (Htid := cnti) (Hcmpt := mem_compatible_forget compat); auto.
 
-    eapply step_mklock
-    with (Hcompatible := mem_compatible_forget compat)
+    eapply step_mklock with (Hcompat := mem_compatible_forget compat)
                    (R := Rx) (phi' := phi');
     try eassumption; try reflexivity.
     subst tpx; reflexivity.
@@ -523,11 +522,11 @@ Proof.
     apply env_coherence_pures_eq with Phi; auto. lia.
     apply pures_same_pures_eq. auto.
     eapply rmap_makelock_pures_same; eauto.
-  - clear -Hstore mwellformed.
+(*  - clear -Hstore mwellformed.
      unfold personal_mem in Hstore; simpl in Hstore.
      unfold juicyRestrict in Hstore; simpl in Hstore.
      eapply mem_wellformed_store; [.. | apply Hstore |]; auto.
-     apply mem_wellformed_restr; auto.
+     apply mem_wellformed_restr; auto. *)
   - rewrite age_to_ghost_of.
     destruct Hrmap' as (? & ? & ? & <-).
     destruct extcompat as [? J]; eapply ghost_fmap_join in J; eexists; eauto.

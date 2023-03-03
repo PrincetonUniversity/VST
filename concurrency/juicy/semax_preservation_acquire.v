@@ -313,9 +313,9 @@ Proof.
 
   + (* env_coherence *)
     apply env_coherence_age_to. auto.
-  + inv INV. clear -mwellformed Hstore.
+(*  + inv INV. clear -mwellformed Hstore.
     eapply mem_wellformed_store; [.. | apply Hstore |]; auto.
-    apply mem_wellformed_restr; auto.
+    apply mem_wellformed_restr; auto. *)
   + rewrite age_to_ghost_of.
     destruct extcompat as [? J]; eapply ghost_fmap_join in J; eexists; eauto.
 

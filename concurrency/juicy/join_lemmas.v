@@ -60,7 +60,7 @@ Proof.
     eauto.
 Qed.
 
-Instance Permutation_length' A {JA : Join A} {PA : Perm_alg A} :
+#[export] Instance Permutation_length' A {JA : Join A} {PA : Perm_alg A} :
   Proper (@Permutation A ==> @eq A ==> Logic.iff) joinlist | 10.
 Proof.
   intros l1 l2 p x y <-; split; apply joinlist_permutation; auto.

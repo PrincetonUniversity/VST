@@ -122,6 +122,68 @@ Proof.
   - apply lockSet_in_juicyLocks_age. easy.
 Qed.
 
+Lemma lockSet_Writable_updLockSet_updThread ge m m' i (tp : jstate ge)
+      (cnti : containsThread tp i)  b ofs ophi ophi' c' phi' z
+      (Hcmpt : mem_compatible tp m)
+      (His_unlocked : AMap.find (elt:=option rmap) (b, Ptrofs.intval ofs) (lset tp) = Some ophi)
+      (Hlt' : permMapLt
+           (setPermBlock (Some Writable) b (Ptrofs.intval ofs) (juice2Perm_locks (getThreadR cnti) m)
+              LKSIZE_nat) (getMaxPerm m))
+      (Hstore : Mem.store Mptr (restrPermMap Hlt') b (Ptrofs.intval ofs) (Vptrofs z) = Some m') :
+  lockSet_Writable (lset (updLockSet (updThread cnti c' phi') (b, Ptrofs.intval ofs) ophi')) m'.
+Proof.
+  destruct Hcmpt as (Phi, compat).
+  pose proof (loc_writable compat) as lw.
+  intros b' ofs' is; specialize (lw b' ofs').
+  destruct (eq_dec (b, Ptrofs.intval ofs) (b', ofs')).
+  + injection e as <- <- .
+    intros ofs0 int0.
+    rewrite (Mem.store_access _ _ _ _ _ _ Hstore).
+    pose proof restrPermMap_Max as RR.
+    unfold juicyRestrict_locks in *.
+    unfold permission_at in RR.
+    rewrite RR; clear RR.
+    clear is.
+    assert_specialize lw. {
+      clear lw.
+      cleanup.
+      rewrite His_unlocked.
+      reflexivity.
+    }
+    specialize (lw ofs0).
+    autospec lw.
+    exact_eq lw; f_equal.
+    unfold getMaxPerm in *.
+    rewrite PMap.gmap.
+    reflexivity.
+  + assert_specialize lw. {
+      simpl in is.
+      rewrite AMap_find_add in is.
+      if_tac in is. tauto.
+      exact_eq is.
+      unfold ssrbool.isSome in *.
+      cleanup.
+      destruct (AMap.find (elt:=option rmap) (b', ofs') (lset tp));
+        reflexivity.
+    }
+    intros ofs0 inter.
+    specialize (lw ofs0 inter).
+    exact_eq lw. f_equal.
+    unfold juicyRestrict_locks in *.
+    set (m_ := restrPermMap _) in Hstore.
+    change (max_access_at m (b', ofs0) = max_access_at m' (b', ofs0)).
+    transitivity (max_access_at m_ (b', ofs0)).
+    * unfold m_.
+      rewrite restrPermMap_max.
+      reflexivity.
+    * pose proof store_outside' _ _ _ _ _ _ Hstore as SO.
+      unfold access_at in *.
+      destruct SO as (_ & SO & _).
+      apply equal_f with (x := (b', ofs0)) in SO.
+      apply equal_f with (x := Max) in SO.
+      apply SO.
+Qed.
+
 Lemma after_alloc_0 : forall b phi H, after_alloc 0 0 b phi H = phi.
 Proof.
   intros; apply rmap_ext; unfold after_alloc.
@@ -836,6 +898,56 @@ Proof.
   inversion 1; constructor; repeat intro; rewrite H0 in *; eauto.
 Qed.
 
+Lemma mem_cohere'_store ge m (tp : jstate ge) m' b ofs j i Phi (cnti : containsThread tp i):
+  forall (Hcmpt : mem_compatible tp m)
+    (lock : lockRes tp (b, Ptrofs.intval ofs) <> None)
+    (Hlt' : permMapLt
+           (setPermBlock (Some Writable) b (Ptrofs.intval ofs) (juice2Perm_locks (getThreadR cnti) m)
+              LKSIZE_nat) (getMaxPerm m))
+    (Hstore : Mem.store Mptr (restrPermMap Hlt') b (Ptrofs.intval ofs) (Vptrofs j) = Some m'),
+    mem_compatible_with tp m Phi (* redundant with Hcmpt, but easier *) ->
+    (exists phi, join_sub phi Phi /\ exists sh R, LKspec LKSIZE sh R (b, Ptrofs.intval ofs) phi) ->
+    mem_cohere' m' Phi.
+Proof.
+  intros Hcmpt lock Hlt' Hstore compat HLKspec.
+  pose proof store_outside' _ _ _ _ _ _ Hstore as SO.
+  destruct compat as [J MC LW JL LJ].
+  destruct MC as [Co Ac Ma].
+  split.
+  - intros sh sh' v (b', ofs') pp E.
+    specialize (Co sh sh' v (b', ofs') pp E).
+    destruct Co as [<- ->]. split; auto.
+    destruct SO as (Co1 & A1 & N1).
+    specialize (Co1 b' ofs').
+    destruct Co1 as [In|Out].
+    + exfalso (* because there is no lock at (b', ofs') *).
+      destruct HLKspec as (? & J' & ? & ? & HLKspec).
+      apply (resource_at_join_sub _ _ (b', ofs')) in J' as [? J'].
+      rewrite E in J'.
+      specialize (HLKspec (b', ofs')); simpl in HLKspec.
+      rewrite if_true in HLKspec.
+      destruct HLKspec as [? HLK]; rewrite HLK in J'; inv J'.
+      { destruct In; split; auto; lkomega. }
+
+    + rewrite <-Out.
+      unfold juicyRestrict_locks in *.
+      rewrite restrPermMap_contents.
+      auto.
+
+  - intros loc.
+    replace (max_access_at m' loc) with (max_access_at (restrPermMap Hlt') loc).
+    clear SO.
+    unfold juicyRestrict_locks in *.
+    rewrite restrPermMap_max.
+    apply Ac.
+    { unfold max_access_at in *.
+      unfold juicyRestrict_locks in *.
+      destruct SO as (_ & -> & _). reflexivity. }
+
+  - unfold alloc_cohere in *.
+    destruct SO as (_ & _ & <-). auto.
+Qed.
+
 (*Lemma state_inv_upd1 : forall {Z} (Jspec : juicy_ext_spec Z) Gamma (n : nat)
   (m : mem) (ge : genv) (tr : event_trace) (sch : schedule) (tp : ThreadPool.t) (PHI : rmap)
       (lev : level PHI = n)
@@ -1044,3 +1156,24 @@ Proof.
 intros.
 apply log_normalize.TT_andp.
 Qed.
+
+Ltac jmstep_inv :=
+  match goal with
+  | H : JuicyMachine.start_thread _ _ _ _  |- _ => inversion H
+  | H : JuicyMachine.resume_thread _ _ _   |- _ => inversion H
+  | H : JuicyMachine.threadStep _ _ _ _ _           |- _ => inversion H
+  | H : JuicyMachine.suspend_thread _ _ _ |- _ => inversion H
+  | H : JuicyMachine.syncStep _ _ _ _ _ _           |- _ => inversion H
+  | H : JuicyMachine.halted_thread _ _                  |- _ => inversion H
+  | H : JuicyMachine.schedfail _         |- _ => inversion H
+  end; try subst.
+
+Ltac getThread_inv :=
+  match goal with
+  | [ H : @getThreadC _ _ _ ?i _ _ = _ ,
+          H2 : @getThreadC _ _ _ ?i _ _ = _ |- _ ] =>
+    pose proof (getThreadC_fun _ _ _ _ _ _ _ H H2)
+  | [ H : @getThreadR _ _ _ ?i _ _ = _ ,
+          H2 : @getThreadR _ _ _ ?i _ _ = _ |- _ ] =>
+    pose proof (getThreadR_fun _ _ _ _ _ _ _ H H2)
+  end.
