@@ -450,10 +450,10 @@ Context {ge : Clight.genv}.
 
 Definition getLocksR (tp : jstate ge) := listoption_inv (map snd (AMap.elements (lset tp))).
 
-Definition maps tp := (getThreadsR tp ++ getLocksR tp)%list.
+Definition maps tp := (getThreadsR tp ++ getLocksR tp ++ (extraRes tp :: nil))%list.
 
 Lemma all_but_maps i tp (cnti : containsThread tp i) :
-  all_but i (maps tp) = all_but i (getThreadsR tp) ++ getLocksR tp.
+  all_but i (maps tp) = all_but i (getThreadsR tp) ++ getLocksR tp ++ (extraRes tp :: nil).
 Proof.
   unfold maps. generalize (getLocksR tp); intros l.
   apply all_but_app.
@@ -548,33 +548,34 @@ Qed.
 Lemma join_all_joinlist tp : join_all tp = joinlist (maps tp).
 Proof.
   extensionality phi. apply prop_ext. split.
-  - intros J. inversion J as [? rt rl ? jt jl j]; subst.
-    destruct rl as [rl|].
-    + inversion j; subst.
-      apply joinlist_app with (x1 := rt) (x2 := rl); auto.
+  - intros J. inversion J as [? rt rl r' ? jt jl j' j]; subst.
+    unfold maps.
+    rewrite app_assoc; eapply joinlist_app, j.
+    inv j'.
+    + rewrite <-join_list_joinlist.
+      apply join_list'_None in jl.
+      cut (join_list (getThreadsR tp ++ nil) r').
+      { intro H; exact_eq H. f_equal. f_equal. symmetry. apply jl. }
+      rewrite app_nil_r.
+      apply jt.
+    + eapply joinlist_app with (x1 := rt); eauto.
       * rewrite <-join_list_joinlist.
         apply jt.
       * apply join_list'_Some.
         apply jl.
-    + inversion j; subst.
-      rewrite <-join_list_joinlist.
-      apply join_list'_None in jl.
-      unfold maps.
-      cut (join_list (getThreadsR tp ++ nil) phi).
-      { intro H; exact_eq H. f_equal. f_equal. symmetry. apply jl. }
-      rewrite app_nil_r.
-      apply jt.
+    + do 2 eexists; [apply id_core_identity | apply join_comm, id_core_unit].
   - intros j.
     unfold maps in j.
     rewrite <- join_list_joinlist in j.
-    apply app_join_list in j.
-    destruct j as (rt & rl & jt & jl & j).
+    apply app_join_list in j as (rt & r & jt & j' & j).
+    apply app_join_list in j' as (rl & ? & jl & je & j').
+    destruct je as (? & je & Hid). apply join_comm, Hid in je; subst.
+    destruct (join_assoc (join_comm j') (join_comm j)) as (r' & j1%join_comm & ?).
     set (l' := getLocksR tp).
     assert (D:l' = nil \/ l' <> nil)
       by (destruct l'; [left|right]; congruence).
     destruct D as [D|D].
-    + exists rt None; unfold l' in *; simpl in *.
-      * hnf. apply jt.
+    + exists rt None r'; unfold l' in *; simpl in *; auto.
       * hnf. unfold l' in D.
         rewrite join_list'_None.
         simpl in *.
@@ -582,10 +583,9 @@ Proof.
         reflexivity.
       * rewrite D in jl.
         simpl in jl.
-        pose proof join_unit2_e _ _ jl j. subst.
+        pose proof join_unit2_e _ _ jl j1. subst.
         constructor.
-    + exists rt (Some rl).
-      * hnf. apply jt.
+    + exists rt (Some rl) r'; auto.
       * hnf. apply join_list'_Some'; auto.
         rewrite <- join_list_joinlist; auto.
       * constructor; auto.
@@ -774,7 +774,6 @@ Proof.
   generalize m at 1 2 4 7 13 14; intros n; revert i.
   induction n; intros i li cnti Hnm. now inversion li.
   match goal with |- _ = Some (map ?F _) => set (f := F) end.
-  Unset Printing Implicit.
   destruct i.
   - simpl.
     f_equal.
@@ -909,9 +908,8 @@ Lemma maps_getthread i tp cnti :
               (@getThreadR _ _ _ i tp cnti :: all_but i (maps tp)).
 Proof.
   rewrite all_but_maps; auto.
-  transitivity
-    ((getThreadR cnti :: all_but i (getThreadsR tp)) ++ getLocksR tp); auto.
-  rewrite <-getThreadsR_but. reflexivity.
+  match goal with |-context[?a :: ?b ++ ?c] => change (a :: b ++ c) with ((a :: b) ++ c) end.
+  rewrite <- getThreadsR_but; reflexivity.
 Qed.
 
 Lemma maps_updthread i tp cnti c phi :
@@ -935,7 +933,7 @@ Qed.
 Lemma maps_updlock1 (tp : jstate ge) addr :
   maps (updLockSet tp addr None) = maps (remLockSet tp addr).
 Proof.
-  unfold maps; f_equal.
+  unfold maps; do 2 f_equal.
   apply getLocksR_updLockSet_None.
 Qed.
 
@@ -980,8 +978,7 @@ Lemma maps_addthread tp v1 v2 phi :
               (phi :: maps tp).
 Proof.
   unfold maps.
-  change (phi :: getThreadsR tp ++ getLocksR tp)
-  with ((phi :: getThreadsR tp) ++ getLocksR tp).
+  match goal with |-context[?a :: ?b ++ ?c] => change (a :: b ++ c) with ((a :: b) ++ c) end.
   apply Permutation_app_tail.
   rewrite Permutation_cons_append.
   rewrite getThreadsR_addThread.
@@ -993,8 +990,8 @@ Lemma maps_age_to i tp :
 Proof.
   destruct tp as [n th ph ls]; simpl.
   unfold maps, getThreadsR, getLocksR in *.
-  rewrite map_app.
-  f_equal.
+  rewrite !map_app.
+  do 2 f_equal.
   - apply map_compose.
   - unfold lset.
     rewrite AMap_map.

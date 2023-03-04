@@ -584,7 +584,7 @@ Proof.
   apply mcompat.
 Qed.
 
-(*Definition state_fupd P (state : cm_state) := let '(m, (tr, sch, tp)) := state in
+Definition state_fupd P (state : cm_state) := let '(m, (tr, sch, tp)) := state in
   tp_fupd (fun tp' => P (m, (tr, sch, tp'))) tp.
 
 Lemma state_fupd_intro : forall (P : _ -> Prop) m tr sch tp phi, join_all tp phi ->
@@ -603,7 +603,7 @@ Proof.
   inversion 1; subst.
   eapply state_fupd_intro; eauto.
   apply mcompat.
-Qed.*)
+Qed.
 
 Lemma mem_compatible_upd : forall tp m phi tp' phi', mem_compatible_with tp m phi ->
   tp_update(ge := ge) tp phi tp' phi' -> mem_compatible_with tp' m phi'.

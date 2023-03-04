@@ -13,7 +13,7 @@ Require Export VST.concurrency.common.threadPool.
 Require Import VST.concurrency.common.scheduler.
 Require Import VST.concurrency.common.HybridMachineSig.
 Require Import VST.concurrency.juicy.juicy_machine. Import Concur.
-Require Import VST.concurrency.common.HybridMachine. Import Concur.
+(*Require Import VST.concurrency.common.HybridMachine. Import Concur. *)
 Require Import VST.concurrency.common.lksize.
 Require Import VST.concurrency.common.permissions.
 
@@ -46,7 +46,7 @@ Module THE_JUICY_MACHINE.
          level (getThreadR cnt) = level (getThreadR (proj2 (Hiff _) cnt)) /\
          resource_at (getThreadR cnt) = resource_at (getThreadR (proj2 (Hiff _) cnt))) /\
       lockGuts tp' = lockGuts tp /\ lockSet tp' = lockSet tp /\
-      lockRes tp' = lockRes tp /\ latestThread tp'= latestThread tp.
+      lockRes tp' = lockRes tp /\ latestThread tp'= latestThread tp /\ extraRes tp' = extraRes tp.
 
   Lemma tp_update_refl : forall tp phi, join_all tp phi -> tp_update tp phi tp phi.
   Proof.
@@ -68,24 +68,24 @@ Module THE_JUICY_MACHINE.
        joins b (ghost_fmap (approx (level phi)) (approx (level phi)) c) /\
        exists phi' tp', tp_update tp phi tp' phi' /\ ghost_of phi' = b /\ P tp'.
 
-Print juicy_extspec.jm_fupd. (*
-(* Should we do a fupd on threadpools, or explicitly represent the wsat the way we represent lock invariants?
-   Probably the latter, but the former might be easier to write. *)
-  Definition tp_fupd P (tp : jstate) :=
-  (* Without this initial condition, a thread pool could be vacuously safe by being inconsistent
-     with itself or the external environment. Since we want juicy safety to imply dry safety,
-     we need to rule out the vacuous case. *)
-  exists phi, join_all tp phi /\ joins (ghost_of phi) (Some (ghost_PCM.ext_ref tt, NoneP) :: nil) /\
-    forall phi' w z phiz, necR phi phi' -> join_all z phiz -> join phi' w phiz ->
-    (invariants.wsat * invariants.ghost_set invariants.g_en E1) w ->
-    tp_bupd (fun z2 => exists tp2 phi2 w2 phiz2, join_all z2 phi2 /\ join phi2 w2 ) z.
+  Definition tp_update_weak (tp tp' : jstate) :=
+    exists (Hiff : forall t, containsThread tp' t <-> containsThread tp t),
+      (forall t (cnt : containsThread tp t), getThreadC cnt = getThreadC (proj2 (Hiff _) cnt) /\
+         level (getThreadR cnt) = level (getThreadR (proj2 (Hiff _) cnt))) /\
+      lockGuts tp' = lockGuts tp /\ lockSet tp' = lockSet tp /\
+      lockRes tp' = lockRes tp /\ latestThread tp'= latestThread tp.
 
-  forall phi, join_all tp phi ->
-    forall c : ghost, join_sub (Some (ghost_PCM.ext_ref tt, NoneP) :: nil) c ->
-     joins (ghost_of phi) (ghost_fmap (approx (level phi)) (approx (level phi)) c) ->
-     exists b : ghost,
-       joins b (ghost_fmap (approx (level phi)) (approx (level phi)) c) /\
-       exists phi' tp', tp_update tp phi tp' phi' /\ ghost_of phi' = b /\ P tp'.*)
+  Lemma tp_update_weak_refl : forall tp, tp_update_weak tp tp.
+  Proof.
+    unshelve eexists; [reflexivity|].
+    split; auto; intros.
+    replace (proj2 _ _) with cnt by apply proof_irr; auto.
+  Qed.
+
+  Definition tp_fupd P (tp : jstate) := app_pred invariants.wsat (extraRes tp) /\
+    (tp_level_is 0 tp \/
+     tp_bupd (fun tp1 => exists phi tp2, join_all tp1 phi /\ join_all tp2 phi /\
+       tp_update_weak tp1 tp2 /\ app_pred invariants.wsat (extraRes tp2) /\ P tp2) tp).
 
   Existing Instance JuicyMachineShell.
   Existing Instance HybridMachineSig.HybridCoarseMachine.DilMem.
@@ -98,7 +98,7 @@ Print juicy_extspec.jm_fupd. (*
                  jm_csafe st m n
   | CoreSafe : forall tr' (tp' : jstate) (m' : mem) (n : nat)
                (Hstep : MachStep(Sem := JSem) st m (fst (fst st), tr', tp') m')
-               (Hsafe : tp_bupd (fun tp' => jm_csafe (fst (fst st), tr', tp') m' n) tp'),
+               (Hsafe : tp_fupd (fun tp' => jm_csafe (fst (fst st), tr', tp') m' n) tp'),
                jm_csafe st m (S n)
   | AngelSafe : forall tr' (tp' : jstate) (m' : mem) (n : nat)
                 (Hstep : MachStep(Sem := JSem) st m
@@ -114,7 +114,7 @@ Print juicy_extspec.jm_fupd. (*
                  jm_ctrace st m nil n
   | CoreTrace : forall tr (tp' : jstate) (m' : mem) tr' (n : nat)
                (Hstep : MachStep(Sem := JSem) st m (fst (fst st), snd (fst st) ++ tr, tp') m')
-               (Hsafe : tp_bupd (fun tp' => jm_ctrace (fst (fst st), snd (fst st) ++ tr, tp') m' tr' n) tp'),
+               (Hsafe : tp_fupd (fun tp' => jm_ctrace (fst (fst st), snd (fst st) ++ tr, tp') m' tr' n) tp'),
                jm_ctrace st m (tr ++ tr') (S n)
   | AngelTrace : forall tr (tp' : jstate) (m' : mem) tr' (n : nat)
                 (Hstep : MachStep(Sem := JSem) st m

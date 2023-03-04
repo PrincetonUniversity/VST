@@ -212,10 +212,11 @@ Module Concur.
 
     (*Join all the juices*)
     Inductive join_all: thread_pool -> res -> Prop:=
-      AllJuice tp r0 r1 r:
+      AllJuice tp r0 r1 r2 r:
         join_threads tp r0 ->
         join_locks tp r1 ->
-        join (Some r0) r1 (Some r) ->
+        join (Some r0) r1 (Some r2) ->
+        join r2 (extraRes tp) r ->
         join_all tp r.
 
     Definition juicyLocks_in_lockSet (lset : lockMap) (juice: rmap):=
@@ -820,12 +821,6 @@ Qed.
       unfold mem_seq in H.
       destruct H0 as [? [? ?]].
       apply (IHel x) in H; auto. apply join_sub_trans with x; auto. eexists; eauto.
-
-      (*   Lemma ord_enum_enum:
-      forall n,
-        ord_enum n = enum n.
-          Set Printing All.
-    Ad mitted.*)
       apply ord_enum_enum.
     Qed.
 
@@ -838,12 +833,13 @@ Qed.
       intros. inv H.
       assert (H9: join_sub (Some (getThreadR cnt)) (Some all_juice));
         [ | destruct H9 as [x H9]; inv H9; [apply join_sub_refl | eexists; eauto]].
+      apply join_sub_trans with (Some r2); [ | eexists; constructor; eauto].
       apply join_sub_trans with (Some r0); [ | eexists; eauto].
       clear - H0.
       assert (H9: join_sub (getThreadR cnt) r0) by (eapply join_threads_sub; eauto).
       destruct H9 as [x H9]; exists (Some x); constructor; auto.
     Qed.
-    
+
     Lemma join_sub_souble_join:
       forall (a1 b1 c1 a2 b2 c2: rmap),
         join_sub a1 a2 ->
@@ -870,7 +866,7 @@ Qed.
       replace c1 with x2; auto.
       eapply sepalg.join_eq; auto.
     Qed.
-    
+
     Lemma join_list_not_none:
       forall el l phi x,
         join_list' (List.map snd el) x ->
@@ -945,7 +941,8 @@ Qed.
       intros.
       inv H. inv H4.
       - exfalso; eapply lockres_join_locks_not_none; eauto.
-      - eapply join_sub_souble_join; eauto.
+      - eapply join_sub_trans; [|eexists; eauto].
+        eapply join_sub_souble_join; eauto.
         eapply join_threads_sub; assumption.
         eapply compatible_lockRes_sub; eassumption.
     Qed.
@@ -983,7 +980,8 @@ Qed.
     Proof.
      intros.
      inv H0.
-     assert (H9: join_sub (Some phi) (Some all_juice));
+     eapply join_sub_trans; [|eexists; eauto].
+     assert (H9: join_sub (Some phi) (Some r2));
        [ | destruct H9 as [x H9]; inv H9; [apply join_sub_refl | eexists; eauto]].
      apply join_sub_trans with (b:=r1); [ | eexists; eauto].
      clear - H H2.
@@ -1036,11 +1034,13 @@ Qed.
 
     Definition tp_level_is_above n tp :=
       (forall i (cnti : containsThread tp i), le n (level (getThreadR cnti))) /\
-      (forall i phi, lockRes(resources:=LocksAndResources) tp i = Some (Some phi) -> le n (level phi)).
+      (forall i phi, lockRes(resources:=LocksAndResources) tp i = Some (Some phi) -> le n (level phi)) /\
+      le n (level (extraRes tp)).
 
     Definition tp_level_is n tp :=
       (forall i (cnti : containsThread tp i), level (getThreadR cnti) = n) /\
-      (forall i phi, lockRes(resources:=LocksAndResources) tp i = Some (Some phi) -> level phi = n).
+      (forall i phi, lockRes(resources:=LocksAndResources) tp i = Some (Some phi) -> level phi = n) /\
+      n = level (extraRes tp).
 
     (*
     Lemma mem_compatible_same_level tp m :
@@ -1071,15 +1071,15 @@ Qed.
 
     Definition age_tp_to (k : nat) (tp : thread_pool) : thread_pool :=
       match tp with
-        mk n pool maps lset =>
+        mk n pool maps lset ex =>
         mk n pool
            ((age_to k) oo maps)
-           (AMap.map (option_map (age_to k)) lset)
+           (AMap.map (option_map (age_to k)) lset) (age_to k ex)
       end.
 
     Lemma level_age_tp_to tp k : tp_level_is_above k tp -> tp_level_is k (age_tp_to k tp).
     Proof.
-      intros [T L]; split.
+      intros (T & L & R); split3.
       - intros i cnti.
         destruct tp.
         apply level_age_to.
@@ -1092,6 +1092,8 @@ Qed.
         simpl in E. injection E as ->.
         apply level_age_to.
         eapply L, IN'.
+      - destruct tp; simpl in *.
+        rewrite level_age_to; auto.
     Qed.
 
     Lemma map_compose {A B C} (g : A -> B) (f : B -> C) l : map (f oo g) l = map f (map g l).
@@ -1141,19 +1143,18 @@ Qed.
       join_all tp Phi ->
       join_all (age_tp_to k tp) (age_to k Phi).
     Proof.
-      intros L J. inversion J as [r rT rL r' JT JL JTL]; subst.
+      intros L J. inversion J as [r rT rL r' r'' JT JL JTL JJ]; subst.
       pose (rL' := option_map (age_to k) rL).
-      destruct tp as [N pool phis lset]; simpl in *.
-      eapply AllJuice with (age_to k rT) rL'.
+      destruct tp as [N pool phis lset ex]; simpl in *.
+      eapply AllJuice with (age_to k rT) rL' (age_to k r').
       - {
           hnf in *; simpl in *.
           unfold getThreadsR in *; simpl in *.
           rewrite map_compose.
           apply join_list_age_to; auto.
-          assert (E : level rT = level Phi). {
-            inversion JTL as [ | a H H0 H2 | a1 a2 a3 JJ H H1 H0]; subst. auto.
-            pose proof join_level _ _ _ JJ. intuition. }
-          rewrite E; auto.
+          apply join_level in JJ as [].
+          inv JTL; try ssrlia.
+          apply join_level in H4 as []; ssrlia.
         }
       - hnf.
         hnf in JL. simpl in JL.
@@ -1161,13 +1162,15 @@ Qed.
         rewrite AMap_map.
         apply join_list'_age_to.
         destruct rL as [rL|]; auto.
-        assert (E : level rL = level Phi). {
-          inversion JTL as [ | a H H0 H2 | a1 a2 a3 JJ H H1 H0]; subst. auto.
-          pose proof join_level _ _ _ JJ. intuition. }
-        rewrite E; auto.
+        apply join_level in JJ as [].
+        inv JTL.
+        apply join_level in H4 as []; ssrlia.
       - destruct rL as [rL | ]; unfold rL'.
         + constructor. apply age_to_join_eq; eauto. inversion JTL; eauto.
+          apply join_level in JJ as []; ssrlia.
         + inversion JTL. constructor.
+      - simpl.
+        apply age_to_join_eq; auto.
     Qed.
 
     Lemma perm_of_age rm age loc :
@@ -1581,7 +1584,7 @@ Qed.
 
     Definition init_mach rmap (m:mem) (tp:thread_pool) (m':mem) (v:val) (args:list val) : Prop :=
       exists c, initial_core the_sem 0 m c m' v args /\
-        match rmap with Some rmap => tp = initial_machine rmap c | None => False end.
+        match rmap with Some rmap => tp = initial_machine rmap c (id_core rmap) | None => False end.
 
 
     Section JuicyMachineLemmas.
@@ -1662,7 +1665,7 @@ Qed.
         simpl.
         unfold OrdinalPool.getThreadR.
        destruct H. destruct H as [JJ _ _ _ _].
-       inv JJ. clear H1 H2. unfold join_threads in H.
+       inv JJ. clear - H0 H. unfold join_threads in H.
        unfold getThreadsR in H.
        assert (H1 :=mem_ord_enum (n:= n (num_threads js))).
        generalize (H1 (Ordinal (n:=n (num_threads js)) (m:=j) cntj)); intro.
@@ -1746,6 +1749,7 @@ Qed.
        unfold OrdinalPool.getThreadR.
        destruct H. destruct H as [JJ _ _ _ _].
        inv JJ. unfold join_locks, join_threads in H1.
+       clear - H H0 H1 H2.
        simpl in H0.
        apply AMap.find_2 in H0. unfold OrdinalPool.lockGuts in H0.
        apply AMap.elements_1 in H0. simpl in H1.
@@ -1958,4 +1962,3 @@ Qed.
   End JuicyMachineShell.
 
 End Concur.
-

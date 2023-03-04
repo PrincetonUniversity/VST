@@ -426,13 +426,13 @@ Module HybridMachineSig.
     intros. inversion H; subst; rewrite HschedN; intro Hcontra; discriminate.
     Defined.
 
-    Definition make_init_machine c r:= 
-        mkPool (Krun c) r.
+    Definition make_init_machine c r ex := 
+        mkPool (Krun c) r ex.
     Definition init_machine' (the_ge : semG) m
-               c m' (f : val) (args : list val) 
+               c m' (f : val) (args : list val) ex
       : option res -> Prop := fun op_r =>
                             if op_r is Some r then 
-                              init_mach op_r m (make_init_machine c r) m' f args
+                              init_mach op_r m (make_init_machine c r ex) m' f args
                             else False.
     Definition init_machine'' (op_m: option mem)(op_r : option res)(m: mem)
                (tp : thread_pool) (m': mem) (f : val) (args : list val)
@@ -441,7 +441,7 @@ Module HybridMachineSig.
       if op_r is Some r then 
         init_mach op_r m tp m' f args
       else False.
-    
+
     Definition unique_Krun tp i :=
       forall j cnti q, 
         @getThreadC _ _ _ j tp cnti = Krun q ->
