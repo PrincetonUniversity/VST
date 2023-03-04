@@ -1281,8 +1281,8 @@ Qed.
             (* This following condition is not needed:
                It should follow from the mem_compat statement... somehow... *)
             (Hrestrict_pmap: restrPermMap Hlt' = m1)
-            (Hstore: Mem.store Mptr m1 b (Ptrofs.intval ofs) (Vint Int.zero) = Some m')
-            (His_unlocked: lockRes tp (b, Ptrofs.intval ofs) = SSome d_phi )
+            (Hstore: Mem.store Mptr m1 b (Ptrofs.intval ofs) (Vptrofs Ptrofs.zero) = Some m')
+            (His_unlocked: lockRes tp (b, Ptrofs.intval ofs) = SSome d_phi)
             (Hadd_lock_res: join phi d_phi phi')
             (Htp': tp' = updThread cnt0 (Kresume c Vundef) phi')
             (Htp'': tp'' = updLockSet tp' (b, Ptrofs.intval ofs) None )

@@ -302,7 +302,7 @@ Proof.
     apply store_access in Hstore.
     admit.  (* Santiago *) *)
   + (* external coherence *)
-    rewrite age_to_ghost_of.
+    unfold ext_compat; rewrite age_to_ghost_of.
     destruct extcompat as [? J]; eapply ghost_fmap_join in J; eexists; eauto.
 
   + (* lock sparsity *)

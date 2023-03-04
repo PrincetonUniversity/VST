@@ -173,6 +173,16 @@ Proof.
   intro p. apply p.
 Qed.
 
+Lemma set_ghost_join : forall a c w1 w2 w (J : join w1 w2 w) H1 H,
+  join a (ghost_of w2) c ->
+  join (set_ghost w1 a H1) w2 (set_ghost w c H).
+Proof.
+  intros.
+  destruct (join_level _ _ _ J).
+  apply resource_at_join2; unfold set_ghost; intros; rewrite ?level_make_rmap, ?resource_at_make_rmap, ?ghost_of_make_rmap; auto.
+  apply resource_at_join; auto.
+Qed.
+
 Lemma safety_induction_spawn ge Gamma n state
   (CS : compspecs)
   (ext_link : string -> ident)
@@ -390,12 +400,12 @@ specialize (all_coh0 (b, Ptrofs.unsigned i0)); spec all_coh0; auto.
                          (Vptr f_b Ptrofs.zero) b phi0) m Phi).
   {
     split; try apply compat.
-    clear -jphi compat. destruct compat as [jj jj']. simpl in jphi.
-    rewrite join_all_joinlist in *.
-    rewrite maps_addthread.
-    rewrite maps_updthread.
-    rewrite (maps_getthread _ _ cnti) in jj.
-    rewrite joinlist_merge; eauto.
+    * clear -jphi compat extcompat. destruct compat as [jj jj']. simpl in jphi.
+      rewrite join_all_joinlist in *.
+      rewrite maps_addthread.
+      rewrite maps_updthread.
+      rewrite (maps_getthread _ _ cnti) in jj.
+      rewrite joinlist_merge; eauto.
   }
 
   apply (@mem_compatible_with_age _ n) in compat'.
@@ -409,7 +419,7 @@ specialize (all_coh0 (b, Ptrofs.unsigned i0)); spec all_coh0; auto.
 
   - (* env_coherence *)
     apply env_coherence_age_to; auto.
-  - rewrite age_to_ghost_of.
+  - unfold ext_compat; rewrite age_to_ghost_of.
     destruct extcompat as [? J]; eapply ghost_fmap_join in J; eexists; eauto.
 
   - (* lock sparsity *)
@@ -455,90 +465,20 @@ specialize (all_coh0 (b, Ptrofs.unsigned i0)); spec all_coh0; auto.
           destruct b; try contradiction; simpl; auto.
         * eapply pred_nec_hereditary; [apply age_to_necR|].
           unfold P; rewrite sepcon_emp; split3; constructor; auto. }
-      rewrite Ejm. eapply fupd.fupd_mono, Hsub1.
-      intros ? (? & ? & F & HP & HQ).
-      eapply sepcon_subp' in HP; try reflexivity.
-Search "subp" predicates_sl.sepcon.
-      assert ((!(F >=> emp)) a) as HF.
-      { specialize (HQ (empty_environ (globalenv prog)) _ (le_refl _) _ _ (necR_refl _) (ext_refl _)).
-        Search sepcon imp.
-Search Q'.
-      (* should we send the frame F to the parent thread? *)
-      (* We have Safety on the part with P', at least. *)
-      admit.
-
-(*      * rewrite Ejm.
-Search f_with_Pre.
-Search func_at.
-        (* need to use funspec_sub *)
-        eapply args_cond_approx_eq_app with (y := (b, f_with_x)).
-
-        (* cond_approx_eq *)
-        eauto.
-
-        (* level *)
-        rewrite level_age_to. lia. cleanup. lia.
-
-        (* PROP / LOCAL / SEP *)
-        simpl.
-        apply age_to_pred.
-        split.
-
-        (* nothing in PROP *)
-        now constructor.
-
-        split.
-        unfold SeparationLogic.local, lift1.
-
-        split.
-
-        -- (* LOCAL 1 : value of xarg *)
-        split.
-        simpl.
-        unfold liftx, lift. simpl.
-        unfold eval_id in *.
-        unfold val_lemmas.force_val in *.
-        unfold te_of in *.
-        unfold construct_rho in *.
-        unfold make_tenv in *.
-        unfold Map.get in *.
-        rewrite PTree.gss.
-        reflexivity.
-       do 8 red. intro Hx; subst; contradiction PreA.
-      
-
-       --  (* LOCAL 2 : locald_denote of global variables *)
-        split3. hnf.
-        clear - PreB3. destruct PreB3 as [PreB3 _].
-        hnf in PreB3. rewrite PreB3; clear PreB3.
-        unfold Map.get, make_ext_args. unfold env_set. 
-        unfold ge_of.
-        unfold filter_genv.
-        extensionality i. unfold Genv.find_symbol. simpl. auto.
-       
-
-        -- (* SEP: only precondition of spawned condition *)
-        unfold canon.SEPx in *.
-        simpl.
-        rewrite seplog.sepcon_emp.
-        destruct fPRE; assumption.
-      * (* funnassert *)
-        rewrite Ejm.
-        apply funassert_pures_eq with Phi.
+      assert (app_pred (fungassert (nofunc_tycontext V Gamma) (filter_genv (globalenv prog), b :: nil)) (age_to n phi0)) as Hfung.
+      { apply fungassert_pures_eq with Phi.
         { rewrite level_age_to. lia. cleanup. lia. }
-        { apply pures_same_eq_l with phi0. 2: now apply pures_eq_age_to; lia.
+        { apply pures_same_eq_l with phi0, pures_eq_age_to; [|lia].
           apply join_sub_pures_same. subst.
           apply join_sub_trans with (getThreadR i tp cnti). exists phi1; auto.
           apply compatible_threadRes_sub, compat. }
-        apply FA.
-      * rewrite Ejm; simpl.
-         rewrite age_to_ghost_of.
-         destruct ora.
-         eapply join_sub_joins_trans, ext_join_approx, extcompat.
-         destruct (compatible_threadRes_sub cnti (juice_join compat)).
-         eapply join_sub_trans.
-         -- eexists; apply ghost_fmap_join, ghost_of_join; eauto.
-         -- eexists; apply ghost_fmap_join, ghost_of_join; eauto. *)
+        apply FA. }
+      pose proof (conj Hfung Hsub1) as Hpre; eapply fupd.fupd_andp_corable in Hpre; [|apply corable_fungassert].
+      rewrite Ejm; eapply fupd.fupd_mono, Hpre.
+      intros ? (? & ? & ? & F & HP & _) [] ? Hext ??; subst.
+      rewrite predicates_sl.sepcon_comm in HP.
+      destruct ora; eapply jm_fupd_intro', Safety; auto.
+      eapply predicates_sl.sepcon_derives, HP; eauto.
 
     + (* safety of spawning thread *)
       subst j.
@@ -610,4 +550,4 @@ Search func_at.
       eapply unique_Krun_no_Krun. eassumption.
       instantiate (1 := cnti). rewr (getThreadC i tp cnti).
       congruence.
-Admitted. (* safety_induction_spawn *)
+Qed. (* safety_induction_spawn *)

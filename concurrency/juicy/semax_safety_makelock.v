@@ -527,7 +527,7 @@ Proof.
      unfold juicyRestrict in Hstore; simpl in Hstore.
      eapply mem_wellformed_store; [.. | apply Hstore |]; auto.
      apply mem_wellformed_restr; auto. *)
-  - rewrite age_to_ghost_of.
+  - unfold ext_compat; rewrite age_to_ghost_of.
     destruct Hrmap' as (? & ? & ? & <-).
     destruct extcompat as [? J]; eapply ghost_fmap_join in J; eexists; eauto.
 

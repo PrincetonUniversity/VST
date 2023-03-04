@@ -369,6 +369,25 @@ Proof.
     rewrite <-resource_at_approx, SP. reflexivity.
 Qed.
 
+Lemma fungassert_funassert : forall G rho, fungassert G rho = funassert G (mkEnviron (fst rho) (Map.empty _) (Map.empty _)).
+Proof.
+  reflexivity.
+Qed.
+
+Lemma fungassert_pures_eq G rho phi1 phi2 :
+  (level phi1 >= level phi2)%nat ->
+  pures_eq phi1 phi2 ->
+  app_pred (fungassert G rho) phi1 ->
+  app_pred (fungassert G rho) phi2.
+Proof.
+  rewrite fungassert_funassert; apply funassert_pures_eq.
+Qed.
+
+Lemma corable_fungassert : forall G rho, corable (fungassert G rho).
+Proof.
+  intros; rewrite fungassert_funassert; apply Clight_assert_lemmas.corable_funassert.
+Qed.
+
 Lemma env_coherence_hered Z Jspec ge G :
   hereditary age (@env_coherence Z Jspec ge G).
 Proof.
@@ -948,7 +967,7 @@ Proof.
     destruct SO as (_ & _ & <-). auto.
 Qed.
 
-Lemma state_inv_upd1 : forall {Z} (Jspec : juicy_ext_spec Z) Gamma (n : nat)
+(*Lemma state_inv_upd1 : forall {Z} (Jspec : juicy_ext_spec Z) Gamma (n : nat)
   (m : mem) (ge : genv) (tr : event_trace) (sch : schedule) (tp : ThreadPool.t) (PHI : rmap)
       (lev : level PHI = n)
       (envcoh : env_coherence Jspec ge Gamma PHI)

@@ -510,7 +510,9 @@ rewrite Z.add_0_r. auto.
 intros ? ?.
 unfold maxedmem.
 unfold Mem.perm; setoid_rewrite restrPermMap_Max; rewrite getMaxPerm_correct.
-apply H0; eauto.
+eauto.
+specialize (H0 _ H1).
+apply H0.
 - apply mi_memval; auto.
 clear - H0.
 unfold maxedmem, Mem.perm in *.
@@ -528,7 +530,7 @@ Inductive state_invariant Gamma (n : nat) : cm_state -> Prop :=
       (envcoh : env_coherence Jspec ge Gamma PHI)
 (*      (mwellformed: mem_wellformed m) *)
       (mcompat : mem_compatible_with tp m PHI)
-      (extcompat : joins (ghost_of PHI) (Some (ext_ref tt, NoneP) :: nil))
+      (extcompat : ext_compat tt PHI)
       (lock_sparse : lock_sparsity (lset tp))
       (lock_coh : lock_coherence' tp PHI m mcompat)
       (safety : threads_safety m tp PHI mcompat)
@@ -565,7 +567,7 @@ Definition state_bupd P (state : cm_state) := let '(m, (tr, sch, tp)) := state i
   tp_bupd (fun tp' => P (m, (tr, sch, tp'))) tp.
 
 Lemma state_bupd_intro : forall (P : _ -> Prop) m tr sch tp phi, join_all tp phi ->
-  joins (ghost_of phi) (Some (ext_ref tt, NoneP) :: nil) ->
+  ext_compat tt phi ->
   P (m, (tr, sch, tp)) -> state_bupd P (m, (tr, sch, tp)).
 Proof.
   intros; split; eauto; intros.

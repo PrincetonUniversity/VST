@@ -1505,6 +1505,7 @@ clear H3 H2.
 apply H1.
 Qed.
 
+(* can this allow an extra frame in the jm? *)
 Lemma semax_prog_entry_point {CS: compspecs} V G prog b id_fun params args A
    (P: forall ts : list Type, (dependent_type_functor_rec ts (ArgsTT A)) mpred)
    (Q: forall ts : list Type, (dependent_type_functor_rec ts (AssertTT A)) mpred)
@@ -1527,9 +1528,9 @@ Lemma semax_prog_entry_point {CS: compspecs} V G prog b id_fun params args A
     jm q jm' (Vptr b Ptrofs.zero) args) /\
 
   forall (jm : juicy_mem) ts (a: (dependent_type_functor_rec ts A) mpred),
-    app_pred (P ts a gargs) (m_phi jm) ->
+    app_pred (P ts a gargs * TT) (m_phi jm) ->
     app_pred (fungassert (nofunc_tycontext V G) gargs ) (m_phi jm) ->
-    nth_error (ghost_of (m_phi jm)) 0 = Some (Some (ext_ghost z, NoneP)) ->
+    ext_compat z (m_phi jm) ->
     jsafeN (@OK_spec Espec) (globalenv prog) z q jm }.
 Proof.
 intro retty.
@@ -1584,18 +1585,7 @@ replace  {|
 rename H3 into Prog_OK. assert (H3 := I).
 
 rename z into ora.
-assert (Hora: ext_compat ora (m_phi jm)). {
- pose proof (ext_ref_join ora).
- exists ((Some (ext_both ora, NoneP)) :: tl (ghost_of (m_phi jm))).
- destruct (ghost_of (m_phi jm)). inv HZ.
- simpl in HZ. inv HZ.
- constructor; auto.
- constructor.
- constructor; [auto|]. simpl. constructor; auto.
- simpl.
- apply ghost_join_nil_r.
-}
-clear HZ. clear AL.
+clear AL.
 set (Delta := nofunc_tycontext V G) in *.
 change (make_tycontext_s G)
    with (glob_specs Delta) in id_in_G.
@@ -1664,10 +1654,6 @@ destruct H5 as [H5|H5].
  apply tc_val_has_type; auto.
  simpl fst.
  clear H3 H6.
- eapply sepcon_derives.
- apply derives_refl.
- instantiate (1:=emp); auto.
- rewrite sepcon_emp.
  auto.
 }
  destruct (level jm) eqn:?H.
@@ -1679,7 +1665,7 @@ destruct H5 as [H5|H5].
  reflexivity.
  rewrite H4. simpl.
  apply H5.
- apply Hora.
+ apply HZ.
  simpl.
  intros.
  rewrite H4 in *. simpl sig_res in *. simpl sig_args in *.
@@ -1943,14 +1929,11 @@ assert (H23: app_pred (fungassert Delta (filter_genv psi, args)) (m_phi jm'')).
   rewrite PTree.gss. reflexivity.
  eapply IHfn_params; try eassumption.
 +
- rewrite predicates_sl.sepcon_assoc.
- eapply predicates_sl.sepcon_derives.
- instantiate (1:=emp); intro; simpl; auto. apply predicates_hered.derives_refl.
- setoid_rewrite emp_sepcon.
  destruct H18 as [H18a [_ H18c]]. subst params.
  assert (list_norepet (map fst (fn_params f))).
  { apply list_norepet_app in H17. apply H17. }
  eapply sepcon_derives.
+ apply sepcon_derives; [apply derives_refl|].
  assert (VUNDEF:= tc_vals_Vundef arg_p).
  eapply make_args_close_precondition; eauto.
  apply derives_refl.
@@ -1961,6 +1944,7 @@ assert (H23: app_pred (fungassert Delta (filter_genv psi, args)) (m_phi jm'')).
  specialize (COMPLETE x H1).
  specialize (Hvars x H1).
  rewrite (cenv_sub_sizeof HGG); auto.
+ rewrite sepcon_comm; auto.
 }
 apply assert_safe_jsafe.
 apply H11.
@@ -2051,8 +2035,9 @@ Proof.
     apply inj_pair2 in H11.
     apply inj_pair2 in H12. subst P Q. clear H14.
     apply (H9 jm nil (globals_of_genv (filter_genv (globalenv prog)))); eauto.
-    * eexists; eexists; split; [apply initial_jm_ext_eq|].
-     split.
+    * apply sepcon_TT.
+      eexists; eexists; split; [apply initial_jm_ext_eq|].
+      split.
         split; [ simpl; trivial |].
         split; auto.
         apply global_initializers; auto.
@@ -2063,6 +2048,11 @@ Proof.
         unfold ext_ghost. match goal with |- join_sub ?a ?b => assert (a = b) as ->; [|apply join_sub_refl] end.
         repeat f_equal.
     * apply (initial_jm_ext_funassert z V prog m G n H1 H0 H2).
+    * unfold ext_compat; simpl.
+      unfold inflate_initial_mem; rewrite ghost_of_make_rmap; simpl.
+      unfold initial_core_ext; rewrite ghost_of_make_rmap; simpl.
+      eexists (Some (_, _) :: _); do 2 constructor.
+      split; [apply ext_ref_join | constructor; reflexivity].
 +
   apply initial_jm_ext_without_locks.
 +

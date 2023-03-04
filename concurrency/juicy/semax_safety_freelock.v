@@ -467,7 +467,7 @@ Proof.
     apply env_coherence_pures_eq with Phi; auto. lia.
     apply pures_same_pures_eq. auto.
     eapply rmap_freelock_pures_same; eauto.
-  - rewrite age_to_ghost_of.
+  - unfold ext_compat; rewrite age_to_ghost_of.
     destruct Hrmap' as (? & ? & ? & <-).
     destruct extcompat as [? J]; eapply ghost_fmap_join in J; eexists; eauto.
 

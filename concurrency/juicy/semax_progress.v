@@ -492,7 +492,7 @@ Section Progress.
           }
 
           (* changing value of lock in dry mem *)
-          assert (Hm' : exists m', Mem.store Mptr (restrPermMap Hlt') b (Ptrofs.intval ofs) (Vint Int.zero) = Some m'). {
+          assert (Hm' : exists m', Mem.store Mptr (restrPermMap Hlt') b (Ptrofs.intval ofs) (Vptrofs Ptrofs.zero) = Some m'). {
             Transparent Mem.store.
             unfold Mem.store in *.
             destruct (Mem.valid_access_dec _ Mptr b (Ptrofs.intval ofs) Writable) as [N|N].
