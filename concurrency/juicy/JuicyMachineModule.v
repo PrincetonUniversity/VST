@@ -82,10 +82,28 @@ Module THE_JUICY_MACHINE.
     replace (proj2 _ _) with cnt by apply proof_irr; auto.
   Qed.
 
-  Definition tp_fupd P (tp : jstate) := app_pred invariants.wsat (extraRes tp) /\
+  (* This is the intuitive definition, but it's dubious from a DRF perspective, since it allows
+     threads to transfer writable permissions without a synchronization operation.
+     We might instead need to treat each thread as already holding whatever resources it's going
+     to extract from invariants. Not sure how that will work. *)
+(*  Definition tp_fupd P (tp : jstate) := app_pred invariants.wsat (extraRes tp) /\
     (tp_level_is 0 tp \/
      tp_bupd (fun tp1 => exists phi tp2, join_all tp1 phi /\ join_all tp2 phi /\
-       tp_update_weak tp1 tp2 /\ app_pred invariants.wsat (extraRes tp2) /\ P tp2) tp).
+       tp_update_weak tp1 tp2 /\ app_pred invariants.wsat (extraRes tp2) /\ P tp2) tp). *)
+
+  (* Try 2: each thread holds the resources it's going to use from the wsat, while extraRes holds the
+     shared ghost state. So a fupd really is just a kind of bupd. *)
+Definition tp_fupd P (tp : jstate) := exists i (cnti : containsThread tp i),
+  exists m r w, join m r (getThreadR cnti) /\ join r (extraRes tp) w /\
+    app_pred (invariants.wsat * invariants.ghost_set invariants.g_en Ensembles.Full_set)%pred w /\
+    (tp_level_is 0 tp \/
+     tp_bupd (fun tp2 => exists (cnti2 : containsThread tp2 i) m2 r2 w2, join m2 r2 (getThreadR cnti2) /\
+       join r2 (extraRes tp2) w2 /\ app_pred (invariants.wsat * invariants.ghost_set invariants.g_en Ensembles.Full_set)%pred w2 /\ P tp2) tp).
+
+  (* Try 3: actually, getThreadR gives the resources the current assertion holds on, so we'd need
+     an extraRes for each thread. But this doesn't solve the fundamental problem: how do we know
+     how to distribute the contents of invariants? *)
+
 
   Existing Instance JuicyMachineShell.
   Existing Instance HybridMachineSig.HybridCoarseMachine.DilMem.

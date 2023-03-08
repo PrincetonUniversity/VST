@@ -296,6 +296,7 @@ Lemma invariant_thread_step
   (safety : threads_safety Jspec m tp Phi compat)
   (wellformed : threads_wellformed tp)
   (unique : unique_Krun tp (i :: sch))
+  (invcompat : inv_compatible tp)
   (cnti : containsThread tp i)
   (stepi : corestep (juicy_core_sem (cl_core_sem ge)) ci (jm_ cnti compat) ci' jmi')
   (safei' : forall ora, jm_fupd ora Ensembles.Full_set Ensembles.Full_set (jsafeN Jspec ge ora ci') jmi')
@@ -600,6 +601,8 @@ Proof.
           changed.
    *)
 
+  (* We somehow need to track the fact that the thread already owns all the resources it would
+     need to take from invariants in safei'. *)
   apply state_inv_upd1 with (PHI := Phi'') (mcompat := compat'').
   - (* level *)
     assumption.

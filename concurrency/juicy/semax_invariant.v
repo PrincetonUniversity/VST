@@ -33,6 +33,7 @@ Require Import VST.sepcomp.event_semantics.
 Require Import VST.concurrency.juicy.semax_conc_pred.
 Require Import VST.concurrency.juicy.semax_conc.
 Require Import VST.concurrency.juicy.juicy_machine.
+Require Import VST.concurrency.common.threads_lemmas.
 Require Import VST.concurrency.common.HybridMachineSig.
 Require Import VST.concurrency.common.semantics.
 Require Import VST.concurrency.common.scheduler.
@@ -523,6 +524,10 @@ eapply perm_order_trans211; eauto.
 apply (access_cur_max _ (_, _)).
 Qed.
 
+Definition inv_compatible (tp : jstate ge) := forall i (cnti : containsThread tp i), exists r w,
+  join_sub r (getThreadR cnti) /\ join r (extraRes tp) w /\
+  app_pred (invariants.wsat * invariants.ghost_set invariants.g_en Ensembles.Full_set)%pred w.
+
 Inductive state_invariant Gamma (n : nat) : cm_state -> Prop :=
   | state_invariant_c
       (m : mem) (tr : event_trace) (sch : schedule) (tp : jstate ge) (PHI : rmap)
@@ -536,6 +541,7 @@ Inductive state_invariant Gamma (n : nat) : cm_state -> Prop :=
       (safety : threads_safety m tp PHI mcompat)
       (wellformed : threads_wellformed tp)
       (uniqkrun :  unique_Krun tp sch)
+      (invcompat : inv_compatible tp)
     : state_invariant Gamma n (m, (tr, sch, tp)).
 
 (* Schedule irrelevance of the invariant *)
@@ -544,9 +550,9 @@ Lemma state_invariant_sch_irr Gamma n m i tr sch sch' tp :
   state_invariant Gamma n (m, (tr, i :: sch', tp)).
 Proof.
   intros INV.
-  inversion INV as [m0 tr0 sch0 tp0 PHI lev envcoh (*mwellformed*) compat extcompat sparse lock_coh safety wellformed uniqkrun H0];
+  inversion INV as [m0 tr0 sch0 tp0 PHI lev envcoh (*mwellformed*) compat extcompat sparse lock_coh safety wellformed uniqkrun invcompat H0];
     subst m0 tr0 sch0 tp0.
-  refine (state_invariant_c Gamma n m tr (i :: sch') tp PHI lev envcoh (*mwellformed*) compat extcompat sparse lock_coh safety wellformed _).
+  refine (state_invariant_c Gamma n m tr (i :: sch') tp PHI lev envcoh (*mwellformed*) compat extcompat sparse lock_coh safety wellformed _ invcompat ).
   clear -uniqkrun.
   intros H i0 cnti q H0.
   destruct (uniqkrun H i0 cnti q H0) as [sch'' E].
@@ -566,13 +572,20 @@ Definition blocked_at_external (state : cm_state) (ef : external_function) :=
 Definition state_bupd P (state : cm_state) := let '(m, (tr, sch, tp)) := state in
   tp_bupd (fun tp' => P (m, (tr, sch, tp'))) tp.
 
+Lemma tp_bupd_intro : forall (P : _ -> Prop) (tp : jstate ge) phi, join_all tp phi ->
+  ext_compat tt phi -> P tp -> tp_bupd P tp.
+Proof.
+  unfold tp_bupd; intros.
+  split; eauto; intros.
+  eexists; split; eauto.
+  eexists _, _; split; [apply tp_update_refl|]; auto.
+Qed.
+
 Lemma state_bupd_intro : forall (P : _ -> Prop) m tr sch tp phi, join_all tp phi ->
   ext_compat tt phi ->
   P (m, (tr, sch, tp)) -> state_bupd P (m, (tr, sch, tp)).
 Proof.
-  intros; split; eauto; intros.
-  eexists; split; eauto.
-  eexists _, _; split; [apply tp_update_refl|]; auto.
+  intros; eapply tp_bupd_intro; eauto.
 Qed.
 
 Lemma state_bupd_intro' : forall Gamma n s,
@@ -587,13 +600,22 @@ Qed.
 Definition state_fupd P (state : cm_state) := let '(m, (tr, sch, tp)) := state in
   tp_fupd (fun tp' => P (m, (tr, sch, tp'))) tp.
 
+Lemma cnt0 (tp : jstate ge) : containsThread tp O.
+Proof.
+  hnf.
+  destruct (@ssrnat.leP 1 (pos.n (num_threads tp))); auto.
+  destruct num_threads; simpl in *; lia.
+Qed.
+
 Lemma state_fupd_intro : forall (P : _ -> Prop) m tr sch tp phi, join_all tp phi ->
-  joins (ghost_of phi) (Some (ext_ref tt, NoneP) :: nil) ->
+  ext_compat tt phi -> inv_compatible tp -> 
   P (m, (tr, sch, tp)) -> state_fupd P (m, (tr, sch, tp)).
 Proof.
-  intros; split; eauto; intros.
-  eexists; split; eauto.
-  eexists _, _; split; [apply tp_update_refl|]; auto.
+  intros; unfold state_fupd, tp_fupd.
+  destruct (H1 _ (cnt0 _)) as (r & w & [m0 ?] & ? & ?).
+  exists O, (cnt0 _), m0, r, w; repeat (split; auto).
+  right; eapply tp_bupd_intro; eauto.
+  exists (cnt0 _), m0, r, w; auto.
 Qed.
 
 Lemma state_fupd_intro' : forall Gamma n s,
@@ -623,12 +645,14 @@ Proof.
 Qed.
 
 Lemma join_all_eq : forall (tp : jstate ge) phi phi', join_all tp phi -> join_all tp phi' ->
-  (getThreadsR tp = nil /\ getLocksR tp = nil /\ identity phi /\ identity phi') \/ phi = phi'.
+  phi = phi'.
 Proof.
   intros ???; rewrite join_all_joinlist.
   unfold maps.
-  destruct (getThreadsR tp); [|intros; right; eapply joinlist_inj; eauto; discriminate].
-  destruct (getLocksR tp); [auto | intros; right; eapply joinlist_inj; eauto; discriminate].
+  destruct (getThreadsR tp); [|intros; eapply joinlist_inj; eauto; discriminate].
+  destruct (getLocksR tp); [auto | intros; eapply joinlist_inj; eauto; discriminate].
+  simpl.
+  intros (? & Hid1 & ?%join_comm%Hid1) (? & Hid2 & ?%join_comm%Hid2); subst; auto.
 Qed.
 
 Lemma funspec_sub_si_fash : forall a b, funspec_sub_si a b |-- !#funspec_sub_si a b.

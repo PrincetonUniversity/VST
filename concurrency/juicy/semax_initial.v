@@ -36,6 +36,7 @@ Require Import VST.sepcomp.event_semantics.
 Require Import VST.concurrency.juicy.semax_conc_pred.
 Require Import VST.concurrency.juicy.semax_conc.
 Require Import VST.concurrency.juicy.juicy_machine.
+Require Import VST.concurrency.compiler.mem_equiv.
 Require Import VST.concurrency.common.HybridMachineSig.
 Require Import VST.concurrency.common.scheduler.
 Require Import VST.concurrency.common.addressFiniteMap.
@@ -173,6 +174,7 @@ Section Initial_State.
         (fun _ => Krun q)
         (fun _ => m_phi jm)
         (addressFiniteMap.AMap.empty _)
+        (wsat_rmap (m_phi jm))
      )
     ).
 
@@ -196,40 +198,27 @@ Section Initial_State.
     destruct init_m as [m Hm]; simpl proj1_sig; simpl proj2_sig.
     set (spr := semax_prog_rule (Concurrent_Espec unit CS ext_link) V G prog m 0 tt (allows_exit ext_link) all_safe Hm).
     set (q := projT1 (projT2 spr)).
-    set (jm := proj1_sig (snd (projT2 (projT2 spr)) n)).
+    destruct (snd (projT2 (projT2 spr))) as (jm & D & H & E & (z & W & Hdry & Hext) & A & NL & MFS & FA).
     match goal with |- _ _ _ (_, (_, ?TP)) => set (tp := TP) end.
 
     (*! compatibility of memories *)
-    assert (compat : mem_compatible_with tp m (m_phi jm)).
+    assert (compat : mem_compatible_with tp m (m_phi z)).
     {
       constructor.
-      + apply AllJuice with (m_phi jm) None.
-        * change (proj1_sig (snd (projT2 (projT2 spr)) n)) with jm.
-          unfold join_threads.
-          unfold getThreadsR.
-
-          match goal with |- _ ?l _ => replace l with (m_phi jm :: nil) end.
+      + apply AllJuice with (m_phi jm) None (m_phi jm).
+        * unfold join_threads.
+          unfold getThreadsR; simpl.
           exists (id_core (m_phi jm)). {
             split.
             - apply join_comm.
               apply id_core_unit.
             - apply id_core_identity.
           }
-          {
-            simpl.
-            set (a := m_phi jm).
-            match goal with |- context [m_phi ?jm] => set (b := m_phi jm) end.
-            replace b with a by reflexivity. clear. clearbody a.
-            reflexivity.
-            (* unfold fintype.ord_enum, eqtype.insub, seq.iota in *.
-            simpl.
-            destruct ssrbool.idP as [F|F]. reflexivity. exfalso. auto. *)
-          }
-
         * reflexivity.
         * constructor.
-      + destruct (snd (projT2 (projT2 spr))) as [jm' [D H]]; unfold jm; clear jm; simpl.
-        subst m.
+        * apply W.
+      + subst m.
+        rewrite Hdry.
         apply mem_cohere'_juicy_mem.
       + intros b ofs.
         match goal with |- context [ssrbool.isSome ?x] => destruct x as [ phi | ] eqn:Ephi end.
@@ -238,37 +227,30 @@ Section Initial_State.
         discriminate.
         { unfold is_true. simpl. congruence. }
       + intros loc L. (* sh psh P z *)
-        destruct (snd (projT2 (projT2 spr))) as (jm' & D & H & E & W & A & NL & MFS).
-        unfold jm in *; clear jm; simpl in L |- *.
         pose proof (NL loc) as NL'.
         specialize (L 0). spec L. pose proof lksize.LKSIZE_pos; lia. destruct L as [sh [psh [P L]]].
         specialize (NL' sh psh lksize.LKSIZE 0 P). rewrite fst_snd0 in L.
-        rewrite L in NL'. contradiction NL'; auto.
+        simpl in *.
+        apply rmap_order in Hext as (? & Hr & _); rewrite Hr in *; contradiction.
       + hnf.
         simpl.
         intros ? F.
         inversion F.
     } (* end of mcompat *)
 
-    assert (En : level (m_phi jm) = n). {
-      unfold jm; clear.
-      match goal with
-        |- context [proj1_sig ?x] => destruct x as (jm' & jmm & lev & S & nolocks)
-      end; simpl.
-      rewrite level_juice_level_phi in *.
-      auto.
+    assert (En : level (m_phi z) = n). {
+      clear dependent tp. rewrite level_juice_level_phi in *; apply join_level in W as []; congruence.
     }
 
-    apply state_invariant_c with (PHI := m_phi jm) (mcompat := compat).
+    apply state_invariant_c with (mcompat := compat).
     - (*! level *)
       auto.
 
     - (*! env_coherence *)
-      destruct (snd (projT2 (projT2 spr))) as (jm' & D & H & E & W & A & NL & MFS & FA).
-      simpl in jm. unfold jm.
       split.
-      + apply MFS.
-      + exists prog, tt, CS, V. auto.
+      + eapply pred_upclosed, MFS; auto.
+      + exists prog, tt, CS, V; split3; auto.
+        eapply pred_upclosed; eauto.
 (*    - clear - Hm.
       split.
       pose proof ( Genv.initmem_inject _ Hm).
@@ -277,17 +259,16 @@ Section Initial_State.
       apply Genv.init_mem_genv_next in Hm. rewrite <- Hm.
      unfold globalenv. simpl. apply Ple_refl. *)
     - (*! external coherence *)
-      destruct (snd (projT2 (projT2 spr))) as (jm' & D & H & E & A & NL & MFS & FA).
-      simpl in jm. unfold jm.
-      subst jm tp; clear - E.
-      assert (@ghost.valid (ghost_PCM.ext_PCM unit) (Some (Tsh, Some tt), Some (Some tt))).
-      { simpl; split; [apply Share.nontrivial|].
-        eexists; apply join_comm, core_unit. }
-      eexists; apply join_comm, own.singleton_join_gen with (k := O).
-      erewrite nth_error_nth in E by (apply nth_error_Some; rewrite E; discriminate).
-      inversion E as [Heq]; rewrite Heq.
-      instantiate (1 := (_, _)); constructor; constructor; simpl; [|repeat constructor].
-      unshelve constructor; [| apply H | repeat constructor].
+      subst tp; clear - W E.
+      apply ghost_of_join in W.
+      unfold wsat_rmap in W; rewrite ghost_of_make_rmap in W.
+      inv W.
+      { rewrite <- H0 in E; discriminate. }
+      assert (a3 = a1) by (inv H3; auto); subst.
+      rewrite <- H in E; inv E.
+      unfold ext_compat; rewrite <- H2; eexists; constructor; constructor.
+      instantiate (1 := (_, _)).
+      split; simpl; [apply ext_ref_join | split; eauto].
 
     - (*! lock sparsity (no locks at first) *)
       intros l1 l2.
@@ -297,10 +278,9 @@ Section Initial_State.
     - (*! lock coherence (no locks at first) *)
       intros lock.
       rewrite find_empty.
-      (* split; *) intros (sh & sh' & z & P & E); revert E; unfold jm;
-      match goal with
-        |- context [proj1_sig ?x] => destruct x as (jm' & jmm & lev & S & nolocks)
-      end; simpl; apply nolocks.
+      clear - Hext NL.
+      apply rmap_order in Hext as (_ & <- & _).
+      intros (? & ? & ? & ? & ?); eapply NL; eauto.
 
     - (*! safety of the only thread *)
       intros i cnti ora.
@@ -311,20 +291,11 @@ Section Initial_State.
       {
         apply juicy_mem_ext; [|reflexivity].
         - unfold jm_.
-          symmetry.
-          unfold jm.
-          destruct spr as (b' & q' & Hb & JS); simpl proj1_sig in *; simpl proj2_sig in *.
-          destruct (JS n) as (jm' & jmm & lev & S & notlock); simpl projT1 in *; simpl projT2 in *.
-          subst m.
-          setoid_rewrite personal_mem_of_same_jm; eauto.
+          subst; symmetry; apply personal_mem_of_same_jm; auto.
       }
-      subst jm. rewrite <-Ejm.
+      rewrite <-Ejm.
       simpl in Ec. replace c with q in * by congruence.
-      destruct spr as (b' & q' & Hb & JS); simpl proj1_sig in *; simpl proj2_sig in *.
-      destruct (JS n) as (jm' & jmm & lev & ? & W & Safe & notlock); simpl projT1 in *; simpl projT2 in *.
-      subst q.
-      simpl proj1_sig in *; simpl proj2_sig in *. subst n.
-      destruct ora; apply Safe.
+      destruct ora; apply A.
 
     - (* well-formedness *)
       intros i cnti.
@@ -332,6 +303,14 @@ Section Initial_State.
 
     - (* only one thread running *)
       intros F; exfalso. simpl in F. lia.
+
+    - (* inv_compatible (wsat is set up) *)
+      exists (id_core (m_phi jm)), (wsat_rmap (m_phi jm)).
+      split; [eexists; apply id_core_unit|].
+      split; [|apply wsat_rmap_wsat].
+      destruct (join_assoc (join_comm (id_core_unit (m_phi jm))) W) as (? & ? & ?).
+      apply identity_unit; eauto.
+      apply id_core_identity.
   Qed.
 
 End Initial_State.

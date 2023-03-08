@@ -102,7 +102,7 @@ Proof.
   assert (Hpos : (0 < LKSIZE)%Z) by reflexivity.
   intros ismakelock.
   intros I.
-  inversion I as [m tr sch_ tp Phi En envcoh (*mwellformed*) compat extcompat sparse lock_coh safety wellformed unique E]. rewrite <-E in *.
+  inversion I as [m tr sch_ tp Phi En envcoh (*mwellformed*) compat extcompat sparse lock_coh safety wellformed unique invcompat E]. rewrite <-E in *.
   unfold blocked_at_external in *.
   destruct ismakelock as (i & cnti & sch & ci & args & -> & Eci & atex).
   pose proof (safety i cnti tt) as safei.
@@ -835,4 +835,15 @@ Proof.
     eapply unique_Krun_no_Krun. eassumption.
     instantiate (1 := cnti). rewr (getThreadC i tp cnti).
     congruence.
+
+  - intros j lj; specialize (invcompat _ lj).
+    rewrite gsoThreadExtra; simpl extraRes.
+    destruct (eq_dec i j).
+    + subst; rewrite gssThreadRes.
+      (* The current phrasing doesn't capture the idea that the correctness proof must not have
+         used the hidden resources from the invariant. Shoudl we explicitly force the juicy steps
+         to restrict to or reestablish the available resources? How does this look in a corestep? *)
+    + erewrite (gsoThreadRes(i := i)(j := j)); eauto.
+admit.
+Search extraRes updThread.
 Qed.
