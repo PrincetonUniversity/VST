@@ -176,13 +176,16 @@ Proof.
       eapply denote_tc_test_eq_split; auto 50 with valid_pointer. }
   { (*nonnull additional*)
     destruct additional; simpl in PNadditional; try contradiction. subst i. elim H; trivial. clear H.
-    forward. entailer!. simpl.
+    forward. entailer!.
+ (* all this stuff was needed in Coq 8.16 and before? 
+     simpl.
     destruct (EqDec_Z (Zlength contents) 0).
     + rewrite e. simpl. reflexivity.
     + simpl in *.
         rewrite Int.eq_false; simpl. reflexivity.
         contradict n.
         apply repr_inj_unsigned; auto. lia.
+*)
   }
   { (*nullval additional*)
     rewrite H in *.

@@ -18,16 +18,17 @@ start_function.
 assert_PROP (field_compatible (tarray tuchar 64) [] out /\ isptr out) as HH by entailer!.
 destruct HH as [FCout isptrout].
 Time forward_call (c, k, Z0, nonce, out, default_val (tarray tuchar 64), data). (*1.8*)
+(* not needed with Coq 8.17, VST 2.12 
   unfold data_at_, field_at_. rewrite field_at_data_at.
   rewrite field_address_offset by auto with field_compatible.
-  rewrite isptr_offset_val_zero; trivial. cancel.
+  rewrite isptr_offset_val_zero; trivial. cancel. *)
 Intros ret.
 Time forward. (*1.7*)
 unfold fcore_result in H.
   remember (Snuffle20 (prepare_data data)) as d; symmetry in Heqd.
   destruct d. 2: inv H. rewrite Int.eq_true in H.
 Exists l.
-Time entailer!. apply derives_refl.
+Time entailer!!. apply derives_refl.
 Time Qed. (*4.3*)
 
 Lemma Snuffle_sub_simpl data x:

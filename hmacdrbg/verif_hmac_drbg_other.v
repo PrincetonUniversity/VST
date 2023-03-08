@@ -381,7 +381,8 @@ Proof.
           temp _v (Vptr b i))
    SEP (data_at sh (tarray tuchar n) (repeat (Vint Int.zero) (Z.to_nat k) ++
                                        repeat Vundef (Z.to_nat (n-k))) (Vptr b i)))).
-  { Exists 0. rewrite Zminus_0_r. entailer!. simpl; cancel. }
+  { Exists 0. rewrite Zminus_0_r. entailer!. 
+    all: simpl; cancel. (* needed in Coq 8.16 and before *)  }
   apply semax_loop with (
   (EX k : Z,
    PROP (0 <= k <= n)
