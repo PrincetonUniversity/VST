@@ -1089,7 +1089,7 @@ Module Share <: SHARE_MODEL.
 
   (*** Begin Module Signature Definitions and lemmas ***)
 
-  (* Here we show that canonical share trees form a boolean algrbra.  These
+  (* Here we show that canonical share trees form a boolean algebra.  These
      proofs mainly involve showing that the results above commute in the proper
      ways with mkCanon. *)
   Module BA <: BOOLEAN_ALGEBRA.

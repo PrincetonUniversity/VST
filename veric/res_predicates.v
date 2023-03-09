@@ -1,250 +1,37 @@
 Require Import VST.msl.log_normalize.
 Require Export VST.veric.base.
-Require Import VST.veric.rmaps.
-Require Import VST.veric.compcert_rmaps.  
-Require Import VST.veric.shares. 
+Require Import VST.veric.shares.
 Require Import VST.veric.address_conflict.
+Require Export VST.msl.shares.
+Require Import VST.veric.gmap_view.
+Require Import VST.veric.ghost_map.
+Require Export VST.veric.Memory.
+From iris.algebra Require Import csum agree.
+Require Import iris_ora.logic.oupred.
 
-Import RML. Import R.
 Local Open Scope Z_scope.
-Local Open Scope pred.
+
+Section heap.
+
+Context {A : cmra}.
+
+Definition VST_mixin : OraMixin (gmap address memval * A).
 
 
-Program Definition kind_at (k: kind) (l: address) : pred rmap :=
-   fun m => exists rsh, exists sh, exists pp, m @ l = YES rsh sh k pp.
- Next Obligation.
-   split; repeat intro.
-   destruct H0 as [rsh [sh [pp ?]]].
-   generalize (eq_sym (resource_at_approx a l)); intro.
-   generalize (age1_resource_at a a'  H l (a@l) H1); intro.
-   rewrite H0 in H2. simpl in H2. eauto.
+Context {Σ : gFunctors}.
 
-  apply rmap_order in H as (_ & <- & _); auto.
- Qed.
+Context {heapGS : gen_heapGS address (csumO (agreeR (discreteO memval)) (prodR (discreteR (Z * Z) (agreeR)))) Σ}.
 
-Definition spec : Type :=  forall (sh: Share.t) (l: AV.address), pred rmap.
+Definition spec : Type :=  forall (sh: share) (l: address), iProp Σ.
 
-Program Definition yesat_raw (pp: preds) (k: kind) 
-                           (sh: share) (rsh: readable_share sh) (l: address) : pred rmap :=
-   fun phi => phi @ l = YES sh rsh k (preds_fmap (approx (level phi)) (approx (level phi)) pp).
-  Next Obligation.
-   split; repeat intro.
-   apply (age1_resource_at a a' H l (YES sh rsh k pp) H0).
-
-  apply rmap_order in H as (<- & <- & _); auto.
-  Qed.
-
-Obligation Tactic := idtac.
-
-Program Definition yesat (pp: preds) (k: kind) : spec :=
- fun (sh: share) (l: AV.address) (m: rmap) =>
-  exists rsh, yesat_raw pp k sh rsh l m.
-  Next Obligation.
-    split; repeat intro.
-    destruct H0 as [p ?]; exists p.
-    apply pred_hereditary with a; auto.
-
-    destruct H0 as [p ?]; exists p.
-    apply pred_upclosed with a; auto.
-  Qed.
-
-Program Definition pureat (pp: preds) (k: kind) (l: AV.address): pred rmap :=
-       fun phi => phi @ l = PURE k (preds_fmap (approx (level phi)) (approx (level phi)) pp).
-  Next Obligation.
-    split; repeat intro.
-   apply (age1_resource_at a a' H l (PURE k pp) H0).
-
-   apply rmap_order in H as (<- & <- & _); auto.
-  Qed.
+Definition resource_at sh (l: address) (r: resource) : iProp Σ := l ↪[gen_heap_name]{#sh} r.
 
 Ltac do_map_arg :=
 match goal with |- ?a = ?b =>
   match a with context [map ?x _] =>
     match b with context [map ?y _] => replace y with x; auto end end end.
 
-
-Lemma yesat_raw_eq_aux:
-  forall pp k rsh sh l,
-    hereditary age
-    (fun phi : rmap =>
-     resource_fmap (approx (level phi)) (approx (level phi)) (phi @ l) =
-     resource_fmap (approx (level phi)) (approx (level phi)) (YES rsh sh k pp)) /\
-    hereditary ext_order
-    (fun phi : rmap =>
-     resource_fmap (approx (level phi)) (approx (level phi)) (phi @ l) =
-     resource_fmap (approx (level phi)) (approx (level phi)) (YES rsh sh k pp)).
-Proof.
- split; repeat intro.
-  generalize (resource_at_approx a l); intro.
-  generalize (resource_at_approx a' l); intro.
-  rewrite H2.
-  rewrite H1 in H0.
-  apply (age1_resource_at a a'  H); auto.
-
-  apply rmap_order in H as (<- & <- & _); auto.
-Qed.
-
-Lemma yesat_raw_eq: yesat_raw =
-  fun pp k rsh sh l =>
-  ((exist (fun p => hereditary age p /\ hereditary ext_order p)
-   (fun phi =>
-   resource_fmap (approx (level phi)) (approx (level phi)) (phi @ l) =
-   resource_fmap (approx (level phi)) (approx (level phi)) (YES rsh sh k pp))
-   (yesat_raw_eq_aux pp k rsh sh l)) : pred rmap).
-Proof.
-unfold yesat_raw.
-extensionality pp k rsh sh l.
-apply exist_ext.
-extensionality phi.
-apply prop_ext; split; intros.
-rewrite H.
-simpl.
-f_equal.
-rewrite preds_fmap_fmap.
-rewrite approx_oo_approx.
-auto.
-simpl in H.
-revert H; case_eq (phi @ l); simpl; intros; inv H0.
-f_equal; try apply proof_irr.
-revert H4; destruct p as [?A ?p]; destruct pp as [?A ?p]; simpl; intros; auto; inv H4.
-clear - H.
-repeat f_equal.
-revert H; unfold resource_at.  rewrite rmap_level_eq.
-case_eq (unsquash phi); simpl; intros.
-rename r0 into f.
-pose proof I.
-set (phi' := ((fun l' => if eq_dec l' l 
-       then YES rsh r k (SomeP A0 (fun i => fmap _ (approx n) (approx n) (p i))) else fst f l', snd f)): rmap').
-assert (phi = squash (n,phi')).
-apply unsquash_inj.
-replace (unsquash phi) with (unsquash (squash (unsquash phi))).
-2: rewrite squash_unsquash; auto.
-rewrite H.
-do 2 rewrite unsquash_squash.
-f_equal.
-unfold phi'.
-clear - H0.
-simpl.
-unfold rmap_fmap.
-unfold compose.
-f_equal.
-extensionality x.
-simpl.
-if_tac; auto.
-subst.
-rewrite H0.
-simpl.
-do 2 apply f_equal.
-extensionality.
-rewrite fmap_app.
-rewrite approx_oo_approx; auto.
-subst phi.
-unfold phi' in H.
-rewrite unsquash_squash in H.
-injection H; clear H; intros.
-destruct f; simpl in *; inv H.
-generalize (equal_f H3 l); intro.
-rewrite H0 in H.
-clear - H.
-unfold compose in H. rewrite if_true in H; auto.
-simpl in H.
-revert H; generalize p at 2 3.
-intros q ?H.
-apply YES_inj in H.
-match goal with
-| H: ?A = ?B |- _ =>
-  assert (snd A = snd B)
-end.
-rewrite H; auto.
-simpl in H0.
-apply SomeP_inj2 in H0.
-subst q.
-extensionality i.
-rewrite fmap_app.
-rewrite approx_oo_approx. auto.
-Qed.
-
-Lemma yesat_eq_aux: 
-  forall pp k sh l, 
-    hereditary age
-    (fun m : rmap =>
-      exists rsh, 
-     resource_fmap (approx (level m)) (approx (level m)) (m @ l) =
-     resource_fmap (approx (level m)) (approx (level m)) (YES sh rsh k pp)) /\
-    hereditary ext_order
-    (fun m : rmap =>
-      exists rsh, 
-     resource_fmap (approx (level m)) (approx (level m)) (m @ l) =
-     resource_fmap (approx (level m)) (approx (level m)) (YES sh rsh k pp)).
-Proof.
- split; repeat intro.
-  destruct H0 as [p ?]; exists p.
-  rewrite resource_at_approx.
-  rewrite resource_at_approx in H0.
-  apply (age1_resource_at a a' H); auto.
-
- apply rmap_order in H as (<- & <- & _); auto.
-Qed.
-
-Lemma yesat_eq: yesat = fun pp k sh l =>
- exist (fun p => hereditary age p /\ hereditary ext_order p)
-  (fun m => 
-  exists rsh, 
-   resource_fmap (approx (level m)) (approx (level m)) (m @ l) = 
-   resource_fmap (approx (level m)) (approx (level m)) (YES sh rsh k pp))
-   (yesat_eq_aux pp k sh l).
-Proof.
-unfold yesat.
-extensionality pp k sh l.
-apply exist_ext. extensionality w.
-apply exists_ext; intro p.
-rewrite yesat_raw_eq.
-auto.
-Qed.
-
-Lemma map_compose_approx_succ_e:
-  forall A n pp pp',
-       map (compose (A:=A) (approx (S n))) pp =
-    map (compose (A:=A) (approx (S n))) pp' ->
-  map (compose (A:=A) (approx n)) pp = map (compose (A:=A) (approx n)) pp'.
-Proof.
-induction pp; intros.
-destruct pp'; inv H; auto.
-destruct pp'; inv H; auto.
-simpl.
-rewrite <- (IHpp pp'); auto.
-replace (approx n oo a) with (approx n oo p); auto.
-clear - H1.
-extensionality x.
-apply pred_ext'. extensionality w.
-generalize (equal_f H1 x); clear H1; intro.
-unfold compose in *.
-assert (approx (S n) (a x) w <-> approx (S n) (p x) w).
-rewrite H; intuition.
-simpl.
-apply and_ext'; auto; intros.
-apply prop_ext.
-intuition.
-destruct H3; auto.
-split; auto.
-destruct H2; auto.
-split; auto.
-Qed.
-
-(* NOT TRUE, because the shares might not match
-Lemma extensionally_yesat: forall pp k sh l, extensionally (yesat pp k sh l) = yesat pp k sh l.
-*)
-
-Program Definition noat (l: AV.address) : pred rmap :=
-    fun m => identity (m @ l).
- Next Obligation.
-    split; repeat intro.
-    apply (proj1 (age1_resource_at_identity _ _ l H) H0); auto.
-
-    apply rmap_order in H as (_ & Hr & _); rewrite <- Hr in H1; auto.
- Qed.
-
-Definition resource_share (r: resource) : option share :=
+(*Definition resource_share (r: resource) : option share :=
  match r with
  | YES sh _ _ _ => Some sh
  | NO sh _ => Some sh
@@ -256,55 +43,9 @@ Definition nonlock (r: resource) : Prop :=
  | YES _ _ k _ => isVAL k \/ isFUN k
  | NO _ _ => True
  | PURE _ _ => False
- end.
+ end.*)
 
-Lemma age1_nonlock: forall phi phi' l,
-  age1 phi = Some phi' -> (nonlock (phi @ l) <-> nonlock (phi' @ l)).
-Proof.
-  intros.
-  destruct (phi @ l) as [rsh | rsh sh k P |] eqn:?H.
-  + pose proof (age1_NO phi phi' l rsh n H).
-    rewrite H1 in H0.
-    rewrite H0.
-    reflexivity.
-  + pose proof (age1_YES' phi phi' l rsh sh k H).
-    destruct H1 as [? _].
-    spec H1; [eauto |].
-    destruct H1 as [P' ?].
-    rewrite H1.
-    reflexivity.
-  + pose proof (age1_PURE phi phi' l k H).
-    destruct H1 as [? _].
-    spec H1; [eauto |].
-    destruct H1 as [P' ?].
-    rewrite H1.
-    reflexivity.
-Qed.
-
-Lemma age1_resource_share: forall phi phi' l,
-  age1 phi = Some phi' -> (resource_share (phi @ l) = resource_share (phi' @ l)).
-Proof.
-  intros.
-  destruct (phi @ l) as [rsh | rsh sh k P |] eqn:?H.
-  + pose proof (age1_NO phi phi' l rsh n H).
-    rewrite H1 in H0.
-    rewrite H0.
-    reflexivity.
-  + pose proof (age1_YES' phi phi' l rsh sh k H).
-    destruct H1 as [? _].
-    spec H1; [eauto |].
-    destruct H1 as [P' ?].
-    rewrite H1.
-    reflexivity.
-  + pose proof (age1_PURE phi phi' l k H).
-    destruct H1 as [? _].
-    spec H1; [eauto |].
-    destruct H1 as [P' ?].
-    rewrite H1.
-    reflexivity.
-Qed.
-
-Lemma resource_share_join_exists: forall r1 r2 r sh1 sh2,
+(*Lemma resource_share_join_exists: forall r1 r2 r sh1 sh2,
   resource_share r1 = Some sh1 ->
   resource_share r2 = Some sh2 ->
   join r1 r2 r ->
@@ -380,9 +121,9 @@ Program Definition shareat (l: AV.address) (sh: share): pred rmap :=
       rewrite H1; assumption.
     + inv H0.
     + apply rmap_order in H as (_ & <- & _); auto.
- Qed.
+ Qed.*)
 
-Program Definition jam {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A} {EO: Ext_ord A} {EA: Ext_alg A} {B: Type} {S': B -> Prop} (S: forall l, {S' l}+{~ S' l}) (P Q: B -> pred A) : B -> pred A :=
+Program Definition jam 
   fun (l: B) m => if S l then P l m else Q l m.
  Next Obligation.
     split; repeat intro.
@@ -1677,3 +1418,5 @@ Definition almost_empty rm: Prop:=
 Definition no_locks phi :=
   forall addr sh sh' z z' P,
 phi @ addr <> YES sh sh' (LK z z') P.
+
+End heap.
