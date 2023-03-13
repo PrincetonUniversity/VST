@@ -13,14 +13,13 @@ Local Open Scope Z_scope.
 
 Section heap.
 
-Context {A : cmra}.
-
-Definition VST_mixin : OraMixin (gmap address memval * A).
-
-
 Context {Σ : gFunctors}.
 
-Context {heapGS : gen_heapGS address (csumO (agreeR (discreteO memval)) (prodR (discreteR (Z * Z) (agreeR)))) Σ}.
+Inductive resource :=
+| VAL (v : memval)
+| LK (i z : Z) (R : iProp Σ).
+
+Context {heapGS : gen_heapGS address resource Σ}.
 
 Definition spec : Type :=  forall (sh: share) (l: address), iProp Σ.
 

@@ -1,9 +1,10 @@
 (* modified from iris.algebra.lib.gmap_view *)
+(* No point in doing this in the ora repo, since we need our own shares anyway. *)
 
 From iris.algebra Require Export gmap.
 From iris.algebra Require Import local_updates proofmode_classes big_op.
-From iris.prelude Require Import options.
 From VST.veric Require Export view.
+From iris.prelude Require Import options.
 
 (** * CMRA for a "view of a gmap".
 
