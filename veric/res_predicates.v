@@ -1,13 +1,13 @@
-Require Import VST.msl.log_normalize.
-Require Export VST.veric.base.
+ Require Export VST.veric.base.
 Require Import VST.veric.shares.
 Require Import VST.veric.address_conflict.
 Require Export VST.msl.shares.
 Require Import VST.veric.gmap_view.
 Require Import VST.veric.ghost_map.
 Require Export VST.veric.Memory.
-From iris.algebra Require Import csum agree.
+From iris.proofmode Require Export tactics.
 Require Import iris_ora.logic.oupred.
+Export Values.
 
 Local Open Scope Z_scope.
 
@@ -23,26 +23,29 @@ Context {heapGS : gen_heapGS address resource Σ}.
 
 Definition spec : Type :=  forall (sh: share) (l: address), iProp Σ.
 
-Definition resource_at sh (l: address) (r: resource) : iProp Σ := l ↪[gen_heap_name]{#sh} r.
+Definition mapsto (l: address) sh (r: resource) : iProp Σ := l ↪[gen_heap_name]{#sh} r.
 
 Ltac do_map_arg :=
 match goal with |- ?a = ?b =>
   match a with context [map ?x _] =>
     match b with context [map ?y _] => replace y with x; auto end end end.
 
+(* testing that we can still directly access resources if we need to *)
+Definition resource_at (m : gmap_viewR address (leibnizO resource)) l : option (option share * option resource) :=
+  option_map (fun '(q, a) => (q, (hd ∅ (agree_car a)) !! l)) (view_auth_proj m).
+
 (*Definition resource_share (r: resource) : option share :=
  match r with
  | YES sh _ _ _ => Some sh
  | NO sh _ => Some sh
  | PURE _ _ => None
- end.
+ end.*)
 
 Definition nonlock (r: resource) : Prop :=
  match r with
- | YES _ _ k _ => isVAL k \/ isFUN k
- | NO _ _ => True
- | PURE _ _ => False
- end.*)
+ | VAL _ => True
+ | LK _ _ _ => False
+ end.
 
 (*Lemma resource_share_join_exists: forall r1 r2 r sh1 sh2,
   resource_share r1 = Some sh1 ->
@@ -91,62 +94,30 @@ Lemma nonlock_join: forall r1 r2 r,
 Proof.
   intros.
   destruct r1, r2; inv H1; auto.
-Qed.
+Qed.*)
 
-Program Definition nonlockat (l: AV.address): pred rmap :=
-  fun m => nonlock (m @ l).
- Next Obligation.
-    split; repeat intro.
-    unfold resource_share in *.
-    destruct (a @ l) eqn:?H.
-    + rewrite (necR_NO a a' l _ n) in H1 by (constructor; auto).
-      rewrite H1; assumption.
-    + eapply necR_YES in H1; [ | constructor; eassumption].
-      rewrite H1; assumption.
-    + eapply necR_PURE in H1; [ | constructor; eassumption].
-      rewrite H1; assumption.
-    + apply rmap_order in H as (_ & <- & _); auto.
- Qed.
+Definition nonlockat (l: address): iProp Σ := ∃ sh r, ⌜nonlock r⌝ ∧ mapsto l sh r.
 
-Program Definition shareat (l: AV.address) (sh: share): pred rmap :=
-  fun m => resource_share (m @ l) = Some sh.
- Next Obligation.
-    split; repeat intro.
-    unfold resource_share in *.
-    destruct (a @ l) eqn:?H.
-    + rewrite (necR_NO a a' l _ n) in H1 by (constructor; auto).
-      rewrite H1; assumption.
-    + eapply necR_YES in H1; [ | constructor; eassumption].
-      rewrite H1; assumption.
-    + inv H0.
-    + apply rmap_order in H as (_ & <- & _); auto.
- Qed.*)
+Definition shareat (l: address) (sh: share): iProp Σ := ∃r, mapsto l sh r.
 
-Program Definition jam 
-  fun (l: B) m => if S l then P l m else Q l m.
- Next Obligation.
-    split; repeat intro.
-  if_tac; try (eapply pred_hereditary; eauto).
-  if_tac; try (eapply pred_upclosed; eauto).
- Qed.
+Program Definition jam {B} {S': B -> Prop} (S: forall l, {S' l}+{~ S' l} ) (P Q: B -> bi) : B -> bi :=
+  fun (l: B) => if S l then P l else Q l.
 
-Lemma jam_true: forall A JA PA SA agA AgeA EO EA B (S': B -> Prop) S P Q loc, S' loc -> @jam A JA PA SA agA AgeA EO EA B S' S P Q loc = P loc.
+Lemma jam_true: forall B (S': B -> Prop) S P Q loc, S' loc -> @jam B S' S P Q loc = P loc.
 Proof.
 intros.
-apply pred_ext'.
-extensionality m; unfold jam.
-simpl. rewrite if_true; auto.
+unfold jam.
+rewrite if_true; auto.
 Qed.
 
-Lemma jam_false: forall A JA PA SA agA AgeA EO EA B (S': B -> Prop) S P Q loc, ~ S' loc -> @jam A JA PA SA agA AgeA EO EA B S' S P Q loc = Q loc.
+Lemma jam_false: forall B (S': B -> Prop) S P Q loc, ~ S' loc -> @jam B S' S P Q loc = Q loc.
 Proof.
 intros.
-apply pred_ext'.
-extensionality m; unfold jam.
-simpl; rewrite if_false; auto.
+unfold jam.
+rewrite if_false; auto.
 Qed.
 
-Lemma boxy_jam:  forall (m: modality) A (S': A -> Prop) S P Q,
+(*Lemma boxy_jam:  forall (m: modality) A (S': A -> Prop) S P Q,
       (forall (x: A), boxy m (P x)) ->
       (forall x, boxy m (Q x)) ->
       forall x, boxy m (@jam rmap _ _ _ _ _ _ _ A S' S P Q x).
@@ -162,24 +133,24 @@ Proof.
    rewrite <- H0 in H1; auto.
 Qed.
 
-Definition extensible_jam: forall A (S': A -> Prop) S (P Q: A -> pred rmap),
+Definition extensible_jam: forall A (S': A -> Prop) S (P Q: A -> iProp Σ),
       (forall (x: A), boxy extendM (P x)) ->
       (forall x, boxy extendM (Q x)) ->
       forall x, boxy extendM  (@jam _ _ _ _ _ _ _ _ _ S' S P Q x).
 Proof.
   apply boxy_jam; auto.
-Qed.
+Qed.*)
 
 Definition jam_vacuous:
-  forall A JA PA SA agA AgeA EO EA B S S' P Q, (forall x:B, ~ S x) -> @jam A JA PA SA agA AgeA EO EA B S S' P Q = Q.
+  forall B S S' P Q, (forall x:B, ~ S x) -> @jam B S S' P Q = Q.
 Proof.
 intros.
-extensionality l; apply pred_ext'; extensionality w.
+extensionality l.
 unfold jam.
-simpl; rewrite if_false; auto.
+rewrite if_false; auto.
 Qed.
 
-Lemma make_sub_rmap: forall w (P: address -> Prop) (P_DEC: forall l, {P l} + {~ P l}),
+(*Lemma make_sub_rmap: forall w (P: address -> Prop) (P_DEC: forall l, {P l} + {~ P l}),
   (forall l sh k, P l -> res_option (w @ l) = Some (sh, k) -> isVAL k \/ isFUN k) ->
   {w' | level w' = level w /\ resource_at w' =
        (fun l => if P_DEC l then w @ l else core (w @ l)) /\ ghost_of w' = ghost_of w}.
@@ -207,12 +178,12 @@ Proof.
     left.
     exists w; split; auto.
     apply ghost_fmap_core.
-Qed.
+Qed.*)
 
-Definition is_resource_pred (p: address -> pred rmap) (q: resource -> address -> nat -> Prop) :=
+(*Definition is_resource_pred (p: address -> iProp Σ) (q: resource -> address -> nat -> Prop) :=
   forall l w, (p l) w = q (w @ l) l (level w).
 
-Definition resource_stable (p: address -> pred rmap) :=
+Definition resource_stable (p: address -> iProp Σ) :=
   forall l w w', w @ l = w' @ l -> level w = level w' -> (p l) w = (p l) w'.
 
 Lemma is_resource_pred_resource_stable: forall {p},
@@ -225,7 +196,7 @@ Proof.
 Qed.
 
 (* This is about splitting one segment into two segments. *)
-Lemma allp_jam_split2: forall (P Q R: address -> Prop) (p q r: address -> pred rmap)
+Lemma allp_jam_split2: forall (P Q R: address -> Prop) (p q r: address -> iProp Σ)
   (P_DEC: forall l, {P l} + {~ P l})
   (Q_DEC: forall l, {Q l} + {~ Q l})
   (R_DEC: forall l, {R l} + {~ R l}),
@@ -313,14 +284,14 @@ Proof.
 Qed.
 
 
-Lemma allp_jam_overlap: forall (P Q: address -> Prop) (p q: address -> pred rmap)
+Lemma allp_jam_overlap: forall (P Q: address -> Prop) (p q: address -> iProp Σ)
   (P_DEC: forall l, {P l} + {~ P l})
   (Q_DEC: forall l, {Q l} + {~ Q l}),
   (exists resp, is_resource_pred p resp) ->
   (exists resp, is_resource_pred q resp) ->
   (forall l w1 w2, p l w1 -> q l w2 -> joins w1 w2 -> False) ->
   (exists l, P l /\ Q l) ->
-  allp (jam P_DEC p noat) * allp (jam Q_DEC q noat) |-- FF.
+  allp (jam P_DEC p noat) * allp (jam Q_DEC q noat) ⊢ FF.
 Proof.
   intros.
   intro w; simpl; intros.
@@ -409,65 +380,67 @@ Lemma YES_ext:
   forall sh sh' rsh rsh' k p, sh=sh' -> YES sh rsh k p = YES sh' rsh' k p.
 Proof.
 intros. subst. f_equal. apply proof_irr.
-Qed.
+Qed.*)
 
 (****** Specific specs  ****************)
 
-(* Memory predicates need to explicitly not capture any ghost state,
-   at least until we add the extension order. *)
+Open Scope bi_scope.
+
 Definition VALspec : spec :=
-       fun (sh: Share.t) (l: address) =>
-          allp (jam (eq_dec l)
-                                  (fun l' => EX v: memval, 
-                                                yesat NoneP (VAL v) sh l')
-                                  noat).
+       fun (sh: Share.t) (l: address) => ∃v, mapsto l sh (VAL v).
 
 Definition VALspec_range (n: Z) : spec :=
-     fun (sh: Share.t) (l: address) =>
-          allp (jam (adr_range_dec l n)
-                                  (fun l' => EX v: memval, 
-                                                yesat NoneP (VAL v) sh l')
-                                  noat).
+     fun (sh: Share.t) (l: address) => [∗ list] i ∈ seq 0 (Z.to_nat n), VALspec sh (adr_add l (Z.of_nat i)).
 
-Definition nonlock_permission_bytes (sh: share) (a: address) (n: Z) : pred rmap :=
-  allp (jam (adr_range_dec a n) (fun i => shareat i sh && nonlockat i) noat).
+Definition nonlock_permission_bytes (sh: share) (a: address) (n: Z) : iProp Σ :=
+  [∗ list] i ∈ seq 0 (Z.to_nat n), shareat (adr_add a (Z.of_nat i)) sh ∧ nonlockat (adr_add a (Z.of_nat i)).
 
 Definition nthbyte (n: Z) (l: list memval) : memval :=
      nth (Z.to_nat n) l Undef.
 
-(*  Unfortunately address_mapsto_old, while a more elegant definition than
+(*(*  Unfortunately address_mapsto_old, while a more elegant definition than
    address_mapsto, is not quite right.  For example, it doesn't uniquely determine v *)
 Definition address_mapsto_old (ch: memory_chunk) (v: val) : spec :=
-        fun (sh: Share.t) (l: AV.address)  => 
+        fun (sh: Share.t) (l: address)  => 
              allp (jam (adr_range_dec l (size_chunk ch)) 
                               (fun l' => yesat NoneP (VAL (nthbyte (snd l' - snd l) (encode_val ch v))) sh l')
-                           noat).
+                           noat).*)
 
 Definition address_mapsto (ch: memory_chunk) (v: val) : spec :=
-        fun (sh: Share.t) (l: AV.address) =>
-           EX bl: list memval, 
-               !! (length bl = size_chunk_nat ch  /\ decode_val ch bl = v /\ (align_chunk ch | snd l))  &&
-                (allp (jam (adr_range_dec l (size_chunk ch))
-                                    (fun loc => yesat NoneP (VAL (nth (Z.to_nat (snd loc - snd l)) bl Undef)) sh loc)
-                                    noat)).
+        fun (sh: Share.t) (l: address) =>
+           ∃ bl: list memval, 
+               ⌜length bl = size_chunk_nat ch  /\ decode_val ch bl = v /\ (align_chunk ch | snd l)⌝ ∧
+               [∗ list] i ∈ seq 0 (size_chunk_nat ch), mapsto (adr_add l (Z.of_nat i)) sh (VAL (nthbyte (Z.of_nat i) bl)).
 
-Lemma address_mapsto_align: forall ch v sh l,
-  address_mapsto ch v sh l = address_mapsto ch v sh l && !! (align_chunk ch | snd l).
+Lemma add_and : forall {PROP : bi} (P Q : PROP), (P ⊢ Q) -> (P ⊢ P ∧ Q).
 Proof.
-  intros.
-  pose proof (@add_andp (pred rmap) _); simpl in H. apply H; clear H.
-  constructor; unfold address_mapsto.
-  apply exp_left; intro.
-  apply andp_left1.
-  intros ? [? [? ?]].
   auto.
 Qed.
 
+Lemma address_mapsto_align: forall ch v sh l,
+  address_mapsto ch v sh l ⊣⊢ address_mapsto ch v sh l ∧ ⌜(align_chunk ch | snd l)⌝.
+Proof.
+  intros.
+  iSplit.
+  - iApply add_and.
+    unfold address_mapsto.
+    by iIntros "H"; iDestruct "H" as (bl) "((% & % & %) & ?)".
+  - by iIntros "[? _]".
+Qed.
+
+(*Lemma mapsto_fun: forall l sh sh' v v', mapsto l sh v ∧ mapsto l sh' v' ⊢ ⌜v=v'⌝.
+Proof.
+  intros; unfold mapsto.
+  iIntros "?".
+  iApply ghost_map_elem_agree.
+  Search ghost_map_elem.
+
 Lemma address_mapsto_fun:
   forall ch sh sh' l v v',
-          (address_mapsto ch v sh l * TT) && (address_mapsto ch v' sh' l * TT) |-- !!(v=v').
+          (address_mapsto ch v sh l ∗ True) ∧ (address_mapsto ch v' sh' l ∗ True) ⊢ ⌜v=v'⌝.
 Proof.
 intros.
+iIntros "[H1 ?]".
 intros m [? ?]. unfold prop.
 destruct H as [m1 [m2 [J [[bl [[Hlen [? _]] ?]] _]]]].
 destruct H0 as [m1' [m2' [J' [[bl' [[Hlen' [? _]] ?]] _]]]].
@@ -523,17 +496,15 @@ specialize( H (S i)).
 simpl in H.
 auto.
 simpl; auto.
-Qed.
+Qed.*)
 
-Definition LKspec lock_size (R: pred rmap) : spec :=
-   fun (sh: Share.t) (l: AV.address)  =>
-    allp (jam (adr_range_dec l lock_size)
-               (fun l' => yesat (SomeP Mpred (fun _ => R)) (LK lock_size (snd l' - snd l)) sh l')
-               noat).
+Definition LKspec lock_size (R: iProp Σ) : spec :=
+   fun (sh: Share.t) (l: address)  =>
+    [∗ list] i ∈ seq 0 (Z.to_nat lock_size), mapsto (adr_add l (Z.of_nat i)) sh (LK lock_size (Z.of_nat i) R).
 
-Definition TTat (l: address) : pred rmap := TT.
+Definition Trueat (l: address) : iProp Σ := True.
 
-Lemma address_mapsto_old_parametric: forall ch v, 
+(*Lemma address_mapsto_old_parametric: forall ch v, 
    spec_parametric (fun l sh l' => yesat NoneP (VAL (nthbyte (snd l' - snd l) (encode_val ch v))) sh l').
 Proof.
 intros.
@@ -554,7 +525,7 @@ subst; auto.
 Qed.
 
 Lemma VALspec_parametric: 
-  spec_parametric (fun l sh l' => EX v: memval,  yesat NoneP (VAL v) sh l').
+  spec_parametric (fun l sh l' => ∃ v: memval,  yesat NoneP (VAL v) sh l').
 Proof.
 intros.
 exists NoneP.
@@ -573,7 +544,7 @@ exists p.
 auto.
 Qed.
 
-Lemma LKspec_parametric lock_size: forall R: pred rmap,
+Lemma LKspec_parametric lock_size: forall R: iProp Σ,
   spec_parametric (fun l sh l' => yesat (SomeP Mpred (fun _ => R)) (LK lock_size (snd l' - snd l)) sh l').
 Proof.
 intros.
@@ -590,13 +561,13 @@ econstructor.  split; eauto.
 
 destruct H as [k [? ?]].
 subst; auto.
-Qed.
+Qed.*)
 
-Definition val2address (v: val) : option AV.address := 
+Definition val2address (v: val) : option address := 
   match v with Vptr b ofs => Some (b, Ptrofs.signed ofs) | _ => None end.
 
-Lemma VALspec_readable:
-  forall l sh w,  (VALspec sh l * TT) %pred w -> readable l w.
+(*Lemma VALspec_readable:
+  forall l sh w,  (VALspec sh l * True) %pred w -> readable l w.
 (* The converse is not quite true, because "readable" does constraint to NoneP *)
 Proof.
 unfold VALspec, readable;
@@ -609,73 +580,31 @@ destruct H0 as [v [p ?]].
 unfold yesat_raw in H0.
 generalize (resource_at_join _ _ _ l H); rewrite H0; intro Hx.
 inv Hx; auto.
-Qed.
+Qed.*)
 
 
 (* NOT TRUE, because of CompCert_AV.valid problems.
 Lemma jam_con: forall A (S: A -> Prop) P Q,
-     allp (jam S P Q) |-- allp (jam S P (fun _ => emp)) * (allp (jam S (fun _ => emp) Q)).
+     allp (jam S P Q) ⊢ allp (jam S P (fun _ => emp)) * (allp (jam S (fun _ => emp) Q)).
 *)
 
 Lemma address_mapsto_VALspec:
   forall ch v sh l i, 0 <= i < size_chunk ch ->
-        address_mapsto ch v sh l |-- VALspec sh (adr_add l i) * TT.
+        address_mapsto ch v sh l ⊢ VALspec sh (adr_add l i) ∗ True.
 Proof.
-intros. intros w ?.
-pose (f l' := if eq_dec (adr_add l i) l' then w @ l' 
-                   else if adr_range_dec l (size_chunk ch) l' then NO Share.bot bot_unreadable else w @ l').
-pose (g l' := if eq_dec (adr_add l i) l' then NO Share.bot bot_unreadable else w @ l').
-exploit (deallocate (w) f g); intros.
-*
-unfold f,g; clear f g.
-destruct H0 as [b [? ?]]. specialize (H1 l0).  hnf in H1.
-if_tac in H1. destruct H1.  hnf in H1. if_tac; rewrite H1; constructor.
-apply join_unit2; auto.
-apply join_unit1; auto.
-if_tac.
-contradiction H2. unfold adr_add in H3; destruct l; destruct l0; simpl in H3. inv H3.
-split; auto. lia.
-do 3 red in H1. apply identity_unit' in H1. auto.
-*
-apply join_comm, core_unit.
-*
-destruct H1 as [phi1 [phi2 [? ?]]].
-exists phi1; exists phi2.
-split; auto.
-split; auto.
-unfold VALspec.
-intro l'.
-unfold jam in *.
-destruct H0 as [bl [H0' ?]].
-specialize (H0 l').
-unfold jam in H0.
-hnf in H0|-*; if_tac.
-subst l'.
-rewrite if_true in H0.
-destruct H0.
-unfold yesat_raw in H0.
-destruct H2 as [H2 _].
-pose proof (equal_f H2 (adr_add l i)).
-unfold f in H3.
-rewrite if_true in H3.
-rewrite H0 in H3.
-exists (nth (Z.to_nat (snd (adr_add l i) - snd l)) bl Undef).
-exists x.
-unfold yesat_raw.
-hnf in H0|-*.
-repeat rewrite preds_fmap_NoneP in *.
-auto.
-destruct l; unfold adr_range, adr_add. split; auto.
-destruct l; unfold adr_range, adr_add. split; auto.
-simpl; lia.
-do 3 red.
-destruct H2 as [-> _]. unfold f.
-rewrite if_false; auto.
-if_tac. apply NO_identity. apply H0.
+intros.
+rewrite /address_mapsto /VALspec; iIntros "H".
+iDestruct "H" as (bl) "[% H]".
+rewrite bi.sep_exist_r.
+iExists (nthbyte i bl).
+rewrite size_chunk_conv in H.
+rewrite big_sepL_lookup_acc.
+rewrite -> (Z2Nat.id i) by tauto.
+iDestruct "H" as "[$ $]".
+{ rewrite lookup_seq_lt; [done | lia]. }
 Qed.
 
-
-Lemma address_mapsto_exists:
+(*Lemma address_mapsto_exists:
   forall ch v sh (rsh: readable_share sh) loc w0
       (RESERVE: forall l', adr_range loc (size_chunk ch) l' -> w0 @ l' = NO Share.bot bot_unreadable),
       (align_chunk ch | snd loc) ->
@@ -722,146 +651,67 @@ split.
   { rewrite <- core_ghost_of.
     destruct H1 as [_ ->].
     rewrite core_ghost_of; auto. }
-Qed.
+Qed.*)
 
 (*  NOT TRUE, because readable doesn't constraint NoneP ...
 Lemma readable_VAL:
- forall w l, readable l (w_m w) <-> exists sh, (VALspec sh l * TT) w.
+ forall w l, readable l (w_m w) <-> exists sh, (VALspec sh l * True) w.
 
 *)
 
-Lemma VALspec1: VALspec_range 1 = VALspec.
+Lemma VALspec1: forall sh l, VALspec_range 1 sh l ⊣⊢ VALspec sh l.
 Proof.
-unfold VALspec, VALspec_range.
-extensionality sh l.
-f_equal.
-unfold jam.
-extensionality l'.
-apply exist_ext; extensionality m.
-symmetry.
-if_tac.
- subst l'. rewrite if_true; auto.
-destruct l; split; auto; lia.
-rewrite if_false; auto.
-destruct l; destruct l'; unfold block in *; intros [? ?]; try lia.
-subst.
-contradict H. f_equal; lia.
+unfold VALspec_range; intros; simpl.
+rewrite right_id.
+unfold adr_add; destruct l.
+by rewrite Z.add_0_r.
 Qed.
 
 Lemma VALspec_range_exp_address_mapsto:
   forall ch sh l,
     (align_chunk ch | snd l) ->
-    VALspec_range (size_chunk ch) sh l |-- EX v: val, address_mapsto ch v sh l.
+    VALspec_range (size_chunk ch) sh l ⊢ ∃ v: val, address_mapsto ch v sh l.
 Proof.
   intros.
-  intros w ?.
-  simpl in H0 |- *.
-  cut (exists (b0 : list memval),
-     length b0 = size_chunk_nat ch /\
-     (forall b1 : address,
-      if adr_range_dec l (size_chunk ch) b1
-      then
-       exists rsh: readable_share sh,
-         w @ b1 =
-         YES sh rsh
-           (VAL (nth (Z.to_nat (snd b1 - snd l)) b0 Undef))
-           (SomeP (ConstType unit) (fun _ => tt))
-      else identity (w @ b1))).
-  {
-    intros.
-    destruct H1 as [b0 [? ?]].
-    exists (decode_val ch b0), b0.
-    tauto.
-  }
-  rewrite !size_chunk_conv in *.
-  forget (size_chunk_nat ch) as n; clear - H0.
-
-  cut (exists b0 : list memval,
-     length b0 = n /\
-     (forall b1 : address,
-        adr_range l (Z.of_nat n) b1 ->
-       exists rsh: readable_share sh,
-         w @ b1 =
-         YES sh rsh
-           (VAL (nth (Z.to_nat (snd b1 - snd l)) b0 Undef))
-           (SomeP (ConstType unit) (fun _ => tt)))).
-  {
-    intros.
-    destruct H as [b0 H].
-    exists b0.
-    split; [tauto |].
-    intros b; specialize (H0 b).
-    if_tac; [apply (proj2 H) |]; auto.
-  }
-
-  assert (forall b : address,
-    adr_range l (Z.of_nat n) b ->
-        exists (b0 : memval) (rsh : readable_share sh),
-          w @ b =
-          YES sh rsh (VAL b0)
-            (SomeP (ConstType unit) (fun _ => tt))).
-  {
-    intros.
-    specialize (H0 b).
-    if_tac in H0; tauto.
-  }
-  clear H0.
-
-  destruct l as [bl ofs].
-  revert ofs H; induction n; intros.
-  + exists nil.
-    split; auto.
-    intros b.
-    specialize (H b).
-    auto.
-    intros.
-    apply adr_range_non_zero in H0.
-    simpl in H0; lia.
-  + specialize (IHn (ofs + 1)).
-    spec IHn.
-    - clear - H; intros b; specialize (H b).
-      intros; spec H; auto.
-      apply adr_range_shift_1; auto.
-    - assert (adr_range (bl, ofs) (Z.of_nat (S n)) (bl, ofs))
-        by (rewrite Nat2Z.inj_succ; repeat split; auto; lia).
-      destruct (H _ H0) as [b_hd ?H]; clear H0.
-      destruct IHn as [b_tl ?H].
-      exists (b_hd :: b_tl).
-      split; [simpl; lia |]; destruct H0 as [_ ?].
-      intros.
-      apply adr_range_S_split in H2.
-      destruct H2.
-      * destruct (H0 b1 H2) as [p ?H].
-        destruct b1; destruct H2 as [_ ?].
-        exists p; clear - H2 H3.
-        unfold snd in *.
-        replace (Z.to_nat (z - ofs)) with (S (Z.to_nat (z - (ofs + 1)))); [exact H3 |].
-        replace (z - ofs) with (Z.succ (z - (ofs + 1))) by lia.
-        rewrite Z2Nat.inj_succ; auto.
-        lia.
-      * subst. rewrite Z.sub_diag. simpl nth.
-        exact H1.
+  unfold VALspec_range, VALspec, address_mapsto.
+  trans (∃ (bl : list memval), ⌜length bl = size_chunk_nat ch ∧ (align_chunk ch | l.2)⌝
+   ∧ ([∗ list] i ∈ seq 0 (size_chunk_nat ch), mapsto (adr_add l (Z.of_nat i)) sh
+                                                (VAL (nthbyte (Z.of_nat i) bl)))).
+  2: { iIntros "H"; iDestruct "H" as (bl [??]) "H"; iExists (decode_val ch bl), bl; auto. }
+  rewrite size_chunk_conv Nat2Z.id.
+  forget (size_chunk_nat ch) as n.
+  induction n.
+  - simpl; iIntros "_".
+    by iExists nil.
+  - rewrite seq_S big_sepL_app /=.
+    iIntros "(H & Hv & _)".
+    iDestruct "Hv" as (v) "Hv".
+    iDestruct (IHn with "H") as (bl [??]) "H"; subst.
+    iExists (bl ++ [v]); iSplit.
+    { rewrite app_length /=; iPureIntro; split; auto; lia. }
+    rewrite big_sepL_app /=.
+    rewrite /nthbyte app_nth2; last lia.
+    rewrite Nat2Z.id minus_diag /=.
+    iFrame.
+    iApply (big_sepL_mono with "H").
+    intros ???%lookup_seq.
+    by rewrite app_nth1; last lia.
 Qed.
 
 Lemma address_mapsto_VALspec_range:
   forall ch v sh l,
-        address_mapsto ch v sh l |-- VALspec_range (size_chunk ch) sh l.
+        address_mapsto ch v sh l ⊢ VALspec_range (size_chunk ch) sh l.
 Proof.
 intros.
-intros w ?. unfold VALspec_range.
-destruct H as [bl [Hbl ?]].
-intro l'.
-specialize ( H l').
-unfold jam in *.
-hnf in H|-*. if_tac; auto.
-exists (nth (Z.to_nat (snd l' - snd l)) bl Undef).
-destruct H as [p ?].
-exists p.
-auto.
+unfold address_mapsto, VALspec_range.
+iIntros "H"; iDestruct "H" as (bl (? & ? & ?)) "H".
+rewrite size_chunk_conv Nat2Z.id.
+iApply (big_sepL_mono with "H").
+by intros; iIntros "?"; iExists _.
 Qed.
 
-Lemma approx_eq_i:
-  forall (P Q: pred rmap) (w: rmap),
+(*Lemma approx_eq_i:
+  forall (P Q: iProp Σ) (w: rmap),
       (|> ! (P <=> Q)) w -> approx (level w) P = approx (level w) Q.
 Proof.
 intros.
@@ -902,10 +752,10 @@ Qed.
 (*
 Lemma fun_assert_contractive:
    forall fml cc (A: TypeTree)
-     (P Q: pred rmap -> forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap)) v,
+     (P Q: iProp Σ -> forall ts, dependent_type_functor_rec ts (AssertTrue A) (iProp Σ)) v,
       (forall ts x rho, nonexpansive (fun R => P R ts x rho)) ->
       (forall ts x rho, nonexpansive (fun R => Q R ts x rho)) ->
-      contractive (fun R : pred rmap => fun_assert fml cc A (P R) (Q R) v).
+      contractive (fun R : iProp Σ => fun_assert fml cc A (P R) (Q R) v).
 Proof.
   intros.
   (*
@@ -1065,43 +915,20 @@ unfold yesat. simpl.
 exists r0.
 rewrite <- H2. rewrite H3.
 subst; f_equal; auto.
-Qed.
+Qed.*)
 
-Program Definition core_load (ch: memory_chunk) (l: address) (v: val): pred rmap :=
-  EX bl: list memval,
-  !!(length bl = size_chunk_nat ch /\ decode_val ch bl = v /\ (align_chunk ch | snd l)) &&
-    allp (jam (adr_range_dec l (size_chunk ch))
-      (fun l' phi => exists sh, exists rsh, phi @ l' 
-        = YES sh rsh (VAL (nth (Z.to_nat (snd l' - snd l)) bl Undef)) NoneP)
-      (fun _ _ => True)).
- Next Obligation.
-    split; repeat intro.
-    destruct H0 as [sh [rsh ?]]; exists sh, rsh.
-    apply (age1_YES a a'); auto.
+Definition core_load (ch: memory_chunk) (l: address) (v: val): iProp Σ :=
+  ∃ bl: list memval,
+  ⌜length bl = size_chunk_nat ch /\ decode_val ch bl = v /\ (align_chunk ch | snd l)⌝ ∧
+    ([∗ list] i ∈ seq 0 (size_chunk_nat ch), ∃ sh, mapsto (adr_add l (Z.of_nat i)) sh (VAL (nthbyte i bl)))
+    ∗ True.
 
-    apply rmap_order in H as (_ & <- & _); auto.
-  Qed.
-  Next Obligation.     split; repeat intro; auto.
-  Qed.
+Definition core_load' (ch: memory_chunk) (l: address) (v: val) (bl: list memval) : iProp Σ :=
+  ⌜length bl = size_chunk_nat ch /\ decode_val ch bl = v /\ (align_chunk ch | snd l)⌝ ∧
+    ([∗ list] i ∈ seq 0 (size_chunk_nat ch), ∃ sh, mapsto (adr_add l (Z.of_nat i)) sh (VAL (nthbyte i bl)))
+    ∗ True.
 
-Program Definition core_load' (ch: memory_chunk) (l: address) (v: val) (bl: list memval)
-  : pred rmap :=
-  !!(length bl = size_chunk_nat ch /\ decode_val ch bl = v /\ (align_chunk ch | snd l)) &&
-    allp (jam (adr_range_dec l (size_chunk ch))
-      (fun l' phi => exists sh, exists rsh, phi @ l' 
-        = YES sh rsh (VAL (nth (Z.to_nat (snd l' - snd l)) bl Undef)) NoneP)
-      (fun _ _ => True)).
- Next Obligation.
-    split; repeat intro.
-    destruct H0 as [sh [rsh ?]]; exists sh, rsh.
-    apply (age1_YES a a'); auto.
-
-    apply rmap_order in H as (_ & <- & _); auto.
-  Qed.
-  Next Obligation.     split; repeat intro; auto.
-  Qed.
-
-Lemma emp_no : emp = (ALL l, noat l).
+(*Lemma emp_no : emp = (ALL l, noat l).
 Proof.
   apply pred_ext.
   - intros ? (? & ? & Hord) ?; simpl.
@@ -1112,40 +939,23 @@ Proof.
     split; auto; split; [|eexists; constructor].
     extensionality l; specialize (H l).
     rewrite <- core_resource_at; symmetry; apply identity_core; auto.
-Qed.
+Qed.*)
 
-Lemma VALspec_range_0: forall sh loc, VALspec_range 0 sh loc = emp.
+Lemma VALspec_range_0: forall sh loc, VALspec_range 0 sh loc ⊣⊢ emp.
 Proof.
- intros.
- rewrite emp_no.
- apply pred_ext.
- - intros ? H l. simpl in *.
-   specialize (H l); rewrite if_false in H; auto.
-   { unfold adr_range. destruct loc, l; intros []; lia. }
- - intros ? H l. simpl in *.
-   rewrite if_false; auto.
-   { unfold adr_range. destruct loc, l; intros []; lia. }
+  done.
 Qed.
-#[export] Hint Resolve VALspec_range_0: normalize.
 
-Lemma nonlock_permission_bytes_0: forall sh a, nonlock_permission_bytes sh a 0 = emp.
+Lemma nonlock_permission_bytes_0: forall sh a, nonlock_permission_bytes sh a 0 ⊣⊢ emp.
+Proof.
+  done.
+Qed.
+
+(*Lemma nonlock_permission_bytes_not_nonunit: forall p n,
+  nonlock_permission_bytes Share.bot p n ⊢ emp.
 Proof.
   intros.
-  rewrite emp_no.
-  apply pred_ext.
-  + intros ? H l. simpl in *.
-    specialize (H l); rewrite if_false in H; auto.
-   { unfold adr_range. destruct a, l; intros []; lia. }
-  + intros ? H l. simpl in *.
-    rewrite if_false; auto.
-   { unfold adr_range. destruct a, l; intros []; lia. }
-Qed.
-
-Lemma nonlock_permission_bytes_not_nonunit: forall sh p n,
-  ~ nonunit sh ->
-  nonlock_permission_bytes sh p n |-- emp.
-Proof.
-  intros.
+  rewrite /nonlock_permission_bytes /shareat.
   assert (sh = Share.bot).
   {
     destruct (dec_share_identity sh).
@@ -1164,7 +974,7 @@ Qed.
 
 Lemma is_resource_pred_YES_VAL sh:
   is_resource_pred
-    (fun l' => EX  v: memval, yesat NoneP (VAL v) sh l')
+    (fun l' => ∃  v: memval, yesat NoneP (VAL v) sh l')
     (fun r _ n => (exists b0 rsh, r = YES sh rsh (VAL b0)
         (SomeP (ConstType unit) (fun _ => tt)))).
 Proof. hnf; intros. reflexivity. Qed.
@@ -1178,75 +988,61 @@ Proof. hnf; intros. reflexivity. Qed.
 
 Lemma is_resource_pred_nonlock_shareat sh:
   is_resource_pred
-    (fun i : address => shareat i sh && nonlockat i)
+    (fun i : address => shareat i sh ∧ nonlockat i)
     (fun r _ _ => resource_share r = Some sh /\ nonlock r).
-Proof. hnf; intros. reflexivity. Qed.
+Proof. hnf; intros. reflexivity. Qed.*)
 
 Lemma VALspec_range_split2:
   forall (n m r: Z) (sh: Share.t) (b: block) (ofs: Z),
     r = n + m -> n >= 0 -> m >= 0 ->
-    VALspec_range r sh (b, ofs) = 
-    VALspec_range n sh (b, ofs) * VALspec_range m sh (b, ofs + n).
+    VALspec_range r sh (b, ofs) ⊣⊢
+    VALspec_range n sh (b, ofs) ∗ VALspec_range m sh (b, ofs + n).
 Proof.
-  intros.
-  assert (exists resp, is_resource_pred (fun l' => EX  v: memval, yesat NoneP (VAL v) sh l') resp) by (eexists; apply is_resource_pred_YES_VAL).
-  apply allp_jam_split2; auto.
-  + split; intros [? ?]; unfold adr_range.
-    - assert (ofs <= z < ofs + r <-> ofs <= z < ofs + n \/ ofs + n <= z < ofs + n + m) by lia.
-      tauto.
-    - lia.
-  + intros.
-    simpl in H4.
-    destruct (m0 @ l); try solve [inversion H5; simpl; auto].
-    destruct H4 as [? [? ?]].
-    inversion H4; subst.
-    inversion H5; subst.
-    auto.
+  intros; subst.
+  unfold VALspec_range.
+  rewrite -> Z2Nat.inj_add, seq_app by lia.
+  rewrite big_sepL_app plus_0_l.
+  rewrite -{2}(plus_0_r (Z.to_nat n)) -fmap_add_seq big_sepL_fmap.
+  setoid_rewrite Nat2Z.inj_add; rewrite Z2Nat.id; last lia.
+  unfold adr_add; simpl.
+  by iSplit; iIntros "[$ H]"; iApply (big_sepL_mono with "H"); intros ???; rewrite Z.add_assoc.
 Qed.
 
 Lemma nonlock_permission_bytes_split2:
   forall (n m r: Z) (sh: Share.t) (b: block) (ofs: Z),
     r = n + m -> n >= 0 -> m >= 0 ->
-    nonlock_permission_bytes sh (b, ofs) r =
-    nonlock_permission_bytes sh (b, ofs) n *
+    nonlock_permission_bytes sh (b, ofs) r ⊣⊢
+    nonlock_permission_bytes sh (b, ofs) n ∗
     nonlock_permission_bytes sh (b, ofs + n) m.
 Proof.
-  intros.
-  assert (exists resp, is_resource_pred (fun i : address => shareat i sh && nonlockat i) resp) by (eexists; apply is_resource_pred_nonlock_shareat).
-  apply allp_jam_split2; auto.
-  + split; intros [? ?]; unfold adr_range.
-    - assert (ofs <= z < ofs + r <-> ofs <= z < ofs + n \/ ofs + n <= z < ofs + n + m) by lia.
-      tauto.
-    - lia.
-  + intros.
-    destruct H4 as [_ ?].
-    simpl in H4.
-    destruct (m0 @ l); inv H5.
-    simpl in H4; auto.
+  intros; subst.
+  unfold nonlock_permission_bytes.
+  rewrite -> Z2Nat.inj_add, seq_app by lia.
+  rewrite big_sepL_app plus_0_l.
+  rewrite -{2}(plus_0_r (Z.to_nat n)) -fmap_add_seq big_sepL_fmap.
+  setoid_rewrite Nat2Z.inj_add; rewrite Z2Nat.id; last lia.
+  unfold adr_add; simpl.
+  by iSplit; iIntros "[$ H]"; iApply (big_sepL_mono with "H"); intros ???; rewrite Z.add_assoc.
 Qed.
 
 Lemma VALspec_range_VALspec:
   forall (n : Z) (v : val) (sh : Share.t) (l : address) (i : Z),
        0 <= i < n ->
        VALspec_range n sh l
-       |-- VALspec sh (adr_add l i) * TT.
+       ⊢ VALspec sh (adr_add l i) ∗ True.
 Proof.
- intros.
-  destruct l as [b ofs].
-  rewrite (VALspec_range_split2 i (n-i) n sh b ofs); try lia.
-  rewrite (VALspec_range_split2 1 (n-i-1) (n-i) sh b (ofs+i)); try lia.
-  change (VALspec_range 1) with (VALspec_range 1).
-  rewrite VALspec1.
-  rewrite <- sepcon_assoc.
-  rewrite (sepcon_comm (VALspec_range i sh (b, ofs))).
-  rewrite sepcon_assoc.
-  apply sepcon_derives; auto.
+  intros.
+  unfold VALspec_range.
+  rewrite (big_sepL_lookup_acc).
+  rewrite -> (Z2Nat.id i) by tauto.
+  by iIntros "[$ $]".
+  { rewrite lookup_seq_lt; [done | lia]. }
 Qed.
 
 Lemma VALspec_range_overlap': forall sh p1 p2 n1 n2,
   adr_range p1 n1 p2 ->
   n2 > 0 ->
-  VALspec_range n1 sh p1 * VALspec_range n2 sh p2 |-- FF.
+  VALspec_range n1 sh p1 ∗ VALspec_range n2 sh p2 ⊢ False.
 Proof.
   intros.
   intros w [w1 [w2 [? [H2 H3]]]].
@@ -1269,7 +1065,7 @@ Qed.
 Lemma address_mapsto_overlap':
   forall sh ch1 v1 ch2 v2 a1 a2,
      adr_range a1 (size_chunk ch1) a2 ->
-     address_mapsto ch1 v1 sh a1 * address_mapsto ch2 v2 sh a2 |-- FF.
+     address_mapsto ch1 v1 sh a1 * address_mapsto ch2 v2 sh a2 ⊢ FF.
 Proof.
   intros.
   eapply derives_trans; [eapply sepcon_derives | apply VALspec_range_overlap'].
@@ -1281,7 +1077,7 @@ Qed.
 
 Lemma VALspec_range_overlap: forall sh l1 n1 l2 n2,
   range_overlap l1 n1 l2 n2 ->
-  VALspec_range n1 sh l1 * VALspec_range n2 sh l2 |-- FF.
+  VALspec_range n1 sh l1 * VALspec_range n2 sh l2 ⊢ FF.
 Proof.
   intros.
   pose proof range_overlap_non_zero _ _ _ _ H.
@@ -1294,7 +1090,7 @@ Qed.
 
 Lemma address_mapsto_overlap: forall sh l1 ch1 v1 l2 ch2 v2,
   range_overlap l1 (size_chunk ch1) l2 (size_chunk ch2) ->
-  address_mapsto ch1 v1 sh l1 * address_mapsto ch2 v2 sh l2 |-- FF.
+  address_mapsto ch1 v1 sh l1 * address_mapsto ch2 v2 sh l2 ⊢ FF.
 Proof.
   intros.
   apply range_overlap_spec in H; try apply size_chunk_pos.
@@ -1316,7 +1112,7 @@ Lemma nonlock_permission_bytes_overlap:
   forall sh n1 n2 p1 p2,
   nonunit sh ->
   range_overlap p1 n1 p2 n2 ->
-  nonlock_permission_bytes sh p1 n1 * nonlock_permission_bytes sh p2 n2 |-- FF.
+  nonlock_permission_bytes sh p1 n1 * nonlock_permission_bytes sh p2 n2 ⊢ FF.
 Proof.
   intros.
   eapply derives_trans; [apply sepcon_derives; apply derives_refl|].
@@ -1373,7 +1169,7 @@ Qed.
 
 Lemma address_mapsto_value_cohere:
   forall ch v1 v2 sh1 sh2 a,
- address_mapsto ch v1 sh1 a * address_mapsto ch v2 sh2 a |-- !! (v1=v2).
+ address_mapsto ch v1 sh1 a * address_mapsto ch v2 sh2 a ⊢ !! (v1=v2).
 Proof.
  intros.
  intros w [w1 [w2 [? [? ?]]]]. hnf.
@@ -1419,3 +1215,5 @@ Definition no_locks phi :=
 phi @ addr <> YES sh sh' (LK z z') P.
 
 End heap.
+
+#[export] Hint Resolve VALspec_range_0: normalize.
