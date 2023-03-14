@@ -86,9 +86,6 @@ intros.
 apply Bplus_correct; auto.
 Qed.
 
-Definition type_hibound (t: type) :=
-  (Raux.bpow Zaux.radix2 (femax t) - Raux.bpow Zaux.radix2 (femax t - fprec t))%R.
-
 Lemma ROUND_error: forall {NAN: Nans} t (x: R),
   (exists delta : R, exists epsilon : R, 
     Rabs delta <= default_rel t /\
@@ -103,14 +100,6 @@ Require Import Interval.Tactic.
 
 Definition ulp (t: type) := (2 * default_rel t)%R.
 
-Lemma is_finite_vacuous_bnds: forall {ty} {x: ftype ty},
-  is_finite _ _ x = true -> 
-   interp_bounds (vacuous_bnds ty) x = true.
-Proof.
-intros. 
-destruct x; try destruct s; try discriminate; simpl; try reflexivity.
-Qed.
-
 (*  This is a clumsy and tedious proof.  It would be better to
   automate this in VCFloat . . . *)
 Lemma f_model_accurate: forall t, 
@@ -122,8 +111,8 @@ intros.
 unfold f_model.
 assert (FINx := MF.FINcos t).
 assert (FINy := MF.FINsin t).
-destruct (ff_acc MF.cos t (is_finite_vacuous_bnds H) FINx) as [dx [ex [? [? Hx]]]].
-pose proof (ff_acc MF.sin t (is_finite_vacuous_bnds H) FINy) as [dy [ey [? [? Hy]]]].
+destruct (ff_acc MF.cos t (vacuous_bnds_i H) FINx) as [dx [ex [? [? Hx]]]].
+pose proof (ff_acc MF.sin t (vacuous_bnds_i H) FINy) as [dy [ey [? [? Hy]]]].
 forget (ff_func MF.cos t) as x.
 forget (ff_func MF.sin t) as y.
 change (ftype Tdouble) in x,y.

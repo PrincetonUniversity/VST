@@ -234,6 +234,14 @@ Definition vacuous_bnds ty : bounds ty :=
     ((Binary.B754_infinity (fprec ty) (femax ty) true, false), 
      (Binary.B754_infinity (fprec ty) (femax ty) false, false)).
 
+Lemma vacuous_bnds_i: forall {ty} {x: ftype ty},
+  Binary.is_finite _ _ x = true -> 
+   interp_bounds (vacuous_bnds ty) x = true.
+Proof.
+intros. 
+destruct x; try destruct s; try discriminate; simpl; try reflexivity.
+Qed.
+
 Definition abs_ff (t: type) : floatfunc  [ t ] t (Kcons (finite_bnds t) Knil) Rabs.
 apply (Build_floatfunc  [ t ] t _ _ BABS  0%N 0%N).
 intros x ?.
@@ -450,12 +458,6 @@ Fixpoint always_true (args: list type) : function_type (map RR args) Prop :=
  | nil => True
  | _ :: args' => fun _ => always_true args'
  end.
-
-(*
-Definition vacuous_bnds ty : bounds ty := 
-    ((Binary.B754_infinity (fprec ty) (femax ty) true, false), 
-     (Binary.B754_infinity (fprec ty) (femax ty) false, false)).
-*)
 
 Fixpoint vacuous_bnds_klist (tys: list type) : klist bounds tys :=
  match tys as l return (klist bounds l) with
