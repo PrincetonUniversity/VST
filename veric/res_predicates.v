@@ -1,12 +1,9 @@
- Require Export VST.veric.base.
-Require Import VST.veric.shares.
-Require Import VST.veric.address_conflict.
+From VST.veric Require Import shares address_conflict gmap_view.
 Require Export VST.msl.shares.
-Require Import VST.veric.gmap_view.
-Require Import VST.veric.ghost_map.
-Require Export VST.veric.Memory.
+From VST.veric Require Export base Memory ghost_map.
 From iris.proofmode Require Export tactics.
-Require Import iris_ora.logic.oupred.
+From iris_ora.algebra Require Import gmap.
+From iris_ora.logic Require Export oupred iprop.
 Export Values.
 
 Local Open Scope Z_scope.
@@ -15,24 +12,30 @@ Section heap.
 
 Context {Σ : gFunctors}.
 
-Inductive resource :=
+Notation rmap := (iResUR Σ).
+
+Inductive resource' :=
 | VAL (v : memval)
 | LK (i z : Z) (R : iProp Σ).
 
-Context {heapGS : gen_heapGS address resource Σ}.
+Context {heapGS : gen_heapGS address resource' Σ}.
+
+Local Notation resource := resource'.
 
 Definition spec : Type :=  forall (sh: share) (l: address), iProp Σ.
 
-Definition mapsto (l: address) sh (r: resource) : iProp Σ := l ↪[gen_heap_name]{#sh} r.
+Definition mapsto (l: address) sh (r: resource) : iProp Σ := l ↪[gen_heap_name heapGS]{#sh} r.
 
 Ltac do_map_arg :=
 match goal with |- ?a = ?b =>
   match a with context [map ?x _] =>
     match b with context [map ?y _] => replace y with x; auto end end end.
 
-(* testing that we can still directly access resources if we need to *)
-Definition resource_at (m : gmap_viewR address (leibnizO resource)) l : option (option share * option resource) :=
-  option_map (fun '(q, a) => (q, (hd ∅ (agree_car a)) !! l)) (view_auth_proj m).
+(* In VST, we do a lot of reasoning directly on rmaps instead of mpreds. How much of that can we avoid? *)
+Definition resource_at (m : rmap) (l : address) : option (option share * resource) :=
+  (option_map (ora_transport (eq_sym (inG_prf(inG := ghost_map_inG)))) (option_map own.inG_fold ((m (inG_id ghost_map_inG)) !! (gen_heap_name heapGS))))
+    ≫= (fun v => option_map (fun '(q, a) => (q, (hd (VAL Undef) (agree_car a)))) (view_frag_proj v !! l)).
+Infix "@" := resource_at (at level 50, no associativity).
 
 (*Definition resource_share (r: resource) : option share :=
  match r with
@@ -291,7 +294,7 @@ Lemma allp_jam_overlap: forall (P Q: address -> Prop) (p q: address -> iProp Σ)
   (exists resp, is_resource_pred q resp) ->
   (forall l w1 w2, p l w1 -> q l w2 -> joins w1 w2 -> False) ->
   (exists l, P l /\ Q l) ->
-  allp (jam P_DEC p noat) * allp (jam Q_DEC q noat) ⊢ FF.
+  allp (jam P_DEC p noat) * allp (jam Q_DEC q noat) ⊢ False.
 Proof.
   intros.
   intro w; simpl; intros.
@@ -1039,97 +1042,97 @@ Proof.
   { rewrite lookup_seq_lt; [done | lia]. }
 Qed.
 
+Lemma share_joins_self: forall sh: share, sepalg.joins sh sh -> sh = Share.bot.
+Proof.
+  intros ? [? ?%sepalg.join_self].
+  by apply identity_share_bot.
+Qed.
+
 Lemma VALspec_range_overlap': forall sh p1 p2 n1 n2,
   adr_range p1 n1 p2 ->
   n2 > 0 ->
   VALspec_range n1 sh p1 ∗ VALspec_range n2 sh p2 ⊢ False.
 Proof.
   intros.
-  intros w [w1 [w2 [? [H2 H3]]]].
-  specialize (H2 p2).
-  specialize (H3 p2).
-  rewrite jam_true in H2 by auto.
-  rewrite jam_true in H3 by (destruct p2; simpl; split; auto; lia).
-  destruct H2; destruct H3. hnf in H2,H3.
-  apply (resource_at_join _ _ _ p2) in H1.
-  destruct H2, H3.
-  rewrite H2, H3 in H1.
-  clear - x1 H1; simpl in H1.
-  inv H1.
-  clear - x1 RJ.
-  generalize (join_self' RJ); intro. subst sh3.
-  apply readable_nonidentity in x1.
-  apply x1. apply identity_unit_equiv. apply RJ.
+  iIntros "[H1 H2]".
+  destruct p1 as (?, ofs1), p2 as (?, ofs2), H; subst.
+  unfold VALspec_range.
+  rewrite (big_sepL_lookup_acc _ _ _ (Z.to_nat (ofs2 - ofs1))).
+  rewrite (big_sepL_lookup_acc _ (seq _ (Z.to_nat n2)) _ O).
+  iDestruct "H1" as "[H1 _]"; iDestruct "H2" as "[H2 _]".
+  unfold VALspec.
+  iDestruct "H1" as (v1) "H1"; iDestruct "H2" as (v2) "H2".
+  rewrite /adr_add /=.
+  rewrite Z2Nat.id; last lia.
+  rewrite Zplus_minus Z.add_0_r.
+  iDestruct (ghost_map_elem_valid_2 with "H1 H2") as %[? _].
+  rewrite share_valid2_joins in H; destruct H as (? & ? & ?%share_joins_self); contradiction.
+  { rewrite lookup_seq_lt; [done | lia]. }
+  { rewrite lookup_seq_lt; [done | lia]. }
 Qed.
 
 Lemma address_mapsto_overlap':
   forall sh ch1 v1 ch2 v2 a1 a2,
      adr_range a1 (size_chunk ch1) a2 ->
-     address_mapsto ch1 v1 sh a1 * address_mapsto ch2 v2 sh a2 ⊢ FF.
+     address_mapsto ch1 v1 sh a1 ∗ address_mapsto ch2 v2 sh a2 ⊢ False.
 Proof.
   intros.
-  eapply derives_trans; [eapply sepcon_derives | apply VALspec_range_overlap'].
-  + apply address_mapsto_VALspec_range.
-  + apply address_mapsto_VALspec_range.
+  etrans; last apply VALspec_range_overlap'.
+  + apply bi.sep_mono; apply address_mapsto_VALspec_range.
   + auto.
   + apply size_chunk_pos.
 Qed.
 
 Lemma VALspec_range_overlap: forall sh l1 n1 l2 n2,
   range_overlap l1 n1 l2 n2 ->
-  VALspec_range n1 sh l1 * VALspec_range n2 sh l2 ⊢ FF.
+  VALspec_range n1 sh l1 ∗ VALspec_range n2 sh l2 ⊢ False.
 Proof.
   intros.
   pose proof range_overlap_non_zero _ _ _ _ H.
   apply range_overlap_spec in H; try tauto.
   destruct H.
   + apply VALspec_range_overlap'; tauto.
-  + rewrite sepcon_comm.
+  + rewrite comm.
     apply VALspec_range_overlap'; tauto.
 Qed.
 
 Lemma address_mapsto_overlap: forall sh l1 ch1 v1 l2 ch2 v2,
   range_overlap l1 (size_chunk ch1) l2 (size_chunk ch2) ->
-  address_mapsto ch1 v1 sh l1 * address_mapsto ch2 v2 sh l2 ⊢ FF.
+  address_mapsto ch1 v1 sh l1 ∗ address_mapsto ch2 v2 sh l2 ⊢ False.
 Proof.
   intros.
   apply range_overlap_spec in H; try apply size_chunk_pos.
   destruct H.
   + apply address_mapsto_overlap'; auto.
-  + rewrite sepcon_comm.
+  + rewrite comm.
     apply address_mapsto_overlap'; auto.
-Qed.
-
-Lemma share_joins_self: forall sh: share, joins sh sh -> nonunit sh -> False.
-Proof.
-  intros.
-  destruct H as [sh' ?].
-  apply nonunit_nonidentity in H0; contradiction H0.
-  eapply join_self; eauto.
 Qed.
 
 Lemma nonlock_permission_bytes_overlap:
   forall sh n1 n2 p1 p2,
-  nonunit sh ->
+  sh <> Share.bot ->
   range_overlap p1 n1 p2 n2 ->
-  nonlock_permission_bytes sh p1 n1 * nonlock_permission_bytes sh p2 n2 ⊢ FF.
+  nonlock_permission_bytes sh p1 n1 ∗ nonlock_permission_bytes sh p2 n2 ⊢ False.
 Proof.
-  intros.
-  eapply derives_trans; [apply sepcon_derives; apply derives_refl|].
-  apply allp_jam_overlap.
-  + eexists. apply is_resource_pred_nonlock_shareat.
-  + eexists. apply is_resource_pred_nonlock_shareat.
-  + unfold shareat; simpl; intros.
-    destruct H3 as [w ?].
-    apply (resource_at_join _ _ _ l) in H3.
-    pose proof resource_share_joins (w1 @ l) (w2 @ l) sh sh.
-    do 2 (spec H4; [tauto |]).
-    spec H4; [firstorder |].
-    apply (share_joins_self sh); auto.
-  + auto.
+  intros ?????? ((?, ?) & Hadr1 & Hadr2).
+  destruct p1 as (?, ofs1), p2 as (?, ofs2), Hadr1, Hadr2; subst.
+  iIntros "[H1 H2]".
+  unfold nonlock_permission_bytes.
+  rewrite (big_sepL_lookup_acc _ _ _ (Z.to_nat (z - ofs1))).
+  rewrite (big_sepL_lookup_acc _ (seq _ (Z.to_nat n2)) _ (Z.to_nat (z - ofs2))).
+  iDestruct "H1" as "[[H1 _] _]"; iDestruct "H2" as "[[H2 _] _]".
+  unfold shareat.
+  iDestruct "H1" as (v1) "H1"; iDestruct "H2" as (v2) "H2".
+  rewrite /adr_add /=.
+  rewrite !Z2Nat.id; try lia.
+  rewrite !Zplus_minus.
+  iDestruct (ghost_map_elem_valid_2 with "H1 H2") as %[J _].
+  rewrite share_valid2_joins in J; destruct J as (? & ? & ?%share_joins_self); contradiction.
+  { rewrite lookup_seq_lt; [done | lia]. }
+  { rewrite lookup_seq_lt; [done | lia]. }
 Qed.
 
-Lemma address_mapsto_value_cohere':
+(*Lemma address_mapsto_value_cohere':
   forall ch v1 v2 sh1 sh2 a r
  (Hmaps1 : address_mapsto ch v1 sh1 a r)
  (Hmaps2 : address_mapsto ch v2 sh2 a r), v1=v2.
@@ -1165,55 +1168,57 @@ Proof.
  specialize (H O). simpl in H. inv H; auto.
  apply IHn; auto.
  intro i; specialize (H (S i)); apply H.
-Qed.
+Qed.*)
 
 Lemma address_mapsto_value_cohere:
   forall ch v1 v2 sh1 sh2 a,
- address_mapsto ch v1 sh1 a * address_mapsto ch v2 sh2 a ⊢ !! (v1=v2).
+ address_mapsto ch v1 sh1 a ∗ address_mapsto ch v2 sh2 a ⊢ ⌜v1=v2⌝.
 Proof.
- intros.
- intros w [w1 [w2 [? [? ?]]]]. hnf.
- destruct H0 as [b1 [[? [? ?]] ?]].
- destruct H1 as [b2 [[? [? ?]] ?]].
- assert (b1 = b2); [ | subst; auto].
- clear - H H0 H4 H1 H7.
- rewrite size_chunk_conv in *.
- forget (size_chunk_nat ch) as n. clear ch.
- assert (forall i, nth_error b1 i = nth_error b2 i).
- intro.
- destruct a as [b z].
- specialize (H4 (b, (z+Z.of_nat i))).
- specialize (H7 (b, (z+Z.of_nat i))).
- hnf in H4,H7. if_tac in H4. destruct H2 as [_ [_ ?]].
- destruct H4, H7. hnf in H3,H4.
- apply (resource_at_join _ _ _ (b, z + Z.of_nat i)) in H.
- rewrite H3,H4 in H. inv  H.
- clear - H2 H10 H1.
- replace (z + Z.of_nat i - z) with (Z.of_nat i) in H10 by lia.
- rewrite Nat2Z.id in H10.
- rewrite coqlib4.nth_error_nth with (z:=Undef) by lia.
- rewrite coqlib4.nth_error_nth with (z:=Undef) by lia.
- f_equal; auto.
- assert (~(i<n)%nat).
- contradict H2. split; auto. lia.
- transitivity (@None memval); [ | symmetry];
- apply nth_error_length; lia.
- clear - H2 H0 H1.
- revert b1 b2 H0 H1 H2.
- induction n; destruct b1,b2; intros; auto; inv H0; inv H1.
- f_equal.
- specialize (H2 O). simpl in H2. inv H2; auto.
- apply IHn; auto.
- intro i; specialize (H2 (S i)); apply H2.
+  intros.
+  iIntros "[H1 H2]".
+  rewrite /address_mapsto.
+  iDestruct "H1" as (b1 (Hl1 & ? & ?)) "H1".
+  iDestruct "H2" as (b2 (Hl2 & ? & ?)) "H2"; subst.
+  iAssert ⌜b1 = b2⌝ as %->; last done.
+  forget (size_chunk_nat ch) as n.
+  iInduction n as [|n'] "IH" forall (b1 b2 Hl1 Hl2).
+  - apply nil_length_inv in Hl1, Hl2; subst; auto.
+  - rewrite seq_S !big_sepL_app /=.
+    iDestruct "H1" as "(H1 & Hv1 & _)"; iDestruct "H2" as "(H2 & Hv2 & _)".
+    iDestruct (ghost_map_elem_valid_2 with "Hv1 Hv2") as %[? Heq]; inversion Heq as [Heq'].
+    rewrite /nthbyte Nat2Z.id in Heq'.
+    rewrite -(take_drop n' b1) -(take_drop n' b2) in Heq' |- *.
+    pose proof (drop_length b1 n') as Hd1; pose proof (drop_length b2 n') as Hd2.
+    rewrite Hl1 Nat.sub_succ_l in Hd1; last done.
+    rewrite Hl2 Nat.sub_succ_l in Hd2; last done.
+    rewrite minus_diag in Hd1, Hd2.
+    destruct (drop n' b1) as [| ? [|]], (drop n' b2) as [| ? [|]]; try discriminate.
+    pose proof (take_length_le b1 n' ltac:(lia)) as Hlen1.
+    pose proof (take_length_le b2 n' ltac:(lia)) as Hlen2.
+    rewrite -{1}Hlen1 -{3}Hlen2 !nth_middle in Heq'; subst.
+    iDestruct ("IH" $! (take n' b1) (take n' b2) with "[%] [%] [H1] [H2]") as %->; try done.
+    + iApply (big_sepL_mono with "H1").
+      intros ???%lookup_seq.
+      rewrite /nthbyte Nat2Z.id app_nth1; [done | lia].
+    + iApply (big_sepL_mono with "H2").
+      intros ???%lookup_seq.
+      rewrite /nthbyte Nat2Z.id app_nth1; [done | lia].
 Qed.
 
-Definition almost_empty rm: Prop:=
+(*Definition almost_empty rm: Prop :=
   forall loc sh psh k P, rm @ loc = YES sh psh k P -> forall val, ~ k = VAL val.
 
 Definition no_locks phi :=
   forall addr sh sh' z z' P,
-phi @ addr <> YES sh sh' (LK z z') P.
+phi @ addr <> YES sh sh' (LK z z') P.*)
 
 End heap.
 
 #[export] Hint Resolve VALspec_range_0: normalize.
+
+Global Notation heapGS Σ := (gen_heapGS address (resource'(Σ := Σ)) Σ).
+
+Definition rmap `{heapGS Σ} := iResUR Σ.
+
+Definition resource `{heapGS Σ} := resource'(Σ := Σ).
+Global Infix "@" := resource_at (at level 50, no associativity).

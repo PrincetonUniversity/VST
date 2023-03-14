@@ -1,10 +1,8 @@
 Require Export VST.veric.base.
-Require Export VST.msl.msl_standard.
-Require Export VST.veric.rmaps.
+Require Export VST.veric.res_predicates.
 
-Require Export VST.veric.rmaps_lemmas.
-
-Require Export VST.veric.compcert_rmaps.
+(* patch for compcert maps notation conflict *)
+Global Notation "a ! b" := (Maps.PTree.get b a) (at level 1).
 
 (* Module Mem : MEM := compcert.common.Memory.Mem. *)
 Export Mem.

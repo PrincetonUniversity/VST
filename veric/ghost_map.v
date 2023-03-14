@@ -308,3 +308,15 @@ Class gen_heapGS (L V : Type) (Σ : gFunctors) `{Countable L} := GenHeapGS {
   gen_heap_inG :> ghost_mapG Σ L V;
   gen_heap_name : gname
 }.
+
+Global Arguments GenHeapGS L V Σ {_ _ _} _.
+Global Arguments gen_heap_name {L V Σ _ _} _ : assert.
+
+(*Lemma gen_heap_init `{Countable L, !gen_heapGpreS L V Σ} σ :
+  ⊢ |==> ∃ _ : gen_heapGS L V Σ,
+    gen_heap_interp σ ∗ ([∗ map] l ↦ v ∈ σ, l ↦ v) ∗ ([∗ map] l ↦ _ ∈ σ, meta_token l ⊤).
+Proof.
+  iMod (gen_heap_init_names σ) as (γh γm) "Hinit".
+  iExists (GenHeapGS _ _ _ γh γm).
+  done.
+Qed.*)
