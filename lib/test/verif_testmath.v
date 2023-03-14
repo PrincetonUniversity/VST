@@ -5,9 +5,14 @@ Require Import vcfloat.FPCompCert.
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
+Require Import vcfloat.VCFloat.
+
+Definition cos := ltac:(apply_func (Build_floatfunc_package _ _ _ _ MF.cos)).
+Definition sin := ltac:(apply_func (Build_floatfunc_package _ _ _ _ MF.sin)).
+
 Definition f_model (t: ftype Tdouble) : ftype Tdouble :=
-  let x := ff_func MF.cos t in
-  let y := ff_func MF.sin t in
+  let x := cos t in
+  let y := sin t in
   (x*x+y*y)%F64.
 
 Definition f_spec :=
@@ -98,10 +103,74 @@ Qed.
 
 Require Import Interval.Tactic.
 
+Definition F' := ltac:(let e' := 
+  HO_reify_float_expr constr:([_x]) f_model in exact e').
+
+Definition bmap_list : list varinfo := 
+  [trivbound_varinfo Tdouble _x].
+
+(** Then we calculate an efficient lookup table, the "boundsmap". *)
+Definition bmap : boundsmap :=
+ ltac:(let z := compute_PTree (boundsmap_of_list bmap_list) in exact z).
+Set Bullet Behavior "Strict Subproofs".
+
 Definition ulp (t: type) := (2 * default_rel t)%R.
+(** Now we prove that the leapfrogx expression (deep-embedded as  x' )
+   has a roundoff error less than 1.0e-5 *)
+Lemma prove_roundoff_bound_x:
+  forall vmap,
+  prove_roundoff_bound bmap vmap F'  (10*ulp Tdouble).
+Proof.
+intros.
+unfold ulp, default_rel. simpl bpow.
+prove_roundoff_bound.
+-
+prove_rndval.
+all: interval.
+- 
+prove_roundoff_bound2.
+ match goal with |- Rabs ?a <= _ => field_simplify a end. (* improves the bound *)
+ interval.
+Qed.
+
+
+
+Lemma f_model_accurate': forall t, 
+  Binary.is_finite (fprec Tdouble) (femax Tdouble) t = true ->
+   is_finite _ _ (f_model t) = true /\ 
+  (1 - 10*ulp Tdouble <= FT2R (f_model t) <= 1 + 10 * ulp Tdouble)%R.
+Proof.
+intros.
+rename t into x.
+pose (vmap_list := [(_x, existT ftype _ x)]).
+pose (vmap :=
+ ltac:(let z := compute_PTree (valmap_of_list (vmap_list)) in exact z)).
+pose proof prove_roundoff_bound_x vmap.
+red in H0.
+spec H0. {
+  apply boundsmap_denote_i; simpl; auto.
+  eexists; split3; try reflexivity. split; auto. 
+  apply trivbound_correct.
+}
+red in H0.
+destruct H0.
+split; auto.
+unfold f_model.
+change (FT2R _) with (FT2R (fval (env_ vmap) F')).
+forget (FT2R (fval (env_ vmap) F')) as g.
+simpl in H1.
+change (env_ vmap Tdouble _x) with x in H1.
+forget (B2R (fprec Tdouble) 1024 x) as t; intros.
+clear - H1.
+rewrite  Rplus_comm in H1.
+change (sin t * sin t + cos t * cos t) with ((sin t)² + (cos t)²) in H1.
+rewrite sin2_cos2 in H1.
+apply Rabs_le_inv in H1.
+lra.
+Qed.
 
 (*  This is a clumsy and tedious proof.  It would be better to
-  automate this in VCFloat . . . *)
+  automate this in VCFloat, as demonstrated just above! *)
 Lemma f_model_accurate: forall t, 
   Binary.is_finite (fprec Tdouble) (femax Tdouble) t = true ->
    is_finite _ _ (f_model t) = true /\ 
@@ -111,6 +180,8 @@ intros.
 unfold f_model.
 assert (FINx := MF.FINcos t).
 assert (FINy := MF.FINsin t).
+change verif_testmath.cos with (ff_func MF.cos). 
+change verif_testmath.sin with (ff_func MF.sin). 
 destruct (ff_acc MF.cos t (vacuous_bnds_i H) FINx) as [dx [ex [? [? Hx]]]].
 pose proof (ff_acc MF.sin t (vacuous_bnds_i H) FINy) as [dy [ey [? [? Hy]]]].
 forget (ff_func MF.cos t) as x.
