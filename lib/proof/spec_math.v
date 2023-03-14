@@ -1,6 +1,6 @@
 Require Import VST.floyd.proofauto.
 Require Import VSTlib.math_extern.
-Require Import vcfloat.FPCompCert.
+Require Import vcfloat.FPCompCert vcfloat.klist vcfloat.FPCore.
 Require Import Reals.
 Import ListNotations.
 
@@ -33,11 +33,11 @@ Definition arch : nat := ltac:(let x := constr:(arch') in let x := eval compute 
 Lemma architecture_is_known: arch <> Generic.
 Proof. compute. lia. Abort.
 
-Definition process_GNU_errors (al: list (ident * list Z)) :=
- List.fold_left (fun m il => Maps.PTree.set (fst il) (nth arch (snd il) 0) m)
-  al (Maps.PTree.empty Z).
+Definition process_GNU_errors (al: list (ident * list N)) :=
+ List.fold_left (fun m il => Maps.PTree.set (fst il) (nth arch (snd il) 0%N) m)
+  al (Maps.PTree.empty N).
 
-Definition GNU_errors : Maps.PTree.t Z.
+Definition GNU_errors : Maps.PTree.t N.
 pose (j := process_GNU_errors
   (* This information is taken from 
       https://www.gnu.org/software/libc/manual/html_node/Errors-in-Math-Functions.html 
@@ -100,68 +100,14 @@ Function; Generic; AArch64; ARM; PowerPC; RISCV32; RISCV64; i686; x86_64 *)
 (_tanhf, [0; 2; 2; 2; 2; 2; 2; 2]);
 (_tanh, [0; 2; 2; 2; 2; 2; 2; 2]);
 (_tgammaf, [0; 8; 8; 8; 8; 8; 8; 8]);
-(_tgamma, [0; 9; 9; 9; 5; 9; 9; 9])]).
+(_tgamma, [0; 9; 9; 9; 5; 9; 9; 9])]%N).
 compute in j.
 exact j.
 Defined.
 End GNU_Errors.
 
-Definition GNU_error (i: ident) : Z := 
- match Maps.PTree.get i GNU_Errors.GNU_errors with Some z => z | None => 0 end.
-
-Fixpoint function_type (args: list Type) (rhs: Type) : Type :=
-  match args with
-  | nil => rhs
-  | a::r =>  a -> function_type r rhs
- end.
-
-Definition RR (_: FPCore.type) : Type := R.
-Definition ftype'  (t: FPCore.type) : Type := ftype t.
-
-Fixpoint acc_prop  (args: list FPCore.type) (result: FPCore.type)
-             (rel abs : R)
-             (precond: function_type (map RR args) Prop)
-             (rf: function_type (map RR args) R)
-             (f: function_type (map ftype' args) (ftype' result)) {struct args} : Prop.
-destruct args as [ | a r].
-exact (precond ->
-                   Binary.is_finite _ _ f = true /\ 
-                   exists delta epsilon,
-                  (Rabs delta <= rel /\ Rabs epsilon <= abs /\
-                   FT2R f = rf * (1+delta) + epsilon)%R).
-exact (forall z: ftype a, Binary.is_finite (fprec a) (femax a) z = true ->
-            acc_prop r result rel abs (precond (FT2R z)) (rf (FT2R z)) (f z)).
-Defined.
-
-Record floatfunc (args: list FPCore.type) (result: FPCore.type) 
-     (precond: function_type (map RR args) Prop)
-     (realfunc: function_type (map RR args) R) := 
- {ff_func: function_type (map ftype' args) (ftype' result);
-  ff_rel: R;
-  ff_abs: R;
-  ff_acc: acc_prop args result ff_rel ff_abs precond realfunc ff_func
- }.
-
-(*
-Record floatfunc (args: list FPCore.type) (result: FPCore.type) 
-     (precond: function_type (map RR args) Prop)
-     (realfunc: function_type (map RR args) R)
-     (rel abs: R) :=
- {ff_func: function_type (map ftype' args) (ftype' result);
-  ff_acc: acc_prop args result rel abs precond realfunc ff_func
- }.
-*)
-
-Arguments ff_func [args result precond realfunc].
-Arguments ff_acc [args result precond realfunc].
-Arguments ff_rel [args result precond realfunc].
-Arguments ff_abs [args result precond realfunc].
-
-Definition default_rel (t: FPCore.type) : R :=
-  / 2 * Raux.bpow Zaux.radix2 (- fprec t + 1).
-
-Definition default_abs (t: FPCore.type) : R :=
-  / 2 * Raux.bpow Zaux.radix2 (3 - femax t - fprec t).
+Definition GNU_error (i: ident) : N := 
+ match Maps.PTree.get i GNU_Errors.GNU_errors with Some z => z | None => 0%N end.
 
 Definition reflect_to_ctype (t: FPCore.type) := 
 match fprec t, femax t with
@@ -251,45 +197,55 @@ exists delta, epsilon.
 split3; auto.
 Qed.
 
-Definition sqrt_ff (t: type) : floatfunc  [ t ] t (Rle 0) R_sqrt.sqrt.
-apply (Build_floatfunc  [ t ] t _ _ (BSQRT t)  (default_rel t) (default_abs t)).
-intros x ? ?.
+
+Definition sqrt_bounds (ty: type) : klist bounds [ty] :=
+  Kcons ((Zconst ty 0,false), (Binary.B754_infinity (fprec ty) (femax ty) false, true)) Knil.
+
+Definition sqrt_ff (t: type) : floatfunc  [ t ] t (sqrt_bounds t) R_sqrt.sqrt.
+apply (Build_floatfunc  [ t ] t _ _ (BSQRT t)  1%N 1%N).
+intros x ?.
+simpl in H.
+rewrite andb_true_iff in H.
+destruct H as [H H'].
 unfold BSQRT, UNOP .
 destruct (Binary.Bsqrt_correct (fprec t) (femax t)  (fprec_gt_0 t) (fprec_lt_femax t) (sqrt_nan t)
                       BinarySingleNaN.mode_NE x) as [? [??]].
 change (Binary.B2R (fprec t) (femax t) ?x) with (@FT2R t x) in *.
-rewrite H1; clear H1.
-split.
+intro.
 -
-destruct x; try destruct s; simpl in H; try discriminate; auto.
-exfalso. clear - H0.
-simpl in H0.
-unfold Defs.F2R in H0.
-simpl in H0.
-unfold IZR in H0. rewrite Raux.bpow_powerRZ in H0.
-simpl in H0.
-pose proof (powerRZ_lt 2 e ltac:(Lra.lra)).
-pose proof (Pos2Nat.is_pos m).
-rewrite <- INR_IPR in H0.
-assert (0 < INR (Pos.to_nat m) * powerRZ 2 e)%R.
-apply Rmult_lt_0_compat; auto.
-change 0%R with (INR 0).
-apply lt_INR. auto.
-Lra.lra.
--
+rewrite H0; clear H0.
+rewrite !Rmult_1_l.
 apply generic_round_property.
 Defined.
 
-Definition abs_ff (t: type) : floatfunc  [ t ] t (fun _ => True) Rabs.
-apply (Build_floatfunc  [ t ] t _ _ BABS  0%R 0%R).
-intros x ? ?.
+Definition finite_bnds ty : bounds ty := 
+    ((Binary.B754_infinity (fprec ty) (femax ty) true, true), 
+     (Binary.B754_infinity (fprec ty) (femax ty) false, true)).
+
+Lemma finite_bnds_e: forall t (x: ftype t),
+  interp_bounds (finite_bnds t) x = true -> Binary.is_finite _ _ x = true.
+Proof.
+intros.
+simpl in H. rewrite andb_true_iff in H; destruct H.
+destruct x; try destruct s; auto; discriminate.
+Qed.
+
+Definition vacuous_bnds ty : bounds ty := 
+    ((Binary.B754_infinity (fprec ty) (femax ty) true, false), 
+     (Binary.B754_infinity (fprec ty) (femax ty) false, false)).
+
+Definition abs_ff (t: type) : floatfunc  [ t ] t (Kcons (finite_bnds t) Knil) Rabs.
+apply (Build_floatfunc  [ t ] t _ _ BABS  0%N 0%N).
+intros x ?.
+simpl in H.
+rewrite andb_true_iff in H.
+destruct H as [H H0].
 unfold BABS, UNOP .
+intro FIN.
 pose proof (Binary.B2R_Babs (fprec t) (femax t)  (FPCore.abs_nan t)
                        x).
 change (Binary.B2R (fprec t) (femax t) ?x) with (@FT2R t x) in *.
 rewrite H1; clear H1.
-split.
-rewrite Binary.is_finite_Babs; auto.
 exists 0%R, 0%R. 
 split; simpl;
 rewrite Rabs_R0;
@@ -309,16 +265,31 @@ Lemma trunc_ff_aux: forall t (x: ftype t),
            <  Raux.bpow Zaux.radix2 (femax t) )%R.
 Admitted. (* might be true *)
 
+Definition trunc_max (ty: type) : ftype ty.
+ (* Raux.bpow Zaux.radix2 (femax ty - 1)))  *)
+Admitted.
 
-Definition trunc_ff (t: type) : floatfunc  [ t ] t 
-      (fun x => Rlt (Rabs x) (Raux.bpow Zaux.radix2 (femax t - 1))) 
+Definition trunc_bounds (ty: type) : bounds ty :=
+    ((BOPP (trunc_max ty), true),   (trunc_max ty, true)).
+
+Lemma trunc_bounds_e (ty: type):
+  forall x: ftype ty, 
+  interp_bounds (trunc_bounds ty) x = true ->
+  Binary.is_finite _ _ x  = true /\
+ Rlt (Rabs (FT2R x)) (Raux.bpow Zaux.radix2 (femax ty - 1)).
+Admitted.
+
+
+Definition trunc_ff (t: type) : floatfunc  [ t ] t  (Kcons (trunc_bounds t) Knil)
            (Generic_fmt.round Zaux.radix2 (FIX.FIX_exp 0) Raux.Ztrunc).
 apply (Build_floatfunc  [ t ] t _ _ 
               (fun x => IEEE754_extra.BofZ (fprec t) (femax t)  
                            (fprec_gt_0 t) (fprec_lt_femax t)
                       (Binary.Btrunc (fprec t) (femax t) x))
-                      (default_rel t) (default_abs t)).
-intros x ? ?.
+                      1%N 1%N).
+intros x H H0.
+apply trunc_bounds_e in H.
+destruct H as [FIN  H].
 pose proof (Binary.Btrunc_correct (fprec t) (femax t) (fprec_lt_femax t) x).
 change (Binary.B2R (fprec t) (femax t) ?x) with (@FT2R t x) in *.
 rewrite <- H1; clear H1.
@@ -331,30 +302,43 @@ end.
 change (Binary.B2R (fprec t) (femax t) ?x) with (@FT2R t x) in *.
 destruct H1 as [? [? ?]].
 rewrite H1.
-split; [ auto | ].
+rewrite !Rmult_1_l.
 apply generic_round_property.
 -
-exfalso; clear - H H0 H2.
-pose proof trunc_ff_aux t x H.
+exfalso; clear - H H0 H2 FIN.
+pose proof trunc_ff_aux t x FIN.
 Lra.lra.
 Defined.
 
+(*
 Definition fma_no_overflow (t: type) (x y z: R) : Prop :=
   (Rabs ( Generic_fmt.round Zaux.radix2
               (SpecFloat.fexp (fprec t) (femax t))
               (BinarySingleNaN.round_mode
                  BinarySingleNaN.mode_NE)  (x * y + z)) < Raux.bpow Zaux.radix2 (femax t))%R.
+*)
 
-Definition fma_ff (t: type) : floatfunc  [ t;t;t ] t (fma_no_overflow t) (fun x y z => x*y+z)%R.
+Definition rounded_finite (t: type) (x: R) : Prop :=
+  (Rabs (Generic_fmt.round Zaux.radix2 (SpecFloat.fexp (fprec t) (femax t))
+                         (BinarySingleNaN.round_mode BinarySingleNaN.mode_NE) x) 
+    < Raux.bpow Zaux.radix2 (femax t))%R.
+
+
+Definition fma_bnds (t: type) := 
+   Kcons (finite_bnds t) (Kcons (finite_bnds t) (Kcons (finite_bnds t) Knil)).
+
+Definition fma_ff (t: type) : floatfunc  [ t;t;t ] t (fma_bnds t) (fun x y z => x*y+z)%R.
 apply (Build_floatfunc [t;t;t] t _ _ 
           (Binary.Bfma (fprec t) (femax t) (fprec_gt_0 t) (fprec_lt_femax t) 
                (fma_nan t) BinarySingleNaN.mode_NE)
-           (default_rel t) (default_abs t)).
-intros x ? y ? z ? ?.
+           1%N 1%N).
+intros x ? y ? z ? FIN.
+simpl.
+apply finite_bnds_e in H,H0,H1.
 pose proof (Binary.Bfma_correct  (fprec t) (femax t)  (fprec_gt_0 t) (fprec_lt_femax t) (fma_nan t)
                       BinarySingleNaN.mode_NE x y z H H0 H1).
 change (Binary.B2R (fprec t) (femax t) ?x) with (@FT2R t x) in *.
-cbv zeta in H3.
+cbv zeta in H2.
 pose proof (
    Raux.Rlt_bool_spec
         (Rabs
@@ -363,15 +347,18 @@ pose proof (
               (BinarySingleNaN.round_mode
                  BinarySingleNaN.mode_NE) (FT2R x * FT2R y + FT2R z)))
         (Raux.bpow Zaux.radix2 (femax t))).
-destruct H4.
+destruct H3.
 -
-destruct H3 as [? [? ?]].
-rewrite H3.
-split; auto.
+destruct H2 as [? [? ?]].
+change (FMA_NAN.fma_nan_pl t) with (fma_nan t).
+rewrite H2.
+rewrite !Rmult_1_l.
 apply generic_round_property.
 -
-red in H2.
-Lra.lra.
+exfalso.
+destruct (Binary.Bfma (fprec t) (femax t) (fprec_gt_0 t)
+          (fprec_lt_femax t) (fma_nan t) BinarySingleNaN.mode_NE x y
+          z); try destruct s; try discriminate.
 Defined.
 
 Definition ldexp_spec' (t: type) :=
@@ -464,19 +451,31 @@ Fixpoint always_true (args: list type) : function_type (map RR args) Prop :=
  | _ :: args' => fun _ => always_true args'
  end.
 
+(*
+Definition vacuous_bnds ty : bounds ty := 
+    ((Binary.B754_infinity (fprec ty) (femax ty) true, false), 
+     (Binary.B754_infinity (fprec ty) (femax ty) false, false)).
+*)
+
+Fixpoint vacuous_bnds_klist (tys: list type) : klist bounds tys :=
+ match tys as l return (klist bounds l) with
+  | [] => Knil
+  | a :: l =>
+      (fun (t : type) (tys0 : list type) =>
+       Kcons (vacuous_bnds t) (vacuous_bnds_klist tys0)) a l
+  end.
+
 Parameter c_function: forall (i: ident) (args: list type) (res: type) (f: function_type (map RR args) R),
    {ff: function_type (map ftype' args) (ftype res) 
-   | acc_prop args res (IZR (1 + 2 * GNU_error i) * default_rel res)%R (default_abs res)
-                   (always_true args) f ff}.
+   | acc_prop args res (1 + (2 * GNU_error i))%N 1%N
+             (vacuous_bnds_klist args)           f ff}.
 
 Ltac floatfunc' i args res f :=
- let r := constr:(1 + 2 * GNU_error i) in
- let r := eval compute in r in 
- let rel := constr:((IZR r * default_rel res)%R) in
- let abs := constr:(default_abs res) in
+ let rel := constr:((1 + 2 * GNU_error i)%N) in
+ let rel := eval compute in rel in 
+ let abs := constr:(1%N) in
  let cf := constr:(c_function i args res f) in 
- exact (Build_floatfunc args res (always_true args) f (proj1_sig cf) rel abs (proj2_sig cf)).
-
+ exact (Build_floatfunc args res (vacuous_bnds_klist args) f (proj1_sig cf) rel abs (proj2_sig cf)).
 
 
 Module Type MathFunctions.
@@ -497,6 +496,7 @@ Definition atanhf := ltac:(floatfunc' _atanhf [Tsingle] Tsingle arctanh).
 Definition cbrt := ltac:(floatfunc' _cbrt [Tdouble] Tdouble (fun x => Rpower x (/3))%R).
 Definition cbrtf := ltac:(floatfunc' _cbrtf [Tsingle] Tsingle (fun x => Rpower x (/3))%R).
 Definition cos := ltac:(floatfunc' _cos [Tdouble] Tdouble Rtrigo_def.cos). 
+Axiom FINcos: forall t, Binary.is_finite _ _ (ff_func cos t) = true.
 Definition cosf := ltac:(floatfunc' _cosf [Tsingle] Tsingle Rtrigo_def.cos).
 Definition cosh := ltac:(floatfunc' _cosh [Tdouble] Tdouble Rtrigo_def.cosh).
 Definition coshf := ltac:(floatfunc' _coshf [Tsingle] Tsingle Rtrigo_def.cosh).
@@ -509,6 +509,7 @@ Definition expm1f := ltac:( floatfunc' _expm1f [Tsingle] Tsingle (fun x => Rtrig
 Definition pow := ltac:(floatfunc' _pow [Tdouble;Tdouble] Tdouble Rpower). 
 Definition powf := ltac:(floatfunc' _powf [Tsingle;Tsingle] Tsingle Rpower). 
 Definition sin := ltac:(floatfunc' _sin [Tdouble] Tdouble Rtrigo_def.sin).
+Axiom FINsin: forall t, Binary.is_finite _ _ (ff_func sin t) = true.
 Definition sinf := ltac:(floatfunc' _sinf [Tsingle] Tsingle Rtrigo_def.sin).
 Definition sinh := ltac:(floatfunc' _sinh [Tdouble] Tdouble Rtrigo_def.sinh).
 Definition sinhf := ltac:(floatfunc' _sinhf [Tsingle] Tsingle Rtrigo_def.sinh).
@@ -604,7 +605,6 @@ Abort.
 Local Remark sqrt_accurate: forall x, 
   (0 <= FT2R x ->
    Binary.is_finite (fprec Tdouble) (femax Tdouble) x = true ->
-   Binary.is_finite _ _ (ff_func (sqrt_ff Tdouble) x) = true /\
    exists delta, exists epsilon,
    Rabs delta <= default_rel Tdouble /\
    Rabs epsilon <= default_abs Tdouble /\ 
@@ -612,9 +612,35 @@ Local Remark sqrt_accurate: forall x,
    FT2R (ff_func (sqrt_ff Tdouble) x) = sqrt x' * (1+delta) + epsilon)%R.
 Proof.
 intros.
-destruct (ff_acc (sqrt_ff Tdouble) x H0 H) as [FIN [delta [epsilon [? [? ?]]]]].
-split; auto.
+rename H0 into H8.
+assert (H0: Binary.is_finite _ _ (ff_func (sqrt_ff Tdouble) x) = true). {
+  destruct x; try destruct s; try discriminate; simpl; auto.
+ -
+  simpl in H. unfold Defs.F2R in H. simpl in H.
+  pose proof Raux.bpow_gt_0 Zaux.radix2 e.
+  rewrite IZR_NEG in H. unfold IZR in H.
+  set (j :=  Raux.bpow Zaux.radix2 e) in *. clearbody j.
+ rewrite Ropp_mult_distr_l_reverse in H.
+ clear - H H0.
+ pose proof (IZR_lt 0 (Z.pos m) ltac:(lia)). unfold IZR in H1.
+ unfold IZR in H0.
+ Lra.nra.
+ - unfold BSQRT, UNOP; simpl.
+  destruct (Binary.Bsqrt_correct (fprec Tdouble) 1024 (fprec_gt_0 Tdouble)
+     (fprec_lt_femax Tdouble)  (fun _ : Binary.binary_float (fprec Tdouble) 1024 =>
+      any_nan Tdouble) BinarySingleNaN.mode_NE
+  (Binary.B754_finite (fprec Tdouble) 1024 false m e e0)).
+ apply H1.
+}  
+assert (interp_bounds
+   (Zconst Tdouble 0, false,  (Binary.B754_infinity (fprec Tdouble) (femax Tdouble) false, true))
+   x = true). {
+ destruct x eqn:?H; try destruct s; try discriminate; simpl; auto.
+}
+destruct (ff_acc (sqrt_ff Tdouble) x H1 H0) as [delta [epsilon [? [? ?]]]].
 exists delta, epsilon.
+simpl in H2,H3.
+rewrite Rmult_1_l in *.
 split3; auto.
 destruct (Rcase_abs (FT2R x)). Lra.lra.
 exists {| nonneg:= FT2R x; cond_nonneg := H |}.

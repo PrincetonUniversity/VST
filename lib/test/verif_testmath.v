@@ -103,6 +103,14 @@ Require Import Interval.Tactic.
 
 Definition ulp (t: type) := (2 * default_rel t)%R.
 
+Lemma is_finite_vacuous_bnds: forall {ty} {x: ftype ty},
+  is_finite _ _ x = true -> 
+   interp_bounds (vacuous_bnds ty) x = true.
+Proof.
+intros. 
+destruct x; try destruct s; try discriminate; simpl; try reflexivity.
+Qed.
+
 (*  This is a clumsy and tedious proof.  It would be better to
   automate this in VCFloat . . . *)
 Lemma f_model_accurate: forall t, 
@@ -112,8 +120,10 @@ Lemma f_model_accurate: forall t,
 Proof.
 intros.
 unfold f_model.
-destruct (ff_acc MF.cos t H I) as [FINx [dx [ex [? [? Hx]]]]].
-pose proof (ff_acc MF.sin t H I) as [FINy [dy [ey [? [? Hy]]]]].
+assert (FINx := MF.FINcos t).
+assert (FINy := MF.FINsin t).
+destruct (ff_acc MF.cos t (is_finite_vacuous_bnds H) FINx) as [dx [ex [? [? Hx]]]].
+pose proof (ff_acc MF.sin t (is_finite_vacuous_bnds H) FINy) as [dy [ey [? [? Hy]]]].
 forget (ff_func MF.cos t) as x.
 forget (ff_func MF.sin t) as y.
 change (ftype Tdouble) in x,y.
@@ -138,7 +148,8 @@ end.
 rewrite Hxx; interval.
 }
 destruct Mxx as [Mxx [FINxx _]].
-simpl in FINxx; rewrite FINx in FINxx; simpl in FINxx.
+simpl in FINxx.
+rewrite FINx in FINxx; simpl in FINxx.
 
 assert (Myy := BMULT_correct y y).
 cbv zeta in Myy.
