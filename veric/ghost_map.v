@@ -122,7 +122,7 @@ Section lemmas.
   Qed.
 
   Lemma ghost_map_elem_combine k γ dq1 dq2 v1 v2 :
-    k ↪[γ]{dq1} v1 -∗ k ↪[γ]{dq2} v2 -∗ k ↪[γ]{dq1 ⋅ dq2} v1 ∗ ⌜v1 = v2⌝.
+    k ↪[γ]{dq1} v1 -∗ k ↪[γ]{dq2} v2 -∗ k ↪[γ]{dq1 ⋅ dq2} v1 ∧ ⌜v1 = v2⌝.
   Proof.
     iIntros "Hl1 Hl2". iDestruct (ghost_map_elem_agree with "Hl1 Hl2") as %->.
     unseal. iCombine "Hl1 Hl2" as "Hl". eauto with iFrame.

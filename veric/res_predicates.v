@@ -1,9 +1,9 @@
-From VST.veric Require Import shares address_conflict gmap_view.
-Require Export VST.msl.shares.
-From VST.veric Require Export base Memory ghost_map.
-From iris.proofmode Require Export tactics.
 From iris_ora.algebra Require Import gmap.
 From iris_ora.logic Require Export oupred iprop.
+From VST.veric Require Import shares address_conflict gmap_view.
+From VST.msl Require Export shares.
+From VST.veric Require Export base Memory ghost_map.
+From iris.proofmode Require Export tactics.
 Export Values.
 
 Local Open Scope Z_scope.
@@ -1170,22 +1170,23 @@ Proof.
  intro i; specialize (H (S i)); apply H.
 Qed.*)
 
-Lemma address_mapsto_value_cohere:
-  forall ch v1 v2 sh1 sh2 a,
- address_mapsto ch v1 sh1 a ∗ address_mapsto ch v2 sh2 a ⊢ ⌜v1=v2⌝.
+Lemma mapsto_value_cohere: forall l sh1 sh2 r1 r2, mapsto l sh1 r1 ∗ mapsto l sh2 r2 ⊢ ⌜r1 = r2⌝.
 Proof.
-  intros.
-  iIntros "[H1 H2]".
-  rewrite /address_mapsto.
-  iDestruct "H1" as (b1 (Hl1 & ? & ?)) "H1".
-  iDestruct "H2" as (b2 (Hl2 & ? & ?)) "H2"; subst.
-  iAssert ⌜b1 = b2⌝ as %->; last done.
-  forget (size_chunk_nat ch) as n.
-  iInduction n as [|n'] "IH" forall (b1 b2 Hl1 Hl2).
+  intros; iIntros "[H1 H2]".
+  by iDestruct (ghost_map_elem_valid_2 with "H1 H2") as %[? Heq]; inversion Heq.
+Qed.
+
+Lemma mapsto_list_value_cohere: forall a sh1 sh2 n b1 b2 (Hl1: length b1 = n) (Hl2: length b2 = n),
+  (([∗ list] i ∈ seq 0 n, mapsto (adr_add a (Z.of_nat i)) sh1 (VAL (nthbyte (Z.of_nat i) b1))) ∗
+   [∗ list] i ∈ seq 0 n, mapsto (adr_add a (Z.of_nat i)) sh2 (VAL (nthbyte (Z.of_nat i) b2))) ⊢
+  ⌜b1 = b2⌝.
+Proof.
+  induction n as [|n']; intros.
   - apply nil_length_inv in Hl1, Hl2; subst; auto.
   - rewrite seq_S !big_sepL_app /=.
-    iDestruct "H1" as "(H1 & Hv1 & _)"; iDestruct "H2" as "(H2 & Hv2 & _)".
-    iDestruct (ghost_map_elem_valid_2 with "Hv1 Hv2") as %[? Heq]; inversion Heq as [Heq'].
+    iIntros "[(H1 & Hv1 & _) (H2 & Hv2 & _)]".
+    iDestruct (mapsto_value_cohere with "[$Hv1 $Hv2]") as %Heq.
+    inversion Heq as [Heq'].
     rewrite /nthbyte Nat2Z.id in Heq'.
     rewrite -(take_drop n' b1) -(take_drop n' b2) in Heq' |- *.
     pose proof (drop_length b1 n') as Hd1; pose proof (drop_length b2 n') as Hd2.
@@ -1196,13 +1197,26 @@ Proof.
     pose proof (take_length_le b1 n' ltac:(lia)) as Hlen1.
     pose proof (take_length_le b2 n' ltac:(lia)) as Hlen2.
     rewrite -{1}Hlen1 -{3}Hlen2 !nth_middle in Heq'; subst.
-    iDestruct ("IH" $! (take n' b1) (take n' b2) with "[%] [%] [H1] [H2]") as %->; try done.
+    iDestruct (IHn' (take n' b1) (take n' b2) with "[H1 H2]") as %->; try done.
+    iSplitL "H1".
     + iApply (big_sepL_mono with "H1").
       intros ???%lookup_seq.
       rewrite /nthbyte Nat2Z.id app_nth1; [done | lia].
     + iApply (big_sepL_mono with "H2").
       intros ???%lookup_seq.
       rewrite /nthbyte Nat2Z.id app_nth1; [done | lia].
+Qed.
+
+Lemma address_mapsto_value_cohere:
+  forall ch v1 v2 sh1 sh2 a,
+ address_mapsto ch v1 sh1 a ∗ address_mapsto ch v2 sh2 a ⊢ ⌜v1=v2⌝.
+Proof.
+  intros.
+  iIntros "[H1 H2]".
+  rewrite /address_mapsto.
+  iDestruct "H1" as (b1 (Hl1 & ? & ?)) "H1".
+  iDestruct "H2" as (b2 (Hl2 & ? & ?)) "H2"; subst.
+  by iDestruct (mapsto_list_value_cohere with "[$H1 $H2]") as %->.
 Qed.
 
 (*Definition almost_empty rm: Prop :=
