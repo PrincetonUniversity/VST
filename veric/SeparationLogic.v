@@ -11,15 +11,6 @@ Require Export compcert.cfrontend.Clight.
 Require Export VST.sepcomp.Address.
 Require Export VST.msl.eq_dec.
 Require Export VST.msl.shares.
-Require Export VST.msl.predicates_rec.
-Require Export VST.msl.contractive.
-Require Export VST.msl.seplog.
-Require Export VST.msl.ghost_seplog.
-Require Export VST.msl.alg_seplog.
-Require Export VST.msl.log_normalize.
-Require Export VST.msl.wand_frame.
-Require Export VST.msl.wandQ_frame.
-Require Export VST.msl.ramification_lemmas.
 Require Export VST.veric.tycontext.
 Require Export VST.veric.change_compspecs.
 Require Export VST.veric.mpred.

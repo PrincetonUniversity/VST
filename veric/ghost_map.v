@@ -13,21 +13,26 @@ From iris.prelude Require Import options.
 (** The ORA we need.
 FIXME: This is intentionally discrete-only, but
 should we support setoids via [Equiv]? *)
+
 (* make the heap linear by using flatR *)
-Lemma gmap_view_core_identity : forall K V `{Countable K} (a ca b : gmap_viewR K V),
-  pcore a = Some ca -> ca ⋅ b ≡ b.
+Lemma gmap_view_core_unit : forall K V `{Countable K} (a : gmap_viewR K V),
+  core a ≡ ε.
 Proof.
-  intros ???????.
-  rewrite cmra_pcore_core; inversion_clear 1; subst.
-  rewrite view.view_core_eq view.view_op_eq /=.
-  assert (core (view_frag_proj a) ≡ ε) as ->.
-  { intros i; rewrite lookup_core lookup_empty.
-    by destruct (view_frag_proj a !! i) eqn: Hi; rewrite Hi. }
-  by destruct a as [[(qa, aa)|] fa]; simpl; rewrite !left_id.
+  intros ?????.
+  rewrite view.view_core_eq /core /pcore /=.
+  split; simpl.
+  - destruct (view_auth_proj a) eqn: Ha; rewrite Ha /=; try done.
+    rewrite /pcore /cmra_pcore /= /prod_pcore_instance /=.
+    destruct p as (q, ?); destruct q; simpl; try done.
+rewrite /Unit.
+    apply prod_pcore_Some.
+    Search pcore prod.
+  - intros i; rewrite lookup_omap lookup_empty.
+    destruct (view_frag_proj a !! i) eqn: Ha; rewrite Ha; done.
 Qed.
 
 Canonical Structure gmap_viewR (K : Type) `{Countable K} (V : ofe) : ora :=
-  Ora (gmap_viewR K V) (flat_ora_mixin (gmap_view_core_identity K V)).
+  Ora (gmap_viewR K V) (flat_ora_mixin (gmap_view_core_unit K V)).
 
 Global Instance gmap_view_ora_discrete K `{Countable K}  V : OfeDiscrete V → OraDiscrete (gmap_viewR K V).
 Proof. split; apply gmap_view_cmra_discrete, _. Qed.

@@ -1,20 +1,10 @@
-Require Import VST.msl.log_normalize.
-Require Import VST.msl.alg_seplog.
 Require Export VST.veric.base.
-Require Import VST.veric.rmaps.
-Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.res_predicates.
 
 Require Import VST.veric.mpred.
 Require Import VST.veric.address_conflict.
 Require Export VST.veric.shares.
 Require Import VST.veric.Cop2. (*for definition of tc_val'*)
-Require Import VST.veric.own.
-Require Import VST.veric.invariants.
-Require Import VST.veric.fupd.
-Import compcert.lib.Maps.
-
-Local Open Scope pred.
 
 (* Diagnostic tactic, useful because intuition can be much slower than tauto 
 Tactic Notation "intuition" :=
@@ -22,68 +12,74 @@ Tactic Notation "intuition" :=
  Coq.Init.Tauto.intuition.
 *)
 
-Lemma derives_emp_unfash_fash P Q: derives P Q  -> derives emp (unfash (fash (imp P Q))).
+(*Lemma derives_emp_unfash_fash P Q: derives P Q  -> derives emp (unfash (fash (imp P Q))).
 Proof. repeat intro. eauto. Qed.
 
 Lemma derives_unfash_fash R P Q: derives P Q  -> derives R (unfash (fash (imp P Q))).
 Proof. repeat intro. eauto. Qed.
 
 Lemma eqp_subp : forall (P Q:mpred), P <=> Q |-- P >=> Q.
-intros. eapply eqp_subp. trivial. Qed.
+intros. eapply eqp_subp. trivial. Qed.*)
 
 (*******************material moved here from tycontext.v *******************)
+
+Section mpred.
+
+Context {Σ : gFunctors}.
+Local Notation mpred := (@mpred Σ).
+Local Notation funspec := (@funspec Σ).
 
 Inductive Annotation :=
   WeakAnnotation : (environ -> mpred) -> Annotation
 | StrongAnnotation : (environ -> mpred) -> Annotation.
 
 Inductive tycontext : Type :=
-  mk_tycontext : forall (tyc_temps: PTree.t type)
-                        (tyc_vars: PTree.t type)
+  mk_tycontext : forall (tyc_temps: Maps.PTree.t type)
+                        (tyc_vars: Maps.PTree.t type)
                         (tyc_ret: type)
-                        (tyc_globty: PTree.t type)
-                        (tyc_globsp: PTree.t funspec)
-                        (tyc_annot: PTree.t Annotation),
+                        (tyc_globty: Maps.PTree.t type)
+                        (tyc_globsp: Maps.PTree.t funspec)
+                        (tyc_annot: Maps.PTree.t Annotation),
                              tycontext.
 
 Definition empty_tycontext : tycontext :=
-  mk_tycontext (PTree.empty _) (PTree.empty _) Ctypes.Tvoid
-         (PTree.empty _)  (PTree.empty _) (PTree.empty _).
+  mk_tycontext (Maps.PTree.empty _) (Maps.PTree.empty _) Ctypes.Tvoid
+         (Maps.PTree.empty _)  (Maps.PTree.empty _) (Maps.PTree.empty _).
 
-Definition temp_types (Delta: tycontext): PTree.t type :=
+Definition temp_types (Delta: tycontext): Maps.PTree.t type :=
   match Delta with mk_tycontext a _ _ _ _ _ => a end.
-Definition var_types (Delta: tycontext) : PTree.t type :=
+Definition var_types (Delta: tycontext) : Maps.PTree.t type :=
   match Delta with mk_tycontext _ a _ _ _ _ => a end.
 Definition ret_type (Delta: tycontext) : type :=
   match Delta with mk_tycontext _ _ a _ _ _ => a end.
-Definition glob_types (Delta: tycontext) : PTree.t type :=
+Definition glob_types (Delta: tycontext) : Maps.PTree.t type :=
   match Delta with mk_tycontext _ _ _ a _ _ => a end.
-Definition glob_specs (Delta: tycontext) : PTree.t funspec :=
+Definition glob_specs (Delta: tycontext) : Maps.PTree.t funspec :=
   match Delta with mk_tycontext _ _ _ _ a _ => a end.
-Definition annotations (Delta: tycontext) : PTree.t Annotation :=
+Definition annotations (Delta: tycontext) : Maps.PTree.t Annotation :=
   match Delta with mk_tycontext _ _ _ _ _ a => a end.
 
 (** Creates a typecontext from a function definition **)
 (* NOTE:  params start out initialized, temps do not! *)
 
 Definition make_tycontext_t (params: list (ident*type)) (temps : list(ident*type)) :=
-fold_right (fun (param: ident*type) => PTree.set (fst param) (snd param))
- (fold_right (fun (temp : ident *type) tenv => let (id,ty):= temp in PTree.set id ty tenv)
-  (PTree.empty type) temps) params.
+fold_right (fun (param: ident*type) => Maps.PTree.set (fst param) (snd param))
+ (fold_right (fun (temp : ident *type) tenv => let (id,ty):= temp in Maps.PTree.set id ty tenv)
+  (Maps.PTree.empty type) temps) params.
 
 Definition make_tycontext_v (vars : list (ident * type)) :=
- fold_right (fun (var : ident * type) venv => let (id, ty) := var in PTree.set id ty venv)
-   (PTree.empty type) vars.
+ fold_right (fun (var : ident * type) venv => let (id, ty) := var in Maps.PTree.set id ty venv)
+   (Maps.PTree.empty type) vars.
 
 Definition make_tycontext_g (V: varspecs) (G: funspecs) :=
- (fold_right (fun (var : ident * funspec) => PTree.set (fst var) (type_of_funspec (snd var)))
-      (fold_right (fun (v: ident * type) => PTree.set (fst v) (snd v))
-         (PTree.empty _) V)
+ (fold_right (fun (var : ident * funspec) => Maps.PTree.set (fst var) (type_of_funspec (snd var)))
+      (fold_right (fun (v: ident * type) => Maps.PTree.set (fst v) (snd v))
+         (Maps.PTree.empty _) V)
             G).
 
 Definition make_tycontext_a (anns : list (ident * Annotation)) :=
- fold_right (fun (ia : ident * Annotation) aenv => let (id, a) := ia in PTree.set id a aenv)
-   (PTree.empty Annotation) anns.
+ fold_right (fun (ia : ident * Annotation) aenv => let (id, a) := ia in Maps.PTree.set id a aenv)
+   (Maps.PTree.empty Annotation) anns.
 
 Definition make_tycontext (params: list (ident*type)) (temps: list (ident*type)) (vars: list (ident*type))
                        (return_ty: type)
@@ -103,16 +99,16 @@ Definition make_tycontext (params: list (ident*type)) (temps: list (ident*type))
 (** Environment typechecking functions **)
 
 Definition typecheck_temp_environ
-(te: tenviron) (tc: PTree.t type) :=
-forall id ty , tc ! id = Some ty  -> exists v, Map.get te id = Some v /\ tc_val' ty v.
+(te: tenviron) (tc: Maps.PTree.t type) :=
+forall id ty , Maps.PTree.get id tc = Some ty  -> exists v, Map.get te id = Some v /\ tc_val' ty v.
 
 Definition typecheck_var_environ
-(ve: venviron) (tc: PTree.t type) :=
-forall id ty, tc ! id = Some ty <-> exists v, Map.get ve id = Some(v,ty).
+(ve: venviron) (tc: Maps.PTree.t type) :=
+forall id ty, Maps.PTree.get id tc = Some ty <-> exists v, Map.get ve id = Some(v,ty).
 
 Definition typecheck_glob_environ
-(ge: genviron) (tc: PTree.t type) :=
-forall id  t,  tc ! id = Some t ->
+(ge: genviron) (tc: Maps.PTree.t type) :=
+forall id  t,  Maps.PTree.get id tc = Some t ->
 (exists b, Map.get ge id = Some b).
 
 Definition typecheck_environ (Delta: tycontext) (rho : environ) :=
@@ -120,7 +116,7 @@ typecheck_temp_environ (te_of rho) (temp_types Delta) /\
 typecheck_var_environ  (ve_of rho) (var_types Delta) /\
 typecheck_glob_environ (ge_of rho) (glob_types Delta).
 
-Definition local:  (environ -> Prop) -> environ->mpred :=  lift1 prop.
+Definition local:  (environ -> Prop) -> environ->mpred :=  lift1 bi_pure.
 
 Definition tc_environ (Delta: tycontext) : environ -> Prop :=
    fun rho => typecheck_environ Delta rho.
@@ -132,10 +128,10 @@ Definition funsig_of_funspec (fs: funspec) : funsig :=
  match fs with mk_funspec fsig _ _ _ _ _ _ => fsig end.
 *)
 Definition ret0_tycon (Delta: tycontext): tycontext :=
-  mk_tycontext (PTree.empty _) (PTree.empty _) (ret_type Delta) (glob_types Delta) (glob_specs Delta) (annotations Delta).
+  mk_tycontext (Maps.PTree.empty _) (Maps.PTree.empty _) (ret_type Delta) (glob_types Delta) (glob_specs Delta) (annotations Delta).
 
 Definition typesig_of_funspec (fs: funspec) : typesig :=
- match fs with mk_funspec fsig _ _ _ _ _ _ => fsig end.
+ match fs with mk_funspec fsig _ _ _ _ => fsig end.
 
 Definition rettype_of_funspec (fs: funspec) : type := snd (typesig_of_funspec fs).
 
@@ -153,27 +149,27 @@ Lemma fssub_prop1: forall rt ptypes gargs,
      Forall2 tc_val' ptypes (snd gargs).
 intros. destruct gargs. unfold tc_argsenv. simpl.
 unfold tc_genv. simpl.
-unfold typecheck_glob_environ. apply prop_ext; split; intros. apply H.
-split; trivial. intros. rewrite PTree.gempty in H0. congruence.
+unfold typecheck_glob_environ. apply Axioms.prop_ext; split; intros. apply H.
+split; trivial. intros. rewrite Maps.PTree.gempty in H0. congruence.
 Qed.
 
-Lemma fssub_prop2: forall rt rho, (local (tc_environ (rettype_tycontext rt)) rho) = !!(ve_of rho = Map.empty (block * type)).
+Lemma fssub_prop2: forall rt rho, (local (tc_environ (rettype_tycontext rt)) rho) ⊣⊢ ⌜ve_of rho = Map.empty (block * type)⌝.
 intros. unfold local, tc_environ, lift1.
 unfold rettype_tycontext, typecheck_environ, typecheck_temp_environ,
 typecheck_var_environ, typecheck_glob_environ.
 simpl.
-destruct rho; simpl. apply pred_ext. 
-intros u U. simpl in U. simpl. destruct U as [? [? ?]].
+destruct rho; simpl. apply bi.pure_iff; split.
+- intros [? [? ?]].
 apply Map.ext. intros. clear H H1. specialize (H0 x).
 destruct (Map.get ve); simpl in *. 
 destruct p.  destruct (H0 t); clear H0. clear H.
-exfalso. exploit H1. eexists; reflexivity. rewrite PTree.gempty. congruence.
+exfalso. exploit H1. eexists; reflexivity. rewrite Maps.PTree.gempty. congruence.
 reflexivity.
-intros u U. simpl in *. subst. split3; intros.
- rewrite PTree.gempty in H; congruence.
- split; intros. rewrite PTree.gempty in H; congruence.
- destruct H.  inv H.
- rewrite PTree.gempty in H. congruence.
+- intros U. simpl in *. subst. split3; intros.
+ rewrite Maps.PTree.gempty in H; congruence.
+ split; intros. rewrite Maps.PTree.gempty in H; congruence.
+ destruct H. inv H.
+ rewrite Maps.PTree.gempty in H. congruence.
 Qed.
 
 (* If we were to require that a non-void-returning function must,
@@ -261,41 +257,35 @@ Qed.*)
 Definition argsHaveTyps (vals:list val) (types: list type): Prop:=
   Forall2 (fun v t => v<>Vundef -> Val.has_type v t) vals (map typ_of_type types).
 
-Notation fupd := (fupd Ensembles.Full_set Ensembles.Full_set).
-
-Section invs.
-Context {inv_names : invG}.
-
 Definition funspec_sub_si (f1 f2 : funspec):mpred :=
 match f1 with
-| mk_funspec tpsig1 cc1 A1 P1 Q1 _ _ =>
+| mk_funspec tpsig1 cc1 A1 P1 Q1 =>
     match f2 with
-    | mk_funspec tpsig2 cc2 A2 P2 Q2 _ _ =>
-        !!(tpsig1=tpsig2 /\ cc1=cc2) &&
-       |>  ! (ALL ts2 :_, ALL x2:dependent_type_functor_rec ts2 A2 mpred,
-             ALL gargs:genviron * list val,
-        ((!!(argsHaveTyps (snd gargs) (fst tpsig1)) && P2 ts2 x2 gargs)
-         >=> fupd (EX ts1:_, EX x1:_, EX F:_, 
-            (F * (P1 ts1 x1 gargs)) &&
-            ALL rho':_, (     !( ((!!(ve_of rho' = Map.empty (block * type))) && (F * (Q1 ts1 x1 rho')))
-                         >=> (Q2 ts2 x2 rho'))))))
+    | mk_funspec tpsig2 cc2 A2 P2 Q2 =>
+        (⌜tpsig1=tpsig2 /\ cc1=cc2⌝ ∧
+       ▷ ■ ∀ (x2:A2) (gargs:genviron * list val),
+        ((⌜argsHaveTyps (snd gargs) (fst tpsig1)⌝ ∧ P2 x2 gargs)
+         → |={⊤}=> (∃ x1 F, 
+            (F ∗ (P1 x1 gargs)) ∧
+            ∀ rho', (■( ((⌜ve_of rho' = Map.empty (block * type)⌝ ∧ (F ∗ (Q1 x1 rho')))
+                         → (Q2 x2 rho')))))))%I
     end
 end.
 
 Definition funspec_sub (f1 f2 : funspec): Prop :=
 match f1 with
-| mk_funspec tpsig1 cc1 A1 P1 Q1 _ _ =>
+| mk_funspec tpsig1 cc1 A1 P1 Q1 =>
     match f2 with
-    | mk_funspec tpsig2 cc2 A2 P2 Q2 _ _ =>
+    | mk_funspec tpsig2 cc2 A2 P2 Q2 =>
         (tpsig1=tpsig2 /\ cc1=cc2) /\
-        forall ts2 (x2:dependent_type_functor_rec ts2 A2 mpred) (gargs:argsEnviron),
-        ((!! (argsHaveTyps(snd gargs)(fst tpsig1)) && P2 ts2 x2 gargs)
-         |-- fupd (EX ts1:_,  EX (x1:dependent_type_functor_rec ts1 A1 mpred), EX F:_, 
-                           (F * (P1 ts1 x1 gargs)) &&
-                               (!! (forall rho',
-                                           ((!!(ve_of rho' = Map.empty (block * type))) &&
-                                                 (F * (Q1 ts1 x1 rho')))
-                                         |-- (Q2 ts2 x2 rho')))))
+        forall (x2:A2) (gargs:argsEnviron),
+        (⌜argsHaveTyps(snd gargs)(fst tpsig1)⌝ ∧ P2 x2 gargs)
+         ⊢ |={⊤}=> (∃ (x1:A1) (F:_), 
+                           (F ∗ (P1 x1 gargs)) ∧
+                               (⌜forall rho',
+                                           (⌜ve_of rho' = Map.empty (block * type)⌝ ∧
+                                                 (F ∗ (Q1 x1 rho')))
+                                         ⊢ (Q2 x2 rho')⌝))
     end
 end.
 
@@ -989,7 +979,7 @@ Proof. intros. apply approx_func_ptr_si_general. Qed.
       rewrite emp_sepcon in J. simpl in J. apply fupd_intro, J.
 Qed. *)
 
-Definition funspecs_assert (FunSpecs: PTree.t funspec): assert :=
+Definition funspecs_assert (FunSpecs: Maps.PTree.t funspec): assert :=
  fun rho =>
    (ALL  id: ident, ALL fs:funspec,  !! (FunSpecs!id = Some fs) -->
               EX b:block,
@@ -1506,10 +1496,10 @@ Lemma make_context_t_get: forall {params temps i ty}
       In i (map fst params ++ map fst temps).
 Proof.
   induction params; simpl; intros.
-* induction temps; simpl in *. rewrite PTree.gempty in T; discriminate. 
-  destruct a; simpl in *. rewrite PTree.gsspec in T.
+* induction temps; simpl in *. rewrite Maps.PTree.gempty in T; discriminate. 
+  destruct a; simpl in *. rewrite Maps.PTree.gsspec in T.
   destruct (peq i i0); subst. left; trivial. right; auto.
-* destruct a; simpl in *. rewrite PTree.gsspec in T.
+* destruct a; simpl in *. rewrite Maps.PTree.gsspec in T.
   destruct (peq i i0); subst. left; trivial.
   right. eapply IHparams. apply T.
 Qed.
@@ -1522,9 +1512,9 @@ Proof.
   induction params.
   + intros. inv H1.
   + simpl. intros. destruct H1.
-    - subst a. simpl in *. apply (H0 i ty). rewrite PTree.gss; trivial.
+    - subst a. simpl in *. apply (H0 i ty). rewrite Maps.PTree.gss; trivial.
     - inv H. apply (IHparams temps); trivial.
-      red; intros j ? ?. apply H0. rewrite PTree.gso; trivial. clear - H4 H.
+      red; intros j ? ?. apply H0. rewrite Maps.PTree.gso; trivial. clear - H4 H.
       intros J; subst. destruct a; simpl in *. apply H4; clear - H.
       apply (make_context_t_get H).
 Qed.
@@ -1532,9 +1522,9 @@ Qed.
 Lemma tc_environ_rettype t rho: tc_environ (rettype_tycontext t) (globals_only rho).
 Proof.
   unfold rettype_tycontext; simpl. split3; intros; simpl.
-  red; intros. rewrite PTree.gempty in H; congruence.
-  split; intros. rewrite PTree.gempty in H; congruence. destruct H; inv H.
-  red; intros. rewrite PTree.gempty in H; congruence.
+  red; intros. rewrite Maps.PTree.gempty in H; congruence.
+  split; intros. rewrite Maps.PTree.gempty in H; congruence. destruct H; inv H.
+  red; intros. rewrite Maps.PTree.gempty in H; congruence.
 Qed.
 
 Lemma tc_environ_rettype_env_set t rho i v:
@@ -1542,9 +1532,9 @@ tc_environ (rettype_tycontext t)
          (env_set (globals_only rho) i v).
 Proof.
   unfold rettype_tycontext; simpl. split3; intros; simpl.
-  red; intros. rewrite PTree.gempty in H; congruence.
-  split; intros. rewrite PTree.gempty in H; congruence. destruct H; inv H.
-  red; intros. rewrite PTree.gempty in H; congruence.
+  red; intros. rewrite Maps.PTree.gempty in H; congruence.
+  split; intros. rewrite Maps.PTree.gempty in H; congruence. destruct H; inv H.
+  red; intros. rewrite Maps.PTree.gempty in H; congruence.
 Qed.
 
 Lemma funspec_sub_cc phi psi: funspec_sub phi psi ->
@@ -1780,3 +1770,5 @@ Check (HORec_sub). (predicates_hered.allp (fun x : T * val => |> B1 x <=> |> B2 
 eapply (allp_left v).*)
 
 End invs.
+
+End mpred.

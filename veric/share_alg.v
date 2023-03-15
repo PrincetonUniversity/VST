@@ -5,131 +5,108 @@ From iris.algebra Require Import proofmode_classes.
 From iris.prelude Require Import options.
 Require Import VST.msl.eq_dec.
 Require Export VST.msl.shares.
-Require Import VST.veric.shares.
+Require Export VST.veric.shares.
 
-(* modified from iris.algebra.dfrac *)
-Declare Custom Entry dfrac.
-Notation "{ dq }" := (dq) (in custom dfrac at level 1, dq constr).
-Notation "□" := None (in custom dfrac).
-Notation "{# q }" := (Some q) (in custom dfrac at level 1, q constr).
-Notation "" := (Some Tsh) (in custom dfrac).
+Global Instance share_eq_dec : EqDecision share.
+Proof. intros ??. by destruct (eq_dec x y); [left | right]. Defined.
 
 Section share.
-  Canonical Structure shareO := leibnizO (option share).
+  Canonical Structure shareO := leibnizO share.
 
-  Local Instance share_valid_instance : Valid (option share) := λ x, x <> Some (Share.bot) /\ x <> None.
-  Local Instance share_pcore_instance : PCore (option share) := λ _, None.
-  Local Instance share_op_instance : Op (option share) := λ x y, match x, y with
-    | Some a, Some b => if eq_dec a Share.bot then None else if eq_dec b Share.bot then None else
-        if eq_dec (Share.glb a b) Share.bot then Some (Share.lub a b) else None | _, _ => None end.
+  Local Instance share_valid_instance : Valid share := λ x, x <> Share.bot.
+  Local Instance share_pcore_instance : PCore share := λ _, None.
+  Local Instance share_op_instance : Op share := λ a b,
+    if eq_dec a Share.bot then Share.bot else if eq_dec b Share.bot then Share.bot else
+    if eq_dec (Share.glb a b) Share.bot then Share.lub a b else Share.bot.
 
-  Lemma share_op_eq : forall x y, x ⋅ y = match x, y with
-    | Some a, Some b => if eq_dec a Share.bot then None else if eq_dec b Share.bot then None else
-        if eq_dec (Share.glb a b) Share.bot then Some (Share.lub a b) else None | _, _ => None end.
+  Lemma share_op_eq : forall a b, a ⋅ b = if eq_dec a Share.bot then Share.bot else if eq_dec b Share.bot then Share.bot else
+    if eq_dec (Share.glb a b) Share.bot then Share.lub a b else Share.bot.
   Proof. reflexivity. Qed.
 
-  Lemma share_op_join : forall x y z, x ⋅ y = Some z <-> exists a b, x = Some a /\ y = Some b /\ a <> Share.bot /\ b <> Share.bot /\ sepalg.join a b z.
+  Lemma share_op_join : forall x y z, z <> Share.bot -> x ⋅ y = z <-> x <> Share.bot /\ y <> Share.bot /\ sepalg.join x y z.
   Proof.
     intros; rewrite share_op_eq; split.
-    - destruct x as [x|]; [|discriminate].
-      destruct y as [y|]; [|discriminate].
-      repeat (destruct eq_dec; try discriminate).
-      inversion 1; subst.
-      do 3 eexists; eauto; repeat (split; auto).
-    - intros (a & b & ? & ? & ? & ? & []); subst.
+    - repeat (destruct eq_dec; intros; subst; try contradiction).
+      repeat split; auto.
+    - intros (? & ? & []); subst.
       repeat (destruct eq_dec; try contradiction).
       reflexivity.
   Qed.
 
-  Lemma share_valid2_joins : forall x y, valid (Some x ⋅ Some y) <-> x <> Share.bot /\ y <> Share.bot /\ sepalg.joins x y.
+  Lemma share_valid2_joins : forall x y, valid (x ⋅ y) <-> x <> Share.bot /\ y <> Share.bot /\ sepalg.joins x y.
   Proof.
     split.
-    - destruct (Some x ⋅ Some y) eqn: J; [|intros []; contradiction].
-      apply share_op_join in J as (? & ? & H1 & H2 & ? & ? & J).
-      inversion H1; inversion H2; repeat (eexists; eauto).
-    - intros (? & ? & ? & J).
-      erewrite (proj2 (share_op_join _ _ _)); [|eauto 7].
-      split; auto.
-      inversion 1; subst.
-      apply join_Bot in J as []; contradiction.
+    - intros J.
+      eapply share_op_join in J as [(? & ? & ?) _]; first done.
+      repeat (eexists; eauto).
+    - intros (? & ? & z & J).
+      assert (z ≠ Share.bot) by (intros ->; apply join_Bot in J as []; contradiction).
+      unshelve erewrite (proj2 (share_op_join _ _ _ _)); eauto.
   Qed.
 
   Lemma share_op_equiv : forall x y z, x ⋅ y = z <->
-    match z with Some c => exists a b, x = Some a /\ y = Some b /\ a <> Share.bot /\ b <> Share.bot /\ sepalg.join a b c
-    | None => x = None \/ y = None \/ x = Some Share.bot \/ y = Some Share.bot \/ exists a b, x = Some a /\ y = Some b /\ Share.glb a b <> Share.bot end.
+    if eq_dec z Share.bot then x = Share.bot \/ y = Share.bot \/ Share.glb x y <> Share.bot
+    else x <> Share.bot /\ y <> Share.bot /\ sepalg.join x y z.
   Proof.
-    intros; destruct z.
-    { apply share_op_join. }
-    rewrite share_op_eq.
-    destruct x; [|tauto].
-    destruct y; [|tauto].
+    intros; destruct eq_dec; last by apply share_op_join.
+    subst; rewrite share_op_eq.
     repeat (destruct eq_dec; subst; try tauto).
-    - split; try discriminate.
-      intros [|[|[|[|(? & ? & ? & ? & ?)]]]]; congruence.
-    - split; eauto 9.
+    split; try tauto.
+    intros ?%lub_bot_e; tauto.
   Qed.
 
-  Definition share_ra_mixin : @RAMixin (option share) (ofe_equiv shareO) _ _ _.
+  Definition share_ra_mixin : @RAMixin share (ofe_equiv shareO) _ _ _.
   Proof.
     split; try apply _; try done.
     - unfold share; intros ???; rewrite !share_op_eq; simpl.
-      destruct x as [x|], y as [y|], z as [z|]; try reflexivity.
-      + destruct (eq_dec x Share.bot), (eq_dec y Share.bot), (eq_dec z Share.bot); try reflexivity.
-        { destruct (eq_dec); reflexivity. }
-        { destruct (eq_dec); [destruct (eq_dec)|]; reflexivity. }
-        destruct (eq_dec (Share.glb y z) Share.bot), (eq_dec (Share.glb x y) Share.bot).
-        * destruct (eq_dec (Share.lub y z)); [apply lub_bot_e in e1 as []; contradiction|].
-          destruct (eq_dec (Share.lub x y)); [apply lub_bot_e in e1 as []; contradiction|].
-          by rewrite (Share.glb_commute _ z) !Share.distrib1 !(Share.glb_commute z) e e0 Share.lub_bot lub_bot' Share.lub_assoc.
-        * destruct (eq_dec (Share.lub y z)); [apply lub_bot_e in e0 as []; contradiction|].
-          destruct (eq_dec (Share.glb x (Share.lub y z)) Share.bot); auto.
-          rewrite Share.distrib1 in e0; apply lub_bot_e in e0 as []; contradiction.
-        * destruct (eq_dec (Share.lub x y)); [apply lub_bot_e in e0 as []; contradiction|].
-          destruct (eq_dec (Share.glb (Share.lub x y) z) Share.bot); auto.
-          rewrite Share.glb_commute Share.distrib1 in e0; apply lub_bot_e in e0 as [].
-          rewrite Share.glb_commute in H0; contradiction.
-        * reflexivity.
-      + destruct (if eq_dec _ _ then _ else _); reflexivity.
+      destruct (eq_dec x Share.bot); rewrite ?eq_dec_refl; try done.
+      destruct (eq_dec y Share.bot); rewrite ?eq_dec_refl; try done.
+      destruct (eq_dec z Share.bot); rewrite ?eq_dec_refl; try done.
+      { repeat destruct eq_dec; done. }
+      destruct (eq_dec (Share.glb y z) Share.bot), (eq_dec (Share.glb x y) Share.bot); rewrite ?eq_dec_refl; try done.
+      * destruct (eq_dec (Share.lub y z)); [apply lub_bot_e in e1 as []; contradiction|].
+        destruct (eq_dec (Share.lub x y)); [apply lub_bot_e in e1 as []; contradiction|].
+        by rewrite (Share.glb_commute _ z) !Share.distrib1 !(Share.glb_commute z) e e0 Share.lub_bot lub_bot' Share.lub_assoc.
+      * destruct (eq_dec (Share.lub y z)); [apply lub_bot_e in e0 as []; contradiction|].
+        destruct (eq_dec (Share.glb x (Share.lub y z)) Share.bot); auto.
+        rewrite Share.distrib1 in e0; apply lub_bot_e in e0 as []; contradiction.
+      * destruct (eq_dec (Share.lub x y)); [apply lub_bot_e in e0 as []; contradiction|].
+        destruct (eq_dec (Share.glb (Share.lub x y) z) Share.bot); auto.
+        rewrite Share.glb_commute Share.distrib1 in e0; apply lub_bot_e in e0 as [].
+        rewrite Share.glb_commute in H0; contradiction.
     - unfold share; intros ??; rewrite !share_op_eq; simpl.
-      destruct x as [x|], y as [y|]; try reflexivity.
       destruct (eq_dec x Share.bot), (eq_dec y Share.bot); try reflexivity.
       rewrite (Share.glb_commute y x) (Share.lub_commute y x); reflexivity.
-    - unfold share; intros ??; rewrite !share_op_eq; unfold valid, share_valid_instance; intros [].
-      destruct x as [x|], y as [y|]; try contradiction.
-      split; [inversion 1; subst | auto].
-      rewrite eq_dec_refl in H0; contradiction.
+    - intros ????; subst.
+      by rewrite share_op_eq eq_dec_refl in H.
   Qed.
   Canonical Structure shareR := discreteR shareO share_ra_mixin.
 
   Global Instance share_cmra_discrete : CmraDiscrete shareR.
   Proof. apply discrete_cmra_discrete. Qed.
-  Global Instance share_full_exclusive : Exclusive(A := shareR) (Some Tsh).
-  Proof. intros p [? Hnone]. contradiction Hnone. rewrite share_op_eq.
-    destruct p; auto. destruct (eq_dec); auto. destruct (eq_dec); auto.
-    destruct (eq_dec); auto. rewrite Share.glb_commute Share.glb_top in e; contradiction.
+  Global Instance share_full_exclusive : Exclusive(A := shareR) Tsh.
+  Proof. intros p Hnone. contradiction Hnone. rewrite share_op_eq.
+    repeat destruct eq_dec; try done.
+    rewrite Share.glb_commute Share.glb_top in e; contradiction.
   Qed.
   Global Instance share_cancelable (q : shareR) : Cancelable q.
-  Proof. intros n p1 p2 [Hv1 Hv2]. rewrite !share_op_eq in Hv1 Hv2 |- *.
-    destruct q as [q|], p1 as [p1|], p2 as [p2|]; try contradiction.
+  Proof. intros n p1 p2 Hv. rewrite !share_op_eq in Hv |- *.
     unfold share in *.
-    destruct (eq_dec q Share.bot), (eq_dec p1 Share.bot), (eq_dec p2 Share.bot); try contradiction.
-    destruct (eq_dec), (eq_dec); try contradiction.
+    repeat destruct eq_dec; try done.
     inversion 1; f_equal; eapply Share.distrib_spec; eauto; congruence.
   Qed.
   Global Instance share_id_free (q : shareR) : IdFree q.
-  Proof. intros p []. destruct q; [|contradiction].
-    intros (? & ? & Heq & ? & ? & ? & J)%share_op_join; subst.
-    inversion Heq; subst.
+  Proof. intros p Hq.
+    intros (? & ? & J)%share_op_join; subst; try done.
     apply sepalg.join_comm, sepalg.unit_identity, identity_share_bot in J; contradiction.
   Qed.
 
-  Lemma Tsh_valid : valid (Some Tsh).
+  Lemma Tsh_valid : valid Tsh.
   Proof.
-    split; auto.
     inversion 1; contradiction Share.nontrivial.
   Qed.
 
-  Lemma Tsh_validN n : validN(A := shareR) n (Some Tsh).
+  Lemma Tsh_validN n : validN(A := shareR) n Tsh.
   Proof.
     apply Tsh_valid.
   Qed.

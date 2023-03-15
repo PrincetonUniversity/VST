@@ -3,18 +3,12 @@ Require Import VST.sepcomp.semantics.
 Require Import VST.sepcomp.extspec.
 Require Import VST.sepcomp.step_lemmas.
 Require Import VST.veric.shares.
-Require Import VST.veric.juicy_safety.
-Require Import VST.veric.juicy_mem. (*VST.veric.juicy_mem_lemmas VST.veric.juicy_mem_ops.*)
+(*Require Import VST.veric.juicy_safety.*)
+Require Import VST.veric.juicy_mem.
 
-Require Import VST.veric.ghost_PCM. (*avoids doing Require Import VST.veric.initial_world.*)
-Require Import VST.veric.own.
-Require Import VST.veric.invariants.
 Require Import VST.veric.tycontext.
 
-Require Import VST.veric.age_to_resource_at.
-
 Local Open Scope nat_scope.
-Local Open Scope pred.
 
 Record juicy_ext_spec (Z: Type) := {
   JE_spec:> external_specification juicy_mem external_function Z;

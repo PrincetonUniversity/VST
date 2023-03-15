@@ -15,26 +15,24 @@ Proof.
   by rewrite comm.
 Qed.
 
-Context (inclN_extend : forall n (a b : A), a ≼{n} b -> {c | c ≼{S n} b /\ c ≡{n}≡ a} ).
-
 Definition incl_ora_mixin : OraMixin A.
 Proof.
-  split; try apply _.
-  - intros ????? Hcore.
-    eapply cmra_pcore_monoN'; eauto.
-    by rewrite Hcore.
-  - intros ????? Hord.
-    apply inclN_extend in Hord as (? & ? & Heq).
-    apply cmra_extend in Heq as (z1 & z2 & Heq & ? & ?).
-    exists z1, z2; rewrite -Heq; auto.
-    { eapply cmra_validN_includedN; eauto using cmra_includedN_S. }
-  - intros; apply inclN_extend; auto.
+  apply ora_total_mixin; try apply _; try done.
+  - apply cmra_core_monoN.
+  - intros ????? [? Heq].
+    apply cmra_extend in Heq as (z & ? & Heq & Hz & ?); auto.
+    apply cmra_extend in Hz as (z1 & z2 & Hz & ? & ?); auto.
+    exists z1, z2; rewrite Heq -Hz; split; [eexists|]; eauto.
+    { eapply cmra_validN_includedN, cmra_includedN_S; eauto.
+      rewrite Heq; eexists; eauto. }
+  - intros ???? [? Heq].
+    apply cmra_extend in Heq as (z & ? & Heq & Hz & ?); auto.
+    exists z; rewrite Heq; split; [eexists|]; eauto.
   - intros ??? ->.
     exists (core y); by rewrite cmra_core_r.
   - intros; by apply cmra_includedN_S.
   - intros; by apply cmra_monoN_r.
   - intros; by eapply cmra_validN_includedN.
-  - reflexivity.
   - intros ??? Hcore.
     inversion Hcore as [?? Heq Hcore1|]; subst.
     symmetry in Hcore1; eapply cmra_pcore_mono in Hcore1 as (? & -> & ?); last by eexists.
@@ -49,38 +47,62 @@ Proof. rewrite /OraTotal; eauto. Qed.
 
 End incl.
 
+#[global] Notation inclR A := (Ora A (incl_ora_mixin(A := A))).
+
+Section functor.
+
+Context (F : rFunctor) `{∀ A (CA : Cofe A) B (CB : Cofe B), CmraTotal (rFunctor_car F A B)}.
+
+(* lift an rFunctor to the order *)
+Program Definition inclRF : OrarFunctor := {|
+  orarFunctor_car A _ B _ := inclR (rFunctor_car F A B);
+  orarFunctor_map _ _ _ _ _ _ _ _ a := rFunctor_map F a;
+|}.
+Next Obligation.
+  apply rFunctor_map_id.
+Qed.
+Next Obligation.
+  apply rFunctor_map_compose.
+Qed.
+Next Obligation.
+  split; try apply rFunctor_mor.
+  - by intros; apply cmra_morphism_monotoneN; first apply rFunctor_mor.
+  - intros ??; apply @incl_increasing.
+  - admit. (* cmra_morphism_pcore *)
+  - admit. (* cmra_morphism_op. *)
+Admitted.
+
+#[global] Instance inclRF_contractive `{rFunctorContractive F} : OrarFunctorContractive inclRF := _.
+
+End functor.
+
 Section flat.
 
-Context {A : cmra} (core_identity : forall (a ca b : A), pcore a = Some ca -> ca ⋅ b ≡ b).
+(* This works, but only for very restricted algebras. *)
 
-Lemma core_equiv : forall (a b ca cb : A), pcore a = Some ca -> pcore b = Some cb -> ca ≡ cb.
-Proof.
-  intros.
-  etrans; [symmetry; eapply core_identity; done|].
-  rewrite comm; eauto.
-Qed.
-
-Lemma core_flat : forall (a ca b : A), pcore a = Some ca -> pcore (a ⋅ b) ≡ Some ca.
-Proof.
-  intros.
-  edestruct (cmra_pcore_mono a (a ⋅ b)) as (? & Hcore & _); [eexists | |]; try done.
-  rewrite Hcore; constructor; eapply core_equiv; eauto.
-Qed.
+Context {A : ucmra} (core_unit : forall (a : A), core a ≡ ε) {discrete_unit : Discrete (ε : A)}.
 
 Instance flat_orderN : OraOrderN A := dist.
 Instance flat_order : OraOrder A := equiv.
 
-(*Lemma Increasing_inv : forall (a : A), Increasing*)
+Lemma Increasing_unit : forall (a : A), Increasing a <-> a ≡ ε.
+Proof.
+  split; intros Ha.
+  - specialize (Ha ε).
+    by rewrite right_id in Ha.
+  - by intros ?; rewrite Ha left_id.
+Qed.
 
 Definition flat_ora_mixin : OraMixin A.
 Proof.
-  split; try apply _; try done.
-  - intros ????.
-    by rewrite core_identity.
-  - intros ??????.
-    admit. (* should we only know Increasing for orderN here? or do we need another axiom? *)
-  - apply cmra_pcore_ne.
-  - intros ????? Hdist.
+  apply ora_total_mixin; try apply _; try done.
+  - apply cmra_unit_cmra_total.
+  - by intros ?; rewrite Increasing_unit.
+  - intros ???; rewrite !Increasing_unit.
+    by intros -> ?%discrete_iff.
+  - apply cmra_core_ne.
+  - intros ?????.
+    rewrite /OraorderN /flat_orderN =>Hdist.
     symmetry in Hdist; apply cmra_extend in Hdist as (z & ? & Heq1 & Hz & ?); last done.
     eexists _, _; split; last done.
     by rewrite Heq1.
@@ -89,12 +111,15 @@ Proof.
   - by intros ???? ->.
   - by intros ???? ->.
   - apply equiv_dist.
-  - intros.
+  - intros ???.
+    rewrite !cmra_pcore_core !core_unit.
+    inversion 1; subst.
     eexists; split; last done.
-    inversion H as [?? Heq|]; subst.
-    by rewrite -Heq; apply core_flat.
-Admitted.
+    by constructor.
+Qed.
 
 (*Canonical Structure flatR : ora := Ora A flat_ora_mixin.*)
 
 End flat.
+
+#[global] Notation flatR A := (Uora A (flat_ora_mixin(A := A))).

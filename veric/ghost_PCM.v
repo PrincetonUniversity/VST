@@ -1,8 +1,5 @@
-Require Export VST.msl.msl_standard.
 Require Export VST.veric.base.
 Require Export VST.veric.shares.
-Require Import VST.msl.ghost.
-Require Import VST.veric.ghosts.
 
 (* external ghost state *)
 

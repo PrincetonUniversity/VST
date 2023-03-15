@@ -1,14 +1,13 @@
 Require Import VST.veric.base.
-Require Import VST.veric.rmaps.
+Require Import VST.veric.res_predicates.
+Require Export compcert.common.AST.
 Require Export compcert.cfrontend.Ctypes.
-Require Import VST.veric.compcert_rmaps.
 
 Require Import VST.veric.composite_compute.
 Require Import VST.veric.align_mem.
 Require Import VST.veric.val_lemmas.
 
 Require Export VST.veric.compspecs.
-Import compcert.lib.Maps.
 
 Open Scope Z_scope.
 
@@ -67,7 +66,7 @@ unfold get, set; if_tac; intuition.
 Qed.
 
 Lemma gso h x y v : x<>y -> get (set x v h) y = get h y.
-unfold get, set; intros; if_tac; intuition.
+unfold get, set; intros; if_tac; intuition; subst; contradiction.
 Qed.
 
 Lemma grs h x : get (remove x h) x = None.
@@ -75,7 +74,7 @@ unfold get, remove; intros; if_tac; intuition.
 Qed.
 
 Lemma gro h x y : x<>y -> get (remove x h) y = get h y.
-unfold get, remove; intros; if_tac; intuition.
+unfold get, remove; intros; if_tac; intuition; subst; contradiction.
 Qed.
 
 Lemma ext h h' : (forall x, get h x = get h' x) -> h=h'.
@@ -106,6 +105,10 @@ End map.
 End Map.
 Unset Implicit Arguments.
 
+Section mpred.
+
+Context {Σ : gFunctors}.
+
 (** Environment Definitions **)
 Section FUNSPEC.
 
@@ -130,11 +133,18 @@ Definition te_of (rho: environ) : tenviron :=
 Definition any_environ : environ :=
   mkEnviron (fun _ => None)  (Map.empty _) (Map.empty _).
 
-Definition mpred := pred rmap.
+Definition mpred := iProp Σ.
 
 Definition argsEnviron:Type := genviron * (list val).
 
-Definition AssertTT (A: TypeTree): TypeTree :=
+Global Instance EqDec_type: EqDec type := type_eq.
+
+Definition funsig := (list (ident*type) * type)%type. (* argument and result signature *)
+
+Definition typesig := (list type * type)%type. (*funsig without the identifiers*)
+Definition typesig_of_funsig (f:funsig):typesig := (map snd (fst f), snd f).
+
+(*Definition AssertTT (A: TypeTree): TypeTree :=
   ArrowType A (ArrowType (ConstType environ) Mpred).
 
 Definition ArgsTT (A: TypeTree): TypeTree :=
@@ -184,7 +194,7 @@ Definition super_non_expansive_list {A: TypeTree}
 
 Definition args_const_super_non_expansive: forall (T: Type) P,
   @args_super_non_expansive (ConstType T) P :=
-  fun _ _ _ _ _ _ => eq_refl.
+  fun _ _ _ _ _ _ => eq_refl.*)
 
 (*Potential alternative that does not use Ctypes
 Inductive funspec :=
@@ -194,12 +204,18 @@ Inductive funspec :=
     funspec.
  *)
 
+(* Do we need -n> here?. *)
 Inductive funspec :=
+   mk_funspec: typesig -> calling_convention -> forall (A: Type)
+     (P: A -> argsEnviron -> mpred) (Q: A -> environ -> mpred),
+     funspec.
+
+(*Inductive funspec :=
    mk_funspec: typesig -> calling_convention -> forall (A: TypeTree)
      (P: forall ts, dependent_type_functor_rec ts (ArgsTT A) mpred)
      (Q: forall ts, dependent_type_functor_rec ts (AssertTT A) mpred)
      (P_ne: args_super_non_expansive P) (Q_ne: super_non_expansive Q),
-     funspec.
+     funspec.*)
 
 Definition varspecs : Type := list (ident * type).
 
@@ -213,11 +229,11 @@ Definition assert := environ -> mpred.  (* Unfortunately
 
 Definition argsassert := argsEnviron -> mpred.
 
-Definition packPQ {A: rmaps.TypeTree}
+(*Definition packPQ {A: rmaps.TypeTree}
   (P: forall ts, dependent_type_functor_rec ts (ArgsTT A) mpred)
   (Q: forall ts, dependent_type_functor_rec ts (AssertTT A) mpred):
   forall ts, dependent_type_functor_rec ts (SpecArgsTT A) mpred.
-Proof. intros ts a b. destruct b. apply (P ts a). apply (Q ts a). Defined.
+Proof. intros ts a b. destruct b. apply (P ts a). apply (Q ts a). Defined.*)
 
 Definition int_range (sz: intsize) (sgn: signedness) (i: int) :=
  match sz, sgn with
@@ -261,7 +277,7 @@ Fixpoint typelist_of_type_list (params : list type) : typelist :=
   end.
 
 Definition type_of_funspec (fs: funspec) : type :=
-  match fs with mk_funspec fsig cc _ _ _ _ _ => 
+  match fs with mk_funspec fsig cc _ _ _ => 
      Tfunction (typelist_of_type_list (fst fsig)) (snd fsig) cc end.
 
 (*same definition as in Clight_core?*)
@@ -280,12 +296,12 @@ Proof. induction l; simpl; trivial. destruct a. simpl. f_equal; trivial. Qed.
 Lemma TTL5 {l}: typelist2list (typelist_of_type_list l) = l.
 Proof. induction l; simpl; trivial. f_equal; trivial. Qed.
 
-Definition idset := PTree.t unit.
+Definition idset := Maps.PTree.t unit.
 
-Definition idset0 : idset := PTree.empty _.
-Definition idset1 (id: ident) : idset := PTree.set id tt idset0.
+Definition idset0 : idset := Maps.PTree.empty _.
+Definition idset1 (id: ident) : idset := Maps.PTree.set id tt idset0.
 Definition insert_idset (id: ident) (S: idset) : idset :=
-  PTree.set id tt S.
+  Maps.PTree.set id tt S.
 
 Definition eval_id (id: ident) (rho: environ) := force_val (Map.get (te_of rho) id).
 
@@ -295,20 +311,23 @@ Definition env_set (rho: environ) (x: ident) (v: val) : environ :=
 Lemma eval_id_same: forall rho id v, eval_id id (env_set rho id v) = v.
 Proof. unfold eval_id; intros; simpl. unfold force_val. rewrite Map.gss. auto.
 Qed.
-#[export] Hint Rewrite eval_id_same : normalize norm.
 
 Lemma eval_id_other: forall rho id id' v,
    id<>id' -> eval_id id' (env_set rho id v) = eval_id id' rho.
 Proof.
  unfold eval_id, force_val; intros. simpl. rewrite Map.gso; auto.
 Qed.
-#[export] Hint Rewrite eval_id_other using solve [clear; intro Hx; inversion Hx] : normalize norm.
 
 Fixpoint make_tycontext_s (G: funspecs) :=
  match G with
- | nil => PTree.empty funspec
- | (id,f)::r => PTree.set id f (make_tycontext_s r)
+ | nil => Maps.PTree.empty funspec
+ | (id,f)::r => Maps.PTree.set id f (make_tycontext_s r)
  end.
+
+End mpred.
+
+#[export] Hint Rewrite eval_id_same : normalize norm.
+#[export] Hint Rewrite eval_id_other using solve [clear; intro Hx; inversion Hx] : normalize norm.
 
 (* TWO ALTERNATE WAYS OF DOING LIFTING *)
 (* LIFTING METHOD ONE: *)
@@ -348,10 +367,10 @@ Ltac super_unfold_lift :=
   cbv delta [liftx LiftEnviron LiftAEnviron Tarrow Tend lift_S lift_T lift_prod
   lift_last lifted lift_uncurry_open lift_curry lift lift0 lift1 lift2 lift3 alift0 alift1 alift2 alift3] beta iota in *.
 
-Lemma approx_hered_derives_e n P Q: predicates_hered.derives P Q -> predicates_hered.derives (approx n P) (approx n Q).
+(*Lemma approx_hered_derives_e n P Q: predicates_hered.derives P Q -> predicates_hered.derives (approx n P) (approx n Q).
 Proof. intros. unfold approx. intros m. simpl. intros [? ?]. split; auto. Qed.
 Lemma approx_derives_e n P Q: P |-- Q -> approx n P |-- approx n Q.
 Proof. intros. apply approx_hered_derives_e. apply H. Qed. 
 
 Lemma hered_derives_derives P Q: predicates_hered.derives P Q -> derives P Q.
-Proof. trivial. Qed.
+Proof. trivial. Qed.*)
