@@ -187,7 +187,7 @@ Section gen_heap.
   Qed. *)
 
   Lemma mapsto_combine l dq1 dq2 v1 v2 :
-    l ↦{dq1} v1 -∗ l ↦{dq2} v2 -∗ l ↦{dq1 ⋅ dq2} v1 ∗ ⌜v1 = v2⌝.
+    l ↦{dq1} v1 -∗ l ↦{dq2} v2 -∗ l ↦{dq1 ⋅ dq2} v1 ∧ ⌜v1 = v2⌝.
   Proof. rewrite mapsto_unseal. apply ghost_map_elem_combine. Qed.
 
 (*  Global Instance mapsto_combine_as l dq1 dq2 v1 v2 :

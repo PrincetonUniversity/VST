@@ -45,6 +45,12 @@ Qed.
 Global Instance incl_ora_total : OraTotal (Ora A incl_ora_mixin).
 Proof. rewrite /OraTotal; eauto. Qed.
 
+Global Instance incl_ora_discrete {CD : CmraDiscrete A} : OraDiscrete (Ora A incl_ora_mixin).
+Proof. split; try apply CD.
+  rewrite /Oraorder /OraorderN /ora_order /ora_orderN /= /incl_order /incl_orderN =>?? Hord ?.
+  by rewrite -!cmra_discrete_included_iff in Hord |- *.
+Qed.
+
 End incl.
 
 #[global] Notation inclR A := (Ora A (incl_ora_mixin(A := A))).

@@ -24,7 +24,7 @@ Section rmap.
 Context `{!heapGS Σ}.
 
 Definition contents_cohere (m: mem) (phi: rmap) :=
-  forall sh v loc, phi @ loc = Some (Some sh, VAL v) -> contents_at m loc = v.
+  forall dq v loc, phi @ loc = Some (dq, VAL v) -> contents_at m loc = v.
 
 (*Definition res_retain' (r: resource) : Share.t :=
  match r with
@@ -33,10 +33,17 @@ Definition contents_cohere (m: mem) (phi: rmap) :=
   | PURE _ _ => Share.top
  end.*)
 
-Definition perm_of_res (r: option (option share * resource)) :=
+Definition perm_of_dfrac dq :=
+  match dq with
+  | DfracOwn sh | DfracBoth sh => perm_of_sh sh
+  | DfracDiscarded => Some Readable
+  end.
+
+Definition perm_of_res (r: option (dfrac * resource)) :=
   match r with
-  | Some (Some sh, VAL _) => perm_of_sh sh
-  | Some (Some sh, _) => if eq_dec sh Share.bot then None else Some Nonempty
+  | Some (dq, VAL _) => perm_of_dfrac dq
+  | Some (DfracOwn sh, _) | Some (DfracBoth sh, _) => if eq_dec sh Share.bot then None else Some Nonempty
+  | Some (DfracDiscarded, _) => Some Readable
   | _ => None
   end.
 
@@ -68,10 +75,10 @@ Definition perm_of_res_lock_explicit
   Functional Scheme perm_of_res_lock_expl_ind := Induction for perm_of_res_lock_explicit Sort Prop.
 *)
 
-Definition perm_of_res' (r: option (option share * resource)) :=
+Definition perm_of_res' (r: option (dfrac * resource)) :=
   match r with
-  | Some (Some sh, _) => perm_of_sh sh
-  | _ => None
+  | Some (dq, _) => perm_of_dfrac dq
+  | None => None
   end.
 
 (*Definition perm_of_res' (r: resource) :=
@@ -82,11 +89,11 @@ Definition perm_of_res' (r: option (option share * resource)) :=
  | YES sh _ _ _ => perm_of_sh sh
  end.*)
 
-Definition perm_of_res_lock (r: option (option share * resource)) :=
+Definition perm_of_res_lock (r: option (dfrac * resource)) :=
   match r with
   | Some (q, LK _ _ _) => match q with
-                   | None => None
-                   | Some sh => perm_of_sh (Share.glb Share.Rsh sh)
+                   | DfracDiscarded => Some Readable
+                   | DfracOwn sh | DfracBoth sh => perm_of_sh (Share.glb Share.Rsh sh)
                    end
   | _ => None
   end.
@@ -177,6 +184,8 @@ Proof.
   - destruct (perm_of_sh s); constructor.
   - if_tac; destruct (perm_of_sh s) eqn: Hperm; try constructor.
     apply perm_of_sh_None in Hperm; contradiction.
+  - if_tac; destruct (perm_of_sh s) eqn: Hperm; try constructor.
+    apply perm_of_sh_None in Hperm; contradiction.
 Qed.
 
 Lemma perm_of_res_op2:
@@ -184,25 +193,24 @@ Lemma perm_of_res_op2:
     perm_order'' (perm_of_res' r) (perm_of_res_lock r).
 Proof.
   destruct r as [(?, ?)|]; simpl; auto.
-  destruct o, r; hnf; auto.
-  - destruct (perm_of_sh s); auto.
-  - destruct (perm_of_sh s) eqn: Hs, (perm_of_sh (Share.glb Share.Rsh s)) eqn: Hr; auto.
-    + unfold perm_of_sh in *.
-      if_tac in Hs.
-      * rewrite -> if_true in Hr by (apply writable0_share_glb_Rsh; auto).
-        rewrite -> if_false in Hr by (apply glb_Rsh_not_top).
-        inv Hr.
-        if_tac in Hs; inv Hs; constructor.
-      * rewrite -> if_false in Hr by (intros ?; contradiction H; apply writable0_right; auto).
-        if_tac in Hs; [rewrite if_true in Hr | rewrite if_false in Hr]; try by rewrite /readable_share glb_twice.
-        -- inv Hs; inv Hr; constructor.
-        -- if_tac in Hs; inv Hs.
-           if_tac in Hr; inv Hr.
-           constructor.
-    + unfold perm_of_sh in *.
-      repeat (if_tac in Hs); inv Hs.
-      rewrite Share.glb_bot in Hr.
-      rewrite -> 2if_false, if_true in Hr by auto; inv Hr.
+  destruct o, r; hnf; auto; try by destruct (perm_of_sh s).
+  destruct (perm_of_sh s) eqn: Hs, (perm_of_sh (Share.glb Share.Rsh s)) eqn: Hr; auto.
+  - unfold perm_of_sh in *.
+    if_tac in Hs.
+    + rewrite -> if_true in Hr by (apply writable0_share_glb_Rsh; auto).
+      rewrite -> if_false in Hr by (apply glb_Rsh_not_top).
+      inv Hr.
+      if_tac in Hs; inv Hs; constructor.
+    + rewrite -> if_false in Hr by (intros ?; contradiction H; apply writable0_right; auto).
+      if_tac in Hs; [rewrite if_true in Hr | rewrite if_false in Hr]; try by rewrite /readable_share glb_twice.
+      * inv Hs; inv Hr; constructor.
+      * if_tac in Hs; inv Hs.
+        if_tac in Hr; inv Hr.
+        constructor.
+  - unfold perm_of_sh in *.
+    repeat (if_tac in Hs); inv Hs.
+    rewrite Share.glb_bot in Hr.
+    rewrite -> 2if_false, if_true in Hr by auto; inv Hr.
 Qed.
 
 Definition access_cohere (m: mem)  (phi: rmap) :=

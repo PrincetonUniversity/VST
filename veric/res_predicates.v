@@ -1,12 +1,17 @@
+Require Import compcert.cfrontend.Ctypes.
 From iris_ora.algebra Require Import gmap.
 From iris_ora.logic Require Export logic.
 From VST.veric Require Import shares address_conflict gmap_view.
 From VST.msl Require Export shares.
-From VST.veric Require Export base Memory gen_heap.
+From VST.veric Require Export base Memory algebras gen_heap.
 From iris.proofmode Require Export tactics.
 Export Values.
 
 Local Open Scope Z_scope.
+
+Definition funsig := (list (ident*type) * type)%type. (* argument and result signature *)
+
+Definition typesig := (list type * type)%type. (*funsig without the identifiers*)
 
 Section heap.
 
@@ -16,7 +21,8 @@ Notation rmap := (iResUR Σ).
 
 Inductive resource' :=
 | VAL (v : memval)
-| LK (i z : Z) (R : iProp Σ).
+| LK (i z : Z) (R : iProp Σ)
+| FUN (sig : typesig) (cc : calling_convention).
 
 Context {heapGS : gen_heapGS address resource' Σ}.
 
@@ -30,64 +36,19 @@ match goal with |- ?a = ?b =>
     match b with context [map ?y _] => replace y with x; auto end end end.
 
 (* In VST, we do a lot of reasoning directly on rmaps instead of mpreds. How much of that can we avoid? *)
-Definition resource_at (m : rmap) (l : address) : option (option share * resource) :=
-  (option_map (ora_transport (eq_sym (inG_prf(inG := ghost_map.ghost_map_inG)))) (option_map own.inG_fold ((m (inG_id ghost_map.ghost_map_inG)) !! (gen_heap_name heapGS))))
+Definition heap_inG := ghost_map.ghost_map_inG(ghost_mapG := gen_heapGpreS_heap(gen_heapGpreS := gen_heap_inG)).
+Definition resource_at (m : rmap) (l : address) : option (dfrac * resource) :=
+  (option_map (ora_transport (eq_sym (inG_prf(inG := heap_inG)))) (option_map own.inG_fold ((m (inG_id heap_inG)) !! (gen_heap_name heapGS))))
     ≫= (fun v => option_map (fun '(q, a) => (q, (hd (VAL Undef) (agree_car a)))) (view_frag_proj v !! l)).
 Infix "@" := resource_at (at level 50, no associativity).
 
-(*Definition resource_share (r: resource) : option share :=
- match r with
- | YES sh _ _ _ => Some sh
- | NO sh _ => Some sh
- | PURE _ _ => None
- end.*)
-
 Definition nonlock (r: resource) : Prop :=
  match r with
- | VAL _ => True
  | LK _ _ _ => False
+ | _ => True
  end.
 
-(*Lemma resource_share_join_exists: forall r1 r2 r sh1 sh2,
-  resource_share r1 = Some sh1 ->
-  resource_share r2 = Some sh2 ->
-  join r1 r2 r ->
-  exists sh, join sh1 sh2 sh /\ resource_share r = Some sh.
-Proof.
-  intros.
-  destruct r1, r2; try solve [inversion H | inversion H0];
-  inv H; inv H0; inv H1;
-  eexists; split; eauto.
-Qed.
-
-Lemma resource_share_join: forall r1 r2 r sh1 sh2 sh,
-  resource_share r1 = Some sh1 ->
-  resource_share r2 = Some sh2 ->
-  join r1 r2 r ->
-  join sh1 sh2 sh ->
-  resource_share r = Some sh.
-Proof.
-  intros.
-  destruct (resource_share_join_exists _ _ _ _ _ H H0 H1) as [sh' [? ?]].
-  rewrite H4.
-  f_equal.
-  eapply join_eq; eauto.
-Qed.
-
-Lemma resource_share_joins: forall r1 r2 sh1 sh2,
-  resource_share r1 = Some sh1 ->
-  resource_share r2 = Some sh2 ->
-  joins r1 r2 ->
-  joins sh1 sh2.
-Proof.
-  intros.
-  destruct H1 as [r ?].
-  destruct (resource_share_join_exists _ _ _ _ _ H H0 H1) as [sh [? ?]].
-  exists sh.
-  auto.
-Qed.
-
-Lemma nonlock_join: forall r1 r2 r,
+(*Lemma nonlock_join: forall r1 r2 r,
   nonlock r1 ->
   nonlock r2 ->
   join r1 r2 r ->
@@ -97,9 +58,12 @@ Proof.
   destruct r1, r2; inv H1; auto.
 Qed.*)
 
-Definition nonlockat (l: address): iProp Σ := ∃ sh r, ⌜nonlock r⌝ ∧ mapsto l sh r.
+Notation "l ↦ dq v" := (mapsto (L:=address) (V:=resource) l dq v)
+  (at level 20, dq custom dfrac at level 1, format "l  ↦ dq  v") : bi_scope.
 
-Definition shareat (l: address) (sh: share): iProp Σ := ∃r, mapsto l sh r.
+Definition nonlockat (l: address): iProp Σ := ∃ dq r, ⌜nonlock r⌝ ∧ l ↦{dq} r.
+
+Definition shareat (l: address) (sh: share): iProp Σ := ∃r, l ↦{#sh} r.
 
 Program Definition jam {B} {S': B -> Prop} (S: forall l, {S' l}+{~ S' l} ) (P Q: B -> bi) : B -> bi :=
   fun (l: B) => if S l then P l else Q l.
@@ -388,7 +352,7 @@ Qed.*)
 Open Scope bi_scope.
 
 Definition VALspec : spec :=
-       fun (sh: Share.t) (l: address) => ∃v, mapsto l sh (VAL v).
+       fun (sh: share) (l: address) => ∃v, l ↦{#sh} VAL v.
 
 Definition VALspec_range (n: Z) : spec :=
      fun (sh: Share.t) (l: address) => [∗ list] i ∈ seq 0 (Z.to_nat n), VALspec sh (adr_add l (Z.of_nat i)).
@@ -411,7 +375,7 @@ Definition address_mapsto (ch: memory_chunk) (v: val) : spec :=
         fun (sh: Share.t) (l: address) =>
            ∃ bl: list memval, 
                ⌜length bl = size_chunk_nat ch  /\ decode_val ch bl = v /\ (align_chunk ch | snd l)⌝ ∧
-               [∗ list] i ∈ seq 0 (size_chunk_nat ch), mapsto (adr_add l (Z.of_nat i)) sh (VAL (nthbyte (Z.of_nat i) bl)).
+               [∗ list] i ∈ seq 0 (size_chunk_nat ch), adr_add l (Z.of_nat i) ↦{#sh} (VAL (nthbyte (Z.of_nat i) bl)).
 
 Lemma add_and : forall {PROP : bi} (P Q : PROP), (P ⊢ Q) -> (P ⊢ P ∧ Q).
 Proof.
@@ -501,7 +465,7 @@ Qed.*)
 
 Definition LKspec lock_size (R: iProp Σ) : spec :=
    fun (sh: Share.t) (l: address)  =>
-    [∗ list] i ∈ seq 0 (Z.to_nat lock_size), mapsto (adr_add l (Z.of_nat i)) sh (LK lock_size (Z.of_nat i) R).
+    [∗ list] i ∈ seq 0 (Z.to_nat lock_size), adr_add l (Z.of_nat i) ↦{#sh} LK lock_size (Z.of_nat i) R.
 
 Definition Trueat (l: address) : iProp Σ := True.
 
@@ -676,7 +640,7 @@ Proof.
   intros.
   unfold VALspec_range, VALspec, address_mapsto.
   trans (∃ (bl : list memval), ⌜length bl = size_chunk_nat ch ∧ (align_chunk ch | l.2)⌝
-   ∧ ([∗ list] i ∈ seq 0 (size_chunk_nat ch), mapsto (adr_add l (Z.of_nat i)) sh
+   ∧ ([∗ list] i ∈ seq 0 (size_chunk_nat ch), adr_add l (Z.of_nat i) ↦{#sh}
                                                 (VAL (nthbyte (Z.of_nat i) bl)))).
   2: { iIntros "H"; iDestruct "H" as (bl [??]) "H"; iExists (decode_val ch bl), bl; auto. }
   rewrite size_chunk_conv Nat2Z.id.
@@ -1063,8 +1027,8 @@ Proof.
   rewrite /adr_add /=.
   rewrite Z2Nat.id; last lia.
   rewrite Zplus_minus Z.add_0_r.
-  iDestruct (ghost_map_elem_valid_2 with "H1 H2") as %[? _].
-  rewrite share_valid2_joins in H; destruct H as (? & ? & ?%share_joins_self); contradiction.
+  iDestruct (mapsto_valid_2 with "H1 H2") as %[H _].
+  apply share_valid2_joins in H as (? & ? & ?%share_joins_self); contradiction.
   { rewrite lookup_seq_lt; [done | lia]. }
   { rewrite lookup_seq_lt; [done | lia]. }
 Qed.
@@ -1124,8 +1088,8 @@ Proof.
   rewrite /adr_add /=.
   rewrite !Z2Nat.id; try lia.
   rewrite !Zplus_minus.
-  iDestruct (ghost_map_elem_valid_2 with "H1 H2") as %[J _].
-  rewrite share_valid2_joins in J; destruct J as (? & ? & ?%share_joins_self); contradiction.
+  iDestruct (mapsto_valid_2 with "H1 H2") as %[J _].
+  apply share_valid2_joins in J as (? & ? & ?%share_joins_self); contradiction.
   { rewrite lookup_seq_lt; [done | lia]. }
   { rewrite lookup_seq_lt; [done | lia]. }
 Qed.
@@ -1171,7 +1135,7 @@ Qed.*)
 Lemma mapsto_value_cohere: forall l sh1 sh2 r1 r2, mapsto l sh1 r1 ∗ mapsto l sh2 r2 ⊢ ⌜r1 = r2⌝.
 Proof.
   intros; iIntros "[H1 H2]".
-  by iDestruct (ghost_map_elem_valid_2 with "H1 H2") as %[? Heq]; inversion Heq.
+  by iDestruct (mapsto_valid_2 with "H1 H2") as %[? Heq]; inversion Heq.
 Qed.
 
 Lemma mapsto_list_value_cohere: forall a sh1 sh2 n b1 b2 (Hl1: length b1 = n) (Hl2: length b2 = n),

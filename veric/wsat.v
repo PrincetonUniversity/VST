@@ -1,8 +1,8 @@
 From stdpp Require Export coPset.
 From iris.algebra Require Import gset coPset.
 From iris.proofmode Require Import proofmode.
-From iris_ora.logic Require Export own.
-From VST.veric Require Import ext_order gmap_view.
+From iris_ora.logic Require Export logic own.
+From VST.veric Require Import ext_order gmap_view algebras.
 From iris.prelude Require Import options.
 
 (** All definitions in this file are internal to [fancy_updates] with the
@@ -13,6 +13,7 @@ Module wsatGS.
   Canonical Structure coPset_disjR := inclR coPset_disjR.
   Canonical Structure coPset_disjUR := Uora coPset_disjR coPset_disj_ucmra_mixin.
   Canonical Structure gset_disjR K `{Countable K} := inclR (gset_disjR K).
+  Canonical Structure gset_disjUR K `{Countable K} := Uora (gset_disjR K) (gset_disj_ucmra_mixin(K := K)).
 
   Class wsatGpreS (Σ : gFunctors) : Set := WsatGpreS {
     wsatGpreS_inv : inG Σ (gmap_viewR positive (laterO (iPropO Σ)));
@@ -82,6 +83,7 @@ Lemma ownE_op E1 E2 : E1 ## E2 → ownE (E1 ∪ E2) ⊣⊢ ownE E1 ∗ ownE E2.
 Proof. intros. by rewrite /ownE -own_op coPset_disj_union. Qed.
 Lemma ownE_disjoint E1 E2 : ownE E1 ∗ ownE E2 ⊢ ⌜E1 ## E2⌝.
 Proof. rewrite /ownE -own_op own_valid. by iIntros (?%coPset_disj_valid_op). Qed.
+
 Lemma ownE_op' E1 E2 : ⌜E1 ## E2⌝ ∧ ownE (E1 ∪ E2) ⊣⊢ ownE E1 ∗ ownE E2.
 Proof.
   iSplit; [iIntros "[% ?]"; by iApply ownE_op|].
@@ -110,7 +112,7 @@ Lemma ownD_singleton_twice i : ownD {[i]} ∗ ownD {[i]} ⊢ False.
 Proof. rewrite ownD_disjoint. iIntros (?); set_solver. Qed.
 
 Lemma invariant_lookup (I : gmap positive (iProp Σ)) i P :
-  own invariant_name (gmap_view_auth (DfracOwn 1) (invariant_unfold <$> I)) ∗
+  own invariant_name (gmap_view_auth (DfracOwn Tsh) (invariant_unfold <$> I)) ∗
   own invariant_name (gmap_view_frag i DfracDiscarded (invariant_unfold P)) ⊢
   ∃ Q, ⌜I !! i = Some Q⌝ ∗ ▷ (Q ≡ P).
 Proof.
@@ -161,7 +163,7 @@ Proof.
   iModIntro; iExists i;  iSplit; [done|]. rewrite /ownI; iFrame "HiP".
   iExists (<[i:=P]>I); iSplitL "Hw".
   { by rewrite fmap_insert. }
-  iApply (big_sepM_insert _ I); first done.
+  iApply (big_sepM_insert _ I).
   iFrame "HI". iLeft. by rewrite /ownD; iFrame.
 Qed.
 
@@ -183,7 +185,7 @@ Proof.
   rewrite -/(ownD _). iFrame "HD".
   iIntros "HE". iExists (<[i:=P]>I); iSplitL "Hw".
   { by rewrite fmap_insert. }
-  iApply (big_sepM_insert _ I); first done.
+  iApply (big_sepM_insert _ I).
   iFrame "HI". by iRight.
 Qed.
 End wsat.
@@ -192,12 +194,11 @@ End wsat.
 Lemma wsat_alloc `{!wsatGpreS Σ} : ⊢ |==> ∃ _ : wsatGS Σ, wsat ∗ ownE ⊤.
 Proof.
   iIntros.
-  iMod (own_alloc (gmap_view_auth (DfracOwn 1) ∅)) as (γI) "HI";
+  iMod (own_alloc (gmap_view_auth (DfracOwn Tsh) ∅)) as (γI) "HI";
     first by apply gmap_view_auth_valid.
-  iMod (own_alloc (CoPset ⊤)) as (γE) "HE"; first done.
-  iMod (own_alloc (GSet ∅)) as (γD) "HD"; first done.
+  iMod (own_alloc(A := coPset_disjR) (CoPset ⊤)) as (γE) "HE"; first done.
+  iMod (own_alloc(A := gset_disjUR _) (GSet ∅)) as (γD) "HD"; first done.
   iModIntro; iExists (WsatG _ _ γI γE γD).
   rewrite /wsat /ownE -lock; iFrame.
   iExists ∅. rewrite fmap_empty big_opM_empty. by iFrame.
 Qed.
-
