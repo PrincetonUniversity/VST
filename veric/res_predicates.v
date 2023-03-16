@@ -1,8 +1,8 @@
 From iris_ora.algebra Require Import gmap.
-From iris_ora.logic Require Export oupred iprop.
+From iris_ora.logic Require Export logic.
 From VST.veric Require Import shares address_conflict gmap_view.
 From VST.msl Require Export shares.
-From VST.veric Require Export base Memory ghost_map.
+From VST.veric Require Export base Memory gen_heap.
 From iris.proofmode Require Export tactics.
 Export Values.
 
@@ -24,8 +24,6 @@ Local Notation resource := resource'.
 
 Definition spec : Type :=  forall (sh: share) (l: address), iProp Σ.
 
-Definition mapsto (l: address) sh (r: resource) : iProp Σ := l ↪[gen_heap_name heapGS]{#sh} r.
-
 Ltac do_map_arg :=
 match goal with |- ?a = ?b =>
   match a with context [map ?x _] =>
@@ -33,7 +31,7 @@ match goal with |- ?a = ?b =>
 
 (* In VST, we do a lot of reasoning directly on rmaps instead of mpreds. How much of that can we avoid? *)
 Definition resource_at (m : rmap) (l : address) : option (option share * resource) :=
-  (option_map (ora_transport (eq_sym (inG_prf(inG := ghost_map_inG)))) (option_map own.inG_fold ((m (inG_id ghost_map_inG)) !! (gen_heap_name heapGS))))
+  (option_map (ora_transport (eq_sym (inG_prf(inG := ghost_map.ghost_map_inG)))) (option_map own.inG_fold ((m (inG_id ghost_map.ghost_map_inG)) !! (gen_heap_name heapGS))))
     ≫= (fun v => option_map (fun '(q, a) => (q, (hd (VAL Undef) (agree_car a)))) (view_frag_proj v !! l)).
 Infix "@" := resource_at (at level 50, no associativity).
 

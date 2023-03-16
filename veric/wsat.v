@@ -10,12 +10,12 @@ exception of what's in the [wsatGS] module. The module [wsatGS] is thus exported
 [fancy_updates], where [wsat] is only imported. *)
 Module wsatGS.
 
-  Canonical Structure gmap_view_propR Σ := inclR (gmap_viewR positive (laterO (iPropO Σ))).
   Canonical Structure coPset_disjR := inclR coPset_disjR.
+  Canonical Structure coPset_disjUR := Uora coPset_disjR coPset_disj_ucmra_mixin.
   Canonical Structure gset_disjR K `{Countable K} := inclR (gset_disjR K).
 
   Class wsatGpreS (Σ : gFunctors) : Set := WsatGpreS {
-    wsatGpreS_inv : inG Σ (gmap_view_propR Σ);
+    wsatGpreS_inv : inG Σ (gmap_viewR positive (laterO (iPropO Σ)));
     wsatGpreS_enabled : inG Σ coPset_disjR;
     wsatGpreS_disabled : inG Σ (gset_disjR positive);
   }.
@@ -28,7 +28,7 @@ Module wsatGS.
   }.
 
   Program Definition wsatΣ : gFunctors :=
-    #[GFunctor (@inclRF (gmap_viewRF(H := pos_countable) positive (laterOF idOF)) _);
+    #[GFunctor (gmap_viewRF positive (laterOF idOF));
       GFunctor coPset_disjR;
       GFunctor (gset_disjR positive)].
 
@@ -41,24 +41,24 @@ Local Existing Instances wsat_inG wsatGpreS_inv wsatGpreS_enabled wsatGpreS_disa
 Definition invariant_unfold {Σ} (P : iProp Σ) : later (iProp Σ) :=
   Next P.
 Definition ownI `{!wsatGS Σ} (i : positive) (P : iProp Σ) : iProp Σ :=
-  own(A := gmap_view_propR Σ) invariant_name (gmap_view_frag i None (invariant_unfold P)).
+  own invariant_name (gmap_view_frag i DfracDiscarded (invariant_unfold P)).
 Typeclasses Opaque ownI.
 Global Instance: Params (@invariant_unfold) 1 := {}.
 Global Instance: Params (@ownI) 3 := {}.
 
 Definition ownE `{!wsatGS Σ} (E : coPset) : iProp Σ :=
-  own enabled_name (CoPset E).
+  own(A := coPset_disjR) enabled_name (CoPset E).
 Typeclasses Opaque ownE.
 Global Instance: Params (@ownE) 3 := {}.
 
 Definition ownD `{!wsatGS Σ} (E : gset positive) : iProp Σ :=
-  own disabled_name (GSet E).
+  own(A := gset_disjR positive) disabled_name (GSet E).
 Typeclasses Opaque ownD.
 Global Instance: Params (@ownD) 3 := {}.
 
 Definition wsat `{!wsatGS Σ} : iProp Σ :=
   locked (∃ I : gmap positive (iProp Σ),
-    own invariant_name (gmap_view_auth (DfracOwn 1) (invariant_unfold <$> I)) ∗
+    own invariant_name (gmap_view_auth (DfracOwn Tsh) (invariant_unfold <$> I)) ∗
     [∗ map] i ↦ Q ∈ I, ▷ Q ∗ ownD {[i]} ∨ ownE {[i]})%I.
 
 Section wsat.

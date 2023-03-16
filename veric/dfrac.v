@@ -238,6 +238,12 @@ Section dfrac.
 
   Canonical Structure dfracR := discreteOra dfrac dfrac_ora_mixin.
 
+  Global Instance dfrac_discarded_oracore_id : OraCoreId DfracDiscarded.
+  Proof. by constructor. Qed.
+
+  Global Instance dfrac_ora_discrete : OraDiscrete dfracR.
+  Proof. apply discrete_ora_discrete. Qed.
+
 End dfrac.
 
 #[global] Hint Resolve dfrac_valid_own_1 dfrac_validN_own_1 : core.

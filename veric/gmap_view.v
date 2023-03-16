@@ -152,7 +152,7 @@ Definition gmap_viewC (K : Type) `{Countable K} (V : ofe) : cmra :=
 Definition gmap_viewUC (K : Type) `{Countable K} (V : ofe) : ucmra :=
   viewUC (gmap_view_rel K V).
 Canonical Structure gmap_viewR (K : Type) `{Countable K} (V : ofe) : ora :=
-  viewR (gmap_view_rel K V) (gmap_view_rel_order K V).
+  view.viewR (gmap_view_rel K V) (gmap_view_rel_order K V).
 Canonical Structure gmap_viewUR (K : Type) `{Countable K} (V : ofe) : uora :=
   viewUR (gmap_view_rel K V).
 
@@ -455,10 +455,10 @@ Section lemmas.
   Qed.
 
   (** Typeclass instances *)
-  Global Instance gmap_view_frag_core_id k dq v : CoreId dq → CoreId (gmap_view_frag k dq v).
+  Global Instance gmap_view_frag_core_id k dq v : OraCoreId dq → OraCoreId (gmap_view_frag k dq v).
   Proof. apply _. Qed.
 
-  Global Instance gmap_view_cmra_discrete : OfeDiscrete V → CmraDiscrete (gmap_viewR K V).
+  Global Instance gmap_view_ora_discrete : OfeDiscrete V → OraDiscrete (gmap_viewR K V).
   Proof. apply _. Qed.
 
   Global Instance gmap_view_frag_mut_is_op dq dq1 dq2 k v :
@@ -534,9 +534,9 @@ Proof.
     apply agreeO_map_ne, oFunctor_map_contractive. done.
 Qed.
 
-Program Definition gmap_viewRF (K : Type) `{Countable K} (F : oFunctor) : orarFunctor := {|
-  rFunctor_car A _ B _ := gmap_viewR K (oFunctor_car F A B);
-  rFunctor_map A1 _ A2 _ B1 _ B2 _ fg :=
+Program Definition gmap_viewRF (K : Type) `{Countable K} (F : oFunctor) : OrarFunctor := {|
+  orarFunctor_car A _ B _ := gmap_viewR K (oFunctor_car F A B);
+  orarFunctor_map A1 _ A2 _ B1 _ B2 _ fg :=
     viewO_map (rel:=gmap_view_rel K (oFunctor_car F A1 B1))
               (rel':=gmap_view_rel K (oFunctor_car F A2 B2))
               (gmapO_map (K:=K) (oFunctor_map F fg))
@@ -545,7 +545,7 @@ Program Definition gmap_viewRF (K : Type) `{Countable K} (F : oFunctor) : orarFu
 Solve Obligations with apply gmap_viewURF.
 
 Global Instance gmap_viewRF_contractive (K : Type) `{Countable K} F :
-  oFunctorContractive F → orarFunctorContractive (gmap_viewRF K F).
+  oFunctorContractive F → OrarFunctorContractive (gmap_viewRF K F).
 Proof. apply gmap_viewURF_contractive. Qed.
 
-Typeclasses Opaque gmap_view_auth gmap_view_frag.
+Global Typeclasses Opaque gmap_view_auth gmap_view_frag.

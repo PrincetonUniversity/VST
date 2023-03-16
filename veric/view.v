@@ -585,16 +585,21 @@ Section ora.
   (* having trouble phrasing an order that guarantees this, so adding it as a proof obligation instead *)
   Context (view_rel_order : ∀n a x y, x ≼ₒ{n} y → rel n a y → rel n a x).
 
+  Lemma view_increasing : forall (a : view rel), Increasing a <-> Increasing (view_auth_proj a) /\ Increasing (view_frag_proj a).
+  Proof.
+    split.
+    - split; intros y.
+      + specialize (H (View y ε)); apply H.
+      + specialize (H (View ε y)); apply H.
+    - intros [Ha Hf] ?; split; [apply Ha | apply Hf].
+  Qed.
+
   Definition view_ora_mixin : OraMixin (view rel).
   Proof using view_rel_order.
     apply ora_total_mixin; try done.
     - intros ??; split; apply ora_core_increasing.
-    - intros ???? [??] [??].
-      destruct x as (ax, fx), y as (ay, fy).
-      assert (Increasing ax) as Hax.
-      { intros y; specialize (H (View y ε)); apply H. }
-      assert (Increasing fx) as Hfx.
-      { intros y; specialize (H (View ε y)); apply H. }
+    - intros ???? [??].
+      apply view_increasing in H as [??].
       split; eapply ora_increasing_closed; eauto.
     - intros ? [??] [??] [??]; split; apply ora_core_monoN; done.
     - intros ???? [Hva Hvf]%view_validN_both [Ha Hf].
@@ -632,9 +637,28 @@ Section ora.
       apply uora_core_order_op.
   Qed.
 
+  Local Canonical Structure viewR := Ora (view rel) view_ora_mixin.
+
+  Global Instance view_auth_oracore_id a : OraCoreId (●V□ a).
+  Proof. do 2 constructor; simpl; auto. apply: core_id_core. Qed.
+  Global Instance view_frag_oracore_id (b : B) : OraCoreId b → OraCoreId (◯V b).
+  Proof. do 2 constructor; simpl; auto. apply: core_id_core. Qed.
+  Global Instance view_both_oracore_id a (b : B) : OraCoreId b → OraCoreId (●V□ a ⋅ ◯V b).
+  Proof. do 2 constructor; simpl; auto. rewrite !left_id. apply: core_id_core. Qed.
+
+  Global Instance view_ora_discrete :
+    OfeDiscrete A → OraDiscrete B → ViewRelDiscrete rel →
+    OraDiscrete viewR.
+  Proof.
+    split; [apply _|..]; [move=> -[[[dq ag]|] b]; rewrite ?view_valid_eq ?view_validN_eq /=|].
+    - rewrite -ora_discrete_valid_iff.
+      setoid_rewrite <-(discrete_iff _ ag). naive_solver.
+    - naive_solver.
+    - by intros ?? [??]; split; apply ora_discrete_order.
+  Qed.
+
 End ora.
 
-Notation viewR rel H := (Ora (view rel) (view_ora_mixin rel H)).
 Notation viewUR rel := (Uora (view rel) (view_ucmra_mixin rel)).
 
 
@@ -716,15 +740,10 @@ Lemma view_map_ora_morphism {A A'} {B B' : uora}
   OraMorphism(A := viewR rel Hrel)(B := viewR rel' Hrel') (view_map (rel:=rel) (rel':=rel') f g).
 Proof.
   intros Hfrel.
-  pose proof (view_map_cmra_morphism f g Hfrel) as Hc.
- split; try apply view_map_cmra_morphism.
-  - apply _.
-  - rewrite !view_validN_eq=> n [[[p ag]|] bf] /=;
-      [|naive_solver eauto using cmra_morphism_validN].
-    intros [? [a' [Hag ?]]]. split; [done|]. exists (f a'). split; [|by auto].
-    by rewrite -agree_map_to_agree -Hag.
-  - intros [o bf]. apply Some_proper; rewrite /view_map /=.
-    f_equiv; by rewrite cmra_morphism_core.
-  - intros [[[dq1 ag1]|] bf1] [[[dq2 ag2]|] bf2];
-      try apply View_proper=> //=; by rewrite cmra_morphism_op.
+  split; first apply (view_map_cmra_morphism f g Hfrel).
+  - intros ??? [??]; split; simpl; apply ora_morphism_orderN; try done.
+    apply _.
+  - intros ??.
+    apply view_increasing in H as [??]; apply view_increasing; split; simpl; apply ora_morphism_increasing; try done.
+    apply _.
 Qed.

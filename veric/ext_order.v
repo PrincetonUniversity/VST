@@ -40,7 +40,7 @@ Proof.
     by intros ?; rewrite -Heq; apply cmra_included_includedN.
 Qed.
 
-(*Canonical Structure inclR : ora := Ora A incl_ora_mixin.*)
+(*Local Canonical Structure inclR : ora := Ora A incl_ora_mixin.*)
 
 Global Instance incl_ora_total : OraTotal (Ora A incl_ora_mixin).
 Proof. rewrite /OraTotal; eauto. Qed.
@@ -49,7 +49,7 @@ End incl.
 
 #[global] Notation inclR A := (Ora A (incl_ora_mixin(A := A))).
 
-Section functor.
+(*Section functor.
 
 Context (F : rFunctor) `{∀ A (CA : Cofe A) B (CB : Cofe B), CmraTotal (rFunctor_car F A B)}.
 
@@ -65,16 +65,20 @@ Next Obligation.
   apply rFunctor_map_compose.
 Qed.
 Next Obligation.
-  split; try apply rFunctor_mor.
+  split.
+  - pose proof (rFunctor_mor F fg) as Hc.
+    rewrite /ora_cmraR /ora_car /ora_equiv /ora_dist /ora_pcore /ora_op /ora_valid /ora_validN /ora_cmra_mixin.
+    assert (Cmra' _ (cmra_ofe_mixin (@rFunctor_car F A1 Cofe0 B1 Cofe2)) (cmra_mixin (@rFunctor_car F A1 Cofe0 B1 Cofe2)) = rFunctor_car F A1 B1) as Hc1.
+    { clear; destruct rFunctor_car; reflexivity. }
+    unfold cmra_ofeO in *.
+    admit.
   - by intros; apply cmra_morphism_monotoneN; first apply rFunctor_mor.
   - intros ??; apply @incl_increasing.
-  - admit. (* cmra_morphism_pcore *)
-  - admit. (* cmra_morphism_op. *)
 Admitted.
 
 #[global] Instance inclRF_contractive `{rFunctorContractive F} : OrarFunctorContractive inclRF := _.
 
-End functor.
+End functor.*)
 
 Section flat.
 
@@ -118,8 +122,9 @@ Proof.
     by constructor.
 Qed.
 
-(*Canonical Structure flatR : ora := Ora A flat_ora_mixin.*)
+Local Canonical Structure flatR : ora := Ora A flat_ora_mixin.
+Local Canonical Structure flatUR : uora := Uora A (ucmra_mixin A).
 
 End flat.
 
-#[global] Notation flatR A := (Uora A (flat_ora_mixin(A := A))).
+(*#[global] Notation flatR A := (Uora A (ucmra_mixin A)).*)
