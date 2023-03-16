@@ -565,6 +565,14 @@ Section cmra.
       split; [apply view_both_validN; by auto|]. by rewrite -assoc Hb0'.
   Qed.
 
+  Lemma view_validN_both : forall n (a : view rel), ✓{n} a -> ✓{n} view_auth_proj a /\ ✓{n} view_frag_proj a.
+  Proof.
+    rewrite view_validN_eq; intros.
+    destruct (view_auth_proj a) as [(?, ?)|].
+    - destruct H as (? & ? & -> & ?%view_rel_validN); done.
+    - destruct H as (? & ?%view_rel_validN); done.
+  Qed.
+
 End cmra.
 
 Section ora.
@@ -574,21 +582,61 @@ Section ora.
   Instance view_order : OraOrder (view rel) := λ x y, view_auth_proj x ≼ₒ view_auth_proj y ∧ view_frag_proj x ≼ₒ view_frag_proj y.
   Instance view_orderN : OraOrderN (view rel) := λ n x y, view_auth_proj x ≼ₒ{n} view_auth_proj y ∧ view_frag_proj x ≼ₒ{n} view_frag_proj y.
 
+  (* having trouble phrasing an order that guarantees this, so adding it as a proof obligation instead *)
+  Context (view_rel_order : ∀n a x y, x ≼ₒ{n} y → rel n a y → rel n a x).
+
   Definition view_ora_mixin : OraMixin (view rel).
-  Proof.
+  Proof using view_rel_order.
     apply ora_total_mixin; try done.
     - intros ??; split; apply ora_core_increasing.
-    - intros ???? [??] ?.
+    - intros ???? [??] [??].
       destruct x as (ax, fx), y as (ay, fy).
-      assert (Increasing ax).
-      assert (Increasing fx).
-
-      
-
-  Canonical Structure viewR := Ora (view rel) view_ora_mixin.
-  Canonical Structure viewUR := Uora (view rel) view_ucmra_mixin.
+      assert (Increasing ax) as Hax.
+      { intros y; specialize (H (View y ε)); apply H. }
+      assert (Increasing fx) as Hfx.
+      { intros y; specialize (H (View ε y)); apply H. }
+      split; eapply ora_increasing_closed; eauto.
+    - intros ? [??] [??] [??]; split; apply ora_core_monoN; done.
+    - intros ???? [Hva Hvf]%view_validN_both [Ha Hf].
+      eapply ora_op_extend in Ha as (a1 & a2 & ? & ? & ?); last done.
+      eapply (ora_op_extend(A := B)) in Hf as (f1 & f2 & ? & ? & ?); last done.
+      exists (View a1 f1), (View a2 f2); destruct y1, y2; done.
+    - intros ??? [Hva Hvf]%view_validN_both [Ha Hf].
+      eapply ora_extend in Ha as (a & ? & ?); last done.
+      eapply (ora_extend(A := B)) in Hf as (f & ? & ?); last done.
+      exists (View a f); destruct y; done.
+    - intros ??? [??]; split; apply ora_dist_orderN; auto.
+    - intros ??? [??]; split; apply ora_orderN_S; auto.
+    - intros ???? [??] [??]; split; etrans; eauto.
+    - intros ???? [??]; split; apply ora_orderN_op; auto.
+    - intros ???? [Ha Hf].
+      destruct (view_validN_both _ _ _ H) as [Hva Hvf].
+      rewrite view_validN_eq in H |- *.
+      destruct (view_auth_proj y) as [(?, ?)|].
+      + destruct (view_auth_proj x) as [(?, ?)|]; try done.
+        destruct H as (? & ? & ? & ?), Ha as [? Ha], Hva as [? Hva]; simpl in *.
+        split; [eapply ora_validN_orderN; eauto|].
+        apply agree_order_dist in Ha; last done.
+        setoid_rewrite Ha.
+        eexists; split; first done; eauto.
+      + destruct (view_auth_proj x) as [(?, ?)|].
+        * destruct H as (? & ? & ? & ?); eauto.
+        * destruct H; eauto.
+    - split.
+      + intros [??] ?; split; by apply ora_order_orderN.
+      + intros; split; apply ora_order_orderN; intros; apply H.
+    - rewrite view_pcore_eq; inversion 1 as [?? [Ha Hf]|]; subst.
+      eexists; split; first done.
+      split; simpl in *; [rewrite -Ha; apply uora_core_order_op | ].
+      eapply ora_order_proper; [symmetry; apply Hf | done |].
+      apply uora_core_order_op.
+  Qed.
 
 End ora.
+
+Notation viewR rel H := (Ora (view rel) (view_ora_mixin rel H)).
+Notation viewUR rel := (Uora (view rel) (view_ucmra_mixin rel)).
+
 
 (** * Utilities to construct functors *)
 (** Due to the dependent type [rel] in [view] we cannot actually define
@@ -649,6 +697,27 @@ Lemma view_map_cmra_morphism {A A' B B'}
   CmraMorphism (view_map (rel:=rel) (rel':=rel') f g).
 Proof.
   intros Hrel. split.
+  - apply _.
+  - rewrite !view_validN_eq=> n [[[p ag]|] bf] /=;
+      [|naive_solver eauto using cmra_morphism_validN].
+    intros [? [a' [Hag ?]]]. split; [done|]. exists (f a'). split; [|by auto].
+    by rewrite -agree_map_to_agree -Hag.
+  - intros [o bf]. apply Some_proper; rewrite /view_map /=.
+    f_equiv; by rewrite cmra_morphism_core.
+  - intros [[[dq1 ag1]|] bf1] [[[dq2 ag2]|] bf2];
+      try apply View_proper=> //=; by rewrite cmra_morphism_op.
+Qed.
+
+Lemma view_map_ora_morphism {A A'} {B B' : uora}
+    {rel : view_rel A B} {rel' : view_rel A' B'}
+    (Hrel : ∀n a x y, x ≼ₒ{n} y → rel n a y → rel n a x) (Hrel' : ∀n a x y, x ≼ₒ{n} y → rel' n a y → rel' n a x)
+    (f : A → A') (g : B → B') `{!NonExpansive f, !OraMorphism g} :
+  (∀ n a b, rel n a b → rel' n (f a) (g b)) →
+  OraMorphism(A := viewR rel Hrel)(B := viewR rel' Hrel') (view_map (rel:=rel) (rel':=rel') f g).
+Proof.
+  intros Hfrel.
+  pose proof (view_map_cmra_morphism f g Hfrel) as Hc.
+ split; try apply view_map_cmra_morphism.
   - apply _.
   - rewrite !view_validN_eq=> n [[[p ag]|] bf] /=;
       [|naive_solver eauto using cmra_morphism_validN].

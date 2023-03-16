@@ -3,6 +3,7 @@
 
 From iris.algebra Require Export gmap.
 From iris.algebra Require Import local_updates proofmode_classes big_op.
+From iris_ora.algebra Require Export gmap.
 From VST.veric Require Export share_alg dfrac view.
 From iris.prelude Require Import options.
 
@@ -23,7 +24,7 @@ NOTE: The API surface for [gmap_view] is experimental and subject to change.  We
 plan to add notations for authoritative elements and fragments, and hope to
 support arbitrary maps as fragments. *)
 
-Local Definition gmap_view_fragUR (K : Type) `{Countable K} (V : ofe) : ucmra :=
+Local Definition gmap_view_fragUR (K : Type) `{Countable K} (V : ofe) : uora :=
   gmapUR K (prodR dfracR (agreeR V)).
 
 (** View relation. *)
@@ -46,19 +47,20 @@ Section rel.
     (* For some reason applying the lemma in [Hf] does not work... *)
     destruct (lookup_includedN n2 f2 f1) as [Hf' _]. specialize (Hf' Hf). clear Hf.
     specialize (Hf' k). rewrite Hk in Hf'.
-    apply option_includedN in Hf'.
+    rewrite option_includedN in Hf'.
     destruct Hf' as [[=]|(? & [q' va'] & [= <-] & Hf1 & Hincl)].
     specialize (Hrel _ _ Hf1) as (v & Hagree & Hdval & Hm1). simpl in *.
     specialize (Hm k).
     edestruct (dist_Some_inv_l _ _ _ _ Hm Hm1) as (v' & Hm2 & Hv).
     exists v'. rewrite assoc. split; last done.
     rewrite -Hv.
-    destruct Hincl as [[Heqq Heqva]|[Hinclq Hinclva]%pair_includedN].
+    destruct Hincl as [[Heqq Heqva]|Hincl].
     - simpl in *. split.
       + rewrite Heqva. eapply dist_le; last eassumption. done.
       + rewrite <-discrete_iff in Heqq; last by apply _.
         fold_leibniz. subst q'. done.
-    - split.
+    - rewrite pair_includedN in Hincl; destruct Hincl as [Hinclq Hinclva].
+      split.
       + etrans; last first.
         { eapply dist_le; last eassumption. done. }
         eapply agree_valid_includedN; last done.
@@ -123,6 +125,19 @@ Section rel.
     eapply discrete_iff; first by apply _.
     done.
   Qed.
+
+  Local Lemma gmap_view_rel_order : ∀n a x y, x ≼ₒ{n} y → gmap_view_rel n a y → gmap_view_rel n a x.
+  Proof.
+    intros ???? Hord Hy i ? Hxi.
+    specialize (Hord i); rewrite Hxi in Hord.
+    destruct (y !! i) eqn: Hyi; rewrite Hyi in Hord; simpl in Hord; last done.
+    destruct Hord as [??].
+    specialize (Hy _ _ Hyi); destruct Hy as (? & Ha & ? & ?).
+    eexists; split; [|split]; try done.
+    - erewrite agree_order_dist; eauto.
+      by rewrite Ha.
+    - eapply dora_valid_orderN; eauto; apply dfrac_ora_mixin.
+  Qed.
 End rel.
 
 Local Existing Instance gmap_view_rel_discrete.
@@ -132,17 +147,21 @@ to infer the right instances (see [auth]). *)
 Notation gmap_view K V := (view (@gmap_view_rel_raw K _ _ V)).
 Definition gmap_viewO (K : Type) `{Countable K} (V : ofe) : ofe :=
   viewO (gmap_view_rel K V).
-Definition gmap_viewR (K : Type) `{Countable K} (V : ofe) : cmra :=
-  viewR (gmap_view_rel K V).
-Definition gmap_viewUR (K : Type) `{Countable K} (V : ofe) : ucmra :=
+Definition gmap_viewC (K : Type) `{Countable K} (V : ofe) : cmra :=
+  viewC (gmap_view_rel K V).
+Definition gmap_viewUC (K : Type) `{Countable K} (V : ofe) : ucmra :=
+  viewUC (gmap_view_rel K V).
+Canonical Structure gmap_viewR (K : Type) `{Countable K} (V : ofe) : ora :=
+  viewR (gmap_view_rel K V) (gmap_view_rel_order K V).
+Canonical Structure gmap_viewUR (K : Type) `{Countable K} (V : ofe) : uora :=
   viewUR (gmap_view_rel K V).
 
 Section definitions.
   Context {K : Type} `{Countable K} {V : ofe}.
 
-  Definition gmap_view_auth (dq : dfrac) (m : gmap K V) : gmap_viewR K V :=
+  Definition gmap_view_auth (dq : dfrac) (m : gmap K V) : gmap_viewC K V :=
     ●V{dq} m.
-  Definition gmap_view_frag (k : K) (dq : dfrac) (v : V) : gmap_viewR K V :=
+  Definition gmap_view_frag (k : K) (dq : dfrac) (v : V) : gmap_viewC K V :=
     ◯V {[k := (dq, to_agree v)]}.
 End definitions.
 
@@ -199,11 +218,11 @@ Section lemmas.
 
   Lemma gmap_view_auth_dfrac_validN m n dq : ✓{n} gmap_view_auth dq m ↔ ✓ dq.
   Proof.
-    rewrite view_auth_dfrac_validN. intuition eauto using gmap_view_rel_unit.
+    rewrite view_auth_dfrac_validN. intuition. apply gmap_view_rel_unit.
   Qed.
   Lemma gmap_view_auth_dfrac_valid m dq : ✓ gmap_view_auth dq m ↔ ✓ dq.
   Proof.
-    rewrite view_auth_dfrac_valid. intuition eauto using gmap_view_rel_unit.
+    rewrite view_auth_dfrac_valid. intuition. apply gmap_view_rel_unit.
   Qed.
   Lemma gmap_view_auth_valid m : ✓ gmap_view_auth (DfracOwn Tsh) m.
   Proof. rewrite gmap_view_auth_dfrac_valid. done. Qed.
@@ -211,12 +230,12 @@ Section lemmas.
   Lemma gmap_view_auth_dfrac_op_validN n dq1 dq2 m1 m2 :
     ✓{n} (gmap_view_auth dq1 m1 ⋅ gmap_view_auth dq2 m2) ↔ ✓ (dq1 ⋅ dq2) ∧ m1 ≡{n}≡ m2.
   Proof.
-    rewrite view_auth_dfrac_op_validN. intuition eauto using gmap_view_rel_unit.
+    rewrite view_auth_dfrac_op_validN. intuition. apply gmap_view_rel_unit.
   Qed.
   Lemma gmap_view_auth_dfrac_op_valid dq1 dq2 m1 m2 :
     ✓ (gmap_view_auth dq1 m1 ⋅ gmap_view_auth dq2 m2) ↔ ✓ (dq1 ⋅ dq2) ∧ m1 ≡ m2.
   Proof.
-    rewrite view_auth_dfrac_op_valid. intuition eauto using gmap_view_rel_unit.
+    rewrite view_auth_dfrac_op_valid. intuition. apply gmap_view_rel_unit.
   Qed.
   Lemma gmap_view_auth_dfrac_op_valid_L `{!LeibnizEquiv V} dq1 dq2 m1 m2 :
     ✓ (gmap_view_auth dq1 m1 ⋅ gmap_view_auth dq2 m2) ↔ ✓ (dq1 ⋅ dq2) ∧ m1 = m2.
@@ -242,7 +261,7 @@ Section lemmas.
 
   Lemma gmap_view_frag_op k dq1 dq2 v :
     gmap_view_frag k (dq1 ⋅ dq2) v ≡ gmap_view_frag k dq1 v ⋅ gmap_view_frag k dq2 v.
-  Proof. rewrite -view_frag_op singleton_op -pair_op agree_idemp //. Qed.
+  Proof. rewrite -view_frag_op singleton_op -cmra.pair_op agree_idemp //. Qed.
   Lemma gmap_view_frag_add k q1 q2 v :
     gmap_view_frag k (DfracOwn (q1 ⋅ q2)) v ≡
       gmap_view_frag k (DfracOwn q1) v ⋅ gmap_view_frag k (DfracOwn q2) v.
@@ -253,14 +272,14 @@ Section lemmas.
       ✓ (dq1 ⋅ dq2) ∧ v1 ≡{n}≡ v2.
   Proof.
     rewrite view_frag_validN gmap_view_rel_exists singleton_op singleton_validN.
-    by rewrite -pair_op pair_validN to_agree_op_validN.
+    by rewrite -cmra.pair_op pair_validN to_agree_op_validN.
   Qed.
   Lemma gmap_view_frag_op_valid k dq1 dq2 v1 v2 :
     ✓ (gmap_view_frag k dq1 v1 ⋅ gmap_view_frag k dq2 v2) ↔ ✓ (dq1 ⋅ dq2) ∧ v1 ≡ v2.
   Proof.
     rewrite view_frag_valid. setoid_rewrite gmap_view_rel_exists.
     rewrite -cmra_valid_validN singleton_op singleton_valid.
-    by rewrite -pair_op pair_valid to_agree_op_valid.
+    by rewrite -cmra.pair_op pair_valid to_agree_op_valid.
   Qed.
   (* FIXME: Having a [valid_L] lemma is not consistent with [auth] and [view]; they
      have [inv_L] lemmas instead that just have an equality on the RHS. *)
@@ -321,7 +340,7 @@ Section lemmas.
       { destruct (bf !! k) as [[df' va']|] eqn:Hbf; last done.
         specialize (Hrel _ _ Hbf). destruct Hrel as (v' & _ & _ & Hm).
         exfalso. rewrite Hm in Hfresh. done. }
-      rewrite lookup_singleton Hbf right_id.
+      rewrite lookup_singleton Hbf.
       intros [= <- <-]. eexists. do 2 (split; first done).
       rewrite lookup_insert. done.
     - rewrite lookup_singleton_ne; last done.
@@ -422,7 +441,7 @@ Section lemmas.
       rewrite Some_op_opM. intros [= Hbf].
       exists v'. rewrite assoc; split; last done.
       destruct (bf !! k) as [[df' va']|] eqn:Hbfk; rewrite Hbfk in Hbf; clear Hbfk.
-      + simpl in *. rewrite -pair_op in Hbf.
+      + simpl in *. rewrite -cmra.pair_op in Hbf.
         move:Hbf=>[= <- <-]. split; first done.
         eapply cmra_discrete_valid.
         eapply (dfrac_discard_update _ _ (Some df')).
@@ -449,9 +468,9 @@ Section lemmas.
 End lemmas.
 
 (** Functor *)
-Program Definition gmap_viewURF (K : Type) `{Countable K} (F : oFunctor) : urFunctor := {|
-  urFunctor_car A _ B _ := gmap_viewUR K (oFunctor_car F A B);
-  urFunctor_map A1 _ A2 _ B1 _ B2 _ fg :=
+Program Definition gmap_viewURF (K : Type) `{Countable K} (F : oFunctor) : uorarFunctor := {|
+  uorarFunctor_car A _ B _ := gmap_viewUR K (oFunctor_car F A B);
+  uorarFunctor_map A1 _ A2 _ B1 _ B2 _ fg :=
     viewO_map (rel:=gmap_view_rel K (oFunctor_car F A1 B1))
               (rel':=gmap_view_rel K (oFunctor_car F A2 B2))
               (gmapO_map (K:=K) (oFunctor_map F fg))
@@ -494,7 +513,7 @@ Qed.
 Next Obligation.
   intros K ?? F A1 ? A2 ? B1 ? B2 ? fg; simpl.
   (* [apply] does not work, probably the usual unification probem (Coq #6294) *)
-  apply: view_map_cmra_morphism; [apply _..|]=> n m f.
+  apply: view_map_ora_morphism; [apply _..|]=> n m f.
   intros Hrel k [df va] Hf. move: Hf.
   rewrite !lookup_fmap.
   destruct (f !! k) as [[df' va']|] eqn:Hfk; rewrite Hfk; last done.
@@ -506,7 +525,7 @@ Next Obligation.
 Qed.
 
 Global Instance gmap_viewURF_contractive (K : Type) `{Countable K} F :
-  oFunctorContractive F → urFunctorContractive (gmap_viewURF K F).
+  oFunctorContractive F → uorarFunctorContractive (gmap_viewURF K F).
 Proof.
   intros ? A1 ? A2 ? B1 ? B2 ? n f g Hfg.
   apply viewO_map_ne.
@@ -515,7 +534,7 @@ Proof.
     apply agreeO_map_ne, oFunctor_map_contractive. done.
 Qed.
 
-Program Definition gmap_viewRF (K : Type) `{Countable K} (F : oFunctor) : rFunctor := {|
+Program Definition gmap_viewRF (K : Type) `{Countable K} (F : oFunctor) : orarFunctor := {|
   rFunctor_car A _ B _ := gmap_viewR K (oFunctor_car F A B);
   rFunctor_map A1 _ A2 _ B1 _ B2 _ fg :=
     viewO_map (rel:=gmap_view_rel K (oFunctor_car F A1 B1))
@@ -526,7 +545,7 @@ Program Definition gmap_viewRF (K : Type) `{Countable K} (F : oFunctor) : rFunct
 Solve Obligations with apply gmap_viewURF.
 
 Global Instance gmap_viewRF_contractive (K : Type) `{Countable K} F :
-  oFunctorContractive F → rFunctorContractive (gmap_viewRF K F).
+  oFunctorContractive F → orarFunctorContractive (gmap_viewRF K F).
 Proof. apply gmap_viewURF_contractive. Qed.
 
 Typeclasses Opaque gmap_view_auth gmap_view_frag.
