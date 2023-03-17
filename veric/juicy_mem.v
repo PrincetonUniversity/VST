@@ -174,18 +174,59 @@ Proof.
   if_tac; done.
 Qed.
 
+Lemma perm_order''_refl : forall s, perm_order'' s s.
+Proof.
+  destruct s; simpl; try done.
+  apply perm_refl.
+Qed.
+
+Lemma perm_order''_min : forall s, perm_order'' (perm_of_sh s) (if eq_dec s Share.bot then None else Some Nonempty).
+Proof.
+  intros; unfold perm_of_sh; repeat if_tac; constructor.
+Qed.
+
+Lemma perm_order''_None : forall s, perm_order'' s None.
+Proof.
+  destruct s; simpl; auto.
+Qed.
+
+Lemma perm_order''_Freeable : forall s, perm_order'' (Some Freeable) s.
+Proof.
+  destruct s; constructor.
+Qed.
+
+Lemma perm_of_sh_glb : forall sh1 sh2, perm_order'' (perm_of_sh sh1) (perm_of_sh (Share.glb sh2 sh1)).
+Proof.
+  intros; unfold perm_of_sh.
+  pose proof (Share.glb_lower2 sh2 sh1) as Hglb.
+  if_tac.
+  - if_tac; first apply perm_order''_Freeable.
+    repeat if_tac; try constructor.
+    rewrite H2 in Hglb.
+    eapply Share.ord_antisym in Hglb; last apply Share.top_correct; contradiction.
+  - rewrite (if_false _ (writable0_share_dec _)).
+    if_tac; first by repeat if_tac; constructor.
+    rewrite (if_false _ (readable_share_dec _)).
+    repeat if_tac; try constructor.
+    + subst.
+      contradiction H2; apply Share.glb_bot.
+    + intros X; contradiction H0; unfold readable_share, nonempty_share in *.
+      intros X1%identity_share_bot; contradiction X.
+      rewrite (Share.glb_commute sh2) -Share.glb_assoc X1 Share.glb_commute Share.glb_bot.
+      apply bot_identity.
+    + intros X; contradiction H; unfold writable0_share in *.
+      rewrite -!leq_join_sub in X |- *.
+      eapply Share.ord_trans; done.
+Qed.
+
 Lemma perm_of_res_op1:
   forall r,
     perm_order'' (perm_of_res' r) (perm_of_res r).
 Proof.
   destruct r as [(?, ?)|]; simpl; auto.
-  destruct o; try done.
-  destruct r.
-  - destruct (perm_of_sh s); constructor.
-  - if_tac; destruct (perm_of_sh s) eqn: Hperm; try constructor.
-    apply perm_of_sh_None in Hperm; contradiction.
-  - if_tac; destruct (perm_of_sh s) eqn: Hperm; try constructor.
-    apply perm_of_sh_None in Hperm; contradiction.
+  destruct r; first by destruct d; apply perm_order''_refl.
+  - unfold perm_of_dfrac; destruct d; apply perm_order''_refl || apply perm_order''_min.
+  - unfold perm_of_dfrac; destruct d; apply perm_order''_refl || apply perm_order''_min.
 Qed.
 
 Lemma perm_of_res_op2:
@@ -193,34 +234,17 @@ Lemma perm_of_res_op2:
     perm_order'' (perm_of_res' r) (perm_of_res_lock r).
 Proof.
   destruct r as [(?, ?)|]; simpl; auto.
-  destruct o, r; hnf; auto; try by destruct (perm_of_sh s).
-  destruct (perm_of_sh s) eqn: Hs, (perm_of_sh (Share.glb Share.Rsh s)) eqn: Hr; auto.
-  - unfold perm_of_sh in *.
-    if_tac in Hs.
-    + rewrite -> if_true in Hr by (apply writable0_share_glb_Rsh; auto).
-      rewrite -> if_false in Hr by (apply glb_Rsh_not_top).
-      inv Hr.
-      if_tac in Hs; inv Hs; constructor.
-    + rewrite -> if_false in Hr by (intros ?; contradiction H; apply writable0_right; auto).
-      if_tac in Hs; [rewrite if_true in Hr | rewrite if_false in Hr]; try by rewrite /readable_share glb_twice.
-      * inv Hs; inv Hr; constructor.
-      * if_tac in Hs; inv Hs.
-        if_tac in Hr; inv Hr.
-        constructor.
-  - unfold perm_of_sh in *.
-    repeat (if_tac in Hs); inv Hs.
-    rewrite Share.glb_bot in Hr.
-    rewrite -> 2if_false, if_true in Hr by auto; inv Hr.
+  destruct r; try apply perm_order''_None.
+  unfold perm_of_dfrac; destruct d; apply perm_order''_refl || apply perm_of_sh_glb.
 Qed.
 
 Definition access_cohere (m: mem)  (phi: rmap) :=
-  forall loc,  access_at m loc Cur = perm_of_res (phi @ loc).
+  forall loc, access_at m loc Cur = perm_of_res (phi @ loc).
 
 Definition max_access_at m loc := access_at m loc Max.
 
-Definition max_access_cohere (m: mem) (phi: rmap)  :=
-  forall loc,
-    perm_order'' (max_access_at m loc) (perm_of_res' (phi @ loc)).
+Definition max_access_cohere (m: mem) (phi: rmap) :=
+  forall loc, perm_order'' (max_access_at m loc) (perm_of_res' (phi @ loc)).
 
 Definition alloc_cohere (m: mem) (phi: rmap) :=
  forall loc, (fst loc >= nextblock m)%positive -> phi @ loc = None.

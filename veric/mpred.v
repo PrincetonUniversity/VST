@@ -41,108 +41,9 @@ Definition type_is_by_reference t : bool :=
   | _ => false
   end.
 
-(** GENERAL KV-Maps **)
-
-Set Implicit Arguments.
-Module Map. Section map.
-Variables (B : Type).
-
-Definition t := positive -> option B.
-
-Definition get (h: t) (a:positive) : option B := h a.
-
-Definition set (a:positive) (v: B) (h: t) : t :=
-  fun i => if ident_eq i a then Some v else h i.
-
-Definition remove (a: positive) (h: t) : t :=
-  fun i => if ident_eq i a then None else h i.
-
-Definition empty : t := fun _ => None.
-
-(** MAP Axioms **)
-
-Lemma gss h x v : get (set x v h) x = Some v.
-unfold get, set; if_tac; intuition.
-Qed.
-
-Lemma gso h x y v : x<>y -> get (set x v h) y = get h y.
-unfold get, set; intros; if_tac; intuition; subst; contradiction.
-Qed.
-
-Lemma grs h x : get (remove x h) x = None.
-unfold get, remove; intros; if_tac; intuition.
-Qed.
-
-Lemma gro h x y : x<>y -> get (remove x h) y = get h y.
-unfold get, remove; intros; if_tac; intuition; subst; contradiction.
-Qed.
-
-Lemma ext h h' : (forall x, get h x = get h' x) -> h=h'.
-Proof.
-intros. extensionality x. apply H.
-Qed.
-
-Lemma override (a: positive) (b b' : B) h : set a b' (set a b h) = set a b' h.
-Proof.
-apply ext; intros; unfold get, set; if_tac; intuition. Qed.
-
-Lemma gsspec:
-    forall (i j: positive) (x: B) (m: t),
-    get (set j x m) i = if ident_eq i j then Some x else get m i.
-Proof.
-intros. unfold get; unfold set; if_tac; intuition.
-Qed.
-
-Lemma override_same : forall id t (x:B), get t id = Some x -> set id x t = t.
-Proof.
-intros. unfold set. unfold get in H.  apply ext. intros. unfold get.
-if_tac; subst; auto.
-Qed.
-
-End map.
-
-
-End Map.
-Unset Implicit Arguments.
-
-Section mpred.
-
-Context {Σ : gFunctors}.
-
-(** Environment Definitions **)
 Section FUNSPEC.
 
-Definition genviron := Map.t block.
-
-Definition venviron := Map.t (block * type).
-
-Definition tenviron := Map.t val.
-
-Inductive environ : Type :=
- mkEnviron: forall (ge: genviron) (ve: venviron) (te: tenviron), environ.
-
-Definition ge_of (rho: environ) : genviron :=
-  match rho with mkEnviron ge ve te => ge end.
-
-Definition ve_of (rho: environ) : venviron :=
-  match rho with mkEnviron ge ve te => ve end.
-
-Definition te_of (rho: environ) : tenviron :=
-  match rho with mkEnviron ge ve te => te end.
-
-Definition any_environ : environ :=
-  mkEnviron (fun _ => None)  (Map.empty _) (Map.empty _).
-
-Definition mpred := iProp Σ.
-
-Definition argsEnviron:Type := genviron * (list val).
-
-Global Instance EqDec_type: EqDec type := type_eq.
-
-Definition funsig := (list (ident*type) * type)%type. (* argument and result signature *)
-
-Definition typesig := (list type * type)%type. (*funsig without the identifiers*)
-Definition typesig_of_funsig (f:funsig):typesig := (map snd (fst f), snd f).
+Context `{!heapGS Σ}.
 
 (*Definition AssertTT (A: TypeTree): TypeTree :=
   ArrowType A (ArrowType (ConstType environ) Mpred).
@@ -221,19 +122,30 @@ Definition varspecs : Type := list (ident * type).
 
 Definition funspecs := list (ident * funspec).
 
-End FUNSPEC.
-
 Definition assert := environ -> mpred.  (* Unfortunately
    can't export this abbreviation through SeparationLogic.v because
   it confuses the Lift system *)
 
 Definition argsassert := argsEnviron -> mpred.
 
-(*Definition packPQ {A: rmaps.TypeTree}
-  (P: forall ts, dependent_type_functor_rec ts (ArgsTT A) mpred)
-  (Q: forall ts, dependent_type_functor_rec ts (AssertTT A) mpred):
-  forall ts, dependent_type_functor_rec ts (SpecArgsTT A) mpred.
-Proof. intros ts a b. destruct b. apply (P ts a). apply (Q ts a). Defined.*)
+(*plays role of type_of_params *)
+Fixpoint typelist_of_type_list (params : list type) : typelist :=
+  match params with
+  | nil => Tnil
+  | ty :: rem => Tcons ty (typelist_of_type_list rem)
+  end.
+
+Definition type_of_funspec (fs: funspec) : type :=
+  match fs with mk_funspec fsig cc _ _ _ => 
+     Tfunction (typelist_of_type_list (fst fsig)) (snd fsig) cc end.
+
+Fixpoint make_tycontext_s (G: funspecs) :=
+ match G with
+ | nil => Maps.PTree.empty funspec
+ | (id,f)::r => Maps.PTree.set id f (make_tycontext_s r)
+ end.
+
+End FUNSPEC.
 
 Definition int_range (sz: intsize) (sgn: signedness) (i: int) :=
  match sz, sgn with
@@ -268,17 +180,6 @@ Arguments complete_legal_cosu_type {cenv} !t / .
 Goal forall {cs: compspecs} t, sizeof t >= 0.
 Proof. intros. apply sizeof_pos.
 Abort.
-
-(*plays role of type_of_params *)
-Fixpoint typelist_of_type_list (params : list type) : typelist :=
-  match params with
-  | nil => Tnil
-  | ty :: rem => Tcons ty (typelist_of_type_list rem)
-  end.
-
-Definition type_of_funspec (fs: funspec) : type :=
-  match fs with mk_funspec fsig cc _ _ _ => 
-     Tfunction (typelist_of_type_list (fst fsig)) (snd fsig) cc end.
 
 (*same definition as in Clight_core?*)
 Fixpoint typelist2list (tl: typelist) : list type :=
@@ -317,14 +218,6 @@ Lemma eval_id_other: forall rho id id' v,
 Proof.
  unfold eval_id, force_val; intros. simpl. rewrite Map.gso; auto.
 Qed.
-
-Fixpoint make_tycontext_s (G: funspecs) :=
- match G with
- | nil => Maps.PTree.empty funspec
- | (id,f)::r => Maps.PTree.set id f (make_tycontext_s r)
- end.
-
-End mpred.
 
 #[export] Hint Rewrite eval_id_same : normalize norm.
 #[export] Hint Rewrite eval_id_other using solve [clear; intro Hx; inversion Hx] : normalize norm.
@@ -366,11 +259,3 @@ Set Warnings "projection-no-head-constant,redundant-canonical-projection".
 Ltac super_unfold_lift :=
   cbv delta [liftx LiftEnviron LiftAEnviron Tarrow Tend lift_S lift_T lift_prod
   lift_last lifted lift_uncurry_open lift_curry lift lift0 lift1 lift2 lift3 alift0 alift1 alift2 alift3] beta iota in *.
-
-(*Lemma approx_hered_derives_e n P Q: predicates_hered.derives P Q -> predicates_hered.derives (approx n P) (approx n Q).
-Proof. intros. unfold approx. intros m. simpl. intros [? ?]. split; auto. Qed.
-Lemma approx_derives_e n P Q: P |-- Q -> approx n P |-- approx n Q.
-Proof. intros. apply approx_hered_derives_e. apply H. Qed. 
-
-Lemma hered_derives_derives P Q: predicates_hered.derives P Q -> derives P Q.
-Proof. trivial. Qed.*)
