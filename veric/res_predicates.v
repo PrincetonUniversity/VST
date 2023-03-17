@@ -9,6 +9,11 @@ Export Values.
 
 Local Open Scope Z_scope.
 
+(* We can't import compcert.lib.Maps because their lookup notations conflict with stdpp's.
+   We can define lookup instances, which require one more ! apiece than CompCert's notation. *)
+Global Instance ptree_lookup A : Lookup positive A (Maps.PTree.t A) := Maps.PTree.get(A := A).
+Global Instance pmap_lookup A : LookupTotal positive A (Maps.PMap.t A) := Maps.PMap.get(A := A).
+
 (** Environment Definitions **)
 (* We need these here so we can define the resource in memory for a function pointer. *)
 
@@ -76,6 +81,17 @@ End map.
 End Map.
 
 Unset Implicit Arguments.
+
+Global Instance EqDec_calling_convention: EqDec calling_convention.
+Proof.
+  hnf. decide equality.
+  destruct cc_structret, cc_structret0; subst; try tauto; right; congruence.
+  destruct cc_unproto, cc_unproto0;  subst; try tauto; right; congruence.
+  destruct cc_vararg, cc_vararg0; subst; try tauto.
+  destruct (zeq z0 z); subst; [left|right]; congruence.
+  right; congruence.
+  right; congruence.
+Qed.
 
 Section FUNSPEC.
 

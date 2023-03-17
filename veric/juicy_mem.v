@@ -495,19 +495,19 @@ Definition make_access (next : block) (r : rmap) :=
   (map Z.to_pos (tl (upto (Pos.to_nat next)))).
 
 Lemma make_access_get_aux : forall l r b t,
-  (fold_right (fun b m => Maps.PTree.set b (access_of_rmap r b) m) t l) ! b =
-  if In_dec eq_block b l then Some (access_of_rmap r b) else t ! b.
+  (fold_right (fun b m => Maps.PTree.set b (access_of_rmap r b) m) t l) !! b =
+  if In_dec eq_block b l then Some (access_of_rmap r b) else t !! b.
 Proof.
   induction l; simpl; auto; intros.
   destruct (eq_block a b).
   - subst; apply Maps.PTree.gss.
-  - rewrite -> Maps.PTree.gso by auto.
+  - rewrite /lookup /ptree_lookup in IHl |- *; rewrite Maps.PTree.gso; last auto.
     rewrite IHl.
     if_tac; auto.
 Qed.
 
 Lemma make_access_get : forall next r b,
-  (make_access next r) ! b =
+  (make_access next r) !! b =
   if Pos.ltb b next then Some (access_of_rmap r b) else None.
 Proof.
   intros; unfold make_access.
@@ -532,6 +532,9 @@ Proof.
     rewrite In_upto; lia.
 Qed.
 
+Ltac fold_ptree_lookup := repeat match goal with |-context[Maps.PTree.get ?k ?m] =>
+  change (Maps.PTree.get k m) with (m !! k) end.
+
 Program Definition deflate_mem (m : Memory.mem) (r : rmap) (Halloc : alloc_cohere m r) :=
   {| mem_contents := mem_contents m;
     (* original could have non-None default, so we need to 
@@ -541,14 +544,14 @@ Program Definition deflate_mem (m : Memory.mem) (r : rmap) (Halloc : alloc_coher
 Next Obligation.
 Proof.
   intros; unfold Maps.PMap.get; simpl.
-  rewrite make_access_get.
+  fold_ptree_lookup; rewrite make_access_get.
   destruct (b <? nextblock m)%positive; simpl; auto.
   apply perm_of_res_op1.
 Qed.
 Next Obligation.
 Proof.
   intros; unfold Maps.PMap.get; simpl.
-  rewrite make_access_get.
+  fold_ptree_lookup; rewrite make_access_get.
   destruct (Pos.ltb_spec0 b (nextblock m)); auto; contradiction.
 Qed.
 Next Obligation.

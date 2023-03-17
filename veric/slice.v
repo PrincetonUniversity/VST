@@ -1,5 +1,6 @@
 Require Import VST.veric.base.
 Require Import VST.veric.shares.
+Require Import VST.veric.share_alg.
 Require Import VST.veric.res_predicates.
 Require Import VST.zlist.sublist.
 
@@ -949,18 +950,19 @@ Qed.*)
 Section heap.
 Context `{!heapGS Σ}.
 
-Lemma share_join_op: forall sh1 sh2 sh, sepalg.join sh1 sh2 sh -> sh1 <> Share.bot -> sh2 <> Share.bot ->
-  op(Op := share_op_instance) (Some sh1) (Some sh2) = Some sh.
+Lemma share_join_op: forall (sh1 sh2 sh : shareR), sepalg.join sh1 sh2 sh -> sh1 <> Share.bot -> sh2 <> Share.bot ->
+  sh1 ⋅ sh2 = sh.
 Proof.
-  intros; rewrite share_op_equiv; eauto 7.
+  intros; rewrite share_op_equiv.
+  if_tac; auto; subst.
+  apply join_Bot in H as [??]; done.
 Qed.
 
 Lemma mapsto_share_join: forall sh1 sh2 sh l r, sepalg.join sh1 sh2 sh ->
   sh1 <> Share.bot -> sh2 <> Share.bot ->
-  mapsto l sh1 r ∗ mapsto l sh2 r ⊣⊢ mapsto l sh r.
+  l ↦{#sh1} r ∗ l ↦{#sh2} r ⊣⊢ l ↦{#sh} r.
 Proof.
-  intros.
-  rewrite /mapsto ghost_map.ghost_map_elem_unseal /ghost_map.ghost_map_elem_def -own_op -gmap_view.gmap_view_frag_op.
+  intros; rewrite -mapsto_split dfrac_op_own.
   by erewrite share_join_op.
 Qed.
 
@@ -1008,8 +1010,8 @@ Proof.
     iApply (big_sepL_mono with "H").
     intros; iIntros "[[H1 _] H2]".
     iDestruct "H1" as (?) "H1".
-    iDestruct (ghost_map_elem_combine with "H1 H2") as "[? ->]".
-    by erewrite share_join_op.
+    iDestruct (mapsto_combine with "H1 H2") as "[? ->]".
+    by erewrite dfrac_op_own, share_join_op.
   - iIntros "[% H]"; iFrame "%".
     rewrite -big_sepL_sep.
     iApply (big_sepL_mono with "H").

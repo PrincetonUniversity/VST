@@ -126,6 +126,12 @@ Section lemmas.
     iDestruct (ghost_map_elem_combine with "H1 H2") as "[$ _]".
   Qed. *)
 
+  Lemma ghost_map_elem_split k γ dq1 dq2 v :
+    k ↪[γ]{dq1 ⋅ dq2} v ⊣⊢ k ↪[γ]{dq1} v ∗ k ↪[γ]{dq2} v.
+  Proof.
+    unseal. by rewrite -own_op gmap_view_frag_op.
+  Qed.
+
   Lemma ghost_map_elem_frac_ne γ k1 k2 dq1 dq2 v1 v2 :
     ¬ ✓ (dq1 ⋅ dq2) → k1 ↪[γ]{dq1} v1 -∗ k2 ↪[γ]{dq2} v2 -∗ ⌜k1 ≠ k2⌝.
   Proof.

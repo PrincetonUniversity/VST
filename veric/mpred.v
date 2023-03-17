@@ -1,3 +1,4 @@
+From iris.bi Require Export monpred.
 Require Import VST.veric.base.
 Require Import VST.veric.res_predicates.
 Require Export compcert.common.AST.
@@ -122,11 +123,32 @@ Definition varspecs : Type := list (ident * type).
 
 Definition funspecs := list (ident * funspec).
 
-Definition assert := environ -> mpred.  (* Unfortunately
-   can't export this abbreviation through SeparationLogic.v because
-  it confuses the Lift system *)
+(* assertions (environ -> mpred as pred) *)
+Global Instance environ_inhabited : Inhabited environ := {| inhabitant := any_environ |}.
 
-Definition argsassert := argsEnviron -> mpred.
+Definition environ_index : biIndex := {| bi_index_type := environ |}.
+
+Definition assert' := environ -> mpred.
+Definition assert := monPred environ_index (iPropI Σ).
+
+Program Definition assert_of (P : assert') : assert := {| monPred_at := P |}.
+
+(* Currently, this coercion doesn't seem to work. Maybe this will be easier in 8.16+. *)
+Coercion assert_of : assert' >-> assert.
+
+Fail Lemma test : forall (P Q : assert'), P ∗ Q ⊢ Q ∗ P.
+
+Global Instance argsEnviron_inhabited : Inhabited argsEnviron := {| inhabitant := (Map.empty _, nil) |}.
+
+Definition argsEnviron_index : biIndex := {| bi_index_type := argsEnviron |}.
+
+Definition argsassert' := argsEnviron -> mpred.
+Definition argsassert := monPred argsEnviron_index (iPropI Σ).
+
+Program Definition argsassert_of (P : argsassert') : argsassert := {| monPred_at := P |}.
+
+Coercion argsassert_of : argsassert' >-> argsassert.
+
 
 (*plays role of type_of_params *)
 Fixpoint typelist_of_type_list (params : list type) : typelist :=
@@ -146,6 +168,7 @@ Fixpoint make_tycontext_s (G: funspecs) :=
  end.
 
 End FUNSPEC.
+
 
 Definition int_range (sz: intsize) (sgn: signedness) (i: int) :=
  match sz, sgn with

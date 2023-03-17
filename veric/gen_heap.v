@@ -198,6 +198,10 @@ Section gen_heap.
     iDestruct (mapsto_combine with "H1 H2") as "[$ _]".
   Qed. *)
 
+  Lemma mapsto_split l dq1 dq2 v :
+    l ↦{dq1 ⋅ dq2} v ⊣⊢ l ↦{dq1} v ∗ l ↦{dq2} v.
+  Proof. rewrite mapsto_unseal. apply ghost_map_elem_split. Qed.
+
   Lemma mapsto_frac_ne l1 l2 dq1 dq2 v1 v2 :
     ¬ ✓(dq1 ⋅ dq2) → l1 ↦{dq1} v1 -∗ l2 ↦{dq2} v2 -∗ ⌜l1 ≠ l2⌝.
   Proof. rewrite mapsto_unseal. apply ghost_map_elem_frac_ne. Qed.
