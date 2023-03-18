@@ -1529,122 +1529,63 @@ destruct H0; subst b'.
 rewrite Maps.PMap.gss. rewrite Maps.ZMap.gi; auto.
 Qed.
 
-(*Definition resource_decay (nextb: block) (phi1 phi2: rmap) :=
-  (level phi1 >= level phi2)%nat /\
+(* Not sure this is usable, but it's the most direct translation. *)
+Definition resource_decay n (nextb: block) (phi1 phi2: rmap) :=
  forall l: address,
-  ((fst l >= nextb)%positive -> phi1 @ l = NO Share.bot bot_unreadable) /\
-  (resource_fmap (approx (level phi2)) (approx (level phi2)) (phi1 @ l) = (phi2 @ l) \/
-  (exists sh, exists (wsh: writable0_share sh), exists v, exists v',
-       resource_fmap (approx (level phi2)) (approx (level phi2)) (phi1 @ l) =
-                       YES sh (writable0_readable wsh) (VAL v) NoneP /\
-       phi2 @ l = YES sh (writable0_readable wsh) (VAL v') NoneP)
-  \/ ((fst l >= nextb)%positive /\ exists v, phi2 @ l = YES Share.top readable_share_top (VAL v) NoneP)
-  \/ (exists v, exists pp, phi1 @ l = YES Share.top readable_share_top (VAL v) pp
-                        /\ phi2 @ l = NO Share.bot bot_unreadable)).
+  ((fst l >= nextb)%positive -> forall dq r, ~ouPred_holds (l ↦{dq} r) n phi1) /\
+ ((forall dq r, ouPred_holds (l ↦{dq} r) n phi1 <-> ouPred_holds (l ↦{dq} r) n phi2) \/
+  (exists sh v v', writable0_share sh /\ ouPred_holds (l ↦{#sh} VAL v) n phi1 /\
+                                         ouPred_holds (l ↦{#sh} VAL v') n phi2) \/
+  ((fst l >= nextb)%positive /\ exists v, ouPred_holds (l ↦ VAL v) n phi2) \/
+  (exists v, ouPred_holds (l ↦ VAL v) n phi1 /\ forall dq r, ~ouPred_holds (l ↦{dq} r) n phi2)).
 
-Definition resource_nodecay (nextb: block) (phi1 phi2: rmap) :=
-  (level phi1 >= level phi2)%nat /\
+Definition resource_nodecay n (nextb: block) (phi1 phi2: rmap) :=
   forall l: address,
-  ((fst l >= nextb)%positive -> phi1 @ l = NO Share.bot bot_unreadable) /\
-  (resource_fmap (approx (level phi2)) (approx (level phi2)) (phi1 @ l) = (phi2 @ l) \/
-  (exists sh, exists (wsh: writable0_share sh), exists v, exists v',
-       resource_fmap (approx (level phi2)) (approx (level phi2)) (phi1 @ l) = YES sh (writable0_readable wsh) (VAL v) NoneP
-      /\ phi2 @ l = YES sh (writable0_readable wsh) (VAL v') NoneP)).
+  ((fst l >= nextb)%positive -> forall dq r, ~ouPred_holds (l ↦{dq} r) n phi1) /\
+ ((forall dq r, ouPred_holds (l ↦{dq} r) n phi1 <-> ouPred_holds (l ↦{dq} r) n phi2) \/
+  (exists sh v v', writable0_share sh /\ ouPred_holds (l ↦{#sh} VAL v) n phi1 /\
+                                         ouPred_holds (l ↦{#sh} VAL v') n phi2)).
 
 Lemma resource_nodecay_decay:
-   forall b phi1 phi2, resource_nodecay b phi1 phi2 -> resource_decay b phi1 phi2.
+   forall n b phi1 phi2, resource_nodecay n b phi1 phi2 -> resource_decay n b phi1 phi2.
 Proof.
- unfold resource_decay, resource_nodecay; intros; destruct H; split; intros; try lia.
-specialize (H0 l); intuition.
+  unfold resource_decay, resource_nodecay; intros.
+  specialize (H l); intuition.
 Qed.
 
-Lemma resource_decay_refl: forall b phi,
-  (forall l, (fst l >= b)%positive -> phi @ l = NO Share.bot bot_unreadable) ->
-  resource_decay b phi phi.
+Lemma resource_decay_refl: forall n b phi,
+  (forall l, (fst l >= b)%positive -> forall dq r, ~ouPred_holds (l ↦{dq} r) n phi) ->
+  resource_decay n b phi phi.
 Proof.
-intros.
-split; auto.
-intros; split; auto.
-left.
-apply resource_at_approx.
+intros; intros l; auto.
 Qed.
 
-Lemma resource_decay_trans: forall b b' m1 m2 m3,
-  (b <= b')%positive ->
-  resource_decay b m1 m2 -> resource_decay b' m2 m3 -> resource_decay b m1 m3.
+Lemma resource_decay_trans: forall n b b' m1 m2 m3 (Hbb : (b <= b')%positive),
+  resource_decay n b m1 m2 -> resource_decay n b' m2 m3 -> resource_decay n b m1 m3.
 Proof.
- intros until m3; intro Hbb; intros.
- destruct H as [H' H]; destruct H0 as [H0' H0]; split; [lia |].
- intro l; specialize (H l); specialize (H0 l).
- destruct H,H0.
- split.  auto.
- destruct H1.
- destruct H2.
- left. rewrite <- H2.
- replace (resource_fmap (approx (level m3)) (approx (level m3)) (m1 @ l))
-    with (resource_fmap (approx (level m3)) (approx (level m3))
-              (resource_fmap (approx (level m2)) (approx (level m2)) (m1 @ l)))
-  by (rewrite resource_fmap_fmap; rewrite approx_oo_approx' by auto; rewrite approx'_oo_approx by auto; auto).
-rewrite H1. auto.
- clear - Hbb H H1 H0 H2 H' H0'.
- right.
- destruct H2 as [[sh2 [wsh2 [v2 [v2' [? ?]]]]]|[[? [v ?]] |?]]; subst.
- left; exists sh2, wsh2,v2,v2'; split; auto.
- rewrite <- H1 in H2.
- rewrite resource_fmap_fmap in H2.
- rewrite approx_oo_approx' in H2 by lia.
- rewrite approx'_oo_approx in H2 by lia.
- assumption.
- right; left. split. lia. exists v; auto.
- right; right; auto.
- destruct H2 as [v [pp [? ?]]].
- rewrite H2 in H1. destruct (m1 @ l); inv H1.
- exists v, p. split; auto. f_equal. apply proof_irr.
- destruct H2.
- destruct H1 as [[sh [wsh [v [v' [? ?]]]]]|[[? [v ?]] |?]].
- right; left; exists sh,wsh,v,v'; split.
- rewrite <- (approx_oo_approx' (level m3) (level m2)) at 1 by auto.
- rewrite <- (approx'_oo_approx (level m3) (level m2)) at 2 by auto.
- rewrite <- resource_fmap_fmap. rewrite H1.
- unfold resource_fmap. rewrite preds_fmap_NoneP. auto.
- rewrite H3 in H2. rewrite <- H2.
- unfold resource_fmap. rewrite preds_fmap_NoneP. auto.
- right; right; left; split; auto. exists v. rewrite <- H2; rewrite <- H3.
- rewrite H3.
- unfold resource_fmap. rewrite preds_fmap_NoneP. auto.
- right; right; right.
- destruct H1 as [v [pp [? ?]]].
- rewrite H3 in H2. simpl in H2. eauto.
- destruct H1 as [[sh [wsh [v [v' [? ?]]]]]|[[? [v ?]] |?]].
- destruct H2 as [[sh2 [wsh2 [v2 [v2' [? ?]]]]]|[[? [v2 ?]] |?]].
- right; left; exists sh,wsh,v,v2'; split.
- rewrite <- (approx_oo_approx' (level m3) (level m2)) at 1 by auto.
- rewrite <- (approx'_oo_approx (level m3) (level m2)) at 2 by auto.
- rewrite <- resource_fmap_fmap. rewrite H1.
- unfold resource_fmap. rewrite preds_fmap_NoneP. auto.
- rewrite H3 in H2. rewrite H4. simpl in H2. inv H2.
- f_equal. apply proof_irr.
- right; right; left. split. lia. exists v2; auto.
- right; right; right.
- destruct (m1 @ l); inv H1.
- destruct H2 as [vx [pp [? ?]]]. inversion2 H3 H1.
- exists v,p. split; auto. f_equal; apply proof_irr.
- destruct H2 as [[sh2 [wsh2 [v2 [v2' [? ?]]]]]|[[? [v2 ?]] |?]].
- right; right; left; split; auto. exists v2'. rewrite H3 in H2; inv H2.
- rewrite H4; f_equal; apply proof_irr.
- right; right; left; split; auto; exists v2; auto.
- left. destruct H2 as [v' [pp [? ?]]]. rewrite H4; rewrite H; auto.
- destruct H2 as [[sh2 [wsh2 [v2 [v2' [? ?]]]]]|[[? [v2 ?]] |?]].
- destruct H1 as [v' [pp [? ?]]].
- rewrite H4 in H2; inv H2.
- right; right; left; split. lia. eauto.
- right; right; right.
- destruct H1 as [v1 [pp1 [? ?]]].
- destruct H2 as [v2 [pp2 [? ?]]].
- inversion2 H3 H2.
-Qed.
+  intros; intros l.
+  specialize (H l); specialize (H0 l).
+  destruct H,H0.
+  split. auto.
+  destruct H1.
+  { setoid_rewrite H1. destruct H2 as [?|[?|[[??]|?]]]; auto.
+    assert (l.1 >= b)%positive by lia; auto. }
+  destruct H2.
+  { setoid_rewrite <- H2. auto. }
+  destruct H1 as [? | [? | ?]].
+  - destruct H1 as (sh & v & v' & ? & ? & ?).
+    destruct H2 as [? | [[??] | ?]].
+    + destruct H2 as (sh2 & v2 & v2' & ? & ? & ?).
+      right; left; exists sh, v, v2'; split; auto; split; auto.
+      admit. (* can only have one writable share *)
+    + exfalso; eapply H0; eauto.
+    + destruct H2 as (? & ? & ?); right; right; right.
+      eexists; split; eauto.
+      admit. (* writable share again *)
+  - destruct H1 as (? & ? & ?).
+Abort. (* should be provable *)
 
-Lemma level_store_juicy_mem:
+(*Lemma level_store_juicy_mem:
  forall jm m ch b i v H, level (store_juicy_mem jm m ch b i v H) = level jm.
 Proof.
 intros.

@@ -5,22 +5,38 @@ Require Import VST.sepcomp.step_lemmas.
 Require Import VST.veric.shares.
 (*Require Import VST.veric.juicy_safety.*)
 Require Import VST.veric.juicy_mem.
+Require Import VST.veric.external_state.
 
 Require Import VST.veric.tycontext.
 
 Local Open Scope nat_scope.
 
+Section mpred.
+
+Context `{!heapGS Σ}.
+
+(*(* predicates on juicy memories *)
+Global Instance mem_inhabited : Inhabited Memory.mem := {| inhabitant := Mem.empty |}.
+Definition mem_index : biIndex := {| bi_index_type := mem |}.
+
+Definition jmpred := monPred mem_index (iPropI Σ).
+
+(*Program Definition jmpred_of (P : juicy_mem -> Prop) : jmpred := {| monPred_at m := P |}.*)
+(* Do we need to explicitly include the step-index in the jm? *)*)
+
+(* Should we track the current memory, or re-quantify over one consistent with the rmap? *)
+Record juicy_mem := { level : nat; m_dry : mem; m_phi : rmap }.
+
+Definition jm_mono (P : juicy_mem -> Prop) := ∀jm n2 x2, P jm -> m_phi jm ≼ₒ{level jm} x2 ->
+  n2 <= level jm -> P {| level := n2; m_dry := m_dry jm; m_phi := x2 |}.
+(* This seems like it would allow us to construct predicates on juicy mems, but I can't figure out
+   the construction right now. *)
+
 Record juicy_ext_spec (Z: Type) := {
-  JE_spec:> external_specification juicy_mem external_function Z;
-  JE_pre_hered: forall e t ge_s typs args z, hereditary age (ext_spec_pre JE_spec e t ge_s typs args z);
-  JE_pre_ext: forall e t ge_s typs args z a a', ext_order a a' ->
-    joins (ghost_of (m_phi a')) (Some (ext_ref z, NoneP) :: nil) ->
-    ext_spec_pre JE_spec e t ge_s typs args z a ->
-    ext_spec_pre JE_spec e t ge_s typs args z a';
-  JE_post_hered: forall e t ge_s tret rv z, hereditary age (ext_spec_post JE_spec e t ge_s tret rv z);
-  JE_post_ext: forall e t ge_s tret rv z, hereditary ext_order (ext_spec_post JE_spec e t ge_s tret rv z);
-  JE_exit_hered: forall rv z, hereditary age (ext_spec_exit JE_spec rv z);
-  JE_exit_ext: forall rv z, hereditary ext_order (ext_spec_exit JE_spec rv z)
+  JE_spec :> external_specification juicy_mem external_function Z;
+  JE_pre_mono: forall e t ge_s typs args z, jm_mono (ext_spec_pre JE_spec e t ge_s typs args z);
+  JE_post_mono: forall e t ge_s tret rv z, jm_mono (ext_spec_post JE_spec e t ge_s tret rv z);
+  JE_exit_hered: forall rv z, jm_mono (ext_spec_exit JE_spec rv z)
 }.
 
 Class OracleKind := {
@@ -38,14 +54,11 @@ Definition void_spec T : external_specification juicy_mem external_function T :=
       (fun rv m z => False).
 
 Definition ok_void_spec (T : Type) : OracleKind.
- refine (Build_OracleKind T (Build_juicy_ext_spec _ (void_spec T) _ _ _ _ _ _)).
+ refine (Build_OracleKind T (Build_juicy_ext_spec _ (void_spec T) _ _ _)).
 Proof.
   simpl; intros; contradiction.
   simpl; intros; contradiction.
-  simpl; intros; contradiction.
-  simpl; intros; contradiction.
-  simpl; intros; intros ? ? ? ?; contradiction.
-  simpl; intros; intros ? ? ? ?; contradiction.
+  simpl; intros ???; contradiction.
 Defined.
 
 Definition j_initial_core {C} (csem: @CoreSemantics C mem)
@@ -64,16 +77,18 @@ Definition j_after_external {C} (csem: @CoreSemantics C mem)
 
 Definition jstep {C} (csem: @CoreSemantics C mem)
   (q: C) (jm: juicy_mem) (q': C) (jm': juicy_mem) : Prop :=
- corestep csem q (m_dry jm) q' (m_dry jm') /\ 
- resource_decay (nextblock (m_dry jm)) (m_phi jm) (m_phi jm') /\
- level jm = S (level jm') /\
- ghost_of (m_phi jm') = ghost_approx jm' (ghost_of (m_phi jm)).
+ corestep csem q (m_dry jm) q' (m_dry jm') /\
+ resource_decay (level jm') (nextblock (m_dry jm)) (m_phi jm) (m_phi jm') /\
+ level jm = S (level jm') (*/\
+  Really, what we want is "nothing has changed in the rmap except the changes related to the mem ops".
+  We can state this by indexing into the rmap, but...
+ ghost_of (m_phi jm') = ghost_approx jm' (ghost_of (m_phi jm))*).
 
 Definition j_halted {C} (csem: @CoreSemantics C mem)
        (c: C) (i: int): Prop :=
      halted csem c i.
 
-Lemma jstep_not_at_external {C} (csem: @CoreSemantics C mem):
+(*Lemma jstep_not_at_external {C} (csem: @CoreSemantics C mem):
   forall m q m' q', jstep csem q m q' m' -> at_external csem q (m_dry m) = None.
 Proof.
   intros.
@@ -86,21 +101,6 @@ Proof.
   intros. destruct H as (? & ? & ? & ?). eapply corestep_not_halted; eauto.
 Qed.
 
-(*Lenb: removed here. To be moved a more CLight-specific place
-Record jm_init_package: Type := {
-  jminit_m: Memory.mem;
-  jminit_prog: program;
-  jminit_G: tycontext.funspecs;
-  jminit_lev: nat;
-  jminit_init_mem: Genv.init_mem jminit_prog = Some jminit_m;
-  jminit_defs_no_dups:   list_norepet (prog_defs_names jminit_prog);
-  jminit_fdecs_match: match_fdecs (prog_funct jminit_prog) jminit_G
-}.
-
-Definition init_jmem {G} (ge: G) (jm: juicy_mem) (d: jm_init_package) :=
-  jm = initial_jm (jminit_prog d) (jminit_m d) (jminit_G d) (jminit_lev d)
-         (jminit_init_mem d) (jminit_defs_no_dups d) (jminit_fdecs_match d).
-*)
 Definition juicy_core_sem
   {C} (csem: @CoreSemantics C mem) :
    @CoreSemantics C juicy_mem :=
@@ -113,6 +113,7 @@ Definition juicy_core_sem
     (jstep_not_halted csem)
     (jstep_not_at_external csem)
 (*  (j_at_external_halted_excl csem)*).
+*)
 
 Section upd_exit.
   Context {Z : Type}.
@@ -129,18 +130,15 @@ Section upd_exit.
 
   Program Definition upd_exit {ef : external_function} (x : ext_spec_type spec ef) ge
    : juicy_ext_spec Z :=
-    Build_juicy_ext_spec _ (upd_exit'' _ x ge) _ _ _ _ _ _.
-  Next Obligation. intros. eapply JE_pre_hered; eauto. Qed.
-  Next Obligation. intros. eapply JE_pre_ext; eauto. Qed.
-  Next Obligation. intros. eapply JE_post_hered; eauto. Qed.
-  Next Obligation. intros. eapply JE_post_ext; eauto. Qed.
-  Next Obligation. intros. eapply JE_post_hered; eauto. Qed. 
-  Next Obligation. intros. eapply JE_post_ext; eauto. Qed.
+    Build_juicy_ext_spec _ (upd_exit'' _ x ge) _ _ _.
+  Next Obligation. intros. eapply JE_pre_mono; eauto. Qed.
+  Next Obligation. intros. eapply JE_post_mono; eauto. Qed.
+  Next Obligation. intros. eapply JE_post_mono; eauto. Qed.
 End upd_exit.
 
 Obligation Tactic := Tactics.program_simpl.
 
-Program Definition juicy_mem_op (P : pred rmap) : pred juicy_mem :=
+(*Program Definition juicy_mem_op (P : pred rmap) : pred juicy_mem :=
   fun jm => P (m_phi jm).
  Next Obligation.
   split; repeat intro.
@@ -275,11 +273,9 @@ Proof.
     apply age_jm_phi in Hage; apply age_jm_phi in Hage2.
     rewrite (age_resource_at Hage), (age_resource_at Hage2).
     rewrite <- !level_juice_level_phi; congruence.
-Qed.
+Qed.*)
 
-Definition has_ext {Z} (ora : Z) : mpred.mpred := @own (ext_PCM _) 0 (Some (Tsh, Some ora), None) NoneP.
-
-Definition jm_bupd {Z} (ora : Z) P m := forall C : ghost,
+(*Definition jm_bupd {Z} (ora : Z) P m := forall C : ghost,
   (* use the external state to restrict the ghost moves *)
   join_sub (Some (ext_ref ora, NoneP) :: nil) C ->
   joins (ghost_of (m_phi m)) (ghost_approx m C) ->
@@ -655,7 +651,7 @@ Proof.
       split; [apply join_level in J' as []; auto|].
       split; [|eexists; apply ghost_of_join; eauto]; auto.
     + eapply join_sub_joins_trans; [eexists; apply ghost_of_join; eauto | auto].
-Qed.
+Qed.*)
 
 Section juicy_safety.
   Context {G C Z:Type}.
@@ -664,9 +660,52 @@ Section juicy_safety.
   Variable (Hspec : juicy_ext_spec Z).
   Variable ge : G.
 
-  Definition Hrel m m' :=
+  Context `{!externalGS Z Σ}.
+
+(*  Definition Hrel m m' :=
     (level m' < level m)%nat /\
-    pures_eq (m_phi m) (m_phi m').
+    pures_eq (m_phi m) (m_phi m'). *)
+
+
+Definition wp_pre `{!irisGS_gen hlc Λ Σ} (s : stuckness)
+    (wp : coPset -d> expr Λ -d> (val Λ -d> iPropO Σ) -d> iPropO Σ) :
+    coPset -d> expr Λ -d> (val Λ -d> iPropO Σ) -d> iPropO Σ := λ E e1 Φ,
+  match to_val e1 with
+  | Some v => |={E}=> Φ v
+  | None => ∀ σ1 ns κ κs nt,
+     state_interp σ1 ns (κ ++ κs) nt ={E,∅}=∗
+       ⌜if s is NotStuck then reducible e1 σ1 else True⌝ ∗
+       ∀ e2 σ2 efs, ⌜prim_step e1 σ1 κ e2 σ2 efs⌝ -∗
+         £ (S (num_laters_per_step ns))
+         ={∅}▷=∗^(S $ num_laters_per_step ns) |={∅,E}=>
+         state_interp σ2 (S ns) κs (length efs + nt) ∗
+         wp E e2 Φ ∗
+         [∗ list] i ↦ ef ∈ efs, wp ⊤ ef fork_post
+  end%I.
+
+(* The closest match would be to have the heap view hold the whole juicy mem. *)
+Definition jsafeN_pre
+    (jsafeN : coPset -d> expr Λ -d> (val Λ -d> iPropO Σ) -d> iPropO Σ) :
+    coPset -d> expr Λ -d> (val Λ -d> iPropO Σ) -d> iPropO Σ := λ E z c,
+  ◇ ((∃ i, ⌜semantics.halted Hcore c i⌝ ∧ ext_spec_exit Hspec (Some (Vint i)) z) ∨
+     (∀ m, ● m ={E}=∗ 
+      (⌜j_at_external Hcore c m⌝ -∗ ext_spec_pre Hspec e x (genv_symb ge) (sig_args (ef_sig e)) args z -∗
+         ∀ ..., ext_spec_post ... ={E}=∗ jsafeN E z' c') ∧
+      (▷ ∀ c' m', jstep Hcore c c' m' ={E}=∗ jsafeN z E c').
+
+  match to_val e1 with
+  | Some v => |={E}=> Φ v
+  | None => ∀ σ1 ns κ κs nt,
+     state_interp σ1 ns (κ ++ κs) nt ={E,∅}=∗
+       ⌜if s is NotStuck then reducible e1 σ1 else True⌝ ∗
+       ∀ e2 σ2 efs, ⌜prim_step e1 σ1 κ e2 σ2 efs⌝ -∗
+         £ (S (num_laters_per_step ns))
+         ={∅}▷=∗^(S $ num_laters_per_step ns) |={∅,E}=>
+         state_interp σ2 (S ns) κs (length efs + nt) ∗
+         wp E e2 Φ ∗
+         [∗ list] i ↦ ef ∈ efs, wp ⊤ ef fork_post
+  end%I.
+
 
   (* try without N, using level instead *)
   Inductive jsafeN_:
@@ -1126,3 +1165,5 @@ Proof.
     congruence.
   - congruence.
 Qed.
+
+End mpred.

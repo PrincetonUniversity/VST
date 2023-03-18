@@ -2,7 +2,6 @@ Require Import VST.veric.juicy_base.
 Require Import VST.veric.juicy_mem.
 Require Import VST.veric.res_predicates.
 Require Import VST.veric.shares.
-Import compcert.lib.Maps.
 
 Definition juicy_mem_core (j: juicy_mem) : rmap := core (m_phi j).
 
@@ -33,15 +32,6 @@ Definition no_VALs (phi: rmap) := forall loc,
   match phi @ loc with
     | YES _ _ (VAL _) _ => False | _ => True
   end.
-
-Lemma components_join_joins {A} {JA: Join A}{PA: Perm_alg A}{TA: Trip_alg A}: forall a b c d,
-   join a b c -> joins a d -> joins b d -> joins c d.
-Proof.
-intros.
-destruct H0 as [x ?]. destruct H1 as [y ?].
-destruct (TA a b d c y x H H1 H0).
-eauto.
-Qed.
 
 (* coherence lemmas *)
 
