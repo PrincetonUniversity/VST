@@ -160,11 +160,30 @@ match goal with |- ?a = ?b =>
     match b with context [map ?y _] => replace y with x; auto end end end.
 
 (* In VST, we do a lot of reasoning directly on rmaps instead of mpreds. How much of that can we avoid? *)
+Definition resR_to_resource : optionR (prodR dfracR (agreeR (leibnizO resource))) -> option (dfrac * resource) :=
+  option_map (fun '(q, a) => (q, (hd (VAL Undef) (agree_car a)))).
+
 Definition heap_inG := ghost_map.ghost_map_inG(ghost_mapG := gen_heapGpreS_heap(gen_heapGpreS := gen_heap_inG)).
 Definition resource_at (m : rmap) (l : address) : option (dfrac * resource) :=
   (option_map (ora_transport (eq_sym (inG_prf(inG := heap_inG)))) (option_map own.inG_fold ((m (inG_id heap_inG)) !! (gen_heap_name (heapGS_gen_heapGS)))))
-    ≫= (fun v => option_map (fun '(q, a) => (q, (hd (VAL Undef) (agree_car a)))) (view_frag_proj v !! l)).
+    ≫= (fun v => resR_to_resource (view_frag_proj v !! l)).
 Infix "@" := resource_at (at level 50, no associativity).
+
+(*Lemma ord_resource_at : forall n r1 r2, r1 ≼ₒ{n} r2 -> resource_at r1 ≼ₒ{n} resource_at r2.
+Proof.
+  intros; rewrite /resource_at.
+  extensionality l.
+  specialize (H (inG_id heap_inG) (gen_heap_name (heapGS_gen_heapGS))).
+  destruct (_ !! _), (_ !! _); try done; simpl in *.
+  - assert (ora_transport (eq_sym inG_prf) (own.inG_fold o) ≼ₒ{n} 
+    ora_transport (eq_sym inG_prf) (own.inG_fold o0)) as [_ Hord'] by admit.
+    specialize (Hord' l).
+    destruct (_ !! _) as [(?, ?)|], (_ !! _) as [(?, ?)|]; try done; simpl in *.
+    + destruct Hord' as [??].
+      hnf in H0. admit. (* not necessarily -- we can add discarded fracs, though that won't affect juicy coherence *)
+    + hnf in Hord'. admit. (* ditto *)
+  - (* The heap could be absent entirely on the LHS, and contain only discarded fracs on the RHS *)
+Abort.*)
 
 Definition nonlock (r: resource) : Prop :=
  match r with

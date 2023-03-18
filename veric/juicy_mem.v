@@ -23,9 +23,6 @@ Definition contents_at (m: mem) (loc: address) : memval :=
 Section rmap.
 Context `{!heapGS Σ}.
 
-Definition contents_cohere (m: mem) (phi: rmap) :=
-  forall dq v loc, phi @ loc = Some (dq, VAL v) -> contents_at m loc = v.
-
 (*Definition res_retain' (r: resource) : Share.t :=
  match r with
   | NO sh _ => sh
@@ -238,16 +235,58 @@ Proof.
   unfold perm_of_dfrac; destruct d; apply perm_order''_refl || apply perm_of_sh_glb.
 Qed.
 
-Definition access_cohere (m: mem)  (phi: rmap) :=
-  forall loc, access_at m loc Cur = perm_of_res (phi @ loc).
+(*Definition contents_cohere (m: mem) (phi: rmap) :=
+  forall dq v loc, phi @ loc = Some (dq, VAL v) -> contents_at m loc = v.*)
+
+(*Definition access_cohere (m: mem)  (phi: rmap) :=
+  forall loc, access_at m loc Cur = perm_of_res (phi @ loc).*)
 
 Definition max_access_at m loc := access_at m loc Max.
 
-Definition max_access_cohere (m: mem) (phi: rmap) :=
-  forall loc, perm_order'' (max_access_at m loc) (perm_of_res' (phi @ loc)).
+(*Definition max_access_cohere (m: mem) (phi: rmap) :=
+  forall loc, perm_order'' (max_access_at m loc) (perm_of_res' (phi @ loc)).*)
 
-Definition alloc_cohere (m: mem) (phi: rmap) :=
- forall loc, (fst loc >= nextblock m)%positive -> phi @ loc = None.
+(*Definition alloc_cohere (m: mem) (phi: rmap) :=
+ forall loc, (fst loc >= nextblock m)%positive -> phi @ loc = None.*)
+
+Open Scope bi_scope.
+
+Definition contents_cohere (m: mem) : mpred := ∀dq v l,
+  l ↦{dq} VAL v → ⌜contents_at m l = v⌝.
+
+(* To be consistent with the extension order, we have to allow for the possibility that there's a discarded
+   fraction giving us an extra readable share. *)
+Definition access_cohere (m: mem) : mpred := ∀ l,
+  (∀dq r, l ↦{dq} r ∧ ⌜perm_order'' (perm_of_res (Some (dq, r))) (Some Readable)⌝ → ⌜access_at m l Cur = perm_of_res (Some (dq, r))⌝) ∧
+  (⌜perm_order'' (access_at m l Cur) (Some Writable)⌝ → ∃dq r, l ↦{dq} r ∧ ⌜access_at m l Cur = perm_of_res (Some (dq, r))⌝).
+
+Definition max_access_cohere (m: mem) : mpred := ∀l dq r,
+  l ↦{dq} r → ⌜perm_order'' (max_access_at m l) (perm_of_res' (Some (dq, r)))⌝.
+
+Definition alloc_cohere (m: mem) := ∀l dq r, l ↦{dq} r → ⌜fst l < nextblock m⌝%positive.
+
+Lemma perm_of_res_order : forall n r1 r2 (Hv : valid r2) (Hr1 : r1 ≠ None), r1 ≼ₒ{n} r2 -> perm_of_res (resR_to_resource r1) = perm_of_res (resR_to_resource r2).
+Proof.
+  intros.
+  destruct r1 as [(d1, a1)|], r2 as [(d2, a2)|]; try done; simpl in *.
+  destruct H as [Hd Ha], Hv as [Hvd Hva]; simpl in *.
+  assert (hd (VAL Undef) (agree.agree_car a1) = hd (VAL Undef) (agree.agree_car a2)) as Heq.
+  { hnf in Ha.
+    destruct a1, a2; simpl in *.
+    destruct agree_car as [| v] => // /=.
+    destruct agree_car0 as [| v2] => // /=.
+    destruct (Ha v) as (v2' & Hin & Heq); first apply elem_of_list_here.
+    specialize (Hva n); rewrite agree.agree_validN_def in Hva.
+    specialize (Hva _ _ (elem_of_list_here _ _) Hin).
+    hnf in Heq, Hva; subst; done. }
+  rewrite Heq.
+  destruct Hd; subst; try done.
+  destruct d1; done.
+Qed.
+
+Definition coherent_with (m: mem) : mpred := contents_cohere m ∧ access_cohere m ∧ max_access_cohere m ∧ alloc_cohere m.
+
+(* Is there a way to turn e.g. contents_cohere inside-out so we don't have to 
 
 Inductive juicy_mem: Type :=
   mkJuicyMem: forall (m: mem) (phi: rmap)
@@ -271,12 +310,12 @@ Lemma juicy_mem_alloc_cohere: alloc_cohere m_dry m_phi.
 Proof. unfold m_dry, m_phi; destruct j; auto. Qed.
 End selectors.
 
-(*Definition juicy_mem_resource: forall jm m', resource_at m' = resource_at (m_phi jm) ->
+Definition juicy_mem_resource: forall jm m', resource_at m' = resource_at (m_phi jm) ->
   {jm' | m_phi jm' = m' /\ m_dry jm' = m_dry jm}.
 Proof.
   intros.
   assert (contents_cohere (m_dry jm) m') as Hcontents.
-  { intros ?????.
+  { intros ???.
     rewrite H; apply juicy_mem_contents. }
   assert (access_cohere (m_dry jm) m') as Haccess.
   { intro.
@@ -338,151 +377,10 @@ simpl in H.
 destruct (phi@loc); eauto 50.
 Qed.*)
 
-(* Maybe replace this with some Proper instances?
-
-Program Definition age1_juicy_mem (j: juicy_mem): option juicy_mem :=
-      match age1 (m_phi j) with
-        | Some phi' => Some (mkJuicyMem (m_dry j) phi' _ _ _ _)
-        | None => None
-      end.
-Next Obligation.  (* contents_cohere *)
- assert (necR (m_phi j) phi')
-   by (constructor 1; symmetry in Heq_anonymous; apply Heq_anonymous).
- destruct j; hnf; simpl in *; intros.
- case_eq (phi @ loc); intros.
- apply (necR_NO _ _ _ _ _ H) in H1. congruence.
- generalize (necR_YES _ _ _ _ _ _ _ H H1); intros.
- rewrite H0 in H2. inv H2.
- destruct (JMcontents sh0 r v loc _ H1). subst; split; auto.
- rewrite (necR_PURE _ _ _ _ _ H H1) in H0. inv H0.
-Qed.
-Next Obligation. (* access_cohere *)
- assert (necR (m_phi j) phi')
-   by (constructor 1; symmetry in Heq_anonymous; apply Heq_anonymous).
- destruct j; hnf; simpl in *; intros.
- generalize (JMaccess loc); case_eq (phi @ loc); intros.
- apply (necR_NO _ _ loc _ _ H) in H0. rewrite H0; auto.
- rewrite (necR_YES _ _ _ _ _ _ _ H H0); auto.
- rewrite (necR_PURE _ _ _ _ _ H H0); auto.
-Qed.
-Next Obligation. (* max_access_cohere *)
- assert (necR (m_phi j) phi')
-   by (constructor 1; symmetry in Heq_anonymous; apply Heq_anonymous).
- destruct j; hnf; simpl in *; intros.
- generalize (JMmax_access loc); case_eq (phi @ loc); intros.
- apply (necR_NO _ _ loc _ _ H) in H0. rewrite H0; auto.
- rewrite (necR_YES _ _ _ _ _ _ _ H H0); auto.
- rewrite (necR_PURE _ _ _ _ _ H H0); auto.
-Qed.
-Next Obligation. (* alloc_cohere *)
- assert (necR (m_phi j) phi')
-   by (constructor 1; symmetry in Heq_anonymous; apply Heq_anonymous).
- destruct j; hnf; simpl in *; intros.
- specialize (JMalloc loc H0).
- apply (necR_NO _ _ loc _ _ H). auto.
-Qed.
-
-Lemma age1_juicy_mem_unpack: forall j j',
-  age1_juicy_mem j = Some j' ->
-  age (m_phi j)  (m_phi j')
-  /\ m_dry j = m_dry j'.
+(*Definition ord_jm jm {n r} (Hord : m_phi jm ≼ₒ{n} r) :
+  {jm' | m_phi jm' = r ∧ m_dry jm' = m_dry jm}.
 Proof.
-intros.
-unfold age1_juicy_mem in H.
-invSome.
-inv H.
-split; simpl; auto.
-symmetry in H0; apply H0.
-Qed.
-
-Lemma age1_juicy_mem_unpack': forall j j',
-  age (m_phi j)  (m_phi j')  /\ m_dry j = m_dry j' ->
-  age1_juicy_mem j = Some j'.
-Proof.
-  intuition.
-  unfold age1_juicy_mem.
-  generalize (eq_refl (age1 (m_phi j))).
-  pattern (age1 (m_phi j)) at 1 3.
-  rewrite H0;  clear H0. intros H0.
-  f_equal.
-  destruct j, j'; simpl in *; subst; repeat f_equal; try apply proof_irr.
-Qed.
-
-Lemma age1_juicy_mem_unpack'': forall j j',
-  age (m_phi j)  (m_phi j')  -> m_dry j = m_dry j' ->
-  age1_juicy_mem j = Some j'.
-Proof.
-  intros.
-  apply age1_juicy_mem_unpack'.
- split; auto.
-Qed.
-
-#[export] Instance juicy_mem_ageable: ageable juicy_mem :=
-  mkAgeable _ (fun j => level (m_phi j)) age1_juicy_mem juicy_mem_ageable_facts.
-*)
-
-Lemma juicy_mem_ext: forall j1 j2,
-       m_dry j1 = m_dry j2  ->
-       m_phi j1 = m_phi j2 ->
-       j1=j2.
-Proof.
-intros.
-destruct j1; destruct j2; simpl in *.
-subst.
-f_equal; apply proof_irr.
-Qed.
-
-(*Lemma unage_writable: forall (phi phi': rmap) loc,
-  age phi phi' -> writable loc phi' -> writable loc phi.
-Proof.
-intros.
-simpl in *.
-apply age1_resource_at with (loc := loc) (r := phi @ loc) in H.
-destruct (phi' @ loc); try contradiction.
-unfold writable.
-destruct (phi @ loc); try discriminate.
-inv H. auto.
-destruct (phi' @ loc); inv H0.
-rewrite resource_at_approx. auto.
-Qed.
-
-Lemma unage_readable: forall (phi phi': rmap) loc,
-  age phi phi' -> readable loc phi' -> readable loc phi.
-Proof.
-intros.
-simpl in *.
-apply age1_resource_at with (loc := loc) (r := phi @ loc) in H.
- 2: symmetry; apply resource_at_approx.
-destruct (phi' @ loc); try inv H0.
-destruct (phi @ loc); try inv H.
-auto.
-Qed.
-
-Lemma readable_inv: forall phi loc, readable loc phi ->
-  exists rsh, exists sh, exists v, exists pp, phi @ loc = YES rsh sh (VAL v) pp.
-Proof.
-simpl.
-intros phi loc H.
-destruct (phi @ loc); try solve [inversion H].
-destruct k; try inv H.
-eauto.
-Qed.
-
-Lemma ext_ord_juicy_mem : forall m b, ext_order (m_phi m) b ->
-  exists m', m_dry m' = m_dry m /\ m_phi m' = b.
-Proof.
-  intros.
-  destruct (juicy_mem_resource m b) as (? & ? & ?); eauto.
-  apply rmap_order in H as (Hl & Hr & Hg); auto.
-Qed.
-
-Lemma ext_ord_juicy_mem' : forall m b, ext_order b (m_phi m) ->
-  exists m', m_dry m' = m_dry m /\ m_phi m' = b.
-Proof.
-  intros.
-  destruct (juicy_mem_resource m b) as (? & ? & ?); eauto.
-  apply rmap_order in H as (Hl & Hr & Hg); auto.
-Qed.*)
+  apply juicy_mem_resource.
 
 Definition access_of_rmap r b ofs k :=
   match k with
@@ -530,12 +428,12 @@ Proof.
     { rewrite -> Zminus_succ_l.
       unfold Z.succ. rewrite -> Z.add_simpl_r; reflexivity. }
     rewrite In_upto; lia.
-Qed.
+Qed.*)
 
 Ltac fold_ptree_lookup := repeat match goal with |-context[Maps.PTree.get ?k ?m] =>
   change (Maps.PTree.get k m) with (m !! k) end.
 
-Program Definition deflate_mem (m : Memory.mem) (r : rmap) (Halloc : alloc_cohere m r) :=
+(*Program Definition deflate_mem (m : Memory.mem) (r : rmap) (Halloc : alloc_cohere m r) :=
   {| mem_contents := mem_contents m;
     (* original could have non-None default, so we need to 
        reconstruct it from the blocks [1, nextblock) *)
@@ -557,7 +455,7 @@ Qed.
 Next Obligation.
 Proof.
   intros; apply contents_default.
-Qed.
+Qed.*)
 
 (* There are plenty of other orders on memories, but they're all either
    way too general (Mem.extends, mem_lessdef) or way too restrictive (mem_lessalloc). *)
@@ -767,6 +665,7 @@ refine (fun f g lev H Hg => match proj2_sig (remake_rmap f g lev H Hg) with
                          end).
 Qed.*)
 
+(*
 (* Here we build the [rmap]s that correspond to [store]s, [alloc]s and [free]s on the dry memory. *)
 Section inflate.
 Variables (m: mem) (phi: rmap).
@@ -870,7 +769,7 @@ rewrite HeqHPHI.
 apply resource_at_approx.
 Defined.*)
 
-End inflate.
+End inflate.*)
 
 Lemma adr_inv0: forall (b b': block) (ofs ofs': Z) (sz: Z),
   ~ adr_range (b, ofs) sz (b', ofs') ->
@@ -922,7 +821,7 @@ apply (nextblock_noaccess m b ofs k).
 auto.
 Qed.
 
-Section initial_mem.
+(*Section initial_mem.
 Variables (m: mem) (w: rmap).
 
 Definition initial_rmap_ok :=
@@ -933,7 +832,7 @@ Definition initial_rmap_ok :=
                                             max_access_at m loc = Some Nonempty*)
                     | _ => True end).
 Hypothesis IOK: initial_rmap_ok.
-End initial_mem.
+End initial_mem.*)
 
 Definition empty_retainer (loc: address) := Share.bot.
 
