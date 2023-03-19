@@ -19,4 +19,8 @@ Class externalGS (Z : Type) (Σ : gFunctors) := ExternalGS {
   external_name : gname
 }.
 
-Definition has_ext `{heapGS Σ} `{!externalGS Z Σ} (z : Z) : mpred := own(inG0 := external_inG) external_name (◯ Excl' z).
+Definition has_ext `{heapGS Σ} {Z : Type} `{!externalGS Z Σ} (z : Z) : mpred :=
+  own(inG0 := external_inG) external_name (auth_frag(A := optionUR (@exclR (leibnizO Z))) (Excl' z)).
+
+Definition ext_auth `{heapGS Σ} {Z : Type} `{!externalGS Z Σ} (z : Z) : mpred :=
+  own(inG0 := external_inG) external_name (auth_auth(A := optionUR (@exclR (leibnizO Z))) (DfracOwn Tsh) (Excl' z)).

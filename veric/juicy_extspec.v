@@ -1,9 +1,11 @@
+From iris.bi Require Export derived_connectives.
 Require Import VST.veric.juicy_base.
 Require Import VST.sepcomp.semantics.
 Require Import VST.sepcomp.extspec.
 Require Import VST.sepcomp.step_lemmas.
 Require Import VST.veric.shares.
 (*Require Import VST.veric.juicy_safety.*)
+Require Import VST.veric.ghost_map.
 Require Import VST.veric.juicy_mem.
 Require Import VST.veric.external_state.
 
@@ -15,29 +17,41 @@ Section mpred.
 
 Context `{!heapGS Σ}.
 
-(*(* predicates on juicy memories *)
+(* predicates on juicy memories *)
 Global Instance mem_inhabited : Inhabited Memory.mem := {| inhabitant := Mem.empty |}.
 Definition mem_index : biIndex := {| bi_index_type := mem |}.
 
 Definition jmpred := monPred mem_index (iPropI Σ).
 
 (*Program Definition jmpred_of (P : juicy_mem -> Prop) : jmpred := {| monPred_at m := P |}.*)
-(* Do we need to explicitly include the step-index in the jm? *)*)
+(* Do we need to explicitly include the step-index in the jm? *)
 
 (* Should we track the current memory, or re-quantify over one consistent with the rmap? *)
 Record juicy_mem := { level : nat; m_dry : mem; m_phi : rmap }.
 
 Definition jm_mono (P : juicy_mem -> Prop) := ∀jm n2 x2, P jm -> m_phi jm ≼ₒ{level jm} x2 ->
   n2 <= level jm -> P {| level := n2; m_dry := m_dry jm; m_phi := x2 |}.
-(* This seems like it would allow us to construct predicates on juicy mems, but I can't figure out
-   the construction right now. *)
+
+Definition jmpred_of P (Hmono : jm_mono P) : jmpred.
+Proof.
+  unshelve eexists.
+  intros m; unshelve eexists.
+  exact (λ n phi, P {| level := n; m_dry := m; m_phi := phi |} ).
+  - simpl; intros.
+    eapply Hmono in H; eauto.
+  - apply _.
+Defined.
 
 Record juicy_ext_spec (Z: Type) := {
   JE_spec :> external_specification juicy_mem external_function Z;
   JE_pre_mono: forall e t ge_s typs args z, jm_mono (ext_spec_pre JE_spec e t ge_s typs args z);
   JE_post_mono: forall e t ge_s tret rv z, jm_mono (ext_spec_post JE_spec e t ge_s tret rv z);
-  JE_exit_hered: forall rv z, jm_mono (ext_spec_exit JE_spec rv z)
+  JE_exit_mono: forall rv z, jm_mono (ext_spec_exit JE_spec rv z)
 }.
+
+Definition ext_jmpred_pre Z JE_spec e t ge_s typs args z : jmpred := jmpred_of _ (JE_pre_mono Z JE_spec e t ge_s typs args z).
+Definition ext_jmpred_post Z JE_spec e t ge_s tret rv z : jmpred := jmpred_of _ (JE_post_mono Z JE_spec e t ge_s tret rv z).
+Definition ext_jmpred_exit Z JE_spec rv z : jmpred := jmpred_of _ (JE_exit_mono Z JE_spec rv z).
 
 Class OracleKind := {
   OK_ty : Type;
@@ -75,14 +89,18 @@ Definition j_after_external {C} (csem: @CoreSemantics C mem)
     (ret: option val) (q: C) (jm: juicy_mem) :=
    semantics.after_external csem ret q (m_dry jm).
 
-Definition jstep {C} (csem: @CoreSemantics C mem)
-  (q: C) (jm: juicy_mem) (q': C) (jm': juicy_mem) : Prop :=
+(*Definition jstep {C} (csem: @CoreSemantics C mem)
+  (q: C) (q': C) (jm': juicy_mem) (jm : juicy_mem) : Prop :=
  corestep csem q (m_dry jm) q' (m_dry jm') /\
  resource_decay (level jm') (nextblock (m_dry jm)) (m_phi jm) (m_phi jm') /\
  level jm = S (level jm') (*/\
   Really, what we want is "nothing has changed in the rmap except the changes related to the mem ops".
   We can state this by indexing into the rmap, but...
- ghost_of (m_phi jm') = ghost_approx jm' (ghost_of (m_phi jm))*).
+ ghost_of (m_phi jm') = ghost_approx jm' (ghost_of (m_phi jm))*).*)
+
+(*Definition jstep {C} (csem: @CoreSemantics C mem)
+  (q: C) (q': C) (jm': juicy_mem) (jm : juicy_mem) : Prop :=
+ corestep csem q (m_dry jm) q' (m_dry jm').*)
 
 Definition j_halted {C} (csem: @CoreSemantics C mem)
        (c: C) (i: int): Prop :=
@@ -653,6 +671,8 @@ Proof.
     + eapply join_sub_joins_trans; [eexists; apply ghost_of_join; eauto | auto].
 Qed.*)
 
+Open Scope bi_scope.
+
 Section juicy_safety.
   Context {G C Z:Type}.
   Context {genv_symb: G -> injective_PTree block}.
@@ -666,228 +686,142 @@ Section juicy_safety.
     (level m' < level m)%nat /\
     pures_eq (m_phi m) (m_phi m'). *)
 
+Definition auth_heap phi := ghost_map_auth(H0 := gen_heapGpreS_heap(gen_heapGpreS := gen_heap_inG)) (gen_heap_name heapGS_gen_heapGS) Tsh phi.
 
-Definition wp_pre `{!irisGS_gen hlc Λ Σ} (s : stuckness)
-    (wp : coPset -d> expr Λ -d> (val Λ -d> iPropO Σ) -d> iPropO Σ) :
-    coPset -d> expr Λ -d> (val Λ -d> iPropO Σ) -d> iPropO Σ := λ E e1 Φ,
-  match to_val e1 with
-  | Some v => |={E}=> Φ v
-  | None => ∀ σ1 ns κ κs nt,
-     state_interp σ1 ns (κ ++ κs) nt ={E,∅}=∗
-       ⌜if s is NotStuck then reducible e1 σ1 else True⌝ ∗
-       ∀ e2 σ2 efs, ⌜prim_step e1 σ1 κ e2 σ2 efs⌝ -∗
-         £ (S (num_laters_per_step ns))
-         ={∅}▷=∗^(S $ num_laters_per_step ns) |={∅,E}=>
-         state_interp σ2 (S ns) κs (length efs + nt) ∗
-         wp E e2 Φ ∗
-         [∗ list] i ↦ ef ∈ efs, wp ⊤ ef fork_post
-  end%I.
-
+(*
 (* The closest match would be to have the heap view hold the whole juicy mem. *)
-Definition jsafeN_pre
-    (jsafeN : coPset -d> expr Λ -d> (val Λ -d> iPropO Σ) -d> iPropO Σ) :
-    coPset -d> expr Λ -d> (val Λ -d> iPropO Σ) -d> iPropO Σ := λ E z c,
-  ◇ ((∃ i, ⌜semantics.halted Hcore c i⌝ ∧ ext_spec_exit Hspec (Some (Vint i)) z) ∨
-     (∀ m, ● m ={E}=∗ 
-      (⌜j_at_external Hcore c m⌝ -∗ ext_spec_pre Hspec e x (genv_symb ge) (sig_args (ef_sig e)) args z -∗
-         ∀ ..., ext_spec_post ... ={E}=∗ jsafeN E z' c') ∧
-      (▷ ∀ c' m', jstep Hcore c c' m' ={E}=∗ jsafeN z E c').
+Program Definition jsafeN_pre
+    (jsafeN : coPset -d> Z -d> C -d> monPredO mem_index (iPropI Σ)) : coPset -d> Z -d> C -d> monPredO mem_index (iPropI Σ) := λ E z c,
+  {| monPred_at := λ dry_mem,
+  ◇ ((∃ i, ⌜semantics.halted Hcore c i⌝ ∧ |={E}=> ext_jmpred_exit Z Hspec (Some (Vint i)) z) ∨
+     (∀ m, own (gen_heap_name heapGS_gen_heapGS) (● m) -∗ ext_auth z ={E}=∗
+      (▷ ∀ c' m', ⌜corestep Hcore c dry_mem c' m'⌝ ={E}=∗ own gen_heap_name (● m') ∗ ext_auth z ∗ jsafeN z E c') ∧
+      (∀e args x, ⌜j_at_external Hcore c m = Some (e, args)⌝ -∗ ext_jmpred_pre Hspec e x (genv_symb ge) (sig_args (ef_sig e)) args z -∗
+         ∀ ret m' z', ⌜Val.has_type_list args (sig_args (ef_sig e)) ∧ Builtins0.val_opt_has_rettype  ret (sig_res (ef_sig e))⌝ -∗
+          ext_jmpred_post Hspec e x (genv_symb ge) (sig_res (ef_sig e)) ret z' ={E}=∗
+          ∃ c', ⌜semantics.after_external Hcore ret c (m_dry m') = Some c'⌝ ∧ own gen_heap_name (● m') ∗ ext_auth z' ∗ jsafeN E z' c'))) |}.*)
 
-  match to_val e1 with
-  | Some v => |={E}=> Φ v
-  | None => ∀ σ1 ns κ κs nt,
-     state_interp σ1 ns (κ ++ κs) nt ={E,∅}=∗
-       ⌜if s is NotStuck then reducible e1 σ1 else True⌝ ∗
-       ∀ e2 σ2 efs, ⌜prim_step e1 σ1 κ e2 σ2 efs⌝ -∗
-         £ (S (num_laters_per_step ns))
-         ={∅}▷=∗^(S $ num_laters_per_step ns) |={∅,E}=>
-         state_interp σ2 (S ns) κs (length efs + nt) ∗
-         wp E e2 Φ ∗
-         [∗ list] i ↦ ef ∈ efs, wp ⊤ ef fork_post
-  end%I.
+(* Hypothesis: we don't actually need juicy_mem here, and can requantify over the plain mem at every step. *)
+Program Definition jsafe_pre
+    (jsafe : coPset -d> Z -d> C -d> iPropO Σ) : coPset -d> Z -d> C -d> iPropO Σ := λ E z c,
+  ◇ ((∃ i, ⌜halted Hcore c i⌝ ∧ |={E}=> ∀ m, coherent_with m → ext_jmpred_exit Z Hspec (Some (Vint i)) z m) ∨
+     (⌜∀i, ¬halted Hcore c i⌝ ∧ ∀ phi, auth_heap phi -∗ ext_auth z ={E}=∗ ∀ m, coherent_with m →
+      (▷ ∀ c' m' phi', ⌜corestep Hcore c m c' m'⌝ ={E}=∗ coherent_with m' ∧ (auth_heap phi' ∗ ext_auth z ∗ jsafe E z c')) ∧
+      (∀e args x, ⌜at_external Hcore c m = Some (e, args)⌝ -∗ ext_jmpred_pre Z Hspec e x (genv_symb ge) (sig_args (ef_sig e)) args z m -∗
+         ▷ □ (∀ ret m' phi' z', ⌜Val.has_type_list args (sig_args (ef_sig e)) ∧ Builtins0.val_opt_has_rettype ret (sig_res (ef_sig e))⌝ -∗
+          ((ext_jmpred_post Z Hspec e x (genv_symb ge) (sig_res (ef_sig e)) ret z' m' ∧ coherent_with m') -∗ auth_heap phi' ={E}=∗
+          ∃ c', ⌜after_external Hcore ret c m' = Some c'⌝ ∧ ext_auth z' ∗ jsafe E z' c'))))).
 
-
-  (* try without N, using level instead *)
-  Inductive jsafeN_:
-    Z -> C -> juicy_mem -> Prop :=
-  | jsafeN_0: forall z c m, level m = 0 -> jsafeN_ z c m
-  (* c.f. iRC11's language, in which NA reads and writes are atomic
-     and can access invariants. All our concurrency features are
-     outside corestep/jstep, so they can provide their own specs
-     if they want to access invariants. So we just need to allow
-     fupds between steps. *)
-  | jsafeN_step:
-      forall z c m c' m',
-      jstep Hcore c m c' m' ->
-        (* For full generality, we'd parameterize by a mask E here, but that would
-           have to propagate all the way up to semax. *)
-        jm_fupd z Ensembles.Full_set Ensembles.Full_set (jsafeN_ z c') m' ->
-      jsafeN_ z c m
-  | jsafeN_external:
-      forall z c m e args x,
-      j_at_external Hcore c m = Some (e,args) ->
-      ext_spec_pre Hspec e x (genv_symb ge) (sig_args (ef_sig e)) args z m ->
-      (forall ret m' z'
-         (Hargsty : Val.has_type_list args (sig_args (ef_sig e)))
-         (Hretty : Builtins0.val_opt_has_rettype  ret (sig_res (ef_sig e))),
-         Hrel m m' ->
-         ext_spec_post Hspec e x (genv_symb ge) (sig_res (ef_sig e)) ret z' m' ->
-         exists c',
-           semantics.after_external Hcore ret c (m_dry m') = Some c' /\
-           jm_fupd z' Ensembles.Full_set Ensembles.Full_set (jsafeN_ z' c') m') ->
-      jsafeN_ z c m
-  | jsafeN_halted:
-      forall z c m i,
-      semantics.halted Hcore c i ->
-      ext_spec_exit Hspec (Some (Vint i)) z m ->
-      jsafeN_ z c m.
-
-Lemma age_jstep : forall c m c' m' m1, jstep Hcore c m c' m' ->
-  age m m1 -> level m1 <> 0 -> exists m1', age m' m1' /\ jstep Hcore c m1 c' m1'.
+Local Instance jsafe_pre_contractive : Contractive jsafe_pre.
 Proof.
-  unfold jstep.
-  intros ????? (? & ? & ? & Hg) Hage Hl.
-  destruct (level m') eqn: Hm'.
-  { apply age_level in Hage; lia. }
-  symmetry in Hm'; destruct (levelS_age _ _ Hm') as (m1' & Hage' & ?); subst.
-  exists m1'; split; auto.
-  rewrite <- (age_jm_dry Hage), <- (age_jm_dry Hage'); split; auto.
-  split; [|split].
-  - eapply age_resource_decay; eauto; try (apply age_jm_phi; auto).
-    rewrite <- !level_juice_level_phi; lia.
-  - apply age_level in Hage; lia.
-  - rewrite (age1_ghost_of _ _ (age_jm_phi Hage')), (age1_ghost_of _ _ (age_jm_phi Hage)), Hg.
-    rewrite !ghost_fmap_fmap.
-    apply age_level in Hage.
-    rewrite approx_oo_approx', approx'_oo_approx, approx_oo_approx', approx'_oo_approx; rewrite <- level_juice_level_phi; try lia; auto.
+  rewrite /jsafe_pre => n jsafe jsafe' Hsafe E z c.
+  do 12 f_equiv.
+  - f_contractive; repeat f_equiv. apply Hsafe.
+  - do 8 f_equiv. f_contractive; repeat f_equiv. apply Hsafe.
 Qed.
 
-Lemma age_pures_eq : forall m1 m2, age m1 m2 -> pures_eq m1 m2.
+(*Local Definition jsafe_def : Wp (iProp Σ) (expr Λ) (val Λ) stuckness :=
+  λ s : stuckness, fixpoint (jsafe_pre s).
+It's possible that we could massage this into Iris's WP framework, but it would involve moving z into
+the state interpretation and turning ext_spec_exit into a postcondition.
+*) 
+Local Definition jsafe_def : coPset -> Z -> C -> mpred := fixpoint jsafe_pre.
+Local Definition jsafe_aux : seal (@jsafe_def). Proof. by eexists. Qed.
+Definition jsafe := jsafe_aux.(unseal).
+Local Lemma jsafe_unseal : jsafe = jsafe_def.
+Proof. rewrite -jsafe_aux.(seal_eq) //. Qed.
+
+(* basic facts following iris.program_logic.weakestpre *)
+Lemma jsafe_unfold E z c : jsafe E z c ⊣⊢ jsafe_pre jsafe E z c.
+Proof. rewrite jsafe_unseal. apply (fixpoint_unfold jsafe_pre). Qed.
+
+Context (halted_fun : C -> option int) (Hhalted_correct : ∀ c i, halted Hcore c i ↔ halted_fun c = Some i).
+
+Lemma fupd_jsafe E z c : (|={E}=> jsafe E z c) ⊢ jsafe E z c.
 Proof.
-  split; [unfold pures_sub|]; intros l; erewrite (age1_resource_at _ _ H); try (symmetry; apply resource_at_approx);
-    destruct (m1 @ l); simpl; eauto.
+  rewrite jsafe_unfold /jsafe_pre. iIntros "H !>".
+  rewrite fupd_except_0.
+  destruct (halted_fun c) eqn: Hhalt.
+  { iLeft; iExists i; rewrite Hhalted_correct; iFrame "%".
+    iMod "H" as "[H | H]".
+    * iDestruct "H" as (i' Hi'%Hhalted_correct) "?"; rewrite Hi' in Hhalt; inv Hhalt; done.
+    * iDestruct "H" as (Hhalt') "?". rewrite -Hhalted_correct in Hhalt; contradiction (Hhalt' i). }
+  iRight; iSplit.
+  { iPureIntro; intros; rewrite Hhalted_correct Hhalt; done. }
+  iMod "H"; iDestruct "H" as "[H | [% $]]".
+  iDestruct "H" as (i' Hi') "?"; rewrite Hhalted_correct in Hi'; congruence.
 Qed.
 
-Lemma age_safe:
-  forall jm jm0, age jm0 jm ->
-  forall ora c,
-   jsafeN_ ora c jm0 ->
-   jsafeN_ ora c jm.
+Lemma persistent_sep_impl : forall {PROP : bi} (P Q R : PROP), (□P) ⊢ (Q → R) -∗ Q → (□P ∗ R).
 Proof.
   intros.
-  remember (level jm) as N.
-  revert c jm0 jm HeqN H H0; induction N; intros.
-  { constructor; auto. }
-  inv H0.
-  + apply age_level in H; congruence.
-  + edestruct age_jstep as (m1' & ? & Hstep); eauto.
-    { lia. }
-    eapply jsafeN_step; eauto.
-    eapply jm_fupd_mono; [eapply jm_fupd_age; eauto | auto].
-  + eapply jsafeN_external; eauto.
-    { unfold j_at_external in *.
-      rewrite <- (age_jm_dry H); eauto. }
-    { eapply JE_pre_hered; eauto. }
-    intros.
-    destruct (H3 ret m' z') as [c' [? ?]]; auto.
-    - assert (level (m_phi jm) < level (m_phi jm0)).
-      {
-        apply age_level in H.
-        do 2 rewrite <-level_juice_level_phi.
-        destruct H0.
-        rewrite H; lia.
-      }
-      destruct H0 as (?&?).
-      split; [do 2 rewrite <-level_juice_level_phi in H5; lia |].
-      eapply pures_eq_trans, H6.
-      { rewrite <- !level_juice_level_phi; lia. }
-      apply age_pures_eq, age_jm_phi; auto.
-    - exists c'; split; auto.
-  + unfold j_halted in *.
-    eapply jsafeN_halted; eauto.
-    eapply JE_exit_hered; eauto.
+  by iIntros "#$ H".
 Qed.
 
-Lemma resource_decay_resource : forall b x x' y, resource_decay b x x' ->
-  level x = level y -> resource_at x = resource_at y ->
-  exists y', resource_decay b y y' /\ level y' = level x' /\
-    resource_at x' = resource_at y' /\ ghost_of y' = own.ghost_approx y' (ghost_of y).
+Lemma jsafe_mask_mono E1 E2 z c : E1 ⊆ E2 → jsafe E1 z c ⊢ jsafe E2 z c.
 Proof.
-  intros.
-  destruct (make_rmap (resource_at x') (own.ghost_approx (level x') (ghost_of y)) (level x')) as (y' & Hl & Hr & Hg).
-  { extensionality; apply resource_at_approx. }
-  { rewrite ghost_fmap_fmap, !approx_oo_approx; reflexivity. }
-  rewrite <- Hl in Hg.
-  exists y'; split; [|repeat split; auto].
-  unfold resource_decay in *.
-  destruct H.
-  rewrite Hr, <- H1, Hl, <- H0; auto.
+  iIntros (?) "H". iLöb as "IH" forall (z c).
+  rewrite !jsafe_unfold /jsafe_pre.
+  iMod "H" as "[H | H]"; iIntros "!>".
+  - iLeft.
+    iDestruct "H" as (??) "H"; iExists _; iFrame "%".
+    iMod (fupd_mask_subseteq E1) as "Hclose".
+    by iMod "H" as "$".
+  - iRight.
+    iDestruct "H" as "[$ H]".
+    iIntros (?) "??".
+    iMod (fupd_mask_subseteq E1) as "Hclose".
+    iMod ("H" with "[$] [$]") as "H"; iMod "Hclose" as "_".
+    iIntros "!>" (?).
+    iPoseProof (persistent_sep_impl with "IH H") as "H".
+    iApply (bi.impl_mono with "H"); first done.
+    iIntros "[#IH H]"; iSplit.
+    + iIntros "!>" (???) "Hstep".
+      iDestruct "H" as "[H _]".
+      iMod (fupd_mask_subseteq E1) as "Hclose".
+      iMod ("H" with "Hstep") as "H"; iMod "Hclose" as "_"; iIntros "!>".
+      iSplit; first iDestruct "H" as "[$ _]".
+      by iDestruct "H" as "[_ ($ & $ & ?)]"; iApply "IH".
+    + iIntros (???) "Hext ?".
+      iDestruct "H" as "[_ H]".
+      iPoseProof ("H" with "Hext [$]") as "H".
+      iIntros "!>"; iDestruct "H" as "#H"; iIntros "!>".
+      iIntros (????) "Hty ??".
+      iMod (fupd_mask_subseteq E1) as "Hclose".
+      iMod ("H" with "Hty [$] [$]") as "H'"; iMod "Hclose" as "_"; iIntros "!>".
+      iDestruct "H'" as (??) "[??]"; iExists _; iFrame "%"; iFrame.
+      by iApply "IH".
 Qed.
 
-Lemma ext_jstep : forall c m c' m' m1, jstep Hcore c m c' m' ->
-  ext_order m m1 -> exists m1', ext_order m' m1' /\ jstep Hcore c m1 c' m1'.
-Proof.
-  unfold jstep.
-  intros ????? (? & Hr & ? & Hg) [Hdry Hext].
-  apply rmap_order in Hext as (Hl1 & Hr1 & ? & Hg1).
-  eapply resource_decay_resource in Hr as (m1' & ? & Hl' & Hr' & Hg'); eauto.
-  symmetry in Hr'; destruct (juicy_mem_resource _ _ Hr') as (jm' & ? & Hdry'); subst.
-  exists jm'.
-  rewrite <- Hdry, Hdry'; split.
-  { split; [congruence|].
-    apply rmap_order; split; auto.
-    split; auto.
-    rewrite Hg, Hg', Hl', level_juice_level_phi.
-    eexists; apply ghost_fmap_join; eauto. }
-  split; auto; split; auto; split; auto.
-  rewrite !level_juice_level_phi in *; lia.
-Qed.
+(** Proofmode class instances *)
+Section proofmode_classes.
+  Implicit Types P Q : iProp Σ.
 
-Lemma ext_safe:
-  forall jm jm0, ext_order jm0 jm ->
-  forall ora c,
-   joins (ghost_of (m_phi jm)) (Some (ext_ref ora, NoneP) :: nil) ->
-   jsafeN_ ora c jm0 ->
-   jsafeN_ ora c jm.
-Proof.
-  intros ????? Hext ?.
-  remember (level jm0) as N.
-  revert dependent c; revert dependent jm0; revert dependent jm; induction N as [? IHN] using lt_wf_ind; intros.
-  inv H0.
-  - constructor. destruct H as [_ H]; apply rmap_order in H as [? _].
-    rewrite <- !level_juice_level_phi in *; congruence.
-  - eapply ext_jstep in H as (? & ? & ?); eauto.
-    eapply jsafeN_step; eauto.
-    eapply jm_fupd_ext; eauto; intros.
-    eapply IHN; eauto.
-    destruct H1 as (_ & _ & ? & _).
-    rewrite !level_juice_level_phi in *; lia.
-  - eapply jsafeN_external; eauto.
-    + unfold j_at_external in *.
-      destruct H as [<-]; eauto.
-    + eapply JE_pre_ext; eauto.
-    + intros.
-      apply H3; auto.
-      unfold Hrel in *.
-      destruct H0 as (? & ?).
-      destruct H as [_ H]; apply rmap_order in H as (? & Hr & _).
-      split; [rewrite !level_juice_level_phi in *; lia|].
-      unfold pures_eq, pures_sub in *.
-      rewrite Hr; auto.
-  - eapply jsafeN_halted; eauto.
-    eapply JE_exit_ext; eauto.
-Qed.
+  Global Instance is_except_0_jsafe E z c : IsExcept0 (jsafe E z c).
+  Proof. by rewrite /IsExcept0 -{2}fupd_jsafe -except_0_fupd -fupd_intro. Qed.
 
-Lemma necR_safe : forall jm jm0, necR jm0 jm ->
-  forall ora c,
-   jsafeN_ ora c jm0 ->
-   jsafeN_ ora c jm.
-Proof.
-  induction 1; auto.
-  apply age_safe; auto.
-Qed.
+  Global Instance elim_modal_bupd_wp p P E z c :
+    ElimModal Logic.True p false (|==> P) P (jsafe E z c) (jsafe E z c).
+  Proof.
+    by rewrite /ElimModal bi.intuitionistically_if_elim
+      (bupd_fupd E) fupd_frame_r bi.wand_elim_r fupd_jsafe.
+  Qed.
+
+  Global Instance elim_modal_fupd_wp p P E z c :
+    ElimModal Logic.True p false (|={E}=> P) P (jsafe E z c) (jsafe E z c).
+  Proof.
+    by rewrite /ElimModal bi.intuitionistically_if_elim
+      fupd_frame_r bi.wand_elim_r fupd_jsafe.
+  Qed.
+
+  Global Instance add_modal_fupd_wp P E z c :
+    AddModal (|={E}=> P) P (jsafe E z c).
+  Proof. by rewrite /AddModal fupd_frame_r bi.wand_elim_r fupd_jsafe. Qed.
+
+End proofmode_classes.
 
 
+(*
 Lemma jsafe_corestep_backward:
     forall c m c' m' z,
     jstep Hcore c m c' m' ->
@@ -946,19 +880,33 @@ Lemma jsafe_corestep_backward:
     simpl in H. destruct H as [c2 [m2 [STEP STEPN]]].
     specialize (IHn0 _ _ _ _ STEPN H0).
     solve[eapply jsafe_step'_back2; eauto].
-  Qed.
+  Qed.*)
 
+  (* The most equivalent thing would be to existentially quantify over steps. They're equivalent in a deterministic language, but should we assume that? *)
   Lemma convergent_controls_jsafe :
-    forall m q1 q2,
-      (j_at_external Hcore q1 m = j_at_external Hcore q2 m) ->
-      (forall ret m q', semantics.after_external Hcore ret q1 m = Some q' ->
-                      semantics.after_external Hcore ret q2 m = Some q') ->
-      (semantics.halted Hcore q1 = semantics.halted Hcore q2) ->
-      (forall q' m', jstep Hcore q1 m q' m' ->
-                     jstep Hcore q2 m q' m') ->
-      (forall z, jsafeN_ z q1 m -> jsafeN_ z q2 m).
+    forall m q1 q2
+      (Hat_ext : at_external Hcore q1 m = at_external Hcore q2 m)
+      (Hafter_ext : forall ret m q', after_external Hcore ret q1 m = Some q' ->
+                                     after_external Hcore ret q2 m = Some q')
+      (Hhalted : halted Hcore q1 = semantics.halted Hcore q2)
+      (Hstep : forall q' m', corestep Hcore q1 m q' m' ->
+                             corestep Hcore q2 m q' m'),
+      (forall E z, jsafe E z q1 ⊢ jsafe E z q2).
   Proof.
     intros.
+    rewrite !jsafe_unfold /jsafe_pre.
+    rewrite Hhalted.
+    iIntros ">[H | H]"; first by iLeft.
+    iRight; iDestruct "H" as (?) "H"; iIntros "!>".
+    iSplit; first done.
+    iIntros (?) "??"; iMod ("H" with "[$] [$]") as "H".
+    iIntros "!>" (?); iApply (bi.impl_mono with "H"); first done.
+    iIntros "H"; iSplit.
+    - iIntros "!>" (???) "?".
+rewrite Hstep.
+    - iLeft. by rewrite Hhalted.
+    - iDestruct "
+
     inv H3.
     + constructor; auto.
     + eapply jsafeN_step; eauto.
