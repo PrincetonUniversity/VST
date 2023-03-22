@@ -883,7 +883,7 @@ Lemma jsafe_corestep_backward:
   Qed.*)
 
   (* The most equivalent thing would be to existentially quantify over steps. They're equivalent in a deterministic language, but should we assume that? *)
-  Lemma convergent_controls_jsafe :
+(*  Lemma convergent_controls_jsafe :
     forall m q1 q2
       (Hat_ext : at_external Hcore q1 m = at_external Hcore q2 m)
       (Hafter_ext : forall ret m q', after_external Hcore ret q1 m = Some q' ->
@@ -905,7 +905,7 @@ Lemma jsafe_corestep_backward:
     - iIntros "!>" (???) "?".
 rewrite Hstep.
     - iLeft. by rewrite Hhalted.
-    - iDestruct "
+    - iDestruct ""
 
     inv H3.
     + constructor; auto.
@@ -918,36 +918,19 @@ rewrite Hstep.
       exists c'; split; auto.
     + eapply jsafeN_halted; eauto.
       rewrite <-H1; auto.
-  Qed.
+  Qed.*)
 
-  Lemma wlog_jsafeN_gt0 : forall
-    z q m,
-    (level m > 0 -> jsafeN_ z q m) ->
-    jsafeN_ z q m.
-  Proof.
-    intros. destruct (level m) eqn: Hl. constructor; auto.
-    apply H. lia.
-  Qed.
-
-  Lemma jm_fupd_intro' : forall (ora : Z) E (c : C) m,
-    jsafeN_ ora c m ->
-    jm_fupd ora E E (jsafeN_ ora c) m.
-  Proof.
-    intros; apply jm_fupd_intro; auto.
-    intros; eapply necR_safe; eauto.
-  Qed.
-
-  Lemma jm_fupd_intro_strong' : forall (ora : Z) E (c : C) m,
+(*  Lemma jm_fupd_intro_strong' : forall (ora : Z) E (c : C) m,
     (joins (ghost_of (m_phi m)) (Some (ext_ref ora, NoneP) :: nil) -> jsafeN_ ora c m) ->
     jm_fupd ora E E (jsafeN_ ora c) m.
   Proof.
     intros; apply jm_fupd_intro_strong; auto.
     intros; eapply necR_safe; eauto.
-  Qed.
+  Qed. *)
 
 End juicy_safety.
 
-Lemma juicy_core_sem_preserves_corestep_fun
+(*Lemma juicy_core_sem_preserves_corestep_fun
   {C} (csem: @CoreSemantics C mem) :
   corestep_fun csem ->
   corestep_fun (juicy_core_sem csem).
@@ -1112,6 +1095,6 @@ Proof.
   - (* phi2: free   | phi2: free   *)
     congruence.
   - congruence.
-Qed.
+Qed.*)
 
 End mpred.

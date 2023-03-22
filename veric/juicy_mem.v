@@ -257,7 +257,7 @@ Definition contents_cohere (m: mem) : mpred := ∀dq v l,
 (* To be consistent with the extension order, we have to allow for the possibility that there's a discarded
    fraction giving us an extra readable share. *)
 Definition access_cohere (m: mem) : mpred := ∀ l,
-  (∀dq r, l ↦{dq} r ∧ ⌜perm_order'' (perm_of_res (Some (dq, r))) (Some Readable)⌝ → ⌜access_at m l Cur = perm_of_res (Some (dq, r))⌝) ∧
+  (∀dq r, l ↦{dq} r → ⌜perm_order'' (access_at m l Cur) (perm_of_res (Some (dq, r)))⌝) ∧
   (⌜perm_order'' (access_at m l Cur) (Some Writable)⌝ → ∃dq r, l ↦{dq} r ∧ ⌜access_at m l Cur = perm_of_res (Some (dq, r))⌝).
 
 Definition max_access_cohere (m: mem) : mpred := ∀l dq r,
@@ -294,23 +294,23 @@ Inductive juicy_mem: Type :=
     (JMaccess: access_cohere m phi)
     (JMmax_access: max_access_cohere m phi)
     (JMalloc: alloc_cohere m phi),
-       juicy_mem.
+       juicy_mem.*)
 
 Section selectors.
-Variable (j: juicy_mem).
-Definition m_dry := match j with mkJuicyMem m _ _ _ _ _ => m end.
-Definition m_phi := match j with mkJuicyMem _ phi _ _ _ _ => phi end.
-Lemma juicy_mem_contents: contents_cohere m_dry m_phi.
-Proof. unfold m_dry, m_phi; destruct j; auto. Qed.
-Lemma juicy_mem_access: access_cohere m_dry m_phi.
-Proof. unfold m_dry, m_phi; destruct j; auto. Qed.
-Lemma juicy_mem_max_access: max_access_cohere m_dry m_phi.
-Proof. unfold m_dry, m_phi; destruct j; auto. Qed.
-Lemma juicy_mem_alloc_cohere: alloc_cohere m_dry m_phi.
-Proof. unfold m_dry, m_phi; destruct j; auto. Qed.
+Variable (m: mem).
+(*Definition m_dry := match j with mkJuicyMem m _ _ _ _ _ => m end.
+Definition m_phi := match j with mkJuicyMem _ phi _ _ _ _ => phi end.*)
+Lemma coherent_contents: coherent_with m ⊢ contents_cohere m.
+Proof. by rewrite /coherent_with bi.and_elim_l. Qed.
+Lemma coherent_access: coherent_with m ⊢ access_cohere m.
+Proof. by rewrite /coherent_with bi.and_elim_r bi.and_elim_l. Qed.
+Lemma coherent_max_access: coherent_with m ⊢ max_access_cohere m.
+Proof. by rewrite /coherent_with bi.and_elim_r bi.and_elim_r bi.and_elim_l. Qed.
+Lemma coherent_alloc: coherent_with m ⊢ alloc_cohere m.
+Proof. by rewrite /coherent_with bi.and_elim_r bi.and_elim_r bi.and_elim_r. Qed.
 End selectors.
 
-Definition juicy_mem_resource: forall jm m', resource_at m' = resource_at (m_phi jm) ->
+(*Definition juicy_mem_resource: forall jm m', resource_at m' = resource_at (m_phi jm) ->
   {jm' | m_phi jm' = m' /\ m_dry jm' = m_dry jm}.
 Proof.
   intros.

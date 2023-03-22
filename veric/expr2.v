@@ -1,6 +1,5 @@
-Require Import VST.msl.msl_standard.
 Require Import VST.veric.Clight_base.
-Require Import VST.veric.compcert_rmaps.
+Require Import VST.veric.res_predicates.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.Clight_lemmas.
 Require Export VST.veric.expr.
@@ -143,31 +142,37 @@ destruct t1 as [ | [ | | | ] [ | ] | | [ | ] | | | | | ],
  apply I.
 Qed.
 
+Section mpred.
+
+Context `{!heapGS Σ}.
+
+Open Scope bi_scope.
+
 (** Denotation functions for each of the assertions that can be produced by the typechecker **)
 
 Definition denote_tc_iszero v : mpred :=
          match v with
-         | Vint i => prop (is_true (Int.eq i Int.zero))
-         | Vlong i => prop (is_true (Int64.eq i Int64.zero))
-         | _ => FF
+         | Vint i => ⌜is_true (Int.eq i Int.zero)⌝
+         | Vlong i => ⌜is_true (Int64.eq i Int64.zero)⌝
+         | _ => False
          end.
 
 Definition denote_tc_nonzero v : mpred :=
          match v with
-         | Vint i => prop (i <> Int.zero)
-         | Vlong i =>prop (i <> Int64.zero)
-         | _ => FF end.
+         | Vint i => ⌜i <> Int.zero⌝
+         | Vlong i =>⌜i <> Int64.zero⌝
+         | _ => False end.
 
 Definition denote_tc_igt i v : mpred :=
      match v with
-     | Vint i1 => prop (Int.unsigned i1 < Int.unsigned i)
-     | _ => FF
+     | Vint i1 => ⌜Int.unsigned i1 < Int.unsigned i⌝
+     | _ => False
      end.
 
 Definition denote_tc_lgt l v : mpred :=
      match v with
-     | Vlong l1 => prop (Int64.unsigned l1 < Int64.unsigned l)
-     | _ => FF
+     | Vlong l1 => ⌜Int64.unsigned l1 < Int64.unsigned l⌝
+     | _ => False
      end.
 
 Definition Zoffloat (f:float): option Z := (**r conversion to Z *)
@@ -195,27 +200,27 @@ Definition Zofsingle (f: float32): option Z := (**r conversion to Z *)
 Definition denote_tc_Zge z v : mpred :=
           match v with
                      | Vfloat f => match Zoffloat f with
-                                    | Some n => prop (z >= n)
-                                    | None => FF
+                                    | Some n => ⌜z >= n⌝
+                                    | None => False
                                    end
                      | Vsingle f => match Zofsingle f with
-                                    | Some n => prop (z >= n)
-                                    | None => FF
+                                    | Some n => ⌜z >= n⌝
+                                    | None => False
                                    end
-                     | _ => FF
+                     | _ => False
                   end.
 
 Definition denote_tc_Zle z v : mpred :=
           match v with
                      | Vfloat f => match Zoffloat f with
-                                    | Some n => prop (z <= n)
-                                    | None => FF
+                                    | Some n => ⌜z <= n⌝
+                                    | None => False
                                    end
                      | Vsingle f => match Zofsingle f with
-                                    | Some n => prop (z <= n)
-                                    | None => FF
+                                    | Some n => ⌜z <= n⌝
+                                    | None => False
                                    end
-                     | _ => FF
+                     | _ => False
                   end.
 
 Definition sameblock v1 v2 : bool :=
@@ -225,92 +230,90 @@ Definition sameblock v1 v2 : bool :=
          end.
 
 Definition denote_tc_samebase v1 v2 : mpred :=
-       prop (is_true (sameblock v1 v2)).
+       ⌜is_true (sameblock v1 v2)⌝.
 
 (** Case for division of int min by -1, which would cause overflow **)
 Definition denote_tc_nodivover v1 v2 : mpred :=
 match v1, v2 with
-          | Vint n1, Vint n2 => prop (~(n1 = Int.repr Int.min_signed /\ n2 = Int.mone))
-          | Vlong n1, Vlong n2 => prop (~(n1 = Int64.repr Int64.min_signed /\ n2 = Int64.mone))
-          | Vint n1, Vlong n2 => TT
-          | Vlong n1, Vint n2 => prop (~ (n1 = Int64.repr Int64.min_signed  /\ n2 = Int.mone))
-          | _ , _ => FF
+          | Vint n1, Vint n2 => ⌜~(n1 = Int.repr Int.min_signed /\ n2 = Int.mone)⌝
+          | Vlong n1, Vlong n2 => ⌜~(n1 = Int64.repr Int64.min_signed /\ n2 = Int64.mone)⌝
+          | Vint n1, Vlong n2 => True
+          | Vlong n1, Vint n2 => ⌜~ (n1 = Int64.repr Int64.min_signed  /\ n2 = Int.mone)⌝
+          | _ , _ => False
         end.
 
 Definition denote_tc_nosignedover (op: Z->Z->Z) (s: signedness) v1 v2 : mpred :=
  match v1,v2 with
  | Vint n1, Vint n2 => 
-   prop (Int.min_signed <= op (Int.signed n1) (Int.signed n2) <= Int.max_signed)
+   ⌜Int.min_signed <= op (Int.signed n1) (Int.signed n2) <= Int.max_signed⌝
  | Vlong n1, Vlong n2 =>
-   prop (Int64.min_signed <= op (Int64.signed n1) (Int64.signed n2) <= Int64.max_signed)
+   ⌜Int64.min_signed <= op (Int64.signed n1) (Int64.signed n2) <= Int64.max_signed⌝
  | Vint n1, Vlong n2 =>
-   prop (Int64.min_signed <= op ((if s then Int.signed else Int.unsigned) n1) (Int64.signed n2) <= Int64.max_signed)
+   ⌜Int64.min_signed <= op ((if s then Int.signed else Int.unsigned) n1) (Int64.signed n2) <= Int64.max_signed⌝
  | Vlong n1, Vint n2 =>
-   prop (Int64.min_signed <= op (Int64.signed n1) ((if s then Int.signed else Int.unsigned)  n2) <= Int64.max_signed)
- | _, _ => FF
+   ⌜Int64.min_signed <= op (Int64.signed n1) ((if s then Int.signed else Int.unsigned)  n2) <= Int64.max_signed⌝
+ | _, _ => False
  end.
 
 Definition denote_tc_initialized id ty rho : mpred :=
-    prop (exists v, Map.get (te_of rho) id = Some v
-               /\ tc_val ty v).
+    ⌜exists v, Map.get (te_of rho) id = Some v
+               /\ tc_val ty v⌝.
 
 Definition denote_tc_isptr v : mpred :=
-  prop (isptr v).
+  ⌜isptr v⌝.
 
 Definition denote_tc_isint v : mpred :=
-  prop (is_int I32 Signed v).
+  ⌜is_int I32 Signed v⌝.
 
 Definition denote_tc_islong v : mpred :=
-  prop (is_long v).
+  ⌜is_long v⌝.
 
 Definition test_eq_ptrs v1 v2 : mpred :=
   if sameblock v1 v2
-  then (andp (weak_valid_pointer v1) (weak_valid_pointer v2))
-  else (andp (valid_pointer v1) (valid_pointer v2)).
+  then ((weak_valid_pointer v1) ∧ (weak_valid_pointer v2))
+  else ((valid_pointer v1) ∧ (valid_pointer v2)).
 
 Definition test_order_ptrs v1 v2 : mpred :=
   if sameblock v1 v2
-  then (andp (weak_valid_pointer v1) (weak_valid_pointer v2))
-  else FF.
+  then ((weak_valid_pointer v1) ∧ (weak_valid_pointer v2))
+  else False.
 
 Definition denote_tc_test_eq v1 v2 : mpred :=
  match v1, v2 with
  | Vint i, Vint j => 
-     if Archi.ptr64 then FF else andp (prop (i = Int.zero)) (prop (j = Int.zero))
+     if Archi.ptr64 then False else bi_and (⌜i = Int.zero⌝) (⌜j = Int.zero⌝)
  | Vlong i, Vlong j => 
-     if Archi.ptr64 then andp (prop (i = Int64.zero)) (prop (j = Int64.zero)) else FF
+     if Archi.ptr64 then bi_and (⌜i = Int64.zero⌝) (⌜j = Int64.zero⌝) else False
  | Vint i, Vptr _ _ =>
-      if Archi.ptr64 then FF else andp (prop (i = Int.zero)) (weak_valid_pointer v2)
+      if Archi.ptr64 then False else bi_and (⌜i = Int.zero⌝) (weak_valid_pointer v2)
  | Vlong i, Vptr _ _ =>
-      if Archi.ptr64 then andp (prop (i = Int64.zero)) (weak_valid_pointer v2) else FF
+      if Archi.ptr64 then bi_and (⌜i = Int64.zero⌝) (weak_valid_pointer v2) else False
  | Vptr _ _, Vint i =>
-      if Archi.ptr64 then FF else andp (prop (i = Int.zero)) (weak_valid_pointer v1)
+      if Archi.ptr64 then False else bi_and (⌜i = Int.zero⌝) (weak_valid_pointer v1)
  | Vptr _ _, Vlong i =>
-      if Archi.ptr64 then andp (prop (i = Int64.zero)) (weak_valid_pointer v1) else FF
+      if Archi.ptr64 then bi_and (⌜i = Int64.zero⌝) (weak_valid_pointer v1) else False
  | Vptr _ _, Vptr _ _ =>
       test_eq_ptrs v1 v2
- | _, _ => FF
+ | _, _ => False
  end.
 
 Definition denote_tc_test_order v1 v2 : mpred :=
  match v1, v2 with
- | Vint i, Vint j => if Archi.ptr64 then FF else andp (prop (i = Int.zero)) (prop (j = Int.zero))
- | Vlong i, Vlong j => if Archi.ptr64 then andp (prop (i = Int64.zero)) (prop (j = Int64.zero)) else FF
+ | Vint i, Vint j => if Archi.ptr64 then False else bi_and (⌜i = Int.zero⌝) (⌜j = Int.zero⌝)
+ | Vlong i, Vlong j => if Archi.ptr64 then bi_and (⌜i = Int64.zero⌝) (⌜j = Int64.zero⌝) else False
  | Vptr _ _, Vptr _ _ =>
       test_order_ptrs v1 v2
- | _, _ => FF
+ | _, _ => False
  end.
 
 Definition typecheck_error (e: tc_error) : Prop := False.
 
-Search (type->bool).
-
 Fixpoint denote_tc_assert {CS: compspecs}(a: tc_assert) : environ -> mpred :=
   match a with
-  | tc_FF msg => `(prop (typecheck_error msg))
-  | tc_TT => `TT
-  | tc_andp' b c => `andp (denote_tc_assert b) (denote_tc_assert c)
-  | tc_orp' b c => `orp (denote_tc_assert b) (denote_tc_assert c)
+  | tc_FF msg => `(⌜typecheck_error msg⌝)
+  | tc_TT => `True
+  | tc_andp' b c => `bi_and (denote_tc_assert b) (denote_tc_assert c)
+  | tc_orp' b c => `bi_or (denote_tc_assert b) (denote_tc_assert c)
   | tc_nonzero' e => `denote_tc_nonzero (eval_expr e)
   | tc_isptr e => `denote_tc_isptr (eval_expr e)
   | tc_isint e => `denote_tc_isint (eval_expr e)
@@ -333,80 +336,73 @@ Fixpoint denote_tc_assert {CS: compspecs}(a: tc_assert) : environ -> mpred :=
      end
  end.
 
-Lemma and_False: forall x, (x /\ False) = False.
+Lemma and_False: forall x, (x /\ False) = Logic.False.
 Proof.
-intros; apply prop_ext; intuition.
+intros; apply Axioms.prop_ext; intuition.
 Qed.
 
 Lemma and_True: forall x, (x /\ True) = x.
 Proof.
-intros; apply prop_ext; intuition.
+intros; apply Axioms.prop_ext; intuition.
 Qed.
 
 Lemma True_and: forall x, (True /\ x) = x.
 Proof.
-intros; apply prop_ext; intuition.
+intros; apply Axioms.prop_ext; intuition.
 Qed.
 
-Lemma False_and: forall x, (False /\ x) = False.
+Lemma False_and: forall x, (False /\ x) = Logic.False.
 Proof.
-intros; apply prop_ext; intuition.
+intros; apply Axioms.prop_ext; intuition.
 Qed.
 
-Lemma tc_andp_sound : forall {CS: compspecs} a1 a2 rho m,
-    denote_tc_assert  (tc_andp a1 a2) rho m <->
-    denote_tc_assert  (tc_andp' a1 a2) rho m.
+Lemma tc_andp_sound : forall {CS: compspecs} a1 a2 rho,
+    denote_tc_assert  (tc_andp a1 a2) rho ⊣⊢
+    denote_tc_assert  (tc_andp' a1 a2) rho.
 Proof.
 intros.
  unfold tc_andp.
  destruct a1; simpl; unfold_lift;
- repeat first [rewrite False_and | rewrite True_and
-                    | rewrite and_False | rewrite and_True ];
-  try apply iff_refl;
+ repeat first [rewrite bi.False_and | rewrite bi.True_and
+                    | rewrite bi.and_False | rewrite bi.and_True ];
+  try reflexivity;
   destruct a2; simpl in *; unfold_lift;
- repeat first [rewrite False_and | rewrite True_and
-                    | rewrite and_False | rewrite and_True ];
-  try apply iff_refl.
+  repeat first [rewrite bi.False_and | rewrite bi.True_and
+                    | rewrite bi.and_False | rewrite bi.and_True ];
+  try reflexivity.
 Qed.
 
 Lemma denote_tc_assert_andp:
-  forall {CS: compspecs} a b rho, denote_tc_assert (tc_andp a b) rho =
-             andp (denote_tc_assert a rho) (denote_tc_assert b rho).
-Proof.
- intros.
- apply pred_ext.
- intro m. rewrite tc_andp_sound. intros [? ?]; split; auto.
- intros m [? ?]. rewrite tc_andp_sound; split; auto.
-Qed.
+  forall {CS: compspecs} a b rho, denote_tc_assert (tc_andp a b) rho ⊣⊢
+             bi_and (denote_tc_assert a rho) (denote_tc_assert b rho).
+Proof. intros; apply tc_andp_sound. Qed.
 
 Lemma neutral_isCastResultType:
   forall {CS: compspecs} t t' v rho,
    is_neutral_cast t' t = true ->
-   forall m, denote_tc_assert (isCastResultType t' t v) rho m.
+   ⊢denote_tc_assert (isCastResultType t' t v) rho.
 Proof.
 intros.
   unfold isCastResultType.
   unfold is_neutral_cast in H; simpl classify_cast.
   destruct t'  as [ | [ | | | ] [ | ] | | [ | ] | | | | |],
    t  as [ | [ | | | ] [ | ] | | [ | ] | | | | |];
-   try solve [inv H; try apply I; simpl; simple_if_tac; apply I];
-  try (rewrite denote_tc_assert_andp; split);
+   try solve [inv H; auto; simpl; simple_if_tac; auto];
+  try (rewrite denote_tc_assert_bi_and; split);
   try solve [unfold eval_cast, sem_cast, classify_cast,
      sem_cast_pointer, sem_cast_i2bool, sem_cast_l2bool;
-      destruct Archi.ptr64; simpl; try simple_if_tac; try apply I].
+      destruct Archi.ptr64; simpl; try simple_if_tac; auto].
   apply orb_true_iff in H.
   unfold classify_cast.
   destruct (Bool.eqb (eqb_type (Tpointer t a0) int_or_ptr_type)
          (eqb_type (Tpointer t' a) int_or_ptr_type)) eqn:J.
-  destruct (eqb_type (Tpointer t' a) (Tpointer t a0)) eqn:?H.
-  apply I.
+  destruct (eqb_type (Tpointer t' a) (Tpointer t a0)) eqn:?H; first by auto.
   destruct H. inv H.
   apply andb_true_iff in H. destruct H.
   rewrite eqb_true_iff in J.
   unfold is_pointer_type.
   rewrite <- J in *. apply eqb_type_false in H0.
-  destruct (eqb_type (Tpointer t a0) int_or_ptr_type); inv H.
-  apply I.
+  destruct (eqb_type (Tpointer t a0) int_or_ptr_type); inv H; by auto.
   destruct H.
   apply eqb_type_true in H. rewrite <- H in *.
   rewrite eqb_reflx in J. inv J.
@@ -418,10 +414,12 @@ Lemma is_true_e: forall b, is_true b -> b=true.
 Proof. intros. destruct b; try contradiction; auto.
 Qed.
 
-Lemma tc_bool_e: forall {CS: compspecs} b a rho m,
-  app_pred (denote_tc_assert (tc_bool b a) rho) m ->
-  b = true.
+Lemma tc_bool_e: forall {CS: compspecs} b a rho,
+  denote_tc_assert (tc_bool b a) rho ⊢
+  ⌜b = true⌝.
 Proof.
 intros.
-destruct b; simpl in H; auto.
+destruct b; simpl; auto.
 Qed.
+
+End mpred.

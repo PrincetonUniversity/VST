@@ -290,6 +290,9 @@ match f1 with
     end
 end.
 
+Global Instance funspec_sub_si_plain f1 f2 : Plain (funspec_sub_si f1 f2).
+Proof. destruct f1, f2; simpl; apply _. Qed.
+
 Lemma funspec_sub_sub_si f1 f2: funspec_sub f1 f2 -> ⊢ funspec_sub_si f1 f2.
 Proof.
   intros. destruct f1; destruct f2; simpl in *.

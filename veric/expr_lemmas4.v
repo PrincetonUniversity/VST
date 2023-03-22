@@ -1,7 +1,6 @@
 Require Import VST.veric.Clight_base.
-Require Import VST.msl.msl_standard.
-Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.Clight_lemmas.
+Require Import VST.veric.res_predicates.
 Require Import VST.veric.mpred.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
@@ -20,57 +19,55 @@ Require Import VST.veric.seplog. (*For definition of typecheck_environ*)
 Import Cop.
 Import Cop2.
 Import Clight_Cop2.
-Import compcert.lib.Maps.
 Import Ctypes.
+
+Section mpred.
+
+Context `{!heapGS Σ}.
 
 (** Main soundness result for the typechecker **)
 
 Lemma typecheck_both_sound:
-  forall {CS: compspecs} Delta rho m e ,
+  forall {CS: compspecs} Delta rho e ,
              typecheck_environ Delta rho ->
-             (denote_tc_assert (typecheck_expr Delta e) rho m ->
-             tc_val (typeof e) (eval_expr e rho)) /\
+             (denote_tc_assert (typecheck_expr Delta e) rho ⊢
+              ⌜tc_val (typeof e) (eval_expr e rho)⌝) /\
              (forall pt,
-             denote_tc_assert (typecheck_lvalue Delta e) rho m ->
-             is_pointer_type pt = true ->
-             tc_val pt (eval_lvalue e rho)).
+             denote_tc_assert (typecheck_lvalue Delta e) rho ⊢
+             ⌜is_pointer_type pt = true ->
+             tc_val pt (eval_lvalue e rho)⌝).
 Proof.
 intros. induction e; split; intros; try solve[subst; auto]; try contradiction.
 
 * (*Const int*)
-simpl in *. destruct t; try contradiction.
-destruct i0; try contradiction. auto.
+simpl in *. destruct t; try iIntros "[]".
+destruct i0; try iIntros "[]". auto.
 
 * (*Const float*)
-destruct f; simpl in *; subst; destruct t; try destruct f; tauto.
+destruct f; simpl in *; subst; destruct t; try destruct f; auto.
 * (* Const single *)
-destruct f; simpl in *; subst; destruct t; try destruct f; tauto.
+destruct f; simpl in *; subst; destruct t; try destruct f; auto.
 
 * (* Const long *)
-simpl in *. destruct t; try contradiction. hnf. auto.
+simpl in *. destruct t; try iIntros "[]".  auto.
 * (*Var*)
 eapply typecheck_expr_sound_Evar; eauto.
 
-*eapply typecheck_lvalue_Evar; eauto.
+*
+eapply typecheck_lvalue_Evar; eauto.
 
 * (*Temp*)
 eapply typecheck_temp_sound; eauto.
 
 * (*deref*)
 
-simpl in H0 |- *.
-unfold deref_noload.
-destruct (access_mode t) eqn:?H; try inversion H0.
-unfold Datatypes.id.
+unfold typecheck_expr; fold typecheck_expr.
+destruct (access_mode t) eqn:?H; try iIntros "[]".
+rewrite !denote_tc_assert_andp /=.
 unfold_lift.
-simpl.
-rewrite !denote_tc_assert_andp in H0.
-simpl in H0.
-destruct H0.
-unfold_lift in H2.
+rewrite (proj1 IHe) tc_bool_e; iIntros "[[%He %H1] %H2]".
 destruct (eval_expr e rho); inversion H2.
-simpl.
-destruct t; try reflexivity; try inversion H1.
+destruct t; try auto; try inversion H0.
 - destruct i0, s; inversion H4.
 - destruct f; inversion H4.
 
@@ -895,8 +892,4 @@ intros.
 edestruct eval_both_relate; eauto.
 Qed.
 
-
-
-
-
-
+End mpred.

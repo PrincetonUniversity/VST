@@ -1,13 +1,11 @@
-Require Import VST.msl.msl_standard.
 Require Import VST.veric.Clight_base.
-Require Import VST.veric.compcert_rmaps.
+Require Import VST.veric.res_predicates.
 Require Import VST.veric.mpred.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.Clight_lemmas.
 Require Export VST.veric.lift. Import LiftNotation.
 Require Export VST.veric.Clight_Cop2.
 Require Export VST.veric.val_lemmas.
-Import compcert.lib.Maps.
 
 Require Import VST.veric.seplog. (*For definition of tycontext*)
 
@@ -47,7 +45,7 @@ Arguments eval_cast t1 t2 / v.
 Definition eval_field {CS: compspecs} (ty: type) (fld: ident) : val -> val :=
           match ty with
              | Tstruct id att =>
-                 match cenv_cs ! id with
+                 match cenv_cs !! id with
                  | Some co =>
                          match field_offset cenv_cs fld (co_members co) with
                          | Errors.OK (delta, Full) => offset_val delta
@@ -56,7 +54,7 @@ Definition eval_field {CS: compspecs} (ty: type) (fld: ident) : val -> val :=
                  | _ => always Vundef
                  end
              | Tunion id att =>
-                 match cenv_cs ! id with
+                 match cenv_cs !! id with
                  | Some co => 
                          match union_field_offset cenv_cs fld (co_members co) with
                          | Errors.OK (delta, Full) => offset_val delta
@@ -189,6 +187,10 @@ match ty with
 | _ => false
 end.
 
+Section mpred.
+
+Context `{!heapGS Σ}.
+
 Inductive tc_error :=
 | op_result_type : expr -> tc_error
 | arg_type : expr -> tc_error
@@ -227,7 +229,7 @@ Inductive tc_assert :=
 | tc_Zge: expr -> Z -> tc_assert
 | tc_samebase: expr -> expr -> tc_assert
 | tc_nodivover': expr -> expr -> tc_assert
-| tc_initialized: PTree.elt -> type -> tc_assert
+| tc_initialized: Maps.PTree.elt -> type -> tc_assert
 | tc_nosignedover: (Z->Z->Z) -> expr -> expr -> tc_assert.
 
 Definition tc_noproof := tc_FF miscellaneous_typecheck_error.
@@ -647,9 +649,9 @@ Definition is_neutral_cast t1 t2 :=
  end.
 
 Definition get_var_type (Delta : tycontext) id : option type :=
-match (var_types Delta) ! id with
+match (var_types Delta) !! id with
 | Some ty => Some ty
-| None => match (glob_types Delta) ! id with
+| None => match (glob_types Delta) !! id with
          | Some g => Some g
          | None => None
            end
@@ -676,7 +678,7 @@ match e with
  | Econst_float _ (Tfloat F64 _) => tc_TT
  | Econst_single _ (Tfloat F32 _) => tc_TT
  | Etempvar id ty =>
-                       match (temp_types Delta)!id with
+                       match (temp_types Delta)!!id with
                          | Some ty' => if is_neutral_cast ty' ty || same_base_type ty' ty then
                                          tc_initialized id ty'
                                        else tc_FF (mismatch_context_type ty ty')
@@ -700,7 +702,7 @@ match e with
                          | By_reference =>
                             tc_andp (typecheck_lvalue Delta a) (match typeof a with
                             | Tstruct id att =>
-                               match cenv_cs ! id with
+                               match cenv_cs !! id with
                                | Some co =>
                                   match field_offset cenv_cs i (co_members co) with
                                   | Errors.OK (delta,Full) => tc_TT
@@ -709,7 +711,7 @@ match e with
                                | _ => tc_FF (invalid_composite_name id)
                                end
                             | Tunion id att =>
-                               match cenv_cs ! id with
+                               match cenv_cs !! id with
                                | Some co => 
                                    match union_field_offset cenv_cs i (co_members co) with
                                      | Errors.OK (0, Full) => tc_TT
@@ -752,7 +754,7 @@ match e with
                          (typecheck_lvalue Delta a)
                          (match typeof a with
                             | Tstruct id att =>
-                              match cenv_cs ! id with
+                              match cenv_cs !! id with
                               | Some co =>
                                    match field_offset cenv_cs i (co_members co) with
                                      | Errors.OK (delta, Full) => tc_TT
@@ -761,7 +763,7 @@ match e with
                               | _ => tc_FF (invalid_composite_name id)
                               end
                             | Tunion id att =>
-                              match cenv_cs ! id with
+                              match cenv_cs !! id with
                               | Some co => 
                                    match union_field_offset cenv_cs i (co_members co) with
                                      | Errors.OK (0, Full) => tc_TT
@@ -781,7 +783,7 @@ Definition implicit_deref (t: type) : type :=
   end.
 
 Definition typecheck_temp_id {CS: compspecs}id ty Delta a : tc_assert :=
-  match (temp_types Delta)!id with
+  match (temp_types Delta)!!id with
   | Some t =>
       tc_andp (tc_bool (is_neutral_cast (implicit_deref ty) t) (invalid_cast ty t))
                   (isCastResultType (implicit_deref ty) t a)
@@ -819,33 +821,255 @@ match tl,el with
 | _, _ => tc_FF wrong_signature
 end.
 
+(** Type-checking of function parameters **)
+
+Fixpoint match_fsig_aux (bl: list expr) (tl: list (ident*type)) : bool :=
+ match bl, tl with
+ | b::bl', (_,t'):: tl' => if eqb_type (typeof b) t' then match_fsig_aux bl' tl' else false
+ | nil, nil => true
+ | nil, _::_ => false
+ | _::_, nil => false
+ end.
+
+Definition match_fsig (fs: funsig) (bl: list expr) (ret: option ident) : bool :=
+  andb (match_fsig_aux bl (fst fs))
+          (match snd fs, ret with
+            | Tvoid , None => true
+            | Tvoid, Some _ => false
+            | _, None => false
+            | _, Some _ => true
+            end).
+
+Lemma match_fsig_e: forall fs bl ret,
+  match_fsig fs bl ret = true ->
+  map typeof bl = map (@snd _ _) (fst fs) /\ (snd fs=Tvoid <-> ret=None).
+Proof.
+ intros.
+ apply andb_true_iff in H.
+ destruct H.
+ split. clear H0.
+ forget (fst fs) as tl.
+ revert tl H; induction bl; destruct tl; intros; inv H.
+  reflexivity.
+ destruct p.
+ revert H1; case_eq (eqb_type (typeof a) t); intros.
+ apply eqb_type_true in H. subst; simpl in *. f_equal; auto.
+ inv H1.
+ clear H.
+ destruct (snd fs); destruct ret; intuition congruence.
+Qed.
+
+Definition expr_closed_wrt_vars {CS: compspecs}(S: ident -> Prop) (e: expr) : Prop :=
+  forall rho te',
+     (forall i, S i \/ Map.get (te_of rho) i = Map.get te' i) ->
+     eval_expr e rho = eval_expr e (mkEnviron (ge_of rho) (ve_of rho) te').
+
+Definition lvalue_closed_wrt_vars {CS: compspecs}(S: ident -> Prop) (e: expr) : Prop :=
+  forall rho te',
+     (forall i, S i \/ Map.get (te_of rho) i = Map.get te' i) ->
+     eval_lvalue e rho = eval_lvalue e (mkEnviron (ge_of rho) (ve_of rho) te').
+
+
+Definition typecheck_store e1 :=
+(is_int_type (typeof e1) = true -> typeof e1 = Tint I32 Signed noattr) /\
+(is_float_type (typeof e1) = true -> typeof e1 = Tfloat F64 noattr).
+
+(*Typechecking facts to help semax_store go through until it gets generalized*)
+
+Ltac tc_assert_ext :=
+repeat match goal with
+| [H : _ /\ _ |- _] => destruct H
+end.
+
+Ltac of_bool_destruct :=
+match goal with
+  | [ |- context[Val.of_bool ?X] ] => destruct X
+  | [ |- context[bool2val ?X] ] => destruct X
+end.
+
+Lemma orb_if : forall {D} b c (d:D) (e:D), (if (b || c) then d else e) = if b then d else if c then d else e.
+intros.
+remember (b || c). destruct b0; auto. symmetry in Heqb0. rewrite orb_true_iff in Heqb0.
+intuition; subst; auto. destruct b; auto. symmetry in Heqb0; rewrite orb_false_iff in Heqb0.
+intuition; subst; auto.
+Qed.
+
+Lemma andb_if : forall {D} b c (d:D) (e:D), (if (b && c) then d else e) = if b then (if c then d else e) else e.
+Proof.
+intros.
+destruct b; auto.
+Qed.
+
+Open Scope bi_scope.
+
+Definition valid_pointer' (p: val) (d: Z) : mpred :=
+ match p with
+ | Vint i => if Archi.ptr64 then False else ⌜i = Int.zero⌝
+ | Vlong i => if Archi.ptr64 then ⌜i = Int64.zero⌝ else False
+ | Vptr b ofs => ∃dq r, (b, Ptrofs.unsigned ofs + d) ↦{dq} r
+ | _ => False
+ end.
+
+Definition valid_pointer (p: val) : mpred :=
+ (valid_pointer' p 0).
+
+Definition weak_valid_pointer (p: val) : mpred :=
+ (valid_pointer' p 0) ∨ (valid_pointer' p (-1)).
+
+(********************SUBSUME****************)
+
+Definition funsig_of_function (f: function) : funsig :=
+  (fn_params f, fn_return f).
+
+(*Lemma binary_intersection_retty {phi1 phi2 phi} (BI : binary_intersection phi1 phi2 = Some phi):
+      rettype_of_funspec phi1 = rettype_of_funspec phi.
+Proof. unfold rettype_of_funspec. rewrite (binary_intersection_typesig BI); trivial. Qed.*)
+
+(* If we were to require that a non-void-returning function must,
+   at a function call, have its result assigned to a temp,
+   then we could change "ret0_tycon" to "ret_tycon" in this
+   definition (and in NDfunspec_sub). *)
+Definition subsumespec x y :=
+match x with
+| Some hspec => exists gspec, y = Some gspec /\ (⊢ funspec_sub_si gspec hspec) (*contravariance!*)
+| None => Logic.True
+end. 
+
+Lemma subsumespec_trans x y z (SUB1: subsumespec x y) (SUB2: subsumespec y z):
+     subsumespec x z.
+Proof. unfold subsumespec in *.
+ destruct x; trivial. destruct SUB1 as [? [? ?]]; subst.
+ destruct SUB2 as [? [? ?]]; subst. exists x0; split; trivial.
+ iIntros; iApply funspec_sub_si_trans; auto.
+Qed.
+
+Lemma subsumespec_refl x: subsumespec x x.
+Proof. unfold subsumespec.
+ destruct x; trivial. exists f; split; [trivial| apply funspec_sub_si_refl ].
+Qed.
+
+Definition tycontext_sub (Delta Delta' : tycontext) : Prop :=
+ (forall id, match (temp_types Delta) !! id,  (temp_types Delta') !! id with
+                 | None, _ => True
+                 | Some t, None => False
+                 | Some t, Some t' => t=t'
+                end)
+ /\ (forall id, (var_types Delta) !! id = (var_types Delta') !! id)
+ /\ ret_type Delta = ret_type Delta'
+ /\ (forall id, sub_option ((glob_types Delta) !! id) ((glob_types Delta') !! id))
+
+ /\ (forall id, subsumespec ((glob_specs Delta) !! id) ((glob_specs Delta') !! id))
+
+ /\ (forall id, Annotation_sub ((annotations Delta) !! id) ((annotations Delta') !! id)).
+
+
+Lemma tycontext_sub_trans:
+ forall Delta1 Delta2 Delta3,
+  tycontext_sub Delta1 Delta2 -> tycontext_sub Delta2 Delta3 ->
+  tycontext_sub Delta1 Delta3.
+Proof.
+  intros ? ? ? [G1 [G2 [G3 [G4 [G5 G6]]]]] [H1 [H2 [H3 [H4 [H5 H6]]]]].
+  repeat split.
+  * intros. specialize (G1 id); specialize (H1 id).
+    destruct ((temp_types Delta1) !! id); auto.
+    destruct ((temp_types Delta2) !! id);
+      try contradiction.
+    destruct ((temp_types Delta3) !! id); try contradiction.
+    destruct G1, H1; split; subst; auto.
+  * intros. specialize (G2 id); specialize (H2 id); congruence.
+  * congruence.
+  * intros. eapply sub_option_trans; eauto.
+  * clear - H5 G5. intros. eapply subsumespec_trans; eauto.
+  * intros. eapply Annotation_sub_trans; eauto.
+Qed.
+
+Lemma tycontext_sub_refl Delta: tycontext_sub Delta Delta.
+Proof.
+  repeat split; trivial.
+  * intros. destruct ((temp_types Delta) !! id); trivial. 
+  * intros. apply sub_option_refl. 
+  * intros. apply subsumespec_refl.
+  * intros. eapply Annotation_sub_refl.
+Qed.
+
+(*************************************)
+
+
+
+(*Could weaken and say that only the data components of the composite need to identical, not the proofs*)
+Definition cenv_sub (ce ce':composite_env) := forall i, sub_option (ce!!i) (ce'!!i).
+
+Lemma cenv_sub_refl {ce}: cenv_sub ce ce.
+Proof. intros i; apply sub_option_refl. Qed.
+
+Lemma cenv_sub_trans {ce ce' ce''}: cenv_sub ce ce' -> cenv_sub ce' ce'' -> cenv_sub ce ce''.
+Proof. intros X X' i; specialize (X i); specialize (X' i). eapply sub_option_trans; eassumption. Qed.
+
+Definition ha_env_cs_sub (t t': Maps.PTree.t Z) := forall i, sub_option (t!!i) (t'!!i).
+
+Lemma ha_env_cs_refl {ce}: ha_env_cs_sub ce ce.
+Proof. intros i; apply sub_option_refl. Qed.
+
+Lemma ha_env_cs_sub_trans {ce ce' ce''}: ha_env_cs_sub ce ce' -> ha_env_cs_sub ce' ce'' -> ha_env_cs_sub ce ce''.
+Proof. intros X X' i; specialize (X i); specialize (X' i). eapply sub_option_trans; eassumption. Qed.
+
+Definition la_env_cs_sub (t t': Maps.PTree.t align_mem.LegalAlignasFacts.LegalAlignas.legal_alignas_obs) :=
+  forall i, sub_option (t!!i) (t'!!i).
+
+Lemma la_env_cs_refl {ce}: la_env_cs_sub ce ce.
+Proof. intros i; apply sub_option_refl. Qed.
+
+Lemma la_env_cs_sub_trans {ce ce' ce''}: la_env_cs_sub ce ce' -> la_env_cs_sub ce' ce'' -> la_env_cs_sub ce ce''.
+Proof. intros X X' i; specialize (X i); specialize (X' i). eapply sub_option_trans; eassumption. Qed.
+
+Definition cspecs_sub (cs cs':compspecs) := cenv_sub (@cenv_cs cs) (@cenv_cs cs') /\
+                                            ha_env_cs_sub (@ha_env_cs cs) (@ha_env_cs cs') /\
+                                            la_env_cs_sub (@la_env_cs cs) (@la_env_cs cs').
+
+Lemma cspecs_sub_refl {cs}: cspecs_sub cs cs.
+Proof. split3; [ apply cenv_sub_refl | apply ha_env_cs_refl | apply la_env_cs_refl]. Qed.
+
+Lemma cspecs_sub_trans {cs cs' cs''}: cspecs_sub cs cs' -> cspecs_sub cs' cs'' -> cspecs_sub cs cs''.
+Proof.
+  intros [A1 [A2 A3]] [B1 [B2 B3]]. split3.
+  apply (cenv_sub_trans A1 B1). 
+  apply (ha_env_cs_sub_trans A2 B2). 
+  apply (la_env_cs_sub_trans A3 B3).
+Qed.
+
+Lemma valid_pointer_is_pointer_or_null p:
+      valid_pointer p ⊢ ⌜is_pointer_or_null p⌝.
+Proof. destruct p; simpl; auto. Qed.
+
+End mpred.
+
 (** Environment typechecking functions **)
 
 Lemma typecheck_var_environ_None: forall ve vt,
   typecheck_var_environ ve vt ->
   forall i,
-  vt ! i = None <-> Map.get ve i = None.
+  vt !! i = None <-> Map.get ve i = None.
 Proof.
   intros.
-  destruct (vt ! i) eqn:?H, (Map.get ve i) eqn:?H; try (split; congruence).
+  destruct (vt !! i) eqn:?H, (Map.get ve i) eqn:?H; try (split; congruence).
   + apply H in H0.
     destruct H0; congruence.
   + destruct p.
-    assert (vt ! i = Some t) by (apply H; eauto).
+    assert (vt !! i = Some t) by (apply H; eauto).
     congruence.
 Qed.
 
 (* This naming is for the purpose when VST's developers do "Search typecheck_var_environ." *)
 Lemma WARNING___________you_should_use_tactic___destruct_var_types___instead:
-  forall (ve : venviron) (vt : PTree.t type), typecheck_var_environ ve vt -> forall i : positive,
-     match vt ! i with
+  forall (ve : venviron) (vt : Maps.PTree.t type), typecheck_var_environ ve vt -> forall i : positive,
+     match vt !! i with
      | Some t => exists b, Map.get ve i = Some (b, t)
      | None => Map.get ve i = None
      end.
 Proof.
   intros.
   pose proof (H i).
-  destruct (vt ! i) eqn:?H.
+  destruct (vt !! i) eqn:?H.
   + specialize (H0 t).
     destruct H0 as [? _].
     specialize (H0 eq_refl).
@@ -855,15 +1079,15 @@ Qed.
 
 (* This naming is for the purpose when VST's developers do "Search typecheck_glob_environ." *)
 Lemma WARNING___________you_should_use_tactic___destruct_glob_types___instead:
-  forall (ge : genviron) (gt : PTree.t type), typecheck_glob_environ ge gt -> forall i : positive,
-     match gt ! i with
+  forall (ge : genviron) (gt : Maps.PTree.t type), typecheck_glob_environ ge gt -> forall i : positive,
+     match gt !! i with
      | Some t => exists b, Map.get ge i = Some b
      | None => True
      end.
 Proof.
   intros.
   pose proof (H i).
-  destruct (gt ! i).
+  destruct (gt !! i).
   + specialize (H0 t).
     specialize (H0 eq_refl).
     auto.
@@ -977,261 +1201,3 @@ Tactic Notation "destruct_glob_types" constr(i) "eqn" ":" simple_intropattern(He
 
 Tactic Notation "destruct_glob_types" constr(i) "as" "[" ident(t) ident(b) "]" "eqn" ":" simple_intropattern(Heq_gt) "&" simple_intropattern(Heq_ge) :=
   _destruct_glob_types i Heq_gt Heq_ge t b.
-(** Type-checking of function parameters **)
-
-Fixpoint match_fsig_aux (bl: list expr) (tl: list (ident*type)) : bool :=
- match bl, tl with
- | b::bl', (_,t'):: tl' => if eqb_type (typeof b) t' then match_fsig_aux bl' tl' else false
- | nil, nil => true
- | nil, _::_ => false
- | _::_, nil => false
- end.
-
-Definition match_fsig (fs: funsig) (bl: list expr) (ret: option ident) : bool :=
-  andb (match_fsig_aux bl (fst fs))
-          (match snd fs, ret with
-            | Tvoid , None => true
-            | Tvoid, Some _ => false
-            | _, None => false
-            | _, Some _ => true
-            end).
-
-Lemma match_fsig_e: forall fs bl ret,
-  match_fsig fs bl ret = true ->
-  map typeof bl = map (@snd _ _) (fst fs) /\ (snd fs=Tvoid <-> ret=None).
-Proof.
- intros.
- apply andb_true_iff in H.
- destruct H.
- split. clear H0.
- forget (fst fs) as tl.
- revert tl H; induction bl; destruct tl; intros; inv H.
-  reflexivity.
- destruct p.
- revert H1; case_eq (eqb_type (typeof a) t); intros.
- apply eqb_type_true in H. subst; simpl in *. f_equal; auto.
- inv H1.
- clear H.
- destruct (snd fs); destruct ret; intuition congruence.
-Qed.
-
-Definition expr_closed_wrt_vars {CS: compspecs}(S: ident -> Prop) (e: expr) : Prop :=
-  forall rho te',
-     (forall i, S i \/ Map.get (te_of rho) i = Map.get te' i) ->
-     eval_expr e rho = eval_expr e (mkEnviron (ge_of rho) (ve_of rho) te').
-
-Definition lvalue_closed_wrt_vars {CS: compspecs}(S: ident -> Prop) (e: expr) : Prop :=
-  forall rho te',
-     (forall i, S i \/ Map.get (te_of rho) i = Map.get te' i) ->
-     eval_lvalue e rho = eval_lvalue e (mkEnviron (ge_of rho) (ve_of rho) te').
-
-                                                                           
-Definition typecheck_store e1 :=
-(is_int_type (typeof e1) = true -> typeof e1 = Tint I32 Signed noattr) /\
-(is_float_type (typeof e1) = true -> typeof e1 = Tfloat F64 noattr).
-
-(*Typechecking facts to help semax_store go through until it gets generalized*)
-
-Ltac tc_assert_ext :=
-repeat match goal with
-| [H : _ /\ _ |- _] => destruct H
-end.
-
-Ltac of_bool_destruct :=
-match goal with
-  | [ |- context[Val.of_bool ?X] ] => destruct X
-  | [ |- context[bool2val ?X] ] => destruct X
-end.
-
-Lemma orb_if : forall {D} b c (d:D) (e:D), (if (b || c) then d else e) = if b then d else if c then d else e.
-intros.
-remember (b || c). destruct b0; auto. symmetry in Heqb0. rewrite orb_true_iff in Heqb0.
-intuition; subst; auto. destruct b; auto. symmetry in Heqb0; rewrite orb_false_iff in Heqb0.
-intuition; subst; auto.
-Qed.
-
-Lemma andb_if : forall {D} b c (d:D) (e:D), (if (b && c) then d else e) = if b then (if c then d else e) else e.
-Proof.
-intros.
-remember (b&&c). destruct b0; symmetry in Heqb0; 
-try rewrite andb_true_iff in *; try rewrite andb_false_iff in *;
-simple_if_tac; auto; intuition;
-destruct c; auto; intuition.
-Qed.
-
-Program Definition valid_pointer' (p: val) (d: Z) : mpred :=
- match p with
- | Vint i => if Archi.ptr64 then FF else prop (i = Int.zero)
- | Vlong i => if Archi.ptr64 then prop (i=Int64.zero) else FF
- | Vptr b ofs =>
-  fun m =>
-    match m @ (b, Ptrofs.unsigned ofs + d) with
-    | YES _ _ _ pp => True
-    | NO sh _ => nonidentity sh
-    | _ => False
-    end
- | _ => FF
- end.
-Next Obligation.
-split; intros; congruence.
-Qed.
-Next Obligation.
-split; simpl; repeat intro.
-destruct (a@(b,Ptrofs.unsigned ofs + d)) eqn:?; try contradiction.
-rewrite (necR_NO a a') in Heqr.
-rewrite Heqr; auto.
-constructor; auto.
-subst.
-apply (necR_YES a a') in Heqr; [ | constructor; auto].
-rewrite Heqr.
-auto.
-
-apply rmap_order in H as (_ & <- & _); auto.
-Qed.
-Next Obligation.
-split3; intros; congruence.
-Qed.
-Next Obligation.
-split3; intros; congruence.
-Qed.
-Next Obligation.
-split3; intros; congruence.
-Qed.
-
-Definition valid_pointer (p: val) : mpred :=
- (valid_pointer' p 0).
-
-Definition weak_valid_pointer (p: val) : mpred :=
- orp (valid_pointer' p 0) (valid_pointer' p (-1)).
-
-(********************SUBSUME****************)
-
-Definition funsig_of_function (f: function) : funsig :=
-  (fn_params f, fn_return f).
-
-Lemma binary_intersection_retty {phi1 phi2 phi} (BI : binary_intersection phi1 phi2 = Some phi):
-      rettype_of_funspec phi1 = rettype_of_funspec phi.
-Proof. unfold rettype_of_funspec. rewrite (binary_intersection_typesig BI); trivial. Qed.
-
-Section invs.
-
-Context {inv_names : invariants.invG}.
-
-(* If we were to require that a non-void-returning function must,
-   at a function call, have its result assigned to a temp,
-   then we could change "ret0_tycon" to "ret_tycon" in this
-   definition (and in NDfunspec_sub). *)
-Definition subsumespec x y:=
-match x with
-| Some hspec => exists gspec, y = Some gspec /\ (TT |-- funspec_sub_si gspec hspec) (*contravariance!*)
-| None => True
-end. 
-
-Lemma subsumespec_trans x y z (SUB1: subsumespec x y) (SUB2: subsumespec y z):
-     subsumespec x z.
-Proof. unfold subsumespec in *.
- destruct x; trivial. destruct SUB1 as [? [? ?]]; subst.
- destruct SUB2 as [? [? ?]]; subst. exists x0; split; trivial.
- intros w W.
- eapply funspec_sub_si_trans; split; eauto.
-Qed.
-
-Lemma subsumespec_refl x: subsumespec x x.
-Proof. unfold subsumespec.
- destruct x; trivial. exists f; split; [trivial| apply funspec_sub_si_refl ].
-Qed.
-
-Definition tycontext_sub (Delta Delta' : tycontext) : Prop :=
- (forall id, match (temp_types Delta) ! id,  (temp_types Delta') ! id with
-                 | None, _ => True
-                 | Some t, None => False
-                 | Some t, Some t' => t=t'
-                end)
- /\ (forall id, (var_types Delta) ! id = (var_types Delta') ! id)
- /\ ret_type Delta = ret_type Delta'
- /\ (forall id, sub_option ((glob_types Delta) ! id) ((glob_types Delta') ! id))
-
- /\ (forall id, subsumespec ((glob_specs Delta) ! id) ((glob_specs Delta') ! id))
-
- /\ (forall id, Annotation_sub ((annotations Delta) ! id) ((annotations Delta') ! id)).
-
-
-Lemma tycontext_sub_trans:
- forall Delta1 Delta2 Delta3,
-  tycontext_sub Delta1 Delta2 -> tycontext_sub Delta2 Delta3 ->
-  tycontext_sub Delta1 Delta3.
-Proof.
-  intros ? ? ? [G1 [G2 [G3 [G4 [G5 G6]]]]] [H1 [H2 [H3 [H4 [H5 H6]]]]].
-  repeat split.
-  * intros. specialize (G1 id); specialize (H1 id).
-    destruct ((temp_types Delta1) ! id); auto.
-    destruct ((temp_types Delta2) ! id);
-      try contradiction.
-    destruct ((temp_types Delta3) ! id); try contradiction.
-    destruct G1, H1; split; subst; auto.
-  * intros. specialize (G2 id); specialize (H2 id); congruence.
-  * congruence.
-  * intros. eapply sub_option_trans; eauto.
-  * clear - H5 G5. intros. eapply subsumespec_trans; eauto.
-  * intros. eapply Annotation_sub_trans; eauto.
-Qed.
-
-Lemma tycontext_sub_refl Delta: tycontext_sub Delta Delta.
-Proof.
-  repeat split; trivial.
-  * intros. destruct ((temp_types Delta) ! id); trivial. 
-  * intros. apply sub_option_refl. 
-  * intros. apply subsumespec_refl.
-  * intros. eapply Annotation_sub_refl.
-Qed.
-
-End invs.
-
-(*************************************)
-
-
-
-(*Could weaken and say that only the data components of the composite need to identical, not the proofs*)
-Definition cenv_sub (ce ce':composite_env) := forall i, sub_option (ce!i) (ce'!i).
-
-Lemma cenv_sub_refl {ce}: cenv_sub ce ce.
-Proof. intros i; apply sub_option_refl. Qed.
-
-Lemma cenv_sub_trans {ce ce' ce''}: cenv_sub ce ce' -> cenv_sub ce' ce'' -> cenv_sub ce ce''.
-Proof. intros X X' i; specialize (X i); specialize (X' i). eapply sub_option_trans; eassumption. Qed.
-
-Definition ha_env_cs_sub (t t': PTree.t Z) := forall i, sub_option (t!i) (t'!i).
-
-Lemma ha_env_cs_refl {ce}: ha_env_cs_sub ce ce.
-Proof. intros i; apply sub_option_refl. Qed.
-
-Lemma ha_env_cs_sub_trans {ce ce' ce''}: ha_env_cs_sub ce ce' -> ha_env_cs_sub ce' ce'' -> ha_env_cs_sub ce ce''.
-Proof. intros X X' i; specialize (X i); specialize (X' i). eapply sub_option_trans; eassumption. Qed.
-
-Definition la_env_cs_sub (t t': PTree.t align_mem.LegalAlignasFacts.LegalAlignas.legal_alignas_obs) :=
-  forall i, sub_option (t!i) (t'!i).
-
-Lemma la_env_cs_refl {ce}: la_env_cs_sub ce ce.
-Proof. intros i; apply sub_option_refl. Qed.
-
-Lemma la_env_cs_sub_trans {ce ce' ce''}: la_env_cs_sub ce ce' -> la_env_cs_sub ce' ce'' -> la_env_cs_sub ce ce''.
-Proof. intros X X' i; specialize (X i); specialize (X' i). eapply sub_option_trans; eassumption. Qed.
-
-Definition cspecs_sub (cs cs':compspecs) := cenv_sub (@cenv_cs cs) (@cenv_cs cs') /\
-                                            ha_env_cs_sub (@ha_env_cs cs) (@ha_env_cs cs') /\
-                                            la_env_cs_sub (@la_env_cs cs) (@la_env_cs cs').
-
-Lemma cspecs_sub_refl {cs}: cspecs_sub cs cs.
-Proof. split3; [ apply cenv_sub_refl | apply ha_env_cs_refl | apply la_env_cs_refl]. Qed.
-
-Lemma cspecs_sub_trans {cs cs' cs''}: cspecs_sub cs cs' -> cspecs_sub cs' cs'' -> cspecs_sub cs cs''.
-Proof.
-  intros [A1 [A2 A3]] [B1 [B2 B3]]. split3.
-  apply (cenv_sub_trans A1 B1). 
-  apply (ha_env_cs_sub_trans A2 B2). 
-  apply (la_env_cs_sub_trans A3 B3).
-Qed.
-
-Lemma valid_pointer_is_pointer_or_null p:
-      valid_pointer p |-- !!(is_pointer_or_null p).
-Proof. intros m. destruct p; simpl; trivial. Qed.

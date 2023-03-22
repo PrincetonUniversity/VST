@@ -1,7 +1,6 @@
 Require Import VST.veric.Clight_base.
-Require Import VST.msl.msl_standard.
-Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.Clight_lemmas.
+Require Import VST.veric.res_predicates.
 Require Import VST.veric.mpred.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
@@ -20,7 +19,6 @@ Import Cop2.
 Import Clight_Cop2.
 Import Ctypes.
 Import LiftNotation.
-Import compcert.lib.Maps.
 
 Transparent intsize_eq.
 

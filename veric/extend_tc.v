@@ -1,7 +1,5 @@
-Require Import VST.msl.log_normalize.
-Require Import VST.msl.alg_seplog.
 Require Export VST.veric.Clight_base.
-Require Import VST.veric.compcert_rmaps.
+Require Import VST.veric.res_predicates.
 Require Import VST.veric.mpred.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
@@ -9,8 +7,12 @@ Require Import VST.veric.binop_lemmas2.
 
 Require Import VST.veric.seplog. (*For definition of tycontext*)
 Import LiftNotation.
-Import compcert.lib.Maps.
-Local Open Scope pred.
+
+Section mpred.
+
+Context `{!heapGS Σ}.
+
+Open Scope bi_scope.
 
 Definition tc_expr {CS: compspecs} (Delta: tycontext) (e: expr) : environ -> mpred:=
   fun rho => denote_tc_assert (typecheck_expr Delta e) rho.
@@ -26,15 +28,15 @@ Definition tc_temp_id {CS: compspecs} (id : positive) (ty : type)
      fun rho => denote_tc_assert (typecheck_temp_id id ty Delta e) rho.
 
 Definition tc_expropt {CS: compspecs} Delta (e: option expr) (t: type) : environ -> mpred :=
-   match e with None => `!!(t=Ctypes.Tvoid)
+   match e with None => `⌜t=Ctypes.Tvoid⌝
                      | Some e' => tc_expr Delta (Ecast e' t)
    end.
 
 Definition tc_temp_id_load id tfrom Delta v : environ -> mpred  :=
-fun rho => !! (exists tto, (temp_types Delta) ! id = Some tto
-                      /\ tc_val tto (eval_cast tfrom tto (v rho))).
+fun rho => ⌜exists tto, (temp_types Delta) !! id = Some tto
+                      /\ tc_val tto (eval_cast tfrom tto (v rho))⌝.
 
-Lemma extend_prop: forall P, boxy extendM (prop P : mpred).
+(*Lemma extend_prop: forall P, boxy extendM (prop P : mpred).
 Proof.
 intros.
 hnf.
@@ -223,7 +225,7 @@ Qed.
 Lemma extend_tc_temp_id: forall {CS: compspecs} id ty Delta e rho, boxy extendM (tc_temp_id id ty Delta e rho).
 Proof.
 intros. unfold tc_temp_id. unfold typecheck_temp_id.
-destruct ((temp_types Delta) ! id) as [? | ];
+destruct ((temp_types Delta) !! id) as [? | ];
  repeat apply extend_tc_andp;
  try apply extend_prop;
  try simple apply extend_tc_bool.
@@ -476,7 +478,7 @@ Qed.
 Definition extendM_refl_rmap := @extendM_refl rmap _ _ _ _ _.
 
 #[export] Hint Resolve extend_tc_expr extend_tc_temp_id extend_tc_temp_id_load extend_tc_exprlist extend_tc_expropt extend_tc_lvalue : core.
-#[export] Hint Resolve extendM_refl_rmap : core.
+#[export] Hint Resolve extendM_refl_rmap : core.*)
 
 Require Import VST.veric.binop_lemmas4.
 Require Import VST.veric.expr_lemmas.
@@ -948,7 +950,7 @@ intros.
     destruct (access_mode t); tc_expr_cenv_sub_tac.
     destruct (typeof a); tc_expr_cenv_sub_tac.
    *
-    destruct ((@cenv_cs CS) ! i0) eqn:?; try contradiction.
+    destruct ((@cenv_cs CS) !! i0) eqn:?; try contradiction.
     assert (H2 := CSUB i0); hnf in H2; rewrite Heqo in H2; rewrite H2.
     destruct (field_offset (@cenv_cs CS) i (co_members c)) as [[? [|]]|] eqn:?H; try contradiction.
     eapply (field_offset_stable (@cenv_cs CS) (@cenv_cs CS')) in H1; try eassumption.
@@ -957,7 +959,7 @@ intros.
     assert (H2' := CSUB id); hnf in H2'; rewrite H3 in H2'; auto.
     apply cenv_consistent.
    *
-    destruct ((@cenv_cs CS) ! i0) eqn:?; try contradiction.
+    destruct ((@cenv_cs CS) !! i0) eqn:?; try contradiction.
     assert (H2 := CSUB i0); hnf in H2; rewrite Heqo in H2; rewrite H2.
     destruct (union_field_offset (@cenv_cs CS) i (co_members c)) as [[[] [|]]|] eqn:?H; try contradiction.
     rewrite <- (union_field_offset_stable (@cenv_cs CS) (@cenv_cs CS')) in H1; try eassumption.
@@ -984,7 +986,7 @@ Proof.
    simpl in T|-*;  tc_expr_cenv_sub_tac.
     destruct (typeof a); tc_expr_cenv_sub_tac.
    *
-    destruct ((@cenv_cs CS) ! i0) eqn:?; try contradiction.
+    destruct ((@cenv_cs CS) !! i0) eqn:?; try contradiction.
     assert (H2 := CSUB i0); hnf in H2; rewrite Heqo in H2; rewrite H2.
     destruct (field_offset (@cenv_cs CS) i (co_members c))  as [[? [|]]|] eqn:?H; try contradiction.
     eapply (field_offset_stable (@cenv_cs CS) (@cenv_cs CS')) in H1; try eassumption.
@@ -993,7 +995,7 @@ Proof.
     assert (H2' := CSUB id); hnf in H2'; rewrite H3 in H2'; auto.
     apply cenv_consistent.
    *
-    destruct ((@cenv_cs CS) ! i0) eqn:?; try contradiction.
+    destruct ((@cenv_cs CS) !! i0) eqn:?; try contradiction.
     assert (H2 := CSUB i0); hnf in H2; rewrite Heqo in H2; rewrite H2.
     destruct (union_field_offset (@cenv_cs CS) i (co_members c)) as [[[] [|]]|] eqn:?H; try contradiction.
     rewrite <- (union_field_offset_stable (@cenv_cs CS) (@cenv_cs CS')) in H1; try eassumption.
@@ -1059,3 +1061,5 @@ Lemma tc_expr_cenv_sub a rho Delta w (T: @tc_expr CS Delta a rho w):
         apply IHtypes.
    Qed.
 End CENV_SUB.
+
+End mpred.

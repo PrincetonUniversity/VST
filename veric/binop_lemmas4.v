@@ -1,7 +1,6 @@
-Require Import VST.msl.msl_standard.
 Require Import VST.veric.Clight_base.
-Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.Clight_lemmas.
+Require Import VST.veric.res_predicates.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
 Require Import VST.veric.Clight_Cop2.
@@ -12,24 +11,27 @@ Require Import VST.veric.juicy_mem.
 Import Cop.
 Import Cop2.
 Import Clight_Cop2.
-Import compcert.lib.Maps.
 
-Lemma denote_tc_test_eq_Vint_l: forall m i v,
-  (denote_tc_test_eq (Vint i) v) m ->
-  i = Int.zero.
+Section mpred.
+
+Context `{!heapGS Σ}.
+
+Lemma denote_tc_test_eq_Vint_l: forall i v,
+  denote_tc_test_eq (Vint i) v ⊢
+  ⌜i = Int.zero⌝.
 Proof.
   intros.
-  unfold denote_tc_test_eq in H; simpl in H.
-  destruct Archi.ptr64, v; try solve [inv H]; simpl in H; tauto.
+  unfold denote_tc_test_eq; simpl.
+  destruct Archi.ptr64, v; try solve [iIntros "[]"]; simpl; by iIntros "[% _]".
 Qed.
 
-Lemma denote_tc_test_eq_Vint_r: forall m i v,
-  (denote_tc_test_eq v (Vint i)) m ->
-  i = Int.zero.
+Lemma denote_tc_test_eq_Vint_r: forall i v,
+  denote_tc_test_eq v (Vint i) ⊢
+  ⌜i = Int.zero⌝.
 Proof.
   intros.
-  unfold denote_tc_test_eq in H; simpl in H.
-  destruct Archi.ptr64, v; try solve [inv H]; simpl in H; tauto.
+  unfold denote_tc_test_eq; simpl.
+  destruct Archi.ptr64, v; try solve [iIntros "[]"]; simpl; by iIntros "[% ?]".
 Qed.
 
 
@@ -40,165 +42,146 @@ Proof.
  simpl; intros. destruct (peq p q); auto. inv H.
 Qed.
 
-Lemma denote_tc_test_eq_Vint_l': forall m i v,
-  (denote_tc_test_eq (Vint i) v) m ->
-  Int.eq i Int.zero = true.
+Lemma denote_tc_test_eq_Vint_l': forall i v,
+  denote_tc_test_eq (Vint i) v ⊢
+  ⌜Int.eq i Int.zero = true⌝.
 Proof.
   intros.
-  unfold denote_tc_test_eq in H; simpl in H.
-  destruct v; try solve [inv H]; destruct Archi.ptr64; try solve [inv H];
-   simpl in H; destruct H; subst;
-   apply Int.eq_true.
+  unfold denote_tc_test_eq; simpl.
+  destruct v; try solve [iIntros "[]"]; destruct Archi.ptr64; try solve [iIntros "[]"];
+    iIntros "[-> _]"; iPureIntro; apply Int.eq_true.
 Qed.
 
-Lemma denote_tc_test_eq_Vint_r': forall m i v,
-  (denote_tc_test_eq v (Vint i)) m ->
-  Int.eq i Int.zero = true.
+Lemma denote_tc_test_eq_Vint_r': forall i v,
+  denote_tc_test_eq v (Vint i) ⊢
+  ⌜Int.eq i Int.zero = true⌝.
 Proof.
   intros.
-  unfold denote_tc_test_eq in H; simpl in H.
-  destruct v; try solve [inv H];  destruct Archi.ptr64; try solve [inv H];
-  simpl in H; destruct H; subst;
-   apply Int.eq_true.
+  unfold denote_tc_test_eq; simpl.
+  destruct v; try solve [iIntros "[]"]; destruct Archi.ptr64; try solve [iIntros "[]"];
+    (iIntros "[_ ->]" || iIntros "[-> _]"); iPureIntro; apply Int.eq_true.
 Qed.
 
-Lemma denote_tc_test_eq_Vlong_l': forall m i v,
-  (denote_tc_test_eq (Vlong i) v) m ->
-  Int64.eq i Int64.zero = true.
+Lemma denote_tc_test_eq_Vlong_l': forall i v,
+  denote_tc_test_eq (Vlong i) v ⊢
+  ⌜Int64.eq i Int64.zero = true⌝.
 Proof.
   intros.
-  unfold denote_tc_test_eq in H; simpl in H.
-  destruct v; try solve [inv H]; destruct Archi.ptr64; try solve [inv H];
-   simpl in H; destruct H; subst;
-   try apply Int.eq_true; apply Int64.eq_true.
+  unfold denote_tc_test_eq; simpl.
+  destruct v; try solve [iIntros "[]"]; destruct Archi.ptr64; try solve [iIntros "[]"];
+    iIntros "[-> _]"; iPureIntro; apply Int64.eq_true.
 Qed.
 
-Lemma denote_tc_test_eq_Vlong_r': forall m i v,
-  (denote_tc_test_eq v (Vlong i)) m ->
-  Int64.eq i Int64.zero = true.
+Lemma denote_tc_test_eq_Vlong_r': forall i v,
+  denote_tc_test_eq v (Vlong i) ⊢
+  ⌜Int64.eq i Int64.zero = true⌝.
 Proof.
   intros.
-  unfold denote_tc_test_eq in H; simpl in H.
-  destruct v; try solve [inv H];  destruct Archi.ptr64; try solve [inv H];
-  simpl in H; destruct H; subst;
-   try apply Int.eq_true; apply Int64.eq_true.
+  unfold denote_tc_test_eq; simpl.
+  destruct v; try solve [iIntros "[]"]; destruct Archi.ptr64; try solve [iIntros "[]"];
+    (iIntros "[_ ->]" || iIntros "[-> _]"); iPureIntro; apply Int64.eq_true.
 Qed.
 
 Lemma denote_tc_test_order_eqblock:
-  forall phi b0 i0 b i,
-   app_pred (denote_tc_test_order (Vptr b0 i0) (Vptr b i)) phi ->
-     b0 = b.
+  forall b0 i0 b i,
+   denote_tc_test_order (Vptr b0 i0) (Vptr b i) ⊢
+   ⌜b0 = b⌝.
 Proof.
 intros.
-unfold denote_tc_test_order in H; simpl in H.
-unfold test_order_ptrs in H.
-simpl in H. destruct (peq b0 b); auto. contradiction H.
+unfold denote_tc_test_order; simpl.
+unfold test_order_ptrs; simpl.
+destruct (peq b0 b); auto.
 Qed.
 
 Lemma valid_pointer_dry:
-  forall b ofs d m, app_pred (valid_pointer' (Vptr b ofs) d) (m_phi m) ->
-           Mem.valid_pointer (m_dry m) b (Ptrofs.unsigned ofs + d) = true.
+  forall b ofs d m, coherent_with m ∧ valid_pointer' (Vptr b ofs) d ⊢
+         ⌜Mem.valid_pointer m b (Ptrofs.unsigned ofs + d) = true⌝.
 Proof.
 intros.
-simpl in H.
-destruct (m_phi m @ (b, Ptrofs.unsigned ofs + d)) eqn:?H; try contradiction.
-*
-pose proof (juicy_mem_access m (b, Ptrofs.unsigned ofs + d)).
-rewrite H0 in H1.
-unfold access_at in H1.
-unfold perm_of_res in H1.
-simpl in H1. clear H0.
-rewrite if_false in H1.
-assert (exists x, (Mem.mem_access (m_dry m)) !! b (Ptrofs.unsigned ofs + d) Cur = Some x).
-destruct ((Mem.mem_access (m_dry m)) !! b (Ptrofs.unsigned ofs + d) Cur); inv H1; eauto.
-destruct H0.
-apply perm_order'_dec_fiddle with x.
-auto.
-intro; subst sh. apply H; auto.
-*
-subst.
-pose proof (juicy_mem_access m (b, Ptrofs.unsigned ofs + d)).
-rewrite H0 in H1.
-unfold access_at in H1.
-unfold perm_of_res in H1.
-simpl in H1. clear H0 H.
-unfold Mem.valid_pointer.
-unfold Mem.perm_dec.
-destruct k.
-+
-assert (exists x, (Mem.mem_access (m_dry m)) !! b (Ptrofs.unsigned ofs + d) Cur = Some x).
-rewrite H1. unfold perm_of_sh. repeat if_tac; try contradiction; eauto.
-destruct H as [x H]; apply perm_order'_dec_fiddle with x; auto.
-+
-assert (exists x, (Mem.mem_access (m_dry m)) !! b (Ptrofs.unsigned ofs + d) Cur = Some x).
-rewrite H1. unfold perm_of_sh. repeat if_tac; try contradiction; eauto.
-destruct H as [x H]; apply perm_order'_dec_fiddle with x; auto.
-+
-assert (exists x, (Mem.mem_access (m_dry m)) !! b (Ptrofs.unsigned ofs + d) Cur = Some x).
-rewrite H1. unfold perm_of_sh. repeat if_tac; try contradiction; eauto.
-destruct H as [x H]; apply perm_order'_dec_fiddle with x; auto.
+simpl.
+rewrite coherent_access /access_cohere.
+iIntros "H".
+rewrite bi.and_exist_l; iDestruct "H" as (dq) "H".
+rewrite bi.and_exist_l; iDestruct "H" as (r) "H".
+iAssert (⌜✓ dq⌝)%I as %Hv.
+{ rewrite bi.and_elim_r.
+  by iApply mapsto_valid. }
+iPoseProof (bi.and_mono with "H") as "H"; [|done|].
+{ iIntros "H".
+  iPoseProof ("H" $! (b, Ptrofs.unsigned ofs + d)) as "[H _]".
+  iApply ("H" $! dq r). }
+iDestruct (bi.impl_elim_l with "H") as %H; iPureIntro.
+unfold access_at in H; unfold Mem.valid_pointer.
+destruct (Mem.perm_dec); auto.
+contradiction n; unfold Mem.perm.
+destruct (Maps.PMap.get); first by constructor.
+destruct (perm_of_res (Some (dq, r))) eqn: Hperm; try done.
+simpl in Hperm.
+destruct dq; simpl in Hperm.
+* destruct r; first (by apply perm_of_sh_None in Hperm as ->); if_tac in Hperm; inv Hperm; done.
+* destruct r; inv Hperm.
+* destruct Hv, r; first (by apply perm_of_sh_None in Hperm as ->); if_tac in Hperm; inv Hperm; done.
 Qed.
 
 Lemma weak_valid_pointer_dry:
-  forall b ofs m, app_pred (weak_valid_pointer (Vptr b ofs)) (m_phi m) ->
-           (Mem.valid_pointer (m_dry m) b (Ptrofs.unsigned ofs)
-           || Mem.valid_pointer (m_dry m) b (Ptrofs.unsigned ofs - 1))%bool = true.
+  forall b ofs m, coherent_with m ∧ weak_valid_pointer (Vptr b ofs) ⊢
+           ⌜(Mem.valid_pointer m b (Ptrofs.unsigned ofs)
+            || Mem.valid_pointer m b (Ptrofs.unsigned ofs - 1))%bool = true⌝.
 Proof.
 intros.
-rewrite orb_true_iff.
-destruct H; [left  | right].
-rewrite <- (Z.add_0_r (Ptrofs.unsigned ofs)).
-apply valid_pointer_dry; auto.
-rewrite <- Z.add_opp_r.
-apply valid_pointer_dry; auto.
+rewrite orb_true_iff /weak_valid_pointer bi.and_or_l.
+iIntros "[H | H]".
+- iLeft; rewrite <- (Z.add_0_r (Ptrofs.unsigned ofs)).
+  by iApply valid_pointer_dry.
+- iRight; rewrite <- Z.add_opp_r.
+  by iApply valid_pointer_dry.
 Qed.
 
 Lemma test_eq_relate':
-  forall v1 v2 op m
-    (OP: op = Ceq \/ op = Cne),
-     (denote_tc_test_eq v1 v2) (m_phi m) ->
-     cmp_ptr (m_dry m) op v1 v2 = 
-     Some (force_val (sem_cmp_pp op v1 v2)).
+  forall v1 v2 op
+    (OP: op = Ceq \/ op = Cne) m,
+     coherent_with m ∧ denote_tc_test_eq v1 v2 ⊢
+     ⌜cmp_ptr m op v1 v2 = 
+     Some (force_val (sem_cmp_pp op v1 v2))⌝.
 Proof.
 intros.
 unfold cmp_ptr, sem_cmp_pp.
-unfold denote_tc_test_eq in H.
+unfold denote_tc_test_eq.
  rewrite bool2val_eq.
- destruct v1; try contradiction; auto;
- destruct v2; try contradiction; auto.
+ destruct v1; try (iIntros "[_ []]"); auto;
+ destruct v2; try (iIntros "[_ []]"); auto.
 *
  simpl.
- destruct Archi.ptr64; try contradiction.
- destruct H.  hnf in H. subst i; rewrite ?Int.eq_true, ?Int64.eq_true. simpl.
- apply weak_valid_pointer_dry in H0.
- rewrite H0.
+ destruct Archi.ptr64; try (iIntros "[_ []]").
+ rewrite comm -assoc; iIntros "[-> H]".
+ rewrite ?Int.eq_true ?Int64.eq_true /=.
+ rewrite comm; iDestruct (weak_valid_pointer_dry with "H") as %->.
  destruct OP; subst; simpl; auto.
 *
  simpl.
- destruct Archi.ptr64; try contradiction.
- destruct H.  hnf in H. subst; rewrite ?Int.eq_true, ?Int64.eq_true. simpl.
- apply weak_valid_pointer_dry in H0.
- rewrite H0.
+ destruct Archi.ptr64; try (iIntros "[_ []]").
+ rewrite comm -assoc; iIntros "[-> H]".
+ rewrite ?Int.eq_true ?Int64.eq_true /=.
+ rewrite comm; iDestruct (weak_valid_pointer_dry with "H") as %->.
  destruct OP; subst; simpl; auto.
 *
  simpl.
- unfold test_eq_ptrs in *.
- unfold sameblock in H.
+ unfold test_eq_ptrs.
+ unfold sameblock.
  destruct (peq b b0);
-  simpl proj_sumbool in H; cbv iota in H;
- [rewrite !if_true by auto | rewrite !if_false by auto].
- destruct H.
- apply weak_valid_pointer_dry in H.
- apply weak_valid_pointer_dry in H0.
- rewrite H. rewrite H0.
- simpl.
- reflexivity.
- destruct H.
- apply valid_pointer_dry in H.
- apply valid_pointer_dry in H0.
- rewrite Z.add_0_r in H,H0.
- rewrite H. rewrite H0.
- destruct OP; subst;  reflexivity.
+  simpl proj_sumbool; cbv iota;
+ [rewrite -> !if_true by auto | rewrite -> !if_false by auto].
+ - iIntros "H"; iDestruct (weak_valid_pointer_dry with "[H]") as %->.
+   { by rewrite assoc; iDestruct "H" as "[$ _]". }
+   iDestruct (weak_valid_pointer_dry with "[H]") as %->.
+   { by rewrite comm -assoc; iDestruct "H" as "[_ H]"; rewrite comm. }
+   done.
+ - iIntros "H"; iDestruct (valid_pointer_dry with "[H]") as %H.
+   { by rewrite assoc; iDestruct "H" as "[$ _]". }
+   iDestruct (valid_pointer_dry with "[H]") as %H0.
+   { by rewrite comm -assoc; iDestruct "H" as "[_ H]"; rewrite comm. }
+   rewrite -> Z.add_0_r in H,H0; rewrite H H0.
+   destruct OP; subst; done.
 Qed.
 
 Lemma sem_cast_relate:
@@ -254,26 +237,26 @@ auto.
 Qed.
 
 Lemma denote_tc_test_eq_xx:
- forall v si i phi,
- app_pred (denote_tc_test_eq v (Vint i)) phi ->
- app_pred (denote_tc_test_eq v (Vptrofs (ptrofs_of_int si i))) phi.
+ forall v si i,
+ denote_tc_test_eq v (Vint i) ⊢
+ denote_tc_test_eq v (Vptrofs (ptrofs_of_int si i)).
 Proof.
 intros.
-unfold denote_tc_test_eq in *.
-destruct v; try contradiction;
+unfold denote_tc_test_eq.
+destruct v; try (iIntros "[]");
 unfold Vptrofs, ptrofs_of_int; simpl;
 destruct Archi.ptr64; try contradiction;
 destruct H; hnf in *; subst; destruct si; split; hnf; auto.
 Qed.
 
 Lemma denote_tc_test_eq_yy:
- forall v si i phi,
- app_pred (denote_tc_test_eq (Vint i) v) phi ->
- app_pred (denote_tc_test_eq (Vptrofs (ptrofs_of_int si i)) v) phi.
+ forall v si i,
+ denote_tc_test_eq (Vint i) v ⊢
+ denote_tc_test_eq (Vptrofs (ptrofs_of_int si i)) v.
 Proof.
 intros.
-unfold denote_tc_test_eq in *.
-destruct v; try contradiction;
+unfold denote_tc_test_eq .
+destruct v; try (iIntros "[]");
 unfold Vptrofs, ptrofs_of_int; simpl;
 destruct Archi.ptr64; try contradiction;
 destruct H; hnf in *; subst; destruct si; split; hnf; auto.
@@ -295,27 +278,26 @@ Qed.
 
 Lemma test_order_relate':
   forall v1 v2 op m,
-     (denote_tc_test_order v1 v2) (m_phi m) ->
-   cmp_ptr (m_dry m) op v1 v2 = Some (force_val (sem_cmp_pp op v1 v2)).
+     coherent_with m ∧ denote_tc_test_order v1 v2 ⊢
+   ⌜cmp_ptr m op v1 v2 = Some (force_val (sem_cmp_pp op v1 v2))⌝.
 Proof.
   intros.
-  unfold denote_tc_test_order in H.
-  destruct v1; try contradiction; auto;
-  destruct v2; try contradiction; auto;
+  unfold denote_tc_test_order.
+  destruct v1; try (iIntros "[_ []]"); auto;
+  destruct v2; try (iIntros "[_ []]"); auto;
   unfold cmp_ptr, sem_cmp_pp; simpl;
   rewrite bool2val_eq; auto.
-  unfold test_order_ptrs in *.
-  unfold sameblock in H.
+  unfold test_order_ptrs.
+  unfold sameblock.
   destruct (peq b b0);
-  simpl proj_sumbool in H; cbv iota in H;
-    [rewrite !if_true by auto | rewrite !if_false by auto].
-  + destruct H.
-    apply weak_valid_pointer_dry in H.
-    apply weak_valid_pointer_dry in H0.
-    rewrite H. rewrite H0.
-    simpl.
-    reflexivity.
-  + inv H.
+  simpl proj_sumbool; cbv iota;
+    [rewrite -> !if_true by auto | rewrite -> !if_false by auto].
+  + iIntros "H"; iDestruct (weak_valid_pointer_dry with "[H]") as %->.
+    { by rewrite assoc; iDestruct "H" as "[$ _]". }
+    iDestruct (weak_valid_pointer_dry with "[H]") as %->.
+    { by rewrite comm -assoc; iDestruct "H" as "[_ H]"; rewrite comm. }
+    done.
+  + iIntros "[_ []]".
 Qed.
 
 Lemma sem_cast_int_intptr_lemma:
@@ -331,7 +313,7 @@ intros.
  unfold Ptrofs.to_int64.
  unfold Ptrofs.of_ints.
  f_equal.
- rewrite (Ptrofs.agree64_repr Hp), Int64.repr_unsigned. auto.
+ rewrite (Ptrofs.agree64_repr Hp) Int64.repr_unsigned. auto.
  f_equal.
  unfold Ptrofs.to_int64.
  unfold Ptrofs.of_intu. unfold Ptrofs.of_int.
@@ -346,29 +328,28 @@ intros.
   simpl; f_equal;
   unfold Ptrofs.to_int, ptrofs_of_int, Ptrofs.of_ints, Ptrofs.of_intu, Ptrofs.of_int;
   destruct si;
-  rewrite ?(Ptrofs.agree32_repr Hp),
-    ?Int.repr_unsigned, ?Int.repr_signed; auto).
+  rewrite ?(Ptrofs.agree32_repr Hp)
+    ?Int.repr_unsigned ?Int.repr_signed; auto).
 Qed.
 
 Lemma test_eq_fiddle_signed_xx:
- forall si si' v i phi, 
-app_pred (denote_tc_test_eq v (Vptrofs (ptrofs_of_int si i))) phi ->
-app_pred (denote_tc_test_eq v (Vptrofs (ptrofs_of_int si' i))) phi.
+ forall si si' v i, 
+denote_tc_test_eq v (Vptrofs (ptrofs_of_int si i)) ⊢
+denote_tc_test_eq v (Vptrofs (ptrofs_of_int si' i)).
 Proof.
 intros.
-unfold denote_tc_test_eq in *.
-unfold Vptrofs, ptrofs_of_int in *.
-destruct v; try contradiction;
-destruct Archi.ptr64 eqn:Hp; try contradiction; subst.
+unfold denote_tc_test_eq.
+unfold Vptrofs, ptrofs_of_int.
+destruct v; try (iIntros "[]");
+destruct Archi.ptr64 eqn:Hp; try (iIntros "[]"); subst.
 -
-destruct H; split; auto.
+iPureIntro; intros [??]; split; auto.
 clear H.
-hnf in H0|-*.
 destruct si; auto.
 *
 unfold Ptrofs.of_ints in *.
 unfold Ptrofs.to_int, Ptrofs.to_int64 in *.
-rewrite ?Ptrofs.agree32_repr, ?Ptrofs.agree64_repr,
+rewrite -> ?Ptrofs.agree32_repr, ?Ptrofs.agree64_repr,
              ?Int.repr_unsigned, ?Int64.repr_unsigned in H0 by auto.
 assert (i=Int.zero)
   by first [apply Int64repr_Intsigned_zero; solve [auto]
@@ -379,7 +360,7 @@ destruct si'; auto.
 destruct si'; auto.
 unfold Ptrofs.of_intu in H0.
 try ( (* Archi.ptr64=false case *)
- rewrite Ptrofs.to_int_of_int in H0 by auto;
+ rewrite -> Ptrofs.to_int_of_int in H0 by auto;
  subst;
  unfold Ptrofs.of_ints;
  rewrite Int.signed_zero;
@@ -397,9 +378,7 @@ rewrite Ptrofs.unsigned_repr in H0;
      by (unfold Ptrofs.max_unsigned, Ptrofs.modulus, Ptrofs.wordsize, Wordsize_Ptrofs.wordsize; rewrite Hp; compute; auto);
     lia]).
 -
-destruct H.
-split; auto.
-hnf in H|-*. clear H0.
+iIntros "[% $]"; iPureIntro; split; auto.
 destruct si, si'; auto.
 *
 unfold Ptrofs.of_ints, Ptrofs.of_intu in *.
@@ -416,36 +395,35 @@ rewrite Int64.repr_unsigned in H.
 apply Int64repr_Intunsigned_zero in H. subst.
 reflexivity.
 -
-destruct H.
+iIntros "[% $]"; iPureIntro.
 split; auto.
-hnf in H|-*. clear H0.
 destruct si, si'; auto;
 unfold Ptrofs.to_int, Ptrofs.of_intu, Ptrofs.of_ints, Ptrofs.of_int in *;
 rewrite (Ptrofs.agree32_repr Hp) in H;
 rewrite (Ptrofs.agree32_repr Hp);
-rewrite Int.repr_unsigned in *;
-rewrite Int.repr_signed in *; rewrite Int.repr_unsigned in *; auto.
+rewrite -> Int.repr_unsigned in *;
+rewrite -> Int.repr_signed in *; rewrite -> Int.repr_unsigned in *; auto.
 Qed.
 
 Lemma test_eq_fiddle_signed_yy:
- forall si si' v i phi, 
-app_pred (denote_tc_test_eq (Vptrofs (ptrofs_of_int si i)) v) phi ->
-app_pred (denote_tc_test_eq (Vptrofs (ptrofs_of_int si' i)) v) phi.
+ forall si si' v i,
+denote_tc_test_eq (Vptrofs (ptrofs_of_int si i)) v ⊢
+denote_tc_test_eq (Vptrofs (ptrofs_of_int si' i)) v.
 Proof.
 intros.
-unfold denote_tc_test_eq in *.
-unfold Vptrofs, ptrofs_of_int in *.
-destruct v; try contradiction;
-destruct Archi.ptr64 eqn:Hp; try contradiction; subst.
+unfold denote_tc_test_eq.
+unfold Vptrofs, ptrofs_of_int.
+destruct v; try (iIntros "[]");
+destruct Archi.ptr64 eqn:Hp; try (iIntros "[]"); subst.
 -
-destruct H; split; auto.
+iPureIntro; intros [??]; split; auto.
 clear H0.
 hnf in H|-*.
 destruct si; auto.
 *
 unfold Ptrofs.of_ints in *.
 unfold Ptrofs.to_int, Ptrofs.to_int64 in *.
-rewrite ?Ptrofs.agree32_repr, ?Ptrofs.agree64_repr,
+rewrite -> ?Ptrofs.agree32_repr, ?Ptrofs.agree64_repr,
              ?Int.repr_unsigned, ?Int64.repr_unsigned in H by auto.
 assert (i=Int.zero)
   by first [apply Int64repr_Intsigned_zero; solve [auto]
@@ -456,7 +434,7 @@ destruct si'; auto.
 destruct si'; auto.
 unfold Ptrofs.of_intu in H.
 try ( (* Archi.ptr64=false case *)
- rewrite Ptrofs.to_int_of_int in H by auto;
+ rewrite -> Ptrofs.to_int_of_int in H by auto;
  subst;
  unfold Ptrofs.of_ints;
  rewrite Int.signed_zero;
@@ -474,9 +452,8 @@ rewrite Ptrofs.unsigned_repr in H;
      by (unfold Ptrofs.max_unsigned, Ptrofs.modulus, Ptrofs.wordsize, Wordsize_Ptrofs.wordsize; rewrite Hp; compute; auto);
     lia]).
 -
-destruct H.
+iIntros "[% $]"; iPureIntro.
 split; auto.
-hnf in H|-*. clear H0.
 destruct si, si'; auto.
 *
 unfold Ptrofs.of_ints, Ptrofs.of_intu in *.
@@ -493,112 +470,113 @@ rewrite Int64.repr_unsigned in H.
 apply Int64repr_Intunsigned_zero in H. subst.
 reflexivity.
 -
-destruct H.
+iIntros "[% $]"; iPureIntro.
 split; auto.
-hnf in H|-*. clear H0.
 destruct si, si'; auto;
 unfold Ptrofs.to_int, Ptrofs.of_intu, Ptrofs.of_ints, Ptrofs.of_int in *;
 rewrite (Ptrofs.agree32_repr Hp) in H;
 rewrite (Ptrofs.agree32_repr Hp);
-rewrite Int.repr_unsigned in *;
-rewrite Int.repr_signed in *; rewrite Int.repr_unsigned in *; auto.
+rewrite -> Int.repr_unsigned in *;
+rewrite -> Int.repr_signed in *; rewrite -> Int.repr_unsigned in *; auto.
 Qed.
 
 
 Lemma test_order_fiddle_signed_xx:
- forall si si' v i phi, 
-app_pred (denote_tc_test_order v (Vptrofs (ptrofs_of_int si i))) phi ->
-app_pred (denote_tc_test_order v (Vptrofs (ptrofs_of_int si' i))) phi.
+ forall si si' v i,
+denote_tc_test_order v (Vptrofs (ptrofs_of_int si i)) ⊢
+denote_tc_test_order v (Vptrofs (ptrofs_of_int si' i)).
 Proof.
 intros.
-unfold denote_tc_test_order in *.
-unfold Vptrofs, ptrofs_of_int in *.
-destruct v; try contradiction;
-destruct Archi.ptr64 eqn:Hp; try contradiction; subst.
-destruct H; split; auto.
+unfold denote_tc_test_order.
+unfold Vptrofs, ptrofs_of_int.
+destruct v; try (iIntros "[]");
+destruct Archi.ptr64 eqn:Hp; try (iIntros "[]"); subst.
+iPureIntro; intros [??]; split; auto.
 clear H.
-hnf in H0|-*.
 destruct si, si'; auto;
 try ( (* Archi.ptr64 = false *)
 unfold Ptrofs.to_int, Ptrofs.of_intu, Ptrofs.of_ints, Ptrofs.of_int in *;
 rewrite (Ptrofs.agree32_repr Hp) in H0;
 rewrite (Ptrofs.agree32_repr Hp);
-rewrite Int.repr_unsigned in *;
-rewrite Int.repr_signed in *; rewrite Int.repr_unsigned in *; auto);
+rewrite -> Int.repr_unsigned in *;
+rewrite -> Int.repr_signed in *; rewrite -> Int.repr_unsigned in *; auto);
 try ((* Archi.ptr64 = true *)
   unfold Ptrofs.to_int, Ptrofs.of_intu, Ptrofs.of_ints, Ptrofs.of_int in *;
   unfold Ptrofs.to_int64 in *;
-  rewrite Ptrofs.unsigned_repr_eq in *;
+  rewrite -> Ptrofs.unsigned_repr_eq in *;
   change Ptrofs.modulus with Int64.modulus in *;
   rewrite <- Int64.unsigned_repr_eq in *;
-  rewrite Int64.repr_unsigned in *;
+  rewrite -> Int64.repr_unsigned in *;
   first [apply Int64repr_Intsigned_zero in H0 
           |apply Int64repr_Intunsigned_zero in H0];
   subst i; reflexivity).
 Qed.
 
 Lemma test_order_fiddle_signed_yy:
- forall si si' v i phi, 
-app_pred (denote_tc_test_order (Vptrofs (ptrofs_of_int si i)) v) phi ->
-app_pred (denote_tc_test_order (Vptrofs (ptrofs_of_int si' i)) v) phi.
+ forall si si' v i,
+denote_tc_test_order (Vptrofs (ptrofs_of_int si i)) v ⊢
+denote_tc_test_order (Vptrofs (ptrofs_of_int si' i)) v.
 Proof.
 intros.
-unfold denote_tc_test_order in *.
-unfold Vptrofs, ptrofs_of_int in *.
-destruct v; try contradiction;
-destruct Archi.ptr64 eqn:Hp; try contradiction; subst.
-destruct H; split; auto.
+unfold denote_tc_test_order.
+unfold Vptrofs, ptrofs_of_int.
+destruct v; try iIntros "[]";
+destruct Archi.ptr64 eqn:Hp; try iIntros "[]"; subst.
+iPureIntro; intros [??]; split; auto.
 clear H0.
-hnf in H|-*.
 destruct si, si'; auto;
 try ( (* Archi.ptr64 = false *)
 unfold Ptrofs.to_int, Ptrofs.of_intu, Ptrofs.of_ints, Ptrofs.of_int in *;
 rewrite (Ptrofs.agree32_repr Hp) in H;
 rewrite (Ptrofs.agree32_repr Hp);
-rewrite Int.repr_unsigned in *;
-rewrite Int.repr_signed in *; rewrite Int.repr_unsigned in *; auto);
+rewrite -> Int.repr_unsigned in *;
+rewrite -> Int.repr_signed in *; rewrite -> Int.repr_unsigned in *; auto);
 try ((* Archi.ptr64 = true *)
   unfold Ptrofs.to_int, Ptrofs.of_intu, Ptrofs.of_ints, Ptrofs.of_int in *;
   unfold Ptrofs.to_int64 in *;
-  rewrite Ptrofs.unsigned_repr_eq in *;
+  rewrite -> Ptrofs.unsigned_repr_eq in *;
   change Ptrofs.modulus with Int64.modulus in *;
   rewrite <- Int64.unsigned_repr_eq in *;
-  rewrite Int64.repr_unsigned in *;
+  rewrite -> Int64.repr_unsigned in *;
   first [apply Int64repr_Intsigned_zero in H 
           |apply Int64repr_Intunsigned_zero in H];
   subst i; reflexivity).
 Qed.
 
 Lemma denote_tc_nonzero_e':
- forall i m, app_pred (denote_tc_nonzero (Vint i)) m -> Int.eq i Int.zero = false.
+ forall i, denote_tc_nonzero (Vint i) ⊢ ⌜Int.eq i Int.zero = false⌝.
 Proof.
-simpl; intros; apply Int.eq_false; auto.
+simpl; intros; iPureIntro; apply Int.eq_false.
 Qed.
 
 Lemma denote_tc_nodivover_e':
- forall i j m, app_pred (denote_tc_nodivover (Vint i) (Vint j)) m ->
-   Int.eq i (Int.repr Int.min_signed) && Int.eq j Int.mone = false.
+ forall i j, denote_tc_nodivover (Vint i) (Vint j) ⊢
+   ⌜Int.eq i (Int.repr Int.min_signed) && Int.eq j Int.mone = false⌝.
 Proof.
-simpl; intros.
+simpl; intros; iPureIntro.
 rewrite andb_false_iff.
-apply Classical_Prop.not_and_or in H.
-destruct H; [left|right]; apply Int.eq_false; auto.
+destruct (Int.eq j Int.mone) eqn: Hj; auto.
+apply Int.same_if_eq in Hj as ->.
+destruct (Int.eq) eqn: Hi; auto.
+apply Int.same_if_eq in Hi as ->; tauto.
 Qed.
 
 Lemma denote_tc_nonzero_e64':
- forall i m, app_pred (denote_tc_nonzero (Vlong i)) m -> Int64.eq i Int64.zero = false.
+ forall i, denote_tc_nonzero (Vlong i) ⊢ ⌜Int64.eq i Int64.zero = false⌝.
 Proof.
-simpl; intros; apply Int64.eq_false; auto.
+simpl; intros; iPureIntro; apply Int64.eq_false.
 Qed.
 
 Lemma denote_tc_nodivover_e64_ll':
- forall i j m, app_pred (denote_tc_nodivover (Vlong i) (Vlong j)) m ->
-   Int64.eq i (Int64.repr Int64.min_signed) && Int64.eq j Int64.mone = false.
+ forall i j, denote_tc_nodivover (Vlong i) (Vlong j) ⊢
+   ⌜Int64.eq i (Int64.repr Int64.min_signed) && Int64.eq j Int64.mone = false⌝.
 Proof.
-simpl; intros.
+simpl; intros; iPureIntro.
 rewrite andb_false_iff.
-apply Classical_Prop.not_and_or in H.
-destruct H; [left|right]; apply Int64.eq_false; auto.
+destruct (Int64.eq j Int64.mone) eqn: Hj; auto.
+apply Int64.same_if_eq in Hj as ->.
+destruct (Int64.eq) eqn: Hi; auto.
+apply Int64.same_if_eq in Hi as ->; tauto.
 Qed.
 
 Lemma denote_tc_nodivover_e64_il':
@@ -606,20 +584,26 @@ Lemma denote_tc_nodivover_e64_il':
    Int64.eq (cast_int_long s i) (Int64.repr Int64.min_signed) && Int64.eq j Int64.mone = false.
 Proof.
 intros.
-assert (app_pred (denote_tc_nodivover (Vint i) (Vlong j)) (empty_rmap O)) by apply I.
+assert (⊢denote_tc_nodivover (Vint i) (Vlong j)) as H by auto.
+rewrite (denote_tc_nodivover_e64_il s) in H.
+apply ouPred.pure_soundness in H.
 rewrite andb_false_iff.
-destruct (Classical_Prop.not_and_or _ _ (denote_tc_nodivover_e64_il s _ _ _ H)); [left|right];
- apply Int64.eq_false; auto.
+destruct (Int64.eq j Int64.mone) eqn: Hj; auto.
+apply Int64.same_if_eq in Hj as ->.
+destruct (Int64.eq) eqn: Hi; auto.
+apply Int64.same_if_eq in Hi; tauto.
 Qed.
 
 Lemma denote_tc_nodivover_e64_li':
- forall s i j m, app_pred (denote_tc_nodivover (Vlong i) (Vint j)) m ->
-   Int64.eq i (Int64.repr Int64.min_signed) && Int64.eq (cast_int_long s j) Int64.mone = false.
+ forall s i j, denote_tc_nodivover (Vlong i) (Vint j) ⊢
+   ⌜Int64.eq i (Int64.repr Int64.min_signed) && Int64.eq (cast_int_long s j) Int64.mone = false⌝.
 Proof.
 intros.
-rewrite andb_false_iff.
-destruct (Classical_Prop.not_and_or _ _ (denote_tc_nodivover_e64_li s _ _ _ H)); [left|right];
- apply Int64.eq_false; auto.
+rewrite andb_false_iff (denote_tc_nodivover_e64_li s); iPureIntro.
+destruct (Int64.eq i _) eqn: Hi; auto.
+apply Int64.same_if_eq in Hi as ->.
+destruct (Int64.eq) eqn: Hj; auto.
+apply Int64.same_if_eq in Hj; tauto.
 Qed.
 
 Lemma Int64_eq_repr_signed32_nonzero':
@@ -653,26 +637,26 @@ apply Int64.eq_false; auto.
 Qed.
 
 Lemma denote_tc_igt_e':
-  forall m i j, app_pred (denote_tc_igt j (Vint i)) m ->
-        Int.ltu i j = true.
+  forall i j, denote_tc_igt j (Vint i) ⊢
+        ⌜Int.ltu i j = true⌝.
 Proof.
-intros. unfold Int.ltu. rewrite if_true by (apply (denote_tc_igt_e _ _ _ H)); auto.
+intros. rewrite /Int.ltu denote_tc_igt_e; iPureIntro.
+intros; rewrite if_true; auto.
 Qed.
 
 Lemma denote_tc_lgt_e':
-  forall m i j, app_pred (denote_tc_lgt j (Vlong i)) m ->
-        Int64.ltu i j = true.
-Proof.
-intros. unfold Int64.ltu. rewrite if_true by (apply (denote_tc_lgt_e _ _ _ H)); auto.
+  forall i j, denote_tc_lgt j (Vlong i) ⊢
+        ⌜Int64.ltu i j = true⌝.
+intros. rewrite /Int64.ltu denote_tc_lgt_e; iPureIntro.
+intros; rewrite if_true; auto.
 Qed.
 
 Lemma denote_tc_iszero_long_e':
- forall m i,
-  app_pred (denote_tc_iszero (Vlong i)) m ->
-  Int64.eq (Int64.repr (Int64.unsigned i)) Int64.zero = true.
+ forall i,
+  denote_tc_iszero (Vlong i) ⊢
+  ⌜Int64.eq (Int64.repr (Int64.unsigned i)) Int64.zero = true⌝.
 Proof.
-intros.
-hnf in H.
+intros; simpl; iPureIntro.
 pose proof (Int64.eq_spec i Int64.zero).
 destruct (Int64.eq i Int64.zero);
   try contradiction.
@@ -682,33 +666,29 @@ Qed.
 
 Lemma sem_binary_operation_stable: 
   forall (cs1: compspecs) cs2 
-   (CSUB: forall id co, (@cenv_cs cs1)!id = Some co -> cs2!id = Some co)
-   b v1 e1 v2 e2 phi m v t rho,
-   app_pred
-       (@denote_tc_assert cs1 (@isBinOpResultType cs1 b e1 e2 t) rho) phi ->
-   sem_binary_operation  (@cenv_cs cs1) b v1 (typeof e1) v2 (typeof e2) m = Some v ->
-   sem_binary_operation cs2 b v1 (typeof e1) v2 (typeof e2) m = Some v.
+   (CSUB: forall id co, (@cenv_cs cs1)!!id = Some co -> cs2!!id = Some co)
+   b v1 e1 v2 e2 m v t rho,
+   (* coherent_with m ∧ *) denote_tc_assert(CS := cs1) (isBinOpResultType(CS := cs1) b e1 e2 t) rho ⊢
+   ⌜sem_binary_operation (@cenv_cs cs1) b v1 (typeof e1) v2 (typeof e2) m = Some v ->
+    sem_binary_operation cs2 b v1 (typeof e1) v2 (typeof e2) m = Some v⌝.
 Proof.
 intros.
 assert (CONSIST:= @cenv_consistent cs1).
-rewrite den_isBinOpR in H.
-simpl in H.
+rewrite den_isBinOpR /=.
 forget (op_result_type (Ebinop b e1 e2 t)) as err.
 forget (arg_type (Ebinop b e1 e2 t)) as err0.
-destruct b; simpl in *; auto;
-unfold Cop.sem_add, Cop.sem_sub in *;
-rewrite ?classify_add_eq, ?classify_sub_eq in *;
-match goal with |- match ?A with _ => _ end = _ => destruct A eqn:?HC end; auto;
+destruct b; simpl; auto;
+unfold Cop.sem_add, Cop.sem_sub;
+rewrite ?classify_add_eq ?classify_sub_eq;
+match goal with |- context[match ?A with _ => _ end] => destruct A eqn: HC end; auto;
 destruct (typeof e1)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ]; try discriminate HC;
 destruct (typeof e2)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ]; try discriminate HC;
-simpl in *; decompose [and] H; clear H;
-repeat match goal with H: app_pred (denote_tc_assert (tc_bool _ _) _) _ |- _ =>
-    apply tc_bool_e in H 
-end;
+simpl; unfold_lift; rewrite ?tc_bool_e; iIntros (H); iPureIntro; decompose [and] H; clear H;
 unfold Cop.sem_add_ptr_int, Cop.sem_add_ptr_long in *;
 simpl in *;
-rewrite <- (sizeof_stable _ _ CSUB) in H0 by auto; auto.
+rewrite -> (sizeof_stable _ _ CSUB) by auto; auto.
 Qed.
+(* TODO: simplify with a relation *)
 
 Lemma eq_block_lem':
  forall a, eq_block a a = left (eq_refl a).
@@ -738,56 +718,50 @@ Proof. destruct v; try contradiction; eauto. Qed.
 Lemma eval_binop_relate':
  forall {CS: compspecs} (ge: genv) te ve rho b e1 e2 t m
     (Hcenv: cenv_sub (@cenv_cs CS) (genv_cenv ge))
-    (H1: Clight.eval_expr ge ve te (m_dry m) e1 (eval_expr e1 rho))
-    (H2: Clight.eval_expr ge ve te (m_dry m) e2 (eval_expr e2 rho))
-    (H3: app_pred (denote_tc_assert (isBinOpResultType b e1 e2 t) rho) (m_phi m))
+    (H1: Clight.eval_expr ge ve te m e1 (eval_expr e1 rho))
+    (H2: Clight.eval_expr ge ve te m e2 (eval_expr e2 rho))
     (TC1 : tc_val (typeof e1) (eval_expr e1 rho))
     (TC2 : tc_val (typeof e2) (eval_expr e2 rho)),
-Clight.eval_expr ge ve te (m_dry m) (Ebinop b e1 e2 t)
+    coherent_with m ∧ denote_tc_assert (isBinOpResultType b e1 e2 t) rho ⊢
+⌜Clight.eval_expr ge ve te m (Ebinop b e1 e2 t)
   (force_val2 (sem_binary_operation' b (typeof e1) (typeof e2))
-     (eval_expr e1 rho) (eval_expr e2 rho)).
+     (eval_expr e1 rho) (eval_expr e2 rho))⌝.
 Proof.
 intros.
-econstructor; try eassumption; clear H1 H2.
-assert (sem_binary_operation (@cenv_cs CS) b (@eval_expr CS e1 rho) 
-  (typeof e1) (@eval_expr CS e2 rho) (typeof e2) (m_dry m) =
-@Some val
-  (force_val2 (@sem_binary_operation' CS b (typeof e1) (typeof e2))
-     (@eval_expr CS e1 rho) (@eval_expr CS e2 rho))).
-2:{
-eapply sem_binary_operation_stable; try eassumption.
-clear - Hcenv.
+iIntros "H".
+iDestruct (sem_binary_operation_stable CS (genv_cenv ge) with "[H]") as %Hstable.
+{ clear - Hcenv.
 hnf in Hcenv.
 intros.
 specialize (Hcenv id). hnf in Hcenv. rewrite H in Hcenv. auto.
 }
-clear Hcenv ge.
-rewrite den_isBinOpR in H3.
-simpl in H3.
+{ iDestruct "H" as "[_ $]". }
+rewrite -bi.pure_mono'; [|econstructor; [apply H1 | apply H2 | apply Hstable; eassumption]].
+rewrite den_isBinOpR /=.
 forget (op_result_type (Ebinop b e1 e2 t)) as err.
 forget (arg_type (Ebinop b e1 e2 t)) as err0.
 cbv beta iota zeta delta [
   sem_binary_operation sem_binary_operation' 
    binarithType' 
- ] in *.
-clear ve te.
+ ].
+clear ve te H1 H2 Hstable.
 destruct b;
-repeat lazymatch type of H3 with
-| context [classify_add'] => destruct (classify_add' (typeof e1) (typeof e2)) eqn:?C
-| context [classify_sub'] => destruct (classify_sub' (typeof e1) (typeof e2)) eqn:?C
-| context [classify_binarith'] => 
+(* use the relation approach here instead *)
+repeat lazymatch goal with
+| |-context [classify_add'] => destruct (classify_add' (typeof e1) (typeof e2)) eqn:?C
+| |-context [classify_sub'] => destruct (classify_sub' (typeof e1) (typeof e2)) eqn:?C
+| |-context [classify_binarith'] => 
    destruct (classify_binarith' (typeof e1) (typeof e2)) eqn:?C; try destruct s
-| context [classify_shift'] => destruct (classify_shift' (typeof e1) (typeof e2)) eqn:?C
-| context [classify_cmp'] => destruct (classify_cmp' (typeof e1) (typeof e2)) eqn:?C
+| |-context [classify_shift'] => destruct (classify_shift' (typeof e1) (typeof e2)) eqn:?C
+| |-context [classify_cmp'] => destruct (classify_cmp' (typeof e1) (typeof e2)) eqn:?C
 | _ => idtac
 end;
-simpl in H3; super_unfold_lift;
+simpl; rewrite ?tc_andp_sound /=; super_unfold_lift;
 unfold tc_int_or_ptr_type in *;
+rewrite ?tc_bool_e; try (iDestruct "H" as "[_ %H]"; iPureIntro;
 repeat match goal with
  |  H: _ /\ _ |- _ => destruct H
- |  H: app_pred (denote_tc_assert (tc_bool _ _) _) _ |- _ =>
-       apply tc_bool_e in H
-end;
+end);
 forget (eval_expr e1 rho) as v1;
 forget (eval_expr e2 rho) as v2;
 try clear rho;
@@ -799,8 +773,8 @@ repeat match goal with
              try rewrite H in *
 end;
 try rewrite <- ?classify_add_eq , <- ?classify_sub_eq, <- ?classify_cmp_eq, <- ?classify_binarith_eq in *;
- rewrite ?sem_cast_long_intptr_lemma in *;
- rewrite ?sem_cast_int_intptr_lemma in *;
+ rewrite ->?sem_cast_long_intptr_lemma in *;
+ rewrite -> ?sem_cast_int_intptr_lemma in *;
   cbv beta iota zeta delta [
   sem_binary_operation sem_binary_operation' 
    Cop.sem_add sem_add Cop.sem_sub sem_sub Cop.sem_div
@@ -824,7 +798,7 @@ try rewrite <- ?classify_add_eq , <- ?classify_sub_eq, <- ?classify_cmp_eq, <- ?
             end;
  try clear CS; try clear m;
  try change (Ctypes.sizeof ty) with (sizeof ty).
-all: try abstract (
+(*all: try abstract (
 red in TC1,TC2;
 destruct (typeof e1)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
 try discriminate C;
@@ -848,34 +822,37 @@ repeat match goal with
  try simple apply eq_refl;
  rewrite ?sem_cast_long_intptr_lemma in *;
  rewrite ?sem_cast_int_intptr_lemma in *;
- rewrite ?sem_cast_relate, ?sem_cast_relate_long, ?sem_cast_relate_int_long;
- rewrite ?sem_cast_int_lemma, ?sem_cast_long_lemma, ?sem_cast_int_long_lemma;
- rewrite ?if_true by auto;
- rewrite ?sizeof_range_true by auto;
- erewrite ?denote_tc_nodivover_e' by eassumption;
- erewrite ?denote_tc_nonzero_e' by eassumption;
- rewrite ?cast_int_long_nonzero by (eapply denote_tc_nonzero_e'; eassumption);
- rewrite ?(proj2 (eqb_type_false _ _)) by auto 1;
+ rewrite ?sem_cast_relate ?sem_cast_relate_long ?sem_cast_relate_int_long;
+ rewrite ?sem_cast_int_lemma ?sem_cast_long_lemma ?sem_cast_int_long_lemma;
+ rewrite -> ?if_true by auto;
+ rewrite -> ?sizeof_range_true by auto;
+ rewrite ?denote_tc_nodivover_e';
+ rewrite -> ?denote_tc_nonzero_e';
+ rewrite -> ?cast_int_long_nonzero by eassumption;
+ rewrite -> ?(proj2 (eqb_type_false _ _)) by auto 1;
  try reflexivity;
  try solve [simple apply test_eq_relate'; auto;
-               try (simple apply denote_tc_test_eq_xx; assumption);
-               try (simple apply denote_tc_test_eq_yy; assumption);
-               try (simple eapply test_eq_fiddle_signed_xx; eassumption);
-               try (simple eapply test_eq_fiddle_signed_yy; eassumption)];
- try solve [simple apply test_order_relate'; auto; 
-               try (eapply test_order_fiddle_signed_xx; eassumption);
-               try (eapply test_order_fiddle_signed_yy; eassumption)];
- erewrite ?(denote_tc_nodivover_e64_li' Signed) by eassumption;
- erewrite ?(denote_tc_nodivover_e64_il' Signed) by eassumption;
- erewrite ?(denote_tc_nodivover_e64_li' Unsigned) by eassumption;
- erewrite ?(denote_tc_nodivover_e64_il' Unsigned) by eassumption;
- erewrite ?denote_tc_nodivover_e64_ll' by eassumption;
- erewrite ?denote_tc_nonzero_e64' by eassumption;
- erewrite ?denote_tc_igt_e' by eassumption;
- erewrite ?denote_tc_lgt_e' by eassumption;
- erewrite ?denote_tc_test_eq_Vint_l' by eassumption;
- erewrite ?denote_tc_test_eq_Vint_r' by eassumption;
- erewrite ?denote_tc_test_eq_Vlong_l' by eassumption;
- erewrite ?denote_tc_test_eq_Vlong_r' by eassumption;
- reflexivity).
-Time Qed.  (* 31.5 sec *)
+               try (rewrite denote_tc_test_eq_xx);
+               try (rewrite denote_tc_test_eq_yy);
+               try (rewrite test_eq_fiddle_signed_xx);
+               try (rewrite test_eq_fiddle_signed_yy)];
+ try solve [rewrite test_order_relate'; auto; 
+               try (rewrite test_order_fiddle_signed_xx);
+               try (rewrite test_order_fiddle_signed_yy)];
+ rewrite ?(denote_tc_nodivover_e64_li' Signed);
+ rewrite ?(denote_tc_nodivover_e64_il' Signed);
+ rewrite ?(denote_tc_nodivover_e64_li' Unsigned);
+ rewrite ?(denote_tc_nodivover_e64_il' Unsigned);
+ rewrite ?denote_tc_nodivover_e64_ll';
+ rewrite ?denote_tc_nonzero_e64';
+ rewrite ?denote_tc_igt_e';
+ rewrite ?denote_tc_lgt_e';
+ rewrite ?denote_tc_test_eq_Vint_l';
+ rewrite ?denote_tc_test_eq_Vint_r';
+ rewrite ?denote_tc_test_eq_Vlong_l';
+ rewrite ?denote_tc_test_eq_Vlong_r';
+ done).
+Time Qed.  (* 31.5 sec *)*)
+Admitted. (* should be provable, just a lot of automation to debug *)
+
+End mpred.
