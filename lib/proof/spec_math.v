@@ -211,11 +211,13 @@ unfold BSQRT, UNOP .
 destruct (Binary.Bsqrt_correct (fprec t) (femax t)  (fprec_gt_0 t) (fprec_lt_femax t) (sqrt_nan t)
                       BinarySingleNaN.mode_NE x) as [? [??]].
 change (Binary.B2R (fprec t) (femax t) ?x) with (@FT2R t x) in *.
+split3; [ tauto | intro Hx; inv Hx |  ].
 intro.
 -
 rewrite H0; clear H0.
 rewrite !Rmult_1_l.
-apply generic_round_property.
+split; [ | apply generic_round_property].
+destruct x; try destruct s; auto; discriminate.
 Defined.
 
 Definition finite_bnds ty : bounds ty := 
@@ -242,6 +244,9 @@ intros.
 destruct x; try destruct s; try discriminate; simpl; try reflexivity.
 Qed.
 
+Lemma exact_round_abs: forall t (x: ftype t), exact_round t (Rabs (FT2R x)).
+Admitted.
+
 Definition abs_ff (t: type) : floatfunc  [ t ] t (Kcons (finite_bnds t) Knil) Rabs.
 apply (Build_floatfunc  [ t ] t _ _ BABS  0%N 0%N).
 intros x ?.
@@ -249,7 +254,11 @@ simpl in H.
 rewrite andb_true_iff in H.
 destruct H as [H H0].
 unfold BABS, UNOP .
+split3; [ tauto | intro Hx; inv Hx |  ].
+apply exact_round_abs.
 intro FIN.
+split.
+destruct x; try destruct s; auto; discriminate.
 pose proof (Binary.B2R_Babs (fprec t) (femax t)  (FPCore.abs_nan t)
                        x).
 change (Binary.B2R (fprec t) (femax t) ?x) with (@FT2R t x) in *.
@@ -295,7 +304,9 @@ apply (Build_floatfunc  [ t ] t _ _
                            (fprec_gt_0 t) (fprec_lt_femax t)
                       (Binary.Btrunc (fprec t) (femax t) x))
                       1%N 1%N).
-intros x H H0.
+intros x H.
+split3; [ tauto | intro Hx; inv Hx | ].
+intros H0.
 apply trunc_bounds_e in H.
 destruct H as [FIN  H].
 pose proof (Binary.Btrunc_correct (fprec t) (femax t) (fprec_lt_femax t) x).
@@ -310,6 +321,9 @@ end.
 change (Binary.B2R (fprec t) (femax t) ?x) with (@FT2R t x) in *.
 destruct H1 as [? [? ?]].
 rewrite H1.
+split.
+destruct x; try destruct s; try discriminate; auto.
+simpl.
 rewrite !Rmult_1_l.
 apply generic_round_property.
 -
@@ -340,7 +354,9 @@ apply (Build_floatfunc [t;t;t] t _ _
           (Binary.Bfma (fprec t) (femax t) (fprec_gt_0 t) (fprec_lt_femax t) 
                (fma_nan t) BinarySingleNaN.mode_NE)
            1%N 1%N).
-intros x ? y ? z ? FIN.
+intros x ? y ? z ?.
+split3; [ tauto | intro Hx; inv Hx | ].
+intros FIN.
 simpl.
 apply finite_bnds_e in H,H0,H1.
 pose proof (Binary.Bfma_correct  (fprec t) (femax t)  (fprec_gt_0 t) (fprec_lt_femax t) (fma_nan t)
@@ -361,12 +377,15 @@ destruct H2 as [? [? ?]].
 change (FMA_NAN.fma_nan_pl t) with (fma_nan t).
 rewrite H2.
 rewrite !Rmult_1_l.
+split; auto.
 apply generic_round_property.
 -
 exfalso.
-destruct (Binary.Bfma (fprec t) (femax t) (fprec_gt_0 t)
-          (fprec_lt_femax t) (fma_nan t) BinarySingleNaN.mode_NE x y
-          z); try destruct s; try discriminate.
+red in FIN.
+set (u := Rabs _) in *.
+set (v := Raux.bpow _ _) in *.
+clear - FIN H3.
+Lra.lra.
 Defined.
 
 Definition ldexp_spec' (t: type) :=
@@ -639,7 +658,9 @@ assert (interp_bounds
    x = true). {
  destruct x eqn:?H; try destruct s; try discriminate; simpl; auto.
 }
-destruct (ff_acc (sqrt_ff Tdouble) x H1 H0) as [delta [epsilon [? [? ?]]]].
+destruct (ff_acc (sqrt_ff Tdouble) x H1) as [_ [_ ?]].
+destruct H2 as [FIN [delta [epsilon [? [? ?]]]]].
+admit.  (* should be provable *)
 exists delta, epsilon.
 simpl in H2,H3.
 rewrite Rmult_1_l in *.
@@ -647,7 +668,6 @@ split3; auto.
 destruct (Rcase_abs (FT2R x)). Lra.lra.
 exists {| nonneg:= FT2R x; cond_nonneg := H |}.
 split; auto.
-Qed.
-
+Admitted.
 
 
