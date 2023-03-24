@@ -544,6 +544,17 @@ match ty with
 | _ => ty
 end.
 
+Lemma classify_cast_eq : forall t1 t2, eqb_type t1 int_or_ptr_type = false -> eqb_type t2 int_or_ptr_type = false ->
+  Cop.classify_cast t1 t2 = Clight_Cop2.classify_cast t1 t2.
+Proof.
+  intros; unfold classify_cast, Clight_Cop2.classify_cast.
+  destruct t2; auto.
+  - destruct i; auto.
+    destruct t1; auto.
+    rewrite H; reflexivity.
+  - destruct t1; auto; rewrite H0; reflexivity.
+Qed.
+
 Definition classify_sub' ty1 ty2 :=
 match stupid_typeconv ty1 with
 | Tpointer ty a =>
@@ -562,6 +573,23 @@ unfold classify_sub, classify_sub'; extensionality t1 t2.
 destruct t1, t2; simpl; auto;
 try destruct i,s; auto;
 try destruct i0,s0; auto.
+Qed.
+
+Inductive classify_sub_rel (ty1 ty2 : type) : classify_sub_cases -> Prop :=
+| classify_sub_pp t1 t2 a1 a2 (Hty1 : stupid_typeconv ty1 = Tpointer t1 a1) (Hty2 : stupid_typeconv ty2 = Tpointer t2 a2) :
+  classify_sub_rel ty1 ty2 (sub_case_pp t1)
+| classify_sub_pi t1 a1 sz si a2 (Hty1 : stupid_typeconv ty1 = Tpointer t1 a1) (Hty2 : stupid_typeconv ty2 = Tint sz si a2) :
+  classify_sub_rel ty1 ty2 (sub_case_pi t1 si)
+| classify_sub_pl t1 a1 si a2 (Hty1 : stupid_typeconv ty1 = Tpointer t1 a1) (Hty2 : stupid_typeconv ty2 = Tlong si a2) :
+  classify_sub_rel ty1 ty2 (sub_case_pl t1)
+| classify_sub_default (Hdefault : forall t1 a1, stupid_typeconv ty1 = Tpointer t1 a1 -> match stupid_typeconv ty2 with Tpointer _ _ | Tint _ _ _ | Tlong _ _ => False | _ => True end) :
+  classify_sub_rel ty1 ty2 sub_default.
+
+Lemma classify_sub_reflect : forall ty1 ty2, classify_sub_rel ty1 ty2 (classify_sub' ty1 ty2).
+Proof.
+  intros; unfold classify_sub'.
+  destruct (stupid_typeconv ty1) eqn: Hty1, (stupid_typeconv ty2) eqn: Hty2;
+    econstructor; rewrite ?Hty1 ?Hty2; done.
 Qed.
 
 Definition classify_cmp' ty1 ty2 :=
@@ -632,6 +660,26 @@ try destruct i,s; auto;
 try destruct i0,s0; auto.
 Qed.
 
+Inductive classify_add_rel (ty1 ty2 : type) : classify_add_cases -> Prop :=
+| classify_add_pi t1 a1 sz si a2 (Hty1 : stupid_typeconv ty1 = Tpointer t1 a1) (Hty2 : stupid_typeconv ty2 = Tint sz si a2) :
+  classify_add_rel ty1 ty2 (add_case_pi t1 si)
+| classify_add_ip a1 sz si t2 a2 (Hty1 : stupid_typeconv ty1 = Tint sz si a1) (Hty2 : stupid_typeconv ty2 = Tpointer t2 a2) :
+  classify_add_rel ty1 ty2 (add_case_ip si t2)
+| classify_add_pl t1 a1 si a2 (Hty1 : stupid_typeconv ty1 = Tpointer t1 a1) (Hty2 : stupid_typeconv ty2 = Tlong si a2) :
+  classify_add_rel ty1 ty2 (add_case_pl t1)
+| classify_add_lp a1 si t2 a2 (Hty1 : stupid_typeconv ty1 = Tlong si a1) (Hty2 : stupid_typeconv ty2 = Tpointer t2 a2) :
+  classify_add_rel ty1 ty2 (add_case_lp t2)
+| classify_add_default (Hdefault1 : forall t1 a1, stupid_typeconv ty1 = Tpointer t1 a1 -> match stupid_typeconv ty2 with Tint _ _ _ | Tlong _ _ => False | _ => True end)
+  (Hdefault2 : forall t2 a2, stupid_typeconv ty2 = Tpointer t2 a2 -> match stupid_typeconv ty1 with Tint _ _ _ | Tlong _ _ => False | _ => True end) :
+  classify_add_rel ty1 ty2 add_default.
+
+Lemma classify_add_reflect : forall ty1 ty2, classify_add_rel ty1 ty2 (classify_add' ty1 ty2).
+Proof.
+  intros; unfold classify_add'.
+  destruct (stupid_typeconv ty1) eqn: Hty1, (stupid_typeconv ty2) eqn: Hty2;
+    econstructor; rewrite ?Hty1 ?Hty2; done.
+Qed.
+
 Definition classify_shift' (ty1: type) (ty2: type) :=
   match stupid_typeconv ty1, stupid_typeconv ty2 with
   | Tint sz sg _, Tint _ _ _ => shift_case_ii
@@ -655,6 +703,33 @@ unfold classify_shift; extensionality t1 t2.
 destruct t1,t2; simpl; auto;
 try destruct i,s; auto;
 try destruct i0,s0; auto.
+Qed.
+
+Definition is_integer_type t := match t with Tint _ _ _ | Tlong _ _ => true | _ => false end.
+
+Inductive classify_shift_rel (ty1 ty2 : type) : classify_shift_cases -> Prop :=
+| classify_shift_iiu sz2 sg2 a1 a2 (Hty1 : stupid_typeconv ty1 = Tint I32 Unsigned a1) (Hty2 : stupid_typeconv ty2 = Tint sz2 sg2 a2) :
+  classify_shift_rel ty1 ty2 (shift_case_ii Unsigned)
+| classify_shift_iis sz1 sz2 sg1 sg2 a1 a2 (Hty1 : stupid_typeconv ty1 = Tint sz1 sg1 a1) (Hty2 : stupid_typeconv ty2 = Tint sz2 sg2 a2)
+    (Hsigned : sz1 <> I32 \/ sg1 = Signed) :
+  classify_shift_rel ty1 ty2 (shift_case_ii Signed)
+| classify_shift_ilu sg2 a1 a2 (Hty1 : stupid_typeconv ty1 = Tint I32 Unsigned a1) (Hty2 : stupid_typeconv ty2 = Tlong sg2 a2) :
+  classify_shift_rel ty1 ty2 (shift_case_il Unsigned)
+| classify_shift_ils sz1 sg1 sg2 a1 a2 (Hty1 : stupid_typeconv ty1 = Tint sz1 sg1 a1) (Hty2 : stupid_typeconv ty2 = Tlong sg2 a2)
+    (Hsigned : sz1 <> I32 \/ sg1 = Signed) :
+  classify_shift_rel ty1 ty2 (shift_case_il Signed)
+| classify_shift_li sz2 sg1 sg2 a1 a2 (Hty1 : stupid_typeconv ty1 = Tlong sg1 a1) (Hty2 : stupid_typeconv ty2 = Tint sz2 sg2 a2) :
+  classify_shift_rel ty1 ty2 (shift_case_li sg1)
+| classify_shift_ll sg1 sg2 a1 a2 (Hty1 : stupid_typeconv ty1 = Tlong sg1 a1) (Hty2 : stupid_typeconv ty2 = Tlong sg2 a2) :
+  classify_shift_rel ty1 ty2 (shift_case_ll sg1)
+| classify_shift_default (Hdefault : is_integer_type (stupid_typeconv ty1) = false \/ is_integer_type (stupid_typeconv ty2) = false) :
+  classify_shift_rel ty1 ty2 shift_default.
+
+Lemma classify_shift_reflect : forall ty1 ty2, classify_shift_rel ty1 ty2 (classify_shift' ty1 ty2).
+Proof.
+  intros; unfold classify_shift'.
+  destruct (stupid_typeconv ty1) eqn: Hty1, (stupid_typeconv ty2) eqn: Hty2;
+    try (econstructor; rewrite ?Hty1 ?Hty2; auto); destruct i, s; try (econstructor; rewrite ?Hty1 ?Hty2; auto).
 Qed.
 
 Definition classify_binarith' (ty1: type) (ty2: type) :=
@@ -708,7 +783,7 @@ Proof.
 Qed.
 
 Inductive classify_binarith_rel (ty1 ty2 : type) : binarith_cases -> Prop :=
-| classify_cmp_i_un i1 i2 s1 s2 a1 a2 (Hty1 : stupid_typeconv ty1 = Tint i1 s1 a1) (Hty2 : stupid_typeconv ty2 = Tint i2 s2 a2)
+| classify_binarith_i_un i1 i2 s1 s2 a1 a2 (Hty1 : stupid_typeconv ty1 = Tint i1 s1 a1) (Hty2 : stupid_typeconv ty2 = Tint i2 s2 a2)
     (Hunsigned : (i1 = I32 /\ s1 = Unsigned) \/ (i2 = I32 /\ s2 = Unsigned)) :
   classify_binarith_rel ty1 ty2 (bin_case_i Unsigned)
 | classify_binarith_i_si i1 i2 s1 s2 a1 a2 (Hty1 : stupid_typeconv ty1 = Tint i1 s1 a1) (Hty2 : stupid_typeconv ty2 = Tint i2 s2 a2)

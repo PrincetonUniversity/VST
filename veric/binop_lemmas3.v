@@ -333,18 +333,17 @@ Proof.
 Qed.
 
 Inductive tc_val_PM': type -> val -> Prop :=
-| tc_val_PM'_Tint: forall t0 sz sg a v, t0 = Tint sz sg a -> is_int sz sg v -> tc_val_PM' t0 v
-| tc_val_PM'_Tlong: forall t0 s a v, stupid_typeconv t0 = Tlong s a -> is_long v -> tc_val_PM' t0 v
-| tc_val_PM'_Tfloat_single: forall t0 a v, stupid_typeconv t0 = Tfloat F32 a -> is_single v -> tc_val_PM' t0 v
-| tc_val_PM'_Tfloat_double: forall t0 a v, stupid_typeconv t0 = Tfloat F64 a -> is_float v -> tc_val_PM' t0 v
-| tc_val_PM'_Tpointer: forall t0 t a v, 
-  stupid_typeconv t0 = Tpointer t a -> 
+| tc_val_PM'_Tint: forall t0 sz sg a v (Ht : t0 = Tint sz sg a), is_int sz sg v -> tc_val_PM' t0 v
+| tc_val_PM'_Tlong: forall t0 s a v (Ht : stupid_typeconv t0 = Tlong s a), is_long v -> tc_val_PM' t0 v
+| tc_val_PM'_Tfloat_single: forall t0 a v (Ht : stupid_typeconv t0 = Tfloat F32 a), is_single v -> tc_val_PM' t0 v
+| tc_val_PM'_Tfloat_double: forall t0 a v (Ht : stupid_typeconv t0 = Tfloat F64 a), is_float v -> tc_val_PM' t0 v
+| tc_val_PM'_Tpointer: forall t0 t a v (Ht : stupid_typeconv t0 = Tpointer t a),
   (if eqb_type t0 int_or_ptr_type
            then is_pointer_or_integer
            else is_pointer_or_null) v -> 
   tc_val_PM' t0 v
-| tc_val_PM'_Tstruct: forall t0 i a v, stupid_typeconv t0 = Tstruct i a -> isptr v -> tc_val_PM' t0 v
-| tc_val_PM'_Tunion: forall t0 i a v, stupid_typeconv t0 = Tunion i a -> isptr v -> tc_val_PM' t0 v.
+| tc_val_PM'_Tstruct: forall t0 i a v (Ht : stupid_typeconv t0 = Tstruct i a), isptr v -> tc_val_PM' t0 v
+| tc_val_PM'_Tunion: forall t0 i a v (Ht : stupid_typeconv t0 = Tunion i a), isptr v -> tc_val_PM' t0 v.
 
 Lemma tc_val_tc_val_PM': forall t v, tc_val t v <-> tc_val_PM' t v.
 Proof.
@@ -361,14 +360,14 @@ Proof.
     - eapply tc_val_PM'_Tstruct; eauto; reflexivity.
     - eapply tc_val_PM'_Tunion; eauto; reflexivity.
   + inversion H; subst; auto;
-    destruct t as [| | | [ | ] ? | | | | |]; try (inv H0);
+    destruct t as [| | | [ | ] ? | | | | |]; try (inv Ht);
     auto.
-    destruct i; inv H3.
-    destruct i; inv H3.
-    destruct i; inv H3.
-    destruct i; inv H3.
-    destruct i0; inv H3.
-    destruct i0; inv H3.
+    destruct i; inv H2.
+    destruct i; inv H2.
+    destruct i; inv H2.
+    destruct i; inv H2.
+    destruct i0; inv H2.
+    destruct i0; inv H2.
 Qed.
 
 Ltac solve_tc_val H :=

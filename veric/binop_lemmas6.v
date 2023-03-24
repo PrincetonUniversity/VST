@@ -117,8 +117,8 @@ Proof.
     unfold sem_cmp_pi, sem_cmp_ip, sem_cmp_pl, sem_cmp_lp,
                      sem_cmp_pp, Val.cmplu_bool, Val.cmpu_bool; rewrite ?Hp.
 
-all: rewrite !tc_val_tc_val_PM' in TV1, TV2; inv TV1; try (rewrite H in Hty1; try solve [destruct sz; inv Hty1]; try solve [destruct sz0; inv Hty1]; inv Hty1);
-  inv TV2; try (rewrite H3 in Hty2; try solve [destruct sz; inv Hty2]; try solve [destruct sz0; inv Hty2]; inv Hty2);
+all: rewrite !tc_val_tc_val_PM' in TV1, TV2; inv TV1; try (rewrite Ht in Hty1; try solve [destruct sz; inv Hty1]; try solve [destruct sz0; inv Hty1]; inv Hty1);
+  inv TV2; try (rewrite Ht0 in Hty2; try solve [destruct sz; inv Hty2]; try solve [destruct sz0; inv Hty2]; inv Hty2);
   rewrite -> ?J, ?J0 in *;
   destruct (eval_expr e1 rho); try contradiction; try iDestruct "H" as "[]";
   destruct (eval_expr e2 rho); try iDestruct "H" as "[]"; try iDestruct "H" as "[-> ->]"; try iDestruct "H" as "[-> H]"; try done;

@@ -80,10 +80,9 @@ unfold denote_tc_nodivover in *;
 unfold denote_tc_initialized in *.
 
 Lemma typecheck_lvalue_Evar:
-  forall {CS: compspecs} i t pt Delta rho, typecheck_environ Delta rho ->
+  forall {CS: compspecs} i t pt Delta rho, typecheck_environ Delta rho -> is_pointer_type pt = true ->
            denote_tc_assert (typecheck_lvalue Delta (Evar i t)) rho ⊢
-           ⌜is_pointer_type pt = true ->
-            tc_val pt (eval_lvalue (Evar i t) rho)⌝.
+           ⌜tc_val pt (eval_lvalue (Evar i t) rho)⌝.
 Proof.
 intros.
 unfold typecheck_lvalue.
@@ -100,7 +99,7 @@ remember (type_eq t t0). destruct s; try discriminate.
 {
 simpl in *.
  unfold is_pointer_type in *.
- destruct pt; try solve [inv H3; simpl in *; auto].
+ destruct pt; try solve [inv H0; simpl in *; auto].
  unfold tc_val.
  simple_if_tac; apply I.
 }
@@ -109,8 +108,8 @@ remember (eqb_type t t0).
 symmetry in Heqb0. destruct b0; simpl in *; [| iIntros "[]"]. apply eqb_type_true in Heqb0.
 subst.
 iPureIntro; intros.
-unfold tc_val; unfold is_pointer_type in H3;
- destruct pt; try solve [inv H3; reflexivity].
+unfold tc_val; unfold is_pointer_type in H0;
+ destruct pt; try solve [inv H0; reflexivity].
  simple_if_tac; apply I.
 }
 Qed.
@@ -130,10 +129,9 @@ Lemma typecheck_expr_sound_Efield:
   (H: typecheck_environ Delta rho)
   (IHe: (denote_tc_assert (typecheck_expr Delta e) rho ⊢
           ⌜tc_val (typeof e) (eval_expr e rho)⌝) /\
-          (forall pt : type,
+          (forall pt : type, is_pointer_type pt = true ->
           denote_tc_assert (typecheck_lvalue Delta e) rho ⊢
-          ⌜is_pointer_type pt = true ->
-          tc_val pt (eval_lvalue e rho)⌝)),
+          ⌜tc_val pt (eval_lvalue e rho)⌝)),
   denote_tc_assert (typecheck_expr Delta (Efield e i t)) rho ⊢
   ⌜tc_val (typeof (Efield e i t)) (eval_expr (Efield e i t) rho)⌝.
 Proof.
@@ -150,8 +148,9 @@ unfold typecheck_environ in H.
 destruct H as [_ [Hve Hge]].
 iDestruct (eval_lvalue_ptr with "[H]") as %PTR; first done.
 { by rewrite bi.and_elim_l. }
-rewrite (IHl t); iDestruct "H" as (He) "H".
-spec He. { clear - MODE; destruct t; try destruct i; try destruct s; try destruct f; inv MODE; simpl; auto. }
+rewrite (IHl t).
+2: { clear - MODE; destruct t; try destruct i; try destruct s; try destruct f; inv MODE; simpl; auto. }
+iDestruct "H" as (He) "H".
 destruct PTR as (? & ? & H); simpl in H.
 destruct (typeof e); try iDestruct "H" as "[]".
 + destruct (cenv_cs !! i0) as [co |]; try iDestruct "H" as "[]".
@@ -171,9 +170,9 @@ Lemma typecheck_lvalue_sound_Efield:
  (H: typecheck_environ Delta rho)
  (IHe: (denote_tc_assert (typecheck_expr Delta e) rho ⊢
           ⌜tc_val (typeof e) (eval_expr e rho)⌝) /\
-        (forall pt0 : type, denote_tc_assert (typecheck_lvalue Delta e) rho ⊢
-           ⌜is_pointer_type pt0 = true ->
-         tc_val pt0 (eval_lvalue e rho)⌝))
+        (forall pt0 : type, is_pointer_type pt0 = true ->
+         denote_tc_assert (typecheck_lvalue Delta e) rho ⊢
+           ⌜tc_val pt0 (eval_lvalue e rho)⌝))
   (H1: is_pointer_type pt = true),
   denote_tc_assert (typecheck_lvalue Delta (Efield e i t)) rho ⊢
   ⌜tc_val pt (eval_lvalue (Efield e i t) rho)⌝.
@@ -190,8 +189,8 @@ unfold typecheck_environ in *. intuition.
 iIntros "H".
 iDestruct (eval_lvalue_ptr with "[H]") as %PTR; first done.
 { by rewrite bi.and_elim_l. }
-rewrite (IHl pt); iDestruct "H" as (Hpt) "H".
-spec Hpt; first done.
+rewrite (IHl pt); last done.
+iDestruct "H" as (Hpt) "H".
 remember (eval_lvalue e (mkEnviron ge ve te)). unfold isptr in *.
 subst v.
 destruct PTR as [b [ofs ?]].
@@ -288,9 +287,9 @@ Lemma typecheck_unop_sound:
  (IHe: (denote_tc_assert (typecheck_expr Delta e) rho ⊢
           ⌜tc_val (typeof e) (eval_expr e rho)⌝) /\
           (forall pt : type,
+           is_pointer_type pt = true ->
            denote_tc_assert (typecheck_lvalue Delta e) rho ⊢
-           ⌜is_pointer_type pt = true ->
-           tc_val pt (eval_lvalue e rho)⌝)),
+           ⌜tc_val pt (eval_lvalue e rho)⌝)),
   denote_tc_assert (typecheck_expr Delta (Eunop u e t)) rho ⊢
   ⌜tc_val t (eval_expr (Eunop u e t) rho)⌝.
 Proof.
@@ -387,28 +386,27 @@ Qed.
 
 Lemma typecheck_deref_sound:
   forall {CS: compspecs} Delta rho e t pt,
-   typecheck_environ Delta rho ->
+   typecheck_environ Delta rho -> is_pointer_type pt = true ->
    (denote_tc_assert (typecheck_expr Delta e) rho ⊢
     ⌜tc_val (typeof e) (eval_expr e rho)⌝) /\
     (forall pt0 : type,
      denote_tc_assert (typecheck_lvalue Delta e) rho ⊢
      ⌜is_pointer_type pt0 = true -> tc_val pt0 (eval_lvalue e rho)⌝) ->
      denote_tc_assert (typecheck_lvalue Delta (Ederef e t)) rho ⊢
-    ⌜is_pointer_type pt = true ->
-     tc_val pt (eval_lvalue (Ederef e t) rho)⌝.
+    ⌜tc_val pt (eval_lvalue (Ederef e t) rho)⌝.
 Proof.
-intros until pt. intros H IHe.
+intros until pt. intros H H0 IHe.
 unfold typecheck_lvalue; fold typecheck_expr.
-simpl.
 rewrite !denote_tc_assert_andp tc_bool_e.
-iIntros "[[H %] %]".
+iIntros "[[H %H1] %]".
 destruct IHe as [-> _]; iPureIntro; intros.
-revert H0; case_eq (is_pointer_type (typeof e)); intros; hnf in H0; try discriminate.
+revert H1; case_eq (is_pointer_type (typeof e)); intros; hnf in H1; try discriminate.
+simpl.
 destruct (eval_expr e rho); try contradiction.
-destruct pt; try solve [inv H2; reflexivity].
+destruct pt; try solve [inv H0; reflexivity].
 unfold tc_val.
-unfold is_pointer_type in H2.
-destruct (eqb_type (Tpointer pt a) int_or_ptr_type); inv H2.
+unfold is_pointer_type in H0.
+destruct (eqb_type (Tpointer pt a) int_or_ptr_type); inv H0.
 apply I.
 Qed.
 

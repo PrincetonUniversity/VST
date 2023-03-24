@@ -678,17 +678,26 @@ rewrite den_isBinOpR /=.
 forget (op_result_type (Ebinop b e1 e2 t)) as err.
 forget (arg_type (Ebinop b e1 e2 t)) as err0.
 destruct b; simpl; auto;
-unfold Cop.sem_add, Cop.sem_sub;
+unfold Cop.sem_add, Cop.sem_sub, binarithType';
 rewrite ?classify_add_eq ?classify_sub_eq;
-match goal with |- context[match ?A with _ => _ end] => destruct A eqn: HC end; auto;
-destruct (typeof e1)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ]; try discriminate HC;
-destruct (typeof e2)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ]; try discriminate HC;
-simpl; unfold_lift; rewrite ?tc_bool_e; iIntros (H); iPureIntro; decompose [and] H; clear H;
+repeat lazymatch goal with
+| |-context [classify_add'] => pose proof (classify_add_reflect (typeof e1) (typeof e2)) as Hrel; inv Hrel;
+   match goal with H : _ = classify_add' _ _ |- _ => let C := fresh "C" in symmetry in H; rename H into HC end
+| |-context [classify_sub'] => pose proof (classify_sub_reflect (typeof e1) (typeof e2)) as Hrel; inv Hrel;
+   match goal with H : _ = classify_sub' _ _ |- _ => let C := fresh "C" in symmetry in H; rename H into HC end
+| |-context [classify_binarith'] => 
+   pose proof (classify_binarith_rel (typeof e1) (typeof e2)) as Hrel; inv Hrel;
+   match goal with H : _ = classify_binarith' _ _ |- _ => let C := fresh "C" in symmetry in H; rename H into HC end;
+   try destruct s
+| |-context [classify_shift'] => pose proof (classify_shift_reflect (typeof e1) (typeof e2)) as Hrel; inv Hrel;
+   match goal with H : _ = classify_shift' _ _ |- _ => let C := fresh "C" in symmetry in H; rename H into HC end
+| |-context [classify_cmp'] => pose proof (classify_cmp_reflect (typeof e1) (typeof e2)) as Hrel; inv Hrel;
+   match goal with H : _ = classify_cmp' _ _ |- _ => let C := fresh "C" in symmetry in H; rename H into HC end
+end; simpl; unfold_lift; rewrite ?tc_bool_e ?tc_andp_sound; first [iIntros (H) || auto]; iPureIntro; decompose [and] H;
 unfold Cop.sem_add_ptr_int, Cop.sem_add_ptr_long in *;
 simpl in *;
 rewrite -> (sizeof_stable _ _ CSUB) by auto; auto.
 Qed.
-(* TODO: simplify with a relation *)
 
 Lemma eq_block_lem':
  forall a, eq_block a a = left (eq_refl a).
@@ -715,144 +724,97 @@ Proof. destruct v; try contradiction; eauto. Qed.
 Lemma is_float_e: forall {v}, is_float v -> exists f, v = Vfloat f.
 Proof. destruct v; try contradiction; eauto. Qed.
 
-Lemma eval_binop_relate':
- forall {CS: compspecs} (ge: genv) te ve rho b e1 e2 t m
-    (Hcenv: cenv_sub (@cenv_cs CS) (genv_cenv ge))
-    (H1: Clight.eval_expr ge ve te m e1 (eval_expr e1 rho))
-    (H2: Clight.eval_expr ge ve te m e2 (eval_expr e2 rho))
-    (TC1 : tc_val (typeof e1) (eval_expr e1 rho))
-    (TC2 : tc_val (typeof e2) (eval_expr e2 rho)),
-    coherent_with m ∧ denote_tc_assert (isBinOpResultType b e1 e2 t) rho ⊢
-⌜Clight.eval_expr ge ve te m (Ebinop b e1 e2 t)
-  (force_val2 (sem_binary_operation' b (typeof e1) (typeof e2))
-     (eval_expr e1 rho) (eval_expr e2 rho))⌝.
+Definition weak_valid_pointer' m v :=
+  match v with Vptr b o => Mem.weak_valid_pointer m b (Ptrofs.unsigned o) | _ => false end.
+
+Lemma sem_cast_relate' : forall ty1 ty2 v v' m
+  (Hty1 : eqb_type ty1 int_or_ptr_type = false) (Hty2 : eqb_type ty2 int_or_ptr_type = false)
+  (Hv : tc_val ty1 v) (Hvalid : forall t a, stupid_typeconv ty1 = Tpointer t a -> weak_valid_pointer' m v = true),
+  sem_cast ty1 ty2 v = Some v' ->
+  Cop.sem_cast v ty1 ty2 m = Some v'.
 Proof.
-intros.
-iIntros "H".
-iDestruct (sem_binary_operation_stable CS (genv_cenv ge) with "[H]") as %Hstable.
-{ clear - Hcenv.
-hnf in Hcenv.
-intros.
-specialize (Hcenv id). hnf in Hcenv. rewrite H in Hcenv. auto.
-}
-{ iDestruct "H" as "[_ $]". }
-rewrite -bi.pure_mono'; [|econstructor; [apply H1 | apply H2 | apply Hstable; eassumption]].
-rewrite den_isBinOpR /=.
-forget (op_result_type (Ebinop b e1 e2 t)) as err.
-forget (arg_type (Ebinop b e1 e2 t)) as err0.
-cbv beta iota zeta delta [
-  sem_binary_operation sem_binary_operation' 
-   binarithType' 
- ].
-clear ve te H1 H2 Hstable.
-destruct b;
-(* use the relation approach here instead *)
-repeat lazymatch goal with
-| |-context [classify_add'] => destruct (classify_add' (typeof e1) (typeof e2)) eqn:?C
-| |-context [classify_sub'] => destruct (classify_sub' (typeof e1) (typeof e2)) eqn:?C
-| |-context [classify_binarith'] => 
-   destruct (classify_binarith' (typeof e1) (typeof e2)) eqn:?C; try destruct s
-| |-context [classify_shift'] => destruct (classify_shift' (typeof e1) (typeof e2)) eqn:?C
-| |-context [classify_cmp'] => destruct (classify_cmp' (typeof e1) (typeof e2)) eqn:?C
-| _ => idtac
-end;
-simpl; rewrite ?tc_andp_sound /=; super_unfold_lift;
-unfold tc_int_or_ptr_type in *;
-rewrite ?tc_bool_e; try (iDestruct "H" as "[_ %H]"; iPureIntro;
-repeat match goal with
- |  H: _ /\ _ |- _ => destruct H
-end);
-forget (eval_expr e1 rho) as v1;
-forget (eval_expr e2 rho) as v2;
-try clear rho;
-try clear err err0;
-repeat match goal with
- | H: negb (eqb_type ?A ?B) = true |- _ =>
-             rewrite negb_true_iff in H; try rewrite H in *
- | H: eqb_type ?A ?B = true |- _ =>
-             try rewrite H in *
-end;
-try rewrite <- ?classify_add_eq , <- ?classify_sub_eq, <- ?classify_cmp_eq, <- ?classify_binarith_eq in *;
- rewrite ->?sem_cast_long_intptr_lemma in *;
- rewrite -> ?sem_cast_int_intptr_lemma in *;
-  cbv beta iota zeta delta [
-  sem_binary_operation sem_binary_operation' 
-   Cop.sem_add sem_add Cop.sem_sub sem_sub Cop.sem_div
-   Cop.sem_mod sem_mod Cop.sem_shl Cop.sem_shift 
-   sem_shl sem_shift sem_add_ptr_long sem_add_ptr_int
-   sem_add_long_ptr sem_add_int_ptr
-   Cop.sem_shr sem_shr Cop.sem_cmp sem_cmp
-   sem_cmp_pp sem_cmp_pl sem_cmp_lp 
-   Cop.sem_binarith sem_binarith
-   binarith_type 
-   sem_shift_ii sem_shift_ll sem_shift_il sem_shift_li
-    sem_sub_pp sem_sub_pi sem_sub_pl 
-   force_val2 typeconv remove_attributes change_attributes
-   sem_add_ptr_int force_val both_int both_long force_val2
-    Cop.sem_add_ptr_int
- ];
- try rewrite C; try rewrite C0; try rewrite C1;
- repeat match goal with
-            | H: complete_type _ _ = _ |- _ => rewrite H; clear H
-            | H: eqb_type _ _ = _ |- _ => rewrite H
-            end;
- try clear CS; try clear m;
- try change (Ctypes.sizeof ty) with (sizeof ty).
-(*all: try abstract (
-red in TC1,TC2;
-destruct (typeof e1)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
-try discriminate C;
-try solve [contradiction];
-destruct (typeof e2)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
-try solve [contradiction];
-try discriminate C; try discriminate C0;
-repeat match goal with
- | H: typecheck_error _ |- _ => contradiction H
- | H: andb _ _ = true |- _ => rewrite andb_true_iff in H; destruct H
- | H: isptr ?A |- _ => destruct (isptr_e H) as [?b [?ofs ?]]; clear H; subst A
- | H: is_int _ _ ?A |- _ => destruct (is_int_e' H) as [?i ?]; clear H; subst A
- | H: is_long ?A |- _ =>  destruct (is_long_e H) as [?i ?]; clear H; subst A
- | H: is_single ?A |- _ => destruct (is_single_e H) as [?f ?]; clear H; subst A
- | H: is_float ?A |- _ => destruct (is_float_e H) as [?f ?]; clear H; subst A
- | H: is_true (sameblock _ _) |- _ => apply sameblock_eq_block in H; subst;
-                                                         rewrite ?eq_block_lem'
- | H: is_numeric_type _ = true |- _  => inv H
- end;
- rewrite ?bool2val_eq;
- try simple apply eq_refl;
- rewrite ?sem_cast_long_intptr_lemma in *;
- rewrite ?sem_cast_int_intptr_lemma in *;
- rewrite ?sem_cast_relate ?sem_cast_relate_long ?sem_cast_relate_int_long;
- rewrite ?sem_cast_int_lemma ?sem_cast_long_lemma ?sem_cast_int_long_lemma;
- rewrite -> ?if_true by auto;
- rewrite -> ?sizeof_range_true by auto;
- rewrite ?denote_tc_nodivover_e';
- rewrite -> ?denote_tc_nonzero_e';
- rewrite -> ?cast_int_long_nonzero by eassumption;
- rewrite -> ?(proj2 (eqb_type_false _ _)) by auto 1;
- try reflexivity;
- try solve [simple apply test_eq_relate'; auto;
-               try (rewrite denote_tc_test_eq_xx);
-               try (rewrite denote_tc_test_eq_yy);
-               try (rewrite test_eq_fiddle_signed_xx);
-               try (rewrite test_eq_fiddle_signed_yy)];
- try solve [rewrite test_order_relate'; auto; 
-               try (rewrite test_order_fiddle_signed_xx);
-               try (rewrite test_order_fiddle_signed_yy)];
- rewrite ?(denote_tc_nodivover_e64_li' Signed);
- rewrite ?(denote_tc_nodivover_e64_il' Signed);
- rewrite ?(denote_tc_nodivover_e64_li' Unsigned);
- rewrite ?(denote_tc_nodivover_e64_il' Unsigned);
- rewrite ?denote_tc_nodivover_e64_ll';
- rewrite ?denote_tc_nonzero_e64';
- rewrite ?denote_tc_igt_e';
- rewrite ?denote_tc_lgt_e';
- rewrite ?denote_tc_test_eq_Vint_l';
- rewrite ?denote_tc_test_eq_Vint_r';
- rewrite ?denote_tc_test_eq_Vlong_l';
- rewrite ?denote_tc_test_eq_Vlong_r';
- done).
-Time Qed.  (* 31.5 sec *)*)
-Admitted. (* should be provable, just a lot of automation to debug *)
+  unfold sem_cast, Cop.sem_cast; intros.
+  rewrite -> classify_cast_eq by auto.
+  destruct (classify_cast ty1 ty2) eqn: Hclass; auto.
+  - inv H.
+    unfold classify_cast in Hclass.
+    destruct ty1, ty2; try destruct i; try destruct f; try destruct i0; try destruct f0; try rewrite -> Hty1 in *; try rewrite -> Hty2 in *; try discriminate;
+      unfold tc_val in Hv; rewrite ?Hty1 in Hv; destruct v'; try contradiction; auto.
+  - destruct v; try discriminate; try solve [inv H; reflexivity].
+    unfold weak_valid_pointer' in Hvalid.
+    simpl in H.
+    simple_if_tac; inv H.
+    unfold classify_cast in Hclass; unfold tc_val in Hv.
+    destruct ty1, ty2; try destruct i; try destruct f; try destruct i0; try destruct f0; try rewrite -> Hty1 in *; try rewrite -> Hty2 in *; try discriminate; try contradiction; try (destruct i1; discriminate);
+      erewrite Hvalid; eauto.
+Qed.
+
+Lemma sem_binarith_relate : forall sem_int sem_long sem_float sem_single ty1 ty2 v1 v2 v m
+  (Hty1 : eqb_type ty1 int_or_ptr_type = false) (Hty2 : eqb_type ty2 int_or_ptr_type = false)
+  (Hv1 : tc_val ty1 v1) (Hvalid1 : forall t a, stupid_typeconv ty1 = Tpointer t a -> weak_valid_pointer' m v1 = true)
+  (Hv2 : tc_val ty2 v2) (Hvalid2 : forall t a, stupid_typeconv ty2 = Tpointer t a -> weak_valid_pointer' m v2 = true),
+  sem_binarith sem_int sem_long sem_float sem_single ty1 ty2 v1 v2 = Some v ->
+  Cop.sem_binarith sem_int sem_long sem_float sem_single v1 ty1 v2 ty2 m = Some v.
+Proof.
+  unfold sem_binarith, Cop.sem_binarith; intros.
+  destruct (classify_binarith ty1 ty2) eqn: Hclass; auto.
+  - unfold both_int in H.
+    destruct (sem_cast ty1 _ _) eqn: Hcast1; try discriminate.
+    destruct v0; try discriminate.
+    destruct (sem_cast ty2 _ _) eqn: Hcast2; try discriminate.
+    destruct v0; try discriminate.
+    eapply sem_cast_relate' in Hcast1 as ->; auto.
+    eapply sem_cast_relate' in Hcast2 as ->; auto.
+  - unfold both_long in H.
+    destruct (sem_cast ty1 _ _) eqn: Hcast1; try discriminate.
+    destruct v0; try discriminate.
+    destruct (sem_cast ty2 _ _) eqn: Hcast2; try discriminate.
+    destruct v0; try discriminate.
+    eapply sem_cast_relate' in Hcast1 as ->; auto.
+    eapply sem_cast_relate' in Hcast2 as ->; auto.
+  - unfold both_float in H.
+    destruct (sem_cast ty1 _ _) eqn: Hcast1; try discriminate.
+    destruct v0; try discriminate.
+    destruct (sem_cast ty2 _ _) eqn: Hcast2; try discriminate.
+    destruct v0; try discriminate.
+    eapply sem_cast_relate' in Hcast1 as ->; auto.
+    eapply sem_cast_relate' in Hcast2 as ->; auto.
+  - unfold both_single in H.
+    destruct (sem_cast ty1 _ _) eqn: Hcast1; try discriminate.
+    destruct v0; try discriminate.
+    destruct (sem_cast ty2 _ _) eqn: Hcast2; try discriminate.
+    destruct v0; try discriminate.
+    eapply sem_cast_relate' in Hcast1 as ->; auto.
+    eapply sem_cast_relate' in Hcast2 as ->; auto.
+Qed.
+
+Lemma sem_shift_relate : forall sem_int sem_long ty1 ty2 v1 v2 v
+  (Hnoover : match classify_shift ty1 ty2 with
+            | shift_case_ii _ => match v2 with Vint i2 => Int.unsigned i2 < Int.unsigned Int.iwordsize | _ => True end
+            | shift_case_ll _ => match v2 with Vlong i2 => Int64.unsigned i2 < Int64.unsigned Int64.iwordsize | _ => True end
+            | shift_case_il _ => match v2 with Vlong i2 => Int64.unsigned i2 < 32 | _ => True end
+            | shift_case_li _ => match v2 with Vint i2 => Int.unsigned i2 < Int.unsigned Int64.iwordsize' | _ => True end
+            | _ => True
+            end),
+  sem_shift ty1 ty2 sem_int sem_long v1 v2 = Some v ->
+  Cop.sem_shift sem_int sem_long v1 ty1 v2 ty2 = Some v.
+Proof.
+  unfold sem_shift, Cop.sem_shift; intros.
+  destruct (classify_shift ty1 ty2) eqn: Hclass; auto.
+  - unfold sem_shift_ii in H.
+    destruct v2; auto.
+    unfold Int.ltu; if_tac; auto; lia.
+  - unfold sem_shift_ii in H.
+    destruct v2; auto.
+    unfold Int64.ltu; if_tac; auto; lia.
+  - unfold sem_shift_il in H.
+    destruct v2; auto.
+    unfold Int64.ltu; if_tac; auto.
+    rewrite -> Int64.unsigned_repr in *; try lia.
+    by compute.
+  - unfold sem_shift_li in H.
+    destruct v2; auto.
+    unfold Int.ltu; if_tac; auto; lia.
+Qed.
 
 End mpred.

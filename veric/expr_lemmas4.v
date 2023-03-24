@@ -32,10 +32,9 @@ Lemma typecheck_both_sound:
              typecheck_environ Delta rho ->
              (denote_tc_assert (typecheck_expr Delta e) rho ⊢
               ⌜tc_val (typeof e) (eval_expr e rho)⌝) /\
-             (forall pt,
+             (forall pt, is_pointer_type pt = true ->
              denote_tc_assert (typecheck_lvalue Delta e) rho ⊢
-             ⌜is_pointer_type pt = true ->
-             tc_val pt (eval_lvalue e rho)⌝).
+             ⌜tc_val pt (eval_lvalue e rho)⌝).
 Proof.
 intros. induction e; split; intros; try solve[subst; auto]; try contradiction.
 
@@ -73,47 +72,29 @@ destruct t; try auto; try inversion H0.
 
 *
 
-simpl in H0 |- *.
+unfold typecheck_lvalue; fold typecheck_expr.
 unfold tc_val.
-rewrite !denote_tc_assert_andp in H0.
-simpl in H0.
-destruct H0 as [[? ?] ?].
-unfold tc_bool in H2; simpl in H2.
-destruct (is_pointer_type (typeof e)) eqn:?H; [|inversion H2].
+rewrite !denote_tc_assert_andp /=.
 unfold_lift.
-unfold_lift in H3.
-destruct (eval_expr e rho); inversion H3.
-simpl.
-unfold is_pointer_type in H1.
-destruct pt; try reflexivity; try solve [inversion H1].
-destruct (eqb_type (Tpointer pt a) int_or_ptr_type); inv H1.
-apply I.
+rewrite (proj1 IHe) tc_bool_e; iIntros "[[%He %H1] %H2]"; iPureIntro.
+destruct (eval_expr e rho); try contradiction.
+destruct pt; auto; try solve [inversion H0].
+destruct (eqb_type (Tpointer pt a) int_or_ptr_type); inv H0; auto.
 
 * (*addrof*)
-intuition.
-simpl in *.
-rewrite denote_tc_assert_andp in H0.
-destruct H0.
+unfold typecheck_expr; fold typecheck_lvalue.
+rewrite denote_tc_assert_andp.
+rewrite tc_bool_e; iIntros "[H %]".
+rewrite (proj2 IHe); last done.
 destruct t; auto.
-unfold tc_val, is_pointer_type in H3|-*.
-destruct (eqb_type (Tpointer t a) int_or_ptr_type) eqn:J.
-apply eqb_type_true in J. rewrite J in H3.
-contradiction H3.
-specialize (H2 (Tpointer t a) H0).
-unfold tc_val in H2.
-rewrite J in H2.
-unfold is_pointer_type in H2. rewrite J in H2.
-apply H2; auto.
 
 * (*Unop*)
 eapply typecheck_unop_sound; eauto.
 * (*binop*)
-repeat rewrite andb_true_iff in *; intuition.
-clear H4. clear H2. clear H.
-simpl in H0.
-repeat rewrite denote_tc_assert_andp in H0.
-destruct H0 as [[H0 E1] E2].
-apply (typecheck_binop_sound b rho m e1 e2 t H0 (H3 E2) (H1 E1)).
+unfold typecheck_expr; fold typecheck_expr.
+rewrite !denote_tc_assert_andp /=.
+rewrite (proj1 IHe1) (proj1 IHe2); iIntros "[[H %] %]".
+by iApply typecheck_binop_sound.
 
 * (* cast *)
 destruct IHe.
@@ -124,42 +105,34 @@ eapply typecheck_expr_sound_Efield; eauto.
 *
 eapply typecheck_lvalue_sound_Efield; eauto.
 * (* Esizeof *)
-simpl in H0.
-repeat rewrite denote_tc_assert_andp in H0.
-destruct H0.
-apply tc_bool_e in H0.
-apply tc_bool_e in H1.
-rewrite eqb_type_spec in H1.
-subst.
-simpl. rewrite H0; reflexivity.
+unfold typecheck_expr.
+rewrite !denote_tc_assert_andp !tc_bool_e.
+iIntros "[%H0 %H1]".
+rewrite eqb_type_spec in H1; subst; simpl.
+rewrite H0; auto.
 * (* Ealignof *)
-simpl in H0.
-repeat rewrite denote_tc_assert_andp in H0.
-destruct H0.
-apply tc_bool_e in H0.
-apply tc_bool_e in H1.
-rewrite eqb_type_spec in H1.
-subst.
-simpl. rewrite H0; reflexivity.
+unfold typecheck_expr.
+rewrite !denote_tc_assert_andp !tc_bool_e.
+iIntros "[%H0 %H1]".
+rewrite eqb_type_spec in H1; subst; simpl.
+rewrite H0; auto.
 Qed.
 
-Lemma typecheck_expr_sound : forall {CS: compspecs} Delta rho m e,
+Lemma typecheck_expr_sound : forall {CS: compspecs} Delta rho e,
  typecheck_environ Delta rho ->
-              denote_tc_assert (typecheck_expr Delta e) rho m ->
-              tc_val (typeof e) (eval_expr e rho).
+              denote_tc_assert (typecheck_expr Delta e) rho ⊢
+              ⌜tc_val (typeof e) (eval_expr e rho)⌝.
 Proof. intros.
-assert (TC := typecheck_both_sound Delta rho m e). tauto. Qed.
+assert (TC := typecheck_both_sound Delta rho e). tauto. Qed.
 
-
-Lemma typecheck_lvalue_sound : forall {CS: compspecs} Delta rho m e,
+Lemma typecheck_lvalue_sound : forall {CS: compspecs} Delta rho e,
   typecheck_environ Delta rho ->
-  denote_tc_assert (typecheck_lvalue Delta e) rho m ->
-  is_pointer_or_null (eval_lvalue e rho).
+  denote_tc_assert (typecheck_lvalue Delta e) rho ⊢
+  ⌜is_pointer_or_null (eval_lvalue e rho)⌝.
 Proof.
 intros.
- edestruct (typecheck_both_sound _ _ m e H).
-specialize (H2 (Tpointer Tvoid noattr) H0 (eq_refl _)).
-apply H2.
+destruct (typecheck_both_sound _ _ e H).
+apply (H1 (Tpointer Tvoid noattr) (eq_refl _)).
 Qed.
 
 Ltac unfold_cop2_sem_cmp :=
@@ -170,14 +143,16 @@ Lemma eval_binop_relate:
         (Hcenv: cenv_sub (@cenv_cs CS) (genv_cenv ge)),
     rho = construct_rho (filter_genv ge) ve te ->
     typecheck_environ Delta rho ->
-    ((denote_tc_assert (typecheck_expr Delta e1) rho) (m_phi m) ->
-      Clight.eval_expr ge ve te (m_dry m) e1 (eval_expr e1 rho)) ->
-    ((denote_tc_assert (typecheck_expr Delta e2) rho) (m_phi m) ->
-       Clight.eval_expr ge ve te (m_dry m) e2 (eval_expr e2 rho)) ->
-    (denote_tc_assert (typecheck_expr Delta (Ebinop b e1 e2 t)) rho) (m_phi m) ->
-    Clight.eval_expr ge ve te (m_dry m) (Ebinop b e1 e2 t)
-                     (eval_expr (Ebinop b e1 e2 t) rho).
+    (denote_tc_assert (typecheck_expr Delta e1) rho ⊢
+      ⌜Clight.eval_expr ge ve te m e1 (eval_expr e1 rho)⌝) ->
+    (denote_tc_assert (typecheck_expr Delta e2) rho ⊢
+      ⌜Clight.eval_expr ge ve te m e2 (eval_expr e2 rho)⌝) ->
+    (denote_tc_assert (typecheck_expr Delta (Ebinop b e1 e2 t)) rho) ⊢
+    ⌜Clight.eval_expr ge ve te m (Ebinop b e1 e2 t)
+                     (eval_expr (Ebinop b e1 e2 t) rho)⌝.
 Proof.
+intros.
+unfold typecheck_expr; fold typecheck_expr.
 intros until 1. intros H H0 H1 H2 H3.
 simpl in *. super_unfold_lift.
 rewrite !denote_tc_assert_andp in H3.
@@ -192,8 +167,8 @@ apply eval_binop_relate'; assumption.
 Qed.
 
 Lemma valid_pointer_dry0:
-  forall b ofs m, app_pred (valid_pointer (Vptr b ofs)) (m_phi m) ->
-           Mem.valid_pointer (m_dry m) b (Ptrofs.unsigned ofs) = true.
+  forall m b ofs, coherent_with m ∧ valid_pointer (Vptr b ofs)) ⊢
+           ⌜Mem.valid_pointer m b (Ptrofs.unsigned ofs) = true⌝.
 Proof.
 intros.
 rewrite <- (Z.add_0_r (Ptrofs.unsigned ofs)).
@@ -215,15 +190,15 @@ Proof.
 Qed.
 
 Lemma typecheck_binop_sound2:
- forall {CS: compspecs} (Delta : tycontext) (rho : environ) m (b : binary_operation)
+ forall {CS: compspecs} (Delta : tycontext) (rho : environ) (b : binary_operation)
      (e1 e2 : expr) (t : type),
-   denote_tc_assert (typecheck_expr Delta e2) rho m ->
-   denote_tc_assert (isBinOpResultType b e1 e2 t) rho m ->
-   denote_tc_assert (typecheck_expr Delta e1) rho m ->
    tc_val (typeof e2) (eval_expr e2 rho) ->
    tc_val (typeof e1) (eval_expr e1 rho) ->
-   tc_val t
-     (eval_binop b (typeof e1) (typeof e2) (eval_expr e1 rho) (eval_expr e2 rho)).
+   denote_tc_assert (typecheck_expr Delta e2) rho ∧
+   denote_tc_assert (isBinOpResultType b e1 e2 t) rho ∧
+   denote_tc_assert (typecheck_expr Delta e1) rho ⊢
+   ⌜tc_val t
+     (eval_binop b (typeof e1) (typeof e2) (eval_expr e1 rho) (eval_expr e2 rho))⌝.
 Proof.
 intros.
 pose proof (typecheck_binop_sound).
@@ -236,14 +211,14 @@ forall {CS: compspecs} (Delta : tycontext) (rho : environ) (b : binary_operation
 typecheck_environ  Delta rho ->
 forall (ge : genv) te ve,
 rho = construct_rho (filter_genv ge) ve te ->
-denote_tc_assert (typecheck_expr Delta e2) rho (m_phi m) ->
-denote_tc_assert (isBinOpResultType b e1 e2 t) rho (m_phi m) ->
-denote_tc_assert (typecheck_expr Delta e1) rho (m_phi m) ->
-None =
+denote_tc_assert (typecheck_expr Delta e2) rho ∧
+denote_tc_assert (isBinOpResultType b e1 e2 t) rho ∧
+denote_tc_assert (typecheck_expr Delta e1) rho ⊢
+⌜None =
 sem_binary_operation' b  (typeof e1) (typeof e2) (eval_expr e1 rho) (eval_expr e2 rho) ->
-Clight.eval_expr ge ve te (m_dry m) e2 (eval_expr e2 rho) ->
-Clight.eval_expr ge ve te (m_dry m) e1 (eval_expr e1 rho) ->
-Clight.eval_expr ge ve te (m_dry m) (Ebinop b e1 e2 t) Vundef.
+Clight.eval_expr ge ve te m e2 (eval_expr e2 rho) ->
+Clight.eval_expr ge ve te m e1 (eval_expr e1 rho) ->
+Clight.eval_expr ge ve te m (Ebinop b e1 e2 t) Vundef⌝.
 Proof.
 intros.
 assert (TC1 := typecheck_expr_sound _ _ _ _ H H1).
@@ -262,8 +237,8 @@ Opaque tc_andp.
 
 Lemma tc_test_eq0:
   forall b i m,
-  (denote_tc_test_eq (Vptr b i) (Vint Int.zero)) (m_phi m) ->
-  Mem.weak_valid_pointer (m_dry m) b (Ptrofs.unsigned i) = true.
+  coherent_with m ∧ denote_tc_test_eq (Vptr b i) (Vint Int.zero)) ⊢
+  ⌜Mem.weak_valid_pointer (m_dry m) b (Ptrofs.unsigned i) = true⌝.
 Proof.
 intros.
 destruct H;
@@ -273,12 +248,12 @@ Qed.
 
 Lemma cop2_sem_cast :
     forall t1 t2 v m,
- (classify_cast t1 t2 = classify_cast size_t tbool ->
-   denote_tc_test_eq v (Vint Int.zero) (m_phi m) )->
   t1 <> int_or_ptr_type ->
   t2 <> int_or_ptr_type ->
   tc_val t1 v ->
- Cop.sem_cast v t1 t2 (m_dry m) = sem_cast t1 t2 v.
+  coherent_with m ∧ (⌜classify_cast t1 t2 = classify_cast size_t tbool⌝ -∗
+   denote_tc_test_eq v (Vint Int.zero)) ⊢
+ ⌜Cop.sem_cast v t1 t2 m = sem_cast t1 t2 v⌝.
 Proof.
 intros.
  unfold Cop.sem_cast, sem_cast.
