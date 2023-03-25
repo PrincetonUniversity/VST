@@ -484,10 +484,10 @@ Require Import VST.veric.binop_lemmas4.
 Require Import VST.veric.expr_lemmas.
 
 Lemma tc_bool_i:
- forall {cs: compspecs} b e rho w,
-   b = true -> app_pred (denote_tc_assert (tc_bool b e) rho) w.
+ forall {cs: compspecs} b e rho,
+   b = true -> True ⊢ denote_tc_assert (tc_bool b e) rho.
 Proof.
-intros. subst. apply I.
+intros. subst. auto.
 Qed.
 
 Section CENV_SUB.
@@ -495,223 +495,177 @@ Section CENV_SUB.
   (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')).
 
  Definition is_tc_FF (a: tc_assert) :=
-  match a with tc_FF _ => True | _ => False end.
+  match a with tc_FF _ => True%type | _ => False%type end.
 
  Definition dec_tc_FF (a: tc_assert) : {is_tc_FF a}+{~is_tc_FF a}.
  Proof. destruct a; simpl; auto. Qed.
 
 
-  Lemma tc_nodivover'_cenv_sub a1 a2 rho w:
-   app_pred (@denote_tc_assert CS (@tc_nodivover' a1 a2) rho) w ->
-   app_pred (@denote_tc_assert CS' (@tc_nodivover' a1 a2) rho) w.
+(*
+These all follow from denote_tc_assert_cenv_sub.
+
+  Lemma tc_nodivover'_cenv_sub a1 a2 rho:
+   denote_tc_assert(CS := CS) (tc_nodivover' a1 a2) rho ⊢
+   denote_tc_assert(CS := CS') (tc_nodivover' a1 a2) rho.
   Proof.
-  simpl. unfold_lift.
-  destruct (Val.eq (@eval_expr CS a1 rho) Vundef).
-  rewrite e. simpl. tauto.
-  destruct (Val.eq (@eval_expr CS a2 rho) Vundef).
-  rewrite e. destruct (@eval_expr CS a1 rho); simpl; intro H; contradiction H.
-  rewrite <- ?(eval_expr_cenv_sub_eq CSUB _ _ n).
-  rewrite <- ?(eval_expr_cenv_sub_eq CSUB _ _ n0).
-  auto.
-  Qed.  
-
-
-  Lemma tc_samebase_cenv_sub a1 a2 rho w:
-   app_pred (@denote_tc_assert CS (@tc_samebase a1 a2) rho) w ->
-   app_pred (@denote_tc_assert CS' (@tc_samebase a1 a2) rho) w.
-  Proof.
-  simpl. unfold_lift.
-  destruct (Val.eq (@eval_expr CS a1 rho) Vundef).
-  rewrite e. simpl. tauto.
-  destruct (Val.eq (@eval_expr CS a2 rho) Vundef).
-  rewrite e. destruct (@eval_expr CS a1 rho); simpl; intro H; contradiction H.
-  rewrite <- ?(eval_expr_cenv_sub_eq CSUB _ _ n).
-  rewrite <- ?(eval_expr_cenv_sub_eq CSUB _ _ n0).
-  auto.
-  Qed.  
-
-
-  Lemma tc_nonzero'_cenv_sub a rho w:
-   app_pred (@denote_tc_assert CS (@tc_nonzero' a) rho) w ->
-   app_pred (@denote_tc_assert CS' (@tc_nonzero' a) rho) w.
-  Proof.
-  simpl. unfold_lift.
-  destruct (Val.eq (@eval_expr CS a rho) Vundef).
-  rewrite e. simpl. tauto.
-  rewrite <- ?(eval_expr_cenv_sub_eq CSUB _ _ n).
-  auto.
-  Qed.  
-
-  Lemma tc_ilt'_cenv_sub a i rho w:
-   app_pred (@denote_tc_assert CS (@tc_ilt' a i) rho) w ->
-   app_pred (@denote_tc_assert CS' (@tc_ilt' a i) rho) w.
-  Proof.
-  simpl. unfold_lift.
-  destruct (Val.eq (@eval_expr CS a rho) Vundef).
-  rewrite e. simpl. tauto.
-  rewrite <- ?(eval_expr_cenv_sub_eq CSUB _ _ n).
-  auto.
-  Qed.  
-
-  Lemma tc_llt'_cenv_sub a i rho w:
-   app_pred (@denote_tc_assert CS (@tc_llt' a i) rho) w ->
-   app_pred (@denote_tc_assert CS' (@tc_llt' a i) rho) w.
-  Proof.
-  simpl. unfold_lift.
-  destruct (Val.eq (@eval_expr CS a rho) Vundef).
-  rewrite e. simpl. tauto.
-  rewrite <- ?(eval_expr_cenv_sub_eq CSUB _ _ n).
-  auto.
-  Qed.  
-
-  Lemma tc_test_eq'_cenv_sub a1 a2 rho w:
-   app_pred (@denote_tc_assert CS (@tc_test_eq' a1 a2) rho) w ->
-   app_pred (@denote_tc_assert CS' (@tc_test_eq' a1 a2) rho) w.
-  Proof.
-  simpl. unfold_lift.
-  destruct (Val.eq (@eval_expr CS a1 rho) Vundef).
-  rewrite e. simpl. tauto.
-  destruct (Val.eq (@eval_expr CS a2 rho) Vundef).
-  rewrite e. destruct (@eval_expr CS a1 rho); simpl; intro H; contradiction H.
-  rewrite <- ?(eval_expr_cenv_sub_eq CSUB _ _ n).
-  rewrite <- ?(eval_expr_cenv_sub_eq CSUB _ _ n0).
-  auto.
-  Qed.  
-
-  Lemma tc_test_eq_cenv_sub a1 a2 rho w:
-   app_pred (@denote_tc_assert CS (@tc_test_eq CS a1 a2) rho) w ->
-   app_pred (@denote_tc_assert CS' (@tc_test_eq CS' a1 a2) rho) w.
-  Proof.
-  rewrite !denote_tc_assert_test_eq'.
-  apply tc_test_eq'_cenv_sub.
+    by apply denote_tc_nodivover_eval_expr_cenv_sub.
   Qed.
 
-  Lemma tc_test_order'_cenv_sub a1 a2 rho w:
-   app_pred (@denote_tc_assert CS (@tc_test_order' a1 a2) rho) w ->
-   app_pred (@denote_tc_assert CS' (@tc_test_order' a1 a2) rho) w.
+
+  Lemma tc_samebase_cenv_sub a1 a2 rho:
+   denote_tc_assert(CS := CS) (tc_samebase a1 a2) rho ⊢
+   denote_tc_assert(CS := CS') (tc_samebase a1 a2) rho.
+  Proof.
+    simpl. unfold_lift.
+    iIntros "%"; iPureIntro.
+    revert H; apply istrue_sameblock_eval_expr_cenv_sub; auto.
+  Qed.
+
+
+  Lemma tc_nonzero'_cenv_sub a rho:
+   denote_tc_assert(CS := CS) (tc_nonzero' a) rho ⊢
+   denote_tc_assert(CS := CS') (tc_nonzero' a) rho.
+  Proof.
+    apply denote_tc_nonzero_eval_expr_cenv_sub; auto.
+  Qed.
+
+  Lemma tc_ilt'_cenv_sub a i rho:
+   denote_tc_assert(CS := CS) (tc_ilt' a i) rho ⊢
+   denote_tc_assert(CS := CS') (tc_ilt' a i) rho.
+  Proof.
+    simpl. unfold_lift.
+    destruct (Val.eq (@eval_expr CS a rho) Vundef).
+    rewrite e. simpl. iIntros "[]".
+    rewrite <- ?(eval_expr_cenv_sub_eq CSUB _ _ n).
+    auto.
+  Qed.
+
+  Lemma tc_llt'_cenv_sub a i rho:
+   denote_tc_assert(CS := CS) (tc_llt' a i) rho ⊢
+   denote_tc_assert(CS := CS') (tc_llt' a i) rho.
   Proof.
   simpl. unfold_lift.
-  destruct (Val.eq (@eval_expr CS a1 rho) Vundef).
-  rewrite e. simpl. tauto.
-  destruct (Val.eq (@eval_expr CS a2 rho) Vundef).
-  rewrite e. destruct (@eval_expr CS a1 rho); simpl; intro H; contradiction H.
+  destruct (Val.eq (@eval_expr CS a rho) Vundef).
+  rewrite e. simpl. iIntros "[]".
   rewrite <- ?(eval_expr_cenv_sub_eq CSUB _ _ n).
-  rewrite <- ?(eval_expr_cenv_sub_eq CSUB _ _ n0).
   auto.
   Qed.
+
+  Lemma tc_test_eq'_cenv_sub a1 a2 rho:
+   denote_tc_assert(CS := CS) (tc_test_eq' a1 a2) rho ⊢
+   denote_tc_assert(CS := CS') (tc_test_eq' a1 a2) rho.
+  Proof.
+    apply denote_tc_test_eq_eval_expr_cenv_sub; auto.
+  Qed.*)
+
+  Lemma tc_test_eq_cenv_sub a1 a2 rho:
+   denote_tc_assert(CS := CS) (tc_test_eq(CS := CS) a1 a2) rho ⊢
+   denote_tc_assert(CS := CS') (tc_test_eq(CS := CS') a1 a2) rho.
+  Proof.
+    rewrite !denote_tc_assert_test_eq'.
+    apply denote_tc_assert_cenv_sub; auto.
+  Qed.
+
+  (*Lemma tc_test_order'_cenv_sub a1 a2 rho:
+   denote_tc_assert(CS := CS) (tc_test_order' a1 a2) rho ⊢
+   denote_tc_assert(CS := CS') (tc_test_order' a1 a2) rho.
+  Proof.
+    apply denote_tc_test_order_eval_expr_cenv_sub; auto.
+  Qed.*)
+
+Lemma entails_refl : forall (P : mpred), P ⊢ P.
+Proof. done. Qed.
+
+Lemma pure_intro_l : forall (P : Prop) (Q R : mpred), P -> (Q ⊢ R) -> Q ⊢ ⌜P⌝ ∧ R.
+Proof.
+  intros ???? ->; iIntros "$"; auto.
+Qed.
+
+Lemma pure_intro_r : forall (P : Prop) (Q R : mpred), P -> (Q ⊢ R) -> Q ⊢ R ∧ ⌜P⌝.
+Proof.
+  intros ???? ->; iIntros "$"; auto.
+Qed.
 
 Ltac tc_expr_cenv_sub_tac := 
 repeat
 match goal with
- | H: app_pred (@denote_tc_assert _ (tc_andp _ _) _) _ |- _ =>
-     rewrite denote_tc_assert_andp in H; destruct H
- | |- app_pred (@denote_tc_assert _ (tc_andp _ _) _) _ =>
-     rewrite denote_tc_assert_andp; split
- | H: app_pred (@denote_tc_assert _ (tc_andp' _ _) _) _ |- _ =>
-     destruct H
- | |- app_pred (@denote_tc_assert _ (tc_andp' _ _) _) _ =>
-      split
- | |- _ => solve [simple apply tc_bool_i; auto]
- | H: app_pred (@denote_tc_assert _ (tc_bool _ _) _) _ |- _ =>
-      apply tc_bool_e in H; rewrite ?H in *
- | |- app_pred (@denote_tc_assert _ (tc_bool true _) _) _ =>
-     apply I
-  | |- app_pred (@denote_tc_assert _ (tc_isptr ?a) _) _  =>
-       apply (isptr_eval_expr_cenv_sub CSUB); auto
- | |- app_pred (@denote_tc_assert _ tc_TT _) _ => apply I
- | |- app_pred (@denote_tc_assert _ (tc_bool (complete_type _ _) _) _) _ =>
-           solve [rewrite (cenv_sub_complete_type _ _ CSUB); simpl; auto]
- | |- context [tc_int_or_ptr_type] =>
-           solve [unfold tc_int_or_ptr_type in *; tc_expr_cenv_sub_tac]
- | |- _ => solve [simple apply tc_nodivover'_cenv_sub; auto]
- | |- _ => solve [simple apply tc_samebase_cenv_sub; auto]
- | |- _ => solve [simple apply tc_nonzero'_cenv_sub; auto]
- | |- _ => solve [simple apply tc_ilt'_cenv_sub; auto]
- | |- _ => solve [simple apply tc_llt'_cenv_sub; auto]
- | |- _ => solve [simple apply tc_test_eq'_cenv_sub; auto]
+ | |- @denote_tc_assert _ _ _ (tc_andp _ _) _ ⊢ _ =>
+     rewrite !denote_tc_assert_andp
+ | |- _ ∧ @denote_tc_assert _ _ _ (tc_bool (complete_type _ _) _) _ ⊢ _ =>
+        rewrite (tc_bool_e (complete_type _ _)); apply bi.pure_elim_r; intros
+ | |- @denote_tc_assert _ _ _ (tc_bool (complete_type _ _) _) _ ∧ _ ⊢ _ =>
+        rewrite tc_bool_e; apply bi.pure_elim_l; intros
+ | |- _ ⊢ @denote_tc_assert _ _ _ (tc_bool (complete_type _ _) _) _ ∧ _ =>
+      rewrite -> (cenv_sub_complete_type _ _ CSUB) by assumption; apply pure_intro_l; first apply I
+ | |- _ ⊢ _ ∧ @denote_tc_assert _ _ _ (tc_bool (complete_type _ _) _) _ =>
+      rewrite -> (cenv_sub_complete_type _ _ CSUB) by assumption; apply pure_intro_r; first apply I
+ | |- _ ⊢ (_ ∧ @denote_tc_assert _ _ _ (tc_bool (complete_type _ _) _) _) ∧ _ =>
+      do 2 rewrite (bi.and_comm _ (@denote_tc_assert _ _ _ (tc_bool (complete_type _ _) _) _)); rewrite -!assoc
+ | |- _ ∧ _ ⊢ _ ∧ _ => apply bi.and_mono
  | |- _ => solve [simple apply tc_test_eq_cenv_sub; auto]
- | |- _ => solve [simple apply tc_test_order'_cenv_sub; auto]
- | |- app_pred (denote_tc_assert (tc_bool ?A _) _) _ =>
+ | |- @denote_tc_assert _ _ _ (tc_bool ?A _) _ ⊢ _ =>
     match A with context [sizeof ?t] => unfold sizeof;
-     rewrite (cenv_sub_sizeof CSUB t) by assumption;
-     solve [simple apply tc_bool_i; auto]
+     rewrite -> (cenv_sub_sizeof CSUB t) by assumption
    end
 end;
   try solve [eauto].
 
-
 Ltac tc_expr_cenv_sub_tac2 :=  
  (match goal with
-   | H: app_pred (@denote_tc_assert _ match @eval_expr CS ?a ?rho with _ => _ end _) _ |- _ =>
+   | |- @denote_tc_assert _ _ _ match @eval_expr CS ?a ?rho with _ => _ end _ ⊢ _ =>
+
         let H' := fresh in
-        destruct (Val.eq (@eval_expr CS a rho) Vundef) as [H' | H' ];
-         [ rewrite H' in H;
+        destruct (Val.eq (@eval_expr CS a rho) Vundef) as [H' | H'];
+         [ rewrite H';
             try match goal with |- context [@eval_expr CS' a rho] =>
              destruct (@eval_expr CS' a rho) eqn:?
            end
          | rewrite <- ?(eval_expr_cenv_sub_eq CSUB _ _ H');
            destruct (@eval_expr CS a rho) eqn:?]
-    | |- app_pred (@denote_tc_assert _ match @eval_expr CS' ?a ?rho with _ => _ end _) _ =>
+    | |- _ ⊢ @denote_tc_assert _ _ _ match @eval_expr CS' ?a ?rho with _ => _ end _ =>
        destruct (@eval_expr CS' a rho) eqn:?H
-    | |- app_pred (@denote_tc_assert _ (if _ then tc_TT else _) _) _ =>
-    simple_if_tac; [apply I | ]
+    | |- _ ⊢ @denote_tc_assert _ _ _ (if _ then tc_TT else _) _ =>
+    simple_if_tac; [auto | ]
    end;
   try assumption;
   try (simple apply (denote_tc_assert_cenv_sub CSUB); auto)).
 
-  Lemma tc_nobinover_cenv_sub op a1 a2 rho w:
-   app_pred (@denote_tc_assert CS (@tc_nobinover op CS a1 a2) rho) w ->
-   app_pred (@denote_tc_assert CS' (@tc_nobinover op CS' a1 a2) rho) w.
+  Lemma tc_nobinover_cenv_sub op a1 a2 rho:
+   denote_tc_assert(CS := CS) (tc_nobinover op (CS := CS) a1 a2) rho ⊢
+   denote_tc_assert(CS := CS') (tc_nobinover op (CS := CS') a1 a2) rho.
  Proof.
   unfold tc_nobinover.
   unfold if_expr_signed.
-  intros.
   destruct (typeof a1) as [ | _ [ | ] | [ | ] | [ | ] | | | | | ]; 
   destruct (typeof a2) as [ | _ [ | ] | [ | ]  | | | | | | ]; 
   tc_expr_cenv_sub_tac; repeat tc_expr_cenv_sub_tac2.
  Qed.
-  
+
 Lemma tc_expr_cenv_sub_unop:
  forall 
- (u : unary_operation)
+ (u : Cop.unary_operation)
  (a : expr)
  (t : type)
  (rho : environ)
  (Delta : tycontext)
- (w : rmap)
- (T : (@tc_expr CS Delta (Eunop u a t) rho) w)
- (IHa : (@tc_expr CS Delta a rho) w -> (@tc_expr CS' Delta a rho) w),
- (@tc_expr CS' Delta (Eunop u a t) rho) w.
+ (IHa : @tc_expr CS Delta a rho ⊢ @tc_expr CS' Delta a rho),
+ @tc_expr CS Delta (Eunop u a t) rho ⊢
+ @tc_expr CS' Delta (Eunop u a t) rho.
 Proof.
   intros.
-  unfold tc_expr in *; simpl in T|-*.
+  unfold tc_expr in *; unfold typecheck_expr; fold typecheck_expr.
   tc_expr_cenv_sub_tac.
-  destruct u; simpl in H|-*;
-  destruct (typeof a) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ]; 
-  tc_expr_cenv_sub_tac.
-  unfold tc_int_or_ptr_type in *;
-  tc_expr_cenv_sub_tac.  
-  all: try apply (denote_tc_nosignedover_eval_expr_cenv_sub CSUB); auto.
- pose proof (denote_tc_nosignedover_eval_expr_cenv_sub CSUB rho
-                        (Econst_long Int64.zero (Ctypes.Tlong Signed a0)) a w Z.sub Signed ).
- simpl eval_expr in H2. 
-  unfold denote_tc_assert in H1|-*. 
-  replace (typeof (Econst_long Int64.zero (Ctypes.Tlong Signed a0)))
-  with (Ctypes.Tlong Signed a0) in * by (destruct a0; reflexivity).
-  simpl in H1|-*.
-  destruct (typeof a); auto.
-  destruct s; auto.
-  apply (denote_tc_nosignedover_eval_expr_cenv_sub CSUB rho
-                        (Econst_long Int64.zero (Ctypes.Tlong Signed a0)) a w Z.sub Unsigned); 
-    auto.
+  destruct u; simpl;
+  destruct (typeof a) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
+  tc_expr_cenv_sub_tac; try apply (denote_tc_assert_cenv_sub CSUB).
 Qed.
 
 
-Lemma denote_tc_assert_andp_i:
+(*Lemma denote_tc_assert_andp_i:
   forall x y rho w, 
-   app_pred (denote_tc_assert x rho) w ->
-   app_pred (denote_tc_assert y rho) w ->
-   app_pred (denote_tc_assert (tc_andp x y) rho) w.
+   denote_tc_assert x rho ⊢
+   denote_tc_assert y rho ⊢
+   denote_tc_assert (tc_andp x y) rho) w.
 Proof.
 intros.
 rewrite denote_tc_assert_andp. split; auto.
@@ -719,10 +673,10 @@ Qed.
 
 Lemma denote_tc_assert_andp'_imp:
  forall x x' y y' rho w,
-  (app_pred (@denote_tc_assert CS x rho) w -> app_pred (@denote_tc_assert CS' x' rho) w) ->
-  (app_pred (@denote_tc_assert CS y rho) w -> app_pred (@denote_tc_assert CS' y' rho) w) ->
-  app_pred (@denote_tc_assert CS (tc_andp' x y) rho) w ->
-  app_pred (@denote_tc_assert CS' (tc_andp' x' y') rho) w.
+  (denote_tc_assert(CS := CS x rho ⊢ denote_tc_assert(CS := CS' x' rho) w) ->
+  (denote_tc_assert(CS := CS y rho ⊢ denote_tc_assert(CS := CS' y' rho) w) ->
+  denote_tc_assert(CS := CS (tc_andp' x y) rho ⊢
+  denote_tc_assert(CS := CS' (tc_andp' x' y') rho) w.
 Proof.
 intros.
 destruct H1.
@@ -731,10 +685,10 @@ Qed.
 
 Lemma denote_tc_assert_andp_imp:
  forall x x' y y' rho w,
-  (app_pred (@denote_tc_assert CS x rho) w -> app_pred (@denote_tc_assert CS' x' rho) w) ->
-  (app_pred (@denote_tc_assert CS y rho) w -> app_pred (@denote_tc_assert CS' y' rho) w) ->
-  app_pred (@denote_tc_assert CS (tc_andp x y) rho) w ->
-  app_pred (@denote_tc_assert CS' (tc_andp x' y') rho) w.
+  (denote_tc_assert(CS := CS x rho ⊢ denote_tc_assert(CS := CS' x' rho) w) ->
+  (denote_tc_assert(CS := CS y rho ⊢ denote_tc_assert(CS := CS' y' rho) w) ->
+  denote_tc_assert(CS := CS (tc_andp x y) rho ⊢
+  denote_tc_assert(CS := CS' (tc_andp x' y') rho) w.
 Proof.
 intros.
 rewrite @denote_tc_assert_andp in H1|-*.
@@ -743,14 +697,14 @@ Qed.
 
 Lemma denote_tc_assert_andp'_imp2:
  forall x x' y y' rho w,
-  (app_pred (@denote_tc_assert CS y rho) w -> 
-   app_pred (@denote_tc_assert CS x rho) w -> 
-   app_pred (@denote_tc_assert CS' x' rho) w) ->
-  (app_pred (@denote_tc_assert CS x rho) w ->
-   app_pred (@denote_tc_assert CS y rho) w ->
-   app_pred (@denote_tc_assert CS' y' rho) w) ->
-  app_pred (@denote_tc_assert CS (tc_andp' x y) rho) w ->
-  app_pred (@denote_tc_assert CS' (tc_andp' x' y') rho) w.
+  (denote_tc_assert(CS := CS y rho ⊢ 
+   denote_tc_assert(CS := CS x rho ⊢ 
+   denote_tc_assert(CS := CS' x' rho) w) ->
+  (denote_tc_assert(CS := CS x rho ⊢
+   denote_tc_assert(CS := CS y rho ⊢
+   denote_tc_assert(CS := CS' y' rho) w) ->
+  denote_tc_assert(CS := CS (tc_andp' x y) rho ⊢
+  denote_tc_assert(CS := CS' (tc_andp' x' y') rho) w.
 Proof.
 intros.
 destruct H1.
@@ -759,48 +713,48 @@ Qed.
 
 Lemma denote_tc_assert_andp_imp2:
  forall x x' y y' rho w,
-  (app_pred (@denote_tc_assert CS y rho) w -> 
-   app_pred (@denote_tc_assert CS x rho) w -> 
-   app_pred (@denote_tc_assert CS' x' rho) w) ->
-  (app_pred (@denote_tc_assert CS x rho) w ->
-   app_pred (@denote_tc_assert CS y rho) w ->
-   app_pred (@denote_tc_assert CS' y' rho) w) ->
-  app_pred (@denote_tc_assert CS (tc_andp x y) rho) w ->
-  app_pred (@denote_tc_assert CS' (tc_andp x' y') rho) w.
+  (denote_tc_assert(CS := CS y rho ⊢ 
+   denote_tc_assert(CS := CS x rho ⊢ 
+   denote_tc_assert(CS := CS' x' rho) w) ->
+  (denote_tc_assert(CS := CS x rho ⊢
+   denote_tc_assert(CS := CS y rho ⊢
+   denote_tc_assert(CS := CS' y' rho) w) ->
+  denote_tc_assert(CS := CS (tc_andp x y) rho ⊢
+  denote_tc_assert(CS := CS' (tc_andp x' y') rho) w.
 Proof.
 intros.
 rewrite @denote_tc_assert_andp in H1|-*.
 eapply denote_tc_assert_andp'_imp2; eauto.
-Qed.
+Qed.*)
 
-Lemma tc_bool_cenv_sub:
- forall b e rho w,
-  app_pred (@denote_tc_assert CS (tc_bool b e) rho) w ->
-  app_pred (@denote_tc_assert CS' (tc_bool b e) rho) w.
+(*Lemma tc_bool_cenv_sub:
+ forall b e rho,
+  denote_tc_assert(CS := CS) (tc_bool b e) rho ⊢
+  denote_tc_assert(CS := CS') (tc_bool b e) rho.
 Proof.
 intros.
 apply tc_bool_e in H.
 apply tc_bool_i.
 auto.
-Qed.
+Qed.*)
 
 Lemma tc_complete_type_cenv_sub:
- forall t e rho w,
-  app_pred (@denote_tc_assert CS (tc_bool (complete_type (@cenv_cs CS) t) e) rho) w ->
-  app_pred (@denote_tc_assert CS' (tc_bool (complete_type (@cenv_cs CS') t) e) rho) w.
+ forall t e rho,
+  denote_tc_assert(CS := CS) (tc_bool (complete_type (@cenv_cs CS) t) e) rho ⊢
+  denote_tc_assert(CS := CS') (tc_bool (complete_type (@cenv_cs CS') t) e) rho.
 Proof.
 intros.
-apply tc_bool_e in H.
-apply tc_bool_i.
+unfold tc_bool.
+destruct (complete_type _ _) eqn: Hc; [|iIntros "[]"].
 rewrite (cenv_sub_complete_type _ _ CSUB); auto.
 Qed.
 
-Local Lemma tc_andp'_intro:
+(*Local Lemma tc_andp'_intro:
   forall x y rho w Q P,
-   (app_pred (@denote_tc_assert CS x rho) w ->
-    app_pred (@denote_tc_assert CS y rho) w ->
+   (denote_tc_assert(CS := CS x rho ⊢
+    denote_tc_assert(CS := CS y rho ⊢
     Q -> P) ->
-   (app_pred (@denote_tc_assert CS (tc_andp' x y) rho) w -> Q -> P).
+   (denote_tc_assert(CS := CS (tc_andp' x y) rho ⊢ Q -> P).
 Proof.
 intros.
 destruct H; auto.
@@ -808,10 +762,10 @@ Qed.
 
 Local Lemma tc_andp_intro:
   forall x y rho w Q P,
-   (app_pred (@denote_tc_assert CS x rho) w ->
-    app_pred (@denote_tc_assert CS y rho) w ->
+   (denote_tc_assert(CS := CS x rho ⊢
+    denote_tc_assert(CS := CS y rho ⊢
     Q -> P) ->
-   (app_pred (@denote_tc_assert CS (tc_andp x y) rho) w -> Q -> P).
+   (denote_tc_assert(CS := CS (tc_andp x y) rho ⊢ Q -> P).
 Proof.
 intros.
 rewrite @denote_tc_assert_andp in H.
@@ -821,7 +775,7 @@ Qed.
 Local Lemma tc_bool_intro:
   forall b e rho w Q P,
    (b = true -> Q -> P) ->
-   (app_pred (@denote_tc_assert CS (tc_bool b e) rho) w -> Q -> P).
+   (denote_tc_assert(CS := CS (tc_bool b e) rho ⊢ Q -> P).
 Proof.
 intros.
 apply tc_bool_e in H. auto.
@@ -829,8 +783,8 @@ Qed.
 
 Lemma tc_check_pp_int'_cenv_sub:
  forall a1 a2 op t e rho w,
- app_pred (@denote_tc_assert CS (check_pp_int' a1 a2 op t e) rho) w ->
- app_pred (@denote_tc_assert CS' (check_pp_int' a1 a2 op t e) rho) w.
+ denote_tc_assert(CS := CS (check_pp_int' a1 a2 op t e) rho ⊢
+ denote_tc_assert(CS := CS' (check_pp_int' a1 a2 op t e) rho) w.
 Proof.
 unfold check_pp_int'.
 intros.
@@ -839,65 +793,30 @@ destruct op; try contradiction H; revert H;
   [ | apply tc_bool_cenv_sub]).
 all: try simple apply tc_test_eq'_cenv_sub.
 all: try simple apply tc_test_order'_cenv_sub.
-Qed.
+Qed.*)
 
 Lemma tc_expr_cenv_sub_binop:
  forall 
- (b : binary_operation)
+ (b : Cop.binary_operation)
  (a1 a2 : expr)
  (t : type)
  (rho : environ)
  (Delta : tycontext)
- (w : rmap)
- (T : (@tc_expr CS Delta (Ebinop b a1 a2 t) rho) w)
- (IHa1 : (@tc_expr CS Delta a1 rho) w -> (@tc_expr CS' Delta a1 rho) w)
- (IHa2 : (@tc_expr CS Delta a2 rho) w -> (@tc_expr CS' Delta a2 rho) w),
- (@tc_expr CS' Delta (Ebinop b a1 a2 t) rho) w.
+ (IHa1 : @tc_expr CS Delta a1 rho ⊢ @tc_expr CS' Delta a1 rho)
+ (IHa2 : @tc_expr CS Delta a2 rho ⊢ @tc_expr CS' Delta a2 rho),
+ @tc_expr CS Delta (Ebinop b a1 a2 t) rho ⊢
+ @tc_expr CS' Delta (Ebinop b a1 a2 t) rho.
 Proof.
   intros.
-  rename T into H.
-  revert H.
   unfold tc_expr, typecheck_expr;
-  fold (@typecheck_expr CS);
-  fold (@typecheck_expr CS').
-  repeat apply denote_tc_assert_andp_imp; auto.
- clear - CSUB.
-  rewrite !den_isBinOpR.
-  cbv zeta.
-   repeat match goal with |- _ -> app_pred (denote_tc_assert match ?A with _ => _ end _) _ =>
-      destruct A; auto
-   end;
-  unfold tc_int_or_ptr_type.
-Local Ltac andp_simpl := 
- repeat first [simple apply tc_andp'_intro
-                  |simple apply tc_andp_intro
-                  |simple apply tc_bool_intro; intro
-                  |match goal with |- _ -> _ -> _ => intros _ end
-                  ].
-
-all:
- repeat
- first [simple apply denote_tc_assert_andp'_imp2; andp_simpl
-        |simple apply denote_tc_assert_andp_imp2; andp_simpl
-        |simple apply tc_bool_cenv_sub
-        |apply isptr_eval_expr_cenv_sub; auto
-        |simple apply tc_complete_type_cenv_sub
-        |simple apply tc_nobinover_cenv_sub
-        |simple apply tc_nodivover'_cenv_sub
-        |simple apply tc_samebase_cenv_sub
-        |simple apply tc_nonzero'_cenv_sub
-        |simple apply tc_ilt'_cenv_sub
-        |simple apply tc_llt'_cenv_sub
-        |simple apply tc_test_eq'_cenv_sub
-        |simple apply tc_test_eq_cenv_sub
-        |simple apply tc_test_order'_cenv_sub
-        |simple apply tc_check_pp_int'_cenv_sub
-        |unfold sizeof; rewrite (cenv_sub_sizeof CSUB) by assumption
-        | match goal with |- _ -> app_pred (denote_tc_assert (binarithType' _ _ _ _ _) _) _ =>
-               unfold binarithType'; destruct (classify_binarith' _ _)
-          end
-        | solve [intro H; contradiction H]
-     ].
+  fold (typecheck_expr(CS := CS));
+  fold (typecheck_expr(CS := CS')).
+  tc_expr_cenv_sub_tac.
+  rewrite /isBinOpResultType.
+  repeat match goal with |- denote_tc_assert match ?A with _ => _ end _ ⊢ _ =>
+    destruct A eqn: ?Hcase
+  end; tc_expr_cenv_sub_tac; rewrite ?denote_tc_assert_nonzero' ?denote_tc_assert_nodivover' ?denote_tc_assert_ilt' ?denote_tc_assert_llt' ?denote_tc_assert_test_order';
+    try apply (denote_tc_assert_cenv_sub CSUB); try apply tc_nobinover_cenv_sub.
 Qed.
 
 Lemma tc_expr_cenv_sub_cast:
@@ -906,65 +825,55 @@ Lemma tc_expr_cenv_sub_cast:
  (t : type)
  (rho : environ)
  (Delta : tycontext)
- (w : rmap)
- (T : (@tc_expr CS Delta (Ecast a t) rho) w)
- (IHa : (@tc_expr CS Delta a rho) w -> (@tc_expr CS' Delta a rho) w),
- (@tc_expr CS' Delta (Ecast a t) rho) w.
+ (IHa : @tc_expr CS Delta a rho ⊢ @tc_expr CS' Delta a rho),
+ @tc_expr CS Delta (Ecast a t) rho ⊢
+ @tc_expr CS' Delta (Ecast a t) rho.
 Proof.
   intros.
-  unfold tc_expr in *; simpl in T|-*.
-  tc_expr_cenv_sub_tac.
-   unfold isCastResultType in *;
-   repeat match goal with |- app_pred (denote_tc_assert match ?A with _ => _ end _) _ =>
-      destruct A; tc_expr_cenv_sub_tac
-   end;
-   tc_expr_cenv_sub_tac; try simple_if_tac;
-   try solve [simpl in *; super_unfold_lift;
-                  try rewrite denote_tc_assert_iszero in H0;
-                  try rewrite denote_tc_assert_iszero in H1;
-                  rewrite ?denote_tc_assert_iszero;
-                 destruct (Val.eq (@eval_expr CS a rho) Vundef) as [e|n];
-                  [rewrite e in *; contradiction | 
-                    rewrite <- ?(eval_expr_cenv_sub_eq CSUB _ _ n); auto]].
+  unfold tc_expr, typecheck_expr; fold (typecheck_expr(CS := CS)); fold (typecheck_expr(CS := CS')).
+  unfold isCastResultType; tc_expr_cenv_sub_tac.
+  repeat match goal with |- denote_tc_assert match ?A with _ => _ end _ ⊢ _ =>
+    destruct A eqn: ?Hcase
+  end; tc_expr_cenv_sub_tac; rewrite ?denote_tc_assert_iszero';
+    try apply (denote_tc_assert_cenv_sub CSUB).
+  all: simple_if_tac; rewrite ?denote_tc_assert_iszero'; apply (denote_tc_assert_cenv_sub CSUB).
 Qed.
 
 Lemma tc_expr_cenv_sub_field:
  forall
  (a : expr)
   (tc_lvalue_cenv_sub : forall  (rho : environ)
-                       (Delta : tycontext) (w : rmap),
-                     (@tc_lvalue CS Delta a rho) w ->
-                     (@tc_lvalue CS' Delta a rho) w)
+                       (Delta : tycontext),
+                     @tc_lvalue CS Delta a rho ⊢
+                     @tc_lvalue CS' Delta a rho)
  (i : ident)
  (t : type) 
  (rho : environ)
  (Delta : tycontext)
- (w : rmap)
- (T : (@tc_expr CS Delta (Efield a i t) rho) w)
- (IHa : (@tc_expr CS Delta a rho) w -> (@tc_expr CS' Delta a rho) w),
- (@tc_expr CS' Delta (Efield a i t) rho) w.
+ (IHa : @tc_expr CS Delta a rho ⊢ @tc_expr CS' Delta a rho),
+ @tc_expr CS Delta (Efield a i t) rho ⊢
+ @tc_expr CS' Delta (Efield a i t) rho.
 Proof.
-intros.
-  unfold tc_expr in *; simpl in T|-*.
-  tc_expr_cenv_sub_tac.
-    destruct (access_mode t); tc_expr_cenv_sub_tac.
-    destruct (typeof a); tc_expr_cenv_sub_tac.
+  intros.
+  unfold tc_expr, typecheck_expr; fold (typecheck_lvalue(CS := CS)); fold (typecheck_lvalue(CS := CS')).
+  destruct (access_mode t); tc_expr_cenv_sub_tac.
+  destruct (typeof a); tc_expr_cenv_sub_tac.
    *
-    destruct ((@cenv_cs CS) !! i0) eqn:?; try contradiction.
+    destruct ((@cenv_cs CS) !! i0) eqn:?; try iIntros "[]".
     assert (H2 := CSUB i0); hnf in H2; rewrite Heqo in H2; rewrite H2.
-    destruct (field_offset (@cenv_cs CS) i (co_members c)) as [[? [|]]|] eqn:?H; try contradiction.
-    eapply (field_offset_stable (@cenv_cs CS) (@cenv_cs CS')) in H1; try eassumption.
-    rewrite H1; auto.
+    destruct (field_offset (@cenv_cs CS) i (co_members c)) as [[? [|]]|] eqn:?H; try iIntros "[]".
+    eapply (field_offset_stable (@cenv_cs CS) (@cenv_cs CS')) in H; try eassumption.
+    rewrite H; auto.
     intros.
-    assert (H2' := CSUB id); hnf in H2'; rewrite H3 in H2'; auto.
+    assert (H2' := CSUB id); hnf in H2'; rewrite H0 in H2'; auto.
     apply cenv_consistent.
    *
-    destruct ((@cenv_cs CS) !! i0) eqn:?; try contradiction.
+    destruct ((@cenv_cs CS) !! i0) eqn:?; try iIntros "[]".
     assert (H2 := CSUB i0); hnf in H2; rewrite Heqo in H2; rewrite H2.
-    destruct (union_field_offset (@cenv_cs CS) i (co_members c)) as [[[] [|]]|] eqn:?H; try contradiction.
-    rewrite <- (union_field_offset_stable (@cenv_cs CS) (@cenv_cs CS')) in H1; try eassumption.
-    rewrite H1. auto.
-   intros. specialize (CSUB id).  hnf in CSUB.  rewrite H3 in CSUB; auto.
+    destruct (union_field_offset (@cenv_cs CS) i (co_members c)) as [[[] [|]]|] eqn:?H; try iIntros "[]".
+    rewrite <- (union_field_offset_stable (@cenv_cs CS) (@cenv_cs CS')) in H; try eassumption.
+    rewrite H. auto.
+   intros. specialize (CSUB id).  hnf in CSUB.  unfold lookup, composite_env_lookup, ptree_lookup in CSUB. rewrite -> H0 in CSUB; auto.
    apply co_consistent_complete. 
    apply (cenv_consistent i0); auto.
 Qed.
@@ -976,90 +885,76 @@ Lemma tc_lvalue_cenv_sub_field:
  (t : type)
  (rho : environ)
  (Delta : tycontext)
- (w : rmap) 
- (T : (@denote_tc_assert CS (@typecheck_lvalue CS Delta (Efield a i t)) rho) w)
- (IHa : (@denote_tc_assert CS (@typecheck_lvalue CS Delta a) rho) w ->
-         (@denote_tc_assert CS' (@typecheck_lvalue CS' Delta a) rho) w),
-(@denote_tc_assert CS' (@typecheck_lvalue CS' Delta (Efield a i t)) rho) w.
+ (IHa : denote_tc_assert(CS := CS) (typecheck_lvalue(CS := CS) Delta a) rho ⊢
+        denote_tc_assert(CS := CS') (typecheck_lvalue(CS := CS') Delta a) rho),
+ denote_tc_assert(CS := CS) (typecheck_lvalue(CS := CS) Delta (Efield a i t)) rho ⊢
+ denote_tc_assert(CS := CS') (typecheck_lvalue(CS := CS') Delta (Efield a i t)) rho.
 Proof.
-   intros.
-   simpl in T|-*;  tc_expr_cenv_sub_tac.
-    destruct (typeof a); tc_expr_cenv_sub_tac.
+  intros.
+  unfold typecheck_lvalue; fold (typecheck_lvalue(CS := CS)); fold (typecheck_lvalue(CS := CS')).
+  tc_expr_cenv_sub_tac.
+  destruct (typeof a); tc_expr_cenv_sub_tac.
    *
-    destruct ((@cenv_cs CS) !! i0) eqn:?; try contradiction.
+    destruct ((@cenv_cs CS) !! i0) eqn:?; try iIntros "[]".
     assert (H2 := CSUB i0); hnf in H2; rewrite Heqo in H2; rewrite H2.
-    destruct (field_offset (@cenv_cs CS) i (co_members c))  as [[? [|]]|] eqn:?H; try contradiction.
-    eapply (field_offset_stable (@cenv_cs CS) (@cenv_cs CS')) in H1; try eassumption.
-    rewrite H1; auto.
+    destruct (field_offset (@cenv_cs CS) i (co_members c)) as [[? [|]]|] eqn:?H; try iIntros "[]".
+    eapply (field_offset_stable (@cenv_cs CS) (@cenv_cs CS')) in H; try eassumption.
+    rewrite H; auto.
     intros.
-    assert (H2' := CSUB id); hnf in H2'; rewrite H3 in H2'; auto.
+    assert (H2' := CSUB id); hnf in H2'; rewrite H0 in H2'; auto.
     apply cenv_consistent.
    *
-    destruct ((@cenv_cs CS) !! i0) eqn:?; try contradiction.
+    destruct ((@cenv_cs CS) !! i0) eqn:?; try iIntros "[]".
     assert (H2 := CSUB i0); hnf in H2; rewrite Heqo in H2; rewrite H2.
-    destruct (union_field_offset (@cenv_cs CS) i (co_members c)) as [[[] [|]]|] eqn:?H; try contradiction.
-    rewrite <- (union_field_offset_stable (@cenv_cs CS) (@cenv_cs CS')) in H1; try eassumption.
-    rewrite H1. auto.
-   intros. specialize (CSUB id).  hnf in CSUB.  rewrite H3 in CSUB; auto.
+    destruct (union_field_offset (@cenv_cs CS) i (co_members c)) as [[[] [|]]|] eqn:?H; try iIntros "[]".
+    rewrite <- (union_field_offset_stable (@cenv_cs CS) (@cenv_cs CS')) in H; try eassumption.
+    rewrite H. auto.
+   intros. specialize (CSUB id).  hnf in CSUB.  unfold lookup, composite_env_lookup, ptree_lookup in CSUB. rewrite -> H0 in CSUB; auto.
    apply co_consistent_complete. 
    apply (cenv_consistent i0); auto.
 Qed.
 
-Lemma tc_expr_cenv_sub a rho Delta w (T: @tc_expr CS Delta a rho w):
-                            @tc_expr CS' Delta a rho w
-     with tc_lvalue_cenv_sub a rho Delta w (T: @tc_lvalue CS Delta a rho w): 
-                            @tc_lvalue CS' Delta a rho w.
-  Proof.
-- clear  tc_expr_cenv_sub.
-  induction a;
-  try solve [apply  (denote_tc_assert_cenv_sub CSUB); auto];
-  try solve [unfold tc_expr in *; simpl in T|-*; tc_expr_cenv_sub_tac].
- + (* Ederef *)
-  unfold tc_expr in *; simpl in T|-*.
-  destruct (access_mode t) eqn:?H; auto.
-  tc_expr_cenv_sub_tac.
- + (* Eunop *) 
-    apply (tc_expr_cenv_sub_unop _ _ _ _ _ _ T IHa).
- + (* Ebinop *)
-    apply (tc_expr_cenv_sub_binop _ _ _ _ _ _ _ T IHa1 IHa2).
- +  (* Ecast *)
-    apply (tc_expr_cenv_sub_cast _ _ _ _ _ T IHa).
- + (* Efield *) 
-    apply (tc_expr_cenv_sub_field a (tc_lvalue_cenv_sub a) _ _ _ _ _ T IHa).
-- clear  tc_lvalue_cenv_sub.
-  unfold tc_lvalue in *.
-  induction a;
-  try solve [apply  (denote_tc_assert_cenv_sub CSUB); auto].
- + (* Ederef *)
-   rename T into H; revert H.
-  unfold typecheck_lvalue;
-   fold (@typecheck_lvalue CS); fold (@typecheck_lvalue CS');
-   fold (@typecheck_expr CS); fold (@typecheck_expr CS').
-   repeat simple apply denote_tc_assert_andp_imp.
-   apply tc_expr_cenv_sub.
-   apply tc_bool_cenv_sub.
-   apply isptr_eval_expr_cenv_sub; auto.
- + (* Efield *) 
-   apply (tc_lvalue_cenv_sub_field _ _ _ _ _ _ T IHa).
- Qed.
+Lemma tc_expr_cenv_sub a rho Delta: tc_expr(CS := CS) Delta a rho ⊢
+                            tc_expr(CS := CS') Delta a rho
+     with tc_lvalue_cenv_sub a rho Delta: tc_lvalue(CS := CS) Delta a rho ⊢
+                            tc_lvalue(CS := CS') Delta a rho.
+Proof.
+- clear tc_expr_cenv_sub.
+  unfold tc_expr.
+  induction a; try apply (denote_tc_assert_cenv_sub CSUB);
+    try solve [unfold typecheck_expr; tc_expr_cenv_sub_tac; apply (denote_tc_assert_cenv_sub CSUB)].
+  + unfold typecheck_expr; fold (typecheck_expr(CS := CS)); fold (typecheck_expr(CS := CS')).
+    destruct (access_mode t); tc_expr_cenv_sub_tac; apply (denote_tc_assert_cenv_sub CSUB).
+  + apply tc_expr_cenv_sub_unop, IHa.
+  + apply (tc_expr_cenv_sub_binop _ _ _ _ _ _ IHa1 IHa2).
+  + apply tc_expr_cenv_sub_cast, IHa.
+  + apply tc_expr_cenv_sub_field, IHa. apply tc_lvalue_cenv_sub.
+- clear tc_lvalue_cenv_sub.
+  unfold tc_lvalue.
+  induction a; try apply (denote_tc_assert_cenv_sub CSUB).
+  + (* Ederef *)
+   unfold typecheck_lvalue;
+   fold (typecheck_expr(CS := CS)); fold (typecheck_expr(CS := CS')).
+   tc_expr_cenv_sub_tac; apply (denote_tc_assert_cenv_sub CSUB).
+  + apply tc_lvalue_cenv_sub_field, IHa.
+Qed.
 
-  Lemma tc_exprlist_cenv_sub Delta rho w:
-    forall types bl, (@tc_exprlist CS Delta types bl rho) w ->
-                     (@tc_exprlist CS' Delta types bl rho) w.
+  Lemma tc_exprlist_cenv_sub Delta rho:
+    forall types bl, @tc_exprlist CS Delta types bl rho ⊢
+                     @tc_exprlist CS' Delta types bl rho.
   Proof.
     induction types; simpl; intros.
     + destruct bl; simpl in *; trivial.
     + destruct bl. trivial.
-       revert H.
-    unfold tc_exprlist.
-   unfold typecheck_exprlist; 
-        fold (@typecheck_exprlist CS);
-        fold (@typecheck_exprlist CS').
-        simple apply denote_tc_assert_andp_imp.
-        intros; eapply tc_expr_cenv_sub_cast; eauto.
-        apply tc_expr_cenv_sub.
-        apply IHtypes.
+      unfold tc_exprlist.
+      unfold typecheck_exprlist; 
+        fold (typecheck_exprlist(CS := CS));
+        fold (typecheck_exprlist(CS := CS')).
+      rewrite !(denote_tc_assert_andp _ (typecheck_exprlist _ _ _)).
+      unfold tc_exprlist in IHtypes; fold (tc_expr(CS := CS) Delta (Ecast e a) rho);
+        fold (tc_expr(CS := CS') Delta (Ecast e a) rho). by rewrite tc_expr_cenv_sub IHtypes.
    Qed.
+
 End CENV_SUB.
 
 End mpred.
