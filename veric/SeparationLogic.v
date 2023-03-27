@@ -25,7 +25,6 @@ Require VST.veric.Clight_assert_lemmas.
 Require Import VST.msl.Coqlib2.
 Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.valid_pointer.
-Require Import VST.veric.own.
 Require VST.veric.semax_prog.
 Require VST.veric.semax_ext.
 Import FashNotation.

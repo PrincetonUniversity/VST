@@ -295,7 +295,7 @@ intros; unfold overridePost, normal_ret_assert.
 f_equal.
 Qed.
 
-Definition function_body_ret_assert (ret: type) (Q: assert) : ret_assert :=
+Definition function_body_ret_assert (ret: type) (Q: environ -> mpred) : ret_assert :=
  {| RA_normal := bind_ret None ret Q;
     RA_break _ := False; 
     RA_continue _ := False;

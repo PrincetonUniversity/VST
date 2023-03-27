@@ -1,5 +1,5 @@
 Require Import VST.veric.juicy_base.
-Require Import VST.veric.juicy_mem VST.veric.juicy_mem_lemmas VST.veric.juicy_mem_ops.
+Require Import VST.veric.juicy_mem (*VST.veric.juicy_mem_lemmas VST.veric.juicy_mem_ops*).
 Require Import VST.veric.res_predicates.
 Require Import VST.veric.extend_tc.
 Require Import VST.veric.Clight_seplog.
@@ -15,7 +15,6 @@ Require Import VST.veric.semax.
 Require Import VST.veric.semax_lemmas.
 Require Import VST.veric.Clight_lemmas.
 Require Import VST.veric.initial_world.
-Require Import VST.msl.normalize.
 Require Import VST.veric.semax_call.
 Require Import VST.veric.semax_conseq.
 Require Import VST.veric.Clight_initial_world.
@@ -23,14 +22,7 @@ Require Import VST.veric.initialize.
 Require Import VST.veric.coqlib4.
 Require Import Coq.Logic.JMeq.
 
-Require Import Coq.Logic.JMeq.
-Require Import VST.veric.ghost_PCM.
-
-Import compcert.lib.Maps.
-
 Import Ctypes Clight.
-
-Local Open Scope pred.
 
 Lemma funspec_eq {sig cc A P Q P' Q' Pne Qne Pne' Qne'}:
       P = P' -> Q=Q' ->

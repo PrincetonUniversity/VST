@@ -3,7 +3,6 @@ Require Import VST.veric.Memory.
 Require Import VST.veric.juicy_base.
 Require Import VST.veric.shares.
 Require Import VST.zlist.sublist.
-Import cjoins.
 
 Definition perm_of_sh (sh: Share.t): option permission :=
   if writable0_share_dec sh
