@@ -5,9 +5,14 @@ Require Import vcfloat.FPCompCert.
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
+Require Import vcfloat.VCFloat.
+
+Definition cos := ltac:(apply_func (Build_floatfunc_package _ _ _ _ MF.cos)).
+Definition sin := ltac:(apply_func (Build_floatfunc_package _ _ _ _ MF.sin)).
+
 Definition f_model (t: ftype Tdouble) : ftype Tdouble :=
-  let x := ff_func MF.cos t in
-  let y := ff_func MF.sin t in
+  let x := cos t in
+  let y := sin t in
   (x*x+y*y)%F64.
 
 Definition f_spec :=
@@ -86,9 +91,6 @@ intros.
 apply Bplus_correct; auto.
 Qed.
 
-Definition type_hibound (t: type) :=
-  (Raux.bpow Zaux.radix2 (femax t) - Raux.bpow Zaux.radix2 (femax t - fprec t))%R.
-
 Lemma ROUND_error: forall {NAN: Nans} t (x: R),
   (exists delta : R, exists epsilon : R, 
     Rabs delta <= default_rel t /\
@@ -101,107 +103,69 @@ Qed.
 
 Require Import Interval.Tactic.
 
-Definition ulp (t: type) := (2 * default_rel t)%R.
+Definition F' := ltac:(let e' := 
+  HO_reify_float_expr constr:([_x]) f_model in exact e').
 
-(*  This is a clumsy and tedious proof.  It would be better to
-  automate this in VCFloat . . . *)
-Lemma f_model_accurate: forall t, 
+Definition bmap_list : list varinfo := 
+  [trivbound_varinfo Tdouble _x].
+
+(** Then we calculate an efficient lookup table, the "boundsmap". *)
+Definition bmap : boundsmap :=
+ ltac:(let z := compute_PTree (boundsmap_of_list bmap_list) in exact z).
+Set Bullet Behavior "Strict Subproofs".
+
+Definition ulp (t: type) := (2 * default_rel t)%R.
+(** Now we prove that the leapfrogx expression (deep-embedded as  x' )
+   has a roundoff error less than 1.0e-5 *)
+Lemma prove_roundoff_bound_x:
+  forall vmap,
+  prove_roundoff_bound bmap vmap F'  (10*ulp Tdouble).
+Proof.
+intros.
+unfold ulp, default_rel. simpl bpow.
+prove_roundoff_bound.
+-
+prove_rndval.
+all: interval.
+- 
+prove_roundoff_bound2.
+ match goal with |- Rabs ?a <= _ => field_simplify a end. (* improves the bound *)
+ interval.
+Qed.
+
+
+
+Lemma f_model_accurate': forall t, 
   Binary.is_finite (fprec Tdouble) (femax Tdouble) t = true ->
    is_finite _ _ (f_model t) = true /\ 
   (1 - 10*ulp Tdouble <= FT2R (f_model t) <= 1 + 10 * ulp Tdouble)%R.
 Proof.
 intros.
-unfold f_model.
-destruct (ff_acc MF.cos t H I) as [FINx [dx [ex [? [? Hx]]]]].
-pose proof (ff_acc MF.sin t H I) as [FINy [dy [ey [? [? Hy]]]]].
-forget (ff_func MF.cos t) as x.
-forget (ff_func MF.sin t) as y.
-change (ftype Tdouble) in x,y.
-rename t into t'. forget (FT2R t') as t.
-clear t' H.
-simpl in *.
-pose proof (sin2_cos2 t).
-pose proof (COS_bound t).
-pose proof (SIN_bound t).
-forget (sin t) as s.
-forget (cos t) as c.
-rewrite !Rsqr_pow2 in H.
-
-assert (Mxx := BMULT_correct x x).
-cbv zeta in Mxx.
-rewrite Raux.Rlt_bool_true in Mxx.
-2:{
-rewrite Hx.
-match goal with |- context [ROUND ?t ?x] =>
-  destruct (ROUND_error t x) as [dr [er [? [? Hxx]]]]
-end.
-rewrite Hxx; interval.
+rename t into x.
+pose (vmap_list := [(_x, existT ftype _ x)]).
+pose (vmap :=
+ ltac:(let z := compute_PTree (valmap_of_list (vmap_list)) in exact z)).
+pose proof prove_roundoff_bound_x vmap.
+red in H0.
+spec H0. {
+  apply boundsmap_denote_i; simpl; auto.
+  eexists; split3; try reflexivity. split; auto. 
+  apply trivbound_correct.
 }
-destruct Mxx as [Mxx [FINxx _]].
-simpl in FINxx; rewrite FINx in FINxx; simpl in FINxx.
-
-assert (Myy := BMULT_correct y y).
-cbv zeta in Myy.
-rewrite Raux.Rlt_bool_true in Myy.
-2:{
-rewrite Hy.
-match goal with |- context [ROUND ?t ?x] =>
-  destruct (ROUND_error t x) as [dr [er [? [? Hyy]]]]
-end.
-rewrite Hyy; interval.
-}
-destruct Myy as [Myy [FINyy _]].
-simpl in FINyy; rewrite FINy in FINyy; simpl in FINyy.
-
-rewrite Hx, Hy in *. clear Hx Hy.
-pose proof (BPLUS_correct (BMULT x x) (BMULT y y) FINxx FINyy).
-rewrite Raux.Rlt_bool_true in H6.
-2:{
-rewrite Mxx, Myy.
-clear - H0 H1 H2 H3 H4 H5.
-match goal with |- context [ROUND ?t (?x * _)] =>
-  destruct (ROUND_error t (x*x)) as [dr [er [? [? ?]]]]
-end.
-rewrite H7; clear H7.
-match goal with |- context [ROUND ?t (?x * _)] =>
-  destruct (ROUND_error t (x*x)) as [dr' [er' [? [? ?]]]]
-end.
- rewrite H9; clear H9.
-match goal with |- context [ROUND ?t ?x] =>
-  destruct (ROUND_error t x) as [dr'' [er'' [? [? ?]]]]
-end.
-rewrite H11. clear H11.
-unfold default_rel, default_abs in *; simpl in *.
-interval.
-}
-destruct H6 as [? [? _]].
+red in H0.
+destruct H0.
 split; auto.
-rewrite H6.
-rewrite Mxx, Myy. 
-clear H6 Mxx Myy.
-match goal with |- context [ROUND ?t (?x * _)] =>
-  destruct (ROUND_error t (x*x)) as [dr [er [? [? ?]]]]
-end.
-rewrite H9; clear H9.
-match goal with |- context [ROUND ?t (?x * _)] =>
-  destruct (ROUND_error t (x*x)) as [dr' [er' [? [? ?]]]]
-end.
-rewrite H11; clear H11.
-match goal with |- context [ROUND ?t ?x] =>
-  destruct (ROUND_error t x) as [dr'' [er'' [? [? ?]]]]
-end.
-rewrite H13; clear H13.
-simpl in *.
-unfold ulp, default_rel, default_abs in *; simpl in *.
-clear FINx FINy FINxx FINyy H7.
-match goal with |- (_ <= ?A <= _)%R =>
- replace A with (A + (1 -  (((s * (s * 1) + c * (c * 1))))))%R
-  by (rewrite H; Lra.lra)
-end.
-clear H.
-match goal with |- (_ <= ?A <= _)%R =>
-  field_simplify A
-end.
-interval.
+unfold f_model.
+change (FT2R _) with (FT2R (fval (env_ vmap) F')).
+forget (FT2R (fval (env_ vmap) F')) as g.
+simpl in H1.
+change (env_ vmap Tdouble _x) with x in H1.
+forget (B2R (fprec Tdouble) 1024 x) as t; intros.
+clear - H1.
+rewrite  Rplus_comm in H1.
+change (sin t * sin t + cos t * cos t) with ((sin t)² + (cos t)²) in H1.
+rewrite sin2_cos2 in H1.
+apply Rabs_le_inv in H1.
+lra.
 Qed.
 
