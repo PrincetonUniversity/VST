@@ -6,7 +6,7 @@ Import compcert.lib.Maps.
 Fixpoint filter_options {A B} (f: A -> option B) (al: list A) : list B :=
  match al with
  | nil => nil
- | a::al' => match f a with Some b => b :: filter_options f al' | None => filter_options f al' end
+ | a::al' => match f a with Some b => cons b | None => id end (filter_options f al')
  end.
 
 Definition is_builtin {F} (ix: ident * globdef (fundef F) type) : option (ident * QP.builtin) :=
