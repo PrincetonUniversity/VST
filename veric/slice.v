@@ -1008,18 +1008,17 @@ Proof.
   - iIntros "[H1 [% H2]]"; iFrame "%".
     iPoseProof (big_sepL_sep_2 with "H1 H2") as "H".
     iApply (big_sepL_mono with "H").
-    intros; iIntros "[[H1 _] H2]".
-    iDestruct "H1" as (?) "H1".
+    intros; iIntros "[H1 H2]".
+    iDestruct "H1" as (??) "H1".
     iDestruct (mapsto_combine with "H1 H2") as "[? ->]".
     by erewrite dfrac_op_own, share_join_op.
   - iIntros "[% H]"; iFrame "%".
     rewrite -big_sepL_sep.
     iApply (big_sepL_mono with "H").
     intros; iIntros "H".
-    rewrite /shareat /nonlockat.
     rewrite -mapsto_share_join; try done.
-    iDestruct "H" as "[? $]"; iSplit; eauto.
-    iExists _, _; iSplit; last done.
+    iDestruct "H" as "[? $]".
+    iExists _; iSplit; last done.
     done.
 Qed.
 
@@ -1046,7 +1045,7 @@ Proof.
     by rewrite mapsto_share_join.
 Qed.
 
-(*Lemma nonlock_permission_bytes_share_join:
+Lemma nonlock_permission_bytes_share_join:
  forall sh1 sh2 sh a n,
   sepalg.join sh1 sh2 sh ->
   sh1 <> Share.bot -> sh2 <> Share.bot ->
@@ -1056,52 +1055,18 @@ Qed.
 Proof.
   intros.
   rewrite /nonlock_permission_bytes -big_sepL_sep.
-  apply big_sepL_proper; intros.
-  rewrite /shareat /nonlockat; iSplit.
-  - iIntros "[H1 H2]"; iSplit.
-    + iDestruct "H1" as "[H1 _]"; iDestruct "H2" as "[H2 _]".
-      iDestruct "H1" as (r1) "H1"; iDestruct "H2" as (r) "H2".
-      iDestruct (mapsto_value_cohere with "[$H1 $H2]") as %->.
-      iExists r; rewrite -(mapsto_share_join _ _ sh); try done; iFrame.
-    + iDestruct "H1" as "[_ H1]"; iDestruct "H2" as "[_ H2]".
-      iDestruct "H1" as (s1 r1 ?) "H1"; iDestruct "H2" as (s2 r ?) "H2".
-      iDestruct (ghost_map_elem_combine with "H1 H2") as "[H ->]".
-      iDestruct (ghost_map_elem_valid with "H") as %[? Hsh].
-      destruct (op(Op := share_op_instance) (Some s1) (Some s2)) eqn: Hs; try contradiction.
-      rewrite Hs; eauto.
+  apply big_sepL_proper; intros; iSplit.
+  - iIntros "[H1 H2]".
+    iDestruct "H1" as (r1 ?) "H1"; iDestruct "H2" as (r ?) "H2".
+    iDestruct (mapsto_value_cohere with "[$H1 $H2]") as %->.
+    iExists r; rewrite -(mapsto_share_join _ _ sh); try done; by iFrame.
   - iIntros "H".
-      iExists s, r; auto.
-      erewrite share_join_op.
-      
-      iDestruct (mapsto_value_cohere with "[$H1 $H2]") as %->.
-      iExists r; rewrite -(mapsto_share_join _ _ sh); try done; iFrame.
-  Search bi_sep bi_and equiv.
-  
-  symmetry.
-  apply allp_jam_share_split.
-  do 3 eexists.
-  exists sh, sh1, sh2.
-  split; [| split; [| split; [| split; [| split]]]].
-  + apply is_resource_pred_nonlock_shareat.
-  + apply is_resource_pred_nonlock_shareat.
-  + apply is_resource_pred_nonlock_shareat.
-  + auto.
-  + simpl; intros.
-    destruct H0.
-    split; [auto |].
-    split; split.
-    - eapply slice_resource_resource_share; [eauto | eexists; eauto ].
-    - eapply slice_resource_nonlock; [eauto | eexists; eauto | auto].
-    - eapply slice_resource_resource_share; [eauto | eexists; eapply join_comm; eauto].
-    - eapply slice_resource_nonlock; [eauto | eexists; eapply join_comm; eauto | auto].
-  + simpl; intros.
-    destruct H1, H2.
-    split.
-    - eapply (resource_share_join q_res r_res); eauto.
-    - eapply (nonlock_join q_res r_res); eauto.
-Qed.*)
+    iDestruct "H" as (r ?) "H".
+    rewrite -(mapsto_share_join _ _ sh); try done.
+    iDestruct "H" as "[H1 H2]"; iSplitL "H1"; iExists r; by iFrame.
+Qed.
 
-(*Lemma nonlock_permission_bytes_VALspec_range_join:
+Lemma nonlock_permission_bytes_VALspec_range_join:
  forall sh1 sh2 sh p n,
   sepalg.join sh1 sh2 sh ->
   sh1 <> Share.bot -> sh2 <> Share.bot ->
@@ -1113,39 +1078,15 @@ Proof.
   rewrite /nonlock_permission_bytes /VALspec_range.
   rewrite -big_sepL_sep.
   apply big_sepL_proper; intros.
-  rewrite /shareat /nonlockat /VALspec.
-  symmetry.
-  apply allp_jam_share_split.
-  do 3 eexists.
-  exists sh, sh1, sh2.
-  split; [| split; [| split; [| split; [| split]]]].
-  + apply is_resource_pred_YES_VAL.
-  + apply is_resource_pred_nonlock_shareat.
-  + apply is_resource_pred_YES_VAL.
-  + auto.
-  + simpl; intros.
-    destruct H0 as [? [? ?]]; subst; split; [| split; [split |]].
-    - simpl; auto.
-    - simpl.
-      destruct (readable_share_dec sh1); reflexivity.
-    - simpl.
-      destruct (readable_share_dec sh1); simpl; auto.
-    - simpl.
-      exists x, rsh2.
-      destruct (readable_share_dec sh2); [ | contradiction].
-      apply YES_ext. auto.
-  + simpl; intros.
-    destruct H2 as [? [? ?]].
-    subst. proof_irr.
-    exists x, (join_readable2 H rsh2).
-    destruct H1.
-    destruct q_res; simpl in H1.
-    - inversion H0; subst. inv H1.
-      apply YES_ext.
-      eapply join_eq; eauto.
-    - inv H1. inv H0. apply YES_ext. eapply join_eq; eauto.
-    - inv H1.
-Qed.*)
+  rewrite /VALspec bi.sep_exist_l; apply bi.exist_proper; intros v.
+  rewrite -(mapsto_share_join _ _ sh); try done.
+  iSplit.
+  - iIntros "[H1 H2]".
+    iDestruct "H1" as (r1 ?) "H1".
+    iDestruct (mapsto_value_cohere with "[$H1 $H2]") as %->; iFrame.
+  - iIntros "[H1 $]".
+    iExists _; iFrame.
+Qed.
 
 (*Lemma is_resource_pred_YES_LK lock_size (l: address) (R: pred rmap) sh:
   is_resource_pred

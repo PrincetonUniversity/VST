@@ -29,7 +29,7 @@ Definition jmpred := monPred mem_index (iPropI Σ).
 (* Should we track the current memory, or re-quantify over one consistent with the rmap? *)
 Record juicy_mem := { level : nat; m_dry : mem; m_phi : rmap }.
 
-Definition jm_mono (P : juicy_mem -> Prop) := ∀jm n2 x2, P jm -> m_phi jm ≼ₒ{level jm} x2 ->
+Definition jm_mono (P : juicy_mem -> Prop) := forall jm n2 x2, P jm -> m_phi jm ≼ₒ{level jm} x2 ->
   n2 <= level jm -> P {| level := n2; m_dry := m_dry jm; m_phi := x2 |}.
 
 Definition jmpred_of P (Hmono : jm_mono P) : jmpred.
@@ -62,10 +62,10 @@ Class OracleKind := {
 Definition void_spec T : external_specification juicy_mem external_function T :=
     Build_external_specification
       juicy_mem external_function T
-      (fun ef => False)
-      (fun ef Hef ge tys vl m z => False)
-      (fun ef Hef ge ty vl m z => False)
-      (fun rv m z => False).
+      (fun ef => False%type)
+      (fun ef Hef ge tys vl m z => False%type)
+      (fun ef Hef ge ty vl m z => False%type)
+      (fun rv m z => False%type).
 
 Definition ok_void_spec (T : Type) : OracleKind.
  refine (Build_OracleKind T (Build_juicy_ext_spec _ (void_spec T) _ _ _)).
@@ -670,8 +670,6 @@ Proof.
       split; [|eexists; apply ghost_of_join; eauto]; auto.
     + eapply join_sub_joins_trans; [eexists; apply ghost_of_join; eauto | auto].
 Qed.*)
-
-Open Scope bi_scope.
 
 Section juicy_safety.
   Context {G C Z:Type}.

@@ -13,12 +13,10 @@ Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
 Require Import VST.veric.expr_lemmas.
-Import compcert.lib.Maps.
 
 Import Ctypes Clight_core.
 
 Local Open Scope nat_scope.
-Local Open Scope pred.
 
 Definition closed_wrt_modvars c (F: assert) : Prop :=
     closed_wrt_vars (modifiedvars c) F.

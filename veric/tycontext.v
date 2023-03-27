@@ -152,7 +152,7 @@ auto.
 Qed.
 
 Definition sub_option {A} (x y: option A) :=
- match x with Some x' => y = Some x' | None => True end.
+ match x with Some x' => y = Some x' | None => True%type end.
 
 Lemma sub_option_eqv: forall {A} (x y: option A),
   x = y <-> sub_option x y /\ sub_option y x.
@@ -355,6 +355,7 @@ intros.
 destruct H as [? [? [? [? [? ?]]]]]; repeat split; auto.
 Qed.
 
+(* Should these be asserts? *)
 Record ret_assert : Type := {
  RA_normal: environ->mpred;
  RA_break: environ->mpred;

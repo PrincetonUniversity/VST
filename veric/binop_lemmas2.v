@@ -248,12 +248,10 @@ Proof.
  intros; apply tc_orp_sound.
 Qed.
 
-Lemma is_true_true: is_true true = True.
+Lemma is_true_true: is_true true = True%type.
 Proof. apply Axioms.prop_ext; intuition. Qed.
-Lemma is_true_false: is_true false = False.
+Lemma is_true_false: is_true false = False%type.
 Proof. apply Axioms.prop_ext; intuition. Qed.
-
-Open Scope bi_scope.
 
 Lemma denote_tc_assert_iszero: forall {CS: compspecs} e rho,
   denote_tc_assert (tc_iszero e) rho =

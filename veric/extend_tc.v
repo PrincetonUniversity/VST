@@ -12,8 +12,6 @@ Section mpred.
 
 Context `{!heapGS Σ}.
 
-Open Scope bi_scope.
-
 Definition tc_expr {CS: compspecs} (Delta: tycontext) (e: expr) : environ -> mpred:=
   fun rho => denote_tc_assert (typecheck_expr Delta e) rho.
 
@@ -937,7 +935,7 @@ Proof.
    fold (typecheck_expr(CS := CS)); fold (typecheck_expr(CS := CS')).
    tc_expr_cenv_sub_tac; apply (denote_tc_assert_cenv_sub CSUB).
   + apply tc_lvalue_cenv_sub_field, IHa.
-Qed.
+Time Qed.
 
   Lemma tc_exprlist_cenv_sub Delta rho:
     forall types bl, @tc_exprlist CS Delta types bl rho ⊢

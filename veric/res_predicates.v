@@ -492,7 +492,7 @@ Qed.*)
 
 (****** Specific specs  ****************)
 
-Open Scope bi_scope.
+Global Open Scope bi_scope.
 
 Definition VALspec : spec :=
        fun (sh: share) (l: address) => ∃v, l ↦{#sh} VAL v.
@@ -501,7 +501,7 @@ Definition VALspec_range (n: Z) : spec :=
      fun (sh: Share.t) (l: address) => [∗ list] i ∈ seq 0 (Z.to_nat n), VALspec sh (adr_add l (Z.of_nat i)).
 
 Definition nonlock_permission_bytes (sh: share) (a: address) (n: Z) : mpred :=
-  [∗ list] i ∈ seq 0 (Z.to_nat n), shareat (adr_add a (Z.of_nat i)) sh ∧ nonlockat (adr_add a (Z.of_nat i)).
+  [∗ list] i ∈ seq 0 (Z.to_nat n), ∃r, ⌜nonlock r⌝ ∧ adr_add a (Z.of_nat i) ↦{#sh} r.
 
 Definition nthbyte (n: Z) (l: list memval) : memval :=
      nth (Z.to_nat n) l Undef.
@@ -1215,19 +1215,17 @@ Qed.
 
 Lemma nonlock_permission_bytes_overlap:
   forall sh n1 n2 p1 p2,
-  sh <> Share.bot ->
   range_overlap p1 n1 p2 n2 ->
   nonlock_permission_bytes sh p1 n1 ∗ nonlock_permission_bytes sh p2 n2 ⊢ False.
 Proof.
-  intros ?????? ((?, ?) & Hadr1 & Hadr2).
+  intros ????? ((?, ?) & Hadr1 & Hadr2).
   destruct p1 as (?, ofs1), p2 as (?, ofs2), Hadr1, Hadr2; subst.
   iIntros "[H1 H2]".
   unfold nonlock_permission_bytes.
   rewrite (big_sepL_lookup_acc _ _ _ (Z.to_nat (z - ofs1))).
   rewrite (big_sepL_lookup_acc _ (seq _ (Z.to_nat n2)) _ (Z.to_nat (z - ofs2))).
-  iDestruct "H1" as "[[H1 _] _]"; iDestruct "H2" as "[[H2 _] _]".
-  unfold shareat.
-  iDestruct "H1" as (v1) "H1"; iDestruct "H2" as (v2) "H2".
+  iDestruct "H1" as "[H1 _]"; iDestruct "H2" as "[H2 _]".
+  iDestruct "H1" as (v1 ?) "H1"; iDestruct "H2" as (v2 ?) "H2".
   rewrite /adr_add /=.
   rewrite !Z2Nat.id; try lia.
   rewrite !Zplus_minus.
