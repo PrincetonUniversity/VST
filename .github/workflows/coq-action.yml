@@ -28,9 +28,9 @@ jobs:
           - 64
         make_target:
           - vst
-        exclude:
-          - coq_version: 8.16
-            bit_size: 32
+#        exclude:   # until CI really works for CompCert in coq 8.17, don't exclude anything from 8.16
+#          - coq_version: 8.16
+#            bit_size: 32
     steps:
       - uses: actions/checkout@v2
         with:
