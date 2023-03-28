@@ -709,6 +709,22 @@ intros.
 apply  mapsto_memory_block.memory_block_share_join; auto.
 Qed.
 
+Lemma mapsto_share_joins:
+ forall sh1 sh2 t p v,
+   mapsto sh1 t p v * mapsto sh2 t p v |-- !! sepalg.joins sh1 sh2.
+Proof.
+constructor; intros.
+apply  mapsto_memory_block.mapsto_share_joins; auto.
+Qed.
+
+Lemma memory_block_share_joins:
+  forall sh1 sh2 n p, n > 0 ->
+   memory_block sh1 n p * memory_block sh2 n p |-- !! sepalg.joins sh1 sh2.
+Proof.
+constructor; intros.
+apply  mapsto_memory_block.memory_block_share_joins; auto.
+Qed.
+
 Lemma mapsto_conflict:
   forall sh t v v2 v3,
   sepalg.nonunit sh ->

@@ -950,6 +950,20 @@ Proof.
       apply H6 in H5; rewrite <- H5; auto.
 Qed.
 
+Definition resource_share_joins (p q : spec): Prop :=
+  forall p_sh q_sh l, p p_sh l * q q_sh l |-- !! (joins p_sh q_sh).
+
+Lemma allp_jam_share_joins: forall {P : address -> Prop} (P_DEC: forall l, {P l} + {~ P l}) sh1 sh2 p q
+  (HP : exists l, P l), resource_share_joins p q ->
+  (allp (jam P_DEC (p sh1) noat)) * (allp (jam P_DEC (q sh2) noat)) |-- !!(joins sh1 sh2).
+Proof.
+  intros; intros w (y & z & ? & H1 & H2).
+  destruct HP as [l Hl].
+  pose proof (H1 l) as H1l; pose proof (H2 l) as H2l; simpl in H1l, H2l.
+  rewrite if_true in H1l, H2l by auto.
+  eapply H; do 3 eexists; eauto.
+Qed.
+
 Lemma address_mapsto_share_join:
  forall (sh1 sh2 sh : share) ch v a,
    join sh1 sh2 sh ->
@@ -958,9 +972,6 @@ Lemma address_mapsto_share_join:
     = address_mapsto ch v sh a.
 Proof.
   intros ? ? ? ? ? ? H rsh1 rsh2.
-(*  rename H1 into NON_UNIT1, H2 into NON_UNIT2.
-  assert (NON_UNIT: nonunit sh) by (eapply nonunit_join; eauto; auto with typeclass_instances).
-*)
   symmetry.
   unfold address_mapsto.
   transitivity
@@ -1045,6 +1056,22 @@ Proof.
       apply resource_at_join with (loc := l) in H2.
       rewrite H3, H4 in H2; inv H2.
       rewrite H11, H4. apply YES_ext. auto.
+Qed.
+
+Lemma address_mapsto_share_joins:
+ forall (sh1 sh2 : share) ch v a,
+   address_mapsto ch v sh1 a * address_mapsto ch v sh2 a |-- !!(joins sh1 sh2).
+Proof.
+  intros; unfold address_mapsto.
+  rewrite exp_sepcon1; apply exp_left; intros.
+  rewrite sepcon_andp_prop1; apply prop_andp_left; intros.
+  rewrite exp_sepcon2; apply exp_left; intros.
+  rewrite sepcon_andp_prop; apply prop_andp_left; intros.
+  apply (allp_jam_share_joins _ _ _ (fun sh loc => yesat NoneP (VAL _) sh loc) (fun sh loc => yesat NoneP (VAL _) sh loc)).
+  - exists a; destruct a; simpl.
+    pose proof (size_chunk_pos ch); lia.
+  - intros ?? l ? (? & ? & J & [? H1] & [? H2]).
+    apply (resource_at_join _ _ _ l) in J; rewrite H1, H2 in J; inv J; eexists; eauto.
 Qed.
 
 Lemma nonlock_permission_bytes_address_mapsto_join:
@@ -1141,6 +1168,20 @@ apply pred_ext.
  - apply H0.
 Qed.
 
+Lemma nonlock_permission_bytes_address_mapsto_joins:
+ forall (sh1 sh2 : share) ch v a,
+   nonlock_permission_bytes sh1 a (Memdata.size_chunk ch) * address_mapsto ch v sh2 a |-- !!(joins sh1 sh2).
+Proof.
+  intros; unfold nonlock_permission_bytes, address_mapsto.
+  rewrite exp_sepcon2; apply exp_left; intros.
+  rewrite sepcon_andp_prop; apply prop_andp_left; intros.
+  apply (allp_jam_share_joins _ _ _ (fun sh loc => shareat loc sh && nonlockat loc) (fun sh loc => yesat NoneP (VAL _) sh loc)).
+  - exists a; destruct a; simpl.
+    pose proof (size_chunk_pos ch); lia.
+  - intros ?? l ? (? & ? & J & [H1 _] & [? H2]); simpl in *.
+    apply (resource_at_join _ _ _ l) in J; rewrite H2 in J; inv J; rewrite <- H3 in H1; inv H1; eexists; eauto.
+Qed.
+
 Lemma VALspec_range_share_join:
  forall sh1 sh2 sh n p,
   readable_share sh1 ->
@@ -1207,6 +1248,18 @@ Proof.
     split.
     - eapply (resource_share_join q_res r_res); eauto.
     - eapply (nonlock_join q_res r_res); eauto.
+Qed.
+
+Lemma nonlock_permission_bytes_share_joins:
+ forall (sh1 sh2 : share) a n, n > 0 ->
+   nonlock_permission_bytes sh1 a n *
+   nonlock_permission_bytes sh2 a n |-- !!(joins sh1 sh2).
+Proof.
+  intros; unfold nonlock_permission_bytes.
+  apply (allp_jam_share_joins _ _ _ (fun sh loc => shareat loc sh && nonlockat loc) (fun sh loc => shareat loc sh && nonlockat loc)).
+  - exists a; destruct a; simpl; lia.
+  - intros ?? l ? (? & ? & J & [H1 _] & [H2 _]); simpl in *.
+    apply (resource_at_join _ _ _ l) in J; inv J; rewrite <- H3 in H1; rewrite <- H4 in H2; inv H1; inv H2; eexists; eauto.
 Qed.
 
 Lemma nonlock_permission_bytes_VALspec_range_join:

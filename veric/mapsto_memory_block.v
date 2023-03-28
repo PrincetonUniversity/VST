@@ -643,6 +643,43 @@ Proof.
     apply nonlock_permission_bytes_share_join; auto.
 Qed.
 
+Lemma mapsto_share_joins:
+ forall sh1 sh2 t p v,
+   mapsto sh1 t p v * mapsto sh2 t p v |-- !!(joins sh1 sh2).
+Proof.
+  intros.
+  unfold mapsto.
+  destruct (access_mode t) eqn:?; try solve [rewrite FF_sepcon; auto].
+  destruct (type_is_volatile t) eqn:?; try solve [rewrite FF_sepcon; auto].
+  destruct p; try solve [rewrite FF_sepcon; auto].
+  destruct (readable_share_dec sh1), (readable_share_dec sh2).
+  + pose proof (@guarded_sepcon_orp_distr (pred rmap) (algNatDed _) (algSepLog _)) as H0.
+    simpl in H0; rewrite H0 by (intros; subst; pose proof tc_val_Vundef t; tauto); clear H0.
+    apply orp_left; apply prop_andp_left; intros.
+    - apply address_mapsto_share_joins.
+    - rewrite exp_sepcon1; apply exp_left; intros.
+      rewrite exp_sepcon2; apply exp_left; intros.
+      eapply derives_trans; [apply andp_right, derives_refl; apply address_mapsto_value_cohere|].
+      apply prop_andp_left; intros ->.
+      apply address_mapsto_share_joins.
+  + rewrite distrib_orp_sepcon.
+    apply orp_left; rewrite sepcon_andp_prop; apply prop_andp_left; intros; rewrite sepcon_andp_prop1; apply prop_andp_left; intros.
+    - rewrite sepcon_comm; eapply derives_trans; [apply nonlock_permission_bytes_address_mapsto_joins|].
+      intros ?; simpl; apply joins_comm.
+    - rewrite exp_sepcon1; apply exp_left; intros.
+      rewrite sepcon_comm; eapply derives_trans; [apply nonlock_permission_bytes_address_mapsto_joins|].
+      intros ?; simpl; apply joins_comm.
+  + rewrite sepcon_comm, distrib_orp_sepcon.
+    apply orp_left; rewrite sepcon_andp_prop; apply prop_andp_left; intros; rewrite sepcon_andp_prop1; apply prop_andp_left; intros.
+    - rewrite sepcon_comm; apply nonlock_permission_bytes_address_mapsto_joins.
+    - rewrite exp_sepcon1; apply exp_left; intros.
+      rewrite sepcon_comm; apply nonlock_permission_bytes_address_mapsto_joins.
+  + rewrite sepcon_andp_prop1, sepcon_andp_prop2, <- andp_assoc, andp_dup.
+    apply prop_andp_left; intros.
+    apply nonlock_permission_bytes_share_joins.
+    apply size_chunk_pos.
+Qed.
+
 Lemma mapsto_mapsto_: forall sh t v v', mapsto sh t v v' |-- mapsto_ sh t v.
 Proof. unfold mapsto_; intros.
   unfold mapsto.
@@ -1026,6 +1063,21 @@ Proof.
       * eapply join_unreadable_shares; eauto.
   + rewrite !prop_false_andp by auto.
     rewrite FF_sepcon; auto.
+Qed.
+
+Lemma memory_block_share_joins:
+  forall sh1 sh2 n p, n > 0 ->
+   memory_block sh1 n p * memory_block sh2 n p |-- !!joins sh1 sh2.
+Proof.
+  intros.
+  unfold memory_block.
+  destruct p; try solve [rewrite FF_sepcon; auto].
+  rewrite sepcon_andp_prop; apply prop_andp_left; intros.
+  rewrite sepcon_andp_prop1; apply prop_andp_left; intros.
+  destruct (Z.to_nat n) eqn: Hn; [lia | simpl].
+  rewrite <- sepcon_assoc, (sepcon_comm _ (mapsto_ _ _ _)), <- sepcon_assoc, sepcon_assoc.
+  eapply derives_trans; [apply sepcon_derives, derives_refl; apply mapsto_share_joins|].
+  intros ? (? & ? & ? & ? & ?); apply joins_comm; auto.
 Qed.
 
 Lemma mapsto_pointer_void:

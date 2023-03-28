@@ -1551,6 +1551,30 @@ do 2 rewrite Share.rel_top1.
 erewrite Share.split_together; eauto.
 Qed.
 
+Lemma field_at_share_joins: forall sh1 sh2 t fld p v,
+  0 < sizeof (nested_field_type t fld) ->
+  field_at sh1 t fld v p * field_at sh2 t fld v p |-- !! sepalg.joins sh1 sh2.
+Proof.
+  intros.
+  rewrite field_at_compatible'. normalize.
+  destruct H0 as [? [? [? [? ?]]]].
+  destruct (nested_field_offset_in_range t fld H4 H1).
+  assert (0 < sizeof (nested_field_type t fld) < Ptrofs.modulus).
+  {
+    destruct p; inv H0.
+    simpl in H2.
+    inv_int i.
+    unfold expr.sizeof in *.
+    lia.
+  }
+  eapply derives_trans.
+  + apply sepcon_derives.
+    apply field_at_field_at_; try assumption; auto.
+    apply field_at_field_at_; try assumption; auto.
+  + rewrite !field_at__memory_block by auto.
+    apply memory_block_share_joins; lia.
+Qed.
+
 Lemma field_at_conflict: forall sh t fld p v v',
   sepalg.nonidentity sh ->
   0 < sizeof (nested_field_type t fld) ->
@@ -1578,6 +1602,13 @@ Proof.
     normalize.
     apply memory_block_conflict; try  (unfold Ptrofs.max_unsigned; lia).
     apply sepalg.nonidentity_nonunit; auto.
+Qed.
+
+Lemma data_at_share_joins: forall sh1 sh2 t v p,
+  0 < sizeof t ->
+  data_at sh1 t v p * data_at sh2 t v p |-- !! sepalg.joins sh1 sh2.
+Proof.
+  intros. unfold data_at. apply field_at_share_joins; auto.
 Qed.
 
 Lemma data_at_conflict: forall sh t v v' p,

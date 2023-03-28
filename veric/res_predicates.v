@@ -1,8 +1,8 @@
 Require Import VST.msl.log_normalize.
 Require Export VST.veric.base.
 Require Import VST.veric.rmaps.
-Require Import VST.veric.compcert_rmaps.  
-Require Import VST.veric.shares. 
+Require Import VST.veric.compcert_rmaps.
+Require Import VST.veric.shares.
 Require Import VST.veric.address_conflict.
 
 Import RML. Import R.
