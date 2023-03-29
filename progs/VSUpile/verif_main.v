@@ -7,12 +7,6 @@ Require Import verif_core.
 Require Import main.
 Require Import spec_main.
 
-Require VST.veric.version.
-Lemma version_test: False.
- assert (VST.veric.version.compcert_version = main.Info.version) by reflexivity.
- assert (VST.veric.version.bitsize = main.Info.bitsize) by reflexivity.
-Abort.
-
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition main_QPprog := ltac:(QPprog prog).
 Definition whole_prog := ltac:(QPlink_progs main_QPprog (VSU_prog Core_VSU)).

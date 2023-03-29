@@ -27,7 +27,7 @@ Require Import Memory.
 Require Import Globalenvs.
 Require Import Builtins.
 
-(** Ignore Hint Rewrite global attribute for Coq 8.13 *)
+(** Backwards compatibility for Hint Rewrite locality attributes. *)
 Set Warnings "-unsupported-attributes".
 
 (** * Events and traces *)

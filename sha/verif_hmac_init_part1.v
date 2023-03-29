@@ -380,6 +380,7 @@ Proof. intros.
      change (Tarray tuchar 64 noattr) with (tarray tuchar 64).
      rewrite field_address0_offset by auto with field_compatible. simpl. rewrite Z.mul_1_l.
      change (0 + Zlength key) with (Zlength key).
-     Time cancel. apply derives_refl.
+     Time cancel.
+    try apply derives_refl.  (* Needed in Coq 8.16 and before? *)
      rewrite Zlength_repeat', Z2Nat.id; lia.
 Time Qed. (*0.6s versus 10s versus 18s*)

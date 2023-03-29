@@ -20,7 +20,7 @@ Require Import Eqdep_dec Zquot Zwf.
 Require Import Coqlib Zbits.
 Require Archi.
 
-(** Ignore Hint Rewrite global attribute for Coq 8.13 *)
+(** Backwards compatibility for Hint Rewrite locality attributes. *)
 Set Warnings "-unsupported-attributes".
 
 (** * Comparisons *)

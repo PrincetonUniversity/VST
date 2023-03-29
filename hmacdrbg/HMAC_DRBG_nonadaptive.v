@@ -647,7 +647,7 @@ Lemma compMap_compFold_rb_eq :
                        (a <-$ compMap (list_EqDec eqdbv) Generate_rb calls';
                         ret ((acc ++ l :: nil) ++ a))). fcf_skip.
      fcf_spec_ret.
-     apply app_cons_eq.
+try  apply app_cons_eq. (* needed before Coq 8.17 *)
 
      eapply comp_spec_eq_trans_l.
      apply H1.
