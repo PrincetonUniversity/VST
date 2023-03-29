@@ -649,114 +649,21 @@ Definition signal_spec cs :=
      SEP (@cond_var cs shc c).
 *)
 
+Require Import VST.atomics.SC_atomics_base.
 
-(* Notes about spawn_thread:
-
-The spawned function has for argument name [_y], which is
-existentially quantified.  The function also can use a list of global
-variables [globals].
-
-For now, the specification of the spawned function has to be exactly
-of the form that you can see below (inside the "match ...").
-Cao Qinxiang is working on a notion of sub-specification that might
-enable us to have smoother specifications.
-
-The postcondition might not be emp, so we have potential memory leaks
-when a thread exists (those maps are still handled by the concurrent
-machine).
-
-To enable joinable threads, the postcondition would be [tptr tthread]
-with a type [tthread] related to the postcondition through a [thread]
-predicate in the logic.  The [join] would then also be implemented
-using the oracle, as [acquire] is.  The postcondition would be [match
-PrePost with existT ty (w, pre, post) => thread th (post w b)
-end] *)
-
-Local Open Scope logic.
-
-(* @Qinxiang: it would be great to complete the annotation *)
-
-(*Definition spawn_arg_type := rmaps.ProdType (rmaps.ProdType (rmaps.ProdType (rmaps.ConstType (val * val))
-  (rmaps.ArrowType (rmaps.DependentType 0) (rmaps.ConstType globals))) (rmaps.DependentType 0))
-  (rmaps.ArrowType (rmaps.DependentType 0) (rmaps.ArrowType (rmaps.ConstType val) rmaps.Mpred)).
-
-Definition spawn_pre :=
-  (fun (ts: list Type) (x: val * val * (nth 0 ts unit -> globals) * nth 0 ts unit *
-                           (nth 0 ts unit -> val -> mpred)) =>
-   match x with
-   | (f, b, gv, w, pre) =>
-     PROP (tc_val (tptr Tvoid) b)
-     PARAMS (f, b)
-     GLOBALS  :: temp _args b :: gvars (gv w) :: nil
-     (SEP (
-       EX _y : ident,
-         (func_ptr'
-           (WITH y : val, x : nth 0 ts unit
-             PRE [ _y OF tptr tvoid ]
-               PROP ()
-               (LOCALx (temp _y y :: gvars (gv x) :: nil)
-               (SEP   (pre x y)))
-             POST [tptr tvoid]
-               PROP  ()
-               LOCAL ()
-               SEP   ())
-           f);
-         valid_pointer b && pre w b))) (* Do we need the valid_pointer here? *)
-   end).
-
-Definition spawn_post :=
-  (fun (ts: list Type) (x: val * val * (nth 0 ts unit -> globals) * nth 0 ts unit *
-                           (nth 0 ts unit -> val -> mpred)) =>
-   match x with
-   | (f, b, w, pre) =>
-     PROP ()
-     LOCAL ()
-     SEP ()
-   end).
-
-Lemma approx_idem : forall n P, compcert_rmaps.R.approx n (compcert_rmaps.R.approx n P) =
-  compcert_rmaps.R.approx n P.
-Proof.
-  intros.
-  transitivity (base.compose (compcert_rmaps.R.approx n) (compcert_rmaps.R.approx n) P); auto.
-  rewrite compcert_rmaps.RML.approx_oo_approx; auto.
-Qed.
-
-Lemma spawn_pre_nonexpansive: @super_non_expansive spawn_arg_type spawn_pre.
-Proof.
-  repeat intro.
-  destruct x as ((((?, ?), ?), ?), ?); simpl.
-  unfold PROPx; simpl; rewrite !approx_andp; f_equal.
-  unfold LOCALx; simpl; rewrite !approx_andp; f_equal.
-  unfold SEPx; simpl; rewrite !sepcon_emp, !approx_sepcon, !approx_andp, ?approx_idem; f_equal.
-  rewrite !approx_exp; apply f_equal; extensionality y.
-  rewrite approx_func_ptr'.
-  setoid_rewrite approx_func_ptr' at 2.
-  do 3 f_equal.
-  extensionality a rho'; destruct a.
-  rewrite !approx_andp, !approx_sepcon, approx_idem; auto.
-Qed.
-
-Lemma spawn_post_nonexpansive: @super_non_expansive spawn_arg_type spawn_post.
-Proof.
-  hnf; intros.
-  destruct x as [[[]] pre]; auto.
-Qed.
-
-Definition spawn_spec := mk_funspec
-  ((_f OF tptr voidstar_funtype)%formals :: (_args OF tptr tvoid)%formals :: nil, tvoid)
-  cc_default
-  spawn_arg_type
-  spawn_pre
-  spawn_post
-  spawn_pre_nonexpansive
-  spawn_post_nonexpansive.*)
+Parameter (AI : atomic_int_impl).
+(* We might need to make this concrete. *)
 
 (*+ Adding the specifications to a void ext_spec *)
 
 Definition concurrent_simple_specs (cs : compspecs) (ext_link : string -> ident) :=
   (ext_link "acquire"%string, acquire_spec) ::
   (ext_link "release"%string, release_spec) ::
+  (ext_link "make_atomic"%string, @make_atomic_spec AI) ::
+  (ext_link "free_atomic"%string, @free_atomic_spec AI) ::
+  (ext_link "atomic_load"%string, @atomic_load_spec AI) ::
+  (ext_link "atomic_store"%string, @atomic_store_spec AI) ::
+  (ext_link "atomic_CAS"%string, atomic_CAS_spec(AI := AI)) ::
   nil.
 
 Definition concurrent_simple_ext_spec Z (cs : compspecs) (ext_link : string -> ident) :=
@@ -776,13 +683,16 @@ Proof.
   apply IH; induction n; intros i li; inversion li; eauto.
 Qed.
 
-Set Printing Implicit.
-
 Definition concurrent_specs (cs : compspecs) (ext_link : string -> ident) :=
   (ext_link "acquire"%string, acquire_spec) ::
   (ext_link "release"%string, release_spec) ::
   (ext_link "makelock"%string, makelock_spec cs) ::
   (ext_link "freelock"%string, freelock_spec cs) ::
+  (ext_link "make_atomic"%string, @make_atomic_spec AI) ::
+  (ext_link "free_atomic"%string, @free_atomic_spec AI) ::
+  (ext_link "atomic_load"%string, @atomic_load_spec AI) ::
+  (ext_link "atomic_store"%string, @atomic_store_spec AI) ::
+  (ext_link "atomic_CAS"%string, atomic_CAS_spec(AI := AI)) ::
   (ext_link "spawn"%string, spawn_spec) ::
   nil.
 

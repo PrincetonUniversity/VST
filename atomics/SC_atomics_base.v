@@ -60,7 +60,7 @@ Definition free_atomic_ptr_spec :=
     LOCAL ()
     SEP ().
 
-Definition free_atomic_int_spec :=
+Definition free_atomic_spec :=
   WITH p : val
   PRE [ tptr atomic_int ]
     PROP (is_pointer_or_null p)
