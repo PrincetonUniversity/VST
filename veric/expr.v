@@ -1055,8 +1055,8 @@ Proof.
 intros.
 remember (b&&c). destruct b0; symmetry in Heqb0; 
 try rewrite andb_true_iff in *; try rewrite andb_false_iff in *;
-simple_if_tac; auto; intuition;
-destruct c; auto; intuition.
+simple_if_tac; auto; intuition auto;
+destruct c; auto; intuition congruence.
 Qed.
 
 Program Definition valid_pointer' (p: val) (d: Z) : mpred :=

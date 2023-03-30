@@ -1630,7 +1630,7 @@ Lemma is_pointer_or_null_field_address_lemma:
 Proof.
 intros.
 unfold field_address.
-if_tac; intuition.
+if_tac; intuition (auto; try solve [contradiction]).
 Qed.
 
 Lemma isptr_field_address_lemma:
@@ -1640,7 +1640,7 @@ Lemma isptr_field_address_lemma:
 Proof.
 intros.
 unfold field_address.
-if_tac; intuition.
+if_tac; intuition (auto; try solve [contradiction]).
 Qed.
 
 Lemma eval_lvar_spec: forall id t rho,

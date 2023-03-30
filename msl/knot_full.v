@@ -528,7 +528,7 @@ Module KnotFull (TF':TY_FUNCTOR_FULL) : KNOT_FULL with Module TF:=TF'.
     simpl.
     unfold knot_level_def; simpl; auto.
     auto.
-    eapply Le.le_trans; eauto.
+    eapply PeanoNat.Nat.le_trans; eauto.
     inv H0.
     unfold knot_level_def; simpl; auto.
 

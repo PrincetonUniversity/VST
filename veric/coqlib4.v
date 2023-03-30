@@ -161,7 +161,8 @@ Qed.
 Lemma nth_error_length:
   forall {A} i (l: list A), nth_error l i = None <-> (i >= length l)%nat.
 Proof.
-induction i; destruct l; simpl; intuition.
+Print Hint.
+induction i; destruct l; simpl; intuition auto with bool zarith.
 inv H.
 inv H.
 rewrite IHi in H. lia.

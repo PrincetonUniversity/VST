@@ -158,24 +158,24 @@ Module Share <: SHARE_MODEL.
 
   Lemma nonEmpty_dec : forall x, {nonEmptyTree x}+{~nonEmptyTree x}.
   Proof.
-    induction x; simpl; intros; invert_ord; destruct_bool; intuition.
+    induction x; simpl; intros; invert_ord; destruct_bool; intuition auto with bool.
   Defined.
 
   Lemma nonFull_dec : forall x, {nonFullTree x}+{~nonFullTree x}.
   Proof.
-    induction x; simpl; intros; invert_ord; destruct_bool; intuition.
+    induction x; simpl; intros; invert_ord; destruct_bool; intuition auto with bool.
   Defined.
 
   Lemma geTrueFull : forall x,
       shareTreeOrd (Leaf true) x -> ~nonFullTree x.
   Proof.
-    induction x; simpl; intros; invert_ord; destruct_bool; intuition.
+    induction x; simpl; intros; invert_ord; destruct_bool; intuition auto with bool.
   Qed.
 
   Lemma leFalseEmpty : forall x,
       shareTreeOrd x (Leaf false) -> ~nonEmptyTree x.
   Proof.
-    induction x; simpl; intros; invert_ord; destruct_bool; intuition.
+    induction x; simpl; intros; invert_ord; destruct_bool; intuition auto with bool.
   Qed.
 
   Lemma emptyLeFalse : forall x,
@@ -208,14 +208,14 @@ Module Share <: SHARE_MODEL.
   Lemma eqFalseLeaf_empty : forall x,
     shareTreeEq (Leaf false) x -> ~nonEmptyTree x.
   Proof.
-    induction x; simpl; intros; invert_ord; destruct_bool; intuition.
+    induction x; simpl; intros; invert_ord; destruct_bool; intuition auto with bool.
   Qed.
 
   Lemma eqTrueLeaf_full : forall x,
     shareTreeEq (Leaf true) x ->
     ~nonFullTree x.
   Proof.
-    induction x; simpl; intros; invert_ord; destruct_bool; intuition.
+    induction x; simpl; intros; invert_ord; destruct_bool; intuition auto with bool.
   Qed.
 
   Lemma emptyTree_canonical_falseLeaf : forall x,
@@ -250,7 +250,7 @@ Module Share <: SHARE_MODEL.
     shareTreeOrd (Leaf b) x3 ->
     shareTreeOrd x1 x3.
   Proof.
-    intro x1; induction x1; simpl; intros; invert_ord; destruct_bool; intuition.
+    intro x1; induction x1; simpl; intros; invert_ord; destruct_bool; intuition auto with bool.
     inv H0; invert_ord; destruct_bool; intuition eauto.
     discriminate.
     inv H0; invert_ord; destruct_bool; intuition eauto.

@@ -983,7 +983,7 @@ Lemma list_eq_forall_range2 : forall {A} {d : Inhabitant A} (al bl : list A),
   al = bl ->
   Zlength al = Zlength bl /\ forall_range2 0 (Zlength al) 0 al bl eq.
 Proof.
-  intros. subst; unfold forall_range2, forall_i; intuition.
+  intros. subst; unfold forall_range2, forall_i; intuition auto. f_equal; lia.
 Qed.
 
 Lemma forall_range_fold : forall {A} {d : Inhabitant A} lo hi al (P : A -> Prop),

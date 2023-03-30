@@ -32,7 +32,7 @@ Axiom juicy_mem_alloc_succeeds: forall j j' b lo hi,
 
 End JUICY_MEM_OPS.
 
-Obligation Tactic := Tactics.program_simpl.
+#[export] Obligation Tactic := Tactics.program_simpl.
 
 Module JuicyMemOps <: JUICY_MEM_OPS.
 Program Definition juicy_mem_store j ch b ofs v: option juicy_mem :=

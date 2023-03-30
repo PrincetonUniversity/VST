@@ -325,6 +325,8 @@ simpl in H0.
 rewrite PTree.gempty in H0. inv H0.
 Qed.
 
+#[local] Obligation Tactic := idtac.
+
 Program Definition HO_pred_eq {T}{agT: ageable T}{EO: Ext_ord T}
 (A: Type) (P: A -> pred T) (A': Type) (P': A' -> pred T) : pred nat :=
 fun v => exists H: A=A',
@@ -1320,8 +1322,8 @@ induction l; intros HI.
 - inversion HI.
 - simpl in HI.
 destruct (E (f a) y).
-+ exists a; intuition.
-+ destruct IHl. tauto. exists x; intuition.
++ exists a; intuition (simpl; auto).
++ destruct IHl. tauto. exists x; intuition (simpl; auto).
 Qed.
 
 Lemma find_symbol_funct_ptr_ex_sig V ge id f :

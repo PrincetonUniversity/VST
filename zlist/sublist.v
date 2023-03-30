@@ -1274,7 +1274,7 @@ Proof.
   remember ((Z.to_nat i - length al)%nat) as k.
   rewrite <- Nat.sub_add_distr.
   assert (K: (length al + k = Z.to_nat i)%nat).
-    subst k. rewrite <- le_plus_minus. trivial.
+    subst k. rewrite Nat.add_comm, Nat.sub_add. trivial.
     apply Nat2Z.inj_le. rewrite Z2Nat.id. rewrite Zlength_correct in H; apply H. lia.
   rewrite K. trivial.
   lia. lia. lia. lia.
@@ -2380,7 +2380,7 @@ Proof.
       rewrite Zlength_upto. lia.
 Qed.
 
-Lemma sublist_upto : forall n a b, 0 <= a <= b -> sublist a b (upto n) = map (Z.add a) (upto (Min.min n (Z.to_nat b) - Z.to_nat a)).
+Lemma sublist_upto : forall n a b, 0 <= a <= b -> sublist a b (upto n) = map (Z.add a) (upto (Nat.min n (Z.to_nat b) - Z.to_nat a)).
 Proof.
   induction n; intros.
   - simpl; rewrite sublist_of_nil by lia; auto.

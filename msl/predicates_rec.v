@@ -123,7 +123,7 @@ Proof.
     apply pred_upclosed with x'; auto.
     apply pred_nec_hereditary with a''; auto.
     specialize (H2 _ _ (necR_refl _) (ext_refl _)).
-    apply (@HORec'_unage _ _ _ X f Hcont (n - level a'') (level a'') b a'' (Le.le_refl _)) in H2.
+    apply (@HORec'_unage _ _ _ X f Hcont (n - level a'') (level a'') b a'' (PeanoNat.Nat.le_refl _)) in H2.
     generalize (necR_level _ _ H); intro.
     pose proof (ext_level _ _ H0) as Hl0.
     replace (n - level a'' + level a'') with n in H2 by lia.
@@ -136,7 +136,7 @@ Proof.
     assert (app_pred (HORec' f (level a) x) a).
     rewrite H. apply H2.
      clear - H3 H4 H5 Hcont.
-    apply (@HORec'_unage _ _ _ X f Hcont (level a - level x'') (level x'') x x'' (Le.le_refl _)).
+    apply (@HORec'_unage _ _ _ X f Hcont (level a - level x'') (level x'') x x'' (PeanoNat.Nat.le_refl _)).
     pose proof (ext_level _ _ H4).
     replace (level a - level x'' + level x'') with (level a)
         by (apply necR_level in H3; lia).
