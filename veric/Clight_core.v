@@ -344,7 +344,7 @@ Program Definition cl_core_sem (ge: genv) :
     (fun _ m c m' v args => cl_initial_core ge v args = Some c(* /\ Mem.arg_well_formed args m /\ m' = m *)) (* why is this commented out? *)
     (fun c _ => cl_at_external c)
     (fun ret c _ => cl_after_external ret c)
-    (fun c _ =>  cl_halted c <> None)
+    (fun c _ =>  cl_halted c <> None) (* Why don't we use the int argument of halted? *)
     (cl_step ge)
     (cl_corestep_not_halted ge)
     (cl_corestep_not_at_external ge).

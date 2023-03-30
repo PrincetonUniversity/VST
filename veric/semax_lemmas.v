@@ -1,6 +1,7 @@
 Require Import VST.veric.juicy_base.
-Require Import VST.veric.juicy_mem VST.veric.juicy_mem_lemmas VST.veric.juicy_mem_ops.
+Require Import VST.veric.juicy_mem (*VST.veric.juicy_mem_lemmas VST.veric.juicy_mem_ops*).
 Require Import VST.veric.res_predicates.
+Require Import VST.veric.external_state.
 Require Import VST.veric.extend_tc.
 Require Import VST.veric.Clight_seplog.
 Require Import VST.veric.Clight_assert_lemmas.
@@ -13,20 +14,14 @@ Require Import VST.veric.expr_lemmas.
 Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.semax.
 Require Import VST.veric.Clight_lemmas.
-Require Import VST.veric.own.
-Import compcert.lib.Maps.
 
 Import Ctypes.
-
-Local Open Scope pred.
-
-#[export] Hint Resolve now_later andp_derives sepcon_derives : core.
 
 Lemma no_dups_swap:
   forall F V a b c, @no_dups F V (a++b) c -> @no_dups F V (b++a) c.
 Proof.
 unfold no_dups; intros.
-rewrite map_app in *.
+rewrite -> map_app in *.
 forget (map (@fst _ _) b) as bb.
 forget (map (@fst _ _) a) as aa.
 forget (map (var_name V) c) as cc.
@@ -38,15 +33,15 @@ clear - H2.
 unfold Coqlib.list_disjoint in *.
 intros; apply H2; auto.
 clear - H.
-rewrite in_app in *.
+rewrite -> in_app in *.
 tauto.
 Qed.
 
-Lemma join_sub_share_top: forall sh, join_sub Share.top sh -> sh = Share.top.
+Lemma join_sub_share_top: forall sh, sepalg.join_sub Share.top sh -> sh = Share.top.
 Proof.
 intros.
 generalize (top_correct' sh); intro.
-apply join_sub_antisym; auto.
+apply sepalg.join_sub_antisym; auto.
 Qed.
 
 
@@ -74,21 +69,13 @@ Qed.
 
 Section SemaxContext.
 
-Lemma universal_imp_unfold {A} {agA: ageable A} {EO: Ext_ord A}:
-   forall B (P Q: B -> pred A) w,
-     (ALL psi : B, P psi --> Q psi) w = (forall psi : B, (P psi --> Q psi) w).
-Proof.
-intros.
-apply prop_ext; split; intros.
-eapply H; eauto.
-intro b; apply H.
-Qed.
+Context `{!heapGS Σ} {Espec : OracleKind} `{!externalGS OK_ty Σ}.
 
 Lemma guard_environ_put_te':
  forall ge te ve Delta id v k,
  guard_environ Delta k (mkEnviron ge ve te)  ->
     (forall t,
-        (temp_types Delta) ! id = Some t -> tc_val' t v) ->
+        (temp_types Delta) !! id = Some t -> tc_val' t v) ->
  guard_environ Delta k (mkEnviron ge ve (Map.set id v te)).
 Proof.
  intros.
@@ -96,29 +83,6 @@ Proof.
  apply typecheck_environ_put_te; auto.
  destruct k; auto.
 Qed.
-
-Lemma prop_imp_derives {A}{agA: ageable A} {EO: Ext_ord A}:
-  forall (P: Prop) (Q Q': pred A),  (P -> Q |-- Q') -> !!P --> Q |-- !!P --> Q'.
-Proof.
- intros.
- repeat intro.
- apply H; eauto.
-Qed.
-
-Lemma prop_imp {A}{agA: ageable A} {EO: Ext_ord A}:
-  forall (P: Prop) (Q Q': pred A),  (P -> Q = Q') -> !!P --> Q = !!P --> Q'.
-Proof.
-  intros.
-  apply pred_ext; apply prop_imp_derives.
-  + intros; rewrite H by auto; auto.
-  + intros; rewrite H by auto; auto.
-Qed.
-
-Lemma age_laterR {A} `{ageable A} {EO: Ext_ord A}: forall {x y}, age x y -> laterR x y.
-Proof.
-intros. constructor 1; auto.
-Qed.
-Local Hint Resolve age_laterR : core.
 
 Lemma typecheck_environ_sub:
   forall Delta Delta', tycontext_sub Delta Delta' ->
@@ -130,7 +94,7 @@ split; [ | split].
 * clear - H H3.
  hnf; intros.
  specialize (H id); rewrite H0 in H.
- destruct ((temp_types Delta') ! id) eqn:?H; try contradiction.
+ destruct ((temp_types Delta') !! id) eqn:?H; try contradiction.
  destruct H; subst.
  specialize (H3 id ty H1).
  destruct H3 as [v [? ?]].
@@ -142,36 +106,6 @@ split; [ | split].
 * clear - H2 H5.
  hnf; intros. eapply H5.
  specialize (H2 id). hnf in H2. rewrite H in H2. eauto.
-Qed.
-
-Lemma funassert_resource: forall Delta rho a a' (Hl: level a = level a')
-  (Hr: resource_at a = resource_at a'),
-  funassert Delta rho a -> funassert Delta rho a'.
-Proof.
-  intros.
-  destruct H as [H1 H2]; split; repeat intro.
-  - destruct (H1 _ _ _ _ (rt_refl _ _ _) (ext_refl _) H3) as (b1 & ? & ?).
-    exists b1; split; auto.
-    destruct b0; simpl in *.
-    rewrite Hr in H5.
-    pose proof (necR_level _ _ H).
-    eapply necR_PURE in H; eauto.
-    apply rmap_order in H0 as (<- & <- & _).
-    rewrite H; simpl; f_equal; f_equal.
-    extensionality i a0 a1 a2.
-    match goal with |-context[compcert_rmaps.R.approx ?a (approx ?b ?c)] =>
-      change (compcert_rmaps.R.approx a (approx b c)) with ((approx a oo approx b) c) end.
-    rewrite fmap_app, approx_oo_approx', approx'_oo_approx by lia; auto.
-  - specialize (H2 b b0 b1). clear H1.
-    destruct b0; simpl in *.
-    apply (H2 _  _ (rt_refl _ _ _) (ext_refl _)).
-    rewrite Hr, Hl.
-    destruct H3 as [p Hp].
-    pose proof (necR_level _ _ H).
-    apply rmap_order in H0 as (Hl' & Hr' & _).
-    rewrite <- Hl', <- Hr' in Hp.
-    rewrite <- resource_at_approx.
-    eapply necR_PURE' in H as [? ->]; simpl; eauto.
 Qed.
 
 Ltac fun_tac :=
@@ -230,165 +164,86 @@ pose proof (ef_deterministic_fun _ H0 _ _ _ _ _ _ _ _ _ H2 H13).
 inv H1; auto.
 Qed.
 
-Lemma age1_resource_decay:
-  forall jm jm', age jm jm' -> resource_decay (nextblock (m_dry jm)) (m_phi jm) (m_phi jm').
-Proof.
- intros. split.
- apply age_level in H.
- change (level (m_phi jm)) with (level jm).
- change (level (m_phi jm')) with (level jm').
- lia.
- intro l. split. apply juicy_mem_alloc_cohere. left.
- symmetry; apply age1_resource_at with (m_phi jm); eauto.
-  destruct (age1_juicy_mem_unpack _ _ H); auto.
- symmetry; apply resource_at_approx.
-Qed.
-
-Lemma jsafeN_local_step_fupd:
-  forall {Espec: OracleKind} ge ora s1 m s2,
-  cl_step  ge s1 (m_dry m) s2 (m_dry m) ->
-  (forall m', age m m' -> jm_fupd ora Ensembles.Full_set Ensembles.Full_set (jsafeN (@OK_spec Espec) ge ora s2) m') ->
-  jsafeN (@OK_spec Espec) ge ora s1 m.
-Proof.
-intros.
-  rename H into Hstep.
-  remember (level m) as N.
-  destruct N; [constructor; auto|].
-  case_eq (age1 m); [intros m' H |  intro; apply age1_level0 in H; lia].
-  eapply jsafeN_step.
-  split3.
-  replace (m_dry m') with (m_dry m) by (destruct (age1_juicy_mem_unpack _ _ H); auto).
-  apply Hstep.
-  apply age1_resource_decay; auto. split; [apply age_level; auto|].
-  apply age_jm_phi in H.
-  erewrite (age1_ghost_of _ _ H) by (symmetry; apply ghost_of_approx).
-  unfold level at 1; simpl.
-  repeat intro; auto.
-  assert (N = level m')%nat.
-  apply age_level in H; lia.
-  subst. apply H0. auto.
-Qed.
-
-Lemma bupd_jm_bupd: forall jm P C, bupd P (m_phi jm) -> joins (ghost_of (m_phi jm)) (ghost_approx jm C) ->
+(*Lemma bupd_jm_bupd: forall jm P C, bupd P (m_phi jm) -> joins (ghost_of (m_phi jm)) (ghost_approx jm C) ->
   exists jm', jm_update jm jm' /\ P (m_phi jm') /\ joins (ghost_of (m_phi jm')) (ghost_approx jm C).
 Proof.
   repeat intro.
   destruct (H _ H0) as (? & ? & ? & ? & Hr & ? & ?); subst.
   destruct (juicy_mem_resource _ _ Hr) as (jm' & ? & ?); subst.
   exists jm'; repeat split; auto.
-Qed.
+Qed.*)
 
 Lemma jsafeN_local_step:
-  forall {Espec: OracleKind} ge ora s1 m s2,
-  cl_step  ge s1 (m_dry m) s2 (m_dry m) ->
-  (forall m', age m m' ->
-    jsafeN (@OK_spec Espec) ge ora s2 m') ->
-  jsafeN (@OK_spec Espec) ge ora s1 m.
+  forall ge E ora s1 s2,
+  (forall m, cl_step ge s1 m s2 m) ->
+  ▷jsafeN Espec ge E ora s2 ⊢
+  jsafeN Espec ge E ora s1.
 Proof.
-intros.
-  rename H into Hstep.
-  remember (level m) as N.
-  destruct N; [constructor; auto|].
-  case_eq (age1 m); [intros m' H |  intro; apply age1_level0 in H; lia].
-  eapply jsafeN_step.
-  split3.
-  replace (m_dry m') with (m_dry m) by (destruct (age1_juicy_mem_unpack _ _ H); auto).
-  apply Hstep.
-  apply age1_resource_decay; auto. split; [apply age_level; auto|].
-  apply age_jm_phi in H.
-  erewrite (age1_ghost_of _ _ H) by (symmetry; apply ghost_of_approx).
-  unfold level at 1; simpl.
-  repeat intro; auto.
-  assert (N = level m')%nat.
-  apply age_level in H; lia.
-  apply jm_fupd_intro', H0; auto.
+  intros; apply jsafe_local_step; auto.
+  intros ?; apply cl_corestep_fun.
 Qed.
 
-Lemma derives_skip:
-  forall {CS: compspecs} {Espec: OracleKind} p Delta (R: ret_assert),
-      (forall rho, p rho |-- proj_ret_assert R EK_normal None rho) ->
-        semax Espec Delta p Clight.Sskip R.
-Proof.
-intros ? ? ? ?; intros.
-intros n.
-rewrite semax_fold_unfold.
-intros psi Delta' CS'.
-apply prop_imp_i; intros [? HGG].
-clear H0 Delta. rename Delta' into Delta.
-intros _ ?w _ _ _. clear n.
-intros k F f.
-intros _ ?w _ _ ?.
-clear w. rename w0 into n.
-intros te ve w ?.
-destruct H0 as [H0' H0].
-specialize (H0 EK_normal None te ve w H1).
-simpl exit_cont in H0.
-simpl in H0'. clear n H1. remember ((construct_rho (filter_genv psi) ve te)) as rho.
-revert w H0.
-apply imp_derives; auto.
-apply andp_derives; auto.
-apply andp_derives; auto.
-repeat intro.
-simpl.
-split; auto.
-specialize (H rho). destruct R; simpl in H. simpl tycontext.RA_normal.
-rewrite prop_true_andp in H by auto.
-rewrite sepcon_comm.
-eapply sepcon_derives; try apply H0; auto.
-
-apply assert_safe_derives; split; auto; simpl.
-destruct k as [ | s ctl' | | | |];
-  intros; eapply jm_fupd_mono; eauto; intros ? Hle HP; try contradiction.
--
-inv HP; try contradiction.
-constructor; auto.
-eapply jsafeN_step; eauto.
-destruct H4; split; auto.
-inv H2.
-econstructor; eauto.
-simpl. auto.
-inv H4.
--
-eapply jsafeN_local_step. constructor.
-intros.
-eapply age_safe in HP; eauto.
--
-eapply jsafeN_local_step. constructor.
-intros.
-eapply age_safe in HP; eauto.
--
-inv HP; try contradiction.
-constructor; auto.
-eapply jsafeN_step; eauto.
-destruct H4; split; auto.
-inv H2.
-econstructor; eauto.
-simpl. auto.
-inv H4.
-Qed.
-
-Lemma semax_unfold {CS: compspecs} {Espec: OracleKind}:
-  semax Espec = fun Delta P c R =>
-    forall (psi: Clight.genv) Delta' CS' (w: nat)
+Lemma semax_unfold {CS: compspecs} E Delta P c R :
+  semax Espec E Delta P c R = forall (psi: Clight.genv) Delta' CS'
           (TS: tycontext_sub Delta Delta')
-          (HGG: cenv_sub (@cenv_cs CS) (@cenv_cs CS') /\ cenv_sub (@cenv_cs CS') (genv_cenv psi))
-           (Prog_OK: @believe CS' Espec Delta' psi Delta' w) (k: cont) (F: assert) f,
-        closed_wrt_modvars c F ->
-       rguard Espec psi Delta' f (frame_ret_assert R F) k w ->
-       guard Espec psi Delta' f (fun rho => F rho * P rho) (Kseq c k) w.
+          (HGG: cenv_sub (@cenv_cs CS) (@cenv_cs CS') /\ cenv_sub (@cenv_cs CS') (genv_cenv psi)),
+    ⊢ believe(CS := CS') Espec E Delta' psi Delta' → ∀ (k: cont) (F: environ -> mpred) f,
+        ⌜closed_wrt_modvars c F⌝ ∧ rguard Espec psi E Delta' f (frame_ret_assert R F) k →
+       guard' Espec psi E Delta' f (fun rho => F rho ∗ P rho) (Kseq c k).
 Proof.
-unfold semax; rewrite semax_fold_unfold.
-extensionality Delta P c R.
-apply prop_ext; split; intros.
-+ eapply (H w); eauto.
-  - split; auto.
-  - split; trivial.
-+ intros psi Delta' CS'.
-  apply prop_imp_i; intros [? HGG].
-  intros ? w' ? ? ? k F f ? w'' ? ? [? ?].
-  apply (H psi Delta' CS' w'' H0 HGG); trivial.
-  eapply pred_upclosed, pred_nec_hereditary; eauto.
+unfold semax; apply prop_ext. rewrite semax_fold_unfold.
+split; intros.
++ iIntros "?"; iApply H; eauto.
++ iIntros (??? [??]); iApply H.
 Qed.
+
+(*Lemma derives_skip:
+  forall {CS: compspecs} p E Delta (R: ret_assert),
+      (forall rho, p rho ⊢ proj_ret_assert R EK_normal None rho) ->
+        semax Espec E Delta p Clight.Sskip R.
+Proof.
+intros.
+rewrite semax_unfold.
+intros psi Delta' CS' ??.
+clear dependent Delta. rename Delta' into Delta.
+iIntros "believe" (???) "[% #H]".
+iSpecialize ("H" $! EK_normal None).
+rewrite /guard' /_guard /=.
+iIntros (??) "!> Fp".
+iSpecialize ("H" with "[Fp]").
+{ rewrite H; iApply (bi.and_mono with "Fp"); first done; apply bi.and_mono; last done.
+  by destruct R; simpl; rewrite comm pure_and_sep_assoc. }
+rewrite /assert_safe.
+iIntros (z ?); iSpecialize ("H" with "[%]"); first done.
+destruct k as [ | s ctl' | | | |].
+- Print step. Search step Sskip.
+iApply jsafeN_local_step.
+inv HP; try contradiction.
+constructor; auto.
+eapply jsafeN_step; eauto.
+destruct H4; split; auto.
+inv H2.
+econstructor; eauto.
+simpl. auto.
+inv H4.
+-
+eapply jsafeN_local_step. constructor.
+intros.
+eapply age_safe in HP; eauto.
+-
+eapply jsafeN_local_step. constructor.
+intros.
+eapply age_safe in HP; eauto.
+-
+inv HP; try contradiction.
+constructor; auto.
+eapply jsafeN_step; eauto.
+destruct H4; split; auto.
+inv H2.
+econstructor; eauto.
+simpl. auto.
+inv H4.
+Qed.*)
 
 Fixpoint list_drop (A: Type) (n: nat) (l: list A) {struct n} : list A :=
   match n with O => l | S i => match l with nil => nil | _ :: l' => list_drop A i l' end end.
@@ -406,72 +261,136 @@ destruct H13; inv H; auto.
 destruct H13; inv H; auto.
 Qed.
 
-Lemma extract_exists_pre_later {CS: compspecs} {Espec: OracleKind}:
-  forall  (A : Type) (Q: assert) (P : A -> assert) c Delta (R: ret_assert),
-  (forall x, semax Espec Delta (fun rho => Q rho && |> P x rho) c R) ->
-   semax Espec Delta (fun rho => Q rho && |> exp (fun x => P x rho)) c R.
+Lemma assert_safe_fupd : forall ge E f ve te c rho,
+  (match c with Ret _ _ => False | _ => True end) -> (* should be able to lift this restriction if we switch to mem in state? *)
+  (|={E}=> assert_safe Espec ge E f ve te c rho) ⊢ assert_safe Espec ge E f ve te c rho.
 Proof.
-rewrite semax_unfold in *.
-intros.
-intros.
-intros te ve ?w ? ? ?w ? Hext ?.
-destruct H4.
-destruct H4.
-destruct H6 as [w2 [w3 [? [? [HQ ?]]]]].
-destruct (age1 w2) as [w2' | ] eqn:?.
-*
-destruct (@age1_join _ _ _ _ _ _ _ _ _ H6 Heqo)
-  as [w3' [w1' [? [? ?]]]].
-hnf in H8.
-specialize (H8 _ (age_laterR H10)).
-destruct H8 as [x H8].
-specialize (H x psi Delta' CS' w TS HGG Prog_OK k F f H0 H1).
-unfold guard, _guard in H.
-specialize (H te ve).
-cbv beta in H.
-specialize (H w0 H2 _ w1 H3 Hext).
-apply H.
-split; auto. split; auto.
-exists w2, w3. split3; auto.
-split; auto.
-intros w3x ?.
-eapply pred_nec_hereditary; [ | apply H8].
-clear - H10 H12.
-eapply age_later_nec; eauto.
-*
-assert (level w1 = O). {
-  clear - H6 Heqo.
-  apply join_level in H6. destruct H6.
-  rewrite <- H. apply age1_level0.  auto.
-}
-hnf. lia.
+  intros.
+  rewrite /assert_safe /jsafeN; iIntros "H" (??).
+  iSpecialize ("H" with "[%]"); first done.
+  destruct c; try contradiction.
+  - by iMod "H".
+  - destruct c; by iMod "H".
 Qed.
 
-Lemma extract_exists_pre {CS: compspecs} {Espec: OracleKind}:
-  forall  (A : Type) (P : A -> assert) c Delta (R: ret_assert),
-  (forall x, semax Espec Delta (P x) c R) ->
-   semax Espec Delta (fun rho => exp (fun x => P x rho)) c R.
+Global Instance assert_safe_except_0 : forall ge E f ve te c rho,
+  IsExcept0 (assert_safe Espec ge E f ve te c rho).
 Proof.
-rewrite semax_unfold in *.
+  intros.
+  rewrite /IsExcept0 /assert_safe /jsafeN; iIntros "H" (??).
+  destruct c.
+  - by iMod "H"; iApply "H".
+  - destruct c; by iMod "H"; iApply "H".
+  - destruct o; try by iMod "H"; iApply "H".
+    iIntros (???).
+    iApply (bi.impl_intro_r with "H").
+    iIntros "H" (??).
+    rewrite (bi.except_0_intro (coherent_with m)) -bi.except_0_and; iMod "H".
+    iApply (bi.impl_elim_l' with "H"); iIntros "H".
+    iSpecialize ("H" with "[%]"); first done.
+    iSpecialize ("H" $! e v' m).
+    iApply (bi.impl_mono with "H"); first done.
+    by iIntros "H"; iApply "H".
+Qed.
+
+Global Instance believe_external_plain gx v fsig cc A P Q : Plain (believe_external Espec gx v fsig cc A P Q).
+Proof.
+  rewrite /Plain /believe_external.
+  destruct (Genv.find_funct gx v); last iApply plain.
+  destruct f; iApply plain.
+Qed.
+
+Global Instance believe_external_absorbing gx v fsig cc A P Q : Absorbing (believe_external Espec gx v fsig cc A P Q).
+  rewrite /Absorbing /believe_external.
+  destruct (Genv.find_funct gx v); last iApply absorbing.
+  destruct f; iApply absorbing.
+Qed.
+
+Lemma fixpoint_plain {A} (F : (A -d> iPropO Σ) -> A -d> iPropO Σ) `{Contractive F}:
+    (∀ Φ, (∀ x, Plain (Φ x)) → (∀ x, Plain (F Φ x))) →
+    ∀ x, Plain (fixpoint F x).
+Proof.
+  intros ?.
+  apply fixpoint_ind.
+  - intros ?? Heq ??. by rewrite -(Heq _).
+  - exists (fun _ => emp); intros; apply emp_plain.
+  - auto.
+  - apply limit_preserving_forall; intros; apply limit_preserving_Plain.
+    intros ??; auto.
+Qed.
+
+Lemma fixpoint_absorbing {A} (F : (A -d> iPropO Σ) -> A -d> iPropO Σ) `{Contractive F}:
+    (∀ Φ, (∀ x, Absorbing (Φ x)) → (∀ x, Absorbing (F Φ x))) →
+    ∀ x, Absorbing (fixpoint F x).
+Proof.
+  intros ?.
+  apply fixpoint_ind.
+  - intros ?? Heq ??. by rewrite -(Heq _).
+  - exists (fun _ => True); intros; apply bi.pure_absorbing.
+  - auto.
+  - apply limit_preserving_forall; intros ?.
+    apply bi.limit_preserving_entails.
+    + intros ????. by apply bi.absorbingly_ne.
+    + intros ??; auto.
+Qed.
+
+Lemma fixpoint_plain_absorbing {A} (F : (A -d> iPropO Σ) -> A -d> iPropO Σ) `{Contractive F}:
+    (∀ Φ, (∀ x, Plain (Φ x)) → (∀ x, Absorbing (Φ x)) → (∀ x, Plain (F Φ x))) →
+    (∀ Φ, (∀ x, Plain (Φ x)) → (∀ x, Absorbing (Φ x)) → (∀ x, Absorbing (F Φ x))) →
+    ∀ x, Plain (fixpoint F x) ∧ Absorbing (fixpoint F x).
+Proof.
+  intros ??.
+  apply fixpoint_ind.
+  - intros ?? Heq ??. by rewrite -(Heq _).
+  - exists (fun _ => True); intros; split; [apply pure_plain | apply bi.pure_absorbing].
+  - intros ? Hpa y.
+    assert ((∀y, Plain (x y)) ∧ (∀y, Absorbing (x y))) as [??] by (split; intros; eapply Hpa; eauto).
+    eauto.
+  - apply limit_preserving_forall; intros.
+    apply limit_preserving_and; [apply limit_preserving_Plain; intros ??; auto|].
+    apply bi.limit_preserving_entails.
+    + intros ????. by apply bi.absorbingly_ne.
+    + intros ??; auto.
+Qed.
+
+Lemma semax'_plain_absorbing CS E Delta P c R : Plain (semax' Espec E Delta P c R) ∧ Absorbing (semax' Espec E Delta P c R).
+Proof.
+  apply fixpoint_plain_absorbing; intros; rewrite /semax_; destruct x; apply _.
+Qed.
+
+Global Instance semax'_plain CS E Delta P c R : Plain (semax' Espec E Delta P c R).
+Proof. apply semax'_plain_absorbing. Qed.
+
+Global Instance semax'_absorbing CS E Delta P c R : Absorbing (semax' Espec E Delta P c R).
+Proof. apply semax'_plain_absorbing. Qed.
+
+Lemma extract_exists_pre_later {CS: compspecs}:
+  forall  (A : Type) (Q: environ -> mpred) (P : A -> environ -> mpred) c E Delta (R: ret_assert),
+  (forall x, semax Espec E Delta (fun rho => Q rho ∧ ▷ P x rho) c R) ->
+   semax Espec E Delta (fun rho => Q rho ∧ ▷ ∃ x, P x rho) c R.
+Proof.
 intros.
+rewrite semax_unfold; intros.
+iIntros "#believe" (???) "[% #rguard]".
+iIntros (??) "!> H".
+rewrite bi.later_exist_except_0.
+rewrite (bi.except_0_intro (Q _)) -bi.except_0_and (bi.except_0_intro (F _)) -bi.except_0_sep
+  (bi.except_0_intro (⌜_⌝)) (bi.except_0_intro (funassert _ _)) -!bi.except_0_and; iMod "H".
+rewrite bi.and_exist_l bi.sep_exist_l bi.and_exist_r  bi.and_exist_l; iDestruct "H" as (a) "H".
+specialize (H a); rewrite semax_unfold in H; iApply H; auto.
+Qed.
+
+Lemma extract_exists_pre {CS: compspecs}:
+  forall  (A : Type) (P : A -> environ -> mpred) c E Delta (R: ret_assert),
+  (forall x, semax Espec E Delta (P x) c R) ->
+   semax Espec E Delta (fun rho => ∃ x, P x rho) c R.
+Proof.
 intros.
-intros te ve ?w ? ? ?w ? Hext ?.
-rewrite exp_sepcon2 in H4.
-destruct H4 as [[TC [x H5]] ?].
-specialize (H x).
-specialize (H psi Delta' CS' w TS HGG Prog_OK k F f H0).
-spec H. {
- clear - H1.
- unfold rguard in *.
- intros ek vl tx vx. specialize (H1 ek vl tx vx).
- red in H1.
- eapply subp_trans'; [| apply H1 ].
- apply derives_subp.
- apply andp_derives; auto.
-}
-eapply H; eauto.
-split; auto.
-split; auto.
+rewrite semax_unfold; intros.
+iIntros "#believe" (???) "[% #rguard]".
+iIntros (??) "!> H".
+rewrite bi.sep_exist_l bi.and_exist_r  bi.and_exist_l; iDestruct "H" as (a) "H".
+specialize (H a); rewrite semax_unfold in H; iApply H; auto.
 Qed.
 
 Definition G0: funspecs := nil.
@@ -479,43 +398,22 @@ Definition G0: funspecs := nil.
 Definition empty_genv prog_pub cenv: Clight.genv :=
    Build_genv (Genv.globalenv (AST.mkprogram (F:=Clight.fundef)(V:=type) nil prog_pub (1%positive))) cenv.
 
-Lemma empty_program_ok {CS: compspecs} {Espec: OracleKind}: forall Delta ge w,
-    glob_specs Delta = PTree.empty _ ->
-    believe Espec Delta ge Delta w.
+Lemma empty_program_ok {CS: compspecs}: forall E Delta ge,
+    glob_specs Delta = Maps.PTree.empty _ ->
+    ⊢ believe Espec E Delta ge Delta.
 Proof.
 intros Delta ge w ?.
-intro b.
-intros fsig cc A P Q.
-intros ? ?n ? Hext ?.
-destruct H1 as [id [? [b0 [? ?]]]].
-rewrite H in H1. rewrite PTree.gempty in H1.
-inv H1.
+rewrite /believe.
+iIntros (?????? (? & Hge & ?)).
+rewrite H in Hge; setoid_rewrite Maps.PTree.gempty in Hge; discriminate.
 Qed.
 
 Definition all_assertions_computable  :=
-  forall (Espec: OracleKind) psi f tx vx (Q: assert),
-     exists k,  assert_safe Espec psi f tx vx k = Q.
+  forall psi E f tx vx (Q: environ -> mpred),
+     exists k,  assert_safe Espec psi E f tx vx k = Q.
 (* This is not generally true, but could be made true by adding an "assert" operator
   to the programming language
  *)
-
-Lemma ewand_TT_emp {A} {JA: Join A}{PA: Perm_alg A}{agA: ageable A}{SA: Sep_alg A}{aaA: Age_alg A}{CA: Canc_alg A} {EO: Ext_ord A}:
-  ewand TT emp = emp.
-Proof.
-intros.
-apply pred_ext; intros w ?.
-- destruct (H w w) as [w1 [w3 [? [? ?]]]].
-  + apply necR_refl.
-  + apply ext_refl.
-  + destruct H2 as [e3 [? ?]].
-Abort.
-
-Lemma subp_derives' {A}{agA: ageable A}{EO: Ext_ord A}:
-  forall P Q: pred A, (forall n, (P >=> Q) n) -> P |-- Q.
-Proof.
-intros.
-intros n ?. eapply H; eauto.
-Qed.
 
 Lemma guard_environ_sub:
   forall {Delta Delta' f rho},
@@ -532,16 +430,16 @@ destruct H as [? [? [? ?]]]. rewrite H4; auto.
 Qed.
 
 Lemma proj_frame_ret_assert:
- forall (R: ret_assert) (F: assert) ek vl,
-  proj_ret_assert (frame_ret_assert R F) ek vl =
-  seplog.sepcon (proj_ret_assert R ek vl) F.
+ forall (R: ret_assert) (F: assert) ek vl rho,
+  proj_ret_assert (frame_ret_assert R F) ek vl rho ⊣⊢
+  (proj_ret_assert R ek vl rho ∗ F rho).
 Proof.
-intros; extensionality rho; destruct R, ek; simpl;
-rewrite ?sepcon_andp_prop1; auto.
+intros; destruct R, ek; simpl;
+rewrite ?pure_and_sep_assoc; auto.
 Qed.
 
-Lemma semax_extensionality0 {CS: compspecs} {Espec: OracleKind}:
-       TT |--
+(*Lemma semax_extensionality0 {CS: compspecs} {Espec: OracleKind}:
+       True ⊢
       ALL Delta:tycontext, ALL Delta':tycontext,
       ALL P:assert, ALL P':assert,
       ALL c: statement, ALL R:ret_assert, ALL R':ret_assert,
@@ -614,65 +512,35 @@ split; auto.
 destruct H0;
 split; auto.
 split; auto.
-Qed.
+Qed.*)
 
-Lemma semax_frame {CS: compspecs} {Espec: OracleKind}:  forall Delta P s R F,
+Lemma semax_frame {CS: compspecs} :  forall E Delta P s R F,
    closed_wrt_modvars s F ->
-  semax Espec Delta P s R ->
-    semax Espec Delta (fun rho => P rho * F rho) s (frame_ret_assert R F).
+  semax Espec E Delta P s R ->
+  semax Espec E Delta (fun rho => P rho ∗ F rho) s (frame_ret_assert R F).
 Proof.
 intros until F. intros CL H.
 rewrite semax_unfold.
 rewrite semax_unfold in H.
 intros.
-pose (F0F := fun rho => F0 rho * F rho).
-specialize (H psi Delta' CS' w TS HGG Prog_OK k F0F f).
-spec H. {
- unfold F0F.
- clear - H0 CL.
- hnf in *; intros; simpl in *.
- rewrite <- CL. rewrite <- H0. auto.
- tauto. tauto.
-}
-replace (fun rho : environ => F0 rho * (P rho * F rho))
-  with  (fun rho : environ => F0F rho * P rho).
-*
-apply H.
-unfold F0F; clear - H1.
-intros ek vl tx vx; specialize (H1 ek vl tx vx).
-red in H1.
-remember ((construct_rho (filter_genv psi) vx tx)) as rho.
-red.
-hnf; intros. specialize (H1 _ H).
-hnf; intros. eapply H1; eauto.
-destruct H3; split; auto. destruct H3; split; auto.
-rewrite proj_frame_ret_assert in H5|-*.
-rewrite proj_frame_ret_assert.
-rewrite seplog.sepcon_assoc.
-eapply sepcon_derives; try apply H5; auto. simpl.
-rewrite sepcon_comm; auto.
-*
-unfold F0F.
-extensionality rho.
-rewrite sepcon_assoc.
-f_equal. apply sepcon_comm.
+iIntros "H" (???) "[% guard]".
+pose (F0F := fun rho => F0 rho ∗ F rho).
+iPoseProof (H with "H") as "H".
+iSpecialize ("H" $! _ F0F with "[-]").
+{ rewrite /bi_affinely; iSplit; first done.
+  iSplit.
+  * iPureIntro.
+    unfold F0F.
+    hnf in *; intros; simpl in *.
+    rewrite <- CL. rewrite <- H0. auto.
+    tauto. tauto.
+  * iIntros (??).
+    rewrite bi.and_elim_r.
+    iApply (_guard_mono with "guard"); try done.
+    by intros; rewrite !proj_frame /F0F assoc. }
+iApply (guard_mono with "H"); try done.
+by intros; rewrite /F0F (bi.sep_comm (P _)) assoc.
 Qed.
-
-Lemma assert_safe_last:
-  forall {Espec: OracleKind} f ge ve te c k rho w,
-   (forall w', age w w' -> assert_safe Espec f ge ve te (Cont (Kseq c k)) rho w) ->
-    assert_safe Espec f ge ve te (Cont (Kseq c k)) rho w.
-Proof.
-intros.
-case_eq (age1 w). auto.
-clear H.
-intro; repeat intro.
-apply age1_level0 in H. lia.
-Qed.
-
-End SemaxContext.
-
-#[export] Hint Resolve age_laterR : core.
 
 Fixpoint filter_seq (k: cont) : cont :=
  match k with
@@ -749,47 +617,32 @@ Proof.
   induction l; simpl; intros; try congruence; auto.
 Qed.
 
-Lemma and_FF : forall {A} `{ageable A} {EO: Ext_ord A} (P:pred A),
-  P && FF = FF.
-Proof.
-  intros. rewrite andp_comm. apply FF_and.
-Qed.
-
-Lemma sepcon_FF : forall {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A}{EO: Ext_ord A}{EA: Ext_alg A} (P:pred A),
-  (P * FF = FF)%pred.
-Proof.
-  intros. rewrite sepcon_comm. apply FF_sepcon.
-Qed.
-
 Section extensions.
 
 Lemma safe_loop_skip:
-  forall {Espec: OracleKind}
-    ge ora f ve te k m,
-    jsafeN (@OK_spec Espec) ge ora
-           (State f (Sloop Clight.Sskip Clight.Sskip) k ve te) m.
+  forall ge E ora f ve te k,
+    ⊢ jsafeN Espec ge E ora
+           (State f (Sloop Clight.Sskip Clight.Sskip) k ve te).
 Proof.
   intros.
-  remember (level m) as M.
-  revert dependent m; induction M as [? IHM] using lt_wf_ind; intros.
-  eapply jsafeN_local_step. constructor.
-  intros.
-  eapply jsafeN_local_step. constructor. auto.
-  intros.
-  eapply jsafeN_local_step. constructor.
-  intros.
-  eapply IHM; eauto.
-  apply age_level in H. apply age_level in H0. apply age_level in H1. lia.
+  iIntros; iLöb as "IH".
+  iApply jsafeN_local_step.
+  { intros; constructor. }
+  iNext; iApply jsafeN_local_step.
+  { intros; constructor; auto. }
+  iNext; iApply jsafeN_local_step.
+  { intros; constructor. }
+  done.
 Qed.
 
 Local Open Scope nat_scope.
 
-Definition control_as_safex {Espec: OracleKind} ge c1 k1 c2 k2 :=
-    forall (ora : OK_ty) f (ve : env) (te : temp_env) (m : juicy_mem),
-        jsafeN (@OK_spec Espec) ge ora (State f c1 k1 ve te) m ->
-          jsafeN (@OK_spec Espec) ge ora (State f c2 k2 ve te) m.
+Definition control_as_safex ge c1 k1 c2 k2 :=
+    forall E (ora : OK_ty) f (ve : env) (te : temp_env),
+        jsafeN Espec ge E ora (State f c1 k1 ve te) ⊢
+          jsafeN Espec ge E ora (State f c2 k2 ve te).
 
-Definition control_as_safe {Espec: OracleKind} ge ctl1 ctl2 :=
+Definition control_as_safe ge ctl1 ctl2 :=
  match ctl1, ctl2 with
  | Kseq c1 k1, Kseq c2 k2 =>
                    control_as_safex ge c1 k1 c2 k2
@@ -802,7 +655,7 @@ Definition control_as_safe {Espec: OracleKind} ge ctl1 ctl2 :=
  | Kseq c1 k1, Kcall _ _ _ _ _ =>
                    control_as_safex ge c1 k1 (Sreturn None) ctl2
  | Kseq _ _, _ =>
-                   False
+                   False%type
  | Kloop1 _ _ _, Kseq c2 k2 =>
                    control_as_safex ge Sskip ctl1 c2 k2
  | Kloop1 _ _ _, Kloop1 _ _ _ =>
@@ -810,7 +663,7 @@ Definition control_as_safe {Espec: OracleKind} ge ctl1 ctl2 :=
  | Kloop1 _ _ _, Kloop2 body incr k2 =>
                    control_as_safex ge Sskip ctl1 (Sloop body incr) k2
  | Kloop1 _ _ _, _ =>
-                   False
+                   False%type
  | Kloop2 b1 i1 k1, Kseq c2 k2 =>
                    control_as_safex ge (Sloop b1 i1) k1 c2 k2
  | Kloop2 b1 i1 k1, Kloop1 _ _ _ =>
@@ -818,7 +671,7 @@ Definition control_as_safe {Espec: OracleKind} ge ctl1 ctl2 :=
  | Kloop2 b1 i1 k1, Kloop2 b2 i2 k2 =>
                    control_as_safex ge (Sloop b1 i1) k1 (Sloop b2 i2) k2
  | Kloop2 _ _ _, _ =>
-                   False
+                   False%type
  | Kstop, Kseq c2 k2 =>
                    control_as_safex ge (Sreturn None) Kstop c2 k2
  | Kcall _ _ _ _ _, Kseq c2 k2=>
@@ -915,139 +768,44 @@ clear find_label_ls_None; induction s; simpl; intros; try congruence;
  rewrite (find_label_None _ _ _ H). eauto.
 Qed.
 
-Lemma guard_safe_adj' {Espec: OracleKind}:
+Lemma guard_safe_adj':
  forall
-   psi Delta f P c1 k1 c2 k2,
-  (forall ora m ve te,
-     jsafeN (@OK_spec Espec) psi ora (State f c1 k1 ve te) m ->
-     jsafeN (@OK_spec Espec) psi ora (State f c2 k2 ve te) m) ->
-  guard Espec psi Delta f P (Kseq c1 k1) |-- guard Espec psi Delta f P (Kseq c2 k2).
+   psi E Delta f P c1 k1 c2 k2,
+  (forall E ora ve te,
+     jsafeN Espec psi E ora (State f c1 k1 ve te) ⊢
+     jsafeN Espec psi E ora (State f c2 k2 ve te)) ->
+  guard' Espec psi E Delta f P (Kseq c1 k1) ⊢ guard' Espec psi E Delta f P (Kseq c2 k2).
 Proof.
 intros.
-unfold guard.
-apply allp_derives. intros tx.
-apply allp_derives. intros vx.
-apply subp_derives; auto.
-apply assert_safe_derives; split; auto; intros.
-eapply jm_fupd_mono; eauto.
+unfold guard', _guard.
+iIntros "#H" (??) "!> P".
+iSpecialize ("H" with "P").
+rewrite /assert_safe.
+iIntros (??); rewrite -H; iApply "H"; auto.
 Qed.
 
 Lemma assert_safe_adj:
-  forall {Espec: OracleKind} ge f ve te k k' rho,
+  forall ge E f ve te k k' rho,
      control_as_safe ge k k' ->
-     assert_safe Espec ge f ve te (Cont k) rho
-    |-- assert_safe Espec ge f ve te (Cont k') rho.
-Proof.
- intros. apply assert_safe_derives; split; auto; intros.
- destruct k as [ | s ctl' | | | |] eqn:Hk; try contradiction;
- destruct k' as [ | s2 ctl2' | | | |] eqn:Hk'; try contradiction;
- try discriminate; auto;
- try solve [eapply jm_fupd_mono; eauto; intros; apply H; auto].
- inv H; auto.
-Qed.
-
-Lemma assert_safe_adj':
-  forall {Espec: OracleKind} ge f ve te k k' rho P w,
-      (control_as_safe ge k k') ->
-     app_pred (P >=> assert_safe Espec ge f ve te (Cont k) rho) w ->
-     app_pred (P >=> assert_safe Espec ge f ve te (Cont k') rho) w.
-Proof.
- intros.
- eapply subp_trans'; [ | apply derives_subp; eapply assert_safe_adj; try eassumption; eauto].
- auto.
-Qed.
-
-Lemma assert_safe_last': forall {Espec: OracleKind} ge f ve te c k rho w,
-            (age1 w <> None -> assert_safe Espec ge f ve te (Cont (Kseq c k)) rho w) ->
-             assert_safe Espec ge f ve te (Cont (Kseq c k)) rho w.
-Proof.
- intros. apply assert_safe_last; intros. apply H. rewrite H0. congruence.
-Qed.
-
-Lemma pjoinable_emp_None {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:
-  forall w: option (psepalg.lifted JA), identity w ->  w=None.
-Proof.
-intros.
-destruct w; auto.
-exfalso.
-specialize (H None (Some l)).
-spec H.
-constructor.
-inversion H.
-Qed.
-
-Lemma pjoinable_None_emp {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:
-           identity (None: option (psepalg.lifted JA)).
-Proof.
-intros; intro; intros.
-inv H; auto.
-Qed.
-
-Lemma unage_mapsto:
-  forall sh t v1 v2 w, age1 w <> None -> (|> mapsto sh t v1 v2) w -> mapsto sh t v1 v2 w.
+     assert_safe Espec ge E f ve te (Cont k) rho ⊢
+     assert_safe Espec ge E f ve te (Cont k') rho.
 Proof.
   intros.
-  case_eq (age1 w); intros; try contradiction.
-  clear H.
-  specialize (H0 _ (age_laterR H1)).
-  unfold mapsto in *.
-  revert H0; case_eq (access_mode t); intros; auto.
-  destruct (type_is_volatile t); try contradiction.
-  destruct v1; try contradiction.
-  rename H into Hmode.
-  if_tac; rename H into H_READ.
-  + destruct H0 as [H0|H0]; [left | right].
-    destruct H0 as [H0' H0]; split; auto.
-    destruct H0 as [bl []]; exists bl; split; auto.
-    clear - H0 H1.
-     intro loc'; specialize (H0 loc').
-     hnf in *.
-     if_tac.
-     destruct H0 as [p ?]; exists p.
-     hnf in *.
-     rewrite preds_fmap_NoneP in *.
-     apply (age1_YES w r); auto.
-     unfold noat in *; simpl in *.
-    apply <- (age1_resource_at_identity _ _ loc' H1); auto.
-    destruct H0 as [? [v2' [bl []]]].
-    hnf in H. subst v2. split; hnf; auto. exists v2', bl; split; auto.
-    clear - H2 H1; rename H2 into H0.
-     intro loc'; specialize (H0 loc').
-     hnf in *.
-     if_tac.
-     destruct H0 as [p ?]; exists p.
-     hnf in *.
-     rewrite preds_fmap_NoneP in *.
-     apply (age1_YES w r); auto.
-     unfold noat in *; simpl in *.
-    apply <- (age1_resource_at_identity _ _ loc' H1); auto.
-  + split; [exact (proj1 H0) |].
-    destruct H0 as [_ ?].
-    intro loc'; specialize (H loc').
-    hnf in *.
-    if_tac.
-    - unfold shareat in *; simpl in *.
-      pose proof H1.
-      apply age1_resource_share with (l := loc') in H1.
-      apply age1_nonlock with (l := loc') in H2.
-      rewrite H1; tauto.
-    - unfold noat in *; simpl in *.
-      apply <- (age1_resource_at_identity _ _ loc' H1); auto.
+  rewrite /assert_safe.
+  iIntros "H" (??).
+  destruct k as [ | s ctl' | | | |] eqn:Hk; try contradiction;
+  destruct k' as [ | s2 ctl2' | | | |] eqn:Hk'; try contradiction;
+  try discriminate; rewrite -?H; iApply "H"; auto.
 Qed.
 
-Lemma semax_Delta_subsumption {CS: compspecs} {Espec: OracleKind}:
-  forall Delta Delta' P c R,
+Lemma semax_Delta_subsumption {CS: compspecs}:
+  forall E Delta Delta' P c R,
        tycontext_sub Delta Delta' ->
-     semax Espec Delta P c R -> semax Espec Delta' P c R.
+     semax Espec E Delta P c R -> semax Espec E Delta' P c R.
 Proof.
 intros.
 unfold semax in *.
-intros.
-specialize (H0 n).
-apply (semax_extensionality1 Delta Delta' P P c R R); auto.
-split; auto.
-split; auto.
-intros ? ? ?; auto.
+rewrite -semax_mono; eauto.
 Qed.
 
 End extensions.
@@ -1120,7 +878,7 @@ Section eq_dec.
   Let eq_dec_Z : EqDec Z. repeat t. Defined.
   Let eq_dec_calling_convention : EqDec calling_convention. repeat t. Defined.
   Lemma eq_dec_external_function : EqDec external_function. repeat t. Defined.
-  Let eq_dec_option_ident := option_eq (ident_eq).
+  Let eq_dec_option_ident := Coqlib.option_eq (ident_eq).
   Let eq_dec_option_Z : EqDec (option Z). repeat t. Defined.
   Let eq_dec_typelist : EqDec typelist. repeat t. Defined.
 
@@ -1133,15 +891,15 @@ Section eq_dec.
 
   Local Ltac eq_dec a a' :=
     let H := fresh in
-    assert (H : {a = a'} + {a <> a'}) by (auto; repeat (decide equality ; auto));
+    assert (H : {a = a'} + {a <> a'} ) by (auto; repeat (decide equality ; auto));
     destruct H; [subst; auto | try (right; congruence)].
 
   Lemma eq_dec_statement : forall s s' : statement, { s = s' } + { s <> s' }.
   Proof.
     apply
       (statement_rect
-         (fun s => forall s', { s = s' } + { s <> s' })
-         (fun l => forall l', { l = l' } + { l <> l' }));
+         (fun s => forall s', { s = s' } + { s <> s' } )
+         (fun l => forall l', { l = l' } + { l <> l' } ));
       try (intros until s'; destruct s'); intros;
       try (destruct l');
       try solve [right; congruence | left; reflexivity];
@@ -1320,10 +1078,10 @@ Proof.
   eapply modifiedvars_Sswitch; eauto.
 Qed.
 
-Lemma semax_eq:
+(*Lemma semax_eq:
  forall {CS: compspecs} {Espec: OracleKind} Delta P c R,
   semax Espec Delta P c R =
-  (TT |-- (ALL psi : genv,
+  (True ⊢ (ALL psi : genv,
          ALL Delta' : tycontext, ALL CS':compspecs,
          !! (tycontext_sub Delta Delta' /\ cenv_sub (@cenv_cs CS) (@cenv_cs CS') /\
                                           cenv_sub (@cenv_cs CS') (genv_cenv psi)) -->
@@ -1338,70 +1096,37 @@ intros.
 extensionality w.
 rewrite semax_fold_unfold.
 apply prop_ext; intuition.
-Qed.
+Qed.*)
 
-Lemma semax_Slabel {cs:compspecs} {Espec: OracleKind}
-       (Gamma:tycontext) (P:environ -> mpred) (c:statement) (Q:ret_assert) l:
-@semax cs Espec Gamma P c Q -> @semax cs Espec Gamma P (Slabel l c) Q.
-Proof. intros.
-rewrite semax_eq. rewrite semax_eq in H.
-eapply derives_trans. eassumption. clear H.
-apply allp_derives; intros psi.
-apply allp_derives; intros Delta.
-apply allp_derives; intros CS'.
-apply prop_imp_derives; intros TC.
-apply imp_derives; [ apply derives_refl | ].
-apply allp_derives; intros k.
-apply allp_derives; intros F.
-apply allp_derives; intros f.
-apply imp_derives; [ apply derives_refl | ].
-apply guard_safe_adj'.
-intros.
-clear - H.
-eapply jsafeN_local_step.
+Lemma semax_Slabel {cs:compspecs}
+       E (Gamma:tycontext) (P:environ -> mpred) (c:statement) (Q:ret_assert) l:
+semax(CS := cs) Espec E Gamma P c Q -> semax(CS := cs) Espec E Gamma P (Slabel l c) Q.
+Proof.
+rewrite !semax_unfold; intros.
+iIntros "H" (???) "guard".
+iApply guard_safe_adj'; last iApply (H with "H guard").
+intros; iIntros "H"; iApply jsafeN_local_step; last done.
 constructor.
-intros.
-eapply age_safe; eauto.
 Qed.
 
-Lemma fupd_denote_tc: forall {cs: compspecs} P t rho a,
-  denote_tc_assert t rho a -> fupd P a -> fupd (denote_tc_assert t rho && P) a.
+Lemma assert_safe_jsafe: forall ge E f ve te c k ora,
+  assert_safe Espec ge E f ve te (Cont (Kseq c k)) (construct_rho (filter_genv ge) ve te) ⊢
+  jsafeN Espec ge E ora (State f c k ve te).
 Proof.
-  intros.
-  repeat intro.
-  eapply H0 in H4; eauto.
-  destruct H4 as (b & ? & m & ? & ? & ? & HP); subst.
-  eexists; split; eauto; exists m; repeat split; eauto.
-  destruct HP; [left; auto|].
-(*  right; split; auto.
-  eapply denote_tc_resource; [|eauto]; auto.
-Qed.*) Abort. (* What if we put the valid_pointer info into an invariant? *)
-
-Lemma ext_compat_unnec : forall {Z} (ora : Z) w w', necR w w' -> ext_compat ora w' -> ext_compat ora w.
-Proof.
-  induction 1; auto.
-  apply ext_compat_unage; auto.
+  intros; rewrite /assert_safe.
+  iIntros "H"; iApply "H"; auto.
 Qed.
 
-Lemma assert_safe_jsafe: forall {Espec: OracleKind} ge f ve te c k ora jm,
-  assert_safe Espec ge f ve te (Cont (Kseq c k)) (construct_rho (filter_genv ge) ve te) (m_phi jm) ->
-  jm_fupd ora Ensembles.Full_set Ensembles.Full_set (jsafeN OK_spec ge ora (State f c k ve te)) jm.
+Lemma assert_safe_jsafe': forall ge E f ve te k ora,
+  assert_safe Espec ge E f ve te (Cont k) (construct_rho (filter_genv ge) ve te) ⊢
+  jsafeN Espec ge E ora (State f Sskip k ve te).
 Proof.
-  repeat intro.
-  destruct (level (m_phi jm)) eqn: Hl.
-  { do 2 eexists; eauto; split; unfold jm_update; auto.
-    apply necR_level in H0; apply join_level in H1 as []; rewrite <- !level_juice_level_phi in *; lia. }
-  eapply H; eauto; [|lia].
-  eapply ext_compat_unnec; [apply necR_jm_phi; eauto|].
-  eapply join_sub_joins_trans; [eexists; apply ghost_of_join; eauto|].
-  eapply joins_comm, join_sub_joins_trans; [|apply joins_comm; eauto].
-  destruct H4 as [? J]; eapply ghost_fmap_join in J; eexists; eauto.
+  intros; rewrite /assert_safe.
+  iIntros "H"; iSpecialize ("H" with "[%]"); first done.
+  destruct k; try iMod "H" as "[]"; try done.
+  - iApply jsafeN_local_step. constructor; auto.
+  iIntros "H"; iApply "H"; auto.
 Qed.
-
-Lemma assert_safe_jsafe': forall {Espec: OracleKind} ge f ve te k ora jm,
-  assert_safe Espec ge f ve te (Cont k) (construct_rho (filter_genv ge) ve te) (m_phi jm) ->
-  jm_fupd ora Ensembles.Full_set Ensembles.Full_set (jsafeN OK_spec ge ora (State f Sskip k ve te)) jm.
-Proof.
   repeat intro.
   destruct (level (m_phi jm)) eqn: Hl.
   { do 2 eexists; eauto; split; unfold jm_update; auto.
@@ -1430,125 +1155,5 @@ Proof.
   destruct H6; split; auto. inv H6; econstructor; simpl; eauto.
 Qed.
 
-Definition assert_safe0_ {Espec : OracleKind} ge ve te q w := forall (ora : OK_ty) (jm : juicy_mem),
-    ext_compat ora w ->
-    construct_rho (filter_genv ge) ve te = construct_rho (filter_genv ge) ve te ->
-    m_phi jm = w ->
-    (level w > 0)%nat -> jm_fupd ora Ensembles.Full_set Ensembles.Full_set (jsafeN (@OK_spec Espec) ge ora q) jm.
 
-Program Definition assert_safe0 {Espec} ge ve te q : mpred := @assert_safe0_ Espec ge ve te q.
-Next Obligation.
-Proof.
-  split; unfold assert_safe0_; intros ?; intros.
-  - subst.
-    destruct (oracle_unage _ _ H) as [jm0 [? ?]]; subst.
-    eapply jm_fupd_age; eauto.
-    apply H0; auto.
-    + eapply ext_compat_unage; eauto.
-    + apply age_level in H. lia.
-  - subst. destruct (ext_ord_juicy_mem' _ _ H) as (? & Hd & Ha); subst.
-    eapply jm_fupd_ext; [| split; eauto | intros; eapply ext_safe; eauto].
-    apply H0; auto.
-    + eapply ext_compat_unext; eauto.
-    + apply rmap_order in H as [? _]; lia.
-Qed.
-
-Definition assert_safe1_ {Espec : OracleKind} ge q w := forall (ora : OK_ty) (jm : juicy_mem),
-    ext_compat ora w ->
-    m_phi jm = w ->
-    (level w > 0)%nat -> jm_fupd ora Ensembles.Full_set Ensembles.Full_set (jsafeN (@OK_spec Espec) ge ora q) jm.
-
-Program Definition assert_safe1 {Espec} ge q : mpred := @assert_safe1_ Espec ge q.
-Next Obligation.
-Proof.
-  split; unfold assert_safe1_; intros ?; intros.
-  - subst.
-    destruct (oracle_unage _ _ H) as [jm0 [? ?]]; subst.
-    eapply jm_fupd_age; eauto.
-    apply H0; auto.
-    + eapply ext_compat_unage; eauto.
-    + apply age_level in H. lia.
-  - subst. destruct (ext_ord_juicy_mem' _ _ H) as (? & Hd & Ha); subst.
-    eapply jm_fupd_ext; [| split; eauto | intros; eapply ext_safe; eauto].
-    apply H0; auto.
-    + eapply ext_compat_unext; eauto.
-    + apply rmap_order in H as [? _]; lia.
-Qed.
-
-Lemma fupd_jm_fupd : forall {Espec: OracleKind} ge (ora : OK_ty) ve te P Q jm,
-  fupd Q (m_phi jm) ->
-  proj1_sig Q = (fun w => forall (ora : OK_ty) (jm : juicy_mem),
-    ext_compat ora w ->
-    construct_rho (filter_genv ge) ve te = construct_rho (filter_genv ge) ve te ->
-    m_phi jm = w ->
-    (level w > 0)%nat -> jm_fupd ora Ensembles.Full_set Ensembles.Full_set (P ora) jm) ->
-  jm_fupd ora Ensembles.Full_set Ensembles.Full_set (P ora) jm.
-Proof.
-  intros.
-  intros ?????? Hinv.
-  pose proof Hinv; eapply H in Hinv; try apply necR_jm_phi; eauto.
-  intros ???. edestruct Hinv as (? & ? & z' & ? & Hr & ? & Hsafe); eauto; subst.
-  destruct (level z') eqn: Hl.
-  { exists z; split; auto; unfold jm_update; split; auto. }
-  destruct Hsafe as [HF | (? & m1 & J & ? & Hsafe)].
-  { symmetry in Hl; apply levelS_age in Hl as (? & Hage & ?).
-    rewrite later_age in HF; apply HF in Hage; contradiction. }
-  destruct (juicy_mem_resource _ _ Hr) as (jm0 & ? & ?); subst.
-  destruct (juicy_mem_sub jm0 m1) as (jm1 & ? & ?); [eexists; eauto | subst].
-  assert (level (m_phi jm1) > 0)%nat as LW1 by (apply join_level in J as []; lia).
-  unfold app_pred in Hsafe; rewrite H0 in Hsafe.
-  eapply Hsafe in LW1; eauto.
-  specialize (LW1 _ _ _ (necR_refl _) (join_comm J)); spec LW1; auto.
-  edestruct LW1 as (m'' & ? & (? & ? & ?) & Hcase); eauto.
-  { replace (level jm0) with (level (m_phi z)) by (rewrite level_juice_level_phi; congruence); auto. }
-  exists m''; split.
-  { replace (level z) with (level jm0) by (rewrite !level_juice_level_phi; congruence); auto. }
-  split; auto.
-  split; try congruence; split; try congruence.
-  rewrite !level_juice_level_phi in *; congruence.
-  + eapply join_sub_joins_trans; [eexists; apply ghost_of_join; eauto|].
-    eapply joins_comm, join_sub_joins_trans; [|apply joins_comm; eauto].
-    destruct H5 as [? J']; eapply ghost_fmap_join in J'; eexists; eauto.
-Qed.
-
-Lemma assert_safe0_fupd : forall {Espec: OracleKind} ge (ora : OK_ty) ve te q jm,
-  fupd (assert_safe0 ge ve te q) (m_phi jm) ->
-  jm_fupd ora Ensembles.Full_set Ensembles.Full_set (jsafeN (@OK_spec Espec) ge ora q) jm.
-Proof.
-  intros.
-  eapply fupd_jm_fupd with (P := fun ora => jsafeN OK_spec ge ora q); eauto.
-  reflexivity.
-Qed.
-
-Lemma assert_safe1_fupd : forall {Espec: OracleKind} ge (ora : OK_ty) q jm,
-  fupd (assert_safe1 ge q) (m_phi jm) ->
-  jm_fupd ora Ensembles.Full_set Ensembles.Full_set (jsafeN (@OK_spec Espec) ge ora q) jm.
-Proof.
-  intros.
-  eapply assert_safe0_fupd with (ve := empty_env)(te := PTree.empty _).
-  eapply fupd.fupd_mono, H.
-  intros ???; auto.
-Qed.
-
-Lemma assert_safe_fupd : forall {Espec: OracleKind} ge f ve te c rho,
-  (match c with Ret _ _ => False | _ => True end) ->
-  fupd (assert_safe Espec ge f ve te c rho) |-- assert_safe Espec ge f ve te c rho.
-Proof.
-  intros.
-  destruct c; try contradiction; clear H;
-  intros ????????; subst;
-  [|destruct c; try (eapply fupd_jm_fupd with (P := fun ora => jsafeN OK_spec ge ora _); eauto; reflexivity)];
-  eapply fupd_jm_fupd with (P := fun _ _ => False); eauto; reflexivity.
-Qed.
-
-Lemma jm_fupd_local_step
-     : forall {Espec: OracleKind} (ge : genv) (ora : OK_ty) (s1 : CC_core)
-         (m : juicy_mem) (s2 : CC_core),
-       cl_step ge s1 (m_dry m) s2 (m_dry m) ->
-       (forall m' : juicy_mem,
-        age m m' -> jm_bupd ora (jsafeN (@OK_spec Espec) ge ora s2) m') ->
-       jm_fupd ora Ensembles.Full_set Ensembles.Full_set (jsafeN (@OK_spec Espec) ge ora s1) m.
-Proof.
-intros.
-destruct (age1 m) as [m' | ] eqn:?H.
-Abort.
+End SemaxContext.

@@ -702,10 +702,10 @@ Program Definition jsafeN_pre
 (* Hypothesis: we don't actually need juicy_mem here, and can requantify over the plain mem at every step. *)
 Program Definition jsafe_pre
     (jsafe : coPset -d> Z -d> C -d> iPropO Σ) : coPset -d> Z -d> C -d> iPropO Σ := λ E z c,
-  ◇ ((∃ i, ⌜halted Hcore c i⌝ ∧ |={E}=> ∀ m, coherent_with m → ext_jmpred_exit Z Hspec (Some (Vint i)) z m) ∨
-     (⌜∀i, ¬halted Hcore c i⌝ ∧ ∀ phi, auth_heap phi -∗ ext_auth z ={E}=∗ ∀ m, coherent_with m →
-      (▷ ∀ c' m' phi', ⌜corestep Hcore c m c' m'⌝ ={E}=∗ coherent_with m' ∧ (auth_heap phi' ∗ ext_auth z ∗ jsafe E z c')) ∧
-      (∀e args x, ⌜at_external Hcore c m = Some (e, args)⌝ -∗ ext_jmpred_pre Z Hspec e x (genv_symb ge) (sig_args (ef_sig e)) args z m -∗
+  ◇ ((∀i, ⌜halted Hcore c i⌝ → |={E}=> ∀ m, coherent_with m → ext_jmpred_exit Z Hspec (Some (Vint i)) z m) ∧
+     (∀ phi, auth_heap phi -∗ ext_auth z ={E}=∗ ∀ m, coherent_with m →
+      (▷ ∀ c' m', ⌜corestep Hcore c m c' m'⌝ → |={E}=> coherent_with m' ∧ ((∃ phi', auth_heap phi') ∗ ext_auth z ∗ jsafe E z c')) ∧
+      (∀e args x, ⌜at_external Hcore c m = Some (e, args)⌝ → ext_jmpred_pre Z Hspec e x (genv_symb ge) (sig_args (ef_sig e)) args z m -∗
          ▷ □ (∀ ret m' phi' z', ⌜Val.has_type_list args (sig_args (ef_sig e)) ∧ Builtins0.val_opt_has_rettype ret (sig_res (ef_sig e))⌝ -∗
           ((ext_jmpred_post Z Hspec e x (genv_symb ge) (sig_res (ef_sig e)) ret z' m' ∧ coherent_with m') -∗ auth_heap phi' ={E}=∗
           ∃ c', ⌜after_external Hcore ret c m' = Some c'⌝ ∧ ext_auth z' ∗ jsafe E z' c'))))).
@@ -713,7 +713,7 @@ Program Definition jsafe_pre
 Local Instance jsafe_pre_contractive : Contractive jsafe_pre.
 Proof.
   rewrite /jsafe_pre => n jsafe jsafe' Hsafe E z c.
-  do 12 f_equiv.
+  do 11 f_equiv.
   - f_contractive; repeat f_equiv. apply Hsafe.
   - do 8 f_equiv. f_contractive; repeat f_equiv. apply Hsafe.
 Qed.
@@ -733,21 +733,12 @@ Proof. rewrite -jsafe_aux.(seal_eq) //. Qed.
 Lemma jsafe_unfold E z c : jsafe E z c ⊣⊢ jsafe_pre jsafe E z c.
 Proof. rewrite jsafe_unseal. apply (fixpoint_unfold jsafe_pre). Qed.
 
-Context (halted_fun : C -> option int) (Hhalted_correct : ∀ c i, halted Hcore c i ↔ halted_fun c = Some i).
-
 Lemma fupd_jsafe E z c : (|={E}=> jsafe E z c) ⊢ jsafe E z c.
 Proof.
   rewrite jsafe_unfold /jsafe_pre. iIntros "H !>".
-  rewrite fupd_except_0.
-  destruct (halted_fun c) eqn: Hhalt.
-  { iLeft; iExists i; rewrite Hhalted_correct; iFrame "%".
-    iMod "H" as "[H | H]".
-    * iDestruct "H" as (i' Hi'%Hhalted_correct) "?"; rewrite Hi' in Hhalt; inv Hhalt; done.
-    * iDestruct "H" as (Hhalt') "?". rewrite -Hhalted_correct in Hhalt; contradiction (Hhalt' i). }
-  iRight; iSplit.
-  { iPureIntro; intros; rewrite Hhalted_correct Hhalt; done. }
-  iMod "H"; iDestruct "H" as "[H | [% $]]".
-  iDestruct "H" as (i' Hi') "?"; rewrite Hhalted_correct in Hi'; congruence.
+  rewrite fupd_except_0; iSplit.
+  - by iIntros (??); iMod "H"; iApply "H".
+  - iMod "H" as "[_ $]".
 Qed.
 
 Lemma persistent_sep_impl : forall {PROP : bi} (P Q R : PROP), (□P) ⊢ (Q → R) -∗ Q → (□P ∗ R).
@@ -760,13 +751,11 @@ Lemma jsafe_mask_mono E1 E2 z c : E1 ⊆ E2 → jsafe E1 z c ⊢ jsafe E2 z c.
 Proof.
   iIntros (?) "H". iLöb as "IH" forall (z c).
   rewrite !jsafe_unfold /jsafe_pre.
-  iMod "H" as "[H | H]"; iIntros "!>".
-  - iLeft.
-    iDestruct "H" as (??) "H"; iExists _; iFrame "%".
+  iMod "H"; iIntros "!>"; iSplit.
+  - iIntros (??).
     iMod (fupd_mask_subseteq E1) as "Hclose".
-    by iMod "H" as "$".
-  - iRight.
-    iDestruct "H" as "[$ H]".
+    by rewrite bi.and_elim_l; iMod ("H" with "[%]") as "$".
+  - iDestruct "H" as "[_ H]".
     iIntros (?) "??".
     iMod (fupd_mask_subseteq E1) as "Hclose".
     iMod ("H" with "[$] [$]") as "H"; iMod "Hclose" as "_".
@@ -774,10 +763,11 @@ Proof.
     iPoseProof (persistent_sep_impl with "IH H") as "H".
     iApply (bi.impl_mono with "H"); first done.
     iIntros "[#IH H]"; iSplit.
-    + iIntros "!>" (???) "Hstep".
+    + iIntros "!>" (?? Hstep).
       iDestruct "H" as "[H _]".
       iMod (fupd_mask_subseteq E1) as "Hclose".
-      iMod ("H" with "Hstep") as "H"; iMod "Hclose" as "_"; iIntros "!>".
+      iMod ("H" with "[%]") as "H"; first done.
+      iMod "Hclose" as "_"; iIntros "!>".
       iSplit; first iDestruct "H" as "[$ _]".
       by iDestruct "H" as "[_ ($ & $ & ?)]"; iApply "IH".
     + iIntros (???) "Hext ?".
@@ -798,37 +788,82 @@ Section proofmode_classes.
   Global Instance is_except_0_jsafe E z c : IsExcept0 (jsafe E z c).
   Proof. by rewrite /IsExcept0 -{2}fupd_jsafe -except_0_fupd -fupd_intro. Qed.
 
-  Global Instance elim_modal_bupd_wp p P E z c :
+  Global Instance elim_modal_bupd_jsafe p P E z c :
     ElimModal Logic.True p false (|==> P) P (jsafe E z c) (jsafe E z c).
   Proof.
     by rewrite /ElimModal bi.intuitionistically_if_elim
       (bupd_fupd E) fupd_frame_r bi.wand_elim_r fupd_jsafe.
   Qed.
 
-  Global Instance elim_modal_fupd_wp p P E z c :
+  Global Instance elim_modal_fupd_jsafe p P E z c :
     ElimModal Logic.True p false (|={E}=> P) P (jsafe E z c) (jsafe E z c).
   Proof.
     by rewrite /ElimModal bi.intuitionistically_if_elim
       fupd_frame_r bi.wand_elim_r fupd_jsafe.
   Qed.
 
-  Global Instance add_modal_fupd_wp P E z c :
+  Global Instance add_modal_fupd_jsafe P E z c :
     AddModal (|={E}=> P) P (jsafe E z c).
   Proof. by rewrite /AddModal fupd_frame_r bi.wand_elim_r fupd_jsafe. Qed.
 
 End proofmode_classes.
 
+Lemma jsafe_local_step:
+  corestep_fun Hcore ->
+  forall E ora s1 s2,
+  (forall m, corestep Hcore s1 m s2 m) ->
+  ▷jsafe E ora s2 ⊢
+  jsafe E ora s1.
+Proof.
+  intros Hfun ?????; iIntros "H".
+  rewrite (jsafe_unfold _ _ s1) /jsafe_pre.
+  iIntros "!>"; iSplit.
+  { iIntros (? Hhalt). eapply corestep_not_halted in Hhalt as []; apply (H Mem.empty). }
+  iIntros (phi) "heap ext !>".
+  iIntros (m1).
+  iCombine "H heap ext" as "H".
+  iApply (bi.impl_intro_r with "H"); iIntros "H".
+  iSplit.
+  iIntros "!>" (?? Hstep).
+  pose proof (Hfun _ _ _ _ _ _ (H _) Hstep) as [=]; subst.
+  iIntros "!>"; iSplit; first iDestruct "H" as "[_ $]".
+  rewrite !bi.sep_exist_r; iExists phi; iDestruct "H" as "[($ & $ & $) _]".
+  { iIntros (??? Hext).
+    erewrite corestep_not_at_external in Hext; done. }
+Qed.
 
-(*
-Lemma jsafe_corestep_backward:
-    forall c m c' m' z,
-    jstep Hcore c m c' m' ->
-    jsafeN_ z c' m' -> jsafeN_ z c m.
+(*  Definition jstep c c' m' : mpred := ∃ m, ⌜corestep Hcore c m c' m'⌝ ∧ coherent_with m. *)
+
+(*  
+The old version of jsafeN doesn't really care about the rmap at all - it just uses the mem and brings
+the rmap along for the ride. In this one, we'd have to save these proofs for the specific Hoare rules for each kind of step.
+Lemma jsafe_corestep:
+    forall c c' m' E z,
+    (jstep c c' m' ∧ |={E}=> coherent_with m' ∧ jsafe E z c') ⊢ jsafe E z c.
   Proof.
-    intros; eapply jsafeN_step; eauto.
-    apply jm_fupd_intro; auto.
-    intros; eapply necR_safe; eauto.
-  Qed.
+    intros; iIntros "H".
+    rewrite /jstep bi.and_exist_r; iDestruct "H" as (m) "H".
+    rewrite -assoc; iDestruct "H" as (Hstep) "H".
+    rewrite (jsafe_unfold _ _ c) /jsafe_pre.
+    iIntros "!>"; iRight; iSplit.
+    { iPureIntro. intros; eapply corestep_not_halted; eauto. }
+    iIntros (phi) "heap ext !>".
+    iIntros (m1).
+    (* The quantification here means that we'd need to prove that all mems coherent with a given rmap can take the same steps *)
+    iCombine "H heap ext" as "H".
+    iApply (bi.impl_intro_r with "H"); iIntros "H".
+    iSplit.
+    iIntros "!>" (???).
+    assert (m1 = m) as -> by admit.
+    assert (corestep_fun Hcore) as Hfun by admit.
+    pose proof (Hfun _ _ _ _ _ _ H Hstep) as [=]; subst.
+    rewrite bi.and_elim_l bi.and_elim_r.
+    (* do a fancy update to change phi to phi' *)
+    iDestruct "H" as "(? & ? & ?)".
+    (* In the mem-in-the-iRes version, gen_heap_update would talk about store operations on CompCert mems. *)
+Check gen_heap_update .
+Search ghost_map_auth.
+  Qed.*)
 
 (*  Lemma jsafe_corestepN_forward:
     corestep_fun Hcore ->
@@ -852,7 +887,7 @@ Lemma jsafe_corestep_backward:
       apply join_comm, core_unit. }
     destruct H1 as (? & ? & ? & ?).
     eapply (IHn0 _ _ _ _ n).
-  Qed.*)
+  Qed.
 
   Lemma jsafe_step'_back2 :
     forall

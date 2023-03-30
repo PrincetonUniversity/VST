@@ -65,7 +65,7 @@ Definition assert_safe
        ∀ ora, (* ext_compat ora -> *)
        ⌜rho = construct_rho (filter_genv ge) ve te⌝ →
        match ctl with
-       | Stuck => False
+       | Stuck => |={E}=> False
        | Cont (Kseq s ctl') => 
              jsafeN ge E ora (State f s ctl' ve te)
        | Cont (Kloop1 body incr ctl') =>
@@ -76,7 +76,7 @@ Definition assert_safe
              jsafeN ge E ora (State f (Sreturn None) (Kcall id' f' ve' te' k') ve te)
        | Cont Kstop =>
              jsafeN ge E ora (State f (Sreturn None) Kstop ve te)
-       | Cont _ => False
+       | Cont _ => |={E}=> False
        | Ret None ctl' =>
                 jsafeN ge E ora (State f (Sreturn None) ctl' ve te)
        | Ret (Some v) ctl' => ∀ e v' m, coherent_with m →
@@ -84,60 +84,6 @@ Definition assert_safe
                   ⌜Cop.sem_cast v' (typeof e) (fn_return f) m = Some v⌝ →
               jsafeN ge E ora (State f (Sreturn (Some e)) ctl' ve te)
        end.
-
-(*Lemma assert_safe_derives : forall (Espec : OracleKind) (ge ge': genv) (f f': function) (ve ve': env) (te te': temp_env)
-     (ctl ctl': contx) rho rho',
-  (forall w ora (jm:juicy_mem),
-       ext_compat ora w ->
-       rho' = construct_rho (filter_genv ge') ve' te' ->
-       m_phi jm = w ->
-       forall (LW: level w > O), rho = construct_rho (filter_genv ge) ve te /\
-      ((match ctl with
-       | Stuck => jm_fupd ora Ensembles.Full_set Ensembles.Full_set (fun _ => False) jm
-       | Cont (Kseq s ctl') => 
-             jm_fupd ora Ensembles.Full_set Ensembles.Full_set (jsafeN (@OK_spec Espec) ge ora (State f s ctl' ve te)) jm
-       | Cont (Kloop1 body incr ctl') =>
-             jm_fupd ora Ensembles.Full_set Ensembles.Full_set (jsafeN (@OK_spec Espec) ge ora (State f Sskip (Kloop1 body incr ctl') ve te)) jm
-       | Cont (Kloop2 body incr ctl') =>
-             jm_fupd ora Ensembles.Full_set Ensembles.Full_set (jsafeN (@OK_spec Espec) ge ora (State f (Sloop body incr) ctl' ve te)) jm
-       | Cont (Kcall id' f' ve' te' k') => 
-             jm_fupd ora Ensembles.Full_set Ensembles.Full_set (jsafeN (@OK_spec Espec) ge ora (State f (Sreturn None) (Kcall id' f' ve' te' k') ve te)) jm
-       | Cont Kstop =>
-             jm_fupd ora Ensembles.Full_set Ensembles.Full_set (jsafeN (@OK_spec Espec) ge ora (State f (Sreturn None) Kstop ve te)) jm
-       | Cont _ => jm_fupd ora Ensembles.Full_set Ensembles.Full_set (fun _ => False) jm
-       | Ret None ctl' =>
-                jsafeN (@OK_spec Espec) ge ora (State f (Sreturn None) ctl' ve te) jm
-       | Ret (Some v) ctl' => forall e v',
-                  Clight.eval_expr ge ve te (m_dry jm) e v' ->
-                  Cop.sem_cast v' (typeof e) (fn_return f) (m_dry jm) = Some v ->
-              jsafeN (@OK_spec Espec) ge ora (State f (Sreturn (Some e)) ctl' ve te) jm
-       end) ->
-       match ctl' with
-       | Stuck => jm_fupd ora Ensembles.Full_set Ensembles.Full_set (fun _ => False) jm
-       | Cont (Kseq s ctl') => 
-             jm_fupd ora Ensembles.Full_set Ensembles.Full_set (jsafeN (@OK_spec Espec) ge' ora (State f' s ctl' ve' te')) jm
-       | Cont (Kloop1 body incr ctl') =>
-             jm_fupd ora Ensembles.Full_set Ensembles.Full_set (jsafeN (@OK_spec Espec) ge' ora (State f' Sskip (Kloop1 body incr ctl') ve' te')) jm
-       | Cont (Kloop2 body incr ctl') =>
-             jm_fupd ora Ensembles.Full_set Ensembles.Full_set (jsafeN (@OK_spec Espec) ge' ora (State f' (Sloop body incr) ctl' ve' te')) jm
-       | Cont (Kcall id' f'' ve'' te'' k') => 
-             jm_fupd ora Ensembles.Full_set Ensembles.Full_set (jsafeN (@OK_spec Espec) ge' ora (State f' (Sreturn None) (Kcall id' f'' ve'' te'' k') ve' te')) jm
-       | Cont Kstop =>
-             jm_fupd ora Ensembles.Full_set Ensembles.Full_set (jsafeN (@OK_spec Espec) ge' ora (State f' (Sreturn None) Kstop ve' te')) jm
-       | Cont _ => jm_fupd ora Ensembles.Full_set Ensembles.Full_set (fun _ => False) jm
-       | Ret None ctl' =>
-                jsafeN (@OK_spec Espec) ge' ora (State f' (Sreturn None) ctl' ve' te') jm
-       | Ret (Some v) ctl' => forall e v',
-                  Clight.eval_expr ge' ve' te' (m_dry jm) e v' ->
-                  Cop.sem_cast v' (typeof e) (fn_return f') (m_dry jm) = Some v ->
-              jsafeN (@OK_spec Espec) ge' ora (State f' (Sreturn (Some e)) ctl' ve' te') jm
-       end)) ->
-  assert_safe Espec ge f ve te ctl rho ⊢ assert_safe Espec ge' f' ve' te' ctl' rho'.
-Proof.
-  repeat intro.
-  edestruct H as [? Hsafe]; eauto.
-  apply Hsafe, H0; auto.
-Qed.*)
 
 Definition list2opt {T: Type} (vl: list T) : option T :=
  match vl with nil => None | x::_ => Some x end.
@@ -389,7 +335,7 @@ Definition semax_
             /\ cenv_sub (@cenv_cs CS) (@cenv_cs CS') 
             /\ cenv_sub (@cenv_cs CS') (genv_cenv gx)⌝ →
       (believepred CS' semax E Delta' gx Delta') →
-     ∀ k: cont, ∀ F: assert, ∀ f:function,
+     ∀ k: cont, ∀ F: environ -> mpred, ∀ f:function,
        (⌜closed_wrt_modvars c F⌝ ∧
               rguard gx E Delta' f (frame_ret_assert R F) k) →
         guard' gx E Delta' f (fun rho => F rho ∗ P rho) (Kseq c k)
@@ -452,7 +398,7 @@ Lemma semax_fold_unfold : forall {CS: compspecs} E Delta P c R,
            /\ cenv_sub (@cenv_cs CS) (@cenv_cs CS')
            /\ cenv_sub (@cenv_cs CS') (genv_cenv gx))⌝ →
        @believe CS' E Delta' gx Delta' →
-     ∀ k: cont, ∀ F: assert, ∀ f: function,
+     ∀ k: cont, ∀ F: environ -> mpred, ∀ f: function,
         (⌜(closed_wrt_modvars c F)⌝ ∧ rguard gx E Delta' f (frame_ret_assert R F) k) →
         guard' gx E Delta' f (fun rho => F rho ∗ P rho) (Kseq c k).
 Proof.
@@ -481,7 +427,26 @@ Definition semax {CS: compspecs} E (Delta: tycontext) P c Q : Prop :=
 Section believe_monotonicity.
 Context {CS: compspecs}.
 
-Lemma guard_mono gx E Delta Gamma f (P Q:assert) ctl
+Lemma _guard_mono gx E Delta Gamma f (P Q:environ -> mpred) ctl
+  (GD1: forall e te, typecheck_environ Gamma (construct_rho (filter_genv gx) e te) ->
+                     typecheck_environ Delta (construct_rho (filter_genv gx) e te))
+  (GD2: ret_type Delta = ret_type Gamma)
+  (GD3: forall e te, Q (construct_rho (filter_genv gx) e te) ⊢
+                        P (construct_rho (filter_genv gx) e te))
+  (GD4: forall e te, (funassert Gamma (construct_rho (filter_genv gx) e te)) ⊢
+                     (funassert Delta (construct_rho (filter_genv gx) e te))):
+  @_guard gx E Delta f P ctl ⊢
+  @_guard gx E Gamma f Q ctl.
+Proof.
+  rewrite /_guard.
+  iIntros "#H" (??) "!> (% & Q & ?)"; iApply "H".
+  iSplit.
+  - iPureIntro; unfold guard_environ in *.
+    destruct H as (? & ? & ?); rewrite GD2; auto.
+  - iSplit; [by iApply GD3 | by iApply GD4].
+Qed.
+
+Lemma guard_mono gx E Delta Gamma f (P Q:environ -> mpred) ctl
   (GD1: forall e te, typecheck_environ Gamma (construct_rho (filter_genv gx) e te) ->
                      typecheck_environ Delta (construct_rho (filter_genv gx) e te))
   (GD2: ret_type Delta = ret_type Gamma)
@@ -492,12 +457,7 @@ Lemma guard_mono gx E Delta Gamma f (P Q:assert) ctl
   @guard' gx E Delta f P ctl ⊢
   @guard' gx E Gamma f Q ctl.
 Proof.
-  rewrite /guard' /_guard.
-  iIntros "#H" (??) "!> (% & Q & ?)"; iApply "H".
-  iSplit.
-  - iPureIntro; unfold guard_environ in *.
-    destruct H as (? & ? & ?); rewrite GD2; auto.
-  - iSplit; [by iApply GD3 | by iApply GD4].
+  by apply _guard_mono.
 Qed.
 
 Lemma claims_antimono gx Gamma v sig cc A P Q Gamma' 
