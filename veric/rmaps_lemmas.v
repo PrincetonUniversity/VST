@@ -138,7 +138,7 @@ Lemma approx_oo_approx':
 Proof.
 unfold compose; intros.
 extensionality P.
- apply pred_ext; intros w ?; unfold approx; simpl in *; intuition.
+ apply pred_ext; intros w ?; unfold approx; simpl in *; intuition lia.
 Qed.
 
 Lemma approx'_oo_approx:
@@ -146,7 +146,7 @@ Lemma approx'_oo_approx:
 Proof.
 unfold compose; intros.
 extensionality P.
- apply pred_ext; intros w ?; unfold approx; simpl in *; intuition.
+ apply pred_ext; intros w ?; unfold approx; simpl in *; intuition lia.
 Qed.
 
 Lemma approx_oo_approx: forall n, approx n oo approx n = approx n.
@@ -526,7 +526,7 @@ Qed.
       extensionality p.
       apply pred_ext'.  extensionality w.
       unfold compose, approx.
-      apply prop_ext; simpl; intuition.
+      apply prop_ext; simpl; intuition lia.
     + clear.
       assert (n-d <= (S n))%nat by lia.
       revert H; generalize (n-d)%nat (S n).
@@ -535,7 +535,7 @@ Qed.
       extensionality p.
       apply pred_ext'.  extensionality w.
       unfold compose, approx.
-      apply prop_ext; simpl; intuition.
+      apply prop_ext; simpl; intuition lia.
   Qed.
 
   Lemma unageN: forall n (phi': rmap),   exists phi, ageN n phi = Some phi'.
