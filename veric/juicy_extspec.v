@@ -15,6 +15,7 @@ Require Import VST.veric.age_to_resource_at.
 
 Local Open Scope nat_scope.
 Local Open Scope pred.
+Local Obligation Tactic := idtac.
 
 Record juicy_ext_spec (Z: Type) := {
   JE_spec:> external_specification juicy_mem external_function Z;
@@ -144,7 +145,7 @@ Section upd_exit.
   Next Obligation. intros. eapply JE_post_ext; eauto. Qed.
 End upd_exit.
 
-Obligation Tactic := Tactics.program_simpl.
+Local Obligation Tactic := Tactics.program_simpl.
 
 Program Definition juicy_mem_op (P : pred rmap) : pred juicy_mem :=
   fun jm => P (m_phi jm).

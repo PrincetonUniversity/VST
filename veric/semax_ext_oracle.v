@@ -94,6 +94,7 @@ destruct f; simpl; intros a ge ge' n args z H.
 erewrite make_ext_args_symb; eauto.
 Qed.
 
+#[local] Obligation Tactic := idtac.
 Program Definition funspecOracle2jspec (ext_link: Strings.String.string -> ident) f : juicy_ext_spec Z :=
   Build_juicy_ext_spec _ (funspecOracle2extspec ext_link f) _ _ _ _ _ _.
 Next Obligation.

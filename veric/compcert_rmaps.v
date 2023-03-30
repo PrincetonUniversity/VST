@@ -555,7 +555,7 @@ simpl.
 auto.
 Qed.*)
 
-Obligation Tactic := Tactics.program_simpl.
+#[local] Obligation Tactic := Tactics.program_simpl.
 
 Lemma pure_readable_Rsh: pure_readable_share Share.Rsh.
 Proof.

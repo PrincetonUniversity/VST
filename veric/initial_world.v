@@ -12,8 +12,6 @@ Import compcert.lib.Maps.
 
 Local Open Scope pred.
 
-#[local] Obligation Tactic := idtac.
-
 Lemma adr_range_divide:
   forall b i p q loc,
     p >= 0 -> q >= 0 -> (adr_range (b,i) (p+q) loc <-> (adr_range (b,i) p loc \/adr_range (b,i+p) q loc)).

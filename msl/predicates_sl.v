@@ -102,7 +102,7 @@ Definition extendM : modality
   := exist _ extendR valid_rel_extend.
 
 (* Definitions of the BI connectives. *)
-Obligation Tactic := unfold hereditary; intros; try solve [intuition].
+Local Obligation Tactic := unfold hereditary; intros; try solve [intuition].
 
 (* This is the key point of the ordered logic: emp is true of anything
    that's in the extension order with an identity.

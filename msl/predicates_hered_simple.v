@@ -203,7 +203,7 @@ Definition necM {A} `{ageable A} : modality
 
 #[export] Hint Resolve rt_refl rt_trans t_trans : core.
 #[export] Hint Unfold necR : core.
-Obligation Tactic := unfold hereditary; intuition;
+Local Obligation Tactic := unfold hereditary; intuition;
     first [eapply pred_hereditary; eauto; fail | eauto ].
 
 (* Definitions of the basic propositional conectives.
