@@ -23,14 +23,17 @@ jobs:
           # See https://github.com/coq-community/docker-coq/wiki for supported images
           - '8.16'
           - '8.17'
+	  - 'dev'
         bit_size:
           - 32
           - 64
         make_target:
           - vst
-#        exclude:   # until CI really works for CompCert in coq 8.17, don't exclude anything from 8.16
-#          - coq_version: 8.16
-#            bit_size: 32
+        exclude:   
+          - coq_version: 8.16
+            bit_size: 32
+          - coq_version: dev
+            bit_size: 32
     steps:
       - uses: actions/checkout@v2
         with:
