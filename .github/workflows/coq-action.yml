@@ -61,7 +61,7 @@ jobs:
             endGroup
           script: |
             startGroup "Build & Install"
-              make ${{matrix.make_target}} BITSIZE=${{matrix.bit_size}} COMPCERT=${{ matrix.coq_version=='dev' && 'bundled' || 'platform' }}
+              make ${{matrix.make_target}} BITSIZE=${{matrix.bit_size}} COMPCERT=${{ matrix.coq_version=='dev' && 'bundled' || 'platform' }} IGNORECOQVERSION=true
             endGroup
           after_script: |
             startGroup 'Copy Opam coq/user-contrib and coq-variant'
@@ -131,7 +131,7 @@ jobs:
             endGroup
           script: |
             startGroup "Build & Install"
-              make -f util/make-touch
-              make ${{matrix.make_target}} BITSIZE=${{matrix.bit_size}} COMPCERT=${{ matrix.coq_version=='dev' && 'bundled' || 'platform' }}
+              make -f util/make-touch  IGNORECOQVERSION=true
+              make ${{matrix.make_target}} BITSIZE=${{matrix.bit_size}} COMPCERT=${{ matrix.coq_version=='dev' && 'bundled' || 'platform' }}  IGNORECOQVERSION=true
             endGroup
           uninstall:
