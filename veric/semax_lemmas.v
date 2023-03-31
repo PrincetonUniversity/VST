@@ -14,6 +14,7 @@ Require Import VST.veric.expr_lemmas.
 Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.semax.
 Require Import VST.veric.Clight_lemmas.
+Require Import VST.msl.eq_dec.
 
 Import Ctypes.
 
@@ -375,8 +376,8 @@ iIntros "#believe" (???) "[% #rguard]".
 iIntros (??) "!> H".
 rewrite bi.later_exist_except_0.
 rewrite (bi.except_0_intro (Q _)) -bi.except_0_and (bi.except_0_intro (F _)) -bi.except_0_sep
-  (bi.except_0_intro (⌜_⌝)) (bi.except_0_intro (funassert _ _)) -!bi.except_0_and; iMod "H".
-rewrite bi.and_exist_l bi.sep_exist_l bi.and_exist_r  bi.and_exist_l; iDestruct "H" as (a) "H".
+  (bi.except_0_intro (⌜_⌝)) (bi.except_0_intro (funassert _ _)) -!bi.except_0_sep -bi.except_0_and; iMod "H".
+rewrite bi.and_exist_l bi.sep_exist_l bi.sep_exist_r  bi.and_exist_l; iDestruct "H" as (a) "H".
 specialize (H a); rewrite semax_unfold in H; iApply H; auto.
 Qed.
 
@@ -389,7 +390,7 @@ intros.
 rewrite semax_unfold; intros.
 iIntros "#believe" (???) "[% #rguard]".
 iIntros (??) "!> H".
-rewrite bi.sep_exist_l bi.and_exist_r  bi.and_exist_l; iDestruct "H" as (a) "H".
+rewrite bi.sep_exist_l bi.sep_exist_r  bi.and_exist_l; iDestruct "H" as (a) "H".
 specialize (H a); rewrite semax_unfold in H; iApply H; auto.
 Qed.
 
@@ -858,8 +859,6 @@ Section statement_rect.
   end.
 End statement_rect.
 
-Require Import VST.msl.eq_dec.
-
 (* Equality is decidable on statements *)
 Section eq_dec.
   Local Ltac t := hnf; decide equality; auto.
@@ -1117,7 +1116,7 @@ Proof.
   iIntros "H"; iApply "H"; auto.
 Qed.
 
-Lemma assert_safe_jsafe': forall ge E f ve te k ora,
+(*Lemma assert_safe_jsafe': forall ge E f ve te k ora,
   assert_safe Espec ge E f ve te (Cont k) (construct_rho (filter_genv ge) ve te) ⊢
   jsafeN Espec ge E ora (State f Sskip k ve te).
 Proof.
@@ -1126,34 +1125,6 @@ Proof.
   destruct k; try iMod "H" as "[]"; try done.
   - iApply jsafeN_local_step. constructor; auto.
   iIntros "H"; iApply "H"; auto.
-Qed.
-  repeat intro.
-  destruct (level (m_phi jm)) eqn: Hl.
-  { do 2 eexists; eauto; split; unfold jm_update; auto.
-    apply necR_level in H0; apply join_level in H1 as []; rewrite <- !level_juice_level_phi in *; lia. }
-  assert (ext_compat ora (m_phi jm)) as Hext.
-  { eapply ext_compat_unnec; [apply necR_jm_phi; eauto|].
-    eapply join_sub_joins_trans; [eexists; apply ghost_of_join; eauto|].
-    eapply joins_comm, join_sub_joins_trans; [|apply joins_comm; eauto].
-    destruct H4 as [? J]; eapply ghost_fmap_join in J; eexists; eauto. }
-  specialize (H _ _ Hext eq_refl eq_refl).
-  spec H; [lia|].
-  destruct k; eapply jm_fupd_mono; eauto; intros ? Hle Hsafe; try contradiction.
-  inv Hsafe; try discriminate; try contradiction.
-  constructor; auto.
-  eapply jsafeN_step; eauto.
-  destruct H6; split; auto. inv H6; econstructor; simpl; eauto.
-  eapply jsafeN_local_step. constructor.
-  intros.
-  eapply age_safe; eauto.
-  eapply jsafeN_local_step. constructor.
-  intros.
-  eapply age_safe; eauto.
-  inv Hsafe; try discriminate; try contradiction.
-  constructor; auto.
-  eapply jsafeN_step; eauto.
-  destruct H6; split; auto. inv H6; econstructor; simpl; eauto.
-Qed.
-
+Qed.*)
 
 End SemaxContext.

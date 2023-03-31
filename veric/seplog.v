@@ -293,6 +293,9 @@ end.
 Global Instance funspec_sub_si_plain f1 f2 : Plain (funspec_sub_si f1 f2).
 Proof. destruct f1, f2; simpl; apply _. Qed.
 
+Global Instance funspec_sub_si_absorbing f1 f2 : Absorbing (funspec_sub_si f1 f2).
+Proof. destruct f1, f2; simpl; apply _. Qed.
+
 Lemma funspec_sub_sub_si f1 f2: funspec_sub f1 f2 -> ⊢ funspec_sub_si f1 f2.
 Proof.
   intros. destruct f1; destruct f2; simpl in *.
@@ -389,6 +392,7 @@ Definition func_at (f: funspec) (l : address) : mpred :=
 
 Global Instance func_at_persistent f l : Persistent (func_at f l).
 Proof. destruct f; apply _. Qed.
+
 Global Instance func_at_affine f l : Affine (func_at f l).
 Proof. destruct f; apply _. Qed.
 
@@ -399,6 +403,7 @@ Definition func_at' (f: funspec) (l: address) : mpred :=
 
 Global Instance func_at'_persistent f l : Persistent (func_at' f l).
 Proof. destruct f; apply _. Qed.
+
 Global Instance func_at'_affine f l : Affine (func_at' f l).
 Proof. destruct f; apply _. Qed.
 
@@ -413,7 +418,7 @@ Definition func_ptr (f: funspec) (v: val): mpred :=
 
 Lemma func_ptr_fun_ptr_si f v: func_ptr f v ⊢ func_ptr_si f v.
 Proof.
-  iIntros "H"; iDestruct "H" as (????) "#H".
+  iIntros "H"; iDestruct "H" as (????) "H".
   iExists b; iFrame "%"; iExists gs; iFrame.
   iSplit; auto; by iApply funspec_sub_sub_si'.
 Qed.

@@ -1,6 +1,7 @@
 Require Import VST.veric.juicy_base.
-Require Import VST.veric.juicy_mem VST.veric.juicy_mem_lemmas VST.veric.juicy_mem_ops.
+Require Import VST.veric.juicy_mem (*VST.veric.juicy_mem_lemmas VST.veric.juicy_mem_ops*).
 Require Import VST.veric.res_predicates.
+Require Import VST.veric.external_state.
 Require Import VST.veric.extend_tc.
 Require Import VST.veric.Clight_seplog.
 Require Import VST.veric.Clight_assert_lemmas.
@@ -14,9 +15,6 @@ Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.semax.
 Require Import VST.veric.semax_lemmas.
 Require Import VST.veric.Clight_lemmas.
-Require Import VST.veric.own.
-
-Local Open Scope pred.
 
 (* This file contains two parts:
    1. Proof of semax_conseq.
@@ -25,111 +23,96 @@ Local Open Scope pred.
 
 (* Part 1: Proof of semax_conseq *)
 
-Lemma _guard_mono: forall Espec ge Delta f (P Q: assert) k,
-  (forall rho, P rho |-- Q rho) ->
-  _guard Espec ge Delta f Q k |-- _guard Espec ge Delta f P k.
-Proof.
-  intros.
-  unfold _guard.
-  apply allp_derives; intros tx.
-  apply allp_derives; intros vx.
-  apply fash_derives.
-  apply imp_derives; auto.
-Qed.
+Local Notation assert := (environ -> mpred).
 
-Lemma guard_mono: forall Espec ge Delta f (P Q: assert) k,
-  (forall rho, P rho |-- Q rho) ->
-  guard Espec ge Delta f Q k |-- guard Espec ge Delta f P k.
+Section mpred.
+
+Context `{!heapGS Σ} {Espec : OracleKind} `{!externalGS OK_ty Σ}. (* consolidate *)
+
+Lemma _guard_mono: forall ge E Delta f (P Q: assert) k,
+  (forall rho, P rho ⊢ Q rho) ->
+  _guard Espec ge E Delta f Q k ⊢ _guard Espec ge E Delta f P k.
 Proof.
   intros.
-  unfold guard.
   apply _guard_mono; auto.
 Qed.
 
-Lemma rguard_mono: forall Espec ge Delta f (P Q: ret_assert) k,
-  (forall rk vl rho, proj_ret_assert P rk vl rho |-- proj_ret_assert Q rk vl rho) ->
-  rguard Espec ge Delta f Q k |-- rguard Espec ge Delta f P k.
+Lemma guard_mono: forall ge E Delta f (P Q: assert) k,
+  (forall rho, P rho ⊢ Q rho) ->
+  guard' Espec ge E Delta f Q k ⊢ guard' Espec ge E Delta f P k.
+Proof.
+  intros.
+  apply guard_mono; auto.
+Qed.
+
+Lemma rguard_mono: forall ge E Delta f (P Q: ret_assert) k,
+  (forall rk vl rho, proj_ret_assert P rk vl rho ⊢ proj_ret_assert Q rk vl rho) ->
+  rguard Espec ge E Delta f Q k ⊢ rguard Espec ge E Delta f P k.
 Proof.
   intros.
   unfold rguard.
-  apply allp_derives; intros ek.
-  apply allp_derives; intros vl.
-  apply _guard_mono; auto.
+  iIntros "H" (??).
+  rewrite -_guard_mono; eauto.
 Qed.
 
-Definition fupd_ret_assert (Q: ret_assert): ret_assert :=
-          {| RA_normal := fun rho => fupd (RA_normal Q rho);
-             RA_break := fun rho => fupd (RA_break Q rho);
-             RA_continue := fun rho => fupd (RA_continue Q rho);
+Definition fupd_ret_assert E (Q: ret_assert): ret_assert :=
+          {| RA_normal := fun rho => |={E}=> (RA_normal Q rho);
+             RA_break := fun rho => |={E}=> (RA_break Q rho);
+             RA_continue := fun rho => |={E}=> (RA_continue Q rho);
              RA_return := fun v rho => RA_return Q v rho |}.
 (* Asymmetric consequence: since there's no CompCert step that
    corresponds to RA_return, we can't do an update there. We could
    probably add a bupd if we really want to, but it may not be
    necessary. *)
 
-Lemma fupd_fupd_andp_prop : forall P Q, fupd (!! P && fupd Q) = fupd (!!P && Q).
+Lemma fupd_fupd_andp_prop : forall E P (Q : mpred), (|={E}=> (⌜P⌝ ∧ |={E}=> Q)) ⊣⊢ (|={E}=> (⌜P⌝ ∧ Q)).
 Proof.
-  intros; apply pred_ext.
-  - eapply derives_trans, fupd.fupd_trans.
-    apply fupd.fupd_mono, fupd.fupd_andp_prop.
-  - apply fupd.fupd_mono.
-    apply andp_derives, fupd.fupd_intro; auto.
+  intros; iSplit; iIntros "H".
+  - iMod "H" as "[$ $]".
+  - iMod "H" as "[$ $]"; done.
 Qed.
 
-Lemma fupd_idem : forall P, fupd (fupd P) = fupd P.
-Proof.
-  intros; apply pred_ext.
-  - apply fupd.fupd_trans.
-  - apply fupd.fupd_intro.
-Qed.
-
-Lemma proj_fupd_ret_assert: forall Q ek vl rho,
-  fupd (proj_ret_assert (fupd_ret_assert Q) ek vl rho) = fupd (proj_ret_assert Q ek vl rho).
+Lemma proj_fupd_ret_assert: forall E Q ek vl rho,
+  (|={E}=> proj_ret_assert (fupd_ret_assert E Q) ek vl rho) ⊣⊢ (|={E}=> proj_ret_assert Q ek vl rho).
 Proof.
   intros.
   destruct ek; simpl; auto; apply fupd_fupd_andp_prop.
 Qed.
 
-(* The following four lemmas is not now used. but after deep embedded hoare logic (SL_as_Logic) is
+(* The following four lemmas are not now used. but after deep embedded hoare logic (SL_as_Logic) is
 ported, the frame does not need to be quantified in the semantic definition of semax. Then,
 these two lemmas can replace the other two afterwards. *)
 
 Lemma assert_safe_fupd':
-  forall {Espec: OracleKind} gx vx tx rho (P: environ -> pred rmap) Delta f k,
+  forall gx vx tx rho E (P: environ -> mpred) Delta f k,
     match k with Ret _ _ => False | _ => True end ->
-    let PP1 := !! guard_environ Delta f rho in
+    let PP1 := ⌜guard_environ Delta f rho⌝ in
     let PP2 := funassert Delta rho in
-    PP1 && (P rho) && PP2 >=>
-    assert_safe Espec gx f vx tx k rho =
-    PP1 && (fupd (P rho)) && PP2 >=>
-    assert_safe Espec gx f vx tx k rho.
+    (PP1 ∧ P rho ∗ PP2 -∗ assert_safe Espec gx E f vx tx k rho) ⊣⊢
+    (PP1 ∧ (|={E}=> P rho) ∗ PP2 -∗ assert_safe Espec gx E f vx tx k rho).
 Proof.
   intros.
-  apply pred_ext.
-  * eapply derives_trans; [apply fupd.subp_fupd, derives_refl | apply subp_derives, assert_safe_fupd; auto].
-    eapply derives_trans; [apply andp_derives, derives_refl; apply fupd.fupd_andp_prop|].
-    rewrite andp_comm, (andp_comm (_ && _)).
-    apply fupd.fupd_andp_corable, corable_funassert.
-  * apply subp_derives, derives_refl.
-    apply andp_derives, derives_refl.
-    apply andp_derives, fupd.fupd_intro; apply derives_refl.
+  iSplit.
+  * iIntros "H (% & P & #?)".
+    iApply assert_safe_fupd; iMod "P"; iApply "H"; auto.
+  * iIntros "H (% & P & ?)"; iApply "H"; auto.
 Qed.
 
 Lemma _guard_fupd':
-  forall {Espec: OracleKind} ge Delta (P: environ -> pred rmap) f k,
+  forall ge E Delta (P: environ -> mpred) f k,
     match k with Ret _ _ => False | _ => True end ->
-    _guard Espec ge Delta f P k = _guard Espec ge Delta f (fun rho => fupd (P rho)) k.
+    _guard Espec ge E Delta f P k ⊣⊢ _guard Espec ge E Delta f (fun rho => |={E}=> (P rho)) k.
 Proof.
   intros.
   unfold _guard.
-  f_equal; extensionality tx.
-  f_equal; extensionality vx.
-  apply assert_safe_fupd'; auto.
+  apply bi.forall_proper; intros ?.
+  apply bi.forall_proper; intros ?.
+  rewrite assert_safe_fupd'; auto.
 Qed.
-  
+
 Lemma guard_fupd':
-  forall {Espec: OracleKind} ge Delta f (P: environ -> pred rmap) k,
-    guard Espec ge Delta f P k = guard Espec ge Delta f (fun rho => fupd (P rho)) k.
+  forall ge E Delta f (P: environ -> mpred) k,
+    guard' Espec ge E Delta f P k ⊣⊢ guard' Espec ge E Delta f (fun rho => |={E}=> (P rho)) k.
 Proof.
   intros.
   apply _guard_fupd'; auto.
@@ -145,242 +128,232 @@ Proof.
 Qed.
 
 Lemma rguard_fupd':
-  forall {Espec: OracleKind} ge Delta f (P: ret_assert) k,
-    rguard Espec ge Delta f P k = rguard Espec ge Delta f (fupd_ret_assert P) k.
+  forall ge E Delta f (P: ret_assert) k,
+    rguard Espec ge E Delta f P k ⊣⊢ rguard Espec ge E Delta f (fupd_ret_assert E P) k.
 Proof.
   intros.
   unfold rguard.
-  f_equal; extensionality ek.
-  f_equal; extensionality vl.
+  apply bi.forall_proper; intros ek.
+  apply bi.forall_proper; intros vl.
   destruct (eq_dec ek EK_return); subst; auto.
   rewrite _guard_fupd'; [|apply exit_cont_nonret; auto].
   setoid_rewrite _guard_fupd' at 2; [|apply exit_cont_nonret; auto].
-  apply pred_ext; apply _guard_mono; intros; rewrite proj_fupd_ret_assert; auto.
+  iSplit; iApply _guard_mono; intros; rewrite proj_fupd_ret_assert; auto.
 Qed.
 
 Lemma assert_safe_fupd:
-  forall {Espec: OracleKind} gx vx tx rho (F P: environ -> pred rmap) Delta f k,
+  forall gx vx tx rho E (F P: environ -> mpred) Delta f k,
     match k with Ret _ _ => False | _ => True end ->
-    let PP1 := !! guard_environ Delta f rho in
+    let PP1 := ⌜guard_environ Delta f rho⌝ in
     let PP2 := funassert Delta rho in
-    PP1 && (F rho * P rho) && PP2 >=>
-    assert_safe Espec gx f vx tx k rho =
-    PP1 && (F rho * fupd (P rho)) && PP2 >=>
-    assert_safe Espec gx f vx tx k rho.
+    (PP1 ∧ (F rho ∗ P rho) ∗ PP2 -∗
+    assert_safe Espec gx E f vx tx k rho) ⊣⊢
+    (PP1 ∧ (F rho ∗ |={E}=> (P rho)) ∗ PP2 -∗
+    assert_safe Espec gx E f vx tx k rho).
 Proof.
   intros.
-  apply pred_ext.
-  + eapply derives_trans; [apply fupd.subp_fupd, derives_refl | apply subp_derives, assert_safe_fupd; auto].
-    eapply derives_trans; [apply andp_derives, derives_refl; apply andp_derives, fupd.fupd_frame_l; apply derives_refl|].
-    eapply derives_trans; [apply andp_derives, derives_refl; apply fupd.fupd_andp_prop|].
-    rewrite andp_comm, (andp_comm (_ && _)).
-    apply fupd.fupd_andp_corable, corable_funassert.
-  + apply subp_derives, derives_refl.
-    apply andp_derives, derives_refl.
-    apply andp_derives, sepcon_derives, fupd.fupd_intro; apply derives_refl.
+  iSplit.
+  * iIntros "H (% & P & #?)".
+    rewrite (assert_safe_fupd' _ _ _ _ _ (fun rho => F rho ∗ P rho)); last done.
+    iPoseProof (fupd_frame_l with "P") as "P".
+    iApply "H"; auto.
+  * iIntros "H (% & (? & P) & ?)"; iApply "H"; iFrame; auto.
 Qed.
 
 Lemma _guard_fupd:
-  forall {Espec: OracleKind} ge Delta f (F P: environ -> pred rmap) k,
+  forall ge E Delta f (F P: environ -> mpred) k,
     match k with Ret _ _ => False | _ => True end ->
-    _guard Espec ge Delta f (fun rho => F rho * P rho) k = _guard Espec ge Delta f (fun rho => F rho * fupd (P rho)) k.
+    _guard Espec ge E Delta f (fun rho => F rho ∗ P rho) k ⊣⊢ _guard Espec ge E Delta f (fun rho => F rho ∗ |={E}=> (P rho)) k.
 Proof.
   intros.
   unfold _guard.
-  f_equal; extensionality tx.
-  f_equal; extensionality vx.
-  apply assert_safe_fupd; auto.
+  apply bi.forall_proper; intros ?.
+  apply bi.forall_proper; intros ?.
+  rewrite assert_safe_fupd; auto.
 Qed.
-  
+
 Lemma guard_fupd:
-  forall {Espec: OracleKind} ge Delta f (F P: environ -> pred rmap) k,
-    guard Espec ge Delta f (fun rho => F rho * P rho) k = guard Espec ge Delta f (fun rho => F rho * fupd (P rho)) k.
+  forall ge E Delta f (F P: environ -> mpred) k,
+    guard' Espec ge E Delta f (fun rho => F rho ∗ P rho) k ⊣⊢ guard' Espec ge E Delta f (fun rho => F rho ∗ |={E}=> (P rho)) k.
 Proof.
   intros.
   apply _guard_fupd; auto.
 Qed.
 
-Lemma fupd_fupd_frame_l : forall P Q, fupd (P * fupd Q) = fupd (P * Q).
+Lemma fupd_fupd_frame_l : forall E (P Q : mpred), (|={E}=> (P ∗ |={E}=> Q)) ⊣⊢ |={E}=> (P ∗ Q).
 Proof.
-  intros; apply pred_ext.
-  - eapply derives_trans, fupd.fupd_trans.
-    apply fupd.fupd_mono, fupd.fupd_frame_l.
-  - apply fupd.fupd_mono, sepcon_derives, fupd.fupd_intro; auto.
+  intros; iSplit.
+  - by iIntros ">[$ >$]".
+  - by iIntros ">[$ $]".
 Qed.
 
-Lemma proj_fupd_ret_assert_frame: forall F Q ek vl rho,
-  fupd (F * proj_ret_assert (fupd_ret_assert Q) ek vl rho) = fupd (F * proj_ret_assert Q ek vl rho).
+Lemma proj_fupd_ret_assert_frame: forall E F Q ek vl rho,
+  (|={E}=> (F ∗ proj_ret_assert (fupd_ret_assert E Q) ek vl rho)) ⊣⊢ |={E}=> (F ∗ proj_ret_assert Q ek vl rho).
 Proof.
   intros.
   destruct ek; simpl; auto;
-    rewrite <- fupd_fupd_frame_l, fupd_fupd_andp_prop, fupd_fupd_frame_l; auto.
+    rewrite -fupd_fupd_frame_l fupd_fupd_andp_prop fupd_fupd_frame_l; auto.
+Qed.
+
+(* this would be unnecessary if assert worked properly *)
+Global Instance guard_proper ge E Delta f : Proper ((fun a b => forall rho, a rho ⊣⊢ b rho) ==> eq ==> equiv) (_guard Espec ge E Delta f).
+Proof.
+  intros ????? ->; rewrite /_guard.
+  do 7 f_equiv.
+  by rewrite H.
+Qed.
+
+Lemma guard_proj_frame : forall ge E Delta f P F ek vl k,
+  _guard Espec ge E Delta f (proj_ret_assert (frame_ret_assert P F) ek vl) k ⊣⊢
+  _guard Espec ge E Delta f (fun rho => F rho ∗ proj_ret_assert P ek vl rho) k.
+Proof.
+  intros; apply guard_proper; last done.
+  intros; by rewrite proj_frame.
 Qed.
 
 Lemma rguard_fupd:
-  forall {Espec: OracleKind} ge Delta F f (P: ret_assert) k,
-    rguard Espec ge Delta f (frame_ret_assert P F) k = rguard Espec ge Delta f (frame_ret_assert (fupd_ret_assert P) F) k.
+  forall ge E Delta F f (P: ret_assert) k,
+    rguard Espec ge E Delta f (frame_ret_assert P F) k ⊣⊢ rguard Espec ge E Delta f (frame_ret_assert (fupd_ret_assert E P) F) k.
 Proof.
   intros.
   unfold rguard.
-  f_equal; extensionality ek.
-  f_equal; extensionality vl.
-  rewrite !proj_frame.
-  destruct (eq_dec ek EK_return); subst; auto.
+  apply bi.forall_proper; intros ek.
+  apply bi.forall_proper; intros vl.
+  rewrite !guard_proj_frame.
+  destruct (eq_dec ek EK_return); [subst; auto|].
   rewrite _guard_fupd'; [|apply exit_cont_nonret; auto].
   setoid_rewrite _guard_fupd' at 2; [|apply exit_cont_nonret; auto].
-  apply pred_ext; apply _guard_mono; intros; rewrite proj_fupd_ret_assert_frame; auto.
+  iSplit; iApply _guard_mono; intros; rewrite proj_fupd_ret_assert_frame; auto.
 Qed.
 
 Lemma _guard_allp_fun_id:
-  forall {Espec: OracleKind} ge Delta' Delta f (F P: environ -> pred rmap) k,
+  forall ge E Delta' Delta f (F P: environ -> mpred) k,
     tycontext_sub Delta Delta' ->
-    _guard Espec ge Delta' f (fun rho => F rho * P rho) k = _guard Espec ge Delta' f (fun rho => F rho * (allp_fun_id Delta rho && P rho)) k.
+    _guard Espec ge E Delta' f (fun rho => F rho ∗ P rho) k ⊣⊢ _guard Espec ge E Delta' f (fun rho => F rho ∗ (<affine> allp_fun_id Delta rho ∗ P rho)) k.
 Proof.
   intros.
   unfold _guard.
-  f_equal; extensionality tx.
-  f_equal; extensionality vx.
-  f_equal.
-  f_equal.
-  rewrite !andp_assoc.
-  f_equal.
-  rewrite corable_sepcon_andp1 by apply corable_allp_fun_id.
-  rewrite (andp_comm (allp_fun_id _ _ )), andp_assoc.
-  f_equal.
-  apply pred_ext; [apply andp_right; auto | apply andp_left2; auto].
-  intros w W. hnf.
-  eapply funassert_allp_fun_id_sub; eauto.
+  do 7 f_equiv.
+  iSplit.
+  * iIntros "(($ & $) & #f)".
+    by iPoseProof (funassert_allp_fun_id_sub with "f") as "$".
+  * iIntros "(($ & _ & $) & $)".
 Qed.
 
-Lemma guard_allp_fun_id: forall {Espec: OracleKind} ge Delta' Delta f (F P: environ -> pred rmap) k,
+Lemma guard_allp_fun_id: forall ge E Delta' Delta f (F P: environ -> mpred) k,
   tycontext_sub Delta Delta' ->
-  guard Espec ge Delta' f (fun rho => F rho * P rho) k = guard Espec ge Delta' f (fun rho => F rho * (allp_fun_id Delta rho && P rho)) k.
+  guard' Espec ge E Delta' f (fun rho => F rho ∗ P rho) k ⊣⊢ guard' Espec ge E Delta' f (fun rho => F rho ∗ (<affine> allp_fun_id Delta rho ∗ P rho)) k.
 Proof.
   intros.
   apply _guard_allp_fun_id; auto.
 Qed.
 
-Lemma rguard_allp_fun_id: forall {Espec: OracleKind} ge Delta' Delta f (F: environ -> pred rmap) P k,
+Lemma rguard_allp_fun_id: forall ge E Delta' Delta f (F: environ -> mpred) P k,
   tycontext_sub Delta Delta' ->
-  rguard Espec ge Delta' f (frame_ret_assert P F) k = rguard Espec ge Delta' f (frame_ret_assert (conj_ret_assert P (allp_fun_id Delta)) F) k.
+  rguard Espec ge E Delta' f (frame_ret_assert P F) k ⊣⊢ rguard Espec ge E Delta' f (frame_ret_assert (frame_ret_assert P (fun rho => <affine> allp_fun_id Delta rho)) F) k.
 Proof.
   intros.
   unfold rguard.
-  f_equal; extensionality ek.
-  f_equal; extensionality vl.
-  rewrite !proj_frame.
-  rewrite proj_conj.
-  apply _guard_allp_fun_id; auto.
-Qed. 
+  apply bi.forall_proper; intros ek.
+  apply bi.forall_proper; intros vl.
+  rewrite !guard_proj_frame.
+  rewrite _guard_allp_fun_id; eauto.
+  apply guard_proper; auto.
+  by intros; rewrite proj_frame.
+Qed.
 
 Lemma _guard_tc_environ:
-  forall {Espec: OracleKind} ge Delta' Delta f (F P: environ -> pred rmap) k,
+  forall ge E Delta' Delta f (F P: environ -> mpred) k,
     tycontext_sub Delta Delta' ->
-    _guard Espec ge Delta' f (fun rho => F rho * P rho) k = 
-    _guard Espec ge Delta' f (fun rho => F rho * (!! typecheck_environ Delta rho && P rho)) k.
+    _guard Espec ge E Delta' f (fun rho => F rho ∗ P rho) k ⊣⊢
+    _guard Espec ge E Delta' f (fun rho => F rho ∗ (⌜typecheck_environ Delta rho⌝ ∧ P rho)) k.
 Proof.
   intros.
   unfold _guard.
-  f_equal; extensionality tx.
-  f_equal; extensionality vx.
-  f_equal.
-  f_equal.
-  f_equal.
-  rewrite corable_sepcon_andp1 by apply corable_prop.
-  rewrite <- andp_assoc.
-  f_equal.
-  apply pred_ext; [apply andp_right; auto | apply andp_left1; auto].
-  intros ? ?; simpl in *.
-  destruct H0 as [? _].
-  eapply typecheck_environ_sub; eauto.
+  do 6 f_equiv.
+  iSplit.
+  * iIntros "(%Henv & ($ & $) & $)"; iPureIntro.
+    split3; auto; eapply typecheck_environ_sub; eauto.
+    destruct Henv as [? _]; auto.
+  * iIntros "($ & ($ & [_ $]) & $)".
 Qed.
 
-Lemma guard_tc_environ: forall {Espec: OracleKind} ge Delta' Delta f (F P: environ -> pred rmap) k,
+Lemma guard_tc_environ: forall ge E Delta' Delta f (F P: environ -> mpred) k,
   tycontext_sub Delta Delta' ->
-  guard Espec ge Delta' f (fun rho => F rho * P rho) k = guard Espec ge Delta' f (fun rho => F rho * (!! typecheck_environ Delta rho && P rho)) k.
+  guard' Espec ge E Delta' f (fun rho => F rho ∗ P rho) k ⊣⊢ guard' Espec ge E Delta' f (fun rho => F rho ∗ (⌜typecheck_environ Delta rho⌝ ∧ P rho)) k.
 Proof.
   intros.
   apply _guard_tc_environ; auto.
 Qed.
 
-Lemma rguard_tc_environ: forall {Espec: OracleKind} ge Delta' Delta f (F: environ -> pred rmap) P k,
+Lemma rguard_tc_environ: forall ge E Delta' Delta f (F: environ -> mpred) P k,
   tycontext_sub Delta Delta' ->
-  rguard Espec ge Delta' f (frame_ret_assert P F) k = rguard Espec ge Delta'  f (frame_ret_assert (conj_ret_assert P (fun rho => !! typecheck_environ Delta rho)) F) k.
+  rguard Espec ge E Delta' f (frame_ret_assert P F) k ⊣⊢ rguard Espec ge E Delta' f (frame_ret_assert (conj_ret_assert P (fun rho => ⌜typecheck_environ Delta rho⌝)) F) k.
 Proof.
   intros.
   unfold rguard.
-  f_equal; extensionality ek.
-  f_equal; extensionality vl.
-  rewrite !proj_frame.
-  rewrite proj_conj.
-  apply _guard_tc_environ; auto.
+  apply bi.forall_proper; intros ek.
+  apply bi.forall_proper; intros vl.
+  rewrite !guard_proj_frame _guard_tc_environ; eauto.
+  apply guard_proper; auto.
+  intros; by rewrite proj_conj.
 Qed.
 
-Lemma semax_conseq {CS: compspecs} {Espec: OracleKind}:
- forall Delta P' (R': ret_assert) P c (R: ret_assert) ,
-   (forall rho,  seplog.derives (!!(typecheck_environ Delta rho) && (allp_fun_id Delta rho && P rho))
-                   (fupd (P' rho)) ) ->
-   (forall rho,  seplog.derives (!!(typecheck_environ Delta rho) && (allp_fun_id Delta rho && RA_normal R' rho))
-                   (fupd (RA_normal R rho))) ->
-   (forall rho, seplog.derives (!! (typecheck_environ Delta rho) && (allp_fun_id Delta rho && RA_break R' rho))
-                   (fupd (RA_break R rho))) ->
-   (forall rho, seplog.derives (!! (typecheck_environ Delta rho) && (allp_fun_id Delta rho && RA_continue R' rho))
-                   (fupd (RA_continue R rho))) ->
-   (forall vl rho, seplog.derives (!! (typecheck_environ Delta rho) && (allp_fun_id Delta rho && RA_return R' vl rho))
+Lemma semax_conseq {CS: compspecs}:
+ forall E Delta P' (R': ret_assert) P c (R: ret_assert) ,
+   (forall rho, ⌜typecheck_environ Delta rho⌝ ∧ (<affine> allp_fun_id Delta rho ∗ P rho) ⊢
+                   (|={E}=> (P' rho)) ) ->
+   (forall rho,  ⌜typecheck_environ Delta rho⌝ ∧ (<affine> allp_fun_id Delta rho ∗ RA_normal R' rho) ⊢
+                   (|={E}=> (RA_normal R rho))) ->
+   (forall rho, ⌜typecheck_environ Delta rho⌝ ∧ (<affine> allp_fun_id Delta rho ∗ RA_break R' rho) ⊢
+                   (|={E}=> (RA_break R rho))) ->
+   (forall rho, ⌜typecheck_environ Delta rho⌝ ∧ (<affine> allp_fun_id Delta rho ∗ RA_continue R' rho) ⊢
+                   (|={E}=> (RA_continue R rho))) ->
+   (forall vl rho, ⌜typecheck_environ Delta rho⌝ ∧ (<affine> allp_fun_id Delta rho ∗ RA_return R' vl rho) ⊢
                    (RA_return R vl rho)) ->
-   semax Espec Delta P' c R' ->  semax Espec Delta P c R.
+   semax Espec E Delta P' c R' ->  semax Espec E Delta P c R.
 Proof.
   intros.
-  assert (semax' Espec Delta P' c R' |-- semax' Espec Delta P c R);
-    [clear H4 | exact (fun n => H5 n (H4 n))].
-  rewrite semax_fold_unfold.
-  apply allp_derives; intros gx.
-  apply allp_derives; intros Delta'.
-  apply allp_derives; intros CS'.
-  apply prop_imp_derives; intros [? _].
-  apply imp_derives; auto.
-  apply allp_derives; intros k.
-  apply allp_derives; intros F.
-  apply allp_derives; intros f.
-  apply imp_derives; [apply andp_derives; auto |]. 
-  + erewrite (rguard_allp_fun_id _ _ _ _ _ R') by eauto.
-    erewrite (rguard_tc_environ _ _ _ _ _ (conj_ret_assert R' _)) by eauto.
-    rewrite (rguard_fupd _ _ _ _ R).
-    apply rguard_mono.
+  unfold semax; assert (semax' Espec E Delta P' c R' ⊢ semax' Espec E Delta P c R) as <-;
+    [clear H4 | done].
+  rewrite !semax_fold_unfold.
+  iIntros "H" (??? [??]).
+  iPoseProof ("H" with "[%]") as "H"; first done.
+  iApply (bi.impl_mono with "H"); first done.
+  iIntros "H" (???) "[% rguard]".
+  iSpecialize ("H" with "[-]").
+  + rewrite /bi_affinely; iSplit; first done; iSplit; first done.
+    rewrite bi.and_elim_r.
+    erewrite (rguard_allp_fun_id _ _ _ _ _ _ R') by eauto.
+    erewrite (rguard_tc_environ _ _ _ _ _ _ (frame_ret_assert R' _)) by eauto.
+    rewrite (rguard_fupd _ _ _ _ _ R).
+    iApply (rguard_mono with "rguard").
     intros.
-    rewrite proj_frame, proj_conj, proj_conj.
+    rewrite proj_frame proj_conj !proj_frame.
     destruct rk; simpl;
          [rename H0 into Hx; pose (ek:=RA_normal)
          | rename H1 into Hx; pose (ek:=RA_break)
          | rename H2 into Hx ; pose (ek:=RA_continue)
-         | rewrite (sepcon_comm _ (F rho)); apply sepcon_derives, H3; auto]; clear H3.
-all: rewrite <- sepcon_andp_prop1; rewrite sepcon_comm; apply sepcon_derives, derives_refl.
-all:    specialize (Hx rho); inv Hx; simpl in *;
-    apply derives_trans with (!! (vl = None) && 
-       (!! typecheck_environ Delta rho &&
-        (allp_fun_id Delta rho && ek R' rho))); subst ek;
-     [  intros ? [? [? [? ?]]];  split3; auto; split; auto | ];
-    apply prop_andp_left; intro Hvl;
-    rewrite (prop_true_andp _ _ Hvl); auto.
-  + erewrite (guard_allp_fun_id _ _ _ _ _ P) by eauto.
-    erewrite (guard_tc_environ _ _ _ _ _ (fun rho => allp_fun_id Delta rho && P rho)) by eauto.
-    rewrite (guard_fupd _ _ _ _ P').
-    apply guard_mono.
+         | apply bi.sep_mono, H3; auto]; clear H3.
+    all: rewrite -Hx; iIntros "($ & $ & $ & $ & $)".
+  + erewrite (guard_allp_fun_id _ _ _ _ _ _ P) by eauto.
+    erewrite (guard_tc_environ _ _ _ _ _ _ (fun rho => <affine> allp_fun_id Delta rho ∗ P rho)) by eauto.
+    rewrite (guard_fupd _ _ _ _ _ P').
+    iApply (guard_mono with "H").
     intros.
-    apply sepcon_derives; auto.
-    specialize (H rho); inv H; auto.
+    by rewrite -H.
 Qed.
 
 (* Part 2: Deriving simpler and older version of consequence rules from semax_conseq. *)
 Lemma semax'_post_fupd:
- forall {CS: compspecs} {Espec: OracleKind} (R': ret_assert) Delta (R: ret_assert) P c,
-   (forall ek vl rho, ek <> EK_return -> !!(typecheck_environ Delta rho) && 
+ forall {CS: compspecs} (R': ret_assert) Delta (R: ret_assert) P c,
+   (forall ek vl rho, ek <> EK_return -> ⌜typecheck_environ Delta rho⌝ ∧ 
                 proj_ret_assert R' ek vl rho 
-         |-- fupd (proj_ret_assert R ek vl rho)) ->
-   (forall vl rho,  !!(typecheck_environ Delta rho) && 
+         ⊢ fupd (proj_ret_assert R ek vl rho)) ->
+   (forall vl rho,  ⌜typecheck_environ Delta rho⌝ ∧ 
                 RA_return R' vl rho 
-         |-- RA_return R vl rho) ->
-   semax' Espec Delta P c R' |-- semax' Espec Delta P c R.
+         ⊢ RA_return R vl rho) ->
+   semax' Espec Delta P c R' ⊢ semax' Espec Delta P c R.
 Proof.
 intros.
 rewrite semax_fold_unfold.
@@ -408,11 +381,11 @@ destruct (eq_dec rk EK_return); subst.
 Qed.
 
 Lemma semax'_post:
- forall {CS: compspecs} {Espec: OracleKind} (R': ret_assert) Delta (R: ret_assert) P c,
-   (forall ek vl rho,  !!(typecheck_environ Delta rho) && 
+ forall {CS: compspecs} (R': ret_assert) Delta (R: ret_assert) P c,
+   (forall ek vl rho,  ⌜typecheck_environ Delta rho⌝ ∧ 
                 proj_ret_assert R' ek vl rho 
-         |-- proj_ret_assert R ek vl rho) ->
-   semax' Espec Delta P c R' |-- semax' Espec Delta P c R.
+         ⊢ proj_ret_assert R ek vl rho) ->
+   semax' Espec Delta P c R' ⊢ semax' Espec Delta P c R.
 Proof.
 intros.
 apply semax'_post_fupd.
@@ -421,9 +394,9 @@ intros; apply (H EK_return).
 Qed.
 
 Lemma semax'_pre_fupd:
- forall {CS: compspecs} {Espec: OracleKind} P' Delta R P c,
-  (forall rho, typecheck_environ Delta rho ->   P rho |-- fupd (P' rho))
-   ->   semax' Espec Delta P' c R |-- semax' Espec Delta P c R.
+ forall {CS: compspecs} P' Delta R P c,
+  (forall rho, typecheck_environ Delta rho ->   P rho ⊢ fupd (P' rho))
+   ->   semax' Espec Delta P' c R ⊢ semax' Espec Delta P c R.
 Proof.
 intros.
 repeat rewrite semax_fold_unfold.
@@ -445,9 +418,9 @@ apply prop_andp_left; auto.
 Qed.
 
 Lemma semax'_pre:
- forall {CS: compspecs} {Espec: OracleKind} P' Delta R P c,
-  (forall rho, typecheck_environ Delta rho ->   P rho |-- P' rho)
-   ->   semax' Espec Delta P' c R |-- semax' Espec Delta P c R.
+ forall {CS: compspecs} P' Delta R P c,
+  (forall rho, typecheck_environ Delta rho ->   P rho ⊢ P' rho)
+   ->   semax' Espec Delta P' c R ⊢ semax' Espec Delta P c R.
 Proof.
 intros; apply semax'_pre_fupd.
 intros; eapply derives_trans, fupd.fupd_intro; auto.
@@ -455,15 +428,15 @@ Qed.
 
 Lemma semax'_pre_post_fupd:
  forall
-      {CS: compspecs} {Espec: OracleKind} P' (R': ret_assert) Delta (R: ret_assert) P c,
-   (forall rho, typecheck_environ Delta rho ->   P rho |-- fupd (P' rho)) ->
-   (forall ek vl rho, ek <> EK_return -> !!(typecheck_environ Delta rho) 
-                       &&  proj_ret_assert R ek vl rho 
-                    |-- fupd (proj_ret_assert R' ek vl rho)) ->
-   (forall vl rho, !!(typecheck_environ Delta rho) 
-                       &&  RA_return R vl rho 
-                    |-- RA_return R' vl rho) ->
-   semax' Espec Delta P' c R |-- semax' Espec Delta P c R'.
+      {CS: compspecs} P' (R': ret_assert) Delta (R: ret_assert) P c,
+   (forall rho, typecheck_environ Delta rho ->   P rho ⊢ fupd (P' rho)) ->
+   (forall ek vl rho, ek <> EK_return -> ⌜typecheck_environ Delta rho⌝ 
+                       ∧  proj_ret_assert R ek vl rho 
+                    ⊢ fupd (proj_ret_assert R' ek vl rho)) ->
+   (forall vl rho, ⌜typecheck_environ Delta rho⌝ 
+                       ∧  RA_return R vl rho 
+                    ⊢ RA_return R' vl rho) ->
+   semax' Espec Delta P' c R ⊢ semax' Espec Delta P c R'.
 Proof.
 intros.
 eapply derives_trans.
@@ -473,12 +446,12 @@ Qed.
 
 Lemma semax'_pre_post:
  forall
-      {CS: compspecs} {Espec: OracleKind} P' (R': ret_assert) Delta (R: ret_assert) P c,
-   (forall rho, typecheck_environ Delta rho ->   P rho |-- P' rho) ->
-   (forall ek vl rho, !!(typecheck_environ Delta rho) 
-                       &&  proj_ret_assert R ek vl rho 
-                    |-- proj_ret_assert R' ek vl rho) ->
-   semax' Espec Delta P' c R |-- semax' Espec Delta P c R'.
+      {CS: compspecs} P' (R': ret_assert) Delta (R: ret_assert) P c,
+   (forall rho, typecheck_environ Delta rho ->   P rho ⊢ P' rho) ->
+   (forall ek vl rho, ⌜typecheck_environ Delta rho⌝ 
+                       ∧  proj_ret_assert R ek vl rho 
+                    ⊢ proj_ret_assert R' ek vl rho) ->
+   semax' Espec Delta P' c R ⊢ semax' Espec Delta P c R'.
 Proof.
 intros.
 eapply derives_trans.
@@ -488,12 +461,12 @@ Qed.
 
 Lemma semax_post'_fupd {CS: compspecs} {Espec: OracleKind}:
  forall (R': ret_assert) Delta (R: ret_assert) P c,
-   (forall ek vl rho, ek <> EK_return -> !!(typecheck_environ Delta rho) 
-                      &&  proj_ret_assert R' ek vl rho
-                        |-- fupd (proj_ret_assert R ek vl rho)) ->
-   (forall vl rho,  !!(typecheck_environ Delta rho) 
-                      &&  RA_return R' vl rho
-                        |-- RA_return R vl rho) ->
+   (forall ek vl rho, ek <> EK_return -> ⌜typecheck_environ Delta rho⌝ 
+                      ∧  proj_ret_assert R' ek vl rho
+                        ⊢ fupd (proj_ret_assert R ek vl rho)) ->
+   (forall vl rho,  ⌜typecheck_environ Delta rho⌝ 
+                      ∧  RA_return R' vl rho
+                        ⊢ RA_return R vl rho) ->
    semax Espec Delta P c R' ->  semax Espec Delta P c R.
 Proof.
 unfold semax.
@@ -504,14 +477,14 @@ Qed.
 
 Lemma semax_post_fupd {CS: compspecs} {Espec: OracleKind}:
  forall (R': ret_assert) Delta (R: ret_assert) P c,
-   (forall rho,  !!(typecheck_environ Delta rho) 
-                      &&  RA_normal R' rho |-- fupd (RA_normal R rho)) ->
-   (forall rho, !! (typecheck_environ Delta rho) 
-                      && RA_break R' rho |-- fupd (RA_break R rho)) ->
-   (forall rho, !! (typecheck_environ Delta rho) 
-                      && RA_continue R' rho |-- fupd (RA_continue R rho)) ->
-   (forall vl rho, !! (typecheck_environ Delta rho) 
-                      && RA_return R' vl rho |-- RA_return R vl rho) ->
+   (forall rho,  ⌜typecheck_environ Delta rho⌝ 
+                      ∧  RA_normal R' rho ⊢ fupd (RA_normal R rho)) ->
+   (forall rho, ⌜(typecheck_environ Delta rho) 
+                      ∧ RA_break R' rho ⊢ fupd (RA_break R rho)) ->
+   (forall rho, ⌜(typecheck_environ Delta rho) 
+                      ∧ RA_continue R' rho ⊢ fupd (RA_continue R rho)) ->
+   (forall vl rho, ⌜(typecheck_environ Delta rho) 
+                      ∧ RA_return R' vl rho ⊢ RA_return R vl rho) ->
    semax Espec Delta P c R' ->  semax Espec Delta P c R.
 Proof.
 unfold semax.
@@ -526,9 +499,9 @@ Qed.
 
 Lemma semax_post' {CS: compspecs} {Espec: OracleKind}:
  forall (R': ret_assert) Delta (R: ret_assert) P c,
-   (forall ek vl rho,  !!(typecheck_environ Delta rho) 
-                      &&  proj_ret_assert R' ek vl rho
-                        |-- proj_ret_assert R ek vl rho) ->
+   (forall ek vl rho,  ⌜typecheck_environ Delta rho⌝ 
+                      ∧  proj_ret_assert R' ek vl rho
+                        ⊢ proj_ret_assert R ek vl rho) ->
    semax Espec Delta P c R' ->  semax Espec Delta P c R.
 Proof.
 unfold semax.
@@ -540,14 +513,14 @@ Qed.
 
 Lemma semax_post {CS: compspecs} {Espec: OracleKind}:
  forall (R': ret_assert) Delta (R: ret_assert) P c,
-   (forall rho,  !!(typecheck_environ Delta rho) 
-                      &&  RA_normal R' rho |-- RA_normal R rho) ->
-   (forall rho, !! (typecheck_environ Delta rho) 
-                      && RA_break R' rho |-- RA_break R rho) ->
-   (forall rho, !! (typecheck_environ Delta rho) 
-                      && RA_continue R' rho |-- RA_continue R rho) ->
-   (forall vl rho, !! (typecheck_environ Delta rho) 
-                      && RA_return R' vl rho |-- RA_return R vl rho) ->
+   (forall rho,  ⌜typecheck_environ Delta rho⌝ 
+                      ∧  RA_normal R' rho ⊢ RA_normal R rho) ->
+   (forall rho, ⌜(typecheck_environ Delta rho) 
+                      ∧ RA_break R' rho ⊢ RA_break R rho) ->
+   (forall rho, ⌜(typecheck_environ Delta rho) 
+                      ∧ RA_continue R' rho ⊢ RA_continue R rho) ->
+   (forall vl rho, ⌜(typecheck_environ Delta rho) 
+                      ∧ RA_return R' vl rho ⊢ RA_return R vl rho) ->
    semax Espec Delta P c R' ->  semax Espec Delta P c R.
 Proof.
 unfold semax.
@@ -560,9 +533,9 @@ specialize (H rho); specialize (H0 rho); specialize (H1 rho); specialize (H2 vl 
 rewrite prop_true_andp in H, H0, H1, H2 by auto; auto.
 Qed.
 
-Lemma semax_pre_fupd {CS: compspecs} {Espec: OracleKind} :
+Lemma semax_pre_fupd {CS: compspecs} :
  forall P' Delta P c R,
-   (forall rho,  !!(typecheck_environ Delta rho) &&  P rho |-- fupd (P' rho) )%pred ->
+   (forall rho,  ⌜typecheck_environ Delta rho⌝ ∧  P rho ⊢ fupd (P' rho) )%pred ->
      semax Espec Delta P' c R  -> semax Espec Delta P c R.
 Proof.
 unfold semax.
@@ -573,9 +546,9 @@ apply semax'_pre_fupd.
 intros ????. apply (H rho a); auto. split; auto.
 Qed.
 
-Lemma semax_pre {CS: compspecs} {Espec: OracleKind} :
+Lemma semax_pre {CS: compspecs} :
  forall P' Delta P c R,
-   (forall rho,  !!(typecheck_environ Delta rho) &&  P rho |-- P' rho )%pred ->
+   (forall rho,  ⌜typecheck_environ Delta rho⌝ ∧  P rho ⊢ P' rho )%pred ->
      semax Espec Delta P' c R  -> semax Espec Delta P c R.
 Proof.
 unfold semax.
@@ -588,15 +561,15 @@ Qed.
 
 Lemma semax_pre_post_fupd {CS: compspecs} {Espec: OracleKind}:
  forall P' (R': ret_assert) Delta P c (R: ret_assert) ,
-   (forall rho,  !!(typecheck_environ Delta rho) &&  P rho |-- fupd (P' rho) )%pred ->
-   (forall rho,  !!(typecheck_environ Delta rho) 
-                      &&  RA_normal R' rho |-- fupd (RA_normal R rho)) ->
-   (forall rho, !! (typecheck_environ Delta rho) 
-                      && RA_break R' rho |-- fupd (RA_break R rho)) ->
-   (forall rho, !! (typecheck_environ Delta rho) 
-                      && RA_continue R' rho |-- fupd (RA_continue R rho)) ->
-   (forall vl rho, !! (typecheck_environ Delta rho) 
-                      && RA_return R' vl rho |-- RA_return R vl rho) ->
+   (forall rho,  ⌜typecheck_environ Delta rho⌝ ∧  P rho ⊢ fupd (P' rho) )%pred ->
+   (forall rho,  ⌜typecheck_environ Delta rho⌝ 
+                      ∧  RA_normal R' rho ⊢ fupd (RA_normal R rho)) ->
+   (forall rho, ⌜(typecheck_environ Delta rho) 
+                      ∧ RA_break R' rho ⊢ fupd (RA_break R rho)) ->
+   (forall rho, ⌜(typecheck_environ Delta rho) 
+                      ∧ RA_continue R' rho ⊢ fupd (RA_continue R rho)) ->
+   (forall vl rho, ⌜(typecheck_environ Delta rho) 
+                      ∧ RA_return R' vl rho ⊢ RA_return R vl rho) ->
    semax Espec Delta P' c R' ->  semax Espec Delta P c R.
 Proof.
 intros.
@@ -606,15 +579,15 @@ Qed.
 
 Lemma semax_pre_post {CS: compspecs} {Espec: OracleKind}:
  forall P' (R': ret_assert) Delta P c (R: ret_assert) ,
-   (forall rho,  !!(typecheck_environ Delta rho) &&  P rho |-- P' rho )%pred ->
-   (forall rho,  !!(typecheck_environ Delta rho) 
-                      &&  RA_normal R' rho |-- RA_normal R rho) ->
-   (forall rho, !! (typecheck_environ Delta rho) 
-                      && RA_break R' rho |-- RA_break R rho) ->
-   (forall rho, !! (typecheck_environ Delta rho) 
-                      && RA_continue R' rho |-- RA_continue R rho) ->
-   (forall vl rho, !! (typecheck_environ Delta rho) 
-                      && RA_return R' vl rho |-- RA_return R vl rho) ->
+   (forall rho,  ⌜typecheck_environ Delta rho⌝ ∧  P rho ⊢ P' rho )%pred ->
+   (forall rho,  ⌜typecheck_environ Delta rho⌝ 
+                      ∧  RA_normal R' rho ⊢ RA_normal R rho) ->
+   (forall rho, ⌜(typecheck_environ Delta rho) 
+                      ∧ RA_break R' rho ⊢ RA_break R rho) ->
+   (forall rho, ⌜(typecheck_environ Delta rho) 
+                      ∧ RA_continue R' rho ⊢ RA_continue R rho) ->
+   (forall vl rho, ⌜(typecheck_environ Delta rho) 
+                      ∧ RA_return R' vl rho ⊢ RA_return R vl rho) ->
    semax Espec Delta P' c R' ->  semax Espec Delta P c R.
 Proof.
 intros.
@@ -646,7 +619,7 @@ Lemma semax_extract_prop:
   forall {CS: compspecs} {Espec: OracleKind},
   forall Delta (PP: Prop) (P:assert) c (Q:ret_assert),
            (PP -> @semax CS Espec Delta P c Q) ->
-           @semax CS Espec Delta (fun rho => !!PP && P rho) c Q.
+           @semax CS Espec Delta (fun rho => !!PP ∧ P rho) c Q.
 Proof.
   intros.
   eapply semax_pre with (fun rho => EX H: PP, P rho).
@@ -657,20 +630,20 @@ Proof.
 Qed.
 
 Lemma semax_adapt_frame {cs Espec} Delta c (P P': assert) (Q Q' : ret_assert)
-   (H: forall rho,  derives (!!(typecheck_environ Delta rho) && (allp_fun_id Delta rho && P rho))
-                   (EX F: assert, (!!(closed_wrt_modvars c F) && fupd (P' rho * F rho) &&
-                         !!(forall rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_normal (frame_ret_assert Q' F) rho |-- fupd (RA_normal Q rho)) &&
-                         !!(forall rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_break (frame_ret_assert Q' F) rho |-- fupd (RA_break Q rho)) &&
-                         !!(forall rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_continue (frame_ret_assert Q' F) rho |-- fupd (RA_continue Q rho)) &&
-                         !!(forall vl rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_return (frame_ret_assert Q' F) vl rho |-- RA_return Q vl rho))))
+   (H: forall rho,  derives (⌜typecheck_environ Delta rho⌝ ∧ (<affine> allp_fun_id Delta rho ∗ P rho))
+                   (EX F: assert, (!!(closed_wrt_modvars c F) ∧ fupd (P' rho * F rho) ∧
+                         !!(forall rho, (local (tc_environ Delta) rho) ∧ ((allp_fun_id Delta rho)) ∧ RA_normal (frame_ret_assert Q' F) rho ⊢ fupd (RA_normal Q rho)) ∧
+                         !!(forall rho, (local (tc_environ Delta) rho) ∧ ((allp_fun_id Delta rho)) ∧ RA_break (frame_ret_assert Q' F) rho ⊢ fupd (RA_break Q rho)) ∧
+                         !!(forall rho, (local (tc_environ Delta) rho) ∧ ((allp_fun_id Delta rho)) ∧ RA_continue (frame_ret_assert Q' F) rho ⊢ fupd (RA_continue Q rho)) ∧
+                         !!(forall vl rho, (local (tc_environ Delta) rho) ∧ ((allp_fun_id Delta rho)) ∧ RA_return (frame_ret_assert Q' F) vl rho ⊢ RA_return Q vl rho))))
    (SEM: @semax cs Espec Delta P' c Q'):
    @semax cs Espec Delta P c Q.
 Proof. intros.
-apply (semax_conseq Delta (fun rho => EX F: assert, !!(closed_wrt_modvars c F) && (fupd (sepcon (P' rho) (F rho)) &&
-                         (!!(forall rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_normal (frame_ret_assert Q' F) rho |-- fupd (RA_normal Q rho)) &&
-                         (!!(forall rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_break (frame_ret_assert Q' F) rho |-- fupd (RA_break Q rho)) &&
-                         (!!(forall rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_continue (frame_ret_assert Q' F) rho |-- fupd (RA_continue Q rho)) &&
-                         (!!(forall vl rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_return (frame_ret_assert Q' F) vl rho |-- RA_return Q vl rho)))))))
+apply (semax_conseq Delta (fun rho => EX F: assert, !!(closed_wrt_modvars c F) ∧ (fupd (sepcon (P' rho) (F rho)) ∧
+                         (!!(forall rho, (local (tc_environ Delta) rho) ∧ ((allp_fun_id Delta rho)) ∧ RA_normal (frame_ret_assert Q' F) rho ⊢ fupd (RA_normal Q rho)) ∧
+                         (!!(forall rho, (local (tc_environ Delta) rho) ∧ ((allp_fun_id Delta rho)) ∧ RA_break (frame_ret_assert Q' F) rho ⊢ fupd (RA_break Q rho)) ∧
+                         (!!(forall rho, (local (tc_environ Delta) rho) ∧ ((allp_fun_id Delta rho)) ∧ RA_continue (frame_ret_assert Q' F) rho ⊢ fupd (RA_continue Q rho)) ∧
+                         (!!(forall vl rho, (local (tc_environ Delta) rho) ∧ ((allp_fun_id Delta rho)) ∧ RA_return (frame_ret_assert Q' F) vl rho ⊢ RA_return Q vl rho)))))))
    Q).
 + intros. eapply seplog.derives_trans. constructor. apply H. clear H.
   eapply seplog.derives_trans. 2: { constructor. apply fupd.fupd_intro. }
@@ -716,12 +689,12 @@ apply (semax_conseq Delta (fun rho => EX F: assert, !!(closed_wrt_modvars c F) &
 Qed.
 
 Lemma semax_adapt_frame' {cs Espec} Delta c (P P': assert) (Q Q' : ret_assert)
-   (H: forall rho,  !!(typecheck_environ Delta rho) && (allp_fun_id Delta rho && P rho)
-                   |-- EX F: assert, (!!(closed_wrt_modvars c F) && fupd (P' rho * F rho) &&
-                        !!(forall rho, RA_normal (frame_ret_assert Q' F) rho |-- fupd (RA_normal Q rho)) &&
-                        !!(forall rho, RA_break (frame_ret_assert Q' F) rho |-- fupd (RA_break Q rho)) &&
-                        !!(forall rho, RA_continue (frame_ret_assert Q' F) rho |-- fupd (RA_continue Q rho)) &&
-                        !!(forall vl rho, RA_return (frame_ret_assert Q' F) vl rho |-- RA_return Q vl rho)))
+   (H: forall rho,  ⌜typecheck_environ Delta rho⌝ ∧ (<affine> allp_fun_id Delta rho ∗ P rho)
+                   ⊢ EX F: assert, (!!(closed_wrt_modvars c F) ∧ fupd (P' rho * F rho) ∧
+                        !!(forall rho, RA_normal (frame_ret_assert Q' F) rho ⊢ fupd (RA_normal Q rho)) ∧
+                        !!(forall rho, RA_break (frame_ret_assert Q' F) rho ⊢ fupd (RA_break Q rho)) ∧
+                        !!(forall rho, RA_continue (frame_ret_assert Q' F) rho ⊢ fupd (RA_continue Q rho)) ∧
+                        !!(forall vl rho, RA_return (frame_ret_assert Q' F) vl rho ⊢ RA_return Q vl rho)))
    (SEM: @semax cs Espec Delta P' c Q'):
    @semax cs Espec Delta P c Q.
 Proof.
@@ -741,12 +714,12 @@ Proof.
 Qed.
 
 Lemma semax_adapt {cs Espec} Delta c (P P': assert) (Q Q' : ret_assert)
-   (H: forall rho,  !!(typecheck_environ Delta rho) && (allp_fun_id Delta rho && P rho)
-                   |-- (fupd (P' rho) &&
-                        !!(forall rho, RA_normal Q' rho |-- fupd (RA_normal Q rho)) &&
-                        !!(forall rho, RA_break Q' rho |-- fupd (RA_break Q rho)) &&
-                        !!(forall rho, RA_continue Q' rho |-- fupd (RA_continue Q rho)) &&
-                        !!(forall vl rho, RA_return Q' vl rho |-- RA_return Q vl rho)))
+   (H: forall rho,  ⌜typecheck_environ Delta rho⌝ ∧ (<affine> allp_fun_id Delta rho ∗ P rho)
+                   ⊢ (fupd (P' rho) ∧
+                        !!(forall rho, RA_normal Q' rho ⊢ fupd (RA_normal Q rho)) ∧
+                        !!(forall rho, RA_break Q' rho ⊢ fupd (RA_break Q rho)) ∧
+                        !!(forall rho, RA_continue Q' rho ⊢ fupd (RA_continue Q rho)) ∧
+                        !!(forall vl rho, RA_return Q' vl rho ⊢ RA_return Q vl rho)))
    (SEM: @semax cs Espec Delta P' c Q'):
    @semax cs Espec Delta P c Q.
 Proof.

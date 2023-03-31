@@ -1,7 +1,6 @@
 Require Import Coq.Logic.FunctionalExtensionality.
 Require Import VST.veric.juicy_base.
-Require Import VST.msl.normalize.
-Require Import VST.veric.juicy_mem VST.veric.juicy_mem_lemmas VST.veric.juicy_mem_ops.
+Require Import VST.veric.juicy_mem (*VST.veric.juicy_mem_lemmas VST.veric.juicy_mem_ops*).
 Require Import VST.veric.res_predicates.
 Require Import VST.veric.extend_tc.
 Require Import VST.veric.Clight_seplog.
@@ -20,28 +19,9 @@ Require Import VST.veric.semax.
 Require Import VST.veric.semax_lemmas.
 Require Import VST.veric.Clight_lemmas.
 Import LiftNotation.
-Import compcert.lib.Maps.
-Local Open Scope pred.
-
-(* up *)
-Lemma sepcon_andp_unfash {A}{JA: Join A}{PA: Perm_alg A}{agA: ageable A}{SA: Sep_alg A}{aaA: Age_alg A}{EO: Ext_ord A}{EA: Ext_alg A}:
-     forall (P: pred A) (Q: pred nat) (R: pred A), P * (! Q && R) = ! Q && (P * R).
-Proof.
-  intros; apply pred_ext.
-  - intros ? (? & ? & J & ? & []); split; simpl in *; eauto.
-    apply join_level in J as [? <-]; auto.
-  - rewrite unfash_sepcon_distrib; apply sepcon_derives; auto.
-    apply andp_left2; auto.
-Qed.
 
 Lemma TTL3 l: typelist_of_type_list (Clight_core.typelist2list l) = l.
 Proof. induction l; simpl; trivial. f_equal; trivial . Qed.
-
-Lemma age_later {A} {agA : ageable A}: forall {w w1 w2} (AGE: age w w1) (L: laterR w w2), w1=w2 \/ laterR w1 w2.
-Proof. intros. induction L.
-+ unfold age in *. rewrite AGE in H. left; inv H; trivial.
-+ right. destruct (IHL1 AGE); subst. apply L2. eapply t_trans; eassumption.
-Qed.
 
 Lemma tc_val_sem_cast':
   forall {cs: compspecs} t2 e2 rho Delta,

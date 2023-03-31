@@ -106,7 +106,7 @@ Definition _guard
      ∀ tx : Clight.temp_env, ∀ vx : env,
           let rho := construct_rho (filter_genv gx) vx tx in
           ■ (⌜guard_environ Delta f rho⌝
-                  ∧ P rho ∧ funassert Delta rho
+                  ∧ P rho ∗ funassert Delta rho
              -∗ assert_safe gx E f vx tx ctl rho).
 
 Definition guard'
@@ -306,7 +306,7 @@ Definition believe_internal_ CS
         ▷ semax (SemaxArg CS' E (func_tycontext' f Delta')
                          (fun rho => (bind_args (f.(fn_params)) (P x) rho
                                               ∗ stackframe_of' (@cenv_cs CS') f rho)
-                                        ∧ funassert (func_tycontext' f Delta') rho)
+                                        ∗ funassert (func_tycontext' f Delta') rho)
                           (f.(fn_body))
            (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) 
               (stackframe_of' (@cenv_cs CS') f)))) ).
@@ -377,7 +377,7 @@ Definition believe_internal {CS: compspecs}
        (∀ x : A,
      ▷ @semax' CS' E (func_tycontext' f Delta')
                                 (fun rho => (bind_args (f.(fn_params)) (P x) rho ∗ stackframe_of' (@cenv_cs CS') f rho)
-                                             ∧ funassert (func_tycontext' f Delta') rho)
+                                             ∗ funassert (func_tycontext' f Delta') rho)
                                (f.(fn_body))
            (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) (stackframe_of' (@cenv_cs CS') f)))).
 
@@ -443,7 +443,7 @@ Proof.
   iSplit.
   - iPureIntro; unfold guard_environ in *.
     destruct H as (? & ? & ?); rewrite GD2; auto.
-  - iSplit; [by iApply GD3 | by iApply GD4].
+  - rewrite GD3 GD4; iFrame.
 Qed.
 
 Lemma guard_mono gx E Delta Gamma f (P Q:environ -> mpred) ctl

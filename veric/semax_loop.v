@@ -1,6 +1,5 @@
 Require Import VST.veric.juicy_base.
-Require Import VST.msl.normalize.
-Require Import VST.veric.juicy_mem VST.veric.juicy_mem_lemmas VST.veric.juicy_mem_ops.
+Require Import VST.veric.juicy_mem (*VST.veric.juicy_mem_lemmas VST.veric.juicy_mem_ops*).
 Require Import VST.veric.res_predicates.
 Require Import VST.veric.extend_tc.
 Require Import VST.veric.Clight_seplog.
@@ -17,7 +16,6 @@ Require Import VST.veric.semax_lemmas.
 Require Import VST.veric.semax_conseq.
 Require Import VST.veric.Clight_lemmas.
 
-Local Open Scope pred.
 Local Open Scope nat_scope.
 
 Section extensions.

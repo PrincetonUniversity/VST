@@ -12,9 +12,12 @@ Section mpred.
 Context `{!heapGS Σ}.
 
 Definition allp_fun_id (Delta : tycontext) (rho : environ): mpred :=
- ∀ id : ident , ∀ fs : funspec ,
+ ∀ id : ident, ∀ fs : funspec,
   ⌜(glob_specs Delta) !! id = Some fs⌝ →
   (∃ b : block, ⌜Map.get (ge_of rho) id = Some b⌝ ∧ func_ptr_si fs (Vptr b Ptrofs.zero)).
+
+Global Instance funspec_inhabited : Inhabited funspec.
+Proof. constructor. exact (mk_funspec ([], Tvoid) cc_default unit (fun _ _ => True) (fun _ _ => True)). Qed.
 
 Definition allp_fun_id_sigcc (Delta : tycontext) (rho : environ): mpred :=
 (∀ id : ident ,
@@ -74,8 +77,9 @@ Proof.
   iApply funspec_sub_si_trans; eauto.
 Qed.
 
-Lemma funassert_allp_fun_id Delta rho: funassert Delta rho ⊢ allp_fun_id Delta rho.
+Lemma funassert_allp_fun_id Delta rho: funassert Delta rho ⊢ <affine> allp_fun_id Delta rho.
 Proof.
+  rewrite -(bi.affine_affinely (funassert _ _)); apply bi.affinely_mono.
   simpl.
   rewrite bi.and_elim_l.
   apply bi.forall_mono; intros id.
@@ -91,25 +95,25 @@ Qed.
 
 Lemma funassert_allp_fun_id_sub: forall Delta Delta' rho,
   tycontext_sub Delta Delta' ->
-  funassert Delta' rho ⊢ allp_fun_id Delta rho.
+  funassert Delta' rho ⊢ <affine> allp_fun_id Delta rho.
 Proof.
   intros. rewrite funassert_allp_fun_id.
-  apply allp_fun_id_sub; trivial.
+  apply bi.affinely_mono, allp_fun_id_sub; trivial.
 Qed.
 
 Lemma funassert_allp_fun_id_sigcc Delta rho:
-  funassert Delta rho ⊢ allp_fun_id_sigcc Delta rho.
+  funassert Delta rho ⊢ <affine> allp_fun_id_sigcc Delta rho.
 Proof.
   intros. rewrite funassert_allp_fun_id.
-  apply allp_fun_id_ex_implies_allp_fun_sigcc.
+  apply bi.affinely_mono, allp_fun_id_ex_implies_allp_fun_sigcc.
 Qed.
 
 Lemma funassert_allp_fun_id_sigcc_sub: forall Delta Delta' rho,
   tycontext_sub Delta Delta' ->
-  funassert Delta' rho ⊢ allp_fun_id_sigcc Delta rho.
+  funassert Delta' rho ⊢ <affine> allp_fun_id_sigcc Delta rho.
 Proof.
   intros. rewrite funassert_allp_fun_id_sigcc.
-  apply allp_fun_id_sigcc_sub; trivial.
+  apply bi.affinely_mono, allp_fun_id_sigcc_sub; trivial.
 Qed.
 
 Section STABILITY.

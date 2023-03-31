@@ -1,7 +1,6 @@
 Require Import VST.msl.seplog.
 Require Import VST.veric.juicy_base.
-Require Import VST.msl.normalize.
-Require Import VST.veric.juicy_mem VST.veric.juicy_mem_lemmas VST.veric.juicy_mem_ops.
+Require Import VST.veric.juicy_mem (*VST.veric.juicy_mem_lemmas VST.veric.juicy_mem_ops*).
 Require Import VST.veric.res_predicates.
 Require Import VST.veric.extend_tc.
 Require Import VST.veric.Clight_seplog.
@@ -16,7 +15,6 @@ Require Import VST.veric.expr_lemmas.
 Require Import VST.veric.semax.
 Require Import VST.veric.semax_lemmas.
 Require Import VST.veric.Clight_lemmas.
-Import compcert.lib.Maps.
 
 Lemma closed_wrt_modvars_switch:
   forall a sl n F,
