@@ -23,7 +23,7 @@ jobs:
           # See https://github.com/coq-community/docker-coq/wiki for supported images
           - '8.16'
           - '8.17'
-	  - 'dev'
+          - 'dev'
         bit_size:
           - 32
           - 64
