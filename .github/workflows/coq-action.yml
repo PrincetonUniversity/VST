@@ -88,6 +88,7 @@ jobs:
         coq_version:
           - '8.16'
           - '8.17'
+          - 'dev' 
         make_target:
           - assumptions.txt
           - test
@@ -100,6 +101,8 @@ jobs:
           - 64
         exclude:
           - coq_version: 8.16
+            bit_size: 32
+          - coq_version: dev
             bit_size: 32
           - bit_size: 64
             make_target: test3
