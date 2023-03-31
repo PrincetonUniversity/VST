@@ -701,7 +701,7 @@ generalize dependent empty_env.
 unfold Map.get, make_venv.
 induction (fn_vars f); intros.
 inv H15.
-destruct (ve' ! id); intuition.
+destruct (ve' ! id); intuition auto with exfalso.
 inv H15.
 inv H17'.
 specialize (IHl H3); clear H3.
@@ -733,7 +733,7 @@ contradiction H2.
 apply in_map with (f:=fst) in H0. auto.
 rewrite PTree.gso in IHl by auto.
 rewrite <- IHl.
-intuition. inv H5. inv H0. tauto.
+intuition (simpl; auto). inv H5. inv H0. tauto.
 apply H4 in H0. apply H1; auto.
 *
 unfold ge_of in *. simpl in *. auto.

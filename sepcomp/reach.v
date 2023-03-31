@@ -503,13 +503,13 @@ Proof. intros. unfold sharedSrc. rewrite replace_locals_shared.
 extensionality b. unfold  shared_of, join.
 remember (foreign_of mu b) as d.
 destruct d; simpl; trivial.
-  destruct p. intuition.
+  destruct p. intuition auto with bool.
 remember (pubSrc' b) as q. symmetry in Heqq.
 destruct q; simpl. apply HPUB1 in Heqq.
   destruct (local_of mu b); trivial. congruence.
 unfold pub_of. destruct mu; simpl in *.
 specialize (HPUB2 b).
-destruct (pubBlocksSrc b); trivial. rewrite Heqq in HPUB2. intuition.
+destruct (pubBlocksSrc b); trivial. rewrite Heqq in HPUB2. intuition congruence.
 Qed.
 
 Definition getBlocks (V:list val) (b: block): bool :=
@@ -686,10 +686,10 @@ Proof. intros.
          rewrite getBlocksD_nil in H0.
          rewrite getBlocksD.
          destruct x; try congruence.
-         apply orb_true_iff in H0. destruct H0; intuition.
+         apply orb_true_iff in H0. destruct H0; intuition auto with bool.
    apply IHInj. intros. apply HR.
       rewrite getBlocksD. rewrite H0.
-      destruct x; trivial. intuition.
+      destruct x; trivial. intuition auto with bool.
 Qed.
 
 Lemma restrict_mapped_closed: forall j m X
@@ -805,7 +805,7 @@ Proof. intros. unfold exportedSrc in SRC. unfold exportedTgt.
    exists b2, d. rewrite J, G. intuition.
   destruct (shared_SrcTgt _ WD _ SRC) as [b2 [d [J G]]].
    exists b2, d. rewrite (shared_in_all _ WD _ _ _ J).
-      rewrite G. intuition.
+      rewrite G. intuition auto with bool.
 Qed.
 
 Lemma val_inject_sub_on j k: forall v1 v2
@@ -879,7 +879,7 @@ Proof. intros.
  apply sharedSrc_iff in H. destruct H as [jb [delta SH]].
    specialize (HB _ _ _ SH).
    exists jb, delta.
-   intuition.
+   intuition auto with bool.
 Qed.
 
 Lemma REACH_as_inj: forall mu (WD: SM_wd mu) m1 m2 vals1 vals2
@@ -900,7 +900,7 @@ Proof. intros.
    specialize (HB _ _ _ SH).
    apply shared_in_all in SH; trivial.
    exists jb, delta.
-   intuition.
+   intuition auto with bool.
 Qed.
 
 Lemma REACH_local: forall mu (WD: SM_wd mu) m1 m2 vals1 vals2
@@ -933,7 +933,7 @@ Proof. intros.
   destruct (joinD_Some _ _ _ _ _ ASINJ). assumption.
   destruct H.
   destruct (local_DomRng _ WD _ _ _ H0) as [ZZ _]; rewrite ZZ in locBSrc.
-  intuition.
+  discriminate.
 Qed.
 
 (*The following six or so results are key lemmas about REACH - they say
@@ -1001,7 +1001,7 @@ Proof. intros.
     apply H.
   destruct H as [_ H].
     destruct (local_DomRng _ WD _ _ _ H) as [ZZ _]; rewrite ZZ in locBSrc.
-    intuition.
+    discriminate.
 Qed.
 
 Lemma pubBlocksSrc_REACH: forall m1 mu (WD: SM_wd mu) vals b, pubBlocksSrc mu b = true ->
@@ -1129,7 +1129,7 @@ Proof. intros.
     apply restrictI_Some. assumption.
     apply Glob.
     unfold isGlobalBlock.
-      apply genv2blocksBool_char2 in H. rewrite H. intuition.
+      apply genv2blocksBool_char2 in H. rewrite H. intuition auto with bool.
   destruct (restrictD_Some _ _ _ _ _ H0) as [AU XX]; clear H0.
      apply (PGc _ _ _ H AU).
 Qed.
@@ -1242,8 +1242,8 @@ Proof. intros.
               destruct H0.
                 rewrite (meminj_preserves_globals_isGlobalBlock _ _ PG _ H0).
                 exists b, 0. rewrite <- (genvs_domain_eq_isGlobal _ _ GenvsDomEQ).
-                intuition.
-              destruct (H _ H0) as [b2 [d [J GB2]]]. exists b2, d; intuition.
+                intuition auto with bool.
+              destruct (H _ H0) as [b2 [d [J GB2]]]. exists b2, d; intuition auto with bool.
   split. intros.
          destruct (HR _ H0) as [b2 [d [J R2]]].
          apply (HypJ _ _ _ J).
@@ -1254,7 +1254,7 @@ Proof. intros.
   split. split; intros. apply (HS _ H0). apply (HT _ H0).
   split. eapply meminj_preserves_globals_initSM; intuition.
   split. apply meminj_preserves_globals_init_REACH_frgn; try eassumption.
-    intuition.
+    intuition auto with bool.
   split. simpl. apply REACH_is_closed.
   rewrite initial_SM_as_inj.
     apply (inject_REACH_closed _ _ _ MInj).
@@ -1359,7 +1359,7 @@ intros.
   unfold DomSrc.
   rewrite L', (frgnBlocksSrc_extBlocksSrc _ WDnu' _ F'); simpl.
   apply (frgnSrc_shared _ WDnu') in F'.
-  apply REACH_nil. unfold exportedSrc. intuition.
+  apply REACH_nil. unfold exportedSrc. intuition auto with bool.
 Qed.
 
 Lemma restrict_SharedSrc mu: SM_wd mu ->
@@ -1458,7 +1458,7 @@ Lemma restrict_sm_local': forall mu (WD: SM_wd mu) X
 Proof. intros. rewrite restrict_sm_local.
  apply restrict_outside. intros.
  apply HX.
- destruct (local_DomRng _ WD _ _ _ H). unfold vis. intuition.
+ destruct (local_DomRng _ WD _ _ _ H). unfold vis. intuition auto with bool.
 Qed.
 
 Lemma restrict_sm_pub': forall mu (WD: SM_wd mu) X
@@ -1468,7 +1468,7 @@ Lemma restrict_sm_pub': forall mu (WD: SM_wd mu) X
 Proof. intros. rewrite restrict_sm_pub.
  apply restrict_outside. intros.
  apply HX. apply pub_in_local in H.
- destruct (local_DomRng _ WD _ _ _ H). unfold vis. intuition.
+ destruct (local_DomRng _ WD _ _ _ H). unfold vis. intuition auto with bool.
 Qed.
 
 Lemma restrict_sm_foreign': forall mu (WD: SM_wd mu) X
@@ -1559,7 +1559,7 @@ split; intros.
     rewrite restrict_sm_frgnBlocksTgt, restrict_sm_extern.
     exists b2, d1. split; trivial.
     apply restrictI_Some; intuition.
-    apply HX. unfold vis. rewrite H. intuition.
+    apply HX. unfold vis. rewrite H. intuition auto with bool.
   rewrite restrict_sm_locBlocksTgt.
     rewrite restrict_sm_pubBlocksTgt in H.
     apply (pubBlocksLocalTgt _ WD _ H).
@@ -1735,7 +1735,7 @@ Proof. intros.
                        eapply REACH_cons; try eassumption.
                        destruct (joinD_Some _ _ _ _ _ IHL); clear IHL.
                          apply REACH_nil. unfold exportedSrc, sharedSrc, shared_of, join.
-                           rewrite H5.  intuition.
+                           rewrite H5.  intuition auto with bool.
                          destruct H5.
                            remember (locBlocksSrc mu b' && REACH m1 (exportedSrc mu vals1) b') as qq.
                            destruct qq; inv H6. apply eq_sym in Heqqq. apply andb_true_iff in Heqqq. apply Heqqq.
@@ -1792,7 +1792,7 @@ Lemma local_of_vis mu: forall b1 b2 d
    (WD: SM_wd mu), vis mu b1 = true.
 Proof. intros. unfold vis.
   destruct (local_DomRng _ WD _ _ _ LOC).
-  intuition.
+  intuition auto with bool.
 Qed.
 
 Lemma incr_local_restrictvis mu: SM_wd mu ->
@@ -1801,13 +1801,13 @@ Proof. intros; red; intros.
   apply restrictI_Some.
   apply local_in_all; assumption.
   destruct (local_DomRng _ H _ _ _ H0) .
-  unfold vis; intuition.
+  unfold vis; intuition auto with bool.
 Qed.
 
 Lemma local_visTgt mu (WD: SM_wd mu) b1 b2 d:
       local_of mu b1 = Some(b2,d) -> visTgt mu b2 = true.
 Proof. unfold visTgt. intros.
-  destruct (local_DomRng _ WD _ _ _ H); intuition.
+  destruct (local_DomRng _ WD _ _ _ H); intuition auto with bool.
 Qed.
 
 Section globalfunction_ptr_inject.
@@ -1837,7 +1837,7 @@ Lemma restrict_GFP_vis: forall mu
 Proof. intros.
   unfold vis.
   eapply restrict_preserves_globalfun_ptr. eassumption.
-  intuition.
+  intuition auto with bool.
 Qed.
 
 Remark val_inject_function_pointer:

@@ -710,6 +710,8 @@ Qed.
          vres m' EFI EC). simpl in H. subst x. auto.
   Qed.
 
+Local Obligation Tactic := idtac.
+
   Program Definition CLC_evsem ge : @EvSem C := {| msem := CLC_memsem ge; ev_step := cl_evstep ge |}.
   Next Obligation. apply CLC_evstep_ax1. Qed.
   Next Obligation. apply CLC_evstep_ax2. Qed.

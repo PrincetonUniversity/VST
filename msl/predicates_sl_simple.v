@@ -79,7 +79,7 @@ Definition extendM {A}{JA: Join A}{PA: Perm_alg A}{SA : Sep_alg A}{AG: ageable A
   := exist _ extendR valid_rel_extend.
 
 (* Definitions of the BI connectives. *)
-Obligation Tactic := unfold hereditary; intros; try solve [intuition].
+Local Obligation Tactic := unfold hereditary; intros; try solve [intuition].
 
 Program Definition emp {A}  {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A} : pred A := identity.
 Next Obligation.

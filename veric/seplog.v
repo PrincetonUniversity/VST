@@ -1126,6 +1126,7 @@ Proof.
   specialize (HI i). destruct HI as [[_ _] Hi]. apply (Hi ts2 Ai gargs).
 Qed.
 
+Local Obligation Tactic := idtac.
 (*Specialization of funspec_Sigma_ND to binary case, i.e. I=bool*)
 Program Definition BinarySigma fsig cc (A B:Type)
         (PA: A -> argsEnviron -> mpred) (QA: A -> environ -> mpred)

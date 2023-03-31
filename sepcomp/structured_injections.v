@@ -639,7 +639,7 @@ Lemma intern_incr_DomSrc:
 Proof. unfold DomSrc. intros.
   destruct Inc as [_ [_ [? [_ [_ [_ [_ [_ [? _]]]]]]]]].
   apply orb_true_iff in H.
-  destruct H. intuition. rewrite H1 in H. intuition.
+  destruct H.  intuition auto with bool. rewrite H1 in H. intuition auto with bool.
 Qed.
 Lemma intern_incr_DOM:
       forall mu mu' (Inc: intern_incr mu mu') b,
@@ -652,7 +652,7 @@ Lemma intern_incr_DomTgt:
 Proof. unfold DomTgt. intros.
   destruct Inc as [_ [_ [_ [? [_ [_ [_ [_ [_ ?]]]]]]]]].
   apply orb_true_iff in H.
-  destruct H. intuition. rewrite H1 in H. intuition.
+  destruct H. intuition auto with bool. rewrite H1 in H.  intuition auto with bool.
 Qed.
 
 Lemma intern_incr_RNG:
@@ -787,7 +787,7 @@ Lemma extern_incr_DomSrc:
 Proof. unfold DomSrc. intros.
   destruct Inc as [_ [_ [? [_ [? _]]]]].
   apply orb_true_iff in H.
-  destruct H. rewrite H1 in H. intuition. intuition.
+  destruct H. rewrite H1 in H. intuition auto with bool. intuition auto with bool.
 Qed.
 Lemma extern_incr_DOM:
       forall mu mu' (Inc: extern_incr mu mu') b,
@@ -800,7 +800,7 @@ Lemma extern_incr_DomTgt:
 Proof. unfold DomTgt. intros.
   destruct Inc as [_ [_ [_ [? [_ [? _]]]]]].
   apply orb_true_iff in H.
-  destruct H. rewrite H1 in H. intuition. intuition.
+  destruct H. rewrite H1 in H. intuition auto with bool. intuition auto with bool.
 Qed.
 
 Lemma extern_incr_RNG:
@@ -1000,8 +1000,8 @@ Proof. intros.
   unfold DomSrc, DomTgt.
   apply joinD_Some in H.
   destruct H as [ExtSome | [ExtNone LocalSome]].
-    apply extern_DomRng in ExtSome; intuition.
-    apply local_DomRng in LocalSome; intuition.
+    apply extern_DomRng in ExtSome; intuition auto with bool.
+    apply local_DomRng in LocalSome; intuition auto with bool.
 Qed.
 
 Lemma local_locBlocks: forall mu (WD:SM_wd mu)
@@ -1020,7 +1020,7 @@ Proof. intros.
   split. destruct (disjoint_extern_local_Tgt _ WD b2); congruence.
   split. apply locBlocksSrc_frgnBlocksSrc; eassumption.
   split. apply locBlocksTgt_frgnBlocksTgt; eassumption.
-  unfold DomSrc, DomTgt; intuition.
+  unfold DomSrc, DomTgt; intuition auto with bool.
 Qed.
 
 Lemma pub_locBlocks: forall mu (WD:SM_wd mu)
@@ -1060,7 +1060,7 @@ Proof. intros.
    apply (extern_DomRng _ WD) in L; destruct L as [A B].
    destruct (disjoint_extern_local_Src _ WD b1); try congruence.
    destruct (disjoint_extern_local_Tgt _ WD b2); try congruence.
-   unfold DomSrc, DomTgt. intuition.
+   unfold DomSrc, DomTgt. intuition auto with bool.
    remember (pubBlocksSrc mu b1) as q.
       destruct q; trivial. apply eq_sym in Heqq.
       rewrite (pubBlocksLocalSrc _ WD _ Heqq) in H; congruence.
@@ -1554,7 +1554,7 @@ Proof. intros.
   destruct (shared_of mu b).
     destruct p. split; intros; trivial.
     exists b0, z; intuition.
-  split; intros. intuition. destruct H as [b2 [d X]]; discriminate.
+  split; intros. discriminate. destruct H as [b2 [d X]]; discriminate.
 Qed.
 
 Lemma pubSrc_shared: forall mu (WD: SM_wd mu) b,
@@ -1590,7 +1590,7 @@ Proof. intros. extensionality b.
     destruct H.
       assert (pubBlocksSrc mu b = true).
         eapply pub_locBlocks; eassumption.
-      rewrite H1; intuition.
+      rewrite H1; intuition auto with bool.
   remember (frgnBlocksSrc mu b) as q.
   destruct q; apply eq_sym in Heqq.
     rewrite (frgnSrc_shared _ WD _ Heqq) in Heqd. inv Heqd.
@@ -1874,7 +1874,7 @@ Proof. intros.
       rewrite LB in *. rewrite <- Heqd.
       destruct (joinD_Some _ _ _ _ _ H1) as [EXT | [EXT LOC]]; clear H1.
         destruct (extern_DomRng _ WD _ _ _ EXT); simpl in *.
-          rewrite H, H0. split; intuition.
+          rewrite H, H0. split; intuition auto with bool.
       destruct (local_DomRng _ WD _ _ _ LOC); simpl in *.
         rewrite H, H0; simpl. split; trivial.
     apply (pubSrcAx _ WD0 _ H).

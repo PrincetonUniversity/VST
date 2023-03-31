@@ -626,7 +626,8 @@ Lemma eval_both_relate:
 Proof.
 intros until m; intro Hcenv; intros.
  induction e; intros;
-try solve[intuition; constructor; auto | subst; inv H1]; intuition.
+try solve[intuition  (try solve [contradiction]); constructor; auto | subst; inv H1]; 
+  intuition (try solve [contradiction]).
 
 * (* eval_expr Evar*)
 

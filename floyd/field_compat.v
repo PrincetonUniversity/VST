@@ -354,7 +354,7 @@ Proof.
   rewrite H1.
   simpl. apply andp_derives; auto.
   2: apply derives_refl. 
-  apply prop_derives. intuition.
+  apply prop_derives. intuition auto with field_compatible.
   assert (sublist n1 (Z.min n (Zlength v')) v' = sublist n1 n v').
   f_equal. autorewrite with sublist. auto.
   rewrite H2.
@@ -409,7 +409,7 @@ intros until 1. intros NA ?H ?H Hni Hii Hp. subst p'.
   assert (SS': (sizeof t * n + sizeof t * (n'-n) = sizeof t * n')%Z).
   rewrite <- Z.mul_add_distr_l. f_equal. lia.
   hnf in H|-*.
-  intuition.
+  intuition auto with field_compatible.
   *
   destruct p; try contradiction.
   clear - SP SS SS' H H4 H0 H5 H3 H8 Hni Hii.

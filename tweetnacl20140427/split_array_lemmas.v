@@ -588,7 +588,7 @@ Proof.
   rewrite split3_data_at_Tarray_tuchar with (n1:=Zlength data1)(n2:=Zlength data2 +Zlength data1); try lia.
   autorewrite with sublist.
   unfold Select_at, Unselect_at. simpl.
-  unfold offset_val. red in F. destruct d; intuition.
+  unfold offset_val. red in F. destruct d; intuition auto with *.
   rewrite field_address0_offset. simpl.
   rewrite field_address0_offset. simpl.
   rewrite (sepcon_comm (data_at sh (Tarray tuchar (Zlength data2) noattr) data2
@@ -596,8 +596,8 @@ Proof.
   repeat rewrite sepcon_assoc.
   f_equal. repeat rewrite Z.mul_1_l. rewrite sepcon_comm. f_equal.
   repeat rewrite Zlength_app in *.
-  red; simpl. intuition; try lia.
+  red; simpl. intuition lia.
   repeat rewrite Zlength_app in *.
-  red; simpl. intuition; try lia.
+  red; simpl. intuition lia.
   repeat rewrite Zlength_app in *. lia.
 Qed.

@@ -12,8 +12,6 @@ Import compcert.lib.Maps.
 
 Local Open Scope pred.
 
-Obligation Tactic := idtac.
-
 Lemma adr_range_divide:
   forall b i p q loc,
     p >= 0 -> q >= 0 -> (adr_range (b,i) (p+q) loc <-> (adr_range (b,i) p loc \/adr_range (b,i+p) q loc)).
@@ -800,7 +798,7 @@ Proof. intros. subst.
        simpl Genv.find_symbol; intros;
        try rewrite Zlength_nil in *.
       unfold Genv.find_symbol. rewrite PTree.gempty.
-     intuition.
+     intuition lia.
        destruct a. inv H. rewrite Zlength_cons in Hb.
        destruct (eq_dec (Z.pos b-1) (Zlength vl)).
         clear IHvl Hb. rewrite e. rewrite Zlength_correct.

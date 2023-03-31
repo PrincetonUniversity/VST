@@ -16,7 +16,7 @@ Import Clight.
 
 Local Open Scope pred.
 
-Obligation Tactic := idtac.
+#[local] Obligation Tactic := idtac.
 
 Notation initial_core' := (initial_core' function).
 

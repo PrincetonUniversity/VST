@@ -55,7 +55,7 @@ Arguments upd_neq [A H B] _ _ _ _ _.
 Proof.
   repeat intro.
  destruct (Compare_dec.lt_eq_lt_dec a a') as [[?|?]| ?]; auto;
-  right; intro; subst; eapply Lt.lt_irrefl; eauto.
+  right; intro; subst; eapply PeanoNat.Nat.lt_irrefl; eauto.
 Defined.
 
 #[global] Instance EqDec_prod (A: Type) (EA: EqDec A) (B: Type) (EB: EqDec B) : EqDec (A*B).

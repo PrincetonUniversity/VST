@@ -34,7 +34,7 @@ Program Definition yesat_raw (pp: preds) (k: kind)
   apply rmap_order in H as (<- & <- & _); auto.
   Qed.
 
-Obligation Tactic := idtac.
+Local Obligation Tactic := idtac.
 
 Program Definition yesat (pp: preds) (k: kind) : spec :=
  fun (sh: share) (l: AV.address) (m: rmap) =>

@@ -2373,7 +2373,7 @@ revert G G_LNR Gsub; induction builtins as [|[i?]]; [ simpl; induction fs as [|[
   simpl in H5.
   pose proof (eqb_ident_spec i j).
   destruct (eqb_ident i j); inv H5.
-  assert (i <> j) by (clear - H6; intuition). clear H6.
+  assert (i <> j) by (clear - H6; intuition congruence). clear H6.
   apply (in_map fst) in H4. specialize (Gsub _ H4). simpl in Gsub; destruct Gsub; auto.
   contradiction.
   auto.

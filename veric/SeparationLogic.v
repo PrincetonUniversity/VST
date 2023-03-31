@@ -65,7 +65,7 @@ Qed.
 
 Ltac unseal_derives := rewrite derives_eq in *.
 
-
+#[local] Obligation Tactic := idtac.
 
 #[export] Program Instance Bveric: BupdSepLog mpred gname compcert_rmaps.RML.R.preds :=
   { bupd := bupd; own := @own }.

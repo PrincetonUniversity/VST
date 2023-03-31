@@ -165,6 +165,7 @@ destruct f; simpl; intros ts a ge ge' n args H.
 erewrite make_ext_args_filtergenv; eauto.
 Qed.
 
+#[local] Obligation Tactic := idtac.
 
 Program Definition funspec2jspec (ext_link: Strings.String.string -> ident) f : juicy_ext_spec Z :=
   Build_juicy_ext_spec _ (funspec2extspec ext_link f) _ _ _ _ _ _.

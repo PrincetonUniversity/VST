@@ -77,7 +77,7 @@ Qed.
 
 Lemma age_to_eq k {A} `{agA : ageable A} (x : A) : k = level x -> age_to k x = x.
 Proof.
-  intros ->; apply age_to_ge, Le.le_refl.
+  intros ->; apply age_to_ge, PeanoNat.Nat.le_refl.
 Qed.
 
 Lemma age_age_to n {A} `{agA : ageable A} x y : level x = S n -> age x y -> age_to n x = y.
