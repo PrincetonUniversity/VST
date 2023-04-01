@@ -29,54 +29,40 @@ Section extensions.
 Lemma semax_straight_simple:
  forall E Delta (B: assert) P c Q
   (EB : forall rho, Absorbing (B rho))
-  (Hc : forall m Delta' ge ve te rho k F f,
+  (Hc : forall Delta' ge ve te rho k F f m,
               tycontext_sub Delta Delta' ->
               guard_environ Delta' f rho ->
               closed_wrt_modvars c F ->
               rho = construct_rho (filter_genv ge) ve te  ->
               cenv_sub cenv_cs (genv_cenv ge) ->
-              coherent_with m ∧ B rho ∧ (F rho ∗ ▷P rho) ∧ funassert Delta' rho ⊢ |={E}=>
+              mem_auth m ∗ (B rho ∧ (F rho ∗ ▷P rho)) ∗ funassert Delta' rho ⊢
                 ∃m' te' rho', ⌜rho' = mkEnviron (ge_of rho) (ve_of rho) (make_tenv te') ∧
                   guard_environ Delta' f rho' ∧ cl_step ge (State f c k ve te) m
                                  (State f Sskip k ve te') m'⌝ ∧
-               coherent_with m' ∧ (F rho' ∗ Q rho') ∧ funassert Delta' rho),
+               |={E}=> mem_auth m' ∗ (F rho' ∗ Q rho')),
   semax Espec E Delta (fun rho => B rho ∧ ▷ P rho) c (normal_ret_assert Q).
 Proof.
 intros until Q; intros EB Hc.
 rewrite semax_unfold.
 intros psi Delta' CS' TS [CSUB HGG'].
-iIntros "#believe" (???) "[% #rguard]".
-iIntros (te ve) "!> (% & P & #funassert)".
+iIntros "#believe" (???) "[% #Hsafe]".
+iIntros (te ve) "!> (% & P & #?)".
 specialize (cenv_sub_trans CSUB HGG'); intros HGG.
 iIntros (ora _).
-iApply jsafe_corestep.
-specialize (Hc jm jm1 Delta' psi ve te _ k F f TS TC2 TC' Hcl (eq_refl _) Hage).
-specialize (Hc (conj Hglob Hglob') HGG); clear Hglob Hglob'.
-destruct Hc as [jm' [te' [rho' [H9 [H2 [TC'' [H3 H4]]]]]]].
-change (@level rmap _  (m_phi jm) = S (level (m_phi jm'))) in H2.
-apply rmap_order in Hext as (Hl & Hr & _); rewrite Hl in *.
-rewrite H2 in Hsafe.
-rewrite <- level_juice_level_phi, (age_level _ _ Hage).
-intros; apply jm_fupd_intro'.
-econstructor; [eassumption | ].
-unfold rguard in Hsafe.
-specialize (Hsafe EK_normal None te' ve).
-simpl exit_cont in Hsafe.
-specialize (Hsafe (m_phi jm')).
-spec Hsafe.
-change R.rmap with rmap; lia.
-specialize (Hsafe _ _ (necR_refl _) (ext_refl _)).
-destruct H4.
-spec Hsafe; [clear Hsafe| ].
-split; auto.
-simpl proj_ret_assert.
-rewrite (prop_true_andp (None=None)) by auto.
-split; auto.
-subst rho'; auto.
-rewrite sepcon_comm; subst rho'; auto.
-subst rho'.
-simpl exit_cont in Hsafe.
-apply assert_safe_jsafe'; auto.
+iApply jsafe_step.
+rewrite /jstep_ex.
+iIntros (m) "[Hm ?]".
+iPoseProof (Hc with "[P $Hm]") as (??? Hstep) "Hc"; first done.
+{ rewrite bi.sep_and_l; iFrame "#".
+  iSplit; last iDestruct "P" as "[_ $]".
+  rewrite bi.sep_elim_r; iDestruct "P" as "[$ _]". }
+destruct Hstep as (? & ? & ?); iExists _, m'; iSplit; first by iPureIntro; eauto.
+iIntros "!> !>"; iMod "Hc" as "(? & Q)".
+iSpecialize ("Hsafe" $! EK_normal None te' ve).
+iPoseProof ("Hsafe" with "[Q]") as "Hsafe'".
+{ rewrite proj_frame /=; subst; iSplit; [|iSplit]; try done.
+  by iDestruct "Q" as "[$ $]". }
+rewrite assert_safe_jsafe'; iFrame; by iPureIntro.
 Qed.
 
 Definition force_valid_pointers m v1 v2 :=

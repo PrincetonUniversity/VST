@@ -664,6 +664,13 @@ auto.
 simpl; auto.
 Qed.*)
 
+(* Read-only locations can't be deallocated, but might be appropriate for e.g. global variables. *)
+Definition address_mapsto_readonly (ch: memory_chunk) (v: val) :=
+        fun (l: address) =>
+           ∃ bl: list memval, 
+               ⌜length bl = size_chunk_nat ch  /\ decode_val ch bl = v /\ (align_chunk ch | snd l)⌝ ∧
+               [∗ list] i ∈ seq 0 (size_chunk_nat ch), adr_add l (Z.of_nat i) ↦□ (VAL (nthbyte (Z.of_nat i) bl)).
+
 Definition LKspec lock_size (R: mpred) : spec :=
    fun (sh: Share.t) (l: address)  =>
     [∗ list] i ∈ seq 0 (Z.to_nat lock_size), adr_add l (Z.of_nat i) ↦{#sh} LK lock_size (Z.of_nat i) R.

@@ -197,31 +197,22 @@ iSpecialize ("H" with "[Fp]").
   by destruct R; simpl; rewrite comm pure_and_sep_assoc. }
 rewrite /assert_safe.
 iIntros (z ?); iSpecialize ("H" with "[%]"); first done.
-destruct k as [ | s ctl' | | | |].
+destruct k as [ | s ctl' | | | |]; try done; try solve [iApply (jsafe_local_step with "H"); constructor].
 -
 iMod (jsafe_step_forward with "H") as "H"; simpl; try congruence.
 { by inversion 1. }
-iApply jsafe_step_backward.
-iApply (jstep_mono with "H").
-inversion 1; constructor; simpl; auto.
+rewrite jstep_mono.
+by iApply jsafe_step; iApply jstep_exists.
+{ inversion 1; constructor; simpl; auto. }
 -
-eapply jsafeN_local_step. constructor.
-intros.
-eapply age_safe in HP; eauto.
+iMod "H" as "[]".
 -
-eapply jsafeN_local_step. constructor.
-intros.
-eapply age_safe in HP; eauto.
--
-inv HP; try contradiction.
-constructor; auto.
-eapply jsafeN_step; eauto.
-destruct H4; split; auto.
-inv H2.
-econstructor; eauto.
-simpl. auto.
-inv H4.
-Qed.*)
+iMod (jsafe_step_forward with "H") as "H"; simpl; try congruence.
+{ by inversion 1. }
+rewrite jstep_mono.
+by iApply jsafe_step; iApply jstep_exists.
+{ inversion 1; constructor; simpl; auto. }
+Qed.
 
 Fixpoint list_drop (A: Type) (n: nat) (l: list A) {struct n} : list A :=
   match n with O => l | S i => match l with nil => nil | _ :: l' => list_drop A i l' end end.
@@ -229,7 +220,7 @@ Arguments list_drop [A] _ _.
 
 Definition straightline (c: Clight.statement) :=
  forall ge f ve te k m f' ve' te' c' k' m',
-        cl_step ge (State f c k ve te) m (State f' c' k' ve' te') m' ->  (c'=Sskip /\ k=k').
+        cl_step ge (State f c k ve te) m (State f' c' k' ve' te') m' -> (c'=Sskip /\ k=k').
 
 Lemma straightline_assign: forall e0 e, straightline (Clight.Sassign e0 e).
 Proof.
@@ -240,7 +231,7 @@ destruct H13; inv H; auto.
 Qed.
 
 Lemma assert_safe_fupd : forall ge E f ve te c rho,
-  (match c with Ret _ _ => False | _ => True end) -> (* should be able to lift this restriction if we switch to mem in state? *)
+  (match c with Ret _ _ => False | _ => True end) -> (* can we work around this now? *)
   (|={E}=> assert_safe Espec ge E f ve te c rho) ⊢ assert_safe Espec ge E f ve te c rho.
 Proof.
   intros.
@@ -604,11 +595,11 @@ Lemma safe_loop_skip:
 Proof.
   intros.
   iIntros; iLöb as "IH".
-  iApply jsafeN_local_step.
+  iApply jsafe_local_step.
   { intros; constructor. }
-  iNext; iApply jsafeN_local_step.
+  iNext; iApply jsafe_local_step.
   { intros; constructor; auto. }
-  iNext; iApply jsafeN_local_step.
+  iNext; iApply jsafe_local_step.
   { intros; constructor. }
   done.
 Qed.
@@ -1081,7 +1072,7 @@ Proof.
 rewrite !semax_unfold; intros.
 iIntros "H" (???) "guard".
 iApply guard_safe_adj'; last iApply (H with "H guard").
-intros; iIntros "H"; iApply jsafeN_local_step; last done.
+intros; iIntros "H"; iApply jsafe_local_step; last done.
 constructor.
 Qed.
 
@@ -1093,15 +1084,31 @@ Proof.
   iIntros "H"; iApply "H"; auto.
 Qed.
 
-(*Lemma assert_safe_jsafe': forall ge E f ve te k ora,
+Lemma assert_safe_jsafe': forall ge E f ve te k ora,
   assert_safe Espec ge E f ve te (Cont k) (construct_rho (filter_genv ge) ve te) ⊢
   jsafeN Espec ge E ora (State f Sskip k ve te).
 Proof.
   intros; rewrite /assert_safe.
   iIntros "H"; iSpecialize ("H" with "[%]"); first done.
   destruct k; try iMod "H" as "[]"; try done.
-  - iApply jsafeN_local_step. constructor; auto.
-  iIntros "H"; iApply "H"; auto.
-Qed.*)
+  - iMod (jsafe_step_forward with "H") as "H"; simpl; try congruence.
+    { by inversion 1. }
+    rewrite jstep_mono.
+    by iApply jsafe_step; iApply jstep_exists.
+    { inversion 1; constructor; simpl; auto. }
+  - iApply jsafe_step.
+    rewrite /jstep_ex.
+    iIntros (m) "? !>".
+    iExists _, m; iFrame; iPureIntro; split; auto; constructor.
+  - iApply jsafe_step.
+    rewrite /jstep.
+    iIntros (m) "? !>".
+    iExists _, m; iFrame; iPureIntro; split; auto; constructor.
+  - iMod (jsafe_step_forward with "H") as "H"; simpl; try congruence.
+    { by inversion 1. }
+    rewrite jstep_mono.
+    by iApply jsafe_step; iApply jstep_exists.
+    { inversion 1; constructor; simpl; auto. }
+Qed.
 
 End SemaxContext.
