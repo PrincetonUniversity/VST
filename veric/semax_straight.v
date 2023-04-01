@@ -49,6 +49,7 @@ iIntros "#believe" (???) "[% #rguard]".
 iIntros (te ve) "!> (% & P & #funassert)".
 specialize (cenv_sub_trans CSUB HGG'); intros HGG.
 iIntros (ora _).
+iApply jsafe_corestep.
 specialize (Hc jm jm1 Delta' psi ve te _ k F f TS TC2 TC' Hcl (eq_refl _) Hage).
 specialize (Hc (conj Hglob Hglob') HGG); clear Hglob Hglob'.
 destruct Hc as [jm' [te' [rho' [H9 [H2 [TC'' [H3 H4]]]]]]].

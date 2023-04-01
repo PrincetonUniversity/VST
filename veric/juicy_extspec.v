@@ -701,9 +701,9 @@ Definition state_interp m z := mem_auth m ∗ ext_auth z.
 Program Definition jsafe_pre
     (jsafe : coPset -d> Z -d> C -d> iPropO Σ) : coPset -d> Z -d> C -d> iPropO Σ := λ E z c,
   |={E}=> ∀ m, state_interp m z -∗
-      (∀i, ⌜halted Hcore c i⌝ → ext_jmpred_exit Z Hspec (Some (Vint i)) z m) ∧
-      (▷ ∀ c' m', ⌜corestep Hcore c m c' m'⌝ → |={E}=> state_interp m' z ∗ jsafe E z c') ∧
-      (∀e args x, ⌜at_external Hcore c m = Some (e, args)⌝ → ext_jmpred_pre Z Hspec e x (genv_symb ge) (sig_args (ef_sig e)) args z m -∗
+      (∃ i, ⌜halted Hcore c i⌝ ∧ ext_jmpred_exit Z Hspec (Some (Vint i)) z m) ∨
+      (▷ ∃ c' m', ⌜corestep Hcore c m c' m'⌝ ∧ |={E}=> state_interp m' z ∗ jsafe E z c') ∨
+      (∃ e args x, ⌜at_external Hcore c m = Some (e, args)⌝ ∧ ext_jmpred_pre Z Hspec e x (genv_symb ge) (sig_args (ef_sig e)) args z m ∗
          ▷ □ (∀ ret m' z', ⌜Val.has_type_list args (sig_args (ef_sig e)) ∧ Builtins0.val_opt_has_rettype ret (sig_res (ef_sig e))⌝ →
           ((ext_jmpred_post Z Hspec e x (genv_symb ge) (sig_res (ef_sig e)) ret z' m') ={E}=∗
           ∃ c', ⌜after_external Hcore ret c m' = Some c'⌝ ∧ state_interp m' z' ∗ jsafe E z' c'))).
@@ -741,17 +741,16 @@ Proof.
   iIntros (?) "H". iLöb as "IH" forall (z c).
   rewrite !jsafe_unfold /jsafe_pre.
   iMod (fupd_mask_subseteq E1) as "Hclose"; iMod "H"; iMod "Hclose" as "_".
-  iIntros "!>" (?) "?"; iSpecialize ("H" with "[$]"); iSplit; [|iSplit].
-  - iDestruct "H" as "[$ _]".
-  - iDestruct "H" as "(_ & H & _)".
-    iIntros "!>" (???).
-    iMod (fupd_mask_subseteq E1) as "Hclose"; iMod ("H" with "[%]") as "[$ ?]"; first done; iMod "Hclose" as "_".
+  iIntros "!>" (?) "?"; iSpecialize ("H" with "[$]"); iDestruct "H" as "[H | [H | H]]".
+  - by iLeft.
+  - iRight; iLeft.
+    iNext; iDestruct "H" as (???) "H"; iExists _, _; iSplit; first done.
+    iMod (fupd_mask_subseteq E1) as "Hclose"; iMod ("H") as "[$ ?]"; iMod "Hclose" as "_".
     by iApply "IH".
-  - iIntros (????) "Hext".
-    iDestruct "H" as "(_ & _ & H)".
-    iPoseProof ("H" with "[%] Hext") as "H"; first done.
-    iIntros "!>"; iDestruct "H" as "#H"; iIntros "!>".
-    iIntros (????) "Hext".
+  - iRight; iRight.
+    iDestruct "H" as (????) "[Hext H]".
+    iExists _, _, _; iSplit; first done; iFrame "Hext".
+    iIntros "!>"; iDestruct "H" as "#H"; iIntros "!>" (????) "Hext".
     iMod (fupd_mask_subseteq E1) as "Hclose"; iMod ("H" with "[%] Hext") as "H'"; first done; iMod "Hclose" as "_".
     iIntros "!>".
     iDestruct "H'" as (??) "[??]"; iExists _; iFrame "%"; iFrame.
@@ -786,64 +785,61 @@ Section proofmode_classes.
 End proofmode_classes.
 
 Lemma jsafe_local_step:
-  corestep_fun Hcore ->
   forall E ora s1 s2,
   (forall m, corestep Hcore s1 m s2 m) ->
   ▷jsafe E ora s2 ⊢
   jsafe E ora s1.
 Proof.
-  intros Hfun ?????; iIntros "H".
+  intros Hfun ????; iIntros "H".
   rewrite (jsafe_unfold _ _ s1) /jsafe_pre.
-  iIntros "!>" (?) "?"; iSplit; [|iSplit].
-  { iIntros (? Hhalt). eapply corestep_not_halted in Hhalt as []; apply (H Mem.empty). }
-  iIntros "!>" (?? Hstep) "!>".
-  pose proof (Hfun _ _ _ _ _ _ (H _) Hstep) as [=]; subst; iFrame.
-  { iIntros (??? Hext).
-    erewrite corestep_not_at_external in Hext; done. }
+  iIntros "!>" (?) "?".
+  iRight; iLeft.
+  iIntros "!>".
+  iExists _, _; iSplit; first done.
+  by iFrame.
 Qed.
 
-Definition jstep E z c c' : mpred := ∀ m, mem_auth m -∗ ∃ m', ⌜corestep Hcore c m c' m'⌝ ∧ |={E}=> mem_auth m' ∗ jsafe E z c'.
+Definition jstep E z c c' : mpred := ∀ m, state_interp m z -∗ ◇ ∃ m', ⌜corestep Hcore c m c' m'⌝ ∧ ▷ |={E}=> state_interp m' z ∗ jsafe E z c'.
 
-  Lemma jsafe_corestep_backward:
-    forall c c' E z, corestep_fun Hcore ->
-    jstep E z c c' ⊢ jsafe E z c.
-  Proof.
-    intros; iIntros "H".
-    rewrite jsafe_unfold /jsafe_pre /jstep.
-    iIntros "!>" (m) "[m ?]".
-    iDestruct ("H" with "[$]") as (m' Hstep) "H".
-    iSplit; [|iSplit].
-    { iIntros (? Hhalt). eapply corestep_not_halted in Hhalt as []; eauto. }
-    iIntros "!>" (?? Hstep').
-    pose proof (H _ _ _ _ _ _ Hstep Hstep') as [=]; subst; by iFrame.
-    { iIntros (??? Hext).
-      erewrite corestep_not_at_external in Hext by eauto; discriminate. }
-  Qed.
+Lemma jstep_mono : forall E z c1 c2 c', (forall m m', corestep Hcore c1 m c' m' -> corestep Hcore c2 m c' m') ->
+  jstep E z c1 c' ⊢ jstep E z c2 c'.
+Proof.
+  intros; rewrite /jstep.
+  iIntros "H" (?) "?".
+  iMod ("H" with "[$]") as (??) "?".
+  iExists _; iFrame; iPureIntro; split; auto.
+Qed.
 
-  Lemma jsafe_corestep_forward1:
-    forall c c' E z m m', corestep Hcore c m c' m' ->
-      jsafe E z c ⊢ state_interp m z -∗ |={E}▷=> (state_interp m' z ∗ jsafe E z c').
-  Proof.
-    intros; iIntros "H ?".
-    rewrite jsafe_unfold /jsafe_pre.
-    iMod "H"; iDestruct ("H" with "[$]") as "(_ & H & _)".
-    iIntros "!> !>".
-    by iApply "H".
-  Qed.
+Lemma jsafe_step_backward:
+  forall c c' E z,
+  jstep E z c c' ⊢ jsafe E z c.
+Proof.
+  intros; iIntros "H".
+  rewrite jsafe_unfold /jsafe_pre /jstep.
+  iIntros "!>" (m) "[m ?]".
+  iRight; iLeft.
+  iDestruct ("H" with "[$]") as ">(% & %& H)"; eauto.
+Qed.
 
-  Lemma jsafe_corestep_forward:
-    forall c c' E z m m', corestep Hcore c m c' m' ->
-      jsafe E z c ⊢ jstep E z c c'.
-  Proof.
-    intros; iIntros "H".
-    rewrite /jstep; iIntros (m1) "?".
-    rewrite jsafe_unfold /jsafe_pre.
-    iMod "H".
-    iMod "H"; iDestruct ("H" with "[$]") as "(_ & H & _)".
-    iIntros "!> !>".
-    by iApply "H".
-  Qed.
-
+Lemma jsafe_step_forward:
+  forall c c1 E z (Hc1 : forall m c' m', corestep Hcore c m c' m' -> c' = c1)
+    (Hhalt : forall i, ~halted Hcore c i) (Hext : forall m, at_external Hcore c m = None),
+    jsafe E z c ⊢ |={E}=> jstep E z c c1.
+Proof.
+  intros; iIntros "H".
+  rewrite jsafe_unfold /jsafe_pre.
+  iMod "H".
+  rewrite /jstep; iIntros "!>" (m1) "?".
+  iDestruct ("H" with "[$]") as "[H | [H | H]]".
+  { iDestruct "H" as (??) "?"; exfalso; eapply Hhalt; eauto. }
+  rewrite bi.later_exist_except_0; iMod "H" as (?) "H".
+  rewrite bi.later_exist_except_0; iMod "H" as (?) "H".
+  rewrite bi.later_and; iDestruct "H" as "[>%Hstep H]".
+  rewrite -(Hc1 _ _ _ Hstep).
+  iIntros "!>"; iExists _; iSplit; done.
+  { iDestruct "H" as (????) "?".
+    by rewrite Hext in H. }
+Qed.
 
 (*  Lemma jsafe_corestepN_forward:
     corestep_fun Hcore ->

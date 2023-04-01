@@ -165,25 +165,6 @@ pose proof (ef_deterministic_fun _ H0 _ _ _ _ _ _ _ _ _ H2 H13).
 inv H1; auto.
 Qed.
 
-Lemma jsafeN_local_step:
-  forall ge E ora s1 s2,
-  (forall m, cl_step ge s1 m s2 m) ->
-  ▷jsafeN Espec ge E ora s2 ⊢
-  jsafeN Espec ge E ora s1.
-Proof.
-  intros; apply jsafe_local_step; auto.
-  intros ?; apply cl_corestep_fun.
-Qed.
-
-Lemma jsafeN_step:
-  forall ge E ora s1 s2,
-  jstep(genv_symb := genv_symb_injective) (cl_core_sem ge) OK_spec ge E ora s1 s2 ⊢
-  jsafeN Espec ge E ora s1.
-Proof.
-  intros; apply jsafe_corestep; auto.
-  intros ?; apply cl_corestep_fun.
-Qed.
-
 Lemma semax_unfold {CS: compspecs} E Delta P c R :
   semax Espec E Delta P c R = forall (psi: Clight.genv) Delta' CS'
           (TS: tycontext_sub Delta Delta')
@@ -217,16 +198,12 @@ iSpecialize ("H" with "[Fp]").
 rewrite /assert_safe.
 iIntros (z ?); iSpecialize ("H" with "[%]"); first done.
 destruct k as [ | s ctl' | | | |].
-- Print step. Search step Sskip.
-iApply jsafeN_local_step.
-inv HP; try contradiction.
-constructor; auto.
-eapply jsafeN_step; eauto.
-destruct H4; split; auto.
-inv H2.
-econstructor; eauto.
-simpl. auto.
-inv H4.
+-
+iMod (jsafe_step_forward with "H") as "H"; simpl; try congruence.
+{ by inversion 1. }
+iApply jsafe_step_backward.
+iApply (jstep_mono with "H").
+inversion 1; constructor; simpl; auto.
 -
 eapply jsafeN_local_step. constructor.
 intros.
