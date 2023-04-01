@@ -1,6 +1,7 @@
 Require Import VST.veric.juicy_base.
 Require Import VST.veric.juicy_mem (*VST.veric.juicy_mem_lemmas VST.veric.juicy_mem_ops*).
 Require Import VST.veric.res_predicates.
+Require Import VST.veric.external_state.
 Require Import VST.veric.extend_tc.
 Require Import VST.veric.Clight_seplog.
 Require Import VST.veric.Clight_assert_lemmas.
@@ -23,45 +24,31 @@ Import LiftNotation.
 Transparent intsize_eq.
 
 Section extensions.
-  Context {CS: compspecs} {Espec: OracleKind}.
+  Context {CS: compspecs} `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ}.
 
 Lemma semax_straight_simple:
- forall Delta (B: assert) P c Q,
-  (forall rho, boxy extendM (B rho)) ->
-  (forall jm jm1 Delta' ge ve te rho k F f,
+ forall E Delta (B: assert) P c Q
+  (EB : forall rho, Absorbing (B rho))
+  (Hc : forall m Delta' ge ve te rho k F f,
               tycontext_sub Delta Delta' ->
-              app_pred (B rho) (m_phi jm) ->
               guard_environ Delta' f rho ->
               closed_wrt_modvars c F ->
               rho = construct_rho (filter_genv ge) ve te  ->
-              age jm jm1 ->
-              ((F rho * |>P rho) && funassert Delta' rho) (m_phi jm) ->
               cenv_sub cenv_cs (genv_cenv ge) ->
-              exists jm', exists te', exists rho',
-                rho' = mkEnviron (ge_of rho) (ve_of rho) (make_tenv te') /\
-                level jm = S (level jm') /\
-                guard_environ Delta' f rho'  /\
-                jstep (cl_core_sem ge) (State f c k ve te) jm
-                                 (State f Sskip k ve te') jm' /\
-              ((F rho' * Q rho') && funassert Delta' rho) (m_phi jm')) ->
-  semax Espec Delta (fun rho => B rho && |> P rho) c (normal_ret_assert Q).
+              coherent_with m ∧ B rho ∧ (F rho ∗ ▷P rho) ∧ funassert Delta' rho ⊢ |={E}=>
+                ∃m' te' rho', ⌜rho' = mkEnviron (ge_of rho) (ve_of rho) (make_tenv te') ∧
+                  guard_environ Delta' f rho' ∧ cl_step ge (State f c k ve te) m
+                                 (State f Sskip k ve te') m'⌝ ∧
+               coherent_with m' ∧ (F rho' ∗ Q rho') ∧ funassert Delta' rho),
+  semax Espec E Delta (fun rho => B rho ∧ ▷ P rho) c (normal_ret_assert Q).
 Proof.
 intros until Q; intros EB Hc.
 rewrite semax_unfold.
-intros psi Delta' CS' n TS [CSUB HGG'] _ k F f Hcl Hsafe te ve w Hx ? w0 H Hext Hglob.
+intros psi Delta' CS' TS [CSUB HGG'].
+iIntros "#believe" (???) "[% #rguard]".
+iIntros (te ve) "!> (% & P & #funassert)".
 specialize (cenv_sub_trans CSUB HGG'); intros HGG.
-apply nec_nat in Hx.
-apply (pred_nec_hereditary _ _ _ Hx) in Hsafe.
-clear n Hx.
-apply (pred_nec_hereditary _ _ _ (necR_nat H)) in Hsafe.
-clear H w.
-rename w0 into w.
-apply assert_safe_last'; intro Hage.
-intros ora jm Hora _ H2. subst w.
-destruct Hglob as [[TC' Hglob] Hglob'].
-apply can_age_jm in Hage; destruct Hage as [jm1 Hage].
-apply extend_sepcon_andp in Hglob; auto.
-destruct Hglob as [TC2 Hglob].
+iIntros (ora _).
 specialize (Hc jm jm1 Delta' psi ve te _ k F f TS TC2 TC' Hcl (eq_refl _) Hage).
 specialize (Hc (conj Hglob Hglob') HGG); clear Hglob Hglob'.
 destruct Hc as [jm' [te' [rho' [H9 [H2 [TC'' [H3 H4]]]]]]].
@@ -103,17 +90,10 @@ Definition blocks_match op v1 v2 :=
 match op with Cop.Olt | Cop.Ogt | Cop.Ole | Cop.Oge =>
   match v1, v2 with
     Vptr b _, Vptr b2 _ => b=b2
-    | _, _ => False
+    | _, _ => False%type
   end
-| _ => True
+| _ => True%type
 end.
-
-Lemma later_sepcon2  {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A}{EO: Ext_ord A}{EA: Ext_alg A}:
-  forall P Q,  P * |> Q |-- |> (P * Q).
-Proof.
-intros. apply @derives_trans with (|> P * |> Q).
-apply sepcon_derives; auto. rewrite later_sepcon; auto.
-Qed.
 
 
 Lemma perm_order''_trans:
@@ -127,10 +107,11 @@ destruct z; inv H0; constructor.
 destruct z; inv H0; constructor.
 Qed.
 
-Lemma mapsto_valid_pointer : forall b o sh t jm,
- nonidentity sh ->
-(mapsto_ sh (t) (Vptr b o) * TT)%pred (m_phi jm) ->
-Mem.valid_pointer (m_dry jm) b (Ptrofs.unsigned o) = true.
+Lemma mapsto_valid_pointer : forall b o sh t m,
+ sepalg.nonidentity sh ->
+  coherent_with m ∧ (mapsto_ sh t (Vptr b o) ∗ True) ⊢
+⌜Mem.valid_pointer m b (Ptrofs.unsigned o) = true⌝.
+Proof.
 intros. rename H into N.
 
 destruct H0. destruct H. destruct H. destruct H0.
@@ -366,33 +347,33 @@ forall (Delta: tycontext) (P: assert) id cmp e1 e2 ty sh1 sh2,
     (typecheck_tid_ptr_compare Delta id = true) ->
     semax Espec Delta
         (fun rho =>
-          |> (tc_expr Delta e1 rho && tc_expr Delta e2 rho  &&
+          ▷ (tc_expr Delta e1 rho ∧ tc_expr Delta e2 rho  ∧
 
-          !!(blocks_match cmp (eval_expr e1 rho) (eval_expr e2 rho)) &&
-          (mapsto_ sh1 (typeof e1) (eval_expr e1 rho) * TT) &&
-          (mapsto_ sh2 (typeof e2) (eval_expr e2 rho) * TT) &&
+          !!(blocks_match cmp (eval_expr e1 rho) (eval_expr e2 rho)) ∧
+          (mapsto_ sh1 (typeof e1) (eval_expr e1 rho) * TT) ∧
+          (mapsto_ sh2 (typeof e2) (eval_expr e2 rho) * TT) ∧
           P rho))
           (Sset id (Ebinop cmp e1 e2 ty))
         (normal_ret_assert
           (fun rho => (EX old:val,
                  !!(eval_id id rho =  subst id (`old)
-                     (eval_expr (Ebinop cmp e1 e2 ty)) rho) &&
+                     (eval_expr (Ebinop cmp e1 e2 ty)) rho) ∧
                             subst id (`old) P rho))).
 Proof.
   intros until sh2. intros N1 N2. intros ? NE1 NE2. revert H.
   replace (fun rho : environ =>
-     |> (tc_expr Delta e1 rho && tc_expr Delta e2 rho  &&
-             !!blocks_match cmp (eval_expr e1 rho) (eval_expr e2 rho) &&
-            (mapsto_ sh1 (typeof e1) (eval_expr e1 rho) * TT) &&
-            (mapsto_ sh2 (typeof e2) (eval_expr e2 rho) * TT) &&
+     ▷ (tc_expr Delta e1 rho ∧ tc_expr Delta e2 rho  ∧
+             !!blocks_match cmp (eval_expr e1 rho) (eval_expr e2 rho) ∧
+            (mapsto_ sh1 (typeof e1) (eval_expr e1 rho) * TT) ∧
+            (mapsto_ sh2 (typeof e2) (eval_expr e2 rho) * TT) ∧
             P rho))
     with (fun rho : environ =>
-       (|> tc_expr Delta e1 rho &&
-        |> tc_expr Delta e2 rho &&
-        |> !!blocks_match cmp (eval_expr e1 rho) (eval_expr e2 rho) &&
-        |> (mapsto_ sh1 (typeof e1) (eval_expr e1 rho) * TT) &&
-        |> (mapsto_ sh2 (typeof e2) (eval_expr e2 rho) * TT) &&
-        |> P rho))
+       (▷ tc_expr Delta e1 rho ∧
+        ▷ tc_expr Delta e2 rho ∧
+        ▷ !!blocks_match cmp (eval_expr e1 rho) (eval_expr e2 rho) ∧
+        ▷ (mapsto_ sh1 (typeof e1) (eval_expr e1 rho) * TT) ∧
+        ▷ (mapsto_ sh2 (typeof e2) (eval_expr e2 rho) * TT) ∧
+        ▷ P rho))
     by (extensionality rho;  repeat rewrite later_andp; auto).
   intros CMP TC2.
   apply semax_straight_simple; auto.
@@ -470,7 +451,7 @@ Proof.
       try (eauto; simpl; eauto).
     - split.
       2: eapply pred_hereditary; try apply H1; destruct (age1_juicy_mem_unpack _ _ H); auto.
-      assert (app_pred (|>  (F rho * P rho)) (m_phi jm)).
+      assert (app_pred (▷  (F rho * P rho)) (m_phi jm)).
       {
         rewrite later_sepcon. eapply sepcon_derives; try apply H0; auto.
       }
@@ -538,21 +519,21 @@ Lemma semax_set_forward:
 forall (Delta: tycontext) (P: assert) id e,
     semax Espec Delta
         (fun rho =>
-          |> (tc_expr Delta e rho  && (tc_temp_id id (typeof e) Delta e rho) && P rho))
+          ▷ (tc_expr Delta e rho  ∧ (tc_temp_id id (typeof e) Delta e rho) ∧ P rho))
           (Sset id e)
         (normal_ret_assert
           (fun rho => (EX old:val,
-                 !! (eval_id id rho =  subst id (`old) (eval_expr e) rho) &&
+                 !! (eval_id id rho =  subst id (`old) (eval_expr e) rho) ∧
                             subst id (`old) P rho))).
 Proof.
   intros until e.
   replace (fun rho : environ =>
-     |>(tc_expr Delta e rho && tc_temp_id id (typeof e) Delta e rho &&
+     ▷(tc_expr Delta e rho ∧ tc_temp_id id (typeof e) Delta e rho ∧
         P rho))
    with (fun rho : environ =>
-       (|> tc_expr Delta e rho &&
-        |> tc_temp_id id (typeof e) Delta e rho &&
-        |> P rho))
+       (▷ tc_expr Delta e rho ∧
+        ▷ tc_temp_id id (typeof e) Delta e rho ∧
+        ▷ P rho))
     by (extensionality rho;  repeat rewrite later_andp; auto).
   apply semax_straight_simple; auto.
   intros jm jm' Delta' ge vx tx rho k F f TS [TC3 TC2] TC' Hcl Hge ? ? HGG'.
@@ -606,7 +587,7 @@ Proof.
     }
     split.
     2: eapply pred_hereditary; try apply H1; destruct (age1_juicy_mem_unpack _ _ H); auto.
-    assert (app_pred (|>  (F rho * P rho)) (m_phi jm)).
+    assert (app_pred (▷  (F rho * P rho)) (m_phi jm)).
     { rewrite later_sepcon. eapply sepcon_derives; try apply H0; auto. }
     assert (laterR (m_phi jm) (m_phi jm')).
     { constructor 1. destruct (age1_juicy_mem_unpack _ _ H); auto. }
@@ -662,19 +643,19 @@ forall (Delta: tycontext) (P: assert) id e t,
     is_neutral_cast (typeof e) t = true ->
     semax Espec Delta
         (fun rho =>
-          |> ((tc_expr Delta e rho) && P rho))
+          ▷ ((tc_expr Delta e rho) ∧ P rho))
           (Sset id e)
         (normal_ret_assert
           (fun rho => (EX old:val,
-                 !! (eval_id id rho =  subst id (`old) (eval_expr e) rho) &&
+                 !! (eval_id id rho =  subst id (`old) (eval_expr e) rho) ∧
                             subst id (`old) P rho))).
 Proof.
 intros until e.
 intros t H99 H98.
 replace (fun rho : environ =>
-   |> ((tc_expr Delta e rho) && P rho))
+   ▷ ((tc_expr Delta e rho) ∧ P rho))
  with (fun rho : environ =>
-     (|> tc_expr Delta e rho && |> P rho))
+     (▷ tc_expr Delta e rho ∧ ▷ P rho))
   by (extensionality rho;  repeat rewrite later_andp; auto).
 apply semax_straight_simple; auto.
 intros jm jm' Delta' ge vx tx rho k F f TS TC3 TC' Hcl Hge ? ? HGG'.
@@ -732,7 +713,7 @@ split3; auto.
 split.
 2: eapply pred_hereditary; try apply H1; destruct (age1_juicy_mem_unpack _ _ H); auto.
 
-assert (app_pred (|>  (F rho * P rho)) (m_phi jm)).
+assert (app_pred (▷  (F rho * P rho)) (m_phi jm)).
 rewrite later_sepcon. eapply sepcon_derives; try apply H0; auto.
 assert (laterR (m_phi jm) (m_phi jm')).
 constructor 1.
@@ -786,19 +767,19 @@ forall (Delta: tycontext) (P: assert) id e t,
     typeof_temp Delta id = Some t ->
     semax Espec Delta
         (fun rho =>
-          |> ((tc_expr Delta (Ecast e t) rho) && P rho))
+          ▷ ((tc_expr Delta (Ecast e t) rho) ∧ P rho))
           (Sset id (Ecast e t))
         (normal_ret_assert
           (fun rho => (EX old:val,
-                 !! (eval_id id rho = subst id (`old) (eval_expr (Ecast e t)) rho) &&
+                 !! (eval_id id rho = subst id (`old) (eval_expr (Ecast e t)) rho) ∧
                             subst id (`old) P rho))).
 Proof.
 intros until e.
 intros t H99.
 replace (fun rho : environ =>
-   |> ((tc_expr Delta (Ecast e t) rho) && P rho))
+   ▷ ((tc_expr Delta (Ecast e t) rho) ∧ P rho))
  with (fun rho : environ =>
-     (|> tc_expr Delta (Ecast e t) rho && |> P rho))
+     (▷ tc_expr Delta (Ecast e t) rho ∧ ▷ P rho))
   by (extensionality rho;  repeat rewrite later_andp; auto).
 apply semax_straight_simple; auto.
 intros jm jm' Delta' ge vx tx rho k F f TS TC3 TC' Hcl Hge ? ? HGG'.
@@ -857,7 +838,7 @@ split3; auto.
 split.
 2: eapply pred_hereditary; try apply H1; destruct (age1_juicy_mem_unpack _ _ H); auto.
 
-assert (app_pred (|>  (F rho * P rho)) (m_phi jm)).
+assert (app_pred (▷  (F rho * P rho)) (m_phi jm)).
 rewrite later_sepcon. eapply sepcon_derives; try apply H0; auto.
 assert (laterR (m_phi jm) (m_phi jm')).
 constructor 1.
@@ -943,24 +924,24 @@ forall (Delta: tycontext) sh id P e1 t2 v2,
     typeof_temp Delta id = Some t2 ->
     is_neutral_cast (typeof e1) t2 = true ->
     readable_share sh ->
-   (forall rho, seplog.derives (!! typecheck_environ Delta rho && P rho) (mapsto sh (typeof e1) (eval_lvalue e1 rho) v2 * TT)) ->
+   (forall rho, seplog.derives (!! typecheck_environ Delta rho ∧ P rho) (mapsto sh (typeof e1) (eval_lvalue e1 rho) v2 * TT)) ->
     semax Espec Delta
-       (fun rho => |>
+       (fun rho => ▷
         (tc_lvalue Delta e1 rho
-        && (!! tc_val (typeof e1) v2) && P rho))
+        ∧ (!! tc_val (typeof e1) v2) ∧ P rho))
        (Sset id e1)
        (normal_ret_assert (fun rho =>
-        EX old:val, (!!(eval_id id rho = v2) &&
+        EX old:val, (!!(eval_id id rho = v2) ∧
                          (subst id (`old) P rho)))).
 Proof.
 intros until v2.
 intros Hid TC1 H_READABLE H99.
-replace (fun rho : environ => |> ((tc_lvalue Delta e1 rho &&
-  !! tc_val (typeof e1) v2 && P rho)))
+replace (fun rho : environ => ▷ ((tc_lvalue Delta e1 rho ∧
+  !! tc_val (typeof e1) v2 ∧ P rho)))
  with (fun rho : environ =>
-   ( |> tc_lvalue Delta e1 rho &&
-     |> !! (tc_val (typeof e1) v2) &&
-     |> P rho)).
+   ( ▷ tc_lvalue Delta e1 rho ∧
+     ▷ !! (tc_val (typeof e1) v2) ∧
+     ▷ P rho)).
 2 : { extensionality rho. repeat rewrite <- later_andp. f_equal. }
 repeat rewrite andp_assoc.
 unfold mapsto.
@@ -976,7 +957,7 @@ apply (tc_lvalue_sub _ _ _ TS) in TC2'; [| auto].
 hnf in TC3.
 apply (typeof_temp_sub _ _ TS) in Hid.
 assert (H99': forall rho : environ,
-      !!typecheck_environ Delta' rho && P rho
+      !!typecheck_environ Delta' rho ∧ P rho
       |-- mapsto sh (typeof e1) (eval_lvalue e1 rho) v2 * TT).
 intro; eapply derives_trans; [ | apply H99]; apply andp_derives; auto.
 intros ? ?; do 3 red.
@@ -1005,7 +986,7 @@ split; [split3 | ].
    rewrite <- (age_jm_dry H); constructor; auto.
    apply Clight.eval_Elvalue with b ofs Full; auto.
    destruct H0 as [H0 _].
-   assert ((|> (F rho * P rho))%pred
+   assert ((▷ (F rho * P rho))%pred
        (m_phi jm)).
    rewrite later_sepcon.
    eapply sepcon_derives; try apply H0; auto.
@@ -1081,26 +1062,26 @@ forall (Delta: tycontext) sh id P e1 t1 v2,
     typeof_temp Delta id = Some t1 ->
    cast_pointer_to_bool (typeof e1) t1 = false ->
     readable_share sh ->
-   (forall rho, seplog.derives (!! typecheck_environ Delta rho && P rho) (mapsto sh (typeof e1) (eval_lvalue e1 rho) v2 * TT)) ->
+   (forall rho, seplog.derives (!! typecheck_environ Delta rho ∧ P rho) (mapsto sh (typeof e1) (eval_lvalue e1 rho) v2 * TT)) ->
     semax Espec Delta
-       (fun rho => |>
+       (fun rho => ▷
         (tc_lvalue Delta e1 rho
-        && (!! tc_val t1 (`(eval_cast (typeof e1) t1 v2) rho))
-        &&  P rho))
+        ∧ (!! tc_val t1 (`(eval_cast (typeof e1) t1 v2) rho))
+        ∧  P rho))
        (Sset id (Ecast e1 t1))
        (normal_ret_assert (fun rho =>
-        EX old:val, (!!(eval_id id rho = (`(eval_cast (typeof e1) t1 v2)) rho) &&
+        EX old:val, (!!(eval_id id rho = (`(eval_cast (typeof e1) t1 v2)) rho) ∧
                          (subst id (`old) P rho)))).
 Proof.
 intros until v2.
 intros Hid HCAST H_READABLE H99.
-replace (fun rho : environ => |> ((tc_lvalue Delta e1 rho &&
-       (!! tc_val t1  (`(eval_cast (typeof e1) t1 v2) rho)) &&
+replace (fun rho : environ => ▷ ((tc_lvalue Delta e1 rho ∧
+       (!! tc_val t1  (`(eval_cast (typeof e1) t1 v2) rho)) ∧
        P rho)))
  with (fun rho : environ =>
-   ( |> tc_lvalue Delta e1 rho &&
-     |> !! (tc_val t1 (eval_cast (typeof e1) t1 v2)) &&
-     |> P rho)).
+   ( ▷ tc_lvalue Delta e1 rho ∧
+     ▷ !! (tc_val t1 (eval_cast (typeof e1) t1 v2)) ∧
+     ▷ P rho)).
 2 : { extensionality rho. repeat rewrite <- later_andp. f_equal. }
 repeat rewrite andp_assoc.
 unfold mapsto.
@@ -1116,7 +1097,7 @@ apply (tc_lvalue_sub _ _ _ TS) in TC2'; [| auto].
 hnf in TC3.
 apply (typeof_temp_sub _ _ TS) in Hid.
 assert (H99': forall rho : environ,
-      !!typecheck_environ Delta' rho && P rho
+      !!typecheck_environ Delta' rho ∧ P rho
       |-- mapsto sh (typeof e1) (eval_lvalue e1 rho) v2 * TT).
 { intros.
   intro; eapply derives_trans; [ | apply H99]; apply andp_derives; auto.
@@ -1152,7 +1133,7 @@ split; [split3 | ].
     destruct t1; try destruct f;
     try destruct (eqb_type _ _); contradiction.
   destruct H0 as [H0 _].
-   assert ((|> (F rho * P rho))%pred (m_phi jm)). {
+   assert ((▷ (F rho * P rho))%pred (m_phi jm)). {
     rewrite later_sepcon.
     eapply sepcon_derives; try apply H0; auto.
   }
@@ -1356,7 +1337,7 @@ Lemma address_mapsto_can_store': forall jm ch ch' v sh (wsh: writable0_share sh)
        (align_chunk ch' | Ptrofs.unsigned ofs) ->
        exists m',
        {H: Mem.store ch (m_dry jm) b (Ptrofs.unsigned ofs) v' = Some m'|
-       ((EX v'':val, !! (decode_encode_val v' ch ch' v'') &&
+       ((EX v'':val, !! (decode_encode_val v' ch ch' v'') ∧
           address_mapsto ch' v'' sh (b, Ptrofs.unsigned ofs)) * exactly my)%pred
        (m_phi (store_juicy_mem _ _ _ _ _ _ H))}.
 Proof.
@@ -1555,7 +1536,7 @@ Lemma semax_store:
    writable0_share sh ->
    semax Espec Delta
           (fun rho =>
-          |> (tc_lvalue Delta e1 rho && tc_expr Delta (Ecast e2 (typeof e1)) rho  &&
+          ▷ (tc_lvalue Delta e1 rho ∧ tc_expr Delta (Ecast e2 (typeof e1)) rho  ∧
              (mapsto_ sh (typeof e1) (eval_lvalue e1 rho) * P rho)))
           (Sassign e1 e2)
           (normal_ret_assert (fun rho => mapsto sh (typeof e1) (eval_lvalue e1 rho)
@@ -1565,8 +1546,8 @@ intros until P. intros WS.
 apply semax_pre with
   (fun rho : environ =>
    EX v3: val,
-      |> tc_lvalue Delta e1 rho && |> tc_expr Delta (Ecast e2 (typeof e1)) rho &&
-      |> (mapsto sh (typeof e1) (eval_lvalue e1 rho) v3 * P rho)).
+      ▷ tc_lvalue Delta e1 rho ∧ ▷ tc_expr Delta (Ecast e2 (typeof e1)) rho ∧
+      ▷ (mapsto sh (typeof e1) (eval_lvalue e1 rho) v3 * P rho)).
 intro. apply andp_left2.
 unfold mapsto_.
 apply exp_right with Vundef.
@@ -1725,15 +1706,15 @@ end.
 Lemma semax_store_union_hack:
      forall
          (Delta : tycontext) (e1 e2 : expr) (t2: type) (ch ch' : memory_chunk) (sh : share) (P : LiftEnviron mpred),
-       (numeric_type (typeof e1) && numeric_type t2)%bool = true ->
+       (numeric_type (typeof e1) ∧ numeric_type t2)%bool = true ->
        access_mode (typeof e1) = By_value ch ->
        access_mode t2 = By_value ch' ->
        decode_encode_val_ok ch ch' ->
        writable_share sh ->
        semax Espec Delta
          (fun rho =>
-           |> (tc_lvalue Delta e1 rho && tc_expr Delta (Ecast e2 (typeof e1)) rho &&
-              ( (mapsto_ sh (typeof e1) (eval_lvalue e1 rho) && mapsto_ sh t2 (eval_lvalue e1 rho))
+           ▷ (tc_lvalue Delta e1 rho ∧ tc_expr Delta (Ecast e2 (typeof e1)) rho ∧
+              ( (mapsto_ sh (typeof e1) (eval_lvalue e1 rho) ∧ mapsto_ sh t2 (eval_lvalue e1 rho))
                * P rho)))
          (Sassign e1 e2)
          (normal_ret_assert
@@ -1747,8 +1728,8 @@ assert (SZ := decode_encode_val_size _ _ OK).
 apply semax_pre with
   (fun rho : environ =>
    EX v3: val,
-      |> tc_lvalue Delta e1 rho && |> tc_expr Delta (Ecast e2 (typeof e1)) rho &&
-      |> ((mapsto sh (typeof e1) (eval_lvalue e1 rho) v3 && mapsto sh t2 (eval_lvalue e1 rho) v3) * P rho)).
+      ▷ tc_lvalue Delta e1 rho ∧ ▷ tc_expr Delta (Ecast e2 (typeof e1)) rho ∧
+      ▷ ((mapsto sh (typeof e1) (eval_lvalue e1 rho) v3 ∧ mapsto sh t2 (eval_lvalue e1 rho) v3) * P rho)).
 intro. apply andp_left2.
 unfold mapsto_.
 apply exp_right with Vundef.

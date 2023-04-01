@@ -684,31 +684,29 @@ Section juicy_safety.
     (level m' < level m)%nat /\
     pures_eq (m_phi m) (m_phi m'). *)
 
-Definition auth_heap phi := ghost_map_auth(H0 := gen_heapGpreS_heap(gen_heapGpreS := gen_heap_inG)) (gen_heap_name heapGS_gen_heapGS) Tsh phi.
+(*Definition auth_heap phi := ghost_map_auth(H0 := gen_heapGpreS_heap(gen_heapGpreS := gen_heap_inG)) (gen_heap_name heapGS_gen_heapGS) Tsh phi.*)
 
-(*
-(* The closest match would be to have the heap view hold the whole juicy mem. *)
-Program Definition jsafeN_pre
-    (jsafeN : coPset -d> Z -d> C -d> monPredO mem_index (iPropI Σ)) : coPset -d> Z -d> C -d> monPredO mem_index (iPropI Σ) := λ E z c,
-  {| monPred_at := λ dry_mem,
-  ◇ ((∃ i, ⌜semantics.halted Hcore c i⌝ ∧ |={E}=> ext_jmpred_exit Z Hspec (Some (Vint i)) z) ∨
-     (∀ m, own (gen_heap_name heapGS_gen_heapGS) (● m) -∗ ext_auth z ={E}=∗
-      (▷ ∀ c' m', ⌜corestep Hcore c dry_mem c' m'⌝ ={E}=∗ own gen_heap_name (● m') ∗ ext_auth z ∗ jsafeN z E c') ∧
-      (∀e args x, ⌜j_at_external Hcore c m = Some (e, args)⌝ -∗ ext_jmpred_pre Hspec e x (genv_symb ge) (sig_args (ef_sig e)) args z -∗
-         ∀ ret m' z', ⌜Val.has_type_list args (sig_args (ef_sig e)) ∧ Builtins0.val_opt_has_rettype  ret (sig_res (ef_sig e))⌝ -∗
-          ext_jmpred_post Hspec e x (genv_symb ge) (sig_res (ef_sig e)) ret z' ={E}=∗
-          ∃ c', ⌜semantics.after_external Hcore ret c (m_dry m') = Some c'⌝ ∧ own gen_heap_name (● m') ∗ ext_auth z' ∗ jsafeN E z' c'))) |}.*)
+(* The closest match to the Iris approach would be for auth_heap to hold the true full CompCert mem,
+   and to run the underlying semantics without any permissions. But that's a poor fit for VST's approach
+   to soundness. Instead, our "authoritative" state is still just the current thread's view of the state. *)
 
 (* Hypothesis: we don't actually need juicy_mem here, and can requantify over the plain mem at every step. *)
+(* Hypothesis 2: we don't really need the authoritative rmap either! The point is just that the thread's owned resources
+   need to be consistent with the state that steps, which we can get from coherent_with.
+   If this is true, then we should probably move away from gen_heap entirely
+   and just have the gmap side in heapGS. *)
+
+Definition state_interp m z := juicy_mem_auth m ∗ ext_auth z.
+
 Program Definition jsafe_pre
     (jsafe : coPset -d> Z -d> C -d> iPropO Σ) : coPset -d> Z -d> C -d> iPropO Σ := λ E z c,
   ◇ ((∀i, ⌜halted Hcore c i⌝ → |={E}=> ∀ m, coherent_with m → ext_jmpred_exit Z Hspec (Some (Vint i)) z m) ∧
-     (∀ phi, auth_heap phi -∗ ext_auth z ={E}=∗ ∀ m, coherent_with m →
-      (▷ ∀ c' m', ⌜corestep Hcore c m c' m'⌝ → |={E}=> coherent_with m' ∧ ((∃ phi', auth_heap phi') ∗ ext_auth z ∗ jsafe E z c')) ∧
+     (∀ m, state_interp m z -∗
+      (|={E}=> ▷ ∀ c' m', ⌜corestep Hcore c m c' m'⌝ → |={E}=> state_interp m' z ∗ jsafe E z c')) ∧
       (∀e args x, ⌜at_external Hcore c m = Some (e, args)⌝ → ext_jmpred_pre Z Hspec e x (genv_symb ge) (sig_args (ef_sig e)) args z m -∗
          ▷ □ (∀ ret m' phi' z', ⌜Val.has_type_list args (sig_args (ef_sig e)) ∧ Builtins0.val_opt_has_rettype ret (sig_res (ef_sig e))⌝ -∗
-          ((ext_jmpred_post Z Hspec e x (genv_symb ge) (sig_res (ef_sig e)) ret z' m' ∧ coherent_with m') -∗ auth_heap phi' ={E}=∗
-          ∃ c', ⌜after_external Hcore ret c m' = Some c'⌝ ∧ ext_auth z' ∗ jsafe E z' c'))))).
+          ((ext_jmpred_post Z Hspec e x (genv_symb ge) (sig_res (ef_sig e)) ret z' m') ={E}=∗
+          ∃ c', ⌜after_external Hcore ret c m' = Some c'⌝ ∧ state_interp m' z' ∗ jsafe E z' c'))))).
 
 Local Instance jsafe_pre_contractive : Contractive jsafe_pre.
 Proof.

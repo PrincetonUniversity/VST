@@ -4,86 +4,8 @@ Require Import VST.veric.juicy_base.
 Require Import VST.veric.shares.
 Require Import VST.zlist.sublist.
 
-Definition perm_of_sh (sh: Share.t): option permission :=
-  if writable0_share_dec sh
-  then if eq_dec sh Share.top
-            then Some Freeable
-            else Some Writable
-    else if readable_share_dec sh
-         then Some Readable
-         else if eq_dec sh Share.bot
-                   then None
-              else Some Nonempty.
-Functional Scheme perm_of_sh_ind := Induction for perm_of_sh Sort Prop.
-
-Definition contents_at (m: mem) (loc: address) : memval :=
-  Maps.ZMap.get (snd loc) (Maps.PMap.get (fst loc) (mem_contents m)).
-
 Section rmap.
 Context `{!heapGS Σ}.
-
-(*Definition res_retain' (r: resource) : Share.t :=
- match r with
-  | NO sh _ => sh
-  | YES sh _ _ _ => Share.glb Share.Lsh sh
-  | PURE _ _ => Share.top
- end.*)
-
-Definition perm_of_dfrac dq :=
-  match dq with
-  | DfracOwn sh | DfracBoth sh => perm_of_sh sh
-  | DfracDiscarded => Some Readable
-  end.
-
-Definition perm_of_res (r: option (dfrac * resource)) :=
-  match r with
-  | Some (dq, VAL _) => perm_of_dfrac dq
-  | Some (DfracOwn sh, _) | Some (DfracBoth sh, _) => if eq_dec sh Share.bot then None else Some Nonempty
-  | Some (DfracDiscarded, _) => Some Readable
-  | _ => None
-  end.
-
-(*Definition perm_of_res (r: resource) :=
- match r with
- | NO sh _ => if eq_dec sh Share.bot then None else Some Nonempty
- | PURE _ _ => Some Nonempty
- | YES sh rsh (VAL _) _ => perm_of_sh sh
- | YES sh rsh _ _ => Some Nonempty
- end.
-
-(*To do a case analysis over perm_of_res, use:
-functional induction (perm_of_res_explicit r1) using perm_of_res_expl_ind
-We define the induction scheme below. *)
-Definition perm_of_res_lock_explicit
-             (r : compcert_rmaps.RML.R.resource):=
-    match r with
-    | compcert_rmaps.RML.R.NO _ _ => None
-    | compcert_rmaps.RML.R.YES sh _ (compcert_rmaps.VAL _) _ => None
-    | compcert_rmaps.RML.R.YES sh _ (compcert_rmaps.LK _ _) _ =>
-      if writable0_share_dec (Share.glb Share.Rsh sh)
-      then if eq_dec (Share.glb Share.Rsh sh) Share.top then Some Freeable else Some Writable
-      else if readable_share_dec (Share.glb Share.Rsh sh) then Some Readable else
-             if eq_dec  (Share.glb Share.Rsh sh) Share.bot then None else Some Nonempty
-    | compcert_rmaps.RML.R.YES sh _ (compcert_rmaps.FUN _ _) _ => None
-    | compcert_rmaps.RML.R.PURE _ _ => None
-    end.
-
-  Functional Scheme perm_of_res_lock_expl_ind := Induction for perm_of_res_lock_explicit Sort Prop.
-*)
-
-Definition perm_of_res' (r: option (dfrac * resource)) :=
-  match r with
-  | Some (dq, _) => perm_of_dfrac dq
-  | None => None
-  end.
-
-(*Definition perm_of_res' (r: resource) :=
-  (*  perm_of_sh (res_retain' r) (valshare r). *)
- match r with
- | NO sh _ => if eq_dec sh Share.bot then None else Some Nonempty
- | PURE _ _ => Some Nonempty
- | YES sh _ _ _ => perm_of_sh sh
- end.*)
 
 Definition perm_of_res_lock (r: option (dfrac * resource)) :=
   match r with
@@ -93,34 +15,6 @@ Definition perm_of_res_lock (r: option (dfrac * resource)) :=
                    end
   | _ => None
   end.
-
-(*Definition perm_of_res_lock (r: resource) :=
-  (*  perm_of_sh (res_retain' r) (valshare r). *)
- match r with
- | YES sh rsh (LK _ _) _ => perm_of_sh (Share.glb Share.Rsh sh)
- | _ => None
- end.
-(*To do a case analysis over perm_of_res_lock, use:
-functional induction (perm_of_res_lock_explicit r1) using perm_of_res_lock_expl_ind
-We define the induction shceme bellow. *)
-Definition perm_of_res_explicit
-               (r : compcert_rmaps.RML.R.resource):=
-        match r with
-        | compcert_rmaps.RML.R.NO sh _ => if eq_dec sh Share.bot then None else Some Nonempty
-           | compcert_rmaps.RML.R.YES sh _ (compcert_rmaps.VAL _) _ =>
-             if writable0_share_dec sh
-             then if eq_dec sh Share.top then Some Freeable else Some Writable
-             else
-               if readable_share_dec sh
-               then Some Readable
-               else if eq_dec sh Share.bot then None else Some Nonempty
-           | compcert_rmaps.RML.R.YES sh _ (compcert_rmaps.LK _ _) _ => Some Nonempty
-           | compcert_rmaps.RML.R.YES sh _ (compcert_rmaps.FUN _ _) _ => Some Nonempty
-           | compcert_rmaps.RML.R.PURE _ _ => Some Nonempty
-        end.
-
-Functional Scheme perm_of_res_expl_ind := Induction for perm_of_res_explicit Sort Prop.
-*)
 
 Lemma Rsh_not_top: Share.Rsh <> Share.top.
 Proof.
@@ -162,20 +56,6 @@ rewrite glb_Rsh_Lsh.
 auto.
 Qed.
 
-Lemma perm_of_sh_None: forall sh, perm_of_sh sh = None -> sh = Share.bot.
-Proof.
-  intros ?.
-  unfold perm_of_sh.
-  if_tac; if_tac; try discriminate.
-  if_tac; done.
-Qed.
-
-Lemma perm_order''_refl : forall s, perm_order'' s s.
-Proof.
-  destruct s; simpl; try done.
-  apply perm_refl.
-Qed.
-
 Lemma perm_order''_min : forall s, perm_order'' (perm_of_sh s) (if eq_dec s Share.bot then None else Some Nonempty).
 Proof.
   intros; unfold perm_of_sh; repeat if_tac; constructor.
@@ -215,38 +95,16 @@ Proof.
       eapply Share.ord_trans; done.
 Qed.
 
-Lemma perm_of_res_op1:
-  forall r,
-    perm_order'' (perm_of_res' r) (perm_of_res r).
-Proof.
-  destruct r as [(?, ?)|]; simpl; auto.
-  destruct r; first by destruct d; apply perm_order''_refl.
-  - unfold perm_of_dfrac; destruct d; apply perm_order''_refl || apply perm_order''_min.
-  - unfold perm_of_dfrac; destruct d; apply perm_order''_refl || apply perm_order''_min.
-Qed.
-
 Lemma perm_of_res_op2:
   forall r,
     perm_order'' (perm_of_res' r) (perm_of_res_lock r).
 Proof.
   destruct r as [(?, ?)|]; simpl; auto.
   destruct r; try apply perm_order''_None.
-  unfold perm_of_dfrac; destruct d; apply perm_order''_refl || apply perm_of_sh_glb.
+  unfold perm_of_dfrac; destruct d; try apply perm_order''_refl || if_tac; try apply perm_of_sh_glb.
+  eapply perm_order''_trans, perm_of_sh_glb.
+  by apply perm_order'_antisym.
 Qed.
-
-(*Definition contents_cohere (m: mem) (phi: rmap) :=
-  forall dq v loc, phi @ loc = Some (dq, VAL v) -> contents_at m loc = v.*)
-
-(*Definition access_cohere (m: mem)  (phi: rmap) :=
-  forall loc, access_at m loc Cur = perm_of_res (phi @ loc).*)
-
-Definition max_access_at m loc := access_at m loc Max.
-
-(*Definition max_access_cohere (m: mem) (phi: rmap) :=
-  forall loc, perm_order'' (max_access_at m loc) (perm_of_res' (phi @ loc)).*)
-
-(*Definition alloc_cohere (m: mem) (phi: rmap) :=
- forall loc, (fst loc >= nextblock m)%positive -> phi @ loc = None.*)
 
 Open Scope bi_scope.
 
@@ -264,7 +122,7 @@ Definition max_access_cohere (m: mem) : mpred := ∀l dq r,
 
 Definition alloc_cohere (m: mem) := ∀l dq r, l ↦{dq} r → ⌜fst l < nextblock m⌝%positive.
 
-Lemma perm_of_res_order : forall n r1 r2 (Hv : valid r2) (Hr1 : r1 ≠ None), r1 ≼ₒ{n} r2 -> perm_of_res (resR_to_resource r1) = perm_of_res (resR_to_resource r2).
+(*Lemma perm_of_res_order : forall n r1 r2 (Hv : valid r2) (Hr1 : r1 ≠ None), r1 ≼ₒ{n} r2 -> perm_of_res (resR_to_resource r1) = perm_of_res (resR_to_resource r2).
 Proof.
   intros.
   destruct r1 as [(d1, a1)|], r2 as [(d2, a2)|]; try done; simpl in *.
@@ -281,19 +139,9 @@ Proof.
   rewrite Heq.
   destruct Hd; subst; try done.
   destruct d1; done.
-Qed.
+Qed.*)
 
 Definition coherent_with (m: mem) : mpred := contents_cohere m ∧ access_cohere m ∧ max_access_cohere m ∧ alloc_cohere m.
-
-(* Is there a way to turn e.g. contents_cohere inside-out so we don't have to 
-
-Inductive juicy_mem: Type :=
-  mkJuicyMem: forall (m: mem) (phi: rmap)
-    (JMcontents: contents_cohere m phi)
-    (JMaccess: access_cohere m phi)
-    (JMmax_access: max_access_cohere m phi)
-    (JMalloc: alloc_cohere m phi),
-       juicy_mem.*)
 
 Section selectors.
 Variable (m: mem).
@@ -308,6 +156,15 @@ Proof. by rewrite /coherent_with bi.and_elim_r bi.and_elim_r bi.and_elim_l. Qed.
 Lemma coherent_alloc: coherent_with m ⊢ alloc_cohere m.
 Proof. by rewrite /coherent_with bi.and_elim_r bi.and_elim_r bi.and_elim_r. Qed.
 End selectors.
+
+Definition mem_auth m := resource_map.resource_map_auth(H0 := gen_heapGpreS_heap(gen_heapGpreS := gen_heap_inG)) (gen_heap_name heapGS_gen_heapGS) Tsh m.
+
+Lemma juicy_view_coherent : forall m, mem_auth m ⊢ coherent_with m.
+Proof.
+  intros; iIntros "m".
+  iSplit; [|iSplit; [|iSplit]].
+  - 
+Abort.
 
 (*Definition juicy_mem_resource: forall jm m', resource_at m' = resource_at (m_phi jm) ->
   {jm' | m_phi jm' = m' /\ m_dry jm' = m_dry jm}.
@@ -984,13 +841,6 @@ apply identity_share_bot in H0.
 apply Share.nontrivial; auto.
 left.
 apply bot_identity.
-Qed.
-
-Lemma perm_order''_trans: forall a b c, Mem.perm_order'' a b ->  Mem.perm_order'' b c ->
-                               Mem.perm_order'' a c.
-Proof.
-   intros a b c H1 H2; destruct a, b, c; inversion H1; inversion H2; subst; eauto;
-             eapply perm_order_trans; eauto.
 Qed.
 
 (*Definition initial_mem (m: mem) lev (IOK: initial_rmap_ok m lev) : juicy_mem.

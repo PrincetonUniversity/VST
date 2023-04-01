@@ -7,10 +7,10 @@ From iris_ora.algebra Require Import agree.
 From VST.veric Require Export dfrac.
 From iris.proofmode Require Import proofmode.
 From iris_ora.logic Require Export logic own.
-From VST.veric Require Import ghost_map ext_order.
+From VST.veric Require Import ghost_map juicy_view resource_map ext_order.
 From iris.prelude Require Import options.
 
-(** This file provides a generic mechanism for a language-level point-to
+(** This file defines the language-level points-to
 connective [l ↦{dq} v] reflecting the physical heap.  This library is designed to
 be used as a singleton (i.e., with only a single instance existing in any
 proof), with the [gen_heapGS] typeclass providing the ghost names of that unique
@@ -19,12 +19,7 @@ This mechanism can be plugged into a language and related to the physical heap
 by using [gen_heap_interp σ] in the state interpretation of the weakest
 precondition. See heap-lang for an example.
 
-If you are looking for a library providing "ghost heaps" independent of the
-physical state, you will likely want explicit ghost names to disambiguate
-multiple heaps and are thus better off using [ghost_map], or (if you need more
-flexibility), directly using the underlying [algebra.lib.gmap_view].
-
-This library is generic in the types [L] for locations and [V] for values and
+This library is generic in the type [V] for values and
 supports fractional permissions.  Next to the point-to connective [l ↦{dq} v],
 which keeps track of the value [v] of a location [l], this library also provides
 a way to attach "meta" or "ghost" data to locations. This is done as follows:
@@ -53,8 +48,8 @@ these can be matched up with the invariant namespaces. *)
 
 (** To implement this mechanism, we use three resource algebras:
 
-- A [gmap_view L V], which keeps track of the values of locations.
-- A [gmap_view L gname], which keeps track of the meta information of
+- A [gmap_view address V], which keeps track of the values of locations.
+- A [gmap_view address gname], which keeps track of the meta information of
   locations. More specifically, this RA introduces an indirection: it keeps
   track of a ghost name for each location.
 - The ghost names in the aforementioned authoritative RA refer to namespace maps
@@ -72,7 +67,7 @@ Canonical Structure reservation_mapR := inclR (reservation_mapR (agreeR positive
 
 Global Instance reservation_map_data_core_id k (a : agreeR positiveO) :
     OraCoreId a → OraCoreId(A := reservation_mapR) (reservation_map_data(A := agreeR positiveO) k a).
-  Proof. do 2 constructor; simpl; auto. apply core_id_core, _. Qed.
+Proof. do 2 constructor; simpl; auto. apply core_id_core, _. Qed.
 
 Global Instance reservation_map_ora_discrete : OraDiscrete reservation_mapR.
 Proof.
@@ -85,51 +80,51 @@ Proof.
     by apply equiv_dist.
 Qed.
 
-Class gen_heapGpreS (L V : Type) (Σ : gFunctors) `{Countable L} := {
-  gen_heapGpreS_heap : ghost_mapG Σ L V;
-  gen_heapGpreS_meta : ghost_mapG Σ L gname;
+Class gen_heapGpreS (V : Type) (Σ : gFunctors) `{resource_ops (leibnizO V)} := {
+  gen_heapGpreS_heap : resource_mapG Σ V;
+  gen_heapGpreS_meta : ghost_mapG Σ address gname;
   gen_heapGpreS_meta_data : inG Σ reservation_mapR;
 }.
 Local Existing Instances gen_heapGpreS_meta_data gen_heapGpreS_heap gen_heapGpreS_meta.
 
-Class gen_heapGS (L V : Type) (Σ : gFunctors) `{Countable L} := GenHeapGS {
-  gen_heap_inG : gen_heapGpreS L V Σ;
+Class gen_heapGS (V : Type) (Σ : gFunctors) `{resource_ops (leibnizO V)} := GenHeapGS {
+  gen_heap_inG : gen_heapGpreS V Σ;
   gen_heap_name : gname;
   gen_meta_name : gname
 }.
 Local Existing Instance gen_heap_inG.
-Global Arguments GenHeapGS L V Σ {_ _ _} _ _.
-Global Arguments gen_heap_name {L V Σ _ _} _ : assert.
-Global Arguments gen_meta_name {L V Σ _ _} _ : assert.
+Global Arguments GenHeapGS V Σ {_ _} _ _.
+Global Arguments gen_heap_name {V Σ _} _ : assert.
+Global Arguments gen_meta_name {V Σ _} _ : assert.
 
-Definition gen_heapΣ (L V : Type) `{Countable L} : gFunctors := #[
-  ghost_mapΣ L V;
-  ghost_mapΣ L gname;
+Definition gen_heapΣ (V : Type) `{resource_ops (leibnizO V)} : gFunctors := #[
+  resource_mapΣ V;
+  ghost_mapΣ address gname;
   GFunctor reservation_mapR
 ].
 
-Global Instance subG_gen_heapGpreS {Σ L V} `{Countable L} :
-  subG (gen_heapΣ L V) Σ → gen_heapGpreS L V Σ.
+Global Instance subG_gen_heapGpreS {Σ V} `{resource_ops (leibnizO V)} :
+  subG (gen_heapΣ V) Σ → gen_heapGpreS V Σ.
 Proof. solve_inG. Qed.
 
 Section definitions.
-  Context `{Countable L, hG : !gen_heapGS L V Σ}.
+  Context `{ResOps : resource_ops (leibnizO V)} `{hG : !gen_heapGS V Σ}.
 
-  Definition gen_heap_interp (σ : gmap L V) : iProp Σ := ∃ m : gmap L gname,
-    (* The [⊆] is used to avoid assigning ghost information to the locations in
+  Definition gen_heap_interp (σ : mem) : iProp Σ := ∃ m : gmap address gname,
+(*    (* The [⊆] is used to avoid assigning ghost information to the locations in
     the initial heap (see [gen_heap_init]). *)
-    ⌜ dom m ⊆ dom σ ⌝ ∧
-    ghost_map_auth (gen_heap_name hG) Tsh σ ∗
+    ⌜ dom m ⊆ dom σ ⌝ ∧ *)
+    resource_map_auth (gen_heap_name hG) Tsh σ ∗
     ghost_map_auth (gen_meta_name hG) Tsh m.
 
-  Local Definition mapsto_def (l : L) (dq : dfrac) (v: V) : iProp Σ :=
+  Local Definition mapsto_def (l : address) (dq : dfrac) (v: V) : iProp Σ :=
     l ↪[gen_heap_name hG]{dq} v.
   Local Definition mapsto_aux : seal (@mapsto_def). Proof. by eexists. Qed.
   Definition mapsto := mapsto_aux.(unseal).
   Local Definition mapsto_unseal : @mapsto = @mapsto_def := mapsto_aux.(seal_eq).
 
-  Local Definition meta_token_def (l : L) (E : coPset) : iProp Σ :=
-    ∃ γm, l ↪[gen_meta_name hG]□ γm ∗ own(A := reservation_mapR) γm (reservation_map_token E).
+  Local Definition meta_token_def (l : address) (E : coPset) : iProp Σ :=
+    ∃ γm, ghost_map_elem (gen_meta_name hG) l DfracDiscarded γm ∗ own(A := reservation_mapR) γm (reservation_map_token E).
   Local Definition meta_token_aux : seal (@meta_token_def). Proof. by eexists. Qed.
   Definition meta_token := meta_token_aux.(unseal).
   Local Definition meta_token_unseal :
@@ -137,25 +132,25 @@ Section definitions.
 
   (** TODO: The use of [positives_flatten] violates the namespace abstraction
   (see the proof of [meta_set]. *)
-  Local Definition meta_def `{Countable A} (l : L) (N : namespace) (x : A) : iProp Σ :=
-    ∃ γm, l ↪[gen_meta_name hG]□ γm ∗
+  Local Definition meta_def `{Countable A} (l : address) (N : namespace) (x : A) : iProp Σ :=
+    ∃ γm, ghost_map_elem (gen_meta_name hG) l DfracDiscarded γm ∗
           own(A := reservation_mapR) γm (reservation_map_data (positives_flatten N) (to_agree (encode x))).
   Local Definition meta_aux : seal (@meta_def). Proof. by eexists. Qed.
   Definition meta := meta_aux.(unseal).
   Local Definition meta_unseal : @meta = @meta_def := meta_aux.(seal_eq).
 End definitions.
-Global Arguments meta {L _ _ V Σ _ A _ _} l N x.
+Global Arguments meta {V _ Σ _ A _ _} l N x.
 
 Local Notation "l ↦ dq v" := (mapsto l dq v)
   (at level 20, dq custom dfrac at level 1, format "l  ↦ dq  v") : bi_scope.
 
 Section gen_heap.
-  Context {L V} `{Countable L, !gen_heapGS L V Σ}.
+  Context {V} `{resource_ops (leibnizO V), !gen_heapGS V Σ}.
   Implicit Types P Q : iProp Σ.
   Implicit Types Φ : V → iProp Σ.
-  Implicit Types σ : gmap L V.
-  Implicit Types m : gmap L gname.
-  Implicit Types l : L.
+  Implicit Types σ : gmap address V.
+  Implicit Types m : gmap address gname.
+  Implicit Types l : address.
   Implicit Types v : V.
 
   (** General properties of mapsto *)
@@ -172,46 +167,46 @@ Section gen_heap.
   Proof. rewrite mapsto_unseal. apply _. Qed.
 
   Lemma mapsto_valid l dq v : l ↦{dq} v -∗ ⌜✓ dq⌝%Qp.
-  Proof. rewrite mapsto_unseal. apply ghost_map_elem_valid. Qed.
+  Proof. rewrite mapsto_unseal. apply resource_map_elem_valid. Qed.
   Lemma mapsto_valid_2 l dq1 dq2 v1 v2 : l ↦{dq1} v1 -∗ l ↦{dq2} v2 -∗ ⌜✓ (dq1 ⋅ dq2) ∧ v1 = v2⌝.
-  Proof. rewrite mapsto_unseal. apply ghost_map_elem_valid_2. Qed.
+  Proof. rewrite mapsto_unseal. apply resource_map_elem_valid_2. Qed.
   (** Almost all the time, this is all you really need. *)
   Lemma mapsto_agree l dq1 dq2 v1 v2 : l ↦{dq1} v1 -∗ l ↦{dq2} v2 -∗ ⌜v1 = v2⌝.
-  Proof. rewrite mapsto_unseal. apply ghost_map_elem_agree. Qed.
+  Proof. rewrite mapsto_unseal. apply resource_map_elem_agree. Qed.
 
-(*  Global Instance mapsto_combine_sep_gives l dq1 dq2 v1 v2 : 
+  Global Instance mapsto_combine_sep_gives l dq1 dq2 v1 v2 : 
     CombineSepGives (l ↦{dq1} v1) (l ↦{dq2} v2) ⌜✓ (dq1 ⋅ dq2) ∧ v1 = v2⌝ | 30.
   Proof.
     rewrite /CombineSepGives. iIntros "[H1 H2]".
     iDestruct (mapsto_valid_2 with "H1 H2") as %?. eauto.
-  Qed. *)
+  Qed.
 
   Lemma mapsto_combine l dq1 dq2 v1 v2 :
     l ↦{dq1} v1 -∗ l ↦{dq2} v2 -∗ l ↦{dq1 ⋅ dq2} v1 ∧ ⌜v1 = v2⌝.
-  Proof. rewrite mapsto_unseal. apply ghost_map_elem_combine. Qed.
+  Proof. rewrite mapsto_unseal. apply resource_map_elem_combine. Qed.
 
-(*  Global Instance mapsto_combine_as l dq1 dq2 v1 v2 :
+  Global Instance mapsto_combine_as l dq1 dq2 v1 v2 :
     CombineSepAs (l ↦{dq1} v1) (l ↦{dq2} v2) (l ↦{dq1 ⋅ dq2} v1) | 60. 
     (* higher cost than the Fractional instance, which kicks in for #qs *)
   Proof.
     rewrite /CombineSepAs. iIntros "[H1 H2]".
     iDestruct (mapsto_combine with "H1 H2") as "[$ _]".
-  Qed. *)
+  Qed.
 
   Lemma mapsto_split l dq1 dq2 v :
     l ↦{dq1 ⋅ dq2} v ⊣⊢ l ↦{dq1} v ∗ l ↦{dq2} v.
-  Proof. rewrite mapsto_unseal. apply ghost_map_elem_split. Qed.
+  Proof. rewrite mapsto_unseal. apply resource_map_elem_split. Qed.
 
   Lemma mapsto_frac_ne l1 l2 dq1 dq2 v1 v2 :
     ¬ ✓(dq1 ⋅ dq2) → l1 ↦{dq1} v1 -∗ l2 ↦{dq2} v2 -∗ ⌜l1 ≠ l2⌝.
-  Proof. rewrite mapsto_unseal. apply ghost_map_elem_frac_ne. Qed.
+  Proof. rewrite mapsto_unseal. apply resource_map_elem_frac_ne. Qed.
   Lemma mapsto_ne l1 l2 dq2 v1 v2 : l1 ↦ v1 -∗ l2 ↦{dq2} v2 -∗ ⌜l1 ≠ l2⌝.
-  Proof. rewrite mapsto_unseal. apply ghost_map_elem_ne. Qed.
+  Proof. rewrite mapsto_unseal. apply resource_map_elem_ne. Qed.
 
-  (** Permanently turn any points-to predicate into a persistent
+(*  (** Permanently turn any points-to predicate into a persistent
       points-to predicate. *)
   Lemma mapsto_persist l dq v : l ↦{dq} v ==∗ l ↦□ v.
-  Proof. rewrite mapsto_unseal. apply ghost_map_elem_persist. Qed.
+  Proof. rewrite mapsto_unseal. apply resource_map_elem_persist. Qed.*)
 
   (** Framing support *)
 (*  Global Instance frame_mapsto p l v q1 q2 RES :
@@ -280,7 +275,7 @@ Section gen_heap.
     exists 1%positive. by rewrite left_id_L.
   Qed.
 
-  (** Update lemmas *)
+(*  (** Update lemmas *)
   Lemma gen_heap_alloc σ l v :
     σ !! l = None →
     gen_heap_interp σ ==∗ gen_heap_interp (<[l:=v]>σ) ∗ l ↦ v ∗ meta_token l ⊤.
@@ -328,16 +323,17 @@ Section gen_heap.
     iModIntro. iFrame "Hl". iExists m. iFrame.
     iPureIntro. apply elem_of_dom_2 in Hl.
     rewrite dom_insert_L. set_solver.
-  Qed.
+  Qed.*)
 End gen_heap.
 
+(*
 (** This variant of [gen_heap_init] should only be used when absolutely needed.
 The key difference to [gen_heap_init] is that the [inG] instances in the new
 [gen_heapGS] instance are related to the original [gen_heapGpreS] instance,
 whereas [gen_heap_init] forgets about that relation. *)
-Lemma gen_heap_init_names `{Countable L, !gen_heapGpreS L V Σ} σ :
+Lemma gen_heap_init_names `{!gen_heapGpreS V Σ} σ :
   ⊢ |==> ∃ γh γm : gname,
-    let hG := GenHeapGS L V Σ γh γm in
+    let hG := GenHeapGS address V Σ γh γm in
     gen_heap_interp σ ∗ ([∗ map] l ↦ v ∈ σ, l ↦ v) ∗ ([∗ map] l ↦ _ ∈ σ, meta_token l ⊤).
 Proof.
   iMod (ghost_map_alloc_empty (K:=L) (V:=V)) as (γh) "Hh".
@@ -350,12 +346,12 @@ Proof.
   rewrite right_id_L. done.
 Qed.
 
-Lemma gen_heap_init `{Countable L, !gen_heapGpreS L V Σ} σ :
-  ⊢ |==> ∃ _ : gen_heapGS L V Σ,
+Lemma gen_heap_init `{!gen_heapGpreS V Σ} σ :
+  ⊢ |==> ∃ _ : gen_heapGS V Σ,
     gen_heap_interp σ ∗ ([∗ map] l ↦ v ∈ σ, l ↦ v) ∗ ([∗ map] l ↦ _ ∈ σ, meta_token l ⊤).
 Proof.
   iMod (gen_heap_init_names σ) as (γh γm) "Hinit".
   iExists (GenHeapGS _ _ _ γh γm).
   done.
-
 Qed.
+*)

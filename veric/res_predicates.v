@@ -2,17 +2,13 @@ From iris.proofmode Require Export tactics.
 Require Import compcert.cfrontend.Ctypes.
 From iris_ora.algebra Require Import gmap.
 From iris_ora.logic Require Export logic.
-From VST.veric Require Import shares address_conflict gmap_view.
+From VST.veric Require Import shares address_conflict.
 From VST.msl Require Export shares.
-From VST.veric Require Export base Memory algebras gen_heap fancy_updates.
+From VST.veric Require Export base Memory algebras juicy_view gen_heap fancy_updates.
 Export Values.
 
 Local Open Scope Z_scope.
 
-(* We can't import compcert.lib.Maps because their lookup notations conflict with stdpp's.
-   We can define lookup instances, which require one more ! apiece than CompCert's notation. *)
-Global Instance ptree_lookup A : Lookup positive A (Maps.PTree.t A) := Maps.PTree.get(A := A).
-Global Instance pmap_lookup A : LookupTotal positive A (Maps.PMap.t A) := Maps.PMap.get(A := A).
 
 (** Environment Definitions **)
 (* We need these here so we can define the resource in memory for a function pointer. *)
@@ -132,8 +128,6 @@ Section heap.
 
 Context {Σ : gFunctors}.
 
-Notation rmap := (iResUR Σ).
-
 Notation mpred := (iProp Σ).
 
 Inductive resource' :=
@@ -142,10 +136,74 @@ Inductive resource' :=
 | FUN (sig : typesig) (cc : calling_convention) (A : Type) (P : A -> argsEnviron -> mpred) (Q : A -> environ -> mpred).
 (* Will we run into universe issues with higher-order A's? Hopefully not! *)
 
+Definition perm_of_res (r: option (dfrac * resource')) :=
+  match r with
+  | Some (dq, VAL _) => perm_of_dfrac dq
+  | Some (DfracOwn sh, _) => if eq_dec sh Share.bot then None else Some Nonempty
+  | Some (DfracDiscarded, _) | Some (DfracBoth _, _) => Some Readable
+  | _ => None
+  end.
+
+Lemma perm_of_sh_None: forall sh, perm_of_sh sh = None -> sh = Share.bot.
+Proof.
+  intros ?.
+  unfold perm_of_sh.
+  if_tac; if_tac; try discriminate.
+  if_tac; done.
+Qed.
+
+
+Global Program Instance resource'_ops : resource_ops (leibnizO resource') := { perm_of_res := perm_of_res; memval_of r := match snd r with VAL v => Some v | _ => None end }.
+Next Obligation.
+Proof.
+  discriminate.
+Qed.
+Next Obligation.
+Proof.
+  discriminate.
+Qed.
+Next Obligation.
+Proof.
+  reflexivity.
+Qed.
+Next Obligation.
+Proof.
+  intros ???? Hd.
+  destruct r.
+  - destruct d1, d2; apply perm_of_dfrac_mono; auto.
+  - destruct Hd as [d0 ->%leibniz_equiv].
+    destruct d1, d0; simpl; try if_tac; simpl; try if_tac; try constructor; try contradiction; try (destruct H; contradiction).
+  - destruct Hd as [d0 ->%leibniz_equiv].
+    destruct d1, d0; simpl; try if_tac; simpl; try if_tac; try constructor; try contradiction; try (destruct H; contradiction).
+Qed.
+Next Obligation.
+Proof.
+  intros ???? H; hnf in H; subst; auto.
+Qed.
+Next Obligation.
+Proof.
+  destruct r as [(?, ?)|]; simpl; auto.
+  destruct d, o; simpl; try if_tac; try constructor; try apply perm_order''_None; try apply perm_order''_refl; try done.
+  - destruct (perm_of_sh s) eqn: Hs; simpl; try constructor.
+    by apply perm_of_sh_None in Hs.
+  - destruct (perm_of_sh s) eqn: Hs; simpl; try constructor.
+    by apply perm_of_sh_None in Hs.
+Qed.
+Next Obligation.
+Proof.
+  simpl; intros.
+  destruct r; inv H; done.
+Qed.
+Next Obligation.
+Proof.
+  simpl; intros.
+  hnf in H0; subst; done.
+Qed.
+
 (* collect up all the ghost state required for the logic *)
 Class heapGS := HeapGS {
   heapGS_wsatGS :> wsatGS Σ;
-  heapGS_gen_heapGS :> gen_heapGS address resource' Σ
+  heapGS_gen_heapGS :> gen_heapGS resource' Σ
 }.
 
 Context {HGS : heapGS}.
@@ -163,11 +221,11 @@ match goal with |- ?a = ?b =>
 Definition resR_to_resource : optionR (prodR dfracR (agreeR (leibnizO resource))) -> option (dfrac * resource) :=
   option_map (fun '(q, a) => (q, (hd (VAL Undef) (agree_car a)))).
 
-Definition heap_inG := ghost_map.ghost_map_inG(ghost_mapG := gen_heapGpreS_heap(gen_heapGpreS := gen_heap_inG)).
+(*Definition heap_inG := resource_map.resource_map_inG(ghost_mapG := gen_heapGpreS_heap(gen_heapGpreS := gen_heap_inG)).
 Definition resource_at (m : rmap) (l : address) : option (dfrac * resource) :=
   (option_map (ora_transport (eq_sym (inG_prf(inG := heap_inG)))) (option_map own.inG_fold ((m (inG_id heap_inG)) !! (gen_heap_name (heapGS_gen_heapGS)))))
     ≫= (fun v => resR_to_resource (view_frag_proj v !! l)).
-Infix "@" := resource_at (at level 50, no associativity).
+Infix "@" := resource_at (at level 50, no associativity).*)
 
 (*Lemma ord_resource_at : forall n r1 r2, r1 ≼ₒ{n} r2 -> resource_at r1 ≼ₒ{n} resource_at r2.
 Proof.
@@ -201,7 +259,7 @@ Proof.
   destruct r1, r2; inv H1; auto.
 Qed.*)
 
-Notation "l ↦ dq v" := (mapsto (L:=address) (V:=resource) l dq v)
+Notation "l ↦ dq v" := (mapsto (V:=resource) l dq v)
   (at level 20, dq custom dfrac at level 1, format "l  ↦ dq  v") : bi_scope.
 
 Definition nonlockat (l: address): mpred := ∃ dq r, ⌜nonlock r⌝ ∧ l ↦{dq} r.
@@ -1341,7 +1399,7 @@ Definition rmap `{heapGS Σ} := iResUR Σ.
 Definition resource `{heapGS Σ} := resource'(Σ := Σ).
 Definition mpred `{heapGS Σ} := iProp Σ.
 
-Global Notation "l ↦ dq v" := (mapsto (L:=address) (V:=resource) l dq v)
+Global Notation "l ↦ dq v" := (mapsto (V:=resource) l dq v)
   (at level 20, dq custom dfrac at level 1, format "l  ↦ dq  v") : bi_scope.
 
-Global Infix "@" := resource_at (at level 50, no associativity).
+(*Global Infix "@" := resource_at (at level 50, no associativity).*)

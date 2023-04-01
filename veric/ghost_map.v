@@ -102,29 +102,29 @@ Section lemmas.
     done.
   Qed.
 
-(*  Global Instance ghost_map_elem_combine_gives γ k v1 dq1 v2 dq2 : 
+  Global Instance ghost_map_elem_combine_gives γ k v1 dq1 v2 dq2 : 
     CombineSepGives (k ↪[γ]{dq1} v1) (k ↪[γ]{dq2} v2) ⌜✓ (dq1 ⋅ dq2) ∧ v1 = v2⌝.
   Proof.
     rewrite /CombineSepGives. iIntros "[H1 H2]".
     iDestruct (ghost_map_elem_valid_2 with "H1 H2") as %[H1 H2].
     eauto.
-  Qed. *)
+  Qed.
 
   Lemma ghost_map_elem_combine k γ dq1 dq2 v1 v2 :
     k ↪[γ]{dq1} v1 -∗ k ↪[γ]{dq2} v2 -∗ k ↪[γ]{dq1 ⋅ dq2} v1 ∧ ⌜v1 = v2⌝.
   Proof.
     iIntros "Hl1 Hl2". iDestruct (ghost_map_elem_agree with "Hl1 Hl2") as %->.
-    unseal. iCombine "Hl1 Hl2" as "Hl". eauto with iFrame.
+    unseal. iCombine "Hl1 Hl2" as "Hl". rewrite -own_op gmap_view_frag_op; eauto with iFrame.
   Qed.
 
-(*  Global Instance ghost_map_elem_combine_as k γ dq1 dq2 v1 v2 :
+  Global Instance ghost_map_elem_combine_as k γ dq1 dq2 v1 v2 :
     CombineSepAs (k ↪[γ]{dq1} v1) (k ↪[γ]{dq2} v2) (k ↪[γ]{dq1 ⋅ dq2} v1) | 60. 
     (* higher cost than the Fractional instance [combine_sep_fractional_bwd],
        which kicks in for #qs *)
   Proof.
     rewrite /CombineSepAs. iIntros "[H1 H2]".
     iDestruct (ghost_map_elem_combine with "H1 H2") as "[$ _]".
-  Qed. *)
+  Qed.
 
   Lemma ghost_map_elem_split k γ dq1 dq2 v :
     k ↪[γ]{dq1 ⋅ dq2} v ⊣⊢ k ↪[γ]{dq1} v ∗ k ↪[γ]{dq2} v.
@@ -220,7 +220,7 @@ Section lemmas.
     eauto.
   Qed.
 
-(*  Global Instance ghost_map_lookup_combine_gives_1 {γ q m k dq v} :
+  Global Instance ghost_map_lookup_combine_gives_1 {γ q m k dq v} :
     CombineSepGives (ghost_map_auth γ q m) (k ↪[γ]{dq} v) ⌜m !! k = Some v⌝.
   Proof.
     rewrite /CombineSepGives. iIntros "[H1 H2]".
@@ -231,7 +231,7 @@ Section lemmas.
     CombineSepGives (k ↪[γ]{dq} v) (ghost_map_auth γ q m) ⌜m !! k = Some v⌝.
   Proof.
     rewrite /CombineSepGives comm. apply ghost_map_lookup_combine_gives_1.
-  Qed. *)
+  Qed.
 
   Lemma ghost_map_insert {γ m} k v :
     m !! k = None →
