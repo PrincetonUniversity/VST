@@ -454,7 +454,7 @@ intros. extensionality x; apply prop_ext.
 unfold typed_true, bool_val, strict_bool_val, isptr.
 destruct t; try contradiction;
 destruct Archi.ptr64 eqn:Hp;
-destruct x; try tauto; intuition; try congruence;
+destruct x; try tauto; intuition (try congruence);
 revert H0; simple_if_tac; intro H0; inv H0.
 Qed.
 
