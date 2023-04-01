@@ -165,15 +165,6 @@ pose proof (ef_deterministic_fun _ H0 _ _ _ _ _ _ _ _ _ H2 H13).
 inv H1; auto.
 Qed.
 
-(*Lemma bupd_jm_bupd: forall jm P C, bupd P (m_phi jm) -> joins (ghost_of (m_phi jm)) (ghost_approx jm C) ->
-  exists jm', jm_update jm jm' /\ P (m_phi jm') /\ joins (ghost_of (m_phi jm')) (ghost_approx jm C).
-Proof.
-  repeat intro.
-  destruct (H _ H0) as (? & ? & ? & ? & Hr & ? & ?); subst.
-  destruct (juicy_mem_resource _ _ Hr) as (jm' & ? & ?); subst.
-  exists jm'; repeat split; auto.
-Qed.*)
-
 Lemma jsafeN_local_step:
   forall ge E ora s1 s2,
   (forall m, cl_step ge s1 m s2 m) ->
@@ -181,6 +172,15 @@ Lemma jsafeN_local_step:
   jsafeN Espec ge E ora s1.
 Proof.
   intros; apply jsafe_local_step; auto.
+  intros ?; apply cl_corestep_fun.
+Qed.
+
+Lemma jsafeN_step:
+  forall ge E ora s1 s2,
+  jstep(genv_symb := genv_symb_injective) (cl_core_sem ge) OK_spec ge E ora s1 s2 ⊢
+  jsafeN Espec ge E ora s1.
+Proof.
+  intros; apply jsafe_corestep; auto.
   intros ?; apply cl_corestep_fun.
 Qed.
 
@@ -198,7 +198,7 @@ split; intros.
 + iIntros (??? [??]); iApply H.
 Qed.
 
-(*Lemma derives_skip:
+Lemma derives_skip:
   forall {CS: compspecs} p E Delta (R: ret_assert),
       (forall rho, p rho ⊢ proj_ret_assert R EK_normal None rho) ->
         semax Espec E Delta p Clight.Sskip R.
@@ -212,7 +212,7 @@ iSpecialize ("H" $! EK_normal None).
 rewrite /guard' /_guard /=.
 iIntros (??) "!> Fp".
 iSpecialize ("H" with "[Fp]").
-{ rewrite H; iApply (bi.and_mono with "Fp"); first done; apply bi.and_mono; last done.
+{ rewrite H; iApply (bi.and_mono with "Fp"); first done; apply bi.sep_mono; last done.
   by destruct R; simpl; rewrite comm pure_and_sep_assoc. }
 rewrite /assert_safe.
 iIntros (z ?); iSpecialize ("H" with "[%]"); first done.

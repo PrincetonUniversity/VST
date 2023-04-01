@@ -159,7 +159,7 @@ End selectors.
 
 Definition mem_auth m := resource_map.resource_map_auth(H0 := gen_heapGpreS_heap(gen_heapGpreS := gen_heap_inG)) (gen_heap_name heapGS_gen_heapGS) Tsh m.
 
-Lemma juicy_view_coherent : forall m, mem_auth m ⊢ coherent_with m.
+Lemma juicy_view_coherent : forall m, mem_auth m ∗ True ⊢ coherent_with m.
 Proof.
   intros; iIntros "m".
   iSplit; [|iSplit; [|iSplit]].

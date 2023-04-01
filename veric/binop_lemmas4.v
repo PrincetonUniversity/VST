@@ -120,7 +120,7 @@ simpl in Hperm.
 destruct dq; simpl in Hperm.
 * destruct r; first (by apply perm_of_sh_None in Hperm as ->); if_tac in Hperm; inv Hperm; done.
 * destruct r; inv Hperm.
-* destruct Hv, r; first (by apply perm_of_sh_None in Hperm as ->); if_tac in Hperm; inv Hperm; done.
+* destruct Hv, r; try discriminate. if_tac in Hperm; try discriminate. by apply perm_of_sh_None in Hperm as ->.
 Qed.
 
 Lemma weak_valid_pointer_dry:
