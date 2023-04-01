@@ -27,13 +27,14 @@ Definition hereditary {A} (R:A->A->Prop) (p:A->Prop) :=
    in this order. *)
 Class Ext_ord (A : Type) {AG : ageable A} :=
   { ext_order : relation A;
-    ext_preorder :> PreOrder ext_order;
+    ext_preorder : PreOrder ext_order;
 (*    ext_age_commut : commut A ext_order age;*)
     (* This may not be true, since non-ordered elements may age to ordered elements *)
     age_ext_commut : commut A age ext_order;
     ext_age_compat : forall a b a', ext_order a b -> age a a' -> exists b', age b b' /\ ext_order a' b';
     ext_level : forall a b, ext_order a b -> level a = level b
   }.
+Global Existing Instance ext_preorder.
 
 Lemma ext_refl : forall `{Ext_ord} a, ext_order a a.
 Proof.
