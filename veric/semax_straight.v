@@ -1,5 +1,5 @@
 Require Import VST.veric.juicy_base.
-Require Import VST.veric.juicy_mem (*VST.veric.juicy_mem_lemmas VST.veric.juicy_mem_ops*).
+Require Import VST.veric.juicy_mem (*VST.veric.juicy_mem_lemmas VST.veric.juicy_mem_ops*) VST.veric.juicy_view.
 Require Import VST.veric.res_predicates.
 Require Import VST.veric.external_state.
 Require Import VST.veric.extend_tc.
@@ -15,10 +15,12 @@ Require Import VST.veric.expr_lemmas.
 Require Import VST.veric.expr_lemmas4.
 Require Import VST.veric.semax.
 Require Import VST.veric.semax_lemmas.
+Require Import VST.veric.mapsto_memory_block.
 Require Import VST.veric.semax_conseq.
 Require Import VST.veric.Clight_lemmas.
 Require Import VST.veric.binop_lemmas.
 Require Import VST.veric.binop_lemmas4.
+Require Import VST.veric.valid_pointer.
 Import LiftNotation.
 
 Transparent intsize_eq.
@@ -27,16 +29,16 @@ Section extensions.
   Context {CS: compspecs} `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ}.
 
 Lemma semax_straight_simple:
- forall E Delta (B: assert) P c Q
+ forall E Delta (B: environ -> mpred) P c Q
   (EB : forall rho, Absorbing (B rho))
-  (Hc : forall Delta' ge ve te rho k F f m,
+  (Hc : forall m Delta' ge ve te rho k F f,
               tycontext_sub Delta Delta' ->
               guard_environ Delta' f rho ->
               closed_wrt_modvars c F ->
               rho = construct_rho (filter_genv ge) ve te  ->
               cenv_sub cenv_cs (genv_cenv ge) ->
               mem_auth m ∗ (B rho ∧ (F rho ∗ ▷P rho)) ∗ funassert Delta' rho ⊢
-                ∃m' te' rho', ⌜rho' = mkEnviron (ge_of rho) (ve_of rho) (make_tenv te') ∧
+                ◇ ∃m' te' rho', ⌜rho' = mkEnviron (ge_of rho) (ve_of rho) (make_tenv te') ∧
                   guard_environ Delta' f rho' ∧ cl_step ge (State f c k ve te) m
                                  (State f Sskip k ve te') m'⌝ ∧
                |={E}=> mem_auth m' ∗ (F rho' ∗ Q rho')),
@@ -52,7 +54,7 @@ iIntros (ora _).
 iApply jsafe_step.
 rewrite /jstep_ex.
 iIntros (m) "[Hm ?]".
-iPoseProof (Hc with "[P $Hm]") as (??? Hstep) "Hc"; first done.
+iMod (Hc with "[P $Hm]") as (??? Hstep) "Hc"; first done.
 { rewrite bi.sep_and_l; iFrame "#".
   iSplit; last iDestruct "P" as "[_ $]".
   rewrite bi.sep_elim_r; iDestruct "P" as "[$ _]". }
@@ -82,96 +84,36 @@ match op with Cop.Olt | Cop.Ogt | Cop.Ole | Cop.Oge =>
 | _ => True%type
 end.
 
-
-Lemma perm_order''_trans:
-  forall x y z, perm_order'' x y -> perm_order'' y z -> perm_order'' x z.
-Proof.
-intros.
-destruct x,y; inv H; auto.
-destruct z; constructor.
-destruct z; inv H0; constructor.
-destruct z; inv H0; constructor.
-destruct z; inv H0; constructor.
-Qed.
-
 Lemma mapsto_valid_pointer : forall b o sh t m,
- sepalg.nonidentity sh ->
-  coherent_with m ∧ (mapsto_ sh t (Vptr b o) ∗ True) ⊢
-⌜Mem.valid_pointer m b (Ptrofs.unsigned o) = true⌝.
+  mem_auth m ∗ mapsto_ sh t (Vptr b o) ⊢
+  ⌜Mem.valid_pointer m b (Ptrofs.unsigned o) = true⌝.
 Proof.
-intros. rename H into N.
-
-destruct H0. destruct H. destruct H. destruct H0.
-unfold mapsto_,mapsto in H0.  unfold mapsto in *.
-destruct (readable_share_dec sh) as [H2 | H2].
-* (* readable_share sh *)
-rename H2 into RS.
-destruct (access_mode t); try solve [ inv H0].
-destruct (type_is_volatile t) eqn:VOL; try contradiction.
-assert (exists v,  address_mapsto m v sh (b, Ptrofs.unsigned o) x).
-destruct H0.
-econstructor; apply H0. destruct H0 as [_ [v2' H0]]; exists v2'; apply H0.
-clear H0; destruct H2 as [x1 H0].
-
-pose proof mapsto_core_load m x1 sh (b, Ptrofs.unsigned o) (m_phi jm).
-
-destruct H2. simpl; eauto.
-simpl in H2.
-destruct H2.
-specialize (H3 (b, Ptrofs.unsigned o)).
-if_tac in H3.
-destruct H3.  destruct H3.
-
-rewrite valid_pointer_nonempty_perm.
-unfold perm.
-
-assert (JMA := juicy_mem_access jm (b, Ptrofs.unsigned o)).
-unfold access_at in *. simpl in JMA.
-unfold perm_of_res in *.
-rewrite H3 in JMA. simpl in JMA.
-unfold perm_of_sh in *.
-rewrite JMA.
-repeat if_tac; try constructor. subst.
-simpl in H3.
-contradiction.
-destruct H4.  repeat split. lia.
-destruct m; simpl; lia.
-* (* ~ readable_share sh *)
-destruct (access_mode t) eqn:?; try contradiction.
-destruct (type_is_volatile t); [inversion H0 |].
-destruct H0 as [_ ?].
-specialize (H0 (b, Ptrofs.unsigned o)).
-simpl in H0.
-rewrite if_true in H0
- by (split; auto; pose proof (size_chunk_pos m); lia).
-clear H1.
-pose proof (resource_at_join _ _ _ (b, Ptrofs.unsigned o) H).
-unfold resource_share in H0.
-rewrite <- (Z.add_0_r (Ptrofs.unsigned o)).
-apply (valid_pointer_dry b o 0 jm).
-hnf.
-rewrite Z.add_0_r.
-destruct H0.
-destruct  (x @ (b, Ptrofs.unsigned o)); inv H0; inv H1; simpl; auto.
-intro.
-apply split_identity in RJ; auto.
+intros; iIntros "[Hm H]".
+iAssert ⌜exists ch, access_mode t = By_value ch⌝ with "[H]" as %(ch & H).
+{ rewrite /mapsto_ /mapsto.
+  destruct (access_mode t) eqn: ?; try done.
+  destruct (type_is_volatile t) eqn: ?; try done.
+  eauto. }
+rewrite /mapsto_ (mapsto_valid_pointer1 _ _ _ _ 0) /offset_val.
+rewrite Ptrofs.add_zero.
+iMod "H"; iDestruct (valid_pointer_dry with "[$]") as %Hvalid.
+by rewrite Z.add_0_r in Hvalid.
+{ pose proof (Ptrofs.unsigned_range o); lia. }
+{ rewrite /sizeof (size_chunk_sizeof _ _ _ H).
+  pose proof (size_chunk_pos ch); lia. }
 Qed.
 
-Lemma mapsto_is_pointer : forall sh t m v,
-mapsto_ sh t v m ->
-exists b, exists o, v = Vptr b o.
+Lemma mapsto_is_pointer : forall sh t v, mapsto_ sh t v ⊢ ⌜exists b, exists o, v = Vptr b o⌝.
 Proof.
-intros. unfold mapsto_, mapsto in H.
-if_tac in H; try contradiction;
-destruct (access_mode t); try contradiction;
-destruct (type_is_volatile t); try contradiction.
-destruct v; try contradiction.
-eauto.
-destruct v; try contradiction.
-eauto.
+intros. unfold mapsto_, mapsto.
+destruct (access_mode t); try iIntros "[]";
+destruct (type_is_volatile t); try iIntros "[]".
+destruct v; try iIntros "[]".
+iIntros; iPureIntro; eauto.
 Qed.
 
-Lemma pointer_cmp_eval:
+(* use sem_cmp_relate *)
+(*Lemma pointer_cmp_eval:
   forall (Delta : tycontext) (cmp : Cop.binary_operation) (e1 e2 : expr) sh1 sh2 ge
          (GE: cenv_sub cenv_cs (genv_cenv ge)),
    is_comparison cmp = true ->
@@ -180,8 +122,8 @@ Lemma pointer_cmp_eval:
    (tc_expr Delta e2 rho) (m_phi jm) ->
    blocks_match cmp (eval_expr e1 rho) (eval_expr e2 rho) ->
    typecheck_environ Delta rho ->
-   nonidentity sh1 ->
-   nonidentity sh2 ->
+   sepalg.nonidentity sh1 ->
+   sepalg.nonidentity sh2 ->
    (mapsto_ sh1 (typeof e1) (eval_expr e1 rho) * TT)%pred (m_phi jm) ->
    (mapsto_ sh2 (typeof e2) (eval_expr e2 rho) * TT)%pred (m_phi jm) ->
    eqb_type (typeof e1) int_or_ptr_type = false ->
@@ -240,7 +182,7 @@ destruct Archi.ptr64  eqn:Hp;
 try rewrite if_true by auto;
 try solve[if_tac; subst; eauto]; try repeat rewrite peq_true; eauto.
 all: simpl; destruct (eq_block x3 x5); try reflexivity.
-Qed.
+Qed.*)
 
 Lemma is_int_of_bool:
   forall i s b, is_int i s (Val.of_bool b).
@@ -252,161 +194,113 @@ Opaque Int.repr.
 Qed.
 
 Lemma pointer_cmp_no_mem_bool_type:
-   forall (Delta : tycontext) cmp (e1 e2 : expr) sh1 sh2 x1 x b1 o1 b2 o2 i3 s3,
+   forall (Delta : tycontext) cmp (e1 e2 : expr) b1 o1 b2 o2 i3 s3 a,
    is_comparison cmp = true->
    eqb_type (typeof e1) int_or_ptr_type = false ->
    eqb_type (typeof e2) int_or_ptr_type = false ->
-   forall (rho : environ) phi,
+   forall (rho : environ),
    eval_expr e1 rho = Vptr b1 o1 ->
    eval_expr e2 rho = Vptr b2 o2 ->
    blocks_match cmp (eval_expr e1 rho) (eval_expr e2 rho) ->
-   denote_tc_assert (typecheck_expr Delta e1) rho phi ->
-   denote_tc_assert (typecheck_expr Delta e2) rho phi ->
-   (mapsto_ sh1 (typeof e1)
-      (eval_expr e1 rho)) x ->
-   (mapsto_ sh2 (typeof e2)
-      (eval_expr e2 rho)) x1 ->
+   tc_val (typeof e1) (eval_expr e1 rho) ->
+   tc_val (typeof e2) (eval_expr e2 rho) ->
    typecheck_environ Delta rho ->
-    is_int i3 s3
+    tc_val' (Tint i3 s3 a)
      (force_val
         (sem_binary_operation' cmp (typeof e1) (typeof e2)
            (eval_expr e1 rho)
            (eval_expr e2 rho))).
 Proof.
 intros until 1. intros NE1 NE2; intros.
-apply typecheck_both_sound in H4; auto.
-apply typecheck_both_sound in H3; auto.
-rewrite H0 in *.
-rewrite H1 in *.
+rewrite -> H0, H1 in *.
 unfold sem_binary_operation'.
 forget (typeof e1) as t1.
 forget (typeof e2) as t2.
 clear e1 e2 H0 H1.
-unfold mapsto_ in *.
-unfold mapsto in *.
-destruct (access_mode t1) eqn:?A1;
- try solve [simpl in H5; contradiction].
-destruct (access_mode t2) eqn:?A2;
- try solve [simpl in H6; contradiction].
-destruct t1 as [ | | | [ | ] | | | | | ]; try solve[simpl in *; try contradiction; try congruence];
-destruct t2 as [ | | | [ | ] | | | | | ]; try solve[simpl in *; try contradiction; try congruence].
 unfold sem_cmp, sem_cmp_pp, cmp_ptr, Val.cmpu_bool, Val.cmplu_bool.
-rewrite NE1,NE2.
+rewrite NE1 NE2.
 destruct Archi.ptr64 eqn:Hp;
-destruct cmp; inv H;
-unfold sem_cmp; simpl;
-if_tac; auto; simpl; try of_bool_destruct; auto;
-try apply is_int_of_bool;
+destruct cmp; inv H; destruct (classify_cmp t1 t2) eqn: Hclass;
+simpl; unfold sem_cmp_pp;
+rewrite /= ?Hp /=; auto; try if_tac; auto;
+try apply tc_val_tc_val', binop_lemmas2.tc_bool2val;
 subst;
-try match goal with |- context [Z.b2z ?A] => destruct A end.
-all: clear; destruct i3,s3; simpl; auto;
-try change (Int.signed _) with 0;
-try change (Int.signed _) with 1;
-try change (Int.unsigned _) with 0;
-try change (Int.unsigned _) with 1.
-all: compute; try split; congruence.
+try match goal with |- context [Z.b2z ?A] => destruct A end; try by intros ?.
+all: rewrite /sem_binarith /both_int /both_long /both_float /both_single; destruct (classify_binarith t1 t2); simpl;
+  repeat match goal with |-context[match ?A with _ => _ end] => destruct A end; try apply tc_val_tc_val', binop_lemmas2.tc_bool2val; try by intros ?.
 Qed.
 
 Definition weak_mapsto_ sh e rho :=
 match (eval_expr e rho) with
-| Vptr b o => (mapsto_ sh (typeof e) (Vptr b o)) ||
+| Vptr b o => (mapsto_ sh (typeof e) (Vptr b o)) ∨
               (mapsto_ sh (typeof e) (Vptr b o))
-| _ => FF
+| _ => False
 end.
 
-Lemma extend_sepcon_TT {A} {JA: Join A} {PA: Perm_alg A}{SA: Sep_alg A} {AG: ageable A} {Aga: Age_alg A}{EO: Ext_ord A}{EA: Ext_alg A}:
- forall P, boxy extendM (P * TT).
-Proof. intros. hnf.
- apply pred_ext.
- intros ? ?. hnf in H. apply H. apply extendM_refl.
- intros ? ?. intros ? ?. destruct H0 as [b ?].
- destruct H as [? [? [? [? ?]]]].
- destruct (join_assoc H H0) as [c [? ?]].
- exists x; exists c; split; auto.
-Qed.
-
 Lemma semax_ptr_compare:
-forall (Delta: tycontext) (P: assert) id cmp e1 e2 ty sh1 sh2,
-    nonidentity sh1 -> nonidentity sh2 ->
+forall E (Delta: tycontext) (P: assert) id cmp e1 e2 ty sh1 sh2,
     is_comparison cmp = true  ->
-     eqb_type (typeof e1) int_or_ptr_type = false ->
+    eqb_type (typeof e1) int_or_ptr_type = false ->
     eqb_type (typeof e2) int_or_ptr_type = false ->
     (typecheck_tid_ptr_compare Delta id = true) ->
-    semax Espec Delta
+    semax Espec E Delta
         (fun rho =>
           ▷ (tc_expr Delta e1 rho ∧ tc_expr Delta e2 rho  ∧
-
-          !!(blocks_match cmp (eval_expr e1 rho) (eval_expr e2 rho)) ∧
-          (mapsto_ sh1 (typeof e1) (eval_expr e1 rho) * TT) ∧
-          (mapsto_ sh2 (typeof e2) (eval_expr e2 rho) * TT) ∧
+          ⌜blocks_match cmp (eval_expr e1 rho) (eval_expr e2 rho)⌝ ∧
+          <absorb> mapsto_ sh1 (typeof e1) (eval_expr e1 rho) ∧
+          <absorb> mapsto_ sh2 (typeof e2) (eval_expr e2 rho) ∧
           P rho))
           (Sset id (Ebinop cmp e1 e2 ty))
         (normal_ret_assert
-          (fun rho => (EX old:val,
-                 !!(eval_id id rho =  subst id (`old)
-                     (eval_expr (Ebinop cmp e1 e2 ty)) rho) ∧
-                            subst id (`old) P rho))).
+          (fun rho => (∃ old:val,
+                 ⌜eval_id id rho = subst id (liftx old)
+                     (eval_expr (Ebinop cmp e1 e2 ty)) rho⌝ ∧
+                            subst id (liftx old) P rho))).
 Proof.
-  intros until sh2. intros N1 N2. intros ? NE1 NE2. revert H.
-  replace (fun rho : environ =>
-     ▷ (tc_expr Delta e1 rho ∧ tc_expr Delta e2 rho  ∧
-             !!blocks_match cmp (eval_expr e1 rho) (eval_expr e2 rho) ∧
-            (mapsto_ sh1 (typeof e1) (eval_expr e1 rho) * TT) ∧
-            (mapsto_ sh2 (typeof e2) (eval_expr e2 rho) * TT) ∧
-            P rho))
-    with (fun rho : environ =>
-       (▷ tc_expr Delta e1 rho ∧
+  intros until sh2. intros CMP NE1 NE2 TCid.
+  apply semax_pre with (fun rho =>
+      ((▷ tc_expr Delta e1 rho ∧
         ▷ tc_expr Delta e2 rho ∧
-        ▷ !!blocks_match cmp (eval_expr e1 rho) (eval_expr e2 rho) ∧
-        ▷ (mapsto_ sh1 (typeof e1) (eval_expr e1 rho) * TT) ∧
-        ▷ (mapsto_ sh2 (typeof e2) (eval_expr e2 rho) * TT) ∧
-        ▷ P rho))
-    by (extensionality rho;  repeat rewrite later_andp; auto).
-  intros CMP TC2.
-  apply semax_straight_simple; auto.
-  intros; repeat apply boxy_andp; auto;  apply extend_later'; apply extend_sepcon_TT.
-  intros jm jm' Delta' ge vx tx rho k F f TS [[[[TC3 TC1]  TC4] MT1] MT2] TC' Hcl Hge ? ? HGG.
-  specialize (TC3 (m_phi jm') (age_laterR (age_jm_phi H))).
-  specialize (TC1 (m_phi jm') (age_laterR (age_jm_phi H))).
-  specialize (TC4 (m_phi jm') (age_laterR (age_jm_phi H))).
-  specialize (MT1 (m_phi jm') (age_laterR (age_jm_phi H))).
-  specialize (MT2 (m_phi jm') (age_laterR (age_jm_phi H))).
-  apply (typecheck_tid_ptr_compare_sub _ _ TS) in TC2.
-  pose proof TC1 as TC1'.
-  pose proof TC3 as TC3'.
+        ▷ ⌜blocks_match cmp (eval_expr e1 rho) (eval_expr e2 rho)⌝ ∧
+        ▷ <absorb> mapsto_ sh1 (typeof e1) (eval_expr e1 rho) ∧
+        ▷ <absorb> mapsto_ sh2 (typeof e2) (eval_expr e2 rho)) ∧
+        ▷ P rho)), semax_straight_simple.
+  { intros. rewrite bi.and_elim_r !bi.later_and !assoc //. }
+  { apply _. }
+  intros until f; intros TS TC Hcl Hge HGG.
   assert (typecheck_environ Delta rho) as TYCON_ENV
-    by (destruct TC' as [TC' TC'']; eapply typecheck_environ_sub; eauto).
-  apply (tc_expr_sub _ _ _ TS) in TC3'; [| auto].
-  apply (tc_expr_sub _ _ _ TS) in TC1'; [| auto].
-  exists jm', (PTree.set id (eval_expr (Ebinop cmp e1 e2 ty) rho) (tx)).
-  econstructor.
-  split; [reflexivity |].
-  split3; auto.
-  + apply age_level; auto.
-  + normalize in H0.
-    clear H H0.
+    by (destruct TC as [TC' TC'']; eapply typecheck_environ_sub; eauto).
+  eapply typecheck_tid_ptr_compare_sub in TCid; last done.
+  iIntros "H"; iExists m, (Maps.PTree.set id (eval_expr (Ebinop cmp e1 e2 ty) rho) te), _.
+  iSplit; [iSplit; first done; iSplit|].
+  + rewrite !mapsto_is_pointer /tc_expr !typecheck_expr_sound; [| done..].
+    iDestruct "H" as "(? & ((>%TC1 & >%TC2 & >% & >%Hv1 & >%Hv2) & _) & ?)".
+    destruct Hv1 as (? & ? & ?), Hv2 as (? & ? & ?).
     simpl. rewrite <- map_ptree_rel.
-    apply guard_environ_put_te'; auto. subst. simpl.
-    unfold construct_rho in *; auto.
+    iPureIntro; apply guard_environ_put_te'; [subst; auto|].
 
-    intros.
-
-    destruct TC' as [TC' TC''].
-    simpl in TC2. unfold typecheck_tid_ptr_compare in *.
-    rewrite H in TC2.
-    unfold guard_environ in *.
-
-    destruct MT1 as [? [? [J1 [MT1 _]]]].
-    destruct MT2 as [? [? [J2 [MT2 _]]]].
-    destruct (mapsto_is_pointer _ _ _ _ MT1) as [? [? ?]].
-    destruct (mapsto_is_pointer _ _ _ _ MT2) as [? [? ?]].
-
-    destruct t; inv TC2.
-    simpl. super_unfold_lift.
-    simpl.
-    apply tc_val_tc_val'.
+    intros ? Ht.
+    rewrite /typecheck_tid_ptr_compare Ht in TCid; destruct t; try discriminate.
     eapply pointer_cmp_no_mem_bool_type; eauto.
-  + destruct H0.
+  + iAssert (▷⌜Clight.eval_expr ge ve te m (Ebinop cmp e1 e2 ty) (eval_expr (Ebinop cmp e1 e2 ty) rho)⌝) with "[H]" as ">%";
+      last by iPureIntro; constructor.
+    iNext.
+    rewrite -(bi.absorbingly_pure (Clight.eval_expr _ _ _ _ _ _)); iApply bi.absorbingly_mono; first apply eval_expr_relate; eauto.
+    iDestruct "H" as "($ & (H & _) & _)".
+    rewrite /typecheck_expr; fold typecheck_expr.
+    rewrite !denote_tc_assert_andp.
+Search bi_absorbingly bi_and.
+    iSplit.
+    Search tc_expr.
+    simpl.
+    { admit. }
+    iPureIntro.
+    constructor; auto.
+    inv H.
+    eapply Clight.eval_Ebinop; eauto.
+    3: { simpl.
+    Search Clight.eval
+destruct H0.
     split; auto.
     - simpl.
       split3; auto.

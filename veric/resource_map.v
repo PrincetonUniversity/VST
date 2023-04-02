@@ -23,7 +23,7 @@ Global Instance subG_resource_mapΣ Σ (V : Type) `{resource_ops (leibnizO V)} :
 Proof. solve_inG. Qed.
 
 Section definitions.
-  Context `{resource_mapG Σ V} `{resource_ops (leibnizO V)}.
+  Context `{resource_mapG Σ V}.
 
   Local Definition resource_map_auth_def
       (γ : gname) (q : share) (m : mem) : iProp Σ :=
@@ -53,7 +53,7 @@ Local Ltac unseal := rewrite
   ?resource_map_elem_unseal /resource_map_elem_def.
 
 Section lemmas.
-  Context `{resource_mapG Σ V} `{resource_ops (leibnizO V)}.
+  Context `{resource_mapG Σ V}.
   Implicit Types (k : address) (v : V) (dq : dfrac) (q : shareR).
 
   (** * Lemmas about the map elements *)
@@ -144,40 +144,43 @@ Section lemmas.
     k ↪[γ]{dq} v ==∗ k ↪[γ]□ v.
   Proof. unseal. iApply own_update. apply juicy_view_frag_persist. Qed. *)
 
-(*  (** * Lemmas about [resource_map_auth] *)
-  Lemma resource_map_alloc_strong P m :
-    pred_infinite P →
-    ⊢ |==> ∃ γ, ⌜P γ⌝ ∧ resource_map_auth γ Tsh m ∗ [∗ map] k ↦ v ∈ m, k ↪[γ] v.
+  (** * Lemmas about [resource_map_auth] *)
+  Lemma resource_map_alloc_strong P m (f : juicy_view.juicy_view_fragUR (leibnizO V)) :
+    pred_infinite P → ✓ f → (∀ loc, coherent_loc m loc (resource_at f loc)) →
+    ⊢ |==> ∃ γ, ⌜P γ⌝ ∧ resource_map_auth γ Tsh m ∗ own γ (◯V f).
   Proof.
     unseal. intros.
-    iMod (own_alloc_strong (juicy_view_auth (V:=leibnizO V) (DfracOwn Tsh) ∅) P)
-      as (γ) "[% Hauth]".
-    { apply juicy_view_auth_valid. }
-    iExists γ. iFrame "%".
-    rewrite -big_opM_own_1 -own_op. iApply (own_update with "Hauth").
-    etrans; first apply: (juicy_view_alloc_big (V:=leibnizO V) _ m (DfracOwn Tsh)).
-    - apply map_disjoint_empty_r.
-    - done.
-    - rewrite right_id. done.
+    setoid_rewrite <- own_op.
+    iApply own_alloc_strong.
+    split; first done.
+    intros; eexists; split; first done.
+    split; simpl.
+    - by rewrite left_id; apply cmra_valid_validN.
+    - intros; rewrite /resource_at lookup_op lookup_empty op_None_left_id; eauto.
   Qed.
   Lemma resource_map_alloc_strong_empty P :
     pred_infinite P →
-    ⊢ |==> ∃ γ, ⌜P γ⌝ ∧ resource_map_auth γ Tsh (∅ : gmap K V).
+    ⊢ |==> ∃ γ, ⌜P γ⌝ ∧ resource_map_auth γ Tsh Mem.empty.
   Proof.
-    intros. iMod (resource_map_alloc_strong P ∅) as (γ) "(% & Hauth & _)"; eauto.
+    unseal. intros.
+    iApply own_alloc_strong.
+    by apply juicy_view_auth_dfrac_valid.
   Qed.
-  Lemma resource_map_alloc m :
-    ⊢ |==> ∃ γ, resource_map_auth γ Tsh m ∗ [∗ map] k ↦ v ∈ m, k ↪[γ] v.
+  Lemma resource_map_alloc m (f : juicy_view.juicy_view_fragUR (leibnizO V)):
+    ✓ f → (∀ loc, coherent_loc m loc (resource_at f loc)) →
+    ⊢ |==> ∃ γ, resource_map_auth γ Tsh m ∗ own γ (◯V f).
   Proof.
-    iMod (resource_map_alloc_strong (λ _, True) m) as (γ) "[_ Hmap]".
+    intros; iMod (resource_map_alloc_strong (λ _, True) m) as (γ) "[_ Hmap]".
     - by apply pred_infinite_True.
     - eauto.
   Qed.
   Lemma resource_map_alloc_empty :
-    ⊢ |==> ∃ γ, resource_map_auth γ Tsh (∅ : gmap K V).
+    ⊢ |==> ∃ γ, resource_map_auth γ Tsh Mem.empty.
   Proof.
-    intros. iMod (resource_map_alloc ∅) as (γ) "(Hauth & _)"; eauto.
-  Qed.*)
+    iMod (resource_map_alloc_strong_empty (λ _, True)) as (γ) "[_ Hmap]".
+    - by apply pred_infinite_True.
+    - eauto.
+  Qed.
 
   Global Instance resource_map_auth_timeless γ q m : Timeless (resource_map_auth γ q m).
   Proof. unseal. apply _. Qed.
@@ -209,26 +212,26 @@ Section lemmas.
   Qed.
 
   (** * Lemmas about the interaction of [resource_map_auth] with the elements *)
-(*  Lemma resource_map_lookup {γ q m k dq v} :
-    resource_map_auth γ q m -∗ k ↪[γ]{dq} v -∗ ⌜m !! k = Some v⌝.
+  Lemma resource_map_lookup {γ q m k dq v} :
+    resource_map_auth γ q m -∗ k ↪[γ]{dq} v -∗ ⌜✓ dq ∧ coherent_loc m k (Some (dq, v))⌝.
   Proof.
     unseal. iIntros "Hauth Hel".
-    iDestruct (own_valid_2 with "Hauth Hel") as %[?[??]]%juicy_view_both_dfrac_valid_L.
+    iDestruct (own_valid_2 with "Hauth Hel") as %[?[??]]%juicy_view_both_dfrac_valid.
     eauto.
-  Qed.*)
+  Qed.
 
-(*  Global Instance resource_map_lookup_combine_gives_1 {γ q m k dq v} :
-    CombineSepGives (resource_map_auth γ q m) (k ↪[γ]{dq} v) ⌜m !! k = Some v⌝.
+  Global Instance resource_map_lookup_combine_gives_1 {γ q m k dq v} :
+    CombineSepGives (resource_map_auth γ q m) (k ↪[γ]{dq} v) ⌜✓ dq ∧ coherent_loc m k (Some (dq, v))⌝.
   Proof.
     rewrite /CombineSepGives. iIntros "[H1 H2]".
-    iDestruct (resource_map_lookup with "H1 H2") as %->. eauto.
+    iDestruct (resource_map_lookup with "H1 H2") as %?. eauto.
   Qed.
 
   Global Instance resource_map_lookup_combine_gives_2 {γ q m k dq v} :
-    CombineSepGives (k ↪[γ]{dq} v) (resource_map_auth γ q m) ⌜m !! k = Some v⌝.
+    CombineSepGives (k ↪[γ]{dq} v) (resource_map_auth γ q m) ⌜✓ dq ∧ coherent_loc m k (Some (dq, v))⌝.
   Proof.
     rewrite /CombineSepGives comm. apply resource_map_lookup_combine_gives_1.
-  Qed. *)
+  Qed.
 
 (*  Lemma resource_map_insert {γ m} k v :
     m !! k = None →

@@ -4,10 +4,10 @@ From stdpp Require Export namespaces.
 From iris.algebra Require Import reservation_map.
 From iris.algebra Require Import agree.
 From iris_ora.algebra Require Import agree.
-From VST.veric Require Export dfrac.
+From VST.veric Require Export dfrac juicy_view.
 From iris.proofmode Require Import proofmode.
 From iris_ora.logic Require Export logic own.
-From VST.veric Require Import ghost_map juicy_view resource_map ext_order.
+From VST.veric Require Import ghost_map resource_map ext_order.
 From iris.prelude Require Import options.
 
 (** This file defines the language-level points-to
@@ -60,7 +60,7 @@ these can be matched up with the invariant namespaces. *)
   as a premise).
  *)
 
-(** The CMRAs we need, and the global ghost names we are using. *)
+(** The ORAs we need, and the global ghost names we are using. *)
 
 (* is this right? *)
 Canonical Structure reservation_mapR := inclR (reservation_mapR (agreeR positiveO)).
@@ -213,6 +213,9 @@ Section gen_heap.
     FrameFractionalHyps p (l ↦{#q1} v) (λ q, l ↦{#q} v)%I RES q1 q2 →
     Frame p (l ↦{#q1} v) (l ↦{#q2} v) RES | 5.
   Proof. apply: frame_fractional. Qed. *)
+
+  Lemma mapsto_lookup (m : mem) l dq v : resource_map_auth (gen_heap_name _) Tsh m -∗ l ↦{dq} v -∗ ⌜✓ dq ∧ coherent_loc m l (Some (dq, v))⌝.
+  Proof. rewrite mapsto_unseal. apply resource_map_lookup. Qed.
 
   (** General properties of [meta] and [meta_token] *)
   Global Instance meta_token_timeless l N : Timeless (meta_token l N).

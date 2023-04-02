@@ -734,6 +734,12 @@ apply writable0_readable in H.
 apply bot_unreadable in H; auto.
 Qed.
 
+Lemma perm_of_dfrac_None: forall dq, perm_of_dfrac dq = None -> dq = DfracOwn Share.bot.
+Proof.
+  destruct dq; simpl; try if_tac; try done; intros ->%perm_of_sh_None; try done.
+  rewrite perm_of_empty // in H.
+Qed.
+
 Lemma perm_of_Ews: perm_of_sh Ews = Some Writable.
 Proof.
 unfold perm_of_sh, Ews, extern_retainer.

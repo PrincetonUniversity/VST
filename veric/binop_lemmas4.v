@@ -94,75 +94,61 @@ destruct (peq b0 b); auto.
 Qed.
 
 Lemma valid_pointer_dry:
-  forall b ofs d m, coherent_with m ∧ valid_pointer' (Vptr b ofs) d ⊢
+  forall b ofs d m, mem_auth m ∗ valid_pointer' (Vptr b ofs) d ⊢
          ⌜Mem.valid_pointer m b (Ptrofs.unsigned ofs + d) = true⌝.
 Proof.
 intros.
-simpl.
-rewrite coherent_access /access_cohere.
-iIntros "H".
-rewrite bi.and_exist_l; iDestruct "H" as (dq) "H".
-rewrite bi.and_exist_l; iDestruct "H" as (r) "H".
-iAssert (⌜✓ dq⌝)%I as %Hv.
-{ rewrite bi.and_elim_r.
-  by iApply mapsto_valid. }
-iPoseProof (bi.and_mono with "H") as "H"; [|done|].
-{ iIntros "H".
-  iPoseProof ("H" $! (b, Ptrofs.unsigned ofs + d)) as "[H _]".
-  iApply ("H" $! dq r). }
-iDestruct (bi.impl_elim_l with "H") as %H; iPureIntro.
-unfold access_at in H; unfold Mem.valid_pointer.
-destruct (Mem.perm_dec); auto.
-contradiction n; unfold Mem.perm.
-destruct (Maps.PMap.get); first by constructor.
-destruct (perm_of_res (Some (dq, r))) eqn: Hperm; try done.
-simpl in Hperm.
-destruct dq; simpl in Hperm.
-* destruct r; first (by apply perm_of_sh_None in Hperm as ->); if_tac in Hperm; inv Hperm; done.
-* destruct r; inv Hperm.
-* destruct Hv, r; try discriminate. if_tac in Hperm; try discriminate. by apply perm_of_sh_None in Hperm as ->.
+iIntros "[Hm (% & % & >H)]".
+iDestruct (mapsto_lookup with "Hm H") as %[Hdq H]; iPureIntro.
+rewrite Mem.valid_pointer_nonempty_perm /Mem.perm.
+destruct H as (_ & H & _).
+rewrite /juicy_view.access_cohere /access_at in H.
+destruct (Maps.PMap.get _ _ _ _); try constructor.
+simpl in H.
+destruct (perm_of_dfrac dq) eqn: Hp; first by destruct dq, r; try if_tac in H.
+apply perm_of_dfrac_None in Hp; subst; contradiction.
 Qed.
 
 Lemma weak_valid_pointer_dry:
-  forall b ofs m, coherent_with m ∧ weak_valid_pointer (Vptr b ofs) ⊢
+  forall b ofs m, mem_auth m ∗ weak_valid_pointer (Vptr b ofs) ⊢
            ⌜(Mem.valid_pointer m b (Ptrofs.unsigned ofs)
             || Mem.valid_pointer m b (Ptrofs.unsigned ofs - 1))%bool = true⌝.
 Proof.
 intros.
-rewrite orb_true_iff /weak_valid_pointer bi.and_or_l.
-iIntros "[H | H]".
+rewrite orb_true_iff /weak_valid_pointer.
+iIntros "[Hm [H | H]]".
 - iLeft; rewrite <- (Z.add_0_r (Ptrofs.unsigned ofs)).
-  by iApply valid_pointer_dry.
+  iApply valid_pointer_dry; iFrame.
 - iRight; rewrite <- Z.add_opp_r.
-  by iApply valid_pointer_dry.
+  iApply valid_pointer_dry; iFrame.
 Qed.
 
 Lemma test_eq_relate':
   forall v1 v2 op
     (OP: op = Ceq \/ op = Cne) m,
-     coherent_with m ∧ denote_tc_test_eq v1 v2 ⊢
+     mem_auth m ∗ denote_tc_test_eq v1 v2 ⊢
      ⌜cmp_ptr m op v1 v2 = 
      Some (force_val (sem_cmp_pp op v1 v2))⌝.
 Proof.
-intros.
+intros; iIntros "[Hm H]".
 unfold cmp_ptr, sem_cmp_pp.
 unfold denote_tc_test_eq.
  rewrite bool2val_eq.
- destruct v1; try (iIntros "[_ []]"); auto;
- destruct v2; try (iIntros "[_ []]"); auto.
+ destruct v1; try done; auto;
+ destruct v2; try done; auto.
 *
  simpl.
- destruct Archi.ptr64; try (iIntros "[_ []]").
- rewrite comm -assoc; iIntros "[-> H]".
+ destruct Archi.ptr64; try done.
+ iDestruct "H" as "[-> H]".
  rewrite ?Int.eq_true ?Int64.eq_true /=.
- rewrite comm; iDestruct (weak_valid_pointer_dry with "H") as %->.
+ iDestruct (weak_valid_pointer_dry with "[$Hm $H]") as %->.
  destruct OP; subst; simpl; auto.
 *
  simpl.
- destruct Archi.ptr64; try (iIntros "[_ []]").
- rewrite comm -assoc; iIntros "[-> H]".
+ destruct Archi.ptr64; try done.
+ iDestruct "H" as "[-> H]".
  rewrite ?Int.eq_true ?Int64.eq_true /=.
- rewrite comm; iDestruct (weak_valid_pointer_dry with "H") as %->.
+ iDestruct (weak_valid_pointer_dry with "[$Hm $H]") as %->.
  destruct OP; subst; simpl; auto.
 *
  simpl.
@@ -171,15 +157,15 @@ unfold denote_tc_test_eq.
  destruct (peq b b0);
   simpl proj_sumbool; cbv iota;
  [rewrite -> !if_true by auto | rewrite -> !if_false by auto].
- - iIntros "H"; iDestruct (weak_valid_pointer_dry with "[H]") as %->.
-   { by rewrite assoc; iDestruct "H" as "[$ _]". }
-   iDestruct (weak_valid_pointer_dry with "[H]") as %->.
-   { by rewrite comm -assoc; iDestruct "H" as "[_ H]"; rewrite comm. }
+ - iDestruct (weak_valid_pointer_dry with "[-]") as %->.
+   { iDestruct "H" as "[$ _]"; iFrame. }
+   iDestruct (weak_valid_pointer_dry with "[-]") as %->.
+   { iDestruct "H" as "[_ $]"; iFrame. }
    done.
- - iIntros "H"; iDestruct (valid_pointer_dry with "[H]") as %H.
-   { by rewrite assoc; iDestruct "H" as "[$ _]". }
-   iDestruct (valid_pointer_dry with "[H]") as %H0.
-   { by rewrite comm -assoc; iDestruct "H" as "[_ H]"; rewrite comm. }
+ - iDestruct (valid_pointer_dry with "[-]") as %H.
+   { iDestruct "H" as "[$ _]"; iFrame. }
+   iDestruct (valid_pointer_dry with "[-]") as %H0.
+   { iDestruct "H" as "[_ $]"; iFrame. }
    rewrite -> Z.add_0_r in H,H0; rewrite H H0.
    destruct OP; subst; done.
 Qed.
@@ -278,26 +264,25 @@ Qed.
 
 Lemma test_order_relate':
   forall v1 v2 op m,
-     coherent_with m ∧ denote_tc_test_order v1 v2 ⊢
+     mem_auth m ∗ denote_tc_test_order v1 v2 ⊢
    ⌜cmp_ptr m op v1 v2 = Some (force_val (sem_cmp_pp op v1 v2))⌝.
 Proof.
-  intros.
+  intros; iIntros "[Hm H]".
   unfold denote_tc_test_order.
-  destruct v1; try (iIntros "[_ []]"); auto;
-  destruct v2; try (iIntros "[_ []]"); auto;
+  destruct v1; try done; auto;
+  destruct v2; try done; auto;
   unfold cmp_ptr, sem_cmp_pp; simpl;
   rewrite bool2val_eq; auto.
   unfold test_order_ptrs.
   unfold sameblock.
   destruct (peq b b0);
   simpl proj_sumbool; cbv iota;
-    [rewrite -> !if_true by auto | rewrite -> !if_false by auto].
-  + iIntros "H"; iDestruct (weak_valid_pointer_dry with "[H]") as %->.
-    { by rewrite assoc; iDestruct "H" as "[$ _]". }
-    iDestruct (weak_valid_pointer_dry with "[H]") as %->.
-    { by rewrite comm -assoc; iDestruct "H" as "[_ H]"; rewrite comm. }
-    done.
-  + iIntros "[_ []]".
+    [rewrite -> !if_true by auto | rewrite -> !if_false by auto; done].
+  iDestruct (weak_valid_pointer_dry with "[-]") as %->.
+  { iDestruct "H" as "[$ _]"; iFrame. }
+  iDestruct (weak_valid_pointer_dry with "[-]") as %->.
+  { iDestruct "H" as "[_ $]"; iFrame. }
+  done.
 Qed.
 
 Lemma sem_cast_int_intptr_lemma:
@@ -378,7 +363,7 @@ rewrite Ptrofs.unsigned_repr in H0;
      by (unfold Ptrofs.max_unsigned, Ptrofs.modulus, Ptrofs.wordsize, Wordsize_Ptrofs.wordsize; rewrite Hp; compute; auto);
     lia]).
 -
-iIntros "[% $]"; iPureIntro; split; auto.
+iIntros "[% $]"; iPureIntro.
 destruct si, si'; auto.
 *
 unfold Ptrofs.of_ints, Ptrofs.of_intu in *.
@@ -396,7 +381,6 @@ apply Int64repr_Intunsigned_zero in H. subst.
 reflexivity.
 -
 iIntros "[% $]"; iPureIntro.
-split; auto.
 destruct si, si'; auto;
 unfold Ptrofs.to_int, Ptrofs.of_intu, Ptrofs.of_ints, Ptrofs.of_int in *;
 rewrite (Ptrofs.agree32_repr Hp) in H;
@@ -453,7 +437,6 @@ rewrite Ptrofs.unsigned_repr in H;
     lia]).
 -
 iIntros "[% $]"; iPureIntro.
-split; auto.
 destruct si, si'; auto.
 *
 unfold Ptrofs.of_ints, Ptrofs.of_intu in *.
@@ -471,7 +454,6 @@ apply Int64repr_Intunsigned_zero in H. subst.
 reflexivity.
 -
 iIntros "[% $]"; iPureIntro.
-split; auto.
 destruct si, si'; auto;
 unfold Ptrofs.to_int, Ptrofs.of_intu, Ptrofs.of_ints, Ptrofs.of_int in *;
 rewrite (Ptrofs.agree32_repr Hp) in H;
@@ -668,7 +650,7 @@ Lemma sem_binary_operation_stable:
   forall (cs1: compspecs) cs2 
    (CSUB: forall id co, (@cenv_cs cs1)!!id = Some co -> cs2!!id = Some co)
    b v1 e1 v2 e2 m v t rho,
-   (* coherent_with m ∧ *) denote_tc_assert(CS := cs1) (isBinOpResultType(CS := cs1) b e1 e2 t) rho ⊢
+   (* mem_auth m ∗ *) denote_tc_assert(CS := cs1) (isBinOpResultType(CS := cs1) b e1 e2 t) rho ⊢
    ⌜sem_binary_operation (@cenv_cs cs1) b v1 (typeof e1) v2 (typeof e2) m = Some v ->
     sem_binary_operation cs2 b v1 (typeof e1) v2 (typeof e2) m = Some v⌝.
 Proof.

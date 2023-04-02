@@ -152,7 +152,6 @@ Proof.
   if_tac; done.
 Qed.
 
-
 Global Program Instance resource'_ops : resource_ops (leibnizO resource') := { perm_of_res := perm_of_res; memval_of r := match snd r with VAL v => Some v | _ => None end }.
 Next Obligation.
 Proof.

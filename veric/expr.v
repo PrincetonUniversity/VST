@@ -906,9 +906,12 @@ Definition valid_pointer' (p: val) (d: Z) : mpred :=
  match p with
  | Vint i => if Archi.ptr64 then False else ⌜i = Int.zero⌝
  | Vlong i => if Archi.ptr64 then ⌜i = Int64.zero⌝ else False
- | Vptr b ofs => ∃dq r, (b, Ptrofs.unsigned ofs + d) ↦{dq} r
+ | Vptr b ofs => <absorb> ∃dq r, (b, Ptrofs.unsigned ofs + d) ↦{dq} r
  | _ => False
  end.
+
+Global Instance valid_pointer'_absorbing p d : Absorbing (valid_pointer' p d).
+Proof. destruct p; apply _. Qed.
 
 Definition valid_pointer (p: val) : mpred :=
  (valid_pointer' p 0).

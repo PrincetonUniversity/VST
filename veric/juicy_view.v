@@ -148,8 +148,9 @@ Section rel.
   Definition alloc_cohere (m: mem) k r :=
     (fst k >= Mem.nextblock m)%positive -> r = None.
 
-  Definition coherent n (m : leibnizO mem) phi := ✓{n} phi ∧ forall loc, let r := phi @ loc in
-    contents_cohere m loc r ∧ access_cohere m loc r ∧ max_access_cohere m loc r ∧ alloc_cohere m loc r.
+  Definition coherent_loc (m: mem) k r := contents_cohere m k r ∧ access_cohere m k r ∧ max_access_cohere m k r ∧ alloc_cohere m k r.
+
+  Definition coherent n (m : leibnizO mem) phi := ✓{n} phi ∧ forall loc, coherent_loc m loc (phi @ loc).
 
   Local Lemma coherent_mono n1 n2 (m1 m2 : leibnizO mem) f1 f2 :
     coherent n1 m1 f1 →
@@ -207,14 +208,18 @@ Section rel.
     intros H; apply H.
   Qed.
 
+  Lemma coherent_None m k : coherent_loc m k None.
+  Proof.
+    repeat split.
+    - by intros ?.
+    - rewrite /access_cohere perm_of_res_None; apply perm_order''_None.
+    - apply perm_order''_None.
+  Qed.
+
   Local Lemma coherent_unit n :
     ∃ m, coherent n m ε.
   Proof using Type*.
-    exists Mem.empty; repeat split.
-    - intros ?; unfold resource_at.
-      rewrite lookup_empty; discriminate.
-    - unfold access_cohere, resource_at.
-      rewrite lookup_empty perm_of_res_None; apply perm_order''_None.
+    exists Mem.empty; repeat split; rewrite /resource_at lookup_empty; apply coherent_None.
   Qed.
 
   Local Canonical Structure coherent_rel : view_rel (leibnizO mem) (juicy_view_fragUR V) :=
@@ -370,9 +375,7 @@ Section rel.
   Proof.
     split. { apply uora_unit_validN. }
     simpl; intros; rewrite /resource_at lookup_empty /=.
-    repeat split; try done.
-    - rewrite /access_cohere perm_of_res_None; apply perm_order''_None.
-    - rewrite /max_access_cohere; apply perm_order''_None.
+    apply coherent_None.
   Qed.
 
   Local Lemma coherent_rel_discrete :
@@ -403,6 +406,9 @@ Section rel.
   Qed.
 
 End rel.
+
+Arguments resource_at {_} _ _.
+Arguments coherent_loc {_} {_} _ _ _.
 
 Local Existing Instance coherent_rel_discrete.
 
@@ -441,20 +447,28 @@ Section lemmas.
   Proof. apply ne_proper, _. Qed.
 
   (* Helper lemmas *)
-(*  Local Lemma coherent_rel_lookup n m k dq v :
-    coherent_rel V n m {[k := (dq, to_agree v)]} ↔ ✓ dq ∧ m !! k ≡{n}≡ Some v.
+  Lemma elem_of_to_agree : forall {A} (v : A), proj1_sig (elem_of_agree (to_agree v)) = v.
+  Proof.
+    intros; destruct (elem_of_agree (to_agree v)); simpl.
+    rewrite -elem_of_list_singleton //.
+  Qed.
+
+  Local Lemma coherent_rel_lookup n m k dq v :
+    coherent_rel V n m {[k := (dq, to_agree v)]} ↔ ✓ dq ∧ coherent_loc m k (Some (dq, v)).
   Proof.
     split.
-    - intros Hrel.
-      edestruct (Hrel k) as (v' & Hagree & Hval & ->).
-      { rewrite lookup_singleton. done. }
-      simpl in *. apply (inj _) in Hagree. rewrite Hagree.
-      done.
-    - intros [Hval (v' & Hm & Hv')%dist_Some_inv_r'] j [df va].
-      destruct (decide (k = j)) as [<-|Hne]; last by rewrite lookup_singleton_ne.
-      rewrite lookup_singleton. intros [= <- <-]. simpl.
-      exists v'. split_and!; by rewrite ?Hv'.
-  Qed. *)
+    - intros [Hv Hloc].
+      specialize (Hv k); specialize (Hloc k).
+      rewrite /resource_at lookup_singleton /= in Hv Hloc.
+      rewrite elem_of_to_agree in Hloc; destruct Hv; auto.
+    - intros [Hv Hloc]; split.
+      + intros i; destruct (decide (k = i)).
+        * subst; rewrite lookup_singleton //.
+        * rewrite lookup_singleton_ne //.
+      + intros i; rewrite /resource_at; destruct (decide (k = i)).
+        * subst; rewrite lookup_singleton /= elem_of_to_agree //.
+        * rewrite lookup_singleton_ne // /=; apply coherent_None.
+  Qed.
 
   (** Composition and validity *)
   Lemma juicy_view_auth_dfrac_op dp dq m :
@@ -540,9 +554,9 @@ Section lemmas.
     ✓ (juicy_view_frag k dq1 v1 ⋅ juicy_view_frag k dq2 v2) ↔ ✓ (dq1 ⋅ dq2) ∧ v1 = v2.
   Proof. unfold_leibniz. apply juicy_view_frag_op_valid. Qed.
 
-(*  Lemma juicy_view_both_dfrac_validN n dp m k dq v :
+  Lemma juicy_view_both_dfrac_validN n dp m k dq v :
     ✓{n} (juicy_view_auth dp m ⋅ juicy_view_frag k dq v) ↔
-      ✓ dp ∧ ✓ dq ∧ m !! k ≡{n}≡ Some v.
+      ✓ dp ∧ ✓ dq ∧ coherent_loc m k (Some (dq, v)).
   Proof.
     rewrite /juicy_view_auth /juicy_view_frag.
     rewrite view_both_dfrac_validN coherent_rel_lookup.
@@ -550,38 +564,23 @@ Section lemmas.
   Qed.
   Lemma juicy_view_both_validN n m k dq v :
     ✓{n} (juicy_view_auth (DfracOwn Tsh) m ⋅ juicy_view_frag k dq v) ↔
-      ✓ dq ∧ m !! k ≡{n}≡ Some v.
+      ✓ dq ∧ coherent_loc m k (Some (dq, v)).
   Proof. rewrite juicy_view_both_dfrac_validN. naive_solver done. Qed.
   Lemma juicy_view_both_dfrac_valid dp m k dq v :
     ✓ (juicy_view_auth dp m ⋅ juicy_view_frag k dq v) ↔
-    ✓ dp ∧ ✓ dq ∧ m !! k ≡ Some v.
+    ✓ dp ∧ ✓ dq ∧ coherent_loc m k (Some (dq, v)).
   Proof.
     rewrite /juicy_view_auth /juicy_view_frag.
     rewrite view_both_dfrac_valid. setoid_rewrite coherent_rel_lookup.
-    split=>[[Hq Hm]|[Hq Hm]].
-    - split; first done. split.
-      + apply (Hm 0%nat).
-      + apply equiv_dist=>n. apply Hm.
-    - split; first done. intros n. split.
-      + apply Hm.
-      + revert n. apply equiv_dist. apply Hm.
+    split=>[[Hq Hm]|[Hq Hm]] //.
+    split; first done. apply (Hm O).
   Qed.
-  Lemma juicy_view_both_dfrac_valid_L `{!LeibnizEquiv V} dp m k dq v :
-    ✓ (juicy_view_auth dp m ⋅ juicy_view_frag k dq v) ↔
-    ✓ dp ∧ ✓ dq ∧ m !! k = Some v.
-  Proof. unfold_leibniz. apply juicy_view_both_dfrac_valid. Qed.
   Lemma juicy_view_both_valid m k dq v :
     ✓ (juicy_view_auth (DfracOwn Tsh) m ⋅ juicy_view_frag k dq v) ↔
-    ✓ dq ∧ m !! k ≡ Some v.
+    ✓ dq ∧ coherent_loc m k (Some (dq, v)).
   Proof. rewrite juicy_view_both_dfrac_valid. naive_solver done. Qed.
-  (* FIXME: Having a [valid_L] lemma is not consistent with [auth] and [view]; they
-     have [inv_L] lemmas instead that just have an equality on the RHS. *)
-  Lemma juicy_view_both_valid_L `{!LeibnizEquiv V} m k dq v :
-    ✓ (juicy_view_auth (DfracOwn Tsh) m ⋅ juicy_view_frag k dq v) ↔
-    ✓ dq ∧ m !! k = Some v.
-  Proof. unfold_leibniz. apply juicy_view_both_valid. Qed.
 
-  (** Frame-preserving updates *)
+(*  (** Frame-preserving updates *)
   Lemma juicy_view_alloc m k dq v :
     m !! k = None →
     ✓ dq →

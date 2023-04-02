@@ -53,26 +53,16 @@ Proof.
   rewrite Ptrofs.unsigned_repr; auto.
 Qed.
 
-Lemma pure_reorder : forall (P Q : Prop) (R S : mpred), R ∧ ⌜P⌝ ∧ S ∧ ⌜Q⌝ ⊢ ⌜P ∧ Q⌝ ∧ R ∧ S.
-Proof.
-  intros; iIntros "H"; iSplit.
-  - by iDestruct "H" as "(_ & % & _ & %)".
-  - iSplit.
-    + iDestruct "H" as "($ & _)".
-    + iDestruct "H" as "(_ & _ & $ & _)".
-Qed.
-
 Lemma sem_cmp_relate : forall {CS} b e1 e2 ty m rho
   (TC1 : tc_val (typeof e1) (eval_expr e1 rho))
   (TC2 : tc_val (typeof e2) (eval_expr e2 rho))
   (Hcmp : is_comparison b = true),
-  coherent_with m ∧ denote_tc_assert (isBinOpResultType b e1 e2 ty) rho ⊢
+  mem_auth m ∗ denote_tc_assert (isBinOpResultType b e1 e2 ty) rho ⊢
   ⌜sem_binary_operation cenv_cs b (eval_expr e1 rho) (typeof e1) (eval_expr e2 rho) (typeof e2) m =
    Some (eval_binop b  (typeof e1) (typeof e2) (eval_expr e1 rho) (eval_expr e2 rho))⌝.
 Proof.
   intros.
-  iIntros "H"; iDestruct (typecheck_binop_sound b rho e1 e2 with "[H]") as %TC.
-  { iDestruct "H" as "[_ $]". }
+  iIntros "[Hm H]"; iDestruct (typecheck_binop_sound b rho e1 e2 with "H") as %TC.
   rewrite /eval_binop /force_val2 in TC |- *.
   destruct (sem_binary_operation' _ _ _ _ _) eqn: Heval; last by apply tc_val_Vundef in TC.
   rewrite /sem_binary_operation' in Heval.
@@ -84,34 +74,34 @@ Proof.
   rewrite -(force_val_Some _ _ Heval).
   inv Hclass.
   - destruct b; try discriminate; rewrite /Cop.sem_cmp /sem_cmp; simpl; rewrite -H0 /=; unfold_lift;
-      rewrite /tc_int_or_ptr_type !tc_bool_e -?bi.pure_and pure_reorder ?negb_true_iff /=; iDestruct "H" as "[([-> ->] & %) H]";
-      ((iApply (test_eq_relate' with "H"); auto) || iApply (test_order_relate' with "H")).
+      rewrite /tc_int_or_ptr_type !tc_bool_e -?bi.pure_and ?negb_true_iff /=; iDestruct "H" as "([-> ->] & H & %)";
+      ((iApply (test_eq_relate' with "[$]"); auto) || iApply (test_order_relate' with "[$]")).
   - inv TC2; rewrite Ht in Hty2; try discriminate.
     destruct (eval_expr e2 rho) eqn: Hv; try contradiction.
     destruct b; try discriminate; rewrite /Cop.sem_cmp /sem_cmp /sem_cmp_pi; simpl; rewrite -H0 /=; unfold_lift;
-      rewrite Ht Hv sem_cast_int_intptr_lemma /tc_int_or_ptr_type !tc_bool_e pure_reorder ?negb_true_iff /=; iDestruct "H" as "[(-> & %) H]";
-      first [iApply (test_eq_relate' with "[H]"); [auto|]; iApply (bi.and_mono with "H"); first done; apply test_eq_fiddle_signed_xx |
-       iApply (test_order_relate' with "[H]"); iApply (bi.and_mono with "H"); first done; apply test_order_fiddle_signed_xx].
+      rewrite Ht Hv sem_cast_int_intptr_lemma /tc_int_or_ptr_type !tc_bool_e ?negb_true_iff /=; iDestruct "H" as "(-> & H & %)";
+      first [rewrite test_eq_fiddle_signed_xx; iApply (test_eq_relate' with "[$]"); auto |
+       rewrite test_order_fiddle_signed_xx; iApply (test_order_relate' with "[$]")].
   - inv TC1; rewrite Ht in Hty1; try discriminate.
     destruct (eval_expr e1 rho) eqn: Hv; try contradiction.
     destruct b; try discriminate; rewrite /Cop.sem_cmp /sem_cmp /sem_cmp_ip; simpl; rewrite -H0 /=; unfold_lift;
-      rewrite Ht Hv sem_cast_int_intptr_lemma /tc_int_or_ptr_type !tc_bool_e pure_reorder ?negb_true_iff /=; iDestruct "H" as "[(-> & %) H]";
-      first [iApply (test_eq_relate' with "[H]"); [auto|]; iApply (bi.and_mono with "H"); first done; apply test_eq_fiddle_signed_yy |
-       iApply (test_order_relate' with "[H]"); iApply (bi.and_mono with "H"); first done; apply test_order_fiddle_signed_yy].
+      rewrite Ht Hv sem_cast_int_intptr_lemma /tc_int_or_ptr_type !tc_bool_e ?negb_true_iff /=; iDestruct "H" as "(-> & H & %)";
+      first [rewrite test_eq_fiddle_signed_yy; iApply (test_eq_relate' with "[$]"); auto |
+       rewrite test_order_fiddle_signed_yy; iApply (test_order_relate' with "[$]")].
   - inv TC2; rewrite Ht in Hty2; try destruct sz; inv Hty2.
     destruct (typeof e2) eqn: Ht2; try destruct i; inv Ht.
     destruct (eval_expr e2 rho) eqn: Hv; try contradiction.
     destruct b; try discriminate; rewrite /Cop.sem_cmp /sem_cmp /sem_cmp_pl; simpl; rewrite -H0 /=; unfold_lift;
-      rewrite Ht2 Hv sem_cast_long_intptr_lemma /tc_int_or_ptr_type !tc_bool_e pure_reorder ?negb_true_iff /=; iDestruct "H" as "[(-> & %) H]";
-      ((iApply (test_eq_relate' with "H"); auto) || iApply (test_order_relate' with "H")).
+      rewrite Ht2 Hv sem_cast_long_intptr_lemma /tc_int_or_ptr_type !tc_bool_e ?negb_true_iff /=; iDestruct "H" as "(-> & H & %)";
+      ((iApply (test_eq_relate' with "[$]"); auto) || iApply (test_order_relate' with "[$]")).
   - inv TC1; rewrite Ht in Hty1; try destruct sz; inv Hty1.
     destruct (typeof e1) eqn: Ht1; try destruct i; inv Ht.
     destruct (eval_expr e1 rho) eqn: Hv; try contradiction.
     destruct b; try discriminate; rewrite /Cop.sem_cmp /sem_cmp /sem_cmp_pl; simpl; rewrite -H0 /=; unfold_lift;
-      rewrite Ht1 Hv sem_cast_long_intptr_lemma /tc_int_or_ptr_type !tc_bool_e pure_reorder ?negb_true_iff /=; iDestruct "H" as "[(-> & %) H]";
-      ((iApply (test_eq_relate' with "H"); auto) || iApply (test_order_relate' with "H")).
+      rewrite Ht1 Hv sem_cast_long_intptr_lemma /tc_int_or_ptr_type !tc_bool_e ?negb_true_iff /=; iDestruct "H" as "(-> & H & %)";
+      ((iApply (test_eq_relate' with "[$]"); auto) || iApply (test_order_relate' with "[$]")).
   - rewrite Heval /=; rewrite -!tc_val_tc_val_PM' in TC1 TC2; destruct b; try discriminate; rewrite /Cop.sem_cmp /sem_cmp in Heval |- *; simpl; rewrite /= -!H0 /= in Heval |- *; unfold_lift;
-      rewrite !tc_bool_e /=; iDestruct "H" as "[H %]"; iPureIntro;
+      rewrite !tc_bool_e /=; iDestruct "H" as %?; iPureIntro;
       destruct (typeof e1); try discriminate; destruct (typeof e2); try discriminate;
       apply sem_binarith_relate; rewrite ?bool2val_eq; auto; simpl in *; try discriminate; try (destruct i; discriminate); try (destruct i0; discriminate).
 Qed.
@@ -230,31 +220,27 @@ Lemma eval_binop_relate':
     (H2: Clight.eval_expr ge ve te m e2 (eval_expr e2 rho))
     (TC1 : tc_val (typeof e1) (eval_expr e1 rho))
     (TC2 : tc_val (typeof e2) (eval_expr e2 rho)),
-  coherent_with m ∧ denote_tc_assert (isBinOpResultType b e1 e2 t) rho ⊢
+  mem_auth m ∗ denote_tc_assert (isBinOpResultType b e1 e2 t) rho ⊢
 ⌜Clight.eval_expr ge ve te m (Ebinop b e1 e2 t)
   (force_val2 (sem_binary_operation' b (typeof e1) (typeof e2))
      (eval_expr e1 rho) (eval_expr e2 rho))⌝.
 Proof.
-intros.
-iIntros "H".
-iDestruct (sem_binary_operation_stable CS (genv_cenv ge) with "[H]") as %Hstable.
+intros; iIntros "[Hm H]".
+iDestruct (sem_binary_operation_stable CS (genv_cenv ge) with "H") as %Hstable.
 { clear - Hcenv.
 hnf in Hcenv.
 intros.
 specialize (Hcenv id). hnf in Hcenv. rewrite H in Hcenv. auto.
 }
-{ iDestruct "H" as "[_ $]". }
 rewrite -bi.pure_mono'; [|econstructor; [apply H1 | apply H2 | apply Hstable; eassumption]].
 clear - TC1 TC2.
 destruct (is_comparison b) eqn: Hcmp.
-{ iApply (sem_cmp_relate with "H"). }
-Search Cop.binary_operation.
+{ iApply (sem_cmp_relate with "[$]"). }
 destruct (eq_dec b Odiv).
-{ subst; iApply (sem_div_relate with "[H]"); iDestruct "H" as "[_ $]". }
+{ subst; iApply (sem_div_relate with "H"). }
 destruct (eq_dec b Omod).
-{ subst; iApply (sem_mod_relate with "[H]"); iDestruct "H" as "[_ $]". }
-iDestruct (typecheck_binop_sound b rho e1 e2 with "[H]") as %TC.
-{ iDestruct "H" as "[_ $]". }
+{ subst; iApply (sem_mod_relate with "H"). }
+iDestruct (typecheck_binop_sound b rho e1 e2 with "H") as %TC.
 rewrite /eval_binop /force_val2 in TC |- *.
 destruct (sem_binary_operation' _ _ _ _ _) eqn: Heval; last by apply tc_val_Vundef in TC.
 rewrite /sem_binary_operation' in Heval.
@@ -307,7 +293,7 @@ try rewrite <- ?classify_add_eq, <- ?classify_sub_eq, <- ?classify_cmp_eq, <- ?c
     Cop.sem_add_ptr_int
  ] in Heval |- *;
  try rewrite C in Heval |- *; try rewrite C0 in Heval |- *; try rewrite C1 in Heval |- *;
- try (iDestruct "H" as "[H %]");
+ try (iDestruct "H" as %?);
  repeat match goal with
             | H: _ /\ _ |- _ => destruct H
             | H: complete_type _ _ = _ |- _ => rewrite H; clear H
@@ -317,7 +303,7 @@ try rewrite <- ?classify_add_eq, <- ?classify_sub_eq, <- ?classify_cmp_eq, <- ?c
             end;
  try clear CS; try clear m;
  try contradiction;
- try solve [destruct (classify_binarith _ _) eqn: Hbin; rewrite Heval; try iDestruct "H" as "(_ & [] & _)";
+ try solve [destruct (classify_binarith _ _) eqn: Hbin; rewrite Heval; try iDestruct "H" as "([] & _)";
      iPureIntro; apply sem_binarith_relate; auto; destruct (typeof e1); try discriminate; destruct (typeof e2); try discriminate;
      simpl in *; auto; try discriminate; try destruct s; try destruct s0; try discriminate; try (destruct i; discriminate); try (destruct i0; discriminate); try (destruct f; discriminate)];
 (* unfold Cop.sem_binarith, sem_binarith in *;
@@ -364,7 +350,7 @@ try rewrite <- ?classify_add_eq, <- ?classify_sub_eq, <- ?classify_cmp_eq, <- ?c
  rewrite -> ?cast_int_long_nonzero by eassumption;
  rewrite -> ?(proj2 (eqb_type_false _ _)) by auto 1;
  repeat match goal with H: (if ?A then _ else _) = Some _ |- _ => destruct A eqn: ?Hcond; try discriminate end;
- try (iDestruct "H" as "(_ & -> & %)"; iPureIntro);
+ try (iDestruct "H" as "(-> & %)"; iPureIntro);
  try done; try solve [destruct v1; inv Heval; auto].
 Qed.
 
