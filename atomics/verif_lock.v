@@ -24,7 +24,7 @@ Section PROOFS.
   Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
   Definition make_atomic_spec := DECLARE _make_atomic make_atomic_spec.
-  Definition free_atomic_spec := DECLARE _free_atomic free_atomic_int_spec.
+  Definition free_atomic_spec := DECLARE _free_atomic free_atomic_spec.
   Definition atom_store_spec := DECLARE _atom_store atomic_store_spec.
   Definition atom_CAS_spec := DECLARE _atom_CAS atomic_CAS_spec.
 
