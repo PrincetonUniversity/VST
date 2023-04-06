@@ -11,7 +11,6 @@ Require Export VST.veric.share_alg.
     fraction has been discarded, or both. Note that [DfracBoth] can be written
     as [DfracOwn q ⋅ DfracDiscarded]. This should be used instead
     of [DfracBoth] which is for internal use only. *)
-(* We'll have to do something more sophisticated if we want unreadable shares as well. *)
 Inductive dfrac :=
   | DfracOwn : share → dfrac
   | DfracDiscarded : dfrac
@@ -56,7 +55,6 @@ Section dfrac.
   Global Instance DfracBoth_inj : Inj (=) (=) DfracBoth.
   Proof. by injection 1. Qed.
 
-  (** An element is valid as long as it doesn't contain an empty share. *)
   Local Instance dfrac_valid_instance : Valid dfrac := λ dq,
     match dq with
     | DfracOwn q => q ≠ Share.bot

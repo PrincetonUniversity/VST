@@ -4,18 +4,26 @@ Require Import compcert.cfrontend.Ctypes.
 Require Import VST.veric.mpred.
 Require Import VST.veric.seplog.
 
+Lemma perm_of_readable_share : forall sh, readable_share sh -> Mem.perm_order' (perm_of_sh sh) Readable.
+Proof.
+  intros; rewrite /perm_of_sh.
+  if_tac; if_tac; try constructor; done.
+Qed.
+
 Section mpred.
 
 Context `{!heapGS Σ}.
 
-Lemma mapsto_core_load: forall ch v sh loc,
-  (address_mapsto ch v sh loc ∗ True) ⊢ core_load ch loc v.
+Lemma mapsto_core_load: forall ch v sh loc, readable_share sh ->
+  address_mapsto ch v sh loc ⊢ core_load ch loc v.
 Proof.
 unfold address_mapsto, core_load.
-intros; iIntros "[H $]".
+intros; iIntros "H".
 iDestruct "H" as (bl ?) "H"; iExists bl; iFrame "%".
-iSplit; auto.
-iApply (big_sepL_mono with "H"); eauto.
+iIntros "!>".
+iApply (big_sepL_mono with "H"); intros.
+iIntros "H"; iExists _; iFrame; simpl.
+iPureIntro; split; auto; by apply perm_of_readable_share.
 Qed.
 
 Lemma nth_error_in_bounds: forall {A} (l: list A) i, (O <= i < length l)%nat

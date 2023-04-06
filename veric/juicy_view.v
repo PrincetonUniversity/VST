@@ -2,7 +2,7 @@ From iris.algebra Require Export gmap agree.
 From iris.algebra Require Import local_updates proofmode_classes big_op.
 From VST.zlist Require Import sublist.
 From VST.msl Require Import shares.
-From VST.veric Require Export base Memory share_alg dfrac view.
+From VST.veric Require Export base Memory share_alg dfrac view shared.
 From iris_ora.algebra Require Export ora gmap agree.
 From iris.prelude Require Import options.
 
@@ -105,7 +105,7 @@ Class resource_ops (V : ofe) := {
       coherent with that memory. *)
 
 Local Definition juicy_view_fragUR (V : ofe) : uora :=
-  gmapUR address (prodR dfracR (agreeR V)).
+  gmapUR address (sharedR V).
 
 (** View relation. *)
 Section rel.
@@ -580,8 +580,8 @@ Section lemmas.
     ✓ dq ∧ coherent_loc m k (Some (dq, v)).
   Proof. rewrite juicy_view_both_dfrac_valid. naive_solver done. Qed.
 
-(*  (** Frame-preserving updates *)
-  Lemma juicy_view_alloc m k dq v :
+  (** Frame-preserving updates *)
+(*  Lemma juicy_view_alloc m k dq v :
     m !! k = None →
     ✓ dq →
     juicy_view_auth (DfracOwn Tsh) m ~~> juicy_view_auth (DfracOwn Tsh) (<[k := v]> m) ⋅ juicy_view_frag k dq v.
@@ -641,41 +641,189 @@ Section lemmas.
     rewrite big_opM_insert //.
     rewrite [juicy_view_frag _ _ _ ⋅ _]comm assoc IH juicy_view_delete.
     rewrite -delete_difference. done.
-  Qed.
-
-  Lemma juicy_view_update m k v v' :
-    juicy_view_auth (DfracOwn Tsh) m ⋅ juicy_view_frag k (DfracOwn Tsh) v ~~>
-      juicy_view_auth (DfracOwn Tsh) (<[k := v']> m) ⋅ juicy_view_frag k (DfracOwn Tsh) v'.
-  Proof.
-    rewrite juicy_view_delete.
-    rewrite (juicy_view_alloc _ k (DfracOwn Tsh) v') //; last by rewrite lookup_delete.
-    rewrite insert_delete_insert //.
-  Qed.
-
-  Lemma juicy_view_update_big m m0 m1 :
-    dom m0 = dom m1 →
-    juicy_view_auth (DfracOwn Tsh) m ⋅ ([^op map] k↦v ∈ m0, juicy_view_frag k (DfracOwn Tsh) v) ~~>
-      juicy_view_auth (DfracOwn Tsh) (m1 ∪ m) ⋅ ([^op map] k↦v ∈ m1, juicy_view_frag k (DfracOwn Tsh) v).
-  Proof.
-    intros Hdom%eq_sym. revert m1 Hdom.
-    induction m0 as [|k v m0 Hnotdom IH] using map_ind; intros m1 Hdom.
-    { rewrite dom_empty_L in Hdom.
-      apply dom_empty_iff_L in Hdom as ->.
-      rewrite left_id_L big_opM_empty. done. }
-    rewrite dom_insert_L in Hdom.
-    assert (k ∈ dom m1) as Hindom by set_solver.
-    apply elem_of_dom in Hindom as [v' Hlookup].
-    rewrite big_opM_insert //.
-    rewrite [juicy_view_frag _ _ _ ⋅ _]comm assoc.
-    rewrite (IH (delete k m1)); last first.
-    { rewrite dom_delete_L Hdom.
-      apply not_elem_of_dom in Hnotdom. set_solver -Hdom. }
-    rewrite -assoc [_ ⋅ juicy_view_frag _ _ _]comm assoc.
-    rewrite (juicy_view_update _ _ _ v').
-    rewrite (big_opM_delete _ m1 k v') // -assoc.
-    rewrite insert_union_r; last by rewrite lookup_delete.
-    rewrite union_delete_insert //.
   Qed.*)
+
+  Global Instance exclusive_own_Tsh (v : agreeR V) : Exclusive(A := prodR dfracR (agreeR V)) (DfracOwn Tsh, v).
+  Proof. apply _. Qed.
+
+  Lemma coherent_store_outside : forall m b o bl m' loc r, Mem.storebytes m b o bl = Some m' ->
+    ~adr_range (b, o) (length bl) loc ->
+    coherent_loc m loc r ->
+    coherent_loc m' loc r.
+  Proof.
+    intros ???????? Hrange (Hcontents & Hcur & Hmax & Halloc).
+    split3; last split.
+    - unfold contents_cohere, contents_at in *; intros.
+      erewrite Mem.storebytes_mem_contents by eauto.
+      destruct (eq_dec loc.1 b); [subst; rewrite Maps.PMap.gss | rewrite Maps.PMap.gso //; eauto].
+      rewrite Mem.setN_other; eauto.
+      { intros; unfold adr_range in *; destruct loc; simpl in *; lia. }
+    - unfold access_cohere in *.
+      erewrite <- storebytes_access; eauto.
+    - unfold max_access_cohere, max_access_at in *.
+      erewrite <- storebytes_access; eauto.
+    - unfold alloc_cohere in *.
+      erewrite Mem.nextblock_storebytes; eauto.
+  Qed.
+
+  Lemma get_setN : forall l z c i, (z <= i < z + length l)%Z -> Maps.ZMap.get i (Mem.setN l z c) = nth (Z.to_nat (i - z)) l Undef.
+  Proof.
+    induction l; simpl; intros; first lia.
+    destruct (Z.to_nat (i - z)) eqn: Hi.
+    - assert (i = z) as -> by lia.
+      rewrite -> Mem.setN_other, Maps.ZMap.gss by lia; done.
+    - rewrite IHl; last lia.
+      replace (Z.to_nat (i - (z + 1))) with n by lia; done.
+  Qed.
+
+  Lemma coherent_store_in : forall m b o bl m' i dq v v', Mem.storebytes m b o bl = Some m' ->
+    0 <= i < length bl -> memval_of (dq, v') = Some (nth i bl Undef) -> Mem.perm_order'' (perm_of_res (Some (dq, v))) (perm_of_res (Some (dq, v'))) ->
+    coherent_loc m (b, o + Z.of_nat i)%Z (Some (dq, v)) ->
+    coherent_loc m' (b, o + Z.of_nat i)%Z (Some (dq, v')).
+  Proof.
+    intros ??????????? Hv' Hperm (Hcontents & Hcur & Hmax & Halloc).
+    split3; last split.
+    - unfold contents_cohere, contents_at in *; simpl; intros ? Hv.
+      rewrite Hv in Hv'; inv Hv'.
+      erewrite Mem.storebytes_mem_contents by eauto.
+      rewrite /= Maps.PMap.gss get_setN; last lia.
+      replace (Z.to_nat _) with i by lia; done.
+    - unfold access_cohere in *.
+      erewrite <- storebytes_access by eauto.
+      eapply perm_order''_trans; eauto.
+    - unfold max_access_cohere, max_access_at in *.
+      erewrite <- storebytes_access; eauto.
+    - unfold alloc_cohere in *.
+      erewrite Mem.nextblock_storebytes by eauto; intros.
+      lapply Halloc; done.
+  Qed.
+
+  Lemma juicy_view_storebyte m m' k v v' b sh (Hsh : writable0_share sh) :
+    Mem.storebytes m k.1 k.2 [b] = Some m' ->
+    memval_of (DfracOwn sh, v') = Some b -> Mem.perm_order'' (perm_of_res (Some (DfracOwn sh, v))) (perm_of_res (Some (DfracOwn sh, v'))) ->
+      juicy_view_auth (DfracOwn Tsh) m ⋅ juicy_view_frag k (DfracOwn sh) v ~~>
+      juicy_view_auth (DfracOwn Tsh) m' ⋅ juicy_view_frag k (DfracOwn sh) v'.
+  Proof.
+    intros; apply view_update; intros ?? [Hv Hcoh].
+(*    assert (bf !! k = None) as Hbf.
+    { specialize (Hv k); rewrite lookup_op lookup_singleton in Hv.
+      by apply exclusiveN_Some_l in Hv; last apply _. }*)
+    split.
+    { intros i; specialize (Hv i).
+      rewrite !lookup_op in Hv |- *.
+      destruct (decide (i = k)); last by rewrite !lookup_singleton_ne in Hv |- *.
+      subst; rewrite !lookup_singleton in Hv |- *.
+hnf.
+(* relying on unreadable shares not being able to distinguish values *)
+
+      subst; rewrite lookup_singleton Hbf //. }
+    intros loc; specialize (Hcoh loc).
+    rewrite /resource_at !lookup_op in Hcoh |- *.
+    destruct (decide (loc = k)).
+    - subst; rewrite !lookup_singleton !Hbf /= in Hcoh |- *.
+      destruct k as (?, o); rewrite !elem_of_to_agree -(Z.add_0_r o) in Hcoh |- *.
+      eapply (coherent_store_in _ _ _ _ _ O); eauto.
+    - rewrite !lookup_singleton_ne in Hcoh |- *; [| done..].
+      eapply coherent_store_outside; eauto.
+      destruct loc as (?, o1), k as (?, o); intros [??]; subst; simpl in *.
+      assert (o1 = o) by lia; congruence.
+  Qed.
+
+  Lemma lookup_singleton_list : forall {A} (l : list A) (f : A -> prodR dfracR (agreeR V)) k i, ([^op list] i↦v ∈ l, {[adr_add k (Z.of_nat i) := f v]}) !! i ≡
+    if adr_range_dec k (Z.of_nat (length l)) i then f <$> (l !! (Z.to_nat (i.2 - k.2))) else None.
+  Proof.
+    intros.
+    remember (rev l) as l'; revert dependent l; induction l'; simpl; intros.
+    { destruct l; simpl; last by apply app_cons_not_nil in Heql'.
+      rewrite lookup_empty; if_tac; auto. }
+    apply (f_equal (@rev _)) in Heql'; rewrite rev_involutive in Heql'; subst; simpl.
+    rewrite lookup_proper; last apply big_opL_snoc.
+    rewrite lookup_op IHl'; last by rewrite rev_involutive.
+    destruct k as (?, o), i as (?, o').
+    if_tac; [|if_tac].
+    - destruct H; subst; simpl.
+      rewrite lookup_singleton_ne; last by rewrite /adr_add; intros [=]; lia.
+      rewrite if_true; last by rewrite app_length; lia.
+      rewrite lookup_app.
+      by destruct (lookup_lt_is_Some_2 (rev l') (Z.to_nat (o' - o))) as (? & ->); first lia.
+    - destruct H0 as [-> Hrange].
+      rewrite app_length /= in Hrange.
+      assert (o' = o + Z.of_nat (length (rev l')))%Z as -> by (rewrite /adr_range in H; lia).
+      rewrite /adr_add lookup_singleton /= list_lookup_middle //; lia.
+    - rewrite lookup_singleton_ne //.
+      rewrite /adr_add /=; intros [=]; subst; contradiction H0.
+      split; auto; rewrite app_length /=; lia.
+  Qed.
+
+  Lemma coherent_loc_ne n m k r1 r2 : ✓{n} r2 -> r1 ≡ r2 -> coherent_loc m k (resR_to_resource _ r1) -> coherent_loc m k (resR_to_resource _ r2).
+  Proof.
+    intros Hvalid.
+    inversion 1 as [(?, ?) (?, ?) Heq|]; subst; last done.
+    destruct Hvalid as [_ Hvalid].
+    destruct Heq as [Hd Hv]; simpl in *; inv Hd.
+    intros (Hcontents & Hcur & Hmax & Halloc); split3; last split.
+    - intros ?; simpl.
+      intros; apply Hcontents; simpl.
+      eapply memval_of_ne, (elem_of_agree_ne n); eauto; done.
+    - unfold access_cohere in *.
+      erewrite perm_of_res_ne; eauto.
+      apply (elem_of_agree_ne n); eauto; done.
+    - done.
+    - intros Hnext; specialize (Halloc Hnext); done.
+  Qed.
+
+  Lemma juicy_view_storebytes m m' k vl vl' bl
+    (Hstore : Mem.storebytes m k.1 k.2 bl = Some m')
+    (Hv' : Forall2 (fun v' b => memval_of (DfracOwn Tsh, v') = Some b) vl' bl) (Hperm : Forall2 (fun v v' => Mem.perm_order'' (perm_of_res (Some (DfracOwn Tsh, v))) (perm_of_res (Some (DfracOwn Tsh, v')))) vl vl') :
+      juicy_view_auth (DfracOwn Tsh) m ⋅ ([^op list] i↦v ∈ vl, juicy_view_frag (adr_add k (Z.of_nat i)) (DfracOwn Tsh) v) ~~>
+      juicy_view_auth (DfracOwn Tsh) m' ⋅ ([^op list] i↦v ∈ vl', juicy_view_frag (adr_add k (Z.of_nat i)) (DfracOwn Tsh) v).
+  Proof.
+    intros.
+    rewrite -!big_opL_view_frag; apply view_update; intros ?? [Hv Hcoh].
+    assert (forall i, if adr_range_dec k (Z.of_nat (length vl)) i then
+      exists v v', vl !! (Z.to_nat (i.2 - k.2)) = Some v /\ vl' !! (Z.to_nat (i.2 - k.2)) = Some v' /\
+      (([^op list] k0↦x ∈ vl, {[adr_add k (Z.of_nat k0) := (DfracOwn Tsh, to_agree x)]}) ⋅ bf) !! i ≡ Some (DfracOwn Tsh, to_agree v) /\
+      (([^op list] k0↦x ∈ vl', {[adr_add k (Z.of_nat k0) := (DfracOwn Tsh, to_agree x)]}) ⋅ bf) !! i ≡ Some (DfracOwn Tsh, to_agree v')
+      else
+      ((([^op list] k0↦x ∈ vl, {[adr_add k (Z.of_nat k0) := (DfracOwn Tsh, to_agree x)]}) ⋅ bf) !! i ≡
+       (([^op list] k0↦x ∈ vl', {[adr_add k (Z.of_nat k0) := (DfracOwn Tsh, to_agree x)]}) ⋅ bf) !! i)) as Hlookup.
+    { intros i; specialize (Hv i).
+      pose proof (Forall2_length _ _ _ Hperm) as Hlen.
+      rewrite !lookup_op !lookup_singleton_list in Hv; if_tac.
+      * destruct k as (?, o), i as (?, o'); destruct H; subst; simpl.
+        destruct (lookup_lt_is_Some_2 vl (Z.to_nat (o' - o))) as (? & Hv1); first lia.
+        destruct (lookup_lt_is_Some_2 vl' (Z.to_nat (o' - o))) as (? & Hv2); first lia.
+        eexists _, _; split; eauto; split; eauto.
+        rewrite !lookup_op !lookup_singleton_list.
+        rewrite -Hlen; rewrite !if_true; [|split; auto..].
+        rewrite Hv1 Hv2 /= in Hv |- *.
+        apply exclusiveN_Some_l in Hv; last apply _.
+        rewrite Hv //.
+      * rewrite !lookup_op !lookup_singleton_list -Hlen !if_false //. }
+    split; intros i; specialize (Hlookup i).
+    - if_tac in Hlookup; last by rewrite -Hlookup.
+      destruct Hlookup as (? & ? & ? & ? & ? & ->); done.
+    - specialize (Hcoh i); unfold resource_at in *.
+      if_tac in Hlookup.
+      + destruct Hlookup as (? & ? & Hl1 & Hl2 & Hv1 & Hv2).
+        eapply (coherent_loc_ne 0); [by rewrite Hv2 | done |].
+        eapply (coherent_loc_ne 0) in Hcoh; last (by symmetry); last done.
+        destruct k as (?, o), i as (?, o'), H; subst; simpl in *.
+        replace o' with (o + Z.of_nat (Z.to_nat (o' - o)))%Z in Hcoh |- * by lia.
+        eapply coherent_store_in; eauto.
+        * erewrite <- Forall2_length, <- Forall2_length; eauto; lia.
+        * rewrite Forall2_lookup in Hv'; specialize (Hv' (Z.to_nat (o' - o))).
+          rewrite Hl2 in Hv'; inv Hv'.
+          erewrite nth_lookup_Some by eauto.
+          rewrite elem_of_to_agree //.
+        * rewrite Forall2_lookup in Hperm; specialize (Hperm (Z.to_nat (o' - o))).
+          rewrite Hl1 Hl2 in Hperm; inv Hperm.
+          rewrite !elem_of_to_agree //.
+      + eapply coherent_loc_ne; [| done |].
+        { by rewrite -Hlookup. }
+        eapply coherent_store_outside; eauto.
+        destruct k; erewrite <- Forall2_length, <- Forall2_length; eauto.
+  Qed.
 
   Lemma juicy_view_auth_persist dq m :
     juicy_view_auth dq m ~~> juicy_view_auth DfracDiscarded m.

@@ -69,13 +69,13 @@ Section lemmas.
   Global Instance resource_map_elem_affine k γ v : Affine (k ↪[γ]□ v).
   Proof. unseal. apply _. Qed.
 
-  Local Lemma resource_map_elems_unseal γ m dq :
-    ([∗ map] k ↦ v ∈ m, k ↪[γ]{dq} v) ==∗
-    own γ ([^op map] k↦v ∈ m, juicy_view_frag (V:=leibnizO V) k dq v).
+  Local Lemma resource_map_elems_unseal γ k m dq :
+    ([∗ list] i↦v ∈ m, adr_add k (Z.of_nat i) ↪[γ]{dq} v) ==∗
+    own γ ([^op list] i↦v ∈ m, juicy_view_frag (V:=leibnizO V) (adr_add k (Z.of_nat i)) dq v).
   Proof.
-    unseal. destruct (decide (m = ∅)) as [->|Hne].
-    - rewrite !big_opM_empty. iIntros "_". iApply own_unit.
-    - rewrite big_opM_own //. iIntros "?". done.
+    unseal. destruct (decide (m = [])) as [->|Hne].
+    - rewrite !big_opL_nil. iIntros "_". iApply own_unit.
+    - rewrite big_opL_own //. iIntros "?". done.
   Qed.
 
   Lemma resource_map_elem_valid k γ dq v : k ↪[γ]{dq} v -∗ ⌜✓ dq⌝.
@@ -254,29 +254,32 @@ Section lemmas.
   Proof.
     unseal. apply bi.wand_intro_r. rewrite -own_op.
     iApply own_update. apply: juicy_view_delete.
-  Qed.
+  Qed.*)
 
-  Lemma resource_map_update {γ m k v} w :
-    resource_map_auth γ Tsh m -∗ k ↪[γ] v ==∗ resource_map_auth γ Tsh (<[k := w]> m) ∗ k ↪[γ] w.
+  Lemma resource_map_storebyte {γ m k v} m' v' b :
+    Mem.storebytes m k.1 k.2 [b] = Some m' ->
+    memval_of (DfracOwn Tsh, v') = Some b -> Mem.perm_order'' (perm_of_res (Some (DfracOwn Tsh, v))) (perm_of_res (Some (DfracOwn Tsh, v'))) ->
+    resource_map_auth γ Tsh m -∗ k ↪[γ] v ==∗ resource_map_auth γ Tsh m' ∗ k ↪[γ] v'.
   Proof.
-    unseal. apply bi.wand_intro_r. rewrite -!own_op.
-    apply own_update. apply: juicy_view_update.
+    intros; unseal. apply bi.wand_intro_r. rewrite -!own_op.
+    apply own_update. apply: juicy_view_storebyte; eauto.
   Qed.
 
   (** Big-op versions of above lemmas *)
-  Lemma resource_map_lookup_big {γ q m} m0 :
+  Lemma resource_map_lookup_big {γ q m} k dq m0 :
     resource_map_auth γ q m -∗
-    ([∗ map] k↦v ∈ m0, k ↪[γ] v) -∗
-    ⌜m0 ⊆ m⌝.
+    ([∗ list] i↦v ∈ m0, adr_add k i ↪[γ]{dq} v) -∗
+    ⌜forall i, i < length m0 -> coherent_loc m (adr_add k (Z.of_nat i)) (option_map (fun v => (dq, v)) (m0 !! i))⌝.
   Proof.
-    iIntros "Hauth Hfrag". rewrite map_subseteq_spec. iIntros (k v Hm0).
-    rewrite big_sepM_lookup_acc; last done.
+    iIntros "Hauth Hfrag". iIntros (i Hm0).
+    apply lookup_lt_is_Some_2 in Hm0 as (? & Hi); rewrite Hi.
+    rewrite big_sepL_lookup_acc; last done.
     iDestruct "Hfrag" as "[Hfrag ?]".
-    iDestruct (resource_map_lookup with "Hauth Hfrag") as %->.
+    iDestruct (resource_map_lookup with "Hauth Hfrag") as %[_ ?].
     done.
   Qed.
 
-  Lemma resource_map_insert_big {γ m} m' :
+(*  Lemma resource_map_insert_big {γ m} m' :
     m' ##ₘ m →
     resource_map_auth γ Tsh m ==∗
     resource_map_auth γ Tsh (m' ∪ m) ∗ ([∗ map] k ↦ v ∈ m', k ↪[γ] v).
@@ -303,19 +306,20 @@ Section lemmas.
     iIntros "Hauth Hfrag". iMod (resource_map_elems_unseal with "Hfrag") as "Hfrag".
     unseal. iApply (own_update_2 with "Hauth Hfrag").
     apply: juicy_view_delete_big.
-  Qed.
+  Qed.*)
 
-  Theorem resource_map_update_big {γ m} m0 m1 :
-    dom m0 = dom m1 →
+  Theorem resource_map_storebytes {γ m} m' k vl vl' bl
+    (Hstore : Mem.storebytes m k.1 k.2 bl = Some m')
+    (Hv' : Forall2 (fun v' b => memval_of (DfracOwn Tsh, v') = Some b) vl' bl) (Hperm : Forall2 (fun v v' => Mem.perm_order'' (perm_of_res (Some (DfracOwn Tsh, v))) (perm_of_res (Some (DfracOwn Tsh, v')))) vl vl') :
     resource_map_auth γ Tsh m -∗
-    ([∗ map] k↦v ∈ m0, k ↪[γ] v) ==∗
-    resource_map_auth γ Tsh (m1 ∪ m) ∗
-        [∗ map] k↦v ∈ m1, k ↪[γ] v.
+    ([∗ list] i↦v ∈ vl, adr_add k (Z.of_nat i) ↪[γ] v) ==∗
+    resource_map_auth γ Tsh m' ∗
+        [∗ list] i↦v ∈ vl', adr_add k (Z.of_nat i) ↪[γ] v.
   Proof.
-    iIntros (?) "Hauth Hfrag". iMod (resource_map_elems_unseal with "Hfrag") as "Hfrag".
-    unseal. rewrite -big_opM_own_1 -own_op.
+    intros; iIntros "Hauth Hfrag". iMod (resource_map_elems_unseal with "Hfrag") as "Hfrag".
+    unseal. rewrite -big_opL_own_1 -own_op.
     iApply (own_update_2 with "Hauth Hfrag").
-    apply: juicy_view_update_big. done.
-  Qed. *)
+    apply: juicy_view_storebytes; done.
+  Qed.
 
 End lemmas.

@@ -149,7 +149,7 @@ Section gen_heap.
   Implicit Types P Q : iProp Σ.
   Implicit Types Φ : V → iProp Σ.
   Implicit Types σ : gmap address V.
-  Implicit Types m : gmap address gname.
+  Implicit Types m : mem.
   Implicit Types l : address.
   Implicit Types v : V.
 
@@ -213,9 +213,6 @@ Section gen_heap.
     FrameFractionalHyps p (l ↦{#q1} v) (λ q, l ↦{#q} v)%I RES q1 q2 →
     Frame p (l ↦{#q1} v) (l ↦{#q2} v) RES | 5.
   Proof. apply: frame_fractional. Qed. *)
-
-  Lemma mapsto_lookup (m : mem) l dq v : resource_map_auth (gen_heap_name _) Tsh m -∗ l ↦{dq} v -∗ ⌜✓ dq ∧ coherent_loc m l (Some (dq, v))⌝.
-  Proof. rewrite mapsto_unseal. apply resource_map_lookup. Qed.
 
   (** General properties of [meta] and [meta_token] *)
   Global Instance meta_token_timeless l N : Timeless (meta_token l N).
@@ -307,26 +304,32 @@ Section gen_heap.
     rewrite !big_opM_insert // -insert_union_l //.
     by iMod (gen_heap_alloc with "Hσ'σ") as "($ & $ & $)";
       first by apply lookup_union_None.
-  Qed.
-
-  Lemma gen_heap_valid σ l dq v : gen_heap_interp σ -∗ l ↦{dq} v -∗ ⌜σ !! l = Some v⌝.
-  Proof.
-    iDestruct 1 as (m Hσm) "[Hσ _]". iIntros "Hl".
-    rewrite /gen_heap_interp mapsto_unseal.
-    by iDestruct (ghost_map_lookup with "Hσ Hl") as %?.
-  Qed.
-
-  Lemma gen_heap_update σ l v1 v2 :
-    gen_heap_interp σ -∗ l ↦ v1 ==∗ gen_heap_interp (<[l:=v2]>σ) ∗ l ↦ v2.
-  Proof.
-    iDestruct 1 as (m Hσm) "[Hσ Hm]".
-    iIntros "Hl". rewrite /gen_heap_interp mapsto_unseal /mapsto_def.
-    iDestruct (ghost_map_lookup with "Hσ Hl") as %Hl.
-    iMod (ghost_map_update with "Hσ Hl") as "[Hσ Hl]".
-    iModIntro. iFrame "Hl". iExists m. iFrame.
-    iPureIntro. apply elem_of_dom_2 in Hl.
-    rewrite dom_insert_L. set_solver.
   Qed.*)
+
+  Lemma mapsto_lookup m l dq v : resource_map_auth (gen_heap_name _) Tsh m -∗ l ↦{dq} v -∗ ⌜✓ dq ∧ coherent_loc m l (Some (dq, v))⌝.
+  Proof. rewrite mapsto_unseal. apply resource_map_lookup. Qed.
+
+  Lemma mapsto_lookup_big m l dq (m0 : list V) :
+    resource_map_auth (gen_heap_name _) Tsh m -∗
+    ([∗ list] i↦v ∈ m0, adr_add l i ↦{dq} v) -∗
+    ⌜forall i, i < length m0 -> coherent_loc m (adr_add l (Z.of_nat i)) (option_map (fun v => (dq, v)) (m0 !! i))⌝.
+  Proof. rewrite mapsto_unseal. apply resource_map_lookup_big. Qed.
+
+  Lemma mapsto_storebyte m k b m' v v' :
+    Mem.storebytes m k.1 k.2 [b] = Some m' ->
+    memval_of (DfracOwn Tsh, v') = Some b -> Mem.perm_order'' (perm_of_res (Some (DfracOwn Tsh, v))) (perm_of_res (Some (DfracOwn Tsh, v'))) ->
+    resource_map_auth (gen_heap_name _) Tsh m -∗ k ↦ v ==∗ resource_map_auth (gen_heap_name _) Tsh m' ∗ k ↦ v'.
+  Proof. rewrite mapsto_unseal. apply resource_map_storebyte. Qed.
+
+  Lemma mapsto_storebytes m m' k vl vl' bl
+    (Hstore : Mem.storebytes m k.1 k.2 bl = Some m')
+    (Hv' : Forall2 (fun v' b => memval_of (DfracOwn Tsh, v') = Some b) vl' bl) (Hperm : Forall2 (fun v v' => Mem.perm_order'' (perm_of_res (Some (DfracOwn Tsh, v))) (perm_of_res (Some (DfracOwn Tsh, v')))) vl vl') :
+    resource_map_auth (gen_heap_name _) Tsh m -∗
+    ([∗ list] i↦v ∈ vl, adr_add k (Z.of_nat i) ↦ v) ==∗
+    resource_map_auth (gen_heap_name _) Tsh m' ∗
+        [∗ list] i↦v ∈ vl', adr_add k (Z.of_nat i) ↦ v.
+  Proof. rewrite mapsto_unseal. eapply resource_map_storebytes; eauto. Qed.
+
 End gen_heap.
 
 (*

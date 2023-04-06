@@ -3,7 +3,11 @@ Require Import VST.veric.juicy_mem.
 Require Import VST.veric.res_predicates.
 Require Import VST.veric.shares.
 
-Definition juicy_mem_core (j: juicy_mem) : rmap := core (m_phi j).
+Section mpred.
+
+Context `{!heapGS Σ}.
+
+(*Definition juicy_mem_core (j: juicy_mem) : rmap := core (m_phi j).
 
 (*Lemma inflate_initial_mem_empty:
   forall lev, emp (inflate_initial_mem Mem.empty lev).
@@ -177,11 +181,11 @@ auto.
 exists (mkJuicyMem m w H0 H1 H2 H3).
 split; auto.
 apply age1_juicy_mem_unpack''; simpl; auto.
-Qed.
+Qed.*)
 
 (* core load and coherence properties *)
 
-Lemma writable_perm:
+(*Lemma writable_perm:
   forall b i jm, writable (b,i) (m_phi jm) -> Mem.perm (m_dry jm) b i Cur Writable.
 Proof.
 intros until jm; intros H.
@@ -217,226 +221,96 @@ subst.
 specialize( H ofs' H4).
 rewrite H1 in H.
 auto.
+Qed.*)
+
+Lemma core_load_coherent: forall ch v b ofs bl m,
+  mem_auth m ∗ core_load' ch (b, ofs) v bl ⊢
+  ⌜length bl = size_chunk_nat ch ∧ (align_chunk ch | ofs)%Z ∧ forall i, 0 <= i < length bl -> exists sh, perm_order' (perm_of_dfrac sh) Readable ∧ coherent_loc(V := leibnizO resource) m (b, ofs + Z.of_nat i)%Z (Some (sh, VAL (nthbyte i bl)))⌝.
+Proof.
+  intros; unfold core_load'.
+  iIntros "(Hm & >((%H1 & _ & %H2) & H))".
+  rewrite {1}H1; iSplit; first done; iSplit; first done.
+  clear H1 H2; iInduction bl as [|?] "IH" forall (ofs); simpl in *.
+  { iPureIntro; lia. }
+  iDestruct "H" as "((% & %Hsh & H) & rest)".
+  iDestruct (mapsto_lookup with "Hm H") as %[_ Hloc].
+  iDestruct ("IH" with "Hm [rest]") as %H.
+  { iApply (big_sepL_mono with "rest"); intros.
+    apply bi.exist_mono; intros.
+    rewrite /adr_add /= Nat2Z.inj_succ /Z.succ (Z.add_comm _ 1) Z.add_assoc //. }
+  iPureIntro; intros.
+  destruct i; eauto.
+  destruct (H i); first lia.
+  rewrite Nat2Z.inj_succ /Z.succ (Z.add_comm _ 1) Z.add_assoc.
+  rewrite /nthbyte Z2Nat.inj_add; eauto; lia.
 Qed.
 
-Lemma core_load_getN: forall ch v b ofs bl phi m,
-  contents_cohere m phi
-  -> (core_load' ch (b, ofs) v bl)%pred phi
-  -> bl = Mem.getN (size_chunk_nat ch) ofs (PMap.get b (Mem.mem_contents m)).
+Lemma getN_lookup : forall n z m i, getN n z m !! i = if lt_dec i n then Some (Maps.ZMap.get (z + Z.of_nat i)%Z m) else None.
 Proof.
-intros until m; intros H0 H.
-destruct H as [[H3 H4] H].
-unfold allp, jam in H.
-rewrite <- H3.
-simpl in *.
-clear H4.
-revert ofs H H3.
-assert (H: size_chunk_nat ch = Z.to_nat (size_chunk ch)) by auto.
-rewrite H; clear H.
-generalize (size_chunk ch) as z.
-induction bl; intros; simpl; auto.
-rewrite IHbl with (ofs := ofs + 1) (z := z - 1); auto.
-rewrite Mem.getN_length.
-f_equal; auto.
-specialize ( H (b, ofs)).
-cut (adr_range (b, ofs) z (b, ofs)); [intro H6|].
-destruct (adr_range_dec (b, ofs) z (b, ofs)).
-  2: exfalso; auto.
-simpl in H.
-cut (Z.to_nat (ofs - ofs) = O); [intro H7|].
-rewrite H7 in H.
-destruct H as [sh [rsh H]].
-unfold contents_cohere in H0.
-symmetry.
-destruct (H0 _ _ _ _ _ H) as [? _].
-apply H1.
-replace (ofs - ofs) with 0 by lia; auto.
-unfold adr_range; split; auto.
-cut (z > 0). lia.
-inversion H3.
-cut (z = Z_of_nat (length bl) + 1). lia.
-assert (HS_nat_Z: forall n z, S n = Z.to_nat z -> Z_of_nat n + 1 = z).
-  intros n z' H4.
-  cut (Z_of_nat 1 = 1).
-  intro H5.
-  rewrite <- H5.
-  rewrite <- inj_plus.
-  replace (Z_of_nat (n + 1%nat)) with (Z_of_nat (S n)).
-  rewrite H4.
-  rewrite Z2Nat.id; auto.
-  destruct z'; try solve [lia].
-  inversion H4.
-  rewrite <- nat_of_P_o_P_of_succ_nat_eq_succ in H6. lia.
-  simpl in H4.
-  inv H4.
-  idtac.
-  replace (plus n (S 0)) with (S n).
-  auto.
-  lia.
-  auto.
-symmetry; apply HS_nat_Z; auto.
-intros loc'.
-specialize (H loc').
-cut ( adr_range (b, ofs + 1) (z - 1) loc' -> adr_range (b, ofs) z loc').
-intro H1.
-destruct (adr_range_dec (b, ofs + 1) (z - 1) loc').
-destruct (adr_range_dec (b, ofs) z loc').
-simpl in H.
-case_eq (Z.to_nat (snd loc' - ofs)).
-intro H2.
-destruct loc' as (b', ofs').
-simpl in *.
-cut (ofs' > ofs). intro H4.
-cut (exists p, ofs' - ofs = Zpos p). intros [p H5].
-rewrite H5 in H2.
-unfold nat_of_P in H2.
-generalize (le_Pmult_nat p 1) as H6; intro.
-rewrite Pmult_nat_mult in H6.
-rewrite Nat.mul_1_r in H6.
-change (Pos.to_nat p) with (Z.to_nat (Z.pos p)) in H6.
-rewrite H2 in H6.
-lia.
-assert (ofs' - ofs > 0).
-lia.
-assert (forall z, z > 0 -> exists p, z = Zpos p).
+  induction n; simpl; intros; first done.
+  destruct i; simpl.
+  - rewrite Z.add_0_r //.
+  - rewrite IHn; if_tac; if_tac; auto; try lia.
+    rewrite Nat2Z.inj_succ /Z.succ (Z.add_comm (Z.of_nat i) 1) Z.add_assoc //.
+Qed.
+
+Lemma core_load_getN: forall ch v b ofs bl m,
+  mem_auth m ∗ core_load' ch (b, ofs) v bl ⊢
+  ⌜bl = Mem.getN (size_chunk_nat ch) ofs (Maps.PMap.get b (Mem.mem_contents m))⌝.
+Proof.
   intros.
-  assert (exists n, Z.to_nat z0 = S n).
-    exists (Z.to_nat (z0 - 1)).
-    destruct z0; try solve [inv H6].
-    destruct p; auto.
-    simpl.
-    change (nat_of_P p~0 = S (nat_of_P (p~0 - 1))).
-    rewrite <- nat_of_P_succ_morphism.
-    rewrite <- Ppred_minus.
-    simpl.
-    rewrite Psucc_o_double_minus_one_eq_xO.
-    auto.
-  destruct H7 as [n ?].
-  exists (P_of_succ_nat n).
-  rewrite Zpos_P_of_succ_nat.
-  rewrite <- inj_S.
-  rewrite <- H7.
-  rewrite Z2Nat.id.
-  auto.
-lia.
-apply H6; auto.
-lia.
-intros n H2.
-rewrite H2 in H.
-assert (Z.to_nat (snd loc' - (ofs + 1)) = n).
-  destruct loc'.
-  simpl in *.
-  assert (Z_of_nat (Z.to_nat (z0 - ofs)) = Z_of_nat (S n)).
-  auto.
-  assert (z0 - ofs > 0).
-    lia.
-  rewrite Z2Nat.id in H4; try solve [lia].
-rewrite H4.
-apply H.
-exfalso. auto.
-auto.
-unfold adr_range.
-destruct loc' as (b', ofs').
-intros [H1 H2].
-split; auto || lia.
-inversion H3.
-assert (z > 0).
-  assert (forall n z, S n = Z.to_nat z -> z > 0).
-    intros.
-    destruct z0; try solve [inv H1].
-    apply Zgt_pos_0.
-  eapply H1; eauto.
-assert (z - 1 >= 0).
-lia.
-lia.
+  rewrite core_load_coherent; iIntros ((Hlen & _ & H)); iPureIntro.
+  apply list_eq; intros.
+  rewrite getN_lookup -Hlen.
+  destruct (lt_dec i (length bl)).
+  - destruct (H i) as (? & ? & Hi & _); first lia.
+    rewrite /contents_cohere /contents_at /= in Hi.
+    rewrite (Hi _ eq_refl).
+    apply lookup_lt_is_Some_2 in l as [? Hbl].
+    unfold nthbyte; erewrite nth_lookup_Some; eauto.
+    rewrite Nat2Z.id //.
+  - apply lookup_ge_None_2; lia.
 Qed.
 
-Lemma core_load_valid: forall ch v b ofs m phi,
-  (core_load ch (b, ofs) v)%pred phi
-  -> access_cohere m phi
-  -> Mem.valid_access m ch b ofs Readable.
+Lemma core_load_valid: forall ch v b ofs m,
+  mem_auth m ∗ core_load ch (b, ofs) v ⊢
+  ⌜Mem.valid_access m ch b ofs Readable⌝.
 Proof.
-intros until phi; intros H H0.
-hnf in H.
-destruct H as [bl [[H1 [H2 Halign]] H]].
-hnf in H.
-split.
-intros ofs' H4.
-specialize (H (b, ofs')).
-hnf in H.
-destruct (adr_range_dec (b, ofs) (size_chunk ch) (b, ofs')) as [H5|H5].
-  2: unfold adr_range in H5.
-  2: exfalso; apply H5; split; auto.
-destruct H as [sh [rsh H]].
-simpl in H.
-unfold access_cohere in H0.
-specialize (H0 (b, ofs')).
-unfold Mem.perm, Mem.perm_order'.
-rewrite H in H0.
-unfold access_at in H0.  simpl in H0.
-destruct ((mem_access m) !! b ofs' Cur).
-clear - H0 rsh.
-unfold perm_of_sh in H0.
-if_tac in H0.
-if_tac in H0; inv H0; constructor.
-rewrite if_true in H0. inv H0; constructor.
-auto.
-clear - rsh H0.
-unfold perm_of_sh in H0.
-repeat if_tac in H0; inv H0.
-contradiction.
-assumption.
+  intros.
+  iIntros "(Hm & >(% & H))".
+  iDestruct (core_load_coherent with "[-]") as %(Hlen & Halign & H).
+  { rewrite /core_load'; iFrame. }
+  iPureIntro.
+  rewrite /valid_access.
+  split; auto.
+  intros z Hz.
+  rewrite size_chunk_conv -Hlen in Hz.
+  destruct (H (Z.to_nat (z - ofs))) as (? & Hsh & _ & Hloc & _); first lia.
+  rewrite Z2Nat.id /access_cohere in Hloc; last lia.
+  rewrite Zplus_minus in Hloc.
+  rewrite perm_access; eapply perm_order''_trans; eauto; simpl.
+  destruct x; done.
 Qed.
 
 Lemma core_load_load': forall ch b ofs v m,
-  core_load ch (b, ofs) v (m_phi m) -> Mem.load ch (m_dry m) b ofs = Some v.
+  mem_auth m ∗ core_load ch (b, ofs) v ⊢ ⌜Mem.load ch m b ofs = Some v⌝.
 Proof.
-intros until m; intros H.
-generalize H as Hcore_load; intro.
-Transparent Mem.load.
-unfold core_load in H; unfold Mem.load.
-unfold allp, jam in H.
-destruct H as [bl [[H0 [H1 Halign]] H]].
-assert (H3 := juicy_mem_contents m).
-pose proof I.
-pose proof I.
-if_tac.
-f_equal.
-generalize (core_load_getN ch v b ofs bl (m_phi m) (m_dry m) H3) as H7; intro.
-rewrite <- H7; auto.
-unfold core_load'.
-repeat split; auto.
-exfalso.
-apply H5.
-eapply core_load_valid; eauto.
-apply juicy_mem_access.
+  intros.
+  iIntros "H".
+  iDestruct (core_load_valid with "H") as %[? Hload]%valid_access_load.
+  rewrite Hload; apply load_result in Hload; subst.
+  iDestruct "H" as "(Hm & % & >H)".
+  iDestruct (core_load_getN with "[-]") as %?.
+  { rewrite /core_load'; iFrame. }
+  iDestruct "H" as "((% & <- & %) & H)"; subst; done.
 Qed.
 
-Lemma Zminus_lem: forall z1 z2, z1 <= z2 -> Z.to_nat (z2 - z1) = O -> z1=z2.
-Proof.
-intros.
-case_eq (z2 - z1). intro.
-rewrite H1 in H0.
-symmetry; apply Zminus_eq; auto.
-intros.
-generalize (lt_O_nat_of_P p). intro.
-rewrite H1 in H0.
-simpl in *.
-lia.
-intros.
-generalize (Zlt_neg_0 p). intro.
-rewrite H1 in H0.
-lia.
-Qed.
+(*Lemma Zminus_lem: forall z1 z2, z1 <= z2 -> Z.to_nat (z2 - z1) = O -> z1=z2.
+Proof. lia. Qed.
 
 Lemma nat_of_Z_lem1: forall n z, 
     S n = Z.to_nat z -> n = Z.to_nat (z - 1).
-Proof.
-intros.
-rewrite Z2Nat.inj_sub by lia.
-rewrite <- H.
-simpl. lia.
-Qed.
+Proof. lia. Qed.
 
 Lemma nat_of_Z_lem2: forall n z1 z2, S n = Z.to_nat (z1 - z2) -> n = Z.to_nat (z1 - z2 - 1).
 Proof. intros; apply nat_of_Z_lem1; auto. Qed.
@@ -477,13 +351,16 @@ replace (ofs' - (ofs + 1)) with (ofs' - ofs - 1) by lia.
   apply nat_of_Z_lem1 in H1.
   auto.
 rewrite H3; auto.
-Qed.
+Qed.*)
 
+(* When would we need to generate a core_load assertion while already knowing the resources in a state?
 Lemma load_core_load: forall ch b ofs v m,
   Mem.load ch (m_dry m) b ofs = Some v ->
-  (forall z, ofs <= z < ofs + size_chunk ch ->
+  mem_auth m ∗ ([∗ list] z ∈ seq 0 (size_chunk_nat ch), ⌜coherent_loc m 
+
+forall z, ofs <= z < ofs + size_chunk ch ->
                       perm_order'' (perm_of_res (m_phi m @ (b,z))) (Some Readable)) ->
- core_load ch (b, ofs) v (m_phi m).
+   ⊢ mem_auth m ∗ core_load ch (b, ofs) v.
 Proof.
 intros until m; intros H PERM.
 hnf.
@@ -543,7 +420,7 @@ Proof.
 intros.
 split; [apply core_load_load'| ].
 intros; apply load_core_load; auto.
-Qed.
+Qed.*)
 
 (*Lemma address_mapsto_exists':
   forall ch v sh (rsh: readable_share sh) loc m lev,
@@ -584,11 +461,13 @@ exists rsh.
 f_equal. 
 apply NO_identity.
 Qed.*)
-    
-Lemma mapsto_valid_access: forall ch v sh b ofs jm,
-  (address_mapsto ch v sh (b, ofs) * TT)%pred (m_phi jm)
-  -> Mem.valid_access (m_dry jm) ch b ofs Readable.
+
+(*Lemma mapsto_valid_access: forall ch v sh b ofs m,
+  mem_auth m ∗ address_mapsto ch v sh (b, ofs) ⊢
+  ⌜Mem.valid_access m ch b ofs Readable⌝.
 Proof.
+  Search address_mapsto readable_share.
+core_load_valid
 intros.
 unfold address_mapsto in H.
 unfold Mem.valid_access, Mem.range_perm.
@@ -624,52 +503,45 @@ rewrite if_true in H7 by auto.
 subst; constructor.
 repeat match goal with [ H: context[ _ /\ _ ] |- _] => destruct H end.
 auto.
-Qed.
+Qed.*)
 
-Lemma mapsto_valid_access_wr: forall ch v sh (wsh: writable0_share sh) b ofs jm,
-  (address_mapsto ch v sh (b, ofs) * TT)%pred (m_phi jm)
-  -> Mem.valid_access (m_dry jm) ch b ofs Writable.
+Lemma mapsto_coherent: forall ch v sh b ofs m,
+  mem_auth m ∗ address_mapsto ch v sh (b, ofs) ⊢
+  ⌜∃ bl, length bl = size_chunk_nat ch ∧ decode_val ch bl = v ∧ (align_chunk ch | ofs)%Z ∧ forall i, 0 <= i < size_chunk_nat ch -> coherent_loc(V := leibnizO resource) m (b, ofs + Z.of_nat i)%Z (Some (DfracOwn sh, VAL (nthbyte i bl)))⌝.
 Proof.
-intros.
-unfold address_mapsto in H.
-unfold Mem.valid_access, Mem.range_perm.
-split.
-destruct H as [x [y [Hjoin ?]]].
-destruct H as [[bl [[H2 [H3 H3']] H]] ?].
-hnf in H.
-intros ofs' H4.
-specialize (H (b, ofs')).
-hnf in H.
-destruct (adr_range_dec (b, ofs) (size_chunk ch) (b, ofs')) as [H5|H5].
-  2: unfold adr_range in H5.
-  2: exfalso; apply H5; split; auto.
-hnf in H.
-destruct H as [pf H].
-hnf in H.
-rewrite preds_fmap_NoneP in H.
-simpl in H.
-generalize (resource_at_join _ _ _ (b,ofs') Hjoin); rewrite H; intro.
-forget ((nth (Z.to_nat (ofs' - ofs)) bl Undef)) as v'.
-assert (exists sh' (wsh': writable0_share sh'), m_phi jm @ (b,ofs') = YES sh' (writable0_readable wsh') (VAL v') NoneP).
-inv H1; [ | contradiction (join_writable0_readable RJ wsh rsh2)].
-exists sh3, (join_writable01 RJ wsh).
-apply YES_ext; auto.
-destruct H6 as [sh' [wsh' ?]].
-generalize (juicy_mem_access jm (b,ofs')); rewrite H6; unfold perm_of_res; simpl; intro.
-clear - H7 wsh'.
-unfold perm, access_at in *.
-simpl in H7.
-forget ((mem_access (m_dry jm)) !! b ofs' Cur) as p1.
-unfold perm_of_sh in H7.
-rewrite if_true in H7 by auto.
-subst. if_tac; constructor.
-repeat match goal with [ H: context[ _ /\ _ ] |- _] => destruct H end.
-auto.
+  intros; unfold address_mapsto.
+  iIntros "[Hm H]".
+  iDestruct "H" as (bl (? & ? & ?)) "H".
+  iExists bl; do 3 (iSplit; first done).
+  rewrite -(big_opL_fmap VAL (fun i v => mapsto (adr_add (b, ofs) i) (DfracOwn sh) v)).
+  iDestruct (mapsto_lookup_big with "Hm H") as %Hcoh; iPureIntro.
+  rewrite -H; intros; specialize (Hcoh i).
+  rewrite fmap_length list_lookup_fmap in Hcoh.
+  destruct (lookup_lt_is_Some_2 bl i) as [? Hi]; first lia.
+  rewrite Hi in Hcoh; rewrite /nthbyte Nat2Z.id (nth_lookup_Some _ _ _ _ Hi).
+  apply Hcoh; lia.
 Qed.
 
-Program Definition mapsto_can_store_definition ch v sh (wsh: writable0_share sh) b ofs jm (v':val)
+Lemma mapsto_valid_access_wr: forall ch v sh (wsh: writable0_share sh) b ofs m,
+  mem_auth m ∗ address_mapsto ch v sh (b, ofs) ⊢
+  ⌜Mem.valid_access m ch b ofs Writable⌝.
+Proof.
+  intros; rewrite mapsto_coherent; iIntros ((bl & Hlen & ? & ? & Hcoh)); iPureIntro.
+  split; auto.
+  intros z Hz.
+  rewrite size_chunk_conv -Hlen in Hz.
+  destruct (Hcoh (Z.to_nat (z - ofs))) as (_ & Hloc & _); first lia.
+  rewrite Z2Nat.id /access_cohere in Hloc; last lia.
+  rewrite Zplus_minus in Hloc.
+  rewrite perm_access; eapply perm_order''_trans; eauto; simpl.
+  rewrite /perm_of_sh if_true; last done.
+  if_tac; constructor.
+Qed.
+
+(*Search Mem.valid_access Mem.store.
+Program Definition mapsto_can_store_definition ch v sh (wsh: writable0_share sh) b ofs m (v':val)
   (MAPSTO: (address_mapsto ch v sh (b, ofs) * TT)%pred (m_phi jm)):
-  Memory.mem. 
+  Memory.mem.
 Proof. intros.
 pose proof (mapsto_valid_access_wr _ _ _ wsh _ _ _ MAPSTO).
 apply (mkmem
@@ -695,16 +567,31 @@ destruct (valid_access_dec (m_dry jm) ch b ofs Writable).
 f_equal. f_equal; auto with extensionality.
 contradiction.
 Opaque Mem.store.
+Qed.*)
+
+Lemma mapsto_can_store: forall ch v sh (wsh: writable0_share sh) b ofs m v',
+  mem_auth m ∗ address_mapsto ch v sh (b, ofs) ⊢
+  ⌜exists m', Mem.store ch m b ofs v' = Some m'⌝.
+Proof.
+  intros.
+  rewrite mapsto_valid_access_wr; last done.
+  iIntros (H); iPureIntro.
+  apply (valid_access_store _ _ _ _ v') in H as []; eauto.
 Qed.
 
-Lemma mapsto_can_store: forall ch v sh (wsh: writable0_share sh) b ofs jm v',
-  (address_mapsto ch v sh (b, ofs) * TT)%pred (m_phi jm)
-  -> exists m', Mem.store ch (m_dry jm) b ofs v' = Some m'.
+Lemma mapsto_store: forall m ch v v' sh b ofs m', Mem.store ch m b ofs v' = Some m' ->
+  mem_auth m ∗ address_mapsto ch v sh (b, ofs) ⊢
+  |==> mem_auth m' ∗ address_mapsto ch v' sh (b, ofs).
 Proof.
-intros.
-exists (mapsto_can_store_definition _ _ _ wsh _ _ jm v' H).
-apply mapsto_can_store_property.
-Qed.
+  intros.
+  apply store_storebytes in H.
+  iIntros "[Hm H]"; rewrite /address_mapsto.
+  iDestruct "H" as (??) "H".
+  rewrite -(big_opL_fmap VAL (fun i v => mapsto (adr_add (b, ofs) i) (DfracOwn sh) v)).
+  iMod (mapsto_storebytes _ _ (b, ofs) with "Hm H") as "[$ H]"; first eauto.
+  Search store storebytes.
+
+Local Open Scope Z.
 
 Lemma store_outside':
    forall ch m b z v m',
@@ -727,7 +614,7 @@ left; auto.
 right.
 unfold contents_at; rewrite H0; clear H0.
 simpl.
-rewrite PMap.gss.
+rewrite Maps.PMap.gss.
 rewrite Mem.setN_other; auto.
 intros.
 rewrite encode_val_length in H0.
@@ -739,7 +626,7 @@ lia.
 right.
 unfold contents_at; rewrite H0; clear H0.
 simpl.
-rewrite PMap.gso by auto. auto.
+rewrite -> Maps.PMap.gso by auto. auto.
 unfold access_at.  extensionality loc k.
 f_equal.
 symmetry; eapply Mem.store_access; eauto.
@@ -761,12 +648,12 @@ case_eq (Z_lt_dec ofs hi); intros; auto.
 lia.
 Qed.
 
-Lemma join_top: forall sh2 sh, join Share.top sh2 sh -> sh = Share.top.
+Lemma join_top: forall sh2 sh, sepalg.join Share.top sh2 sh -> sh = Share.top.
 Proof.
-intros. destruct H. rewrite Share.lub_commute, Share.lub_top in H0. auto.
+intros. destruct H. rewrite Share.lub_commute Share.lub_top in H0. auto.
 Qed.
 
-Lemma juicy_free_aux_lemma:
+(*Lemma juicy_free_aux_lemma:
  forall phi b lo hi F,
  app_pred (VALspec_range (hi-lo) Share.top (b,lo) * F)%pred phi ->
   (forall ofs : Z,
@@ -1182,5 +1069,6 @@ if_tac; auto.
 pose proof (resource_at_approx (m_phi jm) loc).
 rewrite H in *; auto.
 apply ghost_of_approx.
-Defined.
+Defined.*)
 
+End mpred.

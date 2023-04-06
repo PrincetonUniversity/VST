@@ -1,5 +1,6 @@
 Require Import VST.veric.base.
 Require Import VST.veric.res_predicates.
+Require Import VST.veric.assert_lemmas.
 
 Require Import compcert.cfrontend.Ctypes.
 Require Import VST.veric.address_conflict.
@@ -997,6 +998,18 @@ Proof.
   intros; rewrite /address_mapsto_zeros' /nonlock_permission_bytes.
   apply big_sepL_mono; intros.
   iIntros "H"; iExists (VAL (Byte Byte.zero)); auto.
+Qed.
+
+Lemma mapsto_core_load: forall t ch sh v b o, access_mode t = By_value ch -> readable_share sh ->
+  v <> Vundef ->
+  mapsto sh t (Vptr b o) v ⊢ core_load ch (b, Ptrofs.unsigned o) v.
+Proof.
+  unfold mapsto.
+  intros; rewrite H.
+  iIntros "H".
+  destruct (type_is_volatile t); try done.
+  rewrite -> if_true by auto.
+  iDestruct "H" as "[(% & H) | (% & % & H)]"; try done; iApply (mapsto_core_load with "H").
 Qed.
 
 End mpred.

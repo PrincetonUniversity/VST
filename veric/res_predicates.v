@@ -216,32 +216,6 @@ match goal with |- ?a = ?b =>
   match a with context [map ?x _] =>
     match b with context [map ?y _] => replace y with x; auto end end end.
 
-(* In VST, we do a lot of reasoning directly on rmaps instead of mpreds. How much of that can we avoid? *)
-Definition resR_to_resource : optionR (prodR dfracR (agreeR (leibnizO resource))) -> option (dfrac * resource) :=
-  option_map (fun '(q, a) => (q, (hd (VAL Undef) (agree_car a)))).
-
-(*Definition heap_inG := resource_map.resource_map_inG(ghost_mapG := gen_heapGpreS_heap(gen_heapGpreS := gen_heap_inG)).
-Definition resource_at (m : rmap) (l : address) : option (dfrac * resource) :=
-  (option_map (ora_transport (eq_sym (inG_prf(inG := heap_inG)))) (option_map own.inG_fold ((m (inG_id heap_inG)) !! (gen_heap_name (heapGS_gen_heapGS)))))
-    ≫= (fun v => resR_to_resource (view_frag_proj v !! l)).
-Infix "@" := resource_at (at level 50, no associativity).*)
-
-(*Lemma ord_resource_at : forall n r1 r2, r1 ≼ₒ{n} r2 -> resource_at r1 ≼ₒ{n} resource_at r2.
-Proof.
-  intros; rewrite /resource_at.
-  extensionality l.
-  specialize (H (inG_id heap_inG) (gen_heap_name (heapGS_gen_heapGS))).
-  destruct (_ !! _), (_ !! _); try done; simpl in *.
-  - assert (ora_transport (eq_sym inG_prf) (own.inG_fold o) ≼ₒ{n} 
-    ora_transport (eq_sym inG_prf) (own.inG_fold o0)) as [_ Hord'] by admit.
-    specialize (Hord' l).
-    destruct (_ !! _) as [(?, ?)|], (_ !! _) as [(?, ?)|]; try done; simpl in *.
-    + destruct Hord' as [??].
-      hnf in H0. admit. (* not necessarily -- we can add discarded fracs, though that won't affect juicy coherence *)
-    + hnf in Hord'. admit. (* ditto *)
-  - (* The heap could be absent entirely on the LHS, and contain only discarded fracs on the RHS *)
-Abort.*)
-
 Definition nonlock (r: resource) : Prop :=
  match r with
  | LK _ _ _ => False
@@ -265,211 +239,7 @@ Definition nonlockat (l: address): mpred := ∃ dq r, ⌜nonlock r⌝ ∧ l ↦{
 
 Definition shareat (l: address) (sh: share): mpred := ∃r, l ↦{#sh} r.
 
-Program Definition jam {B} {S': B -> Prop} (S: forall l, {S' l}+{~ S' l} ) (P Q: B -> bi) : B -> bi :=
-  fun (l: B) => if S l then P l else Q l.
-
-Lemma jam_true: forall B (S': B -> Prop) S P Q loc, S' loc -> @jam B S' S P Q loc = P loc.
-Proof.
-intros.
-unfold jam.
-rewrite if_true; auto.
-Qed.
-
-Lemma jam_false: forall B (S': B -> Prop) S P Q loc, ~ S' loc -> @jam B S' S P Q loc = Q loc.
-Proof.
-intros.
-unfold jam.
-rewrite if_false; auto.
-Qed.
-
-(*Lemma boxy_jam:  forall (m: modality) A (S': A -> Prop) S P Q,
-      (forall (x: A), boxy m (P x)) ->
-      (forall x, boxy m (Q x)) ->
-      forall x, boxy m (@jam rmap _ _ _ _ _ _ _ A S' S P Q x).
-Proof.
-  intros.
-   unfold boxy in *.
-   apply pred_ext; intros w ?.
-   unfold jam in *.
-   simpl in *; if_tac. rewrite <- H . simpl. apply H1.
-   rewrite <- H0; simpl; apply H1.
-   simpl in *; if_tac.
-    rewrite <- H in H1; auto.
-   rewrite <- H0 in H1; auto.
-Qed.
-
-Definition extensible_jam: forall A (S': A -> Prop) S (P Q: A -> mpred),
-      (forall (x: A), boxy extendM (P x)) ->
-      (forall x, boxy extendM (Q x)) ->
-      forall x, boxy extendM  (@jam _ _ _ _ _ _ _ _ _ S' S P Q x).
-Proof.
-  apply boxy_jam; auto.
-Qed.*)
-
-Definition jam_vacuous:
-  forall B S S' P Q, (forall x:B, ~ S x) -> @jam B S S' P Q = Q.
-Proof.
-intros.
-extensionality l.
-unfold jam.
-rewrite if_false; auto.
-Qed.
-
-(*Lemma make_sub_rmap: forall w (P: address -> Prop) (P_DEC: forall l, {P l} + {~ P l}),
-  (forall l sh k, P l -> res_option (w @ l) = Some (sh, k) -> isVAL k \/ isFUN k) ->
-  {w' | level w' = level w /\ resource_at w' =
-       (fun l => if P_DEC l then w @ l else core (w @ l)) /\ ghost_of w' = ghost_of w}.
-Proof.
-  intros.
-  apply remake_rmap.
-  intros.
-    if_tac; [left; eauto |].
-    destruct (w @ l) eqn:?H; rewrite ?core_NO, ?core_YES, ?core_PURE; simpl; auto.
-    left.
-    exists w; split; auto.
-    apply ghost_of_approx.
-Qed.
-
-Lemma make_sub_rmap_core: forall w (P: address -> Prop) (P_DEC: forall l, {P l} + {~ P l}),
-  (forall l sh k, P l -> res_option (w @ l) = Some (sh, k) -> isVAL k \/ isFUN k) ->
-  {w' | level w' = level w /\ resource_at w' =
-       (fun l => if P_DEC l then w @ l else core (w @ l)) /\ ghost_of w' = core (ghost_of w)}.
-Proof.
-  intros.
-  apply remake_rmap.
-  intros.
-    if_tac; [left; eauto |].
-    destruct (w @ l) eqn:?H; rewrite ?core_NO, ?core_YES, ?core_PURE; simpl; auto.
-    left.
-    exists w; split; auto.
-    apply ghost_fmap_core.
-Qed.*)
-
-(*Definition is_resource_pred (p: address -> iProp Σ) (q: resource -> address -> nat -> Prop) :=
-  forall l w, (p l) w = q (w @ l) l (level w).
-
-Definition resource_stable (p: address -> iProp Σ) :=
-  forall l w w', w @ l = w' @ l -> level w = level w' -> (p l) w = (p l) w'.
-
-Lemma is_resource_pred_resource_stable: forall {p},
-  (exists q, is_resource_pred p q) -> resource_stable p.
-Proof.
-  unfold is_resource_pred, resource_stable.
-  intros.
-  destruct H as [q ?]; rewrite !H.
-  rewrite H0; auto.
-Qed.
-
-(* This is about splitting one segment into two segments. *)
-Lemma allp_jam_split2: forall (P Q R: address -> Prop) (p q r: address -> iProp Σ)
-  (P_DEC: forall l, {P l} + {~ P l})
-  (Q_DEC: forall l, {Q l} + {~ Q l})
-  (R_DEC: forall l, {R l} + {~ R l}),
-  (exists resp, is_resource_pred p resp) ->
-  (exists resp, is_resource_pred q resp) ->
-  (exists resp, is_resource_pred r resp) ->
-  Ensemble_join Q R P ->
-  (forall l, Q l -> p l = q l) ->
-  (forall l, R l -> p l = r l) ->
-  (forall l m sh k, P l -> (p l) m -> res_option (m @ l) = Some (sh, k) -> isVAL k \/ isFUN k) ->
-  allp (jam P_DEC p noat) =
-  (allp (jam Q_DEC q noat)) * (allp (jam R_DEC r noat)).
-Proof.
-  intros until R_DEC.
-  intros ST_P ST_Q ST_R.
-  intros [] ? ? ?.
-  apply pred_ext; intros w; simpl; intros.
-  + destruct (make_sub_rmap_core w Q Q_DEC) as [w1 [? ?]].
-    {
-      intros. eapply H3; [| | eauto].
-      + firstorder.
-      + specialize (H4 l); if_tac in H4; [auto | firstorder].
-    }
-    destruct (make_sub_rmap w R R_DEC) as [w2 [? ?]].
-    {
-      intros. eapply H3; [| | eauto].
-      + firstorder.
-      + specialize (H4 l); if_tac in H4; [auto | firstorder].
-    }
-    exists w1, w2.
-    split3; auto.
-    - apply resource_at_join2; try congruence.
-      intro l.
-      destruct H6, H8.
-      rewrite H6, H8.
-      pose proof core_unit (w @ l).
-      destruct (Q_DEC l), (R_DEC l).
-      * firstorder.
-      * apply join_comm; auto.
-      * auto.
-      * specialize (H4 l).
-        rewrite if_false in H4 by firstorder.
-        rewrite identity_core by auto.
-        apply core_duplicable.
-      * destruct H6 as [_ ->], H8 as [_ ->].
-        apply core_unit.
-    - intros l.
-      specialize (H4 l).
-      if_tac.
-      * rewrite <- H1 by auto.
-        rewrite if_true in H4 by firstorder.
-        erewrite <- (is_resource_pred_resource_stable ST_P); [eauto | | auto].
-        destruct H6; rewrite H6, if_true by auto; auto.
-      * destruct H6; rewrite H6, if_false by auto.
-        apply core_identity.
-    - intros l.
-      specialize (H4 l).
-      if_tac.
-      * rewrite <- H2 by auto.
-        rewrite if_true in H4 by firstorder.
-        erewrite <- (is_resource_pred_resource_stable ST_P); [eauto | | auto].
-        destruct H8; rewrite H8, if_true by auto; auto.
-      * destruct H8; rewrite H8, if_false by auto.
-        apply core_identity.
-  + destruct H4 as [y [z [? [H5 H6]]]].
-    specialize (H5 b); specialize (H6 b).
-    if_tac.
-    - if_tac in H5; if_tac in H6.
-      * firstorder.
-      * rewrite H1 by auto.
-        erewrite (is_resource_pred_resource_stable ST_Q); [eauto | | apply join_level in H4; symmetry; tauto].
-        apply resource_at_join with (loc := b) in H4.
-        apply join_comm, H6 in H4.
-        auto.
-      * rewrite H2 by auto; auto.
-        erewrite (is_resource_pred_resource_stable ST_R); [eauto | | apply join_level in H4; symmetry; tauto].
-        apply resource_at_join with (loc := b) in H4.
-        apply H5 in H4.
-        auto.
-      * firstorder.
-    - rewrite if_false in H5 by firstorder.
-      rewrite if_false in H6 by firstorder.
-      apply resource_at_join with (loc := b) in H4.
-      apply H5 in H4; rewrite <- H4; auto.
-Qed.
-
-
-Lemma allp_jam_overlap: forall (P Q: address -> Prop) (p q: address -> iProp Σ)
-  (P_DEC: forall l, {P l} + {~ P l})
-  (Q_DEC: forall l, {Q l} + {~ Q l}),
-  (exists resp, is_resource_pred p resp) ->
-  (exists resp, is_resource_pred q resp) ->
-  (forall l w1 w2, p l w1 -> q l w2 -> joins w1 w2 -> False) ->
-  (exists l, P l /\ Q l) ->
-  allp (jam P_DEC p noat) * allp (jam Q_DEC q noat) ⊢ False.
-Proof.
-  intros.
-  intro w; simpl; intros.
-  destruct H3 as [w1 [w2 [? [? ?]]]].
-  destruct H2 as [l ?].
-  specialize (H4 l).
-  specialize (H5 l).
-  rewrite if_true in H4, H5 by tauto.
-  apply (H1 l w1 w2); auto.
-  eauto.
-Qed.
-
-Lemma yesat_join_diff:
+(*Lemma yesat_join_diff:
   forall pp pp' k k' sh sh' l w, k <> k' -> 
                   yesat pp k sh l w -> yesat pp' k' sh' l w -> False.
 Proof.
@@ -563,19 +333,11 @@ Definition nonlock_permission_bytes (sh: share) (a: address) (n: Z) : mpred :=
 Definition nthbyte (n: Z) (l: list memval) : memval :=
      nth (Z.to_nat n) l Undef.
 
-(*(*  Unfortunately address_mapsto_old, while a more elegant definition than
-   address_mapsto, is not quite right.  For example, it doesn't uniquely determine v *)
-Definition address_mapsto_old (ch: memory_chunk) (v: val) : spec :=
-        fun (sh: Share.t) (l: address)  => 
-             allp (jam (adr_range_dec l (size_chunk ch)) 
-                              (fun l' => yesat NoneP (VAL (nthbyte (snd l' - snd l) (encode_val ch v))) sh l')
-                           noat).*)
-
 Definition address_mapsto (ch: memory_chunk) (v: val) : spec :=
         fun (sh: Share.t) (l: address) =>
            ∃ bl: list memval, 
                ⌜length bl = size_chunk_nat ch  /\ decode_val ch bl = v /\ (align_chunk ch | snd l)⌝ ∧
-               [∗ list] i ∈ seq 0 (size_chunk_nat ch), adr_add l (Z.of_nat i) ↦{#sh} (VAL (nthbyte (Z.of_nat i) bl)).
+               [∗ list] i↦b ∈ bl, adr_add l (Z.of_nat i) ↦{#sh} (VAL b).
 
 Lemma add_and : forall {PROP : bi} (P Q : PROP), (P ⊢ Q) -> (P ⊢ P ∧ Q).
 Proof.
@@ -668,7 +430,7 @@ Definition address_mapsto_readonly (ch: memory_chunk) (v: val) :=
         fun (l: address) =>
            ∃ bl: list memval, 
                ⌜length bl = size_chunk_nat ch  /\ decode_val ch bl = v /\ (align_chunk ch | snd l)⌝ ∧
-               [∗ list] i ∈ seq 0 (size_chunk_nat ch), adr_add l (Z.of_nat i) ↦□ (VAL (nthbyte (Z.of_nat i) bl)).
+               [∗ list] i↦b ∈ bl, adr_add l (Z.of_nat i) ↦□ (VAL b).
 
 Definition LKspec lock_size (R: mpred) : spec :=
    fun (sh: Share.t) (l: address)  =>
@@ -773,7 +535,8 @@ rewrite size_chunk_conv in H.
 rewrite big_sepL_lookup_acc.
 rewrite -> (Z2Nat.id i) by tauto.
 iDestruct "H" as "[$ $]".
-{ rewrite lookup_seq_lt; [done | lia]. }
+{ rewrite /nthbyte nth_lookup.
+  destruct (lookup_lt_is_Some_2 bl (Z.to_nat i)) as [? ->]; [lia | done]. }
 Qed.
 
 (*Lemma address_mapsto_exists:
@@ -847,28 +610,36 @@ Proof.
   intros.
   unfold VALspec_range, VALspec, address_mapsto.
   trans (∃ (bl : list memval), ⌜length bl = size_chunk_nat ch ∧ (align_chunk ch | l.2)⌝
-   ∧ ([∗ list] i ∈ seq 0 (size_chunk_nat ch), adr_add l (Z.of_nat i) ↦{#sh}
-                                                (VAL (nthbyte (Z.of_nat i) bl)))).
+   ∧ ([∗ list] i↦b ∈ bl, adr_add l (Z.of_nat i) ↦{#sh} (VAL b))).
   2: { iIntros "H"; iDestruct "H" as (bl [??]) "H"; iExists (decode_val ch bl), bl; auto. }
   rewrite size_chunk_conv Nat2Z.id.
   forget (size_chunk_nat ch) as n.
   induction n.
   - simpl; iIntros "_".
-    by iExists nil.
+    by iExists nil; simpl.
   - rewrite seq_S big_sepL_app /=.
     iIntros "(H & Hv & _)".
     iDestruct "Hv" as (v) "Hv".
     iDestruct (IHn with "H") as (bl [??]) "H"; subst.
     iExists (bl ++ [v]); iSplit.
     { rewrite app_length /=; iPureIntro; split; auto; lia. }
-    rewrite big_sepL_app /=.
-    rewrite /nthbyte app_nth2; last lia.
-    rewrite Nat2Z.id minus_diag /=.
-    iFrame.
-    iApply (big_sepL_mono with "H").
-    intros ???%lookup_seq.
-    by rewrite app_nth1; last lia.
+    rewrite big_sepL_app /= Nat.add_0_r; iFrame.
 Qed.
+
+Lemma big_sepL_seq : forall {A} `{Inhabited A} l (f : nat -> A -> mpred),
+  equiv ([∗ list] k↦y ∈ l, f k y) ([∗ list] i ∈ seq 0 (length l), f i (nth i l inhabitant)).
+Proof.
+  intros; remember (rev l) as l'; revert dependent l; induction l'; intros.
+  { by destruct l; [|apply app_cons_not_nil in Heql']. }
+  apply (f_equal (@rev _)) in Heql'; rewrite rev_involutive in Heql'; subst; simpl.
+  rewrite app_length seq_app !big_opL_app IHl'; last by rewrite rev_involutive.
+  simpl; rewrite nth_middle Nat.add_0_r.
+  rewrite -(big_opL_ext (fun _ y => f y (nth y (rev l' ++ [a]) inhabitant))); first done.
+  intros ??[-> ?]%lookup_seq.
+  rewrite app_nth1 //.
+Qed.
+
+Global Instance memval_inhabited : Inhabited memval := { inhabitant := Undef }.
 
 Lemma address_mapsto_VALspec_range:
   forall ch v sh l,
@@ -877,7 +648,7 @@ Proof.
 intros.
 unfold address_mapsto, VALspec_range.
 iIntros "H"; iDestruct "H" as (bl (? & ? & ?)) "H".
-rewrite size_chunk_conv Nat2Z.id.
+rewrite size_chunk_conv Nat2Z.id -H big_sepL_seq.
 iApply (big_sepL_mono with "H").
 by intros; iIntros "?"; iExists _.
 Qed.
@@ -1090,15 +861,13 @@ subst; f_equal; auto.
 Qed.*)
 
 Definition core_load (ch: memory_chunk) (l: address) (v: val): mpred :=
-  ∃ bl: list memval,
+  <absorb> ∃ bl: list memval,
   ⌜length bl = size_chunk_nat ch /\ decode_val ch bl = v /\ (align_chunk ch | snd l)⌝ ∧
-    ([∗ list] i ∈ seq 0 (size_chunk_nat ch), ∃ sh, mapsto (adr_add l (Z.of_nat i)) sh (VAL (nthbyte i bl)))
-    ∗ True.
+    ([∗ list] i↦b ∈ bl, ∃ sh, ⌜Mem.perm_order' (perm_of_dfrac sh) Readable⌝ ∧ mapsto (adr_add l (Z.of_nat i)) sh (VAL b)).
 
 Definition core_load' (ch: memory_chunk) (l: address) (v: val) (bl: list memval) : mpred :=
-  ⌜length bl = size_chunk_nat ch /\ decode_val ch bl = v /\ (align_chunk ch | snd l)⌝ ∧
-    ([∗ list] i ∈ seq 0 (size_chunk_nat ch), ∃ sh, mapsto (adr_add l (Z.of_nat i)) sh (VAL (nthbyte i bl)))
-    ∗ True.
+  <absorb> (⌜length bl = size_chunk_nat ch /\ decode_val ch bl = v /\ (align_chunk ch | snd l)⌝ ∧
+    ([∗ list] i↦b ∈ bl, ∃ sh, ⌜Mem.perm_order' (perm_of_dfrac sh) Readable⌝ ∧ mapsto (adr_add l (Z.of_nat i)) sh (VAL b))).
 
 (*Lemma emp_no : emp = (ALL l, noat l).
 Proof.
@@ -1343,35 +1112,30 @@ Proof.
   by iDestruct (mapsto_valid_2 with "H1 H2") as %[? Heq]; inversion Heq.
 Qed.
 
-Lemma mapsto_list_value_cohere: forall a sh1 sh2 n b1 b2 (Hl1: length b1 = n) (Hl2: length b2 = n),
-  (([∗ list] i ∈ seq 0 n, mapsto (adr_add a (Z.of_nat i)) sh1 (VAL (nthbyte (Z.of_nat i) b1))) ∗
-   [∗ list] i ∈ seq 0 n, mapsto (adr_add a (Z.of_nat i)) sh2 (VAL (nthbyte (Z.of_nat i) b2))) ⊢
+Lemma list_snoc : forall {A} (l : list A), length l <> O -> exists l1 a, l = l1 ++ [a].
+Proof.
+  induction l; first done.
+  destruct l.
+  - exists nil; eauto.
+  - destruct IHl as (? & ? & ->); first done.
+    exists (a :: x); eauto.
+Qed.
+
+Lemma mapsto_list_value_cohere: forall a sh1 sh2 b1 b2 (Hlen: length b1 = length b2),
+  (([∗ list] i↦b ∈ b1, mapsto (adr_add a (Z.of_nat i)) sh1 (VAL b)) ∗
+    [∗ list] i↦b ∈ b2, mapsto (adr_add a (Z.of_nat i)) sh2 (VAL b)) ⊢
   ⌜b1 = b2⌝.
 Proof.
-  induction n as [|n']; intros.
-  - apply nil_length_inv in Hl1, Hl2; subst; auto.
-  - rewrite seq_S !big_sepL_app /=.
+  intros until b1; remember (rev b1) as b1'; revert dependent b1; induction b1'; simpl; intros.
+  - destruct b1; last by apply app_cons_not_nil in Heqb1'.
+    symmetry in Hlen; apply nil_length_inv in Hlen as ->; auto.
+  - apply (f_equal (@rev _)) in Heqb1'; rewrite rev_involutive in Heqb1'; subst; simpl in *.
+    rewrite app_length /= in Hlen; destruct (list_snoc b2) as (b2' & ? & ->); first lia.
+    rewrite !big_opL_app /= !Nat.add_0_r.
+    assert (length (rev b1') = length b2') as Hlen' by (rewrite app_length /= in Hlen; lia); rewrite Hlen'.
     iIntros "[(H1 & Hv1 & _) (H2 & Hv2 & _)]".
-    iDestruct (mapsto_value_cohere with "[$Hv1 $Hv2]") as %Heq.
-    inversion Heq as [Heq'].
-    rewrite /nthbyte Nat2Z.id in Heq'.
-    rewrite -(take_drop n' b1) -(take_drop n' b2) in Heq' |- *.
-    pose proof (drop_length b1 n') as Hd1; pose proof (drop_length b2 n') as Hd2.
-    rewrite Hl1 Nat.sub_succ_l in Hd1; last done.
-    rewrite Hl2 Nat.sub_succ_l in Hd2; last done.
-    rewrite minus_diag in Hd1, Hd2.
-    destruct (drop n' b1) as [| ? [|]], (drop n' b2) as [| ? [|]]; try discriminate.
-    pose proof (take_length_le b1 n' ltac:(lia)) as Hlen1.
-    pose proof (take_length_le b2 n' ltac:(lia)) as Hlen2.
-    rewrite -{1}Hlen1 -{3}Hlen2 !nth_middle in Heq'; subst.
-    iDestruct (IHn' (take n' b1) (take n' b2) with "[H1 H2]") as %->; try done.
-    iSplitL "H1".
-    + iApply (big_sepL_mono with "H1").
-      intros ???%lookup_seq.
-      rewrite /nthbyte Nat2Z.id app_nth1; [done | lia].
-    + iApply (big_sepL_mono with "H2").
-      intros ???%lookup_seq.
-      rewrite /nthbyte Nat2Z.id app_nth1; [done | lia].
+    iDestruct (mapsto_value_cohere with "[$Hv1 $Hv2]") as %[=]; subst.
+    by iDestruct (IHb1' with "[$H1 $H2]") as %->; first by rewrite rev_involutive.
 Qed.
 
 Lemma address_mapsto_value_cohere:
@@ -1383,7 +1147,7 @@ Proof.
   rewrite /address_mapsto.
   iDestruct "H1" as (b1 (Hl1 & ? & ?)) "H1".
   iDestruct "H2" as (b2 (Hl2 & ? & ?)) "H2"; subst.
-  by iDestruct (mapsto_list_value_cohere with "[$H1 $H2]") as %->.
+  rewrite -Hl2 in Hl1; by iDestruct (mapsto_list_value_cohere with "[$H1 $H2]") as %->.
 Qed.
 
 (*Definition almost_empty rm: Prop :=
