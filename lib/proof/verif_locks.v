@@ -159,7 +159,7 @@ Opaque inv_for_lock.
       + eapply derives_trans, except_0_fupd; apply orp_right1.
         rewrite sepcon_comm, !sepcon_assoc; eapply derives_trans; [apply sepcon_derives, now_later; apply derives_refl|].
         rewrite <- later_sepcon; apply later_derives.
-        sep_apply weak_exclusive_conflict.
+        sep_apply spec_locks.weak_exclusive_conflict.
         rewrite FF_sepcon; auto.
     - hnf; inversion 1.
     - entailer!.
@@ -208,8 +208,8 @@ Opaque inv_for_lock.
         repeat sep_apply fupd_frame_r; apply fupd_mono; cancel.
     - hnf; inversion 1.
     - Intros r. if_tac; forward_if; try discriminate; try contradiction.
-      + forward. simpl lock_specs.lock_inv; entailer!.
-      + forward. simpl lock_specs.lock_inv; entailer!.
+      + forward. simpl spec_locks.lock_inv; entailer!.
+      + forward. simpl spec_locks.lock_inv; entailer!.
 Unshelve.
 apply Build_change_composite_env with (coeq := Maps.PTree.empty bool).
 intros. inv H1. intros. unfold cenv_cs; simpl. rewrite !Maps.PTree.gempty.
