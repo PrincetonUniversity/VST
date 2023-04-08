@@ -33,15 +33,14 @@ Section share.
       reflexivity.
   Qed.
 
-  Lemma share_valid2_joins : forall x y, valid (x ⋅ y) <-> x <> Share.bot /\ y <> Share.bot /\ sepalg.joins x y.
+  Lemma share_valid2_joins : forall x y, valid (x ⋅ y) <-> x <> Share.bot /\ y <> Share.bot /\ sepalg.join x y (x ⋅ y).
   Proof.
     split.
     - intros J.
       eapply share_op_join in J as [(? & ? & ?) _]; first done.
       repeat (eexists; eauto).
-    - intros (? & ? & z & J).
-      assert (z ≠ Share.bot) by (intros ->; apply join_Bot in J as []; contradiction).
-      unshelve erewrite (proj2 (share_op_join _ _ _ _)); eauto.
+    - intros (? & ? & J).
+      intros X; rewrite X in J; apply join_Bot in J as []; contradiction.
   Qed.
 
   Lemma share_op_equiv : forall x y z, x ⋅ y = z <->

@@ -136,7 +136,7 @@ Inductive resource' :=
 | FUN (sig : typesig) (cc : calling_convention) (A : Type) (P : A -> argsEnviron -> mpred) (Q : A -> environ -> mpred).
 (* Will we run into universe issues with higher-order A's? Hopefully not! *)
 
-Definition perm_of_res (r: option (dfrac * resource')) :=
+Definition perm_of_res (r: option (dfrac * option resource')) :=
   match r with
   | Some (dq, VAL _) => perm_of_dfrac dq
   | Some (DfracOwn sh, _) => if eq_dec sh Share.bot then None else Some Nonempty

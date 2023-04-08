@@ -59,7 +59,7 @@ Section dfrac.
     match dq with
     | DfracOwn q => q ≠ Share.bot
     | DfracDiscarded => True
-    | DfracBoth q => q ≠ Tsh /\ q ≠ Share.bot
+    | DfracBoth q => ~writable0_share q /\ q ≠ Share.bot
     end%Qp.
 
   (** As in the fractional camera the core is undefined for elements denoting
@@ -126,12 +126,10 @@ Section dfrac.
       + by intros (? & ? & ?)%share_valid2_joins.
       + by intros [].
       + by intros [? (? & ? & ?)%share_valid2_joins].
-      + intros [? (? & ? & ? & J)%share_valid2_joins]; split; auto.
-        intros ->.
-        apply join_Tsh in J as []; done.
-      + intros [? (? & ? & ? & J)%share_valid2_joins]; split; auto.
-        intros ->.
-        apply join_Tsh in J as []; done.
+      + intros [? (? & ? & J)%share_valid2_joins]; split; auto.
+        intros X; apply join_writable01 in J; auto.
+      + intros [? (? & ? & J)%share_valid2_joins]; split; auto.
+        intros X; apply join_writable01 in J; auto.
   Qed.
   Canonical Structure dfracC := discreteR dfrac dfrac_ra_mixin.
 
@@ -142,9 +140,10 @@ Section dfrac.
   Proof.
     intros [q| |q];
       rewrite /op /cmra_op -cmra_discrete_valid_iff /valid /cmra_valid //=.
-    - intros (? & ? & ? & (? & ?)%join_Tsh)%share_valid2_joins; contradiction.
-    - tauto.
-    - intros [? (? & ? & ? & (? & ?)%join_Tsh)%share_valid2_joins]; contradiction.
+    - intros (? & ? & (? & ?)%join_Tsh)%share_valid2_joins; contradiction.
+    - intros [X _]; contradiction X.
+      by apply writable_writable0.
+    - intros [? (? & ? & (? & ?)%join_Tsh)%share_valid2_joins]; contradiction.
   Qed.
 
   Global Instance dfrac_cancelable q : Cancelable (DfracOwn q).
@@ -177,11 +176,13 @@ Section dfrac.
 
   Lemma dfrac_valid_own_r dq q : ✓ (dq ⋅ DfracOwn q) → q ≠ Tsh /\ q ≠ Share.bot.
   Proof.
-    destruct dq as [q'| |q']; [|done|].
-    - intros (? & ? & ? & J)%share_valid2_joins.
+    destruct dq as [q'| |q'].
+    - intros (? & ? & J)%share_valid2_joins.
       split; auto; intros ->.
       apply sepalg.join_comm, join_Tsh in J as []; contradiction.
-    - intros [? (? & ? & ? & J)%share_valid2_joins].
+    - intros [H ?]; split; intros ?; subst; try done.
+      contradiction H; by apply writable_writable0.
+    - intros [? (? & ? & J)%share_valid2_joins].
       split; auto; intros ->.
       apply sepalg.join_comm, join_Tsh in J as []; contradiction.
   Qed.
@@ -193,8 +194,23 @@ Section dfrac.
   Proof. done. Qed.
 
   Lemma dfrac_valid_own_discarded q :
-    ✓ (DfracOwn q ⋅ DfracDiscarded) ↔ q ≠ Tsh /\ q ≠ Share.bot.
+    ✓ (DfracOwn q ⋅ DfracDiscarded) ↔ ~writable0_share q /\ q ≠ Share.bot.
   Proof. done. Qed.
+
+  Definition readable_dfrac (dq : dfrac) :=
+    match dq with DfracOwn sh => readable_share sh | DfracBoth sh => sh <> Share.bot | _ => True end.
+
+  Lemma dfrac_valid_own_readable dq q : readable_dfrac dq ->
+    ✓ (dq ⋅ DfracOwn q) → ~writable0_share q /\ q ≠ Share.bot.
+  Proof.
+    intros Hdq; destruct dq as [q'| |q']; try done.
+    - intros (? & ? & J)%share_valid2_joins.
+      split; auto.
+      intros ?; apply sepalg.join_comm in J; eapply join_writable0_readable; eauto.
+    - intros [? (? & ? & J)%share_valid2_joins].
+      split; auto.
+      intros X; apply sepalg.join_comm in J; contradiction H; eapply join_writable01; eauto.
+  Qed.
 
   Global Instance dfrac_is_op q q1 q2 :
     @IsOp shareR q q1 q2 →
@@ -202,10 +218,10 @@ Section dfrac.
   Proof. rewrite /IsOp' /IsOp dfrac_op_own=>-> //. Qed.
 
   (** Discarding a fraction is a frame preserving update. *)
-  Lemma dfrac_discard_update dq : dq ~~> DfracDiscarded.
+  Lemma dfrac_discard_update dq : readable_dfrac dq -> dq ~~> DfracDiscarded.
   Proof.
-    intros n [[q'| |q']|]; rewrite -!cmra_discrete_valid_iff //=.
-    - apply dfrac_valid_own_r.
+    intros H n [[q'| |q']|]; rewrite -!cmra_discrete_valid_iff //=.
+    - by apply dfrac_valid_own_readable.
     - apply cmra_valid_op_r.
   Qed.
 

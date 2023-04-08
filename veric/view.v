@@ -362,7 +362,7 @@ Section cmra.
   Qed.
   Lemma view_auth_op_validN n a1 a2 : ✓{n} (●V a1 ⋅ ●V a2) ↔ False.
   Proof. rewrite view_auth_dfrac_op_validN.
-    split; try done. intros ((? & ? & ? & [??]%join_Tsh)%share_valid2_joins & _); done.
+    split; try done. intros ((? & ? & [??]%join_Tsh)%share_valid2_joins & _); done.
   Qed.
 
   Lemma view_frag_validN n b : ✓{n} (◯V b) ↔ ∃ a, rel n a b.
@@ -395,7 +395,7 @@ Section cmra.
   Qed.
   Lemma view_auth_op_valid a1 a2 : ✓ (●V a1 ⋅ ●V a2) ↔ False.
   Proof. rewrite view_auth_dfrac_op_valid. split; try done.
-    intros ((? & ? & ? & [??]%join_Tsh)%share_valid2_joins & _); done.
+    intros ((? & ? & [??]%join_Tsh)%share_valid2_joins & _); done.
   Qed.
 
   Lemma view_frag_valid b : ✓ (◯V b) ↔ ∀ n, ∃ a, rel n a b.
@@ -523,11 +523,11 @@ Section cmra.
     intros Hup. rewrite -(right_id _ _ (●V a)) -(right_id _ _ (●V a')).
     apply view_update=> n bf. rewrite !left_id. apply Hup.
   Qed.
-  Lemma view_update_auth_persist dq a : ●V{dq} a ~~> ●V□ a.
+  Lemma view_update_auth_persist dq a : readable_dfrac dq -> ●V{dq} a ~~> ●V□ a.
   Proof.
-    apply cmra_total_update.
+    intros H; apply cmra_total_update.
     move=> n [[[dq' ag]|] bf] [Hv ?]; last done. split; last done.
-    by apply (dfrac_discard_update dq _ (Some dq')).
+    by apply (dfrac_discard_update dq H _ (Some dq')).
   Qed.
 
   Lemma view_update_frag b b' :
