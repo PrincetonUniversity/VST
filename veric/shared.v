@@ -62,6 +62,12 @@ Canonical Structure sharedO := Ofe shared shared_ofe_mixin.
 Global Instance YES_ne dq rsh : NonExpansive (YES dq rsh).
 Proof. done. Qed.
 
+Global Instance YES_proper dq rsh : Proper (equiv ==> equiv) (YES dq rsh).
+Proof. done. Qed.
+
+Lemma YES_irrel dq rsh1 rsh2 v : YES dq rsh1 v ≡ YES dq rsh2 v.
+Proof. done. Qed.
+
 (* CMRA *)
 Existing Instance share_valid_instance.
 
@@ -104,18 +110,18 @@ Local Instance shared_op_instance : Op shared := λ x y,
 
 Definition dfrac_error df := match df with DfracOwn sh | DfracBoth sh => if eq_dec sh Share.bot then true else false | _ => false end.
 
+Lemma share_op_readable' : forall sh1 sh2, readable_share sh1 \/ readable_share sh2 -> ✓(sh1 ⋅ sh2) -> readable_share (sh1 ⋅ sh2).
+Proof.
+  intros.
+  edestruct (share_op_join sh1 sh2) as [(? & ? & J) _]; try done.
+  eapply readable_share_join; eauto.
+Qed.
+
 Lemma share_op_readable : forall sh1 sh2, readable_share sh1 \/ readable_share sh2 -> ~readable_share (sh1 ⋅ sh2) -> sh1 ⋅ sh2 = Share.bot.
 Proof.
   intros.
   destruct (eq_dec (sh1 ⋅ sh2) Share.bot); first done.
-  edestruct (share_op_join sh1 sh2) as [(? & ? & J) _]; try done.
-  contradiction H0; eapply readable_share_join; eauto.
-Qed.
-
-Lemma dfrac_op_readable : forall d1 d2, readable_dfrac d1 \/ readable_dfrac d2 -> ~readable_dfrac (d1 ⋅ d2) -> dfrac_error (d1 ⋅ d2) = true.
-Proof.
-  destruct d1, d2; simpl; intros; try done; if_tac; try done.
-  exfalso; contradiction H1; apply share_op_readable; auto.
+  contradiction H0; apply share_op_readable'; auto.
 Qed.
 
 Lemma bot_op_share : forall s, Share.bot ⋅ s = Share.bot.
@@ -128,6 +134,19 @@ Lemma share_op_bot : forall s, s ⋅ Share.bot = Share.bot.
 Proof.
   intros; rewrite /op /share_op_instance.
   if_tac; [|rewrite eq_dec_refl]; done.
+Qed.
+
+Lemma dfrac_op_readable' : forall d1 d2, readable_dfrac d1 \/ readable_dfrac d2 -> ✓(d1 ⋅ d2) -> readable_dfrac (d1 ⋅ d2).
+Proof.
+  intros ??? Hvalid.
+  destruct d1, d2; try done; try solve [intros ?; subst; destruct Hvalid; done].
+  apply share_op_readable'; auto.
+Qed.
+
+Lemma dfrac_op_readable : forall d1 d2, readable_dfrac d1 \/ readable_dfrac d2 -> ~readable_dfrac (d1 ⋅ d2) -> dfrac_error (d1 ⋅ d2) = true.
+Proof.
+  destruct d1, d2; simpl; intros; try done; if_tac; try done.
+  exfalso; contradiction H1; apply share_op_readable; auto.
 Qed.
 
 Lemma op_dfrac_error : forall d1 d2, dfrac_error d2 = true -> dfrac_error (d1 ⋅ d2) = true.
@@ -170,6 +189,25 @@ Lemma shared_valid : forall x, ✓ x ↔ ✓ dfrac_of x ∧ ✓ val_of x.
 Proof.
   intros [|]; try done.
   by intuition.
+Qed.
+
+Lemma dfrac_error_invalid : forall d, dfrac_error d = true -> ~ ✓ d.
+Proof.
+  destruct d; try done; simpl; if_tac; subst; intros ? Hv; try done.
+  by destruct Hv.
+Qed.
+
+Lemma YES_op' : forall dq1 dq2 rsh1 rsh2 v1 v2, YES dq1 rsh1 v1 ⋅ YES dq2 rsh2 v2 =
+  match readable_dfrac_dec (dq1 ⋅ dq2) with
+      | left rsh => YES (dq1 ⋅ dq2) rsh (v1 ⋅ v2)
+      | right _ => NO Share.bot bot_unreadable
+      end.
+Proof. done. Qed.
+
+Lemma YES_op : forall dq1 dq2 rsh1 rsh2 rsh v1 v2, YES dq1 rsh1 v1 ⋅ YES dq2 rsh2 v2 ≡ YES (dq1 ⋅ dq2) rsh (v1 ⋅ v2).
+Proof.
+  intros; rewrite YES_op'.
+  destruct (readable_dfrac_dec _); done.
 Qed.
 
 Lemma shared_op_alt : forall x y, match readable_dfrac_dec (dfrac_of x ⋅ dfrac_of y) with

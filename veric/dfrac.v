@@ -12,7 +12,7 @@ Require Export VST.veric.share_alg.
     as [DfracOwn q ⋅ DfracDiscarded]. This should be used instead
     of [DfracBoth] which is for internal use only. *)
 Inductive dfrac :=
-  | DfracOwn : share → dfrac
+  | DfracOwn : share → dfrac (* Would it make sense to have a separate constructor for unreadable shares? *)
   | DfracDiscarded : dfrac
   | DfracBoth : share → dfrac.
 
@@ -71,8 +71,6 @@ Section dfrac.
     | DfracDiscarded => Some DfracDiscarded
     | DfracBoth q => Some DfracDiscarded
     end.
-
-  Existing Instance share_op_instance.
 
   (** When elements are combined, ownership is added together and knowledge of
      discarded fractions is combined with the max operation. *)

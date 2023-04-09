@@ -4,12 +4,6 @@ Require Import compcert.cfrontend.Ctypes.
 Require Import VST.veric.mpred.
 Require Import VST.veric.seplog.
 
-Lemma perm_of_readable_share : forall sh, readable_share sh -> Mem.perm_order' (perm_of_sh sh) Readable.
-Proof.
-  intros; rewrite /perm_of_sh.
-  if_tac; if_tac; try constructor; done.
-Qed.
-
 Section mpred.
 
 Context `{!heapGS Σ}.

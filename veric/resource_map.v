@@ -36,21 +36,33 @@ Section definitions.
 
   Local Definition resource_map_elem_def
       (γ : gname) (k : address) (dq : dfrac) (v : V) : iProp Σ :=
-    own γ (juicy_view_frag (V:=leibnizO V) k dq v).
+    ∃ rsh, own γ (juicy_view_frag (V:=leibnizO V) k dq rsh v).
   Local Definition resource_map_elem_aux : seal (@resource_map_elem_def).
   Proof. by eexists. Qed.
   Definition resource_map_elem := resource_map_elem_aux.(unseal).
   Local Definition resource_map_elem_unseal :
     @resource_map_elem = @resource_map_elem_def := resource_map_elem_aux.(seal_eq).
+
+  Local Definition resource_map_elem_no_def
+      (γ : gname) (k : address) (sh : share) rsh : iProp Σ :=
+    own γ (juicy_view_frag_no (V:=leibnizO V) k sh rsh).
+  Local Definition resource_map_elem_no_aux : seal (@resource_map_elem_no_def).
+  Proof. by eexists. Qed.
+  Definition resource_map_elem_no := resource_map_elem_no_aux.(unseal).
+  Local Definition resource_map_elem_no_unseal :
+    @resource_map_elem_no = @resource_map_elem_no_def := resource_map_elem_no_aux.(seal_eq).
 End definitions.
 
 Notation "k ↪[ γ ] dq v" := (resource_map_elem γ k dq v)
   (at level 20, γ at level 50, dq custom dfrac at level 1,
    format "k  ↪[ γ ] dq  v") : bi_scope.
 
+(* no notation for no right now *)
+
 Local Ltac unseal := rewrite
   ?resource_map_auth_unseal /resource_map_auth_def
-  ?resource_map_elem_unseal /resource_map_elem_def.
+  ?resource_map_elem_unseal /resource_map_elem_def
+  ?resource_map_elem_no_unseal /resource_map_elem_no_def.
 
 Section lemmas.
   Context `{resource_mapG Σ V}.
@@ -59,48 +71,52 @@ Section lemmas.
   (** * Lemmas about the map elements *)
   Global Instance resource_map_elem_timeless k γ dq v : Timeless (k ↪[γ]{dq} v).
   Proof. unseal. apply _. Qed.
-  Global Instance resource_map_elem_persistent k γ v : Persistent (k ↪[γ]□ v).
-  Proof. unseal. apply _. Qed.
+(*  Global Instance resource_map_elem_persistent k γ v : Persistent (k ↪[γ]□ v).
+  Proof. unseal. apply _. Qed. *)
 (*  Global Instance resource_map_elem_fractional k γ v : Fractional (λ q, k ↪[γ]{#q} v)%I.
   Proof. unseal. intros p q. rewrite -own_op juicy_view_frag_add //. Qed.
   Global Instance resource_map_elem_as_fractional k γ q v :
     AsFractional (k ↪[γ]{#q} v) (λ q, k ↪[γ]{#q} v)%I q.
   Proof. split; first done. apply _. Qed.*)
-  Global Instance resource_map_elem_affine k γ v : Affine (k ↪[γ]□ v).
-  Proof. unseal. apply _. Qed.
+(*  Global Instance resource_map_elem_affine k γ v : Affine (k ↪[γ]□ v).
+  Proof. unseal. apply _. Qed.*)
 
-  Local Lemma resource_map_elems_unseal γ k m dq :
+  Local Lemma resource_map_elems_unseal γ k m dq (rsh : readable_dfrac dq) :
     ([∗ list] i↦v ∈ m, adr_add k (Z.of_nat i) ↪[γ]{dq} v) ==∗
-    own γ ([^op list] i↦v ∈ m, juicy_view_frag (V:=leibnizO V) (adr_add k (Z.of_nat i)) dq v).
+    own γ ([^op list] i↦v ∈ m, juicy_view_frag (V:=leibnizO V) (adr_add k (Z.of_nat i)) dq rsh v).
   Proof.
     unseal. destruct (decide (m = [])) as [->|Hne].
     - rewrite !big_opL_nil. iIntros "_". iApply own_unit.
-    - rewrite big_opL_own //. iIntros "?". done.
+    - rewrite big_opL_own //. iIntros "?".
+      iApply (big_opL_proper with "[$]"); intros.
+      iSplit; first eauto.
+      iIntros "(% & ?)"; by rewrite juicy_view_frag_irrel.
   Qed.
 
-  Lemma resource_map_elem_valid k γ dq v : k ↪[γ]{dq} v -∗ ⌜✓ dq⌝.
+  Lemma resource_map_elem_valid k γ dq v : k ↪[γ]{dq} v -∗ ⌜✓ dq ∧ readable_dfrac dq⌝.
   Proof.
-    unseal. iIntros "Helem".
+    unseal. iIntros "[% Helem]".
     iDestruct (own_valid with "Helem") as %?%juicy_view_frag_valid.
     done.
   Qed.
   Lemma resource_map_elem_valid_2 k γ dq1 dq2 v1 v2 :
-    k ↪[γ]{dq1} v1 -∗ k ↪[γ]{dq2} v2 -∗ ⌜✓ (dq1 ⋅ dq2) ∧ v1 = v2⌝.
+    k ↪[γ]{dq1} v1 -∗ k ↪[γ]{dq2} v2 -∗ ⌜✓ (dq1 ⋅ dq2) ∧ readable_dfrac (dq1 ⋅ dq2) ∧ v1 = v2⌝.
   Proof.
-    unseal. iIntros "H1 H2".
-    iDestruct (own_valid_2 with "H1 H2") as %?%juicy_view_frag_op_valid.
-    done.
+    unseal. iIntros "[% H1] [% H2]".
+    iDestruct (own_valid_2 with "H1 H2") as %[Hv ?]%juicy_view_frag_op_valid.
+    iSplit; first done.
+    apply dfrac_op_readable' in Hv; auto.
   Qed.
   Lemma resource_map_elem_agree k γ dq1 dq2 v1 v2 :
     k ↪[γ]{dq1} v1 -∗ k ↪[γ]{dq2} v2 -∗ ⌜v1 = v2⌝.
   Proof.
     iIntros "Helem1 Helem2".
-    iDestruct (resource_map_elem_valid_2 with "Helem1 Helem2") as %[_ ?].
+    iDestruct (resource_map_elem_valid_2 with "Helem1 Helem2") as %(_ & _ & ?).
     done.
   Qed.
 
-  Global Instance resource_map_elem_combine_gives γ k v1 dq1 v2 dq2 : 
-    CombineSepGives (k ↪[γ]{dq1} v1) (k ↪[γ]{dq2} v2) ⌜✓ (dq1 ⋅ dq2) ∧ v1 = v2⌝.
+  Global Instance resource_map_elem_combine_gives γ k v1 dq1 v2 dq2 :
+    CombineSepGives (k ↪[γ]{dq1} v1) (k ↪[γ]{dq2} v2) ⌜✓ (dq1 ⋅ dq2) ∧ readable_dfrac (dq1 ⋅ dq2) ∧ v1 = v2⌝.
   Proof.
     rewrite /CombineSepGives. iIntros "[H1 H2]".
     iDestruct (resource_map_elem_valid_2 with "H1 H2") as %[??].
@@ -110,8 +126,8 @@ Section lemmas.
   Lemma resource_map_elem_combine k γ dq1 dq2 v1 v2 :
     k ↪[γ]{dq1} v1 -∗ k ↪[γ]{dq2} v2 -∗ k ↪[γ]{dq1 ⋅ dq2} v1 ∧ ⌜v1 = v2⌝.
   Proof.
-    iIntros "Hl1 Hl2". iDestruct (resource_map_elem_agree with "Hl1 Hl2") as %->.
-    unseal. iCombine "Hl1 Hl2" as "Hl". rewrite -own_op juicy_view_frag_op. eauto with iFrame.
+    iIntros "Hl1 Hl2". iDestruct (resource_map_elem_valid_2 with "Hl1 Hl2") as %(? & Hv & ->); iSplit; last done.
+    unseal. iDestruct "Hl1" as (?) "Hl1"; iDestruct "Hl2" as (?) "Hl2"; iExists Hv. iCombine "Hl1 Hl2" as "Hl". rewrite -own_op -juicy_view_frag_op //.
   Qed.
 
   Global Instance resource_map_elem_combine_as k γ dq1 dq2 v1 v2 :
@@ -120,13 +136,17 @@ Section lemmas.
        which kicks in for #qs *)
   Proof.
     rewrite /CombineSepAs. iIntros "[H1 H2]".
-    iDestruct (resource_map_elem_combine with "H1 H2") as "[$ _]".
+    iDestruct (resource_map_elem_combine with "H1 H2") as "($ & _)".
   Qed.
 
-  Lemma resource_map_elem_split k γ dq1 dq2 v :
+  Lemma resource_map_elem_split k γ dq1 dq2 (rsh1 : readable_dfrac dq1) (rsh2 : readable_dfrac dq2) v :
     k ↪[γ]{dq1 ⋅ dq2} v ⊣⊢ k ↪[γ]{dq1} v ∗ k ↪[γ]{dq2} v.
   Proof.
-    unseal. by rewrite -own_op juicy_view_frag_op.
+    iSplit; last by iIntros "[A B]"; iCombine "A B" as "H".
+    unseal. iIntros "[% ?]"; rewrite juicy_view_frag_op own_op.
+    rewrite bi.sep_exist_r; iExists rsh1.
+    rewrite bi.sep_exist_l; iExists rsh2.
+    done.
   Qed.
 
   Lemma resource_map_elem_frac_ne γ k1 k2 dq1 dq2 v1 v2 :
@@ -140,9 +160,17 @@ Section lemmas.
   Proof. apply resource_map_elem_frac_ne. apply: exclusive_l. Qed.
 
   (** Make an element read-only. *)
-(*  Lemma resource_map_elem_persist k γ dq v :
+  Lemma resource_map_elem_persist k γ dq v :
     k ↪[γ]{dq} v ==∗ k ↪[γ]□ v.
-  Proof. unseal. iApply own_update. apply juicy_view_frag_persist. Qed. *)
+  Proof. unseal. iIntros "[% ?]"; iExists I. iApply (own_update with "[$]"). apply juicy_view_frag_persist. Qed.
+
+  Lemma resource_map_elem_no_valid_2 k γ sh1 sh2 nsh1 nsh2 :
+    resource_map_elem_no γ k sh1 nsh1 -∗ resource_map_elem_no γ k sh2 nsh2 -∗ ⌜✓ (sh1 ⋅ sh2)⌝.
+  Proof.
+    unseal. iIntros "H1 H2".
+    iDestruct (own_valid_2 with "H1 H2") as %?%juicy_view_frag_no_op_valid.
+    done.
+  Qed.
 
   (** * Lemmas about [resource_map_auth] *)
   Lemma resource_map_alloc_strong P m (f : juicy_view.juicy_view_fragUR (leibnizO V)) :
@@ -213,22 +241,22 @@ Section lemmas.
 
   (** * Lemmas about the interaction of [resource_map_auth] with the elements *)
   Lemma resource_map_lookup {γ q m k dq v} :
-    resource_map_auth γ q m -∗ k ↪[γ]{dq} v -∗ ⌜✓ dq ∧ coherent_loc m k (Some (dq, v))⌝.
+    resource_map_auth γ q m -∗ k ↪[γ]{dq} v -∗ ⌜✓ dq ∧ readable_dfrac dq ∧ coherent_loc m k (Some (dq, Some v))⌝.
   Proof.
-    unseal. iIntros "Hauth Hel".
+    unseal. iIntros "Hauth [% Hel]".
     iDestruct (own_valid_2 with "Hauth Hel") as %[?[??]]%juicy_view_both_dfrac_valid.
     eauto.
   Qed.
 
   Global Instance resource_map_lookup_combine_gives_1 {γ q m k dq v} :
-    CombineSepGives (resource_map_auth γ q m) (k ↪[γ]{dq} v) ⌜✓ dq ∧ coherent_loc m k (Some (dq, v))⌝.
+    CombineSepGives (resource_map_auth γ q m) (k ↪[γ]{dq} v) ⌜✓ dq ∧ readable_dfrac dq ∧ coherent_loc m k (Some (dq, Some v))⌝.
   Proof.
     rewrite /CombineSepGives. iIntros "[H1 H2]".
     iDestruct (resource_map_lookup with "H1 H2") as %?. eauto.
   Qed.
 
   Global Instance resource_map_lookup_combine_gives_2 {γ q m k dq v} :
-    CombineSepGives (k ↪[γ]{dq} v) (resource_map_auth γ q m) ⌜✓ dq ∧ coherent_loc m k (Some (dq, v))⌝.
+    CombineSepGives (k ↪[γ]{dq} v) (resource_map_auth γ q m) ⌜✓ dq ∧ readable_dfrac dq ∧ coherent_loc m k (Some (dq, Some v))⌝.
   Proof.
     rewrite /CombineSepGives comm. apply resource_map_lookup_combine_gives_1.
   Qed.
@@ -256,26 +284,29 @@ Section lemmas.
     iApply own_update. apply: juicy_view_delete.
   Qed.*)
 
-  Lemma resource_map_storebyte {γ m k v} m' v' b :
+  Lemma resource_map_storebyte {γ m k v} m' v' b sh (Hsh : writable0_share sh) :
     Mem.storebytes m k.1 k.2 [b] = Some m' ->
-    memval_of (DfracOwn Tsh, v') = Some b -> Mem.perm_order'' (perm_of_res (Some (DfracOwn Tsh, v))) (perm_of_res (Some (DfracOwn Tsh, v'))) ->
-    resource_map_auth γ Tsh m -∗ k ↪[γ] v ==∗ resource_map_auth γ Tsh m' ∗ k ↪[γ] v'.
+    memval_of v' = Some b ->
+    (∀ sh', sepalg.join_sub sh sh' -> Mem.perm_order'' (perm_of_res (Some (DfracOwn sh', Some v))) (perm_of_res (Some (DfracOwn sh', Some v')))) ->
+    resource_map_auth γ Tsh m -∗ k ↪[γ]{DfracOwn sh} v ==∗ resource_map_auth γ Tsh m' ∗ k ↪[γ]{DfracOwn sh} v'.
   Proof.
-    intros; unseal. apply bi.wand_intro_r. rewrite -!own_op.
-    apply own_update. apply: juicy_view_storebyte; eauto.
+    intros; unseal. apply bi.wand_intro_r. iIntros "[a [% f]]"; iCombine "a f" as "?".
+    rewrite bi.sep_exist_l; iExists rsh.
+    rewrite -!own_op.
+    iApply (own_update with "[$]"). apply: juicy_view_storebyte; eauto.
   Qed.
 
   (** Big-op versions of above lemmas *)
   Lemma resource_map_lookup_big {γ q m} k dq m0 :
     resource_map_auth γ q m -∗
     ([∗ list] i↦v ∈ m0, adr_add k i ↪[γ]{dq} v) -∗
-    ⌜forall i, i < length m0 -> coherent_loc m (adr_add k (Z.of_nat i)) (option_map (fun v => (dq, v)) (m0 !! i))⌝.
+    ⌜forall i, i < length m0 -> coherent_loc m (adr_add k (Z.of_nat i)) (option_map (fun v => (dq, Some v)) (m0 !! i))⌝.
   Proof.
     iIntros "Hauth Hfrag". iIntros (i Hm0).
     apply lookup_lt_is_Some_2 in Hm0 as (? & Hi); rewrite Hi.
     rewrite big_sepL_lookup_acc; last done.
     iDestruct "Hfrag" as "[Hfrag ?]".
-    iDestruct (resource_map_lookup with "Hauth Hfrag") as %[_ ?].
+    iDestruct (resource_map_lookup with "Hauth Hfrag") as %(_ & _ & ?).
     done.
   Qed.
 
@@ -308,18 +339,24 @@ Section lemmas.
     apply: juicy_view_delete_big.
   Qed.*)
 
-  Theorem resource_map_storebytes {γ m} m' k vl vl' bl
+  Theorem resource_map_storebytes {γ m} m' k vl vl' bl sh (Hsh : writable0_share sh)
     (Hstore : Mem.storebytes m k.1 k.2 bl = Some m')
-    (Hv' : Forall2 (fun v' b => memval_of (DfracOwn Tsh, v') = Some b) vl' bl) (Hperm : Forall2 (fun v v' => Mem.perm_order'' (perm_of_res (Some (DfracOwn Tsh, v))) (perm_of_res (Some (DfracOwn Tsh, v')))) vl vl') :
+    (Hv' : Forall2 (fun v' b => memval_of v' = Some b) vl' bl)
+    (Hperm : Forall2 (fun v v' => ∀ sh', sepalg.join_sub sh sh' -> Mem.perm_order'' (perm_of_res (Some (DfracOwn sh', Some v))) (perm_of_res (Some (DfracOwn sh', Some v')))) vl vl') :
     resource_map_auth γ Tsh m -∗
-    ([∗ list] i↦v ∈ vl, adr_add k (Z.of_nat i) ↪[γ] v) ==∗
+    ([∗ list] i↦v ∈ vl, adr_add k (Z.of_nat i) ↪[γ]{DfracOwn sh} v) ==∗
     resource_map_auth γ Tsh m' ∗
-        [∗ list] i↦v ∈ vl', adr_add k (Z.of_nat i) ↪[γ] v.
+        [∗ list] i↦v ∈ vl', adr_add k (Z.of_nat i) ↪[γ]{DfracOwn sh} v.
   Proof.
-    intros; iIntros "Hauth Hfrag". iMod (resource_map_elems_unseal with "Hfrag") as "Hfrag".
-    unseal. rewrite -big_opL_own_1 -own_op.
+    intros; iIntros "Hauth Hfrag".
+    assert (readable_share sh) as rsh by auto.
+    unshelve iMod (resource_map_elems_unseal with "Hfrag") as "Hfrag"; first done.
+    unseal.
+    rewrite (big_sepL_proper _ (λ i v, own γ (juicy_view_frag(V := leibnizO V) (adr_add k i) (DfracOwn sh) rsh v)) vl').
+    2: { intros; iSplit; last eauto. iIntros "[% ?]"; by rewrite juicy_view_frag_irrel. }
+    rewrite -big_opL_own_1 -own_op.
     iApply (own_update_2 with "Hauth Hfrag").
-    apply: juicy_view_storebytes; done.
+    by apply: juicy_view_storebytes.
   Qed.
 
 End lemmas.

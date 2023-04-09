@@ -342,7 +342,7 @@ Section auth.
     intros. etrans; first exact: auth_update_alloc.
     exact: cmra_update_op_l.
   Qed.
-  Lemma auth_update_auth_persist dq a : ●{dq} a ~~> ●□ a.
+  Lemma auth_update_auth_persist dq a : readable_dfrac dq -> ●{dq} a ~~> ●□ a.
   Proof. apply view_update_auth_persist. Qed.
 
   Lemma auth_update_dfrac_alloc dq a b `{!CoreId b} :

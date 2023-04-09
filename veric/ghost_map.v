@@ -143,9 +143,9 @@ Section lemmas.
   Proof. apply ghost_map_elem_frac_ne. apply: exclusive_l. Qed.
 
   (** Make an element read-only. *)
-  Lemma ghost_map_elem_persist k γ dq v :
+  Lemma ghost_map_elem_persist k γ dq v : readable_dfrac dq ->
     k ↪[γ]{dq} v ==∗ k ↪[γ]□ v.
-  Proof. unseal. iApply own_update. apply gmap_view_frag_persist. Qed.
+  Proof. intros; unseal. iApply own_update. by apply gmap_view_frag_persist. Qed.
 
   (** * Lemmas about [ghost_map_auth] *)
   Lemma ghost_map_alloc_strong P m :
@@ -246,7 +246,7 @@ Section lemmas.
   Proof.
     iIntros (?) "Hauth".
     iMod (ghost_map_insert k with "Hauth") as "[$ Helem]".
-    iApply ghost_map_elem_persist. done.
+    iApply (ghost_map_elem_persist with "Helem"). simpl; auto.
   Qed.
 
   Lemma ghost_map_delete {γ m k v} :
@@ -292,7 +292,7 @@ Section lemmas.
     iIntros (Hdisj) "Hauth".
     iMod (ghost_map_insert_big m' with "Hauth") as "[$ Helem]".
     iApply big_sepM_bupd. iApply (big_sepM_impl with "Helem").
-    iIntros "!#" (k v) "_". iApply ghost_map_elem_persist.
+    iIntros "!#" (k v) "_". iApply ghost_map_elem_persist. simpl; auto.
   Qed.
 
   Lemma ghost_map_delete_big {γ m} m0 :

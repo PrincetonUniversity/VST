@@ -425,14 +425,14 @@ Section lemmas.
     rewrite union_delete_insert //.
   Qed.
 
-  Lemma gmap_view_auth_persist dq m :
+  Lemma gmap_view_auth_persist dq m : readable_dfrac dq ->
     gmap_view_auth dq m ~~> gmap_view_auth DfracDiscarded m.
   Proof. apply view_update_auth_persist. Qed.
 
-  Lemma gmap_view_frag_persist k dq v :
+  Lemma gmap_view_frag_persist k dq v : readable_dfrac dq ->
     gmap_view_frag k dq v ~~> gmap_view_frag k DfracDiscarded v.
   Proof.
-    apply view_update_frag=>m n bf Hrel j [df va] /=.
+    intros Hdq; apply view_update_frag=>m n bf Hrel j [df va] /=.
     rewrite lookup_op. destruct (decide (j = k)) as [->|Hne].
     - rewrite lookup_singleton.
       edestruct (Hrel k ((dq, to_agree v) ⋅? bf !! k)) as (v' & Hdf & Hva & Hm).
@@ -444,7 +444,7 @@ Section lemmas.
       + simpl in *. rewrite -cmra.pair_op in Hbf.
         move:Hbf=>[= <- <-]. split; first done.
         eapply cmra_discrete_valid.
-        eapply (dfrac_discard_update _ _ (Some df')).
+        eapply (dfrac_discard_update _ Hdq _ (Some df')).
         apply cmra_discrete_valid_iff. done.
       + simpl in *. move:Hbf=>[= <- <-]. split; done.
     - rewrite lookup_singleton_ne //.

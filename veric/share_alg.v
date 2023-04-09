@@ -79,7 +79,7 @@ Section share.
     - intros ????; subst.
       by rewrite share_op_eq eq_dec_refl in H.
   Qed.
-  Canonical Structure shareR := discreteR shareO share_ra_mixin.
+  Canonical Structure shareR := discreteR share share_ra_mixin.
 
   Global Instance share_cmra_discrete : CmraDiscrete shareR.
   Proof. apply discrete_cmra_discrete. Qed.

@@ -138,9 +138,9 @@ Inductive resource' :=
 
 Definition perm_of_res (r: option (dfrac * option resource')) :=
   match r with
-  | Some (dq, VAL _) => perm_of_dfrac dq
+  | Some (dq, Some (VAL _)) => perm_of_dfrac dq
   | Some (DfracOwn sh, _) => if eq_dec sh Share.bot then None else Some Nonempty
-  | Some (DfracDiscarded, _) | Some (DfracBoth _, _) => Some Readable
+  | Some (DfracDiscarded, _) | Some (DfracBoth _, _) => Some Nonempty
   | _ => None
   end.
 
@@ -152,7 +152,7 @@ Proof.
   if_tac; done.
 Qed.
 
-Global Program Instance resource'_ops : resource_ops (leibnizO resource') := { perm_of_res := perm_of_res; memval_of r := match snd r with VAL v => Some v | _ => None end }.
+Global Program Instance resource'_ops : resource_ops (leibnizO resource') := { perm_of_res := perm_of_res; memval_of r := match r with VAL v => Some v | _ => None end }.
 Next Obligation.
 Proof.
   discriminate.
@@ -168,21 +168,37 @@ Qed.
 Next Obligation.
 Proof.
   intros ???? Hd.
-  destruct r.
+  destruct r as [[| |] |].
   - destruct d1, d2; apply perm_of_dfrac_mono; auto.
   - destruct Hd as [d0 ->%leibniz_equiv].
     destruct d1, d0; simpl; try if_tac; simpl; try if_tac; try constructor; try contradiction; try (destruct H; contradiction).
   - destruct Hd as [d0 ->%leibniz_equiv].
     destruct d1, d0; simpl; try if_tac; simpl; try if_tac; try constructor; try contradiction; try (destruct H; contradiction).
+  - destruct Hd as [d0 ->%leibniz_equiv].
+    destruct d1, d0; simpl; try if_tac; simpl; try if_tac; try constructor; try contradiction; try (destruct H; contradiction).
 Qed.
 Next Obligation.
 Proof.
-  intros ???? H; hnf in H; subst; auto.
+  intros ???.
+  pose proof (readable_dfrac_readable _ H).
+  split.
+  - destruct d, r as [[| |] |]; try constructor; try done; simpl; if_tac; try constructor; subst; contradiction bot_unreadable.
+  - intros ? Hvalid.
+    pose proof (dfrac_op_readable' _ _ (or_introl H) Hvalid) as Hreadable%readable_dfrac_readable.
+    destruct d, d2, r as [[| |] |]; simpl; try constructor; try done; try destruct Hvalid as [? Hvalid]; repeat if_tac; try constructor; try apply perm_order''_refl; try done; try (eapply perm_order''_trans; last done); try (by apply perm_of_sh_mono || by (rewrite (@cmra_comm shareR); apply perm_of_sh_mono; rewrite (@cmra_comm shareR))).
+    + eapply (perm_order''_trans _ _ (Some Readable)) in H3; [|apply perm_of_sh_mono; rewrite (@cmra_comm shareR) //]; by rewrite (@cmra_comm shareR) in H3.
+    + eapply (perm_order''_trans _ _ (Some Readable)) in H3; [|apply perm_of_sh_mono; rewrite (@cmra_comm shareR) //]; by rewrite (@cmra_comm shareR) in H3.
+    + eapply (perm_order''_trans _ _ (Some Readable)) in H3; [|apply perm_of_sh_mono; rewrite (@cmra_comm shareR) //]; by rewrite (@cmra_comm shareR) in H3.
 Qed.
 Next Obligation.
 Proof.
-  destruct r as [(?, ?)|]; simpl; auto.
-  destruct d, o; simpl; try if_tac; try constructor; try apply perm_order''_None; try apply perm_order''_refl; try done.
+  intros ???? H; inv H; try inv H0; auto.
+Qed.
+Next Obligation.
+Proof.
+  simpl.
+  destruct r; try apply perm_order''_refl.
+  destruct d; simpl; try if_tac; try constructor; try apply perm_order''_None.
   - destruct (perm_of_sh s) eqn: Hs; simpl; try constructor.
     by apply perm_of_sh_None in Hs.
   - destruct (perm_of_sh s) eqn: Hs; simpl; try constructor.
@@ -191,12 +207,14 @@ Qed.
 Next Obligation.
 Proof.
   simpl; intros.
-  destruct r; inv H; done.
+  destruct r as [(?, r)|]; try done.
+  destruct r as [[| |] |]; try done; simpl; destruct d; try constructor; try apply perm_order''_refl; simpl; if_tac; try constructor; try apply perm_order''_None;
+    destruct (perm_of_sh s) eqn: Hs; simpl; try constructor; by apply perm_of_sh_None in Hs.
 Qed.
 Next Obligation.
 Proof.
   simpl; intros.
-  hnf in H0; subst; done.
+  inv H; done.
 Qed.
 
 (* collect up all the ghost state required for the logic *)
@@ -232,12 +250,16 @@ Proof.
   destruct r1, r2; inv H1; auto.
 Qed.*)
 
-Notation "l ↦ dq v" := (mapsto (V:=resource) l dq v)
+Notation "l ↦ dq v" := (mapsto l dq v)
   (at level 20, dq custom dfrac at level 1, format "l  ↦ dq  v") : bi_scope.
 
-Definition nonlockat (l: address): mpred := ∃ dq r, ⌜nonlock r⌝ ∧ l ↦{dq} r.
+Definition nonlockat (l: address): mpred := ∀ dq r, l ↦{dq} r -∗ ⌜nonlock r⌝.
 
-Definition shareat (l: address) (sh: share): mpred := ∃r, l ↦{#sh} r.
+Definition shareat (l: address) (sh: share): mpred :=
+  match readable_share_dec sh with
+  | left rsh => ∃r, l ↦{#sh} r
+  | right nsh => mapsto_no l sh nsh
+  end.
 
 (*Lemma yesat_join_diff:
   forall pp pp' k k' sh sh' l w, k <> k' -> 
@@ -328,7 +350,7 @@ Definition VALspec_range (n: Z) : spec :=
      fun (sh: Share.t) (l: address) => [∗ list] i ∈ seq 0 (Z.to_nat n), VALspec sh (adr_add l (Z.of_nat i)).
 
 Definition nonlock_permission_bytes (sh: share) (a: address) (n: Z) : mpred :=
-  [∗ list] i ∈ seq 0 (Z.to_nat n), ∃r, ⌜nonlock r⌝ ∧ adr_add a (Z.of_nat i) ↦{#sh} r.
+  [∗ list] i ∈ seq 0 (Z.to_nat n), nonlockat (adr_add a (Z.of_nat i)) ∧ shareat (adr_add a (Z.of_nat i)) sh.
 
 Definition nthbyte (n: Z) (l: list memval) : memval :=
      nth (Z.to_nat n) l Undef.
@@ -433,7 +455,7 @@ Definition address_mapsto_readonly (ch: memory_chunk) (v: val) :=
                [∗ list] i↦b ∈ bl, adr_add l (Z.of_nat i) ↦□ (VAL b).
 
 Definition LKspec lock_size (R: mpred) : spec :=
-   fun (sh: Share.t) (l: address)  =>
+   fun (sh: Share.t) (l: address) =>
     [∗ list] i ∈ seq 0 (Z.to_nat lock_size), adr_add l (Z.of_nat i) ↦{#sh} LK lock_size (Z.of_nat i) R.
 
 Definition Trueat (l: address) : mpred := True.
@@ -1004,7 +1026,7 @@ Proof.
   rewrite Z2Nat.id; last lia.
   rewrite Zplus_minus Z.add_0_r.
   iDestruct (mapsto_valid_2 with "H1 H2") as %[H _].
-  apply share_valid2_joins in H as (? & ? & ?%share_joins_self); contradiction.
+  apply share_valid2_joins in H as (? & ? & ?%sepalg.join_self%identity_share_bot); contradiction.
   { rewrite lookup_seq_lt; [done | lia]. }
   { rewrite lookup_seq_lt; [done | lia]. }
 Qed.
@@ -1057,15 +1079,22 @@ Proof.
   unfold nonlock_permission_bytes.
   rewrite (big_sepL_lookup_acc _ _ _ (Z.to_nat (z - ofs1))).
   rewrite (big_sepL_lookup_acc _ (seq _ (Z.to_nat n2)) _ (Z.to_nat (z - ofs2))).
-  iDestruct "H1" as "[H1 _]"; iDestruct "H2" as "[H2 _]".
-  iDestruct "H1" as (v1 ?) "H1"; iDestruct "H2" as (v2 ?) "H2".
-  rewrite /adr_add /=.
-  rewrite !Z2Nat.id; try lia.
-  rewrite !Zplus_minus.
-  iDestruct (mapsto_valid_2 with "H1 H2") as %[J _].
-  apply share_valid2_joins in J as (? & ? & ?%share_joins_self); contradiction.
-  { rewrite lookup_seq_lt; [done | lia]. }
-  { rewrite lookup_seq_lt; [done | lia]. }
+  iDestruct "H1" as "[[_ H1] _]"; iDestruct "H2" as "[[_ H2] _]".
+  rewrite /shareat.
+  destruct (readable_share_dec _).
+  - iDestruct "H1" as (v1) "H1"; iDestruct "H2" as (v2) "H2".
+    rewrite /adr_add /=.
+    rewrite !Z2Nat.id; try lia.
+    rewrite !Zplus_minus.
+    iDestruct (mapsto_valid_2 with "H1 H2") as %[J _].
+    apply share_valid2_joins in J as (? & ? & ?%sepalg.join_self%identity_share_bot); contradiction.
+  - rewrite /adr_add /=.
+    rewrite !Z2Nat.id; try lia.
+    rewrite !Zplus_minus.
+    iDestruct (mapsto_no_valid_2 with "H1 H2") as %J.
+    apply share_valid2_joins in J as (? & ? & ?%sepalg.join_self%identity_share_bot); contradiction.
+  - rewrite lookup_seq_lt; [done | lia].
+  - rewrite lookup_seq_lt; [done | lia].
 Qed.
 
 (*Lemma address_mapsto_value_cohere':
@@ -1169,7 +1198,7 @@ Definition rmap `{heapGS Σ} := iResUR Σ.
 Definition resource `{heapGS Σ} := resource'(Σ := Σ).
 Definition mpred `{heapGS Σ} := iProp Σ.
 
-Global Notation "l ↦ dq v" := (mapsto (V:=resource) l dq v)
+Global Notation "l ↦ dq v" := (mapsto l dq v)
   (at level 20, dq custom dfrac at level 1, format "l  ↦ dq  v") : bi_scope.
 
 (*Global Infix "@" := resource_at (at level 50, no associativity).*)
