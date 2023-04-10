@@ -959,18 +959,18 @@ Proof.
 Qed.
 
 Lemma mapsto_share_join: forall sh1 sh2 sh l r, sepalg.join sh1 sh2 sh ->
-  sh1 <> Share.bot -> sh2 <> Share.bot ->
+  readable_share sh1 -> readable_share sh2 ->
   l ↦{#sh1} r ∗ l ↦{#sh2} r ⊣⊢ l ↦{#sh} r.
 Proof.
-  intros; rewrite -mapsto_split dfrac_op_own.
-  by erewrite share_join_op.
+  intros; rewrite -mapsto_split; try done.
+  rewrite dfrac_op_own.
+  erewrite share_join_op; try done; intros ->; contradiction bot_unreadable.
 Qed.
 
 Lemma address_mapsto_share_join:
  forall (sh1 sh2 sh : share) ch v a,
    sepalg.join sh1 sh2 sh ->
-(*   readable_share sh1 -> readable_share sh2 -> *)
-   sh1 <> Share.bot -> sh2 <> Share.bot ->
+   readable_share sh1 -> readable_share sh2 ->
    address_mapsto ch v sh1 a ∗ address_mapsto ch v sh2 a
     ⊣⊢ address_mapsto ch v sh a.
 Proof.
@@ -983,6 +983,7 @@ Proof.
     iDestruct "H1" as (bl1 (? & ? & ?)) "H1".
     iDestruct "H2" as (bl (? & ? & ?)) "H2".
     iDestruct (mapsto_list_value_cohere with "[$H1 $H2]") as %->.
+    { congruence. }
     iExists bl; iSplit; first auto.
     iSplitL "H1"; done.
   - iIntros "H".
@@ -992,10 +993,35 @@ Proof.
     by iFrame "%".
 Qed.
 
+Lemma mapsto_no_mapsto_share_join: forall sh1 sh2 sh l r (nsh : ~readable_share sh1), sepalg.join sh1 sh2 sh ->
+  sh1 <> Share.bot -> readable_share sh2 ->
+  mapsto_no l sh1 ∗ l ↦{#sh2} r ⊣⊢ l ↦{#sh} r.
+Proof.
+  intros; rewrite -mapsto_split_no; try done.
+  rewrite dfrac_op_own.
+  erewrite share_join_op; try done; intros ->; contradiction bot_unreadable.
+Qed.
+
+Lemma mapsto_mapsto_no_share_join: forall sh1 sh2 sh l r (nsh : ~readable_share sh2), sepalg.join sh1 sh2 sh ->
+  readable_share sh1 -> sh2 <> Share.bot ->
+  l ↦{#sh1} r ∗ mapsto_no l sh2 ⊣⊢ l ↦{#sh} r.
+Proof.
+  intros; rewrite -(mapsto_no_mapsto_share_join _ _ sh); [| | apply sepalg.join_comm, H | ..]; try done.
+  by rewrite comm.
+Qed.
+
+Lemma mapsto_no_share_join: forall sh1 sh2 sh l (nsh1 : ~readable_share sh1) (nsh2 : ~readable_share sh2), sepalg.join sh1 sh2 sh ->
+  sh1 <> Share.bot -> sh2 <> Share.bot ->
+  mapsto_no l sh1 ∗ mapsto_no l sh2 ⊣⊢ mapsto_no l sh.
+Proof.
+  intros; rewrite -mapsto_no_split; try done.
+  rewrite (share_join_op sh1 sh2 sh) //.
+Qed.
+
 Lemma nonlock_permission_bytes_address_mapsto_join:
  forall (sh1 sh2 sh : share) ch v a,
    sepalg.join sh1 sh2 sh ->
-   sh1 <> Share.bot -> sh2 <> Share.bot ->
+   sh1 <> Share.bot -> readable_share sh2 ->
    nonlock_permission_bytes sh1 a (Memdata.size_chunk ch)
      ∗ address_mapsto ch v sh2 a
     ⊣⊢ address_mapsto ch v sh a.
@@ -1004,28 +1030,37 @@ Proof.
   rewrite /nonlock_permission_bytes /address_mapsto.
   rewrite bi.sep_exist_l.
   apply bi.exist_proper; intros bl.
+  rewrite !(big_sepL_seq bl).
   iSplit.
-  - iIntros "[H1 [% H2]]"; iFrame "%".
+  - iIntros "[H1 [%Hbl H2]]"; iFrame "%".
+    destruct Hbl as [-> _].
+    rewrite /size_chunk_nat.
     iPoseProof (big_sepL_sep_2 with "H1 H2") as "H".
     iApply (big_sepL_mono with "H").
     intros; iIntros "[H1 H2]".
-    iDestruct "H1" as (??) "H1".
-    iDestruct (mapsto_combine with "H1 H2") as "[? ->]".
-    by erewrite dfrac_op_own, share_join_op.
-  - iIntros "[% H]"; iFrame "%".
+    destruct (readable_share_dec _).
+    + iDestruct "H1" as (??) "H1".
+      iDestruct (mapsto_combine with "H1 H2") as "[? ->]".
+      erewrite dfrac_op_own, share_join_op; try done; intros ->; contradiction bot_unreadable.
+    + iDestruct (mapsto_no_mapsto_combine with "H1 H2") as "?".
+      erewrite dfrac_op_own, share_join_op; try done; intros ->; contradiction bot_unreadable.
+  - iIntros "[%Hbl H]"; iFrame "%".
+    destruct Hbl as [-> _].
+    rewrite /size_chunk_nat.
     rewrite -big_sepL_sep.
     iApply (big_sepL_mono with "H").
     intros; iIntros "H".
-    rewrite -mapsto_share_join; try done.
-    iDestruct "H" as "[? $]".
-    iExists _; iSplit; last done.
-    done.
+    destruct (readable_share_dec _).
+    + rewrite -mapsto_share_join; try done.
+      iDestruct "H" as "[? $]".
+      iExists _; iSplit; last done; done.
+    + rewrite -mapsto_no_mapsto_share_join //.
 Qed.
 
 Lemma VALspec_range_share_join:
  forall sh1 sh2 sh n p,
-  sh1 <> Share.bot ->
-  sh2 <> Share.bot ->
+  readable_share sh1 ->
+  readable_share sh2 ->
   sepalg.join sh1 sh2 sh ->
   VALspec_range n sh1 p ∗
   VALspec_range n sh2 p ⊣⊢
@@ -1055,21 +1090,28 @@ Lemma nonlock_permission_bytes_share_join:
 Proof.
   intros.
   rewrite /nonlock_permission_bytes -big_sepL_sep.
-  apply big_sepL_proper; intros; iSplit.
-  - iIntros "[H1 H2]".
-    iDestruct "H1" as (r1 ?) "H1"; iDestruct "H2" as (r ?) "H2".
-    iDestruct (mapsto_value_cohere with "[$H1 $H2]") as %->.
-    iExists r; rewrite -(mapsto_share_join _ _ sh); try done; by iFrame.
-  - iIntros "H".
-    iDestruct "H" as (r ?) "H".
-    rewrite -(mapsto_share_join _ _ sh); try done.
-    iDestruct "H" as "[H1 H2]"; iSplitL "H1"; iExists r; by iFrame.
+  apply big_sepL_proper; intros.
+  pose proof (readable_share_join H).
+  repeat destruct (readable_share_dec _); try solve [match goal with H : ~readable_share sh |- _ => contradiction H; auto end];
+    try solve [exfalso; eapply join_unreadable_shares; eauto].
+  - rewrite bi.sep_exist_r; apply bi.exist_proper; intros ?.
+    rewrite bi.sep_exist_l -(mapsto_share_join _ _ sh); try done.
+    iSplit; [iIntros "(% & [(% & ?) (% & ?)])" | iIntros "(% & $ & ?)"].
+    + iDestruct (mapsto_value_cohere with "[$]") as %->; by iFrame.
+    + iExists _; by iFrame.
+  - rewrite bi.sep_exist_r; apply bi.exist_proper; intros ?.
+    rewrite -bi.persistent_and_sep_assoc; apply bi.and_proper; first done.
+    by apply mapsto_mapsto_no_share_join.
+  - rewrite bi.sep_exist_l; apply bi.exist_proper; intros ?.
+    rewrite comm -bi.persistent_and_sep_assoc; apply bi.and_proper; first done.
+    rewrite comm; by apply mapsto_no_mapsto_share_join.
+  - by apply mapsto_no_share_join.
 Qed.
 
 Lemma nonlock_permission_bytes_VALspec_range_join:
  forall sh1 sh2 sh p n,
   sepalg.join sh1 sh2 sh ->
-  sh1 <> Share.bot -> sh2 <> Share.bot ->
+  sh1 <> Share.bot -> readable_share sh2 ->
   nonlock_permission_bytes sh1 p n ∗
   VALspec_range n sh2 p ⊣⊢
   VALspec_range n sh p.
@@ -1079,13 +1121,14 @@ Proof.
   rewrite -big_sepL_sep.
   apply big_sepL_proper; intros.
   rewrite /VALspec bi.sep_exist_l; apply bi.exist_proper; intros v.
-  rewrite -(mapsto_share_join _ _ sh); try done.
-  iSplit.
-  - iIntros "[H1 H2]".
-    iDestruct "H1" as (r1 ?) "H1".
-    iDestruct (mapsto_value_cohere with "[$H1 $H2]") as %->; iFrame.
-  - iIntros "[H1 $]".
-    iExists _; iFrame.
+  if_tac.
+  - rewrite -(mapsto_share_join _ _ sh) //.
+    iSplit.
+    + iIntros "[(% & % & H1) H2]".
+      iDestruct (mapsto_value_cohere with "[$H1 $H2]") as %->; iFrame.
+    + iIntros "[? $]".
+      iExists _; iFrame.
+  - rewrite mapsto_no_mapsto_share_join //.
 Qed.
 
 (*Lemma is_resource_pred_YES_LK lock_size (l: address) (R: pred rmap) sh:
@@ -1098,7 +1141,7 @@ Proof. hnf; intros. reflexivity. Qed.*)
 Lemma LKspec_share_join lock_size:
  forall sh1 sh2 sh R p,
   sepalg.join sh1 sh2 sh ->
-  sh1 <> Share.bot -> sh2 <> Share.bot ->
+  readable_share sh1 -> readable_share sh2 ->
   LKspec lock_size R sh1 p ∗
   LKspec lock_size R sh2 p ⊣⊢
   LKspec lock_size R sh p.

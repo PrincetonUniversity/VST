@@ -413,15 +413,15 @@ Section rel.
     specialize (H i); specialize (Hvalid i).
     destruct (f1 !! i) as [x1|] eqn: Hf1, (f2 !! i) as [x2|] eqn: Hf2; rewrite ?Hf1 Hf2 /= in H Hvalid |- *; try done.
     - rewrite Some_includedN.
-      destruct x1, x2; try done.
-      + destruct H as [Hd Hv], Hvalid.
-        apply agree_order_dist in Hv; last done.
-        destruct Hd; subst; first by left.
-        right; eexists (YES DfracDiscarded I v).
-        rewrite /op /ora_op /= /shared_op_instance.
-        destruct (readable_dfrac_dec _); try done.
-        split; auto; rewrite agree_idemp //.
-      + hnf in H; subst; auto.
+      destruct H as [H | [Hd Hv]]; first by rewrite H in Hvalid.
+      destruct Hd as [Hd | Hd]; [left | right].
+      + destruct x1, x2; simpl in *; inv Hd; try done; hnf.
+        by destruct Hvalid; rewrite Some_orderN in Hv; apply agree_order_dist in Hv.
+      + destruct x1, x2; try done; simpl in *; subst.
+        * exists (YES DfracDiscarded I v0); unshelve rewrite YES_op; try done.
+          destruct Hvalid; rewrite Some_orderN in Hv; apply agree_order_dist in Hv as ->; try done.
+          by rewrite agree_idemp.
+        * exists (YES DfracDiscarded I v); rewrite NO_YES_op //.
     - rewrite option_includedN; auto.
   Qed.
 
@@ -549,7 +549,6 @@ Section lemmas.
     ✓ (juicy_view_auth (DfracOwn Tsh) m1 ⋅ juicy_view_auth (DfracOwn Tsh) m2) ↔ False.
   Proof. apply view_auth_op_valid. Qed.
 
-  (* Do we need to duplicate these for frag_no? *)
   Lemma juicy_view_frag_validN n k dq rsh v : ✓{n} juicy_view_frag k dq rsh v ↔ ✓ dq.
   Proof.
     rewrite view_frag_validN coherent_rel_exists singleton_validN.
@@ -625,9 +624,47 @@ Section lemmas.
     ✓ dq ∧ coherent_loc m k (Some (dq, Some v)).
   Proof. rewrite juicy_view_both_dfrac_valid. naive_solver done. Qed.
 
+  Lemma juicy_view_frag_no_validN n k sh rsh : ✓{n} juicy_view_frag_no k sh rsh ↔ ✓ sh.
+  Proof.
+    rewrite view_frag_validN coherent_rel_exists singleton_validN //.
+  Qed.
+  Lemma juicy_view_frag_no_valid k sh rsh : ✓ juicy_view_frag_no k sh rsh ↔ ✓ sh.
+  Proof.
+    rewrite cmra_valid_validN. setoid_rewrite juicy_view_frag_no_validN.
+    naive_solver eauto using O.
+  Qed.
+
+  Lemma juicy_view_both_no_dfrac_validN n dp m k sh rsh :
+    ✓{n} (juicy_view_auth dp m ⋅ juicy_view_frag_no k sh rsh) ↔
+      ✓ dp ∧ ✓ sh ∧ coherent_loc m k (Some (DfracOwn sh, None)).
+  Proof.
+    rewrite /juicy_view_auth /juicy_view_frag_no.
+    rewrite view_both_dfrac_validN coherent_rel_lookup //.
+  Qed.
+  Lemma juicy_view_both_no_validN n m k sh rsh :
+    ✓{n} (juicy_view_auth (DfracOwn Tsh) m ⋅ juicy_view_frag_no k sh rsh) ↔
+      ✓ sh ∧ coherent_loc m k (Some (DfracOwn sh, None)).
+  Proof. rewrite juicy_view_both_no_dfrac_validN. naive_solver done. Qed.
+  Lemma juicy_view_both_no_dfrac_valid dp m k sh rsh :
+    ✓ (juicy_view_auth dp m ⋅ juicy_view_frag_no k sh rsh) ↔
+    ✓ dp ∧ ✓ sh ∧ coherent_loc m k (Some (DfracOwn sh, None)).
+  Proof.
+    rewrite /juicy_view_auth /juicy_view_frag_no.
+    rewrite view_both_dfrac_valid. setoid_rewrite coherent_rel_lookup; simpl.
+    split; last by tauto.
+    intros [? H]; split; auto; split; apply (H 0).
+  Qed.
+  Lemma juicy_view_both_no_valid m k sh rsh :
+    ✓ (juicy_view_auth (DfracOwn Tsh) m ⋅ juicy_view_frag_no k sh rsh) ↔
+    ✓ sh ∧ coherent_loc m k (Some (DfracOwn sh, None)).
+  Proof. rewrite juicy_view_both_no_dfrac_valid. naive_solver done. Qed.
+
   Lemma juicy_view_frag_no_op k sh1 sh2 rsh1 rsh2 rsh :
     juicy_view_frag_no k (sh1 ⋅ sh2) rsh ≡ juicy_view_frag_no k sh1 rsh1 ⋅ juicy_view_frag_no k sh2 rsh2.
   Proof. rewrite -view_frag_op singleton_op /juicy_view_frag //. apply juicy_view_frag_no_irrel. Qed.
+  Lemma juicy_view_frag_no_frag_op k sh1 dq2 rsh1 rsh2 rsh v :
+    juicy_view_frag k (DfracOwn sh1 ⋅ dq2) rsh v ≡ juicy_view_frag_no k sh1 rsh1 ⋅ juicy_view_frag k dq2 rsh2 v.
+  Proof. rewrite -view_frag_op singleton_op NO_YES_op /juicy_view_frag //. Qed.
 
   Lemma juicy_view_frag_no_op_valid k sh1 sh2 rsh1 rsh2 :
     ✓ (juicy_view_frag_no k sh1 rsh1 ⋅ juicy_view_frag_no k sh2 rsh2) ↔
@@ -635,6 +672,18 @@ Section lemmas.
   Proof.
     rewrite view_frag_valid. setoid_rewrite coherent_rel_exists.
     rewrite -cmra_valid_validN singleton_op singleton_valid //.
+  Qed.
+  Lemma juicy_view_frag_no_frag_op_valid k sh1 dq2 rsh1 rsh2 v2 :
+    ✓ (juicy_view_frag_no k sh1 rsh1 ⋅ juicy_view_frag k dq2 rsh2 v2) ↔ ✓ (DfracOwn sh1 ⋅ dq2).
+  Proof.
+    rewrite view_frag_valid. setoid_rewrite coherent_rel_exists.
+    rewrite -cmra_valid_validN singleton_op singleton_valid NO_YES_op'.
+    if_tac; last destruct (readable_dfrac_dec _).
+    - subst; split; try done.
+      destruct dq2; intros [? Hv] || intros Hv; hnf in Hv; try done; rewrite bot_op_share // in Hv.
+    - split; try done; intros [? Hv]; done.
+    - apply dfrac_op_readable in n; auto.
+      split; first done. apply dfrac_error_invalid in n; done.
   Qed.
 
   (** Frame-preserving updates *)
@@ -754,8 +803,6 @@ Section lemmas.
       erewrite Mem.nextblock_storebytes by eauto; intros.
       lapply Halloc; done.
   Qed.
-
-  Existing Instance share_op_instance.
 
   Lemma writable_op_unreadable : forall n sh (Hr : readable_share sh) (v : agree V) (Hsh : writable0_share sh) x,
     ✓{n} (YES (DfracOwn sh) Hr v ⋅ x) ->
@@ -997,8 +1044,12 @@ Section lemmas.
   Qed.
 
   (** Typeclass instances *)
-(*  Global Instance juicy_view_frag_core_id k dq rsh v : OraCoreId dq → OraCoreId (juicy_view_frag k dq rsh v).
-  Proof. apply _. Qed. *)
+  Global Instance juicy_view_frag_core_id k dq rsh v : OraCoreId dq → OraCoreId (juicy_view_frag k dq rsh v).
+  Proof.
+    rewrite {1}/OraCoreId; intros H.
+    destruct dq; inv H; try apply _.
+    inv H2.
+  Qed.
 
   Global Instance juicy_view_ora_discrete : OfeDiscrete V → OraDiscrete (juicy_viewR V).
   Proof. apply _. Qed.

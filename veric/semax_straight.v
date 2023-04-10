@@ -622,35 +622,6 @@ Lemma writable0_lub_retainer_Rsh:
   apply leq_join_sub in H.  apply Share.ord_spec1 in H. auto.
 Qed.
 
-Definition decode_encode_val_ok (chunk1 chunk2: memory_chunk) : Prop :=
-  match chunk1, chunk2 with
-  | Mint8signed, Mint8signed => True
-  | Mint8unsigned, Mint8signed => True
-  | Mint8signed, Mint8unsigned => True
-  | Mint8unsigned, Mint8unsigned => True
-  | Mint16signed, Mint16signed => True
-  | Mint16unsigned, Mint16signed => True
-  | Mint16signed, Mint16unsigned => True
-  | Mint16unsigned, Mint16unsigned => True
-  | Mint32, Mfloat32 => True
-  | Many32, Many32 => True
-  | Many64, Many64 => True
-  | Mint32, Mint32 => True
-  | Mint64, Mint64 => True
-  | Mint64, Mfloat64 => True
-  | Mfloat64, Mfloat64 =>  True
-  | Mfloat64, Mint64 =>  True
-  | Mfloat32, Mfloat32 =>  True
-  | Mfloat32, Mint32 =>  True
-  | _,_ => False
-  end.
-
-Lemma decode_encode_val_ok_same:  forall ch,
-    decode_encode_val_ok ch ch.
-Proof.
-destruct ch; simpl; auto.
-Qed.
-
 Lemma decode_encode_val_fun:
   forall ch1 ch2, decode_encode_val_ok ch1 ch2 ->
   forall v v1 v2,
@@ -661,35 +632,6 @@ Proof.
 intros.
 destruct ch1, ch2; try contradiction;
 destruct v; simpl in *; subst; auto.
-Qed.
-
-Lemma decode_encode_val_ok1:
-  forall v ch ch' v',
- decode_encode_val_ok ch ch' ->
- decode_encode_val v ch ch' v' ->
- decode_val ch' (encode_val ch v) = v'.
-Proof.
-intros.
-destruct ch, ch'; try contradiction;
-destruct v; auto;
-simpl in H0; subst;
-unfold decode_val, encode_val;
-try rewrite proj_inj_bytes;
-rewrite -> ?decode_encode_int_1, ?decode_encode_int_2,
-  ?decode_encode_int_4,
-  ?decode_encode_int_8;
-f_equal;
-rewrite -> ?Int.sign_ext_zero_ext by reflexivity;
-rewrite -> ?Int.zero_ext_sign_ext by reflexivity;
-rewrite -> ?Int.zero_ext_idem by (compute; congruence);
-auto.
-all: try solve [
-simpl; destruct Archi.ptr64; simpl; auto;
-rewrite -> proj_sumbool_is_true by auto;
-rewrite -> proj_sumbool_is_true by auto;
-simpl; auto].
-apply Float32.of_to_bits.
-apply Float.of_to_bits.
 Qed.
 
 Lemma decode_encode_val_size:
@@ -736,6 +678,18 @@ Proof.
   destruct (type_is_volatile t); try done.
   rewrite -> if_true by auto.
   iDestruct "H" as "[(% & ?) | (% & % & ?)]"; iApply (mapsto_can_store with "[$]").
+Qed.
+
+Lemma mapsto_store: forall t m ch v v' sh b o m' (Hsh : writable0_share sh)
+  (Htc : tc_val t v') (Hch : access_mode t = By_value ch),
+  Mem.store ch m b (Ptrofs.unsigned o) v' = Some m' ->
+  mem_auth m ∗ mapsto sh t (Vptr b o) v ⊢ |==> mem_auth m' ∗ mapsto sh t (Vptr b o) v'.
+Proof.
+  intros; rewrite /mapsto Hch.
+  iIntros "[Hm H]".
+  destruct (type_is_volatile t); try done.
+  rewrite -> !if_true by auto.
+  iDestruct "H" as "[(% & ?) | (% & % & ?)]"; iPoseProof (mapsto_store _ _ _ v' with "[$]") as ">[$ H]"; iLeft; by iFrame.
 Qed.
 
 Ltac dec_enc :=
@@ -821,8 +775,6 @@ Proof.
     iCombine "Hm H" as "H"; rewrite (add_and (_ ∗ _) (▷_)); last by iIntros "H"; iNext; iDestruct "H" as "(Hm & (H & _) & _)"; iApply (eval_lvalue_relate with "[$Hm $H]").
     iDestruct "H" as "(H & >%He1')".
     destruct He1' as (? & ? & ? & He1'); rewrite He1' in He1; inv He1.
-(*    rewrite (add_and (_ ∗ _) (▷_)); last by iIntros "H"; iNext; iDestruct "H" as "(Hm & (_ & H) & _)"; iApply (eval_expr_relate with "[$Hm $H]").
-    iDestruct "H" as "(H & >%He2')". *)
     rewrite /tc_expr /typecheck_expr; fold typecheck_expr.
     rewrite denote_tc_assert_andp.
     rewrite (add_and (_ ∗ _) (▷_)); last by iIntros "H"; iNext; iDestruct "H" as "(Hm & (_ & H & _) & _)"; iApply (eval_expr_relate with "[$Hm $H]").
@@ -836,156 +788,13 @@ Proof.
     rewrite Hcast in Hcast'.
     iPureIntro; econstructor; eauto.
     eapply assign_loc_value; eauto.
-  + iMod (mapsto_storebytes with "Hm").
-    iIntros "!> !> !>".
-    iDestruct "H" as "(_ & F & P)"; iFrame.
-    erewrite (closed_wrt_modvars_set F) by eauto; iFrame.
-    iExists (eval_id id rho); iSplit.
-    * rewrite /eval_id -map_ptree_rel /= Map.gss //.
-    * destruct TC as [[TC _] _].
-      destruct (temp_types Delta' !! id) eqn: Hid'; rewrite Hid' in TS; inv TS.
-      destruct (TC _ _ Hid') as (? & ? & ?).
-      erewrite !subst_set by eauto; iFrame.
-
-
-intros jm jm1 Delta' ge ve te rho k F f TS [TC1 TC2] TC4 Hcl Hge Hage [H0 H0'] HGG'.
-specialize (TC1 (m_phi jm1) (age_laterR (age_jm_phi Hage))).
-specialize (TC2 (m_phi jm1) (age_laterR (age_jm_phi Hage))).
-assert (typecheck_environ Delta rho) as TC.
-{ destruct TC4. eapply typecheck_environ_sub; eauto. }
-pose proof TC1 as TC1'.
-pose proof TC2 as TC2'.
-apply (tc_lvalue_sub _ _ _ TS) in TC1'; [| auto].
-apply (tc_expr_sub _ _ _ TS) in TC2'; [| auto].
-unfold tc_expr in TC2, TC2'; simpl in TC2, TC2'.
-rewrite denote_tc_assert_andp in TC2, TC2'.
-simpl in TC2,TC2'; super_unfold_lift.
-destruct TC2 as [TC2 TC3].
-destruct TC2' as [TC2' TC3'].
-apply later_sepcon2 in H0.
-specialize (H0 _ (age_laterR (age_jm_phi Hage))).
-pose proof I.
-destruct H0 as [?w [?w [? [? [?w [?w [H3 [H4 H5]]]]]]]].
-unfold mapsto in H4.
-revert H4; case_eq (access_mode (typeof e1)); intros; try contradiction.
-rename H2 into Hmode. rename m into ch.
-destruct (eval_lvalue_relate _ _ _ _ _ e1 jm1 HGG' Hge (guard_environ_e1 _ _ _ TC4)) as [b0 [i [He1 He1']]]; auto.
-rewrite He1' in *.
-destruct (join_assoc H3 (join_comm H0)) as [?w [H6 H7]].
-destruct (type_is_volatile (typeof e1)) eqn:NONVOL; try contradiction.
-rewrite if_true in H4 by auto.
-assert (exists v, address_mapsto ch v
-             sh
-        (b0, Ptrofs.unsigned i) w1)
-       by (destruct H4 as [[H4' H4] |[? [? ?]]]; eauto).
-clear v3 H4; destruct H2 as [v3 H4].
-
-assert (H11': (res_predicates.address_mapsto ch v3 sh
-        (b0, Ptrofs.unsigned i) * TT)%pred (m_phi jm1))
- by (exists w1; exists w3; split3; auto).
-assert (H11: (res_predicates.address_mapsto ch v3  sh
-        (b0, Ptrofs.unsigned i) * exactly w3)%pred (m_phi jm1)).
-{ exists w1; exists w3; split3; auto.
-  hnf; eauto. }
-apply address_mapsto_can_store
-   with (v':=((force_val (Cop.sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1) (m_dry jm1))))) in H11;
-  auto.
-2: {
-  unfold typecheck_store in *.
-  destruct TC4 as [TC4 _].
-  simpl in TC2'. apply typecheck_expr_sound in TC2'; auto.
-  remember (eval_expr e2 rho).
-  dec_enc. rewrite DE. clear DE. subst.
-  eapply load_cast; eauto.
-}
-destruct H11 as [m' [H11 AM]].
-exists (store_juicy_mem _ _ _ _ _ _ H11).
-exists (te);  exists rho; split3; auto.
-subst; simpl; auto.
-rewrite level_store_juicy_mem. apply age_level; auto.
-split; auto.
-split.
-split3; auto.
-generalize (eval_expr_relate _ _ _ _ _ e2 jm1 HGG' Hge (guard_environ_e1 _ _ _ TC4)); intro.
-spec H2; [ assumption | ].
-rewrite <- (age_jm_dry Hage) in H2, He1.
-econstructor; try eassumption.
-unfold tc_lvalue in TC1. simpl in TC1.
-auto.
-instantiate (1:=(force_val (Cop.sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1) (m_dry jm)))).
-rewrite (age_jm_dry Hage).
-rewrite cop2_sem_cast'; auto.
-2: eapply typecheck_expr_sound; eauto.
-eapply cast_exists; eauto. destruct TC4; auto.
-eapply Clight.assign_loc_value.
-apply Hmode.
-unfold tc_lvalue in TC1. simpl in TC1.
-auto.
-unfold Mem.storev.
-simpl m_dry.
-rewrite (age_jm_dry Hage).
-auto.
-apply (resource_decay_trans _ (nextblock (m_dry jm1)) _ (m_phi jm1)).
-rewrite (age_jm_dry Hage); lia.
-apply (age1_resource_decay _ _ Hage).
-apply resource_nodecay_decay.
-apply juicy_store_nodecay.
-{intros.
- clear - H11' H2 WS.
- destruct H11' as [phi1 [phi2 [? [? ?]]]].
- destruct H0 as [bl [_ ?]]. specialize  (H0 (b0,z)).
- hnf in H0. rewrite if_true in H0 by (split; auto; lia).
- destruct H0. hnf in H0.
- apply (resource_at_join _ _ _ (b0,z)) in H.
- rewrite H0 in H.
- inv H; simpl; apply join_writable01 in RJ; auto;
- unfold perm_of_sh; rewrite if_true by auto; if_tac; constructor.
-}
-rewrite level_store_juicy_mem. split; [apply age_level; auto|].
-simpl. unfold inflate_store; rewrite ghost_of_make_rmap.
-apply age1_ghost_of, age_jm_phi; auto.
-split.
-2 : { eapply (corable_core _ (m_phi jm1)), pred_hereditary; eauto; [|apply age_jm_phi; auto].
-      symmetry.
-      forget (force_val (Cop.sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1) (m_dry jm1))) as v.
-      apply rmap_ext.
-      do 2 rewrite level_core.
-      rewrite <- level_juice_level_phi; rewrite level_store_juicy_mem.
-      reflexivity.
-      intro loc.
-      unfold store_juicy_mem. simpl.
-      rewrite <- core_resource_at. unfold inflate_store.
-      rewrite resource_at_make_rmap. rewrite <- core_resource_at.
-      case_eq (m_phi jm1 @ loc); intros; auto.
-      destruct k0; simpl resource_fmap; repeat rewrite core_YES; auto.
-      simpl.
-      rewrite !ghost_of_core.
-      unfold inflate_store; rewrite ghost_of_make_rmap; auto.
-}
-rewrite sepcon_comm.
-rewrite sepcon_assoc.
-eapply sepcon_derives; try apply AM; auto.
-unfold mapsto.
-destruct TC4 as [TC4 _].
-
-rewrite Hmode.
-rewrite He1'.
-*
-rewrite cop2_sem_cast'; auto.
-2: eapply typecheck_expr_sound; eauto.
-rewrite NONVOL.
-rewrite if_true by auto.
-apply orp_right1.
-apply andp_right.
-intros ? ?.
-eapply tc_val_sem_cast; eauto.
-intros ? ?. apply H2.
-*
-intros ? ?.
-destruct H2 as (? & H2 & ?).
-destruct (nec_join2 H6 H2) as [w2' [w' [? [? ?]]]].
-eapply pred_upclosed; eauto.
-exists w2'; exists w'; split3; auto; eapply pred_nec_hereditary; eauto.
+  + iIntros "!> !>".
+    rewrite /tc_expr typecheck_expr_sound //.
+    rewrite (bi.and_elim_r (tc_lvalue _ _ _)).
+    iDestruct "H" as "(%Htc & F & Hmapsto & P)".
+    rewrite /= /force_val1 in Htc; super_unfold_lift.
+    subst; iPoseProof (mapsto_store with "[$Hm $Hmapsto]") as ">[$ ?]".
+    rewrite He1; by iFrame.
 Qed.
 
 Definition numeric_type (t: type) : bool :=

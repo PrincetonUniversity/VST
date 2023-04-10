@@ -26,8 +26,10 @@ Proof.
   rewrite -> Ptrofs.unsigned_repr by (unfold Ptrofs.max_unsigned; lia).
   rewrite Z.add_0_r.
   rewrite (big_sepL_lookup_acc _ _ (Z.to_nat i)); last by apply lookup_seq_lt; lia.
-  iDestruct "H" as "[(% & % & ?) _]".
-  rewrite /adr_add Z2Nat.id; [eauto | lia].
+  iDestruct "H" as "[H _]"; if_tac.
+  - iDestruct "H" as "(% & % & ?)".
+    rewrite /adr_add Z2Nat.id; [eauto | lia].
+  - rewrite /adr_add Z2Nat.id; [auto | lia].
 Qed.
 
 Lemma nonlock_permission_bytes_valid_pointer: forall sh b ofs n i,

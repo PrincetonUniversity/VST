@@ -253,13 +253,10 @@ Qed.*)
 Notation "l ↦ dq v" := (mapsto l dq v)
   (at level 20, dq custom dfrac at level 1, format "l  ↦ dq  v") : bi_scope.
 
-Definition nonlockat (l: address): mpred := ∀ dq r, l ↦{dq} r -∗ ⌜nonlock r⌝.
+Definition nonlockat (l: address): mpred := ∀ dq r, l ↦{dq} r → ⌜nonlock r⌝.
 
 Definition shareat (l: address) (sh: share): mpred :=
-  match readable_share_dec sh with
-  | left rsh => ∃r, l ↦{#sh} r
-  | right nsh => mapsto_no l sh nsh
-  end.
+  if readable_share_dec sh then (∃r, l ↦{#sh} r)%I else mapsto_no l sh.
 
 (*Lemma yesat_join_diff:
   forall pp pp' k k' sh sh' l w, k <> k' -> 
@@ -350,7 +347,8 @@ Definition VALspec_range (n: Z) : spec :=
      fun (sh: Share.t) (l: address) => [∗ list] i ∈ seq 0 (Z.to_nat n), VALspec sh (adr_add l (Z.of_nat i)).
 
 Definition nonlock_permission_bytes (sh: share) (a: address) (n: Z) : mpred :=
-  [∗ list] i ∈ seq 0 (Z.to_nat n), nonlockat (adr_add a (Z.of_nat i)) ∧ shareat (adr_add a (Z.of_nat i)) sh.
+  [∗ list] i ∈ seq 0 (Z.to_nat n), if readable_share_dec sh then ∃ r, ⌜nonlock r⌝ ∧ adr_add a (Z.of_nat i) ↦{#sh} r
+                                   else mapsto_no (adr_add a (Z.of_nat i)) sh.
 
 Definition nthbyte (n: Z) (l: list memval) : memval :=
      nth (Z.to_nat n) l Undef.
@@ -914,6 +912,14 @@ Proof.
   done.
 Qed.
 
+Lemma nonlock_permission_bytes_valid : forall sh a n, n > 0 -> nonlock_permission_bytes sh a n ⊢ ⌜✓ sh⌝.
+Proof.
+  intros; rewrite /nonlock_permission_bytes.
+  destruct (Z.to_nat n) eqn: Hn; first lia.
+  simpl; iIntros "H"; if_tac; first by iPureIntro; intros ->; contradiction bot_unreadable.
+  by iDestruct "H" as "[H _]"; iDestruct (mapsto_no_valid with "H") as %[??].
+Qed.
+
 (*Lemma nonlock_permission_bytes_not_nonunit: forall p n,
   nonlock_permission_bytes Share.bot p n ⊢ emp.
 Proof.
@@ -983,9 +989,9 @@ Proof.
   rewrite -> Z2Nat.inj_add, seq_app by lia.
   rewrite big_sepL_app plus_0_l.
   rewrite -{2}(plus_0_r (Z.to_nat n)) -fmap_add_seq big_sepL_fmap.
-  setoid_rewrite Nat2Z.inj_add; rewrite Z2Nat.id; last lia.
   unfold adr_add; simpl.
-  by iSplit; iIntros "[$ H]"; iApply (big_sepL_mono with "H"); intros ???; rewrite Z.add_assoc.
+  by iSplit; iIntros "[$ H]"; iApply (big_sepL_mono with "H"); intros ???;
+    rewrite ?Nat2Z.inj_add Z2Nat.id; try lia; rewrite Z.add_assoc.
 Qed.
 
 Lemma VALspec_range_VALspec:
@@ -1079,10 +1085,9 @@ Proof.
   unfold nonlock_permission_bytes.
   rewrite (big_sepL_lookup_acc _ _ _ (Z.to_nat (z - ofs1))).
   rewrite (big_sepL_lookup_acc _ (seq _ (Z.to_nat n2)) _ (Z.to_nat (z - ofs2))).
-  iDestruct "H1" as "[[_ H1] _]"; iDestruct "H2" as "[[_ H2] _]".
-  rewrite /shareat.
+  iDestruct "H1" as "[H1 _]"; iDestruct "H2" as "[H2 _]".
   destruct (readable_share_dec _).
-  - iDestruct "H1" as (v1) "H1"; iDestruct "H2" as (v2) "H2".
+  - iDestruct "H1" as "(% & % & H1)"; iDestruct "H2" as "(% & % & H2)".
     rewrite /adr_add /=.
     rewrite !Z2Nat.id; try lia.
     rewrite !Zplus_minus.
@@ -1091,7 +1096,7 @@ Proof.
   - rewrite /adr_add /=.
     rewrite !Z2Nat.id; try lia.
     rewrite !Zplus_minus.
-    iDestruct (mapsto_no_valid_2 with "H1 H2") as %J.
+    iDestruct (mapsto_no_valid_2 with "H1 H2") as %[J ?].
     apply share_valid2_joins in J as (? & ? & ?%sepalg.join_self%identity_share_bot); contradiction.
   - rewrite lookup_seq_lt; [done | lia].
   - rewrite lookup_seq_lt; [done | lia].

@@ -253,13 +253,10 @@ Proof.
   - destruct o; try by iMod "H"; iApply "H".
     iIntros (???).
     iApply (bi.impl_intro_r with "H").
-    iIntros "H" (??).
-    rewrite (bi.except_0_intro (coherent_with m)) -bi.except_0_and; iMod "H".
+    iIntros "H".
+    rewrite (bi.except_0_intro (_ -∗ _)) -bi.except_0_and; iMod "H".
     iApply (bi.impl_elim_l' with "H"); iIntros "H".
-    iSpecialize ("H" with "[%]"); first done.
-    iSpecialize ("H" $! e v' m).
-    iApply (bi.impl_mono with "H"); first done.
-    by iIntros "H"; iApply "H".
+    iSpecialize ("H" with "[%]"); done.
 Qed.
 
 Global Instance believe_external_plain gx v fsig cc A P Q : Plain (believe_external Espec gx v fsig cc A P Q).

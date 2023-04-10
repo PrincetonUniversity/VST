@@ -2,6 +2,7 @@ Require Import VST.veric.juicy_base.
 Require Import VST.veric.juicy_mem.
 Require Import VST.veric.res_predicates.
 Require Import VST.veric.shares.
+Require Import VST.veric.Cop2.
 
 Section mpred.
 
@@ -225,7 +226,7 @@ Qed.*)
 
 Lemma core_load_coherent: forall ch v b ofs bl m,
   mem_auth m ∗ core_load' ch (b, ofs) v bl ⊢
-  ⌜length bl = size_chunk_nat ch ∧ (align_chunk ch | ofs)%Z ∧ forall i, 0 <= i < length bl -> exists sh, perm_order' (perm_of_dfrac sh) Readable ∧ coherent_loc(V := leibnizO resource) m (b, ofs + Z.of_nat i)%Z (Some (sh, VAL (nthbyte i bl)))⌝.
+  ⌜length bl = size_chunk_nat ch ∧ (align_chunk ch | ofs)%Z ∧ forall i, i < length bl -> exists sh, perm_order' (perm_of_dfrac sh) Readable ∧ coherent_loc(V := leibnizO resource) m (b, ofs + Z.of_nat i)%Z (Some (sh, Some (VAL (nthbyte i bl))))⌝.
 Proof.
   intros; unfold core_load'.
   iIntros "(Hm & >((%H1 & _ & %H2) & H))".
@@ -239,7 +240,7 @@ Proof.
     apply bi.exist_mono; intros.
     rewrite /adr_add /= Nat2Z.inj_succ /Z.succ (Z.add_comm _ 1) Z.add_assoc //. }
   iPureIntro; intros.
-  destruct i; eauto.
+  destruct Hloc, i; eauto.
   destruct (H i); first lia.
   rewrite Nat2Z.inj_succ /Z.succ (Z.add_comm _ 1) Z.add_assoc.
   rewrite /nthbyte Z2Nat.inj_add; eauto; lia.
@@ -507,7 +508,7 @@ Qed.*)
 
 Lemma mapsto_coherent: forall ch v sh b ofs m,
   mem_auth m ∗ address_mapsto ch v sh (b, ofs) ⊢
-  ⌜∃ bl, length bl = size_chunk_nat ch ∧ decode_val ch bl = v ∧ (align_chunk ch | ofs)%Z ∧ forall i, 0 <= i < size_chunk_nat ch -> coherent_loc(V := leibnizO resource) m (b, ofs + Z.of_nat i)%Z (Some (DfracOwn sh, VAL (nthbyte i bl)))⌝.
+  ⌜∃ bl, length bl = size_chunk_nat ch ∧ decode_val ch bl = v ∧ (align_chunk ch | ofs)%Z ∧ forall i, 0 <= i < size_chunk_nat ch -> coherent_loc(V := leibnizO resource) m (b, ofs + Z.of_nat i)%Z (Some (DfracOwn sh, Some (VAL (nthbyte i bl))))⌝.
 Proof.
   intros; unfold address_mapsto.
   iIntros "[Hm H]".
@@ -579,17 +580,101 @@ Proof.
   apply (valid_access_store _ _ _ _ v') in H as []; eauto.
 Qed.
 
-Lemma mapsto_store: forall m ch v v' sh b ofs m', Mem.store ch m b ofs v' = Some m' ->
+Definition decode_encode_val_ok (chunk1 chunk2: memory_chunk) : Prop :=
+  match chunk1, chunk2 with
+  | Mint8signed, Mint8signed => True
+  | Mint8unsigned, Mint8signed => True
+  | Mint8signed, Mint8unsigned => True
+  | Mint8unsigned, Mint8unsigned => True
+  | Mint16signed, Mint16signed => True
+  | Mint16unsigned, Mint16signed => True
+  | Mint16signed, Mint16unsigned => True
+  | Mint16unsigned, Mint16unsigned => True
+  | Mint32, Mfloat32 => True
+  | Many32, Many32 => True
+  | Many64, Many64 => True
+  | Mint32, Mint32 => True
+  | Mint64, Mint64 => True
+  | Mint64, Mfloat64 => True
+  | Mfloat64, Mfloat64 =>  True
+  | Mfloat64, Mint64 =>  True
+  | Mfloat32, Mfloat32 =>  True
+  | Mfloat32, Mint32 =>  True
+  | _,_ => False
+  end.
+
+Lemma decode_encode_val_ok_same:  forall ch,
+    decode_encode_val_ok ch ch.
+Proof.
+destruct ch; simpl; auto.
+Qed.
+
+Lemma decode_encode_val_ok1:
+  forall v ch ch' v',
+ decode_encode_val_ok ch ch' ->
+ decode_encode_val v ch ch' v' ->
+ decode_val ch' (encode_val ch v) = v'.
+Proof.
+intros.
+destruct ch, ch'; try contradiction;
+destruct v; auto;
+simpl in H0; subst;
+unfold decode_val, encode_val;
+try rewrite proj_inj_bytes;
+rewrite -> ?decode_encode_int_1, ?decode_encode_int_2,
+  ?decode_encode_int_4,
+  ?decode_encode_int_8;
+f_equal;
+rewrite -> ?Int.sign_ext_zero_ext by reflexivity;
+rewrite -> ?Int.zero_ext_sign_ext by reflexivity;
+rewrite -> ?Int.zero_ext_idem by (compute; congruence);
+auto.
+all: try solve [
+simpl; destruct Archi.ptr64; simpl; auto;
+rewrite -> proj_sumbool_is_true by auto;
+rewrite -> proj_sumbool_is_true by auto;
+simpl; auto].
+apply Float32.of_to_bits.
+apply Float.of_to_bits.
+Qed.
+
+Lemma mapsto_store: forall m ch v v' sh b ofs m' (Hsh : writable0_share sh)
+  t (Htc : tc_val t v') (Hch : Ctypes.access_mode t = Ctypes.By_value ch),
+  Mem.store ch m b ofs v' = Some m' ->
   mem_auth m ∗ address_mapsto ch v sh (b, ofs) ⊢
   |==> mem_auth m' ∗ address_mapsto ch v' sh (b, ofs).
 Proof.
   intros.
   apply store_storebytes in H.
   iIntros "[Hm H]"; rewrite /address_mapsto.
-  iDestruct "H" as (??) "H".
+  iDestruct "H" as (? (Hlen & <- & ?)) "H".
   rewrite -(big_opL_fmap VAL (fun i v => mapsto (adr_add (b, ofs) i) (DfracOwn sh) v)).
-  iMod (mapsto_storebytes _ _ (b, ofs) with "Hm H") as "[$ H]"; first eauto.
-  Search store storebytes.
+  iMod (mapsto_storebytes _ _ (b, ofs) _ (VAL <$> encode_val ch v') with "Hm H") as "[$ H]".
+  { rewrite Forall2_lookup; intros.
+    rewrite list_lookup_fmap; destruct (_ !! _); constructor; done. }
+  { rewrite Forall2_lookup; intros.
+    rewrite !list_lookup_fmap.
+    destruct (lt_dec i (length bl)).
+    * destruct (lookup_lt_is_Some_2 _ _ l) as [? ->].
+      rewrite Hlen -(encode_val_length ch v') in l.
+      destruct (lookup_lt_is_Some_2 _ _ l) as [? ->]; constructor.
+      intros; apply perm_order''_refl.
+    * rewrite lookup_ge_None_2; last lia.
+      rewrite lookup_ge_None_2; first constructor.
+      rewrite encode_val_length -Hlen; lia. }
+  rewrite big_opL_fmap; iExists _; iFrame.
+  iPureIntro; rewrite encode_val_length; repeat split; try done.
+  apply decode_encode_val_ok1.
+  - apply decode_encode_val_ok_same.
+  - destruct t; try done; simpl in *.
+    + unfold is_int in *.
+      destruct v'; try done.
+      destruct i, s; inv Hch; simpl in *; rewrite ?val_lemmas.sign_ext_inrange ?val_lemmas.zero_ext_inrange //;
+        destruct Htc; subst; by compute.
+    + inv Hch; destruct v'; done.
+    + destruct f; inv Hch; destruct v'; done.
+    + inv Hch; destruct (_ && _), v'; done.
+Qed.
 
 Local Open Scope Z.
 

@@ -98,14 +98,18 @@ Lemma valid_pointer_dry:
          ⌜Mem.valid_pointer m b (Ptrofs.unsigned ofs + d) = true⌝.
 Proof.
 intros.
-iIntros "[Hm (% & % & >H)]".
-iDestruct (mapsto_lookup with "Hm H") as %[Hdq H]; iPureIntro.
+iIntros "[Hm >H]".
+iAssert ⌜∃ dq r, ✓ dq ∧ coherent_loc m (b, Ptrofs.unsigned ofs + d)%Z (Some (dq, r))⌝ with "[-]" as %(dq & r & Hdq & H).
+{ iDestruct "H" as "[(% & % & H) | (% & H)]"; [iDestruct (mapsto_lookup with "Hm H") as %(? & ? & ?) |
+    iDestruct (mapsto_no_lookup with "Hm H") as %(? & ? & ?)]; iPureIntro; eauto.
+  exists (DfracOwn sh); eauto. }
+iPureIntro.
 rewrite Mem.valid_pointer_nonempty_perm /Mem.perm.
 destruct H as (_ & H & _).
 rewrite /juicy_view.access_cohere /access_at in H.
 destruct (Maps.PMap.get _ _ _ _); try constructor.
 simpl in H.
-destruct (perm_of_dfrac dq) eqn: Hp; first by destruct dq, r; try if_tac in H.
+destruct (perm_of_dfrac dq) eqn: Hp; first by destruct dq, r as [[| |] |]; try if_tac in H.
 apply perm_of_dfrac_None in Hp; subst; contradiction.
 Qed.
 

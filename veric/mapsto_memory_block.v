@@ -35,7 +35,6 @@ Definition permission_block (sh: Share.t)  (v: val) (t: type) : mpred :=
          | _ => False
          end.
 
-(* Not sure whether we need unreadable shares in the logic. *)
 Definition mapsto (sh: Share.t) (t: type) (v1 v2 : val): mpred :=
   match access_mode t with
   | By_value ch =>
@@ -152,10 +151,9 @@ Proof.
     rewrite /= IHn /address_mapsto_zeros' !Nat2Z.id -cons_seq /= -seq_shift big_sepL_fmap.
     apply bi.sep_proper.
     - rewrite /address_mapsto /=.
-      rewrite /nthbyte Nat2Z.id /size_chunk_nat /=.
       iSplit.
-      + iIntros "H"; iDestruct "H" as ([| ? [|]] (? & Hz & ?)) "[H _]"; simpl in *; try discriminate.
-        replace m with (Byte Byte.zero); first done.
+      + iIntros "H"; iDestruct "H" as ([| ? [|]] (? & Hz & ?)) "H"; simpl in *; try discriminate.
+        replace m with (Byte Byte.zero); first by iDestruct "H" as "[$ _]".
         rewrite /decode_val /= in Hz.
         destruct m; try discriminate.
         f_equal; apply Byte.same_if_eq.
@@ -169,7 +167,7 @@ Proof.
           by compute. }
         { rewrite Int.unsigned_repr; auto.
           etrans; [apply Byte.unsigned_range_2 | by compute]. }
-      + iIntros "H"; iExists [Byte Byte.zero]; iFrame.
+      + iIntros "H"; iExists [Byte Byte.zero]; simpl; iFrame.
         iPureIntro; repeat split; auto.
         apply Z.divide_1_l.
     - apply big_sepL_proper; intros.
@@ -472,14 +470,6 @@ Proof.
     iIntros "[H1 H2]"; iDestruct "H1" as (?) "H1"; iDestruct "H2" as (?) "H2".
     iApply address_mapsto_overlap; iFrame.
   + iIntros "[[% H] [% ?]]".
-    iAssert (⌜sh <> Share.bot⌝) as %?.
-    { rewrite /nonlock_permission_bytes.
-      destruct (Z.to_nat (size_chunk m)) eqn: Hs.
-      { destruct m; discriminate. }
-      simpl.
-      iDestruct "H" as "[H _]".
-      iDestruct "H" as (??) "H".
-      iApply (mapsto_valid with "H"). }
     iApply nonlock_permission_bytes_overlap; iFrame.
 Qed.
 
@@ -522,13 +512,7 @@ Proof.
   if_tac.
   + iApply (VALspec_range_overlap with "[$]").
     rewrite !Z2Nat.id; auto; lia.
-  + iAssert (⌜sh <> Share.bot⌝) as %?.
-    { rewrite /nonlock_permission_bytes.
-      rewrite Nat2Z.id.
-      destruct (Z.to_nat n1) eqn: ?; first lia.
-      simpl; iDestruct "H" as "[H _]"; iDestruct "H" as (??) "H".
-      iApply (mapsto_valid with "H"). }
-    iApply (nonlock_permission_bytes_overlap with "[$]").
+  + iApply (nonlock_permission_bytes_overlap with "[$]").
     rewrite !Z2Nat.id; auto; lia.
 Qed.
 
@@ -598,8 +582,8 @@ Proof.
   - rewrite /VALspec_range /VALspec.
     iApply (big_sepL_mono with "H"); eauto.
   - rewrite /nonlock_permission_bytes.
-    iApply (big_sepL_mono with "H"); intros.
-    iIntros "H"; iExists (VAL (Byte Byte.zero)); auto.
+    destruct (Z.to_nat n) eqn: ?; first done; simpl.
+    iDestruct "H" as "[H ?]"; iDestruct (mapsto_valid with "H") as %[??]; done.
 Qed.
 
 Lemma memory_block'_split:
@@ -865,10 +849,9 @@ Proof.
   rewrite /address_mapsto_zeros' /address_mapsto.
   iExists (repeat (Byte Byte.zero) (size_chunk_nat ch)); iSplit.
   { rewrite repeat_length; auto. }
+  rewrite (big_sepL_seq (repeat _ _)) repeat_length.
   iApply (big_sepL_mono with "H"); intros ?? [??]%lookup_seq.
-  replace (nthbyte (Z.of_nat y) (repeat (Byte Byte.zero) (size_chunk_nat ch))) with (Byte Byte.zero); auto.
-  rewrite /nthbyte Nat2Z.id.
-  pose proof (@nth_In _ y (repeat (Byte Byte.zero) (size_chunk_nat ch)) Undef) as Hin%repeat_spec; auto.
+  pose proof (@nth_In _ y (repeat (Byte Byte.zero) (size_chunk_nat ch)) inhabitant) as ->%repeat_spec; auto.
   rewrite repeat_length; simpl in *; subst; auto.
 Qed.
 
@@ -992,12 +975,14 @@ Qed.
 
 Lemma address_mapsto_zeros'_nonlock_permission_bytes:
   forall n sh a,
-  address_mapsto_zeros' n sh a
-⊢ res_predicates.nonlock_permission_bytes sh a n.
+  address_mapsto_zeros' n sh a ⊢ res_predicates.nonlock_permission_bytes sh a n.
 Proof.
   intros; rewrite /address_mapsto_zeros' /nonlock_permission_bytes.
   apply big_sepL_mono; intros.
-  iIntros "H"; iExists (VAL (Byte Byte.zero)); auto.
+  iIntros "H".
+  iDestruct (mapsto_valid with "H") as %[??].
+  rewrite if_true; last done.
+  iExists (VAL (Byte Byte.zero)); auto.
 Qed.
 
 Lemma mapsto_core_load: forall t ch sh v b o, access_mode t = By_value ch -> readable_share sh ->

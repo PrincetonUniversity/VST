@@ -79,9 +79,7 @@ Definition assert_safe
        | Cont _ => |={E}=> False
        | Ret None ctl' =>
                 jsafeN ge E ora (State f (Sreturn None) ctl' ve te)
-       | Ret (Some v) ctl' => ∀ e v' m, coherent_with m →
-                  ⌜Clight.eval_expr ge ve te m e v'⌝ →
-                  ⌜Cop.sem_cast v' (typeof e) (fn_return f) m = Some v⌝ →
+       | Ret (Some v) ctl' => ∀ e v' m, (mem_auth m -∗ ⌜Clight.eval_expr ge ve te m e v' ∧ Cop.sem_cast v' (typeof e) (fn_return f) m = Some v⌝) →
               jsafeN ge E ora (State f (Sreturn (Some e)) ctl' ve te)
        end.
 
@@ -173,11 +171,11 @@ Definition semax_external
    ∀ args: list val,
    ■ (⌜Val.has_type_list args (sig_args (ef_sig ef))⌝ ∧
      (P x (filter_genv gx, args) ∗ F) ={⊤}=∗
-   ∀ m, coherent_with m → ∃ x': ext_spec_type OK_spec ef,
-    (∀ z:_, ext_jmpred_pre OK_ty OK_spec ef x' (genv_symb_injective gx) ts args z m) ∧
+   ∀ m z, state_interp m z -∗ ∃ x': ext_spec_type OK_spec ef,
+    ext_jmpred_pre OK_ty OK_spec ef x' (genv_symb_injective gx) ts args z m ∗
      □ ∀ tret: rettype, ∀ ret: option val, ∀ z': OK_ty, ∀ m',
-      ext_jmpred_post OK_ty OK_spec ef x' (genv_symb_injective gx) tret ret z' m' ∧ coherent_with m' ={⊤}=∗
-          Q x (make_ext_rval (filter_genv gx) tret ret) ∗ F).
+      ext_jmpred_post OK_ty OK_spec ef x' (genv_symb_injective gx) tret ret z' m' ∗ state_interp m' z' ={⊤}=∗
+          state_interp m' z' ∗ Q x (make_ext_rval (filter_genv gx) tret ret) ∗ F).
 
 Lemma Forall2_implication {A B} (P Q:A -> B -> Prop) (PQ:forall a b, P a b -> Q a b):
   forall l t, Forall2 P l t -> Forall2 Q l t.
@@ -208,12 +206,10 @@ Proof.
     rewrite HSIG in HT; apply has_type_list_Forall2 in HT.
     eapply Forall2_implication; [ | apply HT]; auto. }
   iMod ("H" $! _ (F ∗ F1) with "[$P1 $F $F1]") as "H1"; first done.
-  iIntros "!>" (?).
-  iApply (bi.impl_mono with "H1"); first done.
-  apply bi.exist_mono; intros x'.
-  apply bi.and_mono; first done.
-  iIntros "#H !>" (????) "Hpost".
-  iMod ("H" with "Hpost") as "(Q1 & $ & F1)".
+  iIntros "!>" (??) "s".
+  iDestruct ("H1" with "s") as (x') "[? #H']".
+  iExists x'; iFrame; iIntros "!>" (????) "Hpost".
+  iMod ("H'" with "Hpost") as "($ & Q1 & $ & F1)".
   iApply (HQ with "[$F1 $Q1]"); iPureIntro; split; auto.
   destruct tret, ret; auto.
 Qed.

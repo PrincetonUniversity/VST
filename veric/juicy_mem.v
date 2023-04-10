@@ -106,7 +106,7 @@ Proof.
   by apply perm_order'_antisym.
 Qed.
 
-Open Scope bi_scope.
+(*Open Scope bi_scope.
 
 Definition contents_cohere (m: mem) : mpred := ∀dq v l,
   l ↦{dq} VAL v → ⌜contents_at m l = v⌝.
@@ -155,16 +155,16 @@ Lemma coherent_max_access: coherent_with m ⊢ max_access_cohere m.
 Proof. by rewrite /coherent_with bi.and_elim_r bi.and_elim_r bi.and_elim_l. Qed.
 Lemma coherent_alloc: coherent_with m ⊢ alloc_cohere m.
 Proof. by rewrite /coherent_with bi.and_elim_r bi.and_elim_r bi.and_elim_r. Qed.
-End selectors.
+End selectors.*)
 
 Definition mem_auth m := resource_map.resource_map_auth(H0 := gen_heapGpreS_heap(gen_heapGpreS := gen_heap_inG)) (gen_heap_name heapGS_gen_heapGS) Tsh m.
 
-Lemma juicy_view_coherent : forall m, mem_auth m ∗ True ⊢ coherent_with m.
+(*Lemma juicy_view_coherent : forall m, mem_auth m ∗ True ⊢ coherent_with m.
 Proof.
   intros; iIntros "m".
   iSplit; [|iSplit; [|iSplit]].
   - 
-Abort.
+Abort.*)
 
 (*Definition juicy_mem_resource: forall jm m', resource_at m' = resource_at (m_phi jm) ->
   {jm' | m_phi jm' = m' /\ m_dry jm' = m_dry jm}.

@@ -123,8 +123,8 @@ Section definitions.
   Definition mapsto := mapsto_aux.(unseal).
   Local Definition mapsto_unseal : @mapsto = @mapsto_def := mapsto_aux.(seal_eq).
 
-  Local Definition mapsto_no_def (l : address) (sh : share) (rsh : ~readable_share sh) : iProp Σ :=
-    resource_map_elem_no (gen_heap_name hG) l sh rsh.
+  Local Definition mapsto_no_def (l : address) (sh : share) : iProp Σ :=
+    resource_map_elem_no (gen_heap_name hG) l sh.
   Local Definition mapsto_no_aux : seal (@mapsto_no_def). Proof. by eexists. Qed.
   Definition mapsto_no := mapsto_no_aux.(unseal).
   Local Definition mapsto_no_unseal : @mapsto_no = @mapsto_no_def := mapsto_no_aux.(seal_eq).
@@ -167,10 +167,10 @@ Section gen_heap.
   Global Instance mapsto_as_fractional l q v :
     AsFractional (l ↦{#q} v) (λ q, l ↦{#q} v)%I q.
   Proof. rewrite mapsto_unseal. apply _. Qed. *)
-(*  Global Instance mapsto_persistent l v : Persistent (l ↦□ v).
+  Global Instance mapsto_persistent l v : Persistent (l ↦□ v).
   Proof. rewrite mapsto_unseal. apply _. Qed.
   Global Instance mapsto_affine l v : Affine (l ↦□ v).
-  Proof. rewrite mapsto_unseal. apply _. Qed.*)
+  Proof. rewrite mapsto_unseal. apply _. Qed.
 
   Lemma mapsto_valid l dq v : l ↦{dq} v -∗ ⌜✓ dq ∧ readable_dfrac dq⌝%Qp.
   Proof. rewrite mapsto_unseal. apply resource_map_elem_valid. Qed.
@@ -180,14 +180,23 @@ Section gen_heap.
   Lemma mapsto_agree l dq1 dq2 v1 v2 : l ↦{dq1} v1 -∗ l ↦{dq2} v2 -∗ ⌜v1 = v2⌝.
   Proof. rewrite mapsto_unseal. apply resource_map_elem_agree. Qed.
 
-  Lemma mapsto_no_valid_2 l dq1 dq2 nsh1 nsh2 : mapsto_no l dq1 nsh1 -∗ mapsto_no l dq2 nsh2 -∗ ⌜✓ (dq1 ⋅ dq2)⌝.
-  Proof. rewrite mapsto_no_unseal. apply resource_map_elem_no_valid_2. Qed.
-
   Global Instance mapsto_combine_sep_gives l dq1 dq2 v1 v2 : 
     CombineSepGives (l ↦{dq1} v1) (l ↦{dq2} v2) ⌜✓ (dq1 ⋅ dq2) ∧ readable_dfrac (dq1 ⋅ dq2) ∧ v1 = v2⌝ | 30.
   Proof.
     rewrite /CombineSepGives. iIntros "[H1 H2]".
     iDestruct (mapsto_valid_2 with "H1 H2") as %?. eauto.
+  Qed.
+
+  Lemma mapsto_no_valid l dq : mapsto_no l dq -∗ ⌜✓ dq ∧ ~readable_share dq⌝%Qp.
+  Proof. rewrite mapsto_no_unseal. apply resource_map_elem_no_valid. Qed.
+  Lemma mapsto_no_valid_2 l dq1 dq2 : mapsto_no l dq1 -∗ mapsto_no l dq2 -∗ ⌜✓ (dq1 ⋅ dq2) ∧ ~readable_share (dq1 ⋅ dq2)⌝.
+  Proof. rewrite mapsto_no_unseal. apply resource_map_elem_no_valid_2. Qed.
+
+  Global Instance mapsto_no_combine_sep_gives l dq1 dq2 : 
+    CombineSepGives (mapsto_no l dq1) (mapsto_no l dq2) ⌜✓ (dq1 ⋅ dq2) ∧ ~readable_share (dq1 ⋅ dq2)⌝ | 30.
+  Proof.
+    rewrite /CombineSepGives. iIntros "[H1 H2]".
+    iDestruct (mapsto_no_valid_2 with "H1 H2") as %?. eauto.
   Qed.
 
   Lemma mapsto_combine l dq1 dq2 v1 v2 :
@@ -199,12 +208,32 @@ Section gen_heap.
     (* higher cost than the Fractional instance, which kicks in for #qs *)
   Proof.
     rewrite /CombineSepAs. iIntros "[H1 H2]".
-    iDestruct (mapsto_combine with "H1 H2") as "(? & _)"; eauto.
+    iDestruct (mapsto_combine with "H1 H2") as "($ & _)".
   Qed.
 
   Lemma mapsto_split l dq1 dq2 (rsh1 : readable_dfrac dq1) (rsh2 : readable_dfrac dq2) v :
     l ↦{dq1 ⋅ dq2} v ⊣⊢ l ↦{dq1} v ∗ l ↦{dq2} v.
   Proof. rewrite mapsto_unseal. by apply resource_map_elem_split. Qed.
+
+  Lemma mapsto_no_mapsto_combine l dq1 dq2 v2 :
+    mapsto_no l dq1 -∗ l ↦{dq2} v2 -∗ l ↦{DfracOwn dq1 ⋅ dq2} v2.
+  Proof. rewrite mapsto_unseal mapsto_no_unseal. apply resource_map_elem_no_elem_combine. Qed.
+
+  Global Instance mapsto_no_mapsto_combine_as l dq1 dq2 v2 :
+    CombineSepAs (mapsto_no l dq1) (l ↦{dq2} v2) (l ↦{DfracOwn dq1 ⋅ dq2} v2) | 60.
+    (* higher cost than the Fractional instance, which kicks in for #qs *)
+  Proof.
+    rewrite /CombineSepAs. iIntros "[H1 H2]".
+    iApply (mapsto_no_mapsto_combine with "H1 H2").
+  Qed.
+
+  Lemma mapsto_split_no l dq1 dq2 (rsh1 : ~readable_share dq1) (rsh2 : readable_dfrac dq2) v :
+    l ↦{DfracOwn dq1 ⋅ dq2} v ⊣⊢ mapsto_no l dq1 ∗ l ↦{dq2} v.
+  Proof. rewrite mapsto_unseal mapsto_no_unseal. by apply resource_map_elem_split_no. Qed.
+
+  Lemma mapsto_no_split l dq1 dq2 (rsh1 : ~readable_share dq1) (rsh2 : ~readable_share dq2) :
+    mapsto_no l (dq1 ⋅ dq2) ⊣⊢ mapsto_no l dq1 ∗ mapsto_no l dq2.
+  Proof. rewrite mapsto_no_unseal. by apply resource_map_elem_no_split. Qed.
 
   Lemma mapsto_frac_ne l1 l2 dq1 dq2 v1 v2 :
     ¬ ✓(dq1 ⋅ dq2) → l1 ↦{dq1} v1 -∗ l2 ↦{dq2} v2 -∗ ⌜l1 ≠ l2⌝.
@@ -317,6 +346,9 @@ Section gen_heap.
 
   Lemma mapsto_lookup m l dq v : resource_map_auth (gen_heap_name _) Tsh m -∗ l ↦{dq} v -∗ ⌜✓ dq ∧ readable_dfrac dq ∧ coherent_loc m l (Some (dq, Some v))⌝.
   Proof. rewrite mapsto_unseal. apply resource_map_lookup. Qed.
+
+  Lemma mapsto_no_lookup m l sh : resource_map_auth (gen_heap_name _) Tsh m -∗ mapsto_no l sh -∗ ⌜✓ sh ∧ ~readable_share sh ∧ coherent_loc m l (Some (DfracOwn sh, None))⌝.
+  Proof. rewrite mapsto_no_unseal. apply resource_map_no_lookup. Qed.
 
   Lemma mapsto_lookup_big m l dq (m0 : list V) :
     resource_map_auth (gen_heap_name _) Tsh m -∗

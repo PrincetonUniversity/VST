@@ -705,7 +705,7 @@ Program Definition jsafe_pre
       (▷ ∃ c' m', ⌜corestep Hcore c m c' m'⌝ ∧ |={E}=> state_interp m' z ∗ jsafe E z c') ∨
       (∃ e args x, ⌜at_external Hcore c m = Some (e, args)⌝ ∧ ext_jmpred_pre Z Hspec e x (genv_symb ge) (sig_args (ef_sig e)) args z m ∗
          ▷ □ (∀ ret m' z', ⌜Val.has_type_list args (sig_args (ef_sig e)) ∧ Builtins0.val_opt_has_rettype ret (sig_res (ef_sig e))⌝ →
-          ((ext_jmpred_post Z Hspec e x (genv_symb ge) (sig_res (ef_sig e)) ret z' m') ={E}=∗
+          ((ext_jmpred_post Z Hspec e x (genv_symb ge) (sig_res (ef_sig e)) ret z' m') ∗ state_interp m' z' ={E}=∗
           ∃ c', ⌜after_external Hcore ret c m' = Some c'⌝ ∧ state_interp m' z' ∗ jsafe E z' c'))).
 
 Local Instance jsafe_pre_contractive : Contractive jsafe_pre.
