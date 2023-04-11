@@ -524,15 +524,22 @@ Proof.
       erewrite !subst_set by eauto; iFrame.
 Qed.
 
-Lemma mapsto_tc : forall sh t p v, readable_share sh -> v <> Vundef -> mapsto sh t p v ⊢ ⌜tc_val t v⌝.
+Lemma mapsto_tc' : forall sh t p v, mapsto sh t p v ⊢ ⌜tc_val' t v⌝.
 Proof.
   intros; rewrite /mapsto.
   iIntros "H".
   destruct (access_mode t); try done.
   destruct (type_is_volatile t); try done.
   destruct p; try done.
-  rewrite -> if_true by auto.
-  by iDestruct "H" as "[($ & _) | (% & _)]".
+  if_tac.
+  - iDestruct "H" as "[(% & _) | (% & _)]"; iPureIntro; by [apply tc_val_tc_val' | subst; apply tc_val'_Vundef].
+  - iDestruct "H" as "(($ & _) & _)".
+Qed.
+
+Lemma mapsto_tc : forall sh t p v, v <> Vundef -> mapsto sh t p v ⊢ ⌜tc_val t v⌝.
+Proof.
+  intros; rewrite mapsto_tc'; iPureIntro.
+  by intros X; apply X.
 Qed.
 
 Lemma semax_cast_load:
@@ -622,27 +629,6 @@ Lemma writable0_lub_retainer_Rsh:
   apply leq_join_sub in H.  apply Share.ord_spec1 in H. auto.
 Qed.
 
-Lemma decode_encode_val_fun:
-  forall ch1 ch2, decode_encode_val_ok ch1 ch2 ->
-  forall v v1 v2,
-     decode_encode_val v ch1 ch2 v1 ->
-     decode_encode_val v ch1 ch2 v2 ->
-     v1=v2.
-Proof.
-intros.
-destruct ch1, ch2; try contradiction;
-destruct v; simpl in *; subst; auto.
-Qed.
-
-Lemma decode_encode_val_size:
-  forall ch1 ch2, decode_encode_val_ok ch1 ch2 ->
-   size_chunk ch1 = size_chunk ch2.
-Proof.
-intros.
-destruct ch1, ch2; try contradiction;
-simpl in *; subst; auto.
-Qed.
-
 Theorem load_store_similar':
    forall (chunk : memory_chunk) (m1 : Memory.mem)
          (b : Values.block) (ofs : Z) (v : val) (m2 : Memory.mem),
@@ -680,8 +666,26 @@ Proof.
   iDestruct "H" as "[(% & ?) | (% & % & ?)]"; iApply (mapsto_can_store with "[$]").
 Qed.
 
+Lemma mapsto_store': forall t t' m ch ch' v v' sh b o m' (Hsh : writable0_share sh)
+  (Hch : access_mode t = By_value ch) (Hch' : access_mode t' = By_value ch')
+  (Hdec : decode_encode_val_ok ch ch') (Ht' : type_is_volatile t' = false)
+  (Halign : (align_chunk ch' | Ptrofs.unsigned o)%Z) (Htc : tc_val' t' (decode_val ch' (encode_val ch v'))),
+  Mem.store ch m b (Ptrofs.unsigned o) v' = Some m' ->
+  mem_auth m ∗ mapsto sh t (Vptr b o) v ⊢ |==> mem_auth m' ∗ ∃ v'', ⌜decode_encode_val v' ch ch' v''⌝ ∧ mapsto sh t' (Vptr b o) v''.
+Proof.
+  intros; rewrite /mapsto Hch Hch' Ht'.
+  iIntros "[Hm H]".
+  destruct (type_is_volatile t); try done.
+  rewrite -> !if_true by auto.
+  setoid_rewrite if_true; last auto.
+  assert (forall v'', decode_encode_val v' ch ch' v'' -> tc_val' t' v'') as Htc'.
+  { intros ? Hv''; eapply decode_encode_val_fun in Hv''; last apply decode_encode_val_general; subst; auto. }
+  iDestruct "H" as "[(% & ?) | (% & % & ?)]"; iMod (mapsto_store' _ _ _ _ v' with "[$]") as "[$ (% & %Hv'' & H)]"; iIntros "!>";
+    iExists _; (iSplit; first done; destruct (eq_dec v'' Vundef); [iRight | specialize (Htc' _ Hv'' n); iLeft]); eauto.
+Qed.
+
 Lemma mapsto_store: forall t m ch v v' sh b o m' (Hsh : writable0_share sh)
-  (Htc : tc_val t v') (Hch : access_mode t = By_value ch),
+  (Htc : tc_val' t v') (Hch : access_mode t = By_value ch),
   Mem.store ch m b (Ptrofs.unsigned o) v' = Some m' ->
   mem_auth m ∗ mapsto sh t (Vptr b o) v ⊢ |==> mem_auth m' ∗ mapsto sh t (Vptr b o) v'.
 Proof.
@@ -689,7 +693,8 @@ Proof.
   iIntros "[Hm H]".
   destruct (type_is_volatile t); try done.
   rewrite -> !if_true by auto.
-  iDestruct "H" as "[(% & ?) | (% & % & ?)]"; iPoseProof (mapsto_store _ _ _ v' with "[$]") as ">[$ H]"; iLeft; by iFrame.
+  iDestruct "H" as "[(% & ?) | (% & % & ?)]"; iMod (mapsto_store _ _ _ v' with "[$]") as "[$ H]";
+    (destruct (eq_dec v' Vundef); [iRight | specialize (Htc n); iLeft]); eauto.
 Qed.
 
 Ltac dec_enc :=
@@ -794,6 +799,7 @@ Proof.
     iDestruct "H" as "(%Htc & F & Hmapsto & P)".
     rewrite /= /force_val1 in Htc; super_unfold_lift.
     subst; iPoseProof (mapsto_store with "[$Hm $Hmapsto]") as ">[$ ?]".
+    { by apply tc_val_tc_val'. }
     rewrite He1; by iFrame.
 Qed.
 
@@ -808,212 +814,95 @@ end.
 
 Lemma semax_store_union_hack:
      forall
-         (Delta : tycontext) (e1 e2 : expr) (t2: type) (ch ch' : memory_chunk) (sh : share) (P : LiftEnviron mpred),
-       (numeric_type (typeof e1) ∧ numeric_type t2)%bool = true ->
+         E (Delta : tycontext) (e1 e2 : expr) (t2: type) (ch ch' : memory_chunk) (sh : share) (P : LiftEnviron mpred),
+       (numeric_type (typeof e1) && numeric_type t2)%bool = true ->
        access_mode (typeof e1) = By_value ch ->
        access_mode t2 = By_value ch' ->
        decode_encode_val_ok ch ch' ->
        writable_share sh ->
-       semax Espec Delta
+       semax Espec E Delta
          (fun rho =>
            ▷ (tc_lvalue Delta e1 rho ∧ tc_expr Delta (Ecast e2 (typeof e1)) rho ∧
               ( (mapsto_ sh (typeof e1) (eval_lvalue e1 rho) ∧ mapsto_ sh t2 (eval_lvalue e1 rho))
-               * P rho)))
+               ∗ P rho)))
          (Sassign e1 e2)
          (normal_ret_assert
             (fun rho => (∃ v':val,
-              andp (!! (decode_encode_val  (force_val (sem_cast (typeof e2) (typeof e1) (eval_expr e2 rho
-))) ch ch' v'))
-              (mapsto sh t2 (eval_lvalue e1 rho) v' * P rho)))).
+              ⌜decode_encode_val  (force_val (sem_cast (typeof e2) (typeof e1) (eval_expr e2 rho))) ch ch' v'⌝ ∧ 
+              (mapsto sh t2 (eval_lvalue e1 rho) v' ∗ P rho)))).
 Proof.
-intros until P. intros NT AM0 AM' OK WS.
-assert (SZ := decode_encode_val_size _ _ OK).
-apply semax_pre with
+  intros until P. intros NT AM0 AM' OK WS.
+  assert (SZ := decode_encode_val_size _ _ OK).
+  apply semax_pre with
   (fun rho : environ =>
    ∃ v3: val,
-      ▷ tc_lvalue Delta e1 rho ∧ ▷ tc_expr Delta (Ecast e2 (typeof e1)) rho ∧
-      ▷ ((mapsto sh (typeof e1) (eval_lvalue e1 rho) v3 ∧ mapsto sh t2 (eval_lvalue e1 rho) v3) * P rho)).
-intro. apply andp_left2.
-unfold mapsto_.
-apply exp_right with Vundef.
-repeat rewrite later_andp; auto.
-apply extract_exists_pre; intro v3.
-apply semax_straight_simple; auto.
-intros jm jm1 Delta' ge ve te rho k F f TS [TC1 TC2] TC4 Hcl Hge Hage [H0 H0'] HGG'.
-specialize (TC1 (m_phi jm1) (age_laterR (age_jm_phi Hage))).
-specialize (TC2 (m_phi jm1) (age_laterR (age_jm_phi Hage))).
-assert (typecheck_environ Delta rho) as TC.
-{ destruct TC4. eapply typecheck_environ_sub; eauto. }
-pose proof TC1 as TC1'.
-pose proof TC2 as TC2'.
-apply (tc_lvalue_sub _ _ _ TS) in TC1'; [| auto].
-apply (tc_expr_sub _ _ _ TS) in TC2'; [| auto].
-unfold tc_expr in TC2, TC2'; simpl in TC2, TC2'.
-rewrite denote_tc_assert_andp in TC2, TC2'.
-simpl in TC2,TC2'; super_unfold_lift.
-destruct TC2 as [TC2 TC3].
-destruct TC2' as [TC2' TC3'].
-apply later_sepcon2 in H0.
-specialize (H0 _ (age_laterR (age_jm_phi Hage))).
-pose proof I.
-destruct H0 as [?w [?w [? [? [?w [?w [H3 [H4 H5]]]]]]]].
-destruct H4 as [H4 H4x].
-unfold mapsto in H4.
-revert H4; case_eq (access_mode (typeof e1)); intros; try contradiction.
-rename H2 into Hmode.
-rewrite Hmode in AM0; inversion AM0; clear AM0; subst m.
-destruct (eval_lvalue_relate _ _ _ _ _ e1 jm1 HGG' Hge (guard_environ_e1 _ _ _ TC4)) as [b0 [i [He1 He1']]]; auto.
-rewrite He1' in *.
-destruct (join_assoc H3 (join_comm H0)) as [?w [H6 H7]].
-destruct (type_is_volatile (typeof e1)) eqn:NONVOL; try contradiction.
-rewrite if_true in H4 by auto.
-assert (exists v, address_mapsto ch v
-             sh
-        (b0, Ptrofs.unsigned i) w1)
-       by (destruct H4 as [[H4' H4] |[? [? ?]]]; eauto).
-assert (H77: (align_chunk ch' | Ptrofs.unsigned i) /\ type_is_volatile t2 = false). {
-  clear - H4x AM'.
-  unfold mapsto  in H4x.
-  rewrite AM' in H4x.
-  destruct(type_is_volatile t2); try contradiction. split; auto.
-  if_tac in H4x.
-  destruct H4x as [[_ ?] | [_ ?]].
-  rewrite address_mapsto_align in H0; destruct H0 as [_ H0]; simpl in H0; auto.
-  destruct H0 as [? ?].
-  rewrite address_mapsto_align in H0; destruct H0 as [_ H0]; simpl in H0; auto.
-  destruct H4x as [[_ ?] _]. auto.
-}
-clear H4x.
-clear v3 H4; destruct H2 as [v3 H4].
-
-assert (H11': (res_predicates.address_mapsto ch v3 sh
-        (b0, Ptrofs.unsigned i) * TT)%pred (m_phi jm1))
- by (exists w1; exists w3; split3; auto).
-assert (H11: (res_predicates.address_mapsto ch v3  sh
-        (b0, Ptrofs.unsigned i) * exactly w3)%pred (m_phi jm1)).
-{ exists w1; exists w3; split3; auto.
-  hnf; eauto. }
-apply address_mapsto_can_store'
-   with (ch':=ch') (v':=((force_val (Cop.sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1) (m_dry jm1))))) in H11;
-  auto.
-2: apply H77.
-destruct H11 as [m' [H11 AM]].
-exists (store_juicy_mem _ _ _ _ _ _ H11).
-exists (te);  exists rho; split3; auto.
-subst; simpl; auto.
-rewrite level_store_juicy_mem. apply age_level; auto.
-split; auto.
-split.
-split3; auto.
-generalize (eval_expr_relate _ _ _ _ _ e2 jm1 HGG' Hge (guard_environ_e1 _ _ _ TC4)); intro.
-spec H2; [ assumption | ].
-rewrite <- (age_jm_dry Hage) in H2, He1.
-econstructor; try eassumption.
-unfold tc_lvalue in TC1. simpl in TC1.
-auto.
-instantiate (1:=(force_val (Cop.sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1) (m_dry jm)))).
-rewrite (age_jm_dry Hage).
-rewrite cop2_sem_cast'; auto.
-2: eapply typecheck_expr_sound; eauto.
-eapply cast_exists; eauto. destruct TC4; auto.
-eapply Clight.assign_loc_value.
-apply Hmode.
-unfold tc_lvalue in TC1. simpl in TC1.
-auto.
-unfold Mem.storev.
-simpl m_dry.
-rewrite (age_jm_dry Hage).
-auto.
-apply (resource_decay_trans _ (nextblock (m_dry jm1)) _ (m_phi jm1)).
-rewrite (age_jm_dry Hage); lia.
-apply (age1_resource_decay _ _ Hage).
-apply resource_nodecay_decay.
-apply juicy_store_nodecay.
-{intros.
- clear - H11' H2 WS.
- destruct H11' as [phi1 [phi2 [? [? ?]]]].
- destruct H0 as [bl [_ ?]]. specialize  (H0 (b0,z)).
- hnf in H0. rewrite if_true in H0 by (split; auto; lia).
- destruct H0. hnf in H0.
- apply (resource_at_join _ _ _ (b0,z)) in H.
- rewrite H0 in H.
- inv H; simpl; apply join_writable01 in RJ; auto;
- unfold perm_of_sh; rewrite if_true by auto; if_tac; constructor.
-}
-rewrite level_store_juicy_mem. split; [apply age_level; auto|].
-simpl. unfold inflate_store; rewrite ghost_of_make_rmap.
-apply age1_ghost_of, age_jm_phi; auto.
-split.
-2 : {
-      eapply (corable_core _ (m_phi jm1)), pred_hereditary; eauto; [|apply age_jm_phi; auto].
-      symmetry.
-      forget (force_val (Cop.sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1) (m_dry jm1))) as v.
-      apply rmap_ext.
-      do 2 rewrite level_core.
-      rewrite <- level_juice_level_phi; rewrite level_store_juicy_mem.
-      reflexivity.
-      intro loc.
-      unfold store_juicy_mem. simpl.
-      rewrite <- core_resource_at. unfold inflate_store.
-      rewrite resource_at_make_rmap. rewrite <- core_resource_at.
-      case_eq (m_phi jm1 @ loc); intros; auto.
-      destruct k0; simpl resource_fmap; repeat rewrite core_YES; auto.
-      simpl.
-      rewrite !ghost_of_core.
-      unfold inflate_store; rewrite ghost_of_make_rmap; auto.
-}
-
-assert (TCv: tc_val (typeof e1)  (force_val (sem_cast (typeof e2) (typeof e1) (eval_expr e2 rho)))).
-  eapply tc_val_sem_cast; eauto.
-erewrite <- cop2_sem_cast' in *; try eassumption;
-   try (eapply typecheck_expr_sound; eauto).
-forget (force_val (Cop.sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1) (m_dry jm1))) as v.
-rewrite sepcon_comm.
-destruct  (load_store_similar' _ _ _ _ _ _ H11 ch') as [v' [? ?]].
-auto.
-auto.
-apply H77.
-rewrite exp_sepcon1.
-exists v'.
-rewrite prop_true_andp by auto.
-rewrite sepcon_assoc.
-eapply sepcon_derives; try apply AM; auto.
-unfold mapsto.
-destruct TC4 as [TC4 _].
-
-rewrite AM'.
-rewrite He1'.
-*
-apply exp_left; intro v''.
-apply prop_andp_left; intro.
-pose proof (decode_encode_val_fun _ _  OK _ _ _  H8 H9).
-subst v''; clear H9.
-rewrite (proj2 H77).
-rewrite if_true by auto.
-apply orp_right1.
-apply andp_right; auto.
-intros ? ?.
-simpl.
-clear - H8 NT OK Hmode AM' TCv.
-rewrite andb_true_iff in NT; destruct NT as [NT NT'].
-destruct ch, ch'; try contradiction OK;
-destruct (typeof e1) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ]; inv NT; inv Hmode;
-destruct t2 as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ]; inv NT'; inv AM';
-destruct v; simpl in H8; subst; try contradiction;
-try apply I;
-try (apply tc_val_Vundef in TCv; contradiction);
-match goal with
- | |- context [Int.sign_ext ?n] => apply (sign_ext_range' n); compute; split; congruence
- | |- context [Int.zero_ext ?n] => apply (zero_ext_range' n); compute; split; congruence
- | |- _ => idtac
-end.
-*
-intros ? ?.
-clear - H9 H6 H1 H5.
-destruct H9 as (? & H9 & ?).
-destruct (nec_join2 H6 H9) as [w2' [w' [? [? ?]]]].
-eapply pred_upclosed; eauto.
-exists w2'; exists w'; split3; auto; eapply pred_nec_hereditary; eauto.
+      (▷ tc_lvalue Delta e1 rho ∧ ▷ tc_expr Delta (Ecast e2 (typeof e1)) rho) ∧
+      ▷ ((mapsto sh (typeof e1) (eval_lvalue e1 rho) v3 ∧ mapsto sh t2 (eval_lvalue e1 rho) v3) ∗ P rho)).
+  { intros; iIntros "[% H]".
+    rewrite /mapsto_ !bi.later_and assoc; eauto. }
+  apply extract_exists_pre; intro v3.
+  apply semax_straight_simple; auto.
+  { apply _. }
+  intros until f; intros TS TC Hcl Hge HGG.
+  iIntros "(Hm & H & #?)".
+  assert (typecheck_environ Delta rho) as TYCON_ENV
+    by (destruct TC as [TC' TC'']; eapply typecheck_environ_sub; eauto).
+  rewrite (add_and (_ ∧ _) (▷ ⌜_⌝)).
+  2: { iIntros "(_ & _ & (_ & ?) & _) !>"; iApply (mapsto_pure_facts with "[$]"). }
+  iDestruct "H" as "(H & >%H)".
+  destruct H as (_ & ?); destruct (eval_lvalue e1 rho) eqn: He1; try contradiction.
+  iCombine "Hm H" as "H".
+  rewrite (add_and (_ ∗ _) (▷ ⌜_⌝)).
+  2: { iIntros "(? & _ & _ & (? & _) & _) !>".
+       iApply (mapsto_can_store with "[$]"); auto. }
+  iDestruct "H" as "((Hm & H) & >%Hstore)".
+  destruct Hstore as (m' & Hstore).
+  iExists m', te, rho.
+  iSplit.
+  + iSplit; first by subst.
+    iSplit; first done.
+    iCombine "Hm H" as "H"; rewrite (add_and (_ ∗ _) (▷_)); last by iIntros "H"; iNext; iDestruct "H" as "(Hm & (H & _) & _)"; iApply (eval_lvalue_relate with "[$Hm $H]").
+    iDestruct "H" as "(H & >%He1')".
+    destruct He1' as (? & ? & ? & He1'); rewrite He1' in He1; inv He1.
+    rewrite /tc_expr /typecheck_expr; fold typecheck_expr.
+    rewrite denote_tc_assert_andp.
+    rewrite (add_and (_ ∗ _) (▷_)); last by iIntros "H"; iNext; iDestruct "H" as "(Hm & (_ & H & _) & _)"; iApply (eval_expr_relate with "[$Hm $H]").
+    iDestruct "H" as "(H & >%He2)".
+    rewrite (add_and (_ ∗ _) (▷_)); last by iIntros "H"; iNext; iDestruct "H" as "(? & (_ & H) & _)"; iApply (cast_exists with "[$H]").
+    iDestruct "H" as "(H & >%Hcast)".
+    rewrite (add_and (_ ∗ _) (▷_)); last by iIntros "H"; iNext; iDestruct "H" as "(? & (_ & H & _) & _)"; iApply (typecheck_expr_sound with "[$H]").
+    iDestruct "H" as "(H & >%)".
+    rewrite (add_and (_ ∗ _) (▷_)); last by iIntros "H"; iNext; iDestruct "H" as "(Hm & (_ & _ & H) & _)"; iApply (cop2_sem_cast' with "[$Hm $H]").
+    iDestruct "H" as "(H & >%Hcast')".
+    rewrite Hcast in Hcast'.
+    iPureIntro; econstructor; eauto.
+    eapply assign_loc_value; eauto.
+  + iIntros "!> !>".
+    rewrite /tc_expr typecheck_expr_sound //.
+    rewrite (bi.and_elim_r (tc_lvalue _ _ _)); iDestruct "H" as "(%Htc & F & H & P)".
+    iAssert ⌜type_is_volatile t2 = false ∧ (align_chunk ch' | Ptrofs.unsigned i)%Z⌝ with "[H]" as %[??].
+    { iDestruct "H" as "[_ H]"; rewrite /mapsto AM'.
+      destruct (type_is_volatile t2); first done.
+      rewrite -> if_true by auto.
+      iDestruct "H" as "[(% & H) | (% & % & H)]"; rewrite address_mapsto_align; iDestruct "H" as "[_ %]"; done. }
+    iDestruct "H" as "[Hmapsto _]".
+    rewrite /= /force_val1 in Htc; super_unfold_lift.
+    subst; iPoseProof (mapsto_store' with "[$Hm $Hmapsto]") as ">[$ ?]"; auto.
+    { set (v := force_val _) in *.
+      rewrite andb_true_iff in NT; destruct NT as [NT NT'].
+      destruct ch, ch'; try contradiction OK;
+        destruct (typeof e1) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ]; inv NT; inv AM0;
+        destruct t2 as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ]; inv NT'; inv AM';
+        destruct v; simpl in *; subst; try contradiction;
+        try apply I;
+        try (apply tc_val_Vundef in TCv; contradiction);
+        rewrite /decode_val proj_inj_bytes; intros ?;
+        match goal with
+        | |- context [Int.sign_ext ?n] => apply (sign_ext_range' n); compute; split; congruence
+        | |- context [Int.zero_ext ?n] => apply (zero_ext_range' n); compute; split; congruence
+        | |- _ => idtac
+        end; done. }
+    rewrite He1; by iFrame.
 Qed.
 
 

@@ -638,11 +638,20 @@ apply Float32.of_to_bits.
 apply Float.of_to_bits.
 Qed.
 
-Lemma mapsto_store: forall m ch v v' sh b ofs m' (Hsh : writable0_share sh)
-  t (Htc : tc_val t v') (Hch : Ctypes.access_mode t = Ctypes.By_value ch),
+Lemma decode_encode_val_size:
+  forall ch1 ch2, decode_encode_val_ok ch1 ch2 ->
+   size_chunk ch1 = size_chunk ch2.
+Proof.
+intros.
+destruct ch1, ch2; try contradiction;
+simpl in *; subst; auto.
+Qed.
+
+Lemma mapsto_store': forall m ch ch' v v' sh b ofs m' (Hsh : writable0_share sh)
+  (Hdec : decode_encode_val_ok ch ch') (Halign : (align_chunk ch' | ofs)%Z),
   Mem.store ch m b ofs v' = Some m' ->
   mem_auth m ∗ address_mapsto ch v sh (b, ofs) ⊢
-  |==> mem_auth m' ∗ address_mapsto ch v' sh (b, ofs).
+  |==> mem_auth m' ∗ ∃ v'', ⌜decode_encode_val v' ch ch' v''⌝ ∧ address_mapsto ch' v'' sh (b, ofs).
 Proof.
   intros.
   apply store_storebytes in H.
@@ -662,18 +671,46 @@ Proof.
     * rewrite lookup_ge_None_2; last lia.
       rewrite lookup_ge_None_2; first constructor.
       rewrite encode_val_length -Hlen; lia. }
+  iIntros "!>"; iExists _; iSplit; first by iPureIntro; apply decode_encode_val_general.
   rewrite big_opL_fmap; iExists _; iFrame.
   iPureIntro; rewrite encode_val_length; repeat split; try done.
-  apply decode_encode_val_ok1.
-  - apply decode_encode_val_ok_same.
-  - destruct t; try done; simpl in *.
-    + unfold is_int in *.
-      destruct v'; try done.
-      destruct i, s; inv Hch; simpl in *; rewrite ?val_lemmas.sign_ext_inrange ?val_lemmas.zero_ext_inrange //;
-        destruct Htc; subst; by compute.
-    + inv Hch; destruct v'; done.
-    + destruct f; inv Hch; destruct v'; done.
-    + inv Hch; destruct (_ && _), v'; done.
+  { rewrite /size_chunk_nat (decode_encode_val_size _ _ Hdec) //. }
+Qed.
+
+Lemma decode_encode_val_fun:
+  forall ch1 ch2, decode_encode_val_ok ch1 ch2 ->
+  forall v v1 v2,
+     decode_encode_val v ch1 ch2 v1 ->
+     decode_encode_val v ch1 ch2 v2 ->
+     v1=v2.
+Proof.
+intros.
+destruct ch1, ch2; try contradiction;
+destruct v; simpl in *; subst; auto.
+Qed.
+
+Lemma mapsto_store: forall m ch v v' sh b ofs m' (Hsh : writable0_share sh)
+  t (Htc : tc_val' t v') (Hch : Ctypes.access_mode t = Ctypes.By_value ch),
+  Mem.store ch m b ofs v' = Some m' ->
+  mem_auth m ∗ address_mapsto ch v sh (b, ofs) ⊢
+  |==> mem_auth m' ∗ address_mapsto ch v' sh (b, ofs).
+Proof.
+  intros.
+  rewrite address_mapsto_align.
+  iIntros "[Hm [H %]]".
+  pose proof (decode_encode_val_ok_same ch).
+  iMod (mapsto_store' with "[$]") as "($ & % & %Hv'' & H)".
+  eapply decode_encode_val_fun in Hv'' as <-; try done.
+  destruct (eq_dec v' Vundef); first by subst.
+  specialize (Htc n).
+  destruct t; try done; simpl in *.
+  + unfold is_int in *.
+    destruct v'; try done.
+    destruct i, s; inv Hch; simpl in *; rewrite ?val_lemmas.sign_ext_inrange ?val_lemmas.zero_ext_inrange //;
+      destruct Htc; subst; by compute.
+  + inv Hch; destruct v'; done.
+  + destruct f; inv Hch; destruct v'; done.
+  + inv Hch; destruct (_ && _), v'; done.
 Qed.
 
 Local Open Scope Z.
