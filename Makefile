@@ -260,9 +260,9 @@ endif
 # ########## Flags ##########
 
 ifeq ($(ZLIST),platform)
-  VSTDIRS= msl sepcomp veric floyd $(PROGSDIR) concurrency ccc26x86 atomics
+  VSTDIRS= msl sepcomp veric floyd elpi ltac2 $(PROGSDIR) concurrency ccc26x86 atomics
 else
-  VSTDIRS= msl sepcomp veric zlist floyd $(PROGSDIR) concurrency ccc26x86 atomics
+  VSTDIRS= msl sepcomp veric zlist floyd elpi ltac2 $(PROGSDIR) concurrency ccc26x86 atomics
 endif
 OTHERDIRS= wand_demo sha hmacfcf tweetnacl20140427 hmacdrbg aes mailbox boringssl_fips_20180730
 DIRS = $(VSTDIRS) $(OTHERDIRS)
@@ -497,6 +497,11 @@ FLOYD_FILES= \
    data_at_list_solver.v step.v fastforward.v finish.v
 #real_forward.v
 
+ELPI_FILES= \
+  simpl_by_cbv.v cbv_symbol_lists_generated_definitions.v cbv_symbol_lists_generated.v
+
+LTAC2_FILES= \
+  simpl_by_cbv.v cbv_symbol_lists_generated.v constr_ex.v list_ex.v control_ex.v message_ex.v print_ex.v
 
 PROGS32_FILES= \
   incr.v verif_incr.v \
@@ -625,6 +630,8 @@ FILES = \
  $(SEPCOMP_FILES:%=sepcomp/%) \
  $(VERIC_FILES:%=veric/%) \
  $(FLOYD_FILES:%=floyd/%) \
+ $(ELPI_FILES:%=elpi/%) \
+ $(LTAC2_FILES:%=ltac2/%) \
  $(PROGS_FILES:%=$(PROGSDIR)/%) \
  $(WAND_DEMO_FILES:%=wand_demo/%) \
  $(SHA_FILES:%=sha/%) \
@@ -749,7 +756,7 @@ concurrency: _CoqProject $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo) $(CONCUR
 linking: _CoqProject $(LINKING_FILES:%.v=linking/%.vo)
 veric:   _CoqProject $(VERIC_FILES:%.v=veric/%.vo) veric/version.vo
 zlist:   _CoqProject $(ZLIST_FILES:%.v=zlist/%.vo)
-floyd:   _CoqProject $(FLOYD_FILES:%.v=floyd/%.vo)
+floyd:   _CoqProject $(FLOYD_FILES:%.v=floyd/%.vo) $(ELPI_FILES:%.v=elpi/%.vo) $(LTAC2_FILES:%.v=ltac2/%.vo)
 progs:   _CoqProject $(PROGS_FILES:%.v=$(PROGSDIR)/%.vo)
 progsdir: $(PROGSDIR)
 wand_demo:   _CoqProject $(WAND_DEMO_FILES:%.v=wand_demo/%.vo)
@@ -945,4 +952,3 @@ assumptions.txt: veric/tcb.vo
 # such problem, not sure exactly.  -- Andrew)
 include .depend
 -include .depend-concur
-
