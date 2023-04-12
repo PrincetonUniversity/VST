@@ -1,12 +1,12 @@
 opam-version: "2.0"
-version: "dev"
+version: "2.12"
 synopsis: "VSTlib: VST-verified C library for VST-verified clients"
 description: "These program modules, in the form of Verified Software Units,
 may be linked with client-module code  (at the .c/.o level) and proofs (at the .v level)."
 authors: [
   "Andrew W. Appel"
 ]
-maintainer: "Andrew W. Appel"
+maintainer: "Andrew W. Appel <appel@princeton.edu>"
 homepage: "http://"
 dev-repo: "git+https://github.com/PrincetonUniversity/VST"
 bug-reports: "https://github.com/PrincetonUniversity/VST/issues"
