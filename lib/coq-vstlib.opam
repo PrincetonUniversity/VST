@@ -14,20 +14,20 @@ bug-reports: "https://github.com/PrincetonUniversity/VST/issues"
 license: "BSD-2-Clause"
 
 build: [
-  [cd lib; make "-j%{jobs}%" "proof-only"]
+  [ make -C lib "-j%{jobs}%" "proof-only"]
 ]
 install: [
-  [cd lib; make "install" "INSTALLDIR=%{lib}%/coq/user-contrib/VSTlib"]
+  [ make -C lib "install" "INSTALLDIR=%{lib}%/coq/user-contrib/VSTlib"]
 ]
 run-test: [
-  [cd lib; make "-j%{jobs}%" "test-only"]
+  [ make -C lib "-j%{jobs}%" "test-only"]
 ]
 depends: [
-  "coq" {>= "8.14" & < "8.17~"}
-  "coq-compcert" {>= "3.10"}
+  "coq" {>= "8.16" & < "8.18~"}
+  "coq-compcert" {>= "3.11"}
   "coq-flocq" {>= "4.1.0" & < "5.0"}
   "coq-vcfloat" {>= "2.0"}
-  "coq-vst" {>= "2.11"}
+  "coq-vst" {>= "2.11.1"}
 ]
 url {
   src: "git+https://github.com/PrincetonUniversity/VST.git#master"
