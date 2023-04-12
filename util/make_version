@@ -2,10 +2,15 @@
 #usage:  util/make_version Bitsize Compcert-version
 F=veric/version.v
 set -e
-if [ -f `which gdate` ]; then
-    DATE=gdate
+if [[ -n $ZSH_VERSION ]]; then
+    builtin whence -p gdate &> /dev/null
 else
+    builtin type -P gdate &> /dev/null
+fi
+if [ $? ]; then
     DATE=date
+else
+    DATE=gdate
 fi
 printf >$F 'Require Import ZArith Coq.Strings.String. Open Scope string.\n'
 printf >>$F 'Definition git_rev := "'
@@ -21,3 +26,4 @@ $DATE --rfc-3339=date | tr -d '[:cntrl:]' >>$F
 printf >>$F '".\n'
 printf >>$F 'Definition bitsize : Z := %d.\n' $1
 printf >>$F 'Definition compcert_version := "%s".' $2
+
