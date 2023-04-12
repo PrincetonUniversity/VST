@@ -199,19 +199,13 @@ rewrite /assert_safe.
 iIntros (z ?); iSpecialize ("H" with "[%]"); first done.
 destruct k as [ | s ctl' | | | |]; try done; try solve [iApply (jsafe_local_step with "H"); constructor].
 -
-iMod (jsafe_step_forward with "H") as "H"; simpl; try congruence.
-{ by inversion 1. }
-rewrite jstep_mono.
-by iApply jsafe_step; iApply jstep_exists.
-{ inversion 1; constructor; simpl; auto. }
+iApply (convergent_controls_jsafe with "H"); simpl; try congruence.
+by inversion 1; constructor.
 -
 iMod "H" as "[]".
 -
-iMod (jsafe_step_forward with "H") as "H"; simpl; try congruence.
-{ by inversion 1. }
-rewrite jstep_mono.
-by iApply jsafe_step; iApply jstep_exists.
-{ inversion 1; constructor; simpl; auto. }
+iApply (convergent_controls_jsafe with "H"); simpl; try congruence.
+by inversion 1; constructor.
 Qed.
 
 Fixpoint list_drop (A: Type) (n: nat) (l: list A) {struct n} : list A :=
@@ -1088,11 +1082,8 @@ Proof.
   intros; rewrite /assert_safe.
   iIntros "H"; iSpecialize ("H" with "[%]"); first done.
   destruct k; try iMod "H" as "[]"; try done.
-  - iMod (jsafe_step_forward with "H") as "H"; simpl; try congruence.
-    { by inversion 1. }
-    rewrite jstep_mono.
-    by iApply jsafe_step; iApply jstep_exists.
-    { inversion 1; constructor; simpl; auto. }
+  - iApply (convergent_controls_jsafe with "H"); simpl; try congruence.
+    by inversion 1; constructor.
   - iApply jsafe_step.
     rewrite /jstep_ex.
     iIntros (m) "? !>".
@@ -1101,11 +1092,8 @@ Proof.
     rewrite /jstep.
     iIntros (m) "? !>".
     iExists _, m; iFrame; iPureIntro; split; auto; constructor.
-  - iMod (jsafe_step_forward with "H") as "H"; simpl; try congruence.
-    { by inversion 1. }
-    rewrite jstep_mono.
-    by iApply jsafe_step; iApply jstep_exists.
-    { inversion 1; constructor; simpl; auto. }
+  - iApply (convergent_controls_jsafe with "H"); simpl; try congruence.
+    by inversion 1; constructor.
 Qed.
 
 End SemaxContext.

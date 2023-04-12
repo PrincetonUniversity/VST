@@ -918,43 +918,31 @@ Qed.
     solve[eapply jsafe_step'_back2; eauto].
   Qed.*)
 
-  (* The most equivalent thing would be to existentially quantify over steps. They're equivalent in a deterministic language, but should we assume that? *)
-(*  Lemma convergent_controls_jsafe :
-    forall m q1 q2
-      (Hat_ext : at_external Hcore q1 m = at_external Hcore q2 m)
+  Lemma convergent_controls_jsafe :
+    forall q1 q2
+      (Hat_ext : forall m, at_external Hcore q1 m = at_external Hcore q2 m)
       (Hafter_ext : forall ret m q', after_external Hcore ret q1 m = Some q' ->
                                      after_external Hcore ret q2 m = Some q')
       (Hhalted : halted Hcore q1 = semantics.halted Hcore q2)
-      (Hstep : forall q' m', corestep Hcore q1 m q' m' ->
+      (Hstep : forall m q' m', corestep Hcore q1 m q' m' ->
                              corestep Hcore q2 m q' m'),
       (forall E z, jsafe E z q1 ⊢ jsafe E z q2).
   Proof.
     intros.
+    iIntros "H".
     rewrite !jsafe_unfold /jsafe_pre.
-    rewrite Hhalted.
-    iIntros ">[H | H]"; first by iLeft.
-    iRight; iDestruct "H" as (?) "H"; iIntros "!>".
-    iSplit; first done.
-    iIntros (?) "??"; iMod ("H" with "[$] [$]") as "H".
-    iIntros "!>" (?); iApply (bi.impl_mono with "H"); first done.
-    iIntros "H"; iSplit.
-    - iIntros "!>" (???) "?".
-rewrite Hstep.
-    - iLeft. by rewrite Hhalted.
-    - iDestruct ""
-
-    inv H3.
-    + constructor; auto.
-    + eapply jsafeN_step; eauto.
-    + eapply jsafeN_external; eauto.
-      rewrite <-H; eauto.
-      intros ??? Hargsty Hretty ? H8.
-      specialize (H6 _ _ _ Hargsty Hretty H3 H8).
-      destruct H6 as [c' [? ?]].
-      exists c'; split; auto.
-    + eapply jsafeN_halted; eauto.
-      rewrite <-H1; auto.
-  Qed.*)
+    iMod "H"; iIntros "!>" (?) "?"; iDestruct ("H" with "[$]") as "[H | [H | H]]".
+    - rewrite Hhalted; auto.
+    - iRight; iLeft; iNext.
+      iDestruct "H" as (?? H) "H".
+      apply Hstep in H; eauto.
+    - rewrite Hat_ext; iDestruct "H" as (????) "H".
+      iRight; iRight; iExists _, _, _; iSplit; first done.
+      iDestruct "H" as "[$ H]"; iNext.
+      iDestruct "H" as "#H"; iIntros "!>" (????) "Hpost".
+      iMod ("H" with "[%] Hpost") as (? Hafter) "Hpost"; first done.
+      apply Hafter_ext in Hafter; eauto.
+  Qed.
 
 (*  Lemma jm_fupd_intro_strong' : forall (ora : Z) E (c : C) m,
     (joins (ghost_of (m_phi m)) (Some (ext_ref ora, NoneP) :: nil) -> jsafeN_ ora c m) ->
