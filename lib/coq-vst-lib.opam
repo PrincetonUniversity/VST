@@ -13,13 +13,13 @@ bug-reports: "https://github.com/PrincetonUniversity/VST/issues"
 license: "BSD-2-Clause"
 
 build: [
-  [ make "-C" "lib" "-j%{jobs}%" "proof-only"]
+  [ make "-j%{jobs}%" "proof-only"]
 ]
 install: [
-  [ make "-C" "lib" "install" "INSTALLDIR=%{lib}%/coq/user-contrib/VSTlib"]
+  [ make "install" "INSTALLDIR=%{lib}%/coq/user-contrib/VSTlib"]
 ]
 run-test: [
-  [ make "-C" "lib" "-j%{jobs}%" "test-only"]
+  [ make "-j%{jobs}%" "test-only"]
 ]
 depends: [
   "coq" {>= "8.16" & < "8.18~"}
