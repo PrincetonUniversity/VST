@@ -24,7 +24,7 @@ forall sh, identity (Share.unrel Share.Rsh sh) -> join_sub sh Share.Lsh.
 Proof.
  intros.
  rewrite (Share.decompose_Rsh sh) in H.
- remember (decompose sh).
+ remember (boolean_alg.decompose sh).
  symmetry in Heqp. destruct p as [sh1 sh2].
  simpl in H.
  apply identity_share_bot in H. subst.

@@ -159,8 +159,7 @@ Definition make_ext_rval  (gx: genviron) (tret: rettype) (v: option val):=
   | None => mkEnviron gx (Map.empty _) (Map.empty _)
   end end.
 
-(* Should this and funspec_sub both be indexed by a mask? *)
-Definition semax_external
+Definition semax_external E
   ef
   (A: Type)
   (P: A -> argsEnviron -> mpred)
@@ -170,11 +169,11 @@ Definition semax_external
    ▷ ∀ F (ts: list typ),
    ∀ args: list val,
    ■ (⌜Val.has_type_list args (sig_args (ef_sig ef))⌝ ∧
-     (P x (filter_genv gx, args) ∗ F) ={⊤}=∗
+     (P x (filter_genv gx, args) ∗ F) ={E}=∗
    ∀ m z, state_interp m z -∗ ∃ x': ext_spec_type OK_spec ef,
     ext_jmpred_pre OK_ty OK_spec ef x' (genv_symb_injective gx) ts args z m ∗
      □ ∀ tret: rettype, ∀ ret: option val, ∀ z': OK_ty, ∀ m',
-      ext_jmpred_post OK_ty OK_spec ef x' (genv_symb_injective gx) tret ret z' m' ∗ state_interp m' z' ={⊤}=∗
+      ext_jmpred_post OK_ty OK_spec ef x' (genv_symb_injective gx) tret ret z' m' ∗ state_interp m' z' ={E}=∗
           state_interp m' z' ∗ Q x (make_ext_rval (filter_genv gx) tret ret) ∗ F).
 
 Lemma Forall2_implication {A B} (P Q:A -> B -> Prop) (PQ:forall a b, P a b -> Q a b):
@@ -188,15 +187,15 @@ Proof.
   inv H. apply IHvals in H5. split; trivial.
 Qed.
 
-Lemma semax_external_funspec_sub
+Lemma semax_external_funspec_sub E
   {argtypes rtype cc ef A1 P1 Q1 A P Q}
-  (Hsub: funspec_sub (mk_funspec (argtypes, rtype) cc A1 P1 Q1)
-                     (mk_funspec (argtypes, rtype) cc A P Q))
-  (HSIG: ef_sig ef = 
+  (Hsub: funspec_sub E (mk_funspec (argtypes, rtype) cc A1 P1 Q1)
+                       (mk_funspec (argtypes, rtype) cc A P Q))
+  (HSIG: ef_sig ef =
          mksignature
                      (map typ_of_type argtypes)
                      (rettype_of_type rtype) cc):
-  semax_external ef A1 P1 Q1 ⊢ semax_external ef A P Q.
+  semax_external E ef A1 P1 Q1 ⊢ semax_external E ef A P Q.
 Proof.
   apply bi.forall_mono; intros g.
   iIntros "#H" (x). iIntros "!>" (F ts args) "!> (%HT & P & F)".
@@ -228,7 +227,7 @@ Fixpoint zip_with_tl {A : Type} (l1 : list A) (l2 : typelist) : list (A*type) :=
   end.
 
 Definition withtype_empty (A: Type) : Prop := forall (x : A), False.
-Definition believe_external (gx: genv) (v: val) (fsig: typesig) cc
+Definition believe_external (gx: genv) E (v: val) (fsig: typesig) cc
   (A: Type)
   (P: A -> argsEnviron -> mpred)
   (Q: A -> environ -> mpred) :=
@@ -239,7 +238,7 @@ Definition believe_external (gx: genv) (v: val) (fsig: typesig) cc
                            (typlist_of_typelist (typelist_of_type_list (fst fsig)))
                            (rettype_of_type (snd fsig)) cc
            /\ (ef_inline ef = false \/ withtype_empty A)⌝
-        ∧ semax_external ef A P Q
+        ∧ semax_external E ef A P Q
         ∧ ■ (∀ x: A,
               ∀ ret:option val,
                 Q x (make_ext_rval (filter_genv gx) (rettype_of_type (snd fsig)) ret)
@@ -248,21 +247,23 @@ Definition believe_external (gx: genv) (v: val) (fsig: typesig) cc
   | _ => False
   end.
 
-Lemma believe_external_funspec_sub {gx v sig cc A P Q A' P' Q'}
-      (Hsub: funspec_sub (mk_funspec sig cc A P Q)(mk_funspec sig cc A' P' Q') )
+Lemma believe_external_funspec_sub {gx E v sig cc A P Q A' P' Q'}
+      (Hsub: funspec_sub E (mk_funspec sig cc A P Q) (mk_funspec sig cc A' P' Q'))
       (WTE: withtype_empty A -> withtype_empty A'):
-      believe_external gx v sig cc A P Q ⊢ believe_external gx v sig cc A' P' Q'.
+      believe_external gx E v sig cc A P Q ⊢ believe_external gx E v sig cc A' P' Q'.
 Proof.
   unfold believe_external.
   destruct (Genv.find_funct gx v); trivial.
   destruct f; trivial. destruct sig as [argtypes rtype].
-  iIntros "((% & % & %He & %) & H & #?)".
+  iIntros "((% & % & %He & %) & H & #Htc)".
   rewrite TTL2 in He |- *.
   rewrite semax_external_funspec_sub; [iFrame | eauto..].
   iSplit.
   - iPureIntro; repeat split; auto; tauto.
   - iIntros "!>" (??) "[Q %]".
     destruct Hsub as [_ Hsub].
+    iApply "Htc"; iSplit; last done.
+    simpl in *; inv H.
 Abort.
 
 Definition fn_funsig (f: function) : funsig := (fn_params f, fn_return f).
@@ -296,7 +297,7 @@ Definition believe_internal_ CS
                  /\ f.(fn_callconv) = cc⌝
   ∧
    ∀ Delta':tycontext, ∀ CS':compspecs,
-   ⌜forall f, tycontext_sub (func_tycontext' f Delta) (func_tycontext' f Delta')⌝ →
+   ⌜forall f, tycontext_sub E (func_tycontext' f Delta) (func_tycontext' f Delta')⌝ →
      ⌜cenv_sub (@cenv_cs CS) (@cenv_cs CS')⌝ →
       (∀ x : A,
         ▷ semax (SemaxArg CS' E (func_tycontext' f Delta')
@@ -320,14 +321,14 @@ Definition believepred CS (semax: semaxArg -> mpred)
   ∀ P: A -> argsEnviron -> mpred,
   ∀ Q: A -> environ -> mpred,
        ⌜claims gx Delta' v fsig cc A P Q⌝ →
-      (believe_external gx v fsig cc A P Q
+      (believe_external gx E v fsig cc A P Q
         ∨ believe_internal_ CS semax gx E Delta v fsig cc A P Q).
 
 Definition semax_
        (semax: semaxArg -d> iPropO Σ) : semaxArg -d> iPropO Σ := fun a =>
  match a with SemaxArg CS E Delta P c R =>
   ∀ gx: genv, ∀ Delta': tycontext,∀ CS':compspecs,
-       ⌜tycontext_sub Delta Delta' 
+       ⌜tycontext_sub E Delta Delta' 
             /\ cenv_sub (@cenv_cs CS) (@cenv_cs CS') 
             /\ cenv_sub (@cenv_cs CS') (genv_cenv gx)⌝ →
       (believepred CS' semax E Delta' gx Delta') →
@@ -368,7 +369,7 @@ Definition believe_internal {CS: compspecs}
                  /\ f.(fn_callconv) = cc⌝
   ∧ 
     ∀ Delta':tycontext,∀ CS':compspecs,
-     ⌜forall f, tycontext_sub (func_tycontext' f Delta) (func_tycontext' f Delta')⌝ →
+     ⌜forall f, tycontext_sub E (func_tycontext' f Delta) (func_tycontext' f Delta')⌝ →
       ⌜cenv_sub (@cenv_cs CS) (@cenv_cs CS')⌝ →
        (∀ x : A,
      ▷ @semax' CS' E (func_tycontext' f Delta')
@@ -384,13 +385,13 @@ Definition believe {CS: compspecs}
   ∀ P: A -> argsEnviron -> mpred,
   ∀ Q: A -> environ -> mpred,
        ⌜claims gx Delta' v fsig cc A P Q⌝ →
-      (believe_external gx v fsig cc A P Q
+      (believe_external gx E v fsig cc A P Q
         ∨ believe_internal gx E Delta v fsig cc A P Q).
 
 Lemma semax_fold_unfold : forall {CS: compspecs} E Delta P c R,
   semax' E Delta P c R ⊣⊢
   ∀ gx: genv, ∀ Delta': tycontext,∀ CS':compspecs,
-       ⌜(tycontext_sub Delta Delta'
+       ⌜(tycontext_sub E Delta Delta'
            /\ cenv_sub (@cenv_cs CS) (@cenv_cs CS')
            /\ cenv_sub (@cenv_cs CS') (genv_cenv gx))⌝ →
        @believe CS' E Delta' gx Delta' →
@@ -491,7 +492,7 @@ Lemma complete_type_cspecs_sub {cs cs'} (C: cspecs_sub cs cs') t (T:complete_typ
 Proof. destruct C. apply (complete_type_cenv_sub H _ T). Qed.
 
 Lemma believe_internal_cenv_sub {CS'} gx E Delta Delta' v sig cc A P Q
-  (SUB: forall f, tycontext_sub (func_tycontext' f Delta)
+  (SUB: forall f, tycontext_sub E (func_tycontext' f Delta)
                                 (func_tycontext' f Delta'))
   (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) :
   @believe_internal CS gx E Delta v sig cc A P Q ⊢
@@ -510,8 +511,8 @@ Proof.
     + apply (cenv_sub_trans CSUB); auto.
 Qed.
 Lemma believe_internal_mono {CS'} gx E Delta Delta' v sig cc A P Q
-  (SUB: forall f, tycontext_sub (func_tycontext' f Delta)
-                                (func_tycontext' f Delta'))
+  (SUB: forall f, tycontext_sub E (func_tycontext' f Delta)
+                                  (func_tycontext' f Delta'))
   (CSUB: cspecs_sub  CS CS') :
   @believe_internal CS gx E Delta v sig cc A P Q ⊢
   @believe_internal CS' gx E Delta' v sig cc A P Q.
@@ -521,8 +522,8 @@ Proof.
 Qed. 
 
 Lemma believe_cenv_sub_L {CS'} gx E Delta Delta' Gamma
-  (SUB: forall f, tycontext_sub (func_tycontext' f Delta)
-                                (func_tycontext' f Delta'))
+  (SUB: forall f, tycontext_sub E (func_tycontext' f Delta)
+                                  (func_tycontext' f Delta'))
   (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')):
   @believe CS E Delta gx Gamma ⊢ @believe CS' E Delta' gx Gamma.
 Proof.
@@ -531,8 +532,8 @@ Proof.
   iRight; iApply (believe_internal_cenv_sub with "[$]").
 Qed.
 Lemma believe_monoL {CS'} gx E Delta Delta' Gamma
-  (SUB: forall f, tycontext_sub (func_tycontext' f Delta)
-                                (func_tycontext' f Delta'))
+  (SUB: forall f, tycontext_sub E (func_tycontext' f Delta)
+                                  (func_tycontext' f Delta'))
   (CSUB: cspecs_sub  CS CS'):
   @believe CS E Delta gx Gamma ⊢ @believe CS' E Delta' gx Gamma.
 Proof.
@@ -541,8 +542,8 @@ Proof.
 Qed.
 
 Lemma believe_internal__mono sem gx E Delta Delta' v sig cc A P Q
-  (SUB: forall f, tycontext_sub (func_tycontext' f Delta)
-                                (func_tycontext' f Delta')) :
+  (SUB: forall f, tycontext_sub E (func_tycontext' f Delta)
+                                  (func_tycontext' f Delta')) :
   believe_internal_ CS sem gx E Delta v sig cc A P Q ⊢
   believe_internal_ CS sem gx E Delta' v sig cc A P Q.
 Proof.
@@ -556,7 +557,7 @@ Qed.
 End believe_monotonicity.
 
 Lemma semax__mono {CS} E Delta Delta'
-  (SUB: tycontext_sub Delta Delta') sem P c R:
+  (SUB: tycontext_sub E Delta Delta') sem P c R:
   @semax_ sem {| sa_cs := CS; sa_E := E; sa_Delta := Delta; sa_P := P; sa_c := c; sa_R := R |} ⊢
   @semax_ sem {| sa_cs:=CS; sa_E := E; sa_Delta := Delta'; sa_P := P; sa_c := c; sa_R := R |}.
 Proof.
@@ -567,7 +568,7 @@ Proof.
 Qed.
 
 Lemma semax_mono {CS} E Delta Delta' P Q
-  (SUB: tycontext_sub Delta Delta') c:
+  (SUB: tycontext_sub E Delta Delta') c:
   @semax' CS E Delta P c Q ⊢
   @semax' CS E Delta' P c Q.
 Proof.
@@ -576,27 +577,6 @@ Proof.
   iApply "H"; iPureIntro; split; auto.
   eapply tycontext_sub_trans; eauto.
 Qed.
-
-(*Lemma semax_mono_box {CS} Espec Delta Delta' P Q
-  (SUB: tycontext_sub Delta Delta') c w
-  (BI: @box nat ag_nat _ (@laterM nat ag_nat _)
-          (@semax' CS Espec Delta P c Q) w):
-  @box nat ag_nat _ (@laterM nat ag_nat _)
-          (@semax' CS Espec Delta' P c Q) w.
-Proof. eapply box_positive; [ clear BI | apply BI].
-intros a Hyp.
-eapply semax_mono; eassumption.
-Qed.
-
-(*In fact, the following specialization suffices in semax_prog*)
-Lemma semax_mono' {CS} Espec Delta Delta' P Q
-  (SUB: forall f, tycontext_sub (func_tycontext' f Delta)
-                                (func_tycontext' f Delta')) c w f
-  (BI: @box nat ag_nat _ (@laterM nat ag_nat _)
-          (@semax' CS Espec (func_tycontext' f Delta) P c Q) w):
-  @box nat ag_nat _ (@laterM nat ag_nat _)
-          (@semax' CS Espec (func_tycontext' f Delta') P c Q) w.
-Proof. eapply semax_mono_box. eauto. eassumption. Qed.*)
 
 Lemma semax_cenv_sub {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) E Delta P c R:
       @semax CS E Delta P c R -> @semax CS' E Delta P c R.

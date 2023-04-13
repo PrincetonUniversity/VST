@@ -86,11 +86,11 @@ Proof.
 Qed.
 
 Lemma typecheck_environ_sub:
-  forall Delta Delta', tycontext_sub Delta Delta' ->
+  forall E Delta Delta', tycontext_sub E Delta Delta' ->
    forall rho,
    typecheck_environ Delta' rho -> typecheck_environ Delta rho.
 Proof.
-intros ? ? [? [? [? [? Hs]]]] ?  [? [? ?]].
+intros ??? [? [? [? [? Hs]]]] ?  [? [? ?]].
 split; [ | split].
 * clear - H H3.
  hnf; intros.
@@ -167,7 +167,7 @@ Qed.
 
 Lemma semax_unfold {CS: compspecs} E Delta P c R :
   semax Espec E Delta P c R = forall (psi: Clight.genv) Delta' CS'
-          (TS: tycontext_sub Delta Delta')
+          (TS: tycontext_sub E Delta Delta')
           (HGG: cenv_sub (@cenv_cs CS) (@cenv_cs CS') /\ cenv_sub (@cenv_cs CS') (genv_cenv psi)),
     ⊢ believe(CS := CS') Espec E Delta' psi Delta' → ∀ (k: cont) (F: environ -> mpred) f,
         ⌜closed_wrt_modvars c F⌝ ∧ rguard Espec psi E Delta' f (frame_ret_assert R F) k →
@@ -253,14 +253,14 @@ Proof.
     iSpecialize ("H" with "[%]"); done.
 Qed.
 
-Global Instance believe_external_plain gx v fsig cc A P Q : Plain (believe_external Espec gx v fsig cc A P Q).
+Global Instance believe_external_plain gx E v fsig cc A P Q : Plain (believe_external Espec gx E v fsig cc A P Q).
 Proof.
   rewrite /Plain /believe_external.
   destruct (Genv.find_funct gx v); last iApply plain.
   destruct f; iApply plain.
 Qed.
 
-Global Instance believe_external_absorbing gx v fsig cc A P Q : Absorbing (believe_external Espec gx v fsig cc A P Q).
+Global Instance believe_external_absorbing gx E v fsig cc A P Q : Absorbing (believe_external Espec gx E v fsig cc A P Q).
   rewrite /Absorbing /believe_external.
   destruct (Genv.find_funct gx v); last iApply absorbing.
   destruct f; iApply absorbing.
@@ -376,8 +376,8 @@ Definition all_assertions_computable  :=
  *)
 
 Lemma guard_environ_sub:
-  forall {Delta Delta' f rho},
-   tycontext_sub Delta Delta' ->
+  forall {E Delta Delta' f rho},
+   tycontext_sub E Delta Delta' ->
    guard_environ Delta' f rho ->
    guard_environ Delta f rho.
 Proof.
@@ -403,7 +403,7 @@ Qed.
       ALL Delta:tycontext, ALL Delta':tycontext,
       ALL P:assert, ALL P':assert,
       ALL c: statement, ALL R:ret_assert, ALL R':ret_assert,
-       ((!! tycontext_sub Delta Delta'
+       ((!! tycontext_sub E Delta Delta'
        &&  (ALL ek: exitkind, ALL  vl : option val, ALL rho: environ,
                (proj_ret_assert R ek vl rho >=> proj_ret_assert R' ek vl rho))
       && (ALL rho:environ, P' rho >=> P rho)  && semax' Espec Delta P c R) >=> semax' Espec Delta' P' c R').
@@ -459,7 +459,7 @@ Qed.
 
 Lemma semax_extensionality1 {CS: compspecs} {Espec: OracleKind}:
   forall Delta Delta' (P P': assert) c (R R': ret_assert) ,
-       tycontext_sub Delta Delta' ->
+       tycontext_sub E Delta Delta' ->
        ((ALL ek: exitkind, ALL  vl : option val, ALL rho: environ,
           (proj_ret_assert R ek vl rho >=> proj_ret_assert R' ek vl rho))
       && (ALL rho:environ, P' rho >=> P rho)  && (semax' Espec Delta P c R) |-- semax' Espec Delta' P' c R').
@@ -760,7 +760,7 @@ Qed.
 
 Lemma semax_Delta_subsumption {CS: compspecs}:
   forall E Delta Delta' P c R,
-       tycontext_sub Delta Delta' ->
+       tycontext_sub E Delta Delta' ->
      semax Espec E Delta P c R -> semax Espec E Delta' P c R.
 Proof.
 intros.
@@ -1041,7 +1041,7 @@ Qed.
   semax Espec Delta P c R =
   (True ⊢ (ALL psi : genv,
          ALL Delta' : tycontext, ALL CS':compspecs,
-         !! (tycontext_sub Delta Delta' /\ cenv_sub (@cenv_cs CS) (@cenv_cs CS') /\
+         !! (tycontext_sub E Delta Delta' /\ cenv_sub (@cenv_cs CS) (@cenv_cs CS') /\
                                           cenv_sub (@cenv_cs CS') (genv_cenv psi)) -->
          @believe CS' Espec Delta' psi Delta' -->
          ALL k : cont ,

@@ -16,6 +16,10 @@ Require Import VST.veric.semax.
 Require Import VST.veric.semax_lemmas.
 Require Import VST.veric.Clight_lemmas.
 
+Section mpred.
+
+Context {CS: compspecs} `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ}.
+
 Lemma closed_wrt_modvars_switch:
   forall a sl n F,
   closed_wrt_modvars (Sswitch a sl) F ->
@@ -29,7 +33,7 @@ destruct H0; auto;left.
 clear - H0.
 simpl in *.
 forget idset0 as s.
-assert (isSome (modifiedvars' (seq_of_labeled_statement sl) s) ! i). {
+assert (isSome (modifiedvars' (seq_of_labeled_statement sl) s) !! i). {
   unfold select_switch in *.
   destruct (select_switch_case n sl) eqn:?.
  *
@@ -55,7 +59,7 @@ assert (isSome (modifiedvars' (seq_of_labeled_statement sl) s) ! i). {
 Qed.
 
 Lemma frame_tc_expr:
-  forall {CS: compspecs} (Q F: mpred) Delta e rho,
+  forall (Q F: mpred) Delta e rho,
   (Q |-- tc_expr Delta e rho) ->
   Q * F |-- tc_expr Delta e rho.
 Proof.

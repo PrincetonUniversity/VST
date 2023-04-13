@@ -16,7 +16,6 @@ Require Import VST.veric.res_predicates.
 
 (*Lenb: Should Imports from sepcomp really be here?*)
 Require Import VST.sepcomp.extspec.
-Import compcert.lib.Maps.
 
 (*Require Import VST.sepcomp.event_semantics.
 Require Import VST.sepcomp.extspec.*)

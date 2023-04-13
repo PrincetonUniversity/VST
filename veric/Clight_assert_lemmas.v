@@ -11,10 +11,10 @@ Section mpred.
 
 Context `{!heapGS Σ}.
 
-Definition allp_fun_id (Delta : tycontext) (rho : environ): mpred :=
+Definition allp_fun_id E (Delta : tycontext) (rho : environ): mpred :=
  ∀ id : ident, ∀ fs : funspec,
   ⌜(glob_specs Delta) !! id = Some fs⌝ →
-  (∃ b : block, ⌜Map.get (ge_of rho) id = Some b⌝ ∧ func_ptr_si fs (Vptr b Ptrofs.zero)).
+  (∃ b : block, ⌜Map.get (ge_of rho) id = Some b⌝ ∧ func_ptr_si E fs (Vptr b Ptrofs.zero)).
 
 Global Instance funspec_inhabited : Inhabited funspec.
 Proof. constructor. exact (mk_funspec ([], Tvoid) cc_default unit (fun _ _ => True) (fun _ _ => True)). Qed.
@@ -28,8 +28,8 @@ Definition allp_fun_id_sigcc (Delta : tycontext) (rho : environ): mpred :=
     mk_funspec sig cc _ _ _ => sigcc_at sig cc (b, 0)
     end))).
 
-Lemma allp_fun_id_ex_implies_allp_fun_sigcc Delta rho: 
-  allp_fun_id Delta rho ⊢ allp_fun_id_sigcc Delta rho.
+Lemma allp_fun_id_ex_implies_allp_fun_sigcc E Delta rho:
+  allp_fun_id E Delta rho ⊢ allp_fun_id_sigcc Delta rho.
 Proof.
   rewrite /allp_fun_id /allp_fun_id_sigcc.
   apply bi.forall_mono; intros id.
@@ -43,8 +43,8 @@ Proof.
   destruct fs, gs; iDestruct "H1" as "[[-> ->] _]"; eauto.
 Qed.
 
-Lemma allp_fun_id_sigcc_sub: forall Delta Delta' rho,
-  tycontext_sub Delta Delta' ->
+Lemma allp_fun_id_sigcc_sub: forall E Delta Delta' rho,
+  tycontext_sub E Delta Delta' ->
   allp_fun_id_sigcc Delta' rho ⊢ allp_fun_id_sigcc Delta rho.
 Proof.
   intros.
@@ -60,9 +60,9 @@ Proof.
   by destruct fs, gs; iDestruct "Hsub" as "[[-> ->] _]".
 Qed.
 
-Lemma allp_fun_id_sub: forall Delta Delta' rho,
-  tycontext_sub Delta Delta' ->
-  allp_fun_id Delta' rho ⊢ allp_fun_id Delta rho.
+Lemma allp_fun_id_sub: forall E Delta Delta' rho,
+  tycontext_sub E Delta Delta' ->
+  allp_fun_id E Delta' rho ⊢ allp_fun_id E Delta rho.
 Proof.
   intros.
   apply bi.forall_mono; intros id.
@@ -77,7 +77,7 @@ Proof.
   iApply funspec_sub_si_trans; eauto.
 Qed.
 
-Lemma funassert_allp_fun_id Delta rho: funassert Delta rho ⊢ <affine> allp_fun_id Delta rho.
+Lemma funassert_allp_fun_id E Delta rho: funassert Delta rho ⊢ <affine> allp_fun_id E Delta rho.
 Proof.
   rewrite -(bi.affine_affinely (funassert _ _)); apply bi.affinely_mono.
   simpl.
@@ -90,12 +90,12 @@ Proof.
   rewrite /func_ptr_si.
   iIntros "H"; iExists b; iSplit; first auto.
   iExists fs; iFrame.
-  iPoseProof (funspec_sub_si_refl fs) as "?"; auto.
+  iPoseProof (funspec_sub_si_refl) as "?"; auto.
 Qed.
 
-Lemma funassert_allp_fun_id_sub: forall Delta Delta' rho,
-  tycontext_sub Delta Delta' ->
-  funassert Delta' rho ⊢ <affine> allp_fun_id Delta rho.
+Lemma funassert_allp_fun_id_sub: forall E Delta Delta' rho,
+  tycontext_sub E Delta Delta' ->
+  funassert Delta' rho ⊢ <affine> allp_fun_id E Delta rho.
 Proof.
   intros. rewrite funassert_allp_fun_id.
   apply bi.affinely_mono, allp_fun_id_sub; trivial.
@@ -104,22 +104,23 @@ Qed.
 Lemma funassert_allp_fun_id_sigcc Delta rho:
   funassert Delta rho ⊢ <affine> allp_fun_id_sigcc Delta rho.
 Proof.
-  intros. rewrite funassert_allp_fun_id.
+  intros. rewrite (funassert_allp_fun_id ⊤).
   apply bi.affinely_mono, allp_fun_id_ex_implies_allp_fun_sigcc.
 Qed.
 
-Lemma funassert_allp_fun_id_sigcc_sub: forall Delta Delta' rho,
-  tycontext_sub Delta Delta' ->
+Lemma funassert_allp_fun_id_sigcc_sub: forall E Delta Delta' rho,
+  tycontext_sub E Delta Delta' ->
   funassert Delta' rho ⊢ <affine> allp_fun_id_sigcc Delta rho.
 Proof.
   intros. rewrite funassert_allp_fun_id_sigcc.
-  apply bi.affinely_mono, allp_fun_id_sigcc_sub; trivial.
+  eapply bi.affinely_mono, allp_fun_id_sigcc_sub; eauto.
 Qed.
 
 Section STABILITY.
 Variable CS: compspecs.
+Variable E: coPset.
 Variables Delta Delta': tycontext.
-Hypothesis extends: tycontext_sub Delta Delta'.
+Hypothesis extends: tycontext_sub E Delta Delta'.
 
 Lemma tc_bool_e_sub: forall b b' err rho,
   (b = true -> b' = true) ->

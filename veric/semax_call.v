@@ -1,7 +1,8 @@
 Require Import Coq.Logic.FunctionalExtensionality.
 Require Import VST.veric.juicy_base.
-Require Import VST.veric.juicy_mem (*VST.veric.juicy_mem_lemmas VST.veric.juicy_mem_ops*).
+Require Import VST.veric.juicy_mem VST.veric.juicy_mem_lemmas (*VST.veric.juicy_mem_ops*).
 Require Import VST.veric.res_predicates.
+Require Import VST.veric.external_state.
 Require Import VST.veric.extend_tc.
 Require Import VST.veric.Clight_seplog.
 Require Import VST.veric.Clight_assert_lemmas.
@@ -23,151 +24,59 @@ Import LiftNotation.
 Lemma TTL3 l: typelist_of_type_list (Clight_core.typelist2list l) = l.
 Proof. induction l; simpl; trivial. f_equal; trivial . Qed.
 
-Lemma tc_val_sem_cast':
-  forall {cs: compspecs} t2 e2 rho Delta,
-      @typecheck_environ Delta rho ->
-      @denote_tc_assert cs (@typecheck_expr cs Delta e2) rho
-     &&  @denote_tc_assert cs (@isCastResultType cs (typeof e2) t2  e2) rho
-     |-- !! @tc_val t2 (force_val (sem_cast (typeof e2) t2 (eval_expr e2 rho))).
-Proof.
-intros.
-intro phi.
-intros [? ?].
-eapply expr_lemmas.tc_val_sem_cast; eauto.
-Qed.
+Section mpred.
 
-Lemma typecheck_expr_sound' {cs: compspecs} :
+Context {CS: compspecs} `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ}.
+
+Lemma typecheck_expr_sound' :
   forall Delta rho e,
-    @typecheck_environ Delta rho ->
-    @tc_expr cs Delta e rho |-- !! @tc_val (typeof e) (eval_expr e rho).
+    typecheck_environ Delta rho ->
+    tc_expr Delta e rho ⊢ ⌜tc_val (typeof e) (eval_expr e rho)⌝.
 Proof.
-intros.
-intros ? ?.
-simpl.
-eapply expr_lemmas4.typecheck_expr_sound; eauto.
+  apply typecheck_expr_sound.
 Qed.
 
 Lemma tc_environ_make_args':
- forall {CS: compspecs} argsig retsig bl rho Delta,
-   tc_environ Delta rho ->
+ forall argsig retsig bl rho Delta
+   (Htc : tc_environ Delta rho),
   tc_exprlist Delta (snd (split argsig)) bl rho
-  |-- !! tc_environ (funsig_tycontext (argsig, retsig)) (make_args (map fst argsig)
-         (eval_exprlist (snd (split argsig)) bl rho) rho).
+  ⊢ ⌜tc_environ (funsig_tycontext (argsig, retsig)) (make_args (map fst argsig)
+         (eval_exprlist (snd (split argsig)) bl rho) rho)⌝.
 Proof.
-intros. rename H into H2.
-unfold tc_environ.
-simpl.
-unfold tc_exprlist.
-revert bl; induction argsig; destruct bl as [ | b bl]; simpl; intros; unfold_lift.
-* hnf; intros. clear H.
-  split3; hnf; intros; try (simpl in *; rewrite PTree.gempty in H; inv H).
-  rewrite PTree.gempty. split; intro. inv H. destruct H. inv H.
-* apply prop_derives; intros. inv H.
-* destruct a as [i ti]; simpl.
-  destruct (split argsig) eqn:?.
-  simpl.
-  unfold_lift; apply prop_derives; intros; inv H.
-* destruct a as [i ti]; simpl.
-  destruct (split argsig) eqn:?.
-  specialize (IHargsig bl).
-  simpl denote_tc_assert.
-  rewrite !denote_tc_assert_andp.
-  simpl andp.
-  unfold_lift.
-  apply derives_trans with
-   (denote_tc_assert (typecheck_expr Delta b) rho &&
-   denote_tc_assert (isCastResultType (typeof b) ti b) rho &&
-   (!! typecheck_environ (funsig_tycontext (argsig, retsig))
-                    (make_args (map fst argsig)
-                       (eval_exprlist l0 bl rho) rho))).
-  apply andp_derives; auto.
-  clear IHargsig.
-  simpl. unfold_lift.
-  normalize.
-  destruct H as [? [? ?]].
-  unfold typecheck_environ; simpl.
-  match goal with |- ?A |-- ?B => apply derives_trans with
-      (!! tc_val' ti (force_val (sem_cast (typeof b) ti (eval_expr b rho))) && A)
-  end.
-  + apply andp_right; auto.
-    clear - H2.
-    apply derives_trans with (!! (tc_val (typeof b) (eval_expr b rho)) &&
-     !! (tc_val ti (force_val (sem_cast (typeof b) ti (eval_expr b rho))))).
-    - apply andp_right.
-      eapply derives_trans; [ | eapply typecheck_expr_sound']; eauto.
-      apply andp_left1. apply derives_refl.
-      pose proof expr_lemmas.tc_val_sem_cast.
-      apply tc_val_sem_cast'; auto.
-    - apply andp_left2.
-      apply prop_derives.
-      unfold tc_val'.
-      intros; auto.
-  + normalize. rename H3 into H8.
-    hnf; intros. simpl.
+  intros.
+  rewrite /tc_environ /tc_exprlist /=.
+  revert bl; induction argsig; destruct bl as [ | b bl]; simpl; intros; unfold_lift.
+  * iPureIntro; intros _; split3; hnf; try split; intros; try rewrite /funsig_tycontext /lookup /ptree_lookup ?Maps.PTree.gempty // in H |- *.
+    destruct H as [? H]; inv H.
+  * iPureIntro; done.
+  * destruct a as [i ti]; simpl.
+    destruct (split argsig) eqn:?; simpl.
+    unfold_lift; iPureIntro; inversion 1.
+  * destruct a as [i ti]; simpl.
+    destruct (split argsig) eqn:?; simpl.
+    specialize (IHargsig bl).
+    rewrite /typecheck_expr; fold typecheck_expr.
+    rewrite !denote_tc_assert_andp.
+    unfold_lift.
+    rewrite IHargsig; clear IHargsig.
+    iIntros "(H & (%Ht & % & %))".
+    unfold typecheck_environ; simpl.
+    rewrite tc_val_sem_cast //.
+    iDestruct "H" as %?%tc_val_tc_val'; iPureIntro.
     split3; auto.
-    unfold typecheck_temp_environ; intros.
+    unfold typecheck_temp_environ; intros ?? Hset.
     destruct (ident_eq i id).
     - subst.
-      rewrite PTree.gss in H4. inv H4.
-      rewrite Map.gss.
-      eexists; split; eauto.
-    - rewrite Map.gso by auto.
-      apply (H id ty).
-      rewrite PTree.gso in H4 by auto.
-      simpl. auto.
+      rewrite /lookup /ptree_lookup Maps.PTree.gss in Hset; inv Hset.
+      rewrite Map.gss; eauto.
+    - rewrite Map.gso //.
+      apply (Ht id ty).
+      rewrite /lookup /ptree_lookup Maps.PTree.gso // in Hset.
 Qed.
 
 (* Scall *)
 
-Lemma age_twin' {A B} `{HA: ageable A} `{HB: ageable B}:
-  forall (x: A) (y: B) (x': A),
-       level x = level y -> age x x' ->
-       exists y', level x' = level y' /\ age y y'.
-Proof.
-intros x y x' H0 H1.
-unfold fashionR in *.
-destruct (age1_levelS _ _ H1) as [n ?].
-rewrite H0 in H.
-destruct (levelS_age1 _ _ H) as [y' ?].
-exists y'; split.
-apply age_level in H2.
-apply age_level in H1.
-congruence.
-auto.
-Qed.
-
-Lemma later_twin' {A B} `{HA: ageable A} `{HB: ageable B}:
-  forall (x: A) (y: B) (x': A),
-       level x = level y -> laterR x x' ->
-       exists y', level x' = level y' /\ laterR y y'.
-Proof.
-intros x y x' H0 H1.
-revert y H0; induction H1; intros.
-destruct (age_twin' _ _ _ H0 H) as [y' [? ?]].
-exists y'; split; auto.
-apply t_step; auto.
-specialize (IHclos_trans1 _ H0).
-destruct IHclos_trans1 as [y2 [? ?]].
-specialize (IHclos_trans2 _ H).
-destruct IHclos_trans2 as [u [? ?]].
-exists u; split; auto.
-apply t_trans with y2; auto.
-Qed.
-
-Lemma later_twin {A} `{ageable A}:
-   forall phi1 phi2 phi1',
-     level phi1 = level phi2 ->
-     laterR phi1 phi1' ->
-     exists phi2', level phi1' = level phi2' /\ laterR phi2 phi2'.
-Proof.
-intros.
-eapply later_twin'; eauto.
-Qed.
-
-Lemma someP_inj:  forall A P Q, SomeP A P = SomeP A Q -> P=Q.
-Proof. intros. injection H; intro. apply inj_pair2 in H0. auto. Qed.
-
-Lemma function_pointer_aux:
+(*Lemma function_pointer_aux:
   forall A P P' Q Q' (w: rmap),
     args_super_non_expansive P ->
     super_non_expansive Q ->
@@ -175,8 +84,8 @@ Lemma function_pointer_aux:
     super_non_expansive Q' ->
    SomeP (SpecArgsTT A) (fmap (fpi _) (approx (level w)) (approx (level w)) (packPQ P Q)) =
    SomeP (SpecArgsTT A) (fmap (fpi _) (approx (level w)) (approx (level w)) (packPQ P' Q')) ->
-   ( (forall ts x vl, (! |> (P' ts x vl <=> P ts x vl)) w) /\
-     (forall ts x vl, (! |> (Q' ts x vl <=> Q ts x vl)) w)).
+   ( (forall ts x vl, (! ▷ (P' ts x vl <=> P ts x vl)) w) /\
+     (forall ts x vl, (! ▷ (Q' ts x vl <=> Q ts x vl)) w)).
 Proof.
   intros ? ? ? ? ? ? NEP NEQ NEP' NEQ' H.
   apply someP_inj in H.
@@ -245,9 +154,9 @@ Proof.
       rewrite <- NEQ.
       apply approx_lt; auto.
       apply necR_level in H3; apply ext_level in H4; apply laterR_level in H1; lia.
-Qed.
+Qed.*)
 
-Import JuicyMemOps.
+(*Import JuicyMemOps.
 
 Fixpoint alloc_juicy_variables (ge: genv) (rho: env) (jm: juicy_mem) (vl: list (ident*type)) : env * juicy_mem :=
  match vl with
@@ -313,8 +222,8 @@ Proof.
 intros.
   intro i.
  unfold make_venv.
-  destruct (ve' ! i) as [[? ?] | ] eqn:?; auto.
-  assert (H0: (exists b, empty_env ! i = Some (b,t)) \/ In (i,t) vl).
+  destruct (ve' !! i) as [[? ?] | ] eqn:?; auto.
+  assert (H0: (exists b, empty_env !! i = Some (b,t)) \/ In (i,t) vl).
 2: destruct H0; auto; destruct H0; rewrite PTree.gempty in H0; inv H0.
  forget empty_env as e.
   revert jm e H; induction vl; simpl; intros.
@@ -327,7 +236,7 @@ intros.
  rewrite PTree.gss in H. inv H. right. auto.
  destruct H; auto. left. destruct H as [b' ?].
  rewrite PTree.gso in H by auto. eauto.
-Qed.
+Qed.*)
 
 Lemma build_call_temp_env:
   forall f vl,
@@ -343,7 +252,7 @@ Proof.
  apply IHl. auto.
 Qed.
 
-Lemma resource_decay_funassert:
+(*Lemma resource_decay_funassert:
   forall G rho b w w',
          necR (core w) (core w') ->
          resource_decay b w w' ->
@@ -421,7 +330,7 @@ spec H2.
         exists p. reflexivity. }
 destruct H2 as [id [? ?]].
 exists id. split; auto.
-Qed.
+Qed.*)
 
 Definition substopt {A} (ret: option ident) (v: environ -> val) (P: environ -> A)  : environ -> A :=
    match ret with
@@ -445,14 +354,14 @@ Lemma bind_parameter_temps_excludes :
 forall l1 l2 t id t1,
 ~In id (map fst l1) ->
 (bind_parameter_temps l1 l2 t) = Some t1 ->
-t1 ! id = t ! id.
+t1 !! id = t !! id.
 Proof.
 induction l1;
 intros.
 simpl in *. destruct l2; inv H0. auto.
 simpl in H0. destruct a. destruct l2; inv H0.
-specialize (IHl1 l2 (PTree.set i v t) id t1).
-simpl in H. intuition. rewrite PTree.gsspec in H3.
+specialize (IHl1 l2 (Maps.PTree.set i v t) id t1).
+simpl in H. intuition. setoid_rewrite Maps.PTree.gsspec in H3.
 destruct (peq id i). subst; tauto. auto.
 Qed.
 
@@ -461,7 +370,7 @@ Lemma pass_params_ni :
      (te' : temp_env) (id : positive) te l,
    bind_parameter_temps l2 l (te) = Some te' ->
    (In id (map fst l2) -> False) ->
-   Map.get (make_tenv te') id = te ! id.
+   Map.get (make_tenv te') id = te !! id.
 Proof.
 intros. eapply bind_parameter_temps_excludes in H.
 unfold make_tenv, Map.get.
@@ -474,41 +383,39 @@ exists te2, bind_parameter_temps l1 l2 t2 = Some te2.
 Proof.
 induction l1; intros.
 + simpl in H. destruct l2; inv H. simpl. eauto.
-
 + destruct a. simpl in *. destruct l2; inv H. eapply IHl1.
-apply H1.
+  apply H1.
 Qed.
 
 
 Lemma smaller_temps_exists2 : forall l1 l2 t1 t2 te te2 i,
 bind_parameter_temps l1 l2 t1 = Some te ->
 bind_parameter_temps l1 l2 t2 = Some te2 ->
-t1 ! i = t2 ! i ->
-te ! i = te2 ! i.
+t1 !! i = t2 !! i ->
+te !! i = te2 !! i.
 Proof.
 induction l1; intros; simpl in *; try destruct a; destruct l2; inv H; inv H0.
 apply H1.
 eapply IHl1. apply H3. apply H2.
-repeat rewrite PTree.gsspec. destruct (peq i i0); auto.
+repeat setoid_rewrite Maps.PTree.gsspec. destruct (peq i i0); auto.
 Qed.
 
 
 Lemma smaller_temps_exists' : forall l l1 te te' id i t,
-bind_parameter_temps l l1 (PTree.set id Vundef t)=  Some te ->
+bind_parameter_temps l l1 (Maps.PTree.set id Vundef t) = Some te ->
 i <> id ->
-(bind_parameter_temps l l1 t = Some te') -> te' ! i = te ! i.
+(bind_parameter_temps l l1 t = Some te') -> te' !! i = te !! i.
 Proof.
 induction l; intros.
-simpl in *. destruct l1; inv H. inv H1. rewrite PTree.gso; auto.
-
-simpl in *. destruct a. destruct l1; inv H.
-eapply smaller_temps_exists2. apply H1. apply H3.
-intros. repeat rewrite PTree.gsspec. destruct (peq i i0); auto.
-destruct (peq i id). subst. tauto. auto.
+- simpl in *. destruct l1; inv H. inv H1. setoid_rewrite Maps.PTree.gso; auto.
+- simpl in *. destruct a. destruct l1; inv H.
+  eapply smaller_temps_exists2. apply H1. apply H3.
+  intros. repeat setoid_rewrite Maps.PTree.gsspec. rewrite Maps.PTree.gsspec. destruct (peq i i0); auto.
+  destruct (peq i id). subst. tauto. auto.
 Qed.
 
 Lemma smaller_temps_exists'' : forall l l1 te id i t,
-bind_parameter_temps l l1 (PTree.set id Vundef t)=  Some te ->
+bind_parameter_temps l l1 (Maps.PTree.set id Vundef t)=  Some te ->
 i <> id ->
 exists te', (bind_parameter_temps l l1 t = Some te').
 Proof.
@@ -517,12 +424,12 @@ eapply bind_exists_te; eauto.
 Qed.
 
 Lemma smaller_temps_exists : forall l l1 te id i t,
-bind_parameter_temps l l1 (PTree.set id Vundef t)=  Some te ->
-i <> id ->
-exists te', (bind_parameter_temps l l1 t = Some te' /\ te' ! i = te ! i).
+bind_parameter_temps l l1 (Maps.PTree.set id Vundef t)=  Some te ->
+i <> id -> 
+exists te', (bind_parameter_temps l l1 t = Some te' /\ te' !! i = te !! i).
 Proof.
-intros. copy H. eapply smaller_temps_exists'' in H; eauto.
-destruct H. exists x. split. auto.
+intros. destruct (smaller_temps_exists'' _ _ _ _ _ _ H H0) as [x ?].
+exists x. split. auto.
 eapply smaller_temps_exists'; eauto.
 Qed.
 
@@ -530,10 +437,10 @@ Qed.
 Lemma alloc_vars_lookup :
 forall ge id m1 l ve m2 e ,
 list_norepet (map fst l) ->
-(forall i, In i (map fst l) -> e ! i = None) ->
+(forall i, In i (map fst l) -> e !! i = None) ->
 Clight.alloc_variables ge (e) m1 l ve m2 ->
-(exists v, e ! id = Some v) ->
-ve ! id = e ! id.
+(exists v, e !! id = Some v) ->
+ve !! id = e !! id.
 Proof.
 intros.
 generalize dependent e.
@@ -545,21 +452,20 @@ inv H1. auto.
 inv H1. simpl in *. inv H.
 destruct H2.
 assert (id <> id0).
-intro. subst.  specialize (H0 id0). spec H0. auto. congruence.
+intro. subst.  specialize (H0 id0). spec H0. auto. rewrite H // in H0.
 eapply IHl in H10.
-rewrite PTree.gso in H10; auto.
-auto. intros. rewrite PTree.gsspec. if_tac. subst. tauto.
+setoid_rewrite Maps.PTree.gso in H10; auto.
+auto. intros. setoid_rewrite Maps.PTree.gsspec. if_tac. subst. tauto.
 apply H0. auto.
-rewrite PTree.gso; auto. eauto.
+setoid_rewrite Maps.PTree.gso; auto. eauto.
 Qed.
 
 Lemma alloc_vars_lemma : forall ge id l m1 m2 ve ve'
-(SD : forall i, In i (map fst l) -> ve ! i = None),
+(SD : forall i, In i (map fst l) -> ve !! i = None),
 list_norepet (map fst l) ->
-
 Clight.alloc_variables ge ve m1 l ve' m2 ->
 (In id (map fst l) ->
-exists v, ve' ! id = Some v).
+exists v, ve' !! id = Some v).
 Proof.
 intros.
 generalize dependent ve.
@@ -567,16 +473,16 @@ revert m1 m2.
 induction l; intros. inv H1.
 simpl in *. destruct a; simpl in *.
 destruct H1. subst. inv H0. inv H.  apply alloc_vars_lookup with (id := id) in H9; auto.
-rewrite H9. rewrite PTree.gss. eauto. intros.
-destruct (peq i id). subst. tauto. rewrite PTree.gso; auto.
-rewrite PTree.gss; eauto.
+rewrite H9. setoid_rewrite Maps.PTree.gss. eauto. intros.
+destruct (peq i id). subst. tauto. setoid_rewrite Maps.PTree.gso; eauto.
+setoid_rewrite Maps.PTree.gss; eauto.
 
 inv H0. apply IHl in H10; auto. inv H; auto.
-intros. rewrite PTree.gsspec. if_tac. subst. inv H. tauto.
-auto.
+intros. setoid_rewrite Maps.PTree.gsspec. if_tac. subst. inv H. tauto.
+eauto.
 Qed.
 
-Lemma semax_call_typecheck_environ:
+(*Lemma semax_call_typecheck_environ:
   forall (Delta : tycontext) (args: list val) (psi : genv)
            (jm : juicy_mem) (b : block) (f : function)
      (H17 : list_norepet (map fst (fn_params f) ++ map fst (fn_temps f)))
@@ -587,7 +493,7 @@ Lemma semax_call_typecheck_environ:
      (TC5: typecheck_glob_environ (filter_genv psi) (glob_types Delta))
    (H : forall (b : ident) (b0 : funspec) (a' a'' : rmap),
     necR (m_phi jm') a' -> ext_order a' a'' ->
-    (glob_specs Delta) ! b = Some b0 ->
+    (glob_specs Delta) !! b = Some b0 ->
     exists b1 : block,
         filter_genv psi b = Some b1 /\
         func_at b0 (b1,0) a'')
@@ -670,18 +576,18 @@ simpl in *. unfold typecheck_var_environ in *.
 unfold func_tycontext' in *. unfold var_types in *.
 simpl in *.
 rewrite (func_tycontext_v_sound (fn_vars f) id ty); auto.
-transitivity ((exists b, empty_env ! id = Some (b,ty) )\/ In (id,ty) (fn_vars f)).
+transitivity ((exists b, empty_env !! id = Some (b,ty) )\/ In (id,ty) (fn_vars f)).
 clear; intuition. destruct H0. unfold empty_env in H.
 rewrite PTree.gempty in H; inv H.
 generalize dependent (m_dry jm).
 clear - H17'.
-assert (forall id, empty_env ! id <> None -> ~ In id (map fst (fn_vars f))).
+assert (forall id, empty_env !! id <> None -> ~ In id (map fst (fn_vars f))).
 intros. unfold empty_env in H. rewrite PTree.gempty in H. contradiction H; auto.
 generalize dependent empty_env.
 unfold Map.get, make_venv.
 induction (fn_vars f); intros.
 inv H15.
-destruct (ve' ! id); intuition.
+destruct (ve' !! id); intuition.
 inv H15.
 inv H17'.
 specialize (IHl H3); clear H3.
@@ -717,40 +623,25 @@ intuition. inv H5. inv H0. tauto.
 apply H4 in H0. apply H1; auto.
 *
 unfold ge_of in *. simpl in *. auto.
-Qed.
-
-Lemma free_juicy_mem_level:
-  forall jm m b lo hi H, level (free_juicy_mem jm m b lo hi H) = level jm.
-Proof.
- intros;  simpl;  unfold inflate_free; simpl.
- rewrite level_make_rmap. auto.
-Qed.
-
-Lemma free_juicy_mem_ghost:
-  forall jm m b lo hi H,
-    ghost_of (m_phi (free_juicy_mem jm m b lo hi H)) = ghost_of (m_phi jm).
-Proof.
- intros;  simpl;  unfold inflate_free; simpl.
- rewrite ghost_of_make_rmap. auto.
-Qed.
+Qed.*)
 
 Lemma free_list_free:
   forall m b lo hi l' m',
        free_list m ((b,lo,hi)::l') = Some m' ->
          {m2 | free m b lo hi = Some m2 /\ free_list m2 l' = Some m'}.
 Proof.
-simpl; intros.
- destruct (free m b lo hi). eauto. inv H.
+  simpl; intros.
+  destruct (free m b lo hi). eauto. inv H.
 Qed.
 
-Definition freeable_blocks: list (block * BinInt.Z * BinInt.Z) -> mpred :=
-  fold_right (fun (bb: block*BinInt.Z * BinInt.Z) a =>
+Definition freeable_blocks: list (Values.block * BinInt.Z * BinInt.Z) -> mpred :=
+  fold_right (fun (bb: Values.block*BinInt.Z * BinInt.Z) a =>
                         match bb with (b,lo,hi) =>
-                                          sepcon (VALspec_range (hi-lo) Share.top (b,lo)) a
+                                          VALspec_range (hi-lo) Share.top (b,lo) ∗ a
                         end)
                     emp.
 
-Inductive free_list_juicy_mem:
+(*Inductive free_list_juicy_mem:
       forall  (jm: juicy_mem) (bl: list (block * BinInt.Z * BinInt.Z))
                                          (jm': juicy_mem), Prop :=
 | FLJM_nil: forall jm, free_list_juicy_mem jm nil jm
@@ -761,9 +652,9 @@ Inductive free_list_juicy_mem:
                         perm_of_res (m_phi jm @ (b, ofs)) = Some Freeable),
                           free_juicy_mem jm (m_dry jm2) b lo hi H = jm2 ->
                           free_list_juicy_mem jm2 bl jm' ->
-                          free_list_juicy_mem jm ((b,lo,hi)::bl) jm'.
+                          free_list_juicy_mem jm ((b,lo,hi)::bl) jm'.*)
 
-Lemma perm_of_res_val : forall r, perm_of_res r = Some Freeable ->
+(*Lemma perm_of_res_val : forall r, perm_of_res r = Some Freeable ->
   exists v pp, r = YES Share.top readable_share_top (VAL v) pp.
 Proof.
   destruct r; simpl; try if_tac; try discriminate.
@@ -772,9 +663,9 @@ Proof.
   repeat if_tac; try discriminate.
   subst; intro; do 2 eexists; f_equal.
   apply proof_irr.
-Qed.
+Qed.*)
 
-Lemma free_list_juicy_mem_i:
+(*Lemma free_list_juicy_mem_i:
   forall jm bl m' F,
    free_list (m_dry jm) bl = Some m' ->
    app_pred (freeable_blocks bl * F) (m_phi jm) ->
@@ -804,18 +695,9 @@ intros jm bl; revert jm; induction bl; intros.
  rewrite <- H7.
  unfold jm2.
  symmetry; apply free_juicy_mem_level.
-Qed.
+Qed.*)
 
-Lemma free_juicy_mem_ext:
-  forall jm1 jm2 b lo hi m1 m2 H1 H2,
-      jm1=jm2 -> m1=m2 ->
-     free_juicy_mem jm1 m1 b lo hi H1 = free_juicy_mem jm2 m2 b lo hi H2.
-Proof.
-intros. subst. proof_irr. auto.
-Qed.
-
-
-Lemma free_list_juicy_mem_lem:
+(*Lemma free_list_juicy_mem_lem:
   forall P jm bl jm',
      free_list_juicy_mem jm bl jm' ->
      app_pred (freeable_blocks bl * P) (m_phi jm) ->
@@ -834,36 +716,36 @@ Proof.
  match type of H5 with context[m_phi ?A] => set (jm3 := A) in H5 end.
  replace jm2 with jm3 by (subst jm3; rewrite <- H0; apply free_juicy_mem_ext; auto).
  eapply pred_upclosed; eauto.
-Qed.
+Qed.*)
 
-Lemma PTree_elements_remove: forall {A} (T: PTree.tree A) i e,
-  In e (PTree.elements (PTree.remove i T)) ->
-  In e (PTree.elements T) /\ fst e <> i.
+Lemma PTree_elements_remove: forall {A} (T: Maps.PTree.tree A) i e,
+  In e (Maps.PTree.elements (Maps.PTree.remove i T)) ->
+  In e (Maps.PTree.elements T) /\ fst e <> i.
 Proof.
   intros.
   destruct e as [i0 v0].
-  apply PTree.elements_complete in H.
+  apply Maps.PTree.elements_complete in H.
   destruct (peq i0 i).
   + subst.
-    rewrite PTree.grs in H.
+    rewrite Maps.PTree.grs in H.
     inversion H.
-  + rewrite PTree.gro in H by auto.
+  + rewrite -> Maps.PTree.gro in H by auto.
     split; [| simpl; auto].
-    apply PTree.elements_correct.
+    apply Maps.PTree.elements_correct.
     auto.
 Qed.
 
-Lemma stackframe_of_freeable_blocks {CS}:
+Lemma stackframe_of_freeable_blocks:
   forall Delta f rho ge ve,
       cenv_sub (@cenv_cs CS) (genv_cenv ge) ->
       Forall (fun it => complete_type cenv_cs (snd it) = true) (fn_vars f) ->
       list_norepet (map fst (fn_vars f)) ->
       ve_of rho = make_venv ve ->
       guard_environ (func_tycontext' f Delta) f rho ->
-       stackframe_of f rho |-- freeable_blocks (blocks_of_env ge ve).
+       stackframe_of f rho ⊢ freeable_blocks (blocks_of_env ge ve).
 Proof.
-  intros until ve.
-  intros HGG COMPLETE.
+ intros until ve.
+ intros HGG COMPLETE.
  intros.
  destruct H1. destruct H2 as [H7 _].
  unfold stackframe_of.
@@ -875,137 +757,121 @@ Proof.
  unfold var_types in H1.
  simpl in H1. unfold make_tycontext_v in H1.
  unfold blocks_of_env.
-match goal with |- ?A |-- _ =>
- replace A
-  with (fold_right (@sepcon _ _ _ _ _ _ _) emp
-            (map (fun idt : ident * type => var_block Share.top idt rho)
-            (fn_vars f)))
-end.
- 2: clear; induction (fn_vars f); simpl; f_equal; auto.
+ trans (foldr bi_sep emp (map (fun idt => var_block Share.top idt rho) (fn_vars f))).
+ { clear; induction (fn_vars f); simpl; auto; by rewrite IHl. }
  unfold var_block. unfold eval_lvar. simpl.
-  rewrite H0. unfold make_venv. forget (ge_of rho) as ZZ. rewrite H0 in H7; clear rho H0.
+ rewrite H0. unfold make_venv. forget (ge_of rho) as ZZ. rewrite H0 in H7; clear rho H0.
  revert ve H1 H7; induction (fn_vars f); simpl; intros.
- case_eq (PTree.elements ve); simpl; intros; auto.
+ case_eq (Maps.PTree.elements ve); simpl; intros; auto.
  destruct p as [id ?].
- pose proof (PTree.elements_complete ve id p). rewrite H0 in H2. simpl in H2.
+ pose proof (Maps.PTree.elements_complete ve id p). rewrite H0 in H2. simpl in H2.
  specialize (H7 id). unfold make_venv in H7. rewrite H2 in H7; auto.
  destruct p; inv H7.
  inv H.
  destruct a as [id ty]. simpl in *.
  simpl in COMPLETE. inversion COMPLETE; subst.
  clear COMPLETE; rename H5 into COMPLETE; rename H2 into COMPLETE_HD.
- specialize (IHl COMPLETE H4 (PTree.remove id ve)).
- assert (exists b, ve ! id = Some (b,ty)). {
+ specialize (IHl COMPLETE H4 (Maps.PTree.remove id ve)).
+ assert (exists b, Maps.PTree.get id ve = Some (b,ty)). {
   specialize (H1 id ty).
-  rewrite PTree.gss in H1. destruct H1 as [[b ?] _]; auto. exists b; apply H.
+  setoid_rewrite Maps.PTree.gss in H1. destruct H1 as [[b ?] _]; auto. exists b; apply H.
  }
  destruct H as [b H].
- destruct (@PTree.elements_remove _ id (b,ty) ve H) as [l1 [l2 [? ?]]].
+ destruct (@Maps.PTree.elements_remove _ id (b,ty) ve H) as [l1 [l2 [? ?]]].
  rewrite H0.
  rewrite map_app. simpl map.
- apply derives_trans with (freeable_blocks ((b,0,@Ctypes.sizeof ge ty) ::  (map (block_of_binding ge) (l1 ++ l2)))).
+ trans (freeable_blocks ((b,0,@Ctypes.sizeof ge ty) :: (map (block_of_binding ge) (l1 ++ l2)))).
  2:{
    clear.
    induction l1; simpl; try auto.
-   destruct a as [id' [hi lo]]. simpl. rewrite <- sepcon_assoc.
-   rewrite (sepcon_comm (VALspec_range (@Ctypes.sizeof ge ty - 0) Share.top (b, 0))).
-   rewrite sepcon_assoc. apply sepcon_derives; auto.
- }
+   destruct a as [id' [hi lo]]. simpl in *.
+   rewrite -IHl1.
+   rewrite !assoc (comm _ (VALspec_range _ _ _ )) //. }
  unfold freeable_blocks; simpl. rewrite <- H2.
- apply sepcon_derives.
- unfold Map.get. rewrite H. rewrite eqb_type_refl.
- unfold memory_block. normalize. {
-  rename H6 into H99.
- normalize. (* don't know why we cannot do normalize at first *)
- rewrite memory_block'_eq.
- 2: rewrite Ptrofs.unsigned_zero; lia.
- 2:{
- rewrite Ptrofs.unsigned_zero. rewrite Zplus_0_r.
- rewrite Z2Nat.id.
- change (Ptrofs.unsigned Ptrofs.zero) with 0 in H99.
- lia.
- unfold sizeof.
- pose proof (sizeof_pos ty); lia.
-}
+ apply bi.sep_mono.
+ { unfold Map.get. rewrite H. rewrite eqb_type_refl.
+   unfold memory_block. iIntros "(% & % & H)".
+   rename H6 into H99.
+   rewrite memory_block'_eq.
+   2: rewrite Ptrofs.unsigned_zero; lia.
+   2:{ rewrite Ptrofs.unsigned_zero. rewrite Zplus_0_r.
+       rewrite Z2Nat.id.
+       change (Ptrofs.unsigned Ptrofs.zero) with 0 in H99.
+       lia.
+       unfold sizeof.
+       pose proof (sizeof_pos ty); lia. }
  rewrite Z.sub_0_r.
  unfold memory_block'_alt.
- rewrite if_true by apply readable_share_top.
+ rewrite -> if_true by apply readable_share_top.
  rewrite Z2Nat.id.
  + rewrite (cenv_sub_sizeof HGG); auto.
- + unfold sizeof; pose proof (sizeof_pos ty); lia.
-}
- eapply derives_trans; [ | apply IHl]; clear IHl.
+ + unfold sizeof; pose proof (sizeof_pos ty); lia. }
+ etrans; last apply IHl.
  clear - H3.
  induction l; simpl; auto.
  destruct a as [id' ty']. simpl in *.
- apply sepcon_derives; auto.
- replace (Map.get (fun id0 : positive => (PTree.remove id ve) ! id0) id')
-   with (Map.get (fun id0 : positive => ve ! id0) id'); auto.
+ apply bi.sep_mono; auto.
+ replace (Map.get (fun id0 : positive => Maps.PTree.get id0 (Maps.PTree.remove id ve)) id')
+   with (Map.get (fun id0 : positive => Maps.PTree.get id0 ve) id'); auto.
  unfold Map.get.
- rewrite PTree.gro; auto.
+ rewrite Maps.PTree.gro; auto.
  intros id' ty'; specialize (H1 id' ty').
- {split; intro.
+ { split; intro.
  - destruct H1 as [H1 _].
    assert (id<>id').
    intro; subst id'.
-   clear - H3 H5; induction l; simpl in *. rewrite PTree.gempty in H5; inv H5.
+   clear - H3 H5; induction l; simpl in *. setoid_rewrite Maps.PTree.gempty in H5; inv H5.
    destruct a; simpl in *.
-   rewrite PTree.gso in H5. auto. auto.
+   setoid_rewrite Maps.PTree.gso in H5. auto. auto.
    destruct H1 as [v ?].
-   rewrite PTree.gso; auto.
-   exists v. unfold Map.get. rewrite PTree.gro; auto.
+   setoid_rewrite Maps.PTree.gso; auto.
+   exists v. unfold Map.get. rewrite Maps.PTree.gro; auto.
  - unfold Map.get in H1,H5.
    assert (id<>id').
-     clear - H5; destruct H5. intro; subst. rewrite PTree.grs in H. inv H.
-   rewrite PTree.gro in H5 by auto.
-   rewrite <- H1 in H5. rewrite PTree.gso in H5 by auto. auto.
- }
+     clear - H5; destruct H5. intro; subst. rewrite Maps.PTree.grs in H. inv H.
+   rewrite -> Maps.PTree.gro in H5 by auto.
+   rewrite <- H1 in H5. setoid_rewrite -> Maps.PTree.gso in H5; auto. }
  hnf; intros.
- destruct (make_venv (PTree.remove id ve) id0) eqn:H5; auto.
+ destruct (make_venv (Maps.PTree.remove id ve) id0) eqn:H5; auto.
  destruct p.
  unfold make_venv in H5.
  destruct (peq id id0).
- subst.  rewrite PTree.grs in H5. inv H5.
- rewrite PTree.gro in H5 by auto.
+ subst. rewrite Maps.PTree.grs in H5. inv H5.
+ rewrite -> Maps.PTree.gro in H5 by auto.
  specialize (H7 id0). unfold make_venv in H7. rewrite H5 in H7.
  destruct H7; auto. inv H6; congruence.
 Qed.
 
-Definition maybe_retval (Q: assert) retty ret :=
+Definition maybe_retval (Q: environ -> mpred) retty ret :=
  match ret with
- | Some id => fun rho => !!(tc_val' retty (eval_id id rho)) && Q (get_result1 id rho)
+ | Some id => fun rho => ⌜tc_val' retty (eval_id id rho)⌝ ∧ Q (get_result1 id rho)
  | None =>
     match retty with
     | Tvoid => (fun rho => Q (globals_only rho))
-    | _ => fun rho => EX v: val, !!(tc_val' retty v) && Q (make_args (ret_temp::nil) (v::nil) rho)
+    | _ => fun rho => ∃ v: val, ⌜tc_val' retty v⌝ ∧ Q (make_args (ret_temp::nil) (v::nil) rho)
     end
  end.
 
 Lemma VALspec_range_free:
-  forall n b phi1 jm,
-  app_pred (VALspec_range n Share.top (b, 0)) phi1 ->
-  join_sub phi1 (m_phi jm) ->
-  {m' | free (m_dry jm) b 0 n = Some m' }.
+  forall n b m,
+  mem_auth m ∗ VALspec_range n Share.top (b, 0) ⊢
+  ⌜∃ m', free m b 0 n = Some m'⌝.
 Proof.
 intros.
-apply range_perm_free.
-destruct H0 as [phi2 H0].
-hnf; intros.
-pose proof (juicy_mem_access jm (b,ofs)).
-hnf. unfold access_at in H2. simpl in H2.
-specialize (H (b,ofs)).
-hnf in H.
-rewrite if_true in H by (split; auto; lia).
-destruct H as [v ?].
-apply (resource_at_join _ _ _ (b,ofs)) in  H0.
-destruct H.
-hnf in H.
-rewrite H in H0.
-rewrite H2.
-inv H0; simpl; apply join_top in RJ; subst sh3; rewrite perm_of_freeable; constructor.
+iIntros "(Hm & H)".
+iAssert ⌜range_perm m b 0 n Cur Freeable⌝ as %H; last by iPureIntro; apply range_perm_free in H as [??]; eauto.
+iIntros (??).
+rewrite /VALspec_range (big_sepL_lookup_acc _ _ (Z.to_nat a)).
+2: { apply lookup_seq; split; eauto; lia. }
+rewrite Z2Nat.id; last tauto.
+iDestruct "H" as "[H _]".
+rewrite /VALspec.
+iDestruct "H" as (?) "H".
+iDestruct (mapsto_lookup with "Hm H") as %(? & ? & _ & Hacc & _); iPureIntro.
+rewrite /access_cohere /access_at /= perm_of_freeable -mem_lemmas.po_oo // in Hacc.
 Qed.
 
-Lemma Forall_filter: forall {A} P (l: list A) f, Forall P l -> Forall P (filter f l).
+Lemma Forall_filter: forall {A} P (l: list A) f, Forall P l -> Forall P (List.filter f l).
 Proof.
   intros.
   induction l.
@@ -1018,120 +884,93 @@ Proof.
     - auto.
 Qed.
 
-Lemma can_free_list {CS}:
-  forall Delta F f jm ge ve te
+(* This might be the wrong approach -- to really do induction, maybe we need to free the blocks as we find them.
+Lemma can_free_list :
+  forall Delta F f m ge ve te
   (NOREP: list_norepet (map (@fst _ _) (fn_vars f)))
   (COMPLETE: Forall (fun it => complete_type cenv_cs (snd it) = true) (fn_vars f))
   (HGG: cenv_sub (@cenv_cs CS) (genv_cenv ge)),
    guard_environ (func_tycontext' f Delta) f
         (construct_rho (filter_genv ge) ve te) ->
-    (F * stackframe_of f (construct_rho (filter_genv ge)ve te))%pred (m_phi jm) ->
-   exists m2, free_list (m_dry jm) (blocks_of_env ge ve) = Some m2.
+   mem_auth m ∗ (F ∗ stackframe_of f (construct_rho (filter_genv ge) ve te)) ⊢
+   ⌜exists m2, free_list m (blocks_of_env ge ve) = Some m2⌝.
 Proof.
   intros.
-  destruct H0 as [? [? [? [_ ?]]]].
-  unfold stackframe_of in H1.
-  unfold blocks_of_env in *.
-  destruct H as [_ [H _]]; clear - NOREP COMPLETE HGG H H0 H1. simpl in H.
-  pose (F vl := (fold_right
-          (fun (P Q : environ -> pred rmap) (rho : environ) => P rho * Q rho)
+  iIntros "(Hm & _ & stack)".
+  unfold stackframe_of, blocks_of_env.
+  destruct H as [_ [H _]]; simpl in H; clear F.
+  pose (F vl := (foldr
+          (fun (P Q : environ -> _) (rho : environ) => P rho ∗ Q rho)
           (fun _ : environ => emp)
           (map (fun idt : ident * type => var_block Share.top idt) vl))).
-  change ((F (fn_vars f)  (construct_rho (filter_genv ge) ve te)) x0) in H1.
-  assert (forall id b t, In (id,(b,t)) (PTree.elements ve) ->
-                In (id,t) (fn_vars f)). {
-   intros.
-    apply PTree.elements_complete in  H2.
-    specialize (H id); unfold make_venv in H; rewrite H2 in H.
-     apply H.
-  }
+  fold (F (fn_vars f)).
+  assert (forall id b t, In (id,(b,t)) (Maps.PTree.elements ve) ->
+                In (id,t) (fn_vars f)) as Hin. {
+    intros ??? Hin.
+    apply Maps.PTree.elements_complete in Hin.
+    specialize (H id); unfold make_venv in H; rewrite Hin in H.
+    apply H. }
   clear H.
-  assert (Hve: forall i bt, In (i,bt) (PTree.elements ve) -> ve ! i = Some bt)
-    by apply PTree.elements_complete.
-  assert (NOREPe: list_norepet (map (@fst _ _) (PTree.elements ve)))
-    by apply PTree.elements_keys_norepet.
-  forget (PTree.elements ve) as el.
-  rename x0 into phi.
-  assert (join_sub phi (m_phi jm)).
-  econstructor; eauto.
-  clear H0.
+  assert (Hve: forall i bt, In (i,bt) (Maps.PTree.elements ve) -> ve !! i = Some bt)
+    by apply Maps.PTree.elements_complete.
+  assert (NOREPe: list_norepet (map (@fst _ _) (Maps.PTree.elements ve)))
+    by apply Maps.PTree.elements_keys_norepet.
+  forget (Maps.PTree.elements ve) as el.
   forget (fn_vars f) as vl.
-  revert vl phi jm H H1 H2 Hve NOREP NOREPe COMPLETE; induction el; intros;
-    [ solve [simpl; eauto] | ].
-  simpl in H2.
-  destruct a as [id [b t]]. simpl in NOREPe,H2|-*.
-  assert (H2': In (id,t) vl) by (apply H2 with b; auto).
-  specialize (IHel (filter (fun idt => negb (eqb_ident (fst idt) id)) vl)).
-  replace (F vl (construct_rho (filter_genv ge) ve te))
-    with  (var_block Share.top (id,t) (construct_rho (filter_genv ge) ve te)
-    * F (filter (fun idt => negb (eqb_ident (fst idt) id)) vl) (construct_rho (filter_genv ge) ve te)) in H1.
-  2:{
-    clear - H2' NOREP.
-    induction vl; inv H2'.
+  iInduction el as [|] "IHel" forall (vl m Hin Hve NOREP NOREPe COMPLETE); first eauto.
+  destruct a as [id [b t]]. simpl in NOREPe, Hin |-*.
+  assert (Hin': In (id,t) vl) by (apply Hin with b; auto).
+  iSpecialize ("IHel" $! (List.filter (fun idt => negb (eqb_ident (fst idt) id)) vl)).
+  iAssert (var_block Share.top (id,t) (construct_rho (filter_genv ge) ve te)
+    ∗ F (List.filter (fun idt => negb (eqb_ident (fst idt) id)) vl) (construct_rho (filter_genv ge) ve te)) with "[stack]" as "stack".
+  { iClear "IHel"; clear - Hin' NOREP.
+    iInduction vl as [|] "IHvl"; first by inv Hin'.
     simpl in NOREP.
     inv NOREP.
-    unfold F; simpl fold_right.
-    f_equal.
-    f_equal.
-    f_equal.
-    replace (eqb_ident id id) with true
-      by (symmetry; apply (eqb_ident_spec id id); auto).
-    simpl.
-    clear - H1.
-    induction vl; simpl; auto.
-    replace (negb (eqb_ident (fst a) id)) with true.
-    f_equal.
-    apply IHvl.
-    contradict H1. right; auto.
-    pose proof (eqb_ident_spec (fst a) id).
-    destruct (eqb_ident (fst a) id) eqn:?; auto.
-    exfalso; apply H1. left. rewrite <- H; auto.
-    transitivity
-     (var_block Share.top a (construct_rho (filter_genv ge) ve te) *
-         F vl (construct_rho (filter_genv ge) ve te)); [ | reflexivity].
-    inv NOREP.
-    rewrite <- IHvl; auto.
-    repeat rewrite <- sepcon_assoc.
-    simpl filter.
-    replace (eqb_ident (fst a) id) with false.
-    simpl.
-    unfold F at 1.
-    simpl.
-    symmetry;
-    rewrite (sepcon_comm (var_block _ _ _ )).
-    repeat rewrite sepcon_assoc.
-    reflexivity.
-    pose proof (eqb_ident_spec (fst a) id).
-    destruct (eqb_ident (fst a) id); auto.
-    assert (fst a = id) by (apply H0; auto).
-    subst id.
-    contradiction H2.
-    replace (fst a) with (fst (fst a, t)) by reflexivity.
-    apply in_map; auto.
-  }
-  pose (H0:=True).
-  destruct H1 as [phi1 [phi2 [? [? ?]]]].
-  unfold var_block in H3.
-  normalize in H3.
-  simpl in H3.
+    unfold F; simpl.
+    inv Hin'.
+    - erewrite foldr_ext; first iApply "stack"; try done.
+      f_equal; simpl.
+      replace (eqb_ident id id) with true
+        by (symmetry; apply (eqb_ident_spec id id); auto); simpl.
+      clear - H1.
+      induction vl; simpl; auto.
+      replace (negb (eqb_ident (fst a) id)) with true.
+      f_equal.
+      apply IHvl.
+      contradict H1. right; auto.
+      pose proof (eqb_ident_spec (fst a) id).
+      destruct (eqb_ident (fst a) id) eqn:?; auto.
+      exfalso; apply H1. left. rewrite <- H; auto.
+    - iDestruct "stack" as "[? stack]"; iPoseProof ("IHvl" with "[%] [%] stack") as "[$ stack]"; try done.
+      replace (eqb_ident (fst a) id) with false; first iFrame.
+      pose proof (eqb_ident_spec (fst a) id).
+      destruct (eqb_ident (fst a) id); auto.
+      assert (fst a = id) by (apply H0; auto).
+      subst id.
+      contradiction H1.
+      replace (fst a) with (fst (fst a, t)) by reflexivity.
+      apply in_map; auto. }
+  iDestruct "stack" as "[block stack]".
+  unfold var_block at 1.
+  iDestruct "block" as (?) "block"; simpl.
   assert (0 <= sizeof t) by (unfold sizeof; pose proof (sizeof_pos t); lia).
-  simpl in H5.
-  unfold eval_lvar, Map.get in H3. simpl in H3.
-  unfold make_venv in H3.
-  rewrite (Hve id (b,t)) in H3 by (left; auto).
-  rewrite eqb_type_refl in H3.
-  simpl in H3; destruct H3 as [H99 H3].
-  rewrite memory_block'_eq in H3;
+  unfold eval_lvar, Map.get; simpl.
+  unfold make_venv.
+  pose proof (Hve id (b,t)) as Hvei.
+  rewrite /lookup /ptree_lookup in Hvei; rewrite -> Hvei by (left; auto).
+  rewrite eqb_type_refl; simpl.
+  iDestruct "block" as (?) "block".
+  rewrite memory_block'_eq;
   try rewrite Ptrofs.unsigned_zero; try lia.
-  2:{
-   rewrite Z.add_0_r; rewrite Z2Nat.id by lia. change (Ptrofs.unsigned Ptrofs.zero) with 0 in H99; lia.
-  }
-  unfold memory_block'_alt in H3.
-  rewrite Ptrofs.unsigned_zero in H3.
-  rewrite Z2Nat.id in H3 by lia.
-  rewrite if_true in H3 by apply readable_share_top.
-  assert (join_sub phi1 (m_phi jm)) as H7
-   by ( apply join_sub_trans with phi; auto; eexists; eauto).
+  2:{ rewrite Z.add_0_r; rewrite -> Z2Nat.id by lia; unfold Ptrofs.max_unsigned in *; simpl in *; lia. }
+  unfold memory_block'_alt.
+  rewrite -> Z2Nat.id by lia.
+  rewrite -> if_true by apply readable_share_top.
+  iDestruct (VALspec_range_free with "[$Hm $block]") as %[m3 Hfree].
+  
+  rewrite /sizeof in Hfree; rewrite Hfree.
+  setoid_rewrite Hfree.
   destruct (VALspec_range_free _ _ _ _ H3 H7)
    as [m3 ?H].
   assert (VR: app_pred (VALspec_range (sizeof t-0) Share.top (b, 0) * TT) (m_phi jm)).
@@ -1184,20 +1023,9 @@ Proof.
     exists m4.
     rewrite (cenv_sub_sizeof HGG) by auto.
     unfold sizeof in H8; rewrite H8; auto.
-Qed.
+Qed.*)
 
-Lemma age_juicy_mem_i:
-  forall jm jm', m_dry jm = m_dry jm' ->
-        age (m_phi jm) (m_phi jm') ->
-       age jm jm'.
-Proof.
-intros.
-hnf in H0 |-*.
-unfold age1; simpl.
-apply age1_juicy_mem_unpack'; auto.
-Qed.
-
-Lemma free_juicy_mem_resource_decay:
+(*Lemma free_juicy_mem_resource_decay:
   forall jm b lo hi m' jm'
      (H : free (m_dry jm) b lo hi = Some m')
      (H0 : forall ofs : Z,  lo <= ofs < hi ->
@@ -1223,19 +1051,15 @@ apply Pos.le_refl.
 eapply free_juicy_mem_resource_decay; eauto.
 rewrite <- (nextblock_free _ _ _ _ _ H).
 apply IHfree_list_juicy_mem.
-Qed.
+Qed.*)
 
 Definition tc_fn_return (Delta: tycontext) (ret: option ident) (t: type) :=
  match ret with
- | None => True
- | Some i => match (temp_types Delta) ! i with Some t' => t=t' | _ => False end
+ | None => True%type
+ | Some i => match (temp_types Delta) !! i with Some t' => t=t' | _ => False%type end
  end.
 
-Lemma derives_refl' {A: Type} `{ageable A} {EO: Ext_ord A} :
-    forall P Q: pred A, P=Q -> P |-- Q.
-Proof.  intros; subst; apply derives_refl. Qed.
-
- Lemma free_juicy_mem_core:
+(* Lemma free_juicy_mem_core:
   forall jm m b lo hi H
    (H0 : forall ofs : Z,
      lo <= ofs < hi -> perm_of_res (m_phi jm @ (b, ofs)) = Some Freeable),
@@ -1255,26 +1079,23 @@ Proof.
  destruct l; destruct H1; subst. specialize (H0 z).
  spec H0; [lia | ]. rewrite Heqr in H0. inv H0.
  rewrite !ghost_of_core, free_juicy_mem_ghost; auto.
-Qed.
+Qed.*)
 
 Lemma same_glob_funassert':
   forall Delta1 Delta2 rho rho',
-     (forall id, (glob_specs Delta1) ! id = (glob_specs Delta2) ! id) ->
+     (forall id, (glob_specs Delta1) !! id = (glob_specs Delta2) !! id) ->
       ge_of rho = ge_of rho' ->
-              funassert Delta1 rho = funassert Delta2 rho'.
+              funassert Delta1 rho ⊣⊢ funassert Delta2 rho'.
 Proof.
-assert (forall Delta Delta' rho rho',
-             (forall id, (glob_specs Delta) ! id = (glob_specs Delta') ! id) ->
+  assert (forall Delta Delta' rho rho',
+             (forall id, (glob_specs Delta) !! id = (glob_specs Delta') !! id) ->
              ge_of rho = ge_of rho' ->
-             funassert Delta rho |-- funassert Delta' rho').
-+ intros.
-  unfold funassert.
-  intros w [? ?]; split.
-  - clear H2; intro id. rewrite <- (H id), <- H0; auto.
-  - intros loc sig cc ? w' Hw' Hext H4; destruct (H2 loc sig cc _ _ Hw' Hext H4)  as [id H3].
-    exists id; rewrite <- (H id), <- H0; auto.
-+ intros.
-  apply pred_ext; apply H; intros; auto.
+             funassert Delta rho ⊢ funassert Delta' rho') as H; last by intros; iSplit; iApply H.
+  intros ???? H; simpl; intros ->.
+  iIntros "[#? #Hsig]"; iSplit.
+  - iIntros (?); rewrite -H //.
+  - iIntros "!>" (???) "?".
+    setoid_rewrite <- H; iApply ("Hsig" with "[$]").
 Qed.
 
 Definition thisvar (ret: option ident) (i : ident) : Prop :=
@@ -1290,15 +1111,15 @@ f_equal.
  extensionality i; unfold modifiedvars, modifiedvars', insert_idset.
  unfold isSome, idset0, insert_idset; destruct ret; simpl; auto.
  destruct (ident_eq i0 i).
- subst. rewrite PTree.gss. apply prop_ext; split; auto.
- rewrite PTree.gso by auto. rewrite PTree.gempty.
- apply prop_ext; split ;intro; try contradiction.
+ subst. setoid_rewrite Maps.PTree.gss. apply prop_ext; split; auto.
+ setoid_rewrite -> Maps.PTree.gso; last auto. rewrite Maps.PTree.gempty.
+ apply prop_ext; split; intro; contradiction.
 Qed.
 
-Lemma assert_safe_jmupd_for_external_call {Espec psi curf vx ret ret0 tx k z' m'}
-      (AS: assert_safe Espec psi curf vx (set_opttemp ret (force_val ret0) tx)
-         (Cont k) (construct_rho (filter_genv psi) vx (set_opttemp ret (force_val ret0) tx)) (m_phi m')):
-  jm_fupd z' Ensembles.Full_set Ensembles.Full_set (jsafeN OK_spec psi z' (Returnstate (force_val ret0) (Kcall ret curf vx tx k))) m'.
+Lemma assert_safe_jmupd_for_external_call {psi E curf vx ret ret0 tx k z'} :
+      assert_safe Espec psi E curf vx (set_opttemp ret (force_val ret0) tx)
+         (Cont k) (construct_rho (filter_genv psi) vx (set_opttemp ret (force_val ret0) tx)) ⊢
+  jsafeN Espec psi E z' (Returnstate (force_val ret0) (Kcall ret curf vx tx k)).
 Proof.
 (* this proof is like assert_safe_jsafe *)
   repeat intro.
@@ -1350,88 +1171,113 @@ Proof.
   inv H7.
   eapply jsafeN_step.
   split. eapply step_skip_call; eauto. hnf; auto. auto. auto.
-Qed.
+Qed.*)
 
 Lemma semax_call_external
- (CS : compspecs) (Espec : OracleKind) (Delta : tycontext)
- (A : TypeTree)
- (P : forall ts : list Type,  (dependent_type_functor_rec ts (ArgsTT A)) mpred)
- (Q : forall ts : list Type,  (dependent_type_functor_rec ts (AssertTT A)) mpred)
- (NEP : args_super_non_expansive P) (NEQ' : super_non_expansive Q)
- (ts : list Type)
- (x : (dependent_type_functor_rec ts A) mpred)
- (F : environ -> pred rmap) (F0 : assert)
+ E (Delta : tycontext)
+ (A : Type)
+ (P : A -> argsEnviron -> mpred)
+ (Q : A -> environ -> mpred)
+ (x : A)
+ (F : environ -> mpred) (F0 : environ -> mpred)
  (ret : option ident) (curf : function) (fsig : typesig) (cc : calling_convention)
  (R : ret_assert) (psi : genv) (vx : env) (tx : temp_env)
- (k : cont) (rho : environ) (ora : OK_ty) (b : block) (jm : juicy_mem)
- (Hora : (ext_compat ora) (m_phi jm))
+ (k : cont) (rho : environ) (ora : OK_ty) (b : Values.block)
  (TCret : tc_fn_return Delta ret (snd fsig))
  (TC3 : guard_environ Delta curf rho)
  (TC5 : snd fsig = Tvoid -> ret = None)
  (H : closed_wrt_vars (thisvar ret) F0)
  (H0 : rho = construct_rho (filter_genv psi) vx tx)
- (H1 : (rguard Espec psi Delta curf (frame_ret_assert R F0) k) (level (m_phi jm)))
- (H4 : (funassert Delta rho) (m_phi jm))
  (args : list val)
- (H14 : (F0 rho * F rho *
-              P ts x (ge_of rho, args))%pred
-              (m_phi jm))
- (H5 : (believe_external Espec psi (Vptr b Ptrofs.zero) fsig cc A P Q) (S (level jm)))
  (ff : Clight.fundef)
  (H16 : Genv.find_funct psi (Vptr b Ptrofs.zero) = Some ff)
  (TC8 : tc_vals (fst fsig) args)
  (Hargs : Datatypes.length (fst fsig) = Datatypes.length args)
- (ctl := Kcall ret curf vx tx k : cont)
- (HR : (ALL rho' : environ,
-      |> ! ((EX old : val,
-             substopt ret (`old) F rho' *
-             maybe_retval (Q ts x) (snd fsig) ret rho') >=>
-            fupd (RA_normal R rho'))) (m_phi jm))
- : jsafeN OK_spec psi ora (Callstate ff args ctl) jm.
+ (ctl := Kcall ret curf vx tx k : cont) :
+ believe_external Espec psi E (Vptr b Ptrofs.zero) fsig cc A P Q -∗
+ ▷ rguard Espec psi E Delta curf (frame_ret_assert R F0) k -∗
+ ▷ funassert Delta rho -∗
+ ▷ (F0 rho ∗ F rho ∗ P x (ge_of rho, args)) -∗
+ ▷ (∀ rho' : environ,
+      ▷ ■ ((∃ old : val,
+             substopt ret (liftx old) F rho' ∗
+             maybe_retval (Q x) (snd fsig) ret rho') ={E}=∗ (RA_normal R rho'))) -∗
+ ▷ jsafeN Espec psi E ora (Callstate ff args ctl).
 Proof.
 destruct TC3 as [TC3 TC3'].
-rename H5 into H15.
-unfold believe_external in H15.
-rewrite H16 in H15.
-destruct ff; try contradiction H15.
-
-destruct H15 as [[H5 H15] Hretty]. hnf in H5.
-destruct H5 as [H5 [H5' [Eef Hinline]]]. subst c.
-inversion H5. destruct fsig as [params retty].
-injection H2; clear H2; intros H8 H7. subst t0.
-rename t into tys. subst rho.
-destruct (age1 jm) as  [jm' |] eqn:Hage.
-2:{ constructor. apply age1_level0; auto. }
-specialize (H15 psi ts x (level jm)).
-spec H15. apply age_laterR. constructor.
-specialize (H15
-  (F0 (construct_rho (filter_genv psi) vx tx) *
-          F (construct_rho (filter_genv psi) vx tx))
-   (typlist_of_typelist tys) args jm).
-spec H15; [ clear; lia | ].
-specialize (H15 _ _ (necR_refl _) (ext_refl _)).
-spec H15.
-{ clear - Eef Hargs H14 TC8.
-  assert (AP: app_pred ((P ts x (filter_genv psi, args) *
-    (F0 (construct_rho (filter_genv psi) vx tx) *
-     F (construct_rho (filter_genv psi) vx tx)))) (m_phi jm)).
-  { rewrite sepcon_comm.
-    eapply sepcon_derives; try apply H14; auto.
-  }
-  clear - Eef TC8 AP.
-  simpl.
-  split.
-  { (* typechecking arguments *)
-    rewrite Eef; simpl.
-    clear - TC8. rewrite TTL2.
-    revert args TC8; induction params; destruct args; intros; try discriminate; auto.
-    inv TC8.
-    split; auto.
-    apply tc_val_has_type; auto.
-  }
-  apply AP.
+rewrite /believe_external H16.
+iIntros "ext".
+destruct ff; first done.
+iDestruct "ext" as "((-> & -> & %Eef & %Hinline) & #He & #Htc)".
+rename t into tys.
+iSpecialize ("He" $! psi x (F0 rho ∗ F rho) (typlist_of_typelist tys) args).
+iIntros "#rguard #fun (F0 & F & P) HR !>".
+iMod ("He" with "[F0 F P]") as "He1".
+{ subst rho; iFrame; iPureIntro; split; auto.
+  (* typechecking arguments *)
+  rewrite Eef; simpl.
+  clear - TC8. rewrite TTL2.
+  revert args TC8; induction (Clight_core.typelist2list tys); destruct args; intros; try discriminate; auto.
+  inv TC8.
+  split; auto.
+  apply tc_val_has_type; auto. }
+clear TC8. simpl fst in *. simpl snd in *.
+rewrite /jsafeN jsafe_unfold /jsafe_pre.
+iIntros "!>" (?) "s"; iDestruct ("He1" with "s") as (x') "(pre & #post)".
+destruct Hinline as [Hinline | ?]; last done.
+iRight; iRight; iExists _, _, _; iSplit.
+{ iPureIntro; simpl.
+  rewrite Hinline //. }
+rewrite Eef TTL3; iFrame "pre".
+iNext.
+assert (Affine (∀ rho' : environ,
+         ■ ((∃ old : val, substopt ret (` old) F rho' ∗ maybe_retval (Q x) t0 ret rho') ={E}=∗
+              RA_normal R rho'))) by admit.
+iDestruct "HR" as "#HR".
+iIntros "!>" (??? [??]) "?".
+iMod ("post" with "[$]") as "($ & Q & F0 & F)".
+iDestruct ("Htc" with "[Q]") as %Htc; first by iFrame.
+pose (tx' := match ret,ret0 with
+                   | Some id, Some v => Maps.PTree.set id v tx
+                   | _, _ => tx
+                   end).
+iSpecialize ("rguard" $! EK_normal None tx' vx).
+set (rho' := construct_rho _ _ _).
+iMod ("HR" $! rho' with "[Q F]") as "R".
+{ iExists match ret with
+       | Some id =>
+           match tx !! id with
+           | Some old => old
+           | None => Vundef
+           end
+       | None => Vundef
+       end; subst rho' tx'; unfold_lift; destruct ret; simpl.
+  * destruct ret0.
+    2: { clear - TC5 Htc; destruct t0; try contradiction; by spec TC5. }
+    admit.
+  * subst rho; iFrame.
+    admit. }
+iIntros "!>"; iExists _; iSplit; first done.
+iSpecialize ("rguard" with "[-]").
+{ rewrite proj_frame; iFrame.
+  admit. }
+subst ctl.
+replace tx' with (set_opttemp ret (force_val ret0) tx).
+2:{ subst tx'.
+  clear - Htc TCret TC5. hnf in Htc, TCret.
+ destruct ret0, ret; simpl; auto.
+ destruct ((temp_types Delta) !! i); try contradiction.
+ destruct t0; try contradiction. spec TC5; auto. inv TC5.
 }
-clear H14 TC8. simpl fst in *. simpl snd in *.
+apply assert_safe_jmupd_for_external_call; trivial.
+
+
+simpl.
+Search k.
+Search F0.
+Search subst.
+iExists 
+simpl.
 destruct H15 as [x' H15].
 clear H5.
 destruct H15 as [H5 H15].
@@ -1483,8 +1329,8 @@ assert (LATER: laterM (m_phi jm) (m_phi jm')). { clear - Hage. apply age_laterR.
 
 assert (H1' : forall a' : rmap,
      necR (m_phi m') a' ->
-     (!! guard_environ Delta curf (construct_rho (filter_genv psi) vx tx') &&
-      seplog.sepcon (fun rho0 => EX old:val, substopt ret (`old) F rho0 * maybe_retval (Q ts x) retty ret rho0) F0 (construct_rho (filter_genv psi) vx tx') &&
+     (⌜ guard_environ Delta curf (construct_rho (filter_genv psi) vx tx') ∧
+      seplog.sepcon (fun rho0 => ∃ old:val, substopt ret (`old) F rho0 * maybe_retval (Q ts x) retty ret rho0) F0 (construct_rho (filter_genv psi) vx tx') ∧
       funassert Delta (construct_rho (filter_genv psi) vx tx')) a' ->
      (assert_safe Espec psi curf vx tx' (exit_cont EK_normal None k) (construct_rho (filter_genv psi) vx tx')) a').
 { intros a' NEC Ha'.
@@ -1546,7 +1392,7 @@ spec H1.
     do 3 red in H15.
     rewrite (sepcon_comm (F0 _)) in H15.
     rewrite <- sepcon_assoc in H15.
-    assert (H15': ((!!tc_option_val retty ret0 && Q ts x (make_ext_rval (filter_genv psi) (rettype_of_type retty)ret0)) *
+    assert (H15': ((⌜tc_option_val retty ret0 ∧ Q ts x (make_ext_rval (filter_genv psi) (rettype_of_type retty)ret0)) *
        F (construct_rho (filter_genv psi) vx tx) *
        F0 (construct_rho (filter_genv psi) vx tx))%pred (m_phi m')).
     { rewrite sepcon_assoc in H15|-*.
@@ -1580,7 +1426,7 @@ spec H1.
       hnf in TCret.
       apply exp_right with match ret with
        | Some id =>
-           match tx ! id with
+           match tx !! id with
            | Some old => old
            | None => Vundef
            end
@@ -1588,7 +1434,7 @@ spec H1.
        end.
       unfold tx' in *; clear tx'.
       destruct ret; auto.
-      destruct ((temp_types Delta) ! i) as [ti|] eqn:H29; try contradiction.
+      destruct ((temp_types Delta) !! i) as [ti|] eqn:H29; try contradiction.
       specialize (TC3 _ _ H29).
       destruct TC3 as [v [? ?]].
 
@@ -1631,7 +1477,7 @@ spec H1.
         destruct retty as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];  try reflexivity; try congruence;
         destruct v; try contradiction.
       - apply derives_trans with
-          (EX v0 : val, !! tc_val' retty v0 && Q ts x (mkEnviron (filter_genv psi) (Map.empty (block * type)) (Map.set 1 v0 (Map.empty val)))).
+          (∃ v0 : val, ⌜ tc_val' retty v0 ∧ Q ts x (mkEnviron (filter_genv psi) (Map.empty (block * type)) (Map.set 1 v0 (Map.empty val)))).
         apply exp_right with v. apply andp_right. { intros ? ? ?.  trivial. }
         unfold make_args, make_ext_rval; simpl.
         unfold env_set, globals_only; simpl.
@@ -1712,60 +1558,14 @@ replace tx' with (set_opttemp ret (force_val ret0) tx) in H1.
 2:{ subst tx'.
   clear - Htc TCret TC5. hnf in Htc, TCret.
  destruct ret0, ret; simpl; auto.
- destruct ((temp_types Delta) ! i); try contradiction.
+ destruct ((temp_types Delta) !! i); try contradiction.
  destruct retty; try contradiction. spec TC5; auto. inv TC5.
 }
 clear - H1.
 apply assert_safe_jmupd_for_external_call; trivial.
 Qed.
 
-Lemma alloc_juicy_variables_age:
-  forall {ge rho jm jm1 vl rho' jm' jm1'},
-   age jm jm1 -> age jm' jm1' ->
-   alloc_juicy_variables ge rho jm vl = (rho', jm') ->
-   alloc_juicy_variables ge rho jm1 vl = (rho', jm1').
-Proof.
-  intros.
-  revert jm jm1 H rho H1.
-  induction vl; intros.
-  {
-    simpl in *; inv H1.
-    hnf in H0,H. congruence.
-  }
-  destruct a.
-  simpl in H1|-*.
-  eapply IHvl; [| rewrite <- (age_jm_dry H); eassumption].
-  apply age_juicy_mem_i; [simpl; rewrite (age_jm_dry H); auto |].
-  simpl.
-  apply rmap_age_i.
-  {
-    unfold after_alloc; simpl. repeat rewrite level_make_rmap.
-    apply age_level. apply age_jm_phi; auto.
-  }
-  intro. unfold resource_fmap; simpl.
-  unfold after_alloc; simpl.
-  do 2  rewrite resource_at_make_rmap.
-  unfold after_alloc'.
-  if_tac; [rewrite if_true | rewrite if_false].
-  + f_equal.
-  + rewrite <- (age_jm_dry H); assumption.
-  + clear H1.
-    destruct (m_phi jm @ l) eqn:?.
-    - symmetry;  eapply necR_NOx; try apply Heqr.
-      constructor 1. apply age_jm_phi; auto.
-    - symmetry.
-      rewrite level_make_rmap.
-      eapply necR_YES. constructor 1. eapply age_jm_phi. eassumption.
-      auto.
-    - rewrite level_make_rmap.
-      symmetry.
-      eapply necR_PURE. constructor 1. eapply age_jm_phi. eassumption.  auto.
-  + rewrite <- (age_jm_dry H); assumption.
-  + unfold after_alloc; rewrite !ghost_of_make_rmap, level_make_rmap.
-    symmetry; apply age1_ghost_of, age_jm_phi; auto.
-Qed.
-
-Lemma alloc_juicy_variables_resource_decay:
+(*Lemma alloc_juicy_variables_resource_decay:
   forall ge rho jm vl rho' jm',
     alloc_juicy_variables ge rho jm vl = (rho', jm') ->
     resource_decay (nextblock (m_dry jm)) (m_phi jm) (m_phi jm') /\
@@ -1799,7 +1599,7 @@ Proof.
  right. right. left. split. apply alloc_result in H1; subst b; lia.
  eauto.
  rewrite <- H0. left. apply resource_at_approx.
-Qed.
+Qed.*)
 
 Lemma ge_of_make_args:
     forall s a rho, ge_of (make_args s a rho) = ge_of rho.
@@ -1841,11 +1641,10 @@ Lemma make_args_close_precondition:
     bind_parameter_temps bodyparams args tx = Some te' ->
     Forall (fun v : val => v <> Vundef) args ->
     P (filter_genv ge, args)
-   |-- close_precondition (map fst bodyparams) P
+   ⊢ close_precondition (map fst bodyparams) P
            (construct_rho (filter_genv ge) ve' te').
 Proof.
 intros *. intros LNR BP VUNDEF.
-intros phi ?.
 exists args. split; simpl; trivial.
 clear - LNR BP VUNDEF.
 generalize dependent te'. generalize dependent tx. generalize dependent args.
@@ -1859,7 +1658,7 @@ induction bodyparams; simpl; intros; destruct args; inv BP; simpl.
   - constructor; trivial.
 Qed.
 
-Lemma after_alloc_block:
+(*Lemma after_alloc_block:
  forall phi n F b (Hno : forall ofs : Z, phi @ (b, ofs) = NO Share.bot bot_unreadable),
    app_pred F phi ->
    0 <= n < Ptrofs.modulus ->
@@ -1950,7 +1749,7 @@ apply after_alloc_block; auto.
 Qed.
 
 Lemma alloc_juicy_variables_lem2 {CS}:
-  forall jm f (ge: genv) ve te jm' (F: pred rmap)
+  forall jm f (ge: genv) ve te jm' (F: mpred)
       (HGG: cenv_sub (@cenv_cs CS) (genv_cenv ge))
       (COMPLETE: Forall (fun it => complete_type cenv_cs (snd it) = true) (fn_vars f))
       (Hsize: Forall (fun var => @Ctypes.sizeof ge (snd var) <= Ptrofs.max_unsigned) (fn_vars f)),
@@ -1984,7 +1783,7 @@ simpl Map.get. simpl ge_of.
 assert (Map.get (make_venv ve) id = Some (b,ty)). {
  clear - H0 H5.
  unfold Map.get, make_venv.
- assert ((PTree.set id (b,ty) ve0) ! id = Some (b,ty)) by (apply PTree.gss).
+ assert ((PTree.set id (b,ty) ve0) !! id = Some (b,ty)) by (apply PTree.gss).
  forget (PTree.set id (b, ty) ve0) as ve1.
  rewrite <- H; clear H.
  revert ve1 j H0 H5; induction vars; intros.
@@ -2023,7 +1822,7 @@ Proof.
   destruct a; simpl.
   rewrite IHl; simpl.
   apply ghost_of_make_rmap.
-Qed.
+Qed.*)
 
 Lemma map_snd_typeof_params:
   forall al bl, map snd al = map snd bl -> type_of_params al = type_of_params bl.
@@ -2031,7 +1830,7 @@ Proof.
 induction al as [|[? ?]]; destruct bl as [|[? ?]]; intros; inv H; simpl; f_equal; auto.
 Qed.
 
-Lemma jsafeN_local_step':
+(*Lemma jsafeN_local_step':
   forall {Espec: OracleKind} ge ora s1 m s2 m2,
   cl_step  ge s1 (m_dry m) s2 (m_dry m2) ->
   resource_decay (nextblock (m_dry m)) (m_phi m) (m_phi m2) ->
@@ -2048,7 +1847,7 @@ Proof.
   apply Hstep.
   apply jm_fupd_intro, H2; intros.
   eapply necR_safe; eauto.
-Qed.
+Qed.*)
 
 Lemma call_cont_idem: forall k, call_cont (call_cont k) = call_cont k.
 Proof.
@@ -2056,18 +1855,17 @@ induction k; intros; simpl; auto.
 Qed.
 
 Lemma guard_fallthrough_return:
- forall (Espec : OracleKind) (psi : genv) (f : function)
+ forall (psi : genv) (f : function)
    (ctl : cont) (ek : exitkind) (vl : option val)
   (te : temp_env) (ve : env) (rho' : environ)
   (P1 : Prop) (P2 P3 P5 : mpred)
-  (P4 : (ffunc (fconst environ) fidentity) mpred)
-  (n : nat),
+  (P4 : (ffunc (fconst environ) fidentity) mpred),
   call_cont ctl = ctl ->
-  (!! P1 && (P2 * bind_ret vl (fn_return f) P4 rho' * P5) && P3 >=>
-    assert_safe Espec psi f ve te (exit_cont EK_return vl ctl) rho')  n ->
-  (!! P1 && (P2 *proj_ret_assert (function_body_ret_assert (fn_return f) P4) ek
-      vl rho' * P5) && P3 >=>
-   assert_safe Espec psi f ve te (exit_cont ek vl ctl) rho') n.
+  ■ (⌜P1⌝ ∧ (P2 ∗ bind_ret vl (fn_return f) P4 rho' * P5) ∧ P3 -∗
+     assert_safe Espec psi f ve te (exit_cont EK_return vl ctl) rho') ⊢
+  ■ (⌜P1⌝ ∧ (P2 ∗ proj_ret_assert (function_body_ret_assert (fn_return f) P4) ek
+      vl rho' ∗ P5) ∧ P3 -∗
+   assert_safe Espec psi f ve te (exit_cont ek vl ctl) rho').
 Proof.
 intros.
 destruct ek; try solve [intros; simpl proj_ret_assert; normalize];
@@ -2095,33 +1893,28 @@ unfold k at 1 in H; clearbody k;
 induction ctl; try discriminate; eauto.
 Qed.
 
-Lemma semax_call_aux2
-  (CS : compspecs) (Espec : OracleKind) (Delta : tycontext)
-  (A : TypeTree)
-  (P : forall ts : list Type,
-     _functor (dependent_type_functor_rec ts (ArgsTT A)) mpred)
-  (Q : forall ts : list Type,
-     _functor (dependent_type_functor_rec ts (AssertTT A)) mpred)
-  (ts : list Type)
-  (x : _functor (dependent_type_functor_rec ts A) mpred)
-  (F : environ -> pred rmap)
-  (F0 : assert)
+(*Lemma semax_call_aux2
+  E (Delta : tycontext)
+  (A : Type)
+  (P : A -> argsEnviron -> mpred)
+  (Q : A -> environ -> mpred)
+  (x : A)
+  (F : environ -> mpred)
+  (F0 : environ -> mpred)
   (ret : option ident)
   (curf : function)
   (fsig : typesig)
   (cc : calling_convention)
   (a : expr) (bl : list expr) (R : ret_assert)
   (psi : genv)
-  (ora : OK_ty) (jm jmx : juicy_mem)
   (f : function)
   (NEQ : super_non_expansive Q)
-  (Hora : ext_compat ora (m_phi jm))
   (TCret : tc_fn_return Delta ret (snd fsig))
   (TC5 : snd fsig = Tvoid -> ret = None)
   (H : closed_wrt_modvars (Scall ret a bl) F0)
   (HR : app_pred
        (ALL rho' : environ,
-        |> ! ((EX old : val,
+        ▷ !! ((∃ old : val,
                substopt ret (`old) F rho' *
                maybe_retval (Q ts x) (snd fsig) ret rho') >=>
               fupd (RA_normal R rho'))) (m_phi jm))
@@ -2136,11 +1929,11 @@ Lemma semax_call_aux2
       snd fsig = snd (fn_funsig f))
   vx tx k rho
   (H0 : rho = construct_rho (filter_genv psi) vx tx)
-  (H1 : app_pred (|> rguard Espec psi Delta curf (frame_ret_assert R F0) k)
+  (H1 : app_pred (▷ rguard Espec psi Delta curf (frame_ret_assert R F0) k)
        (level (m_phi jm)))
   (TC3 : guard_environ Delta curf rho)
   : app_pred
-      (!! closed_wrt_modvars (fn_body f) (fun _ : environ => F0 rho * F rho) &&
+      (⌜ closed_wrt_modvars (fn_body f) (fun _ : environ => F0 rho * F rho) ∧
        rguard Espec psi (func_tycontext' f Delta) f
          (frame_ret_assert
             (frame_ret_assert (function_body_ret_assert (fn_return f) (Q ts x))
@@ -2161,11 +1954,11 @@ do 2 pose proof I.
  remember ((construct_rho (filter_genv psi) ve te)) as rho'.
  simpl seplog.sepcon.
  rewrite <- (sepcon_comm (stackframe_of' cenv_cs f rho')).
-cut ((!! guard_environ (func_tycontext' f Delta) f rho' &&
+cut ((⌜ guard_environ (func_tycontext' f Delta) f rho' ∧
  (stackframe_of' cenv_cs f rho' *
   bind_ret vl
 (fn_return f) (Q ts x) rho' *
-  (F0 rho * F rho)) && funassert (func_tycontext' f Delta) rho' >=>
+  (F0 rho * F rho)) ∧ funassert (func_tycontext' f Delta) rho' >=>
  assert_safe Espec psi f ve te (exit_cont EK_return vl ctl) rho')
   (level jmx)).
 apply guard_fallthrough_return; auto.
@@ -2227,9 +2020,9 @@ apply guard_fallthrough_return; auto.
     }
    assert (HH1 : forall a' : rmap,
      necR (m_phi jm2) a' ->
-     (!! guard_environ Delta curf (construct_rho (filter_genv psi) vx (set_opttemp ret rval tx)) &&
-      seplog.sepcon (fun rho0 : environ => EX old : val, substopt ret (`old) F rho0 * maybe_retval (Q ts x) (snd fsig) ret rho0) F0
-        (construct_rho (filter_genv psi) vx (set_opttemp ret rval tx)) && funassert Delta (construct_rho (filter_genv psi) vx (set_opttemp ret rval tx))) a' ->
+     (⌜ guard_environ Delta curf (construct_rho (filter_genv psi) vx (set_opttemp ret rval tx)) ∧
+      seplog.sepcon (fun rho0 : environ => ∃ old : val, substopt ret (`old) F rho0 * maybe_retval (Q ts x) (snd fsig) ret rho0) F0
+        (construct_rho (filter_genv psi) vx (set_opttemp ret rval tx)) ∧ funassert Delta (construct_rho (filter_genv psi) vx (set_opttemp ret rval tx))) a' ->
      (assert_safe Espec psi curf vx (set_opttemp ret rval tx) (exit_cont EK_normal None k) (construct_rho (filter_genv psi) vx (set_opttemp ret rval tx))) a').
    { intros. hnf in H1.
      assert (Help0: laterM (level (m_phi jm)) (level (m_phi jm2))). {
@@ -2282,9 +2075,9 @@ apply guard_fallthrough_return; auto.
        rewrite sepcon_comm in H22a|-*.
        rewrite sepcon_assoc in H22a.
        assert (bind_ret vl (fn_return f) (Q ts x) rho' * (F0 rho * F rho)
-            |-- (maybe_retval (Q ts x) (snd fsig) ret (construct_rho (filter_genv psi) vx (set_opttemp ret rval tx)) *
+            ⊢ (maybe_retval (Q ts x) (snd fsig) ret (construct_rho (filter_genv psi) vx (set_opttemp ret rval tx)) *
                    (F0 (construct_rho (filter_genv psi) vx (set_opttemp ret rval tx)) *
-                    EX old: val, substopt ret (`old) F (construct_rho (filter_genv psi) vx (set_opttemp ret rval tx))))). {
+                    ∃ old: val, substopt ret (`old) F (construct_rho (filter_genv psi) vx (set_opttemp ret rval tx))))). {
         apply sepcon_derives.
         *
          clear dependent a.
@@ -2326,7 +2119,7 @@ apply guard_fallthrough_return; auto.
           rewrite PTree.gso; auto.
         +
           simpl in TCret.
-          destruct ((temp_types Delta) ! i) eqn:?; try contradiction.
+          destruct ((temp_types Delta) !! i) eqn:?; try contradiction.
           subst t.
           destruct TC3 as [[TC3 _] _].
           hnf in TC3; simpl in TC3.
@@ -2395,10 +2188,10 @@ apply guard_fallthrough_return; auto.
       rewrite FL3; auto.
       change v with rval; auto.
       change Vundef with rval; auto.
-Qed.
+Qed.*)
 
 Lemma tc_eval_exprlist:
-  forall {CS: compspecs} Delta tys bl rho m,
+  forall Delta tys bl rho m,
     typecheck_environ Delta rho ->
     (tc_exprlist Delta tys bl rho) m ->
     tc_vals tys (eval_exprlist tys bl rho).
@@ -2454,7 +2247,7 @@ Lemma believe_exists_fundef:
     {n: nat} {fspec: funspec}
   (Findb : Genv.find_symbol (genv_genv psi) id_fun = Some b)
   (Believe : app_pred (believe Espec Delta psi Delta) n)
-  (H3: (glob_specs Delta) ! id_fun = Some fspec),
+  (H3: (glob_specs Delta) !! id_fun = Some fspec),
  {f : Clight.fundef |
   Genv.find_funct_ptr (genv_genv psi) b = Some f /\
   type_of_fundef f = type_of_funspec fspec }.
@@ -2529,8 +2322,8 @@ Lemma semax_call_aux {CS Espec}
 
   (Classify: Cop.classify_fun (typeof a) = Cop.fun_case_f (typelist_of_type_list clientparams) retty cc)
   (TCRet: tc_fn_return Delta ret retty)
-  (TCA: (|>tc_expr Delta a rho) (m_phi jm))
-  (TCbl: (|>tc_exprlist Delta clientparams bl rho) (m_phi jm))
+  (TCA: (▷tc_expr Delta a rho) (m_phi jm))
+  (TCbl: (▷tc_exprlist Delta clientparams bl rho) (m_phi jm))
   (Argsdef: args = eval_exprlist clientparams bl rho)
   (GuardEnv: guard_environ Delta curf rho)
   (Hretty: retty =Tvoid -> ret=None)
@@ -2540,17 +2333,17 @@ Lemma semax_call_aux {CS Espec}
   (Hrho: rho = construct_rho (filter_genv psi) vx tx)
   (EvalA: eval_expr a rho = Vptr b Ptrofs.zero)
   (Funassert: funassert Delta rho (m_phi jm))
-  (RGUARD: (|> rguard Espec psi Delta curf (frame_ret_assert R F0) k) (level (m_phi jm)))
+  (RGUARD: (▷ rguard Espec psi Delta curf (frame_ret_assert R F0) k) (level (m_phi jm)))
   (PostAdapt: forall (ts: list Type) (x : dependent_type_functor_rec ts A mpred)
                      (vl : fconst environ mpred),
-        (! |> (deltaQ ts x vl <=> nQ ts x vl)) (m_phi jm))
-  (PREHR: (|> fupd
-              (EX (ts: list Type) (x : dependent_type_functor_rec ts A mpred)
-                  (F : environ -> pred rmap),
-               (F0 rho * F rho * deltaP ts x (ge_of rho, args)) &&
+        (! ▷ (deltaQ ts x vl <=> nQ ts x vl)) (m_phi jm))
+  (PREHR: (▷ fupd
+              (∃ (ts: list Type) (x : dependent_type_functor_rec ts A mpred)
+                  (F : environ -> mpred),
+               (F0 rho * F rho * deltaP ts x (ge_of rho, args)) ∧
                (ALL rho' : environ ,
-                           |>
-                             !((EX old:val, substopt ret (`old) F rho' * maybe_retval (nQ ts x) retty ret rho') >=> fupd (RA_normal R rho') )))) (m_phi jm)):
+                           ▷
+                             !((∃ old:val, substopt ret (`old) F rho' * maybe_retval (nQ ts x) retty ret rho') >=> fupd (RA_normal R rho') )))) (m_phi jm)):
    jsafeN (@OK_spec Espec) psi ora
      (State curf (Scall ret a bl) k vx tx) jm.
 Proof.
@@ -2604,7 +2397,7 @@ Proof.
   assert (ArgsNotVundef:= tc_vals_Vundef TC8).
   clearbody args.
   assert (H11': forall ts (x : dependent_type_functor_rec ts A mpred) (vl : environ),
-             (! |> (deltaQ ts x vl <=> nQ ts x vl)) (m_phi jm2)). {
+             (! ▷ (deltaQ ts x vl <=> nQ ts x vl)) (m_phi jm2)). {
     intros ???.
     apply (pred_nec_hereditary _ _ _
                                (laterR_necR (age_laterR (age_jm_phi H13)))); auto. }
@@ -2625,16 +2418,16 @@ Proof.
   assert (H2 := I).
 
   assert (H14':  fupd
-                 (EX ts (x : dependent_type_functor_rec ts A mpred) F,
-                  F0 rho * F rho * deltaP ts x (ge_of rho, args) &&
+                 (∃ ts (x : dependent_type_functor_rec ts A mpred) F,
+                  F0 rho * F rho * deltaP ts x (ge_of rho, args) ∧
                              (ALL rho' : environ,
-                 |> ! ((EX old : val,
+                 ▷ !! ((∃ old : val,
                                  substopt ret (` old) F rho' *
                                  maybe_retval (deltaQ ts x) retty ret rho') >=>
             fupd (RA_normal R rho')))) (m_phi jm)). {
     clear - PREHR H11.
     eapply fupd.subp_fupd, PREHR; eauto.
-    assert ((|> ALL ts x vl, (deltaQ ts x vl <=> nQ ts x vl)) (level (m_phi jm))) as H12.
+    assert ((▷ ALL ts x vl, (deltaQ ts x vl <=> nQ ts x vl)) (level (m_phi jm))) as H12.
     { do 3 (rewrite later_allp; intro); apply H11. }
     eapply subp_exp, H12; intros ts.
     apply subp_exp; intros x.
@@ -2871,7 +2664,7 @@ Qed.
 Lemma semax_call_aux' {CS Espec}
   (Delta : tycontext) (psi : genv) (ora : OK_ty) (jm : juicy_mem) (b : block) (id : ident) cc
   A deltaP deltaQ NEP' NEQ' retty clientparams
-  (F : environ -> pred rmap)
+  (F : environ -> mpred)
   (F0 : assert) (ret : option ident) (curf: function) args (a : expr)
   (bl : list expr) (R : ret_assert) (vx:env) (tx:Clight.temp_env) (k : cont) (rho : environ)
   (Hora : ext_compat ora (m_phi jm))
@@ -2882,19 +2675,19 @@ Lemma semax_call_aux' {CS Espec}
 
   (Classify: Cop.classify_fun (typeof a) = Cop.fun_case_f (typelist_of_type_list clientparams) retty cc)
   (TCRet: tc_fn_return Delta ret retty)
-  (TCA: (|>tc_expr Delta a rho) (m_phi jm))
-  (TCbl: (|>tc_exprlist Delta clientparams bl rho) (m_phi jm))
+  (TCA: (▷tc_expr Delta a rho) (m_phi jm))
+  (TCbl: (▷tc_exprlist Delta clientparams bl rho) (m_phi jm))
   (Argsdef: args = eval_exprlist clientparams bl rho)
   (GuardEnv: guard_environ Delta curf rho)
   (Hretty: retty =Tvoid -> ret=None)
   (CLosed: closed_wrt_modvars (Scall ret a bl) F0)
   nQ
-  (PREHR: (|> fupd
-              (EX (ts: list Type) (x : dependent_type_functor_rec ts A mpred)
-                  (F : environ -> pred rmap),
-               (F0 rho * F rho * deltaP ts x (ge_of rho, args)) &&
+  (PREHR: (▷ fupd
+              (∃ (ts: list Type) (x : dependent_type_functor_rec ts A mpred)
+                  (F : environ -> mpred),
+               (F0 rho * F rho * deltaP ts x (ge_of rho, args)) ∧
               (ALL rho' : environ ,
-       !((EX old:val, substopt ret (`old) F rho' * maybe_retval (nQ ts x) retty ret rho') >=> fupd (RA_normal R rho') )))) (m_phi jm))
+       !((∃ old:val, substopt ret (`old) F rho' * maybe_retval (nQ ts x) retty ret rho') >=> fupd (RA_normal R rho') )))) (m_phi jm))
   (CSUB: cenv_sub (@cenv_cs CS) (genv_cenv psi))
   (Hrho: rho = construct_rho (filter_genv psi) vx tx)
   (EvalA: eval_expr a rho = Vptr b Ptrofs.zero)
@@ -2903,7 +2696,7 @@ Lemma semax_call_aux' {CS Espec}
         (level (m_phi jm)))
   (PostAdapt: forall (ts: list Type) (x : dependent_type_functor_rec ts A mpred)
                      (vl : fconst environ mpred),
-        (! |> (deltaQ ts x vl <=> nQ ts x vl)) (m_phi jm)):
+        (! ▷ (deltaQ ts x vl <=> nQ ts x vl)) (m_phi jm)):
 jsafeN (@OK_spec Espec) psi ora
      (State curf (Scall ret a bl) k vx tx) jm.
 Proof.
@@ -2930,12 +2723,12 @@ Lemma semax_call {CS Espec}:
             (retsig = Tvoid -> ret = None) ->
           tc_fn_return Delta ret retsig ->
   @semax CS Espec Delta
-       (fun rho => (|>(tc_expr Delta a rho && tc_exprlist Delta argsig bl rho))  &&
-           (func_ptr (mk_funspec (argsig,retsig) cc A P Q NEP NEQ) (eval_expr a rho) &&
-          (|>(F rho * P ts x (ge_of rho, eval_exprlist argsig bl rho)))))
+       (fun rho => (▷(tc_expr Delta a rho ∧ tc_exprlist Delta argsig bl rho))  ∧
+           (func_ptr (mk_funspec (argsig,retsig) cc A P Q NEP NEQ) (eval_expr a rho) ∧
+          (▷(F rho * P ts x (ge_of rho, eval_exprlist argsig bl rho)))))
          (Scall ret a bl)
          (normal_ret_assert
-          (fun rho => (EX old:val, substopt ret (`old) F rho * maybe_retval (Q ts x) retsig ret rho))).
+          (fun rho => (∃ old:val, substopt ret (`old) F rho * maybe_retval (Q ts x) retsig ret rho))).
 Proof.
 rewrite semax_unfold. intros ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? TCF TC5 TC7.
 rename argsig into clientparams. rename retsig into retty.
@@ -2955,10 +2748,10 @@ assert (TC7': tc_fn_return Delta' ret retty).
 {
   clear - TC7 TS.
   hnf in TC7|-*. destruct ret; auto.
-  destruct ((temp_types Delta) ! i) eqn:?; try contradiction.
+  destruct ((temp_types Delta) !! i) eqn:?; try contradiction.
   destruct TS.
   specialize (H i); rewrite Heqo in H. subst t.
-  destruct ((temp_types Delta') ! i ).
+  destruct ((temp_types Delta') !! i ).
   destruct H; auto.
   auto.
 } clear TC7.
@@ -2986,7 +2779,7 @@ set (args' := @eval_exprlist CS' clientparams bl rho).
 
 assert (MYPROP: exists id fs,
           Map.get (ge_of rho) id = Some b /\
-         (glob_specs Delta') ! id = Some fs /\ func_at fs (b, 0) w).
+         (glob_specs Delta') !! id = Some fs /\ func_at fs (b, 0) w).
 { clear - funcatb funassertDelta' SubClient JZ.
   assert (XX: exists id:ident, (Map.get (ge_of rho) id = Some b)
                                /\ exists fs, (glob_specs Delta')!id = Some fs).
@@ -3015,8 +2808,8 @@ inversion NSC; subst nRetty nparams.
 destruct fsig' as [fArgsig fRettp].
 hnf in funcatb, funcatv.
  inversion2 funcatb funcatv.
-assert (PREPOST: (forall ts (x:dependent_type_functor_rec ts nA mpred) vl, (! |> (deltaP ts x vl <=> nP ts x vl)) w) /\
-                 (forall ts (x:dependent_type_functor_rec ts nA mpred) vl, (! |> (deltaQ ts x vl <=> nQ ts x vl)) w)).
+assert (PREPOST: (forall ts (x:dependent_type_functor_rec ts nA mpred) vl, (! ▷ (deltaP ts x vl <=> nP ts x vl)) w) /\
+                 (forall ts (x:dependent_type_functor_rec ts nA mpred) vl, (! ▷ (deltaQ ts x vl <=> nQ ts x vl)) w)).
 { symmetry in H4. apply inj_pair2 in H4;
   apply (function_pointer_aux); trivial. f_equal; apply H4. }
 clear H4; destruct PREPOST as [Hpre Hpost].
@@ -3035,7 +2828,7 @@ set (rho := construct_rho (filter_genv psi) vx tx).
 
 assert (HARGS: args = args').
 { clear - Hage HGG TC4 TC2.
-  assert (ARGSEQ: (|> (!! (args = args'))) w). trivial.
+  assert (ARGSEQ: (▷ (⌜ (args = args'))) w). trivial.
   { hnf; intros. specialize (TC2 _ H). subst args args'.
     simpl. destruct HGG as [CSUB HGG].
      apply (typecheck_exprlist_sound_cenv_sub CSUB Delta rho TC4 a'); apply TC2. }
@@ -3056,7 +2849,7 @@ assert (LENargs: Datatypes.length clientparams = Datatypes.length args).
 
 simpl in ClientAdaptation.
 
-assert (HPP: (|> (F0 rho * F rho * (P ts x) (ge_of rho, args)))%pred w).
+assert (HPP: (▷ (F0 rho * F rho * (P ts x) (ge_of rho, args)))%pred w).
 { clear - pre JZ HF0 HGG TC1 TC2.
   rewrite sepcon_assoc. rewrite later_sepcon. exists z1, z2; split; trivial.
   split; [ apply now_later |]; trivial. }
@@ -3098,16 +2891,16 @@ specialize (ClientAdaptation w2'). spec ClientAdaptation.
   + apply age_laterR in Age2. apply (W2 _ Age2). }
     apply rmap_order in Hext as (Hl' & _ & _).
     rewrite Hl' in *; clear dependent a'.
-assert (ARGS: app_pred (|> fupd (EX ts1 x1 G, F0 rho *
-     (F rho * G) * deltaP ts1 x1 (ge_of rho, args) && !! (forall rho' : environ,
-                            !! (ve_of rho' = Map.empty (block * type)) &&
-                            (G * nQ ts1 x1 rho') |-- (Q ts x rho')))) w).
+assert (ARGS: app_pred (▷ fupd (∃ ts1 x1 G, F0 rho *
+     (F rho * G) * deltaP ts1 x1 (ge_of rho, args) ∧ ⌜ (forall rho' : environ,
+                            ⌜ (ve_of rho' = Map.empty (block * type)) ∧
+                            (G * nQ ts1 x1 rho') ⊢ (Q ts x rho')))) w).
 { clear Hpost SpecOfID Prog_OK RhoID TC7' RGUARD funcatb. rewrite HARGS in *.
-  assert (XX: (|> (F0 rho * F rho *
-                   fupd (EX ts1 x1 G, G * deltaP ts1 x1 (ge_of rho, args) &&
-              !! (forall rho' : environ,
-                     !! (ve_of rho' = Map.empty (block * type)) &&
-                     (G * nQ ts1 x1 rho') |-- (Q ts x rho'))))) w).
+  assert (XX: (▷ (F0 rho * F rho *
+                   fupd (∃ ts1 x1 G, G * deltaP ts1 x1 (ge_of rho, args) ∧
+              ⌜ (forall rho' : environ,
+                     ⌜ (ve_of rho' = Map.empty (block * type)) ∧
+                     (G * nQ ts1 x1 rho') ⊢ (Q ts x rho'))))) w).
   { rewrite later_sepcon.
     exists w1, w2; split. trivial. split. trivial. hnf; intros.
     destruct (age_later Age2 H); [ subst a' |].
@@ -3142,7 +2935,7 @@ assert (ARGS: app_pred (|> fupd (EX ts1 x1 G, F0 rho *
   rewrite !exp_sepcon2; f_equal; extensionality.
   rewrite !exp_sepcon2; f_equal; extensionality.
   rewrite <- !sepcon_assoc.
-  rewrite !(andp_comm _ (!!_)), !sepcon_andp_prop.
+  rewrite !(andp_comm _ (⌜_)), !sepcon_andp_prop.
   rewrite <- !sepcon_assoc; auto. }
 simpl; unfold assert_safe'_; intros; subst.
 apply jm_fupd_intro'.
@@ -3170,7 +2963,7 @@ apply fupd.fupd_intro.
 hnf in TC7'.
 rewrite <- exp_sepcon1.
 destruct ret.
-- remember ((temp_types Delta') ! i) as rr; destruct rr; try contradiction; subst t.
+- remember ((temp_types Delta') !! i) as rr; destruct rr; try contradiction; subst t.
   simpl in V. destruct V as [m1 [m2 [JM [[u1 [u2 [JU [U1 U2]]]] M2]]]].
   destruct (join_assoc JU JM) as [q1 [Q2 Q1]].
   exists u1, q1; split; trivial. split. unfold subst. exists v; apply U1.
@@ -3201,12 +2994,12 @@ Lemma semax_call_si {CS Espec}:
             (retsig = Tvoid -> ret = None) ->
           tc_fn_return Delta ret retsig ->
   @semax CS Espec Delta
-       (fun rho => (|>(tc_expr Delta a rho && tc_exprlist Delta argsig bl rho))  &&
-           (func_ptr_si (mk_funspec (argsig,retsig) cc A P Q NEP NEQ) (eval_expr a rho) &&
-          (|>(F rho * P ts x (ge_of rho, eval_exprlist argsig bl rho)))))
+       (fun rho => (▷(tc_expr Delta a rho ∧ tc_exprlist Delta argsig bl rho))  ∧
+           (func_ptr_si (mk_funspec (argsig,retsig) cc A P Q NEP NEQ) (eval_expr a rho) ∧
+          (▷(F rho * P ts x (ge_of rho, eval_exprlist argsig bl rho)))))
          (Scall ret a bl)
          (normal_ret_assert
-          (fun rho => (EX old:val, substopt ret (`old) F rho * maybe_retval (Q ts x) retsig ret rho))).
+          (fun rho => (∃ old:val, substopt ret (`old) F rho * maybe_retval (Q ts x) retsig ret rho))).
 Proof.
 rewrite semax_unfold. intros ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? TCF TC5 TC7.
 rename argsig into clientparams. rename retsig into retty.
@@ -3226,10 +3019,10 @@ assert (TC7': tc_fn_return Delta' ret retty).
 {
   clear - TC7 TS.
   hnf in TC7|-*. destruct ret; auto.
-  destruct ((temp_types Delta) ! i) eqn:?; try contradiction.
+  destruct ((temp_types Delta) !! i) eqn:?; try contradiction.
   destruct TS.
   specialize (H i); rewrite Heqo in H. subst t.
-  destruct ((temp_types Delta') ! i ).
+  destruct ((temp_types Delta') !! i ).
   destruct H; auto.
   auto.
 } clear TC7.
@@ -3258,7 +3051,7 @@ set (args' := @eval_exprlist CS' clientparams bl rho).
 
 assert (MYPROP: exists id fs,
          Map.get (ge_of rho) id = Some b /\
-         (glob_specs Delta') ! id = Some fs /\ func_at fs (b, 0) w).
+         (glob_specs Delta') !! id = Some fs /\ func_at fs (b, 0) w).
 { clear - funcatb funassertDelta' SubClient JZ.
   assert (XX: exists id:ident, (Map.get (ge_of rho) id = Some b)
                                /\ exists fs, (glob_specs Delta')!id = Some fs).
@@ -3286,8 +3079,8 @@ inversion NSC. subst nparams nRetty.
 destruct fsig' as [fArgsig fRettp].
 hnf in funcatb, funcatv.
  inversion2 funcatb funcatv.
-assert (PREPOST: (forall ts (x:dependent_type_functor_rec ts nA mpred) vl, (! |> (deltaP ts x vl <=> nP ts x vl)) w) /\
-                 (forall ts (x:dependent_type_functor_rec ts nA mpred) vl, (! |> (deltaQ ts x vl <=> nQ ts x vl)) w)).
+assert (PREPOST: (forall ts (x:dependent_type_functor_rec ts nA mpred) vl, (! ▷ (deltaP ts x vl <=> nP ts x vl)) w) /\
+                 (forall ts (x:dependent_type_functor_rec ts nA mpred) vl, (! ▷ (deltaQ ts x vl <=> nQ ts x vl)) w)).
 { symmetry in H4. apply inj_pair2 in H4;
   apply (function_pointer_aux); trivial. f_equal; apply H4. }
 clear H4; destruct PREPOST as [Hpre Hpost].
@@ -3305,7 +3098,7 @@ assert (typecheck_environ Delta rho) as TC4.
 
 assert (HARGS: args = args').
 { clear - Hage HGG TC4 TC2.
-  assert (ARGSEQ: (|> (!! (args = args'))) w).
+  assert (ARGSEQ: (▷ (⌜ (args = args'))) w).
   { hnf; intros. specialize (TC2 _ H). subst args args'.
     simpl. destruct HGG as [CSUB HGG].
     apply (typecheck_exprlist_sound_cenv_sub CSUB Delta rho TC4 a'). apply TC2. }
@@ -3326,7 +3119,7 @@ assert (LENargs: Datatypes.length clientparams = Datatypes.length args).
 
 assert (TCD': tc_environ Delta' rho) by eapply TC3.
 
-assert (HPP: (|> (F0 rho * F rho * (P ts x) (ge_of rho, args)))%pred w).
+assert (HPP: (▷ (F0 rho * F rho * (P ts x) (ge_of rho, args)))%pred w).
 { clear - pre JZ HF0 HGG TC1 TC2.
   rewrite sepcon_assoc. rewrite later_sepcon. exists z1, z2; split; trivial.
   split; [ apply now_later |]; trivial. }
@@ -3360,12 +3153,12 @@ specialize (ClientAdaptation _ LW2' _ _ (necR_refl _) (ext_refl _)). spec Client
     constructor; eauto. }
 apply rmap_order in Hext as (Hl' & _ & _).
 rewrite Hl' in *; clear dependent a'.
-assert (ArgsW: app_pred (|> fupd (EX ts1 x1 G, F0 rho * (F rho * G) *
-               deltaP ts1 x1 (ge_of rho, args) && (ALL rho' : environ,
-         ! (!! (ve_of rho' = Map.empty (block * type)) && (G * nQ ts1 x1 rho') >=> (Q ts x rho'))))) w).
+assert (ArgsW: app_pred (▷ fupd (∃ ts1 x1 G, F0 rho * (F rho * G) *
+               deltaP ts1 x1 (ge_of rho, args) ∧ (ALL rho' : environ,
+         !! (⌜ (ve_of rho' = Map.empty (block * type)) ∧ (G * nQ ts1 x1 rho') >=> (Q ts x rho'))))) w).
 { clear Hpost funcatb SpecOfID Prog_OK RhoID TC7' RGUARD. rewrite HARGS in *.
-  assert (XX: (|> (F0 rho * F rho * fupd (EX ts1 x1 G, G * deltaP ts1 x1 (ge_of rho, args) && (ALL rho' : environ,
-         ! (!! (ve_of rho' = Map.empty (block * type)) && (G * nQ ts1 x1 rho') >=> (Q ts x rho')))))) w).
+  assert (XX: (▷ (F0 rho * F rho * fupd (∃ ts1 x1 G, G * deltaP ts1 x1 (ge_of rho, args) ∧ (ALL rho' : environ,
+         !! (⌜ (ve_of rho' = Map.empty (block * type)) ∧ (G * nQ ts1 x1 rho') >=> (Q ts x rho')))))) w).
   { rewrite later_sepcon.
     exists w1, w2; split. trivial. split. trivial. hnf; intros. specialize (age_later_nec _ _ _ Age2 H). intros.
     apply (pred_nec_hereditary _ _ a') in ClientAdaptation; auto.
@@ -3450,7 +3243,7 @@ destruct ret.
     simpl; split. hnf; simpl; intuition.
     exists z1_2, z2; auto.
   + assert (Z22: ((fun rho : environ =>
-                     EX v : val, !! tc_val' retty v && nQ ts1 x1
+                     ∃ v : val, ⌜ tc_val' retty v ∧ nQ ts1 x1
                                     (env_set (globals_only rho) ret_temp v)) rho') z2).
     { destruct retty; trivial. congruence. }
     clear Z2; destruct Z22 as [vv [Z21 Z2]]. simpl in Z21.
@@ -3471,12 +3264,12 @@ Lemma semax_call_alt {CS Espec}:
             (retsig = Tvoid -> ret = None) ->
           tc_fn_return Delta ret retsig ->
   @semax CS Espec Delta
-       (fun rho => (|> (tc_expr Delta a rho && tc_exprlist Delta argsig bl rho))  &&
-           (func_ptr_si (mk_funspec (argsig,retsig) cc A P Q NEP NEQ) (eval_expr a rho) &&
-          (|>(F rho * P ts x (ge_of rho, eval_exprlist argsig bl rho)))))
+       (fun rho => (▷ (tc_expr Delta a rho ∧ tc_exprlist Delta argsig bl rho))  ∧
+           (func_ptr_si (mk_funspec (argsig,retsig) cc A P Q NEP NEQ) (eval_expr a rho) ∧
+          (▷(F rho * P ts x (ge_of rho, eval_exprlist argsig bl rho)))))
          (Scall ret a bl)
          (normal_ret_assert
-          (fun rho => (EX old:val, substopt ret (`old) F rho * maybe_retval (Q ts x) retsig ret rho))).
+          (fun rho => (∃ old:val, substopt ret (`old) F rho * maybe_retval (Q ts x) retsig ret rho))).
 Proof. exact semax_call_si. Qed.
 
 (*Lemma semax_call_ext {CS Espec}:
@@ -3485,10 +3278,10 @@ Proof. exact semax_call_si. Qed.
       typeof a = typeof a' ->
       map typeof bl = map typeof bl' ->
       (forall rho,
-          !! (typecheck_environ Delta rho) && P rho |--
-            tc_expr Delta a rho && tc_exprlist Delta tl bl rho &&
-            tc_expr Delta a' rho && tc_exprlist Delta tl bl' rho &&
-            !! (eval_expr a rho = eval_expr a' rho /\
+          ⌜ (typecheck_environ Delta rho) ∧ P rho ⊢
+            tc_expr Delta a rho ∧ tc_exprlist Delta tl bl rho ∧
+            tc_expr Delta a' rho ∧ tc_exprlist Delta tl bl' rho ∧
+            ⌜ (eval_expr a rho = eval_expr a' rho /\
                 eval_exprlist tl bl rho = eval_exprlist tl bl' rho)) ->
   semax Espec Delta P (Scall ret a bl) Q ->
   @semax CS Espec Delta P (Scall ret a' bl') Q.
@@ -3590,18 +3383,18 @@ Definition cast_expropt {CS} (e: option expr) t : environ -> option val :=
  match e with Some e' => `Some (@eval_expr CS (Ecast e' t))  | None => `None end.
 
 Definition tc_expropt {CS} Delta (e: option expr) (t: type) : environ -> mpred :=
-   match e with None => `!!(t=Tvoid)
+   match e with None => `⌜(t=Tvoid)
                      | Some e' => @denote_tc_assert CS (typecheck_expr Delta (Ecast e' t))
    end.
 
 Lemma tc_expropt_char {CS} Delta e t: @tc_expropt CS Delta e t =
-                                      match e with None => `!!(t=Tvoid)
+                                      match e with None => `⌜(t=Tvoid)
                                               | Some e' => @tc_expr CS Delta (Ecast e' t)
                                       end.
 Proof. reflexivity. Qed.
 
 Lemma RA_return_castexpropt_cenv_sub {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) Delta rho (D:typecheck_environ Delta rho) ret t:
-  @tc_expropt CS Delta ret t rho |-- !!(@cast_expropt CS ret t rho = @cast_expropt CS' ret t rho).
+  @tc_expropt CS Delta ret t rho ⊢ ⌜(@cast_expropt CS ret t rho = @cast_expropt CS' ret t rho).
 Proof.
   intros w W. simpl. unfold tc_expropt in W. destruct ret.
   + simpl in W. simpl.
@@ -3611,7 +3404,7 @@ Proof.
 Qed.
 
 Lemma tc_expropt_cenv_sub {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) Delta rho (D:typecheck_environ Delta rho) ret t:
-  @tc_expropt CS Delta ret t rho |-- @tc_expropt CS' Delta ret t rho.
+  @tc_expropt CS Delta ret t rho ⊢ @tc_expropt CS' Delta ret t rho.
 Proof.
   intros w W. simpl. rewrite  tc_expropt_char in W; rewrite tc_expropt_char.
   specialize (tc_expr_cenv_sub CSUB); intros.
@@ -3619,14 +3412,14 @@ Proof.
 Qed.
 
 Lemma tc_expropt_cspecs_sub {CS CS'} (CSUB: cspecs_sub CS CS') Delta rho (D:typecheck_environ Delta rho) ret t:
-  @tc_expropt CS Delta ret t rho |-- @tc_expropt CS' Delta ret t rho.
+  @tc_expropt CS Delta ret t rho ⊢ @tc_expropt CS' Delta ret t rho.
 Proof.
   destruct CSUB as [CSUB _].
   apply (@tc_expropt_cenv_sub _ _ CSUB _ _ D).
 Qed.
 
 Lemma tc_expropt_sub {CS} Delta Delta' rho (TS:tycontext_sub Delta Delta') (D:typecheck_environ Delta rho) ret t:
-  @tc_expropt CS Delta ret t rho |-- @tc_expropt CS Delta' ret t rho.
+  @tc_expropt CS Delta ret t rho ⊢ @tc_expropt CS Delta' ret t rho.
 Proof.
   intros w W. rewrite  tc_expropt_char in W; rewrite tc_expropt_char.
   specialize (tc_expr_sub _ _ _ TS); intros.
@@ -3642,7 +3435,7 @@ Proof.
 Lemma  semax_return {CS Espec}:
    forall Delta R ret,
       @semax CS Espec Delta
-                (fun rho => tc_expropt Delta ret (ret_type Delta) rho &&
+                (fun rho => tc_expropt Delta ret (ret_type Delta) rho ∧
                              RA_return R (cast_expropt ret (ret_type Delta) rho) rho)
                 (Sreturn ret)
                 R.

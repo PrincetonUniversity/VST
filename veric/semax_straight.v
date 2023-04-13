@@ -33,7 +33,7 @@ Lemma semax_straight_simple:
  forall E Delta (B: environ -> mpred) P c Q
   (EB : forall rho, Absorbing (B rho))
   (Hc : forall m Delta' ge ve te rho k F f,
-              tycontext_sub Delta Delta' ->
+              tycontext_sub E Delta Delta' ->
               guard_environ Delta' f rho ->
               closed_wrt_modvars c F ->
               rho = construct_rho (filter_genv ge) ve te  ->

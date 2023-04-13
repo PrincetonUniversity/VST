@@ -932,26 +932,27 @@ Proof. unfold rettype_of_funspec. rewrite (binary_intersection_typesig BI); triv
    at a function call, have its result assigned to a temp,
    then we could change "ret0_tycon" to "ret_tycon" in this
    definition (and in NDfunspec_sub). *)
-Definition subsumespec x y :=
+
+Definition subsumespec E x y :=
 match x with
-| Some hspec => exists gspec, y = Some gspec /\ (⊢ funspec_sub_si gspec hspec) (*contravariance!*)
+| Some hspec => exists gspec, y = Some gspec /\ (⊢ funspec_sub_si E gspec hspec) (*contravariance!*)
 | None => Logic.True
 end. 
 
-Lemma subsumespec_trans x y z (SUB1: subsumespec x y) (SUB2: subsumespec y z):
-     subsumespec x z.
+Lemma subsumespec_trans E x y z (SUB1: subsumespec E x y) (SUB2: subsumespec E y z):
+     subsumespec E x z.
 Proof. unfold subsumespec in *.
  destruct x; trivial. destruct SUB1 as [? [? ?]]; subst.
  destruct SUB2 as [? [? ?]]; subst. exists x0; split; trivial.
  iIntros; iApply funspec_sub_si_trans; auto.
 Qed.
 
-Lemma subsumespec_refl x: subsumespec x x.
+Lemma subsumespec_refl E x: subsumespec E x x.
 Proof. unfold subsumespec.
  destruct x; trivial. exists f; split; [trivial| apply funspec_sub_si_refl ].
 Qed.
 
-Definition tycontext_sub (Delta Delta' : tycontext) : Prop :=
+Definition tycontext_sub E (Delta Delta' : tycontext) : Prop :=
  (forall id, match (temp_types Delta) !! id,  (temp_types Delta') !! id with
                  | None, _ => True
                  | Some t, None => False
@@ -961,17 +962,17 @@ Definition tycontext_sub (Delta Delta' : tycontext) : Prop :=
  /\ ret_type Delta = ret_type Delta'
  /\ (forall id, sub_option ((glob_types Delta) !! id) ((glob_types Delta') !! id))
 
- /\ (forall id, subsumespec ((glob_specs Delta) !! id) ((glob_specs Delta') !! id))
+ /\ (forall id, subsumespec E ((glob_specs Delta) !! id) ((glob_specs Delta') !! id))
 
  /\ (forall id, Annotation_sub ((annotations Delta) !! id) ((annotations Delta') !! id)).
 
 
 Lemma tycontext_sub_trans:
- forall Delta1 Delta2 Delta3,
-  tycontext_sub Delta1 Delta2 -> tycontext_sub Delta2 Delta3 ->
-  tycontext_sub Delta1 Delta3.
+ forall E Delta1 Delta2 Delta3,
+  tycontext_sub E Delta1 Delta2 -> tycontext_sub E Delta2 Delta3 ->
+  tycontext_sub E Delta1 Delta3.
 Proof.
-  intros ? ? ? [G1 [G2 [G3 [G4 [G5 G6]]]]] [H1 [H2 [H3 [H4 [H5 H6]]]]].
+  intros ???? [G1 [G2 [G3 [G4 [G5 G6]]]]] [H1 [H2 [H3 [H4 [H5 H6]]]]].
   repeat split.
   * intros. specialize (G1 id); specialize (H1 id).
     destruct ((temp_types Delta1) !! id); auto.
@@ -986,7 +987,7 @@ Proof.
   * intros. eapply Annotation_sub_trans; eauto.
 Qed.
 
-Lemma tycontext_sub_refl Delta: tycontext_sub Delta Delta.
+Lemma tycontext_sub_refl E Delta: tycontext_sub E Delta Delta.
 Proof.
   repeat split; trivial.
   * intros. destruct ((temp_types Delta) !! id); trivial. 
