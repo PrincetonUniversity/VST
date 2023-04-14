@@ -8,8 +8,7 @@ Section mpred.
 
 Context `{!heapGS Σ}.
 
-(*Definition juicy_mem_core (j: juicy_mem) : rmap := core (m_phi j).
-
+(*
 (*Lemma inflate_initial_mem_empty:
   forall lev, emp (inflate_initial_mem Mem.empty lev).
 intro lev.
@@ -86,7 +85,7 @@ rewrite if_true by auto. rewrite if_true by auto. constructor.
   apply split_identity in H0; auto. apply identity_share_bot; auto.
   subst; auto.
   repeat if_tac; try constructor. contradiction.
-Qed.
+Qed.*)
 
 Lemma perm_order'_trans: forall p1 p2 p3,
   perm_order' (Some p1) p2 -> perm_order' (Some p2) p3 -> perm_order' (Some p1) p3.
@@ -95,94 +94,6 @@ intros.
 unfold perm_order' in *.
 eapply perm_order_trans; eauto.
 Qed.
-
-Lemma rmap_unage_YES: forall phi phi' sh rsh k pp loc, 
-  age phi phi' 
-  -> phi' @ loc = YES sh rsh k pp 
-  -> exists pp', phi @ loc = YES sh rsh k pp'.
-Proof.
-intros.
-unfold age in H.
-case_eq (phi @ loc). intros.
-cut (necR phi phi'). intro.
-generalize (necR_NO phi phi' loc sh0 n H2). intro.
-rewrite H3 in H1.
-rewrite H1 in H0; inv H0.
-constructor; auto.
-intros.
-exists p.
-apply necR_YES with (phi' := phi') in H1.
-rewrite H1 in H0.
-inv H0. apply YES_ext; auto.
-constructor; auto.
-intros.
-exfalso.
-eapply necR_PURE in H1.
-2: constructor 1; eassumption.
-congruence.
-Qed.
-
-Lemma preds_fmap_NoneP_approx: forall pp lev1 lev2,
-  preds_fmap (approx lev1) (approx lev1) pp = NoneP ->
-  preds_fmap (approx lev2) (approx lev2) pp = NoneP.
-Proof.
-intros.
-destruct pp.
-unfold NoneP, approx, compose in *.
-simpl in *. unfold compose in *.
-inv H. simpl in *.
-apply EqdepFacts.eq_sigT_eq_dep in H2.
-apply Eqdep.EqdepTheory.eq_dep_eq in H2.
-auto.
-Qed.
-
-Lemma oracle_unage:
-  forall (jm': juicy_mem) (w: rmap), age w (m_phi jm') ->
-       exists jm, age jm jm' /\ m_phi jm = w.
-Proof.
-intros.
-destruct jm' as [m phi' CONTENTS ACCESS MAXA ALLOC].
-simpl m_phi in H.
-assert (contents_cohere m w).
-hnf; intros.
-destruct (necR_YES'' w phi' loc rsh sh (VAL v)).
-constructor 1; auto.
-destruct H1 as [p ?].
-eauto.
-destruct (CONTENTS _ _ _ _ _ H1); eauto.
-subst p.
-apply (age1_YES w phi') in H1; auto.
-inversion2 H0 H1. auto.
-assert (access_cohere m w).
-intro loc; specialize (ACCESS loc).
-case_eq (w @ loc); intros.
-apply (necR_NO w phi') in H1. rewrite H1 in ACCESS; auto.
-constructor 1;auto.
-apply (necR_YES w phi') in H1.
-rewrite H1 in ACCESS; auto.
-constructor 1; auto.
-apply (necR_PURE w phi') in H1.
-rewrite H1 in ACCESS; auto.
-constructor 1; auto.
-assert (max_access_cohere m w).
-intro loc; specialize (MAXA loc).
-case_eq (w @ loc); intros; auto.
-apply (necR_NO w phi') in H2. rewrite H2 in MAXA. auto. constructor 1; auto.
-apply (necR_YES w phi') in H2.
-rewrite H2 in MAXA; auto.
-constructor 1; auto.
-apply (necR_PURE w phi') in H2.
-rewrite H2 in MAXA; auto.
-constructor 1; auto.
-assert (alloc_cohere m w).
-intros loc ?. specialize (ALLOC _ H3).
-apply (necR_NO w phi').
-constructor 1; auto.
-auto.
-exists (mkJuicyMem m w H0 H1 H2 H3).
-split; auto.
-apply age1_juicy_mem_unpack''; simpl; auto.
-Qed.*)
 
 (* core load and coherence properties *)
 
@@ -773,6 +684,36 @@ Qed.
 Lemma join_top: forall sh2 sh, sepalg.join Share.top sh2 sh -> sh = Share.top.
 Proof.
 intros. destruct H. rewrite Share.lub_commute Share.lub_top in H0. auto.
+Qed.
+
+Lemma mapsto_alloc: forall m ch lo hi m' b
+  (Hch : size_chunk ch = hi - lo) (Halign : (align_chunk ch | lo)%Z),
+  Mem.alloc m lo hi = (m', b) ->
+  mem_auth m ⊢ |==> mem_auth m' ∗ address_mapsto ch Vundef Tsh (b, lo).
+Proof.
+  intros.
+  iIntros "Hm"; iMod (mapsto_alloc _ _ _ _ _ (VAL Undef) with "Hm") as "[$ H]"; first done.
+  rewrite /address_mapsto.
+  rewrite -fmap_replicate big_sepL_fmap.
+  iExists _; iFrame; iPureIntro.
+  split; last done.
+  split; first by rewrite replicate_length -Hch.
+  split; last done.
+  destruct (Z.to_nat _) eqn: ?; first by pose proof (size_chunk_pos ch); lia.
+  rewrite /= decode_val_undef //.
+Qed.
+
+Lemma mapsto_free: forall m ch b lo hi m' v (Hch : size_chunk ch = hi - lo),
+  Mem.free m b lo hi = Some m' ->
+  mem_auth m ∗ address_mapsto ch v Tsh (b, lo) ⊢ |==> mem_auth m'.
+Proof.
+  intros.
+  iIntros "[Hm H]".
+  rewrite /address_mapsto.
+  iDestruct "H" as (? (Hlen & _)) "H".
+  rewrite -(big_sepL_fmap _ (fun i b0 => adr_add (b, lo) i ↦ b0)).
+  iApply (mapsto_free with "Hm H").
+  rewrite fmap_length Hlen -Hch //.
 Qed.
 
 (*Lemma juicy_free_aux_lemma:

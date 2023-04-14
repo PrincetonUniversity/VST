@@ -313,8 +313,8 @@ Section gen_heap.
     exists 1%positive. by rewrite left_id_L.
   Qed.
 
-(*  (** Update lemmas *)
-  Lemma gen_heap_alloc σ l v :
+  (** Update lemmas *)
+  (*Lemma gen_heap_alloc σ l v :
     σ !! l = None →
     gen_heap_interp σ ==∗ gen_heap_interp (<[l:=v]>σ) ∗ l ↦ v ∗ meta_token l ⊤.
   Proof.
@@ -343,6 +343,18 @@ Section gen_heap.
     by iMod (gen_heap_alloc with "Hσ'σ") as "($ & $ & $)";
       first by apply lookup_union_None.
   Qed.*)
+
+  Lemma mapsto_alloc m lo hi m' b v (Halloc : Mem.alloc m lo hi = (m', b)) (Hundef : memval_of v = Some Undef) :
+    resource_map_auth (gen_heap_name _) Tsh m ==∗ resource_map_auth (gen_heap_name _) Tsh m' ∗ ([∗ list] i↦v ∈ replicate (Z.to_nat (hi - lo)) v, adr_add (b, lo) (Z.of_nat i) ↦{DfracOwn Tsh} v).
+  Proof. rewrite mapsto_unseal. eapply resource_map_mem_alloc; eauto. Qed.
+
+  Lemma mapsto_alloc_readonly m lo hi m' b v (Halloc : Mem.alloc m lo hi = (m', b)) (Hundef : memval_of v = Some Undef) :
+    resource_map_auth (gen_heap_name _) Tsh m ==∗ resource_map_auth (gen_heap_name _) Tsh m' ∗ ([∗ list] i↦v ∈ replicate (Z.to_nat (hi - lo)) v, adr_add (b, lo) (Z.of_nat i) ↦□ v).
+  Proof. rewrite mapsto_unseal. eapply resource_map_alloc_persist; eauto. Qed.
+
+  Lemma mapsto_free m k vl hi m' (Hfree : Mem.free m k.1 k.2 hi = Some m') (Hlen : length vl = Z.to_nat (hi - k.2)) :
+    resource_map_auth (gen_heap_name _) Tsh m -∗ ([∗ list] i↦v ∈ vl, adr_add k (Z.of_nat i) ↦{DfracOwn Tsh} v) ==∗ resource_map_auth (gen_heap_name _) Tsh m'.
+  Proof. rewrite mapsto_unseal. eapply resource_map_free; eauto. Qed.
 
   Lemma mapsto_lookup m l dq v : resource_map_auth (gen_heap_name _) Tsh m -∗ l ↦{dq} v -∗ ⌜✓ dq ∧ readable_dfrac dq ∧ coherent_loc m l (Some (dq, Some v))⌝.
   Proof. rewrite mapsto_unseal. apply resource_map_lookup. Qed.

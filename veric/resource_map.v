@@ -322,28 +322,33 @@ Section lemmas.
     eauto.
   Qed.
 
-(*  Lemma resource_map_insert {γ m} k v :
-    m !! k = None →
-    resource_map_auth γ Tsh m ==∗ resource_map_auth γ Tsh (<[k := v]> m) ∗ k ↪[γ] v.
+  Lemma resource_map_mem_alloc {γ m} lo hi m' b v (Halloc : Mem.alloc m lo hi = (m', b)) (Hundef : memval_of v = Some Undef) :
+    resource_map_auth γ Tsh m ==∗ resource_map_auth γ Tsh m' ∗ ([∗ list] i↦v ∈ replicate (Z.to_nat (hi - lo)) v, adr_add (b, lo) (Z.of_nat i) ↪[γ]{DfracOwn Tsh} v).
   Proof.
-    unseal. intros ?. rewrite -own_op.
+    unseal.
+    rewrite (big_sepL_proper _ (λ i v, own γ (juicy_view_frag(V := leibnizO V) (adr_add (b, lo) i) (DfracOwn Tsh) readable_Tsh v)) _).
+    2: { intros; iSplit; last eauto. iIntros "[% ?]"; by rewrite juicy_view_frag_irrel. }
+    rewrite -big_opL_own_1 -own_op.
     iApply own_update. apply: juicy_view_alloc; done.
   Qed.
-  Lemma resource_map_insert_persist {γ m} k v :
-    m !! k = None →
-    resource_map_auth γ Tsh m ==∗ resource_map_auth γ Tsh (<[k := v]> m) ∗ k ↪[γ]□ v.
+  Lemma resource_map_alloc_persist {γ m} lo hi m' b v (Halloc : Mem.alloc m lo hi = (m', b)) (Hundef : memval_of v = Some Undef) :
+    resource_map_auth γ Tsh m ==∗ resource_map_auth γ Tsh m' ∗ ([∗ list] i↦v ∈ replicate (Z.to_nat (hi - lo)) v, adr_add (b, lo) (Z.of_nat i) ↪[γ]□ v).
   Proof.
-    iIntros (?) "Hauth".
-    iMod (resource_map_insert k with "Hauth") as "[$ Helem]".
-    iApply resource_map_elem_persist. done.
+    rewrite resource_map_mem_alloc; [|done..].
+    iIntros ">[$ ?]".
+    iApply big_sepL_bupd.
+    iApply (big_sepL_mono with "[$]").
+    intros; apply resource_map_elem_persist.
   Qed.
 
-  Lemma resource_map_delete {γ m k v} :
-    resource_map_auth γ Tsh m -∗ k ↪[γ] v ==∗ resource_map_auth γ Tsh (delete k m).
+  Lemma resource_map_free {γ m k vl} hi m' (Hfree : Mem.free m k.1 k.2 hi = Some m') (Hlen : length vl = Z.to_nat (hi - k.2)) :
+    resource_map_auth γ Tsh m -∗ ([∗ list] i↦v ∈ vl, adr_add k (Z.of_nat i) ↪[γ]{DfracOwn Tsh} v) ==∗ resource_map_auth γ Tsh m'.
   Proof.
-    unseal. apply bi.wand_intro_r. rewrite -own_op.
-    iApply own_update. apply: juicy_view_delete.
-  Qed.*)
+    iIntros "Hauth Hfrag".
+    unshelve iMod (resource_map_elems_unseal with "Hfrag") as "Hfrag"; first apply readable_Tsh.
+    unseal; iApply (own_update_2 with "Hauth Hfrag").
+    by apply: juicy_view_free.
+  Qed.
 
   Lemma resource_map_storebyte {γ m k v} m' v' b sh (Hsh : writable0_share sh) :
     Mem.storebytes m k.1 k.2 [b] = Some m' ->
@@ -370,35 +375,6 @@ Section lemmas.
     iDestruct (resource_map_lookup with "Hauth Hfrag") as %(_ & _ & ?).
     done.
   Qed.
-
-(*  Lemma resource_map_insert_big {γ m} m' :
-    m' ##ₘ m →
-    resource_map_auth γ Tsh m ==∗
-    resource_map_auth γ Tsh (m' ∪ m) ∗ ([∗ map] k ↦ v ∈ m', k ↪[γ] v).
-  Proof.
-    unseal. intros ?. rewrite -big_opM_own_1 -own_op.
-    apply own_update. apply: juicy_view_alloc_big; done.
-  Qed.
-  Lemma resource_map_insert_persist_big {γ m} m' :
-    m' ##ₘ m →
-    resource_map_auth γ Tsh m ==∗
-    resource_map_auth γ Tsh (m' ∪ m) ∗ ([∗ map] k ↦ v ∈ m', k ↪[γ]□ v).
-  Proof.
-    iIntros (Hdisj) "Hauth".
-    iMod (resource_map_insert_big m' with "Hauth") as "[$ Helem]".
-    iApply big_sepM_bupd. iApply (big_sepM_impl with "Helem").
-    iIntros "!#" (k v) "_". iApply resource_map_elem_persist.
-  Qed.
-
-  Lemma resource_map_delete_big {γ m} m0 :
-    resource_map_auth γ Tsh m -∗
-    ([∗ map] k↦v ∈ m0, k ↪[γ] v) ==∗
-    resource_map_auth γ Tsh (m ∖ m0).
-  Proof.
-    iIntros "Hauth Hfrag". iMod (resource_map_elems_unseal with "Hfrag") as "Hfrag".
-    unseal. iApply (own_update_2 with "Hauth Hfrag").
-    apply: juicy_view_delete_big.
-  Qed.*)
 
   Theorem resource_map_storebytes {γ m} m' k vl vl' bl sh (Hsh : writable0_share sh)
     (Hstore : Mem.storebytes m k.1 k.2 bl = Some m')
