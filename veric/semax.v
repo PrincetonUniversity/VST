@@ -37,23 +37,7 @@ Definition jsafeN (ge: genv) :=
   jsafe(genv_symb := genv_symb_injective) (cl_core_sem ge) OK_spec ge.
 
 (*Definition ext_compat (ora : Z) (w : rmap) :=
-  joins (ghost_of w) (Some (ghost_PCM.ext_ref ora, NoneP) :: nil).
-
-Lemma ext_compat_unage : forall {Z} (ora : Z) w w', age w w' ->
-  ext_compat ora w' -> ext_compat ora w.
-Proof.
-  unfold ext_compat; intros.
-  erewrite age1_ghost_of in H0 by eauto.
-  eapply ext_join_unapprox; eauto.
-Qed.
-
-Lemma ext_compat_unext : forall {Z} (ora : Z) w w', ext_order w w' ->
-  ext_compat ora w' -> ext_compat ora w.
-Proof.
-  unfold ext_compat; intros.
-  apply rmap_order in H as (? & ? & ?).
-  eapply join_sub_joins_trans; eauto.
-Qed.*)
+  joins (ghost_of w) (Some (ghost_PCM.ext_ref ora, NoneP) :: nil).*)
 
 Inductive contx :=
 | Stuck
@@ -79,7 +63,10 @@ Definition assert_safe
        | Cont _ => |={E}=> False
        | Ret None ctl' =>
                 jsafeN ge E ora (State f (Sreturn None) ctl' ve te)
-       | Ret (Some v) ctl' => ∀ e v' m, (mem_auth m -∗ ⌜Clight.eval_expr ge ve te m e v' ∧ Cop.sem_cast v' (typeof e) (fn_return f) m = Some v⌝) →
+       | Ret (Some v) ctl' => ∀ e, (∀ m, mem_auth m -∗ ⌜∃ v', Clight.eval_expr ge ve te m e v' ∧ Cop.sem_cast v' (typeof e) (fn_return f) m = Some v⌝) →
+              (* Could we replace these with eval_expr and lose the memory dependence?
+                 Right now, the only difference is that e must only access pointers that are valid in the current rmap.
+                 But typechecking will also guarantee that. *)
               jsafeN ge E ora (State f (Sreturn (Some e)) ctl' ve te)
        end.
 

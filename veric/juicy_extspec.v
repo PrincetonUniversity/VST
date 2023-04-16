@@ -702,7 +702,7 @@ Program Definition jsafe_pre
     (jsafe : coPset -d> Z -d> C -d> iPropO Σ) : coPset -d> Z -d> C -d> iPropO Σ := λ E z c,
   |={E}=> ∀ m, state_interp m z -∗
       (∃ i, ⌜halted Hcore c i⌝ ∧ ext_jmpred_exit Z Hspec (Some (Vint i)) z m) ∨
-      (▷ ∃ c' m', ⌜corestep Hcore c m c' m'⌝ ∧ |={E}=> state_interp m' z ∗ jsafe E z c') ∨
+      (|={E}=> ∃ c' m', ⌜corestep Hcore c m c' m'⌝ ∧ state_interp m' z ∗ ▷ jsafe E z c') ∨
       (∃ e args x, ⌜at_external Hcore c m = Some (e, args)⌝ ∧ ext_jmpred_pre Z Hspec e x (genv_symb ge) (sig_args (ef_sig e)) args z m ∗
          ▷ □ (∀ ret m' z', ⌜Val.has_type_list args (sig_args (ef_sig e)) ∧ Builtins0.val_opt_has_rettype ret (sig_res (ef_sig e))⌝ →
           ((ext_jmpred_post Z Hspec e x (genv_symb ge) (sig_res (ef_sig e)) ret z' m') ∗ state_interp m' z' ={E}=∗
@@ -711,9 +711,9 @@ Program Definition jsafe_pre
 Local Instance jsafe_pre_contractive : Contractive jsafe_pre.
 Proof.
   rewrite /jsafe_pre => n jsafe jsafe' Hsafe E z c.
-  do 6 f_equiv.
+  do 13 f_equiv.
   - f_contractive; repeat f_equiv. apply Hsafe.
-  - do 8 f_equiv. f_contractive; repeat f_equiv. apply Hsafe.
+  - f_equiv. f_contractive; repeat f_equiv. apply Hsafe.
 Qed.
 
 (*Local Definition jsafe_def : Wp (iProp Σ) (expr Λ) (val Λ) stuckness :=
@@ -741,12 +741,13 @@ Proof.
   iIntros (?) "H". iLöb as "IH" forall (z c).
   rewrite !jsafe_unfold /jsafe_pre.
   iMod (fupd_mask_subseteq E1) as "Hclose"; iMod "H"; iMod "Hclose" as "_".
-  iIntros "!>" (?) "?"; iSpecialize ("H" with "[$]"); iDestruct "H" as "[H | [H | H]]".
+  iIntros "!>" (?) "?"; iDestruct ("H" with "[$]") as "[H | [H | H]]".
   - by iLeft.
   - iRight; iLeft.
-    iNext; iDestruct "H" as (???) "H"; iExists _, _; iSplit; first done.
-    iMod (fupd_mask_subseteq E1) as "Hclose"; iMod ("H") as "[$ ?]"; iMod "Hclose" as "_".
-    by iApply "IH".
+    iMod (fupd_mask_subseteq E1) as "Hclose"; iMod "H"; iMod "Hclose" as "_".
+    iDestruct "H" as (???) "[??]"; iIntros "!>".
+    iExists _, _; iSplit; first done.
+    iFrame; by iApply "IH".
   - iRight; iRight.
     iDestruct "H" as (????) "[Hext H]".
     iExists _, _, _; iSplit; first done; iFrame "Hext".
@@ -790,7 +791,7 @@ Lemma jsafe_local_step:
   ▷jsafe E ora s2 ⊢
   jsafe E ora s1.
 Proof.
-  intros Hfun ????; iIntros "H".
+  intros ?????; iIntros "H".
   rewrite (jsafe_unfold _ _ s1) /jsafe_pre.
   iIntros "!>" (?) "?".
   iRight; iLeft.
@@ -799,14 +800,15 @@ Proof.
   by iFrame.
 Qed.
 
-Definition jstep E z c c' : mpred := ∀ m, state_interp m z -∗ ◇ ∃ m', ⌜corestep Hcore c m c' m'⌝ ∧ ▷ |={E}=> state_interp m' z ∗ jsafe E z c'.
+Definition jstep E z c c' : mpred := ∀ m, state_interp m z ={E}=∗ ∃ m', ⌜corestep Hcore c m c' m'⌝ ∧ state_interp m' z ∗ ▷ jsafe E z c'.
 
-Definition jstep_ex E z c : mpred := ∀ m, state_interp m z -∗ ◇ ∃ c' m', ⌜corestep Hcore c m c' m'⌝ ∧ ▷ |={E}=> state_interp m' z ∗ jsafe E z c'.
+Definition jstep_ex E z c : mpred := ∀ m, state_interp m z ={E}=∗ ∃ c' m', ⌜corestep Hcore c m c' m'⌝ ∧ state_interp m' z ∗ ▷ jsafe E z c'.
 
 Lemma jstep_exists : forall E z c c', jstep E z c c' ⊢ jstep_ex E z c.
 Proof.
   intros; rewrite /jstep /jstep_ex.
-  iIntros "H" (?) "?"; iMod ("H" with "[$]"); eauto.
+  iIntros "H" (?) "?".
+  iMod ("H" with "[$]") as (??) "?"; eauto.
 Qed.
 
 Lemma jstep_mono : forall E z c1 c2 c', (forall m m', corestep Hcore c1 m c' m' -> corestep Hcore c2 m c' m') ->
@@ -814,8 +816,7 @@ Lemma jstep_mono : forall E z c1 c2 c', (forall m m', corestep Hcore c1 m c' m' 
 Proof.
   intros; rewrite /jstep.
   iIntros "H" (?) "?".
-  iMod ("H" with "[$]") as (??) "?".
-  iExists _; iFrame; iPureIntro; split; auto.
+  iMod ("H" with "[$]") as (??) "?"; eauto 6.
 Qed.
 
 Lemma jsafe_step:
@@ -824,26 +825,24 @@ Lemma jsafe_step:
 Proof.
   intros; iIntros "H".
   rewrite jsafe_unfold /jsafe_pre /jstep_ex.
-  iIntros "!>" (m) "[m ?]".
-  iRight; iLeft.
-  iMod ("H" with "[$]"); eauto.
+  iIntros "!>" (m) "?"; iRight; iLeft.
+  iMod ("H" with "[$]") as (???) "[??]".
+  iIntros "!>"; iExists _, _; iSplit; first done.
+  by iFrame.
 Qed.
 
 Lemma jsafe_step_forward_ex:
   forall c E z
     (Hhalt : forall i, ~halted Hcore c i) (Hext : forall m, at_external Hcore c m = None),
-    jsafe E z c ⊢ |={E}=> jstep_ex E z c.
+    jsafe E z c ⊢ jstep_ex E z c.
 Proof.
   intros; iIntros "H".
   rewrite jsafe_unfold /jsafe_pre.
-  iMod "H".
-  rewrite /jstep_ex; iIntros "!>" (m1) "?".
-  iDestruct ("H" with "[$]") as "[H | [H | H]]".
+  rewrite /jstep_ex; iIntros (m1) "?".
+  iMod ("H" with "[$]") as "[H | [H | H]]".
   { iDestruct "H" as (??) "?"; exfalso; eapply Hhalt; eauto. }
-  rewrite bi.later_exist_except_0; iMod "H" as (?) "H".
-  rewrite bi.later_exist_except_0; iMod "H" as (?) "H".
-  rewrite bi.later_and; iDestruct "H" as "[>%Hstep H]".
-  iIntros "!>"; iExists _, _; iSplit; done.
+  iMod "H" as (???) "H".
+  iIntros "!>"; iExists _, _; iSplit; auto.
   { iDestruct "H" as (????) "?".
     by rewrite Hext in H. }
 Qed.
@@ -859,9 +858,7 @@ Proof.
   rewrite /jstep; iIntros "!>" (m1) "?".
   iDestruct ("H" with "[$]") as "[H | [H | H]]".
   { iDestruct "H" as (??) "?"; exfalso; eapply Hhalt; eauto. }
-  rewrite bi.later_exist_except_0; iMod "H" as (?) "H".
-  rewrite bi.later_exist_except_0; iMod "H" as (?) "H".
-  rewrite bi.later_and; iDestruct "H" as "[>%Hstep H]".
+  iMod "H" as (?? Hstep) "H".
   rewrite -(Hc1 _ _ _ Hstep).
   iIntros "!>"; iExists _; iSplit; done.
   { iDestruct "H" as (????) "?".
@@ -933,8 +930,8 @@ Qed.
     rewrite !jsafe_unfold /jsafe_pre.
     iMod "H"; iIntros "!>" (?) "?"; iDestruct ("H" with "[$]") as "[H | [H | H]]".
     - rewrite Hhalted; auto.
-    - iRight; iLeft; iNext.
-      iDestruct "H" as (?? H) "H".
+    - iRight; iLeft.
+      iMod "H" as (?? H) "H".
       apply Hstep in H; eauto.
     - rewrite Hat_ext; iDestruct "H" as (????) "H".
       iRight; iRight; iExists _, _, _; iSplit; first done.

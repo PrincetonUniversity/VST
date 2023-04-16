@@ -234,6 +234,9 @@ Proof.
   destruct c; try contradiction.
   - by iMod "H".
   - destruct c; by iMod "H".
+(*  - destruct o; last by iMod "H".
+    iIntros (?); iApply (bi.impl_intro_l with "H"); iIntros "H".
+    There could be something here about how a fupd can't make pointers invalid.*)
 Qed.
 
 Global Instance assert_safe_except_0 : forall ge E f ve te c rho,
@@ -245,10 +248,10 @@ Proof.
   - by iMod "H"; iApply "H".
   - destruct c; by iMod "H"; iApply "H".
   - destruct o; try by iMod "H"; iApply "H".
-    iIntros (???).
+    iIntros (?).
     iApply (bi.impl_intro_r with "H").
     iIntros "H".
-    rewrite (bi.except_0_intro (_ -∗ _)) -bi.except_0_and; iMod "H".
+    rewrite (bi.except_0_intro (∀_, _ -∗ _)) -bi.except_0_and; iMod "H".
     iApply (bi.impl_elim_l' with "H"); iIntros "H".
     iSpecialize ("H" with "[%]"); done.
 Qed.
