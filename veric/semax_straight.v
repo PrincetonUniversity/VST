@@ -42,7 +42,7 @@ Lemma semax_straight_simple:
                 ◇ ∃m' te' rho', ⌜rho' = mkEnviron (ge_of rho) (ve_of rho) (make_tenv te') ∧
                   guard_environ Delta' f rho' ∧ cl_step ge (State f c k ve te) m
                                  (State f Sskip k ve te') m'⌝ ∧
-               ▷ |={E}=> (mem_auth m' ∗ (F rho' ∗ Q rho'))),
+               |={E}=> (mem_auth m' ∗ ▷ (F rho' ∗ Q rho'))),
   semax Espec E Delta (fun rho => B rho ∧ ▷ P rho) c (normal_ret_assert Q).
 Proof.
 intros until Q; intros EB Hc.
@@ -55,12 +55,14 @@ iIntros (ora _).
 iApply jsafe_step.
 rewrite /jstep_ex.
 iIntros (m) "[Hm ?]".
-iMod (Hc with "[P $Hm]") as (??? Hstep) "Hc"; first done.
+iMod (Hc with "[P $Hm]") as (??? Hstep) ">Hc"; first done.
 { rewrite bi.sep_and_l; iFrame "#".
   iSplit; last iDestruct "P" as "[_ $]".
   rewrite bi.sep_elim_r; iDestruct "P" as "[$ _]". }
+iIntros "!>".
 destruct Hstep as (? & ? & ?); iExists _, m'; iSplit; first by iPureIntro; eauto.
-iIntros "!> !>"; iMod "Hc" as "(? & Q)".
+iDestruct "Hc" as "(? & Q)"; iFrame.
+iNext.
 iSpecialize ("Hsafe" $! EK_normal None te' ve).
 iPoseProof ("Hsafe" with "[Q]") as "Hsafe'".
 { rewrite proj_frame /=; subst; iSplit; [|iSplit]; try done.
@@ -346,10 +348,10 @@ Proof.
   + iAssert (▷ ⌜Clight.eval_expr ge ve te m e (eval_expr e rho)⌝) with "[-]" as ">%"; last by iPureIntro; constructor.
     iNext; iApply eval_expr_relate.
     iDestruct "H" as "(($ & _) & _)"; iFrame.
-  + iIntros "!> !> !>".
+  + iIntros "!> !>".
     iDestruct "H" as "(_ & F & P)"; iFrame.
     erewrite (closed_wrt_modvars_set F) by eauto; iFrame.
-    iExists (eval_id id rho).
+    iNext; iExists (eval_id id rho).
     destruct TC as [[TC _] _].
     destruct (TC _ _ Hid) as (? & ? & ?).
     erewrite !subst_set by eauto; iFrame.
@@ -420,10 +422,10 @@ Proof.
   + iAssert (▷ ⌜Clight.eval_expr ge ve te m (Ecast e t) (eval_expr (Ecast e t) rho)⌝) with "[-]" as ">%"; last by iPureIntro; constructor.
     iNext; iApply eval_expr_relate.
     iDestruct "H" as "($ & _)"; iFrame.
-  + iIntros "!> !> !>".
+  + iIntros "!> !>".
     iDestruct "H" as "(_ & F & P)"; iFrame.
     erewrite (closed_wrt_modvars_set F) by eauto; iFrame.
-    iExists (eval_id id rho).
+    iNext; iExists (eval_id id rho).
     destruct TC as [[TC _] _].
     destruct (temp_types Delta' !! id) eqn: Hid'; rewrite Hid' in TS; inv TS.
     destruct (TC _ _ Hid') as (? & ? & ?).
@@ -513,10 +515,10 @@ Proof.
     iPureIntro; constructor; econstructor; eauto.
     eapply Clight.deref_loc_value; eauto.
     { by intros ->; eapply tc_val_Vundef. }
-  + iIntros "!> !> !>".
+  + iIntros "!> !>".
     iDestruct "H" as "(_ & F & P)"; iFrame.
     erewrite (closed_wrt_modvars_set F) by eauto; iFrame.
-    iExists (eval_id id rho); iSplit.
+    iNext; iExists (eval_id id rho); iSplit.
     * rewrite /eval_id -map_ptree_rel /= Map.gss //.
     * destruct TC as [[TC _] _].
       destruct (temp_types Delta' !! id) eqn: Hid'; rewrite Hid' in TS; inv TS.
@@ -602,21 +604,16 @@ Proof.
     * unfold eval_cast, force_val1 in *; super_unfold_lift.
       destruct ((sem_cast (typeof e1) t1) v2) eqn: Hcast; last by apply tc_val_Vundef in H.
       apply sem_cast_e1; auto.
-  + iIntros "!> !> !>".
+  + iIntros "!> !>".
     iDestruct "H" as "(_ & F & P)"; iFrame.
     erewrite (closed_wrt_modvars_set F) by eauto; iFrame.
-    iExists (eval_id id rho); iSplit.
+    iNext; iExists (eval_id id rho); iSplit.
     * rewrite /eval_id -map_ptree_rel /= Map.gss //.
     * destruct TC as [[TC _] _].
       destruct (temp_types Delta' !! id) eqn: Hid'; rewrite Hid' in TS; inv TS.
       destruct (TC _ _ Hid') as (? & ? & ?).
       erewrite !subst_set by eauto; iFrame.
 Qed.
-
-(*Lemma res_option_core: forall r, res_option (core r) = None.
-Proof.
- destruct r. rewrite core_NO; auto. rewrite core_YES; auto. rewrite core_PURE; auto.
-Qed.*)
 
 Lemma writable0_lub_retainer_Rsh:
  forall sh, writable0_share sh ->
@@ -738,6 +735,56 @@ try rewrite Int.zero_ext_idem; auto; simpl; try lia;
 try solve [simple_if_tac; auto].
 Qed.
 
+(* up? *)
+Lemma big_sepL_timeless' {A} (f : nat -> A -> mpred) l `(∀ k v, Timeless (f k v)) : l ≠ [] -> Timeless ([∗ list] k↦v ∈ l, f k v).
+Proof.
+  revert dependent f; induction l; first done; simpl; intros.
+  destruct l.
+  - rewrite /= right_id //.
+  - apply bi.sep_timeless; first done.
+    by apply IHl.
+Qed.
+
+Global Instance mapsto_val_timeless l dq v : Timeless (l ↦{dq} VAL v).
+Proof.
+  rewrite gen_heap.mapsto_unseal /gen_heap.mapsto_def.
+  rewrite resource_map.resource_map_elem_unseal /resource_map.resource_map_elem_def.
+  apply _.
+Qed.
+
+Global Instance mapsto_no_timeless l dq : Timeless (mapsto_no l dq).
+Proof.
+  rewrite gen_heap.mapsto_no_unseal /gen_heap.mapsto_no_def.
+  rewrite resource_map.resource_map_elem_no_unseal /resource_map.resource_map_elem_no_def.
+  apply _.
+Qed.
+
+Global Instance address_mapsto_timeless ch v sh l : Timeless (address_mapsto ch v sh l).
+Proof.
+  rewrite /address_mapsto.
+  apply bi.exist_timeless; intros.
+  rewrite /Timeless.
+  rewrite bi.later_and; iIntros "(>(% & % & %) & H)".
+  iSplit; first done.
+  iApply (timeless with "H").
+  apply big_sepL_timeless'; first apply _.
+  destruct (size_chunk_nat_pos ch); destruct x; try done; simpl in *; lia.
+Qed.
+
+Global Instance mapsto_timeless sh t v1 v2 : Timeless (mapsto sh t v1 v2).
+Proof.
+  rewrite /mapsto.
+  destruct (access_mode t); try apply _.
+  destruct (type_is_volatile t); try apply _.
+  destruct v1; try apply _.
+  if_tac; try apply _.
+  rewrite /nonlock_permission_bytes.
+  apply bi.and_timeless; first apply _.
+  apply big_sepL_timeless'.
+  intros; if_tac; try apply _.
+  { destruct (Z.to_nat _) eqn: Hn; try done.
+    pose proof (size_chunk_pos m); lia. }
+Qed.
 
 Lemma semax_store:
  forall E Delta e1 e2 sh P (WS : writable0_share sh),
@@ -793,12 +840,11 @@ Proof.
     rewrite Hcast in Hcast'.
     iPureIntro; econstructor; eauto.
     eapply assign_loc_value; eauto.
-  + iIntros "!> !>".
+  + iIntros "!>".
     rewrite /tc_expr typecheck_expr_sound //.
-    rewrite (bi.and_elim_r (tc_lvalue _ _ _)).
-    iDestruct "H" as "(%Htc & F & Hmapsto & P)".
-    rewrite /= /force_val1 in Htc; super_unfold_lift.
-    subst; iPoseProof (mapsto_store with "[$Hm $Hmapsto]") as ">[$ ?]".
+    rewrite (bi.and_elim_r (▷ tc_lvalue _ _ _)).
+    iDestruct "H" as "(>%Htc & F & >Hmapsto & P)".
+    subst; iPoseProof (mapsto_store with "[$Hm $Hmapsto]") as ">[? ?]".
     { by apply tc_val_tc_val'. }
     rewrite He1; by iFrame.
 Qed.
@@ -877,9 +923,9 @@ Proof.
     rewrite Hcast in Hcast'.
     iPureIntro; econstructor; eauto.
     eapply assign_loc_value; eauto.
-  + iIntros "!> !>".
+  + iIntros "!>".
     rewrite /tc_expr typecheck_expr_sound //.
-    rewrite (bi.and_elim_r (tc_lvalue _ _ _)); iDestruct "H" as "(%Htc & F & H & P)".
+    rewrite (bi.and_elim_r (▷ tc_lvalue _ _ _)); iDestruct "H" as "(>%Htc & F & >H & P)".
     iAssert ⌜type_is_volatile t2 = false ∧ (align_chunk ch' | Ptrofs.unsigned i)%Z⌝ with "[H]" as %[??].
     { iDestruct "H" as "[_ H]"; rewrite /mapsto AM'.
       destruct (type_is_volatile t2); first done.
@@ -904,6 +950,5 @@ Proof.
         end; done. }
     rewrite He1; by iFrame.
 Qed.
-
 
 End extensions.

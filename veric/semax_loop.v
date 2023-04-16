@@ -93,9 +93,9 @@ Proof.
   simpl in *; unfold Cop.sem_notbool in *.
   destruct (Cop.bool_val _ _ _) eqn: Hbool_val; inv H9.
   super_unfold_lift.
-  iExists _, _; iSplit.
+  iIntros "!>"; iExists _, _; iSplit.
   - iPureIntro; eapply step_ifthenelse; eauto.
-  - iIntros "!> !> !>"; iFrame.
+  - iFrame; iNext.
     eapply bool_val_Cop in Hbool_val; eauto; subst.
     by iApply assert_safe_jsafe.
   - inv H4.
@@ -162,7 +162,7 @@ Proof.
   iApply jsafe_step; rewrite /jstep_ex.
   iIntros (?) "? !>".
   iExists (State f body (Kloop1 body incr k) vx tx), _; iSplit; first by iPureIntro; constructor.
-  iIntros "!> !>"; iFrame.
+  iFrame; iNext.
   iApply assert_safe_jsafe.
   rewrite semax_unfold in H.
   iApply (H with "Prog_OK"); last done.

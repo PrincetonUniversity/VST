@@ -30,11 +30,11 @@ Section mpred.
 Context {CS: compspecs} `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ}.
 
 Lemma typecheck_expr_sound' :
-  forall Delta rho e,
+  forall {CS'} Delta rho e,
     typecheck_environ Delta rho ->
-    tc_expr Delta e rho ⊢ ⌜tc_val (typeof e) (eval_expr e rho)⌝.
+    tc_expr(CS := CS') Delta e rho ⊢ ⌜tc_val (typeof e) (eval_expr e rho)⌝.
 Proof.
-  apply typecheck_expr_sound.
+  intros; apply typecheck_expr_sound; done.
 Qed.
 
 Lemma tc_environ_make_args':
@@ -1484,93 +1484,37 @@ Proof.
   iIntros "#Prog_OK" (???) "[%Hclosed #rguard]".
   iIntros (??) "!> (% & H & ?)".
   set (rho := construct_rho _ _ _).
-  iSpecialize ("rguard" $! EK_return (cast_expropt ret (ret_type Delta') rho) tx vx).
+  iSpecialize ("rguard" $! EK_return (@cast_expropt CS' ret (ret_type Delta') rho) tx vx).
+  destruct H as (H & ? & Hret).
+  assert (TCD: typecheck_environ Delta rho) by (eapply typecheck_environ_sub; eauto); clear TS.
   iAssert (tc_expropt Delta ret (ret_type Delta') rho ∧
     assert_safe Espec psi E f vx tx
-                (exit_cont EK_return (@cast_expropt CS ret (ret_type Delta') rho) k)
+                (exit_cont EK_return (@cast_expropt CS' ret (ret_type Delta') rho) k)
                 (construct_rho (filter_genv psi) vx tx)) with "[-]" as "H".
   { iSplit.
     + rewrite tc_expropt_cenv_sub //.
       iDestruct "H" as "(? & $ & _)".
-      { destruct H; eapply typecheck_environ_sub; eauto. }
     + iApply "rguard".
       rewrite proj_frame /=; subst rho.
-      iDestruct "H" as "($ & _ & ?)"; iFrame; iPureIntro; done. }
+      rewrite RA_return_castexpropt_cenv_sub //.
+      iDestruct "H" as "($ & -> & ?)"; iFrame; iPureIntro; done. }
+  iIntros (? _).
+  rewrite /assert_safe /=.
+  iApply (convergent_controls_jsafe _ _ _ (State f (Sreturn ret) (call_cont k) vx tx)); try done.
+  { inversion 1; subst; try match goal with H : _ \/ _ |- _ => destruct H; done end.
+    + rewrite call_cont_idem; constructor; auto.
+    + rewrite call_cont_idem; econstructor; eauto. }
   destruct ret; simpl.
-  - rewrite /assert_safe /=.
-Search tc_expr bi_pure.
-    iIntros (? _). Print step.
-(* !! *)
-Search fupd bi_impl.
-Check denote_typecheck_expr_sound.
-Check tc_expr_sound'.
-Check eval_expr_relate.
-    iSpecialize ("rguard" $! e with "[-]").
-  - iSpecialize ("rguard" with "[-]").
-    { iFrame; iSplit; first done.
-      rewrite proj_frame /=.
-      iDestruct "H" as "($ & _ & $)". }
-    rewrite /assert_safe /=.
-    iIntros (? _); iSpecialize ("rguard" with "[%]"); first done.
-    iApply (convergent_controls_jsafe with "rguard"); try done.
-    inversion 1; subst.
-    { by destruct H10. }
-    rewrite call_cont_idem; constructor; auto.
-    { by destruct H10. }
-
-
-  assert (TC: (tc_expropt Delta ret (ret_type Delta') rho) w').
-  {
-    simpl in H3; destruct H3 as [TCD' _].
-    clear - H1 TCD' TS CSUB Espec.
-    assert (TCD: typecheck_environ Delta rho) by (eapply typecheck_environ_sub; eauto); clear TS.
-    destruct H1 as [w1 [w2 [? [? [? ?]]]]].
-    apply (tc_expropt_cenv_sub CSUB) in H1; trivial.
-    rewrite tc_expropt_char; rewrite tc_expropt_char in H1. destruct ret; [ |trivial].
-    apply (boxy_e _ _ (extend_tc_expr _ _ _) w2); auto.
-    exists w1; auto.
-  }
-  clear H1; rename H1' into H1.
-  specialize (H0 EK_return (cast_expropt ret (ret_type Delta') rho) te ve).
-  specialize (H0 _ (Nat.le_refl _) _ _ (necR_refl _) (ext_refl _)).
-  spec H0.
-  {
-    rewrite <- Heqrho.
-    rewrite proj_frame_ret_assert.
-    split; auto.
-    split; auto.
-    rewrite seplog.sepcon_comm; auto.
-  }
-  unfold tc_expropt in TC; destruct ret; simpl in TC.
-  + intros ?? Hora ??.
-    rename H0 into Hsafe.
-    specialize (Hsafe ora jm Hora (eq_refl _) H6).
-    intros. subst w'.
-    specialize (Hsafe LW e (eval_expr e rho)).
-    destruct H3 as [H3a [H3b H3c]].
-    rewrite H3c in Hsafe,TC.
-    rewrite denote_tc_assert_andp in TC; destruct TC as [?TC ?TC].
-    spec Hsafe.
-    eapply eval_expr_relate; eauto.
-    eapply tc_expr_sub; try eassumption.
-    eapply typecheck_environ_sub; try eassumption.
-    spec Hsafe. {
-    rewrite cop2_sem_cast'; auto.
-    2:{ eapply typecheck_expr_sound; eauto.
-    eapply tc_expr_sub; try eassumption.
-    eapply typecheck_environ_sub; try eassumption.
-    }
-    eapply cast_exists; eauto.
-    eapply tc_expr_sub; try eassumption.
-    eapply typecheck_environ_sub; try eassumption.
-   }
-    clear - Hsafe.
-    apply jm_fupd_intro'.
-    eapply convergent_controls_jsafe; try apply Hsafe; auto.
-    intros ? ? [? ?]; split; auto.
-    inv H.
-    1,3: destruct H9; discriminate.
-    rewrite call_cont_idem.
-    econstructor; eauto.
-
+  - (* If we did a view-shift here, we could lose the typechecking (by giving up mem that makes pointers in e valid). *)
+    iApply bi.impl_elim_r; iSplit; last by iDestruct "H" as "[_ H]"; iApply ("H" with "[%]").
+    iIntros (?) "Hm"; iDestruct "H" as "[H _]".
+    rewrite /typecheck_expr; fold typecheck_expr.
+    rewrite denote_tc_assert_andp.
+    subst rho; iDestruct (eval_expr_relate(CS := CS') with "[$Hm H]") as %?; [| iDestruct "H" as "[$ _]" |]; try done.
+    iDestruct (typecheck_expr_sound' with "[H]") as %Htc; first iDestruct "H" as "($ & _)".
+    iDestruct (cop2_sem_cast' with "[$Hm H]") as %?; first iDestruct "H" as "[_ $]".
+    rewrite cast_exists //; iDestruct "H" as %Hcast.
+    iPureIntro; unfold_lift; rewrite /force_val1 -Hret.
+    rewrite -> Hcast in *; eauto.
+  - iDestruct "H" as "[_ H]"; iApply "H"; done.
 Qed.
