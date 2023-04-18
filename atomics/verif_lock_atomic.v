@@ -139,8 +139,8 @@ Section PROOFS.
         * iApply "H"; auto.
         * iDestruct "H" as "[_ H]"; iApply ("H" $! tt); iFrame; auto.
       + Intros r. destruct (eq_dec r (vint 0)).
-        * forward_if; try contradiction. forward. entailer!.
         * forward_if; try discriminate. forward. entailer!.
+        * forward_if; try contradiction. forward. entailer!.
   Qed.
 
   Program Definition release_spec_nonatomic :=

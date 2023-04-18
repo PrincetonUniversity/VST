@@ -1299,11 +1299,13 @@ Proof.
     + pose proof (Zlength_filter id ls).
       forward.
       entailer!.
+      destruct b. 2: inversion H7.
       rewrite List.filter_app; simpl.
       rewrite -> Zlength_app, Zlength_cons, Zlength_nil; auto.
     + forward.
       entailer!.
       rewrite List.filter_app; simpl.
+      destruct b. 1: inversion H7.
       rewrite -> Zlength_app, Zlength_nil, Z.add_0_r; auto.
     + Exists (ls ++ [b]) h'; rewrite -> List.filter_app, ?Zlength_app, ?Zlength_cons, ?Zlength_nil; entailer!.
       rewrite -> Z2Nat.inj_add, upto_app, map_app, Z2Nat.id by lia; change (upto (Z.to_nat 1)) with [0]; simpl.
