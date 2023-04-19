@@ -1,6 +1,6 @@
 Require Import VST.veric.juicy_base.
 Require Import VST.veric.shares.
-Require Import VST.veric.juicy_mem VST.veric.juicy_mem_lemmas VST.veric.juicy_mem_ops.
+Require Import VST.veric.juicy_mem VST.veric.juicy_mem_lemmas (*VST.veric.juicy_mem_ops*).
 Require Import VST.veric.res_predicates.
 Require Import VST.veric.extend_tc.
 Require Import VST.veric.Clight_seplog.
@@ -10,12 +10,17 @@ Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
 Require Import VST.veric.expr_lemmas.
 Require Import VST.veric.Clight_lemmas.
+Require Import VST.veric.mapsto_memory_block.
+Require Import VST.veric.initial_world.
 Require Import VST.veric.Clight_initial_world.
-Import compcert.lib.Maps.
 
 Import Clight.
 
-Definition only_blocks {S: block -> Prop} (S_dec: forall b, {S b}+{~S b}) (w: rmap) : rmap.
+Section mpred.
+
+Context `{!heapGS Σ}.
+
+(*Definition only_blocks {S: block -> Prop} (S_dec: forall b, {S b}+{~S b}) (w: rmap) : rmap.
  refine (proj1_sig (make_rmap (fun loc => if S_dec (fst loc) then w @ loc else core (w @ loc))
                               _ (level w) _ (ghost_of_approx w))).
 Proof.
@@ -153,7 +158,7 @@ Proof.
     auto.
     rewrite <- IHl.
     simpl. auto.
-Qed.
+Qed.*)
 
 
 Local Notation globals := (ident -> val).
@@ -175,10 +180,10 @@ Definition init_data2pred (gv: globals) (d: init_data)  (sh: share) (a: val) : m
  end.
 
 Fixpoint init_data_list2pred  (gv: globals)  (dl: list init_data)
-                           (sh: share) (v: val)  : pred rmap :=
+                           (sh: share) (v: val) : mpred :=
   match dl with
-  | d::dl' => sepcon (init_data2pred gv d sh v) 
-                  (init_data_list2pred gv dl' sh (offset_val (init_data_size d) v))
+  | d::dl' => init_data2pred gv d sh v ∗
+                  init_data_list2pred gv dl' sh (offset_val (init_data_size d) v)
   | nil => emp
  end.
 
@@ -190,28 +195,29 @@ Definition globals_of_env (rho: environ) (i: ident) : val :=
 
 Definition globvar2pred (gv: ident->val) (idv: ident * globvar type) : mpred :=
    if (gvar_volatile (snd idv))
-                       then  TT
+                       then  True
                        else    init_data_list2pred gv (gvar_init (snd idv))
                                    (readonly2share (gvar_readonly (snd idv))) (gv (fst idv)).
 
 
 Definition globvars2pred (gv: ident->val) (vl: list (ident * globvar type)) : mpred :=
-   fold_right sepcon emp (map (globvar2pred gv) vl).
+   [∗] (map (globvar2pred gv) vl).
 
-Lemma globvars2pred_rev:
-  forall gv l, globvars2pred gv (rev l) = globvars2pred gv l.
+Lemma big_sepL_rev : forall {A} (f : A -> mpred) (l : list A), ([∗ list] v ∈ (rev l), f v) ⊣⊢ [∗ list] v ∈ l, f v.
 Proof.
- intros. unfold globvars2pred.
- rewrite map_rev.
-  rewrite fold_left_rev_right.
- rewrite fold_symmetric.
- f_equal.
- f_equal. extensionality x y; apply sepcon_comm.
- intros; apply sepcon_assoc.
- intros; apply sepcon_comm.
+  induction l; simpl; first done.
+  rewrite big_sepL_app IHl /=.
+  rewrite right_id comm //.
 Qed.
 
-Lemma writable_blocks_rev:
+Locate "[∗]".
+Lemma globvars2pred_rev:
+  forall gv l, globvars2pred gv (rev l) ⊣⊢ globvars2pred gv l.
+Proof.
+  intros; rewrite /globvars2pred map_rev big_sepL_rev //.
+Qed.
+
+(*Lemma writable_blocks_rev:
   forall rho l, writable_blocks l rho = writable_blocks (rev l) rho.
 Proof.
 induction l; simpl; auto.
@@ -221,7 +227,7 @@ rewrite <- IHl.
 simpl.
 rewrite sepcon_emp.
 apply sepcon_comm.
-Qed.
+Qed.*)
 
 Lemma add_variables_nextblock:
   forall F V vl (ge: Genv.t F V) i g ul, list_norepet (map (@fst _ _) (vl++(i,g)::ul)) ->
@@ -233,14 +239,14 @@ Proof.
  change positive with block.
  replace (Some (Genv.genv_next ge)) with (Genv.find_symbol (Genv.add_global ge (i,g)) i).
  2:{
-  unfold Genv.add_global, Genv.find_symbol; simpl. rewrite PTree.gss. f_equal; unfold block; lia.
+  unfold Genv.add_global, Genv.find_symbol; simpl. rewrite Maps.PTree.gss. f_equal; unfold block; lia.
   }
   forget (Genv.add_global ge (i, g)) as ge1.
   revert H2 ge1; induction ul; simpl; intros; auto.
   spec IHul; [tauto |].
   rewrite IHul.
   unfold Genv.find_symbol, Genv.add_global. simpl.
-  rewrite PTree.gso; auto.
+  rewrite Maps.PTree.gso; auto.
   simpl length. simpl Genv.advance_next.
   simpl.
   rewrite (IHvl  (Genv.add_global ge a) i g ul).
@@ -355,7 +361,7 @@ transitivity
      reflexivity).
 apply loadbytes_load; auto.
 clear H2.
-rewrite size_chunk_conv in *.
+rewrite -> size_chunk_conv in *.
 forget (size_chunk_nat chunk) as n.
 assert (forall i, p <= i < p + (Z.of_nat n) ->
                      loadbytes m b i 1 = Some (Byte Byte.zero::nil)).
@@ -465,7 +471,7 @@ Proof.
     lia.
   }
   destruct a; simpl in H2|-*; try solve [destruct H2; auto]; intros.
-  rewrite (store_init_data_list_outside _ _ _ _ _ _ H4) by (right; simpl; lia).
+  rewrite -> (store_init_data_list_outside _ _ _ _ _ _ H4) by (right; simpl; lia).
   simpl in H0. inv H0. apply H1.
   simpl.
   pose proof (init_data_list_size_pos dl).
@@ -519,10 +525,10 @@ assert (MU: 256 < Int.max_unsigned).
  unfold Int.max_unsigned, Int.modulus, Int.wordsize, Wordsize_32.wordsize in *.
   unfold two_power_nat, shift_nat in *; simpl in *.
  replace (Zpos (4294967296 - 1)) with (4294967295). lia. reflexivity.
-rewrite Int.zero_ext_and in H by lia.
+rewrite -> Int.zero_ext_and in H by lia.
 pose proof (Int.modu_and (Int.repr (Byte.unsigned i)) (Int.repr (two_p 8)) (Int.repr 8)).
  spec H0.
- apply Int.is_power2_two_p; simpl.  unfold Int.zwordsize; simpl. lia.
+ apply Int.is_power2_two_p; simpl. by compute.
  replace (Int.sub (Int.repr (two_p 8)) Int.one) with (Int.repr (two_p 8 - 1)) in H0.
  rewrite <- H0 in H. clear H0.
  rewrite Int.modu_divu in H.
@@ -551,7 +557,7 @@ rewrite <- (Byte.repr_unsigned i). unfold Byte.zero. f_equal. auto.
  unfold Int.zero. intro.
  pose proof (Int.unsigned_repr 256).
  spec H0. split; lia.
- rewrite H in H0. rewrite Int.unsigned_repr in H0 by lia. inv H0.
+ rewrite H in H0. rewrite -> Int.unsigned_repr in H0 by lia. inv H0.
  replace (two_p 8) with 256 by reflexivity.
  unfold Int.one.
  rewrite Int.sub_signed.
@@ -568,7 +574,7 @@ Proof.
   simpl. unfold shift_nat. simpl. reflexivity.
 Qed.
 
-Lemma decode_val_getN_lem1:
+(*Lemma decode_val_getN_lem1:
   forall j i b,
           decode_val Mint32 (getN 4 i b) = Vint Int.zero ->
           0 <= j-i < 4 ->
@@ -579,9 +585,9 @@ Proof.
  revert H; case_eq (getN 4 i b); intros. inv H.
  unfold getN in H. destruct l; inv H.
  destruct (proj_bytes
-         (ZMap.get i b
-          :: ZMap.get (i + 1) b
-             :: ZMap.get (i + 1 + 1) b :: ZMap.get (i + 1 + 1 + 1) b :: nil))
+         (Maps.ZMap.get i b
+          :: Maps.ZMap.get (i + 1) b
+             :: Maps.ZMap.get (i + 1 + 1) b :: ZMap.get (i + 1 + 1 + 1) b :: nil))
     eqn:PB.
 *
  simpl proj_bytes in PB.
@@ -608,7 +614,7 @@ Proof.
   spec H4.
   clear H. rewrite max_unsigned_eq; lia.
   rewrite H in H4.
- rewrite Int.unsigned_repr in H4 by (rewrite max_unsigned_eq; lia).
+ rewrite -> Int.unsigned_repr in H4 by (rewrite max_unsigned_eq; lia).
   lia.
  assert (Byte.unsigned i0=0/\Byte.unsigned i1=0/\Byte.unsigned i2=0/\Byte.unsigned i3=0).
  unfold rev_if_be in H. destruct Archi.big_endian; simpl in H; apply H1 in H; tauto.
@@ -625,7 +631,7 @@ Proof.
  clear PB.
  destruct (ZMap.get i b); inv H1.
 (* Not true if Archi.ptr64=false *)
-Abort.
+Abort.*)
 
 Lemma Zmax_Z_of_nat:
  forall n, Z.max (Z_of_nat n) 0 = Z_of_nat n.
@@ -641,7 +647,6 @@ intro.
 case_eq (Share.split fullshare); intros.
 rewrite H0 in H. simpl in H. subst.
 apply Share.split_nontrivial in H0; auto.
-apply Share.nontrivial in H0. contradiction.
 Qed.
 
 Lemma readable_readonly2share: forall ro, readable_share (readonly2share ro).
@@ -652,7 +657,7 @@ Proof.
   assert (H9: Share.Rsh <> Share.bot). {
     unfold Share.Rsh. intro.
     destruct (Share.split Share.top) eqn:?.
-    pose proof (Share.split_nontrivial _ _ _ Heqp). spec H1; auto. contradiction Share.nontrivial.
+    pose proof (Share.split_nontrivial _ _ _ Heqp). spec H1; auto.
   }
   clear H9.
   destruct ro; simpl in *.
@@ -674,7 +679,7 @@ Qed.
 Definition genviron2globals (g: genviron) (i: ident) : val :=
   match Map.get g i with Some b => Vptr b Ptrofs.zero | None => Vundef end.
 
-Lemma init_data_lem:
+(*Lemma init_data_lem:
 forall (ge: genv) (v : globvar type) (b : block) (m1 : mem')
   (m3 m4 : Memory.mem) (phi0 : rmap) (a : init_data) (z : Z)
   (w1 wf : rmap),
@@ -952,7 +957,7 @@ if_tac; auto.
   unfold inflate_initial_mem'. rewrite H6.
  unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
   destruct (gvar_readonly v);  repeat f_equal; auto with extensionality.
-Qed.
+Qed.*)
 
 Lemma init_data_list_size_app:
   forall dl1 dl2, init_data_list_size (dl1++dl2) =
@@ -967,7 +972,7 @@ Proof.
  unfold Ptrofs.max_unsigned. lia.
 Qed.
 
-Lemma init_data_list_lem:
+(*Lemma init_data_list_lem:
   forall (ge: genv) m0 (v: globvar type) m1 b m2 m3 m4  phi0,
      alloc m0 0 (init_data_list_size (gvar_init v)) = (m1,b) ->
      store_zeros m1 b 0 (init_data_list_size (gvar_init v)) = Some m2 ->
@@ -1152,7 +1157,7 @@ assert (forall loc, fst loc <> b -> identity (phi @ loc)).
   pose proof (init_data_size_pos a); lia.
  clear.
   induction dl'; simpl; intros; try lia.
-Qed.
+Qed.*)
 
 Definition all_initializers_aligned (prog: program) :=
   forallb (fun idv => andb (initializers_aligned 0 (gvar_init (snd idv)))
@@ -1222,15 +1227,15 @@ Transparent alloc.
   destruct (range_perm_dec m b0 0 N Cur Freeable); inv H
  end;
   inv H; simpl in *;
- repeat rewrite PMap.gss;
- rewrite !PMap.gso by (intro Hx; inv Hx; unfold Plt in *; lia);
+ repeat rewrite Maps.PMap.gss;
+ rewrite -> !Maps.PMap.gso by (intro Hx; inv Hx; unfold Plt in *; lia);
  try (apply nextblock_noaccess; unfold Plt in *; lia).
  apply store_zeros_access in H1.
  apply store_init_data_list_outside' in H4.
  destruct H4 as [? [? ?]]. rewrite H2 in H1.
  change (access_at m2 (b,ofs) Cur = None).
  rewrite H1. unfold access_at; simpl.
- repeat rewrite PMap.gso by (intro Hx; inv Hx; lia).
+ repeat rewrite -> Maps.PMap.gso by (intro Hx; inv Hx; lia).
  apply nextblock_noaccess.
 clear - H0.
 unfold Plt. lia.
@@ -1255,16 +1260,16 @@ apply store_init_data_list_access in H3.
 rewrite H0 in H3. clear m1 H0.
 inv H. unfold access_at in H3. simpl in *.
 apply equal_f with (nextblock m, z) in H3. apply equal_f with Cur in H3.
-simpl in H3. rewrite PMap.gss in *.
+simpl in H3. rewrite -> Maps.PMap.gss in *.
 destruct (zle 0 z). simpl. destruct (zlt z N).
 simpl in *.
 rewrite if_true; auto. rewrite if_false; auto.
  intros [? ?]. lia.
-simpl. rewrite if_false by lia.
+simpl. rewrite -> if_false by lia.
 simpl in H3; auto.
 Qed.
 
-Lemma alloc_global_inflate_same:
+(*Lemma alloc_global_inflate_same:
   forall n i v gev m G m0,
   Genv.alloc_global gev m0 (i, Gvar v) = Some m ->
    (forall z : Z, initial_core gev G n @ (nextblock m0, z) = NO Share.bot bot_unreadable) ->
@@ -1303,7 +1308,7 @@ Proof.
   simple_if_tac; rewrite core_YES; auto.
  rewrite core_NO; auto.
  unfold upto_block, only_blocks, inflate_initial_mem; rewrite !ghost_of_make_rmap; auto.
-Qed.
+Qed.*)
 
 Lemma find_id_rev {A}: forall i G,
  list_norepet (map fst G) -> find_id i (rev G) = @find_id A i G.
@@ -1354,7 +1359,7 @@ destruct l. inv H. right; auto.
 Qed.
 
 Definition prog_var_block (rho: environ) (il: list ident) (b: block) : Prop :=
-  Exists (fun id => match ge_of rho id with Some b' => b'=b | _ => False end) il.
+  Exists (fun id => match ge_of rho id with Some b' => b'=b | _ => False%type end) il.
 
 Lemma match_fdecs_in:
   forall i vl G,
@@ -1433,8 +1438,8 @@ intros j k ? ? ?; subst k.
 apply (H5 j j).
 rewrite in_app.
 destruct H0. right; left; auto.
-left; rewrite map_rev, <- in_rev; auto.
-rewrite map_rev, <- in_rev in H; auto.
+left; rewrite map_rev -in_rev; auto.
+rewrite map_rev -in_rev in H; auto.
 destruct H0; auto.
 subst j. specialize (H4 i i). contradiction H4; auto.
 left; auto.
@@ -1454,7 +1459,7 @@ Proof.
   rewrite (app_nil_end G).
   rewrite <- (rev_involutive vl), <- (rev_involutive G).
   apply match_fdecs_rev'; auto.
-  rewrite rev_involutive, <- app_nil_end; auto.
+  rewrite rev_involutive -app_nil_end; auto.
   constructor.
 *
   rewrite (app_nil_end (rev vl)).
@@ -1465,7 +1470,7 @@ Proof.
   constructor.
 Qed.
 
-Lemma initial_core_rev:
+(*Lemma initial_core_rev:
   forall (gev: Genv.t fundef type) G n (vl: list (ident * globdef fundef type))
     (H: list_norepet (map fst (rev vl)))
     (SAME_IDS : match_fdecs (prog_funct' vl) (rev G)),
@@ -1793,7 +1798,7 @@ Proof.
  intro loc; specialize (H0 loc).
  unfold beyond_block. repeat  rewrite only_blocks_at. if_tac. auto.
  clear. pose proof (core_identity (w @ loc)); pose proof (core_identity (w' @ loc)); tauto.
-Qed.
+Qed.*)
 
 Lemma Pos_to_nat_eq_S:
   forall b, Pos.to_nat b = S (Z.to_nat (Z.pos b) - 1).
@@ -1801,7 +1806,7 @@ Proof. intros. simpl; pose proof (Pos2Nat.is_pos b); lia.
 Qed.
 
 
-Lemma alloc_global_inflate_initial_eq:
+(*Lemma alloc_global_inflate_initial_eq:
   forall gev m0 i f m G n loc,
       Genv.alloc_global gev m0 (i, Gfun f) = Some m ->
    ~ identity (inflate_initial_mem m0 (initial_core gev G n) @ loc) ->
@@ -2186,7 +2191,7 @@ pose proof (init_data_list_lem {| genv_genv := gev; genv_cenv := cenv |} m0 v m1
  apply readable_readonly2share.
  apply IHvl; auto.
  eapply another_hackfun_lemma; eauto.
-Qed.
+Qed.*)
 
 Definition globals_of_genv (g : genviron) (i : ident):=
   match Map.get g i with
@@ -2194,3 +2199,4 @@ Definition globals_of_genv (g : genviron) (i : ident):=
 | None => Vundef
 end.
 
+End mpred.

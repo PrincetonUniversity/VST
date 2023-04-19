@@ -1518,3 +1518,5 @@ Proof.
     rewrite -> Hcast in *; eauto.
   - iDestruct "H" as "[_ H]"; iApply "H"; done.
 Qed.
+
+End mpred.

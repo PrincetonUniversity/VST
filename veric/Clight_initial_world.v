@@ -10,15 +10,16 @@ Require Import VST.veric.expr2.
 Require Import VST.veric.expr_lemmas.
 
 Require Export VST.veric.initial_world.
-Import compcert.lib.Maps.
 
 Import Clight.
 
-Local Open Scope pred.
-
 Obligation Tactic := idtac.
 
-Notation initial_core' := (initial_core' function).
+Section mpred.
+
+Context `{!heapGS Σ}.
+
+(*Notation initial_core' := (initial_core' function).
 
 (* This version starts with an empty ghost. 
 Program Definition initial_core (ge: Genv.t fundef type) (G: funspecs) (n: nat): rmap :=
@@ -43,7 +44,7 @@ auto.
 Qed.*)
 Notation initial_core := (@initial_core function).
 
-Notation initial_core_ext := (@initial_core_ext  function).
+Notation initial_core_ext := (@initial_core_ext  function).*)
 
 Notation prog_funct := (@prog_funct function).
 
@@ -84,7 +85,7 @@ exists fd; split; auto.
 *)
 Qed.
 
-Lemma initial_core_ok: forall (prog: program) G n m,
+(*Lemma initial_core_ok: forall (prog: program) G n m,
       list_norepet (prog_defs_names prog) ->
       match_fdecs (prog_funct prog) G ->
       Genv.init_mem prog = Some m ->
@@ -141,7 +142,7 @@ rewrite <- (rev_involutive dl) in H1,Hm.
 rewrite nth_error_rev in H1.
 2 : { rewrite rev_length. clear - RANGE.
       destruct RANGE.
-      apply inj_lt_iff. rewrite Z2Nat.id by lia. lia. }
+      apply inj_lt_iff. rewrite -> Z2Nat.id by lia. lia. }
 rename H1 into H5.
 replace (length (rev dl) - Z.to_nat (Z.pos b - 1) - 1)%nat
  with (length (rev dl) - Z.to_nat (Z.pos b))%nat in H5.
@@ -692,4 +693,6 @@ Proof.
   rewrite <- Q_ne in H7.
   destruct H7.
   auto.
-Qed.
+Qed.*)
+
+End mpred.
