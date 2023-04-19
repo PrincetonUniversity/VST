@@ -4,9 +4,10 @@ Require Import VST.veric.juicy_mem.
 Require Import VST.veric.juicy_mem_lemmas.
 (*Require Import VST.veric.juicy_mem_ops.*)
 Require Import VST.veric.res_predicates.
-
+Require Import VST.veric.seplog.
 Require Import VST.veric.shares.
 Require Import VST.veric.mpred.
+Require Import VST.veric.mapsto_memory_block.
 
 Obligation Tactic := idtac.
 
@@ -94,6 +95,10 @@ Proof.
 case_eq (Share.split Share.top); intros; simpl.
 eapply nonemp_split_neq1; eauto.
 Qed.
+
+Section mpred.
+
+Context `{!heapGS Σ}.
 
 (*Lemma store_init_data_list_lem:
   forall F V (ge: Genv.t F V) m b lo d m',
@@ -301,9 +306,12 @@ Lemma find_id_app2 {A} i x G2: forall G1, list_norepet (map fst (G1++G2)) ->
   Proof.
     induction G1; simpl; intros. trivial. 
     destruct a. inv H. destruct (eq_dec i i0); [subst i0; elim H3; clear - H0 | auto].
-    apply initial_world.find_id_e in H0. apply (in_map fst) in H0.
+    apply find_id_e in H0. apply (in_map fst) in H0.
     rewrite map_app. apply in_or_app; right. apply H0.
   Qed.
+
+Definition initial_core {F} (ge: Genv.t (fundef F) type) (G: funspecs) : mpred :=
+  ∀ b id f, ⌜Genv.invert_symbol ge b = Some id ∧ find_id id G = Some f⌝ → func_at f (b, 0).
 
 (*Definition initial_core' {F} (ge: Genv.t (fundef F) type) (G: funspecs) (n: nat) (loc: address) : resource :=
    if Z.eq_dec (snd loc) 0
@@ -370,126 +378,6 @@ rewrite fmap_app.
 pattern (approx n) at 7 8 9.
 rewrite <- approx_oo_approx.
 auto.
-Qed.
-
-(* The initial state is compatible with the ghost-state machinery for invariants. *)
-
-Require Import VST.veric.invariants.
-Require Import VST.veric.juicy_extspec.
-
-Definition wsat_ghost : ghost :=
-  (None ::
-   Some (existT _ (ghosts.snap_PCM(ORD := list_order own.gname)) (exist _ (Tsh, nil) I), NoneP) ::
-   Some (existT _ set_PCM (exist _ Ensembles.Full_set I), NoneP) ::
-   Some (existT _ (list_PCM token_PCM) (exist _ nil I), NoneP) ::
-   nil).
-
-Program Definition wsat_rmap (r : rmap) :=
-  proj1_sig (make_rmap (resource_at (core r)) wsat_ghost (level r) _ _).
-Next Obligation.
-Proof.
-  extensionality l; unfold compose. rewrite <- core_resource_at. apply resource_fmap_core.
-Qed.
-
-Lemma wsat_rmap_wsat : forall r, (wsat * ghost_set g_en Ensembles.Full_set)%pred (wsat_rmap r).
-Proof.
-  intros.
-  unfold wsat.
-  do 3 (rewrite exp_sepcon1; exists nil).
-  rewrite prop_true_andp by auto.
-  rewrite !sepcon_assoc, (sepcon_comm (iter_sepcon _ _)).
-  rewrite <- (sepcon_assoc (ghost_set _ _)), ghost_set_join.
-  replace (fun i : iname => nth i nil None = Some false) with (Ensembles.Empty_set(U := iname)).
-  rewrite prop_true_andp, Union_Empty.
-  destruct (make_rmap (resource_at (core r)) (None :: Some (existT _ (ghosts.snap_PCM(ORD := list_order own.gname)) (exist _ (Tsh, nil) I), NoneP) :: nil) (level r))
-    as (r_inv & ? & Hr1 & Hg1).
-  { extensionality l; unfold compose. rewrite <- core_resource_at. apply resource_fmap_core. }
-  { auto. }
-  destruct (make_rmap (resource_at (core r)) (None :: None :: Some (existT _ set_PCM (exist _ Ensembles.Full_set I), NoneP) ::
-   Some (existT _ (list_PCM token_PCM) (exist _ nil I), NoneP) :: nil) (level r))
-    as (r_rest & ? & Hr2 & Hg2).
-  { extensionality l; unfold compose. rewrite <- core_resource_at. apply resource_fmap_core. }
-  { auto. }
-  exists r_inv, r_rest; split.
-  { unfold wsat_rmap; apply resource_at_join2; rewrite ?level_make_rmap, ?resource_at_make_rmap, ?ghost_of_make_rmap; auto.
-    + intros; rewrite Hr1, Hr2; apply resource_at_join, core_duplicable.
-    + rewrite Hg1, Hg2; unfold wsat_ghost; repeat constructor. }
-  split.
-  - simpl.
-    exists I.
-    rewrite Hr1, Hg1; split.
-    + apply resource_at_core_identity.
-    + apply join_sub_refl.
-  - destruct (make_rmap (resource_at (core r)) (None :: None :: Some (existT _ set_PCM (exist _ Ensembles.Full_set I), NoneP) ::
-     None :: nil) (level r))
-      as (r_en & ? & Hr3 & Hg3).
-    { extensionality l; unfold compose. rewrite <- core_resource_at. apply resource_fmap_core. }
-    { auto. }
-    destruct (make_rmap (resource_at (core r)) (None :: None :: None ::
-     Some (existT _ (list_PCM token_PCM) (exist _ nil I), NoneP) :: nil) (level r))
-      as (r_dis & ? & Hr4 & Hg4).
-    { extensionality l; unfold compose. rewrite <- core_resource_at. apply resource_fmap_core. }
-    { auto. }
-    exists r_dis, r_en; split.
-    { apply resource_at_join2; try congruence.
-      + intros; rewrite Hr2, Hr3, Hr4; apply resource_at_join, core_duplicable.
-      + rewrite Hg2, Hg3, Hg4; repeat constructor. }
-    simpl iter_sepcon; rewrite sepcon_emp.
-    split; simpl.
-    + exists I.
-      rewrite Hr4, Hg4; split.
-      * apply resource_at_core_identity.
-      * apply join_sub_refl.
-    + exists I.
-      rewrite Hr3, Hg3; split.
-      * apply resource_at_core_identity.
-      * eexists; repeat constructor.
-  - constructor; intros ? X; inv X.
-    inv H.
-  - extensionality; apply prop_ext; split; intro.
-    + inv H.
-    + destruct x; inv H.
-Qed.
-
-Lemma wsat_no : forall r, (ALL l, noat l) (wsat_rmap r).
-Proof.
-  simpl; intros; unfold wsat_rmap.
-  rewrite resource_at_make_rmap; apply resource_at_core_identity.
-Qed.
-
-Corollary wsat_rmap_resource : forall r r', join r (wsat_rmap r) r' -> resource_at r' = resource_at r.
-Proof.
-  intros.
-  extensionality l; apply (resource_at_join _ _ _ l) in H.
-  apply join_comm, wsat_no in H; auto.
-Qed.
-
-Lemma wsat_rmap_ghost : forall r r', joins r (wsat_rmap r) -> level r' = level r -> ghost_of r' = ghost_of r ->
-  joins r' (wsat_rmap r').
-Proof.
-  intros ?? [z ?] Hl Hg.
-  destruct (make_rmap (resource_at r') (ghost_of z) (level r')) as (z' & ? & Hr' & Hg').
-  { extensionality l; apply resource_at_approx. }
-  { rewrite Hl; apply join_level in H as [->]; apply ghost_of_approx. }
-  exists z'; apply resource_at_join2; auto.
-  - unfold wsat_rmap; rewrite level_make_rmap; auto.
-  - intros l; apply (resource_at_join _ _ _ l) in H.
-    unfold wsat_rmap; rewrite resource_at_make_rmap, Hr'.
-    apply join_comm, resource_at_join, core_unit.
-  - rewrite Hg, Hg'.
-    apply ghost_of_join in H.
-    unfold wsat_rmap in *; rewrite ghost_of_make_rmap in *; auto.
-Qed.
-
-Lemma age_to_wsat_rmap : forall n r, (n <= level r)%nat -> age_to n (wsat_rmap r) = wsat_rmap (age_to n r).
-Proof.
-  intros; apply rmap_ext.
-  - unfold wsat_rmap; rewrite level_make_rmap, !level_age_to; auto.
-    rewrite level_make_rmap; auto.
-  - intros; unfold wsat_rmap; rewrite resource_at_make_rmap, <- core_resource_at, !age_to_resource_at,
-      resource_at_make_rmap.
-    rewrite <- core_resource_at, resource_fmap_core'; auto.
-  - unfold wsat_rmap; rewrite ghost_of_make_rmap, !age_to_ghost_of, ghost_of_make_rmap; auto.
 Qed.*)
 
 Lemma list_disjoint_rev2:
@@ -501,8 +389,6 @@ apply Axioms.prop_ext; split; intros; eapply H; eauto.
 rewrite <- In_rev; auto.
 rewrite In_rev; auto.
 Qed.
-
-Require Import VST.veric.mapsto_memory_block.
 
 (*Lemma writable_blocks_app:
   forall bl bl' rho, writable_blocks (bl++bl') rho = writable_blocks bl rho * writable_blocks bl' rho.
@@ -734,7 +620,7 @@ Lemma add_globals_hack {F}:
 
    (forall id b, 0 <= Zpos b - 1 < Zlength vl ->
                            (Genv.find_symbol gev id = Some b <->
-                            nth_error (map (@fst _ _) vl) (length vl - Pos.to_nat b)  = Some id)).
+                            nth_error (map (@fst _ _) vl) (length vl - Pos.to_nat b) = Some id)).
 Proof. intros. subst.
      apply iff_trans with (nth_error (map fst (rev vl)) (Z.to_nat (Zpos b - 1)) = Some id).
    2: {
@@ -1095,9 +981,9 @@ Fixpoint prog_vars' {F V} (l: list (ident * globdef F V)) : list (ident * globva
 
 Definition prog_vars {F} (p: program F) := prog_vars' (prog_defs p).
 
-Definition no_locks `{heapGS Σ} : mpred := ∀ addr dq z z' R, ¬ addr ↦{dq} (LK z z' R).
+Definition no_locks : mpred := ∀ addr dq z z' R, ¬ addr ↦{dq} (LK z z' R).
 
-Lemma make_tycontext_s_find_id `{heapGS Σ} i G : (make_tycontext_s G) !! i = find_id i G.
+Lemma make_tycontext_s_find_id i G : (make_tycontext_s G) !! i = find_id i G.
 Proof.
   induction G as [| (j, fs) f IHf]. destruct i; reflexivity.
   simpl.
@@ -1107,90 +993,9 @@ Proof.
   reflexivity.
 Qed.
 
-(*(* How to relate Gamma to funspecs in memory, once we are outside the
+End mpred.
+
+(* How to relate Gamma to funspecs in memory, once we are outside the
    semax proofs?  We define 'matchfunspecs' which will be satisfied by
    the initial memory, and preserved under resource_decay / pures_eq /
    aging. *)
-
-Definition cond_approx_eq n A P1 P2 :=
-  (forall ts,
-      fmap (dependent_type_functor_rec ts (AssertTT A)) (approx n) (approx n) (P1 ts) =
-      fmap (dependent_type_functor_rec ts (AssertTT A)) (approx n) (approx n) (P2 ts)).
-
-Lemma cond_approx_eq_sym n A P1 P2 :
-  cond_approx_eq n A P1 P2 ->
-  cond_approx_eq n A P2 P1.
-Proof.
-  unfold cond_approx_eq; auto.
-Qed.
-
-Lemma cond_approx_eq_trans n A P1 P2 P3 :
-  cond_approx_eq n A P1 P2 ->
-  cond_approx_eq n A P2 P3 ->
-  cond_approx_eq n A P1 P3.
-Proof.
-  unfold cond_approx_eq in *.
-  intros E1 E2 ts; rewrite E1, E2. reflexivity.
-Qed.
-
-Lemma cond_approx_eq_weakening n n' A P1 P2 :
-  (n' <= n)%nat ->
-  cond_approx_eq n A P1 P2 ->
-  cond_approx_eq n' A P1 P2.
-Proof.
-  intros l.
-  intros E ts; specialize (E ts).
-  rewrite <-approx_oo_approx' with (n' := n) at 1; try lia.
-  rewrite <-approx'_oo_approx with (n' := n) at 2; try lia.
-  rewrite <-approx_oo_approx' with (n' := n) at 3; try lia.
-  rewrite <-approx'_oo_approx with (n' := n) at 4; try lia.
-  rewrite <-fmap_comp. unfold compose.
-  rewrite E.
-  reflexivity.
-Qed.
-
-Definition args_cond_approx_eq n A P1 P2 :=
-  (forall ts,
-      fmap (dependent_type_functor_rec ts (ArgsTT A)) (approx n) (approx n) (P1 ts) =
-      fmap (dependent_type_functor_rec ts (ArgsTT A)) (approx n) (approx n) (P2 ts)).
-
-Lemma args_cond_approx_eq_sym n A P1 P2 :
-  args_cond_approx_eq n A P1 P2 ->
-  args_cond_approx_eq n A P2 P1.
-Proof.
-  unfold args_cond_approx_eq; auto.
-Qed.
-
-Lemma args_cond_approx_eq_trans n A P1 P2 P3 :
-  args_cond_approx_eq n A P1 P2 ->
-  args_cond_approx_eq n A P2 P3 ->
-  args_cond_approx_eq n A P1 P3.
-Proof.
-  unfold args_cond_approx_eq in *.
-  intros E1 E2 ts; rewrite E1, E2. reflexivity.
-Qed.
-
-Lemma args_cond_approx_eq_weakening n n' A P1 P2 :
-  (n' <= n)%nat ->
-  args_cond_approx_eq n A P1 P2 ->
-  args_cond_approx_eq n' A P1 P2.
-Proof.
-  intros l.
-  intros E ts; specialize (E ts).
-  rewrite <-approx_oo_approx' with (n' := n) at 1; try lia.
-  rewrite <-approx'_oo_approx with (n' := n) at 2; try lia.
-  rewrite <-approx_oo_approx' with (n' := n) at 3; try lia.
-  rewrite <-approx'_oo_approx with (n' := n) at 4; try lia.
-  rewrite <-fmap_comp. unfold compose.
-  rewrite E.
-  reflexivity.
-Qed.*)
-
-(*Lemma level_initial_core {F} ge G n : level (@initial_core F ge G n) = n.
-Proof.
-  apply level_make_rmap.
-Qed.*)
-
-(*(* func_at'': func_at without requiring a proof of non-expansiveness *)
-Definition func_at'' fsig cc A P Q :=
-  pureat (SomeP (SpecArgsTT A) (packPQ P Q)) (FUN fsig cc).*)

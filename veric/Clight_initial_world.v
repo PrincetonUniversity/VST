@@ -15,6 +15,8 @@ Import Clight.
 
 Obligation Tactic := idtac.
 
+Notation initial_core := (initial_core(F := function)).
+
 Section mpred.
 
 Context `{!heapGS Σ}.
@@ -42,7 +44,6 @@ pattern (approx n) at 7 8 9.
 rewrite <- approx_oo_approx.
 auto.
 Qed.*)
-Notation initial_core := (@initial_core function).
 
 Notation initial_core_ext := (@initial_core_ext  function).*)
 
@@ -89,7 +90,7 @@ Qed.
       list_norepet (prog_defs_names prog) ->
       match_fdecs (prog_funct prog) G ->
       Genv.init_mem prog = Some m ->
-     initial_rmap_ok m (initial_core (Genv.globalenv prog) G n).
+     initial_core (Genv.globalenv prog) G ⊢ initial_rmap_ok m.
 Proof.
 intros.
 rename H1 into Hm.
@@ -217,54 +218,11 @@ Definition initial_jm (prog: program) m (G: funspecs) (n: nat)
   initial_mem m (initial_core (Genv.globalenv prog) G n)
            (initial_core_ok _ _ _ m H1 H2 H).
 
-Lemma initial_jm_age (prog: program) m (G: funspecs) (n : nat)
-        (H: Genv.init_mem prog = Some m)
-        (H1: list_norepet (prog_defs_names prog))
-        (H2: match_fdecs (prog_funct prog) G) :
-age
-    (initial_mem m (initial_core (Genv.globalenv prog) G (S n)) (initial_core_ok _ _ _ m H1 H2 H))
-    (initial_mem m (initial_core (Genv.globalenv prog) G    n ) (initial_core_ok _ _ _ m H1 H2 H)).
-Proof.
-apply age1_juicy_mem_unpack''; [ | reflexivity].
-simpl.
-unfold inflate_initial_mem in *.
-match goal with |- context [ proj1_sig ?x ] => destruct x as (r & lev & bah & Hg1); simpl end.
-match goal with |- context [ proj1_sig ?x ] => destruct x as (r' & lev' & bah' & Hg2); simpl end.
-apply rmap_age_i.
-rewrite lev,lev'.
-unfold initial_core; simpl.
-rewrite !level_make_rmap. auto.
-intro loc.
-rewrite bah, bah'.
-unfold inflate_initial_mem'.
-destruct (access_at m loc Cur); [ | reflexivity].
-destruct p; unfold resource_fmap; f_equal; try apply preds_fmap_NoneP.
-unfold initial_core.
-rewrite !resource_at_make_rmap.
-unfold initial_core'.
-if_tac; auto.
-unfold fundef.
-destruct (Genv.invert_symbol (Genv.globalenv (program_of_program prog))
-        (fst loc)); auto.
-destruct (find_id i G); auto.
-destruct f; auto.
-f_equal.
-simpl.
-f_equal.
-rewrite lev'.
-unfold initial_core.
-rewrite level_make_rmap.
-extensionality ts x b rho.
-rewrite fmap_app.
-match goal with
-| |- ?A (?B ?C) = _ => change (A (B C)) with ((A oo B) C)
-end.
-rewrite approx_oo_approx' by lia.
-rewrite approx'_oo_approx by lia.
-auto.
-rewrite Hg1, Hg2.
-unfold initial_core; rewrite !ghost_of_make_rmap; auto.
-Qed.
+Lemma alloc_initial_core : forall (prog: program) G n m,
+      list_norepet (prog_defs_names prog) ->
+      match_fdecs (prog_funct prog) G ->
+      Genv.init_mem prog = Some m ->
+  ⊢ |==> mem_auth m ∗ initial_core m.
 
 Lemma initial_core_ext_ok: forall {Z} (ora : Z) (prog: program) G n m,
       list_norepet (prog_defs_names prog) ->
@@ -463,8 +421,6 @@ Proof.
     unfold initial_core_ext; rewrite ghost_of_make_rmap.
     eexists; repeat constructor.
 Qed.
-
-Notation prog_vars := (@prog_vars function).
 
 Lemma initial_jm_without_locks prog m G n H H1 H2:
   no_locks (m_phi (initial_jm prog m G n H H1 H2)).
@@ -696,3 +652,6 @@ Proof.
 Qed.*)
 
 End mpred.
+
+Notation prog_funct := (@prog_funct function).
+Notation prog_vars := (@prog_vars function).

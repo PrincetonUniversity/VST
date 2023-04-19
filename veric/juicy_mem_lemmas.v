@@ -8,6 +8,117 @@ Section mpred.
 
 Context `{!heapGS Σ}.
 
+(* Here we build the [rmap]s that correspond to [store]s, [alloc]s and [free]s on the dry memory. *)
+Section inflate.
+Variable (m: mem).
+
+Definition unindex (p : positive) : Z :=
+  match p with
+  | xH => Z0
+  | xO p => Zpos p
+  | xI p => Zneg p
+  end.
+
+Lemma unindex_spec : forall z, unindex (Maps.ZIndexed.index z) = z.
+Proof.
+  destruct z; done.
+Qed.
+
+Definition inflate_initial_mem m : mpred :=
+  [∗ list] n ∈ seq 1 (Pos.to_nat (Mem.nextblock m) - 1),
+  [∗ list] '(o, v) ∈ Maps.PTree.elements (snd (Maps.PMap.get (Pos.of_nat n) (Mem.mem_contents m))),
+  let loc := (Pos.of_nat n, unindex o) in
+  match access_at m loc Cur with
+  | Some Freeable => loc ↦ VAL v
+  | Some Writable => loc ↦{#Ews} VAL v
+  | Some Readable => loc ↦{#Ers} VAL v
+  | _ => emp
+  end.
+
+(* Do we actually need to allocate the specific initial memory, or just prove things for all
+   memories in an initial state? *)
+(*Lemma alloc_initial_mem : ⊢ |==> mem_auth m ∗ inflate_initial_mem m.
+Proof.
+  iMod (ghost_map_alloc_empty (K:=L) (V:=V)) as (γh) "Hh".
+  iMod (ghost_map_alloc_empty (K:=L) (V:=gname)) as (γm) "Hm".
+  iExists γh, γm.
+  iAssert (gen_heap_interp (hG:=GenHeapGS _ _ _ γh γm) ∅) with "[Hh Hm]" as "Hinterp".
+  { iExists ∅; simpl. iFrame "Hh Hm". by rewrite dom_empty_L. }
+  iMod (gen_heap_alloc_big with "Hinterp") as "(Hinterp & $ & $)".
+  { apply map_disjoint_empty_r. }
+  rewrite right_id_L. done.*)
+
+
+(*
+
+Definition all_VALs (phi: rmap) :=
+  forall l, match phi @ l with
+              | YES _ _ k _ => isVAL k
+              | _ => True
+            end.
+
+Lemma inflate_initial_mem_all_VALs: forall lev, all_VALs (inflate_initial_mem lev).
+Proof.
+unfold inflate_initial_mem, inflate_initial_mem', all_VALs.
+intros; rewrite resource_at_make_rmap.
+destruct (access_at m l); try destruct p; auto.
+ case (lev @ l); simpl; intros; auto.
+Qed.*)
+
+(*(* FIXME
+   Build an rmap that's identical to phi except where m has allocated. *)
+Definition inflate_alloc: rmap.
+ refine (proj1_sig (remake_rmap (fun loc =>
+   fmap_option (res_option (phi @ loc))
+
+  (* phi = NO *)
+  (fmap_option (access_at m loc Cur)
+    (NO Share.bot bot_unreadable)
+    (fun p =>
+      match p with
+        | Freeable => YES Share.top readable_share_top (VAL (contents_at m loc)) NoneP
+        | _ => NO Share.Lsh Lsh_nonreadable
+      end))
+
+  (* phi = YES *)
+  (fun _ => phi @ loc)) (ghost_of phi) (level phi) _ (ghost_of_approx phi))).
+Proof.
+hnf; auto.
+intro.
+case_eq (phi @ l); simpl; intros; auto.
+case_eq (access_at m l Cur); simpl; intros; auto.
+right; destruct p; simpl; auto.
+left; exists phi; split; auto.
+right; destruct  (access_at m l Cur); simpl; auto.
+destruct p0; simpl; auto.
+Defined.
+
+(* Build an [rmap] that's identical to [phi] except where [m] has stored. *)
+Definition inflate_store: rmap. refine (
+proj1_sig (make_rmap (fun loc =>
+  match phi @ loc with
+    | YES sh rsh (VAL _) _ => YES sh rsh (VAL (contents_at m loc)) NoneP
+    | YES _ _ _ _ => resource_fmap (approx (level phi)) (approx (level phi)) (phi @ loc)
+    | _ => phi @ loc
+  end) (ghost_of phi) (level phi) _ (ghost_of_approx phi))).
+Proof.
+hnf; auto.
+
+unfold compose.
+extensionality l.
+destruct l as (b, ofs).
+remember (phi @ (b, ofs)) as HPHI.
+destruct HPHI; auto.
+(* YES *)
+destruct k; try solve
+  [ unfold resource_fmap; rewrite preds_fmap_NoneP; auto
+  | unfold resource_fmap; rewrite approx_map_idem; auto ].
+rewrite HeqHPHI.
+apply resource_at_approx.
+Defined.*)
+
+End inflate.
+
 (*
 (*Lemma inflate_initial_mem_empty:
   forall lev, emp (inflate_initial_mem Mem.empty lev).
