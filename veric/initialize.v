@@ -1,4 +1,5 @@
 Require Import FunInd.
+Require Import VST.zlist.sublist.
 Require Import VST.veric.juicy_base.
 Require Import VST.veric.shares.
 Require Import VST.veric.juicy_mem VST.veric.juicy_mem_lemmas (*VST.veric.juicy_mem_ops*).
@@ -442,6 +443,32 @@ Proof.
   eapply store_init_data_outside; eauto. tauto.
 Qed.
 
+Lemma store_zeros_0 : forall m b o, store_zeros m b o 0 = Some m.
+Proof.
+  intros; rewrite store_zeros_equation.
+  destruct (zle 0 0); done.
+Qed.
+
+Lemma store_zeros_add : forall m b o z1 z2 m', z1 >= 0 -> z2 >= 0 -> store_zeros m b o (z1 + z2) = Some m' ->
+  exists m'', store_zeros m b o z1 = Some m'' /\ store_zeros m'' b (o + z1) z2 = Some m'.
+Proof.
+  intros until 1; revert m o z2.
+  eapply (natlike_ind (fun z1 => ∀ (m : Memory.mem) (o z2 : Z) (Hz2 : z2 >= 0) (Hstore : store_zeros m b o (z1 + z2) = Some m'),
+    ∃ m'' : Memory.mem, (store_zeros m b o z1 = Some m'' ∧ store_zeros m'' b (o + z1) z2 = Some m'))%type); last lia; intros.
+  - rewrite Z.add_0_l in Hstore; rewrite Z.add_0_r store_zeros_0; eauto.
+  - rewrite store_zeros_equation in Hstore.
+    destruct (zle _ _); first lia.
+    destruct (store Mint8unsigned m b o Vzero) eqn: Hstore1; last done.
+    replace (Z.succ x + z2 - 1) with (x + z2) in Hstore by lia.
+    apply H1 in Hstore as (m'' & ? & ?); last done.
+    exists m''; split.
+    + rewrite store_zeros_equation.
+      destruct (zle _ _); first lia.
+      rewrite Hstore1.
+      replace (Z.succ x - 1) with x by lia; done.
+    + replace (o + Z.succ x) with (o + 1 + x) by lia; done.
+Qed.
+
 Lemma load_store_init_data_lem1:
   forall {ge m1 b D m2 m3},
    store_zeros m1 b 0 (init_data_list_size D) = Some m2 ->
@@ -677,52 +704,61 @@ Qed.
 Definition genviron2globals (g: genviron) (i: ident) : val :=
   match Map.get g i with Some b => Vptr b Ptrofs.zero | None => Vundef end.
 
+(* up *)
+Lemma prop_true_andp : forall (P : Prop) (Q : mpred), P -> ⌜P⌝ ∧ Q ⊣⊢ Q.
+Proof.
+  intros; iSplit; [iIntros "(_ & $)" | iIntros "$"; done].
+Qed.
+
 (*Lemma init_data_lem:
-forall (ge: genv) (v : globvar type) (b : block) (m1 : mem')
-  (m3 m4 : Memory.mem) (phi0 : rmap) (a : init_data) (z : Z)
-  (w1 wf : rmap),
+forall (ge: genv) (v : globvar type) (b : block)
+  (m3 : Memory.mem) (a : init_data) (z : Z),
    load_store_init_data1 ge m3 b z a ->
-   contents_at m4 = contents_at m3 ->
-   join w1 wf (beyond_block b (inflate_initial_mem m4 phi0)) ->
-   (forall loc : address,
-     if adr_range_dec (b, z) (init_data_size a) loc
-     then identity (wf @ loc) /\ access_at m4 loc Cur = Some (Genv.perm_globvar v)
-     else identity (w1 @ loc)) ->
    forall (VOL:  gvar_volatile v = false)
           (AL: initializer_aligned z a = true)
-           (LO:   0 <= z) (HI: z + init_data_size a < Ptrofs.modulus),
-  (init_data2pred (genviron2globals (filter_genv ge)) a (readonly2share (gvar_readonly v))
-       (Vptr b (Ptrofs.repr z))) w1.
+           (LO: 0 <= z) (HI: z + init_data_size a < Ptrofs.modulus),
+(∀ o : Z, ⌜z <= o < z + init_data_size a⌝ →
+           match Genv.perm_globvar v with
+           | Freeable => <absorb> (b, o) ↦ VAL (Maps.ZMap.get o (Maps.PMap.get b (mem_contents m3)))
+           | Writable => <absorb> (b, o) ↦{#Ews} VAL (Maps.ZMap.get o (Maps.PMap.get b (mem_contents m3)))
+           | Readable => <absorb> (b, o) ↦{#Ers} VAL (Maps.ZMap.get o (Maps.PMap.get b (mem_contents m3)))
+           | Nonempty => True%I
+           end) ⊢
+<absorb> init_data2pred (genviron2globals (filter_genv ge)) a (readonly2share (gvar_readonly v))
+  (Vptr b (Ptrofs.repr z)).
 Proof.
   intros.
   assert (APOS:= init_data_size_pos a).
   assert (READABLE:= readable_readonly2share (gvar_readonly v)).
-  Transparent load.
-  unfold init_data2pred, mapsto.
+  unfold init_data2pred, mapsto; simpl.
+  destruct (readable_share_dec _); last done.
   unfold mapsto_zeros, address_mapsto, res_predicates.address_mapsto,
     fst,snd.
-  rewrite Ptrofs.unsigned_repr by (unfold Ptrofs.max_unsigned; lia).
-  simpl.
+  rewrite -> Ptrofs.unsigned_repr by (unfold Ptrofs.max_unsigned; lia).
   unfold mapsto, tc_val, is_int, is_long, is_float.
-  destruct (readable_share_dec
-            (readonly2share (gvar_readonly v))); [clear r | tauto].
-  destruct a; 
-  repeat rewrite prop_true_andp by 
+  simpl.
+Transparent load.
+  iIntros "H"; destruct a; repeat rewrite -> prop_true_andp by 
     first [apply I
             | apply sign_ext_range'; compute; split; congruence
             | apply zero_ext_range'; compute; split; congruence
             ];
-  try left; simpl in H; unfold load in H;
+  try iLeft; simpl in H; unfold load in H;
   try (if_tac in H; [ | discriminate H]);
-  repeat rewrite prop_true_andp by apply I;
+  repeat rewrite -> prop_true_andp by apply I;
   try match type of H with Some (decode_val ?ch ?B) = Some (?V) =>
-            exists B; replace V with (decode_val ch B) by (inversion H; auto);
-            clear H; repeat split; auto
+            iExists B; replace V with (decode_val ch B) by (inversion H; auto);
+            clear H
        end.
+Opaque load.
 * (* Int8 *)
-  apply Zone_divide.
+  rewrite prop_true_andp; last by repeat split; auto; apply Zone_divide.
+  rewrite /adr_add; simpl in *.
+  iSpecialize ("H" $! z + 0 with "[%]"); first lia.
+  rewrite bi.sep_emp Z.add_0_r /Genv.perm_globvar VOL /readonly2share.
+  simple_if_tac; done.
 * (* Int8 *)
-  intro loc; specialize (H2 loc).
+(*  intro loc; specialize (H2 loc).
   simpl in H2. hnf. if_tac; auto.
   exists READABLE.
   destruct H2.
@@ -956,6 +992,7 @@ if_tac; auto.
  unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
   destruct (gvar_readonly v);  repeat f_equal; auto with extensionality.
 Qed.*)
+Admitted.*)
 
 Lemma init_data_list_size_app:
   forall dl1 dl2, init_data_list_size (dl1++dl2) =
@@ -1021,6 +1058,36 @@ Proof.
     erewrite store_mem_contents by eassumption; rewrite Maps.PMap.gso //.
 Qed.
 
+(* Fundamentally, we have a problem: we can't convert a ∀ over (even a finite range of) locations into
+   a [∗ list] over those locations. There might be a provable lemma about this for non-overlapping assertions,
+   but it's not in Iris. But blocks in a mem don't expose their size, so we can't define inflate_mem without ∀. *)
+(*Lemma init_data_list_lem':
+forall (ge: genv) (v : globvar type) (b : block)
+  (m3 : Memory.mem) (a : list init_data) (z : Z),
+   Genv.load_store_init_data ge m3 b z a ->
+   forall (VOL:  gvar_volatile v = false)
+          (AL: initializers_aligned z a = true)
+           (LO: 0 <= z) (HI: z + init_data_list_size a < Ptrofs.modulus),
+(∀ o : Z, ⌜z <= o < z + init_data_list_size a⌝ →
+           match Genv.perm_globvar v with
+           | Freeable => <absorb> (b, o) ↦ VAL (Maps.ZMap.get o (Maps.PMap.get b (mem_contents m3)))
+           | Writable => <absorb> (b, o) ↦{#Ews} VAL (Maps.ZMap.get o (Maps.PMap.get b (mem_contents m3)))
+           | Readable => <absorb> (b, o) ↦{#Ers} VAL (Maps.ZMap.get o (Maps.PMap.get b (mem_contents m3)))
+           | Nonempty => True%I
+           end) ⊢
+<absorb> init_data_list2pred (genviron2globals (filter_genv ge)) a (readonly2share (gvar_readonly v))
+  (Vptr b (Ptrofs.repr z)).
+Proof.
+  intros until a; revert m3; induction a; simpl; intros.
+  { by iIntros "_". }
+  iIntros "H".
+Search bi_and bi_sep.
+  (* need to decompose "H" by + *)
+  iSplitL "Ha".
+  - iApply (init_data_lem with "Ha").
+  - iApply (IHa with "Hrest").
+Qed.
+
 Lemma init_data_list_lem:
   forall (ge: genv) m0 (v: globvar type) m1 b m2 m3 m4,
      alloc m0 0 (init_data_list_size (gvar_init v)) = (m1,b) ->
@@ -1032,7 +1099,7 @@ Lemma init_data_list_lem:
    (SANITY: init_data_list_size (gvar_init v) < Ptrofs.modulus)
    (VOL:  gvar_volatile v = false)
    (AL: initializers_aligned 0 (gvar_init v) = true),
-     inflate_initial_mem m4 ⊢ inflate_initial_mem m0 ∗ init_data_list2pred (genviron2globals (filter_genv ge)) (gvar_init v) (readonly2share (gvar_readonly v)) (Vptr b Ptrofs.zero).
+     inflate_initial_mem m4 ⊢ inflate_initial_mem m0 ∗ <absorb> init_data_list2pred (genviron2globals (filter_genv ge)) (gvar_init v) (readonly2share (gvar_readonly v)) (Vptr b Ptrofs.zero).
 Proof.
   intros.
   rewrite /inflate_initial_mem.
@@ -1044,21 +1111,35 @@ Proof.
   iIntros "(Hrest & Hb & _)"; iSplitL "Hrest".
   - rewrite Nat.sub_0_r; iApply (big_sepL_impl with "Hrest").
     iIntros "!>" (??(-> & ?)%lookup_seq).
-    rewrite /drop_perm in H2; destruct range_perm_dec; inv H2; rewrite /access_at /=.
+    rewrite /drop_perm in H2; destruct range_perm_dec; inv H2; rewrite /inflate_loc /access_at /contents_at /=.
     assert (Pos.of_nat (S k) ≠ nextblock m0) by lia.
     erewrite store_init_data_list_other_block; [| eassumption..].
     erewrite store_zeros_other_block; [| eassumption..].
     erewrite mem_lemmas.AllocContentsOther; [| eassumption..].
-    iApply big_sepL_mono; intros ? (?, ?) Hin.
     rewrite Maps.PMap.gso //.
-    replace (Maps.PMap.get _ _ _ _) with (access_at m3 (Pos.of_nat (S k), unindex p) Cur) by done.
-    apply store_init_data_list_outside' in H1 as (Hcontents3 & <- & _).
-    erewrite store_zeros_access by eassumption.
-    apply (alloc_dry_unchanged_on _ _ (Pos.of_nat (S k), unindex p)) in H as (Haccess & Hcontents); last by intros [??].
-    rewrite -Haccess //.
+    iIntros "H" (o).
+    replace (Maps.PMap.get _ _ _ _) with (access_at m0 (Pos.of_nat (S k), o) Cur) by done.
+    apply (alloc_dry_unchanged_on _ _ (Pos.of_nat (S k), o)) in H as (Haccess & Hcontents); last by intros [??].
+    rewrite Haccess.
+    erewrite <- store_zeros_access by eassumption.
+    apply store_init_data_list_outside' in H1 as (Hcontents3 & -> & _).
+    done.
   - rewrite -Hnext Pos2Nat.id.
-    rewrite /drop_perm in H2; destruct range_perm_dec; inv H2; rewrite /access_at /=.
+    rewrite /drop_perm in H2; destruct range_perm_dec; inv H2; rewrite /inflate_loc /access_at /contents_at /=.
     rewrite Maps.PMap.gss.
+    iAssert (∀ o, ⌜0 <= o < init_data_list_size (gvar_init v)⌝ →
+      match Genv.perm_globvar v with
+       | Freeable => <absorb> (nextblock m0, o) ↦ VAL (Maps.ZMap.get o (Maps.PMap.get (nextblock m0) (mem_contents m3)))
+       | Writable => <absorb> (nextblock m0, o) ↦{#Ews} VAL (Maps.ZMap.get o (Maps.PMap.get (nextblock m0) (mem_contents m3)))
+       | Readable => <absorb> (nextblock m0, o) ↦{#Ers} VAL (Maps.ZMap.get o (Maps.PMap.get (nextblock m0) (mem_contents m3)))
+       | Nonempty => True
+       end) with "[Hb]" as "Hb".
+    { iIntros (o ?); iSpecialize ("Hb" $! o).
+      destruct (zle 0 o); last lia.
+      destruct (zlt o _); last lia; done. }
+      rewrite /inflate_loc.
+    Search mem_contents store.
+Search big_opL Permutation.
     
     assert (Pos.of_nat (S k) ≠ nextblock m0) by lia.
     erewrite store_init_data_list_other_block; [| eassumption..].
@@ -1282,7 +1363,7 @@ assert (forall loc, fst loc <> b -> identity (phi @ loc)).
   pose proof (init_data_size_pos a); lia.
  clear.
   induction dl'; simpl; intros; try lia.
-Qed.*) Abort.
+Qed.*) Abort.*)
 
 Definition all_initializers_aligned (prog: program) :=
   forallb (fun idv => andb (initializers_aligned 0 (gvar_init (snd idv)))
@@ -2032,7 +2113,7 @@ rewrite <- (alloc_access_other _ _ _ _ _ Heqp)by (destruct H0; auto; right; lia)
 apply nextblock_access_empty. zify; lia.
 Qed.*)
 
-Lemma global_initializers:
+(*Lemma global_initializers:
   forall (prog: program) G m
      (Hnorepet : list_norepet (prog_defs_names prog))
      (AL : all_initializers_aligned prog)
@@ -2280,7 +2361,7 @@ pose proof (init_data_list_lem {| genv_genv := gev; genv_cenv := cenv |} m0 v m1
  apply readable_readonly2share.
  apply IHvl; auto.
  eapply another_hackfun_lemma; eauto.
-Qed.
+Qed.*)
 
 Definition globals_of_genv (g : genviron) (i : ident):=
   match Map.get g i with

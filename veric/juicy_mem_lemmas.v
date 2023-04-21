@@ -24,16 +24,16 @@ Proof.
   destruct z; done.
 Qed.
 
-Definition inflate_initial_mem m : mpred :=
-  [∗ list] n ∈ seq 1 (Pos.to_nat (Mem.nextblock m) - 1),
-  [∗ list] '(o, v) ∈ Maps.PTree.elements (snd (Maps.PMap.get (Pos.of_nat n) (Mem.mem_contents m))),
-  let loc := (Pos.of_nat n, unindex o) in
+Definition inflate_loc m loc := 
   match access_at m loc Cur with
-  | Some Freeable => loc ↦ VAL v
-  | Some Writable => loc ↦{#Ews} VAL v
-  | Some Readable => loc ↦{#Ers} VAL v
-  | _ => emp
+  | Some Freeable => <absorb> loc ↦ VAL (contents_at m loc)
+  | Some Writable => <absorb> loc ↦{#Ews} VAL (contents_at m loc)
+  | Some Readable => <absorb> loc ↦{#Ers} VAL (contents_at m loc)
+  | _ => True
   end.
+
+Definition inflate_initial_mem m : mpred :=
+  [∗ list] n ∈ seq 1 (Pos.to_nat (Mem.nextblock m) - 1), ∀ o, inflate_loc m (Pos.of_nat n, o).
 
 (* Do we actually need to allocate the specific initial memory, or just prove things for all
    memories in an initial state? *)

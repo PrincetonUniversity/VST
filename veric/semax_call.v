@@ -568,17 +568,19 @@ Lemma semax_call_external
  (H16 : Genv.find_funct psi (Vptr b Ptrofs.zero) = Some ff)
  (TC8 : tc_vals (fst fsig) args)
  (Hargs : Datatypes.length (fst fsig) = Datatypes.length args)
- (ctl := Kcall ret curf vx tx k : cont) :
+ (ctl : cont) (Hctl : ∀ ret0 z', assert_safe Espec psi E curf vx (set_opttemp ret (force_val ret0) tx)
+             (exit_cont EK_normal None k)  (construct_rho (filter_genv psi) vx (set_opttemp ret (force_val ret0) tx)) ⊢
+    jsafeN Espec psi E z' (Returnstate (force_val ret0) ctl)) :
  □ believe_external Espec psi E (Vptr b Ptrofs.zero) fsig cc A P Q -∗
- ▷ <affine> rguard Espec psi E Delta curf (frame_ret_assert R F0) k -∗
- ▷ funassert Delta rho -∗
- ▷ F0 rho -∗
- ▷ (|={E}=> ∃ (x1 : A) (F1 : environ → mpred),
+ ▷ (<affine> rguard Espec psi E Delta curf (frame_ret_assert R F0) k -∗
+    funassert Delta rho -∗
+    F0 rho -∗
+    (|={E}=> ∃ (x1 : A) (F1 : environ → mpred),
                (F1 rho ∗ P x1 (ge_of rho, args))
                ∧ (∀ rho' : environ,
                     ■ ((∃ old : val, substopt ret (` old) F1 rho' ∗
                           maybe_retval (Q x1) (snd fsig) ret rho') -∗ RA_normal R rho'))) -∗
- ▷ jsafeN Espec psi E ora (Callstate ff args ctl).
+    jsafeN Espec psi E ora (Callstate ff args ctl)).
 Proof.
 pose proof TC3 as Hguard_env.
 destruct TC3 as [TC3 TC3'].
@@ -587,7 +589,7 @@ iIntros "#ext".
 destruct ff; first done.
 iDestruct "ext" as "((-> & -> & %Eef & %Hinline) & He & Htc)".
 rename t into tys.
-iIntros "rguard fun F0 HR !>".
+iIntros "!> rguard fun F0 HR".
 iMod "HR" as (??) "((F1 & P) & #HR)".
 iMod ("He" $! psi x1 (F0 rho ∗ F1 rho) (typlist_of_typelist tys) args with "[F0 F1 P]") as "He1".
 { subst rho; iFrame; iPureIntro; split; auto.
@@ -668,8 +670,8 @@ iSpecialize ("rguard" with "[-]").
     intros j; destruct (eq_dec j i); simpl; subst; auto.
     rewrite Maps.PTree.gso; auto.
   * rewrite - same_glob_funassert'; subst rho rho'; done. }
-subst ctl rho'.
-rewrite Htx'; by iApply assert_safe_for_external_call.
+subst rho' tx'; rewrite Htx'.
+by iApply Hctl.
 Qed.
 
 Lemma ge_of_make_args:
@@ -858,7 +860,11 @@ Lemma semax_call_aux2
       snd fsig = snd (fn_funsig f))
   vx tx k rho
   (H0 : rho = construct_rho (filter_genv psi) vx tx)
-  (TC3 : guard_environ Delta curf rho):
+  (TC3 : guard_environ Delta curf rho)
+  ctl (Hcont : call_cont ctl = ctl)
+  (Hctl : ∀ ret0 z', assert_safe Espec psi E curf vx (set_opttemp ret (force_val ret0) tx)
+             (exit_cont EK_normal None k)  (construct_rho (filter_genv psi) vx (set_opttemp ret (force_val ret0) tx)) ⊢
+    jsafeN Espec psi E z' (Returnstate (force_val ret0) ctl)):
   (∀ rho' : environ,
         ■ ((∃ old : val,
                substopt ret (liftx old) F rho' ∗
@@ -870,20 +876,19 @@ Lemma semax_call_aux2
          (frame_ret_assert
             (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x))
                               (stackframe_of' cenv_cs f)) (fun _ : environ => F0 rho ∗ F rho))
-         (Kcall ret curf vx tx k).
+         ctl.
 Proof.
   iIntros "#HR #rguard"; iSplit.
   { iPureIntro; repeat intro; f_equal. }
   iIntros (ek vl te ve) "!>".
   rewrite !proj_frame.
   iIntros "(% & ((F0 & F) & stack & Q) & #fun)".
-  iApply (guard_fallthrough_return with "[-Q] Q"); first done.
+  iApply (guard_fallthrough_return with "[-Q] Q").
   iIntros "Q".
   set (rho' := construct_rho _ _ _).
   change (stackframe_of' cenv_cs f rho') with (stackframe_of f rho').
   rewrite /assert_safe.
   iIntros (? _); simpl.
-  set (ctl := Kcall ret curf vx tx k).
   pose (rval := force_val vl).
   iAssert (▷ jsafeN Espec psi E ora (Returnstate rval (call_cont ctl))) with "[-stack]" as "Hsafe". 
   { iNext.
@@ -937,7 +942,7 @@ Proof.
         destruct (eq_dec ret i); first auto.
         rewrite -map_ptree_rel Map.gso; auto.
       + rewrite same_glob_funassert; first iApply "fun"; done. }
-        iApply (assert_safe_for_external_call with "rguard"). }
+    rewrite Hcont; by iApply Hctl. }
   destruct vl.
   - iIntros (?).
     iApply (bi.impl_intro_l (_ ∗ _) with "[stack Hsafe]"); last by iSplitL "stack"; [iApply "stack" | iApply "Hsafe"].
@@ -949,12 +954,12 @@ Proof.
     iDestruct "H" as "(_ & stack & ?)".
     iMod (free_stackframe with "[$Hm $stack]") as (??) "Hm".
     iIntros "!>"; iExists _, _; iSplit; last iFrame.
-    iPureIntro; econstructor; done.
+    iPureIntro; rewrite {1}Hcont; econstructor; done.
   - iApply jsafe_step; rewrite /jstep_ex.
     iIntros (?) "(Hm & ?)".
     iMod (free_stackframe with "[$Hm $stack]") as (??) "Hm".
     iIntros "!>"; iExists _, _; iSplit; last iFrame.
-    iPureIntro; econstructor; done.
+    iPureIntro; rewrite {1}Hcont; econstructor; done.
 Qed.
 
 Lemma tc_eval_exprlist:
@@ -1001,6 +1006,48 @@ Proof.
   iDestruct (cop2_sem_cast' with "[$Hm $H]") as %?; iPureIntro.
   econstructor; eauto.
   unfold_lift; congruence.
+Qed.
+
+Lemma believe_exists_fundef':
+  forall {CS}
+    {b : Values.block} {id_fun : ident} {psi : genv} E {Delta : tycontext}
+    {fspec: funspec}
+  (Findb : Genv.find_symbol (genv_genv psi) id_fun = Some b)
+  (H3: (glob_specs Delta) !! id_fun = Some fspec),
+  (⊢ believe(CS := CS) Espec E Delta psi Delta) ->
+  {f : Clight.fundef | Genv.find_funct_ptr (genv_genv psi) b = Some f /\
+   type_of_fundef f = type_of_funspec fspec}.
+Proof.
+  intros.
+  destruct fspec as [fsig cc A P Q].
+  simpl.
+  assert (⊢ believe_external Espec psi E (Vptr b Ptrofs.zero) fsig cc A P Q ∨ believe_internal Espec psi E Delta (Vptr b Ptrofs.zero) fsig cc A P Q) as Bel.
+  { rewrite /bi_emp_valid H.
+    iIntros "H"; iApply "H"; iPureIntro.
+    exists id_fun; eauto. }
+  destruct (Genv.find_funct_ptr psi b) as [f|] eqn:Eb; swap 1 2.
+  { assert (⊢ False : mpred) as HF; last by apply ouPred.consistency in HF.
+    rewrite /bi_emp_valid Bel.
+    iIntros "[BE | BI]".
+    + unfold believe_external.
+      unfold Genv.find_funct in *. rewrite -> if_true by trivial.
+      rewrite Eb //.
+    + iDestruct "BI" as (b' fu (? & ? & ? & ? & ? & ? & ? & ? & ?)) "_"; congruence. }
+  exists f; split; auto.
+  clear H; match goal with H : ⊢ ?P |- ?Q => assert (P ⊢ ⌜Q⌝) as HQ; last by rewrite HQ in H; apply ouPred.pure_soundness in H end.
+  iIntros "[BE | BI]".
+  - rewrite /believe_external /=.
+    if_tac; last done.
+    rewrite Eb.
+    destruct f as [ | ef sigargs sigret c'']; first done.
+    iDestruct "BE" as ((Es & -> & ASD & _)) "(#? & _)"; inv Es.
+    rewrite TTL3 //.
+  - iDestruct "BI" as (b' fu (? & ? & ? & ? & ? & ? & ? & ? & ?)) "_"; iPureIntro.
+    unfold fn_funsig in *. simpl fst in *; simpl snd in *.
+    assert (b' = b) by congruence. subst b'.
+    assert (f = Internal fu) by congruence; subst; simpl.
+    unfold type_of_function; destruct fsig; simpl in *; subst.
+    rewrite TTL1 //.
 Qed.
 
 Lemma believe_exists_fundef:
@@ -1057,6 +1104,108 @@ destruct ids; simpl in TC. contradiction. destruct TC.
 constructor; eauto. intros N; subst. apply (tc_val_Vundef _ H).
 Qed.
 
+Lemma semax_call_aux0 {CS'}
+  E (Delta : tycontext) (psi : genv) (ora : OK_ty) (b : Values.block) (id : ident) cc
+  A0 P (x : A0) A deltaP deltaQ retty clientparams
+  (F0 : environ -> mpred) F (ret : option ident) (curf: function) args
+  (R : ret_assert) (vx:env) (tx:Clight.temp_env) (k : cont) (rho : environ)
+
+  (Spec: (glob_specs Delta)!!id = Some (mk_funspec (clientparams, retty) cc A deltaP deltaQ))
+  (FindSymb: Genv.find_symbol psi id = Some b)
+  (TCRet: tc_fn_return Delta ret retty)
+  (GuardEnv: guard_environ Delta curf rho)
+  (Hretty: retty=Tvoid -> ret=None)
+  (Closed: closed_wrt_vars (thisvar ret) F0)
+  (CSUB: cenv_sub (@cenv_cs CS') (genv_cenv psi))
+  (Hrho: rho = construct_rho (filter_genv psi) vx tx)
+  (ff : Clight.fundef) (H16 : Genv.find_funct psi (Vptr b Ptrofs.zero) = Some ff)
+  (H16' : type_of_fundef ff = type_of_funspec (mk_funspec (clientparams, retty) cc A deltaP deltaQ))
+  (TC8 : tc_vals clientparams args)
+  ctl (Hcont : call_cont ctl = ctl)
+  (Hctl : ∀ ret0 z', assert_safe Espec psi E curf vx (set_opttemp ret (force_val ret0) tx)
+             (exit_cont EK_normal None k)  (construct_rho (filter_genv psi) vx (set_opttemp ret (force_val ret0) tx)) ⊢
+    jsafeN Espec psi E z' (Returnstate (force_val ret0) ctl)):
+  □ believe Espec E Delta psi Delta -∗
+  ▷ (F0 rho ∗ F rho ∗ P x (ge_of rho, args) -∗
+     funassert Delta rho -∗
+     □ ■ (F rho ∗ P x (ge_of rho, args) ={E}=∗
+                          ∃ (x1 : A) (F1 : environ -> mpred),
+                            (F1 rho ∗ deltaP x1 (ge_of rho, args))
+                            ∧ (∀ rho' : environ,
+                                 ■ ((∃ old:val, substopt ret (`old) F1 rho' ∗ maybe_retval (deltaQ x1) retty ret rho') -∗
+                                    RA_normal R rho'))) -∗
+  <affine> rguard Espec psi E Delta curf (frame_ret_assert R F0) k -∗
+  jsafeN Espec psi E ora (Callstate ff args ctl)).
+Proof.
+  iIntros "#Bel".
+  iPoseProof ("Bel" with "[%]") as "Bel'".
+  { exists id; eauto. }
+  pose proof (tc_vals_length _ _ TC8) as Hlen.
+  iDestruct "Bel'" as "[BE | BI]".
+  - (* external call *)
+    iPoseProof (semax_call_external with "BE") as "Hsafe".
+    iNext; iIntros "(F0 & ?) #fun #HR rguard".
+    iApply ("Hsafe" with "rguard fun F0").
+    by iApply "HR".
+  - (* internal call *)
+    iDestruct "BI" as (b' f (H3a & H3b & COMPLETE & H17 & H17' & Hvars & H18 & H18')) "BI".
+    injection H3a as <-; change (Genv.find_funct psi (Vptr b Ptrofs.zero) = Some (Internal f)) in H3b.
+    rewrite H16 in H3b; inv H3b.
+    iSpecialize ("BI" with "[%] [%]").
+    { intros; apply tycontext_sub_refl. }
+    { apply cenv_sub_refl. }
+    iNext; iIntros "(F0 & P) #fun #HR rguard".
+    iMod ("HR" with "P") as (??) "((? & ?) & #post)".
+    iSpecialize ("BI" $! x1); rewrite semax_fold_unfold.
+    iPoseProof ("BI" with "[%] [Bel] [rguard]") as "#guard".
+    { split3; eauto; [apply tycontext_sub_refl | apply cenv_sub_refl]. }
+    { done. }
+    { iIntros "!>"; rewrite bi.affinely_elim.
+      iApply (semax_call_aux2 _ _ _ _ _ _ _ _ _ (clientparams,retty) (Econst_int Int.zero tint) nil with "post rguard"); try done.
+      * rewrite closed_wrt_modvars_Scall //.
+      * destruct H18' as [-> _]; rewrite H18 //. }
+    iApply jsafe_step; rewrite /jstep_ex.
+    iIntros (?) "(Hm & ?)".
+    destruct (build_call_temp_env f args) as (te & Hte).
+    { rewrite /= in H18; rewrite H18 map_length // in Hlen. }
+    iMod (alloc_stackframe with "Hm") as (?? [??]) "(Hm & stack)".
+    { unfold var_sizes_ok in Hvars.
+      rewrite !Forall_forall in Hvars, COMPLETE |- *.
+      intros v H0. specialize (COMPLETE v H0). specialize (Hvars v H0).
+      rewrite (cenv_sub_sizeof CSUB); auto. }
+    iIntros "!>"; iExists _, _; iSplit.
+    { apply list_norepet_append_inv in H17 as (? & ? & ?).
+      iPureIntro; constructor; constructor; done. }
+    iFrame.
+    iApply ("guard" with "[-]"); last by iIntros "!> !>"; iPureIntro.
+    iSplit.
+    + iPureIntro.
+      split; last done.
+      eapply semax_call_typecheck_environ; eauto.
+      * rewrite -Genv.find_funct_find_funct_ptr //.
+      * destruct GuardEnv as ((? & ? & ?) & ?); done.
+      * rewrite snd_split -H18 //.
+    + rewrite -!assoc -bi.persistent_sep_dup !assoc; iSplit; last by rewrite -same_glob_funassert'.
+      iFrame.
+      apply list_norepet_app in H17 as [H17 [_ _]].
+      rewrite /bind_args; iSplit.
+      * iPureIntro.
+        rewrite /tc_formals -H18 //.
+        match goal with H: tc_vals _ ?A |- tc_vals _ ?B => replace B with A; auto end.
+        clear - H17 Hte. forget (create_undef_temps (fn_temps f)) as te0.
+        revert args te0 te Hte H17.
+        induction (fn_params f); destruct args; intros; auto; try discriminate.
+        { destruct a; inv Hte. }
+        destruct a; simpl in Hte. inv H17.
+        rewrite (IHl _ _ _ Hte) //.
+        simpl; f_equal.
+        unfold eval_id, construct_rho; simpl.
+        erewrite pass_params_ni; try eassumption.
+        setoid_rewrite Maps.PTree.gss. reflexivity.
+      * iApply make_args_close_precondition; last done.
+        eapply tc_vals_Vundef; eauto.
+Qed.
+
 Lemma semax_call_aux {CS'}
   E (Delta : tycontext) (psi : genv) (ora : OK_ty) (b : Values.block) (id : ident) cc
   A0 P (x : A0) A deltaP deltaQ retty clientparams
@@ -1094,8 +1243,6 @@ Proof.
   iIntros "#Bel H #fun #HR rguard".
   iDestruct (believe_exists_fundef with "Bel") as %[ff [H16 H16']].
   rewrite <- Genv.find_funct_find_funct_ptr in H16.
-  iPoseProof ("Bel" with "[%]") as "Bel'".
-  { exists id; eauto. }
   rewrite /jsafeN jsafe_unfold /jsafe_pre.
   iIntros "!>" (?) "(Hm & ?)".
   iRight; iLeft.
@@ -1113,69 +1260,9 @@ Proof.
   iDestruct "H" as "(_ & F0 & P)".
   iFrame.
   rewrite closed_wrt_modvars_Scall in Closed.
-  iDestruct "Bel'" as "[BE | BI]".
-  - (* external call *)
-    rewrite EvalA; subst args; iApply (semax_call_external with "BE rguard fun F0 [-]").
-    iNext; by iApply "HR".
-  - (* internal call *)
-    iDestruct "BI" as (b' f (H3a & H3b & COMPLETE & H17 & H17' & Hvars & H18 & H18')) "BI".
-    rewrite H3a in EvalA; inv EvalA.
-    change (Genv.find_funct psi (Vptr b Ptrofs.zero) = Some (Internal f)) in H3b.
-    rewrite H16 in H3b; inv H3b.
-    iSpecialize ("BI" with "[%] [%]").
-    { intros; apply tycontext_sub_refl. }
-    { apply cenv_sub_refl. }
-    iNext.
-    iMod ("HR" with "P") as (??) "((? & ?) & #post)".
-    iSpecialize ("BI" $! x1); rewrite semax_fold_unfold.
-    iPoseProof ("BI" with "[%] [Bel] [rguard]") as "#guard".
-    { split3; eauto; [apply tycontext_sub_refl | apply cenv_sub_refl]. }
-    { done. }
-    { iIntros "!>"; rewrite bi.affinely_elim.
-      iApply (semax_call_aux2 _ _ _ _ _ _ _ _ _ (clientparams,retty) (Econst_int Int.zero tint) nil with "post rguard"); try done.
-      * rewrite closed_wrt_modvars_Scall //.
-      * destruct H18' as [-> _]; rewrite H18 //. }
-    iApply jsafe_step; rewrite /jstep_ex.
-    iIntros (?) "(Hm & ?)".
-    set (args := eval_exprlist _ _ _) in Hlen, TC8 |- *.
-    destruct (build_call_temp_env f args) as (te & Hte).
-    { rewrite /= in H18; rewrite H18 map_length // in Hlen. }
-    iMod (alloc_stackframe with "Hm") as (?? [??]) "(Hm & stack)".
-    { unfold var_sizes_ok in Hvars.
-      rewrite !Forall_forall in Hvars, COMPLETE |- *.
-      intros v H0. specialize (COMPLETE v H0). specialize (Hvars v H0).
-      rewrite (cenv_sub_sizeof CSUB); auto. }
-    iIntros "!>"; iExists _, _; iSplit.
-    { apply list_norepet_append_inv in H17 as (? & ? & ?).
-      iPureIntro; constructor; constructor; done. }
-    iFrame.
-    iApply ("guard" with "[-]"); last by iIntros "!> !>"; iPureIntro.
-    iSplit.
-    + iPureIntro.
-      split; last done.
-      eapply semax_call_typecheck_environ; eauto.
-      * rewrite -Genv.find_funct_find_funct_ptr //.
-      * destruct GuardEnv as ((? & ? & ?) & ?); done.
-      * rewrite snd_split -H18 //.
-    + rewrite -!assoc -bi.persistent_sep_dup !assoc; iSplit; last by rewrite -same_glob_funassert'.
-      iFrame.
-      apply list_norepet_app in H17 as [H17 [_ _]].
-      rewrite /bind_args; iSplit.
-      * iPureIntro.
-        rewrite /tc_formals -H18 //.
-        match goal with H: tc_vals _ ?A |- tc_vals _ ?B => replace B with A; auto end.
-        clear - H17 Hte. forget (create_undef_temps (fn_temps f)) as te0; clearbody args.
-        revert args te0 te Hte H17.
-        induction (fn_params f); destruct args; intros; auto; try discriminate.
-        { destruct a; inv Hte. }
-        destruct a; simpl in Hte. inv H17.
-        rewrite (IHl _ _ _ Hte) //.
-        simpl; f_equal.
-        unfold eval_id, construct_rho; simpl.
-        erewrite pass_params_ni; try eassumption.
-        setoid_rewrite Maps.PTree.gss. reflexivity.
-      * iApply make_args_close_precondition; last done.
-        eapply tc_vals_Vundef; eauto.
+  subst args; iApply (semax_call_aux0 with "Bel [F0 P] [fun] HR rguard"); [done | | | done].
+  - intros; apply assert_safe_for_external_call.
+  - iNext; iFrame.
 Qed.
 
 Lemma eval_exprlist_length : forall lt le rho, length lt = length le -> length (eval_exprlist lt le rho) = length le.
