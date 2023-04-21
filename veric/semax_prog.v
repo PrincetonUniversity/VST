@@ -1442,7 +1442,7 @@ Lemma semax_prog_rule {CS: compspecs} :
        (Genv.find_symbol (globalenv prog) (prog_main prog) = Some b) *
        (exists m', semantics.initial_core (cl_core_sem (globalenv prog)) h
                        m q m' (Vptr b Ptrofs.zero) nil) *
-       ⊢ |==> has_ext z ∗ (jsafeN Espec (globalenv prog) z q ∧
+       ⊢ |==> (* allocate wsatGS, heapGS, externalGS *) has_ext z ∗ (jsafeN Espec (globalenv prog) z q ∧
            no_locks ∧ matchfunspecs (globalenv prog) G) ∗ funassert (nofunc_tycontext V G) (empty_environ (globalenv prog))
      } }%type.
 Proof.

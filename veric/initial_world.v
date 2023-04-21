@@ -313,73 +313,6 @@ Lemma find_id_app2 {A} i x G2: forall G1, list_norepet (map fst (G1++G2)) ->
 Definition initial_core {F} (ge: Genv.t (fundef F) type) (G: funspecs) : mpred :=
   ∀ b id f, ⌜Genv.invert_symbol ge b = Some id ∧ find_id id G = Some f⌝ → func_at f (b, 0).
 
-(*Definition initial_core' {F} (ge: Genv.t (fundef F) type) (G: funspecs) (n: nat) (loc: address) : resource :=
-   if Z.eq_dec (snd loc) 0
-   then match Genv.invert_symbol ge (fst loc) with
-           | Some id =>
-                  match find_id id G with
-                  | Some (mk_funspec fsig cc A P Q _ _) =>
-                           PURE (FUN fsig cc) (SomeP (SpecArgsTT A) (fun ts => fmap _ (approx n) (approx n) (packPQ P Q ts)))
-                  | None => NO Share.bot bot_unreadable
-                  end
-           | None => NO Share.bot bot_unreadable
-          end
-   else NO Share.bot bot_unreadable.
-
-(* This version starts with an empty ghost. *)
-Program Definition initial_core {F} (ge: Genv.t (fundef F) type) (G: funspecs) (n: nat): rmap :=
-  proj1_sig (make_rmap (initial_core' ge G n) nil n _ eq_refl).
-Next Obligation.
-intros.
-extensionality loc; unfold compose, initial_core'.
-if_tac; [ | simpl; auto].
-destruct (Genv.invert_symbol ge (fst loc)); [ | simpl; auto].
-destruct (find_id i G); [ | simpl; auto].
-destruct f.
-unfold resource_fmap.
-f_equal.
-simpl.
-f_equal.
-change R.approx with approx.
-extensionality i0 ts b rho.
-rewrite fmap_app.
-pattern (approx n) at 7 8 9.
-rewrite <- approx_oo_approx.
-auto.
-Qed.
-
-(* We can also start with knowledge of the external state.
-   Requirements for this PCM:
-   1. It must not allow the holding thread to change the value.
-   2. It must allow the holding thread to know the value.
-   3. The holding thread must be able to synchronize with the outside world
-      to change the value.
-   For this purpose, we use the reference PCM. *)
-
-Require Import VST.veric.ghost_PCM.
-Import Ctypes.
-
-Program Definition initial_core_ext {F Z} (ora : Z) (ge: Genv.t (fundef F) type) (G: funspecs) (n: nat): rmap :=
-  proj1_sig (make_rmap (initial_core' ge G n) (Some (ext_ghost ora, NoneP) :: nil) n _ eq_refl).
-Next Obligation.
-intros.
-extensionality loc; unfold compose, initial_core'.
-if_tac; [ | simpl; auto].
-destruct (Genv.invert_symbol ge (fst loc)); [ | simpl; auto].
-destruct (find_id i G); [ | simpl; auto].
-destruct f.
-unfold resource_fmap.
-f_equal.
-simpl.
-f_equal.
-change R.approx with approx.
-extensionality i0 ts b rho.
-rewrite fmap_app.
-pattern (approx n) at 7 8 9.
-rewrite <- approx_oo_approx.
-auto.
-Qed.*)
-
 Lemma list_disjoint_rev2:
    forall A (l1 l2: list A), list_disjoint l1 (rev l2) = list_disjoint l1 l2.
 Proof.
@@ -994,8 +927,3 @@ Proof.
 Qed.
 
 End mpred.
-
-(* How to relate Gamma to funspecs in memory, once we are outside the
-   semax proofs?  We define 'matchfunspecs' which will be satisfied by
-   the initial memory, and preserved under resource_decay / pures_eq /
-   aging. *)

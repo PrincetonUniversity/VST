@@ -1,5 +1,6 @@
 Require Import VST.veric.juicy_base.
 Require Import VST.veric.juicy_mem.
+Require Import VST.veric.wsat.
 Require Import VST.veric.res_predicates.
 Require Import VST.veric.shares.
 Require Import VST.veric.Cop2.
@@ -24,7 +25,7 @@ Proof.
   destruct z; done.
 Qed.
 
-Definition inflate_loc m loc := 
+Definition inflate_loc loc := 
   match access_at m loc Cur with
   | Some Freeable => <absorb> loc ↦ VAL (contents_at m loc)
   | Some Writable => <absorb> loc ↦{#Ews} VAL (contents_at m loc)
@@ -32,90 +33,16 @@ Definition inflate_loc m loc :=
   | _ => True
   end.
 
-Definition inflate_initial_mem m : mpred :=
-  [∗ list] n ∈ seq 1 (Pos.to_nat (Mem.nextblock m) - 1), ∀ o, inflate_loc m (Pos.of_nat n, o).
+Definition inflate_initial_mem : mpred :=
+  [∗ list] n ∈ seq 1 (Pos.to_nat (Mem.nextblock m) - 1), ∀ o, inflate_loc (Pos.of_nat n, o).
 
-(* Do we actually need to allocate the specific initial memory, or just prove things for all
-   memories in an initial state? *)
-(*Lemma alloc_initial_mem : ⊢ |==> mem_auth m ∗ inflate_initial_mem m.
+Definition all_VALs := ∀ l dq r, l ↦{dq} r → ⌜∃ v, r = VAL v⌝.
+
+Lemma inflate_initial_mem_all_VALs: inflate_initial_mem ⊢ all_VALs.
 Proof.
-  iMod (ghost_map_alloc_empty (K:=L) (V:=V)) as (γh) "Hh".
-  iMod (ghost_map_alloc_empty (K:=L) (V:=gname)) as (γm) "Hm".
-  iExists γh, γm.
-  iAssert (gen_heap_interp (hG:=GenHeapGS _ _ _ γh γm) ∅) with "[Hh Hm]" as "Hinterp".
-  { iExists ∅; simpl. iFrame "Hh Hm". by rewrite dom_empty_L. }
-  iMod (gen_heap_alloc_big with "Hinterp") as "(Hinterp & $ & $)".
-  { apply map_disjoint_empty_r. }
-  rewrite right_id_L. done.*)
-
-
-(*
-
-Definition all_VALs (phi: rmap) :=
-  forall l, match phi @ l with
-              | YES _ _ k _ => isVAL k
-              | _ => True
-            end.
-
-Lemma inflate_initial_mem_all_VALs: forall lev, all_VALs (inflate_initial_mem lev).
-Proof.
-unfold inflate_initial_mem, inflate_initial_mem', all_VALs.
-intros; rewrite resource_at_make_rmap.
-destruct (access_at m l); try destruct p; auto.
- case (lev @ l); simpl; intros; auto.
-Qed.*)
-
-(*(* FIXME
-   Build an rmap that's identical to phi except where m has allocated. *)
-Definition inflate_alloc: rmap.
- refine (proj1_sig (remake_rmap (fun loc =>
-   fmap_option (res_option (phi @ loc))
-
-  (* phi = NO *)
-  (fmap_option (access_at m loc Cur)
-    (NO Share.bot bot_unreadable)
-    (fun p =>
-      match p with
-        | Freeable => YES Share.top readable_share_top (VAL (contents_at m loc)) NoneP
-        | _ => NO Share.Lsh Lsh_nonreadable
-      end))
-
-  (* phi = YES *)
-  (fun _ => phi @ loc)) (ghost_of phi) (level phi) _ (ghost_of_approx phi))).
-Proof.
-hnf; auto.
-intro.
-case_eq (phi @ l); simpl; intros; auto.
-case_eq (access_at m l Cur); simpl; intros; auto.
-right; destruct p; simpl; auto.
-left; exists phi; split; auto.
-right; destruct  (access_at m l Cur); simpl; auto.
-destruct p0; simpl; auto.
-Defined.
-
-(* Build an [rmap] that's identical to [phi] except where [m] has stored. *)
-Definition inflate_store: rmap. refine (
-proj1_sig (make_rmap (fun loc =>
-  match phi @ loc with
-    | YES sh rsh (VAL _) _ => YES sh rsh (VAL (contents_at m loc)) NoneP
-    | YES _ _ _ _ => resource_fmap (approx (level phi)) (approx (level phi)) (phi @ loc)
-    | _ => phi @ loc
-  end) (ghost_of phi) (level phi) _ (ghost_of_approx phi))).
-Proof.
-hnf; auto.
-
-unfold compose.
-extensionality l.
-destruct l as (b, ofs).
-remember (phi @ (b, ofs)) as HPHI.
-destruct HPHI; auto.
-(* YES *)
-destruct k; try solve
-  [ unfold resource_fmap; rewrite preds_fmap_NoneP; auto
-  | unfold resource_fmap; rewrite approx_map_idem; auto ].
-rewrite HeqHPHI.
-apply resource_at_approx.
-Defined.*)
+  rewrite /inflate_initial_mem /all_VALs.
+  iIntros "H" (???); iApply (bi.impl_intro_r with "H"); iIntros "H".
+Abort.
 
 End inflate.
 
@@ -140,40 +67,11 @@ destruct (max_access_at empty (b,z)); try destruct p; try apply NO_identity.
 Qed.
 Local Hint Resolve inflate_initial_mem_empty : core.*)
 
-(* fancy initial mem *)
-
 (* TODO: move this somewhere more appropriate *)
 Definition no_VALs (phi: rmap) := forall loc,
   match phi @ loc with
     | YES _ _ (VAL _) _ => False | _ => True
   end.
-
-(* coherence lemmas *)
-
-Lemma contents_cohere_join_sub: forall m phi phi',
-  contents_cohere m phi -> join_sub phi' phi -> contents_cohere m phi'.
-Proof.
-unfold contents_cohere.
-intros until phi'; intros H H0.
-intros.
-destruct H0 as [phi1 H0].
-generalize (resource_at_join phi' phi1 phi loc H0); intro H2.
-rewrite H1 in H2.
-inv H2;
-symmetry in H8;
-destruct (H _ _ _ _ _ H8); auto.
-Qed.
-
-Lemma alloc_cohere_join_sub: forall m phi phi',
-  alloc_cohere m phi -> join_sub phi' phi -> alloc_cohere m phi'.
-Proof.
-unfold alloc_cohere; intros.
-specialize (H _ H1).
-apply (resource_at_join_sub _ _ loc) in H0 as [? J].
-rewrite H in J; inv J.
-apply split_identity, identity_share_bot in RJ; auto; subst.
-f_equal; apply proof_irr.
-Qed.
 
 Lemma perm_of_sh_join_sub: forall (sh1 sh2: Share.t) p,
   perm_of_sh sh1 = Some p ->
@@ -1151,3 +1049,13 @@ apply ghost_of_approx.
 Defined.*)
 
 End mpred.
+
+Lemma alloc_initial_mem `{!wsatGpreS Σ} `{!gen_heapGpreS (@resource' Σ) Σ} m :
+  ⊢ |==> ∃ _ : heapGS Σ, wsat ∗ ownE ⊤ ∗ mem_auth m ∗ inflate_initial_mem m.
+Proof.
+  iIntros.
+  iMod wsat_alloc as (?) "?".
+  iMod (gen_heap_init m ?) as (?) "(Hm & H)".
+  iExists (HeapGS _ _); iFrame.
+
+Qed.

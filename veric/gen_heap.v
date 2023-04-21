@@ -416,3 +416,33 @@ Proof.
   done.
 Qed.
 *)
+
+Lemma gen_heap_init `{!@gen_heapGpreS V Σ ResOps} m σ (Hvalid : ✓ σ)
+  (Hcoh : ∀ loc : address, coherent_loc m loc (resource_at σ loc)) :
+  ⊢ |==> ∃ _ : gen_heapGS V Σ, resource_map_auth (gen_heap_name _) Tsh m ∗
+    ([∗ map] l ↦ x ∈ σ, match x with
+                       | shared.YES dq _ v => l ↦{dq} (proj1_sig (elem_of_agree v))
+                       | shared.NO sh _ => mapsto_no l sh
+                       end) ∗ ghost_map_auth (gen_meta_name _) Tsh ∅.
+Proof.
+  iMod (resource_map_alloc m σ) as (γh) "(? & ?)".
+  iMod (ghost_map_alloc_empty) as (γm) "?".
+  iExists (GenHeapGS _ _ γh γm); iFrame.
+  rewrite -{1}(big_opM_singletons σ) big_opM_view_frag.
+  iPoseProof (big_opM_own_1 with "[-]") as "?"; first done.
+  iApply big_sepM_mono; last done; intros ?? Hk.
+  specialize (Hvalid k); rewrite Hk in Hvalid.
+  destruct x.
+  - rewrite mapsto_unseal /mapsto_def resource_map.resource_map_elem_unseal /resource_map.resource_map_elem_def /juicy_view_frag.
+    iIntros "?"; iExists rsh.
+    rewrite own_proper //.
+    apply view_frag_proper, (singletonM_proper(M := gmap address)).
+    split; first done.
+    destruct Hvalid as [_ Hvalid].
+    destruct (elem_of_agree v); simpl.
+    intros n.
+    specialize (Hvalid n); rewrite agree_validN_def in Hvalid.
+    split=> b /=; setoid_rewrite elem_of_list_singleton; eauto.
+  - rewrite mapsto_no_unseal /mapsto_no_def resource_map.resource_map_elem_no_unseal /resource_map.resource_map_elem_no_def /juicy_view_frag.
+    iIntros "?"; iExists rsh; done.
+Qed.
