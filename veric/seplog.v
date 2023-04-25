@@ -387,7 +387,7 @@ Qed.
 
 Definition func_at (f: funspec) (l : address) : mpred :=
   match f with
-   | mk_funspec fsig cc A P Q => l ↦□ FUN fsig cc A P Q
+   | mk_funspec fsig cc A P Q => l ↦p FUN fsig cc A P Q
   end.
 
 Global Instance func_at_persistent f l : Persistent (func_at f l).
@@ -398,7 +398,7 @@ Proof. destruct f; apply _. Qed.
 
 Definition func_at' (f: funspec) (l: address) : mpred :=
   match f with
-   | mk_funspec fsig cc _ _ _ => ∃ A P Q, l ↦□ FUN fsig cc A P Q
+   | mk_funspec fsig cc _ _ _ => ∃ A P Q, l ↦p FUN fsig cc A P Q
   end.
 
 Global Instance func_at'_persistent f l : Persistent (func_at' f l).
@@ -408,7 +408,7 @@ Global Instance func_at'_affine f l : Affine (func_at' f l).
 Proof. destruct f; apply _. Qed.
 
 Definition sigcc_at (fsig: typesig) (cc:calling_convention) (l: address) : mpred :=
-  ∃ A P Q, l ↦□ FUN fsig cc A P Q.
+  ∃ A P Q, l ↦p FUN fsig cc A P Q.
 
 Definition func_ptr_si E (f: funspec) (v: val): mpred :=
   ∃ b, ⌜v = Vptr b Ptrofs.zero⌝ ∧ (∃ gs: funspec, funspec_sub_si E gs f ∧ func_at gs (b, 0)).

@@ -129,6 +129,12 @@ Section definitions.
   Definition mapsto_no := mapsto_no_aux.(unseal).
   Local Definition mapsto_no_unseal : @mapsto_no = @mapsto_no_def := mapsto_no_aux.(seal_eq).
 
+  Local Definition mapsto_pure_def (l : address) v : iProp Σ :=
+    resource_map_elem_pure (gen_heap_name hG) l v.
+  Local Definition mapsto_pure_aux : seal (@mapsto_pure_def). Proof. by eexists. Qed.
+  Definition mapsto_pure := mapsto_pure_aux.(unseal).
+  Local Definition mapsto_pure_unseal : @mapsto_pure = @mapsto_pure_def := mapsto_pure_aux.(seal_eq).
+
   Local Definition meta_token_def (l : address) (E : coPset) : iProp Σ :=
     ∃ γm, ghost_map_elem (gen_meta_name hG) l DfracDiscarded γm ∗ own(A := reservation_mapR) γm (reservation_map_token E).
   Local Definition meta_token_aux : seal (@meta_token_def). Proof. by eexists. Qed.
@@ -149,6 +155,8 @@ Global Arguments meta {V _ Σ _ A _ _} l N x.
 
 Local Notation "l ↦ dq v" := (mapsto l dq v)
   (at level 20, dq custom dfrac at level 1, format "l  ↦ dq  v") : bi_scope.
+Local Notation "l ↦p v" := (mapsto_pure l v)
+  (at level 20, format "l  ↦p  v") : bi_scope.
 
 Section gen_heap.
   Context {V} `{resource_ops (leibnizO V), !gen_heapGS V Σ}.
@@ -171,6 +179,10 @@ Section gen_heap.
   Proof. rewrite mapsto_unseal. apply _. Qed.
   Global Instance mapsto_affine l v : Affine (l ↦□ v).
   Proof. rewrite mapsto_unseal. apply _. Qed.
+  Global Instance mapsto_pure_persistent l v : Persistent (l ↦p v).
+  Proof. rewrite mapsto_pure_unseal. apply _. Qed.
+  Global Instance mapsto_pure_affine l v : Affine (l ↦p v).
+  Proof. rewrite mapsto_pure_unseal. apply _. Qed.
 
   Lemma mapsto_valid l dq v : l ↦{dq} v -∗ ⌜✓ dq ∧ readable_dfrac dq⌝%Qp.
   Proof. rewrite mapsto_unseal. apply resource_map_elem_valid. Qed.
@@ -362,6 +374,9 @@ Section gen_heap.
   Lemma mapsto_no_lookup m l sh : resource_map_auth (gen_heap_name _) Tsh m -∗ mapsto_no l sh -∗ ⌜✓ sh ∧ ~readable_share sh ∧ coherent_loc m l (Some (DfracOwn sh, None))⌝.
   Proof. rewrite mapsto_no_unseal. apply resource_map_no_lookup. Qed.
 
+  Lemma mapsto_pure_lookup m l v : resource_map_auth (gen_heap_name _) Tsh m -∗ mapsto_pure l v -∗ ⌜coherent_loc m l (Some (DfracOwn Share.Lsh, Some v))⌝.
+  Proof. rewrite mapsto_pure_unseal. apply resource_map_pure_lookup. Qed.
+
   Lemma mapsto_lookup_big m l dq (m0 : list V) :
     resource_map_auth (gen_heap_name _) Tsh m -∗
     ([∗ list] i↦v ∈ m0, adr_add l i ↦{dq} v) -∗
@@ -423,8 +438,10 @@ Lemma gen_heap_init_names `{!@gen_heapGpreS V Σ ResOps} m σ (Hvalid : ✓ σ)
     let hG := GenHeapGS V Σ γh γm in
     resource_map_auth (gen_heap_name _) Tsh m ∗
     ([∗ map] l ↦ x ∈ σ, match x with
-                       | shared.YES dq _ v => l ↦{dq} (proj1_sig (elem_of_agree v))
-                       | shared.NO sh _ => mapsto_no l sh
+                       | Cinl (shared.YES dq _ v) => l ↦{dq} (proj1_sig (elem_of_agree v))
+                       | Cinl (shared.NO sh _) => mapsto_no l sh
+                       | Cinr v => l ↦p (proj1_sig (elem_of_agree v))
+                       | CsumBot => False
                        end) ∗ ghost_map_auth (gen_meta_name _) Tsh ∅.
 Proof.
   iMod (resource_map_alloc m σ) as (γh) "(? & ?)".
@@ -434,28 +451,37 @@ Proof.
   iPoseProof (big_opM_own_1 with "[-]") as "?"; first done.
   iApply big_sepM_mono; last done; intros ?? Hk.
   specialize (Hvalid k); rewrite Hk in Hvalid.
-  destruct x.
+  destruct x as [[|] | |]; last done.
   - rewrite mapsto_unseal /mapsto_def resource_map.resource_map_elem_unseal /resource_map.resource_map_elem_def /juicy_view_frag.
     iIntros "?"; iExists rsh.
     rewrite own_proper //.
-    apply view_frag_proper, (singletonM_proper(M := gmap address)).
+    apply view_frag_proper, (singletonM_proper(M := gmap address)); f_equiv.
     split; first done.
     destruct Hvalid as [_ Hvalid].
     destruct (elem_of_agree v); simpl.
     intros n.
     specialize (Hvalid n); rewrite agree_validN_def in Hvalid.
     split=> b /=; setoid_rewrite elem_of_list_singleton; eauto.
-  - rewrite mapsto_no_unseal /mapsto_no_def resource_map.resource_map_elem_no_unseal /resource_map.resource_map_elem_no_def /juicy_view_frag.
+  - rewrite mapsto_no_unseal /mapsto_no_def resource_map.resource_map_elem_no_unseal /resource_map.resource_map_elem_no_def.
     iIntros "?"; iExists rsh; done.
+  - rewrite mapsto_pure_unseal /mapsto_pure_def resource_map.resource_map_elem_pure_unseal /resource_map.resource_map_elem_pure_def /juicy_view_frag_pure.
+    rewrite own_proper //.
+    apply view_frag_proper, (singletonM_proper(M := gmap address)); f_equiv.
+    destruct (elem_of_agree a); simpl.
+    intros n.
+    specialize (Hvalid n); rewrite agree_validN_def in Hvalid.
+    split=> b /=; setoid_rewrite elem_of_list_singleton; eauto.
 Qed.
 
 Lemma gen_heap_init `{!@gen_heapGpreS V Σ ResOps} m σ (Hvalid : ✓ σ)
   (Hcoh : ∀ loc : address, coherent_loc m loc (resource_at σ loc)) :
   ⊢ |==> ∃ _ : gen_heapGS V Σ, resource_map_auth (gen_heap_name _) Tsh m ∗
     ([∗ map] l ↦ x ∈ σ, match x with
-                       | shared.YES dq _ v => l ↦{dq} (proj1_sig (elem_of_agree v))
-                       | shared.NO sh _ => mapsto_no l sh
-                       end) ∗ ghost_map_auth (gen_meta_name _) Tsh ∅.
+                        | Cinl (shared.YES dq _ v) => l ↦{dq} (proj1_sig (elem_of_agree v))
+                        | Cinl (shared.NO sh _) => mapsto_no l sh
+                        | Cinr v => l ↦p (proj1_sig (elem_of_agree v))
+                        | CsumBot => False
+                        end) ∗ ghost_map_auth (gen_meta_name _) Tsh ∅.
 Proof.
   iMod (gen_heap_init_names m σ) as (γh γm) "Hinit".
   iExists (GenHeapGS _ _ γh γm).

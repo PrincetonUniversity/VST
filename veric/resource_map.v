@@ -51,18 +51,32 @@ Section definitions.
   Definition resource_map_elem_no := resource_map_elem_no_aux.(unseal).
   Local Definition resource_map_elem_no_unseal :
     @resource_map_elem_no = @resource_map_elem_no_def := resource_map_elem_no_aux.(seal_eq).
+
+  Local Definition resource_map_elem_pure_def
+      (γ : gname) k v : iProp Σ :=
+    own γ (juicy_view_frag_pure (V:=leibnizO V) k v).
+  Local Definition resource_map_elem_pure_aux : seal (@resource_map_elem_pure_def).
+  Proof. by eexists. Qed.
+  Definition resource_map_elem_pure := resource_map_elem_pure_aux.(unseal).
+  Local Definition resource_map_elem_pure_unseal :
+    @resource_map_elem_pure = @resource_map_elem_pure_def := resource_map_elem_pure_aux.(seal_eq).
 End definitions.
 
 Notation "k ↪[ γ ] dq v" := (resource_map_elem γ k dq v)
   (at level 20, γ at level 50, dq custom dfrac at level 1,
    format "k  ↪[ γ ] dq  v") : bi_scope.
 
+Notation "k ↪[ γ ]p v" := (resource_map_elem_pure γ k v)
+  (at level 20, γ at level 50,
+   format "k  ↪[ γ ]p  v") : bi_scope.
+
 (* no notation for no right now *)
 
 Local Ltac unseal := rewrite
   ?resource_map_auth_unseal /resource_map_auth_def
   ?resource_map_elem_unseal /resource_map_elem_def
-  ?resource_map_elem_no_unseal /resource_map_elem_no_def.
+  ?resource_map_elem_no_unseal /resource_map_elem_no_def
+  ?resource_map_elem_pure_unseal /resource_map_elem_pure_def.
 
 Section lemmas.
   Context `{resource_mapG Σ V}.
@@ -79,6 +93,10 @@ Section lemmas.
     AsFractional (k ↪[γ]{#q} v) (λ q, k ↪[γ]{#q} v)%I q.
   Proof. split; first done. apply _. Qed.*)
   Global Instance resource_map_elem_affine k γ v : Affine (k ↪[γ]□ v).
+  Proof. unseal. apply _. Qed.
+  Global Instance resource_map_elem_pure_persistent k γ v : Persistent (k ↪[γ]p v).
+  Proof. unseal. apply _. Qed.
+  Global Instance resource_map_elem_pure_affine k γ v : Affine (k ↪[γ]p v).
   Proof. unseal. apply _. Qed.
 
   Local Lemma resource_map_elems_unseal γ k m dq (rsh : readable_dfrac dq) :
@@ -319,6 +337,14 @@ Section lemmas.
   Proof.
     unseal. iIntros "Hauth [% Hel]".
     iDestruct (own_valid_2 with "Hauth Hel") as %[?[??]]%juicy_view_both_no_dfrac_valid.
+    eauto.
+  Qed.
+
+  Lemma resource_map_pure_lookup {γ q m k v} :
+    resource_map_auth γ q m -∗ k ↪[γ]p v -∗ ⌜coherent_loc m k (Some (DfracOwn Share.Lsh, Some v))⌝.
+  Proof.
+    unseal. iIntros "Hauth Hel".
+    iDestruct (own_valid_2 with "Hauth Hel") as %[??]%juicy_view_both_pure_dfrac_valid.
     eauto.
   Qed.
 

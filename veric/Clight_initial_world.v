@@ -96,14 +96,17 @@ End mpred.
 
 Require Import VST.veric.wsat.
 
+Print funspecs.
 (* Should we compute the block bounds from Genv.init_mem, or leave them arbitrary? *)
-Lemma alloc_initial_state  `{!inG Σ (excl_authR (leibnizO Z))} `{!wsatGpreS Σ} `{!gen_heapGpreS resource' Σ} :
-  forall (prog: program) G z m block_bounds,
+Lemma alloc_initial_state  `{!inG Σ (excl_authR (leibnizO Z))} `{!wsatGpreS Σ} `{!gen_heapGpreS (@resource' Σ) Σ} :
+  forall (prog: program) z m block_bounds,
       list_norepet (prog_defs_names prog) ->
-      match_fdecs (prog_funct prog) G -> (* this is weird: we need a heapGS to have the funspecs,
-        but we can't have a heap if we haven't allocated the memory yet. *)
+(*      match_fdecs (prog_funct prog) G -> this is weird: we need a heapGS to have the funspecs,
+        but we can't have a heap if we haven't allocated the memory yet. Should funspec pre/post
+        be of type heapGS -> ... instead? *)
       Genv.init_mem prog = Some m ->
   ⊢ |==> ∃ _ : externalGS Z Σ, ∃ H : heapGS Σ,
+    ∀ G, ⌜match_fdecs (prog_funct prog) G⌝ →
     ext_auth z ∗ has_ext z ∗ wsat ∗ ownE ⊤ ∗ mem_auth m ∗ inflate_initial_mem m block_bounds ∗ initial_world.initial_core(heapGS0 := H) (globalenv prog) G.
 Proof.
   ext_alloc
