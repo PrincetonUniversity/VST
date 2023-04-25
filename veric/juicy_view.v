@@ -127,6 +127,12 @@ Section rel.
     rewrite H0 in H; eapply agree_validN_def; done.
   Qed.
 
+  Lemma elem_of_agree_equiv : forall {A} n (x y : agreeR A), ✓ x -> x ≡ y -> proj1_sig (elem_of_agree x) ≡ proj1_sig (elem_of_agree y).
+  Proof.
+    intros; apply equiv_dist; intros.
+    apply elem_of_agree_ne; auto.
+  Qed.
+
   Definition resR_to_resource (s : option (shared V)) : option (dfrac * option V) :=
     option_map (fun s : shared V => (dfrac_of s, option_map (fun v : agree V => proj1_sig (elem_of_agree v)) (val_of s))) s.
 

@@ -310,8 +310,9 @@ Lemma find_id_app2 {A} i x G2: forall G1, list_norepet (map fst (G1++G2)) ->
     rewrite map_app. apply in_or_app; right. apply H0.
   Qed.
 
+(* Should this be a sep over the list of defined functions? *)
 Definition initial_core {F} (ge: Genv.t (fundef F) type) (G: funspecs) : mpred :=
-  ∀ b id f, ⌜Genv.invert_symbol ge b = Some id ∧ find_id id G = Some f⌝ → func_at f (b, 0).
+  □ ∀ b f, ⌜∃ id, Genv.invert_symbol ge b = Some id ∧ find_id id G = Some f⌝ ↔ func_at f (b, 0).
 
 Lemma list_disjoint_rev2:
    forall A (l1 l2: list A), list_disjoint l1 (rev l2) = list_disjoint l1 l2.
@@ -914,7 +915,9 @@ Fixpoint prog_vars' {F V} (l: list (ident * globdef F V)) : list (ident * globva
 
 Definition prog_vars {F} (p: program F) := prog_vars' (prog_defs p).
 
+(* What do we actually need this for?
 Definition no_locks : mpred := ∀ addr dq z z' R, ¬ addr ↦{dq} (LK z z' R).
+*)
 
 Lemma make_tycontext_s_find_id i G : (make_tycontext_s G) !! i = find_id i G.
 Proof.

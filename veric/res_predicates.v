@@ -217,7 +217,8 @@ Proof.
   inv H; done.
 Qed.
 
-(* collect up all the ghost state required for the logic *)
+(* collect up all the ghost state required for the logic
+   Should this include external state as well? *)
 Class heapGS := HeapGS {
   heapGS_wsatGS :> wsatGS Σ;
   heapGS_gen_heapGS :> gen_heapGS resource' Σ
