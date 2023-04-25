@@ -1206,5 +1206,5 @@ Definition mpred `{heapGS Σ} := iProp Σ.
 
 Global Notation "l ↦ dq v" := (mapsto l dq v)
   (at level 20, dq custom dfrac at level 1, format "l  ↦ dq  v") : bi_scope.
-
-(*Global Infix "@" := resource_at (at level 50, no associativity).*)
+Global Notation "l ↦p v" := (mapsto_pure l v)
+  (at level 20, format "l  ↦p  v") : bi_scope.

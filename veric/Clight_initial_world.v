@@ -97,7 +97,11 @@ End mpred.
 Require Import VST.veric.wsat.
 
 Print funspecs.
+Search gvar_volatile.
 (* Should we compute the block bounds from Genv.init_mem, or leave them arbitrary? *)
+(* Would it make more sense to build our initial predicate along the lines of Genv.init_mem, instead of
+   allocating funspecs and data separately? *)
+(* We can use the G to determine where to put funspecs. *)
 Lemma alloc_initial_state  `{!inG Σ (excl_authR (leibnizO Z))} `{!wsatGpreS Σ} `{!gen_heapGpreS (@resource' Σ) Σ} :
   forall (prog: program) z m block_bounds,
       list_norepet (prog_defs_names prog) ->
@@ -109,5 +113,9 @@ Lemma alloc_initial_state  `{!inG Σ (excl_authR (leibnizO Z))} `{!wsatGpreS Σ}
     ∀ G, ⌜match_fdecs (prog_funct prog) G⌝ →
     ext_auth z ∗ has_ext z ∗ wsat ∗ ownE ⊤ ∗ mem_auth m ∗ inflate_initial_mem m block_bounds ∗ initial_world.initial_core(heapGS0 := H) (globalenv prog) G.
 Proof.
-  ext_alloc
-  alloc_initial_mem
+  intros; iIntros.
+  iMod (ext_alloc z) as (?) "(? & ?)".
+  iMod (alloc_initial_mem m block_bounds) as (?) "(? & ? & ? & ? & ?)".
+  iExists _, _.
+  iFrame.
+  iIntros (?).
