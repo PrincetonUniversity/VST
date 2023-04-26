@@ -44,7 +44,7 @@ Definition type_is_by_reference t : bool :=
 
 Section FUNSPEC.
 
-Context `{!heapGS Σ}.
+Context {Σ : gFunctors}.
 
 (*Definition AssertTT (A: TypeTree): TypeTree :=
   ArrowType A (ArrowType (ConstType environ) Mpred).
@@ -109,7 +109,7 @@ Inductive funspec :=
 (* Do we need -n> here?. *)
 Inductive funspec :=
    mk_funspec: typesig -> calling_convention -> forall (A: Type)
-     (P: A -> argsEnviron -> mpred) (Q: A -> environ -> mpred),
+     (P: A -> argsEnviron -> iProp Σ) (Q: A -> environ -> iProp Σ),
      funspec.
 
 (*Inductive funspec :=
@@ -122,6 +122,8 @@ Inductive funspec :=
 Definition varspecs : Type := list (ident * type).
 
 Definition funspecs := list (ident * funspec).
+
+Context `{!heapGS Σ}.
 
 (* assertions (environ -> mpred as pred) *)
 Global Instance environ_inhabited : Inhabited environ := {| inhabitant := any_environ |}.

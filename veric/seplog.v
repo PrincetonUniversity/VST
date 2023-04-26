@@ -689,8 +689,8 @@ Definition callingconvention_of_funspec (phi:funspec):calling_convention :=
 (* --------------------------------- Binary case: 2 specs only ----------  *)
 (*Called ndfs_merge  in hmacdrbg_spec_hmacdrbg.v*)
 
-Definition funspec_intersection_ND fA cA A PA QA FSA (HFSA: FSA = mk_funspec fA cA A PA QA) 
-                    fB cB B PB QB FSB (HFSB: FSB = mk_funspec fB cB B PB QB): option funspec.
+Definition funspec_intersection_ND fA cA A PA QA FSA (HFSA: FSA = @mk_funspec Σ fA cA A PA QA) 
+                    fB cB B PB QB FSB (HFSB: FSB = @mk_funspec Σ fB cB B PB QB): option funspec.
 destruct (eq_dec fA fB); subst.
 + destruct (eq_dec cA cB); subst.
   - apply Some. eapply (mk_funspec fB cB (A+B) 

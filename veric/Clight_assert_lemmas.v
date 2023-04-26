@@ -16,7 +16,7 @@ Definition allp_fun_id E (Delta : tycontext) (rho : environ): mpred :=
   ⌜(glob_specs Delta) !! id = Some fs⌝ →
   (∃ b : block, ⌜Map.get (ge_of rho) id = Some b⌝ ∧ func_ptr_si E fs (Vptr b Ptrofs.zero)).
 
-Global Instance funspec_inhabited : Inhabited funspec.
+Global Instance funspec_inhabited : Inhabited (@funspec Σ).
 Proof. constructor. exact (mk_funspec ([], Tvoid) cc_default unit (fun _ _ => True) (fun _ _ => True)). Qed.
 
 Definition allp_fun_id_sigcc (Delta : tycontext) (rho : environ): mpred :=

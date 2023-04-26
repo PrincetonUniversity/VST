@@ -313,7 +313,7 @@ Lemma find_id_app2 {A} i x G2: forall G1, list_norepet (map fst (G1++G2)) ->
 Section inflate.
 (* build an initial resource map from a CompCert memory, including funspecs *)
 Variable (m: mem) (block_bounds: block -> (Z * nat)).
-Context {F} (ge: Genv.t (fundef F) type) (G: funspecs).
+Context {F} (ge: Genv.t (fundef F) type) (G: @funspecs Σ).
 
 Definition funspec_of_loc loc := if eq_dec loc.2 0 then
   match Genv.invert_symbol ge loc.1 with
@@ -374,15 +374,19 @@ Abort.
 Definition initial_core : mpred :=
   [∗ list] '(id, f) ∈ G, match Genv.find_symbol ge id with Some b => func_at f (b, 0) | None => emp end.
 
-Lemma initial_mem_initial_core : inflate_initial_mem ⊢ initial_core.
+Global Instance initial_core_persistent : Persistent initial_core.
 Proof.
-  rewrite /inflate_initial_mem /initial_core.
-  iIntros "H".
-  
+  apply big_sepL_persistent; intros ? (?, ?).
+  destruct (Genv.find_symbol _ _); apply _.
+Qed.
+
+Global Instance initial_core_affine : Affine initial_core.
+Proof.
+  apply big_sepL_affine; intros ? (?, ?).
+  destruct (Genv.find_symbol _ _); apply _.
 Qed.
 
 End inflate.
-
 
 Lemma list_disjoint_rev2:
    forall A (l1 l2: list A), list_disjoint l1 (rev l2) = list_disjoint l1 l2.
@@ -989,7 +993,7 @@ Definition prog_vars {F} (p: program F) := prog_vars' (prog_defs p).
 Definition no_locks : mpred := ∀ addr dq z z' R, ¬ addr ↦{dq} (LK z z' R).
 *)
 
-Lemma make_tycontext_s_find_id i G : (make_tycontext_s G) !! i = find_id i G.
+Lemma make_tycontext_s_find_id i G : (make_tycontext_s(Σ := Σ) G) !! i = find_id i G.
 Proof.
   induction G as [| (j, fs) f IHf]. destruct i; reflexivity.
   simpl.
@@ -1025,8 +1029,8 @@ Proof.
   apply contents_default.
 Qed.
 
-Lemma rmap_of_drop_last_block : forall {Σ} m loc, @rmap_of_loc Σ (drop_last_block m) loc =
-  if eq_dec loc.1 (nextblock m - 1)%positive then ∅ else rmap_of_loc m loc.
+Lemma rmap_of_drop_last_block : forall {Σ} m {F} ge G loc, @rmap_of_loc Σ (drop_last_block m) F ge G loc =
+  if eq_dec loc.1 (nextblock m - 1)%positive then ∅ else rmap_of_loc m ge G loc.
 Proof.
   intros; rewrite /rmap_of_loc /drop_last_block /access_at /contents_at /=.
   destruct (eq_dec loc.1 (nextblock m - 1)%positive).
@@ -1034,17 +1038,17 @@ Proof.
   - rewrite Maps.PMap.gso //.
 Qed.
 
-Lemma rmap_of_loc_ne : forall {Σ} m loc loc', loc' ≠ loc -> @rmap_of_loc Σ m loc !! loc' = None.
+Lemma rmap_of_loc_ne : forall {Σ} m {F} ge G loc loc', loc' ≠ loc -> @rmap_of_loc Σ m F ge G loc !! loc' = None.
 Proof.
   intros; rewrite /rmap_of_loc.
   destruct (access_at _ _ _); last done.
-  destruct p; try done; rewrite lookup_singleton_ne //.
+  destruct p; try done; try destruct (funspec_of_loc _ _ _) as [[]|]; try done; rewrite lookup_singleton_ne //.
 Qed.
 
 (* similar to lookup_singleton_list *)
-Lemma lookup_of_loc : forall {Σ} m b lo z loc,
-  (([^op list] o ∈ seq 0 z, @rmap_of_loc Σ m (b, (lo + Z.of_nat o)%Z)) !! loc ≡
-  if adr_range_dec (b, lo) z loc then rmap_of_loc m loc !! loc else None)%stdpp.
+Lemma lookup_of_loc : forall {Σ} m {F} ge G b lo z loc,
+  (([^op list] o ∈ seq 0 z, @rmap_of_loc Σ m F ge G (b, (lo + Z.of_nat o)%Z)) !! loc ≡
+  if adr_range_dec (b, lo) z loc then rmap_of_loc m ge G loc !! loc else None)%stdpp.
 Proof.
   induction z; intros.
   { rewrite /= lookup_empty if_false //.
@@ -1055,7 +1059,7 @@ Proof.
   - subst.
     rewrite if_false; last by intros [??]; lia.
     rewrite left_id if_true //; lia.
-  - rewrite (rmap_of_loc_ne _ (_, _)) // right_id.
+  - rewrite (rmap_of_loc_ne _ _ _ (_, _)) // right_id.
     destruct loc as (?, o); if_tac; if_tac; try done.
     + contradiction H0; destruct H; simpl; lia.
     + contradiction H; destruct H0; subst; simpl.
@@ -1063,8 +1067,23 @@ Proof.
       lia.
 Qed.
 
-Lemma lookup_of_mem : forall {Σ} m block_bounds loc, (@rmap_of_mem Σ m block_bounds !! loc ≡ let '(lo, z) := block_bounds (fst loc) in
-  if zle lo (snd loc) && zlt (snd loc) (lo + Z.of_nat z) then rmap_of_loc m loc !! loc else None)%stdpp.
+Lemma rmap_of_drop_last : forall {Σ} m block_bounds {F} (ge : Genv.t (fundef F) type) G n, (n < Pos.to_nat (nextblock m) - 1)%nat ->
+  ([^op list] n0 ∈ seq 1 n, let '(lo, z) := block_bounds (Pos.of_nat n0) in
+   [^op list] o ∈ seq 0 z, rmap_of_loc(Σ := Σ) m ge G (Pos.of_nat n0, lo + Z.of_nat o)) =
+  ([^op list] n0 ∈ seq 1 n, let '(lo, z) := block_bounds (Pos.of_nat n0) in
+   [^op list] o ∈ seq 0 z, rmap_of_loc (drop_last_block m) ge G (Pos.of_nat n0, lo + Z.of_nat o)).
+Proof.
+  intros.
+  apply big_opL_ext; intros ??[-> ?]%lookup_seq.
+  destruct (block_bounds (Pos.of_nat _)).
+  apply big_opL_ext; intros.
+  rewrite rmap_of_drop_last_block.
+  if_tac; try done.
+  simpl in *; lia.
+Qed.
+
+Lemma lookup_of_mem : forall {Σ} m {F} ge G block_bounds loc, (@rmap_of_mem Σ m block_bounds F ge G !! loc ≡ let '(lo, z) := block_bounds (fst loc) in
+  if zle lo (snd loc) && zlt (snd loc) (lo + Z.of_nat z) then rmap_of_loc m ge G loc !! loc else None)%stdpp.
 Proof.
   intros; rewrite /rmap_of_mem.
   remember (Pos.to_nat (nextblock m) - 1)%nat as n.
@@ -1075,10 +1094,9 @@ Proof.
     rewrite /Plt; lia. }
   rewrite seq_S lookup_proper; last apply big_opL_app.
   rewrite /= !lookup_op lookup_empty op_None_right_id.
-  specialize (IHn (drop_last_block m)).
-  rewrite /= rmap_of_drop_last_block in IHn.
-  match goal with H : _ → (?x ≡ _)%stdpp |- ((?y ⋅ _) ≡ _)%stdpp => replace y with x end.
-  rewrite IHn; last lia.
+  rewrite rmap_of_drop_last; last lia.
+  rewrite IHn; last by simpl; lia.
+  rewrite /= rmap_of_drop_last_block.
   rewrite Heqn Nat2Pos.inj_sub // Pos2Nat.id /= /Pos.of_nat.
   destruct (eq_dec loc.1 (nextblock m - 1)%positive).
   - rewrite lookup_empty -e.
@@ -1095,19 +1113,23 @@ Proof.
   - destruct (block_bounds (nextblock m - 1)%positive).
     rewrite lookup_of_loc if_false; last by destruct loc; intros [??].
     rewrite right_id //.
-  - f_equal; apply big_opL_ext; intros ??[-> ?]%lookup_seq.
-    destruct (block_bounds (Pos.of_nat _)).
-    apply big_opL_ext; intros.
-    rewrite rmap_of_drop_last_block.
-    if_tac; try done.
-    simpl in *; lia.
 Qed.
 
-Lemma rmap_of_loc_coherent : forall {Σ} m loc, coherent_loc m loc (resR_to_resource (leibnizO (@resource' Σ)) (rmap_of_loc m loc !! loc)).
+Lemma perm_of_Lsh : perm_of_sh Share.Lsh = Some Nonempty.
+Proof.
+  rewrite /perm_of_sh.
+  pose proof Lsh_nonreadable.
+  rewrite if_false; last auto.
+  rewrite if_false // if_false //.
+  apply Lsh_bot_neq.
+Qed.
+
+Lemma rmap_of_loc_coherent : forall {Σ} m F (ge : Genv.t (fundef F) type) G loc, coherent_loc m loc (resR_to_resource (leibnizO (@resource' Σ)) (rmap_of_loc m ge G loc !! loc)).
 Proof.
   intros; rewrite /rmap_of_loc.
   destruct (access_at m loc Cur) eqn: Hloc; last by rewrite lookup_empty; apply coherent_None.
-  destruct p; try (rewrite lookup_empty; apply coherent_None); rewrite lookup_singleton /= elem_of_to_agree.
+  destruct p; try (rewrite lookup_empty; apply coherent_None); try (destruct (funspec_of_loc _ _ _) as [[]|]; last apply coherent_None);
+    rewrite lookup_singleton /= elem_of_to_agree.
   - split3; last split.
     + unfold contents_cohere; simpl.
       by inversion 1.
@@ -1140,10 +1162,20 @@ Proof.
       unfold access_at in Hloc; rewrite Hloc /= perm_of_Ers.
       constructor.
     + intros ?; rewrite /access_at nextblock_noaccess // in Hloc.
+  - split3; last split.
+    + done.
+    + rewrite /access_cohere Hloc /=.
+      rewrite if_false; first constructor.
+      apply Lsh_bot_neq.
+    + rewrite /max_access_cohere /max_access_at.
+      eapply perm_order''_trans; first apply access_max.
+      unfold access_at in Hloc; rewrite Hloc /= perm_of_Lsh.
+      constructor.
+    + intros ?; rewrite /access_at nextblock_noaccess // in Hloc.
 Qed.
 
-Lemma rmap_of_mem_coherent : forall {Σ} m block_bounds loc, (✓ @rmap_of_mem Σ m block_bounds)%stdpp ->
-  coherent_loc m loc (resource_at (@rmap_of_mem Σ m block_bounds) loc).
+Lemma rmap_of_mem_coherent : forall {Σ} m block_bounds {F} ge G loc, (✓ @rmap_of_mem Σ m block_bounds F ge G)%stdpp ->
+  coherent_loc m loc (resource_at (@rmap_of_mem Σ m block_bounds F ge G) loc).
 Proof.
   intros; rewrite /resource_at.
   specialize (H loc); rewrite lookup_of_mem in H.
@@ -1154,17 +1186,17 @@ Proof.
   apply rmap_of_loc_coherent.
 Qed.
 
-Lemma rmap_of_loc_valid : forall {Σ} m loc, (✓ (@rmap_of_loc Σ m loc !! loc))%stdpp.
+Lemma rmap_of_loc_valid : forall {Σ} m {F} ge G loc, (✓ (@rmap_of_loc Σ m F ge G loc !! loc))%stdpp.
 Proof.
   intros; rewrite /rmap_of_loc.
   destruct (access_at m loc Cur); try done.
-  destruct p; try done; rewrite lookup_singleton //; split; try done.
+  destruct p; try done; try destruct (funspec_of_loc _ _ _) as [[]|]; try done; rewrite lookup_singleton //; split; try done.
   - intros X; contradiction bot_unreadable; rewrite -X; auto.
   - intros X; contradiction bot_unreadable; rewrite -X; auto.
     apply readable_Ers.
 Qed.
 
-Lemma rmap_of_mem_valid : forall {Σ} m block_bounds, (✓ @rmap_of_mem Σ m block_bounds)%stdpp.
+Lemma rmap_of_mem_valid : forall {Σ} m block_bounds {F} ge G, (✓ @rmap_of_mem Σ m block_bounds F ge G)%stdpp.
 Proof.
   intros.
   intros i; rewrite lookup_of_mem.
@@ -1184,7 +1216,7 @@ Proof.
 Qed.
 
 Lemma big_opM_opL' : forall `{!heapGS Σ} {A B} (f : _ -> A -> gmapR address B) (g : _ -> _ -> mpred) l
-  (Hl : NoDup l) (Hf : forall k1 k2 a1 a2, a1 ∈ l -> a2 ∈ l -> a1 ≠ a2 -> f k1 a1 ##ₘ f k2 a2)
+  (Hl : base.NoDup l) (Hf : forall k1 k2 a1 a2, a1 ∈ l -> a2 ∈ l -> a1 ≠ a2 -> f k1 a1 ##ₘ f k2 a2)
   (Hg : forall k y1 y2, (✓ y1)%stdpp -> (y1 ≡ y2)%stdpp -> g k y1 ⊣⊢ g k y2) (Hv : (✓ ([^op list] a↦b ∈ l, f a b))%stdpp),
   ([∗ map] k↦v ∈ ([^op list] a↦b ∈ l, f a b), g k v) ⊣⊢
   [∗ list] a↦b ∈ l, [∗ map] k↦v ∈ f a b, g k v.
@@ -1197,10 +1229,10 @@ Proof.
   apply NoDup_app in Hl as (? & Hsep & ?).
   rewrite big_sepL_app big_opM_proper_2; [|apply big_opL_app | intros ?????; apply Hg].
   rewrite big_opL_app /= right_id in Hv.
-  assert (([^op list] k↦y ∈ rev l', f k y) ##ₘ ([^op list] k↦y ∈ [a], f (length (rev l') + k) y)) as Hdisj.
+  assert (([^op list] k↦y ∈ rev l', f k y) ##ₘ ([^op list] k↦y ∈ [a], f (length (rev l') + k)%nat y)) as Hdisj.
   { clear -Hf Hsep.
     rewrite /= right_id.
-    forget (length (rev l') + 0) as k; revert k.
+    forget (length (rev l') + 0)%nat as k; revert k.
     induction l'; simpl; intros.
     { rewrite /ε; apply map_disjoint_empty_l. }
     rewrite big_opL_app /=.
@@ -1215,9 +1247,7 @@ Proof.
       { simpl; rewrite !elem_of_app !elem_of_list_singleton; auto. }
       { simpl; rewrite !elem_of_app !elem_of_list_singleton; auto. }
       intros ->.
-      contradiction (Hsep a); simpl.
-      { rewrite elem_of_app elem_of_list_singleton; auto. }
-      { rewrite elem_of_list_singleton //. } }
+      contradiction (Hsep a); rewrite /= ?elem_of_app elem_of_list_singleton; auto. }
   match goal with |-context[?a ⋅ ?b] => replace (a ⋅ b) with (map_union a b) end.
   rewrite big_opM_union //.
   rewrite IHl' //.
@@ -1230,32 +1260,34 @@ Proof.
   * specialize (Hv k); rewrite H1 // in Hv.
 Qed.
 
-Global Instance disjoint_rel_proper {A B : ofe} : Proper (equiv ==> equiv ==> equiv) (option_relation(A := A)(B := B) (fun _ _ => False%type) (fun _ => True%type) (fun _ => true%type)).
+Global Instance disjoint_rel_proper {A B : ofe} : Proper (base.equiv ==> base.equiv ==> base.equiv) (option_relation(A := A)(B := B) (fun _ _ => False%type) (fun _ => True%type) (fun _ => true%type)).
 Proof.
   intros ?? Heq1 ?? Heq2.
   inv Heq1; inv Heq2; done.
 Qed.
 
-Lemma rmap_inflate_equiv : forall `{!heapGS Σ} m block_bounds,
-  ([∗ map] l ↦ x ∈ rmap_of_mem m block_bounds, match x with
+Lemma rmap_inflate_equiv : forall `{!heapGS Σ} m block_bounds {F} (ge : Genv.t (fundef F) type) G,
+  ([∗ map] l ↦ x ∈ rmap_of_mem m block_bounds ge G, match x with
                      | Cinl (shared.YES dq _ v) => l ↦{dq} (proj1_sig (elem_of_agree v))
                      | Cinl (shared.NO sh _) => mapsto_no l sh
                      | Cinr v => l ↦p (proj1_sig (elem_of_agree v))
-                     end) ⊣⊢ inflate_initial_mem m block_bounds.
+                     | CsumBot => False
+                     end) ⊣⊢ inflate_initial_mem m block_bounds ge G.
 Proof.
   intros.
-  assert (∀ (k : address) (y1 y2 : sharedR (leibnizO resource')), (✓ y1)%stdpp → (y1 ≡ y2)%stdpp →
+  assert (∀ (l : address) (y1 y2 : csumR (sharedR (leibnizO resource')) (agreeR (leibnizO resource'))), (✓ y1)%stdpp → (y1 ≡ y2)%stdpp →
     match y1 with
-    | YES dq _ v => k ↦{dq} proj1_sig (elem_of_agree v)
-    | shared.NO sh _ => mapsto_no k sh
-    end ⊣⊢ match y2 with
-           | YES dq _ v => k ↦{dq} proj1_sig (elem_of_agree v)
-           | shared.NO sh _ => mapsto_no k sh
-           end).
+    | Cinl (shared.YES dq _ v) => l ↦{dq} (proj1_sig (elem_of_agree v))
+    | Cinl (shared.NO sh _) => mapsto_no l sh
+    | Cinr v => l ↦p (proj1_sig (elem_of_agree v))
+    | CsumBot => False end ⊣⊢ match y2 with
+           | Cinl (shared.YES dq _ v) => l ↦{dq} (proj1_sig (elem_of_agree v))
+           | Cinl (shared.NO sh _) => mapsto_no l sh
+           | Cinr v => l ↦p (proj1_sig (elem_of_agree v))
+           | CsumBot => False end).
   { intros ??? Hv Heq.
-    destruct y1, y2; inv Heq; last done.
-    destruct Hv.
-    pose proof (elem_of_agree_ne O v v0) as ->%leibniz_equiv; done. }
+    inv Heq; first (destruct a, a'; inv H); try done; first destruct Hv;
+      match goal with H : (_ ≡ _)%stdpp |- _ => apply (elem_of_agree_ne O) in H as ->%leibniz_equiv; done end. }
   rewrite /rmap_of_mem /inflate_initial_mem big_opM_opL' //.
   apply big_sepL_proper; intros ?? [-> ?]%lookup_seq.
   destruct (block_bounds _) eqn: Hbounds.
@@ -1263,12 +1295,12 @@ Proof.
   apply big_sepL_proper; intros ?? [-> ?]%lookup_seq.
   rewrite /rmap_of_loc /inflate_loc.
   destruct (access_at _ _ _) eqn: Haccess; last apply big_sepM_empty.
-  destruct p; try apply big_sepM_empty; rewrite big_opM_singleton elem_of_to_agree //.
+  destruct p; try apply big_sepM_empty; try destruct (funspec_of_loc _ _ _) as [[]|]; try apply big_sepM_empty; rewrite big_opM_singleton elem_of_to_agree //.
   * apply NoDup_seq.
   * intros; intros i.
     rewrite /option_relation.
     destruct (eq_dec i (Pos.of_nat (1 + k), (z + a1)%Z)); last by rewrite rmap_of_loc_ne //; destruct (_ !! _).
-    destruct (eq_dec i (Pos.of_nat (1 + k), (z + a2)%Z)); last by rewrite (rmap_of_loc_ne _ (_, (_ + a2)%Z)) //; destruct (_ !! _).
+    destruct (eq_dec i (Pos.of_nat (1 + k), (z + a2)%Z)); last by rewrite (rmap_of_loc_ne _ _ _ (_, (_ + a2)%Z)) //; destruct (_ !! _).
     subst; inv e0; lia.
   * intros i.
     rewrite lookup_of_loc.
@@ -1285,24 +1317,132 @@ Proof.
   * apply rmap_of_mem_valid.
 Qed.
 
-Lemma alloc_initial_mem `{!wsatGpreS Σ} `{!gen_heapGpreS (@resource' Σ) Σ} m block_bounds :
-  ⊢ |==> ∃ _ : heapGS Σ, wsat ∗ ownE ⊤ ∗ mem_auth m ∗ inflate_initial_mem m block_bounds ∗
-    (* should we star in initial_core here? *)
+Lemma inflate_drop_last : forall `{!heapGS Σ} m block_bounds {F} (ge : Genv.t (fundef F) type) G n, (n < Pos.to_nat (nextblock m) - 1)%nat ->
+  ([∗ list] y ∈ seq 1 n, let '(lo, z) := block_bounds (Pos.of_nat y) in
+   [∗ list] o ∈ seq 0 z, inflate_loc m ge G (Pos.of_nat y, lo + Z.of_nat o)) =
+  ([∗ list] y ∈ seq 1 n, let '(lo, z) := block_bounds (Pos.of_nat y) in
+   [∗ list] o ∈ seq 0 z, inflate_loc (drop_last_block m) ge G (Pos.of_nat y, lo + Z.of_nat o)).
+Proof.
+  intros.
+  apply big_opL_ext; intros ??[-> ?]%lookup_seq.
+  destruct (block_bounds (Pos.of_nat _)).
+  apply big_opL_ext; intros.
+  rewrite /inflate_loc /access_at /= Maps.PMap.gso //.
+  lia.
+Qed.
+
+Local Instance decide_fun_lt {Σ} m {F} (ge : Genv.t (fundef F) type) : ∀ x : ident * @funspec Σ, Decision ((fun '(id, _) => match Genv.find_symbol ge id with Some b => Plt b (nextblock m) | None => False%type end) x).
+Proof.
+  intros (?, ?); destruct (Genv.find_symbol _ _); last by right; intros ?.
+  destruct (plt b (nextblock m)); by [left | right].
+Qed.
+
+Lemma filter_all : forall {A} (P : A -> Prop) `(∀x, Decision (P x)) l, Forall P l -> base.filter P l = l.
+Proof.
+  induction l; simpl; first done.
+  inversion 1; subst; simpl.
+  rewrite filter_cons_True // IHl //.
+Qed.
+
+Lemma list_norepet_filter : forall {A B} P `(∀x, Decision (P x)) (l : list (A * B)), list_norepet (map fst l) -> list_norepet (map fst (base.filter P l)).
+Proof.
+  induction l; simpl; first done.
+  inversion 1 as [|?? Hout]; subst.
+  rewrite filter_cons; destruct (decide (P a)); last auto; simpl.
+  constructor; auto.
+  rewrite !in_map_iff in Hout |- *.
+  intros (? & ? & [??%elem_of_list_In]%elem_of_list_In%elem_of_list_filter); eauto.
+Qed.
+
+Lemma initial_mem_initial_core : forall `{!heapGS Σ} m block_bounds {F} (ge : Genv.t (fundef F) type) G
+  (Hnorepet : list_norepet (map fst G))
+  (Hm : forall id b, Genv.find_symbol ge id = Some b -> access_at m (b, 0) Cur = Some Nonempty)
+  (Hbounds : forall id b, Genv.find_symbol ge id = Some b -> (block_bounds b).1 <= 0 < (block_bounds b).1 + Z.of_nat (block_bounds b).2),
+  Forall (fun '(id, _) => match Genv.find_symbol ge id with Some b => Plt b (nextblock m) | _ => False%type end) G ->
+  inflate_initial_mem m block_bounds ge G ⊢ inflate_initial_mem m block_bounds ge G ∗ initial_core ge G.
+Proof.
+  intros; rewrite /inflate_initial_mem /initial_core.
+  replace G with (base.filter(H := decide_fun_lt m ge) _ G) at 1 by (by apply filter_all).
+  assert (forall id b, (b < nextblock m)%positive -> Genv.find_symbol ge id = Some b -> access_at m (b, 0) Cur = Some Nonempty) as Hm' by eauto.
+  clear H Hm.
+  remember (Pos.to_nat (nextblock m) - 1)%nat as n; revert dependent m; induction n; intros.
+  { iIntros "$".
+    rewrite big_opL_proper; first by setoid_rewrite big_sepL_emp.
+    intros ? (?, ?) [??]%elem_of_list_lookup_2%elem_of_list_filter.
+    destruct (Genv.find_symbol _ _); try done.
+    unfold Plt in *; lia. }
+  rewrite seq_S big_sepL_app inflate_drop_last; last lia.
+  iIntros "(Hrest & H)".
+  assert (∀ x : ident * @funspec Σ, Decision ((λ '(id, _),
+        match @Genv.find_symbol (fundef F) type ge id with
+        | Some b => b = (nextblock m - 1)%positive
+        | None => False%type
+        end) x)) as Hdec.
+  { intros (?, ?); destruct (Genv.find_symbol _ _); last by right; intros ?.
+    destruct (eq_dec b (nextblock m - 1)%positive); by [left | right]. }
+  rewrite (big_opL_permutation _ (base.filter _ _) (_ ++ _)).
+  rewrite big_sepL_app.
+  iPoseProof (IHn with "Hrest") as "(? & $)".
+  { simpl; intros; rewrite /access_at /=.
+    rewrite Maps.PMap.gso; last lia.
+    eapply Hm'; eauto; lia. }
+  { simpl; lia. }
+  simpl.
+  destruct (block_bounds _) as (lo, z) eqn: Hb.
+  iDestruct "H" as "(H & _)".
+  iAssert (([∗ list] o ∈ seq 0 z, inflate_loc m ge G (Pos.of_nat (S n), lo + Z.of_nat o)) ∗
+    ([∗ list] '(id, f) ∈ base.filter(H := Hdec) _ G, match Genv.find_symbol ge id with
+                             | Some b => func_at f (b, 0)
+                             | None => emp
+                             end)) with "[H]" as "($ & $)"; last done.
+  destruct (base.filter _ _) as [|(id, f) l] eqn: HG; simpl; first by iFrame.
+  pose proof (elem_of_list_here (id, f) l) as Hin; rewrite -HG elem_of_list_filter in Hin.
+  destruct (Genv.find_symbol ge id) eqn: Hid; last tauto.
+  destruct Hin as [-> ?].
+  destruct l as [|(id', f')]; simpl.
+  - specialize (Hbounds _ _ Hid).
+    assert (Pos.of_nat (S n) = nextblock m - 1)%positive as Hn.
+    { rewrite Heqn Nat2Pos.inj_sub // Pos2Nat.id //. }
+    rewrite Hn in Hb; rewrite Hb /= in Hbounds.
+    iPoseProof (big_sepL_lookup_acc _ _ (Z.to_nat (-lo)) with "H") as "(H & Hrest)".
+    { apply lookup_seq; split; first done; lia. }
+    replace (lo + _) with 0 by lia.
+    rewrite /inflate_loc.
+    erewrite Hm' by (rewrite Hn //; lia).
+    rewrite /funspec_of_loc /=.
+    rewrite Hn; erewrite Genv.find_invert_symbol by done.
+    erewrite find_id_i by (rewrite -?elem_of_list_In //).
+    iDestruct "H" as "#H"; iSpecialize ("Hrest" with "H"); iFrame "# Hrest".
+  - pose proof (list_norepet_filter _ Hdec _ Hnorepet) as Hnoid.
+    rewrite HG in Hnoid; inversion Hnoid as [| ?? Hno]; subst.
+    assert (In (id', f') ((id, f) :: (id', f') :: l)) as Hin' by (simpl; auto).
+    rewrite -HG in Hin'; apply elem_of_list_In, elem_of_list_filter in Hin' as [??].
+    destruct (Genv.find_symbol ge id') eqn: Hid'; try done; subst.
+    eapply Genv.global_addresses_distinct in Hid; eauto; first done.
+    intros ->; contradiction Hno; simpl; auto.
+  - rewrite -(filter_app_complement _ (H := Hdec) (base.filter _ _)).
+    rewrite list_filter_filter_l.
+    rewrite list_filter_filter comm.
+    apply Permutation_refl'; f_equal.
+    apply list_filter_iff.
+    + intros (id, ?).
+      destruct (Genv.find_symbol ge id); last tauto.
+      rewrite /Plt /=; lia.
+    + intros (id, ?).
+      destruct (Genv.find_symbol ge id); last done.
+      intros ->; rewrite /Plt; lia.
+Qed.
+
+Require Import VST.veric.wsat.
+
+Lemma alloc_initial_mem `{!wsatGpreS Σ} `{!gen_heapGpreS (@resource' Σ) Σ} m block_bounds {F} (ge : Genv.t (fundef F) type) G :
+  ⊢ |==> ∃ _ : heapGS Σ, wsat ∗ ownE ⊤ ∗ mem_auth m ∗ inflate_initial_mem m block_bounds ge G ∗
  ghost_map.ghost_map_auth(H0 := gen_heapGpreS_meta) (gen_meta_name _) Tsh ∅.
 Proof.
   iIntros.
   iMod wsat_alloc as (?) "(? & ?)".
-  assert (✓ @rmap_of_mem Σ m block_bounds)%stdpp.
-  { intros i; rewrite lookup_of_mem.
-    destruct (block_bounds _).
-    simple_if_tac; try done.
-    rewrite /rmap_of_loc.
-    destruct (access_at m i Cur); try done.
-    destruct p; try done; rewrite lookup_singleton //; split; try done.
-    - intros X; contradiction bot_unreadable; rewrite -X; auto.
-    - intros X; contradiction bot_unreadable; rewrite -X; auto.
-      apply readable_Ers. }
-  iMod (gen_heap_init_names m (rmap_of_mem m block_bounds)) as (??) "(Hm & H & ?)".
+  pose proof (rmap_of_mem_valid m block_bounds ge G).
+  iMod (gen_heap_init_names m (rmap_of_mem m block_bounds ge G)) as (??) "(Hm & H & ?)".
   { intros; by apply rmap_of_mem_coherent. }
   iExists (HeapGS _ _); iFrame.
   rewrite /mem_auth /= -rmap_inflate_equiv //.
