@@ -802,6 +802,20 @@ Section lemmas.
     coherent_loc m k (Some (DfracOwn Share.Lsh, Some v)).
   Proof. rewrite juicy_view_both_pure_dfrac_valid. naive_solver done. Qed.
 
+  Lemma juicy_view_frag_pure_op_validN n k v1 v2 :
+    ✓{n} (juicy_view_frag_pure k v1 ⋅ juicy_view_frag_pure k v2) ↔
+      v1 ≡{n}≡ v2.
+  Proof.
+    rewrite view_frag_validN coherent_rel_exists singleton_op singleton_validN -Cinr_op.
+    apply to_agree_op_validN.
+  Qed.
+  Lemma juicy_view_frag_pure_op_valid k v1 v2 :
+    ✓ (juicy_view_frag_pure k v1 ⋅ juicy_view_frag_pure k v2) ↔ v1 ≡ v2.
+  Proof.
+    rewrite view_frag_valid. setoid_rewrite coherent_rel_exists.
+    rewrite -cmra_valid_validN singleton_op singleton_valid -Cinr_op.
+    apply to_agree_op_valid.
+  Qed.
   (** Frame-preserving updates *)
   Lemma lookup_singleton_list : forall {A} {B : ora} (l : list A) (f : A -> B) k i, ([^op list] i↦v ∈ l, ({[adr_add k (Z.of_nat i) := f v]})) !! i ≡
     if adr_range_dec k (Z.of_nat (length l)) i then f <$> (l !! (Z.to_nat (i.2 - k.2))) else None.

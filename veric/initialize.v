@@ -1572,7 +1572,7 @@ Definition prog_var_block (rho: environ) (il: list ident) (b: block) : Prop :=
 Lemma match_fdecs_in:
   forall i vl G,
      In i (map (@fst _ _) G) ->
-     match_fdecs vl G ->
+     @match_fdecs Σ vl G ->
      In i (map (@fst _ _) vl).
 Proof.
  induction vl; simpl; intros; auto.
@@ -1580,20 +1580,6 @@ Proof.
  inv H0.
  destruct H. inv H. simpl; auto.
  right. apply (IHvl G0); auto.
-Qed.
-
-Lemma match_fdecs_norepet:
-  forall vl G,
-     list_norepet (map (@fst _ _) vl) ->
-     match_fdecs vl G ->
-     list_norepet (map (@fst _ _) G).
-Proof.
- induction vl; simpl; intros.
- inv H0. constructor.
- inv H0. inv H.
- simpl.
- constructor; auto.
- contradict H2. eapply match_fdecs_in; eauto.
 Qed.
 
 Lemma list_norepet_prog_funct':
@@ -1614,7 +1600,7 @@ Qed.
 Lemma match_fdecs_rev':
   forall vl G vl' G',
    list_norepet (map (@fst _ _) (rev vl ++ vl')) ->
-   match_fdecs vl G ->
+   @match_fdecs Σ vl G ->
    match_fdecs vl' G' ->
    match_fdecs (rev vl ++ vl') (rev G ++ G').
 Proof.
@@ -1659,7 +1645,7 @@ Qed.
 Lemma match_fdecs_rev:
   forall vl G,
    list_norepet (map (@fst _ _) vl) ->
-   match_fdecs (rev vl) (rev G) = match_fdecs vl G.
+   @match_fdecs Σ (rev vl) (rev G) = match_fdecs vl G.
 Proof.
   intros; apply prop_ext; split; intros.
 *
@@ -1685,13 +1671,30 @@ Lemma initial_core_rev:
     initial_core gev G ⊣⊢ initial_core gev (rev G).
 Proof.
   intros.
-  rewrite /initial_core.
-  do 3 (apply bi.forall_proper; intros ?).
+  rewrite /initial_core big_sepL_rev //.
+Qed.
+
+Lemma inflate_initial_mem_rev:
+  forall m bounds (gev: Genv.t fundef type) G (vl: list (ident * globdef fundef type))
+    (H: list_norepet (map fst (rev vl)))
+    (SAME_IDS : match_fdecs (prog_funct' vl) (rev G)),
+    inflate_initial_mem m bounds gev G ⊣⊢ inflate_initial_mem m bounds gev (rev G).
+Proof.
+  intros.
+  rewrite /inflate_initial_mem.
+  apply big_sepL_proper; intros.
+  destruct (bounds _).
+  apply big_sepL_proper; intros.
+  rewrite /inflate_loc.
+  destruct (access_at _ _ _); last done.
+  destruct p; try done.
+  rewrite /funspec_of_loc.
+  if_tac; try done.
+  destruct (Genv.invert_symbol _ _) eqn: Hb; last done.
   rewrite find_id_rev //.
-  apply list_norepet_prog_funct' in H.
-  eapply match_fdecs_norepet; first done.
-  rewrite -rev_prog_funct' in H |- *.
-  rewrite -match_fdecs_rev // rev_involutive //.
+  { rewrite -list_norepet_rev -map_rev -match_fdecs_norepet //.
+    apply list_norepet_prog_funct'.
+    rewrite -list_norepet_rev -map_rev //. }
 Qed.
 
 (*Definition hackfun phi0 phi :=
@@ -2113,15 +2116,14 @@ rewrite <- (alloc_access_other _ _ _ _ _ Heqp)by (destruct H0; auto; right; lia)
 apply nextblock_access_empty. zify; lia.
 Qed.*)
 
-(*Lemma global_initializers:
+Lemma global_initializers:
   forall (prog: program) G m
      (Hnorepet : list_norepet (prog_defs_names prog))
      (AL : all_initializers_aligned prog)
      (SAME_IDS : match_fdecs (prog_funct prog) G)
      (Hinit : Genv.init_mem prog = Some m),
-    initial_core (Genv.globalenv prog) G ∗ inflate_initial_mem m ⊢
-    <absorb> globvars2pred (genviron2globals (filter_genv (globalenv prog)))
-                                         (prog_vars prog).
+    (*initial_core (Genv.globalenv prog) G ∗*) inflate_initial_mem m (block_bounds prog) (globalenv prog) G ⊢
+    globvars2pred (genviron2globals (filter_genv (globalenv prog))) (prog_vars prog).
 Proof.
   intros.
   set (gp := globalenv prog).
@@ -2134,12 +2136,11 @@ Proof.
   forget (prog_comp_env prog) as cenv.
   clear prog.
   simpl in * |-. simpl prog_vars'. simpl initial_core.
-  match goal with |- context [initial_core ?A] =>
-     remember A as gev end.
+  remember (Genv.add_globals _ fl) as gev.
   rewrite <- (rev_involutive fl) in *.
   rewrite alloc_globals_rev_eq in Hinit.
   forget (rev fl) as vl.
-  unfold prog_defs_names in Hnorepet. simpl in  Hnorepet.
+  unfold prog_defs_names in Hnorepet. simpl in Hnorepet.
 
   rewrite <- rev_prog_vars' in AL|-*.
   rewrite <- rev_prog_funct' in SAME_IDS.
@@ -2147,11 +2148,10 @@ Proof.
   rewrite forallb_rev in AL.
   rewrite <- (rev_involutive G) in  SAME_IDS.
   rewrite match_fdecs_rev in SAME_IDS.
-  2:{
-    apply list_norepet_prog_funct'.
-    rewrite <- list_norepet_rev, <- map_rev; auto.
-  }
-  rewrite -> initial_core_rev with (vl:=vl) by auto.
+  2:{ apply list_norepet_prog_funct'.
+      rewrite <- list_norepet_rev, <- map_rev; auto. }
+(*  rewrite -> initial_core_rev with (vl:=vl) by auto. *)
+  rewrite -> inflate_initial_mem_rev with (vl:=vl) by auto.
   rewrite map_rev in Hnorepet. rewrite list_norepet_rev in Hnorepet.
   forget (rev G) as G'; clear G; rename G' into G.
   assert (Hsymb := add_globals_hack _ _ prog_pub Hnorepet Heqgev).
@@ -2187,7 +2187,7 @@ Proof.
     apply list_norepet_prog_funct'; auto.
   }
   clear SAME_IDS Heqgev.
-  change (map fst vl) with (map fst (@nil (ident*funspec)) ++ map fst vl) in Hnorepet.
+  change (map fst vl) with (map fst (@nil (ident*@funspec Σ)) ++ map fst vl) in Hnorepet.
   change G with (nil++G).
   set (G0 := @nil (ident*funspec)) in *.
   change G with (G0++G) in NRG.
@@ -2252,7 +2252,7 @@ Proof.
   destruct g.
 * (* Gfun case *)
   simpl.
-  iIntros "(Hcore & Hmem)"; iApply IHvl.
+  iIntros "Hmem"; iApply IHvl.
   iFrame; rewrite /inflate_initial_mem.
   iIntros (loc); iSpecialize ("Hmem" $! loc).
   simpl in Hinit.
@@ -2361,7 +2361,7 @@ pose proof (init_data_list_lem {| genv_genv := gev; genv_cenv := cenv |} m0 v m1
  apply readable_readonly2share.
  apply IHvl; auto.
  eapply another_hackfun_lemma; eauto.
-Qed.*)
+Qed.
 
 Definition globals_of_genv (g : genviron) (i : ident):=
   match Map.get g i with

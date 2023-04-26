@@ -1356,14 +1356,14 @@ Qed.
 
 Lemma initial_mem_initial_core : forall `{!heapGS Σ} m block_bounds {F} (ge : Genv.t (fundef F) type) G
   (Hnorepet : list_norepet (map fst G))
-  (Hm : forall id b, Genv.find_symbol ge id = Some b -> access_at m (b, 0) Cur = Some Nonempty)
-  (Hbounds : forall id b, Genv.find_symbol ge id = Some b -> (block_bounds b).1 <= 0 < (block_bounds b).1 + Z.of_nat (block_bounds b).2),
+  (Hm : forall id b, id ∈ (map fst G) -> Genv.find_symbol ge id = Some b -> access_at m (b, 0) Cur = Some Nonempty)
+  (Hbounds : forall id b, id ∈ (map fst G) -> Genv.find_symbol ge id = Some b -> (block_bounds b).1 <= 0 < (block_bounds b).1 + Z.of_nat (block_bounds b).2),
   Forall (fun '(id, _) => match Genv.find_symbol ge id with Some b => Plt b (nextblock m) | _ => False%type end) G ->
   inflate_initial_mem m block_bounds ge G ⊢ inflate_initial_mem m block_bounds ge G ∗ initial_core ge G.
 Proof.
   intros; rewrite /inflate_initial_mem /initial_core.
   replace G with (base.filter(H := decide_fun_lt m ge) _ G) at 1 by (by apply filter_all).
-  assert (forall id b, (b < nextblock m)%positive -> Genv.find_symbol ge id = Some b -> access_at m (b, 0) Cur = Some Nonempty) as Hm' by eauto.
+  assert (forall id b, (b < nextblock m)%positive -> id ∈ (map fst G) -> Genv.find_symbol ge id = Some b -> access_at m (b, 0) Cur = Some Nonempty) as Hm' by eauto.
   clear H Hm.
   remember (Pos.to_nat (nextblock m) - 1)%nat as n; revert dependent m; induction n; intros.
   { iIntros "$".
@@ -1400,7 +1400,8 @@ Proof.
   destruct (Genv.find_symbol ge id) eqn: Hid; last tauto.
   destruct Hin as [-> ?].
   destruct l as [|(id', f')]; simpl.
-  - specialize (Hbounds _ _ Hid).
+  - assert (id ∈ map fst G) as Hin by (by eapply elem_of_list_fmap_1_alt).
+    specialize (Hbounds _ _ Hin Hid).
     assert (Pos.of_nat (S n) = nextblock m - 1)%positive as Hn.
     { rewrite Heqn Nat2Pos.inj_sub // Pos2Nat.id //. }
     rewrite Hn in Hb; rewrite Hb /= in Hbounds.
@@ -1408,7 +1409,7 @@ Proof.
     { apply lookup_seq; split; first done; lia. }
     replace (lo + _) with 0 by lia.
     rewrite /inflate_loc.
-    erewrite Hm' by (rewrite Hn //; lia).
+    erewrite Hm' by (rewrite ?Hn //; lia).
     rewrite /funspec_of_loc /=.
     rewrite Hn; erewrite Genv.find_invert_symbol by done.
     erewrite find_id_i by (rewrite -?elem_of_list_In //).

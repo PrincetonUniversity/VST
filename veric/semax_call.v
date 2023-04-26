@@ -1317,7 +1317,7 @@ Proof.
     iExists id; iSplit; first done.
     iDestruct ("FA" with "[%]") as "(% & %Hid' & funcatv)"; first done.
     rewrite Hid' in Hid; inv Hid.
-    destruct fs; iDestruct (mapsto_agree with "funcatb funcatv") as %[=]; subst.
+    destruct fs; iDestruct (mapsto_pure_agree with "funcatb funcatv") as %[=]; subst.
     repeat match goal with H : existT ?A _ = existT ?A _ |- _ => apply inj_pair2 in H end; subst; done. }
   destruct nspec as [nsig ncc nA nP nQ].
   iDestruct "SubClient" as "[[%NSC %Hcc] ClientAdaptation]"; subst cc. destruct nsig as [nparams nRetty].

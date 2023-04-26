@@ -27,7 +27,7 @@ Context `{!heapGS Σ}.
 Inductive match_fdecs: list  (ident * Clight.fundef) -> funspecs -> Prop :=
 | match_fdecs_nil: match_fdecs nil nil
 | match_fdecs_cons: forall i fd fspec fs G,
-                  type_of_fundef fd = type_of_funspec fspec ->
+                  type_of_fundef fd = @type_of_funspec Σ fspec ->
                   match_fdecs fs G ->
                   match_fdecs ((i,fd)::fs) ((i,fspec)::G)
 (* EXPERIMENT
@@ -80,39 +80,134 @@ Definition matchfunspecs (ge : genv) (G : funspecs) E : mpred :=
   ∃ id:ident, ∃ fs0: funspec, 
    ⌜Genv.find_symbol ge id = Some b /\ find_id id G = Some fs0⌝ ∧
      funspec_sub_si E fs0 fs.
+(* This seems backwards -- why do we need to know that there are no other function pointers? *)
 
-Lemma initial_jm_matchfunspecs prog G E:
+(*Lemma initial_jm_matchfunspecs prog G E:
   initial_core (globalenv prog) G ⊢ matchfunspecs (globalenv prog) G E.
 Proof.
   rewrite /initial_core /matchfunspecs.
   iIntros "#H" (??) "#f".
+  
   iDestruct ("H" $! b fs) as "[_ Hf]".
   iDestruct ("Hf" with "f") as %(id & ?%Genv.invert_find_symbol & ?).
   iExists id, fs; iSplit; first done.
   iApply funspec_sub_si_refl.
-Qed.
+Qed.*)
 
 End mpred.
 
+Lemma prog_funct'_incl : forall {F V} (l : list (ident * globdef F V)), incl (map fst (prog_funct' l)) (map fst l).
+Proof.
+  induction l; simpl.
+  - apply incl_nil_l.
+  - destruct a, g; simpl.
+    + by apply incl_same_head.
+    + by apply incl_tl.
+Qed.
+
+Lemma prog_funct_norepet : forall (prog : program), list_norepet (prog_defs_names prog) -> list_norepet (map fst (prog_funct prog)).
+Proof.
+  destruct prog; rewrite /prog_funct /prog_defs_names /=.
+  clear; induction prog_defs; auto; simpl.
+  inversion 1; subst.
+  destruct a, g; auto; simpl.
+  constructor; auto.
+  intros ?%prog_funct'_incl; done.
+Qed.
+
+Lemma match_ids : forall {Σ} fs G i, @match_fdecs Σ fs G -> In i (map fst fs) ↔ In i (map fst G).
+Proof.
+  induction 1; simpl; first done.
+  rewrite IHmatch_fdecs //.
+Qed.
+
+Lemma match_fdecs_norepet : forall {Σ} fs G, @match_fdecs Σ fs G -> list_norepet (map fst fs) ↔ list_norepet (map fst G).
+Proof.
+  induction 1; simpl; first done.
+  split; inversion 1; subst; constructor; try tauto; by [rewrite -match_ids | rewrite match_ids].
+Qed.
+
+(* compute the size of blocks allocated by Genv.alloc_globals *)
+Fixpoint globals_bounds {F V} b (gl : list (ident * globdef F V)) :=
+  match gl with
+  | [] => fun _ => (0, O)
+  | g :: gl' => let bounds' := globals_bounds (b + 1)%positive gl' in
+      fun c => if eq_dec c b then
+        match g.2 with
+        | Gfun _ => (0, 1%nat)
+        | Gvar v => let init := gvar_init v in
+                    let sz := init_data_list_size init in
+                    (0, Z.to_nat sz)
+        end else bounds' c
+  end.
+
+Definition block_bounds {F V} (p : AST.program F V) := globals_bounds 1%positive (AST.prog_defs p).
+
+Lemma globals_bounds_Gfun : forall {F V} b0 (gl : list (ident * globdef F V)) b i f (Hb0 : (b0 <= b)%positive),
+  nth_error gl (Pos.to_nat b - Pos.to_nat b0) = Some (i, Gfun f) ->
+  globals_bounds b0 gl b = (0, 1%nat).
+Proof.
+  intros; revert dependent b0; induction gl; simpl; intros.
+  - rewrite nth_error_nil // in H.
+  - destruct (Pos.to_nat b - Pos.to_nat b0)%nat eqn: Hn; simpl in H.
+    + inv H.
+      rewrite if_true //; lia.
+    + rewrite if_false; last lia.
+      apply IHgl; try lia.
+      replace (_ - _)%nat with n by lia; done.
+Qed.
+
+Lemma block_bounds_Gfun : forall {F V} (prog : AST.program F V) b i f,
+  nth_error (AST.prog_defs prog) (Z.to_nat (Z.pos b - 1)) = Some (i, Gfun f) ->
+  block_bounds prog b = (0, 1%nat).
+Proof.
+  intros; eapply globals_bounds_Gfun; first lia.
+  by rewrite Z2Nat.inj_sub // Z2Nat.inj_pos in H.
+Qed.
+
 Require Import VST.veric.wsat.
 
-Print funspecs.
-Search gvar_volatile.
-(* Should we compute the block bounds from Genv.init_mem, or leave them arbitrary? *)
-(* Would it make more sense to build our initial predicate along the lines of Genv.init_mem, instead of
-   allocating funspecs and data separately? *)
-(* We can use the G to determine where to put funspecs. *)
+(* Should we compute the block bounds from Genv.init_mem, or leave them arbitrary?
+   We at least need to know that they include 0 for all function pointers. *)
 Lemma alloc_initial_state  `{!inG Σ (excl_authR (leibnizO Z))} `{!wsatGpreS Σ} `{!gen_heapGpreS (@resource' Σ) Σ} :
-  forall (prog: program) G z m block_bounds,
-      list_norepet (prog_defs_names prog) ->
-      match_fdecs (prog_funct prog) G ->
-      Genv.init_mem prog = Some m ->
-  ⊢ |==> ∃ _ : externalGS Z Σ, ∃ H : heapGS Σ,
-    ext_auth z ∗ has_ext z ∗ wsat ∗ ownE ⊤ ∗ mem_auth m ∗ inflate_initial_mem m block_bounds ∗ initial_world.initial_core(heapGS0 := H) (globalenv prog) G.
+  forall (prog: program) G z m
+      (Hnorepet : list_norepet (prog_defs_names prog))
+      (Hmatch : match_fdecs (prog_funct prog) G)
+      (Hm : Genv.init_mem prog = Some m),
+  ⊢ |==> ∃ _ : externalGS Z Σ, ∃ _ : heapGS Σ,
+    ext_auth z ∗ has_ext z ∗ wsat ∗ ownE ⊤ ∗ mem_auth m ∗ inflate_initial_mem m (block_bounds prog) (globalenv prog) G ∗ initial_core (globalenv prog) G
+    ∗ ghost_map.ghost_map_auth(H0 := gen_heapGpreS_meta) (gen_meta_name _) Tsh ∅.
 Proof.
   intros; iIntros.
   iMod (ext_alloc z) as (?) "(? & ?)".
-  iMod (alloc_initial_mem m block_bounds) as (?) "(? & ? & ? & ? & ?)".
-  iExists _, _.
-  iFrame.
-  iIntros (?).
+  iMod (alloc_initial_mem m (block_bounds prog) (globalenv prog) G) as (?) "(? & ? & ? & Hm & ?)".
+  assert (list_norepet (map fst G)).
+  { rewrite -match_fdecs_norepet //; by apply prog_funct_norepet. }
+  rewrite initial_mem_initial_core //.
+  iDestruct "Hm" as "(? & ?)".
+  iExists _, _; by iFrame.
+  - intros ?? Hid Hb.
+    apply elem_of_list_fmap_2 in Hid as ((?, ?) & -> & Hi).
+    apply elem_of_list_In, find_id_i in Hi; last done.
+    eapply match_fdecs_exists_Gfun in Hi as (? & Hdef & ?); last done.
+    apply (prog_defmap_norepet (program_of_program prog)) in Hdef; last done.
+    apply Genv.find_def_symbol in Hdef as (b' & Hb' & Hdef); assert (b' = b) as -> by (rewrite Hb' in Hb; inv Hb; done).
+    rewrite -Genv.find_funct_ptr_iff in Hdef.
+    eapply Genv.init_mem_characterization_2 in Hdef as (Hperm & Hmax); last done.
+    apply perm_mem_access in Hperm as (? & Hperm & Haccess).
+    destruct (Hmax _ _ _ (access_perm _ _ _ _ _ Haccess)); subst; done.
+  - intros ?? Hid Hb.
+    apply elem_of_list_fmap_2 in Hid as ((?, ?) & -> & Hi).
+    apply elem_of_list_In, find_id_i in Hi; last done.
+    eapply match_fdecs_exists_Gfun in Hi as (? & Hdef & ?); last done.
+    apply find_symbol_globalenv in Hb as (? & ? & Hnth); last done.
+    pose proof (nth_error_In _ _ Hnth).
+    eapply list_norepet_In_In in Hdef; eauto; subst.
+    by erewrite block_bounds_Gfun by done.
+  - rewrite Forall_forall; intros (?, ?) Hi.
+    apply elem_of_list_In, find_id_i in Hi; last done.
+    eapply match_fdecs_exists_Gfun in Hi as (? & Hdef & ?); last done.
+    apply (prog_defmap_norepet (program_of_program prog)) in Hdef; last done.
+    apply Genv.find_def_symbol in Hdef as (b & Hb & Hdef).
+    rewrite Hb; by eapply Genv.find_symbol_not_fresh.
+Qed.

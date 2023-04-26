@@ -356,7 +356,7 @@ rewrite bi.sep_exist_l bi.sep_exist_r  bi.and_exist_l; iDestruct "H" as (a) "H".
 specialize (H a); rewrite semax_unfold in H; iApply H; auto.
 Qed.
 
-Definition G0: funspecs := nil.
+Definition G0: @funspecs Σ := nil.
 
 Definition empty_genv prog_pub cenv: Clight.genv :=
    Build_genv (Genv.globalenv (AST.mkprogram (F:=Clight.fundef)(V:=type) nil prog_pub (1%positive))) cenv.

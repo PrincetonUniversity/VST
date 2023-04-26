@@ -258,6 +258,8 @@ Section gen_heap.
   Lemma mapsto_persist l dq v : l ↦{dq} v ==∗ l ↦□ v.
   Proof. rewrite mapsto_unseal. apply resource_map_elem_persist. Qed.
 
+  Lemma mapsto_pure_agree l v1 v2 : l ↦p v1 -∗ l ↦p v2 -∗ ⌜v1 = v2⌝.
+  Proof. rewrite mapsto_pure_unseal. apply resource_map_elem_pure_agree. Qed.
   (** Framing support *)
 (*  Global Instance frame_mapsto p l v q1 q2 RES :
     FrameFractionalHyps p (l ↦{#q1} v) (λ q, l ↦{#q} v)%I RES q1 q2 →

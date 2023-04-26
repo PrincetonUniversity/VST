@@ -238,6 +238,14 @@ Section lemmas.
     k1 ↪[γ] v1 -∗ k2 ↪[γ]{dq2} v2 -∗ ⌜k1 ≠ k2⌝.
   Proof. apply resource_map_elem_frac_ne. apply: exclusive_l. Qed.
 
+  Lemma resource_map_elem_pure_agree k γ v1 v2 :
+    k ↪[γ]p v1 -∗ k ↪[γ]p v2 -∗ ⌜v1 = v2⌝.
+  Proof.
+    unseal. iIntros "H1 H2".
+    iDestruct (own_valid_2 with "H1 H2") as %?%juicy_view_frag_pure_op_valid.
+    done.
+  Qed.
+
   (** Make an element read-only. *)
   Lemma resource_map_elem_persist k γ dq v :
     k ↪[γ]{dq} v ==∗ k ↪[γ]□ v.
