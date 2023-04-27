@@ -625,7 +625,7 @@ FILES = \
  $(SEPCOMP_FILES:%=sepcomp/%) \
  $(VERIC_FILES:%=veric/%) \
  $(FLOYD_FILES:%=floyd/%) \
- $(PROGS_FILES:%=$(PROGSDIR)/%) \
+ #$(PROGS_FILES:%=$(PROGSDIR)/%) \
  $(WAND_DEMO_FILES:%=wand_demo/%) \
  $(SHA_FILES:%=sha/%) \
  $(HMAC_FILES:%=sha/%) \
@@ -717,7 +717,7 @@ endif
 # ########## Targets ##########
 
 default_target: vst $(PROGSDIR)
-vst: _CoqProject msl veric floyd simpleconc
+vst: _CoqProject msl veric floyd simpleconc atomics
 
 ifeq ($(BITSIZE),64)
 test: vst progs64
@@ -750,26 +750,26 @@ linking: _CoqProject $(LINKING_FILES:%.v=linking/%.vo)
 veric:   _CoqProject $(VERIC_FILES:%.v=veric/%.vo) veric/version.vo
 zlist:   _CoqProject $(ZLIST_FILES:%.v=zlist/%.vo)
 floyd:   _CoqProject $(FLOYD_FILES:%.v=floyd/%.vo)
-progs:   _CoqProject $(PROGS_FILES:%.v=$(PROGSDIR)/%.vo)
-progsdir: $(PROGSDIR)
-wand_demo:   _CoqProject $(WAND_DEMO_FILES:%.v=wand_demo/%.vo)
-sha:     _CoqProject $(SHA_FILES:%.v=sha/%.vo)
-hmac:    _CoqProject $(HMAC_FILES:%.v=sha/%.vo)
-sha-hmac: sha hmac
-hmacequiv:    _CoqProject $(HMAC_FILES:%.v=sha/%.vo)
-fipsdigest:    _CoqProject $(FIPSDIGEST_FILES:%.v=boringssl_fips_20180730/%.vo)
-FCF:     _CoqProject $(FCF_FILES:%.v=FCF/%.vo)
-hmacfcf: _CoqProject $(HMACFCF_FILES:%.v=hmacfcf/%.vo)
-tweetnacl: _CoqProject $(TWEETNACL_FILES:%.v=tweetnacl20140427/%.vo)
-hmac0: _CoqProject sha/verif_hmac_init.vo sha/verif_hmac_cleanup.vo sha/verif_hmac_final.vo sha/verif_hmac_simple.vo  sha/verif_hmac_double.vo sha/verif_hmac_update.vo sha/verif_hmac_crypto.vo
-hmacdrbg:   _CoqProject $(HMACDRBG_FILES:%.v=hmacdrbg/%.vo)
-aes: _CoqProject $(AES_FILES:%.v=aes/%.vo)
-hkdf:    _CoqProject $(HKDF_FILES:%.v=sha/%.vo)
+#progs:   _CoqProject $(PROGS_FILES:%.v=$(PROGSDIR)/%.vo)
+#progsdir: $(PROGSDIR)
+#wand_demo:   _CoqProject $(WAND_DEMO_FILES:%.v=wand_demo/%.vo)
+#sha:     _CoqProject $(SHA_FILES:%.v=sha/%.vo)
+#hmac:    _CoqProject $(HMAC_FILES:%.v=sha/%.vo)
+#sha-hmac: sha hmac
+#hmacequiv:    _CoqProject $(HMAC_FILES:%.v=sha/%.vo)
+#fipsdigest:    _CoqProject $(FIPSDIGEST_FILES:%.v=boringssl_fips_20180730/%.vo)
+#FCF:     _CoqProject $(FCF_FILES:%.v=FCF/%.vo)
+#hmacfcf: _CoqProject $(HMACFCF_FILES:%.v=hmacfcf/%.vo)
+#tweetnacl: _CoqProject $(TWEETNACL_FILES:%.v=tweetnacl20140427/%.vo)
+#hmac0: _CoqProject sha/verif_hmac_init.vo sha/verif_hmac_cleanup.vo sha/verif_hmac_final.vo sha/verif_hmac_simple.vo  sha/verif_hmac_double.vo sha/verif_hmac_update.vo sha/verif_hmac_crypto.vo
+#hmacdrbg:   _CoqProject $(HMACDRBG_FILES:%.v=hmacdrbg/%.vo)
+#aes: _CoqProject $(AES_FILES:%.v=aes/%.vo)
+#hkdf:    _CoqProject $(HKDF_FILES:%.v=sha/%.vo)
 # drbg: _CoqProject $(DRBG_FILES:%.v=verifiedDrbg/%.vo)
-mailbox: _CoqProject mailbox/verif_mailbox_all.vo
+#mailbox: _CoqProject mailbox/verif_mailbox_all.vo
 # atomics: _CoqProject atomics/verif_kvnode_atomic.vo atomics/verif_kvnode_atomic_ra.vo atomics/verif_hashtable_atomic.vo atomics/verif_hashtable_atomic_ra.vo
-atomics: _CoqProject atomics/verif_hashtable_atomic.vo $(PROGSDIR)/verif_incr_atomic.vo atomics/verif_lock.vo atomics/verif_lock_atomic.vo
-io: _CoqProject $(PROGSDIR)/os_combine.vo $(PROGSDIR)/verif_printf.vo $(PROGSDIR)/verif_io.vo $(PROGSDIR)/verif_io_mem.vo $(PROGSDIR)/io_specs.vo floyd/printf.vo
+atomics: _CoqProject atomics/general_locks.vo atomics/SC_atomics.v atomics/general_atomics.vo atomics/verif_lock.vo atomics/verif_lock_atomic.vo
+#io: _CoqProject $(PROGSDIR)/os_combine.vo $(PROGSDIR)/verif_printf.vo $(PROGSDIR)/verif_io.vo $(PROGSDIR)/verif_io_mem.vo $(PROGSDIR)/io_specs.vo floyd/printf.vo
 
 $(CVOFILES): compcert
 
@@ -923,7 +923,7 @@ progs64/verif_%.v: progs/verif_%.v
 
 progs64c: $(C64_ORDINARY:%.c=progs64/%.c)
 progs64v: progs64c $(V64_ORDINARY:%.v=progs64/%.v) $(C64_ORDINARY:%.c=progs64/%.v) depend
-progs64: _CoqProject  $(PROGS64_FILES:%.v=progs64/%.vo)
+#progs64: _CoqProject  $(PROGS64_FILES:%.v=progs64/%.vo)
 
 VSUpile: floyd/proofauto.vo floyd/library.vo floyd/VSU.vo
 	cd progs/VSUpile; $(MAKE) VST_LOC=../..
