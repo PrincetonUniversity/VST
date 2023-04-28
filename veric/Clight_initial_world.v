@@ -143,9 +143,29 @@ Fixpoint globals_bounds {F V} b (gl : list (ident * globdef F V)) :=
 
 Definition block_bounds {F V} (p : AST.program F V) := globals_bounds 1%positive (AST.prog_defs p).
 
-Lemma globals_bounds_Gfun : forall {F V} b0 (gl : list (ident * globdef F V)) b i f (Hb0 : (b0 <= b)%positive),
-  nth_error gl (Pos.to_nat b - Pos.to_nat b0) = Some (i, Gfun f) ->
-  globals_bounds b0 gl b = (0, 1%nat).
+Lemma globals_bounds_min : forall {F V} b0 (gl : list (ident * globdef F V)) b, (b < b0)%positive ->
+  globals_bounds b0 gl b = (0, 0%nat).
+Proof.
+  intros until gl; revert b0; induction gl; simpl; intros; first done.
+  rewrite if_false; last lia.
+  apply IHgl; lia.
+Qed.
+
+Lemma globals_bounds_app1 : forall {F V} b0 (gl1 gl2 : list (ident * globdef F V)) b,
+  (Pos.to_nat b < Pos.to_nat b0 + length gl1)%nat -> globals_bounds b0 (gl1 ++ gl2) b = globals_bounds b0 gl1 b.
+Proof.
+  intros; revert dependent b0; induction gl1; simpl; intros.
+  { apply globals_bounds_min; lia. }
+  if_tac; first done.
+  apply IHgl1; lia.
+Qed.
+
+Lemma globals_bounds_nth : forall {F V} b0 (gl : list (ident * globdef F V)) b i g (Hb0 : (b0 <= b)%positive),
+  nth_error gl (Pos.to_nat b - Pos.to_nat b0) = Some (i, g) ->
+  globals_bounds b0 gl b = match g with
+                           | Gfun _ => (0, 1%nat)
+                           | Gvar v => let init := gvar_init v in let sz := init_data_list_size init in (0, Z.to_nat sz)
+                           end.
 Proof.
   intros; revert dependent b0; induction gl; simpl; intros.
   - rewrite nth_error_nil // in H.
@@ -157,11 +177,14 @@ Proof.
       replace (_ - _)%nat with n by lia; done.
 Qed.
 
-Lemma block_bounds_Gfun : forall {F V} (prog : AST.program F V) b i f,
-  nth_error (AST.prog_defs prog) (Z.to_nat (Z.pos b - 1)) = Some (i, Gfun f) ->
-  block_bounds prog b = (0, 1%nat).
+Lemma block_bounds_nth : forall {F V} (prog : AST.program F V) b i g,
+  nth_error (AST.prog_defs prog) (Z.to_nat (Z.pos b - 1)) = Some (i, g) ->
+  block_bounds prog b = match g with
+                           | Gfun _ => (0, 1%nat)
+                           | Gvar v => let init := gvar_init v in let sz := init_data_list_size init in (0, Z.to_nat sz)
+                           end.
 Proof.
-  intros; eapply globals_bounds_Gfun; first lia.
+  intros; eapply globals_bounds_nth; first lia.
   by rewrite Z2Nat.inj_sub // Z2Nat.inj_pos in H.
 Qed.
 
@@ -203,7 +226,7 @@ Proof.
     apply find_symbol_globalenv in Hb as (? & ? & Hnth); last done.
     pose proof (nth_error_In _ _ Hnth).
     eapply list_norepet_In_In in Hdef; eauto; subst.
-    by erewrite block_bounds_Gfun by done.
+    by erewrite block_bounds_nth by done.
   - rewrite Forall_forall; intros (?, ?) Hi.
     apply elem_of_list_In, find_id_i in Hi; last done.
     eapply match_fdecs_exists_Gfun in Hi as (? & Hdef & ?); last done.
