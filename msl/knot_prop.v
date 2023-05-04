@@ -119,7 +119,7 @@ Module KnotProp (TF':TY_FUNCTOR_PROP) : KNOT_PROP with Module TF:=TF'.
     apply Knot_G.unsquash_squash.
     extensionality n p w.
     unfold approx, Knot_G.approx, TF_G.T_bot.
-    case (Compare_dec.le_gt_dec n (level w)); intro; apply prop_ext; firstorder.
+    destruct (Compare_dec.le_gt_dec); apply prop_ext; firstorder.
     unfold knot, TF_G.other, ag_knot in *. lia.
   Qed.
 
@@ -161,7 +161,7 @@ Module KnotProp2Knot (TF' : TY_FUNCTOR_PROP)
     apply K.unsquash_squash.
     extensionality n p w.
     unfold approx, K.approx, TF.T_bot.
-    case (Compare_dec.le_gt_dec n (level w)); intro; apply prop_ext; firstorder.
+    destruct (Compare_dec.le_gt_dec); apply prop_ext; firstorder.
     unfold knot, ag_knot, other in *.
     lia.
   Qed.
