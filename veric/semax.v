@@ -1,5 +1,5 @@
 Require Import VST.veric.juicy_base.
-Require Import VST.veric.juicy_mem (*VST.veric.juicy_mem_lemmas VST.veric.juicy_mem_ops*).
+Require Import VST.veric.juicy_mem.
 Require Import VST.veric.res_predicates.
 Require Import VST.veric.extend_tc.
 Require Import VST.veric.Clight_seplog.
@@ -21,7 +21,7 @@ Local Open Scope nat_scope.
 
 Section mpred.
 
-Context `{!heapGS Σ} (Espec : OracleKind) `{!externalGS OK_ty Σ}.
+Context `{!heapGS Σ} (Espec : OracleKind) `{!externalGS (@OK_ty Σ Espec) Σ}.
 
 Definition closed_wrt_modvars c (F: environ -> mpred) : Prop :=
     closed_wrt_vars (modifiedvars c) F.

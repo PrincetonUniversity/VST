@@ -27,7 +27,7 @@ Import LiftNotation.
 Transparent intsize_eq.
 
 Section extensions.
-  Context {CS: compspecs} `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ}.
+  Context {CS: compspecs} `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ}.
 
 Lemma semax_straight_simple:
  forall E Delta (B: environ -> mpred) P c Q

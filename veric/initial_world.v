@@ -1003,9 +1003,6 @@ Proof.
   reflexivity.
 Qed.
 
-End mpred.
-
-
 Program Definition drop_last_block m := {| mem_contents := mem_contents m;
   mem_access := Maps.PMap.set (nextblock m - 1)%positive (fun _ _ => None) (mem_access m);
   nextblock := (nextblock m - 1)%positive |}.
@@ -1029,7 +1026,7 @@ Proof.
   apply contents_default.
 Qed.
 
-Lemma rmap_of_drop_last_block : forall {Σ} m {F} ge G loc, @rmap_of_loc Σ (drop_last_block m) F ge G loc =
+Lemma rmap_of_drop_last_block : forall m {F} (ge : Genv.t (fundef F) type) G loc, rmap_of_loc (drop_last_block m) ge G loc =
   if eq_dec loc.1 (nextblock m - 1)%positive then ∅ else rmap_of_loc m ge G loc.
 Proof.
   intros; rewrite /rmap_of_loc /drop_last_block /access_at /contents_at /=.
@@ -1038,7 +1035,7 @@ Proof.
   - rewrite Maps.PMap.gso //.
 Qed.
 
-Lemma rmap_of_loc_ne : forall {Σ} m {F} ge G loc loc', loc' ≠ loc -> @rmap_of_loc Σ m F ge G loc !! loc' = None.
+Lemma rmap_of_loc_ne : forall m {F} ge G loc loc', loc' ≠ loc -> @rmap_of_loc m F ge G loc !! loc' = None.
 Proof.
   intros; rewrite /rmap_of_loc.
   destruct (access_at _ _ _); last done.
@@ -1046,8 +1043,8 @@ Proof.
 Qed.
 
 (* similar to lookup_singleton_list *)
-Lemma lookup_of_loc : forall {Σ} m {F} ge G b lo z loc,
-  (([^op list] o ∈ seq 0 z, @rmap_of_loc Σ m F ge G (b, (lo + Z.of_nat o)%Z)) !! loc ≡
+Lemma lookup_of_loc : forall m {F} ge G b lo z loc,
+  (([^op list] o ∈ seq 0 z, @rmap_of_loc m F ge G (b, (lo + Z.of_nat o)%Z)) !! loc ≡
   if adr_range_dec (b, lo) z loc then rmap_of_loc m ge G loc !! loc else None)%stdpp.
 Proof.
   induction z; intros.
@@ -1067,9 +1064,9 @@ Proof.
       lia.
 Qed.
 
-Lemma rmap_of_drop_last : forall {Σ} m block_bounds {F} (ge : Genv.t (fundef F) type) G n, (n < Pos.to_nat (nextblock m) - 1)%nat ->
+Lemma rmap_of_drop_last : forall m block_bounds {F} (ge : Genv.t (fundef F) type) G n, (n < Pos.to_nat (nextblock m) - 1)%nat ->
   ([^op list] n0 ∈ seq 1 n, let '(lo, z) := block_bounds (Pos.of_nat n0) in
-   [^op list] o ∈ seq 0 z, rmap_of_loc(Σ := Σ) m ge G (Pos.of_nat n0, lo + Z.of_nat o)) =
+   [^op list] o ∈ seq 0 z, rmap_of_loc m ge G (Pos.of_nat n0, lo + Z.of_nat o)) =
   ([^op list] n0 ∈ seq 1 n, let '(lo, z) := block_bounds (Pos.of_nat n0) in
    [^op list] o ∈ seq 0 z, rmap_of_loc (drop_last_block m) ge G (Pos.of_nat n0, lo + Z.of_nat o)).
 Proof.
@@ -1082,7 +1079,7 @@ Proof.
   simpl in *; lia.
 Qed.
 
-Lemma lookup_of_mem : forall {Σ} m {F} ge G block_bounds loc, (@rmap_of_mem Σ m block_bounds F ge G !! loc ≡ let '(lo, z) := block_bounds (fst loc) in
+Lemma lookup_of_mem : forall m {F} ge G block_bounds loc, (@rmap_of_mem m block_bounds F ge G !! loc ≡ let '(lo, z) := block_bounds (fst loc) in
   if zle lo (snd loc) && zlt (snd loc) (lo + Z.of_nat z) then rmap_of_loc m ge G loc !! loc else None)%stdpp.
 Proof.
   intros; rewrite /rmap_of_mem.
@@ -1124,7 +1121,7 @@ Proof.
   apply Lsh_bot_neq.
 Qed.
 
-Lemma rmap_of_loc_coherent : forall {Σ} m F (ge : Genv.t (fundef F) type) G loc, coherent_loc m loc (resR_to_resource (leibnizO (@resource' Σ)) (rmap_of_loc m ge G loc !! loc)).
+Lemma rmap_of_loc_coherent : forall m F (ge : Genv.t (fundef F) type) G loc, coherent_loc m loc (resR_to_resource (leibnizO (@resource' Σ)) (rmap_of_loc m ge G loc !! loc)).
 Proof.
   intros; rewrite /rmap_of_loc.
   destruct (access_at m loc Cur) eqn: Hloc; last by rewrite lookup_empty; apply coherent_None.
@@ -1174,8 +1171,8 @@ Proof.
     + intros ?; rewrite /access_at nextblock_noaccess // in Hloc.
 Qed.
 
-Lemma rmap_of_mem_coherent : forall {Σ} m block_bounds {F} ge G loc, (✓ @rmap_of_mem Σ m block_bounds F ge G)%stdpp ->
-  coherent_loc m loc (resource_at (@rmap_of_mem Σ m block_bounds F ge G) loc).
+Lemma rmap_of_mem_coherent : forall m block_bounds {F} ge G loc, (✓ @rmap_of_mem m block_bounds F ge G)%stdpp ->
+  coherent_loc m loc (resource_at (@rmap_of_mem m block_bounds F ge G) loc).
 Proof.
   intros; rewrite /resource_at.
   specialize (H loc); rewrite lookup_of_mem in H.
@@ -1186,7 +1183,7 @@ Proof.
   apply rmap_of_loc_coherent.
 Qed.
 
-Lemma rmap_of_loc_valid : forall {Σ} m {F} ge G loc, (✓ (@rmap_of_loc Σ m F ge G loc !! loc))%stdpp.
+Lemma rmap_of_loc_valid : forall m {F} ge G loc, (✓ (@rmap_of_loc m F ge G loc !! loc))%stdpp.
 Proof.
   intros; rewrite /rmap_of_loc.
   destruct (access_at m loc Cur); try done.
@@ -1196,7 +1193,7 @@ Proof.
     apply readable_Ers.
 Qed.
 
-Lemma rmap_of_mem_valid : forall {Σ} m block_bounds {F} ge G, (✓ @rmap_of_mem Σ m block_bounds F ge G)%stdpp.
+Lemma rmap_of_mem_valid : forall m block_bounds {F} ge G, (✓ @rmap_of_mem m block_bounds F ge G)%stdpp.
 Proof.
   intros.
   intros i; rewrite lookup_of_mem.
@@ -1215,7 +1212,7 @@ Proof.
   destruct (m1 !! i), (m2 !! i); done.
 Qed.
 
-Lemma big_opM_opL' : forall `{!heapGS Σ} {A B} (f : _ -> A -> gmapR address B) (g : _ -> _ -> mpred) l
+Lemma big_opM_opL' : forall {A B} (f : _ -> A -> gmapR address B) (g : _ -> _ -> mpred) l
   (Hl : base.NoDup l) (Hf : forall k1 k2 a1 a2, a1 ∈ l -> a2 ∈ l -> a1 ≠ a2 -> f k1 a1 ##ₘ f k2 a2)
   (Hg : forall k y1 y2, (✓ y1)%stdpp -> (y1 ≡ y2)%stdpp -> g k y1 ⊣⊢ g k y2) (Hv : (✓ ([^op list] a↦b ∈ l, f a b))%stdpp),
   ([∗ map] k↦v ∈ ([^op list] a↦b ∈ l, f a b), g k v) ⊣⊢
@@ -1266,7 +1263,7 @@ Proof.
   inv Heq1; inv Heq2; done.
 Qed.
 
-Lemma rmap_inflate_equiv : forall `{!heapGS Σ} m block_bounds {F} (ge : Genv.t (fundef F) type) G,
+Lemma rmap_inflate_equiv : forall m block_bounds {F} (ge : Genv.t (fundef F) type) G,
   ([∗ map] l ↦ x ∈ rmap_of_mem m block_bounds ge G, match x with
                      | Cinl (shared.YES dq _ v) => l ↦{dq} (proj1_sig (elem_of_agree v))
                      | Cinl (shared.NO sh _) => mapsto_no l sh
@@ -1317,7 +1314,7 @@ Proof.
   * apply rmap_of_mem_valid.
 Qed.
 
-Lemma inflate_drop_last : forall `{!heapGS Σ} m block_bounds {F} (ge : Genv.t (fundef F) type) G n, (n < Pos.to_nat (nextblock m) - 1)%nat ->
+Lemma inflate_drop_last : forall m block_bounds {F} (ge : Genv.t (fundef F) type) G n, (n < Pos.to_nat (nextblock m) - 1)%nat ->
   ([∗ list] y ∈ seq 1 n, let '(lo, z) := block_bounds (Pos.of_nat y) in
    [∗ list] o ∈ seq 0 z, inflate_loc m ge G (Pos.of_nat y, lo + Z.of_nat o)) =
   ([∗ list] y ∈ seq 1 n, let '(lo, z) := block_bounds (Pos.of_nat y) in
@@ -1331,7 +1328,7 @@ Proof.
   lia.
 Qed.
 
-Local Instance decide_fun_lt {Σ} m {F} (ge : Genv.t (fundef F) type) : ∀ x : ident * @funspec Σ, Decision ((fun '(id, _) => match Genv.find_symbol ge id with Some b => Plt b (nextblock m) | None => False%type end) x).
+Local Instance decide_fun_lt m {F} (ge : Genv.t (fundef F) type) : ∀ x : ident * @funspec Σ, Decision ((fun '(id, _) => match Genv.find_symbol ge id with Some b => Plt b (nextblock m) | None => False%type end) x).
 Proof.
   intros (?, ?); destruct (Genv.find_symbol _ _); last by right; intros ?.
   destruct (plt b (nextblock m)); by [left | right].
@@ -1354,7 +1351,7 @@ Proof.
   intros (? & ? & [??%elem_of_list_In]%elem_of_list_In%elem_of_list_filter); eauto.
 Qed.
 
-Lemma initial_mem_initial_core : forall `{!heapGS Σ} m block_bounds {F} (ge : Genv.t (fundef F) type) G
+Lemma initial_mem_initial_core : forall m block_bounds {F} (ge : Genv.t (fundef F) type) G
   (Hnorepet : list_norepet (map fst G))
   (Hm : forall id b, id ∈ (map fst G) -> Genv.find_symbol ge id = Some b -> access_at m (b, 0) Cur = Some Nonempty)
   (Hbounds : forall id b, id ∈ (map fst G) -> Genv.find_symbol ge id = Some b -> (block_bounds b).1 <= 0 < (block_bounds b).1 + Z.of_nat (block_bounds b).2),
@@ -1434,8 +1431,22 @@ Proof.
       intros ->; rewrite /Plt; lia.
 Qed.
 
+Lemma initialize_mem : forall m block_bounds {F} (ge : Genv.t (fundef F) type) G,
+  mem_auth Mem.empty ⊢ |==> mem_auth m ∗ inflate_initial_mem m block_bounds ge G.
+Proof.
+  intros.
+  pose proof (rmap_of_mem_valid m block_bounds ge G).
+  rewrite -rmap_inflate_equiv.
+  apply gen_heap_set; try done.
+  intros; by apply rmap_of_mem_coherent.
+Qed.
+
+End mpred.
+
 Require Import VST.veric.wsat.
 
+(* This is provable, but we probably don't want to use it: we should set up the proof infrastructure
+   (heapGS, etc.) first, and then allocate the initial memory in a later step. *)
 Lemma alloc_initial_mem `{!wsatGpreS Σ} `{!gen_heapGpreS (@resource' Σ) Σ} m block_bounds {F} (ge : Genv.t (fundef F) type) G :
   ⊢ |==> ∃ _ : heapGS Σ, wsat ∗ ownE ⊤ ∗ mem_auth m ∗ inflate_initial_mem m block_bounds ge G ∗
  ghost_map.ghost_map_auth(H0 := gen_heapGpreS_meta) (gen_meta_name _) Tsh ∅.

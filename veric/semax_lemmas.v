@@ -1,5 +1,5 @@
 Require Import VST.veric.juicy_base.
-Require Import VST.veric.juicy_mem (*VST.veric.juicy_mem_lemmas VST.veric.juicy_mem_ops*).
+Require Import VST.veric.juicy_mem.
 Require Import VST.veric.res_predicates.
 Require Import VST.veric.external_state.
 Require Import VST.veric.extend_tc.
@@ -70,7 +70,7 @@ Qed.
 
 Section SemaxContext.
 
-Context `{!heapGS Σ} {Espec : OracleKind} `{!externalGS OK_ty Σ}.
+Context `{!heapGS Σ} {Espec : OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ}.
 
 Lemma guard_environ_put_te':
  forall ge te ve Delta id v k,

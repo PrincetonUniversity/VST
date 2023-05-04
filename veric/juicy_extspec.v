@@ -15,7 +15,7 @@ Local Open Scope nat_scope.
 
 Section mpred.
 
-Context `{!heapGS Σ}.
+Context {Σ : gFunctors}.
 
 (* predicates on juicy memories *)
 Global Instance mem_inhabited : Inhabited Memory.mem := {| inhabitant := Mem.empty |}.
@@ -27,7 +27,7 @@ Definition jmpred := monPred mem_index (iPropI Σ).
 (* Do we need to explicitly include the step-index in the jm? *)
 
 (* Should we track the current memory, or re-quantify over one consistent with the rmap? *)
-Record juicy_mem := { level : nat; m_dry : mem; m_phi : rmap }.
+Record juicy_mem := { level : nat; m_dry : mem; m_phi : iResUR Σ }.
 
 Definition jm_mono (P : juicy_mem -> Prop) := forall jm n2 x2, P jm -> m_phi jm ≼ₒ{level jm} x2 ->
   n2 <= level jm -> P {| level := n2; m_dry := m_dry jm; m_phi := x2 |}.
@@ -678,7 +678,7 @@ Section juicy_safety.
   Variable (Hspec : juicy_ext_spec Z).
   Variable ge : G.
 
-  Context `{!externalGS Z Σ}.
+  Context `{!heapGS Σ} `{!externalGS Z Σ}.
 
 (*  Definition Hrel m m' :=
     (level m' < level m)%nat /\

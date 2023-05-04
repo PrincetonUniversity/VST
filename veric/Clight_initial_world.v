@@ -94,8 +94,6 @@ Proof.
   iApply funspec_sub_si_refl.
 Qed.*)
 
-End mpred.
-
 Lemma prog_funct'_incl : forall {F V} (l : list (ident * globdef F V)), incl (map fst (prog_funct' l)) (map fst l).
 Proof.
   induction l; simpl.
@@ -115,13 +113,13 @@ Proof.
   intros ?%prog_funct'_incl; done.
 Qed.
 
-Lemma match_ids : forall {Σ} fs G i, @match_fdecs Σ fs G -> In i (map fst fs) ↔ In i (map fst G).
+Lemma match_ids : forall fs G i, match_fdecs fs G -> In i (map fst fs) ↔ In i (map fst G).
 Proof.
   induction 1; simpl; first done.
   rewrite IHmatch_fdecs //.
 Qed.
 
-Lemma match_fdecs_norepet : forall {Σ} fs G, @match_fdecs Σ fs G -> list_norepet (map fst fs) ↔ list_norepet (map fst G).
+Lemma match_fdecs_norepet : forall fs G, match_fdecs fs G -> list_norepet (map fst fs) ↔ list_norepet (map fst G).
 Proof.
   induction 1; simpl; first done.
   split; inversion 1; subst; constructor; try tauto; by [rewrite -match_ids | rewrite match_ids].
@@ -188,27 +186,18 @@ Proof.
   by rewrite Z2Nat.inj_sub // Z2Nat.inj_pos in H.
 Qed.
 
-Require Import VST.veric.wsat.
-
-(* Should we compute the block bounds from Genv.init_mem, or leave them arbitrary?
-   We at least need to know that they include 0 for all function pointers. *)
-Lemma alloc_initial_state  `{!inG Σ (excl_authR (leibnizO Z))} `{!wsatGpreS Σ} `{!gen_heapGpreS (@resource' Σ) Σ} :
-  forall (prog: program) G z m
+Lemma initialize_mem :
+  forall (prog: program) G m
       (Hnorepet : list_norepet (prog_defs_names prog))
       (Hmatch : match_fdecs (prog_funct prog) G)
       (Hm : Genv.init_mem prog = Some m),
-  ⊢ |==> ∃ _ : externalGS Z Σ, ∃ _ : heapGS Σ,
-    ext_auth z ∗ has_ext z ∗ wsat ∗ ownE ⊤ ∗ mem_auth m ∗ inflate_initial_mem m (block_bounds prog) (globalenv prog) G ∗ initial_core (globalenv prog) G
-    ∗ ghost_map.ghost_map_auth(H0 := gen_heapGpreS_meta) (gen_meta_name _) Tsh ∅.
+  mem_auth Mem.empty ⊢ |==> mem_auth m ∗ inflate_initial_mem m (block_bounds prog) (globalenv prog) G ∗ initial_core (globalenv prog) G.
 Proof.
-  intros; iIntros.
-  iMod (ext_alloc z) as (?) "(? & ?)".
-  iMod (alloc_initial_mem m (block_bounds prog) (globalenv prog) G) as (?) "(? & ? & ? & Hm & ?)".
+  intros.
   assert (list_norepet (map fst G)).
   { rewrite -match_fdecs_norepet //; by apply prog_funct_norepet. }
-  rewrite initial_mem_initial_core //.
-  iDestruct "Hm" as "(? & ?)".
-  iExists _, _; by iFrame.
+  rewrite -initial_mem_initial_core; first by apply initialize_mem.
+  - done.
   - intros ?? Hid Hb.
     apply elem_of_list_fmap_2 in Hid as ((?, ?) & -> & Hi).
     apply elem_of_list_In, find_id_i in Hi; last done.
@@ -228,9 +217,31 @@ Proof.
     eapply list_norepet_In_In in Hdef; eauto; subst.
     by erewrite block_bounds_nth by done.
   - rewrite Forall_forall; intros (?, ?) Hi.
-    apply elem_of_list_In, find_id_i in Hi; last done.
+    apply find_id_i in Hi; last done.
     eapply match_fdecs_exists_Gfun in Hi as (? & Hdef & ?); last done.
     apply (prog_defmap_norepet (program_of_program prog)) in Hdef; last done.
     apply Genv.find_def_symbol in Hdef as (b & Hb & Hdef).
     rewrite Hb; by eapply Genv.find_symbol_not_fresh.
+Qed.
+
+End mpred.
+
+Require Import VST.veric.wsat.
+
+(* This is provable, but we probably don't want to use it: we should set up the proof infrastructure
+   (heapGS, etc.) first, and then allocate the initial memory in a later step. *)
+Lemma alloc_initial_state  `{!inG Σ (excl_authR (leibnizO Z))} `{!wsatGpreS Σ} `{!gen_heapGpreS (@resource' Σ) Σ} :
+  forall (prog: program) G z m
+      (Hnorepet : list_norepet (prog_defs_names prog))
+      (Hmatch : match_fdecs (prog_funct prog) G)
+      (Hm : Genv.init_mem prog = Some m),
+  ⊢ |==> ∃ _ : externalGS Z Σ, ∃ _ : heapGS Σ,
+    ext_auth z ∗ has_ext z ∗ wsat ∗ ownE ⊤ ∗ mem_auth m ∗ inflate_initial_mem m (block_bounds prog) (globalenv prog) G ∗ initial_core (globalenv prog) G
+    ∗ ghost_map.ghost_map_auth(H0 := gen_heapGpreS_meta) (gen_meta_name _) Tsh ∅.
+Proof.
+  intros; iIntros.
+  iMod (ext_alloc z) as (?) "(? & ?)".
+  iMod (alloc_initial_mem Mem.empty (fun _ => (0%Z, O)) (globalenv prog) G) as (?) "(? & ? & Hm & _ & ?)".
+  iMod (initialize_mem with "Hm") as "(? & ?)".
+  iExists _, _; by iFrame.
 Qed.

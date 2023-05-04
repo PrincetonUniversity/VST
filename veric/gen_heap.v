@@ -358,6 +358,16 @@ Section gen_heap.
       first by apply lookup_union_None.
   Qed.*)
 
+  Lemma gen_heap_set m (σ : gmap address (csum _ _)) (Hvalid : ✓ σ) (Hcoh : ∀ loc : address, coherent_loc m loc (resource_at σ loc)) :
+    resource_map_auth (gen_heap_name _) Tsh Mem.empty ==∗ resource_map_auth (gen_heap_name _) Tsh m ∗
+    ([∗ map] l ↦ x ∈ σ, match x with
+                        | Cinl (shared.YES dq _ v) => l ↦{dq} (proj1_sig (elem_of_agree v))
+                        | Cinl (shared.NO sh _) => mapsto_no l sh
+                        | Cinr v => l ↦p (proj1_sig (elem_of_agree v))
+                        | CsumBot => False
+                        end).
+  Proof. rewrite mapsto_unseal mapsto_no_unseal mapsto_pure_unseal; by apply resource_map_set. Qed.
+
   Lemma mapsto_alloc m lo hi m' b v (Halloc : Mem.alloc m lo hi = (m', b)) (Hundef : memval_of v = Some Undef) :
     resource_map_auth (gen_heap_name _) Tsh m ==∗ resource_map_auth (gen_heap_name _) Tsh m' ∗ ([∗ list] i↦v ∈ replicate (Z.to_nat (hi - lo)) v, adr_add (b, lo) (Z.of_nat i) ↦{DfracOwn Tsh} v).
   Proof. rewrite mapsto_unseal. eapply resource_map_mem_alloc; eauto. Qed.
@@ -446,33 +456,13 @@ Lemma gen_heap_init_names `{!@gen_heapGpreS V Σ ResOps} m σ (Hvalid : ✓ σ)
                        | CsumBot => False
                        end) ∗ ghost_map_auth (gen_meta_name _) Tsh ∅.
 Proof.
-  iMod (resource_map_alloc m σ) as (γh) "(? & ?)".
+  iMod (resource_map_alloc Mem.empty ∅) as (γh) "(Hm & _)".
+  { done. }
+  { intros; rewrite /resource_at lookup_empty; apply coherent_None. }
+  iMod (resource_map_set _ m σ with "Hm") as "(? & ?)".
   iMod (ghost_map_alloc_empty) as (γm) "?".
   iExists γh, γm; iFrame.
-  rewrite -{1}(big_opM_singletons σ) big_opM_view_frag.
-  iPoseProof (big_opM_own_1 with "[-]") as "?"; first done.
-  iApply big_sepM_mono; last done; intros ?? Hk.
-  specialize (Hvalid k); rewrite Hk in Hvalid.
-  destruct x as [[|] | |]; last done.
-  - rewrite mapsto_unseal /mapsto_def resource_map.resource_map_elem_unseal /resource_map.resource_map_elem_def /juicy_view_frag.
-    iIntros "?"; iExists rsh.
-    rewrite own_proper //.
-    apply view_frag_proper, (singletonM_proper(M := gmap address)); f_equiv.
-    split; first done.
-    destruct Hvalid as [_ Hvalid].
-    destruct (elem_of_agree v); simpl.
-    intros n.
-    specialize (Hvalid n); rewrite agree_validN_def in Hvalid.
-    split=> b /=; setoid_rewrite elem_of_list_singleton; eauto.
-  - rewrite mapsto_no_unseal /mapsto_no_def resource_map.resource_map_elem_no_unseal /resource_map.resource_map_elem_no_def.
-    iIntros "?"; iExists rsh; done.
-  - rewrite mapsto_pure_unseal /mapsto_pure_def resource_map.resource_map_elem_pure_unseal /resource_map.resource_map_elem_pure_def /juicy_view_frag_pure.
-    rewrite own_proper //.
-    apply view_frag_proper, (singletonM_proper(M := gmap address)); f_equiv.
-    destruct (elem_of_agree a); simpl.
-    intros n.
-    specialize (Hvalid n); rewrite agree_validN_def in Hvalid.
-    split=> b /=; setoid_rewrite elem_of_list_singleton; eauto.
+  rewrite mapsto_unseal mapsto_no_unseal mapsto_pure_unseal //.
 Qed.
 
 Lemma gen_heap_init `{!@gen_heapGpreS V Σ ResOps} m σ (Hvalid : ✓ σ)
@@ -488,4 +478,13 @@ Proof.
   iMod (gen_heap_init_names m σ) as (γh γm) "Hinit".
   iExists (GenHeapGS _ _ γh γm).
   done.
+Qed.
+
+Corollary gen_heap_init_empty `{!@gen_heapGpreS V Σ ResOps} :
+  ⊢ |==> ∃ _ : gen_heapGS V Σ, resource_map_auth (gen_heap_name _) Tsh Mem.empty ∗ ghost_map_auth (gen_meta_name _) Tsh ∅.
+Proof.
+  iDestruct (gen_heap_init Mem.empty ∅) as ">(% & ? & _ & ?)".
+  { done. }
+  { intros; rewrite /resource_at lookup_empty; apply coherent_None. }
+  by iExists _; iFrame.
 Qed.

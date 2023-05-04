@@ -430,4 +430,52 @@ Section lemmas.
     by apply: juicy_view_storebytes.
   Qed.
 
+  Lemma resource_map_set γ m σ (Hvalid : ✓ σ) (Hcoh : ∀ loc : address, coherent_loc m loc (resource_at σ loc)) :
+    resource_map_auth γ Tsh Mem.empty ==∗ resource_map_auth γ Tsh m ∗
+    ([∗ map] l ↦ x ∈ σ, match x with
+                        | Cinl (shared.YES dq _ v) => l ↪[γ]{dq} (proj1_sig (elem_of_agree v))
+                        | Cinl (shared.NO sh _) => resource_map_elem_no γ l sh
+                        | Cinr v => l ↪[γ]p (proj1_sig (elem_of_agree v))
+                        | CsumBot => False
+                        end).
+  Proof.
+    iIntros "H".
+    rewrite resource_map_auth_unseal /resource_map.resource_map_auth_def.
+    iMod (own_update with "H") as "($ & ?)".
+    { apply (view_update_alloc (juicy_view.coherent_rel _) _ m σ); intros ? bf (? & Hemp).
+      assert (forall i, bf !! i = None) as Hbf.
+      { intros i; destruct (Hemp i) as (_ & _ & _ & Halloc).
+        rewrite /resource_at in Halloc; destruct (bf !! i) eqn: Hi; rewrite ?Hi // in Halloc |- *.
+        rewrite /alloc_cohere /= in Halloc; specialize (Halloc ltac:(lia)); done. }
+      split; intros i.
+      - rewrite lookup_op Hbf op_None_right_id.
+        apply cmra_valid_validN, Hvalid.
+      - rewrite /resource_at lookup_op Hbf op_None_right_id.
+        apply Hcoh. }
+    rewrite -{1}(big_opM_singletons σ) big_opM_view_frag.
+    iPoseProof (big_opM_own_1 with "[-]") as "?"; first done.
+    iApply big_sepM_mono; last done; intros ?? Hk.
+    specialize (Hvalid k); rewrite Hk in Hvalid.
+    destruct x as [[|] | |]; last done.
+    - rewrite resource_map.resource_map_elem_unseal /resource_map.resource_map_elem_def /juicy_view_frag.
+      iIntros "?"; iExists rsh.
+      rewrite own_proper //.
+      apply view_frag_proper, (singletonM_proper(M := gmap address)); f_equiv.
+      split; first done.
+      destruct Hvalid as [_ Hvalid].
+      destruct (elem_of_agree v); simpl.
+      intros n.
+      specialize (Hvalid n); rewrite agree_validN_def in Hvalid.
+      split=> b /=; setoid_rewrite elem_of_list_singleton; eauto.
+    - rewrite resource_map.resource_map_elem_no_unseal /resource_map.resource_map_elem_no_def.
+      iIntros "?"; iExists rsh; done.
+    - rewrite resource_map.resource_map_elem_pure_unseal /resource_map.resource_map_elem_pure_def /juicy_view_frag_pure.
+      rewrite own_proper //.
+      apply view_frag_proper, (singletonM_proper(M := gmap address)); f_equiv.
+      destruct (elem_of_agree _); simpl.
+      intros n.
+      specialize (Hvalid n); rewrite agree_validN_def in Hvalid.
+      split=> b /=; setoid_rewrite elem_of_list_singleton; eauto.
+  Qed.
+
 End lemmas.

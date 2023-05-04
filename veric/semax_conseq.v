@@ -27,7 +27,7 @@ Local Notation assert := (environ -> mpred).
 
 Section mpred.
 
-Context `{!heapGS Σ} {Espec : OracleKind} `{!externalGS OK_ty Σ}. (* consolidate *)
+Context `{!heapGS Σ} {Espec : OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ}. (* consolidate *)
 
 Lemma _guard_mono: forall ge E Delta f (P Q: assert) k,
   (forall rho, P rho ⊢ Q rho) ->

@@ -18,7 +18,7 @@ Require Import VST.veric.Clight_lemmas.
 
 Section mpred.
 
-Context `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ}.
+Context `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ}.
 
 Lemma closed_wrt_modvars_switch:
   forall a sl n F,

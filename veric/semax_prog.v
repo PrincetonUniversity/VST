@@ -1,5 +1,5 @@
 Require Import VST.veric.juicy_base.
-Require Import VST.veric.juicy_mem (*VST.veric.juicy_mem_lemmas VST.veric.juicy_mem_ops*).
+Require Import VST.veric.juicy_mem.
 Require Import VST.veric.res_predicates.
 Require Import VST.veric.external_state.
 Require Import VST.veric.extend_tc.
@@ -32,8 +32,8 @@ Context `{!heapGS Σ}.
 
 Lemma funspec_eq {sig cc A P Q P' Q'}:
       P = P' -> Q=Q' ->
-      mk_funspec sig cc A P Q = mk_funspec sig cc A P' Q'.
-Proof. intros. subst. f_equal; apply proof_irr. Qed.
+      @mk_funspec Σ sig cc A P Q = mk_funspec sig cc A P' Q'.
+Proof. intros -> ->; done. Qed.
 
 Fixpoint match_globvars (gvs: list (ident * globvar type)) (V: varspecs) : bool :=
  match V with
@@ -186,7 +186,7 @@ setoid_rewrite Maps.PTree.gso; auto.
 Qed.
 
 Section semax_prog.
-Context (Espec : OracleKind) `{!externalGS OK_ty Σ}.
+Context (Espec : @OracleKind Σ) `{!externalGS OK_ty Σ}.
 
 Definition prog_contains (ge: genv) (fdecs : list (ident * Clight.fundef)) : Prop :=
      forall id f, In (id,f) fdecs ->
@@ -204,12 +204,14 @@ andb
     (compute_list_norepet (map (@fst _ _) (fn_params f) ++ map (@fst _ _) (fn_temps f)))
     (compute_list_norepet (map (@fst _ _) (fn_vars f))).
 
+(* Do we want semax_prog to be defined in the logic (with a fixed heapGS), or outside the logic
+   (universally quantifying over heapGS)? *)
 Definition semax_body
    (V: varspecs) (G: funspecs) {C: compspecs} E (f: function) (spec: ident * funspec): Prop :=
 match spec with (_, mk_funspec fsig cc A P Q) =>
   fst fsig = map snd (fst (fn_funsig f)) /\
   snd fsig = snd (fn_funsig f) /\
-forall Espec `(externalGS OK_ty Σ) (x:A),
+forall (x:A),
   semax Espec E (func_tycontext f V G nil)
       (fun rho => close_precondition (map fst f.(fn_params)) (P x) rho ∗ stackframe_of f rho)
        f.(fn_body)
@@ -402,7 +404,7 @@ destruct spec.
 destruct f0.
 intros [H' [H'' H]]; split3; auto. clear H' H''.
 intros.
-  specialize (H Espec0 H0 x).
+  specialize (H x).
 rewrite <- (stackframe_of_cspecs_sub CSUB); [apply (semax_cssub _ CSUB); apply H | trivial].
 Qed.
 
@@ -417,9 +419,9 @@ Qed.
 
 Lemma semax_func_cons
      fs id f fsig cc (A: Type) P Q (V: varspecs) (G G': funspecs) {C: compspecs} ge E b :
-  andb (id_in_list id (map (@fst _ _) G))
+  (andb (id_in_list id (map (@fst _ _) G))
   (andb (negb (id_in_list id (map (@fst ident Clight.fundef) fs)))
-    (semax_body_params_ok f)) = true ->
+    (semax_body_params_ok f)) = true) ->
   Forall
      (fun it : ident * type =>
       complete_type cenv_cs (snd it) =
@@ -439,7 +441,7 @@ destruct H' as [Hin H'].
 apply andb_true_iff in H'.
 destruct H' as [Hni H].
 split3.
-{ econstructor 2; auto.
+{ econstructor 2; eauto.
   eapply semax_body_type_of_function. apply SB. apply Hcc. }
 { apply id_in_list_true in Hin. rewrite negb_true_iff in Hni.
   hnf; intros. destruct H0; [ symmetry in H0; inv H0 | apply (Hfs _ _ H0)].
@@ -487,7 +489,7 @@ subst A0 fsig0 cc0.
 apply JMeq_eq in H4b.
 apply JMeq_eq in H4c.
 subst P0 Q0.
-destruct SB as [X [Y SB]]. specialize (SB Espec externalGS0 x). simpl fst in X. simpl snd in Y.
+destruct SB as [X [Y SB]]. specialize (SB x). simpl fst in X. simpl snd in Y.
 rewrite <- (stackframe_of'_cenv_sub CSUB); trivial.
 iApply (semax'_cenv_sub _ CSUB).
 clear - SB HDelta' X.
@@ -531,7 +533,7 @@ Qed.
 *)
 
 Lemma semax_external_FF:
-forall Espec `{!externalGS OK_ty Σ} E ef A,
+forall E ef A,
 ⊢ semax_external Espec E ef A (fun _ _ => False) (fun _ _ => False).
 intros.
 iIntros (?????) "!> !>".
@@ -554,7 +556,7 @@ forall (V: varspecs) (G: funspecs) {C: compspecs} ge E fs id ef argsig retsig A 
         ∧ ⌜Builtins0.val_opt_has_rettype ret (rettype_of_type retsig)⌝
         ⊢ ⌜tc_option_val retsig ret⌝)) ->
   Genv.find_symbol ge id = Some b -> Genv.find_funct_ptr ge b = Some (External ef argsig retsig cc) ->
-  (⊢semax_external Espec E ef A P Q) ->
+  (⊢ semax_external Espec E ef A P Q) ->
   semax_func V G ge E fs G' ->
   semax_func V G ge E ((id, External ef argsig retsig cc)::fs)
        ((id, mk_funspec (argsig', retsig) cc A P Q) :: G').
@@ -647,98 +649,25 @@ rewrite H3.
 auto.
 Qed.
 
-(*Lemma funassert_initial_core:
-forall (prog: program) ve te V G n,
+Lemma funassert_initial_core:
+forall (prog: program) ve te V G,
   list_norepet (prog_defs_names prog) ->
   match_fdecs (prog_funct prog) G ->
-  app_pred (funassert (nofunc_tycontext V G) (mkEnviron (filter_genv (globalenv prog)) ve te))
-                  (initial_core (Genv.globalenv prog) G n).
+  initial_core (Genv.globalenv prog) G ⊢ funassert (nofunc_tycontext V G) (mkEnviron (filter_genv (globalenv prog)) ve te).
 Proof.
-intros; split.
-* intros id fs.
-apply prop_imp_i; intros.
-simpl ge_of; simpl fst; simpl snd.
-unfold filter_genv, Map.get.
-assert (exists f, In (id, f) (prog_funct prog)). {
-  simpl in H1.
-  forget (prog_funct prog) as g.
-  clear - H1 H0.
-  revert G H1 H0; induction g; destruct G; intros; simpl in *.
-  exfalso.
-  rewrite Maps.PTree.gempty in H1; inv H1.
-  inv H0.
-  destruct a; simpl in *; subst.
-  destruct (eq_dec i id). subst; eauto.
-  specialize (IHg nil H1). inv H0.
-  destruct a. destruct p.
-  inv H0.
-  simpl in H1.
-  destruct (ident_eq i0 id). subst. eauto.
-  destruct (IHg G); auto. rewrite Maps.PTree.gso in H1; auto.
-  eauto.
-}
-destruct H2 as [f ?].
-destruct (find_funct_ptr_exists prog id f) as [b [? ?]]; auto.
-apply in_prog_funct_in_prog_defs; auto.
-exists b. unfold fundef.
-unfold globalenv. simpl. rewrite H3.
-split; auto.
-unfold func_at. destruct fs as [f0 cc0 A a a0].
-unfold initial_core.
-hnf. rewrite resource_at_make_rmap.
-rewrite level_make_rmap.
-unfold initial_core'.
-simpl.
-rewrite (Genv.find_invert_symbol (Genv.globalenv prog) id); auto.
-assert (H9: In (id, mk_funspec f0 cc0 A a a0 P_ne Q_ne) G). {
-  clear - H1.
-  simpl in H1. unfold make_tycontext_g in H1; simpl in H1.
-  induction G; simpl in *.
-  rewrite Maps.PTree.gempty in H1; inv H1.
-  destruct (ident_eq (fst a1) id); subst.
-  destruct a1; simpl in *.
-  rewrite Maps.PTree.gss in H1; inv H1. left; auto.
-  destruct a1; simpl in *.
-  rewrite Maps.PTree.gso in H1; auto.
-}
-rewrite (find_id_i _ _ _ H9); auto.
-clear - H0 H. unfold prog_defs_names, prog_funct in *.
-eapply match_fdecs_norepet; eauto.
-apply list_norepet_prog_funct'; auto.
-*
-intros loc' fsig' cc'.
-intros ? w ? Hext ?.
-destruct H2 as [pp ?].
-hnf in H2.
-assert (exists pp, initial_core (Genv.globalenv prog) G n @ (loc',0) = PURE (FUN fsig' cc') pp).
-apply rmap_order in Hext as (Hl & Hr & _); rewrite <- Hl, <- Hr in *.
-case_eq (initial_core (@Genv.globalenv (Ctypes.fundef function) type prog) G n @ (loc', 0)); intros.
-destruct (necR_NO _ _ (loc',0) sh n0 H1) as [? _].
-rewrite H4 in H2 by auto.
-inv H2.
-eapply necR_YES in H1; try apply H3.
-rewrite H1 in H2; inv H2.
-eapply necR_PURE in H1; try apply H3.
-rewrite H1 in H2; inv H2; eauto.
-destruct H3 as [pp' ?].
-unfold initial_core in H3.
-rewrite resource_at_make_rmap in H3.
-unfold initial_core' in H3.
-if_tac in H3; [ | inv H3].
-simpl.
-simpl @fst in *.
-revert H3; case_eq (@Genv.invert_symbol (Ctypes.fundef function)
-                                        type (@Genv.globalenv (Ctypes.fundef function) type prog) loc' ); intros;
-  [ | congruence].
-revert H5; case_eq (find_id i G); intros; [| congruence].
-destruct f as [?f ?A ?a ?a]. symmetry in H6; inv H6.
-apply Genv.invert_find_symbol in H3.
-exists i.
-simpl ge_of. unfold filter_genv, Map.get.
-unfold globalenv; simpl.
-rewrite make_tycontext_s_find_id.
-split; [ | eexists]; eassumption.
-Qed.
+  rewrite /initial_core /funassert /funspecs_assert.
+  intros; iIntros "#H"; iSplit.
+  * iIntros (?? Hid); simpl in *.
+    rewrite make_tycontext_s_find_id in Hid.
+    unshelve erewrite big_sepL_elem_of; last by apply elem_of_list_In, find_id_e.
+    eapply match_fdecs_exists_Gfun in Hid as (? & Hid & ?); last done.
+    rewrite /filter_genv /Map.get.
+    apply (Genv.find_symbol_exists (program_of_program _)) in Hid as (? & Hfind); rewrite Hfind; eauto.
+    { left; intros (?, ?); destruct (Genv.find_symbol _ _); apply _. }
+  * iIntros "!>" (???) "(% & % & % & ?)".
+    (* initial_core doesn't currently assert that there are no other functions in the state.
+       Can we do that? Do we want to? *)
+Abort.
 
 Lemma prog_contains_prog_funct: forall prog: program,
   list_norepet (prog_defs_names prog) ->
@@ -753,209 +682,6 @@ simpl in H0.  destruct a.
 destruct g. simpl in H0. destruct H0. inv H0.  left. auto.
 right; auto.  right; auto.
 Qed.
-
-Lemma funassert_initial_core_ext:
-forall (ora : OK_ty) (prog: program) ve te V G n,
-  list_norepet (prog_defs_names prog) ->
-  match_fdecs (prog_funct prog) G ->
-  app_pred (funassert (nofunc_tycontext V G) (mkEnviron (filter_genv (globalenv prog)) ve te))
-                  (initial_core_ext ora (Genv.globalenv prog) G n).
-Proof.
-intros; split.
-*
-intros id fs.
-apply prop_imp_i; intros.
-simpl ge_of; simpl fst; simpl snd.
-unfold filter_genv, Map.get.
-assert (exists f, In (id, f) (prog_funct prog)). {
-simpl in H1.
-forget (prog_funct prog) as g.
-clear - H1 H0.
-revert G H1 H0; induction g; destruct G; intros; simpl in *.
-exfalso.
-rewrite Maps.PTree.gempty in H1; inv H1.
-inv H0.
-destruct a; simpl in *; subst.
-destruct (eq_dec i id). subst; eauto.
-specialize (IHg nil H1). inv H0.
-destruct a. destruct p.
-inv H0.
-simpl in H1.
-destruct (ident_eq i0 id). subst. eauto.
-destruct (IHg G); auto. rewrite Maps.PTree.gso in H1; auto.
-eauto.
-}
-destruct H2 as [f ?].
-destruct (find_funct_ptr_exists prog id f) as [b [? ?]]; auto.
-apply in_prog_funct_in_prog_defs; auto.
-exists b. unfold fundef.
-unfold globalenv. simpl. rewrite H3.
-split; auto.
-unfold func_at. destruct fs as [f0 cc0 A a a0].
-unfold initial_core_ext.
-hnf. rewrite resource_at_make_rmap.
-rewrite level_make_rmap.
-unfold initial_core'.
-simpl.
-rewrite (Genv.find_invert_symbol (Genv.globalenv prog) id); auto.
-assert (H9: In (id, mk_funspec f0 cc0 A a a0 P_ne Q_ne) G). {
-clear - H1.
-simpl in H1. unfold make_tycontext_g in H1; simpl in H1.
-induction G; simpl in *.
-rewrite Maps.PTree.gempty in H1; inv H1.
-destruct (ident_eq (fst a1) id); subst.
-destruct a1; simpl in *.
-rewrite Maps.PTree.gss in H1; inv H1. left; auto.
-destruct a1; simpl in *.
-rewrite Maps.PTree.gso in H1; auto.
-}
-rewrite (find_id_i _ _ _ H9); auto.
-clear - H0 H. unfold prog_defs_names, prog_funct in *.
-eapply match_fdecs_norepet; eauto.
-apply list_norepet_prog_funct'; auto.
-*
-intros loc'  fsig' cc'.
-intros ? w ? Hext ?.
-destruct H2 as [pp ?].
-hnf in H2.
-assert (exists pp, initial_core_ext ora (Genv.globalenv prog) G n @ (loc',0) = PURE (FUN fsig' cc') pp).
-apply rmap_order in Hext as (Hl & Hr & _); rewrite <- Hl, <- Hr in *.
-case_eq (initial_core_ext ora (Genv.globalenv prog) G n @ (loc',0)); intros.
-destruct (necR_NO _ _ (loc',0) sh n0 H1) as [? _].
-rewrite H4 in H2 by auto.
-inv H2.
-eapply necR_YES in H1; try apply H3.
-rewrite H1 in H2; inv H2.
-eapply necR_PURE in H1; try apply H3.
-rewrite H1 in H2; inv H2; eauto.
-destruct H3 as [pp' ?].
-unfold initial_core_ext in H3.
-rewrite resource_at_make_rmap in H3.
-unfold initial_core' in H3.
-if_tac in H3; [ | inv H3].
-simpl.
-simpl @fst in *.
-revert H3; case_eq (@Genv.invert_symbol (Ctypes.fundef function) type
-          (@Genv.globalenv (Ctypes.fundef function) type prog) loc'); intros;
-[ | congruence].
-revert H5; case_eq (find_id i G); intros; [| congruence].
-destruct f as [?f ?A ?a ?a]; inv H6.
-apply Genv.invert_find_symbol in H3.
-exists i.
-unfold filter_genv, Map.get.
-rewrite make_tycontext_s_find_id.
-split; [ | eexists]; eassumption.
-Qed.
-
-Lemma core_inflate_initial_mem:
-forall (m: mem) (prog: program) (G: funspecs) (n: nat)
- (INIT: Genv.init_mem prog = Some m),
-match_fdecs (prog_funct prog) G ->
-  list_norepet (prog_defs_names prog) ->
-core (inflate_initial_mem m (initial_core (Genv.globalenv prog) G n)) =
-     initial_core (Genv.globalenv prog) G n.
-Proof.
-intros.
-assert (IOK := initial_core_ok _ _ n _ H0 H INIT).
-apply rmap_ext.
-unfold inflate_initial_mem, initial_core; simpl.
-rewrite level_core. do 2 rewrite level_make_rmap; auto.
-intro l.
-unfold inflate_initial_mem, initial_core; simpl.
-rewrite <- core_resource_at.
-repeat rewrite resource_at_make_rmap.
-unfold inflate_initial_mem'.
-repeat rewrite resource_at_make_rmap.
-unfold initial_core'.
-case_eq (@Genv.invert_symbol (Ctypes.fundef function) type (@Genv.globalenv (Ctypes.fundef function) type prog) (@fst block Z l) ); intros; auto.
-rename i into id.
-case_eq (find_id id G); intros; auto.
-rename f into fs.
-assert (exists f, In (id,f) (prog_funct prog)).
-apply find_id_e in H2.
-apply in_map_fst in H2.
-eapply match_fdecs_in in H2; eauto.
-apply in_map_iff in H2.
-destruct H2 as [[i' f] [? ?]]. subst id; exists f; auto.
-destruct H3 as [f ?].
-apply Genv.invert_find_symbol in H1.
-destruct (find_funct_ptr_exists prog id f) as [b [? ?]]; auto.
-apply in_prog_funct_in_prog_defs; auto.
-inversion2 H1 H4.
-+ if_tac.
-- destruct (IOK l) as [_ ?].
-unfold initial_core in H6. rewrite resource_at_make_rmap in H6.
-unfold initial_core' in H6. rewrite if_true in H6 by auto.
-apply Genv.find_invert_symbol in H1.
-unfold fundef in *; rewrite H1 in *.
-rewrite H2 in *. destruct fs.
-destruct H6 as [? [? ?]]. rewrite H7.
-rewrite core_PURE; auto.
-- destruct (access_at m l); try destruct p; try rewrite core_YES; try rewrite core_NO; auto.
-+
-if_tac;  destruct (access_at m l); try destruct p; try rewrite core_YES; try rewrite core_NO; auto.
-+
-if_tac;   destruct (access_at m l); try destruct p; try rewrite core_YES; try rewrite core_NO; auto.
-+ rewrite ghost_of_core.
-unfold inflate_initial_mem, initial_core; rewrite !ghost_of_make_rmap, ghost_core_eq; auto.
-Qed.
-
-(* This isn't true: we get a core of the external ghost state left over.
-   When would we use this, though?
-Lemma core_inflate_initial_mem':
-forall (ora : OK_ty) (m: mem) (prog: program) (G: funspecs) (n: nat)
- (INIT: Genv.init_mem prog = Some m),
-match_fdecs (prog_funct prog) G ->
-  list_norepet (prog_defs_names prog) ->
-core (inflate_initial_mem m (initial_core_ext ora (Genv.globalenv prog) G n)) =
-     initial_core (Genv.globalenv prog) G n.
-Proof.
-intros.
-assert (IOK := initial_core_ext_ok ora _ _ n _ H0 H INIT).
-apply rmap_ext.
-unfold inflate_initial_mem, initial_core, initial_core_ext; simpl.
-rewrite level_core. rewrite !level_make_rmap; auto.
-intro l.
-unfold inflate_initial_mem, initial_core, initial_core_ext; simpl.
-rewrite <- core_resource_at.
-repeat rewrite resource_at_make_rmap.
-unfold inflate_initial_mem'.
-repeat rewrite resource_at_make_rmap.
-unfold initial_core'.
-case_eq (Genv.invert_symbol (Genv.globalenv prog) (fst l)); intros; auto.
-rename i into id.
-case_eq (find_id id G); intros; auto.
-rename f into fs.
-assert (exists f, In (id,f) (prog_funct prog)).
-apply find_id_e in H2.
-apply in_map_fst in H2.
-eapply match_fdecs_in in H2; eauto.
-apply in_map_iff in H2.
-destruct H2 as [[i' f] [? ?]]. subst id; exists f; auto.
-destruct H3 as [f ?].
-apply Genv.invert_find_symbol in H1.
-destruct (find_funct_ptr_exists prog id f) as [b [? ?]]; auto.
-apply in_prog_funct_in_prog_defs; auto.
-inversion2 H1 H4.
-+ if_tac.
-- destruct (IOK l) as [_ ?].
-unfold initial_core_ext in H6. rewrite resource_at_make_rmap in H6.
-unfold initial_core' in H6. rewrite if_true in H6 by auto.
-apply Genv.find_invert_symbol in H1.
-unfold fundef in *; rewrite H1 in *.
-rewrite H2 in *. destruct fs.
-destruct H6 as [? [? ?]]. rewrite H7.
-rewrite core_PURE; auto.
-- destruct (access_at m l); try destruct p; try rewrite core_YES; try rewrite core_NO; auto.
-+ (*unfold fundef in *; rewrite H1,H2 in *.*)
-if_tac;  destruct (access_at m l); try destruct p; try rewrite core_YES; try rewrite core_NO; auto.
-+ (*unfold fundef in *; rewrite H1 in *.*)
-if_tac;   destruct (access_at m l); try destruct p; try rewrite core_YES; try rewrite core_NO; auto.
-+ rewrite ghost_of_core.
-unfold inflate_initial_mem, initial_core_ext; rewrite !ghost_of_make_rmap, ghost_core_eq; auto.
-simpl; do 3 f_equal. unfold ext_ghost; f_equal. apply exist_ext. f_equal; intros. f_equal. Search ext_ghost.
-Qed.*)
-*)
 
 Definition Delta1 V G {C: compspecs}: tycontext :=
 make_tycontext ((1%positive,(Tfunction Tnil Tvoid cc_default))::nil) nil nil Tvoid V G nil.
@@ -1027,7 +753,7 @@ list_norepet (map fst l) ->
 match_globvars (prog_vars' l) vs = true ->
 match_fdecs (prog_funct' l) G ->
 ((make_tycontext_g vs G) !! id = Some t <->
-((exists f, In (id,f) G /\ t = type_of_funspec f) \/ In (id,t) vs)).
+((exists f, In (id,f) G /\ t = @type_of_funspec Σ f) \/ In (id,t) vs)).
 Proof.
 intros.
 assert (list_norepet (map (@fst _ _) (prog_funct' l) ++  (map (@fst _ _) (prog_vars' l)))). {
@@ -1135,7 +861,7 @@ forall vs G (prog: program),
 list_norepet (prog_defs_names prog) ->
 match_globvars (prog_vars prog) vs = true->
 match_fdecs (prog_funct prog) G ->
-typecheck_glob_environ (filter_genv (globalenv prog)) (make_tycontext_g vs G).
+typecheck_glob_environ (filter_genv (globalenv prog)) (@make_tycontext_g Σ vs G).
 Proof.
 intros.
 hnf; intros.
@@ -1240,37 +966,7 @@ pose proof eq_dec_statement.
 repeat (hnf; decide equality; auto).
 Qed.
 
-(*Lemma initial_jm_funassert V (prog : Clight.program) m G n H H1 H2 :
-(funassert (nofunc_tycontext V G) (empty_environ (globalenv prog)))
-(m_phi (initial_jm prog m G n H H1 H2)).
-Proof.
-unfold initial_jm.
-assert (FA: app_pred (funassert (nofunc_tycontext V G) (empty_environ (globalenv prog)))
-(initial_world.initial_core (Genv.globalenv prog) G n)
-     ).
-apply funassert_initial_core; auto.
-revert FA.
-apply corable_core; [apply corable_funassert|].
-pose proof initial_mem_core as E.
-unfold juicy_mem_core in *. erewrite E; try reflexivity.
-Qed.
-
-Lemma initial_jm_ext_funassert (ora : OK_ty) V (prog : Clight.program) m G n H H1 H2 :
-(funassert (nofunc_tycontext V G) (empty_environ (globalenv prog)))
-(m_phi (initial_jm_ext ora prog m G n H H1 H2)).
-Proof.
-unfold initial_jm_ext.
-assert (FA: app_pred (funassert (nofunc_tycontext V G) (empty_environ (globalenv prog)))
-(initial_world.initial_core_ext ora (Genv.globalenv prog) G n)
-     ).
-apply funassert_initial_core_ext; auto.
-revert FA.
-apply corable_core; [apply corable_funassert|].
-pose proof initial_mem_core as E.
-unfold juicy_mem_core in *. erewrite E; try reflexivity.
-Qed.*)
-
-Lemma find_id_maketycontext_s G id : (make_tycontext_s G) !! id = find_id id G.
+Lemma find_id_maketycontext_s G id : (@make_tycontext_s Σ G) !! id = find_id id G.
 Proof.
 induction G as [|(i,t) G]; simpl.
 - destruct id; reflexivity.
@@ -1436,17 +1132,17 @@ Qed.
 Lemma semax_prog_rule {CS: compspecs} :
   forall V G prog m h z,
      postcondition_allows_exit tint ->
-     @semax_prog CS prog z V G ->
+     semax_prog(C := CS) prog z V G ->
      Genv.init_mem prog = Some m ->
      { b : block & { q : CC_core &
        (Genv.find_symbol (globalenv prog) (prog_main prog) = Some b) *
        (exists m', semantics.initial_core (cl_core_sem (globalenv prog)) h
                        m q m' (Vptr b Ptrofs.zero) nil) *
-       ⊢ |==> (* allocate wsatGS, heapGS, externalGS *) has_ext z ∗ (jsafeN Espec (globalenv prog) z q ∧
-           no_locks ∧ matchfunspecs (globalenv prog) G) ∗ funassert (nofunc_tycontext V G) (empty_environ (globalenv prog))
+       (state_interp Mem.empty z ∗ has_ext z ⊢ |==> state_interp m z ∗ jsafeN Espec (globalenv prog) ⊤ z q ∗
+           (*no_locks ∧*) □ matchfunspecs (globalenv prog) G ⊤ ∗ funassert (nofunc_tycontext V G) (empty_environ (globalenv prog)))
      } }%type.
 Proof.
-  intros until z. intro ∃IT. intros. rename H0 into H1.
+  intros until z. intro EXIT. intros ? H1.
   generalize H; intros [? [AL [HGG [[? [GC ?]] [GV ?]]]]].
   destruct (find_id (prog_main prog) G) as [fspec|] eqn:Hfind; try contradiction.
   assert (H4': exists post, In (prog_main prog, main_spec_ext' prog z post) G
@@ -1455,7 +1151,7 @@ Proof.
     apply find_id_e in Heqo. destruct H4 as [post ?]. exists post.
     subst. split; auto. inv Hfind. auto. inv Hfind.
   } clear H4. rename H4' into H4.
-  assert (H5:{ f | In (prog_main prog, f) (prog_funct prog)}).
+  assert (H5:{ f | In (prog_main prog, f) (prog_funct prog)} ).
   forget (prog_main prog) as id.
   assert (H4': In id (map fst G)). {
   destruct H4 as [? [H4 _]].
@@ -1469,12 +1165,12 @@ Proof.
   apply compute_list_norepet_e in H0.
   assert (indefs: In (prog_main prog, Gfun f) (AST.prog_defs prog))
     by (apply in_prog_funct_in_prog_defs; auto).
-  pose proof (find_funct_ptr_exists prog (prog_main prog) f) as ∃x.
+  pose proof (find_funct_ptr_exists prog (prog_main prog) f) as EXx.
   (* Genv.find_funct_ptr_exists is a Prop existential, we use constructive epsilon and
      decidability on a countable set to transform it to a Type existential *)
-  apply find_symbol_funct_ptr_ex_sig in ∃x; auto.
-  destruct ∃x as [b [? ?]]; auto.
-  destruct fspec as [[ params retty] cc A P Q NEP NEQ].
+  apply find_symbol_funct_ptr_ex_sig in EXx; auto.
+  destruct EXx as [b [? ?]]; auto.
+  destruct fspec as [[params retty] cc A P Q].
   assert (cc = cc_default /\ params = nil). {
     clear - H4. destruct H4 as [? [? ?]]. inv H0. auto.
   }
@@ -1485,55 +1181,35 @@ Proof.
   }
   subst retty.
   assert (SPEP := semax_prog_entry_point V G prog b (prog_main prog)
-       params nil A P Q NEP NEQ h z ∃IT H H5 Hfind).
+       params nil A P Q h z EXIT H H5 Hfind).
   spec SPEP. subst params; constructor.
-  set (gargs:= (filter_genv (globalenv prog), @nil val)) in *.
+  set (gargs := (filter_genv (globalenv prog), @nil val)) in *.
   cbv beta iota zeta in SPEP.
-  destruct SPEP as [q [? ?]].
+  destruct SPEP as [q [Hinit Hsafe]].
   exists b, q.
   split; [split |]; auto.
- - clear H7.
-  intro n.
-  pose (jm := initial_jm_ext z prog m G n H1 H0 H2).
-  exists jm.
-  assert (level jm = n)
-    by (subst jm; simpl; rewrite inflate_initial_mem_level;
-          apply level_make_rmap).
-  assert (nth_error (ghost_of (m_phi jm)) 0 = Some (Some (ext_ghost z, NoneP)))
-    by (simpl; unfold inflate_initial_mem; rewrite ghost_of_make_rmap;
-          unfold initial_core_ext; rewrite ghost_of_make_rmap;  auto).
-  split3; [ | | split3; [ | | split3; [ | | split]]]; auto.
-  + apply initial_jm_wsat.
+  clear Hinit.
+
+  iIntros "((Hm & $) & Hz)".
+  iMod (initialize_mem with "Hm") as "($ & Hm & #Hcore)".
+  (* funassert_initial_core *)
+  iIntros "!>"; iSplitR "".
   + destruct H4 as [post [H4 H4']].
     unfold main_spec_ext' in H4'.
-    injection H4'; intros.  subst params A.
-    apply inj_pair2 in H11.
-    apply inj_pair2 in H12. subst P Q. clear H14.
-    apply (H9 jm nil (globals_of_genv (filter_genv (globalenv prog)))); eauto.
-    * apply sepcon_TT.
-      eexists; eexists; split; [apply initial_jm_ext_eq|].
-      split.
-        split; [ simpl; trivial |].
-        split; auto.
-        apply global_initializers; auto.
-        simpl.
-        unshelve eexists; [split; auto; apply Share.nontrivial|].
-        unfold set_ghost; rewrite ghost_of_make_rmap, resource_at_make_rmap.
-        split; [apply resource_at_core_identity|].
-        unfold ext_ghost. match goal with |- join_sub ?a ?b => assert (a = b) as ->; [|apply join_sub_refl] end.
-        repeat f_equal.
-    * apply (initial_jm_ext_funassert z V prog m G n H1 H0 H2).
-    * unfold ext_compat; simpl.
-      unfold inflate_initial_mem; rewrite ghost_of_make_rmap; simpl.
-      unfold initial_core_ext; rewrite ghost_of_make_rmap; simpl.
-      eexists (Some (_, _) :: _); do 2 constructor.
-      split; [apply ext_ref_join | constructor; reflexivity].
-+
-  apply initial_jm_ext_without_locks.
-+
-  apply initial_jm_ext_matchfunspecs.
-+
-  apply (initial_jm_ext_funassert z V prog m G n H1 H0 H2).
+    injection H4' as -> -> HP HQ.
+    apply inj_pair2 in HP as ->.
+    apply inj_pair2 in HQ as ->.
+    iApply (Hsafe (globals_of_genv (filter_genv (globalenv prog)))).
+    iSplit.
+    * iIntros "!>".
+      rewrite /main_pre.
+      iSplit; first done.
+      iFrame.
+      by iApply global_initializers.
+    * admit.
+  + iSplit.
+    * apply initial_jm_ext_matchfunspecs.
+    * 
 Qed.
 
 Lemma match_fdecs_length funs K:

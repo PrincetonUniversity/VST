@@ -322,7 +322,7 @@ Proof.
    fold (typecheck_expr(CS := CS)); fold (typecheck_expr(CS := CS')).
    tc_expr_cenv_sub_tac; apply (denote_tc_assert_cenv_sub CSUB).
   + apply tc_lvalue_cenv_sub_field, IHa.
-Time Qed.
+Time Qed. (* FIXME: This is unreasonably slow. *)
 
   Lemma tc_exprlist_cenv_sub Delta rho:
     forall types bl, @tc_exprlist CS Delta types bl rho ⊢
