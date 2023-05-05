@@ -14,7 +14,7 @@ Context `{!heapGS Σ}.
 Definition allp_fun_id E (Delta : tycontext) (rho : environ): mpred :=
  ∀ id : ident, ∀ fs : funspec,
   ⌜(glob_specs Delta) !! id = Some fs⌝ →
-  (∃ b : block, ⌜Map.get (ge_of rho) id = Some b⌝ ∧ func_ptr_si E fs (Vptr b Ptrofs.zero)).
+  (∃ b : block, ⌜Map.get (ge_of rho) id = Some b⌝ ∧ func_ptr_si (ge_of rho) E id fs (Vptr b Ptrofs.zero)).
 
 Global Instance funspec_inhabited : Inhabited (@funspec Σ).
 Proof. constructor. exact (mk_funspec ([], Tvoid) cc_default unit (fun _ _ => True) (fun _ _ => True)). Qed.
@@ -38,7 +38,7 @@ Proof.
   apply bi.exist_mono; intros b.
   apply bi.and_mono; first done.
   rewrite /func_ptr_si.
-  iIntros "H"; iDestruct "H" as (? Heq ?) "[#H1 H2]"; inv Heq.
+  iIntros "H"; iDestruct "H" as (? (? & Heq) ?) "[#H1 H2]"; inv Heq.
   rewrite /func_at /sigcc_at /funspec_sub_si.
   destruct fs, gs; iDestruct "H1" as "[[-> ->] _]"; eauto.
 Qed.
@@ -79,16 +79,10 @@ Qed.
 
 Lemma funassert_allp_fun_id E Delta rho: funassert Delta rho ⊢ <affine> allp_fun_id E Delta rho.
 Proof.
-  rewrite -(bi.affine_affinely (funassert _ _)); apply bi.affinely_mono.
-  simpl.
-  rewrite bi.and_elim_l.
-  apply bi.forall_mono; intros id.
-  apply bi.forall_mono; intros fs.
-  apply bi.impl_mono; first done.
-  apply bi.exist_mono; intros b.
-  apply bi.and_mono; first done.
-  rewrite /func_ptr_si.
-  iIntros "H"; iExists b; iSplit; first auto.
+  iIntros "[H _] !>" (???).
+  iDestruct ("H" with "[%]") as (??) "H"; first done.
+  iExists b; iSplit; first auto.
+  iExists b; iSplit; first auto.
   iExists fs; iFrame.
   iPoseProof (funspec_sub_si_refl) as "?"; auto.
 Qed.

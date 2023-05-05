@@ -77,7 +77,7 @@ Proof.
   iCombine "Hm P" as "H"; rewrite (add_and (_ ∗ _) (▷_)); last by iIntros "H"; iNext; iDestruct "H" as "(Hm & H & _)"; iApply (eval_expr_relate(CS := CS) with "[$Hm $H]").
   iDestruct "H" as "(H & >%Heval)".
   rewrite /tc_expr /typecheck_expr denote_tc_assert_andp; fold (typecheck_expr(CS := CS)).
-  rewrite -assoc bi.and_elim_r.
+  rewrite -assoc (bi.and_elim_r (denote_tc_assert _ _)).
   rewrite (add_and (_ ∗ _) (▷_)); last by iIntros "H"; iNext; iDestruct "H" as "(Hm & H & _)"; iApply (eval_expr_relate(CS := CS) with "[$Hm $H]").
   iDestruct "H" as "(H & >%Hb)".
   inv Heval.

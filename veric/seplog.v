@@ -410,21 +410,34 @@ Proof. destruct f; apply _. Qed.
 Definition sigcc_at (fsig: typesig) (cc:calling_convention) (l: address) : mpred :=
   ∃ A P Q, l ↦p FUN fsig cc A P Q.
 
-Definition func_ptr_si E (f: funspec) (v: val): mpred :=
+(* This version of func_ptr is in an odd position: it's self-contained, in that it associates a
+   memory location with a spec without referring to the name of a function, but it's also incomplete,
+   in that it's insufficient to actually use the function with that spec.
+   We could imagine a less self-contained version, in which it carries its id (see below),
+   or a more self-contained version, in which it carries its own Hoare triple. The latter is
+   theoretically appealing, but Clight's semantics only allow calling functions that can be found
+   in the global environment anyway. *)
+(*Definition func_ptr_si E (f: funspec) (v: val): mpred :=
   ∃ b, ⌜v = Vptr b Ptrofs.zero⌝ ∧ (∃ gs: funspec, funspec_sub_si E gs f ∧ func_at gs (b, 0)).
 
 Definition func_ptr E (f: funspec) (v: val): mpred :=
-  ∃ b, ⌜v = Vptr b Ptrofs.zero⌝ ∧ (∃ gs: funspec, ⌜funspec_sub E gs f⌝ ∧ func_at gs (b, 0)).
+  ∃ b, ⌜v = Vptr b Ptrofs.zero⌝ ∧ (∃ gs: funspec, ⌜funspec_sub E gs f⌝ ∧ func_at gs (b, 0)).*)
 
-Lemma func_ptr_fun_ptr_si E f v: func_ptr E f v ⊢ func_ptr_si E f v.
+Definition func_ptr_si ge E id (f: funspec) (v: val): mpred :=
+  ∃ b, ⌜Map.get ge id = Some b ∧ v = Vptr b Ptrofs.zero⌝ ∧ (∃ gs: funspec, funspec_sub_si E gs f ∧ func_at gs (b, 0)).
+
+Definition func_ptr ge E id (f: funspec) (v: val): mpred :=
+  ∃ b, ⌜Map.get ge id = Some b ∧ v = Vptr b Ptrofs.zero⌝ ∧ (∃ gs: funspec, ⌜funspec_sub E gs f⌝ ∧ func_at gs (b, 0)).
+
+Lemma func_ptr_fun_ptr_si ge E id f v: func_ptr ge E id f v ⊢ func_ptr_si ge E id f v.
 Proof.
   iIntros "H"; iDestruct "H" as (????) "H".
   iExists b; iFrame "%"; iExists gs; iFrame.
   iSplit; auto; by iApply funspec_sub_sub_si'.
 Qed.
 
-Lemma func_ptr_si_mono E fs gs v: 
-      funspec_sub_si E fs gs ∧ func_ptr_si E fs v ⊢ func_ptr_si E gs v.
+Lemma func_ptr_si_mono ge E id fs gs v: 
+      funspec_sub_si E fs gs ∧ func_ptr_si ge E id fs v ⊢ func_ptr_si ge E id gs v.
 Proof.
   iIntros "H".
   rewrite /func_ptr_si bi.and_exist_l.
@@ -439,8 +452,8 @@ Proof.
   iDestruct "H" as "[$ _]".
 Qed.
 
-Lemma func_ptr_mono E fs gs v: funspec_sub E fs gs ->
-      func_ptr E fs v ⊢ func_ptr E gs v.
+Lemma func_ptr_mono ge E id fs gs v: funspec_sub E fs gs ->
+      func_ptr ge E id fs v ⊢ func_ptr ge E id gs v.
 Proof.
   intros; rewrite /func_ptr.
   iIntros "H"; iDestruct "H" as (?? hs ?) "H".
@@ -448,16 +461,16 @@ Proof.
   split; auto; eapply funspec_sub_trans; eauto.
 Qed.
 
-Lemma funspec_sub_implies_func_prt_si_mono' E fs gs v:
-      ⌜funspec_sub E fs gs⌝ ∧ func_ptr_si E fs v ⊢ func_ptr_si E gs v.
+Lemma funspec_sub_implies_func_prt_si_mono' ge E id fs gs v:
+      ⌜funspec_sub E fs gs⌝ ∧ func_ptr_si ge E id fs v ⊢ func_ptr_si ge E id gs v.
 Proof.
   iIntros "[% ?]"; iApply func_ptr_si_mono.
   iFrame.
   by iSplit; auto; iApply funspec_sub_sub_si'.
 Qed.
 
-Lemma funspec_sub_implies_func_prt_si_mono E fs gs v: funspec_sub E fs gs ->
-      func_ptr_si E fs v ⊢ func_ptr_si E gs v.
+Lemma funspec_sub_implies_func_prt_si_mono ge E id fs gs v: funspec_sub E fs gs ->
+      func_ptr_si ge E id fs v ⊢ func_ptr_si ge E id gs v.
 Proof.
   intros.
   iIntros "H"; iApply funspec_sub_implies_func_prt_si_mono'.
@@ -524,24 +537,21 @@ Definition is_a_local (vars: list (ident * type)) (i: ident) : Prop :=
 Definition typed_true (t: type) (v: val) : Prop := strict_bool_val v t = Some true.
 
 Definition typed_false (t: type)(v: val) : Prop := strict_bool_val v t = Some false.
-(*
-Definition subst {A} (x: ident) (v: val) (P: environ -> A) : environ -> A :=
-  fun s => P (env_set s x v).
-*)
+
 Definition subst {A} (x: ident) (v: environ -> val) (P: environ -> A) : environ -> A :=
    fun s => P (env_set s x (v s)).
 
-Lemma func_ptr_isptr: forall E spec f, func_ptr E spec f ⊢ ⌜val_lemmas.isptr f⌝.
+Lemma func_ptr_isptr: forall ge E id spec f, func_ptr ge E id spec f ⊢ ⌜val_lemmas.isptr f⌝.
 Proof.
   intros.
   unfold func_ptr.
-  destruct spec. by iIntros "H"; iDestruct "H" as (b ->) "_".
+  destruct spec. by iIntros "H"; iDestruct "H" as (b (_ & ->)) "_".
 Qed.
-Lemma func_ptr_si_isptr: forall E spec f, func_ptr_si E spec f ⊢ ⌜val_lemmas.isptr f⌝.
+Lemma func_ptr_si_isptr: forall ge E id spec f, func_ptr_si ge E id spec f ⊢ ⌜val_lemmas.isptr f⌝.
 Proof.
   intros.
   unfold func_ptr_si.
-  destruct spec. by iIntros "H"; iDestruct "H" as (b ->) "_".
+  destruct spec. by iIntros "H"; iDestruct "H" as (b (_ & ->)) "_".
 Qed.
 
 Lemma subst_extens:
@@ -550,88 +560,11 @@ Proof.
 by unfold subst.
 Qed.
 
-(*Lemma approx_func_ptr_si_general fs cc (A: TypeTree) P Q 
-      (Pne: args_super_non_expansive P) (Qne: super_non_expansive Q) (n: nat)
-      aPne aQne  (v: val):
-    approx (S n) (func_ptr_si (mk_funspec fs cc A P Q Pne Qne) v) =
-    approx (S n) (func_ptr_si (mk_funspec fs cc A
-                                          (fun ts a rho => approx n (P ts a rho))
-                                          (fun ts a rho => approx n (Q ts a rho)) aPne aQne) v).
-Proof.
-  intros.
-  unfold func_ptr_si.
-  rewrite !approx_exp. apply pred_ext; intros w [b W]; exists b.
-  + rewrite approx_andp, approx_exp in W. destruct W as [W1 [phi [Lev [Phi PHI]]]].
-    rewrite approx_andp, approx_exp. split; trivial.
-    exists phi; split3; trivial.
-    eapply funspec_sub_si_trans; split. apply Phi. clear Phi PHI; hnf.
-    split. split; trivial.
-    intros w' Hw' ts2 a rho m WM u ? necU extU [U1 U2]. simpl in U1.
-    apply fupd_intro.
-    exists ts2, a, emp. rewrite emp_sepcon; split. { apply approx_p in U2; trivial. }
-    intros rho' y UY k ? YK EK K. rewrite emp_sepcon in K. simpl in K.
-    destruct K; split; auto.
-    apply necR_level in necU.  apply necR_level in YK. apply ext_level in extU. apply ext_level in EK.
-    apply laterR_level in Hw'. lia.
-  + rewrite approx_andp, approx_exp in W. destruct W as [W1 [phi [Lev [Phi PHI]]]].
-    rewrite approx_andp, approx_exp. split; trivial.
-    exists phi; split3; trivial.
-    eapply funspec_sub_si_trans; split. apply Phi. clear Phi PHI; hnf.
-    split. split; trivial.
-    intros w' Hw' ts2 a rho m WM u ? necU extU [U1 U2]. simpl in U1.
-    apply fupd_intro.
-    exists ts2, a, emp. rewrite emp_sepcon; split. 
-    - apply necR_level in necU. apply ext_level in extU. apply approx_lt; trivial.
-      apply laterR_level in Hw'. lia.
-    - intros rho' k UP j ? KJ EJ J.
-      rewrite emp_sepcon in J. simpl in J. apply J.
-Qed.
-
-Lemma approx_func_ptr_si: forall (A: Type) fsig0 cc (P: A -> argsEnviron -> mpred)
-                                 (Q: A -> environ -> mpred) (v: val) (n: nat),
-    approx (S n) (func_ptr_si (mk_funspec fsig0 cc A P Q) v) =
-    approx (S n) (func_ptr_si (mk_funspec fsig0 cc A
-                                            (fun a rho => approx n (P a rho))
-                                            (fun a rho => approx n (Q a rho))) v).
-Proof. intros. apply approx_func_ptr_si_general. Qed.
-(*original proof without relying on approx_func_ptr_si_general:
-  intros.
-  unfold func_ptr_si.
-  rewrite !approx_exp; f_equal; extensionality b.
-  rewrite !approx_andp; f_equal.
-  unfold func_at, mk_funspec.
-  simpl.
-  apply pred_ext; intros w; simpl; intros [? ?]; split; auto.
-  + destruct H0 as [gs [SUBS H0]]. exists gs; split; trivial.
-    eapply funspec_sub_si_trans; split. apply SUBS. clear SUBS H0; hnf.
-    split. split; trivial. 
-    intros w' Hw' ts2 a rho m WM u necU [U1 U2]. simpl in U1.
-    apply fupd_intro.
-    exists ts2, a, emp. rewrite emp_sepcon; split. { apply approx_p in U2; trivial. }
-    intros rho' y UY k YK K. rewrite emp_sepcon in K. simpl in K.
-    rewrite <- approx_fupd.
-    apply necR_level in necU.  apply necR_level in YK.
-    split; [ | apply fupd_intro, K]. apply laterR_level in Hw'. lia.
-  + destruct H0 as [gs [SUBS H0]]. exists gs; split; trivial.
-    eapply funspec_sub_si_trans; split. apply SUBS. clear SUBS H0; hnf.
-    split. split; trivial.
-    intros w' Hw' ts2 a rho m WM u necU [U1 U2]. simpl in U1.
-    apply fupd_intro.
-    exists ts2, a, emp. rewrite emp_sepcon; split. 
-    - apply necR_level in necU. apply approx_lt; trivial.
-      apply laterR_level in Hw'. lia.
-    - intros rho' k UP j KJ J.
-      rewrite emp_sepcon in J. simpl in J. apply fupd_intro, J.
-Qed. *)
-*)
-
 Definition funspecs_assert (FunSpecs: Maps.PTree.t funspec): assert :=
  assert_of (fun rho =>
-   (∀ id: ident, ∀ fs:funspec,  ⌜FunSpecs!!id = Some fs⌝ →
-              ∃ b:block,⌜Map.get (ge_of rho) id = Some b⌝ ∧ func_at fs (b,0))
- ∧ □ (∀ b: block, ∀ fsig:typesig, ∀ cc: calling_convention, sigcc_at fsig cc (b,0) →
-             ∃ id:ident, ⌜Map.get (ge_of rho) id = Some b⌝
-                             ∧ ⌜exists fs, FunSpecs!!id = Some fs⌝)).
+   □ ((∀ id: ident, ∀ fs:funspec,  ⌜FunSpecs!!id = Some fs⌝ →
+              ∃ b:block,⌜Map.get (ge_of rho) id = Some b⌝ ∧ func_at fs (b,0)) ∧
+      ⌜∀ id b, Map.get (ge_of rho) id = Some b → ∃ fs, FunSpecs!!id = Some fs⌝)).
 
 Definition globals_only (rho: environ) : environ := (mkEnviron (ge_of rho) (Map.empty _) (Map.empty _)).
 
@@ -669,9 +602,9 @@ assert (forall FS FS' rho,
              (forall id, FS !! id = FS' !! id) ->
              funspecs_assert FS rho ⊢ funspecs_assert FS' rho).
 { intros. rewrite /funspecs_assert.
-  iIntros "[#H1 #H2]"; iSplit.
-  + iIntros; rewrite <- H in *. by iApply "H1".
-  + iIntros "!>"; iIntros. by setoid_rewrite <- H; iApply "H2". }
+  iIntros "#(H1 & %) !>"; iSplit.
+  - iIntros (??); rewrite -H //.
+  - iPureIntro; intros; rewrite -H; eauto. }
 split=> rho; iSplit; iApply H; auto.
 Qed.
 
@@ -1185,8 +1118,8 @@ Proof.
   rewrite -(bi.True_intro emp) bi.and_elim_l in H. apply ouPred.pure_soundness in H as [??]; done.
 Qed.
 
-Lemma later_func_ptr_si E phi psi (H: True ⊢ funspec_sub_si E phi psi) v:
-      ▷ (func_ptr_si E phi v) ⊢ ▷ (func_ptr_si E psi v).
+Lemma later_func_ptr_si ge E id phi psi (H: True ⊢ funspec_sub_si E phi psi) v:
+      ▷ (func_ptr_si ge E id phi v) ⊢ ▷ (func_ptr_si ge E id psi v).
 Proof.
   iIntros "H !>".
   iApply func_ptr_si_mono.
@@ -1194,8 +1127,8 @@ Proof.
   by iApply H.
 Qed.
 
-Lemma later_func_ptr_si' E phi psi v:
-      ▷ (funspec_sub_si E phi psi ∧ func_ptr_si E phi v) ⊢ ▷ (func_ptr_si E psi v).
+Lemma later_func_ptr_si' ge E id phi psi v:
+      ▷ (funspec_sub_si E phi psi ∧ func_ptr_si ge E id phi v) ⊢ ▷ (func_ptr_si ge E id psi v).
 Proof.
   iIntros "H !>".
   by iApply func_ptr_si_mono.

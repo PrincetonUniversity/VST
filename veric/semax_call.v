@@ -512,10 +512,9 @@ Proof.
              ge_of rho = ge_of rho' ->
              funassert Delta rho ⊢ funassert Delta' rho') as H; last by intros; iSplit; iApply H.
   intros ???? H; simpl; intros ->.
-  iIntros "[#? #Hsig]"; iSplit.
-  - iIntros (?); rewrite -H //.
-  - iIntros "!>" (???) "?".
-    setoid_rewrite <- H; iApply ("Hsig" with "[$]").
+  iIntros "#(? & %) !>"; iSplit.
+  - iIntros (??); rewrite -H //.
+  - iPureIntro; intros; rewrite -H; eauto.
 Qed.
 
 Definition thisvar (ret: option ident) (i : ident) : Prop :=
@@ -669,7 +668,7 @@ iSpecialize ("rguard" with "[-]").
     destruct ret; last auto; destruct ret0; last auto.
     intros j; destruct (eq_dec j i); simpl; subst; auto.
     rewrite Maps.PTree.gso; auto.
-  * rewrite - same_glob_funassert'; subst rho rho'; done. }
+  * iApply (same_glob_funassert' with "fun"); subst rho rho'; done. }
 subst rho' tx'; rewrite Htx'.
 by iApply Hctl.
 Qed.
@@ -941,7 +940,7 @@ Proof.
         simpl; intros.
         destruct (eq_dec ret i); first auto.
         rewrite -map_ptree_rel Map.gso; auto.
-      + rewrite same_glob_funassert; first iApply "fun"; done. }
+      + iApply (same_glob_funassert' with "[fun]"); done. }
     rewrite Hcont; by iApply Hctl. }
   destruct vl.
   - iIntros (?).
@@ -1185,7 +1184,7 @@ Proof.
       * rewrite -Genv.find_funct_find_funct_ptr //.
       * destruct GuardEnv as ((? & ? & ?) & ?); done.
       * rewrite snd_split -H18 //.
-    + rewrite -!assoc -bi.persistent_sep_dup !assoc; iSplit; last by rewrite -same_glob_funassert'.
+    + rewrite -!assoc -bi.persistent_sep_dup !assoc; iSplit; last by iApply (same_glob_funassert' with "fun").
       iFrame.
       apply list_norepet_app in H17 as [H17 [_ _]].
       rewrite /bind_args; iSplit.
@@ -1246,7 +1245,7 @@ Proof.
   rewrite /jsafeN jsafe_unfold /jsafe_pre.
   iIntros "!>" (?) "(Hm & ?)".
   iRight; iLeft.
-  rewrite (add_and (_ ∧ _) (▷_)); last by iIntros "H"; iNext; iDestruct "H" as "((_ & H) & _)"; destruct GuardEnv; iApply (tc_eval_exprlist with "H").
+  rewrite (add_and (_ ∧ ▷ _) (▷_)); last by iIntros "H"; iNext; iDestruct "H" as "((_ & H) & _)"; destruct GuardEnv; iApply (tc_eval_exprlist with "H").
   iDestruct "H" as "(H & >%TC8)".
   iCombine "Hm H" as "H".
   rewrite (add_and (mem_auth m ∗ _) (▷_)); last by iIntros "H"; iNext; iDestruct "H" as "(Hm & (H & _) & _)"; destruct GuardEnv; iApply (eval_expr_relate with "[$Hm $H]").
@@ -1277,13 +1276,13 @@ Lemma semax_call_si:
    (P : A -> argsEnviron -> mpred)
    (Q : A -> environ -> mpred)
    (x : A)
-   F ret argsig retsig cc a bl
+   F ret id argsig retsig cc a bl
    (TCF : Cop.classify_fun (typeof a) = Cop.fun_case_f (typelist_of_type_list argsig) retsig cc)
    (TC5 : retsig = Tvoid -> ret = None)
    (TC7 : tc_fn_return Delta ret retsig),
   semax Espec E Delta
        (fun rho => (▷(tc_expr Delta a rho ∧ tc_exprlist Delta argsig bl rho)) ∧
-           (func_ptr_si E (mk_funspec (argsig,retsig) cc A P Q) (eval_expr a rho) ∗
+           (func_ptr_si (ge_of rho) E id (mk_funspec (argsig,retsig) cc A P Q) (eval_expr a rho) ∗
           (▷(F rho ∗ P x (ge_of rho, eval_exprlist argsig bl rho)))))
          (Scall ret a bl)
          (normal_ret_assert
@@ -1302,23 +1301,20 @@ Proof.
     specialize (H i); rewrite Heqo in H. subst t; done. }
   assert (Hpsi: filter_genv psi = ge_of (construct_rho (filter_genv psi) vx tx)) by reflexivity.
   remember (construct_rho (filter_genv psi) vx tx) as rho.
-  iAssert (func_ptr_si E (mk_funspec (clientparams, retty) cc A P Q) (eval_expr(CS := CS) a rho)) as "#funcatb".
+  iAssert (func_ptr_si (ge_of rho) E id (mk_funspec (clientparams, retty) cc A P Q) (eval_expr(CS := CS) a rho)) as "#funcatb".
   { iDestruct "H" as "(_ & $ & _)". }
-  rewrite {2}(affine (func_ptr_si _ _ _)) left_id.
+  rewrite {2}(affine (func_ptr_si _ _ _ _ _)) left_id.
   rewrite /func_ptr_si.
-  iDestruct "funcatb" as (b EvalA nspec) "[SubClient funcatb]".
+  iDestruct "funcatb" as (b (RhoID & EvalA) nspec) "[SubClient funcatb]".
+  iAssert ⌜(glob_specs Delta') !! id = Some nspec⌝ as %SpecOfID.
+  { iDestruct "fun" as "(FA & %FD)".
+    destruct (FD _ _ RhoID) as (fs & ?).
+    iDestruct ("FA" with "[%]") as "(% & %Hid' & funcatv)"; first done.
+    rewrite Hid' in RhoID; inv RhoID.
+    destruct nspec, fs; iDestruct (mapsto_pure_agree with "funcatb funcatv") as %[=]; subst.
+    repeat match goal with H : existT ?A _ = existT ?A _ |- _ => apply inj_pair2 in H end; subst; done. }
   set (args := @eval_exprlist CS clientparams bl rho).
   set (args' := @eval_exprlist CS' clientparams bl rho).
-  iAssert (∃ id, ⌜Map.get (ge_of rho) id = Some b /\
-         (glob_specs Delta') !! id = Some nspec⌝) with "[]" as "(%id & %RhoID & %SpecOfID)".
-  { iDestruct "fun" as "[#FA #FD]".
-    destruct nspec; iDestruct ("FD" with "[funcatb]") as %(id & Hid & fs & ?).
-    { rewrite /sigcc_at; iExists _, _, _; iApply "funcatb". }
-    iExists id; iSplit; first done.
-    iDestruct ("FA" with "[%]") as "(% & %Hid' & funcatv)"; first done.
-    rewrite Hid' in Hid; inv Hid.
-    destruct fs; iDestruct (mapsto_pure_agree with "funcatb funcatv") as %[=]; subst.
-    repeat match goal with H : existT ?A _ = existT ?A _ |- _ => apply inj_pair2 in H end; subst; done. }
   destruct nspec as [nsig ncc nA nP nQ].
   iDestruct "SubClient" as "[[%NSC %Hcc] ClientAdaptation]"; subst cc. destruct nsig as [nparams nRetty].
   inversion NSC; subst nRetty nparams; clear NSC.
@@ -1328,19 +1324,19 @@ Proof.
     destruct TC3 as [TC3 TC4].
     eapply typecheck_environ_sub in TC3; [| eauto].
     auto. }
-  rewrite (add_and (_ ∧ _) (▷_)); last by iIntros "H"; iNext; iDestruct "H" as "((_ & H) & _)"; destruct HGG; iApply (typecheck_exprlist_sound_cenv_sub with "H").
+  rewrite (add_and (_ ∧ ▷ _) (▷_)); last by iIntros "H"; iNext; iDestruct "H" as "((_ & H) & _)"; destruct HGG; iApply (typecheck_exprlist_sound_cenv_sub with "H").
   iDestruct "H" as "(H & >%HARGS)".
   fold args in HARGS; fold args' in HARGS.
   rewrite tc_exprlist_sub // tc_expr_sub //.
-  rewrite (add_and (_ ∧ _) (▷_)); last by iIntros "H"; iNext; iDestruct "H" as "((_ & H) & _)"; destruct HGG; iApply (tc_exprlist_length with "H").
+  rewrite (add_and (_ ∧ ▷ _) (▷_)); last by iIntros "H"; iNext; iDestruct "H" as "((_ & H) & _)"; destruct HGG; iApply (tc_exprlist_length with "H").
   iDestruct "H" as "(H & >%LENbl)".
   assert (LENargs: Datatypes.length clientparams = Datatypes.length args).
   { rewrite LENbl eval_exprlist_length //. }
   assert (TCD': tc_environ Delta' rho) by eapply TC3.
-  rewrite (add_and (_ ∧ _) (▷_)); last by iIntros "H"; iNext; iDestruct "H" as "((_ & H) & _)"; iApply (tc_eval_exprlist with "H").
+  rewrite (add_and (_ ∧ ▷ _) (▷_)); last by iIntros "H"; iNext; iDestruct "H" as "((_ & H) & _)"; iApply (tc_eval_exprlist with "H").
   iDestruct "H" as "(H & >%TCargs)"; fold args in TCargs.
   iSpecialize ("ClientAdaptation" $! x (ge_of rho, args)).
-  rewrite bi.pure_True.
+  rewrite (bi.pure_True (argsHaveTyps _ _)).
   2: { clear -TCargs. clearbody args. generalize dependent clientparams.
        induction args; intros.
        - destruct clientparams; simpl in *. constructor. contradiction.
@@ -1352,7 +1348,7 @@ Proof.
   assert (CSUBpsi:cenv_sub (@cenv_cs CS) psi).
   { destruct HGG as [CSUB' HGG]. apply (cenv_sub_trans CSUB' HGG). }
   destruct HGG as [CSUB HGG].
-  rewrite (add_and (_ ∧ _) (▷_)); last by iIntros "H"; iNext; iDestruct "H" as "((H & _) & _)"; iApply (typecheck_expr_sound_cenv_sub with "H").
+  rewrite (add_and (_ ∧ ▷ _) (▷_)); last by iIntros "H"; iNext; iDestruct "H" as "((H & _) & _)"; iApply (typecheck_expr_sound_cenv_sub with "H").
   iDestruct "H" as "(H & >%Heval_eq)"; rewrite Heval_eq in EvalA.
   subst rho; iApply (@semax_call_aux CS' with "Prog_OK [F0 H] fun [] rguard"); try reflexivity.
   - iCombine "F0 H" as "H"; rewrite bi.sep_and_l; iSplit.
@@ -1381,13 +1377,13 @@ Lemma semax_call:
   (P : A -> argsEnviron -> mpred)
   (Q : A -> environ -> mpred)
   (x : A)
-  F ret argsig retsig cc a bl
+  F ret id argsig retsig cc a bl
   (TCF : Cop.classify_fun (typeof a) = Cop.fun_case_f (typelist_of_type_list argsig) retsig cc)
   (TC5 : retsig = Tvoid -> ret = None)
   (TC7 : tc_fn_return Delta ret retsig),
   semax Espec E Delta
        (fun rho => (▷(tc_expr Delta a rho ∧ tc_exprlist Delta argsig bl rho))  ∧
-           (func_ptr E (mk_funspec (argsig,retsig) cc A P Q) (eval_expr a rho) ∗
+           (func_ptr (ge_of rho) E id (mk_funspec (argsig,retsig) cc A P Q) (eval_expr a rho) ∗
           (▷(F rho ∗ P x (ge_of rho, eval_exprlist argsig bl rho)))))
          (Scall ret a bl)
          (normal_ret_assert

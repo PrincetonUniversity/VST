@@ -337,7 +337,7 @@ Proof.
   + rewrite !denote_tc_assert_andp tc_bool_e.
     iAssert (▷ ⌜tc_val t (eval_expr e rho)⌝) with "[H]" as ">%".
     { iNext.
-      rewrite bi.and_elim_l (bi.and_elim_l (bi_pure _)).
+      rewrite (bi.and_elim_l (_ ∧ _)) (bi.and_elim_l (bi_pure _)).
       iDestruct "H" as "[H %]".
       by iApply neutral_cast_tc_val. }
     iPureIntro.
@@ -810,7 +810,7 @@ Proof.
   iIntros "(Hm & H & #?)".
   assert (typecheck_environ Delta rho) as TYCON_ENV
     by (destruct TC as [TC' TC'']; eapply typecheck_environ_sub; eauto).
-  rewrite (add_and (_ ∧ _) (▷ ⌜_⌝)).
+  rewrite (add_and (_ ∧ ▷ _) (▷ ⌜_⌝)).
   2: { iIntros "(_ & _ & ? & _) !>"; iApply (mapsto_pure_facts with "[$]"). }
   iDestruct "H" as "(H & >%H)".
   destruct H as ((ch & ?) & ?); destruct (eval_lvalue e1 rho) eqn: He1; try contradiction.

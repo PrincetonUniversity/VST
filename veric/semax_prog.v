@@ -664,10 +664,8 @@ Proof.
     rewrite /filter_genv /Map.get.
     apply (Genv.find_symbol_exists (program_of_program _)) in Hid as (? & Hfind); rewrite Hfind; eauto.
     { left; intros (?, ?); destruct (Genv.find_symbol _ _); apply _. }
-  * iIntros "!>" (???) "(% & % & % & ?)".
-    (* initial_core doesn't currently assert that there are no other functions in the state.
-       Can we do that? Do we want to? *)
-Abort.
+  * 
+Qed.
 
 Lemma prog_contains_prog_funct: forall prog: program,
   list_norepet (prog_defs_names prog) ->
@@ -977,15 +975,11 @@ Qed.
 
 (**************Adaptation of seplog.funspecs_assert, plus lemmas ********)
 (*Maybe this definition can replace seplog.funassert globally?. In fact it
-  really needs a genvinron as parameter, not a genviron * list val*)
+  really needs a genviron as parameter, not a genviron * list val*)
 Definition funspecs_gassert (FunSpecs: Maps.PTree.t funspec): argsassert :=
  argsassert_of (fun gargs => let g := fst gargs in
-   (∀ id: ident, ∀ fs:_,  ⌜FunSpecs!!id = Some fs⌝ →
-              ∃ b:block,
-                   ⌜Map.get g id = Some b⌝ ∧ func_at fs (b,0))
- ∧ □ (∀ b: block, ∀ fsig:typesig, ∀ cc: calling_convention, sigcc_at fsig cc (b,0) →
-             ∃ id:ident, ⌜Map.get g id = Some b⌝
-                             ∧ ⌜exists fs, FunSpecs!!id = Some fs⌝)).
+   □ (∀ id: ident, ∀ fs:_, ⌜FunSpecs!!id = Some fs⌝ →
+              ∃ b:block, ⌜Map.get g id = Some b⌝ ∧ func_at fs (b,0))).
 
 (*Maybe this definition can replace Clight_seplog.funassert globally?*)
 Definition fungassert (Delta: tycontext): argsassert := funspecs_gassert (glob_specs Delta).
