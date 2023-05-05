@@ -227,14 +227,11 @@ Qed.
 Lemma tc_expr_cenv_sub_field:
  forall
  (a : expr)
-  (tc_lvalue_cenv_sub : forall  (rho : environ)
-                       (Delta : tycontext),
-                     @tc_lvalue CS Delta a rho ⊢
-                     @tc_lvalue CS' Delta a rho)
- (i : ident)
- (t : type) 
  (rho : environ)
  (Delta : tycontext)
+ (tc_lvalue_cenv_sub : @tc_lvalue CS Delta a rho ⊢ @tc_lvalue CS' Delta a rho)
+ (i : ident)
+ (t : type) 
  (IHa : @tc_expr CS Delta a rho ⊢ @tc_expr CS' Delta a rho),
  @tc_expr CS Delta (Efield a i t) rho ⊢
  @tc_expr CS' Delta (Efield a i t) rho.
@@ -299,46 +296,55 @@ Proof.
    apply (cenv_consistent i0); auto.
 Qed.
 
-Lemma tc_expr_cenv_sub a rho Delta: tc_expr(CS := CS) Delta a rho ⊢
-                            tc_expr(CS := CS') Delta a rho
-     with tc_lvalue_cenv_sub a rho Delta: tc_lvalue(CS := CS) Delta a rho ⊢
-                            tc_lvalue(CS := CS') Delta a rho.
+Lemma tc_expr_lvalue_cenv_sub a rho Delta :
+  (tc_expr(CS := CS) Delta a rho ⊢ tc_expr(CS := CS') Delta a rho) /\
+  (tc_lvalue(CS := CS) Delta a rho ⊢ tc_lvalue(CS := CS') Delta a rho).
 Proof.
-- clear tc_expr_cenv_sub.
-  unfold tc_expr.
-  induction a; try apply (denote_tc_assert_cenv_sub CSUB);
-    try solve [unfold typecheck_expr; tc_expr_cenv_sub_tac; apply (denote_tc_assert_cenv_sub CSUB)].
+  induction a; intros; split; try apply (denote_tc_assert_cenv_sub CSUB); unfold tc_expr, tc_lvalue.
   + unfold typecheck_expr; fold (typecheck_expr(CS := CS)); fold (typecheck_expr(CS := CS')).
-    destruct (access_mode t); tc_expr_cenv_sub_tac; apply (denote_tc_assert_cenv_sub CSUB).
-  + apply tc_expr_cenv_sub_unop, IHa.
-  + apply (tc_expr_cenv_sub_binop _ _ _ _ _ _ IHa1 IHa2).
-  + apply tc_expr_cenv_sub_cast, IHa.
-  + apply tc_expr_cenv_sub_field, IHa. apply tc_lvalue_cenv_sub.
-- clear tc_lvalue_cenv_sub.
-  unfold tc_lvalue.
-  induction a; try apply (denote_tc_assert_cenv_sub CSUB).
+    destruct (access_mode t); try done.
+    rewrite !denote_tc_assert_andp; apply bi.and_mono; first apply bi.and_mono; first apply IHa; apply (denote_tc_assert_cenv_sub CSUB).
   + (* Ederef *)
-   unfold typecheck_lvalue;
-   fold (typecheck_expr(CS := CS)); fold (typecheck_expr(CS := CS')).
-   tc_expr_cenv_sub_tac; apply (denote_tc_assert_cenv_sub CSUB).
+    unfold typecheck_lvalue;
+    fold (typecheck_expr(CS := CS)); fold (typecheck_expr(CS := CS')).
+    rewrite !denote_tc_assert_andp; apply bi.and_mono; first apply bi.and_mono; first apply IHa; apply (denote_tc_assert_cenv_sub CSUB).
+  + unfold typecheck_expr; fold (typecheck_lvalue(CS := CS)); fold (typecheck_lvalue(CS := CS')).
+    rewrite !denote_tc_assert_andp; apply bi.and_mono; first apply IHa.
+    rewrite /tc_bool; simple_if_tac; done.
+  + apply tc_expr_cenv_sub_unop, IHa.
+  + apply (tc_expr_cenv_sub_binop _ _ _ _ _ _ (proj1 IHa1) (proj1 IHa2)).
+  + apply tc_expr_cenv_sub_cast, IHa.
+  + apply tc_expr_cenv_sub_field, IHa. apply IHa.
   + apply tc_lvalue_cenv_sub_field, IHa.
-Time Qed. (* FIXME: This is unreasonably slow. *)
+  + unfold typecheck_expr.
+    rewrite !denote_tc_assert_andp; apply bi.and_mono; first apply tc_complete_type_cenv_sub.
+    rewrite /tc_bool; simple_if_tac; done.
+  + unfold typecheck_expr.
+    rewrite !denote_tc_assert_andp; apply bi.and_mono; first apply tc_complete_type_cenv_sub.
+    rewrite /tc_bool; simple_if_tac; done.
+Qed.
 
-  Lemma tc_exprlist_cenv_sub Delta rho:
-    forall types bl, @tc_exprlist CS Delta types bl rho ⊢
-                     @tc_exprlist CS' Delta types bl rho.
-  Proof.
-    induction types; simpl; intros.
-    + destruct bl; simpl in *; trivial.
-    + destruct bl. trivial.
-      unfold tc_exprlist.
-      unfold typecheck_exprlist; 
-        fold (typecheck_exprlist(CS := CS));
-        fold (typecheck_exprlist(CS := CS')).
-      rewrite !(denote_tc_assert_andp _ (typecheck_exprlist _ _ _)).
-      unfold tc_exprlist in IHtypes; fold (tc_expr(CS := CS) Delta (Ecast e a) rho);
-        fold (tc_expr(CS := CS') Delta (Ecast e a) rho). by rewrite tc_expr_cenv_sub IHtypes.
-   Qed.
+Lemma tc_expr_cenv_sub a rho Delta : tc_expr(CS := CS) Delta a rho ⊢ tc_expr(CS := CS') Delta a rho.
+Proof. apply tc_expr_lvalue_cenv_sub. Qed.
+
+Lemma tc_lvalue_cenv_sub a rho Delta : tc_lvalue(CS := CS) Delta a rho ⊢ tc_lvalue(CS := CS') Delta a rho.
+Proof. apply tc_expr_lvalue_cenv_sub. Qed.
+
+Lemma tc_exprlist_cenv_sub Delta rho:
+  forall types bl, @tc_exprlist CS Delta types bl rho ⊢
+                   @tc_exprlist CS' Delta types bl rho.
+Proof.
+  induction types; simpl; intros.
+  + destruct bl; simpl in *; trivial.
+  + destruct bl. trivial.
+    unfold tc_exprlist.
+    unfold typecheck_exprlist; 
+      fold (typecheck_exprlist(CS := CS));
+      fold (typecheck_exprlist(CS := CS')).
+    rewrite !(denote_tc_assert_andp _ (typecheck_exprlist _ _ _)).
+    unfold tc_exprlist in IHtypes; fold (tc_expr(CS := CS) Delta (Ecast e a) rho);
+      fold (tc_expr(CS := CS') Delta (Ecast e a) rho). by rewrite tc_expr_cenv_sub IHtypes.
+Qed.
 
 End CENV_SUB.
 
