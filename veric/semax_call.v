@@ -512,10 +512,10 @@ Proof.
              ge_of rho = ge_of rho' ->
              funassert Delta rho ⊢ funassert Delta' rho') as H; last by intros; iSplit; iApply H.
   intros ???? H; simpl; intros ->.
-  iIntros "(#? & H2)"; iSplitL "".
+  iIntros "#(? & H2) !>"; iSplit.
   - iIntros (??); rewrite -H //.
-  - iIntros (??) "?"; iDestruct ("H2" with "[$]") as %?.
-    iPureIntro; intros; rewrite -H; eauto.
+  - iIntros (? (? & ? & HF)); rewrite -H in HF.
+    iApply "H2"; eauto.
 Qed.
 
 Definition thisvar (ret: option ident) (i : ident) : Prop :=
@@ -1308,14 +1308,14 @@ Proof.
   rewrite /func_ptr_si.
   iDestruct "funcatb" as (b (RhoID & EvalA) nspec) "[SubClient funcatb]".
   iAssert ⌜(glob_specs Delta') !! id = Some nspec⌝ as %SpecOfID.
-  { Search Genv.find_symbol.
-Genv.find_symbol_inversion
-iDestruct "fun" as "(FA & %FD)".
-    destruct (FD _ _ RhoID) as (fs & ?).
-    iDestruct ("FA" with "[%]") as "(% & %Hid' & funcatv)"; first done.
-    rewrite Hid' in RhoID; inv RhoID.
-    destruct nspec, fs; iDestruct (mapsto_pure_agree with "funcatb funcatv") as %[=]; subst.
-    repeat match goal with H : existT ?A _ = existT ?A _ |- _ => apply inj_pair2 in H end; subst; done. }
+  { iDestruct "fun" as "(FA & FD)".
+    destruct ((glob_specs Delta') !! id) as [fs|] eqn: Hspec.
+    - iDestruct ("FA" with "[%]") as "(% & %Hid' & funcatv)"; first done.
+      rewrite Hid' in RhoID; inv RhoID.
+      destruct nspec, fs; iDestruct (mapsto_pure_agree with "funcatb funcatv") as %[=]; subst.
+      repeat match goal with H : existT ?A _ = existT ?A _ |- _ => apply inj_pair2 in H end; subst; done.
+    - iPoseProof ("FD" with "[%]") as "Hno"; first eauto.
+      destruct nspec; iDestruct (mapsto_no_pure_conflict with "Hno funcatb") as "[]". }
   set (args := @eval_exprlist CS clientparams bl rho).
   set (args' := @eval_exprlist CS' clientparams bl rho).
   destruct nspec as [nsig ncc nA nP nQ].

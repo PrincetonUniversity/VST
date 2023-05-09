@@ -711,7 +711,7 @@ Proof.
     iExists lx; iFrame; done.
 Qed.
 
-Lemma big_sepL_seq_index : forall n (f : nat -> nat -> mpred), ([∗ list] k↦v ∈ seq 0 n, f k v) ⊣⊢ [∗ list] v ∈ seq 0 n, f v v.
+Lemma big_opL_seq_index : forall {M : ofe} (o : M -> M -> M) `{Monoid _ o} n (f : nat -> nat -> M), (([^o list] k↦v ∈ seq 0 n, f k v) ≡ [^o list] v ∈ seq 0 n, f v v)%stdpp.
 Proof.
   intros.
   apply big_opL_proper.
@@ -723,7 +723,7 @@ Proof.
   intros.
   rewrite big_sepL_exist.
   apply bi.exist_proper; intros lx.
-  rewrite seq_length (big_sepL_seq lx) big_sepL_seq_index.
+  rewrite seq_length (big_sepL_seq lx) big_opL_seq_index.
   iSplit; iIntros "[-> ?]"; iFrame; done.
 Qed.
 

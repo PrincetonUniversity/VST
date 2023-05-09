@@ -497,7 +497,7 @@ Proof.
     lia.
 Qed.
 
-Lemma memory_block_overlap: forall sh p1 n1 p2 n2, pointer_range_overlap p1 n1 p2 n2 -> memory_block sh n1 p1 ∗ memory_block sh n2 p2 ⊢ False.
+Lemma memory_block_overlap: forall sh p1 n1 p2 n2 (Hsh : sh <> Share.bot), pointer_range_overlap p1 n1 p2 n2 -> memory_block sh n1 p1 ∗ memory_block sh n2 p2 ⊢ False.
 Proof.
   intros.
   unfold memory_block.
@@ -517,7 +517,7 @@ Proof.
 Qed.
 
 Lemma mapsto_conflict:
-  forall {cs : compspecs} sh t v v2 v3,
+  forall {cs : compspecs} sh t v v2 v3 (Hsh : sh <> Share.bot),
   mapsto sh t v v2 ∗ mapsto sh t v v3 ⊢ False.
 Proof.
   intros.
@@ -529,7 +529,7 @@ Proof.
   apply pointer_range_overlap_refl; auto.
 Qed.
 
-Lemma memory_block_conflict: forall sh n m p,
+Lemma memory_block_conflict: forall sh n m p (Hsh : sh <> Share.bot),
   0 < n <= Ptrofs.max_unsigned -> 0 < m <= Ptrofs.max_unsigned ->
   memory_block sh n p ∗ memory_block sh m p ⊢ False.
 Proof.

@@ -259,14 +259,28 @@ Section lemmas.
     done.
   Qed.
 
+  Lemma resource_map_elem_no_pure_conflict k γ sh v : resource_map_elem_no γ k sh -∗ k ↪[γ]p v -∗ False.
+  Proof.
+    unseal. iIntros "(% & H1) H2".
+    iDestruct (own_valid_2 with "H1 H2") as %[]%juicy_view_frag_no_pure_invalid.
+  Qed.
+
   (** Make an element read-only. *)
   Lemma resource_map_elem_persist k γ dq v :
     k ↪[γ]{dq} v ==∗ k ↪[γ]□ v.
   Proof. unseal. iIntros "[% ?]"; iExists I. iApply (own_update with "[$]"). apply juicy_view_frag_persist. Qed.
 
+  Lemma resource_map_elem_bot k γ dq v :
+    k ↪[γ]{dq} v ==∗ resource_map_elem_no γ k Share.bot.
+  Proof. unseal. iIntros "[% ?]"; iExists bot_unreadable. iApply (own_update with "[$]"). apply juicy_view_frag_bot. Qed.
+
+  Lemma resource_map_elem_no_bot k γ sh :
+    resource_map_elem_no γ k sh ==∗ resource_map_elem_no γ k Share.bot.
+  Proof. unseal. iIntros "[% ?]"; iExists bot_unreadable. iApply (own_update with "[$]"). apply juicy_view_frag_no_bot. Qed.
+
   (** * Lemmas about [resource_map_auth] *)
   Lemma resource_map_alloc_strong P m (f : juicy_view.juicy_view_fragUR (leibnizO V)) :
-    pred_infinite P → ✓ f → (∀ loc, coherent_loc m loc (resource_at f loc)) →
+    pred_infinite P → ✓ f → (∀ loc, (loc.1 >= Mem.nextblock m)%positive → f !! loc = None) → (∀ loc, coherent_loc m loc (resource_at f loc)) →
     ⊢ |==> ∃ γ, ⌜P γ⌝ ∧ resource_map_auth γ 1 m ∗ own γ (◯V f).
   Proof.
     unseal. intros.
@@ -274,9 +288,9 @@ Section lemmas.
     iApply own_alloc_strong.
     split; first done.
     intros; eexists; split; first done.
-    split; simpl.
-    - by rewrite left_id; apply cmra_valid_validN.
-    - intros; rewrite /resource_at lookup_op lookup_empty op_None_left_id; eauto.
+    intros ?; rewrite /resource_at /= lookup_op lookup_empty op_None_left_id.
+    split3; eauto.
+    by apply cmra_valid_validN.
   Qed.
   Lemma resource_map_alloc_strong_empty P :
     pred_infinite P →
@@ -287,7 +301,7 @@ Section lemmas.
     by apply juicy_view_auth_dfrac_valid.
   Qed.
   Lemma resource_map_alloc m (f : juicy_view.juicy_view_fragUR (leibnizO V)):
-    ✓ f → (∀ loc, coherent_loc m loc (resource_at f loc)) →
+    ✓ f → (∀ loc, (loc.1 >= Mem.nextblock m)%positive → f !! loc = None) → (∀ loc, coherent_loc m loc (resource_at f loc)) →
     ⊢ |==> ∃ γ, resource_map_auth γ 1 m ∗ own γ (◯V f).
   Proof.
     intros; iMod (resource_map_alloc_strong (λ _, True) m) as (γ) "[_ Hmap]".
@@ -333,7 +347,7 @@ Section lemmas.
 
   (** * Lemmas about the interaction of [resource_map_auth] with the elements *)
   Lemma resource_map_lookup {γ q m k dq v} :
-    resource_map_auth γ q m -∗ k ↪[γ]{dq} v -∗ ⌜✓ dq ∧ readable_dfrac dq ∧ coherent_loc m k (Some (dq, Some v))⌝.
+    resource_map_auth γ q m -∗ k ↪[γ]{dq} v -∗ ⌜✓ dq ∧ readable_dfrac dq ∧ (k.1 < Mem.nextblock m)%positive ∧ coherent_loc m k (dq, Some v)⌝.
   Proof.
     unseal. iIntros "Hauth [% Hel]".
     iDestruct (own_valid_2 with "Hauth Hel") as %[?[??]]%juicy_view_both_dfrac_valid.
@@ -341,20 +355,20 @@ Section lemmas.
   Qed.
 
   Global Instance resource_map_lookup_combine_gives_1 {γ q m k dq v} :
-    CombineSepGives (resource_map_auth γ q m) (k ↪[γ]{dq} v) ⌜✓ dq ∧ readable_dfrac dq ∧ coherent_loc m k (Some (dq, Some v))⌝.
+    CombineSepGives (resource_map_auth γ q m) (k ↪[γ]{dq} v) ⌜✓ dq ∧ readable_dfrac dq ∧ (k.1 < Mem.nextblock m)%positive ∧ coherent_loc m k (dq, Some v)⌝.
   Proof.
     rewrite /CombineSepGives. iIntros "[H1 H2]".
     iDestruct (resource_map_lookup with "H1 H2") as %?. eauto.
   Qed.
 
   Global Instance resource_map_lookup_combine_gives_2 {γ q m k dq v} :
-    CombineSepGives (k ↪[γ]{dq} v) (resource_map_auth γ q m) ⌜✓ dq ∧ readable_dfrac dq ∧ coherent_loc m k (Some (dq, Some v))⌝.
+    CombineSepGives (k ↪[γ]{dq} v) (resource_map_auth γ q m) ⌜✓ dq ∧ readable_dfrac dq ∧ (k.1 < Mem.nextblock m)%positive ∧ coherent_loc m k (dq, Some v)⌝.
   Proof.
     rewrite /CombineSepGives comm. apply resource_map_lookup_combine_gives_1.
   Qed.
 
   Lemma resource_map_no_lookup {γ q m k sh} :
-    resource_map_auth γ q m -∗ resource_map_elem_no γ k sh -∗ ⌜~readable_share sh ∧ coherent_loc m k (Some (DfracOwn (Share sh), None))⌝.
+    resource_map_auth γ q m -∗ resource_map_elem_no γ k sh -∗ ⌜~readable_share sh ∧ (k.1 < Mem.nextblock m)%positive ∧ coherent_loc m k (DfracOwn (Share sh), None)⌝.
   Proof.
     unseal. iIntros "Hauth [% Hel]".
     iDestruct (own_valid_2 with "Hauth Hel") as %[?[??]]%juicy_view_both_no_dfrac_valid.
@@ -362,7 +376,7 @@ Section lemmas.
   Qed.
 
   Lemma resource_map_pure_lookup {γ q m k v} :
-    resource_map_auth γ q m -∗ k ↪[γ]p v -∗ ⌜coherent_loc m k (Some (DfracOwn (Share Share.Lsh), Some v))⌝.
+    resource_map_auth γ q m -∗ k ↪[γ]p v -∗ ⌜(k.1 < Mem.nextblock m)%positive ∧ coherent_loc m k (DfracOwn (Share Share.Lsh), Some v)⌝.
   Proof.
     unseal. iIntros "Hauth Hel".
     iDestruct (own_valid_2 with "Hauth Hel") as %[??]%juicy_view_both_pure_dfrac_valid.
@@ -400,7 +414,7 @@ Section lemmas.
   Lemma resource_map_storebyte {γ m k v} m' v' b sh (Hsh : writable0_share sh) :
     Mem.storebytes m k.1 k.2 [b] = Some m' ->
     memval_of v' = Some b ->
-    (∀ sh', sepalg.join_sub sh sh' -> Mem.perm_order'' (perm_of_res (Some (DfracOwn (Share sh'), Some v))) (perm_of_res (Some (DfracOwn (Share sh'), Some v')))) ->
+    (∀ sh', sepalg.join_sub sh sh' -> Mem.perm_order'' (perm_of_res (DfracOwn (Share sh'), Some v)) (perm_of_res (DfracOwn (Share sh'), Some v'))) ->
     resource_map_auth γ 1 m -∗ k ↪[γ]{#sh} v ==∗ resource_map_auth γ 1 m' ∗ k ↪[γ]{#sh} v'.
   Proof.
     intros; unseal. apply bi.wand_intro_r. iIntros "[a [% f]]"; iCombine "a f" as "?".
@@ -413,20 +427,20 @@ Section lemmas.
   Lemma resource_map_lookup_big {γ q m} k dq m0 :
     resource_map_auth γ q m -∗
     ([∗ list] i↦v ∈ m0, adr_add k i ↪[γ]{dq} v) -∗
-    ⌜forall i, i < length m0 -> coherent_loc m (adr_add k (Z.of_nat i)) (option_map (fun v => (dq, Some v)) (m0 !! i))⌝.
+    ⌜forall i, i < length m0 -> coherent_loc m (adr_add k (Z.of_nat i)) (match m0 !! i with Some v => (dq, Some v) | None => (ε, None) end)⌝.
   Proof.
     iIntros "Hauth Hfrag". iIntros (i Hm0).
     apply lookup_lt_is_Some_2 in Hm0 as (? & Hi); rewrite Hi.
     rewrite big_sepL_lookup_acc; last done.
     iDestruct "Hfrag" as "[Hfrag ?]".
-    iDestruct (resource_map_lookup with "Hauth Hfrag") as %(_ & _ & ?).
+    iDestruct (resource_map_lookup with "Hauth Hfrag") as %(_ & _ & _ & ?).
     done.
   Qed.
 
   Theorem resource_map_storebytes {γ m} m' k vl vl' bl sh (Hsh : writable0_share sh)
     (Hstore : Mem.storebytes m k.1 k.2 bl = Some m')
     (Hv' : Forall2 (fun v' b => memval_of v' = Some b) vl' bl)
-    (Hperm : Forall2 (fun v v' => ∀ sh', sepalg.join_sub sh sh' -> Mem.perm_order'' (perm_of_res (Some (DfracOwn (Share sh'), Some v))) (perm_of_res (Some (DfracOwn (Share sh'), Some v')))) vl vl') :
+    (Hperm : Forall2 (fun v v' => ∀ sh', sepalg.join_sub sh sh' -> Mem.perm_order'' (perm_of_res (DfracOwn (Share sh'), Some v)) (perm_of_res (DfracOwn (Share sh'), Some v'))) vl vl') :
     resource_map_auth γ 1 m -∗
     ([∗ list] i↦v ∈ vl, adr_add k (Z.of_nat i) ↪[γ]{#sh} v) ==∗
     resource_map_auth γ 1 m' ∗
@@ -443,7 +457,8 @@ Section lemmas.
     by apply: juicy_view_storebytes.
   Qed.
 
-  Lemma resource_map_set γ m σ (Hvalid : ✓ σ) (Hcoh : ∀ loc : address, coherent_loc m loc (resource_at σ loc)) :
+  Lemma resource_map_set γ m σ (Hvalid : ✓ σ) (Hnext : ∀ loc, (loc.1 >= Mem.nextblock m)%positive -> σ !! loc = None)
+    (Hcoh : ∀ loc : address, coherent_loc m loc (resource_at σ loc)) :
     resource_map_auth γ 1 Mem.empty ==∗ resource_map_auth γ 1 m ∗
     ([∗ map] l ↦ x ∈ σ, match x with
                         | Cinl (shared.YES dq _ v) => l ↪[γ]{dq} (proj1_sig (elem_of_agree v))
@@ -455,16 +470,12 @@ Section lemmas.
     iIntros "H".
     rewrite resource_map_auth_unseal /resource_map.resource_map_auth_def.
     iMod (own_update with "H") as "($ & ?)".
-    { apply (view_update_alloc (juicy_view.coherent_rel _) _ m σ); intros ? bf (? & Hemp).
+    { apply (view_update_alloc (juicy_view.coherent_rel _) _ m σ); intros ? bf Hemp.
       assert (forall i, bf !! i = None) as Hbf.
-      { intros i; destruct (Hemp i) as (_ & _ & _ & Halloc).
-        rewrite /resource_at in Halloc; destruct (bf !! i) eqn: Hi; rewrite ?Hi // in Halloc |- *.
-        rewrite /alloc_cohere /= in Halloc; specialize (Halloc ltac:(lia)); done. }
-      split; intros i.
-      - rewrite lookup_op Hbf op_None_right_id.
-        apply cmra_valid_validN, Hvalid.
-      - rewrite /resource_at lookup_op Hbf op_None_right_id.
-        apply Hcoh. }
+      { intros i; destruct (Hemp i) as (_ & Halloc & _).
+        apply Halloc; simpl; lia. }
+      intros i; rewrite /resource_at lookup_op Hbf op_None_right_id; split3; eauto.
+      apply cmra_valid_validN, Hvalid. }
     rewrite -{1}(big_opM_singletons σ) big_opM_view_frag.
     iPoseProof (big_opM_own_1 with "[-]") as "?"; first done.
     iApply big_sepM_mono; last done; intros ?? Hk.

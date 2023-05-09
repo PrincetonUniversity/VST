@@ -136,16 +136,16 @@ Inductive resource' :=
 | FUN (sig : typesig) (cc : calling_convention) (A : Type) (P : A -> argsEnviron -> mpred) (Q : A -> environ -> mpred).
 (* Will we run into universe issues with higher-order A's? Hopefully not! *)
 
-Definition perm_of_res (r: option (dfrac * option resource')) :=
+Definition perm_of_res (r: dfrac * option resource') :=
   match r with
-  | Some (dq, Some (VAL _)) => perm_of_dfrac dq
-  | Some (DfracOwn (Share sh), _) => if eq_dec sh Share.bot then None else Some Nonempty
-  | Some (DfracBoth _, _) => Some Nonempty
+  | (dq, Some (VAL _)) => perm_of_dfrac dq
+  | (DfracOwn (Share sh), _) => if eq_dec sh Share.bot then None else Some Nonempty
+  | (DfracBoth _, _) => Some Nonempty
   | _ => None
   end.
 
-Lemma perm_of_res_cases : forall dq r, (exists v, r = Some (VAL v) /\ perm_of_res (Some (dq, r)) = perm_of_dfrac dq) \/
-  (forall v, r ≠ Some (VAL v)) /\ perm_of_res (Some (dq, r)) = if decide (dq = ε) then None else if decide (dq = DfracOwn ShareBot) then None else Some Nonempty.
+Lemma perm_of_res_cases : forall dq r, (exists v, r = Some (VAL v) /\ perm_of_res (dq, r) = perm_of_dfrac dq) \/
+  (forall v, r ≠ Some (VAL v)) /\ perm_of_res (dq, r) = if decide (dq = ε) then None else if decide (dq = DfracOwn ShareBot) then None else Some Nonempty.
 Proof.
   intros; simpl.
   destruct dq as [[|]|], r as [[| |]|]; eauto; right; if_tac; subst; simpl; destruct (decide _); try done;
@@ -225,11 +225,12 @@ Qed.
 Next Obligation.
 Proof.
   simpl; intros.
-  destruct r as [(?, r)|]; try done.
+  destruct r as (d, r).
   destruct (perm_of_res_cases d r) as [(v & -> & Hperm) | (Hno & Hperm)]; rewrite Hperm /=; clear Hperm.
   - apply perm_order''_refl.
   - if_tac; first apply perm_order''_None.
     if_tac; first apply perm_order''_None.
+    rewrite /perm_of_res' /=.
     destruct (perm_of_dfrac d) eqn: Hd; first constructor.
     destruct d as [[|]|]; simpl in Hd; try done.
     + apply perm_of_sh_None in Hd as ->; done.

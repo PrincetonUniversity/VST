@@ -263,6 +263,12 @@ Section gen_heap.
   Lemma mapsto_persist l dq v : l ↦{dq} v ==∗ l ↦□ v.
   Proof. rewrite mapsto_unseal. apply resource_map_elem_persist. Qed.
 
+  Lemma mapsto_bot l dq v : l ↦{dq} v ==∗ mapsto_no l Share.bot.
+  Proof. rewrite mapsto_unseal mapsto_no_unseal. apply resource_map_elem_bot. Qed.
+
+  Lemma mapsto_no_bot l sh : mapsto_no l sh ==∗ mapsto_no l Share.bot.
+  Proof. rewrite mapsto_no_unseal. apply resource_map_elem_no_bot. Qed.
+
   Lemma mapsto_pure_agree l v1 v2 : l ↦p v1 -∗ l ↦p v2 -∗ ⌜v1 = v2⌝.
   Proof. rewrite mapsto_pure_unseal. apply resource_map_elem_pure_agree. Qed.
   (** Framing support *)
@@ -270,6 +276,12 @@ Section gen_heap.
     FrameFractionalHyps p (l ↦{#q1} v) (λ q, l ↦{#q} v)%I RES q1 q2 →
     Frame p (l ↦{#q1} v) (l ↦{#q2} v) RES | 5.
   Proof. apply: frame_fractional. Qed. *)
+
+  Lemma mapsto_no_pure_conflict l sh v : mapsto_no l sh -∗ l ↦p v -∗ False.
+  Proof.
+    rewrite mapsto_no_unseal /mapsto_no_def mapsto_pure_unseal /mapsto_pure_def.
+    apply resource_map_elem_no_pure_conflict.
+  Qed.
 
   (** General properties of [meta] and [meta_token] *)
   Global Instance meta_token_timeless l N : Timeless (meta_token l N).
@@ -363,7 +375,8 @@ Section gen_heap.
       first by apply lookup_union_None.
   Qed.*)
 
-  Lemma gen_heap_set m (σ : gmap address (csum _ _)) (Hvalid : ✓ σ) (Hcoh : ∀ loc : address, coherent_loc m loc (resource_at σ loc)) :
+  Lemma gen_heap_set m (σ : gmap address (csum _ _)) (Hvalid : ✓ σ) (Hnext : ∀ loc, (loc.1 >= Mem.nextblock m)%positive -> σ !! loc = None)
+    (Hcoh : ∀ loc : address, coherent_loc m loc (resource_at σ loc)) :
     resource_map_auth (gen_heap_name _) 1 Mem.empty ==∗ resource_map_auth (gen_heap_name _) 1 m ∗
     ([∗ map] l ↦ x ∈ σ, match x with
                         | Cinl (shared.YES dq _ v) => l ↦{dq} (proj1_sig (elem_of_agree v))
@@ -385,32 +398,32 @@ Section gen_heap.
     resource_map_auth (gen_heap_name _) 1 m -∗ ([∗ list] i↦v ∈ vl, adr_add k (Z.of_nat i) ↦ v) ==∗ resource_map_auth (gen_heap_name _) 1 m'.
   Proof. rewrite mapsto_unseal. eapply resource_map_free; eauto. Qed.
 
-  Lemma mapsto_lookup m l dq v : resource_map_auth (gen_heap_name _) 1 m -∗ l ↦{dq} v -∗ ⌜✓ dq ∧ readable_dfrac dq ∧ coherent_loc m l (Some (dq, Some v))⌝.
+  Lemma mapsto_lookup m l dq v : resource_map_auth (gen_heap_name _) 1 m -∗ l ↦{dq} v -∗ ⌜✓ dq ∧ readable_dfrac dq ∧ (l.1 < Mem.nextblock m)%positive ∧ coherent_loc m l (dq, Some v)⌝.
   Proof. rewrite mapsto_unseal. apply resource_map_lookup. Qed.
 
-  Lemma mapsto_no_lookup m l sh : resource_map_auth (gen_heap_name _) 1 m -∗ mapsto_no l sh -∗ ⌜~readable_share sh ∧ coherent_loc m l (Some (DfracOwn (Share sh), None))⌝.
+  Lemma mapsto_no_lookup m l sh : resource_map_auth (gen_heap_name _) 1 m -∗ mapsto_no l sh -∗ ⌜~readable_share sh ∧ (l.1 < Mem.nextblock m)%positive ∧ coherent_loc m l (DfracOwn (Share sh), None)⌝.
   Proof. rewrite mapsto_no_unseal. apply resource_map_no_lookup. Qed.
 
-  Lemma mapsto_pure_lookup m l v : resource_map_auth (gen_heap_name _) 1 m -∗ mapsto_pure l v -∗ ⌜coherent_loc m l (Some (DfracOwn (Share Share.Lsh), Some v))⌝.
+  Lemma mapsto_pure_lookup m l v : resource_map_auth (gen_heap_name _) 1 m -∗ mapsto_pure l v -∗ ⌜(l.1 < Mem.nextblock m)%positive ∧ coherent_loc m l (DfracOwn (Share Share.Lsh), Some v)⌝.
   Proof. rewrite mapsto_pure_unseal. apply resource_map_pure_lookup. Qed.
 
   Lemma mapsto_lookup_big m l dq (m0 : list V) :
     resource_map_auth (gen_heap_name _) 1 m -∗
     ([∗ list] i↦v ∈ m0, adr_add l i ↦{dq} v) -∗
-    ⌜forall i, i < length m0 -> coherent_loc m (adr_add l (Z.of_nat i)) (option_map (fun v => (dq, Some v)) (m0 !! i))⌝.
+    ⌜forall i, i < length m0 -> coherent_loc m (adr_add l (Z.of_nat i)) (match m0 !! i with Some v => (dq, Some v) | None => (ε, None) end)⌝.
   Proof. rewrite mapsto_unseal. apply resource_map_lookup_big. Qed.
 
   Lemma mapsto_storebyte m k b m' v v' sh (Hsh : writable0_share sh) :
     Mem.storebytes m k.1 k.2 [b] = Some m' ->
     memval_of v' = Some b ->
-    (∀ sh', sepalg.join_sub sh sh' -> Mem.perm_order'' (perm_of_res (Some (DfracOwn (Share sh'), Some v))) (perm_of_res (Some (DfracOwn (Share sh'), Some v')))) ->
+    (∀ sh', sepalg.join_sub sh sh' -> Mem.perm_order'' (perm_of_res (DfracOwn (Share sh'), Some v)) (perm_of_res (DfracOwn (Share sh'), Some v'))) ->
     resource_map_auth (gen_heap_name _) 1 m -∗ k ↦{#sh} v ==∗ resource_map_auth (gen_heap_name _) 1 m' ∗ k ↦{#sh} v'.
   Proof. rewrite mapsto_unseal. by apply resource_map_storebyte. Qed.
 
   Lemma mapsto_storebytes m m' k vl vl' bl sh (Hsh : writable0_share sh)
     (Hstore : Mem.storebytes m k.1 k.2 bl = Some m')
     (Hv' : Forall2 (fun v' b => memval_of v' = Some b) vl' bl)
-    (Hperm : Forall2 (fun v v' => forall sh', sepalg.join_sub sh sh' -> Mem.perm_order'' (perm_of_res (Some (DfracOwn (Share sh'), Some v))) (perm_of_res (Some (DfracOwn (Share sh'), Some v')))) vl vl') :
+    (Hperm : Forall2 (fun v v' => forall sh', sepalg.join_sub sh sh' -> Mem.perm_order'' (perm_of_res (DfracOwn (Share sh'), Some v)) (perm_of_res (DfracOwn (Share sh'), Some v'))) vl vl') :
     resource_map_auth (gen_heap_name _) 1 m -∗
     ([∗ list] i↦v ∈ vl, adr_add k (Z.of_nat i) ↦{#sh} v) ==∗
     resource_map_auth (gen_heap_name _) 1 m' ∗
@@ -449,7 +462,7 @@ Proof.
 Qed.
 *)
 
-Lemma gen_heap_init_names `{!@gen_heapGpreS V Σ ResOps} m σ (Hvalid : ✓ σ)
+Lemma gen_heap_init_names `{!@gen_heapGpreS V Σ ResOps} m σ (Hvalid : ✓ σ)(Hnext : ∀ loc, (loc.1 >= Mem.nextblock m)%positive -> σ !! loc = None)
   (Hcoh : ∀ loc : address, coherent_loc m loc (resource_at σ loc)) :
   ⊢ |==> ∃ γh γm,
     let hG := GenHeapGS V Σ γh γm in
@@ -463,14 +476,15 @@ Lemma gen_heap_init_names `{!@gen_heapGpreS V Σ ResOps} m σ (Hvalid : ✓ σ)
 Proof.
   iMod (resource_map_alloc Mem.empty ∅) as (γh) "(Hm & _)".
   { done. }
-  { intros; rewrite /resource_at lookup_empty; apply coherent_None. }
+  { done. }
+  { intros; rewrite /resource_at lookup_empty; apply coherent_bot. }
   iMod (resource_map_set _ m σ with "Hm") as "(? & ?)".
   iMod (ghost_map_alloc_empty) as (γm) "?".
   iExists γh, γm; iFrame.
   rewrite mapsto_unseal mapsto_no_unseal mapsto_pure_unseal //.
 Qed.
 
-Lemma gen_heap_init `{!@gen_heapGpreS V Σ ResOps} m σ (Hvalid : ✓ σ)
+Lemma gen_heap_init `{!@gen_heapGpreS V Σ ResOps} m σ (Hvalid : ✓ σ) (Hnext : ∀ loc, (loc.1 >= Mem.nextblock m)%positive -> σ !! loc = None)
   (Hcoh : ∀ loc : address, coherent_loc m loc (resource_at σ loc)) :
   ⊢ |==> ∃ _ : gen_heapGS V Σ, resource_map_auth (gen_heap_name _) 1 m ∗
     ([∗ map] l ↦ x ∈ σ, match x with
@@ -490,6 +504,7 @@ Corollary gen_heap_init_empty `{!@gen_heapGpreS V Σ ResOps} :
 Proof.
   iDestruct (gen_heap_init Mem.empty ∅) as ">(% & ? & _ & ?)".
   { done. }
-  { intros; rewrite /resource_at lookup_empty; apply coherent_None. }
+  { done. }
+  { intros; rewrite /resource_at lookup_empty; apply coherent_bot. }
   by iExists _; iFrame.
 Qed.

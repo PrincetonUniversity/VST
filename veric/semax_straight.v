@@ -88,21 +88,22 @@ match op with Cop.Olt | Cop.Ogt | Cop.Ole | Cop.Oge =>
 end.
 
 Lemma mapsto_valid_pointer : forall b o sh t m,
+  sh <> Share.bot ->
   mem_auth m ∗ mapsto_ sh t (Vptr b o) ⊢
   ⌜Mem.valid_pointer m b (Ptrofs.unsigned o) = true⌝.
 Proof.
 intros; iIntros "[Hm H]".
-iAssert ⌜exists ch, access_mode t = By_value ch⌝ with "[H]" as %(ch & H).
+iAssert ⌜exists ch, access_mode t = By_value ch⌝ with "[H]" as %(ch & Hch).
 { rewrite /mapsto_ /mapsto.
   destruct (access_mode t) eqn: ?; try done.
   destruct (type_is_volatile t) eqn: ?; try done.
   eauto. }
-rewrite /mapsto_ (mapsto_valid_pointer1 _ _ _ _ 0) /offset_val.
+rewrite /mapsto_ (mapsto_valid_pointer1 _ _ _ _ 0) /offset_val //.
 rewrite Ptrofs.add_zero.
 iMod "H"; iDestruct (valid_pointer_dry with "[$Hm $H]") as %Hvalid.
 by rewrite Z.add_0_r in Hvalid.
 { pose proof (Ptrofs.unsigned_range o); lia. }
-{ rewrite /sizeof (size_chunk_sizeof _ _ _ H).
+{ rewrite /sizeof (size_chunk_sizeof _ _ _ Hch).
   pose proof (size_chunk_pos ch); lia. }
 Qed.
 
@@ -123,13 +124,14 @@ Lemma pointer_cmp_eval:
    typecheck_environ Delta rho ->
    eqb_type (typeof e1) int_or_ptr_type = false ->
    eqb_type (typeof e2) int_or_ptr_type = false ->
+   sh1 <> Share.bot -> sh2 <> Share.bot ->
    mem_auth m ∗ tc_expr Delta e1 rho ∧ tc_expr Delta e2 rho ∧
    ⌜blocks_match cmp (eval_expr e1 rho) (eval_expr e2 rho)⌝ ∧
    <absorb> mapsto_ sh1 (typeof e1) (eval_expr e1 rho) ∧
    <absorb> mapsto_ sh2 (typeof e2) (eval_expr e2 rho) ⊢
    ⌜Clight.eval_expr ge ve te m (Ebinop cmp e1 e2 ty) (eval_expr (Ebinop cmp e1 e2 ty) rho)⌝.
 Proof.
-intros until rho. intros ?? NE1 NE2.
+intros until rho. intros ?? NE1 NE2 ??.
 iIntros "[Hm H]".
 iDestruct (eval_expr_relate with "[$Hm H]") as %He1.
 { iDestruct "H" as "[$ _]". }
@@ -248,6 +250,7 @@ Qed.
 
 Lemma semax_ptr_compare:
 forall E (Delta: tycontext) (P: environ -> mpred) id cmp e1 e2 ty sh1 sh2,
+    sh1 <> Share.bot -> sh2 <> Share.bot ->
     is_comparison cmp = true  ->
     eqb_type (typeof e1) int_or_ptr_type = false ->
     eqb_type (typeof e2) int_or_ptr_type = false ->
@@ -266,7 +269,7 @@ forall E (Delta: tycontext) (P: environ -> mpred) id cmp e1 e2 ty sh1 sh2,
                      (eval_expr (Ebinop cmp e1 e2 ty)) rho⌝ ∧
                             subst id (liftx old) P rho))).
 Proof.
-  intros until sh2. intros CMP NE1 NE2 TCid.
+  intros until sh2. intros ?? CMP NE1 NE2 TCid.
   apply semax_pre with (fun rho =>
       ((▷ tc_expr Delta e1 rho ∧
         ▷ tc_expr Delta e2 rho ∧
@@ -293,8 +296,8 @@ Proof.
   + iAssert (▷ ⌜Clight.eval_expr ge ve te m (Ebinop cmp e1 e2 ty) (eval_expr (Ebinop cmp e1 e2 ty) rho)⌝) with "[H]" as ">%";
       last by iPureIntro; constructor.
     iNext.
-    iApply pointer_cmp_eval.
-    iDestruct "H" as "($ & [$ _] & _)".
+    iDestruct "H" as "(Hm & [H _] & _)"; iCombine "Hm H" as "H".
+    iApply (pointer_cmp_eval with "H").
   + iIntros "!> !>".
     iDestruct "H" as "($ & [_ (F & P)] & #?)".
     erewrite (closed_wrt_modvars_set F) by eauto; iFrame.

@@ -19,6 +19,7 @@ Context `{!heapGS Σ}.
 Lemma nonlock_permission_bytes_valid_pointer1: forall sh b ofs n i,
   0 <= ofs /\ ofs + i < Ptrofs.modulus ->
   0 <= i < n ->
+  sh <> Share.bot ->
   nonlock_permission_bytes sh (b, ofs) n ⊢ valid_pointer (Vptr b (Ptrofs.repr (ofs + i))).
 Proof.
   intros; iIntros "H".
@@ -35,6 +36,7 @@ Qed.
 Lemma nonlock_permission_bytes_valid_pointer: forall sh b ofs n i,
   0 <= ofs /\ ofs + n <= Ptrofs.modulus ->
   0 <= i < n ->
+  sh <> Share.bot ->
   nonlock_permission_bytes sh (b, ofs) n ⊢ valid_pointer (Vptr b (Ptrofs.repr (ofs + i))).
 Proof.
   intros; apply nonlock_permission_bytes_valid_pointer1; auto; lia.
@@ -83,6 +85,7 @@ Qed.
 Lemma mapsto_valid_pointer1: forall {cs: compspecs} sh t p v i,
   match p with Vptr _ ofs => Ptrofs.unsigned ofs + i < Ptrofs.modulus | _ => True end ->
   0 <= i < sizeof t ->
+  sh <> Share.bot ->
   mapsto sh t p v ⊢ valid_pointer (offset_val i p).
 Proof.
   intros; iIntros "H".
@@ -101,6 +104,7 @@ Qed.
 Lemma mapsto_valid_pointer: forall {cs: compspecs} sh t p v i,
   size_compatible t p -> 
   0 <= i < sizeof t ->
+  sh <> Share.bot ->
   mapsto sh t p v ⊢ valid_pointer (offset_val i p).
 Proof.
   intros; apply mapsto_valid_pointer1; auto.
@@ -109,6 +113,7 @@ Qed.
 
 Lemma memory_block_valid_pointer: forall {cs: compspecs} sh n p i,
   0 <= i < n ->
+  sh <> Share.bot ->
   memory_block sh n p ⊢ valid_pointer (offset_val i p).
 Proof.
   intros.
@@ -139,13 +144,14 @@ Qed.
 
 Lemma nonlock_permission_bytes_weak_valid_pointer: forall sh b ofs n i,
   0 <= ofs /\ ofs + n < Ptrofs.modulus -> 0 <= i <= n -> 0 < n ->
+  sh <> Share.bot ->
   nonlock_permission_bytes sh (b, ofs) n ⊢
                            weak_valid_pointer (Vptr b (Ptrofs.repr (ofs + i))).
 Proof.
   intros; iIntros "H". unfold weak_valid_pointer.
   assert (0 <= i < n \/ i = n) as [? | ?] by lia.
-  - rewrite nonlock_permission_bytes_valid_pointer; [by iLeft | lia..].
-  - subst i. rewrite (nonlock_permission_bytes_valid_pointer _ _ _ _ (n - 1)); [| lia..].
+  - rewrite nonlock_permission_bytes_valid_pointer //; [by iLeft | lia..].
+  - subst i. rewrite (nonlock_permission_bytes_valid_pointer _ _ _ _ (n - 1)) //; [| lia..].
     iRight; rewrite /valid_pointer /valid_pointer'.
     rewrite -> !Ptrofs.unsigned_repr by (unfold Ptrofs.max_unsigned; lia).
     replace (ofs + n + -1) with (ofs + (n - 1) + 0) by lia; done.
@@ -153,6 +159,7 @@ Qed.
 
 Lemma memory_block_weak_valid_pointer: forall {cs: compspecs} sh n p i,
   0 <= i <= n -> 0 < n ->
+  sh <> Share.bot ->
   memory_block sh n p ⊢ weak_valid_pointer (offset_val i p).
 Proof.
   intros. unfold memory_block. destruct p; auto. iIntros "[% H]".
