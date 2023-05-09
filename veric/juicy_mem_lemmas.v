@@ -109,7 +109,7 @@ Qed.*)
 
 Lemma core_load_coherent: forall ch v b ofs bl m,
   mem_auth m ∗ core_load' ch (b, ofs) v bl ⊢
-  ⌜length bl = size_chunk_nat ch ∧ (align_chunk ch | ofs)%Z ∧ forall i, i < length bl -> exists sh, perm_order' (perm_of_dfrac sh) Readable ∧ coherent_loc(V := leibnizO resource) m (b, ofs + Z.of_nat i)%Z (Some (sh, Some (VAL (nthbyte i bl))))⌝.
+  ⌜length bl = size_chunk_nat ch ∧ (align_chunk ch | ofs)%Z ∧ forall i, i < length bl -> exists sh, perm_order' (perm_of_dfrac sh) Readable ∧ coherent_loc(V := leibnizO resource) m (b, ofs + Z.of_nat i)%Z (sh, Some (VAL (nthbyte i bl)))⌝.
 Proof.
   intros; unfold core_load'.
   iIntros "(Hm & >((%H1 & _ & %H2) & H))".
@@ -117,14 +117,14 @@ Proof.
   clear H1 H2; iInduction bl as [|?] "IH" forall (ofs); simpl in *.
   { iPureIntro; lia. }
   iDestruct "H" as "((% & %Hsh & H) & rest)".
-  iDestruct (mapsto_lookup with "Hm H") as %[_ Hloc].
-  iDestruct ("IH" with "Hm [rest]") as %H.
+  iDestruct (mapsto_lookup with "Hm H") as %[_ (Hloc & ? & ?)].
+  iDestruct ("IH" with "Hm [rest]") as %Hrest.
   { iApply (big_sepL_mono with "rest"); intros.
     apply bi.exist_mono; intros.
     rewrite /adr_add /= Nat2Z.inj_succ /Z.succ (Z.add_comm _ 1) Z.add_assoc //. }
   iPureIntro; intros.
-  destruct Hloc, i; eauto.
-  destruct (H i); first lia.
+  destruct i; eauto.
+  destruct (Hrest i); first lia.
   rewrite Nat2Z.inj_succ /Z.succ (Z.add_comm _ 1) Z.add_assoc.
   rewrite /nthbyte Z2Nat.inj_add; eauto; lia.
 Qed.
@@ -391,7 +391,7 @@ Qed.*)
 
 Lemma mapsto_coherent: forall ch v sh b ofs m,
   mem_auth m ∗ address_mapsto ch v sh (b, ofs) ⊢
-  ⌜∃ bl, length bl = size_chunk_nat ch ∧ decode_val ch bl = v ∧ (align_chunk ch | ofs)%Z ∧ forall i, 0 <= i < size_chunk_nat ch -> coherent_loc(V := leibnizO resource) m (b, ofs + Z.of_nat i)%Z (Some (DfracOwn (Share sh), Some (VAL (nthbyte i bl))))⌝.
+  ⌜∃ bl, length bl = size_chunk_nat ch ∧ decode_val ch bl = v ∧ (align_chunk ch | ofs)%Z ∧ forall i, 0 <= i < size_chunk_nat ch -> coherent_loc(V := leibnizO resource) m (b, ofs + Z.of_nat i)%Z (DfracOwn (Share sh), Some (VAL (nthbyte i bl)))⌝.
 Proof.
   intros; unfold address_mapsto.
   iIntros "[Hm H]".
@@ -741,7 +741,7 @@ Proof.
   rewrite /VALspec /adr_add /=.
   iDestruct "H" as (?) "H".
   replace (l.2 + Z.to_nat (a - l.2)) with a by lia.
-  iDestruct (mapsto_lookup with "Hm H") as %(? & ? & _ & Hacc & _); iPureIntro.
+  iDestruct (mapsto_lookup with "Hm H") as %(? & ? & _ & _ & Hacc & _); iPureIntro.
   rewrite /access_cohere /access_at /= perm_of_freeable -mem_lemmas.po_oo // in Hacc.
 Qed.
 

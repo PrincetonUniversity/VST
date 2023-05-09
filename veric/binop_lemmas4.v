@@ -99,9 +99,9 @@ Lemma valid_pointer_dry:
 Proof.
 intros.
 iIntros "[Hm >H]".
-iAssert ⌜∃ dq r, ✓ dq ∧ dq ≠ ε ∧ coherent_loc m (b, Ptrofs.unsigned ofs + d)%Z (Some (dq, r))⌝ with "[-]" as %(dq & r & Hdq & ? & H).
-{ iDestruct "H" as "[(% & % & H) | (% & % & H)]"; [iDestruct (mapsto_lookup with "Hm H") as %(? & ? & ?) |
-    iDestruct (mapsto_no_lookup with "Hm H") as %(? & ?)]; iPureIntro.
+iAssert ⌜∃ dq r, ✓ dq ∧ dq ≠ ε ∧ coherent_loc m (b, Ptrofs.unsigned ofs + d)%Z (dq, r)⌝ with "[-]" as %(dq & r & Hdq & ? & H).
+{ iDestruct "H" as "[(% & % & H) | (% & % & H)]"; [iDestruct (mapsto_lookup with "Hm H") as %(? & ? & ? & ?) |
+    iDestruct (mapsto_no_lookup with "Hm H") as %(? & ? & ?)]; iPureIntro.
   - eexists _, _; split; first done; split; last done.
     intros ->; contradiction bot_unreadable.
   - eexists (DfracOwn (Share sh)), _; split; first done; split; last done.

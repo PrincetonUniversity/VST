@@ -7,9 +7,9 @@ Require Import VST.zlist.sublist.
 Section rmap.
 Context `{!heapGS Σ}.
 
-Definition perm_of_res_lock (r: option (dfrac * resource)) :=
+Definition perm_of_res_lock (r: dfrac * resource) :=
   match r with
-  | Some (q, LK _ _ _) => match q with
+  | (q, LK _ _ _) => match q with
                    | DfracOwn (Share sh) => perm_of_sh (Share.glb Share.Rsh sh)
                    | DfracBoth _ => Some Readable
                    | _ => None
@@ -100,8 +100,9 @@ Lemma perm_of_res_op2:
   forall r,
     perm_order'' (perm_of_res' r) (perm_of_res_lock r).
 Proof.
-  destruct r as [(?, ?)|]; simpl; auto.
+  destruct r as (?, ?); simpl.
   destruct r; try apply perm_order''_None.
+  rewrite /perm_of_res' /=.
   unfold perm_of_dfrac; destruct d as [[|]|]; try apply perm_order''_refl || if_tac; try apply perm_of_sh_glb; try done.
   constructor.
 Qed.

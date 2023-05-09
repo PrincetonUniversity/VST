@@ -268,25 +268,14 @@ Proof.
       destruct Hm as (Hperm & Hmax).
       apply perm_mem_access in Hperm as (? & Hperm & Haccess).
       destruct (Hmax _ _ _ (access_perm _ _ _ _ _ Haccess)); subst; done.
-    + destruct (find_id id G) eqn: Hfind.
-      { eapply match_fdecs_exists_Gfun in Hfind as (? & Hin' & ?); last done.
-        eapply list_norepet_In_In in Hin; eauto; done. }
-
-      (* What if it's a size-0 globvar? *)
-  - intros ?? Hid Hb.
-    apply elem_of_list_fmap_2 in Hid as ((?, ?) & -> & Hi).
-    apply elem_of_list_In, find_id_i in Hi; last done.
-    eapply match_fdecs_exists_Gfun in Hi as (? & Hdef & ?); last done.
-    apply find_symbol_globalenv in Hb as (? & ? & Hnth); last done.
-    pose proof (nth_error_In _ _ Hnth).
-    eapply list_norepet_In_In in Hdef; eauto; subst.
-    by erewrite block_bounds_nth by done.
-  - rewrite Forall_forall; intros (?, ?) Hi.
-    apply find_id_i in Hi; last done.
-    eapply match_fdecs_exists_Gfun in Hi as (? & Hdef & ?); last done.
-    apply (prog_defmap_norepet (program_of_program prog)) in Hdef; last done.
-    apply Genv.find_def_symbol in Hdef as (b & Hb & Hdef).
-    rewrite Hb; by eapply Genv.find_symbol_not_fresh.
+    + destruct (find_id id G) eqn: Hfind; last done.
+      eapply match_fdecs_exists_Gfun in Hfind as (? & Hin' & ?); last done.
+      eapply list_norepet_In_In in Hin; eauto; done.
+  - intros ? Hb.
+    eapply init_mem_all in Hb as (id & g & Hin & Hb); eauto.
+    apply find_symbol_globalenv in Hb as (? & g' & ?); last done.
+    erewrite block_bounds_nth by done.
+    destruct g'; try done; simpl; lia.
 Qed.
 
 Lemma initial_core_funassert :
@@ -294,22 +283,33 @@ Lemma initial_core_funassert :
       (Hnorepet : list_norepet (prog_defs_names prog))
       (Hmatch : match_fdecs (prog_funct prog) G)
       (Hm : Genv.init_mem prog = Some m),
-  initial_core (globalenv prog) G ⊢ funassert (nofunc_tycontext V G) (mkEnviron (filter_genv (globalenv prog)) ve te).
+  initial_core m (globalenv prog) G ⊢ funassert (nofunc_tycontext V G) (mkEnviron (filter_genv (globalenv prog)) ve te).
 Proof.
-  intros; iIntros "(H & #fun)".
-  rewrite /inflate_initial_mem; iSplit.
+  intros; iIntros "#H !>".
+  rewrite /initial_world.initial_core /Map.get /filter_genv /=; iSplit.
   - iIntros (?? Hid); simpl in *.
     rewrite make_tycontext_s_find_id in Hid.
-    unshelve erewrite big_sepL_elem_of; last by apply elem_of_list_In, find_id_e.
-    eapply match_fdecs_exists_Gfun in Hid as (? & Hid & ?); last done.
-    rewrite /filter_genv /Map.get.
-    apply (Genv.find_symbol_exists (program_of_program _)) in Hid as (? & Hfind); rewrite Hfind; eauto.
-    { left; intros (?, ?); destruct (Genv.find_symbol _ _); apply _. }
-  - iIntros (??).
-    rewrite -bi.impl_wand_2.
-Search bi_persistently bi_wand.
-    iIntros "?".
-Search bi_impl Persistent.
+    edestruct match_fdecs_exists_Gfun as (? & Hid' & ?); [done.. |].
+    apply (Genv.find_symbol_exists (program_of_program _)) in Hid' as (b & Hfind); rewrite Hfind.
+    iExists _; iSplit; first done.
+    unshelve erewrite (big_sepL_lookup _ _ (Pos.to_nat b - 1)); last (apply lookup_seq; split; first done).
+    replace (Pos.of_nat _) with b by lia.
+    rewrite /funspec_of_loc /=.
+    erewrite Genv.find_invert_symbol by done.
+    rewrite Hid //.
+    { left; intros; destruct (funspec_of_loc _ _ _); apply _. }
+    { eapply Genv.find_symbol_not_fresh in Hfind; last done.
+      unfold valid_block, Plt in Hfind; lia. }
+  - iIntros (b (? & Hfind & Hid)).
+    rewrite make_tycontext_s_find_id in Hid.
+    unshelve erewrite (big_sepL_lookup _ _ (Pos.to_nat b - 1)); last (apply lookup_seq; split; first done).
+    replace (Pos.of_nat _) with b by lia.
+    rewrite /funspec_of_loc /=.
+    erewrite Genv.find_invert_symbol by done.
+    rewrite Hid //.
+    { left; intros; destruct (funspec_of_loc _ _ _); apply _. }
+    { eapply Genv.find_symbol_not_fresh in Hfind; last done.
+      unfold valid_block, Plt in Hfind; lia. }
 Qed.
 
 End mpred.
@@ -324,12 +324,12 @@ Lemma alloc_initial_state  `{!inG Σ (excl_authR (leibnizO Z))} `{!wsatGpreS Σ}
       (Hmatch : match_fdecs (prog_funct prog) G)
       (Hm : Genv.init_mem prog = Some m),
   ⊢ |==> ∃ _ : externalGS Z Σ, ∃ _ : heapGS Σ,
-    ext_auth z ∗ has_ext z ∗ wsat ∗ ownE ⊤ ∗ mem_auth m ∗ inflate_initial_mem m (block_bounds prog) (globalenv prog) G ∗ initial_core (globalenv prog) G
-    ∗ ghost_map.ghost_map_auth(H0 := gen_heapGpreS_meta) (gen_meta_name _) Tsh ∅.
+    ext_auth z ∗ has_ext z ∗ wsat ∗ ownE ⊤ ∗ mem_auth m ∗ inflate_initial_mem m (block_bounds prog) (globalenv prog) G ∗ initial_core m (globalenv prog) G
+    ∗ ghost_map.ghost_map_auth(H0 := gen_heapGpreS_meta) (gen_meta_name _) 1 ∅.
 Proof.
   intros; iIntros.
   iMod (ext_alloc z) as (?) "(? & ?)".
   iMod (alloc_initial_mem Mem.empty (fun _ => (0%Z, O)) (globalenv prog) G) as (?) "(? & ? & Hm & _ & ?)".
-  iMod (initialize_mem with "Hm") as "(? & ?)".
+  iMod (initialize_mem' with "Hm") as "(? & ? & ?)".
   iExists _, _; by iFrame.
 Qed.

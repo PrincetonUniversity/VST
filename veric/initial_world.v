@@ -179,7 +179,7 @@ Definition inflate_loc loc :=
   | Some Readable => loc ↦{#Ers} VAL (contents_at m loc)
   | Some Nonempty => match funspec_of_loc loc with
                      | Some f => func_at f loc
-                     | _ => emp
+                     | _ => mapsto_no loc Share.bot
                      end
   | _ => mapsto_no loc Share.bot
   end.
@@ -984,9 +984,8 @@ Lemma rmap_of_loc_coherent : forall m F (ge : Genv.t (fundef F) type) G loc, coh
 Proof.
   intros; rewrite /res_of_loc.
   destruct (access_at m loc Cur) eqn: Hloc; last apply coherent_bot.
-  destruct p; try (rewrite lookup_empty; apply coherent_None); try (destruct (funspec_of_loc _ _ _) as [[]|]; last apply coherent_None);
-    rewrite lookup_singleton /= elem_of_to_agree.
-  - split3; last split.
+  destruct p; try (destruct (funspec_of_loc _ _ _) as [[]|]; last apply coherent_bot); rewrite /= elem_of_to_agree.
+  - split3.
     + unfold contents_cohere; simpl.
       by inversion 1.
     + rewrite /access_cohere Hloc /=.
@@ -995,39 +994,35 @@ Proof.
     + rewrite /max_access_cohere /max_access_at.
       eapply perm_order''_trans; first apply access_max.
       unfold access_at in Hloc; rewrite Hloc /=.
-      rewrite /perm_of_sh !if_true //; auto.
+      rewrite /perm_of_res' /= /perm_of_sh !if_true //; auto.
       constructor.
-    + intros ?; rewrite /access_at nextblock_noaccess // in Hloc.
-  - split3; last split.
+  - split3.
     + unfold contents_cohere; simpl.
       by inversion 1.
     + rewrite /access_cohere Hloc /= perm_of_Ews.
       constructor.
     + rewrite /max_access_cohere /max_access_at.
       eapply perm_order''_trans; first apply access_max.
-      unfold access_at in Hloc; rewrite Hloc /= perm_of_Ews.
+      unfold access_at in Hloc; rewrite Hloc /perm_of_res' /= perm_of_Ews.
       constructor.
-    + intros ?; rewrite /access_at nextblock_noaccess // in Hloc.
-  - split3; last split.
+  - split3.
     + unfold contents_cohere; simpl.
       by inversion 1.
     + rewrite /access_cohere Hloc /= perm_of_Ers.
       constructor.
     + rewrite /max_access_cohere /max_access_at.
       eapply perm_order''_trans; first apply access_max.
-      unfold access_at in Hloc; rewrite Hloc /= perm_of_Ers.
+      unfold access_at in Hloc; rewrite Hloc /perm_of_res' /= perm_of_Ers.
       constructor.
-    + intros ?; rewrite /access_at nextblock_noaccess // in Hloc.
-  - split3; last split.
+  - split3.
     + done.
     + rewrite /access_cohere Hloc /=.
       rewrite if_false; first constructor.
       apply Lsh_bot_neq.
     + rewrite /max_access_cohere /max_access_at.
       eapply perm_order''_trans; first apply access_max.
-      unfold access_at in Hloc; rewrite Hloc /= perm_of_Lsh.
+      unfold access_at in Hloc; rewrite Hloc /perm_of_res' /= perm_of_Lsh.
       constructor.
-    + intros ?; rewrite /access_at nextblock_noaccess // in Hloc.
 Qed.
 
 Lemma rmap_of_mem_coherent : forall m block_bounds {F} ge G loc, (✓ @rmap_of_mem m block_bounds F ge G)%stdpp ->
@@ -1037,16 +1032,17 @@ Proof.
   specialize (H loc); rewrite lookup_of_mem in H.
   eapply (coherent_loc_ne 0); [by apply cmra_valid_validN | symmetry; apply equiv_dist, lookup_of_mem |].
   destruct loc as (b, o); destruct (block_bounds b) eqn: Hbounds; rewrite Hbounds /=.
-  destruct (zle z o); simpl; last apply coherent_None.
-  destruct (zlt o (z + n)); last apply coherent_None; simpl.
+  destruct (plt _ _); last apply coherent_bot.
+  destruct (zle z o); simpl; last apply coherent_bot.
+  destruct (zle o (z + n)); last apply coherent_bot; simpl.
   apply rmap_of_loc_coherent.
 Qed.
 
-Lemma rmap_of_loc_valid : forall m {F} ge G loc, (✓ (@rmap_of_loc m F ge G loc !! loc))%stdpp.
+Lemma rmap_of_loc_valid : forall m {F} ge G loc, (✓ (@res_of_loc m F ge G loc))%stdpp.
 Proof.
-  intros; rewrite /rmap_of_loc.
+  intros; rewrite /res_of_loc.
   destruct (access_at m loc Cur); try done.
-  destruct p; try done; try destruct (funspec_of_loc _ _ _) as [[]|]; try done; rewrite lookup_singleton //; split; try done.
+  destruct p; try done; try destruct (funspec_of_loc _ _ _) as [[]|]; done.
 Qed.
 
 Lemma rmap_of_mem_valid : forall m block_bounds {F} ge G, (✓ @rmap_of_mem m block_bounds F ge G)%stdpp.
@@ -1146,14 +1142,15 @@ Proof.
   destruct (block_bounds _) eqn: Hbounds.
   rewrite big_opM_opL' //.
   apply big_sepL_proper; intros ?? [-> ?]%lookup_seq.
-  rewrite /rmap_of_loc /inflate_loc.
-  destruct (access_at _ _ _) eqn: Haccess; last apply big_sepM_empty.
-  destruct p; try apply big_sepM_empty; try destruct (funspec_of_loc _ _ _) as [[]|]; try apply big_sepM_empty; rewrite big_opM_singleton elem_of_to_agree //.
+  rewrite big_opM_singleton.
+  rewrite /res_of_loc /inflate_loc.
+  destruct (access_at _ _ _) eqn: Haccess; last done.
+  destruct p; try done; try destruct (funspec_of_loc _ _ _) as [[]|]; try done; rewrite ?elem_of_to_agree //.
   * apply NoDup_seq.
   * intros; intros i.
     rewrite /option_relation.
-    destruct (eq_dec i (Pos.of_nat (1 + k), (z + a1)%Z)); last by rewrite rmap_of_loc_ne //; destruct (_ !! _).
-    destruct (eq_dec i (Pos.of_nat (1 + k), (z + a2)%Z)); last by rewrite (rmap_of_loc_ne _ _ _ (_, (_ + a2)%Z)) //; destruct (_ !! _).
+    destruct (eq_dec i (Pos.of_nat (1 + k), (z + a1)%Z)); last by rewrite lookup_singleton_ne //; destruct (_ !! _).
+    destruct (eq_dec i (Pos.of_nat (1 + k), (z + a2)%Z)); last by rewrite (lookup_singleton_ne (_, (_ + a2)%Z)) //; destruct (_ !! _).
     subst; inv e0; lia.
   * intros i.
     rewrite lookup_of_loc.
@@ -1165,7 +1162,7 @@ Proof.
     intros i.
     rewrite disjoint_rel_proper; [| apply lookup_of_loc..].
     rewrite /option_relation; if_tac; last by destruct (if adr_range_dec _ _ _ then _ else _).
-    if_tac; last by destruct (_ !! _).
+    if_tac; last done.
     destruct i, H1, H2; lia.
   * apply rmap_of_mem_valid.
 Qed.
@@ -1220,9 +1217,9 @@ Lemma initial_mem_initial_core : forall m block_bounds {F} (ge : Genv.t (fundef 
   (Hm : forall b, (b < nextblock m)%positive ->
         match funspec_of_loc ge G (b, 0) with
         | Some _ => access_at m (b, 0) Cur = Some Nonempty
-        | None => exists p, access_at m (b, 0) Cur = Some p /\ p <> Nonempty
+        | None => True
         end)
-  (Hbounds : forall b, (b < nextblock m)%positive -> (block_bounds b).1 <= 0 < (block_bounds b).1 + Z.of_nat (block_bounds b).2),
+  (Hbounds : forall b, (b < nextblock m)%positive -> (block_bounds b).1 <= 0 <= (block_bounds b).1 + Z.of_nat (block_bounds b).2),
   inflate_initial_mem m block_bounds ge G ⊢ inflate_initial_mem m block_bounds ge G ∗ initial_core m ge G.
 Proof.
   intros; rewrite /inflate_initial_mem /initial_core.
@@ -1238,11 +1235,21 @@ Proof.
   rewrite /inflate_loc.
   destruct (funspec_of_loc _ _ _).
   - rewrite Hm //.
-  - destruct Hm as (p & -> & ?).
-    replace (DfracOwn (Share Tsh)) with (ε ⋅ DfracOwn (Share Tsh)) by rewrite left_id //.
+  - replace (DfracOwn (Share Tsh)) with (ε ⋅ DfracOwn (Share Tsh)) by rewrite left_id //.
     replace (DfracOwn (Share Ews)) with (ε ⋅ DfracOwn (Share Ews)) by rewrite left_id //.
     replace (DfracOwn (Share Ers)) with (ε ⋅ DfracOwn (Share Ers)) by rewrite left_id //.
+    destruct (access_at _ _ _); last done.
     destruct p; last done; iDestruct (mapsto_split_no with "H") as "($ & _)"; simpl; auto; (apply bot_unreadable || apply readable_Ers).
+Qed.
+
+Lemma rmap_of_mem_nextblock : ∀ m block_bounds {F} (ge : Genv.t (fundef F) type) G loc,
+  (loc.1 >= nextblock m)%positive → rmap_of_mem m block_bounds ge G !! loc = None.
+Proof.
+  intros; pose proof (lookup_of_mem m ge G block_bounds loc) as Hlookup.
+  destruct (plt _ _).
+  { unfold Plt in *; clear - H p. apply Pos.lt_nle in p; contradiction p. apply Pos.ge_le; done. }
+  simpl in Hlookup.
+  destruct (block_bounds _); inv Hlookup; done.
 Qed.
 
 Lemma initialize_mem : forall m block_bounds {F} (ge : Genv.t (fundef F) type) G,
@@ -1252,7 +1259,8 @@ Proof.
   pose proof (rmap_of_mem_valid m block_bounds ge G).
   rewrite -rmap_inflate_equiv.
   apply gen_heap_set; try done.
-  intros; by apply rmap_of_mem_coherent.
+  - apply rmap_of_mem_nextblock.
+  - intros; by apply rmap_of_mem_coherent.
 Qed.
 
 End mpred.
@@ -1269,6 +1277,7 @@ Proof.
   iMod wsat_alloc as (?) "(? & ?)".
   pose proof (rmap_of_mem_valid m block_bounds ge G).
   iMod (gen_heap_init_names m (rmap_of_mem m block_bounds ge G)) as (??) "(Hm & H & ?)".
+  { apply rmap_of_mem_nextblock. }
   { intros; by apply rmap_of_mem_coherent. }
   iExists (HeapGS _ _); iFrame.
   rewrite /mem_auth /= -rmap_inflate_equiv //.
