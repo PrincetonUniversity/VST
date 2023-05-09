@@ -371,6 +371,8 @@ Search emp.
 Abort.
 *)
 
+(* Should we just replace this with funassert? At the very least, it needs to assert that globvars
+   don't have func_ats. *)
 Definition initial_core : mpred :=
   [∗ list] '(id, f) ∈ G, match Genv.find_symbol ge id with Some b => func_at f (b, 0) | None => emp end.
 

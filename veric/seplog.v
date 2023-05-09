@@ -563,8 +563,9 @@ Qed.
 Definition funspecs_assert (FunSpecs: Maps.PTree.t funspec): assert :=
  assert_of (fun rho =>
    □ ((∀ id: ident, ∀ fs:funspec,  ⌜FunSpecs!!id = Some fs⌝ →
-              ∃ b:block,⌜Map.get (ge_of rho) id = Some b⌝ ∧ func_at fs (b,0)) ∧
-      ⌜∀ id b, Map.get (ge_of rho) id = Some b → ∃ fs, FunSpecs!!id = Some fs⌝)).
+            ∃ b:block,⌜Map.get (ge_of rho) id = Some b⌝ ∧ func_at fs (b,0)) ∧
+     (∀ fs b, ⌜∀ id, Map.get (ge_of rho) id = Some b → FunSpecs!!id = Some fs⌝ →
+            mapsto_no (b, 0) Share.bot))).
 
 Definition globals_only (rho: environ) : environ := (mkEnviron (ge_of rho) (Map.empty _) (Map.empty _)).
 
@@ -602,9 +603,10 @@ assert (forall FS FS' rho,
              (forall id, FS !! id = FS' !! id) ->
              funspecs_assert FS rho ⊢ funspecs_assert FS' rho).
 { intros. rewrite /funspecs_assert.
-  iIntros "#(H1 & %) !>"; iSplit.
+  iIntros "#(H1 & H2) !>"; iSplit.
   - iIntros (??); rewrite -H //.
-  - iPureIntro; intros; rewrite -H; eauto. }
+  - iIntros (???); iApply "H2".
+    iPureIntro; intros; rewrite H; eauto. }
 split=> rho; iSplit; iApply H; auto.
 Qed.
 

@@ -4,14 +4,18 @@
 From iris.algebra Require Export agree.
 From iris.algebra Require Import updates local_updates proofmode_classes big_op.
 From VST.msl Require Import shares.
-From VST.veric Require Export base share_alg dfrac.
+From VST.veric Require Export base share_alg dshare.
 From iris_ora.algebra Require Export ora agree.
 From iris.prelude Require Import options.
 
+Definition readable_share' (s : shareO) := match s with Share sh => readable_share sh | _ => False end.
+
 Definition readable_dfrac_dec dq : { readable_dfrac dq } + { ¬readable_dfrac dq }.
-destruct dq; try by left.
-- destruct (readable_share_dec s); [left | right]; done.
-- destruct (eq_dec s Share.bot); [right | left]; intros ?; done.
+destruct dq; simpl.
+- destruct o; last by right; intros [].
+  apply readable_share_dec.
+- destruct o; last by right; intros [].
+  by left.
 Defined.
 
 Section shared.
@@ -20,7 +24,7 @@ Context (V : ofe).
 
 Inductive shared :=
 | YES (dq : dfrac) (rsh : readable_dfrac dq) (v : agree V)
-| NO (sh : share) (rsh : ¬readable_share sh).
+| NO (sh : shareO) (rsh : ¬readable_share' sh).
 
 Definition dfrac_of (s : shared) := match s with
 | YES dq _ _ => dq
@@ -69,7 +73,6 @@ Lemma YES_irrel dq rsh1 rsh2 v : YES dq rsh1 v ≡ YES dq rsh2 v.
 Proof. done. Qed.
 
 (* CMRA *)
-Existing Instance share_valid_instance.
 
 Local Instance shared_validN_instance : ValidN shared := λ n x,
   match x with
@@ -82,14 +85,16 @@ Local Instance shared_valid_instance : Valid shared := λ x,
   | NO sh _ => ✓ sh
   end.
 
-Existing Instance share_op_instance.
+Local Instance shared_unit_instance : Unit shared := NO ε bot_unreadable.
 
-Lemma op_unreadable_shares : forall sh1 sh2, ~readable_share sh1 -> ~readable_share sh2 -> ~readable_share (sh1 ⋅ sh2).
+Local Definition err := NO ShareBot id.
+
+Lemma op_unreadable_shares : forall sh1 sh2, ~readable_share' sh1 -> ~readable_share' sh2 -> ~readable_share' (sh1 ⋅ sh2).
 Proof.
   intros.
   intros X.
-  destruct (eq_dec (sh1 ⋅ sh2) Share.bot); [rewrite e in X; contradiction bot_unreadable|].
-  edestruct (share_op_join sh1 sh2) as [(? & ? & J) _]; try done.
+  destruct (sh1 ⋅ sh2) eqn: Hop; last done.
+  apply share_op_join in Hop as (? & ? & -> & -> & J).
   eapply join_unreadable_shares; eauto.
 Qed.
 
@@ -98,66 +103,54 @@ Local Instance shared_op_instance : Op shared := λ x y,
   | YES dqx _ vx, YES dqy _ vy =>
       match readable_dfrac_dec (dqx ⋅ dqy) with
       | left rsh => YES (dqx ⋅ dqy) rsh (vx ⋅ vy)
-      | right _ => NO Share.bot bot_unreadable
+      | right _ => err
       end
-  | YES dq _ v, NO sh _ | NO sh _, YES dq _ v => if eq_dec sh Share.bot then NO Share.bot bot_unreadable else
+  | YES dq _ v, NO sh _ | NO sh _, YES dq _ v =>
       match readable_dfrac_dec (dq ⋅ DfracOwn sh) with
       | left rsh => YES (dq ⋅ DfracOwn sh) rsh v
-      | right _ => NO Share.bot bot_unreadable
+      | right _ => err
       end
   | NO shx rshx, NO shy rshy => NO (shx ⋅ shy) (op_unreadable_shares _ _ rshx rshy)
   end.
 
-Definition dfrac_error df := match df with DfracOwn sh | DfracBoth sh => if eq_dec sh Share.bot then true else false | _ => false end.
+Definition dfrac_error df := match df with DfracOwn ShareBot | DfracBoth ShareBot => true | _ => false end.
 
-Lemma share_op_readable' : forall sh1 sh2, readable_share sh1 \/ readable_share sh2 -> ✓(sh1 ⋅ sh2) -> readable_share (sh1 ⋅ sh2).
+Lemma share_op_readable' : forall sh1 sh2, readable_share' sh1 \/ readable_share' sh2 -> ✓(sh1 ⋅ sh2) -> readable_share' (sh1 ⋅ sh2).
+Proof.
+  intros ??? (? & ? & ? & -> & -> & Hop & J)%share_valid2_joins.
+  rewrite Hop; eapply readable_share_join; eauto.
+Qed.
+
+Lemma share_op_readable : forall sh1 sh2, readable_share' sh1 \/ readable_share' sh2 -> ~readable_share' (sh1 ⋅ sh2) -> sh1 ⋅ sh2 = ShareBot.
 Proof.
   intros.
-  edestruct (share_op_join sh1 sh2) as [(? & ? & J) _]; try done.
-  eapply readable_share_join; eauto.
-Qed.
-
-Lemma share_op_readable : forall sh1 sh2, readable_share sh1 \/ readable_share sh2 -> ~readable_share (sh1 ⋅ sh2) -> sh1 ⋅ sh2 = Share.bot.
-Proof.
-  intros.
-  destruct (eq_dec (sh1 ⋅ sh2) Share.bot); first done.
-  contradiction H0; apply share_op_readable'; auto.
-Qed.
-
-Lemma bot_op_share : forall s, Share.bot ⋅ s = Share.bot.
-Proof.
-  intros; rewrite /op /share_op_instance.
-  rewrite eq_dec_refl; done.
-Qed.
-
-Lemma share_op_bot : forall s, s ⋅ Share.bot = Share.bot.
-Proof.
-  intros; rewrite /op /share_op_instance.
-  if_tac; [|rewrite eq_dec_refl]; done.
+  destruct (sh1 ⋅ sh2) eqn: Hop; last done.
+  contradiction H0; rewrite -Hop; apply share_op_readable'; auto.
+  rewrite Hop; auto.
 Qed.
 
 Lemma dfrac_op_readable' : forall d1 d2, readable_dfrac d1 \/ readable_dfrac d2 -> ✓(d1 ⋅ d2) -> readable_dfrac (d1 ⋅ d2).
 Proof.
   intros ??? Hvalid.
-  destruct d1, d2; try done; try solve [intros ?; subst; destruct Hvalid; done].
+  destruct d1, d2; simpl in *; try by destruct Hvalid as (? & -> & ?).
   apply share_op_readable'; auto.
 Qed.
 
 Lemma dfrac_op_readable : forall d1 d2, readable_dfrac d1 \/ readable_dfrac d2 -> ~readable_dfrac (d1 ⋅ d2) -> dfrac_error (d1 ⋅ d2) = true.
 Proof.
-  destruct d1, d2; simpl; intros; try done; if_tac; try done.
-  exfalso; contradiction H1; apply share_op_readable; auto.
+  destruct d1 as [[|]|[|]], d2 as [[|]|[|]]; simpl; try done; destruct (_ ⋅ _) eqn: Hop; try done.
+  intros H ?; apply (share_op_readable (Share _) (Share _)) in H; first congruence.
+  rewrite Hop //.
 Qed.
 
 Lemma op_dfrac_error : forall d1 d2, dfrac_error d2 = true -> dfrac_error (d1 ⋅ d2) = true.
 Proof.
-  destruct d1, d2; try done; simpl; repeat if_tac; subst; try done; simpl; contradiction H0; apply share_op_bot.
+  destruct d1 as [[|]|[|]], d2 as [[|]|[|]]; done.
 Qed.
 
 Lemma dfrac_error_unreadable : forall d, dfrac_error d = true -> ~readable_dfrac d.
 Proof.
-  destruct d; try done; simpl; repeat if_tac; subst; try done; try tauto.
-  intros; apply bot_unreadable.
+  destruct d as [[|]|[|]]; try done; simpl; tauto.
 Qed.
 
 Definition val_of s := match s with YES _ _ v => Some v | _ => None end.
@@ -176,14 +169,14 @@ Qed.
 
 Lemma dfrac_error_invalid : forall d, dfrac_error d = true -> ~ ✓ d.
 Proof.
-  destruct d; try done; simpl; if_tac; subst; intros ? Hv; try done.
-  by destruct Hv.
+  destruct d as [[|]|[|]]; try done; simpl; intros ? Hv; try done.
+  by destruct Hv as (? & ? & ?).
 Qed.
 
 Lemma YES_op' : forall dq1 dq2 rsh1 rsh2 v1 v2, YES dq1 rsh1 v1 ⋅ YES dq2 rsh2 v2 =
   match readable_dfrac_dec (dq1 ⋅ dq2) with
       | left rsh => YES (dq1 ⋅ dq2) rsh (v1 ⋅ v2)
-      | right _ => NO Share.bot bot_unreadable
+      | right _ => err
       end.
 Proof. done. Qed.
 
@@ -194,53 +187,49 @@ Proof.
 Qed.
 
 Lemma NO_YES_op' : forall sh1 dq2 rsh1 rsh2 v2, NO sh1 rsh1 ⋅ YES dq2 rsh2 v2 =
-  if eq_dec sh1 Share.bot then NO Share.bot bot_unreadable else
   match readable_dfrac_dec (DfracOwn sh1 ⋅ dq2) with
       | left rsh => YES (DfracOwn sh1 ⋅ dq2) rsh v2
-      | right _ => NO Share.bot bot_unreadable
+      | right _ => err
       end.
 Proof.
-  intros. rewrite /op /shared_op_instance.
-  if_tac; try done.
+  intros. rewrite {1}/op /shared_op_instance.
   rewrite (comm _ dq2) //.
 Qed.
 
 Lemma NO_YES_op : forall sh1 dq2 rsh1 rsh2 rsh v2, NO sh1 rsh1 ⋅ YES dq2 rsh2 v2 ≡ YES (DfracOwn sh1 ⋅ dq2) rsh v2.
 Proof.
   intros; rewrite NO_YES_op'.
-  if_tac.
-  - exfalso; subst; destruct dq2; try done; rewrite /= bot_op_share in rsh; try done; contradiction bot_unreadable.
-  - by destruct (readable_dfrac_dec _).
+  by destruct (readable_dfrac_dec _).
 Qed.
 
 Lemma shared_op_alt : forall x y, match readable_dfrac_dec (dfrac_of x ⋅ dfrac_of y) with
   | left rsh => exists v, val_of x ⋅ val_of y = Some v /\ x ⋅ y = YES (dfrac_of x ⋅ dfrac_of y) rsh v
-  | right rsh => if dfrac_error (dfrac_of x ⋅ dfrac_of y) then x ⋅ y ≡ NO Share.bot bot_unreadable
-      else exists shx shy rshx rshy, x = NO shx rshx /\ y = NO shy rshy /\ x ⋅ y = NO (shx ⋅ shy) (op_unreadable_shares _ _ rshx rshy) /\ shx ⋅ shy ≠ Share.bot
+  | right rsh => if dfrac_error (dfrac_of x ⋅ dfrac_of y) then x ⋅ y ≡ err
+      else exists shx shy rshx rshy, x = NO shx rshx /\ y = NO shy rshy /\ x ⋅ y = NO (shx ⋅ shy) (op_unreadable_shares _ _ rshx rshy) /\ ✓ (shx ⋅ shy)
   end.
 Proof.
-  intros [|] [|]; rewrite /op /shared_op_instance /=.
+  intros [|] [|]; rewrite /op /shared_op_instance.
   - destruct (readable_dfrac_dec _); eauto.
     apply dfrac_op_readable in n; auto.
     rewrite n //.
   - destruct (readable_dfrac_dec _); eauto.
-    + if_tac; eauto.
-      exfalso; eapply dfrac_error_unreadable, r.
-      subst; apply op_dfrac_error, eq_dec_refl.
-    + apply dfrac_op_readable in n; auto.
-      rewrite n; if_tac; done.
+    apply dfrac_op_readable in n; auto.
+    rewrite n //.
   - rewrite comm; destruct (readable_dfrac_dec _); eauto.
-    + if_tac; eauto.
-      exfalso; eapply dfrac_error_unreadable, r.
-      subst; apply op_dfrac_error, eq_dec_refl.
-    + apply dfrac_op_readable in n; auto.
-      rewrite n; if_tac; done.
-  - destruct (readable_share_dec _).
+    apply dfrac_op_readable in n; auto.
+    rewrite n //.
+  - destruct (readable_dfrac_dec _).
     { exfalso; eapply op_unreadable_shares, r; auto. }
-    if_tac; eauto 8.
+    destruct (dfrac_error _) eqn: Herr.
+    { hnf; simpl in Herr.
+      destruct (_ ⋅ _); done. }
+    eexists _, _, _, _; repeat (split; first done).
+    simpl in Herr.
+    destruct (_ ⋅ _) eqn: Hop; try done.
+    setoid_rewrite Hop; done.
 Qed.
 
-Lemma dfrac_of_op' : forall x y, dfrac_of (x ⋅ y) = if dfrac_error (dfrac_of x ⋅ dfrac_of y) then DfracOwn Share.bot else dfrac_of x ⋅ dfrac_of y.
+Lemma dfrac_of_op' : forall x y, dfrac_of (x ⋅ y) = if dfrac_error (dfrac_of x ⋅ dfrac_of y) then DfracOwn ShareBot else dfrac_of x ⋅ dfrac_of y.
 Proof.
   intros; pose proof (shared_op_alt x y) as Hop.
   destruct (readable_dfrac_dec _).
@@ -251,7 +240,7 @@ Proof.
     destruct Hop as (? & ? & ? & ? & -> & -> & -> & ?); done.
 Qed.
 
-Lemma dfrac_of_op : forall x y, (dfrac_error (dfrac_of x ⋅ dfrac_of y) = true ∧ dfrac_of (x ⋅ y) = DfracOwn Share.bot) ∨ (dfrac_of (x ⋅ y) = dfrac_of x ⋅ dfrac_of y).
+Lemma dfrac_of_op : forall x y, (dfrac_error (dfrac_of x ⋅ dfrac_of y) = true ∧ dfrac_of (x ⋅ y) = DfracOwn ShareBot) ∨ (dfrac_of (x ⋅ y) = dfrac_of x ⋅ dfrac_of y).
 Proof.
   intros.
   rewrite dfrac_of_op'.
@@ -264,7 +253,7 @@ Proof.
   by split; last constructor.
 Qed.
 
-Lemma shared_includedN : forall n x y, x ≼{n} y -> y ≡ NO Share.bot bot_unreadable ∨ (dfrac_of x ≼{n} dfrac_of y ∧ val_of x ≼{n} val_of y).
+Lemma shared_includedN : forall n x y, x ≼{n} y -> y ≡ err ∨ (dfrac_of x ≼{n} dfrac_of y ∧ val_of x ≼{n} val_of y).
 Proof.
   intros ??? [z H].
   pose proof (shared_op_alt x z) as Hop.
@@ -281,7 +270,7 @@ Proof.
     by eexists (DfracOwn _).
 Qed.
 
-Lemma YES_incl_NO : forall n dq rsh v sh nsh, YES dq rsh v ≼{n} NO sh nsh -> sh = Share.bot.
+Lemma YES_incl_NO : forall n dq rsh v sh nsh, YES dq rsh v ≼{n} NO sh nsh -> sh = ShareBot.
 Proof.
   intros; apply shared_includedN in H as [H | [_ H]]; first by inv H.
   apply option_includedN in H as [? | (? & ? & ? & ? & ?)]; done.
@@ -320,25 +309,19 @@ Proof.
   - by destruct Hop as (? & ? & ->).
   - destruct (dfrac_error _) eqn: Herr.
     + hnf in Hop.
-      destruct (x ⋅ y); try done.
-      subst; simpl.
-      rewrite eq_dec_refl //.
+      destruct (x ⋅ y); try done; simpl in *.
+      by subst.
     + by destruct Hop as (? & ? & ? & ? & -> & -> & -> & ?).
 Qed.
 
-Lemma pcore_dfrac_readable : forall dq dq', readable_dfrac dq -> pcore dq = Some dq' -> readable_dfrac dq'.
-Proof.
-  destruct dq; inversion 2; done.
-Qed.
-
 Local Instance shared_pcore_instance : PCore shared := λ x,
-  match x with
-  | YES DfracDiscarded rsh v | YES (DfracBoth _) rsh v => Some (YES DfracDiscarded I v)
-  | NO sh _ => if eq_dec sh Share.bot then Some x else None
-  | _ => None
-  end.
+  Some (match x with
+  | YES (DfracBoth _) rsh v => YES DfracDiscarded I v
+  | NO sh _ => match sh with ShareBot => err | _ => ε end
+  | _ => ε
+  end).
 
-Lemma pcore_YES : forall dq rsh v cx, pcore (YES dq rsh v) = Some cx ↔
+(*Lemma pcore_YES : forall dq rsh v cx, pcore (YES dq rsh v) = Some cx ↔
   pcore dq = Some DfracDiscarded /\ cx = YES DfracDiscarded I v.
 Proof.
   intros; destruct dq; intuition; subst; try done; try by inv H.
@@ -350,7 +333,7 @@ Proof.
   rewrite /pcore /shared_pcore_instance.
   intuition; subst; try by (if_tac in H; inv H).
   apply eq_dec_refl.
-Qed.
+Qed.*)
 
 Lemma dfrac_error_assoc : forall x y z, dfrac_error (dfrac_of (x ⋅ y) ⋅ dfrac_of z) = dfrac_error (dfrac_of x ⋅ dfrac_of (y ⋅ z)).
 Proof.
@@ -370,12 +353,25 @@ Proof. intros [|] ?; done. Qed.
 
 Lemma dfrac_error_discarded : forall x, dfrac_error (DfracDiscarded ⋅ x) = dfrac_error x.
 Proof.
-  destruct x; done.
+  destruct x; simpl; rewrite left_id //.
+Qed.
+
+Lemma share_op_None : forall (s : shareO), s ⋅ ShareBot = ShareBot.
+Proof.
+  by destruct s.
+Qed.
+
+Local Instance shared_unit_left_id : LeftId equiv (ε : shared) op.
+Proof.
+  intros [|]; rewrite /op /=.
+  - rewrite right_id.
+    destruct (readable_dfrac_dec _); done.
+  - hnf; rewrite left_id //.
 Qed.
 
 Definition shared_cmra_mixin : CmraMixin shared.
 Proof.
-  split; try done.
+  apply cmra_total_mixin; try done.
   - intros [|] ? [|] [|]; try done.
     + intros [-> H]; hnf.
       rewrite /op /shared_op_instance.
@@ -383,14 +379,12 @@ Proof.
     + intros H; hnf in H; subst; done.
     + intros [-> H]; hnf.
       rewrite /op /shared_op_instance.
-      if_tac; try done.
       destruct (readable_dfrac_dec _); rewrite ?H //.
     + intros H; hnf in H; subst; done.
-  - intros ? [|] [|] ? H Hcore; try done.
-    + destruct H as [-> ?]; apply pcore_YES in Hcore as [? ->].
-      eexists; rewrite pcore_YES //.
-    + inv H; apply pcore_NO in Hcore as [-> ->].
-      eexists; rewrite pcore_NO //.
+  - intros ? [|] [|]; try done.
+    + intros [<- ?]; destruct dq; done.
+    + intros [=]; subst.
+      destruct sh0; done.
   - intros n [|] [|]; try done.
     + intros [-> H] [??]; split; by rewrite -?H.
     + intros H; hnf in H; subst; done.
@@ -430,10 +424,10 @@ Proof.
       { exfalso; eapply dfrac_error_unreadable; eauto. }
       rewrite Herr in Hop2; rewrite Hop2 //.
     + destruct Hop1 as (? & shyz & ? & ? & -> & Hyz & Hxyz & ?).
-      assert (shyz ≠ Share.bot) by (intros ->; rewrite share_op_bot // in H).
       pose proof (shared_op_alt y z) as Hop3; rewrite Hyz in Hop3.
       destruct (readable_dfrac_dec (dfrac_of y ⋅ dfrac_of z)); first by destruct Hop3 as (? & ? & ?).
-      rewrite dfrac_error_op Hyz /= if_false in Hop3; last done.
+      rewrite dfrac_error_op Hyz /= in Hop3.
+      destruct shyz; last by rewrite share_op_None in H; destruct H.
       destruct Hop3 as (? & ? & ? & ? & -> & -> & [=] & ?); simpl in *; subst.
       rewrite /op /shared_op_instance; hnf.
       apply (@cmra_assoc shareR).
@@ -449,65 +443,60 @@ Proof.
     + destruct (dfrac_error _) eqn: Herr; first by rewrite Hop1 Hop2.
       destruct Hop1 as (? & ? & ? & ? & -> & -> & -> & ?), Hop2 as (? & ? & ? & ? & [=] & [=] & -> & ?); subst.
       hnf; by rewrite (@cmra_comm shareR).
-  - intros [|] ? Hcore.
-    + apply pcore_YES in Hcore as [H ->].
-      rewrite /op /shared_op_instance.
-      destruct (readable_dfrac_dec _).
-      * split; last apply agree_idemp.
-        apply cmra_pcore_l in H; apply H.
-      * apply dfrac_op_readable in n; auto.
-        rewrite dfrac_error_discarded in n.
-        contradiction (dfrac_error_unreadable dq).
-    + apply pcore_NO in Hcore as [-> ->].
-      rewrite /op /shared_op_instance.
-      hnf; rewrite share_op_bot //.
-  - intros [|] ? Hcore.
-    + apply pcore_YES in Hcore as [? ->]; done.
-    + apply pcore_NO in Hcore as [-> ->].
-      rewrite /pcore /shared_pcore_instance eq_dec_refl //.
-  - intros ??? [z H] Hcore.
+  - intros [|].
+    + rewrite /op /shared_op_instance /core /pcore /shared_pcore_instance /=.
+      destruct dq.
+      * rewrite /ε /shared_unit_instance right_id.
+        destruct (readable_dfrac_dec _); done.
+      * rewrite comm dfrac_op_both_discarded.
+        destruct (readable_dfrac_dec _); try done.
+        split; first done.
+        apply agree_idemp.
+    + destruct sh; try done; simpl.
+      rewrite left_id //.
+  - intros [|].
+    + destruct dq; done.
+    + destruct sh; done.
+  - intros ?? (z & H).
     pose proof (shared_op_alt x z) as Hop.
-    destruct x.
-    + apply pcore_YES in Hcore as [? ->].
+    rewrite /core /=; destruct x.
+    + destruct dq; first by eexists; rewrite left_id.
+      simpl in Hop.
       destruct (readable_dfrac_dec _).
       * destruct Hop as (? & Hval & Hop).
         rewrite Hop in H; destruct y; try done.
         destruct H as [-> H].
-        eexists; rewrite pcore_YES; split; first split; try done.
-        { destruct dq, (dfrac_of z); done. }
-        exists (YES DfracDiscarded I v0); split; try done.
+        destruct (_ ⋅ _) eqn: Hz.
+        { destruct z as [[|]|]; done. }
+        exists (YES DfracDiscarded I v0).
+        unshelve rewrite YES_op /=; last split; rewrite ?dfrac_op_both_discarded //.
         rewrite -agree_included H -Some_included_total -Hval; eexists; done.
       * destruct (dfrac_error _) eqn: Herr; last by destruct Hop as (? & ? & ? & ? & ? & ?).
         rewrite Hop in H; destruct y; inv H.
-        eexists; rewrite pcore_NO; split; first done.
-        exists (NO Share.bot bot_unreadable); rewrite /op /shared_op_instance.
-        rewrite eq_dec_refl //.
-    + apply pcore_NO in Hcore as [-> ->].
+        exists err; done.
+    + destruct sh; first by eexists; rewrite left_id.
       destruct (readable_dfrac_dec _).
-      { exfalso; clear Hop; destruct (dfrac_of z); simpl in r; rewrite ?bot_op_share in r; done. }
+      { exfalso; clear Hop; destruct (dfrac_of z); done. }
       destruct (dfrac_error _) eqn: Herr.
       * rewrite Hop in H; destruct y; inv H.
-        eexists; rewrite pcore_NO; split; first done.
-        exists (NO Share.bot rsh); rewrite /op /shared_op_instance.
-        hnf; rewrite share_op_bot //.
-      * destruct (dfrac_of z); rewrite /= ?bot_op_share eq_dec_refl // in Herr.
+        exists err; done.
+      * by destruct (dfrac_of z).
   - intros.
     destruct x; hnf.
     + rewrite /op /shared_op_instance in H.
       destruct y.
-      * destruct (readable_dfrac_dec _); last done.
+      * destruct (readable_dfrac_dec _); last by destruct H.
         destruct H; split; [eapply cmra_valid_op_l | eapply cmra_validN_op_l]; eauto.
-      * if_tac in H; try done.
-        destruct (readable_dfrac_dec _); last done.
+      * destruct (readable_dfrac_dec _); last by destruct H.
         destruct H; split; auto; eapply cmra_valid_op_l; eauto.
-    + intros; subst.
+    + destruct sh; eauto.
       rewrite /op /shared_op_instance in H.
-      destruct y.
-      * rewrite eq_dec_refl // in H.
-      * hnf in H; rewrite bot_op_share // in H.
+      destruct y; try done.
+      destruct (readable_dfrac_dec _); last by destruct H.
+      destruct dq as [[|]|[|]]; done.
   - intros ????? Hop.
-    assert (y1 ⋅ y2 ≠ NO Share.bot bot_unreadable) as Hfail.
-    { intros X; rewrite X in Hop; destruct x; done. }
+    assert (y1 ⋅ y2 ≠ err) as Hfail.
+    { intros X; rewrite X in Hop; destruct x; inversion Hop; subst; done. }
     rewrite /op /shared_op_instance in Hop Hfail.
     destruct y1, y2.
     + destruct (readable_dfrac_dec _); try done.
@@ -518,50 +507,52 @@ Proof.
       exists (YES dq rsh vz1), (YES dq0 rsh0 vz2); repeat (split; try done).
       rewrite {2}/op /shared_op_instance.
       destruct (readable_dfrac_dec _); done.
-    + if_tac in Hop; try done.
-      destruct (readable_dfrac_dec _); try done.
+    + destruct (readable_dfrac_dec _); try done.
       destruct x; try done.
       destruct Hop as [-> ?].
       eexists (YES dq rsh v0), _; split; last done.
       rewrite {2}/op /shared_op_instance.
-      rewrite if_false; last done.
       destruct (readable_dfrac_dec _); done.
-    + if_tac in Hop; try done.
-      destruct (readable_dfrac_dec _); try done.
+    + destruct (readable_dfrac_dec _); try done.
       destruct x; try done.
       destruct Hop as [-> ?].
       eexists _, (YES dq rsh0 v0); split; last done.
       rewrite {2}/op /shared_op_instance.
-      rewrite if_false; last done.
       destruct (readable_dfrac_dec _); done.
     + eexists _, _; split; last done.
       symmetry; rewrite discrete_iff //.
 Qed.
 Canonical Structure sharedC : cmra := Cmra shared shared_cmra_mixin.
 
+Definition shared_ucmra_mixin : UcmraMixin shared.
+Proof.
+  split; try done; apply _.
+Qed.
+Canonical Structure sharedUC : ucmra := Ucmra shared shared_ucmra_mixin.
+
 (* updates *)
 Lemma writable_update : forall sh rsh v v', writable0_share sh -> ✓ v' ->
-  YES (DfracOwn sh) rsh v ~~> YES (DfracOwn sh) rsh v'.
+  YES (DfracOwn (Share sh)) rsh v ~~> YES (DfracOwn (Share sh)) rsh v'.
 Proof.
   intros; intros ? [|] Hvalid; simpl in *; last by destruct Hvalid.
-  pose proof (shared_op_alt (YES (DfracOwn sh) rsh v) c) as Hop.
-  pose proof (shared_op_alt (YES (DfracOwn sh) rsh v') c) as Hop'.
+  pose proof (shared_op_alt (YES (DfracOwn (Share sh)) rsh v) c) as Hop.
+  pose proof (shared_op_alt (YES (DfracOwn (Share sh)) rsh v') c) as Hop'.
   repeat destruct (readable_dfrac_dec _); try done.
   - destruct Hop as (? & ? & Hop); rewrite Hop /= in Hvalid; destruct Hvalid as [Hsh Hv].
     destruct c; try done.
-    { rewrite comm in Hsh; apply dfrac_valid_own_readable in Hsh as [??]; done. }
+    { rewrite comm in Hsh; apply dfrac_valid_own_readable in Hsh as (? & [=] & ?); subst; done. }
     destruct Hop' as (? & Hval & Hop'); rewrite Hop' /=.
     split; try done.
     rewrite -Some_validN -Hval /= Some_validN //.
-  - simpl in *; destruct (dfrac_error _); first by rewrite Hop in Hvalid.
+  - simpl in *; destruct (dfrac_error _); first by rewrite Hop in Hvalid; destruct Hvalid.
     by destruct Hop as (? & ? & ? & ? & ? & ?).
 Qed.
 
-Local Instance shared_orderN : OraOrderN shared := λ n x y, y ≡ NO Share.bot bot_unreadable ∨ dfrac_of x ≼ₒ dfrac_of y ∧ val_of x ≼ₒ{n} val_of y.
+Local Instance shared_orderN : OraOrderN shared := λ n x y, y ≡ err ∨ dfrac_of x ≼ₒ dfrac_of y ∧ val_of x ≼ₒ{n} val_of y.
 
-Local Instance shared_order : OraOrder shared := λ x y, y ≡ NO Share.bot bot_unreadable ∨ dfrac_of x ≼ₒ dfrac_of y ∧ val_of x ≼ₒ val_of y.
+Local Instance shared_order : OraOrder shared := λ x y, y ≡ err ∨ dfrac_of x ≼ₒ dfrac_of y ∧ val_of x ≼ₒ val_of y.
 
-Lemma dfrac_error_fail : forall x y, dfrac_error (dfrac_of x ⋅ dfrac_of y) = true -> x ⋅ y ≡ NO Share.bot bot_unreadable.
+Lemma dfrac_error_fail : forall x y, dfrac_error (dfrac_of x ⋅ dfrac_of y) = true -> x ⋅ y ≡ err.
 Proof.
   intros; pose proof (shared_op_alt x y) as Hop.
   rewrite H in Hop.
@@ -578,34 +569,41 @@ Proof.
     rewrite dfrac_error_discarded in Herr.
     destruct y; first by exfalso; eapply dfrac_error_unreadable; eauto.
     simpl in Herr.
-    if_tac in Herr; subst; try done.
-    split; hnf; auto.
+    destruct sh; done.
   - edestruct dfrac_of_op as [(Herr' & _) | ->]; first by rewrite Herr' // in Herr.
     rewrite val_of_op // /= Some_op_opM.
     split; [apply discard_increasing|].
     destruct y; apply agree_increasing.
 Qed.
 
-Local Instance fail_absorb rsh : LeftAbsorb equiv (NO Share.bot rsh) op.
+Local Instance shared_err_absorb rsh : LeftAbsorb equiv (NO ShareBot rsh) op.
 Proof.
   intros x.
-  rewrite /op /shared_op_instance.
-  destruct x; first by rewrite eq_dec_refl.
-  hnf; rewrite bot_op_share //.
+  rewrite /op /shared_op_instance /=.
+  destruct x; try done.
+  destruct (readable_dfrac_dec _); try done.
+  destruct dq as [[|]|[|]]; done.
 Qed.
 
-Local Instance fail_increasing rsh : Increasing (NO Share.bot rsh).
+Local Instance shared_err_increasing rsh : Increasing (NO ShareBot rsh).
 Proof.
   intros ?; hnf; simpl; left.
-  apply fail_absorb.
+  apply shared_err_absorb.
+Qed.
+
+Local Instance shared_unit_increasing : Increasing ε.
+Proof.
+  intros ?; hnf.
+  rewrite dfrac_of_op' val_of_op'; simpl.
+  destruct (dfrac_error _) eqn: Herr; [left | right].
+  - by apply dfrac_error_fail.
+  - rewrite !left_id //.
 Qed.
 
 Lemma readable_dfrac_order : forall dq dq', dq ≼ₒ dq' -> readable_dfrac dq -> readable_dfrac dq'.
 Proof.
   intros ?? [-> | <-]; try done.
-  destruct dq; try done.
-  intros; hnf; intros ->.
-  contradiction bot_unreadable.
+  destruct dq as [[|]|[|]]; try done; simpl; rewrite right_id //.
 Qed.
 
 Lemma dfrac_error_order : forall dq dq', dq ≼ₒ dq' -> dfrac_error dq = dfrac_error dq'.
@@ -619,7 +617,7 @@ Proof.
   intros.
   destruct H as [H | [??]].
   - destruct x'; inv H.
-    left; by rewrite fail_absorb.
+    left; by rewrite shared_err_absorb.
   - right.
     rewrite !dfrac_of_op' !val_of_op'.
     erewrite dfrac_error_order; last by apply ora_order_op.
@@ -629,14 +627,15 @@ Qed.
 
 Definition shared_ora_mixin : OraMixin shared.
 Proof.
-  split.
-  - intros [|] ?.
-    + rewrite pcore_YES; intros [? ->]; apply _.
-    + rewrite pcore_NO; intros [-> ->]; apply _.
+  apply ora_total_mixin; try done.
+  - intros x; rewrite /core /=; destruct x.
+    + destruct dq; apply _.
+    + destruct sh; try apply _.
+      apply shared_err_increasing.
   - intros ??? H Hord z.
     destruct Hord as [Hno | [Hdy Hvy]].
     { destruct y; inv Hno.
-      left; by rewrite fail_absorb. }
+      left; by rewrite shared_err_absorb. }
     pose proof (H z) as Hxz.
     pose proof (shared_op_alt x z) as Hop.
     destruct (readable_dfrac_dec _); [|destruct (dfrac_error _) eqn: Herr].
@@ -653,8 +652,8 @@ Proof.
     + left; apply dfrac_error_fail.
       erewrite <- dfrac_error_order; first done.
       by apply ora_order_op.
-    + destruct Hop as (? & shz & ? & rshz & -> & -> & ? & ?); simpl in *.
-      destruct Hxz as [? | [Hd Hv]]; first done; simpl in *.
+    + destruct Hop as (? & shz & ? & rshz & -> & -> & Hno & Hvalid); simpl in *.
+      destruct Hxz as [Herr' | [Hd Hv]]; first by (rewrite Hno in Herr'; inversion Herr' as [Heq]; rewrite Heq in Hvalid; destruct Hvalid); simpl in *.
       pose proof (shared_op_alt y (NO shz rshz)) as Hop.
       destruct (readable_dfrac_dec _).
       * destruct Hop as (? & Hv2 & ->).
@@ -663,25 +662,25 @@ Proof.
         etrans; first done.
         rewrite (comm _ _ DfracDiscarded) -assoc (comm _ DfracDiscarded); right; done.
       * destruct (dfrac_error _) eqn: Herr'; first by left; rewrite Hop.
-        destruct Hop as (? & ? & ? & ? & -> & [=] & -> & ?); subst.
+        destruct Hop as (? & ? & ? & ? & -> & [=] & -> & Hvalid'); subst.
         destruct Hd as [Hd | ?]; try done.
-        injection Hd as Hd.
-        symmetry in Hd; apply share_op_join in Hd as (? & ? & J); last by intros ->.
-        by eapply sepalg.join_canc in J; last apply bot_join_eq.
-  - intros ???? [H | [Hd Hv]] Hcore.
-    { destruct y; inv H. eexists; rewrite pcore_NO; split; [eauto | by left]. }
-    destruct x, y; try done; simpl in *.
-    + rewrite pcore_YES in Hcore; destruct Hcore as [? ->].
-      eexists; rewrite pcore_YES; split; [split; last done|].
-      { destruct Hd as [<- | <-]; try done.
-        destruct dq; done. }
-      right; split; first left; done.
-    + rewrite pcore_NO in Hcore; destruct Hcore as [-> ->].
-      destruct Hd as [<- | <-]; done.
-    + rewrite pcore_NO in Hcore; destruct Hcore as [-> ->].
-      destruct Hd as [[=] | ?]; subst; try done.
-      eexists; rewrite pcore_NO; split; first eauto.
-      by left.
+        destruct Hdy as [Hdy | ?]; try done.
+        inv Hdy.
+        right; split; try done.
+        by left.
+  - intros ??? [H | [Hd Hv]].
+    { destruct y; inv H; left; done. }
+    rewrite /core /=; destruct x, y; try done; simpl in *.
+    + right; destruct Hd as [<- | <-], dq; rewrite ?dfrac_op_own_discarded ?dfrac_op_both_discarded // /=.
+      split.
+      * right; rewrite left_id //.
+      * apply agree_increasing.
+    + right; destruct Hd as [<- | <-]; try done.
+      rewrite dfrac_op_own_discarded.
+      destruct sh; split; try done.
+      right; rewrite left_id //.
+    + destruct Hd as [[=] | ?]; subst; try done.
+      destruct sh0; [right | left]; done.
   - intros ???? Hvalid [? | [Hd Hv]].
     { eexists _, _; split; first left; done. }
     pose proof (shared_op_alt y1 y2) as Hop.
@@ -701,19 +700,15 @@ Proof.
         right; rewrite YES_op'; destruct (readable_dfrac_dec _); done.
       * eexists (YES dq rsh x1), _; split; last done.
         right; rewrite /op /shared_op_instance.
-        if_tac.
-        { subst; rewrite op_dfrac_error // in Herr; apply eq_dec_refl. }
         destruct (readable_dfrac_dec _); done.
       * eexists _, (YES dq rsh0 x1); split; last done.
         right; rewrite NO_YES_op'.
-        if_tac.
-        { subst; rewrite (comm _ (dfrac_of _)) op_dfrac_error // in Herr; apply eq_dec_refl. }
         destruct (readable_dfrac_dec _); done.
     + destruct Hop as (? & ? & ? & ? & -> & -> & H & ?).
       eexists _, _; split; last done.
       rewrite H; right; done.
   - intros ??? Hvalid [? | [Hd Hv]].
-    { destruct x; inv H; done. }
+    { destruct x; inv H; destruct Hvalid; done. }
     apply shared_validN in Hvalid as [??].
     apply ora_extend in Hv as (? & ? & Hval); last done.
     destruct y; inv Hval.
@@ -734,42 +729,45 @@ Proof.
       * destruct z; simpl in *; subst; done. }
     right; split; etrans; eauto.
   - apply shared_orderN_op.
-  - intros ??? H [Hno | [??]]; first by rewrite Hno in H.
+  - intros ??? H [Hno | [??]]; first by rewrite Hno in H; destruct H.
     rewrite !shared_validN in H |- *; destruct H.
     split; first apply ora_discrete_valid; by eapply ora_validN_orderN.
   - split.
     + intros [? | [??]] ?; first by left.
       right; split; last apply ora_order_orderN; done.
     + intros H; pose proof (H 0) as H0; destruct H0 as [? | [??]]; first by left.
-      destruct (decide (dfrac_of y = DfracOwn Share.bot)).
-      { destruct y; simpl in *; subst; left; first contradiction bot_unreadable.
-        by inv e. }
-      right; split; first done.
+      right; split; try done.
       apply ora_order_orderN; intros n1.
       destruct (H n1) as [? | [??]]; first destruct y; done.
   - intros ??? Hcore; pose proof (shared_op_alt x y) as Hop.
     inversion Hcore as [?? Heq Hcore'|]; subst.
+    rewrite /pcore /shared_pcore_instance; eexists; split; first done.
     destruct (readable_dfrac_dec _).
-    + destruct Hop as (? & ? & ->).
-      symmetry in Hcore'; destruct x; simpl in *.
-      * rewrite pcore_YES in Hcore'; destruct Hcore' as [Hd ->].
-        destruct (ora_pcore_order_op dq DfracDiscarded (dfrac_of y)) as (dq' & Hdq' & Hdisc); first by rewrite Hd.
-        assert (dq' = DfracDiscarded) as -> by (destruct Hdisc; subst; auto).
-        apply leibniz_equiv in Hdq'.
-        eexists; erewrite (proj2 (pcore_YES _ _ _ _)) by done.
-        split; first done.
-        destruct cx; inv Heq; right; split; try done.
-        rewrite /= -H -H1 comm; destruct (val_of y); try done; apply agree_increasing.
-      * rewrite pcore_NO in Hcore'; destruct Hcore' as [-> ->].
-        exfalso; destruct (dfrac_of y); try done; rewrite /= bot_op_share // in r.
-    + destruct (dfrac_error _) eqn: Herr; first by destruct (x ⋅ y); inv Hop; eexists; rewrite /pcore /shared_pcore_instance eq_dec_refl; split; last left.
-      destruct Hop as (? & ? & ? & ? & -> & -> & -> & ?).
-      symmetry in Hcore'; rewrite pcore_NO in Hcore'; destruct Hcore' as [-> ->].
-      eexists; rewrite /pcore /shared_pcore_instance if_true; last by rewrite bot_op_share.
-      split; first done; left; hnf; rewrite bot_op_share //.
+    + destruct Hop as (? & Hv & ->).
+      destruct x; simpl in *.
+      * right; destruct dq, cx; inv Heq; simpl.
+        -- destruct (_ ⋅ _); try done.
+           split; first by right; rewrite left_id.
+           apply agree_increasing.
+        -- destruct (dfrac_of y); split; simpl; try done; rewrite -H0 -Hv Some_op_opM Some_order; destruct (val_of y); try done; rewrite /= comm; apply agree_increasing.
+      * destruct sh, cx; inv Heq; simpl.
+        -- right; destruct (_ ⋅ _); try done; simpl.
+           split; first by right; rewrite left_id.
+           apply agree_increasing.
+        -- destruct (dfrac_of y); done.
+    + destruct (dfrac_error _) eqn: Herr; first by destruct (x ⋅ y); inv Hop; left.
+      destruct Hop as (shx & shy & ? & ? & -> & -> & -> & Hv).
+      destruct shx, cx; inv Heq.
+      * destruct (Share sh ⋅ shy) eqn: Hop; rewrite Hop // in Hv |- *.
+        right; done.
+      * destruct shy, Hv; done.
 Qed.
 
 Canonical Structure sharedR : ora := Ora shared shared_ora_mixin.
+Canonical Structure sharedUR : uora := Uora shared shared_ucmra_mixin.
+
+Global Instance shared_total : OraTotal sharedR.
+Proof. hnf; eauto. Qed.
 
 Global Instance shared_discrete : OfeDiscrete V -> OraDiscrete sharedR.
 Proof.
@@ -790,6 +788,13 @@ Proof.
   hnf.
   rewrite /pcore /ora_pcore /=.
   constructor; apply YES_irrel.
+Qed.
+
+Global Instance bot_core_id rsh : OraCoreId (NO (Share Share.bot) rsh).
+Proof.
+  hnf.
+  rewrite /pcore /ora_pcore /=.
+  constructor; done.
 Qed.
 
 End shared.

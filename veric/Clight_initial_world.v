@@ -186,7 +186,7 @@ Proof.
   by rewrite Z2Nat.inj_sub // Z2Nat.inj_pos in H.
 Qed.
 
-Lemma initialize_mem :
+Lemma initialize_mem' :
   forall (prog: program) G m
       (Hnorepet : list_norepet (prog_defs_names prog))
       (Hmatch : match_fdecs (prog_funct prog) G)
@@ -222,6 +222,29 @@ Proof.
     apply (prog_defmap_norepet (program_of_program prog)) in Hdef; last done.
     apply Genv.find_def_symbol in Hdef as (b & Hb & Hdef).
     rewrite Hb; by eapply Genv.find_symbol_not_fresh.
+Qed.
+
+Lemma initial_mem_funassert :
+  forall (prog: program) V G m ve te
+      (Hnorepet : list_norepet (prog_defs_names prog))
+      (Hmatch : match_fdecs (prog_funct prog) G)
+      (Hm : Genv.init_mem prog = Some m),
+  inflate_initial_mem m (block_bounds prog) (globalenv prog) G ∗ initial_core (globalenv prog) G ⊢ funassert (nofunc_tycontext V G) (mkEnviron (filter_genv (globalenv prog)) ve te).
+Proof.
+  intros; iIntros "(H & #fun)".
+  rewrite /inflate_initial_mem; iSplitL "".
+  - iIntros (?? Hid); simpl in *.
+    rewrite make_tycontext_s_find_id in Hid.
+    unshelve erewrite big_sepL_elem_of; last by apply elem_of_list_In, find_id_e.
+    eapply match_fdecs_exists_Gfun in Hid as (? & Hid & ?); last done.
+    rewrite /filter_genv /Map.get.
+    apply (Genv.find_symbol_exists (program_of_program _)) in Hid as (? & Hfind); rewrite Hfind; eauto.
+    { left; intros (?, ?); destruct (Genv.find_symbol _ _); apply _. }
+  - iIntros (??).
+    rewrite -bi.impl_wand_2.
+Search bi_persistently bi_wand.
+    iIntros "?".
+Search bi_impl Persistent.
 Qed.
 
 End mpred.

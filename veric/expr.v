@@ -906,7 +906,7 @@ Definition valid_pointer' (p: val) (d: Z) : mpred :=
  match p with
  | Vint i => if Archi.ptr64 then False else ⌜i = Int.zero⌝
  | Vlong i => if Archi.ptr64 then ⌜i = Int64.zero⌝ else False
- | Vptr b ofs => <absorb> ((∃dq r, (b, Ptrofs.unsigned ofs + d) ↦{dq} r) ∨ (∃ sh, mapsto_no (b, Ptrofs.unsigned ofs + d) sh))
+ | Vptr b ofs => <absorb> ((∃dq r, (b, Ptrofs.unsigned ofs + d) ↦{dq} r) ∨ (∃ sh, ⌜sh ≠ Share.bot⌝ ∧ mapsto_no (b, Ptrofs.unsigned ofs + d) sh))
  | _ => False
  end.
 

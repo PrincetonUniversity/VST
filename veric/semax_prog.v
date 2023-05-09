@@ -650,13 +650,13 @@ auto.
 Qed.
 
 Lemma funassert_initial_core:
-forall (prog: program) ve te V G,
-  list_norepet (prog_defs_names prog) ->
-  match_fdecs (prog_funct prog) G ->
+forall (prog: program) ve te V G
+  (Hnorepet : list_norepet (prog_defs_names prog))
+  (Hmatch : match_fdecs (prog_funct prog) G),
   initial_core (Genv.globalenv prog) G ⊢ funassert (nofunc_tycontext V G) (mkEnviron (filter_genv (globalenv prog)) ve te).
 Proof.
   rewrite /initial_core /funassert /funspecs_assert.
-  intros; iIntros "#H"; iSplit.
+  intros; iIntros "#H !>"; iSplit.
   * iIntros (?? Hid); simpl in *.
     rewrite make_tycontext_s_find_id in Hid.
     unshelve erewrite big_sepL_elem_of; last by apply elem_of_list_In, find_id_e.
@@ -664,7 +664,21 @@ Proof.
     rewrite /filter_genv /Map.get.
     apply (Genv.find_symbol_exists (program_of_program _)) in Hid as (? & Hfind); rewrite Hfind; eauto.
     { left; intros (?, ?); destruct (Genv.find_symbol _ _); apply _. }
-  * 
+  * iPureIntro.
+    rewrite /filter_genv /Map.get /=.
+    intros ?? Hfind%Genv.find_symbol_inversion; rewrite make_tycontext_s_find_id.
+    apply match_ids with (i := id) in Hmatch.
+Search match_fdecs.
+    rewrite /prog_defs_names in_map_iff in Hfind.
+ destruct Hfind as ((i, ?) & ? & ?); simpl in *; subst i.
+    Search find_id.
+    Search Genv.find_symbol.
+match_ids
+    eexists; apply find_id_i.
+Search match_fdecs.
+Search find_id.
+    Search make_tycontext_s.
+    simpl.
 Qed.
 
 Lemma prog_contains_prog_funct: forall prog: program,

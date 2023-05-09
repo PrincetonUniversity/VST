@@ -160,7 +160,7 @@ Section gmap_view.
   Implicit Types (m : gmap K V) (k : K) (dq : dfrac) (v : V).
 
   Lemma gmap_view_both_validI m k dq v :
-    ✓ (gmap_view_auth (DfracOwn Tsh) m ⋅ gmap_view_frag k dq v) ⊢
+    ✓ (gmap_view_auth (DfracOwn 1) m ⋅ gmap_view_frag k dq v) ⊢
     ✓ dq ∧ m !! k ≡ Some v.
   Proof.
     rewrite /gmap_view_auth /gmap_view_frag. apply view_both_validI_1.

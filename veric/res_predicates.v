@@ -139,10 +139,18 @@ Inductive resource' :=
 Definition perm_of_res (r: option (dfrac * option resource')) :=
   match r with
   | Some (dq, Some (VAL _)) => perm_of_dfrac dq
-  | Some (DfracOwn sh, _) => if eq_dec sh Share.bot then None else Some Nonempty
-  | Some (DfracDiscarded, _) | Some (DfracBoth _, _) => Some Nonempty
+  | Some (DfracOwn (Share sh), _) => if eq_dec sh Share.bot then None else Some Nonempty
+  | Some (DfracBoth _, _) => Some Nonempty
   | _ => None
   end.
+
+Lemma perm_of_res_cases : forall dq r, (exists v, r = Some (VAL v) /\ perm_of_res (Some (dq, r)) = perm_of_dfrac dq) \/
+  (forall v, r ≠ Some (VAL v)) /\ perm_of_res (Some (dq, r)) = if decide (dq = ε) then None else if decide (dq = DfracOwn ShareBot) then None else Some Nonempty.
+Proof.
+  intros; simpl.
+  destruct dq as [[|]|], r as [[| |]|]; eauto; right; if_tac; subst; simpl; destruct (decide _); try done;
+    by inv e.
+Qed.
 
 Lemma perm_of_sh_None: forall sh, perm_of_sh sh = None -> sh = Share.bot.
 Proof.
@@ -163,32 +171,43 @@ Proof.
 Qed.
 Next Obligation.
 Proof.
-  reflexivity.
-Qed.
-Next Obligation.
-Proof.
   intros ???? Hd.
-  destruct r as [[| |] |].
-  - destruct d1, d2; apply perm_of_dfrac_mono; auto.
-  - destruct Hd as [d0 ->%leibniz_equiv].
-    destruct d1, d0; simpl; try if_tac; simpl; try if_tac; try constructor; try contradiction; try (destruct H; contradiction).
-  - destruct Hd as [d0 ->%leibniz_equiv].
-    destruct d1, d0; simpl; try if_tac; simpl; try if_tac; try constructor; try contradiction; try (destruct H; contradiction).
-  - destruct Hd as [d0 ->%leibniz_equiv].
-    destruct d1, d0; simpl; try if_tac; simpl; try if_tac; try constructor; try contradiction; try (destruct H; contradiction).
+  destruct (perm_of_res_cases d2 r) as [(v2 & ? & Hperm2) | (Hno2 & Hperm2)],
+    (perm_of_res_cases d1 r) as [(v1 & Hr & Hperm1) | (Hno1 & Hperm1)]; subst.
+  - inv Hr; rewrite Hperm1 Hperm2; apply perm_of_dfrac_mono; auto.
+  - by contradiction (Hno1 v2).
+  - by contradiction (Hno2 v1).
+  - rewrite Hperm1 Hperm2; clear - H Hd.
+    rewrite dfrac_included_eq in Hd.
+    destruct (decide (d1 = ε)); first apply perm_order''_None.
+    destruct (decide (d1 = _)); first apply perm_order''_None.
+    rewrite !if_false; first constructor.
+    + intros ->; done.
+    + intros ->; destruct d1; try done; simpl in Hd.
+      destruct Hd as (? & Hd).
+      symmetry in Hd; apply share_op_join in Hd as (? & ? & -> & -> & (-> & ->)%join_Bot); done.
 Qed.
 Next Obligation.
 Proof.
   intros ???.
   pose proof (readable_dfrac_readable _ H).
   split.
-  - destruct d, r as [[| |] |]; try constructor; try done; simpl; if_tac; try constructor; subst; contradiction bot_unreadable.
+  - destruct (perm_of_res_cases d r) as [(v & -> & Hperm) | (Hno & Hperm)]; rewrite Hperm /= perm_of_sh_bot // /=.
+    rewrite !if_false; first by destruct r as [[| |]|]; try constructor; contradiction (Hno v).
+    + intros ->; done.
+    + intros ->; simpl in H.
+      contradiction bot_unreadable.
   - intros ? Hvalid.
     pose proof (dfrac_op_readable' _ _ (or_introl H) Hvalid) as Hreadable%readable_dfrac_readable.
-    destruct d, d2, r as [[| |] |]; simpl; try constructor; try done; try destruct Hvalid as [? Hvalid]; repeat if_tac; try constructor; try apply perm_order''_refl; try done; try (eapply perm_order''_trans; last done); try (by apply perm_of_sh_mono || by (rewrite (@cmra_comm shareR); apply perm_of_sh_mono; rewrite (@cmra_comm shareR))).
-    + eapply (perm_order''_trans _ _ (Some Readable)) in H3; [|apply perm_of_sh_mono; rewrite (@cmra_comm shareR) //]; by rewrite (@cmra_comm shareR) in H3.
-    + eapply (perm_order''_trans _ _ (Some Readable)) in H3; [|apply perm_of_sh_mono; rewrite (@cmra_comm shareR) //]; by rewrite (@cmra_comm shareR) in H3.
-    + eapply (perm_order''_trans _ _ (Some Readable)) in H3; [|apply perm_of_sh_mono; rewrite (@cmra_comm shareR) //]; by rewrite (@cmra_comm shareR) in H3.
+    destruct (perm_of_res_cases (d ⋅ d2) r) as [(v & -> & Hperm) | (Hno & Hperm)]; rewrite Hperm; clear Hperm.
+    + destruct d2; rewrite /= left_id; if_tac; try done; apply (perm_of_dfrac_mono (DfracOwn _)); try done; eexists; rewrite (@cmra_comm dfracR) //.
+      instantiate (1 := DfracDiscarded ⋅ d); rewrite assoc dfrac_op_own_discarded //.
+    + destruct (perm_of_res_cases (DfracDiscarded ⋅ d2) r) as [(v & -> & Hperm) | (_ & Hperm)]; first (by contradiction (Hno v)); rewrite Hperm /=; clear Hperm.
+      destruct (decide (DfracDiscarded ⋅_ = _)); first apply perm_order''_None.
+      destruct (decide (DfracDiscarded ⋅_ = _)); first apply perm_order''_None.
+      rewrite !if_false; first constructor.
+      * intros X; rewrite X // in Hvalid.
+      * intros X; rewrite X /= perm_of_sh_bot // in Hreadable.
 Qed.
 Next Obligation.
 Proof.
@@ -198,18 +217,24 @@ Next Obligation.
 Proof.
   simpl.
   destruct r; try apply perm_order''_refl.
-  destruct d; simpl; try if_tac; try constructor; try apply perm_order''_None.
-  - destruct (perm_of_sh s) eqn: Hs; simpl; try constructor.
+  destruct d as [[|]|]; simpl; try if_tac; try constructor; try apply perm_order''_None.
+  - destruct (perm_of_sh sh) eqn: Hs; simpl; try constructor.
     by apply perm_of_sh_None in Hs.
-  - destruct (perm_of_sh s) eqn: Hs; simpl; try constructor.
-    by apply perm_of_sh_None in Hs.
+  - destruct (perm_of_sh' _) eqn: Hs; simpl; try constructor; done.
 Qed.
 Next Obligation.
 Proof.
   simpl; intros.
   destruct r as [(?, r)|]; try done.
-  destruct r as [[| |] |]; try done; simpl; destruct d; try constructor; try apply perm_order''_refl; simpl; if_tac; try constructor; try apply perm_order''_None;
-    destruct (perm_of_sh s) eqn: Hs; simpl; try constructor; by apply perm_of_sh_None in Hs.
+  destruct (perm_of_res_cases d r) as [(v & -> & Hperm) | (Hno & Hperm)]; rewrite Hperm /=; clear Hperm.
+  - apply perm_order''_refl.
+  - if_tac; first apply perm_order''_None.
+    if_tac; first apply perm_order''_None.
+    destruct (perm_of_dfrac d) eqn: Hd; first constructor.
+    destruct d as [[|]|]; simpl in Hd; try done.
+    + apply perm_of_sh_None in Hd as ->; done.
+    + if_tac in Hd; try done.
+      rewrite -> Hd in *; done.
 Qed.
 Next Obligation.
 Proof.
@@ -913,13 +938,13 @@ Proof.
   done.
 Qed.
 
-Lemma nonlock_permission_bytes_valid : forall sh a n, n > 0 -> nonlock_permission_bytes sh a n ⊢ ⌜✓ sh⌝.
+(*Lemma nonlock_permission_bytes_valid : forall sh a n, n > 0 -> nonlock_permission_bytes sh a n ⊢ ⌜✓ sh⌝.
 Proof.
   intros; rewrite /nonlock_permission_bytes.
   destruct (Z.to_nat n) eqn: Hn; first lia.
   simpl; iIntros "H"; if_tac; first by iPureIntro; intros ->; contradiction bot_unreadable.
   by iDestruct "H" as "[H _]"; iDestruct (mapsto_no_valid with "H") as %[??].
-Qed.
+Qed.*)
 
 (*Lemma nonlock_permission_bytes_not_nonunit: forall p n,
   nonlock_permission_bytes Share.bot p n ⊢ emp.
@@ -1015,6 +1040,23 @@ Proof.
   by apply identity_share_bot.
 Qed.
 
+Lemma share_op_self: forall sh, (✓ (Share sh ⋅ Share sh))%stdpp -> sh = Share.bot.
+Proof.
+  intros ? (? & ? & ? & [=] & [=] & ? & J)%share_valid2_joins; subst.
+  pose proof (identity_share_bot _ (sepalg.join_self J)) as ->.
+  done.
+Qed.
+
+Lemma self_unreadable : forall sh, ~readable_dfrac (DfracOwn (Share sh) ⋅ DfracOwn (Share sh)).
+Proof.
+  intros; simpl.
+  destruct (Share sh ⋅ Share sh) eqn: J; rewrite J; auto.
+  apply share_op_join in J as (? & ? & [=] & [=] & J); subst.
+  pose proof (identity_share_bot _ (sepalg.join_self J)) as ->.
+  apply bot_identity in J as <-.
+  apply bot_unreadable.
+Qed.
+
 Lemma VALspec_range_overlap': forall sh p1 p2 n1 n2,
   adr_range p1 n1 p2 ->
   n2 > 0 ->
@@ -1032,8 +1074,7 @@ Proof.
   rewrite /adr_add /=.
   rewrite Z2Nat.id; last lia.
   rewrite Zplus_minus Z.add_0_r.
-  iDestruct (mapsto_valid_2 with "H1 H2") as %[H _].
-  apply share_valid2_joins in H as (? & ? & ?%sepalg.join_self%identity_share_bot); contradiction.
+  iDestruct (mapsto_valid_2 with "H1 H2") as %(? & []%self_unreadable & _).
   { rewrite lookup_seq_lt; [done | lia]. }
   { rewrite lookup_seq_lt; [done | lia]. }
 Qed.
@@ -1077,10 +1118,11 @@ Qed.
 
 Lemma nonlock_permission_bytes_overlap:
   forall sh n1 n2 p1 p2,
+  sh ≠ Share.bot ->
   range_overlap p1 n1 p2 n2 ->
   nonlock_permission_bytes sh p1 n1 ∗ nonlock_permission_bytes sh p2 n2 ⊢ False.
 Proof.
-  intros ????? ((?, ?) & Hadr1 & Hadr2).
+  intros ?????? ((?, ?) & Hadr1 & Hadr2).
   destruct p1 as (?, ofs1), p2 as (?, ofs2), Hadr1, Hadr2; subst.
   iIntros "[H1 H2]".
   unfold nonlock_permission_bytes.
@@ -1092,13 +1134,11 @@ Proof.
     rewrite /adr_add /=.
     rewrite !Z2Nat.id; try lia.
     rewrite !Zplus_minus.
-    iDestruct (mapsto_valid_2 with "H1 H2") as %[J _].
-    apply share_valid2_joins in J as (? & ? & ?%sepalg.join_self%identity_share_bot); contradiction.
+    iDestruct (mapsto_valid_2 with "H1 H2") as %(? & []%self_unreadable & ?).
   - rewrite /adr_add /=.
     rewrite !Z2Nat.id; try lia.
     rewrite !Zplus_minus.
-    iDestruct (mapsto_no_valid_2 with "H1 H2") as %[J ?].
-    apply share_valid2_joins in J as (? & ? & ?%sepalg.join_self%identity_share_bot); contradiction.
+    iDestruct (mapsto_no_valid_2 with "H1 H2") as %[?%share_op_self ?]; done.
   - rewrite lookup_seq_lt; [done | lia].
   - rewrite lookup_seq_lt; [done | lia].
 Qed.

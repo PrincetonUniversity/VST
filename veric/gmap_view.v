@@ -4,7 +4,7 @@
 From iris.algebra Require Export gmap.
 From iris.algebra Require Import local_updates proofmode_classes big_op.
 From iris_ora.algebra Require Export gmap.
-From VST.veric Require Export share_alg dfrac view.
+From VST.veric Require Export view.
 From iris.prelude Require Import options.
 
 (** * CMRA for a "view of a gmap".
@@ -148,9 +148,9 @@ Notation gmap_view K V := (view (@gmap_view_rel_raw K _ _ V)).
 Definition gmap_viewO (K : Type) `{Countable K} (V : ofe) : ofe :=
   viewO (gmap_view_rel K V).
 Definition gmap_viewC (K : Type) `{Countable K} (V : ofe) : cmra :=
-  viewC (gmap_view_rel K V).
+  algebra.view.viewR (gmap_view_rel K V).
 Definition gmap_viewUC (K : Type) `{Countable K} (V : ofe) : ucmra :=
-  viewUC (gmap_view_rel K V).
+  algebra.view.viewUR (gmap_view_rel K V).
 Canonical Structure gmap_viewR (K : Type) `{Countable K} (V : ofe) : ora :=
   view.viewR (gmap_view_rel K V) (gmap_view_rel_order K V).
 Canonical Structure gmap_viewUR (K : Type) `{Countable K} (V : ofe) : uora :=
@@ -167,7 +167,7 @@ End definitions.
 
 Section lemmas.
   Context {K : Type} `{Countable K} {V : ofe}.
-  Implicit Types (m : gmap K V) (k : K) (q : shareR) (dq : dfrac) (v : V).
+  Implicit Types (m : gmap K V) (k : K) (q : Qp) (dq : dfrac) (v : V).
 
   Global Instance : Params (@gmap_view_auth) 5 := {}.
   Global Instance gmap_view_auth_ne dq : NonExpansive (gmap_view_auth (K:=K) (V:=V) dq).
@@ -224,7 +224,7 @@ Section lemmas.
   Proof.
     rewrite view_auth_dfrac_valid. intuition. apply gmap_view_rel_unit.
   Qed.
-  Lemma gmap_view_auth_valid m : ✓ gmap_view_auth (DfracOwn Tsh) m.
+  Lemma gmap_view_auth_valid m : ✓ gmap_view_auth (DfracOwn 1) m.
   Proof. rewrite gmap_view_auth_dfrac_valid. done. Qed.
 
   Lemma gmap_view_auth_dfrac_op_validN n dq1 dq2 m1 m2 :
@@ -242,10 +242,10 @@ Section lemmas.
   Proof. unfold_leibniz. apply gmap_view_auth_dfrac_op_valid. Qed.
 
   Lemma gmap_view_auth_op_validN n m1 m2 :
-    ✓{n} (gmap_view_auth (DfracOwn Tsh) m1 ⋅ gmap_view_auth (DfracOwn Tsh) m2) ↔ False.
+    ✓{n} (gmap_view_auth (DfracOwn 1) m1 ⋅ gmap_view_auth (DfracOwn 1) m2) ↔ False.
   Proof. apply view_auth_op_validN. Qed.
   Lemma gmap_view_auth_op_valid m1 m2 :
-    ✓ (gmap_view_auth (DfracOwn Tsh) m1 ⋅ gmap_view_auth (DfracOwn Tsh) m2) ↔ False.
+    ✓ (gmap_view_auth (DfracOwn 1) m1 ⋅ gmap_view_auth (DfracOwn 1) m2) ↔ False.
   Proof. apply view_auth_op_valid. Qed.
 
   Lemma gmap_view_frag_validN n k dq v : ✓{n} gmap_view_frag k dq v ↔ ✓ dq.
@@ -296,7 +296,7 @@ Section lemmas.
     naive_solver.
   Qed.
   Lemma gmap_view_both_validN n m k dq v :
-    ✓{n} (gmap_view_auth (DfracOwn Tsh) m ⋅ gmap_view_frag k dq v) ↔
+    ✓{n} (gmap_view_auth (DfracOwn 1) m ⋅ gmap_view_frag k dq v) ↔
       ✓ dq ∧ m !! k ≡{n}≡ Some v.
   Proof. rewrite gmap_view_both_dfrac_validN. naive_solver done. Qed.
   Lemma gmap_view_both_dfrac_valid dp m k dq v :
@@ -318,13 +318,13 @@ Section lemmas.
     ✓ dp ∧ ✓ dq ∧ m !! k = Some v.
   Proof. unfold_leibniz. apply gmap_view_both_dfrac_valid. Qed.
   Lemma gmap_view_both_valid m k dq v :
-    ✓ (gmap_view_auth (DfracOwn Tsh) m ⋅ gmap_view_frag k dq v) ↔
+    ✓ (gmap_view_auth (DfracOwn 1) m ⋅ gmap_view_frag k dq v) ↔
     ✓ dq ∧ m !! k ≡ Some v.
   Proof. rewrite gmap_view_both_dfrac_valid. naive_solver done. Qed.
   (* FIXME: Having a [valid_L] lemma is not consistent with [auth] and [view]; they
      have [inv_L] lemmas instead that just have an equality on the RHS. *)
   Lemma gmap_view_both_valid_L `{!LeibnizEquiv V} m k dq v :
-    ✓ (gmap_view_auth (DfracOwn Tsh) m ⋅ gmap_view_frag k dq v) ↔
+    ✓ (gmap_view_auth (DfracOwn 1) m ⋅ gmap_view_frag k dq v) ↔
     ✓ dq ∧ m !! k = Some v.
   Proof. unfold_leibniz. apply gmap_view_both_valid. Qed.
 
@@ -332,7 +332,7 @@ Section lemmas.
   Lemma gmap_view_alloc m k dq v :
     m !! k = None →
     ✓ dq →
-    gmap_view_auth (DfracOwn Tsh) m ~~> gmap_view_auth (DfracOwn Tsh) (<[k := v]> m) ⋅ gmap_view_frag k dq v.
+    gmap_view_auth (DfracOwn 1) m ~~> gmap_view_auth (DfracOwn 1) (<[k := v]> m) ⋅ gmap_view_frag k dq v.
   Proof.
     intros Hfresh Hdq. apply view_update_alloc=>n bf Hrel j [df va] /=.
     rewrite lookup_op. destruct (decide (j = k)) as [->|Hne].
@@ -353,8 +353,8 @@ Section lemmas.
   Lemma gmap_view_alloc_big m m' dq :
     m' ##ₘ m →
     ✓ dq →
-    gmap_view_auth (DfracOwn Tsh) m ~~>
-      gmap_view_auth (DfracOwn Tsh) (m' ∪ m) ⋅ ([^op map] k↦v ∈ m', gmap_view_frag k dq v).
+    gmap_view_auth (DfracOwn 1) m ~~>
+      gmap_view_auth (DfracOwn 1) (m' ∪ m) ⋅ ([^op map] k↦v ∈ m', gmap_view_frag k dq v).
   Proof.
     intros. induction m' as [|k v m' ? IH] using map_ind; decompose_map_disjoint.
     { rewrite big_opM_empty left_id_L right_id. done. }
@@ -366,8 +366,8 @@ Section lemmas.
   Qed.
 
   Lemma gmap_view_delete m k v :
-    gmap_view_auth (DfracOwn Tsh) m ⋅ gmap_view_frag k (DfracOwn Tsh) v ~~>
-    gmap_view_auth (DfracOwn Tsh) (delete k m).
+    gmap_view_auth (DfracOwn 1) m ⋅ gmap_view_frag k (DfracOwn 1) v ~~>
+    gmap_view_auth (DfracOwn 1) (delete k m).
   Proof.
     apply view_update_dealloc=>n bf Hrel j [df va] Hbf /=.
     destruct (decide (j = k)) as [->|Hne].
@@ -381,8 +381,8 @@ Section lemmas.
   Qed.
 
   Lemma gmap_view_delete_big m m' :
-    gmap_view_auth (DfracOwn Tsh) m ⋅ ([^op map] k↦v ∈ m', gmap_view_frag k (DfracOwn Tsh) v) ~~>
-    gmap_view_auth (DfracOwn Tsh) (m ∖ m').
+    gmap_view_auth (DfracOwn 1) m ⋅ ([^op map] k↦v ∈ m', gmap_view_frag k (DfracOwn 1) v) ~~>
+    gmap_view_auth (DfracOwn 1) (m ∖ m').
   Proof.
     induction m' as [|k v m' ? IH] using map_ind.
     { rewrite right_id_L big_opM_empty right_id //. }
@@ -392,18 +392,18 @@ Section lemmas.
   Qed.
 
   Lemma gmap_view_update m k v v' :
-    gmap_view_auth (DfracOwn Tsh) m ⋅ gmap_view_frag k (DfracOwn Tsh) v ~~>
-      gmap_view_auth (DfracOwn Tsh) (<[k := v']> m) ⋅ gmap_view_frag k (DfracOwn Tsh) v'.
+    gmap_view_auth (DfracOwn 1) m ⋅ gmap_view_frag k (DfracOwn 1) v ~~>
+      gmap_view_auth (DfracOwn 1) (<[k := v']> m) ⋅ gmap_view_frag k (DfracOwn 1) v'.
   Proof.
     rewrite gmap_view_delete.
-    rewrite (gmap_view_alloc _ k (DfracOwn Tsh) v') //; last by rewrite lookup_delete.
+    rewrite (gmap_view_alloc _ k (DfracOwn 1) v') //; last by rewrite lookup_delete.
     rewrite insert_delete_insert //.
   Qed.
 
   Lemma gmap_view_update_big m m0 m1 :
     dom m0 = dom m1 →
-    gmap_view_auth (DfracOwn Tsh) m ⋅ ([^op map] k↦v ∈ m0, gmap_view_frag k (DfracOwn Tsh) v) ~~>
-      gmap_view_auth (DfracOwn Tsh) (m1 ∪ m) ⋅ ([^op map] k↦v ∈ m1, gmap_view_frag k (DfracOwn Tsh) v).
+    gmap_view_auth (DfracOwn 1) m ⋅ ([^op map] k↦v ∈ m0, gmap_view_frag k (DfracOwn 1) v) ~~>
+      gmap_view_auth (DfracOwn 1) (m1 ∪ m) ⋅ ([^op map] k↦v ∈ m1, gmap_view_frag k (DfracOwn 1) v).
   Proof.
     intros Hdom%eq_sym. revert m1 Hdom.
     induction m0 as [|k v m0 Hnotdom IH] using map_ind; intros m1 Hdom.
@@ -425,11 +425,11 @@ Section lemmas.
     rewrite union_delete_insert //.
   Qed.
 
-  Lemma gmap_view_auth_persist dq m : readable_dfrac dq ->
+  Lemma gmap_view_auth_persist dq m :
     gmap_view_auth dq m ~~> gmap_view_auth DfracDiscarded m.
   Proof. apply view_update_auth_persist. Qed.
 
-  Lemma gmap_view_frag_persist k dq v : readable_dfrac dq ->
+  Lemma gmap_view_frag_persist k dq v :
     gmap_view_frag k dq v ~~> gmap_view_frag k DfracDiscarded v.
   Proof.
     intros Hdq; apply view_update_frag=>m n bf Hrel j [df va] /=.
@@ -444,7 +444,7 @@ Section lemmas.
       + simpl in *. rewrite -cmra.pair_op in Hbf.
         move:Hbf=>[= <- <-]. split; first done.
         eapply cmra_discrete_valid.
-        eapply (dfrac_discard_update _ Hdq _ (Some df')).
+        eapply (dfrac_discard_update _ _ (Some df')).
         apply cmra_discrete_valid_iff. done.
       + simpl in *. move:Hbf=>[= <- <-]. split; done.
     - rewrite lookup_singleton_ne //.

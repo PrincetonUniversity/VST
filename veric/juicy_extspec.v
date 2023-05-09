@@ -673,7 +673,7 @@ Qed.*)
 
 Section juicy_safety.
   Context {G C Z:Type}.
-  Context {genv_symb: G -> injective_PTree block}.
+  Context {genv_symb: G -> injective_PTree Values.block}.
   Context (Hcore:@CoreSemantics C mem).
   Variable (Hspec : juicy_ext_spec Z).
   Variable ge : G.

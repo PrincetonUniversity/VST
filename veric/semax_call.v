@@ -512,9 +512,10 @@ Proof.
              ge_of rho = ge_of rho' ->
              funassert Delta rho ⊢ funassert Delta' rho') as H; last by intros; iSplit; iApply H.
   intros ???? H; simpl; intros ->.
-  iIntros "#(? & %) !>"; iSplit.
+  iIntros "(#? & H2)"; iSplitL "".
   - iIntros (??); rewrite -H //.
-  - iPureIntro; intros; rewrite -H; eauto.
+  - iIntros (??) "?"; iDestruct ("H2" with "[$]") as %?.
+    iPureIntro; intros; rewrite -H; eauto.
 Qed.
 
 Definition thisvar (ret: option ident) (i : ident) : Prop :=
@@ -1307,7 +1308,9 @@ Proof.
   rewrite /func_ptr_si.
   iDestruct "funcatb" as (b (RhoID & EvalA) nspec) "[SubClient funcatb]".
   iAssert ⌜(glob_specs Delta') !! id = Some nspec⌝ as %SpecOfID.
-  { iDestruct "fun" as "(FA & %FD)".
+  { Search Genv.find_symbol.
+Genv.find_symbol_inversion
+iDestruct "fun" as "(FA & %FD)".
     destruct (FD _ _ RhoID) as (fs & ?).
     iDestruct ("FA" with "[%]") as "(% & %Hid' & funcatv)"; first done.
     rewrite Hid' in RhoID; inv RhoID.

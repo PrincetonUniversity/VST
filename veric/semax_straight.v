@@ -413,7 +413,7 @@ Proof.
   destruct (temp_types Delta !! id) eqn: Hid; inversion H99; subst t0; clear H99.
   rewrite Hid in TS.
   iSplit; [iSplit; first done; iSplit|].
-  + rewrite bi.and_elim_l /tc_expr typecheck_cast_sound; last apply typecheck_expr_sound; try done.
+  + rewrite (bi.and_elim_l (▷ _)) /tc_expr typecheck_cast_sound; last apply typecheck_expr_sound; try done.
     iDestruct "H" as ">%"; iPureIntro.
     simpl in *. rewrite <- map_ptree_rel.
     apply guard_environ_put_te'; [subst; auto|].
@@ -494,7 +494,7 @@ Proof.
   destruct (temp_types Delta !! id) eqn: Hid; inversion Hid0; subst t; clear Hid0.
   rewrite Hid in TS.
   iSplit; [iSplit; first done; iSplit|].
-  + rewrite bi.and_elim_l /tc_lvalue typecheck_lvalue_sound; try done.
+  + rewrite (bi.and_elim_l (▷ _)) /tc_lvalue typecheck_lvalue_sound; try done.
     iDestruct "H" as ">%"; iPureIntro.
     rewrite <- map_ptree_rel.
     apply guard_environ_put_te'; [subst; auto|].
@@ -810,7 +810,7 @@ Proof.
   iIntros "(Hm & H & #?)".
   assert (typecheck_environ Delta rho) as TYCON_ENV
     by (destruct TC as [TC' TC'']; eapply typecheck_environ_sub; eauto).
-  rewrite (add_and (_ ∧ ▷ _) (▷ ⌜_⌝)).
+  rewrite (add_and (_ ∧ (_ ∗ _)) (▷ ⌜_⌝)).
   2: { iIntros "(_ & _ & ? & _) !>"; iApply (mapsto_pure_facts with "[$]"). }
   iDestruct "H" as "(H & >%H)".
   destruct H as ((ch & ?) & ?); destruct (eval_lvalue e1 rho) eqn: He1; try contradiction.
@@ -893,7 +893,7 @@ Proof.
   iIntros "(Hm & H & #?)".
   assert (typecheck_environ Delta rho) as TYCON_ENV
     by (destruct TC as [TC' TC'']; eapply typecheck_environ_sub; eauto).
-  rewrite (add_and (_ ∧ _) (▷ ⌜_⌝)).
+  rewrite (add_and (_ ∧ (_ ∗ _)) (▷ ⌜_⌝)).
   2: { iIntros "(_ & _ & (_ & ?) & _) !>"; iApply (mapsto_pure_facts with "[$]"). }
   iDestruct "H" as "(H & >%H)".
   destruct H as (_ & ?); destruct (eval_lvalue e1 rho) eqn: He1; try contradiction.

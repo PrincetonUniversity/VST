@@ -99,18 +99,23 @@ Lemma valid_pointer_dry:
 Proof.
 intros.
 iIntros "[Hm >H]".
-iAssert ⌜∃ dq r, ✓ dq ∧ coherent_loc m (b, Ptrofs.unsigned ofs + d)%Z (Some (dq, r))⌝ with "[-]" as %(dq & r & Hdq & H).
-{ iDestruct "H" as "[(% & % & H) | (% & H)]"; [iDestruct (mapsto_lookup with "Hm H") as %(? & ? & ?) |
-    iDestruct (mapsto_no_lookup with "Hm H") as %(? & ? & ?)]; iPureIntro; eauto.
-  exists (DfracOwn sh); eauto. }
+iAssert ⌜∃ dq r, ✓ dq ∧ dq ≠ ε ∧ coherent_loc m (b, Ptrofs.unsigned ofs + d)%Z (Some (dq, r))⌝ with "[-]" as %(dq & r & Hdq & ? & H).
+{ iDestruct "H" as "[(% & % & H) | (% & % & H)]"; [iDestruct (mapsto_lookup with "Hm H") as %(? & ? & ?) |
+    iDestruct (mapsto_no_lookup with "Hm H") as %(? & ?)]; iPureIntro.
+  - eexists _, _; split; first done; split; last done.
+    intros ->; contradiction bot_unreadable.
+  - eexists (DfracOwn (Share sh)), _; split; first done; split; last done.
+    intros [=]; done. }
 iPureIntro.
 rewrite Mem.valid_pointer_nonempty_perm /Mem.perm.
 destruct H as (_ & H & _).
 rewrite /juicy_view.access_cohere /access_at in H.
 destruct (Maps.PMap.get _ _ _ _); try constructor.
-simpl in H.
-destruct (perm_of_dfrac dq) eqn: Hp; first by destruct dq, r as [[| |] |]; try if_tac in H.
-apply perm_of_dfrac_None in Hp; subst; contradiction.
+destruct (perm_of_res_cases dq r) as [(? & -> & Hperm) | (? & Hperm)]; setoid_rewrite Hperm in H; clear Hperm.
+- destruct (perm_of_dfrac dq) eqn: Hp; first done.
+  apply perm_of_dfrac_None in Hp as [-> | ->]; done.
+- rewrite !if_false // in H.
+  intros ->; done.
 Qed.
 
 Lemma weak_valid_pointer_dry:

@@ -26,8 +26,8 @@ Section definitions.
   Context `{resource_mapG Σ V}.
 
   Local Definition resource_map_auth_def
-      (γ : gname) (q : share) (m : mem) : iProp Σ :=
-    own γ (juicy_view_auth (V:=leibnizO V) (DfracOwn q) m).
+      (γ : gname) (q : Qp) (m : mem) : iProp Σ :=
+    own γ (juicy_view_auth (V:=leibnizO V) (dfrac.DfracOwn q) m).
   Local Definition resource_map_auth_aux : seal (@resource_map_auth_def).
   Proof. by eexists. Qed.
   Definition resource_map_auth := resource_map_auth_aux.(unseal).
@@ -45,7 +45,7 @@ Section definitions.
 
   Local Definition resource_map_elem_no_def
       (γ : gname) (k : address) (sh : share) : iProp Σ :=
-    ∃ rsh, own γ (juicy_view_frag_no (V:=leibnizO V) k sh rsh).
+    ∃ rsh, own γ (juicy_view_frag_no (V:=leibnizO V) k (Share sh) rsh).
   Local Definition resource_map_elem_no_aux : seal (@resource_map_elem_no_def).
   Proof. by eexists. Qed.
   Definition resource_map_elem_no := resource_map_elem_no_aux.(unseal).
@@ -80,7 +80,7 @@ Local Ltac unseal := rewrite
 
 Section lemmas.
   Context `{resource_mapG Σ V}.
-  Implicit Types (k : address) (v : V) (dq : dfrac) (q : shareR).
+  Implicit Types (k : address) (v : V) (dq : dfrac) (q : Qp).
 
   (** * Lemmas about the map elements *)
   Global Instance resource_map_elem_timeless k γ dq v : Timeless (k ↪[γ]{dq} v).
@@ -93,6 +93,10 @@ Section lemmas.
     AsFractional (k ↪[γ]{#q} v) (λ q, k ↪[γ]{#q} v)%I q.
   Proof. split; first done. apply _. Qed.*)
   Global Instance resource_map_elem_affine k γ v : Affine (k ↪[γ]□ v).
+  Proof. unseal. apply _. Qed.
+  Global Instance resource_map_elem_no_persistent k γ : Persistent (resource_map_elem_no γ k Share.bot).
+  Proof. unseal. apply _. Qed.
+  Global Instance resource_map_elem_no_affine k γ : Affine (resource_map_elem_no γ k Share.bot).
   Proof. unseal. apply _. Qed.
   Global Instance resource_map_elem_pure_persistent k γ v : Persistent (k ↪[γ]p v).
   Proof. unseal. apply _. Qed.
@@ -168,7 +172,7 @@ Section lemmas.
   Qed.
 
   Lemma resource_map_elem_no_valid k γ sh :
-    resource_map_elem_no γ k sh -∗ ⌜✓ sh ∧ ~readable_share sh⌝.
+    resource_map_elem_no γ k sh -∗ ⌜~readable_share sh⌝.
   Proof.
     unseal. iIntros "[% H]".
     iDestruct (own_valid with "H") as %Hv%juicy_view_frag_no_valid.
@@ -176,7 +180,7 @@ Section lemmas.
   Qed.
 
   Lemma resource_map_elem_no_elem_valid_2 k γ sh1 dq2 v2 :
-    resource_map_elem_no γ k sh1 -∗ k ↪[γ]{dq2} v2 -∗ ⌜✓ (DfracOwn sh1 ⋅ dq2) ∧ readable_dfrac (DfracOwn sh1 ⋅ dq2)⌝.
+    resource_map_elem_no γ k sh1 -∗ k ↪[γ]{dq2} v2 -∗ ⌜✓ (DfracOwn (Share sh1) ⋅ dq2) ∧ readable_dfrac (DfracOwn (Share sh1) ⋅ dq2)⌝.
   Proof.
     unseal. iIntros "[% H1] [% H2]".
     iDestruct (own_valid_2 with "H1 H2") as %Hv%juicy_view_frag_no_frag_op_valid.
@@ -185,31 +189,34 @@ Section lemmas.
   Qed.
 
   Lemma resource_map_elem_no_valid_2 k γ sh1 sh2 :
-    resource_map_elem_no γ k sh1 -∗ resource_map_elem_no γ k sh2 -∗ ⌜✓ (sh1 ⋅ sh2) ∧ ~readable_share (sh1 ⋅ sh2)⌝.
+    resource_map_elem_no γ k sh1 -∗ resource_map_elem_no γ k sh2 -∗ ⌜✓ (Share sh1 ⋅ Share sh2) ∧ ~readable_share' (Share sh1 ⋅ Share sh2)⌝.
   Proof.
     unseal. iIntros "[% H1] [% H2]".
     iDestruct (own_valid_2 with "H1 H2") as %Hv%juicy_view_frag_no_op_valid.
     iSplit; first done.
-    apply share_valid2_joins in Hv as (? & ? & ?).
+    apply share_valid2_joins in Hv as (? & ? & ? & [=] & [=] & Heq & ?); subst; rewrite Heq.
     iPureIntro; by eapply join_unreadable_shares.
   Qed.
 
   Lemma resource_map_elem_no_elem_combine k γ sh1 dq2 v2 :
-    resource_map_elem_no γ k sh1 -∗ k ↪[γ]{dq2} v2 -∗ k ↪[γ]{DfracOwn sh1 ⋅ dq2} v2.
+    resource_map_elem_no γ k sh1 -∗ k ↪[γ]{dq2} v2 -∗ k ↪[γ]{DfracOwn (Share sh1) ⋅ dq2} v2.
   Proof.
     iIntros "Hl1 Hl2". iDestruct (resource_map_elem_no_elem_valid_2 with "Hl1 Hl2") as %[? Hv].
     unseal. iDestruct "Hl1" as (?) "Hl1"; iDestruct "Hl2" as (?) "Hl2"; iExists Hv. iCombine "Hl1 Hl2" as "Hl". rewrite -own_op -juicy_view_frag_no_frag_op //.
   Qed.
 
   Lemma resource_map_elem_no_combine k γ sh1 sh2 :
-    resource_map_elem_no γ k sh1 -∗ resource_map_elem_no γ k sh2 -∗ resource_map_elem_no γ k (sh1 ⋅ sh2).
+    resource_map_elem_no γ k sh1 -∗ resource_map_elem_no γ k sh2 -∗ ∃ sh, ⌜sepalg.join sh1 sh2 sh⌝ ∧ resource_map_elem_no γ k sh.
   Proof.
-    iIntros "Hl1 Hl2". iDestruct (resource_map_elem_no_valid_2 with "Hl1 Hl2") as %[? Hv].
-    unseal. iDestruct "Hl1" as "[% Hl1]"; iDestruct "Hl2" as "[% Hl2]"; iCombine "Hl1 Hl2" as "Hl". iExists Hv; rewrite -own_op -juicy_view_frag_no_op //.
+    iIntros "Hl1 Hl2". iDestruct (resource_map_elem_no_valid_2 with "Hl1 Hl2") as %[J Hv].
+    unseal. iDestruct "Hl1" as "[% Hl1]"; iDestruct "Hl2" as "[% Hl2]"; iCombine "Hl1 Hl2" as "Hl".
+    apply share_valid2_joins in J as (? & ? & sh & [=] & [=] & Heq & J); subst.
+    iExists sh; iSplit; first done.
+    rewrite -Heq; iExists Hv; rewrite -own_op -juicy_view_frag_no_op //.
   Qed.
 
   Lemma resource_map_elem_split_no k γ sh1 dq2 (rsh1 : ~readable_share sh1) (rsh2 : readable_dfrac dq2) v :
-    k ↪[γ]{DfracOwn sh1 ⋅ dq2} v ⊣⊢ resource_map_elem_no γ k sh1 ∗ k ↪[γ]{dq2} v.
+    k ↪[γ]{DfracOwn (Share sh1) ⋅ dq2} v ⊣⊢ resource_map_elem_no γ k sh1 ∗ k ↪[γ]{dq2} v.
   Proof.
     iSplit; last by iIntros "[A B]"; iApply (resource_map_elem_no_elem_combine with "A B").
     unseal. iIntros "[% ?]"; rewrite juicy_view_frag_no_frag_op own_op.
@@ -218,14 +225,20 @@ Section lemmas.
     done.
   Qed.
 
-  Lemma resource_map_elem_no_split k γ sh1 sh2 (rsh1 : ~readable_share sh1) (rsh2 : ~readable_share sh2) :
-    resource_map_elem_no γ k (sh1 ⋅ sh2) ⊣⊢ resource_map_elem_no γ k sh1 ∗ resource_map_elem_no γ k sh2.
+  Lemma resource_map_elem_no_split k γ sh1 sh2 (rsh1 : ~readable_share sh1) (rsh2 : ~readable_share sh2) sh
+    (J : sepalg.join sh1 sh2 sh) :
+    resource_map_elem_no γ k sh ⊣⊢ resource_map_elem_no γ k sh1 ∗ resource_map_elem_no γ k sh2.
   Proof.
-    iSplit; last by iIntros "[A B]"; iApply (resource_map_elem_no_combine with "A B").
-    unseal. iIntros "[% ?]"; rewrite juicy_view_frag_no_op own_op.
-    rewrite bi.sep_exist_r; iExists rsh1.
-    rewrite bi.sep_exist_l; iExists rsh2.
-    done.
+    iSplit.
+    - unseal.
+      assert (Share sh1 ⋅ Share sh2 = Share sh) as Heq by (apply share_op_join; eauto).
+      rewrite -Heq; iIntros "(% & ?)".
+      rewrite juicy_view_frag_no_op own_op.
+      rewrite bi.sep_exist_r; iExists rsh1.
+      rewrite bi.sep_exist_l; iExists rsh2.
+      done.
+    - iIntros "[A B]"; iDestruct (resource_map_elem_no_combine with "A B") as (??) "?".
+      eapply sepalg.join_eq in J as ->; eauto.
   Qed.
 
   Lemma resource_map_elem_frac_ne γ k1 k2 dq1 dq2 v1 v2 :
@@ -234,9 +247,9 @@ Section lemmas.
     iIntros (?) "H1 H2"; iIntros (->).
     by iDestruct (resource_map_elem_valid_2 with "H1 H2") as %[??].
   Qed.
-  Lemma resource_map_elem_ne γ k1 k2 dq2 v1 v2 :
+(*  Lemma resource_map_elem_ne γ k1 k2 dq2 v1 v2 :
     k1 ↪[γ] v1 -∗ k2 ↪[γ]{dq2} v2 -∗ ⌜k1 ≠ k2⌝.
-  Proof. apply resource_map_elem_frac_ne. apply: exclusive_l. Qed.
+  Proof. apply resource_map_elem_frac_ne. apply: exclusive_l. Qed.*)
 
   Lemma resource_map_elem_pure_agree k γ v1 v2 :
     k ↪[γ]p v1 -∗ k ↪[γ]p v2 -∗ ⌜v1 = v2⌝.
@@ -254,7 +267,7 @@ Section lemmas.
   (** * Lemmas about [resource_map_auth] *)
   Lemma resource_map_alloc_strong P m (f : juicy_view.juicy_view_fragUR (leibnizO V)) :
     pred_infinite P → ✓ f → (∀ loc, coherent_loc m loc (resource_at f loc)) →
-    ⊢ |==> ∃ γ, ⌜P γ⌝ ∧ resource_map_auth γ Tsh m ∗ own γ (◯V f).
+    ⊢ |==> ∃ γ, ⌜P γ⌝ ∧ resource_map_auth γ 1 m ∗ own γ (◯V f).
   Proof.
     unseal. intros.
     setoid_rewrite <- own_op.
@@ -267,7 +280,7 @@ Section lemmas.
   Qed.
   Lemma resource_map_alloc_strong_empty P :
     pred_infinite P →
-    ⊢ |==> ∃ γ, ⌜P γ⌝ ∧ resource_map_auth γ Tsh Mem.empty.
+    ⊢ |==> ∃ γ, ⌜P γ⌝ ∧ resource_map_auth γ 1 Mem.empty.
   Proof.
     unseal. intros.
     iApply own_alloc_strong.
@@ -275,14 +288,14 @@ Section lemmas.
   Qed.
   Lemma resource_map_alloc m (f : juicy_view.juicy_view_fragUR (leibnizO V)):
     ✓ f → (∀ loc, coherent_loc m loc (resource_at f loc)) →
-    ⊢ |==> ∃ γ, resource_map_auth γ Tsh m ∗ own γ (◯V f).
+    ⊢ |==> ∃ γ, resource_map_auth γ 1 m ∗ own γ (◯V f).
   Proof.
     intros; iMod (resource_map_alloc_strong (λ _, True) m) as (γ) "[_ Hmap]".
     - by apply pred_infinite_True.
     - eauto.
   Qed.
   Lemma resource_map_alloc_empty :
-    ⊢ |==> ∃ γ, resource_map_auth γ Tsh Mem.empty.
+    ⊢ |==> ∃ γ, resource_map_auth γ 1 Mem.empty.
   Proof.
     iMod (resource_map_alloc_strong_empty (λ _, True)) as (γ) "[_ Hmap]".
     - by apply pred_infinite_True.
@@ -297,14 +310,14 @@ Section lemmas.
     AsFractional (resource_map_auth γ q m) (λ q, resource_map_auth γ q m)%I q.
   Proof. split; first done. apply _. Qed.*)
 
-  Lemma resource_map_auth_valid γ q m : resource_map_auth γ q m -∗ ⌜q ≠ Share.bot⌝.
+  Lemma resource_map_auth_valid γ q m : resource_map_auth γ q m -∗ ⌜✓ q⌝.
   Proof.
     unseal. iIntros "Hauth".
     iDestruct (own_valid with "Hauth") as %?%juicy_view_auth_dfrac_valid.
     done.
   Qed.
   Lemma resource_map_auth_valid_2 γ q1 q2 m1 m2 :
-    resource_map_auth γ q1 m1 -∗ resource_map_auth γ q2 m2 -∗ ⌜q1 ⋅ q2 ≠ Share.bot ∧ m1 = m2⌝.
+    resource_map_auth γ q1 m1 -∗ resource_map_auth γ q2 m2 -∗ ⌜✓ (q1 ⋅ q2) ∧ m1 = m2⌝.
   Proof.
     unseal. iIntros "H1 H2".
     iDestruct (own_valid_2 with "H1 H2") as %[??]%juicy_view_auth_dfrac_op_valid.
@@ -341,7 +354,7 @@ Section lemmas.
   Qed.
 
   Lemma resource_map_no_lookup {γ q m k sh} :
-    resource_map_auth γ q m -∗ resource_map_elem_no γ k sh -∗ ⌜✓ sh ∧ ~readable_share sh ∧ coherent_loc m k (Some (DfracOwn sh, None))⌝.
+    resource_map_auth γ q m -∗ resource_map_elem_no γ k sh -∗ ⌜~readable_share sh ∧ coherent_loc m k (Some (DfracOwn (Share sh), None))⌝.
   Proof.
     unseal. iIntros "Hauth [% Hel]".
     iDestruct (own_valid_2 with "Hauth Hel") as %[?[??]]%juicy_view_both_no_dfrac_valid.
@@ -349,7 +362,7 @@ Section lemmas.
   Qed.
 
   Lemma resource_map_pure_lookup {γ q m k v} :
-    resource_map_auth γ q m -∗ k ↪[γ]p v -∗ ⌜coherent_loc m k (Some (DfracOwn Share.Lsh, Some v))⌝.
+    resource_map_auth γ q m -∗ k ↪[γ]p v -∗ ⌜coherent_loc m k (Some (DfracOwn (Share Share.Lsh), Some v))⌝.
   Proof.
     unseal. iIntros "Hauth Hel".
     iDestruct (own_valid_2 with "Hauth Hel") as %[??]%juicy_view_both_pure_dfrac_valid.
@@ -357,16 +370,16 @@ Section lemmas.
   Qed.
 
   Lemma resource_map_mem_alloc {γ m} lo hi m' b v (Halloc : Mem.alloc m lo hi = (m', b)) (Hundef : memval_of v = Some Undef) :
-    resource_map_auth γ Tsh m ==∗ resource_map_auth γ Tsh m' ∗ ([∗ list] i↦v ∈ replicate (Z.to_nat (hi - lo)) v, adr_add (b, lo) (Z.of_nat i) ↪[γ]{DfracOwn Tsh} v).
+    resource_map_auth γ 1 m ==∗ resource_map_auth γ 1 m' ∗ ([∗ list] i↦v ∈ replicate (Z.to_nat (hi - lo)) v, adr_add (b, lo) (Z.of_nat i) ↪[γ] v).
   Proof.
     unseal.
-    rewrite (big_sepL_proper _ (λ i v, own γ (juicy_view_frag(V := leibnizO V) (adr_add (b, lo) i) (DfracOwn Tsh) readable_Tsh v)) _).
+    rewrite (big_sepL_proper _ (λ i v, own γ (juicy_view_frag(V := leibnizO V) (adr_add (b, lo) i) (DfracOwn (Share Tsh)) readable_Tsh v)) _).
     2: { intros; iSplit; last eauto. iIntros "[% ?]"; by rewrite juicy_view_frag_irrel. }
     rewrite -big_opL_own_1 -own_op.
     iApply own_update. apply: juicy_view_alloc; done.
   Qed.
   Lemma resource_map_alloc_persist {γ m} lo hi m' b v (Halloc : Mem.alloc m lo hi = (m', b)) (Hundef : memval_of v = Some Undef) :
-    resource_map_auth γ Tsh m ==∗ resource_map_auth γ Tsh m' ∗ ([∗ list] i↦v ∈ replicate (Z.to_nat (hi - lo)) v, adr_add (b, lo) (Z.of_nat i) ↪[γ]□ v).
+    resource_map_auth γ 1 m ==∗ resource_map_auth γ 1 m' ∗ ([∗ list] i↦v ∈ replicate (Z.to_nat (hi - lo)) v, adr_add (b, lo) (Z.of_nat i) ↪[γ]□ v).
   Proof.
     rewrite resource_map_mem_alloc; [|done..].
     iIntros ">[$ ?]".
@@ -376,7 +389,7 @@ Section lemmas.
   Qed.
 
   Lemma resource_map_free {γ m k vl} hi m' (Hfree : Mem.free m k.1 k.2 hi = Some m') (Hlen : length vl = Z.to_nat (hi - k.2)) :
-    resource_map_auth γ Tsh m -∗ ([∗ list] i↦v ∈ vl, adr_add k (Z.of_nat i) ↪[γ]{DfracOwn Tsh} v) ==∗ resource_map_auth γ Tsh m'.
+    resource_map_auth γ 1 m -∗ ([∗ list] i↦v ∈ vl, adr_add k (Z.of_nat i) ↪[γ] v) ==∗ resource_map_auth γ 1 m'.
   Proof.
     iIntros "Hauth Hfrag".
     unshelve iMod (resource_map_elems_unseal with "Hfrag") as "Hfrag"; first apply readable_Tsh.
@@ -387,8 +400,8 @@ Section lemmas.
   Lemma resource_map_storebyte {γ m k v} m' v' b sh (Hsh : writable0_share sh) :
     Mem.storebytes m k.1 k.2 [b] = Some m' ->
     memval_of v' = Some b ->
-    (∀ sh', sepalg.join_sub sh sh' -> Mem.perm_order'' (perm_of_res (Some (DfracOwn sh', Some v))) (perm_of_res (Some (DfracOwn sh', Some v')))) ->
-    resource_map_auth γ Tsh m -∗ k ↪[γ]{DfracOwn sh} v ==∗ resource_map_auth γ Tsh m' ∗ k ↪[γ]{DfracOwn sh} v'.
+    (∀ sh', sepalg.join_sub sh sh' -> Mem.perm_order'' (perm_of_res (Some (DfracOwn (Share sh'), Some v))) (perm_of_res (Some (DfracOwn (Share sh'), Some v')))) ->
+    resource_map_auth γ 1 m -∗ k ↪[γ]{#sh} v ==∗ resource_map_auth γ 1 m' ∗ k ↪[γ]{#sh} v'.
   Proof.
     intros; unseal. apply bi.wand_intro_r. iIntros "[a [% f]]"; iCombine "a f" as "?".
     rewrite bi.sep_exist_l; iExists rsh.
@@ -413,17 +426,17 @@ Section lemmas.
   Theorem resource_map_storebytes {γ m} m' k vl vl' bl sh (Hsh : writable0_share sh)
     (Hstore : Mem.storebytes m k.1 k.2 bl = Some m')
     (Hv' : Forall2 (fun v' b => memval_of v' = Some b) vl' bl)
-    (Hperm : Forall2 (fun v v' => ∀ sh', sepalg.join_sub sh sh' -> Mem.perm_order'' (perm_of_res (Some (DfracOwn sh', Some v))) (perm_of_res (Some (DfracOwn sh', Some v')))) vl vl') :
-    resource_map_auth γ Tsh m -∗
-    ([∗ list] i↦v ∈ vl, adr_add k (Z.of_nat i) ↪[γ]{DfracOwn sh} v) ==∗
-    resource_map_auth γ Tsh m' ∗
-        [∗ list] i↦v ∈ vl', adr_add k (Z.of_nat i) ↪[γ]{DfracOwn sh} v.
+    (Hperm : Forall2 (fun v v' => ∀ sh', sepalg.join_sub sh sh' -> Mem.perm_order'' (perm_of_res (Some (DfracOwn (Share sh'), Some v))) (perm_of_res (Some (DfracOwn (Share sh'), Some v')))) vl vl') :
+    resource_map_auth γ 1 m -∗
+    ([∗ list] i↦v ∈ vl, adr_add k (Z.of_nat i) ↪[γ]{#sh} v) ==∗
+    resource_map_auth γ 1 m' ∗
+        [∗ list] i↦v ∈ vl', adr_add k (Z.of_nat i) ↪[γ]{#sh} v.
   Proof.
     intros; iIntros "Hauth Hfrag".
     assert (readable_share sh) as rsh by auto.
     unshelve iMod (resource_map_elems_unseal with "Hfrag") as "Hfrag"; first done.
     unseal.
-    rewrite (big_sepL_proper _ (λ i v, own γ (juicy_view_frag(V := leibnizO V) (adr_add k i) (DfracOwn sh) rsh v)) vl').
+    rewrite (big_sepL_proper _ (λ i v, own γ (juicy_view_frag(V := leibnizO V) (adr_add k i) (DfracOwn (Share sh)) rsh v)) vl').
     2: { intros; iSplit; last eauto. iIntros "[% ?]"; by rewrite juicy_view_frag_irrel. }
     rewrite -big_opL_own_1 -own_op.
     iApply (own_update_2 with "Hauth Hfrag").
@@ -431,12 +444,12 @@ Section lemmas.
   Qed.
 
   Lemma resource_map_set γ m σ (Hvalid : ✓ σ) (Hcoh : ∀ loc : address, coherent_loc m loc (resource_at σ loc)) :
-    resource_map_auth γ Tsh Mem.empty ==∗ resource_map_auth γ Tsh m ∗
+    resource_map_auth γ 1 Mem.empty ==∗ resource_map_auth γ 1 m ∗
     ([∗ map] l ↦ x ∈ σ, match x with
                         | Cinl (shared.YES dq _ v) => l ↪[γ]{dq} (proj1_sig (elem_of_agree v))
-                        | Cinl (shared.NO sh _) => resource_map_elem_no γ l sh
+                        | Cinl (shared.NO (Share sh) _) => resource_map_elem_no γ l sh
                         | Cinr v => l ↪[γ]p (proj1_sig (elem_of_agree v))
-                        | CsumBot => False
+                        | _ => False
                         end).
   Proof.
     iIntros "H".
@@ -468,6 +481,7 @@ Section lemmas.
       specialize (Hvalid n); rewrite agree_validN_def in Hvalid.
       split=> b /=; setoid_rewrite elem_of_list_singleton; eauto.
     - rewrite resource_map.resource_map_elem_no_unseal /resource_map.resource_map_elem_no_def.
+      destruct sh; try done.
       iIntros "?"; iExists rsh; done.
     - rewrite resource_map.resource_map_elem_pure_unseal /resource_map.resource_map_elem_pure_def /juicy_view_frag_pure.
       rewrite own_proper //.

@@ -1,9 +1,9 @@
 From iris.algebra Require Export gmap agree csum.
-From iris.algebra Require Import local_updates proofmode_classes big_op.
+From iris.algebra Require Import local_updates proofmode_classes big_op view.
 From VST.zlist Require Import sublist.
 From VST.msl Require Import shares.
 From iris_ora.algebra Require Export ora gmap agree osum.
-From VST.veric Require Export base Memory share_alg dfrac view shared.
+From VST.veric Require Export base Memory share_alg dshare view shared.
 From iris.prelude Require Import options.
 
 (* We can't import compcert.lib.Maps because their lookup notations conflict with stdpp's.
@@ -39,12 +39,13 @@ Definition perm_of_sh (sh: Share.t): option permission :=
             else Some Nonempty.
 Functional Scheme perm_of_sh_ind := Induction for perm_of_sh Sort Prop.
 
+Definition perm_of_sh' (s : share_car) :=
+  match s with Share sh => perm_of_sh sh | ShareBot => None end.
+
 Definition perm_of_dfrac dq :=
   match dq with
-  | DfracOwn sh => perm_of_sh sh
-  | DfracDiscarded => Some Readable (* This doesn't work for function pointers, since CompCert models
-      them with max perm Nonempty, even though they carry data. *)
-  | DfracBoth sh => if Mem.perm_order'_dec (perm_of_sh sh) Readable then perm_of_sh sh else Some Readable
+  | DfracOwn sh => perm_of_sh' sh
+  | DfracBoth sh => if Mem.perm_order'_dec (perm_of_sh' sh) Readable then perm_of_sh' sh else Some Readable
   end.
 
 Definition perm_of_res' {V} (r: option (dfrac * V)) :=
@@ -53,22 +54,29 @@ Definition perm_of_res' {V} (r: option (dfrac * V)) :=
   | None => None
   end.
 
-Lemma perm_of_sh_mono : forall (sh1 sh2 : shareR), sh1 ⋅ sh2 ≠ Share.bot -> Mem.perm_order'' (perm_of_sh (sh1 ⋅ sh2)) (perm_of_sh sh1).
+Lemma perm_of_sh_bot : perm_of_sh Share.bot = None.
+Proof.
+  rewrite /perm_of_sh.
+  pose proof bot_unreadable.
+  rewrite eq_dec_refl !if_false; auto.
+Qed.
+
+Lemma perm_of_sh_mono : forall (sh1 sh2 : shareR), ✓ (sh1 ⋅ sh2) -> Mem.perm_order'' (perm_of_sh' (sh1 ⋅ sh2)) (perm_of_sh' sh1).
 Proof.
   intros ?? H.
-  pose proof (proj1 (share_op_equiv sh1 sh2 _) eq_refl) as J.
-  rewrite -> if_false in J by auto; destruct J as (? & ? & J).
-  unfold perm_of_sh.
-  destruct (writable0_share_dec sh1).
+  apply share_valid2_joins in H as (s1 & s2 & ? & -> & -> & H & J).
+  rewrite H /= /perm_of_sh.
+  destruct (writable0_share_dec s1).
   { eapply join_writable01 in w; eauto.
     rewrite -> if_true by auto.
     if_tac; if_tac; simpl; try constructor.
-    subst; rewrite -> (@only_bot_joins_top sh2) in H1 by (eexists; eauto); contradiction. }
+    subst; apply join_Tsh in J as (-> & ->); done. }
   if_tac; [repeat if_tac; constructor|].
-  destruct (readable_share_dec sh1).
+  destruct (readable_share_dec s1).
   { eapply join_readable1 in r; eauto.
     rewrite (if_true _ _ _ _ _ r); constructor. }
-  repeat if_tac; try constructor; contradiction.
+  repeat if_tac; try constructor.
+  subst; apply join_Bot in J as (-> & ->); done.
 Qed.
 
 Lemma perm_order_antisym : forall p1 p2, ~perm_order p1 p2 -> perm_order p2 p1.
@@ -84,17 +92,15 @@ Qed.
 Lemma perm_of_dfrac_mono : forall d1 d2, ✓d2 -> d1 ≼ d2 -> Mem.perm_order'' (perm_of_dfrac d2) (perm_of_dfrac d1).
 Proof.
   intros ?? Hv [d0 ->%leibniz_equiv].
-  destruct d1, d0; simpl in *; repeat if_tac; auto; try (apply perm_order''_refl || (by apply perm_of_sh_mono) || (by destruct Hv; apply perm_of_sh_mono) || constructor).
-  - by apply perm_order'_antisym.
-  - destruct Hv; eapply perm_order''_trans, perm_of_sh_mono; [apply perm_order'_antisym|]; eauto.
-  - destruct Hv; eapply perm_order''_trans, perm_of_sh_mono; [apply perm_order'_antisym|]; eauto.
-  - destruct Hv; eapply perm_order''_trans, perm_of_sh_mono; [apply perm_order'_antisym|]; eauto.
+  destruct d1, d0; simpl in *; repeat if_tac; auto; try (apply perm_order''_refl || (by apply perm_of_sh_mono) || (by destruct Hv as (? & Hop & ?); apply perm_of_sh_mono; rewrite Hop) || constructor).
+  - destruct Hv as (? & Hv & ?); eapply perm_order''_trans, perm_of_sh_mono; [apply perm_order'_antisym|]; eauto; rewrite Hv //.
+  - destruct Hv as (? & Hv & ?); eapply perm_order''_trans, perm_of_sh_mono; [apply perm_order'_antisym|]; eauto; rewrite Hv //.
+  - destruct Hv as (? & Hv & ?); eapply perm_order''_trans, perm_of_sh_mono; [apply perm_order'_antisym|]; eauto; rewrite Hv //.
 Qed.
 
 Class resource_ops (V : ofe) := {
   perm_of_res : option (dfrac * option V) -> option permission;
   memval_of : V -> option memval;
-  perm_of_res_None : perm_of_res None = None;
   perm_of_res_mono : forall d1 d2 (r : option V), ✓d2 -> d1 ≼ d2 -> Mem.perm_order'' (perm_of_res (Some (d2, r))) (perm_of_res (Some (d1, r)));
   perm_of_res_discarded : forall d (r : option V), readable_dfrac d -> Mem.perm_order'' (perm_of_res (Some (d, r))) (perm_of_res (Some (DfracDiscarded, r))) ∧
     forall d2, ✓(d ⋅ d2) -> Mem.perm_order'' (perm_of_res (Some (d ⋅ d2, r))) (perm_of_res (Some (DfracDiscarded ⋅ d2, r)));
@@ -117,6 +123,19 @@ Section rel.
   Implicit Types (m : Memory.mem) (k : address) (r : option (dfrac * option V)) (v : memval) (n : nat).
   Implicit Types (f : gmap address (csum (shared V) (agree V))).
 
+  Lemma perm_of_res_None : perm_of_res None = None.
+  Proof.
+    pose proof (perm_of_res_max None) as H; simpl in H.
+    destruct (perm_of_res None); done.
+  Qed.
+
+  Lemma perm_of_res_bot : perm_of_res (Some (ε, None)) = None.
+  Proof.
+    pose proof (perm_of_res_max (Some (ε, None))) as H; simpl in H.
+    rewrite perm_of_sh_bot in H; simpl in H.
+    destruct (perm_of_res _); done.
+  Qed.
+
   Notation rmap := (gmap address (csum (shared V) (agree V))).
 
   Definition elem_of_agree {A} (x : agree A) : { a | a ∈ agree_car x}.
@@ -138,8 +157,8 @@ Section rel.
   Definition dfrac_of' (s : csum (shared V) (agree V)) :=
     match s with
     | Cinl s => dfrac_of s
-    | Cinr v => DfracOwn Share.Lsh
-    | _ => DfracOwn Share.bot
+    | Cinr v => DfracOwn (Share Share.Lsh)
+    | _ => DfracOwn ShareBot
     end.
 
   Definition val_of' (s : csum (shared V) (agree V)) :=
@@ -167,8 +186,7 @@ Section rel.
   Lemma dfrac_of'_validN : forall n s, ✓{n} s -> ✓{n} (dfrac_of' s).
   Proof.
     destruct s; try done.
-    - by intros [??]%shared_validN.
-    - intros; apply Lsh_bot_neq.
+    by intros [??]%shared_validN.
   Qed.
 
   Lemma val_of'_ne : forall n s1 s2, s1 ≡{n}≡ s2 -> val_of' s1 ≡{n}≡ val_of' s2.
@@ -308,6 +326,15 @@ Section rel.
     - by intros ?.
     - rewrite /access_cohere perm_of_res_None; apply perm_order''_None.
     - apply perm_order''_None.
+  Qed.
+
+  Lemma coherent_bot m k : (k.1 < Mem.nextblock m)%positive -> coherent_loc m k (Some (ε, None)).
+  Proof.
+    repeat split.
+    - by intros ?.
+    - rewrite /access_cohere /= perm_of_res_bot; apply perm_order''_None.
+    - rewrite /max_access_cohere /access_cohere /= perm_of_sh_bot; apply perm_order''_None.
+    - intros ?; lia.
   Qed.
 
   Local Lemma coherent_unit n :
@@ -518,19 +545,19 @@ Local Existing Instance coherent_rel_discrete.
 to infer the right instances (see [auth]). *)
 Notation juicy_view V := (view (@coherent _ _ V)).
 Definition juicy_viewO (V : ofe) `{resource_ops V} : ofe := viewO (coherent_rel V).
-Definition juicy_viewC (V : ofe) `{resource_ops V} : cmra := viewC (coherent_rel V).
-Definition juicy_viewUC (V : ofe) `{resource_ops V} : ucmra := viewUC (coherent_rel V).
+Definition juicy_viewC (V : ofe) `{resource_ops V} : cmra := algebra.view.viewR (coherent_rel V).
+Definition juicy_viewUC (V : ofe) `{resource_ops V} : ucmra := algebra.view.viewUR (coherent_rel V).
 Canonical Structure juicy_viewR (V : ofe) `{resource_ops V} : ora := view.viewR (coherent_rel V) (coherent_rel_order V).
 Canonical Structure juicy_viewUR (V : ofe) `{resource_ops V} : uora := viewUR (coherent_rel V).
 
 Section definitions.
   Context {V : ofe} {ResOps : resource_ops V}.
 
-  Definition juicy_view_auth (dq : dfrac) (m : leibnizO mem) : juicy_viewUR V :=
+  Definition juicy_view_auth (dq : dfrac.dfrac) (m : leibnizO mem) : juicy_viewUR V :=
     ●V{dq} m.
   Definition juicy_view_frag (k : address) (dq : dfrac) (rsh : readable_dfrac dq) (v : V) : juicy_viewUR V :=
     ◯V {[k := Cinl (YES dq rsh (to_agree v))]}.
-  Definition juicy_view_frag_no (k : address) (dq : share) (rsh : ~readable_share dq) : juicy_viewUR V :=
+  Definition juicy_view_frag_no (k : address) (dq : shareO) (rsh : ~readable_share' dq) : juicy_viewUR V :=
     ◯V {[k := Cinl (NO dq rsh)]}.
   Definition juicy_view_frag_pure (k : address) (v : V) : juicy_viewUR V :=
     ◯V {[k := Cinr (to_agree v)]}.
@@ -540,7 +567,7 @@ Require Import VST.sepcomp.mem_lemmas.
 
 Section lemmas.
   Context {V : ofe} {ResOps : resource_ops V}.
-  Implicit Types (m : mem) (q : shareR) (dq : dfrac) (v : V).
+  Implicit Types (m : mem) (q : shareR) (v : V).
 
   Global Instance : Params (@juicy_view_auth) 3 := {}.
   Global Instance juicy_view_auth_ne dq : NonExpansive (juicy_view_auth (V:=V) dq).
@@ -607,7 +634,7 @@ Section lemmas.
   Proof.
     rewrite view_auth_dfrac_valid. intuition. apply coherent_rel_unit.
   Qed.
-  Lemma juicy_view_auth_valid m : ✓ juicy_view_auth (DfracOwn Tsh) m.
+  Lemma juicy_view_auth_valid m : ✓ juicy_view_auth (dfrac.DfracOwn 1) m.
   Proof. rewrite juicy_view_auth_dfrac_valid. done. Qed.
 
   Lemma juicy_view_auth_dfrac_op_validN n dq1 dq2 m1 m2 :
@@ -622,10 +649,10 @@ Section lemmas.
   Qed.
 
   Lemma juicy_view_auth_op_validN n m1 m2 :
-    ✓{n} (juicy_view_auth (DfracOwn Tsh) m1 ⋅ juicy_view_auth (DfracOwn Tsh) m2) ↔ False.
+    ✓{n} (juicy_view_auth (dfrac.DfracOwn 1) m1 ⋅ juicy_view_auth (dfrac.DfracOwn 1) m2) ↔ False.
   Proof. apply view_auth_op_validN. Qed.
   Lemma juicy_view_auth_op_valid m1 m2 :
-    ✓ (juicy_view_auth (DfracOwn Tsh) m1 ⋅ juicy_view_auth (DfracOwn Tsh) m2) ↔ False.
+    ✓ (juicy_view_auth (dfrac.DfracOwn 1) m1 ⋅ juicy_view_auth (dfrac.DfracOwn 1) m2) ↔ False.
   Proof. apply view_auth_op_valid. Qed.
 
   Lemma juicy_view_frag_validN n k dq rsh v : ✓{n} juicy_view_frag k dq rsh v ↔ ✓ dq.
@@ -685,7 +712,7 @@ Section lemmas.
     by destruct H.
   Qed.
   Lemma juicy_view_both_validN n m k dq rsh v :
-    ✓{n} (juicy_view_auth (DfracOwn Tsh) m ⋅ juicy_view_frag k dq rsh v) ↔
+    ✓{n} (juicy_view_auth (dfrac.DfracOwn 1) m ⋅ juicy_view_frag k dq rsh v) ↔
       ✓ dq ∧ coherent_loc m k (Some (dq, Some v)).
   Proof. rewrite juicy_view_both_dfrac_validN. naive_solver done. Qed.
   Lemma juicy_view_both_dfrac_valid dp m k dq rsh v :
@@ -699,7 +726,7 @@ Section lemmas.
     intros [? H]; split; auto; split; apply (H 0).
   Qed.
   Lemma juicy_view_both_valid m k dq rsh v :
-    ✓ (juicy_view_auth (DfracOwn Tsh) m ⋅ juicy_view_frag k dq rsh v) ↔
+    ✓ (juicy_view_auth (dfrac.DfracOwn 1) m ⋅ juicy_view_frag k dq rsh v) ↔
     ✓ dq ∧ coherent_loc m k (Some (dq, Some v)).
   Proof. rewrite juicy_view_both_dfrac_valid. naive_solver done. Qed.
 
@@ -721,7 +748,7 @@ Section lemmas.
     rewrite view_both_dfrac_validN coherent_rel_lookup //.
   Qed.
   Lemma juicy_view_both_no_validN n m k sh rsh :
-    ✓{n} (juicy_view_auth (DfracOwn Tsh) m ⋅ juicy_view_frag_no k sh rsh) ↔
+    ✓{n} (juicy_view_auth (dfrac.DfracOwn 1) m ⋅ juicy_view_frag_no k sh rsh) ↔
       ✓ sh ∧ coherent_loc m k (Some (DfracOwn sh, None)).
   Proof. rewrite juicy_view_both_no_dfrac_validN. naive_solver done. Qed.
   Lemma juicy_view_both_no_dfrac_valid dp m k sh rsh :
@@ -734,7 +761,7 @@ Section lemmas.
     intros [? H]; split; auto; split; apply (H 0).
   Qed.
   Lemma juicy_view_both_no_valid m k sh rsh :
-    ✓ (juicy_view_auth (DfracOwn Tsh) m ⋅ juicy_view_frag_no k sh rsh) ↔
+    ✓ (juicy_view_auth (dfrac.DfracOwn 1) m ⋅ juicy_view_frag_no k sh rsh) ↔
     ✓ sh ∧ coherent_loc m k (Some (DfracOwn sh, None)).
   Proof. rewrite juicy_view_both_no_dfrac_valid. naive_solver done. Qed.
 
@@ -757,10 +784,9 @@ Section lemmas.
   Proof.
     rewrite view_frag_valid. setoid_rewrite coherent_rel_exists.
     rewrite -cmra_valid_validN singleton_op singleton_valid -Cinl_op NO_YES_op'.
-    if_tac; last destruct (readable_dfrac_dec _).
+    destruct (readable_dfrac_dec _).
     - subst; split; try done.
       destruct dq2; intros [? Hv] || intros Hv; hnf in Hv; try done; rewrite bot_op_share // in Hv.
-    - split; try done; intros [? Hv]; done.
     - apply dfrac_op_readable in n; auto.
       split; first done. apply dfrac_error_invalid in n; done.
   Qed.
@@ -777,19 +803,19 @@ Section lemmas.
 
   Lemma juicy_view_both_pure_dfrac_validN n dp m k v :
     ✓{n} (juicy_view_auth dp m ⋅ juicy_view_frag_pure k v) ↔
-      ✓ dp ∧ coherent_loc m k (Some (DfracOwn Share.Lsh, Some v)).
+      ✓ dp ∧ coherent_loc m k (Some (DfracOwn (Share Share.Lsh), Some v)).
   Proof.
     rewrite /juicy_view_auth /juicy_view_frag_pure.
     rewrite view_both_dfrac_validN coherent_rel_lookup /=.
     rewrite elem_of_to_agree; naive_solver.
   Qed.
   Lemma juicy_view_both_pure_validN n m k v :
-    ✓{n} (juicy_view_auth (DfracOwn Tsh) m ⋅ juicy_view_frag_pure k v) ↔
-      coherent_loc m k (Some (DfracOwn Share.Lsh, Some v)).
+    ✓{n} (juicy_view_auth (dfrac.DfracOwn 1) m ⋅ juicy_view_frag_pure k v) ↔
+      coherent_loc m k (Some (DfracOwn (Share Share.Lsh), Some v)).
   Proof. rewrite juicy_view_both_pure_dfrac_validN. naive_solver done. Qed.
   Lemma juicy_view_both_pure_dfrac_valid dp m k v :
     ✓ (juicy_view_auth dp m ⋅ juicy_view_frag_pure k v) ↔
-    ✓ dp ∧ coherent_loc m k (Some (DfracOwn Share.Lsh, Some v)).
+    ✓ dp ∧ coherent_loc m k (Some (DfracOwn (Share Share.Lsh), Some v)).
   Proof.
     rewrite /juicy_view_auth /juicy_view_frag_pure.
     rewrite view_both_dfrac_valid. setoid_rewrite coherent_rel_lookup; simpl.
@@ -798,8 +824,8 @@ Section lemmas.
     intros [? H]; split; auto; split; apply (H 0).
   Qed.
   Lemma juicy_view_both_pure_valid m k v :
-    ✓ (juicy_view_auth (DfracOwn Tsh) m ⋅ juicy_view_frag_pure k v) ↔
-    coherent_loc m k (Some (DfracOwn Share.Lsh, Some v)).
+    ✓ (juicy_view_auth (dfrac.DfracOwn 1) m ⋅ juicy_view_frag_pure k v) ↔
+    coherent_loc m k (Some (DfracOwn (Share Share.Lsh), Some v)).
   Proof. rewrite juicy_view_both_pure_dfrac_valid. naive_solver done. Qed.
 
   Lemma juicy_view_frag_pure_op_validN n k v1 v2 :
@@ -881,16 +907,16 @@ Section lemmas.
   Qed.
 
   Lemma juicy_view_alloc m lo hi m' b v (Halloc : Mem.alloc m lo hi = (m', b)) (Hundef : memval_of v = Some Undef) :
-    juicy_view_auth (DfracOwn Tsh) m ~~>
-    juicy_view_auth (DfracOwn Tsh) m' ⋅ ([^op list] i↦v ∈ replicate (Z.to_nat (hi - lo)) v, juicy_view_frag (adr_add (b, lo) (Z.of_nat i)) (DfracOwn Tsh) readable_Tsh v).
+    juicy_view_auth (dfrac.DfracOwn 1) m ~~>
+    juicy_view_auth (dfrac.DfracOwn 1) m' ⋅ ([^op list] i↦v ∈ replicate (Z.to_nat (hi - lo)) v, juicy_view_frag (adr_add (b, lo) (Z.of_nat i)) (DfracOwn (Share Tsh)) readable_Tsh v).
   Proof.
     rewrite -big_opL_view_frag; apply view_update_alloc=>n bf [Hv Hcoh].
     pose proof (Mem.alloc_result _ _ _ _ _ Halloc) as ->.
     assert (forall i, if decide (fst i = Mem.nextblock m) then bf !! i = None /\
       (([^op list] k↦x ∈ replicate (Z.to_nat (hi - lo)) v, {[adr_add (Mem.nextblock m, lo) (Z.of_nat k)
-                                                    := Cinl (YES (DfracOwn Tsh) readable_Tsh (to_agree x))]} : juicy_view_fragUR V) !! i) ≡ (if adr_range_dec (Mem.nextblock m, lo) (hi - lo) i then Some (Cinl (YES (DfracOwn Tsh) readable_Tsh (to_agree v))) else None)
+                                                    := Cinl (YES (DfracOwn (Share Tsh)) readable_Tsh (to_agree x))]} : juicy_view_fragUR V) !! i) ≡ (if adr_range_dec (Mem.nextblock m, lo) (hi - lo) i then Some (Cinl (YES (DfracOwn (Share Tsh)) readable_Tsh (to_agree v))) else None)
       else ([^op list] k↦x ∈ replicate (Z.to_nat (hi - lo)) v, {[adr_add (Mem.nextblock m, lo) (Z.of_nat k)
-                                                    := Cinl (YES (DfracOwn Tsh) readable_Tsh (to_agree x))]} : juicy_view_fragUR V) !! i = None) as Hlookup.
+                                                    := Cinl (YES (DfracOwn (Share Tsh)) readable_Tsh (to_agree x))]} : juicy_view_fragUR V) !! i = None) as Hlookup.
     { intros; if_tac.
       - split.
         + destruct (Hcoh i) as (_ & _ & _ & Hnext).
@@ -902,7 +928,7 @@ Section lemmas.
           * destruct H0 as [_ ?]; split; try done; lia.
           * intros [_ ?]; contradiction H0.
             split; try done; lia.
-      - pose proof (lookup_singleton_list(B := csumR (sharedR V) (agreeR V)) (replicate (Z.to_nat (hi - lo)) v) (fun x => Cinl (YES (DfracOwn Tsh) readable_Tsh (to_agree x))) (Mem.nextblock m, lo) i) as Hequiv.
+      - pose proof (lookup_singleton_list(B := csumR (sharedR V) (agreeR V)) (replicate (Z.to_nat (hi - lo)) v) (fun x => Cinl (YES (DfracOwn (Share Tsh)) readable_Tsh (to_agree x))) (Mem.nextblock m, lo) i) as Hequiv.
         rewrite if_false in Hequiv; last by destruct i; intros [??].
         by inv Hequiv. }
     split.
@@ -956,13 +982,13 @@ Section lemmas.
   Qed.
 
   Lemma juicy_view_free m b lo hi m' Hr vl (Hfree : Mem.free m b lo hi = Some m') (Hlen : length vl = Z.to_nat (hi - lo)) :
-    juicy_view_auth (DfracOwn Tsh) m ⋅ ([^op list] i↦v ∈ vl, juicy_view_frag (adr_add (b, lo) (Z.of_nat i)) (DfracOwn Tsh) Hr v) ~~>
-    juicy_view_auth (DfracOwn Tsh) m'.
+    juicy_view_auth (dfrac.DfracOwn 1) m ⋅ ([^op list] i↦v ∈ vl, juicy_view_frag (adr_add (b, lo) (Z.of_nat i)) (DfracOwn (Share Tsh)) Hr v) ~~>
+    juicy_view_auth (dfrac.DfracOwn 1) m'.
   Proof.
     rewrite -big_opL_view_frag; apply view_update_dealloc=>n bf [Hv Hcoh].
-    assert (forall i, if adr_range_dec (b, lo) (hi - lo) i then exists v, vl !! (Z.to_nat (snd i - lo)) = Some v /\ bf !! i = None /\
-      (([^op list] k↦x ∈ vl, {[adr_add (b, lo) k := Cinl (YES (DfracOwn Tsh) Hr (to_agree x))]}) ⋅ bf) !! i ≡ Some (Cinl (YES (DfracOwn Tsh) Hr (to_agree v)))
-      else (([^op list] k↦x ∈ vl, {[adr_add (b, lo) k := Cinl (YES (DfracOwn Tsh) Hr (to_agree x))]}) ⋅ bf) !! i ≡ bf !! i) as Hlookup.
+    assert (forall i, if adr_range_dec (b, lo) (hi - lo) i then exists v, vl !! (Z.to_nat (snd i - lo)) = Some v /\ (bf !! i = None ∨ bf !! i ≡ Some (Cinl ε)) /\
+      (([^op list] k↦x ∈ vl, {[adr_add (b, lo) k := Cinl (YES (DfracOwn (Share Tsh)) Hr (to_agree x))]}) ⋅ bf) !! i ≡ Some (Cinl (YES (DfracOwn (Share Tsh)) Hr (to_agree v)))
+      else (([^op list] k↦x ∈ vl, {[adr_add (b, lo) k := Cinl (YES (DfracOwn (Share Tsh)) Hr (to_agree x))]}) ⋅ bf) !! i ≡ bf !! i) as Hlookup.
     { intros i; specialize (Hv i).
       rewrite !lookup_op !(lookup_singleton_list) Hlen in Hv.
       rewrite lookup_op.
@@ -979,21 +1005,36 @@ Section lemmas.
         rewrite lookup_singleton_list.
         rewrite Hlen !if_true; [|split; rewrite ?Z2Nat.id; auto; lia..].
         rewrite H /= in Hv |- *.
-        destruct (bf !! (b0, o)) eqn: Hbf; rewrite Hbf in Hv |- *; last done.
-        destruct o0; try done.
+        destruct (bf !! (b0, o)) as [bfi|] eqn: Hbf; rewrite Hbf in Hv |- *; last auto.
+        destruct bfi as [bfi | |]; try done.
         apply shared_validN in Hv as [Hdf _].
         rewrite dfrac_of_op' in Hdf; destruct (dfrac_error _); try done.
-        apply dfrac_full_exclusive in Hdf; done.
+        apply dfrac_full_exclusive in Hdf.
+        destruct bfi; simpl in *; subst.
+        { contradiction bot_unreadable. }
+        assert (Some (Cinl(B := agreeR V) (NO sh rsh)) ≡ Some (Cinl (ε : shared V))) as Heq.
+        { inv Hdf; repeat constructor. }
+        split; auto.
+        rewrite Heq -Some_op -Cinl_op.
+        f_equiv; f_equiv.
+        rewrite right_id //.
       * rewrite !lookup_singleton_list Hlen !if_false; last by rewrite Z2Nat.id //; lia.
         rewrite left_id //. }
     split.
     - intros i; specialize (Hv i); specialize (Hlookup i).
       if_tac in Hlookup; last by rewrite Hlookup in Hv.
-      destruct Hlookup as (? & ? & Hbf & _); rewrite Hbf //.
+      destruct Hlookup as (? & ? & [Hbf | Hbf] & _); rewrite Hbf //.
     - intros i; specialize (Hcoh i); specialize (Hlookup i); unfold resource_at in *.
       if_tac in Hlookup.
-      + destruct Hlookup as (? & ? & Hbf & ?); rewrite Hbf.
-        apply coherent_None.
+      + destruct Hlookup as (? & ? & [Hbf | Hbf] & Hi).
+        * rewrite Hbf; apply coherent_None.
+        * eapply (coherent_loc_ne O); [| symmetry; apply equiv_dist, Hbf |]; first done.
+          apply coherent_bot.
+          eapply coherent_loc_ne in Hcoh; last (apply equiv_dist, Hi); last done.
+          destruct Hcoh as (_ & _ & _ & Halloc); hnf in Halloc.
+          erewrite Mem.nextblock_free by done.
+          destruct (plt i.1 (Mem.nextblock m)); first done.
+          unfold Plt in *; specialize (Halloc ltac:(lia)); done.
       + eapply coherent_loc_ne; [| apply equiv_dist, Hlookup |]; first done.
         eapply coherent_free_outside; eauto.
   Qed.
@@ -1051,25 +1092,24 @@ Section lemmas.
   Qed.
 
   Lemma writable_op_unreadable : forall n sh (Hr : readable_share sh) (v : agree V) (Hsh : writable0_share sh) x,
-    ✓{n} (YES (DfracOwn sh) Hr v ⋅ x) ->
-    exists sh' (nsh : ~readable_share sh'), x = NO sh' nsh ∧ exists rsh, forall (v : agree V), YES (DfracOwn sh) Hr v ⋅ x = YES (DfracOwn (sh ⋅ sh')) rsh v.
+    ✓{n} (YES (DfracOwn (Share sh)) Hr v ⋅ x) ->
+    exists sh' (nsh : ~readable_share' sh'), x = NO sh' nsh ∧ exists rsh, forall (v : agree V), YES (DfracOwn (Share sh)) Hr v ⋅ x = YES (DfracOwn (Share sh ⋅ sh')) rsh v.
   Proof.
     intros.
-    rewrite /op /ora_op /= in H |- *.
+    rewrite /op /ora_op /sharedR /shared_op_instance in H |- *.
     destruct x.
     - destruct (readable_dfrac_dec _); try done.
       destruct H as [H _].
-      rewrite comm in H; apply dfrac_valid_own_readable in H; tauto.
-    - if_tac in H; try done.
-      destruct (readable_share_dec _); try done; eauto.
+      rewrite comm in H; apply dfrac_valid_own_readable in H as (? & [=] & ?); subst; done.
+    - destruct (readable_dfrac_dec _); try done; eauto.
   Qed.
 
   Lemma juicy_view_storebyte m m' k v v' b sh (Hr : readable_share sh) (Hsh : writable0_share sh)
     (Hstore : Mem.storebytes m k.1 k.2 [b] = Some m')
     (Hb : memval_of v' = Some b)
-    (Hperm : forall sh', sepalg.join_sub sh sh' -> Mem.perm_order'' (perm_of_res (Some (DfracOwn sh', Some v))) (perm_of_res (Some (DfracOwn sh', Some v')))) :
-      juicy_view_auth (DfracOwn Tsh) m ⋅ juicy_view_frag k (DfracOwn sh) Hr v ~~>
-      juicy_view_auth (DfracOwn Tsh) m' ⋅ juicy_view_frag k (DfracOwn sh) Hr v'.
+    (Hperm : forall sh', sepalg.join_sub sh sh' -> Mem.perm_order'' (perm_of_res (Some (DfracOwn (Share sh'), Some v))) (perm_of_res (Some (DfracOwn (Share sh'), Some v')))) :
+      juicy_view_auth (dfrac.DfracOwn 1) m ⋅ juicy_view_frag k (DfracOwn (Share sh)) Hr v ~~>
+      juicy_view_auth (dfrac.DfracOwn 1) m' ⋅ juicy_view_frag k (DfracOwn (Share sh)) Hr v'.
   Proof.
     apply view_update; intros ?? [Hv Hcoh].
     split.
@@ -1088,9 +1128,9 @@ Section lemmas.
         rewrite /= -?Some_op -Cinl_op !Hop /= in Hcoh Hv |- *.
         destruct k as (?, o); rewrite !elem_of_to_agree -(Z.add_0_r o) in Hcoh |- *.
         eapply (coherent_store_in _ _ _ _ _ O); eauto.
-        apply Hperm; destruct Hv as [Hv _].
-        edestruct share_op_join as [(? & ? & J) _]; first apply Hv; first done.
-        by eexists.
+        destruct Hv as (Hd & Hv).
+        apply share_valid2_joins in Hd as (? & ? & ? & [=] & -> & Heq & J); subst; rewrite Heq.
+        apply Hperm; by eexists.
       + destruct k as (?, o); rewrite !elem_of_to_agree -(Z.add_0_r o) in Hcoh |- *.
         eapply (coherent_store_in _ _ _ _ _ O); eauto.
         apply Hperm, sepalg.join_sub_refl.
@@ -1103,18 +1143,18 @@ Section lemmas.
   Lemma juicy_view_storebytes m m' k (vl vl' : list V) bl sh (Hr : readable_share sh) (Hsh : writable0_share sh)
     (Hstore : Mem.storebytes m k.1 k.2 bl = Some m')
     (Hv' : Forall2 (fun v' b => memval_of v' = Some b) vl' bl)
-    (Hperm : Forall2 (fun v v' => forall sh', sepalg.join_sub sh sh' -> Mem.perm_order'' (perm_of_res (Some (DfracOwn sh', Some v))) (perm_of_res (Some (DfracOwn sh', Some v')))) vl vl') :
-      juicy_view_auth (DfracOwn Tsh) m ⋅ ([^op list] i↦v ∈ vl, juicy_view_frag (adr_add k (Z.of_nat i)) (DfracOwn sh) Hr v) ~~>
-      juicy_view_auth (DfracOwn Tsh) m' ⋅ ([^op list] i↦v ∈ vl', juicy_view_frag (adr_add k (Z.of_nat i)) (DfracOwn sh) Hr v).
+    (Hperm : Forall2 (fun v v' => forall sh', sepalg.join_sub sh sh' -> Mem.perm_order'' (perm_of_res (Some (DfracOwn (Share sh'), Some v))) (perm_of_res (Some (DfracOwn (Share sh'), Some v')))) vl vl') :
+      juicy_view_auth (dfrac.DfracOwn 1) m ⋅ ([^op list] i↦v ∈ vl, juicy_view_frag (adr_add k (Z.of_nat i)) (DfracOwn (Share sh)) Hr v) ~~>
+      juicy_view_auth (dfrac.DfracOwn 1) m' ⋅ ([^op list] i↦v ∈ vl', juicy_view_frag (adr_add k (Z.of_nat i)) (DfracOwn (Share sh)) Hr v).
   Proof.
     rewrite -!big_opL_view_frag; apply view_update; intros ?? [Hv Hcoh].
     assert (forall i, if adr_range_dec k (Z.of_nat (length vl)) i then
       exists v v', vl !! (Z.to_nat (i.2 - k.2)) = Some v /\ vl' !! (Z.to_nat (i.2 - k.2)) = Some v' /\ exists sh' rsh', sepalg.join_sub sh sh' /\
-      (([^op list] k0↦x ∈ vl, {[adr_add k (Z.of_nat k0) := Cinl (YES (DfracOwn sh) Hr (to_agree x))]}) ⋅ bf) !! i ≡ Some (Cinl (YES (DfracOwn sh') rsh' (to_agree v))) /\
-      (([^op list] k0↦x ∈ vl', {[adr_add k (Z.of_nat k0) := Cinl (YES (DfracOwn sh) Hr (to_agree x))]}) ⋅ bf) !! i ≡ Some (Cinl (YES (DfracOwn sh') rsh' (to_agree v')))
+      (([^op list] k0↦x ∈ vl, {[adr_add k (Z.of_nat k0) := Cinl (YES (DfracOwn (Share sh)) Hr (to_agree x))]}) ⋅ bf) !! i ≡ Some (Cinl (YES (DfracOwn (Share sh')) rsh' (to_agree v))) /\
+      (([^op list] k0↦x ∈ vl', {[adr_add k (Z.of_nat k0) := Cinl (YES (DfracOwn (Share sh)) Hr (to_agree x))]}) ⋅ bf) !! i ≡ Some (Cinl (YES (DfracOwn (Share sh')) rsh' (to_agree v')))
       else
-      ((([^op list] k0↦x ∈ vl, {[adr_add k (Z.of_nat k0) := Cinl (YES (DfracOwn sh) Hr (to_agree x))]}) ⋅ bf) !! i ≡
-       (([^op list] k0↦x ∈ vl', {[adr_add k (Z.of_nat k0) := Cinl (YES (DfracOwn sh) Hr (to_agree x))]}) ⋅ bf) !! i)) as Hlookup.
+      ((([^op list] k0↦x ∈ vl, {[adr_add k (Z.of_nat k0) := Cinl (YES (DfracOwn (Share sh)) Hr (to_agree x))]}) ⋅ bf) !! i ≡
+       (([^op list] k0↦x ∈ vl', {[adr_add k (Z.of_nat k0) := Cinl (YES (DfracOwn (Share sh)) Hr (to_agree x))]}) ⋅ bf) !! i)) as Hlookup.
     { intros i; specialize (Hv i).
       pose proof (Forall2_length Hperm) as Hlen.
       rewrite !lookup_op !(lookup_singleton_list) in Hv; if_tac.
@@ -1122,17 +1162,18 @@ Section lemmas.
         destruct (lookup_lt_is_Some_2 vl (Z.to_nat (o' - o))) as (? & Hv1); first lia.
         destruct (lookup_lt_is_Some_2 vl' (Z.to_nat (o' - o))) as (? & Hv2); first lia.
         eexists _, _; split; first done; split; first done.
-        rewrite !lookup_op; setoid_rewrite (lookup_singleton_list vl (fun v => Cinl (YES (DfracOwn sh) Hr (to_agree v))));
-          setoid_rewrite (lookup_singleton_list vl' (fun v => Cinl (YES (DfracOwn sh) Hr (to_agree v)))).
+        rewrite !lookup_op; setoid_rewrite (lookup_singleton_list vl (fun v => Cinl (YES (DfracOwn (Share sh)) Hr (to_agree v))));
+          setoid_rewrite (lookup_singleton_list vl' (fun v => Cinl (YES (DfracOwn (Share sh)) Hr (to_agree v)))).
         rewrite -Hlen !if_true; [|split; auto..].
         rewrite Hv1 Hv2 /= in Hv |- *.
         destruct (bf !! (b0, o')) eqn: Hbf; rewrite Hbf in Hv |- *; last by rewrite !op_None_right_id; eexists _, _; split; last done; apply sepalg.join_sub_refl.
         destruct o0; try done.
-        destruct (writable_op_unreadable _ _ _ _ Hsh _ Hv) as (? & ? & -> & ? & Heq).
-        rewrite -!Some_op -!Cinl_op !Heq in Hv |- *; eexists _, _; split; last done.
-        destruct Hv as [Hv _].
-        edestruct share_op_join as [(? & ? & J) _]; first apply Hv; first done.
-        by eexists.
+        destruct (writable_op_unreadable _ _ _ _ Hsh _ Hv) as (? & ? & -> & Hr' & Heq).
+        rewrite -!Some_op -!Cinl_op !Heq in Hv |- *.
+        destruct Hv as [Hv _]; apply share_valid2_joins in Hv as (? & ? & sh' & [=] & ? & Hop & J); subst.
+        assert (readable_share sh') as rsh' by (clear - Hop Hr'; rewrite Hop // in Hr').
+        eexists _, rsh'; split; first by eexists.
+        split; do 2 constructor; split; rewrite ?Hop //.
       * rewrite !lookup_op !lookup_singleton_list -Hlen !if_false //. }
     split; intros i; specialize (Hlookup i).
     - specialize (Hv i).
@@ -1161,8 +1202,8 @@ Section lemmas.
         destruct k; erewrite <- Forall2_length, <- Forall2_length; eauto.
   Qed.
 
-  Lemma juicy_view_auth_persist dq m : readable_dfrac dq ->
-    juicy_view_auth dq m ~~> juicy_view_auth DfracDiscarded m.
+  Lemma juicy_view_auth_persist (dq : dfrac.dfrac) m :
+    juicy_view_auth dq m ~~> juicy_view_auth dfrac.DfracDiscarded m.
   Proof. apply view_update_auth_persist. Qed.
 
   Lemma perm_of_readable_share : forall sh, readable_share sh -> Mem.perm_order' (perm_of_sh sh) Readable.
@@ -1173,27 +1214,27 @@ Section lemmas.
 
   Lemma readable_dfrac_readable : forall dq, readable_dfrac dq -> Mem.perm_order' (perm_of_dfrac dq) Readable.
   Proof.
-    destruct dq; simpl; try if_tac; try constructor; try done.
+    destruct dq as [[|]|[|]]; simpl; try if_tac; try constructor; try done.
     apply perm_of_readable_share.
   Qed.
 
   Lemma readable_dfrac_discarded : forall dq dq', readable_dfrac dq -> ✓(dq ⋅ dq') -> Mem.perm_order'' (perm_of_dfrac (dq ⋅ dq')) (perm_of_dfrac (DfracDiscarded ⋅ dq')).
   Proof.
-    intros ??? Hvalid; destruct dq; [| apply perm_order''_refl |].
+    intros ??? Hvalid; destruct dq.
     - destruct dq'; simpl.
-      + if_tac.
+      + rewrite left_id; if_tac.
         * rewrite (@cmra_comm shareR); apply perm_of_sh_mono; rewrite (@cmra_comm shareR) //.
-        * destruct (readable_dfrac_dec (DfracOwn s ⋅ DfracOwn s0)); first by apply readable_dfrac_readable in r.
+        * destruct (readable_dfrac_dec (DfracOwn o ⋅ DfracOwn o0)); first by apply readable_dfrac_readable in r.
           apply dfrac_op_readable in n; auto.
-          rewrite /dfrac_error /= in n; if_tac in n; done.
-      + if_tac; try done; constructor.
-      + repeat if_tac; try done; try constructor.
-        * destruct Hvalid; rewrite (@cmra_comm shareR); apply perm_of_sh_mono; rewrite (@cmra_comm shareR) //.
+          rewrite /dfrac_error /= in n; hnf in Hvalid.
+          destruct (_ ⋅ _); done.
+      + rewrite left_id; repeat if_tac; try done; try constructor.
+        * destruct Hvalid as (? & Heq & ?); rewrite (@cmra_comm shareR); apply perm_of_sh_mono; rewrite (@cmra_comm shareR) Heq //.
         * contradiction H0; eapply (perm_order''_trans _ _ (Some _)); last done.
-          destruct Hvalid; rewrite (@cmra_comm shareR); apply perm_of_sh_mono; rewrite (@cmra_comm shareR) //.
+          destruct Hvalid as (? & Heq & ?); rewrite (@cmra_comm shareR); apply perm_of_sh_mono; rewrite (@cmra_comm shareR) Heq //.
     - apply perm_of_dfrac_mono; try done.
-      exists (DfracOwn s).
-      rewrite -assoc (comm _ dq') assoc //.
+      exists (DfracOwn o).
+      rewrite -assoc (comm _ dq') assoc (comm _ DfracDiscarded) dfrac_op_own_discarded //.
   Qed.
 
   (* DfracDiscarded acts as a minimum readable share *)
@@ -1220,14 +1261,15 @@ Section lemmas.
     - intros i; specialize (Hv i); rewrite !lookup_op in Hv |- *.
       destruct (decide (i = k)); last by rewrite !lookup_singleton_ne in Hv |- *.
       subst; rewrite !lookup_singleton in Hv |- *.
-      destruct (bf !! k) as [o|] eqn: Hbf; rewrite Hbf in Hv |- *; try done.
+      destruct (bf !! k) as [o|] eqn: Hbf; rewrite Hbf in Hv |- *; last by destruct Hv; split; auto; apply dfrac_valid_discarded.
       destruct o as [o | |]; try done.
       rewrite -!Some_op -!Cinl_op in Hv |- *.
       destruct (Hk _ eq_refl) as (? & ? & ? & ? & Hop & Hop'); rewrite Hop in Hv; rewrite Hop'.
       destruct Hv as [Hd ?]; split; try done.
       destruct (dfrac_of o); simpl in *; try done.
-      { apply dfrac_valid_own_readable in Hd; auto. }
-      { destruct dq; try done; destruct Hd as [Hn (? & ? & J%sepalg.join_comm)%share_valid2_joins]; split; try done; intros X;
+      { apply dfrac_valid_own_readable in Hd as (? & -> & ?); try done.
+        hnf; rewrite left_id; eauto. }
+      { destruct dq; try done; destruct Hd as (? & (? & ? & -> & -> & J%sepalg.join_comm)%share_op_join & Hn); rewrite comm dfrac_op_both_discarded; eexists; (split; first done); intros X;
           contradiction Hn; eapply join_writable01; eauto. }
     - intros i; specialize (Hrel i); specialize (Hv i); rewrite /resource_at !lookup_op in Hrel Hv |- *.
       destruct (decide (i = k)); last by rewrite !lookup_singleton_ne in Hrel Hv |- *.
@@ -1248,7 +1290,7 @@ Section lemmas.
         by rewrite Hop in Hv; destruct Hv.
       + unfold max_access_cohere in *.
         eapply perm_order''_trans; first done.
-        destruct (bf !! k) eqn: Hbf; rewrite Hbf /= in Hv |- *; last by apply readable_dfrac_readable.
+        destruct (bf !! k) eqn: Hbf; rewrite Hbf /= in Hv |- *; last by rewrite perm_of_sh_bot; apply readable_dfrac_readable.
         destruct c; try done.
         rewrite -!Cinl_op in Hv |- *.
         destruct (Hk _ eq_refl) as (? & ? & ? & ? & Hop & Hop'); rewrite Hop Hop' /=.
@@ -1261,12 +1303,17 @@ Section lemmas.
   Global Instance juicy_view_frag_core_id k dq rsh v : OraCoreId dq → OraCoreId (juicy_view_frag k dq rsh v).
   Proof.
     rewrite {1}/OraCoreId; intros H.
-    destruct dq; inv H; try apply _.
-    inv H2.
+    destruct dq as [[|]|[|]]; try done; inversion H as [?? Heq|]; inv Heq; simpl in *.
+    - contradiction bot_unreadable.
+    - apply _.
   Qed.
 
-(*  Global Instance juicy_view_frag_pure_core_id k v : OraCoreId (juicy_view_frag_pure k v).
-  Proof. apply _. Qed. *)
+  Global Instance juicy_view_frag_no_core_id k dq rsh : CoreId dq → OraCoreId (juicy_view_frag_no k dq rsh).
+  Proof.
+    rewrite /CoreId; intros H.
+    inversion H as [?? Heq|]; inv Heq.
+    apply _.
+  Qed.
 
   Global Instance juicy_view_ora_discrete : OfeDiscrete V → OraDiscrete (juicy_viewR V).
   Proof. apply _. Qed.

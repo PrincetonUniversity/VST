@@ -10,8 +10,9 @@ Context `{!heapGS Σ}.
 Definition perm_of_res_lock (r: option (dfrac * resource)) :=
   match r with
   | Some (q, LK _ _ _) => match q with
-                   | DfracDiscarded => Some Readable
-                   | DfracOwn sh | DfracBoth sh => perm_of_sh (Share.glb Share.Rsh sh)
+                   | DfracOwn (Share sh) => perm_of_sh (Share.glb Share.Rsh sh)
+                   | DfracBoth _ => Some Readable
+                   | _ => None
                    end
   | _ => None
   end.
@@ -101,9 +102,8 @@ Lemma perm_of_res_op2:
 Proof.
   destruct r as [(?, ?)|]; simpl; auto.
   destruct r; try apply perm_order''_None.
-  unfold perm_of_dfrac; destruct d; try apply perm_order''_refl || if_tac; try apply perm_of_sh_glb.
-  eapply perm_order''_trans, perm_of_sh_glb.
-  by apply perm_order'_antisym.
+  unfold perm_of_dfrac; destruct d as [[|]|]; try apply perm_order''_refl || if_tac; try apply perm_of_sh_glb; try done.
+  constructor.
 Qed.
 
 (*Open Scope bi_scope.
@@ -157,7 +157,7 @@ Lemma coherent_alloc: coherent_with m ⊢ alloc_cohere m.
 Proof. by rewrite /coherent_with bi.and_elim_r bi.and_elim_r bi.and_elim_r. Qed.
 End selectors.*)
 
-Definition mem_auth m := resource_map.resource_map_auth(H0 := gen_heapGpreS_heap(gen_heapGpreS := gen_heap_inG)) (gen_heap_name heapGS_gen_heapGS) Tsh m.
+Definition mem_auth m := resource_map.resource_map_auth(H0 := gen_heapGpreS_heap(gen_heapGpreS := gen_heap_inG)) (gen_heap_name heapGS_gen_heapGS) 1 m.
 
 (*Lemma juicy_view_coherent : forall m, mem_auth m ∗ True ⊢ coherent_with m.
 Proof.
@@ -187,14 +187,7 @@ Defined.*)
 
 Lemma perm_of_empty_inv {s} : perm_of_sh s = None -> s = Share.bot.
 Proof.
-intros.
-unfold perm_of_sh in *.
-if_tac in H; subst; auto.
-if_tac in H; subst; auto.
-inv H. inv H.
-if_tac in H; subst; auto.
-inv H.
-if_tac in H; subst; auto. inv H.
+  apply perm_of_sh_None.
 Qed.
 
 (*Lemma writable_join_sub: forall loc phi1 phi2,
@@ -466,19 +459,13 @@ Qed.
 Lemma perm_of_empty:
     perm_of_sh Share.bot = None.
 Proof.
-intros. unfold perm_of_sh.
-rewrite if_false. rewrite if_false.
-rewrite if_true; auto.
-apply bot_unreadable.
-intro.
-apply writable0_readable in H.
-apply bot_unreadable in H; auto.
+  apply perm_of_sh_bot.
 Qed.
 
-Lemma perm_of_dfrac_None: forall dq, perm_of_dfrac dq = None -> dq = DfracOwn Share.bot.
+Lemma perm_of_dfrac_None: forall dq, perm_of_dfrac dq = None -> dq = ε ∨ dq = DfracOwn ShareBot.
 Proof.
-  destruct dq; simpl; try if_tac; try done; intros ->%perm_of_sh_None; try done.
-  rewrite perm_of_empty // in H.
+  destruct dq as [[|]|[|]]; simpl; try if_tac; try done; auto; intros ->%perm_of_sh_None; auto.
+  rewrite perm_of_sh_bot // in H.
 Qed.
 
 Lemma perm_of_Ews: perm_of_sh Ews = Some Writable.
@@ -590,82 +577,6 @@ left.
 apply bot_identity.
 Qed.
 
-(*Definition initial_mem (m: mem) lev (IOK: initial_rmap_ok m lev) : juicy_mem.
- refine (mkJuicyMem m  (inflate_initial_mem m lev) _ _ _ _);
-  unfold inflate_initial_mem, inflate_initial_mem';
-  hnf; intros;  try rewrite resource_at_make_rmap in *.
-* (* contents_cohere *)
-revert H; case_eq (access_at m loc Cur); intros.
- destruct p; inv H0; auto.
- revert H2; case_eq (lev @ loc); intros; congruence.
- destruct (max_access_at m loc); try destruct p; try congruence.
-* (* access_cohere *)
- symmetry.
- destruct (access_at m loc) eqn:?; try destruct p; auto; simpl.
- apply perm_of_freeable.
- apply perm_of_Ews.
- apply perm_of_Ers.
- destruct (IOK loc).
- destruct (lev @ loc).
- simpl; rewrite if_false by apply extern_retainer_neq_bot; auto.
- simpl; rewrite if_false by apply extern_retainer_neq_bot; auto.
- reflexivity.
- rewrite if_true; auto.
-* (* max_access_cohere *)
-  { generalize (perm_cur_max m (fst loc) (snd loc)); unfold perm; intros.
-    case_eq (access_at m loc Cur); try destruct p; intros.
-    - unfold perm_order'', perm_order', max_access_at in *.
-    simpl; rewrite perm_of_freeable.
-    apply H.
-    unfold access_at in H0. rewrite H0. constructor.
-    - simpl. rewrite perm_of_Ews.
-    unfold perm_order'', perm_order', max_access_at, access_at in *.
-    rewrite H0 in *.
-    specialize (H Writable). spec H. constructor.
-    apply H.
-     - simpl. rewrite perm_of_Ers.
-    unfold perm_order'', perm_order', max_access_at, access_at in *.
-    rewrite H0 in *.
-    apply H. constructor.
-    - destruct (IOK loc).
-    eapply perm_order''_trans; [apply (access_max m (fst loc) (snd loc))|].
-    unfold access_at in H0; rewrite H0.
-    destruct (lev @ loc) ; simpl;
-    try destruct (@eq_dec Share.t Share.EqDec_share extern_retainer Share.bot); try constructor.
-    - simpl. destruct (eq_dec Share.bot Share.bot) as [e|n]; [| exfalso; apply n; reflexivity].
-      rewrite <- H0.
-      apply (access_max m).
-  }
-* (* alloc_cohere *)
-unfold access_at.
-unfold block; rewrite (nextblock_noaccess m (fst loc) (snd loc) Cur); auto.
-Defined.
-
-Definition juicy_mem_level (j: juicy_mem) (lev: nat) :=
-  level (m_phi j) = lev.
-
-Lemma initial_mem_level: forall lev m j IOK,
-  j = initial_mem m lev IOK -> juicy_mem_level j (level lev).
-Proof.
-intros.
-destruct j; simpl.
-unfold initial_mem in H.
-inversion H; subst.
-unfold juicy_mem_level. simpl.
-erewrite inflate_initial_mem_level; eauto.
-Qed.
-
-Lemma initial_mem_all_VALs: forall lev m j IOK, j = initial_mem m lev IOK
-  -> all_VALs (m_phi j).
-Proof.
-intros until 1; intros (b, ofs).
-destruct j; unfold initial_mem in H; inversion H; subst.
-simpl.
-unfold inflate_initial_mem, inflate_initial_mem'; rewrite resource_at_make_rmap.
-destruct (access_at m (b, ofs)); try destruct p; auto.
-case_eq (lev @ (b,ofs)); intros; auto.
-Qed.*)
-
 Lemma perm_mem_access: forall m b ofs p,
   perm m b ofs Cur p ->
   exists p', (perm_order p' p /\ access_at m (b, ofs) Cur = Some p').
@@ -674,142 +585,6 @@ intros.
 rewrite perm_access in H. red in H.
 destruct (access_at m (b, ofs) Cur); try contradiction; eauto.
 Qed.
-
-(*Section store.
-Variables (jm: juicy_mem) (m': mem)
-          (ch: memory_chunk) (b: block) (ofs: Z) (v: val)
-          (STORE: store ch (m_dry jm) b ofs v = Some m').
-
-Lemma store_phi_elsewhere_eq: forall rsh sh mv loc',
-  ~ adr_range (b, ofs) (size_chunk ch) loc'
-  -> (m_phi jm) @ loc' = YES rsh sh (VAL mv) NoneP -> contents_at m' loc' = mv.
-Proof.
-destruct jm. simpl in *. clear jm.
-intros.
-unfold contents_at.
-rewrite store_mem_contents with
-  (chunk := ch) (m1 := m) (b := b) (ofs := ofs) (v := v); auto.
-destruct loc' as [b' ofs']. simpl.
-destruct (peq b' b).
-(* b' = b *)
-destruct (adr_inv b b' ofs ofs' ch H).
-symmetry in e.
-contradiction.
-(* b' = b /\ ~ ofs <= ofs' < ofs + size_chunk ch *)
-subst.
-rewrite PMap.gss.
-rewrite setN_outside.
-destruct (JMcontents _ _ _ _ _ H0) as [H5 _].
-apply H5.
-destruct (range_inv _ _ _ H1) as [H1'|H1'].
-left; auto.
-right.
-rewrite encode_val_length.
-rewrite <- size_chunk_conv.
-auto.
-
-(* b' <> b *)
-rewrite PMap.gso; auto.
-destruct (JMcontents _ _ _ _ _ H0) as [H1 _].
-apply H1.
-Qed.
-
-Definition store_juicy_mem: juicy_mem.
- refine (mkJuicyMem m' (inflate_store m' (m_phi jm)) _ _ _ _).
-(* contents_cohere *)
-intros rsh sh' v' loc' pp H2.
-unfold inflate_store in H2; rewrite resource_at_make_rmap in H2.
-destruct (m_phi jm @ loc'); try destruct k; try solve [inversion H2].
-inversion H2; auto.
-(* access_cohere *)
-intro loc; generalize (juicy_mem_access jm loc); intro H0.
-unfold inflate_store; rewrite resource_at_make_rmap.
-rewrite <- (Memory.store_access _ _ _ _ _ _ STORE).
-destruct (m_phi jm @ loc); try destruct k; auto.
-(* max_access_cohere *)
-intro loc; generalize (juicy_mem_max_access jm loc); intro H1.
-unfold inflate_store; rewrite resource_at_make_rmap.
-unfold max_access_at in *.
-rewrite <- (Memory.store_access _ _ _ _ _ _ STORE).
-apply nextblock_store in STORE.
-destruct (m_phi jm @ loc); auto.
-destruct k; simpl; try assumption.
-(* alloc_cohere *)
-hnf; intros.
-unfold inflate_store. rewrite resource_at_make_rmap.
-generalize (juicy_mem_alloc_cohere jm loc); intro.
-rewrite (nextblock_store _ _ _ _ _ _ STORE) in H.
-rewrite (H0 H). auto.
-Defined.
-
-End store.
-
-Section storebytes.
-Variables (jm: juicy_mem) (m': mem) (b: block) (ofs: Z) (bytes: list memval)
-  (STOREBYTES: storebytes (m_dry jm) b ofs bytes = Some m').
-
-Lemma storebytes_phi_elsewhere_eq: forall rsh sh mv loc',
-  ~ adr_range (b, ofs) (Zlength bytes) loc' ->
-  (m_phi jm) @ loc' = YES rsh sh (VAL mv) NoneP ->
-  contents_at m' loc' = mv.
-Proof.
-destruct jm. simpl in *. clear jm.
-intros.
-unfold contents_at.
-rewrite storebytes_mem_contents with
-  (m1 := m) (b := b) (ofs := ofs) (bytes := bytes); auto.
-destruct loc' as [b' ofs']. simpl.
-destruct (peq b' b).
-(* b' = b *)
-destruct (adr_inv0 b b' ofs ofs' (Zlength bytes) H).
-symmetry in e.
-contradiction.
-(* b' = b /\ ~ ofs <= ofs' < ofs + size_chunk ch *)
-subst.
-rewrite PMap.gss.
-rewrite setN_outside.
-destruct (JMcontents _ _ _ _ _ H0) as [H5 _].
-apply H5.
-destruct (range_inv0 _ _ _ H1) as [H1'|H1'].
-left; auto.
-right.
-rewrite <-Zlength_correct; auto.
-(* b' <> b *)
-rewrite PMap.gso; auto.
-destruct (JMcontents _ _ _ _ _ H0) as [H1 _].
-apply H1.
-Qed.
-
-Definition storebytes_juicy_mem: juicy_mem.
- refine (mkJuicyMem m' (inflate_store m' (m_phi jm)) _ _ _ _).
-(* contents_cohere *)
-intros rsh sh' v' loc' pp H2.
-unfold inflate_store in H2; rewrite resource_at_make_rmap in H2.
-destruct (m_phi jm @ loc'); try destruct k; try solve [inversion H2].
-inversion H2; auto.
-(* access_cohere *)
-intro loc; generalize (juicy_mem_access jm loc); intro H0.
-unfold inflate_store; rewrite resource_at_make_rmap.
-rewrite <- (Memory.storebytes_access _ _ _ _ _ STOREBYTES).
-destruct (m_phi jm @ loc); try destruct k; auto.
-(* max_access_cohere *)
-intro loc; generalize (juicy_mem_max_access jm loc); intro H1.
-unfold inflate_store; rewrite resource_at_make_rmap.
-unfold max_access_at in *.
-rewrite <- (Memory.storebytes_access _ _ _ _ _ STOREBYTES).
-assert (H88:=nextblock_storebytes _ _ _ _ _ STOREBYTES).
-destruct (m_phi jm @ loc); try rewrite H88; auto.
-destruct k; simpl; try rewrite H88; auto.
-(* alloc_cohere *)
-hnf; intros.
-unfold inflate_store. rewrite resource_at_make_rmap.
-generalize (juicy_mem_alloc_cohere jm loc); intro.
-rewrite (nextblock_storebytes _ _ _ _ _ STOREBYTES) in H.
-rewrite (H0 H).
-auto.
-Defined.
-
-End storebytes.*)
 
 Lemma free_smaller_None : forall m b b' ofs lo hi m',
   access_at m (b, ofs) Cur = None
@@ -857,87 +632,6 @@ simpl.
 reflexivity.
 Qed.
 
-(*Section free.
-Variables (jm :juicy_mem) (m': mem)
-          (b: block) (lo hi: Z)
-          (FREE: free (m_dry jm) b lo hi = Some m')
-          (PERM: forall ofs, lo <= ofs < hi ->
-                      perm_of_res (m_phi jm @ (b,ofs)) = Some Freeable).
-
-Definition inflate_free: rmap. refine (
-proj1_sig (make_rmap (fun loc =>
-  if adr_range_dec (b,lo) (hi-lo) loc then NO Share.bot bot_unreadable else m_phi jm @ loc)
-    (ghost_of (m_phi jm))
-     (level (m_phi jm)) _ (ghost_of_approx (m_phi jm)))).
-Proof.
-unfold compose.
-extensionality l.
-destruct l as (b', ofs').
-if_tac; try reflexivity.
-apply resource_at_approx.
-Defined.
-
-
-Definition free_juicy_mem: juicy_mem.
- generalize (juicy_mem_contents jm); intro.
- generalize (juicy_mem_access jm); intro.
- generalize (juicy_mem_max_access jm); intro.
- refine (mkJuicyMem m' inflate_free _ _ _ _).
-* (* contents_cohere *)
-unfold contents_cohere in *.
-intros rsh' sh' v' [b' ofs'] pp H2.
-unfold access_cohere in H0.
-specialize (H0 (b', ofs')).
-unfold inflate_free in H2; rewrite resource_at_make_rmap in H2.
-if_tac in H2; [inv H2 | ]. rename H3 into H8.
-remember (m_phi jm @ (b', ofs')) as HPHI.
-destruct HPHI; try destruct k; inv H2.
-assert (H3: contents_at (m_dry jm) (b', ofs') = v') by (eapply H; eauto).
-assert (H4: m' = unchecked_free (m_dry jm) b lo hi) by (apply free_result; auto).
-rewrite H4.
-unfold unchecked_free, contents_at; simpl.
-split; auto.
-symmetry in HeqHPHI.
-destruct (H _ _ _ _ _ HeqHPHI); auto.
-* (* access_cohere *)
-intros [b' ofs']; specialize ( H0 (b', ofs')).
-unfold inflate_free; rewrite resource_at_make_rmap.
-destruct (adr_range_dec (b,lo) (hi-lo) (b',ofs')).
- + (* adr_range *)
-destruct a as [H2 H3].
-replace (lo+(hi-lo)) with hi in H3 by lia.
-subst b'.
-replace (access_at m' (b, ofs') Cur) with (@None permission).
-simpl. rewrite if_true by auto. auto.
-destruct (free_access _ _ _ _ _ FREE ofs' H3).
-pose proof (Memory.access_cur_max m' (b,ofs')). rewrite H4 in H5.
-simpl  in H5.
-destruct (access_at m' (b, ofs') Cur); auto; contradiction.
-+ (* ~adr_range *)
-destruct (free_nadr_range_eq _ _ _ _ _ _ _ n FREE) as [H2 H3].
-rewrite H2 in *. clear H2 H3.
-case_eq (m_phi jm @ (b', ofs')); intros; rewrite H2 in *; auto.
-* (* max_access_cohere *)
-{ intros [b' ofs']. specialize (H1 (b',ofs')).
-  unfold inflate_free. unfold max_access_at. rewrite resource_at_make_rmap.
-  destruct (adr_range_dec (b,lo) (hi-lo) (b',ofs')).
-  - simpl; destruct (eq_dec Share.bot Share.bot) as [e|n]; [| exfalso; apply n; reflexivity].
-    destruct (access_at m' (b', ofs') Max); constructor.
-  - clear PERM.
-    unfold max_access_at.
-    destruct (free_nadr_range_eq _ _ _ _ _ _ _ n FREE) as [H2 H3].
-    rewrite <- H2. assumption. }
-* (* alloc_cohere *)
-hnf; intros.
-unfold inflate_free. rewrite resource_at_make_rmap.
-pose proof (juicy_mem_alloc_cohere jm loc).
-rewrite (nextblock_free _ _ _ _ _ FREE) in H2; auto.
-rewrite H3; auto.
-if_tac; auto.
-Defined.
-
-End free.*)
-
 Lemma free_not_freeable_eq : forall m b lo hi m' b' ofs',
   free m b lo hi = Some m'
   -> access_at m (b', ofs') Cur <> Some Freeable
@@ -954,73 +648,6 @@ destruct (eq_block b' b); auto; right.
 subst b'.
 simpl in n. assert (~( lo <= ofs' < lo + (hi - lo))) by intuition; lia.
 Qed.
-
-(* The empty juicy memory *)
-
-(*Definition after_alloc'
-  (lo hi: Z) (b: block) (phi: rmap)(H: forall ofs, phi @ (b,ofs) = NO Share.bot bot_unreadable)
-  : address -> resource := fun loc =>
-    if adr_range_dec (b,lo) (hi-lo) loc
-      then YES Share.top readable_share_top (VAL Undef) NoneP
-      else phi @ loc.
-
-Lemma adr_range_eq_block : forall b ofs n b' ofs',
-  adr_range (b,ofs) n (b',ofs') ->
-  b=b'.
-Proof.
-unfold adr_range; intros.
-destruct H; auto.
-Qed.
-
-Lemma after_alloc'_ok : forall lo hi b phi H,
-  resource_fmap (approx (level phi)) (approx (level phi)) oo (after_alloc' lo hi b phi H)
-  = after_alloc' lo hi b phi H.
-Proof.
-intros.
-unfold resource_fmap, compose, after_alloc'.
-extensionality loc.
-if_tac.
-rewrite preds_fmap_NoneP; auto.
-case_eq (phi @ loc); intros; auto.
-generalize H1; intros.
-apply necR_YES with (phi':=phi) in H1; eauto.
-rewrite <- H1.
-auto.
-generalize (resource_at_approx phi loc); rewrite H1; auto.
-Qed.
-
-Definition after_alloc
-  (lo hi: Z) (b: block) (phi: rmap)(H: forall ofs, phi @ (b,ofs) = NO Share.bot bot_unreadable) : rmap :=
-  proj1_sig (make_rmap (after_alloc' lo hi b phi H) (ghost_of phi)
-    (level phi)
-    (after_alloc'_ok lo hi b phi H) (ghost_of_approx phi)).
-
-Definition mod_after_alloc' (phi: rmap) (lo hi: Z) (b: block)
-  : address -> resource := fun loc =>
-    if adr_range_dec (b,lo) (hi-lo) loc
-      then YES Share.top readable_share_top (VAL Undef) NoneP
-      else core phi @ loc.
-
-Lemma mod_after_alloc'_ok : forall phi lo hi b,
-  resource_fmap (approx (level phi)) (approx (level phi)) oo (mod_after_alloc'  phi lo hi b)
-  = mod_after_alloc' phi lo hi b.
-Proof.
-intros.
-unfold resource_fmap, compose, mod_after_alloc'.
-extensionality loc.
-if_tac; auto.
-case_eq (core phi @ loc); intros; auto; f_equal;
-rewrite <- level_core;
-generalize (resource_at_approx (core phi) loc); rewrite H0; intro; injection H1; auto.
-Qed.
-
-Definition mod_after_alloc (phi: rmap) (lo hi: Z) (b: block) :=
-  proj1_sig (make_rmap (mod_after_alloc' phi lo hi b) (ghost_of phi)
-    _
-    (mod_after_alloc'_ok phi lo hi b) (ghost_of_approx phi)).
-*)
-
-Transparent alloc.
 
 Lemma adr_range_inv: forall loc loc' n,
   ~ adr_range loc n loc' ->
@@ -1066,6 +693,8 @@ subst.
 apply nextblock_access_empty.
 apply Pos.le_ge, Pos.le_refl.
 Qed.
+
+Transparent alloc.
 
 Lemma alloc_dry_unchanged_on : forall m1 m2 loc lo hi b0,
   alloc m1 lo hi = (m2, b0) ->
@@ -1125,6 +754,8 @@ destruct H0; subst b'.
 rewrite Maps.PMap.gss. rewrite Maps.ZMap.gi; auto.
 Qed.
 
+Opaque alloc.
+
 (* Not sure this is usable, but it's the most direct translation. *)
 Definition resource_decay n (nextb: block) (phi1 phi2: rmap) :=
  forall l: address,
@@ -1156,7 +787,7 @@ Proof.
 intros; intros l; auto.
 Qed.
 
-Lemma resource_decay_trans: forall n b b' m1 m2 m3 (Hbb : (b <= b')%positive),
+(*Lemma resource_decay_trans: forall n b b' m1 m2 m3 (Hbb : (b <= b')%positive),
   resource_decay n b m1 m2 -> resource_decay n b' m2 m3 -> resource_decay n b m1 m3.
 Proof.
   intros; intros l.
@@ -1173,150 +804,12 @@ Proof.
     destruct H2 as [? | [[??] | ?]].
     + destruct H2 as (sh2 & v2 & v2' & ? & ? & ?).
       right; left; exists sh, v, v2'; split; auto; split; auto.
-      admit. (* can only have one writable share *)
+       (* can only have one writable share *)
     + exfalso; eapply H0; eauto.
     + destruct H2 as (? & ? & ?); right; right; right.
       eexists; split; eauto.
-      admit. (* writable share again *)
+       (* writable share again *)
   - destruct H1 as (? & ? & ?).
-Abort. (* should be provable *)
-
-(*Lemma level_store_juicy_mem:
- forall jm m ch b i v H, level (store_juicy_mem jm m ch b i v H) = level jm.
-Proof.
-intros.
-unfold store_juicy_mem. simpl.
-unfold inflate_store; simpl. rewrite level_make_rmap. auto.
-Qed.
-
-Lemma level_storebytes_juicy_mem:
- forall jm m b i bytes H, level (storebytes_juicy_mem jm m b i bytes H) = level jm.
-Proof.
-intros.
-unfold storebytes_juicy_mem. simpl.
-unfold inflate_store; simpl. rewrite level_make_rmap. auto.
-Qed.
-
-Lemma inflate_store_resource_nodecay:
-  forall (jm: juicy_mem) (m': mem)
-          (ch: memory_chunk) (b: block) (ofs: Z) (v: val)
-          (STORE: store ch (m_dry jm) b ofs v = Some m')
-          (PERM: forall z, ofs <= z < ofs + size_chunk ch ->
-                      perm_order'' (perm_of_res (m_phi jm @ (b,z))) (Some Writable))
-          phi',
-  inflate_store m' (m_phi jm) = phi' -> resource_nodecay (nextblock (m_dry jm)) (m_phi jm) phi'.
-Proof.
-intros.
-split.
-subst; unfold inflate_store; simpl. rewrite level_make_rmap. auto.
-intro l'.
-split.
-apply juicy_mem_alloc_cohere.
-destruct (adr_range_dec (b, ofs) (size_chunk ch) l') as [HA | HA].
-* (* adr_range *)
-right.
-unfold adr_range in HA.
-destruct l' as (b', ofs').
-destruct HA as [HA0 HA1].
-subst b'.
-assert (H0: range_perm (m_dry jm) b ofs (ofs + size_chunk ch) Cur Writable).
-  cut (valid_access (m_dry jm) ch b ofs Writable).
-  intros [? ?]; auto.
-  eapply store_valid_access_3; eauto.
-assert (H1: perm (m_dry jm) b ofs' Cur Writable) by (apply H0; auto).
-generalize (juicy_mem_access jm (b, ofs')); intro ACCESS.
-unfold perm, perm_order' in H1.
-unfold access_at in ACCESS.
-simpl in *.
-destruct ((mem_access (m_dry jm)) !! b ofs' Cur) eqn:?H; try contradiction.
-specialize (PERM ofs' HA1).
-destruct ( m_phi jm @ (b, ofs') ) eqn:?H; try destruct k; simpl in PERM; try if_tac in PERM; try inv PERM.
-destruct (juicy_mem_contents _ _ _ _ _ _ H3); subst.
-simpl.
-assert (writable0_share sh). {
- clear - PERM.
- unfold perm_of_sh in PERM.
- if_tac in PERM; auto. if_tac in PERM. inv PERM.
- if_tac in PERM; inv PERM.
-}
- exists sh,H; do 2 econstructor; split; simpl; f_equal.
- apply proof_irr.
-unfold inflate_store;  rewrite resource_at_make_rmap.
-rewrite H3. f_equal; apply proof_irr.
-* (* ~ adr_range *)
-left.
-assert (H0: level (m_phi jm) = level phi').
-  rewrite <- H; unfold inflate_store; rewrite level_make_rmap; auto.
-rewrite <- H.
-unfold inflate_store; rewrite level_make_rmap; rewrite resource_at_make_rmap.
-case_eq l'; intros b' ofs' e'; subst.
-remember (m_phi jm @ (b', ofs')) as HPHI; destruct HPHI; try destruct k; auto;
-  try solve [rewrite HeqHPHI; rewrite resource_at_approx; auto].
-rewrite (store_phi_elsewhere_eq jm _ _ _ _ _ STORE _ r m (b', ofs')); auto.
-assert (H: p = NoneP).
-  symmetry in HeqHPHI;
-  destruct  (juicy_mem_contents jm _ _ _ _ _ HeqHPHI); auto.
-rewrite H.
-unfold resource_fmap; f_equal; try reflexivity.
-assert (H: p = NoneP).
-  symmetry in HeqHPHI;
-  destruct  (juicy_mem_contents jm _ _ _ _ _ HeqHPHI); auto.
-rewrite H in HeqHPHI; clear H.
-rewrite HeqHPHI; auto.
-Qed.
-
-Lemma inflate_free_resource_decay:
- forall (jm :juicy_mem) (m': mem)
-          (b: block) (lo hi: Z)
-          (FREE: free (m_dry jm) b lo hi = Some m')
-          (PERM: forall ofs : Z,
-             lo <= ofs < hi -> perm_of_res (m_phi jm @ (b, ofs)) = Some Freeable),
-   resource_decay (nextblock (m_dry jm)) (m_phi jm) (inflate_free jm b lo hi).
-Proof.
-intros.
-split.
-unfold inflate_free; rewrite level_make_rmap; auto.
-intros l.
-split.
-apply juicy_mem_alloc_cohere.
-destruct (adr_range_dec (b, lo) (hi-lo) l) as [HA | HA].
-* (* adr_range *)
-right. right.
-destruct l; simpl in HA|-*.
-destruct HA as [H0 H1]. subst b0.
-assert (lo + (hi - lo) = hi) by lia.
-rewrite H in H1. clear H.
-unfold inflate_free; simpl; rewrite resource_at_make_rmap.
-specialize (PERM _ H1).
-destruct (m_phi jm @ (b,z)) eqn:?; try destruct k; inv PERM.
-if_tac in H0; inv H0.
-rewrite if_true by (split; auto; lia).
-right.
-exists m, p.
-unfold perm_of_sh in H0.
-repeat if_tac in H0; inv H0.
-split; try reflexivity. f_equal; apply proof_irr.
-* (* ~adr_range *)
-destruct l.
-destruct (free_nadr_range_eq _ _ _ _ _ _ _ HA FREE).
-left.
-unfold inflate_free; rewrite level_make_rmap; rewrite resource_at_make_rmap.
-rewrite if_false by auto.
-generalize (juicy_mem_contents jm); intro Hc.
-generalize (juicy_mem_access jm (b0,z)); intro Ha.
-rewrite resource_at_approx.
-case_eq (m_phi jm @ (b0, z)); intros; rewrite H1 in Ha; auto.
-Qed.
-
-Lemma juicy_store_nodecay:
-  forall jm m' ch b ofs v
-       (H: store ch (m_dry jm) b ofs v = Some m')
-          (PERM: forall z, ofs <= z < ofs + size_chunk ch ->
-                      perm_order'' (perm_of_res (m_phi jm @ (b,z))) (Some Writable)),
-       resource_nodecay (nextblock (m_dry jm)) (m_phi jm) (m_phi (store_juicy_mem jm _ _ _ _ _ H)).
-Proof.
- intros.
- eapply inflate_store_resource_nodecay; eauto.
-Qed.*)
+Abort. (* should be provable *)*)
 
 End rmap.

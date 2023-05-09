@@ -448,8 +448,8 @@ Proof.
   iIntros "_"; iPureIntro; simpl; eauto.
 Qed.
 
-Lemma mapsto_overlap: forall sh {cs: compspecs} t1 t2 p1 p2 v1 v2,
-  pointer_range_overlap p1 (sizeof t1) p2 (sizeof t2) ->
+Lemma mapsto_overlap: forall sh {cs: compspecs} t1 t2 p1 p2 v1 v2
+  (Hsh : sh <> Share.bot), pointer_range_overlap p1 (sizeof t1) p2 (sizeof t2) ->
   mapsto sh t1 p1 v1 ∗ mapsto sh t2 p2 v2 ⊢ False.
 Proof.
   intros.

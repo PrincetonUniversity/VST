@@ -173,7 +173,7 @@ Proof.
   rewrite Z2Nat.id /access_cohere in Hloc; last lia.
   rewrite Zplus_minus in Hloc.
   rewrite perm_access; eapply perm_order''_trans; eauto; simpl.
-  destruct x; done.
+  destruct x as [[|]|]; done.
 Qed.
 
 Lemma core_load_load': forall ch b ofs v m,
@@ -391,13 +391,13 @@ Qed.*)
 
 Lemma mapsto_coherent: forall ch v sh b ofs m,
   mem_auth m ∗ address_mapsto ch v sh (b, ofs) ⊢
-  ⌜∃ bl, length bl = size_chunk_nat ch ∧ decode_val ch bl = v ∧ (align_chunk ch | ofs)%Z ∧ forall i, 0 <= i < size_chunk_nat ch -> coherent_loc(V := leibnizO resource) m (b, ofs + Z.of_nat i)%Z (Some (DfracOwn sh, Some (VAL (nthbyte i bl))))⌝.
+  ⌜∃ bl, length bl = size_chunk_nat ch ∧ decode_val ch bl = v ∧ (align_chunk ch | ofs)%Z ∧ forall i, 0 <= i < size_chunk_nat ch -> coherent_loc(V := leibnizO resource) m (b, ofs + Z.of_nat i)%Z (Some (DfracOwn (Share sh), Some (VAL (nthbyte i bl))))⌝.
 Proof.
   intros; unfold address_mapsto.
   iIntros "[Hm H]".
   iDestruct "H" as (bl (? & ? & ?)) "H".
   iExists bl; do 3 (iSplit; first done).
-  rewrite -(big_opL_fmap VAL (fun i v => mapsto (adr_add (b, ofs) i) (DfracOwn sh) v)).
+  rewrite -(big_opL_fmap VAL (fun i v => mapsto (adr_add (b, ofs) i) (DfracOwn (Share sh)) v)).
   iDestruct (mapsto_lookup_big with "Hm H") as %Hcoh; iPureIntro.
   rewrite -H; intros; specialize (Hcoh i).
   rewrite fmap_length list_lookup_fmap in Hcoh.
@@ -540,7 +540,7 @@ Proof.
   apply store_storebytes in H.
   iIntros "[Hm H]"; rewrite /address_mapsto.
   iDestruct "H" as (? (Hlen & <- & ?)) "H".
-  rewrite -(big_opL_fmap VAL (fun i v => mapsto (adr_add (b, ofs) i) (DfracOwn sh) v)).
+  rewrite -(big_opL_fmap VAL (fun i v => mapsto (adr_add (b, ofs) i) (DfracOwn (Share sh)) v)).
   iMod (mapsto_storebytes _ _ (b, ofs) _ (VAL <$> encode_val ch v') with "Hm H") as "[$ H]".
   { rewrite Forall2_lookup; intros.
     rewrite list_lookup_fmap; destruct (_ !! _); constructor; done. }
@@ -776,35 +776,7 @@ Proof.
   apply VALspec_range_free; done.
 Qed.
 
-(*Lemma initial_mem_core: forall lev m j IOK,
-  j = initial_mem m lev IOK -> juicy_mem_core j = core lev.
-Proof.
-intros.
-destruct j; simpl.
-unfold initial_mem in H.
-inversion H; subst.
-unfold juicy_mem_core. simpl.
-clear - IOK.
-apply rmap_ext.
-repeat rewrite level_core.
-erewrite inflate_initial_mem_level; eauto.
-intro loc.
-repeat rewrite <- core_resource_at.
-unfold inflate_initial_mem.
-rewrite resource_at_make_rmap.
-unfold inflate_initial_mem'.
-repeat rewrite <- core_resource_at.
-destruct (IOK loc). clear IOK.
-revert H0; case_eq (lev @ loc); intros.
-rewrite core_NO.
-destruct (access_at m loc); try destruct p; try rewrite core_NO; try rewrite core_YES; auto.
-destruct (access_at m loc); try destruct p0; try rewrite core_NO;  repeat rewrite core_YES; auto.
-destruct H1.
-destruct H2. rewrite H2. auto.
-unfold inflate_initial_mem.
-rewrite <- core_ghost_of, ghost_of_make_rmap, core_ghost_of; auto.
-Qed.
-
+(*
 Lemma writable_writable_after_alloc' : forall m1 m2 lo hi b lev loc IOK1 IOK2,
   alloc m1 lo hi = (m2, b) ->
   writable loc (m_phi (initial_mem m1 lev IOK1)) ->

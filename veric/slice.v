@@ -950,12 +950,10 @@ Qed.*)
 Section heap.
 Context `{!heapGS Σ}.
 
-Lemma share_join_op: forall (sh1 sh2 sh : shareR), sepalg.join sh1 sh2 sh -> sh1 <> Share.bot -> sh2 <> Share.bot ->
-  sh1 ⋅ sh2 = sh.
+Lemma share_join_op: forall (sh1 sh2 sh : share), sepalg.join sh1 sh2 sh ->
+  Share sh1 ⋅ Share sh2 = Share sh.
 Proof.
-  intros; rewrite share_op_equiv.
-  if_tac; auto; subst.
-  apply join_Bot in H as [??]; done.
+  intros; rewrite share_op_equiv; eauto.
 Qed.
 
 Lemma mapsto_share_join: forall sh1 sh2 sh l r, sepalg.join sh1 sh2 sh ->
@@ -994,7 +992,7 @@ Proof.
 Qed.
 
 Lemma mapsto_no_mapsto_share_join: forall sh1 sh2 sh l r (nsh : ~readable_share sh1), sepalg.join sh1 sh2 sh ->
-  sh1 <> Share.bot -> readable_share sh2 ->
+  readable_share sh2 ->
   mapsto_no l sh1 ∗ l ↦{#sh2} r ⊣⊢ l ↦{#sh} r.
 Proof.
   intros; rewrite -mapsto_split_no; try done.
@@ -1003,7 +1001,7 @@ Proof.
 Qed.
 
 Lemma mapsto_mapsto_no_share_join: forall sh1 sh2 sh l r (nsh : ~readable_share sh2), sepalg.join sh1 sh2 sh ->
-  readable_share sh1 -> sh2 <> Share.bot ->
+  readable_share sh1 ->
   l ↦{#sh1} r ∗ mapsto_no l sh2 ⊣⊢ l ↦{#sh} r.
 Proof.
   intros; rewrite -(mapsto_no_mapsto_share_join _ _ sh); [| | apply sepalg.join_comm, H | ..]; try done.
@@ -1011,17 +1009,15 @@ Proof.
 Qed.
 
 Lemma mapsto_no_share_join: forall sh1 sh2 sh l (nsh1 : ~readable_share sh1) (nsh2 : ~readable_share sh2), sepalg.join sh1 sh2 sh ->
-  sh1 <> Share.bot -> sh2 <> Share.bot ->
   mapsto_no l sh1 ∗ mapsto_no l sh2 ⊣⊢ mapsto_no l sh.
 Proof.
-  intros; rewrite -mapsto_no_split; try done.
-  rewrite (share_join_op sh1 sh2 sh) //.
+  intros; rewrite -mapsto_no_split //.
 Qed.
 
 Lemma nonlock_permission_bytes_address_mapsto_join:
  forall (sh1 sh2 sh : share) ch v a,
    sepalg.join sh1 sh2 sh ->
-   sh1 <> Share.bot -> readable_share sh2 ->
+   readable_share sh2 ->
    nonlock_permission_bytes sh1 a (Memdata.size_chunk ch)
      ∗ address_mapsto ch v sh2 a
     ⊣⊢ address_mapsto ch v sh a.
@@ -1083,7 +1079,6 @@ Qed.
 Lemma nonlock_permission_bytes_share_join:
  forall sh1 sh2 sh a n,
   sepalg.join sh1 sh2 sh ->
-  sh1 <> Share.bot -> sh2 <> Share.bot ->
   nonlock_permission_bytes sh1 a n ∗
   nonlock_permission_bytes sh2 a n ⊣⊢
   nonlock_permission_bytes sh a n.
@@ -1111,7 +1106,7 @@ Qed.
 Lemma nonlock_permission_bytes_VALspec_range_join:
  forall sh1 sh2 sh p n,
   sepalg.join sh1 sh2 sh ->
-  sh1 <> Share.bot -> readable_share sh2 ->
+  readable_share sh2 ->
   nonlock_permission_bytes sh1 p n ∗
   VALspec_range n sh2 p ⊣⊢
   VALspec_range n sh p.
