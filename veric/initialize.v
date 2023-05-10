@@ -552,6 +552,7 @@ intro.
 case_eq (Share.split fullshare); intros.
 rewrite H0 in H. simpl in H. subst.
 apply Share.split_nontrivial in H0; auto.
+by apply Share.nontrivial.
 Qed.
 
 Lemma readable_readonly2share: forall ro, readable_share (readonly2share ro).
@@ -562,7 +563,7 @@ Proof.
   assert (H9: Share.Rsh <> Share.bot). {
     unfold Share.Rsh. intro.
     destruct (Share.split Share.top) eqn:?.
-    pose proof (Share.split_nontrivial _ _ _ Heqp). spec H1; auto.
+    pose proof (Share.split_nontrivial _ _ _ Heqp). spec H1; auto; contradiction Share.nontrivial.
   }
   clear H9.
   destruct ro; simpl in *.
@@ -837,12 +838,21 @@ Proof.
     pose proof (nth_error_app gl [(i, Gvar v)] O) as Hv.
     replace (base.length gl) with (Pos.to_nat (nextblock m0) - 1)%nat in Hv by (rewrite Zlength_correct in Hgl; lia).
     rewrite Nat.add_0_r /= in Hv.
-    erewrite globals_bounds_nth; [| lia | done].
+    erewrite globals_bounds_nth; [| lia | done]; simpl.
     pose proof (load_store_init_data_lem1 H0 H1).
     assert (∀ (chunk : memory_chunk) (ofs : Z), load chunk m4 (nextblock m0) ofs = load chunk m3 (nextblock m0) ofs).
     { intros; eapply load_drop; eauto.
       right; right; right; rewrite /Genv.perm_globvar VOL.
       simple_if_tac; constructor. }
+    rewrite seq_app big_sepL_app; iDestruct "Hb" as "(Hb & H1)".
+    iAssert emp with "[H1]" as "_".
+    { rewrite /inflate_loc /=.
+      pose proof (init_data_list_size_pos (gvar_init v)); rewrite Z.add_0_l Z2Nat.id; last lia.
+      erewrite <- access_drop_3; [| eauto | lia].
+      edestruct store_init_data_list_outside' as (_ & <- & _); first done.
+      erewrite store_zeros_access by done.
+      erewrite <- alloc_access_other; [| eauto | lia].
+      rewrite nextblock_access_empty //; last lia. }
     iApply (init_data_list_lem' _ _ _ _ _ _ [] with "Hb"); try done.
     + eapply Genv.load_store_init_data_invariant, Genv.store_init_data_list_charact; try done.
       eapply Genv.store_zeros_read_as_zero; eauto.
@@ -1110,13 +1120,16 @@ Proof.
 Qed.
 
 Lemma initial_core_rev:
-  forall (gev: Genv.t fundef type) G (vl: list (ident * globdef fundef type))
-    (H: list_norepet (map fst (rev vl)))
-    (SAME_IDS : match_fdecs (prog_funct' vl) (rev G)),
-    initial_core gev G ⊣⊢ initial_core gev (rev G).
+  forall m (gev: Genv.t fundef type) G (vl: list (ident * globdef fundef type)),
+    list_norepet (map fst G) →
+    initial_core m gev G ⊣⊢ initial_core m gev (rev G).
 Proof.
   intros.
-  rewrite /initial_core big_sepL_rev //.
+  rewrite /initial_world.initial_core.
+  apply big_sepL_proper; intros.
+  rewrite /funspec_of_loc /=.
+  destruct (Genv.invert_symbol _ _); last done.
+  rewrite find_id_rev //.
 Qed.
 
 Lemma inflate_initial_mem_rev:
@@ -1224,7 +1237,8 @@ Proof.
   clearbody G0.
 
   revert Hsymb m G0 G NRG Hnorepet Hinit H1 H1'; induction vl; intros; simpl.
-  { rewrite /globvars2pred /=.
+  { inv Hinit.
+    rewrite /globvars2pred /=.
     by iIntros "_". }
   simpl in Hinit.
   revert Hinit; case_eq (alloc_globals_rev gev Mem.empty vl); intros; try congruence.
@@ -1285,7 +1299,8 @@ Proof.
     erewrite drop_perm_access by eassumption.
     if_tac; first by destruct (funspec_of_loc _ _ _); apply _.
     eapply alloc_dry_unchanged_on in H0 as [Ha _]; last done.
-    rewrite -Ha nextblock_access_empty //; lia. }
+    rewrite -Ha nextblock_access_empty //; last lia.
+    apply _. }
   iApply (big_sepL_mono with "Hmem").
   intros ?? (-> & ?)%lookup_seq.
   rewrite /block_bounds /=.

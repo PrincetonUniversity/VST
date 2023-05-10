@@ -649,38 +649,6 @@ rewrite H3.
 auto.
 Qed.
 
-Lemma funassert_initial_core:
-forall (prog: program) ve te V G
-  (Hnorepet : list_norepet (prog_defs_names prog))
-  (Hmatch : match_fdecs (prog_funct prog) G),
-  initial_core (Genv.globalenv prog) G ⊢ funassert (nofunc_tycontext V G) (mkEnviron (filter_genv (globalenv prog)) ve te).
-Proof.
-  rewrite /initial_core /funassert /funspecs_assert.
-  intros; iIntros "#H !>"; iSplit.
-  * iIntros (?? Hid); simpl in *.
-    rewrite make_tycontext_s_find_id in Hid.
-    unshelve erewrite big_sepL_elem_of; last by apply elem_of_list_In, find_id_e.
-    eapply match_fdecs_exists_Gfun in Hid as (? & Hid & ?); last done.
-    rewrite /filter_genv /Map.get.
-    apply (Genv.find_symbol_exists (program_of_program _)) in Hid as (? & Hfind); rewrite Hfind; eauto.
-    { left; intros (?, ?); destruct (Genv.find_symbol _ _); apply _. }
-  * iPureIntro.
-    rewrite /filter_genv /Map.get /=.
-    intros ?? Hfind%Genv.find_symbol_inversion; rewrite make_tycontext_s_find_id.
-    apply match_ids with (i := id) in Hmatch.
-Search match_fdecs.
-    rewrite /prog_defs_names in_map_iff in Hfind.
- destruct Hfind as ((i, ?) & ? & ?); simpl in *; subst i.
-    Search find_id.
-    Search Genv.find_symbol.
-match_ids
-    eexists; apply find_id_i.
-Search match_fdecs.
-Search find_id.
-    Search make_tycontext_s.
-    simpl.
-Qed.
-
 Lemma prog_contains_prog_funct: forall prog: program,
   list_norepet (prog_defs_names prog) ->
       prog_contains (globalenv prog) (prog_funct prog).
@@ -992,8 +960,10 @@ Qed.
   really needs a genviron as parameter, not a genviron * list val*)
 Definition funspecs_gassert (FunSpecs: Maps.PTree.t funspec): argsassert :=
  argsassert_of (fun gargs => let g := fst gargs in
-   □ (∀ id: ident, ∀ fs:_, ⌜FunSpecs!!id = Some fs⌝ →
-              ∃ b:block, ⌜Map.get g id = Some b⌝ ∧ func_at fs (b,0))).
+   □ ((∀ id: ident, ∀ fs:funspec,  ⌜FunSpecs!!id = Some fs⌝ →
+            ∃ b:block,⌜Map.get g id = Some b⌝ ∧ func_at fs (b,0)) ∧
+      (∀ b, ⌜∃ id, Map.get g id = Some b ∧ FunSpecs!!id = None⌝ →
+            mapsto_no (b, 0) Share.bot))).
 
 (*Maybe this definition can replace Clight_seplog.funassert globally?*)
 Definition fungassert (Delta: tycontext): argsassert := funspecs_gassert (glob_specs Delta).
@@ -1147,7 +1117,7 @@ Lemma semax_prog_rule {CS: compspecs} :
        (exists m', semantics.initial_core (cl_core_sem (globalenv prog)) h
                        m q m' (Vptr b Ptrofs.zero) nil) *
        (state_interp Mem.empty z ∗ has_ext z ⊢ |==> state_interp m z ∗ jsafeN Espec (globalenv prog) ⊤ z q ∗
-           (*no_locks ∧*) □ matchfunspecs (globalenv prog) G ⊤ ∗ funassert (nofunc_tycontext V G) (empty_environ (globalenv prog)))
+           (*no_locks ∧ □ matchfunspecs (globalenv prog) G ⊤ ∗*) funassert (nofunc_tycontext V G) (empty_environ (globalenv prog)))
      } }%type.
 Proof.
   intros until z. intro EXIT. intros ? H1.
@@ -1199,34 +1169,29 @@ Proof.
   clear Hinit.
 
   iIntros "((Hm & $) & Hz)".
-  iMod (initialize_mem with "Hm") as "($ & Hm & #Hcore)".
-  (* funassert_initial_core *)
-  iIntros "!>"; iSplitR "".
-  + destruct H4 as [post [H4 H4']].
-    unfold main_spec_ext' in H4'.
-    injection H4' as -> -> HP HQ.
-    apply inj_pair2 in HP as ->.
-    apply inj_pair2 in HQ as ->.
-    iApply (Hsafe (globals_of_genv (filter_genv (globalenv prog)))).
-    iSplit.
-    * iIntros "!>".
-      rewrite /main_pre.
-      iSplit; first done.
-      iFrame.
-      by iApply global_initializers.
-    * admit.
-  + iSplit.
-    * apply initial_jm_ext_matchfunspecs.
-    * 
+  iMod (initialize_mem' with "Hm") as "($ & Hm & #Hcore)".
+  rewrite initial_core_funassert //; iFrame "#".
+  destruct H4 as [post [H4 H4']].
+  unfold main_spec_ext' in H4'.
+  injection H4' as -> -> HP HQ.
+  apply inj_pair2 in HP as ->.
+  apply inj_pair2 in HQ as ->.
+  iApply (Hsafe (globals_of_genv (filter_genv (globalenv prog)))).
+  iFrame "#".
+  iIntros "!> !>".
+  rewrite /main_pre.
+  iSplit; first done.
+  iFrame.
+  by iApply global_initializers.
 Qed.
 
 Lemma match_fdecs_length funs K:
-  match_fdecs funs K -> length funs = length K.
+  @match_fdecs Σ funs K -> length funs = length K.
 Proof. induction 1; trivial.
 simpl; rewrite IHmatch_fdecs; trivial.
 Qed.
 
-Lemma match_fdecs_nil_iff funs K (M: match_fdecs funs K):
+Lemma match_fdecs_nil_iff funs K (M: @match_fdecs Σ funs K):
 (funs = nil) <-> (K=nil).
 Proof. apply match_fdecs_length in M.
 split; intros; subst; simpl in M.
@@ -1234,30 +1199,30 @@ destruct K; trivial; inv M.
 destruct funs; trivial; inv M.
 Qed.
 
-Lemma match_fdecs_cons_D f funs k K (M: match_fdecs (cons f funs) (cons k K)):
+Lemma match_fdecs_cons_D f funs k K (M: @match_fdecs Σ (cons f funs) (cons k K)):
 exists i fd fspec, f=(i,fd) /\ k=(i,fspec) /\
      type_of_fundef fd = type_of_funspec fspec /\
      match_fdecs funs K.
 Proof. inv M. exists i, fd, fspec; tauto. Qed.
 
-Lemma match_fdecs_cons_D1 f funs K (M: match_fdecs (cons f funs) K):
+Lemma match_fdecs_cons_D1 f funs K (M: @match_fdecs Σ (cons f funs) K):
 exists i fd fspec G, f=(i,fd) /\ K=cons (i,fspec) G /\
      type_of_fundef fd = type_of_funspec fspec /\
      match_fdecs funs G.
 Proof. inv M. exists i, fd, fspec, G; tauto. Qed.
 
-Lemma match_fdecs_cons_D2 funs k K (M: match_fdecs funs (cons k K)):
+Lemma match_fdecs_cons_D2 funs k K (M: @match_fdecs Σ funs (cons k K)):
 exists i fd fspec fs, funs=cons (i,fd) fs /\ k=(i,fspec) /\
      type_of_fundef fd = type_of_funspec fspec /\
      match_fdecs fs K.
 Proof. inv M. exists i, fd, fspec, fs; intuition. Qed.
 
-Lemma semax_func_length ge V G {C: compspecs} funs K (M: semax_func V G ge funs K):
+Lemma semax_func_length ge V G {C: compspecs} E funs K (M: semax_func V G ge E funs K):
  length funs = length K.
 Proof. destruct M as [M _]. apply match_fdecs_length in M; trivial. Qed.
 
 Lemma match_fdecs_app: forall vl G vl' G',
-match_fdecs vl G -> match_fdecs vl' G' -> match_fdecs (vl ++ vl') (G ++ G').
+match_fdecs vl G -> match_fdecs vl' G' -> @match_fdecs Σ (vl ++ vl') (G ++ G').
 Proof. induction vl; simpl; intros; inv H; simpl in *; trivial; econstructor; eauto. Qed.
 
 Lemma prog_contains_nil ge: prog_contains ge nil.
@@ -1287,20 +1252,20 @@ Lemma genv_contains_app ge funs1 funs2 (G1:genv_contains ge funs1) (G2: genv_con
 genv_contains ge (funs1 ++ funs2).
 Proof. red; intros. apply in_app_or in H; destruct H; [apply G1 | apply G2]; trivial. Qed.
 
-Lemma find_id_app i fs: forall (G1 G2: funspecs) (G: find_id i (G1 ++ G2) = Some fs),
+Lemma find_id_app i fs: forall (G1 G2: @funspecs Σ) (G: find_id i (G1 ++ G2) = Some fs),
 find_id i G1 = Some fs \/ find_id i G2 = Some fs.
 Proof. induction G1; simpl; intros. right; trivial.
 destruct a. destruct (eq_dec i i0); [ left; trivial | eauto].
 Qed.
 
-Lemma make_tycontext_s_app_inv i fs G1 G2 (G: (make_tycontext_s (G1 ++ G2)) !! i = Some fs):
+Lemma make_tycontext_s_app_inv i fs G1 G2 (G: (@make_tycontext_s Σ (G1 ++ G2)) !! i = Some fs):
   (make_tycontext_s G1) !! i = Some fs \/ (make_tycontext_s G2) !! i = Some fs.
-Proof. rewrite !! find_id_maketycontext_s  in *. apply find_id_app; trivial. Qed.
+Proof. rewrite -> !find_id_maketycontext_s in *. apply find_id_app; trivial. Qed.
 
-Lemma believe_app {cs} ge V H G1 G2 n
-(B1: @believe cs Espec (nofunc_tycontext V H) ge (nofunc_tycontext V G1) n)
-(B2: @believe cs Espec (nofunc_tycontext V H) ge (nofunc_tycontext V G2) n):
-@believe cs Espec (nofunc_tycontext V H) ge (nofunc_tycontext V (G1 ++ G2)) n.
+Lemma believe_app {cs} E ge V H G1 G2:
+believe Espec E (nofunc_tycontext V H) ge (nofunc_tycontext V G1) ∧
+believe Espec E (nofunc_tycontext V H) ge (nofunc_tycontext V G2) ⊢
+believe Espec E (nofunc_tycontext V H) ge (nofunc_tycontext V (G1 ++ G2)).
 Proof.
 intros v fsig cc A P Q ? k NEC E CL.
 destruct CL as [i [HP [HQ [G B]]]].
