@@ -3,14 +3,12 @@
 (* Event semantics for ClightCore *)
 
 Require Import compcert.common.Memory.
-Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.juicy_mem.
 Require Import VST.veric.res_predicates.
 
 Require Import List. Import ListNotations.
-Import compcert.lib.Maps.
 
-Import Ctypes. 
+Import Ctypes.
 Require Import compcert.cfrontend.Clight.
 Import Cop.
 Arguments sizeof {env} !t / .
@@ -19,6 +17,8 @@ Arguments sizeof {env} !t / .
 Require Import VST.veric.Clight_core.
 Require Import VST.sepcomp.semantics.
 Require Import VST.sepcomp.event_semantics.
+
+Open Scope Z.
 
 Lemma extcall_malloc_sem_inv: forall g v m t res m2 (E:Events.extcall_malloc_sem g v m t res m2),
   exists m1 b (sz : ptrofs), v=[Vptrofs sz] /\ t= Events.E0 /\ res=Vptr b Ptrofs.zero /\
@@ -96,13 +96,13 @@ Proof.
   - inv H. intuition. subst. apply deref_locT_bitfield; constructor; auto.
 Qed.
 
-Inductive alloc_variablesT (g: genv): PTree.t (block * type) -> mem -> list (ident * type) ->
-                                      PTree.t (block * type) -> mem -> (list mem_event) -> Prop :=
+Inductive alloc_variablesT (g: genv): Maps.PTree.t (block * type) -> mem -> list (ident * type) ->
+                                      Maps.PTree.t (block * type) -> mem -> (list mem_event) -> Prop :=
     alloc_variablesT_nil : forall e m, alloc_variablesT g e m nil e m nil
   | alloc_variablesT_cons :
       forall e m id ty vars m1 b1 m2 e2 T,
         Mem.alloc m 0 (@sizeof g ty) = (m1, b1) ->
-        alloc_variablesT g (PTree.set id (b1, ty) e) m1 vars e2 m2 T ->
+        alloc_variablesT g (Maps.PTree.set id (b1, ty) e) m1 vars e2 m2 T ->
         alloc_variablesT g e m ((id, ty) :: vars) e2 m2 (Alloc b1 0 (@sizeof g ty) :: T).
 
 Lemma alloc_variablesT_ax1 g: forall e m l e' m' T (A:alloc_variablesT g e m l e' m' T),
@@ -145,7 +145,7 @@ Variable e: env.
 Variable le: temp_env.
 Variable m: mem.
 
-Inductive eval_exprT: expr -> val -> list mem_event-> Prop :=
+Inductive eval_exprT: expr -> val -> list mem_event -> Prop :=
   | evalT_Econst_int:   forall i ty,
       eval_exprT (Econst_int i ty) (Vint i) nil
   | evalT_Econst_float:   forall f ty,
@@ -155,7 +155,7 @@ Inductive eval_exprT: expr -> val -> list mem_event-> Prop :=
   | evalT_Econst_long:   forall i ty,
       eval_exprT (Econst_long i ty) (Vlong i) nil
   | evalT_Etempvar:  forall id ty v,
-      le!id = Some v ->
+      le!!id = Some v ->
       eval_exprT (Etempvar id ty) v nil
   | evalT_Eaddrof: forall a ty loc ofs T,
       eval_lvalueT a loc ofs Full T ->
@@ -186,10 +186,10 @@ Inductive eval_exprT: expr -> val -> list mem_event-> Prop :=
 
 with eval_lvalueT: expr -> block -> ptrofs -> bitfield -> list mem_event-> Prop :=
   | evalT_Evar_local:   forall id l ty,
-      e!id = Some(l, ty) ->
+      e!!id = Some(l, ty) ->
       eval_lvalueT (Evar id ty) l Ptrofs.zero Full nil
   | evalT_Evar_global: forall id l ty,
-      e!id = None ->
+      e!!id = None ->
       Genv.find_symbol g id = Some l ->
       eval_lvalueT (Evar id ty) l Ptrofs.zero Full nil
   | evalT_Ederef: forall a ty l ofs T,
@@ -198,13 +198,13 @@ with eval_lvalueT: expr -> block -> ptrofs -> bitfield -> list mem_event-> Prop 
  | evalT_Efield_struct:   forall a i ty l ofs id co att delta bf T,
       eval_exprT a (Vptr l ofs) T ->
       typeof a = Tstruct id att ->
-      g.(genv_cenv)!id = Some co ->
+      g.(genv_cenv)!!id = Some co ->
       field_offset g i (co_members co) = Errors.OK (delta, bf) ->
       eval_lvalueT (Efield a i ty) l (Ptrofs.add ofs (Ptrofs.repr delta)) bf T
  | evalT_Efield_union:   forall a i ty l ofs id co att delta bf T,
       eval_exprT a (Vptr l ofs) T ->
       typeof a = Tunion id att ->
-      g.(genv_cenv)!id = Some co ->
+      g.(genv_cenv)!!id = Some co ->
       union_field_offset g i (co_members co) = Errors.OK (delta, bf) ->
       eval_lvalueT (Efield a i ty) l (Ptrofs.add ofs (Ptrofs.repr delta)) bf T.
 
@@ -452,7 +452,7 @@ Inductive cl_evstep (ge: Clight.genv): forall (q: CC_core) (m: mem) (T:list mem_
   | evstep_set:   forall f id a k e le m v T,
       eval_exprT ge e le m a v T ->
       cl_evstep ge (State f (Sset id a) k e le) m T
-              (State f Sskip k e (PTree.set id v le)) m
+              (State f Sskip k e (Maps.PTree.set id v le)) m
 
   | evstep_call:   forall f optid a al k e le m tyargs tyres cconv vf vargs fd T1 T2,
       classify_fun (typeof a) = fun_case_f tyargs tyres cconv ->
@@ -698,7 +698,7 @@ Qed.
       eapply ev_elim_app; eauto.
   + apply eval_exprTlist_elim in H0.
       eapply ev_elim_app; eauto.
-      apply proj2_sig.
+      by destruct (inline_external_call_mem_events).
   + eexists; split; eauto. reflexivity.
   + apply eval_exprT_elim in H.
       eapply ev_elim_app; eauto.
@@ -777,18 +777,18 @@ Proof.
   destruct Archi.ptr64 eqn: H64.
   - assert (Int64.unsigned (Ptrofs.to_int64 o1) = Int64.unsigned (Ptrofs.to_int64 o2)) by congruence.
     unfold Ptrofs.to_int64 in *.
-    rewrite Ptrofs.modulus_eq64 in * by auto.
-    rewrite !Int64.unsigned_repr in * by (unfold Int64.max_unsigned; lia); auto.
+    rewrite -> Ptrofs.modulus_eq64 in * by auto.
+    rewrite -> !Int64.unsigned_repr in * by (unfold Int64.max_unsigned; lia); auto.
   - assert (Int.unsigned (Ptrofs.to_int o1) = Int.unsigned (Ptrofs.to_int o2)) by congruence.
     unfold Ptrofs.to_int in *.
-    rewrite Ptrofs.modulus_eq32 in * by auto.
-    rewrite !Int.unsigned_repr in * by (unfold Int.max_unsigned; lia); auto.
+    rewrite -> Ptrofs.modulus_eq32 in * by auto.
+    rewrite -> !Int.unsigned_repr in * by (unfold Int.max_unsigned; lia); auto.
 Qed.
 
 Lemma builtin_event_determ ef m vargs T1 (BE1: builtin_event ef m vargs T1) T2 (BE2: builtin_event ef m vargs T2): T1=T2.
 inversion BE1; inv BE2; try discriminate; try contradiction; simpl in *; trivial.
 + assert (Vptrofs n0 = Vptrofs n) as H by congruence.
-  rewrite H; rewrite (Vptrofs_inj _ _ H) in *.
+  rewrite H; rewrite -> (Vptrofs_inj _ _ H) in *.
   rewrite ALLOC0 in ALLOC; inv ALLOC; trivial.
 + inv H5.
   rewrite LB0 in LB; inv LB. rewrite <- SZ in SZ0. rewrite (Vptrofs_inj _ _ SZ0); trivial.
@@ -899,7 +899,7 @@ Proof.
   unfold Mem.storebytes; intros.
   destruct H as (? & ? & ?).
   if_tac in H0; inv H0.
-  rewrite if_true by (intros ??; auto).
+  rewrite -> if_true by (intros ??; auto).
   do 2 eexists; eauto.
   split; auto; simpl.
   rewrite H; auto.
@@ -919,7 +919,7 @@ Proof.
   injection Halloc1; injection Halloc2; intros; subst.
   destruct H as (? & ? & ?).
   do 2 eexists; eauto.
-  split; [|split]; simpl; rewrite ?H, ?H0; auto.
+  split; [|split]; simpl; rewrite ?H ?H0; auto.
   intros.
   pose H2 as Hperm; eapply Mem.perm_alloc_inv in Hperm; eauto.
   if_tac in Hperm.
@@ -943,12 +943,12 @@ Proof.
   destruct H as (? & ? & ?).
   pose proof Hfree1 as Hfree; unfold Mem.free in Hfree |- *.
   if_tac in Hfree; inv Hfree.
-  rewrite if_true by (intros ??; auto).
+  rewrite -> if_true by (intros ??; auto).
   do 2 eexists; eauto.
   split; auto; split; auto; intros.
   pose proof (Mem.perm_free_3 _ _ _ _ _ Hfree1 _ _ _ _ H3) as Hperm.
   apply H1 in Hperm.
-  eapply Mem.perm_free_inv in Hperm; [|unfold Mem.free; rewrite if_true by (intros ??; eauto); eauto].
+  eapply Mem.perm_free_inv in Hperm; [|unfold Mem.free; rewrite -> if_true by (intros ??; eauto); eauto].
   destruct Hperm as [[] | ?]; auto; subst.
   exfalso; eapply Mem.perm_free_2; eauto.
 Qed.

@@ -11,7 +11,6 @@ Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.juicy_mem.
 Require Import VST.veric.SeparationLogicSoundness.
 Require Import VST.sepcomp.extspec.
-Require Import VST.msl.msl_standard.
 
 Import VericSound.
 Import VericMinimumSeparationLogic.

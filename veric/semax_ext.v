@@ -1,19 +1,18 @@
+Require Import Coq.Logic.JMeq.
 Require Import VST.veric.juicy_base.
 Require Import VST.veric.juicy_mem.
 Require Import VST.veric.juicy_mem_lemmas.
-Require Import VST.veric.juicy_mem_ops.
+(*Require Import VST.veric.juicy_mem_ops.*)
 Require Import VST.sepcomp.extspec.
 Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
 Require Import VST.veric.semax.
 Require Import VST.veric.semax_call.
-Require Import VST.veric.res_predicates.
-
+Require Import VST.veric.external_state.
 Require Import VST.veric.res_predicates.
 Require Import compcert.cfrontend.Clight.
 Require Import compcert.export.Clightdefs.
-Import compcert.lib.Maps.
 
 Definition funsig2signature (s : funsig) cc : signature :=
   mksignature (map typ_of_type (map snd (fst s))) (rettype_of_type (snd s)) cc.
@@ -31,17 +30,19 @@ Definition typesig2signature (s : typesig) cc : signature :=
 Definition ef_id_sig (ext_link: Strings.String.string -> ident) ef :=
   match ef with EF_external id sig => Some (ext_link id, sig) | _ => None end.
 
+Section mpred.
+
+Context (Z : Type) `{!heapGS Σ} `{!externalGS Z Σ}.
+
 Section funspecs2jspec.
 
-Variable Z : Type.
+Variable Espec : juicy_ext_spec(Σ := Σ) Z.
 
-Variable Espec : juicy_ext_spec Z.
-
-Definition symb2genv_upper_bound (s: PTree.t block) : block :=
-  Pos.succ (fold_right Pos.max  1%positive (map snd (PTree.elements s))).
+Definition symb2genv_upper_bound (s: Maps.PTree.t block) : block :=
+  Pos.succ (fold_right Pos.max  1%positive (map snd (Maps.PTree.elements s))).
 
 Definition symb2genv (ge_s: injective_PTree block) : genv.
-    refine (Build_genv (@Genv.mkgenv _ _ nil (proj1_sig ge_s) (PTree.empty _) (symb2genv_upper_bound (proj1_sig ge_s)) _ _ _) (PTree.empty _)).
+    refine (Build_genv (@Genv.mkgenv _ _ nil (proj1_sig ge_s) (Maps.PTree.empty _) (symb2genv_upper_bound (proj1_sig ge_s)) _ _ _) (Maps.PTree.empty _)).
 *
 intros.
 unfold Coqlib.Plt.
@@ -50,9 +51,9 @@ apply Pos.lt_succ_r.
 apply Pos.le_refl.
 unfold symb2genv_upper_bound.
 apply -> Pos.succ_le_mono.
-apply PTree.elements_correct in H.
+apply Maps.PTree.elements_correct in H.
 revert H.
-induction (PTree.elements (proj1_sig ge_s)); intros. inv H.
+induction (Maps.PTree.elements (proj1_sig ge_s)); intros. inv H.
 destruct H. subst. simpl.
 apply Pos.le_max_l.
 simpl.
@@ -60,7 +61,7 @@ eapply Pos.le_trans; [  | apply Pos.le_max_r].
 auto.
 *
 intros.
-rewrite PTree.gempty in H. inv H.
+rewrite Maps.PTree.gempty in H. inv H.
 *
 intros.
 destruct ge_s; simpl in *.
@@ -89,65 +90,51 @@ Proof.
   intros; repeat (apply eq_dec || decide equality).
 Qed.
 
-Definition funspec2pre (ext_link: Strings.String.string -> ident) (A : TypeTree)
-  (P: forall ts, dependent_type_functor_rec ts (ArgsTT A) mpred)
+Definition funspec2pre (ext_link: Strings.String.string -> ident) (A : Type)
+  (P: A -> argsEnviron -> mpred)
   (id: ident) (sig : signature) (ef: external_function) x (ge_s: injective_PTree block)
            (tys : list typ) args (z : Z) m : Prop :=
   match oi_eq_dec (Some (id, sig)) (ef_id_sig ext_link ef) as s
-  return ((if s then (rmap*(sigT (fun ts => dependent_type_functor_rec ts A mpred)))%type else ext_spec_type Espec ef) -> Prop)
+  return ((if s then (rmap*A)%type else ext_spec_type Espec ef) -> Prop)
   with
     | left _ => fun x' => Val.has_type_list args (sig_args (ef_sig ef)) /\
-        exists phi0 phi1, join phi0 phi1 (m_phi m)
-                       /\ P (projT1 (snd x')) (projT2 (snd x')) (filter_genv (symb2genv ge_s), args) phi0
-                       /\ necR (fst x') phi1 /\ ext_compat z (m_phi m)
+        exists phi0 phi1, phi0 ⋅ phi1 ≼ₒ{level m} m_phi m /\
+        ouPred_holds (state_interp (m_dry m) z ∗ P (snd x') (filter_genv (symb2genv ge_s), args)) (level m) phi0 /\
+        phi1 ≡{level m}≡ (fst x')
     | right n => fun x' => ext_spec_pre Espec ef x' ge_s tys args z m
   end x.
 
-Definition funspec2post (ext_link: Strings.String.string -> ident) (A : TypeTree)
-  (Q: forall ts, dependent_type_functor_rec ts (AssertTT A) mpred)
+Definition funspec2post (ext_link: Strings.String.string -> ident) (A : Type)
+  (Q: A -> environ -> mpred)
   id sig ef x ge_s (tret : rettype) ret (z : Z) m : Prop :=
   match oi_eq_dec (Some (id, sig)) (ef_id_sig ext_link ef) as s
-  return ((if s then (rmap*(sigT (fun ts => dependent_type_functor_rec ts A mpred)))%type else ext_spec_type Espec ef) -> Prop)
+  return ((if s then (rmap*A)%type else ext_spec_type Espec ef) -> Prop)
   with
-    | left _ => fun x' => exists phi0 phi1, join phi0 phi1 (m_phi m)
-                       /\ Q (projT1 (snd x')) (projT2 (snd x')) (make_ext_rval (filter_genv (symb2genv ge_s)) tret ret) phi0
-                       /\ necR (fst x') phi1
-    | right n => fun x' => ext_spec_post Espec ef x' ge_s tret ret z m
-  end x.
-
-Definition funspec2post' (ext_link: Strings.String.string -> ident) (A : TypeTree)
-  (Q: forall ts, dependent_type_functor_rec ts (AssertTT A) mpred)
-  id sig ef x ge_s (tret : rettype) ret (z : Z) m : Prop :=
-  match oi_eq_dec (Some (id, sig)) (ef_id_sig ext_link ef) as s
-  return ((if s then (rmap*(sigT (fun ts => dependent_type_functor_rec ts A mpred)))%type else ext_spec_type Espec ef) -> Prop)
-  with
-    | left _ => fun x' => exists phi0 phi1, join phi0 phi1 (m_phi m)
-                       /\ Q (projT1 (snd x')) (projT2 (snd x')) (make_ext_rval (filter_genv (symb2genv ge_s)) tret ret) phi0
-                       /\ necR (fst x') phi1
+    | left _ => fun x' => exists phi0 phi1, phi0 ⋅ phi1 ≼ₒ{level m} m_phi m /\
+                       ouPred_holds (state_interp (m_dry m) z ∗ Q (snd x') (make_ext_rval (filter_genv (symb2genv ge_s)) tret ret)) (level m) phi0 /\
+        phi1 ≡{level m}≡ (fst x')
     | right n => fun x' => ext_spec_post Espec ef x' ge_s tret ret z m
   end x.
 
 Definition funspec2extspec (ext_link: Strings.String.string -> ident) (f : (ident*funspec))
   : external_specification juicy_mem external_function Z :=
   match f with
-    | (id, mk_funspec ((params, sigret) as fsig) cc A P Q NEP NEQ) =>
+    | (id, mk_funspec ((params, sigret) as fsig) cc A P Q) =>
       let sig := typesig2signature fsig cc in
       Build_external_specification juicy_mem external_function Z
-        (fun ef => if oi_eq_dec (Some (id, sig)) (ef_id_sig ext_link ef) then (rmap* (sigT (fun ts => dependent_type_functor_rec ts A mpred)))%type else ext_spec_type Espec ef)
+        (fun ef => if oi_eq_dec (Some (id, sig)) (ef_id_sig ext_link ef) then (rmap*A)%type else ext_spec_type Espec ef)
         (funspec2pre ext_link A P id sig)
         (funspec2post ext_link A Q id sig)
-        (fun rv z m => True)
+        (fun rv z m => True%type)
   end.
 
-Local Open Scope pred.
-
-Definition wf_funspec (f : funspec) :=
+Definition wf_funspec (f : @funspec Σ) :=
   match f with
-    | mk_funspec sig cc A P Q _ _ =>
-        forall ts a (ge ge': genv)  args,
+    | mk_funspec sig cc A P Q =>
+        forall a (ge ge': genv) args,
           Genv.genv_symb ge = Genv.genv_symb ge' ->
-          P ts a (filter_genv ge, args) 
-         |-- P ts a (filter_genv ge', args)
+          P a (filter_genv ge, args) 
+         ⊢ P a (filter_genv ge', args)
   end.
 
 Lemma make_ext_args_filtergenv (ge ge' : genv)
@@ -161,130 +148,65 @@ Qed.
 
 Lemma all_funspecs_wf f : wf_funspec f.
 Proof.
-destruct f; simpl; intros ts a ge ge' n args H.
+destruct f; simpl; intros a ge ge' args H.
 erewrite make_ext_args_filtergenv; eauto.
 Qed.
 
 
 Program Definition funspec2jspec (ext_link: Strings.String.string -> ident) f : juicy_ext_spec Z :=
-  Build_juicy_ext_spec _ (funspec2extspec ext_link f) _ _ _ _ _ _.
+  Build_juicy_ext_spec _ (funspec2extspec ext_link f) _ _ _.
 Next Obligation.
-destruct f; simpl; unfold funspec2pre, pureat; simpl; destruct f; simpl;
+destruct f; simpl; unfold funspec2pre; simpl; destruct f; simpl;
   destruct t; simpl; intros.
 if_tac [e0|e0].
-* destruct e; try discriminate; injection e0 as E; subst i sg; intros a a' Hage.
-intros [Hargs H].
+* destruct e; try discriminate; injection e0 as E; subst i sg; intros m n phi.
+intros [Hargs H] Hord ?.
 split; auto.
-apply age_jm_phi in Hage.
-destruct H as [phi0 [phi1 [Hjoin [Hx [Hy Hg]]]]].
-destruct (age1_join2 phi0 Hjoin Hage) as [x' [y' [Hjoin' [Hage' H]]]].
-exists x', y'; split; auto.
-destruct P as (? & h & ?). split. eapply h; eauto.
-split. apply (necR_trans (fst t0) phi1 y'); auto.
-unfold necR. constructor; auto.
-unfold ext_compat in *; rewrite (age1_ghost_of _ _ Hage).
-apply ext_join_approx; auto.
+destruct H as [phi0 [phi1 [Hjoin [Hx Hy]]]].
+exists phi0, phi1; simpl; split3.
+- eapply ora_orderN_le; last done.
+  etrans; eauto.
+- eapply ouPred_mono; eauto.
+- eapply dist_le; eauto.
 * intros ? ?; auto.
-destruct Espec; simpl; apply JE_pre_hered.
+destruct Espec; simpl; apply JE_pre_mono.
 Qed.
 Next Obligation.
-destruct f; simpl; unfold funspec2pre, pureat; simpl; destruct f; simpl;
+destruct f; simpl; unfold funspec2post; simpl; destruct f; simpl;
   destruct t; simpl; intros.
 if_tac [e0|e0].
-* destruct e; try discriminate; injection e0 as E; subst i sg.
-destruct H as [_ Hext]; apply rmap_order in Hext as (Hl & Hr & J).
-destruct H1 as [? H].
-split; auto.
-destruct H as [phi0 [phi1 [Hjoin [Hx [Hy Hg]]]]].
-destruct J as [? J]; destruct (join_assoc (join_comm (ghost_of_join _ _ _ Hjoin)) J) as (g' & ? & ?).
-destruct (make_rmap (resource_at phi0) (own.ghost_approx (level phi0) g') (level phi0))
-  as (phi0' & Hl' & Hr' & Hg').
-{ extensionality; apply resource_at_approx. }
-{ rewrite ghost_fmap_fmap, !approx_oo_approx; auto. }
-destruct (join_level _ _ _ Hjoin).
-exists phi0', phi1; repeat split; auto.
-+ apply resource_at_join2; try congruence.
-  - intros; rewrite Hr', <- Hr.
-    apply resource_at_join; auto.
-  - rewrite Hg'.
-    rewrite <- (ghost_of_approx phi1), <- (ghost_of_approx (m_phi a')), <- Hl, H3, H4.
-    apply ghost_fmap_join; auto.
-+ eapply pred_upclosed, Hx.
-  rewrite rmap_order; repeat split; auto.
-  rewrite Hg'.
-  rewrite <- ghost_of_approx; eexists; apply ghost_fmap_join; eauto.
-* eapply JE_pre_ext, H1; auto.
-Qed.
-Next Obligation.
-destruct f; simpl; unfold funspec2post, pureat; simpl; destruct f; simpl;
-  destruct t; simpl; intros.
-if_tac [e0|e0].
-* destruct e; try discriminate; injection e0 as E; subst i sg. intros a a' Hage. destruct Q as (? & h & ?); simpl.
+* destruct e; try discriminate; injection e0 as E; subst i sg. intros m n phi.
 intros [phi0 [phi1 [Hjoin [Hx Hy]]]].
-apply age_jm_phi in Hage.
-destruct (age1_join2 phi0 Hjoin Hage) as [x' [y' [Hjoin' [Hage' H]]]].
-exists x', y'; split; auto.
-split; [solve[eapply h; eauto]|].
-apply (necR_trans (fst t0) phi1 y'); auto.
-unfold necR. constructor; auto.
+exists phi0, phi1; simpl; split3.
+- eapply ora_orderN_le; last done.
+  etrans; eauto.
+- eapply ouPred_mono; eauto.
+- eapply dist_le; eauto.
 * intros ? ?; auto.
-destruct Espec; simpl; apply JE_post_hered.
-Qed.
-Next Obligation.
-destruct f; simpl; unfold funspec2post, pureat; simpl; destruct f; simpl;
-  destruct t; simpl; intros.
-if_tac [e0|e0].
-* destruct e; try discriminate; injection e0 as E; subst i sg. intros a a' Hext. destruct Q as (? & h & e); simpl.
-intros [phi0 [phi1 [Hjoin [Hx Hy]]]].
-destruct Hext as [_ Hext]; apply rmap_order in Hext as (Hl & Hr & ? & J).
-destruct (join_assoc (join_comm (ghost_of_join _ _ _ Hjoin)) J) as (g' & ? & ?).
-destruct (make_rmap (resource_at phi0) (own.ghost_approx (level phi0) g') (level phi0))
-  as (phi0' & Hl' & Hr' & Hg').
-{ extensionality; apply resource_at_approx. }
-{ rewrite ghost_fmap_fmap, !approx_oo_approx; auto. }
-destruct (join_level _ _ _ Hjoin).
-exists phi0', phi1; repeat split; auto.
-+ apply resource_at_join2; try congruence.
-  - intros; rewrite Hr', <- Hr.
-    apply resource_at_join; auto.
-  - rewrite Hg'.
-    rewrite <- (ghost_of_approx phi1), <- (ghost_of_approx (m_phi a')), <- Hl, H1, H2.
-    apply ghost_fmap_join; auto.
-+ eapply e, Hx.
-  rewrite rmap_order; repeat split; auto.
-  rewrite Hg'.
-  rewrite <- ghost_of_approx; eexists; apply ghost_fmap_join; eauto.
-* intros ? ?; auto.
-destruct Espec; simpl; apply JE_post_ext.
+destruct Espec; simpl; apply JE_post_mono.
 Qed.
 Next Obligation.
 intros ? ? ? ?; destruct f; destruct f; destruct t; simpl.
-intros a' Hage; auto.
-Qed.
-Next Obligation.
-intros ? ? ? ?; destruct f; destruct f; destruct t; simpl.
-intros a' Hext; auto.
+intros ?; auto.
 Qed.
 
 End funspecs2jspec.
 
-Definition funspecs_norepeat (fs : funspecs) := list_norepet (map fst fs).
+Definition funspecs_norepeat (fs : @funspecs Σ) := list_norepet (map fst fs).
 
-Fixpoint add_funspecs_rec (ext_link: Strings.String.string -> ident) (Z : Type) (Espec : juicy_ext_spec Z) (fs : funspecs) :=
+Fixpoint add_funspecs_rec (ext_link: Strings.String.string -> ident) (Espec : juicy_ext_spec Z) (fs : funspecs) :=
   match fs with
     | nil => Espec
-    | cons (i,f) fs' => funspec2jspec Z (add_funspecs_rec ext_link Z Espec fs') ext_link (i,f)
+    | cons (i,f) fs' => funspec2jspec (add_funspecs_rec ext_link Espec fs') ext_link (i,f)
   end.
 
-Require Import Coq.Logic.JMeq.
-
 Lemma add_funspecs_pre  (ext_link: Strings.String.string -> ident)
-              {Z fs id sig cc A P Q NEP NEQ}
-              {x: sigT (fun ts => dependent_type_functor_rec ts A mpred)} {args m} Espec tys ge_s phi0 phi1 :
+              {fs id sig cc A P Q NEP NEQ}
+              {x: A} {args m} Espec tys ge_s phi0 phi1 :
   let ef := EF_external id (typesig2signature sig cc) in
   funspecs_norepeat fs ->
-  In (ext_link id, (mk_funspec sig cc A P Q NEP NEQ)) fs ->
-  join phi0 phi1 (m_phi m) ->
+  In (ext_link id, (mk_funspec sig cc A P Q)) fs ->
+  phi0 ⋅ phi1 ≼ₒ{level m} m_phi m ->
   Val.has_type_list args (sig_args (ef_sig ef)) ->
   P (projT1 x) (projT2 x) (filter_genv (symb2genv ge_s), args) phi0 ->
   exists x' : ext_spec_type (JE_spec _ (add_funspecs_rec ext_link Z Espec fs)) ef,
