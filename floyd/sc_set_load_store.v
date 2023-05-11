@@ -1668,14 +1668,28 @@ Definition upd_val t_root gfs v v0 :=
 
 End SEMAX_PTREE.
 
+Ltac equal_pointers p q :=
+ lazymatch p with
+ | offset_val 0 ?p' => equal_pointers p' q
+ | _ => lazymatch q with offset_val 0 ?q' => equal_pointers p q'
+        | _ => unify p q
+        end
+ end.
+
 Ltac SEP_field_at_unify' gfs :=
   match goal with
-  | |- field_at ?shl ?tl ?gfsl ?vl ?pl = field_at ?shr ?tr ?gfsr ?vr ?pr =>
+  | |- @field_at ?csl ?shl ?tl ?gfsl ?vl ?pl = @field_at ?csr ?shr ?tr ?gfsr ?vr ?pr =>
       unify tl tr;
       unify (Floyd_skipn (length gfs - length gfsl) gfs) gfsl;
       unify gfsl gfsr;
       unify shl shr;
       unify vl vr;
+      equal_pointers pl pr;
+      constr_eq csl csr +
+      fail 12 "Two different compspecs present:" 
+         csl "and" csr 
+        ".  Try using change_compspecs, or use VSUs";
+
       generalize vl; intro;
       rewrite <- ?field_at_offset_zero;
       f_equal; (* this line is important to prevent blow-ups *)
