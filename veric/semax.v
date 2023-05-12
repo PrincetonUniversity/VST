@@ -158,10 +158,10 @@ Definition semax_external E
    ■ (⌜Val.has_type_list args (sig_args (ef_sig ef))⌝ ∧
      (P x (filter_genv gx, args) ∗ F) ={E}=∗
    ∀ m z, state_interp m z -∗ ∃ x': ext_spec_type OK_spec ef,
-    ext_jmpred_pre OK_ty OK_spec ef x' (genv_symb_injective gx) ts args z m ∗
-     □ ∀ tret: rettype, ∀ ret: option val, ∀ z': OK_ty, ∀ m',
-      ext_jmpred_post OK_ty OK_spec ef x' (genv_symb_injective gx) tret ret z' m' ∗ state_interp m' z' ={E}=∗
-          state_interp m' z' ∗ Q x (make_ext_rval (filter_genv gx) tret ret) ∗ F).
+    ext_mpred_pre OK_ty OK_spec ef x' (genv_symb_injective gx) ts args z ∗
+     (*□*) ∀ tret: rettype, ∀ ret: option val, ∀ z': OK_ty,
+      ext_mpred_post OK_ty OK_spec ef x' (genv_symb_injective gx) tret ret z' ={E}=∗
+          ∃ m', state_interp m' z' ∗ Q x (make_ext_rval (filter_genv gx) tret ret) ∗ F).
 
 Lemma Forall2_implication {A B} (P Q:A -> B -> Prop) (PQ:forall a b, P a b -> Q a b):
   forall l t, Forall2 P l t -> Forall2 Q l t.
@@ -193,9 +193,10 @@ Proof.
     eapply Forall2_implication; [ | apply HT]; auto. }
   iMod ("H" $! _ (F ∗ F1) with "[$P1 $F $F1]") as "H1"; first done.
   iIntros "!>" (??) "s".
-  iDestruct ("H1" with "s") as (x') "[? #H']".
-  iExists x'; iFrame; iIntros "!>" (????) "Hpost".
-  iMod ("H'" with "Hpost") as "($ & Q1 & $ & F1)".
+  iDestruct ("H1" with "s") as (x') "[? H']".
+  iExists x'; iFrame; iIntros (???) "Hpost".
+  iMod ("H'" with "Hpost") as (?) "(? & Q1 & ? & F1)".
+  iExists m'; iFrame.
   iApply (HQ with "[$F1 $Q1]"); iPureIntro; split; auto.
   destruct tret, ret; auto.
 Qed.

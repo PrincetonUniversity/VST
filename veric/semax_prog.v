@@ -297,7 +297,7 @@ end.
 Definition postcondition_allows_exit retty :=
    forall v ora,
       tc_option_val retty v ->
-      True ⊢ ext_jmpred_exit _ OK_spec v ora.
+      True ⊢ ext_mpred_exit _ OK_spec v ora.
 
 Definition semax_prog {C: compspecs}
        (prog: program) (ora: OK_ty) (V: varspecs) (G: funspecs) : Prop :=
@@ -995,7 +995,7 @@ Proof.
   iIntros "!> % ?"; iLeft.
   iExists Int.zero; iSplit; first by iPureIntro.
   specialize (H (Some (Vint Int.zero)) ora I).
-  rewrite -H monPred_at_pure //.
+  rewrite -H //.
 Qed.
 
 Lemma semax_prog_entry_point {CS: compspecs} V G prog b id_fun params args A

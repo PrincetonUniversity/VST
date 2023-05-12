@@ -101,7 +101,7 @@ Proof.
   - inv H4.
 Qed.
 
-Ltac inv_safe H :=
+(*Ltac inv_safe H :=
   inv H;
   try solve[match goal with
     | H : semantics.at_external _ _ _ = _ |- _ =>
@@ -110,7 +110,7 @@ Ltac inv_safe H :=
       simpl in H; congruence
     | H : semantics.halted _ _ _ |- _ =>
       simpl in H; unfold cl_halted in H; contradiction
-  end].
+  end].*)
 
 Lemma semax_seq:
   forall E Delta (R: ret_assert) P Q h t,

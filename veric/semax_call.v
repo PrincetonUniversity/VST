@@ -602,7 +602,7 @@ iMod ("He" $! psi x1 (F0 rho ∗ F1 rho) (typlist_of_typelist tys) args with "[F
   apply tc_val_has_type; auto. }
 clear TC8. simpl fst in *. simpl snd in *.
 rewrite /jsafeN jsafe_unfold /jsafe_pre.
-iIntros "!>" (?) "s"; iDestruct ("He1" with "s") as (x') "(pre & #post)".
+iIntros "!>" (?) "s"; iDestruct ("He1" with "s") as (x') "(pre & post)".
 destruct Hinline as [Hinline | ?]; last done.
 iRight; iRight; iExists _, _, _; iSplit.
 { iPureIntro; simpl.
@@ -610,8 +610,8 @@ iRight; iRight; iExists _, _, _; iSplit.
 rewrite Eef TTL3; iFrame "pre".
 iDestruct "rguard" as "#rguard"; iDestruct "fun" as "#fun".
 iNext.
-iIntros "!>" (??? [??]) "?".
-iMod ("post" with "[$]") as "($ & Q & F0 & F)".
+iIntros (?? [??]) "?".
+iMod ("post" with "[$]") as (?) "(? & Q & F0 & F)".
 iDestruct ("Htc" with "[Q]") as %Htc; first by iFrame.
 pose (tx' := match ret,ret0 with
                    | Some id, Some v => Maps.PTree.set id v tx
@@ -647,7 +647,7 @@ iPoseProof ("HR" $! rho' with "[Q F]") as "R".
     iExists v; iSplit; first by iPureIntro; apply tc_val_tc_val'; destruct t0.
     rewrite /make_ext_rval /env_set /=.
     destruct t0; try destruct i, s; try destruct f; try (specialize (TC5 eq_refl)); iFrame; first done; destruct v; contradiction. }
-iIntros "!>"; iExists _; iSplit; first done.
+iIntros "!>"; iExists _, _; iSplit; first done; iFrame.
 assert (tx' = set_opttemp ret (force_val ret0) tx) as Htx'.
 { subst tx'.
   clear - Htc TCret TC5. hnf in Htc, TCret.
