@@ -11,22 +11,24 @@ Section mpred.
 
 Context `{!heapGS Σ}.
 
-Definition allp_fun_id E (Delta : tycontext) (rho : environ): mpred :=
+Definition allp_fun_id E (Delta : tycontext) : assert :=
+assert_of (fun rho =>
  ∀ id : ident, ∀ fs : funspec,
   ⌜(glob_specs Delta) !! id = Some fs⌝ →
-  (∃ b : block, ⌜Map.get (ge_of rho) id = Some b⌝ ∧ func_ptr_si (ge_of rho) E id fs (Vptr b Ptrofs.zero)).
+  (∃ b : block, ⌜Map.get (ge_of rho) id = Some b⌝ ∧ func_ptr_si (ge_of rho) E id fs (Vptr b Ptrofs.zero))).
 
 Global Instance funspec_inhabited : Inhabited (@funspec Σ).
 Proof. constructor. exact (mk_funspec ([], Tvoid) cc_default unit (fun _ _ => True) (fun _ _ => True)). Qed.
 
-Definition allp_fun_id_sigcc (Delta : tycontext) (rho : environ): mpred :=
+Definition allp_fun_id_sigcc (Delta : tycontext) : assert :=
+assert_of (fun rho =>
 (∀ id : ident ,
  (∀ fs : funspec ,
   ⌜(glob_specs Delta) !! id = Some fs⌝ →
   (∃ b : block, ⌜Map.get (ge_of rho) id = Some b⌝ ∧ 
     match fs with
     mk_funspec sig cc _ _ _ => sigcc_at sig cc (b, 0)
-    end))).
+    end)))).
 
 Lemma allp_fun_id_ex_implies_allp_fun_sigcc E Delta rho:
   allp_fun_id E Delta rho ⊢ allp_fun_id_sigcc Delta rho.
@@ -134,7 +136,7 @@ Lemma tc_expr_lvalue_sub: forall rho,
     (tc_lvalue Delta e rho ⊢ tc_lvalue Delta' e rho).
 Proof.
   intros rho HHH.
-  induction e; unfold tc_expr, tc_lvalue; split; auto.
+  induction e; unfold tc_expr, tc_lvalue; split; auto; simpl in *.
 * unfold typecheck_expr.
   destruct (access_mode t); try iIntros "[]".
   destruct (get_var_type Delta i) eqn:?; [ | iIntros "[]"].

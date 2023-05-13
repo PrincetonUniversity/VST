@@ -355,12 +355,11 @@ intros.
 destruct H as [? [? [? [? [? ?]]]]]; repeat split; auto.
 Qed.
 
-(* Should these be asserts? *)
 Record ret_assert : Type := {
- RA_normal: environ->mpred;
- RA_break: environ->mpred;
- RA_continue: environ->mpred;
- RA_return: option val -> environ->mpred
+ RA_normal: @assert Σ;
+ RA_break: @assert Σ;
+ RA_continue: @assert Σ;
+ RA_return: option val -> @assert Σ
 }.
 
 End mpred.

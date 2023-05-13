@@ -449,14 +449,14 @@ Proof.
 Qed.
 
 Definition maybe_retval (Q: environ -> mpred) retty ret :=
- match ret with
+ assert_of (match ret with
  | Some id => fun rho => ⌜tc_val' retty (eval_id id rho)⌝ ∧ Q (get_result1 id rho)
  | None =>
     match retty with
     | Tvoid => (fun rho => Q (globals_only rho))
     | _ => fun rho => ∃ v: val, ⌜tc_val' retty v⌝ ∧ Q (make_args (ret_temp::nil) (v::nil) rho)
     end
- end.
+ end).
 
 Lemma Forall_filter: forall {A} P (l: list A) f, Forall P l -> Forall P (List.filter f l).
 Proof.
@@ -968,7 +968,7 @@ Lemma tc_eval_exprlist:
     tc_exprlist(CS := CS') Delta tys bl rho ⊢
     ⌜tc_vals tys (eval_exprlist tys bl rho)⌝.
 Proof.
-induction tys; destruct bl; simpl; intros; auto.
+induction tys; destruct bl; simpl in *; intros; auto.
 unfold tc_exprlist in *; simpl.
 unfold typecheck_expr; fold typecheck_expr.
 rewrite !denote_tc_assert_andp IHtys // tc_val_sem_cast //.
@@ -1507,29 +1507,24 @@ Qed.*)
 Definition cast_expropt {CS} (e: option expr) t : environ -> option val :=
  match e with Some e' => `Some (eval_expr(CS := CS) (Ecast e' t))  | None => `None end.
 
-Definition tc_expropt {CS} Delta (e: option expr) (t: type) : environ -> mpred :=
-   match e with None => `⌜t=Tvoid⌝
-                     | Some e' => denote_tc_assert(CS := CS) (typecheck_expr(CS := CS) Delta (Ecast e' t))
-   end.
-
-Lemma tc_expropt_char {CS'} Delta e t: @tc_expropt CS' Delta e t =
-                                      match e with None => `⌜t=Tvoid⌝
+Lemma tc_expropt_char {CS'} Delta e t: tc_expropt (CS := CS') Delta e t =
+                                      match e with None => ⌜t=Tvoid⌝
                                               | Some e' => tc_expr(CS := CS') Delta (Ecast e' t)
                                       end.
 Proof. reflexivity. Qed.
 
 Lemma RA_return_castexpropt_cenv_sub {CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) Delta rho (D:typecheck_environ Delta rho) ret t:
-  @tc_expropt CS Delta ret t rho ⊢ ⌜@cast_expropt CS ret t rho = @cast_expropt CS' ret t rho⌝.
+  tc_expropt (CS := CS) Delta ret t rho ⊢ ⌜@cast_expropt CS ret t rho = @cast_expropt CS' ret t rho⌝.
 Proof.
-  rewrite /tc_expropt; destruct ret; simpl.
+  rewrite /tc_expropt /tc_expr; destruct ret; simpl.
   + unfold_lift. rewrite /typecheck_expr; fold typecheck_expr.
     rewrite denote_tc_assert_andp (typecheck_expr_sound_cenv_sub CSUB) //.
     iIntros "(-> & _)"; done.
-  + iPureIntro; done.
+  + iIntros; iPureIntro; done.
 Qed.
 
 Lemma tc_expropt_cenv_sub {CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) Delta rho (D:typecheck_environ Delta rho) ret t:
-  @tc_expropt CS Delta ret t rho ⊢ @tc_expropt CS' Delta ret t rho.
+  tc_expropt (CS := CS) Delta ret t rho ⊢ tc_expropt (CS := CS') Delta ret t rho.
 Proof.
   rewrite !tc_expropt_char.
   pose proof (tc_expr_cenv_sub CSUB).
@@ -1537,22 +1532,19 @@ Proof.
 Qed.
 
 Lemma tc_expropt_cspecs_sub {CS'} (CSUB: cspecs_sub CS CS') Delta rho (D:typecheck_environ Delta rho) ret t:
-  @tc_expropt CS Delta ret t rho ⊢ @tc_expropt CS' Delta ret t rho.
+  tc_expropt (CS := CS) Delta ret t rho ⊢ tc_expropt (CS := CS') Delta ret t rho.
 Proof.
   destruct CSUB as [CSUB _].
   apply tc_expropt_cenv_sub; done.
 Qed.
 
 Lemma tc_expropt_sub {CS'} E Delta Delta' rho (TS:tycontext_sub E Delta Delta') (D:typecheck_environ Delta rho) ret t:
-  @tc_expropt CS' Delta ret t rho ⊢ @tc_expropt CS' Delta' ret t rho.
+  tc_expropt (CS := CS') Delta ret t rho ⊢ tc_expropt (CS := CS') Delta' ret t rho.
 Proof.
   rewrite !tc_expropt_char.
   specialize (tc_expr_sub _ _ _ _ TS); intros.
   destruct ret; [ eapply H; assumption | trivial].
 Qed.
-
-Global Instance tc_expropt_absorbing {CS'} Delta ret t rho : Absorbing (@tc_expropt CS' Delta ret t rho).
-Proof. destruct ret; apply _. Qed.
 
 Lemma semax_return:
    forall E Delta R ret,
@@ -1594,7 +1586,7 @@ Proof.
   - (* If we did a view-shift here, we could lose the typechecking (by giving up mem that makes pointers in e valid). *)
     iApply bi.impl_elim_r; iSplit; last by iDestruct "H" as "[_ H]"; iApply ("H" with "[%]").
     iIntros (?) "Hm"; iDestruct "H" as "[H _]".
-    rewrite /typecheck_expr; fold typecheck_expr.
+    rewrite /tc_expr /typecheck_expr; fold typecheck_expr.
     rewrite denote_tc_assert_andp.
     subst rho; iDestruct (eval_expr_relate(CS := CS') with "[$Hm H]") as %?; [| iDestruct "H" as "[$ _]" |]; try done.
     iDestruct (typecheck_expr_sound' with "[H]") as %Htc; first iDestruct "H" as "($ & _)".

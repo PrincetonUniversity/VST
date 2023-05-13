@@ -137,7 +137,7 @@ iDestruct (eval_expr_relate with "[$Hm H]") as %He1.
 { iDestruct "H" as "[$ _]". }
 iDestruct (eval_expr_relate with "[$Hm H]") as %He2.
 { iDestruct "H" as "(_ & $ & _)". }
-rewrite /tc_expr !typecheck_expr_sound; [| done..].
+rewrite /tc_expr /= !typecheck_expr_sound; [| done..].
 iDestruct "H" as (???) "H".
 iAssert ⌜∃ ch b o, access_mode (typeof e1) = By_value ch ∧ eval_expr e1 rho = Vptr b o ∧ Mem.valid_pointer m b (Ptrofs.unsigned o) = true⌝ with "[-]" as %(ch1 & b1 & o1 & ? & Hv1 & MT_1).
 { iDestruct "H" as "(>H & _)".
@@ -285,7 +285,7 @@ Proof.
   eapply typecheck_tid_ptr_compare_sub in TCid; last done.
   iIntros "H"; iExists m, (Maps.PTree.set id (eval_expr (Ebinop cmp e1 e2 ty) rho) te), _.
   iSplit; [iSplit; first done; iSplit|].
-  + rewrite !mapsto_is_pointer /tc_expr !typecheck_expr_sound; [| done..].
+  + rewrite !mapsto_is_pointer /tc_expr /= !typecheck_expr_sound; [| done..].
     iDestruct "H" as "(? & ((>%TC1 & >%TC2 & >% & >%Hv1 & >%Hv2) & _) & ?)".
     destruct Hv1 as (? & ? & ?), Hv2 as (? & ? & ?).
     simpl. rewrite <- map_ptree_rel.
@@ -334,7 +334,7 @@ Proof.
     by (destruct TC as [TC' TC'']; eapply typecheck_environ_sub; eauto).
   iIntros "(Hm & H & #?)".
   iExists m, (Maps.PTree.set id (eval_expr e rho) te), _.
-  rewrite tc_temp_id_sub /tc_temp_id /typecheck_temp_id; last done.
+  rewrite tc_temp_id_sub /tc_temp_id /typecheck_temp_id /=; last done.
   destruct (temp_types Delta' !! id) eqn: Hid.
   iSplit; [iSplit; first done; iSplit|].
   + rewrite !denote_tc_assert_andp tc_bool_e.
@@ -381,7 +381,7 @@ eapply semax_pre, semax_set_forward.
 intros; iIntros "[%TC H] !>".
 iSplit; first iDestruct "H" as "[$ _]".
 iSplit; last iDestruct "H" as "[_ $]".
-rewrite /tc_temp_id /typecheck_temp_id.
+rewrite /tc_temp_id /typecheck_temp_id /=.
 unfold typeof_temp in H.
 destruct (temp_types Delta !! id) eqn: Ht; inv H.
 rewrite Ht denote_tc_assert_andp.
@@ -416,7 +416,7 @@ Proof.
   destruct (temp_types Delta !! id) eqn: Hid; inversion H99; subst t0; clear H99.
   rewrite Hid in TS.
   iSplit; [iSplit; first done; iSplit|].
-  + rewrite (bi.and_elim_l (▷ _)) /tc_expr typecheck_cast_sound; last apply typecheck_expr_sound; try done.
+  + rewrite (bi.and_elim_l (▷ _)) /tc_expr /= typecheck_cast_sound; last apply typecheck_expr_sound; try done.
     iDestruct "H" as ">%"; iPureIntro.
     simpl in *. rewrite <- map_ptree_rel.
     apply guard_environ_put_te'; [subst; auto|].
@@ -497,7 +497,7 @@ Proof.
   destruct (temp_types Delta !! id) eqn: Hid; inversion Hid0; subst t; clear Hid0.
   rewrite Hid in TS.
   iSplit; [iSplit; first done; iSplit|].
-  + rewrite (bi.and_elim_l (▷ _)) /tc_lvalue typecheck_lvalue_sound; try done.
+  + rewrite (bi.and_elim_l (▷ _)) /tc_lvalue /= typecheck_lvalue_sound; try done.
     iDestruct "H" as ">%"; iPureIntro.
     rewrite <- map_ptree_rel.
     apply guard_environ_put_te'; [subst; auto|].
@@ -830,7 +830,7 @@ Proof.
     iCombine "Hm H" as "H"; rewrite (add_and (_ ∗ _) (▷_)); last by iIntros "H"; iNext; iDestruct "H" as "(Hm & (H & _) & _)"; iApply (eval_lvalue_relate with "[$Hm $H]").
     iDestruct "H" as "(H & >%He1')".
     destruct He1' as (? & ? & ? & He1'); rewrite He1' in He1; inv He1.
-    rewrite /tc_expr /typecheck_expr; fold typecheck_expr.
+    rewrite /tc_expr /typecheck_expr /=; fold typecheck_expr.
     rewrite denote_tc_assert_andp.
     rewrite (add_and (_ ∗ _) (▷_)); last by iIntros "H"; iNext; iDestruct "H" as "(Hm & (_ & H & _) & _)"; iApply (eval_expr_relate with "[$Hm $H]").
     iDestruct "H" as "(H & >%He2)".
@@ -844,7 +844,7 @@ Proof.
     iPureIntro; econstructor; eauto.
     eapply assign_loc_value; eauto.
   + iIntros "!>".
-    rewrite /tc_expr typecheck_expr_sound //.
+    rewrite /tc_expr /= typecheck_expr_sound //.
     rewrite (bi.and_elim_r (▷ tc_lvalue _ _ _)).
     iDestruct "H" as "(>%Htc & F & >Hmapsto & P)".
     subst; iPoseProof (mapsto_store with "[$Hm $Hmapsto]") as ">[? ?]".
@@ -913,7 +913,7 @@ Proof.
     iCombine "Hm H" as "H"; rewrite (add_and (_ ∗ _) (▷_)); last by iIntros "H"; iNext; iDestruct "H" as "(Hm & (H & _) & _)"; iApply (eval_lvalue_relate with "[$Hm $H]").
     iDestruct "H" as "(H & >%He1')".
     destruct He1' as (? & ? & ? & He1'); rewrite He1' in He1; inv He1.
-    rewrite /tc_expr /typecheck_expr; fold typecheck_expr.
+    rewrite /tc_expr /typecheck_expr /=; fold typecheck_expr.
     rewrite denote_tc_assert_andp.
     rewrite (add_and (_ ∗ _) (▷_)); last by iIntros "H"; iNext; iDestruct "H" as "(Hm & (_ & H & _) & _)"; iApply (eval_expr_relate with "[$Hm $H]").
     iDestruct "H" as "(H & >%He2)".
@@ -927,7 +927,7 @@ Proof.
     iPureIntro; econstructor; eauto.
     eapply assign_loc_value; eauto.
   + iIntros "!>".
-    rewrite /tc_expr typecheck_expr_sound //.
+    rewrite /tc_expr /= typecheck_expr_sound //.
     rewrite (bi.and_elim_r (▷ tc_lvalue _ _ _)); iDestruct "H" as "(>%Htc & F & >H & P)".
     iAssert ⌜type_is_volatile t2 = false ∧ (align_chunk ch' | Ptrofs.unsigned i)%Z⌝ with "[H]" as %[??].
     { iDestruct "H" as "[_ H]"; rewrite /mapsto AM'.

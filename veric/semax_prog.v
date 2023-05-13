@@ -186,7 +186,7 @@ setoid_rewrite Maps.PTree.gso; auto.
 Qed.
 
 Section semax_prog.
-Context (Espec : @OracleKind Σ) `{!externalGS OK_ty Σ}.
+Context {Espec : @OracleKind Σ} `{!externalGS OK_ty Σ}.
 
 Definition prog_contains (ge: genv) (fdecs : list (ident * Clight.fundef)) : Prop :=
      forall id f, In (id,f) fdecs ->

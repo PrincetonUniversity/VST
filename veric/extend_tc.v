@@ -14,23 +14,23 @@ Section mpred.
 
 Context `{!heapGS Σ}.
 
-Definition tc_expr {CS: compspecs} (Delta: tycontext) (e: expr) : environ -> mpred :=
-  fun rho => denote_tc_assert (typecheck_expr Delta e) rho.
+Definition tc_expr {CS: compspecs} (Delta: tycontext) (e: expr) : assert :=
+  assert_of (fun rho => denote_tc_assert (typecheck_expr Delta e) rho).
 
-Definition tc_exprlist {CS: compspecs} (Delta: tycontext) (t : list type) (e: list expr) : environ -> mpred :=
-      fun rho => denote_tc_assert (typecheck_exprlist Delta t e) rho.
+Definition tc_exprlist {CS: compspecs} (Delta: tycontext) (t : list type) (e: list expr) : assert :=
+  assert_of (fun rho => denote_tc_assert (typecheck_exprlist Delta t e) rho).
 
-Definition tc_lvalue {CS: compspecs} (Delta: tycontext) (e: expr) : environ -> mpred :=
-     fun rho => denote_tc_assert (typecheck_lvalue Delta e) rho.
+Definition tc_lvalue {CS: compspecs} (Delta: tycontext) (e: expr) : assert :=
+  assert_of (fun rho => denote_tc_assert (typecheck_lvalue Delta e) rho).
 
 Definition tc_temp_id {CS: compspecs} (id : positive) (ty : type)
-  (Delta : tycontext) (e : expr) : environ -> mpred  :=
-     fun rho => denote_tc_assert (typecheck_temp_id id ty Delta e) rho.
+  (Delta : tycontext) (e : expr) : assert :=
+  assert_of (fun rho => denote_tc_assert (typecheck_temp_id id ty Delta e) rho).
 
-Definition tc_expropt {CS: compspecs} Delta (e: option expr) (t: type) : environ -> mpred :=
-   match e with None => `⌜t=Ctypes.Tvoid⌝
-                     | Some e' => `bi_absorbingly (tc_expr Delta (Ecast e' t))
-   end.
+Definition tc_expropt {CS: compspecs} Delta (e: option expr) (t: type) : assert :=
+  match e with None => ⌜t=Ctypes.Tvoid⌝
+                     | Some e' => (tc_expr Delta (Ecast e' t))
+  end.
 
 Definition tc_temp_id_load id tfrom Delta v : environ -> mpred  :=
 fun rho => ⌜exists tto, (temp_types Delta) !! id = Some tto
@@ -50,7 +50,12 @@ Proof.
     /denote_tc_igt /denote_tc_lgt /denote_tc_Zle  /denote_tc_Zge /denote_tc_nodivover /denote_tc_nosignedover /test_eq_ptrs /test_order_ptrs; repeat extend_tc_prover.
 Qed.
 
-Global Instance tc_expropt_absorbing: forall {CS: compspecs} Delta e t rho, Absorbing (tc_expropt Delta e t rho).
+Global Instance tc_expr_absorbing : forall {CS: compspecs} Delta a, Absorbing (tc_expr Delta a).
+Proof.
+  intros; apply monPred_absorbing, _.
+Qed.
+
+Global Instance tc_expropt_absorbing: forall {CS: compspecs} Delta e t, Absorbing (tc_expropt Delta e t).
 Proof.
   intros. unfold tc_expropt.
   destruct e; apply _.
@@ -195,7 +200,7 @@ Proof.
   intros.
   unfold tc_expr, typecheck_expr;
   fold (typecheck_expr(CS := CS));
-  fold (typecheck_expr(CS := CS')).
+  fold (typecheck_expr(CS := CS')); simpl.
   tc_expr_cenv_sub_tac.
   rewrite /isBinOpResultType.
   repeat match goal with |- denote_tc_assert match ?A with _ => _ end _ ⊢ _ =>
@@ -215,7 +220,7 @@ Lemma tc_expr_cenv_sub_cast:
  @tc_expr CS' Delta (Ecast a t) rho.
 Proof.
   intros.
-  unfold tc_expr, typecheck_expr; fold (typecheck_expr(CS := CS)); fold (typecheck_expr(CS := CS')).
+  unfold tc_expr, typecheck_expr; fold (typecheck_expr(CS := CS)); fold (typecheck_expr(CS := CS')); simpl.
   unfold isCastResultType; tc_expr_cenv_sub_tac.
   repeat match goal with |- denote_tc_assert match ?A with _ => _ end _ ⊢ _ =>
     destruct A eqn: ?Hcase
@@ -237,7 +242,7 @@ Lemma tc_expr_cenv_sub_field:
  @tc_expr CS' Delta (Efield a i t) rho.
 Proof.
   intros.
-  unfold tc_expr, typecheck_expr; fold (typecheck_lvalue(CS := CS)); fold (typecheck_lvalue(CS := CS')).
+  unfold tc_expr, typecheck_expr; fold (typecheck_lvalue(CS := CS)); fold (typecheck_lvalue(CS := CS')); simpl.
   destruct (access_mode t); tc_expr_cenv_sub_tac.
   destruct (typeof a); tc_expr_cenv_sub_tac.
    *
@@ -273,7 +278,7 @@ Lemma tc_lvalue_cenv_sub_field:
  denote_tc_assert(CS := CS') (typecheck_lvalue(CS := CS') Delta (Efield a i t)) rho.
 Proof.
   intros.
-  unfold typecheck_lvalue; fold (typecheck_lvalue(CS := CS)); fold (typecheck_lvalue(CS := CS')).
+  unfold typecheck_lvalue; fold (typecheck_lvalue(CS := CS)); fold (typecheck_lvalue(CS := CS')); simpl.
   tc_expr_cenv_sub_tac.
   destruct (typeof a); tc_expr_cenv_sub_tac.
    *
@@ -300,7 +305,7 @@ Lemma tc_expr_lvalue_cenv_sub a rho Delta :
   (tc_expr(CS := CS) Delta a rho ⊢ tc_expr(CS := CS') Delta a rho) /\
   (tc_lvalue(CS := CS) Delta a rho ⊢ tc_lvalue(CS := CS') Delta a rho).
 Proof.
-  induction a; intros; split; try apply (denote_tc_assert_cenv_sub CSUB); unfold tc_expr, tc_lvalue.
+  induction a; intros; split; try apply (denote_tc_assert_cenv_sub CSUB); unfold tc_expr, tc_lvalue; simpl.
   + unfold typecheck_expr; fold (typecheck_expr(CS := CS)); fold (typecheck_expr(CS := CS')).
     destruct (access_mode t); try done.
     rewrite !denote_tc_assert_andp; apply bi.and_mono; first apply bi.and_mono; first apply IHa; apply (denote_tc_assert_cenv_sub CSUB).
@@ -334,7 +339,7 @@ Lemma tc_exprlist_cenv_sub Delta rho:
   forall types bl, @tc_exprlist CS Delta types bl rho ⊢
                    @tc_exprlist CS' Delta types bl rho.
 Proof.
-  induction types; simpl; intros.
+  induction types; simpl in *; intros.
   + destruct bl; simpl in *; trivial.
   + destruct bl. trivial.
     unfold tc_exprlist.
@@ -343,7 +348,7 @@ Proof.
       fold (typecheck_exprlist(CS := CS')).
     rewrite !(denote_tc_assert_andp _ (typecheck_exprlist _ _ _)).
     unfold tc_exprlist in IHtypes; fold (tc_expr(CS := CS) Delta (Ecast e a) rho);
-      fold (tc_expr(CS := CS') Delta (Ecast e a) rho). by rewrite tc_expr_cenv_sub IHtypes.
+      fold (tc_expr(CS := CS') Delta (Ecast e a) rho). setoid_rewrite tc_expr_cenv_sub. rewrite IHtypes //.
 Qed.
 
 End CENV_SUB.
