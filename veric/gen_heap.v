@@ -4,7 +4,7 @@ From stdpp Require Export namespaces.
 From iris.algebra Require Import reservation_map.
 From iris.algebra Require Import agree.
 From iris_ora.algebra Require Import agree.
-From VST.veric Require Export dfrac juicy_view.
+From VST.veric Require Export dshare juicy_view.
 From iris.proofmode Require Import proofmode.
 From iris_ora.logic Require Export logic own.
 From VST.veric Require Import ghost_map resource_map ext_order.

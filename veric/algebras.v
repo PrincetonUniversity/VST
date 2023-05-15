@@ -1,6 +1,7 @@
 (* General extra lemmas about algebras of interest, extracted from iris.base_logic.algebra *)
+From iris.algebra Require Import auth.
 From iris_ora.logic Require Import logic.
-From VST.veric Require Import dfrac view gmap_view.
+From VST.veric Require Import dshare view gmap_view auth.
 
 Section oupred.
   Context {M : uora}.
@@ -79,41 +80,44 @@ Section view.
   Proof. ouPred.unseal=> Hrel. split=> n x _. by rewrite Hrel. Qed.
 End view.
 
-(*From iris.algebra Require Import auth excl_auth.
-
 Section auth.
   Context {A : uora}.
   Implicit Types a b : A.
   Implicit Types x y : auth A.
 
-  Lemma auth_auth_dfrac_validI dq a : ✓ (●{dq} a) ⊣⊢ ⌜✓dq⌝ ∧ ✓ a.
+  Context (auth_order : ∀n (x y : A), x ≼ₒ{n} y → x ≼{n} y).
+
+  Local Canonical Structure authR := (auth.authR _ auth_order).
+  Local Canonical Structure authUR := (auth.authUR _ auth_order).
+
+  Lemma auth_auth_dfrac_validI dq a : ✓ (●{dq} a : authR) ⊣⊢ ⌜✓dq⌝ ∧ ✓ a.
   Proof.
     apply view_auth_dfrac_validI=> n. ouPred.unseal; split; [|by intros [??]].
-    split; [|done]. apply uora_unit_leastN.
+    split; [|done]. apply ucmra_unit_leastN.
   Qed.
-  Lemma auth_auth_validI a : ✓ (● a) ⊣⊢ ✓ a.
+  Lemma auth_auth_validI a : ✓ (● a : authR) ⊣⊢ ✓ a.
   Proof.
     by rewrite auth_auth_dfrac_validI bi.pure_True // left_id.
   Qed.
 
-  Lemma auth_frag_validI a : ✓ (◯ a) ⊣⊢ ✓ a.
+  Lemma auth_frag_validI a : ✓ (◯ a : authR) ⊣⊢ ✓ a.
   Proof.
     apply view_frag_validI=> n x.
     rewrite auth_view_rel_exists. by ouPred.unseal.
   Qed.
 
   Lemma auth_both_dfrac_validI dq a b :
-    ✓ (●{dq} a ⋅ ◯ b) ⊣⊢ ⌜✓dq⌝ ∧ (∃ c, a ≡ b ⋅ c) ∧ ✓ a.
+    ✓ (●{dq} a ⋅ ◯ b : authR) ⊣⊢ ⌜✓dq⌝ ∧ (∃ c, a ≡ b ⋅ c) ∧ ✓ a.
   Proof. apply view_both_dfrac_validI=> n. by ouPred.unseal. Qed.
   Lemma auth_both_validI a b :
-    ✓ (● a ⋅ ◯ b) ⊣⊢ (∃ c, a ≡ b ⋅ c) ∧ ✓ a.
+    ✓ (● a ⋅ ◯ b : authR) ⊣⊢ (∃ c, a ≡ b ⋅ c) ∧ ✓ a.
   Proof.
     by rewrite auth_both_dfrac_validI bi.pure_True // left_id.
   Qed.
 
 End auth.
 
-Section excl_auth.
+(*Section excl_auth.
   Context {A : ofe}.
   Implicit Types a b : A.
 

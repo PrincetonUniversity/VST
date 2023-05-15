@@ -135,9 +135,10 @@ Definition assert := monPred environ_index (iPropI Σ).
 
 Program Definition assert_of (P : assert') : assert := {| monPred_at := P |}.
 
-(* Currently, this coercion doesn't seem to work. Maybe this will be easier in 8.16+. *)
-Coercion assert_of : assert' >-> assert.
+(* Does this do anything? *)
+Global Coercion assert_of : assert' >-> assert.
 
+(* Ideally, this would work. *)
 Fail Lemma test : forall (P Q : assert'), P ∗ Q ⊢ Q ∗ P.
 
 Global Instance argsEnviron_inhabited : Inhabited argsEnviron := {| inhabitant := (Map.empty _, nil) |}.
