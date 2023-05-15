@@ -27,7 +27,7 @@ Import LiftNotation.
 Transparent intsize_eq.
 
 Section extensions.
-  Context {CS: compspecs} `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ}.
+  Context `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs}.
 
 Lemma semax_straight_simple:
  forall E Delta (B: environ -> mpred) P c Q
@@ -66,7 +66,7 @@ iNext.
 iSpecialize ("Hsafe" $! EK_normal None te' ve).
 iPoseProof ("Hsafe" with "[Q]") as "Hsafe'".
 { rewrite proj_frame /=; subst; iSplit; [|iSplit]; try done.
-  by iDestruct "Q" as "[$ $]". }
+  monPred.unseal; by iDestruct "Q" as "[$ $]". }
 rewrite assert_safe_jsafe'; iFrame; by iPureIntro.
 Qed.
 

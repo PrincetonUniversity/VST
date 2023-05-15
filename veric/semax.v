@@ -134,7 +134,7 @@ Record semaxArg :Type := SemaxArg {
  sa_Delta: tycontext;
  sa_P: environ -> mpred;
  sa_c: statement;
- sa_R: ret_assert
+ sa_R: @ret_assert Σ
 }.
 
 Definition make_ext_rval  (gx: genviron) (tret: rettype) (v: option val):=

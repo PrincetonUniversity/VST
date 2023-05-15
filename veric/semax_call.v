@@ -27,7 +27,7 @@ Proof. induction l; simpl; trivial. f_equal; trivial . Qed.
 
 Section mpred.
 
-Context {CS: compspecs} `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ}.
+Context `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs}.
 
 Lemma typecheck_expr_sound' :
   forall {CS'} Delta rho e,
@@ -655,8 +655,8 @@ assert (tx' = set_opttemp ret (force_val ret0) tx) as Htx'.
   destruct ((temp_types Delta) !! i); try contradiction.
   destruct t0; try contradiction. spec TC5; auto. inv TC5. }
 iSpecialize ("rguard" with "[-]").
-{ rewrite proj_frame; iFrame.
-  iSplit; [|iSplit].
+{ rewrite proj_frame /=; monPred.unseal; iFrame.
+  iSplit; [|iSplitR ""].
   * iPureIntro; subst rho rho' tx'.
     destruct ret; last done; destruct ret0; last done.
     rewrite /construct_rho -map_ptree_rel.
@@ -669,7 +669,7 @@ iSpecialize ("rguard" with "[-]").
     destruct ret; last auto; destruct ret0; last auto.
     intros j; destruct (eq_dec j i); simpl; subst; auto.
     rewrite Maps.PTree.gso; auto.
-  * iApply (same_glob_funassert' with "fun"); subst rho rho'; done. }
+  * iApply (same_glob_funassert' _ _ _ rho' with "fun"); subst rho rho'; done. }
 subst rho' tx'; rewrite Htx'.
 by iApply Hctl.
 Qed.
@@ -818,9 +818,7 @@ Lemma guard_fallthrough_return:
 Proof.
 intros.
 iIntros "Hsafe ret".
-destruct ek; try iDestruct "ret" as "[_ []]"; last by iApply "Hsafe"; iFrame.
-unfold function_body_ret_assert, proj_ret_assert,
-               RA_normal, RA_return.
+destruct ek; simpl proj_ret_assert; try monPred.unseal; try iDestruct "ret" as "[_ []]"; last by iApply "Hsafe"; iFrame.
 iDestruct "ret" as (->) "ret"; simpl.
 destruct (type_eq (fn_return f) Tvoid).
 2:{ destruct (fn_return f); first contradiction; done. }
@@ -923,8 +921,9 @@ Proof.
         iDestruct "Q" as (TCv) "Q".
         destruct (fn_return f); first contradiction; iExists _; iFrame; apply tc_val_tc_val' in TCv; iPureIntro; done. }
     iSpecialize ("rguard" $! EK_normal None with "[F0 R]").
-    { rewrite proj_frame; subst rho; iFrame.
-      iSplit; last iSplit.
+    { rewrite proj_frame; subst rho; simpl proj_ret_assert; monPred.unseal; iFrame.
+      iFrame "#".
+      iSplit.
       + iPureIntro.
         destruct H18 as [H18 H18b].
         destruct ret; last done.
@@ -940,8 +939,7 @@ Proof.
         rewrite -(H (construct_rho (filter_genv psi) vx tx)); first done.
         simpl; intros.
         destruct (eq_dec ret i); first auto.
-        rewrite -map_ptree_rel Map.gso; auto.
-      + iApply (same_glob_funassert' with "[fun]"); done. }
+        rewrite -map_ptree_rel Map.gso; auto. }
     rewrite Hcont; by iApply Hctl. }
   destruct vl.
   - iIntros (?).

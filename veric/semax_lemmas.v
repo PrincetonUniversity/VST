@@ -194,7 +194,8 @@ rewrite /guard' /_guard /=.
 iIntros (??) "!> Fp".
 iSpecialize ("H" with "[Fp]").
 { rewrite H; iApply (bi.and_mono with "Fp"); first done; apply bi.sep_mono; last done.
-  by destruct R; simpl; rewrite comm pure_and_sep_assoc. }
+  destruct R; rewrite /= !monPred_at_and monPred_at_sep monPred_pure_unfold monPred_at_embed.
+  rewrite comm pure_and_sep_assoc //. }
 rewrite /assert_safe.
 iIntros (z ?); iSpecialize ("H" with "[%]"); first done.
 destruct k as [ | s ctl' | | | |]; try done; try solve [iApply (jsafe_local_step with "H"); constructor].
@@ -397,8 +398,7 @@ Lemma proj_frame_ret_assert:
   proj_ret_assert (frame_ret_assert R F) ek vl rho ⊣⊢
   (proj_ret_assert R ek vl rho ∗ F rho).
 Proof.
-intros; destruct R, ek; simpl;
-rewrite ?pure_and_sep_assoc; auto.
+  intros; rewrite proj_frame comm //.
 Qed.
 
 (*Lemma semax_extensionality0 {CS: compspecs} {Espec: OracleKind}:

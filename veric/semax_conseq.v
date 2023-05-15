@@ -56,10 +56,10 @@ Proof.
 Qed.
 
 Definition fupd_ret_assert E (Q: ret_assert): ret_assert :=
-          {| RA_normal := fun rho => |={E}=> (RA_normal Q rho);
-             RA_break := fun rho => |={E}=> (RA_break Q rho);
-             RA_continue := fun rho => |={E}=> (RA_continue Q rho);
-             RA_return := fun v rho => RA_return Q v rho |}.
+          {| RA_normal := |={E}=> RA_normal Q;
+             RA_break := |={E}=> RA_break Q;
+             RA_continue := |={E}=> RA_continue Q;
+             RA_return := fun v => RA_return Q v |}.
 (* Asymmetric consequence: since there's no CompCert step that
    corresponds to RA_return, we can't do an update there. We could
    probably add a bupd if we really want to, but it may not be
@@ -76,7 +76,7 @@ Lemma proj_fupd_ret_assert: forall E Q ek vl rho,
   (|={E}=> proj_ret_assert (fupd_ret_assert E Q) ek vl rho) ⊣⊢ (|={E}=> proj_ret_assert Q ek vl rho).
 Proof.
   intros.
-  destruct ek; simpl; auto; apply fupd_fupd_andp_prop.
+  destruct ek; rewrite // /=; monPred.unseal; apply fupd_fupd_andp_prop.
 Qed.
 
 (* The following four lemmas are not now used. but after deep embedded hoare logic (SL_as_Logic) is
@@ -191,7 +191,7 @@ Lemma proj_fupd_ret_assert_frame: forall E F Q ek vl rho,
   (|={E}=> (F ∗ proj_ret_assert (fupd_ret_assert E Q) ek vl rho)) ⊣⊢ |={E}=> (F ∗ proj_ret_assert Q ek vl rho).
 Proof.
   intros.
-  destruct ek; simpl; auto;
+  destruct ek; simpl; auto; monPred.unseal;
     rewrite -fupd_fupd_frame_l fupd_fupd_andp_prop fupd_fupd_frame_l; auto.
 Qed.
 
@@ -329,11 +329,11 @@ Proof.
     intros.
     rewrite proj_frame proj_conj !proj_frame.
     destruct rk; simpl;
-         [rename H0 into Hx; pose (ek:=RA_normal)
-         | rename H1 into Hx; pose (ek:=RA_break)
-         | rename H2 into Hx ; pose (ek:=RA_continue)
+         [rename H0 into Hx; pose (ek:=@RA_normal Σ)
+         | rename H1 into Hx; pose (ek:=@RA_break Σ)
+         | rename H2 into Hx ; pose (ek:=@RA_continue Σ)
          | apply bi.sep_mono, H3; auto]; clear H3.
-    all: rewrite -Hx; iIntros "($ & $ & $ & $ & $)".
+    all: monPred.unseal; rewrite -Hx; iIntros "($ & $ & $ & $ & $)".
   + erewrite (guard_allp_fun_id _ _ _ _ _ _ P) by eauto.
     erewrite (guard_tc_environ _ _ _ _ _ _ (fun rho => <affine> allp_fun_id E Delta rho ∗ P rho)) by eauto.
     rewrite (guard_fupd _ _ _ _ _ P').
@@ -477,7 +477,7 @@ Proof.
 unfold semax.
 intros.
 rewrite -semax'_post_fupd; auto.
-destruct ek; try contradiction; intros; simpl;
+destruct ek; try contradiction; intros; simpl; monPred.unseal;
   iIntros "(% & -> & ?)"; rewrite -> bi.pure_True by done; rewrite bi.True_and; [rewrite -H | rewrite -H0 | rewrite -H1]; auto.
 Qed.
 
@@ -508,7 +508,7 @@ Proof.
 unfold semax.
 intros.
 rewrite -semax'_post; auto.
-destruct ek; simpl; auto; intros;
+destruct ek; simpl; auto; intros; monPred.unseal;
   iIntros "(% & -> & ?)"; rewrite -> bi.pure_True by done; rewrite bi.True_and; [rewrite -H | rewrite -H0 | rewrite -H1]; auto.
 Qed.
 
@@ -578,16 +578,14 @@ intros; eapply semax_pre_fupd, H.
 by intros; rewrite bi.and_elim_r.
 Qed.
 
-(*Lemma semax_skip {CS: compspecs}:
+Lemma semax_skip {CS: compspecs}:
    forall E Delta P, semax Espec E Delta P Sskip (normal_ret_assert P).
 Proof.
 intros.
 apply derives_skip.
 intros.
-simpl.
-rewrite prop_true_andp by auto.
-auto.
-Qed.*)
+rewrite /= bi.pure_True // left_id //.
+Qed.
 
 (*Taken from floyd.SeparationLogicFacts.v*)
 Lemma semax_extract_prop:
@@ -659,7 +657,7 @@ Proof.
   iSplit; first done.
   iMod "H" as "($ & %NORM & %BREAK & %CONT & %RET)"; iPureIntro; split; auto.
   destruct Q'; simpl in *.
-  split3; last split; intros; rewrite right_id; auto.
+  split3; last split; intros; monPred.unseal; rewrite right_id; auto.
 Qed.
 
 End mpred.

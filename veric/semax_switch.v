@@ -97,7 +97,7 @@ Proof.
   iSpecialize ("H" $! ek' vl' tx vx).
   rewrite !proj_frame.
   iIntros "(? & (? & P) & ?)".
-  destruct R, ek; subst ek' vl'; simpl proj_ret_assert; try (by iApply ("H" with "[$]")); iDestruct "P" as "(-> & ?)"; try done; by (iApply "H"; iFrame).
+  destruct R, ek; subst ek' vl'; simpl proj_ret_assert; try (by iApply ("H" with "[$]")); monPred.unseal; iDestruct "P" as "(-> & ?)"; try done; by (iApply "H"; iFrame).
 Qed.
 
 Context {CS : compspecs}.

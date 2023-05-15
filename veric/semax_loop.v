@@ -20,7 +20,7 @@ Require Import VST.veric.Clight_lemmas.
 Local Open Scope nat_scope.
 
 Section extensions.
-Context {CS: compspecs} `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ}.
+Context `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs}.
 
 Lemma tc_test_eq1:
   forall b i v m,
@@ -136,13 +136,13 @@ Proof.
   rewrite proj_frame.
   destruct (eq_dec ek EK_normal).
   - subst; rewrite /proj_ret_assert.
-    iDestruct "H" as "(% & (? & [% ?]) & ?)"; subst; destruct R; simpl.
+    monPred.unseal; iDestruct "H" as "(% & (? & [% ?]) & ?)"; subst; destruct R; simpl.
     iApply "H0"; by iFrame.
   - replace (exit_cont ek vl (Kseq t k)) with (exit_cont ek vl k)
       by (destruct ek; simpl; congruence).
     iApply "rguard".
     rewrite (bi.sep_comm (F _)).
-    destruct R, ek; simpl; rewrite ?pure_and_sep_assoc //.
+    destruct R, ek; simpl; monPred.unseal; rewrite ?pure_and_sep_assoc //.
 Qed.
 
 Lemma semax_loop:
@@ -180,31 +180,29 @@ Proof.
   { iApply "H0".
     iIntros "!>"; iSplit; first done.
     iIntros (ek2 vl2 tx2 vx2) "!>"; rewrite /loop2_ret_assert proj_frame.
-    destruct ek2; simpl proj_ret_assert; simpl exit_cont.
+    destruct ek2; simpl proj_ret_assert; simpl exit_cont; monPred.unseal.
     * iIntros "(% & (? & % & ?) & ?)"; subst.
       iApply ("IH" $! _ F); last by destruct POST; iFrame.
       iIntros "!>"; iSplit; done.
     * iIntros "(% & (? & % & ?) & ?)"; subst.
-      destruct POST; iApply ("rguard" $! EK_normal None); by iFrame.
+      destruct POST; iApply ("rguard" $! EK_normal None); simpl; monPred.unseal; by iFrame.
     * destruct POST; simpl.
       iIntros "(% & (? & % & []) & ?)".
     * destruct POST; simpl.
       iIntros "(% & (? & ?) & ?)".
-      iApply ("rguard" $! EK_return); by iFrame. }
+      iApply ("rguard" $! EK_return); simpl; monPred.unseal; by iFrame. }
+  iIntros (??) "!>".
   destruct ek.
-  + iIntros (??) "!>".
-    rewrite proj_frame /=.
-    iIntros "(% & (? & % & ?) & ?)"; subst.
+  + rewrite proj_frame; simpl proj_ret_assert; monPred.unseal; iIntros "(% & (? & % & ?) & ?)"; subst.
     iApply (assert_safe_adj _ _ _ _ _ (Kseq incr (Kloop2 body incr k))); last by iApply "Hincr"; destruct POST; iFrame.
     intros ?????; iIntros "H"; iApply (jsafe_local_step with "H"); constructor; auto.
-  + iIntros (tx2 vx2) "!> (% & (% & ?) & ?)"; rewrite /loop1_ret_assert.
-    destruct POST; iApply ("rguard" $! EK_normal None); by iFrame.
-  + simpl exit_cont.
-    iIntros (tx2 vx2) "!> (% & (% & H) & ?)".
+  + simpl proj_ret_assert; monPred.unseal; iIntros "(% & (% & ?) & ?)"; rewrite /loop1_ret_assert.
+    destruct POST; iApply ("rguard" $! EK_normal None); simpl; monPred.unseal; by iFrame.
+  + simpl exit_cont; simpl proj_ret_assert; monPred.unseal.
+    iIntros "(% & (% & H) & ?)".
     iApply "Hincr".
-    by destruct POST; iDestruct "H" as "[$ $]"; iFrame.
-  + iIntros (??).
-    destruct POST; iApply ("rguard" $! EK_return); by iFrame.
+    by destruct POST; simpl frame_ret_assert; monPred.unseal; iDestruct "H" as "[$ $]"; iFrame.
+  + destruct POST; iApply ("rguard" $! EK_return); by iFrame.
 Qed.
 
 Lemma semax_break:
@@ -217,7 +215,7 @@ Proof.
   iSpecialize ("rguard" $! EK_break None tx vx with "[H]").
   { simpl.
     rewrite (bi.pure_True (None = None)) // bi.True_and; destruct Q; simpl.
-    by rewrite (bi.sep_comm (RA_break _)). }
+    monPred.unseal; by rewrite (bi.sep_comm (RA_break _)). }
   iIntros (? H); iSpecialize ("rguard" $! _ H).
   simpl exit_cont; destruct (break_cont k) eqn: Hcont.
   { iMod "rguard" as "[]". }
@@ -330,7 +328,7 @@ Proof.
   iIntros "#Prog_OK" (???) "[%Hclosed #rguard]".
   iSpecialize ("rguard" $! EK_continue None); simpl.
   iIntros (??) "!> (% & (? & ?) & ?)"; iSpecialize ("rguard" with "[-]").
-  { destruct Q; by iFrame. }
+  { destruct Q; simpl; monPred.unseal; by iFrame. }
   iIntros (? Heq); iSpecialize ("rguard" $! _ Heq).
   destruct (continue_cont k) eqn:Hcont; try iMod "rguard" as "[]".
   - rename c into k'.

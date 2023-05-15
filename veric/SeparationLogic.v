@@ -38,7 +38,8 @@ Require Export VST.veric.semax_call.
 Require Export VST.veric.semax_prog.
 Require Export VST.veric.semax_ext.
 Import LiftNotation.
-Import Ctypes Clight expr.
+Import Ctypes Clight.
+Export expr.
 
 #[export] Existing Instance EqDec_ident.
 #[export] Existing Instance EqDec_byte.
@@ -101,6 +102,8 @@ Fixpoint arglist (n: positive) (tl: typelist) : list (ident*type) :=
   | Tcons t tl' => (n,t):: arglist (n+1)%positive tl'
  end.
 
+Definition loop_nocontinue_ret_assert := loop2_ret_assert.
+
 (* Misc lemmas *)
 Lemma typecheck_lvalue_sound {CS: compspecs} :
   forall Delta rho e,
@@ -117,6 +120,7 @@ Lemma typecheck_expr_sound {CS: compspecs} :
 Proof.
 eapply expr_lemmas4.typecheck_expr_sound; eauto.
 Qed.
+
 
 (***************LENB: ADDED THESE LEMMAS IN INTERFACE************************************)
 
@@ -201,7 +205,7 @@ Module Type CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
 Parameter semax: forall {Σ : gFunctors} `{!heapGS Σ} {Espec : OracleKind}
   `{!externalGS (OK_ty(Σ := Σ)) Σ} {C : compspecs},
-  coPset → tycontext → (environ → mpred) → statement → ret_assert → Prop.
+  coPset → tycontext → (environ → mpred) → statement → @ret_assert Σ → Prop.
 
 Parameter semax_func: forall {Σ : gFunctors} `{!heapGS Σ} {Espec : OracleKind}
   `{!externalGS (OK_ty(Σ := Σ)) Σ} (V : varspecs) (G : @funspecs Σ) {C : compspecs},
@@ -261,9 +265,9 @@ Axiom semax_extract_exists:
   forall E (A : Type) (P : A -> assert) c (Delta: tycontext) (R: ret_assert),
   (forall x, semax E Delta (P x) c R) ->
    semax E Delta (∃ x:A, P x) c R.
-  
+
 Axiom semax_func_nil:
-        forall V G E ge, semax_func V G E ge nil nil.
+        forall V G ge E, semax_func V G ge E nil nil.
 
 Axiom semax_func_cons:
      forall fs id f fsig cc A P Q (V: varspecs) (G G': funspecs) ge E b,
@@ -300,10 +304,10 @@ Axiom semax_func_cons_ext: forall (V: varspecs) (G: funspecs)
   semax_func V G ge E ((id, External ef argsig retsig cc)::fs)
        ((id, mk_funspec (argsig', retsig) cc A P Q)  :: G').
 
-Axiom semax_func_mono: forall {CS'} (CSUB: cspecs_sub CS CS') ge ge' E
+Axiom semax_func_mono: forall {CS'} (CSUB: cspecs_sub CS CS') ge ge'
   (Gfs: forall i,  sub_option (Genv.find_symbol ge i) (Genv.find_symbol ge' i))
   (Gffp: forall b, sub_option (Genv.find_funct_ptr ge b) (Genv.find_funct_ptr ge' b))
-  V G fdecs G1 (H: semax_func V G (C := CS) ge E fdecs G1), semax_func V G (C := CS') ge' E fdecs G1.
+  V G E fdecs G1 (H: semax_func V G (C := CS) ge E fdecs G1), semax_func V G (C := CS') ge' E fdecs G1.
 
 Axiom semax_func_app:
   forall ge E V H funs1 funs2 G1 G2
@@ -338,7 +342,7 @@ Axiom semax_func_skipn:
   forall {ge E H V funs G} (HV: list_norepet (map fst funs)) (SF: semax_func V H ge E funs G) n,
     semax_func V H ge E (skipn n funs) (skipn n G).
 
-Axiom semax_body_subsumption: forall V V' F F' E f spec
+Axiom semax_body_subsumption: forall E V V' F F' f spec
       (SF: semax_body V F E f spec)
       (TS: tycontext_sub E (func_tycontext f V F nil) (func_tycontext f V' F' nil)),
   semax_body V' F' E f spec.
@@ -397,17 +401,17 @@ Axiom semax_call:
             (retsig = Tvoid -> ret = None) ->
           tc_fn_return Delta ret retsig ->
   semax E Delta
-          ((((tc_expr Delta a) ∧ (tc_exprlist Delta argsig bl)))  ∧
-         (assert_of (fun rho => func_ptr (ge_of rho) E id (mk_funspec (argsig,retsig) cc A P Q) (eval_expr a rho)) ∧
+          ((tc_expr Delta a ∧ tc_exprlist Delta argsig bl) ∧
+         (assert_of (fun rho => func_ptr (ge_of rho) E id (mk_funspec (argsig,retsig) cc A P Q) (eval_expr a rho)) ∗
           (▷(F ∗ assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho))))))
          (Scall ret a bl)
          (normal_ret_assert
           (∃ old:val, assert_of (substopt ret (`old) F) ∗ maybe_retval (Q x) retsig ret)).
 
 Axiom  semax_return :
-   forall E Delta (R: ret_assert) ret ,
+   forall E Delta (R: ret_assert) ret,
       semax E Delta
-                ( (tc_expropt Delta ret (ret_type Delta)) ∧
+                (tc_expropt Delta ret (ret_type Delta) ∧
                 (assert_of (`(RA_return R : option val -> environ -> mpred) (cast_expropt ret (ret_type Delta)) (@id environ))))
                 (Sreturn ret)
                 R.
@@ -519,7 +523,7 @@ Axiom semax_conseq:
    semax E Delta P' c R' -> semax E Delta P c R.
 
 Axiom semax_Slabel:
-     forall Delta (P:environ -> mpred) (c:statement) (Q:ret_assert) l,
+     forall E Delta (P:environ -> mpred) (c:statement) (Q:ret_assert) l,
    semax E Delta P c Q -> semax E Delta P (Slabel l c) Q.
 
 (* THESE RULES FROM semax_ext *)
@@ -527,17 +531,17 @@ Axiom semax_Slabel:
 (*TODO: What's the preferred way to expose these defs in the SL interface?*)
 Axiom semax_ext:
   forall E (ext_link: Strings.String.string -> ident)
-         (id : Strings.String.string) (sig : compcert_rmaps.typesig) (sig' : signature)
+         (id : Strings.String.string) (sig : typesig) (sig' : signature)
          cc A P Q (fs : funspecs),
   let f := mk_funspec sig cc A P Q in
   In (ext_link id,f) fs ->
   funspecs_norepeat fs ->
   sig' = semax_ext.typesig2signature sig cc ->
-  ⊢ semax_external {| OK_ty := OK_ty; OK_spec := add_funspecs_rec OK_ty ext_link OK_spec fs |} (EF_external id sig') _ P Q.
+  ⊢ semax_external (Espec := {| OK_ty := OK_ty; OK_spec := add_funspecs_rec OK_ty ext_link OK_spec fs |} ) E (EF_external id sig') _ P Q.
 
 Axiom semax_external_FF:
- forall ef A,
-  semax_external ef A (fun _ _ => False) (fun _ _ => False).
+ forall E ef A,
+ ⊢ semax_external E ef A (fun _ _ => False) (fun _ _ => False).
 
 (*Axiom semax_external_binaryintersection: 
 forall {Espec ef A1 P1 Q1 P1ne Q1ne A2 P2 Q2 P2ne Q2ne 
@@ -552,8 +556,8 @@ forall {Espec ef A1 P1 Q1 P1ne Q1ne A2 P2 Q2 P2ne Q2ne
 
 Axiom semax_external_funspec_sub: forall 
   {E argtypes rtype cc ef A1 P1 Q1 A P Q}
-  (Hsub: funspec_sub (mk_funspec (argtypes, rtype) cc A1 P1 Q1 P1ne Q1ne) 
-                   (mk_funspec (argtypes, rtype) cc A P Q Pne Qne))
+  (Hsub: funspec_sub E (mk_funspec (argtypes, rtype) cc A1 P1 Q1)
+                   (mk_funspec (argtypes, rtype) cc A P Q))
   (HSIG: ef_sig ef = 
          mksignature (map typ_of_type argtypes)
                      (rettype_of_type rtype) cc),
@@ -595,7 +599,7 @@ forall E (Delta: tycontext) (P: environ->mpred) id e,
     semax E Delta
         (▷ ( (tc_expr Delta e) ∧
              (tc_temp_id id (typeof e) Delta e) ∧
-             subst id (eval_expr e) P))
+             assert_of (subst id (eval_expr e) P)))
           (Sset id e) (normal_ret_assert P).
 
 Axiom semax_fun_id:
@@ -603,7 +607,7 @@ Axiom semax_fun_id:
     (var_types Delta) !! id = None ->
     (glob_specs Delta) !! id = Some f ->
     (glob_types Delta) !! id = Some (type_of_funspec f) ->
-    semax E Delta (P ∧ `(func_ptr f) (eval_var id (type_of_funspec f)))
+    semax E Delta (P ∧ assert_of (fun rho => func_ptr (ge_of rho) E id f (eval_var id (type_of_funspec f) rho)))
                   c Q ->
     semax E Delta P c Q.
 
@@ -654,8 +658,8 @@ Axiom semax_loop_unroll1:
 
 Axiom semax_if_seq:
  forall E Delta P e c1 c2 c Q,
- semax Delta P (Sifthenelse e (Ssequence c1 c) (Ssequence c2 c)) Q ->
- semax Delta P (Ssequence (Sifthenelse e c1 c2) c) Q.
+ semax E Delta P (Sifthenelse e (Ssequence c1 c) (Ssequence c2 c)) Q ->
+ semax E Delta P (Ssequence (Sifthenelse e c1 c2) c) Q.
 
 Axiom semax_seq_Slabel:
      forall E Delta (P:environ -> mpred) (c1 c2:statement) (Q:ret_assert) l,
@@ -665,18 +669,18 @@ Axiom semax_seq_Slabel:
 (**************** END OF stuff from semax_rules ***********)
 
 Axiom semax_frame:
-  forall E Delta P s R F,
+  forall E Delta (P : assert) s R (F : assert),
    closed_wrt_modvars s F ->
   semax E Delta P s R ->
-    semax E Delta (P * F) s (frame_ret_assert R F).
+    semax E Delta (P ∗ F) s (frame_ret_assert R F).
 
 Axiom semax_extract_prop:
-  forall E Delta (PP: Prop) P c Q,
+  forall E Delta (PP: Prop) (P : assert) c Q,
            (PP -> semax E Delta P c Q) ->
            semax E Delta (⌜PP⌝ ∧ P) c Q.
 
 Axiom semax_extract_later_prop:
-  forall E Delta (PP: Prop) P c Q,
+  forall E Delta (PP: Prop) (P : assert) c Q,
            (PP -> semax E Delta P c Q) ->
            semax E Delta ((▷ ⌜PP⌝) ∧ P) c Q.
 

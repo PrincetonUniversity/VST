@@ -313,10 +313,10 @@ match find_id prog.(prog_main) G with
 end.
 
 Lemma semax_func_nil:
-forall
- V G {C: compspecs} ge E, semax_func(C := C) V G ge E nil nil.
+forall {C: compspecs}
+ V G ge E, semax_func(C := C) V G ge E nil nil.
 Proof.
-intros; split. constructor. split; [ hnf; intros; inv H | intros].
+intros; split. constructor. split; [hnf; intros; inv H | intros].
 iIntros (?????? Hclaims).
 destruct Hclaims as (? & Hlookup & ?).
 setoid_rewrite Maps.PTree.gempty in Hlookup. discriminate.
@@ -417,8 +417,8 @@ Proof.
   rewrite <- TTL1; trivial.
 Qed.
 
-Lemma semax_func_cons
-     fs id f fsig cc (A: Type) P Q (V: varspecs) (G G': funspecs) {C: compspecs} ge E b :
+Lemma semax_func_cons {C: compspecs}
+     fs id f fsig cc (A: Type) P Q (V: varspecs) (G G': funspecs) ge E b :
   (andb (id_in_list id (map (@fst _ _) G))
   (andb (negb (id_in_list id (map (@fst ident Clight.fundef) fs)))
     (semax_body_params_ok f)) = true) ->
@@ -1076,7 +1076,7 @@ set (f0 := mkfunction Tvoid cc_default nil nil nil Sskip).
 iAssert (rguard Espec psi ⊤ Delta f0 (frame_ret_assert (normal_ret_assert (maybe_retval (Q a) retty None)) (fun _ => True)) Kstop) as "#rguard".
 { iIntros (????) "!>".
   rewrite proj_frame; iIntros "(% & (? & Q) & ?)".
-  destruct ek; try iDestruct "Q" as (->) "Q"; try iDestruct "Q" as "[]".
+  destruct ek; simpl proj_ret_assert; monPred.unseal; try iDestruct "Q" as (->) "Q"; try iDestruct "Q" as "[]".
   iIntros (??); simpl.
   iApply jsafe_step; rewrite /jstep_ex.
   iIntros (?) "(Hm & ?)".
@@ -1277,7 +1277,7 @@ destruct CL as [i [G B]].
 simpl in G. apply make_tycontext_s_app_inv in G; destruct G; [iApply "B1" | iApply "B2"]; iPureIntro; eexists; eauto.
 Qed.
 
-Lemma semax_func_app ge cs V H E: forall funs1 funs2 G1 G2
+Lemma semax_func_app cs ge E V H: forall funs1 funs2 G1 G2
 (SF1: semax_func V H ge E funs1 G1) (SF2: semax_func V H ge E funs2 G2)
 (L:length funs1 = length G1),
 semax_func V H ge E (funs1 ++ funs2) (G1++G2).
@@ -1289,7 +1289,7 @@ rewrite -believe_app -B1 // -B2 //.
 auto.
 Qed.
 
-Lemma semax_func_subsumption ge cs E V V' F F'
+Lemma semax_func_subsumption cs ge E V V' F F'
   (SUB: tycontext_sub E (nofunc_tycontext V F) (nofunc_tycontext V F'))
   (HV: forall id, sub_option ((make_tycontext_g V F) !! id) ((make_tycontext_g V' F') !! id)):
 forall funs G (SF: semax_func V F ge E funs G), semax_func V' F' ge E funs G.
@@ -1701,7 +1701,7 @@ Proof.
       (fun rho => FRM)) in SB3.
     + eapply semax_pre_post_fupd.
       6: apply SB3.
-      all: clear SB3; intros; simpl; try iIntros "(_ & ([] & ?) & _)".
+      all: clear SB3; intros; simpl; try monPred.unseal; try iIntros "(_ & ([] & ?) & _)".
       * iIntros "(%TC & (N1 & (? & N2)) & (%VALS & %TCVals)) !>"; iFrame.
         unfold close_precondition.
         iExists vals; iFrame; iPureIntro; repeat (split; trivial).

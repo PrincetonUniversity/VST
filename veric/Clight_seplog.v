@@ -142,52 +142,52 @@ Definition funassert (Delta: tycontext): assert := funspecs_assert (glob_specs D
   using different shares that don't have a common core, whereas address_mapsto
   requires the same share on all four bytes. *)
 
-Definition proj_ret_assert (Q: ret_assert) (ek: exitkind) (vl: option val) : environ -> mpred :=
+Definition proj_ret_assert (Q: @ret_assert Σ) (ek: exitkind) (vl: option val) : assert :=
  match ek with
- | EK_normal => fun rho => ⌜vl=None⌝ ∧ RA_normal Q rho
- | EK_break => fun rho => ⌜vl=None⌝ ∧ RA_break Q rho
- | EK_continue => fun rho => ⌜vl=None⌝ ∧ RA_continue Q rho
+ | EK_normal => ⌜vl=None⌝ ∧ RA_normal Q
+ | EK_break => ⌜vl=None⌝ ∧ RA_break Q
+ | EK_continue => ⌜vl=None⌝ ∧ RA_continue Q
  | EK_return => RA_return Q vl
  end.
 
 Definition overridePost  (Q: environ -> mpred)  (R: ret_assert) :=
  match R with 
   {| RA_normal := _; RA_break := b; RA_continue := c; RA_return := r |} =>
-  {| RA_normal := Q; RA_break := b; RA_continue := c; RA_return := r |}
+  {| RA_normal := assert_of Q; RA_break := b; RA_continue := c; RA_return := r |}
  end.
 
-Definition existential_ret_assert {A: Type} (R: A -> ret_assert) :=
-  {| RA_normal := fun rho => ∃ x:A, (R x).(RA_normal) rho;
-     RA_break := fun rho => ∃ x:A, (R x).(RA_break) rho;
-     RA_continue := fun rho => ∃ x:A, (R x).(RA_continue) rho;
-     RA_return := fun vl rho => ∃ x:A, (R x).(RA_return) vl rho
+Definition existential_ret_assert {A: Type} (R: A -> @ret_assert Σ) :=
+  {| RA_normal := ∃ x:A, (R x).(RA_normal);
+     RA_break := ∃ x:A, (R x).(RA_break);
+     RA_continue := ∃ x:A, (R x).(RA_continue);
+     RA_return := fun vl => ∃ x:A, (R x).(RA_return) vl
    |}.
 
 Definition normal_ret_assert (Q: environ -> mpred) : ret_assert :=
-  {| RA_normal := Q; RA_break _ := False; RA_continue _ := False; RA_return _ := fun _ => False |}.
+  {| RA_normal := assert_of Q; RA_break := False; RA_continue := False; RA_return := fun _ => False |}.
 
 Definition frame_ret_assert (R: ret_assert) (F: environ -> mpred) : ret_assert :=
  match R with 
   {| RA_normal := n; RA_break := b; RA_continue := c; RA_return := r |} =>
-  {| RA_normal := fun rho => n rho ∗ F rho; 
-     RA_break := fun rho => b rho ∗ F rho; 
-     RA_continue := fun rho => c rho ∗ F rho;
-     RA_return := fun vl rho => r vl rho ∗ F rho |}
+  {| RA_normal := n ∗ assert_of F;
+     RA_break := b ∗ assert_of F;
+     RA_continue := c ∗ assert_of F;
+     RA_return := fun vl => r vl ∗ assert_of F |}
  end.
 
 Definition conj_ret_assert (R: ret_assert) (F: environ -> mpred) : ret_assert :=
  match R with 
   {| RA_normal := n; RA_break := b; RA_continue := c; RA_return := r |} =>
-  {| RA_normal := fun rho => n rho ∧ F rho; 
-     RA_break := fun rho => b rho ∧ F rho; 
-     RA_continue := fun rho => c rho ∧ F rho;
-     RA_return := fun vl rho => r vl rho ∧ F rho |}
+  {| RA_normal := n ∧ assert_of F;
+     RA_break := b ∧ assert_of F;
+     RA_continue := c ∧ assert_of F;
+     RA_return := fun vl => r vl ∧ assert_of F |}
  end.
 
-Definition switch_ret_assert (R: ret_assert) : ret_assert :=
+Definition switch_ret_assert (R: @ret_assert Σ) : ret_assert :=
  match R with 
   {| RA_normal := n; RA_break := b; RA_continue := c; RA_return := r |} =>
-  {| RA_normal _ := False; 
+  {| RA_normal := False; 
      RA_break := n; 
      RA_continue := c;
      RA_return := r |}
@@ -196,25 +196,27 @@ Definition switch_ret_assert (R: ret_assert) : ret_assert :=
 Lemma normal_ret_assert_derives:
  forall P Q rho,
   (P rho ⊢ Q rho) ->
-  forall ek vl, proj_ret_assert (normal_ret_assert P) ek vl rho 
+  forall ek vl, proj_ret_assert (normal_ret_assert P) ek vl rho
             ⊢ proj_ret_assert (normal_ret_assert Q) ek vl rho.
 Proof.
   intros.
   destruct ek; simpl; auto.
-  by rewrite H.
+  rewrite !monPred_at_and /= H //.
 Qed.
 
 Lemma normal_ret_assert_False:
-  forall ek vl rho, proj_ret_assert (normal_ret_assert (fun rho => False)) ek vl rho ⊣⊢ False.
+  forall ek vl, proj_ret_assert (normal_ret_assert (False : assert)) ek vl ⊣⊢ False.
 Proof.
 intros.
-destruct ek; simpl; auto; by rewrite bi.and_False.
+destruct ek; simpl; auto; try by rewrite bi.and_False.
+split => ?.
+rewrite monPred_at_and /= monPred_pure_unfold !monPred_at_embed /= bi.and_False //.
 Qed.
 
 (* Do we care about the kind of equivalence? Should this be an assert? *)
-Global Instance ret_assert_equiv : Equiv ret_assert := fun a b =>
-  (forall e, RA_normal a e ⊣⊢ RA_normal b e) /\ (forall e, RA_break a e ⊣⊢ RA_break b e) /\
-  (forall e, RA_continue a e ⊣⊢ RA_continue b e) /\ (forall v e, RA_return a v e ⊣⊢ RA_return b v e).
+Global Instance ret_assert_equiv : Equiv (@ret_assert Σ) := fun a b =>
+  (RA_normal a ⊣⊢ RA_normal b) /\ (RA_break a ⊣⊢ RA_break b) /\
+  (RA_continue a ⊣⊢ RA_continue b) /\ (forall v, RA_return a v ⊣⊢ RA_return b v).
 
 Lemma frame_normal:
   forall P F,
@@ -222,7 +224,8 @@ Lemma frame_normal:
 Proof.
 intros.
 unfold normal_ret_assert; simpl.
-split3; last split; simpl; auto; intros; by rewrite bi.sep_False.
+split3; last split; simpl; auto; intros; rewrite ?bi.sep_False //.
+split => ?; rewrite monPred_at_sep //.
 Qed.
 
 Lemma pure_and_sep_assoc: forall P (Q R : mpred), ⌜P⌝ ∧ Q ∗ R ⊣⊢ (⌜P⌝ ∧ Q) ∗ R.
@@ -238,7 +241,8 @@ Lemma proj_frame:
 Proof.
   intros.
   rewrite bi.sep_comm.
-  destruct ek; simpl; destruct P; auto; simpl; apply pure_and_sep_assoc.
+  destruct ek; simpl; destruct P; rewrite /= ?monPred_at_and monPred_at_sep //
+    monPred_pure_unfold monPred_at_embed pure_and_sep_assoc //.
 Qed.
 
 Lemma proj_conj:
@@ -247,34 +251,35 @@ Lemma proj_conj:
 Proof.
   intros.
   rewrite bi.and_comm.
-  destruct ek; simpl; destruct P; auto; simpl; by rewrite assoc.
+  destruct ek; simpl; destruct P; rewrite /= !monPred_at_and //
+    monPred_pure_unfold monPred_at_embed assoc //.
 Qed.
 
 Definition loop1_ret_assert (Inv: environ -> mpred) (R: ret_assert) : ret_assert :=
  match R with 
   {| RA_normal := n; RA_break := b; RA_continue := c; RA_return := r |} =>
-  {| RA_normal := Inv;
+  {| RA_normal := assert_of Inv;
      RA_break := n; 
-     RA_continue := Inv;
+     RA_continue := assert_of Inv;
      RA_return := r |}
  end.
 
 Definition loop2_ret_assert (Inv: environ -> mpred) (R: ret_assert) : ret_assert :=
  match R with 
   {| RA_normal := n; RA_break := b; RA_continue := c; RA_return := r |} =>
-  {| RA_normal := Inv;
+  {| RA_normal := assert_of Inv;
      RA_break := n;
-     RA_continue _ := False;
+     RA_continue := False;
      RA_return := r |}
  end.
 
 Lemma frame_for1:
   forall Q R F,
-   frame_ret_assert (loop1_ret_assert Q R) F =
-   loop1_ret_assert (fun rho => Q rho ∗ F rho) (frame_ret_assert R F).
+   (frame_ret_assert (loop1_ret_assert Q R) F ≡
+    loop1_ret_assert (fun rho => Q rho ∗ F rho) (frame_ret_assert R F))%stdpp.
 Proof.
 intros.
-destruct R; simpl; auto.
+destruct R; split3; last split; try done; split => ? /=; rewrite monPred_at_sep //.
 Qed.
 
 Lemma frame_loop1:
@@ -283,9 +288,8 @@ Lemma frame_loop1:
    (loop2_ret_assert (fun rho => Q rho ∗ F rho) (frame_ret_assert R F)).
 Proof.
 intros.
-destruct R; unfold ret_assert_equiv; simpl.
-split3; last split; auto.
-intros; by rewrite bi.sep_False.
+destruct R; split3; last split; try done; split => ? /=; rewrite monPred_at_sep //.
+rewrite monPred_pure_unfold monPred_at_embed bi.sep_False //.
 Qed.
 
 Lemma overridePost_normal:
@@ -296,16 +300,16 @@ f_equal.
 Qed.
 
 Definition function_body_ret_assert (ret: type) (Q: environ -> mpred) : ret_assert :=
- {| RA_normal := bind_ret None ret Q;
-    RA_break _ := False; 
-    RA_continue _ := False;
-    RA_return := fun vl => bind_ret vl ret Q |}.
+ {| RA_normal := assert_of (bind_ret None ret Q);
+    RA_break := False; 
+    RA_continue := False;
+    RA_return := fun vl => assert_of (bind_ret vl ret Q) |}.
 
 Lemma same_glob_funassert:
   forall Delta1 Delta2,
      (forall id, (glob_specs Delta1) !! id = (glob_specs Delta2) !! id) ->
               funassert Delta1 ⊣⊢ funassert Delta2.
-Proof. intros; eapply same_FS_funspecs_assert; trivial. Qed.
+Proof. intros; apply @same_FS_funspecs_assert; trivial. Qed.
 
 End mpred.
 
