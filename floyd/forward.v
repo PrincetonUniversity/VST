@@ -689,18 +689,44 @@ first [ reflexivity
      apply exp_congr; intros [[[? ?] ?] ?]; reflexivity
   ].
 
+Ltac prove_cs_preserve_type := 
+reflexivity || 
+match goal with |- cs_preserve_type ?a ?b ?CCE ?t = true =>
+ tryif is_evar CCE 
+ then fail 3 "Before using change_compspecs, define an Instance of change_composite_env"
+ else tryif unify (cs_preserve_type a b CCE t) false
+ then fail 3 "change_compspecs fails because the two compspecs environments disagree on the definition of type" t "(that is," 
+a "versus" b ")"
+ else fail
+end.
+
 Ltac change_compspecs' cs cs' :=
-  match goal with
-  | |- context [@data_at cs' ?sh ?t ?v1] => erewrite (@data_at_change_composite cs' cs _ sh t); [| apply JMeq_refl | reflexivity]
-  | |- context [@field_at cs' ?sh ?t ?gfs ?v1] => erewrite (@field_at_change_composite cs' cs _ sh t gfs); [| apply JMeq_refl | reflexivity]
-  | |- context [@data_at_ cs' ?sh ?t] => erewrite (@data_at__change_composite cs' cs _ sh t); [| reflexivity]
-  | |- context [@field_at_ cs' ?sh ?t ?gfs] => erewrite (@field_at__change_composite cs' cs _ sh t gfs); [| reflexivity]
-  | |- context [?A cs'] => change (A cs') with (A cs)
-  | |- context [?A cs' ?B] => change (A cs' B) with (A cs B)
-  | |- context [?A cs' ?B ?C] => change (A cs' B C) with (A cs B C)
-  | |- context [?A cs' ?B ?C ?D] => change (A cs' B C D) with (A cs B C D)
-  | |- context [?A cs' ?B ?C ?D ?E] => change (A cs' B C D E) with (A cs B C D E)
-  | |- context [?A cs' ?B ?C ?D ?E ?F] => change (A cs' B C D E F) with (A cs B C D E F)
+  lazymatch goal with
+  | |- context [@data_at cs' ?sh ?t ?v1] => erewrite (@data_at_change_composite cs' cs _ sh t); [| apply JMeq_refl | prove_cs_preserve_type]
+  | |- context [@field_at cs' ?sh ?t ?gfs ?v1] => erewrite (@field_at_change_composite cs' cs _ sh t gfs); [| apply JMeq_refl | prove_cs_preserve_type]
+  | |- context [@data_at_ cs' ?sh ?t] => erewrite (@data_at__change_composite cs' cs _ sh t); [| prove_cs_preserve_type]
+  | |- context [@field_at_ cs' ?sh ?t ?gfs] => erewrite (@field_at__change_composite cs' cs _ sh t gfs); [| prove_cs_preserve_type]
+  | |- _ => 
+    match goal with 
+  | |- context [?A cs'] => 
+     idtac "Warning: attempting change_compspecs on user-defined mpred:" A;
+         change (A cs') with (A cs)
+  | |- context [?A cs' ?B] => 
+     idtac "Warning: attempting change_compspecs on user-defined mpred:" A;
+         change (A cs' B) with (A cs B)
+  | |- context [?A cs' ?B ?C] => 
+     idtac "Warning: attempting change_compspecs on user-defined mpred:" A;
+         change (A cs' B C) with (A cs B C)
+  | |- context [?A cs' ?B ?C ?D] => 
+     idtac "Warning: attempting change_compspecs on user-defined mpred:" A;
+         change (A cs' B C D) with (A cs B C D)
+  | |- context [?A cs' ?B ?C ?D ?E] => 
+     idtac "Warning: attempting change_compspecs on user-defined mpred:" A;
+         change (A cs' B C D E) with (A cs B C D E)
+  | |- context [?A cs' ?B ?C ?D ?E ?F] => 
+     idtac "Warning: attempting change_compspecs on user-defined mpred:" A;
+         change (A cs' B C D E F) with (A cs B C D E F)
+   end
  end.
 
 (* TODO: use CCE as arguments to gain CS' *)
