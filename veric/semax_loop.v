@@ -44,10 +44,10 @@ Qed.
 Lemma semax_ifthenelse:
    forall E Delta P (b: expr) c d R,
       bool_type (typeof b) = true ->
-     semax Espec E Delta (fun rho => P rho ∧ ⌜expr_true b rho⌝) c R ->
-     semax Espec E Delta (fun rho => P rho ∧ ⌜expr_false b rho⌝) d R ->
+     semax Espec E Delta (P ∧ local (expr_true b)) c R ->
+     semax Espec E Delta (P ∧ local (expr_false b)) d R ->
      semax Espec E Delta
-              (fun rho => ▷ (tc_expr Delta (Eunop Cop.Onotbool b (Tint I32 Signed noattr)) rho ∧ P rho))
+              (▷ (tc_expr Delta (Eunop Cop.Onotbool b (Tint I32 Signed noattr)) ∧ P))
               (Sifthenelse b c d) R.
 Proof.
   intros.
@@ -66,6 +66,7 @@ Proof.
   iIntros (??).
   iApply jsafe_step.
   iIntros (m) "[Hm ?]".
+  monPred.unseal.
   iDestruct "H" as "(%TC & (F & P) & #fun)".
   unfold expr_true, expr_false, Cnot, lift1 in *.
   set (rho := construct_rho _ _ _) in *.
@@ -141,7 +142,7 @@ Proof.
   - replace (exit_cont ek vl (Kseq t k)) with (exit_cont ek vl k)
       by (destruct ek; simpl; congruence).
     iApply "rguard".
-    rewrite (bi.sep_comm (F _)).
+    monPred.unseal; rewrite (bi.sep_comm (F _)).
     destruct R, ek; simpl; monPred.unseal; rewrite ?pure_and_sep_assoc //.
 Qed.
 
@@ -176,7 +177,7 @@ Proof.
   assert (closed_wrt_modvars incr F).
   { unfold closed_wrt_modvars, closed_wrt_vars in *; intros ?? Hi; apply Hclosed.
     intros i; specialize (Hi i); rewrite modifiedvars_Sloop; tauto. }
-  iAssert (guard' Espec psi E Delta' f (λ rho0 : environ, F rho0 ∗ Q' rho0) (Kseq incr (Kloop2 body incr k))) as "#Hincr".
+  iAssert (guard' Espec psi E Delta' f (F ∗ Q') (Kseq incr (Kloop2 body incr k))) as "#Hincr".
   { iApply "H0".
     iIntros "!>"; iSplit; first done.
     iIntros (ek2 vl2 tx2 vx2) "!>"; rewrite /loop2_ret_assert proj_frame.
@@ -194,7 +195,7 @@ Proof.
   iIntros (??) "!>".
   destruct ek.
   + rewrite proj_frame; simpl proj_ret_assert; monPred.unseal; iIntros "(% & (? & % & ?) & ?)"; subst.
-    iApply (assert_safe_adj _ _ _ _ _ (Kseq incr (Kloop2 body incr k))); last by iApply "Hincr"; destruct POST; iFrame.
+    iApply (assert_safe_adj _ _ _ _ _ (Kseq incr (Kloop2 body incr k)) (Kseq _ _)); last by iApply "Hincr"; destruct POST; iFrame.
     intros ?????; iIntros "H"; iApply (jsafe_local_step with "H"); constructor; auto.
   + simpl proj_ret_assert; monPred.unseal; iIntros "(% & (% & ?) & ?)"; rewrite /loop1_ret_assert.
     destruct POST; iApply ("rguard" $! EK_normal None); simpl; monPred.unseal; by iFrame.
@@ -327,7 +328,8 @@ Proof.
   rewrite semax_unfold; intros.
   iIntros "#Prog_OK" (???) "[%Hclosed #rguard]".
   iSpecialize ("rguard" $! EK_continue None); simpl.
-  iIntros (??) "!> (% & (? & ?) & ?)"; iSpecialize ("rguard" with "[-]").
+  iIntros (??) "!>".
+  monPred.unseal; iIntros "(% & (? & ?) & ?)"; iSpecialize ("rguard" with "[-]").
   { destruct Q; simpl; monPred.unseal; by iFrame. }
   iIntros (? Heq); iSpecialize ("rguard" $! _ Heq).
   destruct (continue_cont k) eqn:Hcont; try iMod "rguard" as "[]".

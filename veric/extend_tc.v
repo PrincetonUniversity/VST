@@ -15,26 +15,26 @@ Section mpred.
 Context `{!heapGS Σ}.
 
 Definition tc_expr {CS: compspecs} (Delta: tycontext) (e: expr) : assert :=
-  assert_of (fun rho => denote_tc_assert (typecheck_expr Delta e) rho).
+  assert_of (denote_tc_assert (typecheck_expr Delta e)).
 
 Definition tc_exprlist {CS: compspecs} (Delta: tycontext) (t : list type) (e: list expr) : assert :=
-  assert_of (fun rho => denote_tc_assert (typecheck_exprlist Delta t e) rho).
+  assert_of (denote_tc_assert (typecheck_exprlist Delta t e)).
 
 Definition tc_lvalue {CS: compspecs} (Delta: tycontext) (e: expr) : assert :=
-  assert_of (fun rho => denote_tc_assert (typecheck_lvalue Delta e) rho).
+  assert_of (denote_tc_assert (typecheck_lvalue Delta e)).
 
 Definition tc_temp_id {CS: compspecs} (id : positive) (ty : type)
   (Delta : tycontext) (e : expr) : assert :=
-  assert_of (fun rho => denote_tc_assert (typecheck_temp_id id ty Delta e) rho).
+  assert_of (denote_tc_assert (typecheck_temp_id id ty Delta e)).
 
 Definition tc_expropt {CS: compspecs} Delta (e: option expr) (t: type) : assert :=
   match e with None => ⌜t=Ctypes.Tvoid⌝
                      | Some e' => (tc_expr Delta (Ecast e' t))
   end.
 
-Definition tc_temp_id_load id tfrom Delta v : environ -> mpred  :=
-fun rho => ⌜exists tto, (temp_types Delta) !! id = Some tto
-                      /\ tc_val tto (eval_cast tfrom tto (v rho))⌝.
+Definition tc_temp_id_load id tfrom Delta v : @assert Σ :=
+local (fun rho => exists tto, (temp_types Delta) !! id = Some tto
+                      /\ tc_val tto (eval_cast tfrom tto (v rho))).
 
 Ltac extend_tc_prover :=
   match goal with
@@ -55,10 +55,20 @@ Proof.
   intros; apply monPred_absorbing, _.
 Qed.
 
+Global Instance tc_lvalue_absorbing : forall {CS: compspecs} Delta a, Absorbing (tc_lvalue Delta a).
+Proof.
+  intros; apply monPred_absorbing, _.
+Qed.
+
 Global Instance tc_expropt_absorbing: forall {CS: compspecs} Delta e t, Absorbing (tc_expropt Delta e t).
 Proof.
   intros. unfold tc_expropt.
   destruct e; apply _.
+Qed.
+
+Global Instance tc_temp_id_absorbing : forall {CS: compspecs} id ty Delta a, Absorbing (tc_temp_id id ty Delta a).
+Proof.
+  intros; apply monPred_absorbing, _.
 Qed.
 
 Lemma tc_bool_i:

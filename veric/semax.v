@@ -23,7 +23,7 @@ Section mpred.
 
 Context `{!heapGS Σ} (Espec : OracleKind) `{!externalGS (@OK_ty Σ Espec) Σ}.
 
-Definition closed_wrt_modvars c (F: environ -> mpred) : Prop :=
+Definition closed_wrt_modvars c (F: @assert Σ) : Prop :=
     closed_wrt_vars (modifiedvars c) F.
 
 Definition genv_symb_injective {F V} (ge: Genv.t F V) : extspec.injective_PTree Values.block.
@@ -218,8 +218,8 @@ Fixpoint zip_with_tl {A : Type} (l1 : list A) (l2 : typelist) : list (A*type) :=
 Definition withtype_empty (A: Type) : Prop := forall (x : A), False.
 Definition believe_external (gx: genv) E (v: val) (fsig: typesig) cc
   (A: Type)
-  (P: A -> argsEnviron -> mpred)
-  (Q: A -> environ -> mpred) :=
+  (P: A -> argsassert)
+  (Q: A -> assert) :=
   match Genv.find_funct gx v with
   | Some (External ef sigargs sigret cc') =>
         ⌜fsig = (typelist2list sigargs, sigret) /\ cc'=cc
@@ -260,19 +260,19 @@ Definition fn_funsig (f: function) : funsig := (fn_params f, fn_return f).
 Definition var_sizes_ok (cenv: composite_env) (vars: list (ident*type)) :=
    Forall (fun var : ident * type => @sizeof cenv (snd var) <= Ptrofs.max_unsigned)%Z vars.
 
-Definition var_block' (sh: Share.t) (cenv: composite_env) (idt: ident * type) (rho: environ): mpred :=
+Definition var_block' (sh: Share.t) (cenv: composite_env) (idt: ident * type): assert :=
   ⌜(sizeof (snd idt) <= Ptrofs.max_unsigned)%Z⌝ ∧
-  (memory_block sh (sizeof (snd idt))) (eval_lvar (fst idt) (snd idt) rho).
+  assert_of (fun rho => (memory_block sh (sizeof (snd idt))) (eval_lvar (fst idt) (snd idt) rho)).
 
-Definition stackframe_of' (cenv: composite_env) (f: Clight.function) : environ -> mpred :=
-  fold_right (fun P Q rho => P rho ∗ Q rho) (fun rho => emp)
+Definition stackframe_of' (cenv: composite_env) (f: Clight.function) : assert :=
+  fold_right bi_sep emp
      (map (fun idt => var_block' Share.top cenv idt) (Clight.fn_vars f)).
 
 Definition believe_internal_ CS
   (semax:semaxArg -> mpred)
   (gx: genv) E (Delta: tycontext) v (fsig: typesig) cc (A: Type)
-  (P: A -> argsEnviron -> mpred)
-  (Q: A -> environ -> mpred) : mpred :=
+  (P: A -> argsassert)
+  (Q: A -> assert) : mpred :=
   let ce := (@cenv_cs CS) in
   (∃ b: Values.block, ∃ f: function,
    let specparams := fst fsig in 
@@ -290,12 +290,11 @@ Definition believe_internal_ CS
      ⌜cenv_sub (@cenv_cs CS) (@cenv_cs CS')⌝ →
       (∀ x : A,
         ▷ semax (SemaxArg CS' E (func_tycontext' f Delta')
-                         (fun rho => (bind_args (f.(fn_params)) (P x) rho
-                                              ∗ stackframe_of' (@cenv_cs CS') f rho)
-                                        ∗ funassert (func_tycontext' f Delta') rho)
+                         ((bind_args (f.(fn_params)) (P x) ∗ stackframe_of' (@cenv_cs CS') f)
+                                        ∗ funassert (func_tycontext' f Delta'))
                           (f.(fn_body))
-           (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) 
-              (stackframe_of' (@cenv_cs CS') f)))) ).
+           (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x))
+              (stackframe_of' (@cenv_cs CS') f))))).
 
 Definition empty_environ (ge: genv) := mkEnviron (filter_genv ge) (Map.empty _) (Map.empty _).
 
@@ -307,8 +306,8 @@ Definition believepred CS (semax: semaxArg -> mpred)
               E (Delta: tycontext) (gx: genv)  (Delta': tycontext) :=
   ∀ v:val, ∀ fsig: typesig, ∀ cc: calling_convention,
   ∀ A: Type,
-  ∀ P: A -> argsEnviron -> mpred,
-  ∀ Q: A -> environ -> mpred,
+  ∀ P: A -> argsassert,
+  ∀ Q: A -> assert,
        ⌜claims gx Delta' v fsig cc A P Q⌝ →
       (believe_external gx E v fsig cc A P Q
         ∨ believe_internal_ CS semax gx E Delta v fsig cc A P Q).
@@ -321,10 +320,10 @@ Definition semax_
             /\ cenv_sub (@cenv_cs CS) (@cenv_cs CS') 
             /\ cenv_sub (@cenv_cs CS') (genv_cenv gx)⌝ →
       (believepred CS' semax E Delta' gx Delta') →
-     ∀ k: cont, ∀ F: environ -> mpred, ∀ f:function,
+     ∀ k: cont, ∀ F: assert, ∀ f:function,
        (⌜closed_wrt_modvars c F⌝ ∧
               rguard gx E Delta' f (frame_ret_assert R F) k) →
-        guard' gx E Delta' f (fun rho => F rho ∗ P rho) (Kseq c k)
+        guard' gx E Delta' f (F ∗ P) (Kseq c k)
   end.
 
 Local Instance semax_contractive : Contractive semax_.
@@ -343,8 +342,8 @@ Definition semax' {CS: compspecs} E Delta P c R : mpred :=
 
 Definition believe_internal {CS: compspecs}
   (gx: genv) E (Delta: tycontext) v (fsig: typesig) cc (A: Type)
-  (P: A -> argsEnviron -> mpred)
-  (Q: A -> environ -> mpred) :=
+  (P: A -> argsassert)
+  (Q: A -> assert) :=
   let ce := @cenv_cs CS in
   (∃ b: Values.block, ∃ f: function,
    let specparams := fst fsig in 
@@ -362,8 +361,8 @@ Definition believe_internal {CS: compspecs}
       ⌜cenv_sub (@cenv_cs CS) (@cenv_cs CS')⌝ →
        (∀ x : A,
      ▷ @semax' CS' E (func_tycontext' f Delta')
-                                (fun rho => (bind_args (f.(fn_params)) (P x) rho ∗ stackframe_of' (@cenv_cs CS') f rho)
-                                             ∗ funassert (func_tycontext' f Delta') rho)
+                                ((bind_args (f.(fn_params)) (P x) ∗ stackframe_of' (@cenv_cs CS') f)
+                                             ∗ funassert (func_tycontext' f Delta'))
                                (f.(fn_body))
            (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) (stackframe_of' (@cenv_cs CS') f)))).
 
@@ -371,8 +370,8 @@ Definition believe {CS: compspecs}
               E (Delta: tycontext) (gx: genv) (Delta': tycontext) :=
   ∀ v:val, ∀ fsig: typesig, ∀ cc: calling_convention,
   ∀ A: Type,
-  ∀ P: A -> argsEnviron -> mpred,
-  ∀ Q: A -> environ -> mpred,
+  ∀ P: A -> argsassert,
+  ∀ Q: A -> assert,
        ⌜claims gx Delta' v fsig cc A P Q⌝ →
       (believe_external gx E v fsig cc A P Q
         ∨ believe_internal gx E Delta v fsig cc A P Q).
@@ -384,9 +383,9 @@ Lemma semax_fold_unfold : forall {CS: compspecs} E Delta P c R,
            /\ cenv_sub (@cenv_cs CS) (@cenv_cs CS')
            /\ cenv_sub (@cenv_cs CS') (genv_cenv gx))⌝ →
        @believe CS' E Delta' gx Delta' →
-     ∀ k: cont, ∀ F: environ -> mpred, ∀ f: function,
+     ∀ k: cont, ∀ F: assert, ∀ f: function,
         (⌜(closed_wrt_modvars c F)⌝ ∧ rguard gx E Delta' f (frame_ret_assert R F) k) →
-        guard' gx E Delta' f (fun rho => F rho ∗ P rho) (Kseq c k).
+        guard' gx E Delta' f (F ∗ P) (Kseq c k).
 Proof.
 intros.
 unfold semax'.
@@ -413,7 +412,7 @@ Definition semax {CS: compspecs} E (Delta: tycontext) P c Q : Prop :=
 Section believe_monotonicity.
 Context {CS: compspecs}.
 
-Lemma _guard_mono gx E Delta Gamma f (P Q:environ -> mpred) ctl
+Lemma _guard_mono gx E Delta Gamma f (P Q:assert) ctl
   (GD1: forall e te, typecheck_environ Gamma (construct_rho (filter_genv gx) e te) ->
                      typecheck_environ Delta (construct_rho (filter_genv gx) e te))
   (GD2: ret_type Delta = ret_type Gamma)
@@ -432,7 +431,7 @@ Proof.
   - rewrite GD3 GD4; iFrame.
 Qed.
 
-Lemma guard_mono gx E Delta Gamma f (P Q:environ -> mpred) ctl
+Lemma guard_mono gx E Delta Gamma f (P Q:assert) ctl
   (GD1: forall e te, typecheck_environ Gamma (construct_rho (filter_genv gx) e te) ->
                      typecheck_environ Delta (construct_rho (filter_genv gx) e te))
   (GD2: ret_type Delta = ret_type Gamma)

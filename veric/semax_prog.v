@@ -213,7 +213,7 @@ match spec with (_, mk_funspec fsig cc A P Q) =>
   snd fsig = snd (fn_funsig f) /\
 forall (x:A),
   semax Espec E (func_tycontext f V G nil)
-      (fun rho => close_precondition (map fst f.(fn_params)) (P x) rho ∗ stackframe_of f rho)
+      (close_precondition (map fst f.(fn_params)) (P x) ∗ stackframe_of f)
        f.(fn_body)
       (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) (stackframe_of f))
 end.
@@ -258,8 +258,8 @@ Proof.
   eapply (semax_func_cenv_sub _ _ CSUB); eassumption.
 Qed.
 
-Definition main_pre (prog: program) (ora: OK_ty) : (ident->val) -> argsEnviron -> mpred :=
-(fun gv gvals => ⌜gv = genviron2globals (fst gvals) /\ snd gvals=nil⌝
+Definition main_pre (prog: program) (ora: OK_ty) (gv: ident->val) : argsassert :=
+argsassert_of (fun gvals => ⌜gv = genviron2globals (fst gvals) /\ snd gvals=nil⌝
        ∧ globvars2pred gv (prog_vars prog) ∗ has_ext ora).
 
 Lemma main_pre_vals_nil {prog ora gv g vals}:
@@ -270,11 +270,11 @@ Qed.
 
 Definition Tint32s := Tint I32 Signed noattr.
 
-Definition main_post (prog: program) : (ident->val) -> environ -> mpred :=
-(fun _ _ => True).
+Definition main_post (prog: program) : (ident->val) -> @assert Σ :=
+(fun _ => True).
 
 Definition main_spec_ext' (prog: program) (ora: OK_ty)
-(post: (ident->val) -> environ -> mpred): funspec :=
+(post: (ident->val) -> assert): funspec :=
 mk_funspec (nil, tint) cc_default (ident->val) (main_pre prog ora) post.
 
 Definition main_spec_ext (prog: program) (ora: OK_ty): funspec :=
@@ -364,7 +364,6 @@ Lemma var_block'_cenv_sub {CS CS'} (CSUB: cenv_sub CS CS') sh a
 (CT: complete_type CS (@snd ident type a) = true):
 var_block' sh CS a = var_block' sh CS' a.
 Proof.
-extensionality rho.
 unfold var_block'. rewrite (cenv_sub_sizeof CSUB); trivial.
 Qed.
 
@@ -372,7 +371,6 @@ Lemma stackframe_of'_cenv_sub {CS CS'} (CSUB: cenv_sub CS CS') f
   (COMPLETE : Forall (fun it : ident * type => complete_type CS (snd it) = true) (fn_vars f)):
 stackframe_of' CS f = stackframe_of' CS' f .
 Proof.
-extensionality rho.
 unfold stackframe_of'. forget (fn_vars f) as vars.
 induction vars; simpl; trivial.
 inv COMPLETE. rewrite (var_block'_cenv_sub CSUB _ _ H1) IHvars; clear IHvars; trivial.
@@ -382,7 +380,7 @@ Lemma var_block_cspecs_sub {CS CS'} (CSUB: cspecs_sub CS CS') sh a
 (CT: complete_type (@cenv_cs CS) (@snd ident type a) = true):
 var_block(cs := CS) sh a = var_block(cs := CS') sh a.
 Proof.
-extensionality rho. destruct CSUB as [CSUB _].
+destruct CSUB as [CSUB _].
 unfold var_block. unfold expr.sizeof. rewrite (cenv_sub_sizeof CSUB); trivial.
 Qed.
 
@@ -390,7 +388,6 @@ Lemma stackframe_of_cspecs_sub {CS CS'} (CSUB: cspecs_sub CS CS') f
   (COMPLETE : Forall (fun it : ident * type => complete_type (@cenv_cs CS) (snd it) = true) (fn_vars f)):
 stackframe_of(cs := CS) f = stackframe_of(cs := CS') f .
 Proof.
-extensionality rho.
 unfold stackframe_of. forget (fn_vars f) as vars.
 induction vars; simpl; trivial.
 inv COMPLETE. rewrite (var_block_cspecs_sub CSUB _ _ H1) IHvars; clear IHvars; trivial.
@@ -502,6 +499,7 @@ iIntros (kk F curf) "H"; iPoseProof ("SB" with "H") as "#guard".
 rewrite /guard' /_guard.
 iIntros (??) "!>".
 iIntros "H"; iApply "guard".
+rewrite /bind_args; monPred.unseal.
 iDestruct "H" as "($ & ($ & (((_ & $) & $) & _)) & $)".
 * (***   Vptr b Ptrofs.zero <> v'  ********)
 iApply HG; iPureIntro.
@@ -534,17 +532,17 @@ Qed.
 
 Lemma semax_external_FF:
 forall E ef A,
-⊢ semax_external Espec E ef A (fun _ _ => False) (fun _ _ => False).
+⊢ semax_external Espec E ef A (fun _ => False) (fun _ => False).
 intros.
 iIntros (?????) "!> !>".
-iIntros "(_ & [] & _)".
+monPred.unseal; iIntros "(_ & [] & _)".
 Qed.
 
 Lemma TTL6 {l}: typelist_of_type_list (typelist2list l) = l.
 Proof. induction l; simpl; intros; trivial. rewrite IHl; trivial. Qed.
 
 Lemma semax_func_cons_ext:
-forall (V: varspecs) (G: funspecs) {C: compspecs} ge E fs id ef argsig retsig A P Q
+forall (V: varspecs) (G: funspecs) {C: compspecs} ge E fs id ef argsig retsig A P (Q : A -> assert)
       argsig'
       (G': funspecs) cc b,
   argsig' = typelist2list argsig ->
@@ -999,8 +997,8 @@ Proof.
 Qed.
 
 Lemma semax_prog_entry_point {CS: compspecs} V G prog b id_fun params args A
-   (P: A -> argsEnviron -> mpred)
-   (Q: A -> environ -> mpred)
+   (P: A -> argsassert)
+   (Q: A -> assert)
   h z:
   let retty := tint in
   postcondition_allows_exit retty ->
@@ -1073,9 +1071,9 @@ assert (⊢ ▷ (<absorb> P a (filter_genv psi, args) ∗ fungassert Delta (filt
 iIntros.
 iPoseProof Prog_OK as "#Prog_OK".
 set (f0 := mkfunction Tvoid cc_default nil nil nil Sskip).
-iAssert (rguard Espec psi ⊤ Delta f0 (frame_ret_assert (normal_ret_assert (maybe_retval (Q a) retty None)) (fun _ => True)) Kstop) as "#rguard".
+iAssert (rguard Espec psi ⊤ Delta f0 (frame_ret_assert (normal_ret_assert (maybe_retval (Q a) retty None)) True) Kstop) as "#rguard".
 { iIntros (????) "!>".
-  rewrite proj_frame; iIntros "(% & (? & Q) & ?)".
+  rewrite proj_frame; monPred.unseal; iIntros "(% & (? & Q) & ?)".
   destruct ek; simpl proj_ret_assert; monPred.unseal; try iDestruct "Q" as (->) "Q"; try iDestruct "Q" as "[]".
   iIntros (??); simpl.
   iApply jsafe_step; rewrite /jstep_ex.
@@ -1088,11 +1086,13 @@ iAssert (rguard Espec psi ⊤ Delta f0 (frame_ret_assert (normal_ret_assert (may
       split; first done.
       rewrite /Map.get; intros (? & Hid).
       specialize (Hmatch id); rewrite Hid // in Hmatch. }
+  { rewrite /stackframe_of /f0 /=.
+    by monPred.unseal. }
   iIntros "!>"; iExists _, _; iSplit.
   { iPureIntro; econstructor; eauto. }
   iFrame.
   by iApply return_stop_safe; iPureIntro. }
-iPoseProof (semax_call_aux0 _ _ _ _ _ _ _ _ P _ _ _ _ _ _ (fun _ => True) (fun _ => emp) _ _ _ _ (Maps.PTree.empty _) (Maps.PTree.empty _) with "Prog_OK") as "Himp"; try done;
+iPoseProof (semax_call_aux0 _ _ _ _ _ _ _ _ P _ _ _ _ _ _ True (fun _ => emp) _ _ _ _ (Maps.PTree.empty _) (Maps.PTree.empty _) with "Prog_OK") as "Himp"; try done;
   last (iNext; iIntros "(P & fun)"; iApply ("Himp" with "[P] fun [] rguard")); try done.
 * split3; first split3; simpl; auto.
   + intros ??; setoid_rewrite Maps.PTree.gempty; done.
@@ -1100,12 +1100,13 @@ iPoseProof (semax_call_aux0 _ _ _ _ _ _ _ _ P _ _ _ _ _ _ (fun _ => True) (fun _
     setoid_rewrite Maps.PTree.gempty; split; first done.
     intros (? & ?); done.
   + intros ?; done.
+* by monPred.unseal.
 * intros; iIntros "?".
   by iApply return_stop_safe; iPureIntro.
-* iMod "P" as "$".
+* iMod "P" as "$". by monPred.unseal.
 * iClear "Himp"; iIntros "!> !> (_ & P) !>".
-  iExists a, (fun _ => emp); iFrame.
-  iSplit; first done.
+  iExists a, emp; iFrame.
+  iSplit; first by monPred.unseal.
   iIntros (?) "!> H".
   iDestruct "H" as (?) "(_ & $)".
 Qed.
@@ -1624,8 +1625,8 @@ Lemma semax_body_funspec_sub {V G cs E f i phi phi'} (SB: @semax_body V G cs E f
   (LNR: list_norepet (map fst (fn_params f) ++ map fst (fn_temps f))):
   @semax_body V G cs E f (i, phi').
 Proof.
- destruct phi as [sig cc A P Q Pne Qne].
- destruct phi' as [sig' cc' A' P' Q' Pne' Qne'].
+ destruct phi as [sig cc A P Q].
+ destruct phi' as [sig' cc' A' P' Q'].
  destruct Sub as [[Tsigs CC] Sub]. subst cc'. simpl in Sub.
  destruct SB as [SB1 [SB2 SB3]].
  subst sig'.
@@ -1635,15 +1636,16 @@ Proof.
  with
   (Q':= frame_ret_assert (function_body_ret_assert (fn_return f) (Q' x))
            (stackframe_of f))
-  (P' := fun tau =>
+  (P' :=
     ∃ vals:list val,
     ∃ x1 : A,
     ∃ FR: mpred,
     ⌜forall rho' : environ,
               ⌜tc_environ (rettype_tycontext (snd sig)) rho'⌝ ∧ (FR ∗ Q x1 rho') ⊢ (Q' x rho')⌝ ∧
-      ((stackframe_of f tau ∗ FR ∗ P x1 (ge_of tau, vals)) ∧
-            ⌜map (Map.get (te_of tau)) (map fst (fn_params f)) = map Some vals /\ tc_vals (map snd (fn_params f)) vals⌝)).
- - intros rho. iIntros "(%TC & #OM & (%vals & (%MAP & %VUNDEF) & HP') & M2)".
+      ((stackframe_of f ∗ ⎡FR⎤ ∗ assert_of (fun tau => P x1 (ge_of tau, vals))) ∧
+            local (fun tau => map (Map.get (te_of tau)) (map fst (fn_params f)) = map Some vals /\ tc_vals (map snd (fn_params f)) vals))).
+ - split => rho. monPred.unseal; rewrite /bind_ret monPred_at_affinely.
+   iIntros "(%TC & #OM & (%vals & (%MAP & %VUNDEF) & HP') & M2)".
    specialize (Sub (ge_of rho, vals)). iMod (Sub with "[$HP']") as "Sub". {
      iPureIntro; split; trivial.
      simpl.
@@ -1660,7 +1662,7 @@ Proof.
          apply tc_val_has_type; apply Tw; trivial.
        * apply IHparams; simpl; trivial.
          intros. apply TE. right; trivial. }
-   iIntros "!>"; iSplit; last by (iPureIntro; auto 6).
+   iIntros "!>"; iSplit; last iPureIntro.
    clear Sub.
    iDestruct "Sub" as (x1 FR1) "(A1 & %RetQ)".
    iExists vals, x1, FR1.
@@ -1686,6 +1688,7 @@ Proof.
       split; [ clear IHparams | apply (IHparams H6 X _ H1 H4)].
       destruct (TC1 i t) as [u [U TU]]; clear TC1. setoid_rewrite Maps.PTree.gss; trivial.
       rewrite U in H0; inv H0. apply TU; trivial.
+    + split3; last split; intros; split => ?; monPred.unseal; auto.
  - clear Sub.
    apply extract_exists_pre; intros vals.
    apply extract_exists_pre; intros x1.
@@ -1693,24 +1696,23 @@ Proof.
    apply semax_extract_prop; intros QPOST.
    unfold fn_funsig in *. simpl in SB2; rewrite -> SB2 in *.
    apply (semax_frame E (func_tycontext f V G nil)
-      (fun rho : environ =>
-         close_precondition (map fst (fn_params f)) (P x1) rho ∗
-         stackframe_of f rho)
+      (close_precondition (map fst (fn_params f)) (P x1) ∗
+         stackframe_of f)
       (fn_body f)
       (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x1)) (stackframe_of f))
-      (fun rho => FRM)) in SB3.
+      ⎡FRM⎤) in SB3.
     + eapply semax_pre_post_fupd.
       6: apply SB3.
-      all: clear SB3; intros; simpl; try monPred.unseal; try iIntros "(_ & ([] & ?) & _)".
-      * iIntros "(%TC & (N1 & (? & N2)) & (%VALS & %TCVals)) !>"; iFrame.
+      all: clear SB3; intros; simpl; try iIntros "(_ & ([] & ?) & _)".
+      * split => rho; monPred.unseal; iIntros "(%TC & (N1 & (? & N2)) & (%VALS & %TCVals)) !>"; iFrame.
         unfold close_precondition.
         iExists vals; iFrame; iPureIntro; repeat (split; trivial).
         apply (tc_vals_Vundef TCVals).
-      * destruct (fn_return f); try iIntros "(_ & ([] & _) & _)".
+      * split => rho; rewrite /bind_ret; monPred.unseal; destruct (fn_return f); try iIntros "(_ & ([] & _) & _)".
         rewrite -QPOST; iIntros "(? & (? & ?) & ?)"; iFrame.
         iPureIntro; split; last done.
         apply tc_environ_rettype.
-      * iIntros "(% & (Q & $) & ?)".
+      * split => rho; rewrite /bind_ret; monPred.unseal; iIntros "(% & (Q & $) & ?)".
         destruct vl; simpl.
         -- rewrite -QPOST.
            iDestruct "Q" as "($ & $)"; iFrame; iPureIntro; split; last done.
@@ -1718,7 +1720,7 @@ Proof.
         -- destruct (fn_return f); try iDestruct "Q" as "[]".
            rewrite -QPOST; iFrame; iPureIntro; split; last done.
            apply tc_environ_rettype.
-    + do 2 red; intros; trivial.
+    + do 2 red; intros; monPred.unseal; trivial.
 Qed.
 
 Lemma make_tycontext_s_distinct : forall a l (Ha : In a l) (Hdistinct : List.NoDup (map fst l)),

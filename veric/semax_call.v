@@ -364,8 +364,8 @@ Proof.
  simpl in H1. unfold make_tycontext_v in H1.
  unfold blocks_of_env.
  trans (foldr bi_sep emp (map (fun idt => var_block Share.top idt rho) (fn_vars f))).
- { clear; induction (fn_vars f); simpl; auto; by rewrite IHl. }
- unfold var_block. unfold eval_lvar. simpl.
+ { clear; induction (fn_vars f); simpl; auto; monPred.unseal. rewrite -IHl; by monPred.unseal. }
+ unfold var_block. unfold eval_lvar. monPred.unseal; simpl.
  rewrite H0. unfold make_venv. forget (ge_of rho) as ZZ. rewrite H0 in H7; clear rho H0.
  revert ve H1 H7; induction (fn_vars f); simpl; intros.
  case_eq (Maps.PTree.elements ve); simpl; intros; auto.
@@ -448,7 +448,7 @@ Proof.
  destruct H7; auto. inv H6; congruence.
 Qed.
 
-Definition maybe_retval (Q: environ -> mpred) retty ret :=
+Definition maybe_retval (Q: @assert Σ) retty ret :=
  assert_of (match ret with
  | Some id => fun rho => ⌜tc_val' retty (eval_id id rho)⌝ ∧ Q (get_result1 id rho)
  | None =>
@@ -522,7 +522,7 @@ Definition thisvar (ret: option ident) (i : ident) : Prop :=
  match ret with None => False | Some x => x=i end.
 
 Lemma closed_wrt_modvars_Scall:
-  forall ret a bl, closed_wrt_modvars (Scall ret a bl) = closed_wrt_vars (thisvar ret).
+  forall ret a bl, @closed_wrt_modvars Σ (Scall ret a bl) = closed_wrt_vars (thisvar ret).
 Proof.
 intros.
 unfold closed_wrt_modvars.
@@ -552,9 +552,9 @@ Qed.
 Lemma semax_call_external
  E (Delta : tycontext)
  (A : Type)
- (P : A -> argsEnviron -> mpred)
- (Q : A -> environ -> mpred)
- (F0 : environ -> mpred)
+ (P : A -> argsassert)
+ (Q : A -> assert)
+ (F0 : assert)
  (ret : option ident) (curf : function) (fsig : typesig) (cc : calling_convention)
  (R : ret_assert) (psi : genv) (vx : env) (tx : temp_env)
  (k : cont) (rho : environ) (ora : OK_ty) (b : Values.block)
@@ -575,7 +575,7 @@ Lemma semax_call_external
  ▷ (<affine> rguard Espec psi E Delta curf (frame_ret_assert R F0) k -∗
     funassert Delta rho -∗
     F0 rho -∗
-    (|={E}=> ∃ (x1 : A) (F1 : environ → mpred),
+    (|={E}=> ∃ (x1 : A) (F1 : assert),
                (F1 rho ∗ P x1 (ge_of rho, args))
                ∧ (∀ rho' : environ,
                     ■ ((∃ old : val, substopt ret (` old) F1 rho' ∗
@@ -709,7 +709,7 @@ rewrite IHil; auto.
 Qed.
 
 Lemma make_args_close_precondition:
-  forall bodyparams args ge tx ve' te' P,
+  forall bodyparams args ge tx ve' te' (P : @argsassert Σ),
     list_norepet (map fst bodyparams) ->
     bind_parameter_temps bodyparams args tx = Some te' ->
     Forall (fun v : val => v <> Vundef) args ->
@@ -766,7 +766,7 @@ Proof.
   { intros; apply Maps.PTree.gempty. }
   forget empty_env as ve0.
   revert ve0 m Hout Hsize; induction vars; intros; simpl; iIntros "Hm".
-  - iExists m, ve0; iFrame; iPureIntro.
+  - iExists m, ve0; iFrame; monPred.unseal; iPureIntro.
     split; auto; split; auto.
     + intros; apply sub_option_refl.
     + constructor.
@@ -779,8 +779,8 @@ Proof.
     unshelve iMod (IHvars _ _ (Maps.PTree.set id (b,ty) ve0) with "Hm") as (?? (Hsub & ?)) "(Hm & ?)"; try done.
     { intros; rewrite /lookup /ptree_lookup Maps.PTree.gso //; last by intros ->.
       apply Hout; simpl; auto. }
-    iIntros "!>"; iExists _, _; iFrame.
-    rewrite /var_block /eval_lvar.
+    iIntros "!>"; iExists _, _; monPred.unseal; iFrame.
+    rewrite /var_block /eval_lvar; monPred.unseal; simpl.
     replace (Map.get _ _) with (Some (b, ty)).
     rewrite eqb_type_refl; iFrame; iPureIntro; simpl.
     + split; last done; split.
@@ -808,7 +808,7 @@ Lemma guard_fallthrough_return:
  forall (psi : genv) E (f : function)
    (ctl : cont) (ek : exitkind) (vl : option val)
   (te : temp_env) (ve : env) (rho' : environ)
-  (P4 : environ -> mpred),
+  (P4 : assert),
   call_cont ctl = ctl ->
   (bind_ret vl (fn_return f) P4 rho' -∗
      assert_safe Espec psi E f ve te (exit_cont EK_return vl ctl) rho') ⊢
@@ -835,10 +835,10 @@ Qed.
 Lemma semax_call_aux2
   {CS'} E (Delta : tycontext)
   (A : Type)
-  (Q : A -> environ -> mpred)
+  (Q : A -> assert)
   (x : A)
-  (F : environ -> mpred)
-  (F0 : environ -> mpred)
+  (F : assert)
+  (F0 : assert)
   (ret : option ident)
   (curf : function)
   (fsig : typesig)
@@ -869,17 +869,18 @@ Lemma semax_call_aux2
                maybe_retval (Q x) (snd fsig) ret rho') -∗
               RA_normal R rho')) -∗
   ▷ rguard Espec psi E Delta curf (frame_ret_assert R F0) k -∗
-  ⌜closed_wrt_modvars (fn_body f) (fun _ : environ => F0 rho ∗ F rho)⌝ ∧
+  ⌜closed_wrt_modvars (fn_body f) (assert_of (fun _ : environ => F0 rho ∗ F rho))⌝ ∧
   rguard Espec psi E (func_tycontext' f Delta) f
          (frame_ret_assert
             (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x))
-                              (stackframe_of' cenv_cs f)) (fun _ : environ => F0 rho ∗ F rho))
+                              (stackframe_of' cenv_cs f)) (assert_of (fun _ : environ => F0 rho ∗ F rho)))
          ctl.
 Proof.
   iIntros "#HR #rguard"; iSplit.
   { iPureIntro; repeat intro; f_equal. }
   iIntros (ek vl te ve) "!>".
   rewrite !proj_frame.
+  monPred.unseal.
   iIntros "(% & ((F0 & F) & stack & Q) & #fun)".
   iApply (guard_fallthrough_return with "[-Q] Q").
   iIntros "Q".
@@ -1105,7 +1106,7 @@ Qed.
 Lemma semax_call_aux0 {CS'}
   E (Delta : tycontext) (psi : genv) (ora : OK_ty) (b : Values.block) (id : ident) cc
   A0 P (x : A0) A deltaP deltaQ retty clientparams
-  (F0 : environ -> mpred) F (ret : option ident) (curf: function) args
+  (F0 : assert) F (ret : option ident) (curf: function) args
   (R : ret_assert) (vx:env) (tx:Clight.temp_env) (k : cont) (rho : environ)
 
   (Spec: (glob_specs Delta)!!id = Some (mk_funspec (clientparams, retty) cc A deltaP deltaQ))
@@ -1127,7 +1128,7 @@ Lemma semax_call_aux0 {CS'}
   ▷ (F0 rho ∗ F rho ∗ P x (ge_of rho, args) -∗
      funassert Delta rho -∗
      □ ■ (F rho ∗ P x (ge_of rho, args) ={E}=∗
-                          ∃ (x1 : A) (F1 : environ -> mpred),
+                          ∃ (x1 : A) (F1 : assert),
                             (F1 rho ∗ deltaP x1 (ge_of rho, args))
                             ∧ (∀ rho' : environ,
                                  ■ ((∃ old:val, substopt ret (`old) F1 rho' ∗ maybe_retval (deltaQ x1) retty ret rho') -∗
@@ -1183,10 +1184,10 @@ Proof.
       * rewrite -Genv.find_funct_find_funct_ptr //.
       * destruct GuardEnv as ((? & ? & ?) & ?); done.
       * rewrite snd_split -H18 //.
-    + rewrite -!assoc -bi.persistent_sep_dup !assoc; iSplit; last by iApply (same_glob_funassert' with "fun").
+    + monPred.unseal; rewrite -!assoc -bi.persistent_sep_dup !assoc; iSplit; last done.
       iFrame.
       apply list_norepet_app in H17 as [H17 [_ _]].
-      rewrite /bind_args; iSplit.
+      rewrite /bind_args; monPred.unseal; iSplit.
       * iPureIntro.
         rewrite /tc_formals -H18 //.
         match goal with H: tc_vals _ ?A |- tc_vals _ ?B => replace B with A; auto end.
@@ -1200,14 +1201,14 @@ Proof.
         unfold eval_id, construct_rho; simpl.
         erewrite pass_params_ni; try eassumption.
         setoid_rewrite Maps.PTree.gss. reflexivity.
-      * iApply make_args_close_precondition; last done.
+      * iApply (make_args_close_precondition _ _ _ _ ve); last done.
         eapply tc_vals_Vundef; eauto.
 Qed.
 
 Lemma semax_call_aux {CS'}
   E (Delta : tycontext) (psi : genv) (ora : OK_ty) (b : Values.block) (id : ident) cc
   A0 P (x : A0) A deltaP deltaQ retty clientparams
-  (F0 : environ -> mpred) F (ret : option ident) (curf: function) args (a : expr)
+  (F0 : assert) F (ret : option ident) (curf: function) args (a : expr)
   (bl : list expr) (R : ret_assert) (vx:env) (tx:Clight.temp_env) (k : cont) (rho : environ)
 
   (Spec: (glob_specs Delta)!!id = Some (mk_funspec (clientparams, retty) cc A deltaP deltaQ))
@@ -1229,7 +1230,7 @@ Lemma semax_call_aux {CS'}
   (▷ (F0 rho ∗ F rho ∗ P x (ge_of rho, args))) -∗
   funassert Delta rho -∗
   □ ▷ ■ (F rho ∗ P x (ge_of rho, args) ={E}=∗
-                          ∃ (x1 : A) (F1 : environ -> mpred),
+                          ∃ (x1 : A) (F1 : assert),
                             (F1 rho ∗ deltaP x1 (ge_of rho, args))
                             ∧ (∀ rho' : environ,
                                  ■ ((∃ old:val, substopt ret (`old) F1 rho' ∗ maybe_retval (deltaQ x1) retty ret rho') -∗
@@ -1270,28 +1271,36 @@ Proof.
   rewrite IHlt //.
 Qed.
 
+(* Should we avoid using this? *)
+Lemma assert_ext : forall {I PROP} (P Q : monPred I PROP), monPred_at P = monPred_at Q -> P = Q.
+Proof.
+  destruct P, Q; simpl; intros; subst.
+  f_equal; apply proof_irr.
+Qed.
+
 Lemma semax_call_si:
   forall E Delta (A: Type)
-   (P : A -> argsEnviron -> mpred)
-   (Q : A -> environ -> mpred)
+   (P : A -> argsassert)
+   (Q : A -> assert)
    (x : A)
    F ret id argsig retsig cc a bl
    (TCF : Cop.classify_fun (typeof a) = Cop.fun_case_f (typelist_of_type_list argsig) retsig cc)
    (TC5 : retsig = Tvoid -> ret = None)
    (TC7 : tc_fn_return Delta ret retsig),
   semax Espec E Delta
-       (fun rho => (▷(tc_expr Delta a rho ∧ tc_exprlist Delta argsig bl rho)) ∧
-           (func_ptr_si (ge_of rho) E id (mk_funspec (argsig,retsig) cc A P Q) (eval_expr a rho) ∗
-          (▷(F rho ∗ P x (ge_of rho, eval_exprlist argsig bl rho)))))
+       (▷(tc_expr Delta a ∧ tc_exprlist Delta argsig bl) ∧
+           (assert_of (fun rho => func_ptr_si (ge_of rho) E id (mk_funspec (argsig,retsig) cc A P Q) (eval_expr a rho)) ∗
+          (▷(F ∗ assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho))))))
          (Scall ret a bl)
          (normal_ret_assert
-          (fun rho => (∃ old:val, substopt ret (`old) F rho ∗ maybe_retval (Q x) retsig ret rho))).
+          (∃ old:val, assert_of (substopt ret (`old) F) ∗ maybe_retval (Q x) retsig ret)).
 Proof.
   intros.
   rewrite semax_unfold; intros.
   rename argsig into clientparams. rename retsig into retty.
   iIntros "#Prog_OK" (???) "[%Closed #rguard]".
-  iIntros (tx vx) "!> (%TC3 & (F0 & H) & #fun)".
+  iIntros (tx vx) "!>".
+  monPred.unseal; iIntros "(%TC3 & (F0 & H) & #fun)".
   assert (TC7': tc_fn_return Delta' ret retty).
   { clear - TC7 TS.
     hnf in TC7|-*. destruct ret; auto.
@@ -1300,7 +1309,7 @@ Proof.
     specialize (H i); rewrite Heqo in H. subst t; done. }
   assert (Hpsi: filter_genv psi = ge_of (construct_rho (filter_genv psi) vx tx)) by reflexivity.
   remember (construct_rho (filter_genv psi) vx tx) as rho.
-  iAssert (func_ptr_si (ge_of rho) E id (mk_funspec (clientparams, retty) cc A P Q) (eval_expr(CS := CS) a rho)) as "#funcatb".
+  iAssert (func_ptr_si (filter_genv psi) E id (mk_funspec (clientparams, retty) cc A P Q) (eval_expr(CS := CS) a rho)) as "#funcatb".
   { iDestruct "H" as "(_ & $ & _)". }
   rewrite {2}(affine (func_ptr_si _ _ _ _ _)) left_id.
   rewrite /func_ptr_si.
@@ -1311,7 +1320,9 @@ Proof.
     - iDestruct ("FA" with "[%]") as "(% & %Hid' & funcatv)"; first done.
       rewrite Hid' in RhoID; inv RhoID.
       destruct nspec, fs; iDestruct (mapsto_pure_agree with "funcatb funcatv") as %[=]; subst.
-      repeat match goal with H : existT ?A _ = existT ?A _ |- _ => apply inj_pair2 in H end; subst; done.
+      assert (P0 = P1 /\ Q0 = Q1) as [-> ->]; last done.
+      split; extensionality a1; repeat match goal with H : existT ?A _ = existT ?A _ |- _ => apply inj_pair2 in H; apply equal_f with a1 in H end;
+        apply assert_ext; done.
     - iPoseProof ("FD" with "[%]") as "Hno"; first eauto.
       destruct nspec; iDestruct (mapsto_no_pure_conflict with "Hno funcatb") as "[]". }
   set (args := @eval_exprlist CS clientparams bl rho).
@@ -1325,10 +1336,11 @@ Proof.
     destruct TC3 as [TC3 TC4].
     eapply typecheck_environ_sub in TC3; [| eauto].
     auto. }
+  iIntros (? _).
   rewrite (add_and (_ ∧ ▷ _) (▷_)); last by iIntros "H"; iNext; iDestruct "H" as "((_ & H) & _)"; destruct HGG; iApply (typecheck_exprlist_sound_cenv_sub with "H").
   iDestruct "H" as "(H & >%HARGS)".
   fold args in HARGS; fold args' in HARGS.
-  rewrite tc_exprlist_sub // tc_expr_sub //.
+  setoid_rewrite tc_exprlist_sub; [|done..]. setoid_rewrite tc_expr_sub; [|done..].
   rewrite (add_and (_ ∧ ▷ _) (▷_)); last by iIntros "H"; iNext; iDestruct "H" as "((_ & H) & _)"; destruct HGG; iApply (tc_exprlist_length with "H").
   iDestruct "H" as "(H & >%LENbl)".
   assert (LENargs: Datatypes.length clientparams = Datatypes.length args).
@@ -1345,13 +1357,14 @@ Proof.
          apply tc_val_has_type in H; simpl. apply IHargs in H0.
          constructor; eauto. }
   rewrite bi.True_and.
-  iIntros (? _).
   assert (CSUBpsi:cenv_sub (@cenv_cs CS) psi).
   { destruct HGG as [CSUB' HGG]. apply (cenv_sub_trans CSUB' HGG). }
   destruct HGG as [CSUB HGG].
   rewrite (add_and (_ ∧ ▷ _) (▷_)); last by iIntros "H"; iNext; iDestruct "H" as "((H & _) & _)"; iApply (typecheck_expr_sound_cenv_sub with "H").
   iDestruct "H" as "(H & >%Heval_eq)"; rewrite Heval_eq in EvalA.
-  subst rho; iApply (@semax_call_aux CS' with "Prog_OK [F0 H] fun [] rguard"); try reflexivity.
+  subst rho; iApply (@semax_call_aux CS' _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ (normal_ret_assert
+                   (∃ old : val, assert_of (substopt ret (` old) (monPred_at F)) ∗
+                      maybe_retval (Q x) retty ret)) with "Prog_OK [F0 H] [fun] [] [rguard]"); try reflexivity; [| by monPred.unseal | | by repeat monPred.unseal].
   - iCombine "F0 H" as "H"; rewrite bi.sep_and_l; iSplit.
     + rewrite bi.later_and; iDestruct "H" as "[(_ & ?) _]".
       rewrite tc_exprlist_cenv_sub // tc_expr_cenv_sub //.
@@ -1359,7 +1372,7 @@ Proof.
   - iClear "fun funcatb". iIntros "!> !> !>".
     iIntros "(F & P)".
     iMod ("ClientAdaptation" with "P") as (??) "[H #post]".
-    iExists x1, (λ rho, F rho ∗ F1); iIntros "!>"; iSplit; first by iDestruct "H" as "($ & $)".
+    iExists x1, (F ∗ ⎡F1⎤); iIntros "!>"; monPred.unseal; iSplit; first by iDestruct "H" as "($ & $)".
     iIntros (?) "!> (% & F & nQ)"; simpl.
     destruct ret; simpl.
     + iExists old; iDestruct "F" as "($ & F1)".
@@ -1375,24 +1388,25 @@ Definition semax_call_alt := semax_call_si.
 
 Lemma semax_call:
   forall E Delta (A: Type)
-  (P : A -> argsEnviron -> mpred)
-  (Q : A -> environ -> mpred)
+  (P : A -> argsassert)
+  (Q : A -> assert)
   (x : A)
   F ret id argsig retsig cc a bl
   (TCF : Cop.classify_fun (typeof a) = Cop.fun_case_f (typelist_of_type_list argsig) retsig cc)
   (TC5 : retsig = Tvoid -> ret = None)
   (TC7 : tc_fn_return Delta ret retsig),
   semax Espec E Delta
-       (fun rho => (▷(tc_expr Delta a rho ∧ tc_exprlist Delta argsig bl rho))  ∧
-           (func_ptr (ge_of rho) E id (mk_funspec (argsig,retsig) cc A P Q) (eval_expr a rho) ∗
-          (▷(F rho ∗ P x (ge_of rho, eval_exprlist argsig bl rho)))))
+       ((▷(tc_expr Delta a ∧ tc_exprlist Delta argsig bl))  ∧
+           (assert_of (fun rho => func_ptr (ge_of rho) E id (mk_funspec (argsig,retsig) cc A P Q) (eval_expr a rho)) ∗
+          (▷(F ∗ assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho))))))
          (Scall ret a bl)
          (normal_ret_assert
-          (fun rho => (∃ old:val, substopt ret (`old) F rho ∗ maybe_retval (Q x) retsig ret rho))).
+          (∃ old:val, assert_of (substopt ret (`old) F) ∗ maybe_retval (Q x) retsig ret)).
 Proof.
   intros.
   eapply semax_pre, semax_call_si; [|done..].
-  intros; rewrite bi.and_elim_r func_ptr_fun_ptr_si //.
+  split => rho.
+  monPred.unseal; rewrite bi.and_elim_r func_ptr_fun_ptr_si //.
 Qed.
 
 (*Lemma semax_call_ext {CS Espec}:
@@ -1547,8 +1561,8 @@ Qed.
 Lemma semax_return:
    forall E Delta R ret,
       semax Espec E Delta
-                (fun rho => tc_expropt Delta ret (ret_type Delta) rho ∧
-                             RA_return R (cast_expropt ret (ret_type Delta) rho) rho)
+                (tc_expropt Delta ret (ret_type Delta) ∧
+                             assert_of (`(RA_return R : option val -> environ -> mpred) (cast_expropt ret (ret_type Delta)) (@id environ)))
                 (Sreturn ret)
                 R.
 Proof.
@@ -1559,6 +1573,7 @@ Proof.
     by (destruct TS as [_ [_ [? _]]]; auto).
   iIntros "#Prog_OK" (???) "[%Hclosed #rguard]".
   iIntros (??) "!> (% & H & ?)".
+  monPred.unseal.
   set (rho := construct_rho _ _ _).
   iSpecialize ("rguard" $! EK_return (@cast_expropt CS' ret (ret_type Delta') rho) tx vx).
   destruct H as (H & ? & Hret).
@@ -1573,7 +1588,7 @@ Proof.
     + iApply "rguard".
       rewrite proj_frame /=; subst rho.
       rewrite RA_return_castexpropt_cenv_sub //.
-      iDestruct "H" as "($ & -> & ?)"; iFrame; iPureIntro; done. }
+      monPred.unseal; unfold_lift. iDestruct "H" as "($ & -> & ?)"; iFrame. iPureIntro; done. }
   iIntros (? _).
   rewrite /assert_safe /=.
   iApply (convergent_controls_jsafe _ _ _ (State f (Sreturn ret) (call_cont k) vx tx)); try done.

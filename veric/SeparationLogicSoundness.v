@@ -118,16 +118,16 @@ Proof. intros. eapply semax_func_cons_ext; eauto. Qed.
 
 Definition semax_Delta_subsumption := @semax_lemmas.semax_Delta_subsumption.
 
-(*Lemma semax_external_binaryintersection: forall
- {Espec ef A1 P1 Q1 P1ne Q1ne A2 P2 Q2 P2ne Q2ne A P Q P_ne Q_ne sig cc}
-  (EXT1: @CSHL_Def.semax_external Espec ef A1 P1 Q1)
-  (EXT2: @CSHL_Def.semax_external Espec ef A2 P2 Q2)
-  (BI: binary_intersection (mk_funspec sig cc A1 P1 Q1 P1ne Q1ne) 
-                      (mk_funspec sig cc A2 P2 Q2 P2ne Q2ne) =
-     Some (mk_funspec sig cc A P Q P_ne Q_ne))
+Lemma semax_external_binaryintersection: forall `{HH : heapGS Σ}
+ {Espec HE E ef A1 P1 Q1 A2 P2 Q2 A P Q sig cc}
+  (EXT1: @CSHL_Def.semax_external _ HH Espec HE E ef A1 P1 Q1)
+  (EXT2: @CSHL_Def.semax_external _ HH Espec HE E ef A2 P2 Q2)
+  (BI: binary_intersection (mk_funspec sig cc A1 P1 Q1)
+                      (mk_funspec sig cc A2 P2 Q2) =
+     Some (mk_funspec sig cc A P Q))
   (LEN: length (fst sig) = length (sig_args (ef_sig ef))),
-  @CSHL_Def.semax_external Espec ef A P Q. 
-Proof. intros. intros n. eapply semax_external_binaryintersection. apply EXT1. apply EXT2. apply BI. trivial. Qed.*)
+  @CSHL_Def.semax_external _ HH Espec HE E ef A P Q.
+Proof. intros. intros n. eapply semax_external_binaryintersection. apply EXT1. apply EXT2. apply BI. trivial. Qed.
 
 Lemma semax_external_funspec_sub: forall `{HH : heapGS Σ}
   {Espec HE E argtypes rtype cc ef A1 P1 Q1 A P Q}
@@ -142,7 +142,7 @@ Proof.
   intros. eapply semax_external_funspec_sub; eauto.
 Qed.
 
-(*Definition semax_body_binaryintersection := @semax_body_binaryintersection.*)
+Definition semax_body_binaryintersection := @semax_body_binaryintersection.
 
 Definition semax_func_mono := @semax_func_mono.
 Definition semax_func_app := @semax_func_app.
@@ -188,18 +188,7 @@ Qed.
 Definition semax_Slabel := @semax_Slabel.
 Definition semax_set_forward := @semax_set_forward.
 Definition semax_ifthenelse := @semax_ifthenelse.
-
-Lemma semax_return `{HH : !heapGS Σ} {Espec} `{HE : !externalGS OK_ty Σ} {CS}:
-   forall E Delta (R: ret_assert) ret,
-      semax Espec E Delta
-                (tc_expropt Delta ret (ret_type Delta) ∧
-                (assert_of (liftx (RA_return R : option val -> environ -> mpred) (cast_expropt ret (ret_type Delta)) (@id environ))))
-                (Sreturn ret)
-                R.
-Proof.
-  intros; eapply semax_pre, semax_return.
-  intros; rewrite bi.and_elim_r; monPred.unseal; done.
-Qed.
+Definition semax_return := @semax_return.
 
 (* Why are the implicits so inconsistent here? *)
 Lemma semax_call `{HH : !heapGS Σ} {Espec} `{HE : !externalGS OK_ty Σ} {CS}:

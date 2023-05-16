@@ -30,8 +30,8 @@ Section extensions.
   Context `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs}.
 
 Lemma semax_straight_simple:
- forall E Delta (B: environ -> mpred) P c Q
-  (EB : forall rho, Absorbing (B rho))
+ forall E Delta (B P: assert) c (Q: assert)
+  (EB : Absorbing B)
   (Hc : forall m Delta' ge ve te rho k F f,
               tycontext_sub E Delta Delta' ->
               guard_environ Delta' f rho ->
@@ -43,7 +43,7 @@ Lemma semax_straight_simple:
                   guard_environ Delta' f rho' ∧ cl_step ge (State f c k ve te) m
                                  (State f Sskip k ve te') m'⌝ ∧
                |={E}=> (mem_auth m' ∗ ▷ (F rho' ∗ Q rho'))),
-  semax Espec E Delta (fun rho => B rho ∧ ▷ P rho) c (normal_ret_assert Q).
+  semax Espec E Delta (B ∧ ▷ P) c (normal_ret_assert Q).
 Proof.
 intros until Q; intros EB Hc.
 rewrite semax_unfold.
@@ -52,20 +52,21 @@ iIntros "#believe" (???) "[% #Hsafe]".
 iIntros (te ve) "!> (% & P & #?)".
 specialize (cenv_sub_trans CSUB HGG'); intros HGG.
 iIntros (ora _).
+monPred.unseal.
 iApply jsafe_step.
 rewrite /jstep_ex.
 iIntros (m) "[Hm ?]".
 iMod (Hc with "[P $Hm]") as (??? Hstep) ">Hc"; first done.
 { rewrite bi.sep_and_l; iFrame "#".
   iSplit; last iDestruct "P" as "[_ $]".
-  rewrite bi.sep_elim_r; iDestruct "P" as "[$ _]". }
+  iDestruct "P" as "[(_ & $) _]". }
 iIntros "!>".
 destruct Hstep as (? & ? & ?); iExists _, m'; iSplit; first by iPureIntro; eauto.
 iDestruct "Hc" as "(? & Q)"; iFrame.
 iNext.
 iSpecialize ("Hsafe" $! EK_normal None te' ve).
 iPoseProof ("Hsafe" with "[Q]") as "Hsafe'".
-{ rewrite proj_frame /=; subst; iSplit; [|iSplit]; try done.
+{ simpl; subst; iSplit; [|iSplit]; try done.
   monPred.unseal; by iDestruct "Q" as "[$ $]". }
 rewrite assert_safe_jsafe'; iFrame; by iPureIntro.
 Qed.
@@ -223,7 +224,7 @@ match (eval_expr e rho) with
 end.
 
 Lemma closed_wrt_modvars_set : forall F id e v ge ve te rho
-  (Hclosed : closed_wrt_modvars (Sset id e) F)
+  (Hclosed : @closed_wrt_modvars Σ (Sset id e) F)
   (Hge : rho = construct_rho (filter_genv ge) ve te),
   F rho = F (mkEnviron (ge_of rho) (ve_of rho)
        (make_tenv (Maps.PTree.set id v te))).
@@ -239,7 +240,7 @@ Qed.
 Lemma subst_set : forall {A} id v (P : environ -> A) v' ge ve te rho
   (Hge : rho = construct_rho (filter_genv ge) ve te)
   (Hid : Map.get (te_of rho) id = Some v),
-  subst id (liftx (eval_id id rho)) P
+  subst id (λ _ : environ, eval_id id rho) P
        (mkEnviron (ge_of rho) (ve_of rho)
           (make_tenv (Maps.PTree.set id v' te))) = P rho.
 Proof.
@@ -249,34 +250,33 @@ Proof.
 Qed.
 
 Lemma semax_ptr_compare:
-forall E (Delta: tycontext) (P: environ -> mpred) id cmp e1 e2 ty sh1 sh2,
+forall E (Delta: tycontext) (P: assert) id cmp e1 e2 ty sh1 sh2,
     sh1 <> Share.bot -> sh2 <> Share.bot ->
     is_comparison cmp = true  ->
     eqb_type (typeof e1) int_or_ptr_type = false ->
     eqb_type (typeof e2) int_or_ptr_type = false ->
     (typecheck_tid_ptr_compare Delta id = true) ->
     semax Espec E Delta
-        (fun rho =>
-          ▷ (tc_expr Delta e1 rho ∧ tc_expr Delta e2 rho  ∧
-          ⌜blocks_match cmp (eval_expr e1 rho) (eval_expr e2 rho)⌝ ∧
-          <absorb> mapsto_ sh1 (typeof e1) (eval_expr e1 rho) ∧
-          <absorb> mapsto_ sh2 (typeof e2) (eval_expr e2 rho) ∧
-          P rho))
+        (▷ (tc_expr Delta e1 ∧ tc_expr Delta e2 ∧
+          local (fun rho => blocks_match cmp (eval_expr e1 rho) (eval_expr e2 rho)) ∧
+          <absorb> assert_of (`(mapsto_ sh1 (typeof e1)) (eval_expr e1)) ∧
+          <absorb> assert_of (`(mapsto_ sh1 (typeof e2)) (eval_expr e2)) ∧
+          P))
           (Sset id (Ebinop cmp e1 e2 ty))
         (normal_ret_assert
-          (fun rho => (∃ old:val,
-                 ⌜eval_id id rho = subst id (liftx old)
-                     (eval_expr (Ebinop cmp e1 e2 ty)) rho⌝ ∧
-                            subst id (liftx old) P rho))).
+          (∃ old:val,
+                 local (fun rho => eval_id id rho = subst id (liftx old)
+                     (eval_expr (Ebinop cmp e1 e2 ty)) rho) ∧
+                            assert_of (subst id (liftx old) P))).
 Proof.
   intros until sh2. intros ?? CMP NE1 NE2 TCid.
-  apply semax_pre with (fun rho =>
-      ((▷ tc_expr Delta e1 rho ∧
-        ▷ tc_expr Delta e2 rho ∧
-        ▷ ⌜blocks_match cmp (eval_expr e1 rho) (eval_expr e2 rho)⌝ ∧
-        ▷ <absorb> mapsto_ sh1 (typeof e1) (eval_expr e1 rho) ∧
-        ▷ <absorb> mapsto_ sh2 (typeof e2) (eval_expr e2 rho)) ∧
-        ▷ P rho)), semax_straight_simple.
+  apply semax_pre with (
+      ((▷ tc_expr Delta e1 ∧
+        ▷ tc_expr Delta e2 ∧
+        ▷ local (fun rho => blocks_match cmp (eval_expr e1 rho) (eval_expr e2 rho)) ∧
+        ▷ <absorb> assert_of (`(mapsto_ sh1 (typeof e1)) (eval_expr e1)) ∧
+        ▷ <absorb> assert_of (`(mapsto_ sh1 (typeof e2)) (eval_expr e2))) ∧
+        ▷ P)), semax_straight_simple.
   { intros. rewrite bi.and_elim_r !bi.later_and !assoc //. }
   { apply _. }
   intros until f; intros TS TC Hcl Hge HGG.
@@ -284,6 +284,7 @@ Proof.
     by (destruct TC as [TC' TC'']; eapply typecheck_environ_sub; eauto).
   eapply typecheck_tid_ptr_compare_sub in TCid; last done.
   iIntros "H"; iExists m, (Maps.PTree.set id (eval_expr (Ebinop cmp e1 e2 ty) rho) te), _.
+  monPred.unseal; rewrite !monPred_at_absorbingly; unfold_lift; simpl.
   iSplit; [iSplit; first done; iSplit|].
   + rewrite !mapsto_is_pointer /tc_expr /= !typecheck_expr_sound; [| done..].
     iDestruct "H" as "(? & ((>%TC1 & >%TC2 & >% & >%Hv1 & >%Hv2) & _) & ?)".
@@ -306,27 +307,26 @@ Proof.
     unfold typecheck_tid_ptr_compare, typecheck_temp_environ in *.
     destruct (temp_types Delta' !! id) eqn: Hid; try discriminate.
     destruct (TC _ _ Hid) as (? & ? & ?).
-    erewrite !subst_set by eauto; iFrame.
+    unfold lift1; erewrite !subst_set by eauto; iFrame.
     super_unfold_lift.
     rewrite /eval_id /force_val -map_ptree_rel Map.gss //.
 Qed.
 
 Lemma semax_set_forward:
-forall E (Delta: tycontext) (P: environ -> mpred) id e,
+forall E (Delta: tycontext) (P: assert) id e,
     semax Espec E Delta
-        (fun rho =>
-          ▷ (tc_expr Delta e rho ∧ (tc_temp_id id (typeof e) Delta e rho) ∧ P rho))
+        (▷ (tc_expr Delta e ∧ (tc_temp_id id (typeof e) Delta e) ∧ P))
           (Sset id e)
         (normal_ret_assert
-          (fun rho => (∃ old:val,
-                 ⌜eval_id id rho =  subst id (liftx old) (eval_expr e) rho⌝ ∧
-                            subst id (`old) P rho))).
+          (∃ old:val,
+                 local (fun rho => eval_id id rho = subst id (liftx old) (eval_expr e) rho) ∧
+                            assert_of (subst id (`old) P))).
 Proof.
   intros.
-  apply semax_pre with (fun rho =>
-     (▷ tc_expr Delta e rho ∧
-      ▷ tc_temp_id id (typeof e) Delta e rho) ∧
-      ▷ P rho), semax_straight_simple.
+  apply semax_pre with (
+     (▷ tc_expr Delta e ∧
+      ▷ tc_temp_id id (typeof e) Delta e) ∧
+      ▷ P), semax_straight_simple.
   { intros. rewrite bi.and_elim_r !bi.later_and !assoc //. }
   { apply _. }
   intros until f; intros TS TC Hcl Hge HGG.
@@ -334,7 +334,7 @@ Proof.
     by (destruct TC as [TC' TC'']; eapply typecheck_environ_sub; eauto).
   iIntros "(Hm & H & #?)".
   iExists m, (Maps.PTree.set id (eval_expr e rho) te), _.
-  rewrite tc_temp_id_sub /tc_temp_id /typecheck_temp_id /=; last done.
+  monPred.unseal. setoid_rewrite tc_temp_id_sub; last done. rewrite /tc_temp_id /typecheck_temp_id /=.
   destruct (temp_types Delta' !! id) eqn: Hid.
   iSplit; [iSplit; first done; iSplit|].
   + rewrite !denote_tc_assert_andp tc_bool_e.
@@ -357,8 +357,7 @@ Proof.
     iNext; iExists (eval_id id rho).
     destruct TC as [[TC _] _].
     destruct (TC _ _ Hid) as (? & ? & ?).
-    erewrite !subst_set by eauto; iFrame.
-    super_unfold_lift.
+    super_unfold_lift; erewrite !subst_set by eauto; iFrame.
     rewrite /eval_id /force_val -map_ptree_rel Map.gss //.
   + iDestruct "H" as "((_ & >[]) & _)".
 Qed.
@@ -368,42 +367,41 @@ forall E (Delta: tycontext) (P: assert) id e t,
     typeof_temp Delta id = Some t ->
     is_neutral_cast (typeof e) t = true ->
     semax Espec E Delta
-        (fun rho =>
-          ▷ ((tc_expr Delta e rho) ∧ P rho))
+        (▷ (tc_expr Delta e ∧ P))
           (Sset id e)
         (normal_ret_assert
-          (fun rho => (∃ old:val,
-                 ⌜eval_id id rho =  subst id (liftx old) (eval_expr e) rho⌝ ∧
-                            subst id (`old) P rho))).
+          (∃ old:val,
+                 local (fun rho => eval_id id rho = subst id (liftx old) (eval_expr e) rho) ∧
+                            assert_of (subst id (`old) P))).
 Proof.
 intros.
 eapply semax_pre, semax_set_forward.
-intros; iIntros "[%TC H] !>".
+iIntros "[TC H] !>".
 iSplit; first iDestruct "H" as "[$ _]".
 iSplit; last iDestruct "H" as "[_ $]".
 rewrite /tc_temp_id /typecheck_temp_id /=.
 unfold typeof_temp in H.
 destruct (temp_types Delta !! id) eqn: Ht; inv H.
-rewrite Ht denote_tc_assert_andp.
+iStopProof; monPred.unseal; split => rho.
+rewrite Ht. setoid_rewrite denote_tc_assert_andp.
 assert (implicit_deref (typeof e) = typeof e) as -> by (by destruct (typeof e)).
-rewrite H0; iSplit; auto.
+rewrite H0; iIntros "?"; iSplit; auto.
 iApply neutral_isCastResultType.
 Qed.
 
 Lemma semax_cast_set:
-forall E (Delta: tycontext) (P: environ -> mpred) id e t
+forall E (Delta: tycontext) (P: assert) id e t
     (H99 : typeof_temp Delta id = Some t),
     semax Espec E Delta
-        (fun rho =>
-          ▷ ((tc_expr Delta (Ecast e t) rho) ∧ P rho))
+        (▷ (tc_expr Delta (Ecast e t) ∧ P))
           (Sset id (Ecast e t))
         (normal_ret_assert
-          (fun rho => (∃ old:val,
-                 ⌜eval_id id rho = subst id (liftx old) (eval_expr (Ecast e t)) rho⌝ ∧
-                            subst id (`old) P rho))).
+          (∃ old:val,
+                 local (fun rho => eval_id id rho = subst id (liftx old) (eval_expr (Ecast e t)) rho) ∧
+                            assert_of (subst id (`old) P))).
 Proof.
   intros.
-  apply semax_pre with (fun rho => ▷ tc_expr Delta (Ecast e t) rho ∧ ▷ P rho), semax_straight_simple.
+  apply semax_pre with (▷ tc_expr Delta (Ecast e t) ∧ ▷ P), semax_straight_simple.
   { intros. rewrite bi.and_elim_r !bi.later_and //. }
   { apply _. }
   intros until f; intros TS TC Hcl Hge HGG.
@@ -415,6 +413,7 @@ Proof.
   unfold typeof_temp in H99.
   destruct (temp_types Delta !! id) eqn: Hid; inversion H99; subst t0; clear H99.
   rewrite Hid in TS.
+  monPred.unseal.
   iSplit; [iSplit; first done; iSplit|].
   + rewrite (bi.and_elim_l (▷ _)) /tc_expr /= typecheck_cast_sound; last apply typecheck_expr_sound; try done.
     iDestruct "H" as ">%"; iPureIntro.
@@ -432,8 +431,7 @@ Proof.
     destruct TC as [[TC _] _].
     destruct (temp_types Delta' !! id) eqn: Hid'; rewrite Hid' in TS; inv TS.
     destruct (TC _ _ Hid') as (? & ? & ?).
-    erewrite !subst_set by eauto; iFrame.
-    super_unfold_lift.
+    super_unfold_lift; erewrite !subst_set by eauto; iFrame.
     rewrite /eval_id /force_val -map_ptree_rel Map.gss //.
 Qed.
 
@@ -464,30 +462,31 @@ apply Neqb_ok in H1; subst n0; auto.
 Qed.
 
 Lemma semax_load:
-forall E (Delta: tycontext) sh id P e1 t2 v2,
+forall E (Delta: tycontext) sh id (P: assert) e1 t2 (v2: val),
     typeof_temp Delta id = Some t2 ->
     is_neutral_cast (typeof e1) t2 = true ->
     readable_share sh ->
-   (forall rho, ⌜typecheck_environ Delta rho⌝ ∧ P rho ⊢ <absorb> mapsto sh (typeof e1) (eval_lvalue e1 rho) v2) ->
+   (local (typecheck_environ Delta) ∧ P ⊢ <absorb> assert_of (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2))) ->
     semax Espec E Delta
-       (fun rho => ▷
-        (tc_lvalue Delta e1 rho
-        ∧ (⌜tc_val (typeof e1) v2⌝ ∧ P rho)))
+       (▷
+        (tc_lvalue Delta e1
+        ∧ (⌜tc_val (typeof e1) v2⌝ ∧ P)))
        (Sset id e1)
-       (normal_ret_assert (fun rho =>
-        ∃ old:val, (⌜eval_id id rho = v2⌝ ∧
-                         (subst id (`old) P rho)))).
+       (normal_ret_assert (
+        ∃ old:val, (local (fun rho => eval_id id rho = v2) ∧
+                         assert_of (subst id (`old) P)))).
 Proof.
   intros until v2.
   intros Hid0 TC1 H_READABLE H99.
-  apply semax_pre with (fun rho =>
-     (▷ tc_lvalue Delta e1 rho ∧
+  apply semax_pre with (
+     (▷ tc_lvalue Delta e1 ∧
       ▷ ⌜tc_val (typeof e1) v2⌝) ∧
-      ▷ P rho), semax_straight_simple.
+      ▷ P), semax_straight_simple.
   { intros. rewrite bi.and_elim_r !bi.later_and !assoc //. }
   { apply _. }
   intros until f; intros TS TC Hcl Hge HGG.
   iIntros "(Hm & H & #?)".
+  monPred.unseal.
   rewrite (bi.and_comm _ (▷⌜_⌝)) -assoc; iDestruct "H" as "(>% & H)".
   assert (typecheck_environ Delta rho) as TYCON_ENV
     by (destruct TC as [TC' TC'']; eapply typecheck_environ_sub; eauto).
@@ -508,7 +507,7 @@ Proof.
     destruct Heval as (b & ofs & ? & He1).
     iAssert (▷ <absorb> mapsto sh (typeof e1) (eval_lvalue e1 rho) v2) with "[H]" as "H".
     { iNext; iDestruct "H" as "(_ & _ & H)".
-      iApply H99; auto. }
+      inversion H99 as [H']. setoid_rewrite monPred_at_absorbingly in H'; iApply H'; monPred.unseal; auto. }
     rewrite (add_and (▷ _) (▷ _)); last by rewrite mapsto_pure_facts.
     iDestruct "H" as "(H & >%Hty)".
     destruct Hty as ((ch & ?) & ?).
@@ -522,11 +521,11 @@ Proof.
     iDestruct "H" as "(_ & F & P)"; iFrame.
     erewrite (closed_wrt_modvars_set F) by eauto; iFrame.
     iNext; iExists (eval_id id rho); iSplit.
-    * rewrite /eval_id -map_ptree_rel /= Map.gss //.
+    * rewrite /lift1 /eval_id -map_ptree_rel /= Map.gss //.
     * destruct TC as [[TC _] _].
       destruct (temp_types Delta' !! id) eqn: Hid'; rewrite Hid' in TS; inv TS.
       destruct (TC _ _ Hid') as (? & ? & ?).
-      erewrite !subst_set by eauto; iFrame.
+      super_unfold_lift; erewrite !subst_set by eauto; iFrame.
 Qed.
 
 Lemma mapsto_tc' : forall sh t p v, mapsto sh t p v ⊢ ⌜tc_val' t v⌝.
@@ -548,31 +547,32 @@ Proof.
 Qed.
 
 Lemma semax_cast_load:
-forall E (Delta: tycontext) sh id P e1 t1 v2,
+forall E (Delta: tycontext) sh id (P: assert) e1 t1 (v2: val),
     typeof_temp Delta id = Some t1 ->
    cast_pointer_to_bool (typeof e1) t1 = false ->
     readable_share sh ->
-   (forall rho, ⌜typecheck_environ Delta rho⌝ ∧ P rho ⊢ <absorb> mapsto sh (typeof e1) (eval_lvalue e1 rho) v2) ->
+   (local (typecheck_environ Delta) ∧ P ⊢ <absorb> assert_of (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2))) ->
     semax Espec E Delta
-       (fun rho => ▷
-        (tc_lvalue Delta e1 rho
-        ∧ ⌜tc_val t1 (`(eval_cast (typeof e1) t1 v2) rho)⌝
-        ∧ P rho))
+       (▷
+        (tc_lvalue Delta e1
+        ∧ local (`(tc_val t1) (`(eval_cast (typeof e1) t1 v2)))
+        ∧ P))
        (Sset id (Ecast e1 t1))
-       (normal_ret_assert (fun rho =>
-        ∃ old:val, (⌜eval_id id rho = (`(eval_cast (typeof e1) t1 v2)) rho⌝ ∧
-                         (subst id (`old) P rho)))).
+       (normal_ret_assert (
+        ∃ old:val, local (fun rho => eval_id id rho = (`(eval_cast (typeof e1) t1 v2)) rho) ∧
+                         assert_of (subst id (`old) P))).
 Proof.
   intros until v2.
   intros Hid0 HCAST H_READABLE H99.
-  apply semax_pre with (fun rho =>
-     (▷ tc_lvalue Delta e1 rho ∧
-      ▷ ⌜tc_val t1 (`(eval_cast (typeof e1) t1 v2) rho)⌝) ∧
-      ▷ P rho), semax_straight_simple.
+  apply semax_pre with (
+     (▷ tc_lvalue Delta e1 ∧
+      ▷ local (`(tc_val t1) (`(eval_cast (typeof e1) t1 v2)))) ∧
+      ▷ P), semax_straight_simple.
   { intros. rewrite bi.and_elim_r !bi.later_and !assoc //. }
   { apply _. }
   intros until f; intros TS TC Hcl Hge HGG.
   iIntros "(Hm & H & #?)".
+  monPred.unseal.
   rewrite (bi.and_comm _ (▷⌜_⌝)) -assoc; iDestruct "H" as "(>% & H)".
   assert (typecheck_environ Delta rho) as TYCON_ENV
     by (destruct TC as [TC' TC'']; eapply typecheck_environ_sub; eauto).
@@ -592,11 +592,12 @@ Proof.
     destruct Heval as (b & ofs & ? & He1).
     iAssert (▷ <absorb> mapsto sh (typeof e1) (eval_lvalue e1 rho) v2) with "[H]" as "H".
     { iNext; iDestruct "H" as "(_ & _ & H)".
-      iApply H99; auto. }
+      inversion H99 as [H']. setoid_rewrite monPred_at_absorbingly in H'; iApply H'; monPred.unseal; auto. }
     rewrite (add_and (▷ _) (▷ _)); last by rewrite mapsto_pure_facts.
     iDestruct "H" as "(H & >%Hty)".
     destruct Hty as ((ch & ?) & ?).
-    assert (v2 <> Vundef) by (intros ->; rewrite eval_cast_Vundef in H; eapply tc_val_Vundef; eauto).
+    super_unfold_lift.
+    assert (v2 <> Vundef) by (intros ->; setoid_rewrite eval_cast_Vundef in H; eapply tc_val_Vundef; eauto).
     rewrite (add_and (▷ _) (▷ _)); last by rewrite mapsto_tc.
     iDestruct "H" as "(H & >%)".
     rewrite He1 mapsto_core_load; try done.
@@ -611,11 +612,11 @@ Proof.
     iDestruct "H" as "(_ & F & P)"; iFrame.
     erewrite (closed_wrt_modvars_set F) by eauto; iFrame.
     iNext; iExists (eval_id id rho); iSplit.
-    * rewrite /eval_id -map_ptree_rel /= Map.gss //.
+    * rewrite /lift1 /eval_id -map_ptree_rel /= Map.gss //.
     * destruct TC as [[TC _] _].
       destruct (temp_types Delta' !! id) eqn: Hid'; rewrite Hid' in TS; inv TS.
       destruct (TC _ _ Hid') as (? & ? & ?).
-      erewrite !subst_set by eauto; iFrame.
+      super_unfold_lift; erewrite !subst_set by eauto; iFrame.
 Qed.
 
 Lemma writable0_lub_retainer_Rsh:
@@ -792,19 +793,17 @@ Qed.
 Lemma semax_store:
  forall E Delta e1 e2 sh P (WS : writable0_share sh),
    semax Espec E Delta
-          (fun rho =>
-          ▷ (tc_lvalue Delta e1 rho ∧ tc_expr Delta (Ecast e2 (typeof e1)) rho ∧
-             (mapsto_ sh (typeof e1) (eval_lvalue e1 rho) ∗ P rho)))
+          (▷ (tc_lvalue Delta e1 ∧ tc_expr Delta (Ecast e2 (typeof e1)) ∧
+             (assert_of (`(mapsto_ sh (typeof e1)) (eval_lvalue e1)) ∗ P)))
           (Sassign e1 e2)
-          (normal_ret_assert (fun rho => mapsto sh (typeof e1) (eval_lvalue e1 rho)
-                                           (force_val (sem_cast (typeof e2) (typeof e1) (eval_expr e2 rho))) ∗ P rho)).
+          (normal_ret_assert (assert_of (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`force_val (`(sem_cast (typeof e2) (typeof e1)) (eval_expr e2)))) ∗ P)).
 Proof.
   intros.
   apply semax_pre with
-    (fun rho : environ => ∃ v3: val,
-      (▷ tc_lvalue Delta e1 rho ∧ ▷ tc_expr Delta (Ecast e2 (typeof e1)) rho) ∧
-      ▷ (mapsto sh (typeof e1) (eval_lvalue e1 rho) v3 ∗ P rho)).
-  { intros; iIntros "[% H]".
+    (∃ v3: val,
+      (▷ tc_lvalue Delta e1 ∧ ▷ tc_expr Delta (Ecast e2 (typeof e1))) ∧
+      ▷ (assert_of (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`v3)) ∗ P)).
+  { intros; iIntros "[? H]".
     rewrite /mapsto_ !bi.later_and assoc; eauto. }
   apply extract_exists_pre; intro v3.
   apply semax_straight_simple; auto.
@@ -813,6 +812,7 @@ Proof.
   iIntros "(Hm & H & #?)".
   assert (typecheck_environ Delta rho) as TYCON_ENV
     by (destruct TC as [TC' TC'']; eapply typecheck_environ_sub; eauto).
+  monPred.unseal; unfold_lift.
   rewrite (add_and (_ ∧ (_ ∗ _)) (▷ ⌜_⌝)).
   2: { iIntros "(_ & _ & ? & _) !>"; iApply (mapsto_pure_facts with "[$]"). }
   iDestruct "H" as "(H & >%H)".
@@ -863,31 +863,32 @@ end.
 
 Lemma semax_store_union_hack:
      forall
-         E (Delta : tycontext) (e1 e2 : expr) (t2: type) (ch ch' : memory_chunk) (sh : share) (P : LiftEnviron mpred),
+         E (Delta : tycontext) (e1 e2 : expr) (t2: type) (ch ch' : memory_chunk) (sh : share) (P : assert),
        (numeric_type (typeof e1) && numeric_type t2)%bool = true ->
        access_mode (typeof e1) = By_value ch ->
        access_mode t2 = By_value ch' ->
        decode_encode_val_ok ch ch' ->
        writable_share sh ->
        semax Espec E Delta
-         (fun rho =>
-           ▷ (tc_lvalue Delta e1 rho ∧ tc_expr Delta (Ecast e2 (typeof e1)) rho ∧
-              ( (mapsto_ sh (typeof e1) (eval_lvalue e1 rho) ∧ mapsto_ sh t2 (eval_lvalue e1 rho))
-               ∗ P rho)))
+         (▷ (tc_lvalue Delta e1 ∧ tc_expr Delta (Ecast e2 (typeof e1)) ∧
+              ((assert_of (`(mapsto_ sh (typeof e1)) (eval_lvalue e1))
+                ∧ assert_of (`(mapsto_ sh t2) (eval_lvalue e1)))
+               ∗ P)))
          (Sassign e1 e2)
          (normal_ret_assert
-            (fun rho => (∃ v':val,
-              ⌜decode_encode_val  (force_val (sem_cast (typeof e2) (typeof e1) (eval_expr e2 rho))) ch ch' v'⌝ ∧ 
-              (mapsto sh t2 (eval_lvalue e1 rho) v' ∗ P rho)))).
+            (∃ v':val,
+              (local  ((`decode_encode_val )
+                         ((` force_val) ((`(sem_cast (typeof e2) (typeof e1))) (eval_expr e2))) (`ch) (`ch') (`v') )) ∧
+              (assert_of ((` (mapsto sh t2)) (eval_lvalue e1) (`v')) ∗ P))).
 Proof.
   intros until P. intros NT AM0 AM' OK WS.
   assert (SZ := decode_encode_val_size _ _ OK).
   apply semax_pre with
-  (fun rho : environ =>
-   ∃ v3: val,
-      (▷ tc_lvalue Delta e1 rho ∧ ▷ tc_expr Delta (Ecast e2 (typeof e1)) rho) ∧
-      ▷ ((mapsto sh (typeof e1) (eval_lvalue e1 rho) v3 ∧ mapsto sh t2 (eval_lvalue e1 rho) v3) ∗ P rho)).
-  { intros; iIntros "[% H]".
+  (∃ v3: val,
+      (▷ tc_lvalue Delta e1 ∧ ▷ tc_expr Delta (Ecast e2 (typeof e1))) ∧
+      ▷ ((assert_of (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`v3))
+                ∧ assert_of (`(mapsto sh t2) (eval_lvalue e1) (`v3))) ∗ P)).
+  { intros; iIntros "[? H]".
     rewrite /mapsto_ !bi.later_and assoc; eauto. }
   apply extract_exists_pre; intro v3.
   apply semax_straight_simple; auto.
@@ -896,6 +897,7 @@ Proof.
   iIntros "(Hm & H & #?)".
   assert (typecheck_environ Delta rho) as TYCON_ENV
     by (destruct TC as [TC' TC'']; eapply typecheck_environ_sub; eauto).
+  monPred.unseal; unfold_lift.
   rewrite (add_and (_ ∧ (_ ∗ _)) (▷ ⌜_⌝)).
   2: { iIntros "(_ & _ & (_ & ?) & _) !>"; iApply (mapsto_pure_facts with "[$]"). }
   iDestruct "H" as "(H & >%H)".

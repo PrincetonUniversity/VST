@@ -169,7 +169,7 @@ Lemma semax_unfold {CS: compspecs} E Delta P c R :
   semax Espec E Delta P c R = forall (psi: Clight.genv) Delta' CS'
           (TS: tycontext_sub E Delta Delta')
           (HGG: cenv_sub (@cenv_cs CS) (@cenv_cs CS') /\ cenv_sub (@cenv_cs CS') (genv_cenv psi)),
-    ⊢ believe(CS := CS') Espec E Delta' psi Delta' → ∀ (k: cont) (F: environ -> mpred) f,
+    ⊢ believe(CS := CS') Espec E Delta' psi Delta' → ∀ (k: cont) (F: assert) f,
         ⌜closed_wrt_modvars c F⌝ ∧ rguard Espec psi E Delta' f (frame_ret_assert R F) k →
        guard' Espec psi E Delta' f (F ∗ P) (Kseq c k).
 Proof.
@@ -181,7 +181,7 @@ Qed.
 
 Lemma derives_skip:
   forall {CS: compspecs} p E Delta (R: ret_assert),
-      (forall rho, p rho ⊢ proj_ret_assert R EK_normal None rho) ->
+      (p ⊢ proj_ret_assert R EK_normal None) ->
         semax Espec E Delta p Clight.Sskip R.
 Proof.
 intros.
@@ -190,12 +190,10 @@ intros psi Delta' CS' ??.
 clear dependent Delta. rename Delta' into Delta.
 iIntros "believe" (???) "[% #H]".
 iSpecialize ("H" $! EK_normal None).
-rewrite /guard' /_guard /=.
+rewrite /guard' /_guard.
 iIntros (??) "!> Fp".
 iSpecialize ("H" with "[Fp]").
-{ rewrite H; iApply (bi.and_mono with "Fp"); first done; apply bi.sep_mono; last done.
-  destruct R; rewrite /= !monPred_at_and monPred_at_sep monPred_pure_unfold monPred_at_embed.
-  rewrite comm pure_and_sep_assoc //. }
+{ rewrite H proj_frame //. }
 rewrite /assert_safe.
 iIntros (z ?); iSpecialize ("H" with "[%]"); first done.
 destruct k as [ | s ctl' | | | |]; try done; try solve [iApply (jsafe_local_step with "H"); constructor].
@@ -329,31 +327,36 @@ Global Instance semax'_absorbing CS E Delta P c R : Absorbing (semax' Espec E De
 Proof. apply semax'_plain_absorbing. Qed.
 
 Lemma extract_exists_pre_later {CS: compspecs}:
-  forall  (A : Type) (Q: environ -> mpred) (P : A -> environ -> mpred) c E Delta (R: ret_assert),
-  (forall x, semax Espec E Delta (fun rho => Q rho ∧ ▷ P x rho) c R) ->
-   semax Espec E Delta (fun rho => Q rho ∧ ▷ ∃ x, P x rho) c R.
+  forall  (A : Type) (Q: assert) (P : A -> assert) c E Delta (R: ret_assert),
+  (forall x, semax Espec E Delta (Q ∧ ▷ P x) c R) ->
+   semax Espec E Delta (Q ∧ ▷ ∃ x, P x) c R.
 Proof.
 intros.
 rewrite semax_unfold; intros.
 iIntros "#believe" (???) "[% #rguard]".
 iIntros (??) "!> H".
 rewrite bi.later_exist_except_0.
-rewrite (bi.except_0_intro (Q _)) -bi.except_0_and (bi.except_0_intro (F _)) -bi.except_0_sep
-  (bi.except_0_intro (⌜_⌝)) (bi.except_0_intro (funassert _ _)) -!bi.except_0_sep -bi.except_0_and; iMod "H".
-rewrite bi.and_exist_l bi.sep_exist_l bi.sep_exist_r  bi.and_exist_l; iDestruct "H" as (a) "H".
+iAssert (◇ ∃ a : A, (⌜guard_environ Delta' f (construct_rho (filter_genv psi) vx tx)⌝
+      ∧ (F ∗ Q ∧ ▷ P a) (construct_rho (filter_genv psi) vx tx) ∗
+      funassert Delta' (construct_rho (filter_genv psi) vx tx))) with "[H]" as ">H".
+{ iDestruct "H" as "($ & H & $)".
+  monPred.unseal.
+  iDestruct "H" as "($ & H)".
+  rewrite monPred_at_except_0 {1}(bi.except_0_intro (Q _)) -bi.except_0_and -bi.and_exist_l //. }
+iDestruct "H" as (a) "H".
 specialize (H a); rewrite semax_unfold in H; iApply H; auto.
 Qed.
 
 Lemma extract_exists_pre {CS: compspecs}:
-  forall  (A : Type) (P : A -> environ -> mpred) c E Delta (R: ret_assert),
+  forall  (A : Type) (P : A -> assert) c E Delta (R: ret_assert),
   (forall x, semax Espec E Delta (P x) c R) ->
-   semax Espec E Delta (fun rho => ∃ x, P x rho) c R.
+   semax Espec E Delta (∃ x, P x) c R.
 Proof.
 intros.
 rewrite semax_unfold; intros.
 iIntros "#believe" (???) "[% #rguard]".
 iIntros (??) "!> H".
-rewrite bi.sep_exist_l bi.sep_exist_r  bi.and_exist_l; iDestruct "H" as (a) "H".
+rewrite bi.sep_exist_l monPred_at_exist bi.sep_exist_r bi.and_exist_l; iDestruct "H" as (a) "H".
 specialize (H a); rewrite semax_unfold in H; iApply H; auto.
 Qed.
 
@@ -373,7 +376,7 @@ rewrite H in Hge; setoid_rewrite Maps.PTree.gempty in Hge; discriminate.
 Qed.
 
 Definition all_assertions_computable  :=
-  forall psi E f tx vx (Q: environ -> mpred),
+  forall psi E f tx vx (Q: assert),
      exists k,  assert_safe Espec psi E f tx vx k = Q.
 (* This is not generally true, but could be made true by adding an "assert" operator
   to the programming language
@@ -393,10 +396,12 @@ destruct H1; split; auto.
 destruct H as [? [? [? ?]]]. rewrite H4; auto.
 Qed.
 
+Local Notation assert := (@assert Σ).
+
 Lemma proj_frame_ret_assert:
- forall (R: ret_assert) (F: assert) ek vl rho,
-  proj_ret_assert (frame_ret_assert R F) ek vl rho ⊣⊢
-  (proj_ret_assert R ek vl rho ∗ F rho).
+ forall (R: ret_assert) (F: assert) ek vl,
+  proj_ret_assert (frame_ret_assert R F) ek vl ⊣⊢
+  (proj_ret_assert R ek vl ∗ F).
 Proof.
   intros; rewrite proj_frame comm //.
 Qed.
@@ -480,14 +485,14 @@ Qed.*)
 Lemma semax_frame {CS: compspecs} :  forall E Delta P s R F,
    closed_wrt_modvars s F ->
   semax Espec E Delta P s R ->
-  semax Espec E Delta (fun rho => P rho ∗ F rho) s (frame_ret_assert R F).
+  semax Espec E Delta (P ∗ F) s (frame_ret_assert R F).
 Proof.
 intros until F. intros CL H.
 rewrite semax_unfold.
 rewrite semax_unfold in H.
 intros.
 iIntros "H" (???) "[% guard]".
-pose (F0F := fun rho => F0 rho ∗ F rho).
+pose (F0F := F0 ∗ F).
 iPoseProof (H with "H") as "H".
 iSpecialize ("H" $! _ F0F with "[-]").
 { rewrite /bi_affinely; iSplit; first done.
@@ -495,14 +500,14 @@ iSpecialize ("H" $! _ F0F with "[-]").
   * iPureIntro.
     unfold F0F.
     hnf in *; intros; simpl in *.
-    rewrite <- CL. rewrite <- H0. auto.
+    monPred.unseal. rewrite <- CL. rewrite <- H0. auto.
     tauto. tauto.
   * iIntros (??).
     rewrite bi.and_elim_r.
     iApply (_guard_mono with "guard"); try done.
     by intros; rewrite !proj_frame /F0F assoc. }
 iApply (guard_mono with "H"); try done.
-by intros; rewrite /F0F (bi.sep_comm (P _)) assoc.
+by intros; rewrite /F0F; monPred.unseal; rewrite (bi.sep_comm (P _)) assoc.
 Qed.
 
 Fixpoint filter_seq (k: cont) : cont :=
@@ -890,6 +895,8 @@ End eq_dec.
 #[export] Instance EqDec_statement: EqDec statement := eq_dec_statement.
 #[export] Instance EqDec_external_function: EqDec external_function := eq_dec_external_function.
 
+Local Notation closed_wrt_modvars := (@closed_wrt_modvars Σ).
+
 Lemma closed_Slabel l c F: closed_wrt_modvars (Slabel l c) F = closed_wrt_modvars c F.
 Proof. unfold closed_wrt_modvars. rewrite modifiedvars_Slabel. trivial. Qed.
 
@@ -1060,7 +1067,7 @@ apply prop_ext; intuition.
 Qed.*)
 
 Lemma semax_Slabel {cs:compspecs}
-       E (Gamma:tycontext) (P:environ -> mpred) (c:statement) (Q:ret_assert) l:
+       E (Gamma:tycontext) (P:assert) (c:statement) (Q:ret_assert) l:
 semax(CS := cs) Espec E Gamma P c Q -> semax(CS := cs) Espec E Gamma P (Slabel l c) Q.
 Proof.
 rewrite !semax_unfold; intros.

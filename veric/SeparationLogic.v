@@ -543,16 +543,16 @@ Axiom semax_external_FF:
  forall E ef A,
  ⊢ semax_external E ef A (fun _ _ => False) (fun _ _ => False).
 
-(*Axiom semax_external_binaryintersection: 
-forall {Espec ef A1 P1 Q1 P1ne Q1ne A2 P2 Q2 P2ne Q2ne 
-      A P Q P_ne Q_ne sig cc}
-  (∃T1: @semax_external Espec ef A1 P1 Q1)
-  (∃T2: @semax_external Espec ef A2 P2 Q2)
-  (BI: binary_intersection (mk_funspec sig cc A1 P1 Q1 P1ne Q1ne) 
-                      (mk_funspec sig cc A2 P2 Q2 P2ne Q2ne) =
-     Some (mk_funspec sig cc A P Q P_ne Q_ne))
+Axiom semax_external_binaryintersection: 
+forall {E ef A1 P1 Q1 A2 P2 Q2
+      A P Q sig cc}
+  (∃T1: semax_external E ef A1 P1 Q1)
+  (∃T2: semax_external E ef A2 P2 Q2)
+  (BI: binary_intersection (mk_funspec sig cc A1 P1 Q1)
+                      (mk_funspec sig cc A2 P2 Q2) =
+     Some (mk_funspec sig cc A P Q))
   (LENef: length (fst sig) = length (sig_args (ef_sig ef))),
-  @semax_external Espec ef A P Q.*)
+  semax_external E ef A P Q.
 
 Axiom semax_external_funspec_sub: forall 
   {E argtypes rtype cc ef A1 P1 Q1 A P Q}
@@ -563,11 +563,11 @@ Axiom semax_external_funspec_sub: forall
                      (rettype_of_type rtype) cc),
   semax_external E ef A1 P1 Q1 ⊢ semax_external E ef A P Q.
 
-(*Axiom semax_body_binaryintersection:
-forall {V G cs} f sp1 sp2 phi
-  (SB1: @semax_body V G cs f sp1) (SB2: @semax_body V G cs f sp2)
+Axiom semax_body_binaryintersection:
+forall {V G} E f sp1 sp2 phi
+  (SB1: semax_body V G E f sp1) (SB2: semax_body V G E f sp2)
   (BI: binary_intersection (snd sp1) (snd sp2) = Some phi),
-  @semax_body V G cs f (fst sp1, phi).*)
+  semax_body V G E f (fst sp1, phi).
 
 Axiom semax_body_funspec_sub: forall {V G E f i phi phi'} 
   (SB: semax_body V G E f (i, phi)) (Sub: funspec_sub E phi phi')

@@ -154,8 +154,7 @@ Qed.
 Program Definition funspec2jspec (ext_link: Strings.String.string -> ident) f : juicy_ext_spec Z :=
   Build_juicy_ext_spec _ (funspec2extspec ext_link f) _ _ _.
 Next Obligation.
-destruct f; simpl; unfold funspec2pre; simpl; destruct f; simpl;
-  destruct t; simpl; intros.
+destruct f; simpl; unfold funspec2pre; simpl; destruct f as [(?, ?)]; simpl; intros.
 if_tac [e0|e0].
 * destruct e; try discriminate; injection e0 as E; subst i sg; intros m phi.
 apply ouPred_mono.
@@ -163,8 +162,7 @@ apply ouPred_mono.
 destruct Espec; simpl; apply JE_pre_mono.
 Qed.
 Next Obligation.
-destruct f; simpl; unfold funspec2post; simpl; destruct f; simpl;
-  destruct t; simpl; intros.
+destruct f; simpl; unfold funspec2post; simpl; destruct f as [(?, ?)]; simpl; intros.
 if_tac [e0|e0].
 * destruct e; try discriminate; injection e0 as E; subst i sg; intros m phi.
 apply ouPred_mono.
@@ -172,7 +170,7 @@ apply ouPred_mono.
 destruct Espec; simpl; apply JE_post_mono.
 Qed.
 Next Obligation.
-intros ? ? ? ?; destruct f; destruct f; destruct t; simpl.
+intros ? ? ? ?; destruct f; destruct f as [(?, ?)]; simpl.
 intros ?; auto.
 Qed.
 
@@ -222,7 +220,7 @@ split => ???.
 intros (x' & Hpre).
 clear -Ha Hin H1 Hpre; revert Ha Hin H1 Hpre.
 unfold funspec2jspec, ext_mpred_pre; simpl.
-destruct a; simpl; destruct f; simpl; destruct t; simpl; unfold funspec2pre; simpl.
+destruct a; simpl; destruct f as [(?, ?)]; simpl; unfold funspec2pre; simpl.
 rewrite /ouPred_exist_def /mpred_of /= /ouPred_holds /= /ouPred_holds.
 if_tac [e|e].
 * injection e as E; subst i; destruct fs; [solve[simpl; intros; exfalso; auto]|].
@@ -268,7 +266,7 @@ split => ???.
 intros (x' & Hpre).
 clear -Ha Hin H1 Hpre; revert Ha Hin H1 Hpre.
 unfold funspec2jspec, ext_mpred_pre; simpl.
-destruct a; simpl; destruct f; simpl; destruct t; simpl; unfold funspec2pre; simpl.
+destruct a; simpl; destruct f as [(?, ?)]; simpl; unfold funspec2pre; simpl.
 rewrite /ouPred_exist_def /mpred_of /= /ouPred_holds /= /ouPred_holds.
 if_tac [e|e].
 * injection e as E; subst i; destruct fs; [solve[simpl; intros; exfalso; auto]|].
@@ -306,8 +304,7 @@ assert (Hin: In (ext_link id) (map fst fs)).
 { apply (in_map fst) in H1; auto. }
 inversion H as [|? ? Ha Hb]; subst.
 rewrite /ext_mpred_post /= /funspec2jspec /=.
-destruct a; simpl; destruct f; simpl.
-destruct t; simpl.
+destruct a; simpl; destruct f as [(?, ?)]; simpl.
 rewrite /funspec2post /mpred_of /=.
 split => ?? H2 /=.
 clear - IHfs Ha Hb Hin H1 H2; revert x IHfs Ha Hin H1.
@@ -350,8 +347,7 @@ assert (Hin: In (ext_link id) (map fst fs)).
 inversion H as [|? ? Ha Hb]; subst.
 clear -Ha Hin H1 Hb IHfs; revert x Ha Hin H1 Hb IHfs.
 rewrite /ext_mpred_post /= /funspec2jspec /=.
-destruct a; simpl; destruct f; simpl; unfold funspec2post; simpl.
-destruct t; simpl.
+destruct a; simpl; destruct f as [(?, ?)]; simpl; unfold funspec2post; simpl.
 rewrite /funspec2post /mpred_of /=.
 split => ?? H2 /=.
 clear - IHfs Ha Hb Hin H1 H2; revert x IHfs Ha Hin H1.

@@ -22,7 +22,7 @@ Context `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ}.
 
 Lemma closed_wrt_modvars_switch:
   forall a sl n F,
-  closed_wrt_modvars (Sswitch a sl) F ->
+  @closed_wrt_modvars Σ (Sswitch a sl) F ->
   closed_wrt_modvars (seq_of_labeled_statement (select_switch n sl)) F.
 Proof.
 unfold closed_wrt_modvars, modifiedvars.
@@ -69,7 +69,7 @@ Lemma switch_rguard:
  forall E
   (R : ret_assert)
   (psi : genv)
-  (F : environ -> mpred)
+  (F : assert)
   (f: function)
   (Delta' : tycontext)
   (k : cont),
@@ -96,7 +96,7 @@ Proof.
                     end).
   iSpecialize ("H" $! ek' vl' tx vx).
   rewrite !proj_frame.
-  iIntros "(? & (? & P) & ?)".
+  monPred.unseal; iIntros "(? & (? & P) & ?)".
   destruct R, ek; subst ek' vl'; simpl proj_ret_assert; try (by iApply ("H" with "[$]")); monPred.unseal; iDestruct "P" as "(-> & ?)"; try done; by (iApply "H"; iFrame).
 Qed.
 
@@ -137,11 +137,11 @@ apply assert_safe_jsafe; auto.
 Qed.*)
 
 Lemma semax_switch: 
-  forall E Delta (Q: environ -> mpred) a sl R
+  forall E Delta (Q: assert) a sl R
      (Ht : is_int_type (typeof a) = true)
-     (Htc : forall rho, Q rho ⊢ tc_expr Delta a rho)
+     (Htc : Q ⊢ tc_expr Delta a)
      (Hcase : forall n,
-     semax Espec E Delta (fun rho => ⌜eval_expr a rho = Vint n⌝ ∧ Q rho)
+     semax Espec E Delta (local (fun rho => eval_expr a rho = Vint n) ∧ Q)
                (seq_of_labeled_statement (select_switch (Int.unsigned n) sl))
                (switch_ret_assert R)),
      semax Espec E Delta Q (Sswitch a sl) R.
@@ -150,7 +150,8 @@ Proof.
   rewrite semax_unfold.
   iIntros (?????) "#Prog_OK".
   iIntros (???) "(%Hclosed & #rguard)".
-  iIntros (??) "!> ((% & %) & (F & Q) & #?)".
+  iIntros (??) "!>".
+  monPred.unseal; iIntros "((% & %) & (F & Q) & #?)".
   set (rho := construct_rho _ _ _).
   assert (typecheck_environ Delta rho) by (eapply typecheck_environ_sub; done).
   iAssert ⌜tc_val (typeof a) (eval_expr(CS := CS) a rho)⌝ as %?.
@@ -166,14 +167,14 @@ Proof.
   iApply jsafe_step; rewrite /jstep_ex.
   iIntros (?) "(Hm & ?) !>".
   destruct HGG as [CSUB ?]; iDestruct (eval_expr_relate with "[$Hm Q]") as %?; first done.
-  { subst rho; rewrite Htc tc_expr_cenv_sub //. }
+  { inversion Htc as [->]; rewrite tc_expr_cenv_sub //. }
   iExists _, _; iSplit.
   { iPureIntro; econstructor; try done.
     erewrite (eval_expr_cenv_sub_Vint CSUB) by done.
     rewrite Hta //. }
   iFrame.
   iApply ("Hcase" with "[-]"); last by iPureIntro.
-  iFrame; auto.
+  monPred.unseal; iFrame; auto.
 Qed.
 
 End mpred.

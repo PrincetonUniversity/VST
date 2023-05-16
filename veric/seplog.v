@@ -552,9 +552,10 @@ Proof.
 Qed.
 
 Lemma subst_extens:
-  forall a v (P Q : environ -> mpred), (forall rho, P rho ⊢ Q rho) -> forall rho, subst a v P rho ⊢ subst a v Q rho.
+  forall a v (P Q : assert), (P ⊢ Q) -> assert_of (subst a v P) ⊢ assert_of (subst a v Q).
 Proof.
-by unfold subst.
+  unfold subst; constructor; intros; simpl.
+  apply H.
 Qed.
 
 Definition funspecs_assert (FunSpecs: Maps.PTree.t funspec): assert :=
