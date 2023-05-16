@@ -134,7 +134,7 @@ Program Definition argsassert_of (P : argsassert') : argsassert := {| monPred_at
 Coercion argsassert_of : argsassert' >-> argsassert.
 
 Inductive funspec :=
-   mk_funspec (sig : typesig) (cc : calling_convention) (spec : {A & ((A -> argsassert) * (A -> assert))%type} ).
+   mk_funspec (sig : typesig) (cc : calling_convention) (A : Type) (P : A -> argsassert) (Q : A -> assert).
 
 (*(* funspec OFE -- not sure whether this will be useful *)
 Local Instance funspec_dist : Dist funspec := λ n f1 f2,
@@ -174,7 +174,7 @@ Fixpoint typelist_of_type_list (params : list type) : typelist :=
   end.
 
 Definition type_of_funspec (fs: funspec) : type :=
-  match fs with mk_funspec fsig cc _ => 
+  match fs with mk_funspec fsig cc _ _ _ => 
      Tfunction (typelist_of_type_list (fst fsig)) (snd fsig) cc end.
 
 Fixpoint make_tycontext_s (G: funspecs) :=
