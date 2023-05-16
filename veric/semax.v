@@ -45,7 +45,8 @@ Inductive contx :=
 | Ret: option val -> cont -> contx.
 
 Definition assert_safe
-     (ge: genv) (E: coPset) (f: function) (ve: env) (te: temp_env) (ctl: contx) (rho: environ) : mpred :=
+     (ge: genv) (E: coPset) (f: function) (ve: env) (te: temp_env) (ctl: contx) : assert :=
+      assert_of (fun rho =>
        ∀ ora, (* ext_compat ora -> *)
        ⌜rho = construct_rho (filter_genv ge) ve te⌝ →
        match ctl with
@@ -68,7 +69,7 @@ Definition assert_safe
                  Right now, the only difference is that e must only access pointers that are valid in the current rmap.
                  But typechecking will also guarantee that. *)
               jsafeN ge E ora (State f (Sreturn (Some e)) ctl' ve te)
-       end.
+       end).
 
 Definition list2opt {T: Type} (vl: list T) : option T :=
  match vl with nil => None | x::_ => Some x end.
@@ -87,7 +88,7 @@ Lemma guard_environ_e1:
 Proof. intros. destruct H; auto. Qed.
 
 Definition _guard
-    (gx: genv) E (Delta: tycontext) (f: function) (P : environ -> mpred) (ctl: contx) : mpred :=
+    (gx: genv) E (Delta: tycontext) (f: function) (P : assert) (ctl: contx) : mpred :=
      ∀ tx : Clight.temp_env, ∀ vx : env,
           let rho := construct_rho (filter_genv gx) vx tx in
           ■ (⌜guard_environ Delta f rho⌝
@@ -95,7 +96,7 @@ Definition _guard
              -∗ assert_safe gx E f vx tx ctl rho).
 
 Definition guard'
-    (gx: genv) E (Delta: tycontext) f (P : environ -> mpred)  (ctl: cont) :=
+    (gx: genv) E (Delta: tycontext) f P  (ctl: cont) :=
   _guard gx E Delta f P (Cont ctl).
 
 Fixpoint break_cont (k: cont) :=
@@ -132,7 +133,7 @@ Record semaxArg :Type := SemaxArg {
  sa_cs: compspecs;
  sa_E: coPset;
  sa_Delta: tycontext;
- sa_P: environ -> mpred;
+ sa_P: @assert Σ;
  sa_c: statement;
  sa_R: @ret_assert Σ
 }.
@@ -149,8 +150,8 @@ Definition make_ext_rval  (gx: genviron) (tret: rettype) (v: option val):=
 Definition semax_external E
   ef
   (A: Type)
-  (P: A -> argsEnviron -> mpred)
-  (Q: A -> environ -> mpred) :=
+  (P: A -> argsassert)
+  (Q: A -> assert) :=
  ∀ gx: genv,
  ∀ x: A,
    ▷ ∀ F (ts: list typ),

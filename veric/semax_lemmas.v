@@ -171,7 +171,7 @@ Lemma semax_unfold {CS: compspecs} E Delta P c R :
           (HGG: cenv_sub (@cenv_cs CS) (@cenv_cs CS') /\ cenv_sub (@cenv_cs CS') (genv_cenv psi)),
     ⊢ believe(CS := CS') Espec E Delta' psi Delta' → ∀ (k: cont) (F: environ -> mpred) f,
         ⌜closed_wrt_modvars c F⌝ ∧ rguard Espec psi E Delta' f (frame_ret_assert R F) k →
-       guard' Espec psi E Delta' f (fun rho => F rho ∗ P rho) (Kseq c k).
+       guard' Espec psi E Delta' f (F ∗ P) (Kseq c k).
 Proof.
 unfold semax; apply prop_ext. rewrite semax_fold_unfold.
 split; intros.

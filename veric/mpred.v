@@ -106,31 +106,12 @@ Inductive funspec :=
     funspec.
  *)
 
-(* Do we need -n> here?. *)
-Inductive funspec :=
-   mk_funspec: typesig -> calling_convention -> forall (A: Type)
-     (P: A -> argsEnviron -> iProp Σ) (Q: A -> environ -> iProp Σ),
-     funspec.
-
-(*Inductive funspec :=
-   mk_funspec: typesig -> calling_convention -> forall (A: TypeTree)
-     (P: forall ts, dependent_type_functor_rec ts (ArgsTT A) mpred)
-     (Q: forall ts, dependent_type_functor_rec ts (AssertTT A) mpred)
-     (P_ne: args_super_non_expansive P) (Q_ne: super_non_expansive Q),
-     funspec.*)
-
-Definition varspecs : Type := list (ident * type).
-
-Definition funspecs := list (ident * funspec).
-
-Context `{!heapGS Σ}.
-
 (* assertions (environ -> mpred as pred) *)
 Global Instance environ_inhabited : Inhabited environ := {| inhabitant := any_environ |}.
 
 Definition environ_index : biIndex := {| bi_index_type := environ |}.
 
-Definition assert' := environ -> mpred.
+Definition assert' := environ -> iProp Σ.
 Definition assert := monPred environ_index (iPropI Σ).
 
 Program Definition assert_of (P : assert') : assert := {| monPred_at := P |}.
@@ -145,12 +126,44 @@ Global Instance argsEnviron_inhabited : Inhabited argsEnviron := {| inhabitant :
 
 Definition argsEnviron_index : biIndex := {| bi_index_type := argsEnviron |}.
 
-Definition argsassert' := argsEnviron -> mpred.
+Definition argsassert' := argsEnviron -> iProp Σ.
 Definition argsassert := monPred argsEnviron_index (iPropI Σ).
 
 Program Definition argsassert_of (P : argsassert') : argsassert := {| monPred_at := P |}.
 
 Coercion argsassert_of : argsassert' >-> argsassert.
+
+Inductive funspec :=
+   mk_funspec (sig : typesig) (cc : calling_convention) (spec : {A & ((A -> argsassert) * (A -> assert))%type} ).
+
+(*(* funspec OFE -- not sure whether this will be useful *)
+Local Instance funspec_dist : Dist funspec := λ n f1 f2,
+  match f1, f2 with
+  | mk_funspec sig1 cc1 spec1, mk_funspec sig2 cc2 spec2 =>
+      sig1 = sig2 /\ cc1 = cc2 /\ spec1 ≡{n}≡ spec2
+  end.
+
+Local Instance funspec_equiv : Equiv funspec := λ f1 f2,
+  match f1, f2 with
+  | mk_funspec sig1 cc1 spec1, mk_funspec sig2 cc2 spec2 =>
+      sig1 = sig2 /\ cc1 = cc2 /\ (spec1 ≡ spec2)%stdpp
+  end.
+
+Lemma funspec_ofe_mixin : OfeMixin funspec.
+Proof.
+  apply (iso_ofe_mixin (fun x => match x with mk_funspec sig cc spec => (sig, cc, spec) : prodO (leibnizO _) _ end)).
+  - intros [] []; split.
+    + intros (? & ? & ?); subst; split; auto.
+    + intros ([=] & ?); split3; auto.
+  - intros ? [] []; split.
+    + intros (? & ? & ?); subst; split; auto.
+    + intros ([=] & ?); split3; auto.
+Qed.
+Canonical Structure funspecO := Ofe funspec funspec_ofe_mixin.*)
+
+Definition varspecs : Type := list (ident * type).
+
+Definition funspecs := list (ident * funspec).
 
 
 (*plays role of type_of_params *)
@@ -161,7 +174,7 @@ Fixpoint typelist_of_type_list (params : list type) : typelist :=
   end.
 
 Definition type_of_funspec (fs: funspec) : type :=
-  match fs with mk_funspec fsig cc _ _ _ => 
+  match fs with mk_funspec fsig cc _ => 
      Tfunction (typelist_of_type_list (fst fsig)) (snd fsig) cc end.
 
 Fixpoint make_tycontext_s (G: funspecs) :=
