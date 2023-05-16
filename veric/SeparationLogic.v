@@ -54,8 +54,6 @@ Section mpred.
 
 Context `{!heapGS Σ}.
 
-Definition local:  (environ -> Prop) -> assert := fun l => assert_of (lift1 bi_pure l).
-
 (* Somehow, this fixes a universe collapse issue that will occur if fool is not defined.
 Definition fool := @map _ Type (fun it : ident * type => mpred).*)
 
@@ -102,7 +100,7 @@ Fixpoint arglist (n: positive) (tl: typelist) : list (ident*type) :=
   | Tcons t tl' => (n,t):: arglist (n+1)%positive tl'
  end.
 
-Definition loop_nocontinue_ret_assert := loop2_ret_assert.
+Definition loop_nocontinue_ret_assert := @loop2_ret_assert Σ.
 
 (* Misc lemmas *)
 Lemma typecheck_lvalue_sound {CS: compspecs} :
@@ -205,7 +203,7 @@ Module Type CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
 Parameter semax: forall {Σ : gFunctors} `{!heapGS Σ} {Espec : OracleKind}
   `{!externalGS (OK_ty(Σ := Σ)) Σ} {C : compspecs},
-  coPset → tycontext → (environ → mpred) → statement → @ret_assert Σ → Prop.
+  coPset → tycontext → @assert Σ → statement → @ret_assert Σ → Prop.
 
 Parameter semax_func: forall {Σ : gFunctors} `{!heapGS Σ} {Espec : OracleKind}
   `{!externalGS (OK_ty(Σ := Σ)) Σ} (V : varspecs) (G : @funspecs Σ) {C : compspecs},
@@ -213,7 +211,7 @@ Parameter semax_func: forall {Σ : gFunctors} `{!heapGS Σ} {Espec : OracleKind}
 
 Parameter semax_external: forall {Σ : gFunctors} {heapGS0 : heapGS Σ} {Espec : OracleKind}
   `{!externalGS (OK_ty(Σ := Σ)) Σ}, coPset → external_function →
-  ∀ A : Type, (A → argsEnviron → mpred) → (A → environ → mpred) → mpred.
+  ∀ A : Type, (A → @argsassert Σ) → (A → @assert Σ) → mpred.
 
 End CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
@@ -226,7 +224,7 @@ match spec with (_, mk_funspec fsig cc A P Q) =>
   snd fsig = snd (fn_funsig f) /\
 forall (x:A),
   Def.semax E (func_tycontext f V G nil)
-      (fun rho => close_precondition (map fst f.(fn_params)) (P x) rho ∗ stackframe_of f rho)
+      (close_precondition (map fst f.(fn_params)) (P x) ∗ stackframe_of f)
        f.(fn_body)
       (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) (stackframe_of f))
 end.
@@ -288,7 +286,7 @@ Axiom semax_func_cons:
        ((id, mk_funspec fsig cc A P Q)  :: G').
 
 Axiom semax_func_cons_ext: forall (V: varspecs) (G: funspecs) 
-     {C: compspecs} ge E fs id ef argsig retsig A P Q argsig'
+     {C: compspecs} ge E fs id ef argsig retsig A (P: A -> argsassert) (Q: A -> assert) argsig'
       (G': funspecs) cc b,
   argsig' = typelist2list argsig ->
   ef_sig ef = mksignature (typlist_of_typelist argsig) (rettype_of_type retsig) cc ->
@@ -356,9 +354,9 @@ Axiom semax_body_cenv_sub: forall {CS'} (CSUB: cspecs_sub CS CS') V G E f spec
 Axiom semax_ifthenelse :
    forall E Delta P (b: expr) c d R,
       bool_type (typeof b) = true ->
-     semax E Delta (fun rho => P rho ∧ ⌜expr_true b rho⌝) c R ->
-     semax E Delta (fun rho => P rho ∧ ⌜expr_false b rho⌝) d R ->
-     semax E Delta (fun rho => ▷ (tc_expr Delta (Eunop Cop.Onotbool b (Tint I32 Signed noattr)) rho ∧ P rho)) (Sifthenelse b c d) R.
+     semax E Delta (P ∧ local (expr_true b)) c R ->
+     semax E Delta (P ∧ local (expr_false b)) d R ->
+     semax E Delta (▷ (tc_expr Delta (Eunop Cop.Onotbool b (Tint I32 Signed noattr)) ∧ P)) (Sifthenelse b c d) R.
 
 Axiom semax_seq:
   forall E Delta (R: ret_assert) P Q h t,
@@ -373,7 +371,7 @@ Axiom semax_continue:
    forall E Delta Q,    semax E Delta (RA_continue Q) Scontinue Q.
 
 Axiom semax_loop :
-forall E Delta Q Q' incr body R,
+forall E Delta (Q Q' : assert) incr body R,
      semax E Delta Q body (loop1_ret_assert Q' R) ->
      semax E Delta Q' incr (loop2_ret_assert Q R) ->
      semax E Delta Q (Sloop body incr) R.
@@ -511,7 +509,7 @@ Axiom semax_store_union_hack:
 (* THESE RULES FROM semax_lemmas *)
 
 Axiom semax_skip:
-   forall E Delta P, semax E Delta P Sskip (normal_ret_assert P).
+   forall E Delta (P : assert), semax E Delta P Sskip (normal_ret_assert P).
 
 Axiom semax_conseq:
   forall E Delta (P' : assert) (R': ret_assert) P c (R: ret_assert),
@@ -523,7 +521,7 @@ Axiom semax_conseq:
    semax E Delta P' c R' -> semax E Delta P c R.
 
 Axiom semax_Slabel:
-     forall E Delta (P:environ -> mpred) (c:statement) (Q:ret_assert) l,
+     forall E Delta (P:assert) (c:statement) (Q:ret_assert) l,
    semax E Delta P c Q -> semax E Delta P (Slabel l c) Q.
 
 (* THESE RULES FROM semax_ext *)
@@ -541,18 +539,18 @@ Axiom semax_ext:
 
 Axiom semax_external_FF:
  forall E ef A,
- ⊢ semax_external E ef A (fun _ _ => False) (fun _ _ => False).
+ ⊢ semax_external E ef A (fun _ => False) (fun _ => False).
 
 Axiom semax_external_binaryintersection: 
 forall {E ef A1 P1 Q1 A2 P2 Q2
       A P Q sig cc}
-  (∃T1: semax_external E ef A1 P1 Q1)
-  (∃T2: semax_external E ef A2 P2 Q2)
+  (EXT1: ⊢ semax_external E ef A1 P1 Q1)
+  (EXT2: ⊢ semax_external E ef A2 P2 Q2)
   (BI: binary_intersection (mk_funspec sig cc A1 P1 Q1)
                       (mk_funspec sig cc A2 P2 Q2) =
      Some (mk_funspec sig cc A P Q))
   (LENef: length (fst sig) = length (sig_args (ef_sig ef))),
-  semax_external E ef A P Q.
+  ⊢ semax_external E ef A P Q.
 
 Axiom semax_external_funspec_sub: forall 
   {E argtypes rtype cc ef A1 P1 Q1 A P Q}
@@ -595,7 +593,7 @@ Section mpred.
 Context `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (OK_ty(Σ := Σ)) Σ} {CS: compspecs}.
 
 Axiom semax_set :
-forall E (Delta: tycontext) (P: environ->mpred) id e,
+forall E (Delta: tycontext) (P: assert) id e,
     semax E Delta
         (▷ ( (tc_expr Delta e) ∧
              (tc_temp_id id (typeof e) Delta e) ∧
@@ -662,7 +660,7 @@ Axiom semax_if_seq:
  semax E Delta P (Ssequence (Sifthenelse e c1 c2) c) Q.
 
 Axiom semax_seq_Slabel:
-     forall E Delta (P:environ -> mpred) (c1 c2:statement) (Q:ret_assert) l,
+     forall E Delta (P:assert) (c1 c2:statement) (Q:ret_assert) l,
    semax E Delta P (Ssequence (Slabel l c1) c2) Q <-> 
    semax E Delta P (Slabel l (Ssequence c1 c2)) Q.
 

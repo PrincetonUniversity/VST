@@ -1560,41 +1560,38 @@ Proof.
   apply (SF x).
 Qed.
 
-(*Lemma semax_external_binaryintersection {E ef A1 P1 Q1 A2 P2 Q2
+Lemma semax_external_binaryintersection {E ef A1 P1 Q1 A2 P2 Q2
       A P Q sig cc}
-  (EXT1: semax_external Espec E ef A1 P1 Q1)
-  (EXT2: semax_external Espec E ef A2 P2 Q2)
-  (BI: binary_intersection (mk_funspec sig cc A1 P1 Q1 P1ne Q1ne)
-                      (mk_funspec sig cc A2 P2 Q2 P2ne Q2ne) =
-       Some (mk_funspec sig cc A P Q P_ne Q_ne))
+  (EXT1: ⊢ semax_external Espec E ef A1 P1 Q1)
+  (EXT2: ⊢ semax_external Espec E ef A2 P2 Q2)
+  (BI: binary_intersection (mk_funspec sig cc A1 P1 Q1)
+                      (mk_funspec sig cc A2 P2 Q2) =
+       Some (mk_funspec sig cc A P Q))
   (LENef: length (fst sig) = length (sig_args (ef_sig ef))):
-  semax_external Espec ef A P Q n.
+  ⊢ semax_external Espec E ef A P Q.
 Proof.
-  intros ge ts x.
+  iIntros (ge x).
   simpl in BI.
-  rewrite !! if_true in BI by trivial.
+  rewrite !if_true // in BI.
   inv BI. apply inj_pair2 in H1; subst P. apply inj_pair2 in H2; subst Q.
-  destruct x as [bb BB]; destruct bb.
-  * apply (∃T1 ge ts BB).
-  * intros m NM FRM typs vals r MR ? rr R Hext [TYS H].
-    apply (∃T2 ge ts BB m NM FRM typs vals r MR _ _ R Hext). split; trivial.
+  destruct x; [iApply EXT1 | iApply EXT2].
 Qed.
 
-Lemma semax_body_binaryintersection {V G cs} f sp1 sp2 phi
-  (SB1: @semax_body V G cs f sp1) (SB2: @semax_body V G cs f sp2)
+Lemma semax_body_binaryintersection {V G cs} E f sp1 sp2 phi
+  (SB1: @semax_body V G cs E f sp1) (SB2: @semax_body V G cs E f sp2)
   (BI: binary_intersection (snd sp1) (snd sp2) = Some phi):
-  @semax_body V G cs f (fst sp1, phi).
+  @semax_body V G cs E f (fst sp1, phi).
 Proof.
-  destruct sp1 as [i phi1]. destruct phi1 as [[tys1 rt1] cc1 A1 P1 Q1 P1_ne Q1_ne].
-  destruct sp2 as [i2 phi2]. destruct phi2 as [[tys2 rt2] cc2 A2 P2 Q2 P2_ne Q2_ne].
-  destruct phi as [[tys rt] cc A P Q P_ne Q_ne]. simpl in BI.
+  destruct sp1 as [i phi1]. destruct phi1 as [[tys1 rt1] cc1 A1 P1 Q1].
+  destruct sp2 as [i2 phi2]. destruct phi2 as [[tys2 rt2] cc2 A2 P2 Q2].
+  destruct phi as [[tys rt] cc A P Q]. simpl in BI.
   if_tac in BI; [ inv H | discriminate]. if_tac in BI; [inv BI | discriminate].
   apply Classical_Prop.EqdepTheory.inj_pair2 in H6.
   apply Classical_Prop.EqdepTheory.inj_pair2 in H5. subst. simpl fst; clear - SB1 SB2.
   destruct SB1 as [X [X1 SB1]]; destruct SB2 as [_ [X2 SB2]].
   split3; [ apply X | trivial | simpl in X; intros ].
-  destruct x as [b Hb]; destruct b; [ apply SB1 | apply SB2].
-Qed.*)
+  destruct x; [ apply SB1 | apply SB2].
+Qed.
 
 Lemma typecheck_temp_environ_eval_id {f lia}
           (LNR: list_norepet (map fst (fn_params f) ++ map fst (fn_temps f)))

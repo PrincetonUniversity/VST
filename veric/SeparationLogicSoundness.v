@@ -82,13 +82,7 @@ Module VericMinimumSeparationLogic: MINIMUM_CLIGHT_SEPARATION_HOARE_LOGIC with M
 Module CSHL_Def := VericDef.
 Module CSHL_Defs := DerivedDefs (VericDef).
 
-Lemma semax_extract_exists: forall `{!heapGS Σ} Espec `{!externalGS OK_ty Σ} {CS: compspecs} E (A : Type) (P : A -> assert) c (Delta: tycontext) (R: ret_assert),
-  (forall x, semax Espec E Delta (P x) c R) ->
-   semax Espec E Delta (∃ x:A, P x) c R.
-Proof.
-  intros; eapply semax_pre, extract_exists_pre, H.
-  intros; rewrite bi.and_elim_r; monPred.unseal; done.
-Qed.
+Definition semax_extract_exists := @extract_exists_pre.
 
 Definition semax_body := @semax_body.
 Definition semax_prog := @semax_prog.
@@ -98,7 +92,7 @@ Definition make_ext_rval := veric.semax.make_ext_rval.
 Definition tc_option_val := veric.semax.tc_option_val.
 
 Lemma semax_func_cons_ext: forall `{HH: heapGS Σ}{Espec:OracleKind}{HE: externalGS OK_ty Σ} (V: varspecs) (G: funspecs)
-     {C: compspecs} ge E fs id ef argsig retsig A P Q argsig'
+     {C: compspecs} ge E fs id ef argsig retsig A P (Q: A -> assert) argsig'
       (G': funspecs) cc b,
   argsig' = typelist2list argsig ->
   ef_sig ef = mksignature (typlist_of_typelist argsig) (rettype_of_type retsig) cc ->
@@ -118,16 +112,7 @@ Proof. intros. eapply semax_func_cons_ext; eauto. Qed.
 
 Definition semax_Delta_subsumption := @semax_lemmas.semax_Delta_subsumption.
 
-Lemma semax_external_binaryintersection: forall `{HH : heapGS Σ}
- {Espec HE E ef A1 P1 Q1 A2 P2 Q2 A P Q sig cc}
-  (EXT1: @CSHL_Def.semax_external _ HH Espec HE E ef A1 P1 Q1)
-  (EXT2: @CSHL_Def.semax_external _ HH Espec HE E ef A2 P2 Q2)
-  (BI: binary_intersection (mk_funspec sig cc A1 P1 Q1)
-                      (mk_funspec sig cc A2 P2 Q2) =
-     Some (mk_funspec sig cc A P Q))
-  (LEN: length (fst sig) = length (sig_args (ef_sig ef))),
-  @CSHL_Def.semax_external _ HH Espec HE E ef A P Q.
-Proof. intros. intros n. eapply semax_external_binaryintersection. apply EXT1. apply EXT2. apply BI. trivial. Qed.
+Definition semax_external_binaryintersection := @semax_external_binaryintersection.
 
 Lemma semax_external_funspec_sub: forall `{HH : heapGS Σ}
   {Espec HE E argtypes rtype cc ef A1 P1 Q1 A P Q}
@@ -168,23 +153,7 @@ Definition semax_seq := @semax_seq.
 Definition semax_break := @semax_break.
 Definition semax_continue := @semax_continue.
 Definition semax_loop := @semax_loop.
-
-Lemma semax_switch : forall `{HH: heapGS Σ}{Espec:OracleKind}{HE: externalGS OK_ty Σ}{CS: compspecs}
-  E Delta (Q: assert) a sl R,
-     is_int_type (typeof a) = true ->
-     (forall rho, Q rho ⊢ tc_expr Delta a rho) ->
-     (forall n,
-     semax Espec E Delta 
-               (local (liftx eq (eval_expr a) (liftx (Vint n))) ∧ Q)
-               (seq_of_labeled_statement (select_switch (Int.unsigned n) sl))
-               (switch_ret_assert R)) ->
-     semax Espec E Delta Q (Sswitch a sl) R.
-Proof.
-  intros; eapply semax_switch; try done.
-  intros; eapply semax_pre, H1.
-  intros; rewrite bi.and_elim_r; monPred.unseal; done.
-Qed.
-
+Definition semax_switch := @semax_switch.
 Definition semax_Slabel := @semax_Slabel.
 Definition semax_set_forward := @semax_set_forward.
 Definition semax_ifthenelse := @semax_ifthenelse.
@@ -193,8 +162,8 @@ Definition semax_return := @semax_return.
 (* Why are the implicits so inconsistent here? *)
 Lemma semax_call `{HH : !heapGS Σ} {Espec} `{HE : !externalGS OK_ty Σ} {CS}:
   forall E Delta (A: Type)
-  (P : A -> argsEnviron -> mpred)
-  (Q : A -> environ -> mpred)
+  (P : A -> argsassert)
+  (Q : A -> assert)
   (x : A)
    F ret id argsig retsig cc a bl,
            Cop.classify_fun (typeof a) =
@@ -208,33 +177,12 @@ Lemma semax_call `{HH : !heapGS Σ} {Espec} `{HE : !externalGS OK_ty Σ} {CS}:
          (Scall ret a bl)
          (normal_ret_assert (∃ old:val, assert_of (substopt ret (liftx old) F) ∗ maybe_retval (Q x) retsig ret)).
 Proof.
-  intros. eapply semax_pre_post, semax_call_si; try done; [| by intros; rewrite bi.and_elim_r; monPred.unseal..].
-  intros; rewrite bi.and_elim_r; monPred.unseal; apply bi.and_mono; [apply bi.later_intro | done].
+  intros. eapply semax_pre_post, semax_call_si; try done; [| by intros; rewrite bi.and_elim_r..].
+  intros; rewrite bi.and_elim_r; apply bi.and_mono; [apply bi.later_intro | done].
 Qed.
 
-Lemma semax_store: forall `{HH : !heapGS Σ} (CS : compspecs) (Espec : OracleKind) `{HE : !externalGS OK_ty Σ}
-         E (Delta : tycontext) (e1 e2 : expr) (sh : share)
-         (P : environ -> mpred),
-       writable_share sh ->
-       semax Espec E Delta
-         (fun rho : environ =>
-          (▷ (tc_lvalue Delta e1 rho ∧
-              tc_expr Delta (Ecast e2 (typeof e1)) rho ∧
-               (mapsto_ sh (typeof e1) (eval_lvalue e1 rho) ∗
-                P rho)))) (Sassign e1 e2)
-         (normal_ret_assert
-            (fun rho : environ =>
-             (mapsto_memory_block.mapsto sh (typeof e1)
-                (eval_lvalue e1 rho)
-                (force_val
-                   (sem_cast (typeof e2) (typeof e1) (eval_expr e2 rho))) ∗
-              P rho))).
-Proof.
-intros; apply semax_store; auto.
-Qed.
-
+Definition semax_store := @semax_store.
 Definition semax_store_union_hack := @semax_store_union_hack.
-
 Definition semax_load := @semax_load.
 Definition semax_cast_load := @semax_cast_load.
 Definition semax_skip := @semax_skip.
