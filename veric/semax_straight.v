@@ -258,15 +258,15 @@ forall E (Delta: tycontext) (P: assert) id cmp e1 e2 ty sh1 sh2,
     (typecheck_tid_ptr_compare Delta id = true) ->
     semax Espec E Delta
         (▷ (tc_expr Delta e1 ∧ tc_expr Delta e2 ∧
-          local (fun rho => blocks_match cmp (eval_expr e1 rho) (eval_expr e2 rho)) ∧
+          local (`(blocks_match cmp) (eval_expr e1) (eval_expr e2)) ∧
           <absorb> assert_of (`(mapsto_ sh1 (typeof e1)) (eval_expr e1)) ∧
-          <absorb> assert_of (`(mapsto_ sh1 (typeof e2)) (eval_expr e2)) ∧
+          <absorb> assert_of (`(mapsto_ sh2 (typeof e2)) (eval_expr e2)) ∧
           P))
           (Sset id (Ebinop cmp e1 e2 ty))
         (normal_ret_assert
           (∃ old:val,
-                 local (fun rho => eval_id id rho = subst id (liftx old)
-                     (eval_expr (Ebinop cmp e1 e2 ty)) rho) ∧
+                 local (`eq (eval_id id)  (subst id `(old)
+                     (eval_expr (Ebinop cmp e1 e2 ty)))) ∧
                             assert_of (subst id (liftx old) P))).
 Proof.
   intros until sh2. intros ?? CMP NE1 NE2 TCid.
@@ -275,7 +275,7 @@ Proof.
         ▷ tc_expr Delta e2 ∧
         ▷ local (fun rho => blocks_match cmp (eval_expr e1 rho) (eval_expr e2 rho)) ∧
         ▷ <absorb> assert_of (`(mapsto_ sh1 (typeof e1)) (eval_expr e1)) ∧
-        ▷ <absorb> assert_of (`(mapsto_ sh1 (typeof e2)) (eval_expr e2))) ∧
+        ▷ <absorb> assert_of (`(mapsto_ sh2 (typeof e2)) (eval_expr e2))) ∧
         ▷ P)), semax_straight_simple.
   { intros. rewrite bi.and_elim_r !bi.later_and !assoc //. }
   { apply _. }

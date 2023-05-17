@@ -25,6 +25,7 @@ Require Import VST.veric.semax_switch.
 Require Import VST.veric.semax_prog.
 Require Import VST.veric.semax_ext.
 Require Import VST.veric.SeparationLogic.
+Import LiftNotation.
 
 Module Type SEPARATION_HOARE_LOGIC_SOUNDNESS.
 
@@ -47,6 +48,7 @@ Axiom semax_prog_rule :
      @semax_prog Σ H Espec HE CS prog z V G ->
      Genv.init_mem prog = Some m ->
      { b : block & { q : CC_core &
+       (Genv.find_symbol (globalenv prog) (prog_main prog) = Some b) *
        (exists m', semantics.initial_core (cl_core_sem (globalenv prog)) h
                        m q m' (Vptr b Ptrofs.zero) nil) *
        (state_interp Mem.empty z ∗ has_ext z ⊢ |==> state_interp m z ∗ jsafeN Espec (globalenv prog) ⊤ z q ∗
@@ -137,9 +139,10 @@ Definition semax_func_firstn := @semax_func_firstn.
 Definition semax_func_skipn := @semax_func_skipn.
 Definition semax_body_subsumption := @semax_body_subsumption.
 Definition semax_body_cenv_sub := @semax_body_cenv_sub.
+Definition semax_body_funspec_sub := @semax_body_funspec_sub.
 
-Lemma semax_body_funspec_sub:
-  forall `{!heapGS Σ} {Espec : OracleKind} `{!externalGS OK_ty Σ} (V : varspecs) (G : funspecs) (cs : compspecs) E (f : function) 
+(*Lemma semax_body_funspec_sub:
+  forall `{!heapGS Σ} {Espec : OracleKind} `{!externalGS OK_ty Σ} (cs : compspecs) (V : varspecs) (G : funspecs) E (f : function) 
    (i : ident) (phi phi' : funspec),
  CSHL_Defs.semax_body V G E f (i, phi) ->
  funspec_sub E phi phi' ->
@@ -147,7 +150,7 @@ Lemma semax_body_funspec_sub:
  CSHL_Defs.semax_body V G E f (i, phi').
 Proof.
   intros. eapply semax_body_funspec_sub; eauto.
-Qed.
+Qed.*)
 
 Definition semax_seq := @semax_seq.
 Definition semax_break := @semax_break.
@@ -175,13 +178,25 @@ Lemma semax_call `{HH : !heapGS Σ} {Espec} `{HE : !externalGS OK_ty Σ} {CS}:
          (assert_of (fun rho => func_ptr (ge_of rho) E id (mk_funspec (argsig,retsig) cc A P Q) (eval_expr a rho)) ∗
           (▷(F ∗ assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho))))))
          (Scall ret a bl)
-         (normal_ret_assert (∃ old:val, assert_of (substopt ret (liftx old) F) ∗ maybe_retval (Q x) retsig ret)).
+         (normal_ret_assert (∃ old:val, assert_of (substopt ret (`old) F) ∗ maybe_retval (Q x) retsig ret)).
 Proof.
   intros. eapply semax_pre_post, semax_call_si; try done; [| by intros; rewrite bi.and_elim_r..].
   intros; rewrite bi.and_elim_r; apply bi.and_mono; [apply bi.later_intro | done].
 Qed.
 
-Definition semax_store := @semax_store.
+Lemma semax_store: forall `{HH : !heapGS Σ} (Espec : OracleKind) `{HE : !externalGS OK_ty Σ} (CS : compspecs) 
+         E (Delta : tycontext) (e1 e2 : expr) (sh : share)
+         (P : assert),
+       writable_share sh ->
+       semax Espec E Delta
+         (▷ (tc_lvalue Delta e1 ∧ tc_expr Delta (Ecast e2 (typeof e1)) ∧
+             (assert_of (`(mapsto_ sh (typeof e1)) (eval_lvalue e1)) ∗ P))) (Sassign e1 e2)
+         (normal_ret_assert
+            (assert_of (`(mapsto_memory_block.mapsto sh (typeof e1)) (eval_lvalue e1) (`force_val (`(sem_cast (typeof e2) (typeof e1)) (eval_expr e2)))) ∗ P)).
+Proof.
+intros; apply semax_store; auto.
+Qed.
+
 Definition semax_store_union_hack := @semax_store_union_hack.
 Definition semax_load := @semax_load.
 Definition semax_cast_load := @semax_cast_load.

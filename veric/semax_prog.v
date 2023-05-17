@@ -1577,7 +1577,7 @@ Proof.
   destruct x; [iApply EXT1 | iApply EXT2].
 Qed.
 
-Lemma semax_body_binaryintersection {V G cs} E f sp1 sp2 phi
+Lemma semax_body_binaryintersection {cs V G} E f sp1 sp2 phi
   (SB1: @semax_body V G cs E f sp1) (SB2: @semax_body V G cs E f sp2)
   (BI: binary_intersection (snd sp1) (snd sp2) = Some phi):
   @semax_body V G cs E f (fst sp1, phi).
@@ -1617,7 +1617,7 @@ Proof. apply typecheck_temp_environ_eval_id; trivial. apply TC. Qed.
 Lemma map_Some_inv {A}: forall {l l':list A}, map Some l = map Some l' -> l=l'.
 Proof. induction l; simpl; intros; destruct l'; inv H; trivial. f_equal; auto. Qed.
 
-Lemma semax_body_funspec_sub {V G cs E f i phi phi'} (SB: @semax_body V G cs E f (i, phi))
+Lemma semax_body_funspec_sub {cs V G E f i phi phi'} (SB: @semax_body V G cs E f (i, phi))
   (Sub: funspec_sub E phi phi')
   (LNR: list_norepet (map fst (fn_params f) ++ map fst (fn_temps f))):
   @semax_body V G cs E f (i, phi').

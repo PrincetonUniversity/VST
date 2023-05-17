@@ -260,7 +260,7 @@ Section mpred.
 Context `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (OK_ty(Σ := Σ)) Σ} {CS: compspecs}.
 
 Axiom semax_extract_exists:
-  forall E (A : Type) (P : A -> assert) c (Delta: tycontext) (R: ret_assert),
+  forall (A : Type) (P : A -> assert) c E (Delta: tycontext) (R: ret_assert),
   (forall x, semax E Delta (P x) c R) ->
    semax E Delta (∃ x:A, P x) c R.
 
@@ -381,7 +381,7 @@ forall E Delta (Q Q' : assert) incr body R,
 Axiom semax_switch: 
   forall E Delta (Q: assert) a sl R,
      is_int_type (typeof a) = true ->
-     (forall rho, Q rho ⊢ tc_expr Delta a rho) ->
+     (Q ⊢ tc_expr Delta a) ->
      (forall n,
      semax E Delta 
                (local (`eq (eval_expr a) `(Vint n)) ∧ Q)
@@ -428,16 +428,14 @@ forall E (Delta: tycontext) (P: assert) id e,
                             assert_of (subst id (`old) P))).
 
 Axiom semax_ptr_compare :
-forall E (Delta: tycontext) P id cmp e1 e2 ty sh1 sh2,
+forall E (Delta: tycontext) (P: assert) id cmp e1 e2 ty sh1 sh2,
    sh1 <> Share.bot -> sh2 <> Share.bot ->
    is_comparison cmp = true  ->
    eqb_type (typeof e1) int_or_ptr_type = false ->
    eqb_type (typeof e2) int_or_ptr_type = false ->
    typecheck_tid_ptr_compare Delta id = true ->
    semax E Delta
-        ( ▷ ( (tc_expr Delta e1) ∧
-              (tc_expr Delta e2)  ∧
-
+        (▷ ((tc_expr Delta e1) ∧ (tc_expr Delta e2)  ∧
           local (`(blocks_match cmp) (eval_expr e1) (eval_expr e2)) ∧
           <absorb> assert_of (`(mapsto_ sh1 (typeof e1)) (eval_expr e1)) ∧
           <absorb> assert_of (`(mapsto_ sh2 (typeof e2)) (eval_expr e2)) ∧
@@ -456,8 +454,8 @@ forall E (Delta: tycontext) sh id P e1 t2 (v2: val),
     readable_share sh ->
     (local (tc_environ Delta) ∧ P ⊢ <absorb> assert_of (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2))) ->
     semax E Delta
-       (▷ ( (tc_lvalue Delta e1) ∧
-       local (`(tc_val (typeof e1) v2)) ∧
+       (▷ (tc_lvalue Delta e1 ∧
+       ⌜tc_val (typeof e1) v2⌝ ∧
           P))
        (Sset id e1)
        (normal_ret_assert (∃ old:val, local (`eq (eval_id id) (`v2)) ∧
@@ -478,10 +476,10 @@ forall E (Delta: tycontext) sh id P e1 t1 (v2: val),
                                           assert_of (subst id (`old) P))).
 
 Axiom semax_store:
- forall E Delta e1 e2 sh P,
+ forall E Delta e1 e2 sh (P: assert),
    writable_share sh ->
    semax E Delta
-          (▷ ( (tc_lvalue Delta e1) ∧  (tc_expr Delta (Ecast e2 (typeof e1)))  ∧
+          (▷ (tc_lvalue Delta e1 ∧ tc_expr Delta (Ecast e2 (typeof e1))  ∧
              (assert_of (`(mapsto_ sh (typeof e1)) (eval_lvalue e1)) ∗ P)))
           (Sassign e1 e2)
           (normal_ret_assert
@@ -513,11 +511,11 @@ Axiom semax_skip:
 
 Axiom semax_conseq:
   forall E Delta (P' : assert) (R': ret_assert) P c (R: ret_assert),
-    (local (tc_environ Delta) ∧ ((allp_fun_id E Delta) ∧ P) ⊢ (|={E}=> P')) ->
-    (local (tc_environ Delta) ∧ ((allp_fun_id E Delta) ∧ RA_normal R') ⊢ (|={E}=> RA_normal R)) ->
-    (local (tc_environ Delta) ∧ ((allp_fun_id E Delta) ∧ RA_break R') ⊢ (|={E}=> RA_break R)) ->
-    (local (tc_environ Delta) ∧ ((allp_fun_id E Delta) ∧ RA_continue R') ⊢ (|={E}=> RA_continue R)) ->
-    (forall vl, local (tc_environ Delta) ∧ ((allp_fun_id E Delta) ∧ RA_return R' vl) ⊢ (RA_return R vl)) ->
+    (local (tc_environ Delta) ∧ (<affine> (allp_fun_id E Delta) ∗ P) ⊢ (|={E}=> P')) ->
+    (local (tc_environ Delta) ∧ (<affine> (allp_fun_id E Delta) ∗ RA_normal R') ⊢ (|={E}=> RA_normal R)) ->
+    (local (tc_environ Delta) ∧ (<affine> (allp_fun_id E Delta) ∗ RA_break R') ⊢ (|={E}=> RA_break R)) ->
+    (local (tc_environ Delta) ∧ (<affine> (allp_fun_id E Delta) ∗ RA_continue R') ⊢ (|={E}=> RA_continue R)) ->
+    (forall vl, local (tc_environ Delta) ∧ (<affine> (allp_fun_id E Delta) ∗ RA_return R' vl) ⊢ (RA_return R vl)) ->
    semax E Delta P' c R' -> semax E Delta P c R.
 
 Axiom semax_Slabel:
@@ -683,22 +681,22 @@ Axiom semax_extract_later_prop:
            semax E Delta ((▷ ⌜PP⌝) ∧ P) c Q.
 
 Axiom semax_adapt_frame: forall E Delta c (P P': assert) (Q Q' : ret_assert)
-   (H: forall rho, ⌜typecheck_environ Delta rho⌝ ∧ (<affine> allp_fun_id E Delta rho ∗ P rho) ⊢
-                   ∃ F: assert, (⌜closed_wrt_modvars c F⌝ ∧ |={E}=> (P' rho ∗ F rho) ∧
-                         ⌜forall rho, ((local (tc_environ Delta) rho) ∧ <affine> allp_fun_id E Delta rho ∗ RA_normal (frame_ret_assert Q' F) rho ⊢ |={E}=> RA_normal Q rho)⌝ ∧
-                         ⌜forall rho, ((local (tc_environ Delta) rho) ∧ <affine> allp_fun_id E Delta rho ∗ RA_break (frame_ret_assert Q' F) rho ⊢ |={E}=> RA_break Q rho)⌝ ∧
-                         ⌜forall rho, ((local (tc_environ Delta) rho) ∧ <affine> allp_fun_id E Delta rho ∗ RA_continue (frame_ret_assert Q' F) rho ⊢ |={E}=> RA_continue Q rho)⌝ ∧
-                         ⌜forall vl rho, ((local (tc_environ Delta) rho) ∧ <affine> allp_fun_id E Delta rho ∗ RA_return (frame_ret_assert Q' F) vl rho ⊢ RA_return Q vl rho)⌝))
+   (H: local (typecheck_environ Delta) ∧ (<affine> allp_fun_id E Delta ∗ P) ⊢
+                   ∃ F: assert, (⌜closed_wrt_modvars c F⌝ ∧ |={E}=> (P' ∗ F) ∧
+                         ⌜local (tc_environ Delta) ∧ <affine> allp_fun_id E Delta ∗ RA_normal (frame_ret_assert Q' F) ⊢ |={E}=> RA_normal Q⌝ ∧
+                         ⌜local (tc_environ Delta) ∧ <affine> allp_fun_id E Delta ∗ RA_break (frame_ret_assert Q' F) ⊢ |={E}=> RA_break Q⌝ ∧
+                         ⌜local (tc_environ Delta) ∧ <affine> allp_fun_id E Delta ∗ RA_continue (frame_ret_assert Q' F) ⊢ |={E}=> RA_continue Q⌝ ∧
+                         ⌜forall vl, local (tc_environ Delta) ∧ <affine> allp_fun_id E Delta ∗ RA_return (frame_ret_assert Q' F) vl ⊢ RA_return Q vl⌝))
    (SEM: semax E Delta P' c Q'),
    semax E Delta P c Q.
 
 Axiom semax_adapt: forall E Delta c (P P': assert) (Q Q' : ret_assert)
-   (H: forall rho,  ⌜typecheck_environ Delta rho⌝ ∧ (<affine> allp_fun_id E Delta rho ∗ P rho) ⊢
-                   (|={E}=> (P' rho) ∧
-                        ⌜forall rho, RA_normal Q' rho ⊢ |={E}=> RA_normal Q rho⌝ ∧
-                        ⌜forall rho, RA_break Q' rho ⊢ |={E}=> RA_break Q rho⌝ ∧
-                        ⌜forall rho, RA_continue Q' rho ⊢ |={E}=> RA_continue Q rho⌝ ∧
-                        ⌜forall vl rho, RA_return Q' vl rho ⊢ RA_return Q vl rho⌝))
+   (H: local (typecheck_environ Delta) ∧ (<affine> allp_fun_id E Delta ∗ P) ⊢
+                   (|={E}=> P' ∧
+                        ⌜RA_normal Q' ⊢ |={E}=> RA_normal Q⌝ ∧
+                        ⌜RA_break Q' ⊢ |={E}=> RA_break Q⌝ ∧
+                        ⌜RA_continue Q' ⊢ |={E}=> RA_continue Q⌝ ∧
+                        ⌜forall vl, RA_return Q' vl ⊢ RA_return Q vl⌝))
    (SEM: semax E Delta P' c Q'),
    semax E Delta P c Q.
 
