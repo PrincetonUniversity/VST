@@ -4,6 +4,9 @@ Require Import VST.veric.wsat.
 Require Import VST.veric.res_predicates.
 Require Import VST.veric.shares.
 Require Import VST.veric.Cop2.
+Require Import VST.veric.mpred.
+
+Local Close Scope Z.
 
 Section mpred.
 

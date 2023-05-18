@@ -4,139 +4,19 @@ From iris_ora.algebra Require Import gmap.
 From iris_ora.logic Require Export logic.
 From VST.veric Require Import shares address_conflict.
 From VST.msl Require Export shares.
-From VST.veric Require Export base Memory algebras juicy_view gen_heap fancy_updates.
+From VST.veric Require Export base Memory algebras juicy_view gen_heap invariants.
 Export Values.
 
 Local Open Scope Z_scope.
 
-
-(** Environment Definitions **)
-(* We need these here so we can define the resource in memory for a function pointer. *)
-
-(** GENERAL KV-Maps **)
-
-Set Implicit Arguments.
-
-Module Map. Section map.
-Context (B : Type).
-
-Definition t := positive -> option B.
-
-Definition get (h: t) (a:positive) : option B := h a.
-
-Definition set (a:positive) (v: B) (h: t) : t :=
-  fun i => if ident_eq i a then Some v else h i.
-
-Definition remove (a: positive) (h: t) : t :=
-  fun i => if ident_eq i a then None else h i.
-
-Definition empty : t := fun _ => None.
-
-(** MAP Axioms **)
-
-Lemma gss h x v : get (set x v h) x = Some v.
-unfold get, set; if_tac; intuition.
-Qed.
-
-Lemma gso h x y v : x<>y -> get (set x v h) y = get h y.
-unfold get, set; intros; if_tac; intuition; subst; contradiction.
-Qed.
-
-Lemma grs h x : get (remove x h) x = None.
-unfold get, remove; intros; if_tac; intuition.
-Qed.
-
-Lemma gro h x y : x<>y -> get (remove x h) y = get h y.
-unfold get, remove; intros; if_tac; intuition; subst; contradiction.
-Qed.
-
-Lemma ext h h' : (forall x, get h x = get h' x) -> h=h'.
-Proof.
-intros. extensionality x. apply H.
-Qed.
-
-Lemma override (a: positive) (b b' : B) h : set a b' (set a b h) = set a b' h.
-Proof.
-apply ext; intros; unfold get, set; if_tac; intuition. Qed.
-
-Lemma gsspec:
-    forall (i j: positive) (x: B) (m: t),
-    get (set j x m) i = if ident_eq i j then Some x else get m i.
-Proof.
-intros. unfold get; unfold set; if_tac; intuition.
-Qed.
-
-Lemma override_same : forall id t (x:B), get t id = Some x -> set id x t = t.
-Proof.
-intros. unfold set. unfold get in H.  apply ext. intros. unfold get.
-if_tac; subst; auto.
-Qed.
-
-End map.
-
-End Map.
-
-Unset Implicit Arguments.
-
-Global Instance EqDec_calling_convention: EqDec calling_convention.
-Proof.
-  hnf. decide equality.
-  destruct cc_structret, cc_structret0; subst; try tauto; right; congruence.
-  destruct cc_unproto, cc_unproto0;  subst; try tauto; right; congruence.
-  destruct cc_vararg, cc_vararg0; subst; try tauto.
-  destruct (zeq z0 z); subst; [left|right]; congruence.
-  right; congruence.
-  right; congruence.
-Qed.
-
-Section FUNSPEC.
-
-Definition genviron := Map.t block.
-
-Definition venviron := Map.t (block * type).
-
-Definition tenviron := Map.t val.
-
-Inductive environ : Type :=
- mkEnviron: forall (ge: genviron) (ve: venviron) (te: tenviron), environ.
-
-Definition ge_of (rho: environ) : genviron :=
-  match rho with mkEnviron ge ve te => ge end.
-
-Definition ve_of (rho: environ) : venviron :=
-  match rho with mkEnviron ge ve te => ve end.
-
-Definition te_of (rho: environ) : tenviron :=
-  match rho with mkEnviron ge ve te => te end.
-
-Definition any_environ : environ :=
-  mkEnviron (fun _ => None)  (Map.empty _) (Map.empty _).
-
-Definition argsEnviron:Type := genviron * (list val).
-
-Global Instance EqDec_type: EqDec type := type_eq.
-
-Definition funsig := (list (ident*type) * type)%type. (* argument and result signature *)
-
-Definition typesig := (list type * type)%type. (*funsig without the identifiers*)
-
-Definition typesig_of_funsig (f:funsig):typesig := (map snd (fst f), snd f).
-
-End FUNSPEC.
-
-Section heap.
-
-Context {Σ : gFunctors}.
-
-Notation mpred := (iProp Σ).
-
-Inductive resource' :=
+Inductive resource :=
 | VAL (v : memval)
-| LK (i z : Z) (R : mpred)
-| FUN (sig : typesig) (cc : calling_convention) (A : Type) (P : A -> argsEnviron -> mpred) (Q : A -> environ -> mpred).
-(* Will we run into universe issues with higher-order A's? Hopefully not! *)
+| LK (i z : Z)
+| FUN.
+(* Other information, like lock invariants and funspecs, should be stored in invariants,
+   not in the heap. *)
 
-Definition perm_of_res (r: dfrac * option resource') :=
+Definition perm_of_res (r: dfrac * option resource) :=
   match r with
   | (dq, Some (VAL _)) => perm_of_dfrac dq
   | (DfracOwn (Share sh), _) => if eq_dec sh Share.bot then None else Some Nonempty
@@ -160,7 +40,7 @@ Proof.
   if_tac; done.
 Qed.
 
-Global Program Instance resource'_ops : resource_ops (leibnizO resource') := { perm_of_res := perm_of_res; memval_of r := match r with VAL v => Some v | _ => None end }.
+Global Program Instance resource_ops : resource_ops (leibnizO resource) := { perm_of_res := perm_of_res; memval_of r := match r with VAL v => Some v | _ => None end }.
 Next Obligation.
 Proof.
   discriminate.
@@ -243,16 +123,19 @@ Proof.
   inv H; done.
 Qed.
 
-(* collect up all the ghost state required for the logic
-   Should this include external state as well? *)
-Class heapGS := HeapGS {
-  heapGS_wsatGS :> wsatGS Σ;
-  heapGS_gen_heapGS :> gen_heapGS resource' Σ
-}.
+Definition nonlock (r: resource) : Prop :=
+ match r with
+ | LK _ _ => False
+ | _ => True
+ end.
 
-Context {HGS : heapGS}.
+Section heap.
 
-Local Notation resource := resource'.
+Context {Σ : gFunctors}.
+
+Context {HGS : gen_heapGS resource Σ} {WGS : wsatGS Σ}.
+
+Notation mpred := (iProp Σ).
 
 Definition spec : Type :=  forall (sh: share) (l: address), mpred.
 
@@ -260,12 +143,6 @@ Ltac do_map_arg :=
 match goal with |- ?a = ?b =>
   match a with context [map ?x _] =>
     match b with context [map ?y _] => replace y with x; auto end end end.
-
-Definition nonlock (r: resource) : Prop :=
- match r with
- | LK _ _ _ => False
- | _ => True
- end.
 
 (*Lemma nonlock_join: forall r1 r2 r,
   nonlock r1 ->
@@ -479,9 +356,12 @@ Definition address_mapsto_readonly (ch: memory_chunk) (v: val) :=
                ⌜length bl = size_chunk_nat ch  /\ decode_val ch bl = v /\ (align_chunk ch | snd l)⌝ ∧
                [∗ list] i↦b ∈ bl, adr_add l (Z.of_nat i) ↦□ (VAL b).
 
+Definition LKN := nroot .@ "LK".
+
 Definition LKspec lock_size (R: mpred) : spec :=
    fun (sh: Share.t) (l: address) =>
-    [∗ list] i ∈ seq 0 (Z.to_nat lock_size), adr_add l (Z.of_nat i) ↦{#sh} LK lock_size (Z.of_nat i) R.
+    [∗ list] i ∈ seq 0 (Z.to_nat lock_size), adr_add l (Z.of_nat i) ↦{#sh} LK lock_size (Z.of_nat i) ∗
+      inv (LKN .@ l) R.
 
 Definition Trueat (l: address) : mpred := True.
 
@@ -1236,14 +1116,6 @@ phi @ addr <> YES sh sh' (LK z z') P.*)
 End heap.
 
 #[export] Hint Resolve VALspec_range_0: normalize.
-
-Arguments heapGS _ : clear implicits.
-
-(* To use the heap, do Context `{!heapGS Σ}. *)
-
-Definition rmap `{heapGS Σ} := iResUR Σ.
-Definition resource `{heapGS Σ} := resource'(Σ := Σ).
-Definition mpred `{heapGS Σ} := iProp Σ.
 
 Global Notation "l ↦ dq v" := (mapsto l dq v)
   (at level 20, dq custom dfrac at level 1, format "l  ↦ dq  v") : bi_scope.

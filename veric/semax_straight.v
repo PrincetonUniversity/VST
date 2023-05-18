@@ -38,7 +38,7 @@ Lemma semax_straight_simple:
               closed_wrt_modvars c F ->
               rho = construct_rho (filter_genv ge) ve te  ->
               cenv_sub cenv_cs (genv_cenv ge) ->
-              mem_auth m ∗ (B rho ∧ (F rho ∗ ▷P rho)) ∗ funassert Delta' rho ⊢
+              mem_auth m ∗ (B rho ∧ (F rho ∗ ▷P rho)) ⊢
                 ◇ ∃m' te' rho', ⌜rho' = mkEnviron (ge_of rho) (ve_of rho) (make_tenv te') ∧
                   guard_environ Delta' f rho' ∧ cl_step ge (State f c k ve te) m
                                  (State f Sskip k ve te') m'⌝ ∧
@@ -49,7 +49,7 @@ intros until Q; intros EB Hc.
 rewrite semax_unfold.
 intros psi Delta' CS' TS [CSUB HGG'].
 iIntros "#believe" (???) "[% #Hsafe]".
-iIntros (te ve) "!> (% & P & #?)".
+iIntros (te ve) "!> (% & P & fun)".
 specialize (cenv_sub_trans CSUB HGG'); intros HGG.
 iIntros (ora _).
 monPred.unseal.
@@ -57,7 +57,7 @@ iApply jsafe_step.
 rewrite /jstep_ex.
 iIntros (m) "[Hm ?]".
 iMod (Hc with "[P $Hm]") as (??? Hstep) ">Hc"; first done.
-{ rewrite bi.sep_and_l; iFrame "#".
+{ rewrite bi.sep_and_l; iFrame.
   iSplit; last iDestruct "P" as "[_ $]".
   iDestruct "P" as "[(_ & $) _]". }
 iIntros "!>".
@@ -65,8 +65,8 @@ destruct Hstep as (? & ? & ?); iExists _, m'; iSplit; first by iPureIntro; eauto
 iDestruct "Hc" as "(? & Q)"; iFrame.
 iNext.
 iSpecialize ("Hsafe" $! EK_normal None te' ve).
-iPoseProof ("Hsafe" with "[Q]") as "Hsafe'".
-{ simpl; subst; iSplit; [|iSplit]; try done.
+iPoseProof ("Hsafe" with "[Q $fun]") as "Hsafe'".
+{ simpl; subst; iSplit; try done.
   monPred.unseal; by iDestruct "Q" as "[$ $]". }
 rewrite assert_safe_jsafe'; iFrame; by iPureIntro.
 Qed.
@@ -287,7 +287,7 @@ Proof.
   monPred.unseal; rewrite !monPred_at_absorbingly; unfold_lift; simpl.
   iSplit; [iSplit; first done; iSplit|].
   + rewrite !mapsto_is_pointer /tc_expr /= !typecheck_expr_sound; [| done..].
-    iDestruct "H" as "(? & ((>%TC1 & >%TC2 & >% & >%Hv1 & >%Hv2) & _) & ?)".
+    iDestruct "H" as "(? & (>%TC1 & >%TC2 & >% & >%Hv1 & >%Hv2) & _)".
     destruct Hv1 as (? & ? & ?), Hv2 as (? & ? & ?).
     simpl. rewrite <- map_ptree_rel.
     iPureIntro; apply guard_environ_put_te'; [subst; auto|].
@@ -297,10 +297,10 @@ Proof.
   + iAssert (▷ ⌜Clight.eval_expr ge ve te m (Ebinop cmp e1 e2 ty) (eval_expr (Ebinop cmp e1 e2 ty) rho)⌝) with "[H]" as ">%";
       last by iPureIntro; constructor.
     iNext.
-    iDestruct "H" as "(Hm & [H _] & _)"; iCombine "Hm H" as "H".
+    iDestruct "H" as "(Hm & [H _])"; iCombine "Hm H" as "H".
     iApply (pointer_cmp_eval with "H").
   + iIntros "!> !>".
-    iDestruct "H" as "($ & [_ (F & P)] & #?)".
+    iDestruct "H" as "($ & [_ (F & P)])".
     erewrite (closed_wrt_modvars_set F) by eauto; iFrame.
     iExists (eval_id id rho).
     destruct TC as [[TC _] _].
@@ -332,7 +332,7 @@ Proof.
   intros until f; intros TS TC Hcl Hge HGG.
   assert (typecheck_environ Delta rho) as TYCON_ENV
     by (destruct TC as [TC' TC'']; eapply typecheck_environ_sub; eauto).
-  iIntros "(Hm & H & #?)".
+  iIntros "(Hm & H)".
   iExists m, (Maps.PTree.set id (eval_expr e rho) te), _.
   monPred.unseal. setoid_rewrite tc_temp_id_sub; last done. rewrite /tc_temp_id /typecheck_temp_id /=.
   destruct (temp_types Delta' !! id) eqn: Hid.
@@ -407,7 +407,7 @@ Proof.
   intros until f; intros TS TC Hcl Hge HGG.
   assert (typecheck_environ Delta rho) as TYCON_ENV
     by (destruct TC as [TC' TC'']; eapply typecheck_environ_sub; eauto).
-  iIntros "(Hm & H & #?)".
+  iIntros "(Hm & H)".
   iExists m, (Maps.PTree.set id (eval_expr (Ecast e t) rho) te), _.
   destruct TS as [TS _]; specialize (TS id).
   unfold typeof_temp in H99.
@@ -485,7 +485,7 @@ Proof.
   { intros. rewrite bi.and_elim_r !bi.later_and !assoc //. }
   { apply _. }
   intros until f; intros TS TC Hcl Hge HGG.
-  iIntros "(Hm & H & #?)".
+  iIntros "(Hm & H)".
   monPred.unseal.
   rewrite (bi.and_comm _ (▷⌜_⌝)) -assoc; iDestruct "H" as "(>% & H)".
   assert (typecheck_environ Delta rho) as TYCON_ENV
@@ -571,7 +571,7 @@ Proof.
   { intros. rewrite bi.and_elim_r !bi.later_and !assoc //. }
   { apply _. }
   intros until f; intros TS TC Hcl Hge HGG.
-  iIntros "(Hm & H & #?)".
+  iIntros "(Hm & H)".
   monPred.unseal.
   rewrite (bi.and_comm _ (▷⌜_⌝)) -assoc; iDestruct "H" as "(>% & H)".
   assert (typecheck_environ Delta rho) as TYCON_ENV
@@ -809,7 +809,7 @@ Proof.
   apply semax_straight_simple; auto.
   { apply _. }
   intros until f; intros TS TC Hcl Hge HGG.
-  iIntros "(Hm & H & #?)".
+  iIntros "(Hm & H)".
   assert (typecheck_environ Delta rho) as TYCON_ENV
     by (destruct TC as [TC' TC'']; eapply typecheck_environ_sub; eauto).
   monPred.unseal; unfold_lift.
@@ -894,7 +894,7 @@ Proof.
   apply semax_straight_simple; auto.
   { apply _. }
   intros until f; intros TS TC Hcl Hge HGG.
-  iIntros "(Hm & H & #?)".
+  iIntros "(Hm & H)".
   assert (typecheck_environ Delta rho) as TYCON_ENV
     by (destruct TC as [TC' TC'']; eapply typecheck_environ_sub; eauto).
   monPred.unseal; unfold_lift.

@@ -825,17 +825,17 @@ Qed.*)
 
 End mpred.
 
-Class VSTGpreS Z Σ := {
+Class VSTGpreS (Z : Type) Σ := {
   VSTGpreS_inv :> wsatGpreS Σ;
-  VSTGpreS_heap :> gen_heapGpreS (@resource' Σ) Σ;
-  VSTGpreS_funspec :> ;
+  VSTGpreS_heap :> gen_heapGpreS resource Σ;
+  VSTGpreS_funspec :> inG Σ (gmap_view.gmap_viewR address (@funspecO' Σ));
   VSTGpreS_ext :> inG Σ (excl_authR (leibnizO Z))
 }.
 
 Definition VSTΣ Z : gFunctors :=
-  #[wsatΣ; gen_heapΣ resource; GFunctor (agreeRF (funspecOF (laterOF idOF)));
+  #[wsatΣ; gen_heapΣ resource; GFunctor (gmap_view.gmap_viewRF address funspecOF');
     GFunctor (excl_authR (leibnizO Z)) ].
-Global Instance subG_VSTGpreS {Z Σ} : subG VSTΣ Z Σ → VSTGpreS Z Σ.
+Global Instance subG_VSTGpreS {Z Σ} : subG (VSTΣ Z) Σ → VSTGpreS Z Σ.
 Proof. solve_inG. Qed.
 
 

@@ -1,4 +1,5 @@
 Require Export VST.veric.base.
+Require Import VST.veric.gmap_view.
 Require Import VST.veric.res_predicates.
 Require Import VST.veric.mpred.
 Require Import VST.veric.address_conflict.
@@ -387,20 +388,35 @@ Qed.
 
 (*******************end of material moved here from expr.v *******************)
 
-Definition func_at (f: funspec) (l : address) : mpred :=
-  match f with
-   | mk_funspec fsig cc A P Q => l ↦p FUN fsig cc A P Q
-  end.
+Definition funspec_auth m := own(inG0 := funspec_inG) funspec_name (gmap_view_auth (dfrac.DfracOwn 1) m).
+Definition know_funspec l (f: funspec) := own(inG0 := funspec_inG) funspec_name (gmap_view_frag l dfrac.DfracDiscarded (funspec_unfold f)).
 
-Global Instance func_at_persistent f l : Persistent (func_at f l).
-Proof. destruct f; apply _. Qed.
+Definition func_at (f: funspec) (l : address) : mpred := l ↦p FUN ∗ know_funspec l f.
 
-Global Instance func_at_affine f l : Affine (func_at f l).
-Proof. destruct f; apply _. Qed.
+Lemma func_at_agree f1 f2 l : ⊢ func_at f1 l -∗ func_at f2 l -∗ ∃ sig cc A P1 P2 Q1 Q2,
+  ⌜f1 = mk_funspec sig cc A P1 Q1 ∧ f2 = mk_funspec sig cc A P2 Q2⌝ ∧ ▷ (P1 ≡ P2) ∧ ▷ (Q1 ≡ Q2).
+Proof.
+  intros; iIntros "(_ & Hf1) (_ & Hf2)".
+  iDestruct (own_valid_2 with "Hf1 Hf2") as "H".
+  rewrite gmap_view_frag_op_validI funspec_equivI; iDestruct "H" as "[_ H]".
+  destruct f1, f2; iDestruct "H" as (??????? ([=] & [=])) "H"; subst.
+  repeat match goal with H : existT _ _ = existT _ _ |- _ => apply inj_pair2 in H end; subst.
+  iExists _, _, _, _, _, _, _; iSplit; first done.
+  rewrite !discrete_fun_equivI; iSplit; iIntros (x); [iDestruct "H" as "[H _]" | iDestruct "H" as "[_ H]"];
+    iSpecialize ("H" $! x); rewrite discrete_fun_equivI monPred_equivI; iIntros (rho); iSpecialize ("H" $! rho);
+    rewrite later_equivI //.
+Qed.
+
+Lemma func_at_auth m f l : ⊢ funspec_auth m -∗ func_at f l -∗ m !! l ≡ Some (funspec_unfold f).
+Proof.
+  intros; iIntros "Hm (_ & Hf)".
+  iDestruct (own_valid_2 with "Hm Hf") as "H".
+  rewrite gmap_view_both_validI bi.and_elim_r //.
+Qed.
 
 Definition func_at' (f: funspec) (l: address) : mpred :=
   match f with
-   | mk_funspec fsig cc _ _ _ => ∃ A P Q, l ↦p FUN fsig cc A P Q
+   | mk_funspec fsig cc _ _ _ => ∃ A P Q, func_at (mk_funspec fsig cc A P Q) l
   end.
 
 Global Instance func_at'_persistent f l : Persistent (func_at' f l).
@@ -410,36 +426,29 @@ Global Instance func_at'_affine f l : Affine (func_at' f l).
 Proof. destruct f; apply _. Qed.
 
 Definition sigcc_at (fsig: typesig) (cc:calling_convention) (l: address) : mpred :=
-  ∃ A P Q, l ↦p FUN fsig cc A P Q.
+  ∃ A P Q, func_at (mk_funspec fsig cc A P Q) l.
 
-(* This version of func_ptr is in an odd position: it's self-contained, in that it associates a
-   memory location with a spec without referring to the name of a function, but it's also incomplete,
-   in that it's insufficient to actually use the function with that spec.
-   We could imagine a less self-contained version, in which it carries its id (see below),
-   or a more self-contained version, in which it carries its own Hoare triple. The latter is
-   theoretically appealing, but Clight's semantics only allow calling functions that can be found
-   in the global environment anyway. *)
-(*Definition func_ptr_si E (f: funspec) (v: val): mpred :=
+Definition func_ptr_si E (f: funspec) (v: val): mpred :=
   ∃ b, ⌜v = Vptr b Ptrofs.zero⌝ ∧ (∃ gs: funspec, funspec_sub_si E gs f ∧ func_at gs (b, 0)).
 
 Definition func_ptr E (f: funspec) (v: val): mpred :=
-  ∃ b, ⌜v = Vptr b Ptrofs.zero⌝ ∧ (∃ gs: funspec, ⌜funspec_sub E gs f⌝ ∧ func_at gs (b, 0)).*)
+  ∃ b, ⌜v = Vptr b Ptrofs.zero⌝ ∧ (∃ gs: funspec, ⌜funspec_sub E gs f⌝ ∧ func_at gs (b, 0)).
 
-Definition func_ptr_si ge E id (f: funspec) (v: val): mpred :=
+(*Definition func_ptr_si ge E id (f: funspec) (v: val): mpred :=
   ∃ b, ⌜Map.get ge id = Some b ∧ v = Vptr b Ptrofs.zero⌝ ∧ (∃ gs: funspec, funspec_sub_si E gs f ∧ func_at gs (b, 0)).
 
 Definition func_ptr ge E id (f: funspec) (v: val): mpred :=
-  ∃ b, ⌜Map.get ge id = Some b ∧ v = Vptr b Ptrofs.zero⌝ ∧ (∃ gs: funspec, ⌜funspec_sub E gs f⌝ ∧ func_at gs (b, 0)).
+  ∃ b, ⌜Map.get ge id = Some b ∧ v = Vptr b Ptrofs.zero⌝ ∧ (∃ gs: funspec, ⌜funspec_sub E gs f⌝ ∧ func_at gs (b, 0)).*)
 
-Lemma func_ptr_fun_ptr_si ge E id f v: func_ptr ge E id f v ⊢ func_ptr_si ge E id f v.
+Lemma func_ptr_fun_ptr_si E f v: func_ptr E f v ⊢ func_ptr_si E f v.
 Proof.
   iIntros "H"; iDestruct "H" as (????) "H".
   iExists b; iFrame "%"; iExists gs; iFrame.
   iSplit; auto; by iApply funspec_sub_sub_si'.
 Qed.
 
-Lemma func_ptr_si_mono ge E id fs gs v: 
-      funspec_sub_si E fs gs ∧ func_ptr_si ge E id fs v ⊢ func_ptr_si ge E id gs v.
+Lemma func_ptr_si_mono E fs gs v: 
+      funspec_sub_si E fs gs ∧ func_ptr_si E fs v ⊢ func_ptr_si E gs v.
 Proof.
   iIntros "H".
   rewrite /func_ptr_si bi.and_exist_l.
@@ -454,8 +463,8 @@ Proof.
   iDestruct "H" as "[$ _]".
 Qed.
 
-Lemma func_ptr_mono ge E id fs gs v: funspec_sub E fs gs ->
-      func_ptr ge E id fs v ⊢ func_ptr ge E id gs v.
+Lemma func_ptr_mono E fs gs v: funspec_sub E fs gs ->
+      func_ptr E fs v ⊢ func_ptr E gs v.
 Proof.
   intros; rewrite /func_ptr.
   iIntros "H"; iDestruct "H" as (?? hs ?) "H".
@@ -463,16 +472,16 @@ Proof.
   split; auto; eapply funspec_sub_trans; eauto.
 Qed.
 
-Lemma funspec_sub_implies_func_prt_si_mono' ge E id fs gs v:
-      ⌜funspec_sub E fs gs⌝ ∧ func_ptr_si ge E id fs v ⊢ func_ptr_si ge E id gs v.
+Lemma funspec_sub_implies_func_prt_si_mono' E fs gs v:
+      ⌜funspec_sub E fs gs⌝ ∧ func_ptr_si E fs v ⊢ func_ptr_si E gs v.
 Proof.
   iIntros "[% ?]"; iApply func_ptr_si_mono.
   iFrame.
   by iSplit; auto; iApply funspec_sub_sub_si'.
 Qed.
 
-Lemma funspec_sub_implies_func_prt_si_mono ge E id fs gs v: funspec_sub E fs gs ->
-      func_ptr_si ge E id fs v ⊢ func_ptr_si ge E id gs v.
+Lemma funspec_sub_implies_func_prt_si_mono E fs gs v: funspec_sub E fs gs ->
+      func_ptr_si E fs v ⊢ func_ptr_si E gs v.
 Proof.
   intros.
   iIntros "H"; iApply funspec_sub_implies_func_prt_si_mono'.
@@ -515,6 +524,26 @@ Proof.
 intros. rewrite typesig_of_funspec_sub_si -(bi.True_intro emp) in H. by apply ouPred.pure_soundness in H.
 Qed.
 
+Lemma funspec_sub_si_ne : forall E fs1 fs2, funspec_unfold fs1 ≡ funspec_unfold fs2 ⊢ funspec_sub_si E fs1 fs2.
+Proof.
+  intros; iIntros "H".
+  rewrite funspec_equivI.
+  destruct fs1, fs2; iDestruct "H" as (??????? ([=] & [=])) "#(HP & HQ)"; subst.
+  repeat match goal with H : existT _ _ = existT _ _ |- _ => apply inj_pair2 in H end; subst; simpl.
+  iSplit; first done.
+  iIntros (x gargs).
+  rewrite !discrete_fun_equivI.
+  iSpecialize ("HP" $! x); iSpecialize ("HQ" $! x).
+  rewrite !discrete_fun_equivI.
+  iSpecialize ("HP" $! gargs).
+  iNext.
+  iRewrite -"HP"; iIntros "!> (% & H) !>".
+  iExists x, emp; iFrame.
+  iSplit; first done.
+  iIntros (rho) "!> (_ & _ & H)".
+  iSpecialize ("HQ" $! rho); iRewrite -"HQ"; done.
+Qed.
+
 Definition closed_wrt_vars {B} (S: ident -> Prop) (F: environ -> B) : Prop :=
   forall rho te',
      (forall i, S i \/ Map.get (te_of rho) i = Map.get te' i) ->
@@ -538,17 +567,17 @@ Definition typed_false (t: type)(v: val) : Prop := strict_bool_val v t = Some fa
 Definition subst {A} (x: ident) (v: environ -> val) (P: environ -> A) : environ -> A :=
    fun s => P (env_set s x (v s)).
 
-Lemma func_ptr_isptr: forall ge E id spec f, func_ptr ge E id spec f ⊢ ⌜val_lemmas.isptr f⌝.
+Lemma func_ptr_isptr: forall E spec f, func_ptr E spec f ⊢ ⌜val_lemmas.isptr f⌝.
 Proof.
   intros.
   unfold func_ptr.
-  destruct spec. by iIntros "H"; iDestruct "H" as (b (_ & ->)) "_".
+  destruct spec. by iIntros "H"; iDestruct "H" as (b ->) "_".
 Qed.
-Lemma func_ptr_si_isptr: forall ge E id spec f, func_ptr_si ge E id spec f ⊢ ⌜val_lemmas.isptr f⌝.
+Lemma func_ptr_si_isptr: forall E spec f, func_ptr_si E spec f ⊢ ⌜val_lemmas.isptr f⌝.
 Proof.
   intros.
   unfold func_ptr_si.
-  destruct spec. by iIntros "H"; iDestruct "H" as (b (_ & ->)) "_".
+  destruct spec. by iIntros "H"; iDestruct "H" as (b ->) "_".
 Qed.
 
 Lemma subst_extens:
@@ -560,10 +589,11 @@ Qed.
 
 Definition funspecs_assert (FunSpecs: Maps.PTree.t funspec): assert :=
  assert_of (fun rho =>
-   □ ((∀ id: ident, ∀ fs:funspec,  ⌜FunSpecs!!id = Some fs⌝ →
-            ∃ b:block,⌜Map.get (ge_of rho) id = Some b⌝ ∧ func_at fs (b,0)) ∧
-      (∀ b, ⌜∃ id, Map.get (ge_of rho) id = Some b ∧ FunSpecs!!id = None⌝ →
-            mapsto_no (b, 0) Share.bot))).
+   (□ (∀ id: ident, ∀ fs:funspec,  ⌜FunSpecs!!id = Some fs⌝ →
+            ∃ b:block,⌜Map.get (ge_of rho) id = Some b⌝ ∧ func_at fs (b,0)) ∗
+   (∀ b fsig cc, sigcc_at fsig cc (b, 0) -∗
+           ⌜∃ id, Map.get (ge_of rho) id = Some b ∧ ∃ fs, FunSpecs!!id = Some fs⌝))).
+(* We can substantiate this using the authoritative funspecs. *)
 
 Definition globals_only (rho: environ) : environ := (mkEnviron (ge_of rho) (Map.empty _) (Map.empty _)).
 
@@ -601,10 +631,9 @@ assert (forall FS FS' rho,
              (forall id, FS !! id = FS' !! id) ->
              funspecs_assert FS rho ⊢ funspecs_assert FS' rho).
 { intros. rewrite /funspecs_assert.
-  iIntros "#(H1 & H2) !>"; iSplit.
-  - iIntros (??); rewrite -H //.
-  - iIntros (? (? & ? & HF)); rewrite -H in HF.
-    iApply "H2"; eauto. }
+  iIntros "(#H1 & H2)"; iSplitL "".
+  - iIntros "!>" (??); rewrite -H //.
+  - setoid_rewrite <- H; done. }
 split=> rho; iSplit; iApply H; auto.
 Qed.
 
@@ -617,16 +646,18 @@ Definition callingconvention_of_funspec (phi:funspec):calling_convention :=
     mk_funspec sig cc _ _ _ => cc
   end.
 
+Notation mk_funspec' := (@mk_funspec (fun A => A -d> argsassert) (fun A => A -d> assert)).
+
 (************** INTERSECTION OF funspecs -- case ND  ************************)
 
 (* --------------------------------- Binary case: 2 specs only ----------  *)
 (*Called ndfs_merge  in hmacdrbg_spec_hmacdrbg.v*)
 
-Definition funspec_intersection_ND fA cA A PA QA FSA (HFSA: FSA = @mk_funspec Σ fA cA A PA QA)
-                    fB cB B PB QB FSB (HFSB: FSB = @mk_funspec Σ fB cB B PB QB): option funspec.
+Definition funspec_intersection_ND fA cA A PA QA (FSA: funspec) (HFSA: FSA = mk_funspec fA cA A PA QA)
+                    fB cB B PB QB (FSB: funspec) (HFSB: FSB = mk_funspec fB cB B PB QB): option funspec.
 destruct (eq_dec fA fB); subst.
 + destruct (eq_dec cA cB); subst.
-  - apply Some. eapply (mk_funspec fB cB (A+B)%type
+  - apply Some. eapply (mk_funspec' fB cB (A+B)%type
         (fun x => match x with inl a => PA a | inr b => PB b end)
         (fun x => match x with inl a => QA a | inr b => QB b end)).
   - apply None.
@@ -677,7 +708,7 @@ Defined.
 
 (*The two rules S-inter1 and S-inter2 from page 206 of TAPL*)
 Lemma funspec_Sigma_ND_sub E fsig cc I A Pre Post i:
-  funspec_sub E (funspec_Sigma_ND fsig cc I A Pre Post) (mk_funspec fsig cc (A i) (Pre i) (Post i)).
+  funspec_sub E (funspec_Sigma_ND fsig cc I A Pre Post) (mk_funspec' fsig cc (A i) (Pre i) (Post i)).
 Proof.
   unfold funspec_Sigma_ND. split. split; trivial. intros; simpl in *.
   iIntros "[% ?] !>".
@@ -774,7 +805,7 @@ Qed.*)
 Definition binary_intersection (phi psi: funspec) : option funspec :=
   match phi, psi with
   | mk_funspec f c A1 P1 Q1, mk_funspec f2 c2 A2 P2 Q2 =>
-    if eq_dec f f2 then if eq_dec c c2 then Some (mk_funspec f c (A1 + A2) (binarySUMArgs P1 P2) (binarySUM Q1 Q2))
+    if eq_dec f f2 then if eq_dec c c2 then Some (mk_funspec' f c (A1 + A2) (binarySUMArgs P1 P2) (binarySUM Q1 Q2))
     else None else None end.
 
 Lemma callconv_of_binary_intersection {phi1 phi2 phi} (BI: binary_intersection phi1 phi2 = Some phi):
@@ -867,7 +898,7 @@ Qed.
 
 (****A variant that is a bit more computational - maybe should replace the original definition above?*)
 Program Definition binary_intersection' {f c A1 P1 Q1 A2 P2 Q2} phi psi
-  (Hphi: phi = mk_funspec f c A1 P1 Q1) (Hpsi: psi = mk_funspec f c A2 P2 Q2): funspec :=
+  (Hphi: phi = mk_funspec' f c A1 P1 Q1) (Hpsi: psi = mk_funspec' f c A2 P2 Q2): funspec :=
   mk_funspec f c _ (@binarySUMArgs A1 A2 P1 P2) (binarySUM Q1 Q2).
 
 Lemma binary_intersection'_sound {f c A1 P1 Q1 A2 P2 Q2} phi psi
@@ -968,7 +999,7 @@ Definition general_intersection {I sig cc} (phi: I -> funspec)
            (Hsig: forall i, typesig_of_funspec (phi i) = sig)
            (Hcc: forall i, callingconvention_of_funspec (phi i) = cc): funspec.
 Proof.
-  apply (mk_funspec sig cc
+  apply (mk_funspec' sig cc
                     {i : I & WithType_of_funspec (phi i)}
                     (iPre phi) (iPost phi)).
 Defined.
@@ -1078,8 +1109,8 @@ Proof.
   rewrite -(bi.True_intro emp) bi.and_elim_l in H. apply ouPred.pure_soundness in H as [??]; done.
 Qed.
 
-Lemma later_func_ptr_si ge E id phi psi (H: True ⊢ funspec_sub_si E phi psi) v:
-      ▷ (func_ptr_si ge E id phi v) ⊢ ▷ (func_ptr_si ge E id psi v).
+Lemma later_func_ptr_si E phi psi (H: True ⊢ funspec_sub_si E phi psi) v:
+      ▷ (func_ptr_si E phi v) ⊢ ▷ (func_ptr_si E psi v).
 Proof.
   iIntros "H !>".
   iApply func_ptr_si_mono.
@@ -1087,8 +1118,8 @@ Proof.
   by iApply H.
 Qed.
 
-Lemma later_func_ptr_si' ge E id phi psi v:
-      ▷ (funspec_sub_si E phi psi ∧ func_ptr_si ge E id phi v) ⊢ ▷ (func_ptr_si ge E id psi v).
+Lemma later_func_ptr_si' E phi psi v:
+      ▷ (funspec_sub_si E phi psi ∧ func_ptr_si E phi v) ⊢ ▷ (func_ptr_si E psi v).
 Proof.
   iIntros "H !>".
   by iApply func_ptr_si_mono.

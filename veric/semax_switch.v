@@ -37,7 +37,7 @@ assert (isSome (modifiedvars' (seq_of_labeled_statement sl) s !! i)). {
   unfold select_switch in *.
   destruct (select_switch_case n sl) eqn:?.
  *
-  revert l Heqo s H0; induction sl ;intros. inv Heqo.
+  revert l Heqo s H0; induction sl; intros. inv Heqo.
   simpl. simpl in Heqo. destruct o. destruct (zeq z n).
   inv Heqo; subst. simpl in H0. auto.
   specialize (IHsl _ Heqo _ H0).
@@ -97,7 +97,7 @@ Proof.
   iSpecialize ("H" $! ek' vl' tx vx).
   rewrite !proj_frame.
   monPred.unseal; iIntros "(? & (? & P) & ?)".
-  destruct R, ek; subst ek' vl'; simpl proj_ret_assert; try (by iApply ("H" with "[$]")); monPred.unseal; iDestruct "P" as "(-> & ?)"; try done; by (iApply "H"; iFrame).
+  destruct R, ek; subst ek' vl'; simpl proj_ret_assert; last (by iApply "H"; iFrame); monPred.unseal; iDestruct "P" as "(-> & ?)"; try done; try by (iApply "H"; iFrame).
 Qed.
 
 Context {CS : compspecs}.
@@ -151,7 +151,7 @@ Proof.
   iIntros (?????) "#Prog_OK".
   iIntros (???) "(%Hclosed & #rguard)".
   iIntros (??) "!>".
-  monPred.unseal; iIntros "((% & %) & (F & Q) & #?)".
+  monPred.unseal; iIntros "((% & %) & (F & Q) & ?)".
   set (rho := construct_rho _ _ _).
   assert (typecheck_environ Delta rho) by (eapply typecheck_environ_sub; done).
   iAssert ⌜tc_val (typeof a) (eval_expr(CS := CS) a rho)⌝ as %?.

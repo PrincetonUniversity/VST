@@ -67,7 +67,7 @@ Proof.
   iApply jsafe_step.
   iIntros (m) "[Hm ?]".
   monPred.unseal.
-  iDestruct "H" as "(%TC & (F & P) & #fun)".
+  iDestruct "H" as "(%TC & (F & P) & fun)".
   unfold expr_true, expr_false, Cnot, lift1 in *.
   set (rho := construct_rho _ _ _) in *.
   assert (typecheck_environ Delta rho) as TYCON_ENV
@@ -75,11 +75,11 @@ Proof.
   rewrite (add_and (▷ _) (▷ _)); last by iIntros "[H _]"; iApply (typecheck_expr_sound with "H").
   iDestruct "P" as "[P >%HTCb]".
   assert (cenv_sub (@cenv_cs CS) psi) by (eapply cenv_sub_trans; destruct HGG; auto).
-  iCombine "Hm P" as "H"; rewrite (add_and (_ ∗ _) (▷_)); last by iIntros "H"; iNext; iDestruct "H" as "(Hm & H & _)"; iApply (eval_expr_relate(CS := CS) with "[$Hm $H]").
+  iCombine "Hm P" as "H"; rewrite (add_and (mem_auth m ∗ _) (▷_)); last by iIntros "H"; iNext; iDestruct "H" as "(Hm & H & _)"; iApply (eval_expr_relate(CS := CS) with "[$Hm $H]").
   iDestruct "H" as "(H & >%Heval)".
   rewrite /tc_expr /typecheck_expr /= denote_tc_assert_andp; fold (typecheck_expr(CS := CS)).
   rewrite -assoc (bi.and_elim_r (denote_tc_assert _ _)).
-  rewrite (add_and (_ ∗ _) (▷_)); last by iIntros "H"; iNext; iDestruct "H" as "(Hm & H & _)"; iApply (eval_expr_relate(CS := CS) with "[$Hm $H]").
+  rewrite (add_and (mem_auth m ∗ _) (▷_)); last by iIntros "H"; iNext; iDestruct "H" as "(Hm & H & _)"; iApply (eval_expr_relate(CS := CS) with "[$Hm $H]").
   iDestruct "H" as "(H & >%Hb)".
   inv Heval.
   eapply eval_expr_fun in Hb; last done; subst.
@@ -88,8 +88,8 @@ Proof.
   iDestruct "H" as "(Hm & >%TC2 & P)"; simpl in HTCb.
   unfold liftx, lift, eval_unop in HTCb; simpl in HTCb.
   destruct (bool_val (typeof b) (eval_expr b rho)) as [b'|] eqn: Hb; [|contradiction].
-  iAssert (▷assert_safe Espec psi E f vx tx (Cont (Kseq (if b' then c else d) k)) rho) with "[F P]" as "Hsafe".
-  { iNext; destruct b'; [iApply "H0" | iApply "H1"]; (iSplit; first done); iFrame; iFrame "fun"; iPureIntro; split; auto;
+  iAssert (▷assert_safe Espec psi E f vx tx (Cont (Kseq (if b' then c else d) k)) rho) with "[F P fun]" as "Hsafe".
+  { iNext; destruct b'; [iApply "H0" | iApply "H1"]; (iSplit; first done); iFrame; iPureIntro; split; auto; split; auto;
       apply bool_val_strict; auto. }
   simpl in *; unfold Cop.sem_notbool in *.
   destruct (Cop.bool_val _ _ _) eqn: Hbool_val; inv H9.

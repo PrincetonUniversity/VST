@@ -30,11 +30,6 @@ Section mpred.
 
 Context `{!heapGS Σ}.
 
-Lemma funspec_eq {sig cc A P Q P' Q'}:
-      P = P' -> Q=Q' ->
-      @mk_funspec Σ sig cc A P Q = mk_funspec sig cc A P' Q'.
-Proof. intros -> ->; done. Qed.
-
 Fixpoint match_globvars (gvs: list (ident * globvar type)) (V: varspecs) : bool :=
  match V with
  | nil => true
@@ -275,10 +270,10 @@ Definition main_post (prog: program) : (ident->val) -> @assert Σ :=
 
 Definition main_spec_ext' (prog: program) (ora: OK_ty)
 (post: (ident->val) -> assert): funspec :=
-mk_funspec (nil, tint) cc_default (ident->val) (main_pre prog ora) post.
+mk_funspec' (nil, tint) cc_default (ident->val) (main_pre prog ora) post.
 
 Definition main_spec_ext (prog: program) (ora: OK_ty): funspec :=
-mk_funspec (nil, tint) cc_default (ident->val) (main_pre prog ora) (main_post prog).
+mk_funspec' (nil, tint) cc_default (ident->val) (main_pre prog ora) (main_post prog).
 
 Definition is_Internal (prog : program) (f : ident) :=
 match Genv.find_symbol (Genv.globalenv prog) f with
@@ -500,7 +495,7 @@ rewrite /guard' /_guard.
 iIntros (??) "!>".
 iIntros "H"; iApply "guard".
 rewrite /bind_args; monPred.unseal.
-iDestruct "H" as "($ & ($ & (((_ & $) & $) & _)) & $)".
+iDestruct "H" as "($ & ($ & (_ & $) & $) & $)".
 * (***   Vptr b Ptrofs.zero <> v'  ********)
 iApply HG; iPureIntro.
 destruct H1 as [id' [? B]].
@@ -557,7 +552,7 @@ forall (V: varspecs) (G: funspecs) {C: compspecs} ge E fs id ef argsig retsig A 
   (⊢ semax_external Espec E ef A P Q) ->
   semax_func V G ge E fs G' ->
   semax_func V G ge E ((id, External ef argsig retsig cc)::fs)
-       ((id, mk_funspec (argsig', retsig) cc A P Q) :: G').
+       ((id, mk_funspec' (argsig', retsig) cc A P Q) :: G').
 Proof.
 intros until b.
 intros Hargsig' Hef Hni Hinline Hretty B1 B2 H [Hf' [GC Hf]].
@@ -961,10 +956,10 @@ Qed.
   really needs a genviron as parameter, not a genviron * list val*)
 Definition funspecs_gassert (FunSpecs: Maps.PTree.t funspec): argsassert :=
  argsassert_of (fun gargs => let g := fst gargs in
-   □ ((∀ id: ident, ∀ fs:funspec,  ⌜FunSpecs!!id = Some fs⌝ →
-            ∃ b:block,⌜Map.get g id = Some b⌝ ∧ func_at fs (b,0)) ∧
-      (∀ b, ⌜∃ id, Map.get g id = Some b ∧ FunSpecs!!id = None⌝ →
-            mapsto_no (b, 0) Share.bot))).
+   □ (∀ id: ident, ∀ fs:funspec,  ⌜FunSpecs!!id = Some fs⌝ →
+            ∃ b:block,⌜Map.get g id = Some b⌝ ∧ func_at fs (b,0)) ∗
+     (∀ b fsig cc, sigcc_at fsig cc (b, 0) -∗
+           ⌜∃ id, Map.get g id = Some b ∧ ∃ fs, FunSpecs!!id = Some fs⌝)).
 
 (*Maybe this definition can replace Clight_seplog.funassert globally?*)
 Definition fungassert (Delta: tycontext): argsassert := funspecs_gassert (glob_specs Delta).
@@ -1005,7 +1000,7 @@ Lemma semax_prog_entry_point {CS: compspecs} V G prog b id_fun params args A
   @semax_prog CS prog z V G ->
   Genv.find_symbol (globalenv prog) id_fun = Some b ->
   find_id id_fun G =
-     Some (mk_funspec (params, retty) cc_default A P Q) ->
+     Some (mk_funspec' (params, retty) cc_default A P Q) ->
   tc_vals params args ->
   let gargs := (filter_genv (globalenv prog), args) in
   { q : CC_core |
@@ -1042,7 +1037,7 @@ split.
 intros.
 set (psi := globalenv prog) in *.
 destruct SP as [H0 [AL [_ [[H2 [GC Prog_OK]] [GV _]]]]].
-set (fspec := mk_funspec (params, retty) cc_default A P Q) in *.
+set (fspec := mk_funspec' (params, retty) cc_default A P Q) in *.
 specialize (Prog_OK (genv_genv psi)).
 spec Prog_OK. { intros; apply sub_option_refl. }
 spec Prog_OK. { intros; apply sub_option_refl. }
@@ -1093,7 +1088,7 @@ iAssert (rguard Espec psi ⊤ Delta f0 (frame_ret_assert (normal_ret_assert (may
   iFrame.
   by iApply return_stop_safe; iPureIntro. }
 iPoseProof (semax_call_aux0 _ _ _ _ _ _ _ _ P _ _ _ _ _ _ True (fun _ => emp) _ _ _ _ (Maps.PTree.empty _) (Maps.PTree.empty _) with "Prog_OK") as "Himp"; try done;
-  last (iNext; iIntros "(P & fun)"; iApply ("Himp" with "[P] fun [] rguard")); try done.
+  last (iNext; iIntros "(P & fun)"; iApply ("Himp" with "[P] [fun] [] rguard")); try done.
 * split3; first split3; simpl; auto.
   + intros ??; setoid_rewrite Maps.PTree.gempty; done.
   + intros ??; rewrite /make_venv /Map.get.
@@ -1120,8 +1115,8 @@ Lemma semax_prog_rule {CS: compspecs} :
        (Genv.find_symbol (globalenv prog) (prog_main prog) = Some b) *
        (exists m', semantics.initial_core (cl_core_sem (globalenv prog)) h
                        m q m' (Vptr b Ptrofs.zero) nil) *
-       (state_interp Mem.empty z ∗ has_ext z ⊢ |==> state_interp m z ∗ jsafeN Espec (globalenv prog) ⊤ z q ∗
-           (*no_locks ∧ □ matchfunspecs (globalenv prog) G ⊤ ∗*) funassert (nofunc_tycontext V G) (empty_environ (globalenv prog)))
+       (state_interp Mem.empty z ∗ funspec_auth ∅ ∗ has_ext z ⊢ |==> state_interp m z ∗ jsafeN Espec (globalenv prog) ⊤ z q ∧
+           (*no_locks ∧*) matchfunspecs (globalenv prog) G ∅ (*∗ funassert (nofunc_tycontext V G) (empty_environ (globalenv prog))*))
      } }%type.
 Proof.
   intros until z. intro EXIT. intros ? H1.
@@ -1172,20 +1167,18 @@ Proof.
   split; [split |]; auto.
   clear Hinit.
 
-  iIntros "((Hm & $) & Hz)".
-  iMod (initialize_mem' with "Hm") as "($ & Hm & #Hcore)".
-  rewrite initial_core_funassert //; iFrame "#".
+  iIntros "((Hm & $) & Hf & Hz)".
+  iMod (initialize_mem' with "[$Hm $Hf]") as "($ & Hm & Hcore & Hmatch)".
+  iIntros "!>"; iSplit; last done.
   destruct H4 as [post [H4 H4']].
   unfold main_spec_ext' in H4'.
   injection H4' as -> -> HP HQ.
   apply inj_pair2 in HP as ->.
   apply inj_pair2 in HQ as ->.
   iApply (Hsafe (globals_of_genv (filter_genv (globalenv prog)))).
-  iFrame "#".
-  iIntros "!> !>".
-  rewrite /main_pre.
+  iCombine "Hcore Hmatch" as "Hcore"; rewrite (initial_core_funassert _ V _ _ (Map.empty _) (Map.empty _)) //; iFrame.
+  iIntros "!>".
   iSplit; first done.
-  iFrame.
   by iApply global_initializers.
 Qed.
 
@@ -1564,8 +1557,8 @@ Lemma semax_external_binaryintersection {E ef A1 P1 Q1 A2 P2 Q2
       A P Q sig cc}
   (EXT1: ⊢ semax_external Espec E ef A1 P1 Q1)
   (EXT2: ⊢ semax_external Espec E ef A2 P2 Q2)
-  (BI: binary_intersection (mk_funspec sig cc A1 P1 Q1)
-                      (mk_funspec sig cc A2 P2 Q2) =
+  (BI: binary_intersection (mk_funspec' sig cc A1 P1 Q1)
+                      (mk_funspec' sig cc A2 P2 Q2) =
        Some (mk_funspec sig cc A P Q))
   (LENef: length (fst sig) = length (sig_args (ef_sig ef))):
   ⊢ semax_external Espec E ef A P Q.

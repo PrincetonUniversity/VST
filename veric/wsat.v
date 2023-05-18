@@ -73,6 +73,8 @@ Global Instance ownI_contractive i : Contractive (@ownI Σ _ i).
 Proof. solve_contractive. Qed.
 Global Instance ownI_persistent i P : Persistent (ownI i P).
 Proof. rewrite /ownI. apply _. Qed.
+Global Instance ownI_affine i P : Affine (ownI i P).
+Proof. rewrite /ownI. apply _. Qed.
 
 Lemma ownE_empty : ⊢ |==> ownE ∅.
 Proof.
@@ -147,7 +149,7 @@ Qed.
 
 Lemma ownI_alloc φ P :
   (∀ E : gset positive, ∃ i, i ∉ E ∧ φ i) →
-  wsat ∗ ▷ P ==∗ ∃ i, ⌜φ i⌝ ∗ wsat ∗ ownI i P.
+  wsat ∗ ▷ P ==∗ ∃ i, ⌜φ i⌝ ∧ wsat ∗ ownI i P.
 Proof.
   iIntros (Hfresh) "[Hw HP]". rewrite /wsat -!lock.
   iDestruct "Hw" as (I) "[Hw HI]".
@@ -169,7 +171,7 @@ Qed.
 
 Lemma ownI_alloc_open φ P :
   (∀ E : gset positive, ∃ i, i ∉ E ∧ φ i) →
-  wsat ==∗ ∃ i, ⌜φ i⌝ ∗ (ownE {[i]} -∗ wsat) ∗ ownI i P ∗ ownD {[i]}.
+  wsat ==∗ ∃ i, ⌜φ i⌝ ∧ (ownE {[i]} -∗ wsat) ∗ ownI i P ∗ ownD {[i]}.
 Proof.
   iIntros (Hfresh) "Hw". rewrite /wsat -!lock. iDestruct "Hw" as (I) "[Hw HI]".
   iMod (own_unit (gset_disjUR positive) disabled_name) as "HD".

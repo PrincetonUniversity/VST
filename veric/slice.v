@@ -948,7 +948,7 @@ Proof.
 Qed.*)
 
 Section heap.
-Context `{!heapGS Σ}.
+Context `{!gen_heapGS resource Σ} `{!wsatGS Σ}.
 
 Lemma share_join_op: forall (sh1 sh2 sh : share), sepalg.join sh1 sh2 sh ->
   Share sh1 ⋅ Share sh2 = Share sh.
@@ -1144,7 +1144,8 @@ Proof.
   intros.
   rewrite /LKspec -big_sepL_sep.
   apply big_sepL_proper; intros.
-  by apply mapsto_share_join.
+  rewrite assoc -(bi.sep_assoc (_ ↦{_} _)) (bi.sep_comm (inv _ _)) assoc mapsto_share_join //.
+  rewrite -assoc -bi.persistent_sep_dup //.
 Qed.
 
 End heap.

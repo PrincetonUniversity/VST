@@ -187,20 +187,20 @@ Definition inflate_loc loc :=
 Lemma readable_Ews : readable_share Ews.
 Proof. auto. Qed.
 
-Definition res_of_loc (loc : address) : csumR (sharedR (leibnizO (@resource' Σ))) (agreeR (leibnizO (@resource' Σ))) :=
+Definition res_of_loc (loc : address) : csumR (sharedR (leibnizO resource)) (agreeR (leibnizO resource)) :=
   match access_at m loc Cur with
-  | Some Freeable => Cinl (shared.YES(V := leibnizO resource') (DfracOwn (Share Tsh)) readable_Tsh (to_agree (VAL (contents_at m loc))))
-  | Some Writable => Cinl (shared.YES(V := leibnizO resource') (DfracOwn (Share Ews)) readable_Ews (to_agree (VAL (contents_at m loc))))
-  | Some Readable => Cinl (shared.YES(V := leibnizO resource') (DfracOwn (Share Ers)) readable_Ers (to_agree (VAL (contents_at m loc))))
+  | Some Freeable => Cinl (shared.YES(V := leibnizO resource) (DfracOwn (Share Tsh)) readable_Tsh (to_agree (VAL (contents_at m loc))))
+  | Some Writable => Cinl (shared.YES(V := leibnizO resource) (DfracOwn (Share Ews)) readable_Ews (to_agree (VAL (contents_at m loc))))
+  | Some Readable => Cinl (shared.YES(V := leibnizO resource) (DfracOwn (Share Ers)) readable_Ers (to_agree (VAL (contents_at m loc))))
   | Some Nonempty => match funspec_of_loc loc with
-                     | Some (mk_funspec sig cc A P Q) => Cinr (to_agree (FUN sig cc A P Q))
+                     | Some _ => Cinr (to_agree FUN)
                      | _ => Cinl (shared.NO (Share Share.bot) bot_unreadable)
                      end
   | _ => Cinl (shared.NO (Share Share.bot) bot_unreadable)
   end.
 
 (* Put an extra NO Share.bot on the end to avoid problems with size-0 gvars. *)
-Definition rmap_of_mem : gmapR address (csumR (sharedR (leibnizO (@resource' Σ))) (agreeR (leibnizO (@resource' Σ)))) :=
+Definition rmap_of_mem : gmapR address (csumR (sharedR (leibnizO resource)) (agreeR (leibnizO resource))) :=
   [^op list] n ∈ seq 1 (Pos.to_nat (Mem.nextblock m) - 1),
   let b := Pos.of_nat n in let '(lo, z) := block_bounds b in
   [^op list] o ∈ seq 0 (z + 1), let loc := (b, lo + Z.of_nat o)%Z in {[loc := res_of_loc loc]}.
@@ -222,21 +222,6 @@ Proof.
 Search emp.
 Abort.
 *)
-
-(*Definition initial_core : mpred :=
-  [∗ list] '(id, f) ∈ G, match Genv.find_symbol ge id with Some b => func_at f (b, 0) | None => emp end.
-
-Global Instance initial_core_persistent : Persistent initial_core.
-Proof.
-  apply big_sepL_persistent; intros ? (?, ?).
-  destruct (Genv.find_symbol _ _); apply _.
-Qed.
-
-Global Instance initial_core_affine : Affine initial_core.
-Proof.
-  apply big_sepL_affine; intros ? (?, ?).
-  destruct (Genv.find_symbol _ _); apply _.
-Qed.*)
 
 Definition initial_core : mpred :=
   [∗ list] n ∈ seq 1 (Pos.to_nat (Mem.nextblock m) - 1),
@@ -921,7 +906,7 @@ Lemma lookup_of_loc : forall m {F} ge G b lo z loc,
   if adr_range_dec (b, lo) z loc then Some (res_of_loc m ge G loc) else None)%stdpp.
 Proof.
   intros.
-  evar (f : nat -> (csumR (sharedR (leibnizO (@resource' Σ))) (agreeR (leibnizO (@resource' Σ))))).
+  evar (f : nat -> (csumR (sharedR (leibnizO resource)) (agreeR (leibnizO resource)))).
   etrans; [|etrans; [apply (lookup_singleton_list (seq 0 z) f (b, lo) loc)|]].
   2: { rewrite seq_length; if_tac; last done.
        destruct loc, H; subst; simpl.
@@ -980,7 +965,7 @@ Proof.
   apply Lsh_bot_neq.
 Qed.
 
-Lemma rmap_of_loc_coherent : forall m F (ge : Genv.t (fundef F) type) G loc, coherent_loc m loc (resR_to_resource (leibnizO (@resource' Σ)) (Some (res_of_loc m ge G loc))).
+Lemma rmap_of_loc_coherent : forall m F (ge : Genv.t (fundef F) type) G loc, coherent_loc m loc (resR_to_resource (leibnizO resource) (Some (res_of_loc m ge G loc))).
 Proof.
   intros; rewrite /res_of_loc.
   destruct (access_at m loc Cur) eqn: Hloc; last apply coherent_bot.
@@ -1115,16 +1100,65 @@ Proof.
   inv Heq1; inv Heq2; done.
 Qed.
 
-Lemma rmap_inflate_equiv : forall m block_bounds {F} (ge : Genv.t (fundef F) type) G,
-  ([∗ map] l ↦ x ∈ rmap_of_mem m block_bounds ge G, match x with
+Definition init_funspecs {F} (m : mem) (ge : Genv.t (fundef F) type) (G : funspecs) : gmap address (@funspecO' Σ) :=
+  foldl (fun fs b => match funspec_of_loc ge G (Pos.of_nat b, 0) with
+    Some f => <[(Pos.of_nat b, 0) := funspec_unfold f]>fs | None => fs end) ∅ (seq 1 (Pos.to_nat (nextblock m) - 1)).
+
+Lemma init_funspecs_lookup : forall {F} (m : mem) (ge : Genv.t (fundef F) type) (G : funspecs) l,
+  init_funspecs m ge G !! l = if Pos.ltb l.1 (nextblock m) then match funspec_of_loc ge G l with
+    Some f => Some (funspec_unfold f) | None => None end else None.
+Proof.
+  rewrite /init_funspecs; intros.
+  replace (nextblock m) with (Pos.of_nat (Pos.to_nat (nextblock m) - 1 + 1)) at 2 by lia.
+  induction (Pos.to_nat (nextblock m) - 1)%nat.
+  { simpl.
+    destruct (Pos.ltb_spec0 l.1 (Pos.of_nat 1)); first lia; done. }
+  rewrite seq_S foldl_snoc.
+  destruct (funspec_of_loc ge G (Pos.of_nat (1 + n), 0)) eqn: Hfun.
+  - destruct (eq_dec l (Pos.of_nat (1 + n), 0)).
+    + subst; rewrite lookup_insert /=.
+      destruct (Pos.ltb_spec0 (Pos.of_nat (S n)) (Pos.of_nat (S (n + 1)))); last lia.
+      rewrite Hfun //.
+    + rewrite lookup_insert_ne // IHn.
+      destruct (Pos.ltb_spec0 l.1 (Pos.of_nat (n + 1))), (Pos.ltb_spec0 l.1 (Pos.of_nat (S n + 1))); try done; try lia.
+      unfold funspec_of_loc.
+      if_tac; last done.
+      destruct l; simpl in *; contradiction n0; f_equal; lia.
+  - rewrite IHn.
+    destruct (Pos.ltb_spec0 l.1 (Pos.of_nat (n + 1))), (Pos.ltb_spec0 l.1 (Pos.of_nat (S n + 1))); try done; try lia.
+    unfold funspec_of_loc in *.
+    if_tac; last done.
+    assert (l = (Pos.of_nat (1 + n), 0)) as ->; last by rewrite Hfun.
+    destruct l; simpl in *; f_equal; lia.
+Qed.
+
+Lemma init_funspecs_over : forall {F} (ge : Genv.t (fundef F) type) G n n' o, (n < n')%nat -> (foldl (fun fs b => match funspec_of_loc ge G (Pos.of_nat b, 0) with
+    Some f => <[(Pos.of_nat b, 0) := funspec_unfold f]>fs | None => fs end) ∅ (seq 1 n) : gmap address (@funspecO' Σ)) !! (Pos.of_nat n', o) = None.
+Proof.
+  induction n.
+  { simpl; intros; apply lookup_empty. }
+  rewrite seq_S foldl_snoc.
+  intros; destruct (funspec_of_loc _ _ _).
+  - rewrite lookup_insert_ne; first apply IHn; last intros [=]; lia.
+  - apply IHn; lia.
+Qed.
+
+Lemma rmap_inflate_equiv : forall m block_bounds {F} (ge : Genv.t (fundef F) type) G
+  (Hfun_bounds : forall b f, funspec_of_loc ge G (b, 0) = Some f -> block_bounds b = (0, 0%nat))
+  (Hm : forall b, (b < nextblock m)%positive ->
+        match funspec_of_loc ge G (b, 0) with
+        | Some _ => access_at m (b, 0) Cur = Some Nonempty
+        | None => True
+        end),
+  funspec_auth ∅ ∗ ([∗ map] l ↦ x ∈ rmap_of_mem m block_bounds ge G, match x with
                      | Cinl (shared.YES dq _ v) => l ↦{dq} (proj1_sig (elem_of_agree v))
                      | Cinl (shared.NO (Share sh) _) => mapsto_no l sh
                      | Cinr v => l ↦p (proj1_sig (elem_of_agree v))
                      | _ => False
-                     end) ⊣⊢ inflate_initial_mem m block_bounds ge G.
+                     end) ⊢ |==> funspec_auth (init_funspecs m ge G) ∗ inflate_initial_mem m block_bounds ge G.
 Proof.
   intros.
-  assert (∀ (l : address) (y1 y2 : csumR (sharedR (leibnizO resource')) (agreeR (leibnizO resource'))), (✓ y1)%stdpp → (y1 ≡ y2)%stdpp →
+  assert (∀ (l : address) (y1 y2 : csumR (sharedR (leibnizO resource)) (agreeR (leibnizO resource))), (✓ y1)%stdpp → (y1 ≡ y2)%stdpp →
     match y1 with
     | Cinl (shared.YES dq _ v) => l ↦{dq} (proj1_sig (elem_of_agree v))
     | Cinl (shared.NO (Share sh) _) => mapsto_no l sh
@@ -1137,25 +1171,42 @@ Proof.
   { intros ??? Hv Heq.
     inv Heq; first (destruct a, a'; inv H); try done; first destruct Hv;
       match goal with H : (_ ≡ _)%stdpp |- _ => apply (elem_of_agree_ne O) in H as ->%leibniz_equiv; done end. }
-  rewrite /rmap_of_mem /inflate_initial_mem big_opM_opL' //.
-  apply big_sepL_proper; intros ?? [-> ?]%lookup_seq.
+  rewrite /rmap_of_mem /init_funspecs /inflate_initial_mem big_opM_opL' //.
+  assert (Pos.to_nat (nextblock m) - 1 < Pos.to_nat (nextblock m))%nat as Hlt by lia.
+  induction (Pos.to_nat (nextblock m) - 1)%nat.
+  { by iIntros. }
+  rewrite seq_S /= !big_sepL_app foldl_snoc assoc IHn /=.
+  iIntros "(>(Hf & $) & Hm & _)".
   destruct (block_bounds _) eqn: Hbounds.
   rewrite big_opM_opL' //.
-  apply big_sepL_proper; intros ?? [-> ?]%lookup_seq.
-  rewrite big_opM_singleton.
-  rewrite /res_of_loc /inflate_loc.
-  destruct (access_at _ _ _) eqn: Haccess; last done.
-  destruct p; try done; try destruct (funspec_of_loc _ _ _) as [[]|]; try done; rewrite ?elem_of_to_agree //.
+  destruct (funspec_of_loc ge G (Pos.of_nat (S n), 0)) eqn: Hfun.
+  * iMod (own_update with "Hf") as "($ & Hf)".
+    { apply (gmap_view.gmap_view_alloc _ (Pos.of_nat (S n), 0) dfrac.DfracDiscarded); last done.
+      apply init_funspecs_over; auto. }
+    erewrite Hfun_bounds in Hbounds by done; inv Hbounds; simpl.
+    rewrite !big_sepM_singleton /res_of_loc /inflate_loc.
+    specialize (Hm (Pos.of_nat (S n)) ltac:(lia)); rewrite Hfun in Hm; rewrite Hm Hfun /func_at elem_of_to_agree.
+    iDestruct "Hm" as "($ & _)"; iFrame; done.
+  * iFrame.
+    assert (forall z, funspec_of_loc ge G (Pos.of_nat (S n), z) = None) as Hfun'.
+    { intros; unfold funspec_of_loc in *.
+      simpl; if_tac; done. }
+    rewrite bi.sep_emp -big_sepL_bupd; iApply (big_sepL_mono with "Hm"); intros ?? [-> ?]%lookup_seq.
+    rewrite big_opM_singleton.
+    rewrite /res_of_loc /inflate_loc.
+    destruct (access_at _ _ _) eqn: Haccess; last apply bupd_intro.
+    destruct p; try apply bupd_intro; rewrite ?Hfun' ?elem_of_to_agree; apply bupd_intro.
   * apply NoDup_seq.
   * intros; intros i.
     rewrite /option_relation.
-    destruct (eq_dec i (Pos.of_nat (1 + k), (z + a1)%Z)); last by rewrite lookup_singleton_ne //; destruct (_ !! _).
-    destruct (eq_dec i (Pos.of_nat (1 + k), (z + a2)%Z)); last by rewrite (lookup_singleton_ne (_, (_ + a2)%Z)) //; destruct (_ !! _).
+    destruct (eq_dec i (Pos.of_nat (S n), (z + a1)%Z)); last by rewrite lookup_singleton_ne //; destruct (_ !! _).
+    destruct (eq_dec i (Pos.of_nat (S n), (z + a2)%Z)); last by rewrite (lookup_singleton_ne (_, (_ + a2)%Z)) //; destruct (_ !! _).
     subst; inv e0; lia.
   * intros i.
     rewrite lookup_of_loc.
     if_tac; try done.
     apply rmap_of_loc_valid.
+  * lia.
   * apply NoDup_seq.
   * intros _ _ ?? Ha1%elem_of_seq Ha2%elem_of_seq ?.
     destruct (block_bounds _), (block_bounds _).
@@ -1252,24 +1303,31 @@ Proof.
   destruct (block_bounds _); inv Hlookup; done.
 Qed.
 
-Lemma initialize_mem : forall m block_bounds {F} (ge : Genv.t (fundef F) type) G,
-  mem_auth Mem.empty ⊢ |==> mem_auth m ∗ inflate_initial_mem m block_bounds ge G.
+Lemma initialize_mem : forall m block_bounds {F} (ge : Genv.t (fundef F) type) G
+  (Hfun_bounds : forall b f, funspec_of_loc ge G (b, 0) = Some f -> block_bounds b = (0, 0%nat))
+  (Hm : forall b, (b < nextblock m)%positive ->
+        match funspec_of_loc ge G (b, 0) with
+        | Some _ => access_at m (b, 0) Cur = Some Nonempty
+        | None => True
+        end),
+  mem_auth Mem.empty ∗ funspec_auth ∅ ⊢ |==> mem_auth m ∗ funspec_auth (init_funspecs m ge G) ∗ inflate_initial_mem m block_bounds ge G.
 Proof.
   intros.
   pose proof (rmap_of_mem_valid m block_bounds ge G).
-  rewrite -rmap_inflate_equiv.
-  apply gen_heap_set; try done.
+  rewrite /mem_auth gen_heap_set //.
+  iIntros "(>(Hm & Hr) & Hf)".
+  iCombine "Hf Hr" as "Hr"; iMod (rmap_inflate_equiv with "Hr") as "$"; try done.
   - apply rmap_of_mem_nextblock.
   - intros; by apply rmap_of_mem_coherent.
 Qed.
 
 End mpred.
 
-Require Import VST.veric.wsat.
+(*Require Import VST.veric.wsat.
 
 (* This is provable, but we probably don't want to use it: we should set up the proof infrastructure
    (heapGS, etc.) first, and then allocate the initial memory in a later step. *)
-Lemma alloc_initial_mem `{!wsatGpreS Σ} `{!gen_heapGpreS (@resource' Σ) Σ} m block_bounds {F} (ge : Genv.t (fundef F) type) G :
+Lemma alloc_initial_mem `{!wsatGpreS Σ} `{!gen_heapGpreS resource Σ} `{!inG Σ (gmapR address (agreeR (@funspecO' Σ)))} m block_bounds {F} (ge : Genv.t (fundef F) type) G :
   ⊢ |==> ∃ _ : heapGS Σ, wsat ∗ ownE ⊤ ∗ mem_auth m ∗ inflate_initial_mem m block_bounds ge G ∗
  ghost_map.ghost_map_auth(H0 := gen_heapGpreS_meta) (gen_meta_name _) 1 ∅.
 Proof.
@@ -1279,6 +1337,7 @@ Proof.
   iMod (gen_heap_init_names m (rmap_of_mem m block_bounds ge G)) as (??) "(Hm & H & ?)".
   { apply rmap_of_mem_nextblock. }
   { intros; by apply rmap_of_mem_coherent. }
-  iExists (HeapGS _ _); iFrame.
+  iMod (own_alloc ∅) as (γ) "?".
+  iExists (HeapGS _ _ _ _ γ); iFrame.
   rewrite /mem_auth /= -rmap_inflate_equiv //.
-Qed.
+Qed.*)

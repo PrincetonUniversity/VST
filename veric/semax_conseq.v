@@ -91,9 +91,11 @@ Lemma assert_safe_fupd':
 Proof.
   intros.
   iSplit.
-  * iIntros "H (% & P & #?)".
+  * iIntros "H (% & P & ?)".
     iApply assert_safe_fupd; iMod "P"; iApply "H"; auto.
+    by iFrame.
   * iIntros "H (% & P & ?)"; iApply "H"; auto.
+    by iFrame.
 Qed.
 
 Lemma _guard_fupd':
@@ -152,9 +154,10 @@ Lemma assert_safe_fupd:
 Proof.
   intros.
   iSplit.
-  * iIntros "H (% & P & #?)".
+  * iIntros "H (% & P & ?)".
     rewrite (assert_safe_fupd' _ _ _ _ (F ∗ P)); last done.
-    iApply "H"; iFrame "#"; iFrame "%".
+    iApply "H"; iFrame "%"; iFrame.
+    rewrite -bi.sep_True_2.
     monPred.unseal; by iDestruct "P" as "($ & >$)".
   * iIntros "H (% & P & ?)"; iApply "H"; iFrame.
     iFrame "%"; monPred.unseal; by iDestruct "P" as "($ & $)".
@@ -233,9 +236,9 @@ Proof.
   unfold _guard.
   do 7 f_equiv.
   iSplit.
-  * monPred.unseal; rewrite monPred_at_affinely.
-    iIntros "(($ & $) & f)"; iSplit; last done.
-    by iIntros "!>"; iApply funassert_allp_fun_id_sub.
+  * rewrite {1}funassert_allp_fun_id_sub //.
+    monPred.unseal; rewrite monPred_at_affinely.
+    iIntros "(($ & $) & ($ & $))".
   * monPred.unseal.
     iIntros "(($ & _ & $) & $)".
 Qed.
@@ -273,7 +276,8 @@ Proof.
   do 6 f_equiv.
   iSplit.
   * monPred.unseal; iIntros "(%Henv & ($ & $) & $)"; iPureIntro.
-    split3; auto; eapply typecheck_environ_sub; eauto.
+    split3; last done; auto; split; auto.
+    eapply typecheck_environ_sub; eauto.
     destruct Henv as [? _]; auto.
   * monPred.unseal; iIntros "($ & ($ & [_ $]) & $)".
 Qed.

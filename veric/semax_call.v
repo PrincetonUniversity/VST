@@ -25,6 +25,8 @@ Import LiftNotation.
 Lemma TTL3 l: typelist_of_type_list (Clight_core.typelist2list l) = l.
 Proof. induction l; simpl; trivial. f_equal; trivial . Qed.
 
+Notation mk_funspec' := (@mk_funspec (fun A => A -d> argsassert) (fun A => A -d> assert)).
+
 Section mpred.
 
 Context `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs}.
@@ -512,10 +514,9 @@ Proof.
              ge_of rho = ge_of rho' ->
              funassert Delta rho ⊢ funassert Delta' rho') as H; last by intros; iSplit; iApply H.
   intros ???? H; simpl; intros ->.
-  iIntros "#(? & H2) !>"; iSplit.
-  - iIntros (??); rewrite -H //.
-  - iIntros (? (? & ? & HF)); rewrite -H in HF.
-    iApply "H2"; eauto.
+  iIntros "(#? & H2)"; iSplit.
+  - iIntros "!>" (??); rewrite -H //.
+  - setoid_rewrite <- H; done.
 Qed.
 
 Definition thisvar (ret: option ident) (i : ident) : Prop :=
@@ -608,7 +609,7 @@ iRight; iRight; iExists _, _, _; iSplit.
 { iPureIntro; simpl.
   rewrite Hinline //. }
 rewrite Eef TTL3; iFrame "pre".
-iDestruct "rguard" as "#rguard"; iDestruct "fun" as "#fun".
+iDestruct "rguard" as "#rguard".
 iNext.
 iIntros (?? [??]) "?".
 iMod ("post" with "[$]") as (?) "(? & Q & F0 & F)".
@@ -656,7 +657,7 @@ assert (tx' = set_opttemp ret (force_val ret0) tx) as Htx'.
   destruct t0; try contradiction. spec TC5; auto. inv TC5. }
 iSpecialize ("rguard" with "[-]").
 { rewrite proj_frame /=; monPred.unseal; iFrame.
-  iSplit; [|iSplitR ""].
+  iSplit; [|iSplitR "fun"].
   * iPureIntro; subst rho rho' tx'.
     destruct ret; last done; destruct ret0; last done.
     rewrite /construct_rho -map_ptree_rel.
@@ -881,7 +882,7 @@ Proof.
   iIntros (ek vl te ve) "!>".
   rewrite !proj_frame.
   monPred.unseal.
-  iIntros "(% & ((F0 & F) & stack & Q) & #fun)".
+  iIntros "(% & ((F0 & F) & stack & Q) & fun)".
   iApply (guard_fallthrough_return with "[-Q] Q").
   iIntros "Q".
   set (rho' := construct_rho _ _ _).
@@ -921,7 +922,7 @@ Proof.
         destruct vl; simpl; last by rewrite TCvl.
         iDestruct "Q" as (TCv) "Q".
         destruct (fn_return f); first contradiction; iExists _; iFrame; apply tc_val_tc_val' in TCv; iPureIntro; done. }
-    iSpecialize ("rguard" $! EK_normal None with "[F0 R]").
+    iSpecialize ("rguard" $! EK_normal None with "[F0 R fun]").
     { rewrite proj_frame; subst rho; simpl proj_ret_assert; monPred.unseal; iFrame.
       iFrame "#".
       iSplit.
@@ -934,7 +935,7 @@ Proof.
           simpl in TCret; intros ? Hi; rewrite Hi in TCret; subst.
           rewrite H18b; by apply tc_val_tc_val', TCvl.
         * rewrite H18b /= TCvl in TC5; specialize (TC5 eq_refl); done.
-      + iSplit; last done.
+      + iSplit; last done; iSplit; last done.
         destruct ret as [ret|]; last done.
         rewrite closed_wrt_modvars_Scall in H.
         rewrite -(H (construct_rho (filter_genv psi) vx tx)); first done.
@@ -1143,7 +1144,7 @@ Proof.
   iDestruct "Bel'" as "[BE | BI]".
   - (* external call *)
     iPoseProof (semax_call_external with "BE") as "Hsafe".
-    iNext; iIntros "(F0 & ?) #fun #HR rguard".
+    iNext; iIntros "(F0 & ?) fun #HR rguard".
     iApply ("Hsafe" with "rguard fun F0").
     by iApply "HR".
   - (* internal call *)
@@ -1153,7 +1154,7 @@ Proof.
     iSpecialize ("BI" with "[%] [%]").
     { intros; apply tycontext_sub_refl. }
     { apply cenv_sub_refl. }
-    iNext; iIntros "(F0 & P) #fun #HR rguard".
+    iNext; iIntros "(F0 & P) fun #HR rguard".
     iMod ("HR" with "P") as (??) "((? & ?) & #post)".
     iSpecialize ("BI" $! x1); rewrite semax_fold_unfold.
     iPoseProof ("BI" with "[%] [Bel] [rguard]") as "#guard".
@@ -1184,8 +1185,8 @@ Proof.
       * rewrite -Genv.find_funct_find_funct_ptr //.
       * destruct GuardEnv as ((? & ? & ?) & ?); done.
       * rewrite snd_split -H18 //.
-    + monPred.unseal; rewrite -!assoc -bi.persistent_sep_dup !assoc; iSplit; last done.
-      iFrame.
+    + iFrame; monPred.unseal; iFrame.
+      monPred.unseal; iFrame; iSplit; last done.
       apply list_norepet_app in H17 as [H17 [_ _]].
       rewrite /bind_args; monPred.unseal; iSplit.
       * iPureIntro.
@@ -1239,7 +1240,7 @@ Lemma semax_call_aux {CS'}
    jsafeN Espec psi E ora
      (State curf (Scall ret a bl) k vx tx).
 Proof.
-  iIntros "#Bel H #fun #HR rguard".
+  iIntros "#Bel H fun #HR rguard".
   iDestruct (believe_exists_fundef with "Bel") as %[ff [H16 H16']].
   rewrite <- Genv.find_funct_find_funct_ptr in H16.
   rewrite /jsafeN jsafe_unfold /jsafe_pre.
@@ -1271,25 +1272,18 @@ Proof.
   rewrite IHlt //.
 Qed.
 
-(* Should we avoid using this? *)
-Lemma assert_ext : forall {I PROP} (P Q : monPred I PROP), monPred_at P = monPred_at Q -> P = Q.
-Proof.
-  destruct P, Q; simpl; intros; subst.
-  f_equal; apply proof_irr.
-Qed.
-
 Lemma semax_call_si:
   forall E Delta (A: Type)
    (P : A -> argsassert)
    (Q : A -> assert)
    (x : A)
-   F ret id argsig retsig cc a bl
+   F ret argsig retsig cc a bl
    (TCF : Cop.classify_fun (typeof a) = Cop.fun_case_f (typelist_of_type_list argsig) retsig cc)
    (TC5 : retsig = Tvoid -> ret = None)
    (TC7 : tc_fn_return Delta ret retsig),
   semax Espec E Delta
        (▷(tc_expr Delta a ∧ tc_exprlist Delta argsig bl) ∧
-           (assert_of (fun rho => func_ptr_si (ge_of rho) E id (mk_funspec (argsig,retsig) cc A P Q) (eval_expr a rho)) ∗
+           (assert_of (fun rho => func_ptr_si E (mk_funspec' (argsig,retsig) cc A P Q) (eval_expr a rho)) ∗
           (▷(F ∗ assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho))))))
          (Scall ret a bl)
          (normal_ret_assert
@@ -1300,7 +1294,7 @@ Proof.
   rename argsig into clientparams. rename retsig into retty.
   iIntros "#Prog_OK" (???) "[%Closed #rguard]".
   iIntros (tx vx) "!>".
-  monPred.unseal; iIntros "(%TC3 & (F0 & H) & #fun)".
+  monPred.unseal; iIntros "(%TC3 & (F0 & H) & fun)".
   assert (TC7': tc_fn_return Delta' ret retty).
   { clear - TC7 TS.
     hnf in TC7|-*. destruct ret; auto.
@@ -1309,25 +1303,25 @@ Proof.
     specialize (H i); rewrite Heqo in H. subst t; done. }
   assert (Hpsi: filter_genv psi = ge_of (construct_rho (filter_genv psi) vx tx)) by reflexivity.
   remember (construct_rho (filter_genv psi) vx tx) as rho.
-  iAssert (func_ptr_si (filter_genv psi) E id (mk_funspec (clientparams, retty) cc A P Q) (eval_expr(CS := CS) a rho)) as "#funcatb".
+  iAssert (func_ptr_si E (mk_funspec' (clientparams, retty) cc A P Q) (eval_expr(CS := CS) a rho)) as "#funcatb".
   { iDestruct "H" as "(_ & $ & _)". }
-  rewrite {2}(affine (func_ptr_si _ _ _ _ _)) left_id.
+  rewrite {2}(affine (func_ptr_si _ _ _)) left_id.
   rewrite /func_ptr_si.
-  iDestruct "funcatb" as (b (RhoID & EvalA) nspec) "[SubClient funcatb]".
-  iAssert ⌜(glob_specs Delta') !! id = Some nspec⌝ as %SpecOfID.
+  iDestruct "funcatb" as (b EvalA nspec) "[SubClient funcatb]".
+  destruct nspec as [nsig ncc nA nP nQ].
+  iAssert (∃ id deltaP deltaQ, ⌜Genv.find_symbol psi id = Some b ∧ (glob_specs Delta') !! id = Some (mk_funspec' nsig ncc nA deltaP deltaQ)⌝ ∧
+    ▷ (nP ≡ deltaP) ∧ ▷ (nQ ≡ deltaQ)) as (id deltaP deltaQ (RhoID & SpecOfID)) "#(HeqP & HeqQ)".
   { iDestruct "fun" as "(FA & FD)".
-    destruct ((glob_specs Delta') !! id) as [fs|] eqn: Hspec.
-    - iDestruct ("FA" with "[%]") as "(% & %Hid' & funcatv)"; first done.
-      rewrite Hid' in RhoID; inv RhoID.
-      destruct nspec, fs; iDestruct (mapsto_pure_agree with "funcatb funcatv") as %[=]; subst.
-      assert (P0 = P1 /\ Q0 = Q1) as [-> ->]; last done.
-      split; extensionality a1; repeat match goal with H : existT ?A _ = existT ?A _ |- _ => apply inj_pair2 in H; apply equal_f with a1 in H end;
-        apply assert_ext; done.
-    - iPoseProof ("FD" with "[%]") as "Hno"; first eauto.
-      destruct nspec; iDestruct (mapsto_no_pure_conflict with "Hno funcatb") as "[]". }
+    rewrite /Map.get /filter_genv.
+    iDestruct ("FD" with "[funcatb]") as %(id & ? & fs & ?).
+    { by iExists _, _, _. }
+    iDestruct ("FA" with "[%]") as (b0 ?) "funcatv"; first done.
+    assert (b0 = b) as -> by congruence.
+    iDestruct (func_at_agree with "funcatb funcatv") as (??????? ([=] & ->)) "?"; subst.
+    repeat match goal with H : existT _ _ = existT _ _ |- _ => apply inj_pair2 in H end; subst.
+    iExists _, _, _; iSplit; done. }
   set (args := @eval_exprlist CS clientparams bl rho).
   set (args' := @eval_exprlist CS' clientparams bl rho).
-  destruct nspec as [nsig ncc nA nP nQ].
   iDestruct "SubClient" as "[[%NSC %Hcc] ClientAdaptation]"; subst cc. destruct nsig as [nparams nRetty].
   inversion NSC; subst nRetty nparams; clear NSC.
   simpl fst in *; simpl snd in *.
@@ -1369,18 +1363,22 @@ Proof.
     + rewrite bi.later_and; iDestruct "H" as "[(_ & ?) _]".
       rewrite tc_exprlist_cenv_sub // tc_expr_cenv_sub //.
     + iNext; iDestruct "H" as "[_ $]".
-  - iClear "fun funcatb". iIntros "!> !> !>".
+  - iClear "funcatb". iIntros "!> !> !>".
     iIntros "(F & P)".
     iMod ("ClientAdaptation" with "P") as (??) "[H #post]".
+    rewrite !discrete_fun_equivI.
+    iSpecialize ("HeqP" $! x1); iSpecialize ("HeqQ" $! x1); iRewrite "HeqP" in "H".
     iExists x1, (F ∗ ⎡F1⎤); iIntros "!>"; monPred.unseal; iSplit; first by iDestruct "H" as "($ & $)".
     iIntros (?) "!> (% & F & nQ)"; simpl.
     destruct ret; simpl.
     + iExists old; iDestruct "F" as "($ & F1)".
+      iRewrite -"HeqQ" in "nQ".
       iDestruct "nQ" as "($ & nQ)"; iApply "post"; iFrame; by iPureIntro.
     + iExists Vundef; iDestruct "F" as "($ & F1)".
-      destruct (type_eq retty Tvoid).
-      * subst; iApply "post"; iFrame; by iPureIntro.
-      * destruct retty; first contradiction; iDestruct "nQ" as (v ?) "nQ"; iExists v; (iSplit; [by iPureIntro|];
+      destruct (type_eq retty Tvoid); subst.
+      * iRewrite -"HeqQ" in "nQ".
+        iApply "post"; iFrame; by iPureIntro.
+      * destruct retty; first contradiction; iDestruct "nQ" as (v ?) "nQ"; iRewrite -"HeqQ" in "nQ"; iExists v; (iSplit; [by iPureIntro|];
           iApply "post"; iFrame; by iPureIntro).
 Qed.
 
@@ -1391,13 +1389,13 @@ Lemma semax_call:
   (P : A -> argsassert)
   (Q : A -> assert)
   (x : A)
-  F ret id argsig retsig cc a bl
+  F ret argsig retsig cc a bl
   (TCF : Cop.classify_fun (typeof a) = Cop.fun_case_f (typelist_of_type_list argsig) retsig cc)
   (TC5 : retsig = Tvoid -> ret = None)
   (TC7 : tc_fn_return Delta ret retsig),
   semax Espec E Delta
        ((▷(tc_expr Delta a ∧ tc_exprlist Delta argsig bl))  ∧
-           (assert_of (fun rho => func_ptr (ge_of rho) E id (mk_funspec (argsig,retsig) cc A P Q) (eval_expr a rho)) ∗
+           (assert_of (fun rho => func_ptr E (mk_funspec' (argsig,retsig) cc A P Q) (eval_expr a rho)) ∗
           (▷(F ∗ assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho))))))
          (Scall ret a bl)
          (normal_ret_assert

@@ -4,12 +4,9 @@ Require Import VST.veric.juicy_base.
 Require Import VST.veric.shares.
 Require Import VST.zlist.sublist.
 
-Section rmap.
-Context `{!heapGS Σ}.
-
 Definition perm_of_res_lock (r: dfrac * resource) :=
   match r with
-  | (q, LK _ _ _) => match q with
+  | (q, LK _ _) => match q with
                    | DfracOwn (Share sh) => perm_of_sh (Share.glb Share.Rsh sh)
                    | DfracBoth _ => Some Readable
                    | _ => None
@@ -157,8 +154,6 @@ Proof. by rewrite /coherent_with bi.and_elim_r bi.and_elim_r bi.and_elim_l. Qed.
 Lemma coherent_alloc: coherent_with m ⊢ alloc_cohere m.
 Proof. by rewrite /coherent_with bi.and_elim_r bi.and_elim_r bi.and_elim_r. Qed.
 End selectors.*)
-
-Definition mem_auth m := resource_map.resource_map_auth(H0 := gen_heapGpreS_heap(gen_heapGpreS := gen_heap_inG)) (gen_heap_name heapGS_gen_heapGS) 1 m.
 
 (*Lemma juicy_view_coherent : forall m, mem_auth m ∗ True ⊢ coherent_with m.
 Proof.
@@ -757,7 +752,7 @@ Qed.
 
 Opaque alloc.
 
-(* Not sure this is usable, but it's the most direct translation. *)
+(*(* Not sure this is usable, but it's the most direct translation. *)
 Definition resource_decay n (nextb: block) (phi1 phi2: rmap) :=
  forall l: address,
   ((fst l >= nextb)%positive -> forall dq r, ~ouPred_holds (l ↦{dq} r) n phi1) /\
@@ -811,6 +806,4 @@ Proof.
       eexists; split; eauto.
        (* writable share again *)
   - destruct H1 as (? & ? & ?).
-Abort. (* should be provable *)*)
-
-End rmap.
+Abort. (* should be provable *)*)*)

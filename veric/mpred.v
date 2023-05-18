@@ -1,5 +1,6 @@
 From iris.bi Require Export monpred.
 Require Import VST.veric.base.
+Require Import VST.veric.gmap_view.
 Require Import VST.veric.res_predicates.
 Require Export compcert.common.AST.
 Require Export compcert.cfrontend.Ctypes.
@@ -42,61 +43,218 @@ Definition type_is_by_reference t : bool :=
   | _ => false
   end.
 
+(** GENERAL KV-Maps **)
+
+Set Implicit Arguments.
+
+Module Map. Section map.
+Context (B : Type).
+
+Definition t := positive -> option B.
+
+Definition get (h: t) (a:positive) : option B := h a.
+
+Definition set (a:positive) (v: B) (h: t) : t :=
+  fun i => if ident_eq i a then Some v else h i.
+
+Definition remove (a: positive) (h: t) : t :=
+  fun i => if ident_eq i a then None else h i.
+
+Definition empty : t := fun _ => None.
+
+(** MAP Axioms **)
+
+Lemma gss h x v : get (set x v h) x = Some v.
+unfold get, set; if_tac; intuition.
+Qed.
+
+Lemma gso h x y v : x<>y -> get (set x v h) y = get h y.
+unfold get, set; intros; if_tac; intuition; subst; contradiction.
+Qed.
+
+Lemma grs h x : get (remove x h) x = None.
+unfold get, remove; intros; if_tac; intuition.
+Qed.
+
+Lemma gro h x y : x<>y -> get (remove x h) y = get h y.
+unfold get, remove; intros; if_tac; intuition; subst; contradiction.
+Qed.
+
+Lemma ext h h' : (forall x, get h x = get h' x) -> h=h'.
+Proof.
+intros. extensionality x. apply H.
+Qed.
+
+Lemma override (a: positive) (b b' : B) h : set a b' (set a b h) = set a b' h.
+Proof.
+apply ext; intros; unfold get, set; if_tac; intuition. Qed.
+
+Lemma gsspec:
+    forall (i j: positive) (x: B) (m: t),
+    get (set j x m) i = if ident_eq i j then Some x else get m i.
+Proof.
+intros. unfold get; unfold set; if_tac; intuition.
+Qed.
+
+Lemma override_same : forall id t (x:B), get t id = Some x -> set id x t = t.
+Proof.
+intros. unfold set. unfold get in H.  apply ext. intros. unfold get.
+if_tac; subst; auto.
+Qed.
+
+End map.
+
+End Map.
+
+Unset Implicit Arguments.
+
+Global Instance EqDec_calling_convention: EqDec calling_convention.
+Proof.
+  hnf. decide equality.
+  destruct cc_structret, cc_structret0; subst; try tauto; right; congruence.
+  destruct cc_unproto, cc_unproto0;  subst; try tauto; right; congruence.
+  destruct cc_vararg, cc_vararg0; subst; try tauto.
+  destruct (zeq z0 z); subst; [left|right]; congruence.
+  right; congruence.
+  right; congruence.
+Qed.
+
+(** Environment Definitions **)
 Section FUNSPEC.
+
+Definition genviron := Map.t block.
+
+Definition venviron := Map.t (block * type).
+
+Definition tenviron := Map.t val.
+
+Inductive environ : Type :=
+ mkEnviron: forall (ge: genviron) (ve: venviron) (te: tenviron), environ.
+
+Definition ge_of (rho: environ) : genviron :=
+  match rho with mkEnviron ge ve te => ge end.
+
+Definition ve_of (rho: environ) : venviron :=
+  match rho with mkEnviron ge ve te => ve end.
+
+Definition te_of (rho: environ) : tenviron :=
+  match rho with mkEnviron ge ve te => te end.
+
+Definition any_environ : environ :=
+  mkEnviron (fun _ => None)  (Map.empty _) (Map.empty _).
+
+Definition argsEnviron:Type := genviron * (list val).
+
+Global Instance EqDec_type: EqDec type := type_eq.
+
+Definition funsig := (list (ident*type) * type)%type. (* argument and result signature *)
+
+Definition typesig := (list type * type)%type. (*funsig without the identifiers*)
+
+Definition typesig_of_funsig (f:funsig):typesig := (map snd (fst f), snd f).
+
+(* We define a generic funspec OFE with pre- and postconditions of arbitrary types, then specialize
+   it to argsassert and assert. *)
+
+Section ofe.
+
+Context {PO QO : Type -> ofe}.
+
+Inductive funspec_ :=
+   mk_funspec (sig : typesig) (cc : calling_convention) (A : Type) (P : PO A) (Q : QO A).
+
+(* funspec OFE -- needed to store funspecs in ghost state
+   If we put funspecs in the FUN resource, we'd need an OFE for resource instead. *)
+Local Instance funspec_dist : Dist funspec_ := λ n f1 f2,
+  match f1, f2 with
+  | mk_funspec sig1 cc1 A1 P1 Q1, mk_funspec sig2 cc2 A2 P2 Q2 =>
+      sig1 = sig2 /\ cc1 = cc2 /\ existT A1 P1 ≡{n}≡ existT A2 P2 /\ existT A1 Q1 ≡{n}≡ existT A2 Q2
+  end.
+
+Local Instance funspec_equiv : Equiv funspec_ := λ f1 f2,
+  match f1, f2 with
+  | mk_funspec sig1 cc1 A1 P1 Q1, mk_funspec sig2 cc2 A2 P2 Q2 =>
+      sig1 = sig2 /\ cc1 = cc2 /\ (existT A1 P1 ≡ existT A2 P2 /\ existT A1 Q1 ≡ existT A2 Q2)%stdpp
+  end.
+
+Lemma funspec_ofe_mixin : OfeMixin funspec_.
+Proof.
+  apply (iso_ofe_mixin (fun x => match x with mk_funspec sig cc A P Q =>
+    (sig, cc, (existT A P, existT A Q)) : prodO (leibnizO _) _ end)).
+  - intros [] []; split.
+    + intros (? & ? & ?); subst; split; auto.
+    + intros ([=] & ?); split3; auto.
+  - intros ? [] []; split.
+    + intros (? & ? & ?); subst; split; auto.
+    + intros ([=] & ?); split3; auto.
+Qed.
+Canonical Structure funspecO := Ofe funspec_ funspec_ofe_mixin.
+
+End ofe.
+Global Arguments funspecO : clear implicits.
+
+Section ofunctor.
+
+Program Definition funspec_map {P1 P2 Q1 Q2 : Type → ofe} :
+  (prodO (discrete_funO (λ A, P1 A -n> P2 A)) (discrete_funO (λ A, Q1 A -n> Q2 A))) -n>
+  @funspecO P1 Q1 -n> @funspecO P2 Q2 :=
+  λne '(Pf, Qf) fs, match fs with mk_funspec sig cc A P Q => mk_funspec sig cc A (Pf A P) (Qf A Q) end.
+Next Obligation.
+  intros ???? (PF, QF) ?? [=] n x y Heq; subst; simpl.
+  destruct x, y as [?? A2 ??], Heq as (? & ? & HP & HQ); simpl in *.
+  split3; auto; split; hnf; simpl.
+  - destruct HP as (Heq & HP); exists Heq; simpl in *; subst; simpl in *; rewrite HP //.
+  - destruct HQ as (Heq & HQ); exists Heq; simpl in *; subst; simpl in *; rewrite HQ //.
+Qed.
+Next Obligation.
+  intros ???? n (PF, QF) (PF2, QF2) [HP HQ] [?????]; simpl in *.
+  split3; auto.
+  split; exists eq_refl; simpl; [apply HP | apply HQ].
+Qed.
+
+Program Definition funspecOF (POF QOF : Type -> oFunctor) : oFunctor := {|
+    oFunctor_car A CA B CB := @funspecO (fun C => oFunctor_car (POF C) A B) (fun C => oFunctor_car (QOF C) A B);
+    oFunctor_map A1 _ A2 _ B1 _ B2 _ fg := funspec_map (λ a, oFunctor_map (POF a) fg, λ a, oFunctor_map (QOF a) fg)
+  |}.
+Next Obligation.
+  intros ?????????????? [?????]; simpl.
+  split3; auto; split; exists eq_refl; solve_proper.
+Qed.
+Next Obligation.
+  simpl; intros. destruct x as [?????].
+  split3; auto; split; apply (existT_proper eq_refl), oFunctor_map_id.
+Qed.
+Next Obligation.
+  simpl; intros. destruct x as [?????].
+  split3; auto; split; apply (existT_proper eq_refl), oFunctor_map_compose.
+Qed.
+
+Global Instance funspecOF_contractive {POF QOF} :
+    (∀ a, oFunctorContractive (POF a)) → (∀ a, oFunctorContractive (QOF a)) → oFunctorContractive (funspecOF POF QOF).
+Proof.
+  repeat intro. apply funspec_map; split; intros ?; exact: oFunctor_map_contractive.
+Qed.
+
+End ofunctor.
+Global Arguments funspecOF _%OF _%OF.
 
 Context {Σ : gFunctors}.
 
-(*Definition AssertTT (A: TypeTree): TypeTree :=
-  ArrowType A (ArrowType (ConstType environ) Mpred).
-
-Definition ArgsTT (A: TypeTree): TypeTree :=
-  ArrowType A (ArrowType (ConstType argsEnviron) Mpred).
-
-Definition SpecTT (A: TypeTree): TypeTree :=
-  ArrowType A (ArrowType (ConstType bool) (ArrowType (ConstType environ) Mpred)).
-
-Definition SpecArgsTT (A: TypeTree): TypeTree :=
-  ArrowType A 
-  (PiType bool (fun b => ArrowType (ConstType 
-                                         (if b 
-                                          then argsEnviron
-                                          else environ))
-                                    Mpred)).
-
-Definition super_non_expansive {A: TypeTree}
-  (P: forall ts, dependent_type_functor_rec ts (AssertTT A) mpred): Prop :=
-  forall n ts
-    (x: functors.MixVariantFunctor._functor
-                         (rmaps.dependent_type_functor_rec ts A) mpred)
-    (rho: environ),
-  approx n (P ts x rho) = approx n (P ts (fmap _ (approx n) (approx n) x) rho).
-
-Definition args_super_non_expansive {A: TypeTree}
-  (P: forall ts, dependent_type_functor_rec ts (ArgsTT A) mpred): Prop :=
-  forall n ts
-    (x: functors.MixVariantFunctor._functor
-                         (rmaps.dependent_type_functor_rec ts A) mpred)
-    (gargs: argsEnviron),
-  @eq mpred (approx n (P ts x gargs)) (approx n (P ts (fmap _ (approx n) (approx n) x) gargs)).
-
-Definition const_super_non_expansive: forall (T: Type) P,
-  @super_non_expansive (ConstType T) P :=
-  fun _ _ _ _ _ _ => eq_refl.
-
-Definition AssertListTT (A: TypeTree): TypeTree :=
-  ArrowType A (ArrowType (ConstType environ) (ListType Mpred)).
-
-Definition super_non_expansive_list {A: TypeTree}
-  (P: forall ts, dependent_type_functor_rec ts (AssertListTT A) mpred): Prop :=
-  forall n ts
-    (x: functors.MixVariantFunctor._functor
-                         (rmaps.dependent_type_functor_rec ts A) mpred)
-    (rho: environ),
-  Forall2 (fun a b => approx n a = approx n b) (P ts x rho) (P ts (fmap _ (approx n) (approx n) x) rho).
-
-Definition args_const_super_non_expansive: forall (T: Type) P,
-  @args_super_non_expansive (ConstType T) P :=
-  fun _ _ _ _ _ _ => eq_refl.*)
+Lemma funspec_equivI PO QO (f1 f2 : @funspec_ PO QO) : (f1 ≡ f2 : iProp Σ) ⊣⊢ ∃ sig cc A P1 P2 Q1 Q2,
+  ⌜f1 = mk_funspec sig cc A P1 Q1 ∧ f2 = mk_funspec sig cc A P2 Q2⌝ ∧ P1 ≡ P2 ∧ Q1 ≡ Q2.
+Proof.
+  ouPred.unseal; split=> n x ?.
+  destruct f1, f2; split.
+  - intros (<- & <- & HP & HQ).
+    destruct HP as (HeqP & HP), HQ as (HeqQ & HQ); simpl in *.
+    exists sig, cc, A, P, (eq_rect _ (fun A => PO A) P0 _ (eq_sym HeqP)), Q, (eq_rect _ (fun A => QO A) Q0 _ (eq_sym HeqQ)); repeat split.
+    + subst; simpl in *. rewrite -eq_rect_eq //.
+    + by subst.
+    + clear dependent HeqP; by subst.
+  - intros (? & ? & ? & ? & ? & ? & ? & ([=] & [=]) & ? & ?); subst.
+    repeat match goal with H : existT _ _ = existT _ _ |- _ => apply inj_pair2 in H end; subst.
+    split3; auto; split; exists eq_refl; done.
+Qed.
 
 (*Potential alternative that does not use Ctypes
 Inductive funspec :=
@@ -133,33 +291,14 @@ Program Definition argsassert_of (P : argsassert') : argsassert := {| monPred_at
 
 Coercion argsassert_of : argsassert' >-> argsassert.
 
-Inductive funspec :=
-   mk_funspec (sig : typesig) (cc : calling_convention) (A : Type) (P : A -> argsassert) (Q : A -> assert).
+Definition funspec := @funspec_ (fun A => A -d> argsassert) (fun A => A -d> assert).
+Definition funspecO' := funspecO (fun A => A -d> argsEnviron -d> laterO (iProp Σ)) (fun A => A -d> environ -d> laterO (iProp Σ)).
+Definition funspecOF' := funspecOF (fun A => A -d> argsEnviron -d> laterOF idOF)%OF (fun A => A -d> environ -d> laterOF idOF)%OF.
 
-(*(* funspec OFE -- not sure whether this will be useful *)
-Local Instance funspec_dist : Dist funspec := λ n f1 f2,
-  match f1, f2 with
-  | mk_funspec sig1 cc1 spec1, mk_funspec sig2 cc2 spec2 =>
-      sig1 = sig2 /\ cc1 = cc2 /\ spec1 ≡{n}≡ spec2
+Definition funspec_unfold (f : funspec) : funspecO' :=
+  match f with mk_funspec sig cc A P Q =>
+    @mk_funspec (fun A => A -d> argsEnviron -d> laterO (iProp Σ)) (fun A => A -d> environ -d> laterO (iProp Σ)) sig cc A (fun x rho => Next (P x rho)) (fun x rho => Next (Q x rho))
   end.
-
-Local Instance funspec_equiv : Equiv funspec := λ f1 f2,
-  match f1, f2 with
-  | mk_funspec sig1 cc1 spec1, mk_funspec sig2 cc2 spec2 =>
-      sig1 = sig2 /\ cc1 = cc2 /\ (spec1 ≡ spec2)%stdpp
-  end.
-
-Lemma funspec_ofe_mixin : OfeMixin funspec.
-Proof.
-  apply (iso_ofe_mixin (fun x => match x with mk_funspec sig cc spec => (sig, cc, spec) : prodO (leibnizO _) _ end)).
-  - intros [] []; split.
-    + intros (? & ? & ?); subst; split; auto.
-    + intros ([=] & ?); split3; auto.
-  - intros ? [] []; split.
-    + intros (? & ? & ?); subst; split; auto.
-    + intros ([=] & ?); split3; auto.
-Qed.
-Canonical Structure funspecO := Ofe funspec funspec_ofe_mixin.*)
 
 Definition varspecs : Type := list (ident * type).
 
@@ -184,6 +323,26 @@ Fixpoint make_tycontext_s (G: funspecs) :=
  end.
 
 End FUNSPEC.
+
+(* collect up all the ghost state required for the logic
+   Should this include external state as well? *)
+Class funspecGS Σ := FunspecG {
+    funspec_inG :> inG Σ (gmap_viewR address (@funspecO' Σ));
+    funspec_name : gname
+}.
+
+Class heapGS Σ := HeapGS {
+  heapGS_wsatGS :> wsatGS Σ;
+  heapGS_gen_heapGS :> gen_heapGS resource Σ;
+  heapGS_funspecGS :> funspecGS Σ
+}.
+
+(* To use the heap, do Context `{!heapGS Σ}. *)
+
+Definition rmap `{heapGS Σ} := iResUR Σ.
+Definition mpred `{heapGS Σ} := iProp Σ.
+
+Definition mem_auth `{heapGS Σ} m := resource_map.resource_map_auth(H0 := gen_heapGpreS_heap(gen_heapGpreS := gen_heap_inG)) (gen_heap_name heapGS_gen_heapGS) 1 m.
 
 
 Definition int_range (sz: intsize) (sgn: signedness) (i: int) :=

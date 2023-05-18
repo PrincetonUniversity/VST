@@ -79,13 +79,13 @@ Definition globals := ident -> val.
 
 
 (*We're exporting the step-indexed version so that semax_fun_id doesn't syntactically change*)
-Definition func_ptr ge E id (f: funspec) (v: val): mpred := seplog.func_ptr_si ge E id f v.
+Definition func_ptr E (f: funspec) (v: val): mpred := seplog.func_ptr_si E f v.
 
 (*veric.seplog has a lemma that weakens the hypothesis here to funspec_sub_si*)
-Lemma func_ptr_mono ge E id fs gs v (H:funspec_sub E fs gs): func_ptr ge E id fs v ⊢ func_ptr ge E id gs v.
+Lemma func_ptr_mono E fs gs v (H:funspec_sub E fs gs): func_ptr E fs v ⊢ func_ptr E gs v.
 Proof. apply funspec_sub_implies_func_prt_si_mono; done. Qed.
 
-Lemma func_ptr_isptr: forall ge E id spec f, func_ptr ge E id spec f ⊢ ⌜isptr f⌝.
+Lemma func_ptr_isptr: forall E spec f, func_ptr E spec f ⊢ ⌜isptr f⌝.
 Proof. apply seplog.func_ptr_si_isptr. Qed.
 
 Definition type_of_funsig (fsig: funsig) :=
@@ -280,7 +280,7 @@ Axiom semax_func_cons:
    f.(fn_callconv) = cc ->
    Genv.find_symbol ge id = Some b -> 
    Genv.find_funct_ptr ge b = Some (Internal f) -> 
-  semax_body V G E f (id, mk_funspec fsig cc A P Q) ->
+  semax_body V G E f (id, mk_funspec' fsig cc A P Q) ->
   semax_func V G ge E fs G' ->
   semax_func V G ge E ((id, Internal f)::fs)
        ((id, mk_funspec fsig cc A P Q)  :: G').
@@ -300,7 +300,7 @@ Axiom semax_func_cons_ext: forall (V: varspecs) (G: funspecs)
   (⊢semax_external E ef A P Q) ->
   semax_func V G ge E fs G' ->
   semax_func V G ge E ((id, External ef argsig retsig cc)::fs)
-       ((id, mk_funspec (argsig', retsig) cc A P Q)  :: G').
+       ((id, mk_funspec' (argsig', retsig) cc A P Q)  :: G').
 
 Axiom semax_func_mono: forall {CS'} (CSUB: cspecs_sub CS CS') ge ge'
   (Gfs: forall i,  sub_option (Genv.find_symbol ge i) (Genv.find_symbol ge' i))
@@ -393,14 +393,14 @@ Axiom semax_switch:
 
 Axiom semax_call:
   forall E Delta (A: Type) P Q x
-   F ret id argsig retsig cc a bl,
+   F ret argsig retsig cc a bl,
            Cop.classify_fun (typeof a) =
            Cop.fun_case_f (typelist_of_type_list argsig) retsig cc ->
             (retsig = Tvoid -> ret = None) ->
           tc_fn_return Delta ret retsig ->
   semax E Delta
           ((tc_expr Delta a ∧ tc_exprlist Delta argsig bl) ∧
-         (assert_of (fun rho => func_ptr (ge_of rho) E id (mk_funspec (argsig,retsig) cc A P Q) (eval_expr a rho)) ∗
+         (assert_of (fun rho => func_ptr E (mk_funspec' (argsig,retsig) cc A P Q) (eval_expr a rho)) ∗
           (▷(F ∗ assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho))))))
          (Scall ret a bl)
          (normal_ret_assert
@@ -529,7 +529,7 @@ Axiom semax_ext:
   forall E (ext_link: Strings.String.string -> ident)
          (id : Strings.String.string) (sig : typesig) (sig' : signature)
          cc A P Q (fs : funspecs),
-  let f := mk_funspec sig cc A P Q in
+  let f := mk_funspec' sig cc A P Q in
   In (ext_link id,f) fs ->
   funspecs_norepeat fs ->
   sig' = semax_ext.typesig2signature sig cc ->
@@ -544,16 +544,16 @@ forall {E ef A1 P1 Q1 A2 P2 Q2
       A P Q sig cc}
   (EXT1: ⊢ semax_external E ef A1 P1 Q1)
   (EXT2: ⊢ semax_external E ef A2 P2 Q2)
-  (BI: binary_intersection (mk_funspec sig cc A1 P1 Q1)
-                      (mk_funspec sig cc A2 P2 Q2) =
+  (BI: binary_intersection (mk_funspec' sig cc A1 P1 Q1)
+                      (mk_funspec' sig cc A2 P2 Q2) =
      Some (mk_funspec sig cc A P Q))
   (LENef: length (fst sig) = length (sig_args (ef_sig ef))),
   ⊢ semax_external E ef A P Q.
 
 Axiom semax_external_funspec_sub: forall 
   {E argtypes rtype cc ef A1 P1 Q1 A P Q}
-  (Hsub: funspec_sub E (mk_funspec (argtypes, rtype) cc A1 P1 Q1)
-                   (mk_funspec (argtypes, rtype) cc A P Q))
+  (Hsub: funspec_sub E (mk_funspec' (argtypes, rtype) cc A1 P1 Q1)
+                   (mk_funspec' (argtypes, rtype) cc A P Q))
   (HSIG: ef_sig ef = 
          mksignature (map typ_of_type argtypes)
                      (rettype_of_type rtype) cc),
@@ -603,7 +603,7 @@ Axiom semax_fun_id:
     (var_types Delta) !! id = None ->
     (glob_specs Delta) !! id = Some f ->
     (glob_types Delta) !! id = Some (type_of_funspec f) ->
-    semax E Delta (P ∧ assert_of (fun rho => func_ptr (ge_of rho) E id f (eval_var id (type_of_funspec f) rho)))
+    semax E Delta (P ∧ assert_of (fun rho => func_ptr E f (eval_var id (type_of_funspec f) rho)))
                   c Q ->
     semax E Delta P c Q.
 

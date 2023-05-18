@@ -51,8 +51,8 @@ Axiom semax_prog_rule :
        (Genv.find_symbol (globalenv prog) (prog_main prog) = Some b) *
        (exists m', semantics.initial_core (cl_core_sem (globalenv prog)) h
                        m q m' (Vptr b Ptrofs.zero) nil) *
-       (state_interp Mem.empty z ∗ has_ext z ⊢ |==> state_interp m z ∗ jsafeN Espec (globalenv prog) ⊤ z q ∗
-           (*no_locks ∧ □ matchfunspecs (globalenv prog) G ⊤ ∗*) funassert (nofunc_tycontext V G) (empty_environ (globalenv prog)))
+       (state_interp Mem.empty z ∗ funspec_auth ∅ ∗ has_ext z ⊢ |==> state_interp m z ∗ jsafeN Espec (globalenv prog) ⊤ z q ∧
+           (*no_locks ∧*) matchfunspecs (globalenv prog) G ∅ (*∗ funassert (nofunc_tycontext V G) (empty_environ (globalenv prog))*))
      } }%type.
 
 End SEPARATION_HOARE_LOGIC_SOUNDNESS.
@@ -109,7 +109,7 @@ Lemma semax_func_cons_ext: forall `{HH: heapGS Σ}{Espec:OracleKind}{HE: externa
   (⊢ @CSHL_Def.semax_external _ HH Espec HE E ef A P Q) ->
   CSHL_Def.semax_func _ HH Espec HE V G C ge E fs G' ->
   CSHL_Def.semax_func _ HH Espec HE V G C ge E ((id, Ctypes.External ef argsig retsig cc)::fs)
-             ((id, mk_funspec (argsig', retsig) cc A P Q)  :: G').
+             ((id, mk_funspec' (argsig', retsig) cc A P Q)  :: G').
 Proof. intros. eapply semax_func_cons_ext; eauto. Qed.
 
 Definition semax_Delta_subsumption := @semax_lemmas.semax_Delta_subsumption.
@@ -168,14 +168,14 @@ Lemma semax_call `{HH : !heapGS Σ} {Espec} `{HE : !externalGS OK_ty Σ} {CS}:
   (P : A -> argsassert)
   (Q : A -> assert)
   (x : A)
-   F ret id argsig retsig cc a bl,
+   F ret argsig retsig cc a bl,
            Cop.classify_fun (typeof a) =
            Cop.fun_case_f (typelist_of_type_list argsig) retsig cc ->
             (retsig = Ctypes.Tvoid -> ret = None) ->
           tc_fn_return Delta ret retsig ->
   @semax _ HH Espec HE CS E Delta
        ((tc_expr Delta a ∧ tc_exprlist Delta argsig bl) ∧
-         (assert_of (fun rho => func_ptr (ge_of rho) E id (mk_funspec (argsig,retsig) cc A P Q) (eval_expr a rho)) ∗
+         (assert_of (fun rho => func_ptr E (mk_funspec' (argsig,retsig) cc A P Q) (eval_expr a rho)) ∗
           (▷(F ∗ assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho))))))
          (Scall ret a bl)
          (normal_ret_assert (∃ old:val, assert_of (substopt ret (`old) F) ∗ maybe_retval (Q x) retsig ret)).

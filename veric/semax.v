@@ -291,7 +291,7 @@ Definition believe_internal_ CS
       (∀ x : A,
         ▷ semax (SemaxArg CS' E (func_tycontext' f Delta')
                          ((bind_args (f.(fn_params)) (P x) ∗ stackframe_of' (@cenv_cs CS') f)
-                                        ∗ funassert (func_tycontext' f Delta'))
+                                        (*∗ funassert (func_tycontext' f Delta')*))
                           (f.(fn_body))
            (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x))
               (stackframe_of' (@cenv_cs CS') f))))).
@@ -362,7 +362,7 @@ Definition believe_internal {CS: compspecs}
        (∀ x : A,
      ▷ @semax' CS' E (func_tycontext' f Delta')
                                 ((bind_args (f.(fn_params)) (P x) ∗ stackframe_of' (@cenv_cs CS') f)
-                                             ∗ funassert (func_tycontext' f Delta'))
+                                             (*∗ funassert (func_tycontext' f Delta')*))
                                (f.(fn_body))
            (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) (stackframe_of' (@cenv_cs CS') f)))).
 
