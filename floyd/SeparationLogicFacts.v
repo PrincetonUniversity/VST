@@ -6,22 +6,10 @@ Require Export VST.msl.Coqlib2 VST.veric.coqlib4 VST.floyd.coqlib3.
 Require Export VST.floyd.jmeq_lemmas.
 Require Export VST.floyd.find_nth_tactic.
 Require Export VST.veric.juicy_extspec.
-Require Import VST.veric.NullExtension.
+(*Require Import VST.veric.NullExtension.*)
 
 Require Import VST.floyd.assert_lemmas.
 Import LiftNotation.
-Import compcert.lib.Maps.
-
-Local Open Scope logic.
-
-(* TODO: move it *)
-Lemma exp_derives:
-       forall {A: Type}  {NA: NatDed A} (B: Type) (P Q: B -> A),
-               (forall x:B, P x |-- Q x) -> (exp P |-- exp Q).
-Proof.
-intros.
-apply exp_left; intro x; apply exp_right with x; auto.
-Qed.
 
 (* Closed and subst. copied from closed_lemmas.v. *)
 
@@ -41,8 +29,12 @@ Qed.
 
 (* End of copied from closed_lemmas.v. *)
 
+Section mpred.
+
+Context `{!heapGS Σ}.
+
 Lemma subst_self: forall {A: Type} (P: environ -> A) t id v Delta rho,
-  (temp_types Delta) ! id = Some t ->
+  (temp_types Delta) !! id = Some t ->
   tc_environ Delta rho ->
   v rho = eval_id id rho ->
   subst id v P rho = P rho.
@@ -55,13 +47,13 @@ Proof.
   f_equal.
   unfold env_set, eval_id in *; destruct rho; simpl in *.
   f_equal.
-  rewrite H1, H0.
+  rewrite H1 H0.
   simpl.
   apply Map.ext; intros i.
   destruct (Pos.eq_dec id i).
   + subst.
     rewrite Map.gss; symmetry; auto.
-  + rewrite Map.gso by auto.
+  + rewrite -> Map.gso by auto.
     auto.
 Qed.
 
@@ -2410,3 +2402,4 @@ Qed.
 
 End Sset2CastLoad.
 
+End mpred.

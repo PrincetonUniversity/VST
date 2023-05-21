@@ -11,7 +11,6 @@ Require Export VST.floyd.fieldlist.
 Require Export VST.floyd.aggregate_type.
 
 Open Scope Z.
-Open Scope logic.
 
 (******************************************
 

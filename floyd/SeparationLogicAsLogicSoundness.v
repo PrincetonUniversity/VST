@@ -2,7 +2,7 @@ From compcert Require Export Clightdefs.
 Require Import VST.sepcomp.semantics.
 
 Require Import VST.veric.juicy_base.
-Require Import VST.veric.juicy_mem VST.veric.juicy_mem_lemmas VST.veric.juicy_mem_ops.
+Require Import VST.veric.juicy_mem VST.veric.juicy_mem_lemmas.
 Require Import VST.veric.res_predicates.
 Require Import VST.veric.extend_tc.
 Require Import VST.veric.Clight_seplog.
@@ -27,8 +27,6 @@ Require Import VST.veric.SeparationLogic.
 Require Import VST.floyd.SeparationLogicFacts.
 Require Import VST.floyd.SeparationLogicAsLogic.
 Require Import VST.veric.SeparationLogicSoundness.
-Local Open Scope logic.
-Require Import VST.veric.ghost_PCM.
 
 Import Clight.
 

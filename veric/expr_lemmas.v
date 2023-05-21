@@ -343,7 +343,7 @@ iIntros (?); iPureIntro; eapply neutral_cast_subsumption'; eauto.
 Qed.
 
 Definition typecheck_tid_ptr_compare
-Delta id :=
+Delta (id : ident) :=
 match (temp_types Delta) !! id with
 | Some t => is_int_type t
 | None => false
@@ -352,7 +352,7 @@ end.
 Lemma typecheck_tid_ptr_compare_sub:
    forall E Delta Delta',
     tycontext_sub E Delta Delta' ->
-    forall id, typecheck_tid_ptr_compare Delta id = true ->
+    forall id : ident, typecheck_tid_ptr_compare Delta id = true ->
                 typecheck_tid_ptr_compare Delta' id = true.
 Proof.
 unfold typecheck_tid_ptr_compare;

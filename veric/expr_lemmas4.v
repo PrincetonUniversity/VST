@@ -601,7 +601,7 @@ hnf in Hve,Hge.
 destruct (_ !! _) eqn: Hv.
 specialize (Hve i t0). destruct Hve as [Hve _].
 destruct (Hve Hv). simpl in *; congruence.
-destruct (glob_types Delta !! i) eqn: Hg; rewrite Hg; [|iDestruct "H" as "[]"].
+destruct (glob_types Delta !! i) eqn: Hg; [|iDestruct "H" as "[]"].
 destruct (Hge _ _ Hg) as [b Hfind]; rewrite Hfind.
 iPureIntro.
 apply Clight.eval_Elvalue with b Ptrofs.zero Full; [  | econstructor 2; apply MODE].

@@ -102,15 +102,15 @@ Definition make_tycontext (params: list (ident*type)) (temps: list (ident*type))
 
 Definition typecheck_temp_environ
 (te: tenviron) (tc: Maps.PTree.t type) :=
-forall id ty , tc !! id = Some ty  -> exists v, Map.get te id = Some v /\ tc_val' ty v.
+forall (id : ident) ty , tc !! id = Some ty  -> exists v, Map.get te id = Some v /\ tc_val' ty v.
 
 Definition typecheck_var_environ
 (ve: venviron) (tc: Maps.PTree.t type) :=
-forall id ty, tc !! id = Some ty <-> exists v, Map.get ve id = Some(v,ty).
+forall (id : ident) ty, tc !! id = Some ty <-> exists v, Map.get ve id = Some(v,ty).
 
 Definition typecheck_glob_environ
 (ge: genviron) (tc: Maps.PTree.t type) :=
-forall id t, tc !! id = Some t ->
+forall (id : ident) t, tc !! id = Some t ->
 (exists b, Map.get ge id = Some b).
 
 Definition typecheck_environ (Delta: tycontext) (rho : environ) :=

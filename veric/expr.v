@@ -648,7 +648,7 @@ Definition is_neutral_cast t1 t2 :=
  | _, _ => false
  end.
 
-Definition get_var_type (Delta : tycontext) id : option type :=
+Definition get_var_type (Delta : tycontext) (id : ident) : option type :=
 match (var_types Delta) !! id with
 | Some ty => Some ty
 | None => match (glob_types Delta) !! id with
@@ -953,7 +953,7 @@ Proof. unfold subsumespec.
 Qed.
 
 Definition tycontext_sub E (Delta Delta' : tycontext) : Prop :=
- (forall id, match (temp_types Delta) !! id,  (temp_types Delta') !! id with
+ (forall id : ident, match (temp_types Delta) !! id,  (temp_types Delta') !! id with
                  | None, _ => True
                  | Some t, None => False
                  | Some t, Some t' => t=t'
@@ -1065,7 +1065,7 @@ Qed.
 
 (* This naming is for the purpose when VST's developers do "Search typecheck_var_environ." *)
 Lemma WARNING___________you_should_use_tactic___destruct_var_types___instead:
-  forall (ve : venviron) (vt : Maps.PTree.t type), typecheck_var_environ ve vt -> forall i : positive,
+  forall (ve : venviron) (vt : Maps.PTree.t type), typecheck_var_environ ve vt -> forall i : ident,
      match vt !! i with
      | Some t => exists b, Map.get ve i = Some (b, t)
      | None => Map.get ve i = None
@@ -1083,7 +1083,7 @@ Qed.
 
 (* This naming is for the purpose when VST's developers do "Search typecheck_glob_environ." *)
 Lemma WARNING___________you_should_use_tactic___destruct_glob_types___instead:
-  forall (ge : genviron) (gt : Maps.PTree.t type), typecheck_glob_environ ge gt -> forall i : positive,
+  forall (ge : genviron) (gt : Maps.PTree.t type), typecheck_glob_environ ge gt -> forall i : ident,
      match gt !! i with
      | Some t => exists b, Map.get ge i = Some b
      | None => True

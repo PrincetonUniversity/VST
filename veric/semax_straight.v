@@ -412,7 +412,6 @@ Proof.
   destruct TS as [TS _]; specialize (TS id).
   unfold typeof_temp in H99.
   destruct (temp_types Delta !! id) eqn: Hid; inversion H99; subst t0; clear H99.
-  rewrite Hid in TS.
   monPred.unseal.
   iSplit; [iSplit; first done; iSplit|].
   + rewrite (bi.and_elim_l (▷ _)) /tc_expr /= typecheck_cast_sound; last apply typecheck_expr_sound; try done.
@@ -429,7 +428,7 @@ Proof.
     erewrite (closed_wrt_modvars_set F) by eauto; iFrame.
     iNext; iExists (eval_id id rho).
     destruct TC as [[TC _] _].
-    destruct (temp_types Delta' !! id) eqn: Hid'; rewrite Hid' in TS; inv TS.
+    destruct (temp_types Delta' !! id) eqn: Hid'; inv TS.
     destruct (TC _ _ Hid') as (? & ? & ?).
     super_unfold_lift; erewrite !subst_set by eauto; iFrame.
     rewrite /eval_id /force_val -map_ptree_rel Map.gss //.
@@ -449,7 +448,7 @@ Proof.
 Qed.
 
 Lemma eqb_attr_true:
-  forall a a',  eqb_attr a a' = true  -> a=a'.
+  forall a a', eqb_attr a a' = true -> a=a'.
 Proof.
 intros.
 destruct a as [v a],a' as [v' a'].
@@ -494,7 +493,6 @@ Proof.
   destruct TS as [TS _]; specialize (TS id).
   unfold typeof_temp in Hid0.
   destruct (temp_types Delta !! id) eqn: Hid; inversion Hid0; subst t; clear Hid0.
-  rewrite Hid in TS.
   iSplit; [iSplit; first done; iSplit|].
   + rewrite (bi.and_elim_l (▷ _)) /tc_lvalue /= typecheck_lvalue_sound; try done.
     iDestruct "H" as ">%"; iPureIntro.
@@ -523,7 +521,7 @@ Proof.
     iNext; iExists (eval_id id rho); iSplit.
     * rewrite /lift1 /eval_id -map_ptree_rel /= Map.gss //.
     * destruct TC as [[TC _] _].
-      destruct (temp_types Delta' !! id) eqn: Hid'; rewrite Hid' in TS; inv TS.
+      destruct (temp_types Delta' !! id) eqn: Hid'; inv TS.
       destruct (TC _ _ Hid') as (? & ? & ?).
       super_unfold_lift; erewrite !subst_set by eauto; iFrame.
 Qed.
@@ -580,7 +578,6 @@ Proof.
   destruct TS as [TS _]; specialize (TS id).
   unfold typeof_temp in Hid0.
   destruct (temp_types Delta !! id) eqn: Hid; inversion Hid0; subst t; clear Hid0.
-  rewrite Hid in TS.
   iSplit; [iSplit; first done; iSplit|].
   + iPureIntro.
     rewrite <- map_ptree_rel.
@@ -614,7 +611,7 @@ Proof.
     iNext; iExists (eval_id id rho); iSplit.
     * rewrite /lift1 /eval_id -map_ptree_rel /= Map.gss //.
     * destruct TC as [[TC _] _].
-      destruct (temp_types Delta' !! id) eqn: Hid'; rewrite Hid' in TS; inv TS.
+      destruct (temp_types Delta' !! id) eqn: Hid'; inv TS.
       destruct (TC _ _ Hid') as (? & ? & ?).
       super_unfold_lift; erewrite !subst_set by eauto; iFrame.
 Qed.

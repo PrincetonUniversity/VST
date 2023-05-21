@@ -21,9 +21,9 @@ destruct i.
       destruct (zle (Int.signed i0) Byte.max_signed). left; lia. right; lia.
     * destruct (zle (Int.unsigned i0) Byte.max_unsigned). left; lia. right; lia.
 + destruct s.
-    * destruct (zle (-32768) (Int.signed i0)); [| right; lia].
-      destruct (zle (Int.signed i0) 32767). left; lia. right; lia.
-    * destruct (zle (Int.unsigned i0) 65535). left; lia. right; lia.
+    * destruct (zle (-two_power_pos 15) (Int.signed i0)); [| right; lia].
+      destruct (zle (Int.signed i0) (two_power_pos 15 - 1)). left; lia. right; lia.
+    * destruct (zle (Int.unsigned i0) (two_power_pos 16 - 1)). left; lia. right; lia.
 + left; trivial.
 + destruct (Int.eq_dec i0 Int.zero); subst. left; left; trivial.
     destruct (Int.eq_dec i0 Int.one); subst. left; right; trivial.
@@ -38,7 +38,7 @@ Proof. destruct t; simpl.
 + destruct f. apply is_single_dec. apply is_float_dec.
 + destruct ((eqb_type t Ctypes.Tvoid &&
     eqb_attr a
-      {| attr_volatile := false; attr_alignas := Some log2_sizeof_pointer |})%bool).
+      {| attr_volatile := false; attr_alignas := Some log2_sizeof_pointer |} )%bool).
   apply is_pointer_or_integer_dec.
   apply is_pointer_or_null_dec.
 + apply is_pointer_or_null_dec.
@@ -61,8 +61,8 @@ Proof.
   unfold Cop.ptrofs_of_int, Ptrofs.of_ints, Ptrofs.of_intu, Ptrofs.of_int.
   f_equal. f_equal. f_equal.
   destruct si; rewrite <- ptrofs_mul_repr;  f_equal.
-  rewrite Int.signed_repr by lia; auto.
-  rewrite Int.unsigned_repr by lia; auto.
+  rewrite -> Int.signed_repr by lia; auto.
+  rewrite -> Int.unsigned_repr by lia; auto.
 Qed.
 #[export] Hint Rewrite @sem_add_pi_ptr using (solve [auto with norm]) : norm.
 
@@ -89,7 +89,7 @@ Proof.
 Qed.
 #[export] Hint Rewrite sem_cast_neutral_Vint : norm.
 
-Definition isVint v := match v with Vint _ => True | _ => False end.
+Definition isVint v : Prop := match v with Vint _ => True | _ => False end.
 
 Lemma is_int_is_Vint: forall i s v, is_int i s v -> isVint v.
 Proof. intros.
@@ -435,7 +435,7 @@ Proof.
 intros.
 unfold typed_true, strict_bool_val in H. simpl in H.
 pose proof (Int.eq_spec v Int.zero).
-destruct (Int.eq v Int.zero); auto. inv H.
+destruct (Int.eq v Int.zero); auto.
 Qed.
 
 Lemma typed_true_tlong_Vlong:
@@ -444,7 +444,7 @@ Proof.
 intros.
 unfold typed_true, strict_bool_val in H. simpl in H.
 pose proof (Int64.eq_spec v Int64.zero).
-destruct (Int64.eq v Int64.zero); auto. inv H.
+destruct (Int64.eq v Int64.zero); auto.
 Qed.
 
 Ltac intro_redundant P :=
@@ -545,7 +545,7 @@ Ltac fold_types1 :=
 
 Lemma is_int_Vbyte: forall c, is_int I8 Signed (Vbyte c).
 Proof.
-intros. simpl. normalize. rewrite Int.signed_repr by rep_lia. rep_lia.
+intros. simpl. rewrite -> Int.signed_repr by rep_lia. rep_lia.
 Qed.
 #[export] Hint Resolve is_int_Vbyte : core.
 

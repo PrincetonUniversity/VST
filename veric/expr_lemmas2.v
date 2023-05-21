@@ -348,7 +348,7 @@ intros. destruct t1; destruct t2;
 Qed.
 
 Lemma typecheck_temp_sound:
-  forall {CS: compspecs} Delta rho i t,
+  forall {CS: compspecs} Delta rho (i : ident) t,
   typecheck_environ Delta rho ->
   denote_tc_assert (typecheck_expr Delta (Etempvar i t)) rho ⊢
   ⌜tc_val (typeof (Etempvar i t)) (eval_expr (Etempvar i t) rho)⌝.
@@ -364,7 +364,7 @@ destruct Delta; simpl in *.
 unfold temp_types in *. simpl in *.
 specialize (H1 i).
 destruct (tyc_temps !! i) eqn: Hty; try (iIntros "[]").
-destruct (H1 _ Hty) as (v & H & Ht0). clear H1.
+destruct (H1 _ eq_refl) as (v & H & Ht0). clear H1.
 rewrite H.
 destruct (is_neutral_cast t0 t) eqn:?.
 + simpl.

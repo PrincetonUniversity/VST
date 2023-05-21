@@ -17,6 +17,11 @@ assert_of (fun rho =>
   ⌜(glob_specs Delta) !! id = Some fs⌝ →
   (∃ b : block, ⌜Map.get (ge_of rho) id = Some b⌝ ∧ func_ptr_si E fs (Vptr b Ptrofs.zero))).
 
+Global Instance allp_fun_id_persistent E Delta : Persistent (allp_fun_id E Delta).
+Proof.
+  apply monPred_persistent, _.
+Qed.
+
 Definition allp_fun_id_sigcc (Delta : tycontext) : assert :=
 assert_of (fun rho =>
 (∀ id : ident ,
@@ -161,7 +166,7 @@ Proof.
 * unfold typecheck_expr.
   destruct ((temp_types Delta) !! i) as [? |] eqn:H1; [ | iIntros "[]"].
   destruct extends as [H _]. specialize (H i); hnf in H. rewrite H1 in H.
-  destruct ((temp_types Delta') !! i) as [? |] eqn:H2; rewrite H2 in H; subst; done.
+  destruct ((temp_types Delta') !! i) as [? |] eqn:H2; subst; done.
 * unfold typecheck_expr; fold typecheck_expr.
   destruct (access_mode t) eqn:?H; try iIntros "[]".
   rewrite !denote_tc_assert_andp.
