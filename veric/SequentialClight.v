@@ -842,10 +842,7 @@ Proof. solve_inG. Qed.
 Check step_fupdN_soundness.
 (* In Iris, they don't initialize wsat, but instead quantify over the wsatG in the adequacy theorem.
    step_fupdN_soundness initializes the wsat. *)
-Lemma init_VST: forall Z `{!VSTGpreS Z Σ} (z : Z) (prog : program) G m
-  (Hnorepet : list_norepet (prog_defs_names prog))
-  (Hmatch : @match_fdecs Σ (prog_funct prog) G)
-  (Hm : Genv.init_mem prog = Some m),
+Lemma init_VST: forall Z `{!VSTGpreS Z Σ} (z : Z),
   ⊢ |==> ∀ _ : wsatGS Σ, ∃ H : heapGS Σ, ∃ _ : externalGS Z Σ,
     (state_interp Mem.empty z ∗ funspec_auth ∅ ∗ has_ext z) ∗ ghost_map.ghost_map_auth(H0 := gen_heapGpreS_meta) (gen_meta_name _) 1 ∅.
 Proof.
@@ -856,6 +853,11 @@ Proof.
   iMod (ext_alloc z) as (?) "(? & ?)".
   iIntros "!>" (?); iExists (HeapGS _ _ (GenHeapGS _ _ γh γm) (FunspecG _ _ γf)), _.
   rewrite /state_interp /mem_auth /funspec_auth /=; iFrame.
+Qed.
+
+Global Instance stepN_absorbing {PROP : bi} `{!BiFUpd PROP} n E (P : PROP) `{!Absorbing P}: Absorbing (|={E}▷=>^n P).
+Proof.
+  induction n; apply _.
 Qed.
 
 (* adequacy looks like {state_interp m z ∗ jsafe} prog -> dry_safe prog m z *)
@@ -872,11 +874,11 @@ Lemma whole_program_sequential_safety_ext:
      (dessicate : forall (ef : external_function) jm,
                ext_spec_type OK_spec ef ->
                ext_spec_type dryspec ef)
-     (JDE: juicy_dry_ext_spec OK_ty (JE_spec OK_ty OK_spec) dryspec dessicate)
+     (JDE: forall {HH : heapGS Σ} {HE : externalGS OK_ty Σ}, @juicy_dry_ext_spec _ HH _ HE (JE_spec OK_ty OK_spec) dryspec dessicate)
      (DME: ext_spec_mem_evolve _ dryspec)
      (Esub: forall v z m m', ext_spec_exit dryspec v z m -> mem_sub m m' -> ext_spec_exit dryspec v z m')
      prog V G m,
-     semax_prog(Espec := Espec) prog initial_oracle V G ->
+     (forall {HH : heapGS Σ} {HE : externalGS OK_ty Σ}, @semax_prog _ HH Espec HE CS prog initial_oracle V G) ->
      Genv.init_mem prog = Some m ->
      exists b, exists q,
        Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some b /\
@@ -890,21 +892,21 @@ Lemma whole_program_sequential_safety_ext:
              n initial_oracle q m.
 Proof.
   intros.
-  eapply semax_prog_rule in H as (b & q & (Hmain & (? & Hinit)) & Hsafe); [|done..].
-  exists b, q; split3; auto.
-  
- destruct (semax_prog_rule Espec CS _ _ _ _
-     0 (*additional temporary argument - TODO (Santiago): FIXME*)
-     initial_oracle EXIT H H0) as [b [q [[H1 H2] H3]]].
- destruct (H3 O) as [jmx [H4x [H5x [H6x [H6'x [H7x _]]]]]].
- destruct (H2 jmx H4x) as [jmx' [H8x H8y]].
- exists b, q.
- split3; auto.
- rewrite H4x in H8y. auto.
- subst. simpl.
- clear H5x H6x H6'x H7x H8y.
- forget (m_dry jmx) as m. clear jmx.
- intro n.
+  eapply (step_fupdN_soundness _ 1); intros.
+  rewrite -fupd_mask_intro_discard //.
+  iIntros.
+  iMod (@init_VST _ _ VSTGpreS0) as "H".
+  iDestruct ("H" $! Hinv) as (HH HE) "(H & ?)".
+  specialize (H HH HE).
+  eapply (semax_prog_rule _ _ _ _ O) in H as (b & q & (? & ? & Hinit) & Hsafe); [| done..].
+  iMod (Hsafe with "H") as "Hsafe".
+  iAssert ⌜forall n, @dry_safeN _ _ _ OK_ty (semax.genv_symb_injective) (cl_core_sem (globalenv prog))
+            dryspec (Build_genv (Genv.globalenv prog) (prog_comp_env prog)) n initial_oracle q m⌝ with "[Hsafe]" as %Hdry.
+  { admit. (* adequacy lemma *) }
+  iIntros "!>"; iPureIntro.
+  exists b, q; auto.
+
+(* intro n.
  specialize (H3 n).
  destruct H3 as [jm [? [? [? [Hwsat [? _]]]]]].
  unfold semax.jsafeN in H6.
@@ -1088,7 +1090,8 @@ Proof.
  - eapply safeN_halted; eauto.
    eapply Esub; eauto.
    apply JDE; auto.
-Qed.
+Qed.*)
+Admitted.
 
 Definition fun_id (ext_link: Strings.String.string -> ident) (ef: external_function) : option ident :=
   match ef with EF_external id sig => Some (ext_link id) | _ => None end.
