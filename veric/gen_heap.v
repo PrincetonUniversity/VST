@@ -484,6 +484,18 @@ Proof.
   rewrite mapsto_unseal mapsto_no_unseal mapsto_pure_unseal //.
 Qed.
 
+Corollary gen_heap_init_names_empty `{!@gen_heapGpreS V Σ ResOps} :
+  ⊢ |==> ∃ γh γm,
+    let hG := GenHeapGS V Σ γh γm in
+    resource_map_auth (gen_heap_name _) 1 Mem.empty ∗ ghost_map_auth (gen_meta_name _) 1 ∅.
+Proof.
+  iDestruct (gen_heap_init_names Mem.empty ∅) as ">(% & % & ? & _ & ?)".
+  { done. }
+  { done. }
+  { intros; rewrite /resource_at lookup_empty; apply coherent_bot. }
+  by iExists _, _; iFrame.
+Qed.
+
 Lemma gen_heap_init `{!@gen_heapGpreS V Σ ResOps} m σ (Hvalid : ✓ σ) (Hnext : ∀ loc, (loc.1 >= Mem.nextblock m)%positive -> σ !! loc = None)
   (Hcoh : ∀ loc : address, coherent_loc m loc (resource_at σ loc)) :
   ⊢ |==> ∃ _ : gen_heapGS V Σ, resource_map_auth (gen_heap_name _) 1 m ∗
@@ -502,9 +514,7 @@ Qed.
 Corollary gen_heap_init_empty `{!@gen_heapGpreS V Σ ResOps} :
   ⊢ |==> ∃ _ : gen_heapGS V Σ, resource_map_auth (gen_heap_name _) 1 Mem.empty ∗ ghost_map_auth (gen_meta_name _) 1 ∅.
 Proof.
-  iDestruct (gen_heap_init Mem.empty ∅) as ">(% & ? & _ & ?)".
-  { done. }
-  { done. }
-  { intros; rewrite /resource_at lookup_empty; apply coherent_bot. }
-  by iExists _; iFrame.
+  iMod gen_heap_init_names_empty as (γh γm) "Hinit".
+  iExists (GenHeapGS _ _ γh γm).
+  done.
 Qed.

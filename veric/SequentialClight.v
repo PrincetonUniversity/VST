@@ -1,5 +1,6 @@
 Require Import VST.sepcomp.semantics.
 
+Require Import VST.veric.wsat.
 Require Import VST.veric.Clight_base.
 Require Import VST.veric.Clight_core.
 Require Import VST.veric.Clight_lemmas.
@@ -838,6 +839,24 @@ Definition VSTΣ Z : gFunctors :=
 Global Instance subG_VSTGpreS {Z Σ} : subG (VSTΣ Z) Σ → VSTGpreS Z Σ.
 Proof. solve_inG. Qed.
 
+Check step_fupdN_soundness.
+(* In Iris, they don't initialize wsat, but instead quantify over the wsatG in the adequacy theorem.
+   step_fupdN_soundness initializes the wsat. *)
+Lemma init_VST: forall Z `{!VSTGpreS Z Σ} (z : Z) (prog : program) G m
+  (Hnorepet : list_norepet (prog_defs_names prog))
+  (Hmatch : @match_fdecs Σ (prog_funct prog) G)
+  (Hm : Genv.init_mem prog = Some m),
+  ⊢ |==> ∀ _ : wsatGS Σ, ∃ H : heapGS Σ, ∃ _ : externalGS Z Σ,
+    (state_interp Mem.empty z ∗ funspec_auth ∅ ∗ has_ext z) ∗ ghost_map.ghost_map_auth(H0 := gen_heapGpreS_meta) (gen_meta_name _) 1 ∅.
+Proof.
+  intros; iIntros.
+  iMod gen_heap_init_names_empty as (??) "(? & ?)".
+  iMod (own_alloc(A := gmap_view.gmap_viewR address (@funspecO' Σ)) (gmap_view.gmap_view_auth (DfracOwn 1) ∅)) as (γf) "?".
+  { apply gmap_view.gmap_view_auth_valid. }
+  iMod (ext_alloc z) as (?) "(? & ?)".
+  iIntros "!>" (?); iExists (HeapGS _ _ (GenHeapGS _ _ γh γm) (FunspecG _ _ γf)), _.
+  rewrite /state_interp /mem_auth /funspec_auth /=; iFrame.
+Qed.
 
 (* adequacy looks like {state_interp m z ∗ jsafe} prog -> dry_safe prog m z *)
 Lemma whole_program_sequential_safety_ext:

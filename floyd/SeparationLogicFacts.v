@@ -11,14 +11,18 @@ Require Export VST.veric.juicy_extspec.
 Require Import VST.floyd.assert_lemmas.
 Import LiftNotation.
 
+Section mpred.
+
+Context `{!heapGS Σ}.
+
 (* Closed and subst. copied from closed_lemmas.v. *)
 
 Lemma closed_wrt_subst:
-  forall {A} id e (P: environ -> A), closed_wrt_vars (eq id) P -> subst id e P = P.
+  forall id e (P : assert), closed_wrt_vars (eq id) P -> assert_of (subst id e P) ⊣⊢ P.
 Proof.
 intros.
 unfold subst, closed_wrt_vars in *.
-extensionality rho.
+split => rho /=.
 symmetry.
 apply H.
 intros.
@@ -28,10 +32,6 @@ rewrite Map.gso; auto.
 Qed.
 
 (* End of copied from closed_lemmas.v. *)
-
-Section mpred.
-
-Context `{!heapGS Σ}.
 
 Lemma subst_self: forall {A: Type} (P: environ -> A) t id v Delta rho,
   (temp_types Delta) !! id = Some t ->
@@ -57,18 +57,20 @@ Proof.
     auto.
 Qed.
 
-Definition obox (Delta: tycontext) (i: ident) (P: environ -> mpred): environ -> mpred :=
-  ALL v: _,
-    match ((temp_types Delta) ! i) with
-    | Some t => !! (tc_val' t v) --> subst i (`v) P
-    | _ => TT
+Notation assert := (@assert Σ).
+
+Definition obox (Delta: tycontext) (i: ident) (P: assert): assert :=
+  ∀ v: _,
+    match (temp_types Delta) !! i with
+    | Some t => ⌜tc_val' t v⌝ → assert_of (subst i (`v) P)
+    | _ => True
     end.
 
-Definition odia (Delta: tycontext) (i: ident) (P: environ -> mpred): environ -> mpred :=
-  EX v: _,
-    match ((temp_types Delta) ! i) with
-    | Some t => !! (tc_val' t v) && subst i (`v) P
-    | _ => FF
+Definition odia (Delta: tycontext) (i: ident) (P: assert): assert :=
+  ∃ v: _,
+    match (temp_types Delta) !! i with
+    | Some t => ⌜tc_val' t v⌝ ∧ assert_of (subst i (`v) P)
+    | _ => False
     end.
 
 Lemma obox_closed_wrt: forall Delta id P, closed_wrt_vars (eq id) (obox Delta id P).
@@ -76,22 +78,20 @@ Proof.
   intros.
   hnf; intros.
   unfold obox; simpl.
-  apply allp_congr; intros.
-  unfold subst.
-  destruct ((temp_types Delta) ! id); auto.
-  f_equal.
-  f_equal.
-  unfold_lift.
-  unfold env_set.
-  f_equal.
-  simpl.
-  apply Map.ext; intros j.
-  destruct (ident_eq id j).
-  + subst.
-    rewrite !Map.gss; auto.
-  + rewrite !Map.gso by congruence.
-    destruct (H j); [congruence |].
-    auto.
+  monPred.unseal; simpl.
+  f_equiv; intros ?.
+  destruct ((temp_types Delta) !! id); auto.
+  rewrite /monpred.monPred_defs.monPred_impl_def /=.
+  assert ((Map.set id a (te_of rho)) = Map.set id a te') as Hrho.
+  { apply Map.ext; intros j.
+    destruct (ident_eq id j).
+    + subst.
+      rewrite !Map.gss; auto.
+    + rewrite !Map.gso //.
+      destruct (H j); [congruence |].
+      auto. }
+  iSplit; iIntros "H" (? <- ?); (iSpecialize ("H" with "[%] [%]"); [done.. |]);
+    unfold_lift; rewrite /subst /env_set /= Hrho //.
 Qed.
 
 Lemma odia_closed_wrt: forall Delta id P, closed_wrt_vars (eq id) (odia Delta id P).
@@ -99,33 +99,28 @@ Proof.
   intros.
   hnf; intros.
   unfold odia; simpl.
-  apply exp_congr; intros.
-  destruct ((temp_types Delta) ! id); auto.
-  f_equal.
-  unfold subst.
-  simpl.
-  f_equal.
-  unfold_lift.
-  unfold env_set.
-  f_equal.
-  simpl.
-  apply Map.ext; intros j.
+  monPred.unseal; simpl.
+  f_equiv; intros ?.
+  destruct ((temp_types Delta) !! id); auto.
+  simpl; f_equiv.
+  rewrite /subst /env_set /=; f_equiv.
+  f_equiv; apply Map.ext; intros j.
   destruct (ident_eq id j).
   + subst.
     rewrite !Map.gss; auto.
-  + rewrite !Map.gso by congruence.
+  + rewrite !Map.gso //.
     destruct (H j); [congruence |].
     auto.
 Qed.
 
-Lemma subst_obox: forall Delta id v (P: environ -> mpred), subst id (`v) (obox Delta id P) = obox Delta id P.
+Lemma subst_obox: forall Delta id v (P: assert), assert_of (subst id (`v) (obox Delta id P)) ⊣⊢ obox Delta id P.
 Proof.
   intros.
   apply closed_wrt_subst.
   apply obox_closed_wrt.
 Qed.
 
-Lemma subst_odia: forall Delta id v (P: environ -> mpred), subst id (`v) (odia Delta id P) = odia Delta id P.
+Lemma subst_odia: forall Delta id v (P: assert), assert_of (subst id (`v) (odia Delta id P)) ⊣⊢ odia Delta id P.
 Proof.
   intros.
   apply closed_wrt_subst.
@@ -133,221 +128,128 @@ Proof.
 Qed.
 
 Definition temp_guard (Delta : tycontext) (i: ident): Prop :=
-  (temp_types Delta) ! i <> None.
+  (temp_types Delta) !! i <> None.
 
-Lemma obox_closed: forall Delta i P, temp_guard Delta i -> closed_wrt_vars (eq i) P -> obox Delta i P = P.
+Lemma obox_closed: forall Delta i (P : assert), temp_guard Delta i -> closed_wrt_vars (eq i) P -> obox Delta i P ⊣⊢ P.
 Proof.
   intros.
   unfold obox.
   hnf in H.
-  destruct ((temp_types Delta) ! i); [| tauto].
-  apply pred_ext.
-  + apply (allp_left _ Vundef).
-    rewrite closed_wrt_subst by auto.
-    apply derives_refl'.
-    apply prop_imp, tc_val'_Vundef.
-  + apply allp_right; intros.
-    rewrite closed_wrt_subst by auto.
-    apply imp_right2.
+  destruct ((temp_types Delta) !! i); [| tauto].
+  iSplit.
+  + iIntros "H"; iSpecialize ("H" $! Vundef with "[%]"); first apply tc_val'_Vundef.
+    rewrite closed_wrt_subst //.
+  + iIntros "?" (??).
+    rewrite closed_wrt_subst //.
 Qed.
 
-Lemma obox_odia: forall Delta i P, temp_guard Delta i -> obox Delta i (odia Delta i P) = odia Delta i P.
+Lemma obox_odia: forall Delta i P, temp_guard Delta i -> obox Delta i (odia Delta i P) ⊣⊢ odia Delta i P.
 Proof.
   intros.
   apply obox_closed; auto.
   apply odia_closed_wrt.
 Qed.
 
-Lemma obox_K: forall Delta i P Q, (P |-- Q) -> obox Delta i P |-- obox Delta i Q.
+Lemma obox_K: forall Delta i P Q, (P ⊢ Q) -> obox Delta i P ⊢ obox Delta i Q.
 Proof.
   intros.
-  intro rho.
-  unfold obox, subst.
-  simpl; apply allp_derives; intros.
-  destruct ((temp_types Delta) ! i); auto.
-  apply imp_derives; auto.
+  rewrite /obox /subst.
+  destruct ((temp_types Delta) !! i); auto.
+  split => rho; monPred.unseal.
+  iIntros "H" (????); rewrite -H; by iApply "H".
 Qed.
 
-Lemma obox_T: forall Delta i (P: environ -> mpred),
+Lemma obox_T: forall Delta i (P: assert),
   temp_guard Delta i ->
-  local (tc_environ Delta) && obox Delta i P |-- P.
+  local (tc_environ Delta) ∧ obox Delta i P ⊢ P.
 Proof.
   intros.
-  intro rho; simpl.
-  unfold local, lift1.
-  normalize.
-  destruct H0 as [? _].
-  hnf in H, H0.
-  specialize (H0 i).
-  unfold obox; simpl.
-  destruct ((temp_types Delta) ! i); [| tauto].
-  specialize (H0 t eq_refl).
-  destruct H0 as [v [? ?]].
-  apply (allp_left _ v).
-  rewrite prop_imp by auto.
-  unfold subst.
-  apply derives_refl'.
-  f_equal.
-  unfold_lift.
-  destruct rho.
-  unfold env_set; simpl in *.
-  f_equal.
-  apply Map.ext; intro j.
-  destruct (ident_eq i j).
-  + subst.
-    rewrite Map.gss; auto.
-  + rewrite Map.gso by auto.
-    auto.
+  split => rho; rewrite /local /lift1 /obox /subst /env_set; monPred.unseal.
+  iIntros "((%TC & _) & H)".
+  unfold temp_guard, typecheck_temp_environ in *.
+  specialize (TC i); destruct (temp_types Delta !! i); last done.
+  edestruct TC as (? & ? & ?); first done.
+  iSpecialize ("H" with "[%] [%]"); [done.. | simpl].
+  destruct rho; rewrite Map.override_same //.
 Qed.
 
-Lemma odia_D: forall Delta i (P: environ -> mpred),
+Lemma odia_D: forall Delta i (P: assert),
   temp_guard Delta i ->
-  local (tc_environ Delta) && P |-- odia Delta i P.
+  local (tc_environ Delta) ∧ P ⊢ odia Delta i P.
 Proof.
   intros.
-  intro rho; simpl.
-  unfold local, lift1.
-  normalize.
-  destruct H0 as [? _].
-  hnf in H, H0.
-  specialize (H0 i).
-  unfold odia; simpl.
-  destruct ((temp_types Delta) ! i); [| tauto].
-  specialize (H0 t eq_refl).
-  destruct H0 as [v [? ?]].
-  apply (exp_right v).
-  rewrite prop_true_andp by auto.
-  unfold subst.
-  apply derives_refl'.
-  f_equal.
-  unfold_lift.
-  destruct rho.
-  unfold env_set; simpl in *.
-  f_equal.
-  apply Map.ext; intro j.
-  destruct (ident_eq i j).
-  + subst.
-    rewrite Map.gss; auto.
-  + rewrite Map.gso by auto.
-    auto.
+  split => rho; rewrite /local /lift1 /odia /subst /env_set; monPred.unseal.
+  iIntros "((%TC & _) & H)".
+  unfold temp_guard, typecheck_temp_environ in *.
+  specialize (TC i); destruct (temp_types Delta !! i); last done.
+  edestruct TC as (? & ? & ?); first done.
+  iExists _; iSplit; first done; simpl.
+  destruct rho; rewrite Map.override_same //.
 Qed.
 
 Lemma odia_derives_EX_subst: forall Delta i P,
-  odia Delta i P |-- EX v : val, subst i (` v) P.
+  odia Delta i P ⊢ ∃ v : val, assert_of (subst i (` v) P).
 Proof.
   intros.
   unfold odia.
-  apply exp_derives.
-  intros v.
-  destruct ((temp_types Delta) ! i); [| apply FF_left].
-  apply andp_left2; auto.
+  apply bi.exist_mono; intros.
+  iIntros "H"; destruct ((temp_types Delta) !! i); last done.
+  rewrite bi.and_elim_r //.
+Qed.
+
+Lemma tc_environ_set: forall Delta i t x rho (TC : tc_environ Delta rho),
+  temp_types Delta !! i = Some t -> tc_val' t x ->
+  tc_environ Delta (mkEnviron (ge_of rho) (ve_of rho) (Map.set i ((` x) rho) (te_of rho))).
+Proof.
+  intros.
+  destruct rho, TC as (TC & ? & ?); split3; auto; simpl in *.
+  intros j tj Hj; destruct (TC j tj Hj) as (v & ? & ?).
+  destruct (ident_eq i j).
+  + subst; eexists; rewrite Map.gss.
+    assert (tj = t) as -> by (rewrite Hj in H; inv H; done); eauto.
+  + exists v.
+    rewrite Map.gso //.
 Qed.
 
 Lemma obox_left2: forall Delta i P Q,
   temp_guard Delta i ->
-  (local (tc_environ Delta) && P |-- Q) ->  
-  local (tc_environ Delta) && obox Delta i P |-- obox Delta i Q.
+  (local (tc_environ Delta) ∧ P ⊢ Q) ->  
+  local (tc_environ Delta) ∧ obox Delta i P ⊢ obox Delta i Q.
 Proof.
-  intros.
-  unfold local, lift1 in *.
-  intro rho; simpl.
-  normalize.
-  unfold obox; simpl.
-  apply allp_derives; intros x.
-  destruct ((temp_types Delta) ! i) eqn:?H; auto.
-  rewrite <- imp_andp_adjoint.
-  normalize.
-  unfold TT; rewrite prop_imp by auto.
-  unfold subst; unfold_lift.
-  specialize (H0 (env_set rho i x)).
-  simpl in H0.
-  assert (tc_environ Delta (env_set rho i x)).
-  {
-    clear H0.
-    destruct rho, H1 as [? [? ?]]; split; [| split]; simpl in *; auto.
-    clear H1 H4.
-    hnf in H0 |- *.
-    intros j tj H1; specialize (H0 j tj H1).
-    destruct H0 as [v [? ?]].
-    destruct (ident_eq i j).
-    + exists x.
-      subst.
-      rewrite H2 in H1; inv H1.
-      rewrite Map.gss.
-      split; auto.
-    + exists v.
-      rewrite Map.gso by auto.
-      split; auto.
-  }
-  normalize in H0.
+  intros ????? [H].
+  split => ?; revert H; rewrite /local /lift1 /obox /subst /env_set; monPred.unseal; intros.
+  iIntros "(%TC & H)".
+  destruct (temp_types Delta !! i) eqn: Ht; last done.
+  rewrite /monpred.monPred_defs.monPred_impl_def /=.
+  iIntros (x rho -> ?); iApply H; iSplit; last by iApply "H".
+  iPureIntro; eapply tc_environ_set; eauto.
 Qed.
 
-Lemma obox_left2': forall Delta i P Q,
+Lemma obox_left2': forall E Delta i P Q,
   temp_guard Delta i ->
-  (local (tc_environ Delta) && (allp_fun_id Delta && P) |-- Q) ->  
-  local (tc_environ Delta) && (allp_fun_id Delta && obox Delta i P) |-- obox Delta i Q.
+  (local (tc_environ Delta) ∧ (<affine> allp_fun_id E Delta ∗ P) ⊢ Q) ->
+  local (tc_environ Delta) ∧ (<affine> allp_fun_id E Delta ∗ obox Delta i P) ⊢ obox Delta i Q.
 Proof.
-  intros.
-  unfold local, lift1 in *.
-  intro rho; simpl.
-  normalize.
-  unfold obox; simpl.
-  apply allp_right; intros x.
-  rewrite andp_comm; apply imp_andp_adjoint.
-  apply (allp_left _ x).
-  apply imp_andp_adjoint; rewrite andp_comm.
-  destruct ((temp_types Delta) ! i) eqn:?H; [| apply prop_right; auto].
-  rewrite <- imp_andp_adjoint.
-  normalize.
-  unfold TT; rewrite prop_imp by auto.
-  unfold subst; unfold_lift.
-  specialize (H0 (env_set rho i x)).
-  simpl in H0.
-  assert (tc_environ Delta (env_set rho i x)).
-  {
-    clear H0.
-    destruct rho, H1 as [? [? ?]]; split; [| split]; simpl in *; auto.
-    clear H1 H4.
-    hnf in H0 |- *.
-    intros j tj H1; specialize (H0 j tj H1).
-    destruct H0 as [v [? ?]].
-    destruct (ident_eq i j).
-    + exists x.
-      subst.
-      rewrite H2 in H1; inv H1.
-      rewrite Map.gss.
-      split; auto.
-    + exists v.
-      rewrite Map.gso by auto.
-      split; auto.
-  }
-  normalize in H0.
+  intros ?????? [H].
+  split => ?; revert H; rewrite /local /lift1 /obox /subst /env_set; monPred.unseal; intros.
+  iIntros "(%TC & Ha & H)".
+  destruct (temp_types Delta !! i) eqn: Ht; last done.
+  rewrite /monpred.monPred_defs.monPred_impl_def /=.
+  iIntros (x rho -> ?); iApply H; iSplit; last iSplitR "H"; last by iApply "H".
+  - iPureIntro; eapply tc_environ_set; eauto.
+  - rewrite !monPred_at_affinely //.
 Qed.
 
 Lemma obox_sepcon: forall Delta i P Q,
-  obox Delta i P * obox Delta i Q |-- obox Delta i (P * Q).
+  obox Delta i P ∗ obox Delta i Q ⊢ obox Delta i (P ∗ Q).
 Proof.
   intros.
-  unfold obox.
-  apply allp_right.
-  intros v.
-  apply wand_sepcon_adjoint.
-  apply (allp_left _ v).
-  apply wand_sepcon_adjoint.
-  rewrite sepcon_comm.
-  apply wand_sepcon_adjoint.
-  apply (allp_left _ v).
-  apply wand_sepcon_adjoint.
-  rewrite sepcon_comm.
-  destruct ((temp_types Delta) ! i); [| apply TT_right].
-  apply imp_andp_adjoint.
-  normalize.
-  unfold TT.
-  rewrite !prop_imp by auto.
-  rewrite subst_sepcon.
-  auto.
+  rewrite /obox.
+  iIntros "(HP & HQ)" (?).
+  destruct (temp_types Delta !! i); last done.
+  iIntros (?); rewrite subst_sepcon; iSplitL "HP"; [iApply "HP" | iApply "HQ"]; done.
 Qed.
-  
+
 Definition oboxopt Delta ret P :=
   match ret with
   | Some id => obox Delta id P
@@ -366,53 +268,52 @@ Definition temp_guard_opt (Delta : tycontext) (i: option ident): Prop :=
   | None => True
   end.
 
-Lemma substopt_oboxopt: forall Delta id v (P: environ -> mpred), substopt id (`v) (oboxopt Delta id P) = oboxopt Delta id P.
+Lemma substopt_oboxopt: forall Delta id v (P: assert), assert_of (substopt id (`v) (oboxopt Delta id P)) ⊣⊢ oboxopt Delta id P.
 Proof.
   intros.
-  destruct id; [| auto].
+  destruct id; [| done].
   apply subst_obox.
 Qed.
 
-Lemma oboxopt_closed: forall Delta i P,
+Lemma oboxopt_closed: forall Delta i (P : assert),
   temp_guard_opt Delta i ->
-  closed_wrt_vars (fun id => isSome (match i with Some i' => insert_idset i' idset0 | None => idset0 end) ! id) P ->
-  oboxopt Delta i P = P.
+  closed_wrt_vars (fun id => isSome ((match i with Some i' => insert_idset i' idset0 | None => idset0 end) !! id)) P ->
+  oboxopt Delta i P ⊣⊢ P.
 Proof.
   intros.
-  destruct i.
-  + simpl in H0 |- *.
-    apply obox_closed; auto.
-    replace (eq i) with ((fun id : ident => isSome (insert_idset i idset0) ! id)); auto.
-    extensionality id.
-    unfold insert_idset.
-    destruct (ident_eq id i).
-    - subst.
-      rewrite PTree.gss.
-      simpl.
-      apply prop_ext.
-      tauto.
-    - rewrite PTree.gso by auto.
-      unfold idset0.
-      rewrite PTree.gempty.
-      simpl.
-      assert (i <> id) by congruence.
-      apply prop_ext.
-      tauto.
-  + auto.
+  destruct i; auto.
+  simpl in H0 |- *.
+  apply obox_closed; auto.
+  replace (eq i) with ((fun id : ident => isSome ((insert_idset i idset0) !! id))); auto.
+  extensionality id.
+  unfold insert_idset.
+  destruct (ident_eq id i).
+  - subst.
+    setoid_rewrite Maps.PTree.gss.
+    simpl.
+    apply prop_ext.
+    tauto.
+  - setoid_rewrite Maps.PTree.gso; last done.
+    unfold idset0.
+    rewrite Maps.PTree.gempty.
+    simpl.
+    assert (i <> id) by congruence.
+    apply prop_ext.
+    tauto.
 Qed.
 
-Lemma oboxopt_T: forall Delta i (P: environ -> mpred),
+Lemma oboxopt_T: forall Delta i (P: assert),
   temp_guard_opt Delta i ->
-  local (tc_environ Delta) && oboxopt Delta i P |-- P.
+  local (tc_environ Delta) ∧ oboxopt Delta i P ⊢ P.
 Proof.
   intros.
   destruct i; [| apply andp_left2, derives_refl].
   apply obox_T; auto.
 Qed.
 
-Lemma odiaopt_D: forall Delta i (P: environ -> mpred),
+Lemma odiaopt_D: forall Delta i (P: assert),
   temp_guard_opt Delta i ->
-  local (tc_environ Delta) && P |-- odiaopt Delta i P.
+  local (tc_environ Delta) ∧ P ⊢ odiaopt Delta i P.
 Proof.
   intros.
   destruct i; [| apply andp_left2, derives_refl].
@@ -426,7 +327,7 @@ Proof.
   apply obox_odia; auto.
 Qed.
 
-Lemma oboxopt_K: forall Delta i P Q, (P |-- Q) -> oboxopt Delta i P |-- oboxopt Delta i Q.
+Lemma oboxopt_K: forall Delta i P Q, (P ⊢ Q) -> oboxopt Delta i P ⊢ oboxopt Delta i Q.
 Proof.
   intros.
   intro rho.
@@ -434,19 +335,19 @@ Proof.
   apply obox_K; auto.
 Qed.
 
-Lemma odiaopt_derives_EX_substopt: forall Delta i P,
-  odiaopt Delta i P |-- EX v : val, substopt i (` v) P.
+Lemma odiaopt_derives_∃_substopt: forall Delta i P,
+  odiaopt Delta i P ⊢ ∃ v : val, substopt i (` v) P.
 Proof.
   intros.
-  destruct i; [apply odia_derives_EX_subst |].
+  destruct i; [apply odia_derives_∃_subst |].
   simpl.
   intros; apply (exp_right Vundef); auto.
 Qed.
 
 Lemma oboxopt_left2: forall Delta i P Q,
   temp_guard_opt Delta i ->
-  (local (tc_environ Delta) && P |-- Q) ->  
-  local (tc_environ Delta) && oboxopt Delta i P |-- oboxopt Delta i Q.
+  (local (tc_environ Delta) ∧ P ⊢ Q) ->  
+  local (tc_environ Delta) ∧ oboxopt Delta i P ⊢ oboxopt Delta i Q.
 Proof.
   intros.
   destruct i; [apply obox_left2; auto |].
@@ -455,8 +356,8 @@ Qed.
 
 Lemma oboxopt_left2': forall Delta i P Q,
   temp_guard_opt Delta i ->
-  (local (tc_environ Delta) && (allp_fun_id Delta && P) |-- Q) ->  
-  local (tc_environ Delta) && (allp_fun_id Delta && oboxopt Delta i P) |-- oboxopt Delta i Q.
+  (local (tc_environ Delta) ∧ (allp_fun_id Delta ∧ P) ⊢ Q) ->  
+  local (tc_environ Delta) ∧ (allp_fun_id Delta ∧ oboxopt Delta i P) ⊢ oboxopt Delta i Q.
 Proof.
   intros.
   destruct i; [apply obox_left2'; auto |].
@@ -464,7 +365,7 @@ Proof.
 Qed.
 
 Lemma oboxopt_sepcon: forall Delta i P Q,
-  oboxopt Delta i P * oboxopt Delta i Q |-- oboxopt Delta i (P * Q).
+  oboxopt Delta i P * oboxopt Delta i Q ⊢ oboxopt Delta i (P * Q).
 Proof.
   intros.
   destruct i.
@@ -481,11 +382,11 @@ Import CSHL_Def.
 Axiom semax_conseq:
   forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
   forall P' (R': ret_assert) P c (R: ret_assert) ,
-    (local (tc_environ Delta) && ((allp_fun_id Delta) && P) |-- (|={Ensembles.Full_set}=> P')) ->
-    (local (tc_environ Delta) && ((allp_fun_id Delta) && RA_normal R') |-- (|={Ensembles.Full_set}=> RA_normal R)) ->
-    (local (tc_environ Delta) && ((allp_fun_id Delta) && RA_break R') |-- (|={Ensembles.Full_set}=> RA_break R)) ->
-    (local (tc_environ Delta) && ((allp_fun_id Delta) && RA_continue R') |-- (|={Ensembles.Full_set}=> RA_continue R)) ->
-    (forall vl, local (tc_environ Delta) && ((allp_fun_id Delta) && RA_return R' vl) |-- (RA_return R vl)) ->
+    (local (tc_environ Delta) ∧ ((allp_fun_id Delta) ∧ P) ⊢ (|={Ensembles.Full_set}=> P')) ->
+    (local (tc_environ Delta) ∧ ((allp_fun_id Delta) ∧ RA_normal R') ⊢ (|={Ensembles.Full_set}=> RA_normal R)) ->
+    (local (tc_environ Delta) ∧ ((allp_fun_id Delta) ∧ RA_break R') ⊢ (|={Ensembles.Full_set}=> RA_break R)) ->
+    (local (tc_environ Delta) ∧ ((allp_fun_id Delta) ∧ RA_continue R') ⊢ (|={Ensembles.Full_set}=> RA_continue R)) ->
+    (forall vl, local (tc_environ Delta) ∧ ((allp_fun_id Delta) ∧ RA_return R' vl) ⊢ (RA_return R vl)) ->
    @semax CS Espec Delta P' c R' -> @semax CS Espec Delta P c R.
 
 End CLIGHT_SEPARATION_HOARE_LOGIC_COMPLETE_CONSEQUENCE.
@@ -500,28 +401,28 @@ Import CConseq.
 Lemma semax_pre_post_indexed_fupd:
   forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
  forall P' (R': ret_assert) P c (R: ret_assert) ,
-    (local (tc_environ Delta) && P |-- (|={Ensembles.Full_set}=> P')) ->
-    (local (tc_environ Delta) && RA_normal R' |-- (|={Ensembles.Full_set}=> RA_normal R)) ->
-    (local (tc_environ Delta) && RA_break R' |-- (|={Ensembles.Full_set}=> RA_break R)) ->
-    (local (tc_environ Delta) && RA_continue R' |-- (|={Ensembles.Full_set}=> RA_continue R)) ->
-    (forall vl, local (tc_environ Delta) && RA_return R' vl |-- (RA_return R vl)) ->
+    (local (tc_environ Delta) ∧ P ⊢ (|={Ensembles.Full_set}=> P')) ->
+    (local (tc_environ Delta) ∧ RA_normal R' ⊢ (|={Ensembles.Full_set}=> RA_normal R)) ->
+    (local (tc_environ Delta) ∧ RA_break R' ⊢ (|={Ensembles.Full_set}=> RA_break R)) ->
+    (local (tc_environ Delta) ∧ RA_continue R' ⊢ (|={Ensembles.Full_set}=> RA_continue R)) ->
+    (forall vl, local (tc_environ Delta) ∧ RA_return R' vl ⊢ (RA_return R vl)) ->
    @semax CS Espec Delta P' c R' -> @semax CS Espec Delta P c R.
 Proof.
   intros.
   eapply semax_conseq; [.. | exact H4]; try intros;
   match goal with
-  | |- ?A && (_ && ?B) |-- _ => apply derives_trans with (A && B); [solve_andp | auto]
+  | |- ?A ∧ (_ ∧ ?B) ⊢ _ => apply derives_trans with (A ∧ B); [solve_andp | auto]
   end.
 Qed.
 
 Lemma semax_pre_post_fupd:
   forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
  forall P' (R': ret_assert) P c (R: ret_assert) ,
-    (local (tc_environ Delta) && P |-- (|={Ensembles.Full_set}=> P')) ->
-    (local (tc_environ Delta) && RA_normal R' |-- (|={Ensembles.Full_set}=> RA_normal R)) ->
-    (local (tc_environ Delta) && RA_break R' |-- (|={Ensembles.Full_set}=> RA_break R)) ->
-    (local (tc_environ Delta) && RA_continue R' |-- (|={Ensembles.Full_set}=> RA_continue R)) ->
-    (forall vl, local (tc_environ Delta) && RA_return R' vl |-- (RA_return R vl)) ->
+    (local (tc_environ Delta) ∧ P ⊢ (|={Ensembles.Full_set}=> P')) ->
+    (local (tc_environ Delta) ∧ RA_normal R' ⊢ (|={Ensembles.Full_set}=> RA_normal R)) ->
+    (local (tc_environ Delta) ∧ RA_break R' ⊢ (|={Ensembles.Full_set}=> RA_break R)) ->
+    (local (tc_environ Delta) ∧ RA_continue R' ⊢ (|={Ensembles.Full_set}=> RA_continue R)) ->
+    (forall vl, local (tc_environ Delta) ∧ RA_return R' vl ⊢ (RA_return R vl)) ->
    @semax CS Espec Delta P' c R' -> @semax CS Espec Delta P c R.
 Proof.
   intros.
@@ -531,7 +432,7 @@ Qed.
 
 Lemma semax_pre_indexed_fupd:
  forall P' Espec {cs: compspecs} Delta P c R,
-     (local (tc_environ Delta) && P |-- (|={Ensembles.Full_set}=> P')) ->
+     (local (tc_environ Delta) ∧ P ⊢ (|={Ensembles.Full_set}=> P')) ->
      @semax cs Espec Delta P' c R  -> @semax cs Espec Delta P c R.
 Proof.
   intros; eapply semax_pre_post_indexed_fupd; eauto;
@@ -540,10 +441,10 @@ Qed.
 
 Lemma semax_post_indexed_fupd:
  forall (R': ret_assert) Espec {cs: compspecs} Delta (R: ret_assert) P c,
-   (local (tc_environ Delta) && RA_normal R' |-- (|={Ensembles.Full_set}=> RA_normal R)) ->
-   (local (tc_environ Delta) && RA_break R' |-- (|={Ensembles.Full_set}=> RA_break R)) ->
-   (local (tc_environ Delta) && RA_continue R' |-- (|={Ensembles.Full_set}=> RA_continue R)) ->
-   (forall vl, local (tc_environ Delta) && RA_return R' vl |-- (RA_return R vl)) ->
+   (local (tc_environ Delta) ∧ RA_normal R' ⊢ (|={Ensembles.Full_set}=> RA_normal R)) ->
+   (local (tc_environ Delta) ∧ RA_break R' ⊢ (|={Ensembles.Full_set}=> RA_break R)) ->
+   (local (tc_environ Delta) ∧ RA_continue R' ⊢ (|={Ensembles.Full_set}=> RA_continue R)) ->
+   (forall vl, local (tc_environ Delta) ∧ RA_return R' vl ⊢ (RA_return R vl)) ->
    @semax cs Espec Delta P c R' ->  @semax cs Espec Delta P c R.
 Proof.
   intros; eapply semax_pre_post_indexed_fupd; try eassumption.
@@ -551,7 +452,7 @@ Proof.
 Qed.
 
 Lemma semax_post''_indexed_fupd: forall R' Espec {cs: compspecs} Delta R P c,
-           (local (tc_environ Delta) && R' |-- (|={Ensembles.Full_set}=> RA_normal R)) ->
+           (local (tc_environ Delta) ∧ R' ⊢ (|={Ensembles.Full_set}=> RA_normal R)) ->
       @semax cs Espec Delta P c (normal_ret_assert R') ->
       @semax cs Espec Delta P c R.
 Proof. intros. eapply semax_post_indexed_fupd; eauto.
@@ -563,7 +464,7 @@ Qed.
 
 Lemma semax_pre_fupd:
  forall P' Espec {cs: compspecs} Delta P c R,
-     (local (tc_environ Delta) && P |-- (|={Ensembles.Full_set}=> P')) ->
+     (local (tc_environ Delta) ∧ P ⊢ (|={Ensembles.Full_set}=> P')) ->
      @semax cs Espec Delta P' c R  -> @semax cs Espec Delta P c R.
 Proof.
 intros; eapply semax_pre_post_fupd; eauto;
@@ -572,10 +473,10 @@ Qed.
 
 Lemma semax_post_fupd:
  forall (R': ret_assert) Espec {cs: compspecs} Delta (R: ret_assert) P c,
-   (local (tc_environ Delta) && RA_normal R' |-- (|={Ensembles.Full_set}=> RA_normal R)) ->
-   (local (tc_environ Delta) && RA_break R' |-- (|={Ensembles.Full_set}=> RA_break R)) ->
-   (local (tc_environ Delta) && RA_continue R' |-- (|={Ensembles.Full_set}=> RA_continue R)) ->
-   (forall vl, local (tc_environ Delta) && RA_return R' vl |-- (RA_return R vl)) ->
+   (local (tc_environ Delta) ∧ RA_normal R' ⊢ (|={Ensembles.Full_set}=> RA_normal R)) ->
+   (local (tc_environ Delta) ∧ RA_break R' ⊢ (|={Ensembles.Full_set}=> RA_break R)) ->
+   (local (tc_environ Delta) ∧ RA_continue R' ⊢ (|={Ensembles.Full_set}=> RA_continue R)) ->
+   (forall vl, local (tc_environ Delta) ∧ RA_return R' vl ⊢ (RA_return R vl)) ->
    @semax cs Espec Delta P c R' ->  @semax cs Espec Delta P c R.
 Proof.
   intros; eapply semax_pre_post_fupd; try eassumption.
@@ -583,7 +484,7 @@ Proof.
 Qed.
 
 Lemma semax_post'_fupd: forall R' Espec {cs: compspecs} Delta R P c,
-           (local (tc_environ Delta) && R' |-- (|={Ensembles.Full_set}=> R)) ->
+           (local (tc_environ Delta) ∧ R' ⊢ (|={Ensembles.Full_set}=> R)) ->
       @semax cs Espec Delta P c (normal_ret_assert R') ->
       @semax cs Espec Delta P c (normal_ret_assert R).
 Proof. intros. eapply semax_post_fupd; eauto.
@@ -594,7 +495,7 @@ Proof. intros. eapply semax_post_fupd; eauto.
 Qed.
 
 Lemma semax_post''_fupd: forall R' Espec {cs: compspecs} Delta R P c,
-           (local (tc_environ Delta) && R' |-- (|={Ensembles.Full_set}=> RA_normal R)) ->
+           (local (tc_environ Delta) ∧ R' ⊢ (|={Ensembles.Full_set}=> RA_normal R)) ->
       @semax cs Espec Delta P c (normal_ret_assert R') ->
       @semax cs Espec Delta P c R.
 Proof. intros. eapply semax_post_fupd; eauto.
@@ -605,8 +506,8 @@ Proof. intros. eapply semax_post_fupd; eauto.
 Qed.
 
 Lemma semax_pre_post'_fupd: forall P' R' Espec {cs: compspecs} Delta R P c,
-      (local (tc_environ Delta) && P |-- (|={Ensembles.Full_set}=> P')) ->
-      (local (tc_environ Delta) && R' |-- (|={Ensembles.Full_set}=> R)) ->
+      (local (tc_environ Delta) ∧ P ⊢ (|={Ensembles.Full_set}=> P')) ->
+      (local (tc_environ Delta) ∧ R' ⊢ (|={Ensembles.Full_set}=> R)) ->
       @semax cs Espec Delta P' c (normal_ret_assert R') ->
       @semax cs Espec Delta P c (normal_ret_assert R).
 Proof. intros.
@@ -615,8 +516,8 @@ Proof. intros.
 Qed.
 
 Lemma semax_pre_post''_fupd: forall P' R' Espec {cs: compspecs} Delta R P c,
-      (local (tc_environ Delta) && P |-- (|={Ensembles.Full_set}=> P')) ->
-      (local (tc_environ Delta) && R' |-- (|={Ensembles.Full_set}=> RA_normal R)) ->
+      (local (tc_environ Delta) ∧ P ⊢ (|={Ensembles.Full_set}=> P')) ->
+      (local (tc_environ Delta) ∧ R' ⊢ (|={Ensembles.Full_set}=> RA_normal R)) ->
       @semax cs Espec Delta P' c (normal_ret_assert R') ->
       @semax cs Espec Delta P c R.
 Proof. intros.
@@ -634,11 +535,11 @@ Import CSHL_Def.
 
 Axiom semax_pre_post : forall {Espec: OracleKind}{CS: compspecs},
  forall P' (R': ret_assert) Delta P c (R: ret_assert) ,
-    (local (tc_environ Delta) && P |-- P') ->
-    (local (tc_environ Delta) && RA_normal R' |-- RA_normal R) ->
-    (local (tc_environ Delta) && RA_break R' |-- RA_break R) ->
-    (local (tc_environ Delta) && RA_continue R' |-- RA_continue R) ->
-    (forall vl, local (tc_environ Delta) && RA_return R' vl |-- RA_return R vl) ->
+    (local (tc_environ Delta) ∧ P ⊢ P') ->
+    (local (tc_environ Delta) ∧ RA_normal R' ⊢ RA_normal R) ->
+    (local (tc_environ Delta) ∧ RA_break R' ⊢ RA_break R) ->
+    (local (tc_environ Delta) ∧ RA_continue R' ⊢ RA_continue R) ->
+    (forall vl, local (tc_environ Delta) ∧ RA_return R' vl ⊢ RA_return R vl) ->
    @semax CS Espec Delta P' c R' -> @semax CS Espec Delta P c R.
 
 End CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE.
@@ -655,11 +556,11 @@ Import CConseqFacts.
 
 Lemma semax_pre_post : forall {Espec: OracleKind}{CS: compspecs},
  forall P' (R': ret_assert) Delta P c (R: ret_assert) ,
-    (local (tc_environ Delta) && P |-- P') ->
-    (local (tc_environ Delta) && RA_normal R' |-- RA_normal R) ->
-    (local (tc_environ Delta) && RA_break R' |-- RA_break R) ->
-    (local (tc_environ Delta) && RA_continue R' |-- RA_continue R) ->
-    (forall vl, local (tc_environ Delta) && RA_return R' vl |-- RA_return R vl) ->
+    (local (tc_environ Delta) ∧ P ⊢ P') ->
+    (local (tc_environ Delta) ∧ RA_normal R' ⊢ RA_normal R) ->
+    (local (tc_environ Delta) ∧ RA_break R' ⊢ RA_break R) ->
+    (local (tc_environ Delta) ∧ RA_continue R' ⊢ RA_continue R) ->
+    (forall vl, local (tc_environ Delta) ∧ RA_return R' vl ⊢ RA_return R vl) ->
    @semax CS Espec Delta P' c R' -> @semax CS Espec Delta P c R.
 Proof.
   intros; eapply semax_pre_post_fupd; eauto; intros; eapply derives_trans, fupd_intro; auto.
@@ -678,7 +579,7 @@ Import Conseq.
 
 Lemma semax_pre: forall {Espec: OracleKind}{cs: compspecs},
  forall P' Delta P c R,
-     (local (tc_environ Delta) && P |-- P') ->
+     (local (tc_environ Delta) ∧ P ⊢ P') ->
      @semax cs Espec Delta P' c R  -> @semax cs Espec Delta P c R.
 Proof.
   intros; eapply semax_pre_post; eauto;
@@ -687,7 +588,7 @@ Qed.
 
 Lemma semax_pre_simple: forall {Espec: OracleKind}{cs: compspecs},
  forall P' Delta P c R,
-     (P |-- P') ->
+     (P ⊢ P') ->
      @semax cs Espec Delta P' c R  -> @semax cs Espec Delta P c R.
 Proof.
 intros; eapply semax_pre; [| eauto].
@@ -696,10 +597,10 @@ Qed.
 
 Lemma semax_post:
  forall (R': ret_assert) Espec {cs: compspecs} Delta (R: ret_assert) P c,
-   (local (tc_environ Delta) && RA_normal R' |-- RA_normal R) ->
-   (local (tc_environ Delta) && RA_break R' |-- RA_break R) ->
-   (local (tc_environ Delta) && RA_continue R' |-- RA_continue R) ->
-   (forall vl, local (tc_environ Delta) && RA_return R' vl |-- RA_return R vl) ->
+   (local (tc_environ Delta) ∧ RA_normal R' ⊢ RA_normal R) ->
+   (local (tc_environ Delta) ∧ RA_break R' ⊢ RA_break R) ->
+   (local (tc_environ Delta) ∧ RA_continue R' ⊢ RA_continue R) ->
+   (forall vl, local (tc_environ Delta) ∧ RA_return R' vl ⊢ RA_return R vl) ->
    @semax cs Espec Delta P c R' ->  @semax cs Espec Delta P c R.
 Proof.
 intros; eapply semax_pre_post; try eassumption.
@@ -708,17 +609,17 @@ Qed.
 
 Lemma semax_post_simple:
  forall (R': ret_assert) Espec {cs: compspecs} Delta (R: ret_assert) P c,
-   (RA_normal R' |-- RA_normal R) ->
-   (RA_break R' |-- RA_break R) ->
-   (RA_continue R' |-- RA_continue R) ->
-   (forall vl, RA_return R' vl |-- RA_return R vl) ->
+   (RA_normal R' ⊢ RA_normal R) ->
+   (RA_break R' ⊢ RA_break R) ->
+   (RA_continue R' ⊢ RA_continue R) ->
+   (forall vl, RA_return R' vl ⊢ RA_return R vl) ->
    @semax cs Espec Delta P c R' ->  @semax cs Espec Delta P c R.
 Proof.
   intros; eapply semax_post; [.. | eauto]; intros; reduce2derives; auto.
 Qed.
 
 Lemma semax_post': forall R' Espec {cs: compspecs} Delta R P c,
-           (local (tc_environ Delta) && R' |-- R) ->
+           (local (tc_environ Delta) ∧ R' ⊢ R) ->
       @semax cs Espec Delta P c (normal_ret_assert R') ->
       @semax cs Espec Delta P c (normal_ret_assert R).
 Proof. intros. eapply semax_post; eauto.
@@ -729,8 +630,8 @@ Proof. intros. eapply semax_post; eauto.
 Qed.
 
 Lemma semax_pre_post': forall P' R' Espec {cs: compspecs} Delta R P c,
-      (local (tc_environ Delta) && P |-- P') ->
-      (local (tc_environ Delta) && R' |-- R) ->
+      (local (tc_environ Delta) ∧ P ⊢ P') ->
+      (local (tc_environ Delta) ∧ R' ⊢ R) ->
       @semax cs Espec Delta P' c (normal_ret_assert R') ->
       @semax cs Espec Delta P c (normal_ret_assert R).
 Proof. intros.
@@ -741,7 +642,7 @@ Qed.
 (* Copied from canon.v end. *)
 
 Lemma semax_post'': forall R' Espec {cs: compspecs} Delta R P c,
-           (local (tc_environ Delta) && R' |-- RA_normal R) ->
+           (local (tc_environ Delta) ∧ R' ⊢ RA_normal R) ->
       @semax cs Espec Delta P c (normal_ret_assert R') ->
       @semax cs Espec Delta P c R.
 Proof. intros. eapply semax_post; eauto.
@@ -752,8 +653,8 @@ Proof. intros. eapply semax_post; eauto.
 Qed.
 
 Lemma semax_pre_post'': forall P' R' Espec {cs: compspecs} Delta R P c,
-      (local (tc_environ Delta) && P |-- P') ->
-      (local (tc_environ Delta) && R' |-- RA_normal R) ->
+      (local (tc_environ Delta) ∧ P ⊢ P') ->
+      (local (tc_environ Delta) ∧ R' ⊢ RA_normal R) ->
       @semax cs Espec Delta P' c (normal_ret_assert R') ->
       @semax cs Espec Delta P c R.
 Proof. intros.
@@ -763,7 +664,7 @@ Qed.
 
 End GenConseqFacts.
 
-Module Type CLIGHT_SEPARATION_HOARE_LOGIC_EXTRACTION.
+Module Type CLIGHT_SEPARATION_HOARE_LOGIC_∃TRACTION.
 
 Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
@@ -773,14 +674,14 @@ Axiom semax_extract_exists:
   forall {CS: compspecs} {Espec: OracleKind},
   forall (A : Type)  (P : A -> environ->mpred) c (Delta: tycontext) (R: ret_assert),
   (forall x, @semax CS Espec Delta (P x) c R) ->
-   @semax CS Espec Delta (EX x:A, P x) c R.
+   @semax CS Espec Delta (∃ x:A, P x) c R.
 
-End CLIGHT_SEPARATION_HOARE_LOGIC_EXTRACTION.
+End CLIGHT_SEPARATION_HOARE_LOGIC_∃TRACTION.
 
 Module GenExtrFacts
        (Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
        (Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := Def)
-       (Extr: CLIGHT_SEPARATION_HOARE_LOGIC_EXTRACTION with Module CSHL_Def := Def).
+       (Extr: CLIGHT_SEPARATION_HOARE_LOGIC_∃TRACTION with Module CSHL_Def := Def).
 
 Module ConseqFacts := GenConseqFacts (Def) (Conseq).
 Import Def.
@@ -792,10 +693,10 @@ Lemma semax_extract_prop:
   forall {CS: compspecs} {Espec: OracleKind},
   forall Delta (PP: Prop) P c Q,
            (PP -> @semax CS Espec Delta P c Q) ->
-           @semax CS Espec Delta (!!PP && P) c Q.
+           @semax CS Espec Delta (!!PP ∧ P) c Q.
 Proof.
   intros.
-  eapply semax_pre with (EX H: PP, P).
+  eapply semax_pre with (∃ H: PP, P).
   + apply andp_left2.
     apply derives_extract_prop; intros.
     apply (exp_right H0), derives_refl.
@@ -810,7 +711,7 @@ Lemma semax_orp:
            @semax CS Espec Delta (P1 || P2) c Q.
 Proof.
   intros.
-  eapply semax_pre with (EX b: bool, if b then P1 else P2).
+  eapply semax_pre with (∃ b: bool, if b then P1 else P2).
   + apply andp_left2.
     apply orp_left.
     - apply (exp_right true), derives_refl.
@@ -825,7 +726,7 @@ End GenExtrFacts.
 Module GenIExtrFacts
        (Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
        (CConseq: CLIGHT_SEPARATION_HOARE_LOGIC_COMPLETE_CONSEQUENCE with Module CSHL_Def := Def)
-       (Extr: CLIGHT_SEPARATION_HOARE_LOGIC_EXTRACTION with Module CSHL_Def := Def).
+       (Extr: CLIGHT_SEPARATION_HOARE_LOGIC_∃TRACTION with Module CSHL_Def := Def).
 
 Module Conseq := GenConseq (Def) (CConseq).
 Module CConseqFacts := GenCConseqFacts (Def) (CConseq).
@@ -840,7 +741,7 @@ Lemma semax_extract_later_prop:
   forall {CS: compspecs} {Espec: OracleKind},
   forall Delta (PP: Prop) P c Q,
            (PP -> @semax CS Espec Delta P c Q) ->
-           @semax CS Espec Delta ((|> !!PP) && P) c Q.
+           @semax CS Espec Delta ((|> !!PP) ∧ P) c Q.
 Proof.
   intros.
   apply semax_extract_prop in H.
@@ -869,7 +770,7 @@ Axiom semax_store_forward:
  forall e1 e2 sh P,
    writable_share sh ->
    @semax CS Espec Delta
-          (|> ( (tc_lvalue Delta e1) &&  (tc_expr Delta (Ecast e2 (typeof e1)))  &&
+          (|> ( (tc_lvalue Delta e1) ∧  (tc_expr Delta (Ecast e2 (typeof e1)))  ∧
              (`(mapsto_ sh (typeof e1)) (eval_lvalue e1) * P)))
           (Sassign e1 e2)
           (normal_ret_assert
@@ -885,7 +786,7 @@ Import CSHL_Def.
 
 Axiom semax_store_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext) e1 e2 P,
    @semax CS Espec Delta
-          (EX sh: share, !! writable_share sh && |> ( (tc_lvalue Delta e1) &&  (tc_expr Delta (Ecast e2 (typeof e1)))  &&
+          (∃ sh: share, !! writable_share sh ∧ |> ( (tc_lvalue Delta e1) ∧  (tc_expr Delta (Ecast e2 (typeof e1)))  ∧
              ((`(mapsto_ sh (typeof e1)) (eval_lvalue e1)) * (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`force_val (`(sem_cast (typeof e2) (typeof e1)) (eval_expr e2))) -* P))))
           (Sassign e1 e2)
           (normal_ret_assert P).
@@ -895,7 +796,7 @@ End CLIGHT_SEPARATION_HOARE_LOGIC_STORE_BACKWARD.
 Module StoreF2B
        (Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
        (Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := Def)
-       (Extr: CLIGHT_SEPARATION_HOARE_LOGIC_EXTRACTION with Module CSHL_Def := Def)
+       (Extr: CLIGHT_SEPARATION_HOARE_LOGIC_∃TRACTION with Module CSHL_Def := Def)
        (StoreF: CLIGHT_SEPARATION_HOARE_LOGIC_STORE_FORWARD with Module CSHL_Def := Def):
        CLIGHT_SEPARATION_HOARE_LOGIC_STORE_BACKWARD with Module CSHL_Def := Def.
 
@@ -911,7 +812,7 @@ Import StoreF.
 
 Theorem semax_store_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext) e1 e2 P,
    @semax CS Espec Delta
-          (EX sh: share, !! writable_share sh && |> ( (tc_lvalue Delta e1) &&  (tc_expr Delta (Ecast e2 (typeof e1)))  &&
+          (∃ sh: share, !! writable_share sh ∧ |> ( (tc_lvalue Delta e1) ∧  (tc_expr Delta (Ecast e2 (typeof e1)))  ∧
              ((`(mapsto_ sh (typeof e1)) (eval_lvalue e1)) * (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`force_val (`(sem_cast (typeof e2) (typeof e1)) (eval_expr e2))) -* P))))
           (Sassign e1 e2)
           (normal_ret_assert P).
@@ -947,7 +848,7 @@ Theorem semax_store_forward:
  forall e1 e2 sh P,
    writable_share sh ->
    @semax CS Espec Delta
-          (|> ( (tc_lvalue Delta e1) &&  (tc_expr Delta (Ecast e2 (typeof e1)))  &&
+          (|> ( (tc_lvalue Delta e1) ∧  (tc_expr Delta (Ecast e2 (typeof e1)))  ∧
              (`(mapsto_ sh (typeof e1)) (eval_lvalue e1) * P)))
           (Sassign e1 e2)
           (normal_ret_assert
@@ -977,19 +878,19 @@ Import CSHL_Def.
 Axiom semax_store_union_hack_forward:
   forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
  forall (e1 e2 : expr) (t2: type) (ch ch' : memory_chunk) (sh : share) (P : LiftEnviron mpred),
-       (numeric_type (typeof e1) && numeric_type t2)%bool = true ->
+       (numeric_type (typeof e1) ∧ numeric_type t2)%bool = true ->
        access_mode (typeof e1) = By_value ch ->
        access_mode t2 = By_value ch' ->
        decode_encode_val_ok ch ch' ->
        writable_share sh ->
        semax Delta
-         (|> (tc_lvalue Delta e1 && tc_expr Delta (Ecast e2 (typeof e1)) &&
+         (|> (tc_lvalue Delta e1 ∧ tc_expr Delta (Ecast e2 (typeof e1)) ∧
               ((`(mapsto_ sh (typeof e1)) (eval_lvalue e1) 
-                && `(mapsto_ sh t2) (eval_lvalue e1))
+                ∧ `(mapsto_ sh t2) (eval_lvalue e1))
                * P)))
          (Sassign e1 e2)
          (normal_ret_assert
-            (EX v':val, 
+            (∃ v':val, 
               andp (local  ((`decode_encode_val )
                          ((` force_val) ((`(sem_cast (typeof e2) (typeof e1))) (eval_expr e2))) (`ch) (`ch') (`v') ))
               ((` (mapsto sh t2)) (eval_lvalue e1) (`v') * P))).
@@ -1005,16 +906,16 @@ Import CSHL_Def.
 Axiom semax_store_union_hack_backward:
  forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext) e1 e2 P,
    @semax CS Espec Delta
-          (EX (t2:type) (ch ch': memory_chunk) (sh: share),
-             !! ((numeric_type (typeof e1) && numeric_type t2)%bool = true /\
+          (∃ (t2:type) (ch ch': memory_chunk) (sh: share),
+             ⌜(numeric_type (typeof e1) ∧ numeric_type t2)%bool = true /\
                  access_mode (typeof e1) = By_value ch /\
                  access_mode t2 = By_value ch' /\
                  decode_encode_val_ok ch ch' /\
-                 writable_share sh) &&
-             |> ( (tc_lvalue Delta e1) &&  (tc_expr Delta (Ecast e2 (typeof e1)))  &&
+                 writable_share sh) ∧
+             |> ( (tc_lvalue Delta e1) ∧  (tc_expr Delta (Ecast e2 (typeof e1)))  ∧
              ((`(mapsto_ sh (typeof e1)) (eval_lvalue e1) 
-                      && `(mapsto_ sh t2) (eval_lvalue e1)) *
-              (ALL v': val,
+                      ∧ `(mapsto_ sh t2) (eval_lvalue e1)) *
+              (∀ v': val,
                  `(mapsto sh t2) (eval_lvalue e1) (`v') -*
                   imp (local  ((`decode_encode_val )
                          ((` force_val) ((`(sem_cast (typeof e2) (typeof e1))) (eval_expr e2))) (`ch) (`ch') (`v') ))
@@ -1027,7 +928,7 @@ End CLIGHT_SEPARATION_HOARE_LOGIC_STORE_UNION_HACK_BACKWARD.
 Module StoreUnionHackF2B
        (Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
        (Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := Def)
-       (Extr: CLIGHT_SEPARATION_HOARE_LOGIC_EXTRACTION with Module CSHL_Def := Def)
+       (Extr: CLIGHT_SEPARATION_HOARE_LOGIC_∃TRACTION with Module CSHL_Def := Def)
        (StoreUnionHackF: CLIGHT_SEPARATION_HOARE_LOGIC_STORE_UNION_HACK_FORWARD with Module CSHL_Def := Def):
        CLIGHT_SEPARATION_HOARE_LOGIC_STORE_UNION_HACK_BACKWARD with Module CSHL_Def := Def.
 
@@ -1044,16 +945,16 @@ Import StoreUnionHackF.
 Theorem semax_store_union_hack_backward:
  forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext) e1 e2 P,
    @semax CS Espec Delta
-          (EX (t2:type) (ch ch': memory_chunk) (sh: share),
-             !! ((numeric_type (typeof e1) && numeric_type t2)%bool = true /\
+          (∃ (t2:type) (ch ch': memory_chunk) (sh: share),
+             ⌜(numeric_type (typeof e1) ∧ numeric_type t2)%bool = true /\
                  access_mode (typeof e1) = By_value ch /\
                  access_mode t2 = By_value ch' /\
                  decode_encode_val_ok ch ch' /\
-                 writable_share sh) &&
-             |> ( (tc_lvalue Delta e1) &&  (tc_expr Delta (Ecast e2 (typeof e1)))  &&
+                 writable_share sh) ∧
+             |> ( (tc_lvalue Delta e1) ∧  (tc_expr Delta (Ecast e2 (typeof e1)))  ∧
              ((`(mapsto_ sh (typeof e1)) (eval_lvalue e1) 
-                      && `(mapsto_ sh t2) (eval_lvalue e1)) *
-              (ALL v': val,
+                      ∧ `(mapsto_ sh t2) (eval_lvalue e1)) *
+              (∀ v': val,
                  `(mapsto sh t2) (eval_lvalue e1) (`v') -*
                     imp (local  ((`decode_encode_val )
                          ((` force_val) ((`(sem_cast (typeof e2) (typeof e1))) (eval_expr e2))) (`ch) (`ch') (`v') ))
@@ -1100,19 +1001,19 @@ Import StoreUnionHackB.
 Theorem semax_store_union_hack_forward:
   forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
  forall (e1 e2 : expr) (t2: type) (ch ch' : memory_chunk) (sh : share) (P : LiftEnviron mpred),
-       (numeric_type (typeof e1) && numeric_type t2)%bool = true ->
+       (numeric_type (typeof e1) ∧ numeric_type t2)%bool = true ->
        access_mode (typeof e1) = By_value ch ->
        access_mode t2 = By_value ch' ->
        decode_encode_val_ok ch ch' ->
        writable_share sh ->
        semax Delta
-         (|> (tc_lvalue Delta e1 && tc_expr Delta (Ecast e2 (typeof e1)) &&
+         (|> (tc_lvalue Delta e1 ∧ tc_expr Delta (Ecast e2 (typeof e1)) ∧
               ((`(mapsto_ sh (typeof e1)) (eval_lvalue e1) 
-                && `(mapsto_ sh t2) (eval_lvalue e1))
+                ∧ `(mapsto_ sh t2) (eval_lvalue e1))
                * P)))
          (Sassign e1 e2)
          (normal_ret_assert
-            (EX v':val, 
+            (∃ v':val, 
               andp (local  ((`decode_encode_val )
                          ((` force_val) ((`(sem_cast (typeof e2) (typeof e1))) (eval_expr e2))) (`ch) (`ch') (`v') ))
               ((` (mapsto sh t2)) (eval_lvalue e1) (`v') * P))).
@@ -1148,20 +1049,20 @@ Import CSHL_Def.
 Axiom semax_store_store_union_hack_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
   forall (P: environ->mpred) e1 e2,
     @semax CS Espec Delta
-       ((EX sh: share, !! writable_share sh &&
-             |> ( (tc_lvalue Delta e1) &&  (tc_expr Delta (Ecast e2 (typeof e1)))  &&
+       ((∃ sh: share, !! writable_share sh ∧
+             |> ( (tc_lvalue Delta e1) ∧  (tc_expr Delta (Ecast e2 (typeof e1)))  ∧
              ((`(mapsto_ sh (typeof e1)) (eval_lvalue e1)) *
               (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`force_val (`(sem_cast (typeof e2) (typeof e1)) (eval_expr e2))) -* P))))
-          || (EX (t2:type) (ch ch': memory_chunk) (sh: share),
-             !! ((numeric_type (typeof e1) && numeric_type t2)%bool = true /\
+          || (∃ (t2:type) (ch ch': memory_chunk) (sh: share),
+             ⌜(numeric_type (typeof e1) ∧ numeric_type t2)%bool = true /\
                  access_mode (typeof e1) = By_value ch /\
                  access_mode t2 = By_value ch' /\
                  decode_encode_val_ok ch ch' /\
-                 writable_share sh) &&
-             |> ( (tc_lvalue Delta e1) &&  (tc_expr Delta (Ecast e2 (typeof e1)))  &&
+                 writable_share sh) ∧
+             |> ( (tc_lvalue Delta e1) ∧  (tc_expr Delta (Ecast e2 (typeof e1)))  ∧
              ((`(mapsto_ sh (typeof e1)) (eval_lvalue e1) 
-                      && `(mapsto_ sh t2) (eval_lvalue e1)) *
-              (ALL v': val,
+                      ∧ `(mapsto_ sh t2) (eval_lvalue e1)) *
+              (∀ v': val,
                  `(mapsto sh t2) (eval_lvalue e1) (`v') -*
                     imp (local  ((`decode_encode_val )
                          ((` force_val) ((`(sem_cast (typeof e2) (typeof e1))) (eval_expr e2))) (`ch) (`ch') (`v') ))
@@ -1174,7 +1075,7 @@ End CLIGHT_SEPARATION_HOARE_LOGIC_SASSIGN_BACKWARD.
 Module ToSassign
        (Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
        (Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := Def)
-       (Extr: CLIGHT_SEPARATION_HOARE_LOGIC_EXTRACTION with Module CSHL_Def := Def)
+       (Extr: CLIGHT_SEPARATION_HOARE_LOGIC_∃TRACTION with Module CSHL_Def := Def)
        (StoreB: CLIGHT_SEPARATION_HOARE_LOGIC_STORE_BACKWARD with Module CSHL_Def := Def)
        (StoreUnionHackB: CLIGHT_SEPARATION_HOARE_LOGIC_STORE_UNION_HACK_BACKWARD with Module CSHL_Def := Def):
        CLIGHT_SEPARATION_HOARE_LOGIC_SASSIGN_BACKWARD with Module CSHL_Def := Def.
@@ -1193,20 +1094,20 @@ Import ExtrFacts.
 Theorem semax_store_store_union_hack_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
   forall (P: environ->mpred) e1 e2,
     @semax CS Espec Delta
-       ((EX sh: share, !! writable_share sh &&
-             |> ( (tc_lvalue Delta e1) &&  (tc_expr Delta (Ecast e2 (typeof e1)))  &&
+       ((∃ sh: share, !! writable_share sh ∧
+             |> ( (tc_lvalue Delta e1) ∧  (tc_expr Delta (Ecast e2 (typeof e1)))  ∧
              ((`(mapsto_ sh (typeof e1)) (eval_lvalue e1)) *
               (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`force_val (`(sem_cast (typeof e2) (typeof e1)) (eval_expr e2))) -* P))))
-          || (EX (t2:type) (ch ch': memory_chunk) (sh: share),
-             !! ((numeric_type (typeof e1) && numeric_type t2)%bool = true /\
+          || (∃ (t2:type) (ch ch': memory_chunk) (sh: share),
+             ⌜(numeric_type (typeof e1) ∧ numeric_type t2)%bool = true /\
                  access_mode (typeof e1) = By_value ch /\
                  access_mode t2 = By_value ch' /\
                  decode_encode_val_ok ch ch' /\
-                 writable_share sh) &&
-             |> ( (tc_lvalue Delta e1) &&  (tc_expr Delta (Ecast e2 (typeof e1)))  &&
+                 writable_share sh) ∧
+             |> ( (tc_lvalue Delta e1) ∧  (tc_expr Delta (Ecast e2 (typeof e1)))  ∧
              ((`(mapsto_ sh (typeof e1)) (eval_lvalue e1) 
-                      && `(mapsto_ sh t2) (eval_lvalue e1)) *
-              (ALL v': val,
+                      ∧ `(mapsto_ sh t2) (eval_lvalue e1)) *
+              (∀ v': val,
                  `(mapsto sh t2) (eval_lvalue e1) (`v') -*
                     imp (local  ((`decode_encode_val )
                          ((` force_val) ((`(sem_cast (typeof e2) (typeof e1))) (eval_expr e2))) (`ch) (`ch') (`v') ))
@@ -1238,7 +1139,7 @@ Import Sassign.
 
 Theorem semax_store_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext) e1 e2 P,
    @semax CS Espec Delta
-          (EX sh: share, !! writable_share sh && |> ( (tc_lvalue Delta e1) &&  (tc_expr Delta (Ecast e2 (typeof e1)))  &&
+          (∃ sh: share, !! writable_share sh ∧ |> ( (tc_lvalue Delta e1) ∧  (tc_expr Delta (Ecast e2 (typeof e1)))  ∧
              ((`(mapsto_ sh (typeof e1)) (eval_lvalue e1)) * (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`force_val (`(sem_cast (typeof e2) (typeof e1)) (eval_expr e2))) -* P))))
           (Sassign e1 e2)
           (normal_ret_assert P).
@@ -1267,16 +1168,16 @@ Import Sassign.
 Theorem semax_store_union_hack_backward:
  forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext) e1 e2 P,
    @semax CS Espec Delta
-          (EX (t2:type) (ch ch': memory_chunk) (sh: share),
-             !! ((numeric_type (typeof e1) && numeric_type t2)%bool = true /\
+          (∃ (t2:type) (ch ch': memory_chunk) (sh: share),
+             ⌜(numeric_type (typeof e1) ∧ numeric_type t2)%bool = true /\
                  access_mode (typeof e1) = By_value ch /\
                  access_mode t2 = By_value ch' /\
                  decode_encode_val_ok ch ch' /\
-                 writable_share sh) &&
-             |> ( (tc_lvalue Delta e1) &&  (tc_expr Delta (Ecast e2 (typeof e1)))  &&
+                 writable_share sh) ∧
+             |> ( (tc_lvalue Delta e1) ∧  (tc_expr Delta (Ecast e2 (typeof e1)))  ∧
              ((`(mapsto_ sh (typeof e1)) (eval_lvalue e1) 
-                      && `(mapsto_ sh t2) (eval_lvalue e1)) *
-              (ALL v': val,
+                      ∧ `(mapsto_ sh t2) (eval_lvalue e1)) *
+              (∀ v': val,
                  `(mapsto sh t2) (eval_lvalue e1) (`v') -*
                     imp (local  ((`decode_encode_val )
                          ((` force_val) ((`(sem_cast (typeof e2) (typeof e1))) (eval_expr e2))) (`ch) (`ch') (`v') ))
@@ -1291,29 +1192,29 @@ Qed.
 
 End Sassign2StoreUnionHack.
 
-Module Type CLIGHT_SEPARATION_HOARE_LOGIC_CALL_FORWARD.
+Module Type CLIGHT_SEPARATION_HOARE_LOGIC_C∀_FORWARD.
 
 Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
 Import CSHL_Def.
 
 Axiom semax_call_forward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
-    forall A P Q NEP NEQ ts x (F: environ -> mpred) ret argsig retsig cc a bl,
+    forall A P Q NEP NEQ ts x (F: assert) ret argsig retsig cc a bl,
            Cop.classify_fun (typeof a) =
            Cop.fun_case_f (typelist_of_type_list argsig) retsig cc ->
            (retsig = Ctypes.Tvoid -> ret = None) ->
           tc_fn_return Delta ret retsig ->
   @semax CS Espec Delta
-          (((*|>*)((tc_expr Delta a) && (tc_exprlist Delta argsig bl)))  &&
-         (`(func_ptr (mk_funspec  (argsig,retsig) cc A P Q NEP NEQ)) (eval_expr a) &&
+          (((*|>*)((tc_expr Delta a) ∧ (tc_exprlist Delta argsig bl)))  ∧
+         (`(func_ptr (mk_funspec  (argsig,retsig) cc A P Q NEP NEQ)) (eval_expr a) ∧
           (|> (F * (fun rho => P ts x (ge_of rho, eval_exprlist argsig bl rho))))))
          (Scall ret a bl)
          (normal_ret_assert
-            (EX old:val, substopt ret (`old) F * maybe_retval (Q ts x) retsig ret)).
+            (∃ old:val, substopt ret (`old) F * maybe_retval (Q ts x) retsig ret)).
 
-End CLIGHT_SEPARATION_HOARE_LOGIC_CALL_FORWARD.
+End CLIGHT_SEPARATION_HOARE_LOGIC_C∀_FORWARD.
 
-Module Type CLIGHT_SEPARATION_HOARE_LOGIC_CALL_BACKWARD.
+Module Type CLIGHT_SEPARATION_HOARE_LOGIC_C∀_BACKWARD.
 
 Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
@@ -1322,26 +1223,26 @@ Import CSHL_Def.
 Axiom semax_call_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
     forall ret a bl R,
   @semax CS Espec Delta
-         (EX argsig: _, EX retsig: _, EX cc: _,
-          EX A: _, EX P: _, EX Q: _, EX NEP: _, EX NEQ: _, EX ts: _, EX x: _,
-         !! (Cop.classify_fun (typeof a) =
+         (∃ argsig: _, ∃ retsig: _, ∃ cc: _,
+          ∃ A: _, ∃ P: _, ∃ Q: _, ∃ NEP: _, ∃ NEQ: _, ∃ ts: _, ∃ x: _,
+         ⌜Cop.classify_fun (typeof a) =
              Cop.fun_case_f (typelist_of_type_list argsig) retsig cc /\
              (retsig = Ctypes.Tvoid -> ret = None) /\
-             tc_fn_return Delta ret retsig) &&
-          ((*|>*)((tc_expr Delta a) && (tc_exprlist Delta argsig bl)))  &&
-         `(func_ptr (mk_funspec  (argsig,retsig) cc A P Q NEP NEQ)) (eval_expr a) &&
+             tc_fn_return Delta ret retsig) ∧
+          ((*|>*)((tc_expr Delta a) ∧ (tc_exprlist Delta argsig bl)))  ∧
+         `(func_ptr (mk_funspec  (argsig,retsig) cc A P Q NEP NEQ)) (eval_expr a) ∧
           |>((fun rho => (P ts x (ge_of rho, eval_exprlist argsig bl rho))) * oboxopt Delta ret (maybe_retval (Q ts x) retsig ret -* R)))
          (Scall ret a bl)
          (normal_ret_assert R).
 
-End CLIGHT_SEPARATION_HOARE_LOGIC_CALL_BACKWARD.
+End CLIGHT_SEPARATION_HOARE_LOGIC_C∀_BACKWARD.
 
 Module CallF2B
        (Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
        (Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := Def)
-       (Extr: CLIGHT_SEPARATION_HOARE_LOGIC_EXTRACTION with Module CSHL_Def := Def)
-       (CallF: CLIGHT_SEPARATION_HOARE_LOGIC_CALL_FORWARD with Module CSHL_Def := Def):
-       CLIGHT_SEPARATION_HOARE_LOGIC_CALL_BACKWARD with Module CSHL_Def := Def.
+       (Extr: CLIGHT_SEPARATION_HOARE_LOGIC_∃TRACTION with Module CSHL_Def := Def)
+       (CallF: CLIGHT_SEPARATION_HOARE_LOGIC_C∀_FORWARD with Module CSHL_Def := Def):
+       CLIGHT_SEPARATION_HOARE_LOGIC_C∀_BACKWARD with Module CSHL_Def := Def.
 
 Module CSHL_Def := Def.
 Module ConseqFacts := GenConseqFacts (Def) (Conseq).
@@ -1356,14 +1257,14 @@ Import CallF.
 Theorem semax_call_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
     forall ret a bl R,
   @semax CS Espec Delta
-         (EX argsig: _, EX retsig: _, EX cc: _,
-          EX A: _, EX P: _, EX Q: _, EX NEP: _, EX NEQ: _, EX ts: _, EX x: _,
-         !! (Cop.classify_fun (typeof a) =
+         (∃ argsig: _, ∃ retsig: _, ∃ cc: _,
+          ∃ A: _, ∃ P: _, ∃ Q: _, ∃ NEP: _, ∃ NEQ: _, ∃ ts: _, ∃ x: _,
+         ⌜Cop.classify_fun (typeof a) =
              Cop.fun_case_f (typelist_of_type_list argsig) retsig cc /\
              (retsig = Ctypes.Tvoid -> ret = None) /\
-             tc_fn_return Delta ret retsig) &&
-          ((*|>*)((tc_expr Delta a) && (tc_exprlist Delta argsig bl)))  &&
-         `(func_ptr (mk_funspec  (argsig,retsig) cc A P Q NEP NEQ)) (eval_expr a) &&
+             tc_fn_return Delta ret retsig) ∧
+          ((*|>*)((tc_expr Delta a) ∧ (tc_exprlist Delta argsig bl)))  ∧
+         `(func_ptr (mk_funspec  (argsig,retsig) cc A P Q NEP NEQ)) (eval_expr a) ∧
           |>((fun rho => P ts x (ge_of rho, eval_exprlist argsig bl rho)) * oboxopt Delta ret (maybe_retval (Q ts x) retsig ret -* R)))
          (Scall ret a bl)
          (normal_ret_assert R).
@@ -1396,7 +1297,7 @@ Proof.
     rewrite exp_andp2; apply exp_left; intros old.
     rewrite substopt_oboxopt.
     apply oboxopt_T.
-    destruct ret; hnf in H1 |- *; [destruct ((temp_types Delta) ! i) |]; auto; congruence.
+    destruct ret; hnf in H1 |- *; [destruct ((temp_types Delta) !! i) |]; auto; congruence.
   + auto.
   + auto.
   + auto.
@@ -1407,8 +1308,8 @@ End CallF2B.
 Module CallB2F
        (Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
        (Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := Def)
-       (CallB: CLIGHT_SEPARATION_HOARE_LOGIC_CALL_BACKWARD with Module CSHL_Def := Def):
-       CLIGHT_SEPARATION_HOARE_LOGIC_CALL_FORWARD with Module CSHL_Def := Def.
+       (CallB: CLIGHT_SEPARATION_HOARE_LOGIC_C∀_BACKWARD with Module CSHL_Def := Def):
+       CLIGHT_SEPARATION_HOARE_LOGIC_C∀_FORWARD with Module CSHL_Def := Def.
 
 Module CSHL_Def := Def.
 Module ConseqFacts := GenConseqFacts (Def) (Conseq).
@@ -1418,18 +1319,18 @@ Import ConseqFacts.
 Import CallB.
 (*
 Theorem semax_call_forward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
-    forall A P Q NEP NEQ ts x (F: environ -> mpred) ret argsig retsig cc a bl,
+    forall A P Q NEP NEQ ts x (F: assert) ret argsig retsig cc a bl,
            Cop.classify_fun (typeof a) =
            Cop.fun_case_f (type_of_params argsig) retsig cc ->
            (retsig = Tvoid -> ret = None) ->
           tc_fn_return Delta ret retsig ->
   @semax CS Espec Delta
-          ((|>((tc_expr Delta a) && (tc_exprlist Delta (snd (split argsig)) bl)))  &&
-         (`(func_ptr (mk_funspec  (argsig,retsig) cc A P Q NEP NEQ)) (eval_expr a) &&
-          |>(F * `(P ts x: environ -> mpred) (make_args' (argsig,retsig) (eval_exprlist (snd (split argsig)) bl)))))
+          ((|>((tc_expr Delta a) ∧ (tc_exprlist Delta (snd (split argsig)) bl)))  ∧
+         (`(func_ptr (mk_funspec  (argsig,retsig) cc A P Q NEP NEQ)) (eval_expr a) ∧
+          |>(F * `(P ts x: assert) (make_args' (argsig,retsig) (eval_exprlist (snd (split argsig)) bl)))))
          (Scall ret a bl)
          (normal_ret_assert
-            (EX old:val, substopt ret (`old) F * maybe_retval (Q ts x) retsig ret)).
+            (∃ old:val, substopt ret (`old) F * maybe_retval (Q ts x) retsig ret)).
 Proof.
   intros.
   eapply semax_pre; [| apply semax_call_backward].
@@ -1447,29 +1348,29 @@ Proof.
   rewrite sepcon_comm.
   apply sepcon_derives; auto.
   eapply derives_trans; [apply (odiaopt_D _ ret) |].
-    1: destruct ret; hnf in H1 |- *; [destruct ((temp_types Delta) ! i) |]; auto; congruence.
+    1: destruct ret; hnf in H1 |- *; [destruct ((temp_types Delta) !! i) |]; auto; congruence.
   rewrite <- oboxopt_odiaopt.
-    2: destruct ret; hnf in H1 |- *; [destruct ((temp_types Delta) ! i) |]; auto; congruence.
+    2: destruct ret; hnf in H1 |- *; [destruct ((temp_types Delta) !! i) |]; auto; congruence.
   apply oboxopt_K.
   rewrite <- wand_sepcon_adjoint.
   rewrite <- exp_sepcon1.
   apply sepcon_derives; auto.
-  apply odiaopt_derives_EX_substopt.
+  apply odiaopt_derives_∃_substopt.
 Qed.
 *)
 Theorem semax_call_forward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
-    forall A P Q NEP NEQ ts x (F: environ -> mpred) ret argsig retsig cc a bl,
+    forall A P Q NEP NEQ ts x (F: assert) ret argsig retsig cc a bl,
            Cop.classify_fun (typeof a) =
              Cop.fun_case_f (typelist_of_type_list argsig) retsig cc ->
            (retsig = Ctypes.Tvoid -> ret = None) ->
           tc_fn_return Delta ret retsig ->
   @semax CS Espec Delta
-          (((*|>*)((tc_expr Delta a) && (tc_exprlist Delta argsig bl)))  &&
-         (`(func_ptr (mk_funspec  (argsig,retsig) cc A P Q NEP NEQ)) (eval_expr a) &&
+          (((*|>*)((tc_expr Delta a) ∧ (tc_exprlist Delta argsig bl)))  ∧
+         (`(func_ptr (mk_funspec  (argsig,retsig) cc A P Q NEP NEQ)) (eval_expr a) ∧
           |>(F * (fun rho => P ts x (ge_of rho, eval_exprlist argsig bl rho))))) 
          (Scall ret a bl)
          (normal_ret_assert
-            (EX old:val, substopt ret (`old) F * maybe_retval (Q ts x) retsig ret)).
+            (∃ old:val, substopt ret (`old) F * maybe_retval (Q ts x) retsig ret)).
 Proof.
   intros.
   eapply semax_pre; [| apply semax_call_backward].
@@ -1490,14 +1391,14 @@ Proof.
   rewrite sepcon_comm.
   apply sepcon_derives; auto.
   eapply derives_trans; [apply (odiaopt_D _ ret) |].
-    1: destruct ret; hnf in H1 |- *; [destruct ((temp_types Delta) ! i) |]; auto; congruence.
+    1: destruct ret; hnf in H1 |- *; [destruct ((temp_types Delta) !! i) |]; auto; congruence.
   rewrite <- oboxopt_odiaopt.
-    2: destruct ret; hnf in H1 |- *; [destruct ((temp_types Delta) ! i) |]; auto; congruence.
+    2: destruct ret; hnf in H1 |- *; [destruct ((temp_types Delta) !! i) |]; auto; congruence.
   apply oboxopt_K.
   rewrite <- wand_sepcon_adjoint.
   rewrite <- exp_sepcon1.
   apply sepcon_derives; auto.
-  apply odiaopt_derives_EX_substopt.
+  apply odiaopt_derives_∃_substopt.
 Qed.
 
 End CallB2F.
@@ -1511,12 +1412,12 @@ Import CSHL_Def.
 Axiom semax_set_forward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
   forall (P: environ->mpred) id e,
     @semax CS Espec Delta
-        (|> ( (tc_expr Delta e) &&
-             (tc_temp_id id (typeof e) Delta e) &&
+        (|> ( (tc_expr Delta e) ∧
+             (tc_temp_id id (typeof e) Delta e) ∧
           P))
           (Sset id e)
         (normal_ret_assert
-          (EX old:val, local (`eq (eval_id id) (subst id (`old) (eval_expr e))) &&
+          (∃ old:val, local (`eq (eval_id id) (subst id (`old) (eval_expr e))) ∧
                             subst id (`old) P)).
 
 End CLIGHT_SEPARATION_HOARE_LOGIC_SET_FORWARD.
@@ -1530,8 +1431,8 @@ Import CSHL_Def.
 Axiom semax_set_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
   forall (P: environ->mpred) id e,
     @semax CS Espec Delta
-        (|> ( (tc_expr Delta e) &&
-             (tc_temp_id id (typeof e) Delta e) &&
+        (|> ( (tc_expr Delta e) ∧
+             (tc_temp_id id (typeof e) Delta e) ∧
              subst id (eval_expr e) P))
           (Sset id e) (normal_ret_assert P).
 
@@ -1548,13 +1449,13 @@ Axiom semax_load_forward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tyc
     typeof_temp Delta id = Some t2 ->
     is_neutral_cast (typeof e1) t2 = true ->
     readable_share sh ->
-    (local (tc_environ Delta) && P |-- `(mapsto sh (typeof e1)) (eval_lvalue e1) (` v2) * TT) ->
+    (local (tc_environ Delta) ∧ P ⊢ `(mapsto sh (typeof e1)) (eval_lvalue e1) (` v2) * True) ->
     @semax CS Espec Delta
-       (|> ( (tc_lvalue Delta e1) &&
-       local (`(tc_val (typeof e1) v2)) &&
+       (|> ( (tc_lvalue Delta e1) ∧
+       local (`(tc_val (typeof e1) v2)) ∧
           P))
        (Sset id e1)
-       (normal_ret_assert (EX old:val, local (`eq (eval_id id) (` v2)) &&
+       (normal_ret_assert (∃ old:val, local (`eq (eval_id id) (` v2)) ∧
                                           (subst id (`old) P))).
 
 End CLIGHT_SEPARATION_HOARE_LOGIC_LOAD_FORWARD.
@@ -1568,13 +1469,13 @@ Import CSHL_Def.
 Axiom semax_load_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
   forall (P: environ->mpred) id e1,
     @semax CS Espec Delta
-        (EX sh: share, EX t2: type, EX v2: val,
-              !! (typeof_temp Delta id = Some t2 /\
+        (∃ sh: share, ∃ t2: type, ∃ v2: val,
+              ⌜typeof_temp Delta id = Some t2 /\
                   is_neutral_cast (typeof e1) t2 = true /\
-                  readable_share sh) &&
-         |> ( (tc_lvalue Delta e1) &&
-              local (`(tc_val (typeof e1) v2)) &&
-              (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2) * TT) &&
+                  readable_share sh) ∧
+         |> ( (tc_lvalue Delta e1) ∧
+              local (`(tc_val (typeof e1) v2)) ∧
+              (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2) * True) ∧
               subst id (`v2) P))
         (Sset id e1) (normal_ret_assert P).
 
@@ -1591,13 +1492,13 @@ Axiom semax_cast_load_forward: forall {CS: compspecs} {Espec: OracleKind} (Delta
     typeof_temp Delta id = Some t1 ->
    cast_pointer_to_bool (typeof e1) t1 = false ->
     readable_share sh ->
-    (local (tc_environ Delta) && P |-- `(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2) * TT) ->
+    (local (tc_environ Delta) ∧ P ⊢ `(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2) * True) ->
     @semax CS Espec Delta
-       (|> ( (tc_lvalue Delta e1) &&
-       local (`(tc_val t1) (`(eval_cast (typeof e1) t1 v2))) &&
+       (|> ( (tc_lvalue Delta e1) ∧
+       local (`(tc_val t1) (`(eval_cast (typeof e1) t1 v2))) ∧
           P))
        (Sset id (Ecast e1 t1))
-       (normal_ret_assert (EX old:val, local (`eq (eval_id id) (subst id (`old) (`(eval_cast (typeof e1) t1 v2)))) &&
+       (normal_ret_assert (∃ old:val, local (`eq (eval_id id) (subst id (`old) (`(eval_cast (typeof e1) t1 v2)))) ∧
                                           (subst id (`old) P))).
 
 End CLIGHT_SEPARATION_HOARE_LOGIC_CAST_LOAD_FORWARD.
@@ -1611,14 +1512,14 @@ Import CSHL_Def.
 Axiom semax_cast_load_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
   forall (P: environ->mpred) id e,
     @semax CS Espec Delta
-        (EX sh: share, EX e1: expr, EX t1: type, EX v2: val,
-              !! (e = Ecast e1 t1 /\
+        (∃ sh: share, ∃ e1: expr, ∃ t1: type, ∃ v2: val,
+              ⌜e = Ecast e1 t1 /\
                   typeof_temp Delta id = Some t1 /\
                   cast_pointer_to_bool (typeof e1) t1 = false /\
-                  readable_share sh) &&
-         |> ( (tc_lvalue Delta e1) &&
-              local (`(tc_val t1) (`(eval_cast (typeof e1) t1 v2))) &&
-              (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2) * TT) &&
+                  readable_share sh) ∧
+         |> ( (tc_lvalue Delta e1) ∧
+              local (`(tc_val t1) (`(eval_cast (typeof e1) t1 v2))) ∧
+              (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2) * True) ∧
               subst id (`(force_val (sem_cast (typeof e1) t1 v2))) P))
         (Sset id e) (normal_ret_assert P).
 
@@ -1627,7 +1528,7 @@ End CLIGHT_SEPARATION_HOARE_LOGIC_CAST_LOAD_BACKWARD.
 Module LoadF2B
        (Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
        (Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := Def)
-       (Extr: CLIGHT_SEPARATION_HOARE_LOGIC_EXTRACTION with Module CSHL_Def := Def)
+       (Extr: CLIGHT_SEPARATION_HOARE_LOGIC_∃TRACTION with Module CSHL_Def := Def)
        (LoadF: CLIGHT_SEPARATION_HOARE_LOGIC_LOAD_FORWARD with Module CSHL_Def := Def):
        CLIGHT_SEPARATION_HOARE_LOGIC_LOAD_BACKWARD with Module CSHL_Def := Def.
 
@@ -1644,13 +1545,13 @@ Import LoadF.
 Theorem semax_load_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
   forall (P: environ->mpred) id e1,
     @semax CS Espec Delta
-        (EX sh: share, EX t2: type, EX v2: val,
-              !! (typeof_temp Delta id = Some t2 /\
+        (∃ sh: share, ∃ t2: type, ∃ v2: val,
+              ⌜typeof_temp Delta id = Some t2 /\
                   is_neutral_cast (typeof e1) t2 = true /\
-                  readable_share sh) &&
-         |> ( (tc_lvalue Delta e1) &&
-              local (`(tc_val (typeof e1) v2)) &&
-              (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2) * TT) &&
+                  readable_share sh) ∧
+         |> ( (tc_lvalue Delta e1) ∧
+              local (`(tc_val (typeof e1) v2)) ∧
+              (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2) * True) ∧
               subst id (`v2) P))
         (Sset id e1) (normal_ret_assert P).
 Proof.
@@ -1664,10 +1565,10 @@ Proof.
   + rewrite exp_andp2.
     apply exp_left; intros old.
     autorewrite with subst.
-    apply derives_trans with (local (tc_environ Delta) && (local ((` eq) (eval_id id) (` v2))) && subst id (` v2) P); [solve_andp |].
+    apply derives_trans with (local (tc_environ Delta) ∧ (local ((` eq) (eval_id id) (` v2))) ∧ subst id (` v2) P); [solve_andp |].
     intro rho; unfold local, lift1; unfold_lift; simpl.
     unfold typeof_temp in H.
-    destruct ((temp_types Delta) ! id) eqn:?H; inv H.
+    destruct ((temp_types Delta) !! id) eqn:?H; inv H.
     normalize.
     erewrite subst_self by eauto; auto.
   + solve_andp.
@@ -1693,13 +1594,13 @@ Theorem semax_load_forward: forall {CS: compspecs} {Espec: OracleKind} (Delta: t
     typeof_temp Delta id = Some t2 ->
     is_neutral_cast (typeof e1) t2 = true ->
     readable_share sh ->
-    (local (tc_environ Delta) && P |-- `(mapsto sh (typeof e1)) (eval_lvalue e1) (` v2) * TT) ->
+    (local (tc_environ Delta) ∧ P ⊢ `(mapsto sh (typeof e1)) (eval_lvalue e1) (` v2) * True) ->
     @semax CS Espec Delta
-       (|> ( (tc_lvalue Delta e1) &&
-       local (`(tc_val (typeof e1) v2)) &&
+       (|> ( (tc_lvalue Delta e1) ∧
+       local (`(tc_val (typeof e1) v2)) ∧
           P))
        (Sset id e1)
-       (normal_ret_assert (EX old:val, local (`eq (eval_id id) (` v2)) &&
+       (normal_ret_assert (∃ old:val, local (`eq (eval_id id) (` v2)) ∧
                                           (subst id (`old) P))).
 Proof.
   intros.
@@ -1714,14 +1615,14 @@ Proof.
   apply andp_right; auto.
   rewrite subst_exp.
   intros rho.
-  change (local (tc_environ Delta) rho && P rho
-  |-- EX b : val,
-       subst id (` v2) (local ((` eq) (eval_id id) (` v2)) && subst id (` b) P) rho).
+  change (local (tc_environ Delta) rho ∧ P rho
+  ⊢ ∃ b : val,
+       subst id (` v2) (local ((` eq) (eval_id id) (` v2)) ∧ subst id (` b) P) rho).
   apply (exp_right (eval_id id rho)).
   autorewrite with subst.
   unfold local, lift1; unfold_lift; simpl.
   unfold typeof_temp in H.
-  destruct ((temp_types Delta) ! id) eqn:?H; inv H.
+  destruct ((temp_types Delta) !! id) eqn:?H; inv H.
   normalize.
   apply andp_right; [| erewrite subst_self by eauto; auto].
   apply prop_right.
@@ -1734,7 +1635,7 @@ End LoadB2F.
 Module CastLoadF2B
        (Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
        (Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := Def)
-       (Extr: CLIGHT_SEPARATION_HOARE_LOGIC_EXTRACTION with Module CSHL_Def := Def)
+       (Extr: CLIGHT_SEPARATION_HOARE_LOGIC_∃TRACTION with Module CSHL_Def := Def)
        (CastLoadF: CLIGHT_SEPARATION_HOARE_LOGIC_CAST_LOAD_FORWARD with Module CSHL_Def := Def):
        CLIGHT_SEPARATION_HOARE_LOGIC_CAST_LOAD_BACKWARD with Module CSHL_Def := Def.
 
@@ -1751,14 +1652,14 @@ Import CastLoadF.
 Theorem semax_cast_load_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
   forall (P: environ->mpred) id e,
     @semax CS Espec Delta
-        (EX sh: share, EX e1: expr, EX t1: type, EX v2: val,
-              !! (e = Ecast e1 t1 /\
+        (∃ sh: share, ∃ e1: expr, ∃ t1: type, ∃ v2: val,
+              ⌜e = Ecast e1 t1 /\
                   typeof_temp Delta id = Some t1 /\
                   cast_pointer_to_bool (typeof e1) t1 = false /\
-                  readable_share sh) &&
-         |> ( (tc_lvalue Delta e1) &&
-              local (`(tc_val t1) (`(eval_cast (typeof e1) t1 v2))) &&
-              (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2) * TT) &&
+                  readable_share sh) ∧
+         |> ( (tc_lvalue Delta e1) ∧
+              local (`(tc_val t1) (`(eval_cast (typeof e1) t1 v2))) ∧
+              (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2) * True) ∧
               subst id (`(force_val (sem_cast (typeof e1) t1 v2))) P))
         (Sset id e) (normal_ret_assert P).
 Proof.
@@ -1774,10 +1675,10 @@ Proof.
   + rewrite exp_andp2.
     apply exp_left; intros old.
     autorewrite with subst.
-    apply derives_trans with (local (tc_environ Delta) && (local ((` eq) (eval_id id) (subst id (` old) ((` (eval_cast (typeof e1) t2)) (` v2))))) && subst id (`(force_val (sem_cast (typeof e1) t2 v2))) P); [solve_andp |].
+    apply derives_trans with (local (tc_environ Delta) ∧ (local ((` eq) (eval_id id) (subst id (` old) ((` (eval_cast (typeof e1) t2)) (` v2))))) ∧ subst id (`(force_val (sem_cast (typeof e1) t2 v2))) P); [solve_andp |].
     intro rho; unfold local, lift1; unfold_lift; simpl.
     unfold typeof_temp in H.
-    destruct ((temp_types Delta) ! id) eqn:?H; inv H.
+    destruct ((temp_types Delta) !! id) eqn:?H; inv H.
     normalize.
     erewrite subst_self by eauto; auto.
   + solve_andp.
@@ -1803,13 +1704,13 @@ Theorem semax_cast_load_forward: forall {CS: compspecs} {Espec: OracleKind} (Del
     typeof_temp Delta id = Some t1 ->
    cast_pointer_to_bool (typeof e1) t1 = false ->
     readable_share sh ->
-    (local (tc_environ Delta) && P |-- `(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2) * TT) ->
+    (local (tc_environ Delta) ∧ P ⊢ `(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2) * True) ->
     @semax CS Espec Delta
-       (|> ( (tc_lvalue Delta e1) &&
-       local (`(tc_val t1) (`(eval_cast (typeof e1) t1 v2))) &&
+       (|> ( (tc_lvalue Delta e1) ∧
+       local (`(tc_val t1) (`(eval_cast (typeof e1) t1 v2))) ∧
           P))
        (Sset id (Ecast e1 t1))
-       (normal_ret_assert (EX old:val, local (`eq (eval_id id) (subst id (`old) (`(eval_cast (typeof e1) t1 v2)))) &&
+       (normal_ret_assert (∃ old:val, local (`eq (eval_id id) (subst id (`old) (`(eval_cast (typeof e1) t1 v2)))) ∧
                                           (subst id (`old) P))).
 Proof.
   intros.
@@ -1825,14 +1726,14 @@ Proof.
   apply andp_right; auto.
   rewrite subst_exp.
   intros rho.
-  change (local (tc_environ Delta) rho && P rho
-  |-- EX b : val,
-       subst id (` (force_val (sem_cast (typeof e1) t1 v2))) (local ((` eq) (eval_id id) (subst id (` b) (` (eval_cast (typeof e1) t1 v2)))) && subst id (` b) P) rho).
+  change (local (tc_environ Delta) rho ∧ P rho
+  ⊢ ∃ b : val,
+       subst id (` (force_val (sem_cast (typeof e1) t1 v2))) (local ((` eq) (eval_id id) (subst id (` b) (` (eval_cast (typeof e1) t1 v2)))) ∧ subst id (` b) P) rho).
   apply (exp_right (eval_id id rho)).
   autorewrite with subst.
   unfold local, lift1; unfold_lift; simpl.
   unfold typeof_temp in H.
-  destruct ((temp_types Delta) ! id) eqn:?H; inv H.
+  destruct ((temp_types Delta) !! id) eqn:?H; inv H.
   normalize.
   apply andp_right; [| erewrite subst_self by eauto; auto].
   apply prop_right.
@@ -1845,7 +1746,7 @@ End CastLoadB2F.
 Module SetF2B
        (Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
        (Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := Def)
-       (Extr: CLIGHT_SEPARATION_HOARE_LOGIC_EXTRACTION with Module CSHL_Def := Def)
+       (Extr: CLIGHT_SEPARATION_HOARE_LOGIC_∃TRACTION with Module CSHL_Def := Def)
        (SetF: CLIGHT_SEPARATION_HOARE_LOGIC_SET_FORWARD with Module CSHL_Def := Def):
        CLIGHT_SEPARATION_HOARE_LOGIC_SET_BACKWARD with Module CSHL_Def := Def.
 
@@ -1862,23 +1763,23 @@ Import SetF.
 Theorem semax_set_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
   forall (P: environ->mpred) id e,
     @semax CS Espec Delta
-        (|> ( (tc_expr Delta e) &&
-             (tc_temp_id id (typeof e) Delta e) &&
+        (|> ( (tc_expr Delta e) ∧
+             (tc_temp_id id (typeof e) Delta e) ∧
              subst id (eval_expr e) P))
           (Sset id e) (normal_ret_assert P).
 Proof.
   intros.
-  apply semax_pre with (|> (!! (exists t, ((temp_types Delta) ! id = Some t)) && (tc_expr Delta e && tc_temp_id id (typeof e) Delta e && subst id (eval_expr e) P))).
+  apply semax_pre with (|> (⌜exists t, ((temp_types Delta) !! id = Some t)) ∧ (tc_expr Delta e ∧ tc_temp_id id (typeof e) Delta e ∧ subst id (eval_expr e) P))).
   {
     apply later_ENTAIL.
     apply andp_right; [| solve_andp].
     unfold tc_temp_id, typecheck_temp_id.
-    destruct ((temp_types Delta) ! id).
+    destruct ((temp_types Delta) !! id).
     + apply prop_right; eauto.
     + simpl denote_tc_assert.
       normalize.
   }
-  apply semax_pre with (|> (tc_expr Delta e && tc_temp_id id (typeof e) Delta e && (!! (exists t, ((temp_types Delta) ! id = Some t)) && subst id (eval_expr e) P))).
+  apply semax_pre with (|> (tc_expr Delta e ∧ tc_temp_id id (typeof e) Delta e ∧ (⌜exists t, ((temp_types Delta) !! id = Some t)) ∧ subst id (eval_expr e) P))).
   {
     apply later_ENTAIL.
     solve_andp.
@@ -1889,7 +1790,7 @@ Proof.
   autorewrite with subst.
   normalize.
   destruct H as [t ?].
-  apply derives_trans with (local (tc_environ Delta) && (local ((` eq) (eval_id id) (subst id (` old) (eval_expr e)))) && subst id (` old) (subst id (eval_expr e) P)); [solve_andp |].
+  apply derives_trans with (local (tc_environ Delta) ∧ (local ((` eq) (eval_id id) (subst id (` old) (eval_expr e)))) ∧ subst id (` old) (subst id (eval_expr e) P)); [solve_andp |].
   set (v := `old).
   intro rho; unfold local, lift1; unfold_lift; simpl; subst v.
   normalize.
@@ -1915,12 +1816,12 @@ Import SetB.
 Theorem semax_set_forward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
   forall (P: environ->mpred) id e,
     @semax CS Espec Delta
-        (|> ( (tc_expr Delta e) &&
-             (tc_temp_id id (typeof e) Delta e) &&
+        (|> ( (tc_expr Delta e) ∧
+             (tc_temp_id id (typeof e) Delta e) ∧
           P))
           (Sset id e)
         (normal_ret_assert
-          (EX old:val, local (`eq (eval_id id) (subst id (`old) (eval_expr e))) &&
+          (∃ old:val, local (`eq (eval_id id) (subst id (`old) (eval_expr e))) ∧
                             subst id (`old) P)).
 Proof.
   intros.
@@ -1936,9 +1837,9 @@ Proof.
   unfold subst.
   normalize.
   rewrite !env_set_env_set.
-  assert (tc_temp_id id (typeof e) Delta e rho |-- !! (env_set rho id (eval_id id rho) = rho)).
+  assert (tc_temp_id id (typeof e) Delta e rho ⊢ ⌜env_set rho id (eval_id id rho) = rho)).
   + unfold tc_temp_id, typecheck_temp_id.
-    destruct ((temp_types Delta) ! id) eqn:?H; [| apply FF_left].
+    destruct ((temp_types Delta) !! id) eqn:?H; [| apply False_left].
     apply prop_right.
     eapply env_set_eval_id; eauto.
   + rewrite (add_andp _ _ H0).
@@ -1966,18 +1867,18 @@ Axiom semax_ptr_compare_forward: forall {CS: compspecs} {Espec: OracleKind} (Del
    eqb_type (typeof e2) int_or_ptr_type = false ->
    typecheck_tid_ptr_compare Delta id = true ->
    @semax CS Espec Delta
-        ( |> ( (tc_expr Delta e1) &&
-              (tc_expr Delta e2)  &&
+        ( |> ( (tc_expr Delta e1) ∧
+              (tc_expr Delta e2)  ∧
 
-          local (`(blocks_match cmp) (eval_expr e1) (eval_expr e2)) &&
-          (`(mapsto_ sh1 (typeof e1)) (eval_expr e1) * TT) &&
-          (`(mapsto_ sh2 (typeof e2)) (eval_expr e2) * TT) &&
+          local (`(blocks_match cmp) (eval_expr e1) (eval_expr e2)) ∧
+          (`(mapsto_ sh1 (typeof e1)) (eval_expr e1) * True) ∧
+          (`(mapsto_ sh2 (typeof e2)) (eval_expr e2) * True) ∧
           P))
           (Sset id (Ebinop cmp e1 e2 ty))
         (normal_ret_assert
-          (EX old:val,
+          (∃ old:val,
                  local (`eq (eval_id id)  (subst id `(old)
-                     (eval_expr (Ebinop cmp e1 e2 ty)))) &&
+                     (eval_expr (Ebinop cmp e1 e2 ty)))) ∧
                        subst id `(old) P)).
 
 End CLIGHT_SEPARATION_HOARE_LOGIC_PTR_CMP_FORWARD.
@@ -1991,19 +1892,19 @@ Import CSHL_Def.
 Axiom semax_ptr_compare_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
   forall P id e,
    @semax CS Espec Delta
-        (EX cmp: Cop.binary_operation, EX e1: expr, EX e2: expr,
-         EX ty: type, EX sh1: share, EX sh2: share,
-          !! (e = Ebinop cmp e1 e2 ty /\
+        (∃ cmp: Cop.binary_operation, ∃ e1: expr, ∃ e2: expr,
+         ∃ ty: type, ∃ sh1: share, ∃ sh2: share,
+          ⌜e = Ebinop cmp e1 e2 ty /\
               sepalg.nonidentity sh1 /\ sepalg.nonidentity sh2 /\
               is_comparison cmp = true /\
               eqb_type (typeof e1) int_or_ptr_type = false /\
               eqb_type (typeof e2) int_or_ptr_type = false /\
-              typecheck_tid_ptr_compare Delta id = true) &&
-            ( |> ( (tc_expr Delta e1) &&
-              (tc_expr Delta e2)  &&
-          local (`(blocks_match cmp) (eval_expr e1) (eval_expr e2)) &&
-          (`(mapsto_ sh1 (typeof e1)) (eval_expr e1) * TT) &&
-          (`(mapsto_ sh2 (typeof e2)) (eval_expr e2) * TT) &&
+              typecheck_tid_ptr_compare Delta id = true) ∧
+            ( |> ( (tc_expr Delta e1) ∧
+              (tc_expr Delta e2)  ∧
+          local (`(blocks_match cmp) (eval_expr e1) (eval_expr e2)) ∧
+          (`(mapsto_ sh1 (typeof e1)) (eval_expr e1) * True) ∧
+          (`(mapsto_ sh2 (typeof e2)) (eval_expr e2) * True) ∧
           subst id (eval_expr (Ebinop cmp e1 e2 ty)) P)))
           (Sset id e)
         (normal_ret_assert P).
@@ -2013,7 +1914,7 @@ End CLIGHT_SEPARATION_HOARE_LOGIC_PTR_CMP_BACKWARD.
 Module PtrCmpF2B
        (Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
        (Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := Def)
-       (Extr: CLIGHT_SEPARATION_HOARE_LOGIC_EXTRACTION with Module CSHL_Def := Def)
+       (Extr: CLIGHT_SEPARATION_HOARE_LOGIC_∃TRACTION with Module CSHL_Def := Def)
        (PtrCmpF: CLIGHT_SEPARATION_HOARE_LOGIC_PTR_CMP_FORWARD with Module CSHL_Def := Def):
        CLIGHT_SEPARATION_HOARE_LOGIC_PTR_CMP_BACKWARD with Module CSHL_Def := Def.
 
@@ -2030,19 +1931,19 @@ Import PtrCmpF.
 Theorem semax_ptr_compare_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
   forall P id e,
    @semax CS Espec Delta
-        (EX cmp: Cop.binary_operation, EX e1: expr, EX e2: expr,
-         EX ty: type, EX sh1: share, EX sh2: share,
-          !! (e = Ebinop cmp e1 e2 ty /\
+        (∃ cmp: Cop.binary_operation, ∃ e1: expr, ∃ e2: expr,
+         ∃ ty: type, ∃ sh1: share, ∃ sh2: share,
+          ⌜e = Ebinop cmp e1 e2 ty /\
               sepalg.nonidentity sh1 /\ sepalg.nonidentity sh2 /\
               is_comparison cmp = true /\
               eqb_type (typeof e1) int_or_ptr_type = false /\
               eqb_type (typeof e2) int_or_ptr_type = false /\
-              typecheck_tid_ptr_compare Delta id = true) &&
-            ( |> ( (tc_expr Delta e1) &&
-              (tc_expr Delta e2)  &&
-          local (`(blocks_match cmp) (eval_expr e1) (eval_expr e2)) &&
-          (`(mapsto_ sh1 (typeof e1)) (eval_expr e1) * TT) &&
-          (`(mapsto_ sh2 (typeof e2)) (eval_expr e2) * TT) &&
+              typecheck_tid_ptr_compare Delta id = true) ∧
+            ( |> ( (tc_expr Delta e1) ∧
+              (tc_expr Delta e2)  ∧
+          local (`(blocks_match cmp) (eval_expr e1) (eval_expr e2)) ∧
+          (`(mapsto_ sh1 (typeof e1)) (eval_expr e1) * True) ∧
+          (`(mapsto_ sh2 (typeof e2)) (eval_expr e2) * True) ∧
           subst id (eval_expr (Ebinop cmp e1 e2 ty)) P)))
           (Sset id e)
           (normal_ret_assert P).
@@ -2063,7 +1964,7 @@ Proof.
   rewrite resubst_full.
   intro rho; unfold local, lift1; unfold_lift; simpl.
   unfold typecheck_tid_ptr_compare in H4.
-  destruct ((temp_types Delta) ! id) eqn:?H; inv H4.
+  destruct ((temp_types Delta) !! id) eqn:?H; inv H4.
   normalize.
   erewrite subst_self by eauto.
   auto.
@@ -2092,18 +1993,18 @@ Theorem semax_ptr_compare_forward: forall {CS: compspecs} {Espec: OracleKind} (D
    eqb_type (typeof e2) int_or_ptr_type = false ->
    typecheck_tid_ptr_compare Delta id = true ->
    @semax CS Espec Delta
-        ( |> ( (tc_expr Delta e1) &&
-              (tc_expr Delta e2)  &&
+        ( |> ( (tc_expr Delta e1) ∧
+              (tc_expr Delta e2)  ∧
 
-          local (`(blocks_match cmp) (eval_expr e1) (eval_expr e2)) &&
-          (`(mapsto_ sh1 (typeof e1)) (eval_expr e1) * TT) &&
-          (`(mapsto_ sh2 (typeof e2)) (eval_expr e2) * TT) &&
+          local (`(blocks_match cmp) (eval_expr e1) (eval_expr e2)) ∧
+          (`(mapsto_ sh1 (typeof e1)) (eval_expr e1) * True) ∧
+          (`(mapsto_ sh2 (typeof e2)) (eval_expr e2) * True) ∧
           P))
           (Sset id (Ebinop cmp e1 e2 ty))
         (normal_ret_assert
-          (EX old:val,
+          (∃ old:val,
                  local (`eq (eval_id id)  (subst id `(old)
-                     (eval_expr (Ebinop cmp e1 e2 ty)))) &&
+                     (eval_expr (Ebinop cmp e1 e2 ty)))) ∧
                        subst id `(old) P)).
 Proof.
   intros.
@@ -2119,15 +2020,15 @@ Proof.
   apply andp_ENTAIL; [apply ENTAIL_refl |].
   rewrite subst_exp.
   intros rho.
-  change (local (tc_environ Delta) rho && P rho
-  |-- EX b : val,
-       subst id (eval_expr (Ebinop cmp e1 e2 ty)) (local ((` eq) (eval_id id) (subst id (` b) (eval_expr (Ebinop cmp e1 e2 ty)))) && subst id (` b) P) rho).
+  change (local (tc_environ Delta) rho ∧ P rho
+  ⊢ ∃ b : val,
+       subst id (eval_expr (Ebinop cmp e1 e2 ty)) (local ((` eq) (eval_id id) (subst id (` b) (eval_expr (Ebinop cmp e1 e2 ty)))) ∧ subst id (` b) P) rho).
   apply (exp_right (eval_id id rho)).
   autorewrite with subst.
   unfold local, lift1; unfold_lift; simpl.
   unfold typecheck_tid_ptr_compare in H4.
   simpl in H4.
-  destruct ((temp_types Delta) ! id) eqn:?H; inv H4.
+  destruct ((temp_types Delta) !! id) eqn:?H; inv H4.
   normalize.
   apply andp_right.
   + apply prop_right.
@@ -2153,39 +2054,39 @@ Import CSHL_Def.
 Axiom semax_set_ptr_compare_load_cast_load_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
   forall (P: environ->mpred) id e,
     @semax CS Espec Delta
-       ((|> ( (tc_expr Delta e) &&
-             (tc_temp_id id (typeof e) Delta e) &&
+       ((|> ( (tc_expr Delta e) ∧
+             (tc_temp_id id (typeof e) Delta e) ∧
              subst id (eval_expr e) P)) ||
-        (EX cmp: Cop.binary_operation, EX e1: expr, EX e2: expr,
-         EX ty: type, EX sh1: share, EX sh2: share,
-          !! (e = Ebinop cmp e1 e2 ty /\
+        (∃ cmp: Cop.binary_operation, ∃ e1: expr, ∃ e2: expr,
+         ∃ ty: type, ∃ sh1: share, ∃ sh2: share,
+          ⌜e = Ebinop cmp e1 e2 ty /\
               sepalg.nonidentity sh1 /\ sepalg.nonidentity sh2 /\
               is_comparison cmp = true /\
               eqb_type (typeof e1) int_or_ptr_type = false /\
               eqb_type (typeof e2) int_or_ptr_type = false /\
-              typecheck_tid_ptr_compare Delta id = true) &&
-            ( |> ( (tc_expr Delta e1) &&
-              (tc_expr Delta e2)  &&
-          local (`(blocks_match cmp) (eval_expr e1) (eval_expr e2)) &&
-          (`(mapsto_ sh1 (typeof e1)) (eval_expr e1) * TT) &&
-          (`(mapsto_ sh2 (typeof e2)) (eval_expr e2) * TT) &&
+              typecheck_tid_ptr_compare Delta id = true) ∧
+            ( |> ( (tc_expr Delta e1) ∧
+              (tc_expr Delta e2)  ∧
+          local (`(blocks_match cmp) (eval_expr e1) (eval_expr e2)) ∧
+          (`(mapsto_ sh1 (typeof e1)) (eval_expr e1) * True) ∧
+          (`(mapsto_ sh2 (typeof e2)) (eval_expr e2) * True) ∧
           subst id (eval_expr (Ebinop cmp e1 e2 ty)) P))) ||
-        (EX sh: share, EX t2: type, EX v2: val,
-              !! (typeof_temp Delta id = Some t2 /\
+        (∃ sh: share, ∃ t2: type, ∃ v2: val,
+              ⌜typeof_temp Delta id = Some t2 /\
                   is_neutral_cast (typeof e) t2 = true /\
-                  readable_share sh) &&
-         |> ( (tc_lvalue Delta e) &&
-              local (`(tc_val (typeof e) v2)) &&
-              (`(mapsto sh (typeof e)) (eval_lvalue e) (`v2) * TT) &&
+                  readable_share sh) ∧
+         |> ( (tc_lvalue Delta e) ∧
+              local (`(tc_val (typeof e) v2)) ∧
+              (`(mapsto sh (typeof e)) (eval_lvalue e) (`v2) * True) ∧
               subst id (`v2) P)) ||
-        (EX sh: share, EX e1: expr, EX t1: type, EX v2: val,
-              !! (e = Ecast e1 t1 /\
+        (∃ sh: share, ∃ e1: expr, ∃ t1: type, ∃ v2: val,
+              ⌜e = Ecast e1 t1 /\
                   typeof_temp Delta id = Some t1 /\
                   cast_pointer_to_bool (typeof e1) t1 = false /\
-                  readable_share sh) &&
-         |> ( (tc_lvalue Delta e1) &&
-              local (`(tc_val t1) (`(eval_cast (typeof e1) t1 v2))) &&
-              (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2) * TT) &&
+                  readable_share sh) ∧
+         |> ( (tc_lvalue Delta e1) ∧
+              local (`(tc_val t1) (`(eval_cast (typeof e1) t1 v2))) ∧
+              (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2) * True) ∧
               subst id (`(force_val (sem_cast (typeof e1) t1 v2))) P)))
         (Sset id e) (normal_ret_assert P).
 
@@ -2194,7 +2095,7 @@ End CLIGHT_SEPARATION_HOARE_LOGIC_SSET_BACKWARD.
 Module ToSset
        (Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
        (Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := Def)
-       (Extr: CLIGHT_SEPARATION_HOARE_LOGIC_EXTRACTION with Module CSHL_Def := Def)
+       (Extr: CLIGHT_SEPARATION_HOARE_LOGIC_∃TRACTION with Module CSHL_Def := Def)
        (SetB: CLIGHT_SEPARATION_HOARE_LOGIC_SET_BACKWARD with Module CSHL_Def := Def)
        (PtrCmpB: CLIGHT_SEPARATION_HOARE_LOGIC_PTR_CMP_BACKWARD with Module CSHL_Def := Def)
        (LoadB: CLIGHT_SEPARATION_HOARE_LOGIC_LOAD_BACKWARD with Module CSHL_Def := Def)
@@ -2217,39 +2118,39 @@ Import ExtrFacts.
 Theorem semax_set_ptr_compare_load_cast_load_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
   forall (P: environ->mpred) id e,
     @semax CS Espec Delta
-       ((|> ( (tc_expr Delta e) &&
-             (tc_temp_id id (typeof e) Delta e) &&
+       ((|> ( (tc_expr Delta e) ∧
+             (tc_temp_id id (typeof e) Delta e) ∧
              subst id (eval_expr e) P)) ||
-        (EX cmp: Cop.binary_operation, EX e1: expr, EX e2: expr,
-         EX ty: type, EX sh1: share, EX sh2: share,
-          !! (e = Ebinop cmp e1 e2 ty /\
+        (∃ cmp: Cop.binary_operation, ∃ e1: expr, ∃ e2: expr,
+         ∃ ty: type, ∃ sh1: share, ∃ sh2: share,
+          ⌜e = Ebinop cmp e1 e2 ty /\
               sepalg.nonidentity sh1 /\ sepalg.nonidentity sh2 /\
               is_comparison cmp = true /\
               eqb_type (typeof e1) int_or_ptr_type = false /\
               eqb_type (typeof e2) int_or_ptr_type = false /\
-              typecheck_tid_ptr_compare Delta id = true) &&
-            ( |> ( (tc_expr Delta e1) &&
-              (tc_expr Delta e2)  &&
-          local (`(blocks_match cmp) (eval_expr e1) (eval_expr e2)) &&
-          (`(mapsto_ sh1 (typeof e1)) (eval_expr e1) * TT) &&
-          (`(mapsto_ sh2 (typeof e2)) (eval_expr e2) * TT) &&
+              typecheck_tid_ptr_compare Delta id = true) ∧
+            ( |> ( (tc_expr Delta e1) ∧
+              (tc_expr Delta e2)  ∧
+          local (`(blocks_match cmp) (eval_expr e1) (eval_expr e2)) ∧
+          (`(mapsto_ sh1 (typeof e1)) (eval_expr e1) * True) ∧
+          (`(mapsto_ sh2 (typeof e2)) (eval_expr e2) * True) ∧
           subst id (eval_expr (Ebinop cmp e1 e2 ty)) P))) ||
-        (EX sh: share, EX t2: type, EX v2: val,
-              !! (typeof_temp Delta id = Some t2 /\
+        (∃ sh: share, ∃ t2: type, ∃ v2: val,
+              ⌜typeof_temp Delta id = Some t2 /\
                   is_neutral_cast (typeof e) t2 = true /\
-                  readable_share sh) &&
-         |> ( (tc_lvalue Delta e) &&
-              local (`(tc_val (typeof e) v2)) &&
-              (`(mapsto sh (typeof e)) (eval_lvalue e) (`v2) * TT) &&
+                  readable_share sh) ∧
+         |> ( (tc_lvalue Delta e) ∧
+              local (`(tc_val (typeof e) v2)) ∧
+              (`(mapsto sh (typeof e)) (eval_lvalue e) (`v2) * True) ∧
               subst id (`v2) P)) ||
-        (EX sh: share, EX e1: expr, EX t1: type, EX v2: val,
-              !! (e = Ecast e1 t1 /\
+        (∃ sh: share, ∃ e1: expr, ∃ t1: type, ∃ v2: val,
+              ⌜e = Ecast e1 t1 /\
                   typeof_temp Delta id = Some t1 /\
                   cast_pointer_to_bool (typeof e1) t1 = false /\
-                  readable_share sh) &&
-         |> ( (tc_lvalue Delta e1) &&
-              local (`(tc_val t1) (`(eval_cast (typeof e1) t1 v2))) &&
-              (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2) * TT) &&
+                  readable_share sh) ∧
+         |> ( (tc_lvalue Delta e1) ∧
+              local (`(tc_val t1) (`(eval_cast (typeof e1) t1 v2))) ∧
+              (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2) * True) ∧
               subst id (`(force_val (sem_cast (typeof e1) t1 v2))) P)))
         (Sset id e) (normal_ret_assert P).
 Proof.
@@ -2280,8 +2181,8 @@ Import Sset.
 Theorem semax_set_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
   forall (P: environ->mpred) id e,
     @semax CS Espec Delta
-        (|> ( (tc_expr Delta e) &&
-             (tc_temp_id id (typeof e) Delta e) &&
+        (|> ( (tc_expr Delta e) ∧
+             (tc_temp_id id (typeof e) Delta e) ∧
              subst id (eval_expr e) P))
           (Sset id e) (normal_ret_assert P).
 Proof.
@@ -2309,19 +2210,19 @@ Import Sset.
 Theorem semax_ptr_compare_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
   forall P id e,
    @semax CS Espec Delta
-        (EX cmp: Cop.binary_operation, EX e1: expr, EX e2: expr,
-         EX ty: type, EX sh1: share, EX sh2: share,
-          !! (e = Ebinop cmp e1 e2 ty /\
+        (∃ cmp: Cop.binary_operation, ∃ e1: expr, ∃ e2: expr,
+         ∃ ty: type, ∃ sh1: share, ∃ sh2: share,
+          ⌜e = Ebinop cmp e1 e2 ty /\
               sepalg.nonidentity sh1 /\ sepalg.nonidentity sh2 /\
               is_comparison cmp = true /\
               eqb_type (typeof e1) int_or_ptr_type = false /\
               eqb_type (typeof e2) int_or_ptr_type = false /\
-              typecheck_tid_ptr_compare Delta id = true) &&
-            ( |> ( (tc_expr Delta e1) &&
-              (tc_expr Delta e2)  &&
-          local (`(blocks_match cmp) (eval_expr e1) (eval_expr e2)) &&
-          (`(mapsto_ sh1 (typeof e1)) (eval_expr e1) * TT) &&
-          (`(mapsto_ sh2 (typeof e2)) (eval_expr e2) * TT) &&
+              typecheck_tid_ptr_compare Delta id = true) ∧
+            ( |> ( (tc_expr Delta e1) ∧
+              (tc_expr Delta e2)  ∧
+          local (`(blocks_match cmp) (eval_expr e1) (eval_expr e2)) ∧
+          (`(mapsto_ sh1 (typeof e1)) (eval_expr e1) * True) ∧
+          (`(mapsto_ sh2 (typeof e2)) (eval_expr e2) * True) ∧
           subst id (eval_expr (Ebinop cmp e1 e2 ty)) P)))
           (Sset id e)
         (normal_ret_assert P).
@@ -2350,13 +2251,13 @@ Import Sset.
 Theorem semax_load_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
   forall (P: environ->mpred) id e1,
     @semax CS Espec Delta
-        (EX sh: share, EX t2: type, EX v2: val,
-              !! (typeof_temp Delta id = Some t2 /\
+        (∃ sh: share, ∃ t2: type, ∃ v2: val,
+              ⌜typeof_temp Delta id = Some t2 /\
                   is_neutral_cast (typeof e1) t2 = true /\
-                  readable_share sh) &&
-         |> ( (tc_lvalue Delta e1) &&
-              local (`(tc_val (typeof e1) v2)) &&
-              (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2) * TT) &&
+                  readable_share sh) ∧
+         |> ( (tc_lvalue Delta e1) ∧
+              local (`(tc_val (typeof e1) v2)) ∧
+              (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2) * True) ∧
               subst id (`v2) P))
         (Sset id e1) (normal_ret_assert P).
 Proof.
@@ -2384,14 +2285,14 @@ Import Sset.
 Theorem semax_cast_load_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
   forall (P: environ->mpred) id e,
     @semax CS Espec Delta
-        (EX sh: share, EX e1: expr, EX t1: type, EX v2: val,
-              !! (e = Ecast e1 t1 /\
+        (∃ sh: share, ∃ e1: expr, ∃ t1: type, ∃ v2: val,
+              ⌜e = Ecast e1 t1 /\
                   typeof_temp Delta id = Some t1 /\
                   cast_pointer_to_bool (typeof e1) t1 = false /\
-                  readable_share sh) &&
-         |> ( (tc_lvalue Delta e1) &&
-              local (`(tc_val t1) (`(eval_cast (typeof e1) t1 v2))) &&
-              (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2) * TT) &&
+                  readable_share sh) ∧
+         |> ( (tc_lvalue Delta e1) ∧
+              local (`(tc_val t1) (`(eval_cast (typeof e1) t1 v2))) ∧
+              (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2) * True) ∧
               subst id (`(force_val (sem_cast (typeof e1) t1 v2))) P))
         (Sset id e) (normal_ret_assert P).
 Proof.

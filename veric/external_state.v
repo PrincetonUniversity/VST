@@ -26,10 +26,10 @@ Definition has_ext {Z : Type} `{!externalGS Z Σ} (z : Z) : iProp Σ :=
 Definition ext_auth {Z : Type} `{!externalGS Z Σ} (z : Z) : iProp Σ :=
   own(inG0 := external_inG) external_name (auth_auth(A := optionUR (@exclR (leibnizO Z))) (DfracOwn 1) (Excl' z)).
 
-Lemma ext_alloc `{!inG Σ (excl_authR (leibnizO Z))} (z : Z) : ⊢ |==> ∃ _ : externalGS Z Σ, ext_auth z ∗ has_ext z.
+Lemma ext_alloc {Z : Type} `{!inG Σ (excl_authR (leibnizO Z))} (z : Z) : ⊢ |==> ∃ _ : externalGS Z Σ, ext_auth z ∗ has_ext z.
 Proof.
   rewrite /ext_auth /has_ext.
-  iMod (own_alloc(A := excl_authR _) (● Excl' z ⋅ ◯ Excl' z)) as (γ) "?".
+  iMod (own_alloc (auth_auth(A := optionUR (@exclR (leibnizO Z))) (DfracOwn 1) (Excl' z) ⋅ auth_frag(A := optionUR (@exclR (leibnizO Z))) (Excl' z))) as (γ) "?".
   { by apply (auth_both_valid_2(A := uora_ucmraR (optionUR (@exclR (leibnizO Z))))). }
   iExists (ExternalGS _ _ _ γ).
   rewrite own_op //.

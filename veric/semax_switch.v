@@ -22,7 +22,7 @@ Context `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ}.
 
 Lemma closed_wrt_modvars_switch:
   forall a sl n F,
-  @closed_wrt_modvars Σ (Sswitch a sl) F ->
+  closed_wrt_modvars (Sswitch a sl) F ->
   closed_wrt_modvars (seq_of_labeled_statement (select_switch n sl)) F.
 Proof.
 unfold closed_wrt_modvars, modifiedvars.

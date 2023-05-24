@@ -10,10 +10,7 @@ Require Export VST.veric.juicy_extspec.
 Require Import VST.veric.NullExtension.
 Require Import VST.floyd.val_lemmas VST.floyd.assert_lemmas.
 Require Import VST.floyd.SeparationLogicFacts.
-Import LiftNotation.
-Import compcert.lib.Maps.
 Import Ctypes LiftNotation.
-Local Open Scope logic.
 
 Fixpoint all_suf_of_labeled_statements (P: labeled_statements -> Prop) (L: labeled_statements): Prop :=
   match L with

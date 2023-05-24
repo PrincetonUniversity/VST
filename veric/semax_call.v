@@ -523,7 +523,7 @@ Definition thisvar (ret: option ident) (i : ident) : Prop :=
  match ret with None => False | Some x => x=i end.
 
 Lemma closed_wrt_modvars_Scall:
-  forall ret a bl, @closed_wrt_modvars Σ (Scall ret a bl) = closed_wrt_vars (thisvar ret).
+  forall ret a bl, closed_wrt_modvars (Scall ret a bl) = closed_wrt_vars (thisvar ret).
 Proof.
 intros.
 unfold closed_wrt_modvars.
