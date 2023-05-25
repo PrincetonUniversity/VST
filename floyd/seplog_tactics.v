@@ -443,16 +443,26 @@ Lemma fun_equal': forall {A B} (f g : forall (x:A), B x) (y : A),
   f = g -> f y = g y.
 Proof. congruence. Qed.
 
+Lemma if_congr: forall {T: Type} (a a': bool) (b b' c c' : T),
+  a=a' -> b=b' -> c=c' -> (if a then b else c) = (if a' then b' else c').
+Proof.
+intros; subst; auto.
+Qed.
+
+
 Ltac ecareful_unify :=
   match goal with
   | |- ?X = ?X' => first [is_Type_or_type X | is_evar X | is_evar X' | constr_eq X X']; reflexivity
   | |- ?F _ = ?F' _ => first [apply fun_equal | apply fun_equal' with (f := F)]; revgoals; solve[ecareful_unify]
+  | |- (if _ then _ else _) = if _ then _ else _ => simple apply if_congr; solve[ecareful_unify]   
   end; idtac.
+
 
 Ltac careful_unify :=
   match goal with
   | |- ?X = ?X' => first [is_Type_or_type X | constr_eq X X']; reflexivity
   | |- ?F _ = ?F' _ => first [apply fun_equal | apply fun_equal' with (f := F)]; revgoals; solve[careful_unify]
+  | |- (if _ then _ else _) = if _ then _ else _ => simple apply if_congr; solve[careful_unify]   
   end; idtac.
 
 Ltac cancel :=
