@@ -691,12 +691,22 @@ first [ reflexivity
 
 Ltac prove_cs_preserve_type := 
 reflexivity || 
-match goal with |- cs_preserve_type ?a ?b ?CCE ?t = true =>
+lazymatch goal with |- cs_preserve_type ?a ?b ?CCE ?t = true =>
  tryif is_evar CCE 
- then fail 3 "Before using change_compspecs, define an Instance of change_composite_env"
+ then fail 2 "Before using change_compspecs, define an Instance of change_composite_env"
  else tryif unify (cs_preserve_type a b CCE t) false
- then fail 3 "change_compspecs fails because the two compspecs environments disagree on the definition of type" t "(that is," 
+ then let id := constr:(match t with Tstruct i _ => Some i | Tunion i _ => Some i | _ => None end) in 
+      let id := eval hnf in id in 
+      lazymatch id with 
+      | None => fail 2 "change_compspecs fails because the two compspecs environments disagree on the definition of type" t "(that is," 
 a "versus" b ")"
+      | Some ?id' => let ca := constr:(@get_co a id') in
+               let cb := constr:(@get_co b id') in
+               let ca := eval hnf in ca in
+               let cb := eval hnf in cb in
+               fail 2 "change_compspecs fails because the two compspecs environments disagree on the definition of type" t
+                 ". That is," a "claims" ca "while" b "claims" cb
+       end
  else fail
 end.
 
