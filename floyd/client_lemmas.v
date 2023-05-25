@@ -316,7 +316,7 @@ Proof.
  destruct (Memory.Mem.weak_valid_pointer m b (Ptrofs.unsigned i)) eqn:?;
   simpl in H; inv H.
 -
-  subst v; simpl. rewrite Int64.eq_true. reflexivity.
+  subst v; simpl. reflexivity.
 -
  destruct v; simpl in H; try solve [inv H].
  destruct (Int.eq i Int.zero) eqn:?; inv H.
