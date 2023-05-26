@@ -1653,6 +1653,55 @@ Ltac do_compute_expr_helper_old Delta Q v e :=
     repeat match goal with v:=_ |- _ => subst v end;
      reflexivity].
 
+Ltac do_compute_expr_helper2 e := 
+  lazymatch goal with
+  | |- context [PTree.get ?a ?b] => 
+    let u := constr:(PTree.get a b) in
+    let u' := eval hnf in u in
+    match u' with
+    | Some (Vint ?v') => 
+         change u with (Some (Vint v'));
+         let v := fresh "v" in remember v' as v;
+         do_compute_expr_helper2 e;
+         subst v
+    | Some (Vlong ?v') => 
+         change u with (Some (Vlong v'));
+         let v := fresh "v" in remember v' as v;
+         do_compute_expr_helper2 e;
+         subst v
+    | Some (Vfloat ?v') => 
+         change u with (Some (Vfloat v'));
+         let v := fresh "v" in remember v' as v;
+         do_compute_expr_helper2 e;
+         subst v
+    | Some (Vsingle ?v') => 
+         change u with (Some (Vsingle v'));
+         let v := fresh "v" in remember v' as v;
+         do_compute_expr_helper2 e;
+         subst v
+    | Some ?v' =>
+         change u with (Some v');
+         let v := fresh "v" in remember v' as v;
+         do_compute_expr_helper2 e;
+         subst v
+    end
+  | |- _ => 
+     simpl;  (* This 'simpl' should be safe because user's terms have been removed *)
+     unfold force_val2, force_val1;
+     (apply (f_equal Some) || fail 100 "Cannot evaluate expression " e "Possibly there are missing local declarations.");
+     simpl
+  end.
+
+Ltac do_compute_expr_helper Delta Q v e :=
+ try assumption;
+ eapply do_compute_expr_helper_lemma;
+ [   prove_local2ptree
+ | unfold v;
+   cbv [msubst_eval_expr msubst_eval_lvalue];
+   do_compute_expr_helper2 e;
+   reflexivity
+ ].
+(*
 Ltac do_compute_expr_helper Delta Q v e :=
  try assumption;
  eapply do_compute_expr_helper_lemma;
@@ -1673,6 +1722,7 @@ Ltac do_compute_expr_helper Delta Q v e :=
     repeat match goal with v:=_ |- _ => subst v end;
      reflexivity
  ].
+*)
 
 Ltac do_compute_expr1 CS Delta Pre e :=
  lazymatch Pre with
