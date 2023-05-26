@@ -233,40 +233,25 @@ forward_for_simple_bound 8 (EX i:Z,
   + entailer!. rewrite HH. 
      apply Byte.unsigned_range_2.
   + simpl; rewrite HH. forward.
-    entailer!. clear H1 H0 H. f_equal. rewrite <- (sublist_rejoin 0 i (i+1)).
-    2: lia. 2: rewrite ! Zlength_cons, Zlength_nil; lia.
-    rewrite sublist_len_1.
-    2: rewrite ! Zlength_cons, Zlength_nil; lia.
-    simpl.
-    unfold Int64.or. rewrite Int64.shl_mul_two_p, (Int64.unsigned_repr 8).
-    2: unfold Int64.max_unsigned; simpl; lia.
-    rewrite Int64.unsigned_repr. 2: apply Byte_unsigned_range_64.
+    entailer!. clear H1 H0 H. f_equal.
+    rewrite <- (sublist_rejoin 0 i (i+1)) by Zlength_solve.
+    rewrite sublist_len_1 by Zlength_solve.
+    unfold Int64.or.
+    rewrite Int64.shl_mul_two_p, (Int64.unsigned_repr 8) by rep_lia.
+    rewrite Int64.unsigned_repr by apply Byte_unsigned_range_64.
     change (two_p 8) with 256. 
-    rewrite bendian_app, bendian_singleton. simpl.
-    unfold Int64.mul.
-    rewrite (Int64.unsigned_repr 256). 2: unfold Int64.max_unsigned; simpl; lia.
-    rewrite Zplus_comm, Zmult_comm, Zlor_2powpos_add. 2: apply Byte.unsigned_range.
-    f_equal. f_equal. remember (bendian (sublist 0 i [b0; b1; b2; b3; c0; c1; c2; c3])) as q.
-    specialize (Int64.shifted_or_is_add  (Int64.repr q) Int64.zero 8).
-    change (two_p 8) with 256. rewrite Int64.unsigned_zero, Z.add_0_r.
-    intros X; rewrite <- X, Int64.or_zero; clear X.
-     2: replace Int64.zwordsize with 64 by reflexivity; lia. 2: lia.
-    rewrite Int64.shl_mul_two_p, (Int64.unsigned_repr 8).
-    2: unfold Int64.max_unsigned; simpl; lia.
-    unfold Int64.mul.
-    assert (Q: 0 <= q < 2^56).
-    { specialize (bendian_range (sublist 0 i [b0; b1; b2; b3; c0; c1; c2; c3])).             
-      rewrite Zlength_sublist, Zminus_0_r, <- Heqq. intros. 
-      assert (2^(8 * i) <= 2^56) by (apply Z.pow_le_mono_r; lia). lia.
-      lia. change (Zlength [b0; b1; b2; b3; c0; c1; c2; c3]) with 8; lia. }
-    change (2^56) with 72057594037927936 in Q.
-    change (two_p 8) with 256. change (Z.pow_pos 2 8) with 256. 
-    rewrite (Int64.unsigned_repr 256).
-    2: unfold Int64.max_unsigned; simpl; lia.
-    rewrite (Int64.unsigned_repr q).
-    2: unfold Int64.max_unsigned; simpl; lia.
-    rewrite Int64.unsigned_repr; trivial.
-    unfold Int64.max_unsigned; simpl; lia. } 
+    rewrite bendian_app, bendian_singleton.
+    simpl.
+    rewrite !Int64.Z_mod_modulus_eq.
+    f_equal.
+    rewrite Z.add_comm, Z.mul_comm, Zlor_2powpos_add by rep_lia.
+    f_equal.
+    specialize (bendian_range (sublist 0 i [b0; b1; b2; b3; c0; c1; c2; c3]));           
+      rewrite Zlength_sublist by Zlength_solve; rewrite  Zminus_0_r; intros. 
+    assert (2^(8 * i) <= 2^56) by (apply Z.pow_le_mono_r; lia).
+    rewrite (Z.mod_small (bendian _)) by rep_lia.
+    rewrite Z.mod_small by rep_lia.
+    reflexivity. } 
 forward. apply prop_right.
 clear H H0. 
 unfold bendian. simpl. 
@@ -299,7 +284,8 @@ Time forward_for_simple_bound 4 (EX i:Z,
               (sublist 0 i (map Vint (map Int.repr (map Byte.unsigned ([u0;u1;u2;u3])))) ++ 
                repeat Vundef (Z.to_nat(4-i)))
                 x))).
-{ entailer!!. }
+{ entailer!!; autorewrite with sublist; cancel.
+}
 { rename H into I.
   Time assert_PROP (field_compatible (Tarray tuchar 4 noattr) [] x /\ isptr x)
        as FC_ptrX by solve [entailer!]. (*2.3*)
