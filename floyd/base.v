@@ -20,8 +20,6 @@ Export SeparationLogicAsLogicSoundness.MainTheorem.CSHL_PracticalLogic.CSHL_Mini
 Export SeparationLogicAsLogicSoundness.MainTheorem.CSHL_PracticalLogic.CSHL_MinimumLogic.CSHL_Defs.
 Import compcert.lib.Maps.
 
-Local Open Scope logic.
-
 Create HintDb gather_prop discriminated.
 Create HintDb gather_prop_core discriminated.
 

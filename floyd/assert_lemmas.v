@@ -625,6 +625,8 @@ Proof.
   intro; apply corable_prop.
 Qed.*)
 
+Implicit Type (R : assert).
+
 Lemma derives_fupd_trans: forall TC E1 E2 E3 P Q R,
   (local TC ∧ P ⊢ (|={E1,E2}=> Q)) ->
   (local TC ∧ Q ⊢ (|={E2,E3}=> R)) ->
@@ -738,7 +740,7 @@ Qed.
 Lemma andp_ENTAILL: forall E Delta P P' Q Q',
   (local (tc_environ Delta) ∧ (<affine> allp_fun_id E Delta ∗ P) ⊢ P') ->
   (local (tc_environ Delta) ∧ (<affine> allp_fun_id E Delta ∗ Q) ⊢ Q') ->
-  local (tc_environ Delta) ∧ (<affine> allp_fun_id E Delta ∗(P ∧ Q)) ⊢ P' ∧ Q'.
+  local (tc_environ Delta) ∧ (<affine> allp_fun_id E Delta ∗ (P ∧ Q)) ⊢ P' ∧ Q'.
 Proof.
   intros ?????? <- <-.
   iIntros "($ & $ & $)".
@@ -753,20 +755,22 @@ Proof.
   iIntros "($ & $ & $)".
 Qed.
 
-(*Lemma imp_ENTAILL: forall E Delta P P' Q Q',
+Lemma imp_ENTAILL: forall E Delta P P' Q Q',
   (local (tc_environ Delta) ∧ (<affine> allp_fun_id E Delta ∗ P') ⊢ P) ->
   (local (tc_environ Delta) ∧ (<affine> allp_fun_id E Delta ∗ Q) ⊢ Q') ->
   local (tc_environ Delta) ∧ (<affine> allp_fun_id E Delta ∗ (P → Q)) ⊢ P' → Q'.
 Proof.
   intros ?????? <- <-.
-Search bi_affinely bi_sep bi_and.
-  iIntros "(? & ? & H)".
-  iAssert (P' → Q) with "[-]" as "H".
-  { iApply "H".
-  iIntros "H".
-  iApply (bi.impl_intro_l with "H").
-  rewrite -bi.impl_intro_l.
-Qed.*)
+  iIntros "H"; iApply bi.impl_intro_r; last iApply "H".
+  iIntros "H"; iSplit; first by iDestruct "H" as "(($ & _ & _) & _)".
+  iSplit; first by iDestruct "H" as "((_ & $ & _) & _)".
+  iApply (bi.impl_elim with "H").
+  - iIntros "((_ & _ & $) & _)".
+  - rewrite -bi.and_assoc {1}(persistent (allp_fun_id _ _)).
+    rewrite -bi.persistently_and_intuitionistically_sep_l -bi.and_assoc.
+    iIntros "($ & ? & _ & $)".
+    by iApply bi.intuitionistically_affinely.
+Qed.
 
 Lemma sepcon_ENTAILL: forall E Delta P P' Q Q',
   (local (tc_environ Delta) ∧ (<affine> allp_fun_id E Delta ∗ P) ⊢ P') ->
@@ -866,7 +870,7 @@ Qed.
 
 Lemma aux_reduceL: forall P Q R S,
   (P ∧ R ⊢ S) ->
-  P ∧ (Q ∧ R) ⊢ S.
+  P ∧ (<affine> Q ∗ R) ⊢ S.
 Proof.
   intros ???? <-.
   iIntros "H"; iSplit; [iDestruct "H" as "($ & _)" | iDestruct "H" as "(_ & _ & $)"].
@@ -952,7 +956,7 @@ Ltac derives_fupd_L2R H :=
 
 Ltac derives_full_L2R H :=
   match type of H with
-  | (local (tc_environ ?Delta) ∧ (<affine> allp_fun_id ?Delta ∗ _)) ⊢ (|={_,_}=> _) =>
+  | (local (tc_environ ?Delta) ∧ (<affine> allp_fun_id _ ?Delta ∗ _)) ⊢ (|={_,_}=> _) =>
       eapply derives_full_trans; [apply H |]
   | (local (tc_environ _) ∧ _) ⊢ (|={_,_}=> _) =>
       eapply derives_full_trans; [apply derives_fupd_derives_full, H |]
@@ -964,7 +968,7 @@ Ltac derives_full_L2R H :=
 
 Tactic Notation "derives_rewrite" "->" constr(H) :=
   match goal with
-  | |- (local (tc_environ ?Delta) ∧ (<affine> allp_fun_id ?Delta ∗ _)) ⊢ (|={_,_}=> _) =>
+  | |- (local (tc_environ ?Delta) ∧ (<affine> allp_fun_id _ ?Delta ∗ _)) ⊢ (|={_,_}=> _) =>
          derives_full_L2R H
   | |- (local (tc_environ _) ∧ _) ⊢ (|={_,_}=> _) =>
          derives_fupd_L2R H
@@ -997,7 +1001,7 @@ Ltac derives_fupd_R2L H :=
 
 Ltac derives_full_R2L H :=
   match type of H with
-  | (local (tc_environ ?Delta) ∧ (<affine> allp_fun_id ?Delta ∗ _)) ⊢ (|={_,_}=> _) =>
+  | (local (tc_environ ?Delta) ∧ (<affine> allp_fun_id _ ?Delta ∗ _)) ⊢ (|={_,_}=> _) =>
       eapply derives_fupd_trans; [| apply H]
   | (local (tc_environ _) ∧ _) ⊢ (|={_,_}=> _) =>
       eapply derives_fupd_trans; [| apply derives_fupd_derives_full, H]
@@ -1044,13 +1048,13 @@ Ltac reduceR :=
 
 Ltac reduceLL :=
   match goal with
-  | |- local (tc_environ ?Delta) ∧ (<affine> allp_fun_id ?Delta ∗ _) ⊢ _ => apply aux_reduceL
+  | |- local (tc_environ ?Delta) ∧ (<affine> allp_fun_id _ ?Delta ∗ _) ⊢ _ => apply aux_reduceL
   | _ => idtac
   end.
 
 Ltac reduceL :=
   match goal with
-  | |- local (tc_environ ?Delta) ∧ (<affine> allp_fun_id ?Delta ∗ _) ⊢ _ => apply aux_reduceL
+  | |- local (tc_environ ?Delta) ∧ (<affine> allp_fun_id _ ?Delta ∗ _) ⊢ _ => apply aux_reduceL
   | _ => idtac
   end;
   match goal with

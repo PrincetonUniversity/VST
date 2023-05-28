@@ -35,10 +35,8 @@ intuition.
 Qed.*)
 End IdFSem.
 
-Require Import VST.veric.juicy_mem.
+(*Require Import VST.veric.juicy_mem.
 Require Import VST.veric.juicy_extspec.
-Require Import VST.veric.compcert_rmaps.
-Require Import VST.veric.own.
 
 Module JuicyFSem.
 Program Definition t : FSem.t mem juicy_mem :=
@@ -47,5 +45,4 @@ Program Definition t : FSem.t mem juicy_mem :=
        ageable.level jm = S (ageable.level jm') /\
        ghost_of (m_phi jm') = ghost_approx jm' (ghost_of (m_phi jm)))
     _ _ _ _.
-End JuicyFSem.
-
+End JuicyFSem.*)

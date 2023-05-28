@@ -10,6 +10,7 @@ Require Export compcert.cfrontend.Clight.
 Require Export VST.sepcomp.Address.
 Require Export VST.msl.eq_dec.
 Require Export VST.msl.shares.
+Require Export VST.msl.log_normalize.
 Require Export VST.veric.tycontext.
 Require Export VST.veric.change_compspecs.
 Require Export VST.veric.mpred.
@@ -26,7 +27,7 @@ Require Export VST.veric.Clight_assert_lemmas.
 Require Export VST.veric.extend_tc.
 Require Import VST.msl.Coqlib2.
 Require Import VST.veric.juicy_extspec.
-Require Import VST.veric.mapsto_memory_block.
+Require Export VST.veric.mapsto_memory_block.
 Require Import VST.veric.valid_pointer.
 Require Export VST.veric.external_state.
 Require Export VST.veric.Clight_initial_world.
@@ -703,3 +704,5 @@ Axiom semax_adapt: forall E Delta c (P P': assert) (Q Q' : ret_assert)
 End mpred.
 
 End PRACTICAL_CLIGHT_SEPARATION_HOARE_LOGIC.
+
+Arguments var_sizes_ok {_} _.
