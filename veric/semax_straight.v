@@ -790,7 +790,7 @@ Qed.
 Lemma semax_store:
  forall E Delta e1 e2 sh P (WS : writable0_share sh),
    semax Espec E Delta
-          (▷ (tc_lvalue Delta e1 ∧ tc_expr Delta (Ecast e2 (typeof e1)) ∧
+          (▷ ((tc_lvalue Delta e1 ∧ tc_expr Delta (Ecast e2 (typeof e1))) ∧
              (assert_of (`(mapsto_ sh (typeof e1)) (eval_lvalue e1)) ∗ P)))
           (Sassign e1 e2)
           (normal_ret_assert (assert_of (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`force_val (`(sem_cast (typeof e2) (typeof e1)) (eval_expr e2)))) ∗ P)).
@@ -801,7 +801,7 @@ Proof.
       (▷ tc_lvalue Delta e1 ∧ ▷ tc_expr Delta (Ecast e2 (typeof e1))) ∧
       ▷ (assert_of (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`v3)) ∗ P)).
   { intros; iIntros "[? H]".
-    rewrite /mapsto_ !bi.later_and assoc; eauto. }
+    rewrite /mapsto_ !bi.later_and; eauto. }
   apply extract_exists_pre; intro v3.
   apply semax_straight_simple; auto.
   { apply _. }
@@ -867,7 +867,7 @@ Lemma semax_store_union_hack:
        decode_encode_val_ok ch ch' ->
        writable_share sh ->
        semax Espec E Delta
-         (▷ (tc_lvalue Delta e1 ∧ tc_expr Delta (Ecast e2 (typeof e1)) ∧
+         (▷ ((tc_lvalue Delta e1 ∧ tc_expr Delta (Ecast e2 (typeof e1))) ∧
               ((assert_of (`(mapsto_ sh (typeof e1)) (eval_lvalue e1))
                 ∧ assert_of (`(mapsto_ sh t2) (eval_lvalue e1)))
                ∗ P)))
@@ -886,7 +886,7 @@ Proof.
       ▷ ((assert_of (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`v3))
                 ∧ assert_of (`(mapsto sh t2) (eval_lvalue e1) (`v3))) ∗ P)).
   { intros; iIntros "[? H]".
-    rewrite /mapsto_ !bi.later_and assoc; eauto. }
+    rewrite /mapsto_ !bi.later_and; eauto. }
   apply extract_exists_pre; intro v3.
   apply semax_straight_simple; auto.
   { apply _. }

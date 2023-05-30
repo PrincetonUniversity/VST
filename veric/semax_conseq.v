@@ -205,6 +205,41 @@ Proof.
   by rewrite H.
 Qed.
 
+Global Instance guard'_proper ge E Delta f : Proper (equiv ==> eq ==> equiv) (guard' Espec ge E Delta f).
+Proof.
+  solve_proper.
+Qed.
+
+Global Instance rguard_proper ge E Delta f : Proper (equiv ==> eq ==> equiv) (rguard Espec ge E Delta f).
+Proof.
+  intros ????? ->; rewrite /rguard.
+  do 3 f_equiv; intros ?.
+  apply guard_proper; last done.
+  destruct H as (? & ? & ? & ?).
+  destruct a; simpl; last done; f_equiv; done.
+Qed.
+
+Global Instance frame_ret_assert_proper : Proper (equiv ==> equiv ==> equiv) (@frame_ret_assert Σ).
+Proof.
+  intros [????] [????] (? & ? & ? & ?); repeat intro; simpl in *.
+  split3; last split; simpl; intros; f_equiv; done.
+Qed.
+
+Global Instance semax_proper {CS} E Delta : Proper (equiv ==> eq ==> equiv ==> iff) (semax Espec E Delta).
+Proof.
+  repeat intro; subst.
+  rewrite !semax_unfold.
+  split; intros.
+  - iIntros "#B" (???) "(% & ?)".
+    rewrite -H; iApply (H0 with "B [-]").
+    iApply (bi.affinely_mono with "[$]").
+    rewrite H1; iIntros "$"; done.
+  - iIntros "#B" (???) "(% & ?)".
+    rewrite H; iApply (H0 with "B [-]").
+    iApply (bi.affinely_mono with "[$]").
+    rewrite H1; iIntros "$"; done.
+Qed.
+
 Lemma guard_proj_frame : forall ge E Delta f P F ek vl k,
   _guard Espec ge E Delta f (proj_ret_assert (frame_ret_assert P F) ek vl) k ⊣⊢
   _guard Espec ge E Delta f (F ∗ proj_ret_assert P ek vl) k.

@@ -55,6 +55,11 @@ Proof.
   intros; apply monPred_absorbing, _.
 Qed.
 
+Global Instance tc_exprlist_absorbing : forall {CS: compspecs} Delta t a, Absorbing (tc_exprlist Delta t a).
+Proof.
+  intros; apply monPred_absorbing, _.
+Qed.
+
 Global Instance tc_lvalue_absorbing : forall {CS: compspecs} Delta a, Absorbing (tc_lvalue Delta a).
 Proof.
   intros; apply monPred_absorbing, _.

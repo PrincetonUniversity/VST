@@ -480,7 +480,7 @@ Axiom semax_store:
  forall E Delta e1 e2 sh (P: assert),
    writable_share sh ->
    semax E Delta
-          (▷ (tc_lvalue Delta e1 ∧ tc_expr Delta (Ecast e2 (typeof e1))  ∧
+          (▷ ((tc_lvalue Delta e1 ∧ tc_expr Delta (Ecast e2 (typeof e1)))  ∧
              (assert_of (`(mapsto_ sh (typeof e1)) (eval_lvalue e1)) ∗ P)))
           (Sassign e1 e2)
           (normal_ret_assert
@@ -494,7 +494,7 @@ Axiom semax_store_union_hack:
        decode_encode_val_ok ch ch' ->
        writable_share sh ->
        semax E Delta
-         (▷ (tc_lvalue Delta e1 ∧ tc_expr Delta (Ecast e2 (typeof e1)) ∧
+         (▷ ((tc_lvalue Delta e1 ∧ tc_expr Delta (Ecast e2 (typeof e1))) ∧
               ((assert_of (`(mapsto_ sh (typeof e1)) (eval_lvalue e1))
                 ∧ assert_of (`(mapsto_ sh t2) (eval_lvalue e1)))
                ∗ P)))
@@ -604,7 +604,7 @@ Axiom semax_fun_id:
     (var_types Delta) !! id = None ->
     (glob_specs Delta) !! id = Some f ->
     (glob_types Delta) !! id = Some (type_of_funspec f) ->
-    semax E Delta (P ∧ assert_of (fun rho => func_ptr E f (eval_var id (type_of_funspec f) rho)))
+    semax E Delta (P ∗ assert_of (fun rho => func_ptr E f (eval_var id (type_of_funspec f) rho)))
                   c Q ->
     semax E Delta P c Q.
 

@@ -761,7 +761,7 @@ Axiom semax_store_forward:
  forall e1 e2 sh P,
    writable_share sh ->
    semax E Delta
-          (▷ ( (tc_lvalue Delta e1) ∧  (tc_expr Delta (Ecast e2 (typeof e1)))  ∧
+          (▷ ((tc_lvalue Delta e1 ∧ tc_expr Delta (Ecast e2 (typeof e1)))  ∧
              (assert_of (`(mapsto_ sh (typeof e1)) (eval_lvalue e1)) ∗ P)))
           (Sassign e1 e2)
           (normal_ret_assert
@@ -777,7 +777,7 @@ Import CSHL_Def.
 
 Axiom semax_store_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs} E (Delta: tycontext) e1 e2 P,
    semax E Delta
-          (∃ sh: share, ⌜writable_share sh⌝ ∧ ▷ ( (tc_lvalue Delta e1) ∧  (tc_expr Delta (Ecast e2 (typeof e1)))  ∧
+          (∃ sh: share, ⌜writable_share sh⌝ ∧ ▷ ((tc_lvalue Delta e1 ∧ tc_expr Delta (Ecast e2 (typeof e1)))  ∧
              (assert_of (`(mapsto_ sh (typeof e1)) (eval_lvalue e1)) ∗ (assert_of (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`force_val (`(sem_cast (typeof e2) (typeof e1)) (eval_expr e2)))) -∗ P))))
           (Sassign e1 e2)
           (normal_ret_assert P).
@@ -803,7 +803,7 @@ Import StoreF.
 
 Theorem semax_store_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs} E (Delta: tycontext) e1 e2 P,
    semax E Delta
-          (∃ sh: share, ⌜writable_share sh⌝ ∧ ▷ ( (tc_lvalue Delta e1) ∧  (tc_expr Delta (Ecast e2 (typeof e1)))  ∧
+          (∃ sh: share, ⌜writable_share sh⌝ ∧ ▷ ((tc_lvalue Delta e1 ∧ tc_expr Delta (Ecast e2 (typeof e1)))  ∧
              (assert_of (`(mapsto_ sh (typeof e1)) (eval_lvalue e1)) ∗ (assert_of (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`force_val (`(sem_cast (typeof e2) (typeof e1)) (eval_expr e2)))) -∗ P))))
           (Sassign e1 e2)
           (normal_ret_assert P).
@@ -813,8 +813,9 @@ Proof.
   + rewrite bi.and_elim_r //.
   + intros sh.
     apply semax_extract_prop; intro SH.
-    eapply semax_post'; [.. | eapply semax_store_forward; auto].
-    iIntros "(_ & ? & H)"; by iApply "H".
+    eapply semax_pre_post', semax_store_forward; eauto.
+    * rewrite bi.and_elim_r; apply bi.later_mono; rewrite -!assoc //.
+    * iIntros "(_ & ? & H)"; by iApply "H".
 Qed.
 
 End StoreF2B.
@@ -836,7 +837,7 @@ Theorem semax_store_forward:
   forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs} E (Delta: tycontext) e1 e2 sh P,
    writable_share sh ->
    semax E Delta
-          (▷ ( (tc_lvalue Delta e1) ∧  (tc_expr Delta (Ecast e2 (typeof e1)))  ∧
+          (▷ ((tc_lvalue Delta e1 ∧ tc_expr Delta (Ecast e2 (typeof e1)))  ∧
              (assert_of (`(mapsto_ sh (typeof e1)) (eval_lvalue e1)) ∗ P)))
           (Sassign e1 e2)
           (normal_ret_assert
@@ -846,7 +847,7 @@ Proof.
   eapply semax_pre; [| apply semax_store_backward].
   iIntros "(_ & H)"; iExists sh; iSplit; first done.
   iNext.
-  iApply (bi.and_mono with "H"); first done; apply bi.and_mono; first done.
+  iApply (bi.and_mono with "H"); first done.
   iIntros "($ & $) $".
 Qed.
 
@@ -867,7 +868,7 @@ Axiom semax_store_union_hack_forward:
        decode_encode_val_ok ch ch' ->
        writable_share sh ->
        semax E Delta
-         (▷ (tc_lvalue Delta e1 ∧ tc_expr Delta (Ecast e2 (typeof e1)) ∧
+         (▷ ((tc_lvalue Delta e1 ∧ tc_expr Delta (Ecast e2 (typeof e1))) ∧
               ((assert_of (`(mapsto_ sh (typeof e1)) (eval_lvalue e1))
                 ∧ assert_of (`(mapsto_ sh t2) (eval_lvalue e1)))
                ∗ P)))
@@ -895,7 +896,7 @@ Axiom semax_store_union_hack_backward:
                  access_mode t2 = By_value ch' /\
                  decode_encode_val_ok ch ch' /\
                  writable_share sh⌝ ∧
-             ▷ ( (tc_lvalue Delta e1) ∧  (tc_expr Delta (Ecast e2 (typeof e1))) ∧
+             ▷ ((tc_lvalue Delta e1 ∧ tc_expr Delta (Ecast e2 (typeof e1))) ∧
              ((assert_of (`(mapsto_ sh (typeof e1)) (eval_lvalue e1))
                       ∧ assert_of (`(mapsto_ sh t2) (eval_lvalue e1))) ∗
               (∀ v': val,
@@ -934,7 +935,7 @@ Theorem semax_store_union_hack_backward:
                  access_mode t2 = By_value ch' /\
                  decode_encode_val_ok ch ch' /\
                  writable_share sh⌝ ∧
-             ▷ ( (tc_lvalue Delta e1) ∧  (tc_expr Delta (Ecast e2 (typeof e1))) ∧
+             ▷ ((tc_lvalue Delta e1 ∧ tc_expr Delta (Ecast e2 (typeof e1))) ∧
              ((assert_of (`(mapsto_ sh (typeof e1)) (eval_lvalue e1))
                       ∧ assert_of (`(mapsto_ sh t2) (eval_lvalue e1))) ∗
               (∀ v': val,
@@ -984,7 +985,7 @@ Theorem semax_store_union_hack_forward:
        decode_encode_val_ok ch ch' ->
        writable_share sh ->
        semax E Delta
-         (▷ (tc_lvalue Delta e1 ∧ tc_expr Delta (Ecast e2 (typeof e1)) ∧
+         (▷ ((tc_lvalue Delta e1 ∧ tc_expr Delta (Ecast e2 (typeof e1))) ∧
               ((assert_of (`(mapsto_ sh (typeof e1)) (eval_lvalue e1))
                 ∧ assert_of (`(mapsto_ sh t2) (eval_lvalue e1)))
                ∗ P)))
@@ -1000,7 +1001,7 @@ Proof.
   iIntros "(_ & H)"; iExists t2, ch, ch', sh.
   iSplit; first done.
   iNext.
-  iApply (bi.and_mono with "H"); first done; apply bi.and_mono; first done.
+  iApply (bi.and_mono with "H"); first done.
   iIntros "($ & $)"; eauto.
 Qed.
 
@@ -1016,7 +1017,7 @@ Axiom semax_store_store_union_hack_backward: forall `{!heapGS Σ} {Espec: Oracle
   forall (P: assert) e1 e2,
     semax E Delta
        ((∃ sh: share, ⌜writable_share sh⌝ ∧
-             ▷ ( (tc_lvalue Delta e1) ∧  (tc_expr Delta (Ecast e2 (typeof e1)))  ∧
+             ▷ ((tc_lvalue Delta e1 ∧ tc_expr Delta (Ecast e2 (typeof e1)))  ∧
              (assert_of (`(mapsto_ sh (typeof e1)) (eval_lvalue e1)) ∗
               (assert_of (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`force_val (`(sem_cast (typeof e2) (typeof e1)) (eval_expr e2)))) -∗ P))))
           ∨ (∃ (t2:type) (ch ch': memory_chunk) (sh: share),
@@ -1025,7 +1026,7 @@ Axiom semax_store_store_union_hack_backward: forall `{!heapGS Σ} {Espec: Oracle
                  access_mode t2 = By_value ch' /\
                  decode_encode_val_ok ch ch' /\
                  writable_share sh⌝ ∧
-             ▷ ( (tc_lvalue Delta e1) ∧  (tc_expr Delta (Ecast e2 (typeof e1)))  ∧
+             ▷ ((tc_lvalue Delta e1 ∧ tc_expr Delta (Ecast e2 (typeof e1)))  ∧
              ((assert_of (`(mapsto_ sh (typeof e1)) (eval_lvalue e1) )
                       ∧ assert_of (`(mapsto_ sh t2) (eval_lvalue e1))) ∗
               (∀ v': val,
@@ -1061,7 +1062,7 @@ Theorem semax_store_store_union_hack_backward: forall `{!heapGS Σ} {Espec: Orac
   forall (P: assert) e1 e2,
     semax E Delta
        ((∃ sh: share, ⌜writable_share sh⌝ ∧
-             ▷ ( (tc_lvalue Delta e1) ∧  (tc_expr Delta (Ecast e2 (typeof e1)))  ∧
+             ▷ ((tc_lvalue Delta e1 ∧ tc_expr Delta (Ecast e2 (typeof e1)))  ∧
              (assert_of (`(mapsto_ sh (typeof e1)) (eval_lvalue e1)) ∗
               (assert_of (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`force_val (`(sem_cast (typeof e2) (typeof e1)) (eval_expr e2)))) -∗ P))))
           ∨ (∃ (t2:type) (ch ch': memory_chunk) (sh: share),
@@ -1070,7 +1071,7 @@ Theorem semax_store_store_union_hack_backward: forall `{!heapGS Σ} {Espec: Orac
                  access_mode t2 = By_value ch' /\
                  decode_encode_val_ok ch ch' /\
                  writable_share sh⌝ ∧
-             ▷ ( (tc_lvalue Delta e1) ∧  (tc_expr Delta (Ecast e2 (typeof e1)))  ∧
+             ▷ ((tc_lvalue Delta e1 ∧ tc_expr Delta (Ecast e2 (typeof e1)))  ∧
              ((assert_of (`(mapsto_ sh (typeof e1)) (eval_lvalue e1) )
                       ∧ assert_of (`(mapsto_ sh t2) (eval_lvalue e1))) ∗
               (∀ v': val,
@@ -1105,7 +1106,7 @@ Import Sassign.
 
 Theorem semax_store_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs} E (Delta: tycontext) e1 e2 P,
    semax E Delta
-          (∃ sh: share, ⌜writable_share sh⌝ ∧ ▷ ( (tc_lvalue Delta e1) ∧  (tc_expr Delta (Ecast e2 (typeof e1)))  ∧
+          (∃ sh: share, ⌜writable_share sh⌝ ∧ ▷ ((tc_lvalue Delta e1 ∧ tc_expr Delta (Ecast e2 (typeof e1)))  ∧
              (assert_of (`(mapsto_ sh (typeof e1)) (eval_lvalue e1)) ∗ (assert_of (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`force_val (`(sem_cast (typeof e2) (typeof e1)) (eval_expr e2)))) -∗ P))))
           (Sassign e1 e2)
           (normal_ret_assert P).
@@ -1140,7 +1141,7 @@ Theorem semax_store_union_hack_backward:
                  access_mode t2 = By_value ch' /\
                  decode_encode_val_ok ch ch' /\
                  writable_share sh⌝ ∧
-             ▷ ( (tc_lvalue Delta e1) ∧  (tc_expr Delta (Ecast e2 (typeof e1)))  ∧
+             ▷ ((tc_lvalue Delta e1 ∧ tc_expr Delta (Ecast e2 (typeof e1)))  ∧
              ((assert_of (`(mapsto_ sh (typeof e1)) (eval_lvalue e1))
                       ∧ assert_of (`(mapsto_ sh t2) (eval_lvalue e1))) ∗
               (∀ v': val,
@@ -1172,7 +1173,7 @@ Axiom semax_call_forward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS
           tc_fn_return Delta ret retsig ->
   semax E Delta
           (((*▷*)((tc_expr Delta a) ∧ (tc_exprlist Delta argsig bl)))  ∧
-         (assert_of (`(func_ptr E (mk_funspec  (argsig,retsig) cc A P Q)) (eval_expr a)) ∧
+         (assert_of (`(func_ptr E (mk_funspec  (argsig,retsig) cc A P Q)) (eval_expr a)) ∗
           (▷ (F ∗ assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho))))))
          (Scall ret a bl)
          (normal_ret_assert
@@ -1196,7 +1197,7 @@ Axiom semax_call_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalG
              (retsig = Ctypes.Tvoid -> ret = None) /\
              tc_fn_return Delta ret retsig⌝ ∧
           ((*▷*)((tc_expr Delta a) ∧ (tc_exprlist Delta argsig bl)))  ∧
-         assert_of (`(func_ptr E (mk_funspec  (argsig,retsig) cc A P Q)) (eval_expr a)) ∧
+         assert_of (`(func_ptr E (mk_funspec  (argsig,retsig) cc A P Q)) (eval_expr a)) ∗
           ▷(assert_of (fun rho => (P x (ge_of rho, eval_exprlist argsig bl rho))) ∗ oboxopt Delta ret (maybe_retval (Q x) retsig ret -∗ R)))
          (Scall ret a bl)
          (normal_ret_assert R).
@@ -1238,7 +1239,7 @@ Theorem semax_call_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externa
              (retsig = Ctypes.Tvoid -> ret = None) /\
              tc_fn_return Delta ret retsig⌝ ∧
           ((*▷*)((tc_expr Delta a) ∧ (tc_exprlist Delta argsig bl)))  ∧
-         assert_of (`(func_ptr E (mk_funspec  (argsig,retsig) cc A P Q)) (eval_expr a)) ∧
+         assert_of (`(func_ptr E (mk_funspec  (argsig,retsig) cc A P Q)) (eval_expr a)) ∗
           ▷(assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho)) ∗ oboxopt Delta ret (maybe_retval (Q x) retsig ret -∗ R)))
          (Scall ret a bl)
          (normal_ret_assert R).
@@ -1253,7 +1254,7 @@ Proof.
   apply semax_extract_exists; intro x.
   apply semax_extract_prop; intros [? [? ?]].
   eapply semax_pre_post'; [.. | apply semax_call_forward; auto].
-  + rewrite bi.and_elim_r; apply bi.and_mono; first done; apply bi.and_mono; first done.
+  + rewrite bi.and_elim_r; apply bi.and_mono; first done; apply bi.sep_mono; first done.
     apply bi.later_mono.
     rewrite comm //.
   + iIntros "(TC & % & H & ?)".
@@ -1328,7 +1329,7 @@ Theorem semax_call_forward: forall `{!heapGS Σ} {Espec: OracleKind} `{!external
           tc_fn_return Delta ret retsig ->
   semax E Delta
           (((*▷*)((tc_expr Delta a) ∧ (tc_exprlist Delta argsig bl)))  ∧
-         (assert_of (`(func_ptr E (mk_funspec  (argsig,retsig) cc A P Q)) (eval_expr a)) ∧
+         (assert_of (`(func_ptr E (mk_funspec  (argsig,retsig) cc A P Q)) (eval_expr a)) ∗
           (▷ (F ∗ assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho))))))
          (Scall ret a bl)
          (normal_ret_assert
@@ -1339,8 +1340,8 @@ Proof.
   iIntros "(#? & H)"; iExists argsig, retsig, cc, A, P, Q, x.
   iSplit; first done.
   iSplit; first by rewrite bi.and_elim_l.
-  rewrite bi.and_elim_r; iSplit; first by rewrite bi.and_elim_l.
-  rewrite bi.and_elim_r; iNext; iDestruct "H" as "(F & $)".
+  rewrite bi.and_elim_r; iDestruct "H" as "($ & H)".
+  iNext; iDestruct "H" as "(F & $)".
   assert (temp_guard_opt Delta ret) by (eapply fn_return_temp_guard; done).
   iPoseProof (odiaopt_D _ ret F with "[$F]") as "H"; auto.
   rewrite -oboxopt_odiaopt //.
@@ -1399,8 +1400,8 @@ Axiom semax_load_forward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS
     readable_share sh ->
     (local (tc_environ Delta) ∧ P ⊢ <absorb> assert_of (`(mapsto sh (typeof e1)) (eval_lvalue e1) (` v2))) ->
     semax E Delta
-       (▷ ( (tc_lvalue Delta e1) ∧
-       local (`(tc_val (typeof e1) v2)) ∧
+       (▷ (tc_lvalue Delta e1 ∧
+       ⌜tc_val (typeof e1) v2⌝ ∧
           P))
        (Sset id e1)
        (normal_ret_assert (∃ old:val, local (`eq (eval_id id) (` v2)) ∧
@@ -1421,9 +1422,9 @@ Axiom semax_load_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalG
               ⌜typeof_temp Delta id = Some t2 /\
                   is_neutral_cast (typeof e1) t2 = true /\
                   readable_share sh⌝ ∧
-         ▷ ( (tc_lvalue Delta e1) ∧
-              local (`(tc_val (typeof e1) v2)) ∧
-              (<absorb> assert_of (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2))) ∧
+         ▷ ((tc_lvalue Delta e1 ∧
+              ⌜tc_val (typeof e1) v2⌝ ∧
+              (<absorb> assert_of (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2)))) ∧
               assert_of (subst id (`v2) P)))
         (Sset id e1) (normal_ret_assert P).
 
@@ -1497,9 +1498,9 @@ Theorem semax_load_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externa
               ⌜typeof_temp Delta id = Some t2 /\
                   is_neutral_cast (typeof e1) t2 = true /\
                   readable_share sh⌝ ∧
-         ▷ ( (tc_lvalue Delta e1) ∧
-              local (`(tc_val (typeof e1) v2)) ∧
-              (<absorb> assert_of (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2))) ∧
+         ▷ ((tc_lvalue Delta e1 ∧
+              ⌜tc_val (typeof e1) v2⌝ ∧
+              (<absorb> assert_of (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2)))) ∧
               assert_of (subst id (`v2) P)))
         (Sset id e1) (normal_ret_assert P).
 Proof.
@@ -1508,7 +1509,8 @@ Proof.
   apply semax_extract_exists; intro t2.
   apply semax_extract_exists; intro v2.
   apply semax_extract_prop; intros [? [? ?]].
-  eapply semax_post'; [.. | eapply semax_load_forward; eauto].
+  eapply semax_pre_post', semax_load_forward; eauto.
+  + rewrite bi.and_elim_r -!assoc //.
   + split => rho; rewrite /subst; monPred.unseal.
     iIntros "(%TC & % & % & ?)"; super_unfold_lift; subst.
     rewrite bi.and_elim_r.
@@ -1541,7 +1543,7 @@ Theorem semax_load_forward: forall `{!heapGS Σ} {Espec: OracleKind} `{!external
     (local (tc_environ Delta) ∧ P ⊢ <absorb> assert_of (`(mapsto sh (typeof e1)) (eval_lvalue e1) (` v2))) ->
     semax E Delta
        (▷ ( (tc_lvalue Delta e1) ∧
-       local (`(tc_val (typeof e1) v2)) ∧
+       ⌜tc_val (typeof e1) v2⌝ ∧
           P))
        (Sset id e1)
        (normal_ret_assert (∃ old:val, local (`eq (eval_id id) (` v2)) ∧
@@ -1552,7 +1554,7 @@ Proof.
   iIntros "(#? & H)"; iExists sh, t2, v2.
   iSplit; first done.
   iNext.
-  iSplit; first rewrite bi.and_elim_l //; rewrite bi.and_elim_r.
+  rewrite -!assoc; iSplit; first rewrite bi.and_elim_l //; rewrite bi.and_elim_r.
   iSplit; first rewrite bi.and_elim_l //; rewrite bi.and_elim_r.
   iSplit; first (iApply H2; iFrame; auto).
   iStopProof; split => rho; rewrite /subst /local; monPred.unseal.
@@ -1761,7 +1763,7 @@ Import CSHL_Def.
 
 Axiom semax_ptr_compare_forward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs} E (Delta: tycontext),
   forall P id cmp e1 e2 ty sh1 sh2,
-    sepalg.nonidentity sh1 -> sepalg.nonidentity sh2 ->
+    sh1 ≠ Share.bot -> sh2 ≠ Share.bot ->
    is_comparison cmp = true  ->
    eqb_type (typeof e1) int_or_ptr_type = false ->
    eqb_type (typeof e2) int_or_ptr_type = false ->
@@ -1795,7 +1797,7 @@ Axiom semax_ptr_compare_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!ex
         (∃ cmp: Cop.binary_operation, ∃ e1: expr, ∃ e2: expr,
          ∃ ty: type, ∃ sh1: share, ∃ sh2: share,
           ⌜e = Ebinop cmp e1 e2 ty /\
-              sepalg.nonidentity sh1 /\ sepalg.nonidentity sh2 /\
+              sh1 ≠ Share.bot /\ sh2 ≠ Share.bot /\
               is_comparison cmp = true /\
               eqb_type (typeof e1) int_or_ptr_type = false /\
               eqb_type (typeof e2) int_or_ptr_type = false /\
@@ -1834,7 +1836,7 @@ Theorem semax_ptr_compare_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!
         (∃ cmp: Cop.binary_operation, ∃ e1: expr, ∃ e2: expr,
          ∃ ty: type, ∃ sh1: share, ∃ sh2: share,
           ⌜e = Ebinop cmp e1 e2 ty /\
-              sepalg.nonidentity sh1 /\ sepalg.nonidentity sh2 /\
+              sh1 ≠ Share.bot /\ sh2 ≠ Share.bot /\
               is_comparison cmp = true /\
               eqb_type (typeof e1) int_or_ptr_type = false /\
               eqb_type (typeof e2) int_or_ptr_type = false /\
@@ -1883,7 +1885,7 @@ Import PtrCmpB.
 
 Theorem semax_ptr_compare_forward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs} E (Delta: tycontext),
   forall P id cmp e1 e2 ty sh1 sh2,
-    sepalg.nonidentity sh1 -> sepalg.nonidentity sh2 ->
+    sh1 ≠ Share.bot -> sh2 ≠ Share.bot ->
    is_comparison cmp = true  ->
    eqb_type (typeof e1) int_or_ptr_type = false ->
    eqb_type (typeof e2) int_or_ptr_type = false ->
@@ -1937,7 +1939,7 @@ Axiom semax_set_ptr_compare_load_cast_load_backward: forall `{!heapGS Σ} {Espec
         (∃ cmp: Cop.binary_operation, ∃ e1: expr, ∃ e2: expr,
          ∃ ty: type, ∃ sh1: share, ∃ sh2: share,
           ⌜e = Ebinop cmp e1 e2 ty /\
-              sepalg.nonidentity sh1 /\ sepalg.nonidentity sh2 /\
+              sh1 ≠ Share.bot /\ sh2 ≠ Share.bot /\
               is_comparison cmp = true /\
               eqb_type (typeof e1) int_or_ptr_type = false /\
               eqb_type (typeof e2) int_or_ptr_type = false /\
@@ -1952,16 +1954,16 @@ Axiom semax_set_ptr_compare_load_cast_load_backward: forall `{!heapGS Σ} {Espec
               ⌜typeof_temp Delta id = Some t2 /\
                   is_neutral_cast (typeof e) t2 = true /\
                   readable_share sh⌝ ∧
-         ▷ ( (tc_lvalue Delta e) ∧
-              local (`(tc_val (typeof e) v2)) ∧
-              (<absorb> assert_of (`(mapsto sh (typeof e)) (eval_lvalue e) (`v2))) ∧
+         ▷ ((tc_lvalue Delta e ∧
+              ⌜tc_val (typeof e) v2⌝ ∧
+              (<absorb> assert_of (`(mapsto sh (typeof e)) (eval_lvalue e) (`v2)))) ∧
               assert_of (subst id (`v2) P)))) ∨
         (∃ sh: share, ∃ e1: expr, ∃ t1: type, ∃ v2: val,
               ⌜e = Ecast e1 t1 /\
                   typeof_temp Delta id = Some t1 /\
                   cast_pointer_to_bool (typeof e1) t1 = false /\
                   readable_share sh⌝ ∧
-         ▷ ( (tc_lvalue Delta e1) ∧
+         ▷ (tc_lvalue Delta e1 ∧
               local (`(tc_val t1) (`(eval_cast (typeof e1) t1 v2))) ∧
               (<absorb> assert_of (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2))) ∧
               assert_of (subst id (`(force_val (sem_cast (typeof e1) t1 v2))) P))))
@@ -2001,7 +2003,7 @@ Theorem semax_set_ptr_compare_load_cast_load_backward: forall `{!heapGS Σ} {Esp
         (∃ cmp: Cop.binary_operation, ∃ e1: expr, ∃ e2: expr,
          ∃ ty: type, ∃ sh1: share, ∃ sh2: share,
           ⌜e = Ebinop cmp e1 e2 ty /\
-              sepalg.nonidentity sh1 /\ sepalg.nonidentity sh2 /\
+              sh1 ≠ Share.bot /\ sh2 ≠ Share.bot /\
               is_comparison cmp = true /\
               eqb_type (typeof e1) int_or_ptr_type = false /\
               eqb_type (typeof e2) int_or_ptr_type = false /\
@@ -2016,9 +2018,9 @@ Theorem semax_set_ptr_compare_load_cast_load_backward: forall `{!heapGS Σ} {Esp
               ⌜typeof_temp Delta id = Some t2 /\
                   is_neutral_cast (typeof e) t2 = true /\
                   readable_share sh⌝ ∧
-         ▷ ( (tc_lvalue Delta e) ∧
-              local (`(tc_val (typeof e) v2)) ∧
-              (<absorb> assert_of (`(mapsto sh (typeof e)) (eval_lvalue e) (`v2))) ∧
+         ▷ ((tc_lvalue Delta e ∧
+              ⌜tc_val (typeof e) v2⌝ ∧
+              (<absorb> assert_of (`(mapsto sh (typeof e)) (eval_lvalue e) (`v2)))) ∧
               assert_of (subst id (`v2) P)))) ∨
         (∃ sh: share, ∃ e1: expr, ∃ t1: type, ∃ v2: val,
               ⌜e = Ecast e1 t1 /\
@@ -2090,7 +2092,7 @@ Theorem semax_ptr_compare_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!
         (∃ cmp: Cop.binary_operation, ∃ e1: expr, ∃ e2: expr,
          ∃ ty: type, ∃ sh1: share, ∃ sh2: share,
           ⌜e = Ebinop cmp e1 e2 ty /\
-              sepalg.nonidentity sh1 /\ sepalg.nonidentity sh2 /\
+              sh1 ≠ Share.bot /\ sh2 ≠ Share.bot /\
               is_comparison cmp = true /\
               eqb_type (typeof e1) int_or_ptr_type = false /\
               eqb_type (typeof e2) int_or_ptr_type = false /\
@@ -2132,9 +2134,9 @@ Theorem semax_load_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externa
               ⌜typeof_temp Delta id = Some t2 /\
                   is_neutral_cast (typeof e1) t2 = true /\
                   readable_share sh⌝ ∧
-         ▷ ( (tc_lvalue Delta e1) ∧
-              local (`(tc_val (typeof e1) v2)) ∧
-              (<absorb> assert_of (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2))) ∧
+         ▷ ((tc_lvalue Delta e1 ∧
+              ⌜tc_val (typeof e1) v2⌝ ∧
+              (<absorb> assert_of (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2)))) ∧
               assert_of (subst id (`v2) P)))
         (Sset id e1) (normal_ret_assert P).
 Proof.

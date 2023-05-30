@@ -189,7 +189,7 @@ Lemma semax_store: forall `{HH : !heapGS Σ} (Espec : OracleKind) `{HE : !extern
          (P : assert),
        writable_share sh ->
        semax Espec E Delta
-         (▷ (tc_lvalue Delta e1 ∧ tc_expr Delta (Ecast e2 (typeof e1)) ∧
+         (▷ ((tc_lvalue Delta e1 ∧ tc_expr Delta (Ecast e2 (typeof e1))) ∧
              (assert_of (`(mapsto_ sh (typeof e1)) (eval_lvalue e1)) ∗ P))) (Sassign e1 e2)
          (normal_ret_assert
             (assert_of (`(mapsto_memory_block.mapsto sh (typeof e1)) (eval_lvalue e1) (`force_val (`(sem_cast (typeof e2) (typeof e1)) (eval_expr e2)))) ∗ P)).
@@ -228,4 +228,3 @@ Qed.
 Definition semax_prog_rule := @semax_prog_rule.
 
 End VericSound.
-

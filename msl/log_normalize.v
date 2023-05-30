@@ -5,6 +5,7 @@ Require Import Coq.ZArith.ZArith.
 Require Import VST.zlist.sublist.
 Require Import Coq.Lists.List.
 Require Import Coq.micromega.Lia.
+Require Import iris.bi.monpred.
 Require Import iris.proofmode.proofmode.
 
 Create HintDb norm discriminated.
@@ -13,8 +14,8 @@ Create HintDb norm discriminated.
 
 Ltac solve_andp' :=
   first [ apply PreOrder_Reflexive
-        | apply bi.and_elim_l; solve_andp'
-        | apply bi.and_elim_r; solve_andp'].
+        | rewrite bi.and_elim_l; solve_andp'
+        | rewrite bi.and_elim_r; solve_andp'].
 
 Ltac solve_andp := repeat apply bi.and_intro; solve_andp'.
 
@@ -599,7 +600,6 @@ Ltac pull_left A := repeat (rewrite <- (pull_right A) || rewrite <- (pull_right0
 
 Ltac pull_right A := repeat (rewrite (pull_right A) || rewrite (pull_right0 A)).
 
-Check bi.persistent_and_sep_assoc.
 Ltac normalize1 :=
          match goal with
             | |- _ => contradiction
@@ -612,6 +612,7 @@ Ltac normalize1 :=
                                                          (@LiftSepLog ?E ?F ?G ?H) ?J ?K ?L] =>
                    change (@sepcon A (@LiftNatDed B C D) (@LiftSepLog E F G H) J K L)
                       with (@sepcon C D H (J L) (K L))*)
+            | |- bi_entails(PROP := monPredI _ _) _ _ => let rho := fresh "rho" in split => rho; monPred.unseal
             | |- context [((?P ∧ ?Q) ∗ ?R)%I] => rewrite <- (bi.persistent_and_sep_assoc P Q R) by (auto with norm)
             | |- context [(?Q ∗ (?P ∧ ?R))%I] => rewrite -> (persistent_and_sep_assoc' P Q R) by (auto with norm)
             | |- context [((?Q ∧ ?P) ∗ ?R)%I] => rewrite <- (bi.persistent_and_sep_assoc P Q R) by (auto with norm)
@@ -666,6 +667,7 @@ Ltac normalize1_in Hx :=
                                                          (@LiftSepLog ?E ?F ?G ?H) ?J ?K ?L] =>
                    change (@sepcon A (@LiftNatDed B C D) (@LiftSepLog E F G H) J K L)
                       with (@sepcon C D H (J L) (K L))*)
+                | bi_entails(PROP := monPredI _ _) _ _ => let Hx' := fresh "Hx" in inversion Hx as [Hx']; revert Hx'; monPred.unseal; intros Hx'
                 | context [ ⌜?P⌝%I ] =>
                                     rewrite -> (bi.pure_True P) in Hx by auto with typeclass_instances
                 | context [ (⌜?P⌝ ∧ ?Q)%I ] =>

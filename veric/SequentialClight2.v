@@ -1,5 +1,6 @@
 Require Import VST.sepcomp.semantics.
 
+Require Import VST.veric.wsat.
 Require Import VST.veric.Clight_base.
 Require Import VST.veric.Clight_core.
 Require Import VST.veric.Clight_lemmas.
@@ -9,7 +10,6 @@ Require Import VST.veric.Clight_evsem.
 Require Import VST.veric.SeparationLogic.
 Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.juicy_mem.
-(*Require VST.veric.NullExtension. *)
 Require Import VST.veric.SeparationLogicSoundness.
 Require Import VST.sepcomp.extspec.
 Require Import VST.msl.msl_standard.
