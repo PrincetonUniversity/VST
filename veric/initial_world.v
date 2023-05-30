@@ -496,7 +496,7 @@ Proof. intros. subst.
        simpl Genv.find_symbol; intros;
        try rewrite Zlength_nil in *.
       unfold Genv.find_symbol. rewrite Maps.PTree.gempty.
-     intuition lia; try done. rewrite -> nth_error_nil in *; done.
+     intuition auto; try done. rewrite -> nth_error_nil in *; done.
        destruct a. inv H. rewrite Zlength_cons in Hb.
        destruct (eq_dec (Z.pos b-1) (Zlength vl)).
         clear IHvl Hb. rewrite e. rewrite Zlength_correct.

@@ -898,7 +898,7 @@ Lemma address_mapsto_zeros'_split:
 Proof.
   intros; rewrite /address_mapsto_zeros'.
   rewrite -> Z2Nat.inj_add, seq_app by auto.
-  rewrite big_sepL_app plus_0_l.
+  rewrite big_sepL_app Nat.add_0_l.
   rewrite -{2}(plus_0_r (Z.to_nat a)) -fmap_add_seq big_sepL_fmap.
   apply bi.sep_proper; first done; apply big_sepL_proper; intros.
   rewrite /adr_add /= Nat2Z.inj_add Z2Nat.id; auto.

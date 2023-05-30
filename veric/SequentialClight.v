@@ -900,8 +900,8 @@ Proof.
   specialize (H HH HE).
   eapply (semax_prog_rule _ _ _ _ O) in H as (b & q & (? & ? & Hinit) & Hsafe); [| done..].
   iMod (Hsafe with "H") as "Hsafe".
-  iAssert ⌜forall n, @dry_safeN _ _ _ OK_ty (semax.genv_symb_injective) (cl_core_sem (globalenv prog))
-            dryspec (Build_genv (Genv.globalenv prog) (prog_comp_env prog)) n initial_oracle q m⌝ with "[Hsafe]" as %Hdry.
+  iAssert (◇ ⌜forall n, @dry_safeN _ _ _ OK_ty (semax.genv_symb_injective) (cl_core_sem (globalenv prog))
+            dryspec (Build_genv (Genv.globalenv prog) (prog_comp_env prog)) n initial_oracle q m⌝) with "[Hsafe]" as ">%Hdry".
   { admit. (* adequacy lemma *) }
   iIntros "!>"; iPureIntro.
   exists b, q; auto.
