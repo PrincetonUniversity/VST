@@ -6,7 +6,7 @@ Local Open Scope string_scope.
 Local Open Scope clight_scope.
 
 Module Info.
-  Definition version := "3.10".
+  Definition version := "3.12".
   Definition build_number := "".
   Definition build_tag := "".
   Definition build_branch := "".
@@ -220,7 +220,7 @@ Definition f_strcmp := {|
   fn_callconv := cc_default;
   fn_params := ((_str1, (tptr tschar)) :: (_str2, (tptr tschar)) :: nil);
   fn_vars := nil;
-  fn_temps := ((_i, tuint) :: (_d1, tschar) :: (_d2, tschar) ::
+  fn_temps := ((_i, tuint) :: (_d1, tuchar) :: (_d2, tuchar) ::
                (_t'1, tint) :: (_t'3, tschar) :: (_t'2, tschar) :: nil);
   fn_body :=
 (Ssequence
@@ -234,30 +234,30 @@ Definition f_strcmp := {|
             (Ederef
               (Ebinop Oadd (Etempvar _str1 (tptr tschar)) (Etempvar _i tuint)
                 (tptr tschar)) tschar))
-          (Sset _d1 (Ecast (Etempvar _t'3 tschar) tschar)))
+          (Sset _d1 (Ecast (Ecast (Etempvar _t'3 tschar) tuchar) tuchar)))
         (Ssequence
           (Ssequence
             (Sset _t'2
               (Ederef
                 (Ebinop Oadd (Etempvar _str2 (tptr tschar))
                   (Etempvar _i tuint) (tptr tschar)) tschar))
-            (Sset _d2 (Ecast (Etempvar _t'2 tschar) tschar)))
+            (Sset _d2 (Ecast (Ecast (Etempvar _t'2 tschar) tuchar) tuchar)))
           (Ssequence
-            (Sifthenelse (Ebinop Oeq (Etempvar _d1 tschar)
+            (Sifthenelse (Ebinop Oeq (Etempvar _d1 tuchar)
                            (Econst_int (Int.repr 0) tint) tint)
               (Sset _t'1
                 (Ecast
-                  (Ebinop Oeq (Etempvar _d2 tschar)
+                  (Ebinop Oeq (Etempvar _d2 tuchar)
                     (Econst_int (Int.repr 0) tint) tint) tbool))
               (Sset _t'1 (Econst_int (Int.repr 0) tint)))
             (Sifthenelse (Etempvar _t'1 tint)
               (Sreturn (Some (Econst_int (Int.repr 0) tint)))
-              (Sifthenelse (Ebinop Olt (Etempvar _d1 tschar)
-                             (Etempvar _d2 tschar) tint)
+              (Sifthenelse (Ebinop Olt (Etempvar _d1 tuchar)
+                             (Etempvar _d2 tuchar) tint)
                 (Sreturn (Some (Eunop Oneg (Econst_int (Int.repr 1) tint)
                                  tint)))
-                (Sifthenelse (Ebinop Ogt (Etempvar _d1 tschar)
-                               (Etempvar _d2 tschar) tint)
+                (Sifthenelse (Ebinop Ogt (Etempvar _d1 tuchar)
+                               (Etempvar _d2 tuchar) tint)
                   (Sreturn (Some (Econst_int (Int.repr 1) tint)))
                   Sskip)))))))
     (Sset _i

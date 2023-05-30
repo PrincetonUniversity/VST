@@ -6,7 +6,7 @@ Local Open Scope string_scope.
 Local Open Scope clight_scope.
 
 Module Info.
-  Definition version := "3.10".
+  Definition version := "3.12".
   Definition build_number := "".
   Definition build_tag := "".
   Definition build_branch := "".
@@ -85,7 +85,7 @@ Definition _int_or_ptr_to_int : ident := 44%positive.
 Definition _int_or_ptr_to_ptr : ident := 45%positive.
 Definition _int_to_int_or_ptr : ident := 46%positive.
 Definition _leaf : ident := 48%positive.
-Definition _left : ident := 1%positive.
+Definition _left : ident := 2%positive.
 Definition _main : ident := 66%positive.
 Definition _makenode : ident := 51%positive.
 Definition _maketree : ident := 56%positive.
@@ -98,11 +98,11 @@ Definition _ptr_to_int_or_ptr : ident := 47%positive.
 Definition _putchar : ident := 40%positive.
 Definition _q : ident := 55%positive.
 Definition _r : ident := 53%positive.
-Definition _right : ident := 2%positive.
+Definition _right : ident := 3%positive.
 Definition _s : ident := 58%positive.
 Definition _t : ident := 57%positive.
 Definition _test_int_or_ptr : ident := 43%positive.
-Definition _tree : ident := 3%positive.
+Definition _tree : ident := 1%positive.
 Definition _x : ident := 42%positive.
 Definition _t'1 : ident := 86%positive.
 Definition _t'2 : ident := 87%positive.

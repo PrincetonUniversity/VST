@@ -34,8 +34,8 @@ char *strcat(char *dest, const char *src) {
 int strcmp(const char *str1, const char *str2) {
   size_t i;
   for(i = 0;; i++){
-    char d1 = str1[i];
-    char d2 = str2[i];
+    unsigned char d1 = (unsigned char) str1[i];
+    unsigned char d2 = (unsigned char) str2[i];
     if(d1 == 0 && d2 == 0) return 0;
     else if(d1 < d2) return -1;
     else if(d1 > d2) return 1;

@@ -6,7 +6,7 @@ Local Open Scope string_scope.
 Local Open Scope clight_scope.
 
 Module Info.
-  Definition version := "3.10".
+  Definition version := "3.12".
   Definition build_number := "".
   Definition build_tag := "".
   Definition build_branch := "".
@@ -75,27 +75,27 @@ Definition ___compcert_va_composite : ident := 62%positive.
 Definition ___compcert_va_float64 : ident := 61%positive.
 Definition ___compcert_va_int32 : ident := 59%positive.
 Definition ___compcert_va_int64 : ident := 60%positive.
-Definition _data : ident := 1%positive.
-Definition _elem : ident := 3%positive.
+Definition _data : ident := 2%positive.
+Definition _elem : ident := 1%positive.
 Definition _exit : ident := 45%positive.
-Definition _fifo : ident := 6%positive.
+Definition _fifo : ident := 4%positive.
 Definition _fifo_empty : ident := 54%positive.
 Definition _fifo_get : ident := 55%positive.
 Definition _fifo_new : ident := 50%positive.
 Definition _fifo_put : ident := 53%positive.
 Definition _free : ident := 44%positive.
 Definition _h : ident := 51%positive.
-Definition _head : ident := 4%positive.
+Definition _head : ident := 5%positive.
 Definition _i : ident := 57%positive.
 Definition _main : ident := 58%positive.
 Definition _make_elem : ident := 56%positive.
 Definition _malloc : ident := 43%positive.
 Definition _n : ident := 46%positive.
-Definition _next : ident := 2%positive.
+Definition _next : ident := 3%positive.
 Definition _p : ident := 47%positive.
 Definition _surely_malloc : ident := 48%positive.
 Definition _t : ident := 52%positive.
-Definition _tail : ident := 5%positive.
+Definition _tail : ident := 6%positive.
 Definition _t'1 : ident := 78%positive.
 Definition _t'2 : ident := 79%positive.
 Definition _t'3 : ident := 80%positive.
