@@ -6,8 +6,6 @@ Require Import VST.floyd.local2ptree_denote.
 Require Import VST.floyd.local2ptree_eval.
 Require Import VST.floyd.subsume_funspec.
 Import LiftNotation.
-Import compcert.lib.Maps.
-Local Open Scope logic.
 
 Fixpoint argtypes (al: list (ident * type)) : list type :=
  match al with (_,t)::al' => t :: argtypes al' | nil => nil end.
@@ -18,13 +16,17 @@ Proof.
  destruct (split al). simpl in *. subst; auto.
 Qed.
 
-Definition maybe_retval (Q: environ -> mpred) retty ret :=
+Section mpred.
+
+Context `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs}.
+
+Definition maybe_retval (Q: assert) retty ret :=
  match ret with
  | Some id => fun rho => Q (get_result1 id rho)
  | None =>
     match retty with
     | Tvoid => (fun rho => Q (globals_only rho))
-    | _ => fun rho => EX v: val, Q (make_args (ret_temp::nil) (v::nil) rho)
+    | _ => fun rho => ∃ v: val, Q (make_args (ret_temp::nil) (v::nil) rho)
     end
  end.
 
@@ -34,7 +36,7 @@ Definition removeopt_localdef (ret: option ident) (l: list localdef) : list loca
    | None => l
    end.
 
-Lemma semax_call': forall Espec {cs: compspecs} Delta fs A Pre Post NEPre NEPost ts x ret argsig retsig cc a bl P Q R,
+Lemma semax_call': forall E Delta fs A Pre Post x ret argsig retsig cc a bl P Q R,
    Cop.classify_fun (typeof a) = Cop.fun_case_f (typelist_of_type_list argsig) retsig cc ->
    match retsig, ret with
    | Tvoid, None => True
@@ -43,20 +45,20 @@ Lemma semax_call': forall Espec {cs: compspecs} Delta fs A Pre Post NEPre NEPost
    end ->
    forall (Hret: tc_fn_return Delta ret retsig)
    (Hsub: funspec_sub fs (mk_funspec (argsig,retsig) cc A Pre Post NEPre NEPost)),
-  @semax cs Espec Delta
-          ((tc_expr Delta a && tc_exprlist Delta argsig bl)
-           &&
-   (|> (fun rho => (Pre ts x (ge_of rho, eval_exprlist argsig bl rho))) *
-                      `(func_ptr' fs) (eval_expr a)
-     * |>PROPx P (LOCALx Q (SEPx R))))
+  semax E Delta
+          ((tc_expr Delta a ∧ tc_exprlist Delta argsig bl)
+           ∧
+   (▷ (fun rho => (Pre x (ge_of rho, eval_exprlist argsig bl rho))) *
+                      assert_of (`(func_ptr' E fs) (eval_expr a))
+     * ▷PROPx P (LOCALx Q (SEPx R))))
           (Scall ret a bl)
           (normal_ret_assert
-            (maybe_retval (Post ts x) retsig ret *
+            (maybe_retval (Post x) retsig ret *
                PROPx P (LOCALx (removeopt_localdef ret Q) (SEPx R)))).
 Proof.
   intros.
   eapply semax_pre_post'; [ | |
-    apply (semax_call_subsume fs A Pre Post NEPre NEPost argsig retsig cc
+    apply (semax_call_subsume fs A Pre Post argsig retsig cc
     Hsub Delta ts x (PROPx P (LOCALx Q (SEPx R))) ret a bl H); auto].
   3:{
     clear - H0.
@@ -105,13 +107,13 @@ Lemma semax_call1: forall Espec {cs: compspecs} Delta fs A Pre Post NEPre NEPost
    end ->
    tc_fn_return Delta (Some id) retsig ->
   @semax cs Espec Delta
-         ((tc_expr Delta a && tc_exprlist Delta argsig bl)
-           && (|>(fun rho => Pre ts x (ge_of rho, eval_exprlist argsig bl rho)) *
+         ((tc_expr Delta a ∧ tc_exprlist Delta argsig bl)
+           ∧ (▷(fun rho => Pre ts x (ge_of rho, eval_exprlist argsig bl rho)) *
                  `(func_ptr' fs) (eval_expr a) *
-                  |>PROPx P (LOCALx Q (SEPx R))))
+                  ▷PROPx P (LOCALx Q (SEPx R))))
           (Scall (Some id) a bl)
           (normal_ret_assert
-            (`(Post ts x: environ -> mpred) (get_result1 id)
+            (`(Post ts x: assert) (get_result1 id)
                * PROPx P (LOCALx (remove_localdef_temp id Q) (SEPx R)))).
 Proof.
 intros.
@@ -126,14 +128,14 @@ Lemma semax_call0: forall Espec {cs: compspecs} Delta fs A Pre Post NEPre NEPost
    (Hsub: funspec_sub fs (mk_funspec (argsig,retty) cc A Pre Post NEPre NEPost)),
    Cop.classify_fun (typeof a) = Cop.fun_case_f (typelist_of_type_list argsig) retty cc->
   @semax cs Espec Delta
-         ((*|>*)(tc_expr Delta a && tc_exprlist Delta argsig bl)
-           && (|>(fun rho => Pre ts x (ge_of rho, eval_exprlist argsig bl rho))
+         ((*▷*)(tc_expr Delta a ∧ tc_exprlist Delta argsig bl)
+           ∧ (▷(fun rho => Pre ts x (ge_of rho, eval_exprlist argsig bl rho))
                  * `(func_ptr' fs) (eval_expr a)
-                 * |>PROPx P (LOCALx Q (SEPx R))))
+                 * ▷PROPx P (LOCALx Q (SEPx R))))
           (Scall None a bl)
           (normal_ret_assert
-            (ifvoid retty (`(Post ts x: environ -> mpred) (make_args nil nil))
-                                                        (EX v:val, `(Post ts x: environ -> mpred) (make_args (ret_temp::nil) (v::nil)))
+            (ifvoid retty (`(Post ts x: assert) (make_args nil nil))
+                                                        (∃ v:val, `(Post ts x: assert) (make_args (ret_temp::nil) (v::nil)))
             * PROPx P (LOCALx Q (SEPx R)))).
 Proof.
 intros.
@@ -169,11 +171,11 @@ Lemma semax_fun_id':
        (glob_specs Delta) ! id = Some f ->
        (glob_types Delta) ! id = Some (type_of_funspec f) ->
        @semax cs Espec Delta
-        (TC && (local (tc_environ Delta) &&
+        (TC ∧ (local (tc_environ Delta) ∧
                      (`(func_ptr' f) (eval_var id (type_of_funspec f))
-                     * |>PQR)))
+                     * ▷PQR)))
                               c PostCond ->
-       @semax cs Espec Delta (TC && |> PQR) c PostCond.
+       @semax cs Espec Delta (TC ∧ ▷ PQR) c PostCond.
 Proof.
 intros.
 apply (semax_fun_id id f Delta); auto.
@@ -210,13 +212,13 @@ Lemma semax_call_id0:
    (GLBL: (var_types Delta) ! id = None),
        (glob_specs Delta) ! id = Some fs ->
        (glob_types Delta) ! id = Some (type_of_funspec fs) ->
-  @semax cs Espec Delta ((*|>*) (tc_exprlist Delta argsig bl
-                  && |> ((fun rho => Pre ts x (ge_of rho, eval_exprlist argsig bl rho))
+  @semax cs Espec Delta ((*▷*) (tc_exprlist Delta argsig bl
+                  ∧ ▷ ((fun rho => Pre ts x (ge_of rho, eval_exprlist argsig bl rho))
                          * PROPx P (LOCALx Q (SEPx R)))))
     (Scall None (Evar id (Tfunction (typelist_of_type_list argsig) retty cc)) bl)
     (normal_ret_assert
-       ((ifvoid retty (`(Post ts x: environ -> mpred) (make_args nil nil))
-                                                   (EX v:val, `(Post ts x: environ -> mpred) (make_args (ret_temp::nil) (v::nil))))
+       ((ifvoid retty (`(Post ts x: assert) (make_args nil nil))
+                                                   (∃ v:val, `(Post ts x: assert) (make_args (ret_temp::nil) (v::nil))))
          * PROPx P (LOCALx Q (SEPx R)))).
 Proof.
 intros.
@@ -263,14 +265,14 @@ Lemma semax_call_id1:
    | _ => True
    end ->
    tc_fn_return Delta (Some ret) retty ->
-  @semax cs Espec Delta ((tc_exprlist Delta argsig bl &&
-                |>((fun rho => Pre ts x (ge_of rho, eval_exprlist argsig bl rho))
+  @semax cs Espec Delta ((tc_exprlist Delta argsig bl ∧
+                ▷((fun rho => Pre ts x (ge_of rho, eval_exprlist argsig bl rho))
                   * PROPx P (LOCALx Q (SEPx R)))))
     (Scall (Some ret)
              (Evar id (Tfunction (typelist_of_type_list argsig) retty cc))
              bl)
     (normal_ret_assert
-       ((`(Post ts x: environ -> mpred) (get_result1 ret)
+       ((`(Post ts x: assert) (get_result1 ret)
            * PROPx P (LOCALx (remove_localdef_temp ret Q) (SEPx R))))).
 Proof.
 intros. rename H0 into Ht. rename H1 into H0.
@@ -450,7 +452,7 @@ Definition check_retty t :=
 Lemma PROP_LOCAL_SEP_f:
   forall P Q R f, `(PROPx P (LOCALx Q (SEPx R))) f =
      local (fold_right `(and) `(True) (map (fun q : environ -> Prop => `q f) (map locald_denote Q)))
-     && PROPx P (LOCALx nil (SEPx R)).
+     ∧ PROPx P (LOCALx nil (SEPx R)).
 Proof. intros. extensionality rho.
 cbv delta [PROPx LOCALx SEPx local lift lift1 liftx]; simpl.
 normalize.
@@ -484,7 +486,7 @@ Qed.
 
 Lemma func_ptr'_func_ptr_lifted:
 forall (fs: funspec) (e: environ->val) (B: environ->mpred),
- `(func_ptr' fs) e * B = `(func_ptr fs) e && B.
+ `(func_ptr' fs) e * B = `(func_ptr fs) e ∧ B.
 Proof.
 intros.
 extensionality rho.
@@ -496,7 +498,7 @@ Qed.
 
 Definition can_assume_funcptr cs Delta P Q R a fs :=
  forall Espec c Post,
- @semax cs Espec Delta ((EX v: val, (lift0 (func_ptr fs v) && local (`(eq v) (eval_expr a)))) &&
+ @semax cs Espec Delta ((∃ v: val, (lift0 (func_ptr fs v) ∧ local (`(eq v) (eval_expr a)))) ∧
                    PROPx P (LOCALx Q (SEPx R))) c Post ->
  @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx R))) c Post.
 
@@ -509,7 +511,7 @@ Definition OLDcall_setup1
   funspec_sub fs (mk_funspec (argsig,retty) cc A Pre Post NEPre NEPost) /\
 
   can_assume_funcptr  cs Delta P Q R' a fs /\
-  (PROPx P (LOCALx Q (SEPx R')) |-- |> PROPx P (LOCALx Q (SEPx R))) /\
+  (PROPx P (LOCALx Q (SEPx R')) |-- ▷ PROPx P (LOCALx Q (SEPx R))) /\
 
   Cop.classify_fun (typeof a) = Cop.fun_case_f (typelist_of_type_list argsig) retty cc /\
   ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
@@ -551,7 +553,7 @@ Lemma OLDcall_setup1_i:
 
   funspec_sub fs (mk_funspec (argsig,retty) cc A Pre Post NEPre NEPost) ->
 
-  (fold_right_sepcon R' |-- |> fold_right_sepcon R) ->
+  (fold_right_sepcon R' |-- ▷ fold_right_sepcon R) ->
 
   Cop.classify_fun (typeof a) = Cop.fun_case_f (typelist_of_type_list argsig) retty cc ->
   ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
@@ -633,7 +635,7 @@ Lemma OLDcall_setup1_i2:
 
   funspec_sub fs (mk_funspec (argsig,retty) cc A Pre Post NEPre NEPost) ->
 
-  (PROPx P (LOCALx Q (SEPx R')) |-- |> PROPx P (LOCALx Q (SEPx R))) ->
+  (PROPx P (LOCALx Q (SEPx R')) |-- ▷ PROPx P (LOCALx Q (SEPx R))) ->
 
   Cop.classify_fun ty = Cop.fun_case_f (typelist_of_type_list argsig) retty cc ->
   ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
@@ -751,7 +753,7 @@ Definition call_setup2
   (Ppre: list Prop) (Rpre: list mpred)
   GV' gv args :=
  call_setup1 cs Qtemp Qvar GV a Delta P Q R' fs argsig retty cc A Pre Post NEPre NEPost bl vl (*Qactuals*) /\
- PROPx P (LOCALx Q (SEPx R')) |-- |> PROPx P (LOCALx Q (SEPx R)) /\
+ PROPx P (LOCALx Q (SEPx R')) |-- ▷ PROPx P (LOCALx Q (SEPx R)) /\
   Pre ts witness = PROPx Ppre (LAMBDAx gv args (SEPx Rpre)) /\
   local2ptree (map gvars gv) = (PTree.empty _, PTree.empty _, nil, GV') /\
   ENTAIL Delta, PROPx P (LOCALx Q (SEPx R')) |-- !! (firstn (length argsig) vl=args) /\
@@ -772,7 +774,7 @@ Lemma call_setup2_i:
 
   ENTAIL Delta, PROPx P (LOCALx Q (SEPx R')) |-- !! (firstn (length argsig) vl=args) ->
 
-  PROPx P (LOCALx Q (SEPx R')) |-- |> PROPx P (LOCALx Q (SEPx R)) ->
+  PROPx P (LOCALx Q (SEPx R')) |-- ▷ PROPx P (LOCALx Q (SEPx R)) ->
   check_gvars_spec GV GV' ->
   fold_right_sepcon R |-- fold_right_sepcon Rpre * fold_right_sepcon Frame ->
   call_setup2 cs Qtemp Qvar GV a Delta P Q R R' fs argsig retty cc ts A Pre Post NEPre NEPost bl vl (*Qactuals*)
@@ -790,7 +792,7 @@ Definition call_setup2_nil
   (Ppre: list Prop) (Rpre: list mpred)
   GV' gv args:=
  call_setup1 cs Qtemp Qvar GV a Delta P Q R' fs argsig retty cc A Pre Post NEPre NEPost bl vl (*Qactuals*) /\
- PROPx P (LOCALx Q (SEPx R')) |-- |> PROPx P (LOCALx Q (SEPx R)) /\
+ PROPx P (LOCALx Q (SEPx R')) |-- ▷ PROPx P (LOCALx Q (SEPx R)) /\
   Pre nil witness = PROPx Ppre (LAMBDAx gv args (SEPx Rpre)) /\
   local2ptree (map gvars gv) = (PTree.empty _, PTree.empty _, nil, GV') /\
 
@@ -829,7 +831,7 @@ Lemma call_setup2_i_nil:
 
   ENTAIL Delta, PROPx P (LOCALx Q (SEPx R')) |-- !! (firstn (length argsig) vl=args) ->
 
-  PROPx P (LOCALx Q (SEPx R')) |-- |> PROPx P (LOCALx Q (SEPx R)) ->
+  PROPx P (LOCALx Q (SEPx R')) |-- ▷ PROPx P (LOCALx Q (SEPx R)) ->
   check_gvars_spec GV GV' ->
   fold_right_sepcon R |-- fold_right_sepcon Rpre * fold_right_sepcon Frame ->
   call_setup2_nil cs Qtemp Qvar GV a Delta P Q R R' fs argsig retty cc A Pre Post NEPre NEPost bl vl (*Qactuals*)
@@ -844,8 +846,8 @@ Lemma actual_value_not_Vundef:
  (PTREE : local2ptree Q = (Qtemp, Qvar, nil, GV))
  (MSUBST : force_list (map (msubst_eval_expr Delta Qtemp Qvar GV)
                            (explicit_cast_exprlist tl bl)) = Some vl),
-   (tc_exprlist Delta tl bl) && local (tc_environ Delta) && |> PROPx P (LOCALx Q (SEPx R))
-   = (tc_exprlist Delta tl bl) && local (tc_environ Delta) && |> (PROPx P (LOCALx Q (SEPx R)) && !! Forall (fun v : val => v <> Vundef) vl).
+   (tc_exprlist Delta tl bl) ∧ local (tc_environ Delta) ∧ ▷ PROPx P (LOCALx Q (SEPx R))
+   = (tc_exprlist Delta tl bl) ∧ local (tc_environ Delta) ∧ ▷ (PROPx P (LOCALx Q (SEPx R)) ∧ !! Forall (fun v : val => v <> Vundef) vl).
 Proof.
   intros.
   eapply (msubst_eval_exprlist_eq Delta P Qtemp Qvar GV R) in MSUBST.
@@ -949,24 +951,24 @@ Lemma semax_call_aux55:
  (CHECKTEMP : firstn (length argsig) vl=args)
 
  (CHECKG: check_gvars_spec GV GV' )
- (HR': PROPx P (LOCALx Q (SEPx R')) |-- |> PROPx P (LOCALx Q (SEPx R)))
+ (HR': PROPx P (LOCALx Q (SEPx R')) |-- ▷ PROPx P (LOCALx Q (SEPx R)))
  (FRAME : fold_right_sepcon R
            |-- fold_right_sepcon Rpre * fold_right_sepcon Frame)
  (PPRE : fold_right_and True Ppre)
  (LEN : length argsig = length bl),
-ENTAIL Delta, tc_expr Delta a && tc_exprlist Delta argsig bl &&
-(EX v : val,
- lift0 (func_ptr fs v) &&
- local (` (eq v) (eval_expr a))) && PROPx P (LOCALx Q (SEPx R'))
-|--(tc_expr Delta a && tc_exprlist Delta argsig bl) &&
-    (|> (fun rho => Pre ts witness (ge_of rho, eval_exprlist argsig bl rho)) *
+ENTAIL Delta, tc_expr Delta a ∧ tc_exprlist Delta argsig bl ∧
+(∃ v : val,
+ lift0 (func_ptr fs v) ∧
+ local (` (eq v) (eval_expr a))) ∧ PROPx P (LOCALx Q (SEPx R'))
+|--(tc_expr Delta a ∧ tc_exprlist Delta argsig bl) ∧
+    (▷ (fun rho => Pre ts witness (ge_of rho, eval_exprlist argsig bl rho)) *
      ` (func_ptr' fs)
-       (eval_expr a) * |>PROPx P (LOCALx Q (SEPx Frame))).
+       (eval_expr a) * ▷PROPx P (LOCALx Q (SEPx Frame))).
 Proof.
 intros; subst args.
 pose proof actual_value_not_Vundef _ _ _ _ P _ R _ _ _ _ PTREE MSUBST as VUNDEF.
 rewrite <- ! andp_assoc.
-rewrite (andp_comm _ (EX v : val, lift0 (func_ptr fs v) && local ((` (eq v)) (eval_expr a)))%assert).
+rewrite (andp_comm _ (∃ v : val, lift0 (func_ptr fs v) ∧ local ((` (eq v)) (eval_expr a)))%assert).
 rewrite ! andp_assoc.
 rewrite !exp_andp1. Intros v.
 repeat apply andp_right; auto; try solve [ solve_andp].
@@ -976,8 +978,8 @@ match goal with |- _ |-- ?A * ?B * ?C => pull_right B end.
 rewrite sepcon_comm.
 rewrite func_ptr'_func_ptr_lifted.
 apply ENTAIL_trans with
- (`(func_ptr fs) (eval_expr a) && (tc_exprlist Delta argsig bl &&
-   |>PROPx P (LOCALx Q (SEPx R)))).
+ (`(func_ptr fs) (eval_expr a) ∧ (tc_exprlist Delta argsig bl ∧
+   ▷PROPx P (LOCALx Q (SEPx R)))).
 {
   apply andp_left2. rewrite <- andp_assoc.
   apply andp_right.
@@ -986,10 +988,10 @@ apply ENTAIL_trans with
   + apply andp_right. solve_andp. do 2 apply andp_left1. do 2 apply andp_left2. trivial.  }
 apply andp_right.
 { apply andp_left2; apply andp_left1; auto. }
-forget (tc_exprlist Delta argsig bl) as TCEXPRLIST.
+forget (tc_exprlist Delta argsig bl) as TC∃PRLIST.
 eapply derives_trans;[ apply andp_derives; [apply derives_refl | apply andp_left2; apply derives_refl] |].
   apply derives_trans
-  with (TCEXPRLIST && local (tc_environ Delta) && |> PROPx P (LOCALx Q (SEPx R))).
+  with (TC∃PRLIST ∧ local (tc_environ Delta) ∧ ▷ PROPx P (LOCALx Q (SEPx R))).
   { rewrite andp_comm. solve_andp. }
   rewrite VUNDEF, <- later_sepcon.
   apply later_left2. normalize.
@@ -999,7 +1001,7 @@ eapply derives_trans;[ apply andp_derives; [apply derives_refl | apply andp_left
 
 clear - PTREE PTREE' FRAME PPRE LEN CHECKG MSUBST VL.
 rewrite andp_assoc. apply andp_left2.
-apply derives_trans with (local ((` (eq vl)) (eval_exprlist argsig bl)) &&
+apply derives_trans with (local ((` (eq vl)) (eval_exprlist argsig bl)) ∧
     PROPx P (LOCALx Q (SEPx R))).
 { apply (local2ptree_soundness P _ R) in PTREE. simpl app in PTREE.
   rewrite PTREE. rewrite (add_andp _ _ MSUBST); solve_andp. }
@@ -1051,19 +1053,19 @@ Lemma semax_call_aux55_nil:
   (CHECKTEMP : firstn (length argsig) vl =args)
 
  (CHECKG: check_gvars_spec GV GV')
- (HR': PROPx P (LOCALx Q (SEPx R')) |-- |> PROPx P (LOCALx Q (SEPx R)))
+ (HR': PROPx P (LOCALx Q (SEPx R')) |-- ▷ PROPx P (LOCALx Q (SEPx R)))
  (FRAME : fold_right_sepcon R
            |-- fold_right_sepcon Rpre * fold_right_sepcon Frame)
  (PPRE : fold_right_and True Ppre)
  (LEN : length argsig = length bl),
-ENTAIL Delta, tc_expr Delta a && tc_exprlist Delta argsig bl &&
-(EX v : val,
- lift0 (func_ptr fs v) &&
- local (` (eq v) (eval_expr a))) && PROPx P (LOCALx Q (SEPx R'))
-|-- (tc_expr Delta a && tc_exprlist Delta argsig bl) &&
-    (|> (fun rho => Pre nil witness (ge_of rho, eval_exprlist argsig bl rho)) *
+ENTAIL Delta, tc_expr Delta a ∧ tc_exprlist Delta argsig bl ∧
+(∃ v : val,
+ lift0 (func_ptr fs v) ∧
+ local (` (eq v) (eval_expr a))) ∧ PROPx P (LOCALx Q (SEPx R'))
+|-- (tc_expr Delta a ∧ tc_exprlist Delta argsig bl) ∧
+    (▷ (fun rho => Pre nil witness (ge_of rho, eval_exprlist argsig bl rho)) *
      ` (func_ptr' fs)
-       (eval_expr a) * |>PROPx P (LOCALx Q (SEPx Frame))).
+       (eval_expr a) * ▷PROPx P (LOCALx Q (SEPx Frame))).
 Proof. intros. eapply semax_call_aux55 with (ts:=nil); eassumption. Qed.
 
 Lemma tc_exprlist_len : forall {cs : compspecs} Delta argsig bl,
@@ -1085,22 +1087,22 @@ Lemma semax_pre_setup2 {cs Espec} Delta fs a bl argsig P Q R' Post2 rv (vl args:
       (CHECKTEMP : ENTAIL Delta, PROPx P (LOCALx Q (SEPx R'))
                                        |-- !! (firstn (length argsig) vl=args)):
   @semax cs Espec Delta
-         (!! (Datatypes.length argsig = Datatypes.length bl) &&
-             !! (firstn (length argsig) vl=args) &&
-             PROPx P (LOCALx Q (SEPx R')) && (tc_expr Delta a && tc_exprlist Delta argsig bl) &&
-             (EX v : val, lift0 (func_ptr fs v) && local ((` (eq v)) (eval_expr a)))%assert)
+         (!! (Datatypes.length argsig = Datatypes.length bl) ∧
+             !! (firstn (length argsig) vl=args) ∧
+             PROPx P (LOCALx Q (SEPx R')) ∧ (tc_expr Delta a ∧ tc_exprlist Delta argsig bl) ∧
+             (∃ v : val, lift0 (func_ptr fs v) ∧ local ((` (eq v)) (eval_expr a)))%assert)
          (Scall rv a bl) (normal_ret_assert Post2) ->
 
   @semax cs Espec Delta
-         ((EX v : val, lift0 (func_ptr fs v) && local ((` (eq v)) (eval_expr a)))%assert &&
+         ((∃ v : val, lift0 (func_ptr fs v) ∧ local ((` (eq v)) (eval_expr a)))%assert ∧
          PROPx P (LOCALx Q (SEPx R'))) (Scall rv a bl) (normal_ret_assert Post2).
 Proof.
   intros.
   apply semax_pre
-  with  ((tc_expr Delta a && tc_exprlist Delta argsig bl) &&
-         ((EX v : val, lift0 (func_ptr fs v) && local ((` (eq v)) (eval_expr a)))%assert &&
-         (!!(Datatypes.length argsig = Datatypes.length bl) &&
-          !!(firstn (length argsig) vl=args) &&
+  with  ((tc_expr Delta a ∧ tc_exprlist Delta argsig bl) ∧
+         ((∃ v : val, lift0 (func_ptr fs v) ∧ local ((` (eq v)) (eval_expr a)))%assert ∧
+         (!!(Datatypes.length argsig = Datatypes.length bl) ∧
+          !!(firstn (length argsig) vl=args) ∧
          PROPx P (LOCALx Q (SEPx R'))))).
   { apply andp_right; [| apply andp_right; [apply andp_left2, andp_left1, derives_refl|]].
     eapply derives_trans; [| apply andp_right; [ apply TC0 | apply TC1]].
@@ -1124,13 +1126,13 @@ Lemma semax_call_id00_wow:
    (SETUP: call_setup2 cs Qtemp Qvar GV a Delta P Q R R' fs argsig retty cc ts A Pre Post NEPre NEPost bl vl
       witness Frame Ppre Rpre GV' gv args)
   Espec
-             (Post2: environ -> mpred)
+             (Post2: assert)
              (B: Type)
              (Ppost: B -> list Prop)
              (Rpost: B -> list mpred)
    (RETTY: retty = Tvoid)
-   (POST1: Post ts witness = (EX vret:B, PROPx (Ppost vret) (LOCALx nil (SEPx (Rpost vret)))))
-   (POST2: Post2 = EX vret:B, PROPx (P++ Ppost vret ) (LOCALx Q
+   (POST1: Post ts witness = (∃ vret:B, PROPx (Ppost vret) (LOCALx nil (SEPx (Rpost vret)))))
+   (POST2: Post2 = ∃ vret:B, PROPx (P++ Ppost vret ) (LOCALx Q
              (SEPx (Rpost vret ++ Frame))))
    (PPRE: fold_right_and True Ppre),
    @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx R')))
@@ -1143,7 +1145,7 @@ destruct SETUP as [[PTREE [Hsub [SPEC [ATY [TC0 [TC1 MSUBST]]]]]]
 apply SPEC. clear SPEC.
 eapply semax_pre_setup2; try eassumption.
 clear CHECKTEMP.
-remember (tc_expr Delta a && tc_exprlist Delta argsig bl) as TChecks.
+remember (tc_expr Delta a ∧ tc_exprlist Delta argsig bl) as TChecks.
 rewrite ! andp_assoc.
 apply semax_extract_prop; intros.
 apply semax_extract_prop; intros.
@@ -1182,13 +1184,13 @@ Lemma semax_call_id00_wow_nil:
    (SETUP: call_setup2_nil cs Qtemp Qvar GV a Delta P Q R R' fs argsig retty cc A Pre Post NEPre NEPost bl vl
       witness Frame Ppre Rpre GV' gv args)
   Espec
-             (Post2: environ -> mpred)
+             (Post2: assert)
              (B: Type)
              (Ppost: B -> list Prop)
              (Rpost: B -> list mpred)
    (RETTY: retty = Tvoid)
-   (POST1: Post nil witness = (EX vret:B, PROPx (Ppost vret) (LOCALx nil (SEPx (Rpost vret)))))
-   (POST2: Post2 = EX vret:B, PROPx (P++ Ppost vret ) (LOCALx Q
+   (POST1: Post nil witness = (∃ vret:B, PROPx (Ppost vret) (LOCALx nil (SEPx (Rpost vret)))))
+   (POST2: Post2 = ∃ vret:B, PROPx (P++ Ppost vret ) (LOCALx Q
              (SEPx (Rpost vret ++ Frame))))
    (PPRE: fold_right_and True Ppre),
    @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx R')))
@@ -1206,15 +1208,15 @@ Lemma semax_call_id1_wow:
    {vl : list val}
    (SETUP: call_setup2 cs Qtemp Qvar GV a Delta P Q R R' fs argsig retty cc ts A Pre Post NEPre NEPost bl vl
       witness Frame Ppre Rpre GV' gv args)
-   ret (Post2: environ -> mpred)  (Qnew: list localdef)
+   ret (Post2: assert)  (Qnew: list localdef)
     (B: Type) (Ppost: B -> list Prop) (F: B -> val) (Rpost: B -> list mpred) Espec
    (TYret: typeof_temp Delta ret = Some retty)
    (OKretty: check_retty retty)
-   (POST1: Post ts witness = EX vret:B, PROPx (Ppost vret)
+   (POST1: Post ts witness = ∃ vret:B, PROPx (Ppost vret)
                               (LOCALx (temp ret_temp (F vret) :: nil)
                               (SEPx (Rpost vret))))
    (DELETE: remove_localdef_temp ret Q = Qnew)
-   (H0: Post2 = EX vret:B, PROPx (P++ Ppost vret) (LOCALx (temp ret (F vret) :: Qnew)
+   (H0: Post2 = ∃ vret:B, PROPx (P++ Ppost vret) (LOCALx (temp ret (F vret) :: Qnew)
              (SEPx (Rpost vret ++ Frame))))
    (PPRE: fold_right_and True Ppre),
    @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx R')))
@@ -1226,7 +1228,7 @@ Proof.
                        [HR' [PRE1 [PTREE' [CHECKTEMP [CHECKG FRAME]]]]]].
   apply SPEC. clear SPEC.
   eapply semax_pre_setup2; try eassumption.
-  remember (tc_expr Delta a && tc_exprlist Delta argsig bl) as TChecks.
+  remember (tc_expr Delta a ∧ tc_exprlist Delta argsig bl) as TChecks.
   rewrite ! andp_assoc.
   apply semax_extract_prop; intros.
   apply semax_extract_prop; intros.
@@ -1250,11 +1252,11 @@ Proof.
     normalize.
     rewrite POST1; clear POST1.
     apply derives_trans with
-    (EX  vret : B,
+    (∃  vret : B,
        `(PROPx (Ppost vret)
          (LOCALx  (temp ret_temp (F vret)::nil)
           (SEPx (Rpost vret))))%assert (get_result1 ret)
-            * (local (tc_environ Delta) && PROPx P (LOCALx (remove_localdef_temp ret Q) (SEPx Frame)))).
+            * (local (tc_environ Delta) ∧ PROPx P (LOCALx (remove_localdef_temp ret Q) (SEPx Frame)))).
     clear.
     go_lowerx. normalize. apply exp_right with x; normalize.
     apply exp_left; intro vret. apply exp_right with vret.
@@ -1278,15 +1280,15 @@ Lemma semax_call_id1_wow_nil:
    {vl : list val}
    (SETUP: call_setup2_nil cs Qtemp Qvar GV a Delta P Q R R' fs argsig retty cc A Pre Post NEPre NEPost bl vl
       witness Frame Ppre Rpre GV' gv args)
-   ret (Post2: environ -> mpred)  (Qnew: list localdef)
+   ret (Post2: assert)  (Qnew: list localdef)
     (B: Type) (Ppost: B -> list Prop) (F: B -> val) (Rpost: B -> list mpred) Espec
    (TYret: typeof_temp Delta ret = Some retty)
    (OKretty: check_retty retty)
-   (POST1: Post nil witness = EX vret:B, PROPx (Ppost vret)
+   (POST1: Post nil witness = ∃ vret:B, PROPx (Ppost vret)
                               (LOCALx (temp ret_temp (F vret) :: nil)
                               (SEPx (Rpost vret))))
    (DELETE: remove_localdef_temp ret Q = Qnew)
-   (H0: Post2 = EX vret:B, PROPx (P++ Ppost vret) (LOCALx (temp ret (F vret) :: Qnew)
+   (H0: Post2 = ∃ vret:B, PROPx (P++ Ppost vret) (LOCALx (temp ret (F vret) :: Qnew)
              (SEPx (Rpost vret ++ Frame))))
    (PPRE: fold_right_and True Ppre),
    @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx R')))
@@ -1305,7 +1307,7 @@ Lemma semax_call_id1_x_wow:
    (SETUP: call_setup2 cs Qtemp Qvar GV a Delta P Q R R' fs argsig retty' cc ts A Pre Post NEPre NEPost bl vl
       witness Frame Ppre Rpre GV' gv args)
    retty  Espec ret ret'
-             (Post2: environ -> mpred)
+             (Post2: assert)
              (Qnew: list localdef)
              (B: Type)
              (Ppost: B -> list Prop)
@@ -1317,12 +1319,12 @@ Lemma semax_call_id1_x_wow:
    (OKretty': check_retty retty')
    (NEUTRAL: is_neutral_cast retty' retty = true)
    (NEret: ret <> ret')
-   (POST1: Post ts witness = EX vret:B, PROPx (Ppost vret)
+   (POST1: Post ts witness = ∃ vret:B, PROPx (Ppost vret)
                               (LOCALx (temp ret_temp (F vret) :: nil)
                               (SEPx (Rpost vret))))
    (DELETE: remove_localdef_temp ret Q = Qnew)
    (DELETE' : remove_localdef_temp ret' Q = Q)
-   (H0: Post2 = EX vret:B, PROPx (P++ Ppost vret)
+   (H0: Post2 = ∃ vret:B, PROPx (P++ Ppost vret)
                    (LOCALx (temp ret (F vret) :: Qnew)
                     (SEPx (Rpost vret ++ Frame))))
    (PPRE: fold_right_and True Ppre),
@@ -1405,7 +1407,7 @@ Lemma semax_call_id1_x_wow_nil:
    (SETUP: call_setup2_nil cs Qtemp Qvar GV a Delta P Q R R' fs argsig retty' cc A Pre Post NEPre NEPost bl vl
       witness Frame Ppre Rpre GV' gv args)
    retty  Espec ret ret'
-             (Post2: environ -> mpred)
+             (Post2: assert)
              (Qnew: list localdef)
              (B: Type)
              (Ppost: B -> list Prop)
@@ -1417,12 +1419,12 @@ Lemma semax_call_id1_x_wow_nil:
    (OKretty': check_retty retty')
    (NEUTRAL: is_neutral_cast retty' retty = true)
    (NEret: ret <> ret')
-   (POST1: Post nil witness = EX vret:B, PROPx (Ppost vret)
+   (POST1: Post nil witness = ∃ vret:B, PROPx (Ppost vret)
                               (LOCALx (temp ret_temp (F vret) :: nil)
                               (SEPx (Rpost vret))))
    (DELETE: remove_localdef_temp ret Q = Qnew)
    (DELETE' : remove_localdef_temp ret' Q = Q)
-   (H0: Post2 = EX vret:B, PROPx (P++ Ppost vret)
+   (H0: Post2 = ∃ vret:B, PROPx (P++ Ppost vret)
                    (LOCALx (temp ret (F vret) :: Qnew)
                     (SEPx (Rpost vret ++ Frame))))
    (PPRE: fold_right_and True Ppre),
@@ -1444,7 +1446,7 @@ Lemma semax_call_id1_y_wow:
    (SETUP: call_setup2 cs Qtemp Qvar GV a Delta P Q R R' fs argsig retty' cc ts A Pre Post NEPre NEPost bl vl
       witness Frame Ppre Rpre GV' gv args)
     Espec ret ret' (retty: type)
-             (Post2: environ -> mpred)
+             (Post2: assert)
              (Qnew: list localdef)
              (B: Type)
              (Ppost: B -> list Prop)
@@ -1456,12 +1458,12 @@ Lemma semax_call_id1_y_wow:
    (OKretty': check_retty retty')
    (NEUTRAL: is_neutral_cast retty' retty = true)
    (NEret: ret <> ret')
-   (POST1: Post ts witness = EX vret:B, PROPx (Ppost vret)
+   (POST1: Post ts witness = ∃ vret:B, PROPx (Ppost vret)
                               (LOCALx (temp ret_temp (F vret) :: nil)
                               (SEPx (Rpost vret))))
    (DELETE: remove_localdef_temp ret Q = Qnew)
    (DELETE' : remove_localdef_temp ret' Q = Q)
-   (H0: Post2 = EX vret:B, PROPx (P++ Ppost vret)
+   (H0: Post2 = ∃ vret:B, PROPx (P++ Ppost vret)
                    (LOCALx (temp ret (F vret) :: Qnew)
                     (SEPx (Rpost vret ++ Frame))))
    (PPRE: fold_right_and True Ppre),
@@ -1538,7 +1540,7 @@ Lemma semax_call_id1_y_wow_nil:
    (SETUP: call_setup2_nil cs Qtemp Qvar GV a Delta P Q R R' fs argsig retty' cc A Pre Post NEPre NEPost bl vl
       witness Frame Ppre Rpre GV' gv args)
     Espec ret ret' (retty: type)
-             (Post2: environ -> mpred)
+             (Post2: assert)
              (Qnew: list localdef)
              (B: Type)
              (Ppost: B -> list Prop)
@@ -1550,12 +1552,12 @@ Lemma semax_call_id1_y_wow_nil:
    (OKretty': check_retty retty')
    (NEUTRAL: is_neutral_cast retty' retty = true)
    (NEret: ret <> ret')
-   (POST1: Post nil witness = EX vret:B, PROPx (Ppost vret)
+   (POST1: Post nil witness = ∃ vret:B, PROPx (Ppost vret)
                               (LOCALx (temp ret_temp (F vret) :: nil)
                               (SEPx (Rpost vret))))
    (DELETE: remove_localdef_temp ret Q = Qnew)
    (DELETE' : remove_localdef_temp ret' Q = Q)
-   (H0: Post2 = EX vret:B, PROPx (P++ Ppost vret)
+   (H0: Post2 = ∃ vret:B, PROPx (P++ Ppost vret)
                    (LOCALx (temp ret (F vret) :: Qnew)
                     (SEPx (Rpost vret ++ Frame))))
    (PPRE: fold_right_and True Ppre),
@@ -1576,17 +1578,17 @@ Lemma semax_call_id01_wow:
    (SETUP: call_setup2 cs Qtemp Qvar GV a Delta P Q R R' fs argsig retty cc ts A Pre Post NEPre NEPost bl vl
       witness Frame Ppre Rpre GV' gv args)
    Espec
-             (Post2: environ -> mpred)
+             (Post2: assert)
              (B: Type)
              (Ppost: B -> list Prop)
              (F: B -> val)
              (Rpost: B -> list mpred)
    (_: check_retty retty)
          (* this hypothesis is not needed for soundness, just for selectivity *)
-   (POST1: Post ts witness = EX vret:B, PROPx (Ppost vret)
+   (POST1: Post ts witness = ∃ vret:B, PROPx (Ppost vret)
                               (LOCALx (temp ret_temp (F vret) :: nil)
                               (SEPx (Rpost vret))))
-   (POST2: Post2 = EX vret:B, PROPx (P++ Ppost vret) (LOCALx Q
+   (POST2: Post2 = ∃ vret:B, PROPx (P++ Ppost vret) (LOCALx Q
              (SEPx (Rpost vret ++ Frame))))
    (PPRE: fold_right_and True Ppre),
    @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx R')))
@@ -1598,7 +1600,7 @@ Proof.
                        [HR' [PRE1 [PTREE' [CHECKTEMP [CHECKG FRAME]]]]]].
   apply SPEC. clear SPEC.
   eapply semax_pre_setup2; try eassumption.
-  remember (tc_expr Delta a && tc_exprlist Delta argsig bl) as TChecks.
+  remember (tc_expr Delta a ∧ tc_exprlist Delta argsig bl) as TChecks.
   rewrite ! andp_assoc.
   apply semax_extract_prop; intros.
   apply semax_extract_prop; intros.
@@ -1641,17 +1643,17 @@ Lemma semax_call_id01_wow_nil:
    (SETUP: call_setup2_nil cs Qtemp Qvar GV a Delta P Q R R' fs argsig retty cc A Pre Post NEPre NEPost bl vl
       witness Frame Ppre Rpre GV' gv args)
    Espec
-             (Post2: environ -> mpred)
+             (Post2: assert)
              (B: Type)
              (Ppost: B -> list Prop)
              (F: B -> val)
              (Rpost: B -> list mpred)
    (_: check_retty retty)
          (* this hypothesis is not needed for soundness, just for selectivity *)
-   (POST1: Post nil witness = EX vret:B, PROPx (Ppost vret)
+   (POST1: Post nil witness = ∃ vret:B, PROPx (Ppost vret)
                               (LOCALx (temp ret_temp (F vret) :: nil)
                               (SEPx (Rpost vret))))
-   (POST2: Post2 = EX vret:B, PROPx (P++ Ppost vret) (LOCALx Q
+   (POST2: Post2 = ∃ vret:B, PROPx (P++ Ppost vret) (LOCALx Q
              (SEPx (Rpost vret ++ Frame))))
    (PPRE: fold_right_and True Ppre),
    @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx R')))
@@ -1699,7 +1701,7 @@ Definition eq_no_post (x v: val) : Prop := x=v.
 Lemma no_post_exists:
  forall v P Q R,
    PROPx P (LOCALx (temp ret_temp v :: Q) (SEPx R)) =
-   EX x:val, PROPx (eq_no_post x v :: P) (LOCALx (temp ret_temp x :: Q) (SEPx R)).
+   ∃ x:val, PROPx (eq_no_post x v :: P) (LOCALx (temp ret_temp x :: Q) (SEPx R)).
 Proof.
 intros. unfold eq_no_post.
 apply pred_ext.
@@ -1716,7 +1718,7 @@ Qed.
 Lemma no_post_exists0:
  forall P Q R,
    PROPx P (LOCALx Q (SEPx R)) =
-   EX x:unit, PROPx ((fun _ => P) x) (LOCALx Q (SEPx ((fun _ => R) x))).
+   ∃ x:unit, PROPx ((fun _ => P) x) (LOCALx Q (SEPx ((fun _ => R) x))).
 Proof.
 intros.
 apply pred_ext.
@@ -1728,7 +1730,7 @@ Qed.
 Import ListNotations.
 
 Lemma void_ret : ifvoid tvoid (` (PROP ( )  LOCAL ()  SEP ()) (make_args [] []))
-  (EX v : val, ` (PROP ( )  LOCAL ()  SEP ()) (make_args [ret_temp] [v])) = emp.
+  (∃ v : val, ` (PROP ( )  LOCAL ()  SEP ()) (make_args [ret_temp] [v])) = emp.
 Proof.
   extensionality; simpl.
   unfold liftx, lift, PROPx, LOCALx, SEPx; simpl. autorewrite with norm. auto.

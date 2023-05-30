@@ -378,9 +378,9 @@ Lemma denote_tc_assert_andp:
 Proof. intros; apply tc_andp_sound. Qed.
 
 Lemma neutral_isCastResultType:
-  forall {CS: compspecs} t t' v rho,
+  forall {CS: compspecs} P t t' v rho,
    is_neutral_cast t' t = true ->
-   ⊢denote_tc_assert (isCastResultType t' t v) rho.
+   P ⊢ denote_tc_assert (isCastResultType t' t v) rho.
 Proof.
 intros.
   unfold isCastResultType.

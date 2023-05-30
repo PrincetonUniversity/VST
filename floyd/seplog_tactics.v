@@ -1,186 +1,276 @@
 Require Import VST.floyd.base.
 Require Import VST.floyd.val_lemmas.
-Local Open Scope logic.
 
-Definition prop_and_mpred := @prop_and mpred _.
+#[export] Hint Rewrite <- @bi.pure_and : gather_prop.
 
-#[export] Hint Rewrite <- prop_and_mpred : gather_prop.
+Section PROP.
+
+Context {PROP : bi}.
+
+Implicit Types (P Q R : PROP).
 
 Lemma gather_prop_left:
-  forall P Q (R: mpred),  !! P && (!! Q && R) = !!(P/\Q) && R.
-Proof. intros. rewrite <- andp_assoc. rewrite <- prop_and; auto.
-Qed.
+  forall (P Q : Prop) R,  ⌜P⌝ ∧ (⌜Q⌝ ∧ R) ⊣⊢ ⌜P /\ Q⌝ ∧ R.
+Proof. intros. rewrite assoc -bi.pure_and //. Qed.
 
 Lemma gather_prop_right:
-  forall P Q (R: mpred),  R && !! P && !! Q = !!(P/\Q) && R.
-Proof. intros. rewrite andp_assoc. rewrite andp_comm.  rewrite <- prop_and; auto.
-Qed.
-#[export] Hint Rewrite gather_prop_left gather_prop_right : gather_prop.
+  forall (P Q : Prop) R,  (R ∧ ⌜P⌝) ∧ ⌜Q⌝ ⊣⊢ ⌜P /\ Q⌝ ∧ R.
+Proof. intros. rewrite -assoc -bi.pure_and bi.and_comm //. Qed.
 
-Lemma andp_in_order1 {A}{NA: NatDed A}:
-  forall P Q, P && Q = P && (P --> Q).
+Lemma andp_in_order1:
+  forall P Q, P ∧ Q ⊣⊢ P ∧ (P → Q).
 Proof.
   intros.
-  apply pred_ext.
-  + apply andp_derives; auto.
-    apply imp_andp_adjoint.
-    apply andp_left1; auto.
-  + apply andp_right.
-    - apply andp_left1; auto.
-    - apply modus_ponens.
+  iSplit; iIntros "H"; (iSplit; first rewrite bi.and_elim_l //).
+  + iApply (bi.impl_intro_l with "H").
+    rewrite !bi.and_elim_r //.
+  + iApply (modus_ponens with "H").
 Qed.
 
-Lemma andp_in_order2 {A}{NA: NatDed A}:
-  forall P Q, P && Q = Q && (Q --> P).
+Lemma andp_in_order2:
+  forall P Q, P ∧ Q ⊣⊢ Q ∧ (Q → P).
 Proof.
   intros.
-  rewrite (andp_comm P Q).
+  rewrite comm.
   apply andp_in_order1.
 Qed.
 
-Lemma andp_right1{A}{NA: NatDed A}:
-  forall P Q R, (P |-- Q) -> (P && Q |-- R) -> P |-- Q && R.
+Lemma andp_right1:
+  forall P Q R, (P ⊢ Q) -> (P ∧ Q ⊢ R) -> P ⊢ Q ∧ R.
 Proof.
   intros.
   rewrite andp_in_order1.
-  apply andp_right; auto.
-  apply imp_andp_adjoint; auto.
+  apply bi.and_intro; first done.
+  by apply bi.impl_intro_r.
 Qed.
 
-Lemma andp_right2{A}{NA: NatDed A}:
-  forall P Q R, (P |-- R) -> (P && R |-- Q) -> P |-- Q && R.
+Lemma andp_right2:
+  forall P Q R, (P ⊢ R) -> (P ∧ R ⊢ Q) -> P ⊢ Q ∧ R.
 Proof.
   intros.
-  rewrite andp_comm.
+  rewrite comm.
   apply andp_right1; auto.
 Qed.
 
-Definition not_a_prop (P: mpred) := True.
+Definition not_a_prop P := True%type.
 
-Ltac not_a_prop := match goal with
-  | |- not_a_prop  (prop _) => fail 1
-  | |- _ => apply Coq.Init.Logic.I
-end.
-
-Lemma flip_prop: forall P Q,
-      not_a_prop P -> (P&& !! Q = !! Q && P).
-Proof. intros. apply andp_comm. Qed.
-
-#[export] Hint Rewrite flip_prop using not_a_prop : gather_prop.
+Lemma flip_prop: forall P (Q : Prop),
+      not_a_prop P -> (P ∧ ⌜Q⌝ ⊣⊢ ⌜Q⌝ ∧ P).
+Proof. intros; rewrite comm //. Qed.
 
 Lemma gather_prop3:
-  forall P Q R,  not_a_prop R -> not_a_prop Q -> R && (!! P && Q) = !!P && (R && Q).
-Proof. intros. rewrite andp_comm. rewrite andp_assoc.
-        rewrite (andp_comm Q); auto.
+  forall (P: Prop) Q R,  not_a_prop R -> not_a_prop Q -> R ∧ (⌜P⌝ ∧ Q) ⊣⊢ ⌜P⌝ ∧ (R ∧ Q).
+Proof.
+  intros. rewrite bi.and_comm. rewrite -bi.and_assoc.
+  rewrite (bi.and_comm Q); auto.
 Qed.
-
-#[export] Hint Rewrite gather_prop3 using not_a_prop : gather_prop.
 
 Lemma gather_prop4:
-  forall P Q R,  not_a_prop R -> not_a_prop Q -> (!!P && R) && Q = !!P && (R && Q).
-Proof. intros. rewrite andp_assoc. auto.
+  forall (P: Prop) Q R,  not_a_prop R -> not_a_prop Q -> (⌜P⌝ ∧ R) ∧ Q ⊣⊢ ⌜P⌝ ∧ (R ∧ Q).
+Proof.
+  intros. rewrite -bi.and_assoc. auto.
 Qed.
-#[export] Hint Rewrite gather_prop4 using not_a_prop : gather_prop.
 
 Lemma gather_prop5:
-  forall P Q R,  not_a_prop R -> not_a_prop Q -> (R && !!P && Q) = !!P && (R && Q).
-Proof. intros. rewrite andp_assoc. rewrite andp_comm. rewrite andp_assoc.
-  f_equal; apply andp_comm.
+  forall (P: Prop) Q R,  not_a_prop R -> not_a_prop Q -> ((R ∧ ⌜P⌝) ∧ Q) ⊣⊢ ⌜P⌝ ∧ (R ∧ Q).
+Proof.
+  intros. rewrite -bi.and_assoc. rewrite bi.and_comm. rewrite -bi.and_assoc.
+  f_equiv; apply bi.and_comm.
 Qed.
-#[export] Hint Rewrite gather_prop5 using not_a_prop : gather_prop.
-
-#[export] Hint Rewrite sepcon_andp_prop sepcon_andp_prop' : gather_prop gather_prop_core.
 
 Lemma go_lower_lem1:
-  forall (P1 P: Prop) (QR PQR: mpred),
-      (P1 -> prop P && QR |-- PQR) ->
-      (prop (P1 /\ P ) && QR |-- PQR).
+  forall (P1 P: Prop) (QR PQR: PROP),
+      (P1 -> ⌜P⌝ ∧ QR ⊢ PQR) ->
+      (⌜P1 /\ P⌝ ∧ QR ⊢ PQR).
 Proof.
  intros.
- apply derives_extract_prop; intros [? ?].
- apply derives_trans with (!!P && QR).
- apply andp_right; auto. apply prop_right; auto.
+ apply bi.pure_elim_l; intros [? ?].
+ trans (⌜P⌝ ∧ QR).
+ apply bi.and_intro; auto.
  apply H; auto.
 Qed.
 
 Lemma go_lower_lem1':
-  forall (P1 P2 P: Prop) (QR PQR: mpred),
-      (prop (P1 /\ (P2 /\ P)) && QR |-- PQR) ->
-      (prop ((P1 /\ P2) /\ P ) && QR |-- PQR).
+  forall (P1 P2 P: Prop) (QR PQR: PROP),
+      (⌜P1 /\ (P2 /\ P)⌝ ∧ QR ⊢ PQR) ->
+      (⌜(P1 /\ P2) /\ P⌝ ∧ QR ⊢ PQR).
 Proof.
  intros.
- eapply derives_trans;  [ | apply H].
- apply andp_derives; auto.
- apply prop_derives; intuition.
+ rewrite -H and_assoc //.
 Qed.
 
 (* These versions can sometimes take minutes,
    when A and B can't be unified
-#[export] Hint Extern 1 (_ |-- _) => (simple apply (@derives_refl mpred _) ) : cancel.
-#[export] Hint Extern 1 (_ |-- |> _) => (simple apply (@now_later mpred _ _) ) : cancel.
+#[export] Hint Extern 1 (_ ⊢ _) => (simple apply (@entails_refl PROP _) ) : cancel.
+#[export] Hint Extern 1 (_ ⊢ |> _) => (simple apply (@now_later PROP _ _) ) : cancel.
 *)
 
-#[export] Hint Extern 2 (?A |-- ?B) => (constr_eq A B; simple apply derives_refl) : cancel.
-#[export] Hint Extern 2 (?A |-- |> ?B) => (constr_eq A B; simple apply now_later) : cancel.
-
 Lemma cancel1_start:
- forall P Q : mpred,
-   (P |-- Q * emp) ->
-   P |-- Q.
-Proof. Set Printing All. intros. rewrite sepcon_emp in H; auto.
+ forall P Q : PROP,
+   (P ⊢ Q ∗ emp) ->
+   P ⊢ Q.
+Proof. intros. rewrite bi.sep_emp in H; auto.
 Qed.
 
 Lemma cancel1_here:
-  forall P P' Q1 Q2 Q3 : mpred,
-  (P' |-- Q2) ->
-  (P |-- Q1 * Q3) ->
-  P * P' |-- Q1 * Q2 * Q3.
+  forall P P' Q1 Q2 Q3 : PROP,
+  (P' ⊢ Q2) ->
+  (P ⊢ Q1 ∗ Q3) ->
+  P ∗ P' ⊢ (Q1 ∗ Q2) ∗ Q3.
 Proof.
-intros. rewrite (sepcon_comm Q1).
-rewrite sepcon_assoc.  rewrite sepcon_comm. apply sepcon_derives; auto.
+intros. rewrite (bi.sep_comm Q1).
+rewrite -bi.sep_assoc.  rewrite bi.sep_comm. apply bi.sep_mono; auto.
 Qed.
 
 Lemma cancel1_next:
-  forall P Q1 Q2 Q3 : mpred,
-   (P |-- Q1 * (Q2 * Q3)) ->
-   P |-- Q1 * Q2 * Q3.
-Proof. intros. rewrite sepcon_assoc; auto. Qed.
+  forall P Q1 Q2 Q3 : PROP,
+   (P ⊢ Q1 ∗ (Q2 ∗ Q3)) ->
+   P ⊢ (Q1 ∗ Q2) ∗ Q3.
+Proof. intros. rewrite -bi.sep_assoc; auto. Qed.
 
 Lemma cancel1_last:
-  forall P P' Q2 Q3 : mpred,
-  (P' |-- Q2) ->
-  (P |-- Q3) ->
-  P * P' |-- Q2 * Q3.
+  forall P P' Q2 Q3 : PROP,
+  (P' ⊢ Q2) ->
+  (P ⊢ Q3) ->
+  P ∗ P' ⊢ Q2 ∗ Q3.
 Proof.
- intros. rewrite sepcon_comm; apply sepcon_derives; auto.
+ intros. rewrite bi.sep_comm; apply bi.sep_mono; auto.
 Qed.
 
 Lemma cancel1_finish1:
-  forall P Q1 Q2 Q3 : mpred,
-   (P |-- Q1 * Q2 * Q3) ->
-   P |-- Q1 * (Q2 * Q3).
+  forall P Q1 Q2 Q3 : PROP,
+   (P ⊢ (Q1 ∗ Q2) ∗ Q3) ->
+   P ⊢ Q1 ∗ (Q2 ∗ Q3).
 Proof.
- intros. rewrite <- sepcon_assoc. auto.
+ intros. rewrite bi.sep_assoc. auto.
 Qed.
 
 Lemma cancel1_finish2:
-  forall P Q : mpred,
-    (P |-- Q) ->
-   P |-- Q * emp.
-Proof. intros. rewrite sepcon_emp; auto.
+  forall P Q : PROP,
+    (P ⊢ Q) ->
+   P ⊢ Q ∗ emp.
+Proof. intros. rewrite bi.sep_emp; auto.
 Qed.
+
+Lemma cancel_frame0:
+  (emp : PROP) ⊢ fold_right bi_sep emp nil.
+Proof. done. Qed.
+
+Lemma cancel_frame2: forall (P Q: PROP) F,
+     (Q  ⊢ fold_right_sepcon F)  ->
+    (P ∗ Q) ⊢ fold_right_sepcon (P::F).
+Proof. intros. apply bi.sep_mono; auto.
+Qed.
+
+Lemma cancel_frame1: forall (P: PROP),
+         P ⊢ fold_right_sepcon (P::nil).
+Proof. intros. unfold fold_right_sepcon. rewrite bi.sep_emp //.
+Qed.
+
+Fixpoint fold_right_sepconx (l: list PROP) : PROP :=
+match l with
+| nil => emp
+| a::nil => a
+| a::b => a ∗ fold_right_sepconx b
+end.
+
+Definition fold_left_sepconx (l: list PROP) : PROP :=
+match l with
+| nil => emp
+| a::l => (fix fold_left_sepconx (a: PROP) (l: list PROP) {struct l}: PROP :=
+          match l with
+          | nil => a
+          | b :: l => fold_left_sepconx (bi_sep a b) l
+          end) a l
+end.
+
+Lemma fold_right_sepconx_eq: forall l, fold_right_sepconx l ⊣⊢ fold_right_sepcon l.
+Proof.
+induction l; simpl; auto.
+rewrite -IHl.
+destruct l; simpl; auto. rewrite bi.sep_emp; auto.
+Qed.
+
+Lemma fold_left_sepconx_eq: forall l, fold_left_sepconx l ⊣⊢ fold_right_sepcon l.
+Proof.
+  intros; rewrite <- fold_right_sepconx_eq.
+  destruct l; auto; simpl.
+  revert b; induction l; intros; auto.
+  simpl in *.
+  rewrite <- IHl.
+  clear IHl.
+  revert b a; induction l; intros; auto.
+  simpl.
+  rewrite !IHl bi.sep_assoc //.
+Qed.
+
+Lemma fold_right_sepconx_eqx:
+  forall A B, (A ⊢ fold_right_sepconx B) -> A ⊢ fold_right_sepcon B.
+Proof.
+intros.
+rewrite <- fold_right_sepconx_eq; auto.
+Qed.
+
+Lemma cancel_left: forall P Q R: PROP,
+   (Q ⊢ R) -> P ∗ Q ⊢ P ∗ R.
+Proof.
+intros; apply bi.sep_mono; auto.
+Qed.
+
+Lemma pull_left_special: forall A B C : PROP,
+    (B ∗ (A ∗ C)) ⊣⊢ (A ∗ (B ∗ C)).
+Proof.
+intros. rewrite bi.sep_comm. rewrite -bi.sep_assoc. f_equiv.
+ apply bi.sep_comm.
+Qed.
+
+Lemma pull_left_special0: forall A B : PROP,
+    (B ∗ A) ⊣⊢ (A ∗ B).
+Proof.
+intros; apply bi.sep_comm.
+Qed.
+
+Lemma fun_equal: forall {A B} (f g : A -> B) (x y : A),
+  f = g -> x = y -> f x = g y.
+Proof. congruence. Qed.
+
+Lemma fun_equal': forall {A B} (f g : forall (x:A), B x) (y : A),
+  f = g -> f y = g y.
+Proof. congruence. Qed.
+
+Lemma if_congr: forall {T: Type} (a a': bool) (b b' c c' : T),
+  a=a' -> b=b' -> c=c' -> (if a then b else c) = (if a' then b' else c').
+Proof.
+intros; subst; auto.
+Qed.
+
+End PROP.
+
+Ltac not_a_prop := match goal with
+  | |- not_a_prop  (⌜_⌝) => fail 1
+  | |- _ => apply Coq.Init.Logic.I
+end.
+
+#[export] Hint Rewrite @gather_prop_left @gather_prop_right : gather_prop.
+#[export] Hint Rewrite @flip_prop using not_a_prop : gather_prop.
+#[export] Hint Rewrite @gather_prop3 using not_a_prop : gather_prop.
+#[export] Hint Rewrite @gather_prop4 using not_a_prop : gather_prop.
+#[export] Hint Rewrite @gather_prop5 using not_a_prop : gather_prop.
+#[export] Hint Rewrite @sepcon_andp_prop @sepcon_andp_prop' : gather_prop gather_prop_core.
+#[export] Hint Extern 2 (?A ⊢ ?B) => (constr_eq A B; simple apply entails_refl) : cancel.
+#[export] Hint Extern 2 (?A ⊢ ▷ ?B) => (constr_eq A B; simple apply bi.later_intro) : cancel.
 
 Ltac cancel1 :=
  first [
    simple apply cancel1_here; [
-    try match goal with H := _ : list mpred |- _ => clear H end; (*
+    try match goal with H := _ (*: list PROP*) |- _ => clear H end; (*
       this line is to work around Coq 8.4 bug,
       Anomaly: undefined_evars_of_term *)
     solve [eauto with nocore cancel]
    | ]
  | simple apply cancel1_next; cancel1
  | simple apply cancel1_last; [
-    try match goal with H := _ : list mpred |- _ => clear H end; (*
+    try match goal with H := _ (*: list PROP*) |- _ => clear H end; (*
       this line is to work around Coq 8.4 bug,
       Anomaly: undefined_evars_of_term *)
     solve [eauto with nocore cancel] | ]
@@ -219,10 +309,10 @@ Ltac lift4 a e1 e2 e3 e4 rho :=
 
 Ltac abstract_env rho P :=
   match P with
-   | @emp mpred _ _ => constr:(@emp (environ->mpred) _ _)
-   | @sepcon mpred _ _ ?e1 ?e2 =>
+   | @bi_emp ?PROP => constr:(@bi_emp (monPred environ_index PROP) _ _)
+   | @bi_sep ?PROP ?e1 ?e2 =>
       let e1' := abstract_env rho e1 in let e2' := abstract_env rho e2
-       in constr:(@sepcon (environ->mpred) _ _ e1' e2')
+       in constr:(@bi_sep (monPred environ_index PROP) _ _ e1' e2')
    | ?a0 ?a1 ?a2 ?e1 ?e2 ?e3 ?e4 =>
       let e1' := abstract_env rho e1  in let e2' := abstract_env rho e2 in let e3' := abstract_env rho e3 in let e4' := abstract_env rho e4
       in lift3 (a0 a1 a2) e1' e2' e3' e4' rho
@@ -243,101 +333,20 @@ Ltac abstract_env rho P :=
    | ?a => constr:(lift0 a)
    end.
 
-Lemma cancel_frame0{A}{ND: NatDed A}{SL: SepLog A}:
-  forall rho: environ, emp rho |-- fold_right sepcon emp nil rho.
-Proof. intro; apply derives_refl. Qed.
-
-Lemma cancel_frame0_low:
-  emp |-- fold_right_sepcon nil.
-Proof.  apply derives_refl. Qed.
-
-Lemma cancel_frame2: forall (P Q: environ->mpred) F (rho: environ),
-     (Q rho |-- 	fold_right sepcon emp F rho) ->
-    (P * Q) rho |-- fold_right sepcon emp (P::F) rho.
-Proof. intros. simpl. apply sepcon_derives; auto.
-Qed.
-
-Lemma cancel_frame2_low: forall (P Q: mpred) F,
-     (Q  |-- fold_right_sepcon F)  ->
-    (P * Q) |-- fold_right_sepcon (P::F).
-Proof. intros. apply sepcon_derives; auto.
-Qed.
-
-Lemma cancel_frame1: forall (P: environ->mpred) (rho: environ),
-         P rho |-- fold_right sepcon emp (P::nil) rho.
-Proof. intros. unfold fold_right. rewrite sepcon_emp; apply derives_refl.
-Qed.
-
-Lemma cancel_frame1_low: forall (P: mpred),
-         P |-- fold_right_sepcon (P::nil).
-Proof. intros. unfold fold_right_sepcon. rewrite sepcon_emp; apply derives_refl.
-Qed.
-
 
 Ltac fixup_lifts :=
  repeat
  match goal with
- | |- context[@lift0 mpred] => change (@lift0 mpred) with (@liftx (LiftEnviron mpred))
- | |- context[@lift1 ?A] => change (@lift1 A mpred) with (@liftx (Tarrow A (LiftEnviron mpred)))
- | |- context[@lift2 ?A ?B] =>  change (@lift2 A B mpred) with (@liftx (Tarrow A (Tarrow B (LiftEnviron mpred))))
- | |- context[@lift3 ?A ?B ?C] => change (@lift3 A B C mpred) with (@liftx (Tarrow A (Tarrow B (Tarrow C (LiftEnviron mpred)))))
- | |- context[@lift4 ?A ?B ?C ?D] => change (@lift4 A B C D mpred) with (@liftx (Tarrow A (Tarrow B (Tarrow C (Tarrow D (LiftEnviron mpred))))))
+ | |- context[@lift0 ?PROP] => change (@lift0 PROP) with (@liftx (LiftEnviron PROP))
+ | |- context[@lift1 ?A ?PROP] => change (@lift1 A PROP) with (@liftx (Tarrow A (LiftEnviron PROP)))
+ | |- context[@lift2 ?A ?B ?PROP] =>  change (@lift2 A B PROP) with (@liftx (Tarrow A (Tarrow B (LiftEnviron PROP))))
+ | |- context[@lift3 ?A ?B ?C ?PROP] => change (@lift3 A B C PROP) with (@liftx (Tarrow A (Tarrow B (Tarrow C (LiftEnviron PROP)))))
+ | |- context[@lift4 ?A ?B ?C ?D ?PROP] => change (@lift4 A B C D PROP) with (@liftx (Tarrow A (Tarrow B (Tarrow C (Tarrow D (LiftEnviron PROP))))))
  end.
-
-Fixpoint fold_right_sepconx (l: list mpred) : mpred :=
-match l with
-| nil => emp
-| a::nil => a
-| a::b => a * fold_right_sepconx b
-end.
-
-Definition fold_left_sepconx (l: list mpred) : mpred :=
-match l with
-| nil => emp
-| a::l => (fix fold_left_sepconx (a: mpred) (l: list mpred) {struct l}: mpred :=
-          match l with
-          | nil => a
-          | b :: l => fold_left_sepconx (sepcon a b) l
-          end) a l
-end.
-
-Lemma fold_right_sepconx_eq: fold_right_sepconx = fold_right_sepcon.
-Proof.
-extensionality l.
-induction l; simpl; auto.
-rewrite IHl.
-destruct l; simpl; auto. rewrite sepcon_emp; auto.
-Qed.
-
-Lemma fold_left_sepconx_eq:
-  fold_left_sepconx = fold_right_sepcon.
-Proof.
-  extensionality l.
-  rewrite <- fold_right_sepconx_eq.
-  destruct l; auto.
-  revert m; induction l; intros.
-  + auto.
-  + simpl in *.
-    rewrite <- IHl.
-    clear IHl.
-    revert m a; induction l; intros.
-    - auto.
-    - simpl.
-      rewrite sepcon_assoc.
-      rewrite IHl.
-      auto.
-Qed.
-
-Lemma fold_right_sepconx_eqx:
-  forall A B, (A |-- fold_right_sepconx B) -> A |-- fold_right_sepcon B.
-Proof.
-intros.
-rewrite <- fold_right_sepconx_eq; auto.
-Qed.
 
 Ltac unfold_right_sepcon A :=
  lazymatch A with
- | (?B * ?C)%logic => let x := unfold_right_sepcon C
+ | (?B ∗ ?C) => let x := unfold_right_sepcon C
                                in let y := constr:(B :: x)
                                in y
  | ?D => let y := constr:(D::nil) in y
@@ -345,28 +354,28 @@ end.
 
 Ltac cancel_frame :=
 match goal with
-| |- _ |-- fold_right_sepcon _  => (* setup *)
-   rewrite !sepcon_assoc; cancel_frame
-| F := ?v |- ?A |-- fold_right_sepcon ?F  => (* fast way *)
+| |- _ ⊢ fold_right_sepcon _  => (* setup *)
+   rewrite -!bi.sep_assoc; cancel_frame
+| F := ?v |- ?A ⊢ fold_right_sepcon ?F  => (* fast way *)
    is_evar v;
    apply fold_right_sepconx_eqx;
    let w := unfold_right_sepcon A
     in instantiate (1:=w) in (value of F);
     unfold F;
     unfold fold_right_sepconx;
-    simple apply derives_refl
+    simple apply entails_refl
 (*
-| |- _ |-- fold_right_sepcon ?F  =>  (* slow way *)
+| |- _ ⊢ fold_right_sepcon ?F  =>  (* slow way *)
    repeat apply cancel_frame2_low;
     try (unfold F; apply cancel_frame0_low);
     try (unfold F; apply cancel_frame1_low)
 *)
-| |- ?P |-- fold_right _ _ ?F ?rho  =>
+| |- ?P ⊢ fold_right _ _ ?F ?rho  =>
      let P' := abstract_env rho P in
-       change ( P' rho |-- fold_right sepcon emp F rho);
+       change ( P' rho ⊢ fold_right bi_sep emp F rho);
    fixup_lifts; cbv beta;
-    repeat rewrite sepcon_assoc;
-   repeat match goal with |- (_ * _) _ |-- _ =>
+    repeat rewrite -bi.sep_assoc;
+   repeat match goal with |- (_ * _) _ ⊢ _ =>
                    apply cancel_frame2
                     end;
     try (unfold F; apply cancel_frame1);
@@ -382,47 +391,28 @@ Ltac pull_left A :=
   and which sometimes fails when the terms get complicated.
  *)
   repeat match goal with
-  | |- context [?Q * ?R * A] => rewrite <- (pull_right A Q R)
-  | |- context [?Q * A] => rewrite <- (pull_right0 A Q)
+  | |- context [?Q ∗ ?R ∗ A] => rewrite <- (pull_right A Q R)
+  | |- context [?Q ∗ A] => rewrite <- (pull_right0 A Q)
   end.
-
-Lemma cancel_left: forall P Q R: mpred,
-   (Q |-- R) -> P * Q |-- P * R.
-Proof.
-intros; apply sepcon_derives; auto.
-Qed.
-
-Lemma pull_left_special: forall A B C : mpred,
-    (B * (A * C)) = (A * (B * C)).
-Proof.
-intros. rewrite sepcon_comm. rewrite sepcon_assoc. f_equal.
- apply sepcon_comm.
-Qed.
-
-Lemma pull_left_special0: forall A B : mpred,
-    (B * A) = (A * B).
-Proof.
-intros; apply sepcon_comm.
-Qed.
 
 Ltac qcancel P :=
  lazymatch P with
- | sepcon ?A ?B => 
-     match goal with |- _ |-- ?Q =>
+ | bi_sep ?A ?B => 
+     match goal with |- _ ⊢ ?Q =>
        try match Q with context [A] =>
         let a := fresh "A" in set (a:=A);
-         rewrite ?(pull_left_special0 a), ?(pull_left_special a);
+         rewrite ?(pull_left_special0 a) ?(pull_left_special a);
          apply cancel_left;
          clear a
        end;
        qcancel B
      end
  | ?A => 
-     try match goal with |- _ |-- ?Q =>
+     try match goal with |- _ ⊢ ?Q =>
        lazymatch Q with context [A] =>
         let a := fresh "A" in set (a:=A);
-         rewrite ?(pull_left_special0 a), ?(pull_left_special a);
-         rewrite ?(pull_left_special0 A), ?(pull_left_special A);
+         rewrite ?(pull_left_special0 a) ?(pull_left_special a);
+         rewrite ?(pull_left_special0 A) ?(pull_left_special A);
          apply cancel_left;
          clear a
       end
@@ -434,20 +424,6 @@ Ltac is_Type_or_type T :=
   | Type => idtac
   | type => idtac
   end.
-
-Lemma fun_equal: forall {A B} (f g : A -> B) (x y : A),
-  f = g -> x = y -> f x = g y.
-Proof. congruence. Qed.
-
-Lemma fun_equal': forall {A B} (f g : forall (x:A), B x) (y : A),
-  f = g -> f y = g y.
-Proof. congruence. Qed.
-
-Lemma if_congr: forall {T: Type} (a a': bool) (b b' c c' : T),
-  a=a' -> b=b' -> c=c' -> (if a then b else c) = (if a' then b' else c').
-Proof.
-intros; subst; auto.
-Qed.
 
 
 Ltac ecareful_unify :=
@@ -465,54 +441,65 @@ Ltac careful_unify :=
   | |- (if _ then _ else _) = if _ then _ else _ => simple apply if_congr; solve[careful_unify]   
   end; idtac.
 
+Lemma entails_refl' {PROP : bi} : forall (P Q : PROP), P = Q -> P ⊢ Q.
+Proof.
+  by intros ?? ->.
+Qed.
+
 Ltac cancel :=
-  rewrite ?sepcon_assoc;
-  repeat match goal with |- ?A * _ |-- ?B * _ => 
+  rewrite -?bi.sep_assoc;
+  repeat match goal with |- ?A * _ ⊢ ?B * _ => 
      constr_eq A B;  simple apply (cancel_left A)
   end;
-  match goal with |- ?P |-- _ => qcancel P end;
-  repeat first [rewrite emp_sepcon | rewrite sepcon_emp];
-  try match goal with |- ?A |-- ?B => 
-       constr_eq A B; simple apply (derives_refl A)
+  match goal with |- ?P ⊢ _ => qcancel P end;
+  repeat first [rewrite bi.emp_sep | rewrite bi.sep_emp];
+  try match goal with |- ?A ⊢ ?B => 
+       constr_eq A B; simple apply (entails_refl A)
   end;
-  match goal with |- ?P |-- _ =>
+  match goal with |- ?P ⊢ _ =>
    (* The "emp" is a marker to notice when one complete pass has been made *)
-   rewrite <- (emp_sepcon P)
+   rewrite <- (bi.emp_sep P)
   end;
-  repeat rewrite <- sepcon_assoc;
+  repeat rewrite bi.sep_assoc;
   repeat match goal with
-    | |- sepcon _ emp |-- _ => fail 1
-    | |- sepcon _ TT |-- _ => pull_left (@TT mpred _)
-    | |- sepcon _ ?P' |-- _ => first [ cancel2 | pull_left P' ]
+    | |- bi_sep _ emp ⊢ _ => fail 1
+    | |- bi_sep _ True ⊢ _ => pull_left True%I
+    | |- bi_sep _ ?P' ⊢ _ => first [ cancel2 | pull_left P' ]
    end;
-  repeat first [rewrite emp_sepcon | rewrite sepcon_emp];
-  pull_left (@TT mpred _);
-  first [ simpl; apply derives_refl'; solve [careful_unify]
+  repeat first [rewrite bi.emp_sep | rewrite bi.sep_emp];
+  pull_left True%I;
+  first [ simpl; apply entails_refl'; solve [careful_unify]
             (* this is NOT a _complete_ tactic;
-                 for example, "simple apply derives_refl" would be more complete.  But that
+                 for example, "simple apply entails_refl" would be more complete.  But that
                  tactic can sometimes take minutes to discover that something doesn't unify;
                  what I have here is a compromise between reliable speed, and (in)completeness.
                *)
-          | apply TT_right
-          | apply @sepcon_TT; solve [auto with nocore typeclass_instances]
-          | apply @TT_sepcon; solve [auto with nocore typeclass_instances]
+          | apply bi.True_intro
+          | apply @bi.sep_True_2; solve [auto with nocore typeclass_instances]
+          | apply @bi.True_sep_2; solve [auto with nocore typeclass_instances]
           | cancel_frame
           | idtac
           ].
 
-Inductive syntactic_cancel: list mpred -> list mpred -> list mpred -> list mpred -> Prop :=
+Section PROP.
+
+Context {PROP : bi}.
+
+Local Notation fold_right_sepcon := (@fold_right_sepcon PROP).
+
+Inductive syntactic_cancel: list PROP -> list PROP -> list PROP -> list PROP -> Prop :=
 | syntactic_cancel_nil: forall R, syntactic_cancel R nil R nil
 | syntactic_cancel_cons_succeed: forall n R0 R L0 L F Res,
-    find_nth_preds (fun R0 => R0 |-- L0) R (Some (n, R0)) ->
+    find_nth_preds (fun R0 => R0 ⊢ L0) R (Some (n, R0)) ->
     syntactic_cancel (delete_nth n R) L F Res ->
     syntactic_cancel R (L0 :: L) F Res
 | syntactic_cancel_cons_fail: forall R L0 L F Res,
-    find_nth_preds (fun R0 => R0 |-- L0) R None ->
+    find_nth_preds (fun R0 => R0 ⊢ L0) R None ->
     syntactic_cancel R L F Res ->
     syntactic_cancel R (L0 :: L) F (L0 :: Res).
 
 Lemma syntactic_cancel_cons: forall nR0 R L0 L F Res,
-  find_nth_preds (fun R0 => R0 |-- L0) R nR0 ->
+  find_nth_preds (fun R0 => R0 ⊢ L0) R nR0 ->
   syntactic_cancel match nR0 with
                    | Some (n, _) => delete_nth n R
                    | None => R
@@ -531,7 +518,7 @@ Qed.
 
 Lemma delete_nth_SEP: forall R n R0,
   nth_error R n = Some R0 ->
-  fold_right_sepcon R |-- R0 * fold_right_sepcon (delete_nth n R).
+  fold_right_sepcon R ⊢ R0 ∗ fold_right_sepcon (delete_nth n R).
 Proof.
   intros.
   revert R H; induction n; intros; destruct R; try solve [inv H].
@@ -541,57 +528,57 @@ Proof.
   + simpl in H.
     apply IHn in H.
     simpl.
-    rewrite <- sepcon_assoc, (sepcon_comm _ m), sepcon_assoc.
-    apply sepcon_derives; auto.
+    rewrite bi.sep_assoc (bi.sep_comm _ b) -bi.sep_assoc.
+    apply bi.sep_mono; auto.
 Qed.
 
 Lemma syntactic_cancel_solve1: forall F,
-  fold_right_sepcon F |-- fold_right_sepcon nil * fold_right_sepcon F.
+  fold_right_sepcon F ⊢ fold_right_sepcon nil ∗ fold_right_sepcon F.
 Proof.
   intros.
-  simpl; rewrite emp_sepcon; auto.
+  simpl; rewrite bi.emp_sep; auto.
 Qed.
 
 Lemma syntactic_cancel_solve2: forall G,
-  fold_right_sepcon G |-- fold_right_sepcon nil * TT.
+  fold_right_sepcon G ⊢ fold_right_sepcon nil ∗ True.
 Proof.
   intros.
-  simpl; rewrite emp_sepcon.
-  apply TT_right.
+  simpl; rewrite bi.emp_sep.
+  apply bi.True_intro.
 Qed.
 
 Lemma syntactic_cancel_spec1: forall G1 L1 G2 L2 F,
   syntactic_cancel G1 L1 G2 L2 ->
-  (fold_right_sepcon G2 |-- fold_right_sepcon L2 * F) ->
-  fold_right_sepcon G1 |-- fold_right_sepcon L1 * F.
+  (fold_right_sepcon G2 ⊢ fold_right_sepcon L2 ∗ F) ->
+  fold_right_sepcon G1 ⊢ fold_right_sepcon L1 ∗ F.
 Proof.
   intros.
   revert F H0; induction H; intros.
   + auto.
   + apply IHsyntactic_cancel in H1.
     simpl.
-    rewrite sepcon_assoc.
-    eapply derives_trans; [| apply sepcon_derives; [apply derives_refl | apply H1]].
+    rewrite -bi.sep_assoc.
+    etrans; [| apply bi.sep_mono; [done | apply H1]].
     clear IHsyntactic_cancel H1.
     apply find_nth_preds_Some in H.
     destruct H.
-    eapply derives_trans; [apply delete_nth_SEP; eauto |].
-    apply sepcon_derives; auto.
+    etrans; [apply delete_nth_SEP; eauto |].
+    apply bi.sep_mono; auto.
   + simpl in H1.
-    rewrite (sepcon_comm L0), sepcon_assoc in H1.
-    apply (IHsyntactic_cancel (L0*F0)) in H1.
-    eapply derives_trans; [exact H1 |].
+    rewrite (bi.sep_comm L0) -bi.sep_assoc in H1.
+    apply (IHsyntactic_cancel (L0∗F0)) in H1.
+    etrans; [exact H1 |].
     simpl.
-    rewrite <- sepcon_assoc.
-    apply sepcon_derives; auto.
-    rewrite sepcon_comm; auto.
+    rewrite bi.sep_assoc.
+    apply bi.sep_mono; auto.
+    rewrite bi.sep_comm; auto.
 Qed.
 
 Lemma syntactic_cancel_spec2: forall G1 L1 G2 L2 G3 L3 F,
   syntactic_cancel G1 L1 G2 L2 ->
   syntactic_cancel G2 L2 G3 L3 ->
-  (fold_right_sepcon G3 |-- fold_right_sepcon L3 * F) ->
-  fold_right_sepcon G1 |-- fold_right_sepcon L1 * F.
+  (fold_right_sepcon G3 ⊢ fold_right_sepcon L3 ∗ F) ->
+  fold_right_sepcon G1 ⊢ fold_right_sepcon L1 ∗ F.
 Proof.
   intros.
   eapply syntactic_cancel_spec1; eauto.
@@ -599,28 +586,310 @@ Proof.
 Qed.
 
 Lemma syntactic_cancel_solve3:
-  fold_right_sepcon nil |-- fold_right_sepcon nil.
+  fold_right_sepcon nil ⊢ fold_right_sepcon nil.
 Proof.
   auto.
 Qed.
 
 Lemma syntactic_cancel_spec3: forall G1 L1 G2 L2,
   syntactic_cancel G1 L1 G2 L2 ->
-  (fold_right_sepcon G2 |-- fold_right_sepcon L2) ->
-  fold_right_sepcon G1 |-- fold_right_sepcon L1.
+  (fold_right_sepcon G2 ⊢ fold_right_sepcon L2) ->
+  fold_right_sepcon G1 ⊢ fold_right_sepcon L1.
 Proof.
   intros.
-  rewrite <- (sepcon_emp (fold_right_sepcon L1)).
+  rewrite <- (bi.sep_emp (fold_right_sepcon L1)).
   eapply syntactic_cancel_spec1; eauto.
-  rewrite sepcon_emp; auto.
 Qed.
+
+Inductive merge_abnormal_PROP: PROP -> option PROP -> option PROP -> Prop :=
+| merge_abnormal_PROP_None: forall P, merge_abnormal_PROP P None (Some P)
+| merge_abnormal_PROP_TT_Some: forall P, merge_abnormal_PROP True (Some P) (Some P)
+| merge_abnormal_PROP_Some_TT: forall P, merge_abnormal_PROP P (Some True) (Some P).
+
+Inductive fold_abnormal_PROP: list PROP -> list PROP -> option PROP -> Prop :=
+| fold_abnormal_PROP_nil:
+    fold_abnormal_PROP nil nil None
+| fold_abnormal_PROP_TT: forall R res R' res',
+    fold_abnormal_PROP R R' res ->
+    merge_abnormal_PROP True res res' ->
+    fold_abnormal_PROP (True :: R) R' res'
+| fold_abnormal_PROP_fold: forall F R res R' res',
+    fold_abnormal_PROP R R' res ->
+    merge_abnormal_PROP (fold_right_sepcon F) res res' ->
+    fold_abnormal_PROP ((fold_right_sepcon F) :: R) R' res'
+| fold_abnormal_PROP_normal: forall P R R' res,
+    fold_abnormal_PROP R R' res ->
+    fold_abnormal_PROP (P :: R) (P :: R') res.
+
+Definition Some_or_emp (res: option PROP) := match res with | Some P => P | _ => emp end.
+
+Lemma merge_abnormal_PROP_spec: forall P res res',
+  merge_abnormal_PROP P res res' ->
+  Some_or_emp res' ⊢ P ∗ Some_or_emp res.
+Proof.
+  intros.
+  inv H; simpl.
+  + rewrite bi.sep_emp; auto.
+  + apply bi.True_sep_2.
+  + apply bi.sep_True_2.
+Qed.
+
+Lemma fold_abnormal_PROP_spec: forall R R' res,
+  fold_abnormal_PROP R R' res ->
+  fold_right_sepcon R' ∗ Some_or_emp res ⊢ fold_right_sepcon R.
+Proof.
+  intros.
+  induction H; simpl.
+  + rewrite bi.emp_sep; auto.
+  + apply merge_abnormal_PROP_spec in H0.
+    etrans; [apply bi.sep_mono; [done | apply H0] |].
+    rewrite bi.sep_assoc.
+    rewrite (bi.sep_comm _ True).
+    rewrite -bi.sep_assoc.
+    apply bi.sep_mono; auto.
+  + apply merge_abnormal_PROP_spec in H0.
+    etrans; [apply bi.sep_mono; [done | apply H0] |].
+    rewrite bi.sep_assoc.
+    rewrite (bi.sep_comm _ (fold_right_sepcon F)).
+    rewrite -bi.sep_assoc.
+    apply bi.sep_mono; auto.
+  + rewrite -bi.sep_assoc.
+    apply bi.sep_mono; auto.
+Qed.
+
+Inductive construct_fold_right_sepcon_rec: PROP -> list PROP -> list PROP -> Prop :=
+| construct_fold_right_sepcon_rec_sepcon: forall P Q R R' R'',
+    construct_fold_right_sepcon_rec Q R R' ->
+    construct_fold_right_sepcon_rec P R' R'' ->
+    construct_fold_right_sepcon_rec (P ∗ Q) R R''
+| construct_fold_right_sepcon_rec_emp: forall R,
+    construct_fold_right_sepcon_rec emp R R
+| construct_fold_right_sepcon_rec_single: forall P R,
+    construct_fold_right_sepcon_rec P R (P :: R).
+
+Local Unset Elimination Schemes. (* ensure that we avoid name collision with the above *)
+Inductive construct_fold_right_sepcon: PROP -> list PROP-> Prop :=
+| construct_fold_right_sepcon_constr: forall P R,
+    construct_fold_right_sepcon_rec P nil R ->
+    construct_fold_right_sepcon P R.
+Scheme Minimality for construct_fold_right_sepcon Sort Prop.
+Local Set Elimination Schemes.
+
+Lemma construct_fold_right_sepcon_spec: forall P R,
+  construct_fold_right_sepcon P R ->
+  fold_right_sepcon R ⊣⊢ P.
+Proof.
+  intros.
+  destruct H.
+  rename R into R'.
+  transitivity (fold_right_sepcon nil ∗ P).
+  2:{
+    simpl.
+    rewrite !bi.emp_sep.
+    auto.
+  }
+  forget (@nil PROP) as R.
+  induction H.
+  + etransitivity; [eassumption |].
+    transitivity ((fold_right_sepcon R ∗ Q) ∗ P); [f_equiv; eassumption |].
+    clear.
+    rewrite (bi.sep_comm P).
+    rewrite -!bi.sep_assoc; auto.
+  + rewrite bi.sep_emp; auto.
+  + simpl.
+    rewrite (bi.sep_comm _ P).
+    auto.
+Qed.
+
+Definition before_symbol_cancel (P Q: list PROP) (res: option PROP): Prop :=
+  match res with
+  | Some R => fold_right_sepcon P ⊢ fold_right_sepcon Q ∗ R
+  | None => fold_right_sepcon P ⊢ fold_right_sepcon Q
+  end.
+
+Lemma symbolic_cancel_setup: forall P P' Q Q' Q'' Qr,
+  construct_fold_right_sepcon P P' ->
+  construct_fold_right_sepcon Q Q' ->
+  fold_abnormal_PROP Q' Q'' Qr ->
+  before_symbol_cancel P' Q'' Qr ->
+  P ⊢ Q.
+Proof.
+  intros.
+  apply construct_fold_right_sepcon_spec in H.
+  apply construct_fold_right_sepcon_spec in H0.
+  apply fold_abnormal_PROP_spec in H1.
+  rewrite <- H, <- H0.
+  etrans; [| exact H1].
+  destruct Qr; auto.
+Qed.
+
+(*
+
+Export ListNotations.
+
+Goal forall A B C D E F G H I J K L: PROP,
+  A * B * (C * D) * (E * F * (G * H)) * (I * J * K * L) *
+  A * B * (C * D) * (E * F * (G * H)) * (I * J * K * L) ⊢
+  (I * J * (D * K) * L) * A * B * (C * H) * (E * F * G) *
+  (I * J * (D * K) * L) * A * B * (C * H) * (E * F * G).
+Proof.
+  intros.
+  Time
+  do 4
+  match goal with
+  | |- ?P => assert (P /\ P /\ P); [| tauto]; split; [| split]
+  end;
+  (rewrite -?bi.sep_assoc;
+  repeat match goal with |- ?A * _ ⊢ ?B * _ => 
+     constr_eq A B;  simple apply (cancel_left A)
+  end;
+  match goal with |- ?P ⊢ _ => qcancel P end;
+  repeat first [rewrite bi.emp_sep | rewrite bi.sep_emp];
+  try match goal with |- ?A ⊢ ?B => 
+       constr_eq A B; simple apply (entails_refl A)
+  end;
+  match goal with |- ?P ⊢ _ =>
+   (* The "emp" is a marker to notice when one complete pass has been made *)
+   rewrite <- (bi.emp_sep P)
+  end;
+  repeat rewrite bi.sep_assoc;
+  repeat match goal with
+    | |- sepcon _ emp ⊢ _ => fail 1
+    | |- sepcon _ TT ⊢ _ => pull_left (@TT PROP _)
+    | |- sepcon _ ?P' ⊢ _ => first [ cancel2 | pull_left P' ]
+   end;
+  repeat first [rewrite bi.emp_sep | rewrite bi.sep_emp];
+  pull_left (@TT PROP _);
+  first [ simpl; apply entails_refl'; solve [careful_unify]
+            (* this is NOT a _complete_ tactic;
+                 for example, "simple apply entails_refl" would be more complete.  But that
+                 tactic can sometimes take minutes to discover that something doesn't unify;
+                 what I have here is a compromise between reliable speed, and (in)completeness.
+               *)
+          | apply bi.True_intro
+          | apply @bi.sep_True_2; solve [auto with nocore typeclass_instances]
+          | apply @bi.True_sep_2; solve [auto with nocore typeclass_instances]
+          | cancel_frame
+          | idtac
+          ]).
+
+
+  cancel. (* New cancel: 8.983 9.199 8.599 *)
+          (* Old cancel: 133.919 133.224 138.729 *)
+Abort
+
+
+
+
+Goal forall A B C D: PROP,
+  A * B * (C * A) * B ⊢ B * (A * A) * TT.
+Proof.
+  intros.
+  Time
+  do 4
+  match goal with
+  | |- ?P => assert (P /\ P /\ P); [| tauto]; split; [| split]
+  end;
+(* cancel. (* 4.323 4.275 3.887 3.763 3.684 3.66 3.6 3.534 3.616 3.6 3.591 3.606 *) *)
+(*  new_cancel. (* 0.615 0.656 0.655 0.653 0.687 *) *)
+
+Goal forall A B C D: PROP,
+  A * B * (C * fold_right_sepcon [A; B] * A) * B ⊢ B * (A * A) * fold_right_sepcon [A; B].
+Proof.
+  intros.
+  cancel.
+
+Goal forall A B C D: PROP,
+  A * B * (C * A) * B ⊢ B * TT * (A * A).
+Proof.
+  intros.
+  new_cancel.
+
+Goal forall A B C D: PROP, exists F': list PROP,
+  let F := F' in
+  A * B * (C * A) * B ⊢ B * (A * A) * fold_right_sepcon F.
+Proof.
+  intros; eexists; intros.
+  new_cancel.
+
+Goal forall A B C D: PROP,
+  A * B * (C * A) * B ⊢ B * (A * D).
+Proof.
+  intros.
+  new_cancel.
+
+
+Goal forall A B C D: PROP,
+  fold_right_sepcon [A; B; C; A; B] ⊢ fold_right_sepcon [B; A; D].
+Proof.
+  intros.
+  cancel_for_normal.
+
+Goal forall A B C D: PROP,
+  fold_right_sepcon [A; B; C; A; B] ⊢ fold_right_sepcon [B; A] * TT.
+Proof.
+  intros.
+  cancel_for_TT.
+
+Goal forall A B C D: PROP, exists F: list PROP,
+  fold_right_sepcon [A; B; C; A; B] ⊢ fold_right_sepcon [B; A] * fold_right_sepcon F.
+Proof.
+  intros.
+  eexists.
+  cancel_for_evar_frame.
+*)
+
+Lemma wand_refl_cancel_right:
+  forall (P: PROP), emp ⊢ P -∗ P.
+Proof.
+  iIntros; done.
+Qed.
+
+Lemma cancel_emp_wand:
+  forall P Q R: PROP,
+    (P ⊢ Q) ->
+    P ⊢ Q ∗ (R -∗ R).
+Proof.
+  intros ??? ->.
+  iIntros "$ $".
+Qed.
+
+Lemma allp_instantiate:
+   forall {B} (P : B -> PROP) (x : B),
+       (∀ y : B, P y) ⊢ P x.
+Proof.
+  intros; apply bi.forall_elim.
+Qed.
+
+(* these two lemmas work better with new sep_apply and sep_eapply *)
+Lemma allp_instantiate': forall (B : Type) (P : B -> PROP) (x : B),
+  bi_forall P ⊢ P x.
+Proof. intros. apply allp_instantiate. Qed.
+
+Lemma wand_frame_elim'': forall (P Q : PROP),
+  (P -∗ Q) ∗ P ⊢ Q.
+Proof. apply bi.wand_elim_l. Qed.
+
+Lemma prop_sepcon: forall P (Q : PROP), ⌜P⌝ ∗ Q ⊣⊢ ⌜P⌝ ∧ (True ∗ Q).
+Proof.
+  intros.
+  iSplit; iIntros "($ & $)"; done.
+Qed.
+
+Lemma prop_sepcon2: forall P (Q : PROP), Q ∗ ⌜P⌝ ⊣⊢ ⌜P⌝ ∧ (True ∗ Q).
+Proof.
+  intros.
+  rewrite bi.sep_comm. apply prop_sepcon.
+Qed.
+
+End PROP.
 
 Ltac local_cancel_in_syntactic_cancel unify_tac :=
   cbv beta;
-  match goal with |- ?A |-- ?B => 
-    solve [ constr_eq A B; simple apply (derives_refl A)
+  match goal with |- ?A ⊢ ?B => 
+    solve [ constr_eq A B; simple apply (entails_refl A)
           | tryif first [has_evar A | has_evar B] then fail else auto with nocore cancel
-          | apply derives_refl'; unify_tac ]
+          | apply entails_refl'; unify_tac ]
   end.
 
 Ltac syntactic_cancel local_tac :=
@@ -632,20 +901,20 @@ Ltac syntactic_cancel local_tac :=
            ]
          ].
 
-(* To solve: Frame := ?Frame |- fold_right_sepcon G |-- fold_right_sepcon L * fold_right_sepcon Frame *)
+(* To solve: Frame := ?Frame |- fold_right_sepcon G ⊢ fold_right_sepcon L * fold_right_sepcon Frame *)
 Ltac cancel_for_evar_frame' local_tac :=
   eapply syntactic_cancel_spec1;
   [ syntactic_cancel local_tac
   | cbv iota; cbv zeta beta;
     first [ match goal with
-            | |- _ |-- _ * fold_right_sepcon ?F => try unfold F
+            | |- _ ⊢ _ * fold_right_sepcon ?F => try unfold F
             end;
             simple apply syntactic_cancel_solve1
           | match goal with
-            | |- fold_right_sepcon ?A |-- fold_right_sepcon ?B * ?C =>
+            | |- fold_right_sepcon ?A ⊢ fold_right_sepcon ?B ∗ ?C =>
                   let a := fresh in let b := fresh in let c := fresh in 
                   pose (a:=A); pose (b:=B); pose (c:=C);
-                  change (fold_right_sepcon a |-- fold_right_sepcon b * c);
+                  change (fold_right_sepcon a ⊢ fold_right_sepcon b ∗ c);
                   rewrite <- fold_left_sepconx_eq;
                   subst a b c
 (*                  rewrite <- (fold_left_sepconx_eq A), <- (fold_left_sepconx_eq B) *)
@@ -653,17 +922,17 @@ Ltac cancel_for_evar_frame' local_tac :=
             unfold fold_left_sepconx; cbv iota beta ]
   ].
 
-(* To solve: |- fold_right_sepcon G |-- fold_right_sepcon L * TT *)
+(* To solve: |- fold_right_sepcon G ⊢ fold_right_sepcon L * TT *)
 Ltac cancel_for_TT local_tac :=
   eapply syntactic_cancel_spec1;
   [ syntactic_cancel local_tac
   | cbv iota; cbv zeta beta;
     first [ simple apply syntactic_cancel_solve2
           | match goal with
-            | |- fold_right_sepcon ?A |-- fold_right_sepcon ?B * ?C =>
+            | |- fold_right_sepcon ?A ⊢ fold_right_sepcon ?B ∗ ?C =>
                   let a := fresh in let b := fresh in let c := fresh in 
                   pose (a:=A); pose (b:=B); pose (c:=C);
-                  change (fold_right_sepcon a |-- fold_right_sepcon b * c);
+                  change (fold_right_sepcon a ⊢ fold_right_sepcon b ∗ c);
                   rewrite <- fold_left_sepconx_eq;
                   subst a b c
 (* rewrite <- (fold_left_sepconx_eq A), <- (fold_left_sepconx_eq B) *)
@@ -677,10 +946,10 @@ Ltac cancel_for_normal local_tac :=
   | cbv iota; cbv zeta beta;
     first [ simple apply syntactic_cancel_solve3
           | match goal with
-            | |- fold_right_sepcon ?A |-- fold_right_sepcon ?B =>
+            | |- fold_right_sepcon ?A ⊢ fold_right_sepcon ?B =>
                   let a := fresh in let b := fresh in
                   pose (a:=A); pose (b:=B);
-                  change (fold_right_sepcon a |-- fold_right_sepcon b);
+                  change (fold_right_sepcon a ⊢ fold_right_sepcon b);
                   rewrite <- fold_left_sepconx_eq;
                   subst a b
 (*  rewrite <- (fold_left_sepconx_eq A), <- (fold_left_sepconx_eq B) *)
@@ -691,149 +960,25 @@ Ltac cancel_for_normal local_tac :=
 
 (* return Some true exists TT, return Some false if exists fold_right_sepcon. *)
 (* unused?
-Ltac Check_normal_mpred_list_rec L :=
+Ltac Check_normal_PROP_list_rec L :=
   match L with
   | nil => constr:(@None bool)
   | cons TT _ => constr:(Some true)
   | cons (fold_right_sepcon _) _ => constr:(Some false)
-  | cons _ ?L0 => Check_normal_mpred_list_rec L0
+  | cons _ ?L0 => Check_normal_PROP_list_rec L0
   end.
 
 Ltac Check_pre_no_TT L :=
-  let res := Check_normal_mpred_list_rec L in
+  let res := Check_normal_PROP_list_rec L in
   match res with
   | Some true => fail 1000 "No TT should appear in the SEP clause of a funcspec's precondition"
   | _ => idtac
   end.
 *)
 
-Inductive merge_abnormal_mpred: mpred -> option mpred -> option mpred -> Prop :=
-| merge_abnormal_mpred_None: forall P, merge_abnormal_mpred P None (Some P)
-| merge_abnormal_mpred_TT_Some: forall P, merge_abnormal_mpred TT (Some P) (Some P)
-| merge_abnormal_mpred_Some_TT: forall P, merge_abnormal_mpred P (Some TT) (Some P).
-
-Inductive fold_abnormal_mpred: list mpred -> list mpred -> option mpred -> Prop :=
-| fold_abnormal_mpred_nil:
-    fold_abnormal_mpred nil nil None
-| fold_abnormal_mpred_TT: forall R res R' res',
-    fold_abnormal_mpred R R' res ->
-    merge_abnormal_mpred TT res res' ->
-    fold_abnormal_mpred (TT :: R) R' res'
-| fold_abnormal_mpred_fold: forall F R res R' res',
-    fold_abnormal_mpred R R' res ->
-    merge_abnormal_mpred (fold_right_sepcon F) res res' ->
-    fold_abnormal_mpred ((fold_right_sepcon F) :: R) R' res'
-| fold_abnormal_mpred_normal: forall P R R' res,
-    fold_abnormal_mpred R R' res ->
-    fold_abnormal_mpred (P :: R) (P :: R') res.
-
-Definition Some_or_emp (res: option mpred) := match res with | Some P => P | _ => emp end.
-
-Lemma merge_abnormal_mpred_spec: forall P res res',
-  merge_abnormal_mpred P res res' ->
-  Some_or_emp res' |-- P * Some_or_emp res.
-Proof.
-  intros.
-  inv H; simpl.
-  + rewrite sepcon_emp; auto.
-  + apply TT_sepcon.
-  + apply sepcon_TT.
-Qed.
-
-Lemma fold_abnormal_mpred_spec: forall R R' res,
-  fold_abnormal_mpred R R' res ->
-  fold_right_sepcon R' * Some_or_emp res |-- fold_right_sepcon R.
-Proof.
-  intros.
-  induction H; simpl.
-  + rewrite emp_sepcon; auto.
-  + apply merge_abnormal_mpred_spec in H0.
-    eapply derives_trans; [apply sepcon_derives; [apply derives_refl | apply H0] |].
-    rewrite <- sepcon_assoc.
-    rewrite (sepcon_comm _ TT).
-    rewrite sepcon_assoc.
-    apply sepcon_derives; auto.
-  + apply merge_abnormal_mpred_spec in H0.
-    eapply derives_trans; [apply sepcon_derives; [apply derives_refl | apply H0] |].
-    rewrite <- sepcon_assoc.
-    rewrite (sepcon_comm _ (fold_right_sepcon F)).
-    rewrite sepcon_assoc.
-    apply sepcon_derives; auto.
-  + rewrite sepcon_assoc.
-    apply sepcon_derives; auto.
-Qed.
-
-Inductive construct_fold_right_sepcon_rec: mpred -> list mpred -> list mpred -> Prop :=
-| construct_fold_right_sepcon_rec_sepcon: forall P Q R R' R'',
-    construct_fold_right_sepcon_rec Q R R' ->
-    construct_fold_right_sepcon_rec P R' R'' ->
-    construct_fold_right_sepcon_rec (P * Q) R R''
-| construct_fold_right_sepcon_rec_emp: forall R,
-    construct_fold_right_sepcon_rec emp R R
-| construct_fold_right_sepcon_rec_single: forall P R,
-    construct_fold_right_sepcon_rec P R (P :: R).
-
-Local Unset Elimination Schemes. (* ensure that we avoid name collision with the above *)
-Inductive construct_fold_right_sepcon: mpred -> list mpred-> Prop :=
-| construct_fold_right_sepcon_constr: forall P R,
-    construct_fold_right_sepcon_rec P nil R ->
-    construct_fold_right_sepcon P R.
-Scheme Minimality for construct_fold_right_sepcon Sort Prop.
-Local Set Elimination Schemes.
-
-Lemma construct_fold_right_sepcon_spec: forall P R,
-  construct_fold_right_sepcon P R ->
-  fold_right_sepcon R = P.
-Proof.
-  intros.
-  destruct H.
-  rename R into R'.
-  transitivity (fold_right_sepcon nil * P).
-  2:{
-    simpl.
-    rewrite !emp_sepcon.
-    auto.
-  }
-  forget (@nil mpred) as R.
-  induction H.
-  + etransitivity; [eassumption |].
-    transitivity (fold_right_sepcon R * Q * P); [f_equal; eassumption |].
-    clear.
-    rewrite (sepcon_comm P).
-    rewrite !sepcon_assoc; auto.
-  + rewrite sepcon_emp; auto.
-  + simpl.
-    rewrite (sepcon_comm _ P).
-    auto.
-Qed.
-
-Definition before_symbol_cancel (P Q: list mpred) (res: option mpred): Prop :=
-  match res with
-  | Some R => fold_right_sepcon P |-- fold_right_sepcon Q * R
-  | None => fold_right_sepcon P |-- fold_right_sepcon Q
-  end.
-
-Lemma symbolic_cancel_setup: forall P P' Q Q' Q'' Qr,
-  construct_fold_right_sepcon P P' ->
-  construct_fold_right_sepcon Q Q' ->
-  fold_abnormal_mpred Q' Q'' Qr ->
-  before_symbol_cancel P' Q'' Qr ->
-  P |-- Q.
-Proof.
-  intros.
-  apply construct_fold_right_sepcon_spec in H.
-  apply construct_fold_right_sepcon_spec in H0.
-  apply fold_abnormal_mpred_spec in H1.
-  rewrite <- H, <- H0.
-  eapply derives_trans; [| exact H1].
-  destruct Qr; auto.
-  simpl in H2 |- *.
-  rewrite sepcon_emp; auto.
-Qed.
-
 Ltac construct_fold_right_sepcon_rec :=
   match goal with
-  | |- construct_fold_right_sepcon_rec (sepcon _ _) _ _ =>
+  | |- construct_fold_right_sepcon_rec (bi_sep _ _) _ _ =>
          eapply construct_fold_right_sepcon_rec_sepcon;
          [construct_fold_right_sepcon_rec | construct_fold_right_sepcon_rec]
   | |- construct_fold_right_sepcon_rec ?A ?X ?Y =>
@@ -845,11 +990,11 @@ Ltac construct_fold_right_sepcon_rec :=
          apply construct_fold_right_sepcon_rec_single
   end.
 
-Ltac merge_abnormal_mpred :=
+Ltac merge_abnormal_PROP :=
   first
-  [ simple apply merge_abnormal_mpred_None
-  | simple apply merge_abnormal_mpred_TT_Some
-  | simple apply merge_abnormal_mpred_Some_TT
+  [ simple apply merge_abnormal_PROP_None
+  | simple apply merge_abnormal_PROP_TT_Some
+  | simple apply merge_abnormal_PROP_Some_TT
   | fail 1000 "There should not be two fold_right_sepcon in the right side."
   ].
 
@@ -859,30 +1004,30 @@ Ltac construct_fold_right_sepcon :=
 
 Ltac is_evar_def F := try first [is_var F; unfold F; fail 1 | fail 2 F "is not evar definition"].
 
-Ltac fold_abnormal_mpred :=
+Ltac fold_abnormal_PROP :=
   match goal with
-  | |- fold_abnormal_mpred nil _ _ =>
-         simple apply fold_abnormal_mpred_nil
-  | |- fold_abnormal_mpred (?P :: _) _ _ =>
+  | |- fold_abnormal_PROP nil _ _ =>
+         simple apply fold_abnormal_PROP_nil
+  | |- fold_abnormal_PROP (?P :: _) _ _ =>
          match P with
-         | TT => simple eapply fold_abnormal_mpred_TT; [fold_abnormal_mpred | merge_abnormal_mpred]
-         | prop True => simple eapply fold_abnormal_mpred_TT; [fold_abnormal_mpred | merge_abnormal_mpred]
+         | True%I => simple eapply fold_abnormal_PROP_TT; [fold_abnormal_PROP | merge_abnormal_PROP]
+         | ⌜True⌝ => simple eapply fold_abnormal_PROP_TT; [fold_abnormal_PROP | merge_abnormal_PROP]
          | fold_right_sepcon ?F =>
               is_evar_def F;
-              simple eapply fold_abnormal_mpred_fold; [fold_abnormal_mpred | merge_abnormal_mpred]
-         | _ => simple apply fold_abnormal_mpred_normal; fold_abnormal_mpred
+              simple eapply fold_abnormal_PROP_fold; [fold_abnormal_PROP | merge_abnormal_PROP]
+         | _ => simple apply fold_abnormal_PROP_normal; fold_abnormal_PROP
          end
   end.
 
 Ltac new_cancel local_tac :=
   match goal with
-  | |- @derives mpred Nveric _ _ => idtac
-  | _ => fail "Tactic cancel can only handle proof goals with form _ |-- _ (unlifted version)."
+  | |- _ ⊢ _ => idtac
+  | _ => fail "Tactic cancel can only handle proof goals with form _ ⊢ _ (unlifted version)."
   end;
   eapply symbolic_cancel_setup;
   [ construct_fold_right_sepcon
   | construct_fold_right_sepcon
-  | fold_abnormal_mpred
+  | fold_abnormal_PROP
   | match goal with
     | |- before_symbol_cancel _ _ None =>
            cbv iota beta delta [before_symbol_cancel];
@@ -890,10 +1035,10 @@ Ltac new_cancel local_tac :=
     | |- before_symbol_cancel _ _ (Some (fold_right_sepcon _)) =>
            cbv iota beta delta [before_symbol_cancel];
            cancel_for_evar_frame' local_tac
-    | |- before_symbol_cancel _ _ (Some TT) =>
+    | |- before_symbol_cancel _ _ (Some True) =>
            cbv iota beta delta [before_symbol_cancel];
            cancel_for_TT local_tac
-    | |- before_symbol_cancel _ _ (Some (prop True)) =>
+    | |- before_symbol_cancel _ _ (Some ⌜True⌝) =>
            cbv iota beta delta [before_symbol_cancel];
            cancel_for_TT local_tac
     end
@@ -905,10 +1050,10 @@ Ltac cancel_unify_tac :=
 
 Ltac cancel_local_tac :=
   cbv beta;
-  match goal with |- ?A |-- ?B =>
-    solve [ constr_eq A B; simple apply (derives_refl A)
+  match goal with |- ?A ⊢ ?B =>
+    solve [ constr_eq A B; simple apply (entails_refl A)
           | auto with nocore cancel
-          | apply derives_refl'; cancel_unify_tac]
+          | apply entails_refl'; cancel_unify_tac]
   end.
 
 Ltac cancel ::= new_cancel cancel_local_tac.
@@ -943,144 +1088,28 @@ Ltac info_ecancel_local_tac :=
 
 Ltac info_ecancel := info_cancel; new_cancel info_ecancel_local_tac.
 
-(*
-
-Export ListNotations.
-
-Goal forall A B C D E F G H I J K L: mpred,
-  A * B * (C * D) * (E * F * (G * H)) * (I * J * K * L) *
-  A * B * (C * D) * (E * F * (G * H)) * (I * J * K * L) |--
-  (I * J * (D * K) * L) * A * B * (C * H) * (E * F * G) *
-  (I * J * (D * K) * L) * A * B * (C * H) * (E * F * G).
-Proof.
-  intros.
-  Time
-  do 4
-  match goal with
-  | |- ?P => assert (P /\ P /\ P); [| tauto]; split; [| split]
-  end;
-  (rewrite ?sepcon_assoc;
-  repeat match goal with |- ?A * _ |-- ?B * _ => 
-     constr_eq A B;  simple apply (cancel_left A)
-  end;
-  match goal with |- ?P |-- _ => qcancel P end;
-  repeat first [rewrite emp_sepcon | rewrite sepcon_emp];
-  try match goal with |- ?A |-- ?B => 
-       constr_eq A B; simple apply (derives_refl A)
-  end;
-  match goal with |- ?P |-- _ =>
-   (* The "emp" is a marker to notice when one complete pass has been made *)
-   rewrite <- (emp_sepcon P)
-  end;
-  repeat rewrite <- sepcon_assoc;
-  repeat match goal with
-    | |- sepcon _ emp |-- _ => fail 1
-    | |- sepcon _ TT |-- _ => pull_left (@TT mpred _)
-    | |- sepcon _ ?P' |-- _ => first [ cancel2 | pull_left P' ]
-   end;
-  repeat first [rewrite emp_sepcon | rewrite sepcon_emp];
-  pull_left (@TT mpred _);
-  first [ simpl; apply derives_refl'; solve [careful_unify]
-            (* this is NOT a _complete_ tactic;
-                 for example, "simple apply derives_refl" would be more complete.  But that
-                 tactic can sometimes take minutes to discover that something doesn't unify;
-                 what I have here is a compromise between reliable speed, and (in)completeness.
-               *)
-          | apply TT_right
-          | apply @sepcon_TT; solve [auto with nocore typeclass_instances]
-          | apply @TT_sepcon; solve [auto with nocore typeclass_instances]
-          | cancel_frame
-          | idtac
-          ]).
-
-
-  cancel. (* New cancel: 8.983 9.199 8.599 *)
-          (* Old cancel: 133.919 133.224 138.729 *)
-Abort
-
-
-
-
-Goal forall A B C D: mpred,
-  A * B * (C * A) * B |-- B * (A * A) * TT.
-Proof.
-  intros.
-  Time
-  do 4
-  match goal with
-  | |- ?P => assert (P /\ P /\ P); [| tauto]; split; [| split]
-  end;
-(* cancel. (* 4.323 4.275 3.887 3.763 3.684 3.66 3.6 3.534 3.616 3.6 3.591 3.606 *) *)
-(*  new_cancel. (* 0.615 0.656 0.655 0.653 0.687 *) *)
-
-Goal forall A B C D: mpred,
-  A * B * (C * fold_right_sepcon [A; B] * A) * B |-- B * (A * A) * fold_right_sepcon [A; B].
-Proof.
-  intros.
-  cancel.
-
-Goal forall A B C D: mpred,
-  A * B * (C * A) * B |-- B * TT * (A * A).
-Proof.
-  intros.
-  new_cancel.
-
-Goal forall A B C D: mpred, exists F': list mpred,
-  let F := F' in
-  A * B * (C * A) * B |-- B * (A * A) * fold_right_sepcon F.
-Proof.
-  intros; eexists; intros.
-  new_cancel.
-
-Goal forall A B C D: mpred,
-  A * B * (C * A) * B |-- B * (A * D).
-Proof.
-  intros.
-  new_cancel.
-
-
-Goal forall A B C D: mpred,
-  fold_right_sepcon [A; B; C; A; B] |-- fold_right_sepcon [B; A; D].
-Proof.
-  intros.
-  cancel_for_normal.
-
-Goal forall A B C D: mpred,
-  fold_right_sepcon [A; B; C; A; B] |-- fold_right_sepcon [B; A] * TT.
-Proof.
-  intros.
-  cancel_for_TT.
-
-Goal forall A B C D: mpred, exists F: list mpred,
-  fold_right_sepcon [A; B; C; A; B] |-- fold_right_sepcon [B; A] * fold_right_sepcon F.
-Proof.
-  intros.
-  eexists.
-  cancel_for_evar_frame.
-*)
-
 Ltac apply_find_core X :=
  match X with
  | ?U -> ?V => match type of U with Prop => apply_find_core V end
- | @derives mpred _ _ _ => constr:(X)
- | @eq mpred ?A ?B => constr:(@derives mpred A B)
+ | _ ⊢ _ => constr:(X)
+ | ?A = ?B => constr:(A ⊢ B)
  end.
 
-Lemma adjust_sep_apply:  forall (Q: mpred) (P: Prop),
-   (Q |-- !! P) ->
-   Q |-- !! P && Q.
-Proof. intros. apply andp_right; auto. Qed.
+Lemma adjust_sep_apply:  forall {PROP : bi} (Q: PROP) (P: Prop),
+   (Q ⊢ ⌜P⌝) ->
+   Q ⊢ ⌜P⌝ ∧ Q.
+Proof. intros. apply bi.and_intro; auto. Qed.
 
 Ltac adjust_sep_apply H :=
  match type of H with 
- | _ |-- !! _ => constr:(adjust_sep_apply _ _ H)
+ | _ ⊢ ⌜_⌝ => constr:(adjust_sep_apply _ _ H)
  | _ => H
  end.
 
 Ltac adjust2_sep_apply H :=
  let x := adjust_sep_apply H in
  match type of x with
- | @eq mpred _ _ => constr:(derives_refl' _ _ x)
+ | _ = _ => constr:(entails_refl' _ _ x)
  | _ => x
  end.
 
@@ -1088,15 +1117,15 @@ Ltac cancel_for_sep_apply := ecancel.
 
 Ltac sep_apply_aux2 H' := 
 match type of H' with ?TH =>
-     match apply_find_core TH with  ?C |-- ?D =>
-      let frame := fresh "frame" in evar (frame: list mpred);
-       apply derives_trans with (C * fold_right_sepcon frame);
+     match apply_find_core TH with @bi_entails ?PROP ?C ?D =>
+      let frame := fresh "frame" in evar (frame: list PROP);
+       trans (C ∗ fold_right_sepcon frame);
              [ solve [cancel_for_sep_apply]
-             | eapply derives_trans; 
-                [apply sepcon_derives; [clear frame; apply H' | apply derives_refl] 
+             | etrans; 
+                [apply bi.sep_mono; [clear frame; apply H' | apply entails_refl] 
                 |  let x := fresh "x" in set (x := fold_right_sepcon frame);
                   subst frame; unfold fold_right_sepcon in x; subst x; 
-                  rewrite ?sepcon_emp
+                  rewrite ?bi.sep_emp
                 ]
              ]
      end
@@ -1108,15 +1137,15 @@ Ltac head_of_type_of H :=
 Ltac sep_apply_aux1 H := 
  let B := head_of_type_of H in
  lazymatch B with
- | ?A |-- _ =>
+ | ?A ⊢ _ =>
    lazymatch A with
-   | context [!! ?P && _] =>
+   | context [⌜?P⌝ ∧ _] =>
       let H' := fresh in
       assert (H' := H);
-      rewrite ?(andp_assoc (!! P)) in H';
+      rewrite ?(bi.and_assoc (⌜P⌝)) in H';
       let H := fresh in 
       assert (H:P);
-       [ clear H' | rewrite (prop_true_andp P) in H' by apply H; clear H;
+       [ clear H' | rewrite -> (prop_true_andp P) in H' by apply H; clear H;
            sep_apply_aux1 H'; clear H' ]
    | _ => sep_apply_aux2 H
     end
@@ -1125,7 +1154,7 @@ Ltac sep_apply_aux1 H :=
 Ltac sep_apply_aux0 H :=
  let B := head_of_type_of H in
  lazymatch B with
- | ?A ?D |-- _ =>
+ | ?A ?D ⊢ _ =>
     tryif (match type of D with ?DT => constr_eq DT globals end)
    then
     (tryif (unfold A in H) then sep_apply_aux1 H
@@ -1138,7 +1167,7 @@ Ltac sep_apply_aux0 H :=
  end.
 
 Ltac sep_apply_in_entailment H :=
-    match goal with |- _ |-- _ =>
+    match goal with |- _ ⊢ _ =>
      let H' := adjust2_sep_apply H in
          sep_apply_aux0 H'
     end.
@@ -1177,37 +1206,19 @@ Ltac new_sep_apply_in_entailment originalH evar_tac prop_tac :=
           ltac:(fun x => sep_apply_in_entailment_rec (H x))
           evar_tac
       end
-    | ?A |-- ?B => sep_apply_in_entailment H
+    | ?A ⊢ ?B => sep_apply_in_entailment H
     | ?A = ?B => sep_apply_in_entailment H
     | _ => fail 0 originalH "is not an entailment"
     end
   in
   sep_apply_in_entailment_rec originalH.
 
-Lemma wand_refl_cancel_right:
-  forall {A}{ND: NatDed A} {SL: SepLog A}{CA: ClassicalSep A}
-    (P: A),  emp |-- P -* P.
-Proof.
-intros. apply wand_sepcon_adjoint.
-rewrite emp_sepcon. apply derives_refl.
-Qed.
-
-Lemma cancel_emp_wand:
-  forall P Q R: mpred,
-    (P |-- Q) ->
-    P |-- Q * (R -* R).
-Proof.
-intros. rewrite <- (sepcon_emp P).
-apply sepcon_derives; auto.
-apply wand_refl_cancel_right.
-Qed.
-
 Ltac cancel_wand :=
   repeat
-  match goal with |- _ |-- ?B =>
-    match B with context [?A -* ?A] =>
-    rewrite ?sepcon_assoc;
-    pull_right (A -* A);
+  match goal with |- _ ⊢ ?B =>
+    match B with context [?A -∗ ?A] =>
+    rewrite -?bi.sep_assoc;
+    pull_right (A -∗ A);
     first [apply cancel_emp_wand | apply wand_refl_cancel_right]
     end
   end.
@@ -1233,55 +1244,44 @@ rewrite_strat (topdown hints test888).
 match goal with |- S n = S n => reflexivity end.
 Qed.  (* Yes, this works in Coq 8.7.2 *)
 
-
 Ltac normalize1 :=
          match goal with
-            | |- context [@andp ?A (@LiftNatDed ?T ?B ?C) ?D ?E ?F] =>
-                      change (@andp A (@LiftNatDed T B C) D E F) with (D F && E F)
-            | |- context [@later ?A  (@LiftNatDed ?T ?B ?C) (@LiftIndir ?X1 ?X2 ?X3 ?X4 ?X5) ?D ?F] =>
-                   change (@later A  (@LiftNatDed T B C) (@LiftIndir X1 X2 X3 X4 X5) D F)
-                     with (@later B C X5 (D F))
-            | |- context [@sepcon ?A (@LiftNatDed ?B ?C ?D)
-                                                         (@LiftSepLog ?E ?F ?G ?H) ?J ?K ?L] =>
-                   change (@sepcon A (@LiftNatDed B C D) (@LiftSepLog E F G H) J K L)
-                      with (@sepcon C D H (J L) (K L))
-            | |- context [(?P && ?Q) * ?R] => rewrite (corable_andp_sepcon1 P Q R) by (auto with norm)
-            | |- context [?Q * (?P && ?R)] => rewrite (corable_sepcon_andp1 P Q R) by (auto with norm)
-            | |- context [(?Q && ?P) * ?R] => rewrite (corable_andp_sepcon2 P Q R) by (auto with norm)
-            | |- context [?Q * (?R && ?P)] => rewrite (corable_sepcon_andp2 P Q R) by (auto with norm)
-            | |-  derives ?A   ?B => match A with
-                   | FF => apply FF_left
-                   | !! _ => apply derives_extract_prop0
-                   | exp (fun y => _) => apply imp_extract_exp_left; (intro y || intro)
-                   | !! _ && _ => apply derives_extract_prop
-                   | _ && !! _ => apply derives_extract_prop'
-                   | context [ ((!! ?P) && ?Q) && ?R ] => rewrite (andp_assoc (!!P) Q R)
-                   | context [ ?Q && (!! ?P && ?R)] =>
-                                  match Q with !! _ => fail 2 | _ => rewrite (andp_assoc' (!!P) Q R) end
+            | |- bi_entails(PROP := monPredI _ _) _ _ => let rho := fresh "rho" in split => rho; monPred.unseal
+            | |- context [((?P ∧ ?Q) ∗ ?R)%I] => rewrite <- (bi.persistent_and_sep_assoc P Q R) by (auto with norm)
+            | |- context [(?Q ∗ (?P ∧ ?R))%I] => rewrite -> (persistent_and_sep_assoc' P Q R) by (auto with norm)
+            | |- context [((?Q ∧ ?P) ∗ ?R)%I] => rewrite <- (bi.persistent_and_sep_assoc P Q R) by (auto with norm)
+            | |- context [(?Q ∗ (?R ∧ ?P))%I] => rewrite -> (persistent_and_sep_assoc' P Q R) by (auto with norm)
+            | |-  bi_entails ?A ?B => match A with
+                   | False => apply bi.False_elim
+                   | ⌜_⌝ => apply bi.pure_elim'
+                   | bi_exist (fun y => _) => apply bi.exist_elim; (intro y || intro)
+                   | ⌜_⌝ ∧ _ => apply bi.pure_elim_l
+                   | _ ∧ ⌜_⌝ => apply bi.pure_elim_r
+                   | context [ (⌜?P⌝ ∧ ?Q) ∧ ?R ] => rewrite -(bi.and_assoc (⌜P⌝) Q R)
+                   | context [ ?Q ∧ (⌜?P⌝ ∧ ?R)] =>
+                                  match Q with ⌜_⌝ => fail 2 | _ => rewrite (bi.and_assoc (⌜P⌝) Q R) end
                  (* In the next four rules, doing it this way (instead of leaving it to autorewrite)
                     preserves the name of the "y" variable *)
-                   | context [andp (exp (fun y => _)) _] =>
+                   | context [(∃ y, _) ∧ _] =>
                                let BB := fresh "BB" in set (BB:=B); norm_rewrite; unfold BB; clear BB;
-                               apply imp_extract_exp_left; intro y
-                   | context [andp _ (exp (fun y => _))] =>
+                               apply bi.exist_elim; intro y
+                   | context [_ ∧ (∃ y, _)] =>
                                let BB := fresh "BB" in set (BB:=B); norm_rewrite; unfold BB; clear BB;
-                               apply imp_extract_exp_left; intro y
-                   | context [sepcon (exp (fun y => _)) _] =>
+                               apply bi.exist_elim; intro y
+                   | context [(∃ y, _) ∗ _] =>
                                let BB := fresh "BB" in set (BB:=B); norm_rewrite; unfold BB; clear BB;
-                               apply imp_extract_exp_left; intro y
-                   | context [sepcon _ (exp (fun y => _))] =>
+                               apply bi.exist_elim; intro y
+                   | context [_ ∗ (∃ y, _)] =>
                                let BB := fresh "BB" in set (BB:=B); norm_rewrite; unfold BB; clear BB;
-                                apply imp_extract_exp_left; intro y
-                   | _ => simple apply TT_prop_right
-                   | _ => simple apply TT_right
-                   | _ => constr_eq A B; apply derives_refl
+                                apply bi.exist_elim; intro y
+                   | _ => simple apply bi.pure_intro
+                   | _ => simple apply bi.True_intro
+                   | _ => constr_eq A B; done
                    end
               | |- _ => solve [auto]
-              | |- _ |-- !! (?x = ?y) && _ =>
-                            (rewrite (prop_true_andp' (x=y))
-                                            by (unfold y; reflexivity); unfold y in *; clear y) ||
-                            (rewrite (prop_true_andp' (x=y))
-                                            by (unfold x; reflexivity); unfold x in *; clear x)
+              | |- _ ⊢ ⌜?x = ?y⌝ ∧ _ =>
+                            (apply pure_intro_l; first by (unfold y; reflexivity); unfold y in *; clear y) ||
+                            (apply pure_intro_l; first by (unfold x; reflexivity); unfold x in *; clear x)
               |  |- ?ZZ -> ?YY => match type of ZZ with
                                                | Prop => fancy_intros true || fail 1
                                                | _ => intros _
@@ -1294,43 +1294,12 @@ Ltac normalize1 :=
 Ltac normalize :=
    gather_prop;
    repeat (((repeat simple apply go_lower_lem1'; simple apply go_lower_lem1)
-              || simple apply derives_extract_prop
-              || simple apply derives_extract_prop');
+              || simple apply bi.pure_elim_l
+              || simple apply bi.pure_elim_r);
               fancy_intros true);
    repeat normalize1; try contradiction.
 
-Lemma allp_instantiate:
-   forall {A : Type} {NA : NatDed A} {B : Type} (P : B -> A) (x : B),
-       ALL y : B, P y |-- P x.
-Proof.
-intros. apply allp_left with x. auto.
-Qed.
-
 Ltac allp_left x := 
- match goal with |- ?A |-- _ => match A with context [@allp ?T ?ND ?B ?P] =>
-   sep_apply_in_entailment (@allp_instantiate T ND B P x)
+ match goal with |- ?A ⊢ _ => match A with context [@bi_forall ?PROP ?B ?P] =>
+   sep_apply_in_entailment (@allp_instantiate PROP B P x)
  end end.
-
-(* these two lemmas work better with new sep_apply and sep_eapply *)
-Lemma allp_instantiate': forall (B : Type) (P : B -> mpred) (x : B),
-  allp P |-- P x.
-Proof. intros. apply allp_instantiate. Qed.
-
-Lemma wand_frame_elim'': forall P Q,
-  (P -* Q) * P |-- Q.
-Proof. intros. rewrite sepcon_comm. apply wand_frame_elim. Qed.
-
-Lemma prop_sepcon: forall {A}{ND: NatDed A}{SL: SepLog A}
-    P Q, !! P * Q = !! P && (TT * Q).
-Proof.
- intros.
- rewrite <- (andp_TT (!! _)), sepcon_andp_prop'. normalize.
-Qed.
-
-Lemma prop_sepcon2: forall {A}{ND: NatDed A}{SL: SepLog A}
-    P Q, Q * !! P = !! P && (TT * Q).
-Proof.
- intros.
- rewrite sepcon_comm. apply prop_sepcon.
-Qed.
-

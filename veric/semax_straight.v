@@ -386,7 +386,7 @@ iStopProof; monPred.unseal; split => rho.
 rewrite Ht. setoid_rewrite denote_tc_assert_andp.
 assert (implicit_deref (typeof e) = typeof e) as -> by (by destruct (typeof e)).
 rewrite H0; iIntros "?"; iSplit; auto.
-iApply neutral_isCastResultType.
+iApply (neutral_isCastResultType with "[$]").
 Qed.
 
 Lemma semax_cast_set:

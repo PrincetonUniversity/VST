@@ -134,22 +134,27 @@ Fixpoint const_only_eval_expr {cs: compspecs} (e: Clight.expr): option val :=
     else None
   end.
 
-Lemma const_only_isUnOpResultType_spec: forall {cs: compspecs} rho u e t P,
+Section mpred.
+
+Context `{!heapGS Σ} {CS : compspecs}.
+
+Lemma denote_tc_assert_test_eq' : forall a b, denote_tc_assert (tc_test_eq a b) ⊣⊢ denote_tc_assert (tc_test_eq' a b).
+Proof.
+  intros; split => rho; apply binop_lemmas2.denote_tc_assert_test_eq'.
+Qed.
+
+Lemma const_only_isUnOpResultType_spec: forall rho u e t P,
   const_only_isUnOpResultType u (typeof e) (eval_expr e rho) t = true ->
-  P |-- denote_tc_assert (isUnOpResultType u e t) rho.
+  P ⊢ denote_tc_assert (isUnOpResultType u e t).
 Proof.
   intros.
   unfold isUnOpResultType.
   unfold const_only_isUnOpResultType in H.
   destruct u.
   + destruct (typeof e);
-      try solve [inv H | rewrite H; exact (@prop_right mpred _ True _ I)].
+      try solve [inv H | rewrite denote_tc_assert_bool; apply bi.pure_intro; done].
     rewrite !denote_tc_assert_andp.
-    match goal with
-    | |- context [denote_tc_assert (tc_test_eq ?a ?b)] =>
-      change (denote_tc_assert (tc_test_eq a b)) with (expr2.denote_tc_assert (tc_test_eq a b))
-    end.
-    rewrite binop_lemmas2.denote_tc_assert_test_eq'.
+    rewrite denote_tc_assert_test_eq'.
     simpl expr2.denote_tc_assert.
     unfold_lift. simpl.
     unfold tc_int_or_ptr_type.
@@ -163,7 +168,7 @@ Proof.
       apply andp_right; [exact (@prop_right mpred _ True _ I) |].
       simpl.
       rewrite HH.
-      change (P |-- (!! (i = Int64.zero)) && (!! (Int64.zero = Int64.zero)))%logic.
+      change (P ⊢ (!! (i = Int64.zero)) && (!! (Int64.zero = Int64.zero)))%logic.
       apply andp_right; apply prop_right; auto.
       rewrite <- (Int64.repr_unsigned i), <- H1.
       auto.
@@ -176,7 +181,7 @@ Proof.
       apply andp_right; [exact (@prop_right mpred _ True _ I) |].
       simpl.
       rewrite HH.
-      change (P |-- (!! (i = Int.zero)) && (!! (Int.zero = Int.zero)))%logic.
+      change (P ⊢ (!! (i = Int.zero)) && (!! (Int.zero = Int.zero)))%logic.
       apply andp_right; apply prop_right; auto.
       rewrite <- (Int.repr_unsigned i), <- H1.
       auto.
@@ -213,7 +218,7 @@ Qed.
 
 Lemma const_only_isBinOpResultType_spec: forall {cs: compspecs} rho b e1 e2 t P,
   const_only_isBinOpResultType b (typeof e1) (eval_expr e1 rho) (typeof e2) (eval_expr e2 rho) t = true ->
-  P |-- denote_tc_assert (isBinOpResultType b e1 e2 t) rho.
+  P ⊢ denote_tc_assert (isBinOpResultType b e1 e2 t) rho.
 Proof.
   intros.
   unfold isBinOpResultType.
@@ -276,7 +281,7 @@ Qed.
 
 Lemma const_only_isCastResultType_spec: forall {cs: compspecs} rho e t P,
   const_only_isCastResultType (typeof e) t (eval_expr e rho) = true ->
-  P |-- denote_tc_assert (isCastResultType (typeof e) t e) rho.
+  P ⊢ denote_tc_assert (isCastResultType (typeof e) t e) rho.
 Proof.
   intros.
   unfold const_only_isCastResultType in H.
@@ -344,7 +349,7 @@ Qed.
 
 Lemma const_only_eval_expr_tc: forall {cs: compspecs} Delta e v P,
   const_only_eval_expr e = Some v ->
-  P |-- tc_expr Delta e.
+  P ⊢ tc_expr Delta e.
 Proof.
   intros.
   intro rho.

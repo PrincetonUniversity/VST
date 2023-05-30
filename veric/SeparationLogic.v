@@ -156,7 +156,7 @@ Proof.
   iIntros "H"; iSplit.
   + iDestruct "H" as "[H _]"; rewrite (@denote_tc_assert_tc_bool_cs_invariant CS' CS) //.
   + rewrite tc_bool_e; iDestruct "H" as (?) "?".
-    iApply expr2.neutral_isCastResultType.
+    iApply (expr2.neutral_isCastResultType with "[$]").
 Qed.
 
 Lemma castexpropt_cenv_sub {CS CS'} (CSUB: cspecs_sub CS CS') Delta rho (D:typecheck_environ Delta rho) ret t:

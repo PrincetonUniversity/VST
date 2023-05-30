@@ -619,11 +619,11 @@ Ltac normalize1 :=
             | |- context [(?Q ∗ (?R ∧ ?P))%I] => rewrite -> (persistent_and_sep_assoc' P Q R) by (auto with norm)
             (* In the next four rules, doing it this way (instead of leaving it to autorewrite)
                 preserves the name of the "y" variable *)
-            | |- context [(∃ y, _ ∧ _)%I] =>
+            | |- context [((∃ y, _) ∧ _)%I] =>
                 autorewrite with norm; apply bi.exist_elim; intro y
             | |- context [(_ ∧ ∃ y , _)%I] =>
                 autorewrite with norm; apply bi.exist_elim; intro y
-            | |- context [(∃ y, _ ∗ _)%I] =>
+            | |- context [((∃ y, _) ∗ _)%I] =>
                autorewrite with norm; apply bi.exist_elim; intro y
             | |- context [(_ ∗ ∃ y , _)%I] =>
                 autorewrite with norm; apply bi.exist_elim; intro y
