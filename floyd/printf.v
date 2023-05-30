@@ -182,7 +182,9 @@ Axiom file_at : file_id -> val -> mpred.
 Axiom file_at_local_facts:
    forall f p, file_at f p |-- !! (isptr p).
 
-Class FileStruct := { abs_file :> FileId; FILEid : ident; reent : ident; f_stdin : ident; f_stdout : ident }.
+Class FileStruct := { abs_file : FileId; FILEid : ident; reent : ident; f_stdin : ident; f_stdout : ident }.
+Global Existing Instance abs_file.
+
 Context {FS : FileStruct}.
 
 Axiom reent_struct : val -> mpred.

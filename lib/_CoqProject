@@ -1,5 +1,6 @@
 -Q proof VSTlib
 -Q test VSTlibtest
+proof/version.v
 proof/math_extern.v
 proof/spec_math.v
 proof/verif_math.v

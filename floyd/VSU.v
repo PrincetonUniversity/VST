@@ -431,6 +431,16 @@ lazymatch goal with
 Ltac test_Component_prog_computed :=
  try test_Component_prog_computed'.
 
+Ltac lookup_tac_with_diagnosis := clear; intros; split; try solve [simpl in *; trivial; lookup_tac];
+ match goal with |- In _ ?LEFT -> In _ ?RIGHT =>
+   simpl; intuition;
+   match goal with H: Maps.PTree.prev ?n = _ |- _ =>
+     let n' := constr:(string_of_ident (Maps.PTree.prev n)) in
+     let n' := eval compute in n' in 
+     fail 1 "Function" n' "is in the list" LEFT "but not in the list" RIGHT
+   end
+ end.
+
 Ltac mkComponent prog :=
  hnf;
  match goal with |- Component _ _ ?IMPORTS _ _ _ _ =>
@@ -473,12 +483,30 @@ Ltac mkComponent prog :=
   | first [ solve [intros; apply derives_refl] | solve [intros; reflexivity] | solve [intros; simpl; cancel] | idtac]
   ].
 
+Definition internalFunctions (p: QP.program function) : list (ident*function) :=
+ let fix g (dl: list (ident * globdef (fundef function) Ctypes.type)) := 
+    match dl with
+    | (i, Gfun (Internal f))::dl' => (i,f)::g dl'
+    | _::dl' => g dl'
+    | nil => nil
+    end
+  in g (Maps.PTree.elements (QP.prog_defs p)).
+
+Search (list _ -> bool) .
+
+Definition makeSomeVacuousFunspecs (p: QP.program function) (nonvacuousSpecs: funspecs) : funspecs :=
+  let ids := map fst nonvacuousSpecs in 
+  map (fun ix => (fst ix, vacuous_funspec (Internal (snd ix))))
+    (filter (fun ix => negb (id_in_list (fst ix) ids)) (internalFunctions p)).
+
 Ltac mkVSU prog internal_specs := 
- lazymatch goal with |- VSU _ _ _ _ _ => idtac
+ lazymatch goal with
+  | |- VSU ?E ?Imports ?qprog ?ASI _ =>
+     let augmented_intspecs := 
+       constr:((*makeSomeVacuousFunspecs qprog internal_specs ++*) internal_specs)
+       in exists augmented_intspecs; mkComponent prog
   | _ => fail "mkVSU must be applied to a VSU goal"
- end;
- exists internal_specs;
- mkComponent prog.
+ end.
 
 Ltac solve_SF_internal P :=
   apply SF_internal_sound; eapply _SF_internal;
@@ -2373,7 +2401,7 @@ revert G G_LNR Gsub; induction builtins as [|[i?]]; [ simpl; induction fs as [|[
   simpl in H5.
   pose proof (eqb_ident_spec i j).
   destruct (eqb_ident i j); inv H5.
-  assert (i <> j) by (clear - H6; intuition). clear H6.
+  assert (i <> j) by (clear - H6; intuition congruence). clear H6.
   apply (in_map fst) in H4. specialize (Gsub _ H4). simpl in Gsub; destruct Gsub; auto.
   contradiction.
   auto.

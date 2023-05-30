@@ -689,18 +689,54 @@ first [ reflexivity
      apply exp_congr; intros [[[? ?] ?] ?]; reflexivity
   ].
 
+Ltac prove_cs_preserve_type := 
+reflexivity || 
+lazymatch goal with |- cs_preserve_type ?a ?b ?CCE ?t = true =>
+ tryif is_evar CCE 
+ then fail 2 "Before using change_compspecs, define an Instance of change_composite_env"
+ else tryif unify (cs_preserve_type a b CCE t) false
+ then let id := constr:(match t with Tstruct i _ => Some i | Tunion i _ => Some i | _ => None end) in 
+      let id := eval hnf in id in 
+      lazymatch id with 
+      | None => fail 2 "change_compspecs fails because the two compspecs environments disagree on the definition of type" t "(that is," 
+a "versus" b ")"
+      | Some ?id' => let ca := constr:(@get_co a id') in
+               let cb := constr:(@get_co b id') in
+               let ca := eval hnf in ca in
+               let cb := eval hnf in cb in
+               fail 2 "change_compspecs fails because the two compspecs environments disagree on the definition of type" t
+                 ". That is," a "claims" ca "while" b "claims" cb
+       end
+ else fail
+end.
+
 Ltac change_compspecs' cs cs' :=
-  match goal with
-  | |- context [@data_at cs' ?sh ?t ?v1] => erewrite (@data_at_change_composite cs' cs _ sh t); [| apply JMeq_refl | reflexivity]
-  | |- context [@field_at cs' ?sh ?t ?gfs ?v1] => erewrite (@field_at_change_composite cs' cs _ sh t gfs); [| apply JMeq_refl | reflexivity]
-  | |- context [@data_at_ cs' ?sh ?t] => erewrite (@data_at__change_composite cs' cs _ sh t); [| reflexivity]
-  | |- context [@field_at_ cs' ?sh ?t ?gfs] => erewrite (@field_at__change_composite cs' cs _ sh t gfs); [| reflexivity]
-  | |- context [?A cs'] => change (A cs') with (A cs)
-  | |- context [?A cs' ?B] => change (A cs' B) with (A cs B)
-  | |- context [?A cs' ?B ?C] => change (A cs' B C) with (A cs B C)
-  | |- context [?A cs' ?B ?C ?D] => change (A cs' B C D) with (A cs B C D)
-  | |- context [?A cs' ?B ?C ?D ?E] => change (A cs' B C D E) with (A cs B C D E)
-  | |- context [?A cs' ?B ?C ?D ?E ?F] => change (A cs' B C D E F) with (A cs B C D E F)
+  lazymatch goal with
+  | |- context [@data_at cs' ?sh ?t ?v1] => erewrite (@data_at_change_composite cs' cs _ sh t); [| apply JMeq_refl | prove_cs_preserve_type]
+  | |- context [@field_at cs' ?sh ?t ?gfs ?v1] => erewrite (@field_at_change_composite cs' cs _ sh t gfs); [| apply JMeq_refl | prove_cs_preserve_type]
+  | |- context [@data_at_ cs' ?sh ?t] => erewrite (@data_at__change_composite cs' cs _ sh t); [| prove_cs_preserve_type]
+  | |- context [@field_at_ cs' ?sh ?t ?gfs] => erewrite (@field_at__change_composite cs' cs _ sh t gfs); [| prove_cs_preserve_type]
+  | |- _ => 
+    match goal with 
+  | |- context [?A cs'] => 
+     idtac "Warning: attempting change_compspecs on user-defined mpred:" A;
+         change (A cs') with (A cs)
+  | |- context [?A cs' ?B] => 
+     idtac "Warning: attempting change_compspecs on user-defined mpred:" A;
+         change (A cs' B) with (A cs B)
+  | |- context [?A cs' ?B ?C] => 
+     idtac "Warning: attempting change_compspecs on user-defined mpred:" A;
+         change (A cs' B C) with (A cs B C)
+  | |- context [?A cs' ?B ?C ?D] => 
+     idtac "Warning: attempting change_compspecs on user-defined mpred:" A;
+         change (A cs' B C D) with (A cs B C D)
+  | |- context [?A cs' ?B ?C ?D ?E] => 
+     idtac "Warning: attempting change_compspecs on user-defined mpred:" A;
+         change (A cs' B C D E) with (A cs B C D E)
+  | |- context [?A cs' ?B ?C ?D ?E ?F] => 
+     idtac "Warning: attempting change_compspecs on user-defined mpred:" A;
+         change (A cs' B C D E F) with (A cs B C D E F)
+   end
  end.
 
 (* TODO: use CCE as arguments to gain CS' *)
@@ -1617,6 +1653,55 @@ Ltac do_compute_expr_helper_old Delta Q v e :=
     repeat match goal with v:=_ |- _ => subst v end;
      reflexivity].
 
+Ltac do_compute_expr_helper2 e := 
+  lazymatch goal with
+  | |- context [PTree.get ?a ?b] => 
+    let u := constr:(PTree.get a b) in
+    let u' := eval hnf in u in
+    match u' with
+    | Some (Vint ?v') => 
+         change u with (Some (Vint v'));
+         let v := fresh "v" in remember v' as v;
+         do_compute_expr_helper2 e;
+         subst v
+    | Some (Vlong ?v') => 
+         change u with (Some (Vlong v'));
+         let v := fresh "v" in remember v' as v;
+         do_compute_expr_helper2 e;
+         subst v
+    | Some (Vfloat ?v') => 
+         change u with (Some (Vfloat v'));
+         let v := fresh "v" in remember v' as v;
+         do_compute_expr_helper2 e;
+         subst v
+    | Some (Vsingle ?v') => 
+         change u with (Some (Vsingle v'));
+         let v := fresh "v" in remember v' as v;
+         do_compute_expr_helper2 e;
+         subst v
+    | Some ?v' =>
+         change u with (Some v');
+         let v := fresh "v" in remember v' as v;
+         do_compute_expr_helper2 e;
+         subst v
+    end
+  | |- _ => 
+     simpl;  (* This 'simpl' should be safe because user's terms have been removed *)
+     unfold force_val2, force_val1;
+     (apply (f_equal Some) || fail 100 "Cannot evaluate expression " e "Possibly there are missing local declarations.");
+     simpl
+  end.
+
+Ltac do_compute_expr_helper Delta Q v e :=
+ try assumption;
+ eapply do_compute_expr_helper_lemma;
+ [   prove_local2ptree
+ | unfold v;
+   cbv [msubst_eval_expr msubst_eval_lvalue];
+   do_compute_expr_helper2 e;
+   reflexivity
+ ].
+(*
 Ltac do_compute_expr_helper Delta Q v e :=
  try assumption;
  eapply do_compute_expr_helper_lemma;
@@ -1637,6 +1722,7 @@ Ltac do_compute_expr_helper Delta Q v e :=
     repeat match goal with v:=_ |- _ => subst v end;
      reflexivity
  ].
+*)
 
 Ltac do_compute_expr1 CS Delta Pre e :=
  lazymatch Pre with

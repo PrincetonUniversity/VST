@@ -4,9 +4,11 @@ Require Import VST.floyd.library. (*for body_lemma_of_funspec *)
 Require Import stdlib.
 Require Import spec_stdlib.
 
-Require VST.veric.version.
+Require VST.veric.version. From Coq Require Import String.
 Lemma version_test: False.
- assert (VST.veric.version.compcert_version = stdlib.Info.version) by reflexivity.
+ assert (VST.veric.version.compcert_version = stdlib.Info.version \/
+         VST.veric.version.compcert_version = "3.12"%string /\
+	  stdlib.Info.version = "3.11"%string) by (compute; auto).
  assert (VST.veric.version.bitsize = stdlib.Info.bitsize) by reflexivity.
 Abort.
 

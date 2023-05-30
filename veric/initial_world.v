@@ -9,8 +9,6 @@ Require Import VST.veric.shares.
 Require Import VST.veric.mpred.
 Require Import VST.veric.mapsto_memory_block.
 
-Obligation Tactic := idtac.
-
 Lemma adr_range_divide:
   forall b i p q loc,
     p >= 0 -> q >= 0 -> (adr_range (b,i) (p+q) loc <-> (adr_range (b,i) p loc \/ adr_range (b,i+p) q loc)).
@@ -498,7 +496,7 @@ Proof. intros. subst.
        simpl Genv.find_symbol; intros;
        try rewrite Zlength_nil in *.
       unfold Genv.find_symbol. rewrite Maps.PTree.gempty.
-     intuition; try done. rewrite -> nth_error_nil in *; done.
+     intuition lia; try done. rewrite -> nth_error_nil in *; done.
        destruct a. inv H. rewrite Zlength_cons in Hb.
        destruct (eq_dec (Z.pos b-1) (Zlength vl)).
         clear IHvl Hb. rewrite e. rewrite Zlength_correct.

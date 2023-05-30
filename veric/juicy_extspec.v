@@ -168,7 +168,7 @@ Section upd_exit.
   Next Obligation. intros. eapply JE_post_mono; eauto. Qed.
 End upd_exit.
 
-Obligation Tactic := Tactics.program_simpl.
+Local Obligation Tactic := Tactics.program_simpl.
 
 Section juicy_safety.
   Context {G C Z:Type}.

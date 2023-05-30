@@ -1,7 +1,10 @@
-CHANGES IN THE WORKS FOR 2.12
+CHANGES IN RELEASE 2.12
 
 - New entailer!! tactic
 - Use bool2val instead of Val.of_bool, improves forward_if 
+- Pull request #671 to improve efficiency of VSU system
+- New VST/lib, library VSU components
+- Compatible with Coq 8.16 and 8.17, and CompCert 3.12.
 
 CHANGES IN RELEASE 2.11.1 (December 2022)
 - Compatible with Coq 8.16.1, 8.15, and (perhaps) 8.14.

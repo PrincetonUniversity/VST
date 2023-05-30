@@ -19,7 +19,8 @@ Proof.
         data_at Ews (tarray tint N) (repeat (vint 1) (Z.to_nat i) ++ repeat Vundef (Z.to_nat (N - i))) (gv _last_taken))).
   { unfold N; computable. }
   { unfold N; computable. }
-  { entailer!.  simpl. cancel. }
+  { entailer!; 
+       try  (simpl; cancel).  (* this line for backward compatibility before VST 2.12 *) }
   - assert (N < Int.max_signed) by computable.
     forward.
     rewrite upd_init_const; auto.
@@ -36,7 +37,8 @@ Proof.
    SEP (data_at Tsh (tarray tint B) (repeat (vint 1) (Z.to_nat i) ++ repeat Vundef (Z.to_nat (B - i))) v_available;
         data_at_ Ews tint (gv _writing); data_at Ews tint (vint b0) (gv _last_given);
         data_at Ews (tarray tint N) (map (fun x : Z => vint x) lasts) (gv _last_taken))).
-  { entailer!. simpl; cancel. }
+  { entailer!; 
+        simpl; cancel. (* this line needed before VST 2.12 *)  }
   { forward.
     rewrite upd_init_const; auto; entailer!. }
   rewrite Zminus_diag, app_nil_r.

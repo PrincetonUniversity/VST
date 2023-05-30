@@ -915,8 +915,8 @@ induction l; intros HI.
 - inversion HI.
 - simpl in HI.
 destruct (E (f a) y).
-+ exists a; simpl; intuition.
-+ destruct IHl. tauto. exists x; simpl; intuition.
++ exists a; intuition (simpl; auto).
++ destruct IHl. tauto. exists x; intuition (simpl; auto).
 Qed.
 
 Lemma find_symbol_funct_ptr_ex_sig V ge id f :

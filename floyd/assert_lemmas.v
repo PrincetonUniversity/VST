@@ -80,6 +80,7 @@ Ltac _destruct_glob_types i Heq_gt Heq_ge t b ::=
 
 (* no "semax" in this file, just assertions. *)
 Global Transparent Int.repr.
+Global Transparent Int64.repr.
 Global Transparent Ptrofs.repr.
 
 Section mpred.

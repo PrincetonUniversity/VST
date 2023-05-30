@@ -422,17 +422,17 @@ Proof.
   destruct WFI as [WFI1 [WFI2 [WFI3 WFI4]]].
   deadvars!.
   eapply semax_pre_post.
-  6:{ 
+  6:{  
     eapply (@reseed_REST Espec contents additional sha add_len ctx md_ctx'
               reseed_counter' entropy_len' prediction_resistance' reseed_interval' key V
               reseed_counter entropy_len prediction_resistance reseed_interval gv Info s seed
-              addlenRange WFI1); try reflexivity; trivial; try lia.
+              addlenRange WFI1) with (shc:=shc); try reflexivity; trivial; try lia.
     subst contents'; try lia.
     subst contents'; trivial.
     solve [eassumption].
-    apply SH0.
+    all: apply SH0.  (* Needed before Coq 8.17? *)
   }
-  solve [ unfold hmac256drbgstate_md_info_pointer; entailer! ].
+ unfold hmac256drbgstate_md_info_pointer; entailer!! .
   1,2,3: subst POSTCONDITION; unfold abbreviate; simpl_ret_assert; normalize.
  
   intros.

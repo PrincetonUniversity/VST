@@ -183,7 +183,7 @@ Proof.
     ghost_alloc (ghost_var Tsh (vint 0)).
     ghost_alloc (ghost_var Tsh (vint 1)).
     ghost_alloc (ghost_hist_ref(hist_el := AE_hist_el) Tsh empty_map empty_map).
-    { apply ghost_hist_init. }
+    try apply ghost_hist_init. (* needed in Coq 8.16 and before *)
     Intros g' g0' g1' g2'.
     forward_call (gv, fun _ : lock_handle => AE_inv c g' (vint 0) (comm_R bufs (Znth i shs) gsh2 g0' g1' g2')).
     Intros l.

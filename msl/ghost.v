@@ -1,13 +1,11 @@
 Require Import VST.msl.sepalg.
 
 Class Ghost := { G : Type; valid : G -> Prop;
-  Join_G :> Join G; Sep_G :> Sep_alg G; Perm_G :> Perm_alg G;
-(* Iris-style core: may be necessary for persistent, but requires upclosed to be useful in a linear SL
-  core2 : G -> G;
-  core2_unit : forall a, unit_for (core2 a) a;
-  core2_idem : forall a, core2 (core2 a) = core2 a;
-  core2_mono : forall a b, join_sub a b -> join_sub (core2 a) (core2 b);*)
+  Join_G : Join G; Sep_G : Sep_alg G; Perm_G : Perm_alg G;
   join_valid : forall a b c, join a b c -> valid c -> valid a }.
+Global Existing Instance Join_G.
+Global Existing Instance Sep_G.
+Global Existing Instance Perm_G.
 
 Section Update.
 

@@ -171,9 +171,10 @@ Next Obligation.
 Defined.
 
 (* Can we use Santiago and Qinxiang's paper to simplify this? *)
-Class PCM_order `{P : Ghost} (ord : G -> G -> Prop) := { ord_preorder :> PreOrder ord;
+Class PCM_order `{P : Ghost} (ord : G -> G -> Prop) := { ord_preorder : PreOrder ord;
   ord_lub : forall a b c, ord a c -> ord b c -> {c' | join a b c' /\ ord c' c};
   join_ord : forall a b c, join a b c -> ord a c /\ ord b c; ord_join : forall a b, ord b a -> join a b a }.
+Global Existing Instance ord_preorder.
 
 (*Class lub_ord {A} (ord : A -> A -> Prop) := { lub_ord_refl :> RelationClasses.Reflexive ord;
   lub_ord_trans :> RelationClasses.Transitive ord;

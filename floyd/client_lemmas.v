@@ -316,7 +316,7 @@ Proof.
  destruct (Memory.Mem.weak_valid_pointer m b (Ptrofs.unsigned i)) eqn:?;
   simpl in H; inv H.
 -
-  subst v; simpl. rewrite Int64.eq_true. reflexivity.
+  subst v; simpl. reflexivity.
 -
  destruct v; simpl in H; try solve [inv H].
  destruct (Int.eq i Int.zero) eqn:?; inv H.
@@ -454,7 +454,7 @@ intros. extensionality x; apply prop_ext.
 unfold typed_true, bool_val, strict_bool_val, isptr.
 destruct t; try contradiction;
 destruct Archi.ptr64 eqn:Hp;
-destruct x; try tauto; intuition; try congruence;
+destruct x; try tauto; intuition (try congruence);
 revert H0; simple_if_tac; intro H0; inv H0.
 Qed.
 

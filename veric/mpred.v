@@ -69,7 +69,7 @@ unfold get, set; if_tac; intuition.
 Qed.
 
 Lemma gso h x y v : x<>y -> get (set x v h) y = get h y.
-unfold get, set; intros; if_tac; intuition; subst; contradiction.
+unfold get, set; intros; if_tac; intuition congruence.
 Qed.
 
 Lemma grs h x : get (remove x h) x = None.
@@ -77,7 +77,7 @@ unfold get, remove; intros; if_tac; intuition.
 Qed.
 
 Lemma gro h x y : x<>y -> get (remove x h) y = get h y.
-unfold get, remove; intros; if_tac; intuition; subst; contradiction.
+unfold get, remove; intros; if_tac; intuition congruence.
 Qed.
 
 Lemma ext h h' : (forall x, get h x = get h' x) -> h=h'.

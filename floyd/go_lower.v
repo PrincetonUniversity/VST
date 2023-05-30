@@ -639,13 +639,28 @@ Qed.
 (* This version of clean_LOCAL_right (with "bangbang") is to
  support then entailer!! tactic [notation] that avoids putting above 
  the line all the type-checking consequences of the LOCAL defs. *)
-Axiom clean_LOCAL_right_spec_bangbang: forall gvar_ident
+Lemma clean_LOCAL_right_spec_bangbang: forall gvar_ident
    (Delta: tycontext) (T1: Maps.PTree.t val) (T2: Maps.PTree.t (Ctypes.type * val)) (GV: option globals) P Q R S S'
   (LEGAL: fold_right andb true (map (legal_glob_ident Delta) gvar_ident) = true),
   local2ptree Q = (T1, T2, nil, GV) ->
   clean_LOCAL_right Delta T1 T2 GV S S' ->
   (local (tc_environ Delta) && PROPx P (LOCALx nil (SEPx R)) |-- liftx S') ->
   local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R)) |-- S.
+Proof.
+  intros.
+  assert (ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- `S'). {
+    eapply go_lower_localdef_canon_left; try eassumption.
+    eapply ENTAIL_trans; try eassumption.
+    apply andp_left2.
+    clear.
+    apply andp_derives; auto.
+    apply prop_derives.
+    intros.
+    induction P; simpl in *; tauto. 
+  }
+  rewrite (add_andp _ _ H2); clear H1 H2.
+  eapply clean_LOCAL_right_aux; eauto.
+Qed.
 
 Lemma clean_LOCAL_right_bupd_spec: forall gvar_ident (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t (type * val)) (GV: option globals) P Q R S S'
   (LEGAL: fold_right andb true (map (legal_glob_ident Delta) gvar_ident) = true),

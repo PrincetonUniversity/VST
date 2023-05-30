@@ -21,15 +21,18 @@ jobs:
         # except for the "make_target" field and make_target related excludes
         coq_version:
           # See https://github.com/coq-community/docker-coq/wiki for supported images
-          - '8.15'
           - '8.16'
+          - '8.17'
+          - 'dev'
         bit_size:
           - 32
           - 64
         make_target:
           - vst
-        exclude:
-          - coq_version: 8.15
+        exclude:   
+          - coq_version: 8.16
+            bit_size: 32
+          - coq_version: dev
             bit_size: 32
     steps:
       - uses: actions/checkout@v2
@@ -47,7 +50,7 @@ jobs:
             endGroup
           install: |
             startGroup "Install dependencies"
-              opam install -y ${{ matrix.bit_size == 32 && 'coq-compcert-32.3.11' || 'coq-compcert.3.11' }}
+              opam install -y ${{ matrix.coq_version == 'dev' && 'coq-flocq' || matrix.bit_size == 32 && 'coq-compcert-32.3.12' || 'coq-compcert.3.12' }}
               # Required by test2
               opam install -y coq-ext-lib
             endGroup
@@ -58,7 +61,7 @@ jobs:
             endGroup
           script: |
             startGroup "Build & Install"
-              make ${{matrix.make_target}} BITSIZE=${{matrix.bit_size}}
+              make ${{matrix.make_target}} BITSIZE=${{matrix.bit_size}} COMPCERT=${{ matrix.coq_version=='dev' && 'bundled' || 'platform' }} IGNORECOQVERSION=true
             endGroup
           after_script: |
             startGroup 'Copy Opam coq/user-contrib and coq-variant'
@@ -83,8 +86,9 @@ jobs:
       fail-fast: false
       matrix:
         coq_version:
-          - '8.15'
           - '8.16'
+          - '8.17'
+          - 'dev' 
         make_target:
           - assumptions.txt
           - test
@@ -96,7 +100,9 @@ jobs:
           - 32
           - 64
         exclude:
-          - coq_version: 8.15
+          - coq_version: 8.16
+            bit_size: 32
+          - coq_version: dev
             bit_size: 32
           - bit_size: 64
             make_target: test3
@@ -128,7 +134,7 @@ jobs:
             endGroup
           script: |
             startGroup "Build & Install"
-              make -f util/make-touch
-              make ${{matrix.make_target}} BITSIZE=${{matrix.bit_size}}
+              make -f util/make-touch  IGNORECOQVERSION=true
+              make ${{matrix.make_target}} BITSIZE=${{matrix.bit_size}} COMPCERT=${{ matrix.coq_version=='dev' && 'bundled' || 'platform' }}  IGNORECOQVERSION=true
             endGroup
           uninstall:

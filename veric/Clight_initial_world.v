@@ -15,7 +15,7 @@ Require Export VST.veric.initial_world.
 
 Import Clight.
 
-Obligation Tactic := idtac.
+#[local] Obligation Tactic := idtac.
 
 Notation initial_core m := (initial_core m (F := function)).
 Notation prog_funct := (@prog_funct function).
