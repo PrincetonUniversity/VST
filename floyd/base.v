@@ -18,7 +18,6 @@ Export SeparationLogicAsLogicSoundness.MainTheorem.CSHL_PracticalLogic.
 Export SeparationLogicAsLogicSoundness.MainTheorem.CSHL_PracticalLogic.CSHL_MinimumLogic.
 Export SeparationLogicAsLogicSoundness.MainTheorem.CSHL_PracticalLogic.CSHL_MinimumLogic.CSHL_Def.
 Export SeparationLogicAsLogicSoundness.MainTheorem.CSHL_PracticalLogic.CSHL_MinimumLogic.CSHL_Defs.
-Import compcert.lib.Maps.
 
 Create HintDb gather_prop discriminated.
 Create HintDb gather_prop_core discriminated.
@@ -36,10 +35,10 @@ Lemma alignof_pos: forall {cs: compspecs} (t: type), alignof t > 0.
 Proof. intros. apply Ctypes.alignof_pos. Qed.
 
 Definition extract_exists_pre:
-  forall {CS: compspecs} {Espec: OracleKind},
-  forall (A : Type) (P : A -> environ->mpred) c (Delta: tycontext) (R: ret_assert),
-  (forall x, @semax CS Espec Delta (P x) c R) ->
-   @semax CS Espec Delta (EX x:A, P x) c R
+  forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs},
+  forall (A : Type) (P : A -> assert) c E (Delta: tycontext) (R: ret_assert),
+  (forall x, semax E Delta (P x) c R) ->
+   semax E Delta (∃ x:A, P x) c R
   := @semax_extract_exists.
 
 Arguments alignof_two_p {env} t.
@@ -66,7 +65,7 @@ Definition co_default (s: struct_or_union): composite.
 Defined.
 
 Definition get_co id :=
-  match cenv_cs ! id with
+  match cenv_cs !! id with
   | Some co => co
   | _ => co_default Struct
   end.
@@ -85,7 +84,7 @@ Lemma get_co_consistent: forall id, composite_consistent cenv_cs (get_co id).
 Proof.
   intros.
   unfold get_co.
-  destruct (cenv_cs ! id) as [co |] eqn:CO.
+  destruct (cenv_cs !! id) as [co |] eqn:CO.
   + exact (cenv_consistent id co CO).
   + apply co_default_consistent.
 Defined.
@@ -95,20 +94,20 @@ Lemma get_co_members_nil_sizeof_0: forall id,
 Proof.
   unfold get_co.
   intros.
-  destruct (cenv_cs ! id) as [co |] eqn:?H; [destruct (co_su co) eqn:?H |].
+  destruct (cenv_cs !! id) as [co |] eqn:?H; [destruct (co_su co) eqn:?H |].
   + pose proof co_consistent_sizeof cenv_cs co (cenv_consistent id co H0).
     unfold sizeof_composite in H2.
     rewrite H1 in H2; clear H1.
     rewrite H in H2; clear H.
     simpl in H2.
-    rewrite align_0 in H2 by apply co_alignof_pos.
+    rewrite -> align_0 in H2 by apply co_alignof_pos.
     auto.
   + pose proof co_consistent_sizeof cenv_cs co (cenv_consistent id co H0).
     unfold sizeof_composite in H2.
     rewrite H1 in H2; clear H1.
     rewrite H in H2; clear H.
     simpl in H2.
-    rewrite align_0 in H2 by apply co_alignof_pos.
+    rewrite -> align_0 in H2 by apply co_alignof_pos.
     auto.
   + reflexivity.
 Defined.
@@ -118,7 +117,7 @@ Lemma get_co_members_no_replicate: forall id,
 Proof.
   intros.
   unfold get_co.
-  destruct (cenv_cs ! id) as [co |] eqn:?H.
+  destruct (cenv_cs !! id) as [co |] eqn:?H.
   + exact (cenv_legal_fieldlist id co H).
   + reflexivity.
 Defined.
@@ -128,7 +127,8 @@ Lemma sizeof_Tstruct: forall id a,
 Proof.
   intros. unfold sizeof.
   simpl. unfold get_co.
-  destruct (cenv_cs ! id); auto.
+  rewrite /lookup /composite_env_lookup /ptree_lookup.
+  destruct (Maps.PTree.get id cenv_cs); auto.
 Qed.
 
 Lemma sizeof_Tunion: forall id a,
@@ -136,41 +136,42 @@ Lemma sizeof_Tunion: forall id a,
 Proof.
   intros. unfold sizeof.
   simpl. unfold get_co.
-  destruct (cenv_cs ! id); auto.
+  rewrite /lookup /composite_env_lookup /ptree_lookup.
+  destruct (Maps.PTree.get id cenv_cs); auto.
 Qed.
 
 End GET_CO.
 
 Lemma co_members_get_co_change_composite {cs_from cs_to} {CCE: change_composite_env cs_from cs_to}: forall id,
-  match (coeq cs_from cs_to) ! id with
+  match (coeq cs_from cs_to) !! id with
   | Some b => test_aux cs_from cs_to b id
   | None => false
   end = true ->
   co_members (@get_co cs_from id) = co_members (@get_co cs_to id).
 Proof.
   intros.
-  destruct ((@cenv_cs cs_to) ! id) eqn:?H.
+  destruct (Maps.PTree.get id (@cenv_cs cs_to)) eqn: H0.
   + pose proof proj1 (coeq_complete _ _ id) (ex_intro _ c H0) as [b ?].
-    rewrite H1 in H.
+    setoid_rewrite H1 in H.
     apply (coeq_consistent _ _ id _ _ H0) in H1.
     unfold test_aux in H.
     destruct b; [| inv H].
     rewrite !H0 in H.
-    destruct ((@cenv_cs cs_from) ! id) eqn:?H; [| inv H].
+    destruct (Maps.PTree.get id (@cenv_cs cs_from)) eqn:?H2; [| inv H].
     simpl in H.
     rewrite !andb_true_iff in H.
     destruct H as [[? _] _].
     apply eqb_list_spec in H; [| apply eqb_member_spec].
-    unfold get_co; rewrite H0, H2.
+    unfold get_co; setoid_rewrite H0; setoid_rewrite H2.
     auto.
-  + destruct ((coeq cs_from cs_to) ! id) eqn:?H.
+  + destruct ((coeq cs_from cs_to) !! id) eqn:?H.
     - pose proof proj2 (coeq_complete _ _ id) (ex_intro _ b H1) as [co ?].
       congruence.
     - inv H.
 Qed.
 
 Lemma co_sizeof_get_co_change_composite {cs_from cs_to} {CCE: change_composite_env cs_from cs_to}: forall id,
-  match (coeq cs_from cs_to) ! id with
+  match (coeq cs_from cs_to) !! id with
   | Some b => test_aux cs_from cs_to b id
   | None => false
   end = true ->
@@ -199,10 +200,10 @@ Definition member_dec: forall (it0 it1: member), {it0 = it1} + {it0 <> it1}.
     left; reflexivity.
 Defined.
 
-Fixpoint fold_right_sepcon (l: list mpred) : mpred :=
+Fixpoint fold_right_sepcon {PROP : bi} (l: list PROP) : PROP :=
  match l with
  | nil => emp
- | b::r => b * fold_right_sepcon r
+ | b::r => b ∗ fold_right_sepcon r
  end.
 
 Inductive LLRR : Type :=
@@ -241,7 +242,7 @@ Proof. reflexivity. Qed.
 
 Lemma Floyd_firstn_skipn: forall [A : Type] (n : nat) (l : list A),
        Floyd_firstn n l ++ Floyd_skipn n l = l.
-Proof. rewrite Floyd_firstn_eq, Floyd_skipn_eq; exact @firstn_skipn.
+Proof. rewrite Floyd_firstn_eq Floyd_skipn_eq; exact @firstn_skipn.
 Qed.
 
 Definition Floyd_app [A: Type] :=
@@ -253,4 +254,3 @@ fix app (l m : list A) {struct l} : list A :=
 
 Lemma Floyd_app_eq: @Floyd_app = @app.
 Proof. reflexivity. Qed.
-
