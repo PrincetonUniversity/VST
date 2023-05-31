@@ -532,7 +532,7 @@ V64_ORDINARY = verif_reverse2.v verif_revarray.v verif_sumarray.v \
     verif_bst.v verif_field_loadstore.v verif_float.v verif_object.v \
     verif_global.v verif_min.v verif_min64.v verif_nest2.v verif_nest3.v \
     verif_logical_compare.v \
-    verif_strlib.v verif_switch.v verif_union.v verif_message.v verif_incr
+    verif_strlib.v verif_switch.v verif_union.v verif_message.v verif_incr.v
 
 SHA_FILES= \
   general_lemmas.v SHA256.v common_lemmas.v pure_lemmas.v sha_lemmas.v functional_prog.v \
@@ -660,13 +660,13 @@ CC_TARGET= $(COMPCERT_INST_DIR)/cfrontend/Clight.vo
 CVFILES = $(patsubst %.c,$(PROGSDIR)/%.v,$(C_FILES))
 CVOFILES = $(patsubst %.c,$(PROGSDIR)/%.vo,$(C_FILES))
 
+PROGS64_FILES=$(V64_ORDINARY) incr.v
+
 ifeq ($(BITSIZE),64)
-PROGS_FILES=$(V64_ORDINARY)
+PROGS_FILES=$(PROGS64_FILES)
 else
 PROGS_FILES=$(PROGS32_FILES)
 endif
-
-PROGS64_FILES=$(V64_ORDINARY)
 
 INSTALL_FILES_SRC=$(shell COMPCERT=$(COMPCERT) COMPCERT_INST_DIR=$(COMPCERT_INST_DIR) ZLIST=$(ZLIST) BITSIZE=$(BITSIZE) ARCH=$(ARCH) IGNORECOQVERSION=$(IGNORECOQVERSION) MAKE=$(MAKE) util/calc_install_files $(PROGSDIR))
 INSTALL_FILES_VO=$(patsubst %.v,%.vo,$(INSTALL_FILES_SRC))
