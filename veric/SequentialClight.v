@@ -893,16 +893,16 @@ Lemma whole_program_sequential_safety_ext:
 Proof.
   intros.
   eapply (step_fupdN_soundness _ 1); intros.
-  rewrite -fupd_mask_intro_discard //.
   iIntros.
   iMod (@init_VST _ _ VSTGpreS0) as "H".
   iDestruct ("H" $! Hinv) as (HH HE) "(H & ?)".
   specialize (H HH HE).
   eapply (semax_prog_rule _ _ _ _ O) in H as (b & q & (? & ? & Hinit) & Hsafe); [| done..].
   iMod (Hsafe with "H") as "Hsafe".
-  iAssert (◇ ⌜forall n, @dry_safeN _ _ _ OK_ty (semax.genv_symb_injective) (cl_core_sem (globalenv prog))
+  iAssert (|={⊤}=> ⌜forall n, @dry_safeN _ _ _ OK_ty (semax.genv_symb_injective) (cl_core_sem (globalenv prog))
             dryspec (Build_genv (Genv.globalenv prog) (prog_comp_env prog)) n initial_oracle q m⌝) with "[Hsafe]" as ">%Hdry".
   { admit. (* adequacy lemma *) }
+  rewrite -fupd_mask_intro_discard //.
   iIntros "!>"; iPureIntro.
   exists b, q; auto.
 

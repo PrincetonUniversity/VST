@@ -5,6 +5,7 @@ Require Import Relation_Definitions.
 
 Require Import compcert.common.Values.
 Require Import compcert.common.Memory.
+Require Import compcert.lib.Maps.
 
 Require Import VST.concurrency.lib.setoid_help.
 Require Import VST.concurrency.common.permissions. Import permissions.
@@ -75,7 +76,6 @@ Proof.
 Qed. 
 
 (* End rewrite extension*)
-
 
 
 

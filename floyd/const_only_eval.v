@@ -134,6 +134,12 @@ Fixpoint const_only_eval_expr {cs: compspecs} (e: Clight.expr): option val :=
     else None
   end.
 
+Lemma TT_right' : forall {Σ} P, P ⊢ @assert_of Σ (liftx True).
+Proof.
+  split => rho; simpl; unfold_lift; auto.
+Qed.
+#[global] Hint Resolve TT_right' : core.
+
 Section mpred.
 
 Context `{!heapGS Σ} {CS : compspecs}.
@@ -145,62 +151,40 @@ Qed.
 
 Lemma const_only_isUnOpResultType_spec: forall rho u e t P,
   const_only_isUnOpResultType u (typeof e) (eval_expr e rho) t = true ->
-  P ⊢ denote_tc_assert (isUnOpResultType u e t).
+  P ⊢ denote_tc_assert (isUnOpResultType u e t) rho.
 Proof.
   intros.
   unfold isUnOpResultType.
   unfold const_only_isUnOpResultType in H.
   destruct u.
   + destruct (typeof e);
-      try solve [inv H | rewrite denote_tc_assert_bool; apply bi.pure_intro; done].
+      try solve [inv H | rewrite /tc_bool H; apply bi.pure_intro; done].
     rewrite !denote_tc_assert_andp.
     rewrite denote_tc_assert_test_eq'.
     simpl expr2.denote_tc_assert.
-    unfold_lift. simpl.
+    unfold_lift. monPred.unseal.
     unfold tc_int_or_ptr_type.
-    destruct Archi.ptr64 eqn:HH.
-    - destruct (eval_expr e rho); try solve [inv H].
-      rewrite !andb_true_iff in H.
-      destruct H as [? [? ?]].
-      rewrite H, H0.
-      rewrite Z.eqb_eq in H1.
-      apply andp_right; [exact (@prop_right mpred _ True _ I) |].
-      apply andp_right; [exact (@prop_right mpred _ True _ I) |].
-      simpl.
-      rewrite HH.
-      change (P ⊢ (!! (i = Int64.zero)) && (!! (Int64.zero = Int64.zero)))%logic.
-      apply andp_right; apply prop_right; auto.
-      rewrite <- (Int64.repr_unsigned i), <- H1.
-      auto.
-    - destruct (eval_expr e rho); try solve [inv H].
-      rewrite !andb_true_iff in H.
-      destruct H as [? [? ?]].
-      rewrite H, H0.
-      rewrite Z.eqb_eq in H1.
-      apply andp_right; [exact (@prop_right mpred _ True _ I) |].
-      apply andp_right; [exact (@prop_right mpred _ True _ I) |].
-      simpl.
-      rewrite HH.
-      change (P ⊢ (!! (i = Int.zero)) && (!! (Int.zero = Int.zero)))%logic.
-      apply andp_right; apply prop_right; auto.
-      rewrite <- (Int.repr_unsigned i), <- H1.
-      auto.
+    destruct (eval_expr e rho) eqn: He; try solve [inv H].
+    rewrite !andb_true_iff in H.
+    destruct H as [-> [-> ?%Z.eqb_eq]].
+    rewrite /=.
+    (rewrite -(Int64.repr_unsigned i) || rewrite -(Int.repr_unsigned i)); rewrite -H; auto.
   + destruct (Cop.classify_notint (typeof e));
-      try solve [inv H | rewrite H; exact (@prop_right mpred _ True _ I)].
+      try solve [inv H | rewrite H; apply bi.True_intro].
   + destruct (Cop.classify_neg (typeof e));
-      try solve [inv H | rewrite H; exact (@prop_right mpred _ True _ I)].
+      try solve [inv H | rewrite H; apply bi.True_intro].
     rewrite !andb_true_iff in H.
     destruct H.
     rewrite H; simpl.
     destruct (typeof e) as [| ? [|] | [|] | | | | | |];
-      try solve [exact (@prop_right mpred _ True _ I)].
+      try solve [apply bi.True_intro].
     - simpl.
       unfold_lift.
       unfold denote_tc_nosignedover.
       destruct (eval_expr e rho); try solve [inv H0].
       rewrite negb_true_iff in H0.
       rewrite Z.eqb_neq in H0.
-      apply prop_right.
+      apply bi.pure_intro.
       change (Int.signed Int.zero) with 0.
       rep_lia.
     - simpl.
@@ -210,10 +194,10 @@ Proof.
       destruct (eval_expr e rho); try solve [inv H0];
       rewrite negb_true_iff in H0;
       rewrite Z.eqb_neq in H0;
-      apply prop_right;
+      apply bi.pure_intro;
       change (Int64.signed Int64.zero) with 0;
       rep_lia.
-  + destruct (Cop.classify_neg (typeof e)); try solve [inv H | rewrite H; exact (@prop_right mpred _ True _ I)].
+  + destruct (Cop.classify_neg (typeof e)); try solve [inv H | rewrite H; apply bi.True_intro].
 Qed.
 
 Lemma const_only_isBinOpResultType_spec: forall {cs: compspecs} rho b e1 e2 t P,
@@ -223,44 +207,44 @@ Proof.
   intros.
   unfold isBinOpResultType.
   unfold const_only_isBinOpResultType in H.
-  destruct b.
+  destruct b; rewrite /assert_of /monPred_at.
   + destruct (Cop.classify_add (typeof e1) (typeof e2)).
-    - rewrite !denote_tc_assert_andp; simpl.
+    - rewrite !expr2.denote_tc_assert_andp; simpl.
       unfold_lift.
       unfold tc_int_or_ptr_type, denote_tc_isptr.
       destruct (eval_expr e1 rho); inv H.
       rewrite !andb_true_iff in H1.
       destruct H1 as [[? ?] ?].
-      rewrite H, H0, H1.
+      rewrite H H0 H1.
       simpl.
-      repeat apply andp_right; apply prop_right; auto.
-    - rewrite !denote_tc_assert_andp; simpl.
+      repeat apply bi.and_intro; apply bi.pure_intro; auto.
+    - rewrite !expr2.denote_tc_assert_andp; simpl.
       unfold_lift.
       unfold tc_int_or_ptr_type, denote_tc_isptr.
       destruct (eval_expr e1 rho); inv H.
       rewrite !andb_true_iff in H1.
       destruct H1 as [[? ?] ?].
-      rewrite H, H0, H1.
+      rewrite H H0 H1.
       simpl.
-      repeat apply andp_right; apply prop_right; auto.
-    - rewrite !denote_tc_assert_andp; simpl.
+      repeat apply bi.and_intro; apply bi.pure_intro; auto.
+    - rewrite !expr2.denote_tc_assert_andp; simpl.
       unfold_lift.
       unfold tc_int_or_ptr_type, denote_tc_isptr.
       destruct (eval_expr e2 rho); inv H.
       rewrite !andb_true_iff in H1.
       destruct H1 as [[? ?] ?].
-      rewrite H, H0, H1.
+      rewrite H H0 H1.
       simpl.
-      repeat apply andp_right; apply prop_right; auto.
-    - rewrite !denote_tc_assert_andp; simpl.
+      repeat apply bi.and_intro; apply bi.pure_intro; auto.
+    - rewrite !expr2.denote_tc_assert_andp; simpl.
       unfold_lift.
       unfold tc_int_or_ptr_type, denote_tc_isptr.
       destruct (eval_expr e2 rho); inv H.
       rewrite !andb_true_iff in H1.
       destruct H1 as [[? ?] ?].
-      rewrite H, H0, H1.
+      rewrite H H0 H1.
       simpl.
-      repeat apply andp_right; apply prop_right; auto.
+      repeat apply bi.and_intro; apply bi.pure_intro; auto.
     - inv H.
   + inv H.
   + inv H.
@@ -286,8 +270,8 @@ Proof.
   intros.
   unfold const_only_isCastResultType in H.
   rewrite orb_true_iff in H.
-  destruct H.
-  apply neutral_isCastResultType; auto.
+  destruct H; simpl.
+  apply expr2.neutral_isCastResultType; auto.
   destruct (typeof e); inv H.
   destruct t; inv H1.
   simpl. apply TT_right.
@@ -295,7 +279,7 @@ Qed.
 
 Lemma const_only_eval_expr_eq: forall {cs: compspecs} rho e v,
   const_only_eval_expr e = Some v ->
-  eval_expr e rho = v.  
+  eval_expr e rho = v.
 Proof.
   intros.
   revert v H; induction e; try solve [intros; inv H; auto].
@@ -328,7 +312,7 @@ Proof.
     specialize (IHe1 _ eq_refl).
     specialize (IHe2 _ eq_refl).
     unfold_lift.
-    rewrite IHe1, IHe2; auto.
+    rewrite IHe1 IHe2; auto.
   + intros.
     simpl in *.
     unfold option_map in H.
@@ -347,34 +331,33 @@ Proof.
     auto.
 Qed.
 
-Lemma const_only_eval_expr_tc: forall {cs: compspecs} Delta e v P,
+Lemma const_only_eval_expr_tc: forall Delta e v P,
   const_only_eval_expr e = Some v ->
   P ⊢ tc_expr Delta e.
 Proof.
   intros.
-  intro rho.
   revert v H; induction e; try solve [intros; inv H].
   + intros.
     inv H.
     destruct t as [| [| | |] | | | | | | |]; inv H1.
-    exact (@prop_right mpred _ True _ I).
+    rewrite /tc_expr /=; auto.
   + intros.
     inv H.
     destruct t as [| | | [|] | | | | |]; inv H1.
-    exact (@prop_right mpred _ True _ I).
+    rewrite /tc_expr /=; auto.
   + intros.
     inv H.
     destruct t as [| | | [|] | | | | |]; inv H1.
-    exact (@prop_right mpred _ True _ I).
+    rewrite /tc_expr /=; auto.
   + intros.
     unfold tc_expr in *.
     simpl in *.
     unfold option_map in H.
     destruct (const_only_eval_expr e) eqn:HH; inv H.
     specialize (IHe _ eq_refl).
-    unfold_lift.
-    rewrite denote_tc_assert_andp; simpl; apply andp_right; auto.
-    apply const_only_isUnOpResultType_spec.
+    unfold typecheck_expr; fold typecheck_expr.
+    rewrite denote_tc_assert_andp; simpl; apply bi.and_intro; auto.
+    split => rho; apply const_only_isUnOpResultType_spec.
     apply (const_only_eval_expr_eq rho) in HH.
     rewrite HH.
     destruct (const_only_isUnOpResultType u (typeof e) v0 t); inv H1; auto.
@@ -386,12 +369,12 @@ Proof.
     destruct (const_only_eval_expr e2) eqn:HH2; inv H1.
     specialize (IHe1 _ eq_refl).
     specialize (IHe2 _ eq_refl).
-    unfold_lift.
-    rewrite !denote_tc_assert_andp; simpl; repeat apply andp_right; auto.
-    apply const_only_isBinOpResultType_spec.
+    unfold typecheck_expr; fold typecheck_expr.
+    rewrite !denote_tc_assert_andp; simpl; repeat apply bi.and_intro; auto.
+    split => rho; apply const_only_isBinOpResultType_spec.
     apply (const_only_eval_expr_eq rho) in HH1.
     apply (const_only_eval_expr_eq rho) in HH2.
-    rewrite HH1, HH2.
+    rewrite HH1 HH2.
     destruct (const_only_isBinOpResultType b (typeof e1) v0 (typeof e2) v1 t); inv H0; auto.
   + intros.
     unfold tc_expr in *.
@@ -399,28 +382,26 @@ Proof.
     unfold option_map in H.
     destruct (const_only_eval_expr e) eqn:HH; inv H.
     destruct (const_only_isCastResultType (typeof e) t v0) eqn:?H; inv H1.
+    unfold typecheck_expr; fold typecheck_expr.
     rewrite denote_tc_assert_andp.
-    simpl.
-    apply andp_right; eauto.
-    apply const_only_isCastResultType_spec; auto.
+    apply bi.and_intro; eauto.
+    split => rho; apply const_only_isCastResultType_spec; auto.
   + intros.
     inv H.
     unfold tc_expr.
-    simpl typecheck_expr.
-    simpl.
+    unfold typecheck_expr; fold typecheck_expr.
     destruct (complete_type cenv_cs t && eqb_type t0 size_t) eqn:HH; inv H1.
     rewrite andb_true_iff in HH.
-    unfold tuint in HH; destruct HH.
-    rewrite H, H0.
-    exact (@prop_right mpred _ True _ I).
+    unfold tuint in HH; destruct HH as [-> ->].
+    simpl; auto.
   + intros.
     inv H.
     unfold tc_expr.
-    simpl typecheck_expr.
-    simpl.
+    unfold typecheck_expr; fold typecheck_expr.
     destruct (complete_type cenv_cs t && eqb_type t0 size_t) eqn:HH; inv H1.
     rewrite andb_true_iff in HH.
-    unfold tuint in HH; destruct HH.
-    rewrite H, H0.
-    exact (@prop_right mpred _ True _ I).
+    unfold tuint in HH; destruct HH as [-> ->].
+    simpl; auto.
 Qed.
+
+End mpred.

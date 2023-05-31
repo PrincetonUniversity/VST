@@ -55,6 +55,9 @@ Section mpred.
 
 Context `{!heapGS Σ}.
 
+Definition argsassert2assert (ids: list ident) (M:@argsassert Σ):assert :=
+  assert_of (fun rho => M (ge_of rho, map (fun i => eval_id i rho) ids)).
+
 (* Somehow, this fixes a universe collapse issue that will occur if fool is not defined.
 Definition fool := @map _ Type (fun it : ident * type => mpred).*)
 

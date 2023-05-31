@@ -594,11 +594,7 @@ Module HybridMachineSig.
 
       Program Instance DilMem : DiluteMem :=
         {| diluteMem := fun x => x |}.
-      Next Obligation.
-      intros.
-      split; auto.
-      Defined.
-      
+
       Instance scheduler : Scheduler :=
         {| isCoarse := true;
            yield := fun x => x |}.

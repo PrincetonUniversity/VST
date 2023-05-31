@@ -1,91 +1,52 @@
-Require Import VST.msl.msl_standard.
-Require Import VST.msl.seplog.
-Require Import VST.veric.base.
-Require Import VST.veric.compcert_rmaps.
-Require Import VST.veric.juicy_mem.
-Require Import VST.veric.juicy_mem_lemmas.
-Require Import VST.veric.juicy_mem_ops.
-Require Import VST.veric.juicy_extspec.
-Require Import VST.veric.tycontext.
-Require Import VST.veric.expr2.
-Require Import VST.veric.semax.
-Require Import VST.veric.semax_call.
-Require Import VST.veric.semax_ext.
-Require Import VST.veric.juicy_safety.
-Require Import VST.veric.Clight_core.
-Require Import VST.veric.res_predicates.
 Require Import VST.veric.SeparationLogic.
-Require Import VST.sepcomp.extspec.
-Require Import VST.floyd.reptype_lemmas.
-Require Import VST.floyd.field_at.
-Require Import VST.floyd.nested_field_lemmas.
-Require Import VST.floyd.client_lemmas.
-Require Import VST.floyd.jmeq_lemmas.
+Require Import compcert.cfrontend.Ctypes.
+Require Import VST.veric.expr.
 Require Import VST.concurrency.common.lksize.
 Require Import VST.concurrency.juicy.semax_conc_pred.
-Require Import VST.concurrency.conclib.
+(*Require Import VST.concurrency.conclib.*)
 Import Clightdefs.
 Import String.
-
-(*(* Variables to be instantiated once the program is known. *)
-Definition _f := 1%positive.      (* alpha-convertible *)
-Definition _args := 2%positive.   (* alpha-convertible *)
-Definition _lock := 1%positive.   (* alpha-convertible *)
-Definition _cond := 2%positive.   (* alpha-convertible *)
-(*Definition _lock_t := 2%positive. (* 2 (* or sometimes 3 -WM *) is the number given by
-clightgen when threads.h is included first *)*)
-*)
 
 Definition voidstar_funtype := Tfunction (Tcons (tptr tvoid) Tnil) (tptr tvoid) cc_default.
 (* Definition tlock := Tstruct _lock_t noattr. *)
 Definition tlock := (Tarray (Tpointer Ctypes.Tvoid noattr) 2 noattr).
-(* Notation tlock := tuint (only parsing). *)
 
 Goal forall (cenv: compspecs), @sizeof cenv tlock = LKSIZE.
 Proof. reflexivity. Qed.
 
-Definition selflock_fun Q sh p : (unit -> mpred) -> (unit -> mpred) :=
-  fun R _ => (Q * |>lock_inv sh p (R tt))%logic.
+Section mpred.
 
-Definition selflock' Q sh p : unit -> mpred := HORec (selflock_fun Q sh p).
-Definition selflock Q sh p : mpred := selflock' Q sh p tt.
+Context `{!heapGS Σ}.
 
-Lemma HOnonexpansive_nonexpansive: forall F: mpred -> mpred, nonexpansive F <-> HOnonexpansive (fun P (_ : unit) => F (P tt)).
+Definition selflock_fun Q sh p : mpred -> mpred :=
+  fun R => (Q ∗ ▷lock_inv sh p R).
+
+#[export] Instance lock_inv_nonexpansive sh p : NonExpansive (lock_inv sh p).
 Proof.
-  intros.
-  split; intros; hnf in H |- *.
-  + intros P Q.
-    specialize (H (P tt) (Q tt)).
-    rewrite !allp_unit.
-    constructor; auto.
-  + intros P Q.
-    specialize (H (fun x => P) (fun x => Q)).
-    rewrite !allp_unit in H.
-    destruct H; auto.
+  intros ????.
+  rewrite /lock_inv /LKspec.
+  do 9 f_equiv.
+  by apply inv_ne.
 Qed.
 
-Lemma selflock'_eq Q sh p : selflock' Q sh p =
-  selflock_fun Q sh p (selflock' Q sh p).
+#[export] Instance selflock_contractive Q sh p : Contractive (selflock_fun Q sh p).
 Proof.
-  apply HORec_fold_unfold, prove_HOcontractive'.
-  intros P1 P2 u.
-  apply subp_sepcon; [ apply subp_refl | ].
-  apply allp_left with tt.
-  eapply derives_trans, subp_later1.
-  apply later_derives.
-  constructor.
-  eapply predicates_hered.derives_trans, eqp_subp.
-  apply nonexpansive_lock_inv.
+  intros ????.
+  rewrite /selflock_fun.
+  f_equiv. (* f_contractive. *) apply later_contractive.
+  destruct n; first apply dist_later_0.
+  rewrite -!dist_later_S in H |- *.
+  f_equiv. done.
 Qed.
 
-Lemma selflock_eq Q sh p : selflock Q sh p = (Q * |>lock_inv sh p (selflock Q sh p))%logic.
+Definition selflock Q sh p : mpred := fixpoint (selflock_fun Q sh p).
+
+Lemma selflock_eq Q sh p : selflock Q sh p ⊣⊢ (Q ∗ ▷lock_inv sh p (selflock Q sh p)).
 Proof.
-  unfold selflock at 1.
-  rewrite selflock'_eq.
-  reflexivity.
+  rewrite {1}/selflock fixpoint_unfold //.
 Qed.
 
-(* In fact we need locks to two resources:
+(*(* In fact we need locks to two resources:
    1) the resource invariant, for passing the resources
    2) the join resource invariant, for returning all resources, including itself
    for this we need to define them in a mutually recursive fashion: *)
@@ -93,9 +54,9 @@ Qed.
 Definition res_invariants_fun Q sh1 p1 sh2 p2 : (bool -> mpred) -> (bool -> mpred) :=
   fun R b =>
     if b then
-      (Q * lock_inv sh2 p2 (|> R false))%logic
+      (Q * lock_inv sh2 p2 (▷ R false))
     else
-      (Q * lock_inv sh1 p1 (|> R true) * lock_inv sh2 p2 (|> R false))%logic.
+      (Q * lock_inv sh1 p1 (▷ R true) * lock_inv sh2 p2 (▷ R false)).
 
 Definition res_invariants Q sh1 p1 sh2 p2 : bool -> mpred := HORec (res_invariants_fun Q sh1 p1 sh2 p2).
 Definition res_invariant Q sh1 p1 sh2 p2 : mpred := res_invariants Q sh1 p1 sh2 p2 true.
@@ -130,7 +91,7 @@ Qed.
 Lemma res_invariant_eq Q sh1 p1 sh2 p2 :
   res_invariant Q sh1 p1 sh2 p2 =
   (Q *
-  lock_inv sh2 p2 (|> join_res_invariant Q sh1 p1 sh2 p2))%logic.
+  lock_inv sh2 p2 (▷ join_res_invariant Q sh1 p1 sh2 p2)).
 Proof.
   unfold res_invariant at 1.
   rewrite res_invariants_eq.
@@ -140,53 +101,18 @@ Qed.
 Lemma join_res_invariant_eq Q sh1 p1 sh2 p2 :
   join_res_invariant Q sh1 p1 sh2 p2 =
   (Q *
-  lock_inv sh1 p1 (|> res_invariant Q sh1 p1 sh2 p2) *
-  lock_inv sh2 p2 (|> join_res_invariant Q sh1 p1 sh2 p2))%logic.
+  lock_inv sh1 p1 (▷ res_invariant Q sh1 p1 sh2 p2) *
+  lock_inv sh2 p2 (▷ join_res_invariant Q sh1 p1 sh2 p2)).
 Proof.
   unfold join_res_invariant at 1.
   rewrite res_invariants_eq.
   reflexivity.
-Qed.
+Qed.*)
 
 (*+ Specification of each concurrent primitive *)
 
-Lemma nonexpansive2_super_non_expansive: forall (F: mpred -> mpred -> mpred),
-  (forall P, nonexpansive (fun Q => F P Q)) ->
-  (forall Q, nonexpansive (fun P => F P Q)) ->
-  forall P Q n,
-  approx n (F P Q) = approx n (F (approx n P) (approx n Q)).
-Proof.
-  intros.
-  apply semax_conc.approx_eq_i'.
-  intros m ?.
-  pose proof semax_conc.nonexpansive_entail _ (H P) Q (approx n Q) as H2; cbv beta in H2.
-  destruct H2 as [H2]; specialize (H2 m). spec H2; [apply (semax_conc.fash_equiv_approx n Q m); auto |].
-  pose proof semax_conc.nonexpansive_entail _ (H0 (approx n Q)) P (approx n P) as H3; cbv beta in H3.
-  destruct H3 as [H3]; specialize (H3 m). spec H3; [apply (semax_conc.fash_equiv_approx n P m); auto |].
-  remember (F P Q) as X1.
-  remember (F P (approx n Q)) as X2.
-  remember (F (approx n P) (approx n Q)) as X3.
-  clear - H2 H3.
-  change ((X1 <=> X2)%pred m) in H2.
-  change ((X2 <=> X3)%pred m) in H3.
-  intros y H; specialize (H2 y H); specialize (H3 y H).
-  destruct H2 as [H2A H2B], H3 as [H3A H3B].
-  split; intros z H0.
-  + specialize (H2A z H0); specialize (H3A z H0); auto.
-  + specialize (H2B z H0); specialize (H3B z H0); auto.
-Qed.
-
-(*
-Lemma nonexpansive_2super_non_expansive: forall {A B: Type} (F: (A -> B -> mpred) -> mpred),
-  (forall a b, nonexpansive (fun Q => F P Q)) ->
-  (forall Q, nonexpansive (fun P => F P Q)) ->
-  forall P Q n,
-  approx n (F P Q) = approx n (F (approx n P) (approx n Q)).
-*)
-Definition acquire_arg_type: rmaps.TypeTree := rmaps.ProdType (rmaps.ConstType (val * share)) rmaps.Mpred.
-
 Program Definition acquire_spec :=
-  TYPE acquire_arg_type WITH v : _, sh : _, R : _
+  WITH v : _, sh : _, R : _
   PRE [ tptr tvoid ]
      PROP (readable_share sh)
      PARAMS (v)
@@ -250,10 +176,10 @@ Proof.
           ((fun _ => readable_share sh) :: nil)
           (v :: nil)
           nil
-          ((fun R => weak_exclusive_mpred R && emp)%logic :: (fun R => lock_inv sh v R) :: (fun R => R) :: nil));
+          ((fun R => weak_exclusive_mpred R && emp) :: (fun R => lock_inv sh v R) :: (fun R => R) :: nil));
   repeat apply Forall_cons; try apply Forall_nil.
   + apply const_nonexpansive.
-  + apply (conj_nonexpansive (fun R => weak_exclusive_mpred R)%logic).
+  + apply (conj_nonexpansive (fun R => weak_exclusive_mpred R)).
     - apply exclusive_mpred_nonexpansive.
     - apply const_nonexpansive.
   + apply nonexpansive_lock_inv.
@@ -347,7 +273,7 @@ Next Obligation.
   apply (PROP_PARAMS_GLOBALS_SEP_nonexpansive
           ((fun _ => writable_share sh) :: nil)
           (v :: nil) nil
-          ((fun R => weak_exclusive_mpred R && emp)%logic :: (fun R => lock_inv sh v R) :: (fun R => R) :: nil));
+          ((fun R => weak_exclusive_mpred R && emp) :: (fun R => lock_inv sh v R) :: (fun R => R) :: nil));
   repeat apply Forall_cons; try apply Forall_nil.
   + apply const_nonexpansive.
   + apply (conj_nonexpansive weak_exclusive_mpred).
@@ -412,21 +338,21 @@ Next Obligation.
     apply (PROP_PARAMS_GLOBALS_SEP_nonexpansive
             ((fun _ => writable_share sh) :: nil)
             (v :: nil) nil
-            ((fun R => weak_exclusive_mpred R && weak_rec_inv sh' v Q R && emp)%logic :: (fun R => lock_inv sh v R) :: nil))
+            ((fun R => weak_exclusive_mpred R && weak_rec_inv sh' v Q R && emp) :: (fun R => lock_inv sh v R) :: nil))
   | clear Q R; intros R;
     apply (PROP_PARAMS_GLOBALS_SEP_nonexpansive
             ((fun _ => writable_share sh) :: nil)
             (v :: nil) nil
-            ((fun Q => weak_exclusive_mpred R && weak_rec_inv sh' v Q R && emp)%logic :: (fun _ => lock_inv sh v R) :: nil))];
+            ((fun Q => weak_exclusive_mpred R && weak_rec_inv sh' v Q R && emp) :: (fun _ => lock_inv sh v R) :: nil))];
   repeat apply Forall_cons; try apply Forall_nil.
   + apply const_nonexpansive.
-  + apply (conj_nonexpansive (fun R => weak_exclusive_mpred R && weak_rec_inv sh' v Q R)%logic); [apply (conj_nonexpansive weak_exclusive_mpred) |].
+  + apply (conj_nonexpansive (fun R => weak_exclusive_mpred R && weak_rec_inv sh' v Q R)); [apply (conj_nonexpansive weak_exclusive_mpred) |].
     - apply exclusive_mpred_nonexpansive.
     - apply rec_inv1_nonexpansive.
     - apply const_nonexpansive.
   + apply nonexpansive_lock_inv.
   + apply const_nonexpansive.
-  + apply (conj_nonexpansive (fun Q => weak_exclusive_mpred R && weak_rec_inv sh' v Q R)%logic); [apply (conj_nonexpansive (fun _ => weak_exclusive_mpred R)) |].
+  + apply (conj_nonexpansive (fun Q => weak_exclusive_mpred R && weak_rec_inv sh' v Q R)); [apply (conj_nonexpansive (fun _ => weak_exclusive_mpred R)) |].
     - apply const_nonexpansive.
     - apply rec_inv2_nonexpansive.
     - apply const_nonexpansive.
@@ -472,21 +398,21 @@ Next Obligation.
     apply (PROP_PARAMS_GLOBALS_SEP_nonexpansive
             ((fun _ => readable_share sh) :: nil)
             (v :: nil) nil
-            ((fun R => weak_exclusive_mpred R && weak_rec_inv sh v Q R && emp)%logic :: (fun R => R) :: nil))
+            ((fun R => weak_exclusive_mpred R && weak_rec_inv sh v Q R && emp) :: (fun R => R) :: nil))
   | clear Q R; intros R;
     apply (PROP_PARAMS_GLOBALS_SEP_nonexpansive
             ((fun _ => readable_share sh) :: nil)
             (v :: nil) nil
-            ((fun Q => weak_exclusive_mpred R && weak_rec_inv sh v Q R && emp)%logic :: (fun _ => R) :: nil))];
+            ((fun Q => weak_exclusive_mpred R && weak_rec_inv sh v Q R && emp) :: (fun _ => R) :: nil))];
   repeat apply Forall_cons; try apply Forall_nil.
   + apply const_nonexpansive.
-  + apply (conj_nonexpansive (fun R => weak_exclusive_mpred R && weak_rec_inv sh v Q R)%logic); [apply (conj_nonexpansive (fun R => weak_exclusive_mpred R)%logic) |].
+  + apply (conj_nonexpansive (fun R => weak_exclusive_mpred R && weak_rec_inv sh v Q R)); [apply (conj_nonexpansive (fun R => weak_exclusive_mpred R)) |].
     - apply exclusive_mpred_nonexpansive.
     - apply rec_inv1_nonexpansive.
     - apply const_nonexpansive.
   + apply identity_nonexpansive.
   + apply const_nonexpansive.
-  + apply (conj_nonexpansive (fun Q => weak_exclusive_mpred R && weak_rec_inv sh v Q R)%logic); [apply (conj_nonexpansive (fun Q => weak_exclusive_mpred R)%logic) |].
+  + apply (conj_nonexpansive (fun Q => weak_exclusive_mpred R && weak_rec_inv sh v Q R)); [apply (conj_nonexpansive (fun Q => weak_exclusive_mpred R)) |].
     - apply const_nonexpansive.
     - apply rec_inv2_nonexpansive.
     - apply const_nonexpansive.
@@ -612,11 +538,11 @@ Next Obligation.
   apply (PROP_LOCAL_SEP_nonexpansive
           ((fun _ => readable_share shc) :: nil)
           (temp _cond c :: temp _lock l :: nil)
-          ((fun R => lock_inv shl l R) :: (fun R => R && (@cond_var cs shc c * TT))%logic :: nil));
+          ((fun R => lock_inv shl l R) :: (fun R => R && (@cond_var cs shc c * TT)) :: nil));
   repeat apply Forall_cons; try apply Forall_nil.
   + apply const_nonexpansive.
   + apply nonexpansive_lock_inv.
-  + apply (conj_nonexpansive (fun R => R) (fun _ => (cond_var shc c * TT)%logic)).
+  + apply (conj_nonexpansive (fun R => R) (fun _ => (cond_var shc c * TT))).
     - apply identity_nonexpansive.
     - apply const_nonexpansive.
 Qed.
@@ -797,3 +723,5 @@ Definition Concurrent_Espec Z cs ext_link :=
   Build_OracleKind
     Z
     (concurrent_ext_spec Z cs ext_link).
+
+End mpred.

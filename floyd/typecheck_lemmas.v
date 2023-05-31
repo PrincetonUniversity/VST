@@ -8,7 +8,7 @@ Context `{!heapGS Σ} {CS: compspecs}.
 
 Lemma denote_tc_assert_andp:
   forall (a b : tc_assert),
-  assert_of (denote_tc_assert (tc_andp a b)) ⊣⊢ (denote_tc_assert a) ∧ (denote_tc_assert b).
+  denote_tc_assert (tc_andp a b) ⊣⊢ (denote_tc_assert a) ∧ (denote_tc_assert b).
 Proof.
   intros.
   split => rho; monPred.unseal.

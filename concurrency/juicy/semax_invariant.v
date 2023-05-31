@@ -15,7 +15,6 @@ Require Import VST.veric.initial_world.
 Require Import VST.veric.juicy_mem.
 Require Import VST.veric.juicy_mem_lemmas.
 Require Import VST.veric.semax_prog.
-Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.Clight_core.
 Require Import VST.veric.Clightcore_coop.
 Require Import VST.veric.semax.

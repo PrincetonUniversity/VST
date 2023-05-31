@@ -43,7 +43,8 @@ Module ThreadPool.
     Local Notation ctl := (@ctl semC).
 
     Notation tid:= nat.
-    
+
+    (* !! TODO: remove extraRes? *)
     Class ThreadPool :=
       { t : Type;
         mkPool : ctl -> res -> res -> t;
@@ -2038,15 +2039,15 @@ Module OrdinalPool.
       match n with
       | O => fun _ => nil
       | S n' => fun (H: S n' <= m) =>
-                 (existT (fun i => i < m) (m-(S n')) (lt_sub H)) ::
-                 (containsList_upto_n n' m) (leq_stepdown H)                                  
+                 (existT (P := fun i => i < m) (m-(S n')) (lt_sub H)) ::
+                 (containsList_upto_n n' m) (leq_stepdown H)
       end.
 
     Lemma containsList_upto_n_spec:
       forall m n (H: n <= m)
         i (cnti:  (fun i => i < m) (m - n + i)),
         i < n ->
-        nth_error (containsList_upto_n n m H) i = Some (existT _ (m - n + i) (cnti)). 
+        nth_error (containsList_upto_n n m H) i = Some (existT (m - n + i) (cnti)). 
     Proof.
       intros.
       remember (n - i) as k.
@@ -2083,14 +2084,14 @@ Module OrdinalPool.
     Definition contains_from_ineq (tp:t):
         {i : tid & i < num_threads tp } -> {i : tid & containsThread tp i}:=
        fun (H : {i : tid & i < num_threads tp}) =>
-         let (x, i) := H in existT (containsThread tp) x i.
+         let (x, i) := H in existT x i.
 
     Definition containsList (tp:t): seq.seq (sigT (containsThread tp)):=
       map (contains_from_ineq tp) (containsList' (num_threads tp)).
 
     Lemma containsList'_spec: forall i n
             (cnti: (fun i => i < n) i),
-            List.nth_error (containsList' n) i = Some (existT _ i (cnti)).
+            List.nth_error (containsList' n) i = Some (existT i (cnti)).
     Proof.
       intros.
       unfold containsList'.
@@ -2105,7 +2106,7 @@ Module OrdinalPool.
       
     Lemma containsList_spec: forall i tp
             (cnti: containsThread tp i),
-            List.nth_error (containsList tp) i = Some (existT _ i cnti).
+            List.nth_error (containsList tp) i = Some (existT i cnti).
     Proof.
       intros.
       unfold containsList. 

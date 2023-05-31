@@ -13,17 +13,14 @@ Require Import compcert.common.Memory.
 Require Import VST.concurrency.lib.Coqlib3.
 Require Import compcert.common.Values. (*for val*)
 Require Import compcert.lib.Integers.
-Require Export compcert.lib.Maps.
+Require Import compcert.lib.Maps.
 Require Import Coq.ZArith.ZArith.
 From VST.veric Require Import shares juicy_mem juicy_mem_lemmas.
 Require Import VST.msl.msl_standard.
 Require Import FunInd.
-Import cjoins.
 
 (*IM using proof irrelevance!*)
 Require Import ProofIrrelevance.
-
-Set Nested Proofs Allowed.
 
 Lemma po_refl: forall p, Mem.perm_order'' p p.
 Proof.
@@ -60,13 +57,13 @@ Definition dmap_get' (dm:delta_map) b ofs:=
 
 Definition dmap_get (dm:delta_map) b ofs:=
   (fun _ => None, dm) !! b ofs.
-Hint Transparent dmap_get.
+#[export] Hint Transparent dmap_get : core.
 (* go back in time 
    It is to go back to the previous definition.
    only to help transitioning. Hopefully one day we get rid of this.
  *)
 Lemma dmap_get_bit':
-  forall dm b ofs, dmap_get dm b ofs  = dmap_get' dm b ofs.
+  forall dm b ofs, dmap_get dm b ofs = dmap_get' dm b ofs.
 Proof.
   unfold dmap_get, dmap_get', PMap.get.
   intros; simpl.
@@ -174,25 +171,29 @@ Section permMapDefs.
     constructor.
   Qed.
 
+  Notation perm_of_sh := juicy_view.perm_of_sh.
+  Notation perm_of_res := res_predicates.perm_of_res.
+
   Lemma perm_of_glb_not_Freeable: forall sh,
       ~ perm_of_sh (Share.glb Share.Rsh sh) = Some Freeable.
   Proof.
     intros ??%perm_of_sh_Freeable_top%glb_Rsh_not_top; auto.
   Qed.
 
+  #[local] Hint Resolve perm_coh_empty_1 : core.
+
   Lemma perm_coh_self: forall res,
       perm_coh (perm_of_res res)
                (perm_of_res_lock res).
-        destruct res; simpl; auto.
-        - apply perm_coh_empty_1.
-        - destruct k; try apply perm_coh_empty_1; simpl.
-            destruct (perm_of_sh (Share.glb Share.Rsh sh)) eqn: ?; auto.
-            destruct p0; auto.
-            eapply perm_of_glb_not_Freeable; eauto.
+        destruct res as (?, [r|]); first destruct r; simpl; auto.
+        destruct d; simpl; auto.
+        destruct o; auto.
+        destruct (perm_of_sh (Share.glb Share.Rsh sh)) eqn: ?; auto.
+        if_tac; destruct p; simpl; auto; eapply perm_of_glb_not_Freeable; eauto.
   Qed.
 
 
-  Lemma perm_coh_joins:
+(*  Lemma perm_coh_joins:
     forall a b, joins a b ->
            perm_coh (perm_of_res a) (perm_of_res_lock b).
   Proof.
@@ -240,7 +241,7 @@ Section permMapDefs.
       apply juicy_mem_lemmas.po_join_sub_sh; eexists;
         eapply compcert_rmaps.join_glb_Rsh; eassumption.
     
-Qed.
+Qed.*)
 
 
   Definition permMapCoherence (pmap1 pmap2 : access_map) :=
@@ -267,11 +268,12 @@ Qed.
     forall r,
       Mem.perm_order'' (Some Writable) (perm_of_res_lock r).
   Proof.
-    destruct r; try constructor; destruct k ; simpl; auto.
+    destruct r as (k, [r|]); first destruct r; try constructor; destruct k; simpl; auto; try constructor.
+    destruct o; auto.
     - destruct (perm_of_sh (Share.glb Share.Rsh sh)) eqn:HH; auto.
-      destruct p0; try constructor.
+      destruct p; try constructor.
       apply perm_of_sh_Freeable_top in HH; inversion HH.
-          exfalso; eapply glb_Rsh_not_top; eauto.
+      exfalso; eapply glb_Rsh_not_top; eauto.
   Qed.
 
   (* Some None represents the empty permission. None is used for
@@ -599,12 +601,6 @@ Qed.
            end.
 
   Ltac permDisj_solve:= eexists; simpl; reflexivity.
-  
-  Lemma join_sh_permDisjoint:
-        forall sh1 sh2,
-          joins sh1 sh2 ->
-          permDisjoint (perm_of_sh sh1) (perm_of_sh sh2).
-  
 
   Lemma writable0_not_join_readable:
     forall sh1 sh2,
@@ -649,6 +645,11 @@ Qed.
              | [ H: joins ?sh1 ?sh2 |- _ ] =>
                eapply joins_comm in H
              end; joins_sh_contradiction_onside].
+
+  Lemma join_sh_permDisjoint:
+        forall sh1 sh2,
+          joins sh1 sh2 ->
+          permDisjoint (perm_of_sh sh1) (perm_of_sh sh2).
   Proof.
     (*intros.
         unfold perm_of_sh.
@@ -671,13 +672,13 @@ Qed.
           destruct (eq_dec sh2 Share.bot); eexists; reflexivity.*)
     intros.
 
-    functional induction (perm_of_sh sh1) using perm_of_sh_ind;
-      functional induction (perm_of_sh sh2) using perm_of_sh_ind;
+    functional induction (perm_of_sh sh1) using juicy_view.perm_of_sh_ind;
+      functional induction (perm_of_sh sh2) using juicy_view.perm_of_sh_ind;
       try permDisj_solve;
       joins_sh_contradiction.
-    Qed.
+  Qed.
  
-  (*HERE*)
+(*  (*HERE*)
   Lemma joins_permDisjoint: forall r1 r2,
       joins r1 r2 ->
       permDisjoint (perm_of_res r1) (perm_of_res r2).
@@ -819,7 +820,7 @@ Qed.
               try permDisj_solve;
           inversion H; inversion H0; subst;
             try glb_contradictions.
-  Qed.
+  Qed.*)
   
   (*Lemma permDisjoint_sub: forall r1 r2 p,
       join_sub r2 r1 ->
@@ -1245,10 +1246,7 @@ Proof.*)
         replace (ofs + Z.of_nat sz - ofs +1 )%Z with
             (Z.of_nat sz + 1)%Z; try lia.
         apply IHsz; simpl.
-        rewrite Zpos_P_of_succ_nat in Hofs.
-        replace (ofs + Z.succ (Z.of_nat sz))%Z with
-            (Z.succ (ofs + Z.of_nat sz))%Z in Hofs;
-          lia.
+        lia.
   Qed.
 
   Lemma setPermBlock_setPermBlock_var:
@@ -1426,7 +1424,7 @@ Proof.*)
         erewrite setPermBlock_other_1.
         assumption.
         apply Intv.range_notin in n; eauto.
-        simpl. rewrite Zpos_P_of_succ_nat. lia.
+        simpl. lia.
     - erewrite setPermBlock_other_2 by eauto.
       assumption.
   Qed.
@@ -1983,7 +1981,7 @@ Proof.*)
       rewrite H; auto. destruct k; auto.
   Defined.
 
-Lemma restrPermMap_irr:
+    Lemma restrPermMap_irr:
       forall p1 p2 m1 m2
         (P1: permMapLt p1 (getMaxPerm m1))
         (P2: permMapLt p2 (getMaxPerm m2)),
@@ -2038,6 +2036,9 @@ Lemma restrPermMap_irr:
     intros. unfold Mem.valid_block. rewrite restrPermMap_nextblock.
       by split.
   Qed.
+
+  Notation contents_at := juicy_view.contents_at.
+  Notation max_access_at := juicy_view.max_access_at.
 
   Lemma restrPermMap_contents :
     forall p' m (Hlt: permMapLt p' (getMaxPerm m)),
@@ -2598,7 +2599,6 @@ Proof.
        split; auto.
        unfold Intv.In; simpl in *.
        clear IHm H.
-       rewrite Zpos_P_of_succ_nat in H0.
        lia. }
 
   specialize (H _ ltac:(reflexivity)).
@@ -2644,7 +2644,7 @@ Proof.
   eapply H in H1.
   rewrite mem_lemmas.po_oo.
   rewrite mem_lemmas.po_oo in H1.
-  eapply juicy_mem.perm_order''_trans; eauto.
+  eapply juicy_view.perm_order''_trans; eauto.
 Qed.
 
 Lemma perm_order''_trans:
@@ -2717,10 +2717,9 @@ Qed.
 
 
       (* cann be used to expose the implicit arguemtns. *)
-      Definition restrPermMap' a b H:= @restrPermMap a b H.
+      Definition restrPermMap' a b H := @restrPermMap a b H.
       Lemma RPM: restrPermMap = restrPermMap'. Proof. reflexivity. Qed.
-      Arguments restrPermMap' a b H.
-      
+
       Lemma restr_proof_irr':
         forall (perm1 perm2 : access_map) (m1 m2 : mem)
                (Hlt1 : permMapLt perm1 (getMaxPerm m1))

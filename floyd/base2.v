@@ -5,8 +5,6 @@ Require Export VST.floyd.seplog_tactics.
 Require Export VST.floyd.const_only_eval.
 Require Export VST.floyd.computable_functions.
 
-Import compcert.lib.Maps.
-
 Fixpoint delete_id {A: Type} i (al: list (ident*A)) : option (A * list (ident*A)) :=
  match al with
  | (j,x)::bl => if ident_eq i j then Some (x,bl)
@@ -32,16 +30,22 @@ Definition funsig_of_fundef (fd: Clight.fundef) : funsig :=
  | External _ t t0 _ => (arglist 1 t, t0)
  end.
 
+Section funspecs.
+
+Context {Σ : gFunctors}.
+
+Notation funspec := (@funspec Σ).
+
 Definition vacuous_funspec (fd: Clight.fundef): funspec :=
-   mk_funspec (compcert_rmaps.typesig_of_funsig (funsig_of_fundef fd)) (cc_of_fundef fd) 
-   (rmaps.ConstType Impossible) (fun _ _ => FF) (fun _ _ => FF) (args_const_super_non_expansive _ _) (const_super_non_expansive _ _).
+   mk_funspec' (typesig_of_funsig (funsig_of_fundef fd)) (cc_of_fundef fd) 
+   (Impossible) (fun _ => False) (fun _ => False).
 
 
-Fixpoint augment_funspecs_new' (fds: list (ident * Clight.fundef)) (G: PTree.t funspec) : option funspecs :=
+Fixpoint augment_funspecs_new' (fds: list (ident * Clight.fundef)) (G: Maps.PTree.t funspec) : option funspecs :=
  match fds with
- | (i,fd)::fds' => match PTree.get i G with
+ | (i,fd)::fds' => match Maps.PTree.get i G with
                        | Some f =>
-                              match augment_funspecs_new' fds' (PTree.remove i G) with
+                              match augment_funspecs_new' fds' (Maps.PTree.remove i G) with
                                | Some G2 => Some ((i,f)::G2)
                                | None => None
                               end
@@ -51,11 +55,11 @@ Fixpoint augment_funspecs_new' (fds: list (ident * Clight.fundef)) (G: PTree.t f
                                | None => None
                               end
                         end
- | nil => match PTree.elements G with nil => Some nil | _::_ => None end
+ | nil => match Maps.PTree.elements G with nil => Some nil | _::_ => None end
  end.
 
 Definition augment_funspecs_new prog (G:funspecs) : funspecs :=
- let Gt :=  fold_left (fun t ia => PTree.set (fst ia) (snd ia) t) G (PTree.empty _) in
+ let Gt :=  fold_left (fun t ia => Maps.PTree.set (fst ia) (snd ia) t) G (Maps.PTree.empty _) in
  match augment_funspecs_new' (prog_funct prog) Gt with
  | Some G' => G'
  | None => nil
@@ -93,3 +97,5 @@ Qed.
 Lemma augment_funspecs_new_eq: forall prog G,
   augment_funspecs_new prog G = augment_funspecs prog G.
 Abort.  (* Very likely true *)
+
+End funspecs.
