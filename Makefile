@@ -525,14 +525,14 @@ C64_ORDINARY = reverse.c revarray.c sumarray.c append.c bin_search.c \
     bst.c field_loadstore.c float.c object.c \
     global.c min.c min64.c nest2.c nest3.c \
     logical_compare.c \
-    strlib.c switch.c union.c message.c incr.c
+    strlib.c switch.c union.c message.c
 
 V64_ORDINARY = verif_reverse2.v verif_revarray.v verif_sumarray.v \
     verif_append2.v verif_bin_search.v \
     verif_bst.v verif_field_loadstore.v verif_float.v verif_object.v \
     verif_global.v verif_min.v verif_min64.v verif_nest2.v verif_nest3.v \
     verif_logical_compare.v \
-    verif_strlib.v verif_switch.v verif_union.v verif_message.v verif_incr.v
+    verif_strlib.v verif_switch.v verif_union.v verif_message.v verif_incr
 
 SHA_FILES= \
   general_lemmas.v SHA256.v common_lemmas.v pure_lemmas.v sha_lemmas.v functional_prog.v \
@@ -613,7 +613,7 @@ AES_FILES = \
 # LINKED_C_FILES are those that need to be clightgen'd in a batch with others
 
 SINGLE_C_FILES = reverse.c reverse_client.c revarray.c queue.c queue2.c message.c object.c insertionsort.c float.c global.c logical_compare.c nest2.c nest3.c ptr_compare.c load_demo.c store_demo.c dotprod.c string.c field_loadstore.c merge.c append.c bin_search.c bst.c bst_oo.c min.c min64.c switch.c funcptr.c floyd_tests.c cond.c sumarray.c sumarray2.c int_or_ptr.c union.c cast_test.c strlib.c tree.c fib.c loop_minus1.c libglob.c peel.c structcopy.c printf.c stackframe_demo.c rotate.c \
-  objectSelf.c objectSelfFancy.c objectSelfFancyOverriding.c io.c io_mem.c incr.c incrN.c
+  objectSelf.c objectSelfFancy.c objectSelfFancyOverriding.c io.c io_mem.c
 
 
 LINKED_C_FILES = even.c odd.c
@@ -835,6 +835,12 @@ endif
 concurrency/threads.v: concurrency/threads.c
 	$(CLIGHTGEN) -normalize $^
 atomics/SC_atomics.v: atomics/SC_atomics.c
+	$(CLIGHTGEN) -normalize $^
+progs/incr.v: progs/incr.c
+	$(CLIGHTGEN) -normalize $^
+progs64/incr.v: progs64/incr.c
+	$(CLIGHTGEN) -normalize $^
+progs/incrN.v: progs/incrN.c
 	$(CLIGHTGEN) -normalize $^
 aes/aes.v: aes/mbedtls/library/aes.c aes/mbedtls/include/mbedtls/config.h \
               aes/mbedtls/include/mbedtls/check_config.h
