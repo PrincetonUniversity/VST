@@ -839,11 +839,11 @@ Definition VSTΣ Z : gFunctors :=
 Global Instance subG_VSTGpreS {Z Σ} : subG (VSTΣ Z) Σ → VSTGpreS Z Σ.
 Proof. solve_inG. Qed.
 
-Check step_fupdN_soundness.
 (* In Iris, they don't initialize wsat, but instead quantify over the wsatG in the adequacy theorem.
    step_fupdN_soundness initializes the wsat. *)
 Lemma init_VST: forall Z `{!VSTGpreS Z Σ} (z : Z),
-  ⊢ |==> ∀ _ : wsatGS Σ, ∃ H : heapGS Σ, ∃ _ : externalGS Z Σ,
+  ⊢ |==> ∀ _ : wsatGS Σ, ∃ _ : gen_heapGS resource Σ, ∃ _ : funspecGS Σ, ∃ _ : externalGS Z Σ,
+    let H : heapGS Σ := HeapGS _ _ _ _ in
     (state_interp Mem.empty z ∗ funspec_auth ∅ ∗ has_ext z) ∗ ghost_map.ghost_map_auth(H0 := gen_heapGpreS_meta) (gen_meta_name _) 1 ∅.
 Proof.
   intros; iIntros.
@@ -851,7 +851,7 @@ Proof.
   iMod (own_alloc(A := gmap_view.gmap_viewR address (@funspecO' Σ)) (gmap_view.gmap_view_auth (DfracOwn 1) ∅)) as (γf) "?".
   { apply gmap_view.gmap_view_auth_valid. }
   iMod (ext_alloc z) as (?) "(? & ?)".
-  iIntros "!>" (?); iExists (HeapGS _ _ (GenHeapGS _ _ γh γm) (FunspecG _ _ γf)), _.
+  iIntros "!>" (?); iExists (GenHeapGS _ _ γh γm), (FunspecG _ _ γf), _.
   rewrite /state_interp /mem_auth /funspec_auth /=; iFrame.
 Qed.
 
@@ -895,8 +895,8 @@ Proof.
   eapply (step_fupdN_soundness _ 1); intros.
   iIntros.
   iMod (@init_VST _ _ VSTGpreS0) as "H".
-  iDestruct ("H" $! Hinv) as (HH HE) "(H & ?)".
-  specialize (H HH HE).
+  iDestruct ("H" $! Hinv) as (?? HE) "(H & ?)".
+  specialize (H (HeapGS _ _ _ _) HE).
   eapply (semax_prog_rule _ _ _ _ O) in H as (b & q & (? & ? & Hinit) & Hsafe); [| done..].
   iMod (Hsafe with "H") as "Hsafe".
   iAssert (|={⊤}=> ⌜forall n, @dry_safeN _ _ _ OK_ty (semax.genv_symb_injective) (cl_core_sem (globalenv prog))
