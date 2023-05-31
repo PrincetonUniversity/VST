@@ -525,7 +525,7 @@ C64_ORDINARY = reverse.c revarray.c sumarray.c append.c bin_search.c \
     bst.c field_loadstore.c float.c object.c \
     global.c min.c min64.c nest2.c nest3.c \
     logical_compare.c \
-    strlib.c switch.c union.c message.c incr.c
+    strlib.c switch.c union.c message.c
 
 V64_ORDINARY = verif_reverse2.v verif_revarray.v verif_sumarray.v \
     verif_append2.v verif_bin_search.v \
@@ -613,7 +613,7 @@ AES_FILES = \
 # LINKED_C_FILES are those that need to be clightgen'd in a batch with others
 
 SINGLE_C_FILES = reverse.c reverse_client.c revarray.c queue.c queue2.c message.c object.c insertionsort.c float.c global.c logical_compare.c nest2.c nest3.c ptr_compare.c load_demo.c store_demo.c dotprod.c string.c field_loadstore.c merge.c append.c bin_search.c bst.c bst_oo.c min.c min64.c switch.c funcptr.c floyd_tests.c cond.c sumarray.c sumarray2.c int_or_ptr.c union.c cast_test.c strlib.c tree.c fib.c loop_minus1.c libglob.c peel.c structcopy.c printf.c stackframe_demo.c rotate.c \
-  objectSelf.c objectSelfFancy.c objectSelfFancyOverriding.c io.c io_mem.c incr.c incrN.c
+  objectSelf.c objectSelfFancy.c objectSelfFancyOverriding.c io.c io_mem.c
 
 
 LINKED_C_FILES = even.c odd.c
@@ -660,13 +660,13 @@ CC_TARGET= $(COMPCERT_INST_DIR)/cfrontend/Clight.vo
 CVFILES = $(patsubst %.c,$(PROGSDIR)/%.v,$(C_FILES))
 CVOFILES = $(patsubst %.c,$(PROGSDIR)/%.vo,$(C_FILES))
 
+PROGS64_FILES=$(V64_ORDINARY) incr.v
+
 ifeq ($(BITSIZE),64)
-PROGS_FILES=$(V64_ORDINARY)
+PROGS_FILES=$(PROGS64_FILES)
 else
 PROGS_FILES=$(PROGS32_FILES)
 endif
-
-PROGS64_FILES=$(V64_ORDINARY)
 
 INSTALL_FILES_SRC=$(shell COMPCERT=$(COMPCERT) COMPCERT_INST_DIR=$(COMPCERT_INST_DIR) ZLIST=$(ZLIST) BITSIZE=$(BITSIZE) ARCH=$(ARCH) IGNORECOQVERSION=$(IGNORECOQVERSION) MAKE=$(MAKE) util/calc_install_files $(PROGSDIR))
 INSTALL_FILES_VO=$(patsubst %.v,%.vo,$(INSTALL_FILES_SRC))
@@ -835,6 +835,12 @@ endif
 concurrency/threads.v: concurrency/threads.c
 	$(CLIGHTGEN) -normalize $^
 atomics/SC_atomics.v: atomics/SC_atomics.c
+	$(CLIGHTGEN) -normalize $^
+progs/incr.v: progs/incr.c
+	$(CLIGHTGEN) -normalize $^
+progs64/incr.v: progs64/incr.c
+	$(CLIGHTGEN) -normalize $^
+progs/incrN.v: progs/incrN.c
 	$(CLIGHTGEN) -normalize $^
 aes/aes.v: aes/mbedtls/library/aes.c aes/mbedtls/include/mbedtls/config.h \
               aes/mbedtls/include/mbedtls/check_config.h

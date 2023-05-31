@@ -6,7 +6,7 @@ Local Open Scope string_scope.
 Local Open Scope clight_scope.
 
 Module Info.
-  Definition version := "3.10".
+  Definition version := "3.12".
   Definition build_number := "".
   Definition build_tag := "".
   Definition build_branch := "".
@@ -79,18 +79,18 @@ Definition _b1 : ident := 55%positive.
 Definition _b2 : ident := 56%positive.
 Definition _b3 : ident := 57%positive.
 Definition _fiddle : ident := 52%positive.
-Definition _fst : ident := 1%positive.
+Definition _fst : ident := 2%positive.
 Definition _get22 : ident := 47%positive.
 Definition _get_little_endian : ident := 58%positive.
 Definition _i : ident := 44%positive.
 Definition _input : ident := 53%positive.
-Definition _int_pair : ident := 3%positive.
-Definition _left : ident := 4%positive.
+Definition _int_pair : ident := 1%positive.
+Definition _left : ident := 5%positive.
 Definition _main : ident := 67%positive.
 Definition _obj : ident := 62%positive.
 Definition _onetwo : ident := 59%positive.
 Definition _p : ident := 45%positive.
-Definition _pair_pair : ident := 6%positive.
+Definition _pair_pair : ident := 4%positive.
 Definition _pp : ident := 61%positive.
 Definition _pps : ident := 43%positive.
 Definition _r : ident := 51%positive.
@@ -98,9 +98,9 @@ Definition _res : ident := 46%positive.
 Definition _res1 : ident := 64%positive.
 Definition _res2 : ident := 65%positive.
 Definition _res3 : ident := 66%positive.
-Definition _right : ident := 5%positive.
+Definition _right : ident := 6%positive.
 Definition _size : ident := 49%positive.
-Definition _snd : ident := 2%positive.
+Definition _snd : ident := 3%positive.
 Definition _sum : ident := 48%positive.
 Definition _tagword : ident := 50%positive.
 Definition _threefour : ident := 60%positive.

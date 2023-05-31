@@ -6,7 +6,7 @@ Local Open Scope string_scope.
 Local Open Scope clight_scope.
 
 Module Info.
-  Definition version := "3.9".
+  Definition version := "3.12".
   Definition build_number := "".
   Definition build_tag := "".
   Definition build_branch := "".
@@ -75,23 +75,23 @@ Definition ___compcert_va_float64 : ident := 57%positive.
 Definition ___compcert_va_int32 : ident := 55%positive.
 Definition ___compcert_va_int64 : ident := 56%positive.
 Definition _buf : ident := 45%positive.
-Definition _bufsize : ident := 1%positive.
+Definition _bufsize : ident := 2%positive.
 Definition _des : ident := 53%positive.
-Definition _deserialize : ident := 3%positive.
-Definition _intpair : ident := 7%positive.
+Definition _deserialize : ident := 4%positive.
+Definition _intpair : ident := 5%positive.
 Definition _intpair_deserialize : ident := 48%positive.
 Definition _intpair_message : ident := 49%positive.
 Definition _intpair_serialize : ident := 46%positive.
 Definition _len : ident := 51%positive.
 Definition _length : ident := 47%positive.
 Definition _main : ident := 54%positive.
-Definition _message : ident := 4%positive.
+Definition _message : ident := 1%positive.
 Definition _p : ident := 44%positive.
 Definition _q : ident := 50%positive.
 Definition _ser : ident := 52%positive.
-Definition _serialize : ident := 2%positive.
-Definition _x : ident := 5%positive.
-Definition _y : ident := 6%positive.
+Definition _serialize : ident := 3%positive.
+Definition _x : ident := 6%positive.
+Definition _y : ident := 7%positive.
 Definition _t'1 : ident := 74%positive.
 
 Definition f_intpair_serialize := {|

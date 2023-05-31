@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 #usage:  util/make_version Bitsize Compcert-version
 F=veric/version.v
-set -e
 builtin type -P gdate &> /dev/null
 if [ $? -eq 0 ]; then
     DATE=gdate
 else
     DATE=date
 fi
+set -e
 printf >$F 'Require Import ZArith Coq.Strings.String. Open Scope string.\n'
 printf >>$F 'Definition git_rev := "'
 if [ -e "$(command -v git)" ] && [ "$(git rev-parse --is-inside-work-tree 2>/dev/null)" = "true" ]; then
