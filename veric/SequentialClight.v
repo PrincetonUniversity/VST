@@ -892,18 +892,33 @@ Lemma whole_program_sequential_safety_ext:
              n initial_oracle q m.
 Proof.
   intros.
-  eapply (step_fupdN_soundness _ 1); intros.
+  assert (forall n, exists b, exists q,
+       Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some b /\
+       semantics.initial_core (cl_core_sem (globalenv prog))
+           0 m q m (Vptr b Ptrofs.zero) nil /\
+        @dry_safeN _ _ _ OK_ty (semax.genv_symb_injective)
+            (cl_core_sem (globalenv prog))
+            dryspec
+            (Build_genv (Genv.globalenv prog) (prog_comp_env prog))
+             n initial_oracle q m).
+  2: { destruct (H1 O) as (b0 & q0 & ? & ? & _); eexists _, _; split; first done; split; first done.
+       intros n; destruct (H1 n) as (b & q & ? & ? & Hsafe).
+       assert (b0 = b) as -> by congruence.
+       assert (q0 = q) as -> by congruence.
+       done. }
+  intros n; eapply (step_fupdN_soundness _ n); intros.
   iIntros.
   iMod (@init_VST _ _ VSTGpreS0) as "H".
   iDestruct ("H" $! Hinv) as (?? HE) "(H & ?)".
   specialize (H (HeapGS _ _ _ _) HE).
-  eapply (semax_prog_rule _ _ _ _ O) in H as (b & q & (? & ? & Hinit) & Hsafe); [| done..].
+  eapply (semax_prog_rule _ _ _ _ n) in H as (b & q & (? & ? & Hinit) & Hsafe); [| done..].
   iMod (Hsafe with "H") as "Hsafe".
-  iAssert (|={⊤}=> ⌜forall n, @dry_safeN _ _ _ OK_ty (semax.genv_symb_injective) (cl_core_sem (globalenv prog))
-            dryspec (Build_genv (Genv.globalenv prog) (prog_comp_env prog)) n initial_oracle q m⌝) with "[Hsafe]" as ">%Hdry".
+  iAssert (|={⊤,∅}=> |={∅}▷=>^n ⌜@dry_safeN _ _ _ OK_ty (semax.genv_symb_injective) (cl_core_sem (globalenv prog))
+            dryspec (Build_genv (Genv.globalenv prog) (prog_comp_env prog)) n initial_oracle q m⌝) with "[Hsafe]" as ">Hdry".
   { admit. (* adequacy lemma *) }
-  rewrite -fupd_mask_intro_discard //.
-  iIntros "!>"; iPureIntro.
+  iIntros "!>".
+  iApply (step_fupdN_mono with "Hdry").
+  apply bi.pure_mono; intros.
   exists b, q; auto.
 
 (* intro n.

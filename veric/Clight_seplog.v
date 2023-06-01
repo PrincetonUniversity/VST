@@ -118,12 +118,12 @@ Definition get_result (ret: option ident) : environ -> environ :=
  end.
 
 Definition bind_ret (vl: option val) (t: type) (Q: assert) : assert :=
-     assert_of (fun rho => match vl, t with
-     | None, Tvoid => Q (make_args nil nil rho)
+     match vl, t with
+     | None, Tvoid => assert_of (fun rho => Q (make_args nil nil rho))
      | Some v, _ => ⌜tc_val t v⌝ ∧
-                               Q (make_args (ret_temp::nil) (v::nil) rho)
+                               assert_of (fun rho => Q (make_args (ret_temp::nil) (v::nil) rho))
      | _, _ => False
-     end).
+     end.
 
 Definition funassert (Delta: tycontext): assert := funspecs_assert (glob_specs Delta).
 
@@ -207,9 +207,17 @@ Global Instance ret_assert_equiv : Equiv (@ret_assert Σ) := fun a b =>
   (RA_normal a ⊣⊢ RA_normal b) /\ (RA_break a ⊣⊢ RA_break b) /\
   (RA_continue a ⊣⊢ RA_continue b) /\ (forall v, RA_return a v ⊣⊢ RA_return b v).
 
+Global Instance ret_assert_equivalence : Equivalence (@base.equiv ret_assert _).
+Proof.
+  split.
+  - intros ?; hnf; auto.
+  - intros ?? (? & ? & ? & ?); split3; last split; intros; auto.
+    rewrite -H2 //.
+  - intros ??? (? & ? & ? & ?) (? & ? & ? & ?); split3; last split; intros; etrans; eauto.
+Qed.
+
 Lemma frame_normal:
-  forall P F,
-   ret_assert_equiv (frame_ret_assert (normal_ret_assert P) F) (normal_ret_assert (P ∗ F)).
+  forall P F, base.equiv (frame_ret_assert (normal_ret_assert P) F) (normal_ret_assert (P ∗ F)).
 Proof.
 intros.
 unfold normal_ret_assert; simpl.
@@ -218,9 +226,7 @@ Qed.
 
 Lemma pure_and_sep_assoc: forall {PROP} P (Q R : bi_car PROP), ⌜P⌝ ∧ Q ∗ R ⊣⊢ (⌜P⌝ ∧ Q) ∗ R.
 Proof.
-  intros; iSplit.
-  - iIntros "($ & $ & $)".
-  - iIntros "(($ & $) & $)".
+  intros; apply bi.persistent_and_sep_assoc; apply _.
 Qed.
 
 Lemma proj_frame:

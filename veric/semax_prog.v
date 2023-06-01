@@ -1699,7 +1699,7 @@ Proof.
         iExists vals; iFrame; iPureIntro; repeat (split; trivial).
         apply (tc_vals_Vundef TCVals).
       * split => rho; rewrite /bind_ret; monPred.unseal; destruct (fn_return f); try iIntros "(_ & ([] & _) & _)".
-        rewrite -QPOST; iIntros "(? & (? & ?) & ?)"; iFrame.
+        rewrite /= -QPOST; iIntros "(? & (? & ?) & ?)"; iFrame.
         iPureIntro; split; last done.
         apply tc_environ_rettype.
       * split => rho; rewrite /bind_ret; monPred.unseal; iIntros "(% & (Q & $) & ?)".
@@ -1708,7 +1708,7 @@ Proof.
            iDestruct "Q" as "($ & $)"; iFrame; iPureIntro; split; last done.
            apply tc_environ_rettype_env_set.
         -- destruct (fn_return f); try iDestruct "Q" as "[]".
-           rewrite -QPOST; iFrame; iPureIntro; split; last done.
+           rewrite /= -QPOST; iFrame; iPureIntro; split; last done.
            apply tc_environ_rettype.
     + do 2 red; intros; monPred.unseal; trivial.
 Qed.

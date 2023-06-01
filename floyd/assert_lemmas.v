@@ -390,7 +390,7 @@ Lemma bind_ret1_unfold':
   forall v t Q rho,
   bind_ret (Some v) t Q rho = (⌜tc_val t v⌝ ∧ Q (make_args (ret_temp::nil)(v::nil) rho)).
 Proof.
- intros. reflexivity.
+ intros. rewrite /bind_ret; monPred.unseal. reflexivity.
 Qed.
 
 Lemma normal_ret_assert_elim:

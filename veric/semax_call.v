@@ -870,20 +870,21 @@ Lemma semax_call_aux2
                maybe_retval (Q x) (snd fsig) ret rho') -∗
               RA_normal R rho')) -∗
   ▷ rguard Espec psi E Delta curf (frame_ret_assert R F0) k -∗
-  ⌜closed_wrt_modvars (fn_body f) (assert_of (fun _ : environ => F0 rho ∗ F rho))⌝ ∧
+  ⌜closed_wrt_modvars (fn_body f) ⎡F0 rho ∗ F rho⎤⌝ ∧
   rguard Espec psi E (func_tycontext' f Delta) f
          (frame_ret_assert
             (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x))
-                              (stackframe_of' cenv_cs f)) (assert_of (fun _ : environ => F0 rho ∗ F rho)))
+                              (stackframe_of' cenv_cs f)) ⎡F0 rho ∗ F rho⎤)
          ctl.
 Proof.
   iIntros "#HR #rguard"; iSplit.
-  { iPureIntro; repeat intro; f_equal. }
+  { iPureIntro; repeat intro; monPred.unseal; f_equal. }
   iIntros (ek vl te ve) "!>".
   rewrite !proj_frame.
   monPred.unseal.
   iIntros "(% & ((F0 & F) & stack & Q) & fun)".
   iApply (guard_fallthrough_return with "[-Q] Q").
+  rewrite /bind_ret; monPred.unseal.
   iIntros "Q".
   set (rho' := construct_rho _ _ _).
   change (stackframe_of' cenv_cs f rho') with (stackframe_of f rho').
