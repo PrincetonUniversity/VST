@@ -3,6 +3,7 @@ Require Import compcert.cfrontend.Ctypes.
 Require Import VST.veric.expr.
 Require Import VST.concurrency.common.lksize.
 Require Import VST.concurrency.juicy.semax_conc_pred.
+Require Import VST.floyd.client_lemmas.
 (*Require Import VST.concurrency.conclib.*)
 Import Clightdefs.
 Import String.
