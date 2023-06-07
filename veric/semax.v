@@ -1,6 +1,5 @@
 Require Import VST.veric.juicy_base.
 Require Import VST.veric.juicy_mem.
-Require Import VST.veric.res_predicates.
 Require Import VST.veric.extend_tc.
 Require Import VST.veric.Clight_seplog.
 Require Import VST.veric.Clight_assert_lemmas.
@@ -149,11 +148,11 @@ Definition make_ext_rval  (gx: genviron) (tret: rettype) (v: option val):=
 
 Definition semax_external E
   ef
-  (A: Type)
-  (P: A -> argsassert)
-  (Q: A -> assert) :=
+  (A: TypeTree)
+  (P: dtfr (ArgsTT A))
+  (Q: dtfr (AssertTT A)) :=
  ∀ gx: genv,
- ∀ x: A,
+ ∀ x: dtfr A,
    ▷ ∀ F (ts: list typ),
    ∀ args: list val,
    ■ (⌜Val.has_type_list args (sig_args (ef_sig ef))⌝ ∧
@@ -215,11 +214,13 @@ Fixpoint zip_with_tl {A : Type} (l1 : list A) (l2 : typelist) : list (A*type) :=
     | _, _ => nil
   end.
 
-Definition withtype_empty (A: Type) : Prop := forall (x : A), False.
+Notation dtfr := (@dtfr Σ).
+
+Definition withtype_empty (A: TypeTree) : Prop := forall (x : dtfr A), False.
 Definition believe_external (gx: genv) E (v: val) (fsig: typesig) cc
-  (A: Type)
-  (P: A -> argsassert)
-  (Q: A -> assert) :=
+  (A: TypeTree)
+  (P: dtfr (ArgsTT A))
+  (Q: dtfr (AssertTT A)) :=
   match Genv.find_funct gx v with
   | Some (External ef sigargs sigret cc') =>
         ⌜fsig = (typelist2list sigargs, sigret) /\ cc'=cc
@@ -228,7 +229,7 @@ Definition believe_external (gx: genv) E (v: val) (fsig: typesig) cc
                            (rettype_of_type (snd fsig)) cc
            /\ (ef_inline ef = false \/ withtype_empty A)⌝
         ∧ semax_external E ef A P Q
-        ∧ ■ (∀ x: A,
+        ∧ ■ (∀ x: dtfr A,
               ∀ ret:option val,
                 Q x (make_ext_rval (filter_genv gx) (rettype_of_type (snd fsig)) ret)
                   ∧ ⌜Builtins0.val_opt_has_rettype ret (rettype_of_type (snd fsig))⌝
@@ -270,9 +271,9 @@ Definition stackframe_of' (cenv: composite_env) (f: Clight.function) : assert :=
 
 Definition believe_internal_ CS
   (semax:semaxArg -> mpred)
-  (gx: genv) E (Delta: tycontext) v (fsig: typesig) cc (A: Type)
-  (P: A -> argsassert)
-  (Q: A -> assert) : mpred :=
+  (gx: genv) E (Delta: tycontext) v (fsig: typesig) cc (A: TypeTree)
+  (P: dtfr (ArgsTT A))
+  (Q: dtfr (AssertTT A)) : mpred :=
   let ce := (@cenv_cs CS) in
   (∃ b: Values.block, ∃ f: function,
    let specparams := fst fsig in 
@@ -288,12 +289,12 @@ Definition believe_internal_ CS
    ∀ Delta':tycontext, ∀ CS':compspecs,
    ⌜forall f, tycontext_sub E (func_tycontext' f Delta) (func_tycontext' f Delta')⌝ →
      ⌜cenv_sub (@cenv_cs CS) (@cenv_cs CS')⌝ →
-      (∀ x : A,
+      (∀ x : dtfr A,
         ▷ semax (SemaxArg CS' E (func_tycontext' f Delta')
-                         ((bind_args (f.(fn_params)) (P x) ∗ stackframe_of' (@cenv_cs CS') f)
+                         ((bind_args (f.(fn_params)) (argsassert_of (P x)) ∗ stackframe_of' (@cenv_cs CS') f)
                                         (*∗ funassert (func_tycontext' f Delta')*))
                           (f.(fn_body))
-           (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x))
+           (frame_ret_assert (function_body_ret_assert (fn_return f) (assert_of (Q x)))
               (stackframe_of' (@cenv_cs CS') f))))).
 
 Definition empty_environ (ge: genv) := mkEnviron (filter_genv ge) (Map.empty _) (Map.empty _).
@@ -305,9 +306,9 @@ Definition claims (ge: genv) (Delta: tycontext) v fsig cc A P Q : Prop :=
 Definition believepred CS (semax: semaxArg -> mpred)
               E (Delta: tycontext) (gx: genv)  (Delta': tycontext) :=
   ∀ v:val, ∀ fsig: typesig, ∀ cc: calling_convention,
-  ∀ A: Type,
-  ∀ P: A -> argsassert,
-  ∀ Q: A -> assert,
+  ∀ A: TypeTree,
+  ∀ P: dtfr (ArgsTT A),
+  ∀ Q: dtfr (AssertTT A),
        ⌜claims gx Delta' v fsig cc A P Q⌝ →
       (believe_external gx E v fsig cc A P Q
         ∨ believe_internal_ CS semax gx E Delta v fsig cc A P Q).
@@ -341,9 +342,9 @@ Definition semax' {CS: compspecs} E Delta P c R : mpred :=
   (fixpoint semax_) (SemaxArg CS E Delta P c R).
 
 Definition believe_internal {CS: compspecs}
-  (gx: genv) E (Delta: tycontext) v (fsig: typesig) cc (A: Type)
-  (P: A -> argsassert)
-  (Q: A -> assert) :=
+  (gx: genv) E (Delta: tycontext) v (fsig: typesig) cc (A: TypeTree)
+  (P: dtfr (ArgsTT A))
+  (Q: dtfr (AssertTT A)) :=
   let ce := @cenv_cs CS in
   (∃ b: Values.block, ∃ f: function,
    let specparams := fst fsig in 
@@ -359,19 +360,19 @@ Definition believe_internal {CS: compspecs}
     ∀ Delta':tycontext,∀ CS':compspecs,
      ⌜forall f, tycontext_sub E (func_tycontext' f Delta) (func_tycontext' f Delta')⌝ →
       ⌜cenv_sub (@cenv_cs CS) (@cenv_cs CS')⌝ →
-       (∀ x : A,
+       (∀ x : dtfr A,
      ▷ @semax' CS' E (func_tycontext' f Delta')
-                                ((bind_args (f.(fn_params)) (P x) ∗ stackframe_of' (@cenv_cs CS') f)
+                                ((bind_args (f.(fn_params)) (argsassert_of (P x)) ∗ stackframe_of' (@cenv_cs CS') f)
                                              (*∗ funassert (func_tycontext' f Delta')*))
                                (f.(fn_body))
-           (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) (stackframe_of' (@cenv_cs CS') f)))).
+           (frame_ret_assert (function_body_ret_assert (fn_return f) (assert_of (Q x))) (stackframe_of' (@cenv_cs CS') f)))).
 
 Definition believe {CS: compspecs}
               E (Delta: tycontext) (gx: genv) (Delta': tycontext) :=
   ∀ v:val, ∀ fsig: typesig, ∀ cc: calling_convention,
-  ∀ A: Type,
-  ∀ P: A -> argsassert,
-  ∀ Q: A -> assert,
+  ∀ A: TypeTree,
+  ∀ P: dtfr (ArgsTT A),
+  ∀ Q: dtfr (AssertTT A),
        ⌜claims gx Delta' v fsig cc A P Q⌝ →
       (believe_external gx E v fsig cc A P Q
         ∨ believe_internal gx E Delta v fsig cc A P Q).

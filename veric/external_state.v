@@ -5,7 +5,7 @@ From VST.veric Require Export base auth.
 From iris.proofmode Require Import proofmode.
 
 (* external ghost state *)
-Lemma excl_orderN_includedN : forall {A : ofe} n (x y : excl' A), x ≼ₒ{n} y → x ≼{n} y.
+Lemma excl_orderN_includedN : forall {A : ofe} n (x y : excl' A), ✓{n} y → x ≼ₒ{n} y → x ≼{n} y.
 Proof.
   intros.
   destruct x, y; simpl in *; try done.

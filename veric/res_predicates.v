@@ -4,8 +4,13 @@ From iris_ora.algebra Require Import gmap.
 From iris_ora.logic Require Export logic.
 From VST.veric Require Import shares address_conflict.
 From VST.msl Require Export shares.
-From VST.veric Require Export base Memory algebras juicy_view gen_heap invariants.
+From VST.veric Require Export base Memory algebras dshare gen_heap invariants.
 Export Values.
+
+(* We can't import compcert.lib.Maps because their lookup notations conflict with stdpp's.
+   We can define lookup instances, which require one more ! apiece than CompCert's notation. *)
+Global Instance ptree_lookup A : Lookup positive A (Maps.PTree.t A) := Maps.PTree.get(A := A).
+Global Instance pmap_lookup A : LookupTotal positive A (Maps.PMap.t A) := Maps.PMap.get(A := A).
 
 Local Open Scope Z_scope.
 
@@ -16,124 +21,23 @@ Inductive resource :=
 (* Other information, like lock invariants and funspecs, should be stored in invariants,
    not in the heap. *)
 
-Definition perm_of_res (r: dfrac * option resource) :=
-  match r with
-  | (dq, Some (VAL _)) => perm_of_dfrac dq
-  | (DfracOwn (Share sh), _) => if eq_dec sh Share.bot then None else Some Nonempty
-  | (DfracBoth _, _) => Some Nonempty
-  | _ => None
-  end.
-
-Lemma perm_of_res_cases : forall dq r, (exists v, r = Some (VAL v) /\ perm_of_res (dq, r) = perm_of_dfrac dq) \/
-  (forall v, r ≠ Some (VAL v)) /\ perm_of_res (dq, r) = if decide (dq = ε) then None else if decide (dq = DfracOwn ShareBot) then None else Some Nonempty.
-Proof.
-  intros; simpl.
-  destruct dq as [[|]|], r as [[| |]|]; eauto; right; if_tac; subst; simpl; destruct (decide _); try done;
-    by inv e.
-Qed.
-
-Lemma perm_of_sh_None: forall sh, perm_of_sh sh = None -> sh = Share.bot.
-Proof.
-  intros ?.
-  unfold perm_of_sh.
-  if_tac; if_tac; try discriminate.
-  if_tac; done.
-Qed.
-
-Global Program Instance resource_ops : resource_ops (leibnizO resource) := { perm_of_res := perm_of_res; memval_of r := match r with VAL v => Some v | _ => None end }.
-Next Obligation.
-Proof.
-  discriminate.
-Qed.
-Next Obligation.
-Proof.
-  discriminate.
-Qed.
-Next Obligation.
-Proof.
-  intros ???? Hd.
-  destruct (perm_of_res_cases d2 r) as [(v2 & ? & Hperm2) | (Hno2 & Hperm2)],
-    (perm_of_res_cases d1 r) as [(v1 & Hr & Hperm1) | (Hno1 & Hperm1)]; subst.
-  - inv Hr; rewrite Hperm1 Hperm2; apply perm_of_dfrac_mono; auto.
-  - by contradiction (Hno1 v2).
-  - by contradiction (Hno2 v1).
-  - rewrite Hperm1 Hperm2; clear - H Hd.
-    rewrite dfrac_included_eq in Hd.
-    destruct (decide (d1 = ε)); first apply perm_order''_None.
-    destruct (decide (d1 = _)); first apply perm_order''_None.
-    rewrite !if_false; first constructor.
-    + intros ->; done.
-    + intros ->; destruct d1; try done; simpl in Hd.
-      destruct Hd as (? & Hd).
-      symmetry in Hd; apply share_op_join in Hd as (? & ? & -> & -> & (-> & ->)%join_Bot); done.
-Qed.
-Next Obligation.
-Proof.
-  intros ???.
-  pose proof (readable_dfrac_readable _ H).
-  split.
-  - destruct (perm_of_res_cases d r) as [(v & -> & Hperm) | (Hno & Hperm)]; rewrite Hperm /= perm_of_sh_bot // /=.
-    rewrite !if_false; first by destruct r as [[| |]|]; try constructor; contradiction (Hno v).
-    + intros ->; done.
-    + intros ->; simpl in H.
-      contradiction bot_unreadable.
-  - intros ? Hvalid.
-    pose proof (dfrac_op_readable' _ _ (or_introl H) Hvalid) as Hreadable%readable_dfrac_readable.
-    destruct (perm_of_res_cases (d ⋅ d2) r) as [(v & -> & Hperm) | (Hno & Hperm)]; rewrite Hperm; clear Hperm.
-    + destruct d2; rewrite /= left_id; if_tac; try done; apply (perm_of_dfrac_mono (DfracOwn _)); try done; eexists; rewrite (@cmra_comm dfracR) //.
-      instantiate (1 := DfracDiscarded ⋅ d); rewrite assoc dfrac_op_own_discarded //.
-    + destruct (perm_of_res_cases (DfracDiscarded ⋅ d2) r) as [(v & -> & Hperm) | (_ & Hperm)]; first (by contradiction (Hno v)); rewrite Hperm /=; clear Hperm.
-      destruct (decide (DfracDiscarded ⋅_ = _)); first apply perm_order''_None.
-      destruct (decide (DfracDiscarded ⋅_ = _)); first apply perm_order''_None.
-      rewrite !if_false; first constructor.
-      * intros X; rewrite X // in Hvalid.
-      * intros X; rewrite X /= perm_of_sh_bot // in Hreadable.
-Qed.
-Next Obligation.
-Proof.
-  intros ???? H; inv H; try inv H0; auto.
-Qed.
-Next Obligation.
-Proof.
-  simpl.
-  destruct r; try apply perm_order''_refl.
-  destruct d as [[|]|]; simpl; try if_tac; try constructor; try apply perm_order''_None.
-  - destruct (perm_of_sh sh) eqn: Hs; simpl; try constructor.
-    by apply perm_of_sh_None in Hs.
-  - destruct (perm_of_sh' _) eqn: Hs; simpl; try constructor; done.
-Qed.
-Next Obligation.
-Proof.
-  simpl; intros.
-  destruct r as (d, r).
-  destruct (perm_of_res_cases d r) as [(v & -> & Hperm) | (Hno & Hperm)]; rewrite Hperm /=; clear Hperm.
-  - apply perm_order''_refl.
-  - if_tac; first apply perm_order''_None.
-    if_tac; first apply perm_order''_None.
-    rewrite /perm_of_res' /=.
-    destruct (perm_of_dfrac d) eqn: Hd; first constructor.
-    destruct d as [[|]|]; simpl in Hd; try done.
-    + apply perm_of_sh_None in Hd as ->; done.
-    + if_tac in Hd; try done.
-      rewrite -> Hd in *; done.
-Qed.
-Next Obligation.
-Proof.
-  simpl; intros.
-  inv H; done.
-Qed.
-
 Definition nonlock (r: resource) : Prop :=
  match r with
  | LK _ _ => False
  | _ => True
  end.
 
+Global Notation "l ↦ dq v" := (mapsto l dq v)
+  (at level 20, dq custom dfrac at level 1, format "l  ↦ dq  v") : bi_scope.
+Global Notation "l ↦p v" := (mapsto_pure l v)
+  (at level 20, format "l  ↦p  v") : bi_scope.
+
+Open Scope bi_scope.
+
 Section heap.
 
 Context {Σ : gFunctors}.
-
-Context {HGS : gen_heapGS resource Σ} {WGS : wsatGS Σ}.
+Context {HGS : gen_heapGS address resource Σ} {WGS : wsatGS Σ}.
 
 Notation mpred := (iProp Σ).
 
@@ -153,9 +57,6 @@ Proof.
   intros.
   destruct r1, r2; inv H1; auto.
 Qed.*)
-
-Notation "l ↦ dq v" := (mapsto l dq v)
-  (at level 20, dq custom dfrac at level 1, format "l  ↦ dq  v") : bi_scope.
 
 Definition nonlockat (l: address): mpred := ∀ dq r, l ↦{dq} r → ⌜nonlock r⌝.
 
@@ -241,8 +142,6 @@ intros. subst. f_equal. apply proof_irr.
 Qed.*)
 
 (****** Specific specs  ****************)
-
-Global Open Scope bi_scope.
 
 Definition VALspec : spec :=
        fun (sh: share) (l: address) => ∃v, l ↦{#sh} VAL v.
@@ -580,161 +479,7 @@ iApply (big_sepL_mono with "H").
 by intros; iIntros "?"; iExists _.
 Qed.
 
-(*Lemma approx_eq_i:
-  forall (P Q: iProp Σ) (w: rmap),
-      (|> ! (P <=> Q)) w -> approx (level w) P = approx (level w) Q.
-Proof.
-intros.
-apply pred_ext'; extensionality m'.
-unfold approx.
-apply and_ext'; auto; intros.
-destruct (level_later_fash _ _ H0) as [m1 [? ?]].
-specialize (H _ H1).
-specialize (H m').
-spec H.
-rewrite H2; auto.
-destruct H; apply prop_ext. intuition eauto.
-Qed.
-
-Lemma level_later {A} `{H : ageable A}: forall {w: A} {n': nat},
-         laterR (level w) n' ->
-       exists w', laterR w w' /\ n' = level w'.
-Proof.
-intros.
-remember (level w) as n.
-revert w Heqn; induction H0; intros; subst.
-case_eq (age1 w); intros.
-exists a; split. constructor; auto.
-symmetry; unfold age in H0; simpl in H0.
-  unfold natAge1 in H0; simpl in H0. revert H0; case_eq (level w); intros; inv H2.
-  apply age_level in H1. congruence. rewrite age1_level0 in H1.
-   rewrite H1 in H0. inv H0.
- specialize (IHclos_trans1 _ (refl_equal _)).
-  destruct IHclos_trans1 as [w2 [? ?]].
-  subst.
-  specialize (IHclos_trans2 _ (refl_equal _)).
-  destruct IHclos_trans2 as [w3 [? ?]].
-  subst.
-  exists w3; split; auto. econstructor 2; eauto.
-Qed.
-
-(* TODO: resume this lemma. *)
 (*
-Lemma fun_assert_contractive:
-   forall fml cc (A: TypeTree)
-     (P Q: iProp Σ -> forall ts, dependent_type_functor_rec ts (AssertTrue A) (iProp Σ)) v,
-      (forall ts x rho, nonexpansive (fun R => P R ts x rho)) ->
-      (forall ts x rho, nonexpansive (fun R => Q R ts x rho)) ->
-      contractive (fun R : iProp Σ => fun_assert fml cc A (P R) (Q R) v).
-Proof.
-  intros.
-  (*
-  assert (H': forall xvl: A * environ, nonexpansive (fun R => P R (fst xvl) (snd xvl)))
-    by auto; clear H; rename H' into H.
-  assert (H': forall xvl: A * environ, nonexpansive (fun R => Q R (fst xvl) (snd xvl)))
-    by auto; clear H0; rename H' into H0.
-  *)
-  intro; intros.
-  rename H0 into H'.
-  intro; intros.
-  intro; intros; split; intros ? ? H7; simpl in H1.
-  + assert (a >= level a')%nat.
-    {
-      apply necR_level in H2. clear - H1 H2.
-      apply le_trans with (level y); auto.
-    }
-    clear y H1 H2. rename H3 into H2.
-    hnf.
-    destruct H7 as [loc H7].
-    hnf in H7. destruct H7 as [H1 H3].  hnf in H1.
-    exists loc.
-    apply prop_andp_i; auto.
-    split; auto.
-    hnf in H3|-*.
-    intro; specialize ( H3 b).
-    hnf in H3|-*.
-    if_tac; auto.
-    subst b.
-    hnf in H3|-*.
-    rewrite H3; clear H3.
-    f_equal.
-    simpl.
-    f_equal.
-    extensionality ts.
-    extensionality x.
-    extensionality b.
-    extensionality rho.
-    unfold packPQ.
-    simpl.
-    if_tac.
-    - (* P proof *)
-      specialize ( H ts x rho P0 Q0).
-Check approx_eq_i.
-      apply approx_eq_i.
-pose proof (later_derives (unfash_derives H)).
-      apply (later_derives (unfash_derives H)); clear H.
-      rewrite later_unfash.
-      unfold unfash.
-      red. red.
-      apply pred_nec_hereditary with a; auto.
-      apply nec_nat; auto.
-(* Q proof *)
-clear H; rename H' into H.
-specialize ( H (x,vl) P0 Q0).
-apply approx_eq_i.
-apply (later_derives (unfash_derives H)); clear H.
-rewrite later_unfash.
-red. red. red.
-apply pred_nec_hereditary with a; auto.
-apply nec_nat; auto.
-(* Part 2 *)
-assert (a >= level a')%nat.
- apply necR_level in H2. clear - H1 H2. apply le_trans with (level y); auto.
- clear y H1 H2. rename H3 into H2.
-unfold fun_assert.
-destruct H7 as [loc H7].
-hnf in H7. destruct H7 as [H1 H3].  hnf in H1.
-exists loc.
-apply prop_andp_i; auto.
-split; auto.
-hnf.
-intro.
-specialize ( H3 b).
-hnf in H3|-*.
-if_tac; auto.
-subst b.
-hnf in H3|-*.
-unfold yesat_raw in *.
-rewrite H3; clear H3.
-f_equal.
-simpl.
-f_equal.
-unfold compose.
-extensionality xy; destruct xy as [x [y [vl [ ] ]]].
-unfold packPQ.
-simpl.
-if_tac.
-(* P proof *)
-specialize ( H (x,vl) P0 Q0).
-symmetry.
-apply approx_eq_i.
-apply (later_derives (unfash_derives H)); clear H.
-rewrite later_unfash.
-red. red. red.
-apply pred_nec_hereditary with a; auto.
-apply nec_nat; auto.
-(* Q proof *)
-clear H; rename H' into H.
-specialize ( H (x,vl) P0 Q0).
-symmetry.
-apply approx_eq_i.
-apply (later_derives (unfash_derives H)); clear H.
-rewrite later_unfash.
-red. red. red.
-apply pred_nec_hereditary with a; auto.
-apply nec_nat; auto.
-Qed.
-*)
 Lemma VALspec_range_bytes_readable:
   forall n sh loc m, VALspec_range n sh loc m -> bytes_readable loc n m.
 Proof.
@@ -786,15 +531,6 @@ exists r0.
 rewrite <- H2. rewrite H3.
 subst; f_equal; auto.
 Qed.*)
-
-Definition core_load (ch: memory_chunk) (l: address) (v: val): mpred :=
-  <absorb> ∃ bl: list memval,
-  ⌜length bl = size_chunk_nat ch /\ decode_val ch bl = v /\ (align_chunk ch | snd l)⌝ ∧
-    ([∗ list] i↦b ∈ bl, ∃ sh, ⌜Mem.perm_order' (perm_of_dfrac sh) Readable⌝ ∧ mapsto (adr_add l (Z.of_nat i)) sh (VAL b)).
-
-Definition core_load' (ch: memory_chunk) (l: address) (v: val) (bl: list memval) : mpred :=
-  <absorb> (⌜length bl = size_chunk_nat ch /\ decode_val ch bl = v /\ (align_chunk ch | snd l)⌝ ∧
-    ([∗ list] i↦b ∈ bl, ∃ sh, ⌜Mem.perm_order' (perm_of_dfrac sh) Readable⌝ ∧ mapsto (adr_add l (Z.of_nat i)) sh (VAL b))).
 
 (*Lemma emp_no : emp = (ALL l, noat l).
 Proof.
@@ -1116,8 +852,3 @@ phi @ addr <> YES sh sh' (LK z z') P.*)
 End heap.
 
 #[export] Hint Resolve VALspec_range_0: normalize.
-
-Global Notation "l ↦ dq v" := (mapsto l dq v)
-  (at level 20, dq custom dfrac at level 1, format "l  ↦ dq  v") : bi_scope.
-Global Notation "l ↦p v" := (mapsto_pure l v)
-  (at level 20, format "l  ↦p  v") : bi_scope.

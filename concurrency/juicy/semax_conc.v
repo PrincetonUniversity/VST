@@ -112,8 +112,16 @@ Qed.*)
 
 (*+ Specification of each concurrent primitive *)
 
+Definition acquire_arg_type: TypeTree := ProdType (ConstType (val * share)) Mpred.
+
+#[export] Instance monPred_at_ne : NonExpansive (@monPred_at environ_index mpred : _ -> _ -d> _).
+Proof. solve_proper. Qed.
+
+#[export] Instance monPred_at_args_ne : NonExpansive (@monPred_at argsEnviron_index mpred : _ -> _ -d> _).
+Proof. solve_proper. Qed.
+
 Program Definition acquire_spec :=
-  WITH v : _, sh : _, R : _
+  TYPE acquire_arg_type WITH v : _, sh : _, R : _
   PRE [ tptr tvoid ]
      PROP (readable_share sh)
      PARAMS (v)
@@ -124,34 +132,13 @@ Program Definition acquire_spec :=
      SEP (lock_inv sh v R; R).
 Next Obligation.
 Proof.
-  hnf.
-  intros.
-  destruct x as [[v sh] R]; simpl in *.
-  apply (semax_conc.nonexpansive_super_non_expansive
-   (fun R => (PROP (readable_share sh)  PARAMS (v)  SEP (lock_inv sh v R)) gargs)).
-  apply (PROP_PARAMS_GLOBALS_SEP_nonexpansive
-          ((fun _ => readable_share sh) :: nil)
-          (v :: nil)
-          nil
-          ((fun R => lock_inv sh v R) :: nil));
-  repeat apply Forall_cons; try apply Forall_nil.
-  + apply const_nonexpansive.
-  + apply nonexpansive_lock_inv.
+  intros ? ((v, sh), R) ((?, ?), ?) ([=] & HR); simpl in *; subst.
+  rewrite HR //.
 Qed.
 Next Obligation.
 Proof.
-  hnf.
-  intros.
-  destruct x as [[v sh] R]; simpl in *.
-  apply (semax_conc.nonexpansive_super_non_expansive
-   (fun R => (PROP ()  LOCAL ()  SEP (lock_inv sh v R; R)) rho)).
-  apply (PROP_LOCAL_SEP_nonexpansive
-          nil
-          nil
-          ((fun R => lock_inv sh v R) :: (fun R => R) :: nil));
-  repeat apply Forall_cons; try apply Forall_nil.
-  + apply nonexpansive_lock_inv.
-  + apply identity_nonexpansive.
+  intros ? ((v, sh), R) ((?, ?), ?) ([=] & HR); simpl in *; subst.
+  rewrite HR //.
 Qed.
 
 Definition release_arg_type: rmaps.TypeTree := rmaps.ProdType (rmaps.ConstType (val * share)) rmaps.Mpred.

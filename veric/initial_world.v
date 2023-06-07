@@ -1,4 +1,8 @@
+From iris.algebra Require Import csum agree.
+From iris_ora.algebra Require Import osum agree.
 Require Import VST.zlist.sublist.
+Require Import VST.veric.shared.
+Require Import VST.veric.resource_map.
 Require Import VST.veric.juicy_base.
 Require Import VST.veric.juicy_mem.
 Require Import VST.veric.juicy_mem_lemmas.
@@ -899,6 +903,32 @@ Proof.
   simpl in *; lia.
 Qed.
 
+Lemma lookup_singleton_list : forall {A} {B : ora} (l : list A) (f : A -> B) k i, (([^op list] i↦v ∈ l, ({[adr_add k (Z.of_nat i) := f v]})) !! i ≡
+  if adr_range_dec k (Z.of_nat (length l)) i then f <$> (l !! (Z.to_nat (i.2 - k.2))) else None)%stdpp.
+Proof.
+  intros.
+  remember (rev l) as l'; revert dependent l; induction l'; simpl; intros.
+  { destruct l; simpl; last by apply app_cons_not_nil in Heql'.
+    rewrite lookup_empty; if_tac; auto. }
+  apply (f_equal (@rev _)) in Heql'; rewrite rev_involutive in Heql'; subst; simpl.
+  rewrite lookup_proper; last apply big_opL_snoc.
+  rewrite lookup_op IHl'; last by rewrite rev_involutive.
+  destruct k as (?, o), i as (?, o').
+  if_tac; [|if_tac].
+  - destruct H; subst; simpl.
+    rewrite lookup_singleton_ne; last by rewrite /adr_add; intros [=]; lia.
+    rewrite if_true; last by rewrite app_length; lia.
+    rewrite lookup_app.
+    by destruct (lookup_lt_is_Some_2 (rev l') (Z.to_nat (o' - o))) as (? & ->); first lia.
+  - destruct H0 as [-> Hrange].
+    rewrite app_length /= in Hrange.
+    assert (o' = o + Z.of_nat (length (rev l')))%Z as -> by (rewrite /adr_range in H; lia).
+    rewrite /adr_add lookup_singleton /= list_lookup_middle //; lia.
+  - rewrite lookup_singleton_ne //.
+    rewrite /adr_add /=; intros [=]; subst; contradiction H0.
+    split; auto; rewrite app_length /=; lia.
+Qed.
+
 Lemma lookup_of_loc : forall m {F} ge G b lo z loc,
   (([^op list] o ∈ seq 0 z, {[(b, (lo + Z.of_nat o)%Z) := @res_of_loc m F ge G (b, (lo + Z.of_nat o)%Z)]} ) !! loc ≡
   if adr_range_dec (b, lo) z loc then Some (res_of_loc m ge G loc) else None)%stdpp.
@@ -963,7 +993,7 @@ Proof.
   apply Lsh_bot_neq.
 Qed.
 
-Lemma rmap_of_loc_coherent : forall m F (ge : Genv.t (fundef F) type) G loc, coherent_loc m loc (resR_to_resource (leibnizO resource) (Some (res_of_loc m ge G loc))).
+Lemma rmap_of_loc_coherent : forall m F (ge : Genv.t (fundef F) type) G loc, coherent_loc m loc (resR_to_resource (Some (res_of_loc m ge G loc))).
 Proof.
   intros; rewrite /res_of_loc.
   destruct (access_at m loc Cur) eqn: Hloc; last apply coherent_bot.
@@ -1012,8 +1042,9 @@ Lemma rmap_of_mem_coherent : forall m block_bounds {F} ge G loc, (✓ @rmap_of_m
   coherent_loc m loc (resource_at (@rmap_of_mem m block_bounds F ge G) loc).
 Proof.
   intros; rewrite /resource_at.
-  specialize (H loc); rewrite lookup_of_mem in H.
-  eapply (coherent_loc_ne 0); [by apply cmra_valid_validN | symmetry; apply equiv_dist, lookup_of_mem |].
+  specialize (H loc).
+  erewrite resR_to_resource_eq; [| done | apply lookup_of_mem].
+  rewrite lookup_of_mem in H.
   destruct loc as (b, o); destruct (block_bounds b) eqn: Hbounds; rewrite Hbounds /=.
   destruct (plt _ _); last apply coherent_bot.
   destruct (zle z o); simpl; last apply coherent_bot.
@@ -1312,7 +1343,7 @@ Lemma initialize_mem : forall m block_bounds {F} (ge : Genv.t (fundef F) type) G
 Proof.
   intros.
   pose proof (rmap_of_mem_valid m block_bounds ge G).
-  rewrite /mem_auth gen_heap_set //.
+  rewrite mem_auth_set //.
   iIntros "(>(Hm & Hr) & Hf)".
   iCombine "Hf Hr" as "Hr"; iMod (rmap_inflate_equiv with "Hr") as "$"; try done.
   - apply rmap_of_mem_nextblock.

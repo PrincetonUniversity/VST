@@ -92,23 +92,23 @@ Qed.
 
 
 
-Definition funspec2pre (ext_link: Strings.String.string -> ident) (A : Type)
-  (P: A -> argsEnviron -> mpred)
+Definition funspec2pre (ext_link: Strings.String.string -> ident) (A : TypeTree)
+  (P: dtfr (ArgsTT A))
   (id: ident) (sig : signature) (ef: external_function) x (ge_s: injective_PTree block)
            (tys : list typ) args (z : Z) m : Prop :=
   match oi_eq_dec (Some (id, sig)) (ef_id_sig ext_link ef) as s
-  return ((if s then A else ext_spec_type Espec ef) -> Prop)
+  return ((if s then ofe_car (dtfr A) else ext_spec_type Espec ef) -> Prop)
   with
     | left _ => fun x' => ouPred_holds (⌜Val.has_type_list args (sig_args (ef_sig ef))⌝ ∧
         (∃ md, state_interp md z) ∗ P x' (filter_genv (symb2genv ge_s), args)) (level m) (m_phi m)
     | right n => fun x' => ext_spec_pre Espec ef x' ge_s tys args z m
   end x.
 
-Definition funspec2post (ext_link: Strings.String.string -> ident) (A : Type)
-  (Q: A -> environ -> mpred)
+Definition funspec2post (ext_link: Strings.String.string -> ident) (A : TypeTree)
+  (Q: dtfr (AssertTT A))
   id sig ef x ge_s (tret : rettype) ret (z : Z) m : Prop :=
   match oi_eq_dec (Some (id, sig)) (ef_id_sig ext_link ef) as s
-  return ((if s then A else ext_spec_type Espec ef) -> Prop)
+  return ((if s then ofe_car (dtfr A) else ext_spec_type Espec ef) -> Prop)
   with
     | left _ => fun x' => ouPred_holds ((∃ md, state_interp md z) ∗ Q x' (make_ext_rval (filter_genv (symb2genv ge_s)) tret ret)) (level m) (m_phi m)
     | right n => fun x' => ext_spec_post Espec ef x' ge_s tret ret z m
@@ -120,7 +120,7 @@ Definition funspec2extspec (ext_link: Strings.String.string -> ident) (f : (iden
     | (id, mk_funspec ((params, sigret) as fsig) cc A P Q) =>
       let sig := typesig2signature fsig cc in
       Build_external_specification juicy_mem external_function Z
-        (fun ef => if oi_eq_dec (Some (id, sig)) (ef_id_sig ext_link ef) then A else ext_spec_type Espec ef)
+        (fun ef => if oi_eq_dec (Some (id, sig)) (ef_id_sig ext_link ef) then dtfr A else ext_spec_type Espec ef)
         (funspec2pre ext_link A P id sig)
         (funspec2post ext_link A Q id sig)
         (fun rv z m => True%type)
@@ -187,7 +187,7 @@ Fixpoint add_funspecs_rec (ext_link: Strings.String.string -> ident) (Espec : ju
 
 Lemma add_funspecs_pre  (ext_link: Strings.String.string -> ident)
               {fs id sig cc A P Q}
-              {x: A} {args} Espec tys ge_s :
+              {x: dtfr A} {args} Espec tys ge_s :
   let ef := EF_external id (typesig2signature sig cc) in
   funspecs_norepeat fs ->
   In (ext_link id, (mk_funspec sig cc A P Q)) fs ->
@@ -232,7 +232,7 @@ Qed.
 
 Lemma add_funspecs_pre_void  (ext_link: Strings.String.string -> ident)
               {fs id sig cc A P Q}
-              {x: A}
+              {x: dtfr A}
               {args} Espec tys ge_s :
   let ef := EF_external id (mksignature (map typ_of_type sig) Tvoid cc) in
   funspecs_norepeat fs ->
@@ -282,7 +282,7 @@ Lemma add_funspecs_post_void (ext_link: Strings.String.string -> ident)
   funspecs_norepeat fs ->
   In (ext_link id, (mk_funspec (sig, tvoid) cc A P Q)) fs ->
   ext_mpred_post Z (add_funspecs_rec ext_link Espec fs) ef x ge_s tret ret z ⊢
-  ∃ (x': A), ⌜JMeq x x'⌝ ∧ (∃ md, state_interp md z) ∗ Q x' (make_ext_rval (filter_genv (symb2genv ge_s)) tret ret).
+  ∃ (x': dtfr A), ⌜JMeq x x'⌝ ∧ (∃ md, state_interp md z) ∗ Q x' (make_ext_rval (filter_genv (symb2genv ge_s)) tret ret).
 Proof.
 induction fs; [intros; exfalso; auto|]; intros ef H H1.
 destruct H1 as [H1|H1].
@@ -323,7 +323,7 @@ Lemma add_funspecs_post (ext_link: Strings.String.string -> ident) {Espec tret f
   funspecs_norepeat fs ->
   In (ext_link id, (mk_funspec sig cc A P Q)) fs ->
   ext_mpred_post Z (add_funspecs_rec ext_link Espec fs) ef x ge_s tret ret z ⊢
-  ∃ (x': A), ⌜JMeq x x'⌝ ∧ (∃ md, state_interp md z) ∗ Q x' (make_ext_rval (filter_genv (symb2genv ge_s)) tret ret).
+  ∃ (x': dtfr A), ⌜JMeq x x'⌝ ∧ (∃ md, state_interp md z) ∗ Q x' (make_ext_rval (filter_genv (symb2genv ge_s)) tret ret).
 Proof.
 induction fs; [intros; exfalso; auto|]; intros ef H H1.
 destruct H1 as [H1|H1].

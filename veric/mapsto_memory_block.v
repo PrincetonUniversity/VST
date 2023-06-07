@@ -1,7 +1,7 @@
 Require Import VST.veric.base.
 Require Import VST.veric.res_predicates.
+Require Import VST.veric.juicy_mem.
 Require Import VST.veric.assert_lemmas.
-
 Require Import compcert.cfrontend.Ctypes.
 Require Import VST.veric.address_conflict.
 Require Import VST.veric.val_lemmas.

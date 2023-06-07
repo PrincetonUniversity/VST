@@ -153,6 +153,15 @@ Section dfrac.
       contradiction H; apply writable_writable0; auto.
   Qed.
 
+  Global Instance dfrac_full_cancelable : Cancelable (DfracOwn (Share Tsh)).
+  Proof.
+    intros ??? ->%dfrac_full_exclusive H.
+    destruct z; last done.
+    rewrite /op /cmra_op /= right_id in H; injection H as H.
+    symmetry in H; apply share_op_join in H as (? & ? & [=] & ? & J); subst.
+    apply join_Tsh in J as (_ & ->); done.
+  Qed.
+
   Definition dfrac_ucmra_mixin : UcmraMixin dfrac.
   Proof.
     split; try done.

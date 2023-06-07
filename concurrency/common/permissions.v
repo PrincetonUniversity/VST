@@ -171,9 +171,6 @@ Section permMapDefs.
     constructor.
   Qed.
 
-  Notation perm_of_sh := juicy_view.perm_of_sh.
-  Notation perm_of_res := res_predicates.perm_of_res.
-
   Lemma perm_of_glb_not_Freeable: forall sh,
       ~ perm_of_sh (Share.glb Share.Rsh sh) = Some Freeable.
   Proof.
@@ -672,8 +669,8 @@ Qed.*)
           destruct (eq_dec sh2 Share.bot); eexists; reflexivity.*)
     intros.
 
-    functional induction (perm_of_sh sh1) using juicy_view.perm_of_sh_ind;
-      functional induction (perm_of_sh sh2) using juicy_view.perm_of_sh_ind;
+    functional induction (perm_of_sh sh1) using perm_of_sh_ind;
+      functional induction (perm_of_sh sh2) using perm_of_sh_ind;
       try permDisj_solve;
       joins_sh_contradiction.
   Qed.
@@ -1100,6 +1097,8 @@ Proof.*)
                               else
                                 Maps.PMap.get b pmap ofs')
                   pmap.
+
+   Open Scope nat.
 
    Fixpoint setPermBlock (p : option permission) (b : block)
            (ofs : Z) (pmap : access_map) (length: nat): access_map :=
@@ -2037,9 +2036,6 @@ Proof.*)
       by split.
   Qed.
 
-  Notation contents_at := juicy_view.contents_at.
-  Notation max_access_at := juicy_view.max_access_at.
-
   Lemma restrPermMap_contents :
     forall p' m (Hlt: permMapLt p' (getMaxPerm m)),
       contents_at (restrPermMap Hlt) = contents_at m.
@@ -2644,7 +2640,7 @@ Proof.
   eapply H in H1.
   rewrite mem_lemmas.po_oo.
   rewrite mem_lemmas.po_oo in H1.
-  eapply juicy_view.perm_order''_trans; eauto.
+  eapply perm_order''_trans; eauto.
 Qed.
 
 Lemma perm_order''_trans:

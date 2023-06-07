@@ -94,12 +94,12 @@ Definition make_ext_rval := veric.semax.make_ext_rval.
 Definition tc_option_val := veric.semax.tc_option_val.
 
 Lemma semax_func_cons_ext: forall `{HH: heapGS Σ}{Espec:OracleKind}{HE: externalGS OK_ty Σ} (V: varspecs) (G: funspecs)
-     {C: compspecs} ge E fs id ef argsig retsig A P (Q: A -> assert) argsig'
+     {C: compspecs} ge E fs id ef argsig retsig A P (Q: dtfr (AssertTT A)) argsig'
       (G': funspecs) cc b,
   argsig' = typelist2list argsig ->
   ef_sig ef = mksignature (typlist_of_typelist argsig) (rettype_of_type retsig) cc ->
   id_in_list id (map (@fst _ _) fs) = false ->
-  (ef_inline ef = false \/ withtype_empty A) ->
+  (ef_inline ef = false \/ @withtype_empty Σ A) ->
   (forall gx x (ret : option val),
       Q x (make_ext_rval gx (rettype_of_type retsig) ret) ∧
       ⌜Builtins0.val_opt_has_rettype ret (rettype_of_type retsig)⌝ ⊢
@@ -109,7 +109,7 @@ Lemma semax_func_cons_ext: forall `{HH: heapGS Σ}{Espec:OracleKind}{HE: externa
   (⊢ @CSHL_Def.semax_external _ HH Espec HE E ef A P Q) ->
   CSHL_Def.semax_func _ HH Espec HE V G C ge E fs G' ->
   CSHL_Def.semax_func _ HH Espec HE V G C ge E ((id, Ctypes.External ef argsig retsig cc)::fs)
-             ((id, mk_funspec' (argsig', retsig) cc A P Q)  :: G').
+             ((id, mk_funspec (argsig', retsig) cc A P Q)  :: G').
 Proof. intros. eapply semax_func_cons_ext; eauto. Qed.
 
 Definition semax_Delta_subsumption := @semax_lemmas.semax_Delta_subsumption.
@@ -164,10 +164,10 @@ Definition semax_return := @semax_return.
 
 (* Why are the implicits so inconsistent here? *)
 Lemma semax_call `{HH : !heapGS Σ} {Espec} `{HE : !externalGS OK_ty Σ} {CS}:
-  forall E Delta (A: Type)
-  (P : A -> argsassert)
-  (Q : A -> assert)
-  (x : A)
+  forall E Delta A
+  (P : dtfr (ArgsTT A))
+  (Q : dtfr (AssertTT A))
+  (x : dtfr A)
    F ret argsig retsig cc a bl,
            Cop.classify_fun (typeof a) =
            Cop.fun_case_f (typelist_of_type_list argsig) retsig cc ->
@@ -175,10 +175,10 @@ Lemma semax_call `{HH : !heapGS Σ} {Espec} `{HE : !externalGS OK_ty Σ} {CS}:
           tc_fn_return Delta ret retsig ->
   @semax _ HH Espec HE CS E Delta
        ((tc_expr Delta a ∧ tc_exprlist Delta argsig bl) ∧
-         (assert_of (fun rho => func_ptr E (mk_funspec' (argsig,retsig) cc A P Q) (eval_expr a rho)) ∗
+         (assert_of (fun rho => func_ptr E (mk_funspec (argsig,retsig) cc A P Q) (eval_expr a rho)) ∗
           (▷(F ∗ assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho))))))
          (Scall ret a bl)
-         (normal_ret_assert (∃ old:val, assert_of (substopt ret (`old) F) ∗ maybe_retval (Q x) retsig ret)).
+         (normal_ret_assert (∃ old:val, assert_of (substopt ret (`old) F) ∗ maybe_retval (assert_of (Q x)) retsig ret)).
 Proof.
   intros. eapply semax_pre_post, semax_call_si; try done; [| by intros; rewrite bi.and_elim_r..].
   intros; rewrite bi.and_elim_r; apply bi.and_mono; [apply bi.later_intro | done].

@@ -153,108 +153,7 @@ Definition typesig := (list type * type)%type. (*funsig without the identifiers*
 
 Definition typesig_of_funsig (f:funsig):typesig := (map snd (fst f), snd f).
 
-(* We define a generic funspec OFE with pre- and postconditions of arbitrary types, then specialize
-   it to argsassert and assert. *)
-
-Section ofe.
-
-Context {PO QO : Type -> ofe}.
-
-Inductive funspec_ :=
-   mk_funspec (sig : typesig) (cc : calling_convention) (A : Type) (P : PO A) (Q : QO A).
-
-(* funspec OFE -- needed to store funspecs in ghost state
-   If we put funspecs in the FUN resource, we'd need an OFE for resource instead. *)
-Local Instance funspec_dist : Dist funspec_ := λ n f1 f2,
-  match f1, f2 with
-  | mk_funspec sig1 cc1 A1 P1 Q1, mk_funspec sig2 cc2 A2 P2 Q2 =>
-      sig1 = sig2 /\ cc1 = cc2 /\ existT A1 P1 ≡{n}≡ existT A2 P2 /\ existT A1 Q1 ≡{n}≡ existT A2 Q2
-  end.
-
-Local Instance funspec_equiv : Equiv funspec_ := λ f1 f2,
-  match f1, f2 with
-  | mk_funspec sig1 cc1 A1 P1 Q1, mk_funspec sig2 cc2 A2 P2 Q2 =>
-      sig1 = sig2 /\ cc1 = cc2 /\ (existT A1 P1 ≡ existT A2 P2 /\ existT A1 Q1 ≡ existT A2 Q2)%stdpp
-  end.
-
-Lemma funspec_ofe_mixin : OfeMixin funspec_.
-Proof.
-  apply (iso_ofe_mixin (fun x => match x with mk_funspec sig cc A P Q =>
-    (sig, cc, (existT A P, existT A Q)) : prodO (leibnizO _) _ end)).
-  - intros [] []; split.
-    + intros (? & ? & ?); subst; split; auto.
-    + intros ([=] & ?); split3; auto.
-  - intros ? [] []; split.
-    + intros (? & ? & ?); subst; split; auto.
-    + intros ([=] & ?); split3; auto.
-Qed.
-Canonical Structure funspecO := Ofe funspec_ funspec_ofe_mixin.
-
-End ofe.
-Global Arguments funspecO : clear implicits.
-
-Section ofunctor.
-
-Program Definition funspec_map {P1 P2 Q1 Q2 : Type → ofe} :
-  (prodO (discrete_funO (λ A, P1 A -n> P2 A)) (discrete_funO (λ A, Q1 A -n> Q2 A))) -n>
-  @funspecO P1 Q1 -n> @funspecO P2 Q2 :=
-  λne '(Pf, Qf) fs, match fs with mk_funspec sig cc A P Q => mk_funspec sig cc A (Pf A P) (Qf A Q) end.
-Next Obligation.
-  intros ???? (PF, QF) ?? [=] n x y Heq; subst; simpl.
-  destruct x, y as [?? A2 ??], Heq as (? & ? & HP & HQ); simpl in *.
-  split3; auto; split; hnf; simpl.
-  - destruct HP as (Heq & HP); exists Heq; simpl in *; subst; simpl in *; rewrite HP //.
-  - destruct HQ as (Heq & HQ); exists Heq; simpl in *; subst; simpl in *; rewrite HQ //.
-Qed.
-Next Obligation.
-  intros ???? n (PF, QF) (PF2, QF2) [HP HQ] [?????]; simpl in *.
-  split3; auto.
-  split; exists eq_refl; simpl; [apply HP | apply HQ].
-Qed.
-
-Program Definition funspecOF (POF QOF : Type -> oFunctor) : oFunctor := {|
-    oFunctor_car A CA B CB := @funspecO (fun C => oFunctor_car (POF C) A B) (fun C => oFunctor_car (QOF C) A B);
-    oFunctor_map A1 _ A2 _ B1 _ B2 _ fg := funspec_map (λ a, oFunctor_map (POF a) fg, λ a, oFunctor_map (QOF a) fg)
-  |}.
-Next Obligation.
-  intros ?????????????? [?????]; simpl.
-  split3; auto; split; exists eq_refl; solve_proper.
-Qed.
-Next Obligation.
-  simpl; intros. destruct x as [?????].
-  split3; auto; split; apply (existT_proper eq_refl), oFunctor_map_id.
-Qed.
-Next Obligation.
-  simpl; intros. destruct x as [?????].
-  split3; auto; split; apply (existT_proper eq_refl), oFunctor_map_compose.
-Qed.
-
-Global Instance funspecOF_contractive {POF QOF} :
-    (∀ a, oFunctorContractive (POF a)) → (∀ a, oFunctorContractive (QOF a)) → oFunctorContractive (funspecOF POF QOF).
-Proof.
-  repeat intro. apply funspec_map; split; intros ?; exact: oFunctor_map_contractive.
-Qed.
-
-End ofunctor.
-Global Arguments funspecOF _%OF _%OF.
-
 Context {Σ : gFunctors}.
-
-Lemma funspec_equivI PO QO (f1 f2 : @funspec_ PO QO) : (f1 ≡ f2 : iProp Σ) ⊣⊢ ∃ sig cc A P1 P2 Q1 Q2,
-  ⌜f1 = mk_funspec sig cc A P1 Q1 ∧ f2 = mk_funspec sig cc A P2 Q2⌝ ∧ P1 ≡ P2 ∧ Q1 ≡ Q2.
-Proof.
-  ouPred.unseal; split=> n x ?.
-  destruct f1, f2; split.
-  - intros (<- & <- & HP & HQ).
-    destruct HP as (HeqP & HP), HQ as (HeqQ & HQ); simpl in *.
-    exists sig, cc, A, P, (eq_rect _ (fun A => PO A) P0 _ (eq_sym HeqP)), Q, (eq_rect _ (fun A => QO A) Q0 _ (eq_sym HeqQ)); repeat split.
-    + subst; simpl in *. rewrite -eq_rect_eq //.
-    + by subst.
-    + clear dependent HeqP; by subst.
-  - intros (? & ? & ? & ? & ? & ? & ? & ([=] & [=]) & ? & ?); subst.
-    repeat match goal with H : existT _ _ = existT _ _ |- _ => apply inj_pair2 in H end; subst.
-    split3; auto; split; exists eq_refl; done.
-Qed.
 
 (*Potential alternative that does not use Ctypes
 Inductive funspec :=
@@ -291,14 +190,189 @@ Program Definition argsassert_of (P : argsassert') : argsassert := {| monPred_at
 
 Coercion argsassert_of : argsassert' >-> argsassert.
 
-Definition funspec := @funspec_ (fun A => A -d> argsassert) (fun A => A -d> assert).
-Definition funspecO' := funspecO (fun A => A -d> argsEnviron -d> laterO (iProp Σ)) (fun A => A -d> environ -d> laterO (iProp Σ)).
-Definition funspecOF' := funspecOF (fun A => A -d> argsEnviron -d> laterOF idOF)%OF (fun A => A -d> environ -d> laterOF idOF)%OF.
+Section funspec.
 
-Definition funspec_unfold (f : funspec) : funspecO' :=
-  match f with mk_funspec sig cc A P Q =>
-    @mk_funspec (fun A => A -d> argsEnviron -d> laterO (iProp Σ)) (fun A => A -d> environ -d> laterO (iProp Σ)) sig cc A (fun x rho => Next (P x rho)) (fun x rho => Next (Q x rho))
+(* funspecs are effectively dependent pairs of an algebra and a pair of assertions on that algebra.
+   This means we have to take some care to define them in a way that avoids universe inconsistencies. *)
+
+(* Reify the type of the funspec's WITH clause. *)
+Inductive TypeTree: Type :=
+  | ConstType: Type -> TypeTree
+  | CompspecsType: TypeTree
+  | Mpred: TypeTree
+(*  | DependentType: nat -> TypeTree *)
+  | ProdType: TypeTree -> TypeTree -> TypeTree
+  | DiscreteFunType: Type -> TypeTree -> TypeTree
+  | ArrowType: TypeTree -> TypeTree -> TypeTree
+  | SigType: forall (I : Type), (I -> TypeTree) -> TypeTree
+(*  | PiType: forall (I : Type), (I -> TypeTree) -> TypeTree*)
+  | ListType: TypeTree -> TypeTree.
+
+Fixpoint dependent_type_functor_rec (T : TypeTree) : oFunctor :=
+  match T with
+  | ConstType t => constOF (leibnizO t)
+  | CompspecsType => constOF (leibnizO compspecs)
+  | Mpred => idOF
+  | ProdType a b => dependent_type_functor_rec a * dependent_type_functor_rec b
+  | DiscreteFunType a b => a -d> dependent_type_functor_rec b
+  | ArrowType a b => dependent_type_functor_rec a -n> dependent_type_functor_rec b
+  | SigType _ f => sigTOF (fun i => dependent_type_functor_rec (f i))
+  | ListType t => listOF (dependent_type_functor_rec t)
   end.
+
+Definition ArgsTT A := ArrowType A (DiscreteFunType argsEnviron Mpred).
+Definition AssertTT A := ArrowType A (DiscreteFunType environ Mpred).
+
+Section ofe.
+
+Context `{Cofe PROP1} `{Cofe PROP2}.
+
+Inductive funspec_ :=
+   mk_funspec (sig : typesig) (cc : calling_convention) (A: TypeTree)
+     (P: oFunctor_car (dependent_type_functor_rec (ArgsTT A)) PROP1 PROP2)
+     (Q: oFunctor_car (dependent_type_functor_rec (AssertTT A)) PROP1 PROP2).
+(* do we need nonexpansiveness proofs here? *)
+
+Import EqNotations.
+
+Lemma pre_eq : forall {A1 A2}, A1 = A2 ->
+  oFunctor_car (dependent_type_functor_rec (ArgsTT A1)) PROP1 PROP2 = oFunctor_car (dependent_type_functor_rec (ArgsTT A2)) PROP1 PROP2.
+Proof.
+  by intros ?? ->.
+Defined.
+
+Lemma post_eq : forall {A1 A2}, A1 = A2 ->
+  oFunctor_car (dependent_type_functor_rec (AssertTT A1)) PROP1 PROP2 = oFunctor_car (dependent_type_functor_rec (AssertTT A2)) PROP1 PROP2.
+Proof.
+  by intros ?? ->.
+Defined.
+
+Local Instance funspec_dist : Dist funspec_ := λ n f1 f2,
+  match f1, f2 with
+  | mk_funspec sig1 cc1 A1 P1 Q1, mk_funspec sig2 cc2 A2 P2 Q2 =>
+      sig1 = sig2 /\ cc1 = cc2 /\ ∃ H : A1 = A2, rew (pre_eq H) in P1 ≡{n}≡ P2 /\ rew (post_eq H) in Q1 ≡{n}≡ Q2
+  end.
+
+Local Instance funspec_equiv : Equiv funspec_ := λ f1 f2, forall n, f1 ≡{n}≡ f2.
+
+Lemma funspec_ofe_mixin : OfeMixin funspec_.
+Proof.
+  split; try done.
+  - split.
+    + intros []; repeat (split; auto).
+      exists eq_refl; done.
+    + intros [] [] (-> & -> & -> & ? & ?); repeat (split; auto).
+      exists eq_refl; done.
+    + intros [] [] [] (-> & -> & -> & ? & ?) (-> & -> & -> & ? & ?); repeat (split; auto).
+      exists eq_refl; split; etrans; eauto.
+  - intros ?? [] [] (-> & -> & -> & ? & ?) ?; repeat (split; auto).
+    exists eq_refl; split; eapply dist_lt; eauto.
+Qed.
+Canonical Structure funspecO := Ofe funspec_ funspec_ofe_mixin.
+
+End ofe.
+Global Arguments funspec_ _ {_} _ {_}.
+Global Arguments funspecO _ {_} _ {_}.
+
+Section ofunctor.
+
+Program Definition funspecOF (PF : oFunctor) `{forall (A : ofe) (HA : Cofe A) (B : ofe) (HB : Cofe B), Cofe (oFunctor_car PF A B)} : oFunctor := {|
+    oFunctor_car A CA B CB := funspecO (oFunctor_car PF B A) (oFunctor_car PF A B);
+    oFunctor_map A1 _ A2 _ B1 _ B2 _ fg := λne f, match f with mk_funspec sig cc A P Q =>
+      mk_funspec sig cc A (oFunctor_map (oFunctor_oFunctor_compose (dependent_type_functor_rec (ArgsTT A)) PF) fg P)
+                          (oFunctor_map (oFunctor_oFunctor_compose (dependent_type_functor_rec (AssertTT A)) PF) fg Q) end
+  |}.
+Next Obligation.
+Proof.
+  intros. intros [] [].
+  intros (<- & <- & <- & HP & HQ); repeat split; auto.
+  exists eq_refl; split; by apply ofe_mor_map_ne.
+Qed.
+Next Obligation.
+Proof.
+  intros. intros fg fg' Hfg [].
+  repeat split; auto.
+  exists eq_refl; split; rewrite /eq_rect /pre_eq /post_eq /eq_ind_r /eq_ind /eq_sym; f_equiv; by apply oFunctor_map_ne.
+Qed.
+Next Obligation.
+  intros. destruct x.
+  repeat split; auto.
+  exists eq_refl; split; apply equiv_dist; rewrite /eq_rect /pre_eq /post_eq /eq_ind_r /eq_ind /eq_sym oFunctor_map_id //.
+Qed.
+Next Obligation.
+  intros. destruct x.
+  repeat split; auto.
+  exists eq_refl; split; apply equiv_dist; rewrite /eq_rect /pre_eq /post_eq /eq_ind_r /eq_ind /eq_sym oFunctor_map_compose //.
+Qed.
+
+Global Instance funspecOF_contractive {PF} `{forall (A : ofe) (HA : Cofe A) (B : ofe) (HB : Cofe B), Cofe (oFunctor_car PF A B)} :
+    oFunctorContractive PF → oFunctorContractive (funspecOF PF).
+Proof.
+  rewrite /oFunctorContractive; intros.
+  intros ??? []; repeat split; auto.
+  exists eq_refl; split; rewrite /eq_rect /pre_eq /post_eq /eq_ind_r /eq_ind /eq_sym; f_equiv; by apply oFunctor_map_contractive.
+Qed.
+
+End ofunctor.
+
+End funspec.
+
+(*Program Fixpoint dtfr_later {PROP1} `{Cofe PROP1} {PROP2} `{Cofe PROP2} A : oFunctor_car (dependent_type_functor_rec A) PROP1 PROP2 -> oFunctor_car (dependent_type_functor_rec A) (laterO PROP1) (laterO PROP2) :=
+  match A with
+  | ConstType t => id
+  | CompspecsType => id
+  | Mpred => Next
+  | ProdType a b => λ x, (dtfr_later a (fst x), dtfr_later b (snd x))
+  | DiscreteFunType a b => λ x y, dtfr_later b (x y)
+  | ArrowType a b => λ x, (*λne y, dtfr_later b (x (dtfr_unlater a y))*) laterO_map x
+  | SigType _ f => λ x, match x with existT y P => existT y (dtfr_later (f y) P) end
+  | ListType t => map (dtfr_later t)
+  end
+with dtfr_unlater {PROP1} `{Cofe PROP1} {PROP2} `{Cofe PROP2} A : oFunctor_car (dependent_type_functor_rec A) (laterO PROP1) (laterO PROP2) -> oFunctor_car (dependent_type_functor_rec A) PROP1 PROP2 :=
+  match A with
+  | ConstType t => id
+  | CompspecsType => id
+  | Mpred => later_car
+  | ProdType a b => λ x, (dtfr_unlater a (fst x), dtfr_unlater b (snd x))
+  | DiscreteFunType a b => λ x y, dtfr_unlater b (x y)
+  | ArrowType a b => λ x, λne y, dtfr_unlater b (x (dtfr_later a y))
+  | SigType _ f => λ x, match x with existT y P => existT y (dtfr_unlater (f y) P) end
+  | ListType t => map (dtfr_unlater t)
+  end.
+Next Obligation.
+Proof.
+  intros.
+  intros ???.
+  simpl in x.
+  subst.
+  induction a; simpl.
+Locate "-n>".*)
+
+(*Program Definition dtfr_later {PROP1} `{Cofe PROP1} {PROP2} `{Cofe PROP2} A : oFunctor_car (dependent_type_functor_rec A) PROP1 PROP2 -> oFunctor_car (dependent_type_functor_rec A) (laterO PROP1) (laterO PROP2) :=
+  λ x, oFunctor_map (dependent_type_functor_rec A) (λne x, Next x, λne x, Next x) x.
+Next Obligation.
+Proof.
+  intros.*)
+
+Definition funspec := (funspec_ (iProp Σ) (iProp Σ)).
+Definition funspecO' := (laterO (funspecO (iPropO Σ) (iPropO Σ))).
+Definition NDmk_funspec (sig : typesig) (cc : calling_convention) A (P : A -> argsEnviron -d> iProp Σ) (Q : A -> environ -d> iProp Σ) : funspec := mk_funspec sig cc (ConstType A) (λne (a : leibnizO A), P a) (λne (a : leibnizO A), Q a).
+Definition funspecOF' := (laterOF (funspecOF idOF)).
+Definition dtfr A := (oFunctor_car (dependent_type_functor_rec A) (iProp Σ) (iProp Σ)).
+
+Lemma funspec_equivI PROP1 `{Cofe PROP1} PROP2 `{Cofe PROP2} (f1 f2 : funspec_ PROP1 PROP2) : (f1 ≡ f2 : iProp Σ) ⊣⊢ ∃ sig cc A P1 P2 Q1 Q2,
+  ⌜f1 = mk_funspec sig cc A P1 Q1 ∧ f2 = mk_funspec sig cc A P2 Q2⌝ ∧ P1 ≡ P2 ∧ Q1 ≡ Q2.
+Proof.
+  ouPred.unseal; split=> n x ?.
+  destruct f1, f2; split.
+  - intros (<- & <- & <- & HP & HQ); simpl in *.
+    exists sig, cc, A, P, P0, Q, Q0; repeat split; done.
+  - intros (? & ? & ? & ? & ? & ? & ? & ([=] & [=]) & ? & ?); subst.
+    repeat match goal with H : existT _ _ = existT _ _ |- _ => apply inj_pair2 in H end; subst.
+    split3; auto; exists eq_refl; done.
+Qed.
+
+Definition funspec_unfold (f : funspec) : laterO funspec := Next f.
 
 Definition varspecs : Type := list (ident * type).
 
@@ -333,17 +407,13 @@ Class funspecGS Σ := FunspecG {
 
 Class heapGS Σ := HeapGS {
   heapGS_wsatGS :> wsatGS Σ;
-  heapGS_gen_heapGS :> gen_heapGS resource Σ;
+  heapGS_gen_heapGS :> gen_heapGS address resource Σ;
   heapGS_funspecGS :> funspecGS Σ
 }.
 
 (* To use the heap, do Context `{!heapGS Σ}. *)
 
-Definition rmap `{heapGS Σ} := iResUR Σ.
 Definition mpred `{heapGS Σ} := iProp Σ.
-
-Definition mem_auth `{heapGS Σ} m := resource_map.resource_map_auth(H0 := gen_heapGpreS_heap(gen_heapGpreS := gen_heap_inG)) (gen_heap_name heapGS_gen_heapGS) 1 m.
-
 
 Definition int_range (sz: intsize) (sgn: signedness) (i: int) :=
  match sz, sgn with

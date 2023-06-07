@@ -596,6 +596,27 @@ Proof.
   f_equal; apply proof_irr.
 Qed.
 
+(* There are plenty of other orders on memories, but they're all either
+   way too general (Mem.extends, mem_lessdef) or way too restrictive (mem_lessalloc). *)
+Definition mem_sub m1 m2 := Mem.mem_contents m1 = Mem.mem_contents m2 /\ Mem.nextblock m1 = Mem.nextblock m2 /\
+  forall b ofs k p, Mem.perm m1 b ofs k p -> Mem.perm m2 b ofs k p.
+
+Lemma mem_sub_valid_pointer : forall m1 m2 b ofs, mem_sub m1 m2 -> Mem.valid_pointer m1 b ofs = true ->
+  Mem.valid_pointer m2 b ofs = true.
+Proof.
+  unfold mem_sub, Mem.valid_pointer; intros.
+  destruct H as (_ & _ & Hp).
+  destruct (Mem.perm_dec m1 _ _ _ _); inv H0.
+  destruct (Mem.perm_dec m2 _ _ _ _); auto.
+Qed.
+
+Lemma mem_sub_weak_valid_pointer : forall m1 m2 b ofs, mem_sub m1 m2 -> Mem.weak_valid_pointer m1 b ofs = true ->
+  Mem.weak_valid_pointer m2 b ofs = true.
+Proof.
+  unfold Mem.weak_valid_pointer; intros.
+  apply orb_true_iff in H0 as [Hp | Hp]; rewrite -> (mem_sub_valid_pointer _ _ _ _ H Hp), ?orb_true_r; auto.
+Qed.
+
 (* relationships between memory orders *)
 Lemma mem_sub_loadbytes : forall m1 m2 b ofs len v, mem_sub m1 m2 ->
   Mem.loadbytes m1 b ofs len = Some v -> Mem.loadbytes m2 b ofs len = Some v.

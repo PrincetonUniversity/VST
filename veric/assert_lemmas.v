@@ -1,5 +1,6 @@
 Require Export VST.veric.base.
 Require Import VST.veric.res_predicates.
+Require Import VST.veric.juicy_mem.
 Require Import compcert.cfrontend.Ctypes.
 Require Import VST.veric.mpred.
 Require Import VST.veric.seplog.

@@ -134,8 +134,6 @@ Proof.
   induction H; simpl; f_equiv; done.
 Qed.
 
-Search Equiv eq.
-
 #[global] Instance LOCALx_proper : Proper (equiv(Equiv := list.list_equiv(H := equivL)) ==> equiv ==> equiv) (@LOCALx Σ).
 Proof.
   intros ??????.
@@ -150,6 +148,36 @@ Proof.
   intros ???.
   rewrite /SEPx; f_equiv.
   induction H; simpl; f_equiv; done.
+Qed.
+
+#[global] Instance PROPx_ne {A} P : NonExpansive (@PROPx A Σ P).
+Proof. solve_proper. Qed.
+
+#[global] Instance LOCALx_ne L : NonExpansive (@LOCALx Σ L).
+Proof. solve_proper. Qed.
+
+#[global] Existing Instance list.list_dist.
+
+#[global] Instance SEPx_ne {A} : NonExpansive (@SEPx A Σ).
+Proof.
+  intros ????.
+  rewrite /SEPx; f_equiv.
+  induction H; simpl; f_equiv; done.
+Qed.
+
+#[global] Instance PARAMSx_ne lv : NonExpansive (@PARAMSx Σ lv).
+Proof.
+  intros ????.
+  rewrite /PARAMSx; constructor; intros; simpl.
+  rewrite H //.
+Qed.
+
+#[global] Instance GLOBALSx_ne lg : NonExpansive (@GLOBALSx Σ lg).
+Proof.
+  intros ????.
+  rewrite /GLOBALSx /LOCALx; constructor; intros; simpl.
+  monPred.unseal.
+  rewrite H //.
 Qed.
 
 Lemma PROPx_Permutation {A}: forall P Q R,

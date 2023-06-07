@@ -948,7 +948,7 @@ Proof.
 Qed.*)
 
 Section heap.
-Context `{!gen_heapGS resource Σ} `{!wsatGS Σ}.
+Context `{!gen_heapGS address resource Σ} `{!wsatGS Σ}.
 
 Lemma share_join_op: forall (sh1 sh2 sh : share), sepalg.join sh1 sh2 sh ->
   Share sh1 ⋅ Share sh2 = Share sh.

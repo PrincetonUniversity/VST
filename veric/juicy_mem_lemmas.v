@@ -1,7 +1,7 @@
 Require Import VST.veric.juicy_base.
-Require Import VST.veric.juicy_mem.
 Require Import VST.veric.wsat.
 Require Import VST.veric.res_predicates.
+Require Import VST.veric.juicy_mem.
 Require Import VST.veric.shares.
 Require Import VST.veric.Cop2.
 Require Import VST.veric.mpred.
@@ -112,7 +112,7 @@ Qed.*)
 
 Lemma core_load_coherent: forall ch v b ofs bl m,
   mem_auth m ∗ core_load' ch (b, ofs) v bl ⊢
-  ⌜length bl = size_chunk_nat ch ∧ (align_chunk ch | ofs)%Z ∧ forall i, i < length bl -> exists sh, perm_order' (perm_of_dfrac sh) Readable ∧ coherent_loc(V := leibnizO resource) m (b, ofs + Z.of_nat i)%Z (sh, Some (VAL (nthbyte i bl)))⌝.
+  ⌜length bl = size_chunk_nat ch ∧ (align_chunk ch | ofs)%Z ∧ forall i, i < length bl -> exists sh, perm_order' (perm_of_dfrac sh) Readable ∧ coherent_loc m (b, ofs + Z.of_nat i)%Z (sh, Some (VAL (nthbyte i bl)))⌝.
 Proof.
   intros; unfold core_load'.
   iIntros "(Hm & >((%H1 & _ & %H2) & H))".
@@ -394,7 +394,7 @@ Qed.*)
 
 Lemma mapsto_coherent: forall ch v sh b ofs m,
   mem_auth m ∗ address_mapsto ch v sh (b, ofs) ⊢
-  ⌜∃ bl, length bl = size_chunk_nat ch ∧ decode_val ch bl = v ∧ (align_chunk ch | ofs)%Z ∧ forall i, 0 <= i < size_chunk_nat ch -> coherent_loc(V := leibnizO resource) m (b, ofs + Z.of_nat i)%Z (DfracOwn (Share sh), Some (VAL (nthbyte i bl)))⌝.
+  ⌜∃ bl, length bl = size_chunk_nat ch ∧ decode_val ch bl = v ∧ (align_chunk ch | ofs)%Z ∧ forall i, 0 <= i < size_chunk_nat ch -> coherent_loc m (b, ofs + Z.of_nat i)%Z (DfracOwn (Share sh), Some (VAL (nthbyte i bl)))⌝.
 Proof.
   intros; unfold address_mapsto.
   iIntros "[Hm H]".
@@ -543,22 +543,10 @@ Proof.
   apply store_storebytes in H.
   iIntros "[Hm H]"; rewrite /address_mapsto.
   iDestruct "H" as (? (Hlen & <- & ?)) "H".
-  rewrite -(big_opL_fmap VAL (fun i v => mapsto (adr_add (b, ofs) i) (DfracOwn (Share sh)) v)).
-  iMod (mapsto_storebytes _ _ (b, ofs) _ (VAL <$> encode_val ch v') with "Hm H") as "[$ H]".
-  { rewrite Forall2_lookup; intros.
-    rewrite list_lookup_fmap; destruct (_ !! _); constructor; done. }
-  { rewrite Forall2_lookup; intros.
-    rewrite !list_lookup_fmap.
-    destruct (lt_dec i (length bl)).
-    * destruct (lookup_lt_is_Some_2 _ _ l) as [? ->].
-      rewrite Hlen -(encode_val_length ch v') in l.
-      destruct (lookup_lt_is_Some_2 _ _ l) as [? ->]; constructor.
-      intros; apply perm_order''_refl.
-    * rewrite lookup_ge_None_2; last lia.
-      rewrite lookup_ge_None_2; first constructor.
-      rewrite encode_val_length -Hlen; lia. }
+  iMod (mapsto_storebytes _ (b, ofs) _ (encode_val ch v') with "Hm H") as "[$ H]".
+  { rewrite encode_val_length //. }
   iIntros "!>"; iExists _; iSplit; first by iPureIntro; apply decode_encode_val_general.
-  rewrite big_opL_fmap; iExists _; iFrame.
+  iExists _; iFrame.
   iPureIntro; rewrite encode_val_length; repeat split; try done.
   { rewrite /size_chunk_nat (decode_encode_val_size _ _ Hdec) //. }
 Qed.
@@ -672,12 +660,11 @@ Lemma mapsto_alloc_bytes: forall m lo hi m' b,
   mem_auth m ⊢ |==> mem_auth m' ∗ [∗ list] i ∈ seq 0 (Z.to_nat (hi - lo)), address_mapsto Mint8unsigned Vundef Tsh (b, lo + Z.of_nat i).
 Proof.
   intros.
-  iIntros "Hm"; iMod (mapsto_alloc _ _ _ _ _ (VAL Undef) with "Hm") as "[$ H]"; first done.
+  iIntros "Hm"; iMod (mapsto_alloc with "Hm") as "[$ H]".
   rewrite /address_mapsto.
-  rewrite -fmap_replicate big_sepL_fmap big_sepL_seq replicate_length.
   iApply (big_sepL_mono with "H"); intros ?? [-> ?]%lookup_seq.
   iIntros "?"; iExists [Undef]; simpl.
-  rewrite replicate_repeat nth_repeat /adr_add Z.add_0_r; iFrame.
+  rewrite /adr_add Z.add_0_r; iFrame.
   iPureIntro; repeat split; auto.
   apply Z.divide_1_l.
 Qed.
@@ -688,12 +675,12 @@ Lemma mapsto_alloc: forall m ch lo hi m' b
   mem_auth m ⊢ |==> mem_auth m' ∗ address_mapsto ch Vundef Tsh (b, lo).
 Proof.
   intros.
-  iIntros "Hm"; iMod (mapsto_alloc _ _ _ _ _ (VAL Undef) with "Hm") as "[$ H]"; first done.
+  iIntros "Hm"; iMod (mapsto_alloc with "Hm") as "[$ H]".
   rewrite /address_mapsto.
-  rewrite -fmap_replicate big_sepL_fmap.
-  iExists _; iFrame; iPureIntro.
-  split; last done.
-  split; first by rewrite replicate_length -Hch.
+  iExists (replicate (Z.to_nat (hi - lo)) Undef).
+  rewrite (big_sepL_seq (replicate _ _)) replicate_length; setoid_rewrite nth_replicate; iFrame.
+  iPureIntro; split; last done.
+  split; first by rewrite -Hch.
   split; last done.
   destruct (Z.to_nat _) eqn: ?; first by pose proof (size_chunk_pos ch); lia.
   rewrite /= decode_val_undef //.

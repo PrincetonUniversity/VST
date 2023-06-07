@@ -253,6 +253,13 @@ Proof.
   by split; last constructor.
 Qed.
 
+Lemma shared_dist' : forall n x y, x ≡{n}≡ y <-> dfrac_of x = dfrac_of y ∧ val_of x ≡{n}≡ val_of y.
+Proof.
+  split; first apply shared_dist_implies.
+  destruct x, y; simpl; intros [[=] Hv]; subst; try done.
+  by apply Some_dist_inj in Hv.
+Qed.
+
 Lemma shared_includedN : forall n x y, x ≼{n} y -> y ≡ err ∨ (dfrac_of x ≼{n} dfrac_of y ∧ val_of x ≼{n} val_of y).
 Proof.
   intros ??? [z H].
@@ -268,6 +275,15 @@ Proof.
     destruct y; inv H.
     right; split; auto.
     by eexists (DfracOwn _).
+Qed.
+
+Local Instance shared_err_absorb rsh : LeftAbsorb equiv (NO ShareBot rsh) op.
+Proof.
+  intros x.
+  rewrite /op /shared_op_instance /=.
+  destruct x; try done.
+  destruct (readable_dfrac_dec _); try done.
+  destruct dq as [[|]|[|]]; done.
 Qed.
 
 Lemma YES_incl_NO : forall n dq rsh v sh nsh, YES dq rsh v ≼{n} NO sh nsh -> sh = ShareBot.
@@ -548,6 +564,63 @@ Proof.
     by destruct Hop as (? & ? & ? & ? & ? & ?).
 Qed.
 
+Lemma shared_includedN' : forall n x y, ✓{n} y -> dfrac_of x ≼{n} dfrac_of y ∧ val_of x ≼{n} val_of y -> x ≼{n} y.
+Proof.
+  intros ??? Hvalid [(d & Hd) (v & Hv)].
+  destruct (readable_dfrac_dec d).
+  - destruct y; simpl in *.
+    + exists (YES d r v0).
+      pose proof (shared_op_alt x (YES d r v0)).
+      rewrite -Hd in H; destruct (readable_dfrac_dec dq); last done.
+      destruct H as (? & Hv' & ->).
+      destruct x; inv Hv'; last done.
+      rewrite Some_op_opM in Hv; apply Some_dist_inj in Hv as ->.
+      rewrite -cmra_op_opM_assoc agree_idemp //.
+    + assert (dfrac_error (DfracOwn sh) = true).
+      { rewrite Hd; eapply dfrac_op_readable; auto.
+        rewrite -Hd //. }
+      destruct sh; done.
+  - destruct d as [sh | sh]; try done.
+    + exists (NO sh n0).
+      pose proof (shared_op_alt x (NO sh n0)).
+      rewrite -Hd in H.
+      destruct (readable_dfrac_dec (dfrac_of y)).
+      * destruct H as (? & Hv' & ->).
+        destruct y; try done.
+        split; first done.
+        apply shared_validN in Hvalid as [? Hvv].
+        simpl in *.
+        destruct x; inv Hv'.
+        symmetry; eapply agree_valid_includedN; try done.
+        rewrite -Some_includedN_total Hv /=.
+        by exists v.
+      * destruct y; try done; simpl in *.
+        destruct sh0; try done.
+        destruct H as (? & ? & ? & ? & -> & [=] & -> & ?); subst.
+        injection Hd; auto.
+    + destruct sh; try done.
+      apply shared_validN in Hvalid as [Hvalid _]; rewrite Hd in Hvalid.
+      apply cmra_valid_op_r in Hvalid as (? & ? & ?); done.
+Qed.
+
+Global Instance dfrac_of_ne n : Proper (dist n ==> eq) dfrac_of.
+Proof.
+  intros [|] [|]; inversion 1; subst; done.
+Qed.
+
+Global Instance YES_Tsh_cancelable rsh v : Cancelable (YES (DfracOwn (Share Tsh)) rsh v).
+Proof.
+  intros ??? (Hd & Hv)%shared_validN ?.
+  destruct (dfrac_of_op (YES (DfracOwn (Share Tsh)) rsh v) y) as [(_ & Hop)|Hop]; rewrite Hop // in Hd.
+  pose proof (dfrac_full_exclusive _ Hd) as He.
+  destruct y; simpl in *; subst; first contradiction bot_unreadable.
+  inv He.
+  rewrite H in Hop.
+  apply (cancelable _ _ (dfrac_of z)) in Hd; first by destruct z; simpl in *; inv Hd.
+  rewrite -Hop dfrac_of_op' in Hd |- *.
+  destruct (dfrac_error _); done.
+Qed.
+
 Local Instance shared_orderN : OraOrderN shared := λ n x y, y ≡ err ∨ dfrac_of x ≼ₒ dfrac_of y ∧ val_of x ≼ₒ{n} val_of y.
 
 Local Instance shared_order : OraOrder shared := λ x y, y ≡ err ∨ dfrac_of x ≼ₒ dfrac_of y ∧ val_of x ≼ₒ val_of y.
@@ -574,15 +647,6 @@ Proof.
     rewrite val_of_op // /= Some_op_opM.
     split; [apply discard_increasing|].
     destruct y; apply agree_increasing.
-Qed.
-
-Local Instance shared_err_absorb rsh : LeftAbsorb equiv (NO ShareBot rsh) op.
-Proof.
-  intros x.
-  rewrite /op /shared_op_instance /=.
-  destruct x; try done.
-  destruct (readable_dfrac_dec _); try done.
-  destruct dq as [[|]|[|]]; done.
 Qed.
 
 Local Instance shared_err_increasing rsh : Increasing (NO ShareBot rsh).

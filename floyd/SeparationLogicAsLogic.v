@@ -132,9 +132,9 @@ Module AuxDefs.
 
 Section AuxDefs.
 
-Variable semax_external: forall `{!heapGS Σ} {Hspec: @OracleKind Σ} `{!externalGS OK_ty Σ} (E: coPset) (ef: external_function) (A : Type)
-       (P: A -> @argsassert Σ)
-       (Q: A -> @assert Σ), mpred.
+Variable semax_external: forall `{!heapGS Σ} {Hspec: @OracleKind Σ} `{!externalGS OK_ty Σ} (E: coPset) (ef: external_function) (A : TypeTree)
+       (P: @dtfr Σ (ArgsTT A))
+       (Q: @dtfr Σ (AssertTT A)), mpred.
 
 Inductive semax `{HH : !heapGS Σ} {Espec: OracleKind} `{HE : !externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs} (E: coPset) (Delta: tycontext): assert -> statement -> ret_assert -> Prop :=
 | semax_ifthenelse :
@@ -186,7 +186,7 @@ Inductive semax `{HH : !heapGS Σ} {Espec: OracleKind} `{HE : !externalGS (@OK_t
              tc_fn_return Delta ret retsig⌝ ∧
           (((tc_expr Delta a) ∧ (tc_exprlist Delta argsig bl)))  ∧
          assert_of (`(func_ptr E (mk_funspec  (argsig,retsig) cc A P Q)) (eval_expr a)) ∗
-          ▷(assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho)) ∗ oboxopt Delta ret (maybe_retval (Q x) retsig ret -∗ R)))
+          ▷(assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho)) ∗ oboxopt Delta ret (maybe_retval (assert_of (Q x)) retsig ret -∗ R)))
          (Scall ret a bl)
          (normal_ret_assert R)
 | semax_return: forall (R: ret_assert) ret,
@@ -274,9 +274,9 @@ match spec with (_, mk_funspec fsig cc A P Q) =>
   snd fsig = snd (fn_funsig f) /\
 forall x,
   semax E (func_tycontext f V G nil)
-      (Clight_seplog.close_precondition (map fst f.(fn_params)) (P x) ∗ stackframe_of f)
+      (Clight_seplog.close_precondition (map fst f.(fn_params)) (argsassert_of (P x)) ∗ stackframe_of f)
        f.(fn_body)
-      (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) (stackframe_of f))
+      (frame_ret_assert (function_body_ret_assert (fn_return f) (assert_of (Q x))) (stackframe_of f))
 end.
 
 Inductive semax_func `{HH: !heapGS Σ} {Espec} `{HE: !externalGS OK_ty Σ} : forall (V: varspecs) (G: funspecs) {C: compspecs} (ge: Genv.t Clight.fundef type) (E: coPset) (fdecs: list (ident * Clight.fundef)) (G1: funspecs), Prop :=
@@ -299,13 +299,13 @@ Inductive semax_func `{HH: !heapGS Σ} {Espec} `{HE: !externalGS OK_ty Σ} : for
       semax_func V G ge E ((id, Internal f)::fs)
                  ((id, mk_funspec fsig cc A P Q)  :: G')
 | semax_func_cons_ext:
-   forall (V: varspecs) (G: funspecs) {C: compspecs} ge E fs id ef argsig retsig A (P: A -> argsassert) (Q: A -> assert)
+   forall (V: varspecs) (G: funspecs) {C: compspecs} ge E fs id ef argsig retsig A P (Q : dtfr (AssertTT A))
           argsig'
           (G': funspecs) cc b,
   argsig' = typelist2list argsig ->
   ef_sig ef = mksignature (typlist_of_typelist argsig) (rettype_of_type retsig) cc ->
   id_in_list id (map (@fst _ _) fs) = false ->
-  (ef_inline ef = false \/ withtype_empty A) ->
+  (ef_inline ef = false \/ @withtype_empty Σ A) ->
   (forall gx x (ret : option val),
      (Q x (make_ext_rval gx (rettype_of_type retsig) ret)
         ∧ ⌜Builtins0.val_opt_has_rettype ret (rettype_of_type retsig)⌝
@@ -314,7 +314,7 @@ Inductive semax_func `{HH: !heapGS Σ} {Espec} `{HE: !externalGS OK_ty Σ} : for
   (⊢ @semax_external Σ HH Espec HE E ef A P Q) ->
   @semax_func Σ HH Espec HE V G C ge E fs G' ->
   @semax_func Σ HH Espec HE V G C ge E ((id, External ef argsig retsig cc)::fs)
-       ((id, mk_funspec' (argsig', retsig) cc A P Q)  :: G')
+       ((id, mk_funspec (argsig', retsig) cc A P Q)  :: G')
 | semax_func_mono: forall  {CS CS'} (CSUB: cspecs_sub CS CS') ge ge'
   (Gfs: forall i,  sub_option (Genv.find_symbol ge i) (Genv.find_symbol ge' i))
   (Gffp: forall b, sub_option (Genv.find_funct_ptr ge b) (Genv.find_funct_ptr ge' b))
@@ -618,7 +618,7 @@ Lemma semax_call_inv: forall E Delta ret a bl Pre Post,
              tc_fn_return Delta ret retsig⌝ ∧
           ((*▷*)((tc_expr Delta a) ∧ (tc_exprlist Delta argsig bl)))  ∧
          assert_of (`(func_ptr E (mk_funspec  (argsig,retsig) cc A P Q)) (eval_expr a)) ∗
-          ▷(assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho)) ∗ oboxopt Delta ret (maybe_retval (Q x) retsig ret -∗ |={E}=> RA_normal Post))).
+          ▷(assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho)) ∗ oboxopt Delta ret (maybe_retval (assert_of (Q x)) retsig ret -∗ |={E}=> RA_normal Post))).
 Proof.
   intros.
   remember (Scall ret a bl) as c eqn:?H.
@@ -1295,16 +1295,16 @@ forall {V G} E f sp1 sp2 phi
   (BI: binary_intersection (snd sp1) (snd sp2) = Some phi),
   semax_body V G E f (fst sp1, phi).
 Proof. intros.
-  destruct sp1 as [i phi1]. destruct phi1 as [sig1 cc1 A1 P1 Q1 P1_ne Q1_ne]. 
-  destruct sp2 as [i2 phi2]. destruct phi2 as [sig2 cc2 A2 P2 Q2 P2_ne Q2_ne]. 
-  destruct phi as [sig cc A P Q P_ne Q_ne]. simpl snd in BI.
+  destruct sp1 as [i phi1]. destruct phi1 as [sig1 cc1 A1 P1 Q1].
+  destruct sp2 as [i2 phi2]. destruct phi2 as [sig2 cc2 A2 P2 Q2].
+  destruct phi as [sig cc A P Q]. simpl snd in BI.
   simpl in BI.
-  if_tac in BI; [inv BI | discriminate]. if_tac in H1; inv H1.
-  apply Classical_Prop.EqdepTheory.inj_pair2 in H6.
-  apply Classical_Prop.EqdepTheory.inj_pair2 in H5. subst. simpl fst; clear - SB1 SB2.
-  destruct SB1 as [X [Y SB1]]. destruct SB2 as [_ [_ SB2]].
-  split3; trivial. simpl in X; intros.
-  destruct x; [ apply SB1 | apply SB2].
+  if_tac in BI; [inv H | discriminate]. if_tac in BI; [| discriminate].
+  apply Some_inj, mk_funspec_inj in BI as ([=] & ? & ? & ? & ?); subst.
+  clear - SB1 SB2.
+  destruct SB1 as [X [X1 SB1]]; destruct SB2 as [_ [X2 SB2]].
+  split3; [ apply X | trivial | simpl in X; intros ].
+  destruct x as [[|] ?]; [ apply SB1 | apply SB2].
 Qed.
 
 Definition semax_func_mono := @AuxDefs.semax_func_mono (@Def.semax_external).
@@ -1664,16 +1664,16 @@ Definition CALLpre (CS: compspecs) E Delta ret a bl R :=
      ∃ argsig : list type,
      ∃ retsig : type,
      ∃ cc : calling_convention,
-     ∃ A : Type,
-     ∃ P : A -> argsassert,
-     ∃ Q : A -> assert,
-     ∃ x : A,
+     ∃ A : TypeTree,
+     ∃ P : dtfr (ArgsTT A),
+     ∃ Q : dtfr (AssertTT A),
+     ∃ x : dtfr A,
      ⌜Cop.classify_fun (typeof a) = Cop.fun_case_f (typelist_of_type_list argsig) retsig cc /\
          (retsig = Tvoid -> ret = @None ident) /\ tc_fn_return Delta ret retsig⌝ ∧
      (tc_expr Delta a ∧ tc_exprlist Delta argsig bl) ∧
-     assert_of ((` (func_ptr E (mk_funspec' (argsig, retsig) cc A P Q))) (@eval_expr CS a)) ∧
+     assert_of ((` (func_ptr E (mk_funspec (argsig, retsig) cc A P Q))) (@eval_expr CS a)) ∧
      ▷  (assert_of (fun rho => P x (ge_of rho, @eval_exprlist CS argsig bl rho)) ∗
-                   (oboxopt Delta ret (maybe_retval (Q x) retsig ret -∗ R))).
+                   (oboxopt Delta ret (maybe_retval (assert_of (Q x)) retsig ret -∗ R))).
 
 (*A variant where (CSUB: cspecs_sub  CS CS') is replaced by (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) may be provable once tc_expr lemmas (and maybe eval_expr lemmas, sem_binop etc) have been modified to only take a composite_env rather than a compspecs*) 
 Lemma semax_cssub {CS'} (CSUB: cspecs_sub  CS CS') E Delta P c R:
@@ -2117,19 +2117,19 @@ Lemma semax_body_funspec_sub {V G E f i phi phi'} (SB: semax_body V G E f (i, ph
   (LNR: list_norepet (map fst (fn_params f) ++ map fst (fn_temps f))):
   semax_body V G E f (i, phi').
 Proof.
-destruct phi as [sig cc A P Q Pne Qne].
-destruct phi' as [sig' cc' A' P' Q' Pne' Qne'].
+destruct phi as [sig cc A P Q].
+destruct phi' as [sig' cc' A' P' Q'].
 destruct Sub as [[Tsigs CC] Sub]. subst cc' sig'. simpl in Sub.
 destruct SB as [SB1 [SB2 SB3]].
 split3; trivial. intros.
 specialize (Sub x).
 apply semax_adapt
  with
-  (Q':= frame_ret_assert (function_body_ret_assert (fn_return f) (Q' x))
+  (Q':= frame_ret_assert (function_body_ret_assert (fn_return f) (assert_of (Q' x)))
            (stackframe_of f))
   (P' :=
     ∃ vals:list val,
-    ∃ x1 : A,
+    ∃ x1 : dtfr A,
     ∃ FR: _,
     ⌜forall rho' : environ,
               ⌜tc_environ (rettype_tycontext (snd sig)) rho'⌝ ∧ (FR ∗ Q x1 rho') ⊢ (Q' x rho')⌝ ∧
@@ -2187,10 +2187,10 @@ apply semax_adapt
    apply semax_extract_prop; intros QPOST.
    unfold fn_funsig in *. simpl in SB2; rewrite -> SB2 in *.
    apply (semax_frame E (func_tycontext f V G nil)
-      (close_precondition (map fst (fn_params f)) (P x1) ∗
+      (close_precondition (map fst (fn_params f)) (argsassert_of (P x1)) ∗
          stackframe_of f)
       (fn_body f)
-      (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x1)) (stackframe_of f))
+      (frame_ret_assert (function_body_ret_assert (fn_return f) (assert_of (Q x1))) (stackframe_of f))
       ⎡FRM⎤) in SB3.
     + eapply semax_pre_post_fupd.
       6: apply SB3.

@@ -80,7 +80,7 @@ Definition matchfunspecs (ge : genv) (G : funspecs) E : mpred :=
   func_at fs (b,0%Z) -∗
   ∃ id:ident, ∃ fs0: funspec, 
    ⌜Genv.find_symbol ge id = Some b /\ find_id id G = Some fs0⌝ ∧
-     funspec_sub_si E fs0 fs.
+     ◇ funspec_sub_si E fs0 fs.
 
 Lemma init_funspecs_matchfunspecs prog m G:
   funspec_auth (init_funspecs m (globalenv prog) G) ⊢ matchfunspecs (globalenv prog) G ∅.

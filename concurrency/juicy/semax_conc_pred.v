@@ -23,6 +23,13 @@ Proof.
   by iIntros "(% & % & -> & ?)".
 Qed.
 
+#[global] Instance lock_inv_nonexpansive sh v : NonExpansive (lock_inv sh v).
+Proof.
+  rewrite /lock_inv /LKspec; intros ??? Heq.
+  do 9 f_equiv.
+  rewrite Heq //.
+Qed.
+
 (*Lemma rec_inv1_nonexpansive: forall sh v Q,
   nonexpansive (weak_rec_inv sh v Q).
 Proof.

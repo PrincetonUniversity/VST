@@ -1173,11 +1173,11 @@ Axiom semax_call_forward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS
           tc_fn_return Delta ret retsig ->
   semax E Delta
           (((*▷*)((tc_expr Delta a) ∧ (tc_exprlist Delta argsig bl)))  ∧
-         (assert_of (`(func_ptr E (mk_funspec  (argsig,retsig) cc A P Q)) (eval_expr a)) ∗
+         (assert_of (`(func_ptr E (mk_funspec (argsig,retsig) cc A P Q)) (eval_expr a)) ∗
           (▷ (F ∗ assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho))))))
          (Scall ret a bl)
          (normal_ret_assert
-            (∃ old:val, assert_of (substopt ret (`old) F) ∗ maybe_retval (Q x) retsig ret)).
+            (∃ old:val, assert_of (substopt ret (`old) F) ∗ maybe_retval (assert_of (Q x)) retsig ret)).
 
 End CLIGHT_SEPARATION_HOARE_LOGIC_CALL_FORWARD.
 
@@ -1198,7 +1198,7 @@ Axiom semax_call_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalG
              tc_fn_return Delta ret retsig⌝ ∧
           ((*▷*)((tc_expr Delta a) ∧ (tc_exprlist Delta argsig bl)))  ∧
          assert_of (`(func_ptr E (mk_funspec  (argsig,retsig) cc A P Q)) (eval_expr a)) ∗
-          ▷(assert_of (fun rho => (P x (ge_of rho, eval_exprlist argsig bl rho))) ∗ oboxopt Delta ret (maybe_retval (Q x) retsig ret -∗ R)))
+          ▷(assert_of (fun rho => (P x (ge_of rho, eval_exprlist argsig bl rho))) ∗ oboxopt Delta ret (maybe_retval (assert_of (Q x)) retsig ret -∗ R)))
          (Scall ret a bl)
          (normal_ret_assert R).
 
@@ -1240,7 +1240,7 @@ Theorem semax_call_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externa
              tc_fn_return Delta ret retsig⌝ ∧
           ((*▷*)((tc_expr Delta a) ∧ (tc_exprlist Delta argsig bl)))  ∧
          assert_of (`(func_ptr E (mk_funspec  (argsig,retsig) cc A P Q)) (eval_expr a)) ∗
-          ▷(assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho)) ∗ oboxopt Delta ret (maybe_retval (Q x) retsig ret -∗ R)))
+          ▷(assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho)) ∗ oboxopt Delta ret (maybe_retval (assert_of (Q x)) retsig ret -∗ R)))
          (Scall ret a bl)
          (normal_ret_assert R).
 Proof.
@@ -1333,7 +1333,7 @@ Theorem semax_call_forward: forall `{!heapGS Σ} {Espec: OracleKind} `{!external
           (▷ (F ∗ assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho))))))
          (Scall ret a bl)
          (normal_ret_assert
-            (∃ old:val, assert_of (substopt ret (`old) F) ∗ maybe_retval (Q x) retsig ret)).
+            (∃ old:val, assert_of (substopt ret (`old) F) ∗ maybe_retval (assert_of (Q x)) retsig ret)).
 Proof.
   intros.
   eapply semax_pre; [| apply semax_call_backward].

@@ -22,6 +22,23 @@ Section view.
 
   Local Canonical Structure viewR := (view.viewR rel view_rel_order).
 
+  Lemma view_auth_dfrac_op_validI (relI : ouPred M) dq1 dq2 a1 a2 :
+    (∀ n (x : M), rel n a1 ε ↔ relI n x) →
+    ✓ (●V{dq1} a1 ⋅ ●V{dq2} a2 : viewR) ⊣⊢ ⌜✓(dq1 ⋅ dq2)⌝ ∧ a1 ≡ a2 ∧ relI.
+  Proof.
+    intros Hrel. apply (anti_symm _).
+    - ouPred.unseal. split=> n x _ /=.
+      rewrite /ouPred_holds /=.
+      intros Hv; pose proof (view_auth_dfrac_op_invN _ _ _ _ _ _ Hv) as Heq.
+      rewrite -Heq -view_auth_dfrac_op in Hv.
+      apply view_auth_dfrac_validN in Hv as [? ?]; split; last split; try done.
+      rewrite -Hrel //.
+    - ouPred.unseal. split=> n x _ /=.
+      intros (? & Heq & ?%Hrel).
+      rewrite /ouPred_internal_eq_def /ouPred_holds in Heq.
+      rewrite /ouPred_holds /= -Heq view_auth_dfrac_op_validN //.
+  Qed.
+
   Lemma view_both_dfrac_validI_1 (relI : ouPred M) dq a b :
     (∀ n (x : M), rel n a b → relI n x) →
     ✓ (●V{dq} a ⋅ ◯V b : viewR) ⊢ ⌜✓dq⌝ ∧ relI.
@@ -85,7 +102,7 @@ Section auth.
   Implicit Types a b : A.
   Implicit Types x y : auth A.
 
-  Context (auth_order : ∀n (x y : A), x ≼ₒ{n} y → x ≼{n} y).
+  Context (auth_order : ∀n (x y : A), ✓{n} y → x ≼ₒ{n} y → x ≼{n} y).
 
   Local Canonical Structure authR := (auth.authR _ auth_order).
   Local Canonical Structure authUR := (auth.authUR _ auth_order).
@@ -106,6 +123,14 @@ Section auth.
     rewrite auth_view_rel_exists. by ouPred.unseal.
   Qed.
 
+  Lemma auth_auth_dfrac_op_validI dq1 dq2 a b :
+    ✓ (●{dq1} a ⋅ ●{dq2} b : authR) ⊣⊢ ⌜✓(dq1 ⋅ dq2)⌝ ∧ a ≡ b ∧ ✓ a.
+  Proof.
+    apply view_auth_dfrac_op_validI=> n. ouPred.unseal.
+    split.
+    - intros (? & ?); done.
+    - split; last done. apply ucmra_unit_leastN.
+  Qed.
   Lemma auth_both_dfrac_validI dq a b :
     ✓ (●{dq} a ⋅ ◯ b : authR) ⊣⊢ ⌜✓dq⌝ ∧ (∃ c, a ≡ b ⋅ c) ∧ ✓ a.
   Proof. apply view_both_dfrac_validI=> n. by ouPred.unseal. Qed.
@@ -181,5 +206,20 @@ Section gmap_view.
   Qed.
 
 End gmap_view.
+
+Require Import VST.veric.shared.
+
+Section shared.
+  Context {V : ofe}.
+
+  Lemma shared_validI (x : shared V) : ✓ x ⊣⊢ match x return ouPred M with
+                                 | YES dq _ v => ⌜✓ dq⌝ ∧ ✓ v
+                                 | NO sh _ => ⌜✓ sh⌝
+                                 end.
+  Proof.
+    ouPred.unseal. by destruct x.
+  Qed.
+
+End shared.
 
 End oupred.
