@@ -844,13 +844,13 @@ End mpred.
 
 Class VSTGpreS (Z : Type) Σ := {
   VSTGpreS_inv :> wsatGpreS Σ;
-  VSTGpreS_heap :> gen_heapGpreS resource Σ;
+  VSTGpreS_heap :> gen_heapGpreS address resource Σ;
   VSTGpreS_funspec :> inG Σ (gmap_view.gmap_viewR address (@funspecO' Σ));
   VSTGpreS_ext :> inG Σ (excl_authR (leibnizO Z))
 }.
 
 Definition VSTΣ Z : gFunctors :=
-  #[wsatΣ; gen_heapΣ resource; GFunctor (gmap_view.gmap_viewRF address funspecOF');
+  #[wsatΣ; gen_heapΣ address resource; GFunctor (gmap_view.gmap_viewRF address funspecOF');
     GFunctor (excl_authR (leibnizO Z)) ].
 Global Instance subG_VSTGpreS {Z Σ} : subG (VSTΣ Z) Σ → VSTGpreS Z Σ.
 Proof. solve_inG. Qed.
@@ -858,7 +858,7 @@ Proof. solve_inG. Qed.
 (* In Iris, they don't initialize wsat, but instead quantify over the wsatG in the adequacy theorem.
    step_fupdN_soundness initializes the wsat. *)
 Lemma init_VST: forall Z `{!VSTGpreS Z Σ} (z : Z),
-  ⊢ |==> ∀ _ : wsatGS Σ, ∃ _ : gen_heapGS resource Σ, ∃ _ : funspecGS Σ, ∃ _ : externalGS Z Σ,
+  ⊢ |==> ∀ _ : wsatGS Σ, ∃ _ : gen_heapGS address resource Σ, ∃ _ : funspecGS Σ, ∃ _ : externalGS Z Σ,
     let H : heapGS Σ := HeapGS _ _ _ _ in
     (state_interp Mem.empty z ∗ funspec_auth ∅ ∗ has_ext z) ∗ ghost_map.ghost_map_auth(H0 := gen_heapGpreS_meta) (gen_meta_name _) 1 ∅.
 Proof.
@@ -867,8 +867,9 @@ Proof.
   iMod (own_alloc(A := gmap_view.gmap_viewR address (@funspecO' Σ)) (gmap_view.gmap_view_auth (DfracOwn 1) ∅)) as (γf) "?".
   { apply gmap_view.gmap_view_auth_valid. }
   iMod (ext_alloc z) as (?) "(? & ?)".
-  iIntros "!>" (?); iExists (GenHeapGS _ _ γh γm), (FunspecG _ _ γf), _.
+  iIntros "!>" (?); iExists (GenHeapGS _ _ _ γh γm), (FunspecG _ _ γf), _.
   rewrite /state_interp /mem_auth /funspec_auth /=; iFrame.
+  iExists ∅; iFrame. iSplit; [|done]. iPureIntro. apply empty_coherent.
 Qed.
 
 Global Instance stepN_absorbing {PROP : bi} `{!BiFUpd PROP} n E (P : PROP) `{!Absorbing P}: Absorbing (|={E}▷=>^n P).
@@ -876,23 +877,30 @@ Proof.
   induction n; apply _.
 Qed.
 
+Lemma emmmm : forall {PROP : bi} (P Q:PROP), P -∗ (P -∗ Q) -∗ (<absorb> P) ∧ Q.
+Proof. intros.
+  iIntros "a b".
+  iSplit. iFrame.
+  iApply "b"; iFrame.
+Qed.
+
 (* adequacy looks like {state_interp m z ∗ jsafe} prog -> dry_safe prog m z *)
 Lemma whole_program_sequential_safety_ext:
    forall Σ {CS: compspecs} {Espec: OracleKind} `{!VSTGpreS OK_ty Σ} (initial_oracle: OK_ty)
      (EXIT: semax_prog.postcondition_allows_exit tint)
-     (Jsub: forall ef se lv m t v m' (EFI : ef_inline ef = true) m1
+     (* (Jsub: forall ef se lv m t v m' (EFI : ef_inline ef = true) m1
        (EFC : Events.external_call ef se lv m t v m'), mem_sub m m1 ->
        exists m1' (EFC1 : Events.external_call ef se lv m1 t v m1'),
          mem_sub m' m1' /\ proj1_sig (inline_external_call_mem_events _ _ _ _ _ _ _ EFI EFC1) =
-         proj1_sig (inline_external_call_mem_events _ _ _ _ _ _ _ EFI EFC))
+                           proj1_sig (inline_external_call_mem_events _ _ _ _ _ _ _ EFI EFC)) *)
 (*     (Jframe: extspec_frame OK_spec) *)
      (dryspec: ext_spec OK_ty)
-     (dessicate : forall (ef : external_function) jm,
+     (dessicate : forall (ef : external_function),
                ext_spec_type OK_spec ef ->
                ext_spec_type dryspec ef)
-     (JDE: forall {HH : heapGS Σ} {HE : externalGS OK_ty Σ}, @juicy_dry_ext_spec _ HH _ HE (JE_spec OK_ty OK_spec) dryspec dessicate)
-     (DME: ext_spec_mem_evolve _ dryspec)
-     (Esub: forall v z m m', ext_spec_exit dryspec v z m -> mem_sub m m' -> ext_spec_exit dryspec v z m')
+     (JDE: forall {HH : heapGS Σ} {HE : externalGS OK_ty Σ}, @juicy_dry_ext_spec _ HH _ HE (JE_spec OK_ty OK_spec) dryspec (fun ef jm => dessicate ef))
+     (* (DME: ext_spec_mem_evolve _ dryspec) *)
+     (* (Esub: forall v z m m', ext_spec_exit dryspec v z m -> mem_sub m m' -> ext_spec_exit dryspec v z m') *)
      prog V G m,
      (forall {HH : heapGS Σ} {HE : externalGS OK_ty Σ}, @semax_prog _ HH Espec HE CS prog initial_oracle V G) ->
      Genv.init_mem prog = Some m ->
@@ -929,199 +937,170 @@ Proof.
   specialize (H (HeapGS _ _ _ _) HE).
   eapply (semax_prog_rule _ _ _ _ n) in H as (b & q & (? & ? & Hinit) & Hsafe); [| done..].
   iMod (Hsafe with "H") as "Hsafe".
-  iAssert (|={⊤,∅}=> |={∅}▷=>^n ⌜@dry_safeN _ _ _ OK_ty (semax.genv_symb_injective) (cl_core_sem (globalenv prog))
-            dryspec (Build_genv (Genv.globalenv prog) (prog_comp_env prog)) n initial_oracle q m⌝) with "[Hsafe]" as ">Hdry".
-  { admit. (* adequacy lemma *) }
-  iIntros "!>".
-  iApply (step_fupdN_mono with "Hdry").
-  apply bi.pure_mono; intros.
-  exists b, q; auto.
 
-(* intro n.
- specialize (H3 n).
- destruct H3 as [jm [? [? [? [Hwsat [? _]]]]]].
- unfold semax.jsafeN in H6.
- subst m.
- destruct Hwsat as (z & Jz & Hdry & Hz).
- (* safety uses all the resources, including the ones we put inside
-    invariants (since there's no take-from-invariant step in Clight) *)
- rewrite Hdry.
- assert (joins (compcert_rmaps.RML.R.ghost_of (m_phi z))
-   (Some (ghost_PCM.ext_ref initial_oracle, compcert_rmaps.RML.R.NoneP) :: nil)) as J.
- { apply compcert_rmaps.RML.ghost_of_join in Jz.
-   unfold initial_world.wsat_rmap in Jz; rewrite ghost_of_make_rmap in Jz.
-   inv Jz.
-   { rewrite <- H7 in H5; discriminate. }
-   rewrite <- H3 in H5; inv H5; inv H10.
-   eexists; constructor; constructor.
-   instantiate (1 := (_, _)); split; simpl; [|hnf; eauto].
-   apply semax_prog.ext_ref_join. }
- assert (exists w, join (m_phi jm) w (m_phi z) /\
-   (invariants.wsat * invariants.ghost_set invariants.g_en Ensembles.Full_set)%pred w) as Hwsat.
- { do 2 eexists; eauto; apply initial_world.wsat_rmap_wsat. }
- assert (mem_sub (m_dry jm) (m_dry z)) as Hmem.
- { rewrite Hdry; repeat (split; auto). }
- clear - Jsub Jframe Esub JDE DME H4 J H6 Hwsat Hmem.
-  rewrite <- H4.
- assert (level jm <= n)%nat by lia.
- clear H4; rename H into H4.
- forget initial_oracle as ora.
- revert ora jm z q H4 J Hwsat Hmem H6; induction n; intros.
- assert (level jm = 0%nat) by lia. rewrite H; constructor.
- inv H6.
- - rewrite H; constructor.
- - (* in the juicy semantics, we took a step with jm *)
-   destruct H as (?&?&Hl&Hg).
-   (* so we can take the same step with the full memory z *)
-   destruct (CLC_evsem (globalenv prog)) eqn: Hevsem; inv Hevsem.
-   destruct (CLC_memsem (globalenv prog)) eqn: Hmemsem; inv Hmemsem.
-   simpl in ev_step_ax1, ev_step_ax2.
-   apply ev_step_ax2 in H as [T H].
-   pose proof (ev_step_elim _ _ _ _ _ H) as Helim.
-   eapply cl_evstep_extends in H as (m1' & H & Hmem'); eauto.
-   pose proof (ev_step_elim _ _ _ _ _ H) as Helim1; clear ev_step_elim.
-   apply ev_step_ax1 in H.
-   rewrite Hl; eapply safeN_step.
-   + red. red. fold (globalenv prog). eassumption.
-   + destruct Hwsat as (w & Jw & Hw).
-     (* the new full memory can be broken into the memory we got from the step,
-        and the memory we left in the invariant *)
-     assert (exists z', join (m_phi m') (age_to.age_to (level m') w) (m_phi z') /\ m_dry z' = m1') as (z' & J' & ?); subst.
-     { apply corestep_mem, mem_step_evolve in H.
-       destruct (juicy_mem_lemmas.rebuild_juicy_mem_rmap z m1') as (? & ? & Hr' & Hg').
-       eapply mem_evolve_cohere in H; [|eauto].
-       apply (age_to_cohere _ _ (level m')) in H as (A & B & C & D).
-       exists (mkJuicyMem _ _ A B C D); split; auto; simpl.
-       apply compcert_rmaps.RML.resource_at_join2; auto.
-       * apply join_level in Jw as []. rewrite !level_juice_level_phi in *. rewrite age_to.level_age_to; auto; lia.
-       * apply join_level in Jw as []. rewrite !level_juice_level_phi in *. rewrite !age_to.level_age_to; auto; lia.
-       * intros; rewrite !age_to_resource_at.age_to_resource_at, Hr'.
-         eapply join_ev_elim_commut; eauto.
-       * rewrite !age_to_resource_at.age_to_ghost_of, Hg, Hg'.
-         rewrite <- level_juice_level_phi; apply compcert_rmaps.RML.ghost_fmap_join, compcert_rmaps.RML.ghost_of_join; auto. }
-     assert ((invariants.wsat * invariants.ghost_set invariants.g_en Ensembles.Full_set)%pred
-       (age_to.age_to (level m') w)).
-     { eapply pred_nec_hereditary, Hw; apply age_to.age_to_necR. }
-     assert (joins (compcert_rmaps.RML.R.ghost_of (m_phi z'))
-       (compcert_rmaps.RML.R.ghost_fmap
-         (compcert_rmaps.RML.R.approx (level z'))
-         (compcert_rmaps.RML.R.approx (level z'))
-        (Some (ghost_PCM.ext_ref ora, compcert_rmaps.RML.R.NoneP) :: nil))).
-     { assert (join (ghost_of (m_phi m')) (ghost_of (age_to.age_to (level m') w))
-         (ghost_of (age_to.age_to (level m') (m_phi z)))) as J1.
-       { rewrite Hg, !age_to_resource_at.age_to_ghost_of.
-         apply compcert_rmaps.RML.ghost_fmap_join, compcert_rmaps.RML.ghost_of_join; auto. }
-       eapply join_eq in J1; [|apply compcert_rmaps.RML.ghost_of_join; eauto].
-       rewrite J1. rewrite age_to_resource_at.age_to_ghost_of.
-       destruct J as [? J]; eapply compcert_rmaps.RML.ghost_fmap_join in J; simpl in *; eexists; apply J. }
-     edestruct H0 as (? & ? & Hz' & Hsafe); eauto.
-     { apply join_sub_refl. }
-     assert (level x = level m') as Hl'.
-     { destruct Hz' as (? & ? & ?); apply join_level in J' as [];
-         rewrite <- !level_juice_level_phi in *; lia. }
-     destruct Hsafe as [Hsafe | (m2 & ? & ? & ? & ? & Hsafe)].
-     { rewrite <- Hl', Hsafe; constructor. }
-     (* after accessing invariants, we have a new sub-memory m2, which
-        completes to the same full memory *)
-     assert (level m' = level m2) as Hl2 by (apply join_level in H6 as []; rewrite <- !level_juice_level_phi in *; lia).
-     rewrite Hl2.
-     destruct Hz' as [<- ?].
-     apply IHn; eauto. lia.
- -
-   unfold extspec_frame in Jframe.
-   destruct dryspec as [ty pre post exit].
-   destruct JE_spec as [ty' pre' post' exit'].
-   change (level (m_phi jm)) with (level jm) in *.
-   destruct JDE as [JDE1 [JDE2 JDE3]].
-   destruct (level jm) eqn: Hl; [constructor|].
-   destruct Hwsat as (w & Jw & Hw).
-   edestruct Jframe as (x' & H0' & Hpost); eauto.
-   eapply safeN_external.
-   { eassumption. }
-   { eapply JDE1; eauto. }
-   simpl. intros.
-   assert (level jm = level z) as Hlz.
-   { apply join_level in Jw as []; rewrite <- !level_juice_level_phi in *; lia. }
-   (* We need to reconstruct the full jm, then find a sub-memory s.t.
-      join sub w jm'. *)
-   assert (H20: exists jm', m_dry jm' = m'
-                    /\ (level jm' = n')%nat
-                    /\ juicy_safety.pures_eq (m_phi z) (m_phi jm')
-                    /\ resource_at (m_phi jm') = resource_fmap (approx (level jm')) (approx (level jm')) oo juicy_mem_lemmas.rebuild_juicy_mem_fmap z (m_dry jm')
-                    /\ compcert_rmaps.RML.R.ghost_of (m_phi jm') = Some (ghost_PCM.ext_ghost z', compcert_rmaps.RML.R.NoneP) :: ghost_fmap (approx (level jm')) (approx (level jm')) (tl (ghost_of (m_phi z)))). {
-     destruct (juicy_mem_lemmas.rebuild_juicy_mem_rmap z m')
-          as [phi [? [? ?]]].
-     assert (own.ghost_approx phi (Some (ghost_PCM.ext_ghost z', NoneP) :: tl (compcert_rmaps.RML.R.ghost_of phi)) =
-        Some (ghost_PCM.ext_ghost z', NoneP) :: tl (compcert_rmaps.RML.R.ghost_of phi)) as Happrox.
-     { simpl; f_equal.
-        rewrite <- compcert_rmaps.RML.ghost_of_approx at 2.
-        destruct (compcert_rmaps.RML.R.ghost_of phi); auto. }
-     set (phi1 := initial_world.set_ghost _ _ Happrox).
-     assert (level phi1 = level phi /\ resource_at phi1 = resource_at phi) as [Hl1 Hr1].
-     { subst phi1; unfold initial_world.set_ghost; rewrite level_make_rmap, resource_at_make_rmap; auto. }
-     pose (phi' := age_to.age_to n' phi1).
-     assert (mem_rmap_cohere m' phi') as H10. {
-       clear - H0' Hr1 Hl1 H8 H7 H5 H2 Hmem DME JDE1.
-       eapply JDE1 in H0'; eauto.
-       specialize (DME e _ _ _ _ _ _ _ _ _ _ H0' H5).
-       subst phi'.
-       apply age_to_cohere.
-       subst phi1.
-       apply set_ghost_cohere.
-       eapply mem_evolve_cohere; eauto.
-     }
-     destruct H10 as [H10 [H11 [H12 H13]]].
-     pose (jm' := mkJuicyMem _ _ H10 H11 H12 H13).
-     exists jm'.
-     assert (n' <= level phi1)%nat by lia.
-     split; [ | split3].
-     * subst jm'; simpl; auto.
-     * subst jm' phi'; simpl. apply age_to.level_age_to; auto.
-     * unfold juicy_safety.pures_eq, juicy_safety.pures_sub. subst jm' phi'; simpl.
-       split; intros; rewrite age_to_resource_at.age_to_resource_at, Hr1, H7;
-         unfold juicy_mem_lemmas.rebuild_juicy_mem_fmap; destruct (m_phi z @ _); simpl; eauto;
-         try solve [try (destruct k; auto); if_tac; auto].
-       rewrite age_to.level_age_to; auto.
-     * subst jm' phi'; simpl. split.
-       { extensionality. rewrite age_to_resource_at.age_to_resource_at, Hr1, H7.
-         rewrite age_to.level_age_to; auto. }
-       rewrite age_to_resource_at.age_to_ghost_of, age_to.level_age_to; auto.
-       subst phi1.
-       unfold initial_world.set_ghost; rewrite ghost_of_make_rmap, H8; auto.
-   }
-   destruct H20 as [jm' [H26 [H27 [H28 [H29 Hg']]]]].
-   subst m'; eapply JDE2 in H5; eauto 7; [|lia].
-   apply Hpost in H5 as (jm1 & ? & ? & Jw').
-   specialize (H1 ret jm1 z' Hargsty Hretty).
-   assert (level jm1 = level jm') as Hl1 by (apply join_level in Jw' as []; rewrite <- !level_juice_level_phi in *; lia).
-   spec H1.
-   { split; [lia|].
-     eapply juicy_safety.pures_eq_trans, juicy_safety.pures_eq_trans; [| apply join_sub_pures_eq; eexists; eauto | | eauto |];
-       rewrite <- ?level_juice_level_phi; try lia.
-     apply pures_eq_sym, join_sub_pures_eq; [|eexists; eauto].
-     rewrite <- !level_juice_level_phi; auto. }
-   spec H1. assumption.
-   destruct H1 as [c' [H2a H2b]]; exists c'; split; auto.
-   (* eliminate fupd *)
-   assert (app_pred (invariants.wsat * invariants.ghost_set invariants.g_en Ensembles.Full_set)%pred
-         (age_to.age_to (level jm1) w)).
-   { eapply pred_nec_hereditary, Hw; apply age_to.age_to_necR. }
-   edestruct H2b as (x1 & ? & Hz' & Hsafe); eauto.
-   { apply join_sub_refl. }
-   { rewrite Hg'; eexists; do 2 constructor; simpl.
-     instantiate (1 := (_, _)); split; simpl; [apply semax_prog.ext_ref_join | repeat constructor]. }
-   assert (level x1 = level jm') as Hl'.
-   { destruct Hz' as (? & ? & ?); lia. }
-   subst n'; destruct Hsafe as [Hsafe | (m2 & ? & ? & ? & ? & Hsafe)].
-   { rewrite <- Hl', Hsafe; constructor. }
-   assert (level jm' = level m2) as Hl2 by (apply join_level in H8 as []; rewrite <- !level_juice_level_phi in *; lia).
-   rewrite Hl2.
-   destruct Hz' as [<- ?].
-   apply IHn; eauto. lia.
- - eapply safeN_halted; eauto.
-   eapply Esub; eauto.
-   apply JDE; auto.
-Qed.*)
+  Ltac big_intro := 
+    iApply fupd_mask_intro; first set_solver;
+    iIntros "HClose";
+    iApply step_fupdN_intro; first set_solver;
+    iModIntro.
+  iAssert (|={⊤,∅}=> |={∅}▷=>^n  ⌜@dry_safeN _ _ _ OK_ty (semax.genv_symb_injective) (cl_core_sem (globalenv prog))
+            dryspec (Build_genv (Genv.globalenv prog) (prog_comp_env prog)) n initial_oracle q m⌝) with "[Hsafe]" as "Hdry".
+  { 
+    clear H0 Hinit Hsafe.
+    iLöb as "IH" forall (m q n).
+    
+    destruct n as [|n].
+    { simpl. iApply fupd_mask_intro; first set_solver;
+      iIntros "HClose"; iPureIntro. constructor. }
+    rewrite [in (environments.Esnoc _ "Hsafe" _)]/jsafeN jsafe_unfold /jsafe_pre.
+
+    rewrite [in ((|={⊤}=> _) ∧ _)]bi.and_elim_l. 
+    (* FIXME don't need this when matchfunspec is deleted *)
+    
+    iDestruct "Hsafe" as "(s_interp & >Hsafe)".
+    iSpecialize ("Hsafe" $! m).
+
+    iPoseProof (emmmm with "s_interp Hsafe") as "Hsafe".
+    rewrite 2!bi.and_or_l.
+    iDestruct ("Hsafe") as "[Hsafe_halt | [Hsafe_core | Hsafe_ext]]".
+    
+    - rewrite bi.and_exist_l.
+      iDestruct "Hsafe_halt" as "(%ret & Hsafe_halt)".
+      big_intro. iModIntro.
+      iClear "IH HClose".
+      iStopProof. constructor. ouPred.unseal.
+      intros n' x' Hx' Hsafe.
+      (* intros Hjm Hsafe. *)
+
+      destruct Hsafe as [Hsafe [Hsafe2 Hsafe3]].
+
+      rewrite /ext_mpred_exit /mpred_of /= in Hsafe3.
+      hnf in Hsafe3.
+      rewrite /ouPred_pure_def.
+      hnf.
+      eapply safeN_halted; eauto.
+      eapply JDE; eauto.
+      simpl.
+      apply Hsafe.
+    - iDestruct "Hsafe_core" as "[_ >(%c' & %m' & %H & s_interp & ▷jsafe)]".
+      iApply (fupd_mask_intro ⊤ ∅); first set_solver.
+      iIntros "HClose".
+      simpl.
+      iModIntro. iModIntro.
+      iMod "HClose".
+      iPoseProof ("IH" with "[-]") as "dry_safe".
+      + iFrame. admit. (* admitted for the thrown away matchfunspec *)
+      + iClear "IH".
+        instantiate (1 := n).
+        iMod "dry_safe". iModIntro. iApply (step_fupdN_wand with "dry_safe").
+        iPureIntro. intros. eapply safeN_step. apply H. apply H0.
+    - 
+      rewrite bi.and_exist_l. iDestruct "Hsafe_ext" as (ef) "Hsafe_ext".
+      rewrite bi.and_exist_l. iDestruct "Hsafe_ext" as (args) "Hsafe_ext".
+      rewrite bi.and_exist_l. iDestruct "Hsafe_ext" as (ef_spec) "Hsafe_ext".
+      rewrite 1!bi.and_assoc.  rewrite [in (_ ∧ (bi_pure _))]bi.and_comm. rewrite -1!bi.and_assoc.
+      rewrite bi.persistent_and_sep_1.
+      iDestruct "Hsafe_ext" as "(at_external & Hsafe_ext)".
+      iDestruct "at_external" as "%at_external". (* FIXME have to do this separately? *)
+      
+      specialize (JDE (HeapGS _ _ _ _) _).
+
+      destruct JDE as [JDE1 [JDE2 JDE3]].
+
+      iAssert (⌜ext_spec_pre dryspec ef (dessicate ef ef_spec) 
+                (genv_symb_injective (globalenv prog))
+                (sig_args (ef_sig ef)) args initial_oracle m⌝) with "[Hsafe_ext]" as "%ext_spec_pre".
+      (* this is conclusion of Hsafe_ext, and premise with safe_external, which implies result *)
+      {
+        remember (dessicate ef ef_spec) as dry_ef_spec.
+        iClear "IH".
+
+        (* FIXME shound't need these when state_interp and ext_mpred_pre are disjoint *)
+        set X:=(X in bi_and (<absorb> X) _).
+        set Y:= (Y in bi_and _ Y).
+        replace (bi_and (<absorb> X) Y) with (bi_sep (<absorb> X) Y) by admit.
+        subst X Y.
+
+        iDestruct "Hsafe_ext" as "(Hsafe_ext & ext_mpred_pre & _)".
+
+        iStopProof. constructor.  ouPred.unseal.
+        rewrite /ext_mpred_pre /mpred_of.
+        intros ??? ext_mpred_pre.
+        
+        destruct ext_mpred_pre as (?&?&?&state_interp & ext_mpred_pre).
+        eapply JDE1.
+        2: {  instantiate (1:= Build_juicy_mem n0 x1). simpl. assumption. }
+        { eauto. }
+        { simpl. replace x1 with x2 by admit. (* FIXME also change JDE1 to ask for ext_spec_pre and state_interp to hold on different jm *)
+          apply ext_mpred_pre. }
+      }
+
+      iAssert (|={⊤,∅}=> |={∅}▷=>^(S n) ⌜(∀ (ret : option val) m' z' n',
+      Val.has_type_list args (sig_args (ef_sig ef))
+      → Builtins0.val_opt_has_rettype ret (sig_res (ef_sig ef))
+        → n' ≤ n
+            → ext_spec_post dryspec ef (dessicate ef ef_spec)
+                (genv_symb_injective (globalenv prog)) (sig_res (ef_sig ef)) ret z' m'
+              → ∃ q',
+                  (after_external (cl_core_sem (globalenv prog)) ret q m' = Some q'
+                   ∧ safeN_ (cl_core_sem (globalenv prog)) dryspec (Genv.globalenv prog) n' z' q' m'))⌝) with "[Hsafe_ext]" as "hyp".
+      {
+        iApply fupd_mask_intro; first set_solver; iIntros "HClose".
+
+        assert (H_FIXME: ∀ n {A} (Φ: A -> iProp Σ), ((|={∅}▷=>^n ∀ x, Φ x) ⊣⊢ (∀ x, |={∅}▷=>^n Φ x))) by admit.
+        Ltac intro_step H_FIXME name :=
+          iApply step_fupdN_mono; [rewrite bi.pure_forall; done|]; rewrite H_FIXME; iIntros (name).
+        intro_step H_FIXME ret.
+        intro_step H_FIXME m'.
+        intro_step H_FIXME z'.
+        intro_step H_FIXME n'.
+        intro_step H_FIXME Hargs.
+        intro_step H_FIXME Hret.
+        intro_step H_FIXME Hn'.
+        intro_step H_FIXME Hext_spec_post.
+        simpl. iModIntro.
+        iModIntro.
+
+        iDestruct "Hsafe_ext" as "(_ & ext_mpred_pre & blah)".
+        
+        iSpecialize ("blah" $! ret z' _ _).
+        iMod "HClose".
+        iMod "blah".
+        
+        iDestruct "blah" as (c' m'') "[%after_external [state_interp jsafe]]".
+        iSpecialize ("IH" $! m' c' n' with "[state_interp jsafe]").
+        { iFrame. admit. (* FIXME delete matchfunspec *) }
+        simpl.
+        iMod "IH".
+        iModIntro.
+        iApply (step_fupdN_le n' n); try done.
+        iApply (step_fupdN_wand with "IH").
+        iIntros "H".
+
+        iExists c'. iSplit; try done.
+        iApply (bi.pure_mono with "H").
+        intros. unfold dry_safeN in H.
+        admit. (* FIXME: we only get initial_oracle but not any z' from IH. *)
+        (* eapply H. *)
+      }
+      
+      iApply (step_fupdN_wand with "hyp"); iIntros "%hyp".
+      iPureIntro.
+      eapply safeN_external.
+      + apply at_external.
+      + apply ext_spec_pre.
+      + simpl. intros ret m' z' n' h1 h2 h3 _ h4.
+        specialize (hyp ret m' z' n' h1 h2 h3 h4).
+        destruct hyp as [q' [hyp1 hyp2]].
+        exists q'. split; auto.
+        apply hyp2.
+  }
+
+  iMod "Hdry". iModIntro.
+  iApply (step_fupdN_wand with "Hdry").
+  iPureIntro. intros.
+  eexists. eexists. split3; eauto.
+  apply Hinit.
 Admitted.
 
 Definition fun_id (ext_link: Strings.String.string -> ident) (ef: external_function) : option ident :=

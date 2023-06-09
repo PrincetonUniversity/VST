@@ -89,6 +89,16 @@ Qed.
 Lemma fupd_plain_mask E E' P `{!Plain P} `{!Absorbing P}: (|={E,E'}=> P) ⊢ |={E}=> P.
 Proof. by rewrite {1}(plain P) fupd_plainly_mask. Qed.
 
+Lemma fupd_plainly_elim E P `{!Absorbing P}: ■ P ⊢ |={E}=> P.
+Proof. by rewrite (fupd_intro E (■ P)) fupd_plainly_mask. Qed.
+
+Lemma absorbing_fun {A} (Φ : A → iProp Σ) `{!∀ x, Absorbing (Φ x)} :
+  (<absorb> ∀ x, (Φ x)) -∗ ∀ x, (Φ x).
+Proof.
+  iIntros "a".
+  iIntros (x). unfold bi_absorbingly. iDestruct ("a" ) as "[a b]" . iSpecialize ("b" $! x). iFrame.
+Qed.
+
 Lemma fupd_plainly_later E P `{!Absorbing P}: (▷ |={E}=> ■ P) ⊢ |={E}=> ▷ ◇ P.
 Proof.
   rewrite ouPred_fupd_unseal /ouPred_fupd_def. iIntros "H [Hw HE]".
@@ -113,6 +123,21 @@ Qed.
 Lemma fupd_plain_forall_2 E {A} (P : A → iProp Σ) `{!∀x, Plain (P x)} `{!∀x, Absorbing (P x)}: (∀x, |={E}=> P x) ={E}=∗ ∀x, P x.
 Proof. rewrite -fupd_plainly_forall_2. apply bi.forall_mono; intros x; rewrite {1}(plain (P x)) //. Qed.
 
+  Lemma fupd_plain_forall E1 E2 {A} (Φ :  A → iProp Σ) `{!∀ x, Plain (Φ x)} `{!∀ x, Absorbing (Φ x)} :
+  E2 ⊆ E1 →
+  (|={E1,E2}=> ∀ x, Φ x) ⊣⊢ (∀ x, |={E1,E2}=> Φ x).
+Proof.
+  intros. apply (anti_symm _); first apply fupd_forall.
+  trans (∀ x, |={E1}=> Φ x)%I.
+  { apply bi.forall_mono=> x. by rewrite fupd_plain_mask. }
+  rewrite fupd_plain_forall_2. apply fupd_elim.
+  rewrite {1}(plain (∀ x, Φ x)) (fupd_mask_intro_discard E1 E2 (■ _)) //.
+  apply fupd_elim. by rewrite fupd_plainly_elim.
+Qed.
+Lemma fupd_plain_forall' E {A} (Φ : A → iProp Σ) `{!∀ x, Plain (Φ x)} `{!∀ x, Absorbing (Φ x)}:
+  (|={E}=> ∀ x, Φ x) ⊣⊢ (∀ x, |={E}=> Φ x).
+Proof. by apply fupd_plain_forall. Qed.
+
 Lemma step_fupd_plain Eo Ei P `{!Plain P} `{!Absorbing P}: (|={Eo}[Ei]▷=> P) ⊢ |={Eo}=> ▷ ◇ P.
 Proof.
   rewrite -(fupd_plain_mask _ Ei (▷ ◇ P)).
@@ -127,6 +152,32 @@ Proof.
     apply fupd_mono. destruct n as [|n]; simpl.
     * by rewrite bi.except_0_idemp.
     * by rewrite bi.except_0_later.
+Qed.
+
+Lemma step_fupd_plain_forall Eo Ei {A} (Φ : A → iProp Σ) `{!∀ x, Plain (Φ x)} `{!∀ x, Absorbing (Φ x)} :
+      Ei ⊆ Eo →
+      (|={Eo}[Ei]▷=> ∀ x, Φ x) ⊣⊢ (∀ x, |={Eo}[Ei]▷=> Φ x).
+Proof.
+  intros. apply (anti_symm _).
+  {  apply bi.forall_intro=> x. by rewrite (bi.forall_elim x). }
+  trans (∀ x, |={Eo}=> ▷ ◇ Φ x)%I.
+  { apply bi.forall_mono=> x. by rewrite step_fupd_plain. }
+  rewrite -fupd_plain_forall'. apply fupd_elim.
+  rewrite -(fupd_except_0 Ei Eo) -step_fupd_intro //.
+  by rewrite -bi.later_forall -bi.except_0_forall.
+Qed.
+
+Lemma step_fupdN_plain_forall Eo Ei n {A} (Φ : A → iProp Σ) `{!∀ x, Plain (Φ x)} `{!∀ x, Absorbing (Φ x)} :
+      Ei ⊆ Eo →
+      (|={Eo}[Ei]▷=>^n ∀ x, Φ x) ⊢ (∀ x, |={Eo}[Ei]▷=>^n Φ x).
+Proof.
+  intros. induction n.
+  - simpl. reflexivity.
+  - simpl. rewrite IHn. iIntros "H".
+    iMod "H". iIntros (x). iModIntro. 
+    rewrite fupd_forall.
+    iApply (bi.later_mono with "H").
+    iIntros "H". iApply "H".
 Qed.
 
 End fupd_plain.
