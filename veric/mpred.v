@@ -356,7 +356,7 @@ Proof.
 
 Definition funspec := (funspec_ (iProp Σ) (iProp Σ)).
 Definition funspecO' := (laterO (funspecO (iPropO Σ) (iPropO Σ))).
-Definition NDmk_funspec (sig : typesig) (cc : calling_convention) A (P : A -> argsEnviron -d> iProp Σ) (Q : A -> environ -d> iProp Σ) : funspec := mk_funspec sig cc (ConstType A) (λne (a : leibnizO A), P a) (λne (a : leibnizO A), Q a).
+Definition NDmk_funspec (sig : typesig) (cc : calling_convention) A (P : A -> argsassert) (Q : A -> assert) : funspec := mk_funspec sig cc (ConstType A) (λne (a : leibnizO A), (P a) : _ -d> iProp Σ) (λne (a : leibnizO A), (Q a) : _ -d> iProp Σ).
 Definition funspecOF' := (laterOF (funspecOF idOF)).
 Definition dtfr A := (oFunctor_car (dependent_type_functor_rec A) (iProp Σ) (iProp Σ)).
 

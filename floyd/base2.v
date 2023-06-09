@@ -38,7 +38,7 @@ Notation funspec := (@funspec Σ).
 
 Definition vacuous_funspec (fd: Clight.fundef): funspec :=
    NDmk_funspec (typesig_of_funsig (funsig_of_fundef fd)) (cc_of_fundef fd) 
-   (Impossible) (fun _ => (λ _, False) : _ -d> mpred) (fun _ => (λ _, False) : _ -d> mpred).
+   (Impossible) (fun _ => False) (fun _ => False).
 
 
 Fixpoint augment_funspecs_new' (fds: list (ident * Clight.fundef)) (G: Maps.PTree.t funspec) : option funspecs :=

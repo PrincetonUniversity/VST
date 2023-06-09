@@ -101,6 +101,18 @@ Qed.
 Lemma fupd_plain_later E P `{!Plain P} `{!Absorbing P}: (▷ |={E}=> P) ⊢ |={E}=> ▷ ◇ P.
 Proof. by rewrite {1}(plain P) fupd_plainly_later. Qed.
 
+Lemma fupd_plainly_forall_2 E {A} (P : A → iProp Σ) `{!∀x, Absorbing (P x)}: (∀x, |={E}=> ■ P x) ={E}=∗ ∀x, P x.
+Proof.
+  rewrite ouPred_fupd_unseal /ouPred_fupd_def. iIntros "HP [Hw HE]".
+  iAssert (◇ ■ ∀ x : A, P x)%I as "#>HP'".
+  { iIntros (x). rewrite -(bupd_plainly (◇ ■ P x)%I).
+    iMod ("HP" with "[$Hw $HE]") as "(_&_&#?)". by iIntros "!> !>". }
+  by iFrame.
+Qed.
+
+Lemma fupd_plain_forall_2 E {A} (P : A → iProp Σ) `{!∀x, Plain (P x)} `{!∀x, Absorbing (P x)}: (∀x, |={E}=> P x) ={E}=∗ ∀x, P x.
+Proof. rewrite -fupd_plainly_forall_2. apply bi.forall_mono; intros x; rewrite {1}(plain (P x)) //. Qed.
+
 Lemma step_fupd_plain Eo Ei P `{!Plain P} `{!Absorbing P}: (|={Eo}[Ei]▷=> P) ⊢ |={Eo}=> ▷ ◇ P.
 Proof.
   rewrite -(fupd_plain_mask _ Ei (▷ ◇ P)).

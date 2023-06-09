@@ -11,6 +11,7 @@ Require Import VST.veric.SeparationLogic.
 Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.juicy_mem.
 Require Import VST.veric.SeparationLogicSoundness.
+Require Import VST.veric.fancy_updates.
 Require Import VST.sepcomp.extspec.
 
 Import VericSound.
@@ -18,6 +19,21 @@ Import VericMinimumSeparationLogic.
 Import VericMinimumSeparationLogic.CSHL_Def.
 Import VericMinimumSeparationLogic.CSHL_Defs.
 Import Clight.
+
+Lemma stepN_plain_forall_2 `{!wsatGS Σ} {A} (E : coPset) (n : nat) (P : A -> iProp Σ) `{∀x, Plain (P x)} `{∀x, Absorbing (P x)} : (∀x, |={E}▷=>^n (P x)) ⊢ (|={E}▷=>^n (∀x, P x)).
+Proof.
+  destruct n; first done.
+  rewrite bi.forall_mono.
+  2: { intros; apply step_fupdN_plain; apply _. }
+  iIntros "H".
+  rewrite fupd_plain_forall_2 /=.
+  iMod "H"; iIntros "!> !>".
+  iInduction n as [|] "IH"; simpl.
+  - rewrite -bi.except_0_forall; by iMod "H" as "$".
+  - rewrite bi.later_forall_2.
+    iIntros "!> !> !>".
+    iApply ("IH" with "H").
+Qed.
 
 Definition mem_evolve (m m': mem) : Prop :=
    (* dry version of resource_decay *)
