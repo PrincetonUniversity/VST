@@ -894,8 +894,8 @@ Ltac local_cancel_in_syntactic_cancel unify_tac :=
 
 Ltac syntactic_cancel local_tac :=
   repeat first
-         [ simple apply syntactic_cancel_nil
-         | simple apply syntactic_cancel_cons;
+         [ (*simple*) apply syntactic_cancel_nil
+         | (*simple*) apply syntactic_cancel_cons;
            [ find_nth local_tac
            | cbv iota; unfold delete_nth; cbv zeta iota
            ]
@@ -1007,15 +1007,15 @@ Ltac is_evar_def F := try first [is_var F; unfold F; fail 1 | fail 2 F "is not e
 Ltac fold_abnormal_PROP :=
   match goal with
   | |- fold_abnormal_PROP nil _ _ =>
-         simple apply fold_abnormal_PROP_nil
+         apply fold_abnormal_PROP_nil
   | |- fold_abnormal_PROP (?P :: _) _ _ =>
          match P with
-         | True%I => simple eapply fold_abnormal_PROP_TT; [fold_abnormal_PROP | merge_abnormal_PROP]
-         | ⌜True⌝ => simple eapply fold_abnormal_PROP_TT; [fold_abnormal_PROP | merge_abnormal_PROP]
+         | True%I => eapply fold_abnormal_PROP_TT; [fold_abnormal_PROP | merge_abnormal_PROP]
+         | ⌜True⌝ => eapply fold_abnormal_PROP_TT; [fold_abnormal_PROP | merge_abnormal_PROP]
          | fold_right_sepcon ?F =>
               is_evar_def F;
-              simple eapply fold_abnormal_PROP_fold; [fold_abnormal_PROP | merge_abnormal_PROP]
-         | _ => simple apply fold_abnormal_PROP_normal; fold_abnormal_PROP
+              eapply fold_abnormal_PROP_fold; [fold_abnormal_PROP | merge_abnormal_PROP]
+         | _ => apply fold_abnormal_PROP_normal; fold_abnormal_PROP
          end
   end.
 

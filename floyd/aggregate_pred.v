@@ -12,37 +12,41 @@ Require Export VST.floyd.aggregate_type.
 
 Open Scope Z.
 
+Section mpred.
+
+Context `{!heapGS Σ}.
+
 (******************************************
 
 Definition and lemmas about rangespec
 
 ******************************************)
 
-Fixpoint rangespec (lo: Z) (n: nat) (P: Z -> val -> mpred): val -> mpred :=
+Fixpoint rangespec (lo: Z) (n: nat) (P: Z -> val -> mpred) (p: val) : mpred :=
   match n with
-  | O => fun _ => emp
-  | S n' => P lo * rangespec (Z.succ lo) n' P
+  | O => emp
+  | S n' => P lo p ∗ rangespec (Z.succ lo) n' P p
  end.
 
 Fixpoint fold_range' {A: Type} (f: Z -> A -> A) (zero: A) (lo: Z) (n: nat) : A :=
  match n with
   | O => zero
-  | S n' => f lo (fold_range' f  zero (Z.succ lo) n')
+  | S n' => f lo (fold_range' f zero (Z.succ lo) n')
  end.
 
 Definition fold_range {A: Type} (f: Z -> A -> A) (zero: A) (lo hi: Z) : A :=
   fold_range' f zero lo (Z.to_nat (hi-lo)).
 
 Lemma rangespec_shift_derives: forall lo lo' len P P' p p',
-  (forall i i', lo <= i < lo + Z_of_nat len -> i - lo = i' - lo' -> P i p |-- P' i' p') ->
-  rangespec lo len P p |-- rangespec lo' len P' p'.
+  (forall i i', lo <= i < lo + Z_of_nat len -> i - lo = i' - lo' -> P i p ⊢ P' i' p') ->
+  rangespec lo len P p ⊢ rangespec lo' len P' p'.
 Proof.
   intros.
   revert lo lo' H;
   induction len; intros.
   + simpl. auto.
   + simpl.
-    apply sepcon_derives.
+    apply bi.sep_mono.
     - apply H; [| lia].
       rewrite Nat2Z.inj_succ.
       rewrite <- Z.add_1_r.
@@ -56,8 +60,8 @@ Proof.
 Qed.
 
 Lemma rangespec_ext_derives: forall lo len P P' p,
-  (forall i, lo <= i < lo + Z_of_nat len -> P i p |-- P' i p) ->
-  rangespec lo len P p |-- rangespec lo len P' p.
+  (forall i, lo <= i < lo + Z_of_nat len -> P i p ⊢ P' i p) ->
+  rangespec lo len P p ⊢ rangespec lo len P' p.
 Proof.
   intros.
   apply rangespec_shift_derives.
@@ -69,58 +73,48 @@ Proof.
 Qed.
 
 Lemma rangespec_shift: forall lo lo' len P P' p p',
-  (forall i i', lo <= i < lo + Z_of_nat len -> i - lo = i' - lo' -> P i p = P' i' p') ->
-  rangespec lo len P p = rangespec lo' len P' p'.
+  (forall i i', lo <= i < lo + Z_of_nat len -> i - lo = i' - lo' -> P i p ⊣⊢ P' i' p') ->
+  rangespec lo len P p ⊣⊢ rangespec lo' len P' p'.
 Proof.
-  intros; apply pred_ext; apply rangespec_shift_derives;
+  intros; apply bi.equiv_entails_2; apply rangespec_shift_derives;
   intros.
-  + erewrite H; eauto. 
-      apply derives_refl.
   + erewrite H; eauto.
-      apply derives_refl.
+  + erewrite H; eauto.
     lia.
 Qed.
 
 Lemma rangespec_ext: forall lo len P P' p,
-  (forall i, lo <= i < lo + Z_of_nat len -> P i p = P' i p) ->
-  rangespec lo len P p = rangespec lo len P' p.
+  (forall i, lo <= i < lo + Z_of_nat len -> P i p ⊣⊢ P' i p) ->
+  rangespec lo len P p ⊣⊢ rangespec lo len P' p.
 Proof.
-  intros; apply pred_ext; apply rangespec_ext_derives;
+  intros; apply bi.equiv_entails_2; apply rangespec_ext_derives;
   intros; rewrite H; auto.
 Qed.
 
 Lemma rangespec_sepcon: forall lo len P Q p,
-  rangespec lo len P p * rangespec lo len Q p = rangespec lo len (P * Q) p.
+  rangespec lo len P p ∗ rangespec lo len Q p ⊣⊢ rangespec lo len (fun z v => P z v ∗ Q z v) p.
 Proof.
   intros.
   revert lo; induction len; intros.
   + simpl.
-    rewrite sepcon_emp; auto.
+    rewrite bi.sep_emp //.
   + simpl.
-    rewrite !sepcon_assoc.
-    f_equal.
-    rewrite <- sepcon_assoc, (sepcon_comm _ (Q lo p)), sepcon_assoc.
-    f_equal.
-    rewrite IHlen.
-    reflexivity.
+    rewrite -IHlen.
+    iSplit; [iIntros "(($ & $) & ($ & $))" | iIntros "(($ & $) & ($ & $))"].
 Qed.
 
-Lemma rangespec_elim: forall lo len P i,
-  lo <= i < lo + Z_of_nat len -> rangespec lo len P |-- P i * TT.
+Lemma rangespec_elim: forall lo len P i p,
+  lo <= i < lo + Z_of_nat len -> rangespec lo len P p ⊢ <absorb> P i p.
 Proof.
   intros. revert lo i H; induction len; intros.
   + simpl in H. lia.
   + simpl. intros; destruct (Z.eq_dec i lo).
-    - subst. cancel.
-    - replace (P i x * !!True) with (TT * (P i x * TT)) by (apply pred_ext; cancel).
-      apply sepcon_derives; [cancel |].
-      apply IHlen.
-      rewrite Nat2Z.inj_succ in H.
-      rewrite <- Z.add_1_l in *.
+    - subst. rewrite /bi_absorbingly. cancel.
+    - iIntros "(_ & ?)"; iApply (IHlen with "[$]").
       lia.
 Qed.
 
-Inductive Forallz {A} (P: Z -> A->Prop) : Z -> list A -> Prop :=
+Inductive Forallz {A} (P: Z -> A -> Prop) : Z -> list A -> Prop :=
  | Forallz_nil : forall i, Forallz P i nil
  | Forallz_cons : forall i x l, P i x -> Forallz P (Z.succ i) l -> Forallz P i (x::l).
 
@@ -302,8 +296,8 @@ Lemma array_pred_ext_derives: forall {A B} (dA: Inhabitant A) (dB: Inhabitant B)
          lo hi P0 P1 (v0: list A) (v1: list B) p,
   (Zlength v0 = hi - lo -> Zlength v1 = hi - lo) ->
   (forall i, lo <= i < hi ->
-    P0 i (Znth (i-lo) v0) p |-- P1 i (Znth (i-lo) v1) p) ->
-  array_pred  lo hi P0 v0 p |-- array_pred lo hi P1 v1 p.
+    P0 i (Znth (i-lo) v0) p ⊢ P1 i (Znth (i-lo) v1) p) ->
+  array_pred  lo hi P0 v0 p ⊢ array_pred lo hi P1 v1 p.
 Proof.
   intros.
   unfold array_pred.
@@ -369,8 +363,8 @@ Qed.
 Lemma struct_pred_ext_derives: forall m {A0 A1} (P0: forall it, A0 it -> val -> mpred) (P1: forall it, A1 it -> val -> mpred) v0 v1 p,
   members_no_replicate m = true ->
   (forall i d0 d1, in_members i m ->
-     P0 _ (proj_struct i m v0 d0) p |-- P1 _ (proj_struct i m v1 d1) p) ->
-  struct_pred m P0 v0 p |-- struct_pred m P1 v1 p.
+     P0 _ (proj_struct i m v0 d0) p ⊢ P1 _ (proj_struct i m v1 d1) p) ->
+  struct_pred m P0 v0 p ⊢ struct_pred m P1 v1 p.
 Proof.
   unfold proj_struct, field_type.
   intros.
@@ -578,7 +572,7 @@ Qed.
 Lemma struct_pred_ramif: forall m {A} (P: forall it, A it -> val -> mpred) (i: ident) v p d,
   in_members i m ->
   members_no_replicate m = true ->
-  struct_pred m P v p |--
+  struct_pred m P v p ⊢
     P _ (proj_struct i m v d) p *
      (ALL v0: _, P _ v0 p -* struct_pred m P (upd_struct i m v v0) p).
 Proof.
@@ -707,8 +701,8 @@ Lemma union_pred_ext_derives: forall m {A0 A1} (P0: forall it, A0 it -> val -> m
   members_no_replicate m = true ->
   (forall it, members_union_inj v0 it <-> members_union_inj v1 it) ->
   (forall i (Hin: in_members i m) d0 d1, members_union_inj v0 (get_member i m) -> members_union_inj v1 (get_member i m) ->
-     P0 _ (proj_union i m v0 d0) p |-- P1 _ (proj_union i m v1 d1) p) ->
-  union_pred m P0 v0 p |-- union_pred m P1 v1 p.
+     P0 _ (proj_union i m v0 d0) p ⊢ P1 _ (proj_union i m v1 d1) p) ->
+  union_pred m P0 v0 p ⊢ union_pred m P1 v1 p.
 Proof.
   unfold members_union_inj, proj_union, field_type.
   intros.
@@ -782,8 +776,8 @@ Qed.
 Lemma union_pred_derives_const: forall m {A} (P: forall it, A it -> val -> mpred) p v R,
   members_no_replicate m = true ->
   m <> nil ->
-  (forall i (v: A (get_member i m)), in_members i m -> P _ v p |-- R) ->
-  union_pred m P v p |-- R.
+  (forall i (v: A (get_member i m)), in_members i m -> P _ v p ⊢ R) ->
+  union_pred m P v p ⊢ R.
 Proof.
   intros.
   destruct m as [| a0 m]; [congruence |].
@@ -813,8 +807,8 @@ Qed.
 Lemma union_pred_proj: forall m {A} (P: forall it, A it -> val -> mpred) (i: ident) v p d,
   members_no_replicate m = true ->
   in_members i m ->
-  (forall i' (v': A (get_member i' m)), in_members i' m -> P _ v' p |-- P _ d p) ->
-  union_pred m P v p |-- P _ (proj_union i m v d) p.
+  (forall i' (v': A (get_member i' m)), in_members i' m -> P _ v' p ⊢ P _ d p) ->
+  union_pred m P v p ⊢ P _ (proj_union i m v d) p.
 Proof.
   intros.
   destruct m as [| a0 m]; [inv H0 |].
@@ -902,10 +896,10 @@ Proof.
 Qed.
 
 Lemma union_pred_ramif: forall m {A} (P: forall it, A it -> val -> mpred) (i: ident) v p d,
-  (forall i' (v': A (get_member i' m)), in_members i' m -> P _ v' p |-- P _ d p) ->
+  (forall i' (v': A (get_member i' m)), in_members i' m -> P _ v' p ⊢ P _ d p) ->
   in_members i m ->
   members_no_replicate m = true ->
-  union_pred m P v p |--
+  union_pred m P v p ⊢
     P _ (proj_union i m v d) p *
      (ALL v0: _, P _ v0 p -* union_pred m P (upd_union i m v v0) p).
 Proof.
@@ -1095,8 +1089,8 @@ Proof.
 Qed.
 
 Lemma array_pred_local_facts: forall {A}{d: Inhabitant A} lo hi P (v: list A) p Q,
-  (forall i x, lo <= i < hi -> P i x p |-- !! Q x) ->
-  array_pred lo hi P v p |-- !! (Zlength v = hi - lo /\ Forall Q v).
+  (forall i x, lo <= i < hi -> P i x p ⊢ !! Q x) ->
+  array_pred lo hi P v p ⊢ !! (Zlength v = hi - lo /\ Forall Q v).
 Proof.
   intros.
   unfold array_pred.
@@ -1140,8 +1134,8 @@ Qed.
 
 Lemma struct_pred_local_facts: forall m {A} (P: forall it, A it -> val -> mpred)v p (R: forall it, A it -> Prop),
   members_no_replicate m = true ->
-  (forall i v0, in_members i m -> P (get_member i m) v0 p |-- !! R _ v0) ->
-  struct_pred m P v p |-- !! struct_Prop m R v.
+  (forall i v0, in_members i m -> P (get_member i m) v0 p ⊢ !! R _ v0) ->
+  struct_pred m P v p ⊢ !! struct_Prop m R v.
 Proof.
   intros.
   destruct m as [| a0 m]; [simpl; apply prop_right; auto |].
@@ -1176,8 +1170,8 @@ Qed.
 
 Lemma union_pred_local_facts: forall m {A} (P: forall it, A it -> val -> mpred)v p (R: forall it, A it -> Prop),
   members_no_replicate m = true ->
-  (forall i v0, in_members i m -> P (get_member i m) v0 p |-- !! R _ v0) ->
-  union_pred m P v p |-- !! union_Prop m R v.
+  (forall i v0, in_members i m -> P (get_member i m) v0 p ⊢ !! R _ v0) ->
+  union_pred m P v p ⊢ !! union_Prop m R v.
 Proof.
   intros.
   destruct m as [| a0 m]; [simpl; apply prop_right; auto |].
@@ -1271,7 +1265,7 @@ Lemma mapsto_zeros_array_pred: forall  {A}{d: Inhabitant A} sh t lo hi (v: list 
   0 <= ofs + sizeof t * lo /\ ofs + sizeof t * hi < Ptrofs.modulus ->
   0 <= lo <= hi ->
   Zlength v = hi - lo ->
-   mapsto_zeros (sizeof t * (hi - lo)) sh (Vptr b (Ptrofs.repr (ofs + sizeof t * lo))) |--
+   mapsto_zeros (sizeof t * (hi - lo)) sh (Vptr b (Ptrofs.repr (ofs + sizeof t * lo))) ⊢
   array_pred lo hi
     (fun i _ p => mapsto_zeros (sizeof t) sh (offset_val (sizeof t * i) p)) v
     (Vptr b (Ptrofs.repr ofs)).
@@ -1321,7 +1315,7 @@ Qed.
 Lemma mapsto_zeros_array_pred': forall {A}{d: Inhabitant A} (a: A) sh t z b ofs,
   0 <= z ->
   0 <= ofs /\ ofs + sizeof t * z < Ptrofs.modulus ->
-  mapsto_zeros (sizeof t * z) sh (Vptr b (Ptrofs.repr ofs)) |--
+  mapsto_zeros (sizeof t * z) sh (Vptr b (Ptrofs.repr ofs)) ⊢
   array_pred 0 z
      (fun i _ p =>
       mapsto_zeros (sizeof t) sh(offset_val (sizeof t * i) p))
@@ -1425,7 +1419,7 @@ Lemma mapsto_zeros_struct_pred: forall sh m sz {A} (v: compact_prod (map A m)) b
   members_no_replicate m = true ->
   sizeof_struct cenv_cs 0 m <= sz < Ptrofs.modulus ->
   0 <= ofs /\ ofs + sz < Ptrofs.modulus ->
-  mapsto_zeros sz sh (Vptr b (Ptrofs.repr ofs)) |--
+  mapsto_zeros sz sh (Vptr b (Ptrofs.repr ofs)) ⊢
   struct_pred m
    (fun it _ p =>
      (mapsto_zeros (field_offset_next cenv_cs (name_member it) m sz - field_offset cenv_cs (name_member it) m)) sh
@@ -1455,7 +1449,7 @@ Proof.
     destruct a1 as [i1 t1|]; try discriminate.
    simpl in PLAIN.
  match goal with
-    | |- _ |-- struct_pred (Member_plain i0 t0 :: Member_plain i1 t1 :: m) ?P v ?p =>
+    | |- _ ⊢ struct_pred (Member_plain i0 t0 :: Member_plain i1 t1 :: m) ?P v ?p =>
            change (struct_pred (Member_plain i0 t0 :: Member_plain i1 t1 :: m) P v p) with
              (P (Member_plain i0 t0) (fst v) p * struct_pred (Member_plain i1 t1 :: m) P (snd v) p);
            simpl (P (Member_plain i0 t0) (fst v) p)
@@ -1515,7 +1509,7 @@ Qed.
 
 Lemma mapsto_zeros_union_pred: forall sh m sz {A} (v: compact_sum (map A m)) b ofs,
   (m = nil -> sz = 0) ->
-  mapsto_zeros sz sh (Vptr b (Ptrofs.repr ofs)) |--
+  mapsto_zeros sz sh (Vptr b (Ptrofs.repr ofs)) ⊢
   union_pred m (fun it _ => mapsto_zeros sz sh) v (Vptr b (Ptrofs.repr ofs)).
 Proof.
   intros sh m sz A v b ofs NIL_CASE; intros.
@@ -1581,8 +1575,8 @@ Definition array_pred_ext_derives:
             (v0: list A) (v1: list B) p,
   (Zlength v0 = hi - lo -> Zlength v1 = hi - lo) ->
   (forall i, lo <= i < hi ->
-      P0 i (Znth (i-lo) v0) p |-- P1 i (Znth (i-lo) v1) p) ->
-  array_pred lo hi P0 v0 p |-- array_pred lo hi P1 v1 p
+      P0 i (Znth (i-lo) v0) p ⊢ P1 i (Znth (i-lo) v1) p) ->
+  array_pred lo hi P0 v0 p ⊢ array_pred lo hi P1 v1 p
 := @array_pred_ext_derives.
 
 Definition array_pred_ext:
@@ -1604,7 +1598,7 @@ Definition array_pred_sepcon: forall  {A} {d: Inhabitant A} lo hi P Q (v: list A
 Definition struct_pred_ramif: forall m {A} (P: forall it, A it -> val -> mpred) (i: ident) v p d,
   in_members i m ->
   members_no_replicate m = true ->
-  struct_pred m P v p |--
+  struct_pred m P v p ⊢
     P _ (proj_struct i m v d) p *
      allp ((fun v0: _ => P _ v0 p) -* (fun v0: _ => struct_pred m P (upd_struct i m v v0) p))
 := @struct_pred_ramif.
@@ -1613,8 +1607,8 @@ Definition struct_pred_ext_derives:
   forall m {A0 A1} (P0: forall it, A0 it -> val -> mpred) (P1: forall it, A1 it -> val -> mpred) v0 v1 p,
   members_no_replicate m = true ->
   (forall i d0 d1, in_members i m ->
-     P0 _ (proj_struct i m v0 d0) p |-- P1 _ (proj_struct i m v1 d1) p) ->
-  struct_pred m P0 v0 p |-- struct_pred m P1 v1 p
+     P0 _ (proj_struct i m v0 d0) p ⊢ P1 _ (proj_struct i m v1 d1) p) ->
+  struct_pred m P0 v0 p ⊢ struct_pred m P1 v1 p
 := @struct_pred_ext_derives.
 
 Definition struct_pred_ext:
@@ -1643,10 +1637,10 @@ Definition struct_pred_sepcon: forall m {A} (P Q: forall it, A it -> val -> mpre
 := @struct_pred_sepcon.
 
 Definition union_pred_ramif: forall m {A} (P: forall it, A it -> val -> mpred) (i: ident) v p d,
-  (forall i' (v': A (get_member i' m)), in_members i' m -> P _ v' p |-- P _ d p) ->
+  (forall i' (v': A (get_member i' m)), in_members i' m -> P _ v' p ⊢ P _ d p) ->
   in_members i m ->
   members_no_replicate m = true ->
-  union_pred m P v p |--
+  union_pred m P v p ⊢
     P _ (proj_union i m v d) p *
      allp ((fun v0: _ => P _ v0 p) -* (fun v0 =>union_pred m P (upd_union i m v v0) p))
 := @union_pred_ramif.
@@ -1656,8 +1650,8 @@ Definition union_pred_ext_derives:
   members_no_replicate m = true ->
   (forall it, members_union_inj v0 it <-> members_union_inj v1 it) ->
   (forall i (Hin: in_members i m) d0 d1, members_union_inj v0 (get_member i m) -> members_union_inj v1 (get_member i m) ->
-     P0 _ (proj_union i m v0 d0) p |-- P1 _ (proj_union i m v1 d1) p) ->
-  union_pred m P0 v0 p |-- union_pred m P1 v1 p
+     P0 _ (proj_union i m v0 d0) p ⊢ P1 _ (proj_union i m v1 d1) p) ->
+  union_pred m P0 v0 p ⊢ union_pred m P1 v1 p
 := @union_pred_ext_derives.
 
 Definition union_pred_ext:
@@ -1710,20 +1704,20 @@ Definition union_Prop_proj: forall m (F: member -> Type) (P: forall it, F it -> 
 := @union_Prop_proj.
 
 Definition array_pred_local_facts: forall {A} {d: Inhabitant A} lo hi P v p Q,
-  (forall i x, lo <= i < hi -> P i x p |-- !! Q x) ->
-  array_pred lo hi P v p |-- !! (Zlength v = hi - lo /\ Forall Q v)
+  (forall i x, lo <= i < hi -> P i x p ⊢ !! Q x) ->
+  array_pred lo hi P v p ⊢ !! (Zlength v = hi - lo /\ Forall Q v)
 := @array_pred_local_facts.
 
 Definition struct_pred_local_facts: forall m {A} (P: forall it, A it -> val -> mpred)v p (R: forall it, A it -> Prop),
   members_no_replicate m = true ->
-  (forall i v0, in_members i m -> P (get_member i m) v0 p |-- !! R _ v0) ->
-  struct_pred m P v p |-- !! struct_Prop m R v
+  (forall i v0, in_members i m -> P (get_member i m) v0 p ⊢ !! R _ v0) ->
+  struct_pred m P v p ⊢ !! struct_Prop m R v
 := @struct_pred_local_facts.
 
 Definition union_pred_local_facts: forall m {A} (P: forall it, A it -> val -> mpred)v p (R: forall it, A it -> Prop),
   members_no_replicate m = true ->
-  (forall i v0, in_members i m -> P (get_member i m) v0 p |-- !! R _ v0) ->
-  union_pred m P v p |-- !! union_Prop m R v
+  (forall i v0, in_members i m -> P (get_member i m) v0 p ⊢ !! R _ v0) ->
+  union_pred m P v p ⊢ !! union_Prop m R v
 := @union_pred_local_facts.
 
 End aggregate_pred.
@@ -1996,7 +1990,7 @@ Definition mapsto_zeros_array_pred:
   forall {cs: compspecs} {A : Type} {d : Inhabitant A} (a: A) sh t z b ofs,
   0 <= z ->
   0 <= ofs /\ ofs + sizeof t * z < Ptrofs.modulus ->
-  mapsto_zeros (sizeof t * z) sh (Vptr b (Ptrofs.repr ofs)) |--
+  mapsto_zeros (sizeof t * z) sh (Vptr b (Ptrofs.repr ofs)) ⊢
   array_pred 0 z
      (fun i _ p =>
       mapsto_zeros (sizeof t) sh
@@ -2025,7 +2019,7 @@ Definition mapsto_zeros_struct_pred:
   members_no_replicate m = true ->
   sizeof_struct cenv_cs 0 m <= sz < Ptrofs.modulus ->
   0 <= ofs /\ ofs + sz < Ptrofs.modulus ->
-  mapsto_zeros sz sh (Vptr b (Ptrofs.repr ofs)) |--
+  mapsto_zeros sz sh (Vptr b (Ptrofs.repr ofs)) ⊢
   struct_pred m
    (fun it _ p =>
      (mapsto_zeros (field_offset_next cenv_cs (name_member it) m sz - field_offset cenv_cs (name_member it) m)) sh
@@ -2042,8 +2036,10 @@ Definition memory_block_union_pred:
 Definition mapsto_zeros_union_pred:
   forall sh m sz {A} (v: compact_sum (map A m)) b ofs,
   (m = nil -> sz = 0) ->
-  mapsto_zeros sz sh (Vptr b (Ptrofs.repr ofs)) |--
+  mapsto_zeros sz sh (Vptr b (Ptrofs.repr ofs)) ⊢
   union_pred m (fun it _ => mapsto_zeros sz sh) v (Vptr b (Ptrofs.repr ofs))
 := @mapsto_zeros_union_pred.
 
 End auxiliary_pred.
+
+End mpred.

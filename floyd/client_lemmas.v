@@ -1924,21 +1924,21 @@ Ltac check_mpreds2 R :=
  lazymatch R with
  | bi_sep ?a ?b => check_mpreds2 a; check_mpreds2 b
  | _ => match type of R with ?t =>
-                          first [constr_eq t mpred
+                          first [unify t (@iProp _)
                                  | fail 4 "The conjunct" R "has type" t "but should have type mpred; these two types may be convertible but they are not identical"]
                      end
  | nil => idtac
  end.
 
 Ltac saturate_local :=
- match goal with |- ?R ⊢ _ => check_mpreds2 R end;
+(* match goal with |- ?R ⊢ _ => check_mpreds2 R end; Do we need this? *)
  simple eapply saturate_aux21x;
  [repeat simple apply saturate_aux20;
    (* use already_saturated if want to be fancy,
          otherwise the next lines *)
     auto with nocore saturate_local;
-     simple apply TT_right
- | simple apply bi.pure_elim_l;
+     (*simple*) apply TT_right
+ | (*simple*) apply bi.pure_elim_l;
    match goal with |- _ -> ?A =>
        let P := fresh "P" in set (P := A);
        fancy_intros true;

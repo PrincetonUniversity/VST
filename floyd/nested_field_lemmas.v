@@ -4,8 +4,9 @@ Require Import VST.floyd.fieldlist.
 Require Import VST.floyd.type_induction.
 Require Import VST.floyd.nested_pred_lemmas.
 Require Import VST.floyd.align_compatible_dec.
-Import compcert.lib.Maps.
 Open Scope Z.
+
+Local Unset SsrRewrite.
 
 (************************************************
 
@@ -144,7 +145,7 @@ Definition nested_field_type (t: type) (gfs: list gfield) : type :=
 Definition nested_field_array_type t gfs lo hi :=
   Tarray (nested_field_type t (ArraySubsc 0 :: gfs)) (hi - lo) (no_alignas_attr (attr_of_type (nested_field_type t gfs))).
 
-Definition legal_field t gf :=
+Definition legal_field t gf : Prop :=
   match t, gf with
   | Tarray _ n _, ArraySubsc i => 0 <= i < n
   | Tstruct id _, StructField i => in_members i (co_members (get_co id))
@@ -152,7 +153,7 @@ Definition legal_field t gf :=
   | _, _ => False
   end.
 
-Definition legal_field0 t gf :=
+Definition legal_field0 t gf : Prop :=
   match t, gf with
   | Tarray _ n _, ArraySubsc i => 0 <= i <= n
   | Tstruct id _, StructField i => in_members i (co_members (get_co id))
@@ -166,7 +167,7 @@ Fixpoint legal_nested_field (t: type) (gfs: list gfield) : Prop :=
   | gf :: gfs0 => legal_nested_field t gfs0 /\ legal_field (nested_field_type t gfs0) gf
   end.
 
-Definition legal_nested_field0 t gfs :=
+Definition legal_nested_field0 t gfs : Prop :=
   match gfs with
   | nil => True
   | gf :: gfs0 => legal_nested_field t gfs0 /\ legal_field0 (nested_field_type t gfs0) gf
@@ -180,10 +181,10 @@ Fixpoint compute_legal_nested_field (t: type) (gfs: list gfield) : list Prop :=
     | Tarray _ n _, ArraySubsc i =>
        (0 <= i < n) :: compute_legal_nested_field t gfs0
     | Tstruct id _, StructField i =>
-       if compute_in_members i (co_members (get_co id)) then compute_legal_nested_field t gfs0 else False :: nil
+       if compute_in_members i (co_members (get_co id)) then compute_legal_nested_field t gfs0 else False%type :: nil
     | Tunion id _, UnionField i =>
-       if compute_in_members i (co_members (get_co id)) then compute_legal_nested_field t gfs0 else False :: nil
-    | _, _ => False :: nil
+       if compute_in_members i (co_members (get_co id)) then compute_legal_nested_field t gfs0 else False%type :: nil
+    | _, _ => False%type :: nil
     end
   end.
 
@@ -668,7 +669,7 @@ Proof.
   intros.
   destruct t as [| | | | | | | id ? | id ?], gf; auto;
   unfold gfield_type in *; simpl in H, H0; unfold get_co in *.
-  + destruct (cenv_cs ! id) eqn:?H; [| inv H0].
+  + destruct (cenv_cs !! id) eqn:?H; [| inv H0].
     pose proof cenv_legal_su _ _ H1.
     unfold in_members in H.
     induction (co_members c) as [| [i0 t0|] ?].
@@ -684,7 +685,7 @@ Proof.
       apply IHm; auto. 
       destruct H; auto; congruence.
      simpl in H0. destruct (co_su c); try discriminate.
-  + destruct (cenv_cs ! id) eqn:?H; [| inv H0].
+  + destruct (cenv_cs !! id) eqn:?H; [| inv H0].
     pose proof cenv_legal_su _ _ H1.
     unfold in_members in H.
     induction (co_members c) as [| [i0 t0|] ?].
@@ -921,23 +922,23 @@ Qed.
 Lemma complete_legal_cosu_type_Tstruct_get_co:
   forall id a,
    complete_legal_cosu_type (Tstruct id a) = true ->
-    cenv_cs ! id = Some (get_co id).
+    cenv_cs !! id = Some (get_co id).
 Proof.
 intros.
  simpl in H.
  unfold get_co.
- destruct (cenv_cs ! id); try discriminate. auto.
+ destruct (cenv_cs !! id); try discriminate. auto.
 Qed.
 
 Lemma complete_legal_cosu_type_Tunion_get_co:
   forall id a,
    complete_legal_cosu_type (Tunion id a) = true ->
-    cenv_cs ! id = Some (get_co id).
+    cenv_cs !! id = Some (get_co id).
 Proof.
 intros.
  simpl in H.
  unfold get_co.
- destruct (cenv_cs ! id); try discriminate. auto.
+ destruct (cenv_cs !! id); try discriminate. auto.
 Qed.
 
 Lemma sizeof_Tstruct_co_sizeof:
@@ -948,7 +949,7 @@ Lemma sizeof_Tstruct_co_sizeof:
 Proof.
  intros.
  simpl in H.
- destruct (cenv_cs ! id) eqn:?H; try discriminate.
+ destruct (cenv_cs !! id) eqn:?H; try discriminate.
  destruct (co_su c) eqn:?H; try discriminate.
  assert (sizeof_struct cenv_cs 0 (co_members (get_co id)) <= co_sizeof (get_co id)).
  rewrite co_consistent_sizeof with (env := cenv_cs) by apply get_co_consistent.
@@ -967,7 +968,7 @@ Lemma sizeof_Tunion_co_sizeof:
 Proof.
  intros.
  simpl in H.
- destruct (cenv_cs ! id) eqn:?H; try discriminate.
+ destruct (cenv_cs !! id) eqn:?H; try discriminate.
  destruct (co_su c) eqn:?H; try discriminate.
    assert (sizeof_union cenv_cs (co_members (get_co id)) <= co_sizeof (get_co id)).
         rewrite co_consistent_sizeof with (env := cenv_cs) by apply get_co_consistent.

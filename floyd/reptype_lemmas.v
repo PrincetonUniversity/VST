@@ -4,6 +4,8 @@ Require Export VST.floyd.compact_prod_sum.
 Require Import VST.floyd.fieldlist.
 Require Import VST.zlist.sublist.
 
+Local Unset SsrRewrite.
+
 Definition
 map_map: forall {A B C : Type} (f : A -> B) (g : B -> C) (l : list A),
        map g (map f l) = map (fun x : A => g (f x)) l :=
@@ -145,26 +147,26 @@ Definition reptype_gen {cs: compspecs} : type -> (sigT (fun x => x)) :=
   type_func (fun _ => (sigT (fun x => x)))
   (fun t =>
      if (type_is_by_value t)
-     then existT (fun x => x) val Vundef
-     else existT (fun x => x) unit tt)
-  (fun t n a TV => existT (fun x => x) (list (projT1 TV)) (Zrepeat (projT2 TV) n))
-  (fun id a TVs => existT (fun x => x) (compact_prod_sigT_type (decay TVs)) (compact_prod_sigT_value (decay TVs)))
-  (fun id a TVs => existT (fun x => x) (compact_sum_sigT_type (decay TVs)) (compact_sum_sigT_value (decay TVs))).
+     then existT (P := fun x => x) val Vundef
+     else existT (P := fun x => x) unit tt)
+  (fun t n a TV => existT (P := fun x => x) (list (projT1 TV)) (Zrepeat (projT2 TV) n))
+  (fun id a TVs => existT (P := fun x => x) (compact_prod_sigT_type (decay TVs)) (compact_prod_sigT_value (decay TVs)))
+  (fun id a TVs => existT (P := fun x => x) (compact_sum_sigT_type (decay TVs)) (compact_sum_sigT_value (decay TVs))).
 
 Definition reptype_gen0 {cs: compspecs} : type -> (sigT (fun x => x)) :=
   type_func (fun _ => (sigT (fun x => x)))
   (fun t =>
      match t with
-     | Tint _ _ _ => existT (fun x => x) val (Vint Int.zero)
-     | Tlong _ _ => existT (fun x => x) val (Vlong Int64.zero)
-     | Tfloat F32 _ => existT (fun x => x) val (Vsingle Float32.zero)
-     | Tfloat F64 _ => existT (fun x => x) val (Vfloat Float.zero)
-     | Tpointer _ _ => existT (fun x => x) val (Vptrofs Ptrofs.zero)
-     | _ => existT (fun x => x) unit tt
+     | Tint _ _ _ => existT (P := fun x => x) val (Vint Int.zero)
+     | Tlong _ _ => existT (P := fun x => x) val (Vlong Int64.zero)
+     | Tfloat F32 _ => existT (P := fun x => x) val (Vsingle Float32.zero)
+     | Tfloat F64 _ => existT (P := fun x => x) val (Vfloat Float.zero)
+     | Tpointer _ _ => existT (P := fun x => x) val (Vptrofs Ptrofs.zero)
+     | _ => existT (P := fun x => x) unit tt
      end)
-  (fun t n a TV => existT (fun x => x) (list (projT1 TV)) (Zrepeat (projT2 TV) n))
-  (fun id a TVs => existT (fun x => x) (compact_prod_sigT_type (decay TVs)) (compact_prod_sigT_value (decay TVs)))
-  (fun id a TVs => existT (fun x => x) (compact_sum_sigT_type (decay TVs)) (compact_sum_sigT_value (decay TVs))).
+  (fun t n a TV => existT (P := fun x => x) (list (projT1 TV)) (Zrepeat (projT2 TV) n))
+  (fun id a TVs => existT (P := fun x => x) (compact_prod_sigT_type (decay TVs)) (compact_prod_sigT_value (decay TVs)))
+  (fun id a TVs => existT (P := fun x => x) (compact_sum_sigT_type (decay TVs)) (compact_sum_sigT_value (decay TVs))).
 
 Definition reptype {cs: compspecs} t: Type := match reptype_gen t with existT t _ => t end.
 
@@ -178,16 +180,16 @@ Definition default_val {cs: compspecs} t: reptype t :=
 Lemma reptype_gen_eq {cs: compspecs}: forall t,
   reptype_gen t =
   match t with
-  | Tarray t0 n _ => existT (fun x => x) (list (projT1 (reptype_gen t0))) (Zrepeat (projT2 (reptype_gen t0)) n)
-  | Tstruct id _ => existT (fun x => x)
+  | Tarray t0 n _ => existT (P := fun x => x) (list (projT1 (reptype_gen t0))) (Zrepeat (projT2 (reptype_gen t0)) n)
+  | Tstruct id _ => existT (P := fun x => x)
                      (compact_prod_sigT_type (map reptype_gen (map (fun it => field_type (name_member it) (co_members (get_co id))) (co_members (get_co id)))))
                      (compact_prod_sigT_value (map reptype_gen (map (fun it => field_type (name_member it) (co_members (get_co id))) (co_members (get_co id)))))
-  | Tunion id _ => existT (fun x => x)
+  | Tunion id _ => existT (P := fun x => x)
                      (compact_sum_sigT_type (map reptype_gen (map (fun it => field_type (name_member it) (co_members (get_co id))) (co_members (get_co id)))))
                      (compact_sum_sigT_value (map reptype_gen (map (fun it => field_type (name_member it) (co_members (get_co id))) (co_members (get_co id)))))
   | _ => if (type_is_by_value t)
-         then existT (fun x => x) val Vundef
-         else existT (fun x => x) unit tt
+         then existT (P := fun x => x) val Vundef
+         else existT (P := fun x => x) unit tt
   end.
 Proof.
   intros.
@@ -206,21 +208,21 @@ Defined.
 Lemma reptype_gen0_eq {cs: compspecs}: forall t,
   reptype_gen0 t =
   match t with
-  | Tarray t0 n _ => existT (fun x => x) (list (projT1 (reptype_gen0 t0))) (Zrepeat (projT2 (reptype_gen0 t0)) n)
-  | Tstruct id _ => existT (fun x => x)
+  | Tarray t0 n _ => existT (P := fun x => x) (list (projT1 (reptype_gen0 t0))) (Zrepeat (projT2 (reptype_gen0 t0)) n)
+  | Tstruct id _ => existT (P := fun x => x)
                      (compact_prod_sigT_type (map reptype_gen0 (map (fun it => field_type (name_member it) (co_members (get_co id))) (co_members (get_co id)))))
                      (compact_prod_sigT_value (map reptype_gen0 (map (fun it => field_type (name_member it) (co_members (get_co id))) (co_members (get_co id)))))
-  | Tunion id _ => existT (fun x => x)
+  | Tunion id _ => existT (P := fun x => x)
                      (compact_sum_sigT_type (map reptype_gen0 (map (fun it => field_type (name_member it) (co_members (get_co id))) (co_members (get_co id)))))
                      (compact_sum_sigT_value (map reptype_gen0 (map (fun it => field_type (name_member it) (co_members (get_co id))) (co_members (get_co id)))))
   | _ => 
      match t with
-     | Tint _ _ _ => existT (fun x => x) val (Vint Int.zero)
-     | Tlong _ _ => existT (fun x => x) val (Vlong Int64.zero)
-     | Tfloat F32 _ => existT (fun x => x) val (Vsingle Float32.zero)
-     | Tfloat F64 _ => existT (fun x => x) val (Vfloat Float.zero)
-     | Tpointer _ _ => existT (fun x => x) val (Vptrofs Ptrofs.zero)
-     | _ => existT (fun x => x) unit tt
+     | Tint _ _ _ => existT (P := fun x => x) val (Vint Int.zero)
+     | Tlong _ _ => existT (P := fun x => x) val (Vlong Int64.zero)
+     | Tfloat F32 _ => existT (P := fun x => x) val (Vsingle Float32.zero)
+     | Tfloat F64 _ => existT (P := fun x => x) val (Vfloat Float.zero)
+     | Tpointer _ _ => existT (P := fun x => x) val (Vptrofs Ptrofs.zero)
+     | _ => existT (P := fun x => x) unit tt
      end
   end.
 Proof.
@@ -246,7 +248,7 @@ assert (forall t, projT1 (reptype_gen t) = projT1 (reptype_gen0 t)).
 clear t; intro t.
 type_induction t; auto.
 - destruct f; auto.
--  rewrite reptype_gen_eq, reptype_gen0_eq. simpl; f_equal; auto.
+- rewrite reptype_gen_eq, reptype_gen0_eq. simpl; f_equal; auto.
 - rewrite reptype_gen_eq, reptype_gen0_eq. simpl.
    forget (co_members (get_co id)) as m. clear id.
    cbv zeta in IH.
@@ -398,7 +400,7 @@ Definition union_default_filter m :=
   | hd :: _ => fun m => if member_dec hd m then true else false
   end.
 
-Definition is_default_filter {A} f (l: list A) :=
+Definition is_default_filter {A} f (l: list A) : Prop :=
   match l with
   | nil => True
   | hd :: _ => f hd = true
@@ -446,11 +448,11 @@ Qed.
 
 Lemma compact_prod_sigT_compact_prod_gen:
   forall {A B} {P: A -> Type} (genT: B -> A) (genV: forall b: B, P (genT b)) (gen: B -> sigT P) (l: list B),
-    (forall b, gen b = existT P (genT b) (genV b)) ->
+    (forall b, gen b = existT (genT b) (genV b)) ->
     JMeq (compact_prod_sigT_value (map gen l)) (compact_prod_gen genV l).
 Proof.
   intros.
-  assert (gen = fun b => existT P (genT b) (genV b)) by (extensionality; apply H).
+  assert (gen = fun b => existT (genT b) (genV b)) by (extensionality; apply H).
   rewrite H0; clear H H0 gen.
   destruct l; [apply JMeq_refl |].
   revert b; induction l; intros.
@@ -458,28 +460,28 @@ Proof.
   + simpl map.
     change (compact_prod_gen genV (b :: a :: l)) with (genV b, compact_prod_gen genV (a :: l)).
     change (compact_prod_sigT_value
-        (existT P (genT b) (genV b)
-         :: existT P (genT a) (genV a)
-            :: map (fun b0 : B => existT P (genT b0) (genV b0)) l)) with
-      (genV b, compact_prod_sigT_value (existT P (genT a) (genV a) :: map (fun b0 : B => existT P (genT b0) (genV b0)) l)).
+        (existT (genT b) (genV b)
+         :: existT (genT a) (genV a)
+            :: map (fun b0 : B => existT (genT b0) (genV b0)) l)) with
+      (genV b, compact_prod_sigT_value (existT (genT a) (genV a) :: map (fun b0 : B => existT (genT b0) (genV b0)) l)).
     apply JMeq_pair; [auto |].
     exact (IHl a).
 Qed.
 
 Lemma compact_sum_sigT_compact_sum_gen:
   forall {A B} {P: A -> Type} (genT: B -> A) (genV: forall b: B, P (genT b)) (filter: B -> bool) (gen: B -> sigT P) (l: list B),
-    (forall b, gen b = existT P (genT b) (genV b)) ->
+    (forall b, gen b = existT (genT b) (genV b)) ->
     is_default_filter filter l ->
     JMeq (compact_sum_sigT_value (map gen l)) (compact_sum_gen filter genV l).
 Proof.
   intros.
-  assert (gen = fun b => existT P (genT b) (genV b)) by (extensionality; apply H).
+  assert (gen = fun b => existT (genT b) (genV b)) by (extensionality; apply H).
   rewrite H1; clear H H1 gen.
   destruct l; [apply JMeq_refl |].
   destruct l.
   + apply JMeq_refl.
   + change (compact_sum_sigT_value
-        (map (fun b1 : B => existT P (genT b1) (genV b1)) (b :: b0 :: l))) with
+        (map (fun b1 : B => existT (genT b1) (genV b1)) (b :: b0 :: l))) with
   (@inl (P (genT b)) (compact_sum (map (fun tv => match tv with existT t _ => P t end) (map (fun b1 : B => @existT A P (genT b1) (genV b1)) (b0 :: l)))) (genV b)).
     change (compact_sum (map (fun tv => match _ with existT t _ => P t end) (map (fun b1 : B => @existT A P (genT b1) (genV b1)) (b :: b0 :: l)))) with
       (P (genT b) + compact_sum (map (fun tv => match tv with existT t _ => P t end) (map (fun b1 : B => @existT A P (genT b1) (genV b1)) (b0 :: l))))%type.
@@ -808,7 +810,7 @@ Lemma repinject_unfold_reptype: forall t v,
   | Tfloat _ _
   | Tlong _ _
   | Tpointer _ _ => fun vv => repinject t v = vv
-  | _ => fun _ => True
+  | _ => fun _ => True%type
   end (unfold_reptype v).
 Proof.
   intros; destruct t; auto;
@@ -1154,7 +1156,8 @@ intros.
  assert (n <= length al)%nat by lia; clear H0.
  revert al H; induction n; simpl; intros; auto.
  destruct al; simpl in H. lia.
- f_equal.
+ simpl. f_equal.
+ unfold drop in IHn.
  rewrite <- (IHn al) by lia. clear IHn.
  rewrite <- (replist'_succ 0 n r al) by lia.
  reflexivity.

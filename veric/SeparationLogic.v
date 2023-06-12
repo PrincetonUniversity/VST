@@ -28,7 +28,7 @@ Require Export VST.veric.extend_tc.
 Require Import VST.msl.Coqlib2.
 Require Import VST.veric.juicy_extspec.
 Require Export VST.veric.mapsto_memory_block.
-Require Import VST.veric.valid_pointer.
+Require Export VST.veric.valid_pointer.
 Require Export VST.veric.external_state.
 Require Export VST.veric.Clight_initial_world.
 Require Export VST.veric.initialize.
@@ -81,6 +81,12 @@ Definition ext_link_prog (p: program) (s: String.string) : ident :=
 
 Definition globals := ident -> val.
 
+(* TODO: merge size_compatible and align_compatible *)
+Definition align_compatible {C: compspecs} t p :=
+  match p with
+  | Vptr b i_ofs => align_compatible_rec cenv_cs t (Ptrofs.unsigned i_ofs)
+  | _ => True%type
+  end.
 
 (*We're exporting the step-indexed version so that semax_fun_id doesn't syntactically change*)
 Definition func_ptr E (f: funspec) (v: val): mpred := seplog.func_ptr_si E f v.
