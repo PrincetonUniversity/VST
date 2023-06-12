@@ -7,10 +7,11 @@ Require Export VST.msl.Coqlib2 VST.veric.coqlib4 VST.floyd.coqlib3.
 Require Export VST.floyd.jmeq_lemmas.
 Require Export VST.floyd.find_nth_tactic.
 Require Export VST.veric.juicy_extspec.
-(*Require Import VST.veric.NullExtension.*)
 Require Import VST.floyd.val_lemmas VST.floyd.assert_lemmas.
 Require Import VST.floyd.SeparationLogicFacts.
 Import Ctypes LiftNotation.
+
+Open Scope maps.
 
 Fixpoint all_suf_of_labeled_statements (P: labeled_statements -> Prop) (L: labeled_statements): Prop :=
   match L with
@@ -756,7 +757,7 @@ Proof.
     apply orp_ENTAILL; [apply orp_ENTAILL; [apply orp_ENTAILL |] |].
     - apply later_ENTAILL.
       unfold tc_temp_id, typecheck_temp_id.
-      destruct ((temp_types Delta) !! id) eqn:Hid; rewrite Hid; last by rewrite denote_tc_assert_False; iIntros "(? & ? & _ & [] & _)".
+      destruct ((temp_types Delta) !! id) eqn:Hid; last by rewrite denote_tc_assert_False; iIntros "(? & ? & _ & [] & _)".
       rewrite !bi.and_assoc.
       eapply andp_subst_ENTAILL; [eauto | | reduceLL; apply ENTAIL_refl |].
       * destruct (is_neutral_cast (implicit_deref (typeof e)) t) eqn:Ht; [|normalize; iIntros "(_ & _ & _ & [])"].
@@ -2165,7 +2166,7 @@ apply semax_adapt
       apply Map.ext; intros x. specialize (Hve x).
       destruct (Map.get ve x); simpl.
       * destruct p; simpl in *. destruct (Hve t) as [_ H]; clear Hve.
-        exploit H. exists b; trivial. rewrite /lookup /ptree_lookup Maps.PTree.gempty //.
+        exploit H. exists b; trivial. rewrite Maps.PTree.gempty //.
       * reflexivity.
     + iFrame.
     + iPureIntro; split; trivial. destruct TC as [TC1 _]. simpl in TC1. red in TC1.

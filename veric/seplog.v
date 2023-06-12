@@ -152,7 +152,7 @@ Lemma fssub_prop1: forall rt ptypes gargs,
 intros. destruct gargs. unfold tc_argsenv. simpl.
 unfold tc_genv. simpl.
 unfold typecheck_glob_environ. apply Axioms.prop_ext; split; intros. apply H.
-split; trivial. intros. rewrite /lookup /ptree_lookup Maps.PTree.gempty in H0. congruence.
+split; trivial. intros. rewrite Maps.PTree.gempty // in H0.
 Qed.
 
 Lemma fssub_prop2: forall rt rho, (local (tc_environ (rettype_tycontext rt)) rho) ⊣⊢ ⌜ve_of rho = Map.empty (block * type)⌝.
@@ -165,13 +165,13 @@ destruct rho; simpl. apply bi.pure_iff; split.
 apply Map.ext. intros. clear H H1. specialize (H0 x).
 destruct (Map.get ve); simpl in *. 
 destruct p.  destruct (H0 t); clear H0. clear H.
-exfalso. exploit H1. eexists; reflexivity. rewrite /lookup /ptree_lookup Maps.PTree.gempty. congruence.
+exfalso. exploit H1. eexists; reflexivity. rewrite Maps.PTree.gempty. congruence.
 reflexivity.
 - intros U. simpl in *. subst. split3; intros.
- rewrite /lookup /ptree_lookup Maps.PTree.gempty in H; congruence.
- split; intros. rewrite /lookup /ptree_lookup Maps.PTree.gempty in H; congruence.
+ rewrite Maps.PTree.gempty in H; congruence.
+ split; intros. rewrite Maps.PTree.gempty in H; congruence.
  destruct H. inv H.
- rewrite /lookup /ptree_lookup Maps.PTree.gempty in H. congruence.
+ rewrite Maps.PTree.gempty in H. congruence.
 Qed.
 
 Open Scope bi_scope.
@@ -407,7 +407,7 @@ Proof.
   iExists _, _, _, _, _, _, _; done.
 Qed.
 
-Lemma func_at_auth m f l : ⊢ funspec_auth m -∗ func_at f l -∗ m !! l ≡ Some (funspec_unfold f).
+Lemma func_at_auth m f l : ⊢ funspec_auth m -∗ func_at f l -∗ (m !! l)%stdpp ≡ Some (funspec_unfold f).
 Proof.
   intros; iIntros "Hm (_ & Hf)".
   iDestruct (own_valid_2 with "Hm Hf") as "H".
@@ -590,10 +590,10 @@ Qed.
 
 Definition funspecs_assert (FunSpecs: Maps.PTree.t funspec): assert :=
  assert_of (fun rho =>
-   (□ (∀ id: ident, ∀ fs:funspec,  ⌜FunSpecs!!id = Some fs⌝ →
+   (□ (∀ id: ident, ∀ fs:funspec,  ⌜Maps.PTree.get id FunSpecs = Some fs⌝ →
             ∃ b:block,⌜Map.get (ge_of rho) id = Some b⌝ ∧ func_at fs (b,0)) ∗
    (∀ b fsig cc, sigcc_at fsig cc (b, 0) -∗
-           ⌜∃ id, Map.get (ge_of rho) id = Some b ∧ ∃ fs, FunSpecs!!id = Some fs⌝))).
+           ⌜∃ id, Map.get (ge_of rho) id = Some b ∧ ∃ fs, Maps.PTree.get id FunSpecs = Some fs⌝))).
 (* We can substantiate this using the authoritative funspecs. *)
 
 Definition globals_only (rho: environ) : environ := (mkEnviron (ge_of rho) (Map.empty _) (Map.empty _)).
@@ -1051,10 +1051,10 @@ Lemma make_context_t_get: forall {params temps i ty}
       In i (map fst params ++ map fst temps).
 Proof.
   induction params; simpl; intros.
-* induction temps; simpl in *. rewrite /lookup /ptree_lookup Maps.PTree.gempty in T; discriminate. 
-  destruct a; simpl in *. rewrite /lookup /ptree_lookup Maps.PTree.gsspec in T.
+* induction temps; simpl in *. rewrite Maps.PTree.gempty in T; discriminate. 
+  destruct a; simpl in *. rewrite Maps.PTree.gsspec in T.
   destruct (peq i i0); subst. left; trivial. right; auto.
-* destruct a; simpl in *. rewrite /lookup /ptree_lookup Maps.PTree.gsspec in T.
+* destruct a; simpl in *. rewrite Maps.PTree.gsspec in T.
   destruct (peq i i0); subst. left; trivial.
   right. eapply IHparams. apply T.
 Qed.
@@ -1068,9 +1068,9 @@ Proof.
   induction params.
   + intros. inv H1.
   + simpl. intros. destruct H1.
-    - subst a. simpl in *. apply (H0 i ty). rewrite /lookup /ptree_lookup Maps.PTree.gss; trivial.
+    - subst a. simpl in *. apply (H0 i ty). rewrite Maps.PTree.gss; trivial.
     - inv H. apply (IHparams temps); trivial.
-      red; intros j ? ?. apply H0. rewrite /lookup /ptree_lookup Maps.PTree.gso; trivial. clear - H4 H.
+      red; intros j ? ?. apply H0. rewrite Maps.PTree.gso; trivial. clear - H4 H.
       intros J; subst. destruct a; simpl in *. apply H4; clear - H.
       apply (make_context_t_get H).
 Qed.
@@ -1078,9 +1078,9 @@ Qed.
 Lemma tc_environ_rettype t rho: tc_environ (rettype_tycontext t) (globals_only rho).
 Proof.
   unfold rettype_tycontext; simpl. split3; intros; simpl.
-  red; intros. rewrite /lookup /ptree_lookup Maps.PTree.gempty in H; congruence.
-  split; intros. rewrite /lookup /ptree_lookup Maps.PTree.gempty in H; congruence. destruct H; inv H.
-  red; intros. rewrite /lookup /ptree_lookup Maps.PTree.gempty in H; congruence.
+  red; intros. rewrite Maps.PTree.gempty in H; congruence.
+  split; intros. rewrite Maps.PTree.gempty in H; congruence. destruct H; inv H.
+  red; intros. rewrite Maps.PTree.gempty in H; congruence.
 Qed.
 
 Lemma tc_environ_rettype_env_set t rho i v:
@@ -1088,9 +1088,9 @@ tc_environ (rettype_tycontext t)
          (env_set (globals_only rho) i v).
 Proof.
   unfold rettype_tycontext; simpl. split3; intros; simpl.
-  red; intros. rewrite /lookup /ptree_lookup Maps.PTree.gempty in H; congruence.
-  split; intros. rewrite /lookup /ptree_lookup Maps.PTree.gempty in H; congruence. destruct H; inv H.
-  red; intros. rewrite /lookup /ptree_lookup Maps.PTree.gempty in H; congruence.
+  red; intros. rewrite Maps.PTree.gempty in H; congruence.
+  split; intros. rewrite Maps.PTree.gempty in H; congruence. destruct H; inv H.
+  red; intros. rewrite Maps.PTree.gempty in H; congruence.
 Qed.
 
 Lemma funspec_sub_cc E phi psi: funspec_sub E phi psi ->

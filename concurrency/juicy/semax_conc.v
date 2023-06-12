@@ -3,7 +3,7 @@ Require Import compcert.cfrontend.Ctypes.
 Require Import VST.veric.expr.
 Require Import VST.concurrency.common.lksize.
 Require Import VST.concurrency.juicy.semax_conc_pred.
-Require Import VST.floyd.client_lemmas.
+Require Import VST.floyd.field_at.
 (*Require Import VST.concurrency.conclib.*)
 Import Clightdefs.
 Import String.
@@ -114,6 +114,7 @@ Qed.*)
 
 Definition acquire_arg_type: TypeTree := ProdType (ConstType (val * share)) Mpred.
 
+(* up *)
 #[export] Instance monPred_at_ne : NonExpansive (@monPred_at environ_index mpred : _ -> _ -d> _).
 Proof. solve_proper. Qed.
 
@@ -141,57 +142,33 @@ Proof.
   rewrite HR //.
 Qed.
 
-Definition release_arg_type: rmaps.TypeTree := rmaps.ProdType (rmaps.ConstType (val * share)) rmaps.Mpred.
+Definition release_arg_type: TypeTree := ProdType (ConstType (val * share)) Mpred.
 
 Program Definition release_spec :=
   TYPE release_arg_type WITH v : _, sh : _, R : _
   PRE [ tptr tvoid ]
      PROP (readable_share sh)
      PARAMS (v)
-     SEP (weak_exclusive_mpred R && emp; lock_inv sh v R; R)
+     SEP (<affine> exclusive_mpred R; lock_inv sh v R; R)
   POST [ tvoid ]
      PROP ()
      LOCAL ()
      SEP (lock_inv sh v R).
 Next Obligation.
 Proof.
-  hnf.
-  intros.
-  destruct x as [[v sh] R]; simpl in *.
-  apply (nonexpansive_super_non_expansive
-   (fun R => (PROP (readable_share sh)  PARAMS (v)  SEP (weak_exclusive_mpred R && emp; lock_inv sh v R; R)) gargs)).
-  apply (PROP_PARAMS_GLOBALS_SEP_nonexpansive
-          ((fun _ => readable_share sh) :: nil)
-          (v :: nil)
-          nil
-          ((fun R => weak_exclusive_mpred R && emp) :: (fun R => lock_inv sh v R) :: (fun R => R) :: nil));
-  repeat apply Forall_cons; try apply Forall_nil.
-  + apply const_nonexpansive.
-  + apply (conj_nonexpansive (fun R => weak_exclusive_mpred R)).
-    - apply exclusive_mpred_nonexpansive.
-    - apply const_nonexpansive.
-  + apply nonexpansive_lock_inv.
-  + apply identity_nonexpansive.
+  intros ? ((v, sh), R) ((?, ?), ?) ([=] & HR); simpl in *; subst.
+  rewrite /exclusive_mpred HR //.
 Qed.
 Next Obligation.
 Proof.
-  hnf.
-  intros.
-  destruct x as [[v sh] R]; simpl in *.
-  apply (nonexpansive_super_non_expansive
-   (fun R => (PROP ()  LOCAL ()  SEP (lock_inv sh v R)) rho)).
-  apply (PROP_LOCAL_SEP_nonexpansive
-          nil
-          nil
-          ((fun R => lock_inv sh v R) :: nil));
-  repeat apply Forall_cons; try apply Forall_nil.
-  apply nonexpansive_lock_inv.
+  intros ? ((v, sh), R) ((?, ?), ?) ([=] & HR); simpl in *; subst.
+  rewrite /exclusive_mpred HR //.
 Qed.
 
 Program Definition makelock_spec cs: funspec := mk_funspec
   (tptr tvoid :: nil, tvoid)
   cc_default
-  (rmaps.ProdType (rmaps.ConstType (val * share)) rmaps.Mpred)
+  (ProdType (ConstType (val * share)) Mpred)
   (fun _ x =>
    match x with
    | (v, sh, R) =>
@@ -232,7 +209,7 @@ Qed.
 Program Definition freelock_spec cs: funspec := mk_funspec
   (tptr tvoid :: nil, tvoid)
   cc_default
-  (rmaps.ProdType (rmaps.ConstType (val * share)) rmaps.Mpred)
+  (ProdType (ConstType (val * share)) Mpred)
   (fun _ x =>
    match x with
    | (v, sh, R) =>
@@ -296,7 +273,7 @@ Qed.
 Program Definition freelock2_spec cs: funspec := mk_funspec
   (tptr tvoid :: nil, tvoid)
   cc_default
-  (rmaps.ProdType (rmaps.ProdType (rmaps.ConstType (val * share * share)) rmaps.Mpred) rmaps.Mpred)
+  (ProdType (ProdType (ConstType (val * share * share)) Mpred) Mpred)
   (fun _ x =>
    match x with
    | (v, sh, sh', Q, R) =>
@@ -356,7 +333,7 @@ Qed.
 Program Definition release2_spec: funspec := mk_funspec
   (tptr tvoid :: nil, tvoid)
   cc_default
-  (rmaps.ProdType (rmaps.ProdType (rmaps.ConstType (val * share)) rmaps.Mpred) rmaps.Mpred)
+  (ProdType (ProdType (ConstType (val * share)) Mpred) Mpred)
   (fun _ x =>
    match x with
    | (v, sh, Q, R) =>
@@ -440,7 +417,7 @@ Definition freecond_spec cs :=
 Program Definition wait_spec cs: funspec := mk_funspec
   ((_cond OF tptr tcond)%formals :: (_lock OF tptr Tvoid)%formals :: nil, tvoid)
   cc_default
-  (rmaps.ProdType (rmaps.ConstType (val * val * share * share)) rmaps.Mpred)
+  (ProdType (ConstType (val * val * share * share)) Mpred)
   (fun _ x =>
    match x with
    | (c, l, shc, shl, R) =>
@@ -497,7 +474,7 @@ Qed.
 Program Definition wait2_spec cs: funspec := mk_funspec
   ((_cond OF tptr tcond)%formals :: (_lock OF tptr Tvoid)%formals :: nil, tvoid)
   cc_default
-  (rmaps.ProdType (rmaps.ConstType (val * val * share * share)) rmaps.Mpred)
+  (ProdType (ConstType (val * val * share * share)) Mpred)
   (fun _ x =>
    match x with
    | (c, l, shc, shl, R) =>
@@ -590,9 +567,9 @@ Local Open Scope logic.
 
 (* @Qinxiang: it would be great to complete the annotation *)
 
-(*Definition spawn_arg_type := rmaps.ProdType (rmaps.ProdType (rmaps.ProdType (rmaps.ConstType (val * val))
-  (rmaps.ArrowType (rmaps.DependentType 0) (rmaps.ConstType globals))) (rmaps.DependentType 0))
-  (rmaps.ArrowType (rmaps.DependentType 0) (rmaps.ArrowType (rmaps.ConstType val) rmaps.Mpred)).
+(*Definition spawn_arg_type := ProdType (ProdType (ProdType (ConstType (val * val))
+  (ArrowType (DependentType 0) (ConstType globals))) (DependentType 0))
+  (ArrowType (DependentType 0) (ArrowType (ConstType val) Mpred)).
 
 Definition spawn_pre :=
   (fun (ts: list Type) (x: val * val * (nth 0 ts unit -> globals) * nth 0 ts unit *
@@ -628,12 +605,12 @@ Definition spawn_post :=
      SEP ()
    end).
 
-Lemma approx_idem : forall n P, compcert_rmaps.R.approx n (compcert_rmaps.R.approx n P) =
-  compcert_rmaps.R.approx n P.
+Lemma approx_idem : forall n P, compcert_R.approx n (compcert_R.approx n P) =
+  compcert_R.approx n P.
 Proof.
   intros.
-  transitivity (base.compose (compcert_rmaps.R.approx n) (compcert_rmaps.R.approx n) P); auto.
-  rewrite compcert_rmaps.RML.approx_oo_approx; auto.
+  transitivity (base.compose (compcert_R.approx n) (compcert_R.approx n) P); auto.
+  rewrite compcert_RML.approx_oo_approx; auto.
 Qed.
 
 Lemma spawn_pre_nonexpansive: @super_non_expansive spawn_arg_type spawn_pre.

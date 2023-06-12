@@ -45,13 +45,13 @@ Proof.
 clear modifiedvars'_union.
 intro id.
  assert (IS0: ~ isSome (idset0 !! id)). unfold idset0, isSome.
- rewrite /lookup /ptree_lookup Maps.PTree.gempty; auto.
+ rewrite Maps.PTree.gempty; auto.
  unfold modifiedvars', idset0, insert_idset.
  induction c; try destruct o; simpl; intros;
  try solve [split; [auto | intros [?|?]; auto; contradiction ]];
  try solve [unfold insert_idset; destruct (eq_dec i id);
-   [subst; rewrite /lookup /ptree_lookup !Maps.PTree.gss; auto; simpl; clear; split; auto
-   | rewrite /lookup /ptree_lookup !Maps.PTree.gso; auto; simpl;
+   [subst; rewrite !Maps.PTree.gss; auto; simpl; clear; split; auto
+   | rewrite !Maps.PTree.gso; auto; simpl;
           clear - IS0; split; [auto | intros [?|?]; auto; contradiction ]]];
  try solve [rewrite IHc1; rewrite -> IHc1 with (S := modifiedvars' c2 idset0);
                 rewrite IHc2; clear; tauto].
@@ -61,7 +61,7 @@ intro id.
 clear modifiedvars_ls_union.
 intro id.
  assert (IS0: ~ isSome (idset0 !! id)). unfold idset0, isSome.
- rewrite /lookup /ptree_lookup Maps.PTree.gempty; auto.
+ rewrite Maps.PTree.gempty; auto.
  induction c; simpl; intros.
  clear - IS0; tauto.
  rewrite modifiedvars'_union.
@@ -265,7 +265,6 @@ match op with
 Section STABILITY.
 
 Variables env env': composite_env.
-Global Instance composite_env_lookup : Lookup positive composite composite_env := ptree_lookup _.
 Hypothesis extends: forall id co, env!!id = Some co -> env'!!id = Some co.
 
 Lemma binop_stable_stable: forall b e1 e2,
@@ -376,9 +375,9 @@ Proof.
   exists (fun i => match (modifiedvars' c idset0) !! i with Some _ => Map.get te1 i | None => Map.get te2 i end).
   split; intros.
   + unfold Map.get.
-    destruct lookup; simpl; [auto | inv H].
+    destruct (_ !! _); simpl; [auto | inv H].
   + unfold Map.get.
-    destruct lookup; simpl; [left; apply I | auto].
+    destruct (_ !! _); simpl; [left; apply I | auto].
 Qed.
 
 Lemma modifiedvars_Sifthenelse b c1 c2 id: modifiedvars (Sifthenelse b c1 c2) id <-> modifiedvars c1 id \/ modifiedvars c2 id.

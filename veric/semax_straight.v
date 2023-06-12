@@ -233,7 +233,7 @@ Proof.
   apply Hclosed; intros.
   destruct (eq_dec i id).
   - rewrite /modifiedvars /modifiedvars' /insert_idset.
-    subst; rewrite /lookup /ptree_lookup Maps.PTree.gss /=; auto.
+    subst; rewrite Maps.PTree.gss /=; auto.
   - rewrite -map_ptree_rel Map.gso; subst; auto.
 Qed.
 
@@ -383,7 +383,7 @@ rewrite /tc_temp_id /typecheck_temp_id /=.
 unfold typeof_temp in H.
 destruct (temp_types Delta !! id) eqn: Ht; inv H.
 iStopProof; monPred.unseal; split => rho.
-rewrite Ht. setoid_rewrite denote_tc_assert_andp.
+setoid_rewrite denote_tc_assert_andp.
 assert (implicit_deref (typeof e) = typeof e) as -> by (by destruct (typeof e)).
 rewrite H0; iIntros "?"; iSplit; auto.
 iApply (neutral_isCastResultType with "[$]").

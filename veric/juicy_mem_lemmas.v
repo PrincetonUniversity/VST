@@ -132,7 +132,7 @@ Proof.
   rewrite /nthbyte Z2Nat.inj_add; eauto; lia.
 Qed.
 
-Lemma getN_lookup : forall n z m i, getN n z m !! i = if lt_dec i n then Some (Maps.ZMap.get (z + Z.of_nat i)%Z m) else None.
+Lemma getN_lookup : forall n z m i, (getN n z m !! i)%stdpp = if lt_dec i n then Some (Maps.ZMap.get (z + Z.of_nat i)%Z m) else None.
 Proof.
   induction n; simpl; intros; first done.
   destruct i; simpl.

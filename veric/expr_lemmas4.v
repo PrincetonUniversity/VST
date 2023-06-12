@@ -483,8 +483,8 @@ Lemma cenv_sub_sizeof {ge ge'} (Hcenv : cenv_sub ge' ge): forall t,
 Proof.
   induction t; simpl; intros; trivial.
   + rewrite IHt; trivial.
-  + specialize (Hcenv i). rewrite /lookup /composite_env_lookup /ptree_lookup in Hcenv. destruct (Maps.PTree.get i ge'); try congruence. rewrite Hcenv; trivial.
-  + specialize (Hcenv i). rewrite /lookup /composite_env_lookup /ptree_lookup in Hcenv. destruct (Maps.PTree.get i ge'); try congruence. rewrite Hcenv; trivial.
+  + specialize (Hcenv i). destruct (Maps.PTree.get i ge'); try congruence. rewrite Hcenv; trivial.
+  + specialize (Hcenv i). destruct (Maps.PTree.get i ge'); try congruence. rewrite Hcenv; trivial.
 Qed.
 
 Lemma cenv_sub_alignof {ge ge'} (Hcenv : cenv_sub ge' ge): forall t,
@@ -492,8 +492,8 @@ Lemma cenv_sub_alignof {ge ge'} (Hcenv : cenv_sub ge' ge): forall t,
 Proof.
   induction t; simpl; intros; trivial.
   + rewrite IHt; trivial.
-  + specialize (Hcenv i). rewrite /lookup /composite_env_lookup /ptree_lookup in Hcenv. destruct (Maps.PTree.get i ge'); try congruence. rewrite Hcenv; trivial.
-  + specialize (Hcenv i). rewrite /lookup /composite_env_lookup /ptree_lookup in Hcenv. destruct (Maps.PTree.get i ge'); try congruence. rewrite Hcenv; trivial.
+  + specialize (Hcenv i). destruct (Maps.PTree.get i ge'); try congruence. rewrite Hcenv; trivial.
+  + specialize (Hcenv i). destruct (Maps.PTree.get i ge'); try congruence. rewrite Hcenv; trivial.
 Qed.
 
 Lemma eval_unop_relate:

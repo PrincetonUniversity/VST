@@ -275,7 +275,7 @@ Proof.
     destruct (union_field_offset (@cenv_cs CS) i (co_members c)) as [[[] [|]]|] eqn:?H; try iIntros "[]".
     rewrite <- (union_field_offset_stable (@cenv_cs CS) (@cenv_cs CS')) in H; try eassumption.
     rewrite H. auto.
-   intros. specialize (CSUB id).  hnf in CSUB.  unfold lookup, composite_env_lookup, ptree_lookup in CSUB. rewrite -> H0 in CSUB; auto.
+   intros. specialize (CSUB id).  hnf in CSUB. rewrite -> H0 in CSUB; auto.
    apply co_consistent_complete. 
    apply (cenv_consistent i0); auto.
 Qed.
@@ -311,7 +311,7 @@ Proof.
     destruct (union_field_offset (@cenv_cs CS) i (co_members c)) as [[[] [|]]|] eqn:?H; try iIntros "[]".
     rewrite <- (union_field_offset_stable (@cenv_cs CS) (@cenv_cs CS')) in H; try eassumption.
     rewrite H. auto.
-   intros. specialize (CSUB id).  hnf in CSUB.  unfold lookup, composite_env_lookup, ptree_lookup in CSUB. rewrite -> H0 in CSUB; auto.
+   intros. specialize (CSUB id).  hnf in CSUB. rewrite -> H0 in CSUB; auto.
    apply co_consistent_complete. 
    apply (cenv_consistent i0); auto.
 Qed.

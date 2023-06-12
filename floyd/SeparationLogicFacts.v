@@ -1695,13 +1695,13 @@ Theorem semax_set_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!external
           (Sset id e) (normal_ret_assert P).
 Proof.
   intros.
-  apply semax_pre with (▷ (⌜exists t, ((temp_types Delta) !! id = Some t)⌝ ∧ (tc_expr Delta e ∧ tc_temp_id id (typeof e) Delta e ∧ assert_of (subst id (eval_expr e) P)))).
+  apply semax_pre with (▷ (⌜exists t, ((temp_types Delta) !! id = Some t)%maps⌝ ∧ (tc_expr Delta e ∧ tc_temp_id id (typeof e) Delta e ∧ assert_of (subst id (eval_expr e) P)))).
   { apply later_ENTAIL.
     iIntros "H"; iSplit; last rewrite bi.and_elim_r //.
     unfold tc_temp_id, typecheck_temp_id.
     destruct ((temp_types Delta) !! id); first eauto.
     rewrite denote_tc_assert_False; iDestruct "H" as "(_ & _ & [] & _)". }
-  apply semax_pre with (▷ (tc_expr Delta e ∧ tc_temp_id id (typeof e) Delta e ∧ (⌜exists t, ((temp_types Delta) !! id = Some t)⌝ ∧ assert_of (subst id (eval_expr e) P)))).
+  apply semax_pre with (▷ (tc_expr Delta e ∧ tc_temp_id id (typeof e) Delta e ∧ (⌜exists t, ((temp_types Delta) !! id = Some t)%maps⌝ ∧ assert_of (subst id (eval_expr e) P)))).
   { apply later_ENTAIL.
     iIntros "(_ & $ & $)". }
   eapply semax_post'; [.. | eapply semax_set_forward; eauto].

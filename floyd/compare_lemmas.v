@@ -2,7 +2,6 @@ Require Import VST.floyd.base2.
 Require Import VST.floyd.client_lemmas.
 
 Import LiftNotation.
-Local Open Scope logic.
 
 Lemma typed_true_nullptr:
  forall v t0 t t',
@@ -10,7 +9,7 @@ Lemma typed_true_nullptr:
    v=nullval.
 Proof.
  intros.
- simpl in H. rewrite !andb_false_r in H. simpl in H.
+ rewrite /sem_cmp /= in H. rewrite !andb_false_r /= in H.
  unfold typed_true, force_val, sem_cmp_pp, strict_bool_val, nullval in *.
  destruct Archi.ptr64  eqn:Hp;
  destruct t0, v; inv H;
@@ -26,12 +25,12 @@ Lemma typed_true_nullptr':
     typed_true t0 (eval_binop Cop.Oeq (tptr t) (tptr t') v nullval) -> v=nullval.
 Proof.
  intros.
- simpl in H. unfold sem_binary_operation' in H.
+ rewrite /= /sem_cmp /sem_binary_operation' in H.
  unfold tptr, typed_true, force_val, sem_cmp, Cop.classify_cmp, sem_cmp_pp, 
    typeconv, remove_attributes, change_attributes, strict_bool_val, nullval, Val.of_bool in *.
-   rewrite (proj2 (eqb_type_false (Tpointer t noattr) int_or_ptr_type)) in H
+   rewrite -> (proj2 (eqb_type_false (Tpointer t noattr) int_or_ptr_type)) in H
      by (intro Hx; inv Hx).
-   rewrite (proj2 (eqb_type_false (Tpointer t' noattr) int_or_ptr_type)) in H
+   rewrite -> (proj2 (eqb_type_false (Tpointer t' noattr) int_or_ptr_type)) in H
      by (intro Hx; inv Hx).
    simpl in H.
  destruct Archi.ptr64  eqn:Hp;
@@ -43,18 +42,22 @@ Proof.
  destruct (Int.eq i0 Int.zero); inv H1; auto.
 Qed.
 
+Section mpred.
+
+Context `{!heapGS Σ}.
+
+Notation local := (@local Σ).
+
 Lemma typed_true_Oeq_nullval:
  forall  {cs: compspecs}  v t t',
-   local (`(typed_true tint) (`(eval_binop Cop.Oeq (tptr t) (tptr t')) v `(nullval))) |--
+   local (`(typed_true tint) (`(eval_binop Cop.Oeq (tptr t) (tptr t')) v `(nullval))) ⊢
    local (`(eq nullval) v).
 Proof.
-intros.
- intro rho; unfold local, lift1; unfold_lift.
- apply prop_derives; intro.
- unfold tptr in H; simpl in H. unfold sem_binary_operation' in H.
- simpl in H. rewrite !andb_false_r in H.
- simpl in H.
- red in H.
+ intros.
+ unfold_lift; split => rho.
+ apply bi.pure_mono; intro.
+ rewrite /= /tptr /sem_cmp /= /sem_binary_operation' in H.
+ rewrite !andb_false_r /= in H.
  forget (v rho) as x. clear - H.
  unfold sem_cmp_pp, strict_bool_val, nullval in *; simpl in *.
  destruct Archi.ptr64; simpl in H;
@@ -82,8 +85,8 @@ Lemma typed_true_binop_int:
    binary_operation_to_comparison op = Some op' ->
    typeof e1 = tint ->
    typeof e2 = tint ->
-   (PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R))) |--  tc_expr Delta e1 ->
-   (PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R))) |-- tc_expr Delta e2 ->
+   (PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R))) ⊢  tc_expr Delta e1 ->
+   (PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R))) ⊢ tc_expr Delta e2 ->
   @semax cs Espec Delta (PROPx P (LOCALx
       (`op' (`force_signed_int (eval_expr e1)) (`force_signed_int (eval_expr e2))
           :: Q) (SEPx R))) c Post ->
@@ -159,8 +162,8 @@ Lemma typed_false_binop_int:
    binary_operation_to_opp_comparison op = Some op' ->
    typeof e1 = tint ->
    typeof e2 = tint ->
-   (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))) |-- (tc_expr Delta e1) ->
-   (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))) |-- (tc_expr Delta e2) ->
+   (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))) ⊢ (tc_expr Delta e1) ->
+   (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))) ⊢ (tc_expr Delta e2) ->
   @semax cs Espec Delta (PROPx P (LOCALx
       (`op' (`force_signed_int (eval_expr e1)) (`force_signed_int (eval_expr e2))
           :: Q) (SEPx R))) c Post ->
@@ -223,14 +226,14 @@ Qed.
 
 Lemma typed_false_One_nullval:
  forall  {cs: compspecs}  v t t',
-   local (`(typed_false tint) (`(eval_binop Cop.One (tptr t) (tptr t')) v `(nullval))) |--
+   local (`(typed_false tint) (`(eval_binop Cop.One (tptr t) (tptr t')) v `(nullval))) ⊢
     local (`(eq nullval) v).
 Proof.
-intros.
- intro rho; unfold local, lift1; unfold_lift.
- apply prop_derives; intro.
- simpl in H. unfold sem_binary_operation' in H.
- simpl in H. rewrite !andb_false_r in H.
+ intros.
+ unfold_lift; split => rho.
+ apply bi.pure_mono; intro.
+ rewrite /= /sem_cmp /= /sem_binary_operation' in H.
+ rewrite !andb_false_r in H.
  unfold sem_cmp_pp, nullval in *.
  destruct Archi.ptr64 eqn:Hp;
  destruct (v rho); inv H.
@@ -244,14 +247,14 @@ Qed.
 
 Lemma typed_true_One_nullval:
  forall  {cs: compspecs}  v t t',
-   local (`(typed_true tint) (`(eval_binop Cop.One (tptr t) (tptr t')) v `(nullval))) |--
+   local (`(typed_true tint) (`(eval_binop Cop.One (tptr t) (tptr t')) v `(nullval))) ⊢
    local (`(ptr_neq nullval) v).
 Proof.
-intros.
- intro rho; unfold local, lift1; unfold_lift.
- apply prop_derives; intro.
- simpl in H. unfold sem_binary_operation' in H.
- simpl in H. rewrite !andb_false_r in H.
+ intros.
+ unfold_lift; split => rho.
+ apply bi.pure_mono; intro.
+ rewrite /= /sem_cmp /= /sem_binary_operation' in H.
+ rewrite !andb_false_r in H.
  unfold sem_cmp_pp, ptr_neq, ptr_eq, nullval in *; simpl; intro.
  destruct (v rho); try contradiction.
  simpl in *.
@@ -260,48 +263,46 @@ intros.
  destruct H0 as [? [? ?]].
  first [ pose proof (Int64.eq_spec Int64.zero i)
         | pose proof (Int.eq_spec Int.zero i)];
- rewrite H1 in H3; 
+ rewrite H1 in H3;
  subst; inv H.
 Qed.
 
-
 Lemma typed_false_Oeq_nullval:
  forall  {cs: compspecs} v t t',
-   local (`(typed_false tint) (`(eval_binop Cop.Oeq (tptr t) (tptr t')) v `(nullval))) |--
+   local (`(typed_false tint) (`(eval_binop Cop.Oeq (tptr t) (tptr t')) v `(nullval))) ⊢
    local (`(ptr_neq nullval) v).
 Proof.
-intros. subst.
- unfold_lift; intro rho.  unfold local, lift1; apply prop_derives; intro.
- simpl in H. unfold sem_binary_operation' in H.
- simpl in H. rewrite !andb_false_r in H.
+ intros.
+ unfold_lift; split => rho.
+ apply bi.pure_mono; intro.
+ rewrite /= /sem_cmp /= /sem_binary_operation' in H.
+ rewrite !andb_false_r in H.
  intro. apply ptr_eq_e in H0. rewrite <- H0 in H.
  inv H.
 Qed.
 
+Notation LOCALx := (@LOCALx Σ).
+
 Lemma local_entail_at:
-  forall n S T (H: local (locald_denote S) |-- local (locald_denote T))
+  forall n S T (H: local (locald_denote S) ⊢ local (locald_denote T))
     P Q R,
     nth_error Q n = Some S ->
-    PROPx P (LOCALx Q (SEPx R)) |--
+    PROPx P (LOCALx Q (SEPx R)) ⊢
     PROPx P (LOCALx (replace_nth n Q T) (SEPx R)).
 Proof.
  intros.
- unfold PROPx, LOCALx; simpl; intro rho;  apply andp_derives; auto.
- apply andp_derives; auto.
- unfold local, lift1.
- specialize (H rho). unfold local,lift1 in H.
+ unfold PROPx, LOCALx; simpl; apply bi.and_mono; auto.
+ apply bi.and_mono; auto.
  revert Q H0; induction n; destruct Q; simpl; intros; inv H0.
- unfold_lift; repeat rewrite prop_and.
- apply andp_derives; auto.
-  unfold_lift; repeat rewrite prop_and.
- apply andp_derives; auto.
+ - rewrite !local_lift2_and H //.
+ - rewrite !local_lift2_and IHn //.
 Qed.
 
 Lemma local_entail_at_semax_0:
-  forall Espec {cs: compspecs}Delta P Q1 Q1' Q R c Post,
-   (local (locald_denote Q1) |-- local (locald_denote Q1')) ->
-   @semax cs Espec Delta (PROPx P (LOCALx (Q1'::Q) (SEPx R))) c Post  ->
-   @semax cs Espec Delta (PROPx P (LOCALx (Q1::Q) (SEPx R))) c Post.
+  forall Espec `{!externalGS OK_ty Σ} {cs: compspecs} E Delta P Q1 Q1' Q R c Post,
+   (local (locald_denote Q1) ⊢ local (locald_denote Q1')) ->
+   semax E Delta (PROPx P (LOCALx (Q1'::Q) (SEPx R))) c Post  ->
+   semax E Delta (PROPx P (LOCALx (Q1::Q) (SEPx R))) c Post.
 Proof.
 intros.
 eapply semax_pre0.
@@ -340,26 +341,28 @@ unfold sem_cmp_pp, compare_pp, Ptrofs.cmpu, Val.cmplu_bool.
 destruct Archi.ptr64 eqn:Hp.
 destruct op; simpl; auto.
 if_tac. if_tac. inv H0. rewrite Ptrofs.eq_true; reflexivity.
-rewrite Ptrofs.eq_false by congruence; reflexivity.
+rewrite -> Ptrofs.eq_false by congruence; reflexivity.
 if_tac. congruence. reflexivity.
-if_tac. if_tac. inv H0. rewrite Ptrofs.eq_true by auto. reflexivity.
-rewrite Ptrofs.eq_false by congruence; reflexivity.
-rewrite if_false by congruence. reflexivity.
+if_tac. if_tac. inv H0. rewrite -> Ptrofs.eq_true by auto. reflexivity.
+rewrite -> Ptrofs.eq_false by congruence; reflexivity.
+rewrite -> if_false by congruence. reflexivity.
 if_tac; [destruct (Ptrofs.ltu i i0); reflexivity | reflexivity].
 if_tac; [destruct (Ptrofs.ltu i0 i); reflexivity | reflexivity].
 if_tac; [destruct (Ptrofs.ltu i0 i); reflexivity | reflexivity].
 if_tac; [destruct (Ptrofs.ltu i i0); reflexivity | reflexivity].
 destruct op; simpl; auto; rewrite Hp.
 if_tac. if_tac. inv H0. rewrite Ptrofs.eq_true; reflexivity.
-rewrite Ptrofs.eq_false by congruence; reflexivity.
+rewrite -> Ptrofs.eq_false by congruence; reflexivity.
 if_tac. congruence. reflexivity.
-if_tac. if_tac. inv H0. rewrite Ptrofs.eq_true by auto. reflexivity.
-rewrite Ptrofs.eq_false by congruence; reflexivity.
-rewrite if_false by congruence. reflexivity.
+if_tac. if_tac. inv H0. rewrite -> Ptrofs.eq_true by auto. reflexivity.
+rewrite -> Ptrofs.eq_false by congruence; reflexivity.
+rewrite -> if_false by congruence. reflexivity.
 if_tac; [destruct (Ptrofs.ltu i i0); reflexivity | reflexivity].
 if_tac; [destruct (Ptrofs.ltu i0 i); reflexivity | reflexivity].
 if_tac; [destruct (Ptrofs.ltu i0 i); reflexivity | reflexivity].
 if_tac; [destruct (Ptrofs.ltu i i0); reflexivity | reflexivity].
 Qed.
+
+End mpred.
 
 #[export] Hint Rewrite force_sem_cmp_pp using (now auto) : norm.

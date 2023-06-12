@@ -314,7 +314,7 @@ Proof.
 intros; split. constructor. split; [hnf; intros; inv H | intros].
 iIntros (?????? Hclaims).
 destruct Hclaims as (? & Hlookup & ?).
-setoid_rewrite Maps.PTree.gempty in Hlookup. discriminate.
+rewrite Maps.PTree.gempty in Hlookup. discriminate.
 Qed.
 
 Lemma semax_func_cons_aux:
@@ -590,10 +590,10 @@ iApply Hf; iPureIntro.
 destruct Hclaims as [id' [Hlookup Hsymb]].
 simpl in Hlookup.
 destruct (eq_dec id id').
-- subst id'. setoid_rewrite Maps.PTree.gss in Hlookup. inv Hlookup.
+- subst id'. rewrite Maps.PTree.gss in Hlookup. inv Hlookup.
   destruct Hsymb as [? [Hsymb ?]]; subst. unfold fundef in Hsymb; simpl in Hsymb. congruence.
 - exists id'; split; auto.
-  simpl. setoid_rewrite Maps.PTree.gso in Hlookup; auto.
+  simpl. rewrite Maps.PTree.gso in Hlookup; auto.
 Qed.
 
 Definition main_params (ge: genv) start : Prop :=
@@ -946,9 +946,8 @@ Lemma find_id_maketycontext_s G id : (make_tycontext_s G) !! id = find_id id G.
 Proof.
 induction G as [|(i,t) G]; simpl.
 - destruct id; reflexivity.
-- setoid_rewrite Maps.PTree.gsspec.
-do 2 if_tac; try congruence.
-apply IHG.
+- rewrite Maps.PTree.gsspec.
+  do 2 if_tac; congruence.
 Qed.
 
 (**************Adaptation of seplog.funspecs_assert, plus lemmas ********)
@@ -956,10 +955,10 @@ Qed.
   really needs a genviron as parameter, not a genviron * list val*)
 Definition funspecs_gassert (FunSpecs: Maps.PTree.t funspec): argsassert :=
  argsassert_of (fun gargs => let g := fst gargs in
-   □ (∀ id: ident, ∀ fs:funspec,  ⌜FunSpecs!!id = Some fs⌝ →
+   □ (∀ id: ident, ∀ fs:funspec,  ⌜(FunSpecs!!id = Some fs)%maps⌝ →
             ∃ b:block,⌜Map.get g id = Some b⌝ ∧ func_at fs (b,0)) ∗
      (∀ b fsig cc, sigcc_at fsig cc (b, 0) -∗
-           ⌜∃ id, Map.get g id = Some b ∧ ∃ fs, FunSpecs!!id = Some fs⌝)).
+           ⌜∃ id, Map.get g id = Some b ∧ ∃ fs, (FunSpecs!!id)%maps = Some fs⌝)).
 
 (*Maybe this definition can replace Clight_seplog.funassert globally?*)
 Definition fungassert (Delta: tycontext): argsassert := funspecs_gassert (glob_specs Delta).
@@ -1362,7 +1361,7 @@ if peq i (fst v) then t=snd v else (make_tycontext_g vs G) !! i = Some t.
 Proof.
 intros. destruct v as [j u]. induction G; simpl in *.
 + setoid_rewrite Maps.PTree.gsspec in H. destruct (peq i j); subst; trivial. inv H; trivial.
-+ destruct a as [k s]; simpl in *. unfold lookup in *. rewrite -> Maps.PTree.gsspec in *.
++ destruct a as [k s]; simpl in *. rewrite -> Maps.PTree.gsspec in *.
 destruct (peq i k); subst.
 - inv H. destruct (peq k j); trivial; subst. clear - HV. inv HV.
 elim H1; clear. apply in_or_app.  right; left; trivial.
@@ -1468,7 +1467,7 @@ sub_option ((make_tycontext_g V G) !! i) ((make_tycontext_g V H) !! i).
 Proof.
 remember ((make_tycontext_g V G) !! i) as d; destruct d; simpl; trivial; symmetry in Heqd.
 rewrite -> make_context_g_char in *; trivial.
-- remember ((make_tycontext_s G) !! i) as q; destruct q; rewrite -Heqq in Heqd.
+- remember ((make_tycontext_s G) !! i) as q; destruct q.
 * specialize (GH i). rewrite <- Heqq in GH; simpl in GH. rewrite GH; trivial.
 * rewrite Heqd find_id_maketycontext_s. apply find_id_In_map_fst in Heqd.
   remember (find_id i H) as w; destruct w; trivial. symmetry in Heqw; apply find_id_e in Heqw.
@@ -1664,7 +1663,7 @@ Proof.
       apply Map.ext; intros x. specialize (Hve x).
       destruct (Map.get ve x); simpl.
       * destruct p; simpl in *. destruct (Hve t) as [_ H]; clear Hve.
-        exploit H. exists b; trivial. rewrite /lookup /ptree_lookup Maps.PTree.gempty //.
+        exploit H. exists b; trivial. rewrite Maps.PTree.gempty //.
       * reflexivity.
     + iFrame.
     + iPureIntro; split; trivial. destruct TC as [TC1 _]. simpl in TC1. red in TC1.
@@ -1721,8 +1720,8 @@ Proof.
   contradiction.
   inv Hdistinct. destruct a0. simpl in *.
   destruct Ha. subst.
-  simpl. setoid_rewrite Maps.PTree.gss. auto.
-  setoid_rewrite Maps.PTree.gso.
+  simpl. rewrite Maps.PTree.gss. auto.
+  rewrite Maps.PTree.gso.
   apply IHl; auto.
   intro; subst.
   apply H1; apply in_map. auto.
@@ -1736,21 +1735,20 @@ Lemma lookup_distinct : forall {A B} (f : A -> B) a l t (Ha : In a l) (Hdistinct
 Proof.
   induction l; simpl; intros; [contradiction|].
   inv Hdistinct.
-  setoid_rewrite Maps.PTree.gsspec.
-  destruct (peq (fst a) (fst a0)) eqn: Heq.
+  rewrite Maps.PTree.gsspec.
+  if_tac.
   - destruct Ha; [subst; auto|].
     contradiction H1; rewrite in_map_iff; eauto.
   - apply IHl; auto.
-    destruct Ha; auto; subst.
-    contradiction n; auto.
+    destruct Ha; auto; subst; contradiction.
 Qed.
 
 Lemma lookup_out : forall {A B} (f : A -> B) a l t (Ha : ~In a (map fst l)),
   (fold_right (fun v : ident * A => Maps.PTree.set (fst v) (f (snd v))) t l) !! a = t !! a.
 Proof.
   induction l; simpl; intros; auto.
-  setoid_rewrite Maps.PTree.gsspec.
-  destruct (peq a (fst a0)) eqn: Heq.
+  rewrite Maps.PTree.gsspec.
+  if_tac.
   - contradiction Ha; auto.
   - apply IHl.
     intro; contradiction Ha; auto.
@@ -1785,7 +1783,7 @@ Proof.
     + auto.
     + destruct a; simpl. hnf.
       rewrite sublist.incl_cons_iff in HG; destruct HG.
-      rewrite /lookup /ptree_lookup Maps.PTree.gsspec.
+      rewrite Maps.PTree.gsspec.
       fold make_tycontext_s in *.
       destruct (peq id i); eauto; subst; simpl.
       * exists f0; split; [ | apply funspec_sub_si_refl].

@@ -395,7 +395,7 @@ intros until t.
 apply complete_type_stable.
 intros.
 specialize (H id).
-hnf in H. rewrite /lookup /composite_env_lookup /ptree_lookup H0 in H. auto.
+hnf in H. rewrite H0 in H. auto.
 Qed.
 
 Lemma cenv_sub_e:
@@ -515,7 +515,7 @@ all: try (
    rewrite <- (field_offset_stable (@cenv_cs CS) (@cenv_cs CS')) in H2; 
     try eassumption.
     rewrite H2; auto.
-    intros. specialize (CSUB id). hnf in CSUB; rewrite /lookup /composite_env_lookup /ptree_lookup H3 in CSUB; auto.
+    intros. specialize (CSUB id). hnf in CSUB; rewrite H3 in CSUB; auto.
      apply co_consistent_complete;  apply (cenv_consistent i0); auto. 
   ++
     destruct ((@cenv_cs CS) !! i0) eqn:?H; auto;
@@ -526,7 +526,7 @@ all: try (
    rewrite <- (union_field_offset_stable (@cenv_cs CS) (@cenv_cs CS')) in H2; 
     try eassumption.
     rewrite H2; auto.
-    intros. specialize (CSUB id). hnf in CSUB; rewrite /lookup /composite_env_lookup /ptree_lookup H3 in CSUB; auto.
+    intros. specialize (CSUB id). hnf in CSUB; rewrite H3 in CSUB; auto.
      apply co_consistent_complete;  apply (cenv_consistent i0); auto. 
   --
   contradict H. rewrite H.

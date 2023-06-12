@@ -7,11 +7,14 @@ From VST.msl Require Export shares.
 From VST.veric Require Export base Memory algebras dshare gen_heap invariants.
 Export Values.
 
-(* We can't import compcert.lib.Maps because their lookup notations conflict with stdpp's.
-   We can define lookup instances, which require one more ! apiece than CompCert's notation. *)
-Global Instance ptree_lookup A : Lookup positive A (Maps.PTree.t A) := Maps.PTree.get(A := A).
-Global Instance pmap_lookup A : LookupTotal positive A (Maps.PMap.t A) := Maps.PMap.get(A := A).
-
+(* We can't import compcert.lib.Maps because its lookup notations conflict with stdpp's,
+   and actually the ! notation conflicts with rewrite's ! as well. Matching stdpp's lookup notation
+   instead, with an extra ! per lookup. *)
+Declare Scope maps.
+Delimit Scope maps with maps.
+Notation "a !! b" := (Maps.PTree.get b a) (at level 20) : maps.
+Notation "a !!! b" := (Maps.PMap.get b a) (at level 20) : maps.
+Open Scope maps.
 Local Open Scope Z_scope.
 
 Inductive resource :=
@@ -613,8 +616,8 @@ Proof.
   intros; subst.
   unfold VALspec_range.
   rewrite -> Z2Nat.inj_add, seq_app by lia.
-  rewrite big_sepL_app plus_0_l.
-  rewrite -{2}(plus_0_r (Z.to_nat n)) -fmap_add_seq big_sepL_fmap.
+  rewrite big_sepL_app Nat.add_0_l.
+  rewrite -{2}(Nat.add_0_r (Z.to_nat n)) -fmap_add_seq big_sepL_fmap.
   setoid_rewrite Nat2Z.inj_add; rewrite Z2Nat.id; last lia.
   unfold adr_add; simpl.
   by iSplit; iIntros "[$ H]"; iApply (big_sepL_mono with "H"); intros ???; rewrite Z.add_assoc.
@@ -630,8 +633,8 @@ Proof.
   intros; subst.
   unfold nonlock_permission_bytes.
   rewrite -> Z2Nat.inj_add, seq_app by lia.
-  rewrite big_sepL_app plus_0_l.
-  rewrite -{2}(plus_0_r (Z.to_nat n)) -fmap_add_seq big_sepL_fmap.
+  rewrite big_sepL_app Nat.add_0_l.
+  rewrite -{2}(Nat.add_0_r (Z.to_nat n)) -fmap_add_seq big_sepL_fmap.
   unfold adr_add; simpl.
   by iSplit; iIntros "[$ H]"; iApply (big_sepL_mono with "H"); intros ???;
     rewrite ?Nat2Z.inj_add Z2Nat.id; try lia; rewrite Z.add_assoc.

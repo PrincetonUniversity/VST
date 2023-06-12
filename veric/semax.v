@@ -17,6 +17,7 @@ Require Import VST.veric.expr_lemmas.
 Import Ctypes Clight_core.
 
 Local Open Scope nat_scope.
+Open Scope maps.
 
 Section mpred.
 
@@ -465,10 +466,8 @@ Lemma cenv_sub_complete_legal_cosu_type cenv1 cenv2 (CSUB: cenv_sub cenv1 cenv2)
 Proof.
   induction t; simpl; intros; auto. 
   + specialize (CSUB i). red in CSUB.
-    rewrite /lookup /composite_env_lookup /ptree_lookup in CSUB.
     destruct (Maps.PTree.get i cenv1); [rewrite CSUB; trivial | inv H].
   + specialize (CSUB i). red in CSUB.
-    rewrite /lookup /composite_env_lookup /ptree_lookup in CSUB.
     destruct (Maps.PTree.get i cenv1); [rewrite CSUB; trivial | inv H].
 Qed.
 

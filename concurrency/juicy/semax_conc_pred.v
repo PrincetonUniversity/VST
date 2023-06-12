@@ -5,6 +5,8 @@ Section mpred.
 
 Context `{!heapGS Σ}.
 
+Definition exclusive_mpred R : mpred := ((R ∗ R) -∗ False)%I.
+
 Definition lock_inv : share -> val -> mpred -> mpred :=
   fun sh v R =>
     (∃ b : block, ∃ ofs : _,

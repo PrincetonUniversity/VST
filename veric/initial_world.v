@@ -850,7 +850,6 @@ Lemma make_tycontext_s_find_id i G : (make_tycontext_s(Σ := Σ) G) !! i = find_
 Proof.
   induction G as [| (j, fs) f IHf]. destruct i; reflexivity.
   simpl.
-  rewrite /lookup /ptree_lookup in IHf |- *.
   rewrite Maps.PTree.gsspec.
   rewrite IHf.
   reflexivity.
@@ -1075,7 +1074,7 @@ Proof.
   rewrite -merge_Some //; intros.
   rewrite lookup_merge /diag_None.
   specialize (Hdisj i).
-  destruct (m1 !! i), (m2 !! i); done.
+  destruct (m1 !! i)%stdpp, (m2 !! i)%stdpp; done.
 Qed.
 
 Lemma big_opM_opL' : forall {A B} (f : _ -> A -> gmapR address B) (g : _ -> _ -> mpred) l
@@ -1132,6 +1131,8 @@ Qed.
 Definition init_funspecs {F} (m : mem) (ge : Genv.t (fundef F) type) (G : funspecs) : gmap address (@funspecO' Σ) :=
   foldl (fun fs b => match funspec_of_loc ge G (Pos.of_nat b, 0) with
     Some f => <[(Pos.of_nat b, 0) := funspec_unfold f]>fs | None => fs end) ∅ (seq 1 (Pos.to_nat (nextblock m) - 1)).
+
+Local Close Scope maps.
 
 Lemma init_funspecs_lookup : forall {F} (m : mem) (ge : Genv.t (fundef F) type) (G : funspecs) l,
   init_funspecs m ge G !! l = if Pos.ltb l.1 (nextblock m) then match funspec_of_loc ge G l with

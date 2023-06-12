@@ -47,7 +47,7 @@ Proof.
   intros.
   rewrite /tc_environ /tc_exprlist /=.
   revert bl; induction argsig; destruct bl as [ | b bl]; simpl; intros; unfold_lift.
-  * iPureIntro; intros _; split3; hnf; try split; intros; try rewrite /funsig_tycontext /lookup /ptree_lookup ?Maps.PTree.gempty // in H |- *.
+  * iPureIntro; intros _; split3; hnf; try split; intros; try rewrite /funsig_tycontext ?Maps.PTree.gempty // in H |- *.
     destruct H as [? H]; inv H.
   * iPureIntro; done.
   * destruct a as [i ti]; simpl.
@@ -68,11 +68,11 @@ Proof.
     unfold typecheck_temp_environ; intros ?? Hset.
     destruct (ident_eq i id).
     - subst.
-      rewrite /lookup /ptree_lookup Maps.PTree.gss in Hset; inv Hset.
+      rewrite Maps.PTree.gss in Hset; inv Hset.
       rewrite Map.gss; eauto.
     - rewrite Map.gso //.
       apply (Ht id ty).
-      rewrite /lookup /ptree_lookup Maps.PTree.gso // in Hset.
+      rewrite Maps.PTree.gso // in Hset.
 Qed.
 
 (* Scall *)
@@ -120,7 +120,7 @@ intros.
 simpl in *. destruct l2; inv H0. auto.
 simpl in H0. destruct a. destruct l2; inv H0.
 specialize (IHl1 l2 (Maps.PTree.set i v t) id t1).
-simpl in H. intuition. setoid_rewrite Maps.PTree.gsspec in H3.
+simpl in H. intuition. rewrite Maps.PTree.gsspec in H3.
 destruct (peq id i). subst; tauto. auto.
 Qed.
 
@@ -156,7 +156,7 @@ Proof.
 induction l1; intros; simpl in *; try destruct a; destruct l2; inv H; inv H0.
 apply H1.
 eapply IHl1. apply H3. apply H2.
-repeat setoid_rewrite Maps.PTree.gsspec. destruct (peq i i0); auto.
+repeat rewrite Maps.PTree.gsspec. destruct (peq i i0); auto.
 Qed.
 
 
@@ -166,10 +166,10 @@ i <> id ->
 (bind_parameter_temps l l1 t = Some te') -> te' !! i = te !! i.
 Proof.
 induction l; intros.
-- simpl in *. destruct l1; inv H. inv H1. setoid_rewrite Maps.PTree.gso; auto.
+- simpl in *. destruct l1; inv H. inv H1. rewrite Maps.PTree.gso; auto.
 - simpl in *. destruct a. destruct l1; inv H.
   eapply smaller_temps_exists2. apply H1. apply H3.
-  intros. repeat setoid_rewrite Maps.PTree.gsspec. rewrite Maps.PTree.gsspec. destruct (peq i i0); auto.
+  intros. repeat rewrite Maps.PTree.gsspec. destruct (peq i i0); auto.
   destruct (peq i id). subst. tauto. auto.
 Qed.
 
@@ -213,10 +213,10 @@ destruct H2.
 assert (id <> id0).
 intro. subst.  specialize (H0 id0). spec H0. auto. rewrite H // in H0.
 eapply IHl in H10.
-setoid_rewrite Maps.PTree.gso in H10; auto.
-auto. intros. setoid_rewrite Maps.PTree.gsspec. if_tac. subst. tauto.
+rewrite Maps.PTree.gso in H10; auto.
+auto. intros. rewrite Maps.PTree.gsspec. if_tac. subst. tauto.
 apply H0. auto.
-setoid_rewrite Maps.PTree.gso; auto. eauto.
+rewrite Maps.PTree.gso; auto. eauto.
 Qed.
 
 Lemma alloc_vars_lemma : forall ge id ty l m1 m2 ve ve'
@@ -233,11 +233,11 @@ Proof.
   destruct a; simpl in *.
   destruct H1 as [[=] | H1].
   - subst. inv H0. inv H. apply alloc_vars_lookup with (id := id) in H9; auto.
-    rewrite H9. setoid_rewrite Maps.PTree.gss. eauto.
-    { intros. destruct (peq i id); first by subst; tauto. setoid_rewrite Maps.PTree.gso; eauto. }
-    { setoid_rewrite Maps.PTree.gss; eauto. }
+    rewrite H9. rewrite Maps.PTree.gss. eauto.
+    { intros. destruct (peq i id); first by subst; tauto. rewrite Maps.PTree.gso; eauto. }
+    { rewrite Maps.PTree.gss; eauto. }
   - inv H0. inv H. apply IHl in H10; auto.
-    intros. setoid_rewrite Maps.PTree.gsspec. if_tac; last eauto. subst; done.
+    intros. rewrite Maps.PTree.gsspec. if_tac; last eauto. subst; done.
 Qed.
 
 Lemma alloc_vars_match_venv_gen: forall ge ve m l0 l ve' m',
@@ -299,7 +299,7 @@ Proof.
       * inv H.
         rewrite -> (pass_params_ni _ _ id _ _ H21)
            by (inv H17; contradict H1; apply in_app; auto).
-        rewrite /lookup /ptree_lookup Maps.PTree.gss.
+        rewrite Maps.PTree.gss.
         apply tc_val_tc_val' in TC8'; eauto.
       * inv H17; eauto.
     + destruct H as [? | H]; first done.
@@ -310,9 +310,9 @@ Proof.
       clear - H; forget (fn_temps f) as temps; induction temps; first done.
       destruct a; simpl in *.
       destruct (eq_dec i id).
-      * subst; rewrite /lookup /ptree_lookup Maps.PTree.gss; eauto.
+      * subst; rewrite Maps.PTree.gss; eauto.
         eexists; split; eauto; apply tc_val'_Vundef.
-      * rewrite /lookup /ptree_lookup Maps.PTree.gso //.
+      * rewrite Maps.PTree.gso //.
         destruct H; [by inv H | eauto].
   - rewrite /typecheck_var_environ /=; intros.
     rewrite (func_tycontext_v_sound (fn_vars f) id ty); auto.
@@ -380,7 +380,7 @@ Proof.
  specialize (IHl COMPLETE H4 (Maps.PTree.remove id ve)).
  assert (exists b, Maps.PTree.get id ve = Some (b,ty)). {
   specialize (H1 id ty).
-  setoid_rewrite Maps.PTree.gss in H1. destruct H1 as [[b ?] _]; auto. exists b; apply H.
+  rewrite Maps.PTree.gss in H1. destruct H1 as [[b ?] _]; auto. exists b; apply H.
  }
  destruct H as [b H].
  destruct (@Maps.PTree.elements_remove _ id (b,ty) ve H) as [l1 [l2 [? ?]]].
@@ -426,17 +426,17 @@ Proof.
  - destruct H1 as [H1 _].
    assert (id<>id').
    intro; subst id'.
-   clear - H3 H5; induction l; simpl in *. setoid_rewrite Maps.PTree.gempty in H5; inv H5.
+   clear - H3 H5; induction l; simpl in *. rewrite Maps.PTree.gempty in H5; inv H5.
    destruct a; simpl in *.
-   setoid_rewrite Maps.PTree.gso in H5. auto. auto.
+   rewrite Maps.PTree.gso in H5. auto. auto.
    destruct H1 as [v ?].
-   setoid_rewrite Maps.PTree.gso; auto.
+   rewrite Maps.PTree.gso; auto.
    exists v. unfold Map.get. rewrite Maps.PTree.gro; auto.
  - unfold Map.get in H1,H5.
    assert (id<>id').
      clear - H5; destruct H5. intro; subst. rewrite Maps.PTree.grs in H. inv H.
    rewrite -> Maps.PTree.gro in H5 by auto.
-   rewrite <- H1 in H5. setoid_rewrite -> Maps.PTree.gso in H5; auto. }
+   rewrite <- H1 in H5. rewrite -> Maps.PTree.gso in H5; auto. }
  hnf; intros.
  destruct (make_venv (Maps.PTree.remove id ve) id0) eqn:H5; auto.
  destruct p.
@@ -530,8 +530,8 @@ f_equal.
  extensionality i; unfold modifiedvars, modifiedvars', insert_idset.
  unfold isSome, idset0, insert_idset; destruct ret; simpl; auto.
  destruct (ident_eq i0 i).
- subst. setoid_rewrite Maps.PTree.gss. apply prop_ext; split; auto.
- setoid_rewrite -> Maps.PTree.gso; last auto. rewrite Maps.PTree.gempty.
+ subst. rewrite Maps.PTree.gss. apply prop_ext; split; auto.
+ rewrite -> Maps.PTree.gso; last auto. rewrite Maps.PTree.gempty.
  apply prop_ext; split; intro; contradiction.
 Qed.
 
@@ -634,7 +634,7 @@ iPoseProof ("HR" $! rho' with "[Q F]") as "R".
     hnf in TCret.
     destruct ((temp_types Delta) !! i) as [ti|] eqn: Hi; try contradiction.
     destruct (TC3 _ _ Hi) as (vi & Htx & ?); subst. 
-    rewrite /get_result1 /eval_id /= /make_tenv /Map.get in Htx |- *; rewrite /lookup /ptree_lookup Maps.PTree.gss Htx.
+    rewrite /get_result1 /eval_id /= /make_tenv /Map.get in Htx |- *; rewrite Maps.PTree.gss Htx.
     rewrite /subst /env_set /= -map_ptree_rel Map.override Map.override_same //; iFrame.
     iSplit; first by iPureIntro; apply tc_val_tc_val'; destruct ti; try (specialize (TC5 eq_refl)).
     rewrite /make_ext_rval.
@@ -724,7 +724,7 @@ induction bodyparams; simpl; intros; destruct args; inv BP; simpl; auto.
 + destruct a; discriminate.
 + destruct a. inv LNR. inv VUNDEF. simpl. erewrite <- IHbodyparams by eauto.
   f_equal.
-  rewrite (pass_params_ni _ _ _ _ _ H0 H2) /lookup /ptree_lookup Maps.PTree.gss //.
+  rewrite (pass_params_ni _ _ _ _ _ H0 H2) Maps.PTree.gss //.
 Qed.
 
 Lemma alloc_block:
@@ -754,7 +754,7 @@ Lemma alloc_stackframe {CS'}:
 Proof.
   intros.
   cut (mem_auth m ==∗ ∃ (m' : Memory.mem) (ve : env),
-    ⌜(∀i, sub_option (empty_env !! i) (ve !! i)) ∧ alloc_variables ge empty_env m (fn_vars f) ve m'⌝
+    ⌜(∀i, sub_option (empty_env !! i)%maps (ve !! i)%maps) ∧ alloc_variables ge empty_env m (fn_vars f) ve m'⌝
     ∧ mem_auth m' ∗ stackframe_of f (construct_rho (filter_genv ge) ve te)).
   { intros Hgen; rewrite Hgen; iIntros ">(% & % & (% & %) & ?) !>".
     iExists _, _; iFrame; iPureIntro; repeat (split; auto).
@@ -776,7 +776,7 @@ Proof.
     iMod (alloc_block with "Hm") as "(Hm & block)".
     { pose proof sizeof_pos ty; unfold sizeof, Ptrofs.max_unsigned in *; simpl in *; lia. }
     unshelve iMod (IHvars _ _ (Maps.PTree.set id (b,ty) ve0) with "Hm") as (?? (Hsub & ?)) "(Hm & ?)"; try done.
-    { intros; rewrite /lookup /ptree_lookup Maps.PTree.gso //; last by intros ->.
+    { intros; rewrite Maps.PTree.gso //; last by intros ->.
       apply Hout; simpl; auto. }
     iIntros "!>"; iExists _, _; monPred.unseal; iFrame.
     rewrite /var_block /eval_lvar; monPred.unseal; simpl.
@@ -784,12 +784,12 @@ Proof.
     rewrite eqb_type_refl; iFrame; iPureIntro; simpl.
     + split; last done; split.
       * intros i; specialize (Hsub i).
-        destruct (eq_dec i id); last by rewrite /lookup /ptree_lookup Maps.PTree.gso in Hsub.
+        destruct (eq_dec i id); last by rewrite Maps.PTree.gso in Hsub.
         subst; rewrite Hout //; simpl; auto.
       * econstructor; eauto.
         rewrite cenv_sub_sizeof //.
     + rewrite /Map.get /=.
-      specialize (Hsub id); rewrite /lookup /ptree_lookup Maps.PTree.gss // in Hsub.
+      specialize (Hsub id); rewrite Maps.PTree.gss // in Hsub.
 Qed.
 
 Lemma map_snd_typeof_params:
@@ -910,7 +910,7 @@ Proof.
         hnf in TCret.
         destruct ((temp_types Delta) !! i) as [ti|] eqn: Hi; try contradiction.
         destruct (TC3 _ _ Hi) as (vi & Htx & ?); subst.
-        rewrite /get_result1 /eval_id /= /make_tenv /Map.get in Htx |- *; rewrite /lookup /ptree_lookup Maps.PTree.gss Htx.
+        rewrite /get_result1 /eval_id /= /make_tenv /Map.get in Htx |- *; rewrite Maps.PTree.gss Htx.
         rewrite /subst /env_set /= -map_ptree_rel Map.override Map.override_same //; iFrame.
         rewrite /rval; destruct vl; simpl.
         * iSplit; first by iPureIntro; apply tc_val_tc_val', TCvl.
@@ -1202,7 +1202,7 @@ Proof.
         simpl; f_equal.
         unfold eval_id, construct_rho; simpl.
         erewrite pass_params_ni; try eassumption.
-        setoid_rewrite Maps.PTree.gss. reflexivity.
+        rewrite Maps.PTree.gss. reflexivity.
       * iApply (make_args_close_precondition _ _ _ _ ve _ (argsassert_of _)); last done.
         eapply tc_vals_Vundef; eauto.
 Qed.
@@ -1311,7 +1311,7 @@ Proof.
   iDestruct "funcatb" as (b EvalA nspec) "[SubClient funcatb]".
   destruct nspec as [nsig ncc nA nP nQ].
   iIntros (? _).
-  iAssert (∃ id deltaP deltaQ, ▷(⌜Genv.find_symbol psi id = Some b ∧ (glob_specs Delta') !! id = Some (mk_funspec nsig ncc nA deltaP deltaQ)⌝ ∧
+  iAssert (∃ id deltaP deltaQ, ▷(⌜Genv.find_symbol psi id = Some b ∧ ((glob_specs Delta') !! id)%maps = Some (mk_funspec nsig ncc nA deltaP deltaQ)⌝ ∧
     nP ≡ deltaP ∧ nQ ≡ deltaQ)) as (id deltaP deltaQ) "#(>(%RhoID & %SpecOfID) & HeqP & HeqQ)".
   { iDestruct "fun" as "(FA & FD)".
     rewrite /Map.get /filter_genv.

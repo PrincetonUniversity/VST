@@ -1,7 +1,6 @@
 Require Import VST.floyd.base2.
 Require Import VST.floyd.fieldlist.
 Require Import VST.floyd.computable_theorems.
-Import compcert.lib.Maps.
 Open Scope nat.
 
 Inductive ListType: list Type -> Type :=
@@ -22,7 +21,7 @@ Proof.
   induction l.
   + reflexivity.
   + simpl.
-    rewrite H, IHl.
+    rewrite H; first rewrite IHl.
     - reflexivity.
     - intros; apply H; simpl; tauto.
     - simpl; left; auto.
@@ -126,11 +125,11 @@ Proof.
   + (* Tstruct level 0 *)
     simpl in RANK.
     unfold get_co in IH_TYPE.
-    destruct (cenv_cs ! i); [inv RANK | apply IH_TYPE; simpl; constructor].
+    destruct (Maps.PTree.get i cenv_cs); [inv RANK | apply IH_TYPE; simpl; constructor].
   + (* Tunion level 0 *)
     simpl in RANK.
     unfold get_co in IH_TYPE.
-    destruct (cenv_cs ! i); [inv RANK | apply IH_TYPE].
+    destruct (Maps.PTree.get i cenv_cs); [inv RANK | apply IH_TYPE].
     simpl; constructor.
   + (* Tarray level positive *)
     simpl in RANK.
@@ -141,7 +140,7 @@ Proof.
     simpl in RANK.
     pose proof get_co_members_no_replicate i.
     unfold get_co in *.
-    destruct (cenv_cs ! i) as [co |] eqn:CO; [| apply IH_TYPE; simpl; constructor].
+    destruct (Maps.PTree.get i cenv_cs) as [co |] eqn:CO; [| apply IH_TYPE; simpl; constructor].
     apply IH_TYPE; clear IH_TYPE.
     apply Forall_forall.
     intros ? ?; simpl.
@@ -157,7 +156,7 @@ Proof.
     simpl in RANK.
     pose proof get_co_members_no_replicate i.
     unfold get_co in *.
-    destruct (cenv_cs ! i) as [co |] eqn:CO; [| apply IH_TYPE; simpl; constructor].
+    destruct (Maps.PTree.get i cenv_cs) as [co |] eqn:CO; [| apply IH_TYPE; simpl; constructor].
     apply IH_TYPE; clear IH_TYPE.
     apply Forall_forall.
     intros ? ?; simpl.
@@ -202,14 +201,14 @@ Fixpoint type_func_rec (n: nat) (t: type): A t :=
   | 0 =>
     match t as t0 return A t0 with
     | Tstruct id a =>
-       match cenv_cs ! id with
+       match Maps.PTree.get id cenv_cs with
        | None => let m := co_members (get_co id) in
                        F_Tstruct id a (ListTypeGen (fun it => A (field_type (name_member it) m))
                                      (fun it => F_ByValue (field_type (name_member it) m)) m)
        | _ => F_ByValue (Tstruct id a)
        end
     | Tunion id a =>
-       match cenv_cs ! id with
+       match Maps.PTree.get id cenv_cs with
        | None => let m := co_members (get_co id) in
                       F_Tunion id a (ListTypeGen (fun it => A (field_type (name_member it) m))
                                      (fun it => F_ByValue (field_type (name_member it) m)) m)
@@ -232,20 +231,20 @@ Fixpoint type_func_rec (n: nat) (t: type): A t :=
 
 Definition type_func t := type_func_rec (rank_type cenv_cs t) t.
 
-Lemma rank_type_Tstruct: forall id a co, cenv_cs ! id = Some co ->
+Lemma rank_type_Tstruct: forall id a co, Maps.PTree.get id cenv_cs = Some co ->
   rank_type cenv_cs (Tstruct id a) = S (co_rank (get_co id)).
 Proof.
   intros.
   unfold get_co; simpl.
-  destruct (cenv_cs ! id); auto; congruence.
+  destruct (Maps.PTree.get id cenv_cs); auto; congruence.
 Defined.
 
-Lemma rank_type_Tunion: forall id a co, cenv_cs ! id = Some co ->
+Lemma rank_type_Tunion: forall id a co, Maps.PTree.get id cenv_cs = Some co ->
   rank_type cenv_cs (Tunion id a) = S (co_rank (get_co id)).
 Proof.
   intros.
   unfold get_co; simpl.
-  destruct (cenv_cs ! id); auto; congruence.
+  destruct (Maps.PTree.get id cenv_cs); auto; congruence.
 Defined.
 
 Lemma type_func_rec_rank_irrelevent: forall t n n0,
@@ -266,7 +265,7 @@ Proof.
     simpl. f_equal.
     apply IH; apply le_S_n; auto.
   + (* Tstruct *)
-    destruct (cenv_cs ! id) as [co |] eqn: CO.
+    destruct (Maps.PTree.get id cenv_cs) as [co |] eqn: CO.
     - erewrite rank_type_Tstruct in H by eauto.
       erewrite rank_type_Tstruct in H0 by eauto.
       clear co CO.
@@ -291,7 +290,7 @@ Proof.
       generalize (F_Tstruct id a) as FF; unfold get_co;
       rewrite CO; intros; auto.
   + (* Tunion *)
-    destruct (cenv_cs ! id) as [co |] eqn: CO.
+    destruct (Maps.PTree.get id cenv_cs) as [co |] eqn: CO.
     - erewrite rank_type_Tunion in H by eauto.
       erewrite rank_type_Tunion in H0 by eauto.
       clear co CO.
@@ -333,7 +332,7 @@ Proof.
   + (* Tstruct *)
     unfold type_func in *.
     simpl type_func_rec.
-    destruct (cenv_cs ! id) as [co |] eqn:CO; simpl.
+    destruct (Maps.PTree.get id cenv_cs) as [co |] eqn:CO; simpl.
     - f_equal.
       apply ListTypeGen_preserve; intro m.
       unfold get_co; rewrite CO.
@@ -354,7 +353,7 @@ Proof.
   + (* Tunion *)
     unfold type_func in *.
     simpl type_func_rec.
-    destruct (cenv_cs ! id) as [co |] eqn:CO; simpl.
+    destruct (Maps.PTree.get id cenv_cs) as [co |] eqn:CO; simpl.
     - f_equal.
       apply ListTypeGen_preserve; intro m.
       unfold get_co; rewrite CO.

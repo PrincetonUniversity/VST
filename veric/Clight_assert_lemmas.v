@@ -14,7 +14,7 @@ Context `{!heapGS Σ}.
 Definition allp_fun_id E (Delta : tycontext) : assert :=
 assert_of (fun rho =>
  ∀ id : ident, ∀ fs : funspec,
-  ⌜(glob_specs Delta) !! id = Some fs⌝ →
+  ⌜Maps.PTree.get id (glob_specs Delta) = Some fs⌝ →
   (∃ b : block, ⌜Map.get (ge_of rho) id = Some b⌝ ∧ func_ptr_si E fs (Vptr b Ptrofs.zero))).
 
 Global Instance allp_fun_id_persistent E Delta : Persistent (allp_fun_id E Delta).
@@ -26,7 +26,7 @@ Definition allp_fun_id_sigcc (Delta : tycontext) : assert :=
 assert_of (fun rho =>
 (∀ id : ident ,
  (∀ fs : funspec ,
-  ⌜(glob_specs Delta) !! id = Some fs⌝ →
+  ⌜Maps.PTree.get id (glob_specs Delta) = Some fs⌝ →
   (∃ b : block, ⌜Map.get (ge_of rho) id = Some b⌝ ∧ 
     match fs with
     mk_funspec sig cc _ _ _ => sigcc_at sig cc (b, 0)
