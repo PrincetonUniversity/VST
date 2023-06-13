@@ -113,11 +113,11 @@ Definition juicy_dry_ext_spec_make
    external_specification mem external_function Z.
 apply Build_external_specification with (ext_spec_type J).
 intros e t b tl vl x m.
-apply (exists jm, (state_interp m x ∗ monPred_at (ext_mpred_pre _ J e t b tl vl x) m) (level jm) (m_phi jm)).
+apply (exists jm, (monPred_at (ext_mpred_pre _ J e t b tl vl x) m) (level jm) (m_phi jm)).
 intros e t b ot v x m.
 apply (forall m0 x0 tl vl, monPred_at (ext_mpred_pre _ J e t b tl vl x0) m0 ⊢
   ▷ (⌜Val.has_type_list vl (sig_args (ef_sig e)) ∧ Builtins0.val_opt_has_rettype v (sig_res (ef_sig e))⌝ →
-  |={⊤}=> state_interp m x ∗ monPred_at (ext_mpred_post _ J e t b ot v x) m)).
+  |={⊤}=> monPred_at (ext_mpred_post _ J e t b ot v x) m)).
 intros v x m.
 apply (exists jm, (monPred_at (ext_mpred_exit _ J v x) m) (level jm) (m_phi jm)).
 Defined.
@@ -154,12 +154,11 @@ split; intros.
 - rewrite /dessicate_id in H; subst t'; simpl.
   iIntros "Hpre"; iSplit.
   + iStopProof; constructor; ouPred.unseal.
-    intros n phi ??; exists {| level := n; m_dry := m; m_phi := phi |}; simpl in *.
+    intros n phi ??; exists {| level := n; m_dry := m; m_phi := phi |}; done.
   + iIntros (????? Hpost).
     iApply (Hpost with "[$]"); done.
-- simpl.
-  constructor; ouPred.unseal.
-  intros n phi ??; exists {| level := n; m_phi := phi |}; done.
+- constructor; ouPred.unseal.
+  intros n phi ??; exists {| level := n; m_dry := m; m_phi := phi |}; done.
 Qed.
 
 (*Definition mem_rmap_cohere m phi :=
@@ -875,7 +874,7 @@ Lemma whole_program_sequential_safety_ext:
      (dessicate : forall (ef : external_function),
                ext_spec_type OK_spec ef ->
                ext_spec_type dryspec ef)
-     (JDE: forall {HH : heapGS Σ} {HE : externalGS OK_ty Σ}, @juicy_dry_ext_spec _ HH _ HE OK_spec dryspec dessicate)
+     (JDE: forall {HH : heapGS Σ} {HE : externalGS OK_ty Σ}, juicy_dry_ext_spec _ OK_spec dryspec dessicate)
      (* (DME: ext_spec_mem_evolve _ dryspec) *)
      (* (Esub: forall v z m m', ext_spec_exit dryspec v z m -> mem_sub m m' -> ext_spec_exit dryspec v z m') *)
      prog V G m,
@@ -926,7 +925,7 @@ Proof.
             dryspec (Build_genv (Genv.globalenv prog) (prog_comp_env prog)) n initial_oracle q m⌝) with "[Hsafe]" as "Hdry".
   { clear H0 Hinit Hsafe.
     rewrite bi.and_elim_l.
-    iLöb as "IH" forall (m q n).
+    iLöb as "IH" forall (m initial_oracle q n).
     destruct n as [|n].
     { simpl. iApply fupd_mask_intro; first done.
       iIntros "HClose"; iPureIntro. constructor. }
@@ -945,111 +944,38 @@ Proof.
       iModIntro. iModIntro.
       iMod "HClose" as "_".
       iMod ("IH" with "[$]") as "dry_safe".
-      instantiate (1 := n).
       iModIntro. iApply (step_fupdN_wand with "dry_safe").
       iPureIntro. intros. eapply safeN_step; eauto.
-    - iDestruct "Hsafe_ext" as (ef args w at_external) "Hsafe_ext".
+    - iDestruct "Hsafe_ext" as (ef args w at_external) "(Hpre & Hpost)".
       destruct JDE as (JDext & _).
-      
-      specialize (JDE (HeapGS _ _ _ _) _).
-
-      destruct JDE as [JDE1 [JDE2 JDE3]].
-
-      iAssert (⌜ext_spec_pre dryspec ef (dessicate ef ef_spec) 
-                (genv_symb_injective (globalenv prog))
-                (sig_args (ef_sig ef)) args initial_oracle m⌝) with "[Hsafe_ext]" as "%ext_spec_pre".
-      (* this is conclusion of Hsafe_ext, and premise with safe_external, which implies result *)
-      {
-        remember (dessicate ef ef_spec) as dry_ef_spec.
-        iClear "IH".
-
-        (* FIXME shound't need these when state_interp and ext_mpred_pre are disjoint *)
-        set X:=(X in bi_and (<absorb> X) _).
-        set Y:= (Y in bi_and _ Y).
-        replace (bi_and (<absorb> X) Y) with (bi_sep (<absorb> X) Y) by admit.
-        subst X Y.
-
-        iDestruct "Hsafe_ext" as "(Hsafe_ext & ext_mpred_pre & _)".
-
-        iStopProof. constructor.  ouPred.unseal.
-        rewrite /ext_mpred_pre /mpred_of.
-        intros ??? ext_mpred_pre.
-        
-        destruct ext_mpred_pre as (?&?&?&state_interp & ext_mpred_pre).
-        eapply JDE1.
-        2: {  instantiate (1:= Build_juicy_mem n0 x1). simpl. assumption. }
-        { eauto. }
-        { simpl. replace x1 with x2 by admit. (* FIXME also change JDE1 to ask for ext_spec_pre and state_interp to hold on different jm *)
-          apply ext_mpred_pre. }
-      }
-
+      iDestruct (JDext with "Hpre") as (?) "JDpost"; first done.
       iAssert (|={⊤,∅}=> |={∅}▷=>^(S n) ⌜(∀ (ret : option val) m' z' n',
       Val.has_type_list args (sig_args (ef_sig ef))
       → Builtins0.val_opt_has_rettype ret (sig_res (ef_sig ef))
         → n' ≤ n
-            → ext_spec_post dryspec ef (dessicate ef ef_spec)
+            → ext_spec_post dryspec ef (dessicate ef w)
                 (genv_symb_injective (globalenv prog)) (sig_res (ef_sig ef)) ret z' m'
               → ∃ q',
                   (after_external (cl_core_sem (globalenv prog)) ret q m' = Some q'
-                   ∧ safeN_ (cl_core_sem (globalenv prog)) dryspec (Genv.globalenv prog) n' z' q' m'))⌝) with "[Hsafe_ext]" as "hyp".
-      {
-        iApply fupd_mask_intro; first set_solver; iIntros "HClose".
-
-        assert (H_FIXME: ∀ n {A} (Φ: A -> iProp Σ), ((|={∅}▷=>^n ∀ x, Φ x) ⊣⊢ (∀ x, |={∅}▷=>^n Φ x))) by admit.
-        Ltac intro_step H_FIXME name :=
-          iApply step_fupdN_mono; [rewrite bi.pure_forall; done|]; rewrite H_FIXME; iIntros (name).
-        intro_step H_FIXME ret.
-        intro_step H_FIXME m'.
-        intro_step H_FIXME z'.
-        intro_step H_FIXME n'.
-        intro_step H_FIXME Hargs.
-        intro_step H_FIXME Hret.
-        intro_step H_FIXME Hn'.
-        intro_step H_FIXME Hext_spec_post.
-        simpl. iModIntro.
-        iModIntro.
-
-        iDestruct "Hsafe_ext" as "(_ & ext_mpred_pre & blah)".
-        
-        iSpecialize ("blah" $! ret z' _ _).
-        iMod "HClose".
-        iMod "blah".
-        
-        iDestruct "blah" as (c' m'') "[%after_external [state_interp jsafe]]".
-        iSpecialize ("IH" $! m' c' n' with "[state_interp jsafe]").
-        { iFrame. admit. (* FIXME delete matchfunspec *) }
-        simpl.
-        iMod "IH".
-        iModIntro.
-        iApply (step_fupdN_le n' n); try done.
-        iApply (step_fupdN_wand with "IH").
-        iIntros "H".
-
-        iExists c'. iSplit; try done.
-        iApply (bi.pure_mono with "H").
-        intros. unfold dry_safeN in H.
-        admit. (* FIXME: we only get initial_oracle but not any z' from IH. *)
-        (* eapply H. *)
-      }
-      
-      iApply (step_fupdN_wand with "hyp"); iIntros "%hyp".
-      iPureIntro.
-      eapply safeN_external.
-      + apply at_external.
-      + apply ext_spec_pre.
-      + simpl. intros ret m' z' n' h1 h2 h3 _ h4.
-        specialize (hyp ret m' z' n' h1 h2 h3 h4).
-        destruct hyp as [q' [hyp1 hyp2]].
-        exists q'. split; auto.
-        apply hyp2.
-  }
-
+                   ∧ safeN_ (cl_core_sem (globalenv prog)) dryspec (Genv.globalenv prog) n' z' q' m'))⌝) with "[-]" as ">hyp";
+      last by iModIntro; iApply (step_fupdN_wand with "hyp"); iPureIntro; intros; eapply safeN_external; eauto.
+      iApply fupd_mask_intro; first done; iIntros "HClose".
+      iApply step_fupdN_mono; first by do 8 setoid_rewrite bi.pure_forall.
+      repeat setoid_rewrite <- stepN_plain_forall_2; [| apply _ ..].
+      iIntros (ret m' z' n' ????).
+      simpl; iIntros "!> !>".
+      iMod "HClose" as "_".
+      iMod ("JDpost" with "[%] [%]") as "Jpost"; [done..|].
+      iMod ("Hpost" with "[%] Jpost") as (??) "H"; first done.
+      iMod ("IH" with "H") as "Hsafe".
+      iModIntro; iApply step_fupdN_le; first done.
+      iApply (step_fupdN_wand with "Hsafe"); eauto. }
   iMod "Hdry". iModIntro.
   iApply (step_fupdN_wand with "Hdry").
   iPureIntro. intros.
   eexists. eexists. split3; eauto.
   apply Hinit.
-Admitted.
+Qed.
 
 Definition fun_id (ext_link: Strings.String.string -> ident) (ef: external_function) : option ident :=
   match ef with EF_external id sig => Some (ext_link id) | _ => None end.
