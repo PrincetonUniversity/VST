@@ -1,6 +1,6 @@
 Require Import VST.floyd.base2.
 Require Import VST.floyd.client_lemmas.
-Import compcert.lib.Maps.
+Import -(notations) compcert.lib.Maps.
 
 (* Bug: abbreviate replaces _ALL_ instances, when sometimes
   we only want just one. *)
@@ -45,8 +45,8 @@ Ltac clear_abbrevs :=  repeat match goal with
                                     | H := @abbreviate ret_assert _ |- _ => clear H
                                     | H := @abbreviate tycontext _ |- _ => clear H
                                     end.
-
-Arguments var_types !Delta / .
+       
+Arguments var_types _ _  !Delta / .
 
 (*
 Fixpoint initialized_list ids D :=
@@ -130,9 +130,10 @@ Ltac simplify_func_tycontext' DD :=
 Ltac simplify_func_tycontext :=
 match goal with
  | |- semax ?DD _ _ _ => simplify_func_tycontext'  DD
- | |- ENTAIL ?DD, _ |-- _ => simplify_func_tycontext'  DD
+ | |- ENTAIL ?DD, _ ⊢ _ => simplify_func_tycontext'  DD
 end.
 
+Context `{!heapGS Σ} {Espec: OracleKind(Σ:=Σ)} `{!externalGS OK_ty Σ}.
 
 Definition with_Delta_specs (DS: PTree.t funspec) (Delta: tycontext) : tycontext :=
   match Delta with
@@ -197,31 +198,31 @@ match goal with
      let D := fresh "Delta" in set (D := mk_tycontext a b c d DS);
      change (mk_tycontext a b c d DS) with (@abbreviate _ (mk_tycontext a b c d DS)) in D
 *)
- | D1 := @abbreviate tycontext _ |- ENTAIL ?D, _ |-- _ => 
+ | D1 := @abbreviate tycontext _ |- ENTAIL ?D, _ ⊢ _ => 
        constr_eq D1 D (* ONLY this case terminates! *)
  | |- semax ?D _ _ _ => unfold D; simplify_Delta
- | |- ENTAIL ?D, _ |-- _ => unfold D; simplify_Delta
+ | |- ENTAIL ?D, _ ⊢_ => unfold D; simplify_Delta
  | |- _ => simplify_func_tycontext; simplify_Delta
  | Delta := @abbreviate tycontext ?D 
       |- semax ?DD _ _ _ => simplify_Delta' Delta D DD; simplify_Delta
  | Delta := @abbreviate tycontext ?D 
-      |- ENTAIL ?DD, _ |-- _ => simplify_Delta' Delta D DD; simplify_Delta
+      |- ENTAIL ?DD, _ ⊢ _ => simplify_Delta' Delta D DD; simplify_Delta
  | |- semax ?DD _ _ _ =>  simplify_Delta
- |  |- ENTAIL (ret_tycon ?DD), _ |-- _ => 
+ |  |- ENTAIL (ret_tycon ?DD), _ ⊢ _ => 
         let D := fresh "D" in 
           set (D := ret_tycon DD);
           hnf in D; simpl is_void_type in D;
           cbv beta iota in D;
           pose (Delta := @abbreviate tycontext D);
           change D with Delta; subst D; simplify_Delta
- |  |- ENTAIL (ret0_tycon ?DD), _ |-- _ => 
+ |  |- ENTAIL (ret0_tycon ?DD), _ ⊢ _ => 
         let D := fresh "D" in 
           set (D := ret0_tycon DD);
           hnf in D; simpl is_void_type in D;
           cbv beta iota in D;
           pose (Delta := @abbreviate tycontext D);
           change D with Delta; subst D; simplify_Delta
- | |- ENTAIL (ret_tycon ?DD), _ |-- _ => simplify_Delta
+ | |- ENTAIL (ret_tycon ?DD), _ ⊢ _ => simplify_Delta
  | |- _ => fail "simplify_Delta did not put Delta_specs and Delta into canonical form"
  end.
 
@@ -291,7 +292,7 @@ end.
 
 Ltac abbreviate_semax :=
  match goal with
- | |- semax _ FF _ _ => apply semax_ff
+ | |- semax _ False _ _ => apply semax_ff
  | |- semax _ (PROPx (False::_) _) _ _ => Intros; contradiction
  | |- semax _ _ _ _ =>
   simplify_Delta;
@@ -315,7 +316,7 @@ Ltac abbreviate_semax :=
             | _ => idtac
             end
   end
- | |- _ |-- _ => unfold_abbrev_ret
+ | |- _ ⊢ _ => unfold_abbrev_ret
  end;
  clear_abbrevs;
  simpl typeof.
@@ -483,11 +484,11 @@ Definition isNone {A} (x: option A) :=
  match x with None => true | _ => false end.
 
 Definition check_no_overlap
-    (V: varspecs) (G: funspecs) : bool :=
+     (V: varspecs) (G: (@funspecs Σ)) : bool :=
   let table :=  List.fold_left (fun t v => PTree.set (fst v) tt t) G (PTree.empty _)
-   in forallb (fun f => isNone (table ! (fst f))) V.
+   in forallb (fun f => isNone (table !! (fst f))) V.
 
-Lemma check_no_overlap_e:
+Lemma check_no_overlap_e  :
   forall V G, check_no_overlap V G = true ->
   forall i, In i (map fst V) -> ~ In i (map fst G).
 Proof.
@@ -495,14 +496,14 @@ intros *. intros H i H1 H0.
 unfold check_no_overlap in *.
 assert ((fun (f: positive * type)  =>
        isNone
-         (fold_left
+         ((fold_left
             (fun t v =>
-             PTree.set (fst v) tt t) G (PTree.empty unit)) ! (fst f))
+             PTree.set (fst v) tt t) G (PTree.empty unit)) !! (fst f)))
  =  (fun f =>
        isNone
-         (fold_right
+         ((fold_right
             (fun v t=>
-             PTree.set (fst v) tt t) (PTree.empty unit) G) ! (fst f))).
+             PTree.set (fst v) tt t) (PTree.empty unit) G) !! (fst f)))).
 {
 clear.
 extensionality idx.
@@ -512,11 +513,11 @@ unfold isNone.
 replace ((fold_right
      (fun v t
       => PTree.set (fst v) tt t)
-     (PTree.empty unit) G) ! j) with
+     (PTree.empty unit) G) !! j) with
     ((fold_left
      (fun t v
       => PTree.set (fst v) tt t) G
-     (PTree.empty unit)) ! j); auto.
+     (PTree.empty unit)) !! j); auto.
 rewrite <- fold_left_rev_right.
 forget (PTree.empty unit) as base.
 revert base.
@@ -546,7 +547,7 @@ subst.
 rewrite !PTree.gss; auto.
 rewrite !PTree.gso; auto.
 }
-rewrite H2 in *. clear H2.
+rewrite H2 in H. clear H2.
 induction V.
 inv H1.
 destruct H1.
@@ -572,23 +573,22 @@ clear H0 IHG.
 simpl in H.
 change positive with ident in *.
 destruct (ident_eq (fst a0) (fst a)).
-rewrite e in *.
+rewrite e in H.
 rewrite PTree.gss in H.
 inv H.
-rewrite PTree.gso in H by auto.
-auto.
+rewrite PTree.gso in H; auto.
 -
 simpl in H.
 rewrite andb_true_iff in H.
 destruct H.
 auto.
 Qed.
-
+ 
 Lemma leaf_function': 
- forall Vprog Gprog (CS: compspecs) f s,
+ forall Vprog Gprog (CS: compspecs) E f s,
  check_no_overlap Vprog Gprog = true ->
- semax_body Vprog nil f s ->
- semax_body Vprog Gprog f s.
+ semax_body Vprog nil E f s ->
+ semax_body Vprog Gprog E f s.
 Proof.
 intros.
 unfold semax_body in *.
@@ -597,18 +597,18 @@ destruct fs.
 destruct H0 as [H0' [H0'' H0]]; split3; auto.
 clear H0'.
 intros.
-specialize (H0 Espec ts x).
+specialize (H0 x).
 eapply semax_Delta_subsumption; [ | apply H0].
 clear - H.
 split3; [ | | split3; [ | | split]]; auto.
 -
 intros; simpl; auto.
 destruct ((make_tycontext_t (fn_params f) (fn_temps f))
-  ! id); auto.
+  !! id); auto.
 -
 intros; hnf; intros.
 destruct ((glob_types (func_tycontext f Vprog nil nil))
-  ! id) eqn:?H; auto.
+  !! id) eqn:?H; auto.
 simpl in *.
 unfold make_tycontext_g.
 apply check_no_overlap_e with (i:=id) in H.
@@ -622,7 +622,7 @@ simpl in H.
 apply Decidable.not_or in H.
 destruct H.
 simpl.
-rewrite PTree.gso by auto.
+rewrite PTree.gso; [|by auto].
 auto.
 clear - H0.
 induction Vprog.
@@ -630,7 +630,7 @@ simpl in H0. rewrite PTree.gempty in H0. inv H0.
 simpl in *.
 destruct (ident_eq (fst a) id).
 auto.
-rewrite PTree.gso in H0 by auto.
+rewrite PTree.gso in H0; [|by auto].
 auto.
 -
 intros; hnf; intros.
@@ -645,22 +645,22 @@ Qed.
 
 Definition check_no_overlap'
     (V: varspecs) (Gtable: PTree.t unit) : bool :=
-  forallb (fun f => isNone (Gtable ! (fst f))) V.
+  forallb (fun f => isNone (Gtable !! (fst f))) V.
 
 Definition check_no_Gvars (Gtable: PTree.t unit) (s: statement) : bool :=
   find_expressions 
-    (find_vars (fun i b => match Gtable!i with Some _=> false | None => b end))
+    (find_vars (fun i b => match Gtable!!i with Some _=> false | None => b end))
     s true.
 
 Lemma leaf_function: 
- forall Vprog Gprog (CS: compspecs) f s Gtable,
+ forall Vprog Gprog (CS: compspecs) E f s Gtable,
  Gtable = fold_left
     (fun (t : PTree.t unit) (v : ident * funspec) =>
      PTree.set (fst v) tt t) Gprog (PTree.empty unit) ->
  check_no_overlap' Vprog Gtable = true ->
  check_no_Gvars Gtable (fn_body f) = true ->
- semax_body Vprog nil f s ->
- semax_body Vprog Gprog f s.
+ semax_body Vprog nil E f s ->
+ semax_body Vprog Gprog E f s.
 Proof.
 intros.
 clear H1.
@@ -785,7 +785,7 @@ Lemma unfold_seq_to_unfold_Ssequence: forall cs,
   unfold_Ssequence cs = flat_map unfold_Ssequence (unfold_seq cs).
 Proof.
   intro cs. induction cs; try reflexivity.
-  - simpl. rewrite IHcs1, IHcs2. rewrite flat_map_app.
+  - simpl. rewrite IHcs1 IHcs2. rewrite flat_map_app.
     destruct cs2; try reflexivity;
     try rewrite flat_map_unfold_Ssequence_idempotent; try reflexivity.
     destruct cs2_1; try reflexivity;
@@ -807,9 +807,9 @@ Proof.
     destruct cs2; reflexivity.
 Qed.
 
-Lemma semax_unfold_seq {Espec: OracleKind} {CS: compspecs} : forall c1 c2,
+Lemma semax_unfold_seq {CS: compspecs} : forall E c1 c2,
   unfold_seq c1 = unfold_seq c2 ->
-  forall P Q Delta, semax Delta P c1 Q -> semax Delta P c2 Q.
+  forall P Q Delta, semax Delta P E c1 Q -> semax Delta P E c2 Q.
 Proof.
   intros. eapply semax_unfold_Ssequence; [ | eassumption ].
   do 2 rewrite unfold_seq_to_unfold_Ssequence.
@@ -829,4 +829,3 @@ Ltac first_N_statements n :=
                          apply semax_unfold_seq with (Ssequence al' c''); 
                          [reflexivity | eapply semax_seq' ]
  end end.
-
