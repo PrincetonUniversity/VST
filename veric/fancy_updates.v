@@ -92,13 +92,6 @@ Proof. by rewrite {1}(plain P) fupd_plainly_mask. Qed.
 Lemma fupd_plainly_elim E P `{!Absorbing P}: ■ P ⊢ |={E}=> P.
 Proof. by rewrite (fupd_intro E (■ P)) fupd_plainly_mask. Qed.
 
-Lemma absorbing_fun {A} (Φ : A → iProp Σ) `{!∀ x, Absorbing (Φ x)} :
-  (<absorb> ∀ x, (Φ x)) -∗ ∀ x, (Φ x).
-Proof.
-  iIntros "a".
-  iIntros (x). unfold bi_absorbingly. iDestruct ("a" ) as "[a b]" . iSpecialize ("b" $! x). iFrame.
-Qed.
-
 Lemma fupd_plainly_later E P `{!Absorbing P}: (▷ |={E}=> ■ P) ⊢ |={E}=> ▷ ◇ P.
 Proof.
   rewrite ouPred_fupd_unseal /ouPred_fupd_def. iIntros "H [Hw HE]".

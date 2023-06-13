@@ -17,18 +17,13 @@ Section mpred.
 
 Context {Σ : gFunctors}.
 
-(* Hypothesis: the CompCert mem is already in the state, in mem_auth. So we don't need juicy predicates:
-   a monotonic predicate on mem + rmap is exactly an mpred already.
 (* predicates on juicy memories *)
 Global Instance mem_inhabited : Inhabited Memory.mem := {| inhabitant := Mem.empty |}.
 Definition mem_index : biIndex := {| bi_index_type := mem |}.
 
 Definition jmpred := monPred mem_index (iPropI Σ).
 
-(*Program Definition jmpred_of (P : juicy_mem -> Prop) : jmpred := {| monPred_at m := P |}.*)
-(* Do we need to explicitly include the step-index in the jm? *)
-
-(* Should we track the current memory, or re-quantify over one consistent with the rmap? *)
+(* Should this include coherence? *)
 Record juicy_mem := { level : nat; m_dry : mem; m_phi : iResUR Σ }.
 
 Definition jm_mono (P : juicy_mem -> Prop) := forall jm n2 x2, P jm -> m_phi jm ≼ₒ{level jm} x2 ->
@@ -42,18 +37,6 @@ Proof.
   - simpl; intros.
     eapply Hmono in H; eauto.
   - apply _.
-Defined.*)
-
-Record juicy_mem := { level : nat; m_phi : iResUR Σ }.
-
-Definition jm_mono (P : juicy_mem -> Prop) := forall jm1 jm2, P jm1 -> m_phi jm1 ≼ₒ{level jm1} m_phi jm2 ->
-  level jm2 <= level jm1 -> P jm2.
-
-Definition mpred_of P (Hmono : jm_mono P) : iProp Σ.
-Proof.
-  unshelve eexists.
-  - exact (λ n phi, P {| level := n; m_phi := phi |} ).
-  - intros ???? HP ??; eapply (Hmono _ {| level := _; m_phi := _ |} ); simpl in *; eauto.
 Defined.
 
 Record juicy_ext_spec (Z: Type) := {
@@ -63,9 +46,9 @@ Record juicy_ext_spec (Z: Type) := {
   JE_exit_mono: forall rv z, jm_mono (ext_spec_exit JE_spec rv z)
 }.
 
-Definition ext_mpred_pre Z JE_spec e t ge_s typs args z : iProp Σ := mpred_of _ (JE_pre_mono Z JE_spec e t ge_s typs args z).
-Definition ext_mpred_post Z JE_spec e t ge_s tret rv z : iProp Σ := mpred_of _ (JE_post_mono Z JE_spec e t ge_s tret rv z).
-Definition ext_mpred_exit Z JE_spec rv z : iProp Σ := mpred_of _ (JE_exit_mono Z JE_spec rv z).
+Definition ext_mpred_pre Z JE_spec e t ge_s typs args z : jmpred := jmpred_of _ (JE_pre_mono Z JE_spec e t ge_s typs args z).
+Definition ext_mpred_post Z JE_spec e t ge_s tret rv z : jmpred := jmpred_of _ (JE_post_mono Z JE_spec e t ge_s tret rv z).
+Definition ext_mpred_exit Z JE_spec rv z : jmpred := jmpred_of _ (JE_exit_mono Z JE_spec rv z).
 
 Class OracleKind := {
   OK_ty : Type;
@@ -188,12 +171,12 @@ Definition state_interp m z := mem_auth m ∗ ext_auth z.
 Program Definition jsafe_pre
     (jsafe : coPset -d> Z -d> C -d> iPropO Σ) : coPset -d> Z -d> C -d> iPropO Σ := λ E z c,
   |={E}=> ∀ m, state_interp m z -∗
-      (∃ i, ⌜halted Hcore c i⌝ ∧ ext_mpred_exit Z Hspec (Some (Vint i)) z) ∨
+      (∃ i, ⌜halted Hcore c i⌝ ∧ monPred_at (ext_mpred_exit Z Hspec (Some (Vint i)) z) m) ∨
       (|={E}=> ∃ c' m', ⌜corestep Hcore c m c' m'⌝ ∧ state_interp m' z ∗ ▷ jsafe E z c') ∨
-      (∃ e args x, ⌜at_external Hcore c m = Some (e, args)⌝ ∧ ext_mpred_pre Z Hspec e x (genv_symb ge) (sig_args (ef_sig e)) args z ∗
-         ▷ (∀ ret z', ⌜Val.has_type_list args (sig_args (ef_sig e)) ∧ Builtins0.val_opt_has_rettype ret (sig_res (ef_sig e))⌝ →
-          ((ext_mpred_post Z Hspec e x (genv_symb ge) (sig_res (ef_sig e)) ret z') ={E}=∗
-          ∃ c' m', ⌜after_external Hcore ret c m' = Some c'⌝ ∧ state_interp m' z' ∗ jsafe E z' c'))).
+      (∃ e args x, ⌜at_external Hcore c m = Some (e, args)⌝ ∧ monPred_at (ext_mpred_pre Z Hspec e x (genv_symb ge) (sig_args (ef_sig e)) args z) m ∗
+         ▷ (∀ ret m' z', ⌜Val.has_type_list args (sig_args (ef_sig e)) ∧ Builtins0.val_opt_has_rettype ret (sig_res (ef_sig e))⌝ →
+          (monPred_at (ext_mpred_post Z Hspec e x (genv_symb ge) (sig_res (ef_sig e)) ret z') m' ={E}=∗
+          ∃ c', ⌜after_external Hcore ret c m' = Some c'⌝ ∧ state_interp m' z' ∗ jsafe E z' c'))).
 
 Local Instance jsafe_pre_contractive : Contractive jsafe_pre.
 Proof.
@@ -238,10 +221,10 @@ Proof.
   - iRight; iRight.
     iDestruct "H" as (????) "[Hext H]".
     iExists _, _, _; iSplit; first done; iFrame "Hext".
-    iIntros "!>" (???) "Hext".
+    iIntros "!>" (????) "Hext".
     iMod (fupd_mask_subseteq E1) as "Hclose"; iMod ("H" with "[%] Hext") as "H'"; first done; iMod "Hclose" as "_".
     iIntros "!>".
-    iDestruct "H'" as (???) "[??]"; iExists _, _; iFrame "%"; iFrame.
+    iDestruct "H'" as (??) "[??]"; iExists _; iFrame "%"; iFrame.
     by iApply "IH".
 Qed.
 
@@ -423,8 +406,8 @@ Qed.
     - rewrite Hat_ext; iDestruct "H" as (????) "H".
       iRight; iRight; iExists _, _, _; iSplit; first done.
       iDestruct "H" as "[$ H]"; iNext.
-      iIntros (???) "Hpost".
-      iMod ("H" with "[%] Hpost") as (?? Hafter) "Hpost"; first done.
+      iIntros (????) "Hpost".
+      iMod ("H" with "[%] Hpost") as (? Hafter) "Hpost"; first done.
       apply Hafter_ext in Hafter; eauto.
   Qed.
 

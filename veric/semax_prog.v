@@ -987,7 +987,7 @@ Proof.
   iIntros "!> % ?"; iLeft.
   iExists Int.zero; iSplit; first by iPureIntro.
   specialize (H (Some (Vint Int.zero)) ora I).
-  rewrite -H //.
+  rewrite -H; monPred.unseal; done.
 Qed.
 
 Lemma semax_prog_entry_point {CS: compspecs} V G prog b id_fun params args A

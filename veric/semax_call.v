@@ -609,8 +609,8 @@ iRight; iRight; iExists _, _, _; iSplit.
 rewrite Eef TTL3; iFrame "pre".
 iDestruct "rguard" as "#rguard".
 iNext.
-iIntros (?? [??]) "?".
-iMod ("post" with "[$]") as (?) "(? & Q & F0 & F)".
+iIntros (??? [??]) "?".
+iMod ("post" with "[$]") as "(? & Q & F0 & F)".
 iDestruct ("Htc" with "[Q]") as %Htc; first by iFrame.
 pose (tx' := match ret,ret0 with
                    | Some id, Some v => Maps.PTree.set id v tx
@@ -646,7 +646,7 @@ iPoseProof ("HR" $! rho' with "[Q F]") as "R".
     iExists v; iSplit; first by iPureIntro; apply tc_val_tc_val'; destruct t0.
     rewrite /make_ext_rval /env_set /=.
     destruct t0; try destruct i, s; try destruct f; try (specialize (TC5 eq_refl)); iFrame; first done; destruct v; contradiction. }
-iIntros "!>"; iExists _, _; iSplit; first done; iFrame.
+iIntros "!>"; iExists _; iSplit; first done; iFrame.
 assert (tx' = set_opttemp ret (force_val ret0) tx) as Htx'.
 { subst tx'.
   clear - Htc TCret TC5. hnf in Htc, TCret.

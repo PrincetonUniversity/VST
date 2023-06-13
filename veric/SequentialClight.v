@@ -35,7 +35,7 @@ Proof.
     iApply ("IH" with "H").
 Qed.
 
-Definition mem_evolve (m m': mem) : Prop :=
+(*Definition mem_evolve (m m': mem) : Prop :=
    (* dry version of resource_decay *)
  forall loc,
  match access_at m loc Cur, access_at m' loc Cur with
@@ -87,7 +87,7 @@ Definition ext_spec_mem_evolve (Z: Type)
  forall ef w b tl vl ot v z m z' m',
     ext_spec_pre D ef w b tl vl z m ->
     ext_spec_post D ef w b ot v z' m' ->
-    mem_evolve m m'.
+    mem_evolve m m'.*)
 
 Section mpred.
 
@@ -95,53 +95,39 @@ Context `{!heapGS Σ} (Z: Type) `{!externalGS Z Σ}.
 
 Notation juicy_mem := (@juicy_mem Σ).
 
-(* Should the mem_auth be inside ext_spec_pre/post or not? Or should this be outside the logic
-   entirely?
-   I've been thinking that we allocate the heapGS, etc. just before starting the program, but
-   we also need it to define the Espec if external functions use memory at all. What's the right
-   way to factor this? *)
 Definition juicy_dry_ext_spec
-   (J: external_specification juicy_mem external_function Z)
+   (J: juicy_ext_spec Z)
    (D: external_specification mem external_function Z)
-   (dessicate: forall ef jm, ext_spec_type J ef -> ext_spec_type D ef) :=
-  (forall e t t' b tl vl x jm m,
-    dessicate e jm t = t' ->
-    (<absorb> state_interp m x) (level jm) (m_phi jm) ->
-    ext_spec_pre J e t b tl vl x jm ->
-    ext_spec_pre D e t' b tl vl x m) /\
- (forall ef t t' b ot v x jm0 jm m,
-    (exists tl vl x0, dessicate ef jm0 t = t' /\ ext_spec_pre J ef t b tl vl x0 jm0) ->
-    (ext_spec_post D ef t' b ot v x m ->
-    (<absorb> state_interp m x) (level jm) (m_phi jm) ->
-     ext_spec_post J ef t b ot v x jm)) /\
- (forall v x jm m,
-    (<absorb> state_interp m x) (level jm) (m_phi jm) ->
-     ext_spec_exit J v x jm <->
-     ext_spec_exit D v x m).
+   (dessicate: forall ef, ext_spec_type J ef -> ext_spec_type D ef) :=
+  (forall e t t' b tl vl x m,
+    dessicate e t = t' ->
+    monPred_at (ext_mpred_pre _ J e t b tl vl x) m ⊢ ⌜ext_spec_pre D e t' b tl vl x m⌝ ∧
+      ▷ ∀ ot v x' m', ⌜Val.has_type_list vl (sig_args (ef_sig e)) ∧ Builtins0.val_opt_has_rettype v (sig_res (ef_sig e))⌝ →
+      ⌜ext_spec_post D e t' b ot v x' m'⌝ → |={⊤}=> monPred_at (ext_mpred_post _ J e t b ot v x') m') /\
+ (forall v x m,
+    monPred_at (ext_mpred_exit _ J v x) m ⊢ ⌜ext_spec_exit D v x m⌝).
 
 (* This might be useful now, since the witness doesn't include a frame rmap. *)
 Definition juicy_dry_ext_spec_make
-   (J: external_specification juicy_mem external_function Z) :
+   (J: @juicy_ext_spec Σ Z) :
    external_specification mem external_function Z.
-destruct J.
-apply Build_external_specification with ext_spec_type.
+apply Build_external_specification with (ext_spec_type J).
 intros e t b tl vl x m.
-apply (forall jm, (<absorb> state_interp m x) (level jm) (m_phi jm) -> ext_spec_pre e t b tl vl x jm).
+apply (exists jm, (state_interp m x ∗ monPred_at (ext_mpred_pre _ J e t b tl vl x) m) (level jm) (m_phi jm)).
 intros e t b ot v x m.
-apply (forall jm, (<absorb> state_interp m x) (level jm) (m_phi jm) -> ext_spec_post e t b ot v x jm).
+apply (forall m0 x0 tl vl, monPred_at (ext_mpred_pre _ J e t b tl vl x0) m0 ⊢
+  ▷ (⌜Val.has_type_list vl (sig_args (ef_sig e)) ∧ Builtins0.val_opt_has_rettype v (sig_res (ef_sig e))⌝ →
+  |={⊤}=> state_interp m x ∗ monPred_at (ext_mpred_post _ J e t b ot v x) m)).
 intros v x m.
-apply (forall jm, (<absorb> state_interp m x) (level jm) (m_phi jm) -> ext_spec_exit v x jm).
+apply (exists jm, (monPred_at (ext_mpred_exit _ J v x) m) (level jm) (m_phi jm)).
 Defined.
 
 Definition dessicate_id
-   (J: external_specification juicy_mem external_function Z) :
-   forall ef (jm : juicy_mem), ext_spec_type J ef ->
-       ext_spec_type (juicy_dry_ext_spec_make J) ef.
-intros.
-destruct J; simpl in *. apply X.
-Defined.
+   (J: juicy_ext_spec Z) :
+   forall ef, ext_spec_type J ef ->
+       ext_spec_type (juicy_dry_ext_spec_make J) ef := fun _ x => x.
 
-Definition m_dry jm m := (<absorb> mem_auth m) (level jm) (m_phi jm).
+(*Definition m_dry jm m := (<absorb> mem_auth m) (level jm) (m_phi jm).
 
 Definition same_dry_mem jm1 jm2 := forall m, m_dry jm1 m <-> m_dry jm2 m.
 
@@ -157,24 +143,24 @@ Definition ignores_juice (J: external_specification juicy_mem external_function 
  (forall v x jm jm',
      same_dry_mem jm jm' ->
      ext_spec_exit J v x jm ->
-     ext_spec_exit J v x jm').
+     ext_spec_exit J v x jm').*)
 
 Lemma jdes_make_lemma:
-  forall J, ignores_juice J ->
+  forall J, (*ignores_juice J ->*)
     juicy_dry_ext_spec J (juicy_dry_ext_spec_make J)
      (dessicate_id J).
 Proof.
-intros.
-destruct H as [? [? ?]], J; split; [ | split3]; simpl in *; intros; auto.
--
-subst t'.
-eapply H; last done. admit. (* pretty sure this is provable, but not sure about the definition of m_dry *)
--
-destruct H2 as (? & ? & ? & ? & ?).
-subst t'; eauto.
--
-eapply H1; last done. admit.
-Admitted.
+split; intros.
+- rewrite /dessicate_id in H; subst t'; simpl.
+  iIntros "Hpre"; iSplit.
+  + iStopProof; constructor; ouPred.unseal.
+    intros n phi ??; exists {| level := n; m_dry := m; m_phi := phi |}; simpl in *.
+  + iIntros (????? Hpost).
+    iApply (Hpost with "[$]"); done.
+- simpl.
+  constructor; ouPred.unseal.
+  intros n phi ??; exists {| level := n; m_phi := phi |}; done.
+Qed.
 
 (*Definition mem_rmap_cohere m phi :=
   contents_cohere m phi /\
@@ -440,7 +426,7 @@ rewrite nextblock_access_empty in * by auto.
 contradiction.
 Qed.*)
 
-Lemma mem_step_evolve : forall m m', mem_step m m' -> mem_evolve m m'.
+(*Lemma mem_step_evolve : forall m m', mem_step m m' -> mem_evolve m m'.
 Proof.
   induction 1; intros loc.
   - rewrite <- (storebytes_access _ _ _ _ _ H); destruct (access_at m loc Cur); auto.
@@ -839,6 +825,7 @@ Lemma add_funspecs_frame : forall {Z} extlink fs,
 Proof.
   intros; apply add_funspecs_frame', void_spec_frame.
 Qed.*)
+*)
 
 End mpred.
 
@@ -855,8 +842,6 @@ Definition VSTΣ Z : gFunctors :=
 Global Instance subG_VSTGpreS {Z Σ} : subG (VSTΣ Z) Σ → VSTGpreS Z Σ.
 Proof. solve_inG. Qed.
 
-(* In Iris, they don't initialize wsat, but instead quantify over the wsatG in the adequacy theorem.
-   step_fupdN_soundness initializes the wsat. *)
 Lemma init_VST: forall Z `{!VSTGpreS Z Σ} (z : Z),
   ⊢ |==> ∀ _ : wsatGS Σ, ∃ _ : gen_heapGS address resource Σ, ∃ _ : funspecGS Σ, ∃ _ : externalGS Z Σ,
     let H : heapGS Σ := HeapGS _ _ _ _ in
@@ -877,14 +862,6 @@ Proof.
   induction n; apply _.
 Qed.
 
-Lemma emmmm : forall {PROP : bi} (P Q:PROP), P -∗ (P -∗ Q) -∗ (<absorb> P) ∧ Q.
-Proof. intros.
-  iIntros "a b".
-  iSplit. iFrame.
-  iApply "b"; iFrame.
-Qed.
-
-(* adequacy looks like {state_interp m z ∗ jsafe} prog -> dry_safe prog m z *)
 Lemma whole_program_sequential_safety_ext:
    forall Σ {CS: compspecs} {Espec: OracleKind} `{!VSTGpreS OK_ty Σ} (initial_oracle: OK_ty)
      (EXIT: semax_prog.postcondition_allows_exit tint)
@@ -898,7 +875,7 @@ Lemma whole_program_sequential_safety_ext:
      (dessicate : forall (ef : external_function),
                ext_spec_type OK_spec ef ->
                ext_spec_type dryspec ef)
-     (JDE: forall {HH : heapGS Σ} {HE : externalGS OK_ty Σ}, @juicy_dry_ext_spec _ HH _ HE (JE_spec OK_ty OK_spec) dryspec (fun ef jm => dessicate ef))
+     (JDE: forall {HH : heapGS Σ} {HE : externalGS OK_ty Σ}, @juicy_dry_ext_spec _ HH _ HE OK_spec dryspec dessicate)
      (* (DME: ext_spec_mem_evolve _ dryspec) *)
      (* (Esub: forall v z m m', ext_spec_exit dryspec v z m -> mem_sub m m' -> ext_spec_exit dryspec v z m') *)
      prog V G m,
@@ -935,6 +912,7 @@ Proof.
   iMod (@init_VST _ _ VSTGpreS0) as "H".
   iDestruct ("H" $! Hinv) as (?? HE) "(H & ?)".
   specialize (H (HeapGS _ _ _ _) HE).
+  specialize (JDE (HeapGS _ _ _ _) HE).
   eapply (semax_prog_rule _ _ _ _ n) in H as (b & q & (? & ? & Hinit) & Hsafe); [| done..].
   iMod (Hsafe with "H") as "Hsafe".
 
@@ -943,65 +921,35 @@ Proof.
     iIntros "HClose";
     iApply step_fupdN_intro; first set_solver;
     iModIntro.
+
   iAssert (|={⊤,∅}=> |={∅}▷=>^n  ⌜@dry_safeN _ _ _ OK_ty (semax.genv_symb_injective) (cl_core_sem (globalenv prog))
             dryspec (Build_genv (Genv.globalenv prog) (prog_comp_env prog)) n initial_oracle q m⌝) with "[Hsafe]" as "Hdry".
-  { 
-    clear H0 Hinit Hsafe.
+  { clear H0 Hinit Hsafe.
+    rewrite bi.and_elim_l.
     iLöb as "IH" forall (m q n).
-    
     destruct n as [|n].
-    { simpl. iApply fupd_mask_intro; first set_solver;
+    { simpl. iApply fupd_mask_intro; first done.
       iIntros "HClose"; iPureIntro. constructor. }
     rewrite [in (environments.Esnoc _ "Hsafe" _)]/jsafeN jsafe_unfold /jsafe_pre.
-
-    rewrite [in ((|={⊤}=> _) ∧ _)]bi.and_elim_l. 
-    (* FIXME don't need this when matchfunspec is deleted *)
-    
     iDestruct "Hsafe" as "(s_interp & >Hsafe)".
-    iSpecialize ("Hsafe" $! m).
-
-    iPoseProof (emmmm with "s_interp Hsafe") as "Hsafe".
-    rewrite 2!bi.and_or_l.
-    iDestruct ("Hsafe") as "[Hsafe_halt | [Hsafe_core | Hsafe_ext]]".
-    
-    - rewrite bi.and_exist_l.
-      iDestruct "Hsafe_halt" as "(%ret & Hsafe_halt)".
+    iDestruct ("Hsafe" with "s_interp") as "[Hsafe_halt | [Hsafe_core | Hsafe_ext]]".
+    - iDestruct "Hsafe_halt" as (ret Hhalt) "Hexit".
       big_intro. iModIntro.
-      iClear "IH HClose".
-      iStopProof. constructor. ouPred.unseal.
-      intros n' x' Hx' Hsafe.
-      (* intros Hjm Hsafe. *)
-
-      destruct Hsafe as [Hsafe [Hsafe2 Hsafe3]].
-
-      rewrite /ext_mpred_exit /mpred_of /= in Hsafe3.
-      hnf in Hsafe3.
-      rewrite /ouPred_pure_def.
-      hnf.
-      eapply safeN_halted; eauto.
-      eapply JDE; eauto.
-      simpl.
-      apply Hsafe.
-    - iDestruct "Hsafe_core" as "[_ >(%c' & %m' & %H & s_interp & ▷jsafe)]".
-      iApply (fupd_mask_intro ⊤ ∅); first set_solver.
+      destruct JDE as (_ & JDexit).
+      iDestruct (JDexit with "Hexit") as %?.
+      iPureIntro; eapply safeN_halted; eauto.
+    - iDestruct "Hsafe_core" as ">(%c' & %m' & %H & s_interp & ▷jsafe)".
+      iApply (fupd_mask_intro ⊤ ∅); first done.
       iIntros "HClose".
       simpl.
       iModIntro. iModIntro.
-      iMod "HClose".
-      iPoseProof ("IH" with "[-]") as "dry_safe".
-      + iFrame. admit. (* admitted for the thrown away matchfunspec *)
-      + iClear "IH".
-        instantiate (1 := n).
-        iMod "dry_safe". iModIntro. iApply (step_fupdN_wand with "dry_safe").
-        iPureIntro. intros. eapply safeN_step. apply H. apply H0.
-    - 
-      rewrite bi.and_exist_l. iDestruct "Hsafe_ext" as (ef) "Hsafe_ext".
-      rewrite bi.and_exist_l. iDestruct "Hsafe_ext" as (args) "Hsafe_ext".
-      rewrite bi.and_exist_l. iDestruct "Hsafe_ext" as (ef_spec) "Hsafe_ext".
-      rewrite 1!bi.and_assoc.  rewrite [in (_ ∧ (bi_pure _))]bi.and_comm. rewrite -1!bi.and_assoc.
-      rewrite bi.persistent_and_sep_1.
-      iDestruct "Hsafe_ext" as "(at_external & Hsafe_ext)".
-      iDestruct "at_external" as "%at_external". (* FIXME have to do this separately? *)
+      iMod "HClose" as "_".
+      iMod ("IH" with "[$]") as "dry_safe".
+      instantiate (1 := n).
+      iModIntro. iApply (step_fupdN_wand with "dry_safe").
+      iPureIntro. intros. eapply safeN_step; eauto.
+    - iDestruct "Hsafe_ext" as (ef args w at_external) "Hsafe_ext".
+      destruct JDE as (JDext & _).
       
       specialize (JDE (HeapGS _ _ _ _) _).
 

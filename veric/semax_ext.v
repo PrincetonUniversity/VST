@@ -100,7 +100,7 @@ Definition funspec2pre (ext_link: Strings.String.string -> ident) (A : TypeTree)
   return ((if s then ofe_car (dtfr A) else ext_spec_type Espec ef) -> Prop)
   with
     | left _ => fun x' => ouPred_holds (⌜Val.has_type_list args (sig_args (ef_sig ef))⌝ ∧
-        (∃ md, state_interp md z) ∗ P x' (filter_genv (symb2genv ge_s), args)) (level m) (m_phi m)
+        state_interp (m_dry m) z ∗ P x' (filter_genv (symb2genv ge_s), args)) (level m) (m_phi m)
     | right n => fun x' => ext_spec_pre Espec ef x' ge_s tys args z m
   end x.
 
@@ -110,7 +110,7 @@ Definition funspec2post (ext_link: Strings.String.string -> ident) (A : TypeTree
   match oi_eq_dec (Some (id, sig)) (ef_id_sig ext_link ef) as s
   return ((if s then ofe_car (dtfr A) else ext_spec_type Espec ef) -> Prop)
   with
-    | left _ => fun x' => ouPred_holds ((∃ md, state_interp md z) ∗ Q x' (make_ext_rval (filter_genv (symb2genv ge_s)) tret ret)) (level m) (m_phi m)
+    | left _ => fun x' => ouPred_holds (state_interp (m_dry m) z ∗ Q x' (make_ext_rval (filter_genv (symb2genv ge_s)) tret ret)) (level m) (m_phi m)
     | right n => fun x' => ext_spec_post Espec ef x' ge_s tret ret z m
   end x.
 
@@ -191,12 +191,12 @@ Lemma add_funspecs_pre  (ext_link: Strings.String.string -> ident)
   let ef := EF_external id (typesig2signature sig cc) in
   funspecs_norepeat fs ->
   In (ext_link id, (mk_funspec sig cc A P Q)) fs ->
-  forall z, ⌜Val.has_type_list args (sig_args (ef_sig ef))⌝ ∧
-        (∃ md, state_interp md z) ∗ P x (filter_genv (symb2genv ge_s), args) ⊢
+  forall md z, ⌜Val.has_type_list args (sig_args (ef_sig ef))⌝ ∧
+        state_interp md z ∗ P x (filter_genv (symb2genv ge_s), args) ⊢
   ∃ x' : ext_spec_type (JE_spec _ (add_funspecs_rec ext_link Espec fs)) ef,
-    ⌜JMeq x x'⌝ ∧ ext_mpred_pre Z (add_funspecs_rec ext_link Espec fs) ef x' ge_s tys args z.
+    ⌜JMeq x x'⌝ ∧ monPred_at (ext_mpred_pre Z (add_funspecs_rec ext_link Espec fs) ef x' ge_s tys args z) md.
 Proof.
-induction fs; [intros; exfalso; auto|]; intros ef H H1 z.
+induction fs; [intros; exfalso; auto|]; intros ef H H1 md z.
 destruct H1 as [H1|H1].
 
 {
@@ -205,7 +205,7 @@ clear IHfs H; unfold funspec2jspec, ext_mpred_pre; simpl.
 ouPred.unseal.
 destruct sig; unfold funspec2pre; simpl.
 split => ??? /=.
-rewrite /ouPred_exist_def /mpred_of /= /ouPred_holds /= /ouPred_holds.
+rewrite /ouPred_exist_def /jmpred_of /= /ouPred_holds /= /ouPred_holds.
 if_tac; simpl.
 ouPred.unseal; eauto.
 exfalso; auto.
@@ -222,7 +222,7 @@ intros (x' & Hpre).
 clear -Ha Hin H1 Hpre; revert Ha Hin H1 Hpre.
 unfold funspec2jspec, ext_mpred_pre; simpl.
 destruct a; simpl; destruct f as [(?, ?)]; simpl; unfold funspec2pre; simpl.
-rewrite /ouPred_exist_def /mpred_of /= /ouPred_holds /= /ouPred_holds.
+rewrite /ouPred_exist_def /jmpred_of /= /ouPred_holds /= /ouPred_holds.
 if_tac [e|e].
 * injection e as E; subst i; destruct fs; [solve[simpl; intros; exfalso; auto]|].
   done.
@@ -237,12 +237,12 @@ Lemma add_funspecs_pre_void  (ext_link: Strings.String.string -> ident)
   let ef := EF_external id (mksignature (map typ_of_type sig) Tvoid cc) in
   funspecs_norepeat fs ->
   In (ext_link id, (mk_funspec (sig, tvoid) cc A P Q)) fs ->
-  forall z, ⌜Val.has_type_list args (sig_args (ef_sig ef))⌝ ∧
-        (∃ md, state_interp md z) ∗ P x (filter_genv (symb2genv ge_s), args) ⊢
+  forall md z, ⌜Val.has_type_list args (sig_args (ef_sig ef))⌝ ∧
+        state_interp md z ∗ P x (filter_genv (symb2genv ge_s), args) ⊢
   ∃ x' : ext_spec_type (JE_spec _ (add_funspecs_rec ext_link Espec fs)) ef,
-    ⌜JMeq x x'⌝ ∧ ext_mpred_pre Z (add_funspecs_rec ext_link Espec fs) ef x' ge_s tys args z.
+    ⌜JMeq x x'⌝ ∧ monPred_at (ext_mpred_pre Z (add_funspecs_rec ext_link Espec fs) ef x' ge_s tys args z) md.
 Proof.
-induction fs; [intros; exfalso; auto|]; intros ef H H1 z.
+induction fs; [intros; exfalso; auto|]; intros ef H H1 md z.
 destruct H1 as [H1|H1].
 
 {
@@ -251,8 +251,8 @@ clear IHfs H; unfold funspec2jspec, ext_mpred_pre; simpl.
 ouPred.unseal.
 unfold funspec2pre; simpl.
 split => ??? /=.
-rewrite /ouPred_exist_def /mpred_of /= /ouPred_holds /= /ouPred_holds.
-if_tac [e|e].
+rewrite /ouPred_exist_def /jmpred_of /= /ouPred_holds /= /ouPred_holds.
+if_tac.
 ouPred.unseal; eauto.
 exfalso; auto.
 }
@@ -268,7 +268,7 @@ intros (x' & Hpre).
 clear -Ha Hin H1 Hpre; revert Ha Hin H1 Hpre.
 unfold funspec2jspec, ext_mpred_pre; simpl.
 destruct a; simpl; destruct f as [(?, ?)]; simpl; unfold funspec2pre; simpl.
-rewrite /ouPred_exist_def /mpred_of /= /ouPred_holds /= /ouPred_holds.
+rewrite /ouPred_exist_def /jmpred_of /= /ouPred_holds /= /ouPred_holds.
 if_tac [e|e].
 * injection e as E; subst i; destruct fs; [solve[simpl; intros; exfalso; auto]|].
   done.
@@ -277,12 +277,12 @@ if_tac [e|e].
 Qed.
 
 Lemma add_funspecs_post_void (ext_link: Strings.String.string -> ident)
-  {Espec tret fs id sig cc A P Q x ret z ge_s} :
+  {Espec tret fs id sig cc A P Q x ret md z ge_s} :
   let ef := EF_external id (mksignature (map typ_of_type sig) Tvoid cc) in
   funspecs_norepeat fs ->
   In (ext_link id, (mk_funspec (sig, tvoid) cc A P Q)) fs ->
-  ext_mpred_post Z (add_funspecs_rec ext_link Espec fs) ef x ge_s tret ret z ⊢
-  ∃ (x': dtfr A), ⌜JMeq x x'⌝ ∧ (∃ md, state_interp md z) ∗ Q x' (make_ext_rval (filter_genv (symb2genv ge_s)) tret ret).
+  monPred_at (ext_mpred_post Z (add_funspecs_rec ext_link Espec fs) ef x ge_s tret ret z) md ⊢
+  ∃ (x': dtfr A), ⌜JMeq x x'⌝ ∧ state_interp md z ∗ Q x' (make_ext_rval (filter_genv (symb2genv ge_s)) tret ret).
 Proof.
 induction fs; [intros; exfalso; auto|]; intros ef H H1.
 destruct H1 as [H1|H1].
@@ -293,8 +293,8 @@ rewrite /ext_mpred_post /= /funspec2jspec /=.
 ouPred.unseal.
 unfold funspec2post; simpl.
 split => ??? /=.
-rewrite /mpred_of /= /ouPred_holds /= /ouPred_holds.
-if_tac [e|e].
+rewrite /jmpred_of /= /ouPred_holds /= /ouPred_holds.
+if_tac.
 ouPred.unseal.
 intros; exists x; done.
 exfalso; auto.
@@ -306,7 +306,7 @@ assert (Hin: In (ext_link id) (map fst fs)).
 inversion H as [|? ? Ha Hb]; subst.
 rewrite /ext_mpred_post /= /funspec2jspec /=.
 destruct a; simpl; destruct f as [(?, ?)]; simpl.
-rewrite /funspec2post /mpred_of /=.
+rewrite /funspec2post /jmpred_of /=.
 split => ?? H2 /=.
 clear - IHfs Ha Hb Hin H1 H2; revert x IHfs Ha Hin H1.
 rewrite /ouPred_holds.
@@ -318,12 +318,12 @@ if_tac [e|e].
 }
 Qed.
 
-Lemma add_funspecs_post (ext_link: Strings.String.string -> ident) {Espec tret fs id sig cc A P Q x ret z ge_s} :
+Lemma add_funspecs_post (ext_link: Strings.String.string -> ident) {Espec tret fs id sig cc A P Q x ret md z ge_s} :
   let ef := EF_external id (typesig2signature sig cc) in
   funspecs_norepeat fs ->
   In (ext_link id, (mk_funspec sig cc A P Q)) fs ->
-  ext_mpred_post Z (add_funspecs_rec ext_link Espec fs) ef x ge_s tret ret z ⊢
-  ∃ (x': dtfr A), ⌜JMeq x x'⌝ ∧ (∃ md, state_interp md z) ∗ Q x' (make_ext_rval (filter_genv (symb2genv ge_s)) tret ret).
+  monPred_at (ext_mpred_post Z (add_funspecs_rec ext_link Espec fs) ef x ge_s tret ret z) md ⊢
+  ∃ (x': dtfr A), ⌜JMeq x x'⌝ ∧ state_interp md z ∗ Q x' (make_ext_rval (filter_genv (symb2genv ge_s)) tret ret).
 Proof.
 induction fs; [intros; exfalso; auto|]; intros ef H H1.
 destruct H1 as [H1|H1].
@@ -335,7 +335,7 @@ rewrite /ext_mpred_post /= /funspec2jspec /=.
 ouPred.unseal.
 clear IHfs H; revert x; unfold funspec2post; simpl.
 split => ??? /=.
-rewrite /mpred_of /= /ouPred_holds /= /ouPred_holds.
+rewrite /jmpred_of /= /ouPred_holds /= /ouPred_holds.
 if_tac [e|e].
 ouPred.unseal.
 intros; exists x; done.
@@ -349,7 +349,7 @@ inversion H as [|? ? Ha Hb]; subst.
 clear -Ha Hin H1 Hb IHfs; revert x Ha Hin H1 Hb IHfs.
 rewrite /ext_mpred_post /= /funspec2jspec /=.
 destruct a; simpl; destruct f as [(?, ?)]; simpl; unfold funspec2post; simpl.
-rewrite /funspec2post /mpred_of /=.
+rewrite /funspec2post /jmpred_of /=.
 split => ?? H2 /=.
 clear - IHfs Ha Hb Hin H1 H2; revert x IHfs Ha Hin H1.
 rewrite /ouPred_holds.
@@ -390,9 +390,8 @@ iDestruct (add_funspecs_pre _ _ _ _ (genv_symb_injective ge) with "[Hp Hs]") as 
 { iSplit; first done.
   iFrame; eauto. }
 iExists x'; iFrame.
-iIntros (???) "Hpost".
-iDestruct (add_funspecs_post _ _ (A := A) with "Hpost") as (x'' Heq') "((% & ?) & ?)".
-iExists md; iFrame.
+iIntros (????) "Hpost".
+iDestruct (add_funspecs_post _ _ (A := A) with "Hpost") as (x'' Heq') "?".
 assert (x = x'') as -> by (eapply JMeq_eq, JMeq_trans; eauto).
 rewrite /filter_genv /Genv.find_symbol symb2genv_ax //.
 Qed.
