@@ -212,16 +212,16 @@ Ltac locals_of_assert P :=
  lazymatch P with
  | (PROPx _ (LOCALx ?Q _)) => constr:(temps_of_localdefs Q)
  | emp => constr:(@nil ident)
- | andp ?A ?B => let a := locals_of_assert A in
+ | bi_and ?A ?B => let a := locals_of_assert A in
                   let b := locals_of_assert B in
                   constr:(a++b)
- | sepcon ?A ?B => let a := locals_of_assert A in
+ | bi_sep ?A ?B => let a := locals_of_assert A in
                   let b := locals_of_assert B in
                   constr:(a++b)
  | @stackframe_of _ _ => constr:(@nil ident)
  | local (liftx (eq _) (eval_expr ?E)) =>
             let vl := constr:(expr_temps E nil) in vl
- | @exp _ _ ?T ?F =>
+ | @bi_exist _ ?T ?F =>
     let x := inhabited_value T in
      let d := constr:(F x) in
       let d := eval cbv beta in d in        let d := locals_of_assert d in
@@ -272,7 +272,7 @@ Ltac deadvars :=
  | |- semax _ _ _ _ => 
        check_POSTCONDITION;
        fail "deadvars: Postcondition must be an abbreviated local definition (POSTCONDITION); try abbreviate_semax first"
- | |- _ |-- _ => idtac
+ | |- _ ⊢ _ => idtac
  | |- _ => fail "deadvars: the proof goal should be a semax"
  end.
 
