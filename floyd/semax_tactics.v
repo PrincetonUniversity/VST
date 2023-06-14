@@ -133,12 +133,14 @@ match goal with
  | |- ENTAIL ?DD, _ ⊢ _ => simplify_func_tycontext'  DD
 end.
 
+Section SEMAX_TACTICS.
 Context `{!heapGS Σ} {Espec: OracleKind(Σ:=Σ)} `{!externalGS OK_ty Σ}.
 
 Definition with_Delta_specs (DS: PTree.t funspec) (Delta: tycontext) : tycontext :=
   match Delta with
     mk_tycontext a b c d _ ann => mk_tycontext a b c d DS ann
   end.
+End SEMAX_TACTICS.
 
 Ltac compute_in_Delta :=
  lazymatch goal with
@@ -444,6 +446,10 @@ Ltac check_POSTCONDITION :=
   | _ => fail 100 "Your POSTCONDITION is ill-formed in some way "
   end.
 
+Section SEMAX_TACTICS.
+
+Context `{!heapGS Σ} {Espec: OracleKind(Σ:=Σ)} `{!externalGS OK_ty Σ}.
+
 Fixpoint find_expressions {A: Type} (f: expr -> A -> A) (c: statement) (x: A) : A :=
  match c with
  | Sskip => x
@@ -674,40 +680,6 @@ Ltac function_pointers :=
  let x := fresh "there_are" in
  pose (x := function_pointers).
 
-Ltac leaf_function := 
- try lazymatch goal with
- | x := function_pointers |- _ => clear x
- | |- semax_body ?Vprog ?Gprog _ _ =>
- eapply leaf_function;
- [reflexivity 
- | reflexivity; fail "Error in leaf_function tactic: your" Vprog "and" Gprog "overlap!"
- | reflexivity; fail "Error in leaf_function tactic: your function body refers to an identifier in" Gprog
- | ]
-end.
-
-(*
-Definition any_gvars (ds: PTree.t funspec) (s: statement) : bool :=
-  find_expressions 
-    (find_vars (fun i b => match ds!i with Some _=> true | None => b end))
-    s false.
-
-Ltac suggest_leaf_function :=
- lazymatch goal with 
- | x := function_pointers |- _ => clear x
- | DS := @abbreviate (PTree.t funspec) ?ds,
-   D := @abbreviate tycontext (mk_tycontext _ _ _ _ ?DS' _) |-
-   semax ?D' _ ?c _ =>
-   constr_eq DS DS'; constr_eq D D';
-   let b := constr:(any_gvars ds c) in
-   let b := eval compute in b in
-   constr_eq b false;
-   idtac "This function appears to be a leaf function, that is, has no function calls.
-* If you will reason about function-pointers (using make_func_ptr) in this proof, apply the tactic [function_pointers] before doing [start_function].
-* If this semax_body proof does NOT involve function-pointers, use the tactic [leaf_function] before [start_function]; this is optional but will speed up the proof by clearing the body of Delta_specs."
-end.
-*)
-
-
 Fixpoint seq_stmt_size (c: statement) : nat :=
  match c with
  | Ssequence c1 c2 => seq_stmt_size c1 + seq_stmt_size c2
@@ -829,3 +801,37 @@ Ltac first_N_statements n :=
                          apply semax_unfold_seq with (Ssequence al' c''); 
                          [reflexivity | eapply semax_seq' ]
  end end.
+End SEMAX_TACTICS.
+
+Ltac leaf_function := 
+ try lazymatch goal with
+ | x := function_pointers |- _ => clear x
+ | |- semax_body ?Vprog ?Gprog _ _ =>
+ eapply leaf_function;
+ [reflexivity 
+ | reflexivity; fail "Error in leaf_function tactic: your" Vprog "and" Gprog "overlap!"
+ | reflexivity; fail "Error in leaf_function tactic: your function body refers to an identifier in" Gprog
+ | ]
+end.
+
+(*
+Definition any_gvars (ds: PTree.t funspec) (s: statement) : bool :=
+  find_expressions 
+    (find_vars (fun i b => match ds!i with Some _=> true | None => b end))
+    s false.
+
+Ltac suggest_leaf_function :=
+ lazymatch goal with 
+ | x := function_pointers |- _ => clear x
+ | DS := @abbreviate (PTree.t funspec) ?ds,
+   D := @abbreviate tycontext (mk_tycontext _ _ _ _ ?DS' _) |-
+   semax ?D' _ ?c _ =>
+   constr_eq DS DS'; constr_eq D D';
+   let b := constr:(any_gvars ds c) in
+   let b := eval compute in b in
+   constr_eq b false;
+   idtac "This function appears to be a leaf function, that is, has no function calls.
+   * If you will reason about function-pointers (using make_func_ptr) in this proof, apply the tactic [function_pointers] before doing [start_function].
+    * If this semax_body proof does NOT involve function-pointers, use the tactic [leaf_function] before [start_function]; this is optional but will speed up the proof by clearing the body of Delta_specs."
+    end.
+    *)
