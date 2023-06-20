@@ -32,6 +32,7 @@ the others are in VSTlib's include directory.
 | malloc| **stdlib.h**| spec_malloc.MallocASI | verif_malloc.MallocVSU | Axiomatized | Done | standard system allocator |
 | atomics| **stdatomic.h**, SC_atomics.h | spec_SC_atomics.AtomicsASI | verif_SC_atomics.SCAVSU | Axiomatized | Done | atomic load, store, CAS, etc.|
 | locks | **threads.h**, VSTthreads.h | spec_locks.LockASI | verif_locks.lockVSU | Proved | Done | busy-wait locks based on atomics |
+| threads| **threads.h**, VSTthreads.h| spec_threads.ThreadsASI | verif_threads.ThreadsVSU | Proved | Done | |
 
 Additional details:
 - math:  Each function in the system standard math.h library can be
