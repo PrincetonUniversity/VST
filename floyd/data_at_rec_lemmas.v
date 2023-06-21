@@ -10,22 +10,21 @@ Require Import VST.floyd.jmeq_lemmas.
 Require Import VST.zlist.sublist.
 Require Export VST.floyd.fieldlist.
 Require Export VST.floyd.aggregate_type.
-Import compcert.lib.Maps.
+
+Local Unset SsrRewrite.
 
 Opaque alignof.
-
-Local Open Scope logic.
 
 Arguments align !n !amount / .
 Arguments Z.max !n !m / .
 
-Definition offset_in_range ofs p :=
+Definition offset_in_range ofs p : Prop :=
   match p with
   | Vptr b iofs => 0 <= Ptrofs.unsigned iofs + ofs <= Ptrofs.modulus
   | _ => True
   end.
 
-Definition offset_strict_in_range ofs p :=
+Definition offset_strict_in_range ofs p : Prop :=
   match p with
   | Vptr b iofs => 0 <= Ptrofs.unsigned iofs + ofs < Ptrofs.modulus
   | _ => True
@@ -41,7 +40,7 @@ Always assume in arguments of data_at_rec has argument pos with alignment criter
 
 Section CENV.
 
-Context {cs: compspecs}.
+Context `{!heapGS Σ} {cs: compspecs}.
 
 Section WITH_SHARE.
 
@@ -61,7 +60,7 @@ Lemma data_at_rec_eq: forall t v,
   data_at_rec t v =
   match t return REPTYPE t -> val -> mpred with
   | Tvoid
-  | Tfunction _ _ _ => fun _ _ => FF
+  | Tfunction _ _ _ => fun _ _ => False
   | Tint _ _ _
   | Tfloat _ _
   | Tlong _ _
@@ -174,11 +173,11 @@ Lemma by_value_data_at_rec_default_val: forall sh t p,
   type_is_by_value t = true ->
   size_compatible t p ->
   align_compatible t p ->
-  data_at_rec sh t (default_val t) p = memory_block sh (sizeof t) p.
+  data_at_rec sh t (default_val t) p ⊣⊢ memory_block sh (sizeof t) p.
 Proof.
   intros.
   destruct (type_is_volatile t) eqn:?H.
-  + apply by_value_data_at_rec_volatile; auto.
+  + rewrite by_value_data_at_rec_volatile; auto.
   + rewrite data_at_rec_eq; destruct t; try solve [inversion H]; rewrite H2;
     symmetry;
     rewrite memory_block_mapsto_ by auto; unfold mapsto_;
@@ -225,7 +224,7 @@ Ltac unknown_big_endian_hack :=
   (* This is necessary on machines where Archi.big_endian is a Parameter 
     rather than a Definition.  When Archi.big_endian is a constant true or false,
    then it's much easier. *)
- match goal with H1: (align_chunk _ | _) |- _ |-- res_predicates.address_mapsto ?ch ?v ?sh (?b, Ptrofs.unsigned ?i) =>
+ match goal with H1: (align_chunk _ | _) |- _ ⊢ res_predicates.address_mapsto ?ch ?v ?sh (?b, Ptrofs.unsigned ?i) =>
    constructor;
    replace v with (decode_val ch (repeat (Byte Byte.zero) (Z.to_nat (size_chunk ch))));
    [ apply (mapsto_memory_block.address_mapsto_zeros'_address_mapsto sh ch b i H1) | ];
@@ -239,14 +238,14 @@ Lemma by_value_data_at_rec_zero_val: forall sh t p,
   size_compatible t p ->
   align_compatible t p ->
   type_is_volatile t = false ->
-  mapsto_zeros (sizeof t) sh p |-- data_at_rec sh t (zero_val t) p.
+  mapsto_zeros (sizeof t) sh p ⊢ data_at_rec sh t (zero_val t) p.
 Proof.
   intros.
   rewrite data_at_rec_eq.
   pose proof (sizeof_pos t).
   destruct t; try destruct f; try solve [inversion H]; rewrite H2;
-  destruct p; try apply FF_left;
-  unfold mapsto_zeros; apply derives_extract_prop; intros [? ?];
+  destruct p; try apply False_left;
+  unfold mapsto_zeros; apply bi.pure_elim_l; intros [? ?];
   rewrite mapsto_memory_block.address_mapsto_zeros_eq;
   rewrite Z2Nat.id by lia;
   unfold mapsto; rewrite H2.
@@ -255,7 +254,7 @@ Proof.
     destruct i,s; simpl;
     (eapply align_compatible_rec_by_value_inv in H1; [ | reflexivity]);
    rewrite prop_true_andp by (clear; compute; repeat split; try congruence; auto);
-   rewrite (prop_true_andp (_ /\ _)) 
+   rewrite (prop_true_andp (_ /\ _))
     by (split; auto; intros _; compute; repeat split; try congruence; auto);
    (if_tac; [apply orp_right1 | ]).
    all: try (constructor; apply mapsto_memory_block.address_mapsto_zeros'_nonlock_permission_bytes).
@@ -341,7 +340,7 @@ Lemma by_value_data_at_rec_zero_val2: forall sh t b ofs,
   0 <= ofs /\ ofs + sizeof t < Ptrofs.modulus ->
   align_compatible_rec cenv_cs t ofs ->
   type_is_volatile t = false ->
-  mapsto_zeros (sizeof t) sh (Vptr b (Ptrofs.repr ofs)) |-- 
+  mapsto_zeros (sizeof t) sh (Vptr b (Ptrofs.repr ofs)) ⊢ 
   data_at_rec sh t (zero_val t) (Vptr b (Ptrofs.repr ofs)).
 Proof.
   intros.
@@ -396,11 +395,6 @@ Transformation between data_at and data_at_rec. This is used in transformation
 between field_at and data_at.
 
 ************************************************)
-
-Lemma lower_sepcon_val':
-  forall (P Q: val->mpred) v,
-  ((P*Q) v) = (P v * Q v).
-Proof. reflexivity. Qed.
 
 (*
 Lemma unsigned_add: forall i pos, 0 <= pos -> Int.unsigned (Int.add i (Int.repr pos)) = (Int.unsigned i + pos) mod Int.modulus.
@@ -722,7 +716,7 @@ Lemma mapsto_zeros_data_at_rec_zero_val: forall sh
   0 <= ofs /\ ofs + sizeof t < Ptrofs.modulus ->
   align_compatible_rec cenv_cs t ofs ->
   fully_nonvolatile (rank_type cenv_cs t) t = true ->
-  mapsto_zeros (sizeof t) sh (Vptr b (Ptrofs.repr ofs)) |--
+  mapsto_zeros (sizeof t) sh (Vptr b (Ptrofs.repr ofs)) ⊢
     data_at_rec sh t (zero_val t) (Vptr b (Ptrofs.repr ofs)).
 Proof.
   intros sh ? t.
@@ -897,7 +891,7 @@ Lemma data_at_rec_data_at_rec_ : forall sh t v b ofs
   (LEGAL_COSU: complete_legal_cosu_type t = true),
   0 <= ofs /\ ofs + sizeof t < Ptrofs.modulus ->
   align_compatible_rec cenv_cs t ofs ->
-  data_at_rec sh t v (Vptr b (Ptrofs.repr ofs)) |-- data_at_rec sh t (default_val t) (Vptr b (Ptrofs.repr ofs)).
+  data_at_rec sh t v (Vptr b (Ptrofs.repr ofs)) ⊢ data_at_rec sh t (default_val t) (Vptr b (Ptrofs.repr ofs)).
 Proof.
   intros sh t.
   type_induction t; intros;
@@ -1086,7 +1080,7 @@ Proof.
 Qed.
 
 Lemma data_at_rec_value_fits: forall sh t v p,
-  data_at_rec sh t v p |-- !! value_fits t v.
+  data_at_rec sh t v p ⊢ !! value_fits t v.
 Proof.
   intros until p.
   revert v p; type_induction t; intros;
@@ -1132,7 +1126,7 @@ Lemma mapsto_values_cohere:
     type_is_volatile t = false ->
     readable_share sh1 -> readable_share sh2 -> 
   forall (v1 v2:val) (V1: ~ JMeq v1 Vundef) (V2: ~ JMeq v2 Vundef),
-    mapsto sh1 t (Vptr b ofs) v1 * mapsto sh2 t (Vptr b ofs) v2 |-- !!(v1=v2).
+    mapsto sh1 t (Vptr b ofs) v1 * mapsto sh2 t (Vptr b ofs) v2 ⊢ !!(v1=v2).
 Proof.
 intros; destruct t; try discriminate R; unfold mapsto; simpl; simpl in *.
  + destruct i; destruct s; simpl; rewrite ! if_true by trivial; rewrite H.
@@ -1317,7 +1311,7 @@ Local Definition field_cohere sh1 sh2
           (Vptr b ofs)
           * data_at_rec sh2
               (field_type (name_member it) m) v2
-              (Vptr b ofs) |-- !! (v1 = v2).
+              (Vptr b ofs) ⊢ !! (v1 = v2).
 
 Lemma data_at_rec_values_cohere:
        forall (sh1 sh2 : share) (t : type),
@@ -1329,7 +1323,7 @@ Lemma data_at_rec_values_cohere:
        value_defined t v2 ->
        data_at_rec sh1 t v1 (Vptr b ofs)
          * data_at_rec sh2 t v2 (Vptr b ofs) 
-        |-- !! (v1 = v2).
+        ⊢ !! (v1 = v2).
 Proof.
   intros *. pose proof I. intros.
   clear H. pose proof (value_defined_not_volatile _ _ H2).
@@ -1385,7 +1379,7 @@ rewrite !Z.sub_0_r.
 rewrite !(sublist_one (Z.of_nat n)) by lia.
 unfold Z.succ.
 rewrite !array_pred_len_1.
-match goal with |- (?a*?b)*(?c*?d) |-- _ =>
+match goal with |- (?a*?b)*(?c*?d) ⊢ _ =>
     apply derives_trans with ((a*c)*(b*d)); [ cancel | ] end.
 apply derives_trans 
   with (!! (sublist 0 (Z.of_nat n) v1 = sublist 0 (Z.of_nat n) v2) 
@@ -1461,7 +1455,7 @@ forall sh1 sh2 b m0 m
           | Errors.Error _ => Tvoid
           end) u2),
 struct_pred m (field_atx sh1 m0 sz) u1 (Vptr b ofs)
-  * struct_pred m (field_atx sh2 m0 sz) u2 (Vptr b ofs) |-- !! (u1 = u2)).
+  * struct_pred m (field_atx sh2 m0 sz) u2 (Vptr b ofs) ⊢ !! (u1 = u2)).
 2: eauto.
 clear.
 intros.
@@ -1499,7 +1493,7 @@ destruct H2 as [H2v H2], H3 as [H3v H3].
 specialize (IHm u1 u2 H2 H3).
 clear H2 H3.
 unfold snd. unfold fst.
-match goal with |- ?a * ?b * (?c * ?d) |-- _ => 
+match goal with |- ?a * ?b * (?c * ?d) ⊢ _ => 
    apply derives_trans with ((a*c)*(b*d)); [cancel | ]
 end.
 apply derives_trans with (!!(v1=v2) * !!(u1=u2)).
@@ -1513,7 +1507,7 @@ clearbody x1 x2.
 unfold at_offset, offset_val.
 set (ofs' := Ptrofs.add _ _). clearbody ofs'. 
 specialize (H1 v1 v2 ofs').
-match goal with |- ?a * ?b * (?c * ?d) |-- _ => 
+match goal with |- ?a * ?b * (?c * ?d) ⊢ _ => 
    apply derives_trans with ((a*c)*(b*d)); [cancel | ]
 end.
 apply derives_trans with (TT * !!(v1=v2)).

@@ -6,8 +6,9 @@ From VST.veric Require Import shares address_conflict.
 From VST.msl Require Export shares.
 From VST.veric Require Export base Memory algebras dshare gen_heap invariants.
 Export Values.
+Export -(notations) Maps.
 
-(* We can't import compcert.lib.Maps because its lookup notations conflict with stdpp's,
+(* We can't import compcert.lib.Maps' notations because they conflict with stdpp's,
    and actually the ! notation conflicts with rewrite's ! as well. Matching stdpp's lookup notation
    instead, with an extra ! per lookup. *)
 Declare Scope maps.
