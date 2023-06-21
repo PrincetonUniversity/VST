@@ -342,7 +342,7 @@ Qed.
 
 Lemma mapsto_share_join:
  forall sh1 sh2 sh t p v,
-   sepalg.join sh1 sh2 sh -> sh1 <> Share.bot -> sh2 <> Share.bot ->
+   sepalg.join sh1 sh2 sh ->
    mapsto sh1 t p v ∗ mapsto sh2 t p v ⊣⊢ mapsto sh t p v.
 Proof.
   intros.
@@ -643,7 +643,7 @@ Qed.
 
 Lemma memory_block_share_join:
   forall sh1 sh2 sh n p,
-   sepalg.join sh1 sh2 sh -> sh1 <> Share.bot -> sh2 <> Share.bot ->
+   sepalg.join sh1 sh2 sh ->
    memory_block sh1 n p ∗ memory_block sh2 n p ⊣⊢ memory_block sh n p.
 Proof.
   intros.

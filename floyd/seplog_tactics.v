@@ -915,7 +915,7 @@ Ltac cancel_for_evar_frame' local_tac :=
                   let a := fresh in let b := fresh in let c := fresh in 
                   pose (a:=A); pose (b:=B); pose (c:=C);
                   change (fold_right_sepcon a ⊢ fold_right_sepcon b ∗ c);
-                  rewrite <- fold_left_sepconx_eq;
+                  rewrite <- !fold_left_sepconx_eq;
                   subst a b c
 (*                  rewrite <- (fold_left_sepconx_eq A), <- (fold_left_sepconx_eq B) *)
             end;
@@ -933,7 +933,7 @@ Ltac cancel_for_TT local_tac :=
                   let a := fresh in let b := fresh in let c := fresh in 
                   pose (a:=A); pose (b:=B); pose (c:=C);
                   change (fold_right_sepcon a ⊢ fold_right_sepcon b ∗ c);
-                  rewrite <- fold_left_sepconx_eq;
+                  rewrite <- !fold_left_sepconx_eq;
                   subst a b c
 (* rewrite <- (fold_left_sepconx_eq A), <- (fold_left_sepconx_eq B) *)
             end;
@@ -950,7 +950,7 @@ Ltac cancel_for_normal local_tac :=
                   let a := fresh in let b := fresh in
                   pose (a:=A); pose (b:=B);
                   change (fold_right_sepcon a ⊢ fold_right_sepcon b);
-                  rewrite <- fold_left_sepconx_eq;
+                  rewrite <- !fold_left_sepconx_eq;
                   subst a b
 (*  rewrite <- (fold_left_sepconx_eq A), <- (fold_left_sepconx_eq B) *)
             end;

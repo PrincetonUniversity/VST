@@ -268,7 +268,7 @@ Qed.
 Lemma array_pred_shift: forall {A}{d: Inhabitant A} (lo hi lo' hi' mv : Z) P' P (v: list A) p,
   lo - lo' = mv ->
   hi - hi' = mv ->
- (forall i i', lo <= i < hi -> i - i' = mv -> P' i' (Znth (i-lo) v) p = P i (Znth (i-lo) v) p) ->
+ (forall i i', lo <= i < hi -> i - i' = mv -> P' i' (Znth (i-lo) v) p ⊣⊢ P i (Znth (i-lo) v) p) ->
   array_pred lo' hi' P' v p ⊣⊢ array_pred lo hi P v p.
 Proof.
   intros.
@@ -307,7 +307,7 @@ Lemma array_pred_ext: forall {A B} (dA: Inhabitant A) (dB: Inhabitant B) lo hi P
         (v0: list A) (v1: list B) p,
   Zlength v0 = Zlength v1 ->
   (forall i, lo <= i < hi ->
-    P0 i (Znth (i-lo) v0) p = P1 i (Znth (i-lo) v1) p) ->
+    P0 i (Znth (i-lo) v0) p ⊣⊢ P1 i (Znth (i-lo) v1) p) ->
   array_pred lo hi P0 v0 p ⊣⊢ array_pred lo hi P1 v1 p.
 Proof.
   intros; iSplit; iApply array_pred_ext_derives; intros; try lia;
@@ -748,7 +748,7 @@ Lemma union_pred_ext: forall m {A0 A1} (P0: forall it, A0 it -> val -> mpred) (P
   members_no_replicate m = true ->
   (forall it, members_union_inj v0 it <-> members_union_inj v1 it) ->
   (forall i (Hin: in_members i m) d0 d1, members_union_inj v0 (get_member i m) -> members_union_inj v1 (get_member i m) ->
-     P0 _ (proj_union i m v0 d0) p = P1 _ (proj_union i m v1 d1) p) ->
+     P0 _ (proj_union i m v0 d0) p ⊣⊢ P1 _ (proj_union i m v1 d1) p) ->
   union_pred m P0 v0 p ⊣⊢ union_pred m P1 v1 p.
 Proof.
   intros.
@@ -1532,7 +1532,7 @@ Definition array_pred_shift: forall `{!heapGS Σ} {A} {d: Inhabitant A} lo hi lo
   lo - lo' = mv ->
   hi - hi' = mv ->
   (forall i i', lo <= i < hi -> i - i' = mv ->
-           P' i' (Znth (i - lo) v) p = P i (Znth (i - lo) v) p) ->
+           P' i' (Znth (i - lo) v) p ⊣⊢ P i (Znth (i - lo) v) p) ->
   array_pred lo' hi' P' v p ⊣⊢ array_pred lo hi P v p
 := @array_pred_shift.
 
@@ -1549,7 +1549,7 @@ Definition array_pred_ext:
   forall `{!heapGS Σ} {A B} {dA: Inhabitant A} {dB: Inhabitant B} lo hi P0 P1 (v0: list A) (v1: list B)  p,
   Zlength v0 = Zlength v1 ->
   (forall i, lo <= i < hi ->
-     P0 i (Znth (i - lo) v0) p = P1 i (Znth (i - lo) v1) p) ->
+     P0 i (Znth (i - lo) v0) p ⊣⊢ P1 i (Znth (i - lo) v1) p) ->
   array_pred lo hi P0 v0 p ⊣⊢ array_pred lo hi P1 v1 p
 := @array_pred_ext.
 
@@ -1624,7 +1624,7 @@ Definition union_pred_ext:
   members_no_replicate m = true ->
   (forall it, members_union_inj v0 it <-> members_union_inj v1 it) ->
   (forall i (Hin: in_members i m) d0 d1, members_union_inj v0 (get_member i m) -> members_union_inj v1 (get_member i m) ->
-     P0 _ (proj_union i m v0 d0) p = P1 _ (proj_union i m v1 d1) p) ->
+     P0 _ (proj_union i m v0 d0) p ⊣⊢ P1 _ (proj_union i m v1 d1) p) ->
   union_pred m P0 v0 p ⊣⊢ union_pred m P1 v1 p
 := @union_pred_ext.
 

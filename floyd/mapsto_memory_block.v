@@ -326,18 +326,23 @@ Proof.
   + rewrite bi.sep_comm //.
 Qed.
 
-(*Lemma withspacer_ramif_Q: forall sh be ed P p,
+Global Instance withspacer_proper: Proper (eq ==> eq ==> eq ==> pointwise_relation _ equiv ==> eq ==> equiv) withspacer.
+Proof.
+  intros ?? -> ?? -> ?? -> ?? H ?? ->.
+  match goal with |- ?A ≡ ?B => change (A ⊣⊢ B) end.
+  rewrite !withspacer_spacer H //.
+Qed.
+
+Lemma withspacer_ramif_Q: forall sh be ed P p,
   withspacer sh be ed P p ⊢ P p ∗
-    allp ((fun Q => Q p) -∗ (fun Q => withspacer sh be ed Q p)).
+    ∀ Q, Q p -∗ withspacer sh be ed Q p.
 Proof.
   intros.
-  apply RAMIF_Q.solve with (spacer sh be ed p).
-  + rewrite withspacer_spacer.
-    cancel.
-  + intros.
-    rewrite withspacer_spacer.
-    cancel.
-Qed.*)
+  rewrite withspacer_spacer.
+  iIntros "(? & $)" (?) "?".
+  rewrite withspacer_spacer.
+  iFrame.
+Qed.
 
 Lemma spacer_offset_zero:
   forall sh be ed v, spacer sh be ed v ⊣⊢ spacer sh be ed (offset_val 0 v).

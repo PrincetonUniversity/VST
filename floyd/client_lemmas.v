@@ -1932,7 +1932,7 @@ Ltac check_mpreds2 R :=
 
 Ltac saturate_local :=
 (* match goal with |- ?R ⊢ _ => check_mpreds2 R end; Do we need this? *)
- simple eapply saturate_aux21x;
+ eapply saturate_aux21x;
  [repeat simple apply saturate_aux20;
    (* use already_saturated if want to be fancy,
          otherwise the next lines *)
