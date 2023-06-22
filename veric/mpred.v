@@ -173,11 +173,17 @@ Definition assert := monPred environ_index (iPropI Σ).
 
 Program Definition assert_of (P : assert') : assert := {| monPred_at := P |}.
 
-(* Does this do anything? *)
+Fail Example assert_of_test : forall (P: assert'), ∃ Q:assert, (@eq assert P Q).
 Global Coercion assert_of : assert' >-> assert.
+Example assert_of_test : forall (P: assert'), ∃ Q:assert, (@eq assert P Q).
+Proof. intros.  exists (assert_of P). reflexivity. Qed.
 
-(* Ideally, this would work. *)
-Fail Lemma test : forall (P Q : assert'), P ∗ Q ⊢ Q ∗ P.
+Fail Example bi_of_assert'_test : forall (P Q : assert'), P ∗ Q ⊢ Q ∗ P.
+Program Definition bi_assert (P : assert) : bi_car assert := {| monPred_at := P |}.
+Global Coercion bi_assert : assert >-> bi_car.
+(* "Print Coercion Paths assert' bi_car" prints "[assert_of; bi_assert]" *)
+Example test : forall (P Q : assert'), P ∗ Q ⊢ Q ∗ P. 
+Proof. intros. rewrite bi.sep_comm. done. Qed.
 
 Global Instance argsEnviron_inhabited : Inhabited argsEnviron := {| inhabitant := (Map.empty _, nil) |}.
 
