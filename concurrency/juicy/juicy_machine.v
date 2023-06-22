@@ -1,7 +1,8 @@
 Require Import compcert.lib.Axioms.
 
-Require Import VST.msl.age_to.
 Require Import VST.veric.base.
+Require Import VST.veric.shared.
+Require Import VST.veric.res_predicates.
 Require Import VST.concurrency.common.sepcomp. Import SepComp.
 Require Import VST.sepcomp.semantics_lemmas.
 
@@ -11,12 +12,12 @@ Require Import VST.concurrency.common.scheduler.
 Require Import VST.concurrency.common.HybridMachineSig.
 Require Import VST.concurrency.common.addressFiniteMap. (*The finite maps*)
 Require Import VST.concurrency.common.threads_lemmas.
-Require Import VST.concurrency.juicy.rmap_locking.
+(*Require Import VST.concurrency.juicy.rmap_locking.*)
 Require Import VST.concurrency.common.lksize.
 Require Import VST.concurrency.common.semantics.
 Require Import VST.concurrency.common.permjoin.
 Require Import Coq.Program.Program.
-From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
+From mathcomp.ssreflect Require Import ssrbool.
 Set Implicit Arguments.
 
 (*NOTE: because of redefinition of [val], these imports must appear
@@ -32,12 +33,10 @@ Require Import List.
 Require Import Coq.ZArith.ZArith.
 
 (*From msl get the juice! *)
-Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.juicy_mem.
 Require Import VST.veric.juicy_mem_lemmas.
 Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.jstep.
-
 Set Bullet Behavior "Strict Subproofs".
 Set Nested Proofs Allowed.
 
@@ -47,16 +46,19 @@ Set Nested Proofs Allowed.
 Require Import (*compcert_linking*) VST.concurrency.common.permissions VST.concurrency.common.threadPool.
 Import OrdinalPool ThreadPool.
 
+Local Open Scope Z.
+
 (* There are some overlapping definitions conflicting.
    Here we fix that. But this is obviously ugly and
    the conflicts should be removed by renaming!     *)
 Notation "x <= y" := (x <= y)%nat.
 Notation "x < y" := (x < y)%nat.
 
-
+(* rmap is only the heap. Should res include ghost state? *)
+Local Notation rmap := (resource_map.rmapUR address (leibnizO resource)).
 #[export] Instance LocksAndResources : Resources := { res := rmap; lock_info := option rmap }.
 
-Module ThreadPool.
+Module ThreadPool. 
   Section ThreadPool.
 
   Context {Sem: Semantics}.
@@ -77,7 +79,7 @@ Module Concur.
     Import event_semantics Events.
 
 
-    Context {Sem: Semantics}.
+    Context {Sem: Semantics} {Σ : gFunctors}.
 
     Notation C:= (semC).
     Notation G:= (semG).
@@ -88,7 +90,7 @@ Module Concur.
     Notation SNone:= (Some None).
 
     (** Memories*)
-    Definition richMem: Type:= juicy_mem.
+    Definition richMem: Type:= @juicy_mem Σ.
     Definition dryMem: richMem -> mem:= m_dry.
 
     (** Environment and Threadwise semantics *)
@@ -106,19 +108,19 @@ Module Concur.
 
     (** Invariants*)
     (** The state respects the memory*)
-    Definition access_cohere' m phi:= forall loc,
-        Mem.perm_order'' (max_access_at m loc) (perm_of_res (phi @ loc)).
+(*    Definition access_cohere' m phi:= forall loc,
+        Mem.perm_order'' (max_access_at m loc) (perm_of_res (phi @ loc)).*)
 
     (* This is similar to the coherence of juicy memories, *
      * but for entire machines. It is slighly weaker in one way:
      * - acc_coh is looser and only talks about maxcoh.
-     * - alse acc_coh  might me redundant with max_coh IDK... x*)
+     * - else acc_coh might be redundant with max_coh IDK... x*)
     Record mem_cohere' m phi :=
-      { cont_coh: contents_cohere m phi;
+      { cont_coh: forall loc, contents_cohere m loc (resource_at phi loc);
         (*acc_coh: access_cohere m phi;*)
         (*acc_coh: access_cohere' m phi;*)
-        max_coh: max_access_cohere m phi;
-        all_coh: alloc_cohere m phi
+        max_coh: forall loc, max_access_cohere m loc (resource_at phi loc);
+        all_coh: forall loc, (loc.1 >= Mem.nextblock m)%positive → phi !! loc = None
       }.
     Definition mem_thcohere (tp : thread_pool) m :=
       forall tid (cnt: containsThread tp tid), mem_cohere' m (getThreadR cnt).
@@ -141,13 +143,13 @@ Module Concur.
     Qed.
 
     (*Join juice from all threads *)
-    Definition getThreadsR (tp : thread_pool):=
+    Definition getThreadsR (tp : thread_pool) :=
       map (perm_maps tp) (enums_equality.enum (num_threads tp)).
 
-    Fixpoint join_list (ls: seq.seq res) r:=
+(*    Fixpoint join_list (ls: seq.seq res) r:=
       if ls is phi::ls' then exists r', join phi r' r /\ join_list ls' r' else
-        identity r.  (*Or is is just [amp r]?*)
-    Definition join_threads (tp : thread_pool) r:= join_list (getThreadsR tp) r.
+        identity r.  (*Or is it just [emp r]?*) *)
+    Definition join_threads (tp : thread_pool) r := r ≡ [^op list] s ∈ getThreadsR tp, s.
 
     Lemma list_nth_error_eq : forall {A} (l1 l2 : list A)
       (Heq : forall j, nth_error l1 j = nth_error l2 j), l1 = l2.
@@ -158,20 +160,39 @@ Module Concur.
       - intro j; specialize (Heq (S j)); auto.
     Qed.
 
-    Lemma nth_error_enum : forall n m (H : (n <= m)%coq_nat) i, i < n ->
-      exists Hlt, nth_error (enum_from H) i = Some (@Ordinal m (n - 1 - i)%coq_nat Hlt).
+    Lemma nth_error_enum : forall n m (H : (n <= m)%nat) i, i < n ->
+      exists Hlt, nth_error (enum_from H) i = Some (@fintype.Ordinal m (n - 1 - i)%nat Hlt).
     Proof.
       intros ??; induction n; simpl; intros; [ssrlia|].
       destruct i; simpl.
-      - replace (n.+1 - 1 - 0)%coq_nat with n by ssrlia; eauto.
-      - replace (n.+1 - 1 - i.+1)%coq_nat with (n - 1 - i)%coq_nat by abstract ssrlia; eauto.
+      - replace (n - 0 - 0)%nat with n by lia; eauto.
+      - replace (n - 0 - S i)%nat with (n - 1 - i)%nat by abstract ssrlia; eauto.
+        apply IHn; lia.
     Qed.
 
-    Lemma minus_comm : forall a b c, ((a - b)%coq_nat - c = (a - c)%coq_nat - b)%coq_nat.
+    Lemma minus_comm : forall a b c, ((a - b)%nat - c = (a - c)%nat - b)%nat.
     Proof.
       intros.
       lia.
     Qed.
+
+(* up *)
+Lemma nth_error_rev:
+  forall T (vl: list T) (n: nat),
+   (n < length vl)%nat ->
+  nth_error (rev vl) n = nth_error vl (length vl - n - 1)%nat.
+Proof.
+  induction vl; simpl; intros. apply nth_error_nil.
+  replace (S (length vl) - n - 1)%nat with (length vl - n)%nat by lia.
+  destruct (eq_dec n (length vl)).
+  - subst.
+    rewrite nth_error_app2; rewrite rev_length //.
+    rewrite Nat.sub_diag //.
+  - rewrite nth_error_app1; last by rewrite rev_length; lia.
+    rewrite IHvl; last by lia.
+    destruct (length vl - n)%nat eqn: ?; first by lia.
+    rewrite /= Nat.sub_0_r //.
+Qed.
 
     Lemma getThreadsR_addThread tp v1 v2 phi :
       getThreadsR (addThread tp v1 v2 phi) = getThreadsR tp ++ phi :: nil.
@@ -182,46 +203,43 @@ Module Concur.
       - apply list_nth_error_eq; intro.
         rewrite !list_map_nth.
         destruct (lt_dec j (num_threads tp)).
-        erewrite !initial_world.nth_error_rev by (rewrite length_enum_from; auto).
+        erewrite !nth_error_rev by (rewrite length_enum_from; auto).
         rewrite !length_enum_from.
-        assert (((num_threads tp - j)%coq_nat - 1)%coq_nat < num_threads tp) by ssrlia.
+        assert (((num_threads tp - j)%nat - 1)%nat < num_threads tp) by ssrlia.
         repeat match goal with |-context[nth_error (enum_from ?H) ?i] =>
-          destruct (nth_error_enum H i) as [? ->]; auto end; simpl.
-        match goal with |-context[unlift ?a ?b] => destruct (@unlift_some _ a b) as [[] ? Heq] end.
+          destruct (@nth_error_enum _ _ H i) as [? ->]; auto end; simpl.
+        match goal with |-context[fintype.unlift ?a ?b] => destruct (@fintype.unlift_some _ a b) as [[] ? Heq] end.
         { apply eq_true_not_negb.
           rewrite eq_op_false; [discriminate|].
           intro X; inv X.
-          rewrite (Nat.add_sub_eq_l _ _ j) in H1; try lia.
-          rewrite minus_comm Nat.sub_add; auto; lia. }
+          rewrite (Nat.add_sub_eq_l _ _ j) in H1; try lia. }
         rewrite Heq; simpl in *; f_equal; f_equal.
-        apply ord_inj.
+        apply fintype.ord_inj.
         apply unlift_m_inv in Heq; auto.
         { repeat match goal with |-context[nth_error ?l ?i] =>
             destruct (nth_error_None l i) as [_ H];
             erewrite H by (rewrite rev_length length_enum_from; lia); clear H end; auto. }
       - unfold ordinal_pos_incr; simpl.
-        replace (introT _ _) with (pos_incr_lt (num_threads tp)) by apply proof_irr.
-        rewrite unlift_none; auto.
+        replace (ssrbool.introT _ _) with (pos_incr_lt (num_threads tp)) by apply proof_irr.
+        rewrite fintype.unlift_none; auto.
     Qed.
 
     (*Join juice from all locks*)
-    Fixpoint join_list' (ls: seq.seq (option res)) (r:option res):=
-      if ls is phi::ls' then exists (r':option res),
-          @join _ (@Join_lower res _) phi r' r /\ join_list' ls' r' else r=None.
-    Definition join_locks tp r:= join_list' (map snd (AMap.elements (lset tp))) r.
+    Definition join_locks tp r := r ≡ [^op list] s ∈ map snd (AMap.elements (lset tp)), (s : optionUR (resource_map.rmapUR _ _)).
 
     (*Join all the juices*)
-    Inductive join_all: thread_pool -> res -> Prop:=
+    Inductive join_all: thread_pool -> res -> Prop :=
       AllJuice tp r0 r1 r2 r:
         join_threads tp r0 ->
         join_locks tp r1 ->
-        join (Some r0) r1 (Some r2) ->
-        join r2 (extraRes tp) r ->
+        (Some r0 : optionUR (resource_map.rmapUR _ _)) ⋅ r1 ≡ Some r2 ->
+        r2 ⋅ (extraRes tp) ≡ r ->
         join_all tp r.
 
-    Definition juicyLocks_in_lockSet (lset : lockMap) (juice: rmap):=
-      forall loc, 
-       (forall i, 0 <= i < LKSIZE -> exists sh psh P, juice @ (fst loc, snd loc + i) = YES sh psh (LK LKSIZE i) P)  ->  
+    (* Should we do this at the logic level? *)
+    Definition juicyLocks_in_lockSet (lset : lockMap) (juice: rmap) :=
+      forall loc,
+       (forall i, 0 <= i < LKSIZE -> exists sh psh, juice !! (fst loc, snd loc + i)%Z = Some (csum.Cinl (YES (V := leibnizO resource) sh psh (to_agree (LK LKSIZE i)))))  ->
           AMap.find loc lset.
 
     (* I removed the NO case for two reasons:
@@ -229,13 +247,13 @@ Module Concur.
      * - there was no real reason to have a NO other than speculation of the future. *)
     Definition lockSet_in_juicyLocks (lset : lockMap) (juice: rmap):=
       forall loc, AMap.find loc lset ->
-	     (exists sh, 
-           forall i, 0 <= i < LKSIZE -> exists sh' psh' P, join_sub sh sh' /\ juice @ (fst loc, snd loc + i) = YES sh' psh' (LK LKSIZE i) P).
+	     (exists sh : share,
+           forall i, 0 <= i < LKSIZE -> exists sh' psh', sepalg.join_sub sh sh' /\ juice !! (fst loc, snd loc + i) = Some (csum.Cinl (YES (V := leibnizO resource) (DfracOwn (Share sh')) psh' (to_agree (LK LKSIZE i))))).
 
 
     Definition lockSet_in_juicyLocks' (lset : lockMap) (juice: rmap):=
       forall loc, AMap.find loc lset ->
-             Mem.perm_order'' (Some Nonempty) (perm_of_res (juice @ loc)).
+             Mem.perm_order'' (Some Nonempty) (perm_of_res (resource_at juice loc)).
     Lemma lockSet_in_juic_weak: forall lset juice,
         lockSet_in_juicyLocks lset juice -> lockSet_in_juicyLocks' lset juice.
     Proof.
@@ -244,8 +262,8 @@ Module Concur.
       destruct FIND as [sh FIND].
        specialize (FIND 0). spec FIND. pose proof LKSIZE_pos. lia.
          replace (loc.1, loc.2+0) with loc in FIND.
-       destruct FIND as [sh' [psh' [P [? FIND]]]];   rewrite FIND; simpl.
-       constructor.
+       destruct FIND as [sh' [psh' [? FIND]]]; rewrite /resource_at FIND; simpl.
+       rewrite elem_of_to_agree; if_tac; constructor.
       destruct loc; simpl; f_equal; auto; lia.
       (*- destruct (eq_dec sh0 Share.bot); constructor.*)
     Qed.
@@ -253,14 +271,14 @@ Module Concur.
 
     Definition lockSet_Writable (lset : lockMap) m :=
       forall b ofs, AMap.find (b,ofs) lset ->
-               forall ofs0, Intv.In ofs0 (ofs, ofs + LKSIZE)%Z ->
-             Mem.perm_order'' ((Mem.mem_access m)!! b ofs0 Max) (Some Writable) .
+               forall ofs0, Intv.In ofs0 (ofs, ofs + LKSIZE) ->
+             Mem.perm_order'' (PMap.get b (Mem.mem_access m) ofs0 Max) (Some Writable) .
 
-    (*This definition makes no sense. In fact if there is at least one lock in rmap,
+(*    (*This definition makes no sense. In fact if there is at least one lock in rmap,
      *then the locks_writable is false (because perm_of_res(LK) = Some Nonempty). *)
     Definition locks_writable (juice: rmap):=
       forall loc sh psh P z i, juice @ loc = YES sh psh (LK z i) P  ->
-                    Mem.perm_order'' (perm_of_res (juice @ loc)) (Some Writable).
+                    Mem.perm_order'' (perm_of_res (juice @ loc)) (Some Writable).*)
 
     Record mem_compatible_with' (tp : thread_pool) m all_juice : Prop :=
       {   juice_join : join_all tp all_juice
@@ -276,22 +294,22 @@ Module Concur.
 
     Lemma jlocinset_lr_valid: forall ls juice,
         lockSet_in_juicyLocks ls juice ->
-        lr_valid (AMap.find (elt:=lock_info)^~ (ls)).
+        lr_valid (fun l => AMap.find (elt:=lock_info) l ls).
     Proof.
       simpl; repeat intro.
       destruct (AMap.find (elt:=option rmap) (b, ofs) ls) eqn:MAP; auto.
       intros ofs0 ineq.
       destruct (AMap.find (elt:=option rmap) (b, ofs0) ls) eqn:MAP'; try reflexivity.
         assert (H':=H).
-        specialize (H (b,ofs) ltac:(rewrite MAP; auto)).
+        specialize (H (b,ofs) ltac:(rewrite MAP //)).
         destruct H as [sh H].
-        specialize (H' (b,ofs0) ltac:(rewrite MAP'; auto)).
+        specialize (H' (b,ofs0) ltac:(rewrite MAP' //)).
         destruct H' as [sh' H'].
         exfalso.
         clear - H ineq H'. simpl in *.
         specialize (H (ofs0 - ofs)). spec H. lia.
         specialize (H' 0). spec H'. lia. replace (ofs0+0) with (ofs+(ofs0 - ofs)) in H' by lia.
-         destruct H as [sh0 [psh [P [J H]]]]; destruct H' as [sh0' [psh' [P' [J' H']]]].
+         destruct H as [sh0 [psh [J H]]]; destruct H' as [sh0' [psh' [J' H']]].
         rewrite H' in H. inv H. lia.
     Qed.
 
@@ -314,7 +332,7 @@ Module Concur.
       rewrite getMaxPerm_correct.
       specialize (H b).
       (* manual induction *)
-      assert (forall n, (exists ofs0, Intv.In ofs (ofs0, (ofs0 + Z.of_nat n)%Z) /\ lockRes js (b, ofs0)) \/
+      assert (forall n, (exists ofs0, Intv.In ofs (ofs0, (ofs0 + Z.of_nat n)) /\ is_true (lockRes js (b, ofs0))) \/
         (forall ofs0, (ofs0 <= ofs < ofs0 + Z.of_nat n)%Z -> lockRes js (b, ofs0) = None)) as Hdec.
       { clear; induction n.
         { right; simpl; intros; lia. }
@@ -322,7 +340,7 @@ Module Concur.
         - destruct H as (? & ? & ?); left; eexists; split; eauto.
           unfold Intv.In, fst, snd in *; zify; lia.
         - destruct (lockRes js (b, (ofs - Z.of_nat n)%Z)) eqn: Hres.
-          + left; eexists; split; [|erewrite Hres; auto].
+          + left; eexists; split; [|erewrite Hres; done].
             unfold Intv.In, fst, snd in *; zify; lia.
           + right; intro.
             destruct (eq_dec ofs0 (ofs - Z.of_nat n)%Z); [subst; auto|].
@@ -357,8 +375,8 @@ Module Concur.
     Lemma compat_lt_m: forall m js,
         mem_compatible js m ->
         forall b ofs,
-          Mem.perm_order'' ((getMaxPerm m) !! b ofs)
-                           ((lockSet js) !! b ofs).
+          Mem.perm_order'' (PMap.get b (getMaxPerm m) ofs)
+                           (PMap.get b (lockSet js) ofs).
     Proof. intros. eapply mem_compatible_locks_ltwritable; auto. Qed.
 
 
@@ -369,7 +387,7 @@ Module Concur.
           l1 <> l2 ->
           ThreadPool.lockRes js l1 = Some (Some phi1) ->
           ThreadPool.lockRes js l2 = Some (Some phi2) ->
-          joins phi1 phi2.
+          ✓ (phi1 ⋅ phi2).
     Proof. intros ? ? Hcompat; intros ? ? ? ? Hneq; intros.
            destruct Hcompat as [allj Hcompat].
            inversion Hcompat.
@@ -1289,7 +1307,7 @@ Qed.
             (Hadd_lock_res: join phi d_phi phi')
             (Htp': tp' = updThread cnt0 (Kresume c Vundef) phi')
             (Htp'': tp'' = updLockSet tp' (b, Ptrofs.intval ofs) None )
-            (Htp''': tp''' = age_tp_to (level phi - 1)%coq_nat tp''),
+            (Htp''': tp''' = age_tp_to (level phi - 1)%nat tp''),
             syncStep' cnt0 Hcompat tp''' m' (acquire (b, Ptrofs.intval ofs) None)
     | step_release :
         forall  (tp' tp'' tp''':thread_pool) c m0 m1 b ofs  (phi d_phi :rmap) (R: pred rmap) phi' m' pmap_tid',
@@ -1323,7 +1341,7 @@ Qed.
             (Htp': tp' = updThread cnt0 (Kresume c Vundef) phi')
             (Htp'': tp'' =
                     updLockSet tp' (b, Ptrofs.intval ofs) (Some d_phi))
-            (Htp''': tp''' = age_tp_to (level phi - 1)%coq_nat tp''),
+            (Htp''': tp''' = age_tp_to (level phi - 1)%nat tp''),
             syncStep' cnt0 Hcompat tp''' m' (release (b, Ptrofs.intval ofs) None)
     | step_create :
         forall  (tp_upd tp':thread_pool) c vf arg jm (d_phi phi': rmap) b ofs (* P Q *),
@@ -1338,7 +1356,7 @@ Qed.
                personal_mem (thread_mem_compatible Hcompat cnt0) = jm)
             (Hrem_fun_res: join d_phi phi' (m_phi jm))
             (Htp': tp_upd = updThread cnt0 (Kresume c Vundef) phi')
-            (Htp'': tp' = age_tp_to (level (m_phi jm) - 1)%coq_nat (addThread tp_upd vf arg d_phi)),
+            (Htp'': tp' = age_tp_to (level (m_phi jm) - 1)%nat (addThread tp_upd vf arg d_phi)),
             syncStep' cnt0 Hcompat tp' m (spawn (b, Ptrofs.intval ofs) None None)
     | step_mklock :
         forall  (tp' tp'': thread_pool)  jm c b ofs R ,
@@ -1363,7 +1381,7 @@ Qed.
                (in particular, they have equal shares, pointwise) *)
             (Hrmap : rmap_makelock phi phi' (b, Ptrofs.unsigned ofs) R LKSIZE)
             (Htp': tp' = updThread cnt0 (Kresume c Vundef) phi')
-            (Htp'': tp'' = age_tp_to (level phi - 1)%coq_nat
+            (Htp'': tp'' = age_tp_to (level phi - 1)%nat
                     (updLockSet tp' (b, Ptrofs.intval ofs) None )),
             syncStep' cnt0 Hcompat tp'' m' (mklock (b, Ptrofs.intval ofs))
     | step_freelock :
@@ -1379,7 +1397,7 @@ Qed.
             (*Relation between rmaps:*)
             (Hrmap : rmap_freelock phi phi' m (b, Ptrofs.unsigned ofs) R LKSIZE)
             (Htp': tp' = updThread cnt0 (Kresume c Vundef) phi')
-            (Htp'': tp'' = age_tp_to (level phi - 1)%coq_nat
+            (Htp'': tp'' = age_tp_to (level phi - 1)%nat
                     (remLockSet tp' (b, Ptrofs.intval ofs) )),
             syncStep' cnt0 Hcompat  tp'' m (freelock (b, Ptrofs.intval ofs))
 
@@ -1574,7 +1592,7 @@ Qed.
        corresponding to global variables, arguments
        and function specs. *)
 
-    (*Lemma onePos: (0<1)%coq_nat. auto. Qed.*)
+    (*Lemma onePos: (0<1)%nat. auto. Qed.*)
     Definition initial_machine rmap c:=
       mk
         (mkPos (le_n 1))
@@ -1849,7 +1867,7 @@ Qed.
       Qed.
 
       Lemma LockRes_age: forall js age a,
-          isSome (lockRes (age_tp_to age js) a) = isSome(lockRes js a).
+          isSome (lockRes (age_tp_to age js) a) = isSome (lockRes js a).
       Proof.
         destruct js.
         intros; simpl. unfold OrdinalPool.lockRes; simpl.

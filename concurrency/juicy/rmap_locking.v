@@ -14,7 +14,6 @@ Require Import VST.msl.Coqlib2.
 Require Import VST.msl.eq_dec.
 Require Import VST.msl.seplog.
 Require Import VST.veric.shares.
-Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.semax.
 Require Import VST.veric.semax_ext.
 Require Import VST.veric.SeparationLogic.
@@ -38,7 +37,7 @@ Local Open Scope Z_scope.
 
 Lemma data_at_unfolding CS sh b ofs phi :
   readable_share sh ->
-  app_pred (@data_at_ CS sh (Tarray (Tpointer Ctypes.Tvoid noattr) 4 noattr) (Vptr b ofs)) phi ->
+  app_pred (data_at_ sh (Tarray (Tpointer Ctypes.Tvoid noattr) 4 noattr) (Vptr b ofs)) phi ->
   forall loc,
     adr_range (b, Ptrofs.intval ofs) 8%Z loc ->
     exists p v,

@@ -2,8 +2,7 @@ Require Import VST.concurrency.common.lksize.
 Require Import VST.concurrency.common.addressFiniteMap.
 Require Import VST.msl.Coqlib2.
 Require Import VST.msl.eq_dec.
-Require Import VST.msl.seplog.
-Require Import VST.veric.compcert_rmaps.
+Require Import VST.veric.shared.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.res_predicates.
 
@@ -11,7 +10,7 @@ Require Import VST.veric.res_predicates.
 Notation join := sepalg.join.
 Notation join_assoc := sepalg.join_assoc.
 
-Definition islock_pred (R: pred rmap) r := 
+Definition islock_pred (R: mpred) r := 
  exists sh sh' z, r = YES sh sh' (LK z 0) (SomeP rmaps.Mpred (fun _ => R)).
 
 Lemma islock_pred_join_sub {r1 r2 R} : join_sub r1 r2 -> islock_pred R r1  -> islock_pred R r2.
@@ -20,7 +19,7 @@ Proof.
   inversion J; subst; eexists; eauto.
 Qed.
 
-Definition LKspec_ext (R: pred rmap) : spec :=
+Definition LKspec_ext (R: mpred) : spec :=
    fun (sh: Share.t) (l: AV.address)  =>
      allp
        (jam
@@ -36,7 +35,7 @@ the LK, CT, ... have the same share, which might not be true. The
 following definition has the same structure as rmap_makelock in
 rmap_locking *)
 
-Definition pack_res_inv (R: pred rmap) := SomeP rmaps.Mpred (fun _ => R).
+Definition pack_res_inv (R: mpred) := SomeP rmaps.Mpred (fun _ => R).
 
 Definition lkat (R : mpred) loc phi :=
   (forall x,
@@ -57,7 +56,7 @@ Definition same_locks phi1 phi2 :=
 Definition lockSet_block_bound lset b :=
   forall loc, isSome (AMap.find (elt:=option rmap) loc lset) -> (fst loc < b)%positive.
 
-Definition predat phi loc (R: pred rmap) :=
+Definition predat phi loc (R: mpred) :=
   exists sh sh' z, phi @ loc = YES sh sh' (LK z 0) (SomeP rmaps.Mpred (fun _ => R)).
 
 Definition rmap_bound b phi :=
