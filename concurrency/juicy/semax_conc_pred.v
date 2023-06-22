@@ -13,11 +13,8 @@ Definition lock_inv : share -> val -> mpred -> mpred :=
       ⌜v = Vptr b ofs⌝ ∧
       LKspec LKSIZE R sh (b, Ptrofs.unsigned ofs)).
 
-(*Definition rec_inv sh v (Q R: mpred): Prop :=
-  (R = Q * |>lock_inv sh v R).
-
-Definition weak_rec_inv sh v (Q R: mpred): mpred :=
-  (! (R <=> Q * |>lock_inv sh v R))%pred.*)
+Definition rec_inv sh v (Q R: mpred): mpred :=
+  (R ∗-∗ Q ∗ ▷lock_inv sh v R).
 
 Lemma lockinv_isptr sh v R : lock_inv sh v R ⊣⊢ (⌜isptr v⌝ ∧ lock_inv sh v R).
 Proof.

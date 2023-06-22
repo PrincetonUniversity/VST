@@ -386,6 +386,18 @@ Proof.
   by iApply "H32"; iFrame "% F2"; iApply "H21"; iFrame.
 Qed.
 
+Global Instance funspec_sub_si_nonexpansive E : NonExpansive2 (funspec_sub_si E).
+Proof.
+  intros ? [?????] [?????] (? & ? & ? & HP1 & HQ1) [?????] [?????] (? & ? & ? & HP2 & HQ2); subst; simpl in *.
+  do 8 f_equiv.
+  { rewrite (HP2 _ _) //. }
+  do 6 f_equiv.
+  { rewrite (HP1 _ _) //. }
+  do 4 f_equiv.
+  { rewrite (HQ1 _ _) //. }
+  { rewrite (HQ2 _ _) //. }
+Qed.
+
 (*******************end of material moved here from expr.v *******************)
 
 Definition funspec_auth m := own(inG0 := funspec_inG) funspec_name (gmap_view_auth (dfrac.DfracOwn 1) m).
@@ -486,6 +498,11 @@ Proof.
   intros.
   iIntros "H"; iApply funspec_sub_implies_func_prt_si_mono'.
   by iFrame.
+Qed.
+
+Global Instance func_ptr_si_nonexpansive n E : Proper (dist n ==> eq ==> dist n) (func_ptr_si E).
+Proof.
+  solve_proper.
 Qed.
 
 Lemma type_of_funspec_sub:
