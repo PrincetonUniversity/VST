@@ -960,19 +960,24 @@ Section mpred.
     | _ => None
     end.
 
-  Lemma dfrac_of'_includedN : forall n s1 s2, ✓{n} s2 -> s1 ≼{n} s2 -> dfrac_of' s1 = dfrac_of' s2 ∨ dfrac_of' s1 ≼{n} dfrac_of' s2.
+  Lemma dfrac_of'_includedN : forall n s1 s2, ✓{n} s2 -> s1 ≼{n} s2 -> dfrac_of' s1 ≼ dfrac_of' s2.
   Proof.
     intros ??? Hv H.
-    apply @csum_includedN in H as [? | [(? & ? & ? & ? & H) | (? & ? & ? & ? & H)]]; subst; try done.
-    - apply shared_includedN in H as [Hno | (H & _)]; auto.
-      rewrite Hno // in Hv.
-    - simpl; auto.
+    apply @csum_includedN in H as [? | [(? & c2 & ? & ? & H) | (? & ? & ? & ? & H)]]; subst; try done.
+    apply shared_includedN in H as [? | (? & ?)]; last done.
+    destruct c2; inv H; done.
   Qed.
 
-  Lemma dfrac_of'_ne : forall n s1 s2, s1 ≡{n}≡ s2 -> dfrac_of' s1 = dfrac_of' s2.
+  Global Instance dfrac_of'_ne n : Proper (dist n ==> eq) dfrac_of'.
   Proof.
-    intros; inv H; try constructor; try done.
+    intros ?? H; inv H; try constructor; try done.
     by eapply shared_dist_implies.
+  Qed.
+
+  Global Instance dfrac_of'_proper : Proper (equiv ==> eq) dfrac_of'.
+  Proof.
+    intros ?? H; apply (dfrac_of'_ne O).
+    by apply equiv_dist.
   Qed.
 
   Lemma dfrac_of'_validN : forall n s, ✓{n} s -> ✓{n} (dfrac_of' s).
@@ -981,10 +986,16 @@ Section mpred.
     by intros [??]%shared_validN.
   Qed.
 
-  Lemma val_of'_ne : forall n s1 s2, s1 ≡{n}≡ s2 -> val_of' s1 ≡{n}≡ val_of' s2.
+  Global Instance val_of'_ne : NonExpansive val_of'.
   Proof.
-    intros; inv H; try constructor; try done.
+    intros ??? H; inv H; try constructor; try done.
     by apply shared_dist_implies.
+  Qed.
+
+  Global Instance val_of'_proper : Proper (equiv ==> equiv) val_of'.
+  Proof.
+    intros ?? H; inv H; try constructor; try done.
+    destruct a, a'; inv H0; constructor; done.
   Qed.
 
   Lemma val_of'_includedN : forall n s1 s2, ✓{n} s2 -> s1 ≼{n} s2 -> val_of' s1 ≼{n} val_of' s2.
@@ -1001,6 +1012,7 @@ Section mpred.
     destruct s; try done.
     by intros [??]%shared_validN.
   Qed.
+
   Definition resR_to_resource (s : optionR (csumR (sharedR (leibnizO resource)) (agreeR (leibnizO resource)))) : prodO dfracO (optionO (leibnizO resource)) :=
     match s with
     | Some s => (dfrac_of' s, option_map (fun v : agree resource => proj1_sig (elem_of_agree v)) (val_of' s))
@@ -1024,6 +1036,40 @@ Section mpred.
     eapply cmra_valid_validN; done.
   Qed.
 
+  Lemma resR_to_resource_fst : forall x, (resR_to_resource x).1 =
+    match x with Some a => dfrac_of' a | None => ε end.
+  Proof.
+    destruct x; done.
+  Qed.
+
+  Lemma dfrac_of'_valid : forall c, ✓ c -> ✓ dfrac_of' c.
+  Proof.
+    destruct c; try done.
+    by intros (? & ?)%shared_valid.
+  Qed.
+
+  Lemma dfrac_of'_included : forall c1 c2, ✓c2 -> c1 ≼ c2 -> dfrac_of' c1 ≼ dfrac_of' c2.
+  Proof.
+    intros; apply (dfrac_of'_includedN O).
+    { by apply cmra_valid_validN. }
+    { by apply cmra_included_includedN. }
+  Qed.
+
+  Lemma val_of'_valid : forall c, ✓ c -> ✓ val_of' c.
+  Proof.
+    destruct c; try done.
+    by intros (? & ?)%shared_valid.
+  Qed.
+
+  Lemma val_of'_included : forall c1 c2, ✓c2 -> c1 ≼ c2 -> val_of' c1 ≼ val_of' c2.
+  Proof.
+    intros ?? Hv H.
+    apply @csum_included in H as [? | [(? & ? & ? & ? & H) | (? & ? & ? & ? & H)]]; subst; try done.
+    - apply shared_included in H as [Hno | (_ & H)]; try done.
+      rewrite Hno // in Hv.
+    - rewrite /= Some_included; auto.
+  Qed.
+
   Lemma perm_of_res_ne' : forall n r1 r2, r1 ≡{n}≡ r2 -> perm_of_res r1 = perm_of_res r2.
   Proof.
     intros.
@@ -1032,7 +1078,7 @@ Section mpred.
   Qed.
 
   Definition resource_at f k := resR_to_resource (f !! k).
-  Local Infix "@" := resource_at (at level 50, no associativity).
+  Infix "@" := resource_at (at level 50, no associativity).
 
   Definition contents_cohere (m: mem) k r :=
     forall v, r.2 = Some (VAL v) -> contents_at m k = v.
@@ -1058,19 +1104,86 @@ Section mpred.
     rewrite -elem_of_list_singleton //.
   Qed.
 
-  (* basic memory operations on mems + rmaps *)
+  Definition res_le r1 r2 : Prop := r1.1 ≼ r2.1 ∧ (r1.2 = None ∨ r1.2 = r2.2).
+
+  Lemma resR_le : forall x1 x2 (Hv : ✓x2) (Hmono : x1 ≼ x2), res_le (resR_to_resource x1) (resR_to_resource x2).
+  Proof.
+    intros ??? [-> | (? & ? & -> & -> & ?)]%option_included.
+    { split; simpl; auto.
+      apply @ucmra_unit_least. }
+    destruct H as [H | H].
+    { erewrite resR_to_resource_eq; last by constructor.
+      split; auto.
+      { rewrite H //. } }
+    split; simpl.
+    - by apply dfrac_of'_included.
+    - apply val_of'_included in H; last done.
+      apply val_of'_valid in Hv.
+      apply option_included_total in H as [-> | (? & ? & -> & Heq & H)]; auto.
+      rewrite Heq /= in Hv |- *.
+      assert (✓{0} x2) by (by apply cmra_valid_validN).
+      right; f_equal; symmetry; apply (elem_of_agree_ne' O); first done.
+      symmetry; apply agree_valid_includedN; first done.
+      by apply @cmra_included_includedN.
+  Qed.
+
+  Lemma perm_of_res_mono' : forall x1 x2, ✓ x2.1 -> res_le x1 x2 -> Mem.perm_order'' (perm_of_res x2) (perm_of_res x1).
+  Proof.
+    intros (dq, ?) (?, v) ? (? & Hv).
+    eapply perm_order''_trans.
+    - by eapply perm_of_res_mono.
+    - destruct Hv; simpl in * |-; subst; try apply perm_order''_refl.
+      destruct dq as [[|]|], v as [[| |]|]; try done; try apply perm_order''_refl.
+      + apply perm_order''_min.
+      + simpl; if_tac; try constructor.
+        apply perm_order''_trans with (Some Readable); [done | constructor].
+  Qed.
+
+  Lemma contents_cohere_mono : forall m k x x' (Hmono : res_le x x') (Hcoh : contents_cohere m k x'),
+    contents_cohere m k x.
+  Proof.
+    intros; intros ? H.
+    destruct x, Hmono as (_ & [? | ?]); simpl in *; subst; [done | eauto].
+  Qed.
+
+  Lemma access_cohere_mono : forall m k x x' (Hv : ✓x'.1) (Hmono : res_le x x') (Hcoh : access_cohere m k x'),
+    access_cohere m k x.
+  Proof.
+    rewrite /access_cohere; intros.
+    eapply perm_order''_trans; first done.
+    by apply perm_of_res_mono'.
+  Qed.
+
+  Lemma max_access_cohere_mono : forall m k x x' (Hv : ✓x'.1) (Hmono : res_le x x') (Hcoh : max_access_cohere m k x'),
+    max_access_cohere m k x.
+  Proof.
+    rewrite /access_cohere; intros.
+    eapply perm_order''_trans; first done.
+    destruct Hmono.
+    by apply perm_of_dfrac_mono.
+  Qed.
+
   Lemma coherent_mono : forall m k dq dq' v (Hv : ✓dq') (Hmono : dq ≼ dq') (Hcoh : coherent_loc m k (dq', v)),
     coherent_loc m k (dq, v).
   Proof.
     intros.
-    destruct Hcoh as (Hcontents & Haccess & Hmax); split3.
-    - intros ??; eauto.
-    - unfold access_cohere in *.
-      eapply perm_order''_trans; first done.
-      by apply perm_of_res_mono.
-    - unfold max_access_cohere in *.
-      eapply perm_order''_trans; first done.
-      by apply perm_of_dfrac_mono.
+    destruct Hcoh as (Hcontents & Haccess & Hmax).
+    apply (contents_cohere_mono _ _ (dq, v)) in Hcontents; last by split; auto.
+    apply (access_cohere_mono _ _ (dq, v)) in Haccess; last (by split; auto); last done.
+    apply (max_access_cohere_mono _ _ (dq, v)) in Hmax; last (by split; auto); last done.
+    by split3.
+  Qed.
+
+  Lemma coherent_val_mono : forall m k dq v, coherent_loc m k (dq, Some v) -> coherent_loc m k (dq, None).
+  Proof.
+    intros.
+    destruct H as (Hcontents & Haccess & Hmax); split3; try done.
+    unfold access_cohere in *; simpl in *.
+    eapply perm_order''_trans; first done.
+    destruct dq as [[|]|], v; try done; try apply perm_order''_refl.
+    - apply perm_order''_min.
+    - simpl; if_tac; try constructor.
+      apply perm_order''_trans with (Some Readable); [done | constructor].
   Qed.
 
   Lemma mapsto_lookup {m k dq v} :
@@ -1091,6 +1204,7 @@ Section mpred.
       rewrite Hnext // in Hk; inv Hk. }
   Qed.
 
+  (* basic memory operations on mems + rmaps *)
   Global Instance mapsto_lookup_combine_gives_1 {m k dq v} :
     CombineSepGives (mem_auth m) (k ↦{dq} v) ⌜✓ dq ∧ readable_dfrac dq ∧ (k.1 < Mem.nextblock m)%positive ∧ coherent_loc m k (dq, Some v)⌝.
   Proof.
@@ -1102,18 +1216,6 @@ Section mpred.
     CombineSepGives (k ↦{dq} v) (mem_auth m) ⌜✓ dq ∧ readable_dfrac dq ∧ (k.1 < Mem.nextblock m)%positive ∧ coherent_loc m k (dq, Some v)⌝.
   Proof.
     rewrite /CombineSepGives comm. apply mapsto_lookup_combine_gives_1.
-  Qed.
-
-  Lemma coherent_val_mono : forall m k dq v, coherent_loc m k (dq, Some v) -> coherent_loc m k (dq, None).
-  Proof.
-    intros.
-    destruct H as (Hcontents & Haccess & Hmax); split3; try done.
-    unfold access_cohere in *; simpl in *.
-    eapply perm_order''_trans; first done.
-    destruct dq as [[|]|], v; try done; try apply perm_order''_refl.
-    - apply perm_order''_min.
-    - simpl; if_tac; try constructor.
-      apply perm_order''_trans with (Some Readable); [done | constructor].
   Qed.
 
   Lemma mapsto_no_lookup {m k sh} :
@@ -1569,3 +1671,5 @@ Section mpred.
   Qed.
 
 End mpred.
+
+Infix "@" := resource_at (at level 50, no associativity).

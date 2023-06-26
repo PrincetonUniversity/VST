@@ -277,6 +277,23 @@ Proof.
     by eexists (DfracOwn _).
 Qed.
 
+Lemma shared_included : forall x y, x ≼ y -> y ≡ err ∨ (dfrac_of x ≼ dfrac_of y ∧ val_of x ≼ val_of y).
+Proof.
+  intros ?? [z H].
+  pose proof (shared_op_alt x z) as Hop.
+  destruct (readable_dfrac_dec _); [|destruct (dfrac_error _)].
+  - destruct Hop as (? & Hval & Heq); rewrite Heq in H.
+    destruct y; try done.
+    destruct H as [-> Hv]; right; split.
+    + by eexists.
+    + rewrite /= Hv -Hval; by eexists.
+  - rewrite Hop in H; destruct y; inv H; auto.
+  - destruct Hop as (? & ? & ? & ? & -> & -> & Heq & ?).
+    destruct y; inv H.
+    right; split; auto.
+    by eexists (DfracOwn _).
+Qed.
+
 Local Instance shared_err_absorb rsh : LeftAbsorb equiv (NO ShareBot rsh) op.
 Proof.
   intros x.
