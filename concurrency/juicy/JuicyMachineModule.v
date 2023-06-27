@@ -1,7 +1,5 @@
 Require Import compcert.common.Memory.
 
-
-Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.juicy_mem.
 Require Import VST.veric.res_predicates.
 
@@ -31,20 +29,18 @@ Module THE_JUICY_MACHINE.
 
   Context {ge : Clight.genv}.
   Instance JSem : Semantics := ClightSem ge.
-  Definition JMachineSem := MachineSemantics(HybridMachine := HybridCoarseMachine.HybridCoarseMachine(machineSig:=JuicyMachineShell)).
+  Context {Σ : gFunctors}.
+  Definition JMachineSem := MachineSemantics(HybridMachine := HybridCoarseMachine.HybridCoarseMachine(machineSig:=JuicyMachineShell(Σ := Σ))).
   Definition jstate := ThreadPool.t(resources := LocksAndResources)(ThreadPool := OrdinalPool.OrdinalThreadPool).
   Definition jmachine_state := MachState(resources := LocksAndResources)(ThreadPool := OrdinalPool.OrdinalThreadPool).
 
   Import threadPool.ThreadPool.
 
-  (* safety with ghost updates *)
-  Definition tp_update (tp : jstate) phi tp' phi' :=
-    level phi' = level phi /\ resource_at phi' = resource_at phi /\
+  (* safety with ghost updates? *)
+  Definition tp_update (tp : jstate) (phi : rmap) tp' phi' :=
     join_all tp' phi' /\
     exists (Hiff : forall t, containsThread tp' t <-> containsThread tp t),
-      (forall t (cnt : containsThread tp t), getThreadC cnt = getThreadC (proj2 (Hiff _) cnt) /\
-         level (getThreadR cnt) = level (getThreadR (proj2 (Hiff _) cnt)) /\
-         resource_at (getThreadR cnt) = resource_at (getThreadR (proj2 (Hiff _) cnt))) /\
+      (forall t (cnt : containsThread tp t), getThreadC cnt = getThreadC (proj2 (Hiff _) cnt)) /\
       lockGuts tp' = lockGuts tp /\ lockSet tp' = lockSet tp /\
       lockRes tp' = lockRes tp /\ latestThread tp'= latestThread tp /\ extraRes tp' = extraRes tp.
 
@@ -56,19 +52,19 @@ Module THE_JUICY_MACHINE.
     replace (proj2 _ _) with cnt by apply proof_irr; auto.
   Qed.
 
+  Print bupd.
   Definition tp_bupd P (tp : jstate) :=
   (* Without this initial condition, a thread pool could be vacuously safe by being inconsistent
      with itself or the external environment. Since we want juicy safety to imply dry safety,
      we need to rule out the vacuous case. *)
-  (exists phi, join_all tp phi /\ joins (ghost_of phi) (Some (ghost_PCM.ext_ref tt, NoneP) :: nil)) /\
+  (exists phi, join_all tp phi) /\
+  (* should we provide a level? *)
   forall phi, join_all tp phi ->
-    forall c : ghost, join_sub (Some (ghost_PCM.ext_ref tt, NoneP) :: nil) c ->
-     joins (ghost_of phi) (ghost_fmap (approx (level phi)) (approx (level phi)) c) ->
-     exists b : ghost,
-       joins b (ghost_fmap (approx (level phi)) (approx (level phi)) c) /\
-       exists phi' tp', tp_update tp phi tp' phi' /\ ghost_of phi' = b /\ P tp'.
+    forall c, valid(A := resource_map.rmapUR _ _) (phi ⋅ c) ->
+     exists phi', valid(A := resource_map.rmapUR _ _) (phi' ⋅ c) /\
+       exists tp', tp_update tp phi tp' phi' /\ P tp'.
 
-  Definition tp_update_weak (tp tp' : jstate) :=
+(*  Definition tp_update_weak (tp tp' : jstate) :=
     exists (Hiff : forall t, containsThread tp' t <-> containsThread tp t),
       (forall t (cnt : containsThread tp t), getThreadC cnt = getThreadC (proj2 (Hiff _) cnt) /\
          level (getThreadR cnt) = level (getThreadR (proj2 (Hiff _) cnt))) /\
@@ -103,7 +99,7 @@ Definition tp_fupd P (tp : jstate) := exists i (cnti : containsThread tp i),
   (* Try 3: actually, getThreadR gives the resources the current assertion holds on, so we'd need
      an extraRes for each thread. But this doesn't solve the fundamental problem: how do we know
      how to distribute the contents of invariants? *)
-
+*)
 
   Existing Instance JuicyMachineShell.
   Existing Instance HybridMachineSig.HybridCoarseMachine.DilMem.
@@ -116,7 +112,7 @@ Definition tp_fupd P (tp : jstate) := exists i (cnti : containsThread tp i),
                  jm_csafe st m n
   | CoreSafe : forall tr' (tp' : jstate) (m' : mem) (n : nat)
                (Hstep : MachStep(Sem := JSem) st m (fst (fst st), tr', tp') m')
-               (Hsafe : tp_fupd (fun tp' => jm_csafe (fst (fst st), tr', tp') m' n) tp'),
+               (Hsafe : tp_bupd (fun tp' => jm_csafe (fst (fst st), tr', tp') m' n) tp'),
                jm_csafe st m (S n)
   | AngelSafe : forall tr' (tp' : jstate) (m' : mem) (n : nat)
                 (Hstep : MachStep(Sem := JSem) st m
@@ -132,7 +128,7 @@ Definition tp_fupd P (tp : jstate) := exists i (cnti : containsThread tp i),
                  jm_ctrace st m nil n
   | CoreTrace : forall tr (tp' : jstate) (m' : mem) tr' (n : nat)
                (Hstep : MachStep(Sem := JSem) st m (fst (fst st), snd (fst st) ++ tr, tp') m')
-               (Hsafe : tp_fupd (fun tp' => jm_ctrace (fst (fst st), snd (fst st) ++ tr, tp') m' tr' n) tp'),
+               (Hsafe : tp_bupd (fun tp' => jm_ctrace (fst (fst st), snd (fst st) ++ tr, tp') m' tr' n) tp'),
                jm_ctrace st m (tr ++ tr') (S n)
   | AngelTrace : forall tr (tp' : jstate) (m' : mem) tr' (n : nat)
                 (Hstep : MachStep(Sem := JSem) st m

@@ -10,15 +10,13 @@ Require Import compcert.common.Values.
 
 Require Import VST.msl.Coqlib2.
 Require Import VST.msl.eq_dec.
-Require Import VST.msl.age_to.
-Require Import VST.veric.initial_world.
 Require Import VST.veric.juicy_mem.
 Require Import VST.veric.juicy_mem_lemmas.
+Require Import VST.veric.external_state.
 Require Import VST.veric.semax_prog.
 Require Import VST.veric.Clight_core.
 Require Import VST.veric.Clightcore_coop.
 Require Import VST.veric.semax.
-Require Import VST.veric.semax_ext.
 Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.initial_world.
 Require Import VST.veric.juicy_extspec.
@@ -40,7 +38,7 @@ Require Import VST.concurrency.common.addressFiniteMap.
 Require Import VST.concurrency.common.permissions.
 Require Import VST.concurrency.common.ClightSemanticsForMachines.
 Require Import VST.concurrency.juicy.JuicyMachineModule.
-Require Import VST.concurrency.juicy.sync_preds_defs.
+(*Require Import VST.concurrency.juicy.sync_preds_defs.*)
 Require Import VST.concurrency.juicy.join_lemmas.
 Require Import VST.concurrency.common.lksize.
 Import threadPool Events.
@@ -58,28 +56,16 @@ Ltac cleanup :=
   unfold OrdinalPool.lockGuts in *; unfold OrdinalPool.lockSet in *;
   simpl lock_info in *; simpl res in *.
 
-Ltac join_level_tac :=
-  try
-    match goal with
-      cnti : containsThread ?tp _,
-             compat : mem_compatible_with ?tp ?m ?Phi |- _ =>
-      assert (join_sub (getThreadR cnti) Phi) by (apply compatible_threadRes_sub, compat)
-    end;
-  repeat match goal with H : join_sub _ _ |- _ => apply join_sub_level in H end;
-  repeat match goal with H : join _ _ _ |- _ => apply join_level in H; destruct H end;
-  cleanup;
-  try congruence.
-
 Notation event_trace := (seq.seq machine_event).
 
-Lemma allows_exit {CS} ext_link : postcondition_allows_exit (Concurrent_Espec unit CS ext_link) Ctypesdefs.tint.
+Lemma allows_exit `{!heapGS Σ} `{!externalGS unit Σ} {CS} ext_link : @postcondition_allows_exit _ (Concurrent_Espec unit CS ext_link) Ctypesdefs.tint.
 Proof.
-  repeat intro; apply I.
+  by constructor.
 Qed.
 
 Section Machine.
 
-Context {ZT : Type} (Jspec : juicy_ext_spec ZT) {ge : genv}.
+Context {ZT : Type} {Σ : gFunctors} (Jspec : juicy_ext_spec(Σ := Σ) ZT) {ge : genv}.
 
 (*+ Description of the invariant *)
 Definition cm_state := (Mem.mem * (event_trace * schedule * jstate ge))%type.
@@ -90,7 +76,7 @@ Inductive state_step : cm_state -> cm_state -> Prop :=
       (m, (tr, nil, jstate))
       (m, (tr, nil, jstate))
 | state_step_c m m' tr tr' sch sch' jstate jstate':
-    @JuicyMachine.machine_step _ (ClightSem ge) _ HybridCoarseMachine.DilMem JuicyMachineShell HybridMachineSig.HybridCoarseMachine.scheduler sch tr jstate m sch' tr' jstate' m' ->
+    @JuicyMachine.machine_step _ (ClightSem ge) _ HybridCoarseMachine.DilMem (JuicyMachineShell(Σ := Σ)) HybridMachineSig.HybridCoarseMachine.scheduler sch tr jstate m sch' tr' jstate' m' ->
     state_step
       (m, (tr, sch, jstate))
       (m',(tr', sch', jstate')).
