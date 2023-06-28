@@ -212,15 +212,15 @@ End mpred.
 Module Type CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
 Parameter semax: forall {Σ : gFunctors} `{!heapGS Σ} {Espec : OracleKind}
-  `{!externalGS (OK_ty(Σ := Σ)) Σ} {C : compspecs},
+  `{!externalGS OK_ty Σ} {C : compspecs},
   coPset → tycontext → @assert Σ → statement → @ret_assert Σ → Prop.
 
 Parameter semax_func: forall {Σ : gFunctors} `{!heapGS Σ} {Espec : OracleKind}
-  `{!externalGS (OK_ty(Σ := Σ)) Σ} (V : varspecs) (G : @funspecs Σ) {C : compspecs},
+  `{!externalGS OK_ty Σ} (V : varspecs) (G : @funspecs Σ) {C : compspecs},
   Genv.t fundef type → coPset → list (ident * fundef) → @funspecs Σ → Prop.
 
 Parameter semax_external: forall {Σ : gFunctors} {heapGS0 : heapGS Σ} {Espec : OracleKind}
-  `{!externalGS (OK_ty(Σ := Σ)) Σ}, coPset → external_function →
+  `{!externalGS OK_ty Σ}, coPset → external_function →
   ∀ A : TypeTree, (@dtfr Σ (ArgsTT A)) → (@dtfr Σ  (AssertTT A)) → mpred.
 
 End CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
@@ -267,7 +267,7 @@ Import CSHL_Defs.
 
 Section mpred.
 
-Context `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (OK_ty(Σ := Σ)) Σ} {CS: compspecs}.
+Context `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs}.
 
 Axiom semax_extract_exists:
   forall (A : Type) (P : A -> assert) c E (Delta: tycontext) (R: ret_assert),
@@ -598,7 +598,7 @@ Import CSHL_MinimumLogic.CSHL_Defs.
 
 Section mpred.
 
-Context `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (OK_ty(Σ := Σ)) Σ} {CS: compspecs}.
+Context `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs}.
 
 Axiom semax_set :
 forall E (Delta: tycontext) (P: assert) id e,

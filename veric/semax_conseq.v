@@ -25,7 +25,7 @@ Require Import VST.veric.Clight_lemmas.
 
 Section mpred.
 
-Context `{!heapGS Σ} {Espec : OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ}. (* consolidate? *)
+Context `{!heapGS Σ} {Espec : OracleKind} `{!externalGS OK_ty Σ}. (* consolidate? *)
 
 Lemma _guard_mono: forall ge E Delta f (P Q: assert) k,
   (P ⊢ Q) ->

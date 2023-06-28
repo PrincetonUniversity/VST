@@ -13,7 +13,7 @@ Defined.
 
 Section language.
 
-Context `(Hspec : ext_spec Z).
+Context {Z} (Hspec : ext_spec Z).
 Context (ge : genv).
 
 Inductive gen_step c : (Memory.mem * Z) -> list unit -> CC_core -> (Memory.mem * Z) -> list CC_core -> Prop :=

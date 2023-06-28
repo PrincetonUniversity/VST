@@ -133,11 +133,11 @@ Module AuxDefs.
 
 Section AuxDefs.
 
-Variable semax_external: forall `{!heapGS Σ} {Hspec: @OracleKind Σ} `{!externalGS OK_ty Σ} (E: coPset) (ef: external_function) (A : TypeTree)
+Variable semax_external: forall `{!heapGS Σ} {Hspec: OracleKind} `{!externalGS OK_ty Σ} (E: coPset) (ef: external_function) (A : TypeTree)
        (P: @dtfr Σ (ArgsTT A))
        (Q: @dtfr Σ (AssertTT A)), mpred.
 
-Inductive semax `{HH : !heapGS Σ} {Espec: OracleKind} `{HE : !externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs} (E: coPset) (Delta: tycontext): assert -> statement -> ret_assert -> Prop :=
+Inductive semax `{HH : !heapGS Σ} {Espec: OracleKind} `{HE : !externalGS OK_ty Σ} {CS: compspecs} (E: coPset) (Delta: tycontext): assert -> statement -> ret_assert -> Prop :=
 | semax_ifthenelse :
    forall (P: assert) (b: expr) c d R,
      @semax Σ HH Espec HE CS E Delta (P ∧ local (`(typed_true (typeof b)) (eval_expr b))) c R ->
@@ -397,7 +397,7 @@ Arguments semax _ _ _ _ _ _ _ (_)%I.
 
 Section mpred.
 
-Context `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (OK_ty(Σ := Σ)) Σ} {CS: compspecs}.
+Context `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs}.
 
 Lemma semax_skip_inv: forall E Delta P R,
     semax E Delta P Sskip R ->
@@ -970,7 +970,7 @@ Module CSHL_Def := CSHL_Def.
 Import CSHL_Def.
 
 Lemma semax_extract_exists:
-  forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (OK_ty(Σ := Σ)) Σ} {CS: compspecs},
+  forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs},
   forall (A : Type) (P : A -> assert) c E (Delta: tycontext) (R: ret_assert),
   (forall x, semax E Delta (P x) c R) ->
    semax E Delta (∃ x:A, P x) c R.
@@ -1170,7 +1170,7 @@ Definition semax_func_cons_ext := @AuxDefs.semax_func_cons_ext (@Def.semax_exter
 
 Section mpred.
 
-Context `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (OK_ty(Σ := Σ)) Σ} {CS: compspecs}.
+Context `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs}.
 
 Theorem semax_ifthenelse :
    forall E Delta P (b: expr) c d R,
@@ -1288,7 +1288,7 @@ Definition semax_external_binaryintersection := @MinimumLogic.semax_external_bin
 
 Section mpred.
 
-Context `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (OK_ty(Σ := Σ)) Σ} {CS: compspecs}.
+Context `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs}.
 
 Definition semax_body_binaryintersection:
 forall {V G} E f sp1 sp2 phi
@@ -2233,7 +2233,7 @@ Arguments semax {_} {_} {_} {_} {_}.
 
 Section mpred.
 
-Context `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (OK_ty(Σ := Σ)) Σ} {CS: compspecs}.
+Context `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs}.
 
 Lemma semax_loop_nocontinue:
  forall E Delta P body incr R,

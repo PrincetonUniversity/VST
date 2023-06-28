@@ -700,7 +700,7 @@ Proof.
 intros. reflexivity.
 Qed.*)
 
-Context {Espec: OracleKind} `{!externalGS (OK_ty(Σ := Σ)) Σ} {CS: compspecs}.
+Context {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs}.
 
 Lemma extract_exists_pre_later:
   forall  (A : Type) (Q: assert) (P : A -> assert) c E Delta (R: ret_assert),

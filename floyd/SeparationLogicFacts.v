@@ -399,7 +399,7 @@ Import CConseq.
 
 Section mpred.
 
-Context `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs}.
+Context `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs}.
 
 Lemma semax_pre_post_indexed_fupd:
   forall E (Delta: tycontext),
@@ -527,7 +527,7 @@ Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
 Import CSHL_Def.
 
-Axiom semax_pre_post : forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs},
+Axiom semax_pre_post : forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs},
  forall P' (R': ret_assert) E Delta P c (R: ret_assert) ,
     (local (tc_environ Delta) ∧ P ⊢ P') ->
     (local (tc_environ Delta) ∧ RA_normal R' ⊢ RA_normal R) ->
@@ -548,7 +548,7 @@ Import CSHL_Def.
 Import CConseq.
 Import CConseqFacts.
 
-Lemma semax_pre_post : forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs},
+Lemma semax_pre_post : forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs},
  forall P' (R': ret_assert) E Delta P c (R: ret_assert) ,
     (local (tc_environ Delta) ∧ P ⊢ P') ->
     (local (tc_environ Delta) ∧ RA_normal R' ⊢ RA_normal R) ->
@@ -571,7 +571,7 @@ Import Conseq.
 
 Section mpred.
 
-Context `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs}.
+Context `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs}.
 
 (* Copied from canon.v *)
 
@@ -666,7 +666,7 @@ Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 Import CSHL_Def.
 
 Axiom semax_extract_exists:
-  forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs},
+  forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs},
   forall (A : Type)  (P : A -> assert) c E (Delta: tycontext) (R: ret_assert),
   (forall x, semax E Delta (P x) c R) ->
    semax E Delta (∃ x:A, P x) c R.
@@ -686,7 +686,7 @@ Import Extr.
 
 Section mpred.
 
-Context `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs}.
+Context `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs}.
 
 Lemma semax_extract_prop:
   forall E Delta (PP: Prop) P c Q,
@@ -733,7 +733,7 @@ Import Extr.
 Import ExtrFacts.
 
 Lemma semax_extract_later_prop:
-  forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs},
+  forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs},
   forall E Delta (PP: Prop) P c Q,
            (PP -> semax E Delta P c Q) ->
            semax E Delta ((▷ ⌜PP⌝) ∧ P) c Q.
@@ -757,7 +757,7 @@ Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 Import CSHL_Def.
 
 Axiom semax_store_forward:
-  forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs} E (Delta: tycontext),
+  forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs} E (Delta: tycontext),
  forall e1 e2 sh P,
    writable_share sh ->
    semax E Delta
@@ -775,7 +775,7 @@ Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
 Import CSHL_Def.
 
-Axiom semax_store_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs} E (Delta: tycontext) e1 e2 P,
+Axiom semax_store_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs} E (Delta: tycontext) e1 e2 P,
    semax E Delta
           (∃ sh: share, ⌜writable_share sh⌝ ∧ ▷ ((tc_lvalue Delta e1 ∧ tc_expr Delta (Ecast e2 (typeof e1)))  ∧
              (assert_of (`(mapsto_ sh (typeof e1)) (eval_lvalue e1)) ∗ (assert_of (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`force_val (`(sem_cast (typeof e2) (typeof e1)) (eval_expr e2)))) -∗ P))))
@@ -801,7 +801,7 @@ Import Extr.
 Import ExtrFacts.
 Import StoreF.
 
-Theorem semax_store_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs} E (Delta: tycontext) e1 e2 P,
+Theorem semax_store_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs} E (Delta: tycontext) e1 e2 P,
    semax E Delta
           (∃ sh: share, ⌜writable_share sh⌝ ∧ ▷ ((tc_lvalue Delta e1 ∧ tc_expr Delta (Ecast e2 (typeof e1)))  ∧
              (assert_of (`(mapsto_ sh (typeof e1)) (eval_lvalue e1)) ∗ (assert_of (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`force_val (`(sem_cast (typeof e2) (typeof e1)) (eval_expr e2)))) -∗ P))))
@@ -834,7 +834,7 @@ Import ConseqFacts.
 Import StoreB.
 
 Theorem semax_store_forward:
-  forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs} E (Delta: tycontext) e1 e2 sh P,
+  forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs} E (Delta: tycontext) e1 e2 sh P,
    writable_share sh ->
    semax E Delta
           (▷ ((tc_lvalue Delta e1 ∧ tc_expr Delta (Ecast e2 (typeof e1)))  ∧
@@ -860,7 +860,7 @@ Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 Import CSHL_Def.
 
 Axiom semax_store_union_hack_forward:
-  forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs} E (Delta: tycontext),
+  forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs} E (Delta: tycontext),
  forall (e1 e2 : expr) (t2: type) (ch ch' : memory_chunk) (sh : share) (P : assert),
        (numeric_type (typeof e1) && numeric_type t2)%bool = true ->
        access_mode (typeof e1) = By_value ch ->
@@ -888,7 +888,7 @@ Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 Import CSHL_Def.
 
 Axiom semax_store_union_hack_backward:
- forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs} E (Delta: tycontext) e1 e2 P,
+ forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs} E (Delta: tycontext) e1 e2 P,
    semax E Delta
           (∃ (t2:type) (ch ch': memory_chunk) (sh: share),
              ⌜(numeric_type (typeof e1) && numeric_type t2)%bool = true /\
@@ -927,7 +927,7 @@ Import ExtrFacts.
 Import StoreUnionHackF.
 
 Theorem semax_store_union_hack_backward:
- forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs} E (Delta: tycontext) e1 e2 P,
+ forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs} E (Delta: tycontext) e1 e2 P,
    semax E Delta
           (∃ (t2:type) (ch ch': memory_chunk) (sh: share),
              ⌜(numeric_type (typeof e1) && numeric_type t2)%bool = true /\
@@ -977,7 +977,7 @@ Import ConseqFacts.
 Import StoreUnionHackB.
 
 Theorem semax_store_union_hack_forward:
-  forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs} E (Delta: tycontext),
+  forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs} E (Delta: tycontext),
  forall (e1 e2 : expr) (t2: type) (ch ch' : memory_chunk) (sh : share) (P : assert),
        (numeric_type (typeof e1) && numeric_type t2)%bool = true ->
        access_mode (typeof e1) = By_value ch ->
@@ -1013,7 +1013,7 @@ Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
 Import CSHL_Def.
 
-Axiom semax_store_store_union_hack_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs} E (Delta: tycontext),
+Axiom semax_store_store_union_hack_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs} E (Delta: tycontext),
   forall (P: assert) e1 e2,
     semax E Delta
        ((∃ sh: share, ⌜writable_share sh⌝ ∧
@@ -1058,7 +1058,7 @@ Import StoreB.
 Import StoreUnionHackB.
 Import ExtrFacts.
 
-Theorem semax_store_store_union_hack_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs} E (Delta: tycontext),
+Theorem semax_store_store_union_hack_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs} E (Delta: tycontext),
   forall (P: assert) e1 e2,
     semax E Delta
        ((∃ sh: share, ⌜writable_share sh⌝ ∧
@@ -1104,7 +1104,7 @@ Import Conseq.
 Import ConseqFacts.
 Import Sassign.
 
-Theorem semax_store_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs} E (Delta: tycontext) e1 e2 P,
+Theorem semax_store_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs} E (Delta: tycontext) e1 e2 P,
    semax E Delta
           (∃ sh: share, ⌜writable_share sh⌝ ∧ ▷ ((tc_lvalue Delta e1 ∧ tc_expr Delta (Ecast e2 (typeof e1)))  ∧
              (assert_of (`(mapsto_ sh (typeof e1)) (eval_lvalue e1)) ∗ (assert_of (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`force_val (`(sem_cast (typeof e2) (typeof e1)) (eval_expr e2)))) -∗ P))))
@@ -1133,7 +1133,7 @@ Import ConseqFacts.
 Import Sassign.
 
 Theorem semax_store_union_hack_backward:
- forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs} E (Delta: tycontext) e1 e2 P,
+ forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs} E (Delta: tycontext) e1 e2 P,
    semax E Delta
           (∃ (t2:type) (ch ch': memory_chunk) (sh: share),
              ⌜(numeric_type (typeof e1) && numeric_type t2)%bool = true /\
@@ -1165,7 +1165,7 @@ Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
 Import CSHL_Def.
 
-Axiom semax_call_forward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs} E (Delta: tycontext),
+Axiom semax_call_forward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs} E (Delta: tycontext),
     forall A P Q x (F: assert) ret argsig retsig cc a bl,
            Cop.classify_fun (typeof a) =
            Cop.fun_case_f (typelist_of_type_list argsig) retsig cc ->
@@ -1187,7 +1187,7 @@ Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
 Import CSHL_Def.
 
-Axiom semax_call_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs} E (Delta: tycontext),
+Axiom semax_call_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs} E (Delta: tycontext),
     forall ret a bl R,
   semax E Delta
          (∃ argsig: _, ∃ retsig: _, ∃ cc: _,
@@ -1229,7 +1229,7 @@ Import Extr.
 Import ExtrFacts.
 Import CallF.
   
-Theorem semax_call_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs} E (Delta: tycontext),
+Theorem semax_call_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs} E (Delta: tycontext),
     forall ret a bl R,
   semax E Delta
          (∃ argsig: _, ∃ retsig: _, ∃ cc: _,
@@ -1281,7 +1281,7 @@ Import Conseq.
 Import ConseqFacts.
 Import CallB.
 (*
-Theorem semax_call_forward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs} E (Delta: tycontext),
+Theorem semax_call_forward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs} E (Delta: tycontext),
     forall A P Q ts x (F: assert) ret argsig retsig cc a bl,
            Cop.classify_fun (typeof a) =
            Cop.fun_case_f (type_of_params argsig) retsig cc ->
@@ -1321,7 +1321,7 @@ Proof.
   apply odiaopt_derives_∃_substopt.
 Qed.
 *)
-Theorem semax_call_forward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs} E (Delta: tycontext),
+Theorem semax_call_forward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs} E (Delta: tycontext),
     forall A P Q x (F: assert) ret argsig retsig cc a bl,
            Cop.classify_fun (typeof a) =
            Cop.fun_case_f (typelist_of_type_list argsig) retsig cc ->
@@ -1358,7 +1358,7 @@ Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
 Import CSHL_Def.
 
-Axiom semax_set_forward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs} E (Delta: tycontext),
+Axiom semax_set_forward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs} E (Delta: tycontext),
   forall (P: assert) id e,
     semax E Delta
         (▷ ( (tc_expr Delta e) ∧
@@ -1377,7 +1377,7 @@ Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
 Import CSHL_Def.
 
-Axiom semax_set_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs} E (Delta: tycontext),
+Axiom semax_set_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs} E (Delta: tycontext),
   forall (P: assert) id e,
     semax E Delta
         (▷ ( (tc_expr Delta e) ∧
@@ -1393,7 +1393,7 @@ Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
 Import CSHL_Def.
 
-Axiom semax_load_forward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs} E (Delta: tycontext),
+Axiom semax_load_forward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs} E (Delta: tycontext),
   forall  sh id P e1 t2 (v2: val),
     typeof_temp Delta id = Some t2 ->
     is_neutral_cast (typeof e1) t2 = true ->
@@ -1415,7 +1415,7 @@ Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
 Import CSHL_Def.
 
-Axiom semax_load_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs} E (Delta: tycontext),
+Axiom semax_load_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs} E (Delta: tycontext),
   forall (P: assert) id e1,
     semax E Delta
         (∃ sh: share, ∃ t2: type, ∃ v2: val,
@@ -1436,7 +1436,7 @@ Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
 Import CSHL_Def.
 
-Axiom semax_cast_load_forward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs} E (Delta: tycontext),
+Axiom semax_cast_load_forward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs} E (Delta: tycontext),
   forall sh id P e1 t1 (v2: val),
     typeof_temp Delta id = Some t1 ->
    cast_pointer_to_bool (typeof e1) t1 = false ->
@@ -1458,7 +1458,7 @@ Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
 Import CSHL_Def.
 
-Axiom semax_cast_load_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs} E (Delta: tycontext),
+Axiom semax_cast_load_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs} E (Delta: tycontext),
   forall (P: assert) id e,
     semax E Delta
         (∃ sh: share, ∃ e1: expr, ∃ t1: type, ∃ v2: val,
@@ -1491,7 +1491,7 @@ Import Extr.
 Import ExtrFacts.
 Import LoadF.
 
-Theorem semax_load_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs} E (Delta: tycontext),
+Theorem semax_load_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs} E (Delta: tycontext),
   forall (P: assert) id e1,
     semax E Delta
         (∃ sh: share, ∃ t2: type, ∃ v2: val,
@@ -1535,7 +1535,7 @@ Import Conseq.
 Import ConseqFacts.
 Import LoadB.
 
-Theorem semax_load_forward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs} E (Delta: tycontext),
+Theorem semax_load_forward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs} E (Delta: tycontext),
   forall  sh id P e1 t2 (v2: val),
     typeof_temp Delta id = Some t2 ->
     is_neutral_cast (typeof e1) t2 = true ->
@@ -1585,7 +1585,7 @@ Import Extr.
 Import ExtrFacts.
 Import CastLoadF.
 
-Theorem semax_cast_load_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs} E (Delta: tycontext),
+Theorem semax_cast_load_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs} E (Delta: tycontext),
   forall (P: assert) id e,
     semax E Delta
         (∃ sh: share, ∃ e1: expr, ∃ t1: type, ∃ v2: val,
@@ -1631,7 +1631,7 @@ Import Conseq.
 Import ConseqFacts.
 Import CastLoadB.
 
-Theorem semax_cast_load_forward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs} E (Delta: tycontext),
+Theorem semax_cast_load_forward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs} E (Delta: tycontext),
   forall sh id P e1 t1 (v2: val),
     typeof_temp Delta id = Some t1 ->
    cast_pointer_to_bool (typeof e1) t1 = false ->
@@ -1686,7 +1686,7 @@ Import Extr.
 Import ExtrFacts.
 Import SetF.
 
-Theorem semax_set_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs} E (Delta: tycontext),
+Theorem semax_set_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs} E (Delta: tycontext),
   forall (P: assert) id e,
     semax E Delta
         (▷ ( (tc_expr Delta e) ∧
@@ -1725,7 +1725,7 @@ Import Conseq.
 Import ConseqFacts.
 Import SetB.
 
-Theorem semax_set_forward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs} E (Delta: tycontext),
+Theorem semax_set_forward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs} E (Delta: tycontext),
   forall (P: assert) id e,
     semax E Delta
         (▷ ( (tc_expr Delta e) ∧
@@ -1761,7 +1761,7 @@ Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
 Import CSHL_Def.
 
-Axiom semax_ptr_compare_forward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs} E (Delta: tycontext),
+Axiom semax_ptr_compare_forward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs} E (Delta: tycontext),
   forall P id cmp e1 e2 ty sh1 sh2,
     sh1 ≠ Share.bot -> sh2 ≠ Share.bot ->
    is_comparison cmp = true  ->
@@ -1791,7 +1791,7 @@ Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
 Import CSHL_Def.
 
-Axiom semax_ptr_compare_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs} E (Delta: tycontext),
+Axiom semax_ptr_compare_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs} E (Delta: tycontext),
   forall (P: assert) id e,
    semax E Delta
         (∃ cmp: Cop.binary_operation, ∃ e1: expr, ∃ e2: expr,
@@ -1830,7 +1830,7 @@ Import Extr.
 Import ExtrFacts.
 Import PtrCmpF.
 
-Theorem semax_ptr_compare_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs} E (Delta: tycontext),
+Theorem semax_ptr_compare_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs} E (Delta: tycontext),
   forall (P: assert) id e,
    semax E Delta
         (∃ cmp: Cop.binary_operation, ∃ e1: expr, ∃ e2: expr,
@@ -1883,7 +1883,7 @@ Import Conseq.
 Import ConseqFacts.
 Import PtrCmpB.
 
-Theorem semax_ptr_compare_forward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs} E (Delta: tycontext),
+Theorem semax_ptr_compare_forward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs} E (Delta: tycontext),
   forall P id cmp e1 e2 ty sh1 sh2,
     sh1 ≠ Share.bot -> sh2 ≠ Share.bot ->
    is_comparison cmp = true  ->
@@ -1930,7 +1930,7 @@ Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
 Import CSHL_Def.
 
-Axiom semax_set_ptr_compare_load_cast_load_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs} E (Delta: tycontext),
+Axiom semax_set_ptr_compare_load_cast_load_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs} E (Delta: tycontext),
   forall (P: assert) id e,
     semax E Delta
        ((((▷ ( (tc_expr Delta e) ∧
@@ -1994,7 +1994,7 @@ Import LoadB.
 Import CastLoadB.
 Import ExtrFacts.
 
-Theorem semax_set_ptr_compare_load_cast_load_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs} E (Delta: tycontext),
+Theorem semax_set_ptr_compare_load_cast_load_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs} E (Delta: tycontext),
   forall (P: assert) id e,
     semax E Delta
        ((((▷ ( (tc_expr Delta e) ∧
@@ -2057,7 +2057,7 @@ Import Conseq.
 Import ConseqFacts.
 Import Sset.
 
-Theorem semax_set_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs} E (Delta: tycontext),
+Theorem semax_set_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs} E (Delta: tycontext),
   forall (P: assert) id e,
     semax E Delta
         (▷ ( (tc_expr Delta e) ∧
@@ -2086,7 +2086,7 @@ Import Conseq.
 Import ConseqFacts.
 Import Sset.
 
-Theorem semax_ptr_compare_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs} E (Delta: tycontext),
+Theorem semax_ptr_compare_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs} E (Delta: tycontext),
   forall (P: assert) id e,
    semax E Delta
         (∃ cmp: Cop.binary_operation, ∃ e1: expr, ∃ e2: expr,
@@ -2127,7 +2127,7 @@ Import Conseq.
 Import ConseqFacts.
 Import Sset.
 
-Theorem semax_load_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs} E (Delta: tycontext),
+Theorem semax_load_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs} E (Delta: tycontext),
   forall (P: assert) id e1,
     semax E Delta
         (∃ sh: share, ∃ t2: type, ∃ v2: val,
@@ -2161,7 +2161,7 @@ Import Conseq.
 Import ConseqFacts.
 Import Sset.
 
-Theorem semax_cast_load_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs} E (Delta: tycontext),
+Theorem semax_cast_load_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs} E (Delta: tycontext),
   forall (P: assert) id e,
     semax E Delta
         (∃ sh: share, ∃ e1: expr, ∃ t1: type, ∃ v2: val,

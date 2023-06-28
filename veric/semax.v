@@ -22,7 +22,7 @@ Open Scope maps.
 
 Section mpred.
 
-Context `{!heapGS Σ} (Espec : OracleKind) `{!externalGS (@OK_ty Σ Espec) Σ}.
+Context `{!heapGS Σ} (Espec : OracleKind) `{!externalGS OK_ty Σ}.
 
 Definition closed_wrt_modvars c (F: @assert Σ) : Prop :=
     closed_wrt_vars (modifiedvars c) F.
@@ -153,9 +153,9 @@ Definition semax_external E
    ■ (⌜Val.has_type_list args (sig_args (ef_sig ef))⌝ ∧
      (P x (filter_genv gx, args) ∗ F) ={E}=∗
    ∀ m z, state_interp m z -∗ ∃ x': ext_spec_type OK_spec ef,
-    monPred_at (ext_mpred_pre OK_ty OK_spec ef x' (genv_symb_injective gx) ts args z) m ∗
+    ⌜ext_spec_pre OK_spec ef x' (genv_symb_injective gx) ts args z m⌝ ∧
      (*□*) ∀ tret: rettype, ∀ ret: option val, ∀ m': mem, ∀ z': OK_ty,
-      monPred_at (ext_mpred_post OK_ty OK_spec ef x' (genv_symb_injective gx) tret ret z') m' ={E}=∗
+      ⌜ext_spec_post OK_spec ef x' (genv_symb_injective gx) tret ret z' m'⌝ → |={E}=>
           state_interp m' z' ∗ Q x (make_ext_rval (filter_genv gx) tret ret) ∗ F).
 
 Lemma Forall2_implication {A B} (P Q:A -> B -> Prop) (PQ:forall a b, P a b -> Q a b):

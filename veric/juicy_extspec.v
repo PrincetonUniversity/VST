@@ -13,152 +13,31 @@ Require Import VST.veric.tycontext.
 
 Local Open Scope nat_scope.
 
-Section mpred.
-
-Context {Σ : gFunctors}.
-
-(* predicates on juicy memories *)
-Global Instance mem_inhabited : Inhabited Memory.mem := {| inhabitant := Mem.empty |}.
-Definition mem_index : biIndex := {| bi_index_type := mem |}.
-
-Definition jmpred := monPred mem_index (iPropI Σ).
-
-(* Should this include coherence? *)
-Record juicy_mem := { level : nat; m_dry : mem; m_phi : iResUR Σ }.
-
-Definition jm_mono (P : juicy_mem -> Prop) := forall jm n2 x2, P jm -> m_phi jm ≼ₒ{level jm} x2 ->
-  n2 <= level jm -> P {| level := n2; m_dry := m_dry jm; m_phi := x2 |}.
-
-Definition jmpred_of P (Hmono : jm_mono P) : jmpred.
-Proof.
-  unshelve eexists.
-  intros m; unshelve eexists.
-  exact (λ n phi, P {| level := n; m_dry := m; m_phi := phi |} ).
-  - simpl; intros.
-    eapply Hmono in H; eauto.
-  - apply _.
-Defined.
-
-(* do we need this? *)
-Record juicy_ext_spec (Z: Type) := {
-  JE_spec :> external_specification juicy_mem external_function Z;
-  JE_pre_mono: forall e t ge_s typs args z, jm_mono (ext_spec_pre JE_spec e t ge_s typs args z);
-  JE_post_mono: forall e t ge_s tret rv z, jm_mono (ext_spec_post JE_spec e t ge_s tret rv z);
-  JE_exit_mono: forall rv z, jm_mono (ext_spec_exit JE_spec rv z)
-}.
-
-Definition ext_mpred_pre Z JE_spec e t ge_s typs args z : jmpred := jmpred_of _ (JE_pre_mono Z JE_spec e t ge_s typs args z).
-Definition ext_mpred_post Z JE_spec e t ge_s tret rv z : jmpred := jmpred_of _ (JE_post_mono Z JE_spec e t ge_s tret rv z).
-Definition ext_mpred_exit Z JE_spec rv z : jmpred := jmpred_of _ (JE_exit_mono Z JE_spec rv z).
-
 Class OracleKind := {
   OK_ty : Type;
-  OK_spec: juicy_ext_spec OK_ty
+  OK_spec: ext_spec OK_ty
 }.
 
 (*! The void ext_spec *)
-Definition void_spec T : external_specification juicy_mem external_function T :=
+Definition void_spec T : external_specification mem external_function T :=
     Build_external_specification
-      juicy_mem external_function T
+      mem external_function T
       (fun ef => False%type)
       (fun ef Hef ge tys vl m z => False%type)
       (fun ef Hef ge ty vl m z => False%type)
       (fun rv m z => False%type).
 
-Definition ok_void_spec (T : Type) : OracleKind.
- refine (Build_OracleKind T (Build_juicy_ext_spec _ (void_spec T) _ _ _)).
-Proof.
-  simpl; intros; contradiction.
-  simpl; intros; contradiction.
-  simpl; intros ???; contradiction.
-Defined.
+Definition ok_void_spec (T : Type) : OracleKind := Build_OracleKind T (void_spec T).
 
-(*Definition j_initial_core {C} (csem: @CoreSemantics C mem)
-     (n: nat) (m: juicy_mem) (q: C) (m': juicy_mem) (v: val) (args: list val) 
-     : Prop :=
-  m' = m /\
-  semantics.initial_core csem n (m_dry m) q (m_dry m') v args.
+Section mpred.
 
-Definition j_at_external {C} (csem: @CoreSemantics C mem)
-   (q: C) (jm: juicy_mem) : option (external_function * list val) :=
-   semantics.at_external csem q (m_dry jm).
-
-Definition j_after_external {C} (csem: @CoreSemantics C mem)
-    (ret: option val) (q: C) (jm: juicy_mem) :=
-   semantics.after_external csem ret q (m_dry jm).
-
-(*Definition jstep {C} (csem: @CoreSemantics C mem)
-  (q: C) (q': C) (jm': juicy_mem) (jm : juicy_mem) : Prop :=
- corestep csem q (m_dry jm) q' (m_dry jm') /\
- resource_decay (level jm') (nextblock (m_dry jm)) (m_phi jm) (m_phi jm') /\
- level jm = S (level jm') (*/\
-  Really, what we want is "nothing has changed in the rmap except the changes related to the mem ops".
-  We can state this by indexing into the rmap, but...
- ghost_of (m_phi jm') = ghost_approx jm' (ghost_of (m_phi jm))*).*)
-
-(*Definition jstep {C} (csem: @CoreSemantics C mem)
-  (q: C) (q': C) (jm': juicy_mem) (jm : juicy_mem) : Prop :=
- corestep csem q (m_dry jm) q' (m_dry jm').*)
-
-Definition j_halted {C} (csem: @CoreSemantics C mem)
-       (c: C) (i: int): Prop :=
-     halted csem c i.
-
-(*Lemma jstep_not_at_external {C} (csem: @CoreSemantics C mem):
-  forall m q m' q', jstep csem q m q' m' -> at_external csem q (m_dry m) = None.
-Proof.
-  intros.
-  destruct H as (? & ? & ? & ?). eapply corestep_not_at_external; eauto.
-Qed.
-
-Lemma jstep_not_halted  {C} (csem: @CoreSemantics C mem):
-  forall m q m' q' i, jstep csem q m q' m' -> ~j_halted csem q i.
-Proof.
-  intros. destruct H as (? & ? & ? & ?). eapply corestep_not_halted; eauto.
-Qed.
-
-Definition juicy_core_sem
-  {C} (csem: @CoreSemantics C mem) :
-   @CoreSemantics C juicy_mem :=
-  @Build_CoreSemantics _ juicy_mem
-    (j_initial_core csem)
-    (j_at_external csem)
-    (j_after_external csem)
-    (j_halted csem)
-    (jstep csem)
-    (jstep_not_halted csem)
-    (jstep_not_at_external csem)
-(*  (j_at_external_halted_excl csem)*).
-*)*)
-
-Section upd_exit.
-  Context {Z : Type}.
-  Variable spec : juicy_ext_spec Z.
-
-  Definition upd_exit' (Q_exit : option val -> Z -> juicy_mem -> Prop) :=
-  {| ext_spec_type := ext_spec_type spec
-   ; ext_spec_pre := ext_spec_pre spec
-   ; ext_spec_post := ext_spec_post spec
-   ; ext_spec_exit := Q_exit |}.
-
-  Definition upd_exit'' (ef : external_function) (x : ext_spec_type spec ef) ge :=
-    upd_exit' (ext_spec_post spec ef x ge (sig_res (ef_sig ef))).
-
-  Program Definition upd_exit {ef : external_function} (x : ext_spec_type spec ef) ge
-   : juicy_ext_spec Z :=
-    Build_juicy_ext_spec _ (upd_exit'' _ x ge) _ _ _.
-  Next Obligation. intros. eapply JE_pre_mono; eauto. Qed.
-  Next Obligation. intros. eapply JE_post_mono; eauto. Qed.
-  Next Obligation. intros. eapply JE_post_mono; eauto. Qed.
-End upd_exit.
-
-Local Obligation Tactic := Tactics.program_simpl.
+Context {Σ : gFunctors}.
 
 Section juicy_safety.
   Context {G C Z:Type}.
   Context {genv_symb: G -> injective_PTree Values.block}.
   Context (Hcore:@CoreSemantics C mem).
-  Variable (Hspec : juicy_ext_spec Z).
+  Variable (Hspec : ext_spec Z).
   Variable ge : G.
 
   Context `{!heapGS Σ} `{!externalGS Z Σ}.
@@ -169,29 +48,26 @@ Section juicy_safety.
 
 Definition state_interp m z := mem_auth m ∗ ext_auth z.
 
+(* We could bring this more in line with weakestpre, but weakestpre doesn't give us control over the
+   masks, so we can't restrict updates around steps. *)
 Program Definition jsafe_pre
     (jsafe : coPset -d> Z -d> C -d> iPropO Σ) : coPset -d> Z -d> C -d> iPropO Σ := λ E z c,
   |={E}=> ∀ m, state_interp m z -∗
-      (∃ i, ⌜halted Hcore c i⌝ ∧ monPred_at (ext_mpred_exit Z Hspec (Some (Vint i)) z) m) ∨
+      (∃ i, ⌜halted Hcore c i ∧ ext_spec_exit Hspec (Some (Vint i)) z m⌝) ∨
       (|={E}=> ∃ c' m', ⌜corestep Hcore c m c' m'⌝ ∧ state_interp m' z ∗ ▷ jsafe E z c') ∨
-      (∃ e args x, ⌜at_external Hcore c m = Some (e, args)⌝ ∧ monPred_at (ext_mpred_pre Z Hspec e x (genv_symb ge) (sig_args (ef_sig e)) args z) m ∗
+      (∃ e args x, ⌜at_external Hcore c m = Some (e, args) ∧ ext_spec_pre Hspec e x (genv_symb ge) (sig_args (ef_sig e)) args z m⌝ ∧
          ▷ (∀ ret m' z', ⌜Val.has_type_list args (sig_args (ef_sig e)) ∧ Builtins0.val_opt_has_rettype ret (sig_res (ef_sig e))⌝ →
-          (monPred_at (ext_mpred_post Z Hspec e x (genv_symb ge) (sig_res (ef_sig e)) ret z') m' ={E}=∗
-          ∃ c', ⌜after_external Hcore ret c m' = Some c'⌝ ∧ state_interp m' z' ∗ jsafe E z' c'))).
+          ⌜ext_spec_post Hspec e x (genv_symb ge) (sig_res (ef_sig e)) ret z' m'⌝ → |={E}=>
+          ∃ c', ⌜after_external Hcore ret c m' = Some c'⌝ ∧ state_interp m' z' ∗ jsafe E z' c')).
 
 Local Instance jsafe_pre_contractive : Contractive jsafe_pre.
 Proof.
   rewrite /jsafe_pre => n jsafe jsafe' Hsafe E z c.
   do 13 f_equiv.
   - f_contractive; repeat f_equiv. apply Hsafe.
-  - f_equiv. f_contractive; repeat f_equiv. apply Hsafe.
+  - f_contractive; repeat f_equiv. apply Hsafe.
 Qed.
 
-(*Local Definition jsafe_def : Wp (iProp Σ) C (option val) stuckness :=
-  λ s : stuckness, fixpoint (jsafe_pre s).
-It's possible that we could massage this into Iris's WP framework, but it would involve moving the oracle
-quantification into the definition of safety and passing ext_spec_exit as an argument.
-*) 
 Local Definition jsafe_def : coPset -> Z -> C -> mpred := fixpoint jsafe_pre.
 Local Definition jsafe_aux : seal (@jsafe_def). Proof. by eexists. Qed.
 Definition jsafe := jsafe_aux.(unseal).
@@ -220,8 +96,8 @@ Proof.
     iExists _, _; iSplit; first done.
     iFrame; by iApply "IH".
   - iRight; iRight.
-    iDestruct "H" as (????) "[Hext H]".
-    iExists _, _, _; iSplit; first done; iFrame "Hext".
+    iDestruct "H" as (????) "H".
+    iExists _, _, _; iSplit; first done.
     iIntros "!>" (????) "Hext".
     iMod (fupd_mask_subseteq E1) as "Hclose"; iMod ("H" with "[%] Hext") as "H'"; first done; iMod "Hclose" as "_".
     iIntros "!>".
@@ -314,7 +190,7 @@ Proof.
   { iDestruct "H" as (??) "?"; exfalso; eapply Hhalt; eauto. }
   iMod "H" as (???) "H".
   iIntros "!>"; iExists _, _; iSplit; auto.
-  { iDestruct "H" as (????) "?".
+  { iDestruct "H" as (??? (H & ?)) "?".
     by rewrite Hext in H. }
 Qed.
 
@@ -332,7 +208,7 @@ Proof.
   iMod "H" as (?? Hstep) "H".
   rewrite -(Hc1 _ _ _ Hstep).
   iIntros "!>"; iExists _; iSplit; done.
-  { iDestruct "H" as (????) "?".
+  { iDestruct "H" as (??? (H & ?)) "?".
     by rewrite Hext in H. }
 Qed.
 
@@ -406,179 +282,11 @@ Qed.
       apply Hstep in H; eauto.
     - rewrite Hat_ext; iDestruct "H" as (????) "H".
       iRight; iRight; iExists _, _, _; iSplit; first done.
-      iDestruct "H" as "[$ H]"; iNext.
-      iIntros (????) "Hpost".
+      iNext; iIntros (????) "Hpost".
       iMod ("H" with "[%] Hpost") as (? Hafter) "Hpost"; first done.
       apply Hafter_ext in Hafter; eauto.
   Qed.
 
 End juicy_safety.
-
-(*Lemma juicy_core_sem_preserves_corestep_fun
-  {C} (csem: @CoreSemantics C mem) :
-  corestep_fun csem ->
-  corestep_fun (juicy_core_sem csem).
-Proof.
-  intros determinism jm q jm1 q1 jm2 q2 step1 step2.
-  destruct step1 as [step1 [[ll1 rd1] [l1 g1]]].
-  destruct step2 as [step2 [[ll2 rd2] [l2 g2]]].
-  pose proof determinism _ _ _ _ _ _ step1 step2 as E.
-  injection E as <- E; f_equal.
-  apply juicy_mem_ext; auto.
-  assert (El: level jm1 = level jm2) by (clear -l1 l2; lia).
-  apply rmap_ext. now do 2 rewrite <-level_juice_level_phi; auto.
-  intros l.
-  specialize (rd1 l); specialize (rd2 l).
-  rewrite level_juice_level_phi in *.
-  destruct jm  as [m  phi  jmc  jmacc  jmma  jmall ].
-  destruct jm1 as [m1 phi1 jmc1 jmacc1 jmma1 jmall1].
-  destruct jm2 as [m2 phi2 jmc2 jmacc2 jmma2 jmall2].
-  simpl in *.
-  subst m2; rename m1 into m'.
-  destruct rd1 as [jmno [E1 | [[sh1 [rsh1 [v1 [v1' [E1 E1']]]]] | [[pos1 [v1 E1]] | [v1 [pp1 [E1 E1']]]]]]];
-  destruct rd2 as [_    [E2 | [[sh2 [rsh2 [v2 [v2' [E2 E2']]]]] | [[pos2 [v2 E2]] | [v2 [pp2 [E2 E2']]]]]]];
-  try pose proof jmno pos1 as phino; try pose proof (jmno pos2) as phino; clear jmno;
-    remember (phi  @ l) as x ;
-    remember (phi1 @ l) as x1;
-    remember (phi2 @ l) as x2;
-    subst.
-
-  - (* phi1: same   | phi2: same   *)
-    congruence.
-
-  - (* phi1: same   | phi2: update *)
-    rewrite <- E1, El.
-    rewrite El in E1.
-    rewrite E1 in E2.
-    destruct (jmc1 _ _ _ _ _ E2).
-    destruct (jmc2 _ _ _ _ _ E2').
-    congruence.
-
-  - (* phi1: same   | phi2: alloc  *)
-    exfalso.
-    rewrite phino in E1. simpl in E1.
-    specialize (jmacc1 l).
-    rewrite <- E1 in jmacc1.
-    simpl in jmacc1.
-    destruct (Share.EqDec_share Share.bot Share.bot) as [_ | F]; [ | congruence].
-    specialize (jmacc2 l).
-    rewrite E2 in jmacc2.
-    simpl in jmacc2.
-    rewrite jmacc1 in jmacc2.
-    clear -jmacc2. exfalso.
-    unfold perm_of_sh in *.
-    repeat if_tac in jmacc2; try congruence. contradiction Share.nontrivial.
-  - (* phi1: same   | phi2: free   *)
-    exfalso.
-    rewrite E2 in E1.
-    simpl in E1.
-    specialize (jmacc1 l).
-    rewrite <- E1 in jmacc1.
-    simpl in jmacc1.
-    specialize (jmacc2 l).
-    rewrite E2' in jmacc2.
-    simpl in jmacc2.
-    destruct (Share.EqDec_share Share.bot Share.bot) as [_ | F]; [ | congruence].
-    rewrite jmacc1 in jmacc2.
-    clear -jmacc2. exfalso.
-    unfold perm_of_sh in *.
-    repeat if_tac in jmacc2; try congruence. contradiction Share.nontrivial.
-  - (* phi1: update | phi2: same   *)
-    rewrite <- E2, <-El.
-    rewrite <-El in E2.
-    rewrite E2 in E1.
-    destruct (jmc1 _ _ _ _ _ E1').
-    destruct (jmc2 _ _ _ _ _ E1).
-    congruence.
-
-  - (* phi1: update | phi2: update *)
-    destruct (jmc1 _ _ _ _ _ E1').
-    destruct (jmc2 _ _ _ _ _ E2').
-    rewrite E1', E2'.
-    destruct (phi@l); inv E1; inv E2.
-    f_equal. apply proof_irr.
-  - (* phi1: update | phi2: alloc  *)
-    rewrite phino in E1.
-    simpl in E1.
-    inversion E1.
-
-  - (* phi1: update | phi2: free   *)
-    exfalso.
-    rewrite E2 in E1.
-    simpl in E1.
-    specialize (jmacc1 l).
-    rewrite E1' in jmacc1.
-    simpl in jmacc1.
-    specialize (jmacc2 l).
-    rewrite E2' in jmacc2.
-    simpl in jmacc2.
-    destruct (Share.EqDec_share Share.bot Share.bot) as [_ | F]; [ | congruence].
-    rewrite jmacc1 in jmacc2.
-    unfold perm_of_sh in *.
-    repeat if_tac in jmacc2; try congruence.  
-  - (* phi1: alloc  | phi2: same   *)
-    exfalso.
-    rewrite phino in E2. simpl in E2.
-    specialize (jmacc2 l).
-    rewrite <- E2 in jmacc2.
-    simpl in jmacc2.
-    destruct (Share.EqDec_share Share.bot Share.bot) as [_ | F]; [ | congruence].
-    specialize (jmacc1 l).
-    rewrite E1 in jmacc1.
-    simpl in jmacc1.
-    rewrite jmacc2 in jmacc1.
-    clear -jmacc1.
-    unfold perm_of_sh in *.
-    repeat if_tac in jmacc1; try congruence. contradiction Share.nontrivial. 
-  - (* phi1: alloc  | phi2: update *)
-    rewrite phino in E2.
-    simpl in E2.
-    inversion E2.
-
-  - (* phi1: alloc  | phi2: alloc  *)
-    destruct (jmc1 _ _ _ _ _ E1).
-    destruct (jmc2 _ _ _ _ _ E2).
-    congruence.
-
-  - (* phi1: alloc  | phi2: free   *)
-    congruence.
-
-  - (* phi2: free   | phi2: same   *)
-    exfalso.
-    rewrite E1 in E2.
-    simpl in E2.
-    specialize (jmacc2 l).
-    rewrite <- E2 in jmacc2.
-    simpl in jmacc2.
-    specialize (jmacc1 l).
-    rewrite E1' in jmacc1.
-    simpl in jmacc1.
-    destruct (Share.EqDec_share Share.bot Share.bot) as [_ | F]; [ | congruence].
-    rewrite jmacc2 in jmacc1.
-    clear -jmacc1. exfalso.
-    unfold perm_of_sh in *.
-    repeat if_tac in jmacc1; try congruence. contradiction Share.nontrivial.  
-  - (* phi2: free   | phi2: update *)
-    exfalso.
-    rewrite E1 in E2.
-    simpl in E2.
-    specialize (jmacc2 l).
-    rewrite E2' in jmacc2.
-    simpl in jmacc2.
-    specialize (jmacc1 l).
-    rewrite E1' in jmacc1.
-    simpl in jmacc1.
-    destruct (Share.EqDec_share Share.bot Share.bot) as [_ | F]; [ | congruence].
-    rewrite jmacc2 in jmacc1.
-    clear -jmacc1 rsh2.
-    unfold perm_of_sh in *.
-    repeat if_tac in jmacc1; try congruence.
-  - (* phi2: free   | phi2: alloc  *)
-    congruence.
-
-  - (* phi2: free   | phi2: free   *)
-    congruence.
-  - congruence.
-Qed.*)
 
 End mpred.

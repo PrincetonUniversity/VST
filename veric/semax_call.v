@@ -27,7 +27,7 @@ Proof. induction l; simpl; trivial. f_equal; trivial . Qed.
 
 Section mpred.
 
-Context `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs}.
+Context `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs}.
 
 Lemma typecheck_expr_sound' :
   forall {CS'} Delta rho e,
@@ -601,12 +601,12 @@ iMod ("He" $! psi x1 (F0 rho ∗ F1 rho) (typlist_of_typelist tys) args with "[F
   apply tc_val_has_type; auto. }
 clear TC8. simpl fst in *. simpl snd in *.
 rewrite /jsafeN jsafe_unfold /jsafe_pre.
-iIntros "!>" (?) "s"; iDestruct ("He1" with "s") as (x') "(pre & post)".
+iIntros "!>" (?) "s"; iDestruct ("He1" with "s") as (x') "(%pre & post)".
 destruct Hinline as [Hinline | ?]; last done.
-iRight; iRight; iExists _, _, _; iSplit.
+iRight; iRight; iExists e, _, _; iSplit.
 { iPureIntro; simpl.
-  rewrite Hinline //. }
-rewrite Eef TTL3; iFrame "pre".
+  rewrite Hinline Eef TTL3 //. }
+rewrite Eef.
 iDestruct "rguard" as "#rguard".
 iNext.
 iIntros (??? [??]) "?".

@@ -70,7 +70,7 @@ Qed.
 
 Section SemaxContext.
 
-Context `{!heapGS Σ} {Espec : OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ}.
+Context `{!heapGS Σ} {Espec : OracleKind} `{!externalGS OK_ty Σ}.
 
 Lemma guard_environ_put_te':
  forall ge te ve Delta id v k,

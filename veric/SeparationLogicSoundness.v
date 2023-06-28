@@ -44,7 +44,7 @@ Axiom semax_prog_sound :
 Axiom semax_prog_rule :
   forall `{H : heapGS Σ}{Espec: OracleKind}{HE : externalGS OK_ty Σ}{CS: compspecs},
   forall V G prog m h z,
-     @postcondition_allows_exit _ Espec tint ->
+     @postcondition_allows_exit Espec tint ->
      @semax_prog Σ H Espec HE CS prog z V G ->
      Genv.init_mem prog = Some m ->
      { b : block & { q : CC_core &
@@ -205,8 +205,6 @@ Definition semax_frame := @semax_frame.
 Definition semax_conseq := @semax_conseq.
 Definition semax_ptr_compare := @semax_ptr_compare.
 Definition semax_external_FF := @semax_external_FF.
-
-Definition juicy_ext_spec := @juicy_ext_spec.
 
 Definition semax_ext := @semax_ext.
 

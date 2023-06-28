@@ -130,7 +130,7 @@ Module Sassign := ToSassign (Def) (Conseq) (Extr) (StoreB) (StoreUnionHackB).
 
 Section mpred.
 
-Context `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (OK_ty(Σ := Σ)) Σ}.
+Context `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ}.
 
 Lemma semax_FF: forall {CS : compspecs} E Delta c Q, Def.semax E Delta False c Q.
 Proof.

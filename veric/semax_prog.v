@@ -181,7 +181,7 @@ setoid_rewrite Maps.PTree.gso; auto.
 Qed.
 
 Section semax_prog.
-Context {Espec : @OracleKind Σ} `{!externalGS OK_ty Σ}.
+Context {Espec : OracleKind} `{!externalGS OK_ty Σ}.
 
 Definition prog_contains (ge: genv) (fdecs : list (ident * Clight.fundef)) : Prop :=
      forall id f, In (id,f) fdecs ->
@@ -290,9 +290,9 @@ end
 end.
 
 Definition postcondition_allows_exit retty :=
-   forall v ora,
+   forall v ora m,
       tc_option_val retty v ->
-      True ⊢ ext_mpred_exit _ OK_spec v ora.
+      ext_spec_exit OK_spec v ora m.
 
 Definition semax_prog {C: compspecs}
        (prog: program) (ora: OK_ty) (V: varspecs) (G: funspecs) : Prop :=
@@ -986,8 +986,7 @@ Proof.
   rewrite /jsafeN jsafe_unfold /jsafe_pre.
   iIntros "!> % ?"; iLeft.
   iExists Int.zero; iSplit; first by iPureIntro.
-  specialize (H (Some (Vint Int.zero)) ora I).
-  rewrite -H; monPred.unseal; done.
+  iPureIntro; by apply H.
 Qed.
 
 Lemma semax_prog_entry_point {CS: compspecs} V G prog b id_fun params args A

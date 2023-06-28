@@ -20,7 +20,7 @@ Require Import VST.veric.Clight_lemmas.
 Local Open Scope nat_scope.
 
 Section extensions.
-Context `{!heapGS Σ} {Espec: OracleKind} `{!externalGS (@OK_ty Σ Espec) Σ} {CS: compspecs}.
+Context `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs}.
 
 Lemma tc_test_eq1:
   forall b i v m,
