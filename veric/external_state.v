@@ -1,7 +1,6 @@
 From iris.algebra Require Export excl auth.
-From iris_ora.algebra Require Export excl.
+From iris_ora.algebra Require Export excl auth.
 From iris_ora.logic Require Export own.
-From VST.veric Require Export base auth.
 From iris.proofmode Require Import proofmode.
 
 (* external ghost state *)

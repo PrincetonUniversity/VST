@@ -1,5 +1,5 @@
 Require Export VST.veric.base.
-Require Import VST.veric.gmap_view.
+Require Import iris_ora.algebra.gmap_view.
 Require Import VST.veric.res_predicates.
 Require Import VST.veric.mpred.
 Require Import VST.veric.address_conflict.

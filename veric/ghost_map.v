@@ -5,8 +5,8 @@ ownership of the entire heap, and a "points-to-like" proposition for (mutable,
 fractional, or persistent read-only) ownership of individual elements. *)
 From iris.proofmode Require Import proofmode.
 From iris.algebra Require Import gmap gmap_view.
+From iris_ora.algebra Require Import view gmap_view.
 From iris_ora.logic Require Export logic own.
-From VST.veric Require Import view gmap_view.
 From iris.prelude Require Import options.
 
 Class ghost_mapG Σ (K V : Type) `{Countable K} := GhostMapG {

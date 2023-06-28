@@ -1,6 +1,6 @@
 From iris.bi Require Export monpred.
 Require Import VST.veric.base.
-Require Import VST.veric.gmap_view.
+Require Import iris_ora.algebra.gmap_view.
 Require Import VST.veric.res_predicates.
 Require Export compcert.common.AST.
 Require Export compcert.cfrontend.Ctypes.
@@ -406,7 +406,7 @@ Class funspecGS Σ := FunspecG {
 }.
 
 Class heapGS Σ := HeapGS {
-  heapGS_wsatGS :> wsatGS Σ;
+  heapGS_invGS :> invGS Σ;
   heapGS_gen_heapGS :> gen_heapGS address resource Σ;
   heapGS_funspecGS :> funspecGS Σ
 }.

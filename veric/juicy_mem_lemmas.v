@@ -1,5 +1,4 @@
 Require Import VST.veric.juicy_base.
-Require Import VST.veric.wsat.
 Require Import VST.veric.res_predicates.
 Require Import VST.veric.juicy_mem.
 Require Import VST.veric.shares.

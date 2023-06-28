@@ -5,11 +5,24 @@ ownership of the entire heap, and a "points-to-like" proposition for (mutable,
 fractional, or persistent read-only) ownership of individual elements. *)
 From iris.proofmode Require Import proofmode.
 From iris.algebra Require Export auth csum gmap.
-From iris_ora.algebra Require Export osum gmap.
-From iris_ora.logic Require Export logic own.
-From VST.veric Require Export shares share_alg auth.
-From VST.veric Require Import view shared algebras.
+From iris_ora.algebra Require Export osum gmap view auth.
+From iris_ora.logic Require Export logic own algebra.
+From VST.veric Require Export shares share_alg.
+From VST.veric Require Import shared.
 From iris.prelude Require Import options.
+
+Section shared.
+  Context {M : uora} {V : ofe}.
+
+  Lemma shared_validI (x : shared V) : ✓ x ⊣⊢ match x return ouPred M with
+                                 | YES dq _ v => ⌜✓ dq⌝ ∧ ✓ v
+                                 | NO sh _ => ⌜✓ sh⌝
+                                 end.
+  Proof.
+    ouPred.unseal. by destruct x.
+  Qed.
+
+End shared.
 
 (* We can probably drop the agree branch, and just use persistent shared and adjust the permission
    later. *)

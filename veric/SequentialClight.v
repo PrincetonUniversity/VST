@@ -1,6 +1,4 @@
 Require Import VST.sepcomp.semantics.
-
-Require Import VST.veric.wsat.
 Require Import VST.veric.Clight_base.
 Require Import VST.veric.Clight_core.
 Require Import VST.veric.Clight_lemmas.
@@ -11,7 +9,8 @@ Require Import VST.veric.SeparationLogic.
 Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.juicy_mem.
 Require Import VST.veric.SeparationLogicSoundness.
-Require Import VST.veric.fancy_updates.
+Require Import iris_ora.logic.wsat.
+Require Import iris_ora.logic.fancy_updates.
 Require Import VST.sepcomp.extspec.
 
 Import VericSound.
@@ -20,7 +19,7 @@ Import VericMinimumSeparationLogic.CSHL_Def.
 Import VericMinimumSeparationLogic.CSHL_Defs.
 Import Clight.
 
-Lemma stepN_plain_forall_2 `{!wsatGS Σ} {A} (E : coPset) (n : nat) (P : A -> iProp Σ) `{∀x, Plain (P x)} `{∀x, Absorbing (P x)} : (∀x, |={E}▷=>^n (P x)) ⊢ (|={E}▷=>^n (∀x, P x)).
+Lemma stepN_plain_forall_2 `{!invGS Σ} {A} (E : coPset) (n : nat) (P : A -> iProp Σ) `{∀x, Plain (P x)} `{∀x, Absorbing (P x)} : (∀x, |={E}▷=>^n (P x)) ⊢ (|={E}▷=>^n (∀x, P x)).
 Proof.
   destruct n; first done.
   rewrite bi.forall_mono.
@@ -829,20 +828,20 @@ Qed.*)
 End mpred.
 
 Class VSTGpreS (Z : Type) Σ := {
-  VSTGpreS_inv :> wsatGpreS Σ;
+  VSTGpreS_inv :> invGpreS Σ;
   VSTGpreS_heap :> gen_heapGpreS address resource Σ;
   VSTGpreS_funspec :> inG Σ (gmap_view.gmap_viewR address (@funspecO' Σ));
   VSTGpreS_ext :> inG Σ (excl_authR (leibnizO Z))
 }.
 
 Definition VSTΣ Z : gFunctors :=
-  #[wsatΣ; gen_heapΣ address resource; GFunctor (gmap_view.gmap_viewRF address funspecOF');
+  #[invΣ; gen_heapΣ address resource; GFunctor (gmap_view.gmap_viewRF address funspecOF');
     GFunctor (excl_authR (leibnizO Z)) ].
 Global Instance subG_VSTGpreS {Z Σ} : subG (VSTΣ Z) Σ → VSTGpreS Z Σ.
 Proof. solve_inG. Qed.
 
 Lemma init_VST: forall Z `{!VSTGpreS Z Σ} (z : Z),
-  ⊢ |==> ∀ _ : wsatGS Σ, ∃ _ : gen_heapGS address resource Σ, ∃ _ : funspecGS Σ, ∃ _ : externalGS Z Σ,
+  ⊢ |==> ∀ _ : invGS Σ, ∃ _ : gen_heapGS address resource Σ, ∃ _ : funspecGS Σ, ∃ _ : externalGS Z Σ,
     let H : heapGS Σ := HeapGS _ _ _ _ in
     (state_interp Mem.empty z ∗ funspec_auth ∅ ∗ has_ext z) ∗ ghost_map.ghost_map_auth(H0 := gen_heapGpreS_meta) (gen_meta_name _) 1 ∅.
 Proof.
@@ -885,7 +884,7 @@ Lemma whole_program_sequential_safety_ext:
        semantics.initial_core (cl_core_sem (globalenv prog))
            0 m q m (Vptr b Ptrofs.zero) nil /\
        forall n,
-        @dry_safeN _ _ _ OK_ty (semax.genv_symb_injective)
+        @dry_safeN _ _ _ OK_ty (genv_symb_injective)
             (cl_core_sem (globalenv prog))
             dryspec
             (Build_genv (Genv.globalenv prog) (prog_comp_env prog))
@@ -896,7 +895,7 @@ Proof.
        Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some b /\
        semantics.initial_core (cl_core_sem (globalenv prog))
            0 m q m (Vptr b Ptrofs.zero) nil /\
-        @dry_safeN _ _ _ OK_ty (semax.genv_symb_injective)
+        @dry_safeN _ _ _ OK_ty (genv_symb_injective)
             (cl_core_sem (globalenv prog))
             dryspec
             (Build_genv (Genv.globalenv prog) (prog_comp_env prog))
@@ -921,7 +920,7 @@ Proof.
     iApply step_fupdN_intro; first set_solver;
     iModIntro.
 
-  iAssert (|={⊤,∅}=> |={∅}▷=>^n  ⌜@dry_safeN _ _ _ OK_ty (semax.genv_symb_injective) (cl_core_sem (globalenv prog))
+  iAssert (|={⊤,∅}=> |={∅}▷=>^n  ⌜@dry_safeN _ _ _ OK_ty (genv_symb_injective) (cl_core_sem (globalenv prog))
             dryspec (Build_genv (Genv.globalenv prog) (prog_comp_env prog)) n initial_oracle q m⌝) with "[Hsafe]" as "Hdry".
   { clear H0 Hinit Hsafe.
     rewrite bi.and_elim_l.

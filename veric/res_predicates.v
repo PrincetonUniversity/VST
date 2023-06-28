@@ -1,10 +1,10 @@
 From iris.proofmode Require Export tactics.
 Require Import compcert.cfrontend.Ctypes.
 From iris_ora.algebra Require Import gmap.
-From iris_ora.logic Require Export logic.
+From iris_ora.logic Require Export logic algebra invariants.
 From VST.veric Require Import shares address_conflict.
 From VST.msl Require Export shares.
-From VST.veric Require Export base Memory algebras dshare gen_heap invariants.
+From VST.veric Require Export base Memory dshare gen_heap.
 Export Values.
 Export -(notations) Maps.
 

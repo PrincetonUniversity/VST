@@ -9,6 +9,7 @@ Require Import VST.sepcomp.extspec.
 Require Import VST.sepcomp.step_lemmas.
 Require Import VST.veric.juicy_safety.
 Require Import VST.veric.external_state.
+Require Export VST.veric.Clight_language.
 Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
@@ -25,13 +26,6 @@ Context `{!heapGS Σ} (Espec : OracleKind) `{!externalGS (@OK_ty Σ Espec) Σ}.
 
 Definition closed_wrt_modvars c (F: @assert Σ) : Prop :=
     closed_wrt_vars (modifiedvars c) F.
-
-Definition genv_symb_injective {F V} (ge: Genv.t F V) : extspec.injective_PTree Values.block.
-Proof.
-exists (Genv.genv_symb ge).
-hnf; intros.
-eapply Genv.genv_vars_inj; eauto.
-Defined.
 
 Definition jsafeN (ge: genv) :=
   jsafe(genv_symb := genv_symb_injective) (cl_core_sem ge) OK_spec ge.
