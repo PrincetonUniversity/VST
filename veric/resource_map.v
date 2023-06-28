@@ -11,6 +11,8 @@ From VST.veric Require Export shares share_alg auth.
 From VST.veric Require Import view shared algebras.
 From iris.prelude Require Import options.
 
+(* We can probably drop the agree branch, and just use persistent shared and adjust the permission
+   later. *)
 Definition rmapUR (K : Type) `{Countable K} (V : ofe) : uora :=
   gmapUR K (csumR (sharedR V) (agreeR V)).
 

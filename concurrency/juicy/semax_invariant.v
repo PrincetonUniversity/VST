@@ -65,7 +65,8 @@ Qed.
 
 Section Machine.
 
-Context {ZT : Type} {Σ : gFunctors} (Jspec : juicy_ext_spec(Σ := Σ) ZT) {ge : genv}.
+Context {ZT : Type} `{!heapGS Σ} `{!externalGS ZT Σ} (Jspec : juicy_ext_spec(Σ := Σ) ZT) {ge : genv}.
+Definition Espec := {| OK_ty := ZT; OK_spec := Jspec |}.
 
 (*+ Description of the invariant *)
 Definition cm_state := (Mem.mem * (event_trace * schedule * jstate ge))%type.
@@ -84,7 +85,7 @@ Inductive state_step : cm_state -> cm_state -> Prop :=
 
 (*! Coherence between locks in dry/wet memories and lock pool *)
 
-Inductive cohere_res_lock : forall (resv : option (option rmap)) (wetv : resource) (dryv : memval), Prop :=
+(*Inductive cohere_res_lock : forall (resv : option (option rmap)) (wetv : resource) (dryv : memval), Prop :=
 | cohere_notlock wetv dryv:
     (forall sh sh' z P, wetv <> YES sh sh' (LK z 0) P) ->
     cohere_res_lock None wetv dryv
@@ -125,7 +126,7 @@ Definition lock_coherence (lset : AMap.t (option rmap)) (phi : rmap) (m : mem) :
         | Some p => app_pred R p
         | None => Logic.True
         end*)
-    end.
+    end.*)
 
 Definition far (ofs1 ofs2 : Z) := (Z.abs (ofs1 - ofs2) >= LKSIZE)%Z.
 
@@ -147,20 +148,6 @@ Definition lock_sparsity {A} (lset : AMap.t A) : Prop :=
     loc1 = loc2 \/
     fst loc1 <> fst loc2 \/
     (fst loc1 = fst loc2 /\ far (snd loc1) (snd loc2)).
-
-Lemma lock_sparsity_age_to (tp : jstate ge) n :
-  lock_sparsity (lset tp) ->
-  lock_sparsity (lset (age_tp_to n tp)).
-Proof.
-  destruct tp as [A B C lset0]; simpl.
-  intros S l1 l2 E1 E2; apply (S l1 l2).
-  - rewrite AMap_find_map_option_map in E1.
-    cleanup.
-    destruct (AMap.find (elt:=option rmap) l1 lset0); congruence || tauto.
-  - rewrite AMap_find_map_option_map in E2.
-    cleanup.
-    destruct (AMap.find (elt:=option rmap) l2 lset0); congruence || tauto.
-Qed.
 
 Definition lset_same_support {A} (lset1 lset2 : AMap.t A) :=
   forall loc,
@@ -227,7 +214,7 @@ Definition jm_
   {tp m PHI i}
   (cnti : containsThread tp i)
   (mcompat : mem_compatible_with tp m PHI)
-  : juicy_mem :=
+  : mem :=
   personal_mem (thread_mem_compatible (mem_compatible_forget mcompat) cnti).
 
 Lemma personal_mem_ext m phi phi' pr pr' :
@@ -240,32 +227,17 @@ Qed.
 
 (*! Invariant (= above properties + safety + uniqueness of Krun) *)
 
-Definition jsafe_phi ge ora c phi :=
-  forall jm,
-    m_phi jm = phi ->
-    @semax.jsafeN ZT Jspec ge ora c jm.
+(* Could we move more of this into the logic? *)
+(* Since we're moving towards a machine without ghost state, we erase all of the state except
+   the rmap, and then nondeterministically reconstruct the rest of the state at each step.
+   Will this work? *)
+Definition jsafe_phi ge n ora c phi :=
+    ouPred_holds (semax.jsafeN Espec ge ⊤ ora c) n phi.
 
-Definition jsafe_phi_bupd ge ora c phi :=
-  forall jm,
-    m_phi jm = phi ->
-    jm_bupd ora (@semax.jsafeN ZT Jspec ge ora c) jm.
-
-Definition jsafe_phi_fupd ge ora c phi :=
-  forall jm,
-    m_phi jm = phi ->
-    jm_fupd ora Ensembles.Full_set Ensembles.Full_set (@semax.jsafeN ZT Jspec ge ora c) jm.
-
-Lemma jsafe_phi_jsafeN ora c i (tp : jstate ge) m (cnti : containsThread tp i) Phi compat :
-  @jsafe_phi ge ora c (getThreadR cnti) ->
-  @semax.jsafeN ZT Jspec ge ora c (@jm_ tp m Phi i cnti compat).
-Proof.
-  intros S; apply S, eq_refl.
-Qed.
-
-Definition threads_safety m (tp : jstate ge) PHI (mcompat : mem_compatible_with tp m PHI) :=
+Definition threads_safety m (tp : jstate ge) PHI (mcompat : mem_compatible_with tp m PHI) n :=
   forall i (cnti : containsThread tp i) (ora : ZT),
     match getThreadC cnti with
-    | Krun c => semax.jsafeN Jspec ge ora c (jm_ cnti mcompat)
+    | Krun c => jsafe_phi ge n ora c (getThreadR cnti)
     | Kblocked c =>
       (* The dry memory will change, so when we prove safety after an
       external we must only inspect the rmap m_phi part of the juicy
@@ -278,12 +250,12 @@ Definition threads_safety m (tp : jstate ge) PHI (mcompat : mem_compatible_with 
            the definition of JuicyMachine.resume_thread'. *)
         cl_after_external None c = Some c' ->
         (* same quantification as in Kblocked *)
-        jsafe_phi_fupd ge ora c' (getThreadR cnti)
+        jsafe_phi ge n ora c' (getThreadR cnti)
     | Kinit v1 v2 =>
 (*      Val.inject (Mem.flat_inj (Mem.nextblock m)) v2 v2 /\ *)
       exists q_new,
       cl_initial_core ge v1 (v2 :: nil) = Some q_new /\
-      jsafe_phi_fupd ge ora q_new (getThreadR cnti)
+      jsafe_phi ge n ora q_new (getThreadR cnti)
     end.
 
 Definition threads_wellformed (tp : jstate ge) :=

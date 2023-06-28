@@ -39,6 +39,7 @@ Proof.
   - apply _.
 Defined.
 
+(* do we need this? *)
 Record juicy_ext_spec (Z: Type) := {
   JE_spec :> external_specification juicy_mem external_function Z;
   JE_pre_mono: forall e t ge_s typs args z, jm_mono (ext_spec_pre JE_spec e t ge_s typs args z);

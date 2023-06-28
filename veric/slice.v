@@ -1133,7 +1133,7 @@ Qed.
         (SomeP rmaps.Mpred (fun _ => approx n R))).
 Proof. hnf; intros. reflexivity. Qed.*)
 
-Lemma LKspec_share_join lock_size:
+(*Lemma LKspec_share_join lock_size:
  forall sh1 sh2 sh R p,
   sepalg.join sh1 sh2 sh ->
   readable_share sh1 -> readable_share sh2 ->
@@ -1146,7 +1146,7 @@ Proof.
   apply big_sepL_proper; intros.
   rewrite assoc -(bi.sep_assoc (_ ↦{_} _)) (bi.sep_comm (inv _ _)) assoc mapsto_share_join //.
   rewrite -assoc -bi.persistent_sep_dup //.
-Qed.
+Qed.*)
 
 End heap.
 

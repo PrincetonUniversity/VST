@@ -43,6 +43,7 @@ Definition perm_of_dfrac dq :=
   | DfracBoth sh => if Mem.perm_order'_dec (perm_of_sh' sh) Readable then perm_of_sh' sh else Some Readable
   end.
 
+(* Why do we force locks to nonempty? *)
 Definition perm_of_res (r: dfrac * option resource) :=
   match r with
   | (dq, Some (VAL _)) => perm_of_dfrac dq
@@ -67,6 +68,11 @@ Proof.
   if_tac; done.
 Qed.
 
+(* We probably don't need the csum if we just change this so that FUN gets Nonempty. *)
+(* In fact, do we need perm_of_res' at all? All it does it allow a higher max permission for
+   LK and FUN resources, but FUN resources are always Nonempty anyway. I guess this might be
+   useful for ensuring you can untransform a lock? But wouldn't you remember the higher max anyway
+   from before the location was a lock? *)
 Definition perm_of_res' {resource} (r: dfrac * resource) := perm_of_dfrac r.1.
 
 Lemma perm_of_sh_bot : perm_of_sh Share.bot = None.

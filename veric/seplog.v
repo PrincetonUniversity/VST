@@ -400,6 +400,9 @@ Qed.
 
 (*******************end of material moved here from expr.v *******************)
 
+(* Interesting note: in Caesium, they store the function in the ghost state instead of the spec.
+   Could we then quantify over a function that meets a spec? *)
+
 Definition funspec_auth m := own(inG0 := funspec_inG) funspec_name (gmap_view_auth (dfrac.DfracOwn 1) m).
 Definition know_funspec l (f: funspec) := own(inG0 := funspec_inG) funspec_name (gmap_view_frag l dfrac.DfracDiscarded (funspec_unfold f)).
 

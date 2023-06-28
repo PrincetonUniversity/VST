@@ -1273,6 +1273,7 @@ Proof.
   rewrite IHlt //.
 Qed.
 
+(* compare https://gitlab.mpi-sws.org/iris/refinedc/-/blob/master/theories/caesium/lifting.v#L1042 *)
 Lemma semax_call_si:
   forall E Delta (A: TypeTree)
    (P : dtfr (ArgsTT A))

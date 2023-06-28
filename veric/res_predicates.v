@@ -261,10 +261,12 @@ Definition address_mapsto_readonly (ch: memory_chunk) (v: val) :=
 
 Definition LKN := nroot .@ "LK".
 
+(* This is obviously wrong -- R isn't a global invariant. We can track it in a map as with funspecs.
+   Interestingly, though, this doesn't get used anywhere until the concurrent soundness proofs.
 Definition LKspec lock_size (R: mpred) : spec :=
    fun (sh: Share.t) (l: address) =>
     [∗ list] i ∈ seq 0 (Z.to_nat lock_size), adr_add l (Z.of_nat i) ↦{#sh} LK lock_size (Z.of_nat i) ∗
-      inv (LKN .@ l) R.
+      inv (LKN .@ l) R. *)
 
 Definition Trueat (l: address) : mpred := True.
 

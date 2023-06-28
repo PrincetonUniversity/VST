@@ -32,9 +32,10 @@ Require Import compcert.lib.Coqlib.
 Require Import List.
 Require Import Coq.ZArith.ZArith.
 
-(*From msl get the juice! *)
+Require Import iris.algebra.auth.
 Require Import VST.veric.juicy_mem.
 Require Import VST.veric.juicy_mem_lemmas.
+Require Import VST.veric.mpred.
 Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.jstep.
 Set Bullet Behavior "Strict Subproofs".
@@ -54,14 +55,12 @@ Local Open Scope Z.
 Notation "x <= y" := (x <= y)%nat.
 Notation "x < y" := (x < y)%nat.
 
-(* rmap is only the heap. Should res include ghost state? *)
-Local Notation rmap := (resource_map.rmapUR address (leibnizO resource)).
-#[export] Instance LocksAndResources : Resources := { res := rmap; lock_info := option rmap }.
+#[export] Instance LocksAndResources Σ : Resources := { res := iResUR Σ; lock_info := option (iResUR Σ) }.
 
 Module ThreadPool. 
   Section ThreadPool.
 
-  Context {Sem: Semantics}.
+  Context {Sem: Semantics} {Σ : gFunctors}.
 
   (** The Lock Resources Set *)
 
@@ -79,7 +78,7 @@ Module Concur.
     Import event_semantics Events.
 
 
-    Context {Sem: Semantics} {Σ : gFunctors}.
+    Context {Sem: Semantics} `{!heapGS Σ}.
 
     Notation C:= (semC).
     Notation G:= (semG).
@@ -119,18 +118,24 @@ Module Concur.
      * but for entire machines. It is slighly weaker in one way:
      * - acc_coh is looser and only talks about maxcoh.
      * - else acc_coh might be redundant with max_coh IDK... x*)
-    Record mem_cohere' m phi :=
+    Record mem_cohere m phi :=
       { cont_coh: contents_cohere m phi;
         (*acc_coh: access_cohere m phi;*)
         (*acc_coh: access_cohere' m phi;*)
         max_coh: max_access_cohere m phi;
         all_coh: alloc_cohere m phi
       }.
-    Definition mem_thcohere (tp : thread_pool) m :=
-      forall tid (cnt: containsThread tp tid), mem_cohere' m (getThreadR cnt).
 
-    Definition mem_lock_cohere (ls:lockMap) m:=
-      forall loc rm, AMap.find loc ls = SSome rm -> mem_cohere' m rm.
+    Definition heap_frag phi : mpred := own(inG0 := resource_map.resource_map_inG(resource_mapG := gen_heapGpreS_heap(gen_heapGpreS := gen_heap_inG)))
+      (gen_heap_name _) (◯ phi).
+
+    Definition mem_cohere' n m r := ouPred_holds (∀ phi, heap_frag phi → ⌜mem_cohere m phi⌝) n r.
+
+    Definition mem_thcohere (n : nat) (tp : thread_pool) m :=
+      forall tid (cnt: containsThread tp tid), mem_cohere' n m (getThreadR cnt).
+
+    Definition mem_lock_cohere (n : nat) (ls:lockMap) m:=
+      forall loc rm, AMap.find loc ls = SSome rm -> mem_cohere' n m rm.
 
     Lemma length_enum_from n m pr : List.length (@enums_equality.enum_from n m pr) = n.
     Proof.
@@ -229,38 +234,31 @@ Qed.
     Qed.
 
     (*Join juice from all locks*)
-    Definition join_locks tp r := r ≡ [^op list] s ∈ map snd (AMap.elements (lset tp)), (s : optionUR (resource_map.rmapUR _ _)).
+    Definition join_locks tp r := r ≡ [^op list] s ∈ map snd (AMap.elements (lset tp)), (s : optionUR (iResUR Σ)).
 
     (*Join all the juices*)
     Inductive join_all: thread_pool -> res -> Prop :=
       AllJuice tp r0 r1 r2 r:
         join_threads tp r0 ->
         join_locks tp r1 ->
-        (Some r0 : optionUR (resource_map.rmapUR _ _)) ⋅ r1 ≡ Some r2 ->
+        (Some r0 : optionUR (iResUR Σ)) ⋅ r1 ≡ Some r2 ->
         r2 ⋅ (extraRes tp) ≡ r ->
-        ✓ r ->
         join_all tp r.
 
-    (* Should we do this at the logic level? *)
-    Definition juicyLocks_in_lockSet (lset : lockMap) (juice: rmap) :=
-      forall loc,
-       (forall i, 0 <= i < LKSIZE -> exists sh psh, juice !! (fst loc, snd loc + i)%Z = Some (csum.Cinl (YES (V := leibnizO resource) sh psh (to_agree (LK LKSIZE i)))))  ->
-          AMap.find loc lset.
+    Definition juicyLocks_in_lockSet (n : nat) (lset : lockMap) r :=
+      ouPred_holds (∀ loc P sh, (<absorb> LKspec LKSIZE P sh loc) → ⌜AMap.find loc lset⌝) n r.
 
     (* I removed the NO case for two reasons:
      * - To ensure that lset is "valid" (lr_valid), it needs inherit it from the rmap
      * - there was no real reason to have a NO other than speculation of the future. *)
-    Definition lockSet_in_juicyLocks (lset : lockMap) (juice: rmap):=
-      forall loc, AMap.find loc lset ->
-	     (exists sh : share,
-           forall i, 0 <= i < LKSIZE -> exists sh' psh', sepalg.join_sub sh sh' /\ juice !! (fst loc, snd loc + i) = Some (csum.Cinl (YES (V := leibnizO resource) (DfracOwn (Share sh')) psh' (to_agree (LK LKSIZE i))))).
+    Definition lockSet_in_juicyLocks (n : nat) (lset : lockMap) r :=
+      ouPred_holds (∀ loc, ⌜AMap.find loc lset⌝ → <absorb> ∃ sh P, LKspec LKSIZE P sh loc) n r.
 
-
-    Definition lockSet_in_juicyLocks' (lset : lockMap) (juice: rmap):=
+(*    Definition lockSet_in_juicyLocks' (lset : lockMap) juice :=
       forall loc, AMap.find loc lset ->
              Mem.perm_order'' (Some Nonempty) (perm_of_res (resource_at juice loc)).
-    Lemma lockSet_in_juic_weak: forall lset juice,
-        lockSet_in_juicyLocks lset juice -> lockSet_in_juicyLocks' lset juice.
+    Lemma lockSet_in_juic_weak: forall lset n juice,
+        lockSet_in_juicyLocks lset n juice -> lockSet_in_juicyLocks' lset juice.
     Proof.
       intros lset juice HH loc FIND.
       apply HH in FIND.
@@ -271,7 +269,7 @@ Qed.
        rewrite elem_of_to_agree; if_tac; constructor.
       destruct loc; simpl; f_equal; auto; lia.
       (*- destruct (eq_dec sh0 Share.bot); constructor.*)
-    Qed.
+    Qed.*)
 
 
     Definition lockSet_Writable (lset : lockMap) m :=
@@ -279,28 +277,23 @@ Qed.
                forall ofs0, Intv.In ofs0 (ofs, ofs + LKSIZE) ->
              Mem.perm_order'' (PMap.get b (Mem.mem_access m) ofs0 Max) (Some Writable) .
 
-(*    (*This definition makes no sense. In fact if there is at least one lock in rmap,
-     *then the locks_writable is false (because perm_of_res(LK) = Some Nonempty). *)
-    Definition locks_writable (juice: rmap):=
-      forall loc sh psh P z i, juice @ loc = YES sh psh (LK z i) P  ->
-                    Mem.perm_order'' (perm_of_res (juice @ loc)) (Some Writable).*)
-
-    Record mem_compatible_with' (tp : thread_pool) m all_juice : Prop :=
-      {   juice_join : join_all tp all_juice
-        ; all_cohere : mem_cohere' m all_juice
+    Record mem_compatible_with' (n : nat) (tp : thread_pool) m all_juice : Prop :=
+      {   juice_valid : ✓{n} all_juice
+        ; juice_join : join_all tp all_juice
+        ; all_cohere : mem_cohere' n m all_juice
         ; loc_writable : lockSet_Writable (lockGuts tp) m
-        ; jloc_in_set : juicyLocks_in_lockSet (lockGuts tp) all_juice
-        ; lset_in_juice: lockSet_in_juicyLocks  (lockGuts tp) all_juice
+        ; jloc_in_set : juicyLocks_in_lockSet n (lockGuts tp) all_juice
+        ; lset_in_juice: lockSet_in_juicyLocks n (lockGuts tp) all_juice
       }.
 
     Definition mem_compatible_with := mem_compatible_with'.
 
-    Lemma mem_compatible_with_valid : forall tp m phi, mem_compatible_with tp m phi -> ✓ phi.
+    Lemma mem_compatible_with_valid : forall n tp m phi, mem_compatible_with n tp m phi -> ✓{n} phi.
     Proof.
-      by intros ??? [[]].
+      intros; apply H.
     Qed.
 
-    Definition mem_compatible tp m := ex (mem_compatible_with tp m).
+    Definition mem_compatible n tp m := ex (mem_compatible_with n tp m).
 
     Lemma jlocinset_lr_valid: forall ls juice,
         lockSet_in_juicyLocks ls juice ->
