@@ -29,6 +29,21 @@ Definition void_spec T : external_specification mem external_function T :=
 
 Definition ok_void_spec (T : Type) : OracleKind := Build_OracleKind T (void_spec T).
 
+Section upd_exit.
+  Context {Z : Type}.
+  Variable spec : ext_spec Z.
+
+  Definition upd_exit' (Q_exit : option val -> Z -> mem -> Prop) :=
+  {| ext_spec_type := ext_spec_type spec
+   ; ext_spec_pre := ext_spec_pre spec
+   ; ext_spec_post := ext_spec_post spec
+   ; ext_spec_exit := Q_exit |}.
+
+  Definition upd_exit (ef : external_function) (x : ext_spec_type spec ef) ge :=
+    upd_exit' (ext_spec_post spec ef x ge (sig_res (ef_sig ef))).
+
+End upd_exit.
+
 Section mpred.
 
 Context {Σ : gFunctors}.
