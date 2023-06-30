@@ -20,14 +20,14 @@ Local Open Scope Z_scope.
 
 Inductive resource :=
 | VAL (v : memval)
-| LK (i z : Z)
+| LK (i z : Z) (b : bool) (* true means held, false means not held *)
 | FUN.
 (* Other information, like lock invariants and funspecs, should be stored in invariants,
    not in the heap. *)
 
 Definition nonlock (r: resource) : Prop :=
  match r with
- | LK _ _ => False
+ | LK _ _ _ => False
  | _ => True
  end.
 
@@ -259,14 +259,9 @@ Definition address_mapsto_readonly (ch: memory_chunk) (v: val) :=
                ⌜length bl = size_chunk_nat ch  /\ decode_val ch bl = v /\ (align_chunk ch | snd l)⌝ ∧
                [∗ list] i↦b ∈ bl, adr_add l (Z.of_nat i) ↦□ (VAL b).
 
-Definition LKN := nroot .@ "LK".
-
-(* This is obviously wrong -- R isn't a global invariant. We can track it in a map as with funspecs.
-   Interestingly, though, this doesn't get used anywhere until the concurrent soundness proofs.
-Definition LKspec lock_size (R: mpred) : spec :=
+Definition LKspec lock_size b : spec :=
    fun (sh: Share.t) (l: address) =>
-    [∗ list] i ∈ seq 0 (Z.to_nat lock_size), adr_add l (Z.of_nat i) ↦{#sh} LK lock_size (Z.of_nat i) ∗
-      inv (LKN .@ l) R. *)
+    [∗ list] i ∈ seq 0 (Z.to_nat lock_size), adr_add l (Z.of_nat i) ↦{#sh} LK lock_size (Z.of_nat i) b.
 
 Definition Trueat (l: address) : mpred := True.
 

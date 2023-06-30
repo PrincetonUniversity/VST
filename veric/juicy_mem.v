@@ -206,7 +206,7 @@ Qed.*)
 
 Definition perm_of_res_lock (r: dfrac * option resource) :=
   match r with
-  | (q, Some (LK _ _)) => match q with
+  | (q, Some (LK _ _ _)) => match q with
                    | DfracOwn (Share sh) => perm_of_sh (Share.glb Share.Rsh sh)
                    | DfracBoth _ => Some Readable
                    | _ => None

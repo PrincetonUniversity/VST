@@ -30,6 +30,7 @@ Require Import VST.concurrency.common.coinductive_safety.*)
 
 Require Import VST.concurrency.common.HybridMachineSig.
 (* Require Import VST.concurrency.CoreSemantics_sum. *)
+Import Maps.
 
 
 Module DryHybridMachine.

@@ -24,14 +24,6 @@ Context `{!heapGS Σ}.
 Definition selflock_fun Q sh p : mpred -> mpred :=
   fun R => (Q ∗ ▷lock_inv sh p R).
 
-#[export] Instance lock_inv_nonexpansive sh p : NonExpansive (lock_inv sh p).
-Proof.
-  intros ????.
-  rewrite /lock_inv /LKspec.
-  do 9 f_equiv.
-  by apply inv_ne.
-Qed.
-
 #[export] Instance selflock_contractive Q sh p : Contractive (selflock_fun Q sh p).
 Proof.
   intros ????.
