@@ -1290,7 +1290,7 @@ Proof.
   rewrite /inflate_initial_mem.
   erewrite nextblock_drop, nextblock_alloc by eassumption.
   replace (Pos.to_nat (Pos.succ _) - 1)%nat with (S (Pos.to_nat (nextblock m0) - 1))%nat by lia.
-  rewrite seq_S big_sepL_app /= minus_Sn_m /=; last lia.
+  rewrite seq_S big_sepL_app /= -Nat.sub_succ_l /=; last lia.
   iDestruct "Hmem" as "(Hmem & Hnew & _)"; iPoseProof (affine with "Hnew") as "_".
   { destruct (block_bounds _).
     apply big_sepL_affine; intros.

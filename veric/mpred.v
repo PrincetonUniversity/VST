@@ -406,7 +406,7 @@ Class funspecGS Σ := FunspecG {
 }.
 
 Class heapGS Σ := HeapGS {
-  heapGS_invGS :> invGS Σ;
+  heapGS_invGS :> invGS_gen HasNoLc Σ;
   heapGS_gen_heapGS :> gen_heapGS address resource Σ;
   heapGS_funspecGS :> funspecGS Σ
 }.

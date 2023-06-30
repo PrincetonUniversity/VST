@@ -41,7 +41,7 @@ Open Scope bi_scope.
 Section heap.
 
 Context {Σ : gFunctors}.
-Context {HGS : gen_heapGS address resource Σ} {WGS : wsatGS Σ}.
+Context {HGS : gen_heapGS address resource Σ}.
 
 Notation mpred := (iProp Σ).
 

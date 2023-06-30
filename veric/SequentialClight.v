@@ -19,21 +19,6 @@ Import VericMinimumSeparationLogic.CSHL_Def.
 Import VericMinimumSeparationLogic.CSHL_Defs.
 Import Clight.
 
-Lemma stepN_plain_forall_2 `{!invGS Σ} {A} (E : coPset) (n : nat) (P : A -> iProp Σ) `{∀x, Plain (P x)} `{∀x, Absorbing (P x)} : (∀x, |={E}▷=>^n (P x)) ⊢ (|={E}▷=>^n (∀x, P x)).
-Proof.
-  destruct n; first done.
-  rewrite bi.forall_mono.
-  2: { intros; apply step_fupdN_plain; apply _. }
-  iIntros "H".
-  rewrite fupd_plain_forall_2 /=.
-  iMod "H"; iIntros "!> !>".
-  iInduction n as [|] "IH"; simpl.
-  - rewrite -bi.except_0_forall; by iMod "H" as "$".
-  - rewrite bi.later_forall_2.
-    iIntros "!> !> !>".
-    iApply ("IH" with "H").
-Qed.
-
 Class VSTGpreS (Z : Type) Σ := {
   VSTGpreS_inv :> invGpreS Σ;
   VSTGpreS_heap :> gen_heapGpreS address resource Σ;
@@ -48,7 +33,7 @@ Global Instance subG_VSTGpreS {Z Σ} : subG (VSTΣ Z) Σ → VSTGpreS Z Σ.
 Proof. solve_inG. Qed.
 
 Lemma init_VST: forall Z `{!VSTGpreS Z Σ} (z : Z),
-  ⊢ |==> ∀ _ : invGS Σ, ∃ _ : gen_heapGS address resource Σ, ∃ _ : funspecGS Σ, ∃ _ : externalGS Z Σ,
+  ⊢ |==> ∀ _ : invGS_gen HasNoLc Σ, ∃ _ : gen_heapGS address resource Σ, ∃ _ : funspecGS Σ, ∃ _ : externalGS Z Σ,
     let H : heapGS Σ := HeapGS _ _ _ _ in
     (state_interp Mem.empty z ∗ funspec_auth ∅ ∗ has_ext z) ∗ ghost_map.ghost_map_auth(H0 := gen_heapGpreS_meta) (gen_meta_name _) 1 ∅.
 Proof.
@@ -62,7 +47,7 @@ Proof.
   iExists ∅; iFrame. iSplit; [|done]. iPureIntro. apply empty_coherent.
 Qed.
 
-Global Instance stepN_absorbing {PROP : bi} `{!BiFUpd PROP} n E (P : PROP) `{!Absorbing P}: Absorbing (|={E}▷=>^n P).
+Global Instance stepN_absorbing {PROP : bi} `{!BiFUpd PROP} n E1 E2 (P : PROP) `{!Absorbing P}: Absorbing (|={E1}[E2]▷=>^n P).
 Proof.
   induction n; apply _.
 Qed.
@@ -99,45 +84,34 @@ Proof.
        assert (b0 = b) as -> by congruence.
        assert (q0 = q) as -> by congruence.
        done. }
-  intros n; eapply (step_fupdN_soundness _ n); intros.
-  iIntros.
+  intros n; eapply ouPred.pure_soundness, (step_fupdN_soundness_no_lc' _ (S n) O); [apply _..|].
+  simpl; intros; iIntros "_".
   iMod (@init_VST _ _ VSTGpreS0) as "H".
   iDestruct ("H" $! Hinv) as (?? HE) "(H & ?)".
   specialize (H (HeapGS _ _ _ _) HE).
   eapply (semax_prog_rule _ _ _ _ n) in H as (b & q & (? & ? & Hinit) & Hsafe); [| done..].
   iMod (Hsafe with "H") as "Hsafe".
-
-  Ltac big_intro := 
-    iApply fupd_mask_intro; first set_solver;
-    iIntros "HClose";
-    iApply step_fupdN_intro; first set_solver;
-    iModIntro.
-
-  iAssert (|={⊤,∅}=> |={∅}▷=>^n  ⌜@dry_safeN _ _ _ OK_ty (genv_symb_injective) (cl_core_sem (globalenv prog))
+  iAssert (|={⊤}[∅]▷=>^n ⌜@dry_safeN _ _ _ OK_ty (genv_symb_injective) (cl_core_sem (globalenv prog))
             OK_spec (Build_genv (Genv.globalenv prog) (prog_comp_env prog)) n initial_oracle q m⌝) with "[Hsafe]" as "Hdry".
   { clear H0 Hinit Hsafe.
     rewrite bi.and_elim_l.
     iLöb as "IH" forall (m initial_oracle q n).
-    destruct n as [|n].
-    { simpl. iApply fupd_mask_intro; first done.
-      iIntros "HClose"; iPureIntro. constructor. }
+    destruct n as [|n]; simpl.
+    { iPureIntro. constructor. }
     rewrite [in (environments.Esnoc _ "Hsafe" _)]/jsafeN jsafe_unfold /jsafe_pre.
     iDestruct "Hsafe" as "(s_interp & >Hsafe)".
     iDestruct ("Hsafe" with "s_interp") as "[Hsafe_halt | [Hsafe_core | Hsafe_ext]]".
     - iDestruct "Hsafe_halt" as %(ret & Hhalt & Hexit).
-      big_intro. iModIntro.
+      iApply step_fupd_intro; first done; iApply step_fupdN_intro; first done.
       iPureIntro; eapply safeN_halted; eauto.
     - iDestruct "Hsafe_core" as ">(%c' & %m' & %H & s_interp & ▷jsafe)".
-      iApply (fupd_mask_intro ⊤ ∅); first done.
-      iIntros "HClose".
-      simpl.
-      iModIntro. iModIntro.
-      iMod "HClose" as "_".
-      iMod ("IH" with "[$]") as "dry_safe".
-      iModIntro. iApply (step_fupdN_wand with "dry_safe").
-      iPureIntro. intros. eapply safeN_step; eauto.
+      iApply fupd_mask_intro; first done.
+      iIntros "Hclose !>"; iMod "Hclose" as "_".
+      iSpecialize ("IH" with "[$]").
+      iModIntro; iApply (step_fupdN_mono with "IH").
+      iPureIntro. eapply safeN_step; eauto.
     - iDestruct "Hsafe_ext" as (ef args w (at_external & Hpre)) "Hpost".
-      iAssert (|={⊤,∅}=> |={∅}▷=>^(S n) ⌜(∀ (ret : option val) m' z' n',
+      iAssert (|={⊤}[∅]▷=>^(S n) ⌜(∀ (ret : option val) m' z' n',
       Val.has_type_list args (sig_args (ef_sig ef))
       → Builtins0.val_opt_has_rettype ret (sig_res (ef_sig ef))
         → n' ≤ n
@@ -145,20 +119,19 @@ Proof.
                 (genv_symb_injective (globalenv prog)) (sig_res (ef_sig ef)) ret z' m'
               → ∃ q',
                   (after_external (cl_core_sem (globalenv prog)) ret q m' = Some q'
-                   ∧ safeN_ (cl_core_sem (globalenv prog)) OK_spec (Genv.globalenv prog) n' z' q' m'))⌝) with "[-]" as ">hyp";
-      last by iModIntro; iApply (step_fupdN_wand with "hyp"); iPureIntro; intros; eapply safeN_external; eauto.
-      iApply fupd_mask_intro; first done; iIntros "HClose".
+                   ∧ safeN_ (cl_core_sem (globalenv prog)) OK_spec (Genv.globalenv prog) n' z' q' m'))⌝) with "[-]" as "Hdry".
+      2: { iApply (step_fupdN_mono with "Hdry"); iPureIntro; intros; eapply safeN_external; eauto. }
       iApply step_fupdN_mono; first by do 8 setoid_rewrite bi.pure_forall.
-      repeat setoid_rewrite <- stepN_plain_forall_2; [| apply _ ..].
+      repeat (setoid_rewrite step_fupdN_plain_forall; last done; [|apply _..]).
       iIntros (ret m' z' n' ????).
-      simpl; iIntros "!> !>".
-      iMod "HClose" as "_".
+      simpl; iApply fupd_mask_intro; first done.
+      iIntros "Hclose !>"; iMod "Hclose" as "_".
       iMod ("Hpost" with "[%] [%]") as (??) "H"; [done..|].
-      iMod ("IH" with "H") as "Hsafe".
+      iSpecialize ("IH" with "[$]").
       iModIntro; iApply step_fupdN_le; first done.
-      iApply (step_fupdN_wand with "Hsafe"); eauto. }
-  iMod "Hdry". iModIntro.
-  iApply (step_fupdN_wand with "Hdry").
+      iApply (step_fupdN_mono with "IH"); eauto. }
+  iApply step_fupd_intro; first done.
+  iNext; iApply (step_fupdN_mono with "Hdry").
   iPureIntro. intros.
   eexists. eexists. split3; eauto.
   apply Hinit.
