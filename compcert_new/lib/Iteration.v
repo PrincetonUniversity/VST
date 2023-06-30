@@ -237,7 +237,7 @@ Lemma iter_monot:
 Proof.
   induction p; intros.
   simpl. red; intros; red; auto.
-  destruct q. elimtype False; omega.
+  destruct q. exfalso; omega.
   simpl. apply F_iter_monot. apply IHp. omega.
 Qed.
 
