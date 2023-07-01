@@ -156,7 +156,7 @@ unfold Share.Lsh, Share.Rsh, Tsh.
 destruct (Share.split Share.top) eqn:?. simpl.
 apply split_join; auto.
 Qed.
-Hint Resolve writable0_share_top.
+#[export] Hint Resolve writable0_share_top : core.
 
 Ltac common_contradictions:=
   match goal with
