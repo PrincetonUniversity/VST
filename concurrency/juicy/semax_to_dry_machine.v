@@ -54,6 +54,8 @@ Require Import VST.concurrency.juicy.semax_safety_release.
 Require Import VST.concurrency.juicy.semax_safety_freelock.
 Require Import VST.concurrency.juicy.semax_preservation.
 Require Import VST.concurrency.juicy.semax_simlemmas.*)
+Require Import VST.concurrency.common.dry_machine_lemmas.
+Require Import VST.concurrency.common.dry_machine_step_lemmas.
 Import ThreadPool.
 
 Set Bullet Behavior "Strict Subproofs".
@@ -115,11 +117,10 @@ Section Safety.
   Instance Sem : Semantics := ClightSemanticsForMachines.ClightSem (Clight.globalenv CPROOF.(CSL_prog)).
   Definition ge := Clight.globalenv CPROOF.(CSL_prog).
 
-  Definition init_access_map : access_map := Maps.PMap.init (fun _ => None).
-
   Existing Instance HybridMachineSig.HybridCoarseMachine.DilMem.
   Existing Instance HybridMachineSig.HybridCoarseMachine.scheduler.
 
+  (* If there are enough of these conditions, re-split out into semax_invariant. *)
   Definition threads_safe `{heapGS Σ} `{externalGS unit Σ} {res : Resources} (tp : @OrdinalPool.t res Sem) : mpred :=
     [∗ list] i ∈ seq 0 (pos.n (OrdinalPool.num_threads tp)), ∃ cnti : containsThread(ThreadPool := OrdinalPool.OrdinalThreadPool) tp i,
     match getThreadC cnti with
@@ -136,15 +137,25 @@ Section Safety.
       jsafeN (CEspec _ _) ge ⊤ tt q_new
     end%I.
 
+  Definition threads_wellformed {res : Resources} (tp : @OrdinalPool.t res Sem) :=
+    forall i (cnti : containsThread(ThreadPool := OrdinalPool.OrdinalThreadPool) tp i),
+    match getThreadC cnti with
+    | Krun q => Logic.True
+    | Kblocked q => cl_at_external q <> None
+    | Kresume q v => cl_at_external q <> None /\ v = Vundef
+    | Kinit _ _ => Logic.True
+    end.
+
+  Existing Instance HybridMachine.DryHybridMachine.DryHybridMachineSig.
+
   Theorem dry_safety `{!VSTGpreS unit Σ} sch n : exists b c_init,
     Genv.find_symbol (globalenv prog) (Ctypes.prog_main prog) = Some b /\
     cl_initial_core (globalenv prog) (Vptr b Ptrofs.zero) [] = Some c_init /\
     HybridMachineSig.HybridCoarseMachine.csafe
        (ThreadPool:= threadPool.OrdinalPool.OrdinalThreadPool(Sem:=ClightSem ge))
-       (machineSig:= HybridMachine.DryHybridMachine.DryHybridMachineSig)
      (sch, [],
       DryHybridMachine.initial_machine(Sem := Sem) (getCurPerm (proj1_sig init_mem))
-        c_init (init_access_map, init_access_map)) (proj1_sig init_mem) n.
+        c_init) (proj1_sig init_mem) n.
   Proof.
     eapply ouPred.pure_soundness, (step_fupdN_soundness_no_lc' _ (S n) O); [apply _..|].
     simpl; intros; iIntros "_".
@@ -154,26 +165,28 @@ Section Safety.
     iMod (Hsafe with "H") as "(S & Hsafe)".
     iAssert (|={⊤}[∅]▷=>^n ⌜HybridMachineSig.HybridCoarseMachine.csafe
          (ThreadPool:= threadPool.OrdinalPool.OrdinalThreadPool(Sem:=ClightSem ge))
-         (machineSig:= HybridMachine.DryHybridMachine.DryHybridMachineSig)
        (sch, [],
         DryHybridMachine.initial_machine(Sem := Sem) (getCurPerm (proj1_sig init_mem))
-          q (init_access_map, init_access_map)) (proj1_sig init_mem) n⌝) with "[S Hsafe]" as "Hdry".
+          q) (proj1_sig init_mem) n⌝) with "[S Hsafe]" as "Hdry".
     2: { iApply step_fupd_intro; first done.
          iNext; iApply (step_fupdN_mono with "Hdry").
          iPureIntro. intros.
          eexists. eexists. split; first done; split; first apply Hinit; done. }
     clear Hinit Hsafe.
     rewrite bi.and_elim_l.
-    forget (proj1_sig init_mem) as m.
-    forget (@nil Events.machine_event) as tr.
-    set (tp := initial_machine _ _ _).
+    set (tp := initial_machine _ _).
+    assert (invariant tp) as Hinvariant by apply ThreadPoolWF.initial_invariant0.
+    assert (HybridMachineSig.mem_compatible tp (`init_mem)) as Hcompat by apply ThreadPoolWF.initial_mem_compatible.
+    assert (threads_wellformed tp) as Htp_wf by done.
     iAssert (threads_safe tp) with "[Hsafe]" as "Hsafe".
     { rewrite /threads_safe /=.
       iSplit; last done.
       unshelve iExists _; done. }
+    forget (proj1_sig init_mem) as m.
+    forget (@nil Events.machine_event) as tr.
     clearbody tp.
     clear dependent b x q.
-    iLöb as "IH" forall (sch tr tp m n).
+    iLöb as "IH" forall (sch tr tp m n Htp_wf Hinvariant Hcompat).
     destruct n as [|n].
     { iPureIntro. constructor. }
     destruct sch as [|i sch].
@@ -182,15 +195,14 @@ Section Safety.
     2: { iApply step_fupd_intro; first done; iNext.
          iAssert (|={⊤}[∅]▷=>^n ∀ U'', ⌜HybridMachineSig.HybridCoarseMachine.csafe (U'', tr, tp) m n⌝) with "[-]" as "H".
          { rewrite step_fupdN_plain_forall //.
-           iIntros; iApply ("IH" with "S Hsafe"). }
+           iIntros; iApply ("IH" with "[%] [%] [%] S Hsafe"); done. }
          iApply (step_fupdN_mono with "H"); iPureIntro.
          intros Hsafe.
          eapply HybridMachineSig.HybridCoarseMachine.AngelSafe with (tr := []); simpl; rewrite seq.cats0; last apply Hsafe.
          eapply HybridMachineSig.schedfail; eauto.
-         { rewrite /containsThread /= /OrdinalPool.containsThread.
-           intros ?.
-           pose proof (@ssrnat.leP (S i) (pos.n (OrdinalPool.num_threads tp))) as Hle; inv Hle; [lia | congruence]. }
-         admit. admit. }
+         rewrite /containsThread /= /OrdinalPool.containsThread.
+         intros ?.
+         pose proof (@ssrnat.leP (S i) (pos.n (OrdinalPool.num_threads tp))) as Hle; inv Hle; [lia | congruence]. }
     rewrite {2}/threads_safe.
     rewrite big_sepL_lookup_acc_impl; last by apply lookup_seq; eauto.
     iDestruct "Hsafe" as "((% & Hsafei) & Hsafe)".
@@ -209,7 +221,7 @@ Section Safety.
             iIntros "!>" (?) "?". iLeft; eauto. }
         iAssert (|={⊤}[∅]▷=>^n ∀ U'', ⌜HybridMachineSig.HybridCoarseMachine.csafe (U'', tr, tp) m n⌝) with "[-]" as "H".
         { rewrite step_fupdN_plain_forall //.
-          iIntros; iApply ("IH" with "S Hsafe"). }
+          iIntros; iApply ("IH" with "[%] [%] [%] S Hsafe"); done. }
          iApply (step_fupdN_mono with "H"); iPureIntro.
          intros Hsafe.
          eapply HybridMachineSig.HybridCoarseMachine.AngelSafe with (tr := []); simpl; rewrite seq.cats0; last apply Hsafe.
@@ -218,7 +230,6 @@ Section Safety.
       + iDestruct "Hsafe_core" as ">(%c' & %m' & %Hstep & s_interp & ▷jsafe)".
         iApply fupd_mask_intro; first done.
         iIntros "Hclose !>"; iMod "Hclose" as "_".
-        iSpecialize ("IH" with "[$]").
         admit. (* HybridMachineSig.thread_step
         iModIntro; iApply (step_fupdN_mono with "IH").
         iPureIntro; intros Hsafe.
@@ -249,8 +260,34 @@ Section Safety.
         iSpecialize ("IH" with "[$]").
         iModIntro; iApply step_fupdN_le; first done.
         iApply (step_fupdN_mono with "IH"); eauto. } *)
-    - (* Kblocked: HybridMachineSig.sync_step *) admit.
-    - (* Kresume: HybridMachineSig.resume_step *) admit.
+    - (* Kblocked: HybridMachineSig.sync_step *)
+      pose proof (Htp_wf _ cnti) as Hwfi; rewrite Hi in Hwfi.
+      admit.
+    - (* Kresume: HybridMachineSig.resume_step *)
+      pose proof (Htp_wf _ cnti) as Hwfi; rewrite Hi in Hwfi; destruct Hwfi as (? & ->).
+      destruct s; try done.
+      destruct f; try done.
+      assert (HybridMachineSig.resume_thread m cnti (updThreadC cnti (Krun (Returnstate Vundef c)))) as Hresume.
+      { unfold cl_at_external in *; destruct (ef_inline e) eqn: Hinline; try done.
+        eapply (HybridMachineSig.ResumeThread _ _ _ _ _ _ _ _ _ Hcompat); try done; simpl; by rewrite ?Hinline. }
+      iApply step_fupd_intro; first done; iNext.
+      iSpecialize ("IH" $! _ _ (updThreadC cnti (Krun (Returnstate Vundef c))) with "[%] [%] [%] S [-]").
+      + intros j cntj.
+        destruct (eq_dec j i).
+        * subst; rewrite gssThreadCC //.
+        * pose proof (cntUpdateC' _ cnti cntj) as cntj0.
+          rewrite -gsoThreadCC //; apply Htp_wf.
+      + by apply ThreadPoolWF.updThreadC_invariant.
+      + by apply StepLemmas.updThreadC_compatible.
+      + iApply "Hsafe".
+        * iIntros "!>" (?? (-> & ?)%lookup_seq ?) "(% & Hsafe)".
+          iExists (cntUpdateC _ _ _); rewrite -gsoThreadCC //.
+        * iExists (cntUpdateC _ _ _); rewrite gssThreadCC.
+          by iApply "Hsafei".
+      + iApply (step_fupdN_mono with "IH"); iPureIntro; intros Hsafe.
+        eapply HybridMachineSig.HybridCoarseMachine.CoreSafe with (tr := []); simpl; rewrite seq.cats0; last apply Hsafe.
+        change (i :: sch) with (HybridMachineSig.yield (i :: sch)) at 2.
+        eapply HybridMachineSig.resume_step; eauto.
     - (* Kinit: HybridMachineSig.start_step *) admit.
   Admitted.
 

@@ -375,6 +375,8 @@ Module HybridMachineSig.
           (HschedN: schedPeek U = Some tid)
           (Htid: containsThread ms tid)
           (Hhalt: halted_thread Htid i)
+          (Hinv: invariant ms)
+          (Hcmpt: mem_compatible ms m)
           (HschedS: schedSkip U = U'),        (*Schedule Forward*)
           machine_step U tr ms m U' tr ms m
     | schedfail :
@@ -497,12 +499,14 @@ Module HybridMachineSig.
             (Htstep: syncStep isCoarse Htid Hcmpt ms' m' ev),
             external_step U tr ms m  U' (tr ++ [:: external tid ev]) ms' m'
       | halted_step':
-        forall tid U U' ms m tr i
-          (HschedN: schedPeek U = Some tid)
-          (Htid: containsThread ms tid)
-          (Hhalt: halted_thread Htid i)
-          (HschedS: schedSkip U = U'),        (*Schedule Forward*)
-          external_step U tr ms m U' tr ms m
+          forall tid U U' ms m tr i
+            (HschedN: schedPeek U = Some tid)
+            (Htid: containsThread ms tid)
+            (Hhalt: halted_thread Htid i)
+            (Hinv: invariant ms)
+            (Hcmpt: mem_compatible ms m)
+            (HschedS: schedSkip U = U'),        (*Schedule Forward*)
+            external_step U tr ms m U' tr ms m
       | schedfail':
           forall tid U U' ms m tr
             (HschedN: schedPeek U = Some tid)

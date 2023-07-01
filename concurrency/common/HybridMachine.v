@@ -596,7 +596,7 @@ Module DryHybridMachine.
     Qed.
 
 
-    Definition initial_machine pmap c ex := mkPool (Krun c) (pmap, empty_map) ex.
+    Definition initial_machine pmap c := mkPool (Krun c) (pmap, empty_map) (empty_map, empty_map).
 
     Definition init_mach (pmap : option res) (m: mem)
                (ms:thread_pool) (m' : mem) (v:val) (args:list val) : Prop :=
