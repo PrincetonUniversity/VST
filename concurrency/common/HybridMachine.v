@@ -669,9 +669,9 @@ Module DryHybridMachine.
       (** *Invariant Lemmas*)
 
       (** ** Updating the machine state**)
-      (* Many invaraint lemmas were removed from here. *)
-      
-    
+      (* Many invariant lemmas were removed from here. *)
+
+
     Notation thread_perms st i cnt:= (fst (@getThreadR _ _ _ st i cnt)).
     Notation lock_perms st i cnt:= (snd (@getThreadR  _ _ _ st i cnt)).
     Record thread_compat st i

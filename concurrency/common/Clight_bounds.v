@@ -202,27 +202,6 @@ Proof.
   apply (memsem_preserves (CLC_memsem ge) _ preserve_bnd _ _ _ _ H H0).
 Qed.
 
-(*This proof is already in juicy_machine.
- * move it to a more general position.*)
-Lemma Mem_canonical_useful: forall m loc k,
-    fst (Mem.mem_access m) loc k = None.
-Proof. intros. destruct m; simpl in *.
-       unfold PMap.get in nextblock_noaccess.
-       pose (b:= Pos.max (TreeMaxIndex (snd mem_access) + 1 )  nextblock).
-       assert (H1:  ~ Plt b nextblock).
-       { intros H. assert (HH:= Pos.le_max_r (TreeMaxIndex (snd mem_access) + 1) nextblock).
-         clear - H HH. unfold Pos.le in HH. unfold Plt in H.
-         apply HH. eapply Pos.compare_gt_iff.
-         auto. }
-       assert (H2 :( b > (TreeMaxIndex (snd mem_access)))%positive ).
-       { assert (HH:= Pos.le_max_l (TreeMaxIndex (snd mem_access) + 1) nextblock).
-         apply Pos.lt_gt. eapply Pos.lt_le_trans; eauto.
-         lia. }
-       specialize (nextblock_noaccess b loc k H1).
-       apply max_works in H2. rewrite H2 in nextblock_noaccess.
-       assumption.
-Qed.
-
 Lemma mem_bound_init_mem_bound:
   forall m,
     bounded_maps.bounded_map (snd (getMaxPerm m)) <->

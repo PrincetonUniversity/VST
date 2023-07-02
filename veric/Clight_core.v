@@ -341,7 +341,7 @@ Program Definition cl_core_sem (ge: genv) :
   @CoreSemantics CC_core mem :=
   @Build_CoreSemantics _ _
     (*deprecated cl_init_mem*)
-    (fun _ m c m' v args => cl_initial_core ge v args = Some c(* /\ Mem.arg_well_formed args m /\ m' = m *)) (* why is this commented out? *)
+    (fun _ m c m' v args => cl_initial_core ge v args = Some c(* /\ Mem.arg_well_formed args m *) /\ m' = m)
     (fun c _ => cl_at_external c)
     (fun ret c _ => cl_after_external ret c)
     (fun c _ =>  cl_halted c <> None) (* Why don't we use the int argument of halted? *)

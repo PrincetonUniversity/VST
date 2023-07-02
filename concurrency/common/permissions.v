@@ -980,42 +980,39 @@ Proof.*)
     contradict GET. apply Pos.gt_lt; assumption.
   Qed.
 
+(*This proof is already in juicy_machine.
+ * move it to a more general position.*)
+  Lemma Mem_canonical_useful: forall m loc k,
+    fst (Mem.mem_access m) loc k = None.
+  Proof. intros. destruct m; simpl in *.
+       unfold PMap.get in nextblock_noaccess.
+       pose (b:= Pos.max (TreeMaxIndex (snd mem_access) + 1 )  nextblock).
+       assert (H1:  ~ Coqlib.Plt b nextblock).
+       { intros H. assert (HH:= Pos.le_max_r (TreeMaxIndex (snd mem_access) + 1) nextblock).
+         clear - H HH. unfold Pos.le in HH. unfold Coqlib.Plt in H.
+         apply HH. eapply Pos.compare_gt_iff.
+         auto. }
+       assert (H2 :( b > (TreeMaxIndex (snd mem_access)))%positive ).
+       { assert (HH:= Pos.le_max_l (TreeMaxIndex (snd mem_access) + 1) nextblock).
+         apply Pos.lt_gt. eapply Pos.lt_le_trans; eauto.
+         lia. }
+       specialize (nextblock_noaccess b loc k H1).
+       apply max_works in H2. rewrite H2 in nextblock_noaccess.
+       assumption.
+  Qed.
+
   Lemma Cur_isCanonical: forall m, isCanonical (getCurPerm m).
-        unfold isCanonical. intros.
-        pose (BigNumber:= Pos.max (Pos.succ( TreeMaxIndex (getCurPerm m).2) ) (Mem.nextblock m)).
-        assert (HH: (BigNumber >= (Pos.succ ( TreeMaxIndex (getCurPerm m).2)))%positive )
-          by (unfold BigNumber; apply Pos.le_ge; apply Pos.le_max_l).
-        apply Pos.ge_le in HH; apply Pos.le_succ_l in HH.
-        apply Pos.lt_gt in HH; eapply max_works in HH.
-        extensionality x.
-        pose (property:= Mem.nextblock_noaccess m BigNumber x Cur).
-        rewrite <- property.
-        - replace ((Mem.mem_access m) !! BigNumber x Cur) with
-          (permission_at m BigNumber x Cur); try reflexivity.
-          rewrite <- getCurPerm_correct.
-          unfold PMap.get.
-          rewrite HH.
-          reflexivity.
-        - apply Pos.le_nlt. unfold BigNumber. apply Pos.le_max_r.
+  Proof.
+    unfold isCanonical, getCurPerm; intros.
+    extensionality; simpl.
+    apply Mem_canonical_useful.
   Qed.
 
   Lemma Max_isCanonical: forall m, isCanonical (getMaxPerm m).
-        unfold isCanonical. intros.
-        pose (BigNumber:= Pos.max (Pos.succ( TreeMaxIndex (getMaxPerm m).2) ) (Mem.nextblock m)).
-        assert (HH: (BigNumber >= (Pos.succ ( TreeMaxIndex (getMaxPerm m).2)))%positive )
-          by (unfold BigNumber; apply Pos.le_ge; apply Pos.le_max_l).
-        apply Pos.ge_le in HH; apply Pos.le_succ_l in HH.
-        apply Pos.lt_gt in HH; eapply max_works in HH.
-        extensionality x.
-        pose (property:= Mem.nextblock_noaccess m BigNumber x Max).
-        rewrite <- property.
-        - replace ((Mem.mem_access m) !! BigNumber x Max) with
-          (permission_at m BigNumber x Max); try reflexivity.
-          rewrite <- getMaxPerm_correct.
-          unfold PMap.get.
-          rewrite HH.
-          reflexivity.
-        - apply Pos.le_nlt. unfold BigNumber. apply Pos.le_max_r.
+  Proof.
+    unfold isCanonical, getMaxPerm; intros.
+    extensionality; simpl.
+    apply Mem_canonical_useful.
   Qed.
 
   Definition permMapLt (pmap1 pmap2 : access_map) : Prop :=
@@ -1088,6 +1085,13 @@ Proof.*)
     unfold permission_at in Hlt.
     rewrite H in Hlt. simpl in Hlt.
     destruct (pmap !! b ofs); [by exfalso | reflexivity].
+  Qed.
+
+  Global Instance permMapLt_preorder : PreOrder permMapLt.
+  Proof.
+    split.
+    - intros ???; apply po_refl.
+    - intros ???????; eapply po_trans; eauto.
   Qed.
 
   Definition setPerm (p : option permission) (b : block)
@@ -2186,6 +2190,22 @@ Proof.*)
     auto.
   Defined.
 
+  Lemma restrPermMap_eq : forall m (Hlt : permMapLt (getCurPerm m) (getMaxPerm m)), restrPermMap Hlt = m.
+  Proof.
+    intros.
+    pose proof (Mem_canonical_useful m) as Hcanon.
+    destruct m; simpl; apply Mem.mkmem_ext; simpl in *; try done.
+    destruct mem_access; simpl.
+    apply f_equal_prod.
+    - extensionality; extensionality k.
+      destruct k; done.
+    - apply trivial_ptree_map; intros.
+      extensionality; extensionality k.
+      destruct k; try done.
+      rewrite getCurPerm_correct /permission_at /PMap.get /=.
+      rewrite H //.
+  Qed.
+
   Definition erasePerm (m : mem) : mem.
   Proof.
     refine (Mem.mkmem (Mem.mem_contents m)
@@ -2277,6 +2297,15 @@ Proof.*)
       (Mem.valid_block m_before b ->
        (forall k, Maps.PMap.get b (Mem.mem_access m_before) ofs k =
              Maps.PMap.get b (Mem.mem_access m_after) ofs k)).
+
+  Lemma strong_decay_refl:
+    forall m,
+      strong_decay m m.
+  Proof.
+    intros m b ofs.
+    split; intros; first by exfalso.
+    auto.
+  Qed.
 
    Lemma strong_decay_implies_decay:
      forall m m',
@@ -2744,7 +2773,7 @@ Qed.
       Qed.
       Lemma restr_Max_eq:
         forall p m Hlt,
-          getMaxPerm (@restrPermMap p m Hlt) = getMaxPerm m.  
+          getMaxPerm (@restrPermMap p m Hlt) = getMaxPerm m.
       Proof.
         intros.
         unfold getMaxPerm, restrPermMap.
@@ -2755,7 +2784,29 @@ Qed.
         rewrite !PTree.gmap; unfold option_map.
         destruct PTree.get; reflexivity.
       Qed.
-      
+
+  Lemma permMapLt_restr: forall p m (Hlt : permMapLt p (getMaxPerm m)) p', permMapLt p' (getMaxPerm (restrPermMap Hlt)) ->
+    permMapLt p' (getMaxPerm m).
+  Proof. intros ????; rewrite restr_Max_eq //. Qed.
+
+  Lemma PTree_map_map : forall {A B C} (f : positive -> A -> B) (g : positive -> B -> C) t,
+    PTree.map g (PTree.map f t) = PTree.map (fun p a => g p (f p a)) t.
+  Proof.
+    intros; apply PTree.extensionality; intros.
+    rewrite !PTree.gmap /option_map.
+    destruct (t ! i); done.
+  Qed.
+
+  Lemma restrPermMap_idem : forall m p (Hlt : permMapLt p (getMaxPerm m)) p' (Hlt' : permMapLt p' (getMaxPerm (restrPermMap Hlt))),
+    restrPermMap Hlt' = @restrPermMap p' m (permMapLt_restr Hlt').
+  Proof.
+    intros; apply Mem.mkmem_ext; try done.
+    f_equal; simpl.
+    - extensionality; extensionality k.
+      destruct k; done.
+    - rewrite PTree_map_map //.
+  Qed.
+
       Lemma setPermBlock_setPermBlock_var':
         forall v, setPermBlock v = setPermBlock_var (fun _ : nat => v).
       Proof.

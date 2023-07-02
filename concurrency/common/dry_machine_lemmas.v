@@ -909,7 +909,7 @@ Module CoreLanguage.
               (Hvalid: Mem.valid_block m b)
               (Hstable: ~ Mem.perm m b ofs Cur Writable),
               Maps.ZMap.get ofs (Maps.PMap.get b (Mem.mem_contents m)) =
-              Maps.ZMap.get ofs (Maps.PMap.get b (Mem.mem_contents m'));          
+              Maps.ZMap.get ofs (Maps.PMap.get b (Mem.mem_contents m'));
           (** Memories between thread steps are related by [decay] of permissions*)
           corestep_decay:
             forall c c' m m',
@@ -1582,7 +1582,7 @@ Module CoreLanguageDry.
     }
   Qed.
   
- (** [invariant] is preserved by a corestep *)
+ (** [invariant] is preserved by initial_core *)
   Lemma initial_core_invariant:
     forall (tp : t)  (m : mem) (i : nat) n
       (pf : containsThread tp i) c m1 m' vf arg

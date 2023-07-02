@@ -79,8 +79,8 @@ Proof.
             OK_spec
             (Build_genv (Genv.globalenv prog) (prog_comp_env prog))
              n initial_oracle q m).
-  2: { destruct (H1 O) as (b0 & q0 & ? & ? & _); eexists _, _; split; first done; split; first done.
-       intros n; destruct (H1 n) as (b & q & ? & ? & Hsafe).
+  2: { destruct (H1 O) as (b0 & q0 & ? & (? & _) & _); eexists _, _; split; first done; split; first done.
+       intros n; destruct (H1 n) as (b & q & ? & (? & _) & Hsafe).
        assert (b0 = b) as -> by congruence.
        assert (q0 = q) as -> by congruence.
        done. }
@@ -89,7 +89,7 @@ Proof.
   iMod (@init_VST _ _ VSTGpreS0) as "H".
   iDestruct ("H" $! Hinv) as (?? HE) "(H & ?)".
   specialize (H (HeapGS _ _ _ _) HE).
-  eapply (semax_prog_rule _ _ _ _ n) in H as (b & q & (? & ? & Hinit) & Hsafe); [| done..].
+  eapply (semax_prog_rule _ _ _ _ n) in H as (b & q & (? & ? & Hinit & ->) & Hsafe); [| done..].
   iMod (Hsafe with "H") as "Hsafe".
   iAssert (|={⊤}[∅]▷=>^n ⌜@dry_safeN _ _ _ OK_ty (genv_symb_injective) (cl_core_sem (globalenv prog))
             OK_spec (Build_genv (Genv.globalenv prog) (prog_comp_env prog)) n initial_oracle q m⌝) with "[Hsafe]" as "Hdry".
@@ -134,7 +134,6 @@ Proof.
   iNext; iApply (step_fupdN_mono with "Hdry").
   iPureIntro. intros.
   eexists. eexists. split3; eauto.
-  apply Hinit.
 Qed.
 
 Definition fun_id (ext_link: Strings.String.string -> ident) (ef: external_function) : option ident :=
