@@ -28,6 +28,7 @@ Require Import VST.veric.tycontext.
 Require Import VST.veric.res_predicates.
 Require Import VST.veric.SequentialClight.
 Require Import VST.floyd.coqlib3.
+Require Import VST.floyd.canon.
 Require Import VST.sepcomp.step_lemmas.
 Require Import VST.sepcomp.event_semantics.
 Require Import VST.sepcomp.extspec.
@@ -65,7 +66,7 @@ Ltac absurd_ext_link_naming :=
   exfalso;
   match goal with
   | H : Some (_ _, _) = _ |- _ =>
-    rewrite <-H in *
+    rewrite <- ?H in *
   end;
   unfold funsig2signature in *;
   match goal with
@@ -96,7 +97,7 @@ Record CSL_proof := {
   CSL_G : @funspecs CSL_Σ;
   CSL_ext_link : string -> ident;
   CSL_ext_link_inj : forall s1 s2, CSL_ext_link s1 = CSL_ext_link s2 -> s1 = s2;
-  CSL_all_safe : forall (HH : heapGS CSL_Σ) (HE : externalGS unit CSL_Σ), @semax_prog _ HH (Concurrent_Espec unit CSL_CS CSL_ext_link)
+  CSL_all_safe : forall (HH : heapGS CSL_Σ) (HE : externalGS unit CSL_Σ) (HL : lockGS CSL_Σ), @semax_prog _ HH (Concurrent_Espec unit CSL_CS CSL_ext_link)
     HE CSL_CS CSL_prog tt CSL_V CSL_G;
   CSL_init_mem_not_none : Genv.init_mem CSL_prog <> None;
                    }.
@@ -123,6 +124,7 @@ Section Safety.
   Definition prog :=   CPROOF.(CSL_prog).
   Definition all_safe :=   CPROOF.(CSL_all_safe).
   Definition init_mem_not_none :=   CPROOF.(CSL_init_mem_not_none).
+  Definition ge := Clight.globalenv CPROOF.(CSL_prog).
 
   Definition init_mem : {m : mem | Genv.init_mem (CSL_prog CPROOF) = Some m}.
   Proof.
@@ -131,10 +133,10 @@ Section Safety.
     eauto.
   Defined.
 
-  Local Instance CEspec (HH : heapGS Σ) (HE : externalGS unit Σ) : OracleKind :=
+  Local Instance CEspec (HH : heapGS Σ) (HE : externalGS unit Σ) (HL : lockGS Σ) : OracleKind :=
     Concurrent_Espec unit CS ext_link.
 
-  Lemma CEspec_cases : forall `{!heapGS Σ} `{!externalGS unit Σ} e
+  Lemma CEspec_cases : forall `{!heapGS Σ} `{!externalGS unit Σ} `{!lockGS Σ} e
     (x : ext_spec_type (concurrent_ext_spec unit CS ext_link) e),
     e = LOCK \/ e = UNLOCK \/ e = MKLOCK \/ e = FREE_LOCK \/ e = CREATE.
   Proof.
@@ -144,34 +146,129 @@ Section Safety.
       | clear H]); last done.
   Qed.
 
-  Program Definition spr (HH : heapGS Σ) (HE : externalGS unit Σ) :=
+  (* funspecs_destruct isn't working well, so prove a spec lemma for each function *)
+  Ltac next_spec := subst; let Hspecs := fresh "Hspecs" in match goal with |-context[add_funspecs_rec _ _ _ ?l] =>
+    destruct l eqn: Hspecs; first done;
+    injection Hspecs; clear Hspecs; intros Hspecs <-; simpl;
+    unfold funspec2pre, funspec2post, ef_id_sig; simpl; if_tac end.
+
+  Ltac solve_spec x := intros; revert x;
+    unfold ext_spec_post, OK_spec, CEspec, Concurrent_Espec, concurrent_ext_spec;
+    pose proof ext_link_inj as Hinj; fold ext_link in Hinj;
+    repeat (next_spec; first absurd_ext_link_naming); next_spec; last done;
+    intros; split; [|intros (? & Heq & ?)]; eauto;
+    inversion Heq as [Heq0 Heq']; apply inj_pair2 in Heq'; subst; auto.
+
+  Lemma CEspec_acquire_pre : forall `{!heapGS Σ} `{!externalGS unit Σ} `{!lockGS Σ} x args z m,
+    ext_spec_pre OK_spec LOCK x (genv_symb_injective ge) (sig_args (ef_sig LOCK)) args z m <->
+    match acquire_spec with mk_funspec _ _ A P _ => exists x'', JMeq.JMeq x x'' /\ funspec2pre' _ A P x'' (genv_symb_injective ge) (sig_args (ef_sig LOCK)) args z m end.
+  Proof.
+    solve_spec x.
+  Qed.
+
+  Lemma CEspec_acquire_post : forall `{!heapGS Σ} `{!externalGS unit Σ} `{!lockGS Σ} x ret z m,
+    ext_spec_post OK_spec LOCK x (genv_symb_injective ge) (sig_res (ef_sig LOCK)) ret z m <->
+    match acquire_spec with mk_funspec _ _ A _ Q => exists x'', JMeq.JMeq x x'' /\ funspec2post' _ A Q x'' (genv_symb_injective ge) (sig_res (ef_sig LOCK)) ret z m end.
+  Proof.
+    solve_spec x.
+  Qed.
+
+  Lemma CEspec_release_pre : forall `{!heapGS Σ} `{!externalGS unit Σ} `{!lockGS Σ} x args z m,
+    ext_spec_pre OK_spec UNLOCK x (genv_symb_injective ge) (sig_args (ef_sig UNLOCK)) args z m <->
+    match release_spec with mk_funspec _ _ A P _ => exists x'', JMeq.JMeq x x'' /\ funspec2pre' _ A P x'' (genv_symb_injective ge) (sig_args (ef_sig UNLOCK)) args z m end.
+  Proof.
+    solve_spec x.
+  Qed.
+
+  Lemma CEspec_release_post : forall `{!heapGS Σ} `{!externalGS unit Σ} `{!lockGS Σ} x ret z m,
+    ext_spec_post OK_spec UNLOCK x (genv_symb_injective ge) (sig_res (ef_sig UNLOCK)) ret z m <->
+    match release_spec with mk_funspec _ _ A _ Q => exists x'', JMeq.JMeq x x'' /\ funspec2post' _ A Q x'' (genv_symb_injective ge) (sig_res (ef_sig UNLOCK)) ret z m end.
+  Proof.
+    solve_spec x.
+  Qed.
+
+  Lemma CEspec_makelock_pre : forall `{!heapGS Σ} `{!externalGS unit Σ} `{!lockGS Σ} x args z m,
+    ext_spec_pre OK_spec MKLOCK x (genv_symb_injective ge) (sig_args (ef_sig MKLOCK)) args z m <->
+    match makelock_spec CS with mk_funspec _ _ A P _ => exists x'', JMeq.JMeq x x'' /\ funspec2pre' _ A P x'' (genv_symb_injective ge) (sig_args (ef_sig MKLOCK)) args z m end.
+  Proof.
+    solve_spec x.
+  Qed.
+
+  Lemma CEspec_makelock_post : forall `{!heapGS Σ} `{!externalGS unit Σ} `{!lockGS Σ} x ret z m,
+    ext_spec_post OK_spec MKLOCK x (genv_symb_injective ge) (sig_res (ef_sig MKLOCK)) ret z m <->
+    match makelock_spec CS with mk_funspec _ _ A _ Q => exists x'', JMeq.JMeq x x'' /\ funspec2post' _ A Q x'' (genv_symb_injective ge) (sig_res (ef_sig MKLOCK)) ret z m end.
+  Proof.
+    solve_spec x.
+  Qed.
+
+  Lemma CEspec_freelock_pre : forall `{!heapGS Σ} `{!externalGS unit Σ} `{!lockGS Σ} x args z m,
+    ext_spec_pre OK_spec FREE_LOCK x (genv_symb_injective ge) (sig_args (ef_sig FREE_LOCK)) args z m <->
+    match freelock_spec CS with mk_funspec _ _ A P _ => exists x'', JMeq.JMeq x x'' /\ funspec2pre' _ A P x'' (genv_symb_injective ge) (sig_args (ef_sig FREE_LOCK)) args z m end.
+  Proof.
+    solve_spec x.
+  Qed.
+
+  Lemma CEspec_freelock_post : forall `{!heapGS Σ} `{!externalGS unit Σ} `{!lockGS Σ} x ret z m,
+    ext_spec_post OK_spec FREE_LOCK x (genv_symb_injective ge) (sig_res (ef_sig FREE_LOCK)) ret z m <->
+    match freelock_spec CS with mk_funspec _ _ A _ Q => exists x'', JMeq.JMeq x x'' /\ funspec2post' _ A Q x'' (genv_symb_injective ge) (sig_res (ef_sig FREE_LOCK)) ret z m end.
+  Proof.
+    solve_spec x.
+  Qed.
+
+  Lemma CEspec_spawn_pre : forall `{!heapGS Σ} `{!externalGS unit Σ} `{!lockGS Σ} x args z m,
+    ext_spec_pre OK_spec CREATE x (genv_symb_injective ge) (sig_args (ef_sig CREATE)) args z m <->
+    match spawn_spec with mk_funspec _ _ A P _ => exists x'', JMeq.JMeq x x'' /\ funspec2pre' _ A P x'' (genv_symb_injective ge) (sig_args (ef_sig CREATE)) args z m end.
+  Proof.
+    solve_spec x.
+  Qed.
+
+  Lemma CEspec_spawn_post : forall `{!heapGS Σ} `{!externalGS unit Σ} `{!lockGS Σ} x ret z m,
+    ext_spec_post OK_spec CREATE x (genv_symb_injective ge) (sig_res (ef_sig CREATE)) ret z m <->
+    match spawn_spec with mk_funspec _ _ A _ Q => exists x'', JMeq.JMeq x x'' /\ funspec2post' _ A Q x'' (genv_symb_injective ge) (sig_res (ef_sig CREATE)) ret z m end.
+  Proof.
+    solve_spec x.
+  Qed.
+
+  Program Definition spr (HH : heapGS Σ) (HE : externalGS unit Σ) (HL : lockGS Σ) :=
     semax_prog_rule V G prog
-      (proj1_sig init_mem) 0 tt _ (all_safe HH HE) (proj2_sig init_mem).
+      (proj1_sig init_mem) 0 tt _ (all_safe HH HE HL) (proj2_sig init_mem).
   Next Obligation.
-  Proof. intros ??????; apply I. Qed.
+  Proof. intros ???????; apply I. Qed.
 
   Instance Sem : Semantics := ClightSemanticsForMachines.ClightSem (Clight.globalenv CPROOF.(CSL_prog)).
-  Definition ge := Clight.globalenv CPROOF.(CSL_prog).
 
   Existing Instance HybridMachineSig.HybridCoarseMachine.DilMem.
   Existing Instance HybridMachineSig.HybridCoarseMachine.scheduler.
 
   (* If there are enough of these conditions, re-split out into semax_invariant. *)
-  Definition dtp := @OrdinalPool.t dryResources Sem.
+  Definition dtp := t(ThreadPool := @OrdinalPool.OrdinalThreadPool dryResources Sem).
+
+(*  (* We want to enforce additional coherence properties between the rmap and the memory, accounting
+     for the effects of locks (and other things?). *)
+  Definition lock_coherent_loc m loc (r : dfrac * option resource) : Prop :=
+    match r.2 with
+    | Some (LK _ _ b) => Mem.load Mptr m loc.1 loc.2 = Some (Vptrofs (if b then Ptrofs.zero else Ptrofs.one))
+    | _ => True
+    end.
+
+  Definition lock_coherent m σ := forall loc, lock_coherent_loc m loc (σ @ loc).
+
+  Definition mem_auth' `{!heapGS Σ} m := ∃ σ, ⌜coherent m σ ∧ lock_coherent m σ⌝ ∧ resource_map.resource_map_auth(H0 := gen_heapGpreS_heap(gen_heapGpreS := gen_heap_inG)) (gen_heap_name _) 1 σ.
+  Definition state_interp' {Z} `{!heapGS Σ} `{!externalGS Z Σ} m z := mem_auth' m ∗ ext_auth z.*)
 
   (* Each thread needs to be safe given only its fragment (access_map) of the shared memory. We use
      the starting max permissions as an upper bound on the max permissions of the state_interp. *)
-  Program Definition jsafe_perm_pre `{!heapGS Σ} `{!externalGS unit Σ} (max : access_map)
+  Program Definition jsafe_perm_pre `{!heapGS Σ} `{!externalGS unit Σ} `{!lockGS Σ} (max : access_map)
     (jsafe : coPset -d> OK_ty -d> CC_core -d> access_map -d> iPropO Σ) : coPset -d> OK_ty -d> CC_core -d> access_map -d> iPropO Σ := λ E z c p,
-    |={E}=> ∀ m (Hlt : permMapLt p (getMaxPerm m)), ⌜permMapLt (getMaxPerm m) max⌝ → state_interp m z -∗
+    |={E}=> ∀ m (Hlt : permMapLt p (getMaxPerm m)), ⌜permMapLt (getMaxPerm m) max⌝ → state_interp(*'*) m z -∗
         (∃ i, ⌜halted (cl_core_sem ge) c i ∧ ext_spec_exit OK_spec (Some (Vint i)) z m⌝) ∨
-        (|={E}=> ∃ c' m', ⌜corestep (cl_core_sem ge) c (restrPermMap Hlt) c' m'⌝ ∧ (∃ p' (Hlt' : permMapLt p' (getMaxPerm m')), state_interp (restrPermMap Hlt') z) (* ?? *) ∗ ▷ jsafe E z c' (getCurPerm m')) ∨
+        (|={E}=> ∃ c' m', ⌜corestep (cl_core_sem ge) c (restrPermMap Hlt) c' m'⌝ ∧ (∃ p' (Hlt' : permMapLt p' (getMaxPerm m')), state_interp(*'*) (restrPermMap Hlt') z) (* ?? *) ∗ ▷ jsafe E z c' (getCurPerm m')) ∨
         (∃ e args x, ⌜at_external (cl_core_sem ge) c (restrPermMap Hlt) = Some (e, args) ∧ ext_spec_pre OK_spec e x (genv_symb_injective ge) (sig_args (ef_sig e)) args z (restrPermMap Hlt)⌝ ∧
            ▷ (∀ ret m' z', ⌜Val.has_type_list args (sig_args (ef_sig e)) ∧ Builtins0.val_opt_has_rettype ret (sig_res (ef_sig e))⌝ →
             ⌜ext_spec_post OK_spec e x (genv_symb_injective ge) (sig_res (ef_sig e)) ret z' m'⌝ → |={E}=>
-            ∃ c', ⌜after_external (cl_core_sem ge) ret c m' = Some c'⌝ ∧ state_interp m' z' ∗ jsafe E z' c' (getCurPerm m'))).
+            ∃ c', ⌜after_external (cl_core_sem ge) ret c m' = Some c'⌝ ∧ state_interp(*'*) m' z' ∗ jsafe E z' c' (getCurPerm m'))).
 
-  Local Instance jsafe_perm_pre_contractive `{!heapGS Σ} `{!externalGS unit Σ} max : Contractive (jsafe_perm_pre max).
+  Local Instance jsafe_perm_pre_contractive `{!heapGS Σ} `{!externalGS unit Σ} `{!lockGS Σ} max : Contractive (jsafe_perm_pre max).
   Proof.
     rewrite /jsafe_perm_pre => n jsafe jsafe' Hsafe E z c p.
     do 16 f_equiv.
@@ -179,16 +276,16 @@ Section Safety.
     - f_contractive; repeat f_equiv. apply Hsafe.
   Qed.
 
-  Local Definition jsafe_perm_def `{!heapGS Σ} `{!externalGS unit Σ} max : coPset -> unit -> CC_core -> access_map -> mpred := fixpoint (jsafe_perm_pre max).
-  Local Definition jsafe_perm_aux `{!heapGS Σ} `{!externalGS unit Σ} : seal (jsafe_perm_def). Proof. by eexists. Qed.
-  Definition jsafe_perm  `{!heapGS Σ} `{!externalGS unit Σ} := jsafe_perm_aux.(unseal).
-  Local Lemma jsafe_perm_unseal  `{!heapGS Σ} `{!externalGS unit Σ} : jsafe_perm = jsafe_perm_def.
+  Local Definition jsafe_perm_def `{!heapGS Σ} `{!externalGS unit Σ} `{!lockGS Σ} max : coPset -> unit -> CC_core -> access_map -> mpred := fixpoint (jsafe_perm_pre max).
+  Local Definition jsafe_perm_aux `{!heapGS Σ} `{!externalGS unit Σ} `{!lockGS Σ} : seal (jsafe_perm_def). Proof. by eexists. Qed.
+  Definition jsafe_perm  `{!heapGS Σ} `{!externalGS unit Σ} `{!lockGS Σ} := jsafe_perm_aux.(unseal).
+  Local Lemma jsafe_perm_unseal  `{!heapGS Σ} `{!externalGS unit Σ} `{!lockGS Σ} : jsafe_perm = jsafe_perm_def.
   Proof. rewrite -jsafe_perm_aux.(seal_eq) //. Qed.
 
-  Lemma jsafe_perm_unfold `{!heapGS Σ} `{!externalGS unit Σ} max E z c p : jsafe_perm max E z c p ⊣⊢ jsafe_perm_pre max (jsafe_perm max) E z c p.
-  Proof. rewrite jsafe_perm_unseal. apply (fixpoint_unfold (@jsafe_perm_pre heapGS0 externalGS0 max)). Qed.
+  Lemma jsafe_perm_unfold `{!heapGS Σ} `{!externalGS unit Σ} `{!lockGS Σ} max E z c p : jsafe_perm max E z c p ⊣⊢ jsafe_perm_pre max (jsafe_perm max) E z c p.
+  Proof. rewrite jsafe_perm_unseal. apply (fixpoint_unfold (@jsafe_perm_pre heapGS0 externalGS0 lockGS0 max)). Qed.
 
-  Lemma jsafe_perm_mono : forall `{!heapGS Σ} `{!externalGS unit Σ} p1 p2 E z c p, permMapLt p2 p1 ->
+  Lemma jsafe_perm_mono : forall `{!heapGS Σ} `{!externalGS unit Σ} `{!lockGS Σ} p1 p2 E z c p, permMapLt p2 p1 ->
     jsafe_perm p1 E z c p ⊢ jsafe_perm p2 E z c p.
   Proof.
     intros.
@@ -213,7 +310,7 @@ Section Safety.
 
   Existing Instance mem_equiv.access_map_equiv_Equivalence.
 
-  Lemma jsafe_perm_equiv : forall `{!heapGS Σ} `{!externalGS unit Σ} p E z c p1 p2, mem_equiv.access_map_equiv p1 p2 ->
+  Lemma jsafe_perm_equiv : forall `{!heapGS Σ} `{!externalGS unit Σ} `{!lockGS Σ} p E z c p1 p2, mem_equiv.access_map_equiv p1 p2 ->
      jsafe_perm p E z c p1 ⊢ jsafe_perm p E z c p2.
   Proof.
     intros.
@@ -248,7 +345,7 @@ Section Safety.
   Qed.*)
   Admitted.
 
-  Lemma jsafe_jsafe_perm : forall `{!heapGS Σ} `{!externalGS unit Σ} max E z c p, p = max ->
+  Lemma jsafe_jsafe_perm : forall `{!heapGS Σ} `{!externalGS unit Σ} `{!lockGS Σ} max E z c p, p = max ->
     jsafe(genv_symb := genv_symb_injective) (cl_core_sem ge) (concurrent_ext_spec unit CS ext_link) ge E z c ⊢ jsafe_perm max E z c p.
   Proof.
     intros.
@@ -256,6 +353,7 @@ Section Safety.
     rewrite jsafe_unfold jsafe_perm_unfold /jsafe_pre /jsafe_perm_pre.
     iIntros ">H !>" (?? Hmax) "S".
     subst; pose proof (partial_order_antisym mem_equiv.permMapLt_order _ _ Hlt Hmax) as Heq.
+(*    iDestruct "S" as "((% & (% & %Hlock) & Hm) & Hz)". *)
     iDestruct ("H" with "S") as "[H | [H | H]]".
     - by iLeft.
     - iRight; iLeft.
@@ -280,8 +378,8 @@ Section Safety.
       iFrame; iApply ("IH" with "[%] Hsafe").
   Admitted.
 
-  Definition threads_safe `{!heapGS Σ} `{!externalGS unit Σ} max (tp : dtp) : mpred :=
-    [∗ list] i ∈ seq 0 (pos.n (OrdinalPool.num_threads tp)), ∃ cnti : containsThread(ThreadPool := OrdinalPool.OrdinalThreadPool) tp i,
+  Definition thread_safe `{!heapGS Σ} `{!externalGS unit Σ} `{!lockGS Σ} max (tp : dtp) i :=
+    ∃ cnti : containsThread tp i,
     match getThreadC cnti with
     | Krun c | Kblocked c => jsafe_perm max ⊤ tt c (getThreadR cnti).1
     | Kresume c v =>
@@ -296,6 +394,9 @@ Section Safety.
       jsafe_perm max ⊤ tt q_new (getThreadR cnti).1
     end%I.
 
+  Definition threads_safe `{!heapGS Σ} `{!externalGS unit Σ} `{!lockGS Σ} max (tp : dtp) : mpred :=
+    [∗ list] i ∈ seq 0 (pos.n (OrdinalPool.num_threads tp)), thread_safe max tp i.
+
   Definition threads_wellformed (tp : dtp) :=
     forall i (cnti : containsThread(ThreadPool := OrdinalPool.OrdinalThreadPool) tp i),
     match getThreadC cnti with
@@ -305,9 +406,62 @@ Section Safety.
     | Kinit _ _ => Logic.True
     end.
 
+  Definition locks_coherent `{!heapGS Σ} (tp : dtp) (m : mem) (ls : gmap address unit) :=
+    forall l, (l ∈ dom ls -> lockRes tp l <> None /\ (Mem.load Mptr m l.1 l.2 = Some (Vptrofs Ptrofs.zero) <-> lockRes tp l = Some (empty_map, empty_map))).
+
   Existing Instance HybridMachine.DryHybridMachine.DryHybridMachineSig.
 
-  Theorem dry_safety `{!VSTGpreS unit Σ} sch n : exists b c_init,
+  Definition other_threads_safe `{!heapGS Σ} `{!externalGS unit Σ} `{!lockGS Σ} max tp i : mpred :=
+    ∀ Ψ, □ (∀ k j, ⌜seq 0 (pos.n (OrdinalPool.num_threads tp)) !! k = Some j⌝ → ⌜k ≠ i⌝ →
+        thread_safe max tp j -∗ Ψ k j) -∗
+      Ψ i i -∗ [∗ list] k↦y ∈ seq 0 (pos.n (OrdinalPool.num_threads tp)), Ψ k y.
+
+  Definition post_safe `{!heapGS Σ} `{!externalGS unit Σ} `{!lockGS Σ} max sig x c args k : mpred :=
+    ∀ (ret : option val) (m' : mem) z',
+      ⌜Val.has_type_list args (sig_args sig) ∧ Builtins0.val_opt_has_rettype ret (sig_res sig)⌝ →
+      ⌜ext_spec_post OK_spec LOCK x (genv_symb_injective ge) (sig_res sig) ret z' m'⌝ →
+      |={⊤}=> ∃ c' : CC_core, ⌜after_external (cl_core_sem ge) ret (Callstate c args k) m' = Some c'⌝ ∧
+        state_interp m' z' ∗ jsafe_perm max ⊤ z' c' (getCurPerm m').
+
+  (* these lemmas could be split off again into semax_acquire_safety, etc. *)
+  Lemma acquire_safe `{!heapGS Σ} `{!externalGS unit Σ} `{!lockGS Σ} tp m ls i
+    (Htp_wf : threads_wellformed tp) (Hinvariant : invariant tp) (Hcompat : HybridMachineSig.mem_compatible tp m)
+    (cnti : containsThread tp i) argsty retty cc k args
+    (Hi : getThreadC cnti = Kblocked (Callstate (Ctypes.External LOCK argsty retty cc) args k))
+    p (Hmax : permMapLt p (getMaxPerm m)) (Hlt0 : permMapLt (getThreadR cnti).1 (getMaxPerm (restrPermMap Hmax)))
+    x (Hpre : ext_spec_pre OK_spec LOCK x (genv_symb_injective ge) (sig_args (ef_sig LOCK)) args () (restrPermMap Hlt0)) :
+    ⊢ other_threads_safe (getMaxPerm m) tp i -∗
+      ▷ post_safe (getMaxPerm m) (ef_sig LOCK) x (Ctypes.External LOCK argsty retty cc) args k -∗
+      lock_set ls -∗
+      |={⊤}[∅]▷=> ∃ (tp' : t) (m' : mem) (ev : Events.sync_event),
+        ⌜threads_wellformed tp' ∧ invariant tp' ∧ mem_compatible tp' m' ∧ locks_coherent tp' m' ls ∧ syncStep true cnti Hcompat tp' m' ev⌝ ∧
+        threads_safe (getMaxPerm m') tp' ∗ (∃ (p0 : access_map) (Hlt : permMapLt p0 (getMaxPerm m')), state_interp (restrPermMap Hlt) ()) ∗ lock_set ls.
+  Proof.
+    iIntros "Hsafe Hpost locks".
+    apply CEspec_acquire_pre in Hpre as (x' & Heqx & Hpre).
+    destruct x' as ((n, phi), ((l, sh), R)); simpl in Hpre.
+    destruct Hpre as (Hvphi & Hty & Hpre).
+    set (c := Callstate (Ctypes.External LOCK argsty retty cc) args k).
+    destruct args as [|arg args]; simpl in Hty; first done.
+    destruct Hty as (Hty & Htys); destruct args; last done.
+    clear Htys.
+    assert (readable_share sh /\ val_lemmas.isptr arg) as (Hsh & Hisptr).
+    { revert Hpre; rewrite /PROPx /PARAMSx /GLOBALSx /LOCALx /SEPx; monPred.unseal; ouPred.unseal.
+      intros (? & ? & ? & _ & (? & _) & [=] & _ & ? & ? & ? & Hlock & _).
+      pose proof (lockinv_isptr sh l R) as [Heq].
+      apply Heq in Hlock.
+      revert Hlock; ouPred.unseal; intros (? & _); subst; done.
+      { eapply cmra_validN_op_l, ora_validN_orderN; last done.
+        eapply cmra_validN_op_r, ora_validN_orderN; done. } }
+    destruct arg as [| | | | | b ofs]; try done.
+    clear Hty Hisptr.
+    (* Does the ls ghost state actually work? We don't have that phi is true in the current state. *)
+    assert (ext_step cnti Hcompat (updLockSet (updThread cnti (Kresume c Vundef) newThreadPerm) (b, Ptrofs.intval ofs) (empty_map, empty_map)) m' (Events.acquire (b, Ptrofs.intval ofs) (Some (build_delta_content virtueThread.1 m')))) as Hstep.
+
+    iMod ("Hpost" with "[%] [%]").
+  Admitted.
+
+  Theorem dry_safety `{!VSTGpreS unit Σ} `{!inG Σ (gmap_view.gmap_viewR address unitR)} sch n : exists b c_init,
     Genv.find_symbol (globalenv prog) (Ctypes.prog_main prog) = Some b /\
     cl_initial_core (globalenv prog) (Vptr b Ptrofs.zero) [] = Some c_init /\
     HybridMachineSig.HybridCoarseMachine.csafe
@@ -320,13 +474,16 @@ Section Safety.
     simpl; intros; iIntros "_".
     iMod (@init_VST _ _ VSTGpreS0) as "H".
     iDestruct ("H" $! Hinv) as (?? HE) "(H & ?)".
-    destruct (spr (HeapGS _ _ _ _) HE) as (b & q & (? & ? & Hinit) & Hsafe); [| done..].
+    iMod (own_alloc(A := gmap_view.gmap_viewR address unit) (gmap_view.gmap_view_auth (dfrac.DfracOwn 1) ∅)) as (γl) "locks".
+    { apply gmap_view.gmap_view_auth_valid. }
+    set (HL := Build_lockGS _ _ γl).
+    destruct (spr (HeapGS _ _ _ _) HE HL) as (b & q & (? & ? & Hinit) & Hsafe); [| done..].
     iMod (Hsafe with "H") as "(S & Hsafe)".
     iAssert (|={⊤}[∅]▷=>^n ⌜HybridMachineSig.HybridCoarseMachine.csafe
          (ThreadPool:= threadPool.OrdinalPool.OrdinalThreadPool(Sem:=ClightSem ge))
        (sch, [],
         DryHybridMachine.initial_machine(Sem := Sem) (getCurPerm (proj1_sig init_mem))
-          q) (proj1_sig init_mem) n⌝) with "[S Hsafe]" as "Hdry".
+          q) (proj1_sig init_mem) n⌝) with "[S Hsafe locks]" as "Hdry".
     2: { iApply step_fupd_intro; first done.
          iNext; iApply (step_fupdN_mono with "Hdry").
          iPureIntro. intros.
@@ -344,14 +501,18 @@ Section Safety.
       unshelve iExists _; first done.
       iApply (jsafe_jsafe_perm with "Hsafe").
       admit. (* should be provable, but is this what we need? *) }
+    assert (locks_coherent tp (`init_mem) ∅) as Hlocks by done.
     forget (proj1_sig init_mem) as m.
     forget (@nil Events.machine_event) as tr.
     clearbody tp.
+    set (ls := ∅) in Hlocks |- *.
+    iAssert (lock_set ls) with "locks" as "locks".
+    clearbody ls.
     clear dependent b x q.
     (* the machine semantics clobber the curPerm with the most recent thread's curPerm *)
     iAssert (∃ p (Hlt : permMapLt p (getMaxPerm m)), state_interp (restrPermMap Hlt) tt) with "[S]" as "S".
     { iExists _, (cur_lt_max m); rewrite restrPermMap_eq //. }
-    iLöb as "IH" forall (sch tr tp m n Htp_wf Hinvariant Hcompat).
+    iLöb as "IH" forall (sch tr tp m n ls Htp_wf Hinvariant Hcompat Hlocks).
     destruct n as [|n].
     { iPureIntro. constructor. }
     destruct sch as [|i sch].
@@ -360,7 +521,7 @@ Section Safety.
     2: { iApply step_fupd_intro; first done; iNext.
          iAssert (|={⊤}[∅]▷=>^n ∀ U'', ⌜HybridMachineSig.HybridCoarseMachine.csafe (U'', tr, tp) m n⌝) with "[-]" as "H".
          { rewrite step_fupdN_plain_forall //.
-           iIntros; iApply ("IH" with "[%] [%] [%] Hsafe S"); done. }
+           iIntros; iApply ("IH" with "[%] [%] [%] [%] Hsafe locks S"); done. }
          iApply (step_fupdN_mono with "H"); iPureIntro.
          intros Hsafe.
          eapply HybridMachineSig.HybridCoarseMachine.AngelSafe with (tr := []); simpl; rewrite seq.cats0; last apply Hsafe.
@@ -386,7 +547,7 @@ Section Safety.
           * iExists cnti; rewrite Hi //. }
         iAssert (|={⊤}[∅]▷=>^n ∀ U'', ⌜HybridMachineSig.HybridCoarseMachine.csafe (U'', tr, tp) m n⌝) with "[-]" as "H".
         { rewrite step_fupdN_plain_forall //.
-          iIntros; iApply ("IH" with "[%] [%] [%] Hsafe S"); done. }
+          iIntros; iApply ("IH" with "[%] [%] [%] [%] Hsafe locks S"); done. }
         iApply (step_fupdN_mono with "H"); iPureIntro.
         intros Hsafe.
         eapply HybridMachineSig.HybridCoarseMachine.AngelSafe with (tr := []); simpl; rewrite seq.cats0; last apply Hsafe.
@@ -397,7 +558,7 @@ Section Safety.
         iApply step_fupd_intro; first done; iNext.
         iAssert (|={⊤}[∅]▷=>^n ∀ U'', ⌜HybridMachineSig.HybridCoarseMachine.csafe (U'', tr, (updThreadC cnti (Kblocked s))) m n⌝) with "[-]" as "H".
         { rewrite step_fupdN_plain_forall //.
-          iIntros; iApply ("IH" with "[%] [%] [%] [Hsafei Hsafe] S").
+          iIntros; iApply ("IH" with "[%] [%] [%] [%] [Hsafei Hsafe] locks S").
           + intros j cntj.
             destruct (eq_dec j i).
             * subst; rewrite gssThreadCC Hat_ext //.
@@ -405,6 +566,7 @@ Section Safety.
               rewrite -gsoThreadCC //; apply Htp_wf.
           + by apply ThreadPoolWF.updThreadC_invariant.
           + by apply StepLemmas.updThreadC_compatible.
+          + intros ?; rewrite gsoThreadCLPool; apply Hlocks.
           + iApply "Hsafe".
             * iIntros "!>" (?? (-> & ?)%lookup_seq ?) "(% & Hsafe)".
               iExists (cntUpdateC _ _ _); rewrite -gsoThreadCC // gThreadCR //.
@@ -429,7 +591,7 @@ Section Safety.
         { by erewrite restrPermMap_irr. }
         iApply step_fupd_intro; first done; iNext.
         apply (ev_step_ax2 (Clight_evsem.CLC_evsem ge)) in Hstep' as (? & Hstep').
-        iSpecialize ("IH" $! _ _ (updThread cnti (Krun c') (getCurPerm m', (getThreadR cnti).2)) with "[%] [%] [%] [Hsafe Hsafei] S").
+        iSpecialize ("IH" $! _ _ (updThread cnti (Krun c') (getCurPerm m', (getThreadR cnti).2)) with "[%] [%] [%] [%] [Hsafe Hsafei] locks S").
         * intros j cntj.
           destruct (eq_dec j i); first by subst; rewrite gssThreadCode.
           pose proof (cntUpdate' _ _ cnti cntj).
@@ -437,6 +599,7 @@ Section Safety.
         * eapply (CoreLanguageDry.corestep_invariant(Sem := Sem)); try done.
           by eapply ev_step_ax1.
         * by eapply (CoreLanguageDry.corestep_compatible(Sem := Sem)).
+        * intros ?; rewrite gsoThreadLPool. (*eapply Hlocks. need to know that coresteps don't mess with locks *) admit.
         * iApply "Hsafe".
           -- iIntros "!>" (?? (-> & ?)%lookup_seq ?) "(% & Hsafe)".
              iExists (cntUpdate _ _ cnti cnti0).
@@ -467,12 +630,12 @@ Section Safety.
         apply cl_corestep_not_at_external in Hstep; done. }
       iDestruct "Hext" as (??? (Hat_ext & Hpre)) "Hpost".
       iAssert (|={⊤}[∅]▷=> ∃ (tp' : t(ThreadPool := OrdinalPool.OrdinalThreadPool)) m' ev, ⌜threads_wellformed tp' ∧ invariant tp' ∧ mem_compatible tp' m' ∧
-        syncStep true cnti Hcompat tp' m' ev⌝ ∧
-        threads_safe (getMaxPerm m') tp' ∗ (∃ p (Hlt : permMapLt p (getMaxPerm m')), state_interp (restrPermMap Hlt) tt)) with "[-]" as "Hsafe".
-      2: { iMod "Hsafe"; iIntros "!> !>"; iMod "Hsafe" as (??? (? & ? & ? & ?)) "(Hsafe & S)".
+        locks_coherent tp' m' ls ∧ syncStep true cnti Hcompat tp' m' ev⌝ ∧
+        threads_safe (getMaxPerm m') tp' ∗ (∃ p (Hlt : permMapLt p (getMaxPerm m')), state_interp (restrPermMap Hlt) tt) ∗ lock_set ls) with "[-]" as "Hsafe".
+      2: { iMod "Hsafe"; iIntros "!> !>"; iMod "Hsafe" as (??? (? & ? & ? & ? & ?)) "(Hsafe & S & locks)".
            iAssert (|={⊤}[∅]▷=>^n ∀ U'', ⌜HybridMachineSig.HybridCoarseMachine.csafe (U'', tr ++ [Events.external i ev], tp') m' n⌝) with "[-]" as "H".
            { rewrite step_fupdN_plain_forall //.
-             iIntros; iApply ("IH" with "[%] [%] [%] Hsafe S"); done. }
+             iIntros; iApply ("IH" with "[%] [%] [%] [%] Hsafe locks S"); done. }
            iApply (step_fupdN_mono with "H"); iPureIntro.
            intros Hsafe.
            eapply HybridMachineSig.HybridCoarseMachine.AngelSafe; simpl; last apply Hsafe.
@@ -484,7 +647,7 @@ Section Safety.
       destruct (ef_inline ext); inv Hat_ext.
       destruct (CEspec_cases _ x) as [-> | [-> | [-> | [-> | ->]]]].
       + (* acquire *)
-        
+        iApply (acquire_safe with "Hsafe Hpost locks").
       + (* release *)
       + (* makelock *)
       + (* freelock *)

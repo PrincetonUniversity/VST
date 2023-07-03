@@ -44,7 +44,7 @@ Module ThreadPool.
 
     Notation tid:= nat.
 
-    (* !! TODO: remove extraRes? *)
+    (* !! TODO: remove extraRes? remove lockGuts, lockSet? *)
     Class ThreadPool :=
       { t : Type;
         mkPool : ctl -> res -> res -> t;

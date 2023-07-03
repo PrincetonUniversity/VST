@@ -90,7 +90,9 @@ Proof.
   intros; repeat (apply eq_dec || decide equality).
 Qed.
 
-
+Definition funspec2pre' (A : TypeTree) (P: dtfr (ArgsTT A)) (x : (nat * iResUR Σ * ofe_car (dtfr A))%type) (ge_s: injective_PTree block) sig args z m :=
+  let '(n, phi, x') := x in ✓{n} phi /\ Val.has_type_list args sig /\
+    ouPred_holds (state_interp m z ∗ P x' (filter_genv (symb2genv ge_s), args)) n phi.
 
 Definition funspec2pre (ext_link: Strings.String.string -> ident) (A : TypeTree)
   (P: dtfr (ArgsTT A))
@@ -99,10 +101,12 @@ Definition funspec2pre (ext_link: Strings.String.string -> ident) (A : TypeTree)
   match oi_eq_dec (Some (id, sig)) (ef_id_sig ext_link ef) as s
   return ((if s then (nat * iResUR Σ * ofe_car (dtfr A))%type else ext_spec_type Espec ef) -> Prop)
   with
-    | left _ => fun '(n, phi, x') => ouPred_holds (⌜Val.has_type_list args (sig_args (ef_sig ef))⌝ ∧
-        state_interp m z ∗ P x' (filter_genv (symb2genv ge_s), args)) n phi
+    | left _ => fun x => funspec2pre' A P x ge_s (sig_args (ef_sig ef)) args z m
     | right n => fun x' => ext_spec_pre Espec ef x' ge_s tys args z m
   end x.
+
+Definition funspec2post' (A : TypeTree) (Q: dtfr (AssertTT A)) (x : (nat * iResUR Σ * ofe_car (dtfr A))%type) (ge_s: injective_PTree block) tret ret z m :=
+  let '(n, phi, x') := x in ouPred_holds (|==> state_interp m z ∗ Q x' (make_ext_rval (filter_genv (symb2genv ge_s)) tret ret)) n phi.
 
 Definition funspec2post (ext_link: Strings.String.string -> ident) (A : TypeTree)
   (Q: dtfr (AssertTT A))
@@ -110,7 +114,7 @@ Definition funspec2post (ext_link: Strings.String.string -> ident) (A : TypeTree
   match oi_eq_dec (Some (id, sig)) (ef_id_sig ext_link ef) as s
   return ((if s then (nat * iResUR Σ * ofe_car (dtfr A))%type else ext_spec_type Espec ef) -> Prop)
   with
-    | left _ => fun '(n, phi, x') => ouPred_holds (|==> state_interp m z ∗ Q x' (make_ext_rval (filter_genv (symb2genv ge_s)) tret ret)) n phi
+    | left _ => fun x => funspec2post' A Q x ge_s tret ret z m
     | right n => fun x' => ext_spec_post Espec ef x' ge_s tret ret z m
   end x.
 
@@ -198,7 +202,7 @@ subst a; simpl in *.
 clear IHfs H; unfold funspec2jspec; simpl.
 destruct sig; unfold funspec2pre, funspec2post; simpl.
 if_tac; simpl; last done.
-ouPred.unseal.
+unfold funspec2pre', funspec2post'; ouPred.unseal.
 split => n phi ??.
 exists (n, phi, x); split; first done.
 intros ????????? Hpost.
