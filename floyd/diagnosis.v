@@ -18,7 +18,7 @@ Qed.
 
 Inductive Stuck : Prop := .
 
-Ltac stuckwith p :=  elimtype Stuck; fold p.
+Ltac stuckwith p := cut Stuck; [intros []|]; fold p.
 
 Ltac test_stuck :=
  match goal with

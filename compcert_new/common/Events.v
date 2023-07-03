@@ -299,7 +299,7 @@ Program Definition split_traceinf' (t: trace) (T: traceinf') (NE: t <> E0): even
   | e :: t' => (e, Econsinf' t' T _)
   end.
 Next Obligation.
-  elimtype False. elim NE. auto.
+  exfalso. elim NE. auto.
 Qed.
 Next Obligation.
   red; intro. elim (H e). rewrite H0. auto.

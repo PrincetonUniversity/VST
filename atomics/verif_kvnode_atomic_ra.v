@@ -9,6 +9,8 @@ Require Import VST.atomics.kvnode_atomic_ra.
 
 Set Bullet Behavior "Strict Subproofs".
 
+Ltac error T := cut T; [intros []|].
+
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
@@ -907,11 +909,11 @@ Ltac lookup_spec_and_change_compspecs CS id ::=
       match goal with
        | |- mk_funspec _ _ ?t1 _ _ = mk_funspec _ _ ?t2 _ _ =>
          first [unify t1 t2
-           | exfalso; elimtype (Witness_type_of_forward_call_does_not_match_witness_type_of_funspec
+           | exfalso; error (Witness_type_of_forward_call_does_not_match_witness_type_of_funspec
       t2 t1)]
       end]
    end)
- else elimtype  (Cannot_find_function_spec_in_Delta id).
+ else error  (Cannot_find_function_spec_in_Delta id).
 
       forward_call (n, data, sh, Tsh, version, locs, repeat (i + 1) 8, g, x, v + 2 * i, emp,
         fun (_ : Z -> option (list Z)) (_ : unit) => emp, fun _ : Z -> option (list Z) => emp,

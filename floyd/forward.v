@@ -74,6 +74,8 @@ Fixpoint mk_varspecs' (dl: list (ident * globdef Clight.fundef type)) (el: list 
  | nil => rev_append el nil
 end.
 
+Ltac error T := cut T; [intros []|].
+
 Ltac unfold_varspecs al :=
  match al with
  | context [gvar_info ?v] =>
@@ -780,16 +782,16 @@ Ltac check_parameter_types :=
      let al := eval compute in argsig in 
     check_struct_params al
   end;
-  first [reflexivity | elimtype  Parameter_types_in_funspec_different_from_call_statement].
+  first [reflexivity | error  Parameter_types_in_funspec_different_from_call_statement].
 
 Ltac check_result_type :=
-   first [reflexivity | elimtype  Result_type_in_funspec_different_from_call_statement].
+   first [reflexivity | error  Result_type_in_funspec_different_from_call_statement].
 
 Inductive Cannot_find_function_spec_in_Delta (id: ident) := .
 Inductive Global_function_name_shadowed_by_local_variable := .
 
 Ltac check_function_name :=
-   first [reflexivity | elimtype Global_function_name_shadowed_by_local_variable].
+   first [reflexivity | error Global_function_name_shadowed_by_local_variable].
 
 Inductive Actual_parameters_cannot_be_coerced_to_formal_parameter_types := .
 
@@ -814,12 +816,12 @@ Ltac find_spec_in_globals' :=
 Inductive Cannot_analyze_LOCAL_definitions : Prop := .
 
 Ltac check_prove_local2ptree :=
-   first [prove_local2ptree | elimtype Cannot_analyze_LOCAL_definitions].
+   first [prove_local2ptree | error Cannot_analyze_LOCAL_definitions].
 
 Inductive Funspec_precondition_is_not_in_PROP_LOCAL_SEP_form := .
 
 Ltac check_funspec_precondition :=
-   first [reflexivity | elimtype  Funspec_precondition_is_not_in_PROP_LOCAL_SEP_form].
+   first [reflexivity | error  Funspec_precondition_is_not_in_PROP_LOCAL_SEP_form].
 
 Ltac lookup_spec id :=
  tryif apply f_equal_Some
@@ -831,7 +833,7 @@ Ltac lookup_spec id :=
       match goal with
        | |- mk_funspec _ _ ?t1 _ _ = mk_funspec _ _ ?t2 _ _ =>
          first [unify t1 t2
-           | exfalso; elimtype (Witness_type_of_forward_call_does_not_match_witness_type_of_funspec
+           | exfalso; error (Witness_type_of_forward_call_does_not_match_witness_type_of_funspec
       t2 t1)]
       end]
    end
@@ -880,7 +882,7 @@ Ltac check_typecheck :=
  entailer!;
  match goal with
  | |- typecheck_error (deref_byvalue ?T) =>
-       elimtype (Function_arguments_include_a_memory_load_of_type T)
+       error (Function_arguments_include_a_memory_load_of_type T)
  | |- _ => idtac
  end].
 
@@ -3144,7 +3146,7 @@ Ltac pre_entailer :=
 Inductive Type_of_right_hand_side_does_not_match_type_of_assigned_variable := .
 
 Ltac check_cast_assignment :=
-   first [reflexivity | elimtype Type_of_right_hand_side_does_not_match_type_of_assigned_variable].
+   first [reflexivity | error Type_of_right_hand_side_does_not_match_type_of_assigned_variable].
 
 Ltac forward_setx :=
   ensure_normal_ret_assert;
