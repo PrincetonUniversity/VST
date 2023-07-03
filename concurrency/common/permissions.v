@@ -22,6 +22,8 @@ Require Import FunInd.
 (*IM using proof irrelevance!*)
 Require Import ProofIrrelevance.
 
+Set Bullet Behavior "Strict Subproofs".
+
 Lemma po_refl: forall p, Mem.perm_order'' p p.
 Proof.
   destruct p; [apply perm_refl| simpl]; auto.
@@ -513,9 +515,9 @@ Qed.*)
         - destruct c; inversion H1.
           exists (Some p0); reflexivity.
         - destruct c; inversion H1.
-          destruct p; inversion H0.
-          exists (Some Readable); reflexivity.
-        - exists (Some Readable); reflexivity.
+          + destruct p; inversion H0.
+            exists (Some Readable); reflexivity.
+          + exists (Some Readable); reflexivity.
         - destruct c; inversion H1;
           try solve[exists (Some Nonempty); reflexivity].
           destruct p; inversion H0; try(destruct p0; inversion H3);
@@ -1248,7 +1250,7 @@ Proof.*)
       + f_equal. rewrite -e.
         replace (ofs + Z.of_nat sz - ofs +1 )%Z with
             (Z.of_nat sz + 1)%Z; try lia.
-        apply IHsz; simpl.
+      + apply IHsz; simpl.
         lia.
   Qed.
 
@@ -1957,7 +1959,7 @@ Proof.*)
         rewrite Heq in Hlt. auto.
       + unfold Mem.perm_order''. by destruct ((Mem.mem_access m).1 ofs Max).
     - intros b ofs k Hnext.
-    - unfold permMapLt in Hlt.
+      unfold permMapLt in Hlt.
       assert (Heq: forall b ofs, Maps.PMap.get b (getMaxPerm m) ofs =
                             Maps.PMap.get b (Mem.mem_access m) ofs Max).
       { unfold getMaxPerm. intros.

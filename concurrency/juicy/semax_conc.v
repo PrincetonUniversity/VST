@@ -434,7 +434,7 @@ Definition spawn_arg_type := ProdType (ConstType (val * val)) (SigType Type (fun
 
 Program Definition spawn_spec :=
   TYPE spawn_arg_type WITH f : _, b : _, fs : _
-  PRE [ tptr voidstar_funtype ]
+  PRE [ tptr voidstar_funtype, tptr tvoid ]
     PROP (tc_val (tptr Tvoid) b)
     PARAMS (f; b)
     GLOBALS (let 'existT _ ((gv, w), _) := fs in gv w)
