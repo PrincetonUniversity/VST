@@ -547,7 +547,7 @@ Axiom semax_ext:
 
 Axiom semax_external_FF:
  forall E ef A,
- ⊢ semax_external E ef A (λne _, (λ _, False) : _ -d> mpred) (λne _, (λ _, False) : _ -d> mpred).
+ ⊢ semax_external E ef A (λne _, monPred_at(I := argsEnviron_index) False : _ -d> _) (λne _, monPred_at(I := environ_index) False : _ -d> _).
 
 Axiom semax_external_binaryintersection: 
 forall {E ef A1 P1 Q1 A2 P2 Q2

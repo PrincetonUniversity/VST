@@ -527,10 +527,12 @@ Qed.
 
 Lemma semax_external_FF:
 forall E ef A,
-⊢ semax_external Espec E ef A (λne _, (λ _, False) : _ -d> mpred) (λne _, (λ _, False) : _ -d> mpred).
-intros.
-iIntros (?????) "!> !>".
-iIntros "(_ & [] & _)".
+⊢ semax_external Espec E ef A (λne _, monPred_at(I := argsEnviron_index) False : _ -d> _) (λne _, monPred_at(I := environ_index) False : _ -d> _).
+Proof.
+  intros.
+  iIntros (?????) "!> !>"; simpl.
+  monPred.unseal.
+  iIntros "(_ & [] & _)".
 Qed.
 
 Lemma TTL6 {l}: typelist_of_type_list (typelist2list l) = l.
