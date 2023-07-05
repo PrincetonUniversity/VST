@@ -55,7 +55,7 @@ Section juicy_safety.
   Variable (Hspec : ext_spec Z).
   Variable ge : G.
 
-  Context `{!heapGS Σ} `{!externalGS Z Σ}.
+  Context `{!gen_heapGS address resource Σ} `{!externalGS Z Σ} `{!invGS_gen hlc Σ}.
 
 (* The closest match to the Iris approach would be for auth_heap to hold the true full CompCert mem,
    and to run the underlying semantics without any permissions. But that's a poor fit for VST's approach
@@ -83,7 +83,7 @@ Proof.
   - f_contractive; repeat f_equiv. apply Hsafe.
 Qed.
 
-Local Definition jsafe_def : coPset -> Z -> C -> mpred := fixpoint jsafe_pre.
+Local Definition jsafe_def : coPset -> Z -> C -> iProp Σ := fixpoint jsafe_pre.
 Local Definition jsafe_aux : seal (@jsafe_def). Proof. by eexists. Qed.
 Definition jsafe := jsafe_aux.(unseal).
 Local Lemma jsafe_unseal : jsafe = jsafe_def.
@@ -162,9 +162,9 @@ Proof.
   by iFrame.
 Qed.
 
-Definition jstep E z c c' : mpred := ∀ m, state_interp m z ={E}=∗ ∃ m', ⌜corestep Hcore c m c' m'⌝ ∧ state_interp m' z ∗ ▷ jsafe E z c'.
+Definition jstep E z c c' := ∀ m, state_interp m z ={E}=∗ ∃ m', ⌜corestep Hcore c m c' m'⌝ ∧ state_interp m' z ∗ ▷ jsafe E z c'.
 
-Definition jstep_ex E z c : mpred := ∀ m, state_interp m z ={E}=∗ ∃ c' m', ⌜corestep Hcore c m c' m'⌝ ∧ state_interp m' z ∗ ▷ jsafe E z c'.
+Definition jstep_ex E z c := ∀ m, state_interp m z ={E}=∗ ∃ c' m', ⌜corestep Hcore c m c' m'⌝ ∧ state_interp m' z ∗ ▷ jsafe E z c'.
 
 Lemma jstep_exists : forall E z c c', jstep E z c c' ⊢ jstep_ex E z c.
 Proof.

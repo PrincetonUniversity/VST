@@ -349,6 +349,62 @@ Program Definition cl_core_sem (ge: genv) :
     (cl_corestep_not_halted ge)
     (cl_corestep_not_at_external ge).
 
+Ltac fun_tac :=
+  match goal with
+  | H: ?A = Some _, H': ?A = Some _ |- _ => inversion2 H H'
+  | H: Clight.eval_expr ?ge ?e ?le ?m ?A _,
+    H': Clight.eval_expr ?ge ?e ?le ?m ?A _ |- _ =>
+        apply (eval_expr_fun H) in H'; subst
+  | H: Clight.eval_exprlist ?ge ?e ?le ?m ?A ?ty _,
+    H': Clight.eval_exprlist ?ge ?e ?le ?m ?A ?ty _ |- _ =>
+        apply (eval_exprlist_fun H) in H'; subst
+  | H: Clight.eval_lvalue ?ge ?e ?le ?m ?A _ _ _,
+    H': Clight.eval_lvalue ?ge ?e ?le ?m ?A _ _ _ |- _ =>
+        apply (eval_lvalue_fun H) in H'; inv H'
+  | H: Clight.assign_loc ?ge ?ty ?m ?b ?ofs ?bf ?v _,
+    H': Clight.assign_loc ?ge ?ty ?m ?b ?ofs ?bf ?v _ |- _ =>
+        apply (assign_loc_fun H) in H'; inv H'
+  | H: Clight.deref_loc ?ty ?m ?b ?ofs _,
+    H': Clight.deref_loc ?ty ?m ?b ?ofs _ |- _ =>
+        apply (deref_loc_fun H) in H'; inv H'
+  | H: Clight.alloc_variables ?ge ?e ?m ?vl _ _,
+    H': Clight.alloc_variables ?ge ?e ?m ?vl _ _ |- _ =>
+        apply (alloc_variables_fun H) in H'; inv H'
+  | H: Clight.bind_parameters ?ge ?e ?m ?p ?vl _,
+    H': Clight.bind_parameters ?ge ?e ?m ?p ?vl _ |- _ =>
+        apply (bind_parameters_fun H) in H'; inv H'
+  | H: Senv.find_symbol ?ge _ = Some ?b,
+    H': Senv.find_symbol ?ge _ = Some ?b |- _ =>
+       apply (inv_find_symbol_fun H) in H'; inv H'
+  | H: Events.eventval_list_match ?ge _ ?t ?v,
+    H': Events.eventval_list_match ?ge _ ?t ?v |- _ =>
+       apply (eventval_list_match_fun H) in H'; inv H'
+ end.
+Lemma cl_corestep_fun: forall ge m q m1 q1 m2 q2,
+    cl_step ge q m q1 m1 ->
+    cl_step ge q m q2 m2 ->
+    (q1,m1)=(q2,m2).
+Proof.
+intros.
+inv H; inv H0; repeat fun_tac; auto;
+repeat match goal with H: _ = _ \/ _ = _ |- _ => destruct H; try discriminate end;
+try contradiction.
+-
+inversion2 H1 H16; fun_tac; auto.
+-
+rewrite andb_true_iff in H15; destruct H15.
+pose proof (ef_deterministic_fun _ H0 _ _ _ _ _ _ _ _ _ H3 H17).
+inv H4; auto.
+-
+inv H1. inv H8.
+fun_tac.
+pose proof (alloc_variables_fun H3 H7). inv H8. auto.
+-
+rewrite andb_true_iff in H1; destruct H1.
+pose proof (ef_deterministic_fun _ H0 _ _ _ _ _ _ _ _ _ H2 H13).
+inv H1; auto.
+Qed.
+
 (*Clight_core is also a memsem!*)
 Lemma alloc_variables_mem_step: forall cenv vars m e e2 m'
       (M: alloc_variables cenv e m vars e2 m'), mem_step m m'.

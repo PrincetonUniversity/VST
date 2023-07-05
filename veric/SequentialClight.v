@@ -214,7 +214,7 @@ Section CompCert.
   Lemma cl_corestep_fun : forall ge, corestep_fun (cl_core_sem ge).
   Proof.
     intros ??.
-    by apply semax_lemmas.cl_corestep_fun.
+    by apply cl_corestep_fun.
   Qed.
 
   Theorem whole_program_asm_safety:
