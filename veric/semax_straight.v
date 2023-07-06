@@ -224,7 +224,7 @@ match (eval_expr e rho) with
 end.
 
 Lemma closed_wrt_modvars_set : forall F id e v ge ve te rho
-  (Hclosed : closed_wrt_modvars (Sset id e) F)
+  (Hclosed : closed_wrt_modvars(Σ:=Σ) (Sset id e) F)
   (Hge : rho = construct_rho (filter_genv ge) ve te),
   F rho ⊣⊢ F (mkEnviron (ge_of rho) (ve_of rho)
        (make_tenv (Maps.PTree.set id v te))).

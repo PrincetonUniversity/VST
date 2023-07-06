@@ -134,7 +134,7 @@ match goal with
 end.
 
 Section SEMAX_TACTICS.
-Context `{!heapGS Σ} {Espec: OracleKind(Σ:=Σ)} `{!externalGS OK_ty Σ}.
+Context `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ}.
 
 Definition with_Delta_specs (DS: PTree.t funspec) (Delta: tycontext) : tycontext :=
   match Delta with
@@ -448,7 +448,7 @@ Ltac check_POSTCONDITION :=
 
 Section SEMAX_TACTICS.
 
-Context `{!heapGS Σ} {Espec: OracleKind(Σ:=Σ)} `{!externalGS OK_ty Σ}.
+Context `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ}.
 
 Fixpoint find_expressions {A: Type} (f: expr -> A -> A) (c: statement) (x: A) : A :=
  match c with

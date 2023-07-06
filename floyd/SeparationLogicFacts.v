@@ -17,13 +17,14 @@ Context `{!heapGS Σ}.
 (* Closed and subst. copied from closed_lemmas.v. *)
 
 Lemma closed_wrt_subst:
-  forall id e (P : assert), closed_wrt_vars (eq id) P -> assert_of (subst id e P) ⊣⊢ P.
+  forall id e (P : assert), closed_wrt_vars (eq id) P -> assert_of(Σ:=Σ) (subst id e P) ⊣⊢ P.
 Proof.
 intros.
 unfold subst, closed_wrt_vars in *.
 split => rho /=.
 symmetry.
-apply H.
+unfold env_set.
+rewrite (H _ ((Map.set id (e rho) (te_of rho)))) //.
 intros.
 destruct (eq_dec id i); auto.
 right.

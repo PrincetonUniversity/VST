@@ -173,11 +173,17 @@ Definition assert := monPred environ_index (iPropI Σ).
 
 Program Definition assert_of (P : assert') : assert := {| monPred_at := P |}.
 
-(* Does this do anything? *)
+Fail Example assert_of_test : forall (P: assert'), ∃ Q:assert, (@eq assert P Q).
 Global Coercion assert_of : assert' >-> assert.
+Example assert_of_test : forall (P: assert'), ∃ Q:assert, (@eq assert P Q).
+Proof. intros.  exists (assert_of P). reflexivity. Qed.
 
-(* Ideally, this would work. *)
-Fail Lemma test : forall (P Q : assert'), P ∗ Q ⊢ Q ∗ P.
+Fail Example bi_of_assert'_test : forall (P Q : assert'), P ∗ Q ⊢ Q ∗ P.
+Program Definition bi_assert (P : assert) : bi_car assert := {| monPred_at := P |}.
+Global Coercion bi_assert : assert >-> bi_car.
+(* "Print Coercion Paths assert' bi_car" prints "[assert_of; bi_assert]" *)
+Example test : forall (P Q : assert'), P ∗ Q ⊢ Q ∗ P. 
+Proof. intros. rewrite bi.sep_comm. done. Qed.
 
 Global Instance argsEnviron_inhabited : Inhabited argsEnviron := {| inhabitant := (Map.empty _, nil) |}.
 
@@ -527,3 +533,41 @@ Set Warnings "projection-no-head-constant,redundant-canonical-projection".
 Ltac super_unfold_lift :=
   cbv delta [liftx LiftEnviron LiftAEnviron Tarrow Tend lift_S lift_T lift_prod
   lift_last lifted lift_uncurry_open lift_curry lift lift0 lift1 lift2 lift3 alift0 alift1 alift2 alift3] beta iota in *.
+
+(* switch from an entailment on asserts to mpreds *)
+Ltac raise_rho :=
+  try (constructor; intro rho); 
+  repeat (rewrite monPred_at_and ||
+          rewrite monPred_at_sep ||
+          rewrite monPred_at_or ||
+          rewrite monPred_at_emp ||
+          rewrite monPred_at_pure ||
+          rewrite monPred_at_later ||
+          rewrite monPred_at_persistently ||
+          rewrite monPred_at_wand ||
+          rewrite monPred_at_embed ||
+          rewrite monPred_at_except_0 ||
+          rewrite monPred_at_intuitionistically ||
+          rewrite monPred_at_absorbingly ||
+          rewrite monPred_at_affinely ||
+          rewrite monPred_at_in ||
+          rewrite monPred_at_subjectively ||
+          rewrite monPred_at_objectively ||
+          rewrite monPred_at_persistently_if ||
+          rewrite monPred_at_laterN ||
+          rewrite monPred_at_absorbingly_if ||
+          rewrite monPred_at_intuitionistically_if ||
+          rewrite monPred_at_affinely_if ||
+          rewrite monPred_at_exist ||
+          rewrite monPred_at_forall ||
+          rewrite monPred_at_bupd ||
+          rewrite monPred_at_internal_eq ||
+          rewrite monPred_at_plainly ||
+          rewrite monPred_at_fupd ||
+          rewrite monPred_at_impl ||
+          rewrite monPred_at_wand ||
+          rewrite monPred_at_big_sepL ||
+          rewrite monPred_at_big_sepS ||
+          rewrite monPred_at_big_sepMS ||
+          rewrite monPred_at_big_sepM ||
+          simpl).
