@@ -33,8 +33,6 @@ Definition nonlock (r: resource) : Prop :=
 
 Global Notation "l ↦ dq v" := (mapsto l dq v)
   (at level 20, dq custom dfrac at level 1, format "l  ↦ dq  v") : bi_scope.
-Global Notation "l ↦p v" := (mapsto_pure l v)
-  (at level 20, format "l  ↦p  v") : bi_scope.
 
 Open Scope bi_scope.
 

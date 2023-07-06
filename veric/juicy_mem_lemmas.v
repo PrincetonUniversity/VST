@@ -171,7 +171,7 @@ Proof.
   split; auto.
   intros z Hz.
   rewrite size_chunk_conv -Hlen in Hz.
-  destruct (H (Z.to_nat (z - ofs))) as (? & Hsh & _ & Hloc & _); first lia.
+  destruct (H (Z.to_nat (z - ofs))) as (? & Hsh & _ & Hloc); first lia.
   rewrite Z2Nat.id /access_cohere in Hloc; last lia.
   rewrite Zplus_minus in Hloc.
   rewrite perm_access; eapply perm_order''_trans; eauto; simpl.
@@ -416,7 +416,7 @@ Proof.
   split; auto.
   intros z Hz.
   rewrite size_chunk_conv -Hlen in Hz.
-  destruct (Hcoh (Z.to_nat (z - ofs))) as (_ & Hloc & _); first lia.
+  destruct (Hcoh (Z.to_nat (z - ofs))) as (_ & Hloc); first lia.
   rewrite Z2Nat.id /access_cohere in Hloc; last lia.
   rewrite Zplus_minus in Hloc.
   rewrite perm_access; eapply perm_order''_trans; eauto; simpl.
@@ -730,7 +730,7 @@ Proof.
   rewrite /VALspec /adr_add /=.
   iDestruct "H" as (?) "H".
   replace (l.2 + Z.to_nat (a - l.2)) with a by lia.
-  iDestruct (mapsto_lookup with "Hm H") as %(? & ? & _ & _ & Hacc & _); iPureIntro.
+  iDestruct (mapsto_lookup with "Hm H") as %(? & ? & _ & _ & Hacc); iPureIntro.
   rewrite /access_cohere /access_at /= perm_of_freeable -mem_lemmas.po_oo // in Hacc.
 Qed.
 

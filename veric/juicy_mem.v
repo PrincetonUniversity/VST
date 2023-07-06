@@ -1,4 +1,4 @@
-From iris.algebra Require Import csum agree.
+From iris.algebra Require Import agree.
 Require Import VST.sepcomp.mem_lemmas.
 From VST.veric Require Import base Memory juicy_base shares shared resource_map gen_heap dshare.
 Require Import VST.zlist.sublist.
@@ -67,13 +67,6 @@ Proof.
   if_tac; if_tac; try discriminate.
   if_tac; done.
 Qed.
-
-(* We probably don't need the csum if we just change this so that FUN gets Nonempty. *)
-(* In fact, do we need perm_of_res' at all? All it does it allow a higher max permission for
-   LK and FUN resources, but FUN resources are always Nonempty anyway. I guess this might be
-   useful for ensuring you can untransform a lock? But wouldn't you remember the higher max anyway
-   from before the location was a lock? *)
-Definition perm_of_res' {resource} (r: dfrac * resource) := perm_of_dfrac r.1.
 
 Lemma perm_of_sh_bot : perm_of_sh Share.bot = None.
 Proof.
@@ -286,17 +279,6 @@ Proof.
     + intros X; contradiction H; unfold writable0_share in *.
       rewrite -!leq_join_sub in X |- *.
       eapply Share.ord_trans; done.
-Qed.
-
-Lemma perm_of_res_op2:
-  forall r,
-    perm_order'' (perm_of_res' r) (perm_of_res_lock r).
-Proof.
-  destruct r as (?, [r|]); simpl; last apply perm_order''_None.
-  destruct r; try apply perm_order''_None.
-  rewrite /perm_of_res' /=.
-  unfold perm_of_dfrac; destruct d as [[|]|]; try apply perm_order''_refl || if_tac; try apply perm_of_sh_glb; try done.
-  constructor.
 Qed.
 
 Lemma perm_of_empty_inv {s} : perm_of_sh s = None -> s = Share.bot.
@@ -929,10 +911,9 @@ Section mpred.
       ([∗ list] i↦b ∈ bl, ∃ sh, ⌜Mem.perm_order' (perm_of_dfrac sh) Readable⌝ ∧ mapsto (adr_add l (Z.of_nat i)) sh (VAL b))).
 
   (* coherence between logical state (rmap) and physical state (mem) *)
-  Definition rmap := gmap address (csum (shared (leibnizO resource)) (agree resource)).
+  Definition rmap := gmap address (shared (leibnizO resource)).
 
-  Implicit Types (f : rmap) (s : csumR (sharedR (leibnizO resource)) (agreeR (leibnizO resource)))
-    (r : prodO dfracO (optionO (leibnizO resource))).
+  Implicit Types (f : rmap) (s : sharedR (leibnizO resource)) (r : prodO dfracO (optionO (leibnizO resource))).
 
   Lemma elem_of_agree_ne : forall {A} n (x y : agreeR A), ✓{n} x -> x ≡{n}≡ y -> proj1_sig (elem_of_agree x) ≡{n}≡ proj1_sig (elem_of_agree y).
   Proof.
@@ -952,88 +933,19 @@ Section mpred.
     intros ??????%elem_of_agree_ne; done.
   Qed.
 
-  Definition dfrac_of' s :=
+  Definition resR_to_resource (s : optionR (sharedR (leibnizO resource))) : prodO dfracO (optionO (leibnizO resource)) :=
     match s with
-    | Cinl s => dfrac_of s
-    | Cinr v => DfracOwn (Share Share.Lsh)
-    | _ => DfracOwn ShareBot
-    end.
-
-  Definition val_of' s :=
-    match s with
-    | Cinl s => val_of s
-    | Cinr v => Some v
-    | _ => None
-    end.
-
-  Lemma dfrac_of'_includedN : forall n s1 s2, ✓{n} s2 -> s1 ≼{n} s2 -> dfrac_of' s1 ≼ dfrac_of' s2.
-  Proof.
-    intros ??? Hv H.
-    apply @csum_includedN in H as [? | [(? & c2 & ? & ? & H) | (? & ? & ? & ? & H)]]; subst; try done.
-    apply shared_includedN in H as [? | (? & ?)]; last done.
-    destruct c2; inv H; done.
-  Qed.
-
-  Global Instance dfrac_of'_ne n : Proper (dist n ==> eq) dfrac_of'.
-  Proof.
-    intros ?? H; inv H; try constructor; try done.
-    by eapply shared_dist_implies.
-  Qed.
-
-  Global Instance dfrac_of'_proper : Proper (equiv ==> eq) dfrac_of'.
-  Proof.
-    intros ?? H; apply (dfrac_of'_ne O).
-    by apply equiv_dist.
-  Qed.
-
-  Lemma dfrac_of'_validN : forall n s, ✓{n} s -> ✓{n} (dfrac_of' s).
-  Proof.
-    destruct s; try done.
-    by intros [??]%shared_validN.
-  Qed.
-
-  Global Instance val_of'_ne : NonExpansive val_of'.
-  Proof.
-    intros ??? H; inv H; try constructor; try done.
-    by apply shared_dist_implies.
-  Qed.
-
-  Global Instance val_of'_proper : Proper (equiv ==> equiv) val_of'.
-  Proof.
-    intros ?? H; inv H; try constructor; try done.
-    destruct a, a'; inv H0; constructor; done.
-  Qed.
-
-  Lemma val_of'_includedN : forall n s1 s2, ✓{n} s2 -> s1 ≼{n} s2 -> val_of' s1 ≼{n} val_of' s2.
-  Proof.
-    intros ??? Hv H.
-    apply @csum_includedN in H as [? | [(? & ? & ? & ? & H) | (? & ? & ? & ? & H)]]; subst; try done.
-    - apply shared_includedN in H as [Hno | (_ & H)]; try done.
-      rewrite Hno // in Hv.
-    - rewrite /= Some_includedN; auto.
-  Qed.
-
-  Lemma val_of'_validN : forall n s, ✓{n} s -> ✓{n} (val_of' s).
-  Proof.
-    destruct s; try done.
-    by intros [??]%shared_validN.
-  Qed.
-
-  Definition resR_to_resource (s : optionR (csumR (sharedR (leibnizO resource)) (agreeR (leibnizO resource)))) : prodO dfracO (optionO (leibnizO resource)) :=
-    match s with
-    | Some s => (dfrac_of' s, option_map (fun v : agree resource => proj1_sig (elem_of_agree v)) (val_of' s))
+    | Some s => (dfrac_of s, option_map (fun v : agree resource => proj1_sig (elem_of_agree v)) (val_of s))
     | None => (ε, None)
     end.
 
   Lemma resR_to_resource_ne n : forall x y, ✓{n} x -> x ≡{n}≡ y -> resR_to_resource x = resR_to_resource y.
   Proof.
     intros ??? Hdist; inv Hdist; last done.
-    inv H0; try done; simpl.
-    - destruct a, a'; try done; simpl.
-      + destruct H1 as (-> & ?), H.
-        erewrite (elem_of_agree_ne'(A := resource)); done.
-      + hnf in H1; subst; done.
-    - erewrite (elem_of_agree_ne'(A := resource)); done.
+    destruct x0, y0; try done; simpl.
+    + destruct H0 as (-> & ?), H.
+      erewrite (elem_of_agree_ne'(A := resource)); done.
+    + hnf in H0; subst; done.
   Qed.
 
   Lemma resR_to_resource_eq : forall x y, ✓ x -> x ≡ y -> resR_to_resource x = resR_to_resource y.
@@ -1043,37 +955,9 @@ Section mpred.
   Qed.
 
   Lemma resR_to_resource_fst : forall x, (resR_to_resource x).1 =
-    match x with Some a => dfrac_of' a | None => ε end.
+    match x with Some a => dfrac_of a | None => ε end.
   Proof.
     destruct x; done.
-  Qed.
-
-  Lemma dfrac_of'_valid : forall c, ✓ c -> ✓ dfrac_of' c.
-  Proof.
-    destruct c; try done.
-    by intros (? & ?)%shared_valid.
-  Qed.
-
-  Lemma dfrac_of'_included : forall c1 c2, ✓c2 -> c1 ≼ c2 -> dfrac_of' c1 ≼ dfrac_of' c2.
-  Proof.
-    intros; apply (dfrac_of'_includedN O).
-    { by apply cmra_valid_validN. }
-    { by apply cmra_included_includedN. }
-  Qed.
-
-  Lemma val_of'_valid : forall c, ✓ c -> ✓ val_of' c.
-  Proof.
-    destruct c; try done.
-    by intros (? & ?)%shared_valid.
-  Qed.
-
-  Lemma val_of'_included : forall c1 c2, ✓c2 -> c1 ≼ c2 -> val_of' c1 ≼ val_of' c2.
-  Proof.
-    intros ?? Hv H.
-    apply @csum_included in H as [? | [(? & ? & ? & ? & H) | (? & ? & ? & ? & H)]]; subst; try done.
-    - apply shared_included in H as [Hno | (_ & H)]; try done.
-      rewrite Hno // in Hv.
-    - rewrite /= Some_included; auto.
   Qed.
 
   Lemma perm_of_res_ne' : forall n r1 r2, r1 ≡{n}≡ r2 -> perm_of_res r1 = perm_of_res r2.
@@ -1094,10 +978,10 @@ Section mpred.
 
   Definition max_access_at m loc := access_at m loc Max.
 
-  Definition max_access_cohere (m: mem) k r :=
-    Mem.perm_order'' (max_access_at m k) (perm_of_res' r).
+(*  Definition max_access_cohere (m: mem) k r :=
+    Mem.perm_order'' (max_access_at m k) (perm_of_res r).*)
 
-  Definition coherent_loc (m: mem) k r := contents_cohere m k r /\ access_cohere m k r /\ max_access_cohere m k r.
+  Definition coherent_loc (m: mem) k r := contents_cohere m k r /\ access_cohere m k r (*/\ max_access_cohere m k r*).
 
   Definition coherent (m : mem) phi := forall loc, ((loc.1 >= Mem.nextblock m)%positive -> phi !! loc = None) /\
     coherent_loc m loc (phi @ loc).
@@ -1121,16 +1005,15 @@ Section mpred.
     { erewrite resR_to_resource_eq; last by constructor.
       split; auto.
       { rewrite H //. } }
-    split; simpl.
-    - by apply dfrac_of'_included.
-    - apply val_of'_included in H; last done.
-      apply val_of'_valid in Hv.
-      apply option_included_total in H as [-> | (? & ? & -> & Heq & H)]; auto.
-      rewrite Heq /= in Hv |- *.
-      assert (✓{0} x2) by (by apply cmra_valid_validN).
-      right; f_equal; symmetry; apply (elem_of_agree_ne' O); first done.
-      symmetry; apply agree_valid_includedN; first done.
-      by apply @cmra_included_includedN.
+    apply shared_included in H as [H | (? & H)]; first by rewrite H in Hv.
+    split; simpl; first done.
+    apply shared_valid in Hv as (_ & Hv).
+    apply option_included_total in H as [-> | (? & ? & -> & Heq & H)]; auto.
+    rewrite Heq /= in Hv |- *.
+    assert (✓{0} x2) by (by apply cmra_valid_validN).
+    right; f_equal; symmetry; apply (elem_of_agree_ne' O); first done.
+    symmetry; apply agree_valid_includedN; first done.
+    by apply @cmra_included_includedN.
   Qed.
 
   Lemma perm_of_res_mono' : forall x1 x2, ✓ x2.1 -> res_le x1 x2 -> Mem.perm_order'' (perm_of_res x2) (perm_of_res x1).
@@ -1160,30 +1043,20 @@ Section mpred.
     by apply perm_of_res_mono'.
   Qed.
 
-  Lemma max_access_cohere_mono : forall m k x x' (Hv : ✓x'.1) (Hmono : res_le x x') (Hcoh : max_access_cohere m k x'),
-    max_access_cohere m k x.
-  Proof.
-    rewrite /access_cohere; intros.
-    eapply perm_order''_trans; first done.
-    destruct Hmono.
-    by apply perm_of_dfrac_mono.
-  Qed.
-
   Lemma coherent_mono : forall m k dq dq' v (Hv : ✓dq') (Hmono : dq ≼ dq') (Hcoh : coherent_loc m k (dq', v)),
     coherent_loc m k (dq, v).
   Proof.
     intros.
-    destruct Hcoh as (Hcontents & Haccess & Hmax).
+    destruct Hcoh as (Hcontents & Haccess).
     apply (contents_cohere_mono _ _ (dq, v)) in Hcontents; last by split; auto.
     apply (access_cohere_mono _ _ (dq, v)) in Haccess; last (by split; auto); last done.
-    apply (max_access_cohere_mono _ _ (dq, v)) in Hmax; last (by split; auto); last done.
-    by split3.
+    by split.
   Qed.
 
   Lemma coherent_val_mono : forall m k dq v, coherent_loc m k (dq, Some v) -> coherent_loc m k (dq, None).
   Proof.
     intros.
-    destruct H as (Hcontents & Haccess & Hmax); split3; try done.
+    destruct H as (Hcontents & Haccess); split; try done.
     unfold access_cohere in *; simpl in *.
     eapply perm_order''_trans; first done.
     destruct dq as [[|]|], v; try done; try apply perm_order''_refl.
@@ -1240,20 +1113,6 @@ Section mpred.
     eapply coherent_mono; try done.
     destruct (val_of x); last done.
     eapply coherent_val_mono; done.
-  Qed.
-
-  Lemma mapsto_pure_lookup {m k v} :
-    mem_auth m -∗ k ↦p v -∗ ⌜(k.1 < Mem.nextblock m)%positive ∧ coherent_loc m k (DfracOwn (Share Share.Lsh), Some v)⌝.
-  Proof.
-    iIntros "(% & % & Hm) H".
-    iDestruct (resource_map_auth_valid with "Hm") as %(_ & Hvalid).
-    iDestruct (mapsto_pure_lookup with "Hm H") as %Hk.
-    specialize (H k); destruct H as (Hnext & H).
-    unfold resource_at in H; erewrite resR_to_resource_eq in H by done.
-    rewrite /= elem_of_to_agree in H.
-    iPureIntro; repeat (split; auto).
-    { destruct (plt k.1 (nextblock m)); first done.
-      rewrite Hnext // in Hk; inv Hk. }
   Qed.
 
   Lemma big_sepL_seq2 : forall {A} `{Inhabited A} l (f : nat -> A -> mpred),
@@ -1348,13 +1207,13 @@ Section mpred.
       * rewrite fmap_length seq_length replicate_length //. }
     iExists _; iFrame; iPureIntro.
     split; last done.
-    intros l; specialize (H l); destruct H as (Hnext & Hcontents & Haccess & Hmax).
+    intros l; specialize (H l); destruct H as (Hnext & Hcontents & Haccess).
     unfold resource_at in *.
-    assert ((((λ v : resource, Cinl (YES (V := leibnizO resource) (DfracOwn (Share Tsh)) readable_Tsh (to_agree v))) <$>
+    assert ((((λ v : resource, (YES (V := leibnizO resource) (DfracOwn (Share Tsh)) readable_Tsh (to_agree v))) <$>
      list_to_map (zip ((λ i : nat, adr_add (nextblock m, lo) (Z.of_nat i)) <$> seq 0 (Z.to_nat (hi - lo)))
           (replicate (Z.to_nat (hi - lo)) (VAL Undef)))) ∪ σ) !! l =
       if eq_dec l.1 (nextblock m) then if adr_range_dec (nextblock m, lo) (hi - lo) l then
-      Some (Cinl (YES (V := leibnizO resource) (DfracOwn (Share Tsh)) readable_Tsh (to_agree (VAL Undef)))) else None else σ !! l) as Hlookup.
+      Some (YES (V := leibnizO resource) (DfracOwn (Share Tsh)) readable_Tsh (to_agree (VAL Undef))) else None else σ !! l) as Hlookup.
     { rewrite -{1}(replicate_length (Z.to_nat (hi - lo)) (VAL Undef)) update_map_lookup replicate_length nth_replicate.
       if_tac.
       * destruct l, H as [-> ?]; rewrite /= eq_dec_refl if_true //; lia.
@@ -1362,7 +1221,7 @@ Section mpred.
         rewrite if_false; first by apply Hnext; lia.
         destruct l; intros [??]; simpl in *; subst; lia. }
     rewrite Hlookup; clear Hlookup.
-    split; last split3.
+    split3.
     - erewrite nextblock_alloc by done.
       intros; rewrite Hnext; last lia.
       if_tac; last done; if_tac; last done; lia.
@@ -1376,12 +1235,6 @@ Section mpred.
       destruct l; if_tac; last by erewrite <- alloc_access_other; eauto.
       if_tac; simpl in *; last by rewrite eq_dec_refl; apply perm_order''_None.
       subst; rewrite elem_of_to_agree perm_of_freeable; erewrite alloc_access_same; try done; last lia.
-      apply perm_order''_refl.
-    - unfold max_access_cohere, max_access_at in *.
-      destruct l; if_tac; last by erewrite <- alloc_access_other; eauto.
-      rewrite /perm_of_res'.
-      if_tac; simpl in *; last by rewrite perm_of_empty; apply perm_order''_None.
-      subst; rewrite perm_of_freeable; erewrite alloc_access_same; try done; last lia.
       apply perm_order''_refl.
   Qed.
 
@@ -1410,13 +1263,13 @@ Section mpred.
       * rewrite fmap_length seq_length replicate_length //. }
     iExists _; iFrame; iPureIntro.
     split; last done.
-    intros l; specialize (H l); destruct H as (Hnext & Hcontents & Haccess & Hmax).
+    intros l; specialize (H l); destruct H as (Hnext & Hcontents & Haccess).
     unfold resource_at in *.
-    assert ((((λ v : resource, Cinl (YES (V := leibnizO resource) DfracDiscarded I (to_agree v))) <$>
+    assert ((((λ v : resource, YES (V := leibnizO resource) DfracDiscarded I (to_agree v)) <$>
      list_to_map (zip ((λ i : nat, adr_add (nextblock m, lo) (Z.of_nat i)) <$> seq 0 (Z.to_nat (hi - lo)))
           (replicate (Z.to_nat (hi - lo)) (VAL Undef)))) ∪ σ) !! l =
       if eq_dec l.1 (nextblock m) then if adr_range_dec (nextblock m, lo) (hi - lo) l then
-      Some (Cinl (YES (V := leibnizO resource) DfracDiscarded I (to_agree (VAL Undef)))) else None else σ !! l) as Hlookup.
+      Some (YES (V := leibnizO resource) DfracDiscarded I (to_agree (VAL Undef))) else None else σ !! l) as Hlookup.
     { rewrite -{1}(replicate_length (Z.to_nat (hi - lo)) (VAL Undef)) update_map_lookup replicate_length nth_replicate.
       if_tac.
       * destruct l, H as [-> ?]; rewrite /= eq_dec_refl if_true //; lia.
@@ -1424,7 +1277,7 @@ Section mpred.
         rewrite if_false; first by apply Hnext; lia.
         destruct l; intros [??]; simpl in *; subst; lia. }
     rewrite Hlookup; clear Hlookup.
-    split; last split3.
+    split3.
     - erewrite nextblock_alloc by done.
       intros; rewrite Hnext; last lia.
       if_tac; last done; if_tac; last done; lia.
@@ -1438,12 +1291,6 @@ Section mpred.
       destruct l; if_tac; last by erewrite <- alloc_access_other; eauto.
       if_tac; simpl in *; last by rewrite eq_dec_refl; apply perm_order''_None.
       subst; rewrite elem_of_to_agree perm_of_empty /=; erewrite alloc_access_same; try done; last lia.
-      constructor.
-    - unfold max_access_cohere, max_access_at in *.
-      destruct l; if_tac; last by erewrite <- alloc_access_other; eauto.
-      rewrite /perm_of_res'.
-      if_tac; simpl in *; last by rewrite perm_of_empty; apply perm_order''_None.
-      subst; rewrite perm_of_empty; erewrite alloc_access_same; try done; last lia.
       constructor.
   Qed.
 
@@ -1462,9 +1309,9 @@ Section mpred.
     iMod (mapsto_delete_big with "Hm H").
     iExists _; iFrame; iPureIntro; split; last done.
     unfold coherent, resource_at in *; intros l. rewrite update_map_lookup.
-    destruct (H l) as (Hnext & Hcontents & Haccess & Hmax); clear H.
+    destruct (H l) as (Hnext & Hcontents & Haccess); clear H.
     pose proof (free_range_perm _ _ _ _ _ Hfree) as Hperm.
-    split; last split3.
+    split3.
     - erewrite nextblock_free by done.
       if_tac; last done.
       destruct k, l as (?, ofs), H; simpl in *; subst.
@@ -1474,9 +1321,6 @@ Section mpred.
       destruct k, l; eapply free_nadr_range_eq in Hfree as [_ <-]; simpl in *; auto; lia.
     - unfold access_cohere in *.
       if_tac; first by rewrite /= eq_dec_refl; apply perm_order''_None.
-      destruct k, l; eapply free_nadr_range_eq in Hfree as [<- _]; simpl in *; auto; lia.
-    - unfold max_access_cohere, max_access_at in *.
-      if_tac; first by rewrite /perm_of_res' /= perm_of_empty; apply perm_order''_None.
       destruct k, l; eapply free_nadr_range_eq in Hfree as [<- _]; simpl in *; auto; lia.
   Qed.
 
@@ -1492,10 +1336,10 @@ Section mpred.
     iMod (mapsto_update with "Hm H") as (?? (? & ? & Hk)) "(Hm & $)".
     iExists _; iFrame; iPureIntro; split; last done.
     unfold coherent, resource_at in *; intros l.
-    destruct (H l) as (Hnext & Hcontents & Haccess & Hmax); clear H.
+    destruct (H l) as (Hnext & Hcontents & Haccess); clear H.
     pose proof (storebytes_range_perm _ _ _ _ _ Hstore) as Hperm.
     specialize (Hvalid l).
-    split; last split3.
+    split3.
     - erewrite nextblock_storebytes by done.
       destruct (eq_dec k l); [subst; rewrite lookup_insert | rewrite lookup_insert_ne //].
       clear -Hperm.
@@ -1518,11 +1362,6 @@ Section mpred.
       destruct (eq_dec k l); [subst; rewrite lookup_insert | rewrite lookup_insert_ne //].
       erewrite resR_to_resource_eq in Haccess by done.
       rewrite /= !elem_of_to_agree // in Haccess |- *.
-    - unfold max_access_cohere, max_access_at in *.
-      erewrite <- Memory.storebytes_access by done.
-      destruct (eq_dec k l); [subst; rewrite lookup_insert | rewrite lookup_insert_ne //].
-      erewrite resR_to_resource_eq in Hmax by done.
-      done.
   Qed.
 
   Lemma coherent_bot m k : coherent_loc m k (ε, None).
@@ -1530,7 +1369,6 @@ Section mpred.
     repeat split.
     - by intros ?.
     - rewrite /access_cohere /= eq_dec_refl; apply perm_order''_None.
-    - rewrite /max_access_cohere /access_cohere /perm_of_res' /= perm_of_empty; apply perm_order''_None.
   Qed.
 
   (** Big-op versions of above lemmas *)
@@ -1609,11 +1447,11 @@ Section mpred.
     iDestruct (resource_map_auth_valid with "Hm") as %(_ & Hvalid').
     iExists _; iFrame; iPureIntro; split; last done.
     unfold coherent, resource_at in *; intros l.
-    destruct (H l) as (Hnext & Hcontents & Haccess & Hmax); clear H.
+    destruct (H l) as (Hnext & Hcontents & Haccess); clear H.
     pose proof (storebytes_range_perm _ _ _ _ _ Hstore) as Hperm.
     specialize (Hvalid l); specialize (Hvalid' l).
     rewrite lookup_union map_lookup_imap -(fmap_length VAL bl) list_to_map_lookup fmap_length in Hvalid' |- *.
-    split; last split3.
+    split3.
     - erewrite nextblock_storebytes by done.
       if_tac; last rewrite left_id //.
       simpl in *; destruct (σ !! l) eqn: Hl; rewrite Hl // in Hvalid' |- *.
@@ -1621,7 +1459,7 @@ Section mpred.
     - unfold contents_cohere, contents_at in *.
       erewrite storebytes_mem_contents by done.
       if_tac; simpl in *.
-      + destruct (σ !! l) as [[[|]| |]|] eqn: Hl; rewrite Hl // /= in Hvalid' |- *.
+      + destruct (σ !! l) as [[|]|] eqn: Hl; rewrite Hl // /= in Hvalid' |- *.
         rewrite elem_of_to_agree map_nth; inversion 1; subst.
         destruct l, k, H; simpl in *; subst.
         rewrite Maps.PMap.gss get_setN //.
@@ -1637,13 +1475,8 @@ Section mpred.
       specialize (Hall _ eq_refl); destruct Hall as (? & ? & ? & ? & Heq).
       erewrite resR_to_resource_eq in Haccess by done.
       inversion Heq as [?? Hc Heq'|]; subst; rewrite -Heq'.
-      inversion Hc as [a ? Heq''| |]; subst.
-      destruct a; inv Heq''; simpl.
+      destruct x1; inv Hc; simpl.
       rewrite /= !elem_of_to_agree !map_nth // in Haccess |- *.
-    - unfold max_access_cohere, max_access_at in *.
-      erewrite <- Memory.storebytes_access by done.
-      if_tac; simpl in *; last rewrite left_id //.
-      destruct (σ !! l) as [[[|]| |]|] eqn: Hl; rewrite Hl // in Hmax Hvalid' |- *.
   Qed.
 
   Lemma empty_coherent : forall m, coherent m ∅.
@@ -1664,9 +1497,8 @@ Section mpred.
     (Hcoh : ∀ loc : address, coherent_loc m loc (resource_at σ loc)) :
     mem_auth Mem.empty ==∗ mem_auth m ∗
     ([∗ map] l ↦ x ∈ σ, match x with
-                        | Cinl (shared.YES dq _ v) => l ↦{dq} (proj1_sig (elem_of_agree v))
-                        | Cinl (shared.NO (Share sh) _) => mapsto_no l sh
-                        | Cinr v => l ↦p (proj1_sig (elem_of_agree v))
+                        | (shared.YES dq _ v) => l ↦{dq} (proj1_sig (elem_of_agree v))
+                        | (shared.NO (Share sh) _) => mapsto_no l sh
                         | _ => False
                         end).
   Proof.

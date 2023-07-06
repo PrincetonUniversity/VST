@@ -1,11 +1,10 @@
-From iris.algebra Require Import csum agree.
-From iris_ora.algebra Require Import osum agree.
+From iris.algebra Require Import agree.
+From iris_ora.algebra Require Import agree.
 Require Import VST.zlist.sublist.
 Require Import VST.veric.shared.
 Require Import VST.veric.juicy_base.
 Require Import VST.veric.juicy_mem.
 Require Import VST.veric.juicy_mem_lemmas.
-(*Require Import VST.veric.juicy_mem_ops.*)
 Require Import VST.veric.res_predicates.
 Require Import VST.veric.resource_map.
 Require Import VST.veric.seplog.
@@ -193,20 +192,20 @@ Definition inflate_loc loc :=
 Lemma readable_Ews : readable_share Ews.
 Proof. auto. Qed.
 
-Definition res_of_loc (loc : address) : csumR (sharedR (leibnizO resource)) (agreeR (leibnizO resource)) :=
+Definition res_of_loc (loc : address) : sharedR (leibnizO resource) :=
   match access_at m loc Cur with
-  | Some Freeable => Cinl (shared.YES(V := leibnizO resource) (DfracOwn (Share Tsh)) readable_Tsh (to_agree (VAL (contents_at m loc))))
-  | Some Writable => Cinl (shared.YES(V := leibnizO resource) (DfracOwn (Share Ews)) readable_Ews (to_agree (VAL (contents_at m loc))))
-  | Some Readable => Cinl (shared.YES(V := leibnizO resource) (DfracOwn (Share Ers)) readable_Ers (to_agree (VAL (contents_at m loc))))
+  | Some Freeable => (shared.YES(V := leibnizO resource) (DfracOwn (Share Tsh)) readable_Tsh (to_agree (VAL (contents_at m loc))))
+  | Some Writable => (shared.YES(V := leibnizO resource) (DfracOwn (Share Ews)) readable_Ews (to_agree (VAL (contents_at m loc))))
+  | Some Readable => (shared.YES(V := leibnizO resource) (DfracOwn (Share Ers)) readable_Ers (to_agree (VAL (contents_at m loc))))
   | Some Nonempty => match funspec_of_loc loc with
-                     | Some _ => Cinr (to_agree FUN)
-                     | _ => Cinl (shared.NO (Share Share.bot) bot_unreadable)
+                     | Some _ => (shared.YES(V := leibnizO resource) (DfracBoth (Share Share.bot)) I (to_agree FUN))
+                     | _ => (shared.NO (Share Share.bot) bot_unreadable)
                      end
-  | _ => Cinl (shared.NO (Share Share.bot) bot_unreadable)
+  | _ => (shared.NO (Share Share.bot) bot_unreadable)
   end.
 
 (* Put an extra NO Share.bot on the end to avoid problems with size-0 gvars. *)
-Definition rmap_of_mem : gmapR address (csumR (sharedR (leibnizO resource)) (agreeR (leibnizO resource))) :=
+Definition rmap_of_mem : gmapR address (sharedR (leibnizO resource)) :=
   [^op list] n ∈ seq 1 (Pos.to_nat (Mem.nextblock m) - 1),
   let b := Pos.of_nat n in let '(lo, z) := block_bounds b in
   [^op list] o ∈ seq 0 (z + 1), let loc := (b, lo + Z.of_nat o)%Z in {[loc := res_of_loc loc]}.
@@ -883,7 +882,7 @@ Proof.
 Qed.
 
 Lemma rmap_of_drop_last_block : forall m {F} (ge : Genv.t (fundef F) type) G loc, res_of_loc (drop_last_block m) ge G loc =
-  if eq_dec loc.1 (nextblock m - 1)%positive then Cinl (shared.NO (Share Share.bot) bot_unreadable) else res_of_loc m ge G loc.
+  if eq_dec loc.1 (nextblock m - 1)%positive then (shared.NO (Share Share.bot) bot_unreadable) else res_of_loc m ge G loc.
 Proof.
   intros; rewrite /res_of_loc /drop_last_block /access_at /contents_at /=.
   destruct (eq_dec loc.1 (nextblock m - 1)%positive).
@@ -937,7 +936,7 @@ Lemma lookup_of_loc : forall m {F} ge G b lo z loc,
   if adr_range_dec (b, lo) z loc then Some (res_of_loc m ge G loc) else None)%stdpp.
 Proof.
   intros.
-  evar (f : nat -> (csumR (sharedR (leibnizO resource)) (agreeR (leibnizO resource)))).
+  evar (f : nat -> (sharedR (leibnizO resource))).
   etrans; [|etrans; [apply (lookup_singleton_list (seq 0 z) f (b, lo) loc)|]].
   2: { rewrite seq_length; if_tac; last done.
        destruct loc, H; subst; simpl.
@@ -1001,43 +1000,25 @@ Proof.
   intros; rewrite /res_of_loc.
   destruct (access_at m loc Cur) eqn: Hloc; last apply coherent_bot.
   destruct p; try (destruct (funspec_of_loc _ _ _) as [[]|]; last apply coherent_bot); rewrite /= elem_of_to_agree.
-  - split3.
+  - split.
     + unfold contents_cohere; simpl.
       by inversion 1.
     + rewrite /access_cohere Hloc /=.
       rewrite /perm_of_sh !if_true //; auto.
       constructor.
-    + rewrite /max_access_cohere /max_access_at.
-      eapply perm_order''_trans; first apply access_max.
-      unfold access_at in Hloc; rewrite Hloc /=.
-      rewrite /perm_of_res' /= /perm_of_sh !if_true //; auto.
-      constructor.
-  - split3.
+  - split.
     + unfold contents_cohere; simpl.
       by inversion 1.
     + rewrite /access_cohere Hloc /= perm_of_Ews.
       constructor.
-    + rewrite /max_access_cohere /max_access_at.
-      eapply perm_order''_trans; first apply access_max.
-      unfold access_at in Hloc; rewrite Hloc /perm_of_res' /= perm_of_Ews.
-      constructor.
-  - split3.
+  - split.
     + unfold contents_cohere; simpl.
       by inversion 1.
     + rewrite /access_cohere Hloc /= perm_of_Ers.
       constructor.
-    + rewrite /max_access_cohere /max_access_at.
-      eapply perm_order''_trans; first apply access_max.
-      unfold access_at in Hloc; rewrite Hloc /perm_of_res' /= perm_of_Ers.
-      constructor.
-  - split3.
+  - split.
     + done.
     + rewrite /access_cohere Hloc /=.
-      rewrite if_false; first constructor.
-      apply Lsh_bot_neq.
-    + rewrite /max_access_cohere /max_access_at.
-      eapply perm_order''_trans; first apply access_max.
-      unfold access_at in Hloc; rewrite Hloc /perm_of_res' /= perm_of_Lsh.
       constructor.
 Qed.
 
@@ -1059,7 +1040,10 @@ Lemma rmap_of_loc_valid : forall m {F} ge G loc, (✓ (@res_of_loc m F ge G loc)
 Proof.
   intros; rewrite /res_of_loc.
   destruct (access_at m loc Cur); try done.
-  destruct p; try done; try destruct (funspec_of_loc _ _ _) as [[]|]; done.
+  destruct p; try done; try destruct (funspec_of_loc _ _ _) as [[]|]; try done.
+  split; try done.
+  eexists; split; eauto.
+  intros ?; apply bot_unreadable; auto.
 Qed.
 
 Lemma rmap_of_mem_valid : forall m block_bounds {F} ge G, (✓ @rmap_of_mem m block_bounds F ge G)%stdpp.
@@ -1185,26 +1169,24 @@ Lemma rmap_inflate_equiv : forall m block_bounds {F} (ge : Genv.t (fundef F) typ
         | None => True
         end),
   funspec_auth ∅ ∗ ([∗ map] l ↦ x ∈ rmap_of_mem m block_bounds ge G, match x with
-                     | Cinl (shared.YES dq _ v) => l ↦{dq} (proj1_sig (elem_of_agree v))
-                     | Cinl (shared.NO (Share sh) _) => mapsto_no l sh
-                     | Cinr v => l ↦p (proj1_sig (elem_of_agree v))
+                     | (shared.YES dq _ v) => l ↦{dq} (proj1_sig (elem_of_agree v))
+                     | (shared.NO (Share sh) _) => mapsto_no l sh
                      | _ => False
                      end) ⊢ |==> funspec_auth (init_funspecs m ge G) ∗ inflate_initial_mem m block_bounds ge G.
 Proof.
   intros.
-  assert (∀ (l : address) (y1 y2 : csumR (sharedR (leibnizO resource)) (agreeR (leibnizO resource))), (✓ y1)%stdpp → (y1 ≡ y2)%stdpp →
+  assert (∀ (l : address) (y1 y2 : sharedR (leibnizO resource)), (✓ y1)%stdpp → (y1 ≡ y2)%stdpp →
     match y1 with
-    | Cinl (shared.YES dq _ v) => l ↦{dq} (proj1_sig (elem_of_agree v))
-    | Cinl (shared.NO (Share sh) _) => mapsto_no l sh
-    | Cinr v => l ↦p (proj1_sig (elem_of_agree v))
+    | (shared.YES dq _ v) => l ↦{dq} (proj1_sig (elem_of_agree v))
+    | (shared.NO (Share sh) _) => mapsto_no l sh
     | _ => False end ⊣⊢ match y2 with
-           | Cinl (shared.YES dq _ v) => l ↦{dq} (proj1_sig (elem_of_agree v))
-           | Cinl (shared.NO (Share sh) _) => mapsto_no l sh
-           | Cinr v => l ↦p (proj1_sig (elem_of_agree v))
+           | (shared.YES dq _ v) => l ↦{dq} (proj1_sig (elem_of_agree v))
+           | (shared.NO (Share sh) _) => mapsto_no l sh
            | _ => False end).
   { intros ??? Hv Heq.
-    inv Heq; first (destruct a, a'; inv H); try done; first destruct Hv;
-      match goal with H : (_ ≡ _)%stdpp |- _ => apply (elem_of_agree_ne O) in H as ->%leibniz_equiv; done end. }
+    destruct y1, y2; inv Heq; try done.
+    destruct Hv.
+    match goal with H : (_ ≡ _)%stdpp |- _ => apply (elem_of_agree_ne O) in H as ->%leibniz_equiv; done end. }
   rewrite /rmap_of_mem /init_funspecs /inflate_initial_mem big_opM_opL' //.
   assert (Pos.to_nat (nextblock m) - 1 < Pos.to_nat (nextblock m))%nat as Hlt by lia.
   induction (Pos.to_nat (nextblock m) - 1)%nat.

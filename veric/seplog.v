@@ -406,7 +406,7 @@ Qed.
 Definition funspec_auth m := own(inG0 := funspec_inG) funspec_name (gmap_view_auth (dfrac.DfracOwn 1) m).
 Definition know_funspec l (f: funspec) := own(inG0 := funspec_inG) funspec_name (gmap_view_frag l dfrac.DfracDiscarded (funspec_unfold f)).
 
-Definition func_at (f: funspec) (l : address) : mpred := l ↦p FUN ∗ know_funspec l f.
+Definition func_at (f: funspec) (l : address) : mpred := l ↦□ FUN ∗ know_funspec l f.
 
 Global Instance inhabited_typesig : Inhabited typesig := populate ([], Tvoid).
 Global Instance inhabited_calling_convention : Inhabited calling_convention := populate cc_default.

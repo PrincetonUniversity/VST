@@ -108,7 +108,7 @@ iAssert ⌜∃ dq r, ✓ dq ∧ dq ≠ ε ∧ coherent_loc m (b, Ptrofs.unsigned
     intros [=]; done. }
 iPureIntro.
 rewrite Mem.valid_pointer_nonempty_perm /Mem.perm.
-destruct H as (_ & H & _).
+destruct H as (_ & H).
 rewrite /access_cohere /access_at in H.
 destruct (Maps.PMap.get _ _ _ _); try constructor.
 destruct (perm_of_res_cases dq r) as [(? & -> & Hperm) | (? & Hperm)]; setoid_rewrite Hperm in H; clear Hperm.
