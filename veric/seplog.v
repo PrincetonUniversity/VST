@@ -565,15 +565,15 @@ Proof.
   iSpecialize ("HQ" $! rho); iRewrite -"HQ"; done.
 Qed.
 
-Definition closed_wrt_vars (S: ident -> Prop) (F: environ -> mpred) : Prop :=
+Program Definition closed_wrt_vars `{Equiv B} (S: ident -> Prop) (F: environ -> B) : Prop :=
   forall rho te',
      (forall i, S i \/ Map.get (te_of rho) i = Map.get te' i) ->
-     F rho ⊣⊢ F (mkEnviron (ge_of rho) (ve_of rho) te').
+     (F rho ≡ F (mkEnviron (ge_of rho) (ve_of rho) te'))%stdpp.
 
-Definition closed_wrt_lvars (S: ident -> Prop) (F: environ -> mpred) : Prop :=
+Definition closed_wrt_lvars `{Equiv B} (S: ident -> Prop) (F: environ -> B) : Prop :=
   forall rho ve',
      (forall i, S i \/ Map.get (ve_of rho) i = Map.get ve' i) ->
-     F rho ⊣⊢ F (mkEnviron (ge_of rho) ve' (te_of rho)).
+     (F rho ≡ F (mkEnviron (ge_of rho) ve' (te_of rho)))%stdpp.
 
 Definition not_a_param (params: list (ident * type)) (i : ident) : Prop :=
   ~ In i (map (@fst _ _) params).
