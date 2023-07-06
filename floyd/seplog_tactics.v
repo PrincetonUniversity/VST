@@ -1253,6 +1253,7 @@ Ltac normalize1 :=
             | |- context [(?Q ∗ (?R ∧ ?P))%I] => rewrite -> (persistent_and_sep_assoc' P Q R) by (auto with norm)
             | |-  bi_entails ?A ?B => match A with
                    | False => apply bi.False_elim
+                   | ⌜True⌝ => apply bi.pure_intro
                    | ⌜_⌝ => apply bi.pure_elim'
                    | bi_exist (fun y => _) => apply bi.exist_elim; (intro y || intro)
                    | ⌜_⌝ ∧ _ => apply bi.pure_elim_l
