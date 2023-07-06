@@ -2,6 +2,12 @@ Require Import VST.floyd.base2.
 Require Export VST.floyd.canon.
 Import LiftNotation.
 
+Ltac refold_right_sepcon R :=
+ match R with
+ | bi_sep ?R1 ?R' => let S := refold_right_sepcon R' in constr: (R1 :: S )
+ | _ => constr:(R :: nil)
+ end.
+
 Section mpred.
 
 Context `{!heapGS Σ}.
@@ -14,12 +20,6 @@ Proof.
 intros.
 rewrite bi.and_elim_r /PROPx /LOCALx /SEPx H //.
 Qed.
-
-Ltac refold_right_sepcon R :=
- match R with
- | bi_sep ?R1 ?R' => let S := refold_right_sepcon R' in constr: (R1 :: S )
- | _ => constr:(R :: nil)
- end.
 
 Lemma SEP_entail':
  forall R' Delta P Q R,

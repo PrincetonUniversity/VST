@@ -73,7 +73,7 @@ Fixpoint typecheck_efield {cs: compspecs} (Delta: tycontext) (efs: list efield) 
     typecheck_efield Delta efs'
   end.
 
-Definition tc_efield {cs: compspecs} (Delta: tycontext) (efs: list efield) : environ -> mpred := denote_tc_assert (typecheck_efield Delta efs).
+Definition tc_efield {cs: compspecs} (Delta: tycontext) (efs: list efield) := denote_tc_assert (typecheck_efield Delta efs).
 
 Definition typeconv' (ty: type): type :=
 match ty with
