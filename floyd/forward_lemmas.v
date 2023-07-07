@@ -463,7 +463,7 @@ apply semax_for_x with (∃ a:A, PreIncr a); auto.
 Qed.
 
 Lemma forward_setx':
-  forall `{heapGS0: heapGS Σ} (Espec : OracleKind) `{!externalGS OK_ty Σ} {cs: compspecs}
+  forall `{!heapGS0: heapGS Σ} (Espec : OracleKind) `{!externalGS OK_ty Σ} {cs: compspecs}
   E Delta P id e,
   (P ⊢ (tc_expr Delta e) ∧ (tc_temp_id id (typeof e) Delta e) ) ->
   semax E Delta
