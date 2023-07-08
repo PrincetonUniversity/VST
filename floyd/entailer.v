@@ -296,18 +296,19 @@ match goal with
               auto 50 with valid_pointer
 end.
 
-(* FIXME *)
-(* #[export] Hint Rewrite (@bi.True_and mpred _) : gather_prop.
-#[export] Hint Rewrite (@bi.and_True mpred _) : gather_prop. *)
+#[export] Hint Rewrite @bi.True_and : gather_prop.
+#[export] Hint Rewrite @bi.and_True : gather_prop.
+
+Ltac pure_elim :=
+  match goal with
+  | |- ⌜_⌝ ∧ _ ⊢ _ => apply bi.pure_elim_l
+  | |- _ ∧ ⌜_⌝ ⊢ _ => apply bi.pure_elim_r
+  end.
 
 Ltac pull_out_props :=
-    repeat (( simple apply bi.pure_elim_l
-                || simple apply bi.pure_elim_r);
-                fancy_intros true);
+    repeat (pure_elim; fancy_intros true);
     gather_prop;
-    repeat (( simple apply bi.pure_elim_l
-                || simple apply bi.pure_elim_r);
-                fancy_intros true).
+    repeat (pure_elim; fancy_intros true).
 
 Ltac simplify_float2int :=
 match goal with
@@ -324,12 +325,10 @@ match goal with
 end.
 
 Ltac ent_iter :=
-    try simple apply bi.True_intro;
+    try apply bi.True_intro;
     repeat simplify_float2int;
     gather_prop;
-    repeat (( simple apply bi.pure_elim_l
-                || simple apply bi.pure_elim_r);
-                fancy_intros true);
+    repeat (pure_elim; fancy_intros true);
    repeat erewrite unfold_reptype_elim in * by (apply JMeq_refl; reflexivity);
    simpl_compare;
    simpl_denote_tc;
@@ -501,7 +500,7 @@ Proof. intros.
 Qed.
 
 Ltac prop_right_cautious :=
- try solve [simple apply bi.pure_intro; auto; prove_it_now].
+ try solve [apply bi.pure_intro; auto; prove_it_now].
 
 Ltac prune_conjuncts :=
  repeat rewrite and_assoc';
@@ -510,18 +509,18 @@ Ltac prune_conjuncts :=
               | cbv beta; repeat rewrite and_True; prop_right_cautious ]
          | simple eapply try_conjuncts_prop_and;
               [intro; try_conjuncts
-              | cbv beta; repeat rewrite and_True; try simple apply go_lower_lem1]
+              | cbv beta; repeat rewrite and_True; try apply go_lower_lem1]
          | idtac].
 
 Ltac entailer' :=
  repeat (progress (ent_iter; normalize));
- try simple apply prop_and_same_derives;
+ try apply prop_and_same_derives;
  prune_conjuncts;
  try rewrite ->(prop_true_andp True) by apply Coq.Init.Logic.I;
  try solve_valid_pointer;
  try first [apply derives_refl
-              | simple apply bi.False_elim
-              | simple apply bi.True_intro].
+              | apply bi.False_elim
+              | apply bi.True_intro].
 
 Lemma empTrue `{!heapGS Σ}: @bi_emp_valid mpred True.
 Proof.
@@ -535,7 +534,7 @@ Lemma my_auto_lem:
 Proof. auto. Qed.
 
 Ltac my_auto_iter H :=
- first [instantiate (1:=True) in H;  prove_it_now
+ first [instantiate (1:=True%type) in H;  prove_it_now
        | splittable;
          eapply try_conjuncts_lem;
             [let H1 := fresh in intro H1; my_auto_iter H1
@@ -582,20 +581,20 @@ Ltac entailer :=
  lazymatch goal with
  | |- ?P ⊢ _ =>
     lazymatch type of P with
-    | ?T => tryif unify T (environ->mpred)
+    | ?T => tryif unify T assert
                  then (clean_up_stackframe; go_lower)
                  else tryif unify T mpred
                     then (clear_Delta; pull_out_props)
-                    else fail "Unexpected type of entailment, neither mpred nor environ->mpred"
+                    else fail "Unexpected type of entailment, neither mpred nor assert"
     end
  | |- _ => fail  "The entailer tactic works only on entailments   _ ⊢ _ "
  end;
- try solve [simple apply bi.pure_intro; my_auto];
- try solve [simple apply prop_and_same_derives_mpred; my_auto];
+ try solve [apply bi.pure_intro; my_auto];
+ try solve [apply prop_and_same_derives_mpred; my_auto];
  saturate_local;
  entailer';
  (* TODO iris bi_sep is right assoc, so make the goal look like ((_∗_)∗_) introduces lots of parens. Do we want to change that? *)
- rewrite bi.sep_assoc.
+ rewrite ?bi.sep_assoc.
 
 
 Ltac entbang :=
@@ -611,11 +610,11 @@ Ltac entbang :=
           rewrite ->?bi.True_and, ?bi.and_True; try apply bi.True_intro
  | |- ?P ⊢ _ =>
     lazymatch type of P with
-    | ?T => tryif unify T (environ->mpred)
-                 then fail "entailer! found an (environ->mpred) entailment that is missing its 'local' left-hand-side part (that is, Delta)"
+    | ?T => tryif unify T assert
+                 then fail "entailer! found an assert entailment that is missing its 'local' left-hand-side part (that is, Delta)"
                  else tryif unify T mpred
                     then (clear_Delta; pull_out_props)
-                    else fail "Unexpected type of entailment, neither mpred nor environ->mpred"
+                    else fail "Unexpected type of entailment, neither mpred nor assert"
     end
  | |- _ => fail "The entailer tactic works only on entailments  _ ⊢ _ "
  end;
@@ -638,11 +637,11 @@ Ltac entbang :=
  ent_iter;
  repeat change (mapsto_memory_block.spacer _ _ _ _) with emp;
  first [ contradiction
-        | simple apply bi.pure_intro; my_auto
-        | lazymatch goal with |- ?Q ⊢ ⌜_⌝ ∧ ?Q' => constr_eq  Q Q';
-                      simple apply prop_and_same_derives'; my_auto
+        | apply bi.pure_intro; my_auto
+        | lazymatch goal with |- ?Q ⊢ ⌜_⌝ ∧ ?Q' => constr_eq Q Q';
+                      apply prop_and_same_derives'; my_auto
           end
-        | simple apply bi.and_intro;
+        | apply bi.and_intro;
             [apply bi.pure_intro; my_auto 
             | cancel; rewrite ->?bi.sep_assoc; autorewrite with norm ]
         | normalize; cancel; rewrite ->?bi.sep_assoc
@@ -762,17 +761,7 @@ Definition cstring `{!heapGS Σ} {CS : compspecs} sh (s: list byte) p : mpred :=
 Lemma cstring_local_facts: forall `{!heapGS Σ} {CS : compspecs} sh s p, 
   cstring sh s p ⊢ ⌜isptr p ∧ Zlength s + 1 < Ptrofs.modulus⌝.
 Proof.
-  intros; unfold cstring.
-  (* FIXME entailer! should do the following; now the problem is that
-     in `pull_out_props`, `simple apply bi.pure_elim_l.` does not work because
-     it has Σ and heapGS to instantiate in bi.pure_elim_l, which `simple apply`
-     does not allow. If we just change that to apply, then it will go too deep
-     to let saturate_local do anything. Maybe match goal to get Σ and heapGS whenever
-     we simple apply?  *)
-  apply bi.pure_elim_l. intros.
-  saturate_local.
-  iIntros; iPureIntro. split; auto.
-
+  intros; unfold cstring; entailer!.
   destruct H0 as [? [_ [? _]]].
   destruct p; try contradiction.
   red in H3.
@@ -787,19 +776,18 @@ Qed.
 #[export] Hint Resolve cstring_local_facts : saturate_local.
 
 Lemma cstring_valid_pointer: forall `{!heapGS Σ} {CS : compspecs} sh s p, 
-   nonempty_share sh -> 
+   sh <> Share.bot ->
    cstring sh s p ⊢ valid_pointer p.
 Proof.
   intros; unfold cstring; Intros.
-  (* FIXME Intros should have already done this *)  apply bi.pure_elim_l. intros.
   apply data_at_valid_ptr; auto.
-  { (* FIXME auto should have lready solved this *) hnf in H. unfold not. intros. auto. apply H. rewrite H1. done. } 
   unfold tarray, tschar, sizeof, Ctypes.sizeof.
   pose proof (Zlength_nonneg s).
   rewrite Z.max_r; lia.
 Qed.
 
 #[export] Hint Resolve cstring_valid_pointer : valid_pointer.
+
 Definition cstringn `{!heapGS Σ} {CS : compspecs} sh (s: list byte) n p : mpred :=
   ⌜(~In Byte.zero s) ⌝ ∧
   data_at sh (tarray tschar n) (map Vbyte (s ++ [Byte.zero]) ++
@@ -847,13 +835,7 @@ Qed.
 Lemma cstringn_local_facts: forall `{!heapGS Σ} {CS : compspecs} sh s n p, 
    cstringn sh s n p ⊢ ⌜isptr p /\ Zlength s + 1 <= n <= Ptrofs.max_unsigned⌝.
 Proof.
-  intros; unfold cstringn.
-
-  (* FIXME entailer! should do this all, like in cstring_local_facts *) 
-  apply bi.pure_elim_l. intros.
-  saturate_local.
-  iIntros; iPureIntro. split; auto.
-
+  intros; unfold cstringn; entailer!.
   rewrite ->!Zlength_app, !Zlength_map, Zlength_app in H1.
   assert (H8 := Zlength_nonneg s).
   destruct (zlt n (Zlength s + 1)).
@@ -872,17 +854,13 @@ Qed.
 #[export] Hint Resolve cstringn_local_facts : saturate_local.
 
 Lemma cstringn_valid_pointer: forall `{!heapGS Σ} {CS : compspecs} sh s n p, 
-     nonempty_share sh -> 
+     sh <> Share.bot ->
      cstringn sh s n p ⊢ valid_pointer p.
 Proof.
   intros.
   entailer!. 
   unfold cstringn; Intros.
-  
-  (* FIXME Intros should have already done this *)  apply bi.pure_elim_l. intros.
-
   apply data_at_valid_ptr; auto.
-  { (* FIXME auto should have lready solved this *) hnf in H. unfold not. intros. auto. apply H. subst. done. } 
   unfold tarray, tschar, sizeof, Ctypes.sizeof; cbv beta iota zeta.
   pose proof (Zlength_nonneg s).
   rewrite Z.max_r; lia.
