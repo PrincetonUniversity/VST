@@ -79,6 +79,12 @@ Lemma close_precondition_e':
    P (ge_of rho, vals).
 Proof. trivial. Qed.
 
+Global Instance close_precondition_proper p : Proper (base.equiv ==> base.equiv) (close_precondition p).
+Proof.
+  intros ?? H.
+  split => rho; solve_proper.
+Qed.
+
 Lemma Forall_eval_id_get: forall {vals: list val} (V:Forall (fun v : val => v = Vundef -> False) vals), 
   forall ids rho, map (Map.get (te_of rho)) ids = map Some vals <-> map (fun i : ident => eval_id i rho) ids = vals.
 Proof.

@@ -251,3 +251,5 @@ fix app (l m : list A) {struct l} : list A :=
 
 Lemma Floyd_app_eq: @Floyd_app = @app.
 Proof. reflexivity. Qed.
+
+#[export] Hint Resolve Share.nontrivial : core.

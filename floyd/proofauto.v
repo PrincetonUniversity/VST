@@ -53,9 +53,29 @@ Require Export VST.floyd.Clightnotations.
 (* Require VST.floyd.linking. *)
 
 (*funspec scope is the default, so remains open.
-  User who wnt ot use old funspecs should 
+  Users who want to use old funspecs should 
   "Require Import Require Import VST.floyd.Funspec_old_Notation."
   Global Close Scope funspec_scope.*)
+
+(* Where should this go? *)
+Class VSTGS (Espec : OracleKind) Σ :=
+  { VST_heapGS :> heapGS Σ;
+    VST_extGS :> externalGS OK_ty Σ }.
+
+Definition null_extspec : extspec.external_specification mem external_function unit
+  := extspec.Build_external_specification mem external_function unit
+     (*ext_spec_type*)
+     (fun ef => False%type)
+     (*ext_spec_pre*)
+     (fun ef Hef ge tys vl m z => False%type)
+     (*ext_spec_post*)
+     (fun ef Hef ge ty vl m z => False%type)
+     (*ext_spec_exit*)
+     (fun rv m z => True%type).
+
+#[export] Instance NullEspec : OracleKind := Build_OracleKind unit null_extspec.
+
+Definition default_VSTGS Σ := VSTGS NullEspec Σ.
 
 Arguments semax {Σ} {heapGS0} {Espec} {externalGS0} {C} E Delta Pre%assert cmd%C Post%assert.
 Export ListNotations.

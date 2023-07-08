@@ -111,30 +111,28 @@ split3.
 { clear Hyp3. red; intros j fd J. destruct J; [ inv H | auto].
   exists b; split; trivial. }
 intros. specialize (Hyp3 _ Gfs Gffp).
-constructor. intros. unfold believe. ouPred.unseal.
-intros v sig cc A P Q ? m NM EM VM CL.
+iIntros (v sig cc A P Q CL).
 hnf in CL.
 destruct CL as [j [J GJ]]. simpl in J.
 rewrite PTree.gsspec in J.
 destruct (peq j id); subst.
 + 
-  destruct GJ as [bb [BB VV]]. inv J. 
+  destruct GJ as [bb [BB VV]]. inv J.
   assert (bb = b). 
   { clear - GfsB Gfs BB. specialize (Gfs id); unfold sub_option, Clight.fundef in *.
     rewrite GfsB in Gfs. destruct ge'. simpl in *. rewrite Gfs in BB. inv BB; trivial. }
-  subst bb. right. unfold believe_internal. simpl. ouPred.unseal. exists b, ifunc.
+  subst bb. iRight. unfold believe_internal. iExists b, ifunc.
   specialize (Gffp b).
   unfold Clight.fundef in *. simpl in *. rewrite GffpB in Gffp. simpl in Gffp.
+  iSplit.
+  iPureIntro.
   repeat split; trivial.
   destruct ifunc; trivial.
   destruct ifunc; trivial.
-  intros ?????????????? Impos. inv Impos.
-+ hnf in Hyp3. destruct Hyp3 as [Hyp3]. unfold believe in Hyp3.
-  (* NOTE this lemma is obsolete *)
-  (* apply (Hyp3 v sig cc A P Q _ _ NM EM).
-  simpl. exists j; do 2 eexists; split. apply J. apply GJ.
-Qed.  *)
-Admitted.
+  iIntros (???? []).
++ iApply Hyp3; iPureIntro.
+  exists j; split. apply J. apply GJ.
+Qed.
 
 Lemma int_eq_false_e:
   forall i j, Int.eq i j = false -> i <> j.
@@ -463,7 +461,7 @@ apply semax_for_x with (∃ a:A, PreIncr a); auto.
 Qed.
 
 Lemma forward_setx':
-  forall `{!heapGS0: heapGS Σ} (Espec : OracleKind) `{!externalGS OK_ty Σ} {cs: compspecs}
+  forall `{!heapGS Σ} (Espec : OracleKind) `{!externalGS OK_ty Σ} {cs: compspecs}
   E Delta P id e,
   (P ⊢ (tc_expr Delta e) ∧ (tc_temp_id id (typeof e) Delta e) ) ->
   semax E Delta

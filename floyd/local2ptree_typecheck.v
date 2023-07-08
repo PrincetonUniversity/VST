@@ -574,7 +574,7 @@ Qed.
 
 Lemma msubst_tc_efield_sound: forall {cs: compspecs} Delta P T1 T2 GV R efs,
   local (tc_environ Delta) ∧ PROPx P (LOCALx (LocalD T1 T2 GV) (SEPx R)) ∧ (assert_of `(msubst_tc_efield Delta T1 T2 GV efs)) ⊢
-    (assert_of (tc_efield Delta efs)).
+    tc_efield Delta efs.
 Proof.
   intros.
   eapply derives_trans; [| apply msubst_simpl_tc_assert_sound, typecheck_efield_legal_tc_init].

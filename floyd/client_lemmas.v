@@ -748,16 +748,18 @@ Qed.
 
 (* Definitions of convertPre and mk_funspec' are to support
   compatibility with old-style funspecs (see funspec_old.v) *)
-Definition convertPre (f: funsig) A
+Definition convertPre' (f: funsig) A
   (Pre: A -> assert)  (w: A) (ae: argsEnviron) : mpred :=
  ⌜length (snd ae) = length (fst f)⌝ ∧
  Pre w (make_args (map fst (fst f)) (snd ae)
-    (mkEnviron (fst ae)   (Map.empty (block*type)) (Map.empty val))).
+    (mkEnviron (fst ae) (Map.empty (block*type)) (Map.empty val))).
 
-(*Definition mk_funspec' (f: funsig) (cc: calling_convention)
+Definition convertPre f A Pre w := argsassert_of (convertPre' f A Pre w).
+
+Definition mk_funspec' (f: funsig) (cc: calling_convention)
   (A: Type) (Pre Post: A -> assert): funspec :=
-  mk_funspec (compcert_rmaps.typesig_of_funsig f) cc
-  A (convertPre f A Pre) Post.*)
+  NDmk_funspec (typesig_of_funsig f) cc
+  A (convertPre f A Pre) Post.
 
 Fixpoint split_as_gv_temps (l: list localdef) : option ((list globals) * (list (ident * val))) :=
   match l with
@@ -2056,9 +2058,10 @@ lazymatch goal with
     else (progress gather_prop; Intro_prop')
  ].
 
+(* Would this be faster with pattern matching? *)
 Ltac Intro'' a :=
-  tryif simple apply extract_exists_pre then intro a
-  else tryif simple apply bi.exist_elim then intro a
+  tryif apply extract_exists_pre then intro a
+  else tryif apply bi.exist_elim then intro a
   else tryif extract_exists_from_SEP then intro a
   else tryif rewrite bi.and_exist_l then Intro'' a
   else tryif rewrite bi.and_exist_r then Intro'' a

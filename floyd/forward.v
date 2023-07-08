@@ -4470,16 +4470,23 @@ Qed.
 Ltac start_func_convert_precondition := idtac.
 Ltac rewrite_old_main_pre := idtac.
 
+(* up *)
+Lemma assert_of_at : forall Σ (P : @assert Σ), assert_of (monPred_at P) ⊣⊢ P.
+Proof. done. Qed.
+
+Lemma argsassert_of_at : forall Σ (P : @argsassert Σ), argsassert_of (monPred_at P) ⊣⊢ P.
+Proof. done. Qed.
+
 Ltac start_function1 :=
  leaf_function;
- lazymatch goal with |- @semax_body ?V ?G ?cs ?F ?spec =>
+ lazymatch goal with |- semax_body ?V ?G ?E ?F ?spec =>
     check_normalized F;
     function_body_unsupported_features F;
     let s := fresh "spec" in
     pose (s:=spec); hnf in s; cbn zeta in s; (* dependent specs defined with Program Definition often have extra lets *)
    repeat lazymatch goal with
     | s := (_, NDmk_funspec _ _ _ _ _) |- _ => fail
-    | s := (_, mk_funspec _ _ _ _ _ _ _) |- _ => fail
+    | s := (_, mk_funspec _ _ _ _ _) |- _ => fail
     | s := (_, ?a _ _ _ _) |- _ => unfold a in s
     | s := (_, ?a _ _ _) |- _ => unfold a in s
     | s := (_, ?a _ _) |- _ => unfold a in s
@@ -4492,40 +4499,39 @@ Ltac start_function1 :=
                POST [ tint ] _) |- _ => idtac
     | s := ?spec' |- _ => check_canonical_funspec spec'
    end;
-   change (@semax_body V G cs F s); subst s;
+   change (semax_body V G E F s); subst s;
    unfold NDmk_funspec
  end;
- let DependedTypeList := fresh "DependedTypeList" in
+(* let DependedTypeList := fresh "DependedTypeList" in*)
  unfold NDmk_funspec; 
- match goal with |- semax_body _ _ _ (pair _ (mk_funspec _ _ _ ?Pre _ _ _)) =>
+ match goal with |- semax_body _ _ _ _ (pair _ (mk_funspec _ _ _ ?Pre _)) =>
 
    split3; [check_parameter_types' | check_return_type | ];
     match Pre with
-   | (fun _ => convertPre _ _ (fun i => _)) =>  intros Espec DependedTypeList i
-   | (fun _ x => match _ with (a,b) => _ end) => intros Espec DependedTypeList [a b]
-   | (fun _ i => _) => intros Espec DependedTypeList i
+   | (λne _, monPred_at (convertPre _ _ (fun i => _))) =>  intros (*DependedTypeList*) i
+   | (λne x, monPred_at match _ with (a,b) => _ end) => intros (*DependedTypeList*) [a b]
+   | (λne i, _) => intros (*DependedTypeList*) i
    end;
    simpl fn_body; simpl fn_params; simpl fn_return
  end;
- try match goal with |- semax _ (fun rho => ?A rho * ?B rho) _ _ =>
-     change (fun rho => ?A rho * ?B rho) with (A * B)
-  end;
- (* simpl functors.MixVariantFunctor._functor in *; *) (* FIXME is it okay to just delete these? *)
- (* simpl rmaps.dependent_type_functor_rec; *)
- clear DependedTypeList;
+ simpl dtfr in *;
+ simpl dependent_type_functor_rec;
+ simpl ofe_mor_car;
+(* clear DependedTypeList; *)
  rewrite_old_main_pre;
+ rewrite ?argsassert_of_at;
  repeat match goal with
- | |- @semax _ _ _ (match ?p with (a,b) => _ end * _) _ _ =>
+ | |- semax _ _ (match ?p with (a,b) => _ end ∗ _) _ _ =>
              destruct p as [a b]
- | |- @semax _ _ _ (close_precondition _ match ?p with (a,b) => _ end * _) _ _ =>
+ | |- semax _ _ (close_precondition _ match ?p with (a,b) => _ end ∗ _) _ _ =>
              destruct p as [a b]
- | |- @semax _ _ _ ((match ?p with (a,b) => _ end) eq_refl * _) _ _ =>
+ | |- semax _ _ ((match ?p with (a,b) => _ end) eq_refl ∗ _) _ _ =>
              destruct p as [a b]
- | |- @semax _ _ _ (close_precondition _ ((match ?p with (a,b) => _ end) eq_refl) * _) _ _ =>
+ | |- semax _ _ (close_precondition _ ((match ?p with (a,b) => _ end) eq_refl) ∗ _) _ _ =>
              destruct p as [a b]
- | |- semax _ (close_precondition _
-                                                (fun ae => ⌜(Datatypes.length (snd ae) = ?A) ∧ ?B⌝
-                                                      (make_args ?C (snd ae) (mkEnviron (fst ae) _ _))) * _) _ _ =>
+ | |- semax _ _ (close_precondition _
+                                                (fun ae => ⌜(Datatypes.length (snd ae) = ?A)⌝ ∧ ?B
+                                                      (make_args ?C (snd ae) (mkEnviron (fst ae) _ _))) ∗ _) _ _ =>
           match B with match ?p with (a,b) => _ end => destruct p as [a b] end
        end;
 (* this speeds things up, but only in the very rare case where it applies,
