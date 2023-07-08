@@ -5,17 +5,17 @@ Require Export VST.floyd.functional_base.
 Require Export VST.floyd.client_lemmas.
 Require Export VST.floyd.go_lower.
 Require Export VST.floyd.closed_lemmas.
-Require Export VST.floyd.compare_lemmas.
+(* Require Export VST.floyd.compare_lemmas. *)
 Require Export VST.floyd.semax_tactics.
 Require Export VST.floyd.entailer.
 Require Export VST.floyd.forward. (* must come after entailer because of Ltac override *)
-Require Export VST.floyd.step.
-Require Export VST.floyd.fastforward.
-Require Export VST.floyd.finish.
-Require Export VST.floyd.subsume_funspec.
-Require Export VST.floyd.call_lemmas.
+(* Require Export VST.floyd.step. *)
+(* Require Export VST.floyd.fastforward. *)
+(* Require Export VST.floyd.finish. *)
+(* Require Export VST.floyd.subsume_funspec. *)
+(* Require Export VST.floyd.call_lemmas. *)
 Require Export VST.floyd.forward_lemmas.
-Require Export VST.floyd.for_lemmas.
+(* Require Export VST.floyd.for_lemmas. *)
 Require Export VST.floyd.nested_pred_lemmas.
 Require Export VST.floyd.nested_field_lemmas.
 Require Export VST.floyd.efield_lemmas.
@@ -26,38 +26,38 @@ Require Export VST.floyd.reptype_lemmas.
 Require Export VST.floyd.simpl_reptype.
 Require Export VST.floyd.data_at_rec_lemmas.
 Require Export VST.floyd.field_at.
-Require Export VST.floyd.field_at_wand.
-Require Export VST.floyd.field_compat.
-Require Export VST.floyd.stronger.
-Require Export VST.floyd.loadstore_mapsto.
-Require Export VST.floyd.loadstore_field_at.
-Require Export VST.floyd.nested_loadstore.
+(* Require Export VST.floyd.field_at_wand. *)
+(* Require Export VST.floyd.field_compat. *)
+(* Require Export VST.floyd.stronger. *)
+(* Require Export VST.floyd.loadstore_mapsto. *)
+(* Require Export VST.floyd.loadstore_field_at. *)
+(* Require Export VST.floyd.nested_loadstore. *)
 Require Export VST.floyd.local2ptree_denote.
 Require Export VST.floyd.local2ptree_eval.
 Require Export VST.floyd.local2ptree_typecheck.
 Require Export VST.floyd.proj_reptype_lemmas.
 Require Export VST.floyd.replace_refill_reptype_lemmas.
-Require Export VST.floyd.sc_set_load_store.
-Require Export VST.floyd.unfold_data_at.
-Require Export VST.floyd.globals_lemmas.
+(* Require Export VST.floyd.sc_set_load_store. *)
+(* Require Export VST.floyd.unfold_data_at. *)
+(* Require Export VST.floyd.globals_lemmas. *)
 Require Export VST.floyd.diagnosis.
-Require Export VST.floyd.freezer.
-Require Export VST.floyd.deadvars.
-Require Export VST.floyd.hints.
+(* Require Export VST.floyd.freezer. *)
+(* Require Export VST.floyd.deadvars. *)
+(* Require Export VST.floyd.hints. *)
 Require Export VST.floyd.Clightnotations.
-Require Export VST.floyd.data_at_list_solver.
-Require Export VST.floyd.data_at_lemmas.
-Require VST.msl.iter_sepcon.
-Require VST.msl.wand_frame.
-Require VST.msl.wandQ_frame.
-Require VST.floyd.linking.
+(* Require Export VST.floyd.data_at_list_solver. *)
+(* Require Export VST.floyd.data_at_lemmas. *)
+(* Require VST.msl.iter_sepcon. *)
+(* Require VST.msl.wand_frame. *)
+(* Require VST.msl.wandQ_frame. *)
+(* Require VST.floyd.linking. *)
 
 (*funspec scope is the default, so remains open.
   User who wnt ot use old funspecs should 
   "Require Import Require Import VST.floyd.Funspec_old_Notation."
   Global Close Scope funspec_scope.*)
 
-Arguments semax {CS} {Espec} Delta Pre%assert cmd%C Post%assert.
+Arguments semax {Σ} {heapGS0} {Espec} {externalGS0} {C} E Delta Pre%assert cmd%C Post%assert.
 Export ListNotations.
 Export Clight_Cop2.
  
@@ -92,7 +92,7 @@ Lemma modu_repr: forall x y,
    0 <= y <= Int.max_unsigned ->
   Int.modu (Int.repr x) (Int.repr y) = Int.repr (x mod y).
 Proof.
-intros. unfold Int.modu. rewrite !Int.unsigned_repr by auto. auto.
+intros. unfold Int.modu. rewrite ->!Int.unsigned_repr by auto. auto.
 Qed.
 #[export] Hint Rewrite modu_repr using rep_lia : entailer_rewrite norm.
 
@@ -108,8 +108,9 @@ Qed.
 #[export] Hint Extern 1 (@nil _ = default_val _) => reflexivity : cancel.
 #[export] Hint Extern 1 (default_val _ = @nil _) => reflexivity : cancel.
 
-#[export] Instance Inhabitant_mpred : Inhabitant mpred := @FF mpred Nveric.
-#[export] Instance Inhabitant_share : Inhabitant share := Share.bot.
+(* FIXME *)
+(* #[export] Instance Inhabitant_mpred : Inhabitant mpred := @False mpred Nveric.
+#[export] Instance Inhabitant_share : Inhabitant share := Share.bot. *)
 
 Arguments deref_noload ty v / .
 Arguments nested_field_array_type {cs} t gfs lo hi / .

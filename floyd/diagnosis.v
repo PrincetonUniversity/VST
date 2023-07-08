@@ -1,22 +1,22 @@
 Require Import VST.floyd.base2.
 Require Import VST.floyd.client_lemmas.
 Require Import VST.floyd.reptype_lemmas.
-Import compcert.lib.Maps.
+Import -(notations) compcert.lib.Maps.
 
-Local Open Scope logic.
+Section DIAGNOSIS.
+Context {Σ: gFunctors}.
 
 Lemma no_post_exists_unit:
   forall P Q R,
-  PROPx P (LOCALx Q (SEPx R)) =
-   EX _:unit, PROPx P (LOCALx Q (SEPx R)).
+  PROPx P (LOCALx Q (SEPx R)) ⊣⊢
+   ∃ _:unit, (PROPx (Σ:=Σ)) P (LOCALx Q (SEPx R)).
 Proof.
-intros.
-apply pred_ext.
-apply exp_right with tt; auto.
-apply exp_left; auto.
+intros. iSplit; iIntros "H". iFrame. done.
+iApply bi.exist_elim. intros. apply derives_refl. done.
 Qed.
 
 Inductive Stuck : Prop := .
+End DIAGNOSIS.
 
 Ltac stuckwith p :=  elimtype Stuck; fold p.
 
@@ -25,16 +25,19 @@ Ltac test_stuck :=
  | |- ?G => unify G Stuck
  end.
 
+Section DIAGNOSIS.
+Context `{!heapGS Σ}.
 Definition not_in_canonical_form := tt.
 Definition Error__Funspec (id: ident) (what: unit) (reason: unit) := Stuck.
-Definition Cannot_unfold_funspec (fs: ident*funspec) := Stuck.
-Definition for_some_undiagnosed_reason (fs: ident*funspec) := tt.
+Definition Cannot_unfold_funspec (fs: ident*(@funspec Σ)) := Stuck.
+Definition for_some_undiagnosed_reason (fs: ident*(@funspec Σ)) := tt.
 Definition because_of_LOCAL (Q: environ->Prop) := tt.
 Definition because_of_SEP (R: environ->mpred) := tt.
 Definition because_temp_out_of_scope (i: ident) := tt.
 Definition because_Precondition_not_canonical (R: environ->mpred) := tt.
 Definition because_Postcondition_not_canonical (R: environ->mpred) := tt.
 Definition WITH_clause_should_avoid_using_reptype_otherwise_Coq_is_way_too_slow := tt.
+End DIAGNOSIS.
 
 Ltac ccf_PROP id0 P := idtac.
 
@@ -91,10 +94,10 @@ Ltac ccf2 id0 argsig retsig A Pre Post :=
   exfalso;
   revert xPost; try rewrite no_post_exists_unit;
   repeat match goal with
-  |- let _ := (EX _:_, EX _:_, _) in _ => rewrite exp_uncurry
+  |- let _ := (∃ _:_, ∃ _:_, _) in _ => rewrite exp_uncurry
   end;
   match goal with
-  | |- let _ := @exp _ _ ?B ?p in _ =>
+  | |- let _ := @bi_exist _ _ ?B ?p in _ =>
     let w := fresh "w" in
     assert (w:B) by (exfalso; apply F);
     intro xPost; clear xPost;
@@ -157,7 +160,7 @@ Tactic Notation "errormsg" simple_intropattern(message) constr(arg) :=
 Ltac check_canonical_call' Delta c :=
 match c with
 | Scall _ (Evar ?id _) _ =>
-  let x := constr:((glob_specs Delta) ! id) in
+  let x := constr:((glob_specs Delta) !! id) in
     let y := (eval simpl in x) in
     match y with
     | Some ?fs => check_canonical_funspec fs
