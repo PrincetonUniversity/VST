@@ -287,9 +287,9 @@ match goal with
     tryif (is_sequential false false c)
     then (apply sequential; simpl_ret_assert;
           match goal with |- semax _ _ _ _ ?Q =>
-             abbreviate Q : ret_assert as POSTCONDITION
+             abbreviate Q as POSTCONDITION
           end)
-    else abbreviate P : ret_assert as POSTCONDITION
+    else abbreviate P as POSTCONDITION
 end.
 
 Ltac abbreviate_semax :=

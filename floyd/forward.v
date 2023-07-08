@@ -239,20 +239,20 @@ Lemma sep_emp_2 {prop:bi} (P:prop) : P ∗ emp -∗ P.
 Proof. rewrite bi.sep_comm bi.emp_sep_2 //. Qed.
 
 Ltac process_stackframe_of :=
- lazymatch goal with |- semax _ (_ * stackframe_of ?F) _ _ =>
+ lazymatch goal with |- semax _ _ (_ ∗ stackframe_of ?F) _ _ =>
    let sf := fresh "sf" in set (sf:= stackframe_of F) at 1;
      unfold stackframe_of in sf; simpl map in sf; subst sf
   end;
  repeat
-   lazymatch goal with |- semax _ (_ * fold_right bi_sep emp (var_block _ (?i,_) :: _)) _ _ =>
+   lazymatch goal with |- semax _ _ (_ ∗ fold_right bi_sep emp (var_block _ (?i,_) :: _)) _ _ =>
      simple apply var_block_lvar2;
        [ reflexivity | reflexivity | reflexivity | reflexivity | let n := fresh "v" i in intros n ]
    end;
   repeat (simple apply postcondition_var_block;
    [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity |  ]);
- change (fold_right bi_sep emp (@nil (environ->mpred))) with
-   (@bi_emp (environ->mpred) _ );
- rewrite ->?bi.emp_sep_2, ->?sep_emp_2.
+ change (fold_right bi_sep emp (@nil (@assert ?Σ))) with
+   (@bi_emp (@assert Σ));
+ rewrite ?bi.emp_sep ?bi.sep_emp.
 
 Definition tc_option_val' (t: type) : option val -> Prop :=
  match t with Tvoid => fun v => (True:Prop) | _ => fun v => tc_val t (force_val v) end.
@@ -568,7 +568,7 @@ Tactic Notation "forward_seq" :=
          | eapply semax_post_flipped' ].
 
 Tactic Notation "forward_seq" constr(R) :=
-match goal with P := @abbreviate ret_assert _ |- semax _ _ _ ?P' =>
+match goal with P := @abbreviate ret_assert _ |- semax _ _ _ _ ?P' =>
   constr_eq P P'; unfold abbreviate in P; subst P;
   first [apply semax_seq with R; abbreviate_semax
           | apply (semax_post_flipped' R); [abbreviate_semax | ]]
@@ -1121,7 +1121,7 @@ try match goal with |- context [strong_cast ?t1 ?t2 ?v] =>
 end.
 *)
 Ltac fwd_skip :=
- match goal with |- semax _ _ Sskip _ =>
+ match goal with |- semax _ _ _ Sskip _ =>
    normalize_postcondition;
    first [eapply semax_pre | eapply semax_pre_simple];
       [ | apply semax_skip]
@@ -1196,11 +1196,11 @@ Ltac after_forward_call :=
     unfold_app; 
     try (apply extract_exists_pre; intros _); 
     match goal with
-        | |- semax _ _ _ _ => idtac
-        | |- unit -> semax _ _ _ _ => intros _
+        | |- semax _ _ _ _ _ => idtac
+        | |- unit -> semax _ _ _ _ _ => intros _
     end;
     match goal with
-        | |- @semax ?CS _ _ _ _ _ => try change_compspecs CS
+        | |- @semax _ _ _ _ ?CS _ _ _ _ _ => try change_compspecs CS
     end;
     repeat (apply semax_extract_PROP; intro); 
     cleanup_no_post_exists; 
@@ -1298,10 +1298,10 @@ Ltac check_subsumes subsumes :=
 (*This has two cases; it priorizitizes func_ptr lookup over Delta-lookup*)
 Ltac prove_call_setup1 subsumes :=
   match goal with
-  | |- @semax _ _ _ (@bi_exist _ _ _) _ _ =>
+  | |- semax _ _ (@bi_exist _ _ _) _ _ =>
     fail 1 "forward_call fails because your precondition starts with ∃.
 Use Intros  to move          the existentially bound variables above the line"
-  | |- @semax ?CS _ ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R'))) ?c _ =>
+  | |- @semax _ _ _ _ ?CS _ ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R'))) ?c _ =>
     let cR := (fun R =>
     match c with
     | context [Scall _ ?a ?bl] =>
@@ -1354,7 +1354,7 @@ Ltac check_gvars_spec :=
 Ltac prove_call_setup_aux  ts witness :=
  let H := fresh "SetupOne" in
  intro H;
- match goal with | |- @semax ?CS _ _ (PROPx ?P (LOCALx ?L (SEPx ?R'))) _ _ =>
+ match goal with | |- @semax _ _ _ _ ?CS _ _ (PROPx ?P (LOCALx ?L (SEPx ?R'))) _ _ =>
  let Frame := fresh "Frame" in evar (Frame: list mpred); 
  let cR := (fun R =>
  exploit (call_setup2_i _ _ _ _ _ _ _ _ R R' _ _ _ _ ts _ _ _ _ _ _ _ H witness Frame); clear H;
@@ -1381,22 +1381,22 @@ Ltac prove_call_setup ts subsumes witness :=
 Ltac fwd_call' ts subsumes witness :=
 check_POSTCONDITION;
 lazymatch goal with
-| |- semax _ _ (Ssequence (Scall ?ret _ _) _) _ =>
+| |- semax _ _ _ (Ssequence (Scall ?ret _ _) _) _ =>
   eapply semax_seq';
     [prove_call_setup ts subsumes witness;
      clear_Delta_specs; clear_MORE_POST;
      [ .. |
       lazymatch goal with
-      | |- _ -> semax _ _ (Scall (Some _) _ _) _ =>
+      | |- _ -> semax _ _ _ (Scall (Some _) _ _) _ =>
          forward_call_id1_wow
       | |- call_setup2 _ _ _ _ _ _ _ _ _ _ _ _ ?retty _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ -> 
-                semax _ _ (Scall None _ _) _ =>
+                semax _ _ _ (Scall None _ _) _ =>
         tryif (unify retty Tvoid)
         then forward_call_id00_wow
         else forward_call_id01_wow
      end]
    | after_forward_call ]
-| |- semax _ _ (Ssequence (Ssequence (Scall (Some ?ret') _ _)
+| |- semax _ _ _ (Ssequence (Ssequence (Scall (Some ?ret') _ _)
                                        (Sset _ (Ecast (Etempvar ?ret'2 _) _))) _) _ =>
        unify ret' ret'2;
        eapply semax_seq';
@@ -1404,7 +1404,7 @@ lazymatch goal with
           clear_Delta_specs; clear_MORE_POST;
              [ .. | forward_call_id1_x_wow ]
          |  after_forward_call ]
-| |- semax _ _ (Ssequence (Ssequence (Scall (Some ?ret') _ _)
+| |- semax _ _ _ (Ssequence (Ssequence (Scall (Some ?ret') _ _)
                                        (Sset _ (Etempvar ?ret'2 _))) _) _ =>
        unify ret' ret'2;
        eapply semax_seq';
@@ -1417,10 +1417,10 @@ end.
 
 Ltac fwd_call_dep ts subsumes witness :=
  try lazymatch goal with
-      | |- semax _ _ (Scall _ _ _) _ => rewrite -> semax_seq_skip
+      | |- semax _ _ _ (Scall _ _ _) _ => rewrite -> semax_seq_skip
       end;
  repeat lazymatch goal with
-  | |- semax _ _ (Ssequence (Ssequence (Ssequence _ _) _) _) _ =>
+  | |- semax _ _ _ (Ssequence (Ssequence (Ssequence _ _) _) _) _ =>
       rewrite <- seq_assoc
  end;
 lazymatch goal with |- @semax ?CS _ ?Delta _ (Ssequence ?C _) _ =>
@@ -1479,22 +1479,22 @@ Ltac new_prove_call_setup :=
 
 Ltac new_fwd_call' :=
 lazymatch goal with
-| |- semax _ _ (Ssequence (Scall _ _ _) _) _ =>
+| |- semax _ _ _ (Ssequence (Scall _ _ _) _) _ =>
   eapply semax_seq';
     [new_prove_call_setup;
      clear_Delta_specs; clear_MORE_POST;
      [ .. |
       lazymatch goal with
-      | |- _ -> semax _ _ (Scall (Some _) _ _) _ =>
+      | |- _ -> semax _ _ _ (Scall (Some _) _ _) _ =>
          forward_call_id1_wow
       | |- call_setup2 _ _ _ _ _ _ _ _ _ _ _ _ ?retty _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ->
-                semax _ _ (Scall None _ _) _ =>
+                semax _ _ _ (Scall None _ _) _ =>
         tryif (unify retty Tvoid)
         then forward_call_id00_wow
         else forward_call_id01_wow
      end]
    | after_forward_call ]
-| |- semax _ _ (Ssequence (Ssequence (Scall (Some ?ret') _ _)
+| |- semax _ _ _ (Ssequence (Ssequence (Scall (Some ?ret') _ _)
                                        (Sset _ (Ecast (Etempvar ?ret'2 _) _))) _) _ =>
        unify ret' ret'2;
        eapply semax_seq';
@@ -1502,7 +1502,7 @@ lazymatch goal with
           clear_Delta_specs; clear_MORE_POST;
              [ .. | forward_call_id1_x_wow ]
          |  after_forward_call ]
-| |- semax _ _ (Ssequence (Ssequence (Scall (Some ?ret') _ _)
+| |- semax _ _ _ (Ssequence (Ssequence (Scall (Some ?ret') _ _)
                                        (Sset _ (Etempvar ?ret'2 _))) _) _ =>
        unify ret' ret'2;
        eapply semax_seq';
@@ -1516,13 +1516,13 @@ end.
 
 Ltac new_fwd_call:=
  try lazymatch goal with
-      | |- semax _ _ (Scall _ _ _) _ => rewrite -> semax_seq_skip
+      | |- semax _ _ _ (Scall _ _ _) _ => rewrite -> semax_seq_skip
       end;
  repeat lazymatch goal with
-  | |- semax _ _ (Ssequence (Ssequence (Ssequence _ _) _) _) _ =>
+  | |- semax _ _ _ (Ssequence (Ssequence (Ssequence _ _) _) _) _ =>
       rewrite <- seq_assoc
  end;
-lazymatch goal with |- @semax ?CS _ ?Delta _ (Ssequence ?C _) _ =>
+lazymatch goal with |- semax _ ?Delta _ (Ssequence ?C _) _ =>
   lazymatch C with context [Scall _ _ _] =>
          new_fwd_call'
     end
@@ -1617,19 +1617,19 @@ end).
 
 Ltac unfold_pre_local_andp :=
 (repeat match goal with
-          | |- semax _ ((local _) ∧ bi_exist _) _ _ => fail 1
-          | |- semax _ ((local _) ∧ (PROPx _ _)) _ _ => fail 1
-          | |- semax _ ((local _) ∧ ?X _ _ _ _ _) _ _ => unfold X at 1
-          | |- semax _ ((local _) ∧ ?X _ _ _ _) _ _ => unfold X at 1
-          | |- semax _ ((local _) ∧ ?X _ _ _) _ _ => unfold X at 1
-          | |- semax _ ((local _) ∧ ?X _ _) _ _ => unfold X at 1
-          | |- semax _ ((local _) ∧ ?X _) _ _ => unfold X at 1
-          | |- semax _ ((local _) ∧ ?X) _ _ => unfold X at 1
+          | |- semax _ _ ((local _) ∧ bi_exist _) _ _ => fail 1
+          | |- semax _ _ ((local _) ∧ (PROPx _ _)) _ _ => fail 1
+          | |- semax _ _ ((local _) ∧ ?X _ _ _ _ _) _ _ => unfold X at 1
+          | |- semax _ _ ((local _) ∧ ?X _ _ _ _) _ _ => unfold X at 1
+          | |- semax _ _ ((local _) ∧ ?X _ _ _) _ _ => unfold X at 1
+          | |- semax _ _ ((local _) ∧ ?X _ _) _ _ => unfold X at 1
+          | |- semax _ _ ((local _) ∧ ?X _) _ _ => unfold X at 1
+          | |- semax _ _ ((local _) ∧ ?X) _ _ => unfold X at 1
         end).
 
 Ltac intro_ex_local_semax :=
 (match goal with
-   | |- semax _ (local (_) ∧ bi_exist (fun y => _)) _ _  =>
+   | |- semax _ _ (local (_) ∧ bi_exist (fun y => _)) _ _  =>
        rewrite bi.and_exist_l; apply extract_exists_pre; let y':=fresh y in intro y'
 end).
 
@@ -2224,12 +2224,12 @@ Ltac forward_while_advise_loop :=
 Tactic Notation "forward_while" constr(Inv) :=
   repeat (apply -> seq_assoc; abbreviate_semax);
   match goal with
-  | |- semax _ _ (Ssequence _ _) _ => idtac 
-  | Post := @abbreviate ret_assert ?P' |- semax _ _ (Swhile _ _) ?P =>
+  | |- semax _ _ _ (Ssequence _ _) _ => idtac 
+  | Post := @abbreviate ret_assert ?P' |- semax _ _ _ (Swhile _ _) ?P =>
        constr_eq P Post;
        tryif (no_evars P') then forward_while_advise_loop else idtac;
       apply <- semax_seq_skip
-  | |- semax _ _ (Swhile _ _) ?P => 
+  | |- semax _ _ _ (Swhile _ _) ?P => 
        tryif (no_evars P) then forward_while_advise_loop else idtac;
       apply <- semax_seq_skip
   | _ => apply <- semax_seq_skip 
@@ -2239,18 +2239,18 @@ Tactic Notation "forward_while" constr(Inv) :=
   apply semax_pre with Inv;
     [ unfold_function_derives_right
     | repeat match goal with
-       | |- semax _ (bi_exist _) _ _ => fail 1
-       | |- semax _ (PROPx _ _) _ _ => fail 1
-       | |- semax _ ?Pre _ _ => match Pre with context [ ?F ] => unfold F end
+       | |- semax _ _ (bi_exist _) _ _ => fail 1
+       | |- semax _ _ (PROPx _ _) _ _ => fail 1
+       | |- semax _ _ ?Pre _ _ => match Pre with context [ ?F ] => unfold F end
        end;
        match goal with
-       | |- semax _ (bi_exist (fun a1 => _)) _ _ =>
+       | |- semax _ _ (bi_exist (fun a1 => _)) _ _ =>
              let a := fresh a1 in pose (a := EXP_NAME)
-       | |- semax _ (PROPx ?P ?QR) _ _ =>
+       | |- semax _ _ (PROPx ?P ?QR) _ _ =>
              let a := fresh "u" in pose (a := EXP_UNIT);
                   rewrite (trivial_exp (PROPx P QR))
        end;
-       repeat match goal with |- semax _ (bi_exist (fun a1 => (bi_exist (fun a2 => _)))) _ _ =>
+       repeat match goal with |- semax _ _ (bi_exist (fun a1 => (bi_exist (fun a2 => _)))) _ _ =>
           let a := fresh a2 in pose (a := EXP_NAME);
           rewrite exp_uncurry
       end;
@@ -2258,7 +2258,7 @@ Tactic Notation "forward_while" constr(Inv) :=
       [match goal with |- @semax ?CS _ ?Delta ?Pre (Swhile ?e ?s) _ =>
         tryif (unify (nobreaksx s) true) then idtac 
         else fail "Your while-loop has a break command in the body.  Therefore, you should use forward_loop to prove it, since the standard while-loop postcondition (Invariant & ~test) may not hold at the break statement";
-        match goal with [ |- semax _ (@bi_exist  _ ?A _) _ _ ] => eapply (@semax_while_3g1 _ _ A) end;
+        match goal with [ |- semax _ _ (@bi_exist  _ ?A _) _ _ ] => eapply (@semax_while_3g1 _ _ A) end;
         (* check if we can revert back to the previous version with coq 8.5.
            (as of December 2015 with compcert 2.6 the above fix is still necessary)
            The bug happens when we destruct the existential variable of the loop invariant:
@@ -2308,7 +2308,7 @@ Inductive Type_of_invariant_in_forward_for_should_be_environ_arrow_mpred_but_is 
 Inductive Type_of_bound_in_forward_for_should_be_Z_but_is : Type -> Prop := .
 
 Ltac check_type_forward_for_simple_bound :=
-   match goal with |- semax _ _ ?c _ => 
+   match goal with |- semax _ _ _ ?c _ => 
          let x := constr:(match c with (Ssequence _ (Sloop _ (Sset _ e))) => Some (typeof e) | _ => None end) in
          let x := eval hnf in x in
          let x := eval simpl in x in   (* this 'simpl' should be safe enough  *)
@@ -2325,11 +2325,11 @@ Ltac check_type_forward_for_simple_bound :=
 Ltac forward_for_simple_bound n Pre :=
   check_Delta; check_POSTCONDITION;
  repeat match goal with |-
-      semax _ _ (Ssequence (Ssequence (Ssequence _ _) _) _) _ =>
+      semax _ _ _ (Ssequence (Ssequence (Ssequence _ _) _) _) _ =>
       apply -> seq_assoc; abbreviate_semax
  end;
  match goal with |-
-      semax _ _ (Ssequence (Ssequence (Sfor _ _ _ _) _) _) _ =>
+      semax _ _ _ (Ssequence (Ssequence (Sfor _ _ _ _) _) _) _ =>
       apply -> seq_assoc; abbreviate_semax
  | _ => idtac
  end;
@@ -2342,11 +2342,11 @@ Ltac forward_for_simple_bound n Pre :=
                else fail "Type of precondition" Pre "should be environ->mpred but is" t
   end;
  match goal with
-    | |- semax _ _ (Sfor _ _ _ _) _ =>
+    | |- semax _ _ _ (Sfor _ _ _ _) _ =>
            rewrite semax_seq_skip
-    | |- semax _ _ (Ssequence _ (Sloop _ _)) _ =>
+    | |- semax _ _ _ (Ssequence _ (Sloop _ _)) _ =>
            rewrite semax_seq_skip
-    | |- semax _ _ (Ssequence _ ?MORE_COMMANDS) _ =>
+    | |- semax _ _ _ (Ssequence _ ?MORE_COMMANDS) _ =>
         revert MORE_COMMANDS;
         match goal with
         | |- let MORE_COMMANDS := @abbreviate _ (Sloop _ _) in _ =>
@@ -2396,10 +2396,10 @@ Fixpoint no_breaks (s: statement) : bool :=
  end.
 
 Ltac forward_for2 Inv PreInc :=
- repeat  match goal with P := @abbreviate ret_assert _ |- semax _ _ _ ?P' =>
+ repeat  match goal with P := @abbreviate ret_assert _ |- semax _ _ _ _ ?P' =>
                          constr_eq P P'; unfold abbreviate in P; subst P
            end;
- match goal with |- semax _ _ (Sloop (Ssequence (Sifthenelse _ Sskip Sbreak) ?body) _) _ =>
+ match goal with |- semax _ _ _ (Sloop (Ssequence (Sifthenelse _ Sskip Sbreak) ?body) _) _ =>
    (tryif unify (no_breaks body) true 
           then idtac
       else fail "Since there is a break in the loop body, you need to supply an explicit postcondition using the 3-argument form of forward_for.");
@@ -2475,17 +2475,17 @@ Ltac delete_skip :=
 
 Ltac forward_loop_aux2 Inv PreInc :=
  lazymatch goal with
-  | |- semax _ _ (Sloop _ Sskip) _ => 
+  | |- semax _ _ _ (Sloop _ Sskip) _ => 
          tryif (constr_eq Inv PreInc) then (apply (semax_loop_noincr _ Inv); abbreviate_semax)
          else (apply (semax_loop _ Inv PreInc); [delete_skip | ]; abbreviate_semax)
-  | |- semax _ _ (Sloop _ _) _ =>apply (semax_loop _ Inv PreInc); [delete_skip | ]; abbreviate_semax
+  | |- semax _ _ _ (Sloop _ _) _ =>apply (semax_loop _ Inv PreInc); [delete_skip | ]; abbreviate_semax
  end.
 
 Ltac forward_loop_aux1 Inv PreInc:=
   lazymatch goal with
-  | |- semax _ _ (Sfor _ _ _ _) _ => apply semax_seq' with Inv; [abbreviate_semax | forward_loop_aux2 Inv PreInc]
-  | |- semax _ _ (Sloop _ _) _ => apply semax_pre with Inv; [ | forward_loop_aux2 Inv PreInc]
-  | |- semax _ _ (Swhile ?E ?B) _ => 
+  | |- semax _ _ _ (Sfor _ _ _ _) _ => apply semax_seq' with Inv; [abbreviate_semax | forward_loop_aux2 Inv PreInc]
+  | |- semax _ _ _ (Sloop _ _) _ => apply semax_pre with Inv; [ | forward_loop_aux2 Inv PreInc]
+  | |- semax _ _ _ (Swhile ?E ?B) _ => 
           let x := fresh "x" in set (x := Swhile E B); hnf in x; subst x;
           apply semax_pre with Inv; [ | forward_loop_aux2 Inv PreInc]
  end.
@@ -2495,13 +2495,13 @@ check_POSTCONDITION;
   repeat simple apply seq_assoc1;
  repeat apply -> semax_seq_skip;
   match goal with
-  | |- semax _ _ (Ssequence (Sloop _ _) _) _ => 
+  | |- semax _ _ _ (Ssequence (Sloop _ _) _) _ => 
           apply semax_seq with Post; [forward_loop_aux1 Inv PreInc | abbreviate_semax ]
-  | |- semax _ _ (Ssequence (Sfor _ _ _ _) _) _ => 
+  | |- semax _ _ _ (Ssequence (Sfor _ _ _ _) _) _ => 
           apply semax_seq with Post; [forward_loop_aux1 Inv PreInc | abbreviate_semax ]
-  | |- semax _ _ (Ssequence (Swhile _ _) _) _ => 
+  | |- semax _ _ _ (Ssequence (Swhile _ _) _) _ => 
           apply semax_seq with Post; [forward_loop_aux1 Inv PreInc | abbreviate_semax ]
-  | |- semax _ _ _ ?Post' => 
+  | |- semax _ _ _ _ ?Post' => 
             tryif (unify Post Post') then forward_loop_aux1 Inv PreInc 
            else (apply (semax_post1_flipped Post); [ forward_loop_aux1 Inv PreInc | ])
   end.
@@ -2521,15 +2521,15 @@ Tactic Notation "forward_loop" constr(Inv) "continue:" constr(PreInc) :=
 check_POSTCONDITION;
  repeat apply -> semax_seq_skip;
 lazymatch goal with
-  | |- semax _ _ (Ssequence (Sloop _ _) _) _ =>
+  | |- semax _ _ _ (Ssequence (Sloop _ _) _) _ =>
          fail 100 "Your loop is followed by more statements, so you must use the form of forward_loop with the break: keyword to supply an explicit postcondition for the loop."
-  | |- semax _ _ (Ssequence (Sfor _ _ _ _) _) _ =>
+  | |- semax _ _ _ (Ssequence (Sfor _ _ _ _) _) _ =>
          fail 100 "Your loop is followed by more statements, so you must use the form of forward_loop with the break: keyword to supply an explicit postcondition for the loop."
-  | P := @abbreviate ret_assert ?Post' |- semax _ _ _ ?Post => 
+  | P := @abbreviate ret_assert ?Post' |- semax _ _ _ _ ?Post => 
       first [constr_eq P Post | fail 100 "forward_loop failed; try doing abbreviate_semax first"];
       try (has_evar Post'; fail 100 "Error: your postcondition " P " has unification variables (evars), so you must use the form of forward_loop with the break: keyword to supply an explicit postcondition for the loop.");
      forward_loop Inv continue: PreInc break: Post
-  | |- semax _ _ _ _ => fail 100 "forward_loop failed; try doing abbreviate_semax first"
+  | |- semax _ _ _ _ _ => fail 100 "forward_loop failed; try doing abbreviate_semax first"
   | |- _ => fail 100 "forward_loop applicable only to a semax goal"
 end.
 
@@ -2583,9 +2583,9 @@ Ltac forward_loop_nocontinue2 Inv :=
 
 Ltac forward_loop_nocontinue1 Inv :=
   lazymatch goal with
-  | |- semax _ _ (Sfor _ _ _ _) _ => apply semax_seq' with Inv; [abbreviate_semax | forward_loop_nocontinue2 Inv]
-  | |- semax _ _ (Sloop _ _) _ => apply semax_pre with Inv; [ | forward_loop_nocontinue2 Inv]
-  | |- semax _ _ (Swhile ?E ?B) _ => 
+  | |- semax _ _ _ (Sfor _ _ _ _) _ => apply semax_seq' with Inv; [abbreviate_semax | forward_loop_nocontinue2 Inv]
+  | |- semax _ _ _ (Sloop _ _) _ => apply semax_pre with Inv; [ | forward_loop_nocontinue2 Inv]
+  | |- semax _ _ _ (Swhile ?E ?B) _ => 
           let x := fresh "x" in set (x := Swhile E B); hnf in x; subst x;
           apply semax_pre with Inv; [ | forward_loop_nocontinue2 Inv]
  end.
@@ -2594,9 +2594,9 @@ Ltac forward_loop_nocontinue Inv Post :=
   repeat simple apply seq_assoc1;
   repeat apply -> semax_seq_skip;
   match goal with
-  | |- semax _ _ (Ssequence _ _) _ => 
+  | |- semax _ _ _ (Ssequence _ _) _ => 
           apply semax_seq with Post; [forward_loop_nocontinue1 Inv  | abbreviate_semax ]
-  | |- semax _ _ _ ?Post' => 
+  | |- semax _ _ _ _ ?Post' => 
             tryif (unify Post Post') then forward_loop_nocontinue1 Inv
            else (apply (semax_post1_flipped Post); [ forward_loop_nocontinue1 Inv  
                            | abbreviate_semax; simpl_ret_assert; auto ])
@@ -2605,18 +2605,18 @@ Ltac forward_loop_nocontinue Inv Post :=
 Ltac forward_loop_nocontinue_nobreak Inv :=
  repeat apply -> semax_seq_skip;
   lazymatch goal with
-  | |- semax _ _ (Ssequence (Swhile _ ?S) _) _ =>
+  | |- semax _ _ _ (Ssequence (Swhile _ ?S) _) _ =>
           tryif (unify (nocontinue S) true; unify (nobreaksx S) true) then forward_while Inv 
           else fail 100 "Use forward_while, or (unfold Swhile at 1) and then use forward_loop"
-  | |- semax _ _ (Ssequence (Sloop _ _) _) _ =>
+  | |- semax _ _ _ (Ssequence (Sloop _ _) _) _ =>
          fail 100 "Your loop is followed by more statements, so you must use the form of forward_loop with the break: keyword to supply an explicit postcondition for the loop."
-  | |- semax _ _ (Ssequence (Sfor _ _ _ _) _) _ =>
+  | |- semax _ _ _ (Ssequence (Sfor _ _ _ _) _) _ =>
          fail 100 "Your loop is followed by more statements, so you must use the form of forward_loop with the break: keyword to supply an explicit postcondition for the loop."
   | P := @abbreviate ret_assert ?Post' |- semax _ _ _ ?Post => 
       first [constr_eq P Post | fail 100 "forward_loop failed; try doing abbreviate_semax first"];
       try (has_evar Post'; fail 100 "Error: your postcondition " P " has unification variables (evars), so you must use the form of forward_loop with the break: keyword to supply an explicit postcondition for the loop.");
      forward_loop_nocontinue Inv Post
-  | |- semax _ _ _ _ => fail 100 "forward_loop failed; try doing abbreviate_semax first"
+  | |- semax _ _ _ _ _ => fail 100 "forward_loop failed; try doing abbreviate_semax first"
   | |- _ => fail 100 "forward_loop applicable only to a semax goal"
 end.
 
@@ -2624,17 +2624,17 @@ Tactic Notation "forward_loop" constr(Inv)  :=
  repeat simple apply seq_assoc1;
  repeat apply -> semax_seq_skip;
   lazymatch goal with
-  | |- semax _ _ (Ssequence (Sfor _ ?e2 ?s3 ?s4) _) _ =>
+  | |- semax _ _ _ (Ssequence (Sfor _ ?e2 ?s3 ?s4) _) _ =>
      let c := constr:(Sloop (Ssequence (Sifthenelse e2 Sskip Sbreak) s3) s4) in
     tryif (check_nocontinue c)
      then forward_loop_nocontinue_nobreak Inv
      else (check_no_incr c; forward_loop Inv continue: Inv)
-  | |- semax _ _ (Sfor _ ?e2 ?s3 ?s4) _ =>
+  | |- semax _ _ _ (Sfor _ ?e2 ?s3 ?s4) _ =>
      let c := constr:(Sloop (Ssequence (Sifthenelse e2 Sskip Sbreak) s3) s4) in
     tryif (check_nocontinue c)
      then forward_loop_nocontinue_nobreak Inv
      else (check_no_incr c; forward_loop Inv continue: Inv)
-  | |- semax _ _ ?c _ =>
+  | |- semax _ _ _ ?c _ =>
   tryif (check_nocontinue c)
    then forward_loop_nocontinue_nobreak Inv
   else (check_no_incr c; forward_loop Inv continue: Inv)
@@ -2644,17 +2644,17 @@ Tactic Notation "forward_loop" constr(Inv) "break:" constr(Post) :=
  repeat simple apply seq_assoc1;
  repeat apply -> semax_seq_skip;
   lazymatch goal with
-  | |- semax _ _ (Ssequence (Sfor _ ?e2 ?s3 ?s4) _) _ =>
+  | |- semax _ _ _ (Ssequence (Sfor _ ?e2 ?s3 ?s4) _) _ =>
      let c := constr:(Sloop (Ssequence (Sifthenelse e2 Sskip Sbreak) s3) s4) in
       tryif (check_nocontinue c)
        then forward_loop_nocontinue Inv Post
        else (check_no_incr c; forward_loop Inv continue: Inv break: Post)
-  | |- semax _ _ (Sfor _ ?e2 ?s3 ?s4) _ =>
+  | |- semax _ _ _ (Sfor _ ?e2 ?s3 ?s4) _ =>
      let c := constr:(Sloop (Ssequence (Sifthenelse e2 Sskip Sbreak) s3) s4) in
       tryif (check_nocontinue c)
        then forward_loop_nocontinue Inv Post
        else (check_no_incr c; forward_loop Inv continue: Inv break: Post)
-  | |- semax _ _ ?c _ =>
+  | |- semax _ _ _ ?c _ =>
   tryif (check_nocontinue c)
    then forward_loop_nocontinue Inv Post
   else (check_no_incr c; forward_loop Inv continue: Inv break: Post)
@@ -2674,7 +2674,7 @@ Tactic Notation "forward_for" constr(Inv) "continue:" constr(PreInc) :=
   | _ => fail "PreInc (continue: argument to forward_for) must have type (_ -> environ -> mpred)"
   end;
   lazymatch goal with
-  | |- semax _ _ (Ssequence (Sfor _ _ _ _) _) _ =>
+  | |- semax _ _ _ (Ssequence (Sfor _ _ _ _) _) _ =>
       apply -> seq_assoc;
       apply semax_seq' with (bi_exist Inv); abbreviate_semax;
       [  | eapply semax_seq; 
@@ -2686,13 +2686,13 @@ Tactic Notation "forward_for" constr(Inv) "continue:" constr(PreInc) :=
             repeat (apply semax_extract_PROP; fancy_intro true);
             do_repr_inj HRE]
    ]
-  | |- semax _ _ (Sfor _ _ _ _) ?Post =>
+  | |- semax _ _ _ (Sfor _ _ _ _) ?Post =>
       apply semax_seq' with (bi_exist Inv); abbreviate_semax;
       [  | forward_for3 Inv PreInc Post]
-  | |- semax _ _ (Sloop (Ssequence (Sifthenelse _ Sskip Sbreak) _) _) ?Post =>
+  | |- semax _ _ _ (Sloop (Ssequence (Sifthenelse _ Sskip Sbreak) _) _) ?Post =>
      apply semax_pre with (bi_exist Inv);
       [  | forward_for3 Inv PreInc Post]
-  | |- semax _ _ (Sloop (Ssequence (Sifthenelse _ Sskip Sbreak) _) _) _ =>
+  | |- semax _ _ _ (Sloop (Ssequence (Sifthenelse _ Sskip Sbreak) _) _) _ =>
      apply semax_pre with (bi_exist Inv);
       [ unfold_function_derives_right | forward_for2 Inv PreInc ]
   | |- _ => fail "forward_for2x cannot recognize the loop"
@@ -2714,11 +2714,11 @@ Tactic Notation "forward_for" constr(Inv) "continue:" constr(PreInc) "break:" co
   | _ => fail "Postcond (third argument to forward_for) must have type (environ -> mpred)"
   end;
   lazymatch goal with
-  | |- semax _ _ (Ssequence (Sfor _ _ _ _) _) _ =>
+  | |- semax _ _ _ (Ssequence (Sfor _ _ _ _) _) _ =>
       apply -> seq_assoc;
       apply semax_seq' with (exp Inv); abbreviate_semax;
       [  | forward_for3 Inv PreInc Postcond]
-  | |- semax _ _ (Sloop (Ssequence (Sifthenelse _ Sskip Sbreak) _) _) _ =>
+  | |- semax _ _ _ (Sloop (Ssequence (Sifthenelse _ Sskip Sbreak) _) _) _ =>
      apply semax_pre with (exp Inv);
       [ unfold_function_derives_right | forward_for3 Inv PreInc Postcond ]
   end.
@@ -2756,14 +2756,14 @@ Tactic Notation "forward_for" constr(Inv) :=
   | _ => fail "Invariant (first argument to forward_for) must have type (_ -> environ -> mpred)"
   end;
   lazymatch goal with
-  | |- semax _ _ (Ssequence (Sfor _ _ _ _) _) _ =>
+  | |- semax _ _ _ (Ssequence (Sfor _ _ _ _) _) _ =>
         apply semax_convert_for_while';
              [(reflexivity ||
                  fail "Your for-loop has a continue statement, so your forward_for needs a continue: clause")
                | (reflexivity || fail "Unexpected continue statement in for-loop increment")
                | apply semax_seq' with (exp Inv);
                    [  |  forward_while (∃ x:_, Inv x); [ apply ENTAIL_refl | | |  ]  ] ]
-  | |- semax _ _ (Sfor _ _ _ _) _ =>
+  | |- semax _ _ _ (Sfor _ _ _ _) _ =>
         apply semax_convert_for_while;
              [(reflexivity ||
                  fail "Your for-loop has a continue statement, so your forward_for needs a continue: clause")
@@ -2776,7 +2776,7 @@ Tactic Notation "forward_for" constr(Inv) :=
 *)
 Ltac process_cases sign := 
 match goal with
-| |- semax _ _ (seq_of_labeled_statement 
+| |- semax _ _ _ (seq_of_labeled_statement 
      match select_switch_case ?N (LScons (Some ?X) ?C ?SL)
       with Some _ => _ | None => _ end) _ =>
        let y := constr:(adjust_for_sign sign X) in let y := eval compute in y in 
@@ -2796,13 +2796,13 @@ match goal with
      | try (rewrite ->if_false by (contradict NE; symmetry; apply NE));
         process_cases sign
     ]
-| |- semax _ _ (seq_of_labeled_statement 
+| |- semax _ _ _ (seq_of_labeled_statement 
      match select_switch_case ?N (LScons None ?C ?SL)
       with Some _ => _ | None => _ end) _ =>
       change (select_switch_case N (LScons None C SL))
        with (select_switch_case N SL);
         process_cases sign
-| |- semax _ _ (seq_of_labeled_statement 
+| |- semax _ _ _ (seq_of_labeled_statement 
      match select_switch_case ?N LSnil
       with Some _ => _ | None => _ end) _ =>
       change (select_switch_case N LSnil)
@@ -2873,13 +2873,13 @@ match goal with
     tryif (unify (orb (quickflow c1 nofallthrough) (quickflow c2 nofallthrough)) true)
     then (apply semax_if_seq; forward_if'_new)
     else fail "Because your if-statement is followed by another statement, you need to do 'forward_if Post', where Post is a postcondition of type (environ->mpred) or of type Prop"
-| |- semax _ (@bi_exist _ _ _) _ _ =>
+| |- semax _ _ (@bi_exist _ _ _) _ _ =>
       fail "First use Intros ... to take care of the EXistentially quantified variables in the precondition"
-| |- semax _ _ (Sswitch _ _) _ =>
+| |- semax _ _ _ (Sswitch _ _) _ =>
   forward_switch'
-| |- semax _ _ (Ssequence (Sifthenelse _ _ _) _) _ => 
+| |- semax _ _ _ (Ssequence (Sifthenelse _ _ _) _) _ => 
      fail "forward_if failed for some unknown reason, perhaps your precondition is not in canonical form"
-| |- semax _ _ (Ssequence (Sswitch _ _) _) _ => 
+| |- semax _ _ _ (Ssequence (Sswitch _ _) _) _ => 
      fail "Because your switch statement is followed by another statement, you need to do 'forward_if Post', where Post is a postcondition of type (environ->mpred) or of type Prop"
 end.
 
@@ -2916,11 +2916,11 @@ Ltac forward_if_tac post :=
 first [ignore (post: environ->mpred)
       | fail 1 "Invariant (first argument to forward_if) must have type (environ->mpred)"];
 match goal with
- | |- semax _ _ (Sifthenelse _ _ _) (overridePost post _) =>
+ | |- semax _ _ _ (Sifthenelse _ _ _) (overridePost post _) =>
        forward_if'_new
- | |- semax _ _ (Sswitch _ _) _ =>
+ | |- semax _ _ _ (Sswitch _ _) _ =>
        forward_switch'
- | |- semax _ _ (Sifthenelse _ _ _) ?P =>
+ | |- semax _ _ _ (Sifthenelse _ _ _) ?P =>
       apply (semax_post_flipped (overridePost post P));
       [ forward_if'_new
       | try subst P; unfold abbreviate;
@@ -2933,14 +2933,14 @@ match goal with
         try (match goal with |- ?A => no_evars A end;
              try apply ENTAIL_refl; 
              try solve [normalize])
-        .. 
+        ..
       ]
-   | |- semax _ _ (Ssequence (Sifthenelse _ _ _) _) _ =>
+   | |- semax _ _ _ (Ssequence (Sifthenelse _ _ _) _) _ =>
      apply semax_seq with post;
       [forward_if'_new 
       | abbreviate_semax; 
         simpl_ret_assert]
-   | |- semax _ _ (Ssequence (Sswitch _ _) _) _ =>
+   | |- semax _ _ _ (Ssequence (Sswitch _ _) _) _ =>
      apply semax_seq with post;
       [forward_switch' 
       | abbreviate_semax; 
@@ -2973,24 +2973,24 @@ Tactic Notation "forward_if" constr(post) :=
   lazymatch type of post with
   | Prop =>
       match goal with
-      | |- semax _ (PROPx (?P) ?Q) _ _ =>
+      | |- semax _ _ (PROPx (?P) ?Q) _ _ =>
           forward_if_tac (PROPx (post :: P) Q)
       end
   | list Prop =>
       match goal with
-      | |- semax _ (PROPx (?P) ?Q) _ _ =>
+      | |- semax _ _ (PROPx (?P) ?Q) _ _ =>
           let P' := eval cbv iota zeta beta delta [app] in (post ++ P) in
           forward_if_tac (PROPx P' Q)
       end
   | localdef =>
       match goal with
-      | |- semax _ (PROPx (?P) (LOCALx ?Q ?R)) _ _ =>
+      | |- semax _ _ (PROPx (?P) (LOCALx ?Q ?R)) _ _ =>
           let Q' := remove_LOCAL2 constr:(cons post nil) Q in
           forward_if_tac (PROPx (P) (LOCALx (post :: Q') R))
       end
   | list localdef =>
       match goal with
-      | |- semax _ (PROPx (?P) (LOCALx ?Q ?R)) _ _ =>
+      | |- semax _ _ (PROPx (?P) (LOCALx ?Q ?R)) _ _ =>
           let Q' := remove_LOCAL2 post Q in
           let Q'' := eval cbv iota zeta beta delta [app] in (post ++ Q') in
           forward_if_tac (PROPx (P) (LOCALx Q'' R))
@@ -3089,14 +3089,14 @@ Qed.
 
 Ltac ensure_normal_ret_assert :=
  match goal with
- | |- semax _ _ _ (normal_ret_assert _) => idtac
- | |- semax _ _ _ _ => apply sequential
+ | |- semax _ _ _ _ (normal_ret_assert _) => idtac
+ | |- semax _ _ _ _ _ => apply sequential
  end.
 
 Ltac ensure_open_normal_ret_assert :=
  try simple apply sequential';
  match goal with
- | |- semax _ _ _ (normal_ret_assert ?X) => is_evar X
+ | |- semax _ _ _ _ (normal_ret_assert ?X) => is_evar X
  end.
 
 Definition This_is_a_warning := tt.
@@ -3163,8 +3163,8 @@ Ltac check_sequential s :=
 
 Ltac sequential :=
  match goal with
- |  |- @semax _ _ _ _ (normal_ret_assert _) => fail 2
- |  |- @semax _ _ _ ?s _ =>  check_sequential s; apply sequential
+ |  |- semax _ _ _ _ (normal_ret_assert _) => fail 2
+ |  |- semax _ _ _ ?s _ =>  check_sequential s; apply sequential
  end.
 
 (* move these two elsewhere, perhaps entailer.v *)
@@ -3389,7 +3389,7 @@ sc_set_load_store.store_tac.
 
 Ltac forward0 :=  (* USE FOR DEBUGGING *)
   match goal with
-  | |- @semax _ _ _ ?PQR (Ssequence ?c1 ?c2) ?PQR' =>
+  | |- semax _ _ ?PQR (Ssequence ?c1 ?c2) ?PQR' =>
            let Post := fresh "Post" in
               evar (Post : environ->mpred);
               apply semax_seq' with Post;
@@ -3502,8 +3502,8 @@ Qed.
 
 Ltac fold_frame_function_body :=
 match goal with P := @abbreviate ret_assert _ |- _ => unfold abbreviate in P; subst P end;
-match goal with |- semax _ _ _ ?R =>
- match R with {| RA_return := (fun vl rho => bind_ret _ ?t ?P _ * stackframe_of ?f _) |} =>
+match goal with |- semax _ _ _ _ ?R =>
+ match R with {| RA_return := (fun vl rho => bind_ret _ ?t ?P _ ∗ stackframe_of ?f _) |} =>
   apply semax_post with (frame_ret_assert (function_body_ret_assert t P) (stackframe_of f));
    [ simpl_ret_assert; rewrite False_sep; apply bi.and_elim_r; apply bi.False_elim
    | simpl_ret_assert; rewrite False_sep; apply bi.and_elim_r; apply bi.False_elim
@@ -3712,15 +3712,15 @@ end].
 *)
 Ltac advise_prepare_postcondition := 
  match goal with
- | Post' := _ : ret_assert |- semax _ _ _ ?Post =>
+ | Post' := _ : ret_assert |- semax _ _ _ _ ?Post =>
      tryif (constr_eq Post' Post) then (unfold abbreviate in Post'; subst Post') else idtac
  end;
  lazymatch goal with
- | Delta' := @abbreviate tycontext _ |- semax ?Delta _ _ _ =>
+ | Delta' := @abbreviate tycontext _ |- semax _ ?Delta _ _ _ =>
      tryif (constr_eq Delta' Delta)
        then idtac
        else fail "Please use abbreviate_semax to put your proof goal into standard form" 
- | |- semax _ _ _ _ => fail "Please use abbreviate_semax to put your proof goal into standard form."
+ | |- semax _ _ _ _ _ => fail "Please use abbreviate_semax to put your proof goal into standard form."
  | |- _ => fail "Proof goal is not (semax _ _ _ _)."
  end;
  repeat match goal with
@@ -3754,13 +3754,13 @@ Otherwise, you can use the general case: Use [forward_loop Inv] to prove this lo
 
 Ltac forward_advise_for :=
  lazymatch goal with
- | |- semax _ _ (Sfor _ _ ?body Sskip) ?R =>
+ | |- semax _ _ _ (Sfor _ _ ?body Sskip) ?R =>
        tryif unify (no_breaks body) true
        then fail "Use [forward_while Inv] to prove this loop, where Inv is a loop invariant of type (environ->mpred)"
        else tryif has_evar R
             then fail "Use [forward_for Inv Inv Post] to prove this loop, where Inv is a loop invariant of type (A -> environ -> mpred), and Post is a loop-postcondition. A is the type of whatever loop-varying quantity you have, such as the value of your loop iteration variable.  You can use the same Inv twice, before and after the for-loop-increment statement, because your for-loop-increment statement is trivial"
             else fail "Use [forward_for Inv Inv] to prove this loop, where Inv is a loop invariant of type (A -> environ -> mpred).  A is the type of whatever loop-varying quantity you have, such as your loop iteration variable.  You can use the same Inv twice, before and after the for-loop-increment statement, because your for-loop-increment statement is trivial"
-  | |- semax _ _ (Sfor _ ?test ?body ?incr) ?R =>
+  | |- semax _ _ _ (Sfor _ ?test ?body ?incr) ?R =>
        tryif has_evar R
        then tryif unify (no_breaks body) true
                then tryif test_simple_bound test incr
@@ -3780,11 +3780,11 @@ Use [forward_for Inv PreInc] to prove this loop, where Inv is a loop invariant o
 Ltac forward_advise_if := 
   advise_prepare_postcondition;
  lazymatch goal with
-   | |- semax _ _ (Sifthenelse _ _ _) ?R =>
+   | |- semax _ _ _ (Sifthenelse _ _ _) ?R =>
        tryif has_evar R
        then fail "Use [forward_if Post] to prove this if-statement, where Post is the postcondition of both branches, or try simply 'forward_if' without a postcondition to see if that is permitted in this case"
        else fail "Use [forward_if] to prove this if-statement; you don't need to supply a postcondition"
-   | |- semax _ _ (Sswitch _ _) ?R =>
+   | |- semax _ _ _ (Sswitch _ _) ?R =>
        tryif has_evar R
        then fail "Use [forward_if Post] to prove this switch-statement, where Post is the postcondition of all branches, or try simply 'forward_if' without a postcondition to see if that is permitted in this case"
        else fail "Use [forward_if] to prove this switch-statement; you don't need to supply a postcondition"
@@ -3793,7 +3793,7 @@ Ltac forward_advise_if :=
 Ltac forward_advise_while := 
   advise_prepare_postcondition;
  lazymatch goal with
-   | |- semax _ _ (Swhile _ _) _ =>
+   | |- semax _ _ _ (Swhile _ _) _ =>
        fail "Use [forward_while Inv] to prove this loop, where Inv is the loop invariant"
   end.
 
@@ -3830,7 +3830,7 @@ eapply semax_pre; [ | apply semax_continue ];
 
 Ltac simpl_first_temp :=
 try match goal with
-| |- semax _ (PROPx _ (LOCALx (temp _ ?v :: _) _)) _ _ =>
+| |- semax _ _ (PROPx _ (LOCALx (temp _ ?v :: _) _)) _ _ =>
   let x := fresh "x" in set (x:=v);
          simpl in x; unfold x; clear x
 | |- (PROPx _ (LOCALx (temp _ ?v :: _) _)) ⊢ _ =>
@@ -3970,7 +3970,7 @@ Ltac simplify_new_temp' e :=
 
 Ltac simplify_new_temp :=
  lazymatch goal with
- | |- semax _ (PROPx _ (LOCALx (temp _ ?e :: _) _)) _ _ =>
+ | |- semax _ _ (PROPx _ (LOCALx (temp _ ?e :: _) _)) _ _ =>
        try simplify_new_temp' e
  | |- ENTAIL _, PROPx _ (LOCALx (temp _ ?e :: _) _) ⊢ _ =>
        try simplify_new_temp' e
@@ -3992,14 +3992,14 @@ Ltac fwd_result :=
 
 Ltac check_precondition :=
   lazymatch goal with
-  | |- semax _ (PROPx _ (LOCALx _ (SEPx ?R))) _ _ => 
+  | |- semax _ _ (PROPx _ (LOCALx _ (SEPx ?R))) _ _ => 
     lazymatch R with context [bi_sep _ _ :: _] =>
         fail "The SEP clause of the precondition contains * (separating conjunction).
 You must flatten the SEP clause, e.g. by doing [Intros],
 or else hide the * by making a Definition or using a freezer"
        | _ => idtac
     end
-  | |- semax _ (bi_exist _) _ _ => 
+  | |- semax _ _ (bi_exist _) _ _ => 
              fail 3 "Before going 'forward', you need to move the existentially quantified variable at the head of your precondition 'above the line'.  Do this by the tactic 'Intros x', where 'x' is the name you want to give to this Coq variable"
   | |- _ => fail "Your precondition is not in canonical form (PROP (..) LOCAL (..) SEP (..))"
  end.
@@ -4046,7 +4046,7 @@ end.
 
 Ltac forward :=
  lazymatch goal with
- | |- ENTAIL _, _ ⊢ _ * stackframe_of _ =>
+ | |- ENTAIL _, _ ⊢ _ ∗ stackframe_of _ =>
      (* backward-compatibility hack *)
       clean_up_stackframe; entailer_for_return
  | |- _ =>
@@ -4054,26 +4054,26 @@ Ltac forward :=
   check_Delta; check_POSTCONDITION;
   repeat rewrite <- seq_assoc;
   lazymatch goal with 
-  | |- semax _ _ (Ssequence (Sreturn _) _) _ =>
+  | |- semax _ _ _ (Ssequence (Sreturn _) _) _ =>
     apply semax_seq with False; [ | apply semax_ff];
     clear_Delta_specs; forward_return
-  | |- semax _ _ (Sreturn _) _ =>  clear_Delta_specs; forward_return
-  | |- semax _ _ (Ssequence Sbreak _) _ =>
+  | |- semax _ _ _ (Sreturn _) _ =>  clear_Delta_specs; forward_return
+  | |- semax _ _ _ (Ssequence Sbreak _) _ =>
     apply semax_seq with False; [ | apply semax_ff];  forward_break
-  | |- semax _ _ (Ssequence Scontinue _) _ =>
+  | |- semax _ _ _ (Ssequence Scontinue _) _ =>
     apply semax_seq with False; [ | apply semax_ff];  forward_continue
-  | |- semax _ _ Sbreak _ => forward_break
-  | |- semax _ _ Scontinue _ => forward_continue
-  | |- semax _ _ Sskip _ => fwd_skip
-  | |- semax _ _ ?c0 _ =>
+  | |- semax _ _ _ Sbreak _ => forward_break
+  | |- semax _ _ _ Scontinue _ => forward_continue
+  | |- semax _ _ _ Sskip _ => fwd_skip
+  | |- semax _ _ _ ?c0 _ =>
     match c0 with
     | Ssequence _ _ => idtac
     | _ => rewrite -> semax_seq_skip
     end;
     match goal with
-    | |- semax _ _ (Ssequence (Sassign (Efield ?e1 ?id1 ?t1) _) ?s2) _ =>
+    | |- semax _ _ _ (Ssequence (Sassign (Efield ?e1 ?id1 ?t1) _) ?s2) _ =>
            try_forward_store_union_hack e1 s2 id1 t1
-    | |- semax _ _ (Ssequence ?c _) _ =>
+    | |- semax _ _ _ (Ssequence ?c _) _ =>
       check_precondition;
       (* FIXME sc_set_load_store.v check_unfold_mpred_for_at; *)
       eapply semax_seq';
@@ -4170,7 +4170,7 @@ Ltac change_mapsto_gvar_to_data_at' gv S :=
 
 Ltac change_mapsto_gvar_to_data_at := 
 match goal with
-| gv: globals |- semax _ (PROPx _ (LOCALx ?L (SEPx ?S))) _ _ =>
+| gv: globals |- semax _ _ (PROPx _ (LOCALx ?L (SEPx ?S))) _ _ =>
                                            change_mapsto_gvar_to_data_at' gv S
 | gv: globals |- ?S ⊢ _ => change_mapsto_gvar_to_data_at' gv S
 end.
@@ -5089,13 +5089,13 @@ Tactic Notation "assert_after" constr(n) constr(PQR) :=
               | _ => n
              end in
  match goal with
- | |- semax _ _ (Ssequence (Ssequence ?c1 ?c2) ?c3) _ =>
+ | |- semax _ _ _ (Ssequence (Ssequence ?c1 ?c2) ?c3) _ =>
  let c := reassociate_to c1 c2 n
   in match c with (Ssequence ?d ?e) =>
            let f := constr:(Ssequence d (Ssequence e c3))
             in apply (semax_unfold_Ssequence _ f); [reflexivity | ]
       end
- | |- semax _ _ (Ssequence ?c1 ?c2) _ =>
+ | |- semax _ _ _ (Ssequence ?c1 ?c2) _ =>
  let c := reassociate_to c1 c2 n
   in  apply (semax_unfold_Ssequence c); [reflexivity | ]
  end;
