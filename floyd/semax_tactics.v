@@ -129,7 +129,7 @@ Ltac simplify_func_tycontext' DD :=
 
 Ltac simplify_func_tycontext :=
 match goal with
- | |- semax ?DD _ _ _ => simplify_func_tycontext'  DD
+ | |- semax _ ?DD _ _ _ => simplify_func_tycontext'  DD
  | |- ENTAIL ?DD, _ ⊢ _ => simplify_func_tycontext'  DD
 end.
 
@@ -189,12 +189,12 @@ Ltac simplify_Delta :=
 match goal with
  | Delta := @abbreviate tycontext _ |- _ => clear Delta; simplify_Delta
  | DS := @abbreviate (PTree.t funspec) _ |- _ => clear DS; simplify_Delta
- | D1 := @abbreviate tycontext _ |- semax ?D _ _ _ => 
+ | D1 := @abbreviate tycontext _ |- semax _ ?D _ _ _ => 
        constr_eq D1 D (* ONLY this case terminates! *)
 (*                 
- | |- semax ?D _ _ _ => unfold D; simplify_Delta
+ | |- semax _ ?D _ _ _ => unfold D; simplify_Delta
  | |- _ => simplify_func_tycontext; simplify_Delta
- | |- semax (mk_tycontext ?a ?b ?c ?d ?e) _ _ _ => (* delete this case? *)
+ | |- semax _ (mk_tycontext ?a ?b ?c ?d ?e) _ _ _ => (* delete this case? *)
      let DS := fresh "Delta_specs" in set (DS := e : PTree.t funspec);
      change e with (@abbreviate (PTree.t funspec) e) in DS;
      let D := fresh "Delta" in set (D := mk_tycontext a b c d DS);
@@ -202,14 +202,14 @@ match goal with
 *)
  | D1 := @abbreviate tycontext _ |- ENTAIL ?D, _ ⊢ _ => 
        constr_eq D1 D (* ONLY this case terminates! *)
- | |- semax ?D _ _ _ => unfold D; simplify_Delta
+ | |- semax _ ?D _ _ _ => unfold D; simplify_Delta
  | |- ENTAIL ?D, _ ⊢_ => unfold D; simplify_Delta
  | |- _ => simplify_func_tycontext; simplify_Delta
  | Delta := @abbreviate tycontext ?D 
-      |- semax ?DD _ _ _ => simplify_Delta' Delta D DD; simplify_Delta
+      |- semax _ ?DD _ _ _ => simplify_Delta' Delta D DD; simplify_Delta
  | Delta := @abbreviate tycontext ?D 
       |- ENTAIL ?DD, _ ⊢ _ => simplify_Delta' Delta D DD; simplify_Delta
- | |- semax ?DD _ _ _ =>  simplify_Delta
+ | |- semax _ ?DD _ _ _ =>  simplify_Delta
  |  |- ENTAIL (ret_tycon ?DD), _ ⊢ _ => 
         let D := fresh "D" in 
           set (D := ret_tycon DD);
@@ -269,24 +269,24 @@ with is_sequential_ls co ls :=
 
 Ltac force_sequential  :=
 match goal with
-| P := @abbreviate ret_assert (normal_ret_assert _) |- semax _ _ _ ?P' =>
+| P := @abbreviate ret_assert (normal_ret_assert _) |- semax _ _ _ _ ?P' =>
     constr_eq P P'
-| P := @abbreviate ret_assert _ |- semax _ _ ?c ?P' =>
+| P := @abbreviate ret_assert _ |- semax _ _ _ ?c ?P' =>
     constr_eq P P'; 
     try (is_sequential false false c;
          unfold abbreviate in P; subst P;
          apply sequential; simpl_ret_assert)
 | P := @abbreviate ret_assert _ |- _ => unfold abbreviate in P; subst P;
       force_sequential
-| P := _ : ret_assert |- semax _ _ _ ?P' => 
+| P := _ |- semax _ _ _ _ ?P' => 
       constr_eq P P'; unfold abbreviate in P; subst P;
       force_sequential
-| |- semax _ _ _ (normal_ret_assert ?P) => 
+| |- semax _ _ _ _ (normal_ret_assert ?P) => 
        abbreviate (normal_ret_assert P) : ret_assert as POSTCONDITION
-| |- semax _ _ ?c ?P =>
+| |- semax _ _ _ ?c ?P =>
     tryif (is_sequential false false c)
     then (apply sequential; simpl_ret_assert;
-          match goal with |- semax _ _ _ ?Q =>
+          match goal with |- semax _ _ _ _ ?Q =>
              abbreviate Q : ret_assert as POSTCONDITION
           end)
     else abbreviate P : ret_assert as POSTCONDITION
@@ -294,15 +294,15 @@ end.
 
 Ltac abbreviate_semax :=
  match goal with
- | |- semax _ False _ _ => apply semax_ff
- | |- semax _ (PROPx (False::_) _) _ _ => Intros; contradiction
- | |- semax _ _ _ _ =>
+ | |- semax _ _ False _ _ => apply semax_ff
+ | |- semax _ _ (PROPx (False::_) _) _ _ => Intros; contradiction
+ | |- semax _ _ _ _ _ =>
   simplify_Delta;
   repeat match goal with
   | MC := @abbreviate statement _ |- _ => unfold abbreviate in MC; subst MC
   end;
   force_sequential;
-  match goal with |- semax _ _ ?C _ =>
+  match goal with |- semax _ _ _ ?C _ =>
             match C with
             | Ssequence ?C1 ?C2 =>
                (* use the next 3 lines instead of "abbreviate"
@@ -328,19 +328,19 @@ match goal with
  | Delta := @abbreviate tycontext (mk_tycontext _ _ _ _ _) |- _ =>
     match goal with
     | |- _ => clear Delta; check_Delta
-    | |- semax Delta _ _ _ => idtac
+    | |- semax _ Delta _ _ _ => idtac
     end
  | _ => simplify_Delta;
-     match goal with |- semax ?D _ _ _ =>
+     match goal with |- semax _ ?D _ _ _ =>
             abbreviate D : tycontext as Delta
      end
 end.
 
 Ltac normalize_postcondition :=  (* produces a normal_ret_assert *)
  match goal with
- | P := _ |- semax _ _ _ ?P =>
+ | P := _ |- semax _ _ _ _ ?P =>
      unfold P, abbreviate; clear P; normalize_postcondition
- | |- semax _ _ _ (normal_ret_assert _) => idtac
+ | |- semax _ _ _ _ (normal_ret_assert _) => idtac
  | |- _ => apply sequential
   end;
  autorewrite with ret_assert.
@@ -405,7 +405,7 @@ Ltac mkConciseDelta V G F Ann Delta :=
 *)
 Ltac semax_subcommand V G F Ann :=
   abbreviate_semax;
-  match goal with |- semax ?Delta _ _ _ =>
+  match goal with |- semax _ ?Delta _ _ _ =>
 (*
       mkConciseDelta V G F Ann Delta;
 *)
@@ -440,9 +440,9 @@ Ltac check_POSTCONDITION' P :=
 
 Ltac check_POSTCONDITION :=
   match goal with
-  | P := ?P' |- semax _ _ _ ?P'' =>
+  | P := ?P' |- semax _ _ _ _ ?P'' =>
      constr_eq P P''; check_POSTCONDITION' P'
-  | |- semax _ _ _ ?P => check_POSTCONDITION' P
+  | |- semax _ _ _ _ ?P => check_POSTCONDITION' P
   | _ => fail 100 "Your POSTCONDITION is ill-formed in some way "
   end.
 
@@ -789,7 +789,7 @@ Proof.
 Qed.
 
 Ltac first_N_statements n :=
- lazymatch goal with |- semax _ _ ?c _ =>
+ lazymatch goal with |- semax _ _ _ ?c _ =>
  let c' := constr:(unfold_seqN n c) in
  let c' := eval cbv beta iota zeta delta
    [seq_stmt_size app unfold_seqN unfold_seqN' Init.Nat.add]
@@ -825,7 +825,7 @@ Ltac suggest_leaf_function :=
  | x := function_pointers |- _ => clear x
  | DS := @abbreviate (PTree.t funspec) ?ds,
    D := @abbreviate tycontext (mk_tycontext _ _ _ _ ?DS' _) |-
-   semax ?D' _ ?c _ =>
+   semax _ ?D' _ ?c _ =>
    constr_eq DS DS'; constr_eq D D';
    let b := constr:(any_gvars ds c) in
    let b := eval compute in b in

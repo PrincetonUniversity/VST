@@ -4576,7 +4576,7 @@ Ltac start_function3 :=
                end);
  abbreviate_semax;
  lazymatch goal with 
- | |- semax ?Delta (PROPx _ (LOCALx ?L _)) _ _ => check_parameter_vals Delta L
+ | |- semax _ ?Delta (PROPx _ (LOCALx ?L _)) _ _ => check_parameter_vals Delta L
  | _ => idtac
  end;
  try match goal with DS := @abbreviate (PTree.t funspec) ?DS1 |- _ =>
