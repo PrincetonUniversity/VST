@@ -2022,8 +2022,8 @@ lazymatch goal with
                simple apply derives_extract_PROP; fancy_intros false
             | flatten_in_SEP PQR
              ]
- | |- ?PQR ⊢ _ =>  (* this case is obsolete, should probably be deleted *)
-     first [ simple apply bi.pure_elim_l; fancy_intros false
+ | |- ?PQR ⊢ _ =>
+     first [ match PQR with ⌜_⌝ ∧ _ => apply bi.pure_elim_l; fancy_intros false end
             | move_from_SEP' PQR;
                simple apply derives_extract_PROP; fancy_intros false
             | flatten_in_SEP PQR

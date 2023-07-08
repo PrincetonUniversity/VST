@@ -457,7 +457,7 @@ Ltac fancy_intro aggressive :=
  lazymatch goal with
  | |- ?P -> _ => match type of P with Prop => idtac end
  end;
- tryif 
+ tryif
  lazymatch goal with |- ?P -> _ =>
      lazymatch P with
      | ptr_eq ?v1 ?v2 => intro_redundant (v1=v2)
@@ -477,7 +477,7 @@ Ltac fancy_intro aggressive :=
          | _ =>  intro_redundant (isptr v)
          end
      | ?x = ?y => constr_eq x y + intro_redundant P
-     | _ => intro_redundant P + unify P True
+     | _ => intro_redundant P + unify P True%type
     end
    end
    then intros _
