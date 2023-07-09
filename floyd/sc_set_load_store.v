@@ -8,7 +8,6 @@ Require Import VST.floyd.replace_refill_reptype_lemmas.
 Require Import VST.floyd.mapsto_memory_block.
 Require Import VST.floyd.data_at_rec_lemmas.
 Require Import VST.floyd.field_at.
-Require Import VST.floyd.stronger.
 Require Import VST.floyd.entailer.
 Require Import VST.floyd.closed_lemmas.
 Require Import VST.floyd.loadstore_mapsto.
@@ -20,13 +19,11 @@ Require Import VST.floyd.simpl_reptype.
 Import LiftNotation.
 Import -(notations) compcert.lib.Maps.
 
-
 Section SEMAX_SC.
 
-Context {cs: compspecs}.
+Context `{!heapGS Σ} {Espec : OracleKind} `{!externalGS OK_ty Σ} {cs: compspecs}.
 
 Lemma semax_SC_set:
-  forall `{heapGS0: heapGS Σ} {Espec : OracleKind} `{!externalGS OK_ty Σ} {cs: compspecs},
     forall E Delta id P Q R (e2: expr) t v,
       typeof_temp Delta id = Some t ->
       is_neutral_cast (implicit_deref (typeof e2)) t = true ->
@@ -97,8 +94,7 @@ Proof.
 Qed.
 
 Lemma semax_SC_field_load:
-  forall `{heapGS0: heapGS Σ} {Espec : OracleKind} `{!externalGS OK_ty Σ} {cs: compspecs}
-    E n (Delta: tycontext) sh id P Q R e1
+  forall E n (Delta: tycontext) sh id P Q R e1
     t_id t_root gfs0 gfs1 gfs (p v_val: val) (v_reptype: reptype (nested_field_type t_root gfs0)),
     typeof e1 = nested_field_type t_root gfs ->
     typeof_temp Delta id = Some t_id ->
@@ -147,29 +143,16 @@ Qed.
 Lemma nth_error_SEP_sepcon_TT': forall D P Q R n Rn S,
   ENTAIL D, PROPx P (LOCALx Q (SEPx (Rn :: nil))) ⊢ S ->
   nth_error R n = Some Rn ->
-  ENTAIL D, (PROPx P (LOCALx Q (SEPx R))) ⊢ S * TT.
+  ENTAIL D, (PROPx P (LOCALx Q (SEPx R))) ⊢ (S ∗ True).
 Proof.
   intros.
   erewrite SEP_nth_isolate by eauto.
-  unfold PROPx, LOCALx, SEPx in *.
-  unfold local, lift1 in H |- *.
-  unfold_lift in H.
-  unfold_lift.
-  simpl in H |- *.
-  intros rho.
-  specialize (H rho).
-  rewrite <- !-bi.and_assoc in H |- *.
-  rewrite <- !prop_and in H |- *.
-  rewrite sepcon_emp in H.
-  rewrite <- sepcon_andp_prop'.
-  apply sepcon_derives.
-  exact H.
-  apply prop_right.
-  auto.
+  rewrite PROP_LOCAL_sep1 bi.persistent_and_sep_assoc H.
+  iIntros "($ & _)".
 Qed.
 
 Lemma semax_SC_field_cast_load:
-  forall {Espec: OracleKind} n (Delta: tycontext) sh id P Q R e1 t
+  forall n E (Delta: tycontext) sh id P Q R e1 t
     t_root gfs0 gfs1 gfs (p v_val: val) (v_reptype: reptype (nested_field_type t_root gfs0)),
     typeof e1 = nested_field_type t_root gfs ->
     typeof_temp Delta id = Some t ->
@@ -183,8 +166,8 @@ Lemma semax_SC_field_cast_load:
     readable_share sh ->
     JMeq (proj_reptype (nested_field_type t_root gfs0) gfs1 v_reptype) v_val ->
     ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢
-      (tc_lvalue Delta e1) ∧ local (`(tc_val t (eval_cast (nested_field_type t_root gfs) t v_val))) ->
-    @semax cs Espec Delta (▷ PROPx P (LOCALx Q (SEPx R)))
+      ((tc_lvalue Delta e1) ∧ local (`(tc_val t (eval_cast (nested_field_type t_root gfs) t v_val)))) ->
+    semax E Delta (▷ PROPx P (LOCALx Q (SEPx R)))
       (Sset id (Ecast e1 t))
       (normal_ret_assert
          (PROPx P
@@ -194,31 +177,19 @@ Proof.
   intros.
   assert_PROP (field_compatible t_root gfs p).
   {
-    rewrite (add_andp _ _ H9), (add_andp _ _ H4).
+    rewrite (add_andp _ _ H9) (add_andp _ _ H4).
     apply derives_trans with (local (tc_environ Delta) ∧ local (` (eq (field_address t_root gfs p)) (eval_lvalue e1)) ∧ (tc_lvalue Delta e1)); [solve_andp |].
-    unfold local, lift1; intros rho; simpl; unfold_lift.
+    unfold local, lift1; split => rho; monPred.unseal; unfold_lift.
     normalize.
     eapply derives_trans; [apply typecheck_lvalue_sound; auto |].
     rewrite <- H11; normalize.
   }
   subst gfs.
   pose proof nested_field_ramif_load sh _ _ _ _ _ _ H10 H8 as [v_reptype' [? ?]].
-  eapply semax_cast_load_nth_ram_field_at.
-  1: eassumption.
-  1: eassumption.
-  1: eassumption.
-  1: eassumption.
-  1: eassumption.
-  1: eassumption.
-  1: eassumption.
-  1: eassumption.
-  1: eassumption.
-  1: eassumption.
-  1: eassumption.
+  eapply semax_cast_load_nth_ram_field_at; done.
 Qed.
 
 Lemma semax_SC_field_store:
-  forall {Espec: OracleKind},
     forall Delta sh n (p: val) P Q R (e1 e2 : expr)
       (t_root: type) (gfs0 gfs1 gfs: list gfield)
       (v0: reptype (nested_field_type (nested_field_type t_root gfs0) gfs1))
@@ -276,7 +247,6 @@ Qed.
 
 
 Lemma semax_SC_field_store_union_hack (gfs1': list gfield):
-  forall {Espec: OracleKind},
     forall Delta sh n (p: val) P Q R (e1 e2 : expr) ch ch'
       (t_root: type) (gfs0 gfs1 gfs gfs': list gfield)
       (v0: reptype (nested_field_type (nested_field_type t_root gfs0) gfs1'))
