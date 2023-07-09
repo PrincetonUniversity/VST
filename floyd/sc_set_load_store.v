@@ -18,23 +18,22 @@ Require Import VST.floyd.local2ptree_denote.
 Require Import VST.floyd.local2ptree_eval.
 Require Import VST.floyd.simpl_reptype.
 Import LiftNotation.
-Import compcert.lib.Maps.
+Import -(notations) compcert.lib.Maps.
 
-Local Open Scope logic.
 
 Section SEMAX_SC.
 
 Context {cs: compspecs}.
 
 Lemma semax_SC_set:
-  forall {Espec: OracleKind},
-    forall Delta id P Q R (e2: expr) t v,
+  forall `{heapGS0: heapGS Σ} {Espec : OracleKind} `{!externalGS OK_ty Σ} {cs: compspecs},
+    forall E Delta id P Q R (e2: expr) t v,
       typeof_temp Delta id = Some t ->
       is_neutral_cast (implicit_deref (typeof e2)) t = true ->
-      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- local (`(eq v) (eval_expr e2)) ->
-      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢ local (`(eq v) (eval_expr e2)) ->
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢
          (tc_expr Delta e2) ->
-      semax Delta (|>PROPx P (LOCALx Q (SEPx R)))
+      semax E Delta (▷PROPx P (LOCALx Q (SEPx R)))
         (Sset id e2)
           (normal_ret_assert
             (PROPx P
@@ -44,24 +43,28 @@ Proof.
   intros.
   assert_PROP (tc_val (typeof e2) v).
   {
-    rewrite (add_andp _ _ H1), (add_andp _ _ H2).
-    unfold_lift.
-    intro rho; unfold local, lift1; simpl.
-    normalize.
-    apply andp_left2.
-    apply typecheck_expr_sound; auto.
+    rewrite (add_andp _ _ H1) (add_andp _ _ H2).
+    remember (PROPx _ _) as PQR.
+    raise_rho. super_unfold_lift.
+    subst.
+    rewrite bi.and_comm.
+    apply bi.pure_elim_l => ?; subst.
+    rewrite -bi.and_assoc.
+    apply bi.pure_elim_l => tc.
+    rewrite -typecheck_expr_sound. 2: { apply tc. }
+    apply bi.and_elim_r.
   }
   assert (v <> Vundef) as UNDEF by (intro; subst; apply tc_val_Vundef in H3; auto).
   clear H3.
-  assert (ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
-     (tc_expr Delta e2) &&  (tc_temp_id id (typeof e2) Delta e2)).
+  assert (ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢
+     ((tc_expr Delta e2) ∧ (tc_temp_id id (typeof e2) Delta e2))).
   {
-    apply andp_right.
+    apply bi.and_intro.
     + auto.
     + unfold tc_temp_id.
       unfold typecheck_temp_id.
       unfold typeof_temp in H.
-      destruct ((temp_types Delta) ! id) as [?|]; [| inversion H].
+      destruct ((temp_types Delta) !! id) as [?|]; [| inversion H].
       inversion H; clear H; subst.
       rewrite H0.
       simpl denote_tc_assert; simpl; intros.
@@ -72,43 +75,44 @@ Proof.
   {
     hoist_later_left.
     rewrite (add_andp _ _ H3).
-    rewrite andp_comm.
+    rewrite bi.and_comm.
     rewrite (add_andp _ _ H1).
-    apply later_derives.
-    apply andp_derives; [apply derives_refl |].
-    apply andp_derives; [| apply derives_refl].
-    apply andp_left2.
-    apply derives_refl.
+    apply bi.later_mono.
+    apply bi.and_mono; [apply derives_refl |].
+    apply bi.and_mono; [| apply derives_refl].
+    apply bi.and_elim_r.
   }
-  eapply semax_post'; [| apply semax_set_forward].
-  apply andp_left2; 
+  eapply semax_post'. 2:{ rewrite -bi.and_assoc.  apply semax_set_forward. }
+  rewrite bi.and_elim_r; 
   rewrite <- insert_local.
-  eapply derives_trans; [| apply andp_derives; [apply derives_refl | apply remove_localdef_temp_PROP]].
-  normalize.
-  apply (exp_right old).
+  eapply derives_trans; [| apply bi.and_mono; [apply derives_refl | apply remove_localdef_temp_PROP]].
+  (* TODO maybe normalize shouldn't unfold local? *)
+  Opaque local. normalize. Transparent local.
+  apply (bi.exist_intro' _ _ x).
   autorewrite with subst.
-  rewrite andp_comm, andp_assoc, andp_comm.
-  apply andp_derives; auto.
-  simpl; unfold local, lift1; unfold_lift; intro rho; simpl.
+  rewrite bi.and_comm -bi.and_assoc bi.and_comm.
+  apply bi.and_mono; auto.
+  simpl; unfold local, lift1; unfold_lift; raise_rho; simpl.
   normalize.
 Qed.
 
 Lemma semax_SC_field_load:
-  forall {Espec: OracleKind} n (Delta: tycontext) sh id P Q R e1
+  forall `{heapGS0: heapGS Σ} {Espec : OracleKind} `{!externalGS OK_ty Σ} {cs: compspecs}
+    E n (Delta: tycontext) sh id P Q R e1
     t_id t_root gfs0 gfs1 gfs (p v_val: val) (v_reptype: reptype (nested_field_type t_root gfs0)),
     typeof e1 = nested_field_type t_root gfs ->
     typeof_temp Delta id = Some t_id ->
     is_neutral_cast (nested_field_type t_root gfs) t_id = true ->
     type_is_volatile (nested_field_type t_root gfs) = false ->
-    ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+    ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢
        local (`(eq (field_address t_root gfs p)) (eval_lvalue e1)) ->
     nth_error R n = Some (field_at sh t_root gfs0 v_reptype p) ->
     gfs = gfs1 ++ gfs0 ->
     readable_share sh ->
     JMeq (proj_reptype (nested_field_type t_root gfs0) gfs1 v_reptype) v_val ->
-    ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
-      (tc_lvalue Delta e1) && local (`(tc_val (nested_field_type t_root gfs) v_val)) ->
-    @semax cs Espec Delta (|> PROPx P (LOCALx Q (SEPx R)))
+    ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢
+      ((tc_lvalue Delta e1) ∧ local (`(tc_val (nested_field_type t_root gfs) v_val))) ->
+    semax E Delta (▷ PROPx P (LOCALx Q (SEPx R)))
       (Sset id e1)
       (normal_ret_assert
          (PROPx P
@@ -118,9 +122,9 @@ Proof.
   intros.
   assert_PROP (field_compatible t_root gfs p).
   {
-    rewrite (add_andp _ _ H8), (add_andp _ _ H3).
-    apply derives_trans with (local (tc_environ Delta) && local (` (eq (field_address t_root gfs p)) (eval_lvalue e1)) && (tc_lvalue Delta e1)); [solve_andp |].
-    unfold local, lift1; intros rho; simpl; unfold_lift.
+    rewrite (add_andp _ _ H8) (add_andp _ _ H3).
+    apply derives_trans with (local (tc_environ Delta) ∧ local (` (eq (field_address t_root gfs p)) (eval_lvalue e1)) ∧ (tc_lvalue Delta e1)); [solve_andp |].
+    unfold local, lift1; raise_rho; simpl; unfold_lift.
     normalize.
     eapply derives_trans; [apply typecheck_lvalue_sound; auto |].
     rewrite <- H10; normalize.
@@ -141,9 +145,9 @@ Proof.
 Qed.
 
 Lemma nth_error_SEP_sepcon_TT': forall D P Q R n Rn S,
-  ENTAIL D, PROPx P (LOCALx Q (SEPx (Rn :: nil))) |-- S ->
+  ENTAIL D, PROPx P (LOCALx Q (SEPx (Rn :: nil))) ⊢ S ->
   nth_error R n = Some Rn ->
-  ENTAIL D, (PROPx P (LOCALx Q (SEPx R))) |-- S * TT.
+  ENTAIL D, (PROPx P (LOCALx Q (SEPx R))) ⊢ S * TT.
 Proof.
   intros.
   erewrite SEP_nth_isolate by eauto.
@@ -154,7 +158,7 @@ Proof.
   simpl in H |- *.
   intros rho.
   specialize (H rho).
-  rewrite <- !andp_assoc in H |- *.
+  rewrite <- !-bi.and_assoc in H |- *.
   rewrite <- !prop_and in H |- *.
   rewrite sepcon_emp in H.
   rewrite <- sepcon_andp_prop'.
@@ -172,15 +176,15 @@ Lemma semax_SC_field_cast_load:
     type_is_by_value (nested_field_type t_root gfs) = true ->
     cast_pointer_to_bool (nested_field_type t_root gfs) t = false ->
     type_is_volatile (nested_field_type t_root gfs) = false ->
-    ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+    ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢
        local (`(eq (field_address t_root gfs p)) (eval_lvalue e1)) ->
     nth_error R n = Some (field_at sh t_root gfs0 v_reptype p) ->
     gfs = gfs1 ++ gfs0 ->
     readable_share sh ->
     JMeq (proj_reptype (nested_field_type t_root gfs0) gfs1 v_reptype) v_val ->
-    ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
-      (tc_lvalue Delta e1) && local (`(tc_val t (eval_cast (nested_field_type t_root gfs) t v_val))) ->
-    @semax cs Espec Delta (|> PROPx P (LOCALx Q (SEPx R)))
+    ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢
+      (tc_lvalue Delta e1) ∧ local (`(tc_val t (eval_cast (nested_field_type t_root gfs) t v_val))) ->
+    @semax cs Espec Delta (▷ PROPx P (LOCALx Q (SEPx R)))
       (Sset id (Ecast e1 t))
       (normal_ret_assert
          (PROPx P
@@ -191,7 +195,7 @@ Proof.
   assert_PROP (field_compatible t_root gfs p).
   {
     rewrite (add_andp _ _ H9), (add_andp _ _ H4).
-    apply derives_trans with (local (tc_environ Delta) && local (` (eq (field_address t_root gfs p)) (eval_lvalue e1)) && (tc_lvalue Delta e1)); [solve_andp |].
+    apply derives_trans with (local (tc_environ Delta) ∧ local (` (eq (field_address t_root gfs p)) (eval_lvalue e1)) ∧ (tc_lvalue Delta e1)); [solve_andp |].
     unfold local, lift1; intros rho; simpl; unfold_lift.
     normalize.
     eapply derives_trans; [apply typecheck_lvalue_sound; auto |].
@@ -224,17 +228,17 @@ Lemma semax_SC_field_store:
       type_is_volatile (nested_field_type t_root gfs) = false ->
       gfs = gfs1 ++ gfs0 ->
       nth_error R n = Some (field_at sh t_root gfs0 v p) ->
-      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢
         local (`(eq (field_address t_root gfs p)) (eval_lvalue e1)) ->
-      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢
         local (`(eq v0_val) (eval_expr (Ecast e2 (nested_field_type t_root gfs)))) ->
       writable_share sh ->
       JMeq v0 v0_val ->
       data_equal (upd_reptype (nested_field_type t_root gfs0) gfs1 v v0) v_new ->
-      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
-         (tc_lvalue Delta e1) && 
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢
+         (tc_lvalue Delta e1) ∧ 
          (tc_expr Delta (Ecast e2 (nested_field_type t_root gfs))) ->
-      semax Delta (|>PROPx P (LOCALx Q (SEPx R)))
+      semax Delta (▷PROPx P (LOCALx Q (SEPx R)))
         (Sassign e1 e2)
           (normal_ret_assert
             (PROPx P
@@ -249,7 +253,7 @@ Proof.
   assert_PROP (field_compatible t_root gfs p).
   {
     rewrite (add_andp _ _ H9), (add_andp _ _ H4).
-    apply derives_trans with (local (tc_environ Delta) && local (` (eq (field_address t_root gfs p)) (eval_lvalue e1)) && (tc_lvalue Delta e1)); [solve_andp |].
+    apply derives_trans with (local (tc_environ Delta) ∧ local (` (eq (field_address t_root gfs p)) (eval_lvalue e1)) ∧ (tc_lvalue Delta e1)); [solve_andp |].
     unfold local, lift1; intros rho; simpl; unfold_lift.
     normalize.
     eapply derives_trans; [apply typecheck_lvalue_sound; auto |].
@@ -280,7 +284,7 @@ Lemma semax_SC_field_store_union_hack (gfs1': list gfield):
       typeof e1 = nested_field_type t_root gfs ->
       access_mode (nested_field_type t_root gfs) = By_value ch ->
       access_mode (nested_field_type t_root gfs') = By_value ch' ->
-      (numeric_type (nested_field_type t_root gfs) && numeric_type (nested_field_type t_root gfs'))%bool = true ->
+      (numeric_type (nested_field_type t_root gfs) ∧ numeric_type (nested_field_type t_root gfs'))%bool = true ->
       decode_encode_val_ok ch ch' ->
       type_is_volatile (nested_field_type t_root gfs) = false ->
       type_is_volatile (nested_field_type t_root gfs') = false ->
@@ -288,19 +292,19 @@ Lemma semax_SC_field_store_union_hack (gfs1': list gfield):
       gfs = gfs1 ++ gfs0 ->
       gfs' = gfs1' ++ gfs0 ->
       nth_error R n = Some (field_at sh t_root gfs0 v p) ->
-      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢
         local (`(eq (field_address t_root gfs p)) (eval_lvalue e1)) ->
-      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢
         local (`(eq v0_val) (eval_expr (Ecast e2 (nested_field_type t_root gfs)))) ->
       writable_share sh ->
       decode_encode_val v0_val ch ch' v0_val' ->
       JMeq v0 v0_val' ->
       data_equal (upd_reptype (nested_field_type t_root gfs0) gfs1' v v0) v_new ->
-      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
-         (tc_lvalue Delta e1) && 
-         (tc_expr Delta (Ecast e2 (nested_field_type t_root gfs))) &&
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢
+         (tc_lvalue Delta e1) ∧ 
+         (tc_expr Delta (Ecast e2 (nested_field_type t_root gfs))) ∧
          !! field_compatible t_root gfs' p ->
-      semax Delta (|>PROPx P (LOCALx Q (SEPx R)))
+      semax Delta (▷PROPx P (LOCALx Q (SEPx R)))
         (Sassign e1 e2)
           (normal_ret_assert
             (PROPx P
@@ -317,11 +321,11 @@ Proof.
   {
     rewrite (add_andp _ _ H9), (add_andp _ _ H4).
     apply derives_trans 
-        with (local (tc_environ Delta) && local (` (eq (field_address t_root gfs p)) (eval_lvalue e1)) 
-                && (tc_lvalue Delta e1) && !! (field_compatible t_root gfs' p)); [solve_andp |].
+        with (local (tc_environ Delta) ∧ local (` (eq (field_address t_root gfs p)) (eval_lvalue e1)) 
+                ∧ (tc_lvalue Delta e1) ∧ !! (field_compatible t_root gfs' p)); [solve_andp |].
     rewrite prop_and.
     unfold local, lift1; intros rho; simpl; unfold_lift.
-    apply andp_derives; auto.
+    apply bi.and_mono; auto.
     normalize.
     eapply derives_trans; [apply typecheck_lvalue_sound; auto |].
     rewrite <- H10; normalize.
@@ -436,7 +440,7 @@ Inductive msubst_efield_denote {cs: compspecs} (Delta: tycontext) (T1: PTree.t v
 
 Lemma msubst_efield_denote_eq: forall {cs: compspecs} Delta P T1 T2 GV R efs gfs,
   msubst_efield_denote Delta T1 T2 GV efs gfs ->
-  ENTAIL Delta, PROPx P (LOCALx (LocalD T1 T2 GV) (SEPx R)) |-- local (efield_denote efs gfs).
+  ENTAIL Delta, PROPx P (LOCALx (LocalD T1 T2 GV) (SEPx R)) ⊢ local (efield_denote efs gfs).
 Proof.
   intros ? ? ? ? ? ? ? ? ? MSUBST_EFIELD_DENOTE.
   induction MSUBST_EFIELD_DENOTE.
@@ -445,7 +449,7 @@ Proof.
     eapply (msubst_eval_expr_eq _ P _ _ GV R) in H0.
     rewrite (add_andp _ _ H0), (add_andp _ _ IHMSUBST_EFIELD_DENOTE).
     clear H0 IHMSUBST_EFIELD_DENOTE.
-    rewrite !andp_assoc; apply andp_left2, andp_left2.
+    rewrite -!bi.and_assoc; apply bi.and_elim_r, bi.and_elim_r.
     unfold local, lift1; unfold_lift; intro rho; simpl.
     normalize.
     constructor; auto.
@@ -459,7 +463,7 @@ Proof.
   + eapply (msubst_eval_expr_eq _ P _ _ GV R) in H0.
     rewrite (add_andp _ _ H0), (add_andp _ _ IHMSUBST_EFIELD_DENOTE).
     clear H0 IHMSUBST_EFIELD_DENOTE.
-    rewrite !andp_assoc; apply andp_left2, andp_left2.
+    rewrite !-bi.and_assoc; apply bi.and_elim_r, bi.and_elim_r.
     unfold local, lift1; unfold_lift; intro rho; simpl.
     normalize.
     apply efield_denote_ArraySubsc_long; auto.
@@ -469,7 +473,7 @@ Proof.
   + eapply (msubst_eval_expr_eq _ P _ _ GV R) in H0.
     rewrite (add_andp _ _ H0), (add_andp _ _ IHMSUBST_EFIELD_DENOTE).
     clear H0 IHMSUBST_EFIELD_DENOTE.
-    rewrite !andp_assoc; apply andp_left2, andp_left2.
+    rewrite -!bi.and_assoc; apply bi.and_elim_r, bi.and_elim_r.
     unfold local, lift1; unfold_lift; intro rho; simpl.
     normalize.
     apply efield_denote_ArraySubsc_ptrofs; auto.
@@ -771,7 +775,7 @@ Ltac hint_msg_aux2 R p2 :=
    end.
 
 Ltac hint_msg LOCAL2PTREE Delta e :=
- match goal with |- semax _ (|> PROPx _ (LOCALx _ (SEPx ?R))) _ _ =>
+ match goal with |- semax _ (▷ PROPx _ (LOCALx _ (SEPx ?R))) _ _ =>
   eapply (hint_msg_lemma Delta e);
   [ exact LOCAL2PTREE
   | reflexivity
@@ -961,9 +965,9 @@ Lemma semax_PTree_set:
       typeof_temp Delta id = Some t ->
       is_neutral_cast (implicit_deref (typeof e2)) t = true ->
       msubst_eval_expr Delta T1 T2 GV e2 = Some v ->
-      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢
          (tc_expr Delta e2) ->
-      semax Delta (|>PROPx P (LOCALx Q (SEPx R)))
+      semax Delta (▷PROPx P (LOCALx Q (SEPx R)))
         (Sset id e2)
           (normal_ret_assert
             (PROPx P
@@ -998,14 +1002,14 @@ Lemma semax_PTree_field_load_no_hint:
       find_nth_preds (fun Rn => Rn = field_at sh t_root gfs0 v' p /\ gfs = gfs1 ++ gfs0) R (Some (n, Rn)) ->
       readable_share sh ->
       JMeq (proj_reptype (nested_field_type t_root gfs0) gfs1 v') v ->
-      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢
         !! (legal_nested_field (nested_field_type t_root gfs0) gfs1) ->
-      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢
         local `(tc_val (typeof e) v) ->
-      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢
         denote_tc_assert
           (tc_andp (typecheck_LR Delta e_root lr) (typecheck_efield Delta efs)) ->
-      semax Delta (|>PROPx P (LOCALx Q (SEPx R)))
+      semax Delta (▷PROPx P (LOCALx Q (SEPx R)))
         (Sset id e)
           (normal_ret_assert
             (PROPx P
@@ -1046,9 +1050,9 @@ Proof.
   {
     rewrite <- (corable_sepcon_TT (prop _)) by auto.
     eapply nth_error_SEP_sepcon_TT'; [| eassumption].
-    apply andp_left2.
-    apply andp_left2.
-    apply andp_left2.
+    apply bi.and_elim_r.
+    apply bi.and_elim_r.
+    apply bi.and_elim_r.
     rewrite field_at_compatible'.
     go_lowerx.
     normalize.
@@ -1064,9 +1068,9 @@ Proof.
   specialize (FIELD_COMPATIBLE_E FIELD_COMPATIBLE).
   pose proof nested_efield_facts Delta _ _ efs _ _ _ _ FIELD_COMPATIBLE_E LR LEGAL_NESTED_EFIELD BY_VALUE as DERIVES.
   rewrite denote_tc_assert_andp in TC.
-  apply (derives_trans (local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R)))) in DERIVES.
+  apply (derives_trans (local (tc_environ Delta) ∧ PROPx P (LOCALx Q (SEPx R)))) in DERIVES.
   2:{
-    rewrite (andp_comm _ (local (efield_denote _ _))), <- !andp_assoc.
+    rewrite (bi.and_comm _ (local (efield_denote _ _))), <- !-bi.and_assoc.
     rewrite (add_andp _ _ TC).
     rewrite (add_andp _ _ TC_VAL).
     rewrite LR.
@@ -1114,11 +1118,11 @@ Lemma semax_PTree_field_load_with_hint:
       find_nth_preds (fun Rn => Rn = field_at sh t_root gfs0 v_reptype p /\ gfs = gfs1 ++ gfs0) R (Some (n, Rn)) ->
       readable_share sh ->
       JMeq (proj_reptype (nested_field_type t_root gfs0) gfs1 v_reptype) v_val ->
-      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢
         local (`(tc_val (typeof e) v_val)) ->
-      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢
         tc_lvalue Delta e ->
-      @semax cs Espec Delta (|> PROPx P (LOCALx Q (SEPx R)))
+      @semax cs Espec Delta (▷ PROPx P (LOCALx Q (SEPx R)))
         (Sset id e)
         (normal_ret_assert
           (PROPx P
@@ -1169,14 +1173,14 @@ Lemma semax_PTree_field_cast_load_no_hint:
       find_nth_preds (fun Rn => Rn = field_at sh t_root gfs0 v' p /\ gfs = gfs1 ++ gfs0) R (Some (n, Rn)) ->
       readable_share sh ->
       JMeq (proj_reptype (nested_field_type t_root gfs0) gfs1 v') v ->
-      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢
         !! (legal_nested_field (nested_field_type t_root gfs0) gfs1) ->
-      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢
         local `(tc_val t (eval_cast (typeof e) t v)) ->
-      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢
         denote_tc_assert
           (tc_andp (typecheck_LR Delta e_root lr) (typecheck_efield Delta efs)) ->
-      semax Delta (|>PROPx P (LOCALx Q (SEPx R)))
+      semax Delta (▷PROPx P (LOCALx Q (SEPx R)))
         (Sset id (Ecast e t))
           (normal_ret_assert
             (PROPx P
@@ -1216,9 +1220,9 @@ Proof.
   {
     rewrite <- (corable_sepcon_TT (prop _)) by auto.
     eapply nth_error_SEP_sepcon_TT'; [| eassumption].
-    apply andp_left2.
-    apply andp_left2.
-    apply andp_left2.
+    apply bi.and_elim_r.
+    apply bi.and_elim_r.
+    apply bi.and_elim_r.
     rewrite field_at_compatible'.
     go_lowerx.
     normalize.
@@ -1234,9 +1238,9 @@ Proof.
   specialize (FIELD_COMPATIBLE_E FIELD_COMPATIBLE).
   pose proof nested_efield_facts Delta _ _ efs _ _ _ _ FIELD_COMPATIBLE_E LR LEGAL_NESTED_EFIELD BY_VALUE as DERIVES.
   rewrite denote_tc_assert_andp in TC.
-  apply (derives_trans (local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R)))) in DERIVES.
+  apply (derives_trans (local (tc_environ Delta) ∧ PROPx P (LOCALx Q (SEPx R)))) in DERIVES.
   2:{
-    rewrite (andp_comm _ (local (efield_denote _ _))), <- !andp_assoc.
+    rewrite (bi.and_comm _ (local (efield_denote _ _))), <- !-bi.and_assoc.
     rewrite (add_andp _ _ TC).
     rewrite LR.
     apply andp_right; [| solve_andp].
@@ -1285,11 +1289,11 @@ Lemma semax_PTree_field_cast_load_with_hint:
       find_nth_preds (fun Rn => Rn = field_at sh t_root gfs0 v_reptype p /\ gfs = gfs1 ++ gfs0) R (Some (n, Rn)) ->
       readable_share sh ->
       JMeq (proj_reptype (nested_field_type t_root gfs0) gfs1 v_reptype) v_val ->
-      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢
         local (`(tc_val t (eval_cast (typeof e) t v_val))) ->
-      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢
         tc_lvalue Delta e ->
-      @semax cs Espec Delta (|> PROPx P (LOCALx Q (SEPx R)))
+      @semax cs Espec Delta (▷ PROPx P (LOCALx Q (SEPx R)))
         (Sset id (Ecast e t))
         (normal_ret_assert
           (PROPx P
@@ -1343,14 +1347,14 @@ Lemma semax_PTree_field_store_no_hint:
       writable_share sh ->
       JMeq v0_val v0 ->
       data_equal (upd_reptype (nested_field_type t_root gfs0) gfs1 v v0) v_new ->
-      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢
         denote_tc_assert
           (tc_andp (typecheck_LR Delta e_root lr)
             (tc_andp (typecheck_expr Delta (Ecast e2 (typeof e1)))
               (typecheck_efield Delta efs))) ->
-      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢
         !! (legal_nested_field (nested_field_type t_root gfs0) gfs1) ->
-      semax Delta (|>PROPx P (LOCALx Q (SEPx R)))
+      semax Delta (▷PROPx P (LOCALx Q (SEPx R)))
         (Sassign e1 e2)
           (normal_ret_assert
             (PROPx P
@@ -1391,9 +1395,9 @@ Proof.
   {
     rewrite <- (corable_sepcon_TT (prop _)) by auto.
     eapply nth_error_SEP_sepcon_TT'; [| eassumption].
-    apply andp_left2.
-    apply andp_left2.
-    apply andp_left2.
+    apply bi.and_elim_r.
+    apply bi.and_elim_r.
+    apply bi.and_elim_r.
     rewrite field_at_compatible'.
     go_lowerx.
     normalize.
@@ -1409,9 +1413,9 @@ Proof.
   specialize (FIELD_COMPATIBLE_E FIELD_COMPATIBLE).
   pose proof nested_efield_facts Delta _ _ efs _ _ _ _ FIELD_COMPATIBLE_E LR LEGAL_NESTED_EFIELD BY_VALUE as DERIVES.
   rewrite !denote_tc_assert_andp in TC.
-  apply (derives_trans (local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R)))) in DERIVES.
+  apply (derives_trans (local (tc_environ Delta) ∧ PROPx P (LOCALx Q (SEPx R)))) in DERIVES.
   2:{
-    rewrite (andp_comm _ (local (efield_denote _ _))), <- !andp_assoc.
+    rewrite (bi.and_comm _ (local (efield_denote _ _))), !bi.and_assoc.
     rewrite (add_andp _ _ TC).
     rewrite LR.
     apply andp_right; [| solve_andp].
@@ -1472,7 +1476,7 @@ Lemma semax_PTree_field_store_union_hack:
       type_is_volatile (nested_field_type t_root gfs') = false ->
       nested_field_offset t_root gfs = nested_field_offset t_root gfs' ->
       access_mode (nested_field_type t_root gfs') = By_value ch' ->
-      (numeric_type (nested_field_type t_root gfs) && numeric_type (nested_field_type t_root gfs'))%bool = true ->
+      (numeric_type (nested_field_type t_root gfs) ∧ numeric_type (nested_field_type t_root gfs'))%bool = true ->
       decode_encode_val_ok ch ch' ->
       find_nth_preds (fun Rn => (Rn = Rv v /\ (Rv = fun v => field_at sh t_root gfs0 v p)) /\ gfs = gfs1 ++ gfs0) R (Some (n, Rn)) ->
       replace_UnionField id gfs1 = Some gfs1' ->
@@ -1480,16 +1484,16 @@ Lemma semax_PTree_field_store_union_hack:
       decode_encode_val v0_val ch ch' v0_val' ->
       JMeq v0_val' v0 ->
       data_equal (upd_reptype (nested_field_type t_root gfs0) gfs1' v v0) v_new ->
-      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢
         denote_tc_assert
           (tc_andp (typecheck_LR Delta e_root lr)
             (tc_andp (typecheck_expr Delta (Ecast e2 (typeof e1)))
               (typecheck_efield Delta efs)))->
-      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢
         !! (legal_nested_field (nested_field_type t_root gfs0) gfs1) ->
-      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢
         !! (field_compatible t_root gfs' p)  ->
-      semax Delta (|>PROPx P (LOCALx Q (SEPx R)))
+      semax Delta (▷PROPx P (LOCALx Q (SEPx R)))
         (Sassign e1 e2)
           (normal_ret_assert
             (PROPx P
@@ -1537,9 +1541,9 @@ Proof.
   {
     rewrite <- (corable_sepcon_TT (prop _)) by auto.
     eapply nth_error_SEP_sepcon_TT'; [| eassumption].
-    apply andp_left2.
-    apply andp_left2.
-    apply andp_left2.
+    apply bi.and_elim_r.
+    apply bi.and_elim_r.
+    apply bi.and_elim_r.
     rewrite field_at_compatible'.
     go_lowerx.
     normalize.
@@ -1556,9 +1560,9 @@ Proof.
   specialize (FIELD_COMPATIBLE_E FIELD_COMPATIBLE).
   pose proof nested_efield_facts Delta _ _ efs _ _ _ _ FIELD_COMPATIBLE_E LR LEGAL_NESTED_EFIELD as DERIVES.
   rewrite !denote_tc_assert_andp in TC.
-  apply (derives_trans (local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R)))) in DERIVES.
+  apply (derives_trans (local (tc_environ Delta) ∧ PROPx P (LOCALx Q (SEPx R)))) in DERIVES.
   2:{
-    rewrite (andp_comm _ (local (efield_denote _ _))), <- !andp_assoc.
+    rewrite (bi.and_comm _ (local (efield_denote _ _))), <- !-bi.and_assoc.
     rewrite (add_andp _ _ TC).
     rewrite LR.
     apply andp_right; [| solve_andp].
@@ -1620,10 +1624,10 @@ Lemma semax_PTree_field_store_with_hint:
       writable_share sh ->
       JMeq v0_val v0 ->
       data_equal (upd_reptype (nested_field_type t_root gfs0) gfs1 v v0) v_new ->
-      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢
         denote_tc_assert
           (tc_andp (typecheck_lvalue Delta e1) (typecheck_expr Delta (Ecast e2 (typeof e1)))) ->
-      semax Delta (|>PROPx P (LOCALx Q (SEPx R)))
+      semax Delta (▷PROPx P (LOCALx Q (SEPx R)))
         (Sassign e1 e2)
           (normal_ret_assert
             (PROPx P
@@ -1777,7 +1781,7 @@ Ltac search_field_at_in_SEP := find_nth test_field_at_in_SEP.
 
 Lemma quick_derives_right:
   forall P Q : environ -> mpred,
-   (TT |-- Q) -> P |-- Q.
+   (TT ⊢ Q) -> P ⊢ Q.
 Proof.
 intros. eapply derives_trans; try eassumption; auto.
 Qed.
@@ -1861,7 +1865,7 @@ Ltac load_tac_no_hint LOCAL2PTREE :=
 
 Ltac load_tac :=
   match goal with
-  | |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sset _ ?e) _ =>
+  | |- semax ?Delta (▷ (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sset _ ?e) _ =>
     let T1 := fresh "T1" in evar (T1: PTree.t val);
     let T2 := fresh "T2" in evar (T2: PTree.t (type * val));
     let G := fresh "GV" in evar (G: option globals);
@@ -1922,7 +1926,7 @@ Ltac cast_load_tac_no_hint LOCAL2PTREE :=
 
 Ltac cast_load_tac :=
   match goal with
-  | |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sset _ (Ecast ?e _)) _ =>
+  | |- semax ?Delta (▷ (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sset _ (Ecast ?e _)) _ =>
     let T1 := fresh "T1" in evar (T1: PTree.t val);
     let T2 := fresh "T2" in evar (T2: PTree.t (type * val));
     let G := fresh "GV" in evar (G: option globals);
@@ -2030,7 +2034,7 @@ Ltac check_expression_by_value e :=
 
 Ltac store_tac :=
   match goal with
-  | |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sassign ?e1 ?e2) _ =>
+  | |- semax ?Delta (▷ (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sassign ?e1 ?e2) _ =>
     check_expression_by_value e1;
     let T1 := fresh "T1" in evar (T1: PTree.t val);
     let T2 := fresh "T2" in evar (T2: PTree.t (type * val));
@@ -2044,7 +2048,7 @@ Ltac store_tac :=
 
 Ltac forward_store_union_hack id :=
  match goal with
-  | |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sassign ?e1 ?e2) _ =>
+  | |- semax ?Delta (▷ (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sassign ?e1 ?e2) _ =>
     check_expression_by_value e1;
     let T1 := fresh "T1" in evar (T1: PTree.t val);
     let T2 := fresh "T2" in evar (T2: PTree.t (type * val));
@@ -2083,7 +2087,7 @@ Ltac forward_store_union_hack id :=
   | first [solve_legal_nested_field_in_entailment
                                              | fail 1000 "unexpected failure in store_tac_union_hack."
                                                          "unexpected failure in solve_legal_nested_field_in_entailment"]
-  | solve [entailer!] || match goal with |- _ |-- prop ?A => fail 1000 "cannot prove" A end
+  | solve [entailer!] || match goal with |- _ ⊢ prop ?A => fail 1000 "cannot prove" A end
   ]
   end.
 
