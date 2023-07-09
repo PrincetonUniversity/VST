@@ -7,7 +7,6 @@ Require Import VST.floyd.mapsto_memory_block.
 Require Import VST.floyd.reptype_lemmas.
 Require Import VST.floyd.data_at_rec_lemmas.
 Require Import VST.floyd.field_at.
-Require Import VST.floyd.stronger.
 Require Import VST.floyd.entailer.
 Require Import VST.floyd.closed_lemmas.
 Require Import VST.floyd.proj_reptype_lemmas.
@@ -18,7 +17,7 @@ Import LiftNotation.
 
 Section NESTED_RAMIF.
 
-Context {cs: compspecs}.
+Context `{!heapGS Σ} {cs: compspecs}.
 
 Lemma reptype_Tarray_JMeq_constr0: forall t gfs t0 n a (v: reptype (nested_field_type t gfs)),
   legal_nested_field t gfs ->
@@ -81,7 +80,7 @@ Proof.
 Qed.
 
 Lemma data_at_type_changeable:
-  forall `{!heapGS Σ} {cs : compspecs} (sh : Share.t) (t1 t2 : type) 
+  forall {cs : compspecs} (sh : Share.t) (t1 t2 : type) 
     (v1 : reptype t1) (v2 : reptype t2),
   t1 = t2 -> JMeq v1 v2 -> data_at sh t1 v1 = data_at sh t2 v2.
 Proof.
@@ -92,7 +91,7 @@ Proof.
 Qed.
 
 Lemma field_at_type_changeable:
-  forall `{!heapGS Σ} {cs : compspecs} (sh : Share.t) (t1 t2 : type) 
+  forall {cs : compspecs} (sh : Share.t) (t1 t2 : type) 
   (EQt: t1=t2)
   (g1 g2: list gfield)
   (EQg: g1 = g2)
@@ -120,7 +119,7 @@ apply JMeq_refl.
 Qed.
 
 (* This lemma is mainly dealing with all JMeq subtle issues and combine 3 ramif lemmas together. *)
-Lemma gfield_ramif: forall `{!heapGS Σ} sh t gfs gf v v0 p,
+Lemma gfield_ramif: forall sh t gfs gf v v0 p,
   JMeq (proj_gfield_reptype (nested_field_type t gfs) gf v) v0 ->
   field_compatible t (gf :: gfs) p ->
   field_at sh t gfs v p ⊢ field_at sh t (gf :: gfs) v0 p ∗
@@ -359,7 +358,7 @@ apply derives_trans with
       unfold eq_rect_r. rewrite -> name_member_get. apply JMeq_refl.
 Qed.
 
-Lemma nested_field_ramif: forall `{!heapGS Σ} sh t gfs0 gfs1 v v0 p,
+Lemma nested_field_ramif: forall sh t gfs0 gfs1 v v0 p,
   JMeq (proj_reptype (nested_field_type t gfs0) gfs1 v) v0 ->
   field_compatible t (gfs1 ++ gfs0) p ->
   field_at sh t gfs0 v p ⊢
@@ -370,101 +369,55 @@ Lemma nested_field_ramif: forall `{!heapGS Σ} sh t gfs0 gfs1 v v0 p,
 Proof.
   intros.
   rewrite allp_uncurry.
-  (* FIXME RAMIF_Q'.formalize solves an equiv relation on (X->mpred), is that fixable? *)
-  RAMIF_Q'.formalize.
   revert v0 H; induction gfs1 as [| gf gfs1]; intros.
-  + simpl app in *.
-    apply RAMIF_Q'.solve with emp.
-    - simpl; auto.
-    - simpl in H. unfold eq_rect_r in H; rewrite <- eq_rect_eq in H; apply JMeq_eq in H.
-      rewrite H, sepcon_emp; auto.
-    - clear v0 H.
-      intros [v0 v0']; unfold fst, snd.
-      normalize.
-      simpl.
-      unfold eq_rect_r; rewrite <- eq_rect_eq; apply JMeq_eq in H.
-      rewrite H; auto.
+  + simpl in *.
+    rewrite /eq_rect_r /= in H.
+    apply JMeq_eq in H as <-.
+    iIntros "$" (??) "?".
+    rewrite /eq_rect_r /=.
+    apply JMeq_eq in H as <-; done.
   + simpl app in H0, v0, H |- *.
-    assert ({v1: reptype (nested_field_type t (gfs1 ++ gfs0)) | JMeq (proj_reptype (nested_field_type t gfs0) gfs1 v) v1})
+    assert ({v1: reptype (nested_field_type t (gfs1 ++ gfs0)) | JMeq (proj_reptype (nested_field_type t gfs0) gfs1 v) v1} ) as (v1 & ?H)
       by (apply JMeq_sigT; rewrite nested_field_type_nested_field_type; auto).
-    destruct X as [v1 ?H].
-    change
-      (fun st: reptype (nested_field_type t (gf :: gfs1 ++ gfs0)) *
-               reptype (nested_field_type (nested_field_type t gfs0) (gf :: gfs1)) =>
-       field_at sh t (gf :: gfs1 ++ gfs0) (fst st) p)
-    with
-      (Basics.compose
-        (fun v => field_at sh t (gf :: gfs1 ++ gfs0) v p)
-        (fun st: reptype (nested_field_type t (gf :: gfs1 ++ gfs0)) *
-               reptype (nested_field_type (nested_field_type t gfs0) (gf :: gfs1)) =>
-         fst st)).
-    change (fun st: reptype (nested_field_type t (gf :: gfs1 ++ gfs0)) *
-               reptype (nested_field_type (nested_field_type t gfs0) (gf :: gfs1)) =>
-       field_at sh t gfs0
-         (upd_reptype (nested_field_type t gfs0) (gf :: gfs1) v (snd st)) p)
-      with
-      (Basics.compose
-        (fun st: reptype (nested_field_type t (gfs1 ++ gfs0)) *
-                 reptype (nested_field_type (nested_field_type t gfs0) gfs1) =>
-         field_at sh t gfs0
-           (upd_reptype (nested_field_type t gfs0) gfs1 v (snd st)) p)
-        (fun st: reptype (nested_field_type t (gf :: gfs1 ++ gfs0)) *
-                 reptype (nested_field_type (nested_field_type t gfs0) (gf :: gfs1)) =>
-           (upd_gfield_reptype _ gf v1 (eq_rect_r reptype (fst st) (eq_sym (nested_field_type_ind _ (gf :: _)))),
-            upd_gfield_reptype _ gf (proj_reptype _ gfs1 v) (eq_rect_r reptype (snd st) (eq_sym (nested_field_type_ind _ (gf :: _))))))).
-    eapply RAMIF_Q'.trans with
-      (pL := fun _ => !! True)
-      (pG := fun st => !! JMeq (fst st) (snd st)).
-    - simpl; auto.
-    - simpl; auto.
-    - simpl; auto.
-    - apply IHgfs1; clear IHgfs1.
-      * clear - H0.
-        rewrite field_compatible_cons in H0.
-        destruct (nested_field_type t (gfs1 ++ gfs0)), gf; tauto.
-      * exact H1.
-    - eapply derives_trans; [apply gfield_ramif |].
-      * instantiate (1 := v0).
-        eapply JMeq_trans; [| apply H].
-        clear - H1.
-        unfold proj_reptype; fold proj_reptype.
-        eapply JMeq_trans; [| apply @JMeq_sym, eq_rect_r_JMeq].
-        revert v1 H1; rewrite <- nested_field_type_nested_field_type; intros.
-        apply JMeq_eq in H1; subst v1.
-        apply JMeq_refl.
-      * auto.
-      * apply bi.sep_mono; auto.
-        apply bi.forall_mono; intros v0'.
-        Opaque nested_field_type_ind. simpl. Transparent nested_field_type_ind.
-        rewrite prop_imp by auto.
-        apply derives_refl.
-    - intros; apply prop_right; auto.
-    - clear v0 H.
-      intros [v0 v0']; unfold fst, snd.
-      apply andp_derives; [| auto].
-      apply prop_derives; intro.
-      clear - H H1.
-      set (v0'' := eq_rect_r reptype v0 (eq_sym (nested_field_type_ind t (gf :: gfs1 ++ gfs0)))).
-      set (v0''' := eq_rect_r reptype v0' (eq_sym (nested_field_type_ind (nested_field_type t gfs0) (gf :: gfs1)))).
-      assert (JMeq v0'' v0''') by (eapply JMeq_trans; [apply eq_rect_r_JMeq | apply (JMeq_trans H), @JMeq_sym, eq_rect_r_JMeq]).
-      clearbody v0'' v0'''.
-      clear v0 v0' H.
-      revert v0'' v1 H0 H1.
-      change (gf :: gfs1 ++ gfs0) with ((gf :: gfs1) ++ gfs0).
-      rewrite <- nested_field_type_nested_field_type.
-      intros.
-      apply JMeq_eq in H1; subst v1.
-      apply JMeq_eq in H0; subst v0'''.
-      apply JMeq_refl.
+    rewrite IHgfs1 //; clear IHgfs1.
+    2: { rewrite field_compatible_cons in H0. destruct (nested_field_type t (gfs1 ++ gfs0)), gf; tauto. }
+    rewrite gfield_ramif //.
+    2: { instantiate (1 := v0).
+         eapply JMeq_trans; [| apply H].
+         clear - H1.
+         unfold proj_reptype; fold proj_reptype.
+         eapply JMeq_trans; [| apply @JMeq_sym, eq_rect_r_JMeq].
+         revert v1 H1; rewrite <- nested_field_type_nested_field_type; intros.
+         apply JMeq_eq in H1; subst v1.
+         apply JMeq_refl. }
+    iIntros "(($ & H1) & H2)" ((va, vb) Heq) "?"; simpl fst in *; simpl snd in *.
+    iSpecialize ("H1" with "[$]").
+    unfold upd_reptype; fold upd_reptype.
+    set (v0'' := eq_rect_r reptype va (eq_sym (nested_field_type_ind t (gf :: gfs1 ++ gfs0)))).
+    set (v0''' := eq_rect_r reptype vb (eq_sym (nested_field_type_ind (nested_field_type t gfs0) (gf :: gfs1)))).
+    assert (JMeq v0'' v0''') by (eapply JMeq_trans; [apply eq_rect_r_JMeq | apply (JMeq_trans Heq), @JMeq_sym, eq_rect_r_JMeq]).
+    clearbody v0'' v0'''.
+    clear v0 H va vb Heq.
+    iApply ("H2" $! (upd_gfield_reptype (nested_field_type t (gfs1 ++ gfs0)) gf v1 v0'',
+      upd_gfield_reptype (nested_field_type (nested_field_type t gfs0) gfs1) gf
+        (proj_reptype (nested_field_type t gfs0) gfs1 v) v0''') with "[%] [$]"); simpl.
+    revert v0'' v1 H0 H1 H2.
+    change (gf :: gfs1 ++ gfs0) with ((gf :: gfs1) ++ gfs0).
+    rewrite -nested_field_type_nested_field_type.
+    intros.
+    apply JMeq_eq in H1; subst v1.
+    apply JMeq_eq in H2; subst v0'''.
+    done.
 Qed.
 
+(* use <absorb>? *)
 Lemma nested_field_ramif_load: forall sh t gfs0 gfs1 (v_reptype: reptype (nested_field_type t gfs0)) (v_val: val) p,
   field_compatible t (gfs1 ++ gfs0) p ->
   JMeq (proj_reptype (nested_field_type t gfs0) gfs1 v_reptype) v_val ->
   exists v_reptype',
     JMeq v_reptype' v_val /\
-    (field_at sh t gfs0 v_reptype p |--
-      field_at sh t (gfs1 ++ gfs0) v_reptype' p * TT).
+    (field_at sh t gfs0 v_reptype p ⊢
+      field_at sh t (gfs1 ++ gfs0) v_reptype' p ∗ True).
 Proof.
   intros.
   generalize (JMeq_refl (proj_reptype (nested_field_type t gfs0) gfs1 v_reptype)).
@@ -472,7 +425,7 @@ Proof.
   clearbody v0.
   revert v0.
   pattern (reptype (nested_field_type (nested_field_type t gfs0) gfs1)) at 1 3.
-  rewrite nested_field_type_nested_field_type at 1.
+  rewrite {2}nested_field_type_nested_field_type.
   intros; exists v0.
   split.
   1: eapply JMeq_trans; [apply @JMeq_sym |]; eassumption.
@@ -485,9 +438,9 @@ Lemma nested_field_ramif_store: forall sh t gfs0 gfs1 (v_reptype: reptype (neste
   JMeq v0_reptype v_val ->
   exists v0_reptype',
     JMeq v0_reptype' v_val /\
-    (field_at sh t gfs0 v_reptype p |--
-      field_at_ sh t (gfs1 ++ gfs0) p *
-       (field_at sh t (gfs1 ++ gfs0) v0_reptype' p -*
+    (field_at sh t gfs0 v_reptype p ⊢
+      field_at_ sh t (gfs1 ++ gfs0) p ∗
+       (field_at sh t (gfs1 ++ gfs0) v0_reptype' p -∗
           field_at sh t gfs0 (upd_reptype (nested_field_type t gfs0) gfs1 v_reptype v0_reptype) p)).
 Proof.
   intros.
@@ -499,26 +452,23 @@ Proof.
   clearbody v0_reptype'.
   revert v0 v0_reptype'.
   pattern (reptype (nested_field_type (nested_field_type t gfs0) gfs1)) at 1 2 4 6.
-  rewrite nested_field_type_nested_field_type at 1.
+  rewrite {3}nested_field_type_nested_field_type.
   intros; exists v0_reptype'.
   split.
   1: eapply JMeq_trans; [apply @JMeq_sym |]; eassumption.
   eapply derives_trans; [apply nested_field_ramif; eassumption |].
   apply bi.sep_mono.
   1: apply field_at_field_at_.
-  eapply bi.forall_elim.
-  eapply bi.forall_elim.
-  rewrite prop_imp; [apply derives_refl |].
-  auto.
+  iIntros "H"; iApply "H"; auto.
 Qed.
 
 Lemma nested_field_ramif': forall sh t gfs0 gfs1 v v0 p,
   JMeq (proj_reptype (nested_field_type t gfs0) gfs1 v) v0 ->
   legal_nested_field t (gfs1 ++ gfs0) ->
-  field_at sh t gfs0 v p |--
-    field_at sh t (gfs1 ++ gfs0) v0 p *
-    (ALL v0': _, ALL v0'': _, !! JMeq v0' v0'' -->
-      (field_at sh t (gfs1 ++ gfs0) v0' p -*
+  field_at sh t gfs0 v p ⊢
+    field_at sh t (gfs1 ++ gfs0) v0 p ∗
+    (∀ v0': _, ∀ v0'': _, ⌜JMeq v0' v0''⌝ →
+      (field_at sh t (gfs1 ++ gfs0) v0' p -∗
          field_at sh t gfs0 (upd_reptype (nested_field_type t gfs0) gfs1 v v0'') p)).
 Proof.
   intros.
@@ -532,10 +482,10 @@ Qed.
 Lemma nested_field_ramif'': forall sh t gfs0 gfs1 v v0 p,
   JMeq (proj_reptype (nested_field_type t gfs0) gfs1 v) v0 ->
   legal_nested_field (nested_field_type t gfs0) gfs1 ->
-  field_at sh t gfs0 v p |--
-    field_at sh t (gfs1 ++ gfs0) v0 p *
-    (ALL v0': _, ALL v0'': _, !! JMeq v0' v0'' -->
-      (field_at sh t (gfs1 ++ gfs0) v0' p -*
+  field_at sh t gfs0 v p ⊢
+    field_at sh t (gfs1 ++ gfs0) v0 p ∗
+    (∀ v0': _, ∀ v0'': _, ⌜JMeq v0' v0''⌝ →
+      (field_at sh t (gfs1 ++ gfs0) v0' p -∗
          field_at sh t gfs0 (upd_reptype (nested_field_type t gfs0) gfs1 v v0'') p)).
 Proof.
   intros.
@@ -562,7 +512,6 @@ Proof.
     apply bi.later_mono.
     rewrite (add_andp _ _ H).
     rewrite -bi.and_assoc.
-
     apply bi.and_elim_r.
   + rewrite bi.and_comm. apply semax_extract_later_prop1.
     auto.
