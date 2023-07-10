@@ -12,23 +12,23 @@ Require Import VST.floyd.type_induction.
 Require Import VST.floyd.mapsto_memory_block.
 Require Import VST.floyd.data_at_rec_lemmas.
 Require Import VST.floyd.field_at.
-(* Require Import VST.floyd.loadstore_mapsto. *)
-(* Require Import VST.floyd.loadstore_field_at. *)
-(* Require Import VST.floyd.nested_loadstore. *)
-(* Require Import VST.floyd.sc_set_load_store. *)
-(* Require Import VST.floyd.stronger. *)
+Require Import VST.floyd.loadstore_mapsto.
+Require Import VST.floyd.loadstore_field_at.
+Require Import VST.floyd.nested_loadstore.
+Require Import VST.floyd.sc_set_load_store.
+Require Import VST.floyd.stronger.
 Require Import VST.floyd.local2ptree_denote.
 Require Import VST.floyd.local2ptree_eval.
 Require Import VST.floyd.reptype_lemmas.
 Require Import VST.floyd.proj_reptype_lemmas.
-(* Require Import VST.floyd.replace_refill_reptype_lemmas. *)
+Require Import VST.floyd.replace_refill_reptype_lemmas.
 Require Import VST.floyd.aggregate_type.
-(* Require Import VST.floyd.entailer. *)
+Require Import VST.floyd.entailer.
 (* Require Import VST.floyd.globals_lemmas. *)
 Require Import VST.floyd.semax_tactics.
 (* Require Import VST.floyd.for_lemmas. *)
 Require Import VST.floyd.diagnosis.
-(* Require Import VST.floyd.simpl_reptype. *)
+Require Import VST.floyd.simpl_reptype.
 Require Import VST.floyd.nested_pred_lemmas.
 (* Require Import VST.floyd.freezer. *)
 Import Cop.
@@ -858,7 +858,7 @@ Inductive Function_arguments_include_a_memory_load_of_type (t:type) := .
 Ltac goal_has_evars :=
  match goal with |- ?A => has_evar A end.
   
-(* FIXME *)
+(* FIXME freezer stuff *)
 (* Lemma drop_SEP_tc:
  forall Delta P Q R' RF R S,
    (forall rho, predicates_hered.boxy predicates_sl.extendM (S rho)) ->
@@ -876,9 +876,9 @@ Proof.
   specialize (H rho).
   eapply derives_trans; [apply sepcon_derives; [exact H1 | apply derives_refl] |].
   constructor; apply predicates_sl.extend_sepcon; auto.
-Qed. *)
-(* FIXME *)
-(* Ltac delete_FRZR_from_SEP :=
+Qed.
+
+Ltac delete_FRZR_from_SEP :=
 match goal with
 | |- ENTAIL _, PROPx _ (LOCALx _ (SEPx ?R)) ⊢ _ =>
   match R with context [FRZR] =>
@@ -894,7 +894,7 @@ Ltac check_typecheck :=
  (* try delete_FRZR_from_SEP; *) (* FIXME *)
  first [goal_has_evars; idtac |
  try apply local_True_right;
- (* entailer!; *) (* FIXME *)
+ entailer!;
  match goal with
  | |- typecheck_error (deref_byvalue ?T) =>
        elimtype (Function_arguments_include_a_memory_load_of_type T)
@@ -2855,7 +2855,7 @@ match goal with
     do_compute_expr1 CS Delta Pre e;
     match goal with v' := _, H:_ |- _ => rename H into HRE; rename v' into v end;
     apply (semax_ifthenelse_PQR' _ v);
-     [ reflexivity | (* FIXME entailer | *) assumption
+     [ reflexivity | entailer | assumption
      | simpl in v; clear HRE; subst v; apply semax_extract_PROP; intro HRE;
        do_repr_inj HRE;
        repeat (apply semax_extract_PROP; intro);
@@ -3171,8 +3171,8 @@ Ltac sequential :=
 #[export] Hint Extern 1 (@sizeof _ ?A > 0) =>
    (let a := fresh in set (a:= sizeof A); hnf in a; subst a; computable)
   : valid_pointer.
-(* FIXME depend on entailer.v *)
-(* #[export] Hint Resolve denote_tc_test_eq_split : valid_pointer. *)
+
+#[export] Hint Resolve denote_tc_test_eq_split : valid_pointer.
 
 Ltac pre_entailer :=
   try match goal with
@@ -3187,7 +3187,6 @@ Inductive Type_of_right_hand_side_does_not_match_type_of_assigned_variable := .
 Ltac check_cast_assignment :=
    first [reflexivity | elimtype Type_of_right_hand_side_does_not_match_type_of_assigned_variable].
 
-(* FIXME depend on sc_set_load_store.v , entailer.v
 Ltac forward_setx :=
   ensure_normal_ret_assert;
   hoist_later_in_pre;
@@ -3202,7 +3201,7 @@ Ltac forward_setx :=
                 | pre_entailer(* ; try solve [entailer!] *)]
         ]
  end.
-*)
+
 (* BEGIN new semax_load and semax_store tactics *************************)
 
 Ltac construct_nested_efield e e1 efs tts lr :=
@@ -3216,8 +3215,7 @@ Ltac construct_nested_efield e e1 efs tts lr :=
     simpl in e1, efs, tts, lr;
     change e with (nested_efield e1 efs tts);
     clear pp.
-(*
-(* FIXME move to simpl_reptype.v *)
+
 Definition int_signed_or_unsigned (t: type) : int -> Z :=
   match typeconv t with
   | Tint _ Signed _ => Int.signed
@@ -3225,17 +3223,17 @@ Definition int_signed_or_unsigned (t: type) : int -> Z :=
   | _ => fun _ => 0 (* bogus *)
   end.
 
-Lemma efield_denote_cons_array: forall {cs: compspecs} P efs gfs ei i,
-  (P ⊢ local (efield_denote efs gfs)) ->
+Lemma efield_denote_cons_array: forall `{!heapGS Σ} {cs: compspecs} P efs gfs ei i,
+  (P ⊢ local(Σ:=Σ) (efield_denote efs gfs)) ->
   (P ⊢ local (`(eq (Vint i)) (eval_expr ei))) ->
   is_int_type (typeof ei) = true ->
   P ⊢ local (efield_denote (eArraySubsc ei :: efs) 
           (ArraySubsc (int_signed_or_unsigned (typeof ei) i) :: gfs)).
 Proof.
   intros.
-  rewrite (add_andp _ _ H), (add_andp _ _ H0), -bi.and_assoc.
-  apply bi.and_elim_r.
-  intros rho; simpl; unfold local, lift1; unfold_lift; floyd.seplog_tactics.normalize.
+  rewrite (add_andp _ _ H) (add_andp _ _ H0) -bi.and_assoc.
+  rewrite bi.and_elim_r.
+  raise_rho; simpl; unfold local, lift1; unfold_lift; floyd.seplog_tactics.normalize.
   constructor; auto.
   2:   constructor; auto.
   clear - H1. destruct (typeof ei); inv H1.
@@ -3243,9 +3241,8 @@ Proof.
   rewrite <- H2.
   destruct (typeof ei); inv H1.
   unfold int_signed_or_unsigned. destruct i0,s; simpl;
-  rewrite ?Int.repr_signed, ?Int.repr_unsigned; auto. 
+  rewrite ?Int.repr_signed ?Int.repr_unsigned; auto. 
 Qed.
-*)
 
 Lemma efield_denote_cons_struct: forall `{!heapGS Σ} {cs: compspecs} P efs gfs i,
   (P ⊢ local(Σ:=Σ) (efield_denote efs gfs)) ->
@@ -3269,7 +3266,6 @@ Proof.
   constructor; auto.
 Qed.
 
-(* FIXME Depend on sc_set_load_store.v 
 (* Given gfs, gfs0, and a name for gfs1, instantiate gfs1 s.t. (gfs = gfs1 ++ gfs0).
    Called suffix because these paths are reversed lists. *)
 Ltac calc_gfs_suffix gfs gfs0 gfs1 :=
@@ -3292,7 +3288,7 @@ Ltac find_load_result Hresult t_root gfs0 v gfs1 :=
   subst result;
   [ (solve_load_rule_evaluation || fail 1000 "solve_load_rule_evaluation' failed")
   | ].
-*)
+
 Lemma sem_add_ptr_int_lem:
  forall {cs: compspecs} v t i,
    complete_type cenv_cs t = true ->
@@ -3356,7 +3352,6 @@ Ltac simple_value v :=
 
 Inductive undo_and_first__assert_PROP: Prop -> Prop := .
 
-(* FIXME depend on entailer.v
 Ltac default_entailer_for_store_tac := try solve [entailer!]. 
 
 Ltac entailer_for_store_tac := default_entailer_for_store_tac.
@@ -3365,7 +3360,7 @@ Ltac load_tac :=
  ensure_normal_ret_assert;
  hoist_later_in_pre;
  first [sc_set_load_store.cast_load_tac | sc_set_load_store.load_tac].
-*)
+
 Ltac simpl_proj_reptype :=
 progress
 match goal with |- context [@proj_reptype ?cs ?t ?gfs ?v] =>
@@ -3379,12 +3374,11 @@ match goal with |- context [@proj_reptype ?cs ?t ?gfs ?v] =>
   subst d
 end.
 
-(* FIXME depend on entailer.v
 Ltac store_tac :=
 ensure_open_normal_ret_assert;
 hoist_later_in_pre;
 sc_set_load_store.store_tac.
-*)
+
 (* END new semax_load and semax_store tactics *************************)
 
 Ltac forward0 :=  (* USE FOR DEBUGGING *)
@@ -3398,16 +3392,12 @@ Ltac forward0 :=  (* USE FOR DEBUGGING *)
   end.
 
 Lemma bind_ret_derives `{!heapGS Σ} t P Q v: (P ⊢ Q) -> bind_ret(Σ:=Σ) v t P ⊢ bind_ret v t Q.
-Proof. intros. destruct v. simpl; intros.
-  (* FIXME depend on enailer.v *)
-  (*  entailer!. apply H.
-  destruct t; try apply derives_refl. simpl; intros. apply H. 
+Proof. intros. destruct v.
+  - simpl; intros. raise_rho. apply bi.and_mono. done. rewrite H. done.
+  - destruct t; try apply derives_refl. simpl; raise_rho. rewrite H. done. 
 Qed.
-*)
-Admitted.
 
-(* FIXME depend on enailer.v *)
-Ltac entailer_for_return := idtac. (*  entailer. *)
+Ltac entailer_for_return := entailer.
 
 Ltac solve_return_outer_gen := solve [repeat constructor].
 
@@ -3603,8 +3593,7 @@ Ltac try_clean_up_stackframe :=
   | |- _ => idtac
  end.
 
-(* FIXME change to ::= after fixing entailer.v *)
-Ltac clean_up_stackframe :=
+Ltac clean_up_stackframe ::=
   lazymatch goal with |-
      ENTAIL _, PROPx _ (LOCALx _ (SEPx _)) ⊢
         PROPx _ (LOCALx _ (SEPx _)) * stackframe_of _ =>
@@ -3800,10 +3789,9 @@ Ltac forward_advise_while :=
 Ltac forward1 s :=  (* Note: this should match only those commands that
                                      can take a normal_ret_assert *)
     lazymatch s with
-  | Sassign _ _ => clear_Delta_specs(* FIXME quick ; store_tac *)
-  | Sset _ ?e => idtac (* FIXME quick? sc_set_load_store.v 
-    clear_Delta_specs;
-    first [no_loads_expr e false; forward_setx | load_tac]   *)
+  | Sassign _ _ => clear_Delta_specs; store_tac
+  | Sset _ ?e => clear_Delta_specs;
+    first [no_loads_expr e false; forward_setx | load_tac]
   | Sifthenelse _ _ _ => forward_advise_if
   | Sswitch _ _ => forward_advise_if
   | Swhile _ _ => forward_advise_while
@@ -4012,8 +4000,8 @@ Ltac numeric_forward_store_union_hack id1 id2 :=
      eapply semax_seq';
      [ ensure_open_normal_ret_assert;
        hoist_later_in_pre;
-       union_hack_message id1 id2(*FIXME sc_set_load_store ;
-       forward_store_union_hack id2 *)
+       union_hack_message id1 id2;
+       forward_store_union_hack id2
      | unfold replace_nth; abbreviate_semax].
 
 Ltac union_message := 
@@ -4023,8 +4011,8 @@ Ltac simple_forward_store_union_hack id2 :=
      eapply semax_seq';
      [ ensure_open_normal_ret_assert;
        hoist_later_in_pre;
-       clear_Delta_specs(*FIXME sc_set_load_store ; 
-       sc_set_load_store.store_tac *)
+       clear_Delta_specs; 
+       sc_set_load_store.store_tac
      | union_message; unfold replace_nth; abbreviate_semax].
 
 Ltac  try_forward_store_union_hack e1 s2 id1 t1 :=
@@ -4075,7 +4063,7 @@ Ltac forward :=
            try_forward_store_union_hack e1 s2 id1 t1
     | |- semax _ _ _ (Ssequence ?c _) _ =>
       check_precondition;
-      (* FIXME sc_set_load_store.v check_unfold_mpred_for_at; *)
+      check_unfold_mpred_for_at;
       eapply semax_seq';
       [ forward1 c
       | fwd_result;
@@ -4145,7 +4133,7 @@ Qed.
 Ltac prove_headptr_gv :=
  first [simple apply gvars_denote_HP'; 
          [solve [repeat (try (left; reflexivity) || right)] | apply I ]
-        | solve [idtac (* FIXMEentailer! *) ]
+        | solve [ entailer! ]
        ].
 
 Ltac change_mapsto_gvar_to_data_at' gv S :=
@@ -4586,7 +4574,7 @@ Ltac start_function3 :=
 
 Ltac start_function :=
   start_function1;
-  start_function2; 
+  start_function2;
   start_function3.
 
 Opaque bi_sep.
