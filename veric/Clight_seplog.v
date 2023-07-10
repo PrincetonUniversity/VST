@@ -308,6 +308,22 @@ Lemma same_glob_funassert:
               funassert Delta1 ⊣⊢ funassert Delta2.
 Proof. intros; apply @same_FS_funspecs_assert; trivial. Qed.
 
+Global Instance bind_ret_proper vl t : Proper (base.equiv ==> base.equiv) (bind_ret vl t).
+Proof.
+  intros ???; destruct vl; simpl.
+  - split => rho; monPred.unseal; rewrite /= H //.
+  - destruct t; try done.
+    split => rho; rewrite /= H //.
+Qed.
+
+Global Instance function_body_ret_assert_proper ret : Proper (base.equiv ==> base.equiv) (function_body_ret_assert ret).
+Proof.
+  intros ???; split3; last split; simpl; try done.
+  - destruct ret; try done.
+    split => rho; rewrite /= H //.
+  - intros; rewrite H //.
+Qed.
+
 End mpred.
 
 #[export] Hint Resolve normal_ret_assert_derives : core.

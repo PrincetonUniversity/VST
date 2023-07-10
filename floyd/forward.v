@@ -1423,7 +1423,7 @@ Ltac fwd_call_dep ts subsumes witness :=
   | |- semax _ _ _ (Ssequence (Ssequence (Ssequence _ _) _) _) _ =>
       rewrite <- seq_assoc
  end;
-lazymatch goal with |- @semax ?CS _ ?Delta _ (Ssequence ?C _) _ =>
+lazymatch goal with |- semax _ ?Delta _ (Ssequence ?C _) _ =>
   lazymatch C with context [Scall _ _ _] =>
          fwd_call' ts subsumes witness
     end
@@ -2735,11 +2735,11 @@ forward_for Inv continue: PreInc (* where Inv,PreInc are predicates on index val
 forward_for Inv continue: PreInc break:Post (* where Post: environ->mpred is an assertion *)".
 
 Lemma semax_convert_for_while:
- forall CS Espec Delta Pre s1 e2 s3 s4 Post,
+ forall CS Espec E Delta Pre s1 e2 s3 s4 Post,
   nocontinue s4 = true ->
   nocontinue s3 = true ->
-  @semax CS Espec Delta Pre (Ssequence s1 (Swhile e2 (Ssequence s4 s3))) Post ->
-  @semax CS Espec Delta Pre (Sfor s1 e2 s4 s3) Post.
+  semax E Delta Pre (Ssequence s1 (Swhile e2 (Ssequence s4 s3))) Post ->
+  semax E Delta Pre (Sfor s1 e2 s4 s3) Post.
 Proof.
 intros.
 pose proof (semax_convert_for_while' CS Espec Delta Pre s1 e2 s3 s4 Sskip Post H).
@@ -3200,7 +3200,7 @@ Ltac forward_setx :=
         | check_cast_assignment
         | solve_msubst_eval; simplify_casts; reflexivity
         | first [ quick_typecheck3
-                | pre_entailer(* ; try solve [entailer!] *)]
+                | pre_entailer ; try solve [entailer!] ]
         ]
  end.
 
@@ -4509,7 +4509,7 @@ Ltac start_function1 :=
  simpl ofe_mor_car;
 (* clear DependedTypeList; *)
  rewrite_old_main_pre;
- rewrite ?argsassert_of_at;
+ rewrite ?argsassert_of_at ?assert_of_at;
  repeat match goal with
  | |- semax _ _ (match ?p with (a,b) => _ end ∗ _) _ _ =>
              destruct p as [a b]

@@ -280,13 +280,13 @@ End ENTAILER.
 (* TODO: test_order need to be added *)
 Ltac solve_valid_pointer :=
 match goal with
-| |- _ ⊢ denote_tc_test_eq _ _ && _ =>
+| |- _ ⊢ denote_tc_test_eq _ _ ∧ _ =>
            apply bi.and_intro;
                [apply denote_tc_test_eq_split;
                 solve [auto 50 with valid_pointer] | ]
-| |- _ ⊢ valid_pointer _ && _ =>
+| |- _ ⊢ valid_pointer _ ∧ _ =>
            apply bi.and_intro; [ solve [auto 50 with valid_pointer] | ]
-| |- _ ⊢ weak_valid_pointer _ && _ =>
+| |- _ ⊢ weak_valid_pointer _ ∧ _ =>
            apply bi.and_intro; [ solve [auto 50 with valid_pointer] | ]
 | |- _ ⊢ denote_tc_test_eq _ _ =>
               auto 50 with valid_pointer
@@ -579,13 +579,12 @@ Ltac entailer :=
         clear MORE_COMMANDS
       end;
  lazymatch goal with
+ | |- @bi_entails (monPredI environ_index (iPropI _)) _ _ => clean_up_stackframe; go_lower
  | |- ?P ⊢ _ =>
     lazymatch type of P with
-    | ?T => tryif unify T assert
-                 then (clean_up_stackframe; go_lower)
-                 else tryif unify T mpred
-                    then (clear_Delta; pull_out_props)
-                    else fail "Unexpected type of entailment, neither mpred nor assert"
+    | ?T => tryif unify T mpred
+            then (clear_Delta; pull_out_props)
+            else fail "Unexpected type of entailment, neither mpred nor assert"
     end
  | |- _ => fail  "The entailer tactic works only on entailments   _ ⊢ _ "
  end;
@@ -593,7 +592,7 @@ Ltac entailer :=
  try solve [apply prop_and_same_derives_mpred; my_auto];
  saturate_local;
  entailer';
- (* TODO iris bi_sep is right assoc, so make the goal look like ((_∗_)∗_) introduces lots of parens. Do we want to change that? *)
+ (* TODO iris bi_sep is right assoc, so making the goal look like ((_∗_)∗_) introduces lots of parens. Do we want to change that? *)
  rewrite ?bi.sep_assoc.
 
 
@@ -606,15 +605,15 @@ Ltac entbang :=
         clear MORE_COMMANDS
       end;
  lazymatch goal with
- | |- local _ && ?P ⊢ _ => clean_up_stackframe; go_lower;
+ | |- local _ ∧ ?P ⊢ _ => clean_up_stackframe; go_lower;
           rewrite ->?bi.True_and, ?bi.and_True; try apply bi.True_intro
+ | |- @bi_entails (monPredI environ_index (iPropI _)) _ _ =>
+        fail "entailer! found an assert entailment that is missing its 'local' left-hand-side part (that is, Delta)"
  | |- ?P ⊢ _ =>
     lazymatch type of P with
-    | ?T => tryif unify T assert
-                 then fail "entailer! found an assert entailment that is missing its 'local' left-hand-side part (that is, Delta)"
-                 else tryif unify T mpred
-                    then (clear_Delta; pull_out_props)
-                    else fail "Unexpected type of entailment, neither mpred nor assert"
+    | ?T => tryif unify T mpred
+            then (clear_Delta; pull_out_props)
+            else fail "Unexpected type of entailment, neither mpred nor assert"
     end
  | |- _ => fail "The entailer tactic works only on entailments  _ ⊢ _ "
  end;

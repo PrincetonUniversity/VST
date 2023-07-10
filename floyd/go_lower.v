@@ -725,7 +725,7 @@ Ltac solve_clean_LOCAL_right :=
       unify_for_go_lower;
       unfold VST_floyd_app;
       unfold fold_right_PROP_SEP, fold_right_and_True;
-      unfold fold_right_sepcon; fold fold_right_sepcon; rewrite ?bi.sep_emp;
+      cbv [fold_right_sepcon]; rewrite ?bi.sep_emp;
       reflexivity
     | simple apply clean_LOCAL_right_eval_lvalue; solve_msubst_eval_lvalue
     | simple apply clean_LOCAL_right_eval_expr; solve_msubst_eval_expr
@@ -751,8 +751,8 @@ Inductive bangbang : Prop := bangbang_i.
  of the clean_LOCAL_right_spec lemma; otherwise the default version *)
 Ltac choose_clean_LOCAL_right_spec L :=
  lazymatch goal with 
- | H: bangbang |- _ => eapply (@clean_LOCAL_right_spec_bangbang L)
- | |- _ => eapply (@clean_LOCAL_right_spec L)
+ | H: bangbang |- _ => eapply (clean_LOCAL_right_spec_bangbang L)
+ | |- _ => eapply (clean_LOCAL_right_spec L)
  end.
 
 Ltac eapply_clean_LOCAL_right_spec_rec gv L :=
@@ -874,15 +874,14 @@ Ltac intro_PROP :=
   | |- _ => fancy_intro true
   end.
 
-
 Ltac check_mpreds R :=
  lazymatch R with
  | ?a :: ?al => match type of a with ?t =>
-                          first [constr_eq t mpred | fail 4 "The SEP conjunct" a "has type" t "but should have type mpred; these two types may be convertible but they are not identical"]
+                          first [unify t mpred | fail 4 "The SEP conjunct" a "has type" t "but should have type mpred; these two types may be convertible but they are not identical"]
                      end; check_mpreds al
  | nil => idtac
  | _ => match type of R with ?t => 
-               first [constr_eq t (list mpred)
+               first [unify t (list mpred)
                       | fail 4 "The SEP list" R "has type" t "but should have type (list mpred); these two types may be convertible but they are not identical"]
             end
  end.
@@ -899,7 +898,7 @@ end;
 clean_LOCAL_canon_mix;
 repeat (simple apply derives_extract_PROP; intro_PROP);
 let rho := fresh "rho" in
-intro rho;
+split => rho;
 first
 [ simple apply quick_finish_lower
 |          
@@ -908,11 +907,12 @@ first
  | |- (_ ∧ PROPx nil _) _ ⊢ _ => fail 1 "LOCAL part of precondition is not a concrete list (or maybe Delta is not concrete)"
  | |- _ => fail 1 "PROP part of precondition is not a concrete list"
  end);
-unfold fold_right_sepcon; fold fold_right_sepcon; rewrite ?bi.sep_emp; (* for the left side *)
+cbv [fold_right_sepcon]; rewrite ?bi.sep_emp; (* for the left side *)
 unfold_for_go_lower;
-simpl tc_val; 
+simpl tc_val;
 cbv [typecheck_exprlist typecheck_expr]; simpl tc_andp;
 simpl msubst_denote_tc_assert;
+try monPred.unseal; unfold monPred_at;
 try clear dependent rho;
 clear_Delta
 ].
