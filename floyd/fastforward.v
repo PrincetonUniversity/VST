@@ -55,12 +55,12 @@ Ltac2 fastforward_ss' () :=
 
 Ltac2 simplstep (agro : bool) := Control.enter (fun () =>
   lazy_match! goal with
-  | [ |- semax _ _ ?cmds _ ] =>
+  | [ |- semax _ _ _ ?cmds _ ] =>
     (fun ss =>
       repeat (
         Control.enter (fun () =>
           lazy_match! goal with
-          | [ |- semax _ _ ?cmds' _ ] =>
+          | [ |- semax _ _ _ ?cmds' _ ] =>
             match Constr.equal cmds cmds' with
             | true => ()
             | false => fail
@@ -81,7 +81,7 @@ Ltac2 simplstep (agro : bool) := Control.enter (fun () =>
 Ltac2 fastforward (agro : bool) := 
   progress (repeat (Control.enter(fun () =>
     lazy_match! goal with
-    | [ |- semax _ _ _ _ ] => simplstep agro
+    | [ |- semax _ _ _ _ _ ] => simplstep agro
     | [ |- _ ] => ltac1:(clear_MORE_POST)
     end))).
 
@@ -89,14 +89,14 @@ Ltac2 rec fastforward_n (agro : bool) (n : int) :=
   match Int.equal n 0 with
   | true => Control.enter (fun () =>
     lazy_match! goal with
-    | [ |- semax _ _ _ _ ] => ()
+    | [ |- semax _ _ _ _ _ ] => ()
     | [ |- _ ] => ltac1:(clear_MORE_POST)
     end)
   | false =>
     let f := { contents := false } in
     Control.enter(fun () =>
       lazy_match! goal with
-      | [ |- semax _ _ _ _ ] => simplstep agro; f.(contents) := true
+      | [ |- semax _ _ _ _ _ ] => simplstep agro; f.(contents) := true
       | [ |- _ ] => ()
       end
     );
@@ -112,7 +112,7 @@ Tactic Notation "fastforward" integer(n) :=
     let f := { contents := false } in
     Control.enter(fun () =>
       lazy_match! goal with
-      | [ |- semax _ _ _ _ ] => simplstep false; f.(contents) := true
+      | [ |- semax _ _ _ _ _ ] => simplstep false; f.(contents) := true
       | [ |- _ ] => ()
       end
     );
@@ -123,7 +123,7 @@ Tactic Notation "fastforward" integer(n) :=
   ) in 
   do n step;
   lazymatch goal with
-  | |- semax _ _ _ _ => idtac
+  | |- semax _ _ _ _ _ => idtac
   | |- _ => clear_MORE_POST
   end.
 
@@ -133,7 +133,7 @@ Tactic Notation "fastforward!" integer(n) :=
     let f := { contents := false } in
     Control.enter(fun () =>
       lazy_match! goal with
-      | [ |- semax _ _ _ _ ] => simplstep true; f.(contents) := true
+      | [ |- semax _ _ _ _ _ ] => simplstep true; f.(contents) := true
       | [ |- _ ] => ()
       end
     );
@@ -144,6 +144,6 @@ Tactic Notation "fastforward!" integer(n) :=
   ) in 
   do n step;
   lazymatch goal with
-  | |- semax _ _ _ _ => idtac
+  | |- semax _ _ _ _ _ => idtac
   | |- _ => clear_MORE_POST
   end.

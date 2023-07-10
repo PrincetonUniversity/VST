@@ -28,16 +28,16 @@ Require Export VST.floyd.data_at_rec_lemmas.
 Require Export VST.floyd.field_at.
 (* Require Export VST.floyd.field_at_wand. *)
 (* Require Export VST.floyd.field_compat. *)
-(* Require Export VST.floyd.stronger. *)
-(* Require Export VST.floyd.loadstore_mapsto. *)
-(* Require Export VST.floyd.loadstore_field_at. *)
-(* Require Export VST.floyd.nested_loadstore. *)
+Require Export VST.floyd.stronger.
+Require Export VST.floyd.loadstore_mapsto.
+Require Export VST.floyd.loadstore_field_at.
+Require Export VST.floyd.nested_loadstore.
 Require Export VST.floyd.local2ptree_denote.
 Require Export VST.floyd.local2ptree_eval.
 Require Export VST.floyd.local2ptree_typecheck.
 Require Export VST.floyd.proj_reptype_lemmas.
 Require Export VST.floyd.replace_refill_reptype_lemmas.
-(* Require Export VST.floyd.sc_set_load_store. *)
+Require Export VST.floyd.sc_set_load_store.
 (* Require Export VST.floyd.unfold_data_at. *)
 (* Require Export VST.floyd.globals_lemmas. *)
 Require Export VST.floyd.diagnosis.

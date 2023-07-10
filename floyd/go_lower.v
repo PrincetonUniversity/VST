@@ -941,7 +941,7 @@ Ltac sep_apply H :=
  match goal with
  | |- ENTAIL _ , _ ⊢ _ => eapply ENTAIL_trans; [sep_apply_in_lifted_entailment H | ] 
  | |- _ ⊢ _ => sep_apply_in_entailment H
- | |- semax _ _ _ _ => sep_apply_in_semax H
+ | |- semax _ _ _ _ _ => sep_apply_in_semax H
  end.
 
 Ltac new_sep_apply_in_lifted_entailment H evar_tac prop_tac :=
@@ -968,7 +968,7 @@ Ltac new_sep_apply H evar_tac prop_tac :=
   lazymatch goal with
   | |- ENTAIL _ , _ ⊢ _ => eapply ENTAIL_trans; [new_sep_apply_in_lifted_entailment H evar_tac prop_tac | ]
   | |- _ ⊢ _ => new_sep_apply_in_entailment H evar_tac prop_tac
-  | |- semax _ _ _ _ => new_sep_apply_in_semax H evar_tac prop_tac
+  | |- semax _ _ _ _ _ => new_sep_apply_in_semax H evar_tac prop_tac
   end.
 
 Ltac sep_apply_evar_tac x := fail 0 "Unable to find an instance for the variable" x.

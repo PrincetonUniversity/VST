@@ -171,6 +171,6 @@ match c with
 end.
 
 Ltac check_canonical_call :=
-match goal with |- semax ?Delta _ ?c _ =>
+match goal with |- semax _ ?Delta _ ?c _ =>
    check_canonical_call' Delta c
 end.

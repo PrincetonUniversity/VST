@@ -1668,13 +1668,13 @@ Ltac expand_main_pre_VSU :=
         |  ];
      clear vsu;
      match goal with
-      |- semax _ (PROPx _ (LOCALx _ (SEPx (?R _ :: _))) * _)%logic _ _ =>
+      |- semax _ _ (PROPx _ (LOCALx _ (SEPx (?R _ :: _))) * _)%logic _ _ =>
         let x := unfold_all R in change R with x
      end;
      repeat change ((sepcon ?A ?B) ?gv) with (sepcon (A gv) (B gv));
      change (emp ?gv) with (@emp mpred _ _);
      rewrite ?emp_sepcon, ?sepcon_emp;
-     repeat match goal with |- semax _ (sepcon ?PQR _) _ _ => flatten_in_SEP PQR end
+     repeat match goal with |- semax _ _ (sepcon ?PQR _) _ _ => flatten_in_SEP PQR end
   | |- _ => expand_main_pre_old
   end.
 
@@ -1684,7 +1684,7 @@ Ltac expand_main_pre ::=
 Ltac start_function2 ::=
   first [ erewrite compute_close_precondition_eq; [ | reflexivity | reflexivity]
         | rewrite close_precondition_main
-        | match goal with |- semax (func_tycontext _ ?V ?G _) 
+        | match goal with |- semax _ (func_tycontext _ ?V ?G _) 
               (close_precondition _ (main_pre _ _ _) * _)%logic _ _ =>
                   let x := eval hnf in V in let x := eval simpl in x in change V with x 
           end

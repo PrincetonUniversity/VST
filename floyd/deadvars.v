@@ -262,14 +262,14 @@ Ltac find_dead_vars P c Q :=
 Ltac deadvars := 
  lazymatch goal with
  | X := @abbreviate ret_assert ?Q |-
-    semax _ ?P ?c ?Y =>
+    semax _ _ ?P ?c ?Y =>
     check_POSTCONDITION;
     constr_eq X Y;
     match find_dead_vars P c Q with
     | nil => idtac
     | ?d =>  idtac "Dropping dead vars!"; drop_LOCALs d
      end + fail 99 "deadvars failed for an unknown reason"
- | |- semax _ _ _ _ => 
+ | |- semax _ _ _ _ _ => 
        check_POSTCONDITION;
        fail "deadvars: Postcondition must be an abbreviated local definition (POSTCONDITION); try abbreviate_semax first"
  | |- _ ⊢ _ => idtac
@@ -279,14 +279,14 @@ Ltac deadvars :=
 Tactic Notation "deadvars" "!" :=
  match goal with
  | X := @abbreviate ret_assert ?Q |-
-    semax _ ?P ?c ?Y =>
+    semax _ _ ?P ?c ?Y =>
    check_POSTCONDITION;
     constr_eq X Y;
     match find_dead_vars P c Q with
     | nil => fail 2 "deadvars!: Did not find any dead variables"
     | ?d =>  drop_LOCALs d
      end
- | |- semax _ _ _ _ => 
+ | |- semax _ _ _ _ _ => 
        check_POSTCONDITION;
        fail 1 "deadvars!: Postcondition must be an abbreviated local definition (POSTCONDITION); try abbreviate_semax first"
  | |- _ => fail 1 "deadvars!: the proof goal should be a semax"

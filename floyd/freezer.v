@@ -444,7 +444,7 @@ Ltac freeze_tac L name :=
   eapply (freeze_SEP'' (map Z.to_nat L)); 
    [solve_is_increasing | reflexivity 
    | match goal with
-           | |- semax _ (PROPx _ (LOCALx _ (SEPx ((FRZL ?xs) :: my_delete_list ?A _)))) _ _ =>
+           | |- semax _ _ (PROPx _ (LOCALx _ (SEPx ((FRZL ?xs) :: my_delete_list ?A _)))) _ _ =>
            let D := fresh name in
            set (D:=xs);
            change xs with (@abbreviate (list mpred) xs) in D;
@@ -485,14 +485,14 @@ Definition Zlist_complement (n: nat) (al: list Z) : list Z :=
 
 Ltac find_freeze1 comp id A :=
 lazymatch goal with
-| fr := @abbreviate mpred _ |- semax _ (PROPx _ (LOCALx _ (SEPx ?R))) _ _ =>
+| fr := @abbreviate mpred _ |- semax _ _ (PROPx _ (LOCALx _ (SEPx ?R))) _ _ =>
   match R with context [fr :: ?R'] =>
     let L := constr:(Zlength R - (Z.succ (Zlength R'))) in
      let L := eval cbn in L in
       let A' := constr:(L::A) in
         unfold abbreviate in fr; subst fr; find_freeze1 comp id A'
    end
-| |- semax _ (PROPx _ (LOCALx _ (SEPx ?R))) _ _ => 
+| |- semax _ _ (PROPx _ (LOCALx _ (SEPx ?R))) _ _ => 
             let A' := constr:(if comp then Zlist_complement (length R) A 
                                      else A) in
             let A' := eval compute in A' in
@@ -608,7 +608,7 @@ Ltac flatten_emp_in_mpreds RR :=
 
 Ltac flatten_emp :=
   match goal with
-  | |- semax _ ?PQR _ _ => flatten_emp_in_SEP PQR
+  | |- semax _ _ ?PQR _ _ => flatten_emp_in_SEP PQR
   | |-  ?PQR |-- _ => first [flatten_emp_in_SEP PQR |
                              flatten_emp_in_mpreds PQR ]
 end.*)
@@ -631,7 +631,7 @@ Ltac flatten_emp_in_SEP PQR :=
 
 Ltac flatten_emp :=
   match goal with
-  | |- semax _ ?PQR _ _ => flatten_emp_in_SEP PQR
+  | |- semax _ _ ?PQR _ _ => flatten_emp_in_SEP PQR
   | |-  ?PQR |-- _ => flatten_emp_in_SEP PQR
 end.
 
@@ -916,7 +916,7 @@ Qed.
 
 Ltac unlocalize_plain R_G2 :=
   match goal with
-  | |- @semax _ _ _ _ _ _ =>
+  | |- @semax _ _ _ _ _ _ _ _ _ _ =>
           eapply (unlocalize_triple R_G2)
   | |- local (tc_environ _) && _ |-- _ =>
           eapply (unlocalize_derives_canon R_G2)
@@ -942,7 +942,7 @@ Ltac unlocalize_plain R_G2 :=
 
 Ltac unlocalize_wit R_G2 wit tac :=
   match goal with
-  | |- @semax _ _ _ _ _ _ =>
+  | |- @semax _ _ _ _ _ _ _ _ _ _ =>
           eapply (unlocalizeQ_triple R_G2)
   | |- local (tc_environ _) && _ |-- _ =>
           eapply (unlocalizeQ_derives_canon R_G2)

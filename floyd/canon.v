@@ -2393,7 +2393,7 @@ Ltac length_of R :=
 Ltac frame_SEP' L :=  (* this should be generalized to permit framing on LOCAL part too *)
  grab_indexes_SEP L;
  match goal with
- | |- @semax _ _ _ (PROPx _ (LOCALx ?Q (SEPx ?R))) _ _ =>
+ | |- @semax _ _ _ _ _ _ _ (PROPx _ (LOCALx ?Q (SEPx ?R))) _ _ =>
   rewrite <- (Floyd_firstn_skipn (length L) R);
   rewrite (app_nil_end Q);
     simpl length; unfold Floyd_firstn, Floyd_skipn;
@@ -2462,7 +2462,7 @@ Tactic Notation "viewshift_SEP" constr(n) constr(R) "by" tactic1(t):=
    repeat simpl_nat_of_P; cbv beta iota; cbv beta iota; [ now t | ].
 
 Ltac replace_in_pre S S' :=
- match goal with |- @semax _ _ _ ?P _ _ =>
+ match goal with |- @semax _ _ _ _ _ _ _ ?P _ _ =>
   match P with context C[S] =>
      let P' := context C[S'] in
       apply semax_pre with P'; [ | ]
@@ -2478,7 +2478,7 @@ Ltac repeat_extract_exists_pre :=
           ].
 
 Ltac extract_exists_in_SEP :=
- match goal with |- @semax _ _ _ (PROPx _ (LOCALx _ (SEPx ?R))) _ _ =>
+ match goal with |- @semax _ _ _ _ _ _ _ (PROPx _ (LOCALx _ (SEPx ?R))) _ _ =>
    match R with context [ bi_exist ?z :: _] =>
         let n := find_in_list (bi_exist z) R
          in rewrite (grab_nth_SEP n); unfold nth, delete_nth; rewrite extract_exists_in_SEP;
@@ -2505,7 +2505,7 @@ Ltac flatten_in_SEP PQR :=
 
 Ltac flatten_sepcon_in_SEP :=
   match goal with
-  | |- semax _ ?PQR _ _ => flatten_in_SEP PQR
+  | |- semax _ _ ?PQR _ _ => flatten_in_SEP PQR
   | |- ENTAIL _, ?PQR ⊢ _ => flatten_in_SEP PQR
 end.
 
@@ -2559,7 +2559,7 @@ Fixpoint find_LOCAL_index (name: ident) (current: nat) (l : list localdef) : opt
   end.
 
 Ltac drop_LOCAL_by_name name := match goal with
-  | |- semax _ (PROPx ?P (LOCALx ?Q (SEPx ?R))) _ _ =>
+  | |- semax _ _ (PROPx ?P (LOCALx ?Q (SEPx ?R))) _ _ =>
     let r := eval hnf in (find_LOCAL_index name O Q) in match r with
     | Some ?i => drop_LOCAL i
     | None => fail 1 "No variable named" name "found"

@@ -1851,7 +1851,7 @@ Tactic Notation "assert_PROP" constr(A) "as" simple_intropattern(H)  :=
 Tactic Notation "assert_PROP" constr(A) "as" simple_intropattern(H) "by" tactic1(t) :=
   first [eapply (assert_later_PROP' A); [|hoist_later_left; apply derives_refl|] | apply (assert_PROP' A)]; [ now t | intro H ].
 Ltac hoist_later_in_pre :=
-     match goal with |- semax _ ?P _ _ =>
+     match goal with |- semax _ _ ?P _ _ =>
        match P with
        | context[bi_later] =>
             let cP := (fun P' => apply semax_pre0 with (▷ P'); [solve [auto 50 with derives] | ])
@@ -1973,7 +1973,7 @@ Ltac extract_exists_in_SEP' PQR :=
    match R with context [(@bi_exist _ ?A ?S) :: ?R'] =>
       let n := constr:((length R - Datatypes.S (length R'))%nat) in
       let n' := eval lazy beta zeta iota delta in n in
-      rewrite (@extract_nth_exists_in_SEP n' P Q R A S (eq_refl _));
+      rewrite (@extract_nth_exists_in_SEP _ _ n' P Q R A S (eq_refl _));
       unfold replace_nth at 1;
       rewrite ?bi.and_exist_l
    end
@@ -1981,7 +1981,7 @@ Ltac extract_exists_in_SEP' PQR :=
 
 Ltac extract_exists_from_SEP :=
 lazymatch goal with
-  | |- semax _ ?Pre _ _ =>
+  | |- semax _ _ ?Pre _ _ =>
     extract_exists_in_SEP' Pre; apply extract_exists_pre
   | |- ENTAIL _, ?Pre ⊢ ?Post =>
      let P := fresh "POST" in set (P := Post);
@@ -2014,7 +2014,7 @@ Ltac test_for_Intro_prop R :=
 
 Ltac Intro_prop' :=
 lazymatch goal with
- | |- semax _ ?PQR _ _ =>
+ | |- semax _ _ ?PQR _ _ =>
      first [ move_from_SEP' PQR;
               simple apply semax_extract_PROP; fancy_intros false
             | flatten_in_SEP PQR
@@ -2037,7 +2037,7 @@ Ltac Intro_prop :=
     [autorewrite with gather_prop_core] which is expensive, and
    to avoid [autorewrite with gather_prop] which is even more expensive. *)
 lazymatch goal with
- | |- semax _ ?PQR _ _ => tryif is_evar PQR then fail else idtac
+ | |- semax _ _ ?PQR _ _ => tryif is_evar PQR then fail else idtac
  | |- ENTAIL _, ?PQR ⊢ _ => tryif is_evar PQR then fail else idtac
  | |- ?PQR ⊢ _ => tryif is_evar PQR then fail else idtac
 end;
@@ -2047,9 +2047,9 @@ first
  |
 lazymatch goal with
  | |- ENTAIL _, @bi_exist _ _ _ ⊢ _ =>  fail
- | |- semax _ (@bi_exist _) _ _ => fail
+ | |- semax _ _ (@bi_exist _) _ _ => fail
  | |- ENTAIL _, PROPx nil (LOCALx _ (SEPx ?R)) ⊢ _ => test_for_Intro_prop R
- | |- semax _ PROPx nil (LOCALx _ (SEPx ?R)) _ _ => test_for_Intro_prop R
+ | |- semax _ _ PROPx nil (LOCALx _ (SEPx ?R)) _ _ => test_for_Intro_prop R
  | |- _ => idtac
  end;
  tryif Intro_prop' then idtac
@@ -2074,13 +2074,13 @@ Ltac Intro a :=
   lazymatch goal with
   | |- ?A ⊢ ?B =>
      let z := fresh "z" in pose (z:=B); change (A⊢z); Intro'' a; subst z
-  | |- semax _ _ _ _ =>
+  | |- semax _ _ _ _ _ =>
      Intro'' a
   end.
 
 Tactic Notation "Intro" "?" :=
   lazymatch goal with
-  | |- semax _ ?x _ _ =>
+  | |- semax _ _ ?x _ _ =>
     lazymatch x with context [∃ ex1 : _, _] =>
       let e1 := fresh ex1 in Intro e1
     end
@@ -2205,12 +2205,12 @@ match goal with
 end.
 
 Ltac Exists'' a :=
-  first [apply bi.exist_intro with a
+  first [rewrite -(bi.exist_intro a)
          | rewrite bi.and_exist_l; Exists'' a
          | rewrite bi.and_exist_r; Exists'' a
          | rewrite bi.sep_exist_l; Exists'' a
          | rewrite bi.sep_exist_r; Exists'' a
-         | extract_exists_from_SEP_right; apply bi.exist_intro with a
+         | extract_exists_from_SEP_right; rewrite -(bi.exist_intro a)
          ].
 
 Ltac Exists' a :=
@@ -2316,7 +2316,7 @@ Ltac tuple_evar name T cb :=
 Ltac EExists'' :=
   let EExists_core :=
     match goal with [ |- _ ⊢ ∃ x:?T, _ ] =>
-      tuple_evar x T ltac: (fun x => apply bi.exist_intro with x)
+      tuple_evar x T ltac: (fun x => rewrite -(bi.exist_intro x))
     end; idtac
   in
   first [ EExists_core

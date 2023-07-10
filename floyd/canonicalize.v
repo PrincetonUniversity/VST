@@ -163,7 +163,7 @@ normalize. autorewrite with norm1 norm2; normalize.
 Qed.
 
 Ltac canonicalize_pre :=
-  match goal with |- semax _ ?P _ _ =>
+  match goal with |- semax _ _ ?P _ _ =>
       rewrite (start_canon P); autorewrite with canon
   end.
 

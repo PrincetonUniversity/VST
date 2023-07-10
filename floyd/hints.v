@@ -288,7 +288,7 @@ Ltac hint_progress any n :=
    | D := @abbreviate tycontext _, Po := @abbreviate ret_assert _ |- semax ?D' ?Pre ?c ?Post =>
      tryif (constr_eq D D'; constr_eq Po Post) then print_hint_semax D Pre c Post
      else idtac "Hint: use abbreviate_semax to put your proof goal into a more standard form"
-   | |- semax _ _ _ _ => 
+   | |- semax _ _ _ _ _ => 
          idtac "Hint: use abbreviate_semax to put your proof goal into a more standard form"
    | |- ENTAIL _, ?Pre |-- _ => 
               print_sumbool_hint Pre;

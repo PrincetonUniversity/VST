@@ -12,23 +12,23 @@ Require Import VST.floyd.type_induction.
 Require Import VST.floyd.mapsto_memory_block.
 Require Import VST.floyd.data_at_rec_lemmas.
 Require Import VST.floyd.field_at.
-(* Require Import VST.floyd.loadstore_mapsto. *)
-(* Require Import VST.floyd.loadstore_field_at. *)
-(* Require Import VST.floyd.nested_loadstore. *)
-(* Require Import VST.floyd.sc_set_load_store. *)
-(* Require Import VST.floyd.stronger. *)
+Require Import VST.floyd.loadstore_mapsto.
+Require Import VST.floyd.loadstore_field_at.
+Require Import VST.floyd.nested_loadstore.
+Require Import VST.floyd.sc_set_load_store.
+Require Import VST.floyd.stronger.
 Require Import VST.floyd.local2ptree_denote.
 Require Import VST.floyd.local2ptree_eval.
 Require Import VST.floyd.reptype_lemmas.
 Require Import VST.floyd.proj_reptype_lemmas.
-(* Require Import VST.floyd.replace_refill_reptype_lemmas. *)
+Require Import VST.floyd.replace_refill_reptype_lemmas.
 Require Import VST.floyd.aggregate_type.
-(* Require Import VST.floyd.entailer. *)
+Require Import VST.floyd.entailer.
 (* Require Import VST.floyd.globals_lemmas. *)
 Require Import VST.floyd.semax_tactics.
 (* Require Import VST.floyd.for_lemmas. *)
 Require Import VST.floyd.diagnosis.
-(* Require Import VST.floyd.simpl_reptype. *)
+Require Import VST.floyd.simpl_reptype.
 Require Import VST.floyd.nested_pred_lemmas.
 (* Require Import VST.floyd.freezer. *)
 Import Cop.
@@ -858,7 +858,7 @@ Inductive Function_arguments_include_a_memory_load_of_type (t:type) := .
 Ltac goal_has_evars :=
  match goal with |- ?A => has_evar A end.
   
-(* FIXME *)
+(* FIXME freezer stuff *)
 (* Lemma drop_SEP_tc:
  forall Delta P Q R' RF R S,
    (forall rho, predicates_hered.boxy predicates_sl.extendM (S rho)) ->
@@ -876,9 +876,9 @@ Proof.
   specialize (H rho).
   eapply derives_trans; [apply sepcon_derives; [exact H1 | apply derives_refl] |].
   constructor; apply predicates_sl.extend_sepcon; auto.
-Qed. *)
-(* FIXME *)
-(* Ltac delete_FRZR_from_SEP :=
+Qed.
+
+Ltac delete_FRZR_from_SEP :=
 match goal with
 | |- ENTAIL _, PROPx _ (LOCALx _ (SEPx ?R)) ⊢ _ =>
   match R with context [FRZR] =>
@@ -894,7 +894,7 @@ Ltac check_typecheck :=
  (* try delete_FRZR_from_SEP; *) (* FIXME *)
  first [goal_has_evars; idtac |
  try apply local_True_right;
- (* entailer!; *) (* FIXME *)
+ entailer!;
  match goal with
  | |- typecheck_error (deref_byvalue ?T) =>
        elimtype (Function_arguments_include_a_memory_load_of_type T)
@@ -1129,7 +1129,7 @@ Ltac fwd_skip :=
 
 Definition BINDER_NAME := tt.
 Ltac find_postcond_binder_names :=
-  match goal with |- semax ?Delta _ ?c _ =>
+  match goal with |- semax _ ?Delta _ ?c _ =>
      match c with context [Scall _ (Evar ?id _) _] =>
      let x := constr:((glob_specs Delta) !! id) in
      let x' := eval hnf in x in
@@ -1542,37 +1542,39 @@ Qed.
 
 (* solve msubst_eval_expr, msubst_eval_lvalue, msubst_eval_LR *)
 Ltac solve_msubst_eval :=
-    let e := match goal with
-       | |- msubst_eval_expr _ _ _ _ ?a = _ => a
-       | |- msubst_eval_lvalue _ _ _ _ ?a = _ => a
-    end in
-     match goal with
-     | |- ?E = Some _ => let E' := eval hnf in E in change E with E'
-     end;
-     match goal with
-     | |- Some ?E = Some _ => let E' := eval hnf in E in
-       match E' with
-       | (match ?E'' with
-         | Some _ => _
-         | None => Vundef
-         end)
-         => change E with (force_val E'')
-       | (match ?E'' with
-         | Vundef => Vundef
-         | Vint _ => Vundef
-         | Vlong _ => Vundef
-         | Vfloat _ => Vundef
-         | Vsingle _ => Vundef
-         | Vptr _ _ => Vptr _ (Ptrofs.add _ (Ptrofs.repr ?ofs))
-         end)
-         => change E with (offset_val ofs E'')
-       | _ => change E with E'
-       end
-     | |- ?NotSome = Some _ => 
-             fail 1000 "The C-language expression " e
-                 " does not necessarily evaluate, perhaps because some variable is missing from your LOCAL clause"
-
-     end.
+  let e := match goal with
+      | |- msubst_eval_expr _ _ _ _ ?a = _ => a
+      | |- msubst_eval_lvalue _ _ _ _ ?a = _ => a
+  end in
+  (* REVIEW otherwise hnf does not reduce under msubst_eval_expr; is there a deeper reason? *)
+  unfold msubst_eval_expr, msubst_eval_lvalue; 
+  match goal with
+  | |- ?E = Some _ => let E' := eval hnf in E in change E with E'
+  end;
+  match goal with
+  | |- Some ?E = Some _ => let E' := eval hnf in E in
+    match E' with
+    | (match ?E'' with
+      | Some _ => _
+      | None => Vundef
+      end)
+      => change E with (force_val E'')
+    | (match ?E'' with
+      | Vundef => Vundef
+      | Vint _ => Vundef
+      | Vlong _ => Vundef
+      | Vfloat _ => Vundef
+      | Vsingle _ => Vundef
+      | Vptr _ _ => Vptr _ (Ptrofs.add _ (Ptrofs.repr ?ofs))
+      end)
+      => change E with (offset_val ofs E'')
+    | _ => change E with E'
+    end;
+    try done (* REVIEW for the goal of the form Some (_) = Some ?v *)
+  | |- ?NotSome = Some _ => 
+          fail 1000 "The C-language expression " e
+              " does not necessarily evaluate, perhaps because some variable is missing from your LOCAL clause"
+  end.
 
 Ltac ignore x := idtac.
 
@@ -2255,10 +2257,10 @@ Tactic Notation "forward_while" constr(Inv) :=
           rewrite exp_uncurry
       end;
       eapply semax_seq;
-      [match goal with |- @semax ?CS _ ?Delta ?Pre (Swhile ?e ?s) _ =>
+      [match goal with |- @semax _ _ _ _ ?CS _ ?Delta ?Pre (Swhile ?e ?s) _ =>
         tryif (unify (nobreaksx s) true) then idtac 
         else fail "Your while-loop has a break command in the body.  Therefore, you should use forward_loop to prove it, since the standard while-loop postcondition (Invariant & ~test) may not hold at the break statement";
-        match goal with [ |- semax _ _ (@bi_exist  _ ?A _) _ _ ] => eapply (@semax_while_3g1 _ _ A) end;
+        match goal with [ |- semax _ _ (@bi_exist  _ ?A _) _ _ ] => eapply (@semax_while_3g1 _ _ _ _ _ A) end;
         (* check if we can revert back to the previous version with coq 8.5.
            (as of December 2015 with compcert 2.6 the above fix is still necessary)
            The bug happens when we destruct the existential variable of the loop invariant:
@@ -2612,7 +2614,7 @@ Ltac forward_loop_nocontinue_nobreak Inv :=
          fail 100 "Your loop is followed by more statements, so you must use the form of forward_loop with the break: keyword to supply an explicit postcondition for the loop."
   | |- semax _ _ _ (Ssequence (Sfor _ _ _ _) _) _ =>
          fail 100 "Your loop is followed by more statements, so you must use the form of forward_loop with the break: keyword to supply an explicit postcondition for the loop."
-  | P := @abbreviate ret_assert ?Post' |- semax _ _ _ ?Post => 
+  | P := @abbreviate ret_assert ?Post' |- semax _ _ _ _ ?Post => 
       first [constr_eq P Post | fail 100 "forward_loop failed; try doing abbreviate_semax first"];
       try (has_evar Post'; fail 100 "Error: your postcondition " P " has unification variables (evars), so you must use the form of forward_loop with the break: keyword to supply an explicit postcondition for the loop.");
      forward_loop_nocontinue Inv Post
@@ -2814,7 +2816,7 @@ end.
 
 Ltac forward_switch' := 
 match goal with
-| |- @semax ?CS _ ?Delta ?Pre (Sswitch ?e _) _ =>
+| |- @semax _ _ _ _ ?CS _ ?Delta ?Pre (Sswitch ?e _) _ =>
    let sign := constr:(signof e) in let sign := eval hnf in sign in
     let HRE := fresh "H" in let v := fresh "v" in 
     do_compute_expr1 CS Delta Pre e;
@@ -2850,12 +2852,12 @@ Ltac forward_if'_new :=
  repeat (apply seq_assoc1; try apply -> semax_seq_skip);
  hoist_later_in_pre;
 match goal with
-| |- @semax ?CS _ ?Delta (▷ ?Pre) (Sifthenelse ?e ?c1 ?c2) _ =>
+| |- @semax _ _ _ _ ?CS _ ?Delta (▷ ?Pre) (Sifthenelse ?e ?c1 ?c2) _ =>
    let HRE := fresh "H" in let v := fresh "v" in
     do_compute_expr1 CS Delta Pre e;
     match goal with v' := _, H:_ |- _ => rename H into HRE; rename v' into v end;
     apply (semax_ifthenelse_PQR' _ v);
-     [ reflexivity | (* FIXME entailer | *) assumption
+     [ reflexivity | entailer | assumption
      | simpl in v; clear HRE; subst v; apply semax_extract_PROP; intro HRE;
        do_repr_inj HRE;
        repeat (apply semax_extract_PROP; intro);
@@ -2869,7 +2871,7 @@ match goal with
        repeat apply -> semax_skip_seq;
        abbreviate_semax
      ]
-| |- semax ?Delta (▷ PROPx ?P (LOCALx ?Q (SEPx ?R))) (Ssequence (Sifthenelse ?e ?c1 ?c2) _) _ =>
+| |- semax _ ?Delta (▷ PROPx ?P (LOCALx ?Q (SEPx ?R))) (Ssequence (Sifthenelse ?e ?c1 ?c2) _) _ =>
     tryif (unify (orb (quickflow c1 nofallthrough) (quickflow c2 nofallthrough)) true)
     then (apply semax_if_seq; forward_if'_new)
     else fail "Because your if-statement is followed by another statement, you need to do 'forward_if Post', where Post is a postcondition of type (environ->mpred) or of type Prop"
@@ -3171,8 +3173,8 @@ Ltac sequential :=
 #[export] Hint Extern 1 (@sizeof _ ?A > 0) =>
    (let a := fresh in set (a:= sizeof A); hnf in a; subst a; computable)
   : valid_pointer.
-(* FIXME depend on entailer.v *)
-(* #[export] Hint Resolve denote_tc_test_eq_split : valid_pointer. *)
+
+#[export] Hint Resolve denote_tc_test_eq_split : valid_pointer.
 
 Ltac pre_entailer :=
   try match goal with
@@ -3187,12 +3189,11 @@ Inductive Type_of_right_hand_side_does_not_match_type_of_assigned_variable := .
 Ltac check_cast_assignment :=
    first [reflexivity | elimtype Type_of_right_hand_side_does_not_match_type_of_assigned_variable].
 
-(* FIXME depend on sc_set_load_store.v , entailer.v
 Ltac forward_setx :=
   ensure_normal_ret_assert;
   hoist_later_in_pre;
  match goal with
- | |- semax ?Delta (▷ (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sset _ ?e) _ =>
+ | |- semax _ ?Delta (▷ (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sset _ ?e) _ =>
         eapply semax_PTree_set;
         [ prove_local2ptree
         | reflexivity
@@ -3202,7 +3203,7 @@ Ltac forward_setx :=
                 | pre_entailer(* ; try solve [entailer!] *)]
         ]
  end.
-*)
+
 (* BEGIN new semax_load and semax_store tactics *************************)
 
 Ltac construct_nested_efield e e1 efs tts lr :=
@@ -3216,8 +3217,7 @@ Ltac construct_nested_efield e e1 efs tts lr :=
     simpl in e1, efs, tts, lr;
     change e with (nested_efield e1 efs tts);
     clear pp.
-(*
-(* FIXME move to simpl_reptype.v *)
+
 Definition int_signed_or_unsigned (t: type) : int -> Z :=
   match typeconv t with
   | Tint _ Signed _ => Int.signed
@@ -3225,17 +3225,17 @@ Definition int_signed_or_unsigned (t: type) : int -> Z :=
   | _ => fun _ => 0 (* bogus *)
   end.
 
-Lemma efield_denote_cons_array: forall {cs: compspecs} P efs gfs ei i,
-  (P ⊢ local (efield_denote efs gfs)) ->
+Lemma efield_denote_cons_array: forall `{!heapGS Σ} {cs: compspecs} P efs gfs ei i,
+  (P ⊢ local(Σ:=Σ) (efield_denote efs gfs)) ->
   (P ⊢ local (`(eq (Vint i)) (eval_expr ei))) ->
   is_int_type (typeof ei) = true ->
   P ⊢ local (efield_denote (eArraySubsc ei :: efs) 
           (ArraySubsc (int_signed_or_unsigned (typeof ei) i) :: gfs)).
 Proof.
   intros.
-  rewrite (add_andp _ _ H), (add_andp _ _ H0), -bi.and_assoc.
-  apply bi.and_elim_r.
-  intros rho; simpl; unfold local, lift1; unfold_lift; floyd.seplog_tactics.normalize.
+  rewrite (add_andp _ _ H) (add_andp _ _ H0) -bi.and_assoc.
+  rewrite bi.and_elim_r.
+  raise_rho; simpl; unfold local, lift1; unfold_lift; floyd.seplog_tactics.normalize.
   constructor; auto.
   2:   constructor; auto.
   clear - H1. destruct (typeof ei); inv H1.
@@ -3243,9 +3243,8 @@ Proof.
   rewrite <- H2.
   destruct (typeof ei); inv H1.
   unfold int_signed_or_unsigned. destruct i0,s; simpl;
-  rewrite ?Int.repr_signed, ?Int.repr_unsigned; auto. 
+  rewrite ?Int.repr_signed ?Int.repr_unsigned; auto. 
 Qed.
-*)
 
 Lemma efield_denote_cons_struct: forall `{!heapGS Σ} {cs: compspecs} P efs gfs i,
   (P ⊢ local(Σ:=Σ) (efield_denote efs gfs)) ->
@@ -3269,7 +3268,6 @@ Proof.
   constructor; auto.
 Qed.
 
-(* FIXME Depend on sc_set_load_store.v 
 (* Given gfs, gfs0, and a name for gfs1, instantiate gfs1 s.t. (gfs = gfs1 ++ gfs0).
    Called suffix because these paths are reversed lists. *)
 Ltac calc_gfs_suffix gfs gfs0 gfs1 :=
@@ -3292,7 +3290,7 @@ Ltac find_load_result Hresult t_root gfs0 v gfs1 :=
   subst result;
   [ (solve_load_rule_evaluation || fail 1000 "solve_load_rule_evaluation' failed")
   | ].
-*)
+
 Lemma sem_add_ptr_int_lem:
  forall {cs: compspecs} v t i,
    complete_type cenv_cs t = true ->
@@ -3356,7 +3354,6 @@ Ltac simple_value v :=
 
 Inductive undo_and_first__assert_PROP: Prop -> Prop := .
 
-(* FIXME depend on entailer.v
 Ltac default_entailer_for_store_tac := try solve [entailer!]. 
 
 Ltac entailer_for_store_tac := default_entailer_for_store_tac.
@@ -3365,7 +3362,7 @@ Ltac load_tac :=
  ensure_normal_ret_assert;
  hoist_later_in_pre;
  first [sc_set_load_store.cast_load_tac | sc_set_load_store.load_tac].
-*)
+
 Ltac simpl_proj_reptype :=
 progress
 match goal with |- context [@proj_reptype ?cs ?t ?gfs ?v] =>
@@ -3379,12 +3376,11 @@ match goal with |- context [@proj_reptype ?cs ?t ?gfs ?v] =>
   subst d
 end.
 
-(* FIXME depend on entailer.v
 Ltac store_tac :=
 ensure_open_normal_ret_assert;
 hoist_later_in_pre;
 sc_set_load_store.store_tac.
-*)
+
 (* END new semax_load and semax_store tactics *************************)
 
 Ltac forward0 :=  (* USE FOR DEBUGGING *)
@@ -3398,16 +3394,12 @@ Ltac forward0 :=  (* USE FOR DEBUGGING *)
   end.
 
 Lemma bind_ret_derives `{!heapGS Σ} t P Q v: (P ⊢ Q) -> bind_ret(Σ:=Σ) v t P ⊢ bind_ret v t Q.
-Proof. intros. destruct v. simpl; intros.
-  (* FIXME depend on enailer.v *)
-  (*  entailer!. apply H.
-  destruct t; try apply derives_refl. simpl; intros. apply H. 
+Proof. intros. destruct v.
+  - simpl; intros. raise_rho. apply bi.and_mono. done. rewrite H. done.
+  - destruct t; try apply derives_refl. simpl; raise_rho. rewrite H. done. 
 Qed.
-*)
-Admitted.
 
-(* FIXME depend on enailer.v *)
-Ltac entailer_for_return := idtac. (*  entailer. *)
+Ltac entailer_for_return := entailer.
 
 Ltac solve_return_outer_gen := solve [repeat constructor].
 
@@ -3603,8 +3595,7 @@ Ltac try_clean_up_stackframe :=
   | |- _ => idtac
  end.
 
-(* FIXME change to ::= after fixing entailer.v *)
-Ltac clean_up_stackframe :=
+Ltac clean_up_stackframe ::=
   lazymatch goal with |-
      ENTAIL _, PROPx _ (LOCALx _ (SEPx _)) ⊢
         PROPx _ (LOCALx _ (SEPx _)) * stackframe_of _ =>
@@ -3628,7 +3619,7 @@ Ltac clean_up_stackframe :=
 Ltac forward_return :=
   try fold_frame_function_body;
   match goal with
-  | |- @semax ?CS _ ?Delta ?Pre (Sreturn ?oe) _ =>
+  | |- @semax _ _ _ _ ?CS _ ?Delta ?Pre (Sreturn ?oe) _ =>
     match oe with
     | None =>
         eapply semax_return_None;
@@ -3800,10 +3791,9 @@ Ltac forward_advise_while :=
 Ltac forward1 s :=  (* Note: this should match only those commands that
                                      can take a normal_ret_assert *)
     lazymatch s with
-  | Sassign _ _ => clear_Delta_specs(* FIXME quick ; store_tac *)
-  | Sset _ ?e => idtac (* FIXME quick? sc_set_load_store.v 
-    clear_Delta_specs;
-    first [no_loads_expr e false; forward_setx | load_tac]   *)
+  | Sassign _ _ => clear_Delta_specs; store_tac
+  | Sset _ ?e => clear_Delta_specs;
+    first [no_loads_expr e false; forward_setx | load_tac]
   | Sifthenelse _ _ _ => forward_advise_if
   | Sswitch _ _ => forward_advise_if
   | Swhile _ _ => forward_advise_while
@@ -4012,8 +4002,8 @@ Ltac numeric_forward_store_union_hack id1 id2 :=
      eapply semax_seq';
      [ ensure_open_normal_ret_assert;
        hoist_later_in_pre;
-       union_hack_message id1 id2(*FIXME sc_set_load_store ;
-       forward_store_union_hack id2 *)
+       union_hack_message id1 id2;
+       forward_store_union_hack id2
      | unfold replace_nth; abbreviate_semax].
 
 Ltac union_message := 
@@ -4023,8 +4013,8 @@ Ltac simple_forward_store_union_hack id2 :=
      eapply semax_seq';
      [ ensure_open_normal_ret_assert;
        hoist_later_in_pre;
-       clear_Delta_specs(*FIXME sc_set_load_store ; 
-       sc_set_load_store.store_tac *)
+       clear_Delta_specs; 
+       sc_set_load_store.store_tac
      | union_message; unfold replace_nth; abbreviate_semax].
 
 Ltac  try_forward_store_union_hack e1 s2 id1 t1 :=
@@ -4075,7 +4065,7 @@ Ltac forward :=
            try_forward_store_union_hack e1 s2 id1 t1
     | |- semax _ _ _ (Ssequence ?c _) _ =>
       check_precondition;
-      (* FIXME sc_set_load_store.v check_unfold_mpred_for_at; *)
+      check_unfold_mpred_for_at;
       eapply semax_seq';
       [ forward1 c
       | fwd_result;
@@ -4145,7 +4135,7 @@ Qed.
 Ltac prove_headptr_gv :=
  first [simple apply gvars_denote_HP'; 
          [solve [repeat (try (left; reflexivity) || right)] | apply I ]
-        | solve [idtac (* FIXMEentailer! *) ]
+        | solve [ entailer! ]
        ].
 
 Ltac change_mapsto_gvar_to_data_at' gv S :=
@@ -4586,7 +4576,7 @@ Ltac start_function3 :=
 
 Ltac start_function :=
   start_function1;
-  start_function2; 
+  start_function2;
   start_function3.
 
 Opaque bi_sep.
