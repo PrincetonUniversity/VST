@@ -835,7 +835,7 @@ Proof.
     rewrite at_offset_eq at 1.
     rewrite at_offset_eq, <- at_offset_eq2, at_offset_eq.
     f_equiv.
-    f_equal.
+    f_equiv.
     rewrite @nested_field_offset_ind with (gfs := nil) by (apply (field_compatible0_nested_field_array t gfs lo hi p); auto).
     assert (field_compatible0 t (gfs SUB i') p)
       by (apply (field_compatible0_range _ lo hi); auto; lia).
@@ -846,7 +846,7 @@ Proof.
     destruct (nested_field_type t gfs); try tauto.
     unfold gfield_offset, gfield_type.
     assert (sizeof t0 * i' = sizeof t0 * lo + sizeof t0 * i)%Z by (rewrite Zred_factor4; f_equal; lia).
-    lia.
+    hnf; lia.
 Qed.
 
 Lemma array_at_data_at':
@@ -2046,8 +2046,7 @@ Lemma field_at_ptr_neq_null {cs: compspecs} :
 Proof.
   intros.
   rewrite -> field_at_isptr.
-  normalize. apply bi.pure_intro.
-  destruct p; unfold nullval; simpl in *; tauto.
+  normalize.
 Qed.
 
 Lemma spacer_share_join:

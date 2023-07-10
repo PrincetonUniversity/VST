@@ -1647,8 +1647,7 @@ Proof.
     - intros.
       unfold at_offset.
       rewrite (IH (Znth (i - 0) (unfold_reptype v1)) (Znth (i - 0) (unfold_reptype v2))); auto.
-      * f_equiv.
-        do 2 f_equal.
+      * do 3 f_equiv.
         apply sizeof_change_composite; auto.
       * pose (Znthx (A: Type) (i: Z) (al: list A) (d: A) := @Znth A d i al).
         change  (@Znth (@reptype cs_from t) (@Inhabitant_reptype cs_from t) (i - 0)

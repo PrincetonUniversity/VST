@@ -47,8 +47,6 @@ Export expr.
 #[export] Existing Instance EqDec_memval.
 #[export] Existing Instance EqDec_quantity.
 
-Global Opaque mpred.
-
 #[export] Hint Resolve any_environ : typeclass_instances.
 
 Section mpred.

@@ -262,7 +262,7 @@ Proof.
         rewrite -> Znth_sublist by lia.
         replace (i - mid + (mid - Z.succ lo)) with (i - Z.succ lo) by lia.
         rewrite <- Znth_succ by lia; auto.
-        f_equiv; f_equal; lia.
+        f_equiv; f_equiv; lia.
 Qed.
 
 Lemma array_pred_shift: forall {A}{d: Inhabitant A} (lo hi lo' hi' mv : Z) P' P (v: list A) p,
@@ -1074,12 +1074,11 @@ Lemma array_pred_local_facts: forall {A}{d: Inhabitant A} lo hi P (v: list A) p 
 Proof.
   intros.
   unfold array_pred.
-  normalize.
-  rewrite bi.pure_and bi.pure_True // bi.True_and.
+  iIntros "(% & H)"; iSplit; first done.
   pose proof ZtoNat_Zlength v.
   rewrite H0 in H1; symmetry in H1; clear H0.
-  revert hi lo H H1; induction v; intros.
-  + by iIntros "_".
+  iInduction v as [|] "IH" forall (hi lo H H1); intros.
+  + done.
   + replace (hi - lo) with (Z.succ (hi - Z.succ lo)) in * by lia.
     assert (hi - Z.succ lo >= 0).
     {
@@ -1099,11 +1098,12 @@ Proof.
       rewrite -> Znth_succ by lia.
       auto.
     }
-    rewrite H3 IHv //.
-    - rewrite H; last lia.
-      iIntros "(%Ha & %)"; iPureIntro; constructor; auto.
-      rewrite Z.sub_diag // in Ha.
+    iDestruct "H" as "(P & H)".
+    rewrite H3; iDestruct ("IH" with "[%] [%] H") as %?; try done.
     - intros; apply H; lia.
+    - rewrite H; last lia.
+      iDestruct "P" as %Ha; iPureIntro; constructor; auto.
+      rewrite Z.sub_diag // in Ha.
 Qed.
 
 Lemma struct_pred_local_facts: forall m {A} (P: forall it, A it -> val -> mpred)v p (R: forall it, A it -> Prop),

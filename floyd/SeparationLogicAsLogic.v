@@ -1763,7 +1763,7 @@ Proof.
           apply bi.exist_mono; intros sh1.
           apply bi.exist_mono; intros sh2. normalize. apply bi.later_mono.
           iIntros "H"; iAssert (⌜@eval_expr CS e1 rho = @eval_expr CS' e1 rho⌝ ∧ ⌜@eval_expr CS e2 rho = @eval_expr CS' e2 rho⌝) as "(%He1 & %He2)".
-          { rewrite bi.and_elim_l. rewrite assoc bi.and_elim_l. iApply (bi.and_mono with "H").
+          { rewrite assoc bi.and_elim_l. iApply (bi.and_mono with "H").
             apply (rvalue_cspecs_sub CSUB Delta); trivial.
             apply (rvalue_cspecs_sub CSUB Delta); trivial. }
           rewrite /subst /lift1; unfold_lift; rewrite !monPred_at_absorbingly /= !He1 !He2.

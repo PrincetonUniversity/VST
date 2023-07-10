@@ -122,23 +122,13 @@ Proof.
     rewrite (add_andp _ _ H8) (add_andp _ _ H3).
     apply derives_trans with (local (tc_environ Delta) ∧ local (` (eq (field_address t_root gfs p)) (eval_lvalue e1)) ∧ (tc_lvalue Delta e1)); [solve_andp |].
     unfold local, lift1; raise_rho; simpl; unfold_lift.
-    normalize.
-    eapply derives_trans; [apply typecheck_lvalue_sound; auto |].
-    rewrite <- H10; normalize.
+    iIntros "(% & % & H)".
+    iDestruct (typecheck_lvalue_sound with "H") as %Htc.
+    rewrite -H10 in Htc; normalize.
   }
   subst gfs.
   pose proof nested_field_ramif_load sh _ _ _ _ _ _ H9 H7 as [v_reptype' [? ?]].
-  eapply semax_load_nth_ram_field_at.
-  1: eassumption.
-  1: eassumption.
-  1: eassumption.
-  1: eassumption.
-  1: eassumption.
-  1: eassumption.
-  1: eassumption.
-  1: eassumption.
-  1: eassumption.
-  1: eassumption.
+  eapply semax_load_nth_ram_field_at; done.
 Qed.
 
 Lemma nth_error_SEP_sepcon_TT': forall D P Q R n Rn S,
@@ -181,9 +171,9 @@ Proof.
     rewrite (add_andp _ _ H9) (add_andp _ _ H4).
     apply derives_trans with (local (tc_environ Delta) ∧ local (` (eq (field_address t_root gfs p)) (eval_lvalue e1)) ∧ (tc_lvalue Delta e1)); [solve_andp |].
     unfold local, lift1; split => rho; monPred.unseal; unfold_lift.
-    normalize.
-    eapply derives_trans; [apply typecheck_lvalue_sound; auto |].
-    rewrite <- H11; normalize.
+    iIntros "(% & % & H)".
+    iDestruct (typecheck_lvalue_sound with "H") as %Htc.
+    rewrite -H11 in Htc; normalize.
   }
   subst gfs.
   pose proof nested_field_ramif_load sh _ _ _ _ _ _ H10 H8 as [v_reptype' [? ?]].
@@ -191,7 +181,7 @@ Proof.
 Qed.
 
 Lemma semax_SC_field_store:
-    forall Delta sh n (p: val) P Q R (e1 e2 : expr)
+    forall E Delta sh n (p: val) P Q R (e1 e2 : expr)
       (t_root: type) (gfs0 gfs1 gfs: list gfield)
       (v0: reptype (nested_field_type (nested_field_type t_root gfs0) gfs1))
       (v0_val: val) (v v_new: reptype (nested_field_type t_root gfs0)),
@@ -208,9 +198,9 @@ Lemma semax_SC_field_store:
       JMeq v0 v0_val ->
       data_equal (upd_reptype (nested_field_type t_root gfs0) gfs1 v v0) v_new ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢
-         (tc_lvalue Delta e1) ∧ 
-         (tc_expr Delta (Ecast e2 (nested_field_type t_root gfs))) ->
-      semax Delta (▷PROPx P (LOCALx Q (SEPx R)))
+         ((tc_lvalue Delta e1) ∧ 
+         (tc_expr Delta (Ecast e2 (nested_field_type t_root gfs)))) ->
+      semax E Delta (▷PROPx P (LOCALx Q (SEPx R)))
         (Sassign e1 e2)
           (normal_ret_assert
             (PROPx P
@@ -220,42 +210,34 @@ Lemma semax_SC_field_store:
                     (field_at sh t_root gfs0 v_new p)))))).
 Proof.
   intros.
-  erewrite field_at_data_equal by (symmetry; apply H8).
+  eapply semax_post'.
+  { rewrite bi.and_elim_r /mpred; apply replace_nth_SEP.
+    rewrite -field_at_data_equal //. }
   clear H8 v_new.
   assert_PROP (field_compatible t_root gfs p).
   {
-    rewrite (add_andp _ _ H9), (add_andp _ _ H4).
+    rewrite (add_andp _ _ H9) (add_andp _ _ H4).
     apply derives_trans with (local (tc_environ Delta) ∧ local (` (eq (field_address t_root gfs p)) (eval_lvalue e1)) ∧ (tc_lvalue Delta e1)); [solve_andp |].
-    unfold local, lift1; intros rho; simpl; unfold_lift.
-    normalize.
-    eapply derives_trans; [apply typecheck_lvalue_sound; auto |].
-    rewrite <- H10; normalize.
+    unfold local, lift1; split => rho; monPred.unseal; unfold_lift.
+    iIntros "(% & % & H)".
+    iDestruct (typecheck_lvalue_sound with "H") as %Htc.
+    rewrite -H10 in Htc; auto.
   }
   subst gfs.
   pose proof nested_field_ramif_store sh _ _ _ v _ _ _ H8 H7 as [v_reptype' [? ?]].
-  eapply semax_store_nth_ram_field_at.
-  1: eassumption.
-  1: eassumption.
-  1: eassumption.
-  1: eassumption.
-  1: eassumption.
-  1: apply @JMeq_sym. eassumption.
-  1: eassumption.
-  1: eassumption.
-  1: eassumption.
-  rewrite (add_andp _ _ H9), (add_andp _ _ H5); solve_andp.
+  eapply semax_store_nth_ram_field_at; try done.
+  by apply @JMeq_sym.
 Qed.
 
-
 Lemma semax_SC_field_store_union_hack (gfs1': list gfield):
-    forall Delta sh n (p: val) P Q R (e1 e2 : expr) ch ch'
+    forall E Delta sh n (p: val) P Q R (e1 e2 : expr) ch ch'
       (t_root: type) (gfs0 gfs1 gfs gfs': list gfield)
       (v0: reptype (nested_field_type (nested_field_type t_root gfs0) gfs1'))
       (v0_val v0_val': val) (v v_new: reptype (nested_field_type t_root gfs0)),
       typeof e1 = nested_field_type t_root gfs ->
       access_mode (nested_field_type t_root gfs) = By_value ch ->
       access_mode (nested_field_type t_root gfs') = By_value ch' ->
-      (numeric_type (nested_field_type t_root gfs) ∧ numeric_type (nested_field_type t_root gfs'))%bool = true ->
+      (numeric_type (nested_field_type t_root gfs) && numeric_type (nested_field_type t_root gfs'))%bool = true ->
       decode_encode_val_ok ch ch' ->
       type_is_volatile (nested_field_type t_root gfs) = false ->
       type_is_volatile (nested_field_type t_root gfs') = false ->
@@ -272,10 +254,10 @@ Lemma semax_SC_field_store_union_hack (gfs1': list gfield):
       JMeq v0 v0_val' ->
       data_equal (upd_reptype (nested_field_type t_root gfs0) gfs1' v v0) v_new ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢
-         (tc_lvalue Delta e1) ∧ 
+         ((tc_lvalue Delta e1) ∧ 
          (tc_expr Delta (Ecast e2 (nested_field_type t_root gfs))) ∧
-         !! field_compatible t_root gfs' p ->
-      semax Delta (▷PROPx P (LOCALx Q (SEPx R)))
+         ⌜field_compatible t_root gfs' p⌝) ->
+      semax E Delta (▷PROPx P (LOCALx Q (SEPx R)))
         (Sassign e1 e2)
           (normal_ret_assert
             (PROPx P
@@ -286,41 +268,35 @@ Lemma semax_SC_field_store_union_hack (gfs1': list gfield):
 Proof.
   intros *.
   intros H H0 H0' NT OK H1 H1' NFO H2 H2' H3 H4 H5 H6 DE H7 H8 H9.
-  erewrite field_at_data_equal by (symmetry; apply H8).
+  eapply semax_post'.
+  { rewrite bi.and_elim_r /mpred; apply replace_nth_SEP.
+    rewrite -field_at_data_equal //. }
   clear H8 v_new.
   assert_PROP (field_compatible t_root gfs p /\ field_compatible t_root gfs' p) as H8.
   {
-    rewrite (add_andp _ _ H9), (add_andp _ _ H4).
+    rewrite (add_andp _ _ H9) (add_andp _ _ H4).
     apply derives_trans 
         with (local (tc_environ Delta) ∧ local (` (eq (field_address t_root gfs p)) (eval_lvalue e1)) 
-                ∧ (tc_lvalue Delta e1) ∧ !! (field_compatible t_root gfs' p)); [solve_andp |].
-    rewrite prop_and.
-    unfold local, lift1; intros rho; simpl; unfold_lift.
-    apply bi.and_mono; auto.
-    normalize.
-    eapply derives_trans; [apply typecheck_lvalue_sound; auto |].
-    rewrite <- H10; normalize.
+                ∧ (tc_lvalue Delta e1) ∧ ⌜field_compatible t_root gfs' p⌝); [solve_andp |].
+    unfold local, lift1; split => rho; monPred.unseal; unfold_lift.
+    iIntros "(% & % & H & %)".
+    iDestruct (typecheck_lvalue_sound with "H") as %Htc.
+    rewrite -H10 in Htc; auto.
   }
   destruct H8 as [H8 FC'].
   subst gfs.
   subst gfs'.
   pose proof nested_field_ramif_store sh _ _ _ v _ _ _ FC' H7 as [v_reptype' [? ?]].
-  eapply semax_store_nth_ram_field_at_union_hack.
-  1-14: try eassumption.
--
-  unfold field_address. rewrite !if_true by auto. rewrite NFO; auto.
--
-  1: apply @JMeq_sym. eassumption.
--
-   replace (field_at_ sh t_root (gfs1 ++ gfs0) p) with (field_at_ sh t_root (gfs1' ++ gfs0) p); auto.
-   rewrite !field_at__memory_block. 
-   unfold field_address; rewrite !if_true by auto.
-   rewrite NFO. f_equal.
-   symmetry.
-   unfold sizeof; erewrite !size_chunk_sizeof by eauto.
-   apply semax_straight.decode_encode_val_size; eauto.
--
-  rewrite (add_andp _ _ H9), (add_andp _ _ H5); solve_andp.
+  eapply semax_store_nth_ram_field_at_union_hack; try done.
+  - unfold field_address. rewrite -> !if_true by auto. rewrite NFO; auto.
+  - by apply @JMeq_sym.
+  - assert (field_at_ sh t_root (gfs1 ++ gfs0) p ⊣⊢ field_at_ sh t_root (gfs1' ++ gfs0) p) as ->; auto.
+    rewrite !field_at__memory_block.
+    unfold field_address; rewrite -> !if_true by auto.
+    rewrite NFO. f_equiv.
+    unfold sizeof; erewrite !size_chunk_sizeof by eauto.
+    apply decode_encode_val_size; eauto.
+  - rewrite (add_andp _ _ H9) (add_andp _ _ H5); solve_andp.
 Qed.
 
 End SEMAX_SC.
@@ -349,7 +325,7 @@ Lemma ptrofs_unsigned_ofint64_repr:
 Proof.
 intros.
 unfold Ptrofs.of_int64.
-rewrite Ptrofs_repr_Int64_unsigned_special by auto.
+rewrite -> Ptrofs_repr_Int64_unsigned_special by auto.
 rewrite Ptrofs.repr_unsigned.
 auto.
 Qed.
@@ -357,8 +333,8 @@ Qed.
 Ltac solve_Ptrofs_eqm_unsigned :=
   solve
    [ autorewrite with norm;
-    rewrite ?Ptrofs_repr_Int_unsigned_special by reflexivity;
-    rewrite ?Ptrofs_repr_Int64_unsigned_special by reflexivity;
+    rewrite -> ?Ptrofs_repr_Int_unsigned_special by reflexivity;
+    rewrite -> ?Ptrofs_repr_Int64_unsigned_special by reflexivity;
     match goal with
     | |- Ptrofs_eqm_unsigned ?V _ =>
       match V with
@@ -373,7 +349,7 @@ Ltac solve_Ptrofs_eqm_unsigned :=
       | _ => rewrite <- (Ptrofs.repr_unsigned V) at 1
       end
     end;
-    rewrite ?ptrofs_unsigned_ofint64_repr by reflexivity;
+    rewrite -> ?ptrofs_unsigned_ofint64_repr by reflexivity;
     apply Ptrofs_eqm_unsigned_repr
   ].
 
@@ -381,8 +357,7 @@ Ltac solve_Ptrofs_eqm_unsigned :=
 Inductive Int64_eqm_unsigned: int64 -> Z -> Prop :=
 | Int64_eqm_unsigned_repr: forall z, Int64_eqm_unsigned (Int64.repr z) z.
 
-
-Inductive msubst_efield_denote {cs: compspecs} (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t (type * val)) (GV: option globals): list efield -> list gfield -> Prop :=
+Inductive msubst_efield_denote `{!heapGS Σ} {cs: compspecs} (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t (type * val)) (GV: option globals): list efield -> list gfield -> Prop :=
 | msubst_efield_denote_nil: msubst_efield_denote Delta T1 T2 GV nil nil
 | msubst_efield_denote_cons_array: forall ei i i' efs gfs,
     is_int_type (typeof ei) = true ->
@@ -409,51 +384,51 @@ Inductive msubst_efield_denote {cs: compspecs} (Delta: tycontext) (T1: PTree.t v
     msubst_efield_denote Delta T1 T2 GV efs gfs ->
     msubst_efield_denote Delta T1 T2 GV (eUnionField i :: efs) (UnionField i :: gfs).
 
-Lemma msubst_efield_denote_eq: forall {cs: compspecs} Delta P T1 T2 GV R efs gfs,
+Lemma msubst_efield_denote_eq: forall `{!heapGS Σ} {cs: compspecs} Delta P T1 T2 GV R efs gfs,
   msubst_efield_denote Delta T1 T2 GV efs gfs ->
   ENTAIL Delta, PROPx P (LOCALx (LocalD T1 T2 GV) (SEPx R)) ⊢ local (efield_denote efs gfs).
 Proof.
-  intros ? ? ? ? ? ? ? ? ? MSUBST_EFIELD_DENOTE.
+  intros ? ? ? ? ? ? ? ? ? ? ? MSUBST_EFIELD_DENOTE.
   induction MSUBST_EFIELD_DENOTE.
-  + intro rho; apply prop_right; constructor.
+  + split => rho; apply bi.pure_intro; constructor.
   + subst i'.
     eapply (msubst_eval_expr_eq _ P _ _ GV R) in H0.
-    rewrite (add_andp _ _ H0), (add_andp _ _ IHMSUBST_EFIELD_DENOTE).
+    rewrite (add_andp _ _ H0) (add_andp _ _ IHMSUBST_EFIELD_DENOTE).
     clear H0 IHMSUBST_EFIELD_DENOTE.
-    rewrite -!bi.and_assoc; apply bi.and_elim_r, bi.and_elim_r.
-    unfold local, lift1; unfold_lift; intro rho; simpl.
+    rewrite -!bi.and_assoc bi.and_elim_r bi.and_elim_r.
+    unfold local, lift1; unfold_lift; split => rho; monPred.unseal; simpl.
     normalize.
     constructor; auto.
     clear - H; destruct (typeof ei); inv H; destruct i0,s; simpl;
     unfold int_signed_or_unsigned; simpl;
     try apply Int.signed_range; rep_lia.
-    constructor. rewrite <- H1. f_equal.
+    constructor. rewrite <- H2. f_equal.
     unfold int_signed_or_unsigned.
     destruct (typeof ei); inv H. destruct i0, s; simpl;
     try apply Int.repr_signed; apply Int.repr_unsigned.
   + eapply (msubst_eval_expr_eq _ P _ _ GV R) in H0.
-    rewrite (add_andp _ _ H0), (add_andp _ _ IHMSUBST_EFIELD_DENOTE).
+    rewrite (add_andp _ _ H0) (add_andp _ _ IHMSUBST_EFIELD_DENOTE).
     clear H0 IHMSUBST_EFIELD_DENOTE.
-    rewrite !-bi.and_assoc; apply bi.and_elim_r, bi.and_elim_r.
-    unfold local, lift1; unfold_lift; intro rho; simpl.
+    rewrite -!bi.and_assoc bi.and_elim_r bi.and_elim_r.
+    unfold local, lift1; unfold_lift; split => rho; monPred.unseal; simpl.
     normalize.
     apply efield_denote_ArraySubsc_long; auto.
     apply array_subsc_denote_intro_long.
-    rewrite <- H2. f_equal.
+    rewrite <- H3. f_equal.
     inv H1. auto.
   + eapply (msubst_eval_expr_eq _ P _ _ GV R) in H0.
-    rewrite (add_andp _ _ H0), (add_andp _ _ IHMSUBST_EFIELD_DENOTE).
+    rewrite (add_andp _ _ H0) (add_andp _ _ IHMSUBST_EFIELD_DENOTE).
     clear H0 IHMSUBST_EFIELD_DENOTE.
-    rewrite -!bi.and_assoc; apply bi.and_elim_r, bi.and_elim_r.
-    unfold local, lift1; unfold_lift; intro rho; simpl.
+    rewrite -!bi.and_assoc bi.and_elim_r bi.and_elim_r.
+    unfold local, lift1; unfold_lift; split => rho; monPred.unseal; simpl.
     normalize.
     apply efield_denote_ArraySubsc_ptrofs; auto.
-    unfold Vptrofs in H2.
+    unfold Vptrofs in H3.
     destruct Archi.ptr64 eqn:Hp.
     *
     apply array_subsc_denote_intro_long.
     apply Ptrofs_eqm_unsigned_spec in H1.
-    rewrite <- H2; symmetry.
+    rewrite <- H3; symmetry.
     f_equal.
     clear - H1 Hp.
      rewrite <- Ptrofs.eqm64 in H1 by auto.
@@ -461,18 +436,18 @@ Proof.
    *
      apply array_subsc_denote_intro_int.
     apply Ptrofs_eqm_unsigned_spec in H1.
-    rewrite <- H2; symmetry.
+    rewrite <- H3; symmetry.
     f_equal.
     clear - H1 Hp.
      rewrite <- Ptrofs.eqm32 in H1 by auto.
     unfold Ptrofs.to_int.
     apply Int.eqm_samerepr; auto.
   + eapply derives_trans; [eassumption |].
-    unfold local, lift1; unfold_lift; intro rho; simpl.
+    unfold local, lift1; unfold_lift; split => rho; simpl.
     normalize.
     constructor; auto.
   + eapply derives_trans; [eassumption |].
-    unfold local, lift1; unfold_lift; intro rho; simpl.
+    unfold local, lift1; unfold_lift; split => rho; simpl.
     normalize.
     constructor; auto.
 Qed.
@@ -528,8 +503,8 @@ Ltac solve_msubst_efield_denote :=
             let y := fresh "y" in set (y:=j);
             unfold int_signed_or_unsigned; simpl;
             subst x;
-            rewrite ?(Int.signed_repr i) by insist_rep_lia;
-            rewrite ?(Int.unsigned_repr i) by insist_rep_lia;
+            rewrite -> ?(Int.signed_repr i) by insist_rep_lia;
+            rewrite -> ?(Int.unsigned_repr i) by insist_rep_lia;
             subst y
         | |- int_signed_or_unsigned ?t _ = _ =>
               try change (int_signed_or_unsigned t) with Int.signed;
@@ -622,16 +597,16 @@ Ltac solve_field_address_gen :=
       ]
   ].
 
-Inductive find_type_contradict_pred {cs: compspecs} (t: type) (p: val): mpred -> Prop :=
+Inductive find_type_contradict_pred `{!heapGS Σ} {cs: compspecs} (t: type) (p: val): mpred -> Prop :=
 | find_type_contradict_pred_data_at: forall sh t0 v0, eqb_type t0 t = false -> find_type_contradict_pred t p (data_at sh t0 v0 p)
 | find_type_contradict_pred_data_at_: forall sh t0, eqb_type t0 t = false -> find_type_contradict_pred t p (data_at_ sh t0 p)
 | find_type_contradict_pred_field_at: forall sh t0 v0, eqb_type t0 t = false -> find_type_contradict_pred t p (field_at sh t0 nil v0 p)
 | find_type_contradict_pred_field_at_: forall sh t0, eqb_type t0 t = false -> find_type_contradict_pred t p (field_at_ sh t0 nil p).
 
-Definition find_type_contradict_preds {cs: compspecs} (t: type) (p: val) :=
+Definition find_type_contradict_preds `{!heapGS Σ} {cs: compspecs} (t: type) (p: val) :=
   find_nth_preds (find_type_contradict_pred t p).
 
-Lemma SEP_type_contradict_lemma: forall {cs: compspecs} Delta e R goal Q T1 T2 GV e_root efs lr p_full_from_e p_root_from_e gfs_from_e t_root_from_e p_root_from_hint gfs_from_hint t_root_from_hint
+Lemma SEP_type_contradict_lemma: forall `{!heapGS Σ} {cs: compspecs} Delta e R goal Q T1 T2 GV e_root efs lr p_full_from_e p_root_from_e gfs_from_e t_root_from_e p_root_from_hint gfs_from_hint t_root_from_hint
   mm1 mm2,
   local2ptree Q = (T1, T2, nil, GV) ->
   compute_nested_efield e = (e_root, efs, lr) ->
@@ -690,7 +665,7 @@ Ltac SEP_type_contradict LOCAL2PTREE Delta e R :=
   end;
   fail 0.
 
-Lemma hint_msg_lemma: forall {cs: compspecs} Delta e goal Q T1 T2 GV e_root efs lr p_full_from_e p_root_from_e gfs_from_e t_root_from_e p_root_from_hint gfs_from_hint t_root_from_hint
+Lemma hint_msg_lemma: forall `{!heapGS Σ} {cs: compspecs} Delta e goal Q T1 T2 GV e_root efs lr p_full_from_e p_root_from_e gfs_from_e t_root_from_e p_root_from_hint gfs_from_hint t_root_from_hint
   t gfs p,
   local2ptree Q = (T1, T2, nil, GV) ->
   compute_nested_efield e = (e_root, efs, lr) ->
@@ -716,7 +691,7 @@ Ltac hint_msg_aux R1 A :=
   | data_at_ => idtac
   | field_at_ => idtac
   | memory_block => idtac
-  | @exp _ _ _ _  => idtac "
+  | bi_exist _ _  => idtac "
 Or, perhaps you need to do [Intros x] to introduce the EXistential" R1 "in your SEP clause."
   | _ _ => idtac
   | _ => idtac "
@@ -852,7 +827,7 @@ Ltac find_unfold_mpred R p :=
     ]
   end.
 
-Lemma check_unfold_lemma: forall {cs: compspecs} Delta e goal Q T1 T2 GV e_root efs lr p_full_from_e p_root_from_e gfs_from_e t_root_from_e p_root_from_hint gfs_from_hint t_root_from_hint,
+Lemma check_unfold_lemma: forall `{!heapGS Σ} {cs: compspecs} Delta e goal Q T1 T2 GV e_root efs lr p_full_from_e p_root_from_e gfs_from_e t_root_from_e p_root_from_hint gfs_from_hint t_root_from_hint,
   local2ptree Q = (T1, T2, nil, GV) ->
   compute_nested_efield e = (e_root, efs, lr) ->
   msubst_eval_lvalue Delta T1 T2 GV e = Some p_full_from_e ->
@@ -927,18 +902,17 @@ Ltac check_unfold_mpred_for_at :=
 
 Section SEMAX_PTREE.
 
-Context {cs: compspecs}.
+Context `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {cs: compspecs}.
 
 Lemma semax_PTree_set:
-  forall {Espec: OracleKind},
-    forall Delta id P Q R T1 T2 GV (e2: expr) t v,
+    forall E Delta id P Q R T1 T2 GV (e2: expr) t v,
       local2ptree Q = (T1, T2, nil, GV) ->
       typeof_temp Delta id = Some t ->
       is_neutral_cast (implicit_deref (typeof e2)) t = true ->
       msubst_eval_expr Delta T1 T2 GV e2 = Some v ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢
          (tc_expr Delta e2) ->
-      semax Delta (▷PROPx P (LOCALx Q (SEPx R)))
+      semax E Delta (▷PROPx P (LOCALx Q (SEPx R)))
         (Sset id e2)
           (normal_ret_assert
             (PROPx P
@@ -946,17 +920,13 @@ Lemma semax_PTree_set:
                 (SEPx R)))).
 Proof.
   intros.
-  eapply semax_SC_set.
-  1: eassumption.
-  1: eassumption.
-  2: eassumption.
+  eapply semax_SC_set; try done.
   erewrite local2ptree_soundness by eassumption.
   apply msubst_eval_expr_eq; auto.
 Qed.
 
 Lemma semax_PTree_field_load_no_hint:
-  forall {Espec: OracleKind},
-    forall n Rn Delta sh id P Q R (e: expr) t
+    forall n Rn E Delta sh id P Q R (e: expr) t
       T1 T2 GV e_root (efs: list efield) lr
       t_root_from_e gfs_from_e p_from_e
       (t_root: type) (gfs0 gfs1 gfs: list gfield) (p: val)
@@ -974,13 +944,13 @@ Lemma semax_PTree_field_load_no_hint:
       readable_share sh ->
       JMeq (proj_reptype (nested_field_type t_root gfs0) gfs1 v') v ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢
-        !! (legal_nested_field (nested_field_type t_root gfs0) gfs1) ->
+        ⌜legal_nested_field (nested_field_type t_root gfs0) gfs1⌝ ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢
         local `(tc_val (typeof e) v) ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢
         denote_tc_assert
           (tc_andp (typecheck_LR Delta e_root lr) (typecheck_efield Delta efs)) ->
-      semax Delta (▷PROPx P (LOCALx Q (SEPx R)))
+      semax E Delta (▷PROPx P (LOCALx Q (SEPx R)))
         (Sset id e)
           (normal_ret_assert
             (PROPx P
@@ -1005,8 +975,8 @@ Proof.
     simpl app.
     apply (msubst_efield_denote_eq _ P _ _ GV R)  in EVAL_EFIELD.
     eapply derives_trans; [apply EVAL_EFIELD |].
-    intro rho; simpl; unfold local, lift1; unfold_lift.
-    apply prop_derives; intros.
+    split => rho; monPred.unseal; simpl; unfold local, lift1; unfold_lift.
+    apply bi.pure_mono; intros.
     pose proof compute_nested_efield_lemma _ rho BY_VALUE.
     rewrite COMPUTE_NESTED_EFIELD in H3.
     destruct (H3 t_root_from_e gfs_from_e) as [tts ?].
@@ -1018,16 +988,10 @@ Proof.
   destruct H2 as [tts [NESTED_EFIELD [LR [LEGAL_NESTED_EFIELD TYPEOF]]]].
   rewrite <- TYPEOF in BY_VALUE.
   assert_PROP (field_compatible t_root gfs0 p).
-  {
-    rewrite <- (corable_sepcon_TT (prop _)) by auto.
-    eapply nth_error_SEP_sepcon_TT'; [| eassumption].
-    apply bi.and_elim_r.
-    apply bi.and_elim_r.
-    apply bi.and_elim_r.
+  { rewrite nth_error_SEP_sepcon_TT' //.
     rewrite field_at_compatible'.
     go_lowerx.
-    normalize.
-  }
+    normalize. }
   rename H2 into FIELD_COMPATIBLE.
   assert_PROP (legal_nested_field (nested_field_type t_root gfs0) gfs1); auto.
   clear LEGAL_NESTED_FIELD; rename H2 into LEGAL_NESTED_FIELD.
@@ -1041,41 +1005,28 @@ Proof.
   rewrite denote_tc_assert_andp in TC.
   apply (derives_trans (local (tc_environ Delta) ∧ PROPx P (LOCALx Q (SEPx R)))) in DERIVES.
   2:{
-    rewrite (bi.and_comm _ (local (efield_denote _ _))), <- !-bi.and_assoc.
     rewrite (add_andp _ _ TC).
     rewrite (add_andp _ _ TC_VAL).
     rewrite LR.
-    apply andp_right; [| solve_andp].
-    apply andp_right; [| solve_andp].
-    apply andp_right; [| solve_andp].
-    apply andp_left1.
-    erewrite (local2ptree_soundness P Q R) by eauto.
-    apply andp_left1.
-    simpl app.
-    apply andp_right.
-    + apply (msubst_efield_denote_eq _ P _ _ GV R) in EVAL_EFIELD; auto.
+    apply bi.and_intro, bi.and_intro, bi.and_intro, bi.and_intro; [| solve_andp | solve_andp | solve_andp |];
+      rewrite bi.and_elim_l; erewrite (local2ptree_soundness P Q R) by eauto;  rewrite bi.and_elim_l; simpl app.
     + apply (msubst_eval_LR_eq _ P _ _ GV R) in EVAL_ROOT; auto.
+    + apply (msubst_efield_denote_eq _ P _ _ GV R) in EVAL_EFIELD; auto.
   }
-  eapply semax_SC_field_load.
-  1: rewrite NESTED_EFIELD, <- TYPEOF, TYPE_EQ; reflexivity.
-  1: eassumption.
+  eapply semax_SC_field_load; try done.
+  1: rewrite NESTED_EFIELD -TYPEOF TYPE_EQ //.
   1: rewrite <- TYPE_EQ, TYPEOF; eassumption.
   1: rewrite <- TYPE_EQ, TYPEOF; eassumption.
-  2: eassumption.
-  2: eassumption.
-  2: eassumption.
-  2: eassumption.
   + rewrite <- FIELD_ADD_EQ.
     eapply derives_trans; [exact DERIVES | solve_andp].
-  + apply andp_right.
+  + apply bi.and_intro.
     - eapply derives_trans; [exact DERIVES | solve_andp].
     - rewrite <- TYPE_EQ, TYPEOF.
       rewrite (add_andp _ _ TC_VAL); solve_andp.
 Qed.
 
 Lemma semax_PTree_field_load_with_hint:
-  forall {Espec: OracleKind},
-    forall n Rn Delta sh id P Q R (e: expr) t
+    forall n Rn E Delta sh id P Q R (e: expr) t
       T1 T2 GV p_from_e
       (t_root: type) (gfs0 gfs1 gfs: list gfield) (p: val)
       (v_val : val) (v_reptype : reptype (nested_field_type t_root gfs0)),
@@ -1093,7 +1044,7 @@ Lemma semax_PTree_field_load_with_hint:
         local (`(tc_val (typeof e) v_val)) ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢
         tc_lvalue Delta e ->
-      @semax cs Espec Delta (▷ PROPx P (LOCALx Q (SEPx R)))
+      semax E Delta (▷ PROPx P (LOCALx Q (SEPx R)))
         (Sset id e)
         (normal_ret_assert
           (PROPx P
@@ -1107,16 +1058,10 @@ Proof.
          LOCAL2PTREE ? ? ? EVAL_L FIELD_ADD TYPE_EQ NTH SH JMEQ TC_VAL TC.
   apply find_nth_preds_Some in NTH.
   destruct NTH as [NTH [? GFS]]; subst Rn.
-  pose proof andp_right _ _ _ TC TC_VAL.
-  eapply semax_SC_field_load.
-  1: eassumption.
-  1: eassumption.
+  pose proof bi.and_intro _ _ _ TC TC_VAL.
+  eapply semax_SC_field_load; try done.
   1: rewrite <- TYPE_EQ; eassumption.
   1: rewrite <- TYPE_EQ; eassumption.
-  2: eassumption.
-  2: eassumption.
-  2: eassumption.
-  2: eassumption.
   2: rewrite <- TYPE_EQ; eassumption.
   rewrite <- FIELD_ADD.
   erewrite (local2ptree_soundness P Q R) by eassumption.
@@ -1125,8 +1070,7 @@ Proof.
 Qed.
 
 Lemma semax_PTree_field_cast_load_no_hint:
-  forall {Espec: OracleKind},
-    forall n Rn Delta sh id P Q R (e: expr) t
+    forall n Rn E Delta sh id P Q R (e: expr) t
       T1 T2 GV e_root (efs: list efield) lr
       t_root_from_e gfs_from_e p_from_e
       (t_root: type) (gfs0 gfs1 gfs: list gfield) (p: val)
@@ -1145,13 +1089,13 @@ Lemma semax_PTree_field_cast_load_no_hint:
       readable_share sh ->
       JMeq (proj_reptype (nested_field_type t_root gfs0) gfs1 v') v ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢
-        !! (legal_nested_field (nested_field_type t_root gfs0) gfs1) ->
+        ⌜legal_nested_field (nested_field_type t_root gfs0) gfs1⌝ ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢
         local `(tc_val t (eval_cast (typeof e) t v)) ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢
         denote_tc_assert
           (tc_andp (typecheck_LR Delta e_root lr) (typecheck_efield Delta efs)) ->
-      semax Delta (▷PROPx P (LOCALx Q (SEPx R)))
+      semax E Delta (▷PROPx P (LOCALx Q (SEPx R)))
         (Sset id (Ecast e t))
           (normal_ret_assert
             (PROPx P
@@ -1173,10 +1117,10 @@ Proof.
   {
     erewrite (local2ptree_soundness P Q R) by eauto.
     simpl app.
-    apply (msubst_efield_denote_eq _ P _ _ GV R)  in EVAL_EFIELD.
+    apply (msubst_efield_denote_eq _ P _ _ GV R) in EVAL_EFIELD.
     eapply derives_trans; [apply EVAL_EFIELD |].
-    intro rho; simpl; unfold local, lift1; unfold_lift.
-    apply prop_derives; intros.
+    split => rho; monPred.unseal; simpl; unfold local, lift1; unfold_lift.
+    apply bi.pure_mono; intros.
     pose proof compute_nested_efield_lemma _ rho BY_VALUE.
     rewrite COMPUTE_NESTED_EFIELD in H3.
     destruct (H3 t_root_from_e gfs_from_e) as [tts ?].
@@ -1188,12 +1132,7 @@ Proof.
   destruct H2 as [tts [NESTED_EFIELD [LR [LEGAL_NESTED_EFIELD TYPEOF]]]].
   rewrite <- TYPEOF in BY_VALUE.
   assert_PROP (field_compatible t_root gfs0 p).
-  {
-    rewrite <- (corable_sepcon_TT (prop _)) by auto.
-    eapply nth_error_SEP_sepcon_TT'; [| eassumption].
-    apply bi.and_elim_r.
-    apply bi.and_elim_r.
-    apply bi.and_elim_r.
+  { rewrite nth_error_SEP_sepcon_TT' //.
     rewrite field_at_compatible'.
     go_lowerx.
     normalize.
@@ -1211,41 +1150,29 @@ Proof.
   rewrite denote_tc_assert_andp in TC.
   apply (derives_trans (local (tc_environ Delta) ∧ PROPx P (LOCALx Q (SEPx R)))) in DERIVES.
   2:{
-    rewrite (bi.and_comm _ (local (efield_denote _ _))), <- !-bi.and_assoc.
     rewrite (add_andp _ _ TC).
     rewrite LR.
-    apply andp_right; [| solve_andp].
-    apply andp_right; [| solve_andp].
-    apply andp_right; [| solve_andp].
-    apply andp_left1.
-    erewrite (local2ptree_soundness P Q R) by eauto.
-    simpl app.
-    apply andp_right.
-    + apply (msubst_efield_denote_eq _ P _ _ GV R) in EVAL_EFIELD; auto.
+    apply bi.and_intro, bi.and_intro, bi.and_intro, bi.and_intro; [| solve_andp | solve_andp | solve_andp |];
+      rewrite bi.and_elim_l; erewrite (local2ptree_soundness P Q R) by eauto; simpl app.
     + apply (msubst_eval_LR_eq _ P _ _ GV R) in EVAL_ROOT; auto.
+    + apply (msubst_efield_denote_eq _ P _ _ GV R) in EVAL_EFIELD; auto.
   }
   rewrite NESTED_EFIELD. rewrite <- TYPEOF, TYPE_EQ.
-  eapply semax_SC_field_cast_load.
+  eapply semax_SC_field_cast_load; try done.
   1: rewrite <- TYPEOF, TYPE_EQ; reflexivity.
-  1: eassumption.
   1: rewrite <- TYPE_EQ; eassumption.
   1: rewrite <- TYPE_EQ, TYPEOF; eassumption.
   1: rewrite <- TYPE_EQ, TYPEOF; eassumption.
-  2: eassumption.
-  2: eassumption.
-  2: eassumption.
-  2: eassumption.
   + rewrite <- FIELD_ADD_EQ.
     eapply derives_trans; [exact DERIVES | rewrite NESTED_EFIELD; solve_andp].
-  + apply andp_right.
+  + apply bi.and_intro.
     - eapply derives_trans; [exact DERIVES | rewrite NESTED_EFIELD; solve_andp].
     - rewrite <- TYPE_EQ, TYPEOF.
       rewrite (add_andp _ _ TC_VAL); solve_andp.
 Qed.
 
 Lemma semax_PTree_field_cast_load_with_hint:
-  forall {Espec: OracleKind},
-    forall n Rn Delta sh id P Q R (e: expr) t
+    forall n Rn E Delta sh id P Q R (e: expr) t
       T1 T2 GV p_from_e
       (t_root: type) (gfs0 gfs1 gfs: list gfield) (p: val)
       (v_val : val) (v_reptype : reptype (nested_field_type t_root gfs0)),
@@ -1264,7 +1191,7 @@ Lemma semax_PTree_field_cast_load_with_hint:
         local (`(tc_val t (eval_cast (typeof e) t v_val))) ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢
         tc_lvalue Delta e ->
-      @semax cs Espec Delta (▷ PROPx P (LOCALx Q (SEPx R)))
+      semax E Delta (▷ PROPx P (LOCALx Q (SEPx R)))
         (Sset id (Ecast e t))
         (normal_ret_assert
           (PROPx P
@@ -1278,18 +1205,12 @@ Proof.
          LOCAL2PTREE ? ? ? ? EVAL_L FIELD_ADD TYPE_EQ NTH SH JMEQ TC_VAL TC.
   apply find_nth_preds_Some in NTH.
   destruct NTH as [NTH [? GFS]]; subst Rn.
-  pose proof andp_right _ _ _ TC TC_VAL.
+  pose proof bi.and_intro _ _ _ TC TC_VAL.
   rewrite TYPE_EQ.
-  eapply semax_SC_field_cast_load.
-  1: eassumption.
-  1: eassumption.
+  eapply semax_SC_field_cast_load; try done.
   1: rewrite <- TYPE_EQ; eassumption.
   1: rewrite <- TYPE_EQ; eassumption.
   1: rewrite <- TYPE_EQ; eassumption.
-  2: eassumption.
-  2: eassumption.
-  2: eassumption.
-  2: eassumption.
   2: rewrite <- TYPE_EQ; eassumption.
   rewrite <- FIELD_ADD.
   erewrite (local2ptree_soundness P Q R) by eassumption.
@@ -1298,8 +1219,7 @@ Proof.
 Qed.
 
 Lemma semax_PTree_field_store_no_hint:
-  forall {Espec: OracleKind},
-    forall n Rn Delta sh P Q R (e1 e2 : expr)
+    forall n Rn E Delta sh P Q R (e1 e2 : expr)
       T1 T2 GV e_root (efs: list efield) lr
       t_root_from_e gfs_from_e p_from_e
       (t_root: type) (gfs0 gfs1 gfs: list gfield) (p: val) 
@@ -1324,8 +1244,8 @@ Lemma semax_PTree_field_store_no_hint:
             (tc_andp (typecheck_expr Delta (Ecast e2 (typeof e1)))
               (typecheck_efield Delta efs))) ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢
-        !! (legal_nested_field (nested_field_type t_root gfs0) gfs1) ->
-      semax Delta (▷PROPx P (LOCALx Q (SEPx R)))
+        ⌜legal_nested_field (nested_field_type t_root gfs0) gfs1⌝ ->
+      semax E Delta (▷PROPx P (LOCALx Q (SEPx R)))
         (Sassign e1 e2)
           (normal_ret_assert
             (PROPx P
@@ -1350,8 +1270,8 @@ Proof.
     simpl app.
     apply (msubst_efield_denote_eq _ P _ _ GV R)  in EVAL_EFIELD.
     eapply derives_trans; [apply EVAL_EFIELD |].
-    intro rho; simpl; unfold local, lift1; unfold_lift.
-    apply prop_derives; intros.
+    split => rho; monPred.unseal; simpl; unfold local, lift1; unfold_lift.
+    apply bi.pure_mono; intros.
     pose proof compute_nested_efield_lemma _ rho BY_VALUE.
     rewrite COMPUTE_NESTED_EFIELD in H1.
     destruct (H1 t_root_from_e gfs_from_e) as [tts ?].
@@ -1363,12 +1283,7 @@ Proof.
   destruct H0 as [tts [NESTED_EFIELD [LR [LEGAL_NESTED_EFIELD TYPEOF]]]].
   rewrite <- TYPEOF in BY_VALUE.
   assert_PROP (field_compatible t_root gfs0 p).
-  {
-    rewrite <- (corable_sepcon_TT (prop _)) by auto.
-    eapply nth_error_SEP_sepcon_TT'; [| eassumption].
-    apply bi.and_elim_r.
-    apply bi.and_elim_r.
-    apply bi.and_elim_r.
+  { rewrite nth_error_SEP_sepcon_TT' //.
     rewrite field_at_compatible'.
     go_lowerx.
     normalize.
@@ -1383,43 +1298,33 @@ Proof.
   destruct FIELD_ADD_GEN as [FIELD_ADD_EQ [TYPE_EQ FIELD_COMPATIBLE_E]].
   specialize (FIELD_COMPATIBLE_E FIELD_COMPATIBLE).
   pose proof nested_efield_facts Delta _ _ efs _ _ _ _ FIELD_COMPATIBLE_E LR LEGAL_NESTED_EFIELD BY_VALUE as DERIVES.
-  rewrite !denote_tc_assert_andp in TC.
+  rewrite denote_tc_assert_andp denote_tc_assert_andp in TC.
   apply (derives_trans (local (tc_environ Delta) ∧ PROPx P (LOCALx Q (SEPx R)))) in DERIVES.
   2:{
-    rewrite (bi.and_comm _ (local (efield_denote _ _))), !bi.and_assoc.
     rewrite (add_andp _ _ TC).
     rewrite LR.
-    apply andp_right; [| solve_andp].
-    apply andp_right; [| solve_andp].
-    apply andp_right; [| solve_andp].
-    apply andp_left1.
-    erewrite (local2ptree_soundness P Q R) by eauto.
-    simpl app.
-    apply andp_right.
-    + apply (msubst_efield_denote_eq _ P _ _ GV R) in EVAL_EFIELD; auto.
+    apply bi.and_intro, bi.and_intro, bi.and_intro, bi.and_intro; [| solve_andp | solve_andp | solve_andp |];
+      rewrite bi.and_elim_l; erewrite (local2ptree_soundness P Q R) by eauto; simpl app.
     + apply (msubst_eval_LR_eq _ P _ _ GV R) in EVAL_ROOT; auto.
+    + apply (msubst_efield_denote_eq _ P _ _ GV R) in EVAL_EFIELD; auto.
   }
   rewrite NESTED_EFIELD.
-  eapply semax_SC_field_store.
+  eapply semax_SC_field_store; try done.
   1: rewrite <- TYPEOF, TYPE_EQ; reflexivity.
   1: rewrite <- TYPE_EQ; eassumption.
   1: rewrite <- TYPE_EQ, TYPEOF; eassumption.
-  1: eassumption.
-  1: eassumption.
-  3: eassumption.
   3: eapply JMeq_sym; eassumption.
-  3: eassumption.
   + rewrite <- FIELD_ADD_EQ.
     eapply derives_trans; [exact DERIVES | rewrite NESTED_EFIELD; solve_andp].
   + rewrite <- TYPE_EQ, TYPEOF.
     erewrite local2ptree_soundness by eauto.
     apply msubst_eval_expr_eq; eauto.
-  + rewrite (add_andp _ _ DERIVES), (add_andp _ _ TC).
+  + rewrite (add_andp _ _ DERIVES) (add_andp _ _ TC).
     rewrite <- TYPE_EQ, TYPEOF, NESTED_EFIELD.
     solve_andp.
 Qed.
 
- 
+
 Definition replace_UnionField (id: ident) (gfs: list gfield) : option (list gfield) :=
   match gfs with
   | UnionField _ :: gfs' => Some (UnionField id :: gfs')
@@ -1427,8 +1332,7 @@ Definition replace_UnionField (id: ident) (gfs: list gfield) : option (list gfie
  end.
 
 Lemma semax_PTree_field_store_union_hack:
-  forall {Espec: OracleKind},
-    forall id n Rn Delta sh P Q R (e1 e2 : expr)
+    forall id n Rn E Delta sh P Q R (e1 e2 : expr)
       T1 T2 GV e_root (efs: list efield) lr ch ch'
       t_root_from_e gfs_from_e p_from_e
       (t_root: type) (gfs0 gfs1 gfs1' gfs gfs': list gfield) (p: val) 
@@ -1447,7 +1351,7 @@ Lemma semax_PTree_field_store_union_hack:
       type_is_volatile (nested_field_type t_root gfs') = false ->
       nested_field_offset t_root gfs = nested_field_offset t_root gfs' ->
       access_mode (nested_field_type t_root gfs') = By_value ch' ->
-      (numeric_type (nested_field_type t_root gfs) ∧ numeric_type (nested_field_type t_root gfs'))%bool = true ->
+      (numeric_type (nested_field_type t_root gfs) && numeric_type (nested_field_type t_root gfs'))%bool = true ->
       decode_encode_val_ok ch ch' ->
       find_nth_preds (fun Rn => (Rn = Rv v /\ (Rv = fun v => field_at sh t_root gfs0 v p)) /\ gfs = gfs1 ++ gfs0) R (Some (n, Rn)) ->
       replace_UnionField id gfs1 = Some gfs1' ->
@@ -1459,12 +1363,12 @@ Lemma semax_PTree_field_store_union_hack:
         denote_tc_assert
           (tc_andp (typecheck_LR Delta e_root lr)
             (tc_andp (typecheck_expr Delta (Ecast e2 (typeof e1)))
-              (typecheck_efield Delta efs)))->
+              (typecheck_efield Delta efs))) ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢
-        !! (legal_nested_field (nested_field_type t_root gfs0) gfs1) ->
+        ⌜legal_nested_field (nested_field_type t_root gfs0) gfs1⌝ ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢
-        !! (field_compatible t_root gfs' p)  ->
-      semax Delta (▷PROPx P (LOCALx Q (SEPx R)))
+        ⌜field_compatible t_root gfs' p⌝ ->
+      semax E Delta (▷PROPx P (LOCALx Q (SEPx R)))
         (Sassign e1 e2)
           (normal_ret_assert
             (PROPx P
@@ -1496,8 +1400,8 @@ Proof.
     simpl app.
     apply (msubst_efield_denote_eq _ P _ _ GV R)  in EVAL_EFIELD.
     eapply derives_trans; [apply EVAL_EFIELD |].
-    intro rho; simpl; unfold local, lift1; unfold_lift.
-    apply prop_derives; intros.
+    split => rho; monPred.unseal; simpl; unfold local, lift1; unfold_lift.
+    apply bi.pure_mono; intros.
     pose proof compute_nested_efield_lemma _ rho BY_VALUE0.
     rewrite COMPUTE_NESTED_EFIELD in H1.
     destruct (H1 t_root_from_e gfs_from_e) as [tts ?].
@@ -1509,12 +1413,7 @@ Proof.
   destruct H0 as [tts [NESTED_EFIELD [LR [LEGAL_NESTED_EFIELD TYPEOF]]]].
   rewrite <- TYPEOF in BY_VALUE.
   assert_PROP (field_compatible t_root gfs0 p) as FIELD_COMPATIBLE.
-  {
-    rewrite <- (corable_sepcon_TT (prop _)) by auto.
-    eapply nth_error_SEP_sepcon_TT'; [| eassumption].
-    apply bi.and_elim_r.
-    apply bi.and_elim_r.
-    apply bi.and_elim_r.
+  { rewrite nth_error_SEP_sepcon_TT' //.
     rewrite field_at_compatible'.
     go_lowerx.
     normalize.
@@ -1530,56 +1429,49 @@ Proof.
   destruct FIELD_ADD_GEN as [FIELD_ADD_EQ [TYPE_EQ FIELD_COMPATIBLE_E]].
   specialize (FIELD_COMPATIBLE_E FIELD_COMPATIBLE).
   pose proof nested_efield_facts Delta _ _ efs _ _ _ _ FIELD_COMPATIBLE_E LR LEGAL_NESTED_EFIELD as DERIVES.
-  rewrite !denote_tc_assert_andp in TC.
+  rewrite denote_tc_assert_andp denote_tc_assert_andp in TC.
   apply (derives_trans (local (tc_environ Delta) ∧ PROPx P (LOCALx Q (SEPx R)))) in DERIVES.
   2:{
-    rewrite (bi.and_comm _ (local (efield_denote _ _))), <- !-bi.and_assoc.
     rewrite (add_andp _ _ TC).
     rewrite LR.
-    apply andp_right; [| solve_andp].
-    apply andp_right; [| solve_andp].
-    apply andp_right; [| solve_andp].
-    apply andp_left1.
-    erewrite (local2ptree_soundness P Q R) by eauto.
-    simpl app.
-    apply andp_right.
-    + apply (msubst_efield_denote_eq _ P _ _ GV R) in EVAL_EFIELD; auto.
+    apply bi.and_intro, bi.and_intro, bi.and_intro, bi.and_intro; [| solve_andp | solve_andp | solve_andp |];
+      rewrite bi.and_elim_l; erewrite (local2ptree_soundness P Q R) by eauto; simpl app.
     + apply (msubst_eval_LR_eq _ P _ _ GV R) in EVAL_ROOT; auto.
+    + apply (msubst_efield_denote_eq _ P _ _ GV R) in EVAL_EFIELD; auto.
   }
   rewrite NESTED_EFIELD.
   eapply semax_SC_field_store_union_hack.
--  rewrite <- TYPEOF, TYPE_EQ; reflexivity.
--  rewrite <- TYPE_EQ; eassumption.
--  apply BY_VALUE'.
--  auto.
--  auto.
--  rewrite <- TYPE_EQ, TYPEOF; eassumption.
--  assumption.
--  assumption.
--  eassumption.
--  instantiate (1:=gfs1').
-          clear - GFS REPLACE REPLACE'.
-          destruct gfs1 as [ | [ | | ] ]; inv REPLACE'. inv REPLACE. auto.
--  eassumption.
-- rewrite <- FIELD_ADD_EQ.
+  - rewrite <- TYPEOF, TYPE_EQ; reflexivity.
+  - rewrite <- TYPE_EQ; eassumption.
+  - apply BY_VALUE'.
+  - auto.
+  - auto.
+  - rewrite <- TYPE_EQ, TYPEOF; eassumption.
+  - assumption.
+  - assumption.
+  - eassumption.
+  - instantiate (1:=gfs1').
+    clear - GFS REPLACE REPLACE'.
+    destruct gfs1 as [ | [ | | ] ]; inv REPLACE'. inv REPLACE. auto.
+  - eassumption.
+  - rewrite <- FIELD_ADD_EQ.
     eapply derives_trans; [exact DERIVES | rewrite NESTED_EFIELD; solve_andp].
-- rewrite <- TYPE_EQ, TYPEOF.
+  - rewrite <- TYPE_EQ, TYPEOF.
     erewrite local2ptree_soundness by eauto.
     apply msubst_eval_expr_eq; eauto.
-- auto.
-- eassumption.
-- eapply JMeq_sym; eassumption.
-- assumption.
-- apply andp_right. 2: apply prop_right; auto.
-    rewrite (add_andp _ _ DERIVES), (add_andp _ _ TC).
+  - auto.
+  - eassumption.
+  - eapply JMeq_sym; eassumption.
+  - assumption.
+  - rewrite assoc; apply bi.and_intro; last auto.
+    rewrite (add_andp _ _ DERIVES) (add_andp _ _ TC).
     rewrite <- TYPE_EQ, TYPEOF, NESTED_EFIELD.
     solve_andp.
-- eapply access_mode_by_value'; eauto.
+  - eapply access_mode_by_value'; eauto.
 Qed.
 
 Lemma semax_PTree_field_store_with_hint:
-  forall {Espec: OracleKind},
-    forall n Rn Delta sh P Q R (e1 e2 : expr)
+    forall n Rn E Delta sh P Q R (e1 e2 : expr)
       T1 T2 GV p_from_e
       (t_root: type) (gfs0 gfs1 gfs: list gfield) (p: val) 
       (v0: reptype (nested_field_type (nested_field_type t_root gfs0) gfs1))
@@ -1598,7 +1490,7 @@ Lemma semax_PTree_field_store_with_hint:
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢
         denote_tc_assert
           (tc_andp (typecheck_lvalue Delta e1) (typecheck_expr Delta (Ecast e2 (typeof e1)))) ->
-      semax Delta (▷PROPx P (LOCALx Q (SEPx R)))
+      semax E Delta (▷PROPx P (LOCALx Q (SEPx R)))
         (Sassign e1 e2)
           (normal_ret_assert
             (PROPx P
@@ -1615,15 +1507,10 @@ Proof.
   apply find_nth_preds_Some in NTH.
   destruct NTH as [NTH [[? ?] GFS]]; subst Rn Rv.
   rewrite denote_tc_assert_andp in TC.
-  eapply semax_SC_field_store.
-  1: eassumption.
+  eapply semax_SC_field_store; try done.
   1: rewrite <- TYPE_EQ; eassumption.
   1: rewrite <- TYPE_EQ; eassumption.
-  1: eassumption.
-  1: eassumption.
-  3: eassumption.
   3: eapply JMeq_sym; eassumption.
-  3: eassumption.
   3: rewrite <- TYPE_EQ; auto.
   + rewrite <- FIELD_ADD.
     erewrite (local2ptree_soundness P Q R) by eassumption.
@@ -1751,8 +1638,8 @@ end.
 Ltac search_field_at_in_SEP := find_nth test_field_at_in_SEP.
 
 Lemma quick_derives_right:
-  forall P Q : environ -> mpred,
-   (TT ⊢ Q) -> P ⊢ Q.
+  forall {Σ} (P Q : @assert Σ),
+   (True ⊢ Q) -> P ⊢ Q.
 Proof.
 intros. eapply derives_trans; try eassumption; auto.
 Qed.
@@ -1764,7 +1651,7 @@ Ltac quick_typecheck3 :=
  | H : _ |- _ => clear H
  end;
  apply quick_derives_right; clear; go_lowerx; intros;
- clear; repeat apply andp_right; auto; fail.
+ clear; repeat apply bi.and_intro; auto; fail.
 
 Ltac default_entailer_for_load_store :=
   repeat match goal with H := _ |- _ => clear H end;
@@ -1908,14 +1795,13 @@ Ltac cast_load_tac :=
     clear T1 T2 G LOCAL2PTREE
   end.
 
-Lemma data_equal_congr {cs: compspecs}:
+Lemma data_equal_congr `{!heapGS Σ} {cs: compspecs}:
     forall T (v1 v2: reptype T),
    v1 = v2 ->
    data_equal v1 v2.
-Proof. intros. subst. intro. reflexivity.
-Qed.
+Proof. intros. subst. intro. reflexivity. Qed.
 
-Definition intsize_leq a b := 
+Definition intsize_leq a b : Prop := 
  match a,b with
  | IBool, IBool => True
  | IBool, _ => False
@@ -1938,13 +1824,13 @@ destruct x; auto.
 simpl.
 destruct sz1,sz2; try contradiction;
 destruct sg; simpl;
-rewrite ?Int.sign_ext_widen,
+rewrite -> ?Int.sign_ext_widen,
            ?Int.zero_ext_widen by lia; auto;
 destruct (Int.eq i Int.zero); auto.
 Qed.
 
 Ltac convert_stored_value :=
-  rewrite ?sem_cast_i2i_compose by apply Logic.I;
+  rewrite -> ?sem_cast_i2i_compose by apply Logic.I;
    apply JMeq_refl
   || fail 1000 "store_tac: unexpected failure in converting stored value".
  
@@ -2058,7 +1944,6 @@ Ltac forward_store_union_hack id :=
   | first [solve_legal_nested_field_in_entailment
                                              | fail 1000 "unexpected failure in store_tac_union_hack."
                                                          "unexpected failure in solve_legal_nested_field_in_entailment"]
-  | solve [entailer!] || match goal with |- _ ⊢ prop ?A => fail 1000 "cannot prove" A end
+  | solve [entailer!] || match goal with |- _ ⊢ ⌜?A⌝ => fail 1000 "cannot prove" A end
   ]
   end.
-

@@ -1391,6 +1391,7 @@ Qed.
 
 Definition semax_call_alt := semax_call_si.
 
+(* We need the explicit frame because it might contain typechecking information. *)
 Lemma semax_call:
   forall E Delta (A: TypeTree)
   (P : dtfr (ArgsTT A))
