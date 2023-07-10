@@ -1415,25 +1415,3 @@ Proof.
 destruct ce as [|ce]; simpl; auto. 
 induction ce; simpl; intros; auto.
 Qed.
-
-(*
-Lemma rebuild_composite_env:
-  forall (ce: QP.composite_env) (OK: QPcomposite_env_OK ce),
- build_composite_env
-    (map compdef_of_compenv_element (sort_rank (Maps.PTree.elements ce) nil)) =
-  Errors.OK (composite_env_of_QPcomposite_env ce OK).
-Proof.
-intros.
-apply cenv_built_correctly_e.
-
-apply test_PTree_canonical_e in CAN.
-unfold build_composite_env.
-assert (CAN' := @PTree_canonical_empty composite).
-pose proof (proj1 (PTree_Forall_elements _ _ _) OK).
-
-
-
-Admitted.  (* Probably true *)
-*)
-
-
