@@ -1973,7 +1973,7 @@ Ltac extract_exists_in_SEP' PQR :=
    match R with context [(@bi_exist _ ?A ?S) :: ?R'] =>
       let n := constr:((length R - Datatypes.S (length R'))%nat) in
       let n' := eval lazy beta zeta iota delta in n in
-      rewrite (@extract_nth_exists_in_SEP n' P Q R A S (eq_refl _));
+      rewrite (@extract_nth_exists_in_SEP _ _ n' P Q R A S (eq_refl _));
       unfold replace_nth at 1;
       rewrite ?bi.and_exist_l
    end
