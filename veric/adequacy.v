@@ -72,12 +72,13 @@ Proof.
     (* This doesn't work because we're allowed to choose the witness in the external step.
        Should we prove it for all possible witnesses instead? *)
     iMod ("H" with "[%] [%]"); [done | |].
-    iModIntro.
+(*    iModIntro.
     iApply (step_fupdN_wand with "(H [//] Hcred)"). iIntros ">H".
   by rewrite Nat.add_comm big_sepL2_replicate_r.
-Qed.
+Qed.*)
+Abort.
 
-Local Lemma wptp_step s es1 es2 κ κs σ1 ns σ2 Φs nt :
+(*Local Lemma wptp_step s es1 es2 κ κs σ1 ns σ2 Φs nt :
   step (es1,σ1) κ (es2, σ2) →
   state_interp σ1 ns (κ ++ κs) nt -∗
   £ (S (num_laters_per_step ns)) -∗
@@ -126,10 +127,11 @@ Proof.
   iApply (step_fupdN_wand with "IH"). iIntros ">IH".
   iDestruct "IH" as (nt'') "[??]".
   rewrite -Nat.add_assoc -(assoc_L app) -replicate_add. by eauto with iFrame.
-Qed.
+Qed.*)
 
+End adequacy.
 
-Local Lemma wp_progress_gen Σ `{!invGpreS Σ} hlc e σ1 z1 n κs e2 σ2 :
+(*Local Lemma wp_progress_gen Σ `{!invGpreS Σ} hlc e σ1 z1 n κs e2 σ2 :
     (∀ `{!invGS_gen hlc Σ},
     ⊢ |={⊤}=> ∃ _ : gen_heapGS address resource Σ, ∃ _ : externalGS OK_ty Σ, state_interp σ1.1 σ1.2 ∗
        jsafeN hlc ⊤ z1 e) →
@@ -340,5 +342,6 @@ Proof.
 Qed.
 
 Definition wp_invariance := wp_invariance_gen HasLc.
-Global Arguments wp_invariance _ _ {_}.
+Global Arguments wp_invariance _ _ {_}.*)
 
+End ext.
