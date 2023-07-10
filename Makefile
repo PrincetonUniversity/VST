@@ -347,7 +347,7 @@ $(info =================================)
 
 MSL_FILES = \
   Axioms.v Extensionality.v base.v eq_dec.v \
-  sepalg.v psepalg.v \
+  sepalg.v sepalg_generators.v psepalg.v \
   boolean_alg.v tree_shares.v shares.v pshares.v \
   Coqlib2.v sepalg_list.v \
   log_normalize.v

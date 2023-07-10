@@ -6,6 +6,7 @@
 
 Require Import VST.msl.base.
 Require Import VST.msl.sepalg.
+Require Import VST.msl.sepalg_generators.
 Require Import VST.msl.psepalg.
 Require Import VST.msl.boolean_alg.
 Require Import VST.msl.eq_dec.
