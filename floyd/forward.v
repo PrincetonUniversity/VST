@@ -1542,37 +1542,39 @@ Qed.
 
 (* solve msubst_eval_expr, msubst_eval_lvalue, msubst_eval_LR *)
 Ltac solve_msubst_eval :=
-    let e := match goal with
-       | |- msubst_eval_expr _ _ _ _ ?a = _ => a
-       | |- msubst_eval_lvalue _ _ _ _ ?a = _ => a
-    end in
-     match goal with
-     | |- ?E = Some _ => let E' := eval hnf in E in change E with E'
-     end;
-     match goal with
-     | |- Some ?E = Some _ => let E' := eval hnf in E in
-       match E' with
-       | (match ?E'' with
-         | Some _ => _
-         | None => Vundef
-         end)
-         => change E with (force_val E'')
-       | (match ?E'' with
-         | Vundef => Vundef
-         | Vint _ => Vundef
-         | Vlong _ => Vundef
-         | Vfloat _ => Vundef
-         | Vsingle _ => Vundef
-         | Vptr _ _ => Vptr _ (Ptrofs.add _ (Ptrofs.repr ?ofs))
-         end)
-         => change E with (offset_val ofs E'')
-       | _ => change E with E'
-       end
-     | |- ?NotSome = Some _ => 
-             fail 1000 "The C-language expression " e
-                 " does not necessarily evaluate, perhaps because some variable is missing from your LOCAL clause"
-
-     end.
+  let e := match goal with
+      | |- msubst_eval_expr _ _ _ _ ?a = _ => a
+      | |- msubst_eval_lvalue _ _ _ _ ?a = _ => a
+  end in
+  (* REVIEW otherwise hnf does not reduce under msubst_eval_expr; is there a deeper reason? *)
+  unfold msubst_eval_expr, msubst_eval_lvalue; 
+  match goal with
+  | |- ?E = Some _ => let E' := eval hnf in E in change E with E'
+  end;
+  match goal with
+  | |- Some ?E = Some _ => let E' := eval hnf in E in
+    match E' with
+    | (match ?E'' with
+      | Some _ => _
+      | None => Vundef
+      end)
+      => change E with (force_val E'')
+    | (match ?E'' with
+      | Vundef => Vundef
+      | Vint _ => Vundef
+      | Vlong _ => Vundef
+      | Vfloat _ => Vundef
+      | Vsingle _ => Vundef
+      | Vptr _ _ => Vptr _ (Ptrofs.add _ (Ptrofs.repr ?ofs))
+      end)
+      => change E with (offset_val ofs E'')
+    | _ => change E with E'
+    end;
+    try done (* REVIEW for the goal of the form Some (_) = Some ?v *)
+  | |- ?NotSome = Some _ => 
+          fail 1000 "The C-language expression " e
+              " does not necessarily evaluate, perhaps because some variable is missing from your LOCAL clause"
+  end.
 
 Ltac ignore x := idtac.
 
