@@ -16,13 +16,13 @@ Section language.
 Context {Z} (Hspec : ext_spec Z).
 Context (ge : genv).
 
-Inductive gen_step c : (Memory.mem * Z) -> list unit -> CC_core -> (Memory.mem * Z) -> list CC_core -> Prop :=
+Inductive gen_step c : (Memory.mem * Z) -> list {ef & ext_spec_type Hspec ef} -> CC_core -> (Memory.mem * Z) -> list CC_core -> Prop :=
 | gen_step_core m z c' m' (Hcorestep : cl_step ge c m c' m') : gen_step c (m, z) [] c' (m', z) []
 | gen_step_ext m z e args x ret m' z' c' (Hat_ext : cl_at_external c = Some (e, args)) (Hpre : ext_spec_pre Hspec e x (genv_symb_injective ge) (sig_args (ef_sig e)) args z m)
     (Hty : Val.has_type_list args (sig_args (ef_sig e)) ∧ Builtins0.val_opt_has_rettype ret (sig_res (ef_sig e)))
     (Hpost : ext_spec_post Hspec e x (genv_symb_injective ge) (sig_res (ef_sig e)) ret z' m')
     (Hafter_ext : cl_after_external ret c = Some c') :
-    gen_step c (m, z) [] c' (m', z') [].
+    gen_step c (m, z) [existT e x] c' (m', z') [].
 
 Definition Clight_language_mixin : LanguageMixin (λ v, Returnstate v Kstop) cl_halted gen_step.
 Proof.

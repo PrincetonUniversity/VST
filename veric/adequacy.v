@@ -34,9 +34,9 @@ Context (Espec : OracleKind) (ge : Clight.genv).
 
 Local Notation gen_step := (gen_step OK_spec ge).
 
-Inductive nsteps : nat → (CC_core * (mem * OK_ty)) → list unit → (CC_core * (mem * OK_ty)) → Prop :=
+Inductive nsteps : nat → (CC_core * (mem * OK_ty)) → list {ef & extspec.ext_spec_type OK_spec ef} → (CC_core * (mem * OK_ty)) → Prop :=
     nsteps_refl : ∀ ρ, nsteps 0 ρ [] ρ
-  | nsteps_l : ∀ (n : nat) c1 c2 s1 s2 ρ3 (κ κs : list unit),
+  | nsteps_l : ∀ (n : nat) c1 c2 s1 s2 ρ3 κ κs,
                   gen_step c1 s1 κ c2 s2 [] → nsteps n (c2, s2) κs ρ3 →
                   nsteps (S n) (c1, s1) (κ ++ κs) ρ3.
 

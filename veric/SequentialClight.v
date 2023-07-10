@@ -52,6 +52,48 @@ Proof.
   induction n; apply _.
 Qed.
 
+Lemma adequacy: forall Σ `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} ge z q m n,
+  state_interp m z ∗ jsafeN Espec ge ⊤ z q ⊢
+  |={⊤}[∅]▷=>^n ⌜dry_safeN(genv_symb := genv_symb_injective) (cl_core_sem ge) OK_spec ge n z q m⌝.
+Proof.
+  intros.
+  iIntros "(S & Hsafe)".
+  iLöb as "IH" forall (m z q n).
+  destruct n as [|n]; simpl.
+  { iPureIntro. constructor. }
+  rewrite [in (environments.Esnoc _ "Hsafe" _)]/jsafeN jsafe_unfold /jsafe_pre.
+  iMod ("Hsafe" with "S") as "[Hsafe_halt | [Hsafe_core | Hsafe_ext]]".
+  - iDestruct "Hsafe_halt" as %(ret & Hhalt & Hexit).
+    iApply step_fupd_intro; first done; iApply step_fupdN_intro; first done.
+    iPureIntro; eapply safeN_halted; eauto.
+  - iDestruct "Hsafe_core" as ">(%c' & %m' & % & s_interp & ▷jsafe)".
+    iApply fupd_mask_intro; first done.
+    iIntros "Hclose !>"; iMod "Hclose" as "_".
+    iSpecialize ("IH" with "[$] [$]").
+    iModIntro; iApply (step_fupdN_mono with "IH").
+    iPureIntro. eapply safeN_step; eauto.
+  - iDestruct "Hsafe_ext" as (ef args w (at_external & Hpre)) "Hpost".
+    iAssert (|={⊤}[∅]▷=>^(S n) ⌜(∀ (ret : option val) m' z' n',
+      Val.has_type_list args (sig_args (ef_sig ef))
+      → Builtins0.val_opt_has_rettype ret (sig_res (ef_sig ef))
+        → n' ≤ n
+            → ext_spec_post OK_spec ef w
+                (genv_symb_injective ge) (sig_res (ef_sig ef)) ret z' m'
+              → ∃ q',
+                  (after_external (cl_core_sem ge) ret q m' = Some q'
+                   ∧ dry_safeN(genv_symb := genv_symb_injective) (cl_core_sem ge) OK_spec ge n' z' q' m'))⌝) with "[-]" as "Hdry".
+      2: { iApply (step_fupdN_mono with "Hdry"); iPureIntro; intros; eapply safeN_external; eauto. }
+      iApply step_fupdN_mono; first by do 8 setoid_rewrite bi.pure_forall.
+      repeat (setoid_rewrite step_fupdN_plain_forall; last done; [|apply _..]).
+      iIntros (ret m' z' n' ????).
+      iApply fupd_mask_intro; first done.
+      iIntros "Hclose !>"; iMod "Hclose" as "_".
+      iMod ("Hpost" with "[%] [%]") as (??) "(S & Hsafe)"; [done..|].
+      iSpecialize ("IH" with "[$] [$]").
+      iModIntro; iApply step_fupdN_le; first done.
+      iApply (step_fupdN_mono with "IH"); eauto.
+Qed.
+
 Lemma whole_program_sequential_safety_ext:
    forall Σ {CS: compspecs} {Espec: OracleKind} `{!VSTGpreS OK_ty Σ} (initial_oracle: OK_ty)
      (EXIT: semax_prog.postcondition_allows_exit tint)
@@ -91,49 +133,11 @@ Proof.
   specialize (H (HeapGS _ _ _ _) HE).
   eapply (semax_prog_rule _ _ _ _ n) in H as (b & q & (? & ? & Hinit & ->) & Hsafe); [| done..].
   iMod (Hsafe with "H") as "Hsafe".
-  iAssert (|={⊤}[∅]▷=>^n ⌜@dry_safeN _ _ _ OK_ty (genv_symb_injective) (cl_core_sem (globalenv prog))
-            OK_spec (Build_genv (Genv.globalenv prog) (prog_comp_env prog)) n initial_oracle q m⌝) with "[Hsafe]" as "Hdry".
-  { clear H0 Hinit Hsafe.
-    rewrite bi.and_elim_l.
-    iLöb as "IH" forall (m initial_oracle q n).
-    destruct n as [|n]; simpl.
-    { iPureIntro. constructor. }
-    rewrite [in (environments.Esnoc _ "Hsafe" _)]/jsafeN jsafe_unfold /jsafe_pre.
-    iDestruct "Hsafe" as "(s_interp & >Hsafe)".
-    iDestruct ("Hsafe" with "s_interp") as "[Hsafe_halt | [Hsafe_core | Hsafe_ext]]".
-    - iDestruct "Hsafe_halt" as %(ret & Hhalt & Hexit).
-      iApply step_fupd_intro; first done; iApply step_fupdN_intro; first done.
-      iPureIntro; eapply safeN_halted; eauto.
-    - iDestruct "Hsafe_core" as ">(%c' & %m' & %H & s_interp & ▷jsafe)".
-      iApply fupd_mask_intro; first done.
-      iIntros "Hclose !>"; iMod "Hclose" as "_".
-      iSpecialize ("IH" with "[$]").
-      iModIntro; iApply (step_fupdN_mono with "IH").
-      iPureIntro. eapply safeN_step; eauto.
-    - iDestruct "Hsafe_ext" as (ef args w (at_external & Hpre)) "Hpost".
-      iAssert (|={⊤}[∅]▷=>^(S n) ⌜(∀ (ret : option val) m' z' n',
-      Val.has_type_list args (sig_args (ef_sig ef))
-      → Builtins0.val_opt_has_rettype ret (sig_res (ef_sig ef))
-        → n' ≤ n
-            → ext_spec_post OK_spec ef w
-                (genv_symb_injective (globalenv prog)) (sig_res (ef_sig ef)) ret z' m'
-              → ∃ q',
-                  (after_external (cl_core_sem (globalenv prog)) ret q m' = Some q'
-                   ∧ safeN_ (cl_core_sem (globalenv prog)) OK_spec (Genv.globalenv prog) n' z' q' m'))⌝) with "[-]" as "Hdry".
-      2: { iApply (step_fupdN_mono with "Hdry"); iPureIntro; intros; eapply safeN_external; eauto. }
-      iApply step_fupdN_mono; first by do 8 setoid_rewrite bi.pure_forall.
-      repeat (setoid_rewrite step_fupdN_plain_forall; last done; [|apply _..]).
-      iIntros (ret m' z' n' ????).
-      simpl; iApply fupd_mask_intro; first done.
-      iIntros "Hclose !>"; iMod "Hclose" as "_".
-      iMod ("Hpost" with "[%] [%]") as (??) "H"; [done..|].
-      iSpecialize ("IH" with "[$]").
-      iModIntro; iApply step_fupdN_le; first done.
-      iApply (step_fupdN_mono with "IH"); eauto. }
-  iApply step_fupd_intro; first done.
-  iNext; iApply (step_fupdN_mono with "Hdry").
-  iPureIntro. intros.
-  eexists. eexists. split3; eauto.
+  rewrite bi.and_elim_l.
+  iPoseProof (adequacy with "Hsafe") as "Hsafe".
+  iApply step_fupd_intro; first done; iNext.
+  iApply (step_fupdN_mono with "Hsafe"); apply bi.pure_mono; intros.
+  eauto 6.
 Qed.
 
 Definition fun_id (ext_link: Strings.String.string -> ident) (ef: external_function) : option ident :=
