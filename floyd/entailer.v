@@ -581,7 +581,7 @@ Ltac entailer :=
  lazymatch goal with
  | |- ?P ⊢ _ =>
     lazymatch type of P with
-    | ?T => tryif unify T assert
+    | ?T => tryif eunify T assert
                  then (clean_up_stackframe; go_lower)
                  else tryif unify T mpred
                     then (clear_Delta; pull_out_props)
@@ -610,7 +610,7 @@ Ltac entbang :=
           rewrite ->?bi.True_and, ?bi.and_True; try apply bi.True_intro
  | |- ?P ⊢ _ =>
     lazymatch type of P with
-    | ?T => tryif unify T assert
+    | ?T => tryif eunify T assert
                  then fail "entailer! found an assert entailment that is missing its 'local' left-hand-side part (that is, Delta)"
                  else tryif unify T mpred
                     then (clear_Delta; pull_out_props)
