@@ -2205,12 +2205,12 @@ match goal with
 end.
 
 Ltac Exists'' a :=
-  first [apply bi.exist_intro with a
+  first [rewrite -(bi.exist_intro a)
          | rewrite bi.and_exist_l; Exists'' a
          | rewrite bi.and_exist_r; Exists'' a
          | rewrite bi.sep_exist_l; Exists'' a
          | rewrite bi.sep_exist_r; Exists'' a
-         | extract_exists_from_SEP_right; apply bi.exist_intro with a
+         | extract_exists_from_SEP_right; rewrite -(bi.exist_intro a)
          ].
 
 Ltac Exists' a :=
@@ -2316,7 +2316,7 @@ Ltac tuple_evar name T cb :=
 Ltac EExists'' :=
   let EExists_core :=
     match goal with [ |- _ ⊢ ∃ x:?T, _ ] =>
-      tuple_evar x T ltac: (fun x => apply bi.exist_intro with x)
+      tuple_evar x T ltac: (fun x => rewrite -(bi.exist_intro x))
     end; idtac
   in
   first [ EExists_core
