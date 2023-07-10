@@ -1129,7 +1129,7 @@ Ltac fwd_skip :=
 
 Definition BINDER_NAME := tt.
 Ltac find_postcond_binder_names :=
-  match goal with |- semax ?Delta _ ?c _ =>
+  match goal with |- semax _ ?Delta _ ?c _ =>
      match c with context [Scall _ (Evar ?id _) _] =>
      let x := constr:((glob_specs Delta) !! id) in
      let x' := eval hnf in x in
@@ -2255,10 +2255,10 @@ Tactic Notation "forward_while" constr(Inv) :=
           rewrite exp_uncurry
       end;
       eapply semax_seq;
-      [match goal with |- @semax ?CS _ ?Delta ?Pre (Swhile ?e ?s) _ =>
+      [match goal with |- @semax _ _ _ _ ?CS _ ?Delta ?Pre (Swhile ?e ?s) _ =>
         tryif (unify (nobreaksx s) true) then idtac 
         else fail "Your while-loop has a break command in the body.  Therefore, you should use forward_loop to prove it, since the standard while-loop postcondition (Invariant & ~test) may not hold at the break statement";
-        match goal with [ |- semax _ _ (@bi_exist  _ ?A _) _ _ ] => eapply (@semax_while_3g1 _ _ A) end;
+        match goal with [ |- semax _ _ (@bi_exist  _ ?A _) _ _ ] => eapply (@semax_while_3g1 _ _ _ _ _ A) end;
         (* check if we can revert back to the previous version with coq 8.5.
            (as of December 2015 with compcert 2.6 the above fix is still necessary)
            The bug happens when we destruct the existential variable of the loop invariant:
@@ -2612,7 +2612,7 @@ Ltac forward_loop_nocontinue_nobreak Inv :=
          fail 100 "Your loop is followed by more statements, so you must use the form of forward_loop with the break: keyword to supply an explicit postcondition for the loop."
   | |- semax _ _ _ (Ssequence (Sfor _ _ _ _) _) _ =>
          fail 100 "Your loop is followed by more statements, so you must use the form of forward_loop with the break: keyword to supply an explicit postcondition for the loop."
-  | P := @abbreviate ret_assert ?Post' |- semax _ _ _ ?Post => 
+  | P := @abbreviate ret_assert ?Post' |- semax _ _ _ _ ?Post => 
       first [constr_eq P Post | fail 100 "forward_loop failed; try doing abbreviate_semax first"];
       try (has_evar Post'; fail 100 "Error: your postcondition " P " has unification variables (evars), so you must use the form of forward_loop with the break: keyword to supply an explicit postcondition for the loop.");
      forward_loop_nocontinue Inv Post
@@ -2814,7 +2814,7 @@ end.
 
 Ltac forward_switch' := 
 match goal with
-| |- @semax ?CS _ ?Delta ?Pre (Sswitch ?e _) _ =>
+| |- @semax _ _ _ _ ?CS _ ?Delta ?Pre (Sswitch ?e _) _ =>
    let sign := constr:(signof e) in let sign := eval hnf in sign in
     let HRE := fresh "H" in let v := fresh "v" in 
     do_compute_expr1 CS Delta Pre e;
@@ -2850,7 +2850,7 @@ Ltac forward_if'_new :=
  repeat (apply seq_assoc1; try apply -> semax_seq_skip);
  hoist_later_in_pre;
 match goal with
-| |- @semax ?CS _ ?Delta (▷ ?Pre) (Sifthenelse ?e ?c1 ?c2) _ =>
+| |- @semax _ _ _ _ ?CS _ ?Delta (▷ ?Pre) (Sifthenelse ?e ?c1 ?c2) _ =>
    let HRE := fresh "H" in let v := fresh "v" in
     do_compute_expr1 CS Delta Pre e;
     match goal with v' := _, H:_ |- _ => rename H into HRE; rename v' into v end;
@@ -2869,7 +2869,7 @@ match goal with
        repeat apply -> semax_skip_seq;
        abbreviate_semax
      ]
-| |- semax ?Delta (▷ PROPx ?P (LOCALx ?Q (SEPx ?R))) (Ssequence (Sifthenelse ?e ?c1 ?c2) _) _ =>
+| |- semax _ ?Delta (▷ PROPx ?P (LOCALx ?Q (SEPx ?R))) (Ssequence (Sifthenelse ?e ?c1 ?c2) _) _ =>
     tryif (unify (orb (quickflow c1 nofallthrough) (quickflow c2 nofallthrough)) true)
     then (apply semax_if_seq; forward_if'_new)
     else fail "Because your if-statement is followed by another statement, you need to do 'forward_if Post', where Post is a postcondition of type (environ->mpred) or of type Prop"
@@ -3191,7 +3191,7 @@ Ltac forward_setx :=
   ensure_normal_ret_assert;
   hoist_later_in_pre;
  match goal with
- | |- semax ?Delta (▷ (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sset _ ?e) _ =>
+ | |- semax _ ?Delta (▷ (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sset _ ?e) _ =>
         eapply semax_PTree_set;
         [ prove_local2ptree
         | reflexivity
@@ -3617,7 +3617,7 @@ Ltac clean_up_stackframe ::=
 Ltac forward_return :=
   try fold_frame_function_body;
   match goal with
-  | |- @semax ?CS _ ?Delta ?Pre (Sreturn ?oe) _ =>
+  | |- @semax _ _ _ _ ?CS _ ?Delta ?Pre (Sreturn ?oe) _ =>
     match oe with
     | None =>
         eapply semax_return_None;

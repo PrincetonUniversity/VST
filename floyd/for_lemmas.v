@@ -971,7 +971,7 @@ Ltac forward_for_simple_bound'' n Inv :=
     abbreviate_semax;
     repeat
       match goal with
-      | |- semax _ (exp (fun x => _)) _ _ =>
+      | |- semax _ _ (exp (fun x => _)) _ _ =>
           let x' := fresh x in
           apply extract_exists_pre; intro x'; cbv beta
       end

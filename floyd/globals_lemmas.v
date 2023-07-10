@@ -1756,10 +1756,10 @@ Ltac process_globals :=
   apply ENTAIL_refl.
 
 Ltac expand_main_pre_old :=
- match goal with | |- semax _ (main_pre_old ?prog _ _ * _) _ _ =>
+ match goal with | |- semax _ _ (main_pre_old ?prog _ _ * _) _ _ =>
     rewrite main_pre_start_old;
     unfold prog_vars, prog
-                          | |- semax _ (main_pre_old ?prog _ _) _ _ =>
+                          | |- semax _ _ (main_pre_old ?prog _ _) _ _ =>
     rewrite main_pre_start_old;
     unfold prog_vars, prog
  end;

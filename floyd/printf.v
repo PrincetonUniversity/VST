@@ -334,7 +334,7 @@ Ltac strip_int_repr s :=
  end.
 
 Ltac do_string2bytes :=
-match goal with |- semax _ (PROPx _ (LOCALx _ (SEPx ?R))) _ _ =>
+match goal with |- semax _ _ (PROPx _ (LOCALx _ (SEPx ?R))) _ _ =>
  match R with context [data_at _ (tarray tschar ?n) 
                                      (map (Vint oo cast_int_int I8 Signed) ?il)] =>
   match il with context [Int.repr 0 :: nil] =>
@@ -387,11 +387,11 @@ Ltac forward_fprintf' gv Pre id sub outv w w' :=
 
 Ltac forward_fprintf outv w w' :=
  repeat rewrite <- seq_assoc;
- try match goal with |- semax _ _ (Scall _ _) _ =>
+ try match goal with |- semax _ _ _ (Scall _ _) _ =>
    rewrite -> semax_seq_skip
  end;
 lazymatch goal with
- | gv: globals |- @semax ?cs _ _ ?Pre (Ssequence (Scall None (Evar _ _) (?f :: Evar ?id _ :: _)) _) _ =>
+ | gv: globals |- @semax _ _ _ _ ?cs _ _ ?Pre (Ssequence (Scall None (Evar _ _) (?f :: Evar ?id _ :: _)) _) _ =>
    let tf := constr:(typeof f) in
    let tf := eval hnf in tf in
    lazymatch tf with Tpointer (Tstruct ?FILEid _) _ =>
@@ -402,11 +402,11 @@ end.
 
 Ltac forward_printf w w' :=
  repeat rewrite <- seq_assoc;
- try match goal with |- semax _ _ (Scall _ _) _ =>
+ try match goal with |- semax _ _ _ (Scall _ _) _ =>
    rewrite -> semax_seq_skip
  end;
 match goal with
- | gv: globals |- @semax ?cs _ _ ?Pre (Ssequence (Scall None (Evar _ _) (Evar ?id _ :: _)) _) _ =>
+ | gv: globals |- @semax _ _ _ _ ?cs _ _ ?Pre (Ssequence (Scall None (Evar _ _) (Evar ?id _ :: _)) _) _ =>
        forward_fprintf' gv Pre id (printf_spec_sub(CS := cs)) nullval w w'
 end.
 

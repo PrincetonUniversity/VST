@@ -721,7 +721,7 @@ Ltac hint_msg_aux2 R p2 :=
    end.
 
 Ltac hint_msg LOCAL2PTREE Delta e :=
- match goal with |- semax _ (▷ PROPx _ (LOCALx _ (SEPx ?R))) _ _ =>
+ match goal with |- semax _ _ (▷ PROPx _ (LOCALx _ (SEPx ?R))) _ _ =>
   eapply (hint_msg_lemma Delta e);
   [ exact LOCAL2PTREE
   | reflexivity
@@ -767,7 +767,7 @@ Ltac has_at_already_aux R p :=
   end.
 
 Ltac has_at_already p :=
-  lazymatch goal with |- semax _ (PROPx _ (LOCALx _ (SEPx ?R))) _ _ =>
+  lazymatch goal with |- semax _ _ (PROPx _ (LOCALx _ (SEPx ?R))) _ _ =>
     has_at_already_aux R p
   end.
 
@@ -896,7 +896,7 @@ Ltac check_unfold_mpred_for_at_aux2 Delta P Q R e :=
 
 Ltac check_unfold_mpred_for_at :=
   lazymatch goal with
-  | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) ?e _ =>
+  | |- semax _ ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) ?e _ =>
     check_unfold_mpred_for_at_aux2 Delta P Q R e
   end.
 
@@ -1723,7 +1723,7 @@ Ltac load_tac_no_hint LOCAL2PTREE :=
 
 Ltac load_tac :=
   match goal with
-  | |- semax ?Delta (▷ (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sset _ ?e) _ =>
+  | |- semax _ ?Delta (▷ (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sset _ ?e) _ =>
     let T1 := fresh "T1" in evar (T1: PTree.t val);
     let T2 := fresh "T2" in evar (T2: PTree.t (type * val));
     let G := fresh "GV" in evar (G: option globals);
@@ -1784,7 +1784,7 @@ Ltac cast_load_tac_no_hint LOCAL2PTREE :=
 
 Ltac cast_load_tac :=
   match goal with
-  | |- semax ?Delta (▷ (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sset _ (Ecast ?e _)) _ =>
+  | |- semax _ ?Delta (▷ (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sset _ (Ecast ?e _)) _ =>
     let T1 := fresh "T1" in evar (T1: PTree.t val);
     let T2 := fresh "T2" in evar (T2: PTree.t (type * val));
     let G := fresh "GV" in evar (G: option globals);
@@ -1891,7 +1891,7 @@ Ltac check_expression_by_value e :=
 
 Ltac store_tac :=
   match goal with
-  | |- semax ?Delta (▷ (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sassign ?e1 ?e2) _ =>
+  | |- semax _ ?Delta (▷ (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sassign ?e1 ?e2) _ =>
     check_expression_by_value e1;
     let T1 := fresh "T1" in evar (T1: PTree.t val);
     let T2 := fresh "T2" in evar (T2: PTree.t (type * val));
@@ -1905,7 +1905,7 @@ Ltac store_tac :=
 
 Ltac forward_store_union_hack id :=
  match goal with
-  | |- semax ?Delta (▷ (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sassign ?e1 ?e2) _ =>
+  | |- semax _ ?Delta (▷ (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sassign ?e1 ?e2) _ =>
     check_expression_by_value e1;
     let T1 := fresh "T1" in evar (T1: PTree.t val);
     let T2 := fresh "T2" in evar (T2: PTree.t (type * val));
