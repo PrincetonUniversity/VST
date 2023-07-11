@@ -787,24 +787,16 @@ Qed.
 Lemma mapsto_null_mapsto_pointer:
   forall t sh v,
    Archi.ptr64 = false -> 
-             mapsto sh (Tint I32 Signed noattr) v nullval =
+             mapsto sh (Tint I32 Signed noattr) v nullval ⊣⊢
              mapsto sh (Tpointer t noattr) v nullval.
 Proof.
   intros.
-  try solve [inversion H];
- (
-  unfold mapsto, nullval; rewrite H;
-  simpl;
-  destruct v; auto; f_equal; auto;
-  if_tac;
-   [f_equal; f_equal; rewrite andb_false_r;
-   unfold is_pointer_or_null; rewrite H;
-   apply pred_ext; unfold derives; simpl; tauto
-   | f_equal; f_equal;
-      unfold tc_val';
-      f_equal; simpl; 
-      simple_if_tac; simpl; rewrite H; auto;
-      apply prop_ext; intuition]).
+  unfold mapsto, nullval; rewrite H; simpl.
+  destruct v; auto.
+  if_tac; f_equiv; f_equiv; rewrite /Mptr ?H /=; auto.
+  - rewrite andb_false_r; iSplit; auto.
+  - unfold tc_val', tc_val; simpl.
+    rewrite andb_false_r /= H; tauto.
 Qed.
 
 Lemma repr_inj_unsigned:
