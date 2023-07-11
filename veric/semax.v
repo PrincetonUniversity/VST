@@ -9,7 +9,6 @@ Require Import VST.sepcomp.extspec.
 Require Import VST.sepcomp.step_lemmas.
 Require Import VST.veric.juicy_safety.
 Require Import VST.veric.external_state.
-Require Export VST.veric.Clight_language.
 Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
