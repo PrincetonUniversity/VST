@@ -1,4 +1,4 @@
-# Notes on Fixing `VST_on_Iris`
+# Notes on VST-on-Iris 
 
 ## Building
 
@@ -13,16 +13,15 @@ Install dependencies:
 ```(bash)
 opam repo add coq-released https://coq.inria.fr/opam/released
 opam repo add iris-dev https://gitlab.mpi-sws.org/iris/opam.git
-opam pin coq 8.16.1 
-opam pin add -k version coq-iris dev.2023-04-28.7.8f1ed633
 opam pin add https://github.com/mansky1/ora.git
 opam pin add builddep/
 ```
 
+At this point, we use [`Makefile`](./Makefile)
 Compile the [proof for the list reverse function](./progs64/verif_reverse2.v):
 
 ```(bash)
-make progs64/verif_reverse2.vo -j -k
+make progs64/verif_reverse2.vo -j
 ```
 
 Addtionally, to generate `_CoqProject`:
@@ -31,9 +30,9 @@ Addtionally, to generate `_CoqProject`:
 make _CoqProject
 ```
 
-## For now we use a very specific version of Iris
+## For now we use a slightly old version of `Iris` to avoid dealing with changed notations.
 
-Iris pinned to: 8f1ed633426beb3ace044b4515ed54c158cefd23
+Iris pinned to: 8f1ed633
 
 ## `VST` and `VST_on_Iris` name conversion
 

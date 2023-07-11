@@ -17,7 +17,7 @@ The [LICENSE](LICENSE) file has information about copyright, licensing, and perm
 
 ## How to install:
 
-[See here for instructions](BUILD_ORGANIZATION.md#install-method-1-use-the-coq-platform).
+[See here for instructions](./ivst.md).
 
 ## Documentation:
 
