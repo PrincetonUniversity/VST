@@ -1,19 +1,41 @@
-# Notes on Fixing `VST_on_Iris`
+# Notes on VST-on-Iris 
 
-## Installing ora
+## Building
+
+Install opam:
+
+```(bash)
+opam switch create vst_on_iris ocaml-variants.4.14.1+options ocaml-option-flambda
+```
+
+Install dependencies:
 
 ```(bash)
 opam repo add coq-released https://coq.inria.fr/opam/released
 opam repo add iris-dev https://gitlab.mpi-sws.org/iris/opam.git
-opam pin add -k path coq-iris-ora ./ora
-opam install coq-iris-ora
+opam pin add https://github.com/mansky1/ora.git
+opam pin add builddep/
 ```
 
-## For now we use a very specific version of Iris
+At this point, we use [`Makefile`](./Makefile)
+Compile the [proof for the list reverse function](./progs64/verif_reverse2.v):
 
-Iris pinned to: 8f1ed633426beb3ace044b4515ed54c158cefd23
+```(bash)
+make progs64/verif_reverse2.vo -j
+```
+
+Addtionally, to generate `_CoqProject`:
+
+```(bash)
+make _CoqProject
+```
+
+## For now we use a slightly old version of `Iris` to avoid dealing with changed notations.
+
+Iris pinned to: 8f1ed633
 
 ## `VST` and `VST_on_Iris` name conversion
+
 | VST                       | vst_on_iris                         | syntax                                      |
 | ------------------------- | ---------------------------- | ------------------------------------------- |
 | prop_right                | bi.pure_intro                | φ → _ -∗ ⌜φ⌝                                |
