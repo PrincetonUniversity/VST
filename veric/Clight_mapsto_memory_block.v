@@ -95,10 +95,10 @@ Qed.
 Lemma mapsto_null_mapsto_pointer:
   forall t sh v,
    Archi.ptr64 = false -> 
-             mapsto sh tint v nullval =
+             mapsto sh tint v nullval ⊣⊢
              mapsto sh (tptr t) v nullval.
 Proof.
-  intros. apply mapsto_null_mapsto_pointer; trivial.
+  exact mapsto_null_mapsto_pointer.
 Qed.
 
 End mpred.
