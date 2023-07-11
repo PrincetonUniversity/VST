@@ -19,6 +19,13 @@ Import Ctypes Clight_core.
 Local Open Scope nat_scope.
 Open Scope maps.
 
+Definition genv_symb_injective {F V} (ge: Genv.t F V) : extspec.injective_PTree Values.block.
+Proof.
+exists (Genv.genv_symb ge).
+hnf; intros.
+eapply Genv.genv_vars_inj; eauto.
+Defined.
+
 Section mpred.
 
 Context `{!heapGS Σ} (Espec : OracleKind) `{!externalGS OK_ty Σ}.
