@@ -4,7 +4,6 @@ Require Import VST.sepcomp.semantics.
 Require Import VST.sepcomp.extspec.
 Require Import VST.sepcomp.step_lemmas.
 Require Import VST.veric.shares.
-(*Require Import VST.veric.juicy_safety.*)
 Require Import iris_ora.logic.ghost_map.
 Require Import VST.veric.juicy_mem.
 Require Import VST.veric.external_state.
