@@ -519,13 +519,10 @@ Proof.
   f_equal. f_equal. f_equal. rewrite Ptrofs.of_int64_to_int64 //.
   rewrite <- ptrofs_mul_repr;  f_equal.
   f_equal. f_equal. f_equal.
-  destruct si.
-  rewrite <- ptrofs_mul_repr;  f_equal.
-  rewrite ptrofs_to_int_repr.
-  rewrite Ptrofs_repr_Int_signed_special //.
-  rewrite <- ptrofs_mul_repr;  f_equal.
-  rewrite ptrofs_to_int_repr.
-  rewrite Ptrofs_repr_Int_unsigned_special //.
+  destruct si;
+  rewrite <- ?ptrofs_mul_repr;
+  rewrite ptrofs_to_int_repr;
+  rewrite ?Ptrofs_repr_Int_signed_special ?Ptrofs_repr_Int_unsigned_special //.
 Qed.
 
 Lemma sem_add_pl_ptr_special:
@@ -550,7 +547,8 @@ Proof.
   apply Int64.eqm_sym.
   apply Int64.eqm_unsigned_repr.
   destruct Archi.ptr64 eqn:Hp.
-  rewrite Ptrofs.modulus_eq64 //. apply Z.divide_refl.
+  rewrite Ptrofs.modulus_eq64 //.
+  rewrite Ptrofs.modulus_eq32 //; apply power_nat_divide; computable.
 Qed.
 
 

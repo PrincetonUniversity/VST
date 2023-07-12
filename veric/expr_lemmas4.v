@@ -436,10 +436,9 @@ destruct (eq_dec (typeof e) int_or_ptr_type).
 rewrite /Cop.sem_cast /sem_cast -classify_cast_eq; try done.
 destruct (classify_cast (typeof e) t2) eqn: Hclass; try done.
 - destruct t2; try discriminate; try destruct i; try destruct f; destruct (typeof e); try destruct f; try discriminate; simpl in Hclass;
-    try solve [destruct (eval_expr e rho); try contradiction; auto].
-  + revert Hclass; simple_if_tac; discriminate.
+    try solve [destruct (eval_expr e rho); try contradiction; auto];
+    try solve [revert Hclass; simple_if_tac; discriminate].
   + simpl in H. revert H; simple_if_tac; destruct (eval_expr e rho); try contradiction; auto.
-  + revert Hclass; simple_if_tac; discriminate.
   + simpl in H. revert H; simple_if_tac; destruct (eval_expr e rho); try contradiction; auto.
 - rewrite isCastR Hclass.
   unfold classify_cast in Hclass.

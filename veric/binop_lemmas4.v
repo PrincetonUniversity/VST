@@ -239,9 +239,9 @@ Proof.
 intros.
 unfold denote_tc_test_eq.
 destruct v; try (iIntros "[]");
-unfold Vptrofs, ptrofs_of_int; simpl;
-destruct Archi.ptr64; try contradiction;
-destruct H; hnf in *; subst; destruct si; split; hnf; auto.
+unfold Vptrofs, ptrofs_of_int;
+destruct Archi.ptr64 eqn: H; try done; iIntros "(% & H)"; try iFrame; iFrame "%"; try iDestruct "H" as %?; subst;
+destruct si; auto.
 Qed.
 
 Lemma denote_tc_test_eq_yy:
@@ -252,9 +252,9 @@ Proof.
 intros.
 unfold denote_tc_test_eq .
 destruct v; try (iIntros "[]");
-unfold Vptrofs, ptrofs_of_int; simpl;
-destruct Archi.ptr64; try contradiction;
-destruct H; hnf in *; subst; destruct si; split; hnf; auto.
+unfold Vptrofs, ptrofs_of_int;
+destruct Archi.ptr64 eqn: H; try done; iIntros "(% & H)"; try iFrame; iFrame "%"; try iDestruct "H" as %?; subst;
+destruct si; auto.
 Qed.
 
 Lemma sem_cast_long_intptr_lemma:

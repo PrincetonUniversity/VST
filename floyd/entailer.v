@@ -173,11 +173,7 @@ Proof.
  apply bi.and_mono; try apply derives_refl.
  apply bi.and_mono; try apply derives_refl.
  apply bi.or_intro_l.
- (* TODO somehow can't directly rewrite *)
- assert (H: valid_pointer (Vptr b i) ∧ valid_pointer (Vlong i0) ⊣⊢
-         valid_pointer (Vlong i0) ∧ valid_pointer (Vptr b i) ).
- { rewrite bi.and_comm. done. }
- rewrite H; clear H.
+ rewrite bi.and_comm.
  apply bi.and_mono; try apply derives_refl. apply bi.or_intro_l.
  unfold test_eq_ptrs.
  destruct (sameblock _ _); auto.

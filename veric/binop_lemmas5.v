@@ -15,9 +15,6 @@ Section mpred.
 
 Context `{!heapGS Σ}.
 
-(*Lemma test: ∀ (cmp : comparison) (v1 v2 v : val)
-    sem_cmp_pp cmp v1 v2 = Some v*)
-
 Lemma typecheck_Otest_eq_sound:
  forall op {CS: compspecs} (rho : environ) (e1 e2 : expr) (t : type)
    (TV2: tc_val (typeof e2) (eval_expr e2 rho))
@@ -108,7 +105,7 @@ Proof.
            unfold Clight_Cop2.sem_cast, Clight_Cop2.classify_cast, size_t, sem_cast_pointer;
            simpl; rewrite ?Hp; simpl
     end;
-  unfold denote_tc_test_eq, sem_cast_i2l, sem_cast_l2l, cast_int_long, force_val;
+  unfold denote_tc_test_eq, sem_cast_i2l, sem_cast_l2l, sem_cast_l2i, cast_int_long, cast_int_int, force_val;
   rewrite ?Hp; inv TV1; try (rewrite Ht in Hty1; try solve [destruct sz; inv Hty1]; try solve [destruct sz0; inv Hty1]; inv Hty1);
   inv TV2; try (rewrite Ht0 in Hty2; try solve [destruct sz; inv Hty2]; try solve [destruct sz0; inv Hty2]; inv Hty2);
   rewrite -> ?J, ?J0 in *;
@@ -119,21 +116,24 @@ Proof.
     end; subst;
     simpl; unfold Vptrofs, sem_cmp_pi, sem_cmp_ip, sem_cmp_pl, sem_cmp_lp, sem_cmp_pp; simpl; rewrite ?Hp; simpl;
     rewrite ?Hp; simpl;
-    try (rewrite (Ptrofs_to_of64_lemma Hp);
-           unfold cast_int_int in H; rewrite Hii Int.eq_true);
-    try (apply int_type_tc_val_Vtrue; auto);
-    try (apply int_type_tc_val_Vfalse; auto);
-    try (apply int_type_tc_val_of_bool; auto);
+    rewrite ?(Ptrofs_to_of64_lemma Hp);
    try match goal with
     | H: Int64.repr (Int.signed _) = Int64.zero |- _ => apply Int64repr_Intsigned_zero in H; subst
     | H: Int64.repr (Int.unsigned _) = Int64.zero |- _ => apply Int64repr_Intunsigned_zero in H; subst
     end;
+  try (destruct si; simpl);
   try match goal with
      | |- context [Int64.eq (Ptrofs.to_int64 (Ptrofs.of_ints Int.zero)) Int64.zero] =>
        change (Int64.eq (Ptrofs.to_int64 (Ptrofs.of_ints Int.zero)) Int64.zero) with true;
        simpl
      | |- context [Int64.eq (Ptrofs.to_int64 (Ptrofs.of_intu Int.zero)) Int64.zero] =>
        change (Int64.eq (Ptrofs.to_int64 (Ptrofs.of_intu Int.zero)) Int64.zero) with true;
+       simpl
+     | |- context [Int.eq (Ptrofs.to_int (Ptrofs.of_ints Int.zero)) Int.zero] =>
+       change (Int.eq (Ptrofs.to_int (Ptrofs.of_ints Int.zero)) Int.zero) with true;
+       simpl
+     | |- context [Int.eq (Ptrofs.to_int (Ptrofs.of_intu Int.zero)) Int.zero] =>
+       change (Int.eq (Ptrofs.to_int (Ptrofs.of_intu Int.zero)) Int.zero) with true;
        simpl
     end;
    try solve [iPureIntro; apply int_type_tc_val_of_bool; auto];
@@ -142,7 +142,8 @@ Proof.
    try solve [iPureIntro; apply int_type_tc_val_Vtrue; auto]);
   match goal with |- context [match typeof e1 with _ => _ end] => destruct (typeof e1); try discriminate; try iDestruct "H" as "[]"
                 | |- context [match typeof e2 with _ => _ end] => destruct (typeof e2); try discriminate; try iDestruct "H" as "[]" end;
-  try iDestruct "H" as "[-> _]"; try (destruct s; iDestruct "H" as "[%Hs _]"; (apply Int64repr_Intsigned_zero in Hs as -> || apply Int64repr_Intunsigned_zero in Hs as ->); destruct si; simpl);
+  try iDestruct "H" as "[-> _]";
+  try (destruct s; iDestruct "H" as "[%Hs _]"; (apply Int64repr_Intsigned_zero in Hs as -> || apply Int64repr_Intunsigned_zero in Hs as ->));
   try solve [iPureIntro; apply int_type_tc_val_of_bool; auto].
 Qed.
 
