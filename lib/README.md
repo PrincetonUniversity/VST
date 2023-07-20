@@ -46,7 +46,16 @@ Additional details:
 - memmgr:  This is the "[Verified Sequential Malloc/Free](https://dl.acm.org/doi/10.1145/3381898.3397211)" published by Naumann and Appel.
 - malloc:  This is an axiomatized version of standard Posix malloc/free, for those users who want to call
     the standard library implementations.
-
+## How to install and use VSTlib
+```
+opam  repository  add  coq-released
+opam  install  coq-vst-lib
+```
+- For C include files, add to your CFLAGS:  `-I $(OPAM_SWITCH_PREFIX)/lib/coq/user-contrib/VSTlib/include`
+- For C sources to compile and link with:  `$(OPAM_SWITCH_PREFIX)/lib/coq/user-contrib/VSTlib/src`
+- Within Coq:  `From VSTlib Require Import spec_malloc.`   (* etc *)
+  
+(Instead of opam, you could build from sources and do `make install`, and adjust your paths to `lib/coq/user-contrib' appropriately.)
 ## Testing and demonstration examples
 
 Example clients that demonstrate how to use these VSUs can be found
