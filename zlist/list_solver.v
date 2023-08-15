@@ -2107,8 +2107,9 @@ Ltac apply_list_ext :=
   lazymatch goal with
   | |- @eq ?list_A _ _ =>
       match eval compute in list_A with list ?A =>
-        apply (@Znth_eq_ext A ltac:(typeclasses eauto))
-      end; [ Zlength_solve_with_message | .. ]
+        apply (@Znth_eq_ext A ltac:(typeclasses eauto));
+          [ try Zlength_solve | .. ]
+      end
   | |- @Forall ?A ?P ?l =>
       rewrite Forall_Znth;
       intros
@@ -2119,21 +2120,26 @@ Ltac apply_list_ext :=
   Zlength_simplify;
   intros.
 
+(* Perform trivial steps before list_solve_preprocess. *)
+Ltac list_solve_preprocess_trivial :=
+  intros;
+  try lia;
+  try match goal with |- context [@Zlength] => Zlength_solve end.
+
 Ltac customizable_list_solve_preprocess := idtac.
 
 Ltac list_solve_preprocess :=
+  list_solve_preprocess_trivial;
   customizable_list_solve_preprocess;
   autounfold with list_solve_unfold in *;
   list_form;
-  unshelve rewrite ?app_nil_r in *; 
-  [solve [typeclasses eauto] .. | idtac];
+  (* Parentheses are needed to make sure when there are zero goals. *) 
+  (unshelve rewrite ?app_nil_r in *;
+  [solve [typeclasses eauto] .. | idtac]);
   repeat match goal with [ |- _ /\ _ ] => split end;
   intros.
 
 Ltac list_solve :=
-  intros;
-  try lia;
-  try match goal with |- context [@Zlength] => Zlength_solve end;
   list_solve_preprocess;
   Zlength_simplify_in_all; try lia;
   Znth_simplify_in_all; auto with Znth_solve_hint;
@@ -2152,7 +2158,6 @@ Ltac list_solve :=
     (apply_list_ext || fail "list_solve cannot solve this goal; list_simplify can sometimes diagnose where subgoals need extra assistance")).
 
 Ltac list_simplify :=
-  intros;
   list_solve_preprocess;
   Zlength_simplify_in_all; try lia;
   Znth_simplify_in_all; auto with Znth_solve_hint;
@@ -2168,8 +2173,6 @@ Ltac list_simplify :=
 
 (** * quick_list_solve and simplify *)
 Ltac quick_list_simplify :=
-  try lia;
-  try match goal with |- context [@Zlength] => Zlength_solve end;
   list_solve_preprocess;
   Zlength_simplify_in_all; try lia;
   Znth_simplify_in_all; auto with Znth_solve_hint;
