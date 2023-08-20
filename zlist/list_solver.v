@@ -2106,16 +2106,24 @@ Ltac Zlength_solve_with_message :=
    fail 1 "list_solve cannot solve this goal.  Try asserting above the line, a hypothesis that will help prove" A
  end.
 
+Ltac resolve_inhabitant :=
+  lazymatch goal with
+  | |- Inhabitant ?A =>
+      typeclasses eauto
+        || fail "Unable to find Inhabitant for" A
+  | _ =>
+      fail "The goal is not (Inhabitant ?A)"
+  end.
 
 Ltac apply_list_ext :=
   lazymatch goal with
   | |- @eq ?list_A _ _ =>
-      match eval compute in list_A with list ?A =>
-        apply (@Znth_eq_ext A ltac:(typeclasses eauto));
+      lazymatch eval compute in list_A with list ?A =>
+        apply (@Znth_eq_ext A ltac:(resolve_inhabitant));
           [ try Zlength_solve | .. ]
       end
   | |- @Forall ?A ?P ?l =>
-      rewrite Forall_Znth;
+      rewrite (@Forall_Znth A ltac:(resolve_inhabitant));
       intros
   | |- @forall_range ?A ?d ?lo ?hi ?l ?P =>
       rewrite <- forall_range_fold;
