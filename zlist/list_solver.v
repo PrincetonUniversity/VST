@@ -1980,6 +1980,7 @@ Ltac pose_new_res_tri i j lo1 hi1 lo2 hi2 offset H res :=
 Ltac range_saturate_uni H :=
   lazymatch type of H with
   | forall_range ?lo ?hi ?l ?P =>
+    (* Replace instantiate_index -> instantiate_index' for used indices. *)
     repeat lazymatch goal with
     | H1 : instantiate_index (Znth ?i l) |- _ =>
       let res := eval cbv beta in (P (Znth i l)) in
@@ -1992,6 +1993,7 @@ Ltac range_saturate_uni H :=
 Ltac range_saturate_bin H :=
   lazymatch type of H with
   | forall_range2 ?lo ?hi ?offset ?l1 ?l2 ?P =>
+    (* Replace instantiate_index -> instantiate_index' for used indices. *)
     repeat lazymatch goal with
     | H1 : instantiate_index (Znth ?i l1) |- _ =>
       let res := eval cbv beta in (P (Znth i l1) (Znth (i + offset) l2)) in
@@ -2004,8 +2006,10 @@ Ltac range_saturate_bin H :=
 Ltac range_saturate_tri H :=
   lazymatch type of H with
   | forall_triangle ?lo1 ?hi1 ?lo2 ?hi2 ?offset ?l1 ?l2 ?P =>
+    (* Replace instantiate_index -> instantiate_index' for used indices for l1. *)
     repeat lazymatch goal with
     | H1 : instantiate_index (Znth ?i l1) |- _ =>
+      (* Replace Znth -> Znth' for used indices for l2. *)
       repeat lazymatch goal with
       | H2 : instantiate_index (Znth ?j l2) |- _ =>
         let res := eval cbv beta in (P (Znth i l1) (Znth j l2)) in
