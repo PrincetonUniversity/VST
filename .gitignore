@@ -96,3 +96,7 @@ lib/.CoqMakefile.d
 lib/proof/math_extern.v
 lib/proof/malloc_extern.v
 lib/proof/SC_atomics_extern.v
+
+zlist/.Makefile.coq.d
+zlist/Makefile.coq
+zlist/Makefile.coq.conf
