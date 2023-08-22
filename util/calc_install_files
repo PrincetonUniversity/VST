@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 #  The $1 argument of this script should be the desired make target
 
+set -o pipefail
+
 MAKE=${MAKE:-make}
-${MAKE} depend >& /dev/null
-${MAKE} CLIGHTGEN="CLIGHTGEN" -Bn veric floyd $1 2>/dev/null | \
- awk '/^echo COQC /{print $NF}/^CLIGHTGEN/{print $NF}'
+${MAKE} depend >& /dev/null || ${MAKE} depend >&2
+{ ${MAKE} CLIGHTGEN="CLIGHTGEN" -Bn veric floyd $1 2>/dev/null | \
+    awk '/^echo COQC /{print $NF}/^CLIGHTGEN/{print $NF}'; } || \
+    ${MAKE} CLIGHTGEN="CLIGHTGEN" -Bn veric floyd $1 >&2
