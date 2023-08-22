@@ -647,7 +647,6 @@ EXTRA_INSTALL_FILES = \
   VERSION \
   msl/CREDITS \
   msl/EXTRACTION \
-  msl/LICENSE \
   msl/README.html \
   msl/SUMMARY \
   doc/VC.pdf \
