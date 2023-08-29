@@ -1,4 +1,14 @@
-CHANGES IN RELEASE 2.12
+CHANGES IN NEXT RELEASE (after 2.12)
+
+- Improved error diagnostics when compspecs mismatch
+- Improved error diagnostics when change_compspecs fails
+- Improved error diagnostics when VSU has missing (vacuous) funspec
+- Int64.repr is Transparent, consistent with Int.repr
+- forward tactic is slightly more careful about not simplifying user's terms
+- bug fixes and improved diagnostic messages in list_solve tactic
+- field_compatible0_Tarray_offset no longer requires naturally_aligned hypothesis
+
+CHANGES IN RELEASE 2.12 (March 2023)
 
 - New entailer!! tactic
 - Use bool2val instead of Val.of_bool, improves forward_if 
