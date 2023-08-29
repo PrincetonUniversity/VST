@@ -258,8 +258,8 @@ Definition forall_range2 {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabit
   forall_i lo hi (fun i => P (Znth i al) (Znth (i + offset) bl)).
 
 Definition forall_triangle {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
-  (x1 x2 y1 y2 offset: Z) (al : list A) (bl : list B) (P : A -> B -> Prop) :=
-  forall i j, x1 <= i < x2 /\ y1 <= j < y2 /\ i <= j + offset -> P (Znth i al) (Znth j bl).
+  (lo1 hi1 lo2 hi2 offset: Z) (al : list A) (bl : list B) (P : A -> B -> Prop) :=
+  forall i j, lo1 <= i < hi1 /\ lo2 <= j < hi2 /\ i <= j + offset -> P (Znth i al) (Znth j bl).
 
 
 (****************** range lemmas ************************)
@@ -659,62 +659,62 @@ Proof.
 Qed.
 
 Lemma forall_triangle_rangei_uniA : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
-  (x1 x2 y1 y2 offset : Z) (al : list A) (bl : list B) (P : A -> B -> Prop),
-  forall_triangle x1 x2 y1 y2 offset al bl P <->
-  forall_i_range x1 x2 al (fun i x => forall_i_range y1 y2 bl (fun j y => i <= j + offset -> P x y)).
+  (lo1 hi1 lo2 hi2 offset : Z) (al : list A) (bl : list B) (P : A -> B -> Prop),
+  forall_triangle lo1 hi1 lo2 hi2 offset al bl P <->
+  forall_i_range lo1 hi1 al (fun i x => forall_i_range lo2 hi2 bl (fun j y => i <= j + offset -> P x y)).
 Proof.
   unfold forall_triangle, forall_i_range, forall_i. intuition.
 Qed.
 
 Lemma forall_triangle_rangei_uniB : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
-  (x1 x2 y1 y2 offset : Z) (al : list A) (bl : list B) (P : A -> B -> Prop),
-  forall_triangle x1 x2 y1 y2 offset al bl P <->
-  forall_i_range y1 y2 bl (fun j y => forall_i_range x1 x2 al (fun i x => i <= j + offset -> P x y)).
+  (lo1 hi1 lo2 hi2 offset : Z) (al : list A) (bl : list B) (P : A -> B -> Prop),
+  forall_triangle lo1 hi1 lo2 hi2 offset al bl P <->
+  forall_i_range lo2 hi2 bl (fun j y => forall_i_range lo1 hi1 al (fun i x => i <= j + offset -> P x y)).
 Proof.
   unfold forall_triangle, forall_i_range, forall_i. intuition.
 Qed.
 
 Lemma forall_triangle_emptyA : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
-  (x1 x2 y1 y2 offset: Z) (l : list A) (l' : list B) (P : A -> B -> Prop),
-  x1 = x2 ->
-  forall_triangle x1 x2 y1 y2 offset l l' P <->
+  (lo1 hi1 lo2 hi2 offset: Z) (l : list A) (l' : list B) (P : A -> B -> Prop),
+  lo1 = hi1 ->
+  forall_triangle lo1 hi1 lo2 hi2 offset l l' P <->
   True.
 Proof.
   intros; split; unfold forall_triangle; intros; auto; lia.
 Qed.
 
 Lemma forall_triangle_emptyB : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
-  (x1 x2 y1 y2 offset: Z) (l : list A) (l' : list B) (P : A -> B -> Prop),
-  y1 = y2 ->
-  forall_triangle x1 x2 y1 y2 offset l l' P <->
+  (lo1 hi1 lo2 hi2 offset: Z) (l : list A) (l' : list B) (P : A -> B -> Prop),
+  lo2 = hi2 ->
+  forall_triangle lo1 hi1 lo2 hi2 offset l l' P <->
   True.
 Proof.
   intros; split; unfold forall_triangle; intros; auto; lia.
 Qed.
 
 Lemma forall_triangle_emptyAgtB : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
-  (x1 x2 y1 y2 offset: Z) (l : list A) (l' : list B) (P : A -> B -> Prop),
-  x1 >= y2 + offset ->
-  forall_triangle x1 x2 y1 y2 offset l l' P <->
+  (lo1 hi1 lo2 hi2 offset: Z) (l : list A) (l' : list B) (P : A -> B -> Prop),
+  lo1 >= hi2 + offset ->
+  forall_triangle lo1 hi1 lo2 hi2 offset l l' P <->
   True.
 Proof.
   intros; split; unfold forall_triangle; intros; auto; lia.
 Qed.
 
 Lemma forall_triangleA_app1 : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
-  (x1 x2 y1 y2 offset: Z) (al bl : list A) (l' : list B) (P : A -> B -> Prop),
-  0 <= x1 <= x2 /\ x2 <= Zlength al ->
-  forall_triangle x1 x2 y1 y2 offset (al ++ bl) l' P <->
-  forall_triangle x1 x2 y1 y2 offset al l' P.
+  (lo1 hi1 lo2 hi2 offset: Z) (al bl : list A) (l' : list B) (P : A -> B -> Prop),
+  0 <= lo1 <= hi1 /\ hi1 <= Zlength al ->
+  forall_triangle lo1 hi1 lo2 hi2 offset (al ++ bl) l' P <->
+  forall_triangle lo1 hi1 lo2 hi2 offset al l' P.
 Proof.
   intros *. do 2 rewrite forall_triangle_rangei_uniA. apply rangei_uni_app1.
 Qed.
 
 Lemma forall_triangleA_app2 : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
-  (x1 x2 y1 y2 offset: Z) (al bl : list A) (l' : list B) (P : A -> B -> Prop),
-  Zlength al <= x1 <= x2 /\ x2 <= Zlength al + Zlength bl ->
-  forall_triangle x1 x2 y1 y2 offset (al ++ bl) l' P ->
-  forall_triangle (x1 - Zlength al) (x2 - Zlength al) y1 y2 (offset - Zlength al) bl l' P.
+  (lo1 hi1 lo2 hi2 offset: Z) (al bl : list A) (l' : list B) (P : A -> B -> Prop),
+  Zlength al <= lo1 <= hi1 /\ hi1 <= Zlength al + Zlength bl ->
+  forall_triangle lo1 hi1 lo2 hi2 offset (al ++ bl) l' P ->
+  forall_triangle (lo1 - Zlength al) (hi1 - Zlength al) lo2 hi2 (offset - Zlength al) bl l' P.
 Proof.
   intros *. do 2 rewrite forall_triangle_rangei_uniA. intros.
   apply rangei_uni_app2 in H0. 2 : assumption.
@@ -727,11 +727,11 @@ Proof.
 Qed.
 
 Lemma forall_triangleA_app : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
-  (x1 x2 y1 y2 offset : Z) (al bl : list A) (l' : list B) (P : A -> B -> Prop),
-  0 <= x1 <= Zlength al /\ Zlength al <= x2 <= Zlength al + Zlength bl ->
-  forall_triangle x1 x2 y1 y2 offset (al ++ bl) l' P ->
-  forall_triangle x1 (Zlength al) y1 y2 offset al l' P /\
-  forall_triangle 0 (x2 - Zlength al) y1 y2 (offset - Zlength al) bl l' P.
+  (lo1 hi1 lo2 hi2 offset : Z) (al bl : list A) (l' : list B) (P : A -> B -> Prop),
+  0 <= lo1 <= Zlength al /\ Zlength al <= hi1 <= Zlength al + Zlength bl ->
+  forall_triangle lo1 hi1 lo2 hi2 offset (al ++ bl) l' P ->
+  forall_triangle lo1 (Zlength al) lo2 hi2 offset al l' P /\
+  forall_triangle 0 (hi1 - Zlength al) lo2 hi2 (offset - Zlength al) bl l' P.
 Proof.
   intros *. do 3 rewrite forall_triangle_rangei_uniA. intros.
   apply rangei_uni_app in H0. 2 : assumption.
@@ -744,10 +744,10 @@ Proof.
 Qed.
 
 Lemma forall_triangleA_upd_Znth : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
-  (x1 x2 y1 y2 offset i : Z) (l : list A) (x : A) (l' : list B) (P : A -> B -> Prop),
+  (lo1 hi1 lo2 hi2 offset i : Z) (l : list A) (x : A) (l' : list B) (P : A -> B -> Prop),
   0 <= i < Zlength l ->
-  forall_triangle x1 x2 y1 y2 offset (upd_Znth i l x) l' P <->
-  forall_triangle x1 x2 y1 y2 offset (sublist 0 i l ++ (Zrepeat x 1) ++ sublist (i+1) (Zlength l) l) l' P.
+  forall_triangle lo1 hi1 lo2 hi2 offset (upd_Znth i l x) l' P <->
+  forall_triangle lo1 hi1 lo2 hi2 offset (sublist 0 i l ++ (Zrepeat x 1) ++ sublist (i+1) (Zlength l) l) l' P.
 Proof.
   intros.
   rewrite upd_Znth_unfold by Zlength_solve.
@@ -756,10 +756,10 @@ Proof.
 Qed.
 
 Lemma forall_triangleA_sublist : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
-  (lo hi x1 x2 y1 y2 offset : Z) (l : list A) (l' : list B) (P : A -> B -> Prop),
-  0 <= x1 <= x2 /\ x2 <= hi - lo /\ 0 <= lo <= hi /\ hi <= Zlength l ->
-  forall_triangle x1 x2 y1 y2 offset (sublist lo hi l) l' P ->
-  forall_triangle (x1 + lo) (x2 + lo) y1 y2 (offset + lo) l l' P.
+  (lo hi lo1 hi1 lo2 hi2 offset : Z) (l : list A) (l' : list B) (P : A -> B -> Prop),
+  0 <= lo1 <= hi1 /\ hi1 <= hi - lo /\ 0 <= lo <= hi /\ hi <= Zlength l ->
+  forall_triangle lo1 hi1 lo2 hi2 offset (sublist lo hi l) l' P ->
+  forall_triangle (lo1 + lo) (hi1 + lo) lo2 hi2 (offset + lo) l l' P.
 Proof.
   intros *. do 2 rewrite forall_triangle_rangei_uniA. intros.
   apply rangei_uni_sublist in H0. 2 : assumption.
@@ -772,10 +772,10 @@ Proof.
 Qed.
 
 Lemma forall_triangleA_map : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B} {C : Type} {dc : Inhabitant C}
-  (x1 x2 y1 y2 offset : Z) (l : list A) (l' : list B) (f : A -> C) (P : C -> B -> Prop),
-  0 <= x1 <= x2 /\ x2 <= Zlength l ->
-  forall_triangle x1 x2 y1 y2 offset (map f l) l' P ->
-  forall_triangle x1 x2 y1 y2 offset l l' (fun x => P (f x)).
+  (lo1 hi1 lo2 hi2 offset : Z) (l : list A) (l' : list B) (f : A -> C) (P : C -> B -> Prop),
+  0 <= lo1 <= hi1 /\ hi1 <= Zlength l ->
+  forall_triangle lo1 hi1 lo2 hi2 offset (map f l) l' P ->
+  forall_triangle lo1 hi1 lo2 hi2 offset l l' (fun x => P (f x)).
 Proof.
   unfold forall_triangle, forall_i. intros.
   fapply (H0 i j ltac:(lia)).
@@ -783,32 +783,32 @@ Proof.
 Qed.
 
 Lemma forall_triangleA_Zrepeat : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
-  (n x1 x2 y1 y2 offset : Z) (x : A) (l' : list B) (P : A -> B -> Prop),
-  0 <= x1 < x2 /\ x2 <= n ->
-  forall_triangle x1 x2 y1 y2 offset (Zrepeat x n) l' P <->
-  forall_range (Z.max y1 (x1 - offset)) (Z.max y2 (x1 - offset)) l' (P x).
+  (n lo1 hi1 lo2 hi2 offset : Z) (x : A) (l' : list B) (P : A -> B -> Prop),
+  0 <= lo1 < hi1 /\ hi1 <= n ->
+  forall_triangle lo1 hi1 lo2 hi2 offset (Zrepeat x n) l' P <->
+  forall_range (Z.max lo2 (lo1 - offset)) (Z.max hi2 (lo1 - offset)) l' (P x).
 Proof.
   unfold forall_triangle, forall_range, forall_i. intros. split; intros.
-  - fapply (H0 x1 i ltac:(lia)).
+  - fapply (H0 lo1 i ltac:(lia)).
     eq_solve with (rewrite Znth_Zrepeat by lia).
   - fapply (H0 j ltac:(lia)).
     eq_solve with (rewrite Znth_Zrepeat by lia).
 Qed.
 
 Lemma forall_triangleB_app1 : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
-  (x1 x2 y1 y2 offset : Z) (l : list A) (al' bl' : list B) (P : A -> B -> Prop),
-  0 <= y1 <= y2 /\ y2 <= Zlength al' ->
-  forall_triangle x1 x2 y1 y2 offset l (al' ++ bl') P <->
-  forall_triangle x1 x2 y1 y2 offset l al' P.
+  (lo1 hi1 lo2 hi2 offset : Z) (l : list A) (al' bl' : list B) (P : A -> B -> Prop),
+  0 <= lo2 <= hi2 /\ hi2 <= Zlength al' ->
+  forall_triangle lo1 hi1 lo2 hi2 offset l (al' ++ bl') P <->
+  forall_triangle lo1 hi1 lo2 hi2 offset l al' P.
 Proof.
   intros *. do 2 rewrite forall_triangle_rangei_uniB. apply rangei_uni_app1.
 Qed.
 
 Lemma forall_triangleB_app2 : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
-  (x1 x2 y1 y2 offset : Z) (l : list A) (al' bl' : list B) (P : A -> B -> Prop),
-  Zlength al' <= y1 <= y2 /\ y2 <= Zlength al' + Zlength bl' ->
-  forall_triangle x1 x2 y1 y2 offset l (al' ++ bl') P ->
-  forall_triangle x1 x2 (y1 - Zlength al') (y2 - Zlength al') (offset + Zlength al') l bl' P.
+  (lo1 hi1 lo2 hi2 offset : Z) (l : list A) (al' bl' : list B) (P : A -> B -> Prop),
+  Zlength al' <= lo2 <= hi2 /\ hi2 <= Zlength al' + Zlength bl' ->
+  forall_triangle lo1 hi1 lo2 hi2 offset l (al' ++ bl') P ->
+  forall_triangle lo1 hi1 (lo2 - Zlength al') (hi2 - Zlength al') (offset + Zlength al') l bl' P.
 Proof.
   intros *. do 2 rewrite forall_triangle_rangei_uniB. intros.
   apply rangei_uni_app2 in H0. 2 : assumption.
@@ -821,11 +821,11 @@ Proof.
 Qed.
 
 Lemma forall_triangleB_app : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
-  (x1 x2 y1 y2 offset : Z) (l : list A) (al' bl' : list B) (P : A -> B -> Prop),
-  0 <= y1 <= Zlength al' /\ Zlength al' <= y2 <= Zlength al' + Zlength bl' ->
-  forall_triangle x1 x2 y1 y2 offset l (al' ++ bl') P ->
-  forall_triangle x1 x2 y1 (Zlength al') offset l al' P /\
-  forall_triangle x1 x2 0 (y2 - Zlength al') (offset + Zlength al') l bl' P.
+  (lo1 hi1 lo2 hi2 offset : Z) (l : list A) (al' bl' : list B) (P : A -> B -> Prop),
+  0 <= lo2 <= Zlength al' /\ Zlength al' <= hi2 <= Zlength al' + Zlength bl' ->
+  forall_triangle lo1 hi1 lo2 hi2 offset l (al' ++ bl') P ->
+  forall_triangle lo1 hi1 lo2 (Zlength al') offset l al' P /\
+  forall_triangle lo1 hi1 0 (hi2 - Zlength al') (offset + Zlength al') l bl' P.
 Proof.
   intros *. do 3 rewrite forall_triangle_rangei_uniB. intros.
   apply rangei_uni_app in H0. 2 : assumption.
@@ -838,10 +838,10 @@ Proof.
 Qed.
 
 Lemma forall_triangleB_upd_Znth : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
-  (x1 x2 y1 y2 offset i : Z) (l : list A) (l' : list B) (x : B) (P : A -> B -> Prop),
+  (lo1 hi1 lo2 hi2 offset i : Z) (l : list A) (l' : list B) (x : B) (P : A -> B -> Prop),
   0 <= i < Zlength l' ->
-  forall_triangle x1 x2 y1 y2 offset l (upd_Znth i l' x)  P <->
-  forall_triangle x1 x2 y1 y2 offset l (sublist 0 i l' ++ (Zrepeat x 1) ++ sublist (i+1) (Zlength l') l') P.
+  forall_triangle lo1 hi1 lo2 hi2 offset l (upd_Znth i l' x)  P <->
+  forall_triangle lo1 hi1 lo2 hi2 offset l (sublist 0 i l' ++ (Zrepeat x 1) ++ sublist (i+1) (Zlength l') l') P.
 Proof.
   intros.
   rewrite upd_Znth_unfold by Zlength_solve.
@@ -850,10 +850,10 @@ Proof.
 Qed.
 
 Lemma forall_triangleB_sublist : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
-  (x1 x2 y1 y2 lo hi offset : Z) (l : list A) (l' : list B) (P : A -> B -> Prop),
-  0 <= y1 <= y2 /\ y2 <= hi - lo /\ 0 <= lo <= hi /\ hi <= Zlength l' ->
-  forall_triangle x1 x2 y1 y2 offset l (sublist lo hi l') P ->
-  forall_triangle x1 x2 (y1 + lo) (y2 + lo) (offset - lo) l l' P.
+  (lo1 hi1 lo2 hi2 lo hi offset : Z) (l : list A) (l' : list B) (P : A -> B -> Prop),
+  0 <= lo2 <= hi2 /\ hi2 <= hi - lo /\ 0 <= lo <= hi /\ hi <= Zlength l' ->
+  forall_triangle lo1 hi1 lo2 hi2 offset l (sublist lo hi l') P ->
+  forall_triangle lo1 hi1 (lo2 + lo) (hi2 + lo) (offset - lo) l l' P.
 Proof.
   intros *. do 2 rewrite forall_triangle_rangei_uniB. intros.
   apply rangei_uni_sublist in H0. 2 : assumption.
@@ -866,10 +866,10 @@ Proof.
 Qed.
 
 Lemma forall_triangleB_map : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B} {C : Type} {dc : Inhabitant C}
-  (x1 x2 y1 y2 offset : Z) (l : list A) (l' : list B) (f : B -> C) (P : A -> C -> Prop),
-  0 <= y1 <= y2 /\ y2 <= Zlength l' ->
-  forall_triangle x1 x2 y1 y2 offset l (map f l') P ->
-  forall_triangle x1 x2 y1 y2 offset l l' (fun x y => P x (f y)).
+  (lo1 hi1 lo2 hi2 offset : Z) (l : list A) (l' : list B) (f : B -> C) (P : A -> C -> Prop),
+  0 <= lo2 <= hi2 /\ hi2 <= Zlength l' ->
+  forall_triangle lo1 hi1 lo2 hi2 offset l (map f l') P ->
+  forall_triangle lo1 hi1 lo2 hi2 offset l l' (fun x y => P x (f y)).
 Proof.
   unfold forall_triangle, forall_i. intros.
   fapply (H0 i j ltac:(lia)).
@@ -877,13 +877,13 @@ Proof.
 Qed.
 
 Lemma forall_triangleB_Zrepeat : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
-  (x1 x2 y1 y2 n offset : Z) (l : list A) (x : B) (P : A -> B -> Prop),
-  0 <= y1 < y2 /\ y2 <= n ->
-  forall_triangle x1 x2 y1 y2 offset l (Zrepeat x n) P <->
-  forall_range (Z.min x1 (y2 + offset)) (Z.min x2 (y2 + offset)) l (fun y => P y x).
+  (lo1 hi1 lo2 hi2 n offset : Z) (l : list A) (x : B) (P : A -> B -> Prop),
+  0 <= lo2 < hi2 /\ hi2 <= n ->
+  forall_triangle lo1 hi1 lo2 hi2 offset l (Zrepeat x n) P <->
+  forall_range (Z.min lo1 (hi2 + offset)) (Z.min hi1 (hi2 + offset)) l (fun y => P y x).
 Proof.
   unfold forall_triangle, forall_range, forall_i. intros. split; intros.
-  - fapply (H0 i (y2 - 1) ltac:(lia)).
+  - fapply (H0 i (hi2 - 1) ltac:(lia)).
     eq_solve with (rewrite Znth_Zrepeat by lia).
   - fapply (H0 i ltac:(lia)).
     eq_solve with (rewrite Znth_Zrepeat by lia).
@@ -996,8 +996,8 @@ Lemma forall_range2_fold : forall {A : Type} {da : Inhabitant A} {B : Type} {db 
 Proof. auto. Qed.
 
 Lemma forall_triangle_fold : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B},
-  forall x1 x2 y1 y2 offset al bl (P : A -> B -> Prop),
-  (forall i j, x1 <= i < x2 /\ y1 <= j < y2 /\ i <= j + offset -> P (Znth i al) (Znth j bl)) = forall_triangle x1 x2 y1 y2 offset al bl P.
+  forall lo1 hi1 lo2 hi2 offset al bl (P : A -> B -> Prop),
+  (forall i j, lo1 <= i < hi1 /\ lo2 <= j < hi2 /\ i <= j + offset -> P (Znth i al) (Znth j bl)) = forall_triangle lo1 hi1 lo2 hi2 offset al bl P.
 Proof. auto. Qed.
 
 Lemma Forall_Znth : forall {A} {d : Inhabitant A} (l : list A) P,
@@ -1295,9 +1295,9 @@ Proof.
 Qed.
 
 Lemma forall_triangle_emptyA : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
-  (x1 x2 y1 y2 offset: Z) (l : list A) (l' : list B) (P : A -> B -> Prop),
-  x1 = x2 ->
-  forall_triangle x1 x2 y1 y2 offset l l' P ->
+  (lo1 hi1 lo2 hi2 offset: Z) (l : list A) (l' : list B) (P : A -> B -> Prop),
+  lo1 = hi1 ->
+  forall_triangle lo1 hi1 lo2 hi2 offset l l' P ->
   True.
 Proof.
   intros.
@@ -1305,9 +1305,9 @@ Proof.
 Qed.
 
 Lemma forall_triangle_emptyB : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
-  (x1 x2 y1 y2 offset: Z) (l : list A) (l' : list B) (P : A -> B -> Prop),
-  y1 = y2 ->
-  forall_triangle x1 x2 y1 y2 offset l l' P ->
+  (lo1 hi1 lo2 hi2 offset: Z) (l : list A) (l' : list B) (P : A -> B -> Prop),
+  lo2 = hi2 ->
+  forall_triangle lo1 hi1 lo2 hi2 offset l l' P ->
   True.
 Proof.
   intros.
@@ -1315,9 +1315,9 @@ Proof.
 Qed.
 
 Lemma forall_triangle_emptyAgtB : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
-  (x1 x2 y1 y2 offset: Z) (l : list A) (l' : list B) (P : A -> B -> Prop),
-  x1 >= y2 + offset ->
-  forall_triangle x1 x2 y1 y2 offset l l' P ->
+  (lo1 hi1 lo2 hi2 offset: Z) (l : list A) (l' : list B) (P : A -> B -> Prop),
+  lo1 >= hi2 + offset ->
+  forall_triangle lo1 hi1 lo2 hi2 offset l l' P ->
   True.
 Proof.
   intros.
@@ -1325,142 +1325,142 @@ Proof.
 Qed.
 
 Lemma forall_triangleA_app1 : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
-  (x1 x2 y1 y2 offset: Z) (al bl : list A) (l' : list B) (P : A -> B -> Prop),
-  0 <= x1 <= x2 /\ x2 <= Zlength al ->
-  forall_triangle x1 x2 y1 y2 offset (al ++ bl) l' P ->
-  forall_triangle x1 x2 y1 y2 offset al l' P.
+  (lo1 hi1 lo2 hi2 offset: Z) (al bl : list A) (l' : list B) (P : A -> B -> Prop),
+  0 <= lo1 <= hi1 /\ hi1 <= Zlength al ->
+  forall_triangle lo1 hi1 lo2 hi2 offset (al ++ bl) l' P ->
+  forall_triangle lo1 hi1 lo2 hi2 offset al l' P.
 Proof.
   intros.
   eapply forall_triangleA_app1; eauto.
 Qed.
 
 Lemma forall_triangleA_app2 : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
-  (x1 x2 y1 y2 offset: Z) (al bl : list A) (l' : list B) (P : A -> B -> Prop),
-  Zlength al <= x1 <= x2 /\ x2 <= Zlength al + Zlength bl ->
-  forall_triangle x1 x2 y1 y2 offset (al ++ bl) l' P ->
-  forall_triangle (x1 - Zlength al) (x2 - Zlength al) y1 y2 (offset - Zlength al) bl l' P.
+  (lo1 hi1 lo2 hi2 offset: Z) (al bl : list A) (l' : list B) (P : A -> B -> Prop),
+  Zlength al <= lo1 <= hi1 /\ hi1 <= Zlength al + Zlength bl ->
+  forall_triangle lo1 hi1 lo2 hi2 offset (al ++ bl) l' P ->
+  forall_triangle (lo1 - Zlength al) (hi1 - Zlength al) lo2 hi2 (offset - Zlength al) bl l' P.
 Proof.
   intros.
   eapply forall_triangleA_app2; eauto.
 Qed.
 
 Lemma forall_triangleA_app : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
-  (x1 x2 y1 y2 offset : Z) (al bl : list A) (l' : list B) (P : A -> B -> Prop),
-  0 <= x1 <= Zlength al /\ Zlength al <= x2 <= Zlength al + Zlength bl ->
-  forall_triangle x1 x2 y1 y2 offset (al ++ bl) l' P ->
-  forall_triangle x1 (Zlength al) y1 y2 offset al l' P /\
-  forall_triangle 0 (x2 - Zlength al) y1 y2 (offset - Zlength al) bl l' P.
+  (lo1 hi1 lo2 hi2 offset : Z) (al bl : list A) (l' : list B) (P : A -> B -> Prop),
+  0 <= lo1 <= Zlength al /\ Zlength al <= hi1 <= Zlength al + Zlength bl ->
+  forall_triangle lo1 hi1 lo2 hi2 offset (al ++ bl) l' P ->
+  forall_triangle lo1 (Zlength al) lo2 hi2 offset al l' P /\
+  forall_triangle 0 (hi1 - Zlength al) lo2 hi2 (offset - Zlength al) bl l' P.
 Proof.
   intros.
   eapply forall_triangleA_app; eauto.
 Qed.
 
 Lemma forall_triangleA_upd_Znth : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
-  (x1 x2 y1 y2 offset i : Z) (l : list A) (x : A) (l' : list B) (P : A -> B -> Prop),
+  (lo1 hi1 lo2 hi2 offset i : Z) (l : list A) (x : A) (l' : list B) (P : A -> B -> Prop),
   0 <= i < Zlength l ->
-  forall_triangle x1 x2 y1 y2 offset (upd_Znth i l x) l' P <->
-  forall_triangle x1 x2 y1 y2 offset (sublist 0 i l ++ (Zrepeat x 1) ++ sublist (i+1) (Zlength l) l) l' P.
+  forall_triangle lo1 hi1 lo2 hi2 offset (upd_Znth i l x) l' P <->
+  forall_triangle lo1 hi1 lo2 hi2 offset (sublist 0 i l ++ (Zrepeat x 1) ++ sublist (i+1) (Zlength l) l) l' P.
 Proof.
   intros.
   eapply forall_triangleA_upd_Znth; eauto.
 Qed.
 
 Lemma forall_triangleA_sublist : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
-  (lo hi x1 x2 y1 y2 offset : Z) (l : list A) (l' : list B) (P : A -> B -> Prop),
-  0 <= x1 <= x2 /\ x2 <= hi - lo /\ 0 <= lo <= hi /\ hi <= Zlength l ->
-  forall_triangle x1 x2 y1 y2 offset (sublist lo hi l) l' P ->
-  forall_triangle (x1 + lo) (x2 + lo) y1 y2 (offset + lo) l l' P.
+  (lo hi lo1 hi1 lo2 hi2 offset : Z) (l : list A) (l' : list B) (P : A -> B -> Prop),
+  0 <= lo1 <= hi1 /\ hi1 <= hi - lo /\ 0 <= lo <= hi /\ hi <= Zlength l ->
+  forall_triangle lo1 hi1 lo2 hi2 offset (sublist lo hi l) l' P ->
+  forall_triangle (lo1 + lo) (hi1 + lo) lo2 hi2 (offset + lo) l l' P.
 Proof.
   intros.
   eapply forall_triangleA_sublist; eauto.
 Qed.
 
 Lemma forall_triangleA_map : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B} {C : Type} {dc : Inhabitant C}
-  (x1 x2 y1 y2 offset : Z) (l : list A) (l' : list B) (f : A -> C) (P : C -> B -> Prop),
-  0 <= x1 <= x2 /\ x2 <= Zlength l ->
-  forall_triangle x1 x2 y1 y2 offset (map f l) l' P ->
-  forall_triangle x1 x2 y1 y2 offset l l' (fun x => P (f x)).
+  (lo1 hi1 lo2 hi2 offset : Z) (l : list A) (l' : list B) (f : A -> C) (P : C -> B -> Prop),
+  0 <= lo1 <= hi1 /\ hi1 <= Zlength l ->
+  forall_triangle lo1 hi1 lo2 hi2 offset (map f l) l' P ->
+  forall_triangle lo1 hi1 lo2 hi2 offset l l' (fun x => P (f x)).
 Proof.
   intros.
   eapply forall_triangleA_map; eauto.
 Qed.
 
 Lemma forall_triangleA_Zrepeat : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
-  (n x1 x2 y1 y2 offset : Z) (x : A) (l' : list B) (P : A -> B -> Prop),
-  0 <= x1 < x2 /\ x2 <= n ->
-  forall_triangle x1 x2 y1 y2 offset (Zrepeat x n) l' P <->
-  forall_range (Z.max y1 (x1 - offset)) (Z.max y2 (x1 - offset)) l' (P x).
+  (n lo1 hi1 lo2 hi2 offset : Z) (x : A) (l' : list B) (P : A -> B -> Prop),
+  0 <= lo1 < hi1 /\ hi1 <= n ->
+  forall_triangle lo1 hi1 lo2 hi2 offset (Zrepeat x n) l' P <->
+  forall_range (Z.max lo2 (lo1 - offset)) (Z.max hi2 (lo1 - offset)) l' (P x).
 Proof.
   intros.
   eapply forall_triangleA_Zrepeat; eauto.
 Qed.
 
 Lemma forall_triangleB_app1 : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
-  (x1 x2 y1 y2 offset : Z) (l : list A) (al' bl' : list B) (P : A -> B -> Prop),
-  0 <= y1 <= y2 /\ y2 <= Zlength al' ->
-  forall_triangle x1 x2 y1 y2 offset l (al' ++ bl') P <->
-  forall_triangle x1 x2 y1 y2 offset l al' P.
+  (lo1 hi1 lo2 hi2 offset : Z) (l : list A) (al' bl' : list B) (P : A -> B -> Prop),
+  0 <= lo2 <= hi2 /\ hi2 <= Zlength al' ->
+  forall_triangle lo1 hi1 lo2 hi2 offset l (al' ++ bl') P <->
+  forall_triangle lo1 hi1 lo2 hi2 offset l al' P.
 Proof.
   intros.
   eapply forall_triangleB_app1; eauto.
 Qed.
 
 Lemma forall_triangleB_app2 : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
-  (x1 x2 y1 y2 offset : Z) (l : list A) (al' bl' : list B) (P : A -> B -> Prop),
-  Zlength al' <= y1 <= y2 /\ y2 <= Zlength al' + Zlength bl' ->
-  forall_triangle x1 x2 y1 y2 offset l (al' ++ bl') P ->
-  forall_triangle x1 x2 (y1 - Zlength al') (y2 - Zlength al') (offset + Zlength al') l bl' P.
+  (lo1 hi1 lo2 hi2 offset : Z) (l : list A) (al' bl' : list B) (P : A -> B -> Prop),
+  Zlength al' <= lo2 <= hi2 /\ hi2 <= Zlength al' + Zlength bl' ->
+  forall_triangle lo1 hi1 lo2 hi2 offset l (al' ++ bl') P ->
+  forall_triangle lo1 hi1 (lo2 - Zlength al') (hi2 - Zlength al') (offset + Zlength al') l bl' P.
 Proof.
   intros.
   eapply forall_triangleB_app2; eauto.
 Qed.
 
 Lemma forall_triangleB_app : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
-  (x1 x2 y1 y2 offset : Z) (l : list A) (al' bl' : list B) (P : A -> B -> Prop),
-  0 <= y1 <= Zlength al' /\ Zlength al' <= y2 <= Zlength al' + Zlength bl' ->
-  forall_triangle x1 x2 y1 y2 offset l (al' ++ bl') P ->
-  forall_triangle x1 x2 y1 (Zlength al') offset l al' P /\
-  forall_triangle x1 x2 0 (y2 - Zlength al') (offset + Zlength al') l bl' P.
+  (lo1 hi1 lo2 hi2 offset : Z) (l : list A) (al' bl' : list B) (P : A -> B -> Prop),
+  0 <= lo2 <= Zlength al' /\ Zlength al' <= hi2 <= Zlength al' + Zlength bl' ->
+  forall_triangle lo1 hi1 lo2 hi2 offset l (al' ++ bl') P ->
+  forall_triangle lo1 hi1 lo2 (Zlength al') offset l al' P /\
+  forall_triangle lo1 hi1 0 (hi2 - Zlength al') (offset + Zlength al') l bl' P.
 Proof.
   intros.
   eapply forall_triangleB_app; eauto.
 Qed.
 
 Lemma forall_triangleB_upd_Znth : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
-  (x1 x2 y1 y2 offset i : Z) (l : list A) (l' : list B) (x : B) (P : A -> B -> Prop),
+  (lo1 hi1 lo2 hi2 offset i : Z) (l : list A) (l' : list B) (x : B) (P : A -> B -> Prop),
   0 <= i < Zlength l' ->
-  forall_triangle x1 x2 y1 y2 offset l (upd_Znth i l' x)  P <->
-  forall_triangle x1 x2 y1 y2 offset l (sublist 0 i l' ++ (Zrepeat x 1) ++ sublist (i+1) (Zlength l') l') P.
+  forall_triangle lo1 hi1 lo2 hi2 offset l (upd_Znth i l' x)  P <->
+  forall_triangle lo1 hi1 lo2 hi2 offset l (sublist 0 i l' ++ (Zrepeat x 1) ++ sublist (i+1) (Zlength l') l') P.
 Proof.
   intros.
   eapply forall_triangleB_upd_Znth; eauto.
 Qed.
 
 Lemma forall_triangleB_sublist : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
-  (x1 x2 y1 y2 lo hi offset : Z) (l : list A) (l' : list B) (P : A -> B -> Prop),
-  0 <= y1 <= y2 /\ y2 <= hi - lo /\ 0 <= lo <= hi /\ hi <= Zlength l' ->
-  forall_triangle x1 x2 y1 y2 offset l (sublist lo hi l') P ->
-  forall_triangle x1 x2 (y1 + lo) (y2 + lo) (offset - lo) l l' P.
+  (lo1 hi1 lo2 hi2 lo hi offset : Z) (l : list A) (l' : list B) (P : A -> B -> Prop),
+  0 <= lo2 <= hi2 /\ hi2 <= hi - lo /\ 0 <= lo <= hi /\ hi <= Zlength l' ->
+  forall_triangle lo1 hi1 lo2 hi2 offset l (sublist lo hi l') P ->
+  forall_triangle lo1 hi1 (lo2 + lo) (hi2 + lo) (offset - lo) l l' P.
 Proof.
   intros.
   eapply forall_triangleB_sublist; eauto.
 Qed.
 
 Lemma forall_triangleB_map : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B} {C : Type} {dc : Inhabitant C}
-  (x1 x2 y1 y2 offset : Z) (l : list A) (l' : list B) (f : B -> C) (P : A -> C -> Prop),
-  0 <= y1 <= y2 /\ y2 <= Zlength l' ->
-  forall_triangle x1 x2 y1 y2 offset l (map f l') P ->
-  forall_triangle x1 x2 y1 y2 offset l l' (fun x y => P x (f y)).
+  (lo1 hi1 lo2 hi2 offset : Z) (l : list A) (l' : list B) (f : B -> C) (P : A -> C -> Prop),
+  0 <= lo2 <= hi2 /\ hi2 <= Zlength l' ->
+  forall_triangle lo1 hi1 lo2 hi2 offset l (map f l') P ->
+  forall_triangle lo1 hi1 lo2 hi2 offset l l' (fun x y => P x (f y)).
 Proof.
   intros.
   eapply forall_triangleB_map; eauto.
 Qed.
 
 Lemma forall_triangleB_Zrepeat : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
-  (x1 x2 y1 y2 n offset : Z) (l : list A) (x : B) (P : A -> B -> Prop),
-  0 <= y1 < y2 /\ y2 <= n ->
-  forall_triangle x1 x2 y1 y2 offset l (Zrepeat x n) P <->
-  forall_range (Z.min x1 (y2 + offset)) (Z.min x2 (y2 + offset)) l (fun y => P y x).
+  (lo1 hi1 lo2 hi2 n offset : Z) (l : list A) (x : B) (P : A -> B -> Prop),
+  0 <= lo2 < hi2 /\ hi2 <= n ->
+  forall_triangle lo1 hi1 lo2 hi2 offset l (Zrepeat x n) P <->
+  forall_range (Z.min lo1 (hi2 + offset)) (Z.min hi1 (hi2 + offset)) l (fun y => P y x).
 Proof.
   intros.
   eapply forall_triangleB_Zrepeat; eauto.
@@ -1716,10 +1716,10 @@ Ltac pose_new_res i lo hi H res :=
   | try lia
   ].
 
-Ltac pose_new_res_tri i j x1 x2 y1 y2 offset H res :=
+Ltac pose_new_res_tri i j lo1 hi1 lo2 hi2 offset H res :=
   assert_fails (assert res by assumption);
-  destruct_range i x1 x2;
-  destruct_range j y1 y2;
+  destruct_range i lo1 hi1;
+  destruct_range j lo2 hi2;
   destruct (Z_le_lt_dec i (j + offset));
   [ (tryif exfalso; lia then gfail else idtac);
     assert res by apply (H i j ltac:(lia))
@@ -1926,11 +1926,11 @@ Ltac bound_set :=
   end;
   change @forall_range2' with @forall_range2 in *;
   repeat lazymatch goal with
-  | H : forall_triangle ?x1 ?x2 ?y1 ?y2 _ ?l1 ?l2 _ |- _ =>
-    process x1 l1;
-    process (x2 - 1) l1;
-    process y1 l2;
-    process (y2 - 1) l2;
+  | H : forall_triangle ?lo1 ?hi1 ?lo2 ?hi2 _ ?l1 ?l2 _ |- _ =>
+    process lo1 l1;
+    process (hi1 - 1) l1;
+    process lo2 l2;
+    process (hi2 - 1) l2;
     change @forall_triangle with @forall_triangle' in H
   end;
   change @forall_triangle' with @forall_triangle in *;
@@ -1965,10 +1965,10 @@ Ltac pose_new_res i lo hi H res ::=
   | try (lia)
   ].
 
-Ltac pose_new_res_tri i j x1 x2 y1 y2 offset H res :=
+Ltac pose_new_res_tri i j lo1 hi1 lo2 hi2 offset H res :=
   assert_fails (assert res by assumption);
-  destruct_range i x1 x2;
-  destruct_range j y1 y2;
+  destruct_range i lo1 hi1;
+  destruct_range j lo2 hi2;
   destruct (Z_le_lt_dec i (j + offset));
   [ try (exfalso; lia);
     assert res by apply (H i j ltac:(lia));
@@ -1980,6 +1980,7 @@ Ltac pose_new_res_tri i j x1 x2 y1 y2 offset H res :=
 Ltac range_saturate_uni H :=
   lazymatch type of H with
   | forall_range ?lo ?hi ?l ?P =>
+    (* Replace instantiate_index -> instantiate_index' for used indices. *)
     repeat lazymatch goal with
     | H1 : instantiate_index (Znth ?i l) |- _ =>
       let res := eval cbv beta in (P (Znth i l)) in
@@ -1992,6 +1993,7 @@ Ltac range_saturate_uni H :=
 Ltac range_saturate_bin H :=
   lazymatch type of H with
   | forall_range2 ?lo ?hi ?offset ?l1 ?l2 ?P =>
+    (* Replace instantiate_index -> instantiate_index' for used indices. *)
     repeat lazymatch goal with
     | H1 : instantiate_index (Znth ?i l1) |- _ =>
       let res := eval cbv beta in (P (Znth i l1) (Znth (i + offset) l2)) in
@@ -2003,17 +2005,19 @@ Ltac range_saturate_bin H :=
 
 Ltac range_saturate_tri H :=
   lazymatch type of H with
-  | forall_triangle ?x1 ?x2 ?y1 ?y2 ?offset ?l1 ?l2 ?P =>
+  | forall_triangle ?lo1 ?hi1 ?lo2 ?hi2 ?offset ?l1 ?l2 ?P =>
+    (* Replace instantiate_index -> instantiate_index' for used indices for l1. *)
     repeat lazymatch goal with
     | H1 : instantiate_index (Znth ?i l1) |- _ =>
+      (* Replace Znth -> Znth' for used indices for l2. *)
       repeat lazymatch goal with
       | H2 : instantiate_index (Znth ?j l2) |- _ =>
         let res := eval cbv beta in (P (Znth i l1) (Znth j l2)) in
-        pose_new_res_tri i j x1 x2 y1 y2 offset H res;
+        pose_new_res_tri i j lo1 hi1 lo2 hi2 offset H res;
         change @Znth with @Znth' in H2
       | H2 : instantiate_index' (Znth ?j l2) |- _ =>
         let res := eval cbv beta in (P (Znth i l1) (Znth j l2)) in
-        pose_new_res_tri i j x1 x2 y1 y2 offset H res;
+        pose_new_res_tri i j lo1 hi1 lo2 hi2 offset H res;
         change @Znth with @Znth' in H2
       end;
       change @Znth' with @Znth in *;
@@ -2102,15 +2106,24 @@ Ltac Zlength_solve_with_message :=
    fail 1 "list_solve cannot solve this goal.  Try asserting above the line, a hypothesis that will help prove" A
  end.
 
+Ltac resolve_inhabitant :=
+  lazymatch goal with
+  | |- Inhabitant ?A =>
+      typeclasses eauto
+        || fail "Unable to find Inhabitant for" A
+  | _ =>
+      fail "The goal is not (Inhabitant ?A)"
+  end.
 
 Ltac apply_list_ext :=
   lazymatch goal with
   | |- @eq ?list_A _ _ =>
-      match eval compute in list_A with list ?A =>
-        apply (@Znth_eq_ext A ltac:(typeclasses eauto))
-      end; [ Zlength_solve_with_message | .. ]
+      lazymatch eval compute in list_A with list ?A =>
+        apply (@Znth_eq_ext A ltac:(resolve_inhabitant));
+          [ try Zlength_solve | .. ]
+      end
   | |- @Forall ?A ?P ?l =>
-      rewrite Forall_Znth;
+      rewrite (@Forall_Znth A ltac:(resolve_inhabitant));
       intros
   | |- @forall_range ?A ?d ?lo ?hi ?l ?P =>
       rewrite <- forall_range_fold;
@@ -2119,21 +2132,26 @@ Ltac apply_list_ext :=
   Zlength_simplify;
   intros.
 
+(* Perform trivial steps before list_solve_preprocess. *)
+Ltac list_solve_preprocess_trivial :=
+  intros;
+  try lia;
+  try match goal with |- context [@Zlength] => Zlength_solve end.
+
 Ltac customizable_list_solve_preprocess := idtac.
 
 Ltac list_solve_preprocess :=
+  list_solve_preprocess_trivial;
   customizable_list_solve_preprocess;
   autounfold with list_solve_unfold in *;
   list_form;
-  unshelve rewrite ?app_nil_r in *; 
-  [solve [typeclasses eauto] .. | idtac];
+  (* Parentheses are needed to make sure when there are zero goals. *)
+  (unshelve rewrite ?app_nil_r in *;
+  [solve [typeclasses eauto] .. | idtac]);
   repeat match goal with [ |- _ /\ _ ] => split end;
   intros.
 
 Ltac list_solve :=
-  intros;
-  try lia;
-  try match goal with |- context [@Zlength] => Zlength_solve end;
   list_solve_preprocess;
   Zlength_simplify_in_all; try lia;
   Znth_simplify_in_all; auto with Znth_solve_hint;
@@ -2152,7 +2170,6 @@ Ltac list_solve :=
     (apply_list_ext || fail "list_solve cannot solve this goal; list_simplify can sometimes diagnose where subgoals need extra assistance")).
 
 Ltac list_simplify :=
-  intros;
   list_solve_preprocess;
   Zlength_simplify_in_all; try lia;
   Znth_simplify_in_all; auto with Znth_solve_hint;
@@ -2168,8 +2185,6 @@ Ltac list_simplify :=
 
 (** * quick_list_solve and simplify *)
 Ltac quick_list_simplify :=
-  try lia;
-  try match goal with |- context [@Zlength] => Zlength_solve end;
   list_solve_preprocess;
   Zlength_simplify_in_all; try lia;
   Znth_simplify_in_all; auto with Znth_solve_hint;

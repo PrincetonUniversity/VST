@@ -76,15 +76,15 @@ Ltac simpl_reptype :=
 Ltac apply_list_ext ::=
   lazymatch goal with
   | |- _ |-- _ => 
-     apply data_subsume_array_ext; simpl_reptype; 
-       [ Zlength_solve | Zlength_solve | .. ]
+     apply data_subsume_array_ext; simpl_reptype;
+       [ try Zlength_solve | try Zlength_solve | .. ]
   | |- data_subsume _ _ => 
-     apply data_subsume_array_ext; simpl_reptype; 
-       [ Zlength_solve | Zlength_solve | .. ]
+     apply data_subsume_array_ext; simpl_reptype;
+       [ try Zlength_solve | try Zlength_solve | .. ]
   | |- @eq ?list_A _ _ =>
       match eval compute in list_A with list ?A =>
         apply (@Znth_eq_ext A ltac:(typeclasses eauto))
-      end; [ Zlength_solve_with_message | .. ]
+      end; [ try Zlength_solve | .. ]
   | |- @Forall ?A ?P ?l =>
       rewrite Forall_Znth;
       intros
