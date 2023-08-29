@@ -2856,7 +2856,7 @@ match goal with
    let HRE := fresh "H" in let v := fresh "v" in
     do_compute_expr1 CS Delta Pre e;
     match goal with v' := _, H:_ |- _ => rename H into HRE; rename v' into v end;
-    apply (semax_ifthenelse_PQR' _ v);
+    apply (semax_ifthenelse_PQR' v);
      [ reflexivity | entailer | assumption
      | simpl in v; clear HRE; subst v; apply semax_extract_PROP; intro HRE;
        do_repr_inj HRE;
