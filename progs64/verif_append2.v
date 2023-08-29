@@ -6,22 +6,37 @@ Require Import VST.progs64.append.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Definition t_struct_list := Tstruct _list noattr.
 
+Lemma not_bot_nonidentity : forall sh,  sh <> Share.bot -> sepalg.nonidentity sh.
+Proof.
+   intros.
+   unfold sepalg.nonidentity. unfold not.
+   intros. apply identity_share_bot in H0. contradiction.   
+Qed.
+Lemma nonidentity_not_bot : forall sh, sepalg.nonidentity sh -> sh <> Share.bot.
+Proof.
+   intros. unfold sepalg.nonidentity. unfold not. intros. apply H. rewrite H0. apply bot_identity.    
+Qed.
+Hint Resolve not_bot_nonidentity : core.
+Hint Resolve nonidentity_not_bot : core.
+Section Spec.
+
+Context `{!default_VSTGS Σ}.
 
 Fixpoint listrep (sh: share)
             (contents: list val) (x: val) : mpred :=
  match contents with
  | h::hs =>
-              EX y:val,
-                data_at sh t_struct_list (h,y) x * listrep sh hs y
- | nil => !! (x = nullval) && emp
+              ∃ y:val,
+                data_at sh t_struct_list (h,y) x ∗ listrep sh hs y
+ | nil => ⌜x = nullval⌝ ∧ emp
  end.
 
 Arguments listrep sh contents x : simpl never.
 
 Lemma listrep_local_facts:
   forall sh contents p,
-     listrep sh contents p |--
-     !! (is_pointer_or_null p /\ (p=nullval <-> contents=nil)).
+     listrep sh contents p ⊢
+     ⌜is_pointer_or_null p ∧ (p=nullval <-> contents=nil)⌝.
 Proof.
 intros.
 revert p; induction contents; 
@@ -30,12 +45,12 @@ Intros y. entailer!.
 split; intro. subst p. destruct H; contradiction. inv H2.
 Qed.
 
-#[export] Hint Resolve listrep_local_facts : saturate_local.
+
 
 Lemma listrep_valid_pointer:
   forall sh contents p,
-   sepalg.nonidentity sh ->
-   listrep sh contents p |-- valid_pointer p.
+  sepalg.nonidentity sh ->
+   listrep sh contents p ⊢ valid_pointer p.
 Proof.
  destruct contents; unfold listrep; fold listrep; intros; Intros; subst.
  auto with valid_pointer.
@@ -45,14 +60,12 @@ Proof.
  simpl;  computable.
 Qed.
 
-#[export] Hint Resolve listrep_valid_pointer : valid_pointer.
-
 Lemma listrep_null: forall sh contents,
-    listrep sh contents nullval = !! (contents=nil) && emp.
+    listrep sh contents nullval ⊣⊢ ⌜contents=nil⌝ ∧ emp.
 Proof.
 destruct contents; unfold listrep; fold listrep.
 autorewrite with norm. auto.
-apply pred_ext.
+apply bi.equiv_entails_2.
 Intros y. entailer. destruct H; contradiction.
 Intros. discriminate.
 Qed.
@@ -73,19 +86,20 @@ Definition append_spec :=
      PARAMS (x; y) GLOBALS()
      SEP (listrep sh s1 x; listrep sh s2 y)
   POST [ tptr t_struct_list ]
-    EX r: val,
+    ∃ r: val,
      PROP()
      RETURN (r)
      SEP (listrep sh (s1++s2) r).
 
 Definition Gprog : funspecs :=   ltac:(with_library prog [ append_spec ]).
 
-Module Proof1.
+Hint Resolve listrep_local_facts : saturate_local.
+Hint Resolve listrep_valid_pointer : valid_pointer.
 
 Definition lseg (sh: share) (contents: list val) (x z: val) : mpred :=
-  ALL cts2:list val, listrep sh cts2 z -* listrep sh (contents++cts2) x.
+  ∀ cts2:list val, listrep sh cts2 z -∗ listrep sh (contents++cts2) x.
 
-Lemma body_append: semax_body Vprog Gprog f_append append_spec.
+Lemma body_append: semax_body Vprog Gprog ⊤ f_append append_spec.
 Proof.
 start_function.
 forward_if.
@@ -103,16 +117,16 @@ forward_if.
  remember (v::s1') as s1.
  forward.
  forward_while
-      ( EX a: val, EX s1b: list val, EX t: val, EX u: val,
+      ( ∃ a: val, ∃ s1b: list val, ∃ t: val, ∃ u: val,
             PROP ()
             LOCAL (temp _x x; temp _t t; temp _u u; temp _y y)
-            SEP (listrep sh (a::s1b++s2) t -* listrep sh (s1++s2) x;
+            SEP (listrep sh (a::s1b++s2) t -∗ listrep sh (s1++s2) x;
                    data_at sh t_struct_list (a,u) t;
                    listrep sh s1b u;
                    listrep sh s2 y))%assert.
 + (* current assertion implies loop invariant *)
-   Exists v s1' x u.
-   subst s1. entailer!!. simpl. cancel_wand.
+   Exists v s1' x u.   
+   entailer!. simpl. cancel_wand.
 + (* loop test is safe to execute *)
    entailer!!.
 + (* loop body preserves invariant *)
