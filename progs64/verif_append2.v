@@ -125,7 +125,7 @@ forward_if.
                    listrep sh s1b u;
                    listrep sh s2 y))%assert.
 + (* current assertion implies loop invariant *)
-   Exists v s1' x u.   
+   Exists v s1' x u.
    entailer!. simpl. cancel_wand.
 + (* loop test is safe to execute *)
    entailer!!.
@@ -138,11 +138,9 @@ forward_if.
    Exists (v,s1b,u0,z). unfold fst, snd.
    simpl app.
    entailer!!.
-   rewrite sepcon_comm.
-   apply RAMIF_PLAIN.trans''.
-   apply wand_sepcon_adjoint.
-   forget (v::s1b++s2) as s3.
-   unfold listrep; fold listrep; Exists u0; auto.
+   iIntros "[Ha Hb]". iIntros.
+   iApply "Ha".
+   unfold listrep; fold listrep. iExists u0; iFrame.
 + (* after the loop *)
    clear v s1' Heqs1.
    forward.
@@ -153,8 +151,6 @@ forward_if.
    clear.
    entailer!!.
    unfold listrep at 3; fold listrep. Intros.
-   pull_right (listrep sh (a :: s2) t -* listrep sh (s1 ++ s2) x).
-   apply modus_ponens_wand'.
    unfold listrep at 2; fold listrep. Exists y; cancel.
 Qed.
 
