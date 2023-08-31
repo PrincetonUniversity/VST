@@ -1215,10 +1215,10 @@ Ltac new_sep_apply_in_entailment originalH evar_tac prop_tac :=
 
 Ltac cancel_wand :=
   repeat
-  match goal with |- _ ⊢ ?B =>
-    match B with context [?A -∗ ?A] =>
+  match goal with |- bi_entails _ ?B =>
+    match B with context [bi_wand ?A ?A] =>
     rewrite -?bi.sep_assoc;
-    pull_right (A -∗ A);
+    pull_right (bi_wand A A);
     first [apply cancel_emp_wand | apply wand_refl_cancel_right]
     end
   end.
