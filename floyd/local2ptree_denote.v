@@ -2,6 +2,11 @@ Require Import VST.floyd.base2.
 Require Import VST.floyd.client_lemmas.
 Import compcert.lib.Maps.
 
+Require Import Ltac2.Ltac2.
+Require Import Ltac2.Printf.
+(* We want to use Ltac1 in proofs *)
+Set Default Proof Mode "Classic".
+
 Import LiftNotation.
 Local Open Scope logic.
 
@@ -62,7 +67,10 @@ Ltac grab_gvars L :=
                 | nil => let x := constr:(@nil globals) in x
   end.
 
-Ltac prove_local2ptree :=
+(* The Ltac1 version of prove_local2ptree works by expanding each local symbol individually, doing a cbv delta [<ptree_functions>] and undoing the local symbol expansions *)
+(* Below is a Ltac2 version, which achieves the same much faster by using a computed delta list including the local symbols and the ptree symbols *)
+
+Ltac prove_local2ptree_old :=
  clear;
  match goal with |- local2ptree ?A = _ => hnf_localdef_list A end;
  etransitivity;
@@ -75,6 +83,95 @@ Ltac prove_local2ptree :=
   try reflexivity;
   match goal with |- ?L = _ => let x := grab_gvars L in instantiate(1:=x); reflexivity end
  ].
+
+(** Ltac2 allows to work with computed delta symbol lists, so instead of individually expanding all variables IDs to numbers, we can compile a list of local symbol IDs *)
+
+Ltac2 throw_invalid_argument fmt :=
+  Message.Format.kfprintf (fun x => Control.throw (Invalid_argument (Some x))) fmt.
+Ltac2 Notation "throw_invalid_argument" fmt(format) := throw_invalid_argument fmt.
+
+(* If one works with computed symbol lists, one can't use the tactic notation for evaluation functions (which construct such records in a more concise way) *)
+
+Ltac2 redflags_all_delta_only (syms : Std.reference list) : Std.red_flags :=
+{
+  (* beta: expand the application of an unfolded functions by substitution *)
+  Std.rBeta := true;
+  (* delta: true = expand all but rConst; false = expand only rConst *)
+  Std.rDelta := false;
+  (* Note: iota in tactics like cbv is a shorthand for match, fix and cofix *)
+  (* iota-match: simplify matches by choosing a pattern *)
+  Std.rMatch := true;
+  (* iota-fix: simplify fixpoint expressions by expanding one level *)
+  Std.rFix := true;
+  (* iota-cofix: simplify cofixpoint expressions by expanding one level *)
+  Std.rCofix := true;
+  (* zeta: expand let expressions by substitution *)
+  Std.rZeta := true;
+  (* Symbols to expand *)
+  Std.rConst := syms
+}.
+
+Ltac2 reference_of_constr(ref : constr) : Std.reference :=
+  match Constr.Unsafe.kind ref with
+  | Constr.Unsafe.Var ident 
+    => Std.VarRef ident
+  | Constr.Unsafe.Constant constant instance 
+    => Std.ConstRef constant
+  | Constr.Unsafe.Ind inductive instance 
+    => Std.IndRef inductive
+  | Constr.Unsafe.Constructor constructor instance 
+    => Std.ConstructRef constructor
+  | _ => throw_invalid_argument "reference_of_constr: not a reference: %t" ref
+  end.
+
+Ltac2 add_local_symbol (term : constr) (symbols : Std.reference list) : Std.reference list :=
+  match Constr.Unsafe.kind term with
+  | Constr.Unsafe.Var ident => Std.VarRef ident :: symbols
+  | Constr.Unsafe.Constant constant instance => Std.ConstRef constant :: symbols
+  | _ => symbols
+  end.
+
+(* Add the symbols in "locals" to "symbols" *)
+
+Ltac2 rec get_local_symbols (locals : constr) (symbols : Std.reference list) : Std.reference list :=
+  lazy_match! locals with
+  | ?head :: ?tail =>
+    lazy_match! head with
+    | temp ?i ?v    => get_local_symbols tail (add_local_symbol i symbols)
+    | lvar ?i ?t ?v => get_local_symbols tail (add_local_symbol i symbols)
+    | gvars ?gv     => get_local_symbols tail (add_local_symbol gv symbols)
+    | ?sym          =>
+      (* This handles "T" in the test below *)
+      let symref := reference_of_constr sym in
+      let locals_ex := Std.eval_lazy (redflags_all_delta_only [symref]) locals in
+      get_local_symbols locals_ex (symref :: symbols)
+    end
+  | nil => symbols
+  | ?sym => (add_local_symbol sym symbols)
+  end.
+
+Ltac2 prove_local2ptree () : unit :=
+  lazy_match! goal with
+  | [ |- local2ptree ?locals = ?rhs ] =>
+    let syms_ptree := [
+      reference:(local2ptree);
+      reference:(local2ptree1);
+      reference:(local2ptree_aux);
+      reference:(PTree.set);
+      reference:(PTree.empty);
+      reference:(PTree.set0);
+      reference:(PTree.set');
+      reference:(PTree.get);
+      reference:(PTree.get')
+    ] in
+    let syms_all := get_local_symbols locals syms_ptree in
+    Std.lazy (redflags_all_delta_only syms_all) { Std.on_hyps := None; Std.on_concl := Std.AllOccurrences };
+    reflexivity
+  | [ |- ?g ] => throw_invalid_argument "prove_local2ptree: invalid goal %t" g
+  end.
+
+(* For speed comparison, this can be defined to prove_local2ptree_old *)
+Ltac prove_local2ptree := ltac2:(prove_local2ptree ()).
 
 Goal exists x,  local2ptree (
       temp 1%positive Vundef
