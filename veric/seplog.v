@@ -1398,6 +1398,17 @@ Definition WithType_of_funspec (phi:funspec):TypeTree :=
     mk_funspec sig cc A P Q Pne Qne => A
   end.
 
+Definition Pre_of_funspec (phi: funspec): forall ts : list Type,
+                        functors.MixVariantFunctor._functor
+                          (rmaps.dependent_type_functor_rec ts (ArgsTT (WithType_of_funspec phi))) mpred :=
+match phi with (mk_funspec _ _ A P _ _ _ ) => P end. 
+
+(*Upstreamed to VSTmaster Sep 3rd 2023*)
+Definition Post_of_funspec (phi: funspec): forall ts : list Type,
+                        functors.MixVariantFunctor._functor
+                          (rmaps.dependent_type_functor_rec ts (AssertTT (WithType_of_funspec phi))) mpred :=
+match phi with (mk_funspec _ _ A _ Q _ _ ) => Q end. 
+
 Definition intersectionPRE {I} phi:
   forall (i : I) (ts : list Type),
     (dependent_type_functor_rec ts (ArgsTT (WithType_of_funspec (phi i)))) mpred.

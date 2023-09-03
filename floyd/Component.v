@@ -1871,58 +1871,85 @@ intros.
   apply (merge_PTrees_e i) in H0.
  hnf; intros. simpl QP.prog_defs.
   destruct ((QP.prog_defs p1) ! i) eqn:J1, ((QP.prog_defs p2) ! i) eqn:J2.
--
-  destruct H0 as [h [H8 H0]]; rewrite ?H0.
+- destruct H0 as [h [H8 H0]]; rewrite ?H0.
   destruct g0,g; unfold merge_globdef in H8.
-  destruct f,f0; inv H8;
-  match type of H2 with  (if ?A then _ else _) = _ => destruct A eqn:?H; inv H2 end; auto.
-  apply function_eq_prop in H1; subst f0; auto.
-  split; auto.
-  rewrite !andb_true_iff in H1. destruct H1 as [[[? ?] ?] ?].
-  apply eqb_typelist_prop in H2.
-  apply eqb_type_spec in H3.
-  apply eqb_calling_convention_prop in H4. subst; auto.
-  f_equal. f_equal. f_equal.
-  apply eqb_external_function_prop; auto.
-  destruct v; inv H8.
-  destruct f; inv H8.
-  destruct v, v0. unfold merge_globvar in H8.
-  match type of H8 with context [if ?A then _ else _] => destruct A eqn:?H; inv H8 end; auto.
-  destruct (eqb_type gvar_info gvar_info0) eqn:?H; [ | discriminate].
-  apply eqb_type_true in H2. subst.
-  destruct (bool_eq gvar_readonly gvar_readonly0) eqn:?H; [ | discriminate].
-  apply bool_eq_ok in H2; subst.
-  inv H1. (* USE THIS PART IF overlap_Gvar=true: 
-  apply bool_eq_ok in H1; subst.
-  simpl.
-  split; auto.
-  destruct (linking.isnil gvar_init) eqn:?H; inv H3; auto.
-  destruct gvar_init; inv H1.
-  right; split; auto.
-  destruct (linking.isnil gvar_init0) eqn:?H; inv H4; auto.
-  destruct gvar_init0; inv H2.
-  left; split; auto.
-*)
--
-  destruct g; auto. destruct f; auto.
--
-  destruct g; auto. destruct f; auto.
+  + destruct f,f0; inv H8;
+    match type of H2 with  (if ?A then _ else _) = _ => destruct A eqn:?H; inv H2 end; auto.
+    * apply function_eq_prop in H1; subst f0; auto.
+    * split; auto.
+      rewrite !andb_true_iff in H1. destruct H1 as [[[? ?] ?] ?].
+      apply eqb_typelist_prop in H2.
+      apply eqb_type_spec in H3.
+      apply eqb_calling_convention_prop in H4. subst; auto.
+      f_equal. f_equal. f_equal.
+      apply eqb_external_function_prop; auto.
+  + destruct v; inv H8.
+  + destruct f; inv H8.
+  + destruct v, v0. unfold merge_globvar in H8.
+    match type of H8 with context [if ?A then _ else _] => destruct A eqn:?H; inv H8 end; auto.
+    simpl in H1. 
+    destruct (eqb_type gvar_info0 gvar_info) eqn:?H; [ | discriminate].
+    apply eqb_type_true in H2. subst.
+    destruct (bool_eq gvar_readonly0 gvar_readonly) eqn:?H; [ | discriminate].
+    apply bool_eq_ok in H2; subst.
+    simpl in H1.
+    apply bool_eq_ok in H1; subst.
+    simpl. split; auto.
+    destruct (linking.isnil gvar_init) eqn:?H; inv H3; auto.
+    * destruct gvar_init; inv H1.
+      right; split; auto.
+      destruct (linking.isnil gvar_init0) eqn:?H; inv H4; auto.
+      -- destruct gvar_init0; inv H3. trivial. trivial.
+      -- destruct gvar_init0; inv H3. trivial. trivial. 
+    * destruct (linking.isnil gvar_init0) eqn:?H; inv H4; auto.
+      -- destruct gvar_init0; inv H5.
+         ++ left; split; trivial.
+         ++ inv H2.
+      -- destruct gvar_init0; inv H5.
+         ++ left; split; trivial. 
+         ++ destruct gvar_init; inv H4. right; split; trivial. 
+- destruct g; auto. destruct f; auto.
+- destruct g; auto. destruct f; auto.
 - rewrite H0; auto.
 Qed.
 
-Lemma merge_globdef_noGvar:
- forall g1 g2 g, merge_globdef g1 g2 = Errors.OK (Gvar g) -> False.
-Proof.
-clear.
+Lemma merge_globdef_Gvar:
+ forall g1 g2 g, merge_globdef g1 g2 = Errors.OK (Gvar g) ->
+ exists v1 v2, g1 = Gvar v1 /\ g2 = Gvar v2 /\ merge_globvar v1 v2 = Errors.OK g.
+Proof. clear.
 intros.
-destruct g1,g2; simpl in H.
-destruct f,f0; simpl in H;
-try match type of H with (if ?A then _ else _) = _ => destruct A end;
- inv H.
-destruct f; inv H.
-destruct v; inv H.
-destruct v,v0; inv H.
+destruct g1,g2; inv H.
++ destruct f,f0; simpl in H1;
+  try match type of H1 with (if ?A then _ else _) = _ => destruct A end;
+  inv H1.
++ destruct f; inv H1.
++ do 2 eexists; split3. reflexivity. reflexivity.
+  apply Errors.bind_inversion in H1; destruct H1 as [x [Hx X]]; inv X; trivial.
 Qed.
+
+Definition merge_globvar_prop (g1 g2 g: globvar type) :=
+match g1, g2 with
+ |  {| gvar_info := i1; gvar_init := l1; gvar_readonly := r1; gvar_volatile := v1 |},
+    {| gvar_info := i2; gvar_init := l2; gvar_readonly := r2; gvar_volatile := v2 |} =>
+   (i1 = i2 /\ r1 = r2 /\ v1 = v2) /\
+   ((l1 = nil /\ g= g2) \/ (l2=nil /\ g=g1))
+end. 
+
+Lemma merge_globvar_elim g1 g2 g (M:merge_globvar g1 g2 = Errors.OK g): merge_globvar_prop g1 g2 g.
+Proof. clear - M. destruct g1; destruct g2. simpl in M; simpl.
+  remember (eqb_type gvar_info gvar_info0 && bool_eq gvar_readonly gvar_readonly0 &&
+       bool_eq gvar_volatile gvar_volatile0)%bool as b; 
+  destruct b; symmetry in Heqb; try discriminate.
+  rewrite ! andb_true_iff in Heqb. destruct Heqb as [[HH1 HH2] HH3].
+  apply eqb_type_true in HH1. apply bool_eq_ok in HH2. apply bool_eq_ok in HH3. rewrite HH1, HH2, HH3.
+  split; auto.
+  destruct gvar_init; simpl in M; inv M.
+  + left; split; trivial.
+  + destruct gvar_init0; simpl in H0; inv H0. right; split; trivial.
+Qed.
+
+Lemma list_norepet_elim_middle {A l1 a l2 }: @list_norepet A (l1 ++ a::l2) -> list_norepet (l1 ++ l2).
+Proof. clear. rewrite ! list_norepet_app. intros [H1 [H2 D]]; inv H2. apply list_disjoint_cons_right in D; auto. Qed.
 
 Lemma InitGPred_join {gv}:
   forall  (p1 p2 p : QP.program function)
@@ -1972,169 +1999,106 @@ forget (PTree.elements m1) as al1.
 forget (PTree.elements m2) as al2.
 forget (PTree.elements m) as al.
 clear m m1 m2.
-unfold InitGPred. {
-assert (forall i,
- match  find_id i (filter isGvar al)  with
- | None => find_id i (filter isGvar al1) = None /\ find_id i (filter isGvar al2) = None
- | Some g => find_id i (filter isGvar al1) = Some g /\ find_id i (filter isGvar al2) = None
-                \/ find_id i (filter isGvar al2) = Some g /\ find_id i (filter isGvar al1) = None
-  end). {
- intro i; specialize (H i).
- rewrite !find_id_filter_char by auto.
- destruct (find_id i al1) as [g1|] eqn:?H;
- destruct (find_id i al2) as [g2|] eqn:?H;
- first [rewrite H | (destruct H as [g [H H5]]; rewrite H5)]; auto.
- destruct g1 as [g1|g1], g2 as [g2|g2]; simpl; auto.
- destruct g; try (contradiction (merge_globdef_noGvar _ _ _ H)); simpl; auto.
- destruct g; try (contradiction (merge_globdef_noGvar _ _ _ H)); simpl; auto.
- destruct g2, g1; inv H.
- destruct g; try (contradiction (merge_globdef_noGvar _ _ _ H)); simpl; auto.
- destruct g1,g2; inv H.
- destruct g1,g2; inv H.
- destruct g1; simpl; auto.
- destruct g2; simpl; auto.
-}
- clear H. rename H3 into H.
+unfold InitGPred.
+assert (Merge: forall i,
+  match  find_id i (filter isGvar al)  with
+  | Some (Gfun f) => False
+  | Some (Gvar g) => match find_id i (filter isGvar al1), find_id i (filter isGvar al2) with
+                       Some (Gvar g1), Some (Gvar g2) => merge_globvar_prop g1 g2 g
+                     | Some (Gvar g1), None => g=g1
+                     | None, Some (Gvar g2) => g=g2
+                     | _, _ => False 
+                     end
+  | _ => find_id i (filter isGvar al1) = None /\ find_id i (filter isGvar al2) = None
+  end).
+{ intro i; specialize (H i).
+  rewrite !find_id_filter_char by auto.
+  destruct (find_id i al1) as [g1|] eqn:?H;
+  destruct (find_id i al2) as [g2|] eqn:?H;
+  first [rewrite H | (destruct H as [g [H H5]]; rewrite H5)]; auto.
+  + destruct g. simpl.
+    - destruct g1 as [g1|g1], g2 as [g2|g2]; simpl; simpl in H; inv H; auto.
+      * destruct g1; discriminate.
+      * apply Errors.bind_inversion in H7; destruct H7 as [x [Hx X]]; inv X.
+    - apply merge_globdef_Gvar in H. destruct H as [v1 [v2 [Hv1 [Hv2 Hv]]]]. subst g1 g2. simpl.
+      apply merge_globvar_elim in Hv; trivial.
+  + destruct g1; simpl; auto.
+  + destruct g2; simpl; auto. }
+clear H.
 apply (@list_norepet_map_fst_filter _ isGvar) in H0.
 apply (@list_norepet_map_fst_filter _ isGvar) in H1.
-apply (@list_norepet_map_fst_filter _ isGvar) in H2.
+apply (@list_norepet_map_fst_filter _ isGvar) in H2. (*
 assert (F0: forall i g, In (i,g) (filter isGvar al) -> isGvar (i,g) = true)
   by (intros ? ? Hx; apply (proj2 (proj1 (filter_In _ _ _) Hx))).
 assert (F1: forall i g, In (i,g) (filter isGvar al1) -> isGvar (i,g) = true)
   by (intros ? ? Hx; apply (proj2 (proj1 (filter_In _ _ _) Hx))).
 assert (F2: forall i g, In (i,g) (filter isGvar al2) -> isGvar (i,g) = true)
-  by (intros ? ? Hx; apply (proj2 (proj1 (filter_In _ _ _) Hx))).
+  by (intros ? ? Hx; apply (proj2 (proj1 (filter_In _ _ _) Hx))).*)
  forget (filter isGvar al) as bl.
  forget (filter isGvar al1) as bl1.
  forget (filter isGvar al2) as bl2.
  clear al1 al2 al. rename bl into al. rename bl1 into al1. rename bl2 into al2.
-revert al1 al2 H H1 H2 F1 F2 ; induction al as [|[i [g|g]]]; simpl; intros.
--
-assert (al1=nil).
- destruct al1 as [|[i g]]; auto. destruct (H i) as [Hx _]; simpl in Hx; rewrite if_true in Hx by auto; inv Hx.
-assert (al2=nil).
- destruct al2 as [|[i g]]; auto. destruct (H i) as [_ Hx]; simpl in Hx; rewrite if_true in Hx by auto; inv Hx.
-subst. simpl. rewrite sepcon_emp; auto.
--
-rewrite emp_sepcon.
-inv H0.
-simpl fst in *.
-apply IHal; clear IHal; auto.
-intros.
-specialize (H i); rewrite if_true in H by auto.
-destruct H as [[??]|[??]]; apply find_id_e in H.
-apply F1 in H; inv H.
-apply F2 in H; inv H.
-intro j.
-specialize (H j).
-if_tac in H.
-subst j.
-destruct H as [[??]|[??]]; apply find_id_e in H.
-apply F1 in H. inv H.
-apply F2 in H; inv H.
-auto.
--
-simpl fst in *. inv H0.
-specialize (IHal H6).
-spec IHal. intros; apply F0; right; auto.
-pose (noti i (jx: ident * globdef (fundef function) type) := 
-             negb (Pos.eqb i (fst jx))).
-pose proof (H i). rewrite if_true in H0 by auto.
+(*clear F1 F2.*)
+revert al1 al2 Merge H1 H2 (*F1 F2*); induction al as [|[i [g|g]]].
+- simpl; intros.
+  assert (al1=nil).
+  { destruct al1 as [|[i g]]; auto. destruct (Merge i) as [Hx _]; simpl in Hx; rewrite if_true in Hx by auto; inv Hx. }
+  assert (al2=nil).
+  { destruct al2 as [|[i g]]; auto. destruct (Merge i) as [_ Hx]; simpl in Hx; rewrite if_true in Hx by auto; inv Hx. }
+  subst. simpl. rewrite sepcon_emp; auto.
+- simpl; intros. rewrite emp_sepcon.
+  inv H0.
+  simpl fst in *.
+  apply IHal; clear IHal; auto.
+  (*+ intros. apply F0. right; trivial.
+  + *)intro j.
+    specialize (Merge j).
+    if_tac in Merge; [ contradiction | auto].
+- simpl fst in *. intros. inv H0.
+  specialize (IHal H5).
+  assert (Hi := Merge i); simpl in Hi. rewrite if_true in Hi by trivial.
 
-assert (forall g bl i,
-          list_norepet (map fst bl) ->
-          (forall j g0, In (j, g0) bl -> isGvar (j, g0) = true) ->
-          find_id i bl = Some g ->
-             fold_right sepcon emp (map (globs2pred gv) bl) =
-             sepcon (globs2pred gv (i,g)) (fold_right sepcon emp (map (globs2pred gv) (filter (noti i) bl)))). {
-   clear.
-   intros. 
-   assert (H8: isGvar (i,g) = true). apply H0. apply find_id_e; auto.
-   destruct g; inv H8.
-   revert bl i H H0 H1.
-   induction bl as [|[??]]; intros until 1; intros H9  H0.
-   inv H0.
-   simpl in H. inv H.
-   unfold map. fold (map (globs2pred gv)).
-   unfold fold_right; fold (fold_right sepcon emp).
-   unfold filter; fold (filter (noti i0)).
-   simpl in H0.
-   if_tac in H0. subst i0. inv H0.
-   unfold noti at 1. simpl fst. rewrite Pos.eqb_refl. unfold negb. f_equal.
-  clear - H3.
-  induction bl as [|[j ?]]; simpl; auto.
-  unfold noti at 1.  simpl fst. rewrite (proj2 (Pos.eqb_neq i j)).
-  simpl. f_equal; auto. apply IHbl. contradict H3; simpl; auto.
-  contradict H3; subst; left; auto.
-  unfold noti at 1; simpl fst. rewrite (proj2 (Pos.eqb_neq i0 i)); auto.
-  unfold negb.
-  unfold map; fold (map (globs2pred gv)).
-   unfold fold_right; fold (fold_right sepcon emp).
-  rewrite <- !sepcon_assoc.
-  rewrite (sepcon_comm (globs2pred gv (i0,Gvar v))).
- rewrite !sepcon_assoc.
-  f_equal.
-  apply IHbl; auto.
-  intros. apply H9. right; auto.
-}
- assert (H12: forall i (bl: list (ident * globdef (fundef function) type)), find_id i (filter (noti i) bl) = None). {
-  induction bl as [|[??]]; simpl; auto.
-  unfold noti at 1. simpl fst.
-  destruct (Pos.eqb_spec i0 i1). subst; simpl; auto.
-  simpl. rewrite if_false by auto. auto.
-}
-assert (H13: forall j i, j<>i -> 
-             forall (bl: list (ident * globdef (fundef function) type)),
-                find_id j (filter (noti i) bl) = find_id j bl). {
- clear; induction bl as [|[??]]; simpl; auto.
- unfold noti at 1. simpl fst.
-  destruct (Pos.eqb_spec i i0). subst; simpl; auto.
- rewrite if_false by auto. auto.
- simpl. if_tac; auto.
-}
-destruct H0 as [[??]|[??]].
-+
- rewrite (H3 _ _ _ H1 F1 H0); clear H3.
- rewrite sepcon_assoc.
- apply sepcon_derives. apply derives_refl.
- apply IHal; clear IHal; auto.
- intro j.
- specialize (H j).
- if_tac in H.
- subst j.
- rewrite H4.
- apply find_id_None_iff in H5.
- rewrite H5. split; auto.
- destruct (find_id j al) eqn:?H.
-rewrite H13 by auto.
-auto.
-rewrite H13 by auto.
-auto.
-apply list_norepet_map_fst_filter; auto.
-intros.
-apply F1; auto.
-apply filter_In in H3. destruct H3; auto.
-+
- rewrite (H3 _ _ _ H2 F2 H0); clear H3.
- rewrite (sepcon_comm (fold_right _ _ _)).
- rewrite sepcon_assoc.
- apply sepcon_derives. apply derives_refl.
- rewrite sepcon_comm.
- apply IHal; clear IHal; auto.
- intro j.
- specialize (H j).
- if_tac in H.
- subst j.
- rewrite H4.
- apply find_id_None_iff in H5.
- rewrite H5; auto.
- rewrite H13 by auto.
- auto.
- apply list_norepet_map_fst_filter; auto.
- intros.
- apply F2; auto.
- apply filter_In in H3. destruct H3; auto.
-}
+  remember (find_id i al1) as z1; symmetry in Heqz1; destruct z1 as [g1 |].
+  + (*Case find_id i al1 = Some g1*) 
+    destruct g1; [ contradiction | ]. 
+    destruct (find_id_in_split Heqz1 H1) as [l1 [l2 [L [Hl1 Hl2]]]]; subst.
+    rewrite map_app, sepcon_app. simpl. entailer!.
+    remember (find_id i al2) as z2; symmetry in Heqz2; destruct z2 as [g2 |].
+    * (*Case find_id i al2 = Some g2*)
+      destruct g2; [ contradiction | ].
+      destruct (find_id_in_split Heqz2 H2) as [m1 [m2 [M [Hm1 Hm2]]]]; subst.
+      rewrite ! map_app, ! sepcon_app. simpl. entailer!.
+      rewrite map_app in H2. apply list_norepet_elim_middle in H2.
+      rewrite map_app in H1. apply list_norepet_elim_middle in H1.
+      specialize (IHal (l1++l2) (m1++m2)). rewrite ! map_app, ! sepcon_app in IHal.
+      sep_apply IHal; clear IHal; trivial.
+      -- intros j. specialize (Merge j); simpl in Merge. destruct (Memory.EqDec_ident j i).
+         ++ subst j. apply find_id_None_iff in H4; rewrite H4, ! find_id_app_char, Hl1, Hl2, Hm1, Hm2. split; trivial.
+         ++ rewrite ! find_id_app_char in *. simpl in Merge. rewrite ! if_false in Merge; trivial.
+      -- cancel. clear - Hi. red in Hi. destruct v; destruct v0. unfold globvar2pred. simpl.
+         destruct Hi as [[Hi [Hr Hv]] HH].
+         destruct HH as [[GI G] | [GI G]]; subst g; rewrite GI, Hv, Hr; simpl.
+         ++ destruct (gvar_volatile0); cancel.
+         ++ destruct (gvar_volatile0); cancel.
+    * (*Case find_id i al2 = None*) 
+      subst; cancel.
+      rewrite map_app in H1. apply list_norepet_elim_middle in H1.
+      specialize (IHal (l1++l2) al2). rewrite ! map_app, sepcon_app in IHal.
+      apply IHal; clear IHal; trivial.
+      intros j. specialize (Merge j); simpl in Merge. destruct (Memory.EqDec_ident j i).
+      -- subst j. apply find_id_None_iff in H4; rewrite H4, find_id_app_char, Hl1, Hl2. split; trivial.
+      -- rewrite find_id_app_char in *. simpl in Merge. rewrite if_false in Merge by trivial. trivial.
+  + (*Case find_id i al1 = None*)
+    remember (find_id i al2) as z2; symmetry in Heqz2; destruct z2 as [g2 |]; [ | contradiction].
+    destruct g2; [ contradiction | ]. 
+    destruct (find_id_in_split Heqz2 H2) as [l1 [l2 [L [Hl1 Hl2]]]]; subst.
+    rewrite map_app, sepcon_app. simpl. cancel. 
+    rewrite map_app in H2. apply list_norepet_elim_middle in H2.
+    specialize (IHal al1 (l1++l2)). rewrite ! map_app, sepcon_app in IHal.
+    rewrite sepcon_assoc. apply IHal; clear IHal; trivial.
+    intros j. specialize (Merge j); simpl in Merge. destruct (Memory.EqDec_ident j i).
+    -- subst j. apply find_id_None_iff in H4; rewrite H4, find_id_app_char, Hl1, Hl2. split; trivial.
+    -- rewrite find_id_app_char in *. simpl in Merge. rewrite if_false in Merge by trivial. trivial.
 Qed.
 
 Lemma compspecs_eq: forall cs1 cs2: compspecs,
@@ -2963,47 +2927,88 @@ Proof.
   clear - H.
   intro i. apply (merge_PTrees_e i) in H.
   destruct (find_id i (QPvarspecs p1)) eqn:?H.
-  rewrite find_id_QPvarspecs in H0. destruct H0 as [? [? ?]]. rewrite H0 in H.
++ rewrite find_id_QPvarspecs in H0. destruct H0 as [? [? ?]]. rewrite H0 in H.
   destruct (find_id i (QPvarspecs p2)) eqn:?H.
-  rewrite find_id_QPvarspecs in H2. destruct H2 as [? [? ?]]. rewrite H2 in H.
-  destruct H as [? [? ?]]. simpl in H. destruct x,x0; inv H. subst t.
-  destruct ((QP.prog_defs p2) ! i) eqn:?H. destruct H as [? [? ?]].
-  destruct g; inv H. destruct x,v; inv H5.
-  symmetry. rewrite find_id_QPvarspecs; eauto.
-  destruct (find_id i (QPvarspecs p2)) eqn:?H.
-  apply find_id_QPvarspecs in H1. destruct H1 as [? [? ?]]. subst t.
-  rewrite H1 in H.
-  destruct (find_id i (QPvarspecs p)) eqn:?H.
-  apply find_id_QPvarspecs in H2. destruct H2 as [? [? ?]]. subst t.
-  rewrite H2 in H.
-  destruct ((QP.prog_defs p1) ! i) eqn:?H.
-  destruct H as [? [? ?]]. inv H4. destruct g; inv H. destruct f; inv H5.
-  destruct v,x; inv H5. inv H; auto.
-  destruct ((QP.prog_defs p1) ! i) eqn:?H.
-  destruct H as [? [? ?]]. destruct g; inv H. destruct f; inv H6.
-  destruct v,x; inv H6.
-  rewrite (proj2 (find_id_QPvarspecs p i (gvar_info x))) in H2.
-  inv H2.
-  eauto.
-  destruct (find_id i (QPvarspecs p)) eqn:?H; auto.
-  apply find_id_QPvarspecs in H2. destruct H2 as [? [? ?]]. subst t.
-  rewrite H2 in H.
-  clear H2.
-  destruct ((QP.prog_defs p1) ! i) eqn:?H.
-  destruct ((QP.prog_defs p2) ! i) eqn:?H.
-  destruct H as [? [? ?]]. inv H4.
-  destruct g,g0; inv H.
-  destruct f,f0. destruct (function_eq  f f0); inv H5.
-  revert H5; simple_if_tac; intro; try discriminate.
-  revert H5; simple_if_tac; intro; try discriminate.
-  revert H5; simple_if_tac; intro; try discriminate.
-  destruct f; inv H5. destruct v,v0; inv H5. inv H.
-  rewrite (proj2 (find_id_QPvarspecs p1 i (gvar_info x))) in H0. inv H0.
-  eauto.
-  destruct ((QP.prog_defs p2) ! i) eqn:?H. inv H.
-  rewrite (proj2 (find_id_QPvarspecs p2 i (gvar_info x))) in H1. inv H1.
-  eauto.
-  inv H.
+  - rewrite find_id_QPvarspecs in H2. destruct H2 as [? [? ?]]. rewrite H2 in H.
+    destruct H as [? [? ?]]. simpl in H. destruct x,x0; inv H.
+
+    apply Errors.bind_inversion in H6. destruct H6.
+    remember ((eqb_type gvar_info gvar_info0 && bool_eq gvar_readonly gvar_readonly0 && bool_eq gvar_volatile gvar_volatile0)%bool) as b;
+    symmetry in Heqb; destruct b; destruct H; [ inv H1| congruence].
+    rewrite ! andb_true_iff in Heqb; destruct Heqb as [[Heq_info Heq_readonly] Heq_vol].
+    apply eqb_type_true in Heq_info. apply bool_eq_ok in Heq_readonly. apply bool_eq_ok in Heq_vol.
+    subst gvar_volatile0 gvar_readonly0 gvar_info0.
+    specialize (find_id_QPvarspecs p i); intros Hp. rewrite H4 in Hp; clear H4.
+    destruct gvar_init; simpl in *.
+    * inv H; simpl in *. destruct (find_id i (QPvarspecs p)) eqn:?H.
+      ++ destruct (Hp t) as [HH _]; clear Hp.
+        destruct (HH eq_refl) as [tp [Htp TP]]; clear HH. inv Htp; subst; simpl; auto.
+      ++ destruct (Hp gvar_info) as [_ HH]; clear Hp.
+         spec HH. eexists; split; reflexivity. congruence.
+    * destruct gvar_init0; simpl in *; [ | congruence].
+      inv H; simpl in *. destruct (find_id i (QPvarspecs p)) eqn:?H.
+      ++ destruct (Hp t) as [HH _]; clear Hp.
+         destruct (HH eq_refl) as [tp [Htp TP]]; clear HH. inv Htp; subst; simpl; auto.
+      ++ destruct (Hp gvar_info) as [_ HH]; clear Hp.
+         spec HH. eexists; split; reflexivity. congruence.
+  - symmetry. apply find_id_QPvarspecs.
+    specialize (find_id_QPvarspecs p2 i); intros Hp2.
+    destruct ((QP.prog_defs p2) ! i).
+    ++ destruct H as [gg [Mrg Hgg]]. rewrite Hgg.
+       unfold merge_globdef in Mrg. destruct g. discriminate.
+       apply Errors.bind_inversion in Mrg. destruct Mrg as [a [A Ha]]. inv Ha.
+       destruct (Hp2 (gvar_info v)) as [_ HH]; clear Hp2.
+       rewrite HH in H2. discriminate. exists v; split; trivial.
+    ++ exists x. split; trivial.
++ specialize (find_id_QPvarspecs p1 i); intros Hp1.
+  remember ((QP.prog_defs p1) ! i) as q1; symmetry in Heqq1; destruct q1 as [h1 |].
+  { destruct h1. 2:{ destruct (Hp1 (gvar_info v)) as [_ HH].
+                     rewrite HH in H0. discriminate. exists v; split; trivial. }
+    specialize (find_id_QPvarspecs p2 i); intros Hp2.
+    remember ((QP.prog_defs p2) ! i) as q2; symmetry in Heqq2; destruct q2 as [h2 |]. 
+    - destruct H as [h [HH Hpi]].
+      destruct (find_id i (QPvarspecs p2)). 
+      + destruct (Hp2 t) as [X _]; clear Hp2. destruct (X (eq_refl _ )) as [x [Hx XX]]; inv Hx.
+        simpl in HH. destruct f; congruence.
+      + destruct h2. 2:{ destruct (Hp2 (gvar_info v)) as [_ X]; clear Hp2.
+                         spec X. exists v; split; trivial. discriminate. }
+        clear Hp2 Hp1. 
+        specialize (find_id_QPvarspecs p i); rewrite Hpi; intros Hp.
+        destruct (find_id i (QPvarspecs p)); trivial.
+        destruct (Hp t) as [X _]; clear Hp. destruct (X (eq_refl _)) as [x [Hx XX]]; clear X.
+        inv Hx.
+        destruct f; destruct f0; simpl in HH.
+        * destruct (function_eq f f0); inv HH.
+        * destruct ((eqb_list eqb_typ (map typ_of_type (map snd (fn_params f))) (typlist_of_typelist t) &&
+                     eqb_rettype (rettype_of_type (fn_return f)) (rettype_of_type t0) &&
+                     eqb_calling_convention (fn_callconv f) c)%bool); inv HH.
+        * destruct ((eqb_list eqb_typ (typlist_of_typelist t) (map typ_of_type (map snd (fn_params f))) &&
+                     eqb_rettype (rettype_of_type t0) (rettype_of_type (fn_return f)) &&
+                     eqb_calling_convention c (fn_callconv f))%bool); inv HH.
+        * destruct ((eqb_external_function e e0 && eqb_typelist t t1 && eqb_type t0 t2 && eqb_calling_convention c c0)%bool); inv HH. 
+    - destruct (find_id i (QPvarspecs p2)). 
+      + destruct (Hp2 t) as [X _]; clear Hp2.
+        destruct (X (eq_refl _)) as [x [Hx XX]]; clear X; discriminate.
+      + specialize (find_id_QPvarspecs p i); intros Hp.
+        destruct (find_id i (QPvarspecs p)); trivial.
+        destruct (Hp t) as [X _]; clear Hp.
+        destruct (X (eq_refl _)) as [x [Hx XX]]; clear X. rewrite Hx in H; inv H. }
+  { clear Hp1. specialize (find_id_QPvarspecs p2 i); intros Hp2.
+    destruct (find_id i (QPvarspecs p2)).
+    + destruct (Hp2 t) as [X _]; clear Hp2. destruct X as [x [Hx XX]]; trivial.
+      rewrite Hx in *.
+      symmetry. apply (find_id_QPvarspecs p i); rewrite H. exists x; split; trivial.
+    + destruct ((QP.prog_defs p2) ! i).
+      - specialize (find_id_QPvarspecs p i); intros Hp.
+        destruct (find_id i (QPvarspecs p)); trivial.
+        destruct (Hp t) as [X _]; clear Hp.
+        destruct (X (eq_refl _)) as [x [Hx XX]]; clear X. rewrite H in Hx. inv Hx.
+        destruct (Hp2 (gvar_info x)) as [_ X]; clear Hp2.
+        apply X. exists x; split; trivial.
+      - specialize (find_id_QPvarspecs p i); intros Hp.
+        destruct (find_id i (QPvarspecs p)); trivial.
+        destruct (Hp t) as [X _]; clear Hp.
+        destruct (X (eq_refl _)) as [x [Hx XX]]; clear X. rewrite Hx in H; inv H. }
 Qed.
 
 Lemma VSULink 

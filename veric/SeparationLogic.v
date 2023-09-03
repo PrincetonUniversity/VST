@@ -1762,10 +1762,22 @@ forall {V G cs} f sp1 sp2 phi
   (BI: binary_intersection (snd sp1) (snd sp2) = Some phi),
   @semax_body V G cs f (fst sp1, phi).
 
+Axiom semax_body_generalintersection:
+forall {V G cs f iden I sig cc} {phi : I -> funspec}
+        (H1: forall i : I, typesig_of_funspec (phi i) = sig)
+        (H2: forall i : I, callingconvention_of_funspec (phi i) = cc) (HI: inhabited I)
+  (H: forall i, @semax_body V G cs f (iden, phi i)),
+  @semax_body V G cs f (iden, @general_intersection I sig cc phi H1 H2).
+
 Axiom semax_body_funspec_sub: forall {V G cs f i phi phi'} 
   (SB: @semax_body V G cs f (i, phi)) (Sub: funspec_sub phi phi')
   (LNR: list_norepet (map fst (fn_params f) ++ map fst (fn_temps f))),
   @semax_body V G cs f (i, phi').
+
+Axiom general_intersection_funspec_subIJ: forall I (HI: inhabited I) J
+      sig cc phi1 ToF1 CoF1 phi2 ToF2 CoF2
+      (H: forall i, exists j, funspec_sub (phi1 j) (phi2 i)),
+   funspec_sub (@general_intersection J sig cc phi1 ToF1 CoF1) (@general_intersection I sig cc phi2 ToF2 CoF2).
 
 Axiom semax_Delta_subsumption:
   forall {CS: compspecs} {Espec: OracleKind},

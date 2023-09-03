@@ -2485,6 +2485,28 @@ Proof.
   destruct x as [b Hb]; destruct b; [ apply SB1 | apply SB2].
 Qed.
 
+Lemma semax_body_generalintersection {V G cs f iden I sig cc} {phi : I -> funspec}
+        (H1: forall i : I, typesig_of_funspec (phi i) = sig)
+        (H2: forall i : I, callingconvention_of_funspec (phi i) = cc) (HI: inhabited I)
+  (H: forall i, semax_body V G f (iden, phi i)):
+  @semax_body V G cs f (iden, @general_intersection I sig cc phi H1 H2).
+Proof. destruct HI. split3.
+  { specialize (H X). specialize (H1 X); subst. destruct (phi X). simpl. apply H. }
+  { specialize (H X). specialize (H1 X); subst. destruct (phi X). simpl. apply H. }
+  intros. destruct x as [i Hi].
+  specialize (H i).
+  assert (HH: fst sig = map snd (fst (fn_funsig f)) /\
+        snd sig = snd (fn_funsig f) /\
+        (forall (Espec : OracleKind) (ts : list Type) (x : dependent_type_functor_rec ts ((WithType_of_funspec (phi i))) mpred),
+         semax Espec (func_tycontext f V G nil)
+           (fun rho : environ => close_precondition (map fst (fn_params f)) ((Pre_of_funspec (phi i)) ts x) rho * stackframe_of f rho) 
+           (fn_body f) (frame_ret_assert (function_body_ret_assert (fn_return f) ((Post_of_funspec (phi i)) ts x)) (stackframe_of f)))).
+  { intros. specialize (H1 i); specialize (H2 i). subst. unfold semax_body in H.
+    destruct (phi i); subst. destruct H as [? [? ?]]. split3; auto. }
+  clear H H1 H2. destruct HH as [HH1 [HH2 HH3]].
+  apply (HH3 Espec0 ts Hi).
+Qed.
+
 Lemma typecheck_temp_environ_eval_id {f lia}
           (LNR: list_norepet (map fst (fn_params f) ++ map fst (fn_temps f)))
           (TC : typecheck_temp_environ (te_of lia) (make_tycontext_t (fn_params f) (fn_temps f))):
