@@ -499,7 +499,7 @@ Qed.
 Definition overlap_Gvar := 
   (* This controls whether we permit linking programs P1 and P2 that both contain
      the same Gvar *)
-   false.
+   true.
 
 Definition isnil {A} (al: list A) := 
    match al with nil => true | _ => false end.

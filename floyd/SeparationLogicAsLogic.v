@@ -1361,6 +1361,8 @@ Definition semax_external_FF := @MinimumLogic.semax_external_FF.
 Definition semax_external_funspec_sub := @MinimumLogic.semax_external_funspec_sub.
 Definition semax_external_binaryintersection := @MinimumLogic.semax_external_binaryintersection.
 
+Definition general_intersection_funspec_subIJ:= @MinimumLogic.general_intersection_funspec_subIJ.
+
 Definition semax_body_binaryintersection:
 forall {V G cs} f sp1 sp2 phi
   (SB1: @semax_body V G cs f sp1) (SB2: @semax_body V G cs f sp2)
@@ -1377,6 +1379,41 @@ Proof. intros.
   destruct SB1 as [X [Y SB1]]. destruct SB2 as [_ [_ SB2]].
   split3; trivial. simpl in X; intros.
   destruct x as [b Hb]; destruct b; [ apply SB1 | apply SB2].
+Qed.
+
+Definition semax_body_generalintersection {V G cs f iden I sig cc} {phi : I -> funspec}
+        (H1: forall i : I, typesig_of_funspec (phi i) = sig)
+        (H2: forall i : I, callingconvention_of_funspec (phi i) = cc) (HI: inhabited I)
+  (H: forall i, semax_body V G f (iden, phi i)):
+  @semax_body V G cs f (iden, @general_intersection I sig cc phi H1 H2).
+Proof. destruct HI. split3.
+  { specialize (H X). specialize (H1 X); subst. destruct (phi X). simpl. apply H. }
+  { specialize (H X). specialize (H1 X); subst. destruct (phi X). simpl. apply H. }
+  intros. destruct x as [i Hi].
+  specialize (H i).
+  assert (HH: fst sig = map snd (fst (fn_funsig f)) /\
+        snd sig = snd (fn_funsig f) /\
+        (forall (Espec : OracleKind) (ts : list Type)
+           (x : functors.MixVariantFunctor._functor
+                  ((fix dtfr (T : rmaps.TypeTree) : functors.MixVariantFunctor.functor :=
+                      match T with
+                      | rmaps.ConstType A0 => functors.MixVariantFunctorGenerator.fconst A0
+                      | rmaps.CompspecsType => functors.MixVariantFunctorGenerator.fconst compspecs
+                      | rmaps.Mpred => functors.MixVariantFunctorGenerator.fidentity
+                      | rmaps.DependentType n => functors.MixVariantFunctorGenerator.fconst (nth n ts unit)
+                      | rmaps.ProdType T1 T2 => functors.MixVariantFunctorGenerator.fpair (dtfr T1) (dtfr T2)
+                      | rmaps.ArrowType T1 T2 => functors.MixVariantFunctorGenerator.ffunc (dtfr T1) (dtfr T2)
+                      | rmaps.SigType I0 f => functors.MixVariantFunctorGenerator.fsig (fun i : I0 => dtfr (f i))
+                      | rmaps.PiType I0 f => functors.MixVariantFunctorGenerator.fpi (fun i : I0 => dtfr (f i))
+                      | rmaps.ListType T0 => functors.MixVariantFunctorGenerator.flist (dtfr T0)
+                      end) (WithType_of_funspec (phi i))) mpred),
+         semax (func_tycontext f V G nil)
+           (fun rho : environ => close_precondition (map fst (fn_params f)) (Pre_of_funspec (phi i) ts x) rho * stackframe_of f rho)
+           (fn_body f) (frame_ret_assert (function_body_ret_assert (fn_return f) ((Post_of_funspec (phi i) ts x))) (stackframe_of f)))).
+  { intros. specialize (H1 i); specialize (H2 i). subst. unfold semax_body in H.
+    destruct (phi i); subst. destruct H as [? [? ?]]. split3; auto. }
+  clear H H1 H2. destruct HH as [HH1 [HH2 HH3]].
+  apply (HH3 Espec ts Hi).
 Qed.
 
 Definition semax_func_mono := @AuxDefs.semax_func_mono (@Def.semax_external).

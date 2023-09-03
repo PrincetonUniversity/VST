@@ -1937,30 +1937,38 @@ apply QPlink_progs_globdefs in H.
 intro i.
 apply (merge_PTrees_e i) in H.
 destruct (find_id i (QPvarspecs p)) eqn:?H.
-apply find_id_QPvarspecs in H0. destruct H0 as [? [? ?]].
-subst t.
-rewrite H0 in H.
-destruct (find_id i (QPvarspecs p2)) eqn:?H.
-apply find_id_QPvarspecs in H1. destruct H1 as [? [? ?]].
-subst t.
-rewrite H1 in H.
-split; auto.
-destruct ((QP.prog_defs p1) ! i).
-destruct H as [? [? ?]]. destruct g; inv H. destruct f; inv  H4.
-destruct v,x0; inv H4.
-inv H; auto.
-auto.
-destruct (find_id i (QPvarspecs p2)) eqn:?H; auto.
-apply find_id_QPvarspecs in H1. destruct H1 as [? [? ?]].
-subst t.
-rewrite H1 in *.
-destruct ((QP.prog_defs p1) ! i) eqn:?H.
-destruct H as [? [? ?]].
-destruct g as [[|]|]; inv H.
-destruct v,x; inv H5.
-rewrite (proj2 (find_id_QPvarspecs p i (gvar_info x))) in H0.
-inv H0.
-eauto.
++ apply find_id_QPvarspecs in H0. destruct H0 as [? [? ?]].
+  subst t.
+  rewrite H0 in H.
+  destruct (find_id i (QPvarspecs p2)) eqn:?H.
+  - apply find_id_QPvarspecs in H1. destruct H1 as [? [? ?]].
+    subst t.
+    rewrite H1 in H.
+    split; auto.
+    destruct ((QP.prog_defs p1) ! i).
+    * destruct H as [? [? ?]]. destruct g; inv H. destruct f; inv  H4.
+      apply Errors.bind_inversion in H4. destruct H4 as [g [MGg Hg]]; inv Hg.
+      inv H2. apply merge_globvar_elim in MGg. red in MGg.
+      destruct v; destruct x0. destruct MGg as [GV [[GVI G] | [GVI G]]]; subst.
+      simpl; trivial.
+      simpl; symmetry. apply GV.
+    * inv H; auto.
+  - auto.
++ destruct (find_id i (QPvarspecs p2)) eqn:?H; auto.
+  apply find_id_QPvarspecs in H1. destruct H1 as [? [? ?]].
+  subst t.
+  rewrite H1 in *.
+  destruct ((QP.prog_defs p1) ! i) eqn:?H.
+  - destruct H as [? [? ?]].
+    destruct g as [[|]|]; inv H.
+    (*destruct v,x; inv H5. admit.*)
+    apply Errors.bind_inversion in H5. destruct H5 as [g [MGg Hg]]; inv Hg.
+    specialize (find_id_QPvarspecs p i); rewrite H0, H3; intros Hp.
+    destruct (Hp (gvar_info g)) as [_ X]; clear Hp.
+    spec X. exists g; split; trivial. congruence.
+  - rewrite (proj2 (find_id_QPvarspecs p i (gvar_info x))) in H0.
+    * inv H0.
+    * eauto.
 Qed.
 
 Lemma prove_sub_option_find_id:
