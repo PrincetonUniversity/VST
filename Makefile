@@ -65,10 +65,10 @@ endif
 # CLIGHTGEN=$(my_local_bin_path)/clightgen
 
 # # User settable variables #
-COMPCERT ?= platform
+COMPCERT ?= bundled
 ZLIST ?= bundled
 ARCH ?= 
-BITSIZE ?=
+BITSIZE ?= 64
 
 # # Internal variables #
 # Set to true if the bundled CompCert is used
