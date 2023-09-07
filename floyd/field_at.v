@@ -9,6 +9,7 @@ Require VST.floyd.aggregate_pred. Import VST.floyd.aggregate_pred.aggregate_pred
 Require Import VST.floyd.data_at_rec_lemmas.
 Require Import VST.floyd.jmeq_lemmas.
 Require Import VST.zlist.sublist.
+Require Import VST.floyd.local2ptree_typecheck.
 Import LiftNotation.
 
 Local Unset SsrRewrite.
@@ -1659,7 +1660,7 @@ End CENV.
         [rep_lia | rep_lia | auto with valid_pointer]) : valid_pointer.
 
 Ltac field_at_conflict z fld :=
-trans False; [ | apply bi.False_elim];
+ apply (derives_trans _ False); [ | apply bi.False_elim];
  rewrite ?bi.sep_assoc;
  unfold data_at_, data_at, field_at_;
  let x := fresh "x" in set (x := field_at _ _ fld _ z); pull_right x;
