@@ -207,6 +207,7 @@ Proof.
   raise_rho.
   normalize; intros.
   autorewrite with subst norm1 norm2; normalize.
+  apply bi.pure_intro.
   destruct (msubst_eval_eq_aux _ _ _ _ _ H0 H2).
   apply eq_sym, (msubst_eval_expr_eq_aux Delta T1 T2 GV); auto.
 Qed.
@@ -222,6 +223,7 @@ Proof.
   raise_rho.
   normalize; intros.
       autorewrite with subst norm1 norm2; normalize.
+  apply bi.pure_intro.
   destruct (msubst_eval_eq_aux _ _ _ _ _ H0 H2).
   apply eq_sym, (msubst_eval_lvalue_eq_aux Delta T1 T2 GV); auto.
 Qed.

@@ -1275,7 +1275,6 @@ Ltac normalize1 :=
                    | context [_ ∗ (∃ y, _)] =>
                                let BB := fresh "BB" in set (BB:=B); norm_rewrite; unfold BB; clear BB;
                                 apply bi.exist_elim; intro y
-                   | _ => simple apply bi.pure_intro
                    | _ => simple apply bi.True_intro
                    | _ => constr_eq A B; done
                    end

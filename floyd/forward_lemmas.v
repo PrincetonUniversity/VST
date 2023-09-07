@@ -433,7 +433,7 @@ apply semax_for_x with (∃ a:A, PreIncr a); auto.
   iPoseProof (H1 with "[-]") as "#H6". { repeat iSplit; try done.  }
   iDestruct "H6" as "-# H6". (* by moving to spatail context, H6 gets an affine modality when exiting ipm,
                                 and allows normalize to extract info from it instead of just throwing it away *)
-  iStopProof. unfold local.  super_unfold_lift. raise_rho. normalize. rewrite H5. done.
+  iStopProof. unfold local.  super_unfold_lift. raise_rho. normalize. rewrite H5. apply bi.pure_intro. done.
 - normalize.
   apply extract_exists_pre; intro a.
   eapply semax_pre_post; try apply (H2 a).

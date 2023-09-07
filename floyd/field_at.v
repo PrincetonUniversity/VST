@@ -2047,7 +2047,8 @@ Lemma field_at_ptr_neq_null {cs: compspecs} :
 Proof.
   intros.
   rewrite -> field_at_isptr.
-  normalize.
+  normalize. apply bi.pure_intro.
+  destruct p; unfold nullval; simpl in *; tauto.
 Qed.
 
 Lemma spacer_share_join:
