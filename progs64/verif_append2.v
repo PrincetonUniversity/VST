@@ -227,17 +227,17 @@ End Proof2.
 
 Section Proof3.  (*************** inductive lseg *******************)
 
-Reset lseg.
-Fixpoint lseg (sh: share)
+Fixpoint lseg2 (sh: share)
             (contents: list val) (x z: val) : mpred :=
  match contents with
  | h::hs => ⌜x<>z⌝ ∧ 
               ∃ y:val,
-                data_at sh t_struct_list (h,y) x ∗ lseg sh hs y z
+                data_at sh t_struct_list (h,y) x ∗ lseg2 sh hs y z
  | nil => ⌜x = z /\ is_pointer_or_null x⌝ ∧ emp
  end.
 
-Arguments lseg sh contents x z : simpl never.
+Arguments lseg2 sh contents x z : simpl never.
+Notation lseg := lseg2.
 
 Lemma lseg_local_facts:
   forall sh contents p q,
@@ -260,6 +260,8 @@ entailer!.
 intuition congruence.
 Qed.
 
+Hint Resolve lseg_local_facts : saturate_local.
+
 Lemma lseg_valid_pointer:
   forall sh contents p ,
    sepalg.nonidentity sh ->
@@ -269,6 +271,8 @@ Proof.
  Intros *.
  auto with valid_pointer.
 Qed.
+
+Hint Resolve lseg_valid_pointer : valid_pointer.
 
 Lemma lseg_eq: forall sh contents x,
     lseg sh contents x x ⊣⊢ ⌜contents=nil /\ is_pointer_or_null x⌝ ∧ emp.
@@ -423,5 +427,3 @@ Qed.
 
 End Proof3.
 (* todo they should be modules? *)
-#[export] Hint Resolve lseg_valid_pointer : valid_pointer.
-#[export] Hint Resolve lseg_local_facts : saturate_local.
