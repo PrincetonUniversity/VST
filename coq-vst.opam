@@ -24,13 +24,13 @@ bug-reports: "https://github.com/PrincetonUniversity/VST/issues"
 license: "https://raw.githubusercontent.com/PrincetonUniversity/VST/master/LICENSE"
 
 build: [
-  [make "-j%{jobs}%" "vst" "IGNORECOQVERSION=true" "ZLIST=platform" "BITSIZE=64"]
+  [make "-j%{jobs}%" "vst" "IGNORECOQVERSION=true" "ZLIST=platform" "BITSIZE=64" "COQEXTRAFLAGS=-native-compiler ondemand" {coq-native:installed & coq-compcert:version<3.13~}]
 ]
 install: [
-  [make "install" "IGNORECOQVERSION=true" "ZLIST=platform" "BITSIZE=64"]
+  [make "install" "IGNORECOQVERSION=true" "ZLIST=platform" "BITSIZE=64" "COQEXTRAFLAGS=-native-compiler ondemand" {coq-native:installed & coq-compcert:version<3.13~}]
 ]
 run-test: [
-  [make "-j%{jobs}%" "test" "IGNORECOQVERSION=true" "ZLIST=platform" "BITSIZE=64"]
+  [make "-j%{jobs}%" "test" "IGNORECOQVERSION=true" "ZLIST=platform" "BITSIZE=64" "COQEXTRAFLAGS=-native-compiler ondemand" {coq-native:installed & coq-compcert:version<3.13~}]
 ]
 depends: [
   "coq" {>= "8.14" & < "8.17~"}
