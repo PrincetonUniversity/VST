@@ -1286,7 +1286,6 @@ Ltac prove_call_setup1 subsumes :=
     fail 1 "forward_call fails because your precondition starts with EX.
 Use Intros  to move          the existentially bound variables above the line"
   | |- @semax ?CS _ ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R'))) ?c _ =>
-    let cR := (fun R =>
     match c with
     | context [Scall _ ?a ?bl] =>
       exploit (call_setup1_i CS Delta P Q R' a bl);
@@ -1315,8 +1314,7 @@ Use Intros  to move          the existentially bound variables above the line"
       |check_cast_params
       | ..
       ]
-    end)
-    in strip1_later R' cR
+    end
   end.
 
 Ltac check_gvars :=
