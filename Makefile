@@ -56,8 +56,8 @@ endif
 # ARCH=powerpc
 #
 # # Choosing Flocq #
-# FLOCQ_PLATFORM (default, except for COMPCERT_BUNDLED_NEW)
-# FLOCQ_BUNDLED  (require for COMPCERT_BUNDLED_NEW, valid for COMPCERT_BUNDLED, COMPCERT_SRC_DIR)
+# FLOCQ=platform (default, except for COMPCERT_BUNDLED_NEW)
+# FLOCQ=bundled  (require for COMPCERT_BUNDLED_NEW, valid for COMPCERT_BUNDLED, COMPCERT_SRC_DIR)
 #
 # # Choosing Clightgen
 # Note:  By default, the rules for converting .c files to .v files are inactive.
@@ -225,8 +225,16 @@ endif
 
 # ##### Configure Flocq #####
 
-FLOCQ=         # this mode to use the flocq packaged with Coq or opam
-# FLOCQ= -Q $(COMPCERT_INST_DIR)/flocq Flocq  # this mode to use the flocq built into compcert
+
+ifeq ($(FLOCQ),bundled)
+ override FLOCQ= -R $(COMPCERT_INST_DIR)/flocq Flocq 
+ COMPCERTFLOCQDIRS= compcert/flocq/*/*.v
+ # this mode to use the flocq built into compcert
+endif
+ifeq ($(FLOCQ),platform)
+ undefine FLOCQ
+ # this mode to use the flocq packaged with Coq or opam
+endif
 
 # ##### Configure installation folder #####
 #  1. (if present) the VST installation for reasoning about 64-bit C programs
@@ -272,7 +280,7 @@ DIRS = $(VSTDIRS) $(OTHERDIRS)
 COMPCERTDIRS=lib common $(ARCHDIRS) cfrontend export $(BACKEND)
 
 ifeq ($(COMPCERT_EXPLICIT_PATH),true)
-  COMPCERT_R_FLAGS= $(foreach d, $(COMPCERTDIRS), -R $(COMPCERT_INST_DIR)/$(d) compcert.$(d))
+  COMPCERT_R_FLAGS= $(foreach d, $(COMPCERTDIRS), -R $(COMPCERT_INST_DIR)/$(d) compcert.$(d)) $(FLOCQ)
   EXTFLAGS= $(foreach d, $(COMPCERTDIRS), -Q $(COMPCERT_INST_DIR)/$(d) compcert.$(d)) $(FLOCQ)
 else
   COMPCERT_R_FLAGS=
@@ -341,6 +349,7 @@ $(info COMPCERT_BUILD_FROM_SRC=$(COMPCERT_BUILD_FROM_SRC))
 $(info COMPCERT_NEW=$(COMPCERT_NEW))
 $(info COQFLAGS=$(COQFLAGS))
 $(info COMPCERT_R_FLAGS=$(COMPCERT_R_FLAGS))
+$(info FLOCQ=$(FLOCQ))
 $(info =================================)
 
 # ########## File Lists ##########
@@ -696,8 +705,7 @@ ifneq (,$(TIMING))
 	@$(COQC) $(COQF) -time $*.v > $<.timing
 else ifeq ($(TIMINGS), true)
 #	bash -c "wc $*.v >>timings; date +'%s.%N before' >> timings; $(COQC) $(COQF) $*.v; date +'%s.%N after' >>timings" 2>>timings
-	@bash -c "/usr/bin/time --output=TIMINGS -a -f '%e real, %U user, %S sys %M mem, '\"$(shel
-l wc $*.v)\" $(COQC) $(COQF) $*.v"
+	@bash -c "/usr/bin/time --output=TIMINGS -a -f '%e real, %U user, %S sys %M mem, '\"$(shell wc $*.v)\" $(COQC) $(COQF) $*.v"
 #	echo -n $*.v " " >>TIMINGS; bash -c "/usr/bin/time -o TIMINGS -a $(COQC) $(COQF) $*.v"
 else ifeq ($(TIMINGS), simple)
 	@/usr/bin/time -f 'TIMINGS %e real, %U user, %S sys %M kbytes: '"$*.v" $(COQC) $(COQF) $*.v
@@ -875,7 +883,7 @@ else
 endif
 ifeq ($(COMPCERT_BUILD_FROM_SRC),true)
 	# DEPENDENCIES TO BUILD COMPCERT FROM SOURCE
-	$(COQDEP) $(COMPCERT_R_FLAGS) 2>&1 >>.depend `find $(addprefix $(COMPCERT_SRC_DIR)/,$(COMPCERTDIRS))  -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
+	$(COQDEP) $(COMPCERT_R_FLAGS) 2>&1 >>.depend `find $(addprefix $(COMPCERT_SRC_DIR)/,$(COMPCERTDIRS))  -name "*.v"` $(COMPCERTFLOCQDIRS) | grep -v 'Warning:.*found in the loadpath' || true
 endif
 # ifneq ($(wildcard coq-ext-lib/theories),)
 # 	$(COQDEP) -Q coq-ext-lib/theories ExtLib coq-ext-lib/theories >>.depend
