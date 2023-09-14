@@ -883,8 +883,8 @@ Ltac SC_tac :=
  match goal with |- SC_test ?ids _ _ =>
   let a := eval compute in ids in change ids with a
  end;
- hnf;
- repeat (apply conj; hnf);
+ simpl SC_test;
+ repeat (apply conj);
  lazymatch goal with
          | |- Funspecs_must_match ?i _ _ =>
                  try solve [constructor; unfold abbreviate; 
