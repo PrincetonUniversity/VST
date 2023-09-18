@@ -725,7 +725,7 @@ Ltac solve_clean_LOCAL_right :=
       unify_for_go_lower;
       unfold VST_floyd_app;
       unfold fold_right_PROP_SEP, fold_right_and_True;
-      cbv [fold_right_sepcon]; rewrite ?bi.sep_emp;
+      cbv [fold_right_sepcon];
       reflexivity
     | simple apply clean_LOCAL_right_eval_lvalue; solve_msubst_eval_lvalue
     | simple apply clean_LOCAL_right_eval_expr; solve_msubst_eval_expr
@@ -907,14 +907,15 @@ first
  | |- (_ ∧ PROPx nil _) _ ⊢ _ => fail 1 "LOCAL part of precondition is not a concrete list (or maybe Delta is not concrete)"
  | |- _ => fail 1 "PROP part of precondition is not a concrete list"
  end);
-cbv [fold_right_sepcon]; rewrite ?bi.sep_emp; (* for the left side *)
+cbv [fold_right_sepcon];
 unfold_for_go_lower;
 simpl tc_val;
 cbv [typecheck_exprlist typecheck_expr]; simpl tc_andp;
 simpl msubst_denote_tc_assert;
 try monPred.unseal; unfold monPred_at;
 try clear dependent rho;
-clear_Delta
+clear_Delta;
+rewrite ?bi.sep_emp
 ].
 
 Ltac sep_apply_in_lifted_entailment H :=

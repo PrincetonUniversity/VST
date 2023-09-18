@@ -9,6 +9,7 @@ Require VST.floyd.aggregate_pred. Import VST.floyd.aggregate_pred.aggregate_pred
 Require Import VST.floyd.data_at_rec_lemmas.
 Require Import VST.floyd.jmeq_lemmas.
 Require Import VST.zlist.sublist.
+Require Import VST.floyd.local2ptree_typecheck.
 Import LiftNotation.
 
 Local Unset SsrRewrite.
@@ -1659,8 +1660,8 @@ End CENV.
         [rep_lia | rep_lia | auto with valid_pointer]) : valid_pointer.
 
 Ltac field_at_conflict z fld :=
-trans False; [ | apply bi.False_elim];
- rewrite ?bi.sep_assoc;
+ apply (derives_trans _ False); [ | apply bi.False_elim];
+ repeat rewrite bi.sep_assoc;
  unfold data_at_, data_at, field_at_;
  let x := fresh "x" in set (x := field_at _ _ fld _ z); pull_right x;
  let y := fresh "y" in set (y := field_at _ _ fld _ z); pull_right y;
@@ -1687,8 +1688,11 @@ Ltac data_at_conflict_neq_aux1 A sh fld E x y :=
     (rewrite H || rewrite (ptr_eq_e _ _ H));
     field_at_conflict y fld
    | apply bi.pure_elim_l;
-     let H1 := fresh in intro H1;
-     rewrite (bi.pure_True _ H1)
+     (* for this tactic to succeed, it must introduce a new hyp H1,
+        but rewriting H1 can fail, as the goal might be _-∗⌜C[~E]⌝
+        for some context C *)
+     let H1 := fresh in fancy_intro H1;
+     rewrite ?(bi.pure_True (~E)) by assumption
     ].
 
 Ltac data_at_conflict_neq_aux2 A E x y :=
@@ -2046,7 +2050,8 @@ Lemma field_at_ptr_neq_null {cs: compspecs} :
 Proof.
   intros.
   rewrite -> field_at_isptr.
-  normalize.
+  normalize. apply bi.pure_intro.
+  destruct p; unfold nullval; simpl in *; tauto.
 Qed.
 
 Lemma spacer_share_join:

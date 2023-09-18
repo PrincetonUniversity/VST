@@ -397,7 +397,7 @@ Proof.
     clear H0 IHMSUBST_EFIELD_DENOTE.
     rewrite -!bi.and_assoc bi.and_elim_r bi.and_elim_r.
     unfold local, lift1; unfold_lift; split => rho; monPred.unseal; simpl.
-    normalize.
+    normalize. apply bi.pure_intro.
     constructor; auto.
     clear - H; destruct (typeof ei); inv H; destruct i0,s; simpl;
     unfold int_signed_or_unsigned; simpl;
@@ -411,7 +411,7 @@ Proof.
     clear H0 IHMSUBST_EFIELD_DENOTE.
     rewrite -!bi.and_assoc bi.and_elim_r bi.and_elim_r.
     unfold local, lift1; unfold_lift; split => rho; monPred.unseal; simpl.
-    normalize.
+    normalize. apply bi.pure_intro.
     apply efield_denote_ArraySubsc_long; auto.
     apply array_subsc_denote_intro_long.
     rewrite <- H3. f_equal.
@@ -421,7 +421,7 @@ Proof.
     clear H0 IHMSUBST_EFIELD_DENOTE.
     rewrite -!bi.and_assoc bi.and_elim_r bi.and_elim_r.
     unfold local, lift1; unfold_lift; split => rho; monPred.unseal; simpl.
-    normalize.
+    normalize. apply bi.pure_intro.
     apply efield_denote_ArraySubsc_ptrofs; auto.
     unfold Vptrofs in H3.
     destruct Archi.ptr64 eqn:Hp.
