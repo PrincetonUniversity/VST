@@ -1661,7 +1661,7 @@ End CENV.
 
 Ltac field_at_conflict z fld :=
  apply (derives_trans _ False); [ | apply bi.False_elim];
- rewrite ?bi.sep_assoc;
+ repeat rewrite bi.sep_assoc;
  unfold data_at_, data_at, field_at_;
  let x := fresh "x" in set (x := field_at _ _ fld _ z); pull_right x;
  let y := fresh "y" in set (y := field_at _ _ fld _ z); pull_right y;
@@ -1688,8 +1688,11 @@ Ltac data_at_conflict_neq_aux1 A sh fld E x y :=
     (rewrite H || rewrite (ptr_eq_e _ _ H));
     field_at_conflict y fld
    | apply bi.pure_elim_l;
-     let H1 := fresh in intro H1;
-     rewrite (bi.pure_True _ H1)
+     (* for this tactic to succeed, it must introduce a new hyp H1,
+        but rewriting H1 can fail, as the goal might be _-∗⌜C[~E]⌝
+        for some context C *)
+     let H1 := fresh in fancy_intro H1;
+     rewrite ?(bi.pure_True (~E)) by assumption
     ].
 
 Ltac data_at_conflict_neq_aux2 A E x y :=
