@@ -5,14 +5,14 @@ Require Export VST.floyd.functional_base.
 Require Export VST.floyd.client_lemmas.
 Require Export VST.floyd.go_lower.
 Require Export VST.floyd.closed_lemmas.
-(* Require Export VST.floyd.compare_lemmas. *)
+Require Export VST.floyd.compare_lemmas.
 Require Export VST.floyd.semax_tactics.
 Require Export VST.floyd.entailer.
 Require Export VST.floyd.forward. (* must come after entailer because of Ltac override *)
 (* Require Export VST.floyd.step. *)
 (* Require Export VST.floyd.fastforward. *)
 (* Require Export VST.floyd.finish. *)
-(* Require Export VST.floyd.subsume_funspec. *)
+Require Export VST.floyd.subsume_funspec.
 (* Require Export VST.floyd.call_lemmas. *)
 Require Export VST.floyd.forward_lemmas.
 (* Require Export VST.floyd.for_lemmas. *)
