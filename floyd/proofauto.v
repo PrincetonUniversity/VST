@@ -13,7 +13,7 @@ Require Export VST.floyd.forward. (* must come after entailer because of Ltac ov
 (* Require Export VST.floyd.fastforward. *)
 (* Require Export VST.floyd.finish. *)
 Require Export VST.floyd.subsume_funspec.
-(* Require Export VST.floyd.call_lemmas. *)
+Require Export VST.floyd.call_lemmas.
 Require Export VST.floyd.forward_lemmas.
 (* Require Export VST.floyd.for_lemmas. *)
 Require Export VST.floyd.nested_pred_lemmas.

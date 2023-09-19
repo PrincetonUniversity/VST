@@ -928,14 +928,22 @@ Proof.
   if_tac; simpl in *; auto.
 Qed.
 
+Lemma subst_PROP_LOCAL_SEP : forall P Q R i v,
+  assert_of (subst i v (PROPx P (LOCALx Q (SEPx R)))) ≡ PROPx P ((seplog.local (subst i v (foldr (` and) (` True%type) (map locald_denote Q)))) ∧ SEPx R).
+Proof.
+  intros; rewrite /subst /PROPx /LOCALx /SEPx.
+  split => rho; simpl; monPred.unseal; done.
+Qed.
+
 Lemma subst_remove_localdef_PQR: forall P Q R i v,
   assert_of (subst i v (PROPx P (LOCALx (remove_localdef_temp i Q) (SEPx R)))) ⊢ PROPx P (LOCALx (remove_localdef_temp i Q) (SEPx R)).
 Proof.
   intros.
-  go_lowerx.
-  apply bi.and_intro; auto.
-  apply bi.pure_intro.
-  clear H; rename H0 into H.
+  rewrite subst_PROP_LOCAL_SEP.
+  apply bi.and_mono; first done.
+  apply bi.and_mono; last done.
+  split => rho; apply bi.pure_mono.
+  intros H.
   induction Q; simpl in *; auto.
   destruct a; try now (destruct H; simpl in *; split; auto).
   if_tac; simpl in *; auto.
