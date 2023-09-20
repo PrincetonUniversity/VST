@@ -326,7 +326,7 @@ Proof.
  unfold lseg at 1 3; fold lseg. Intros j; Exists j.
  entailer.
  sep_apply (IHs1 j).
- cancel. 
+ cancel.
 Qed.
 
 Lemma lseg_app_null: forall sh s1 s2 (w x: val),

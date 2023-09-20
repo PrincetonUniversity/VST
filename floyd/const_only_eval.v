@@ -149,6 +149,11 @@ Proof.
   intros; split => rho; apply binop_lemmas2.denote_tc_assert_test_eq'.
 Qed.
 
+Lemma denote_tc_assert_test_order' : forall a b, denote_tc_assert (tc_test_order a b) ⊣⊢ denote_tc_assert (tc_test_order' a b).
+Proof.
+  intros; split => rho; apply binop_lemmas2.denote_tc_assert_test_order'.
+Qed.
+
 Lemma const_only_isUnOpResultType_spec: forall rho u e t P,
   const_only_isUnOpResultType u (typeof e) (eval_expr e rho) t = true ->
   P ⊢ denote_tc_assert (isUnOpResultType u e t) rho.

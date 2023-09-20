@@ -375,7 +375,7 @@ match goal with
        change ( P' rho ⊢ fold_right bi_sep emp F rho);
    fixup_lifts; cbv beta;
     repeat rewrite -bi.sep_assoc;
-   repeat match goal with |- (_ * _) _ ⊢ _ =>
+   repeat match goal with |- (_ ∗ _) _ ⊢ _ =>
                    apply cancel_frame2
                     end;
     try (unfold F; apply cancel_frame1);
@@ -448,7 +448,7 @@ Qed.
 
 Ltac cancel :=
   rewrite -?bi.sep_assoc;
-  repeat match goal with |- ?A * _ ⊢ ?B * _ => 
+  repeat match goal with |- ?A ∗ _ ⊢ ?B ∗ _ => 
      constr_eq A B;  simple apply (cancel_left A)
   end;
   match goal with |- ?P ⊢ _ => qcancel P end;
@@ -907,7 +907,7 @@ Ltac cancel_for_evar_frame' local_tac :=
   [ syntactic_cancel local_tac
   | cbv iota; cbv zeta beta;
     first [ match goal with
-            | |- _ ⊢ _ * fold_right_sepcon ?F => try unfold F
+            | |- _ ⊢ _ ∗ fold_right_sepcon ?F => try unfold F
             end;
             simple apply syntactic_cancel_solve1
           | match goal with
