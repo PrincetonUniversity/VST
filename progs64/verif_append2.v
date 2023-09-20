@@ -307,8 +307,8 @@ Qed.
 
 Lemma lseg_cons': forall sh (v u x a b: val) ,
    readable_share sh ->
- data_at sh t_struct_list (v, u) x * data_at sh t_struct_list (a,b) u
- |-- lseg sh [v] x u * data_at sh t_struct_list (a,b) u.
+ data_at sh t_struct_list (v, u) x ∗ data_at sh t_struct_list (a,b) u
+ ⊢ lseg sh [v] x u ∗ data_at sh t_struct_list (a,b) u.
 Proof.
 intros.
      unfold lseg. Exists u. 
@@ -317,8 +317,8 @@ Qed.
 
 Lemma lseg_app': forall sh s1 s2 (a w x y z: val),
    readable_share sh ->
-   lseg sh s1 w x * lseg sh s2 x y * data_at sh t_struct_list (a,z) y |--
-   lseg sh (s1++s2) w y * data_at sh t_struct_list (a,z) y.
+   (lseg sh s1 w x ∗ lseg sh s2 x y) ∗ data_at sh t_struct_list (a,z) y ⊢
+   lseg sh (s1++s2) w y ∗ data_at sh t_struct_list (a,z) y.
 Proof.
  intros.
  revert w; induction s1; intro; simpl.
