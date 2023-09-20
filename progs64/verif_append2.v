@@ -328,10 +328,10 @@ Proof.
  sep_apply (IHs1 j).
  cancel.
 Qed.
-
+ 
 Lemma lseg_app_null: forall sh s1 s2 (w x: val),
    readable_share sh ->
-   lseg sh s1 w x * lseg sh s2 x nullval |--
+   lseg sh s1 w x ∗ lseg sh s2 x nullval ⊢
    lseg sh (s1++s2) w nullval.
 Proof.
  intros.
@@ -345,31 +345,31 @@ Qed.
 
 Lemma lseg_app: forall sh s1 s2 a s3 (w x y z: val),
    readable_share sh ->
-   lseg sh s1 w x * lseg sh s2 x y * lseg sh (a::s3) y z |--
-   lseg sh (s1++s2) w y * lseg sh (a::s3) y z.
+   lseg sh s1 w x ∗ lseg sh s2 x y ∗ lseg sh (a::s3) y z ⊢
+   lseg sh (s1++s2) w y ∗ lseg sh (a::s3) y z.
 Proof.
  intros.
  unfold lseg at 3 5; fold lseg.
- Intros u; Exists u. rewrite prop_true_andp by auto.
+ Intros u; Exists u. rewrite prop_true_andp //.
  sep_apply (lseg_app' sh s1 s2 a w x y u); auto.
  cancel.
 Qed.
 
 Lemma listrep_lseg_null :
- listrep = fun sh s p => lseg sh s p nullval.
+ ∀ sh s p, listrep sh s p ⊣⊢ lseg sh s p nullval.
 Proof.
-extensionality sh s p.
+intros.
 revert p.
 induction s; intros.
-unfold lseg, listrep; apply pred_ext; entailer!.
+unfold lseg, listrep; apply bi.equiv_entails_2; entailer!.
 unfold lseg, listrep; fold lseg; fold listrep.
-apply pred_ext; Intros y; Exists y; rewrite IHs; entailer!.
+apply bi.equiv_entails_2; Intros y; Exists y; rewrite IHs; entailer!.
 Qed.
 
-Lemma body_append: semax_body Vprog Gprog f_append append_spec.
+Lemma body_append3: semax_body Vprog Gprog ⊤ f_append append_spec.
 Proof.
 start_function.
-revert POSTCONDITION; rewrite listrep_lseg_null; intro.
+rewrite -> listrep_lseg_null in * |- *.
 forward_if.
 *
  subst x. rewrite lseg_null. Intros. subst.
@@ -386,7 +386,7 @@ forward_if.
  remember (v::s1') as s1.
  forward.
  forward_while
-      (EX s1a: list val, EX a: val, EX s1b: list val, EX t: val, EX u: val,
+      (∃ s1a: list val, ∃ a: val, ∃ s1b: list val, ∃ t: val, ∃ u: val,
             PROP (s1 = s1a ++ a :: s1b)
             LOCAL (temp _x x; temp _t t; temp _u u; temp _y y)
             SEP (lseg sh s1a x t; 
@@ -395,7 +395,7 @@ forward_if.
                    lseg sh s2 y nullval))%assert.
  + (* current assertion implies loop invariant *)
      Exists (@nil val) v s1' x u.
-     subst s1. rewrite lseg_eq.
+     subst s1. rewrite lseg_eq listrep_lseg_null.
      entailer.
 (*     sep_apply (lseg_cons sh v u x s1'); auto. *)
  + (* loop test is safe to execute *)
@@ -423,7 +423,8 @@ forward_if.
     sep_apply (lseg_app_null sh [a] s2 t y); auto.
     rewrite app_ass.
     sep_apply (lseg_app_null sh s1a ([a]++s2) x t); auto.
+    rewrite listrep_lseg_null //.
 Qed.
 
 End Proof3.
-(* todo they should be modules? *)
+End Spec.
