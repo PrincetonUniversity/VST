@@ -431,7 +431,7 @@ Ltac prove_it_now :=
          ].
 
 Ltac try_prove_it_now :=
- first [match goal with H := _ |- _ => instantiate (1:=True) in H; prove_it_now end
+ first [match goal with H := _ |- _ => instantiate (1:=True%type) in H; prove_it_now end
        | eassumption].
 
 (* try_conjuncts.  The purpose of this is to avoid splitting any
@@ -467,7 +467,7 @@ Ltac try_conjuncts :=
         | simple eapply try_conjuncts_lem;
             [intro; try_conjuncts | intro; try_conjuncts
             |match goal with H:_ |- _ => apply H end ]
-        | match goal with H:_ |- _ => instantiate (1:=True) in H;
+        | match goal with H:_ |- _ => instantiate (1:=True%type) in H;
                 try_conjuncts_solver
           end
         | match goal with H:_ |- _ => apply H end
@@ -476,12 +476,11 @@ Ltac try_conjuncts :=
 Lemma try_conjuncts_prop_and:
   forall {A:bi} (S: A) (P P': Prop) Q,
       (P' -> P) ->
-      (S ⊢ ⌜P' ∧ Q⌝) ->
-      S ⊢ ⌜P ∧ Q⌝.
+      (S ⊢ ⌜P'⌝ ∧ Q) ->
+      S ⊢ ⌜P⌝ ∧ Q.
 Proof. intros.
  eapply derives_trans; [apply H0 |].
- apply bi.pure_mono.
- intros [? ?]; split; auto.
+ apply bi.and_mono; auto.
 Qed.
 
 
