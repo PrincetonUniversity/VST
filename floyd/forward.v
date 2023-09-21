@@ -4,7 +4,7 @@ Require Import VST.floyd.go_lower.
 Require Import VST.floyd.closed_lemmas.
 (* Require Import VST.floyd.subsume_funspec. *)
 Require Import VST.floyd.forward_lemmas.
-(* Require Import VST.floyd.call_lemmas. *)
+Require Import VST.floyd.call_lemmas.
 Require Import VST.floyd.extcall_lemmas.
 Require Import VST.floyd.nested_field_lemmas.
 Require Import VST.floyd.efield_lemmas.
@@ -786,10 +786,6 @@ Ltac give_EX_warning :=
                  (Warning_perhaps_funspec_postcondition_needs_EX_outside_PROP_LOCAL_SEP A)
              end.
 
-(* FIXME copied from call_lemmas.v, delete after fixing that *)
-Inductive Parameter_types_in_funspec_different_from_call_statement : Prop := .
-Inductive Result_type_in_funspec_different_from_call_statement : Prop := .
-
 Ltac check_parameter_types :=
    match goal with |- _ = fun_case_f (typelist_of_type_list ?argsig) ?retty ?cc =>
      check_callconv cc; 
@@ -1159,7 +1155,7 @@ Ltac after_forward_call_binders :=
     clear r; apply extract_exists_pre; intro r
  | |- _ => apply extract_exists_pre; intros ?vret
  end.
-(* FIXME depend on forward_call.v
+
 Ltac cleanup_no_post_exists :=
  match goal with |-  context[eq_no_post] =>
   let vret := fresh "vret" in let H := fresh in
@@ -1193,7 +1189,7 @@ Ltac after_forward_call :=
     try match goal with |- context [remove_localdef_temp] =>
               simplify_remove_localdef_temp
      end;
-    unfold_app; 
+    (* FIXME depend on freezer.v unfold_app;  *)
     try (apply extract_exists_pre; intros _); 
     match goal with
         | |- semax _ _ _ _ _ => idtac
@@ -1206,7 +1202,7 @@ Ltac after_forward_call :=
     cleanup_no_post_exists; 
     abbreviate_semax; 
     try fwd_skip.
-*)
+
 Ltac clear_MORE_POST :=
  try match goal with POSTCONDITION := @abbreviate ret_assert _ |- _ =>
         clear POSTCONDITION
@@ -1294,7 +1290,6 @@ Ltac check_subsumes subsumes :=
      "does not prove the funspec_sub," g
  end end.
 
-(* FIXME depend on call_lemmas.v 
 (*This has two cases; it priorizitizes func_ptr lookup over Delta-lookup*)
 Ltac prove_call_setup1 subsumes :=
   match goal with
@@ -1350,7 +1345,7 @@ Ltac check_gvars_spec :=
   match goal with |- check_gvars_spec None (Some ?gv) =>
    fail "Function precondition requires (gvars" gv ") in LOCAL clause"
   end.
-
+(* FIXME depend on forward_call
 Ltac prove_call_setup_aux  ts witness :=
  let H := fresh "SetupOne" in
  intro H;
@@ -2322,8 +2317,7 @@ Ltac check_type_forward_for_simple_bound :=
          end
      end.
 
-(* FIXME depend on for_lemmas.v
-
+(* FIXME depend on for_lemmas 
 Ltac forward_for_simple_bound n Pre :=
   check_Delta; check_POSTCONDITION;
  repeat match goal with |-
@@ -3687,20 +3681,19 @@ end.
 
 Definition Undo__Then_do__forward_call_W__where_W_is_a_witness_whose_type_is_given_above_the_line_now := (False:Prop).
 
-(* FIXME call_lemmas.v 
 Ltac advise_forward_call :=
  prove_call_setup1 funspec_sub_refl;
  [ .. | 
  match goal with |- call_setup1 _ _ _ _ _ _ _ _ _ _ _ _ _ ?A _ _ _ _ _ _ _ -> _ =>
   lazymatch A with
-  | rmaps.ConstType ?T => 
+  | ConstType ?T => 
              fail "To prove this function call, use forward_call(W), where
 W:"T"
 is a WITH-clause witness"
   | _ => fail "This function has a complex calling convention not recognized by forward_call"
  end 
 end].
-*)
+
 Ltac advise_prepare_postcondition := 
  match goal with
  | Post' := _ : ret_assert |- semax _ _ _ _ ?Post =>
@@ -3799,7 +3792,7 @@ Ltac forward1 s :=  (* Note: this should match only those commands that
   | Swhile _ _ => forward_advise_while
   | Sfor _ _ _ _ => forward_advise_loop s
   | Sloop _ _ => forward_advise_loop s
-  | Scall _ (Evar _ _) _ =>  idtac (* FIXME call_lemmas.v advise_forward_call *)
+  | Scall _ (Evar _ _) _ =>  advise_forward_call (* FIXME call_lemmas.v advise_forward_call *)
   | Sskip => forward_skip
   end.
 
