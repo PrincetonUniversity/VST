@@ -430,7 +430,7 @@ Proof.
       subst; auto.
 Qed.
 
-Lemma not_ptr_False: forall (A : mpred) p, (A ⊢ ⌜isptr p⌝) <-> (~ isptr p -> A ⊣⊢ False).
+Lemma not_ptr_False {prop:bi}: forall  (A : prop) p, (A ⊢ ⌜isptr p⌝) <-> (~ isptr p -> A ⊣⊢ False).
 Proof.
   intros.
   split; intros.
@@ -1361,7 +1361,7 @@ Other lemmas
 
 ************************************************)
 
-Lemma compute_legal_nested_field_spec: forall (P: mpred) t gfs,
+Lemma compute_legal_nested_field_spec {prop:bi}: forall (P: prop) t gfs,
   Forall (fun Q => P ⊢ ⌜Q⌝) (compute_legal_nested_field t gfs) ->
   P ⊢ ⌜legal_nested_field t gfs⌝.
 Proof.
@@ -1526,8 +1526,8 @@ intros.
 apply field_at_conflict; auto.
 Qed.
 
-Lemma sepcon_False_derives':
-  forall (P Q: mpred), (Q ⊢ False) -> P ∗ Q ⊢ False.
+Lemma sepcon_False_derives' {prop:bi}:
+  forall (P Q: prop), (Q ⊢ False) -> P ∗ Q ⊢ False.
 Proof.
   intros ?? ->.
   iIntros "(_ & [])".
