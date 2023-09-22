@@ -14,6 +14,10 @@ Proof.
   intros. induction a; simpl; lia.
 Qed.
 
+Section Spec.
+
+Context  `{!default_VSTGS Σ}.
+
 Definition sumarray_spec : ident * funspec :=
  DECLARE _sumarray
   WITH a: val, sh : share, contents : list Z, size: Z
@@ -39,7 +43,7 @@ Definition main_spec :=
   POST [ tint ]  
      PROP() 
      LOCAL (temp ret_temp (Vint (Int.repr (1+2+3+4)))) 
-     SEP(TT).
+     SEP(True).
 
 (* Note: It would also be reasonable to let [contents] have type [list int].
   Then the [Forall] would not be needed in the PROP part of PRE.
@@ -52,7 +56,7 @@ Definition Gprog : funspecs :=
 (** Proof that f_sumarray, the body of the sumarray() function,
  ** satisfies sumarray_spec, in the global context (Vprog,Gprog).
  **)
-Lemma body_sumarray: semax_body Vprog Gprog f_sumarray sumarray_spec.
+Lemma body_sumarray: semax_body Vprog Gprog ⊤ f_sumarray sumarray_spec.
 Proof.
 start_function. (* Always do this at the beginning of a semax_body proof *)
 (* The next two lines do forward symbolic execution through
@@ -63,7 +67,7 @@ forward.  (* s = 0; *)
  * provide a loop invariant, so we use [forward_while] with
  * the invariant as an argument .*)
 forward_while
- (EX i: Z,
+ (∃ i: Z,
    PROP  (0 <= i <= size)
    LOCAL (temp _a a;
           temp _i (Vint (Int.repr i));
@@ -88,16 +92,16 @@ assert_PROP (Zlength contents = size). {
   entailer!. do 2 rewrite Zlength_map. reflexivity.
 }
 forward. (* x = a[i] *)
-forward. (* s += x; *)
+forward. (* s += x; *) 
 forward. (* i++; *) 
  (* Now we have reached the end of the loop body, and it's
    time to prove that the _current precondition_  (which is the
    postcondition of the loop body) entails the loop invariant. *)
- Exists (i+1).
+ Exists (i+1).  simpl.
  entailer!. simpl.
  f_equal.
- rewrite (sublist_split 0 i (i+1)) by lia.
- rewrite sum_Z_app. rewrite (sublist_one i) by lia.
+ rewrite ->(sublist_split 0 i (i+1)) by lia.
+ rewrite sum_Z_app. rewrite ->(sublist_one i) by lia.
  autorewrite with sublist. normalize.
  simpl. rewrite Z.add_0_r. reflexivity.
 * (* After the loop *)
@@ -114,7 +118,7 @@ Qed.
 Definition four_contents := [1; 2; 3; 4].
 
 
-Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
+Lemma body_main:  semax_body Vprog Gprog ⊤ f_main main_spec.
 Proof.
 start_function.
 forward_call (*  s = sumarray(four,4); *)
