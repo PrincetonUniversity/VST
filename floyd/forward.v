@@ -2,7 +2,7 @@ Require Import VST.floyd.base2.
 Require Import VST.floyd.client_lemmas.
 Require Import VST.floyd.go_lower.
 Require Import VST.floyd.closed_lemmas.
-(* Require Import VST.floyd.subsume_funspec. *)
+Require Import VST.floyd.subsume_funspec.
 Require Import VST.floyd.forward_lemmas.
 Require Import VST.floyd.call_lemmas.
 Require Import VST.floyd.extcall_lemmas.
@@ -26,7 +26,7 @@ Require Import VST.floyd.aggregate_type.
 Require Import VST.floyd.entailer.
 (* Require Import VST.floyd.globals_lemmas. *)
 Require Import VST.floyd.semax_tactics.
-(* Require Import VST.floyd.for_lemmas. *)
+Require Import VST.floyd.for_lemmas.
 Require Import VST.floyd.diagnosis.
 Require Import VST.floyd.simpl_reptype.
 Require Import VST.floyd.nested_pred_lemmas.
@@ -938,15 +938,15 @@ Ltac fix_up_simplified_postcondition :=
           || fix_up_simplified_postcondition_failure
   | |- _ => idtac
  end.
-(* FIXME depend on forward_call.v &
+
 Ltac match_postcondition := 
 fix_up_simplified_postcondition;
 cbv beta iota zeta; unfold_post;  extensionality rho; 
    repeat rewrite exp_uncurry;
-   try rewrite no_post_exists; repeat rewrite exp_unfold;
-tryif apply exp_congr
+   try rewrite no_post_exists; repeat rewrite monPred_at_exist;
+tryif apply bi.exist_proper
  then (intros ?vret;
-          apply equal_f; 
+          apply equal_f;
           apply PROP_LOCAL_SEP_ext; [reflexivity | | reflexivity];
           (reflexivity || fail "The funspec of the function has a POSTcondition
 that is ill-formed.  The LOCALS part of the postcondition
@@ -957,7 +957,7 @@ with an existential, that is,  ∃ _:_, PROP...LOCAL...SEP".
 Ltac prove_PROP_preconditions :=
   unfold fold_right_and; repeat rewrite and_True; my_auto.
 
-Ltac  forward_call_id1_wow_nil := 
+(*Ltac  forward_call_id1_wow_nil := 
 let H := fresh in intro H;
 eapply (semax_call_id1_wow_nil H); 
  clear H; 
@@ -968,7 +968,7 @@ eapply (semax_call_id1_wow_nil H);
  | prove_delete_temp
  | unify_postcondition_exps
  | prove_PROP_preconditions
- ].
+ ].*)
 
 Ltac  forward_call_id1_wow := 
 let H := fresh in intro H;
@@ -983,7 +983,7 @@ eapply (semax_call_id1_wow H);
  | prove_PROP_preconditions
  ].
 
-Ltac forward_call_id1_x_wow_nil :=
+(*Ltac forward_call_id1_x_wow_nil :=
 let H := fresh in intro H;
 eapply (semax_call_id1_x_wow_nil H); 
  clear H;
@@ -996,7 +996,7 @@ eapply (semax_call_id1_x_wow_nil H);
  | prove_delete_temp
  | unify_postcondition_exps
  | prove_PROP_preconditions
- ].
+ ].*)
 
 Ltac forward_call_id1_x_wow :=
 let H := fresh in intro H;
@@ -1013,7 +1013,7 @@ eapply (semax_call_id1_x_wow H);
  | prove_PROP_preconditions
  ].
 
-Ltac forward_call_id1_y_wow_nil :=
+(*Ltac forward_call_id1_y_wow_nil :=
 let H := fresh in intro H;
 eapply (semax_call_id1_y_wow_nil H); 
  clear H;
@@ -1026,7 +1026,7 @@ eapply (semax_call_id1_y_wow_nil H);
  | prove_delete_temp
  | unify_postcondition_exps
  | prove_PROP_preconditions
- ].
+ ].*)
 
 Ltac forward_call_id1_y_wow :=
 let H := fresh in intro H;
@@ -1043,7 +1043,7 @@ eapply (semax_call_id1_y_wow H);
  | prove_PROP_preconditions
  ].
 
-Ltac forward_call_id01_wow_nil :=
+(*Ltac forward_call_id01_wow_nil :=
 let H := fresh in intro H;
 eapply (semax_call_id01_wow_nil H); 
  clear H;
@@ -1052,7 +1052,7 @@ eapply (semax_call_id01_wow_nil H);
  | match_postcondition
  | unify_postcondition_exps
  | prove_PROP_preconditions
- ].
+ ].*)
 
 Ltac forward_call_id01_wow :=
 let H := fresh in intro H;
@@ -1065,7 +1065,7 @@ eapply (semax_call_id01_wow H);
  | prove_PROP_preconditions
  ].
 
-Ltac forward_call_id00_wow_nil  :=
+(*Ltac forward_call_id00_wow_nil  :=
 let H := fresh in intro H;
 eapply (semax_call_id00_wow_nil H); 
  clear H;
@@ -1084,7 +1084,7 @@ that is ill-formed.  The LOCALS part of the postcondition
 should be empty, but it is not")
  | unify_postcondition_exps
  | prove_PROP_preconditions
- ].
+ ].*)
 
 Ltac forward_call_id00_wow  :=
 let H := fresh in intro H;
@@ -1097,7 +1097,7 @@ eapply (semax_call_id00_wow H);
     cbv beta iota zeta; unfold_post;
     repeat rewrite exp_uncurry;
 
-    first [ apply exp_congr | try rewrite no_post_exists0; apply exp_congr];
+    first [ apply bi.exist_proper | try rewrite no_post_exists0; apply bi.exist_proper];
 
     intros ?vret;
     apply PROP_LOCAL_SEP_ext; [reflexivity | | reflexivity];
@@ -1115,7 +1115,7 @@ try match goal with |- context [strong_cast ?t1 ?t2 ?v] =>
                 (force_val (sem_cast t1 t2 v))
           ]
 end.
-*)
+
 Ltac fwd_skip :=
  match goal with |- semax _ _ _ Sskip _ =>
    normalize_postcondition;
@@ -1212,14 +1212,13 @@ Ltac clear_MORE_POST :=
       end.
 
 Inductive Ridiculous: Type := .
-(* FIXME pretend this does not exist for now
-Ltac check_witness_type ts A witness :=
-  (unify A (rmaps.ConstType Ridiculous); (* because [is_evar A] doesn't seem to work *)
+
+Ltac check_witness_type (*ts*) A witness :=
+  (unify A (ConstType Ridiculous); (* because [is_evar A] doesn't seem to work *)
              exfalso)
  ||
- let TA := constr:(functors.MixVariantFunctor._functor
-     (rmaps.dependent_type_functor_rec ts A) mpred) in
-  let TA' := eval cbv 
+ let TA := constr:(dtfr A) in
+  let TA' := (*eval cbv 
      [functors.MixVariantFunctor._functor
       functors.MixVariantFunctorGenerator.fpair
       functors.MixVariantFunctorGenerator.fconst
@@ -1233,7 +1232,7 @@ Ltac check_witness_type ts A witness :=
       functors.GeneralFunctorGenerator.CovariantFunctor_MixVariantFunctor
       functors.CovariantFunctor._functor
       functors.MixVariantFunctor.fmap
-      ] in TA
+      ] in*) TA
  in let TA'' := eval simpl in TA'
   in match type of witness with ?T => 
        unify T TA''
@@ -1242,7 +1241,7 @@ Witness value: " witness "
 Witness type: " T "
 Funspec type: " TA'')
      end.
-*)
+
 Lemma trivial_Forall_inclusion:
  forall {A} (G: list A), Forall (fun x => In x G) G.
 Proof.
@@ -1296,11 +1295,11 @@ Ltac prove_call_setup1 subsumes :=
   | |- semax _ _ (@bi_exist _ _ _) _ _ =>
     fail 1 "forward_call fails because your precondition starts with ∃.
 Use Intros  to move          the existentially bound variables above the line"
-  | |- @semax _ _ _ _ ?CS _ ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R'))) ?c _ =>
+  | |- @semax _ _ _ _ ?CS ?E ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R'))) ?c _ =>
     let cR := (fun R =>
     match c with
     | context [Scall _ ?a ?bl] =>
-      exploit (call_setup1_i CS Delta P Q R' a bl);
+      exploit (call_setup1_i E Delta P Q R' a bl);
       [check_prove_local2ptree
       |reflexivity
       |prove_func_ptr
@@ -1311,7 +1310,7 @@ Use Intros  to move          the existentially bound variables above the line"
       |check_cast_params
       | ]
     | context [Scall _ (Evar ?id ?ty) ?bl] =>
-      exploit (call_setup1_i2 CS Delta P Q R' id ty bl) ;
+      exploit (call_setup1_i2 E Delta P Q R' id ty bl) ;
       [check_prove_local2ptree
       | apply can_assume_funcptr2;
         [ check_function_name
@@ -1345,15 +1344,14 @@ Ltac check_gvars_spec :=
   match goal with |- check_gvars_spec None (Some ?gv) =>
    fail "Function precondition requires (gvars" gv ") in LOCAL clause"
   end.
-(* FIXME depend on forward_call
-Ltac prove_call_setup_aux  ts witness :=
+
+Ltac prove_call_setup_aux  (*ts*) witness :=
  let H := fresh "SetupOne" in
  intro H;
  match goal with | |- @semax _ _ _ _ ?CS _ _ (PROPx ?P (LOCALx ?L (SEPx ?R'))) _ _ =>
  let Frame := fresh "Frame" in evar (Frame: list mpred); 
  let cR := (fun R =>
- exploit (call_setup2_i _ _ _ _ _ _ _ _ R R' _ _ _ _ ts _ _ _ _ _ _ _ H witness Frame); clear H;
- simpl functors.MixVariantFunctor._functor;
+ exploit (call_setup2_i _ _ _ _ _ _ _ _ R R' _ _ _ _ (*ts*) _ _ _ _ _ _ _ H witness Frame); clear H;
  [ try_convertPreElim
  | check_prove_local2ptree
  | check_vl_eq_args
@@ -1365,20 +1363,20 @@ Ltac prove_call_setup_aux  ts witness :=
   in strip1_later R' cR
  end.
 
-Ltac prove_call_setup ts subsumes witness :=
+Ltac prove_call_setup (*ts*) subsumes witness :=
  prove_call_setup1 subsumes;
  [ .. | 
  match goal with |- call_setup1  _ _ _ _ _ _ _ _ _ _ _ _ _ ?A _ _ _ _ _ _  -> _ =>
-      check_witness_type ts A witness
+      check_witness_type (*ts*) A witness
  end;
- prove_call_setup_aux ts witness].
+ prove_call_setup_aux (*ts*) witness].
 
-Ltac fwd_call' ts subsumes witness :=
+Ltac fwd_call' (*ts*) subsumes witness :=
 check_POSTCONDITION;
 lazymatch goal with
 | |- semax _ _ _ (Ssequence (Scall ?ret _ _) _) _ =>
   eapply semax_seq';
-    [prove_call_setup ts subsumes witness;
+    [prove_call_setup (*ts*) subsumes witness;
      clear_Delta_specs; clear_MORE_POST;
      [ .. |
       lazymatch goal with
