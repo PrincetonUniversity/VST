@@ -15,7 +15,7 @@ Require Export VST.floyd.forward. (* must come after entailer because of Ltac ov
 Require Export VST.floyd.subsume_funspec.
 Require Export VST.floyd.call_lemmas.
 Require Export VST.floyd.forward_lemmas.
-(* Require Export VST.floyd.for_lemmas. *)
+Require Export VST.floyd.for_lemmas.
 Require Export VST.floyd.nested_pred_lemmas.
 Require Export VST.floyd.nested_field_lemmas.
 Require Export VST.floyd.efield_lemmas.
@@ -47,9 +47,6 @@ Require Export VST.floyd.diagnosis.
 Require Export VST.floyd.Clightnotations.
 (* Require Export VST.floyd.data_at_list_solver. *)
 (* Require Export VST.floyd.data_at_lemmas. *)
-(* Require VST.msl.iter_sepcon. *)
-(* Require VST.msl.wand_frame. *)
-(* Require VST.msl.wandQ_frame. *)
 (* Require VST.floyd.linking. *)
 
 (*funspec scope is the default, so remains open.

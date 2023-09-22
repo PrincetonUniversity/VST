@@ -87,7 +87,6 @@ Proof.
   (* TODO maybe normalize shouldn't unfold local? *)
   Opaque local. normalize. Transparent local.
   apply (bi.exist_intro' _ _ x).
-  autorewrite with subst.
   rewrite bi.and_comm -bi.and_assoc bi.and_comm.
   apply bi.and_mono; auto.
   simpl; unfold local, lift1; unfold_lift; raise_rho; simpl.

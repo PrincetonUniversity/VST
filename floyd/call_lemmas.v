@@ -407,10 +407,10 @@ Definition OLDcall_setup1
   (PROPx P (LOCALx Q (SEPx R')) ⊢ ▷ PROPx P (LOCALx Q (SEPx R))) /\
 
   Cop.classify_fun (typeof a) = Cop.fun_case_f (typelist_of_type_list argsig) retty cc /\
-  ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
-         ⊢ (tc_expr Delta a)  /\
-  ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
-          ⊢  (tc_exprlist Delta argsig bl) /\
+  (ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
+         ⊢ (tc_expr Delta a))  /\
+  (ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
+          ⊢  (tc_exprlist Delta argsig bl)) /\
   force_list (map (msubst_eval_expr Delta Qtemp Qvar GV)
                     (explicit_cast_exprlist argsig bl))
                 = Some vl.
@@ -426,10 +426,10 @@ Definition call_setup1
   can_assume_funcptr E Delta P Q R a fs /\
 
   Cop.classify_fun (typeof a) = Cop.fun_case_f (typelist_of_type_list argsig) retty cc /\
-  ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
-         ⊢ (tc_expr Delta a)  /\
-  ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
-          ⊢  (tc_exprlist Delta argsig bl) /\
+  (ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
+         ⊢ (tc_expr Delta a) ) /\
+  (ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
+          ⊢  (tc_exprlist Delta argsig bl)) /\
   force_list (map (msubst_eval_expr Delta Qtemp Qvar GV)
                     (explicit_cast_exprlist argsig bl))
                 = Some vl.

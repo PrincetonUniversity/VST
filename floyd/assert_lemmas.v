@@ -322,6 +322,11 @@ Qed.
 Proof. reflexivity. Qed.
 #[export] Hint Rewrite subst_ewand : subst.*)
 
+(* What's the best way to do this? *)
+Lemma subst_proper: forall i v (P Q : assert), P ⊣⊢ Q -> assert_of (subst i v P) ⊣⊢ assert_of (subst i v Q).
+Proof.
+  intros; split => rho; rewrite /= /subst H //.
+Qed.
 
 Lemma subst_andp: forall id v P Q,
   assert_of (subst id v (P ∧ Q)) ⊣⊢ assert_of (subst id v P) ∧ assert_of (subst id v Q).

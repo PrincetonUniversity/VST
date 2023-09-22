@@ -103,7 +103,7 @@ Notation " 'SEP' ( ) " := (SEPx nil) (at level 8) : assert5.
 Notation " 'SEP' () " := (SEPx nil) (at level 8) : assert5.
 
 Notation " 'ENTAIL' d ',' P '⊢' Q " :=
-  (@bi_entails (monPredI environ_index mpred) (local (tc_environ d) ∧ P%assert) Q%assert) (at level 99, P at level 79, Q at level 79).
+  (@bi_entails (monPredI environ_index mpred) (local (tc_environ d) ∧ P%assert) Q%assert) (at level 99, P at level 98, Q at level 98).
 
 Arguments semax {_ _ _ _ _} E Delta Pre%assert cmd Post%assert.
 
