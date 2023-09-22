@@ -1554,8 +1554,7 @@ Ltac solve_msubst_eval :=
       end)
       => change E with (offset_val ofs E'')
     | _ => change E with E'
-    end;
-    try done (* REVIEW for the goal of the form Some (_) = Some ?v *)
+    end
   | |- ?NotSome = Some _ => 
           fail 1000 "The C-language expression " e
               " does not necessarily evaluate, perhaps because some variable is missing from your LOCAL clause"
