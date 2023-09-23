@@ -12,8 +12,12 @@ Require Import VST.floyd.canon.
   and prove their length are equal and each corresponding entries are equal.
   It is convenient because then we can use Znth_solve to solve it. *)
 
+Section mpred.
+
+Context `{!heapGS Σ}.
+
 Definition data_subsume {cs : compspecs} (t : type) (x y : reptype t) : Prop :=
-  forall sh p, data_at sh t x p |-- data_at sh t y p.
+  forall sh p, data_at sh t x p ⊢ data_at sh t y p.
 
 Lemma data_subsume_refl : forall {cs : compspecs} (t : type) (x : reptype t),
   data_subsume t x x.
@@ -29,8 +33,6 @@ Lemma data_subsume_default : forall {cs : compspecs} (t : type) (x y : reptype t
   data_subsume t x y.
 Proof. unfold data_subsume. intros. subst y. apply data_at_data_at_. Qed.
 
-#[export] Hint Resolve data_subsume_refl data_subsume_refl' data_subsume_default : core.
-
 Lemma data_subsume_array_ext : forall {cs : compspecs} (t : type) (n : Z) (al bl : list (reptype t)),
   n = Zlength al ->
   n = Zlength bl ->
@@ -44,14 +46,14 @@ Proof.
     list_form; Zlength_simplify_in_all; try Zlength_solve;
     unfold data_subsume; intros.
   - (* al = [] /\ bl = [] *)
-    entailer!.
+    cancel.
   - (* al <> [] /\ bl <> [] *)
-    do 2 rewrite split2_data_at_Tarray_app with (mid := 1) by Zlength_solve.
-    apply sepcon_derives.
+    do 2 rewrite -> split2_data_at_Tarray_app with (mid := 1) by Zlength_solve.
+    apply bi.sep_mono.
     + specialize (H1 0 ltac:(Zlength_solve)).
       autorewrite with Znth in H1.
-      rewrite data_at_singleton_array_eq with (v := a) by auto.
-      rewrite data_at_singleton_array_eq with (v := b) by auto.
+      rewrite -> data_at_singleton_array_eq with (v := a) by auto.
+      rewrite -> data_at_singleton_array_eq with (v := b) by auto.
       apply H1.
     + apply IHal; try Zlength_solve.
       intros. specialize (H1 (i+1) ltac:(Zlength_solve)).
@@ -60,6 +62,10 @@ Proof.
       replace (i + 1 - 1) with i in H1 by lia.
       apply H1.
 Qed.
+
+End mpred.
+
+#[export] Hint Resolve data_subsume_refl data_subsume_refl' data_subsume_default : core.
 
 Ltac simpl_reptype :=
   repeat lazymatch goal with
@@ -75,7 +81,7 @@ Ltac simpl_reptype :=
   the lengths are the same and reduces the goal to relation between entries. *)
 Ltac apply_list_ext ::=
   lazymatch goal with
-  | |- _ |-- _ => 
+  | |- _ ⊢ _ => 
      apply data_subsume_array_ext; simpl_reptype; 
        [ Zlength_solve | Zlength_solve | .. ]
   | |- data_subsume _ _ => 
@@ -124,4 +130,3 @@ Ltac list_simplify :=
    end;
   list_solver.list_simplify;
   cbv delta [hide_cons hide_nil]; cbv beta.
-

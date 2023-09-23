@@ -5,8 +5,6 @@ Require Import Coq.Lists.List.
 Export ListNotations.
 Require Import VST.floyd.client_lemmas.
 
-Local Open Scope logic.
-
 Module ZOrder <: Orders.TotalLeBool.
   Definition t := Z.
   Definition leb := Z.leb.
@@ -28,35 +26,47 @@ End NatOrder.
 Module SortNat := Mergesort.Sort(NatOrder).
 
 Module Type FREEZER.
+
+Section mpred.
+
+Context `{!heapGS Σ}.
+
 Parameter FRZ : mpred -> mpred.
-Parameter FRZ1: forall p, p |-- FRZ p.
-Parameter FRZ2: forall p, FRZ p |-- p.
+Parameter FRZ1: forall p, p ⊢ FRZ p.
+Parameter FRZ2: forall p, FRZ p ⊢ p.
 
 Parameter FRZL : list mpred -> mpred.
-Parameter FRZL1: forall ps, fold_right sepcon emp ps |-- FRZL ps.
-Parameter FRZL2: forall ps, FRZL ps |-- fold_right sepcon emp ps.
+Parameter FRZL1: forall ps, fold_right bi_sep emp ps ⊢ FRZL ps.
+Parameter FRZL2: forall ps, FRZL ps ⊢ fold_right bi_sep emp ps.
 
 Parameter FRZRw : list mpred -> list mpred -> Type.
 Parameter FRZRw_constr : forall {L1 G1: list mpred} {F: mpred},
-    ((fold_right sepcon emp G1) |-- fold_right sepcon emp L1 * F) -> FRZRw L1 G1.
+    ((fold_right bi_sep emp G1) ⊢ fold_right bi_sep emp L1 ∗ F) -> FRZRw L1 G1.
 Parameter FRZR : forall L1 G1 {w: FRZRw L1 G1}, mpred.
-Parameter FRZR1: forall L1 G1 (w: FRZRw L1 G1), fold_right sepcon emp G1 |-- fold_right sepcon emp L1 * @FRZR L1 G1 w.
-Parameter FRZR2: forall L1 G1 L2 G2 F H, (F |-- fold_right sepcon emp L2 -* fold_right sepcon emp G2) -> fold_right sepcon emp L2  * @FRZR L1 G1 (@FRZRw_constr L1 G1 F H) |-- fold_right sepcon emp G2.
+Parameter FRZR1: forall L1 G1 (w: FRZRw L1 G1), fold_right bi_sep emp G1 ⊢ fold_right bi_sep emp L1 ∗ @FRZR L1 G1 w.
+Parameter FRZR2: forall L1 G1 L2 G2 F H, (F ⊢ fold_right bi_sep emp L2 -∗ fold_right bi_sep emp G2) -> fold_right bi_sep emp L2  ∗ @FRZR L1 G1 (@FRZRw_constr L1 G1 F H) ⊢ fold_right bi_sep emp G2.
+
+End mpred.
 
 End FREEZER.
 
 Module Freezer : FREEZER.
-Definition FRZ (p: mpred) := p.
-Lemma FRZ1 p: p |-- FRZ p. apply derives_refl. Qed.
-Lemma FRZ2 p: FRZ p |-- p. apply derives_refl. Qed.
 
-Definition FRZL (ps:list mpred): mpred := fold_right sepcon emp ps.
-Lemma FRZL1 ps: (fold_right_sepcon ps) |-- FRZL ps. apply derives_refl. Qed.
-Lemma FRZL2 ps: FRZL ps |-- fold_right_sepcon ps. apply derives_refl. Qed.
+Section mpred.
+
+Context `{!heapGS Σ}.
+
+Definition FRZ (p: mpred) := p.
+Lemma FRZ1 p: p ⊢ FRZ p. apply derives_refl. Qed.
+Lemma FRZ2 p: FRZ p ⊢ p. apply derives_refl. Qed.
+
+Definition FRZL (ps:list mpred): mpred := fold_right bi_sep emp ps.
+Lemma FRZL1 ps: (fold_right bi_sep emp ps) ⊢ FRZL ps. done. Qed.
+Lemma FRZL2 ps: FRZL ps ⊢ fold_right bi_sep emp ps. done. Qed.
 
 Inductive FRZRw' (L1 G1: list mpred): Type :=
 | FRZRw'_constr: forall F: mpred,
-    ((fold_right sepcon emp G1) |-- fold_right sepcon emp L1 * F) -> FRZRw' L1 G1.
+    ((fold_right bi_sep emp G1) ⊢ fold_right bi_sep emp L1 ∗ F) -> FRZRw' L1 G1.
 
 Definition FRZRw := FRZRw'.
 Definition FRZRw_constr:= FRZRw'_constr.
@@ -66,11 +76,13 @@ Definition FRZR (L1 G1: list mpred) {w: FRZRw L1 G1}: mpred :=
   | FRZRw'_constr F _ => F
   end.
 
-Lemma FRZR1: forall L1 G1 (w: FRZRw L1 G1), fold_right sepcon emp G1 |-- fold_right sepcon emp L1 * @FRZR L1 G1 w.
+Lemma FRZR1: forall L1 G1 (w: FRZRw L1 G1), fold_right bi_sep emp G1 ⊢ fold_right bi_sep emp L1 ∗ @FRZR L1 G1 w.
 Proof. intros ? ? [? ?]. auto. Qed.
 
-Lemma FRZR2: forall L1 G1 L2 G2 F H, (F |-- fold_right sepcon emp L2 -* fold_right sepcon emp G2) -> fold_right sepcon emp L2 * @FRZR L1 G1 (@FRZRw_constr L1 G1 F H) |-- fold_right sepcon emp G2.
-Proof. intros ? ? ? ? ? ? ?. rewrite sepcon_comm. apply wand_sepcon_adjoint; auto. Qed.
+Lemma FRZR2: forall L1 G1 L2 G2 F H, (F ⊢ fold_right bi_sep emp L2 -∗ fold_right bi_sep emp G2) -> fold_right bi_sep emp L2 ∗ @FRZR L1 G1 (@FRZRw_constr L1 G1 F H) ⊢ fold_right bi_sep emp G2.
+Proof. intros ? ? ? ? ? ? ?. iIntros "(? & ?)"; iApply (H0 with "[$]"); done. Qed.
+
+End mpred.
 
 End Freezer.
 
@@ -79,9 +91,13 @@ Notation FRZL := Freezer.FRZL.
 Notation FRZR := Freezer.FRZR.
 Notation FRZRw := Freezer.FRZRw.
 
+Section mpred.
+
+Context `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {cs: compspecs}.
+
 (************************ Freezing a single mpred ************************)
-Lemma FRZ_ax:forall p, FRZ p = p.
-Proof. intros. apply pred_ext. apply Freezer.FRZ2. apply Freezer.FRZ1. Qed.
+Lemma FRZ_ax:forall p, FRZ p ⊣⊢ p.
+Proof. intros. iSplit; [iApply Freezer.FRZ2 | iApply Freezer.FRZ1]. Qed.
 
 Fixpoint freeze_nth (n: nat) (al: list mpred) {struct n}: list mpred :=
  match n, al with
@@ -91,27 +107,17 @@ Fixpoint freeze_nth (n: nat) (al: list mpred) {struct n}: list mpred :=
  end.
 
 Lemma freeze1_SEP':
- forall n Espec {cs: compspecs} Delta P Q R c Post,
- @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx (freeze_nth n R)))) c Post ->
- @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx R))) c Post.
+ forall n E Delta P Q R c Post,
+ semax E Delta (PROPx P (LOCALx Q (SEPx (freeze_nth n R)))) c Post ->
+ semax E Delta (PROPx P (LOCALx Q (SEPx R))) c Post.
 Proof.
-intros. subst.
+intros.
 eapply semax_pre; try apply H.
-apply andp_left2.
-go_lowerx; entailer!.  clear.
+rewrite bi.and_elim_r.
+go_lowerx; entailer!. clear.
 generalize dependent R.
 induction n; destruct R; simpl; cancel. apply Freezer.FRZ1.
 Qed.
-Tactic Notation "freeze1_SEP" constr(n) :=
-  eapply (freeze1_SEP' (Z.to_nat n)); simpl.
-Tactic Notation "freeze1_SEP" constr(n) constr(m) :=
-  (gather_SEP' (n::m::nil)); eapply (freeze1_SEP' (Z.to_nat 0)); simpl.
-Tactic Notation "freeze1_SEP" constr(n) constr(m) constr(k)  :=
-  (gather_SEP' (n::m::k::nil)); eapply (freeze1_SEP' (Z.to_nat 0)); simpl.
-Tactic Notation "freeze1_SEP" constr(n) constr(m) constr(k)  constr(p) :=
-  (gather_SEP' (n::m::k::p::nil)); eapply (freeze1_SEP' (Z.to_nat 0)); simpl.
-Tactic Notation "freeze1_SEP" constr(n) constr(m) constr(k) constr(p) constr(q) :=
-  (gather_SEP' (n::m::k::p::q::nil)); eapply (freeze1_SEP' (Z.to_nat 0)); simpl.
 
 (*******************freezing a list of mpreds ******************************)
 
@@ -126,9 +132,9 @@ Definition freezelist_nth (ns: list nat) (al: list mpred) : list mpred * list mp
   (map (fun i => my_nth i al emp) ns,
    delete_list (SortNat.sort ns) al).
 
-Lemma my_nth_delete_nth_permutation: 
+Lemma my_nth_delete_nth_permutation:
   forall al a, 
-   (a < length al)%nat -> Permutation al (my_nth a al emp :: delete_nth a al).
+   (a < length al)%nat -> Permutation al (my_nth a al (emp : mpred) :: delete_nth a al).
 Proof.
 induction al; simpl; intros.
 lia.
@@ -248,101 +254,74 @@ apply Permutation_trans
 Qed.
 
 (* This older version of freezelist_nth didn't work when the l list was not sorted 
-Fixpoint freezelist_nth (l: list nat) (al: list mpred): (list mpred) * (list mpred) :=
+Fixpoint freezelist_nth (l: list nat) (al: list mpred): (list mpred) ∗ (list mpred) :=
  match l with
  | nil => (nil,al)
  | (n::l') => let (xs, ys) := freezelist_nth l' al
               in (nth n ys emp::xs, delete_nth n ys)
  end.
 *)
-Lemma FRZL_ax ps: FRZL ps = fold_right_sepcon ps.
-Proof. intros. apply pred_ext. apply Freezer.FRZL2. apply Freezer.FRZL1. Qed.
+Lemma FRZL_ax ps: FRZL ps ⊣⊢ fold_right_sepcon ps.
+Proof. intros. rewrite fold_right_sepcon_eq. iSplit; [iApply Freezer.FRZL2 | iApply Freezer.FRZL1]. Qed.
 
 Lemma fold_right_sepcon_deletenth: forall n (l: list mpred),
-  fold_right_sepcon l = nth n l emp * fold_right_sepcon (delete_nth n l).
+  fold_right_sepcon l ⊣⊢ nth n l emp ∗ fold_right_sepcon (delete_nth n l).
 Proof.
-  induction n; destruct l; simpl. rewrite sepcon_emp; trivial.
+  induction n; destruct l; simpl. rewrite bi.sep_emp; trivial.
   reflexivity.
-  rewrite sepcon_emp; trivial.
+  rewrite bi.sep_emp; trivial.
   rewrite IHn.
-  do 2 rewrite <- sepcon_assoc. rewrite (sepcon_comm m). trivial.
+  iSplit; iIntros "($ & $ & $)".
 Qed.
-Lemma fold_right_sepcon_deletenth': forall n (l:list (LiftEnviron mpred)),
-  @fold_right (environ -> mpred) (environ -> mpred) sepcon emp l =
-  nth n l emp * fold_right sepcon emp (delete_nth n l).
+Lemma fold_right_sepcon_deletenth': forall n (l:list (@assert Σ)),
+  @fold_right assert assert bi_sep emp l ⊣⊢
+  nth n l emp ∗ fold_right bi_sep emp (delete_nth n l).
 Proof.
-  induction n; destruct l; simpl. rewrite sepcon_emp; trivial.
+  induction n; destruct l; simpl. rewrite bi.sep_emp; trivial.
   reflexivity.
-  rewrite sepcon_emp; trivial.
-  rewrite IHn; clear IHn. extensionality. simpl.
-  do 2 rewrite <- sepcon_assoc. rewrite (sepcon_comm (l x)). trivial.
+  rewrite bi.sep_emp; trivial.
+  rewrite IHn; clear IHn.
+  iSplit; iIntros "($ & $ & $)".
 Qed.
 
 Lemma fold_right_sepcon_permutation:
- forall al bl, Permutation al bl -> fold_right_sepcon al = fold_right_sepcon bl.
+ forall (al bl : list mpred), Permutation al bl -> fold_right_sepcon al ⊣⊢ fold_right_sepcon bl.
 Proof.
 intros.
 induction H; simpl; auto.
-congruence.
-rewrite <- ! sepcon_assoc.
-rewrite (sepcon_comm x).
-auto.
-congruence.
+- rewrite IHPermutation //.
+- iSplit; iIntros "($ & $ & $)".
+- rewrite IHPermutation1 //.
 Qed.
 
 Lemma freeze_SEP':
- forall l Espec {cs: compspecs} Delta P Q  R c Post xs ys,
+ forall l E Delta P Q  R c Post xs ys,
   is_increasing (SortNat.sort l) (length R) = true ->
  (xs, ys) = freezelist_nth l R ->
- @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx (FRZL xs:: ys)))) c Post ->
- @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx R))) c Post.
+ semax E Delta (PROPx P (LOCALx Q (SEPx (FRZL xs:: ys)))) c Post ->
+ semax E Delta (PROPx P (LOCALx Q (SEPx R))) c Post.
 Proof.
-intros *. intro Hii; intros. subst.
+intros *. intro Hii; intros.
 eapply semax_pre; try eassumption.
-apply andp_left2. unfold PROPx. normalize.
-apply andp_derives; auto.
-pose proof (freezelist_nth_permutation _ _ Hii).
-rewrite <- H in H2.
-simpl in H2.
-clear - H2.
-unfold SEPx.
-intros _.
-rewrite (fold_right_sepcon_permutation _ _ H2).
-rewrite FRZL_ax.
-clear.
-induction xs; simpl.
-rewrite emp_sepcon.
-auto.
-rewrite sepcon_assoc.
-apply sepcon_derives; auto.
+go_lowerx.
+pose proof (freezelist_nth_permutation _ _ Hii) as HR.
+rewrite -H /= in HR.
+rewrite fold_right_sepcon_permutation // fold_right_sepcon_app FRZL_ax //.
 Qed.
 
 Lemma freeze_SEP'entail:
  forall l Delta P Q  R Post xs ys,
   is_increasing (SortNat.sort l) (length R) = true ->
  (xs, ys) = freezelist_nth l R ->
- ENTAIL Delta, (PROPx P (LOCALx Q (SEPx (FRZL xs:: ys)))) |-- Post ->
- ENTAIL Delta, (PROPx P (LOCALx Q (SEPx R))) |-- Post.
+ ENTAIL Delta, (PROPx P (LOCALx Q (SEPx (FRZL xs:: ys)))) ⊢ Post ->
+ ENTAIL Delta, (PROPx P (LOCALx Q (SEPx R))) ⊢ Post.
 Proof.
-intros *. intro Hii; intros. subst.
-eapply derives_trans; try apply H0.
-unfold PROPx. normalize.
-apply andp_derives; auto.
-pose proof (freezelist_nth_permutation _ _ Hii).
-rewrite <- H in H2.
-simpl in H2.
-clear - H2.
-apply andp_derives; auto.
-unfold SEPx.
-intros _.
-rewrite (fold_right_sepcon_permutation _ _ H2).
-rewrite FRZL_ax.
-clear.
-induction xs; simpl.
-rewrite emp_sepcon.
-auto.
-rewrite sepcon_assoc.
-apply sepcon_derives; auto.
+intros *. intro Hii; intros.
+rewrite -H0.
+go_lowerx.
+pose proof (freezelist_nth_permutation _ _ Hii) as HR.
+rewrite -H /= in HR.
+rewrite fold_right_sepcon_permutation // fold_right_sepcon_app FRZL_ax //.
 Qed.
 
 Lemma map_delete_nth {A B} (f:A->B): forall n l, delete_nth n (map f l) = map f (delete_nth n l).
@@ -405,7 +384,7 @@ Proof. (*unfold my_freezelist_nth, freezelist_nth. *)
 Qed.
 
 (*Variant if l is monotonically decreasing
-Fixpoint new_freezelist_nth (l: list nat) (al: list mpred): (list mpred) * (list mpred) :=
+Fixpoint new_freezelist_nth (l: list nat) (al: list mpred): (list mpred) ∗ (list mpred) :=
  match l with
  | nil => (nil,al)
  | (n::l') => let (xs, ys) := new_freezelist_nth l' (my_delete_nth n al)
@@ -413,11 +392,11 @@ Fixpoint new_freezelist_nth (l: list nat) (al: list mpred): (list mpred) * (list
  end.*)
 
 Lemma freeze_SEP'':
- forall l Espec {cs: compspecs} Delta P Q  R c Post xs ys,
+ forall l E Delta P Q  R c Post xs ys,
   is_increasing (SortNat.sort l) (length R) = true ->
  (xs, ys) = my_freezelist_nth l R ->
- @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx (FRZL xs:: ys)))) c Post ->
- @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx R))) c Post.
+ semax E Delta (PROPx P (LOCALx Q (SEPx (FRZL xs:: ys)))) c Post ->
+ semax E Delta (PROPx P (LOCALx Q (SEPx R))) c Post.
 Proof. intros. rewrite my_freezelist_nth_freezelist_nth in H0.
   eapply freeze_SEP'; eassumption.  Qed.
 
@@ -425,10 +404,23 @@ Lemma freeze_SEP''entail:
  forall l Delta P Q  R Post xs ys,
   is_increasing (SortNat.sort l) (length R) = true ->
  (xs, ys) = my_freezelist_nth l R ->
- ENTAIL Delta, (PROPx P (LOCALx Q (SEPx (FRZL xs:: ys)))) |-- Post ->
- ENTAIL Delta, (PROPx P (LOCALx Q (SEPx R))) |-- Post.
+ ENTAIL Delta, (PROPx P (LOCALx Q (SEPx (FRZL xs:: ys)))) ⊢ Post ->
+ ENTAIL Delta, (PROPx P (LOCALx Q (SEPx R))) ⊢ Post.
 Proof. intros. rewrite my_freezelist_nth_freezelist_nth in H0.
   eapply freeze_SEP'entail; eassumption.  Qed.
+
+End mpred.
+
+Tactic Notation "freeze1_SEP" constr(n) :=
+  eapply (freeze1_SEP' (Z.to_nat n)); simpl.
+Tactic Notation "freeze1_SEP" constr(n) constr(m) :=
+  (gather_SEP' (n::m::nil)); eapply (freeze1_SEP' (Z.to_nat 0)); simpl.
+Tactic Notation "freeze1_SEP" constr(n) constr(m) constr(k)  :=
+  (gather_SEP' (n::m::k::nil)); eapply (freeze1_SEP' (Z.to_nat 0)); simpl.
+Tactic Notation "freeze1_SEP" constr(n) constr(m) constr(k)  constr(p) :=
+  (gather_SEP' (n::m::k::p::nil)); eapply (freeze1_SEP' (Z.to_nat 0)); simpl.
+Tactic Notation "freeze1_SEP" constr(n) constr(m) constr(k) constr(p) constr(q) :=
+  (gather_SEP' (n::m::k::p::q::nil)); eapply (freeze1_SEP' (Z.to_nat 0)); simpl.
 
 Ltac solve_is_increasing :=
   reflexivity ||
@@ -457,7 +449,7 @@ Ltac freeze_tac_entail L name :=
   eapply (freeze_SEP''entail (map Z.to_nat L)); 
    [solve_is_increasing | reflexivity 
    | match goal with
-           | |- ENTAIL _, (PROPx _ (LOCALx _ (SEPx ((FRZL ?xs) :: my_delete_list ?A _)))) |-- _ =>
+           | |- ENTAIL _, (PROPx _ (LOCALx _ (SEPx ((FRZL ?xs) :: my_delete_list ?A _)))) ⊢ _ =>
            let D := fresh name in
            set (D:=xs);
 (*           hnf in D;*)
@@ -497,14 +489,14 @@ lazymatch goal with
                                      else A) in
             let A' := eval compute in A' in
             freeze_tac A' id
-| fr := @abbreviate mpred _ |- ENTAIL _, (PROPx _ (LOCALx _ (SEPx ?R))) |-- _ =>
+| fr := @abbreviate mpred _ |- ENTAIL _, (PROPx _ (LOCALx _ (SEPx ?R))) ⊢ _ =>
   match R with context [fr :: ?R'] =>
     let L := constr:(Zlength R - (Z.succ (Zlength R'))) in
      let L := eval cbn in L in
       let A' := constr:(L::A) in
         unfold abbreviate in fr; subst fr; find_freeze1 comp id A'
    end
-| |- ENTAIL _, (PROPx _ (LOCALx _ (SEPx ?R))) |-- _ => 
+| |- ENTAIL _, (PROPx _ (LOCALx _ (SEPx ?R))) ⊢ _ => 
             let A' := constr:(if comp then Zlist_complement (length R) A 
                                      else A) in
             let A' := eval compute in A' in
@@ -560,34 +552,34 @@ Tactic Notation "freeze" ident(i) ":=" "-" uconstr(a1) uconstr(a2) uconstr(a3) u
 Tactic Notation "freeze" ident(i) ":=" "-" uconstr(a1) uconstr(a2) uconstr(a3) uconstr(a4) uconstr(a5) uconstr(a6) uconstr(a7) uconstr(a8) uconstr(a9) uconstr(a10):=
   freeze1 a1; freeze1 a2; freeze1 a3; freeze1 a4; freeze1 a5; freeze1 a6; freeze1 a7; freeze1 a8; freeze1 a9; freeze1 a10; complement_freezer i.
 
-(****************************************************************************)
+(************************************************************************∗∗∗*)
 
-Lemma flatten_emp_in_mpreds' {A}:
+Lemma flatten_emp_in_mpreds' `{!heapGS Σ} {A}:
   forall n (R: list mpred),
    nth_error R n = Some emp ->
-   @SEPx A R = SEPx (Floyd_firstn n R ++ Floyd_skipn (S n) R).
+   SEPx(A := A) R ⊣⊢ SEPx (Floyd_firstn n R ++ Floyd_skipn (S n) R).
 Proof.
-unfold SEPx. intros. extensionality rho.
+unfold SEPx. intros. split => rho; monPred.unseal.
 revert R H. clear.
 induction n; destruct R; intros.
 + inv H.
-+ simpl nth_error in H. inv H. simpl. apply emp_sepcon.
++ simpl nth_error in H. inv H. simpl. apply bi.emp_sep.
 + reflexivity.
 + inv H.
   specialize (IHn _ H1). clear H1. simpl Floyd_firstn.
   change (m :: Floyd_firstn n R) with (app (m::nil) (Floyd_firstn n R)).
   rewrite app_ass. unfold app at 1.
-  simpl; f_equal; auto.
+  simpl; f_equiv; auto.
 Qed.
 
 Lemma flatten_emp_in_SEP':
-  forall n P Q (R: list mpred) R',
+  forall `{!heapGS Σ} n P Q (R: list mpred) R',
    nth_error R n = Some emp ->
    R' = Floyd_firstn n R ++ Floyd_skipn (S n) R ->
-   PROPx P (LOCALx Q (SEPx R)) = PROPx P (LOCALx Q (SEPx R')).
+   PROPx P (LOCALx Q (SEPx R)) ⊣⊢ PROPx P (LOCALx Q (SEPx R')).
 Proof.
 intros.
-f_equal. f_equal. subst R'.
+f_equiv. f_equiv. subst R'.
  apply flatten_emp_in_mpreds'. trivial.
 Qed.
 (*
@@ -609,7 +601,7 @@ Ltac flatten_emp_in_mpreds RR :=
 Ltac flatten_emp :=
   match goal with
   | |- semax _ _ ?PQR _ _ => flatten_emp_in_SEP PQR
-  | |-  ?PQR |-- _ => first [flatten_emp_in_SEP PQR |
+  | |-  ?PQR ⊢ _ => first [flatten_emp_in_SEP PQR |
                              flatten_emp_in_mpreds PQR ]
 end.*)
 
@@ -632,7 +624,7 @@ Ltac flatten_emp_in_SEP PQR :=
 Ltac flatten_emp :=
   match goal with
   | |- semax _ _ ?PQR _ _ => flatten_emp_in_SEP PQR
-  | |-  ?PQR |-- _ => flatten_emp_in_SEP PQR
+  | |-  ?PQR ⊢ _ => flatten_emp_in_SEP PQR
 end.
 
 (*Thawing a freezer results in the sepcon product of the frozen items.*)
@@ -658,19 +650,184 @@ end;
 pattern x;
 match goal with |- ?A x => set (a:=A) end;
 revert x;
-rewrite <- ?sepcon_assoc, sepcon_emp;
+rewrite ?bi.sep_assoc bi.sep_emp;
 intro x; subst a x; try subst y;
   unfold my_delete_list, my_delete_nth, my_nth, fold_right_sepcon;
   repeat flatten_sepcon_in_SEP; repeat flatten_emp.
 
+Section ramification.
+
+Context `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {cs: compspecs}.
+
 (************************ Ramification ************************)
 
-Inductive split_FRZ_in_SEP: list mpred -> list mpred -> list mpred -> Prop :=
+Inductive split_FRZ_in_SEP : list mpred -> list mpred -> list mpred -> Prop :=
 | split_FRZ_in_SEP_nil: split_FRZ_in_SEP nil nil nil
 | split_FRZ_in_SEP_FRZ: forall R R' RF F, split_FRZ_in_SEP R R' RF -> split_FRZ_in_SEP (FRZ F :: R) R' (FRZ F :: RF)
 | split_FRZ_in_SEP_FRZL: forall R R' RF F, split_FRZ_in_SEP R R' RF -> split_FRZ_in_SEP (FRZL F :: R) R' (FRZL F :: RF)
-| split_FRZ_in_SEP_FRZR: forall R R' RF L G w, split_FRZ_in_SEP R R' RF -> split_FRZ_in_SEP (@FRZR L G w :: R) R' (@FRZR L G w :: RF)
+| split_FRZ_in_SEP_FRZR: forall R R' RF L G w, split_FRZ_in_SEP R R' RF -> split_FRZ_in_SEP (FRZR L G (w := w) :: R) R' (FRZR L G (w := w) :: RF)
 | split_FRZ_in_SEP_other: forall R R' RF R0, split_FRZ_in_SEP R R' RF -> split_FRZ_in_SEP (R0 :: R) (R0 :: R') RF.
+
+Lemma split_FRZ_in_SEP_spec: forall R R' RF,
+  split_FRZ_in_SEP R R' RF ->
+  fold_right_sepcon R ⊣⊢ fold_right_sepcon R' ∗ fold_right_sepcon RF.
+Proof.
+  intros.
+  induction H.
+  + simpl.
+    rewrite bi.sep_emp; auto.
+  + simpl.
+    rewrite IHsplit_FRZ_in_SEP.
+    iSplit; iIntros "($ & $ & $)".
+  + simpl.
+    rewrite IHsplit_FRZ_in_SEP.
+    iSplit; iIntros "($ & $ & $)".
+  + simpl.
+    rewrite IHsplit_FRZ_in_SEP.
+    iSplit; iIntros "($ & $ & $)".
+  + simpl.
+    rewrite IHsplit_FRZ_in_SEP.
+    rewrite -assoc; iSplit; iIntros "($ & $ & $)".
+Qed.
+
+Lemma localize: forall R_L E Delta P Q R R_FR R_G c Post,
+  split_FRZ_in_SEP R R_G R_FR ->
+  (let FR_L := @abbreviate _ R_L in
+   let FR_G := @abbreviate _ R_G in
+   exists  (w: FRZRw FR_L FR_G),
+  semax E Delta (PROPx P (LOCALx Q (SEPx (R_L ++ FRZR FR_L FR_G (w := w) :: R_FR)))) c Post) ->
+  semax E Delta (PROPx P (LOCALx Q (SEPx R))) c Post.
+Proof.
+  intros.
+  destruct H0 as [? ?].
+  eapply semax_pre; [clear H0 | exact H0].
+  apply split_FRZ_in_SEP_spec in H.
+  go_lowerx.
+  rewrite H.
+  rewrite fold_right_sepcon_app.
+  simpl.
+  cancel.
+  rewrite !fold_right_sepcon_eq; apply Freezer.FRZR1.
+Qed.
+
+Lemma unlocalize_aux: forall R_G2 R R_FR R_L1 R_G1 R_L2 F w,
+  split_FRZ_in_SEP R R_L2 (FRZR R_L1 R_G1 (w := w) :: R_FR) ->
+  (exists (H: (fold_right bi_sep emp R_G1) ⊢ fold_right bi_sep emp R_L1 ∗ F), w = Freezer.FRZRw_constr H) ->
+  (F ⊢ fold_right_sepcon R_L2 -∗ fold_right_sepcon R_G2) ->
+  fold_right_sepcon R ⊢ fold_right_sepcon (R_G2 ++ R_FR).
+Proof.
+  intros.
+  apply split_FRZ_in_SEP_spec in H.
+  rewrite H.
+  rewrite fold_right_sepcon_app.
+  simpl.
+  cancel.
+  destruct H0 as [? ?]; subst.
+  rewrite -> !fold_right_sepcon_eq in *.
+  apply Freezer.FRZR2.
+  auto.
+Qed.
+
+Lemma unlocalize_triple: forall R_G2 E Delta P Q R R_FR R_L1 R_G1 R_L2 c Post w,
+  split_FRZ_in_SEP R R_L2 (FRZR R_L1 R_G1 (w := w) :: R_FR) ->
+  (exists (H: fold_right bi_sep emp R_G1 ⊢ fold_right bi_sep emp R_L1 ∗ (fold_right_sepcon R_L2 -∗ fold_right_sepcon R_G2)), w = Freezer.FRZRw_constr H) ->
+  (@abbreviate _ (fun _ _ => True%type) R_L1 R_G1 -> semax E Delta (PROPx P (LOCALx Q (SEPx (R_G2 ++ R_FR)))) c Post) ->
+  semax E Delta (PROPx P (LOCALx Q (SEPx R))) c Post.
+Proof.
+  intros.
+  eapply semax_pre; [clear H1 | exact (H1 I)].
+  go_lowerx.
+  eapply unlocalize_aux; eauto.
+Qed.
+
+Lemma unlocalize_derives_canon: forall R_G2 Delta P Q R R_FR R_L1 R_G1 R_L2 Post w,
+  split_FRZ_in_SEP R R_L2 (FRZR R_L1 R_G1 (w := w) :: R_FR) ->
+  (exists (H: (fold_right bi_sep emp R_G1) ⊢ fold_right bi_sep emp R_L1 ∗ (fold_right_sepcon R_L2 -∗ fold_right_sepcon R_G2)), w = Freezer.FRZRw_constr H) ->
+  (@abbreviate _ (fun _ _ => True%type) R_L1 R_G1 -> local (tc_environ Delta) ∧ PROPx P (LOCALx Q (SEPx (R_G2 ++ R_FR))) ⊢ Post) ->
+  local (tc_environ Delta) ∧ PROPx P (LOCALx Q (SEPx R)) ⊢ Post.
+Proof.
+  intros.
+  eapply derives_trans; [clear H1 | exact (H1 I)].
+  go_lowerx.
+  eapply unlocalize_aux; eauto.
+Qed.
+
+Lemma unlocalize_derives_unlift: forall R_G2 Pre R R_FR R_L1 R_G1 R_L2 Post w,
+  construct_fold_right_sepcon Pre R ->
+  split_FRZ_in_SEP R R_L2 (FRZR R_L1 R_G1 (w := w) :: R_FR) ->
+  (exists (H: (fold_right bi_sep emp R_G1) ⊢ fold_right bi_sep emp R_L1 ∗ (fold_right_sepcon R_L2 -∗ fold_right_sepcon R_G2)), w = Freezer.FRZRw_constr H) ->
+  (@abbreviate _ (fun _ _ => True%type) R_L1 R_G1 -> fold_left_sepconx (R_G2 ++ R_FR) ⊢ Post) ->
+  Pre ⊢ Post.
+Proof.
+  intros.
+  apply construct_fold_right_sepcon_spec in H.
+  rewrite -H.
+  eapply derives_trans; [clear H2 | exact (H2 I)].
+  rewrite fold_left_sepconx_eq.
+  eapply unlocalize_aux; eauto.
+Qed.
+
+Inductive ramif_frame_gen: mpred -> mpred -> Prop :=
+| ramif_frame_gen_refl: forall P, ramif_frame_gen P P
+| ramif_frame_gen_prop: forall (Pure: Prop) P Q, Pure -> ramif_frame_gen P (⌜Pure⌝ → Q) -> ramif_frame_gen P Q
+| ramif_frame_gen_allp: forall {A: Type} (x: A) P Q, (forall x: A, ramif_frame_gen (P x) (Q x)) -> ramif_frame_gen (bi_forall P) (Q x).
+
+Lemma ramif_frame_gen_spec: forall P Q, ramif_frame_gen P Q -> P ⊢ Q.
+Proof.
+  intros.
+  induction H.
+  + apply derives_refl.
+  + rewrite IHramif_frame_gen.
+    iIntros "H"; iApply "H"; done.
+  + rewrite (bi.forall_elim x) //.
+Qed.
+
+Lemma unlocalizeQ_triple: forall R_G2 E Delta P Q R R_FR R_L1 R_G1 R_L2 F c Post w,
+  split_FRZ_in_SEP R R_L2 (FRZR R_L1 R_G1 (w := w) :: R_FR) ->
+  ramif_frame_gen F (bi_wand (fold_right_sepcon R_L2) (fold_right_sepcon R_G2)) ->
+  (exists (H: (fold_right bi_sep emp R_G1) ⊢ (fold_right bi_sep emp R_L1) ∗ F), w = Freezer.FRZRw_constr H) ->
+  (@abbreviate _ (fun _ _ => True%type) R_L1 R_G1 -> semax E Delta (PROPx P (LOCALx Q (SEPx (R_G2 ++ R_FR)))) c Post) ->
+  semax E Delta (PROPx P (LOCALx Q (SEPx R))) c Post.
+Proof.
+  intros.
+  eapply semax_pre; [clear H2 | exact (H2 I)].
+  go_lowerx.
+  apply ramif_frame_gen_spec in H0; auto.
+  eapply unlocalize_aux; eauto.
+Qed.
+
+Lemma unlocalizeQ_derives_canon: forall R_G2 Delta P Q R R_FR R_L1 R_G1 R_L2 F Post w,
+  split_FRZ_in_SEP R R_L2 (FRZR R_L1 R_G1 (w := w) :: R_FR) ->
+  ramif_frame_gen F (bi_wand (fold_right_sepcon R_L2) (fold_right_sepcon R_G2)) ->
+  (exists (H: (fold_right bi_sep emp R_G1) ⊢ (fold_right bi_sep emp R_L1) ∗ F), w = Freezer.FRZRw_constr H) ->
+  (@abbreviate _ (fun _ _ => True%type) R_L1 R_G1 -> local (tc_environ Delta) ∧ PROPx P (LOCALx Q (SEPx (R_G2 ++ R_FR))) ⊢ Post) ->
+  local (tc_environ Delta) ∧ PROPx P (LOCALx Q (SEPx R)) ⊢ Post.
+Proof.
+  intros.
+  eapply derives_trans; [clear H2 | exact (H2 I)].
+  go_lowerx.
+  apply ramif_frame_gen_spec in H0; auto.
+  eapply unlocalize_aux; eauto.
+Qed.
+
+Lemma unlocalizeQ_derives_unlift: forall R_G2 Pre R R_FR R_L1 R_G1 R_L2 F Post w,
+  construct_fold_right_sepcon Pre R ->
+  split_FRZ_in_SEP R R_L2 (FRZR R_L1 R_G1 (w := w) :: R_FR) ->
+  ramif_frame_gen F (bi_wand (fold_right_sepcon R_L2) (fold_right_sepcon R_G2)) ->
+  (exists (H: (fold_right bi_sep emp R_G1) ⊢ (fold_right bi_sep emp R_L1) ∗ F), w = Freezer.FRZRw_constr H) ->
+  (@abbreviate _ (fun _ _ => True%type) R_L1 R_G1 -> fold_left_sepconx (R_G2 ++ R_FR) ⊢ Post) ->
+  Pre ⊢ Post.
+Proof.
+  intros.
+  apply construct_fold_right_sepcon_spec in H.
+  rewrite -H.
+  eapply derives_trans; [clear H3 | exact (H3 I)].
+  apply ramif_frame_gen_spec in H1; auto.
+  rewrite fold_left_sepconx_eq.
+  eapply unlocalize_aux; eauto.
+Qed.
+
+End ramification.
 
 Ltac prove_split_FRZ_in_SEP :=
   solve [
@@ -680,51 +837,6 @@ Ltac prove_split_FRZ_in_SEP :=
     | simple apply split_FRZ_in_SEP_FRZL
     | simple apply split_FRZ_in_SEP_FRZR
     | simple apply split_FRZ_in_SEP_other]].
-
-Lemma split_FRZ_in_SEP_spec: forall R R' RF,
-  split_FRZ_in_SEP R R' RF ->
-  fold_right_sepcon R = fold_right_sepcon R' * fold_right_sepcon RF.
-Proof.
-  intros.
-  induction H.
-  + simpl.
-    rewrite sepcon_emp; auto.
-  + simpl.
-    rewrite IHsplit_FRZ_in_SEP.
-    apply pred_ext; cancel.
-  + simpl.
-    rewrite IHsplit_FRZ_in_SEP.
-    apply pred_ext; cancel.
-  + simpl.
-    rewrite IHsplit_FRZ_in_SEP.
-    apply pred_ext; cancel.
-  + simpl.
-    rewrite IHsplit_FRZ_in_SEP.
-    apply pred_ext; cancel.
-Qed.
-
-Lemma localize: forall R_L Espec {cs: compspecs} Delta P Q R R_FR R_G c Post,
-  split_FRZ_in_SEP R R_G R_FR ->
-  (let FR_L := @abbreviate _ R_L in
-   let FR_G := @abbreviate _ R_G in
-   exists  (w: FRZRw FR_L FR_G),
-  @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx (R_L ++ @FRZR FR_L FR_G w :: R_FR)))) c Post) ->
-  @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx R))) c Post.
-Proof.
-  intros.
-  destruct H0 as [? ?].
-  eapply semax_pre; [clear H0 | exact H0].
-  apply split_FRZ_in_SEP_spec in H.
-  apply andp_left2.
-  apply andp_derives; auto.
-  apply andp_derives; auto.
-  unfold SEPx; intro.
-  rewrite H.
-  rewrite fold_right_sepcon_app.
-  simpl.
-  cancel.
-  apply Freezer.FRZR1.
-Qed.
 
 Ltac unfold_app :=
 change (@app mpred)
@@ -748,73 +860,6 @@ Ltac localize R_L :=
   intros FR_L FR_G;
   eexists;
   unfold_app.
-
-Lemma unlocalize_aux: forall R_G2 R R_FR R_L1 R_G1 R_L2 F w,
-  split_FRZ_in_SEP R R_L2 (@FRZR R_L1 R_G1 w :: R_FR) ->
-  (exists (H: (fold_right_sepcon R_G1) |-- fold_right_sepcon R_L1 * F), w = @Freezer.FRZRw_constr _ _ _ H) ->
-  (F |-- fold_right_sepcon R_L2 -* fold_right_sepcon R_G2) ->
-  fold_right_sepcon R |-- fold_right_sepcon (R_G2 ++ R_FR).
-Proof.
-  intros.
-  apply split_FRZ_in_SEP_spec in H.
-  rewrite H.
-  rewrite fold_right_sepcon_app.
-  simpl.
-  cancel.
-  destruct H0 as [? ?]; subst.
-  apply Freezer.FRZR2.
-  auto.
-Qed.
-
-Lemma unlocalize_triple: forall R_G2 Espec {cs: compspecs} Delta P Q R R_FR R_L1 R_G1 R_L2 c Post w,
-  split_FRZ_in_SEP R R_L2 (@FRZR R_L1 R_G1 w :: R_FR) ->
-  (exists (H: fold_right_sepcon R_G1 |-- fold_right_sepcon R_L1 * (fold_right_sepcon R_L2 -* fold_right_sepcon R_G2)), w = @Freezer.FRZRw_constr _ _ _ H) ->
-  (@abbreviate _ (fun _ _ => True) R_L1 R_G1 -> @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx (R_G2 ++ R_FR)))) c Post) ->
-  @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx R))) c Post.
-Proof.
-  intros.
-  eapply semax_pre; [clear H1 | exact (H1 I)].
-  apply andp_left2.
-  apply andp_derives; auto.
-  apply andp_derives; auto.
-  unfold SEPx; intro.
-  eapply unlocalize_aux; eauto.
-Qed.
-
-Lemma unlocalize_derives_canon: forall R_G2 Delta P Q R R_FR R_L1 R_G1 R_L2 Post w,
-  split_FRZ_in_SEP R R_L2 (@FRZR R_L1 R_G1 w :: R_FR) ->
-  (exists (H: (fold_right_sepcon R_G1) |-- fold_right_sepcon R_L1 * (fold_right_sepcon R_L2 -* fold_right_sepcon R_G2)), w = @Freezer.FRZRw_constr _ _ _ H) ->
-  (@abbreviate _ (fun _ _ => True) R_L1 R_G1 -> local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx (R_G2 ++ R_FR))) |-- Post) ->
-  local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R)) |-- Post.
-Proof.
-  intros.
-  eapply derives_trans; [clear H1 | exact (H1 I)].
-  apply andp_derives; auto.
-  apply andp_derives; auto.
-  apply andp_derives; auto.
-  unfold SEPx; intro.
-  eapply unlocalize_aux; eauto.
-Qed.
-
-Lemma unlocalize_derives_unlift: forall R_G2 Pre R R_FR R_L1 R_G1 R_L2 Post w,
-  construct_fold_right_sepcon Pre R ->
-  split_FRZ_in_SEP R R_L2 (@FRZR R_L1 R_G1 w :: R_FR) ->
-  (exists (H: (fold_right_sepcon R_G1) |-- fold_right_sepcon R_L1 * (fold_right_sepcon R_L2 -* fold_right_sepcon R_G2)), w = @Freezer.FRZRw_constr _ _ _ H) ->
-  (@abbreviate _ (fun _ _ => True) R_L1 R_G1 -> fold_left_sepconx (R_G2 ++ R_FR) |-- Post) ->
-  Pre |-- Post.
-Proof.
-  intros.
-  apply construct_fold_right_sepcon_spec in H.
-  subst Pre.
-  eapply derives_trans; [clear H2 | exact (H2 I)].
-  rewrite fold_left_sepconx_eq.
-  eapply unlocalize_aux; eauto.
-Qed.
-
-Inductive ramif_frame_gen: mpred -> mpred -> Prop :=
-| ramif_frame_gen_refl: forall P, ramif_frame_gen P P
-| ramif_frame_gen_prop: forall (Pure: Prop) P Q, Pure -> ramif_frame_gen P (imp (prop Pure) Q) -> ramif_frame_gen P Q
-| ramif_frame_gen_allp: forall {A: Type} (x: A) P Q, (forall x: A, ramif_frame_gen (P x) (Q x)) -> ramif_frame_gen (allp P) (Q x).
 
 Ltac prove_ramif_frame_gen_rec wit :=
   match wit with
@@ -850,83 +895,19 @@ Ltac prove_ramif_frame_gen_prop assu :=
   let Pure := type of H in
     apply (ramif_frame_gen_prop Pure _ _ H).
 
-Lemma ramif_frame_gen_spec: forall P Q, ramif_frame_gen P Q -> P |-- Q.
-Proof.
-  intros.
-  induction H.
-  + apply derives_refl.
-  + apply imp_andp_adjoint in IHramif_frame_gen.
-    eapply derives_trans; [| apply IHramif_frame_gen].
-    apply andp_right; auto.
-    apply prop_right; auto.
-  + apply (allp_left _ x).
-    apply H0.
-Qed.
-
-Lemma unlocalizeQ_triple: forall R_G2 Espec {cs: compspecs} Delta P Q R R_FR R_L1 R_G1 R_L2 F c Post w,
-  split_FRZ_in_SEP R R_L2 (@FRZR R_L1 R_G1 w :: R_FR) ->
-  ramif_frame_gen F (wand (fold_right_sepcon R_L2) (fold_right_sepcon R_G2)) ->
-  (exists (H: (fold_right_sepcon R_G1) |-- sepcon (fold_right_sepcon R_L1) F), w = @Freezer.FRZRw_constr _ _ _ H) ->
-  (@abbreviate _ (fun _ _ => True) R_L1 R_G1 -> @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx (R_G2 ++ R_FR)))) c Post) ->
-  @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx R))) c Post.
-Proof.
-  intros.
-  eapply semax_pre; [clear H2 | exact (H2 I)].
-  apply andp_left2.
-  apply andp_derives; auto.
-  apply andp_derives; auto.
-  unfold SEPx; intro.
-  apply ramif_frame_gen_spec in H0; auto.
-  eapply unlocalize_aux; eauto.
-Qed.
-
-Lemma unlocalizeQ_derives_canon: forall R_G2 Delta P Q R R_FR R_L1 R_G1 R_L2 F Post w,
-  split_FRZ_in_SEP R R_L2 (@FRZR R_L1 R_G1 w :: R_FR) ->
-  ramif_frame_gen F (wand (fold_right_sepcon R_L2) (fold_right_sepcon R_G2)) ->
-  (exists (H: (fold_right_sepcon R_G1) |-- sepcon (fold_right_sepcon R_L1) F), w = @Freezer.FRZRw_constr _ _ _ H) ->
-  (@abbreviate _ (fun _ _ => True) R_L1 R_G1 -> local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx (R_G2 ++ R_FR))) |-- Post) ->
-  local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R)) |-- Post.
-Proof.
-  intros.
-  eapply derives_trans; [clear H2 | exact (H2 I)].
-  apply andp_derives; auto.
-  apply andp_derives; auto.
-  apply andp_derives; auto.
-  unfold SEPx; intro.
-  apply ramif_frame_gen_spec in H0; auto.
-  eapply unlocalize_aux; eauto.
-Qed.
-
-Lemma unlocalizeQ_derives_unlift: forall R_G2 Pre R R_FR R_L1 R_G1 R_L2 F Post w,
-  construct_fold_right_sepcon Pre R ->
-  split_FRZ_in_SEP R R_L2 (@FRZR R_L1 R_G1 w :: R_FR) ->
-  ramif_frame_gen F (wand (fold_right_sepcon R_L2) (fold_right_sepcon R_G2)) ->
-  (exists (H: (fold_right_sepcon R_G1) |-- sepcon (fold_right_sepcon R_L1) F), w = @Freezer.FRZRw_constr _ _ _ H) ->
-  (@abbreviate _ (fun _ _ => True) R_L1 R_G1 -> fold_left_sepconx (R_G2 ++ R_FR) |-- Post) ->
-  Pre |-- Post.
-Proof.
-  intros.
-  apply construct_fold_right_sepcon_spec in H.
-  subst Pre.
-  eapply derives_trans; [clear H3 | exact (H3 I)].
-  apply ramif_frame_gen_spec in H1; auto.
-  rewrite fold_left_sepconx_eq.
-  eapply unlocalize_aux; eauto.
-Qed.
-
 Ltac unlocalize_plain R_G2 :=
   match goal with
   | |- @semax _ _ _ _ _ _ _ _ _ _ =>
           eapply (unlocalize_triple R_G2)
-  | |- local (tc_environ _) && _ |-- _ =>
+  | |- local (tc_environ _) ∧ _ ⊢ _ =>
           eapply (unlocalize_derives_canon R_G2)
-  | |- @derives _ Nveric _ _ =>
+  | |- @bi_entails (iPropI _) _ _ =>
           eapply (unlocalize_derives_unlift R_G2); [construct_fold_right_sepcon | ..]
   end;
   [ prove_split_FRZ_in_SEP
   | refine (ex_intro _ _ eq_refl);
     match goal with
-    | |- fold_right_sepcon ?R_G1 |-- sepcon (fold_right_sepcon ?R_L1) _ =>
+    | |- fold_right_sepcon ?R_G1 ⊢ bi_sep (fold_right_sepcon ?R_L1) _ =>
            unfold abbreviate in R_L1, R_G1; unfold R_L1, R_G1; clear R_L1 R_G1
     end;
     rewrite <- !fold_left_sepconx_eq;
@@ -944,9 +925,9 @@ Ltac unlocalize_wit R_G2 wit tac :=
   match goal with
   | |- @semax _ _ _ _ _ _ _ _ _ _ =>
           eapply (unlocalizeQ_triple R_G2)
-  | |- local (tc_environ _) && _ |-- _ =>
+  | |- local (tc_environ _) ∧ _ ⊢ _ =>
           eapply (unlocalizeQ_derives_canon R_G2)
-  | |- @derives _ Nveric _ _ =>
+  | |- @bi_entails (iPropI _) _ _ =>
           eapply (unlocalizeQ_derives_unlift R_G2); [construct_fold_right_sepcon | ..]
   end;
   [ prove_split_FRZ_in_SEP
@@ -956,7 +937,7 @@ Ltac unlocalize_wit R_G2 wit tac :=
     prove_ramif_frame_gen wit
   | refine (ex_intro _ _ eq_refl);
     match goal with
-    | |- fold_right_sepcon ?R_G1 |-- sepcon (fold_right_sepcon ?R_L1) _ =>
+    | |- fold_right_sepcon ?R_G1 ⊢ bi_sep (fold_right_sepcon ?R_L1) _ =>
            unfold abbreviate in R_L1, R_G1; unfold R_L1, R_G1; clear R_L1 R_G1
     end;
     rewrite <- !fold_right_sepconx_eq;
@@ -991,7 +972,7 @@ end;
 pattern x;
 match goal with |- ?A x => set (a:=A) end;
 revert x;
-rewrite <- ?sepcon_assoc, sepcon_emp;
+rewrite ?bi.sep_assoc bi.sep_emp;
 intro x; subst a x y;
   unfold my_delete_list, my_delete_nth, my_nth, fold_right_sepcon.
 
@@ -1025,4 +1006,3 @@ Tactic Notation "gather_SEP" uconstr(a) uconstr(b) uconstr(c) uconstr(d) uconstr
 
 Tactic Notation "gather_SEP" uconstr(a) uconstr(b) uconstr(c) uconstr(d) uconstr(e) uconstr(f) uconstr(g) uconstr(h) uconstr(i0) :=
   gather_SEP'' (a::b::c::d::e::f::g::h::i0::nil) ||  (let i := fresh "i" in freeze i := a b c d e f g h i0; thaw'' i).
-

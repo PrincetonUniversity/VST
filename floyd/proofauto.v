@@ -41,11 +41,11 @@ Require Export VST.floyd.sc_set_load_store.
 Require Export VST.floyd.unfold_data_at.
 (* Require Export VST.floyd.globals_lemmas. *)
 Require Export VST.floyd.diagnosis.
-(* Require Export VST.floyd.freezer. *)
-(* Require Export VST.floyd.deadvars. *)
-(* Require Export VST.floyd.hints. *)
+Require Export VST.floyd.freezer.
+Require Export VST.floyd.deadvars.
+Require Export VST.floyd.hints.
 Require Export VST.floyd.Clightnotations.
-(* Require Export VST.floyd.data_at_list_solver. *)
+Require Export VST.floyd.data_at_list_solver.
 Require Export VST.floyd.data_at_lemmas.
 Require VST.floyd.linking.
 

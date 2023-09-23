@@ -291,4 +291,3 @@ Tactic Notation "deadvars" "!" :=
        fail 1 "deadvars!: Postcondition must be an abbreviated local definition (POSTCONDITION); try abbreviate_semax first"
  | |- _ => fail 1 "deadvars!: the proof goal should be a semax"
  end.
-
