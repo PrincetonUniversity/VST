@@ -26,7 +26,7 @@ Require Export VST.floyd.reptype_lemmas.
 Require Export VST.floyd.simpl_reptype.
 Require Export VST.floyd.data_at_rec_lemmas.
 Require Export VST.floyd.field_at.
-(* Require Export VST.floyd.field_at_wand. *)
+Require Export VST.floyd.field_at_wand.
 (* Require Export VST.floyd.field_compat. *)
 Require Export VST.floyd.stronger.
 Require Export VST.floyd.loadstore_mapsto.
@@ -38,7 +38,7 @@ Require Export VST.floyd.local2ptree_typecheck.
 Require Export VST.floyd.proj_reptype_lemmas.
 Require Export VST.floyd.replace_refill_reptype_lemmas.
 Require Export VST.floyd.sc_set_load_store.
-(* Require Export VST.floyd.unfold_data_at. *)
+Require Export VST.floyd.unfold_data_at.
 (* Require Export VST.floyd.globals_lemmas. *)
 Require Export VST.floyd.diagnosis.
 (* Require Export VST.floyd.freezer. *)
@@ -46,8 +46,8 @@ Require Export VST.floyd.diagnosis.
 (* Require Export VST.floyd.hints. *)
 Require Export VST.floyd.Clightnotations.
 (* Require Export VST.floyd.data_at_list_solver. *)
-(* Require Export VST.floyd.data_at_lemmas. *)
-(* Require VST.floyd.linking. *)
+Require Export VST.floyd.data_at_lemmas.
+Require VST.floyd.linking.
 
 (*funspec scope is the default, so remains open.
   Users who want to use old funspecs should 

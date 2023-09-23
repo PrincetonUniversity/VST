@@ -143,20 +143,6 @@ apply closed_wrt_map_subst. done.
 Qed.
 
 Canonical Structure valC := @leibnizO val.
-
-(* #[local] Instance val_equiv : Equiv val := eq.
-#[local] Instance val_dist : Dist val := fun n P Q => P = Q.
-Definition valMixin : OfeMixin val.
-Proof.
-  split.
-    - intros P Q; split.
-      + intros HPQ n; hnf in *; subst; auto.
-      + intros. apply H. constructor.
-    - intros n; split; auto.
-      congruence.
-    - intros n m x y ?. hnf in *. subst. auto.
-Defined.
-Canonical Structure valC := Ofe val valMixin. *)
 Definition val_valC val : valC := val.
 
 Lemma closed_wrt_subst_eval_expr:

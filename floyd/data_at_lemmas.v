@@ -21,6 +21,10 @@ Require Import VST.floyd.proj_reptype_lemmas.
 Require Import VST.floyd.replace_refill_reptype_lemmas.
 Require Import VST.floyd.unfold_data_at.
 Require Import VST.floyd.entailer.
+Require Import VST.floyd.go_lower.
+Import ListNotations.
+
+Local Unset SsrRewrite.
 
 Lemma 
   sbyte_ubyte_convert:
@@ -94,28 +98,30 @@ Qed.
 
 Module M.
 Import VST.veric.base.
-Import VST.msl.predicates_hered.
-Import VST.veric.res_predicates.
+
+Section mpred.
+
+Context `{!heapGS Σ}.
 
 Lemma address_mapsto_any_sbyte_ubyte:
  forall sh b z,
- EX v2' : val, address_mapsto Mint8signed v2' sh (b, z) =
- EX v2' : val, address_mapsto Mint8unsigned v2' sh (b, z).
+ (∃ v2' : val, address_mapsto Mint8signed v2' sh (b, z)) ⊣⊢
+ (∃ v2' : val, address_mapsto Mint8unsigned v2' sh (b, z)).
 Proof.
 intros.
-apply pred_ext;
+apply bi.equiv_entails_2;
 [pose (f := Byte.unsigned) | pose (f := Byte.signed)];
-apply exp_left; intro v;
+apply bi.exist_elim; intro v;
 pose (v' := match v with Vint j => Vint (Int.repr (f (Byte.repr (Int.unsigned j))))
   | _ => Vundef
 end);
-apply exp_right with v';
+rewrite <- (bi.exist_intro v');
 unfold address_mapsto;
-apply exp_left; intro bl; 
-apply exp_right with bl;
-apply prop_andp_left; intros [? [? ?]];
+apply bi.exist_elim; intro bl;
+rewrite <- (bi.exist_intro bl);
+apply bi.pure_elim_l; intros [? [? ?]];
 destruct bl as [| ? [|]]; try solve [inv H];
-(rewrite prop_true_andp; [auto | 
+(rewrite <- prop_and_same_derives'; [auto | 
   split3; auto; unfold decode_val in *; destruct m; subst v v' f; simpl in *; auto;
    unfold decode_int; rewrite rev_if_be_singleton; simpl; rewrite Z.add_0_r;
    f_equal; clear
@@ -148,6 +154,9 @@ rewrite if_true by lia.
 rewrite Int.testbit_repr by lia.
 reflexivity.
 Qed.
+
+End mpred.
+
 End M.
 
 Arguments deref_noload ty v / .
@@ -159,17 +168,21 @@ Arguments Z.sub !m !n.
 Arguments Z.add !x !y.
 Global Transparent peq.
 
+Section mpred.
+
+Context `{!heapGS Σ}.
+
 Lemma data_at_tarray_tschar_tuchar {cs: compspecs}:
   forall sh n bytes p,
-  data_at sh (tarray tschar n) (map Vbyte bytes) p = data_at sh (tarray tuchar n) (map Vubyte bytes) p.
+  data_at sh (tarray tschar n) (map Vbyte bytes) p ⊣⊢ data_at sh (tarray tuchar n) (map Vubyte bytes) p.
 Proof.
 intros.
 unfold data_at, field_at.
-f_equal.
-f_equal.
+f_equiv.
+f_equiv.
 unfold field_compatible.
 simpl.
-apply prop_ext; intuition; destruct p; auto;
+intuition; destruct p; auto;
 hnf in H2|-*;
 apply align_compatible_rec_Tarray; intros;
 apply align_compatible_rec_Tarray_inv with (i:=i0) in H2; auto;
@@ -197,13 +210,13 @@ unfold mapsto; simpl.
 if_tac; auto.
 -
 simpl.
-f_equal; auto; [f_equal; auto | ].
+f_equiv; auto; [f_equiv; auto | ].
 +
-f_equal.
+f_equiv.
 destruct (zlt i (Zlength bytes)).
 rewrite !Znth_map by lia.
 simpl.
-apply prop_ext; split; intro; 
+split; intro; 
 autorewrite with norm norm1 norm2; rep_lia.
 rewrite !Znth_overflow by (autorewrite with sublist; auto).
 reflexivity.
@@ -213,20 +226,18 @@ destruct (zlt i (Zlength bytes)).
 2:
  rewrite !Znth_overflow by (autorewrite with sublist; auto);
  unfold res_predicates.address_mapsto; simpl;
- f_equal;
- extensionality bl;
- f_equal; f_equal;
- apply prop_ext; intuition;
+ f_equiv; intros bl;
+ f_equiv; f_equiv;
+ intuition;
  destruct bl as [| ? [|]]; inv H3;
  destruct m; inv H; reflexivity.
 autorewrite with sublist.
 forget (Znth i bytes) as c.
 unfold res_predicates.address_mapsto; simpl.
-f_equal.
-extensionality bl.
-f_equal.
-f_equal.
- apply prop_ext; intuition;
+f_equiv; intros bl.
+f_equiv.
+f_equiv.
+intuition;
  destruct bl as [| ? [|]]; inv H3;
  destruct m; try solve [inv H];
  unfold decode_val, proj_bytes in *;
@@ -239,34 +250,30 @@ simpl in H|-*;
 rewrite Z.add_0_r in *;
 apply sbyte_ubyte_convert; auto.
 +
-f_equal; auto.
-f_equal.
+f_equiv; auto.
+f_equiv.
 repeat change (unfold_reptype ?A) with A.
 destruct (zlt i (Zlength bytes)).
 autorewrite with sublist.
-apply prop_ext; split; intro Hx; inv Hx.
+split; intro Hx; inv Hx.
 rewrite !Znth_overflow by (autorewrite with sublist; auto).
-apply prop_ext; split; intro; reflexivity.
+split; intro; reflexivity.
 clear.
 forget (Ptrofs.unsigned i0) as z.
 apply M.address_mapsto_any_sbyte_ubyte.
 -
-f_equal.
-f_equal.
-f_equal.
+f_equiv.
+f_equiv.
+f_equiv.
 unfold tc_val'.
 destruct (zlt i (Zlength bytes)).
 autorewrite with sublist.
-apply prop_ext; split; intros.
+split; intros.
 red. simpl. normalize. rep_lia.
 red. simpl. normalize. rep_lia.
 rewrite !Znth_overflow by (autorewrite with sublist; auto).
-apply prop_ext; split; intros; contradiction H2; auto.
+split; intros; contradiction H2; auto.
 Qed.
-
-Require Import VST.msl.iter_sepcon.
-Require Import VST.floyd.go_lower.
-Import ListNotations.
 
 Section ArrayPointer.
 
@@ -484,7 +491,7 @@ Qed.
 
 (*We can consider an instance of t at position p to be a valid array of length 1 at p*)
 Lemma data_at_array_len_1: forall sh t a p,
-data_at sh t a p |-- !! field_compatible (tarray t 1) [] p.
+data_at sh t a p ⊢ ⌜field_compatible (tarray t 1) [] p⌝.
 Proof.
   intros. erewrite <- data_at_singleton_array_eq. 2: reflexivity. entailer!.
 Qed.
@@ -563,14 +570,15 @@ Lemma data_at_2darray_concat : forall sh t n m (al : list (list (reptype t))) p,
   Forall (fun l => Zlength l = m) al ->
   complete_legal_cosu_type t = true ->
   data_at sh (tarray (tarray t m) n) al p
-    = data_at sh (tarray t (n * m)) (concat al) p.
+    ⊣⊢ data_at sh (tarray t (n * m)) (concat al) p.
 Proof.
   intros.
   generalize dependent n; generalize dependent p; induction al; intros.
-  - simpl. replace n with 0 by list_solve. rewrite Z.mul_0_l. 
-    apply pred_ext; entailer!; rewrite !data_at_zero_array_eq; auto.
+  - simpl. replace n with 0 by list_solve. rewrite Z.mul_0_l.
+    apply bi.equiv_entails_2; entailer!; rewrite ?data_at_zero_array_eq; auto;
+      apply isptr_field_compatible0_tarray; auto.
   - rewrite Zlength_cons in H. simpl. assert (Hmlen: Zlength a = m) by (inversion H0; subst; reflexivity).
-    apply pred_ext.
+    apply bi.equiv_entails_2.
     + (*We will need these later, when we have transformed the [data_at] predicates, so they are harder to prove*)
       assert_PROP (field_compatible (tarray (tarray t m) (Z.succ (Zlength al))) [] p). { entailer!. }
       assert_PROP (field_compatible0 (tarray (tarray t m) n) (SUB 1) p). { entailer!.
@@ -621,22 +629,29 @@ Qed.
   are described by contents - a 2D array with possibly different lengths.
   This definition applies to byte arrays (so we don't need to worry about offsets), but it
   could be extended. *)
-Definition iter_sepcon_arrays (ptrs : list val) (contents: list (list byte)) := 
-  iter_sepcon (fun (x: (list byte * val)) => let (l, ptr) := x in 
-            data_at Ews (tarray tuchar (Zlength l)) (map Vubyte l) ptr) (combine contents ptrs).
+Definition iter_sepcon_arrays (ptrs : list val) (contents: list (list byte)) :=
+  [∗ list] '(l, ptr) ∈ combine contents ptrs, data_at Ews (tarray tuchar (Zlength l)) (map Vubyte l) ptr.
+
+(* up? *)
+Lemma Znth_lookup : forall {A} {I : Inhabitant A} (l : list A) i, 0 <= i < Zlength l -> (l !! (Z.to_nat i))%stdpp = Some (Znth i l).
+Proof.
+  intros.
+  destruct (nth_lookup_or_length l (Z.to_nat i) default) as [-> |].
+  - rewrite nth_Znth', Z2Nat.id; tauto.
+  - rewrite Zlength_correct in *; lia.
+Qed.
 
 Lemma iter_sepcon_arrays_Znth: forall ptrs contents i,
   Zlength ptrs = Zlength contents ->
   0 <= i < Zlength contents ->
-  iter_sepcon_arrays ptrs contents |-- 
-    data_at Ews (tarray tuchar (Zlength (Znth i contents))) (map Vubyte (Znth i contents)) (Znth i ptrs) * TT.
+  iter_sepcon_arrays ptrs contents ⊢ 
+    data_at Ews (tarray tuchar (Zlength (Znth i contents))) (map Vubyte (Znth i contents)) (Znth i ptrs) ∗ True.
 Proof.
-  intros ptrs contents i Hlen Hi. unfold iter_sepcon_arrays. 
-  sep_apply (iter_sepcon_in_true (fun x : list byte * val => let (l, ptr) := x in 
-    data_at Ews (tarray tuchar (Zlength l)) (map Vubyte l) ptr) (combine contents ptrs) 
-    (Znth i contents, Znth i ptrs)); [|cancel].
-  rewrite In_Znth_iff. exists i. split. rewrite Zlength_combine; lia.
-  apply Znth_combine; lia.
+  intros ptrs contents i Hlen Hi. unfold iter_sepcon_arrays.
+  rewrite (big_sepL_lookup_acc _ _ (Z.to_nat i)).
+  2: { apply Znth_lookup; rewrite Zlength_combine; lia. }
+  rewrite Znth_combine by done.
+  cancel.
 Qed.
 
 Lemma remove_lead_eq: forall {A: Type} (P: Prop) (x: A),
@@ -646,25 +661,18 @@ Proof.
 Qed.
 
 Lemma iter_sepcon_arrays_local_facts: forall ptrs contents,
-  iter_sepcon_arrays ptrs contents |-- !! (Zlength ptrs = Zlength contents -> 
+  iter_sepcon_arrays ptrs contents ⊢ ⌜Zlength ptrs = Zlength contents -> 
         forall i, 0 <= i < Zlength contents ->
          field_compatible (tarray tuchar (Zlength (Znth i contents))) [] (Znth i ptrs) /\
-         Forall (value_fits tuchar) (map Vubyte (Znth i contents))).
+         Forall (value_fits tuchar) (map Vubyte (Znth i contents))⌝.
 Proof.
-  intros ptrs contents. 
-  assert (Zlength ptrs = Zlength contents \/ Zlength ptrs <> Zlength contents) as [Heq | Hneq] by lia; 
-  [ | entailer!]. rewrite Heq, remove_lead_eq. eapply derives_trans. 2:
-  apply (@allp_prop_left _ _ Z (fun (i: Z) => 0 <= i < Zlength contents ->
-        field_compatible (tarray tuchar (Zlength (Znth i contents))) [] (Znth i ptrs) /\
-        Forall (value_fits tuchar) (map Vubyte (Znth i contents)))).
-  apply allp_right. intros i.
-  (*This is not particularly elegant; is there a way to get an implication out directly?*)
-  assert (0 <= i < Zlength contents \/ ~ (0 <= i < Zlength contents)) as [Hlt | Hgt] by lia; [| entailer ].
-  sep_apply (iter_sepcon_arrays_Znth _ _ _ Heq Hlt).
-  assert (forall m (P : Type) Q, P -> (m |-- !! Q) -> (m |-- !! (P -> Q))). { intros. sep_apply H. entailer!. }
-  apply H. assumption. entailer!.
+  intros ptrs contents.
+  iIntros "?" (???).
+  rewrite iter_sepcon_arrays_Znth by done.
+  iStopProof. entailer!.
 Qed.
 
+(*
 (*We would also like another, more general fact. For [iter_sepcon] that gives an mpred 
   as well as [iter_sepcon_arrays]), we can remove
   the nth element and keep the rest*)
@@ -680,7 +688,7 @@ Proof.
   intros B Hinhab p l n Hn. unfold remove_nth. rewrite <- (sublist_same 0 (Zlength l) l) at 1 by auto.
   rewrite (sublist_split 0 n (Zlength l) l) by lia.
   rewrite (sublist_split n (n+1) (Zlength l) l) by lia. rewrite !iter_sepcon_app.
-  rewrite sublist_len_1 by lia. simpl. apply pred_ext; cancel.
+  rewrite sublist_len_1 by lia. simpl. apply bi.equiv_entails_2; cancel.
 Qed.
 
 Lemma combine_sublist: forall {A B: Type} `{Inhabitant A} `{Inhabitant B} (lo hi : Z) (l1 : list A) (l2: list B),
@@ -719,7 +727,7 @@ Proof.
   intros ptrs contents i Hlens Hi. unfold iter_sepcon_arrays. rewrite (iter_sepcon_remove_one _ _ i).
   rewrite Znth_combine by auto. f_equal. rewrite combine_remove_nth by lia. reflexivity.
   rewrite Zlength_combine; lia.
-Qed.
+Qed.*)
 
 End ArrayPointer.
 
@@ -730,20 +738,6 @@ Section DataAtNumeric.
 Context `{cs: compspecs}.
 
 (*Helper lemmas*)
-Lemma exp_equiv: forall {A} (f: A -> predicates_hered.pred compcert_rmaps.RML.R.rmap),
-  exp f = predicates_hered.exp f.
-Proof.
-  intros. reflexivity.
-Qed.
-
-Lemma andp_pull1:
-  forall P (A C: predicates_hered.pred compcert_rmaps.RML.R.rmap), predicates_hered.andp (predicates_hered.andp (predicates_hered.prop P) A) C =
-                 predicates_hered.andp (predicates_hered.prop P)  (predicates_hered.andp A C).
-Proof.
-intros.
-apply predicates_hered.andp_assoc.
-Qed.
-
 Lemma decode_int_single: forall (b: byte),
   decode_int [b] = Byte.unsigned b.
 Proof.
@@ -815,7 +809,7 @@ apply int_of_bytes_inj in H0; auto.
 Qed.
 
 (** Convert between 4 bytes and int *)
-Lemma address_mapsto_4bytes_aux: 
+(*Lemma address_mapsto_4bytes_aux: 
  forall (sh : Share.t)
    (b0 b1 b2 b3 : byte)
    (b : block) (i : ptrofs)
@@ -1088,7 +1082,7 @@ res_predicates.address_mapsto Mint32
 Proof.
 intros.
       unfold res_predicates.address_mapsto. rewrite <- !exp_equiv.
-      apply predicates_hered.pred_ext.
+      apply predicates_hered.bi.equiv_entails_2.
   - repeat change (exp ?A) with (predicates_hered.exp A).
       normalize.normalize.
       intros bl3 [A3 [B3 _]] bl2 bl1 bl0.
@@ -1105,7 +1099,7 @@ intros.
      destruct c2; try discriminate H2.
      destruct c3; try discriminate H3.
    apply decode_val_Vubyte_inj in H0,H1,H2,H3. subst.
-   apply (predicates_hered.exp_right [Byte b0; Byte b1; Byte b2; Byte b3]).
+   apply (predicates_hered.bi.exist_intro [Byte b0; Byte b1; Byte b2; Byte b3]).
      rewrite predicates_hered.prop_true_andp.
       2:{ split3. reflexivity. reflexivity. apply AL. }
   match goal with |- predicates_hered.derives ?A ?B => 
@@ -1130,13 +1124,13 @@ intros.
        apply repr_inj_unsigned in H0; try rep_lia.
         apply decode_int_inj in H0.
       clear H H2. inv H0.
-     apply predicates_hered.exp_right with [Byte b3].
+     apply predicates_hered.bi.exist_intro with [Byte b3].
       normalize.normalize.
-     apply predicates_hered.exp_right with [Byte b2].
+     apply predicates_hered.bi.exist_intro with [Byte b2].
       normalize.normalize.
-     apply predicates_hered.exp_right with [Byte b1].
+     apply predicates_hered.bi.exist_intro with [Byte b1].
       normalize.normalize.
-     apply predicates_hered.exp_right with [Byte b0].
+     apply predicates_hered.bi.exist_intro with [Byte b0].
      rewrite !predicates_hered.prop_true_andp by 
      (split3; [ reflexivity |  | apply Z.divide_1_l  ];
      unfold decode_val, Vubyte; simpl; f_equal;
@@ -1346,7 +1340,7 @@ predicates_sl.sepcon (res_predicates.address_mapsto Mint8unsigned (Vubyte b0) sh
                                                               (b, Ptrofs.unsigned i).
 Proof.
   intros. unfold res_predicates.address_mapsto. rewrite <- !exp_equiv.
-  apply predicates_hered.pred_ext.
+  apply predicates_hered.bi.equiv_entails_2.
   - repeat change (exp ?A) with (predicates_hered.exp A).
     normalize.normalize.
     intros bl1 [A1 [B1 _]] bl0.
@@ -1357,7 +1351,7 @@ Proof.
     destruct c0; try discriminate.
     destruct c1; try discriminate.
     apply decode_val_Vubyte_inj in H0,H1. subst.
-    apply (predicates_hered.exp_right [Byte b0; Byte b1]).
+    apply (predicates_hered.bi.exist_intro [Byte b0; Byte b1]).
     rewrite predicates_hered.prop_true_andp.
     2:{ split3. reflexivity. unfold decode_val. simpl.
         f_equal. apply zero_ext_16. 
@@ -1384,9 +1378,9 @@ Proof.
    apply repr_inj_unsigned in H0; try rep_lia.
     apply decode_int_inj in H0.
    clear H H2. inv H0.
-  apply predicates_hered.exp_right with [Byte b1].
+  apply predicates_hered.bi.exist_intro with [Byte b1].
   normalize.normalize.
-  apply predicates_hered.exp_right with [Byte b0].
+  apply predicates_hered.bi.exist_intro with [Byte b0].
   rewrite !predicates_hered.prop_true_andp by 
  (split3; [ reflexivity |  | apply Z.divide_1_l  ];
  unfold decode_val, Vubyte; simpl; f_equal;
@@ -1495,7 +1489,7 @@ Proof.
        rewrite !prop_true_andp.
       2 : split; auto; hnf; intros; apply tc_val_short.
       apply nonlock_permission_2bytes; auto.
-Qed.
+Qed.*)
 
 End DataAtNumeric.
 
@@ -1506,7 +1500,7 @@ Lemma field_at_values_cohere {cs:compspecs}:
        value_defined (nested_field_type t gfs) v1 ->
        value_defined (nested_field_type t gfs) v2 ->
     readable_share sh1 -> readable_share sh2 ->
-   field_at sh1 t gfs v1 p * field_at sh2 t gfs v2 p |-- !!(v1=v2).
+   field_at sh1 t gfs v1 p ∗ field_at sh2 t gfs v2 p ⊢ ⌜v1=v2⌝.
 Proof. intros.
   unfold field_at, at_offset; Intros.
   destruct H3 as [? _]. destruct p; try contradiction.
@@ -1520,9 +1514,9 @@ Lemma data_at_values_cohere {cs:compspecs}:
        value_defined t v1 ->
        value_defined t v2 ->
     readable_share sh1 -> readable_share sh2 ->
-   data_at sh1 t v1 p * data_at sh2 t v2 p |-- !!(v1=v2).
+   data_at sh1 t v1 p ∗ data_at sh2 t v2 p ⊢ ⌜v1=v2⌝.
 Proof. intros.
   apply field_at_values_cohere; auto.
 Qed.
 
-
+End mpred.

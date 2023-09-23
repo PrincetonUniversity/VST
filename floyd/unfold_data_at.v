@@ -6,8 +6,6 @@ Require Import VST.floyd.field_at.
 Require Import VST.floyd.mapsto_memory_block.
 Opaque alignof.
 
-Local Open Scope logic.
-
 (* This is not well developed or well tested yet, but it does
    get through all the Travis tests 11/10/17 *)
 Ltac unfold_field_at' :=
@@ -24,13 +22,13 @@ Ltac unfold_field_at' :=
      assert (Heq: nested_field_type T gfs = Tstruct id noattr)
            by (unfold id,T; reflexivity);
      let H := fresh in
-     assert (H:= @field_at_Tstruct cs sh T gfs id noattr
+     assert (H:= field_at_Tstruct(cs := cs) sh T gfs id noattr
                           V V P  (eq_refl _) (JMeq_refl _));
      unfold id in H; clear Heq id;
      fold F in H; clearbody F;
      simpl co_members in H;
      lazy beta iota zeta delta  [nested_sfieldlist_at ] in H;
-     change (@field_at cs sh T) with (@field_at cs sh t) in H;
+     change (field_at(cs := cs) sh T) with (field_at(cs := cs) sh t) in H;
      hnf in T; subst T;
      change v with (protect _ v) in V;
      simpl in H;
@@ -49,7 +47,7 @@ Ltac unfold_field_at' :=
  | |- context [field_at_mark ?cs ?sh ?t ?gfs ?v ?p] =>
      let F := fresh "F" in
        set (F := field_at_mark cs sh t gfs v p);
-       change field_at_mark with @field_at in F;
+       change field_at_mark with (field_at(cs := cs)) in F;
      let V := fresh "V" in set (V:=v) in F;
      let P := fresh "P" in set (P:=p) in F;
      let T := fresh "T" in set (T:=t) in F;
@@ -58,13 +56,13 @@ Ltac unfold_field_at' :=
      assert (Heq: nested_field_type T gfs = Tunion id noattr)
            by (unfold id,T; reflexivity);
      let H := fresh in
-     assert (H:= @field_at_Tunion cs sh T gfs id noattr
+     assert (H:= field_at_Tunion(cs := cs) sh T gfs id noattr
                           V V P  (eq_refl _) (JMeq_refl _));
      unfold id in H; clear Heq id;
      fold F in H; clearbody F;
      simpl co_members in H;
      lazy beta iota zeta delta  [nested_ufieldlist_at ] in H;
-     change (@field_at cs sh T) with (@field_at cs sh t) in H;
+     change (field_at(cs := cs) sh T) with (field_at(cs := cs) sh t) in H;
      hnf in T; subst T;
      change v with (protect _ v) in V;
      simpl in H;
@@ -104,18 +102,18 @@ Tactic Notation "unfold_data_at" uconstr(a) :=
   lazymatch goal with
   | x := ?D : mpred |- _ =>
     match D with
-     | (@data_at_ ?cs ?sh ?t ?p) =>
-            change D with (@field_at_mark cs sh t (@nil gfield) (@default_val cs (@nested_field_type cs t nil)) p) in x
-     | (@data_at ?cs ?sh ?t ?v ?p) =>
-            change D with (@field_at_mark cs sh t (@nil gfield) v p) in x
-     | (@field_at_ ?cs ?sh ?t ?gfs ?p) =>
-            change D with (@field_at_mark cs sh t gfs (@default_val cs (@nested_field_type cs t gfs)) p) in x
-     | (@field_at ?cs ?sh ?t ?gfs ?v ?p) =>
-            change D with (@field_at_mark cs sh t gfs v p) in x
+     | (@data_at_ _ _ ?cs ?sh ?t ?p) =>
+            change D with (field_at_mark cs sh t (@nil gfield) (@default_val cs (@nested_field_type cs t nil)) p) in x
+     | (@data_at _ _ ?cs ?sh ?t ?v ?p) =>
+            change D with (field_at_mark cs sh t (@nil gfield) v p) in x
+     | (@field_at_ _ _ ?cs ?sh ?t ?gfs ?p) =>
+            change D with (field_at_mark cs sh t gfs (@default_val cs (@nested_field_type cs t gfs)) p) in x
+     | (@field_at _ _ ?cs ?sh ?t ?gfs ?v ?p) =>
+            change D with (field_at_mark cs sh t gfs v p) in x
      end;
         subst x;  unfold_field_at';
-   repeat match goal with |- context [@field_at ?cs ?sh ?t ?gfs (@default_val ?cs' ?t') ?p] => 
-       change (@field_at cs sh t gfs (default_val cs' t') p) with (@field_at_ cs sh t gfs p)
+   repeat match goal with |- context [field_at _ _ ?cs ?sh ?t ?gfs (@default_val ?cs' ?t') ?p] => 
+       change (@field_at _ _ cs sh t gfs (default_val cs' t') p) with (@field_at_ _ _ cs sh t gfs p)
     end
 end).
 
@@ -126,4 +124,3 @@ Tactic Notation "unfold_field_at" uconstr(a) :=
      let x := constr:(a) in unfold_field_at_tac x
    )
  else unfold_data_at a.
-
