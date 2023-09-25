@@ -1783,16 +1783,12 @@ intros. eapply derives_trans; try eassumption; auto.
 Qed.
 
 Ltac quick_typecheck3 :=
- clear;
- repeat match goal with
- | H := _ |- _ => clear H
- | H : _ |- _ => clear H
- end;
- apply quick_derives_right; clear; go_lowerx; intros;
- clear; repeat apply andp_right; auto; fail.
+  (* do not clear hyps anymore!  See issue #772 *)
+ apply quick_derives_right; go_lowerx; intros;
+ repeat apply andp_right; auto; fail.
 
 Ltac default_entailer_for_load_store :=
-  repeat match goal with H := _ |- _ => clear H end;
+  (* Don't clear!  See issue #772 repeat match goal with H := _ |- _ => clear H end; *)
   try quick_typecheck3;
   unfold tc_efield, tc_LR, tc_LR_strong; simpl typeof;
   try solve [entailer!].
