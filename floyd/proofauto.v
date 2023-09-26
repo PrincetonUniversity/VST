@@ -9,9 +9,9 @@ Require Export VST.floyd.compare_lemmas.
 Require Export VST.floyd.semax_tactics.
 Require Export VST.floyd.entailer.
 Require Export VST.floyd.forward. (* must come after entailer because of Ltac override *)
-(* Require Export VST.floyd.step. *)
-(* Require Export VST.floyd.fastforward. *)
-(* Require Export VST.floyd.finish. *)
+Require Export VST.floyd.step.
+Require Export VST.floyd.fastforward.
+Require Export VST.floyd.finish.
 Require Export VST.floyd.subsume_funspec.
 Require Export VST.floyd.call_lemmas.
 Require Export VST.floyd.forward_lemmas.
@@ -27,7 +27,7 @@ Require Export VST.floyd.simpl_reptype.
 Require Export VST.floyd.data_at_rec_lemmas.
 Require Export VST.floyd.field_at.
 Require Export VST.floyd.field_at_wand.
-(* Require Export VST.floyd.field_compat. *)
+Require Export VST.floyd.field_compat.
 Require Export VST.floyd.stronger.
 Require Export VST.floyd.loadstore_mapsto.
 Require Export VST.floyd.loadstore_field_at.
