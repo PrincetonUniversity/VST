@@ -30,7 +30,7 @@ Require Import VST.floyd.for_lemmas.
 Require Import VST.floyd.diagnosis.
 Require Import VST.floyd.simpl_reptype.
 Require Import VST.floyd.nested_pred_lemmas.
-(* Require Import VST.floyd.freezer. *)
+Require Import VST.floyd.freezer.
 Import Cop.
 Import Cop2.
 Import Clight_Cop2.
@@ -1393,7 +1393,7 @@ lazymatch goal with
                                        (Sset _ (Ecast (Etempvar ?ret'2 _) _))) _) _ =>
        unify ret' ret'2;
        eapply semax_seq';
-         [prove_call_setup ts subsumes witness;
+         [prove_call_setup (*ts*) subsumes witness;
           clear_Delta_specs; clear_MORE_POST;
              [ .. | forward_call_id1_x_wow ]
          |  after_forward_call ]
@@ -1401,14 +1401,14 @@ lazymatch goal with
                                        (Sset _ (Etempvar ?ret'2 _))) _) _ =>
        unify ret' ret'2;
        eapply semax_seq';
-         [prove_call_setup ts subsumes witness;
+         [prove_call_setup (*ts*) subsumes witness;
           clear_Delta_specs; clear_MORE_POST;
              [ .. | forward_call_id1_y_wow ]
          |  after_forward_call ]
-| |- _ => rewrite <- seq_assoc; fwd_call' ts subsumes witness
+| |- _ => rewrite <- seq_assoc; fwd_call' (*ts*) subsumes witness
 end.
 
-Ltac fwd_call_dep ts subsumes witness :=
+Ltac fwd_call_dep (*ts*) subsumes witness :=
  try lazymatch goal with
       | |- semax _ _ _ (Scall _ _ _) _ => rewrite -> semax_seq_skip
       end;
@@ -1418,18 +1418,18 @@ Ltac fwd_call_dep ts subsumes witness :=
  end;
 lazymatch goal with |- semax _ ?Delta _ (Ssequence ?C _) _ =>
   lazymatch C with context [Scall _ _ _] =>
-         fwd_call' ts subsumes witness
+         fwd_call' (*ts*) subsumes witness
     end
 end.
 
-Tactic Notation "forward_call" constr(ts) constr(subsumes) constr(witness) :=
-    fwd_call_dep ts subsumes witness.
+(*Tactic Notation "forward_call" constr(ts) constr(subsumes) constr(witness) :=
+    fwd_call_dep ts subsumes witness.*)
 
 Tactic Notation "forward_call" constr(witness) :=
-    fwd_call_dep (@nil Type) funspec_sub_refl witness.
+    fwd_call_dep (*(@nil Type)*) funspec_sub_refl witness.
 
 Tactic Notation "forward_call" constr(subsumes) constr(witness) := 
-  fwd_call_dep (@nil Type) subsumes witness.
+  fwd_call_dep (*(@nil Type)*) subsumes witness.
 
 Ltac tuple_evar2 name T cb evar_tac :=
   lazymatch T with
@@ -1441,9 +1441,8 @@ Ltac tuple_evar2 name T cb evar_tac :=
   end; idtac.
 
 Ltac get_function_witness_type func :=
- let TA := constr:(functors.MixVariantFunctor._functor
-     (rmaps.dependent_type_functor_rec nil func) mpred) in
-  let TA' := eval cbv 
+ let TA := constr:(dtfr func) in
+  let TA' := (*eval cbv 
      [functors.MixVariantFunctor._functor
       functors.MixVariantFunctorGenerator.fpair
       functors.MixVariantFunctorGenerator.fconst
@@ -1457,7 +1456,7 @@ Ltac get_function_witness_type func :=
       functors.GeneralFunctorGenerator.CovariantFunctor_MixVariantFunctor
       functors.CovariantFunctor._functor
       functors.MixVariantFunctor.fmap
-      ] in TA
+      ] in*) TA
  in let TA'' := eval simpl in TA'
  in TA''.
 
@@ -1466,7 +1465,7 @@ Ltac new_prove_call_setup :=
  [ .. | 
  match goal with |- call_setup1 _ _ _ _ _ _ _ _ _ _ _ _ _ ?A _ _ _ _ _ _ -> _ =>
       let x := fresh "x" in tuple_evar2 x ltac:(get_function_witness_type A)
-      ltac:(prove_call_setup_aux (@nil Type))
+      ltac:(prove_call_setup_aux (*(@nil Type)*))
       ltac:(fun _ => try refine tt; fail "Failed to infer some parts of witness")
  end].
 
@@ -1522,7 +1521,7 @@ lazymatch goal with |- semax _ ?Delta _ (Ssequence ?C _) _ =>
 end.
 
 Tactic Notation "forward_call"  := new_fwd_call.
-*)
+
 Lemma seq_assoc2:
   forall `{heapGS0: heapGS Σ} (Espec : OracleKind) `{!externalGS OK_ty Σ} {cs: compspecs}
     E Delta P c1 c2 c3 c4 Q,
@@ -2315,7 +2314,6 @@ Ltac check_type_forward_for_simple_bound :=
          end
      end.
 
-(* FIXME depend on for_lemmas 
 Ltac forward_for_simple_bound n Pre :=
   check_Delta; check_POSTCONDITION;
  repeat match goal with |-
@@ -2379,7 +2377,7 @@ Ltac forward_for3 Inv PreInc Postcond :=
        | abbreviate_semax;
          repeat (apply semax_extract_PROP; fancy_intro true)
       ].
-*)
+
 Fixpoint no_breaks (s: statement) : bool :=
  match s with
  | Sbreak => false
@@ -2654,8 +2652,6 @@ Tactic Notation "forward_loop" constr(Inv) "break:" constr(Post) :=
   else (check_no_incr c; forward_loop Inv continue: Inv break: Post)
  end.
 
-(* FIXME depend on previous tactics about forward_for *)
-(* 
 Tactic Notation "forward_for" constr(Inv) "continue:" constr(PreInc) :=
   check_Delta; check_POSTCONDITION;
   repeat simple apply seq_assoc1;
@@ -2670,7 +2666,7 @@ Tactic Notation "forward_for" constr(Inv) "continue:" constr(PreInc) :=
   lazymatch goal with
   | |- semax _ _ _ (Ssequence (Sfor _ _ _ _) _) _ =>
       apply -> seq_assoc;
-      apply semax_seq' with (bi_exist Inv); abbreviate_semax;
+      apply semax_seq' with (∃ x:_, Inv x); abbreviate_semax;
       [  | eapply semax_seq; 
          [ forward_for2 Inv PreInc 
           | abbreviate_semax;
@@ -2681,13 +2677,13 @@ Tactic Notation "forward_for" constr(Inv) "continue:" constr(PreInc) :=
             do_repr_inj HRE]
    ]
   | |- semax _ _ _ (Sfor _ _ _ _) ?Post =>
-      apply semax_seq' with (bi_exist Inv); abbreviate_semax;
+      apply semax_seq' with (∃ x:_, Inv x); abbreviate_semax;
       [  | forward_for3 Inv PreInc Post]
   | |- semax _ _ _ (Sloop (Ssequence (Sifthenelse _ Sskip Sbreak) _) _) ?Post =>
-     apply semax_pre with (bi_exist Inv);
+     apply semax_pre with (∃ x:_, Inv x);
       [  | forward_for3 Inv PreInc Post]
   | |- semax _ _ _ (Sloop (Ssequence (Sifthenelse _ Sskip Sbreak) _) _) _ =>
-     apply semax_pre with (bi_exist Inv);
+     apply semax_pre with (∃ x:_, Inv x);
       [ unfold_function_derives_right | forward_for2 Inv PreInc ]
   | |- _ => fail "forward_for2x cannot recognize the loop"
   end.
@@ -2710,10 +2706,10 @@ Tactic Notation "forward_for" constr(Inv) "continue:" constr(PreInc) "break:" co
   lazymatch goal with
   | |- semax _ _ _ (Ssequence (Sfor _ _ _ _) _) _ =>
       apply -> seq_assoc;
-      apply semax_seq' with (exp Inv); abbreviate_semax;
+      apply semax_seq' with (∃ x:_, Inv x); abbreviate_semax;
       [  | forward_for3 Inv PreInc Postcond]
   | |- semax _ _ _ (Sloop (Ssequence (Sifthenelse _ Sskip Sbreak) _) _) _ =>
-     apply semax_pre with (exp Inv);
+     apply semax_pre with (∃ x:_, Inv x);
       [ unfold_function_derives_right | forward_for3 Inv PreInc Postcond ]
   end.
 
@@ -2727,14 +2723,14 @@ forward_for Inv continue: PreInc (* where Inv,PreInc are predicates on index val
 forward_for Inv continue: PreInc break:Post (* where Post: environ->mpred is an assertion *)".
 
 Lemma semax_convert_for_while:
- forall CS Espec E Delta Pre s1 e2 s3 s4 Post,
+ forall `{!heapGS Σ} {CS: compspecs} {Espec: OracleKind} `{!externalGS OK_ty Σ} E Delta Pre s1 e2 s3 s4 Post,
   nocontinue s4 = true ->
   nocontinue s3 = true ->
   semax E Delta Pre (Ssequence s1 (Swhile e2 (Ssequence s4 s3))) Post ->
   semax E Delta Pre (Sfor s1 e2 s4 s3) Post.
 Proof.
 intros.
-pose proof (semax_convert_for_while' CS Espec Delta Pre s1 e2 s3 s4 Sskip Post H).
+pose proof (semax_convert_for_while' E Delta Pre s1 e2 s3 s4 Sskip Post H).
 spec H2; auto.
 apply -> semax_seq_skip in H1; auto.
 apply seq_assoc in H1; auto.
@@ -2755,19 +2751,19 @@ Tactic Notation "forward_for" constr(Inv) :=
              [(reflexivity ||
                  fail "Your for-loop has a continue statement, so your forward_for needs a continue: clause")
                | (reflexivity || fail "Unexpected continue statement in for-loop increment")
-               | apply semax_seq' with (exp Inv);
+               | apply semax_seq' with (∃ x:_, Inv x);
                    [  |  forward_while (∃ x:_, Inv x); [ apply ENTAIL_refl | | |  ]  ] ]
   | |- semax _ _ _ (Sfor _ _ _ _) _ =>
         apply semax_convert_for_while;
              [(reflexivity ||
                  fail "Your for-loop has a continue statement, so your forward_for needs a continue: clause")
                | (reflexivity || fail "Unexpected continue statement in for-loop increment")
-               | apply semax_seq' with (exp Inv);
+               | apply semax_seq' with (∃ x:_, Inv x);
                    [  |  forward_while (∃ x:_, Inv x);
                              [ apply ENTAIL_refl | | | eapply semax_post_flipped'; [apply semax_skip | ] ]  ] ]
         
   end.
-*)
+
 Ltac process_cases sign := 
 match goal with
 | |- semax _ _ _ (seq_of_labeled_statement 
@@ -5081,7 +5077,7 @@ Tactic Notation "assert_after" constr(n) constr(PQR) :=
   in  apply (semax_unfold_Ssequence c); [reflexivity | ]
  end;
  apply semax_seq' with PQR; abbreviate_semax.
-(* FIXME subsume funspec.v & entailer.v
+
 Ltac do_funspec_sub :=
 intros;
 apply NDsubsume_subsume;
@@ -5094,5 +5090,4 @@ Ltac do_funspec_sub_nonND :=
    split; 
    [ split; try reflexivity 
    | intros ts w; simpl in w; intros [g args]; Intros;
-      fold (@rmaps.dependent_type_functor_rec ts) in * ].
-*)
+      fold (dtfr) in * ].
