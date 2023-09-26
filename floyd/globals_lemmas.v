@@ -93,6 +93,42 @@ rewrite Heqo0, H1, H2.
 auto.
 Qed.
 
+Lemma init_data_tarray_tint {cs:compspecs} gv b: forall xs i (Hi: Z.divide 4 (Ptrofs.unsigned i)) (Hxs: Ptrofs.unsigned i + 4 * Zlength xs < Ptrofs.modulus),
+  init_data_list2pred gv (map Init_int32 xs) Ews (Vptr b i) |--
+  data_at Ews (tarray tint (Zlength xs)) (map Vint xs) (Vptr b i).
+Proof. induction xs; intros; simpl.
+  - rewrite data_at_zero_array_eq; auto; reflexivity.
+  - replace (4 * Zlength (a :: xs))%Z with (4  + (4 * Zlength xs)) in Hxs by list_solve.
+    rewrite mapsto_tuint_tint.
+    specialize (Zlength_nonneg xs); intros L.
+    unfold Ptrofs.add. rewrite ! Ptrofs.unsigned_repr; try rep_lia.
+
+    rewrite (split2_data_at_Tarray Ews tint (Zlength (a :: xs)) 1
+            (Vint a :: map Vint xs) (Vint a :: map Vint xs)
+            (sublist 0 1 (Vint a :: map Vint xs))
+            (sublist 1 (Zlength (a :: xs)) (Vint a :: map Vint xs)) (Vptr b i)); try list_solve.
+
+   apply sepcon_derives.
+   + rewrite (data_at_singleton_array_eq Ews tint (Vint a)) by trivial.
+     erewrite mapsto_data_at'; auto; trivial.
+     red; simpl; intuition.
+     econstructor. reflexivity. simpl; trivial.
+   + eapply derives_trans. apply IHxs; clear IHxs.
+     * rewrite ! Ptrofs.unsigned_repr; try rep_lia.
+        apply Z.divide_add_r; [ trivial | apply Z.divide_refl].
+     * rewrite ! Ptrofs.unsigned_repr; rep_lia.
+     * rewrite Zlength_cons.
+       replace (Z.succ (Zlength xs) - 1) with (Zlength xs) by lia.
+       apply derives_refl'. f_equal. list_solve.
+       unfold field_address0. rewrite if_true; simpl; trivial.
+       red; intuition.
+       -- reflexivity.
+       -- red. rewrite sizeof_Tarray, Z.max_r. simpl sizeof; rep_lia. list_solve.
+       -- eapply align_compatible_rec_Tarray; intros.
+          econstructor. reflexivity.
+          apply Z.divide_add_r; [ trivial | exists i0; rewrite Z.mul_comm; reflexivity].
+Qed. 
+
 Definition zero_of_type (t: type) : val :=
  match t with
   | Tfloat _ _ => Vfloat Float.zero
