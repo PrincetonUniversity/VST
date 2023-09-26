@@ -24,7 +24,7 @@ Require Import VST.floyd.proj_reptype_lemmas.
 Require Import VST.floyd.replace_refill_reptype_lemmas.
 Require Import VST.floyd.aggregate_type.
 Require Import VST.floyd.entailer.
-(* Require Import VST.floyd.globals_lemmas. *)
+Require Import VST.floyd.globals_lemmas.
 Require Import VST.floyd.semax_tactics.
 Require Import VST.floyd.for_lemmas.
 Require Import VST.floyd.diagnosis.
@@ -853,25 +853,18 @@ Inductive Function_arguments_include_a_memory_load_of_type (t:type) := .
 
 Ltac goal_has_evars :=
  match goal with |- ?A => has_evar A end.
-  
-(* FIXME freezer stuff *)
-(* Lemma drop_SEP_tc:
- forall Delta P Q R' RF R S,
-   (forall rho, predicates_hered.boxy predicates_sl.extendM (S rho)) ->
-   fold_right_sepcon R = sepcon (fold_right_sepcon R') (fold_right_sepcon RF) ->
+
+Lemma drop_SEP_tc:
+ forall `{!heapGS Σ} Delta P Q R' RF R (S : @assert Σ), Absorbing S ->
+   fold_right_sepcon R ⊣⊢ (fold_right_sepcon R') ∗ (fold_right_sepcon RF) ->
    ENTAIL Delta, PROPx P (LOCALx Q (SEPx R')) ⊢ S ->
    ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢ S.
 Proof.
   intros.
-  unfold PROPx, LOCALx, SEPx in H1 |- *.
-  intro rho; specialize (H1 rho).
-  simpl in H1 |- *.
-  unfold local, lift1; simpl.
-  rewrite H0.
-  rewrite <- !sepcon_andp_prop'.
-  specialize (H rho).
-  eapply derives_trans; [apply sepcon_derives; [exact H1 | apply derives_refl] |].
-  constructor; apply predicates_sl.extend_sepcon; auto.
+  iIntros "(? & ? & ? & H)".
+  rewrite /SEPx H0.
+  iDestruct "H" as "(H & _)".
+  iApply H1; repeat iSplit; auto.
 Qed.
 
 Ltac delete_FRZR_from_SEP :=
@@ -879,15 +872,15 @@ match goal with
 | |- ENTAIL _, PROPx _ (LOCALx _ (SEPx ?R)) ⊢ _ =>
   match R with context [FRZR] =>
   eapply drop_SEP_tc;
-    [ first [apply extend_tc.extend_tc_expr
-             | apply extend_tc.extend_tc_exprlist
-             | apply extend_tc.extend_tc_lvalue]
+    [ first [apply extend_tc.tc_expr_absorbing
+             | apply extend_tc.tc_exprlist_absorbing
+             | apply extend_tc.tc_lvalue_absorbing]
    | apply split_FRZ_in_SEP_spec; prove_split_FRZ_in_SEP
    | ]
-end end. *)
+end end.
 
 Ltac check_typecheck :=
- (* try delete_FRZR_from_SEP; *) (* FIXME *)
+ try delete_FRZR_from_SEP;
  first [goal_has_evars; idtac |
  try apply local_True_right;
  entailer!;
@@ -1189,7 +1182,7 @@ Ltac after_forward_call :=
     try match goal with |- context [remove_localdef_temp] =>
               simplify_remove_localdef_temp
      end;
-    (* FIXME depend on freezer.v unfold_app;  *)
+    unfold_app;
     try (apply extract_exists_pre; intros _); 
     match goal with
         | |- semax _ _ _ _ _ => idtac
@@ -3786,7 +3779,7 @@ Ltac forward1 s :=  (* Note: this should match only those commands that
   | Swhile _ _ => forward_advise_while
   | Sfor _ _ _ _ => forward_advise_loop s
   | Sloop _ _ => forward_advise_loop s
-  | Scall _ (Evar _ _) _ =>  advise_forward_call (* FIXME call_lemmas.v advise_forward_call *)
+  | Scall _ (Evar _ _) _ =>  advise_forward_call
   | Sskip => forward_skip
   end.
 
@@ -4517,11 +4510,11 @@ Ltac start_function1 :=
 *)
  try start_func_convert_precondition.
 
-(* Ltac expand_main_pre := expand_main_pre_old. *) (* FIXME global_lemmas.v *)
+Ltac expand_main_pre := expand_main_pre_old.
 
 Ltac start_function2 :=
   first [ erewrite compute_close_precondition_eq; [ | reflexivity | reflexivity]
-        | idtac (* FIXME global lemmas.v rewrite close_precondition_main *)  ].
+        | rewrite close_precondition_main ].
 
 Ltac start_function3 :=
  simpl app;
@@ -4535,7 +4528,7 @@ Ltac start_function3 :=
       end;
       fold (Sfor s1 e s2 s3)
  end;
- (* try expand_main_pre; *) (* FIXME *)
+ try expand_main_pre;
  process_stackframe_of;
  repeat change_mapsto_gvar_to_data_at;  (* should really restrict this to only in main,
                                   but it needs to come after process_stackframe_of *)
@@ -4575,20 +4568,6 @@ Arguments eq_dec A EqDec / a a' .
 Arguments EqDec_exitkind !a !a'.
 
 (**** make_compspecs ****)
-
-(* FIXME delete this when call_lemmas is done *)
-Lemma Forall_ptree_elements_e:
-  forall A (F: ident * A -> Prop) m i v,
-   Forall F (PTree.elements m) ->
-   m !! i = Some v ->
-   F (i,v).
-Proof.
- intros.
- apply PTree.elements_correct in H0.
- induction (PTree.elements m).
- inv H0.
- inv H. inv H0; auto.
-Qed.
 
 Lemma composite_env_consistent_i':
   forall (f: composite -> Prop) (env: composite_env),

@@ -7,6 +7,8 @@ Require Import VST.floyd.entailer.
 Require Import VST.floyd.field_compat.
 Require Import VST.floyd.canon.
 
+Local Unset SsrRewrite.
+
 (** * list extensionality *)
 (* To prove equality between two lists, a convenient way is to apply extensionality
   and prove their length are equal and each corresponding entries are equal.

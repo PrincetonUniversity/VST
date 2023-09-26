@@ -26,7 +26,9 @@ Require Import VST.floyd.deadvars.
 Require Import VST.zlist.list_solver.
 Import Cop.
 Import Cop2.
-Import compcert.lib.Maps.
+Import -(notations) compcert.lib.Maps.
+
+Local Unset SsrRewrite.
 
 Ltac hint_loop := 
   idtac "Hint: try 'forward_for_simple_bound N (EX i:Z, PROP... LOCAL...SEP...)%assert', where N is the upper bound of the loop, i is the loop iteration value,  and the LOCAL clause does NOT contain a 'temp' binding for the loop iteration variable";
@@ -95,10 +97,10 @@ Ltac print_sumbool_hint Pre :=
 Ltac hint_allp_left A := 
 lazymatch A with
 | @cons mpred ?B ?C => hint_allp_left B; hint_allp_left C
-| @sepcon mpred _ _ ?B ?C => hint_allp_left B; hint_allp_left C
-| @andp mpred _ ?B ?C => hint_allp_left B; hint_allp_left C
-| @orp mpred _ ?B ?C => hint_allp_left B; hint_allp_left C
-| @allp mpred _ ?T _ => 
+| @bi_sep (iPropI _) ?B ?C => hint_allp_left B; hint_allp_left C
+| @bi_and (iPropI _) ?B ?C => hint_allp_left B; hint_allp_left C
+| @bi_or (iPropI _) ?B ?C => hint_allp_left B; hint_allp_left C
+| @bi_forall (iPropI _) ?T _ => 
    idtac "Hint: You can instantiate the universally quantified ";
    idtac "(ALL _:"T", _) in your precondition";
    idtac "using the tactic 'allp_left x',";
@@ -191,7 +193,7 @@ Ltac hint_solves :=
  | match goal with |- context [field_compatible] => idtac | |- context [field_compatible0] => idtac end;
        tryif (try (assert True; [ | solve [auto with field_compatible]]; fail 1)) then fail
        else  idtac "Hint:  'auto with field_compatible' solves the goal"
- | match goal with |- @derives mpred _ _ _ =>
+ | match goal with |- @bi_entails (iPropI _) _ _ =>
      tryif (try (assert True; [ | solve [cancel]]; fail 1)) then fail
      else  idtac "Hint:  'cancel' or 'entailer!' solves the goal"
    end
@@ -246,7 +248,7 @@ match P with
 | @bi_pure (iPropI _) _ => idtac
 | @bi_forall (iPropI _) _ _ => idtac
 | @bi_exist (iPropI _) _ _ => idtac
-| _ => tryif (try (let x := fresh "x" in evar (x: Prop); assert (P ⊢ prop x);
+| _ => tryif (try (let x := fresh "x" in evar (x: Prop); assert (P ⊢ ⌜x⌝);
                     [subst x; solve [eauto with saturate_local] | fail 1]))
                then hint_saturate_local' P
                else idtac
@@ -293,9 +295,9 @@ Ltac hint_progress any n :=
               print_sumbool_hint Pre;
               idtac "Hint: try 'entailer!'";
               try match Pre with PROPx _ (LOCALx _ (SEPx ?R)) => hint_allp_left R end
-   | |- @derives mpred _ ?A ?B =>
+   | |- @bi_entails (iPropI _) ?A ?B =>
               cancelable A; cancelable B;
-              tryif (try (assert True; [ | rewrite ?bi.sep_emp ?bi.emp_sep; progress cancel]; fail 1)) 
+              tryif (try (assert True; [ | rewrite ?bi.sep_emp, ?bi.emp_sep; progress cancel]; fail 1)) 
                 then cancel_frame_hint
                 else  idtac "Hint:  try 'cancel'" 
    end
@@ -372,4 +374,3 @@ Ltac hint_special := idtac.
 
 Ltac hint :=
    first [hint_solves | hint_special; hint_exists; first [hint_progress false O | hint_whatever]].
-
