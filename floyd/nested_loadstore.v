@@ -212,7 +212,7 @@ Proof.
     destruct H1.
     destruct (reptype_Tstruct_JMeq_constr0 t gfs i0 a v) as [v' ?H]; auto.
     erewrite field_at_Tstruct by eauto.
-    eapply derives_trans; [eapply nested_sfieldlist_at_ramif; eauto |].
+    etrans; [eapply nested_sfieldlist_at_ramif; eauto |].
     apply bi.sep_mono.
     - apply entails_refl'.
       apply equal_f.
@@ -239,7 +239,7 @@ Proof.
       -- apply in_get_member; auto.
     - clear v0 H.
 set (i' := name_member (get_member i (co_members (get_co i0)))).
-apply derives_trans with 
+trans
  (∀ v0' : reptype (nested_field_type t (gfs DOT i')),
     field_at sh t (gfs DOT i') v0' p -∗
     field_at sh t gfs
@@ -292,7 +292,7 @@ apply derives_trans with
     destruct H1.
     destruct (reptype_Tunion_JMeq_constr0 t gfs i0 a v) as [v' ?H]; auto.
     erewrite field_at_Tunion by eauto.
-    eapply derives_trans; [eapply nested_ufieldlist_at_ramif; eauto |].
+    etrans; [eapply nested_ufieldlist_at_ramif; eauto |].
     apply bi.sep_mono.
     - apply entails_refl'.
       apply equal_f.
@@ -429,7 +429,7 @@ Proof.
   intros; exists v0.
   split.
   1: eapply JMeq_trans; [apply @JMeq_sym |]; eassumption.
-  eapply derives_trans; [apply nested_field_ramif; eassumption |].
+  etrans; [apply nested_field_ramif; eassumption |].
   apply bi.sep_mono; auto.
 Qed.
 
@@ -456,7 +456,7 @@ Proof.
   intros; exists v0_reptype'.
   split.
   1: eapply JMeq_trans; [apply @JMeq_sym |]; eassumption.
-  eapply derives_trans; [apply nested_field_ramif; eassumption |].
+  etrans; [apply nested_field_ramif; eassumption |].
   apply bi.sep_mono.
   1: apply field_at_field_at_.
   iIntros "H"; iApply "H"; auto.

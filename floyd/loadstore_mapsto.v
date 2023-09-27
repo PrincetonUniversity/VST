@@ -18,7 +18,7 @@ Load/store lemmas about mapsto:
 Definition semax_load_37 := @semax_load.
 
 Lemma derives_trans: forall {prop:bi} (P Q R:prop),
-  (P -∗ Q) -> (Q -∗ R) -> (P -∗ R).
+  (P ⊢ Q) -> (Q ⊢ R) -> (P ⊢ R).
 Proof. intros. rewrite H H0 //. Qed.
 
 Lemma semax_load_37' :

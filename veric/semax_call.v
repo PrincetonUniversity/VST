@@ -730,7 +730,7 @@ Qed.
 Lemma alloc_block:
  forall m n m' b (Halloc : Mem.alloc m 0 n = (m', b))
    (Hn : 0 <= n < Ptrofs.modulus),
-   mem_auth m ==∗ mem_auth m' ∗ memory_block Share.top n (Vptr b Ptrofs.zero).
+   mem_auth m ⊢ |==> mem_auth m' ∗ memory_block Share.top n (Vptr b Ptrofs.zero).
 Proof.
   intros.
   iIntros "Hm"; iMod (mapsto_alloc_bytes with "Hm") as "($ & H)"; iIntros "!>".
@@ -749,11 +749,11 @@ Lemma alloc_stackframe {CS'}:
       (COMPLETE: Forall (fun it => complete_type (@cenv_cs CS') (snd it) = true) (fn_vars f))
       (Hsize: Forall (fun var => @Ctypes.sizeof ge (snd var) <= Ptrofs.max_unsigned) (fn_vars f)),
       list_norepet (map fst (fn_vars f)) ->
-      mem_auth m ==∗ ∃ m' ve, ⌜Clight.alloc_variables ge empty_env m (fn_vars f) ve m' ∧ match_venv (make_venv ve) (fn_vars f)⌝ ∧
+      mem_auth m ⊢ |==> ∃ m' ve, ⌜Clight.alloc_variables ge empty_env m (fn_vars f) ve m' ∧ match_venv (make_venv ve) (fn_vars f)⌝ ∧
         mem_auth m' ∗ stackframe_of f (construct_rho (filter_genv ge) ve te).
 Proof.
   intros.
-  cut (mem_auth m ==∗ ∃ (m' : Memory.mem) (ve : env),
+  cut (mem_auth m ⊢ |==> ∃ (m' : Memory.mem) (ve : env),
     ⌜(∀i, sub_option (empty_env !! i)%maps (ve !! i)%maps) ∧ alloc_variables ge empty_env m (fn_vars f) ve m'⌝
     ∧ mem_auth m' ∗ stackframe_of f (construct_rho (filter_genv ge) ve te)).
   { intros Hgen; rewrite Hgen; iIntros ">(% & % & (% & %) & ?) !>".

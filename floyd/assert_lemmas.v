@@ -836,7 +836,7 @@ Proof.
   iAssert (local (`(tc_val' t) v)) as "#Hty".
   { iDestruct "H" as "(? & ? & ? & _)".
     iApply (H0 with "[$]"). }
-  assert (local ((` (tc_val' t)) v) ∧ local (tc_environ Delta) ∧ <affine> allp_fun_id E Delta ∗ assert_of (subst i v P) -∗ assert_of (subst i v Q)) as <-; last by iFrame "#"; iDestruct "H" as "($ & $ & $)".
+  assert (local ((` (tc_val' t)) v) ∧ local (tc_environ Delta) ∧ <affine> allp_fun_id E Delta ∗ assert_of (subst i v P) ⊢ assert_of (subst i v Q)) as <-; last by iFrame "#"; iDestruct "H" as "($ & $ & $)".
   split => rho; rewrite /subst /= -H1; monPred.unseal.
   rewrite !monPred_at_affinely.
   iIntros "(% & %TC & $ & $)"; iPureIntro.

@@ -452,7 +452,7 @@ Section lemmas.
 
   Lemma resource_map_insert {γ m} k v :
     m !! k = None →
-    resource_map_auth γ 1 m ==∗ resource_map_auth γ 1 (<[k := (YES (V := leibnizO V) (DfracOwn (Share Tsh)) readable_Tsh (to_agree v))]> m) ∗ k ↪[γ] v.
+    resource_map_auth γ 1 m ⊢ |==> resource_map_auth γ 1 (<[k := (YES (V := leibnizO V) (DfracOwn (Share Tsh)) readable_Tsh (to_agree v))]> m) ∗ k ↪[γ] v.
   Proof.
     unseal. intros ?.
     iIntros "H"; rewrite bi.sep_exist_l.
@@ -463,7 +463,7 @@ Section lemmas.
   Qed.
   Lemma resource_map_insert_persist {γ m} k v :
     m !! k = None →
-    resource_map_auth γ 1 m ==∗ resource_map_auth γ 1 (<[k := (YES (V := leibnizO V) DfracDiscarded I (to_agree v))]> m) ∗ k ↪[γ]□ v.
+    resource_map_auth γ 1 m ⊢ |==> resource_map_auth γ 1 (<[k := (YES (V := leibnizO V) DfracDiscarded I (to_agree v))]> m) ∗ k ↪[γ]□ v.
   Proof.
     unseal. intros ?.
     iIntros "H"; rewrite bi.sep_exist_l.
@@ -541,7 +541,7 @@ Section lemmas.
 
   Lemma resource_map_insert_big {γ m} m' :
     dom m' ## dom m →
-    resource_map_auth γ 1 m ==∗
+    resource_map_auth γ 1 m ⊢ |==>
     resource_map_auth γ 1 (((λ v, (YES (V := leibnizO V) (DfracOwn (Share Tsh)) readable_Tsh (to_agree v))) <$> m') ∪ m) ∗ ([∗ map] k ↦ v ∈ m', k ↪[γ] v).
   Proof.
     revert m; induction m' as [|k v m' ? IH] using map_ind; decompose_map_disjoint; intros ? Hdisj.
@@ -558,7 +558,7 @@ Section lemmas.
   Qed.
   Lemma resource_map_insert_persist_big {γ m} m' :
     dom m' ## dom m →
-    resource_map_auth γ 1 m ==∗
+    resource_map_auth γ 1 m ⊢ |==>
     resource_map_auth γ 1 (((λ v, (YES (V := leibnizO V) DfracDiscarded I (to_agree v))) <$> m') ∪ m) ∗ ([∗ map] k ↦ v ∈ m', k ↪[γ]□ v).
   Proof.
     induction m' as [|k v m' ? IH] using map_ind; decompose_map_disjoint; intros Hdisj.
@@ -623,7 +623,7 @@ Section lemmas.
   Proof. destruct x as [[|a ?] ?]; [done | exists a; apply elem_of_cons; auto]. Qed.
 
   Theorem resource_map_set γ σ (Hvalid : ✓ σ) :
-    resource_map_auth γ 1 ∅ ==∗ resource_map_auth γ 1 σ ∗
+    resource_map_auth γ 1 ∅ ⊢ |==> resource_map_auth γ 1 σ ∗
     ([∗ map] l ↦ x ∈ σ, match x with
                         | (YES dq _ v) => l ↪[γ]{dq} (proj1_sig (elem_of_agree v))
                         | (NO (Share sh) _) => resource_map_elem_no γ l sh

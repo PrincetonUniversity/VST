@@ -1,7 +1,6 @@
 Require Import VST.sepcomp.extspec.
 Require Import VST.sepcomp.step_lemmas.
 Require Import VST.veric.base.
-Require Import VST.veric.Clight_language.
 Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.juicy_mem.
 Require Import VST.veric.mpred.
@@ -35,7 +34,7 @@ Theorem VST_sound:
        semantics.initial_core  (Clight_core.cl_core_sem (Clight.globalenv prog))
            0 m q m' (Vptr b Ptrofs.zero) nil /\
        forall n,
-        @dry_safeN _ _ _ unit (genv_symb_injective)
+        @dry_safeN _ _ _ unit (semax.genv_symb_injective)
           (Clight_core.cl_core_sem (Clight.globalenv prog)) null_extension_extspec
            (Clight.genv_genv 
             (Clight.Build_genv (Genv.globalenv prog) (Ctypes.prog_comp_env prog)) )

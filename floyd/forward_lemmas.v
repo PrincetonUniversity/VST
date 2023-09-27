@@ -159,7 +159,7 @@ rewrite Ptrofs.eq_true in H; inv H.
 Qed.
 
 Lemma derives_trans: forall {prop:bi} (P Q R:prop),
-  (P -∗ Q) -> (Q -∗ R) -> (P -∗ R).
+  (P ⊢ Q) -> (Q ⊢ R) -> (P ⊢ R).
 Proof. intros. rewrite H H0 //. Qed.
 
 Lemma semax_ifthenelse_PQR' :
@@ -444,7 +444,7 @@ apply semax_for_x with (∃ a:A, PreIncr a); auto.
     apply bi.and_mono; auto.
     apply bi.and_elim_r; auto.
     apply derives_refl.
-    rewrite 2![in X in (X-∗_)]bi.and_assoc.
+    rewrite 2![in X in (X⊢_)]bi.and_assoc.
     apply bi.and_mono; auto.
     raise_rho; unfold local, lift1; unfold_lift.
     iIntros "((%H5 & %H6) & %H7)". rewrite H5; done.

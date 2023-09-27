@@ -1,6 +1,8 @@
 Require Import VST.floyd.base.
 Require Import VST.floyd.PTops.
 
+Local Unset SsrRewrite.
+
 Module QP.
 
 Record composite : Type := {
@@ -407,7 +409,7 @@ intros.
 hnf; intros; split; intros [? ?].
 rewrite get_composite_env_of_QPcomposite_env in H0.
 destruct H0 as [? [? ?]].
-rewrite Maps.PTree.gmap1 H0. simpl. eauto.
+rewrite Maps.PTree.gmap1, H0. simpl. eauto.
 rewrite Maps.PTree.gmap1 in H0; unfold option_map in H0.
 destruct (Maps.PTree.get i ce) eqn:?H; inv H0.
 pose proof H. red in H0. rewrite <- PTree_Forall_get_eq in H0.
@@ -428,7 +430,7 @@ intros.
 hnf; intros; split; intros [? ?].
 rewrite get_composite_env_of_QPcomposite_env in H0.
 destruct H0 as [? [? ?]].
-rewrite Maps.PTree.gmap1 H0. simpl. eauto.
+rewrite Maps.PTree.gmap1, H0. simpl. eauto.
 rewrite Maps.PTree.gmap1 in H0; unfold option_map in H0.
 destruct (Maps.PTree.get i ce) eqn:?H; inv H0.
 pose proof H. red in H0. rewrite <- PTree_Forall_get_eq in H0.
@@ -898,7 +900,7 @@ intros.
  rewrite get_composite_env_of_QPcomposite_env in H1, H2.
  destruct H as [? [? ?]].
  rewrite H in MERGE.
- destruct (Maps.PTree.get i ce1 !! i) eqn:?H; destruct (ce2) eqn:?H.
+ destruct (ce1 !! i) eqn:?H; destruct (ce2 !! i) eqn:?H.
  destruct MERGE as [c' [? ?]].
  destruct (QPcomposite_eq c0 c1) eqn:?H in H4; inv H4. apply QPcomposite_eq_e in H6; subst c'. inv H5.
  eapply complete_legal_cosu_stable. apply SUB1. apply H1; eauto.
@@ -920,9 +922,9 @@ intros.
    rewrite !get_composite_env_of_QPcomposite_env.
    destruct H as [? [? ?]].
    rewrite H in MERGE.
-   assert (Maps.PTree.get i ce1 !! i = ce !! i \/ ce2 !! i = ce). {
+   assert (ce1 !! i = ce !! i \/ ce2 !! i = ce !! i). {
      clear - MERGE H. 
-     destruct (Maps.PTree.get i ce1 !! i) eqn:?H; destruct (ce2) eqn:?H.
+     destruct (ce1 !! i) eqn:?H; destruct (ce2 !! i) eqn:?H.
      destruct MERGE as [c' [? ?]].
      destruct (QPcomposite_eq _ _) eqn:?H in H2; inv H2. apply QPcomposite_eq_e in H4; subst.
      left; congruence. left; congruence. right; congruence. inv MERGE.
@@ -952,9 +954,9 @@ intros.
    rewrite !get_composite_env_of_QPcomposite_env.
    destruct H as [? [? ?]].
    rewrite H in MERGE.
-   assert (Maps.PTree.get i ce1 !! i = ce !! i \/ ce2 !! i = ce). {
+   assert (ce1 !! i = ce !! i \/ ce2 !! i = ce !! i). {
      clear - MERGE H. 
-     destruct (Maps.PTree.get i ce1 !! i) eqn:?H; destruct (ce2) eqn:?H.
+     destruct (ce1 !! i) eqn:?H; destruct (ce2 !! i) eqn:?H.
      destruct MERGE as [c' [? ?]].
      destruct (QPcomposite_eq _ _) eqn:?H in H2; inv H2. apply QPcomposite_eq_e in H4; subst.
      left; congruence. left; congruence. right; congruence. inv MERGE.
@@ -1013,9 +1015,9 @@ intros.
    rewrite !get_composite_env_of_QPcomposite_env.
    destruct H1 as [? [? ?]].
    rewrite H in MERGE.
-   assert (Maps.PTree.get i ce1 !! i = ce !! i \/ ce2 !! i = ce). {
+   assert (ce1 !! i = ce !! i \/ ce2 !! i = ce !! i). {
      clear - MERGE H. 
-     destruct (Maps.PTree.get i ce1 !! i) eqn:?H; destruct (ce2) eqn:?H.
+     destruct (ce1 !! i) eqn:?H; destruct (ce2 !! i) eqn:?H.
      destruct MERGE as [c' [? ?]].
      destruct (QPcomposite_eq _ _) eqn:?H in H2; inv H2. apply QPcomposite_eq_e in H4; subst.
      left; congruence. left; congruence. right; congruence. inv MERGE.
@@ -1063,9 +1065,9 @@ intros.
    rewrite !get_composite_env_of_QPcomposite_env.
    destruct H1 as [? [? ?]].
    rewrite H in MERGE.
-   assert (Maps.PTree.get i ce1 !! i = ce !! i \/ ce2 !! i = ce). {
+   assert (ce1 !! i = ce !! i \/ ce2 !! i = ce !! i). {
      clear - MERGE H. 
-     destruct (Maps.PTree.get i ce1 !! i) eqn:?H; destruct (ce2) eqn:?H.
+     destruct (ce1 !! i) eqn:?H; destruct (ce2 !! i) eqn:?H.
      destruct MERGE as [c' [? ?]].
      destruct (QPcomposite_eq _ _) eqn:?H in H2; inv H2. apply QPcomposite_eq_e in H4; subst.
      left; congruence. left; congruence. right; congruence. inv MERGE.
@@ -1113,7 +1115,7 @@ Qed.
 
 Lemma tree'_not_empty':
   forall {A} (m: Maps.PTree.tree' A),
-   exists i, isSome (Maps.PTree.get' i m) = True.
+   exists i, isSome (Maps.PTree.get' i m) = True%type.
 Proof.
 intros.
 destruct (Maps.PTree.tree'_not_empty m) as [i ?].
@@ -1122,7 +1124,7 @@ destruct (Maps.PTree.get' i m). reflexivity. congruence.
 Qed. 
 
 Lemma PTree_samedom_i {A} {B} (m1: Maps.PTree.t A) (m2: Maps.PTree.t B):
- (Maps.PTree.get i forall i, isSome (m1 !! i) = isSome (m2)) ->
+ (forall i, isSome (m1 !! i) = isSome (m2 !! i)) ->
  PTree_samedom m1 m2.
 Proof.
 destruct m1 as [|m1], m2 as [|m2]; simpl; intros; auto; unfold Maps.PTree.get in H.
@@ -1200,7 +1202,7 @@ Proof.
   intro cs.
   apply PTree_samedom_i. intro i.
   pose proof (@ha_env_cs_complete cs i).
-  destruct (Maps.PTree.get i cenv_cs !! i), (ha_env_cs); auto.
+  destruct (cenv_cs !! i), (ha_env_cs !! i); auto.
   destruct H as [[? ?] _]; eauto. inv H.
   destruct H as [_ [? ?]]; eauto. inv H.
 Qed.
@@ -1210,7 +1212,7 @@ Proof.
   intro cs.
   apply PTree_samedom_i. intro i.
   pose proof (@la_env_cs_complete cs i).
-  destruct (Maps.PTree.get i cenv_cs !! i), (la_env_cs); auto.
+  destruct (cenv_cs !! i), (la_env_cs !! i); auto.
   destruct H as [[? ?] _]; eauto. inv H.
   destruct H as [_ [? ?]]; eauto. inv H.
 Qed.

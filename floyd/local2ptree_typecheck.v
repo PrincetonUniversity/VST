@@ -94,7 +94,7 @@ Proof.
 Qed.
 
 Lemma derives_trans: forall {prop:bi} (P Q R:prop),
-  (P -∗ Q) -> (Q -∗ R) -> (P -∗ R).
+  (P ⊢ Q) -> (Q ⊢ R) -> (P ⊢ R).
 Proof. intros. rewrite H H0 //. Qed.
 
 Lemma msubst_denote_tc_assert_sound: forall P R tc,
@@ -539,8 +539,8 @@ Lemma msubst_tc_lvalue_sound: forall {cs: compspecs} Delta P T1 T2 GV R e,
 Proof.
   intros.
   eapply derives_trans; [| apply msubst_simpl_tc_assert_sound, typecheck_lvalue_legal_tc_init].
-  rewrite [in X in X -∗ _]bi.and_assoc.
-  rewrite [in X in _ -∗ X]bi.and_assoc.
+  rewrite [in X in X ⊢ _]bi.and_assoc.
+  rewrite [in X in _ ⊢ X]bi.and_assoc.
   apply bi.and_intro; [rewrite bi.and_elim_l; apply derives_refl | ].
   rewrite -bi.and_assoc.
   apply msubst_denote_tc_assert_sound.
@@ -552,8 +552,8 @@ Lemma msubst_tc_expr_sound: forall {cs: compspecs} Delta P T1 T2 GV R e,
 Proof.
   intros.
   eapply derives_trans; [| apply msubst_simpl_tc_assert_sound, typecheck_expr_legal_tc_init].
-  rewrite [in X in X -∗ _]bi.and_assoc.
-  rewrite [in X in _ -∗ X]bi.and_assoc.
+  rewrite [in X in X ⊢ _]bi.and_assoc.
+  rewrite [in X in _ ⊢ X]bi.and_assoc.
   apply bi.and_intro; [rewrite bi.and_elim_l; apply derives_refl | ].
   rewrite -bi.and_assoc.
   apply msubst_denote_tc_assert_sound.
@@ -565,8 +565,8 @@ Lemma msubst_tc_LR_sound: forall {cs: compspecs} Delta P T1 T2 GV R e lr,
 Proof.
   intros.
   eapply derives_trans; [| apply msubst_simpl_tc_assert_sound, typecheck_LR_legal_tc_init].
-  rewrite [in X in X -∗ _]bi.and_assoc.
-  rewrite [in X in _ -∗ X]bi.and_assoc.
+  rewrite [in X in X ⊢ _]bi.and_assoc.
+  rewrite [in X in _ ⊢ X]bi.and_assoc.
   apply bi.and_intro; [rewrite bi.and_elim_l; apply derives_refl | ].
   rewrite -bi.and_assoc.
   apply msubst_denote_tc_assert_sound.
@@ -578,8 +578,8 @@ Lemma msubst_tc_efield_sound: forall {cs: compspecs} Delta P T1 T2 GV R efs,
 Proof.
   intros.
   eapply derives_trans; [| apply msubst_simpl_tc_assert_sound, typecheck_efield_legal_tc_init].
-  rewrite [in X in X -∗ _]bi.and_assoc.
-  rewrite [in X in _ -∗ X]bi.and_assoc.
+  rewrite [in X in X ⊢ _]bi.and_assoc.
+  rewrite [in X in _ ⊢ X]bi.and_assoc.
   apply bi.and_intro; [rewrite bi.and_elim_l; apply derives_refl | ].
   rewrite -bi.and_assoc.
   apply msubst_denote_tc_assert_sound.
@@ -591,8 +591,8 @@ Lemma msubst_tc_exprlist_sound: forall {cs: compspecs} Delta P T1 T2 GV R ts es,
 Proof.
   intros.
   eapply derives_trans; [| apply msubst_simpl_tc_assert_sound, typecheck_exprlist_legal_tc_init].
-  rewrite [in X in X -∗ _]bi.and_assoc.
-  rewrite [in X in _ -∗ X]bi.and_assoc.
+  rewrite [in X in X ⊢ _]bi.and_assoc.
+  rewrite [in X in _ ⊢ X]bi.and_assoc.
   apply bi.and_intro; [rewrite bi.and_elim_l; apply derives_refl | ].
   rewrite -bi.and_assoc.
   apply msubst_denote_tc_assert_sound.
@@ -606,8 +606,8 @@ Proof.
   unfold msubst_tc_expropt, msubst_tc_expr, tc_expropt.
   destruct e.
   + eapply derives_trans; [| apply msubst_simpl_tc_assert_sound, typecheck_expr_legal_tc_init].
-    rewrite [in X in X -∗ _]bi.and_assoc.
-    rewrite [in X in _ -∗ X]bi.and_assoc.
+    rewrite [in X in X ⊢ _]bi.and_assoc.
+    rewrite [in X in _ ⊢ X]bi.and_assoc.
     apply bi.and_intro; [rewrite bi.and_elim_l; apply derives_refl | ].
     rewrite -bi.and_assoc.
     apply msubst_denote_tc_assert_sound.

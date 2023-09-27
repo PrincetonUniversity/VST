@@ -146,17 +146,6 @@ Section ENTAILER.
 
 Context `{!heapGS Σ}.
 
-Lemma derives_trans: forall {prop:bi} (P Q R:prop),
-  (P -∗ Q) -> (Q -∗ R) -> (P -∗ R).
-Proof. intros. rewrite H H0 //. Qed.
-
-Lemma and_left1: 
-  forall {prop:bi} (P Q R:prop), (P -∗ R) -> (P ∧ Q -∗ R).
-Proof. intros.  rewrite H; apply bi.and_elim_l. Qed.
-Lemma and_left2:
-  forall {prop:bi} (P Q R:prop), (Q -∗ R) -> (P ∧ Q -∗ R).
-Proof. intros.  rewrite H; apply bi.and_elim_r. Qed.
-
 Lemma denote_tc_test_eq_split:
   forall P x y,
     (P ⊢ valid_pointer x) ->
@@ -164,12 +153,12 @@ Lemma denote_tc_test_eq_split:
     P ⊢ denote_tc_test_eq x y.
 Proof.
  intros.
- eapply derives_trans with (valid_pointer x ∧ valid_pointer y).
+ trans (valid_pointer x ∧ valid_pointer y).
  apply bi.and_intro; auto.
  clear H H0.
  unfold denote_tc_test_eq, weak_valid_pointer.
- destruct x; try (apply and_left1; apply @bi.False_elim); try apply @bi.True_intro;
- destruct y; try (apply and_left2; apply @bi.False_elim); try apply @bi.True_intro.
+ destruct x; try (iIntros "([] & _)"); try apply @bi.True_intro;
+ destruct y; try (iIntros "(_ & [])"); try apply @bi.True_intro.
  apply bi.and_mono; try apply derives_refl.
  apply bi.and_mono; try apply derives_refl.
  apply bi.or_intro_l.
@@ -479,7 +468,7 @@ Lemma try_conjuncts_prop_and:
       (S ⊢ ⌜P'⌝ ∧ Q) ->
       S ⊢ ⌜P⌝ ∧ Q.
 Proof. intros.
- eapply derives_trans; [apply H0 |].
+ rewrite H0.
  apply bi.and_mono; auto.
 Qed.
 
@@ -490,7 +479,7 @@ Lemma try_conjuncts_prop:
       (S ⊢ ⌜P'⌝) ->
       S ⊢ ⌜P⌝ .
 Proof. intros.
- eapply derives_trans; [apply H0 |].
+ rewrite H0.
  apply bi.pure_mono; done.
 Qed.
 

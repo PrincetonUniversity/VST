@@ -356,7 +356,7 @@ Section gen_heap.
   Qed.*)
 
   Lemma gen_heap_set (σ : rmapUR L (leibnizO V)) (Hvalid : ✓ σ) :
-    resource_map_auth (gen_heap_name _) 1 ∅ ==∗ resource_map_auth (gen_heap_name _) 1 σ ∗
+    resource_map_auth (gen_heap_name _) 1 ∅ ⊢ |==> resource_map_auth (gen_heap_name _) 1 σ ∗
     ([∗ map] l ↦ x ∈ σ, match x with
                         | (shared.YES dq _ v) => l ↦{dq} (proj1_sig (elem_of_agree v))
                         | (shared.NO (Share sh) _) => mapsto_no l sh
@@ -375,12 +375,12 @@ Section gen_heap.
 
   Lemma mapsto_insert {σ} k v :
     σ !! k = None →
-    resource_map_auth (gen_heap_name _) 1 σ ==∗ resource_map_auth (gen_heap_name _) 1 (<[k := (YES (V := leibnizO V) (DfracOwn (Share Tsh)) readable_Tsh (to_agree v))]> σ) ∗ k ↦ v.
+    resource_map_auth (gen_heap_name _) 1 σ ⊢ |==> resource_map_auth (gen_heap_name _) 1 (<[k := (YES (V := leibnizO V) (DfracOwn (Share Tsh)) readable_Tsh (to_agree v))]> σ) ∗ k ↦ v.
   Proof. rewrite mapsto_unseal. apply resource_map_insert. Qed.
 
   Lemma mapsto_insert_persist {σ}  k v :
     σ !! k = None →
-    resource_map_auth (gen_heap_name _) 1 σ ==∗ resource_map_auth (gen_heap_name _) 1 (<[k := (YES (V := leibnizO V) DfracDiscarded I (to_agree v))]> σ) ∗ k ↦□ v.
+    resource_map_auth (gen_heap_name _) 1 σ ⊢ |==> resource_map_auth (gen_heap_name _) 1 (<[k := (YES (V := leibnizO V) DfracDiscarded I (to_agree v))]> σ) ∗ k ↦□ v.
   Proof. rewrite mapsto_unseal. apply resource_map_insert_persist. Qed.
 
   Lemma mapsto_delete {σ k v} :
@@ -402,13 +402,13 @@ Section gen_heap.
 
   Lemma mapsto_insert_big {σ} (σ' : gmap L V) :
     dom σ' ## dom σ →
-    resource_map_auth (gen_heap_name _) 1 σ ==∗
+    resource_map_auth (gen_heap_name _) 1 σ ⊢ |==>
     resource_map_auth (gen_heap_name _) 1 (((λ v, (YES (V := leibnizO V) (DfracOwn (Share Tsh)) readable_Tsh (to_agree v))) <$> σ') ∪ σ) ∗ ([∗ map] k ↦ v ∈ σ', k ↦ v).
   Proof. rewrite mapsto_unseal. apply resource_map_insert_big. Qed.
 
   Lemma mapsto_insert_persist_big {σ} (σ' : gmap L V) :
     dom σ' ## dom σ →
-    resource_map_auth (gen_heap_name _) 1 σ ==∗
+    resource_map_auth (gen_heap_name _) 1 σ ⊢ |==>
     resource_map_auth (gen_heap_name _) 1 (((λ v, (YES (V := leibnizO V) DfracDiscarded I (to_agree v))) <$> σ') ∪ σ) ∗ ([∗ map] k ↦ v ∈ σ', k ↦□ v).
   Proof. rewrite mapsto_unseal. apply resource_map_insert_persist_big. Qed.
 

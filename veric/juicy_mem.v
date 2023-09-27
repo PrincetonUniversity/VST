@@ -1495,7 +1495,7 @@ Section mpred.
 
   Lemma mem_auth_set (m : mem) (σ : rmapUR _ _) (Hvalid : ✓ σ) (Hnext : ∀ loc, (loc.1 >= Mem.nextblock m)%positive -> σ !! loc = None)
     (Hcoh : ∀ loc : address, coherent_loc m loc (resource_at σ loc)) :
-    mem_auth Mem.empty ==∗ mem_auth m ∗
+    mem_auth Mem.empty ⊢ |==> mem_auth m ∗
     ([∗ map] l ↦ x ∈ σ, match x with
                         | (shared.YES dq _ v) => l ↦{dq} (proj1_sig (elem_of_agree v))
                         | (shared.NO (Share sh) _) => mapsto_no l sh

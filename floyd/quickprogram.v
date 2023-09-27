@@ -1,7 +1,9 @@
 Require Import VST.floyd.base.
 Require Import VST.floyd.PTops.
 Require Import VST.floyd.QPcomposite.
-Import compcert.lib.Maps.
+Import -(notations) compcert.lib.Maps.
+
+Local Unset SsrRewrite.
 
 Fixpoint filter_options {A B} (f: A -> option B) (al: list A) : list B :=
  match al with
@@ -643,8 +645,8 @@ apply  (merged_compspecs' _ _ OK1 OK2 _ H).
 intros i.
 apply (merge_PTrees_e i) in H.
 red.
-destruct ((QP.prog_comp_env p1) ! i); auto.
-destruct ((QP.prog_comp_env p2) ! i); auto.
+destruct ((QP.prog_comp_env p1) !! i); auto.
+destruct ((QP.prog_comp_env p2) !! i); auto.
 destruct H as [? [? ?]].
 rewrite H0.
 destruct (QPcomposite_eq c c0) eqn:?H; inv H.
@@ -653,8 +655,8 @@ apply QPcomposite_eq_e in H1; auto.
 intros i.
 apply (merge_PTrees_e i) in H.
 red.
-destruct ((QP.prog_comp_env p2) ! i); auto.
-destruct ((QP.prog_comp_env p1) ! i); auto.
+destruct ((QP.prog_comp_env p2) !! i); auto.
+destruct ((QP.prog_comp_env p1) !! i); auto.
 destruct H as [? [? ?]].
 rewrite H0.
 destruct (QPcomposite_eq c0 c) eqn:?H; inv H.
@@ -723,10 +725,10 @@ specialize (H4 i i H5).
 apply PTree_In_fst_elements in H6.
 destruct H6 as [g ?].
 rewrite H in EQ1.
-destruct ((QP.prog_defs p1) ! i) eqn:?H.
+destruct ((QP.prog_defs p1) !! i) eqn:?H.
 apply H2; auto.
 apply PTree_In_fst_elements; eauto.
-destruct ((QP.prog_defs p2) ! i) eqn:?H.
+destruct ((QP.prog_defs p2) !! i) eqn:?H.
 inv EQ1.
 apply H4; auto.
 apply PTree_In_fst_elements; eauto.
@@ -736,7 +738,7 @@ Qed.
 Lemma QPfind_def_symbol:
   forall {F} p id g,
   QPprogram_OK p ->
-  In (id,g) (map of_builtin (QP.prog_builtins p)) \/ (QP.prog_defs p)!id = Some g <-> 
+  In (id,g) (map of_builtin (QP.prog_builtins p)) \/ (QP.prog_defs p)!!id = Some g <-> 
  exists b, Genv.find_symbol (@QPglobalenv F p) id = Some b
    /\ Genv.find_def (@QPglobalenv F p) b = Some g.
 Proof.
@@ -833,7 +835,7 @@ Qed.
 Lemma QPfind_funct_ptr_exists:
 forall (p: QP.program Clight.function) i f,
   QPprogram_OK p ->
-(QP.prog_defs p) ! i = Some (Gfun f) ->
+(QP.prog_defs p) !! i = Some (Gfun f) ->
 exists b,
  Genv.find_symbol (QPglobalenv p) i = Some b
 /\ Genv.find_funct_ptr (QPglobalenv p) b = Some f.
@@ -975,7 +977,7 @@ Fixpoint QPcomplete_type (env : QP.composite_env) (t : type) :  bool :=
   | Tarray t' _ _ => QPcomplete_type env t'
   | Tvoid | Tfunction _ _ _ => false
   | Tstruct id _ | Tunion id _ =>
-      match env ! id with
+      match env !! id with
       | Some _ => true
       | None => false
       end
@@ -1019,19 +1021,3 @@ Definition program_of_QPprogram {F} (p: QP.program F)
 *)
 
 End Junkyard.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

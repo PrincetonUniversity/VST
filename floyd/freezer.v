@@ -747,7 +747,7 @@ Lemma unlocalize_derives_canon: forall R_G2 Delta P Q R R_FR R_L1 R_G1 R_L2 Post
   local (tc_environ Delta) ∧ PROPx P (LOCALx Q (SEPx R)) ⊢ Post.
 Proof.
   intros.
-  eapply derives_trans; [clear H1 | exact (H1 I)].
+  etrans; [clear H1 | exact (H1 I)].
   go_lowerx.
   eapply unlocalize_aux; eauto.
 Qed.
@@ -762,7 +762,7 @@ Proof.
   intros.
   apply construct_fold_right_sepcon_spec in H.
   rewrite -H.
-  eapply derives_trans; [clear H2 | exact (H2 I)].
+  etrans; [clear H2 | exact (H2 I)].
   rewrite fold_left_sepconx_eq.
   eapply unlocalize_aux; eauto.
 Qed.
@@ -804,7 +804,7 @@ Lemma unlocalizeQ_derives_canon: forall R_G2 Delta P Q R R_FR R_L1 R_G1 R_L2 F P
   local (tc_environ Delta) ∧ PROPx P (LOCALx Q (SEPx R)) ⊢ Post.
 Proof.
   intros.
-  eapply derives_trans; [clear H2 | exact (H2 I)].
+  etrans; [clear H2 | exact (H2 I)].
   go_lowerx.
   apply ramif_frame_gen_spec in H0; auto.
   eapply unlocalize_aux; eauto.
@@ -821,7 +821,7 @@ Proof.
   intros.
   apply construct_fold_right_sepcon_spec in H.
   rewrite -H.
-  eapply derives_trans; [clear H3 | exact (H3 I)].
+  etrans; [clear H3 | exact (H3 I)].
   apply ramif_frame_gen_spec in H1; auto.
   rewrite fold_left_sepconx_eq.
   eapply unlocalize_aux; eauto.

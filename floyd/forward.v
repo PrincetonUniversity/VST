@@ -235,7 +235,7 @@ normalize.
 eapply var_block_lvar0; try apply H; try eassumption.
 Qed.
 
-Lemma sep_emp_2 {prop:bi} (P:prop) : P ∗ emp -∗ P.
+Lemma sep_emp_2 {prop:bi} (P:prop) : P ∗ emp ⊢ P.
 Proof. rewrite bi.sep_comm bi.emp_sep_2 //. Qed.
 
 Ltac process_stackframe_of :=
