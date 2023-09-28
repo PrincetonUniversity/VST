@@ -107,7 +107,7 @@ Definition withtype_of_funspec (fs : @funspec Σ) := match fs with
   mk_funspec _ _ A _ _ => A end.
 
 Lemma sepcon_ENTAIL:
- forall Delta P Q P' Q',
+ forall Delta (P Q P' Q' : @assert Σ),
   (ENTAIL Delta, P ⊢ P') ->
   (ENTAIL Delta, Q ⊢ Q') ->
   (ENTAIL Delta, (P ∗ Q) ⊢ (P' ∗ Q')).
@@ -221,7 +221,6 @@ Lemma semax_call_NDsubsume :
           (∃ old:val, assert_of (substopt ret (`old) F) ∗ maybe_retval (assert_of (Q x)) retsig ret)).
 Proof.
   intros.
-Print NDmk_funspec.
   apply (semax_call_subsume E fs1 (ConstType A) (λne (a : leibnizO A), (P a) : _ -d> iProp Σ) (λne (a : leibnizO A), (Q a) : _ -d> iProp Σ) argsig retsig cc); auto.
   apply NDsubsume_subsume. simpl; auto.
 Qed.

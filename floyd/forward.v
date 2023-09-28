@@ -1624,7 +1624,7 @@ Lemma do_compute_expr_helper_lemma:
    Delta P Q R v e T1 T2 GV,
  local2ptree Q = (T1,T2,nil,GV) ->
  msubst_eval_expr Delta T1 T2 GV e = Some v ->
- ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢ 
+ ENTAIL Delta, PROPx(Σ := Σ) P (LOCALx Q (SEPx R)) ⊢ 
    local (liftx (eq v) (eval_expr e)).
 Proof.
 intros.
@@ -2868,19 +2868,19 @@ end.
 Section FORWARD.
 Context `{!heapGS Σ}.
 Lemma ENTAIL_break_normal:
- forall Delta R S, ENTAIL Delta, RA_break (normal_ret_assert R) ⊢ S.
+ forall Delta R (S : @assert Σ), ENTAIL Delta, RA_break (normal_ret_assert R) ⊢ S.
 Proof.
 intros. simpl_ret_assert. rewrite bi.and_elim_r; apply bi.False_elim.
 Qed.
 
 Lemma ENTAIL_continue_normal:
- forall Delta R S, ENTAIL Delta, RA_continue (normal_ret_assert R) ⊢ S.
+ forall Delta R (S : @assert Σ), ENTAIL Delta, RA_continue (normal_ret_assert R) ⊢ S.
 Proof.
 intros. simpl_ret_assert. rewrite bi.and_elim_r; apply bi.False_elim.
 Qed.
 
 Lemma ENTAIL_return_normal:
- forall Delta R v S, ENTAIL Delta, RA_return (normal_ret_assert R) v ⊢ S.
+ forall Delta R v (S : @assert Σ), ENTAIL Delta, RA_return (normal_ret_assert R) v ⊢ S.
 Proof.
 intros. simpl_ret_assert. rewrite bi.and_elim_r; apply bi.False_elim.
 Qed.
@@ -4094,7 +4094,7 @@ Lemma gvars_denote_HP':
  forall `{!heapGS Σ} Delta P Q R gv i, 
   In (gvars gv) Q ->
   isSome ((glob_types Delta) !! i) ->
-  ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢ ⌜headptr (gv i)⌝.
+  ENTAIL Delta, PROPx(Σ := Σ) P (LOCALx Q (SEPx R)) ⊢ ⌜headptr (gv i)⌝.
 Proof.
 intros.
 remember (PROPx P (LOCALx Q (SEPx R))) as PQR.
