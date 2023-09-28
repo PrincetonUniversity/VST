@@ -196,6 +196,8 @@ Proof.
   destruct H3; subst. rewrite eqb_type_refl. auto.
 Qed.
 
+Local Notation PROPx := (PROPx(Σ := Σ)).
+
 Lemma msubst_eval_expr_eq: forall {cs: compspecs} Delta P T1 T2 GV R e v,
   msubst_eval_expr Delta T1 T2 GV e = Some v ->
   ENTAIL Delta, PROPx P (LOCALx (LocalD T1 T2 GV) (SEPx R)) ⊢
