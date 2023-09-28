@@ -780,16 +780,16 @@ Lemma start_globvars_in_process:
   forall E Delta P Q R
           gz al SF c Post,
   semax E Delta
-    (PROPx P (LOCALx (gvars gz :: Q) (SEPx R)) ∗
-          globvars_in_process gz nil emp al ∗ SF) c Post ->
+    ((PROPx P (LOCALx (gvars gz :: Q) (SEPx R)) ∗
+          globvars_in_process gz nil emp al) ∗ SF) c Post ->
   semax E Delta
-    (PROPx P (LOCALx (gvars gz :: Q) (SEPx R)) ∗
-     ⎡globvars2pred gz al⎤ ∗ SF) c Post.
+    ((PROPx P (LOCALx (gvars gz :: Q) (SEPx R)) ∗
+     ⎡globvars2pred gz al⎤) ∗ SF) c Post.
 Proof.
 intros.
 eapply semax_pre; [ | apply H].
 rewrite /globvars_in_process; go_lowerx.
-iIntros "(($ & (% & %) & $) & ? & $)"; auto.
+iIntros "((($ & ((% & %) & $)) & $ ) & $)"; auto.
 Qed.
 
 Lemma semax_process_globvars:
@@ -797,15 +797,15 @@ Lemma semax_process_globvars:
           gz al SF c Post,
   ENTAIL Delta, globvars_in_process gz R emp al ⊢ globvars_in_process gz R' emp nil ->
   semax E Delta
-    (PROPx P (LOCALx (gvars gz :: Q) (SEPx R')) ∗ emp ∗ SF) c Post ->
+    ((PROPx P (LOCALx (gvars gz :: Q) (SEPx R')) ∗ emp) ∗ SF) c Post ->
   semax E Delta
-    (PROPx P (LOCALx (gvars gz :: Q) (SEPx R)) ∗
-          ⎡globvars2pred gz al⎤ ∗ SF) c Post.
+    ((PROPx P (LOCALx (gvars gz :: Q) (SEPx R)) ∗
+          ⎡globvars2pred gz al⎤) ∗ SF) c Post.
 Proof.
 intros.
 apply start_globvars_in_process.
 eapply semax_pre; [ | apply H0].
-iIntros "(#? & ($ & $ & HR) & Hglob & $)".
+iIntros "(#? & (($ & $ & HR) & Hglob) & $)".
 rewrite /globvars_in_process in H |- *.
 iPoseProof (H with "[-]") as "(_ & $ & _)".
 iDestruct "Hglob" as "($ & _ & $ & $)"; auto.
