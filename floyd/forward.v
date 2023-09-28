@@ -1447,7 +1447,7 @@ Ltac get_function_witness_type func :=
       functors.CovariantBiFunctor._functor
       functors.CovariantBiFunctorGenerator.Fpair
       functors.GeneralFunctorGenerator.CovariantFunctor_MixVariantFunctor
-      functors.CovariantFunctor._functor
+      functors.CovariantFunctor._functornew_fwd_call
       functors.MixVariantFunctor.fmap
       ] in*) TA
  in let TA'' := eval simpl in TA'
@@ -4468,24 +4468,26 @@ Ltac start_function1 :=
                POST [ tint ] _) |- _ => idtac
     | s := ?spec' |- _ => check_canonical_funspec spec'
    end;
-   change (semax_body V G E F s); subst s;
-   unfold NDmk_funspec
+   change (semax_body V G E F s); subst s
  end;
 (* let DependedTypeList := fresh "DependedTypeList" in*)
- unfold NDmk_funspec; 
+ unfold NDmk_funspec;
+ let gv := fresh "gv" in
  match goal with |- semax_body _ _ _ _ (pair _ (mk_funspec _ _ _ ?Pre _)) =>
 
    split3; [check_parameter_types' | check_return_type | ];
     match Pre with
-   | (λne _, monPred_at (convertPre _ _ (fun i => _))) =>  intros (*DependedTypeList*) i
+   | (λne _, monPred_at (convertPre _ _ (fun i => _))) =>  intros (*DependedTypeList*) gv
    | (λne x, monPred_at match _ with (a,b) => _ end) => intros (*DependedTypeList*) [a b]
-   | (λne i, _) => intros (*DependedTypeList*) i
+   | (λne i, _) => intros (*DependedTypeList*) gv
    end;
    simpl fn_body; simpl fn_params; simpl fn_return
  end;
- simpl dtfr in *;
+ (* REVIEW this does not work: simpl dtfr in *; *) try hnf in gv;
  simpl dependent_type_functor_rec;
+ remember main_pre as main; (* so main_pre isn't reduced in the next step*)
  simpl ofe_mor_car;
+ subst main;
 (* clear DependedTypeList; *)
  rewrite_old_main_pre;
  rewrite ?argsassert_of_at ?assert_of_at;
