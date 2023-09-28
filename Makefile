@@ -332,6 +332,8 @@ COQFLAGS=$(foreach d, $(VSTDIRS), $(if $(wildcard $(d)), -Q $(d) VST.$(d))) $(fo
 
 DEPFLAGS:=$(COQFLAGS)
 
+COQFLAGS+=$(COQEXTRAFLAGS)
+
 # ##### Print configuration summary #####
 
 $(info ===== CONFIGURATION SUMMARY =====)
@@ -694,7 +696,7 @@ IRIS_INSTALL_FILES=$(sort $(IRIS_INSTALL_FILES_SRC) $(IRIS_INSTALL_FILES_VO))
 
 # This line sets COQF depending on the folder of the input file $<
 # If the folder name contains compcert, $(COMPCERT_R_FLAGS) is added, otherwise not.
-%.vo: COQF=$(if $(findstring $(COMPCERT_SRC_DIR), $(dir $<)), $(COMPCERT_R_FLAGS), $(COQFLAGS))
+%.vo: COQF=$(if $(findstring $(COMPCERT_SRC_DIR), $(dir $<)), $(COMPCERT_R_FLAGS) $(COQEXTRAFLAGS), $(COQFLAGS))
 
 # If CompCert changes, all .vo files need to be recompiled
 %.vo: $(COMPCERT_CONFIG)
