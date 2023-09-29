@@ -1998,7 +1998,7 @@ Ltac find_field_at N :=
 Ltac find_data_at N :=
  match N with
  | S O =>  match goal with |- context[@data_at _ _ ?cs ?sh ?t] =>
-                 change (@data_at _ _ cs sh t) with (field_at_mark cs sh t nil) at 1
+                 change (@data_at _ _ cs sh t) with (field_at_mark _ _ cs sh t nil) at 1
                  end;
                  change data_at_hide with @data_at
  | S ?k => change @data_at with data_at_hide at 1;

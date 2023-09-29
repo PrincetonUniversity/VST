@@ -10,9 +10,9 @@ Opaque alignof.
    get through all the Travis tests 11/10/17 *)
 Ltac unfold_field_at' :=
  match goal with
- | |- context [field_at_mark ?cs ?sh ?t ?gfs ?v ?p] =>
+ | |- context [field_at_mark _ _ ?cs ?sh ?t ?gfs ?v ?p] =>
      let F := fresh "F" in
-       set (F := field_at_mark cs sh t gfs v p);
+       set (F := field_at_mark _ _ cs sh t gfs v p);
        change field_at_mark with @field_at in F;
      let V := fresh "V" in set (V:=v) in F;
      let P := fresh "P" in set (P:=p) in F;
@@ -40,14 +40,15 @@ Ltac unfold_field_at' :=
      | context[snd (?A,?B)] => change (snd (A,B)) with B in H
      end;
      subst P;
-     subst F;
+     rewrite H;
+     clear H F;
      cbv beta;
      repeat flatten_sepcon_in_SEP;
      repeat simplify_project_default_val
- | |- context [field_at_mark ?cs ?sh ?t ?gfs ?v ?p] =>
+ | |- context [field_at_mark _ _ ?cs ?sh ?t ?gfs ?v ?p] =>
      let F := fresh "F" in
-       set (F := field_at_mark cs sh t gfs v p);
-       change field_at_mark with (field_at(cs := cs)) in F;
+       set (F := field_at_mark _ _ cs sh t gfs v p);
+       change (field_at_mark _ _ _) with (field_at(cs := cs)) in F;
      let V := fresh "V" in set (V:=v) in F;
      let P := fresh "P" in set (P:=p) in F;
      let T := fresh "T" in set (T:=t) in F;
@@ -74,7 +75,8 @@ Ltac unfold_field_at' :=
      | context[snd (?A,?B)] => change (snd (A,B)) with B in H
      end;
      subst P;
-     subst F;
+     rewrite H;
+     clear H F;
      cbv beta;
      repeat flatten_sepcon_in_SEP;
      repeat simplify_project_default_val
@@ -103,19 +105,19 @@ Tactic Notation "unfold_data_at" uconstr(a) :=
   | x := ?D : mpred |- _ =>
     match D with
      | (@data_at_ _ _ ?cs ?sh ?t ?p) =>
-            change D with (field_at_mark cs sh t (@nil gfield) (@default_val cs (@nested_field_type cs t nil)) p) in x
+            change D with (field_at_mark _ _ cs sh t (@nil gfield) (@default_val cs (@nested_field_type cs t nil)) p) in x
      | (@data_at _ _ ?cs ?sh ?t ?v ?p) =>
-            change D with (field_at_mark cs sh t (@nil gfield) v p) in x
+            change D with (field_at_mark _ _ cs sh t (@nil gfield) v p) in x
      | (@field_at_ _ _ ?cs ?sh ?t ?gfs ?p) =>
-            change D with (field_at_mark cs sh t gfs (@default_val cs (@nested_field_type cs t gfs)) p) in x
+            change D with (field_at_mark _ _ cs sh t gfs (@default_val cs (@nested_field_type cs t gfs)) p) in x
      | (@field_at _ _ ?cs ?sh ?t ?gfs ?v ?p) =>
-            change D with (field_at_mark cs sh t gfs v p) in x
+            change D with (field_at_mark _ _ cs sh t gfs v p) in x
      end;
         subst x;  unfold_field_at';
-   repeat match goal with |- context [field_at _ _ ?cs ?sh ?t ?gfs (@default_val ?cs' ?t') ?p] => 
+     repeat match goal with |- context [field_at _ _ ?cs ?sh ?t ?gfs (@default_val ?cs' ?t') ?p] => 
        change (@field_at _ _ cs sh t gfs (default_val cs' t') p) with (@field_at_ _ _ cs sh t gfs p)
-    end
-end).
+     end
+  end).
 
 Tactic Notation "unfold_field_at" uconstr(a) :=
  tryif (is_nat_uconstr a)
