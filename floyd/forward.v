@@ -4483,7 +4483,7 @@ Ltac start_function1 :=
    end;
    simpl fn_body; simpl fn_params; simpl fn_return
  end;
- (* REVIEW this does not work: simpl dtfr in *; *) try hnf in gv;
+ try change (ofe_car (dtfr _)) with globals in *;
  simpl dependent_type_functor_rec;
  remember main_pre as main; (* so main_pre isn't reduced in the next step*)
  simpl ofe_mor_car;
