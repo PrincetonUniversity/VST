@@ -877,11 +877,11 @@ floyd/floyd.coq: floyd/proofauto.vo
 	@echo 'coqdep ... >.depend'
 ifeq ($(COMPCERT_NEW),true)
 	# DEPENDENCIES VARIANT COMPCERT_NEW
-	$(COQDEP) $(COQFLAGS) 2>&1 >.depend `find $(filter $(wildcard *), $(DIRS) concurrency/common concurrency/compiler concurrency/juicy concurrency/util paco concurrency/sc_drf) -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
+	$(COQDEP) $(DEPFLAGS) 2>&1 >.depend `find $(filter $(wildcard *), $(DIRS) concurrency/common concurrency/compiler concurrency/juicy concurrency/util paco concurrency/sc_drf) -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
 	@echo "" >>.depend
 else
 	# DEPENDENCIES DEFAULT
-	$(COQDEP) $(COQFLAGS) 2>&1 >.depend `find $(filter $(wildcard *), $(DIRS)) -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
+	$(COQDEP) $(DEPFLAGS) 2>&1 >.depend `find $(filter $(wildcard *), $(DIRS)) -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
 endif
 ifeq ($(COMPCERT_BUILD_FROM_SRC),true)
 	# DEPENDENCIES TO BUILD COMPCERT FROM SOURCE
