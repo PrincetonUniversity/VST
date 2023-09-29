@@ -21,11 +21,17 @@ Ltac unfold_field_at' :=
      let Heq := fresh "Heq" in
      assert (Heq: nested_field_type T gfs = Tstruct id noattr)
            by (unfold id,T; reflexivity);
-     let H := fresh in
-     assert (H:= field_at_Tstruct(cs := cs) sh T gfs id noattr
+     let HF := fresh "HF" in
+     assert (HF:= field_at_Tstruct(cs := cs) sh T gfs id noattr
                           V V P  (eq_refl _) (JMeq_refl _));
-     unfold id in H; clear Heq id;
-     fold F in H; clearbody F;
+     unfold id in HF; clear Heq id;
+     fold F in HF; clearbody F;
+     (* need to pick out RHS before simpl it since bi_equiv obstructs simpl *)
+     let H := fresh "H" in
+     match goal with
+       | HF: (_ ⊣⊢ ?RHS) |- _ => 
+     set (H:= RHS)  end;
+     fold H in HF;
      simpl co_members in H;
      lazy beta iota zeta delta  [nested_sfieldlist_at ] in H;
      change (field_at(cs := cs) sh T) with (field_at(cs := cs) sh t) in H;
@@ -39,15 +45,16 @@ Ltac unfold_field_at' :=
      | context[fst (?A,?B)] => change (fst (A,B)) with A in H
      | context[snd (?A,?B)] => change (snd (A,B)) with B in H
      end;
-     subst P;
-     rewrite H;
-     clear H F;
+     subst P; 
+     subst H;
+     rewrite HF;
+     clear HF F;
      cbv beta;
      repeat flatten_sepcon_in_SEP;
      repeat simplify_project_default_val
  | |- context [field_at_mark _ _ ?cs ?sh ?t ?gfs ?v ?p] =>
-     let F := fresh "F" in
-       set (F := field_at_mark _ _ cs sh t gfs v p);
+     let HF := fresh "HF" in
+       set (HF := field_at_mark _ _ cs sh t gfs v p);
        change (field_at_mark _ _ _) with (field_at(cs := cs)) in F;
      let V := fresh "V" in set (V:=v) in F;
      let P := fresh "P" in set (P:=p) in F;
@@ -59,8 +66,14 @@ Ltac unfold_field_at' :=
      let H := fresh in
      assert (H:= field_at_Tunion(cs := cs) sh T gfs id noattr
                           V V P  (eq_refl _) (JMeq_refl _));
-     unfold id in H; clear Heq id;
-     fold F in H; clearbody F;
+     unfold id in HF; clear Heq id;
+     fold F in HF; clearbody F;
+     (* need to pick out RHS before simpl it since bi_equiv obstructs simpl *)
+     let H := fresh "H" in
+     match goal with
+       | HF: (_ ⊣⊢ ?RHS) |- _ => 
+     set (H:= RHS)  end;
+     fold H in HF;
      simpl co_members in H;
      lazy beta iota zeta delta  [nested_ufieldlist_at ] in H;
      change (field_at(cs := cs) sh T) with (field_at(cs := cs) sh t) in H;
@@ -74,9 +87,10 @@ Ltac unfold_field_at' :=
      | context[fst (?A,?B)] => change (fst (A,B)) with A in H
      | context[snd (?A,?B)] => change (snd (A,B)) with B in H
      end;
-     subst P;
-     rewrite H;
-     clear H F;
+     subst P; 
+     subst H;
+     rewrite HF;
+     clear HF F;
      cbv beta;
      repeat flatten_sepcon_in_SEP;
      repeat simplify_project_default_val
