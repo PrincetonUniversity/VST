@@ -49,6 +49,13 @@ Require Export VST.floyd.data_at_list_solver.
 Require Export VST.floyd.data_at_lemmas.
 Require VST.floyd.linking.
 
+(* undo some "simpl never" settings from std++ *)
+#[global] Arguments Pos.of_nat : simpl nomatch.
+#[global] Arguments Pos.to_nat !x / .
+#[global] Arguments N.add : simpl nomatch.
+#[global] Arguments Z.of_nat : simpl nomatch.
+#[global] Arguments Z.to_nat : simpl nomatch.
+
 (*funspec scope is the default, so remains open.
   Users who want to use old funspecs should 
   "Require Import Require Import VST.floyd.Funspec_old_Notation."

@@ -53,9 +53,9 @@ Ltac unfold_field_at' :=
      repeat flatten_sepcon_in_SEP;
      repeat simplify_project_default_val
  | |- context [field_at_mark _ _ ?cs ?sh ?t ?gfs ?v ?p] =>
-     let HF := fresh "HF" in
+     let F := fresh "F" in
        set (HF := field_at_mark _ _ cs sh t gfs v p);
-       change (field_at_mark _ _ _) with (field_at(cs := cs)) in F;
+       change (field_at_mark _ _ _) with (field_at(cs := cs)) in HF;
      let V := fresh "V" in set (V:=v) in F;
      let P := fresh "P" in set (P:=p) in F;
      let T := fresh "T" in set (T:=t) in F;

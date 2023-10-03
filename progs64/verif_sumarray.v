@@ -121,6 +121,76 @@ Definition four_contents := [1; 2; 3; 4].
 Lemma body_main:  semax_body Vprog Gprog ⊤ f_main main_spec.
 Proof.
 start_function.
+
+
+(* fwd_call_dep (@nil Type) . *)
+try lazymatch goal with
+      | |- semax _ _ _ (Scall _ _ _) _ => rewrite -> semax_seq_skip
+      end;
+ repeat lazymatch goal with
+  | |- semax _ _ _ (Ssequence (Ssequence (Ssequence _ _) _) _) _ =>
+      rewrite <- seq_assoc
+ end.
+ (* fwd_call' funspec_sub_refl  (gv _four, Ews,four_contents,4). *)
+ check_POSTCONDITION;
+ lazymatch goal with
+ | |- semax _ _ _ (Ssequence (Ssequence (Scall (Some ?ret') _ _)
+                                        (Sset _ (Etempvar ?ret'2 _))) _) _ =>
+        unify ret' ret'2;
+        eapply semax_seq'
+        (* ;
+          [prove_call_setup (*ts*) funspec_sub_refl  (gv _four, Ews,four_contents,4);
+           clear_Delta_specs; clear_MORE_POST;
+              [ .. | forward_call_id1_y_wow ]
+          |  after_forward_call ] *)
+ | |- _ => rewrite <- seq_assoc; fwd_call' (*ts*) funspec_sub_refl  (gv _four, Ews,four_contents,4)
+ end.
+
+- 
+(* prove_call_setup funspec_sub_refl  (gv _four, Ews,four_contents,4). *)
+(* prove_call_setup1 funspec_sub_refl. *)
+ match goal with
+| |- @semax _ _ _ _ ?CS ?E ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R'))) ?c _ =>
+  let cR := (fun R =>
+  match c with
+  | context [Scall _ (Evar ?id ?ty) ?bl] =>
+    exploit (call_setup1_i2 E Delta P Q R' id ty bl) ;
+    [check_prove_local2ptree
+    | apply can_assume_funcptr2;
+      [ check_function_name
+      | lookup_spec id
+      | find_spec_in_globals'
+      | check_type_of_funspec id
+      ]
+    |
+    (* check_subsumes funspec_sub_refl *)
+    | 
+    (* try reflexivity; (eapply classify_fun_ty_hack; [apply funspec_sub_refl| reflexivity ..]) *)
+    |
+    check_typecheck
+    |
+    check_typecheck
+    |
+    (* check_cast_params *)
+    | ..
+    ]
+  end)
+  in strip1_later R' cR
+end.
+
+  + 
+  unfold NDmk_funspec.
+  (* instantiate evar for the dependee of a dependent type before unification *)
+  match goal with
+  | |- funspec_sub _ (mk_funspec _ _ ?A1 _ _) (mk_funspec _ _ ?A2 _ _) =>
+    let H := fresh in assert(A1 = A2) by reflexivity;
+    clear H end.
+
+  apply funspec_sub_refl .
+
+
+
+
 forward_call (*  s = sumarray(four,4); *)
   (gv _four, Ews,four_contents,4).
  repeat constructor; computable.
