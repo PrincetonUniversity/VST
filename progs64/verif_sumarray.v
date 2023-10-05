@@ -123,6 +123,23 @@ Proof.
 start_function.
 
 
+(* Ltac new_fwd_call' := *)
+
+(* lazymatch goal with
+| |- semax _ _ _ (Ssequence (Ssequence (Scall (Some ?ret') _ _)
+                                       (Sset _ (Etempvar ?ret'2 _))) _) _ =>
+                                       idtac "C";
+       unify ret' ret'2;
+       eapply semax_seq';
+         [new_prove_call_setup;
+          clear_Delta_specs; clear_MORE_POST;
+             [ .. | forward_call_id1_y_wow ]
+         |  after_forward_call ]
+         | |- _ => rewrite <- seq_assoc; new_fwd_call'
+end.
+new_fwd_call' (gv _four, Ews,four_contents,4). *)
+
+
 (* fwd_call_dep (@nil Type) . *)
 try lazymatch goal with
       | |- semax _ _ _ (Scall _ _ _) _ => rewrite -> semax_seq_skip
@@ -147,6 +164,22 @@ try lazymatch goal with
  end.
 
 - 
+
+
+
+
+Ltac check_subsumes subsumes :=
+  unfold NDmk_funspec;
+  lazymatch goal with |- funspec_sub _ (mk_funspec _ _ ?A1 _ _) (mk_funspec _ _ ?A2 _ _) =>
+  unify A1 A2
+  end;
+ apply subsumes ||
+ lazymatch goal with |- ?g =>
+ lazymatch type of subsumes with ?t =>
+  fail 100 "Function-call subsumption fails.  The term" subsumes "of type" t
+     "does not prove the funspec_sub," g
+ end end.
+
 (* prove_call_setup funspec_sub_refl  (gv _four, Ews,four_contents,4). *)
 (* prove_call_setup1 funspec_sub_refl. *)
  match goal with
@@ -163,32 +196,105 @@ try lazymatch goal with
       | check_type_of_funspec id
       ]
     |
-    (* check_subsumes funspec_sub_refl *)
+    check_subsumes funspec_sub_refl
     | 
-    (* try reflexivity; (eapply classify_fun_ty_hack; [apply funspec_sub_refl| reflexivity ..]) *)
+    try reflexivity; (eapply classify_fun_ty_hack; [apply funspec_sub_refl| reflexivity ..])
     |
     check_typecheck
     |
     check_typecheck
     |
-    (* check_cast_params *)
+    check_cast_params
     | ..
     ]
   end)
   in strip1_later R' cR
 end.
 
-  + 
-  unfold NDmk_funspec.
-  (* instantiate evar for the dependee of a dependent type before unification *)
-  match goal with
-  | |- funspec_sub _ (mk_funspec _ _ ?A1 _ _) (mk_funspec _ _ ?A2 _ _) =>
-    let H := fresh in assert(A1 = A2) by reflexivity;
-    clear H end.
 
-  apply funspec_sub_refl .
+Ltac prove_call_setup_aux  (*ts*) witness :=
+ let H := fresh "SetupOne" in
+ intro H;
+ match goal with | |- @semax _ _ _ _ ?CS _ _ (PROPx ?P (LOCALx ?L (SEPx ?R'))) _ _ =>
+ let Frame := fresh "Frame" in evar (Frame: list mpred); 
+ let cR := (fun R =>
+ exploit (call_setup2_i _ _ _ _ _ _ _ _ R R' _ _ _ _ (*ts*) _ _ _ _ _  H witness Frame); clear H;
+ [ try_convertPreElim
+ | check_prove_local2ptree
+ | check_vl_eq_args
+ | auto 50 with derives
+ | check_gvars_spec
+ | try change_compspecs CS; cancel_for_forward_call
+ |
+ ])
+  in strip1_later R' cR
+ end.
+
+ prove_call_setup_aux (*ts*) (gv _four, Ews,four_contents,4).
+
+ (* new_prove_call_setup. *)
+          clear_Delta_specs; clear_MORE_POST.
 
 
+          (* Ltac forward_call_id1_y_wow := *)
+let H := fresh in intro H;
+eapply (semax_call_id1_y_wow H); 
+ clear H;
+ lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
+ [ check_result_type | check_result_type
+ | apply Coq.Init.Logic.I | apply Coq.Init.Logic.I | reflexivity
+ | (clear; let H := fresh in intro H; inversion H)
+ | 
+ (* match_postcondition *)
+ | prove_delete_temp
+ | prove_delete_temp
+ | unify_postcondition_exps
+ | prove_PROP_preconditions
+ ].
+
+
+
+(* Ltac unfold_post :=
+match goal with |- ?Post ⊣⊢ _ => let A := fresh "A" in let B := fresh "B" in first
+  [evar (A : Type); evar (B : A -> environ -> mpred); unify Post (@bi_exist _ ?A ?B);
+     change Post with (@bi_exist _ A B); subst A B |
+   evar (A : list Prop); evar (B : environ -> mpred); unify Post (PROPx ?A ?B);
+     change Post with (PROPx A B); subst A B | idtac] end. *)
+
+     Set Nested Proofs Allowed.
+    Lemma PROP_LOCAL_SEP_ext' :
+  forall {Σ:gFunctors} P P' Q Q' R R', P=P' -> Q=Q' -> R=R' -> 
+     PROPx P (LOCALx Q (SEPx R)) ⊣⊢ PROPx(Σ:=Σ) P' (LOCALx Q' (SEPx R')).
+Proof.
+intros; subst; auto.
+Qed.
+
+Ltac unfold_post := match goal with |- ?Post ⊣⊢ _ => let A := fresh "A" in let B := fresh "B" in first
+  [evar (A : Type); evar (B : A -> environ -> mpred); unify Post (@bi_exist _ ?A ?B);
+     change Post with (@bi_exist _ A B); subst A B |
+   evar (A : list Prop); evar (B : environ -> mpred); unify Post (PROPx ?A ?B);
+     change Post with (PROPx A B); subst A B | idtac] end.
+
+     Ltac match_postcondition:=
+      fix_up_simplified_postcondition;
+     cbv beta iota zeta; unfold_post; 
+        (* extensionality rho. *) constructor; let rho := fresh "rho" in intro rho; cbn; 
+   repeat rewrite exp_uncurry;
+   try rewrite no_post_exists; repeat rewrite monPred_at_exist;
+tryif apply bi.exist_proper
+ then (intros ?vret;
+          (* apply equal_f;
+          apply PROP_LOCAL_SEP_ext;  *)
+          generalize rho; rewrite -local_assert; apply PROP_LOCAL_SEP_ext'
+          ;
+          [reflexivity | | reflexivity];
+          (reflexivity) 
+          )
+ else idtac.
+
+match_postcondition.
+    repeat constructor; computable.
+    - simpl. forward. (* return s; *)
 
 
 forward_call (*  s = sumarray(four,4); *)

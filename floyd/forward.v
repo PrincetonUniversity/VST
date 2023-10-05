@@ -912,6 +912,13 @@ Proof.
 intros; subst; auto.
 Qed.
 
+Lemma PROP_LOCAL_SEP_ext' :
+  forall {Σ:gFunctors} P P' Q Q' R R', P=P' -> Q=Q' -> R=R' -> 
+     PROPx P (LOCALx Q (SEPx R)) ⊣⊢ PROPx(Σ:=Σ) P' (LOCALx Q' (SEPx R')).
+Proof.
+intros; subst; auto.
+Qed.
+
 Ltac fix_up_simplified_postcondition_warning :=
   idtac "Warning: Fixed up a postcondition that was damaged; typically this has happened because you did 'simpl in *' that messed up Delta_specs.  Avoid 'simpl in *'.".
 
