@@ -1,4 +1,4 @@
-CHANGES IN NEXT RELEASE (after 2.12)
+CHANGES IN RELEASE 2.13 (October 2023)
 
 - Improved error diagnostics when compspecs mismatch
 - Improved error diagnostics when change_compspecs fails
@@ -7,6 +7,10 @@ CHANGES IN NEXT RELEASE (after 2.12)
 - forward tactic is slightly more careful about not simplifying user's terms
 - bug fixes and improved diagnostic messages in list_solve tactic
 - field_compatible0_Tarray_offset no longer requires naturally_aligned hypothesis
+- 'forward' now interacts better with 'localize/unlocalize' (#773)
+- Performance improvements in VSU system (#716)
+- VSU permits sharing of globals between compilation units (#713)
+- Compatible with Coq 8.18.0, 8.17.1, 8.16.1; with CompCert 3.13.1 and (likely) 3.12.
 
 CHANGES IN RELEASE 2.12 (March 2023)
 

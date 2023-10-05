@@ -23,6 +23,7 @@ jobs:
           # See https://github.com/coq-community/docker-coq/wiki for supported images
           - '8.16'
           - '8.17'
+          - '8.18'
           - 'dev'
         bit_size:
           - 32
@@ -31,6 +32,8 @@ jobs:
           - vst
         exclude:   
           - coq_version: 8.16
+            bit_size: 32
+          - coq_version: 8.17
             bit_size: 32
           - coq_version: dev
             bit_size: 32
