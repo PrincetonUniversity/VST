@@ -404,7 +404,7 @@ Proof.
       destruct H, H0; split; auto; lia.
   - intro a.
     remember (length a) as n.
-    revert dependent a; induction n; intros.
+    generalize dependent a; induction n; intros.
     + destruct a; inv Heqn.
       exists b; split; auto.
       change [] with (core b); apply core_unit.

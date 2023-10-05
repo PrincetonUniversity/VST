@@ -111,7 +111,7 @@ Proof. induction xs; intros; simpl.
    apply sepcon_derives.
    + rewrite (data_at_singleton_array_eq Ews tint (Vint a)) by trivial.
      erewrite mapsto_data_at'; auto; trivial.
-     red; simpl; intuition.
+     red; simpl; intuition auto with *.
      econstructor. reflexivity. simpl; trivial.
    + eapply derives_trans. apply IHxs; clear IHxs.
      * rewrite ! Ptrofs.unsigned_repr; try rep_lia.
@@ -121,7 +121,7 @@ Proof. induction xs; intros; simpl.
        replace (Z.succ (Zlength xs) - 1) with (Zlength xs) by lia.
        apply derives_refl'. f_equal. list_solve.
        unfold field_address0. rewrite if_true; simpl; trivial.
-       red; intuition.
+       red; intuition auto with *.
        -- reflexivity.
        -- red. rewrite sizeof_Tarray, Z.max_r. simpl sizeof; rep_lia. list_solve.
        -- eapply align_compatible_rec_Tarray; intros.

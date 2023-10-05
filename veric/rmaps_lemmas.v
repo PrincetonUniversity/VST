@@ -213,7 +213,7 @@ Proof.
   destruct r.
   simpl in H1; destruct H1.
   remember (ghost_fmap (approx n) (approx n) g0) as g'.
-  revert dependent g0; induction H; auto; intros; subst.
+  generalize dependent g0; induction H; auto; intros; subst.
   - rewrite ghost_fmap_fmap, approx_oo_approx; auto.
   - destruct g0; inv Heqg'.
     simpl; f_equal; eauto.
@@ -328,7 +328,7 @@ Lemma ghost_same_level_gen:
 Proof.
   intros.
   remember (ghost_fmap (approx n) (approx n) a) as a'; remember (ghost_fmap (approx n) (approx n) b) as b'.
-  revert dependent b; revert dependent a; induction H; intros; subst.
+  generalize dependent b; generalize dependent a; induction H; intros; subst.
   - rewrite ghost_fmap_fmap, approx_oo_approx; auto.
   - rewrite ghost_fmap_fmap, approx_oo_approx; auto.
   - destruct a, b; inv Heqa'; inv Heqb'.

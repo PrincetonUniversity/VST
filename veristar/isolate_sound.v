@@ -491,11 +491,11 @@ split; auto.
 left.
 eapply Lseg_unfold_neq with e0; auto.
 simpl in H.
-rewrite app_ass in H; apply H.
+rewrite <- app_assoc in H; apply H.
 (*repeat rewrite list_denote_separate.*)
 rewrite (@listd_prop pn_atom state pn_atom_denote).
 split; auto.
-rewrite app_ass in HypSig; apply HypSig.
+rewrite <- app_assoc in HypSig; apply HypSig.
 intros.
 simpl in H4.
 destruct H4.
@@ -534,7 +534,7 @@ simpl; intros.
 revert H0; case_eq (incon (Assertion pnatoms (rev sigma0))); intros; inv H1.
 apply incon_e in H0.
 split.
-rewrite <- app_nil_end.
+rewrite app_nil_r.
 eapply derives_trans; [apply H0 | auto].
 simpl; intros; contradiction.
 Qed.
@@ -562,7 +562,7 @@ revert H0; case_eq (exorcize e (Equ e0 e1 :: pnatoms) (Lseg e0 e1 :: sigma0) sig
   intros; inv H1.
 left; split; auto.
 apply oracle_sound in H; simpl in H.
-rewrite app_ass. auto.
+rewrite <- app_assoc. auto.
 exists l; split; auto.
 right. auto.
 Qed.
@@ -796,7 +796,7 @@ remember O as N. clear HeqN.
 revert pnatoms sigma0 results N H H0; induction sigma; intros.
 
 (* nil case *)
-rewrite <- app_nil_end in *;
+rewrite app_nil_r in *;
 unfold isolate' in H.
 apply exorcize_sound; auto.
 destruct (lt_dec N 2) as [? | _];  [ inversion H | ].
@@ -824,11 +824,11 @@ apply isolate_Next2; auto; apply oracle_sound; auto.
 specialize (IHsigma _ H4); clear H4.
 destruct IHsigma.
 change (rev (Next e0 e1 :: sigma0)) with (rev sigma0 ++ [Next e0 e1]).
-rewrite app_ass. apply H0.
+rewrite <- app_assoc. apply H0.
 split; auto.
 eapply derives_trans; try apply H.
 simpl.
-rewrite app_ass. auto.
+rewrite <- app_assoc. auto.
 
 (* 'Lseg' case *)
 apply isolate_e in H.
@@ -838,12 +838,12 @@ subst.
 apply isolate_Lseg1; auto.
 
 change (rev (Lseg e0 e1 :: sigma0)) with (rev sigma0 ++ [Lseg e0 e1]) in *.
-rewrite app_ass in *.
+rewrite <- app_assoc in *.
 simpl in *.
 apply (IHsigma _ H1); auto.
 
 change (rev (Lseg e0 e1 :: sigma0)) with (rev sigma0 ++ [Lseg e0 e1]) in *.
-rewrite app_ass in IHsigma.
+rewrite <- app_assoc in IHsigma.
 apply (IHsigma _ H); auto.
 Qed.
 

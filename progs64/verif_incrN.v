@@ -179,7 +179,7 @@ Proof.
   { go_lower; clear.
     rewrite !iter_sepcon2_spec.
     Intros l1 l2; subst.
-    revert dependent l2; induction l1; destruct l2; simpl; inversion 1.
+    generalize dependent l2; induction l1; destruct l2; simpl; inversion 1.
     - Exists (@nil (gname * Z)); simpl; entailer!.
     - sep_apply (IHl1 l2); auto.
       Intros l.

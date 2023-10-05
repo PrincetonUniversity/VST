@@ -3929,7 +3929,7 @@ Qed.
   pattern l at 2; replace l with (rev l) by (subst; simpl; auto).
   clear.
   revert l; induction s; simpl; intros; auto.
-  rewrite <- app_nil_end. symmetry; apply rev_involutive.
+  rewrite app_nil_r. symmetry; apply rev_involutive.
   rewrite IHs2. rewrite IHs1.
   clear.
   remember ( fold' (list key) (@cons _) s1 nil) as B.
@@ -3941,7 +3941,7 @@ Qed.
   clear.
   simpl.
   rewrite rev_involutive.
-  repeat rewrite app_ass.
+  repeat rewrite <- app_assoc.
   simpl; auto.
 Qed.
 

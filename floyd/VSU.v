@@ -2190,7 +2190,7 @@ eapply Comp_Exports_sub2;
 - symmetry in NOimports |- *.
    unfold JoinedImports in *.
    change (filter _ nil) with (@nil (ident*funspec)) in *.
-   rewrite <- app_nil_end in *.
+   rewrite app_nil_r in *.
    match goal with |- filter ?A (filter ?B ?C) = _ => forget A as F; forget B as G; forget C as al end.
    clear - NOimports.
    induction al as [|[i?]]; auto.
@@ -3051,7 +3051,7 @@ assert (H20: forall i fd, In (i,fd) (prog_funct' (map of_builtin (QP.prog_builti
 }
 
 assert (VG_LNR: list_norepet (map fst (QPvarspecs p) ++ map fst  G)). {
-  pose proof (Comp_LNR c). rewrite <- app_nil_end in H4.
+  pose proof (Comp_LNR c). rewrite app_nil_r in H4.
   auto.
 }
 forget (filter isGfun (PTree.elements (QP.prog_defs p))) as fs.

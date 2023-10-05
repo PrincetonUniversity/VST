@@ -678,7 +678,7 @@ Lemma full_hist'_drop : forall h h' v (Hh : full_hist' h v)
   full_hist' h' v.
 Proof.
   intros ??? (l & Hl & Hv) ?.
-  revert dependent h'; revert dependent v; revert dependent h; induction l using rev_ind; intros.
+  generalize dependent h'; generalize dependent v; generalize dependent h; induction l using rev_ind; intros.
   - inv Hl; simpl in *.
     destruct h'.
     exists []; auto.
@@ -748,7 +748,7 @@ Corollary full_hist_nil' : forall n l (Hfull : Forall2 full_hist' (repeat [] n) 
   (Hrep : Forall repable_signed l), l = repeat 0 n.
 Proof.
   intros; apply full_hist'_nil in Hfull.
-  revert dependent l; induction n; destruct l; auto; try discriminate; simpl; intros.
+  generalize dependent l; induction n; destruct l; auto; try discriminate; simpl; intros.
   inv Hrep; f_equal; [|apply IHn; inv Hfull; auto].
   apply repr_inj_signed; auto; congruence.
 Qed.

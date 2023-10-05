@@ -540,7 +540,7 @@ Qed.
 Lemma unlaterR_core {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
   forall x y : A, laterR (core x) y -> exists y0, laterR x y0 /\ y = core y0.
 Proof.
-  intros; remember (core x) as cx; revert dependent x; induction H; intros; subst.
+  intros; remember (core x) as cx; generalize dependent x; induction H; intros; subst.
   - pose proof (age_level _ _ H) as Hlevel.
     rewrite level_core in Hlevel.
     destruct (levelS_age1 _ _ Hlevel) as (y0 & Hage).

@@ -382,7 +382,7 @@ forward.
 Exists (va::a') b' (merged ++ [vb]) a_ b_' b_ begin.
 destruct (merged ++ [vb]) eqn:?. destruct merged; inv Heql.
 forget (i::l) as merged''; clear i l; subst merged''.
-rewrite app_ass.
+rewrite <- app_assoc.
 Time entailer!. (* 22 sec -> 17.33 sec *)
 rewrite butlast_snoc. rewrite last_snoc.
 rewrite @lseg_cons_eq.
@@ -556,6 +556,6 @@ remember (hmerge :: tmerge) as merged.
  apply list_append_null.
  clear -Hm.
  change (butlast merged ++ ([last merged] ++ merge a b) = merged ++ merge a b).
- rewrite <-app_ass.
+ rewrite app_assoc.
  now rewrite <-snoc; auto.
 Time Qed. (* 199 sec -> 331 sec *)
