@@ -21,19 +21,19 @@ Import Clight.
 
 Class VSTGpreS (Z : Type) Σ := {
   VSTGpreS_inv :> invGpreS Σ;
-  VSTGpreS_heap :> gen_heapGpreS address resource Σ;
+  VSTGpreS_heap :> gen_heapGpreS share address resource Σ;
   VSTGpreS_funspec :> inG Σ (gmap_view.gmap_viewR address (@funspecO' Σ));
   VSTGpreS_ext :> inG Σ (excl_authR (leibnizO Z))
 }.
 
 Definition VSTΣ Z : gFunctors :=
-  #[invΣ; gen_heapΣ address resource; GFunctor (gmap_view.gmap_viewRF address funspecOF');
+  #[invΣ; gen_heapΣ share address resource; GFunctor (gmap_view.gmap_viewRF address funspecOF');
     GFunctor (excl_authR (leibnizO Z)) ].
 Global Instance subG_VSTGpreS {Z Σ} : subG (VSTΣ Z) Σ → VSTGpreS Z Σ.
 Proof. solve_inG. Qed.
 
 Lemma init_VST: forall Z `{!VSTGpreS Z Σ} (z : Z),
-  ⊢ |==> ∀ _ : invGS_gen HasNoLc Σ, ∃ _ : gen_heapGS address resource Σ, ∃ _ : funspecGS Σ, ∃ _ : externalGS Z Σ,
+  ⊢ |==> ∀ _ : invGS_gen HasNoLc Σ, ∃ _ : gen_heapGS share address resource Σ, ∃ _ : funspecGS Σ, ∃ _ : externalGS Z Σ,
     let H : heapGS Σ := HeapGS _ _ _ _ in
     (state_interp Mem.empty z ∗ funspec_auth ∅ ∗ has_ext z) ∗ ghost_map.ghost_map_auth(H0 := gen_heapGpreS_meta) (gen_meta_name _) 1 ∅.
 Proof.
@@ -42,7 +42,7 @@ Proof.
   iMod (own_alloc(A := gmap_view.gmap_viewR address (@funspecO' Σ)) (gmap_view.gmap_view_auth (DfracOwn 1) ∅)) as (γf) "?".
   { apply gmap_view.gmap_view_auth_valid. }
   iMod (ext_alloc z) as (?) "(? & ?)".
-  iIntros "!>" (?); iExists (GenHeapGS _ _ _ γh γm), (FunspecG _ _ γf), _.
+  iIntros "!>" (?); iExists (GenHeapGS _ _ _ _ γh γm), (FunspecG _ _ γf), _.
   rewrite /state_interp /mem_auth /funspec_auth /=; iFrame.
   iExists ∅; iFrame. iSplit; [|done]. iPureIntro. apply empty_coherent.
 Qed.

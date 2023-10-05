@@ -8,17 +8,19 @@ From VST.veric Require Export base share_alg dshare.
 From iris_ora.algebra Require Export ora agree.
 From iris.prelude Require Import options.
 
-Definition readable_share' (s : shareO) := match s with Share sh => readable_share sh | _ => False end.
+Section shared.
+
+Context `{ST : ShareType}.
+
+Definition readable_share' (s : shareO) := match s with Share sh => share_readable sh | _ => False end.
 
 Definition readable_dfrac_dec dq : { readable_dfrac dq } + { ¬readable_dfrac dq }.
 destruct dq; simpl.
-- destruct o; last by right; intros [].
-  apply readable_share_dec.
-- destruct o; last by right; intros [].
+- destruct s; last by right; intros [].
+  apply readable_dec.
+- destruct s; last by right; intros [].
   by left.
 Defined.
-
-Section shared.
 
 Context (V : ofe).
 
@@ -85,7 +87,7 @@ Local Instance shared_valid_instance : Valid shared := λ x,
   | NO sh _ => ✓ sh
   end.
 
-Local Instance shared_unit_instance : Unit shared := NO ε bot_unreadable.
+Local Instance shared_unit_instance : Unit shared := NO ε unreadable_bot.
 
 Local Definition err := NO ShareBot id.
 
@@ -95,7 +97,7 @@ Proof.
   intros X.
   destruct (sh1 ⋅ sh2) eqn: Hop; last done.
   apply share_op_join in Hop as (? & ? & -> & -> & J).
-  eapply join_unreadable_shares; eauto.
+  eapply join_unreadable; eauto.
 Qed.
 
 Local Instance shared_op_instance : Op shared := λ x y,
@@ -118,7 +120,7 @@ Definition dfrac_error df := match df with DfracOwn ShareBot | DfracBoth ShareBo
 Lemma share_op_readable' : forall sh1 sh2, readable_share' sh1 \/ readable_share' sh2 -> ✓(sh1 ⋅ sh2) -> readable_share' (sh1 ⋅ sh2).
 Proof.
   intros ??? (? & ? & ? & -> & -> & Hop & J)%share_valid2_joins.
-  rewrite Hop; eapply readable_share_join; eauto.
+  rewrite Hop; destruct H; eapply readable_mono; eauto; rewrite share_op_comm //.
 Qed.
 
 Lemma share_op_readable : forall sh1 sh2, readable_share' sh1 \/ readable_share' sh2 -> ~readable_share' (sh1 ⋅ sh2) -> sh1 ⋅ sh2 = ShareBot.
@@ -126,7 +128,7 @@ Proof.
   intros.
   destruct (sh1 ⋅ sh2) eqn: Hop; last done.
   contradiction H0; rewrite -Hop; apply share_op_readable'; auto.
-  rewrite Hop; auto.
+  rewrite Hop //.
 Qed.
 
 Lemma dfrac_op_readable' : forall d1 d2, readable_dfrac d1 \/ readable_dfrac d2 -> ✓(d1 ⋅ d2) -> readable_dfrac (d1 ⋅ d2).
@@ -139,8 +141,9 @@ Qed.
 Lemma dfrac_op_readable : forall d1 d2, readable_dfrac d1 \/ readable_dfrac d2 -> ~readable_dfrac (d1 ⋅ d2) -> dfrac_error (d1 ⋅ d2) = true.
 Proof.
   destruct d1 as [[|]|[|]], d2 as [[|]|[|]]; simpl; try done; destruct (_ ⋅ _) eqn: Hop; try done.
-  intros H ?; apply (share_op_readable (Share _) (Share _)) in H; first congruence.
-  rewrite Hop //.
+  intros H ?; apply (share_op_readable (Share _) (Share _)) in H.
+  - rewrite H // in Hop.
+  - rewrite Hop //.
 Qed.
 
 Lemma op_dfrac_error : forall d1 d2, dfrac_error d2 = true -> dfrac_error (d1 ⋅ d2) = true.
@@ -564,7 +567,7 @@ Qed.
 Canonical Structure sharedUC : ucmra := Ucmra shared shared_ucmra_mixin.
 
 (* updates *)
-Lemma writable_update : forall sh rsh v v', writable0_share sh -> ✓ v' ->
+Lemma writable_update : forall sh rsh v v', share_writable sh -> ✓ v' ->
   YES (DfracOwn (Share sh)) rsh v ~~> YES (DfracOwn (Share sh)) rsh v'.
 Proof.
   intros; intros ? [|] Hvalid; simpl in *; last by destruct Hvalid.
@@ -625,12 +628,12 @@ Proof.
   intros [|] [|]; inversion 1; subst; done.
 Qed.
 
-Global Instance YES_Tsh_cancelable rsh v : Cancelable (YES (DfracOwn (Share Tsh)) rsh v).
+Global Instance YES_share_top_cancelable rsh v : Cancelable (YES (DfracOwn (Share share_top)) rsh v).
 Proof.
   intros ??? (Hd & Hv)%shared_validN ?.
-  destruct (dfrac_of_op (YES (DfracOwn (Share Tsh)) rsh v) y) as [(_ & Hop)|Hop]; rewrite Hop // in Hd.
+  destruct (dfrac_of_op (YES (DfracOwn (Share share_top)) rsh v) y) as [(_ & Hop)|Hop]; rewrite Hop // in Hd.
   pose proof (dfrac_full_exclusive _ Hd) as He.
-  destruct y; simpl in *; subst; first contradiction bot_unreadable.
+  destruct y; simpl in *; subst; first contradiction unreadable_bot.
   inv He.
   rewrite H in Hop.
   apply (cancelable _ _ (dfrac_of z)) in Hd; first by destruct z; simpl in *; inv Hd.
@@ -871,7 +874,7 @@ Proof.
   constructor; apply YES_irrel.
 Qed.
 
-Global Instance bot_core_id rsh : OraCoreId (NO (Share Share.bot) rsh).
+Global Instance bot_core_id rsh : OraCoreId (NO (Share share_bot) rsh).
 Proof.
   hnf.
   rewrite /pcore /ora_pcore /=.
@@ -880,7 +883,7 @@ Qed.
 
 End shared.
 
-Arguments YES {_} _ _ _.
-Arguments NO {_} _ _.
-Arguments dfrac_of {_} _.
-Arguments val_of {_} _.
+Arguments YES {_ _ _} _ _ _.
+Arguments NO {_ _ _} _ _.
+Arguments dfrac_of {_ _ _} _.
+Arguments val_of {_ _ _} _.

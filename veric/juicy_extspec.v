@@ -54,7 +54,7 @@ Section juicy_safety.
   Variable (Hspec : ext_spec Z).
   Variable ge : G.
 
-  Context `{!gen_heapGS address resource Σ} `{!externalGS Z Σ} `{!invGS_gen hlc Σ}.
+  Context `{!gen_heapGS share address resource Σ} `{!externalGS Z Σ} `{!invGS_gen hlc Σ}.
 
 (* The closest match to the Iris approach would be for auth_heap to hold the true full CompCert mem,
    and to run the underlying semantics without any permissions. But that's a poor fit for VST's approach

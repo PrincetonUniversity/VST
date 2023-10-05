@@ -744,7 +744,7 @@ Qed.
 
 Lemma VALspec_range_free: forall m b lo hi m',
   Mem.free m b lo hi = Some m' ->
-  mem_auth m ∗ VALspec_range (hi - lo) Tsh (b, lo) ⊢ |==> mem_auth m'.
+  mem_auth m ∗ VALspec_range (hi - lo) share_top (b, lo) ⊢ |==> mem_auth m'.
 Proof.
   intros.
   iIntros "[Hm H]".

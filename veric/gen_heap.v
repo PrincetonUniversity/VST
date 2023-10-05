@@ -80,35 +80,39 @@ Proof.
     by apply equiv_dist.
 Qed.
 
-Class gen_heapGpreS (L V : Type) (Σ : gFunctors) `{Countable L} := {
-  gen_heapGpreS_heap : resource_mapG Σ L V;
+Class gen_heapGpreS (S L V : Type) (Σ : gFunctors) `{ShareType S} `{Countable L} := {
+  gen_heapGpreS_heap : resource_mapG Σ S L V;
   gen_heapGpreS_meta : ghost_mapG Σ L gname;
   gen_heapGpreS_meta_data : inG Σ reservation_mapR;
 }.
 Local Existing Instances gen_heapGpreS_meta_data gen_heapGpreS_heap gen_heapGpreS_meta.
 
-Class gen_heapGS (L V : Type) (Σ : gFunctors) `{Countable L} := GenHeapGS {
-  gen_heap_inG : gen_heapGpreS L V Σ;
+Class gen_heapGS (S L V : Type) (Σ : gFunctors) `{ShareType S} `{Countable L} := GenHeapGS {
+  gen_heap_inG : gen_heapGpreS S L V Σ;
   gen_heap_name : gname;
   gen_meta_name : gname
 }.
 Local Existing Instance gen_heap_inG.
-Global Arguments GenHeapGS L V Σ {_ _ _} _ _.
-Global Arguments gen_heap_name {L V Σ _ _} _ : assert.
-Global Arguments gen_meta_name {L V Σ _ _} _ : assert.
+Global Arguments GenHeapGS S L V Σ {_ _ _ _} _ _.
+Global Arguments gen_heap_name {S L V Σ _ _ _} _ : assert.
+Global Arguments gen_meta_name {S L V Σ _ _ _} _ : assert.
 
-Definition gen_heapΣ (L V : Type) `{Countable L} : gFunctors := #[
-  resource_mapΣ L V;
+Definition gen_heapΣ (S L V : Type) `{ShareType S} `{Countable L} : gFunctors := #[
+  resource_mapΣ S L V;
   ghost_mapΣ L gname;
   GFunctor reservation_mapR
 ].
 
-Global Instance subG_gen_heapGpreS {Σ L V} `{Countable L} :
-  subG (gen_heapΣ L V) Σ → gen_heapGpreS L V Σ.
-Proof. solve_inG. Qed.
+Global Instance subG_gen_heapGpreS {Σ S L V} `{ShareType S} `{Countable L} :
+  subG (gen_heapΣ S L V) Σ → gen_heapGpreS S L V Σ.
+Proof.
+  rewrite /gen_heapΣ => Hsub.
+  repeat apply subG_inv in Hsub as (?%subG_inG & Hsub); simpl in *.
+  repeat split; assumption.
+Qed.
 
 Section definitions.
-  Context `{Countable L, hG : !gen_heapGS L V Σ}.
+  Context {S} `{ShareType S, Countable L, hG : !gen_heapGS S L V Σ}.
 
   Definition gen_heap_interp σ : iProp Σ := ∃ m : gmap L gname,
 (*    (* The [⊆] is used to avoid assigning ghost information to the locations in
@@ -123,7 +127,7 @@ Section definitions.
   Definition mapsto := mapsto_aux.(unseal).
   Local Definition mapsto_unseal : @mapsto = @mapsto_def := mapsto_aux.(seal_eq).
 
-  Local Definition mapsto_no_def (l : L) (sh : share) : iProp Σ :=
+  Local Definition mapsto_no_def (l : L) (sh : S) : iProp Σ :=
     resource_map_elem_no (gen_heap_name hG) l sh.
   Local Definition mapsto_no_aux : seal (@mapsto_no_def). Proof. by eexists. Qed.
   Definition mapsto_no := mapsto_no_aux.(unseal).
@@ -145,16 +149,16 @@ Section definitions.
   Definition meta := meta_aux.(unseal).
   Local Definition meta_unseal : @meta = @meta_def := meta_aux.(seal_eq).
 End definitions.
-Global Arguments meta {L _ _ V Σ _ A _ _} l N x.
+Global Arguments meta {S _ L _ _ V Σ _ A _ _} l N x.
 
 Local Notation "l ↦ dq v" := (mapsto l dq v)
   (at level 20, dq custom dfrac at level 1, format "l  ↦ dq  v") : bi_scope.
 
 Section gen_heap.
-  Context {L V} `{Countable L, !gen_heapGS L V Σ}.
+  Context {S L V} `{ShareType S, Countable L, !gen_heapGS S L V Σ}.
   Implicit Types P Q : iProp Σ.
   Implicit Types Φ : V → iProp Σ.
-  Implicit Types σ : rmapUR L (leibnizO V).
+  Implicit Types σ : rmapUR S L (leibnizO V).
   Implicit Types m : gmap L gname.
   Implicit Types l : L.
   Implicit Types v : V.
@@ -171,9 +175,9 @@ Section gen_heap.
   Proof. rewrite mapsto_unseal. apply _. Qed.
   Global Instance mapsto_affine l v : Affine (l ↦□ v).
   Proof. rewrite mapsto_unseal. apply _. Qed.
-  Global Instance mapsto_no_persistent l : Persistent (mapsto_no l Share.bot).
+  Global Instance mapsto_no_persistent l : Persistent (mapsto_no l share_bot).
   Proof. rewrite mapsto_no_unseal. apply _. Qed.
-  Global Instance mapsto_no_affine l : Affine (mapsto_no l Share.bot).
+  Global Instance mapsto_no_affine l : Affine (mapsto_no l share_bot).
   Proof. rewrite mapsto_no_unseal. apply _. Qed.
 
   Lemma mapsto_valid l dq v : l ↦{dq} v -∗ ⌜✓ dq ∧ readable_dfrac dq⌝%Qp.
@@ -191,7 +195,7 @@ Section gen_heap.
     iDestruct (mapsto_valid_2 with "H1 H2") as %?. eauto.
   Qed.
 
-  Lemma mapsto_no_valid l dq : mapsto_no l dq -∗ ⌜~readable_share dq⌝%Qp.
+  Lemma mapsto_no_valid l dq : mapsto_no l dq -∗ ⌜~share_readable dq⌝%Qp.
   Proof. rewrite mapsto_no_unseal. apply resource_map_elem_no_valid. Qed.
   Lemma mapsto_no_valid_2 l dq1 dq2 : mapsto_no l dq1 -∗ mapsto_no l dq2 -∗ ⌜✓ (Share dq1 ⋅ Share dq2) ∧ ~readable_share' (Share dq1 ⋅ Share dq2)⌝.
   Proof. rewrite mapsto_no_unseal. apply resource_map_elem_no_valid_2. Qed.
@@ -231,12 +235,12 @@ Section gen_heap.
     iApply (mapsto_no_mapsto_combine with "H1 H2").
   Qed.
 
-  Lemma mapsto_split_no l dq1 dq2 (rsh1 : ~readable_share dq1) (rsh2 : readable_dfrac dq2) v :
+  Lemma mapsto_split_no l dq1 dq2 (rsh1 : ~share_readable dq1) (rsh2 : readable_dfrac dq2) v :
     l ↦{DfracOwn (Share dq1) ⋅ dq2} v ⊣⊢ mapsto_no l dq1 ∗ l ↦{dq2} v.
   Proof. rewrite mapsto_unseal mapsto_no_unseal. by apply resource_map_elem_split_no. Qed.
 
-  Lemma mapsto_no_split l sh1 sh2 (rsh1 : ~readable_share sh1) (rsh2 : ~readable_share sh2) sh
-    (J : sepalg.join sh1 sh2 sh) :
+  Lemma mapsto_no_split l sh1 sh2 (rsh1 : ~share_readable sh1) (rsh2 : ~share_readable sh2) sh
+    (J : share_op sh1 sh2 = Some sh) :
     mapsto_no l sh ⊣⊢ mapsto_no l sh1 ∗ mapsto_no l sh2.
   Proof. rewrite mapsto_no_unseal. by apply resource_map_elem_no_split. Qed.
 
@@ -251,10 +255,10 @@ Section gen_heap.
   Lemma mapsto_persist l dq v : l ↦{dq} v ==∗ l ↦□ v.
   Proof. rewrite mapsto_unseal. apply resource_map_elem_persist. Qed.
 
-  Lemma mapsto_bot l dq v : l ↦{dq} v ==∗ mapsto_no l Share.bot.
+  Lemma mapsto_bot l dq v : l ↦{dq} v ==∗ mapsto_no l share_bot.
   Proof. rewrite mapsto_unseal mapsto_no_unseal. apply resource_map_elem_bot. Qed.
 
-  Lemma mapsto_no_bot l sh : mapsto_no l sh ==∗ mapsto_no l Share.bot.
+  Lemma mapsto_no_bot l sh : mapsto_no l sh ==∗ mapsto_no l share_bot.
   Proof. rewrite mapsto_no_unseal. apply resource_map_elem_no_bot. Qed.*)
 
   (** Framing support *)
@@ -355,7 +359,7 @@ Section gen_heap.
       first by apply lookup_union_None.
   Qed.*)
 
-  Lemma gen_heap_set (σ : rmapUR L (leibnizO V)) (Hvalid : ✓ σ) :
+  Lemma gen_heap_set (σ : rmapUR S L (leibnizO V)) (Hvalid : ✓ σ) :
     resource_map_auth (gen_heap_name _) 1 ∅ ⊢ |==> resource_map_auth (gen_heap_name _) 1 σ ∗
     ([∗ map] l ↦ x ∈ σ, match x with
                         | (shared.YES dq _ v) => l ↦{dq} (proj1_sig (elem_of_agree v))
@@ -375,7 +379,7 @@ Section gen_heap.
 
   Lemma mapsto_insert {σ} k v :
     σ !! k = None →
-    resource_map_auth (gen_heap_name _) 1 σ ⊢ |==> resource_map_auth (gen_heap_name _) 1 (<[k := (YES (V := leibnizO V) (DfracOwn (Share Tsh)) readable_Tsh (to_agree v))]> σ) ∗ k ↦ v.
+    resource_map_auth (gen_heap_name _) 1 σ ⊢ |==> resource_map_auth (gen_heap_name _) 1 (<[k := (YES (V := leibnizO V) (DfracOwn (Share share_top)) readable_top (to_agree v))]> σ) ∗ k ↦ v.
   Proof. rewrite mapsto_unseal. apply resource_map_insert. Qed.
 
   Lemma mapsto_insert_persist {σ}  k v :
@@ -387,7 +391,7 @@ Section gen_heap.
     resource_map_auth (gen_heap_name _) 1 σ -∗ k ↦ v ==∗ resource_map_auth (gen_heap_name _) 1 (<[k := ε]>σ).
   Proof. rewrite mapsto_unseal. apply resource_map_delete. Qed.
 
-  Lemma mapsto_update {σ k sh v} (Hsh : writable0_share sh) w :
+  Lemma mapsto_update {σ k sh v} (Hsh : share_writable sh) w :
     resource_map_auth (gen_heap_name _) 1 σ -∗ k ↦{#sh} v ==∗ ∃ dq' rsh', ⌜✓ dq' ∧ DfracOwn (Share sh) ≼ dq' ∧
       σ !! k ≡ Some (YES (V := leibnizO V) dq' rsh' (to_agree v))⌝ ∧
     resource_map_auth (gen_heap_name _) 1 (<[k := (YES dq' rsh' (to_agree w))]> σ) ∗ k ↦{#sh} w.
@@ -403,7 +407,7 @@ Section gen_heap.
   Lemma mapsto_insert_big {σ} (σ' : gmap L V) :
     dom σ' ## dom σ →
     resource_map_auth (gen_heap_name _) 1 σ ⊢ |==>
-    resource_map_auth (gen_heap_name _) 1 (((λ v, (YES (V := leibnizO V) (DfracOwn (Share Tsh)) readable_Tsh (to_agree v))) <$> σ') ∪ σ) ∗ ([∗ map] k ↦ v ∈ σ', k ↦ v).
+    resource_map_auth (gen_heap_name _) 1 (((λ v, (YES (V := leibnizO V) (DfracOwn (Share share_top)) readable_top (to_agree v))) <$> σ') ∪ σ) ∗ ([∗ map] k ↦ v ∈ σ', k ↦ v).
   Proof. rewrite mapsto_unseal. apply resource_map_insert_big. Qed.
 
   Lemma mapsto_insert_persist_big {σ} (σ' : gmap L V) :
@@ -418,7 +422,7 @@ Section gen_heap.
     resource_map_auth (gen_heap_name _) 1 (((λ _, ε) <$> σ0) ∪ σ).
   Proof. rewrite mapsto_unseal. apply resource_map_delete_big. Qed.
 
-  Lemma mapsto_update_big {σ} sh (Hsh : writable0_share sh) (σ0 σ1 : gmap L V) :
+  Lemma mapsto_update_big {σ} sh (Hsh : share_writable sh) (σ0 σ1 : gmap L V) :
     dom σ0 = dom σ1 →
     resource_map_auth (gen_heap_name _) 1 σ -∗
     ([∗ map] k↦v ∈ σ0, k ↦{#sh} v) ==∗
@@ -460,9 +464,9 @@ Proof.
 Qed.
 *)
 
-Lemma gen_heap_init_names `{!@gen_heapGpreS L V Σ H1 H2} σ (Hvalid : ✓ σ) :
+Lemma gen_heap_init_names {S} `{!@gen_heapGpreS S L V Σ H1 H2 H3} σ (Hvalid : ✓ σ) :
   ⊢ |==> ∃ γh γm,
-    let hG := GenHeapGS L V Σ γh γm in
+    let hG := GenHeapGS S L V Σ γh γm in
     resource_map_auth (gen_heap_name _) 1 σ ∗
     ([∗ map] l ↦ x ∈ σ, match x with
                        | (shared.YES dq _ v) => l ↦{dq} (proj1_sig (elem_of_agree v))
@@ -478,9 +482,9 @@ Proof.
   rewrite mapsto_unseal mapsto_no_unseal //.
 Qed.
 
-Corollary gen_heap_init_names_empty `{!@gen_heapGpreS L V Σ H1 H2} :
+Corollary gen_heap_init_names_empty {S} `{!@gen_heapGpreS S L V Σ H1 H2 H3} :
   ⊢ |==> ∃ γh γm,
-    let hG := GenHeapGS L V Σ γh γm in
+    let hG := GenHeapGS S L V Σ γh γm in
     resource_map_auth (gen_heap_name _) 1 ∅ ∗ ghost_map_auth (gen_meta_name _) 1 ∅.
 Proof.
   iDestruct (gen_heap_init_names ∅) as ">(% & % & ? & _ & ?)".
@@ -488,8 +492,8 @@ Proof.
   by iExists _, _; iFrame.
 Qed.
 
-Lemma gen_heap_init `{!@gen_heapGpreS L V Σ H1 H2} σ (Hvalid : ✓ σ) :
-  ⊢ |==> ∃ _ : gen_heapGS L V Σ, resource_map_auth (gen_heap_name _) 1 σ ∗
+Lemma gen_heap_init {S} `{!@gen_heapGpreS S L V Σ H1 H2 H3} σ (Hvalid : ✓ σ) :
+  ⊢ |==> ∃ _ : gen_heapGS S L V Σ, resource_map_auth (gen_heap_name _) 1 σ ∗
     ([∗ map] l ↦ x ∈ σ, match x with
                         | (shared.YES dq _ v) => l ↦{dq} (proj1_sig (elem_of_agree v))
                         | (shared.NO (Share sh) _) => mapsto_no l sh
@@ -497,14 +501,14 @@ Lemma gen_heap_init `{!@gen_heapGpreS L V Σ H1 H2} σ (Hvalid : ✓ σ) :
                         end) ∗ ghost_map_auth (gen_meta_name _) 1 ∅.
 Proof.
   iMod (gen_heap_init_names σ) as (γh γm) "Hinit".
-  iExists (GenHeapGS _ _ _ γh γm).
+  iExists (GenHeapGS _ _ _ _ γh γm).
   done.
 Qed.
 
-Corollary gen_heap_init_empty `{!@gen_heapGpreS L V Σ H1 H2} :
-  ⊢ |==> ∃ _ : gen_heapGS L V Σ, resource_map_auth (gen_heap_name _) 1 ∅ ∗ ghost_map_auth (gen_meta_name _) 1 ∅.
+Corollary gen_heap_init_empty {S} `{!@gen_heapGpreS S L V Σ H1 H2 H3} :
+  ⊢ |==> ∃ _ : gen_heapGS S L V Σ, resource_map_auth (gen_heap_name _) 1 ∅ ∗ ghost_map_auth (gen_meta_name _) 1 ∅.
 Proof.
   iMod gen_heap_init_names_empty as (γh γm) "Hinit".
-  iExists (GenHeapGS _ _ _ γh γm).
+  iExists (GenHeapGS _ _ _ _ γh γm).
   done.
 Qed.
