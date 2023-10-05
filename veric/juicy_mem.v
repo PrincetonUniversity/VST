@@ -79,6 +79,7 @@ Lemma perm_of_sh_mono : forall (sh1 sh2 : shareR), (✓ (sh1 ⋅ sh2))%stdpp -> 
 Proof.
   intros ?? H.
   apply share_valid2_joins in H as (s1 & s2 & ? & -> & -> & H & J).
+  rewrite share_op_is_join in J.
   rewrite H /= /perm_of_sh.
   destruct (writable0_share_dec s1).
   { eapply join_writable01 in w; eauto.
@@ -133,7 +134,8 @@ Proof.
     + intros ->; done.
     + intros ->; destruct d1; try done; simpl in Hd.
       destruct Hd as (? & Hd).
-      symmetry in Hd; apply share_op_join in Hd as (? & ? & -> & -> & (-> & ->)%join_Bot); done.
+      symmetry in Hd; apply share_op_join in Hd as (? & ? & -> & -> & J).
+      rewrite share_op_is_join in J; apply join_Bot in J as [-> ->]; done.
 Qed.
 
 (*Global Program Instance resource_ops : resource_ops (leibnizO resource) := { perm_of_res := perm_of_res; memval_of r := match r with VAL v => Some v | _ => None end }.
@@ -898,7 +900,7 @@ Abort. (* should be provable *)*)*)
 
 Section mpred.
 
-  Context `{!gen_heapGS address resource Σ} `{!wsatGS Σ}.
+  Context `{!gen_heapGS share address resource Σ} `{!wsatGS Σ}.
   Notation mpred := (iProp Σ).
 
   Definition core_load (ch: memory_chunk) (l: address) (v: val): mpred :=
@@ -986,7 +988,7 @@ Section mpred.
   Definition coherent (m : mem) phi := forall loc, ((loc.1 >= Mem.nextblock m)%positive -> phi !! loc = None) /\
     coherent_loc m loc (phi @ loc).
 
-  Definition mem_auth m := ∃ σ, ⌜coherent m σ⌝ ∧ resource_map_auth(H0 := gen_heapGpreS_heap(gen_heapGpreS := gen_heap_inG)) (gen_heap_name _) 1 σ.
+  Definition mem_auth m := ∃ σ, ⌜coherent m σ⌝ ∧ resource_map_auth(H1 := gen_heapGpreS_heap(gen_heapGpreS := gen_heap_inG)) (gen_heap_name _) 1 σ.
 
   Lemma elem_of_to_agree : forall {A} (v : A), proj1_sig (elem_of_agree (to_agree v)) = v.
   Proof.
@@ -1108,7 +1110,7 @@ Section mpred.
     iPureIntro; split; first done.
     specialize (H k).
     rewrite /resource_at Heq /= in H; destruct H as (Hnext & H).
-    split; first by destruct (plt k.1 (nextblock m)); first done; unfold Plt in *; specialize (Hnext ltac:(lia)).
+    split; first by destruct (plt k.1 (nextblock m)); first done; unfold Plt in *; spec Hnext.
     apply shared_valid in Hv as [Hd _].
     eapply coherent_mono; try done.
     destruct (val_of x); last done.
@@ -1209,11 +1211,11 @@ Section mpred.
     split; last done.
     intros l; specialize (H l); destruct H as (Hnext & Hcontents & Haccess).
     unfold resource_at in *.
-    assert ((((λ v : resource, (YES (V := leibnizO resource) (DfracOwn (Share Tsh)) readable_Tsh (to_agree v))) <$>
+    assert ((((λ v : resource, (YES (V := leibnizO resource) (DfracOwn (Share Tsh)) readable_top (to_agree v))) <$>
      list_to_map (zip ((λ i : nat, adr_add (nextblock m, lo) (Z.of_nat i)) <$> seq 0 (Z.to_nat (hi - lo)))
           (replicate (Z.to_nat (hi - lo)) (VAL Undef)))) ∪ σ) !! l =
       if eq_dec l.1 (nextblock m) then if adr_range_dec (nextblock m, lo) (hi - lo) l then
-      Some (YES (V := leibnizO resource) (DfracOwn (Share Tsh)) readable_Tsh (to_agree (VAL Undef))) else None else σ !! l) as Hlookup.
+      Some (YES (V := leibnizO resource) (DfracOwn (Share Tsh)) readable_top (to_agree (VAL Undef))) else None else σ !! l) as Hlookup.
     { rewrite -{1}(replicate_length (Z.to_nat (hi - lo)) (VAL Undef)) update_map_lookup replicate_length nth_replicate.
       if_tac.
       * destruct l, H as [-> ?]; rewrite /= eq_dec_refl if_true //; lia.
@@ -1485,7 +1487,7 @@ Section mpred.
     split; first done; apply coherent_bot.
   Qed.
 
-  Lemma coherent_empty : forall (σ : rmapUR _ _), coherent Mem.empty σ → σ = ∅.
+  Lemma coherent_empty : forall (σ : rmapUR _ _ _), coherent Mem.empty σ → σ = ∅.
   Proof.
     intros.
     rewrite map_empty; intros l.
@@ -1493,7 +1495,7 @@ Section mpred.
     apply Hnext; simpl; lia.
   Qed.
 
-  Lemma mem_auth_set (m : mem) (σ : rmapUR _ _) (Hvalid : ✓ σ) (Hnext : ∀ loc, (loc.1 >= Mem.nextblock m)%positive -> σ !! loc = None)
+  Lemma mem_auth_set (m : mem) (σ : rmapUR _ _ _) (Hvalid : ✓ σ) (Hnext : ∀ loc, (loc.1 >= Mem.nextblock m)%positive -> σ !! loc = None)
     (Hcoh : ∀ loc : address, coherent_loc m loc (resource_at σ loc)) :
     mem_auth Mem.empty ⊢ |==> mem_auth m ∗
     ([∗ map] l ↦ x ∈ σ, match x with

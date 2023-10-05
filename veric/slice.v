@@ -948,11 +948,12 @@ Proof.
 Qed.*)
 
 Section heap.
-Context `{!gen_heapGS address resource Σ} `{!wsatGS Σ}.
+Context `{!gen_heapGS share address resource Σ} `{!wsatGS Σ}.
 
 Lemma share_join_op: forall (sh1 sh2 sh : share), sepalg.join sh1 sh2 sh ->
   Share sh1 ⋅ Share sh2 = Share sh.
 Proof.
+  intros *; rewrite -share_op_is_join.
   intros; rewrite share_op_equiv; eauto.
 Qed.
 
@@ -1011,7 +1012,7 @@ Qed.
 Lemma mapsto_no_share_join: forall sh1 sh2 sh l (nsh1 : ~readable_share sh1) (nsh2 : ~readable_share sh2), sepalg.join sh1 sh2 sh ->
   mapsto_no l sh1 ∗ mapsto_no l sh2 ⊣⊢ mapsto_no l sh.
 Proof.
-  intros; rewrite -mapsto_no_split //.
+  intros; rewrite -mapsto_no_split // share_op_is_join //.
 Qed.
 
 Lemma nonlock_permission_bytes_address_mapsto_join:
@@ -1037,9 +1038,9 @@ Proof.
     destruct (readable_share_dec _).
     + iDestruct "H1" as (??) "H1".
       iDestruct (mapsto_combine with "H1 H2") as "[? ->]".
-      erewrite dfrac_op_own, share_join_op; try done; intros ->; contradiction bot_unreadable.
+      rewrite dfrac_op_own; erewrite share_join_op; done.
     + iDestruct (mapsto_no_mapsto_combine with "H1 H2") as "?".
-      erewrite dfrac_op_own, share_join_op; try done; intros ->; contradiction bot_unreadable.
+      rewrite dfrac_op_own; erewrite share_join_op; done.
   - iIntros "[%Hbl H]"; iFrame "%".
     destruct Hbl as [-> _].
     rewrite /size_chunk_nat.
