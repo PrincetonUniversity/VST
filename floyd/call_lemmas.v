@@ -950,7 +950,7 @@ Qed.
 
 Lemma semax_call_id00_wow:
  forall {E} {Qtemp Qvar a GV Delta P Q R R'
-   fs argsig retty cc} {A: TypeTree} {Pre Post}
+   fs argsig retty cc} {A: TypeTree} {Pre: dtfr (ArgsTT A)} {Post: dtfr (AssertTT A)}
    {witness}
    {Frame: list mpred}
    {bl: list expr}
@@ -963,8 +963,8 @@ Lemma semax_call_id00_wow:
              (Ppost: B -> list Prop)
              (Rpost: B -> list mpred)
    (RETrueY: retty = Tvoid)
-   (POST1: Post witness = (∃ vret:B, PROPx (Ppost vret) (LOCALx nil (SEPx (Rpost vret)))))
-   (POST2: Post2 = ∃ vret:B, PROPx (P ++ Ppost vret) (LOCALx Q
+   (POST1: assert_of (Post witness) ⊣⊢ (∃ vret:B, PROPx (Ppost vret) (LOCALx nil (SEPx (Rpost vret)))))
+   (POST2: Post2 ⊣⊢ ∃ vret:B, PROPx (P ++ Ppost vret) (LOCALx Q
              (SEPx (Rpost vret ++ Frame))))
    (PPRE: fold_right_and True Ppre),
    semax E Delta (PROPx P (LOCALx Q (SEPx R')))
@@ -990,9 +990,12 @@ Proof.
     rewrite bi.and_elim_l comm //.
   * subst.
     clear  TC1 PRE1 PPRE.
+    rewrite POST2.
+    go_lowerx.
+    eapply monPred_in_equiv in POST1.
+    simpl in POST1.
     rewrite POST1; clear POST1.
-    unfold ifvoid.
-    go_lowerx; normalize.
+    unfold PROPx, LOCALx, SEPx, local, lift1; unfold_lift. monPred.unseal. normalize.
     Exists x.
     rewrite fold_right_and_app_low.
     rewrite fold_right_sepcon_app.
@@ -1039,11 +1042,11 @@ Lemma semax_call_id1_wow:
     (B: Type) (Ppost: B -> list Prop) (F: B -> val) (Rpost: B -> list mpred)
    (TYret: typeof_temp Delta ret = Some retty)
    (OKretty: check_retty retty)
-   (POST1: Post witness = ∃ vret:B, PROPx (Ppost vret)
+   (POST1: assert_of (Post witness) ⊣⊢ ∃ vret:B, PROPx (Ppost vret)
                               (LOCALx (temp ret_temp (F vret) :: nil)
                               (SEPx (Rpost vret))))
    (DELETE: remove_localdef_temp ret Q = Qnew)
-   (H0: Post2 = ∃ vret:B, PROPx (P++ Ppost vret) (LOCALx (temp ret (F vret) :: Qnew)
+   (H0: Post2 ⊣⊢ ∃ vret:B, PROPx (P++ Ppost vret) (LOCALx (temp ret (F vret) :: Qnew)
              (SEPx (Rpost vret ++ Frame))))
    (PPRE: fold_right_and True Ppre),
    semax E Delta (PROPx P (LOCALx Q (SEPx R')))
@@ -1074,13 +1077,19 @@ Proof.
     rewrite bi.and_elim_l comm //.
   * subst.
     clear  TC1 PRE1 PPRE.
+
+    rewrite H0.
+    go_lowerx.
+    eapply monPred_in_equiv in POST1.
+    simpl in POST1.
     rewrite POST1; clear POST1.
     unfold ifvoid.
-    go_lowerx; normalize.
+    unfold PROPx, LOCALx, SEPx, local, lift1; unfold_lift. monPred.unseal.
+    unfold_lift. normalize.
     Exists x.
     rewrite fold_right_and_app_low.
     rewrite fold_right_sepcon_app.
-    normalize.
+    normalize.    
 Qed.
 
 (*Lemma semax_call_id1_wow_nil:
@@ -1145,12 +1154,12 @@ Lemma semax_call_id1_x_wow:
    (OKretty': check_retty retty')
    (NEUTRAL: is_neutral_cast retty' retty = true)
    (NEret: ret <> ret')
-   (POST1: Post witness = ∃ vret:B, PROPx (Ppost vret)
+   (POST1: assert_of (Post witness) ⊣⊢ ∃ vret:B, PROPx (Ppost vret)
                               (LOCALx (temp ret_temp (F vret) :: nil)
                               (SEPx (Rpost vret))))
    (DELETE: remove_localdef_temp ret Q = Qnew)
    (DELETE' : remove_localdef_temp ret' Q = Q)
-   (H0: Post2 = ∃ vret:B, PROPx (P++ Ppost vret)
+   (HPOST2: Post2 ⊣⊢ ∃ vret:B, PROPx (P++ Ppost vret)
                    (LOCALx (temp ret (F vret) :: Qnew)
                     (SEPx (Rpost vret ++ Frame))))
    (PPRE: fold_right_and True Ppre),
@@ -1194,7 +1203,8 @@ Proof.
     - rewrite <- !insert_local.
       iDestruct "H" as "($ & H)".
       subst Qnew; by iApply derives_remove_localdef_PQR.
-  + intros. subst Post2.
+  + intros.
+    rewrite HPOST2.
     Exists vret.
     iIntros "(#? & % & #? & H)".
     iAssert (local (subst ret (`old) (locald_denote (temp ret' (F vret)))) ∧
@@ -1262,7 +1272,7 @@ Proof. intros. rewrite call_setup2_nil_equiv in SETUP. eapply semax_call_id1_x_w
 
 Lemma semax_call_id1_y_wow:
  forall {E} {Qtemp Qvar GV a Delta P Q R R'
-   fs argsig retty' cc} {A: TypeTree} {Pre Post}
+   fs argsig retty' cc} {A: TypeTree} {Pre: dtfr (ArgsTT A)} {Post: dtfr (AssertTT A)}
    {witness}
    {Frame: list mpred}
    {bl: list expr}
@@ -1284,12 +1294,12 @@ Lemma semax_call_id1_y_wow:
    (OKretty': check_retty retty')
    (NEUTRAL: is_neutral_cast retty' retty = true)
    (NEret: ret <> ret')
-   (POST1: Post witness = ∃ vret:B, PROPx (Ppost vret)
+   (POST1: assert_of (Post witness) ⊣⊢ ∃ vret:B, PROPx (Ppost vret)
                               (LOCALx (temp ret_temp (F vret) :: nil)
                               (SEPx (Rpost vret))))
    (DELETE: remove_localdef_temp ret Q = Qnew)
    (DELETE' : remove_localdef_temp ret' Q = Q)
-   (H0: Post2 = ∃ vret:B, PROPx (P++ Ppost vret)
+   (HPOST2: Post2 ⊣⊢ ∃ vret:B, PROPx (P++ Ppost vret)
                    (LOCALx (temp ret (F vret) :: Qnew)
                     (SEPx (Rpost vret ++ Frame))))
    (PPRE: fold_right_and True Ppre),
@@ -1330,7 +1340,7 @@ Proof.
     - rewrite <- !insert_local.
       iDestruct "H" as "($ & H)".
       subst Qnew; by iApply derives_remove_localdef_PQR.
-  + intros. subst Post2.
+  + intros. rewrite HPOST2.
     Exists vret.
     iIntros "(#? & % & #? & H)".
     iAssert (local (subst ret (`old) (locald_denote (temp ret' (F vret)))) ∧
