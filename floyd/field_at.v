@@ -2825,8 +2825,7 @@ Qed.
 #[export] Hint Rewrite
   @field_at_data_at_cancel'
   @field_at_data_at
-  @field_at__data_at_
-  @data_at__data_at : cancel.
+  @field_at__data_at_ : cancel.
 
 (* END new experiments *)
 

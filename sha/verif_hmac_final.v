@@ -145,7 +145,7 @@ Time forward_call (oSha, SHA256.SHA_256 ctx, Vptr b i, wsh, buf, Tsh, Z.of_nat S
 *)
      Time cancel. (*0.2 versus 1.6*) }
   { unfold SHA256.DigestLength.
-    rewrite oShaLen. simpl; intuition. }
+    rewrite oShaLen. simpl; intuition auto with *. }
 simpl.
 rewrite sublist_same; try lia.
 unfold sha256state_. Intros updShaST.

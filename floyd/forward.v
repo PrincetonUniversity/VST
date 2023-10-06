@@ -1346,7 +1346,10 @@ Ltac prove_call_setup_aux  ts witness :=
  | check_vl_eq_args
  | auto 50 with derives
  | check_gvars_spec
- | try change_compspecs CS; cancel_for_forward_call
+ | let lhs := fresh "lhs" in 
+   match goal with |- ?A |-- ?B => pose (lhs := A); change (lhs |-- B) end;
+   try change_compspecs CS; subst lhs;
+   cancel_for_forward_call
  |
  ])
   in strip1_later R' cR
