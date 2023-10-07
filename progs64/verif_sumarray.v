@@ -127,9 +127,6 @@ repeat constructor; computable.
 forward. (* return s; *)
 Qed.
 
-(* #[export] Existing Instance NullExtension.Espec. *)
-#[export] Existing Instance NullEspec.
-
 Lemma prog_correct:
   semax_prog _ prog tt Vprog Gprog.
 Proof.
@@ -137,3 +134,5 @@ Proof.
   semax_func_cons body_sumarray.
   semax_func_cons body_main.
 Qed.
+
+End Spec.
