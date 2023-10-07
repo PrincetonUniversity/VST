@@ -898,7 +898,7 @@ end.
 Ltac cancel_for_forward_call := cancel_for_evar_frame.
 Ltac default_cancel_for_forward_call := cancel_for_evar_frame.
 
-Ltac unfold_post := match goal with |- ?Post = _ => let A := fresh "A" in let B := fresh "B" in first
+Ltac unfold_post := match goal with |- ?Post ⊣⊢ _ => let A := fresh "A" in let B := fresh "B" in first
   [evar (A : Type); evar (B : A -> environ -> mpred); unify Post (@bi_exist _ ?A ?B);
      change Post with (@bi_exist _ A B); subst A B |
    evar (A : list Prop); evar (B : environ -> mpred); unify Post (PROPx ?A ?B);
@@ -941,13 +941,14 @@ Ltac fix_up_simplified_postcondition :=
 
 Ltac match_postcondition := 
 fix_up_simplified_postcondition;
-cbv beta iota zeta; unfold_post;  extensionality rho; 
+cbv beta iota zeta; unfold_post; 
+constructor; let rho := fresh "rho" in intro rho; cbn; 
    repeat rewrite exp_uncurry;
    try rewrite no_post_exists; repeat rewrite monPred_at_exist;
 tryif apply bi.exist_proper
  then (intros ?vret;
-          apply equal_f;
-          apply PROP_LOCAL_SEP_ext; [reflexivity | | reflexivity];
+          generalize rho; rewrite -local_assert; apply PROP_LOCAL_SEP_ext';
+          [reflexivity | | reflexivity];
           (reflexivity || fail "The funspec of the function has a POSTcondition
 that is ill-formed.  The LOCALS part of the postcondition
 should be (temp ret_temp ...), but it is not"))
@@ -1213,11 +1214,11 @@ Ltac clear_MORE_POST :=
 
 Inductive Ridiculous: Type := .
 
-Ltac check_witness_type (*ts*) A witness :=
+Ltac check_witness_type (*ts*) Σ A witness :=
   (unify A (ConstType Ridiculous); (* because [is_evar A] doesn't seem to work *)
              exfalso)
  ||
- let TA := constr:(dtfr A) in
+ let TA := constr:(ofe_car (@dtfr Σ A)) in
   let TA' := (*eval cbv 
      [functors.MixVariantFunctor._functor
       functors.MixVariantFunctorGenerator.fpair
@@ -1282,6 +1283,10 @@ Ltac check_type_of_funspec id :=
   end.
 
 Ltac check_subsumes subsumes :=
+ unfold NDmk_funspec;
+ lazymatch goal with |- funspec_sub _ (mk_funspec _ _ ?A1 _ _) (mk_funspec _ _ ?A2 _ _) =>
+ unify A1 A2
+ end;
  apply subsumes ||
  lazymatch goal with |- ?g =>
  lazymatch type of subsumes with ?t =>
@@ -1351,7 +1356,7 @@ Ltac prove_call_setup_aux  (*ts*) witness :=
  match goal with | |- @semax _ _ _ _ ?CS _ _ (PROPx ?P (LOCALx ?L (SEPx ?R'))) _ _ =>
  let Frame := fresh "Frame" in evar (Frame: list mpred); 
  let cR := (fun R =>
- exploit (call_setup2_i _ _ _ _ _ _ _ _ R R' _ _ _ _ (*ts*) _ _ _ _ _ _ _ H witness Frame); clear H;
+ exploit (call_setup2_i _ _ _ _ _ _ _ _ R R' _ _ _ _ (*ts*) _ _ _ _ _ H witness Frame); clear H;
  [ try_convertPreElim
  | check_prove_local2ptree
  | check_vl_eq_args
@@ -1366,8 +1371,8 @@ Ltac prove_call_setup_aux  (*ts*) witness :=
 Ltac prove_call_setup (*ts*) subsumes witness :=
  prove_call_setup1 subsumes;
  [ .. | 
- match goal with |- call_setup1  _ _ _ _ _ _ _ _ _ _ _ _ _ ?A _ _ _ _ _ _  -> _ =>
-      check_witness_type (*ts*) A witness
+ match goal with |- @call_setup1  ?Σ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ?A _ _ _ _  -> _ =>
+      check_witness_type (*ts*) Σ A witness
  end;
  prove_call_setup_aux (*ts*) witness].
 
@@ -1382,7 +1387,7 @@ lazymatch goal with
       lazymatch goal with
       | |- _ -> semax _ _ _ (Scall (Some _) _ _) _ =>
          forward_call_id1_wow
-      | |- call_setup2 _ _ _ _ _ _ _ _ _ _ _ _ ?retty _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ -> 
+      | |- call_setup2 _ _ _ _ _ _ _ _ _ _ _ _ ?retty _ _ _ _ _ _ _ _ _ _ _ _ _ _ -> 
                 semax _ _ _ (Scall None _ _) _ =>
         tryif (unify retty Tvoid)
         then forward_call_id00_wow
@@ -1463,7 +1468,7 @@ Ltac get_function_witness_type func :=
 Ltac new_prove_call_setup :=
  prove_call_setup1 funspec_sub_refl;
  [ .. | 
- match goal with |- call_setup1 _ _ _ _ _ _ _ _ _ _ _ _ _ ?A _ _ _ _ _ _ -> _ =>
+ match goal with |- call_setup1 _ _ _ _ _ _ _ _ _ _ _ _ _ ?A _ _ _ _ -> _ =>
       let x := fresh "x" in tuple_evar2 x ltac:(get_function_witness_type A)
       ltac:(prove_call_setup_aux (*(@nil Type)*))
       ltac:(fun _ => try refine tt; fail "Failed to infer some parts of witness")
@@ -1479,7 +1484,7 @@ lazymatch goal with
       lazymatch goal with
       | |- _ -> semax _ _ _ (Scall (Some _) _ _) _ =>
          forward_call_id1_wow
-      | |- call_setup2 _ _ _ _ _ _ _ _ _ _ _ _ ?retty _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ->
+      | |- call_setup2 _ _ _ _ _ _ _ _ _ _ _ _ ?retty _ _ _ _ _ _ _ _ _ _ _ _ _ _ ->
                 semax _ _ _ (Scall None _ _) _ =>
         tryif (unify retty Tvoid)
         then forward_call_id00_wow
