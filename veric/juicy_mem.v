@@ -1,6 +1,7 @@
 From iris.algebra Require Import agree.
 Require Import VST.sepcomp.mem_lemmas.
-From VST.veric Require Import base Memory juicy_base shares shared resource_map gen_heap dshare.
+From VST.veric Require Import base Memory juicy_base shares.
+From VST.shared Require Import shared resource_map gen_heap dshare.
 Require Import VST.zlist.sublist.
 Export Values.
 

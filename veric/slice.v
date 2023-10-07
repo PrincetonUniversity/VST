@@ -1,6 +1,6 @@
 Require Import VST.veric.base.
 Require Import VST.veric.shares.
-Require Import VST.veric.share_alg.
+Require Import VST.shared.share_alg.
 Require Import VST.veric.res_predicates.
 Require Import VST.zlist.sublist.
 

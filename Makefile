@@ -260,9 +260,9 @@ endif
 # ########## Flags ##########
 
 ifeq ($(ZLIST),platform)
-  VSTDIRS= msl sepcomp veric floyd $(PROGSDIR) concurrency ccc26x86 atomics
+  VSTDIRS= shared msl sepcomp veric floyd $(PROGSDIR) concurrency ccc26x86 atomics
 else
-  VSTDIRS= msl sepcomp veric zlist floyd $(PROGSDIR) concurrency ccc26x86 atomics
+  VSTDIRS= shared msl sepcomp veric zlist floyd $(PROGSDIR) concurrency ccc26x86 atomics
 endif
 OTHERDIRS= wand_demo sha hmacfcf tweetnacl20140427 hmacdrbg aes mailbox boringssl_fips_20180730
 DIRS = $(VSTDIRS) $(OTHERDIRS)

@@ -7,8 +7,8 @@ From iris.proofmode Require Import proofmode.
 From iris.algebra Require Export auth csum gmap.
 From iris_ora.algebra Require Export osum gmap view auth.
 From iris_ora.logic Require Export logic own algebra.
-From VST.veric Require Export share_alg.
-From VST.veric Require Import shared.
+From VST.shared Require Export share_alg.
+From VST.shared Require Import shared.
 From iris.prelude Require Import options.
 
 Section shared.
@@ -282,7 +282,7 @@ Section lemmas.
       eapply @singletonM_proper; first apply _.
       done.
     - iIntros "[A B]"; iDestruct (resource_map_elem_no_combine with "A B") as (? J') "?".
-      rewrite J' in J; inv J; done.
+      rewrite J' in J; inversion J; subst; done.
   Qed.
 
   Lemma resource_map_elem_frac_ne γ k1 k2 dq1 dq2 v1 v2 :
@@ -394,7 +394,7 @@ Section lemmas.
         destruct x; last done.
         iDestruct "Hv" as "(% & %Hvv)".
         iPureIntro; exists dq0, rsh0.
-        rewrite Some_op_opM in Hv; inv Hv.
+        rewrite Some_op_opM in Hv; inversion Hv; subst; clear Hv.
         destruct Hk as [-> Hv]; rewrite Hv in Hvv |- *.
         split; first done; split; first by eexists.
         f_equiv; split; first done.
@@ -402,7 +402,7 @@ Section lemmas.
         apply agree_op_inv in Hvv as <-.
         rewrite /= agree_idemp //.
       + destruct (dfrac_error _); last by destruct Hop as (? & ? & ? & ? & ? & ?).
-        rewrite Hop in Hk; destruct x; inv Hk; done.
+        rewrite Hop in Hk; destruct x; inversion Hk; subst; done.
     - destruct x; last done.
       destruct Hk as [-> Hv].
       iDestruct "Hv" as "(% & _)".
@@ -483,7 +483,7 @@ Section lemmas.
       intros ? Hk'; rewrite Hk' in Hk; inversion Hk as [?? Heq|].
       subst; rewrite Heq.
       destruct Hd as (? & Hd); rewrite Hd in Hv; apply dfrac_full_exclusive in Hv as ->.
-      rewrite right_id in Hd; inv Hd.
+      rewrite right_id in Hd; inversion Hd; subst; clear Hd.
       rewrite -{1}(uora_unit_right_id (YES _ _ _)).
       assert (YES (V := leibnizO V) (DfracOwn (Share share_top)) rsh0 (to_agree v) ≡ YES (V := leibnizO V) (DfracOwn (Share share_top)) rsh (to_agree v)) as -> by done.
       apply cancel_local_update_unit, _. }

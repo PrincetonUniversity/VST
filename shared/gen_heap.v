@@ -6,8 +6,8 @@ From iris.algebra Require Import agree.
 From iris_ora.algebra Require Import agree ext_order.
 From iris.proofmode Require Import proofmode.
 From iris_ora.logic Require Export logic own ghost_map.
-From VST.veric Require Import shared resource_map.
-From VST.veric Require Export dshare.
+From VST.shared Require Import shared resource_map.
+From VST.shared Require Export dshare.
 From iris.prelude Require Import options.
 
 (** This file defines the language-level points-to

@@ -3,8 +3,7 @@
 
 From iris.algebra Require Export agree.
 From iris.algebra Require Import updates local_updates proofmode_classes big_op.
-From VST.msl Require Import shares.
-From VST.veric Require Export base share_alg dshare.
+From VST.shared Require Export share_alg dshare.
 From iris_ora.algebra Require Export ora agree.
 From iris.prelude Require Import options.
 
@@ -239,7 +238,7 @@ Proof.
   - destruct Hop as (? & ? & ->).
     destruct (dfrac_error _) eqn: Herr; last done.
     exfalso; eapply dfrac_error_unreadable; eauto.
-  - destruct (dfrac_error _); first by destruct (x ⋅ y); inv Hop.
+  - destruct (dfrac_error _); first by destruct (x ⋅ y); inversion Hop; subst.
     destruct Hop as (? & ? & ? & ? & -> & -> & -> & ?); done.
 Qed.
 
@@ -273,9 +272,9 @@ Proof.
     destruct H as [-> Hv]; right; split.
     + by eexists.
     + rewrite /= Hv -Hval; by eexists.
-  - rewrite Hop in H; destruct y; inv H; auto.
+  - rewrite Hop in H; destruct y; inversion H; subst; auto.
   - destruct Hop as (? & ? & ? & ? & -> & -> & Heq & ?).
-    destruct y; inv H.
+    destruct y; inversion H; subst.
     right; split; auto.
     by eexists (DfracOwn _).
 Qed.
@@ -290,9 +289,9 @@ Proof.
     destruct H as [-> Hv]; right; split.
     + by eexists.
     + rewrite /= Hv -Hval; by eexists.
-  - rewrite Hop in H; destruct y; inv H; auto.
+  - rewrite Hop in H; destruct y; inversion H; subst; auto.
   - destruct Hop as (? & ? & ? & ? & -> & -> & Heq & ?).
-    destruct y; inv H.
+    destruct y; inversion H; subst.
     right; split; auto.
     by eexists (DfracOwn _).
 Qed.
@@ -308,7 +307,7 @@ Qed.
 
 Lemma YES_incl_NO : forall n dq rsh v sh nsh, YES dq rsh v ≼{n} NO sh nsh -> sh = ShareBot.
 Proof.
-  intros; apply shared_includedN in H as [H | [_ H]]; first by inv H.
+  intros; apply shared_includedN in H as [H | [_ H]]; first by inversion H; subst.
   apply option_includedN in H as [? | (? & ? & ? & ? & ?)]; done.
 Qed.
 
@@ -327,7 +326,7 @@ Proof.
   - destruct Hop as (? & -> & ->).
     destruct (dfrac_error _) eqn: Herr; last done.
     exfalso; eapply dfrac_error_unreadable, r; auto.
-  - destruct (dfrac_error _) eqn: Herr; first by destruct (x ⋅ y); inv Hop.
+  - destruct (dfrac_error _) eqn: Herr; first by destruct (x ⋅ y); inversion Hop; subst.
     by destruct Hop as (? & ? & ? & ? & -> & -> & -> & ?).
 Qed.
 
@@ -360,14 +359,14 @@ Local Instance shared_pcore_instance : PCore shared := λ x,
 (*Lemma pcore_YES : forall dq rsh v cx, pcore (YES dq rsh v) = Some cx ↔
   pcore dq = Some DfracDiscarded /\ cx = YES DfracDiscarded I v.
 Proof.
-  intros; destruct dq; intuition; subst; try done; try by inv H.
+  intros; destruct dq; intuition; subst; try done; try by inversion H; subst.
 Qed.
 
 Lemma pcore_NO : forall sh rsh cx, pcore (NO sh rsh) = Some cx ↔
   sh = Share.bot /\ cx = NO sh rsh.
 Proof.
   rewrite /pcore /shared_pcore_instance.
-  intuition; subst; try by (if_tac in H; inv H).
+  intuition; subst; try by (if_tac in H; inversion H; subst).
   apply eq_dec_refl.
 Qed.*)
 
@@ -453,7 +452,7 @@ Proof.
       split.
       * rewrite Hxy' Hyz' assoc //.
       * assert (Some v1 ≡ Some v2) as Hv by (rewrite -Hval1 -Hval2 assoc //).
-        by inv Hv.
+        by inversion Hv; subst.
     + rewrite Hop1.
       rewrite -dfrac_error_assoc in Herr.
       destruct (readable_dfrac_dec _).
@@ -475,7 +474,7 @@ Proof.
     + destruct Hop1 as (v1 & Hval1 & ->), Hop2 as (v2 & Hval2 & ->).
       split; auto.
       assert (Some v1 ≡ Some v2) as Hv by (rewrite -Hval1 -Hval2 comm //).
-      by inv Hv.
+      by inversion Hv; subst.
     + destruct (dfrac_error _) eqn: Herr; first by rewrite Hop1 Hop2.
       destruct Hop1 as (? & ? & ? & ? & -> & -> & -> & ?), Hop2 as (? & ? & ? & ? & [=] & [=] & -> & ?); subst.
       hnf; by rewrite (@cmra_comm shareR).
@@ -508,13 +507,13 @@ Proof.
         unshelve rewrite YES_op /=; last split; rewrite ?dfrac_op_both_discarded //.
         rewrite -agree_included H -Some_included_total -Hval; eexists; done.
       * destruct (dfrac_error _) eqn: Herr; last by destruct Hop as (? & ? & ? & ? & ? & ?).
-        rewrite Hop in H; destruct y; inv H.
+        rewrite Hop in H; destruct y; inversion H; subst.
         exists err; done.
     + destruct sh; first by eexists; rewrite left_id.
       destruct (readable_dfrac_dec _).
       { exfalso; clear Hop; destruct (dfrac_of z); done. }
       destruct (dfrac_error _) eqn: Herr.
-      * rewrite Hop in H; destruct y; inv H.
+      * rewrite Hop in H; destruct y; inversion H; subst.
         exists err; done.
       * by destruct (dfrac_of z).
   - intros.
@@ -593,7 +592,7 @@ Proof.
       pose proof (shared_op_alt x (YES d r v0)).
       rewrite -Hd in H; destruct (readable_dfrac_dec dq); last done.
       destruct H as (? & Hv' & ->).
-      destruct x; inv Hv'; last done.
+      destruct x; inversion Hv'; subst; last done.
       rewrite Some_op_opM in Hv; apply Some_dist_inj in Hv as ->.
       rewrite -cmra_op_opM_assoc agree_idemp //.
     + assert (dfrac_error (DfracOwn sh) = true).
@@ -610,7 +609,7 @@ Proof.
         split; first done.
         apply shared_validN in Hvalid as [? Hvv].
         simpl in *.
-        destruct x; inv Hv'.
+        destruct x; inversion Hv'; subst.
         symmetry; eapply agree_valid_includedN; try done.
         rewrite -Some_includedN_total Hv /=.
         by exists v.
@@ -634,9 +633,9 @@ Proof.
   destruct (dfrac_of_op (YES (DfracOwn (Share share_top)) rsh v) y) as [(_ & Hop)|Hop]; rewrite Hop // in Hd.
   pose proof (dfrac_full_exclusive _ Hd) as He.
   destruct y; simpl in *; subst; first contradiction unreadable_bot.
-  inv He.
+  inversion He; subst.
   rewrite H in Hop.
-  apply (cancelable _ _ (dfrac_of z)) in Hd; first by destruct z; simpl in *; inv Hd.
+  apply (cancelable _ _ (dfrac_of z)) in Hd; first by destruct z; simpl in *; inversion Hd; subst.
   rewrite -Hop dfrac_of_op' in Hd |- *.
   destruct (dfrac_error _); done.
 Qed.
@@ -658,7 +657,7 @@ Proof.
   intros ?; hnf; simpl; right.
   destruct (dfrac_error (DfracDiscarded ⋅ dfrac_of y)) eqn: Herr.
   - pose proof (dfrac_error_fail (YES DfracDiscarded rsh v) y Herr) as Hfail.
-    destruct (YES _ _ _ ⋅ _) eqn: Heq; inv Hfail.
+    destruct (YES _ _ _ ⋅ _) eqn: Heq; inversion Hfail; subst.
     rewrite dfrac_error_discarded in Herr.
     destruct y; first by exfalso; eapply dfrac_error_unreadable; eauto.
     simpl in Herr.
@@ -700,7 +699,7 @@ Lemma shared_orderN_op : ∀ (n : nat) (x x' y : shared), x ≼ₒ{n} x' → x �
 Proof.
   intros.
   destruct H as [H | [??]].
-  - destruct x'; inv H.
+  - destruct x'; inversion H; subst.
     left; by rewrite shared_err_absorb.
   - right.
     rewrite !dfrac_of_op' !val_of_op'.
@@ -718,7 +717,7 @@ Proof.
       apply shared_err_increasing.
   - intros ??? H Hord z.
     destruct Hord as [Hno | [Hdy Hvy]].
-    { destruct y; inv Hno.
+    { destruct y; inversion Hno; subst.
       left; by rewrite shared_err_absorb. }
     pose proof (H z) as Hxz.
     pose proof (shared_op_alt x z) as Hop.
@@ -749,11 +748,11 @@ Proof.
         destruct Hop as (? & ? & ? & ? & -> & [=] & -> & Hvalid'); subst.
         destruct Hd as [Hd | ?]; try done.
         destruct Hdy as [Hdy | ?]; try done.
-        inv Hdy.
+        inversion Hdy; subst.
         right; split; try done.
         by left.
   - intros ??? [H | [Hd Hv]].
-    { destruct y; inv H; left; done. }
+    { destruct y; inversion H; subst; left; done. }
     rewrite /core /=; destruct x, y; try done; simpl in *.
     + right; destruct Hd as [<- | <-], dq; rewrite ?dfrac_op_own_discarded ?dfrac_op_both_discarded // /=.
       split.
@@ -773,13 +772,13 @@ Proof.
     { destruct (readable_dfrac_dec _).
       { exfalso; by eapply dfrac_error_unreadable, r. }
       eexists _, _; split; last done.
-      destruct (y1 ⋅ y2); inv Hop; simpl in *.
+      destruct (y1 ⋅ y2); inversion Hop; subst; simpl in *.
       by right. }
     destruct (readable_dfrac_dec _).
     + destruct Hop as (? & Hval & H).
       apply shared_validN in Hvalid as [??].
       apply ora_op_extend in Hv as (v1 & v2 & ? & Hv1 & Hv2); last done.
-      destruct y1, y2; try done; inv Hv1; inv Hv2.
+      destruct y1, y2; try done; inversion Hv1; subst; inversion Hv2; subst.
       * exists (YES dq rsh x1), (YES dq0 rsh0 x2); split; last done.
         right; rewrite YES_op'; destruct (readable_dfrac_dec _); done.
       * eexists (YES dq rsh x1), _; split; last done.
@@ -792,24 +791,24 @@ Proof.
       eexists _, _; split; last done.
       rewrite H; right; done.
   - intros ??? Hvalid [? | [Hd Hv]].
-    { destruct x; inv H; destruct Hvalid; done. }
+    { destruct x; inversion H; subst; destruct Hvalid; done. }
     apply shared_validN in Hvalid as [??].
     apply ora_extend in Hv as (? & ? & Hval); last done.
-    destruct y; inv Hval.
+    destruct y; inversion Hval; subst.
     + exists (YES dq rsh x1); split; first right; done.
     + eexists; split; first right; done.
   - intros ??? [Hd Hv]%shared_dist_implies.
     right; split; [hnf; auto | by apply ora_dist_orderN].
   - intros ??? [H | [? ?%ora_orderN_S]].
-    + destruct y; inv H; by left.
+    + destruct y; inversion H; subst; by left.
     + by right.
   - intros ???? Hord [H | [Hd Hv]].
-    { destruct z; inv H; by left. }
+    { destruct z; inversion H; subst; by left. }
     destruct Hord as [Hy | [??]].
-    { destruct y; inv Hy; simpl in *.
+    { destruct y; inversion Hy; subst; simpl in *.
       left; destruct Hd.
       * destruct z; simpl in *; subst; try done.
-        inv H; done.
+        inversion H; subst; done.
       * destruct z; simpl in *; subst; done. }
     right; split; etrans; eauto.
   - apply shared_orderN_op.
@@ -829,19 +828,19 @@ Proof.
     destruct (readable_dfrac_dec _).
     + destruct Hop as (? & Hv & ->).
       destruct x; simpl in *.
-      * right; destruct dq, cx; inv Heq; simpl.
+      * right; destruct dq, cx; inversion Heq; subst; simpl.
         -- destruct (_ ⋅ _); try done.
            split; first by right; rewrite left_id.
            apply agree_increasing.
         -- destruct (dfrac_of y); split; simpl; try done; rewrite -H0 -Hv Some_op_opM Some_order; destruct (val_of y); try done; rewrite /= comm; apply agree_increasing.
-      * destruct sh, cx; inv Heq; simpl.
+      * destruct sh, cx; inversion Heq; subst; simpl.
         -- right; destruct (_ ⋅ _); try done; simpl.
            split; first by right; rewrite left_id.
            apply agree_increasing.
         -- destruct (dfrac_of y); done.
-    + destruct (dfrac_error _) eqn: Herr; first by destruct (x ⋅ y); inv Hop; left.
+    + destruct (dfrac_error _) eqn: Herr; first by destruct (x ⋅ y); inversion Hop; subst; left.
       destruct Hop as (shx & shy & ? & ? & -> & -> & -> & Hv).
-      destruct shx, cx; inv Heq.
+      destruct shx, cx; inversion Heq; subst.
       * destruct (Share sh ⋅ shy) eqn: Hop; rewrite Hop // in Hv |- *.
         right; done.
       * destruct shy, Hv; done.
@@ -863,7 +862,7 @@ Proof.
     intros [??]; split; try done.
     by apply agree_cmra_discrete.
   - intros [|] [|]; try done.
-    intros [Hno | [??]]; first by inv Hno.
+    intros [Hno | [??]]; first by inversion Hno; subst.
     by right; split; last apply agree_ora_discrete.
 Qed.
 

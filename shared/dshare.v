@@ -7,7 +7,7 @@ From iris.algebra Require Export cmra.
 From iris.algebra Require Import updates proofmode_classes.
 From iris_ora.algebra Require Export ora.
 From iris.prelude Require Import options.
-Require Export VST.veric.share_alg.
+Require Export VST.shared.share_alg.
 
 (** Since shares have a unit, we use DfracBoth Share.bot as the persistent fraction. *)
 Inductive dfrac `{ShareType} :=

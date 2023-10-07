@@ -1,15 +1,15 @@
 From iris.algebra Require Import agree.
 From iris_ora.algebra Require Import agree.
 Require Import VST.zlist.sublist.
-Require Import VST.veric.shared.
+Require Import VST.shared.shared.
 Require Import VST.veric.juicy_base.
 Require Import VST.veric.juicy_mem.
 Require Import VST.veric.juicy_mem_lemmas.
 Require Import VST.veric.res_predicates.
-Require Import VST.veric.resource_map.
+Require Import VST.shared.resource_map.
 Require Import VST.veric.seplog.
 Require Import VST.veric.shares.
-Require Import VST.veric.dshare.
+Require Import VST.shared.dshare.
 Require Import VST.veric.mpred.
 Require Import VST.veric.mapsto_memory_block.
 Import Values.

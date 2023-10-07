@@ -1,4 +1,4 @@
-Require Import VST.veric.share_alg.
+Require Import VST.shared.share_alg.
 Require Import VST.msl.eq_dec.
 Require Export VST.msl.shares.
 Require Export VST.veric.shares.
@@ -107,7 +107,7 @@ Qed.
 Global Instance share_eq_dec : EqDecision share.
 Proof. intros ??. by destruct (eq_dec x y); [left | right]. Defined.
 
-Require Import VST.veric.dshare.
+Require Import VST.shared.dshare.
 
 Global Instance dfrac_eq_dec : EqDecision dfrac.
 Proof.
