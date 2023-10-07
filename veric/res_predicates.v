@@ -4,7 +4,8 @@ From iris_ora.algebra Require Import gmap.
 From iris_ora.logic Require Export logic algebra invariants.
 From VST.veric Require Import shares address_conflict.
 From VST.msl Require Export shares.
-From VST.veric Require Export base Memory share_instance dshare gen_heap.
+From VST.veric Require Export base Memory share_instance.
+From VST.shared Require Export dshare gen_heap.
 Export Values.
 Export -(notations) Maps.
 
