@@ -455,7 +455,7 @@ Qed.
 End FORWARD.
 
 Ltac apply_semax_body L := 
-eapply (@semax_body_subsumption' _ _ _ _ _ _ _ _ L);
+eapply (@semax_body_subsumption' _ _ _ _ _ _ _ _ _ _ _ _ _ L);
   [ first [ apply cspecs_sub_refl
           | split3; red; apply @sub_option_get; 
             repeat (apply Forall_cons; [reflexivity | ]);  apply Forall_nil ]
@@ -464,14 +464,14 @@ eapply (@semax_body_subsumption' _ _ _ _ _ _ _ _ L);
           (apply tycontext_sub_i99; assumption)].
 
 Ltac try_prove_tycontext_subVG L :=
-  match goal with |- semax_func ?V2 ?G2 _ _ _ =>
+  match goal with |- semax_func ?V2 ?G2 _ ?E _ _ =>
     try match type of L with
-    | semax_body ?V1 ?G1 _ _ =>
+    | semax_body ?V1 ?G1 _ _ _ =>
      lazymatch goal with
-     | H: tycontext_subVG V1 G1 V2 G2 |- _ => idtac
+     | H: tycontext_subVG E V1 G1 V2 G2 |- _ => idtac
      | _ => 
       let H := fresh in
-      assert (H: tycontext_subVG V1 G1 V2 G2);
+      assert (H: tycontext_subVG E V1 G1 V2 G2);
       [split;
         [apply sub_option_get;
           let A1 := fresh "A1" in let A2 := fresh "A2" in
@@ -5009,7 +5009,7 @@ let GD := fresh "GD" in
 
 Ltac prove_semax_prog_aux tac :=
   match goal with
-    | |- semax_prog ?prog ?z ?Vprog ?Gprog =>
+    | |- semax_prog _ ?prog ?z ?Vprog ?Gprog =>
      let pr := eval unfold prog in prog in
      let x := old_with_library' pr Gprog
      in change ( SeparationLogicAsLogicSoundness.MainTheorem.CSHL_MinimumLogic.CSHL_Defs.semax_prog
@@ -5030,10 +5030,10 @@ Ltac prove_semax_prog_aux tac :=
         fail "Funspec of _main is not in the proper form")
     end
  ]; 
- match goal with |- semax_func ?V ?G ?g ?D ?G' =>
+ match goal with |- semax_func ?V ?G ?g ?Σ ?D ?G' =>
    let Gprog := fresh "Gprog" in 
    pose (Gprog := @abbreviate _ G); 
-  change (semax_func V Gprog g D G')
+  change (semax_func V Gprog g Σ D G')
  end;
   prove_semax_prog_setup_globalenv;
  tac.
