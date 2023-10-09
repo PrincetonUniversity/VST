@@ -6,8 +6,10 @@ Require Import VST.progs64.object.
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
+
+Section Spec.
 Local Open Scope Z.
-Local Open Scope logic.
+Context `{!default_VSTGS Σ}.
 
 Definition object_invariant := list Z -> val -> mpred.
 
@@ -30,39 +32,40 @@ Definition twiddle_spec (instance: object_invariant) :=
           PARAMS (self; Vint (Int.repr i))
           SEP (instance history self)
   POST [ tint ]
-      EX v: Z, 
+      ∃ v: Z, 
           PROP(2* fold_right Z.add 0 history < v <= 2* fold_right Z.add 0 (i::history))
           RETURN (Vint (Int.repr v))
           SEP(instance (i::history) self).
 
 Definition object_methods (instance: object_invariant) (mtable: val) : mpred :=
-  EX sh: share, EX reset: val, EX twiddle: val,
-  !! readable_share sh && 
-  func_ptr' (reset_spec instance) reset *
-  func_ptr' (twiddle_spec instance) twiddle *
+  ∃ sh: share, ∃ reset: val, ∃ twiddle: val,
+  ⌜readable_share sh⌝ ∧
+  func_ptr ⊤ (reset_spec instance) reset ∗
+  func_ptr ⊤ (twiddle_spec instance) twiddle ∗
   data_at sh (Tstruct _methods noattr) (reset,twiddle) mtable.
 
 Lemma object_methods_local_facts: forall instance p,
-  object_methods instance p |-- !! isptr p.
+  object_methods instance p ⊢ ⌜isptr p⌝.
 Proof.
 intros.
 unfold object_methods.
 Intros sh reset twiddle.
 entailer!.
 Qed.
-#[export] Hint Resolve object_methods_local_facts : saturate_local.
+
+Hint Resolve object_methods_local_facts : saturate_local.
 
 Definition object_mpred (history: list Z) (self: val) : mpred :=
-  EX instance: object_invariant, EX mtable: val, 
-       (object_methods instance mtable *
-     field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable self*
+  ∃ instance: object_invariant, ∃ mtable: val, 
+       (object_methods instance mtable ∗
+     field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable self∗
      instance history self).
 
 Definition foo_invariant : object_invariant :=
   (fun (history: list Z) p =>
     withspacer Ews (sizeof size_t + sizeof tint) (2 * sizeof size_t) (field_at Ews (Tstruct _foo_object noattr) 
             [StructField _data] (Vint (Int.repr (2*fold_right Z.add 0 history)))) p
-      *  malloc_token Ews (Tstruct _foo_object noattr) p).
+      ∗  malloc_token Ews (Tstruct _foo_object noattr) p).
 
 Definition foo_reset_spec :=
  DECLARE _foo_reset (reset_spec foo_invariant).
@@ -77,7 +80,7 @@ Definition make_foo_spec :=
     PROP () PARAMS() GLOBALS (gv) 
     SEP (mem_mgr gv; object_methods foo_invariant (gv _foo_methods))
  POST [ tobject ]
-    EX p: val, PROP () RETURN (p)
+    ∃ p: val, PROP () RETURN (p)
      SEP (mem_mgr gv; object_mpred nil p; object_methods foo_invariant (gv _foo_methods)).
 
 Definition main_spec :=
@@ -85,22 +88,29 @@ Definition main_spec :=
   WITH gv: globals
   PRE  [] main_pre prog tt gv
   POST [ tint ]
-     EX i:Z, PROP(0<=i<=6) RETURN (Vint (Int.repr i)) SEP(TT).
+     ∃ i:Z, PROP(0<=i<=6) RETURN (Vint (Int.repr i)) SEP(True).
 
 Definition Gprog : funspecs :=   ltac:(with_library prog [
     foo_reset_spec; foo_twiddle_spec; make_foo_spec; main_spec]).
 
 Lemma object_mpred_i:
   forall (history: list Z) (self: val) (instance: object_invariant) (mtable: val),
-    object_methods instance mtable *
-     field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable self *
+    object_methods instance mtable ∗
+     field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable self ∗
      instance history self 
-    |-- object_mpred history self.
+    ⊢ object_mpred history self.
 Proof.
 intros. unfold object_mpred. Exists instance mtable; auto.
 Qed.
 
-Lemma body_foo_reset: semax_body Vprog Gprog f_foo_reset foo_reset_spec.
+
+Lemma bind_ret0_unfold:
+  forall Q, bind_ret None tvoid Q ⊣⊢ (@assert_of Σ (fun rho => Q (globals_only rho))).
+Proof.
+  rewrite /bind_ret; split => rho; monPred.unseal; done.
+Qed.
+
+Lemma body_foo_reset: semax_body Vprog Gprog ⊤ f_foo_reset foo_reset_spec.
 Proof.
 unfold foo_reset_spec, foo_invariant, reset_spec.
 start_function.
