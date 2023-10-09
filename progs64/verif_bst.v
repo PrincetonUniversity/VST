@@ -57,44 +57,137 @@ Arguments lookup {V} default x t.
 Arguments pushdown_left {V} a bc.
 Arguments delete {V} x s.
 
+Section Spec.
+
+Context  `{!default_VSTGS Σ}.
+
 Fixpoint tree_rep (t: tree val) (p: val) : mpred :=
  match t with
- | E => !!(p=nullval) && emp
- | T a x v b => !! (Int.min_signed <= x <= Int.max_signed /\ tc_val (tptr Tvoid) v) &&
-    EX pa:val, EX pb:val,
-    data_at Tsh t_struct_tree (Vint (Int.repr x),(v,(pa,pb))) p *
-    tree_rep a pa * tree_rep b pb
+ | E => ⌜p=nullval⌝ ∧ emp
+ | T a x v b => ⌜Int.min_signed <= x <= Int.max_signed ∧ tc_val (tptr Tvoid) v⌝ ∧
+    ∃ pa:val, ∃ pb:val,
+    data_at Tsh t_struct_tree (Vint (Int.repr x),(v,(pa,pb))) p ∗
+    tree_rep a pa ∗ tree_rep b pb
  end.
 
 Definition treebox_rep (t: tree val) (b: val) :=
- EX p: val, data_at Tsh (tptr t_struct_tree) p b * tree_rep t p.
+  ∃ p: val, data_at Tsh (tptr t_struct_tree) p b ∗ tree_rep t p.
+Search ((forall x, ?P x ⊣⊢ ?Q x) -> _).
+
+#[global] Arguments Pos.of_nat : simpl nomatch.
+#[global] Arguments Pos.to_nat !x / .
+#[global] Arguments N.add : simpl nomatch.
+#[global] Arguments Z.of_nat : simpl nomatch.
+#[global] Arguments Z.to_nat : simpl nomatch.
 
 (* TODO: seems not useful *)
 Lemma treebox_rep_spec: forall (t: tree val) (b: val),
-  treebox_rep t b =
-  EX p: val, 
+  treebox_rep t b ⊣⊢
+  ∃ p: val, 
   match t with
-  | E => !!(p=nullval) && data_at Tsh (tptr t_struct_tree) p b
-  | T l x v r => !! (Int.min_signed <= x <= Int.max_signed /\ tc_val (tptr Tvoid) v) &&
-      data_at Tsh (tptr t_struct_tree) p b *
-      spacer Tsh (sizeof tint) (sizeof size_t) p *
-      field_at Tsh t_struct_tree [StructField _key] (Vint (Int.repr x)) p *
-      field_at Tsh t_struct_tree [StructField _value] v p *
-      treebox_rep l (field_address t_struct_tree [StructField _left] p) *
+  | E => ⌜p=nullval⌝ ∧ data_at Tsh (tptr t_struct_tree) p b
+  | T l x v r => ⌜Int.min_signed <= x <= Int.max_signed /\ tc_val (tptr Tvoid) v⌝ ∧
+      data_at Tsh (tptr t_struct_tree) p b ∗
+      spacer Tsh (sizeof tint) (sizeof size_t) p ∗
+      field_at Tsh t_struct_tree [StructField _key] (Vint (Int.repr x)) p ∗
+      field_at Tsh t_struct_tree [StructField _value] v p ∗
+      treebox_rep l (field_address t_struct_tree [StructField _left] p) ∗
       treebox_rep r (field_address t_struct_tree [StructField _right] p)
   end.
 Proof.
   intros.
   unfold treebox_rep at 1.
-  f_equal.
-  extensionality p.
+  f_equiv => p.
   destruct t; simpl.
-  + apply pred_ext; entailer!!.
+  + apply bi.equiv_entails_2; entailer!!.
   + unfold treebox_rep.
-    apply pred_ext; entailer!!.
+    apply bi.equiv_entails_2; entailer!!.
     - Intros pa pb.
       Exists pb pa.
-      unfold_data_at (data_at _ _ _ p).
+      
+      (* unfold_data_at (data_at _ _ _ p). *)
+      let x := fresh "x" in set (x := (data_at _ _ _ p) : mpred);
+  lazymatch goal with
+  | x := ?D : mpred |- _ =>
+    match D with
+     | (@data_at_ _ _ ?cs ?sh ?t ?p) =>
+            change D with (field_at_mark _ _ cs sh t (@nil gfield) (@default_val cs (@nested_field_type cs t nil)) p) in x
+     | (@data_at _ _ ?cs ?sh ?t ?v ?p) =>
+            change D with (field_at_mark _ _ cs sh t (@nil gfield) v p) in x
+     | (@field_at_ _ _ ?cs ?sh ?t ?gfs ?p) =>
+            change D with (field_at_mark _ _ cs sh t gfs (@default_val cs (@nested_field_type cs t gfs)) p) in x
+     | (@field_at _ _ ?cs ?sh ?t ?gfs ?v ?p) =>
+            change D with (field_at_mark _ _ cs sh t gfs v p) in x
+     end
+     ;
+        subst x
+         
+         (* ; unfold_field_at';
+     repeat match goal with |- context [field_at _ _ ?cs ?sh ?t ?gfs (@default_val ?cs' ?t') ?p] => 
+       change (@field_at _ _ cs sh t gfs (default_val cs' t') p) with (@field_at_ _ _ cs sh t gfs p)
+     end *)
+  end.
+
+  (* unfold_field_at'. *)
+  match goal with
+  | |- context [field_at_mark _ _ ?cs ?sh ?t ?gfs ?v ?p] =>
+      let F := fresh "F" in
+        set (F := field_at_mark _ _ cs sh t gfs v p);
+        change field_at_mark with @field_at in F;
+      let V := fresh "V" in set (V:=v) in F;
+      let P := fresh "P" in set (P:=p) in F;
+      let T := fresh "T" in set (T:=t) in F;
+      let id := fresh "id" in evar (id: ident);
+      let Heq := fresh "Heq" in
+      assert (Heq: nested_field_type T gfs = Tstruct id noattr)
+            by (unfold id,T; reflexivity);
+      let HF := fresh "HF" in
+      assert (HF:= field_at_Tstruct(cs := cs) sh T gfs id noattr
+                           V V P  (eq_refl _) (JMeq_refl _));
+      unfold id in HF; clear Heq id;
+      fold F in HF; clearbody F;
+      (* need to pick out RHS before simpl it since bi_equiv obstructs simpl *)
+      let H := fresh "H" in
+      match goal with
+        | HF: (_ ⊣⊢ ?RHS) |- _ => 
+      set (H:= RHS)  end;
+      fold H in HF;
+      simpl co_members in H;
+      lazy beta iota zeta delta  [nested_sfieldlist_at ] in H;
+      change (field_at(cs := cs) sh T) with (field_at(cs := cs) sh t) in H;
+      hnf in T; subst T;
+      change v with (protect _ v) in V;
+       simpl in H;
+      unfold withspacer in H;
+       simpl in H;
+      change (protect _ v) with v in V;
+      subst V;
+      repeat match type of H with
+      | context[fst (?A,?B)] => change (fst (A,B)) with A in H
+      | context[snd (?A,?B)] => change (snd (A,B)) with B in H
+      end;
+      subst P; 
+      subst H;
+      rewrite HF;
+      clear HF F;
+      cbv beta;
+      repeat flatten_sepcon_in_SEP;
+      repeat simplify_project_default_val
+      idtac
+  end.
+  set (X:= (Z.pos (1 * 8))).
+  simpl in X. Locate Z.pos.
+  simpl (Pos.mul _ _) in *.
+  change (protect _ v) with v in V;
+  subst V.
+  match b-
+  hnf in H0.
+  
+  
+
+  fold H0 in Hf.
+  
+
       rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
       rewrite (field_at_data_at _ t_struct_tree [StructField _right]).
       cancel.

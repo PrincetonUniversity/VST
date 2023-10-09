@@ -455,7 +455,7 @@ Qed.
 End FORWARD.
 
 Ltac apply_semax_body L := 
-eapply (@semax_body_subsumption' _ _ _ _ _ _ _ _ L);
+eapply (@semax_body_subsumption' _ _ _ _ _ _ _ _ _ _ _ _ _ L);
   [ first [ apply cspecs_sub_refl
           | split3; red; apply @sub_option_get; 
             repeat (apply Forall_cons; [reflexivity | ]);  apply Forall_nil ]
@@ -464,14 +464,14 @@ eapply (@semax_body_subsumption' _ _ _ _ _ _ _ _ L);
           (apply tycontext_sub_i99; assumption)].
 
 Ltac try_prove_tycontext_subVG L :=
-  match goal with |- semax_func ?V2 ?G2 _ _ _ =>
+  match goal with |- semax_func ?V2 ?G2 _ ?E _ _ =>
     try match type of L with
-    | semax_body ?V1 ?G1 _ _ =>
+    | semax_body ?V1 ?G1 _ _ _ =>
      lazymatch goal with
-     | H: tycontext_subVG V1 G1 V2 G2 |- _ => idtac
+     | H: tycontext_subVG E V1 G1 V2 G2 |- _ => idtac
      | _ => 
       let H := fresh in
-      assert (H: tycontext_subVG V1 G1 V2 G2);
+      assert (H: tycontext_subVG E V1 G1 V2 G2);
       [split;
         [apply sub_option_get;
           let A1 := fresh "A1" in let A2 := fresh "A2" in
@@ -898,7 +898,7 @@ end.
 Ltac cancel_for_forward_call := cancel_for_evar_frame.
 Ltac default_cancel_for_forward_call := cancel_for_evar_frame.
 
-Ltac unfold_post := match goal with |- ?Post = _ => let A := fresh "A" in let B := fresh "B" in first
+Ltac unfold_post := match goal with |- ?Post ⊣⊢ _ => let A := fresh "A" in let B := fresh "B" in first
   [evar (A : Type); evar (B : A -> environ -> mpred); unify Post (@bi_exist _ ?A ?B);
      change Post with (@bi_exist _ A B); subst A B |
    evar (A : list Prop); evar (B : environ -> mpred); unify Post (PROPx ?A ?B);
@@ -908,6 +908,13 @@ Ltac unfold_post := match goal with |- ?Post = _ => let A := fresh "A" in let B 
 Lemma PROP_LOCAL_SEP_ext :
   forall {Σ:gFunctors} P P' Q Q' R R', P=P' -> Q=Q' -> R=R' -> 
      PROPx P (LOCALx Q (SEPx R)) = PROPx(Σ:=Σ) P' (LOCALx Q' (SEPx R')).
+Proof.
+intros; subst; auto.
+Qed.
+
+Lemma PROP_LOCAL_SEP_ext' :
+  forall {Σ:gFunctors} P P' Q Q' R R', P=P' -> Q=Q' -> R=R' -> 
+     PROPx P (LOCALx Q (SEPx R)) ⊣⊢ PROPx(Σ:=Σ) P' (LOCALx Q' (SEPx R')).
 Proof.
 intros; subst; auto.
 Qed.
@@ -934,13 +941,14 @@ Ltac fix_up_simplified_postcondition :=
 
 Ltac match_postcondition := 
 fix_up_simplified_postcondition;
-cbv beta iota zeta; unfold_post;  extensionality rho; 
+cbv beta iota zeta; unfold_post; 
+constructor; let rho := fresh "rho" in intro rho; cbn; 
    repeat rewrite exp_uncurry;
    try rewrite no_post_exists; repeat rewrite monPred_at_exist;
 tryif apply bi.exist_proper
  then (intros ?vret;
-          apply equal_f;
-          apply PROP_LOCAL_SEP_ext; [reflexivity | | reflexivity];
+          generalize rho; rewrite -local_assert; apply PROP_LOCAL_SEP_ext';
+          [reflexivity | | reflexivity];
           (reflexivity || fail "The funspec of the function has a POSTcondition
 that is ill-formed.  The LOCALS part of the postcondition
 should be (temp ret_temp ...), but it is not"))
@@ -1206,11 +1214,11 @@ Ltac clear_MORE_POST :=
 
 Inductive Ridiculous: Type := .
 
-Ltac check_witness_type (*ts*) A witness :=
+Ltac check_witness_type (*ts*) Σ A witness :=
   (unify A (ConstType Ridiculous); (* because [is_evar A] doesn't seem to work *)
              exfalso)
  ||
- let TA := constr:(dtfr A) in
+ let TA := constr:(ofe_car (@dtfr Σ A)) in
   let TA' := (*eval cbv 
      [functors.MixVariantFunctor._functor
       functors.MixVariantFunctorGenerator.fpair
@@ -1275,6 +1283,10 @@ Ltac check_type_of_funspec id :=
   end.
 
 Ltac check_subsumes subsumes :=
+ unfold NDmk_funspec;
+ lazymatch goal with |- funspec_sub _ (mk_funspec _ _ ?A1 _ _) (mk_funspec _ _ ?A2 _ _) =>
+ unify A1 A2
+ end;
  apply subsumes ||
  lazymatch goal with |- ?g =>
  lazymatch type of subsumes with ?t =>
@@ -1344,7 +1356,7 @@ Ltac prove_call_setup_aux  (*ts*) witness :=
  match goal with | |- @semax _ _ _ _ ?CS _ _ (PROPx ?P (LOCALx ?L (SEPx ?R'))) _ _ =>
  let Frame := fresh "Frame" in evar (Frame: list mpred); 
  let cR := (fun R =>
- exploit (call_setup2_i _ _ _ _ _ _ _ _ R R' _ _ _ _ (*ts*) _ _ _ _ _ _ _ H witness Frame); clear H;
+ exploit (call_setup2_i _ _ _ _ _ _ _ _ R R' _ _ _ _ (*ts*) _ _ _ _ _ H witness Frame); clear H;
  [ try_convertPreElim
  | check_prove_local2ptree
  | check_vl_eq_args
@@ -1359,8 +1371,8 @@ Ltac prove_call_setup_aux  (*ts*) witness :=
 Ltac prove_call_setup (*ts*) subsumes witness :=
  prove_call_setup1 subsumes;
  [ .. | 
- match goal with |- call_setup1  _ _ _ _ _ _ _ _ _ _ _ _ _ ?A _ _ _ _ _ _  -> _ =>
-      check_witness_type (*ts*) A witness
+ match goal with |- @call_setup1  ?Σ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ?A _ _ _ _  -> _ =>
+      check_witness_type (*ts*) Σ A witness
  end;
  prove_call_setup_aux (*ts*) witness].
 
@@ -1375,7 +1387,7 @@ lazymatch goal with
       lazymatch goal with
       | |- _ -> semax _ _ _ (Scall (Some _) _ _) _ =>
          forward_call_id1_wow
-      | |- call_setup2 _ _ _ _ _ _ _ _ _ _ _ _ ?retty _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ -> 
+      | |- call_setup2 _ _ _ _ _ _ _ _ _ _ _ _ ?retty _ _ _ _ _ _ _ _ _ _ _ _ _ _ -> 
                 semax _ _ _ (Scall None _ _) _ =>
         tryif (unify retty Tvoid)
         then forward_call_id00_wow
@@ -1456,7 +1468,7 @@ Ltac get_function_witness_type func :=
 Ltac new_prove_call_setup :=
  prove_call_setup1 funspec_sub_refl;
  [ .. | 
- match goal with |- call_setup1 _ _ _ _ _ _ _ _ _ _ _ _ _ ?A _ _ _ _ _ _ -> _ =>
+ match goal with |- call_setup1 _ _ _ _ _ _ _ _ _ _ _ _ _ ?A _ _ _ _ -> _ =>
       let x := fresh "x" in tuple_evar2 x ltac:(get_function_witness_type A)
       ltac:(prove_call_setup_aux (*(@nil Type)*))
       ltac:(fun _ => try refine tt; fail "Failed to infer some parts of witness")
@@ -1472,7 +1484,7 @@ lazymatch goal with
       lazymatch goal with
       | |- _ -> semax _ _ _ (Scall (Some _) _ _) _ =>
          forward_call_id1_wow
-      | |- call_setup2 _ _ _ _ _ _ _ _ _ _ _ _ ?retty _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ->
+      | |- call_setup2 _ _ _ _ _ _ _ _ _ _ _ _ ?retty _ _ _ _ _ _ _ _ _ _ _ _ _ _ ->
                 semax _ _ _ (Scall None _ _) _ =>
         tryif (unify retty Tvoid)
         then forward_call_id00_wow
@@ -4483,7 +4495,7 @@ Ltac start_function1 :=
    end;
    simpl fn_body; simpl fn_params; simpl fn_return
  end;
- (* REVIEW this does not work: simpl dtfr in *; *) try hnf in gv;
+ try change (ofe_car (dtfr _)) with globals in *;
  simpl dependent_type_functor_rec;
  remember main_pre as main; (* so main_pre isn't reduced in the next step*)
  simpl ofe_mor_car;
@@ -4997,7 +5009,7 @@ let GD := fresh "GD" in
 
 Ltac prove_semax_prog_aux tac :=
   match goal with
-    | |- semax_prog ?prog ?z ?Vprog ?Gprog =>
+    | |- semax_prog _ ?prog ?z ?Vprog ?Gprog =>
      let pr := eval unfold prog in prog in
      let x := old_with_library' pr Gprog
      in change ( SeparationLogicAsLogicSoundness.MainTheorem.CSHL_MinimumLogic.CSHL_Defs.semax_prog
@@ -5018,10 +5030,10 @@ Ltac prove_semax_prog_aux tac :=
         fail "Funspec of _main is not in the proper form")
     end
  ]; 
- match goal with |- semax_func ?V ?G ?g ?D ?G' =>
+ match goal with |- semax_func ?V ?G ?g ?Σ ?D ?G' =>
    let Gprog := fresh "Gprog" in 
    pose (Gprog := @abbreviate _ G); 
-  change (semax_func V Gprog g D G')
+  change (semax_func V Gprog g Σ D G')
  end;
   prove_semax_prog_setup_globalenv;
  tac.

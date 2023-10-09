@@ -123,16 +123,16 @@ Proof.
 start_function.
 forward_call (*  s = sumarray(four,4); *)
   (gv _four, Ews,four_contents,4).
- repeat constructor; computable.
+repeat constructor; computable.
 forward. (* return s; *)
 Qed.
 
-#[export] Existing Instance NullExtension.Espec.
-
 Lemma prog_correct:
-  semax_prog prog tt Vprog Gprog.
+  semax_prog _ prog tt Vprog Gprog.
 Proof.
   prove_semax_prog.
   semax_func_cons body_sumarray.
   semax_func_cons body_main.
 Qed.
+
+End Spec.
