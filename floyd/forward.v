@@ -3576,7 +3576,7 @@ Qed.
 Ltac try_clean_up_stackframe :=
   lazymatch goal with |-
      ENTAIL _, PROPx _ (LOCALx _ (SEPx _)) ⊢
-        PROPx _ (LOCALx _ (SEPx _)) * stackframe_of _ =>
+        PROPx _ (LOCALx _ (SEPx _)) ∗ stackframe_of _ =>
      unfold stackframe_of;
      simpl fn_vars;
      repeat (
