@@ -486,7 +486,7 @@ remember (hmerge :: tmerge) as merged.
     destruct a; [ apply prop_right; reflexivity | ].
     simpl map; rewrite lseg_unfold.
     subst a_; entailer!.
-    elim H6; clear; intuition.
+    elim H6; clear; intuition auto with *.
   }
  subst a.
 

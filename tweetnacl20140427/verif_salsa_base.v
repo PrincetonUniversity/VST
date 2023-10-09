@@ -92,13 +92,13 @@ Lemma ThirtyTwoByte_split16 q v:
 Proof. destruct q as [s1 s2]. simpl; intros. unfold SByte.
   rewrite split2_data_at_Tarray_tuchar with (n1:= Zlength (SixteenByte2ValList s1));
      try rewrite Zlength_app; repeat rewrite <- SixteenByte2ValList_Zlength; try lia.
-  unfold offset_val. red in H. destruct v; intuition.
+  unfold offset_val. red in H. destruct v; intuition auto with *.
   rewrite field_address0_offset. simpl.
   rewrite sublist_app1; try rewrite <- SixteenByte2ValList_Zlength; try lia.
   rewrite sublist_app2; try rewrite <- SixteenByte2ValList_Zlength; try lia.
   rewrite sublist_same; try rewrite <- SixteenByte2ValList_Zlength; trivial.
   rewrite sublist_same; try rewrite <- SixteenByte2ValList_Zlength; trivial.
-  red; intuition.
+  red; intuition auto with *.
 Qed.
 
 Lemma QuadByte2ValList_firstn4 q l:
