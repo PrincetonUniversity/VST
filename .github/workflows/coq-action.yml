@@ -137,7 +137,7 @@ jobs:
             endGroup
           script: |
             startGroup "Build & Install"
-              make -f util/make-touch  IGNORECOQVERSION=true
-              make ${{matrix.make_target}} BITSIZE=${{matrix.bit_size}} COMPCERT=${{ matrix.coq_version=='dev' && 'bundled' || 'platform' }}  IGNORECOQVERSION=true
+              make -f util/make-touch  IGNORECOQVERSION=true IGNORECOMPCERTVERSION=true
+              make ${{matrix.make_target}} BITSIZE=${{matrix.bit_size}} COMPCERT=${{ matrix.coq_version=='dev' && 'bundled' || 'platform' }}  IGNORECOQVERSION=true IGNORECOMPCERTVERSION=true
             endGroup
           uninstall:
