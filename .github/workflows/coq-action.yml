@@ -105,6 +105,8 @@ jobs:
         exclude:
           - coq_version: 8.16
             bit_size: 32
+          - coq_version: 8.17
+            bit_size: 32
           - coq_version: dev
             bit_size: 32
           - bit_size: 64
