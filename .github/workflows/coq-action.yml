@@ -91,6 +91,7 @@ jobs:
         coq_version:
           - '8.16'
           - '8.17'
+          - '8.18'
           - 'dev' 
         make_target:
           - assumptions.txt
