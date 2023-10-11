@@ -771,7 +771,7 @@ Lemma safe_loop_skip:
 Proof.
   intros.
   remember (level m) as M.
-  revert dependent m; induction M as [? IHM] using lt_wf_ind; intros.
+  generalize dependent m; induction M as [? IHM] using lt_wf_ind; intros.
   eapply jsafeN_local_step. constructor.
   intros.
   eapply jsafeN_local_step. constructor. auto.

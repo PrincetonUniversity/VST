@@ -1548,7 +1548,7 @@ Lemma hist_list'_add : forall h1 h2 (l : list hist_el) (Hdisj : disjoint h1 h2),
 Proof.
   intros.
   remember (map_add h1 h2) as h.
-  revert dependent h2; revert h1; induction H; intros.
+  generalize dependent h2; revert h1; induction H; intros.
   - exists [], []; split; [reflexivity|].
     assert (h1 = empty_map /\ h2 = empty_map) as [].
     { split; extensionality k; apply equal_f with (x := k) in Heqh; unfold map_add in Heqh;

@@ -44,7 +44,7 @@ Lemma fpad_inner_length l (L:length l = p): (length (fpad_inner (bitsToBytes l))
 Proof.
   unfold fpad_inner. repeat rewrite app_length.
   rewrite repeat_length, length_intlist_to_bytelist.
-  rewrite (mult_comm 4), plus_comm, Zlength_correct.
+  rewrite (Nat.mul_comm 4), Nat.add_comm, Zlength_correct.
   rewrite bitsToBytes_len_gen with (n:=32%nat).
     reflexivity.
     apply L.
@@ -136,7 +136,7 @@ Proof. unfold pad_inc.
    destruct H. rewrite H. clear H.
    assert (Z.to_nat (zz mod 64 - 1) = minus (Z.to_nat (zz mod 64)) 1).
      clear - n H0. remember (zz mod 64).  clear Heqz. rewrite Z2Nat.inj_sub. reflexivity. lia.
-   rewrite H; clear H. rewrite <- NPeano.Nat.add_sub_swap. rewrite minus_Sn_m. simpl. exists k. lia.
+   rewrite H; clear H. rewrite <- NPeano.Nat.add_sub_swap. rewrite <- Nat.sub_succ_l. simpl. exists k. lia.
    lia. apply (Z2Nat.inj_le 1). lia. lia. lia.
 Qed.
 
@@ -283,13 +283,13 @@ Qed.
 
 Lemma pad_inc_injective: forall l1 l2, pad_inc l1 = pad_inc l2 -> l1=l2.
 Proof. intros.
-remember (beq_nat (length l1) (length l2)) as d.
+remember (Nat.eqb (length l1) (length l2)) as d.
 destruct d.
-{ apply beq_nat_eq in Heqd.
+{ symmetry in Heqd; rewrite Nat.eqb_eq in Heqd.
   unfold pad_inc in H. repeat rewrite Zlength_correct in H.
   rewrite <- Heqd in H.
   eapply app_inv_tail. apply H. }
-{ symmetry in Heqd; apply beq_nat_false in Heqd.
+{ symmetry in Heqd. rewrite Nat.eqb_neq in Heqd.
   unfold pad_inc in H.
   repeat rewrite app_assoc in H.
   destruct (app_inv_length2 _ _ _ _ H); clear H. reflexivity.

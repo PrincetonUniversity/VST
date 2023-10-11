@@ -153,7 +153,7 @@ entailer.
 apply andp_right.
 apply prop_right.
 split.
-rewrite app_ass; reflexivity.
+rewrite <- app_assoc; reflexivity.
  f_equal. rewrite sum_int_app. f_equal. simpl. apply Int.add_zero.
 rewrite map_app. simpl map.
 eapply derives_trans; [ | apply (lseg_cons_right_list LS) with (y:=t); auto].
@@ -161,7 +161,7 @@ rewrite list_cell_eq by auto.
 cancel.
 * (* After the loop *)
 forward.  (* return s; *)
-destruct cts2; [| inversion H]. rewrite <- app_nil_end.
+destruct cts2; [| inversion H]. rewrite app_nil_r.
 entailer!.
 Qed.
 
@@ -198,7 +198,7 @@ forward.  (* v = t; *)
 Exists (h::cts1,r,v,y).
  simpl fst. simpl snd. simpl rev.
 entailer!.  (* smt_test verif_reverse_example2 *)
- - rewrite app_ass. auto.
+ - rewrite <- app_assoc. auto.
  - rewrite (lseg_unroll _ sh (h::cts1)).
     apply orp_right2.
    unfold lseg_cons.
@@ -210,7 +210,7 @@ entailer!.  (* smt_test verif_reverse_example2 *)
 * (* after the loop *)
 forward.  (* return w; *)
 Exists w; entailer!.
-rewrite <- app_nil_end, rev_involutive.
+rewrite app_nil_r, rev_involutive.
 auto.
 Qed.
 

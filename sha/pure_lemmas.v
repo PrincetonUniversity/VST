@@ -354,14 +354,14 @@ unfold lastblock'.
 rewrite bytelist_to_intlist_to_bytelist; auto.
 2: rewrite H99; exists LBLOCKz; reflexivity.
 unfold lastblock.
-rewrite <- app_ass. rewrite H5.
+rewrite app_assoc. rewrite H5.
 unfold generate_and_pad.
 rewrite intlist_to_bytelist_app.
 rewrite bytelist_to_intlist_to_bytelist; auto.
 *
-repeat rewrite app_ass.
+repeat rewrite <- app_assoc.
 f_equal. f_equal. f_equal.
-rewrite <- app_ass.
+rewrite app_assoc.
 f_equal.
 rewrite <- repeat_app.
 f_equal.
@@ -375,7 +375,7 @@ rewrite Z.mul_comm.
 rewrite <-  Zlength_intlist_to_bytelist.
 rewrite <- Zlength_app.
 rewrite H5.
-rewrite <- app_ass.
+rewrite app_assoc.
 rewrite Zlength_app.
 forget (Zlength (intlist_to_bytelist hashed ++ dd)) as B.
 rewrite Zlength_app.

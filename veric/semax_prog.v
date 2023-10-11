@@ -2701,7 +2701,7 @@ Proof.
   repeat split; auto; intro.
   - destruct (PTree.get _ _); auto.
   - unfold make_tycontext_g.
-    revert dependent G2; revert dependent V2; revert V; induction G; simpl.
+    generalize dependent G2; generalize dependent V2; revert V; induction G; simpl.
     + induction V; simpl; intros. auto.
         rewrite sublist.incl_cons_iff in HV; destruct HV.
         rewrite PTree.gsspec.
@@ -2716,7 +2716,7 @@ Proof.
       destruct (peq id (fst a)); eauto; subst; simpl.
       apply lookup_distinct; auto.
   - unfold make_tycontext_s.
-    revert dependent G2; induction G; simpl; intros.
+    generalize dependent G2; induction G; simpl; intros.
     + auto.
     + destruct a; simpl. hnf.
       rewrite sublist.incl_cons_iff in HG; destruct HG.

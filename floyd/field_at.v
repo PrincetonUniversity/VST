@@ -2758,7 +2758,7 @@ Proof.
   setoid_rewrite aggregate_pred.rangespec_ext at 4; [|intros; rewrite Z.sub_0_r; apply f_equal; auto].
   clear H3 H4.
   rewrite Z2Nat_max0 in *.
-  forget (offset_val 0 p) as p'; forget (Z.to_nat z) as n; forget 0 as lo; revert dependent lo; induction n; auto; simpl; intros.
+  forget (offset_val 0 p) as p'; forget (Z.to_nat z) as n; forget 0 as lo; generalize dependent lo; induction n; auto; simpl; intros.
  apply derives_refl.
   match goal with |- (?P1 * ?Q1) * (?P2 * ?Q2) |-- _ =>
     eapply derives_trans with (Q := (P1 * P2) * (Q1 * Q2)); [cancel|] end.
@@ -2825,8 +2825,7 @@ Qed.
 #[export] Hint Rewrite
   @field_at_data_at_cancel'
   @field_at_data_at
-  @field_at__data_at_
-  @data_at__data_at : cancel.
+  @field_at__data_at_ : cancel.
 
 (* END new experiments *)
 

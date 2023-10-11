@@ -130,7 +130,7 @@ Qed.
 (*Lemma ext_later_commut : commut A ext_order laterR.
 Proof.
   repeat intro.
-  revert dependent x; induction H0; intros.
+  generalize dependent x; induction H0; intros.
   - eapply ext_age_commut in H as []; eauto.
     eexists; [|apply H1].
     apply t_step; auto.
@@ -152,7 +152,7 @@ Qed.*)
 Lemma later_ext_commut : commut A laterR ext_order.
 Proof.
   repeat intro.
-  revert dependent z; induction H; intros.
+  generalize dependent z; induction H; intros.
   - eapply age_ext_commut in H as []; eauto.
     eexists; [apply H|].
     apply t_step; auto.
@@ -286,7 +286,7 @@ Qed.
 Lemma valid_rel_later : valid_rel laterR.
 Proof.
   intros; split; hnf; intros.
-  revert dependent x.
+  generalize dependent x.
   induction H0; intros.
   exists y; auto.
   apply t_step; auto.
@@ -309,7 +309,7 @@ Qed.
 Lemma valid_rel_nec : valid_rel necR.
 Proof.
   intros; split; hnf; intros.
-  revert dependent x.
+  generalize dependent x.
   induction H0; intros.
   exists y; auto.
   apply rt_step; auto.

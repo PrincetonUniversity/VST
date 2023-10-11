@@ -187,20 +187,20 @@ forward_if.
    forward.
    forward.
    Exists (s1a++[a],v,s1b,u0,z). unfold fst, snd.
-   rewrite !app_ass. simpl app.
+   rewrite <- !app_assoc. simpl app.
    entailer!!.
    unfold lseg.
    rewrite sepcon_comm.
    clear.
    apply RAMIF_Q.trans'' with (cons a).
-   extensionality cts; simpl; rewrite app_ass; reflexivity.
+   extensionality cts; simpl; rewrite <- app_assoc; reflexivity.
    apply allp_right; intro. apply wand_sepcon_adjoint.
    unfold listrep at 2; fold listrep; Exists u0.  apply derives_refl.
  + (* after the loop *)
    forward. forward.
    Exists x. entailer!!.
    destruct H3 as [? _]. specialize (H3 (eq_refl _)). subst s1b.
-   unfold listrep at 1.  Intros. autorewrite with norm.  rewrite H0. rewrite app_ass. simpl app.
+   unfold listrep at 1.  Intros. autorewrite with norm.  rewrite H0. rewrite <- app_assoc. simpl app.
    unfold lseg.
    rewrite sepcon_assoc.
    eapply derives_trans; [apply allp_sepcon1 | ]. apply allp_left with (a::s2).
@@ -394,7 +394,7 @@ forward_if.
     forward.
     forward.
     Exists (s1a++a::nil, v0, s1b,u0,z). unfold fst, snd.
-    simpl app; rewrite app_ass.
+    simpl app; rewrite <- app_assoc.
     entailer.
     sep_apply (lseg_cons' sh a u0 t v0 z); auto.
     sep_apply (lseg_app' sh s1a [a] v0 x t u0 z); auto.
@@ -408,7 +408,7 @@ forward_if.
     entailer!!.
     sep_apply (lseg_cons sh a y t s2); auto.
     sep_apply (lseg_app_null sh [a] s2 t y); auto.
-    rewrite app_ass.
+    rewrite <- app_assoc.
     sep_apply (lseg_app_null sh s1a ([a]++s2) x t); auto.
 Qed.
 

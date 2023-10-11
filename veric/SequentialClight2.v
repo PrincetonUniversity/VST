@@ -425,7 +425,7 @@ Proof.
       rewrite <- Heq.
       destruct (access_at m loc Cur); auto.
       destruct p; auto.
-  - revert dependent m; induction l; simpl; intros.
+  - generalize dependent m; induction l; simpl; intros.
     + inv H; destruct (access_at m' loc Cur); auto.
       destruct p; auto.
     + destruct a as ((b, lo), hi).
@@ -796,7 +796,7 @@ Lemma add_funspecs_frame' : forall {Espec : OracleKind} extlink fs,
   extspec_frame OK_spec -> extspec_frame (@OK_spec (add_funspecs Espec extlink fs)).
 Proof.
   destruct Espec; simpl; intros.
-  revert dependent OK_spec; induction fs; simpl; auto; intros.
+  generalize dependent OK_spec; induction fs; simpl; auto; intros.
   destruct a; apply funspec2jspec_frame; auto.
 Qed.
 

@@ -528,7 +528,7 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
       inv H; constructor; auto.
       inv H1; constructor; auto.
       inv H2; constructor; auto; simpl; congruence.
-    - revert dependent z; revert y; induction x'; intros; apply ghost_join_inv in H.
+    - generalize dependent z; revert y; induction x'; intros; apply ghost_join_inv in H.
       { exists nil, z; split; auto; constructor. }
       destruct y; simpl in *.
       { exists z, nil; split; auto; constructor. }
@@ -562,7 +562,7 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
         unfold ghost_fmap in *; simpl in *.
         rewrite <- H1; f_equal.
         destruct o, o0; inv J1; auto.
-    - revert dependent z'; revert y; induction x; intros; apply ghost_join_inv in H; simpl in H.
+    - generalize dependent z'; revert y; induction x; intros; apply ghost_join_inv in H; simpl in H.
       { exists y, y; split; auto; constructor. }
       destruct y; simpl in *.
       { exists nil, (a :: x); split; auto; constructor. }
@@ -1504,7 +1504,7 @@ Qed.
       destruct f, f0, f1; simpl in *.
       clear - H2.
       remember (g2ghost g) as a; remember (g2ghost g0) as b; remember (g2ghost g1) as c.
-      revert dependent g1; revert dependent g0; revert dependent g; induction H2; intros; subst.
+      generalize dependent g1; generalize dependent g0; generalize dependent g; induction H2; intros; subst.
       * apply g2ghost_inv in Heqc; subst; destruct g; [constructor | discriminate].
       * apply g2ghost_inv in Heqc; subst; destruct g0; [constructor | discriminate].
       * destruct g, g0, g1; inv Heqa; inv Heqb; inv Heqc.
@@ -1635,10 +1635,10 @@ Qed.
       unfold res2resource in Hr.
       destruct (_f l), (_f1 l); try destruct _f3; try destruct _f4; inv Hr; f_equal; try apply proof_irr.
     - match goal with J : join ?a _ ?c |- _ => remember a as g1; remember c as g2 end.
-      revert dependent _f0. revert dependent _f2. induction J; intros; subst.
+      generalize dependent _f0. generalize dependent _f2. induction J; intros; subst.
       + destruct _f0; inv Heqg1; eexists; constructor.
       + assert (_f2 = _f0); [|subst; eexists; constructor].
-        clear - Heqg1. revert dependent _f2; induction _f0; intros; destruct _f2; inv Heqg1; auto.
+        clear - Heqg1. generalize dependent _f2; induction _f0; intros; destruct _f2; inv Heqg1; auto.
         f_equal; [|apply IH_f0; auto].
         destruct o as [(?, (?, ?))|], a as [(?, (?, ?))|]; inv H0; auto.
       + destruct _f0; inv Heqg1. destruct _f2; inv Heqg2.

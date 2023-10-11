@@ -375,11 +375,11 @@ Proof.
   erewrite field_at_Tarray;
    [ | apply compute_legal_nested_field_spec'; repeat constructor; auto; lia
    | reflexivity | lia | apply JMeq_refl].
-  rewrite <- app_ass.
+  rewrite app_assoc.
    change (Z.to_nat 8) with (Z.to_nat 4 + Z.to_nat 4)%nat.
    rewrite repeat_app.
    rewrite (split3seg_array_at _ _ _ 0 56 60) by (autorewrite with sublist; rep_lia).
-   rewrite <- !app_ass.
+   rewrite !app_assoc.
    assert (CBZ := CBLOCKz_eq).
    Time autorewrite with sublist. (*7*)
     clear CBZ.
@@ -436,7 +436,7 @@ Proof.
    rewrite (split3seg_array_at _ _ _ 0 56 60 64)
      by (autorewrite with sublist; lia).
    rewrite CBLOCKz_eq in *.
-   rewrite <- !app_ass.
+   rewrite !app_assoc.
    Time autorewrite with sublist. (*7*)
    change (64-8) with 56.
    rewrite (array_at_data_at' _ _ _ 56 60) by auto.

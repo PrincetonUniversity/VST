@@ -135,9 +135,9 @@ Proof.
   intros.
     assert (Zlength (dd ++ sublist 0 len data) < CBLOCKz). 
      change CBLOCKz with 64. list_solve.
-    rewrite (app_nil_end hashed) at 2.
+    rewrite <- (app_nil_r hashed) at 2.
     rewrite update_abs_eq.
-    exists nil. rewrite <- !app_nil_end.
+    exists nil. rewrite !app_nil_r.
     rewrite !S256abs_hashed; auto.
     rewrite !S256abs_data; auto.
 Qed.

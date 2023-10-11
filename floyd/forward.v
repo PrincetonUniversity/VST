@@ -1173,19 +1173,40 @@ Ltac simplify_remove_localdef_temp :=
     change u with u'
   end.
 
+Ltac afc_error1 :=
+  fail 100 "Error: should not hit this case in after_forward_call.  To ignore this error and try anyway, do 'Ltac afc_error1 ::= idtac'".
+
 Ltac after_forward_call :=
     check_POSTCONDITION; 
     try match goal with |- context [remove_localdef_temp] =>
               simplify_remove_localdef_temp
      end;
-    unfold_app; 
     try (apply extract_exists_pre; intros _); 
     match goal with
         | |- semax _ _ _ _ => idtac
         | |- unit -> semax _ _ _ _ => intros _
     end;
     match goal with
-        | |- @semax ?CS _ _ _ _ _ => try change_compspecs CS
+        | |- @semax ?CS ?Espec ?Delta (exp ?F) ?c ?Post =>
+               lazymatch F with context [@app mpred _ ?x] =>
+                  let hide := fresh "hide" in set (hide := x);
+                  try change_compspecs CS;
+                  subst hide
+               end;
+               unfold_app
+        | |- @semax ?CS ?Espec ?Delta (PROPx (?P1 ++ ?P2) (LOCALx ?Q (SEPx (?A ++ ?B)))) ?c ?Post =>
+               let hide := fresh "hide" in
+               pose (hide x := @semax CS Espec Delta (PROPx (P1 ++ P2) 
+                                     (LOCALx Q (SEPx (x ++ B)))) c Post);
+               change (hide A);
+               try change_compspecs CS;
+               subst hide; 
+               cbv beta;
+               unfold_app
+        | |- @semax ?CS _ _ _ _ _ => 
+               afc_error1;
+               unfold_app;
+               try change_compspecs CS
     end;
     repeat (apply semax_extract_PROP; intro); 
     cleanup_no_post_exists; 
@@ -1346,7 +1367,10 @@ Ltac prove_call_setup_aux  ts witness :=
  | check_vl_eq_args
  | auto 50 with derives
  | check_gvars_spec
- | try change_compspecs CS; cancel_for_forward_call
+ | let lhs := fresh "lhs" in 
+   match goal with |- ?A |-- ?B => pose (lhs := A); change (lhs |-- B) end;
+   try change_compspecs CS; subst lhs;
+   cancel_for_forward_call
  |
  ])
   in strip1_later R' cR
