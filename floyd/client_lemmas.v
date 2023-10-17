@@ -2215,7 +2215,7 @@ match goal with
 end.
 
 Ltac Exists'' a :=
-  first [rewrite -(bi.exist_intro a)
+  first [rewrite -{1}(bi.exist_intro a)
          | rewrite bi.and_exist_l; Exists'' a
          | rewrite bi.and_exist_r; Exists'' a
          | rewrite bi.sep_exist_l; Exists'' a

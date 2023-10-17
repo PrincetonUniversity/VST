@@ -324,6 +324,11 @@ Proof.
   - intros; rewrite H //.
 Qed.
 
+Global Instance normal_ret_assert_proper : Proper (base.equiv ==> base.equiv) normal_ret_assert.
+Proof.
+  intros ???; split3; last split; simpl; try done.
+Qed.
+
 End mpred.
 
 #[export] Hint Resolve normal_ret_assert_derives : core.

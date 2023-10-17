@@ -385,6 +385,12 @@ Lemma function_body_ret_assert_EK_return:
   forall t P vl, RA_return (function_body_ret_assert t P) vl = bind_ret vl t P.
 Proof. reflexivity. Qed.
 
+Lemma bind_ret0_unfold:
+  forall Q, bind_ret None tvoid Q ⊣⊢ (assert_of (fun rho => Q (globals_only rho))).
+Proof.
+  rewrite /bind_ret; split => rho; monPred.unseal; done.
+Qed.
+
 Lemma bind_ret1_unfold:
   forall v t Q, bind_ret (Some v) t Q ⊣⊢ (⌜tc_val t v⌝ ∧ assert_of (fun rho => Q (make_args (ret_temp :: nil)(v::nil) rho))).
 Proof.
@@ -891,7 +897,12 @@ Ltac simpl_ret_assert :=
       loop2_ret_assert function_body_ret_assert frame_ret_assert
       switch_ret_assert loop1x_ret_assert loop1y_ret_assert
       for_ret_assert loop_nocontinue_ret_assert];
-     try change (bind_ret None tvoid ?P) with P.
+  try (match goal with
+      | |- context[bind_ret None tvoid ?P] => 
+        let H:= fresh in
+          assert (H:bind_ret None tvoid P ⊣⊢ P) by (raise_rho; done);
+          rewrite {}H
+      end).
 
 #[export] Hint Rewrite @frame_normal @frame_for1 @frame_loop1
                  @overridePost_normal: ret_assert.
