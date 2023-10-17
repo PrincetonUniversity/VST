@@ -6,10 +6,11 @@ Require Import VST.progs64.object.
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
-
 Section Spec.
+
+Context  `{!default_VSTGS Σ}.
+
 Local Open Scope Z.
-Context `{!default_VSTGS Σ}.
 
 Definition object_invariant := list Z -> val -> mpred.
 
@@ -38,8 +39,8 @@ Definition twiddle_spec (instance: object_invariant) :=
           SEP(instance (i::history) self).
 
 Definition object_methods (instance: object_invariant) (mtable: val) : mpred :=
-  ∃ sh: share, ∃ reset: val, ∃ twiddle: val,
-  ⌜readable_share sh⌝ ∧
+  ∃ (sh: share) (reset: val) (twiddle: val),
+  ⌜readable_share sh⌝ ∧ 
   func_ptr ⊤ (reset_spec instance) reset ∗
   func_ptr ⊤ (twiddle_spec instance) twiddle ∗
   data_at sh (Tstruct _methods noattr) (reset,twiddle) mtable.
@@ -52,11 +53,10 @@ unfold object_methods.
 Intros sh reset twiddle.
 entailer!.
 Qed.
-
 Hint Resolve object_methods_local_facts : saturate_local.
 
 Definition object_mpred (history: list Z) (self: val) : mpred :=
-  ∃ instance: object_invariant, ∃ mtable: val, 
+  ∃ (instance: object_invariant) (mtable: val), 
        (object_methods instance mtable ∗
      field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable self∗
      instance history self).
