@@ -155,24 +155,13 @@ Intros sh reset twiddle.
 Exists (fst (slice.cleave sh)) reset twiddle.
 Exists (snd (slice.cleave sh)) reset twiddle.
 
+rewrite <- (data_at_share_join (fst (slice.cleave sh)) (snd (slice.cleave sh)) sh) by apply slice.cleave_join.
 
-(* NOTE This iIntros introduces two func_ptr into the intuitionistic context, 
-   because each func_ptr appears twice in the post condition.
-   It was done with two rewrites that explicitly duplicates func_ptr (and
-   framed them with the entailer!! below):
-   rewrite (split_func_ptr (reset_spec instance) reset). 
-   rewrite (split_func_ptr' (twiddle_spec instance) twiddle) at 1. *)
-iIntros "(#$ & #$ & ?)"; iClear "#";
-
-iStopProof. (* if only we can do entailer in IPM *)
-entailer!!. (* can't get rid of this because although we don't need it to frame
-               func_ptr, it still does something else*)
-split.
+iIntros "(#$ & #$ & $ & $)".
+iPureIntro.
+split; split; try done.
 apply slice.cleave_readable1; auto.
 apply slice.cleave_readable2; auto.
-rewrite (data_at_share_join (fst (slice.cleave sh)) (snd (slice.cleave sh)) sh).
-auto.
-apply slice.cleave_join.
 Qed.
 
 Lemma body_make_foo: semax_body Vprog Gprog ⊤ f_make_foo make_foo_spec.
