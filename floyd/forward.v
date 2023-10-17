@@ -1283,11 +1283,7 @@ Ltac check_type_of_funspec id :=
   end.
 
 Ltac check_subsumes subsumes :=
- unfold NDmk_funspec;
- lazymatch goal with |- funspec_sub _ (mk_funspec _ _ ?A1 _ _) (mk_funspec _ _ ?A2 _ _) =>
- unify A1 A2
- end;
- apply subsumes ||
+ apply subsumes; done ||
  lazymatch goal with |- ?g =>
  lazymatch type of subsumes with ?t =>
   fail 100 "Function-call subsumption fails.  The term" subsumes "of type" t
@@ -1324,7 +1320,7 @@ Use Intros  to move          the existentially bound variables above the line"
         | check_type_of_funspec id
         ]
       |check_subsumes subsumes
-      | try reflexivity; (eapply classify_fun_ty_hack; [apply subsumes| reflexivity ..])  (* function-id type in AST matches type in funspec *)
+      | try reflexivity; (eapply classify_fun_ty_hack; [apply subsumes; done | reflexivity ..])  (* function-id type in AST matches type in funspec *)
       |check_typecheck
       |check_typecheck
       |check_cast_params
@@ -1431,7 +1427,7 @@ end.
     fwd_call_dep ts subsumes witness.*)
 
 Tactic Notation "forward_call" constr(witness) :=
-    fwd_call_dep (*(@nil Type)*) funspec_sub_refl witness.
+    fwd_call_dep (*(@nil Type)*) funspec_sub_refl_dep witness.
 
 Tactic Notation "forward_call" constr(subsumes) constr(witness) := 
   fwd_call_dep (*(@nil Type)*) subsumes witness.
@@ -1466,7 +1462,7 @@ Ltac get_function_witness_type func :=
  in TA''.
 
 Ltac new_prove_call_setup :=
- prove_call_setup1 funspec_sub_refl;
+ prove_call_setup1 funspec_sub_refl_dep;
  [ .. | 
  match goal with |- call_setup1 _ _ _ _ _ _ _ _ _ _ _ _ _ ?A _ _ _ _ -> _ =>
       let x := fresh "x" in tuple_evar2 x ltac:(get_function_witness_type A)
@@ -3680,7 +3676,7 @@ end.
 Definition Undo__Then_do__forward_call_W__where_W_is_a_witness_whose_type_is_given_above_the_line_now := (False:Prop).
 
 Ltac advise_forward_call :=
- prove_call_setup1 funspec_sub_refl;
+ prove_call_setup1 funspec_sub_refl_dep;
  [ .. | 
  match goal with |- call_setup1 _ _ _ _ _ _ _ _ _ _ _ _ _ ?A _ _ _ _ _ _ _ -> _ =>
   lazymatch A with

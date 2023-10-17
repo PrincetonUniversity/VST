@@ -120,7 +120,7 @@ entailer!!.
 all: unfold withspacer; simpl; entailer!!.  (* needed if Archi.ptr64=true *)
 Qed.
 
-Lemma body_foo_twiddle: semax_body Vprog Gprog f_foo_twiddle foo_twiddle_spec.
+Lemma body_foo_twiddle: semax_body Vprog Gprog ⊤ f_foo_twiddle foo_twiddle_spec.
 Proof.
 unfold foo_twiddle_spec, foo_invariant, twiddle_spec.
 start_function.
@@ -139,14 +139,14 @@ simpl.
 Exists (2 * fold_right Z.add 0 history + i).
 simpl;
 entailer!!.
-rewrite Z.mul_add_distr_l, Z.add_comm.
+rewrite ->Z.mul_add_distr_l, Z.add_comm.
 unfold withspacer; simpl.
 entailer!!.
 Qed.
 
 Lemma split_object_methods:
   forall instance m, 
-    object_methods instance m |-- object_methods instance m * object_methods instance m.
+    object_methods instance m ⊢ object_methods instance m ∗ object_methods instance m.
 Proof.
 intros.
 unfold object_methods.
@@ -154,9 +154,19 @@ Intros sh reset twiddle.
 
 Exists (fst (slice.cleave sh)) reset twiddle.
 Exists (snd (slice.cleave sh)) reset twiddle.
-rewrite (split_func_ptr' (reset_spec instance) reset) at 1.
-rewrite (split_func_ptr' (twiddle_spec instance) twiddle) at 1.
-entailer!!.
+
+
+(* NOTE This iIntros introduces two func_ptr into the intuitionistic context, 
+   because each func_ptr appears twice in the post condition.
+   It was done with two rewrites that explicitly duplicates func_ptr (and
+   framed them with the entailer!! below):
+   rewrite (split_func_ptr (reset_spec instance) reset). 
+   rewrite (split_func_ptr' (twiddle_spec instance) twiddle) at 1. *)
+iIntros "(#$ & #$ & ?)"; iClear "#";
+
+iStopProof. (* if only we can do entailer in IPM *)
+entailer!!. (* can't get rid of this because although we don't need it to frame
+               func_ptr, it still does something else*)
 split.
 apply slice.cleave_readable1; auto.
 apply slice.cleave_readable2; auto.
@@ -165,7 +175,7 @@ auto.
 apply slice.cleave_join.
 Qed.
 
-Lemma body_make_foo: semax_body Vprog Gprog f_make_foo make_foo_spec.
+Lemma body_make_foo: semax_body Vprog Gprog ⊤ f_make_foo make_foo_spec.
 Proof.
 unfold make_foo_spec.
 start_function.
@@ -180,7 +190,9 @@ forward_if
           object_methods foo_invariant (gv _foo_methods))).
 *
 change (EqDec_val p nullval) with (eq_dec p nullval).
-if_tac; entailer!!.
+if_tac.
+(* FIXME normalization issue in entailer? *)
+entailer!!.
 *
 forward_call 1.
 contradiction.
