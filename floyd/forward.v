@@ -1383,7 +1383,7 @@ lazymatch goal with
       lazymatch goal with
       | |- _ -> semax _ _ _ (Scall (Some _) _ _) _ =>
          forward_call_id1_wow
-      | |- call_setup2 _ _ _ _ _ _ _ _ _ _ _ _ ?retty _ _ _ _ _ _ _ _ _ _ _ _ _ _ -> 
+      | |- call_setup2 _ _ _ _ _ _ _ _ _ _ _ _ ?retty _ _ _ _ _ _ _ _ _ _ _ _ _ -> 
                 semax _ _ _ (Scall None _ _) _ =>
         tryif (unify retty Tvoid)
         then forward_call_id00_wow
@@ -1441,8 +1441,8 @@ Ltac tuple_evar2 name T cb evar_tac :=
   | _ => my_unshelve_evar name T cb evar_tac
   end; idtac.
 
-Ltac get_function_witness_type func :=
- let TA := constr:(dtfr func) in
+Ltac get_function_witness_type Σ func :=
+ let TA := constr:(ofe_car (@dtfr Σ func)) in
   let TA' := (*eval cbv 
      [functors.MixVariantFunctor._functor
       functors.MixVariantFunctorGenerator.fpair
@@ -1480,7 +1480,7 @@ lazymatch goal with
       lazymatch goal with
       | |- _ -> semax _ _ _ (Scall (Some _) _ _) _ =>
          forward_call_id1_wow
-      | |- call_setup2 _ _ _ _ _ _ _ _ _ _ _ _ ?retty _ _ _ _ _ _ _ _ _ _ _ _ _ _ ->
+      | |- call_setup2 _ _ _ _ _ _ _ _ _ _ _ _ ?retty _ _ _ _ _ _ _ _ _ _ _ _ _ ->
                 semax _ _ _ (Scall None _ _) _ =>
         tryif (unify retty Tvoid)
         then forward_call_id00_wow
