@@ -196,6 +196,12 @@ Program Definition argsassert_of (P : argsassert') : argsassert := {| monPred_at
 
 Coercion argsassert_of : argsassert' >-> argsassert.
 
+Lemma assert_of_at : forall (P : assert), assert_of (monPred_at P) ⊣⊢ P.
+Proof. done. Qed.
+
+Lemma argsassert_of_at : forall (P : argsassert), argsassert_of (monPred_at P) ⊣⊢ P.
+Proof. done. Qed.
+
 Section funspec.
 
 (* funspecs are effectively dependent pairs of an algebra and a pair of assertions on that algebra.

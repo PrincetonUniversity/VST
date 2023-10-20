@@ -1097,11 +1097,12 @@ eapply (semax_call_id00_wow H);
     fix_up_simplified_postcondition;
     cbv beta iota zeta; unfold_post;
     repeat rewrite exp_uncurry;
+    rewrite ?assert_of_at;
 
     first [ apply bi.exist_proper | try rewrite no_post_exists0; apply bi.exist_proper];
 
     intros ?vret;
-    apply PROP_LOCAL_SEP_ext; [reflexivity | | reflexivity];
+    apply PROP_LOCAL_SEP_ext'; [reflexivity | | reflexivity];
     (reflexivity || fail "The funspec of the function has a POSTcondition
 that is ill-formed.  The LOCALS part of the postcondition
 should be empty, but it is not")
@@ -4447,12 +4448,7 @@ Qed.
 Ltac start_func_convert_precondition := idtac.
 Ltac rewrite_old_main_pre := idtac.
 
-(* up *)
-Lemma assert_of_at : forall Σ (P : @assert Σ), assert_of (monPred_at P) ⊣⊢ P.
-Proof. done. Qed.
 
-Lemma argsassert_of_at : forall Σ (P : @argsassert Σ), argsassert_of (monPred_at P) ⊣⊢ P.
-Proof. done. Qed.
 
 Ltac start_function1 :=
  leaf_function;

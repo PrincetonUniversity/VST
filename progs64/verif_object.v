@@ -179,14 +179,12 @@ forward_if
           object_methods foo_invariant (gv _foo_methods))).
 *
 change (EqDec_val p nullval) with (eq_dec p nullval).
-if_tac.
-(* FIXME normalization issue in entailer? *)
-entailer!!.
+if_tac; entailer!!.
 *
 forward_call 1.
 contradiction.
 *
-rewrite if_false by auto.
+rewrite ->if_false by auto.
 Intros.
 forward.  (*  /*skip*/;  *)
 entailer!!.
@@ -206,9 +204,7 @@ unfold_data_at (field_at _ _ nil _ p).
 cancel.
 unfold withspacer; simpl.
 rewrite !field_at_data_at.
-simpl.
-apply derives_refl'.
-rewrite <- ?sepcon_assoc. (* needed if Archi.ptr64=true *)
+cancel.
 rewrite !field_compatible_field_address; auto with field_compatible.
 clear - H.
 (* TODO: simplify the following proof. *)
@@ -232,14 +228,13 @@ reflexivity.
 left; auto.
 Qed.
 
-
 Lemma make_object_methods:
-  forall sh instance reset twiddle mtable,
+  forall sh instance reset twiddle (mtable: val),
   readable_share sh ->
-  func_ptr' (reset_spec instance) reset *
-  func_ptr' (twiddle_spec instance) twiddle *
+  func_ptr ⊤ (reset_spec instance) reset ∗
+  func_ptr ⊤ (twiddle_spec instance) twiddle ∗
   data_at sh (Tstruct _methods noattr) (reset, twiddle) mtable
-  |-- object_methods instance mtable.
+  ⊢ object_methods instance mtable.
 Proof.
   intros.
   unfold object_methods.
@@ -271,7 +266,7 @@ match goal with
     end end
 end.
 
-Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
+Lemma body_main:  semax_body Vprog Gprog ⊤ f_main main_spec.
 Proof.
 start_function.
 sep_apply (create_mem_mgr gv).
