@@ -624,7 +624,7 @@ Ltac entbang :=
         | lazymatch goal with |- ?Q ⊢ ⌜_⌝ ∧ ?Q' => constr_eq Q Q';
                       apply prop_and_same_derives'; my_auto
           end
-        | apply bi.and_intro;
+        | simple apply bi.and_intro;
             [apply bi.pure_intro; my_auto 
             | cancel; rewrite ->?bi.sep_assoc; autorewrite with norm ]
         | normalize; cancel; rewrite ->?bi.sep_assoc

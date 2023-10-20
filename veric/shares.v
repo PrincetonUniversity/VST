@@ -1298,3 +1298,13 @@ split.
 apply Share.comp2.
 apply Share.comp1.
 Qed.
+
+Lemma nonidentity_notbot:
+  forall sh, sepalg.nonidentity sh -> (sh <> Share.bot).
+Proof.
+intros.
+unfold nonidentity in H.
+unfold not; intros. subst.
+auto.
+Qed.
+#[export] Hint Resolve nonidentity_notbot : core.

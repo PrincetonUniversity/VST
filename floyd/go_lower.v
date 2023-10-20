@@ -824,7 +824,14 @@ therefore entailer or go_lower cannot operate on them."
 Then entailer or go_lower will work"
 end.
 
+Lemma assert_of_liftx_embed {Σ} P: assert_of(Σ:=Σ) (liftx P) ⊣⊢ ⎡P⎤.
+Proof.
+  intros.
+  split => rho //; monPred.unseal; done.
+Qed.
+
 Ltac clean_LOCAL_canon_mix :=
+  rewrite -?assert_of_liftx_embed; (* in case the goal has embed, which makes solve_clean_LOCAL_right fail *)
   eapply_clean_LOCAL_right_spec;
   [solve_all_legal_glob_ident | prove_local2ptree | solve_clean_LOCAL_right | simpl_app_localdefs_tc].
 
@@ -929,8 +936,8 @@ Ltac sep_apply_in_lifted_entailment H :=
   sep_apply_in_entailment H; [ .. | 
   match goal with |- ?R' ⊢ _ =>
    let R'' := refold_right_sepcon R' 
-     in replace R' with (fold_right_sepcon R'') 
-           by (unfold fold_right_sepcon; rewrite ?bi.sep_emp; reflexivity);
+     in rewrite (_:R' ⊣⊢ fold_right_sepcon R'');
+       [..| unfold fold_right_sepcon; rewrite ?bi.sep_emp; reflexivity ];
         subst r2; apply derives_refl
    end]
  end.
@@ -956,8 +963,8 @@ Ltac new_sep_apply_in_lifted_entailment H evar_tac prop_tac :=
     new_sep_apply_in_entailment H evar_tac prop_tac; [ .. |
     match goal with |- ?R' ⊢ _ =>
       let R'' := refold_right_sepcon R' in
-      replace R' with (fold_right_sepcon R'')
-             by (unfold fold_right_sepcon; rewrite ?bi.sep_emp; reflexivity);
+      rewrite (_:R' ⊣⊢ fold_right_sepcon R'');
+        [..| unfold fold_right_sepcon; rewrite ?bi.sep_emp; reflexivity ];
           subst r2; apply derives_refl
     end]
   end.

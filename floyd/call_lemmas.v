@@ -1553,7 +1553,7 @@ Ltac match_funcptr'_funcptr :=
         | simple apply nomatch_funcptr'_funcptr; match_funcptr'_funcptr].
 
 Ltac prove_func_ptr :=
-    match goal with |- fold_right_sepcon ?A ⊢ func_ptr ?E ?F ?V =>
+    match goal with |- fold_right_sepcon ?A ⊢ <absorb> func_ptr ?E ?F ?V =>
        match A with context [func_ptr E ?G V] =>
          unify F G
        end

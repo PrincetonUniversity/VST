@@ -218,7 +218,7 @@ Ltac locals_of_assert P :=
  | bi_sep ?A ?B => let a := locals_of_assert A in
                   let b := locals_of_assert B in
                   constr:(a++b)
- | @stackframe_of _ _ => constr:(@nil ident)
+ | @stackframe_of _ _ _ _ => constr:(@nil ident)
  | local (liftx (eq _) (eval_expr ?E)) =>
             let vl := constr:(expr_temps E nil) in vl
  | @bi_exist _ ?T ?F =>

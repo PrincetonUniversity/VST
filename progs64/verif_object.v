@@ -173,14 +173,12 @@ forward_if
           object_methods foo_invariant (gv _foo_methods))).
 *
 change (EqDec_val p nullval) with (eq_dec p nullval).
-if_tac.
-(* FIXME normalization issue in entailer? *)
-entailer!!.
+if_tac; entailer!!.
 *
 forward_call 1.
 contradiction.
 *
-rewrite if_false by auto.
+rewrite ->if_false by auto.
 Intros.
 forward.  (*  /*skip*/;  *)
 entailer!!.
@@ -200,9 +198,7 @@ unfold_data_at (field_at _ _ nil _ p).
 cancel.
 unfold withspacer; simpl.
 rewrite !field_at_data_at.
-simpl.
-apply derives_refl'.
-rewrite <- ?sepcon_assoc. (* needed if Archi.ptr64=true *)
+cancel.
 rewrite !field_compatible_field_address; auto with field_compatible.
 clear - H.
 (* TODO: simplify the following proof. *)
@@ -226,14 +222,13 @@ reflexivity.
 left; auto.
 Qed.
 
-
 Lemma make_object_methods:
-  forall sh instance reset twiddle mtable,
+  forall sh instance reset twiddle (mtable: val),
   readable_share sh ->
-  func_ptr' (reset_spec instance) reset *
-  func_ptr' (twiddle_spec instance) twiddle *
+  func_ptr ⊤ (reset_spec instance) reset ∗
+  func_ptr ⊤ (twiddle_spec instance) twiddle ∗
   data_at sh (Tstruct _methods noattr) (reset, twiddle) mtable
-  |-- object_methods instance mtable.
+  ⊢ object_methods instance mtable.
 Proof.
   intros.
   unfold object_methods.
@@ -244,7 +239,7 @@ Qed.
 Ltac method_call witness hist' result :=
 repeat apply seq_assoc1;
 match goal with 
-   |- semax _ (PROPx _ (LOCALx ?Q (SEPx ?R))) 
+   |- semax _ _ (PROPx _ (LOCALx ?Q (SEPx ?R))) 
             (Ssequence (Sset ?mt (Efield (Ederef (Etempvar ?x _)  _) _ _))
                  _) _  =>
     match Q with context [temp ?x ?x'] =>
@@ -265,7 +260,7 @@ match goal with
     end end
 end.
 
-Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
+Lemma body_main:  semax_body Vprog Gprog ⊤ f_main main_spec.
 Proof.
 start_function.
 sep_apply (create_mem_mgr gv).
@@ -279,8 +274,8 @@ replace_SEP 0 (data_at Ews (Tstruct _methods noattr)
   unfold_data_at (data_at _ (Tstruct _methods _) _ (gv _foo_methods)).
   rewrite <- mapsto_field_at with (gfs := [StructField _twiddle]) (v:= (gv _foo_twiddle))
   by  auto with field_compatible.
-  rewrite field_at_data_at.  rewrite !field_compatible_field_address by auto with field_compatible.
-  rewrite !isptr_offset_val_zero by auto.
+  rewrite field_at_data_at.  rewrite ->!field_compatible_field_address by auto with field_compatible.
+  rewrite ->!isptr_offset_val_zero by auto.
   cancel.
 }
 
@@ -299,7 +294,7 @@ assert_PROP (p<>Vundef) by entailer!.
    Method 1:  comment out lines AA and BB and the entire range CC-DD.
    Method 2:  comment out lines AA-BB, inclusive.
 *)
-
+(* TODO fix method_call *)
 (* AA *) try (tryif 
   (method_call (p, @nil Z) (@nil Z) whatever;
    method_call (p, 3, @nil Z) [3%Z] i;
