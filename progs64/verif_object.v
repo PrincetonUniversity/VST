@@ -245,7 +245,7 @@ Qed.
 Ltac method_call witness hist' result :=
 repeat apply seq_assoc1;
 match goal with 
-   |- semax _ (PROPx _ (LOCALx ?Q (SEPx ?R))) 
+   |- semax _ _ (PROPx _ (LOCALx ?Q (SEPx ?R))) 
             (Ssequence (Sset ?mt (Efield (Ederef (Etempvar ?x _)  _) _ _))
                  _) _  =>
     match Q with context [temp ?x ?x'] =>
