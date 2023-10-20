@@ -1659,6 +1659,7 @@ End CENV.
   (apply memory_block_weak_valid_pointer;
         [rep_lia | rep_lia | auto with valid_pointer]) : valid_pointer.
 
+Local Set SsrRewrite. (* for rewrite bi._ to work *)
 Ltac field_at_conflict z fld :=
  apply (derives_trans _ False); [ | apply bi.False_elim];
  repeat rewrite bi.sep_assoc;
@@ -1692,7 +1693,7 @@ Ltac data_at_conflict_neq_aux1 A sh fld E x y :=
         but rewriting H1 can fail, as the goal might be _-∗⌜C[~E]⌝
         for some context C *)
      let H1 := fresh in fancy_intro H1;
-     rewrite ?(bi.pure_True (~E)) by assumption
+     rewrite ->?(bi.pure_True (~E)) by assumption
     ].
 
 Ltac data_at_conflict_neq_aux2 A E x y :=
@@ -1710,6 +1711,7 @@ Ltac data_at_conflict_neq :=
    | context [~ ptr_eq ?x ?y] => data_at_conflict_neq_aux2 A (ptr_eq x y) x y
    end
   end.
+Local Unset SsrRewrite.
 
 Definition natural_aligned {cs: compspecs} (na: Z) (t: type): bool := (na mod (hardware_alignof ha_env_cs t) =? 0) && is_aligned cenv_cs ha_env_cs la_env_cs t 0.
 

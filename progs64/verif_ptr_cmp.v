@@ -131,91 +131,9 @@ Proof.
         (Vint (Int.repr k0), (p_lch_l, p_lch_r))
         (Vint (Int.repr k1), (p_rch_l, p_rch_r))
         p_oppo Share.nontrivial).
-        unfold POSTCONDITION. unfold abbreviate.
-        
-        (* sep_apply H1. *)
-        (* new_sep_apply H1 sep_apply_evar_tac sep_apply_prop_tac. *)
-        (* new_sep_apply_in_semax H1 sep_apply_evar_tac sep_apply_prop_tac. *)
-        eapply semax_pre(*_bupd*).
-        (* new_sep_apply_in_lifted_entailment H evar_tac prop_tac. *)
-        apply SEP_entail'.
-
-  (* go_lower; *)
-  clear_Delta_specs;
-intros;
-match goal with
- | |- local _ ∧ PROPx _ (LOCALx _ (SEPx ?R)) ⊢ _ => check_mpreds R
- | |- ENTAIL _, PROPx _ (LOCALx _ (SEPx ?R)) ⊢ _ => check_mpreds R
- | |- ENTAIL _, _ ⊢ _ => fail 10 "The left-hand-side of your entailment is not in PROP/LOCAL/SEP form"
- | _ => fail 10 "go_lower requires a proof goal in the form of (ENTAIL _ , _ ⊢ _)"
-end.
-(* clean_LOCAL_canon_mix. *)
-eapply_clean_LOCAL_right_spec;
-[solve_all_legal_glob_ident | prove_local2ptree | 
-(* solve_clean_LOCAL_right *)
- | simpl_app_localdefs_tc].
- let TT1 := fresh "T1" in 
- let TT2 := fresh "T2" in
- let ggv := fresh "GV" in
- match goal with 
- | |- clean_LOCAL_right Delta ?T1 ?T2 ?GV ?ass ?mp =>
- pose T1 as TT1; pose T2 as TT2; pose GV as ggv
- end.
-
- pose proof (clean_LOCAL_right_sep_lift Delta T1 T2 None).
- unfold T1, T2 in H2.
- Search embed liftx.
- apply H2. 
- (* solve_clean_LOCAL_right. *)
-
-
-
-
-repeat (simple apply derives_extract_PROP; intro_PROP);
-let rho := fresh "rho" in
-split => rho;
-first
-[ simple apply quick_finish_lower
-|          
- (let TC := fresh "TC" in apply finish_lower; intros TC ||
- match goal with
- | |- (_ ∧ PROPx nil _) _ ⊢ _ => fail 1 "LOCAL part of precondition is not a concrete list (or maybe Delta is not concrete)"
- | |- _ => fail 1 "PROP part of precondition is not a concrete list"
- end);
-cbv [fold_right_sepcon];
-unfold_for_go_lower;
-simpl tc_val;
-cbv [typecheck_exprlist typecheck_expr]; simpl tc_andp;
-simpl msubst_denote_tc_assert;
-try monPred.unseal; unfold monPred_at;
-try clear dependent rho;
-clear_Delta;
-rewrite ?bi.sep_emp
-].
-
-
-  match goal with |- ?R ⊢ ?R2 =>
-    let r2 := fresh "R2" in pose (r2 := R2); change (R ⊢ r2);
-    new_sep_apply_in_entailment H evar_tac prop_tac; [ .. |
-    match goal with |- ?R' ⊢ _ =>
-      let R'' := refold_right_sepcon R' in
-      replace R' with (fold_right_sepcon R'')
-             by (unfold fold_right_sepcon; rewrite ?bi.sep_emp; reflexivity);
-          subst r2; apply derives_refl
-    end]
-  end.
-
-
-        lazymatch goal with
-  | |- ENTAIL _ , _ ⊢ _ => eapply ENTAIL_trans; [new_sep_apply_in_lifted_entailment H1 sep_apply_evar_tac sep_apply_prop_tac | ]
-  | |- _ ⊢ _ => new_sep_apply_in_entailment H1 sep_apply_evar_tac sep_apply_prop_tac
-  | |- semax _ _ _ _ _ => new_sep_apply_in_semax H1 sep_apply_evar_tac sep_apply_prop_tac
-  end.
-
-      
-      sep_apply FF_local_facts.
+      sep_apply H1.
       Intros.
-      destruct H2.
+      done.
     }
     {
       (* valid case *)
@@ -232,7 +150,7 @@ Qed.
 Lemma tree_rep_conflict :
   forall p t1 t2 p_ll p_lr p_rl p_rr, 
   p <> nullval ->
-  tree_rep t1 p p_ll p_lr * tree_rep t2 p p_rl p_rr |-- !! False.
+  tree_rep t1 p p_ll p_lr ∗ tree_rep t2 p p_rl p_rr ⊢ ⌜False⌝.
 Proof.
   intros.
   destruct t1. 
@@ -263,7 +181,7 @@ Ltac show_the_way d :=
   subst;
   try tree_rep_conflict. 
 
-Theorem body_get_branch_new_fashion: semax_body Vprog Gprog f_get_branch get_branch_spec.
+Theorem body_get_branch_new_fashion: semax_body Vprog Gprog ⊤ f_get_branch get_branch_spec.
 Proof.
 
   (** Now prove the theorem again, with the new tactics. *)
@@ -280,3 +198,5 @@ Proof.
   Exists p_oppo p_lch_l p_lch_r p_rch_l p_rch_r;
   entailer!.
 Qed.
+
+End Spec.
