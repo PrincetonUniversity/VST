@@ -54,8 +54,7 @@ forward.
 forward.
 forward.
 forward.
-rewrite FRZL_ax. unfold FR1, abbreviate; clear FR1. simpl.
-rewrite ?bi.sep_assoc ?bi.sep_emp.
+thaw FR1.
 forward.
 forward.
 forward.

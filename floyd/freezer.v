@@ -650,8 +650,7 @@ end;
 pattern x;
 match goal with |- ?A x => set (a:=A) end;
 revert x;
-rewrite ?bi.sep_assoc bi.sep_emp;
-intro x; subst a x; try subst y;
+intro x; subst a x; rewrite ?bi.sep_assoc bi.sep_emp; try subst y;
   unfold my_delete_list, my_delete_nth, my_nth, fold_right_sepcon;
   repeat flatten_sepcon_in_SEP; repeat flatten_emp.
 
@@ -972,8 +971,7 @@ end;
 pattern x;
 match goal with |- ?A x => set (a:=A) end;
 revert x;
-rewrite ?bi.sep_assoc bi.sep_emp;
-intro x; subst a x y;
+intro x; subst a x y; rewrite ?bi.sep_assoc bi.sep_emp;
   unfold my_delete_list, my_delete_nth, my_nth, fold_right_sepcon.
 
 Ltac gather_SEP'' L :=
