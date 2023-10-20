@@ -202,6 +202,12 @@ Proof. done. Qed.
 Lemma argsassert_of_at : forall (P : argsassert), argsassert_of (monPred_at P) ⊣⊢ P.
 Proof. done. Qed.
 
+Lemma assert_of_embed P: assert_of (fun _ => P) ⊣⊢ ⎡P⎤.
+Proof.
+  intros.
+  split => rho //; monPred.unseal; done.
+Qed.
+
 Section funspec.
 
 (* funspecs are effectively dependent pairs of an algebra and a pair of assertions on that algebra.

@@ -280,8 +280,8 @@ replace_SEP 0 (data_at Ews (Tstruct _methods noattr)
   unfold_data_at (data_at _ (Tstruct _methods _) _ (gv _foo_methods)).
   rewrite <- mapsto_field_at with (gfs := [StructField _twiddle]) (v:= (gv _foo_twiddle))
   by  auto with field_compatible.
-  rewrite field_at_data_at.  rewrite !field_compatible_field_address by auto with field_compatible.
-  rewrite !isptr_offset_val_zero by auto.
+  rewrite field_at_data_at.  rewrite ->!field_compatible_field_address by auto with field_compatible.
+  rewrite ->!isptr_offset_val_zero by auto.
   cancel.
 }
 
@@ -300,7 +300,7 @@ assert_PROP (p<>Vundef) by entailer!.
    Method 1:  comment out lines AA and BB and the entire range CC-DD.
    Method 2:  comment out lines AA-BB, inclusive.
 *)
-
+(* TODO fix method_call *)
 (* AA *) try (tryif 
   (method_call (p, @nil Z) (@nil Z) whatever;
    method_call (p, 3, @nil Z) [3%Z] i;
