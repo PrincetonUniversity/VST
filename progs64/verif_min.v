@@ -30,7 +30,7 @@ destruct H.
 subst a.
 simpl.
 apply Z.le_min_l.
-simpl. rewrite Z.le_min_r.
+simpl. rewrite ->Z.le_min_r.
 apply IHal.
 apply H.
 Qed.
@@ -78,6 +78,10 @@ Qed.
 #[export] Hint Extern 3 (is_int I32 _ (Znth _ (map Vint _))) =>
   (apply  is_int_I32_Znth_map_Vint; rewrite ?Zlength_map; lia) : core.
 
+Section Spec.
+
+Context `{!default_VSTGS Σ}.
+
 Definition minimum_spec :=
  DECLARE _minimum
   WITH a: val, n: Z, al: list Z
@@ -95,18 +99,19 @@ Definition Gprog : funspecs :=
 
 (* First approach from "Modular Verification for Computer Security",
   proved using forward_for_simple_bound *)
-Lemma body_min: semax_body Vprog Gprog f_minimum minimum_spec.
+Lemma body_min: semax_body Vprog Gprog ⊤ f_minimum minimum_spec.
 Proof.
 start_function.
 assert_PROP (Zlength al = n) by (entailer!; list_solve).
 forward.  (* min = a[0]; *)
 forward_for_simple_bound n
-  (EX i:Z,
+  (∃ i:Z,
     PROP()
     LOCAL(temp _min (Vint (Int.repr (fold_right Z.min (Znth 0 al) (sublist 0 i al))));
           temp _a a;
           temp _n (Vint (Int.repr n)))
     SEP(data_at Ews (tarray tint n) (map Vint (map Int.repr al)) a)).
+
 * (* Prove that the precondition implies the loop invariant *)
   entailer!!.
 * (* Prove that the loop body preserves the loop invariant *)
@@ -119,8 +124,8 @@ forward_for_simple_bound n
           |apply Forall_sublist; auto]).
  autorewrite with sublist.
  subst POSTCONDITION; unfold abbreviate.
- rewrite (sublist_split 0 i (i+1)) by lia.
- rewrite (sublist_one i (i+1) al) by lia.
+ rewrite ->(sublist_split 0 i (i+1)) by lia.
+ rewrite ->(sublist_one i (i+1) al) by lia.
  rewrite fold_min_another.
  forward_if.
  +
@@ -140,7 +145,7 @@ Qed.
 
 (* Demonstration of the same theorem, but using
     forward_for  instead of forward_for_simple_bound *)
-Lemma body_min': semax_body Vprog Gprog f_minimum minimum_spec.
+Lemma body_min': semax_body Vprog Gprog ⊤ f_minimum minimum_spec.
 Proof.
 start_function.
 assert_PROP (Zlength al = n) by (entailer!; list_solve).
@@ -154,7 +159,7 @@ pose (Inv d (f: Z->Prop) (i: Z) :=
           temp _a a; temp _i (Vint (Int.repr i));
           temp _n (Vint (Int.repr n)))
     SEP(data_at Ews (tarray tint n) (map Vint (map Int.repr al)) a)).
-forward_for (Inv 0 (fun _ => True)) continue: (Inv 1 (Z.gt n)).
+forward_for (Inv 0 (fun _ => True%type)) continue: (Inv 1 (Z.gt n)).
 *
 forward.
 Exists 0. unfold Inv; entailer!!.
