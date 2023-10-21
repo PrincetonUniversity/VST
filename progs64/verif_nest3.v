@@ -4,7 +4,9 @@ Require Import VST.progs64.nest3.
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
-Local Open Scope logic.
+Section Spec.
+
+Context `{!default_VSTGS Σ}.
 
 Definition t_struct_c := Tstruct _c noattr.
 
@@ -20,7 +22,7 @@ Definition get_spec0 :=
         RETURN (Vint (snd (snd (snd v))))
         SEP   (data_at Ews t_struct_c (repinj _ v) (gv _p)).
 
-Definition get_spec : ident * funspec.
+Definition get_spec : ident * (@funspec Σ).
  let t := eval compute in (reptype' t_struct_c) in
  exact (DECLARE _get
   WITH v : t, gv: globals
@@ -50,7 +52,7 @@ Definition set_spec :=
 
 Definition Gprog : funspecs :=   ltac:(with_library prog [get_spec; set_spec]).
 
-Lemma body_get:  semax_body Vprog Gprog f_get get_spec.
+Lemma body_get:  semax_body Vprog Gprog ⊤ f_get get_spec.
 Proof.
 Time start_function. (* 52 sec -> 1 sec*)
 Time unfold_repinj. (* 0.386 sec *)
@@ -58,7 +60,7 @@ Time forward. (* 26.8 sec -> 6.4 sec -> 1.1 sec *)
 Time forward. (* 15 sec. -> 19.5 sec -> 12.4 sec *)
 Time Qed.  (* 84 sec  -> 4.5 sec -> 5.9 sec  *)
 
-Lemma body_get':  semax_body Vprog Gprog f_get get_spec.
+Lemma body_get':  semax_body Vprog Gprog ⊤ f_get get_spec.
 Proof.
  start_function.
  unfold_repinj.
@@ -71,7 +73,7 @@ Time unfold_field_at (field_at _ _ nil _ _). (* 0.86 sec *)
 Time cancel. (* 1.875 sec *)
 Qed. (* 77 sec *)
 
-Lemma body_set:  semax_body Vprog Gprog f_set set_spec.
+Lemma body_set:  semax_body Vprog Gprog ⊤ f_set set_spec.
 Proof.
 Time start_function.
 Time forward.
@@ -80,3 +82,5 @@ Time match goal with |- context [data_at _ _ ?X _] =>
 end.
 entailer!!.
 Time Qed. (* 2.74 sec *)
+
+End Spec.
