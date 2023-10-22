@@ -5,7 +5,9 @@ Require Import VST.progs64.field_loadstore.
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
-Local Open Scope logic.
+Section Spec.
+
+Context  `{!default_VSTGS Σ}.
 
 Definition t_struct_b := Tstruct _b noattr.
 
@@ -42,7 +44,7 @@ Abort.
 Definition Gprog : funspecs :=   ltac:(with_library prog [
     sub_spec _sub1; sub_spec _sub2; sub_spec _sub3]).
 
-Lemma body_sub1:  semax_body Vprog Gprog f_sub1 (sub_spec _sub1).
+Lemma body_sub1:  semax_body Vprog Gprog ⊤ f_sub1 (sub_spec _sub1).
 Proof.
   unfold sub_spec.
   start_function.
@@ -51,7 +53,7 @@ Proof.
   entailer!.
 Qed.
 
-Lemma body_sub2:  semax_body Vprog Gprog f_sub2 (sub_spec _sub2).
+Lemma body_sub2:  semax_body Vprog Gprog ⊤ f_sub2 (sub_spec _sub2).
 Proof.
   unfold sub_spec.
   start_function.
@@ -61,7 +63,7 @@ Proof.
   entailer!.
 Qed.
 
-Lemma body_sub3:  semax_body Vprog Gprog f_sub3 (sub_spec _sub3).
+Lemma body_sub3:  semax_body Vprog Gprog ⊤ f_sub3 (sub_spec _sub3).
 Proof.
   unfold sub_spec.
   start_function.
@@ -71,3 +73,5 @@ Proof.
   forward.
   entailer!.
 Qed.
+
+End Spec.

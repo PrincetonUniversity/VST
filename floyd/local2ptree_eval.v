@@ -322,7 +322,7 @@ Ltac solve_msubst_eval_lvalue :=
   end.
 
 Ltac solve_msubst_eval_expr :=
-  (simpl;
+  (unfold msubst_eval_expr; simpl;
   cbv beta iota zeta delta [force_val2 force_val1];
   rewrite ?isptr_force_ptr -?offset_val_force_ptr //;
   reflexivity) ||
