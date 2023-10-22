@@ -5,6 +5,10 @@ Require Import VST.progs64.global.
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
 
+Section Spec.
+
+Context `{!default_VSTGS Σ}.
+
 Definition h_spec :=
  DECLARE _h
   WITH gv: globals
@@ -25,14 +29,14 @@ Definition main_spec :=
 Definition Gprog : funspecs :=
         ltac:(with_library prog [h_spec; main_spec]).
 
-Lemma body_h: semax_body Vprog Gprog f_h h_spec.
+Lemma body_h: semax_body Vprog Gprog ⊤ f_h h_spec.
 Proof.
 start_function.
 forward.  (* x = g; *)
 forward.  (* return x; *)
 Qed.
 
-Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
+Lemma body_main:  semax_body Vprog Gprog ⊤ f_main main_spec.
 Proof.
 start_function.
 rewrite data_at_tuint_tint.
