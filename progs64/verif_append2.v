@@ -245,17 +245,9 @@ Lemma lseg_local_facts:
      ⌜is_pointer_or_null p /\ is_pointer_or_null q /\ (p=q <-> contents=nil)⌝.
 Proof.
 intros.
-apply derives_trans with (lseg sh contents p q ∧ ⌜is_pointer_or_null p /\
-        is_pointer_or_null q /\ (p = q <-> contents = [])⌝).
-2: entailer!.
 revert p; induction contents; intros; simpl; unfold lseg; fold lseg.
-entailer!.
-intuition.
-Intros y. Exists y.
-eapply derives_trans.
-apply bi.sep_mono.
-apply derives_refl.
-apply IHcontents.
+{ normalize. }
+Intros y.
 entailer!.
 intuition congruence.
 Qed.
