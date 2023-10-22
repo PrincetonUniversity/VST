@@ -6,8 +6,12 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Import Memdata.
 
+Section Spec.
+
+Context `{!default_VSTGS Σ}.
+
 Definition Gprog : funspecs :=
-    ltac:(with_library prog (@nil(ident*funspec))).
+    ltac:(with_library prog (@nil(ident*(@funspec Σ)))).
 
 
 Definition g_spec :=
