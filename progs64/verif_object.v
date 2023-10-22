@@ -40,7 +40,7 @@ Definition twiddle_spec (instance: object_invariant) :=
 
 Definition object_methods (instance: object_invariant) (mtable: val) : mpred :=
   ∃ (sh: share) (reset: val) (twiddle: val),
-  ⌜readable_share sh⌝ ∧ 
+  ⌜readable_share sh⌝ ∧
   func_ptr ⊤ (reset_spec instance) reset ∗
   func_ptr ⊤ (twiddle_spec instance) twiddle ∗
   data_at sh (Tstruct _methods noattr) (reset,twiddle) mtable.
@@ -151,17 +151,11 @@ Proof.
 intros.
 unfold object_methods.
 Intros sh reset twiddle.
-
-Exists (fst (slice.cleave sh)) reset twiddle.
-Exists (snd (slice.cleave sh)) reset twiddle.
-
-rewrite <- (data_at_share_join (fst (slice.cleave sh)) (snd (slice.cleave sh)) sh) by apply slice.cleave_join.
-
-iIntros "(#$ & #$ & $ & $)".
-iPureIntro.
-split; split; try done.
-apply slice.cleave_readable1; auto.
-apply slice.cleave_readable2; auto.
+destruct (slice.split_readable_share sh) as (sh1 & sh2 & ? & ? & ?); [assumption|].
+Exists sh1 reset twiddle.
+Exists sh2 reset twiddle.
+rewrite <- (data_at_share_join sh1 sh2 sh) by assumption.
+iIntros "(#$ & #$ & $ & $)"; auto.
 Qed.
 
 Lemma body_make_foo: semax_body Vprog Gprog ⊤ f_make_foo make_foo_spec.

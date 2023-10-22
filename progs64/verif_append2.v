@@ -245,19 +245,11 @@ Lemma lseg_local_facts:
      ⌜is_pointer_or_null p /\ is_pointer_or_null q /\ (p=q <-> contents=nil)⌝.
 Proof.
 intros.
-(* This strengthening was needed because of linearity:
-apply derives_trans with (lseg sh contents p q && !! (is_pointer_or_null p /\
-        is_pointer_or_null q /\ (p = q <-> contents = []))).
-2: entailer!. *)
 revert p; induction contents; intros; simpl; unfold lseg; fold lseg.
-- normalize.
-- normalize.
-rewrite {1}IHcontents.
-iIntros "[? %]".
-(* entailer throws away (data_at sh t_struct_list (a, y) p) before proving (is_pointer_or_null p),
-   so assert it first*)
-iAssert (⌜is_pointer_or_null p⌝) with "[-]" as "%". { iStopProof. entailer. }
-iPureIntro. intuition congruence.
+{ normalize. }
+Intros y.
+entailer!.
+intuition congruence.
 Qed.
 
 Hint Resolve lseg_local_facts : saturate_local.
