@@ -342,7 +342,4 @@ forward.  (* return i; *)
 Exists i; entailer!!.
 Qed.
 
-
-
-
-
+End Spec.

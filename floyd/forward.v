@@ -2302,6 +2302,7 @@ Loop test expression:" e
 Inductive Type_of_invariant_in_forward_for_should_be_environ_arrow_mpred_but_is : Type -> Prop := .
 Inductive Type_of_bound_in_forward_for_should_be_Z_but_is : Type -> Prop := .
 
+
 Ltac check_type_forward_for_simple_bound :=
    match goal with |- semax _ _ _ ?c _ => 
          let x := constr:(match c with (Ssequence _ (Sloop _ (Sset _ e))) => Some (typeof e) | _ => None end) in
@@ -2314,6 +2315,8 @@ Ltac check_type_forward_for_simple_bound :=
              + fail 100 "At present, forward_for_simple_bound works only on iteration variables that are (signed or unsigned) int, but your iteration variable has type" t
          end
      end.
+
+Ltac get_Sigma_from_semax := match goal with |- @semax ?Σ _ _ _ _ _ _ _ _ _ => Σ end.
 
 Ltac forward_for_simple_bound n Pre :=
   check_Delta; check_POSTCONDITION;
@@ -2330,8 +2333,9 @@ Ltac forward_for_simple_bound n Pre :=
       ?t => tryif (unify t Z) then idtac 
                else fail "Type of bound" n "should be Z but is" t
  end;
+ let Σ := get_Sigma_from_semax in
  match type of Pre with
- | ?t => tryif (unify t (environ->mpred)) then idtac 
+ | ?t => tryif (unify t (@assert Σ)) then idtac 
                else fail "Type of precondition" Pre "should be environ->mpred but is" t
   end;
  match goal with

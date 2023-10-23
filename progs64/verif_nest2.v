@@ -5,7 +5,9 @@ Require Import VST.progs64.nest2.
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
-Local Open Scope logic.
+Section Spec.
+
+Context `{!default_VSTGS Σ}.
 
 Definition t_struct_b := Tstruct _b noattr.
 
@@ -49,7 +51,7 @@ Definition set_spec :=
 
 Definition Gprog : funspecs :=   ltac:(with_library prog [get_spec; set_spec]).
 
-Lemma body_get:  semax_body Vprog Gprog f_get get_spec.
+Lemma body_get:  semax_body Vprog Gprog ⊤ f_get get_spec.
 Proof.
 start_function.
 simpl in v.
@@ -58,7 +60,7 @@ Time forward. (* 5.989 sec  -> 2.6 -> 1.5 *)
 Time forward. (* 11.1118 sec -> 7.5 *)
 Time Qed.
 
-Lemma body_get':  semax_body Vprog Gprog f_get get_spec'.
+Lemma body_get':  semax_body Vprog Gprog ⊤ f_get get_spec'.
 Proof.
 start_function.
 simpl in v.
@@ -67,7 +69,7 @@ Time forward. (* 5.989 sec  -> 2.6*)
 Time forward. (* 11.1118 sec -> 7.5 *)
 Qed.
 
-Lemma body_set:  semax_body Vprog Gprog f_set set_spec.
+Lemma body_set:  semax_body Vprog Gprog ⊤ f_set set_spec.
 Proof.
  start_function.
 simpl in v.
@@ -77,3 +79,4 @@ Time forward. (* 1.23 sec *)
 entailer!!.
 Time Qed.  (*  28 sec -> 3.45 sec *)
 
+End Spec.
