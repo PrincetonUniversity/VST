@@ -712,9 +712,9 @@ a "versus" b ")"
  else fail
 end.
 
-Ltac change_compspecs_warning A := 
-     idtac "Remark: change_compspecs on user-defined mpred:" A
- "(to disable this message, Ltac change_compspecs_warning A ::= idtac".
+Ltac change_compspecs_warning A cs cs' := 
+     idtac "Remark: change_compspecs on user-defined mpred:" A cs cs'
+ "(to disable this message, Ltac change_compspecs_warning A cs cs' ::= idtac".
 
 Ltac change_compspecs' cs cs' :=
   lazymatch goal with
@@ -725,22 +725,22 @@ Ltac change_compspecs' cs cs' :=
   | |- _ => 
     match goal with 
   | |- context [?A cs'] => 
-     change_compspecs_warning A;
+     change_compspecs_warning A cs cs';
          change (A cs') with (A cs)
   | |- context [?A cs' ?B] => 
-     change_compspecs_warning A;
+     change_compspecs_warning A cs cs';
          change (A cs' B) with (A cs B)
   | |- context [?A cs' ?B ?C] => 
-     change_compspecs_warning A;
+     change_compspecs_warning A cs cs';
          change (A cs' B C) with (A cs B C)
   | |- context [?A cs' ?B ?C ?D] => 
-     change_compspecs_warning A;
+     change_compspecs_warning A cs cs';
          change (A cs' B C D) with (A cs B C D)
   | |- context [?A cs' ?B ?C ?D ?E] => 
-     change_compspecs_warning A;
+     change_compspecs_warning A cs cs';
          change (A cs' B C D E) with (A cs B C D E)
   | |- context [?A cs' ?B ?C ?D ?E ?F] => 
-     change_compspecs_warning A;
+     change_compspecs_warning A cs cs';
          change (A cs' B C D E F) with (A cs B C D E F)
    end
  end.
