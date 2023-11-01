@@ -712,6 +712,10 @@ a "versus" b ")"
  else fail
 end.
 
+Ltac change_compspecs_warning A cs cs' := 
+     idtac "Remark: change_compspecs on user-defined mpred:" A cs cs'
+ "(to disable this message, Ltac change_compspecs_warning A cs cs' ::= idtac".
+
 Ltac change_compspecs' cs cs' :=
   lazymatch goal with
   | |- context [@data_at cs' ?sh ?t ?v1] => erewrite (@data_at_change_composite cs' cs _ sh t); [| apply JMeq_refl | prove_cs_preserve_type]
@@ -721,22 +725,22 @@ Ltac change_compspecs' cs cs' :=
   | |- _ => 
     match goal with 
   | |- context [?A cs'] => 
-     idtac "Warning: attempting change_compspecs on user-defined mpred:" A;
+     change_compspecs_warning A cs cs';
          change (A cs') with (A cs)
   | |- context [?A cs' ?B] => 
-     idtac "Warning: attempting change_compspecs on user-defined mpred:" A;
+     change_compspecs_warning A cs cs';
          change (A cs' B) with (A cs B)
   | |- context [?A cs' ?B ?C] => 
-     idtac "Warning: attempting change_compspecs on user-defined mpred:" A;
+     change_compspecs_warning A cs cs';
          change (A cs' B C) with (A cs B C)
   | |- context [?A cs' ?B ?C ?D] => 
-     idtac "Warning: attempting change_compspecs on user-defined mpred:" A;
+     change_compspecs_warning A cs cs';
          change (A cs' B C D) with (A cs B C D)
   | |- context [?A cs' ?B ?C ?D ?E] => 
-     idtac "Warning: attempting change_compspecs on user-defined mpred:" A;
+     change_compspecs_warning A cs cs';
          change (A cs' B C D E) with (A cs B C D E)
   | |- context [?A cs' ?B ?C ?D ?E ?F] => 
-     idtac "Warning: attempting change_compspecs on user-defined mpred:" A;
+     change_compspecs_warning A cs cs';
          change (A cs' B C D E F) with (A cs B C D E F)
    end
  end.

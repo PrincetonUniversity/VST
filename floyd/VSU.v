@@ -888,12 +888,51 @@ Ltac SC_tac :=
  lazymatch goal with
          | |- Funspecs_must_match ?i _ _ =>
                  try solve [constructor; unfold abbreviate; 
-                 try simple apply eq_refl;
+                 repeat f_equal
+                 (*occasionally leaves a subgoal, typically because a
+                   change_compspecs needs to be inserted that could not
+                    be identified automatically*)]
+         | |- Identifier_not_found ?i ?fds2 =>
+                 fail "identifer" i "not found in funspecs" fds2
+         | |- True => trivial
+          end.
+(*Alternatives:
+Ltac SC_tac1 :=
+ match goal with |- SC_test ?ids _ _ =>
+  let a := eval compute in ids in change ids with a
+ end;
+ simpl SC_test;
+ repeat (apply conj);
+ lazymatch goal with
+         | |- Funspecs_must_match ?i _ _ =>
+                 try solve [constructor; unfold abbreviate; 
+                 (*leads sometimes to nontermination: try simple apply eq_refl;*)
                  repeat f_equal]
          | |- Identifier_not_found ?i ?fds2 =>
                  fail "identifer" i "not found in funspecs" fds2
          | |- True => trivial
           end.
+
+Ltac SC_tac2 :=
+ match goal with |- SC_test ?ids _ _ =>
+  let a := eval compute in ids in change ids with a
+ end;
+ simpl SC_test;
+ repeat (apply conj);
+ lazymatch goal with
+         | |- Funspecs_must_match ?i _ _ =>
+                 constructor;
+                 apply mk_funspec_congr;
+                 [ try reflexivity 
+                 | try reflexivity 
+                 | try reflexivity
+                 | (*too aggressive here: try (apply eq_JMeq; trivial)*)
+                 | (*too aggressive here: try (apply eq_JMeq; trivial)*)]
+         | |- Identifier_not_found ?i ?fds2 =>
+                 fail "identifer" i "not found in funspecs" fds2
+         | |- True => trivial
+          end.
+*)
 
 Ltac HImports_tac := simpl;
   let i := fresh "i" in 
