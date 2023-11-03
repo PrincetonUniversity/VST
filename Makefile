@@ -21,7 +21,7 @@ COQLIB=$(shell $(COQC) -where | tr -d '\r' | tr '\\' '/')
 
 # Check Coq version
 
-COQVERSION= 8.16.0 or-else 8.16.1 or-else 8.17+rc1 or-else 8.17 or-else 8.17.0 or-else 8.17.1
+COQVERSION= 8.16.0 or-else 8.16.1 or-else 8.17+rc1 or-else 8.17 or-else 8.17.0 or-else 8.17.1 or-else 8.18.0
 
 COQV=$(shell $(COQC) -v)
 ifneq ($(IGNORECOQVERSION),true)
@@ -331,6 +331,8 @@ COQFLAGS=$(foreach d, $(VSTDIRS), $(if $(wildcard $(d)), -Q $(d) VST.$(d))) $(fo
 
 
 DEPFLAGS:=$(COQFLAGS)
+
+COQFLAGS+=$(COQEXTRAFLAGS)
 
 # ##### Print configuration summary #####
 
@@ -694,7 +696,7 @@ IRIS_INSTALL_FILES=$(sort $(IRIS_INSTALL_FILES_SRC) $(IRIS_INSTALL_FILES_VO))
 
 # This line sets COQF depending on the folder of the input file $<
 # If the folder name contains compcert, $(COMPCERT_R_FLAGS) is added, otherwise not.
-%.vo: COQF=$(if $(findstring $(COMPCERT_SRC_DIR), $(dir $<)), $(COMPCERT_R_FLAGS), $(COQFLAGS))
+%.vo: COQF=$(if $(findstring $(COMPCERT_SRC_DIR), $(dir $<)), $(COMPCERT_R_FLAGS) $(COQEXTRAFLAGS), $(COQFLAGS))
 
 # If CompCert changes, all .vo files need to be recompiled
 %.vo: $(COMPCERT_CONFIG)
@@ -875,11 +877,11 @@ floyd/floyd.coq: floyd/proofauto.vo
 	@echo 'coqdep ... >.depend'
 ifeq ($(COMPCERT_NEW),true)
 	# DEPENDENCIES VARIANT COMPCERT_NEW
-	$(COQDEP) $(COQFLAGS) 2>&1 >.depend `find $(filter $(wildcard *), $(DIRS) concurrency/common concurrency/compiler concurrency/juicy concurrency/util paco concurrency/sc_drf) -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
+	$(COQDEP) $(DEPFLAGS) 2>&1 >.depend `find $(filter $(wildcard *), $(DIRS) concurrency/common concurrency/compiler concurrency/juicy concurrency/util paco concurrency/sc_drf) -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
 	@echo "" >>.depend
 else
 	# DEPENDENCIES DEFAULT
-	$(COQDEP) $(COQFLAGS) 2>&1 >.depend `find $(filter $(wildcard *), $(DIRS)) -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
+	$(COQDEP) $(DEPFLAGS) 2>&1 >.depend `find $(filter $(wildcard *), $(DIRS)) -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
 endif
 ifeq ($(COMPCERT_BUILD_FROM_SRC),true)
 	# DEPENDENCIES TO BUILD COMPCERT FROM SOURCE

@@ -37,7 +37,14 @@ Fixpoint fold_right_andp rho (l: list (environ -> Prop)) : Prop :=
  end.
 
 Declare Scope assert.  Delimit Scope assert with assert.
+Global Set Warnings "-overwriting-delimiting-key".
 Delimit Scope assert with argsassert.
+(* Ideally we would like to disable this warning only for this Delimit command,
+ and then do 
+   Set Warnings "+overwriting-delimiting-key".
+  afterward, but this doesn't really work, because we'd still
+ get the warning in every file that imports this file.
+*)
 Declare Scope assert3. Delimit Scope assert3 with assert3.
 Declare Scope assert4. Delimit Scope assert4 with assert4.
 Declare Scope assert5. Delimit Scope assert5 with assert5.
@@ -311,7 +318,7 @@ Proof.
   specialize (H0 n ts x rho).
   simpl in H0.
   match goal with H : Forall2 _ _ (map _ ?l) |- _ => forget l as Q1 end.
-  revert dependent Q1; induction (Q ts x); intros; inv H0; destruct Q1; try discriminate.
+  generalize dependent Q1; induction (Q ts x); intros; inv H0; destruct Q1; try discriminate.
   + auto.
   + inv H3.
     simpl.
@@ -355,7 +362,7 @@ Proof.
   specialize (H0 n ts x rho).
   simpl in H0.
   match goal with H : Forall2 _ _ (map _ ?l) |- _ => forget l as P1 end.
-  revert dependent P1; induction (P ts x); intros; inv H0; destruct P1; try discriminate.
+  generalize dependent P1; induction (P ts x); intros; inv H0; destruct P1; try discriminate.
   + auto.
   + inv H3.
     simpl.
@@ -1085,7 +1092,7 @@ Ltac frame_SEP' L :=  (* this should be generalized to permit framing on LOCAL p
  match goal with
  | |- @semax _ _ _ (PROPx _ (LOCALx ?Q (SEPx ?R))) _ _ =>
   rewrite <- (Floyd_firstn_skipn (length L) R);
-  rewrite (app_nil_end Q);
+  rewrite (app_nil_r Q);
     simpl length; unfold Floyd_firstn, Floyd_skipn;
     eapply (semax_frame_PQR);
       [ unfold closed_wrt_modvars;  auto 50 with closed
@@ -1494,7 +1501,7 @@ inv H.
 specialize (IHn _ H). clear H.
 simpl Floyd_firstn.
 change (m :: Floyd_firstn n R) with (app (m::nil) (Floyd_firstn n R)).
-rewrite app_ass. unfold app at 1.
+rewrite <- app_assoc. unfold app at 1.
 simpl.
 f_equal.
 auto.
@@ -2710,7 +2717,7 @@ Proof.
   specialize (H0 n ts x (Clight_seplog.mkEnv (fst gargs) nil nil)).
   simpl in H0.
   match goal with H : Forall2 _ _ (map _ ?l) |- _ => forget l as Q1 end.
-  revert dependent Q1; induction (G ts x); intros; inv H0; destruct Q1; try discriminate.
+  generalize dependent Q1; induction (G ts x); intros; inv H0; destruct Q1; try discriminate.
   + auto.
   + inv H3.
     simpl.
@@ -2756,7 +2763,7 @@ Proof.
   specialize (H0 n ts x any_environ).
   simpl in H0.
   match goal with H : Forall2 _ _ (map _ ?l) |- _ => forget l as P1 end.
-  revert dependent P1; induction (P ts x); intros; inv H0; destruct P1; try discriminate.
+  generalize dependent P1; induction (P ts x); intros; inv H0; destruct P1; try discriminate.
   + auto.
   + inv H3.
     simpl.

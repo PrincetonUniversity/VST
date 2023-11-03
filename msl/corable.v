@@ -74,7 +74,7 @@ Qed.
 Lemma ext_later_compat {A}{agA: ageable A}{EO: Ext_ord A}: forall a b a', ext_order a b -> laterR a a' -> exists b', laterR b b' /\ ext_order a' b'.
 Proof.
   intros.
-  revert dependent b; induction H0; intros.
+  generalize dependent b; induction H0; intros.
   - eapply ext_age_compat in H as (? & ? & ?); eauto.
     do 2 eexists; [|eauto].
     apply t_step; auto.

@@ -241,7 +241,7 @@ Qed.
 Lemma interleave_single : forall {A} (l l' : list A), interleave [l] l' = (l' = l).
 Proof.
   intros; apply prop_ext; split; intro; subst.
-  - remember [l] as l0; revert dependent l; induction H; intros; subst.
+  - remember [l] as l0; generalize dependent l; induction H; intros; subst.
     + inv Hnil; auto.
     + exploit (Znth_inbounds i [l0] []).
       { rewrite Hcons; discriminate. }
@@ -257,7 +257,7 @@ Lemma interleave_remove_nil : forall {A} ls (l' : list A),
   interleave ([] :: ls) l' <-> interleave ls l'.
 Proof.
   split; intro.
-  - remember ([] :: ls) as l0; revert dependent ls; induction H; intros; subst.
+  - remember ([] :: ls) as l0; generalize dependent ls; induction H; intros; subst.
     + inv Hnil; constructor; auto.
     + destruct (Z_le_dec i 0).
       { destruct (eq_dec i 0); [subst; rewrite Znth_0_cons in Hcons | rewrite Znth_underflow in Hcons];
@@ -289,7 +289,7 @@ Lemma interleave_trans : forall {A} ls1 ls2 (l' l'' : list A)
 Proof.
   intros until 1; revert ls2 l''; induction Hl'; intros.
   - rewrite interleave_remove_nil in Hl''; rewrite interleave_remove_nils; auto.
-  - remember ((a :: l') :: ls2) as ls0; revert dependent ls2; revert dependent l'; revert dependent a;
+  - remember ((a :: l') :: ls2) as ls0; generalize dependent ls2; generalize dependent l'; generalize dependent a;
       induction Hl''; intros; subst.
     { inv Hnil; discriminate. }
     exploit (Znth_inbounds i ls []).
@@ -669,7 +669,7 @@ Lemma interleave_reorder : forall {A} ls1 ls2 (l l' : list A),
   interleave (ls1 ++ l :: ls2) l' <-> interleave (l :: ls1 ++ ls2) l'.
 Proof.
   split; intro.
-  - remember (ls1 ++ l :: ls2) as l0; revert dependent ls2; revert l ls1; induction H; intros; subst.
+  - remember (ls1 ++ l :: ls2) as l0; generalize dependent ls2; revert l ls1; induction H; intros; subst.
     + constructor; rewrite Forall_app in Hnil.
       destruct Hnil as (? & Hnil); inv Hnil; constructor; auto; rewrite Forall_app; auto.
     + exploit (Znth_inbounds i (ls1 ++ l0 :: ls2) []); [rewrite Hcons; discriminate | intro].
@@ -694,7 +694,7 @@ Proof.
         apply IHinterleave.
         rewrite upd_Znth_app2, upd_Znth_cons; rewrite ?Zlength_cons; try lia.
         replace (i - Zlength ls1 - 1) with (i - 1 - Zlength ls1); Omega0.
-  - remember (l :: ls1 ++ ls2) as l0; revert dependent ls2; revert l ls1; induction H; intros; subst.
+  - remember (l :: ls1 ++ ls2) as l0; generalize dependent ls2; revert l ls1; induction H; intros; subst.
     + inv Hnil; constructor.
       rewrite Forall_app in H2; destruct H2; rewrite Forall_app; split; auto.
     + exploit (Znth_inbounds i (l0 :: ls1 ++ ls2) []); [rewrite Hcons; discriminate | intro].
@@ -742,7 +742,7 @@ Lemma interleave_map_inj : forall {A B} (f : A -> B) ls l' (Hinj : forall x y, f
   interleave (map (map f) ls) (map f l') -> interleave ls l'.
 Proof.
   intros.
-  remember (map (map f) ls) as ls0; remember (map f l') as l1; revert dependent l'; revert dependent ls;
+  remember (map (map f) ls) as ls0; remember (map f l') as l1; generalize dependent l'; generalize dependent ls;
     induction H; intros; subst.
   - destruct l'; [|discriminate].
     constructor.
@@ -767,7 +767,7 @@ Lemma interleave_combine : forall {A B} ls1 ls2 (l1 : list A) (l2 : list B)
 Proof.
   intros.
   remember (map (fun x => let '(la, lb) := x in combine la lb) (combine ls1 ls2)) as ls0;
-    remember (combine l1 l2) as l0; revert dependent l2; revert l1; revert dependent ls2; revert ls1;
+    remember (combine l1 l2) as l0; generalize dependent l2; revert l1; generalize dependent ls2; revert ls1;
     induction H; intros; subst.
   - destruct l1, l2; try discriminate.
     pose proof (mem_lemmas.Forall2_Zlength Hls).

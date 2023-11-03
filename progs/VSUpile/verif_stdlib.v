@@ -6,10 +6,16 @@ Require Import spec_stdlib.
 
 Require VST.veric.version. From Coq Require Import String.
 Lemma version_test: False.
- assert (VST.veric.version.compcert_version = stdlib.Info.version \/
-         VST.veric.version.compcert_version = "3.12"%string /\
-	  stdlib.Info.version = "3.11"%string) by (compute; auto).
- assert (VST.veric.version.bitsize = stdlib.Info.bitsize) by reflexivity.
+ assert ((VST.veric.version.compcert_version = "3.11"%string \/
+          VST.veric.version.compcert_version = "3.12"%string \/ 
+          VST.veric.version.compcert_version = "3.13"%string) /\
+         (stdlib.Info.version = "3.11"%string \/
+          stdlib.Info.version = "3.12"%string \/
+          stdlib.Info.version = "3.13"%string))
+       by (compute; auto;
+            match goal with |- ?G => fail 100 "Version mismatch; cannot prove" G end).
+ assert (VST.veric.version.bitsize = stdlib.Info.bitsize) by
+    (try reflexivity; match goal with |- ?G => fail 100 "Bitsize mismatch; cannot prove" G end).
 Abort.
 
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.

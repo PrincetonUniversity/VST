@@ -1413,7 +1413,7 @@ Proof.
   rewrite Zlength_correct in H.
   assert (length h = Z.to_nat size) as Hlen by Omega0.
   forget (Z.to_nat size) as n; clear H.
-  revert dependent h; induction n; destruct h; auto; intros; inv Hlen; simpl.
+  generalize dependent h; induction n; destruct h; auto; intros; inv Hlen; simpl.
   destruct p; rewrite IHn; auto.
 Qed.
 
@@ -1502,7 +1502,7 @@ Proof.
   rewrite Zlength_correct in H.
   assert (length h = Z.to_nat size) as Hlen by Omega0.
   forget (Z.to_nat size) as n; clear H.
-  revert dependent h; induction n; destruct h; auto; intros; inv Hlen; simpl.
+  generalize dependent h; induction n; destruct h; auto; intros; inv Hlen; simpl.
   destruct p; rewrite IHn, !app_nil_r; auto.
 Qed.
 
@@ -1950,7 +1950,7 @@ Lemma one_CAS_succeeds : forall h v a t1 t2 b1 b2 (Hl : full_hist' h v) (Hin1 : 
 Proof.
   intros.
   destruct Hl as (l & Hl & Hv).
-  revert dependent v; induction Hl; [contradiction|].
+  generalize dependent v; induction Hl; [contradiction|].
   subst; intros; rewrite !in_app in *; simpl in *.
   rewrite Forall_app in Ha; destruct Ha as (? & Ha); inv Ha.
   rewrite apply_hist_app in Hv.

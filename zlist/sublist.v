@@ -1165,7 +1165,7 @@ rewrite (Z.min_l lo (Zlength al)) by lia.
 rewrite (Z.max_r (hi-Zlength al) 0) by lia.
 rewrite (Z.max_r (lo-Zlength al) 0) by lia.
 simpl firstn.
-rewrite <- app_nil_end.
+rewrite app_nil_r.
 rewrite Zskipn_app1 by lia.
 rewrite Zfirstn_app1
  by (rewrite Zlength_skipn, !Z.max_r; try lia;
@@ -1608,7 +1608,7 @@ Qed.
 #[export] Hint Rewrite @Zlength_cons @Zlength_nil: sublist.
 #[export] Hint Rewrite @Zrepeat_neg using lia : sublist.
 #[export] Hint Rewrite @repeat_0 @Zrepeat_0: sublist.
-#[export] Hint Rewrite <- @app_nil_end : sublist.
+#[export] Hint Rewrite @app_nil_r : sublist.
 #[export] Hint Rewrite @Zlength_app: sublist.
 #[export] Hint Rewrite @Zlength_map: sublist.
 #[export] Hint Rewrite @Zlength_Zrepeat using old_list_solve: sublist.
@@ -1695,7 +1695,7 @@ Lemma sublist_one:
 Proof.
 intros.
 subst.
-rewrite Znth_cons_sublist by lia. rewrite <- app_nil_end.
+rewrite Znth_cons_sublist by lia. rewrite app_nil_r.
 auto.
 Qed.
 
@@ -2217,7 +2217,7 @@ Qed.
 Lemma Forall2_sublist : forall {A B} (P : A -> B -> Prop) l1 l2 i j, Forall2 P l1 l2 -> 0 <= i ->
   Forall2 P (sublist i j l1) (sublist i j l2).
 Proof.
-  intros; revert j; revert dependent i; induction H; intros.
+  intros; revert j; generalize dependent i; induction H; intros.
   - rewrite !sublist_of_nil; constructor.
   - destruct (Z_le_dec j i); [rewrite !sublist_nil_gen; auto; constructor|].
     destruct (Z.eq_dec i 0).

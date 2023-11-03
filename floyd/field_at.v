@@ -2193,6 +2193,43 @@ Lemma data_at__share_join{cs: compspecs}:
    data_at_ sh1 t p * data_at_ sh2 t p = data_at_ sh t p.
 Proof. intros. apply data_at_share_join; auto. Qed.
 
+Lemma data_at_conflict_glb: forall {cs: compspecs} sh1 sh2 t v v' p,
+  sepalg.nonidentity (Share.glb sh1 sh2) ->
+  0 < sizeof t ->
+  data_at sh1 t v p * data_at sh2 t v' p |-- FF.
+Proof.
+  intros.
+  pose (sh := Share.glb sh1 sh2).
+  assert (sepalg.join sh (Share.glb sh1 (Share.comp sh)) sh1). {
+    hnf. rewrite (Share.glb_commute sh1), <- Share.glb_assoc, Share.comp2.
+     rewrite Share.glb_commute, Share.glb_bot.
+     split; auto. 
+     rewrite Share.distrib2, Share.comp1.
+      rewrite Share.glb_commute, Share.glb_top.
+      unfold sh. rewrite Share.lub_commute, Share.lub_absorb. auto.
+   }
+  assert (sepalg.join sh (Share.glb sh2 (Share.comp sh)) sh2). {
+    hnf. rewrite (Share.glb_commute sh2), <- Share.glb_assoc, Share.comp2.
+     rewrite Share.glb_commute, Share.glb_bot.
+     split; auto. 
+     rewrite Share.distrib2, Share.comp1.
+      rewrite Share.glb_commute, Share.glb_top.
+      unfold sh. rewrite Share.glb_commute.
+     rewrite Share.lub_commute, Share.lub_absorb. auto.
+   }
+   rewrite <- (data_at_share_join _ _ _ _ _ _ H1).
+   rewrite <- (data_at_share_join _ _ _ _ _ _ H2).
+   rewrite sepcon_assoc. 
+   rewrite <- (sepcon_assoc (data_at (Share.glb _ _) _ _ _)). 
+   rewrite (sepcon_comm (data_at (Share.glb sh1 _) _ _ _)).
+   rewrite <- !sepcon_assoc.
+   rewrite (sepcon_assoc (_ * _)).
+   eapply derives_trans.
+   apply sepcon_derives; [ | apply derives_refl].
+   apply data_at_conflict; auto.
+   rewrite FF_sepcon. auto.
+Qed.
+
 Lemma nonreadable_memory_block_field_at:
   forall  {cs: compspecs}
       sh t gfs v p,
@@ -2758,7 +2795,7 @@ Proof.
   setoid_rewrite aggregate_pred.rangespec_ext at 4; [|intros; rewrite Z.sub_0_r; apply f_equal; auto].
   clear H3 H4.
   rewrite Z2Nat_max0 in *.
-  forget (offset_val 0 p) as p'; forget (Z.to_nat z) as n; forget 0 as lo; revert dependent lo; induction n; auto; simpl; intros.
+  forget (offset_val 0 p) as p'; forget (Z.to_nat z) as n; forget 0 as lo; generalize dependent lo; induction n; auto; simpl; intros.
  apply derives_refl.
   match goal with |- (?P1 * ?Q1) * (?P2 * ?Q2) |-- _ =>
     eapply derives_trans with (Q := (P1 * P2) * (Q1 * Q2)); [cancel|] end.
@@ -2825,8 +2862,7 @@ Qed.
 #[export] Hint Rewrite
   @field_at_data_at_cancel'
   @field_at_data_at
-  @field_at__data_at_
-  @data_at__data_at : cancel.
+  @field_at__data_at_ : cancel.
 
 (* END new experiments *)
 

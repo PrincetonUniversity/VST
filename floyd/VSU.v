@@ -883,17 +883,56 @@ Ltac SC_tac :=
  match goal with |- SC_test ?ids _ _ =>
   let a := eval compute in ids in change ids with a
  end;
- hnf;
- repeat (apply conj; hnf);
+ simpl SC_test;
+ repeat (apply conj);
  lazymatch goal with
          | |- Funspecs_must_match ?i _ _ =>
                  try solve [constructor; unfold abbreviate; 
-                 try simple apply eq_refl;
+                 repeat f_equal
+                 (*occasionally leaves a subgoal, typically because a
+                   change_compspecs needs to be inserted that could not
+                    be identified automatically*)]
+         | |- Identifier_not_found ?i ?fds2 =>
+                 fail "identifer" i "not found in funspecs" fds2
+         | |- True => trivial
+          end.
+(*Alternatives:
+Ltac SC_tac1 :=
+ match goal with |- SC_test ?ids _ _ =>
+  let a := eval compute in ids in change ids with a
+ end;
+ simpl SC_test;
+ repeat (apply conj);
+ lazymatch goal with
+         | |- Funspecs_must_match ?i _ _ =>
+                 try solve [constructor; unfold abbreviate; 
+                 (*leads sometimes to nontermination: try simple apply eq_refl;*)
                  repeat f_equal]
          | |- Identifier_not_found ?i ?fds2 =>
                  fail "identifer" i "not found in funspecs" fds2
          | |- True => trivial
           end.
+
+Ltac SC_tac2 :=
+ match goal with |- SC_test ?ids _ _ =>
+  let a := eval compute in ids in change ids with a
+ end;
+ simpl SC_test;
+ repeat (apply conj);
+ lazymatch goal with
+         | |- Funspecs_must_match ?i _ _ =>
+                 constructor;
+                 apply mk_funspec_congr;
+                 [ try reflexivity 
+                 | try reflexivity 
+                 | try reflexivity
+                 | (*too aggressive here: try (apply eq_JMeq; trivial)*)
+                 | (*too aggressive here: try (apply eq_JMeq; trivial)*)]
+         | |- Identifier_not_found ?i ?fds2 =>
+                 fail "identifer" i "not found in funspecs" fds2
+         | |- True => trivial
+          end.
+*)
 
 Ltac HImports_tac := simpl;
   let i := fresh "i" in 
@@ -2190,7 +2229,7 @@ eapply Comp_Exports_sub2;
 - symmetry in NOimports |- *.
    unfold JoinedImports in *.
    change (filter _ nil) with (@nil (ident*funspec)) in *.
-   rewrite <- app_nil_end in *.
+   rewrite app_nil_r in *.
    match goal with |- filter ?A (filter ?B ?C) = _ => forget A as F; forget B as G; forget C as al end.
    clear - NOimports.
    induction al as [|[i?]]; auto.
@@ -3051,7 +3090,7 @@ assert (H20: forall i fd, In (i,fd) (prog_funct' (map of_builtin (QP.prog_builti
 }
 
 assert (VG_LNR: list_norepet (map fst (QPvarspecs p) ++ map fst  G)). {
-  pose proof (Comp_LNR c). rewrite <- app_nil_end in H4.
+  pose proof (Comp_LNR c). rewrite app_nil_r in H4.
   auto.
 }
 forget (filter isGfun (PTree.elements (QP.prog_defs p))) as fs.

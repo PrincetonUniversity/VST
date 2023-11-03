@@ -521,7 +521,7 @@ Proof.
     + eapply rt_trans; eauto.
   - intros [].
     remember (m_phi m1) as jm1; remember (m_phi m2) as jm2.
-    revert dependent m2; revert dependent m1.
+    generalize dependent m2; generalize dependent m1.
     induction H0; intros; subst; auto.
     + constructor.
       apply age1_juicy_mem_unpack''; auto.
@@ -820,7 +820,7 @@ Lemma ext_safe:
 Proof.
   intros ????? Hext ?.
   remember (level jm0) as N.
-  revert dependent c; revert dependent jm0; revert dependent jm; induction N as [? IHN] using lt_wf_ind; intros.
+  generalize dependent c; generalize dependent jm0; generalize dependent jm; induction N as [? IHN] using lt_wf_ind; intros.
   inv H0.
   - constructor. destruct H as [_ H]; apply rmap_order in H as [? _].
     rewrite <- !level_juice_level_phi in *; congruence.

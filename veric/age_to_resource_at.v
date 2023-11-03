@@ -116,7 +116,7 @@ Proof.
   pose proof (age_to_ageN n phi).
   forget (age_to n phi) as phi'.
   remember (level phi - n) as n'.
-  revert dependent n; revert dependent phi; induction n'; intros.
+  generalize dependent n; generalize dependent phi; induction n'; intros.
   - inv H.
     rewrite <- ghost_of_approx, ghost_fmap_fmap, approx'_oo_approx, approx_oo_approx' by lia; auto.
   - change (ageN (S n') phi) with

@@ -109,7 +109,7 @@ with labeled_statements_ind (L: labeled_statements): all_suf_of_labeled_statemen
 End statement_ind.
 
 Ltac induction_stmt s :=
-  revert dependent s;
+  generalize dependent s;
   let s1 := fresh s "1" in
   let s2 := fresh s "2" in
   let IHs := fresh "IH" s in

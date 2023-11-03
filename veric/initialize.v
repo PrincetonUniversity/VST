@@ -1114,7 +1114,7 @@ assert (forall loc, fst loc <> b -> identity (phi @ loc)).
       pose proof (init_data_size_pos a); pose proof max_unsigned_modulus; lia).
   apply IHdl; auto.
   apply andb_true_iff in AL; destruct AL; auto.
-  rewrite app_ass; auto.
+  rewrite <- app_assoc; auto.
   intro loc; specialize (H6 loc); specialize (H8 loc); specialize (H4 loc).
   if_tac. rewrite if_true in H4; auto.
   destruct loc; destruct H11; auto.
@@ -1410,7 +1410,7 @@ simpl in *.
 destruct G; inv H0. apply H1.
 destruct a.
 inv H0.
-simpl. do 2 rewrite app_ass.
+simpl. do 2 rewrite <- app_assoc.
 simpl.
 apply IHvl.
 clear - H.
@@ -1450,17 +1450,17 @@ Lemma match_fdecs_rev:
 Proof.
   intros; apply prop_ext; split; intros.
 *
-  rewrite (app_nil_end vl).
-  rewrite (app_nil_end G).
+  rewrite <- (app_nil_r vl).
+  rewrite <- (app_nil_r G).
   rewrite <- (rev_involutive vl), <- (rev_involutive G).
   apply match_fdecs_rev'; auto.
-  rewrite rev_involutive, <- app_nil_end; auto.
+  rewrite rev_involutive, app_nil_r; auto.
   constructor.
 *
-  rewrite (app_nil_end (rev vl)).
-  rewrite (app_nil_end (rev G)).
+  rewrite <- (app_nil_r (rev vl)).
+  rewrite <- (app_nil_r (rev G)).
   apply match_fdecs_rev'; auto.
-  rewrite <- app_nil_end.
+  rewrite app_nil_r.
   rewrite map_rev. rewrite list_norepet_rev; auto.
   constructor.
 Qed.
@@ -2110,7 +2110,7 @@ rewrite Pos_to_nat_eq_S.
   right; auto.
   assert (FI: find_id i (G0++G) = None). {
   change (list_norepet (map fst G0 ++ (i::nil) ++ (map fst vl))) in H2.
-  apply list_norepet_append_commut in H2. rewrite app_ass in H2.
+  apply list_norepet_append_commut in H2. rewrite <- app_assoc in H2.
  inv H2. specialize (H1 i).
  case_eq (find_id i (G0++G)); intros; auto. apply find_id_e in H2.
  contradiction H6. apply in_app. apply in_app_or in H2.

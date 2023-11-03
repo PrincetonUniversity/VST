@@ -1095,7 +1095,7 @@ Proof.
         rewrite In_upto, Z2Nat.id in *; unfold N; try lia.
         apply Forall_Znth; [lia | auto].
       * assert (Zlength h' = Zlength h) as Hlen by lia; assert (Zlength t' = Zlength h') as Hlen' by lia;
-        clear - Hlen Hlen'; revert dependent h; revert dependent t'; induction h';
+        clear - Hlen Hlen'; generalize dependent h; generalize dependent t'; induction h';
           destruct h, t'; rewrite ?Zlength_nil, ?Zlength_cons in *; simpl; intros; auto;
           try (rewrite Zlength_correct in *; lia).
         constructor; eauto.
