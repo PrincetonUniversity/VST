@@ -449,13 +449,25 @@ destruct (float_of_ftype x), (float_of_ftype y); auto; try tauto;
 try discriminate.
 Qed.
 
-Definition fma_ff (t: type) `{STD: is_standard t}  : floatfunc  [ t;t;t ] t (fma_bnds t) (fun x y z => x*y+z)%R.
-apply (Build_floatfunc [t;t;t] t _ _ 
-         (fun x y z => ftype_of_float (Binary.Bfma (fprec t) (femax t) (fprec_gt_0 t) (fprec_lt_femax t) 
-               (fma_nan t) BinarySingleNaN.mode_NE
-              (float_of_ftype x) (float_of_ftype y) (float_of_ftype z)))
-           1%N 1%N).
--
+Ltac binary_float_equiv_cases H := 
+ match type of H with binary_float_equiv ?ah ?bh =>
+   destruct ah as [ [|] | [|] | | [|] ? ?] ; 
+   destruct bh as [ [|] | [|] | | [|] ? ?] ; 
+   simpl in H;
+   try match type of H with _ /\ _ /\ _ => destruct H as [? [? ?]]; subst end;
+   simpl in *; auto; try contradiction; try discriminate
+ end.
+
+Lemma fma_ff_aux1:
+ forall (t : type) (STD : is_standard t),
+ acc_prop [t; t; t] t 1 1 (fma_bnds t) (fun x y z : RR t => (x * y + z)%R)
+   (fun x y z : ftype' t =>
+    ftype_of_float
+     (Binary.Bfma (fprec t) (femax t) (fprec_gt_0 t) (fprec_lt_femax t) 
+        (fma_nan t) BinarySingleNaN.mode_NE (float_of_ftype x) 
+        (float_of_ftype y) (float_of_ftype z))).
+Proof.
+intros.
 intros x ? y ? z ?.
 rewrite <- !B2R_float_of_ftype.
 split3; [ tauto | intro Hx; inv Hx | ].
@@ -493,14 +505,25 @@ set (u := Rabs _) in *.
 set (v := Raux.bpow _ _) in *.
 clear - FIN H3.
 Lra.lra.
--
-hnf; intros.
+Qed.
+
+
+Lemma fma_ff_aux2:
+ forall (t : type) `(STD : is_standard t),
+ @floatfunc_congr [t; t; t] t
+  (fun x y z : ftype' t =>
+    ftype_of_float
+     (Binary.Bfma (fprec t) (femax t) (fprec_gt_0 t) (fprec_lt_femax t)
+        (@fma_nan nans t STD) BinarySingleNaN.mode_NE (@float_of_ftype t STD x)
+        (@float_of_ftype t STD y) (@float_of_ftype t STD z))).
+Proof.
+intros; hnf; intros.
 inv H. apply inj_pair2 in H2,H3.  subst. 
 inv H5. apply inj_pair2 in H1,H2.  subst.
 inv H6. apply inj_pair2 in H1,H2.  subst.
 inv H7. apply inj_pair2 in H,H0.  subst.
 
-rewrite float_equiv_binary_float_equiv in H4, H3, H5.
+rewrite (float_equiv_binary_float_equiv _ STD) in H4, H3, H5.
 destruct t; destruct nonstd; try contradiction; simpl in *.
 unfold eq_rect_r, eq_rect, eq_sym; simpl.
 unfold eq_rect_r, eq_rect, eq_sym; simpl.
@@ -512,27 +535,23 @@ set (J1 := fprec_lt_femax _) in *.
 set (prec := FPCore.fprec _) in *.
 unfold FPCore.femax in *.
 clearbody J0. clearbody J1.
-
-XXXXX.  
-
-simpl ftype in *.
-fold prec in J1, J0.
-unfold FPCore.fprec in *.
-Print BFMA.
-s
-
-Locate BFMA.
-red.
-clear STD.
-
-destruct ah; try destruct s; destruct bh; try destruct s; simpl in *; auto; try contradiction;
- destruct H4 as [? [? ?]]; try discriminate; subst; repeat proof_irr;
+binary_float_equiv_cases H4;
+binary_float_equiv_cases H3;
+binary_float_equiv_cases H5;
 apply binary_float_equiv_refl.
+Qed.
+
+Definition fma_ff (t: type) `{STD: is_standard t}  : floatfunc  [ t;t;t ] t (fma_bnds t) (fun x y z => x*y+z)%R.
+apply (Build_floatfunc [t;t;t] t _ _ 
+         (fun x y z => ftype_of_float (Binary.Bfma (fprec t) (femax t) (fprec_gt_0 t) (fprec_lt_femax t) 
+               (fma_nan t) BinarySingleNaN.mode_NE
+              (float_of_ftype x) (float_of_ftype y) (float_of_ftype z)))
+           1%N 1%N).
+apply fma_ff_aux1.
+apply fma_ff_aux2.
 Defined.
 
-Defined.
-
-Definition ldexp_spec' (t: type) :=
+Definition ldexp_spec' (t: type) `{STD: is_standard t}:=
    WITH x : ftype t, i: Z
    PRE [ reflect_to_ctype t , tint ]
        PROP (Int.min_signed <= i <= Int.max_signed)
@@ -541,11 +560,12 @@ Definition ldexp_spec' (t: type) :=
     POST [ reflect_to_ctype t ]
        PROP ()
        RETURN (reflect_to_val t 
-                       ((Binary.Bldexp (fprec t) (femax t) 
-                           (fprec_gt_0 t) (fprec_lt_femax t) BinarySingleNaN.mode_NE x i)))
+                (ftype_of_float (Binary.Bldexp (fprec t) (femax t) 
+                  (fprec_gt_0 t) (fprec_lt_femax t) BinarySingleNaN.mode_NE
+                   (float_of_ftype x) i)))
        SEP ().
 
-Definition frexp_spec' (t: type) :=
+Definition frexp_spec' (t: type) `{STD: is_standard t} :=
    WITH x : ftype t, p: val, sh: share
    PRE [ reflect_to_ctype t , tptr tint ]
        PROP (writable_share sh)
@@ -554,24 +574,28 @@ Definition frexp_spec' (t: type) :=
     POST [ reflect_to_ctype t ]
        PROP ()
        RETURN (reflect_to_val t 
-                        (fst (Binary.Bfrexp (fprec t) (femax t)  (fprec_gt_0 t) x)))
+                     (ftype_of_float (fst (Binary.Bfrexp (fprec t) (femax t)  (fprec_gt_0 t) 
+                              (float_of_ftype x)))))
        SEP (@data_at emptyCS sh tint (Vint (Int.repr 
-                         (snd (Binary.Bfrexp (fprec t) (femax t)  (fprec_gt_0 t) x))))
+                         (snd (Binary.Bfrexp (fprec t) (femax t)  (fprec_gt_0 t) 
+                              (float_of_ftype x)))))
                          p).
 
-Definition bogus_nan t := 
+Definition bogus_nan t `(STD: is_standard t) := 
    (* This is probably not the right NaN to use, wherever you see it used *)
    FMA_NAN.quiet_nan t (FMA_NAN.default_nan t). 
 
-Definition nextafter (t: type) (x y: ftype t) : ftype t := 
- match Binary.Bcompare (fprec t) (femax t) x y with
-  | Some Lt => Binary.Bsucc (fprec t) (femax t)  (fprec_gt_0 t) (fprec_lt_femax t) x
+Definition nextafter (t: type) `{STD: is_standard t} (x y: ftype t) : ftype t := 
+ match Binary.Bcompare (fprec t) (femax t) (float_of_ftype x) (float_of_ftype y) with
+  | Some Lt => ftype_of_float (Binary.Bsucc (fprec t) (femax t)  (fprec_gt_0 t) (fprec_lt_femax t)
+                     (float_of_ftype x))
   | Some Eq => y
-  | Some Gt => Binary.Bpred (fprec t) (femax t)  (fprec_gt_0 t) (fprec_lt_femax t) x
-  | None => proj1_sig (bogus_nan t)
+  | Some Gt => ftype_of_float (Binary.Bpred (fprec t) (femax t)  (fprec_gt_0 t) (fprec_lt_femax t) 
+                     (float_of_ftype x))
+  | None => ftype_of_float (proj1_sig (bogus_nan t _))
   end.
 
-Definition nextafter_spec' (t: type) :=
+Definition nextafter_spec' (t: type) `{STD: is_standard t}  :=
    WITH x : ftype t, y: ftype t
    PRE [ reflect_to_ctype t , reflect_to_ctype t ]
        PROP ()
@@ -582,15 +606,16 @@ Definition nextafter_spec' (t: type) :=
        RETURN (reflect_to_val t (nextafter t x y))
        SEP ().
 
-Definition copysign (t: type) (x y: ftype t) :=
- match x with
- | Binary.B754_zero _ _ _ => Binary.B754_zero _ _ (Binary.Bsign _ _ y)
- | Binary.B754_infinity _ _ _ => Binary.B754_infinity _ _ (Binary.Bsign _ _ y)
- | Binary.B754_finite _ _ _ m e H => Binary.B754_finite _ _ (Binary.Bsign _ _ y) m e H
- | Binary.B754_nan _ _ _ pl H => Binary.B754_nan _ _ (Binary.Bsign _ _ y) pl H
+Definition copysign (t: type) `{STD: is_standard t} (x y: ftype t) : ftype t :=
+ ftype_of_float
+ match float_of_ftype x with
+ | Binary.B754_zero _ _ _ => Binary.B754_zero _ _ (Binary.Bsign _ _ (float_of_ftype y))
+ | Binary.B754_infinity _ _ _ => Binary.B754_infinity _ _ (Binary.Bsign _ _ (float_of_ftype y))
+ | Binary.B754_finite _ _ _ m e H => Binary.B754_finite _ _ (Binary.Bsign _ _ (float_of_ftype y)) m e H
+ | Binary.B754_nan _ _ _ pl H => Binary.B754_nan _ _ (Binary.Bsign _ _ (float_of_ftype y)) pl H
 end.
 
-Definition copysign_spec' (t: type) :=
+Definition copysign_spec' (t: type) `{STD: is_standard t} :=
    WITH x : ftype t, y : ftype t
    PRE [ reflect_to_ctype t , reflect_to_ctype t ]
        PROP ()
@@ -601,7 +626,7 @@ Definition copysign_spec' (t: type) :=
        RETURN (reflect_to_val t (copysign t x y))
        SEP ().
 
-Definition nan_spec' (t: type) :=
+Definition nan_spec' (t: type) `{STD: is_standard t} :=
    WITH p: val
    PRE [ tptr tschar ]
        PROP ()
@@ -610,7 +635,7 @@ Definition nan_spec' (t: type) :=
     POST [ reflect_to_ctype t ]
        PROP ()
         (* here it _is_ actually permissible to use bogus_nan *)
-       RETURN (reflect_to_val t (proj1_sig (bogus_nan t)))
+       RETURN (reflect_to_val t (ftype_of_float (proj1_sig (bogus_nan t _))))
        SEP ().
 
 Definition arccosh (x: R) := Rabs (Rpower.arcsinh (sqrt (Rsqr x - 1)))%R.
@@ -622,6 +647,16 @@ Fixpoint always_true (args: list type) : function_type (map RR args) Prop :=
  | _ :: args' => fun _ => always_true args'
  end.
 
+Ltac vacuous_bnds_list tys :=
+ match tys with
+ | nil => constr:(@Knil _ bounds )
+ | ?t :: ?ts =>
+   let b := constr:(vacuous_bnds t) in
+   let bs := vacuous_bnds_list ts in
+   constr:(Kcons b bs)
+ end.
+
+(*
 Fixpoint vacuous_bnds_klist (tys: list type) : klist bounds tys :=
  match tys as l return (klist bounds l) with
   | [] => Knil
@@ -629,18 +664,25 @@ Fixpoint vacuous_bnds_klist (tys: list type) : klist bounds tys :=
       (fun (t : type) (tys0 : list type) =>
        Kcons (vacuous_bnds t) (vacuous_bnds_klist tys0)) a l
   end.
+*)
 
-Parameter c_function: forall (i: ident) (args: list type) (res: type) (f: function_type (map RR args) R),
+Parameter c_function: forall (i: ident) (args: list type) (res: type)
+      bnds
+     (f: function_type (map RR args) R),
    {ff: function_type (map ftype' args) (ftype res) 
-   | acc_prop args res (1 + (2 * GNU_error i))%N 1%N
-             (vacuous_bnds_klist args)           f ff}.
+   | acc_prop args res (1 + (2 * GNU_error i))%N 1%N bnds f ff}.
+
+Parameter axiom_floatfunc_congr: forall args result ff_func, 
+   @floatfunc_congr args result ff_func.
 
 Ltac floatfunc' i args res f :=
  let rel := constr:((1 + 2 * GNU_error i)%N) in
  let rel := eval compute in rel in 
  let abs := constr:(1%N) in
- let cf := constr:(c_function i args res f) in 
- exact (Build_floatfunc args res (vacuous_bnds_klist args) f (proj1_sig cf) rel abs (proj2_sig cf)).
+ let bnds := vacuous_bnds_list args in
+ let cf := constr:(c_function i args res bnds f) in
+ exact (Build_floatfunc args res bnds f (proj1_sig cf) rel abs (proj2_sig cf)
+        (axiom_floatfunc_congr _ _ _)).
 
 
 Module Type MathFunctions.
@@ -767,7 +809,7 @@ compute.
 reflexivity. (* If this line fails, then it lists the duplicate names in your DECLARE statements above *)
 Abort.
 
-Local Remark sqrt_accurate: forall x, 
+Local Remark sqrt_accurate: forall x: ftype Tdouble, 
   (0 <= FT2R x ->
    Binary.is_finite (fprec Tdouble) (femax Tdouble) x = true ->
    exists delta, exists epsilon,
@@ -781,7 +823,7 @@ rename H0 into H8.
 assert (H0: Binary.is_finite _ _ (ff_func (sqrt_ff Tdouble) x) = true). {
   destruct x; try destruct s; try discriminate; simpl; auto.
  -
-  simpl in H. unfold Defs.F2R in H. simpl in H.
+  simpl in H. unfold FT2R in H.  simpl in H. unfold Defs.F2R in H. simpl in H.
   pose proof Raux.bpow_gt_0 Zaux.radix2 e.
   rewrite IZR_NEG in H. unfold IZR in H.
   set (j :=  Raux.bpow Zaux.radix2 e) in *. clearbody j.
