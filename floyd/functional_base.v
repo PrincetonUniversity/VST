@@ -724,6 +724,18 @@ rewrite <- (Int.signed_repr j) by rep_lia.
 congruence.
 Qed.
 
+Lemma repr_inj_signed64:
+  forall i j,
+    Int64.min_signed <= i <= Int.max_signed ->
+    Int64.min_signed <= j <= Int.max_signed ->
+    Int64.repr i = Int64.repr j -> i=j.
+Proof.
+intros.
+rewrite <- (Int64.signed_repr i) by rep_lia.
+rewrite <- (Int64.signed_repr j) by rep_lia.
+congruence.
+Qed.
+
 Lemma repr_inj_unsigned:
   forall i j,
     0 <= i <= Int.max_unsigned ->
