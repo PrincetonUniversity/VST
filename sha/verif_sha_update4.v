@@ -142,13 +142,13 @@ Tactic Notation "unfold_data_atx" uconstr(a) :=
   | x := ?D : mpred |- _ =>
     match D with
      | (@data_at_ ?cs ?sh ?t ?p) =>
-            change D with (@field_at_mark cs sh t (@nil gfield) (@default_val cs (@nested_field_type cs t nil)) p) in x
+            change D with (@field_at_mark _ _ cs sh t (@nil gfield) (@default_val cs (@nested_field_type cs t nil)) p) in x
      | (@data_at ?cs ?sh ?t ?v ?p) =>
-            change D with (@field_at_mark cs sh t (@nil gfield) v p) in x
+            change D with (@field_at_mark _ _ cs sh t (@nil gfield) v p) in x
      | (@field_at_ ?cs ?sh ?t ?gfs ?p) =>
-            change D with (@field_at_mark cs sh t gfs (@default_val cs (@nested_field_type cs t gfs)) p) in x
+            change D with (@field_at_mark _ _ cs sh t gfs (@default_val cs (@nested_field_type cs t gfs)) p) in x
      | (@field_at ?cs ?sh ?t ?gfs ?v ?p) =>
-            change D with (@field_at_mark cs sh t gfs v p) in x
+            change D with (@field_at_mark _ _ cs sh t gfs v p) in x
      end;
         subst x;  unfold_field_at';
 idtac (*

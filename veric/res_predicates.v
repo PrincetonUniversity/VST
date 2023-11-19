@@ -4,7 +4,8 @@ From iris_ora.algebra Require Import gmap.
 From iris_ora.logic Require Export logic algebra invariants.
 From VST.veric Require Import shares address_conflict.
 From VST.msl Require Export shares.
-From VST.veric Require Export base Memory dshare gen_heap.
+From VST.veric Require Export base Memory share_instance.
+From VST.shared Require Export dshare gen_heap.
 Export Values.
 Export -(notations) Maps.
 
@@ -31,7 +32,7 @@ Definition nonlock (r: resource) : Prop :=
  | _ => True
  end.
 
-Global Notation "l ↦ dq v" := (mapsto l dq v)
+Global Notation "l ↦ dq v" := (mapsto(H := share_instance) l dq v)
   (at level 20, dq custom dfrac at level 1, format "l  ↦ dq  v") : bi_scope.
 
 Open Scope bi_scope.
@@ -39,7 +40,7 @@ Open Scope bi_scope.
 Section heap.
 
 Context {Σ : gFunctors}.
-Context {HGS : gen_heapGS address resource Σ}.
+Context {HGS : gen_heapGS share address resource Σ}.
 
 Notation mpred := (iProp Σ).
 
@@ -659,16 +660,16 @@ Qed.
 Lemma share_op_self: forall sh, (✓ (Share sh ⋅ Share sh))%stdpp -> sh = Share.bot.
 Proof.
   intros ? (? & ? & ? & [=] & [=] & ? & J)%share_valid2_joins; subst.
-  pose proof (identity_share_bot _ (sepalg.join_self J)) as ->.
+  rewrite share_op_is_join in J; pose proof (identity_share_bot _ (sepalg.join_self J)) as ->.
   done.
 Qed.
 
 Lemma self_unreadable : forall sh, ~readable_dfrac (DfracOwn (Share sh) ⋅ DfracOwn (Share sh)).
 Proof.
   intros; simpl.
-  destruct (Share sh ⋅ Share sh) eqn: J; rewrite J; auto.
+  destruct (Share sh ⋅ Share sh) eqn: J; auto.
   apply share_op_join in J as (? & ? & [=] & [=] & J); subst.
-  pose proof (identity_share_bot _ (sepalg.join_self J)) as ->.
+  rewrite share_op_is_join in J; pose proof (identity_share_bot _ (sepalg.join_self J)) as ->.
   apply bot_identity in J as <-.
   apply bot_unreadable.
 Qed.

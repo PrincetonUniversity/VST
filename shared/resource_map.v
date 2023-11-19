@@ -7,12 +7,12 @@ From iris.proofmode Require Import proofmode.
 From iris.algebra Require Export auth csum gmap.
 From iris_ora.algebra Require Export osum gmap view auth.
 From iris_ora.logic Require Export logic own algebra.
-From VST.veric Require Export shares share_alg.
-From VST.veric Require Import shared.
+From VST.shared Require Export share_alg.
+From VST.shared Require Import shared.
 From iris.prelude Require Import options.
 
 Section shared.
-  Context {M : uora} {V : ofe}.
+  Context `{ST : ShareType} {M : uora} {V : ofe}.
 
   Lemma shared_validI (x : shared V) : ✓ x ⊣⊢ match x return ouPred M with
                                  | YES dq _ v => ⌜✓ dq⌝ ∧ ✓ v
@@ -22,27 +22,27 @@ Section shared.
     ouPred.unseal. by destruct x.
   Qed.
 
+  Lemma shared_order_includedN n (x y : shared V) : ✓{n} y → x ≼ₒ{n} y → x ≼{n} y.
+  Proof.
+    intros Hvalid [|(Hd & Hv)].
+    - exists y; rewrite H comm shared_err_absorb //.
+    - apply shared_includedN'; first done.
+      split.
+      + destruct Hd as [<-|<-]; [|eexists]; done.
+      + rewrite option_includedN_total.
+        apply shared_validN in Hvalid as [_ Hvalid].
+        destruct (val_of x); last by auto.
+        destruct (val_of y); last done.
+        rewrite Some_orderN in Hv.
+        right; eexists _, _; split; first done; split; first done.
+        apply agree_order_dist in Hv as ->; done.
+  Qed.
+
 End shared.
 
-Definition rmapUR (K : Type) `{Countable K} (V : ofe) : uora := gmapUR K (sharedR V).
+Definition rmapUR (S : Type) `{ShareType S} (K : Type) `{Countable K} (V : ofe) : uora := gmapUR K (sharedR V).
 
-Lemma shared_order_includedN {V} n (x y : shared V) : ✓{n} y → x ≼ₒ{n} y → x ≼{n} y.
-Proof.
-  intros Hvalid [|(Hd & Hv)].
-  - exists y; rewrite H comm shared_err_absorb //.
-  - apply shared_includedN'; first done.
-    split.
-    + destruct Hd as [<-|<-]; [|eexists]; done.
-    + rewrite option_includedN_total.
-      apply shared_validN in Hvalid as [_ Hvalid].
-      destruct (val_of x); last by auto.
-      destruct (val_of y); last done.
-      rewrite Some_orderN in Hv.
-      right; eexists _, _; split; first done; split; first done.
-      apply agree_order_dist in Hv as ->; done.
-Qed.
-
-Lemma rmap_order_includedN K `{Countable K} V n (x y : rmapUR K V) : ✓{n} y → x ≼ₒ{n} y → x ≼{n} y.
+Lemma rmap_order_includedN S `{ShareType S} K `{Countable K} V n (x y : rmapUR _ K V) : ✓{n} y → x ≼ₒ{n} y → x ≼{n} y.
 Proof.
   intros Hvalid Hord. rewrite lookup_includedN; intros i.
   specialize (Hvalid i); specialize (Hord i); rewrite option_includedN.
@@ -53,26 +53,26 @@ Proof.
   apply shared_order_includedN in Hord; eauto.
 Qed.
 
-Canonical Structure rmap_authR K `{Countable K} V := authR _ (rmap_order_includedN K V).
-Canonical Structure rmap_authUR K `{Countable K} V := authUR _ (rmap_order_includedN K V).
+Canonical Structure rmap_authR S `{ShareType S} K `{Countable K} V := authR _ (rmap_order_includedN S K V).
+Canonical Structure rmap_authUR S `{ShareType S} `{Countable K} V := authUR _ (rmap_order_includedN S K V).
 
-Global Instance rmap_frag_core_id {K} `{Countable K} {V} (a : rmapUR K V) : OraCoreId a → OraCoreId (◯ a).
+Global Instance rmap_frag_core_id `{ShareType} {K} `{Countable K} {V} (a : rmapUR _ K V) : OraCoreId a → OraCoreId (◯ a).
 Proof. apply @auth_frag_core_id. Qed.
 
-Class resource_mapG Σ K `{Countable K} (V : Type) := ResourceMapG {
-  resource_map_inG : inG Σ (rmap_authR K (leibnizO V));
+Class resource_mapG Σ S `{ShareType S} K `{Countable K} (V : Type) := ResourceMapG {
+  resource_map_inG : inG Σ (rmap_authR _ K (leibnizO V));
 }.
 Local Existing Instance resource_map_inG.
 
-Definition resource_mapΣ K `{Countable K} (V : Type) : gFunctors :=
-  #[ GFunctor (rmap_authR K (leibnizO V)) ].
+Definition resource_mapΣ S `{ShareType S} K `{Countable K} (V : Type) : gFunctors :=
+  #[ GFunctor (rmap_authR S K (leibnizO V)) ].
 
-Global Instance subG_resource_mapΣ Σ K `{Countable K} (V : Type) :
-  subG (resource_mapΣ K V) Σ → resource_mapG Σ K V.
+Global Instance subG_resource_mapΣ Σ S `{ShareType S} K `{Countable K} (V : Type) :
+  subG (resource_mapΣ S K V) Σ → resource_mapG Σ S K V.
 Proof. solve_inG. Qed.
 
 Section definitions.
-  Context `{resource_mapG Σ K V}.
+  Context {S} `{resource_mapG Σ S K V}.
 
   Local Definition resource_map_auth_def
       (γ : gname) (q : Qp) m : iProp Σ :=
@@ -93,7 +93,7 @@ Section definitions.
     @resource_map_elem = @resource_map_elem_def := resource_map_elem_aux.(seal_eq).
 
   Local Definition resource_map_elem_no_def
-      (γ : gname) (k : K) (sh : share) : iProp Σ :=
+      (γ : gname) (k : K) (sh : S) : iProp Σ :=
     ∃ rsh, own γ (◯ {[k := (NO (V := leibnizO V) (Share sh) rsh)]}).
   Local Definition resource_map_elem_no_aux : seal (@resource_map_elem_no_def).
   Proof. by eexists. Qed.
@@ -115,7 +115,7 @@ Local Ltac unseal := rewrite
   ?resource_map_elem_no_unseal /resource_map_elem_no_def.
 
 Section lemmas.
-  Context `{resource_mapG Σ K V}.
+  Context {S} `{ShareType S} `{Countable K} `{!resource_mapG Σ S K V}.
   Implicit Types (k : K) (v : V) (dq : dfrac) (q : Qp).
 
   (** * Lemmas about the map elements *)
@@ -130,9 +130,9 @@ Section lemmas.
   Proof. split; first done. apply _. Qed.*)
   Global Instance resource_map_elem_affine k γ v : Affine (k ↪[γ]□ v).
   Proof. unseal. apply _. Qed.
-  Global Instance resource_map_elem_no_persistent k γ : Persistent (resource_map_elem_no γ k Share.bot).
+  Global Instance resource_map_elem_no_persistent k γ : Persistent (resource_map_elem_no γ k share_bot).
   Proof. unseal. apply _. Qed.
-  Global Instance resource_map_elem_no_affine k γ : Affine (resource_map_elem_no γ k Share.bot).
+  Global Instance resource_map_elem_no_affine k γ : Affine (resource_map_elem_no γ k share_bot).
   Proof. unseal. apply _. Qed.
 
   Local Lemma resource_map_elems_unseal γ m dq (rsh : readable_dfrac dq) :
@@ -210,7 +210,7 @@ Section lemmas.
   Qed.
 
   Lemma resource_map_elem_no_valid k γ sh :
-    resource_map_elem_no γ k sh -∗ ⌜~readable_share sh⌝.
+    resource_map_elem_no γ k sh -∗ ⌜~share_readable sh⌝.
   Proof.
     unseal. iIntros "[% H]"; done.
   Qed.
@@ -234,7 +234,7 @@ Section lemmas.
     iDestruct "H" as %Hv; iPureIntro.
     split; first done.
     apply share_valid2_joins in Hv as (? & ? & ? & [=] & [=] & Heq & ?); subst; rewrite Heq.
-    by eapply join_unreadable_shares.
+    by eapply join_unreadable.
   Qed.
 
   Lemma resource_map_elem_no_elem_combine k γ sh1 dq2 v2 :
@@ -245,7 +245,7 @@ Section lemmas.
   Qed.
 
   Lemma resource_map_elem_no_combine k γ sh1 sh2 :
-    resource_map_elem_no γ k sh1 -∗ resource_map_elem_no γ k sh2 -∗ ∃ sh, ⌜sepalg.join sh1 sh2 sh⌝ ∧ resource_map_elem_no γ k sh.
+    resource_map_elem_no γ k sh1 -∗ resource_map_elem_no γ k sh2 -∗ ∃ sh, ⌜share_op sh1 sh2 = Some sh⌝ ∧ resource_map_elem_no γ k sh.
   Proof.
     iIntros "Hl1 Hl2". iDestruct (resource_map_elem_no_valid_2 with "Hl1 Hl2") as %[J Hv].
     unseal. iDestruct "Hl1" as "[% Hl1]"; iDestruct "Hl2" as "[% Hl2]"; iCombine "Hl1 Hl2" as "Hl".
@@ -257,7 +257,7 @@ Section lemmas.
     done.
   Qed.
 
-  Lemma resource_map_elem_split_no k γ sh1 dq2 (rsh1 : ~readable_share sh1) (rsh2 : readable_dfrac dq2) v :
+  Lemma resource_map_elem_split_no k γ sh1 dq2 (rsh1 : ~share_readable sh1) (rsh2 : readable_dfrac dq2) v :
     k ↪[γ]{DfracOwn (Share sh1) ⋅ dq2} v ⊣⊢ resource_map_elem_no γ k sh1 ∗ k ↪[γ]{dq2} v.
   Proof.
     iSplit; last by iIntros "[A B]"; iApply (resource_map_elem_no_elem_combine with "A B").
@@ -267,8 +267,8 @@ Section lemmas.
     rewrite -own_op -auth_frag_op singleton_op NO_YES_op //.
   Qed.
 
-  Lemma resource_map_elem_no_split k γ sh1 sh2 (rsh1 : ~readable_share sh1) (rsh2 : ~readable_share sh2) sh
-    (J : sepalg.join sh1 sh2 sh) :
+  Lemma resource_map_elem_no_split k (γ : gname) sh1 sh2 (rsh1 : ~share_readable sh1) (rsh2 : ~share_readable sh2) sh
+    (J : share_op sh1 sh2 = Some sh) :
     resource_map_elem_no γ k sh ⊣⊢ resource_map_elem_no γ k sh1 ∗ resource_map_elem_no γ k sh2.
   Proof.
     iSplit.
@@ -281,8 +281,8 @@ Section lemmas.
       iApply (own_proper with "[$]"); f_equiv.
       eapply @singletonM_proper; first apply _.
       done.
-    - iIntros "[A B]"; iDestruct (resource_map_elem_no_combine with "A B") as (??) "?".
-      eapply sepalg.join_eq in J as ->; eauto.
+    - iIntros "[A B]"; iDestruct (resource_map_elem_no_combine with "A B") as (? J') "?".
+      rewrite J' in J; inversion J; subst; done.
   Qed.
 
   Lemma resource_map_elem_frac_ne γ k1 k2 dq1 dq2 v1 v2 :
@@ -301,15 +301,15 @@ Section lemmas.
   Proof. unseal. iIntros "[% ?]"; iExists I. iApply (own_update with "[$]"). apply view_update_frag. Qed.
 
   Lemma resource_map_elem_bot k γ dq v :
-    k ↪[γ]{dq} v ==∗ resource_map_elem_no γ k Share.bot.
+    k ↪[γ]{dq} v ==∗ resource_map_elem_no γ k share_bot.
   Proof. unseal. iIntros "[% ?]"; iExists bot_unreadable. iApply (own_update with "[$]"). apply juicy_view_frag_bot. Qed.
 
   Lemma resource_map_elem_no_bot k γ sh :
-    resource_map_elem_no γ k sh ==∗ resource_map_elem_no γ k Share.bot.
+    resource_map_elem_no γ k sh ==∗ resource_map_elem_no γ k share_bot.
   Proof. unseal. iIntros "[% ?]"; iExists bot_unreadable. iApply (own_update with "[$]"). apply juicy_view_frag_no_bot. Qed.*)
 
   (** * Lemmas about [resource_map_auth] *)
-  Lemma resource_map_alloc_strong P (m : rmapUR K (leibnizO V)) :
+  Lemma resource_map_alloc_strong P (m : rmapUR S K (leibnizO V)) :
     pred_infinite P → ✓ m →
     ⊢ |==> ∃ γ, ⌜P γ⌝ ∧ resource_map_auth γ 1 m ∗ own γ (◯ m).
   Proof.
@@ -326,7 +326,7 @@ Section lemmas.
     iApply own_alloc_strong.
     by apply auth_auth_valid.
   Qed.
-  Lemma resource_map_alloc (m : rmapUR K (leibnizO V)) :
+  Lemma resource_map_alloc (m : rmapUR S K (leibnizO V)) :
     ✓ m →
     ⊢ |==> ∃ γ, resource_map_auth γ 1 m ∗ own γ (◯ m).
   Proof.
@@ -394,7 +394,7 @@ Section lemmas.
         destruct x; last done.
         iDestruct "Hv" as "(% & %Hvv)".
         iPureIntro; exists dq0, rsh0.
-        rewrite Some_op_opM in Hv; inv Hv.
+        rewrite Some_op_opM in Hv; inversion Hv; subst; clear Hv.
         destruct Hk as [-> Hv]; rewrite Hv in Hvv |- *.
         split; first done; split; first by eexists.
         f_equiv; split; first done.
@@ -402,7 +402,7 @@ Section lemmas.
         apply agree_op_inv in Hvv as <-.
         rewrite /= agree_idemp //.
       + destruct (dfrac_error _); last by destruct Hop as (? & ? & ? & ? & ? & ?).
-        rewrite Hop in Hk; destruct x; inv Hk; done.
+        rewrite Hop in Hk; destruct x; inversion Hk; subst; done.
     - destruct x; last done.
       destruct Hk as [-> Hv].
       iDestruct "Hv" as "(% & _)".
@@ -447,16 +447,13 @@ Section lemmas.
     by eexists.
   Qed.
 
-  Lemma readable_Tsh : readable_share Tsh.
-  Proof. auto. Qed.
-
   Lemma resource_map_insert {γ m} k v :
     m !! k = None →
-    resource_map_auth γ 1 m ⊢ |==> resource_map_auth γ 1 (<[k := (YES (V := leibnizO V) (DfracOwn (Share Tsh)) readable_Tsh (to_agree v))]> m) ∗ k ↪[γ] v.
+    resource_map_auth γ 1 m ⊢ |==> resource_map_auth γ 1 (<[k := (YES (V := leibnizO V) (DfracOwn (Share share_top)) readable_top (to_agree v))]> m) ∗ k ↪[γ] v.
   Proof.
     unseal. intros ?.
     iIntros "H"; rewrite bi.sep_exist_l.
-    iExists readable_Tsh.
+    iExists readable_top.
     rewrite -own_op.
     iApply (own_update with "H").
     apply auth_update_alloc, alloc_singleton_local_update; done.
@@ -486,14 +483,14 @@ Section lemmas.
       intros ? Hk'; rewrite Hk' in Hk; inversion Hk as [?? Heq|].
       subst; rewrite Heq.
       destruct Hd as (? & Hd); rewrite Hd in Hv; apply dfrac_full_exclusive in Hv as ->.
-      rewrite right_id in Hd; inv Hd.
+      rewrite right_id in Hd; inversion Hd; subst; clear Hd.
       rewrite -{1}(uora_unit_right_id (YES _ _ _)).
-      assert (YES (V := leibnizO V) (DfracOwn (Share Tsh)) rsh0 (to_agree v) ≡ YES (V := leibnizO V) (DfracOwn (Share Tsh)) rsh (to_agree v)) as -> by done.
+      assert (YES (V := leibnizO V) (DfracOwn (Share share_top)) rsh0 (to_agree v) ≡ YES (V := leibnizO V) (DfracOwn (Share share_top)) rsh (to_agree v)) as -> by done.
       apply cancel_local_update_unit, _. }
     rewrite own_op; iDestruct "H" as "($ & _)"; done.
   Qed.
 
-  Lemma resource_map_update {γ m k sh v} (Hsh : writable0_share sh) w :
+  Lemma resource_map_update {γ m k sh v} (Hsh : share_writable sh) w :
     resource_map_auth γ 1 m -∗ k ↪[γ]{#sh} v ==∗ ∃ dq' rsh', ⌜✓ dq' ∧ DfracOwn (Share sh) ≼ dq' ∧
       m !! k ≡ Some (YES (V := leibnizO V) dq' rsh' (to_agree v))⌝ ∧
     resource_map_auth γ 1 (<[k := (YES dq' rsh' (to_agree w))]> m) ∗ k ↪[γ]{#sh} w.
@@ -542,36 +539,36 @@ Section lemmas.
   Lemma resource_map_insert_big {γ m} m' :
     dom m' ## dom m →
     resource_map_auth γ 1 m ⊢ |==>
-    resource_map_auth γ 1 (((λ v, (YES (V := leibnizO V) (DfracOwn (Share Tsh)) readable_Tsh (to_agree v))) <$> m') ∪ m) ∗ ([∗ map] k ↦ v ∈ m', k ↪[γ] v).
+    resource_map_auth γ 1 (((λ v, (YES (V := leibnizO V) (DfracOwn (Share share_top)) readable_top (to_agree v))) <$> m') ∪ m) ∗ ([∗ map] k ↦ v ∈ m', k ↪[γ] v).
   Proof.
-    revert m; induction m' as [|k v m' ? IH] using map_ind; decompose_map_disjoint; intros ? Hdisj.
+    revert m; induction m' as [|k v m' Hk IH] using map_ind; decompose_map_disjoint; intros ? Hdisj.
     { rewrite fmap_empty big_opM_empty.
       unseal. rewrite own_proper; first by iIntros "$".
       f_equiv; intros i; rewrite lookup_union lookup_empty option_union_left_id //. }
-  rewrite dom_insert in Hdisj; apply disjoint_union_l in Hdisj as [?%disjoint_singleton_l ?].
+  rewrite dom_insert in Hdisj; apply disjoint_union_l in Hdisj as [Hout%disjoint_singleton_l ?].
   rewrite big_sepM_insert // IH //.
   iIntros ">(H & $)".
   rewrite fmap_insert -insert_union_l.
   iApply (resource_map_insert with "H").
-  rewrite lookup_union lookup_fmap H1 /=.
-  eapply @not_elem_of_dom_1 in H2 as ->; last apply _; done.
+  rewrite lookup_union lookup_fmap Hk /=.
+  eapply @not_elem_of_dom_1 in Hout as ->; last apply _; done.
   Qed.
   Lemma resource_map_insert_persist_big {γ m} m' :
     dom m' ## dom m →
     resource_map_auth γ 1 m ⊢ |==>
     resource_map_auth γ 1 (((λ v, (YES (V := leibnizO V) DfracDiscarded I (to_agree v))) <$> m') ∪ m) ∗ ([∗ map] k ↦ v ∈ m', k ↪[γ]□ v).
   Proof.
-    induction m' as [|k v m' ? IH] using map_ind; decompose_map_disjoint; intros Hdisj.
+    induction m' as [|k v m' Hk IH] using map_ind; decompose_map_disjoint; intros Hdisj.
     { rewrite fmap_empty big_opM_empty.
       unseal. rewrite own_proper; first by iIntros "$".
       f_equiv; intros i; rewrite lookup_union lookup_empty option_union_left_id //. }
-    rewrite dom_insert in Hdisj; apply disjoint_union_l in Hdisj as [?%disjoint_singleton_l ?].
+    rewrite dom_insert in Hdisj; apply disjoint_union_l in Hdisj as [Hout%disjoint_singleton_l ?].
     rewrite big_sepM_insert // IH //.
     iIntros ">(H & $)".
     rewrite fmap_insert -insert_union_l.
     iApply (resource_map_insert_persist with "H").
-    rewrite lookup_union lookup_fmap H1 /=.
-    eapply @not_elem_of_dom_1 in H2 as ->; last apply _; done.
+    rewrite lookup_union lookup_fmap Hk /=.
+    eapply @not_elem_of_dom_1 in Hout as ->; last apply _; done.
   Qed.
 
   Lemma resource_map_delete_big {γ m} m0 :
@@ -587,7 +584,7 @@ Section lemmas.
     rewrite fmap_insert -insert_union_l //.
   Qed.
 
-  Lemma resource_map_update_big {γ m} sh (Hsh : writable0_share sh) m0 m1 :
+  Lemma resource_map_update_big {γ m} sh (Hsh : share_writable sh) m0 m1 :
     dom m0 = dom m1 →
     resource_map_auth γ 1 m -∗
     ([∗ map] k↦v ∈ m0, k ↪[γ]{#sh} v) ==∗

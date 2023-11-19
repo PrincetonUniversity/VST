@@ -65,10 +65,10 @@ endif
 # CLIGHTGEN=$(my_local_bin_path)/clightgen
 
 # # User settable variables #
-COMPCERT ?= platform
+COMPCERT ?= bundled
 ZLIST ?= bundled
 ARCH ?= 
-BITSIZE ?=
+BITSIZE ?= 64
 
 # # Internal variables #
 # Set to true if the bundled CompCert is used
@@ -260,9 +260,9 @@ endif
 # ########## Flags ##########
 
 ifeq ($(ZLIST),platform)
-  VSTDIRS= msl sepcomp veric floyd $(PROGSDIR) concurrency ccc26x86 atomics lithium
+  VSTDIRS= shared msl sepcomp veric floyd $(PROGSDIR) concurrency ccc26x86 atomics lithium
 else
-  VSTDIRS= msl sepcomp veric zlist floyd $(PROGSDIR) concurrency ccc26x86 atomics lithium
+  VSTDIRS= shared msl sepcomp veric zlist floyd $(PROGSDIR) concurrency ccc26x86 atomics lithium
 endif
 OTHERDIRS= wand_demo sha hmacfcf tweetnacl20140427 hmacdrbg aes mailbox boringssl_fips_20180730
 DIRS = $(VSTDIRS) $(OTHERDIRS)

@@ -430,7 +430,7 @@ Proof.
       subst; auto.
 Qed.
 
-Lemma not_ptr_False: forall (A : mpred) p, (A ⊢ ⌜isptr p⌝) <-> (~ isptr p -> A ⊣⊢ False).
+Lemma not_ptr_False {prop:bi}: forall  (A : prop) p, (A ⊢ ⌜isptr p⌝) <-> (~ isptr p -> A ⊣⊢ False).
 Proof.
   intros.
   split; intros.
@@ -1361,7 +1361,7 @@ Other lemmas
 
 ************************************************)
 
-Lemma compute_legal_nested_field_spec: forall (P: mpred) t gfs,
+Lemma compute_legal_nested_field_spec {prop:bi}: forall (P: prop) t gfs,
   Forall (fun Q => P ⊢ ⌜Q⌝) (compute_legal_nested_field t gfs) ->
   P ⊢ ⌜legal_nested_field t gfs⌝.
 Proof.
@@ -1526,8 +1526,8 @@ intros.
 apply field_at_conflict; auto.
 Qed.
 
-Lemma sepcon_False_derives':
-  forall (P Q: mpred), (Q ⊢ False) -> P ∗ Q ⊢ False.
+Lemma sepcon_False_derives' {prop:bi}:
+  forall (P Q: prop), (Q ⊢ False) -> P ∗ Q ⊢ False.
 Proof.
   intros ?? ->.
   iIntros "(_ & [])".
@@ -1659,6 +1659,7 @@ End CENV.
   (apply memory_block_weak_valid_pointer;
         [rep_lia | rep_lia | auto with valid_pointer]) : valid_pointer.
 
+Local Set SsrRewrite. (* for rewrite bi._ to work *)
 Ltac field_at_conflict z fld :=
  apply (derives_trans _ False); [ | apply bi.False_elim];
  repeat rewrite bi.sep_assoc;
@@ -1692,7 +1693,7 @@ Ltac data_at_conflict_neq_aux1 A sh fld E x y :=
         but rewriting H1 can fail, as the goal might be _-∗⌜C[~E]⌝
         for some context C *)
      let H1 := fresh in fancy_intro H1;
-     rewrite ?(bi.pure_True (~E)) by assumption
+     rewrite ->?(bi.pure_True (~E)) by assumption
     ].
 
 Ltac data_at_conflict_neq_aux2 A E x y :=
@@ -1710,6 +1711,7 @@ Ltac data_at_conflict_neq :=
    | context [~ ptr_eq ?x ?y] => data_at_conflict_neq_aux2 A (ptr_eq x y) x y
    end
   end.
+Local Unset SsrRewrite.
 
 Definition natural_aligned {cs: compspecs} (na: Z) (t: type): bool := (na mod (hardware_alignof ha_env_cs t) =? 0) && is_aligned cenv_cs ha_env_cs la_env_cs t 0.
 
@@ -1998,7 +2000,7 @@ Ltac find_field_at N :=
 Ltac find_data_at N :=
  match N with
  | S O =>  match goal with |- context[@data_at _ _ ?cs ?sh ?t] =>
-                 change (@data_at _ _ cs sh t) with (field_at_mark cs sh t nil) at 1
+                 change (@data_at _ _ cs sh t) with (field_at_mark _ _ cs sh t nil) at 1
                  end;
                  change data_at_hide with @data_at
  | S ?k => change @data_at with data_at_hide at 1;

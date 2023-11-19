@@ -4,6 +4,10 @@ Require Import VST.progs64.ptr_cmp.
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
+Section Spec.
+
+Context  `{!default_VSTGS Σ}.
+
 Definition t_struct_tree := Tstruct _tree noattr.
 
 (** Some useful lemmas about comparing two pointers. 
@@ -17,43 +21,42 @@ Inductive Tree : Type :=
 Fixpoint tree_rep (t: Tree) (p p_lch p_rch: val): mpred :=
   match t with
   | T k lch rch   =>
-    EX p_lch_l: val, EX p_lch_r: val, 
-    EX p_rch_l: val, EX p_rch_r: val, 
+    ∃ (p_lch_l p_lch_r p_rch_l p_rch_r: val),
     data_at Tsh t_struct_tree 
       (Vint (Int.repr k), (p_lch, p_rch)) p
-    * tree_rep lch p_lch p_lch_l p_lch_r 
-    * tree_rep rch p_rch p_rch_l p_rch_r 
-  | E => !! (p = nullval) && emp 
+    ∗ tree_rep lch p_lch p_lch_l p_lch_r 
+    ∗ tree_rep rch p_rch p_rch_l p_rch_r 
+  | E => ⌜p = nullval⌝ ∧ emp 
   end.
 
 (** Representation of the parent-child relationship. *)
 Definition fa_rep (d: bool) (t: Tree) (p_ch p_fa: val) : mpred :=
   match d with
   | true    => 
-    EX p_oppo: val, tree_rep t p_fa p_ch p_oppo
+    ∃ p_oppo: val, tree_rep t p_fa p_ch p_oppo
   | false   =>
-    EX p_oppo: val, tree_rep t p_fa p_oppo p_ch
+    ∃ p_oppo: val, tree_rep t p_fa p_oppo p_ch
   end.
 
 (** Some basic lemmas. *)
 Lemma tree_rep_saturate_local:
-   forall t p p_lch p_rch, tree_rep t p p_lch p_rch |-- !! is_pointer_or_null p.
+   forall t p p_lch p_rch, tree_rep t p p_lch p_rch ⊢ ⌜is_pointer_or_null p⌝.
 Proof.
   destruct t; simpl; intros.
   entailer!.
   Intros p_lch_l p_lch_r p_rch_l p_rch_r. entailer!.
 Qed.
-#[export] Hint Resolve tree_rep_saturate_local: saturate_local.
+Hint Resolve tree_rep_saturate_local: saturate_local.
 
 Lemma tree_rep_valid_pointer:
-  forall t p p_lch p_rch, tree_rep t p p_lch p_rch |-- valid_pointer p.
+  forall t p p_lch p_rch, tree_rep t p p_lch p_rch ⊢ valid_pointer p.
 Proof.
   intros.
   destruct t. 
   - simpl. entailer!. 
   - simpl; normalize; auto with valid_pointer.
 Qed.
-#[export] Hint Resolve tree_rep_valid_pointer: valid_pointer.
+Hint Resolve tree_rep_valid_pointer: valid_pointer.
 
 Definition bool2int (d: bool) : Z :=
   match d with
@@ -79,7 +82,7 @@ Definition Gprog : funspecs :=
   ltac:(with_library prog [get_branch_spec]).
 
 (** Now try to prove this program. *)
-Theorem body_get_branch_old_fashion: semax_body Vprog Gprog f_get_branch get_branch_spec.
+Theorem body_get_branch_old_fashion: semax_body Vprog Gprog ⊤ f_get_branch get_branch_spec.
 Proof.
   start_function. 
   (* first eliminate the possibility that t is empty *)
@@ -127,11 +130,10 @@ Proof.
       (data_at_conflict Tsh t_struct_tree 
         (Vint (Int.repr k0), (p_lch_l, p_lch_r))
         (Vint (Int.repr k1), (p_rch_l, p_rch_r))
-        p_oppo top_share_nonidentity).
+        p_oppo Share.nontrivial).
       sep_apply H1.
-      sep_apply FF_local_facts.
       Intros.
-      destruct H2.
+      done.
     }
     {
       (* valid case *)
@@ -148,7 +150,7 @@ Qed.
 Lemma tree_rep_conflict :
   forall p t1 t2 p_ll p_lr p_rl p_rr, 
   p <> nullval ->
-  tree_rep t1 p p_ll p_lr * tree_rep t2 p p_rl p_rr |-- !! False.
+  tree_rep t1 p p_ll p_lr ∗ tree_rep t2 p p_rl p_rr ⊢ ⌜False⌝.
 Proof.
   intros.
   destruct t1. 
@@ -179,7 +181,7 @@ Ltac show_the_way d :=
   subst;
   try tree_rep_conflict. 
 
-Theorem body_get_branch_new_fashion: semax_body Vprog Gprog f_get_branch get_branch_spec.
+Theorem body_get_branch_new_fashion: semax_body Vprog Gprog ⊤ f_get_branch get_branch_spec.
 Proof.
 
   (** Now prove the theorem again, with the new tactics. *)
@@ -196,3 +198,5 @@ Proof.
   Exists p_oppo p_lch_l p_lch_r p_rch_l p_rch_r;
   entailer!.
 Qed.
+
+End Spec.

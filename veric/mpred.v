@@ -196,6 +196,18 @@ Program Definition argsassert_of (P : argsassert') : argsassert := {| monPred_at
 
 Coercion argsassert_of : argsassert' >-> argsassert.
 
+Lemma assert_of_at : forall (P : assert), assert_of (monPred_at P) ⊣⊢ P.
+Proof. done. Qed.
+
+Lemma argsassert_of_at : forall (P : argsassert), argsassert_of (monPred_at P) ⊣⊢ P.
+Proof. done. Qed.
+
+Lemma assert_of_embed P: assert_of (fun _ => P) ⊣⊢ ⎡P⎤.
+Proof.
+  intros.
+  split => rho //; monPred.unseal; done.
+Qed.
+
 Section funspec.
 
 (* funspecs are effectively dependent pairs of an algebra and a pair of assertions on that algebra.
@@ -413,7 +425,7 @@ Class funspecGS Σ := FunspecG {
 
 Class heapGS Σ := HeapGS {
   heapGS_invGS :> invGS_gen HasNoLc Σ;
-  heapGS_gen_heapGS :> gen_heapGS address resource Σ;
+  heapGS_gen_heapGS :> gen_heapGS share address resource Σ;
   heapGS_funspecGS :> funspecGS Σ
 }.
 
@@ -534,7 +546,7 @@ Ltac super_unfold_lift :=
   cbv delta [liftx LiftEnviron LiftAEnviron Tarrow Tend lift_S lift_T lift_prod
   lift_last lifted lift_uncurry_open lift_curry lift lift0 lift1 lift2 lift3 alift0 alift1 alift2 alift3] beta iota in *.
 
-(* switch from an entailment on asserts to mpreds *)
+(* switch from an entailment on asserts to mpreds; mostly the same as monPred.unseal *)
 Ltac raise_rho :=
   try (constructor; intro rho); 
   repeat (rewrite monPred_at_and ||

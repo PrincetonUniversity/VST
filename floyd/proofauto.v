@@ -49,6 +49,82 @@ Require Export VST.floyd.data_at_list_solver.
 Require Export VST.floyd.data_at_lemmas.
 Require VST.floyd.linking.
 
+(* undo some "simpl never" settings from std++ 
+   https://gitlab.mpi-sws.org/iris/stdpp/-/blob/master/stdpp/numbers.v *)
+#[global] Arguments Pos.pred : simpl never.
+#[global] Arguments Pos.succ : simpl never.
+#[global] Arguments Pos.of_nat : simpl nomatch.
+#[global] Arguments Pos.to_nat !x /.
+#[global] Arguments Pos.mul : simpl nomatch.
+#[global] Arguments Pos.add : simpl nomatch.
+#[global] Arguments Pos.sub : simpl nomatch.
+#[global] Arguments Pos.pow : simpl nomatch.
+#[global] Arguments Pos.shiftl : simpl nomatch.
+#[global] Arguments Pos.shiftr : simpl nomatch.
+#[global] Arguments Pos.gcd : simpl nomatch.
+#[global] Arguments Pos.min : simpl nomatch.
+#[global] Arguments Pos.max : simpl nomatch.
+#[global] Arguments Pos.lor : simpl nomatch.
+#[global] Arguments Pos.land : simpl nomatch.
+#[global] Arguments Pos.lxor : simpl nomatch.
+#[global] Arguments Pos.square : simpl nomatch.
+
+#[global] Arguments N.pred : simpl nomatch.
+#[global] Arguments N.succ : simpl nomatch.
+#[global] Arguments N.of_nat : simpl nomatch.
+#[global] Arguments N.to_nat : simpl nomatch.
+#[global] Arguments N.mul : simpl nomatch.
+#[global] Arguments N.add : simpl nomatch.
+#[global] Arguments N.sub : simpl nomatch.
+#[global] Arguments N.pow : simpl nomatch.
+#[global] Arguments N.div : simpl nomatch.
+#[global] Arguments N.modulo : simpl nomatch.
+#[global] Arguments N.shiftl : simpl nomatch.
+#[global] Arguments N.shiftr : simpl nomatch.
+#[global] Arguments N.gcd : simpl nomatch.
+#[global] Arguments N.lcm : simpl nomatch.
+#[global] Arguments N.min : simpl nomatch.
+#[global] Arguments N.max : simpl nomatch.
+#[global] Arguments N.lor : simpl nomatch.
+#[global] Arguments N.land : simpl nomatch.
+#[global] Arguments N.lxor : simpl nomatch.
+#[global] Arguments N.lnot : simpl nomatch.
+#[global] Arguments N.square : simpl nomatch.
+
+#[global] Arguments Z.pred : simpl nomatch.
+#[global] Arguments Z.succ : simpl nomatch.
+#[global] Arguments Z.of_nat : simpl nomatch.
+#[global] Arguments Z.to_nat : simpl nomatch.
+#[global] Arguments Z.mul : simpl nomatch.
+#[global] Arguments Z.add : simpl nomatch.
+#[global] Arguments Z.sub : simpl nomatch.
+#[global] Arguments Z.opp : simpl nomatch.
+#[global] Arguments Z.pow : simpl nomatch.
+#[global] Arguments Z.div : simpl nomatch.
+#[global] Arguments Z.modulo : simpl nomatch.
+#[global] Arguments Z.quot : simpl nomatch.
+#[global] Arguments Z.rem : simpl nomatch.
+#[global] Arguments Z.shiftl : simpl nomatch.
+#[global] Arguments Z.shiftr : simpl nomatch.
+#[global] Arguments Z.gcd : simpl nomatch.
+#[global] Arguments Z.lcm : simpl nomatch.
+#[global] Arguments Z.min : simpl nomatch.
+#[global] Arguments Z.max : simpl nomatch.
+#[global] Arguments Z.lor : simpl nomatch.
+#[global] Arguments Z.land : simpl nomatch.
+#[global] Arguments Z.lxor : simpl nomatch.
+#[global] Arguments Z.lnot : simpl nomatch.
+#[global] Arguments Z.square : simpl nomatch.
+#[global] Arguments Z.abs : simpl nomatch.
+
+Global Arguments Qreduction.Qred : simpl never.
+Global Arguments pos_to_Qp : simpl never.
+Global Arguments Qp.add : simpl never.
+Global Arguments Qp.sub : simpl never.
+Global Arguments Qp.mul : simpl never.
+Global Arguments Qp.inv : simpl never.
+Global Arguments Qp.div : simpl never.
+
 (*funspec scope is the default, so remains open.
   Users who want to use old funspecs should 
   "Require Import Require Import VST.floyd.Funspec_old_Notation."

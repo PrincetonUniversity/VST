@@ -1,15 +1,15 @@
 From iris.algebra Require Import agree.
 From iris_ora.algebra Require Import agree.
 Require Import VST.zlist.sublist.
-Require Import VST.veric.shared.
+Require Import VST.shared.shared.
 Require Import VST.veric.juicy_base.
 Require Import VST.veric.juicy_mem.
 Require Import VST.veric.juicy_mem_lemmas.
 Require Import VST.veric.res_predicates.
-Require Import VST.veric.resource_map.
+Require Import VST.shared.resource_map.
 Require Import VST.veric.seplog.
 Require Import VST.veric.shares.
-Require Import VST.veric.dshare.
+Require Import VST.shared.dshare.
 Require Import VST.veric.mpred.
 Require Import VST.veric.mapsto_memory_block.
 Import Values.
@@ -194,7 +194,7 @@ Proof. auto. Qed.
 
 Definition res_of_loc (loc : address) : sharedR (leibnizO resource) :=
   match access_at m loc Cur with
-  | Some Freeable => (shared.YES(V := leibnizO resource) (DfracOwn (Share Tsh)) readable_Tsh (to_agree (VAL (contents_at m loc))))
+  | Some Freeable => (shared.YES(V := leibnizO resource) (DfracOwn (Share Tsh)) readable_top (to_agree (VAL (contents_at m loc))))
   | Some Writable => (shared.YES(V := leibnizO resource) (DfracOwn (Share Ews)) readable_Ews (to_agree (VAL (contents_at m loc))))
   | Some Readable => (shared.YES(V := leibnizO resource) (DfracOwn (Share Ers)) readable_Ers (to_agree (VAL (contents_at m loc))))
   | Some Nonempty => match funspec_of_loc loc with
@@ -1302,7 +1302,7 @@ Proof.
   rewrite /inflate_loc.
   destruct (funspec_of_loc _ _ _).
   - rewrite Hm //.
-  - replace (DfracOwn (Share Tsh)) with (ε ⋅ DfracOwn (Share Tsh)) by rewrite left_id //.
+  - replace (DfracOwn (Share share_top)) with (ε ⋅ DfracOwn (Share share_top)) by rewrite left_id //.
     replace (DfracOwn (Share Ews)) with (ε ⋅ DfracOwn (Share Ews)) by rewrite left_id //.
     replace (DfracOwn (Share Ers)) with (ε ⋅ DfracOwn (Share Ers)) by rewrite left_id //.
     destruct (access_at _ _ _); last done.

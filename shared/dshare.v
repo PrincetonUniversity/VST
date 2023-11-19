@@ -1,18 +1,20 @@
 (* modified from iris.algebra.dfrac *)
+(* It would be interesting to unify this with dfrac as a generic "discardable" functor, but
+   even the base datatype is slightly different, so I'm not sure it's possible. *)
 
 From stdpp Require Import countable.
 From iris.algebra Require Export cmra.
 From iris.algebra Require Import updates proofmode_classes.
 From iris_ora.algebra Require Export ora.
 From iris.prelude Require Import options.
-Require Export VST.veric.share_alg.
+Require Export VST.shared.share_alg.
 
 (** Since shares have a unit, we use DfracBoth Share.bot as the persistent fraction. *)
-Inductive dfrac :=
-  | DfracOwn : shareO → dfrac (* Would it make sense to have a separate constructor for unreadable shares? *)
-  | DfracBoth : shareO → dfrac.
+Inductive dfrac `{ShareType} :=
+  | DfracOwn : share_car → dfrac (* Would it make sense to have a separate constructor for unreadable shares? *)
+  | DfracBoth : share_car → dfrac.
 
-Definition DfracDiscarded := DfracBoth (Share Share.bot).
+Definition DfracDiscarded `{ShareType} := DfracBoth (Share share_bot).
 
 (* This notation is intended to be used as a component in other notations that
    include discardable fractions. The notation provides shorthands for the
@@ -22,17 +24,20 @@ Declare Custom Entry dfrac.
 Notation "{ dq }" := (dq) (in custom dfrac at level 1, dq constr).
 Notation "□" := DfracDiscarded (in custom dfrac).
 Notation "{# q }" := (DfracOwn (Share q)) (in custom dfrac at level 1, q constr).
-Notation "" := (DfracOwn (Share Tsh)) (in custom dfrac).
+Notation "" := (DfracOwn (Share share_top)) (in custom dfrac).
 
 Section dfrac.
+
+Context `{ST : ShareType}.
+
   Canonical Structure dfracO := leibnizO dfrac.
 
-  Implicit Types p q : shareO.
+  Implicit Types p q : share_car.
   Implicit Types dp dq : dfrac.
 
   Global Instance dfrac_inhabited : Inhabited dfrac := populate DfracDiscarded.
-  Global Instance dfrac_eq_dec : EqDecision dfrac.
-  Proof. solve_decision. Defined.
+(*  Global Instance dfrac_eq_dec : EqDecision dfrac.
+  Proof. solve_decision. Defined.*)
 (*  Global Instance dfrac_countable : Countable dfrac.
   Proof.
     set (enc dq := match dq with
@@ -56,7 +61,7 @@ Section dfrac.
   Local Instance dfrac_valid_instance : Valid dfrac := λ dq,
     match dq with
     | DfracOwn q => ✓ q
-    | DfracBoth q => ∃ sh, q = Share sh ∧ ¬writable0_share sh
+    | DfracBoth q => ∃ sh, q = Share sh ∧ ¬share_writable sh
     end%Qp.
 
   Local Instance dfrac_pcore_instance : PCore dfrac := λ dq, Some
@@ -119,10 +124,10 @@ Section dfrac.
       + intros (? & H & ?); eapply cmra_valid_op_l; setoid_rewrite H; done.
       + intros (? & (? & ? & -> & -> & J)%share_op_join & ?).
         eexists; split; first done.
-        intros X; apply join_writable01 in J; auto.
+        intros X; apply writable_mono in J; auto.
       + intros (? & (? & ? & -> & -> & J)%share_op_join & ?).
         eexists; split; first done.
-        intros X; apply join_writable01 in J; auto.
+        intros X; apply writable_mono in J; auto.
   Qed.
   Canonical Structure dfracC := discreteR dfrac dfrac_ra_mixin.
 
@@ -141,25 +146,25 @@ Section dfrac.
       rewrite J; hnf; eauto.
   Qed.
 
-  Local Instance dfrac_unit : Unit dfrac := DfracOwn (Share Share.bot).
+  Local Instance dfrac_unit : Unit dfrac := DfracOwn (Share share_bot).
 
-  Lemma dfrac_full_exclusive : ∀ dq, ✓ (DfracOwn (Share Tsh) ⋅ dq) → dq = ε.
+  Lemma dfrac_full_exclusive : ∀ dq, ✓ (DfracOwn (Share share_top) ⋅ dq) → dq = ε.
   Proof.
     intros [q|q]; rewrite /op /=.
     - intros (? & ? & ? & [=] & -> & ? & J)%share_valid2_joins; subst.
-      apply join_Tsh in J as (-> & ->); done.
+      rewrite share_op_comm in J; apply share_op_top' in J as (-> & ->); done.
     - intros (? & (? & ? & [=] & -> & J)%share_op_join & ?); subst.
-      apply join_Tsh in J as (-> & ->).
-      contradiction H; apply writable_writable0; auto.
+      rewrite share_op_comm in J; apply share_op_top' in J as (-> & ->).
+      contradiction H; apply writable_top; auto.
   Qed.
 
-  Global Instance dfrac_full_cancelable : Cancelable (DfracOwn (Share Tsh)).
+  Global Instance dfrac_full_cancelable : Cancelable (DfracOwn (Share share_top)).
   Proof.
     intros ??? ->%dfrac_full_exclusive H.
     destruct z; last done.
     rewrite /op /cmra_op /= right_id in H; injection H as H.
     symmetry in H; apply share_op_join in H as (? & ? & [=] & ? & J); subst.
-    apply join_Tsh in J as (_ & ->); done.
+    rewrite share_op_comm in J; apply share_op_top' in J as (_ & ->); done.
   Qed.
 
   Definition dfrac_ucmra_mixin : UcmraMixin dfrac.
@@ -169,52 +174,52 @@ Section dfrac.
   Qed.
   Canonical Structure dfracUC := Ucmra dfrac dfrac_ucmra_mixin.
 
-  Lemma dfrac_valid_own_1 : ✓ DfracOwn (Share Tsh).
+  Lemma dfrac_valid_own_1 : ✓ DfracOwn (Share share_top).
   Proof. hnf; eauto. Qed.
 
-(*  Lemma dfrac_valid_own_r dq q : ✓ (dq ⋅ DfracOwn q) → exists sh, q = Some sh ∧ sh ≠ Tsh.
+(*  Lemma dfrac_valid_own_r dq q : ✓ (dq ⋅ DfracOwn q) → exists sh, q = Some sh ∧ sh ≠ share_top.
   Proof.
     destruct dq as [q'| |q'].
     - intros (? & ? & ? & -> & -> & ? & J)%share_valid2_joins.
       eexists; split; first done; intros ->.
-      apply sepalg.join_comm, join_Tsh in J as [].
+      rewrite share_op_comm, share_op_top in J as [].
     - intros [H ?]; split; intros ?; subst; try done.
       contradiction H; by apply writable_writable0.
     - intros [? (? & ? & J)%share_valid2_joins].
       split; auto; intros ->.
-      apply sepalg.join_comm, join_Tsh in J as []; contradiction.
+      rewrite share_op_comm, share_op_top in J as []; contradiction.
   Qed.
 
-  Lemma dfrac_valid_own_l dq q : ✓ (DfracOwn q ⋅ dq) → q ≠ Tsh /\ q ≠ Share.bot.
+  Lemma dfrac_valid_own_l dq q : ✓ (DfracOwn q ⋅ dq) → q ≠ share_top /\ q ≠ Share.bot.
   Proof. rewrite comm. apply dfrac_valid_own_r. Qed.*)
 
   Lemma dfrac_valid_discarded : ✓ DfracDiscarded.
   Proof.
     hnf.
     eexists; split; first done.
-    intros ?%writable0_readable; contradiction bot_unreadable.
+    intros ?%writable_readable; contradiction unreadable_bot.
   Qed.
 
   Lemma dfrac_valid_own_discarded q :
-    ✓ (DfracOwn q ⋅ DfracDiscarded) ↔ ∃ sh, q = Share sh ∧ ~writable0_share sh.
+    ✓ (DfracOwn q ⋅ DfracDiscarded) ↔ ∃ sh, q = Share sh ∧ ~share_writable sh.
   Proof.
     rewrite /op /= /valid /=.
     rewrite right_id //.
   Qed.
 
   Definition readable_dfrac (dq : dfrac) :=
-    match dq with DfracOwn (Share sh) => readable_share sh | DfracBoth (Share _) => True | _ => False end.
+    match dq with DfracOwn (Share sh) => share_readable sh | DfracBoth (Share _) => True | _ => False end.
 
   Lemma dfrac_valid_own_readable dq q : readable_dfrac dq ->
-    ✓ (dq ⋅ DfracOwn q) → ∃ sh, q = Share sh ∧ ¬writable0_share sh.
+    ✓ (dq ⋅ DfracOwn q) → ∃ sh, q = Share sh ∧ ¬share_writable sh.
   Proof.
     intros Hdq; destruct dq as [q'|q']; try done.
     - intros (? & ? & ? & -> & -> & ? & J)%share_valid2_joins.
       eexists; split; first done.
-      intros ?; apply sepalg.join_comm in J; eapply join_writable0_readable; eauto.
+      intros ?; rewrite share_op_comm writable_readable_conflict // in J.
     - intros (? & (? & ? & -> & -> & J)%share_op_join & ?).
       eexists; split; first done.
-      intros X; apply sepalg.join_comm in J; contradiction H; eapply join_writable01; eauto.
+      intros X; rewrite share_op_comm in J; contradiction H; eapply writable_mono; eauto.
   Qed.
 
   Global Instance dfrac_is_op q q1 q2 :

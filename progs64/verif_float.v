@@ -5,7 +5,9 @@ Require Import VST.progs64.float.
 #[export] Instance CompSpecs : compspecs.
 Proof. make_compspecs prog. Defined.
 
-Local Open Scope logic.
+Section Spec.
+
+Context  `{!default_VSTGS Σ}.
 
 Definition main_spec :=
  DECLARE _main
@@ -19,10 +21,12 @@ Definition Vprog : varspecs := (_s, t_struct_foo)::(_a, tarray tdouble 2)::nil.
 
 Definition Gprog : funspecs :=   ltac:(with_library prog [main_spec]).
 
-Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
+Lemma body_main:  semax_body Vprog Gprog ⊤ f_main main_spec.
 Proof.
 start_function.
 match goal with |- context [SEPx(?A::_)] => freeze FR1 := A end.
+unfold default_VSTGS in default_VSTGS0.
+destruct  default_VSTGS0 eqn:?.
 pose (f :=  PROP () LOCAL (gvars gv)
   SEP (FRZL FR1; data_at Ews t_struct_foo (Vint (Int.repr 5),
           (Vsingle (Float32.of_bits (Int.repr 1079655793)),
@@ -37,8 +41,8 @@ unfold data_at.
 entailer!.
 simpl.
 unfold field_at, data_at_rec, at_offset. simpl.
-  repeat (rewrite prop_true_andp by (auto with field_compatible)).
-fold noattr; fold tint; fold tfloat; fold tdouble.
+  repeat (rewrite ->prop_true_andp by (auto with field_compatible)).
+fold noattr; fold tint; fold tfloat; fold tdouble. 
 repeat match goal with |- context [field_offset ?A ?B ?C] =>
   set (aa :=field_offset A B C); compute in aa; subst aa
 end.
@@ -55,3 +59,5 @@ forward.
 forward.
 forward.
 Qed.
+
+End Spec.

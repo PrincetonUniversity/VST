@@ -130,6 +130,8 @@ Proof.
   eapply semax_load_nth_ram_field_at; done.
 Qed.
 
+Local Notation PROPx := (PROPx(Σ := Σ)).
+
 Lemma nth_error_SEP_sepcon_TT': forall D P Q R n Rn S,
   ENTAIL D, PROPx P (LOCALx Q (SEPx (Rn :: nil))) ⊢ S ->
   nth_error R n = Some Rn ->
@@ -385,7 +387,7 @@ Inductive msubst_efield_denote `{!heapGS Σ} {cs: compspecs} (Delta: tycontext) 
 
 Lemma msubst_efield_denote_eq: forall `{!heapGS Σ} {cs: compspecs} Delta P T1 T2 GV R efs gfs,
   msubst_efield_denote Delta T1 T2 GV efs gfs ->
-  ENTAIL Delta, PROPx P (LOCALx (LocalD T1 T2 GV) (SEPx R)) ⊢ local (efield_denote efs gfs).
+  ENTAIL Delta, PROPx(Σ := Σ) P (LOCALx (LocalD T1 T2 GV) (SEPx R)) ⊢ local (efield_denote efs gfs).
 Proof.
   intros ? ? ? ? ? ? ? ? ? ? ? MSUBST_EFIELD_DENOTE.
   induction MSUBST_EFIELD_DENOTE.

@@ -12,6 +12,8 @@ Section mpred.
 
 Context `{!heapGS Σ}.
 
+Local Notation PROPx := (PROPx(Σ := Σ)).
+
 Lemma SEP_entail:
  forall R' Delta P Q R,
    (fold_right_sepcon R ⊢ fold_right_sepcon R') ->
@@ -702,9 +704,9 @@ Lemma snd_unfold: forall {A B} (x: A) (y: B), snd (x,y) = y.
 Proof. reflexivity. Qed.
 
 Lemma derives_extract_PROP :
-  forall {B} (P1: Prop) A P QR S,
+  forall {B} (P1: Prop) (A : monPred B _) P QR S,
      (P1 -> A ∧ PROPx P QR ⊢ S) ->
-     A ∧ @PROPx B Σ (P1::P) QR ⊢ S.
+     A ∧ PROPx (P1 :: P) QR ⊢ S.
 Proof.
 unfold PROPx in *.
 intros.
@@ -1107,9 +1109,9 @@ Proof.
 Qed.
 
 Lemma derives_extract_PROP' :
-  forall {A} (P1: Prop) P QR S,
+  forall {A} (P1: Prop) P QR (S : monPred A _),
      (P1 -> PROPx P QR ⊢ S) ->
-     @PROPx A Σ (P1::P) QR ⊢ S.
+     PROPx (P1::P) QR ⊢ S.
 Proof.
   intros.
   rewrite -(bi.True_and (PROPx _ _)).
@@ -2213,7 +2215,7 @@ match goal with
 end.
 
 Ltac Exists'' a :=
-  first [rewrite -(bi.exist_intro a)
+  first [rewrite -{1}(bi.exist_intro a)
          | rewrite bi.and_exist_l; Exists'' a
          | rewrite bi.and_exist_r; Exists'' a
          | rewrite bi.sep_exist_l; Exists'' a

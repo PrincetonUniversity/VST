@@ -5,7 +5,7 @@ Require Import VST.veric.mpred.
 Require Import VST.veric.address_conflict.
 Require Export VST.veric.shares.
 Require Import VST.veric.Cop2. (*for definition of tc_val'*)
-
+Require Import Coq.Logic.JMeq.
 (* Diagnostic tactic, useful because intuition can be much slower than tauto 
 Tactic Notation "intuition" :=
  try (solve [tauto]; idtac "Intuition used where tauto would work");
@@ -344,6 +344,18 @@ Proof.
   iIntros "[_ P] !>".
   iExists x2, emp%I; iFrame; iPureIntro.
   split; auto; intros; iIntros "(_ & _ & $)".
+Qed.
+
+(* allows to unify A1 A2 first, as P, Q may depend on A *)
+Lemma funspec_sub_refl_dep E A1 A2 ts1 ts2 cc1 cc2 P1 P2 Q1 Q2 :
+  JMeq A1 A2 ->
+  ts1 = ts2 ->
+  cc1 = cc2 ->
+  JMeq P1 P2 ->
+  JMeq Q1 Q2 ->
+  funspec_sub E (mk_funspec A1 ts1 cc1 P1 Q1) (mk_funspec A2 ts2 cc2 P2 Q2).
+Proof.
+intros. subst. apply funspec_sub_refl.
 Qed.
 
 Lemma funspec_sub_trans E f1 f2 f3: funspec_sub E f1 f2 ->
