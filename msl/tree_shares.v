@@ -10,9 +10,7 @@ Require Import VST.msl.sepalg.
 Require Import VST.msl.boolean_alg.
 
 Require Import Recdef.
-Require Import NPeano.
 Require Import ZArith.
-Require Import Coq.Arith.Max.
 
 (** This module implements a share model
     via binary trees with boolean-labeled leaves.
