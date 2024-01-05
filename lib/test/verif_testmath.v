@@ -48,46 +48,55 @@ Definition ROUND {NAN: Nans} (t: type) (r: R) : R :=
                 (BinarySingleNaN.round_mode BinarySingleNaN.mode_NE)
                 r).
 
-Lemma BMULT_correct {NAN: Nans} {t} (x y: ftype t) :
+Lemma BMULT_correct {NAN: Nans} {t} `{STD: is_standard t} (x y: ftype t) :
   let prec := fprec t in let emax := femax t in 
   if Raux.Rlt_bool 
          (Rabs (ROUND t (FT2R x * FT2R y)))
          (Raux.bpow Zaux.radix2 emax)
        then
         FT2R (BMULT x y) = ROUND t (FT2R x * FT2R y) /\
-        is_finite _ _ (BMULT x y) = andb (is_finite _ _ x) (is_finite _ _ y) /\
-        (is_nan _ _ (BMULT x y) = false ->
-         Bsign _ _ (BMULT x y) = xorb (Bsign _ _ x) (Bsign _ _ y))
+        FPCore.is_finite (BMULT x y) = andb (FPCore.is_finite x) (FPCore.is_finite y) /\
+        (is_nan _ _ (float_of_ftype (BMULT x y)) = false ->
+         Bsign _ _ (float_of_ftype (BMULT x y)) = xorb (Bsign _ _ (float_of_ftype x)) (Bsign _ _ (float_of_ftype y)))
        else
-        B2FF _ _ (BMULT x y) = 
+        B2FF _ _ (float_of_ftype (BMULT x y)) = 
         binary_overflow prec emax BinarySingleNaN.mode_NE
-                    (xorb (Bsign _ _ x) (Bsign _ _ y)).
+                    (xorb (Bsign _ _ (float_of_ftype x)) (Bsign _ _ (float_of_ftype y))).
 Proof.
 intros.
+unfold BMULT, BINOP, ROUND.
+rewrite !FT2R_ftype_of_float.
+rewrite <- !B2R_float_of_ftype.
+rewrite !is_finite_Binary, !float_of_ftype_of_float.
 apply Bmult_correct.
 Qed.
 
-Lemma BPLUS_correct {NAN: Nans} {t} (x y: ftype t) :
+Lemma BPLUS_correct {NAN: Nans} {t} `{STD: is_standard t}  (x y: ftype t) :
   let prec := fprec t in let emax := femax t in 
-  is_finite _ _ x = true ->
-  is_finite _ _ y = true ->
+  FPCore.is_finite x = true ->
+  FPCore.is_finite y = true ->
   if   Raux.Rlt_bool (Rabs (ROUND t (FT2R x + FT2R y)))
           (Raux.bpow Zaux.radix2 emax)
   then FT2R (BPLUS x y) = ROUND t (FT2R x + FT2R y)%R /\
-        is_finite _ _ (BPLUS x y) = true /\
-        Bsign _ _ (BPLUS x y) = match
+        FPCore.is_finite (BPLUS x y) = true /\
+        Bsign _ _ (float_of_ftype (BPLUS x y)) = match
                     Raux.Rcompare (FT2R x + FT2R y)%R 0
                   with
-                  | Eq => (Bsign prec emax x &&
-                                 Bsign prec emax y)%bool
+                  | Eq => (Bsign prec emax (float_of_ftype x) &&
+                                 Bsign prec emax (float_of_ftype y))%bool
                   | Lt => true
                   | Gt => false
                   end
-       else B2FF _ _  (BPLUS x y) = 
-                 binary_overflow prec emax BinarySingleNaN.mode_NE  (Bsign _ _ x) /\  
-              Bsign _ _ x = Bsign _ _ y.
+       else B2FF _ _  (float_of_ftype (BPLUS x y)) = 
+                 binary_overflow prec emax BinarySingleNaN.mode_NE  
+                    (Bsign _ _ (float_of_ftype x)) /\  
+              Bsign _ _ (float_of_ftype x) = Bsign _ _ (float_of_ftype y).
 Proof.
 intros.
+unfold BPLUS, BINOP, ROUND.
+rewrite !FT2R_ftype_of_float.
+rewrite <- !B2R_float_of_ftype.
+rewrite !is_finite_Binary, !float_of_ftype_of_float in *.
 apply Bplus_correct; auto.
 Qed.
 
@@ -133,6 +142,18 @@ prove_roundoff_bound2.
  interval.
 Qed.
 
+Definition some_valmap [v: Maps.PTree.t {x: type & ftype x}] (H: valmap_valid v) :=
+  exist (@valmap_valid empty_collection) _ H.
+
+Ltac pose_valmap_of_list name vml :=
+    let z := compute_PTree (valmap_of_list' vml) in
+    let z := constr:(@abbreviate _ z) in
+    let H := fresh "VV" in
+    assert (H: valmap_valid z);
+      [apply (@compute_valmap_valid _); repeat apply conj; try apply I;
+         cbv[test_ptree test_ptree']; prove_incollection
+      | pose (name := some_valmap H : valmap)].
+
 
 
 Lemma f_model_accurate': forall t, 
@@ -142,9 +163,7 @@ Lemma f_model_accurate': forall t,
 Proof.
 intros.
 rename t into x.
-pose (vmap_list := [(_x, existT ftype _ x)]).
-pose (vmap :=
- ltac:(let z := compute_PTree (valmap_of_list (vmap_list)) in exact z)).
+pose_valmap_of_list vmap [(_x, existT ftype Tdouble (ftype_of_float x))].
 pose proof prove_roundoff_bound_x vmap.
 red in H0.
 spec H0. {
@@ -159,11 +178,10 @@ unfold f_model.
 change (FT2R _) with (FT2R (fval (env_ vmap) F')).
 forget (FT2R (fval (env_ vmap) F')) as g.
 simpl in H1.
-change (env_ vmap Tdouble _x) with x in H1.
-forget (B2R (fprec Tdouble) 1024 x) as t; intros.
+change (env_ vmap Tdouble _ _x) with x in H1.
 clear - H1.
 rewrite  Rplus_comm in H1.
-change (sin t * sin t + cos t * cos t) with ((sin t)² + (cos t)²) in H1.
+change (sin ?t * sin ?t + cos ?t * cos ?t) with ((sin t)² + (cos t)²) in H1.
 rewrite sin2_cos2 in H1.
 apply Rabs_le_inv in H1.
 lra.
