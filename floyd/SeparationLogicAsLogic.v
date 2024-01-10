@@ -107,7 +107,7 @@ with labeled_statements_ind (L: labeled_statements): all_suf_of_labeled_statemen
 End statement_ind.
 
 Ltac induction_stmt s :=
-  revert dependent s;
+  generalize dependent s;
   let s1 := fresh s "1" in
   let s2 := fresh s "2" in
   let IHs := fresh "IH" s in
@@ -1285,6 +1285,7 @@ Definition semax_ext := @MinimumLogic.semax_ext.
 Definition semax_external_FF := @MinimumLogic.semax_external_FF.
 Definition semax_external_funspec_sub := @MinimumLogic.semax_external_funspec_sub.
 Definition semax_external_binaryintersection := @MinimumLogic.semax_external_binaryintersection.
+Definition general_intersection_funspec_subIJ:= @MinimumLogic.general_intersection_funspec_subIJ.
 
 Section mpred.
 
@@ -1306,6 +1307,28 @@ Proof. intros.
   destruct SB1 as [X [X1 SB1]]; destruct SB2 as [_ [X2 SB2]].
   split3; [ apply X | trivial | simpl in X; intros ].
   destruct x as [[|] ?]; [ apply SB1 | apply SB2].
+Qed.
+
+Definition semax_body_generalintersection {V G cs E f iden I sig cc} {phi : I -> funspec}
+        (H1: forall i : I, typesig_of_funspec (phi i) = sig)
+        (H2: forall i : I, callingconvention_of_funspec (phi i) = cc) (HI: inhabited I)
+  (H: forall i, semax_body(C := cs) V G E f (iden, phi i)):
+  semax_body V G E f (iden, @general_intersection _ I sig cc phi H1 H2).
+Proof. destruct HI. split3.
+  { specialize (H X). specialize (H1 X); subst. destruct (phi X). simpl. apply H. }
+  { specialize (H X). specialize (H1 X); subst. destruct (phi X). simpl. apply H. }
+  intros. destruct x as [i Hi].
+  specialize (H i).
+  assert (fst sig = map snd (fst (fn_funsig f)) /\
+        snd sig = snd (fn_funsig f) /\
+        (forall (x : dtfr ((WithType_of_funspec (phi i)))),
+         semax E (func_tycontext f V G nil)
+           (close_precondition (map fst (fn_params f)) (argsassert_of ((Pre_of_funspec (phi i)) x)) ∗ stackframe_of f) 
+           (fn_body f) (frame_ret_assert (function_body_ret_assert (fn_return f) (assert_of ((Post_of_funspec (phi i)) x))) (stackframe_of f)))) as HH.
+  { intros. specialize (H1 i); specialize (H2 i). subst. unfold semax_body in H.
+    destruct (phi i); subst. destruct H as [? [? ?]]. split3; auto. }
+  clear H H1 H2. destruct HH as [HH1 [HH2 HH3]].
+  apply (HH3 Hi).
 Qed.
 
 Definition semax_func_mono := @AuxDefs.semax_func_mono (@Def.semax_external).

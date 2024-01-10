@@ -201,8 +201,8 @@ replace_SEP 0  (data_at wsh t_struct_SHA256state_st
  unfold data_at.
  go_lower; simpl; cancel. (* saturate_local makes entailer! is REALLY slow, but (go_lower; cancel) is fast. *)
  change (cons (Vint (Int.repr 128))) with (app [Vint (Int.repr 128)]).
- rewrite <- !(app_ass _ [_]).
- rewrite <- app_nil_end.
+ rewrite !(app_assoc _ [_]).
+ rewrite app_nil_r.
  rewrite field_at_data_at with (gfs := [StructField _data]) by reflexivity.
  eapply cancel_field_at_array_partial_undef; try reflexivity; try apply JMeq_refl.
  autorewrite with sublist. lia.
@@ -253,7 +253,7 @@ replace (splice_into_list (ddlen + 1) CBLOCKz
  clear - Hddlen. subst ddz fill_len ddlen. rewrite !map_app.
  change (cons (Vint (Int.repr 128))) with (app [Vint (Int.repr 128)]).
  rewrite map_repeat.
- rewrite <- ?app_ass.
+ rewrite ?app_assoc.
  unfold splice_into_list.
  change CBLOCKz with 64 in *.
  autorewrite with sublist. reflexivity. 
@@ -293,7 +293,7 @@ forward_call (* sha256_block_data_order (c,p); *)
   rewrite !map_app.
   unfold splice_into_list.
   autorewrite with sublist.
-  rewrite <- (app_ass (map Vubyte dd)).
+  rewrite (app_assoc (map Vubyte dd)).
   autorewrite with sublist.
   reflexivity.
 }
@@ -312,7 +312,7 @@ split.
   f_equal.
   rewrite <- HU.
   repeat rewrite map_app.
-  repeat rewrite app_ass.
+  repeat rewrite <- app_assoc.
  f_equal.
 *
  unfold_data_at (data_at _ _ _ _).

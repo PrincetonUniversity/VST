@@ -21,7 +21,7 @@ COQLIB=$(shell $(COQC) -where | tr -d '\r' | tr '\\' '/')
 
 # Check Coq version
 
-COQVERSION= 8.16.0 or-else 8.16.1 or-else 8.17+rc1 or-else 8.17 or-else 8.17.0
+COQVERSION= 8.16.0 or-else 8.16.1 or-else 8.17+rc1 or-else 8.17 or-else 8.17.0 or-else 8.17.1 or-else 8.18.0
 
 COQV=$(shell $(COQC) -v)
 ifneq ($(IGNORECOQVERSION),true)
@@ -56,8 +56,8 @@ endif
 # ARCH=powerpc
 #
 # # Choosing Flocq #
-# FLOCQ_PLATFORM (default, except for COMPCERT_BUNDLED_NEW)
-# FLOCQ_BUNDLED  (require for COMPCERT_BUNDLED_NEW, valid for COMPCERT_BUNDLED, COMPCERT_SRC_DIR)
+# FLOCQ=platform (default, except for COMPCERT_BUNDLED_NEW)
+# FLOCQ=bundled  (require for COMPCERT_BUNDLED_NEW, valid for COMPCERT_BUNDLED, COMPCERT_SRC_DIR)
 #
 # # Choosing Clightgen
 # Note:  By default, the rules for converting .c files to .v files are inactive.
@@ -225,8 +225,16 @@ endif
 
 # ##### Configure Flocq #####
 
-FLOCQ=         # this mode to use the flocq packaged with Coq or opam
-# FLOCQ= -Q $(COMPCERT_INST_DIR)/flocq Flocq  # this mode to use the flocq built into compcert
+
+ifeq ($(FLOCQ),bundled)
+ override FLOCQ= -R $(COMPCERT_INST_DIR)/flocq Flocq 
+ COMPCERTFLOCQDIRS= compcert/flocq/*/*.v
+ # this mode to use the flocq built into compcert
+endif
+ifeq ($(FLOCQ),platform)
+ undefine FLOCQ
+ # this mode to use the flocq packaged with Coq or opam
+endif
 
 # ##### Configure installation folder #####
 #  1. (if present) the VST installation for reasoning about 64-bit C programs
@@ -272,7 +280,7 @@ DIRS = $(VSTDIRS) $(OTHERDIRS)
 COMPCERTDIRS=lib common $(ARCHDIRS) cfrontend export $(BACKEND)
 
 ifeq ($(COMPCERT_EXPLICIT_PATH),true)
-  COMPCERT_R_FLAGS= $(foreach d, $(COMPCERTDIRS), -R $(COMPCERT_INST_DIR)/$(d) compcert.$(d))
+  COMPCERT_R_FLAGS= $(foreach d, $(COMPCERTDIRS), -R $(COMPCERT_INST_DIR)/$(d) compcert.$(d)) $(FLOCQ)
   EXTFLAGS= $(foreach d, $(COMPCERTDIRS), -Q $(COMPCERT_INST_DIR)/$(d) compcert.$(d)) $(FLOCQ)
 else
   COMPCERT_R_FLAGS=
@@ -324,6 +332,8 @@ COQFLAGS=$(foreach d, $(VSTDIRS), $(if $(wildcard $(d)), -Q $(d) VST.$(d))) $(fo
 
 DEPFLAGS:=$(COQFLAGS)
 
+COQFLAGS+=$(COQEXTRAFLAGS)
+
 # ##### Print configuration summary #####
 
 $(info ===== CONFIGURATION SUMMARY =====)
@@ -341,6 +351,7 @@ $(info COMPCERT_BUILD_FROM_SRC=$(COMPCERT_BUILD_FROM_SRC))
 $(info COMPCERT_NEW=$(COMPCERT_NEW))
 $(info COQFLAGS=$(COQFLAGS))
 $(info COMPCERT_R_FLAGS=$(COMPCERT_R_FLAGS))
+$(info FLOCQ=$(FLOCQ))
 $(info =================================)
 
 # ########## File Lists ##########
@@ -512,7 +523,7 @@ C64_ORDINARY = reverse.c revarray.c sumarray.c append.c bin_search.c \
     bst.c field_loadstore.c float.c object.c \
     global.c min.c min64.c nest2.c nest3.c \
     logical_compare.c \
-    strlib.c switch.c union.c message.c incr.c
+    strlib.c switch.c union.c message.c
 
 V64_ORDINARY = verif_reverse2.v verif_revarray.v verif_sumarray.v \
     verif_append2.v verif_bin_search.v \
@@ -600,7 +611,7 @@ AES_FILES = \
 # LINKED_C_FILES are those that need to be clightgen'd in a batch with others
 
 SINGLE_C_FILES = reverse.c reverse_client.c revarray.c queue.c queue2.c message.c object.c insertionsort.c float.c global.c logical_compare.c nest2.c nest3.c ptr_compare.c load_demo.c store_demo.c dotprod.c string.c field_loadstore.c merge.c append.c bin_search.c bst.c bst_oo.c min.c min64.c switch.c funcptr.c floyd_tests.c cond.c sumarray.c sumarray2.c int_or_ptr.c union.c cast_test.c strlib.c tree.c fib.c loop_minus1.c libglob.c peel.c structcopy.c printf.c stackframe_demo.c rotate.c \
-  objectSelf.c objectSelfFancy.c objectSelfFancyOverriding.c io.c io_mem.c incr.c incrN.c
+  objectSelf.c objectSelfFancy.c objectSelfFancyOverriding.c io.c io_mem.c
 
 
 LINKED_C_FILES = even.c odd.c
@@ -634,7 +645,6 @@ EXTRA_INSTALL_FILES = \
   VERSION \
   msl/CREDITS \
   msl/EXTRACTION \
-  msl/LICENSE \
   msl/README.html \
   msl/SUMMARY \
   doc/VC.pdf \
@@ -647,19 +657,19 @@ CC_TARGET= $(COMPCERT_INST_DIR)/cfrontend/Clight.vo
 CVFILES = $(patsubst %.c,$(PROGSDIR)/%.v,$(C_FILES))
 CVOFILES = $(patsubst %.c,$(PROGSDIR)/%.vo,$(C_FILES))
 
+PROGS64_FILES=$(V64_ORDINARY) incr.v
+
 ifeq ($(BITSIZE),64)
-PROGS_FILES=$(V64_ORDINARY)
+PROGS_FILES=$(PROGS64_FILES)
 else
 PROGS_FILES=$(PROGS32_FILES)
 endif
 
-PROGS64_FILES=$(V64_ORDINARY)
-
-INSTALL_FILES_SRC=$(shell COMPCERT=$(COMPCERT) COMPCERT_INST_DIR=$(COMPCERT_INST_DIR) ZLIST=$(ZLIST) BITSIZE=$(BITSIZE) ARCH=$(ARCH) IGNORECOQVERSION=$(IGNORECOQVERSION) MAKE=$(MAKE) util/calc_install_files $(PROGSDIR))
+INSTALL_FILES_SRC=$(shell COMPCERT=$(COMPCERT) COMPCERT_INST_DIR=$(COMPCERT_INST_DIR) ZLIST=$(ZLIST) BITSIZE=$(BITSIZE) ARCH=$(ARCH) IGNORECOQVERSION=$(IGNORECOQVERSION) IGNORECOMPCERTVERSION=$(IGNORECOMPCERTVERSION) MAKE=$(MAKE) util/calc_install_files $(PROGSDIR))
 INSTALL_FILES_VO=$(patsubst %.v,%.vo,$(INSTALL_FILES_SRC))
 INSTALL_FILES=$(sort $(INSTALL_FILES_SRC) $(INSTALL_FILES_VO))
 
-IRIS_INSTALL_FILES_BASE=$(shell COMPCERT=$(COMPCERT) COMPCERT_INST_DIR=$(COMPCERT_INST_DIR) ZLIST=$(ZLIST) BITSIZE=$(BITSIZE) ARCH=$(ARCH) IGNORECOQVERSION=$(IGNORECOQVERSION) MAKE=$(MAKE) util/calc_install_files atomics)
+IRIS_INSTALL_FILES_BASE=$(shell COMPCERT=$(COMPCERT) COMPCERT_INST_DIR=$(COMPCERT_INST_DIR) ZLIST=$(ZLIST) BITSIZE=$(BITSIZE) ARCH=$(ARCH) IGNORECOQVERSION=$(IGNORECOQVERSION) IGNORECOMPCERTVERSION=$(IGNORECOMPCERTVERSION) MAKE=$(MAKE) util/calc_install_files atomics)
 IRIS_INSTALL_FILES_SRC=$(filter-out $(INSTALL_FILES_SRC),$(IRIS_INSTALL_FILES_BASE))
 IRIS_INSTALL_FILES_VO=$(patsubst %.v,%.vo,$(IRIS_INSTALL_FILES_SRC))
 IRIS_INSTALL_FILES=$(sort $(IRIS_INSTALL_FILES_SRC) $(IRIS_INSTALL_FILES_VO))
@@ -673,7 +683,7 @@ IRIS_INSTALL_FILES=$(sort $(IRIS_INSTALL_FILES_SRC) $(IRIS_INSTALL_FILES_VO))
 
 # This line sets COQF depending on the folder of the input file $<
 # If the folder name contains compcert, $(COMPCERT_R_FLAGS) is added, otherwise not.
-%.vo: COQF=$(if $(findstring $(COMPCERT_SRC_DIR), $(dir $<)), $(COMPCERT_R_FLAGS), $(COQFLAGS))
+%.vo: COQF=$(if $(findstring $(COMPCERT_SRC_DIR), $(dir $<)), $(COMPCERT_R_FLAGS) $(COQEXTRAFLAGS), $(COQFLAGS))
 
 # If CompCert changes, all .vo files need to be recompiled
 %.vo: $(COMPCERT_CONFIG)
@@ -684,8 +694,7 @@ ifneq (,$(TIMING))
 	@$(COQC) $(COQF) -time $*.v > $<.timing
 else ifeq ($(TIMINGS), true)
 #	bash -c "wc $*.v >>timings; date +'%s.%N before' >> timings; $(COQC) $(COQF) $*.v; date +'%s.%N after' >>timings" 2>>timings
-	@bash -c "/usr/bin/time --output=TIMINGS -a -f '%e real, %U user, %S sys %M mem, '\"$(shel
-l wc $*.v)\" $(COQC) $(COQF) $*.v"
+	@bash -c "/usr/bin/time --output=TIMINGS -a -f '%e real, %U user, %S sys %M mem, '\"$(shell wc $*.v)\" $(COQC) $(COQF) $*.v"
 #	echo -n $*.v " " >>TIMINGS; bash -c "/usr/bin/time -o TIMINGS -a $(COQC) $(COQF) $*.v"
 else ifeq ($(TIMINGS), simple)
 	@/usr/bin/time -f 'TIMINGS %e real, %U user, %S sys %M kbytes: '"$*.v" $(COQC) $(COQF) $*.v
@@ -823,6 +832,12 @@ concurrency/threads.v: concurrency/threads.c
 	$(CLIGHTGEN) -normalize $^
 atomics/SC_atomics.v: atomics/SC_atomics.c
 	$(CLIGHTGEN) -normalize $^
+progs/incr.v: progs/incr.c
+	$(CLIGHTGEN) -normalize $^
+progs64/incr.v: progs64/incr.c
+	$(CLIGHTGEN) -normalize $^
+progs/incrN.v: progs/incrN.c
+	$(CLIGHTGEN) -normalize $^
 aes/aes.v: aes/mbedtls/library/aes.c aes/mbedtls/include/mbedtls/config.h \
               aes/mbedtls/include/mbedtls/check_config.h
 	$(CLIGHTGEN) ${CGFLAGS} -Iaes/mbedtls/include $<; mv aes/mbedtls/library/aes.v aes/aes.v
@@ -836,7 +851,7 @@ $(patsubst %.c,$(PROGSDIR)/%.v, $(SINGLE_C_FILES)): $(PROGSDIR)/%.v: $(PROGSDIR)
 endif
 
 veric/version.v:  VERSION $(MSL_FILES:%=msl/%) $(SEPCOMP_FILES:%=sepcomp/%) $(VERIC_FILES:%=veric/%) $(FLOYD_FILES:%=floyd/%)
-	sh util/make_version ${BITSIZE} ${COMPCERT_VERSION}
+	util/make_version ${BITSIZE} ${COMPCERT_VERSION}
 
 _CoqProject _CoqProject-export: Makefile util/coqflags $(COMPCERT_CONFIG)
 	echo $(COQFLAGS) > _CoqProject
@@ -849,15 +864,15 @@ floyd/floyd.coq: floyd/proofauto.vo
 	@echo 'coqdep ... >.depend'
 ifeq ($(COMPCERT_NEW),true)
 	# DEPENDENCIES VARIANT COMPCERT_NEW
-	$(COQDEP) $(COQFLAGS) 2>&1 >.depend `find $(filter $(wildcard *), $(DIRS) concurrency/common concurrency/compiler concurrency/juicy concurrency/util paco concurrency/sc_drf) -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
+	$(COQDEP) $(DEPFLAGS) 2>&1 >.depend `find $(filter $(wildcard *), $(DIRS) concurrency/common concurrency/compiler concurrency/juicy concurrency/util paco concurrency/sc_drf) -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
 	@echo "" >>.depend
 else
 	# DEPENDENCIES DEFAULT
-	$(COQDEP) $(COQFLAGS) 2>&1 >.depend `find $(filter $(wildcard *), $(DIRS)) -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
+	$(COQDEP) $(DEPFLAGS) 2>&1 >.depend `find $(filter $(wildcard *), $(DIRS)) -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
 endif
 ifeq ($(COMPCERT_BUILD_FROM_SRC),true)
 	# DEPENDENCIES TO BUILD COMPCERT FROM SOURCE
-	$(COQDEP) $(COMPCERT_R_FLAGS) 2>&1 >>.depend `find $(addprefix $(COMPCERT_SRC_DIR)/,$(COMPCERTDIRS))  -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
+	$(COQDEP) $(COMPCERT_R_FLAGS) 2>&1 >>.depend `find $(addprefix $(COMPCERT_SRC_DIR)/,$(COMPCERTDIRS))  -name "*.v"` $(COMPCERTFLOCQDIRS) | grep -v 'Warning:.*found in the loadpath' || true
 endif
 # ifneq ($(wildcard coq-ext-lib/theories),)
 # 	$(COQDEP) -Q coq-ext-lib/theories ExtLib coq-ext-lib/theories >>.depend

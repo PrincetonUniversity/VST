@@ -1586,6 +1586,28 @@ Proof.
   destruct x as [[|] ?]; [ apply SB1 | apply SB2].
 Qed.
 
+Lemma semax_body_generalintersection {V G cs E f iden I sig cc} {phi : I -> funspec}
+        (H1: forall i : I, typesig_of_funspec (phi i) = sig)
+        (H2: forall i : I, callingconvention_of_funspec (phi i) = cc) (HI: inhabited I)
+  (H: forall i, @semax_body V G cs E f (iden, phi i)):
+  @semax_body V G cs E f (iden, general_intersection phi H1 H2).
+Proof. destruct HI. split3.
+  { specialize (H X). specialize (H1 X); subst. destruct (phi X). simpl. apply H. }
+  { specialize (H X). specialize (H1 X); subst. destruct (phi X). simpl. apply H. }
+  intros. destruct x as [i Hi].
+  specialize (H i).
+  assert (fst sig = map snd (fst (fn_funsig f)) /\
+        snd sig = snd (fn_funsig f) /\
+        (forall (x : dtfr ((WithType_of_funspec (phi i)))),
+         semax Espec E (func_tycontext f V G nil)
+           (close_precondition (map fst (fn_params f)) (argsassert_of ((Pre_of_funspec (phi i)) x)) ∗ stackframe_of f) 
+           (fn_body f) (frame_ret_assert (function_body_ret_assert (fn_return f) (assert_of ((Post_of_funspec (phi i)) x))) (stackframe_of f)))) as HH.
+  { intros. specialize (H1 i); specialize (H2 i). subst. unfold semax_body in H.
+    destruct (phi i); subst. destruct H as [? [? ?]]. split3; auto. }
+  clear H H1 H2. destruct HH as [HH1 [HH2 HH3]].
+  apply (HH3 Hi).
+Qed.
+
 Lemma typecheck_temp_environ_eval_id {f lia}
           (LNR: list_norepet (map fst (fn_params f) ++ map fst (fn_temps f)))
           (TC : typecheck_temp_environ (te_of lia) (make_tycontext_t (fn_params f) (fn_temps f))):
@@ -1765,7 +1787,7 @@ Proof.
   repeat split; auto; intro.
   - destruct (_ !! _); auto.
   - unfold make_tycontext_g.
-    revert dependent G2; revert dependent V2; revert V; induction G; simpl.
+    generalize dependent G2; generalize dependent V2; revert V; induction G; simpl.
     + induction V; simpl; intros. auto.
         rewrite sublist.incl_cons_iff in HV; destruct HV.
         setoid_rewrite Maps.PTree.gsspec.
@@ -1780,7 +1802,7 @@ Proof.
       destruct (peq id (fst a)); eauto; subst; simpl.
       apply lookup_distinct; auto.
   - unfold make_tycontext_s.
-    revert dependent G2; induction G; simpl; intros.
+    generalize dependent G2; induction G; simpl; intros.
     + auto.
     + destruct a; simpl. hnf.
       rewrite sublist.incl_cons_iff in HG; destruct HG.

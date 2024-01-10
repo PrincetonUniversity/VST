@@ -146,7 +146,7 @@ destruct s2 as [ | h r].
    entailer!.
    Exists (h::s1,r,v,y).
    entailer!.
-   + simpl. rewrite app_ass. auto.
+   + simpl. rewrite <- app_assoc. auto.
    + unfold listrep at 3; fold listrep.
      Exists w. entailer!.
 * (* after the loop *)
@@ -155,7 +155,7 @@ Exists w; entailer!.
 rewrite -> (proj1 H1) by auto.
 unfold listrep at 2; fold listrep.
 entailer!.
-rewrite <- app_nil_end, rev_involutive.
+rewrite app_nil_r, rev_involutive.
 auto.
 Qed.
 

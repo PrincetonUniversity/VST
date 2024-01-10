@@ -66,7 +66,7 @@ Proof. intros.
   apply Z_to_nat_monotone. lia.
   rewrite ZtoNat_Zlength. lia.
   replace (sublist a (a+b) l) with (@nil A).
-  rewrite <- app_nil_end.
+  rewrite app_nil_r.
   unfold sublist. f_equal.
   rewrite !firstn_same; auto.
   rewrite <- ZtoNat_Zlength.

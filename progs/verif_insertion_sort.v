@@ -319,7 +319,7 @@ entailer.
 apply (exp_right p0).
 entailer!.
 destruct unsorted_list; inv H0.
-rewrite <- app_nil_end. auto.
+rewrite app_nil_r. auto.
 
 (*invariant across body *)
 focus_SEP 1.
@@ -366,7 +366,7 @@ entailer.
 apply (exp_right (sorted_list ++ [insert_val],
                            unsorted_list, sorted, next)).
 entailer!.
-rewrite app_ass; reflexivity.
+rewrite <- app_assoc; reflexivity.
 
 Lemma insert_reorder : forall v1 v2 l,
 insert v1 (insert v2 (l)) = insert v2 (insert v1 l).

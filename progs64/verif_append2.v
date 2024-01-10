@@ -200,7 +200,7 @@ forward_if.
    forward.
    forward.
    Exists (s1a++[a],v,s1b,u0,z). unfold fst, snd.
-   rewrite !app_ass. simpl app.
+   rewrite <- !app_assoc. simpl app.
    entailer!!.
    unfold lseg.
    rewrite bi.sep_comm.
@@ -215,7 +215,7 @@ forward_if.
    forward. simpl. forward.
    Exists x. entailer!!.
    destruct H3 as [? _]. specialize (H3 (eq_refl _)). subst s1b.
-   unfold listrep at 1.  Intros. autorewrite with norm.  rewrite H0. rewrite app_ass. simpl app.
+   unfold listrep at 1.  Intros. autorewrite with norm.  rewrite H0. rewrite <- app_assoc. simpl app.
    unfold lseg.
    rewrite -bi.sep_assoc.
    iIntros "(H1 & H2 & H3)".
@@ -399,7 +399,7 @@ forward_if.
     forward.
     forward.
     Exists (s1a++a::nil, v0, s1b,u0,z). unfold fst, snd.
-    simpl app; rewrite app_ass.
+    simpl app; rewrite <- app_assoc.
     entailer.
     sep_apply (lseg_cons' sh a u0 t v0 z); auto.
     sep_apply (lseg_app' sh s1a [a] v0 x t u0 z); auto.
@@ -413,7 +413,7 @@ forward_if.
     entailer!!.
     sep_apply (lseg_cons sh a y t s2); auto.
     sep_apply (lseg_app_null sh [a] s2 t y); auto.
-    rewrite app_ass.
+    rewrite <- app_assoc.
     sep_apply (lseg_app_null sh s1a ([a]++s2) x t); auto.
     rewrite listrep_lseg_null //.
 Qed.

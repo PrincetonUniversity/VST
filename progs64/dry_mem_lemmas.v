@@ -370,7 +370,7 @@ Proof.
   { rewrite Z.max_r in Hlim by rep_lia; lia. }
   clear Heqlo Hlen.
   clear dependent z.
-  revert dependent phi; revert dependent lo.
+  generalize dependent phi; generalize dependent lo.
   induction n; intros; subst.
   - unfold sublist; simpl.
     rewrite skipn_firstn,  Z.add_0_l, Nat.sub_diag.
@@ -785,7 +785,7 @@ Proof.
   assert (lo + Z.of_nat n = Zlength lv) as Hlen.
   { subst; rewrite Z2Nat.id; rep_lia. }
   clear Heqlo Heqn.
-  revert dependent lo; revert dependent phi; induction n; intros.
+  generalize dependent lo; generalize dependent phi; induction n; intros.
   - rewrite res_predicates.VALspec_range_0 in Hdata; simpl.
     apply inflate_emp; auto.
   - rewrite Nat2Z.inj_succ, res_predicates.VALspec_range_split2 with (n := 1)(m := Z.of_nat n) in Hdata by lia.

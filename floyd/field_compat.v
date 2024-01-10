@@ -392,7 +392,6 @@ Qed.
 Lemma field_compatible0_Tarray_offset:
  forall {cs: compspecs} t n i n' i' p p',
   field_compatible0 (Tarray t n' noattr) (ArraySubsc i' :: nil) p ->
-  naturally_aligned t ->
   0 <= n <= n' ->
   0 <= i <= n ->
   n-i <= n'-i' ->
@@ -400,7 +399,7 @@ Lemma field_compatible0_Tarray_offset:
   p' = offset_val (sizeof t * (i'-i)) p ->
   field_compatible0 (Tarray t n noattr) (ArraySubsc i :: nil) p'.
 Proof.
-  intros until 1. intros NA ?H ?H Hni Hii Hp. subst p'.
+  intros until 1. intros ?H ?H Hni Hii Hp. subst p'.
   assert (SP := sizeof_pos t).
   assert (SS: sizeof t * n <= sizeof t * n').
   apply Zmult_le_compat_l. lia. lia.
@@ -450,14 +449,6 @@ Proof.
   eapply align_compatible_rec_Tarray_inv; [eassumption |].
   lia.
 Qed.
-
-(*
-#[export] Hint Extern 2 (field_compatible0 (Tarray _ _ _) (ArraySubsc _ :: nil) _) =>
-    (eapply field_compatible0_Tarray_offset; [eassumption | lia | lia]) : field_compatible.
-
-#[export] Hint Extern 2 (field_compatible0 (tarray _ _) (ArraySubsc _ :: nil) _) =>
-    (eapply field_compatible0_Tarray_offset; [eassumption | lia | lia]) : field_compatible.
-*)
 
 Lemma split3_data_at_Tarray {cs: compspecs} sh t n n1 n2 v (v' v1 v2 v3: list (reptype t)) p:
    naturally_aligned t ->

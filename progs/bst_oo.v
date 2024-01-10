@@ -6,7 +6,7 @@ Local Open Scope string_scope.
 Local Open Scope clight_scope.
 
 Module Info.
-  Definition version := "3.10".
+  Definition version := "3.12".
   Definition build_number := "".
   Definition build_tag := "".
   Definition build_branch := "".
@@ -83,9 +83,9 @@ Definition _b : ident := 49%positive.
 Definition _delete : ident := 65%positive.
 Definition _freeN : ident := 43%positive.
 Definition _get : ident := 57%positive.
-Definition _key : ident := 1%positive.
+Definition _key : ident := 2%positive.
 Definition _l : ident := 59%positive.
-Definition _left : ident := 3%positive.
+Definition _left : ident := 4%positive.
 Definition _main : ident := 70%positive.
 Definition _mallocN : ident := 42%positive.
 Definition _mid : ident := 61%positive.
@@ -99,13 +99,13 @@ Definition _right : ident := 5%positive.
 Definition _set : ident := 55%positive.
 Definition _subscr : ident := 53%positive.
 Definition _t : ident := 50%positive.
-Definition _tree : ident := 4%positive.
+Definition _tree : ident := 1%positive.
 Definition _tree_free : ident := 48%positive.
 Definition _treebox_free : ident := 51%positive.
 Definition _treebox_new : ident := 45%positive.
 Definition _turn_left : ident := 62%positive.
 Definition _v : ident := 56%positive.
-Definition _value : ident := 2%positive.
+Definition _value : ident := 3%positive.
 Definition _x : ident := 54%positive.
 Definition _y : ident := 52%positive.
 Definition _t'1 : ident := 90%positive.

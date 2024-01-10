@@ -883,17 +883,56 @@ Ltac SC_tac :=
  match goal with |- SC_test ?ids _ _ =>
   let a := eval compute in ids in change ids with a
  end;
- hnf;
- repeat (apply conj; hnf);
+ simpl SC_test;
+ repeat (apply conj);
  lazymatch goal with
          | |- Funspecs_must_match ?i _ _ =>
                  try solve [constructor; unfold abbreviate; 
-                 try simple apply eq_refl;
+                 repeat f_equal
+                 (*occasionally leaves a subgoal, typically because a
+                   change_compspecs needs to be inserted that could not
+                    be identified automatically*)]
+         | |- Identifier_not_found ?i ?fds2 =>
+                 fail "identifer" i "not found in funspecs" fds2
+         | |- True => trivial
+          end.
+(*Alternatives:
+Ltac SC_tac1 :=
+ match goal with |- SC_test ?ids _ _ =>
+  let a := eval compute in ids in change ids with a
+ end;
+ simpl SC_test;
+ repeat (apply conj);
+ lazymatch goal with
+         | |- Funspecs_must_match ?i _ _ =>
+                 try solve [constructor; unfold abbreviate; 
+                 (*leads sometimes to nontermination: try simple apply eq_refl;*)
                  repeat f_equal]
          | |- Identifier_not_found ?i ?fds2 =>
                  fail "identifer" i "not found in funspecs" fds2
          | |- True => trivial
           end.
+
+Ltac SC_tac2 :=
+ match goal with |- SC_test ?ids _ _ =>
+  let a := eval compute in ids in change ids with a
+ end;
+ simpl SC_test;
+ repeat (apply conj);
+ lazymatch goal with
+         | |- Funspecs_must_match ?i _ _ =>
+                 constructor;
+                 apply mk_funspec_congr;
+                 [ try reflexivity 
+                 | try reflexivity 
+                 | try reflexivity
+                 | (*too aggressive here: try (apply eq_JMeq; trivial)*)
+                 | (*too aggressive here: try (apply eq_JMeq; trivial)*)]
+         | |- Identifier_not_found ?i ?fds2 =>
+                 fail "identifer" i "not found in funspecs" fds2
+         | |- True => trivial
+          end.
+*)
 
 Ltac HImports_tac := simpl;
   let i := fresh "i" in 
@@ -1937,30 +1976,38 @@ apply QPlink_progs_globdefs in H.
 intro i.
 apply (merge_PTrees_e i) in H.
 destruct (find_id i (QPvarspecs p)) eqn:?H.
-apply find_id_QPvarspecs in H0. destruct H0 as [? [? ?]].
-subst t.
-rewrite H0 in H.
-destruct (find_id i (QPvarspecs p2)) eqn:?H.
-apply find_id_QPvarspecs in H1. destruct H1 as [? [? ?]].
-subst t.
-rewrite H1 in H.
-split; auto.
-destruct ((QP.prog_defs p1) ! i).
-destruct H as [? [? ?]]. destruct g; inv H. destruct f; inv  H4.
-destruct v,x0; inv H4.
-inv H; auto.
-auto.
-destruct (find_id i (QPvarspecs p2)) eqn:?H; auto.
-apply find_id_QPvarspecs in H1. destruct H1 as [? [? ?]].
-subst t.
-rewrite H1 in *.
-destruct ((QP.prog_defs p1) ! i) eqn:?H.
-destruct H as [? [? ?]].
-destruct g as [[|]|]; inv H.
-destruct v,x; inv H5.
-rewrite (proj2 (find_id_QPvarspecs p i (gvar_info x))) in H0.
-inv H0.
-eauto.
++ apply find_id_QPvarspecs in H0. destruct H0 as [? [? ?]].
+  subst t.
+  rewrite H0 in H.
+  destruct (find_id i (QPvarspecs p2)) eqn:?H.
+  - apply find_id_QPvarspecs in H1. destruct H1 as [? [? ?]].
+    subst t.
+    rewrite H1 in H.
+    split; auto.
+    destruct ((QP.prog_defs p1) ! i).
+    * destruct H as [? [? ?]]. destruct g; inv H. destruct f; inv  H4.
+      apply Errors.bind_inversion in H4. destruct H4 as [g [MGg Hg]]; inv Hg.
+      inv H2. apply merge_globvar_elim in MGg. red in MGg.
+      destruct v; destruct x0. destruct MGg as [GV [[GVI G] | [GVI G]]]; subst.
+      simpl; trivial.
+      simpl; symmetry. apply GV.
+    * inv H; auto.
+  - auto.
++ destruct (find_id i (QPvarspecs p2)) eqn:?H; auto.
+  apply find_id_QPvarspecs in H1. destruct H1 as [? [? ?]].
+  subst t.
+  rewrite H1 in *.
+  destruct ((QP.prog_defs p1) ! i) eqn:?H.
+  - destruct H as [? [? ?]].
+    destruct g as [[|]|]; inv H.
+    (*destruct v,x; inv H5. admit.*)
+    apply Errors.bind_inversion in H5. destruct H5 as [g [MGg Hg]]; inv Hg.
+    specialize (find_id_QPvarspecs p i); rewrite H0, H3; intros Hp.
+    destruct (Hp (gvar_info g)) as [_ X]; clear Hp.
+    spec X. exists g; split; trivial. congruence.
+  - rewrite (proj2 (find_id_QPvarspecs p i (gvar_info x))) in H0.
+    * inv H0.
+    * eauto.
 Qed.
 
 Lemma prove_sub_option_find_id:
@@ -2182,7 +2229,7 @@ eapply Comp_Exports_sub2;
 - symmetry in NOimports |- *.
    unfold JoinedImports in *.
    change (filter _ nil) with (@nil (ident*funspec)) in *.
-   rewrite <- app_nil_end in *.
+   rewrite app_nil_r in *.
    match goal with |- filter ?A (filter ?B ?C) = _ => forget A as F; forget B as G; forget C as al end.
    clear - NOimports.
    induction al as [|[i?]]; auto.
@@ -3043,7 +3090,7 @@ assert (H20: forall i fd, In (i,fd) (prog_funct' (map of_builtin (QP.prog_builti
 }
 
 assert (VG_LNR: list_norepet (map fst (QPvarspecs p) ++ map fst  G)). {
-  pose proof (Comp_LNR c). rewrite <- app_nil_end in H4.
+  pose proof (Comp_LNR c). rewrite app_nil_r in H4.
   auto.
 }
 forget (filter isGfun (PTree.elements (QP.prog_defs p))) as fs.

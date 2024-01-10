@@ -1000,6 +1000,12 @@ Definition WithType_of_funspec (phi:funspec):TypeTree :=
     mk_funspec sig cc A _ _ => A
   end.
 
+Definition Pre_of_funspec (phi: funspec) : dtfr (ArgsTT (WithType_of_funspec phi)) :=
+  match phi with mk_funspec _ _ A P _ => P end. 
+
+Definition Post_of_funspec (phi: funspec) : dtfr (AssertTT (WithType_of_funspec phi)) :=
+  match phi with mk_funspec _ _ A _ Q => Q end. 
+
 Definition intersectionPRE {I} phi:
   forall (i : I),
     dtfr (ArgsTT (WithType_of_funspec (phi i))).

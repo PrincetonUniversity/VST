@@ -839,7 +839,7 @@ Lemma full_hist'_drop : forall h h' v (Hh : full_hist' h v)
   full_hist' h' v.
 Proof.
   intros ??? (l & Hl & Hv) ?.
-  revert dependent h'; revert dependent v; revert dependent h; induction l using rev_ind; intros.
+  generalize dependent h'; generalize dependent v; generalize dependent h; induction l using rev_ind; intros.
   - inv Hl; simpl in *.
     destruct h'.
     exists []; auto.

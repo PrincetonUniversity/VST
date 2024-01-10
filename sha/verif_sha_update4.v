@@ -111,7 +111,7 @@ forward.
 apply andp_left2; auto.
 * (* else clause *)
 forward.  (* skip; *)
-Exists (@nil int). rewrite <- app_nil_end.
+Exists (@nil int). rewrite app_nil_r.
 rename H0 into H1.
 rewrite H1 in *.
 rewrite Zlength_correct in H1;  destruct dd; inv H1.
@@ -267,7 +267,7 @@ assert (Zlength bl = LBLOCKz). {
   + rewrite H7; apply Z.divide_add_r; auto. apply Z.divide_refl.
   + rewrite intlist_to_bytelist_app.
       rewrite Hblocks; rewrite <- H6.
-      rewrite app_ass.
+      rewrite <- app_assoc.
       f_equal.
       rewrite <- sublist_split; try Omega1.
       f_equal. Omega1.
@@ -281,7 +281,7 @@ assert (Zlength bl = LBLOCKz). {
  Time unfold_data_at (data_at _ _ _ c).  (*0.8*)
  rewrite (split3_data_block lo (lo+CBLOCKz) sh data d)
     by (auto; subst lo; try Omega1).
- rewrite app_ass.
+ rewrite <- app_assoc.
  rewrite H6.
  Time cancel. (*1.2*)
  }

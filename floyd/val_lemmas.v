@@ -447,6 +447,15 @@ pose proof (Int64.eq_spec v Int64.zero).
 destruct (Int64.eq v Int64.zero); auto.
 Qed.
 
+Lemma typed_false_tlong_Vlong:
+  forall v, typed_false tlong (Vlong v) -> v = Int64.zero.
+Proof.
+intros.
+unfold typed_false, strict_bool_val in H. simpl in H.
+pose proof (Int64.eq_spec v Int64.zero).
+destruct (Int64.eq v Int64.zero); auto. discriminate.
+Qed.
+
 Ltac intro_redundant P :=
  match goal with H: P |- _ => idtac end.
 

@@ -32,6 +32,7 @@ the others are in VSTlib's include directory.
 | malloc| **stdlib.h**| spec_malloc.MallocASI | verif_malloc.MallocVSU | Axiomatized | Done | standard system allocator |
 | atomics| **stdatomic.h**, SC_atomics.h | spec_SC_atomics.AtomicsASI | verif_SC_atomics.SCAVSU | Axiomatized | Done | atomic load, store, CAS, etc.|
 | locks | **threads.h**, VSTthreads.h | spec_locks.LockASI | verif_locks.lockVSU | Proved | Done | busy-wait locks based on atomics |
+| threads| **threads.h**, VSTthreads.h| spec_threads.ThreadsASI | verif_threads.ThreadsVSU | Proved | Done | |
 
 Additional details:
 - math:  Each function in the system standard math.h library can be
@@ -45,7 +46,16 @@ Additional details:
 - memmgr:  This is the "[Verified Sequential Malloc/Free](https://dl.acm.org/doi/10.1145/3381898.3397211)" published by Naumann and Appel.
 - malloc:  This is an axiomatized version of standard Posix malloc/free, for those users who want to call
     the standard library implementations.
-
+## How to install and use VSTlib
+```
+opam  repository  add  coq-released
+opam  install  coq-vst-lib
+```
+- For C include files, add to your CFLAGS:  `-I $(OPAM_SWITCH_PREFIX)/lib/coq/user-contrib/VSTlib/include`
+- For C sources to compile and link with:  `$(OPAM_SWITCH_PREFIX)/lib/coq/user-contrib/VSTlib/src`
+- Within Coq:  `From VSTlib Require Import spec_malloc.`   (* etc *)
+  
+(Instead of opam, you could build from sources and do `make install`, and adjust your paths to `lib/coq/user-contrib' appropriately.)
 ## Testing and demonstration examples
 
 Example clients that demonstrate how to use these VSUs can be found

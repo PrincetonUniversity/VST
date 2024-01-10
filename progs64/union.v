@@ -6,7 +6,7 @@ Local Open Scope string_scope.
 Local Open Scope clight_scope.
 
 Module Info.
-  Definition version := "3.9".
+  Definition version := "3.12".
   Definition build_number := "".
   Definition build_tag := "".
   Definition build_branch := "".
@@ -19,7 +19,7 @@ Module Info.
   Definition normalized := true.
 End Info.
 
-Definition __111 : ident := 9%positive.
+Definition __111 : ident := 7%positive.
 Definition ___builtin_annot : ident := 26%positive.
 Definition ___builtin_annot_intval : ident := 27%positive.
 Definition ___builtin_bswap : ident := 11%positive.
@@ -75,19 +75,19 @@ Definition ___compcert_va_composite : ident := 57%positive.
 Definition ___compcert_va_float64 : ident := 56%positive.
 Definition ___compcert_va_int32 : ident := 54%positive.
 Definition ___compcert_va_int64 : ident := 55%positive.
-Definition _c : ident := 4%positive.
-Definition _choice_i : ident := 1%positive.
-Definition _choice_p : ident := 2%positive.
-Definition _const_or_not : ident := 6%positive.
-Definition _f : ident := 7%positive.
+Definition _c : ident := 5%positive.
+Definition _choice_i : ident := 2%positive.
+Definition _choice_p : ident := 3%positive.
+Definition _const_or_not : ident := 4%positive.
+Definition _f : ident := 8%positive.
 Definition _fabs_single : ident := 53%positive.
 Definition _g : ident := 47%positive.
 Definition _h : ident := 49%positive.
-Definition _i : ident := 8%positive.
+Definition _i : ident := 9%positive.
 Definition _main : ident := 73%positive.
-Definition _n : ident := 5%positive.
+Definition _n : ident := 6%positive.
 Definition _p : ident := 48%positive.
-Definition _p_or_i : ident := 3%positive.
+Definition _p_or_i : ident := 1%positive.
 Definition _t : ident := 50%positive.
 Definition _u : ident := 52%positive.
 Definition _unconst : ident := 51%positive.

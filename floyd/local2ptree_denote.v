@@ -223,7 +223,7 @@ Proof.
       apply PTree.elements_complete in H0.
       destruct H; try subst q; eauto 50.
       specialize (IHL H (K ++ (i, (t, v)) :: nil));
-      rewrite app_ass in IHL; specialize (IHL HeqL); eauto.
+      rewrite <- app_assoc in IHL; specialize (IHL HeqL); eauto.
   + destruct H.
     - subst q.
       assert (In a (PTree.elements T1)).
@@ -231,7 +231,7 @@ Proof.
       destruct a as [i v]; apply PTree.elements_complete in H; eauto.
     - destruct a as [i v].
       specialize (IHL H (K ++ (i,v)::nil)).
-      rewrite app_ass in IHL; specialize (IHL HeqL); eauto.
+      rewrite <- app_assoc in IHL; specialize (IHL HeqL); eauto.
 Qed.
 
 Lemma in_temp_aux:
@@ -735,7 +735,7 @@ Lemma local2ptree_soundness  : forall P Q R T1 T2 P' Q',
   PROPx P (LOCALx Q (SEPx R)) ⊣⊢ PROPx (P' ++ P) (LOCALx (LocalD T1 T2 Q') (SEPx R)).
 Proof. intros. eapply local2ptree_soundness' in H.
    etransitivity; [ | apply H]. clear H.
-   simpl. rewrite <- app_nil_end; auto.
+   simpl. rewrite app_nil_r; auto.
 Qed.
 
 Lemma local2ptree_soundness'' : forall Q T1 T2 gv,

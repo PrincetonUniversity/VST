@@ -335,7 +335,7 @@ Ltac subst_indexes gfs :=
   end.
 
 Ltac solve_store_rule_evaluation :=
-  match goal with |- upd_reptype ?t ?gfs ?v0 ?v1 = ?B =>
+  match goal with |- @upd_reptype ?cs ?t ?gfs ?v0 ?v1 = ?B =>
    let rhs := fresh "rhs" in set (rhs := B);
   match type of rhs with ?A =>
    let a := fresh "a" in set (a:=A) in rhs; 
@@ -343,7 +343,9 @@ Ltac solve_store_rule_evaluation :=
     cbn in a; subst a
   end;
    let h0 := fresh "h0" in let h1 := fresh "h1" in
-   set (h0:=v0); set (h1:=v1); change (upd_reptype t gfs h0 h1 = rhs);
+   set (h0:=v0 : @reptype cs t); 
+   set (h1:=v1 : @reptype cs (@nested_field_type cs t gfs)); 
+   change (upd_reptype t gfs h0 h1 = rhs);
    remember_indexes gfs;
    let j := fresh "j" in match type of h0 with ?J => set (j := J) in h0 end;
    lazy beta zeta iota delta in j; subst j;

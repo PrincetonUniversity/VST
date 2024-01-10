@@ -129,7 +129,19 @@ Proof.
   intros. eapply semax_external_funspec_sub; eauto.
 Qed.
 
+Lemma general_intersection_funspec_subIJ `{HH : heapGS Σ} E I (HI: inhabited I) J
+      sig cc phi1 ToF1 CoF1 phi2 ToF2 CoF2
+      (H: forall i, exists j, funspec_sub E (phi1 j) (phi2 i)):
+    funspec_sub E (@general_intersection _ J sig cc phi1 ToF1 CoF1) (@general_intersection _ I sig cc phi2 ToF2 CoF2).
+Proof.
+  apply (@generalintersection_sub3 _ _ I sig cc E HI phi2 ToF2 CoF2 _ (eq_refl _)).
+  intros i. destruct (H i) as [j Hj]. eapply seplog.funspec_sub_trans.
+  apply (@generalintersection_sub _ _ J sig cc E phi1 ToF1 CoF1 _ (eq_refl _)).
+  apply Hj.
+Qed.
+
 Definition semax_body_binaryintersection := @semax_body_binaryintersection.
+Definition semax_body_generalintersection := @semax_body_generalintersection.
 
 Definition semax_func_mono := @semax_func_mono.
 Definition semax_func_app := @semax_func_app.

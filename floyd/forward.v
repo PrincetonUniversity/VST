@@ -75,6 +75,8 @@ Fixpoint mk_varspecs' (dl: list (ident * globdef Clight.fundef type)) (el: list 
  | nil => rev_append el nil
 end.
 
+Ltac error T := cut T; [intros []|].
+
 Ltac unfold_varspecs al :=
  match al with
  | context [gvar_info ?v] =>
@@ -722,6 +724,10 @@ a "versus" b ")"
  else fail
 end.
 
+Ltac change_compspecs_warning A cs cs' := 
+     idtac "Remark: change_compspecs on user-defined mpred:" A cs cs'
+ "(to disable this message, Ltac change_compspecs_warning A cs cs' ::= idtac".
+
 Ltac change_compspecs' cs cs' :=
   lazymatch goal with
   | |- context [@data_at cs' ?sh ?t ?v1] => erewrite (@data_at_change_composite cs' cs _ sh t); [| apply JMeq_refl | prove_cs_preserve_type]
@@ -731,22 +737,22 @@ Ltac change_compspecs' cs cs' :=
   | |- _ => 
     match goal with 
   | |- context [?A cs'] => 
-     idtac "Warning: attempting change_compspecs on user-defined mpred:" A;
+     change_compspecs_warning A cs cs';
          change (A cs') with (A cs)
   | |- context [?A cs' ?B] => 
-     idtac "Warning: attempting change_compspecs on user-defined mpred:" A;
+     change_compspecs_warning A cs cs';
          change (A cs' B) with (A cs B)
   | |- context [?A cs' ?B ?C] => 
-     idtac "Warning: attempting change_compspecs on user-defined mpred:" A;
+     change_compspecs_warning A cs cs';
          change (A cs' B C) with (A cs B C)
   | |- context [?A cs' ?B ?C ?D] => 
-     idtac "Warning: attempting change_compspecs on user-defined mpred:" A;
+     change_compspecs_warning A cs cs';
          change (A cs' B C D) with (A cs B C D)
   | |- context [?A cs' ?B ?C ?D ?E] => 
-     idtac "Warning: attempting change_compspecs on user-defined mpred:" A;
+     change_compspecs_warning A cs cs';
          change (A cs' B C D E) with (A cs B C D E)
   | |- context [?A cs' ?B ?C ?D ?E ?F] => 
-     idtac "Warning: attempting change_compspecs on user-defined mpred:" A;
+     change_compspecs_warning A cs cs';
          change (A cs' B C D E F) with (A cs B C D E F)
    end
  end.
@@ -792,16 +798,16 @@ Ltac check_parameter_types :=
      let al := eval compute in argsig in 
     check_struct_params al
   end;
-  first [reflexivity | elimtype  Parameter_types_in_funspec_different_from_call_statement].
+  first [reflexivity | error  Parameter_types_in_funspec_different_from_call_statement].
 
 Ltac check_result_type :=
-   first [reflexivity | elimtype  Result_type_in_funspec_different_from_call_statement].
+   first [reflexivity | error  Result_type_in_funspec_different_from_call_statement].
 
 Inductive Cannot_find_function_spec_in_Delta (id: ident) := .
 Inductive Global_function_name_shadowed_by_local_variable := .
 
 Ltac check_function_name :=
-   first [reflexivity | elimtype Global_function_name_shadowed_by_local_variable].
+   first [reflexivity | error Global_function_name_shadowed_by_local_variable].
 
 Inductive Actual_parameters_cannot_be_coerced_to_formal_parameter_types := .
 
@@ -826,12 +832,12 @@ Ltac find_spec_in_globals' :=
 Inductive Cannot_analyze_LOCAL_definitions : Prop := .
 
 Ltac check_prove_local2ptree :=
-   first [prove_local2ptree | elimtype Cannot_analyze_LOCAL_definitions].
+   first [prove_local2ptree | error Cannot_analyze_LOCAL_definitions].
 
 Inductive Funspec_precondition_is_not_in_PROP_LOCAL_SEP_form := .
 
 Ltac check_funspec_precondition :=
-   first [reflexivity | elimtype  Funspec_precondition_is_not_in_PROP_LOCAL_SEP_form].
+   first [reflexivity | error  Funspec_precondition_is_not_in_PROP_LOCAL_SEP_form].
 
 Ltac lookup_spec id :=
  tryif apply f_equal_Some
@@ -843,7 +849,7 @@ Ltac lookup_spec id :=
       match goal with
        | |- mk_funspec _ _ ?t1 _ _ = mk_funspec _ _ ?t2 _ _ =>
          first [unify t1 t2
-           | exfalso; elimtype (Witness_type_of_forward_call_does_not_match_witness_type_of_funspec
+           | exfalso; error (Witness_type_of_forward_call_does_not_match_witness_type_of_funspec
       t2 t1)]
       end]
    end
@@ -886,7 +892,7 @@ Ltac check_typecheck :=
  entailer!;
  match goal with
  | |- typecheck_error (deref_byvalue ?T) =>
-       elimtype (Function_arguments_include_a_memory_load_of_type T)
+       error (Function_arguments_include_a_memory_load_of_type T)
  | |- _ => idtac
  end].
 
@@ -1186,6 +1192,9 @@ Ltac simplify_remove_localdef_temp :=
     change u with u'
   end.
 
+Ltac afc_error1 :=
+  fail 100 "Error: should not hit this case in after_forward_call.  To ignore this error and try anyway, do 'Ltac afc_error1 ::= idtac'".
+
 Ltac after_forward_call :=
     check_POSTCONDITION; 
     try match goal with |- context [remove_localdef_temp] =>
@@ -1198,7 +1207,26 @@ Ltac after_forward_call :=
         | |- unit -> semax _ _ _ _ _ => intros _
     end;
     match goal with
-        | |- @semax _ _ _ _ ?CS _ _ _ _ _ => try change_compspecs CS
+        | |- @semax _ _ _ _ ?CS _ ?Delta (bi_exist ?F) ?c ?Post =>
+               lazymatch F with context [@app mpred _ ?x] =>
+                  let hide := fresh "hide" in set (hide := x);
+                  try change_compspecs CS;
+                  subst hide
+               end;
+               unfold_app
+        | |- @semax ?W ?X ?Y ?Z ?CS ?E ?Delta (PROPx (?P1 ++ ?P2) (LOCALx ?Q (SEPx (?A ++ ?B)))) ?c ?Post =>
+               let hide := fresh "hide" in
+               pose (hide x := @semax W X Y Z CS E Delta (PROPx (P1 ++ P2) 
+                                     (LOCALx Q (SEPx (x ++ B)))) c Post);
+               change (hide A);
+               try change_compspecs CS;
+               subst hide; 
+               cbv beta;
+               unfold_app
+        | |- @semax _ _ _ _ ?CS _ _ _ _ _ => 
+               afc_error1;
+               unfold_app;
+               try change_compspecs CS
     end;
     repeat (apply semax_extract_PROP; intro); 
     cleanup_no_post_exists; 
@@ -1297,8 +1325,7 @@ Ltac prove_call_setup1 subsumes :=
   | |- semax _ _ (@bi_exist _ _ _) _ _ =>
     fail 1 "forward_call fails because your precondition starts with ∃.
 Use Intros  to move          the existentially bound variables above the line"
-  | |- @semax _ _ _ _ ?CS ?E ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R'))) ?c _ =>
-    let cR := (fun R =>
+  | |- semax ?E ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R'))) ?c _ =>
     match c with
     | context [Scall _ ?a ?bl] =>
       exploit (call_setup1_i E Delta P Q R' a bl);
@@ -1327,8 +1354,7 @@ Use Intros  to move          the existentially bound variables above the line"
       |check_cast_params
       | ..
       ]
-    end)
-    in strip1_later R' cR
+    end
   end.
 
 Ltac check_gvars :=
@@ -1359,7 +1385,10 @@ Ltac prove_call_setup_aux  (*ts*) witness :=
  | check_vl_eq_args
  | auto 50 with derives
  | check_gvars_spec
- | try change_compspecs CS; cancel_for_forward_call
+ | let lhs := fresh "lhs" in 
+   match goal with |- ?A ⊢ ?B => pose (lhs := A); change (lhs ⊢ B) end;
+   try change_compspecs CS; subst lhs;
+   cancel_for_forward_call
  |
  ])
   in strip1_later R' cR
@@ -2087,11 +2116,14 @@ Lemma typed_true_ptr' :
   typed_true (tptr t) v -> isptr v.
 Proof. intros ? ?. apply typed_true_ptr. Qed.
 
+
 Ltac do_repr_inj H :=
    simpl typeof in H;  (* this 'simpl' should be fine, since its argument is just clightgen-produced ASTs *)
+   cbv delta [Int64.zero Int.zero] in H;
    lazymatch type of H with
       | typed_true _ ?A => 
            change (typed_true tuint) with (typed_true tint) in H;
+           change (typed_true tulong) with (typed_true tlong) in H;
           let B := eval hnf in A in change A with B in H;
           try first
                [ simple apply typed_true_of_bool' in H
@@ -2103,20 +2135,23 @@ Ltac do_repr_inj H :=
                | simple apply typed_true_Ceq_eq' in H
                | apply typed_true_nullptr4 in H
                | simple apply typed_true_Cne_neq' in H
+               | simple apply typed_true_tlong_Vlong in H
               ]
       | typed_false _ ?A => 
            change (typed_false tuint) with (typed_false tint) in H;
+           change (typed_false tulong) with (typed_false tlong) in H;
            let B := eval hnf in A in change A with B in H;
            try first
                [ simple apply typed_false_of_bool' in H
                | simple apply typed_false_ptr_e in H
-               | simple apply typed_false_negb_bool_val_p in H; [| solve [auto]]
+               | simple apply typed_false_negb_bool_val_p in H; [| solve [auto ] ]
                | apply typed_false_negb_bool_val_p' in H
                | simple apply typed_false_tint_Vint in H
                | apply typed_false_nullptr3 in H
                | simple apply typed_false_Ceq_neq' in H
                | apply typed_false_nullptr4 in H
                | simple apply typed_false_Cne_eq' in H
+               | simple apply typed_false_tlong_Vlong in H
                ]
      | _ => idtac
     end;
@@ -2140,6 +2175,8 @@ Ltac do_repr_inj H :=
   end;
   first [ simple apply repr_inj_signed in H; [ | rep_lia | rep_lia ]
          | simple apply repr_inj_unsigned in H; [ | rep_lia | rep_lia ]
+         | simple apply repr_inj_signed64 in H; [ | rep_lia | rep_lia ]
+         | simple apply repr_inj_unsigned64 in H; [ | rep_lia | rep_lia ]
          | simple apply repr_inj_signed' in H; [ | rep_lia | rep_lia ]
          | simple apply repr_inj_unsigned' in H; [ | rep_lia | rep_lia ]
          | simple apply ltu_repr in H; [ | rep_lia | rep_lia]
@@ -3180,7 +3217,7 @@ Ltac pre_entailer :=
 Inductive Type_of_right_hand_side_does_not_match_type_of_assigned_variable := .
 
 Ltac check_cast_assignment :=
-   first [reflexivity | elimtype Type_of_right_hand_side_does_not_match_type_of_assigned_variable].
+   first [reflexivity | error Type_of_right_hand_side_does_not_match_type_of_assigned_variable].
 
 Ltac forward_setx :=
   ensure_normal_ret_assert;

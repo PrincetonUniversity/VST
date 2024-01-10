@@ -141,7 +141,7 @@ assert (UAE: S256abs (hashed ++ blocks) (sublist b4d len data) =
  rewrite !S256abs_hashed
    by (try apply divide_length_app; auto; autorewrite with sublist; auto).
  split; auto.
- rewrite Hblocks. rewrite app_ass.
+ rewrite Hblocks. rewrite <- app_assoc.
  rewrite !S256abs_data
    by (try apply divide_length_app; auto; autorewrite with sublist; auto).
  f_equal.

@@ -6,7 +6,7 @@ Local Open Scope string_scope.
 Local Open Scope clight_scope.
 
 Module Info.
-  Definition version := "3.10".
+  Definition version := "3.12".
   Definition build_number := "".
   Definition build_tag := "".
   Definition build_branch := "".
@@ -74,10 +74,10 @@ Definition ___compcert_va_composite : ident := 46%positive.
 Definition ___compcert_va_float64 : ident := 45%positive.
 Definition ___compcert_va_int32 : ident := 43%positive.
 Definition ___compcert_va_int64 : ident := 44%positive.
-Definition _a : ident := 1%positive.
-Definition _b : ident := 2%positive.
+Definition _a : ident := 2%positive.
+Definition _b : ident := 3%positive.
 Definition _f : ident := 42%positive.
-Definition _foo : ident := 3%positive.
+Definition _foo : ident := 1%positive.
 Definition _main : ident := 62%positive.
 Definition _p : ident := 40%positive.
 Definition _q : ident := 41%positive.

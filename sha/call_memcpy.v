@@ -63,14 +63,14 @@ pose proof (Zlength_nonneg src).
 rewrite H0.
 rewrite Z.sub_diag.
 change (Z.to_nat 0) with 0%nat; simpl.
-rewrite <- app_nil_end.
+rewrite app_nil_r.
 rewrite sublist_same by lia.
 f_equal.
-rewrite (sublist_nil hi), <- app_nil_end.
+rewrite (sublist_nil hi), app_nil_r.
 rewrite sublist_app by (rewrite ?Zlength_repeat, ?Z.max_r; lia).
 rewrite ?Z.min_l by lia.
 rewrite ?Z.max_r by lia.
-rewrite sublist_nil, <- app_nil_end.
+rewrite sublist_nil, app_nil_r.
 apply sublist_same; lia.
 Qed.
 
@@ -87,14 +87,14 @@ pose proof (Zlength_nonneg src).
 repeat rewrite Z.sub_diag.
 change (Z.to_nat 0) with 0.
 unfold repeat at 1.
-rewrite <- app_nil_end.
+rewrite app_nil_r.
 rewrite sublist_same by lia.
 f_equal.
-rewrite sublist_nil, <- app_nil_end by lia.
+rewrite sublist_nil, app_nil_r by lia.
 rewrite sublist_app by (rewrite ?Zlength_repeat, ?Z.max_r; lia).
 rewrite ?Z.min_l by lia.
 rewrite ?Z.max_r by lia.
-rewrite sublist_nil, <- app_nil_end by lia.
+rewrite sublist_nil, app_nil_r by lia.
 auto.
 Qed.
 *)
@@ -143,7 +143,7 @@ Proof.
  try (rewrite ?Zlength_correct; lia).
 rewrite ?Z.min_l by lia.
 rewrite ?Z.max_r by lia.
-rewrite sublist_nil, <- app_nil_end by lia.
+rewrite sublist_nil, app_nil_r by lia.
 rewrite sublist_same; auto.
 rewrite Zlength_sublist; lia.
 Qed.
@@ -157,7 +157,7 @@ Lemma part3_splice_into_list:
 Proof.
  intros.
  unfold splice_into_list.
-rewrite <- app_ass.
+rewrite app_assoc.
  rewrite (sublist_app); rewrite ?Zlength_repeat, ?Z.max_r, ?Z.max_l by lia; try lia;
  rewrite ?Zlength_sublist by lia;
  try (rewrite ?Zlength_correct; lia).

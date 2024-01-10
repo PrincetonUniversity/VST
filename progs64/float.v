@@ -6,7 +6,7 @@ Local Open Scope string_scope.
 Local Open Scope clight_scope.
 
 Module Info.
-  Definition version := "3.11".
+  Definition version := "3.12".
   Definition build_number := "".
   Definition build_tag := "".
   Definition build_branch := "".
@@ -15,7 +15,7 @@ Module Info.
   Definition abi := "standard".
   Definition bitsize := 64.
   Definition big_endian := false.
-  Definition source_file := "float.c".
+  Definition source_file := "progs64/float.c".
   Definition normalized := true.
 End Info.
 
@@ -75,15 +75,15 @@ Definition ___compcert_va_float64 : ident := 49%positive.
 Definition ___compcert_va_int32 : ident := 47%positive.
 Definition ___compcert_va_int64 : ident := 48%positive.
 Definition _a : ident := 42%positive.
-Definition _foo : ident := 4%positive.
+Definition _foo : ident := 1%positive.
 Definition _main : ident := 46%positive.
 Definition _s : ident := 41%positive.
-Definition _x : ident := 1%positive.
+Definition _x : ident := 2%positive.
 Definition _x1 : ident := 44%positive.
-Definition _y : ident := 2%positive.
+Definition _y : ident := 3%positive.
 Definition _y1 : ident := 43%positive.
 Definition _y2 : ident := 45%positive.
-Definition _z : ident := 3%positive.
+Definition _z : ident := 4%positive.
 Definition _t'1 : ident := 66%positive.
 Definition _t'2 : ident := 67%positive.
 Definition _t'3 : ident := 68%positive.

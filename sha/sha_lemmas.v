@@ -567,7 +567,7 @@ split.
    rewrite sublist_app2 by lia.
    autorewrite with sublist.
    rewrite (sublist_same 0) by lia.
-   rewrite <- app_ass. f_equal.
+   rewrite app_assoc. f_equal.
    rewrite sublist_rejoin; try lia. auto.
    split. apply round_range; apply CBLOCKz_gt.
  apply Zmult_le_compat_r; [ | rewrite CBLOCKz_eq; lia].
@@ -582,7 +582,7 @@ split.
  -
    rewrite (sublist_split (Zlength a / CBLOCKz * CBLOCKz) (Zlength a)
                   (Zlength (a ++ msg) / CBLOCKz * CBLOCKz) ); auto.
-   rewrite app_ass.
+   rewrite <- app_assoc.
    rewrite sublist_app1; try lia.
    rewrite sublist_app2; try lia.
    rewrite Z.sub_diag.
@@ -603,13 +603,13 @@ match type of H4 with ?A = ?B =>
               sublist 0 (Zlength a / CBLOCKz * CBLOCKz) a ++ B) by congruence
 end.
 unfold s256a_hashed, s256a_data in *.
-rewrite <- app_ass in H6.
+rewrite app_assoc in H6.
 rewrite sublist_rejoin in H6 by lia.
 rewrite sublist_same in H6 by lia.
 rewrite H6.
 clear H6 H4.
 rewrite <- (sublist_same 0 (Zlength a') a') at 1; auto.
-rewrite <- app_ass.
+rewrite app_assoc.
 rewrite (sublist_split 0 (Zlength a' / CBLOCKz * CBLOCKz) (Zlength a')); try lia.
 f_equal.
 apply bytelist_to_intlist_inj.

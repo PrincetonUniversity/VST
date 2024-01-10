@@ -568,7 +568,7 @@ induction n; destruct R; intros.
 + inv H.
   specialize (IHn _ H1). clear H1. simpl Floyd_firstn.
   change (m :: Floyd_firstn n R) with (app (m::nil) (Floyd_firstn n R)).
-  rewrite app_ass. unfold app at 1.
+  rewrite <- app_assoc. unfold app at 1.
   simpl; f_equiv; auto.
 Qed.
 

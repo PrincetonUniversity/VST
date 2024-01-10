@@ -573,10 +573,22 @@ forall {V G} E f sp1 sp2 phi
   (BI: binary_intersection (snd sp1) (snd sp2) = Some phi),
   semax_body V G E f (fst sp1, phi).
 
+Axiom semax_body_generalintersection:
+forall {V G cs E f iden I sig cc} {phi : I -> funspec}
+        (H1: forall i : I, typesig_of_funspec (phi i) = sig)
+        (H2: forall i : I, callingconvention_of_funspec (phi i) = cc) (HI: inhabited I)
+  (H: forall i, semax_body(C := cs) V G E f (iden, phi i)),
+  semax_body V G E f (iden, general_intersection phi H1 H2).
+
 Axiom semax_body_funspec_sub: forall {V G E f i phi phi'} 
   (SB: semax_body V G E f (i, phi)) (Sub: funspec_sub E phi phi')
   (LNR: list_norepet (map fst (fn_params f) ++ map fst (fn_temps f))),
   semax_body V G E f (i, phi').
+
+Axiom general_intersection_funspec_subIJ: forall E I (HI: inhabited I) J
+      sig cc phi1 ToF1 CoF1 phi2 ToF2 CoF2
+      (H: forall i, exists j, funspec_sub E (phi1 j) (phi2 i)),
+   funspec_sub E (@general_intersection _ J sig cc phi1 ToF1 CoF1) (@general_intersection _ I sig cc phi2 ToF2 CoF2).
 
 Axiom semax_Delta_subsumption:
   forall E Delta Delta' P c R,

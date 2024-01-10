@@ -76,7 +76,7 @@ forward_if.
    forward.
    subst s1b. subst s1.
   Exists (s1a++[a],s4,u,u2,a1).  simpl fst; simpl snd. entailer!.
-  rewrite app_ass. reflexivity.
+  rewrite <- app_assoc. reflexivity.
  +
     clear a s3 H0. subst u0. rewrite lseg_eq by reflexivity. Intros. subst s1 s1b.
     forward.

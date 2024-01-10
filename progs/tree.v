@@ -6,7 +6,7 @@ Local Open Scope string_scope.
 Local Open Scope clight_scope.
 
 Module Info.
-  Definition version := "3.10".
+  Definition version := "3.12".
   Definition build_number := "".
   Definition build_tag := "".
   Definition build_branch := "".
@@ -20,14 +20,14 @@ Module Info.
 End Info.
 
 Definition _BinaryTree : ident := 10%positive.
-Definition _XList : ident := 2%positive.
+Definition _XList : ident := 3%positive.
 Definition _Xfoo : ident := 55%positive.
-Definition _Xnode : ident := 4%positive.
+Definition _Xnode : ident := 1%positive.
 Definition _Xnode_add : ident := 51%positive.
-Definition _YList : ident := 7%positive.
+Definition _YList : ident := 8%positive.
 Definition _YList_add : ident := 52%positive.
 Definition _YTree_add : ident := 54%positive.
-Definition _Ynode : ident := 8%positive.
+Definition _Ynode : ident := 7%positive.
 Definition _Ynode_add : ident := 53%positive.
 Definition ___builtin_annot : ident := 29%positive.
 Definition ___builtin_annot_intval : ident := 30%positive.
@@ -85,7 +85,7 @@ Definition ___compcert_va_float64 : ident := 59%positive.
 Definition ___compcert_va_int32 : ident := 57%positive.
 Definition ___compcert_va_int64 : ident := 58%positive.
 Definition _left : ident := 11%positive.
-Definition _list : ident := 1%positive.
+Definition _list : ident := 2%positive.
 Definition _main : ident := 56%positive.
 Definition _next : ident := 6%positive.
 Definition _node : ident := 5%positive.
@@ -93,7 +93,7 @@ Definition _p : ident := 49%positive.
 Definition _q : ident := 50%positive.
 Definition _right : ident := 12%positive.
 Definition _tree : ident := 9%positive.
-Definition _v : ident := 3%positive.
+Definition _v : ident := 4%positive.
 Definition _t'1 : ident := 76%positive.
 Definition _t'2 : ident := 77%positive.
 Definition _t'3 : ident := 78%positive.

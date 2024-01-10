@@ -1064,7 +1064,7 @@ simpl in *.
 destruct G; inv H0. apply H1.
 destruct a.
 inv H0.
-simpl. do 2 rewrite app_ass.
+simpl. do 2 rewrite <- app_assoc.
 simpl.
 apply IHvl.
 clear - H.
@@ -1104,17 +1104,17 @@ Lemma match_fdecs_rev:
 Proof.
   intros; apply prop_ext; split; intros.
 *
-  rewrite (app_nil_end vl).
-  rewrite (app_nil_end G).
+  rewrite <- (app_nil_r vl).
+  rewrite <- (app_nil_r G).
   rewrite <- (rev_involutive vl), <- (rev_involutive G).
   apply match_fdecs_rev'; auto.
   rewrite rev_involutive -app_nil_end; auto.
   constructor.
 *
-  rewrite (app_nil_end (rev vl)).
-  rewrite (app_nil_end (rev G)).
+  rewrite <- (app_nil_r (rev vl)).
+  rewrite <- (app_nil_r (rev G)).
   apply match_fdecs_rev'; auto.
-  rewrite <- app_nil_end.
+  rewrite app_nil_r.
   rewrite map_rev. rewrite list_norepet_rev; auto.
   constructor.
 Qed.
