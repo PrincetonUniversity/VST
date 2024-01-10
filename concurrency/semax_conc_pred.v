@@ -1,10 +1,7 @@
 Require Import VST.msl.msl_standard.
-Require Import VST.msl.seplog.
 Require Import VST.veric.Clight_base.
-Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.juicy_mem.
 Require Import VST.veric.juicy_mem_lemmas.
-Require Import VST.veric.juicy_mem_ops.
 Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
@@ -23,17 +20,6 @@ Require Import VST.floyd.field_at.
 Require Import VST.floyd.nested_field_lemmas.
 Require Import VST.floyd.client_lemmas.
 Require Import VST.floyd.jmeq_lemmas.
-
-Lemma approx_derives_ge : forall n m P, (n <= m)%nat -> approx n P |-- approx m P.
-Proof.
-  intros; constructor. change (predicates_hered.derives (approx n P) (approx m P)).
-  intros ? []; split; auto; lia.
-Qed.
-
-Lemma approx_derives : forall P n, approx n P |-- P.
-Proof.
-  constructor; intro; apply approx_p.
-Qed.
 
 (*Lemma unfash_fash_equiv: forall P Q: mpred,
   (P <=> Q)%pred |--

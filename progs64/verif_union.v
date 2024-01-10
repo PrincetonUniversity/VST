@@ -14,7 +14,7 @@ Definition Gprog : funspecs :=
     ltac:(with_library prog (@nil(ident*(@funspec Σ)))).
 
 
-Definition g_spec :=
+Definition g_spec : ident * @funspec Σ :=
  DECLARE _g
  WITH i: Z
  PRE [ size_t]
@@ -22,7 +22,7 @@ Definition g_spec :=
  POST [ size_t ]
    PROP() RETURN (Vptrofs (Ptrofs.repr i)) SEP().
 
-Lemma body_g: semax_body Vprog Gprog f_g g_spec.
+Lemma body_g: semax_body Vprog Gprog ⊤ f_g g_spec.
 Proof.
 start_function.
 forward.

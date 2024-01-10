@@ -1200,7 +1200,6 @@ Ltac after_forward_call :=
     try match goal with |- context [remove_localdef_temp] =>
               simplify_remove_localdef_temp
      end;
-    unfold_app;
     try (apply extract_exists_pre; intros _); 
     match goal with
         | |- semax _ _ _ _ _ => idtac
@@ -3628,7 +3627,7 @@ Ltac try_clean_up_stackframe :=
 Ltac clean_up_stackframe ::=
   lazymatch goal with |-
      ENTAIL _, PROPx _ (LOCALx _ (SEPx _)) ⊢
-        PROPx _ (LOCALx _ (SEPx _)) * stackframe_of _ =>
+        PROPx _ (LOCALx _ (SEPx _)) ∗ stackframe_of _ =>
      unfold stackframe_of;
      simpl fn_vars;
      repeat (

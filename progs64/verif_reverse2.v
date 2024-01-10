@@ -155,7 +155,7 @@ Exists w; entailer!.
 rewrite -> (proj1 H1) by auto.
 unfold listrep at 2; fold listrep.
 entailer!.
-rewrite app_nil_r, rev_involutive.
+rewrite app_nil_r rev_involutive.
 auto.
 Qed.
 

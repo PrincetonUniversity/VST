@@ -713,7 +713,7 @@ endif
 # ########## Targets ##########
 
 default_target: vst $(PROGSDIR)
-vst: _CoqProject msl veric floyd simpleconc
+vst: _CoqProject msl veric floyd # simpleconc
 
 ifeq ($(BITSIZE),64)
 test: vst progs64
