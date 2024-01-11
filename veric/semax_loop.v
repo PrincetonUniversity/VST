@@ -53,13 +53,15 @@ Proof.
   intros.
   rewrite !semax_unfold in H0, H1 |- *.
   intros.
-  iIntros "#Prog_OK" (???) "[%Hclosed #rguard]".
+  iIntros "#Prog_OK" (????) "[(%Hclosed & %) #rguard]".
   iPoseProof (H0 with "Prog_OK [rguard]") as "H0".
   { iIntros "!>"; iFrame "rguard"; iPureIntro.
+    split; last done.
     unfold closed_wrt_modvars, closed_wrt_vars in *; intros ?? Hi; apply Hclosed.
     intros i; specialize (Hi i); rewrite modifiedvars_Sifthenelse; tauto. }
   iPoseProof (H1 with "Prog_OK [rguard]") as "H1".
   { iIntros "!>"; iFrame "rguard"; iPureIntro.
+    split; last done.
     unfold closed_wrt_modvars, closed_wrt_vars in *; intros ?? Hi; apply Hclosed.
     intros i; specialize (Hi i); rewrite modifiedvars_Sifthenelse; tauto. }
   iIntros (tx vx) "!> H".
@@ -88,18 +90,18 @@ Proof.
   iDestruct "H" as "(Hm & >%TC2 & P)"; simpl in HTCb.
   unfold liftx, lift, eval_unop in HTCb; simpl in HTCb.
   destruct (bool_val (typeof b) (eval_expr b rho)) as [b'|] eqn: Hb; [|contradiction].
-  iAssert (▷assert_safe Espec psi E f vx tx (Cont (Kseq (if b' then c else d) k)) rho) with "[F P fun]" as "Hsafe".
+  iAssert (▷assert_safe Espec psi E' f vx tx (Cont (Kseq (if b' then c else d) k)) rho) with "[F P fun]" as "Hsafe".
   { iNext; destruct b'; [iApply "H0" | iApply "H1"]; (iSplit; first done); iFrame; iPureIntro; split; auto; split; auto;
       apply bool_val_strict; auto. }
   simpl in *; unfold Cop.sem_notbool in *.
-  destruct (Cop.bool_val _ _ _) eqn: Hbool_val; inv H9.
+  destruct (Cop.bool_val _ _ _) eqn: Hbool_val; inv H10.
   super_unfold_lift.
   iIntros "!>"; iExists _, _; iSplit.
   - iPureIntro; eapply step_ifthenelse; eauto.
   - iFrame; iNext.
     eapply bool_val_Cop in Hbool_val; eauto; subst.
     by iApply assert_safe_jsafe.
-  - inv H4.
+  - inv H5.
 Qed.
 
 (*Ltac inv_safe H :=
@@ -122,16 +124,18 @@ Proof.
   intros.
   rewrite !semax_unfold in H,H0|-*.
   intros.
-  iIntros "#Prog_OK" (???) "[%Hclosed #rguard]".
+  iIntros "#Prog_OK" (????) "[(%Hclosed & %) #rguard]".
   iPoseProof (H with "Prog_OK") as "H".
   iPoseProof (H0 with "Prog_OK [rguard]") as "H0".
   { iIntros "!>"; iFrame "rguard"; iPureIntro.
+    split; last done.
     unfold closed_wrt_modvars, closed_wrt_vars in *; intros ?? Hi; apply Hclosed.
     intros i; specialize (Hi i); rewrite modifiedvars_Ssequence; tauto. }
   iSpecialize ("H" $! (Kseq t k) F with "[H0]"); last by iApply (guard_safe_adj' with "H");
     intros; iIntros "H"; iApply (jsafe_local_step with "H"); constructor.
   iIntros "!>"; iSplit.
-  { iPureIntro; unfold closed_wrt_modvars, closed_wrt_vars in *; intros ?? Hi; apply Hclosed.
+  { iPureIntro; split; last done.
+    unfold closed_wrt_modvars, closed_wrt_vars in *; intros ?? Hi; apply Hclosed.
     intros i; specialize (Hi i); rewrite modifiedvars_Ssequence; tauto. }
   iIntros (????) "!> H".
   rewrite proj_frame.
@@ -156,7 +160,7 @@ Proof.
   rewrite semax_unfold.
   intros ?????.
   iLöb as "IH".
-  iIntros "#Prog_OK" (???) "[%Hclosed #rguard]".
+  iIntros "#Prog_OK" (????) "[(%Hclosed & %) #rguard]".
   iIntros (??) "!> H".
   iIntros (??).
   set (rho := construct_rho _ _ _).
@@ -168,7 +172,8 @@ Proof.
   rewrite semax_unfold in H.
   iApply (H with "Prog_OK"); last done.
   iIntros "!>"; iSplit.
-  { iPureIntro; unfold closed_wrt_modvars, closed_wrt_vars in *; intros ?? Hi; apply Hclosed.
+  { iPureIntro; split; last done.
+    unfold closed_wrt_modvars, closed_wrt_vars in *; intros ?? Hi; apply Hclosed.
     intros i; specialize (Hi i); rewrite modifiedvars_Sloop; tauto. }
   iIntros (??).
   rewrite semax_unfold in H0.
@@ -177,7 +182,7 @@ Proof.
   assert (closed_wrt_modvars incr F).
   { unfold closed_wrt_modvars, closed_wrt_vars in *; intros ?? Hi; apply Hclosed.
     intros i; specialize (Hi i); rewrite modifiedvars_Sloop; tauto. }
-  iAssert (guard' Espec psi E Delta' f (F ∗ Q') (Kseq incr (Kloop2 body incr k))) as "#Hincr".
+  iAssert (guard' Espec psi E' Delta' f (F ∗ Q') (Kseq incr (Kloop2 body incr k))) as "#Hincr".
   { iApply "H0".
     iIntros "!>"; iSplit; first done.
     iIntros (ek2 vl2 tx2 vx2) "!>"; rewrite /loop2_ret_assert proj_frame.
@@ -211,7 +216,7 @@ Lemma semax_break:
 Proof.
   intros.
   rewrite semax_unfold; intros.
-  iIntros "#Prog_OK" (???) "[%Hclosed #rguard]".
+  iIntros "#Prog_OK" (????) "[(%Hclosed & %HE) #rguard]".
   iIntros (??) "!> H".
   iSpecialize ("rguard" $! EK_break None tx vx with "[H]").
   { simpl.
@@ -326,7 +331,7 @@ Lemma semax_continue:
 Proof.
   intros.
   rewrite semax_unfold; intros.
-  iIntros "#Prog_OK" (???) "[%Hclosed #rguard]".
+  iIntros "#Prog_OK" (????) "[(%Hclosed & %) #rguard]".
   iSpecialize ("rguard" $! EK_continue None); simpl.
   iIntros (??) "!>".
   monPred.unseal; iIntros "(% & (? & ?) & ?)"; iSpecialize ("rguard" with "[-]").
@@ -341,7 +346,7 @@ Proof.
     + iApply jsafe_local_step.
       { constructor. }
       iApply ("IHk" with "[%] [%] rguard"); eauto.
-    + inv Hcont. inv H1.
+    + inv Hcont. inv H2.
       iApply jsafe_local_step.
       { intros; apply step_skip_or_continue_loop1; auto. }
       iApply "rguard".

@@ -44,7 +44,7 @@ Abort.
 Definition Gprog : funspecs :=   ltac:(with_library prog [
     sub_spec _sub1; sub_spec _sub2; sub_spec _sub3]).
 
-Lemma body_sub1:  semax_body Vprog Gprog ⊤ f_sub1 (sub_spec _sub1).
+Lemma body_sub1:  semax_body Vprog Gprog f_sub1 (sub_spec _sub1).
 Proof.
   unfold sub_spec.
   start_function.
@@ -53,7 +53,7 @@ Proof.
   entailer!.
 Qed.
 
-Lemma body_sub2:  semax_body Vprog Gprog ⊤ f_sub2 (sub_spec _sub2).
+Lemma body_sub2:  semax_body Vprog Gprog f_sub2 (sub_spec _sub2).
 Proof.
   unfold sub_spec.
   start_function.
@@ -63,7 +63,7 @@ Proof.
   entailer!.
 Qed.
 
-Lemma body_sub3:  semax_body Vprog Gprog ⊤ f_sub3 (sub_spec _sub3).
+Lemma body_sub3:  semax_body Vprog Gprog f_sub3 (sub_spec _sub3).
 Proof.
   unfold sub_spec.
   start_function.

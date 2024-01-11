@@ -56,7 +56,7 @@ Definition Gprog : funspecs :=
 (** Proof that f_sumarray, the body of the sumarray() function,
  ** satisfies sumarray_spec, in the global context (Vprog,Gprog).
  **)
-Lemma body_sumarray: semax_body Vprog Gprog ⊤ f_sumarray sumarray_spec.
+Lemma body_sumarray: semax_body Vprog Gprog f_sumarray sumarray_spec.
 Proof.
 start_function. (* Always do this at the beginning of a semax_body proof *)
 (* The next two lines do forward symbolic execution through
@@ -118,9 +118,10 @@ Qed.
 Definition four_contents := [1; 2; 3; 4].
 
 
-Lemma body_main:  semax_body Vprog Gprog ⊤ f_main main_spec.
+Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
 start_function.
+rename a into gv.
 forward_call (*  s = sumarray(four,4); *)
   (gv _four, Ews,four_contents,4).
 repeat constructor; computable.

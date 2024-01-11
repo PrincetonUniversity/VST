@@ -213,7 +213,7 @@ Qed.
 
 Lemma obox_left2: forall Delta i P Q,
   temp_guard Delta i ->
-  (local (tc_environ Delta) ∧ P ⊢ Q) ->  
+  (local (tc_environ Delta) ∧ P ⊢ Q) ->
   local (tc_environ Delta) ∧ obox Delta i P ⊢ obox Delta i Q.
 Proof.
   intros ????? [H].
@@ -225,12 +225,12 @@ Proof.
   iPureIntro; eapply tc_environ_set; eauto.
 Qed.
 
-Lemma obox_left2': forall E Delta i P Q,
+Lemma obox_left2': forall Delta i P Q,
   temp_guard Delta i ->
-  (local (tc_environ Delta) ∧ (<affine> allp_fun_id E Delta ∗ P) ⊢ Q) ->
-  local (tc_environ Delta) ∧ (<affine> allp_fun_id E Delta ∗ obox Delta i P) ⊢ obox Delta i Q.
+  (local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ P) ⊢ Q) ->
+  local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ obox Delta i P) ⊢ obox Delta i Q.
 Proof.
-  intros ?????? [H].
+  intros ????? [H].
   split => ?; revert H; rewrite /local /lift1 /obox /subst /env_set; monPred.unseal; intros.
   iIntros "(%TC & Ha & H)".
   destruct (temp_types Delta !! i) eqn: Ht; last done.
@@ -353,10 +353,10 @@ Proof.
   auto.
 Qed.
 
-Lemma oboxopt_left2': forall E Delta i P Q,
+Lemma oboxopt_left2': forall Delta i P Q,
   temp_guard_opt Delta i ->
-  (local (tc_environ Delta) ∧ (<affine> allp_fun_id E Delta ∗ P) ⊢ Q) ->  
-  local (tc_environ Delta) ∧ (<affine> allp_fun_id E Delta ∗ oboxopt Delta i P) ⊢ oboxopt Delta i Q.
+  (local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ P) ⊢ Q) ->  
+  local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ oboxopt Delta i P) ⊢ oboxopt Delta i Q.
 Proof.
   intros.
   destruct i; [apply obox_left2'; auto |].
@@ -382,11 +382,11 @@ Import CSHL_Def.
 Axiom semax_conseq:
   forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs} E (Delta: tycontext),
   forall P' (R': ret_assert) P c (R: ret_assert),
-    (local (tc_environ Delta) ∧ (<affine> allp_fun_id E Delta ∗ P) ⊢ (|={E}=> P')) ->
-    (local (tc_environ Delta) ∧ (<affine> allp_fun_id E Delta ∗ RA_normal R') ⊢ (|={E}=> RA_normal R)) ->
-    (local (tc_environ Delta) ∧ (<affine> allp_fun_id E Delta ∗ RA_break R') ⊢ (|={E}=> RA_break R)) ->
-    (local (tc_environ Delta) ∧ (<affine> allp_fun_id E Delta ∗ RA_continue R') ⊢ (|={E}=> RA_continue R)) ->
-    (forall vl, local (tc_environ Delta) ∧ (<affine> allp_fun_id E Delta ∗ RA_return R' vl) ⊢ (RA_return R vl)) ->
+    (local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ P) ⊢ (|={E}=> P')) ->
+    (local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ RA_normal R') ⊢ (|={E}=> RA_normal R)) ->
+    (local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ RA_break R') ⊢ (|={E}=> RA_break R)) ->
+    (local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ RA_continue R') ⊢ (|={E}=> RA_continue R)) ->
+    (forall vl, local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ RA_return R' vl) ⊢ (RA_return R vl)) ->
    semax E Delta P' c R' -> semax E Delta P c R.
 
 End CLIGHT_SEPARATION_HOARE_LOGIC_COMPLETE_CONSEQUENCE.
@@ -1167,14 +1167,15 @@ Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 Import CSHL_Def.
 
 Axiom semax_call_forward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs} E (Delta: tycontext),
-    forall A P Q x (F: assert) ret argsig retsig cc a bl,
+    forall Ef A P Q x (F: assert) ret argsig retsig cc a bl,
+           Ef ⊆ E ->
            Cop.classify_fun (typeof a) =
            Cop.fun_case_f (typelist_of_type_list argsig) retsig cc ->
            (retsig = Ctypes.Tvoid -> ret = None) ->
           tc_fn_return Delta ret retsig ->
   semax E Delta
           (((*▷*)((tc_expr Delta a) ∧ (tc_exprlist Delta argsig bl)))  ∧
-         (assert_of (`(func_ptr E (mk_funspec (argsig,retsig) cc A P Q)) (eval_expr a)) ∗
+         (assert_of (`(func_ptr (mk_funspec (argsig,retsig) cc Ef A P Q)) (eval_expr a)) ∗
           (▷ (F ∗ assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho))))))
          (Scall ret a bl)
          (normal_ret_assert
@@ -1192,13 +1193,13 @@ Axiom semax_call_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalG
     forall ret a bl R,
   semax E Delta
          (∃ argsig: _, ∃ retsig: _, ∃ cc: _,
-          ∃ A: _, ∃ P: _, ∃ Q: _, ∃ x: _,
-         ⌜Cop.classify_fun (typeof a) =
+          ∃ Ef, ∃ A: _, ∃ P: _, ∃ Q: _, ∃ x: _,
+         ⌜Ef ⊆ E /\ Cop.classify_fun (typeof a) =
              Cop.fun_case_f (typelist_of_type_list argsig) retsig cc /\
              (retsig = Ctypes.Tvoid -> ret = None) /\
              tc_fn_return Delta ret retsig⌝ ∧
           ((*▷*)((tc_expr Delta a) ∧ (tc_exprlist Delta argsig bl)))  ∧
-         assert_of (`(func_ptr E (mk_funspec  (argsig,retsig) cc A P Q)) (eval_expr a)) ∗
+         assert_of (`(func_ptr (mk_funspec  (argsig,retsig) cc Ef A P Q)) (eval_expr a)) ∗
           ▷(assert_of (fun rho => (P x (ge_of rho, eval_exprlist argsig bl rho))) ∗ oboxopt Delta ret (maybe_retval (assert_of (Q x)) retsig ret -∗ R)))
          (Scall ret a bl)
          (normal_ret_assert R).
@@ -1234,13 +1235,13 @@ Theorem semax_call_backward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externa
     forall ret a bl R,
   semax E Delta
          (∃ argsig: _, ∃ retsig: _, ∃ cc: _,
-          ∃ A: _, ∃ P: _, ∃ Q: _, ∃ x: _,
-         ⌜Cop.classify_fun (typeof a) =
+          ∃ Ef, ∃ A: _, ∃ P: _, ∃ Q: _, ∃ x: _,
+         ⌜Ef ⊆ E /\ Cop.classify_fun (typeof a) =
              Cop.fun_case_f (typelist_of_type_list argsig) retsig cc /\
              (retsig = Ctypes.Tvoid -> ret = None) /\
              tc_fn_return Delta ret retsig⌝ ∧
           ((*▷*)((tc_expr Delta a) ∧ (tc_exprlist Delta argsig bl)))  ∧
-         assert_of (`(func_ptr E (mk_funspec  (argsig,retsig) cc A P Q)) (eval_expr a)) ∗
+         assert_of (`(func_ptr (mk_funspec (argsig,retsig) cc Ef A P Q)) (eval_expr a)) ∗
           ▷(assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho)) ∗ oboxopt Delta ret (maybe_retval (assert_of (Q x)) retsig ret -∗ R)))
          (Scall ret a bl)
          (normal_ret_assert R).
@@ -1249,12 +1250,13 @@ Proof.
   apply semax_extract_exists; intro argsig.
   apply semax_extract_exists; intro retsig.
   apply semax_extract_exists; intro cc.
+  apply semax_extract_exists; intro Ef.
   apply semax_extract_exists; intro A.
   apply semax_extract_exists; intro P.
   apply semax_extract_exists; intro Q.
   apply semax_extract_exists; intro x.
-  apply semax_extract_prop; intros [? [? ?]].
-  eapply semax_pre_post'; [.. | apply semax_call_forward; auto].
+  apply semax_extract_prop; intros (? & ? & ? & ?).
+  eapply semax_pre_post'; [.. | apply (semax_call_forward _ _ Ef); auto].
   + rewrite bi.and_elim_r; apply bi.and_mono; first done; apply bi.sep_mono; first done.
     apply bi.later_mono.
     rewrite comm //.
@@ -1323,14 +1325,15 @@ Proof.
 Qed.
 *)
 Theorem semax_call_forward: forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs} E (Delta: tycontext),
-    forall A P Q x (F: assert) ret argsig retsig cc a bl,
+    forall Ef A P Q x (F: assert) ret argsig retsig cc a bl,
+           Ef ⊆ E ->
            Cop.classify_fun (typeof a) =
            Cop.fun_case_f (typelist_of_type_list argsig) retsig cc ->
            (retsig = Ctypes.Tvoid -> ret = None) ->
           tc_fn_return Delta ret retsig ->
   semax E Delta
           (((*▷*)((tc_expr Delta a) ∧ (tc_exprlist Delta argsig bl)))  ∧
-         (assert_of (`(func_ptr E (mk_funspec  (argsig,retsig) cc A P Q)) (eval_expr a)) ∗
+         (assert_of (`(func_ptr (mk_funspec  (argsig,retsig) cc Ef A P Q)) (eval_expr a)) ∗
           (▷ (F ∗ assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho))))))
          (Scall ret a bl)
          (normal_ret_assert
@@ -1338,7 +1341,7 @@ Theorem semax_call_forward: forall `{!heapGS Σ} {Espec: OracleKind} `{!external
 Proof.
   intros.
   eapply semax_pre; [| apply semax_call_backward].
-  iIntros "(#? & H)"; iExists argsig, retsig, cc, A, P, Q, x.
+  iIntros "(#? & H)"; iExists argsig, retsig, cc, Ef, A, P, Q, x.
   iSplit; first done.
   iSplit; first by rewrite bi.and_elim_l.
   rewrite bi.and_elim_r; iDestruct "H" as "($ & H)".

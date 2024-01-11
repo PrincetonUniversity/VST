@@ -22,7 +22,7 @@ Definition g_spec : ident * @funspec Σ :=
  POST [ size_t ]
    PROP() RETURN (Vptrofs (Ptrofs.repr i)) SEP().
 
-Lemma body_g: semax_body Vprog Gprog ⊤ f_g g_spec.
+Lemma body_g: semax_body Vprog Gprog f_g g_spec.
 Proof.
 start_function.
 forward.

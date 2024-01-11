@@ -121,7 +121,7 @@ Definition funspec2post (ext_link: Strings.String.string -> ident) (A : TypeTree
 Definition funspec2extspec (ext_link: Strings.String.string -> ident) (f : (ident*funspec))
   : external_specification mem external_function Z :=
   match f with
-    | (id, mk_funspec ((params, sigret) as fsig) cc A P Q) =>
+    | (id, mk_funspec ((params, sigret) as fsig) cc E A P Q) =>
       let sig := typesig2signature fsig cc in
       Build_external_specification mem external_function Z
         (fun ef => if oi_eq_dec (Some (id, sig)) (ef_id_sig ext_link ef) then (nat * iResUR Σ * dtfr A)%type else ext_spec_type Espec ef)
@@ -132,7 +132,7 @@ Definition funspec2extspec (ext_link: Strings.String.string -> ident) (f : (iden
 
 Definition wf_funspec (f : @funspec Σ) :=
   match f with
-    | mk_funspec sig cc A P Q =>
+    | mk_funspec sig cc E A P Q =>
         forall a (ge ge': genv) args,
           Genv.genv_symb ge = Genv.genv_symb ge' ->
           P a (filter_genv ge, args) 
@@ -181,11 +181,11 @@ Proof.
 Qed.*)
 
 Lemma add_funspecs_prepost  (ext_link: Strings.String.string -> ident)
-              {fs id sig cc A P Q}
+              {fs id sig cc E A P Q}
               {x: dtfr A} {args} Espec tys ge_s :
   let ef := EF_external id (typesig2signature sig cc) in
   funspecs_norepeat fs ->
-  In (ext_link id, (mk_funspec sig cc A P Q)) fs ->
+  In (ext_link id, (mk_funspec sig cc E A P Q)) fs ->
   forall md z, ⌜Val.has_type_list args (sig_args (ef_sig ef))⌝ ∧
         state_interp md z ∗ P x (filter_genv (symb2genv ge_s), args) ⊢
   ∃ x' : ext_spec_type (add_funspecs_rec ext_link Espec fs) ef,
@@ -223,19 +223,19 @@ clear -Ha Hin H1 Hpre; revert Ha Hin H1 Hpre.
 unfold funspec2jspec; simpl.
 destruct a; simpl; destruct f as [(?, ?)]; simpl; unfold funspec2pre, funspec2post; simpl.
 if_tac [e|e].
-* injection e as E; subst i; destruct fs; [solve [simpl; intros; exfalso; auto]|].
+* injection e as ?; subst i; destruct fs; [solve [simpl; intros; exfalso; auto]|].
   done.
 * intros; eexists; eauto.
 }
 Qed.
 
 Lemma add_funspecs_prepost_void  (ext_link: Strings.String.string -> ident)
-              {fs id sig cc A P Q}
+              {fs id sig cc E A P Q}
               {x: dtfr A}
               {args} Espec tys ge_s :
   let ef := EF_external id (mksignature (map typ_of_type sig) Tvoid cc) in
   funspecs_norepeat fs ->
-  In (ext_link id, (mk_funspec (sig, tvoid) cc A P Q)) fs ->
+  In (ext_link id, (mk_funspec (sig, tvoid) cc E A P Q)) fs ->
   forall md z, ⌜Val.has_type_list args (sig_args (ef_sig ef))⌝ ∧
         state_interp md z ∗ P x (filter_genv (symb2genv ge_s), args) ⊢
   ∃ x' : ext_spec_type (add_funspecs_rec ext_link Espec fs) ef,
@@ -262,8 +262,8 @@ Context `{!heapGS Σ}.
 Variable Espec : OracleKind.
 Context `{!externalGS OK_ty Σ}.
 
-Lemma semax_ext' E (ext_link: Strings.String.string -> ident) id sig cc A P Q (fs : funspecs) :
-  let f := mk_funspec sig cc A P Q in
+Lemma semax_ext' (ext_link: Strings.String.string -> ident) id sig cc E A P Q (fs : funspecs) :
+  let f := mk_funspec sig cc E A P Q in
   In (ext_link  id,f) fs ->
   funspecs_norepeat fs ->
   ⊢semax_external {| OK_ty := OK_ty; OK_spec := add_funspecs_rec OK_ty ext_link OK_spec fs |}
@@ -278,8 +278,8 @@ iExists x'; iFrame; iSplit; first done.
 iIntros (?????); iMod ("Hpost" with "[%]") as "$"; done.
 Qed.
 
-Lemma semax_ext E (ext_link: Strings.String.string -> ident) id sig sig' cc A P Q (fs : funspecs) :
-  let f := mk_funspec sig cc A P Q in
+Lemma semax_ext (ext_link: Strings.String.string -> ident) id sig sig' cc E A P Q (fs : funspecs) :
+  let f := mk_funspec sig cc E A P Q in
   In (ext_link id,f) fs ->
   funspecs_norepeat fs ->
   sig' = typesig2signature sig cc ->

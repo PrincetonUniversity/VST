@@ -493,18 +493,18 @@ Ltac prune_conjuncts :=
               | cbv beta; repeat rewrite and_True; prop_right_cautious ]
          | simple eapply try_conjuncts_prop_and;
               [intro; try_conjuncts
-              | cbv beta; repeat rewrite and_True; try apply go_lower_lem1]
+              | cbv beta; repeat rewrite and_True; try simple apply go_lower_lem1]
          | idtac].
 
 Ltac entailer' :=
  repeat (progress (ent_iter; normalize));
- try apply prop_and_same_derives;
+ try simple apply prop_and_same_derives;
  prune_conjuncts;
  try rewrite ->(prop_true_andp True) by apply Coq.Init.Logic.I;
  try solve_valid_pointer;
  try first [apply derives_refl
-              | apply bi.False_elim
-              | apply bi.True_intro].
+              | simple apply bi.False_elim
+              | simple apply bi.True_intro].
 
 Lemma empTrue `{!heapGS Σ}: @bi_emp_valid mpred True.
 Proof.
@@ -620,9 +620,9 @@ Ltac entbang :=
  ent_iter;
  repeat change (mapsto_memory_block.spacer _ _ _ _) with emp;
  first [ contradiction
-        | apply bi.pure_intro; my_auto
+        | simple apply bi.pure_intro; my_auto
         | lazymatch goal with |- ?Q ⊢ ⌜_⌝ ∧ ?Q' => constr_eq Q Q';
-                      apply prop_and_same_derives'; my_auto
+                      simple apply prop_and_same_derives'; my_auto
           end
         | simple apply bi.and_intro;
             [apply bi.pure_intro; my_auto 

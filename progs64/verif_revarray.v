@@ -111,7 +111,7 @@ pose proof (Zlength_rev _ al).
 list_solve.
 Qed.
 
-Lemma body_reverse: semax_body Vprog Gprog ⊤ f_reverse reverse_spec.
+Lemma body_reverse: semax_body Vprog Gprog f_reverse reverse_spec.
 Proof.
 start_function.
 forward.  (* lo = 0; *)
@@ -166,7 +166,6 @@ forward. (* hi--; *)
 forward. (* return; *)
 entailer!!.
 rewrite map_rev. rewrite flip_fact_1; try lia; auto.
-cancel.
 Qed.
 
 Definition four_contents := [Int.repr 1; Int.repr 2; Int.repr 3; Int.repr 4].
@@ -174,10 +173,8 @@ Definition four_contents := [Int.repr 1; Int.repr 2; Int.repr 3; Int.repr 4].
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof. finish. Qed.
 
-#[export] Existing Instance NullExtension.Espec.
-
 Lemma prog_correct:
-  semax_prog prog tt Vprog Gprog.
+  semax_prog _ prog tt Vprog Gprog.
 Proof.
 prove_semax_prog.
 semax_func_cons body_reverse.

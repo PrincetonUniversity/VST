@@ -270,7 +270,7 @@ Qed.
 
 #[export] Hint Resolve treebox_rep_saturate_local: saturate_local.
 
-Definition insert_inv (b0: val) (t0: tree val) (x: Z) (v: val): environ -> mpred :=
+Definition insert_inv (b0: val) (t0: tree val) (x: Z) (v: val): assert :=
   EX b: val, EX t: tree val,
   PROP()
   LOCAL(temp _t b; temp _x (Vint (Int.repr x));   temp _value v)
@@ -371,11 +371,11 @@ Lemma body_insert: semax_body Vprog Gprog f_insert insert_spec.
 Proof.
   start_function.
   eapply semax_pre; [
-    | apply (semax_loop _ (insert_inv b t x v) (insert_inv b t x v) )].
+    | apply (semax_loop _ _ (insert_inv b t x v) (insert_inv b t x v) )].
   * (* Precondition *)
     unfold insert_inv.
     Exists b t. entailer.
-    apply ramify_PPQQ.
+    iIntros "$ $".
   * (* Loop body *)
     unfold insert_inv at 1.
     Intros b1 t1.
@@ -385,6 +385,7 @@ Proof.
     + (* then clause *)
       subst p.
       Time forward_call (sizeof t_struct_tree).
+      simpl.
       Intros p'.
       rewrite memory_block_data_at_ by auto.
       forward. (* p->key=x; *)

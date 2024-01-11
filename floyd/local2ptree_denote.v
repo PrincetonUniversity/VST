@@ -804,7 +804,7 @@ Lemma make_func_ptr:
    (glob_specs Delta) !! id = Some fs ->
    (glob_types Delta) !! id = Some (type_of_funspec fs) ->
    snd (local2ptree Q) = Some gv /\ gv id = p ->
-  semax E Delta (PROPx P (LOCALx Q (SEPx (func_ptr E fs p :: R)))) c Post ->
+  semax E Delta (PROPx P (LOCALx Q (SEPx (func_ptr fs p :: R)))) c Post ->
   semax E Delta (PROPx P (LOCALx Q (SEPx R))) c Post.
 Proof.
 intros.

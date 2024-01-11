@@ -38,8 +38,8 @@ Section semax.
 
 Context `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ}.
 
-Definition body_lemma_of_funspec E (ef: external_function) (f: funspec) :=
-  match f with mk_funspec sig _ A P Q =>
+Definition body_lemma_of_funspec (ef: external_function) (f: funspec) :=
+  match f with mk_funspec sig _ E A P Q =>
     ⊢ semax_external E ef A P Q
   end.
 
@@ -64,8 +64,7 @@ Definition exit_spec' : funspec :=
 Definition exit_spec := try_spec "exit" exit_spec'.
 
 Parameter body_exit:
- forall E,
-  body_lemma_of_funspec E
+  body_lemma_of_funspec
     (EF_external "exit"
        {| sig_args := AST.Tint :: nil; sig_res := AST.Tvoid; sig_cc := cc_default |} )
    exit_spec'.
@@ -118,8 +117,8 @@ Definition malloc_spec'  {cs: compspecs} :=
             else (malloc_token Ews t p ∗ data_at_ Ews t p)).
 
 Parameter body_malloc:
- forall {cs: compspecs} E,
-  body_lemma_of_funspec E EF_malloc malloc_spec'.
+ forall {cs: compspecs},
+  body_lemma_of_funspec EF_malloc malloc_spec'.
 (*
 Definition free_spec'  {cs: compspecs} :=
    WITH t: type, p:val, gv: globals
@@ -147,8 +146,8 @@ Definition free_spec'  {cs: compspecs} :=
        SEP (mem_mgr gv).
 
 Parameter body_free:
- forall E {cs: compspecs} ,
-  body_lemma_of_funspec E EF_free free_spec'.
+ forall {cs: compspecs} ,
+  body_lemma_of_funspec EF_free free_spec'.
 
 Definition library_G  {cs: compspecs} prog :=
  let defs := prog_defs prog in 

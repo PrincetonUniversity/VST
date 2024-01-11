@@ -52,7 +52,7 @@ Axiom semax_prog_rule :
        (exists m', semantics.initial_core (cl_core_sem (globalenv prog)) h
                        m q m' (Vptr b Ptrofs.zero) nil) *
        (state_interp Mem.empty z ∗ funspec_auth ∅ ∗ has_ext z ⊢ |==> state_interp m z ∗ jsafeN Espec (globalenv prog) ⊤ z q ∧
-           (*no_locks ∧*) matchfunspecs (globalenv prog) G ∅ (*∗ funassert (nofunc_tycontext V G) (empty_environ (globalenv prog))*))
+           (*no_locks ∧*) matchfunspecs (globalenv prog) G (*∗ funassert (nofunc_tycontext V G) (empty_environ (globalenv prog))*))
      } }%type.
 
 End SEPARATION_HOARE_LOGIC_SOUNDNESS.
@@ -84,6 +84,12 @@ Module VericMinimumSeparationLogic: MINIMUM_CLIGHT_SEPARATION_HOARE_LOGIC with M
 Module CSHL_Def := VericDef.
 Module CSHL_Defs := DerivedDefs (VericDef).
 
+Lemma semax_mask_mono : forall `{HH: heapGS Σ}{Espec:OracleKind}{HE: externalGS OK_ty Σ} {CS : compspecs} E E' Delta P c R,
+  E ⊆ E' -> semax Espec E Delta P c R -> semax Espec E' Delta P c R.
+Proof.
+  intros; rewrite /semax -semax_mask_mono //.
+Qed.
+
 Definition semax_extract_exists := @extract_exists_pre.
 
 Definition semax_body := @semax_body.
@@ -94,7 +100,7 @@ Definition make_ext_rval := veric.semax.make_ext_rval.
 Definition tc_option_val := veric.semax.tc_option_val.
 
 Lemma semax_func_cons_ext: forall `{HH: heapGS Σ}{Espec:OracleKind}{HE: externalGS OK_ty Σ} (V: varspecs) (G: funspecs)
-     {C: compspecs} ge E fs id ef argsig retsig A P (Q: dtfr (AssertTT A)) argsig'
+     {C: compspecs} ge fs id ef argsig retsig E A P (Q: dtfr (AssertTT A)) argsig'
       (G': funspecs) cc b,
   argsig' = typelist2list argsig ->
   ef_sig ef = mksignature (typlist_of_typelist argsig) (rettype_of_type retsig) cc ->
@@ -107,9 +113,9 @@ Lemma semax_func_cons_ext: forall `{HH: heapGS Σ}{Espec:OracleKind}{HE: externa
   Genv.find_symbol ge id = Some b ->
   Genv.find_funct_ptr ge b = Some (Ctypes.External ef argsig retsig cc) ->
   (⊢ @CSHL_Def.semax_external _ HH Espec HE E ef A P Q) ->
-  CSHL_Def.semax_func _ HH Espec HE V G C ge E fs G' ->
-  CSHL_Def.semax_func _ HH Espec HE V G C ge E ((id, Ctypes.External ef argsig retsig cc)::fs)
-             ((id, mk_funspec (argsig', retsig) cc A P Q)  :: G').
+  CSHL_Def.semax_func _ HH Espec HE V G C ge fs G' ->
+  CSHL_Def.semax_func _ HH Espec HE V G C ge ((id, Ctypes.External ef argsig retsig cc)::fs)
+             ((id, mk_funspec (argsig', retsig) cc E A P Q)  :: G').
 Proof. intros. eapply semax_func_cons_ext; eauto. Qed.
 
 Definition semax_Delta_subsumption := @semax_lemmas.semax_Delta_subsumption.
@@ -117,26 +123,26 @@ Definition semax_Delta_subsumption := @semax_lemmas.semax_Delta_subsumption.
 Definition semax_external_binaryintersection := @semax_external_binaryintersection.
 
 Lemma semax_external_funspec_sub: forall `{HH : heapGS Σ}
-  {Espec HE E argtypes rtype cc ef A1 P1 Q1 A P Q}
-  (Hsub: funspec_sub E (mk_funspec (argtypes, rtype) cc A1 P1 Q1)
-                   (mk_funspec (argtypes, rtype) cc A P Q))
+  {Espec HE argtypes rtype cc ef E1 A1 P1 Q1 E A P Q}
+  (Hsub: funspec_sub (mk_funspec (argtypes, rtype) cc E1 A1 P1 Q1)
+                   (mk_funspec (argtypes, rtype) cc E A P Q))
   (HSIG: ef_sig ef =
          mksignature (map typ_of_type argtypes)
                      (rettype_of_type rtype) cc),
-  @CSHL_Def.semax_external _ HH Espec HE E ef A1 P1 Q1 ⊢
+  @CSHL_Def.semax_external _ HH Espec HE E1 ef A1 P1 Q1 ⊢
   @CSHL_Def.semax_external _ HH Espec HE E ef A P Q.
 Proof.
   intros. eapply semax_external_funspec_sub; eauto.
 Qed.
 
-Lemma general_intersection_funspec_subIJ `{HH : heapGS Σ} E I (HI: inhabited I) J
-      sig cc phi1 ToF1 CoF1 phi2 ToF2 CoF2
-      (H: forall i, exists j, funspec_sub E (phi1 j) (phi2 i)):
-    funspec_sub E (@general_intersection _ J sig cc phi1 ToF1 CoF1) (@general_intersection _ I sig cc phi2 ToF2 CoF2).
+Lemma general_intersection_funspec_subIJ `{HH : heapGS Σ} I (HI: inhabited I) J
+      sig cc E phi1 ToF1 CoF1 HE1 phi2 ToF2 CoF2 HE2
+      (H: forall i, exists j, funspec_sub (phi1 j) (phi2 i)):
+    funspec_sub (@general_intersection _ J sig cc E phi1 ToF1 CoF1 HE1) (@general_intersection _ I sig cc E phi2 ToF2 CoF2 HE2).
 Proof.
-  apply (@generalintersection_sub3 _ _ I sig cc E HI phi2 ToF2 CoF2 _ (eq_refl _)).
+  apply (@generalintersection_sub3 _ _ I sig cc E HI phi2 ToF2 CoF2 HE2 _ (eq_refl _)).
   intros i. destruct (H i) as [j Hj]. eapply seplog.funspec_sub_trans.
-  apply (@generalintersection_sub _ _ J sig cc E phi1 ToF1 CoF1 _ (eq_refl _)).
+  apply (@generalintersection_sub _ _ J sig cc E phi1 ToF1 CoF1 HE1 _ (eq_refl _)).
   apply Hj.
 Qed.
 
@@ -176,18 +182,19 @@ Definition semax_return := @semax_return.
 
 (* Why are the implicits so inconsistent here? *)
 Lemma semax_call `{HH : !heapGS Σ} {Espec} `{HE : !externalGS OK_ty Σ} {CS}:
-  forall E Delta A
+  forall E Delta Ef A
   (P : dtfr (ArgsTT A))
   (Q : dtfr (AssertTT A))
   (x : dtfr A)
    F ret argsig retsig cc a bl,
+           Ef ⊆ E ->
            Cop.classify_fun (typeof a) =
            Cop.fun_case_f (typelist_of_type_list argsig) retsig cc ->
             (retsig = Ctypes.Tvoid -> ret = None) ->
           tc_fn_return Delta ret retsig ->
   @semax _ HH Espec HE CS E Delta
        ((tc_expr Delta a ∧ tc_exprlist Delta argsig bl) ∧
-         (assert_of (fun rho => func_ptr E (mk_funspec (argsig,retsig) cc A P Q) (eval_expr a rho)) ∗
+         (assert_of (fun rho => func_ptr (mk_funspec (argsig,retsig) cc Ef A P Q) (eval_expr a rho)) ∗
           (▷(F ∗ assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho))))))
          (Scall ret a bl)
          (normal_ret_assert (∃ old:val, assert_of (substopt ret (`old) F) ∗ maybe_retval (assert_of (Q x)) retsig ret)).

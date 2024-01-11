@@ -99,7 +99,7 @@ Hint Resolve listrep_valid_pointer : valid_pointer.
 
 Section Proof1.
 
-Lemma body_append: semax_body Vprog Gprog ⊤ f_append append_spec.
+Lemma body_append: semax_body Vprog Gprog f_append append_spec.
 Proof.
 start_function.
 forward_if.
@@ -164,7 +164,7 @@ Section Proof2.
 Definition lseg (sh: share) (contents: list val) (x z: val) : mpred :=
   ∀ cts2:list val, listrep sh cts2 z -∗ listrep sh (contents++cts2) x.
 
-Lemma body_append2: semax_body Vprog Gprog ⊤ f_append append_spec.
+Lemma body_append2: semax_body Vprog Gprog f_append append_spec.
 Proof.
 start_function.
 forward_if.
@@ -358,7 +358,7 @@ unfold lseg, listrep; fold lseg; fold listrep.
 apply bi.equiv_entails_2; Intros y; Exists y; rewrite IHs; entailer!.
 Qed.
 
-Lemma body_append3: semax_body Vprog Gprog ⊤ f_append append_spec.
+Lemma body_append3: semax_body Vprog Gprog f_append append_spec.
 Proof.
 start_function.
 rewrite -> listrep_lseg_null in * |- *.

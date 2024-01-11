@@ -41,8 +41,8 @@ Definition twiddle_spec (instance: object_invariant) :=
 Definition object_methods (instance: object_invariant) (mtable: val) : mpred :=
   ∃ (sh: share) (reset: val) (twiddle: val),
   ⌜readable_share sh⌝ ∧
-  func_ptr ⊤ (reset_spec instance) reset ∗
-  func_ptr ⊤ (twiddle_spec instance) twiddle ∗
+  func_ptr (reset_spec instance) reset ∗
+  func_ptr (twiddle_spec instance) twiddle ∗
   data_at sh (Tstruct _methods noattr) (reset,twiddle) mtable.
 
 Lemma object_methods_local_facts: forall instance p,
@@ -110,7 +110,7 @@ Proof.
   rewrite /bind_ret; split => rho; monPred.unseal; done.
 Qed.
 
-Lemma body_foo_reset: semax_body Vprog Gprog ⊤ f_foo_reset foo_reset_spec.
+Lemma body_foo_reset: semax_body Vprog Gprog f_foo_reset foo_reset_spec.
 Proof.
 unfold foo_reset_spec, foo_invariant, reset_spec.
 start_function.
@@ -120,7 +120,7 @@ entailer!!.
 all: unfold withspacer; simpl; entailer!!.  (* needed if Archi.ptr64=true *)
 Qed.
 
-Lemma body_foo_twiddle: semax_body Vprog Gprog ⊤ f_foo_twiddle foo_twiddle_spec.
+Lemma body_foo_twiddle: semax_body Vprog Gprog f_foo_twiddle foo_twiddle_spec.
 Proof.
 unfold foo_twiddle_spec, foo_invariant, twiddle_spec.
 start_function.
@@ -158,10 +158,11 @@ rewrite <- (data_at_share_join sh1 sh2 sh) by assumption.
 iIntros "(#$ & #$ & $ & $)"; auto.
 Qed.
 
-Lemma body_make_foo: semax_body Vprog Gprog ⊤ f_make_foo make_foo_spec.
+Lemma body_make_foo: semax_body Vprog Gprog f_make_foo make_foo_spec.
 Proof.
 unfold make_foo_spec.
 start_function.
+rename a into gv.
 forward_call (Tstruct _foo_object noattr, gv).
 Intros p.
 forward_if
@@ -225,8 +226,8 @@ Qed.
 Lemma make_object_methods:
   forall sh instance reset twiddle (mtable: val),
   readable_share sh ->
-  func_ptr ⊤ (reset_spec instance) reset ∗
-  func_ptr ⊤ (twiddle_spec instance) twiddle ∗
+  func_ptr (reset_spec instance) reset ∗
+  func_ptr (twiddle_spec instance) twiddle ∗
   data_at sh (Tstruct _methods noattr) (reset, twiddle) mtable
   ⊢ object_methods instance mtable.
 Proof.
@@ -260,9 +261,10 @@ match goal with
     end end
 end.
 
-Lemma body_main:  semax_body Vprog Gprog ⊤ f_main main_spec.
+Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
 start_function.
+rename a into gv.
 sep_apply (create_mem_mgr gv).
 (* assert_gvar _foo_methods. (* TODO: this is needed for a field_compatible later on *) *)
 fold noattr cc_default.

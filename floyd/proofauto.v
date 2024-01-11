@@ -51,8 +51,8 @@ Require VST.floyd.linking.
 
 (* undo some "simpl never" settings from std++ 
    https://gitlab.mpi-sws.org/iris/stdpp/-/blob/master/stdpp/numbers.v *)
-#[global] Arguments Pos.pred : simpl never.
-#[global] Arguments Pos.succ : simpl never.
+#[global] Arguments Pos.pred : simpl nomatch.
+#[global] Arguments Pos.succ : simpl nomatch.
 #[global] Arguments Pos.of_nat : simpl nomatch.
 #[global] Arguments Pos.to_nat !x /.
 #[global] Arguments Pos.mul : simpl nomatch.
@@ -117,13 +117,13 @@ Require VST.floyd.linking.
 #[global] Arguments Z.square : simpl nomatch.
 #[global] Arguments Z.abs : simpl nomatch.
 
-Global Arguments Qreduction.Qred : simpl never.
-Global Arguments pos_to_Qp : simpl never.
-Global Arguments Qp.add : simpl never.
-Global Arguments Qp.sub : simpl never.
-Global Arguments Qp.mul : simpl never.
-Global Arguments Qp.inv : simpl never.
-Global Arguments Qp.div : simpl never.
+Global Arguments Qreduction.Qred : simpl nomatch.
+Global Arguments pos_to_Qp : simpl nomatch.
+Global Arguments Qp.add : simpl nomatch.
+Global Arguments Qp.sub : simpl nomatch.
+Global Arguments Qp.mul : simpl nomatch.
+Global Arguments Qp.inv : simpl nomatch.
+Global Arguments Qp.div : simpl nomatch.
 
 (*funspec scope is the default, so remains open.
   Users who want to use old funspecs should 

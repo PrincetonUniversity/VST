@@ -149,7 +149,7 @@ Proof.
   intros.
   rewrite semax_unfold.
   iIntros (?????) "#Prog_OK".
-  iIntros (???) "(%Hclosed & #rguard)".
+  iIntros (????) "((%Hclosed & %) & #rguard)".
   iIntros (??) "!>".
   monPred.unseal; iIntros "((% & %) & (F & Q) & ?)".
   set (rho := construct_rho _ _ _).
@@ -157,11 +157,12 @@ Proof.
   iAssert ⌜tc_val (typeof a) (eval_expr(CS := CS) a rho)⌝ as %?.
   { rewrite Htc tc_expr_sound //. }
   destruct (typeof a) eqn: Hta; try discriminate.
-  destruct (eval_expr a rho) as [ | n | | | |] eqn:?;  try contradiction.
+  destruct (eval_expr a rho) as [ | n | | | |] eqn:?; try contradiction.
   specialize (Hcase n); rewrite semax_unfold in Hcase.
   iPoseProof (Hcase with "Prog_OK []") as "Hcase".
   { iIntros "!>"; iSplit; last by iApply switch_rguard.
-    iPureIntro; eapply closed_wrt_modvars_switch with (n:= Int.unsigned n); eauto. }
+    iPureIntro; split; last done.
+    eapply closed_wrt_modvars_switch with (n:= Int.unsigned n); eauto. }
   rewrite /guard' /_guard /assert_safe.
   iIntros (? _).
   iApply jsafe_step; rewrite /jstep_ex.

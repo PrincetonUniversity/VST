@@ -5,7 +5,7 @@
     forward store with 64-bit integer array subscript.
 *)
 
-Require Import VST.floyd.proofauto.
+Require Import VST.floyd.proofauto VST.floyd.compat.
 Require Import VST.progs64.min64.
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
@@ -27,7 +27,7 @@ destruct H.
 subst a.
 simpl.
 apply Z.le_min_l.
-simpl. rewrite Z.le_min_r.
+simpl. rewrite -> Z.le_min_r.
 apply IHal.
 apply H.
 Qed.

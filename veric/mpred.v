@@ -246,10 +246,9 @@ Section ofe.
 Context `{Cofe PROP1} `{Cofe PROP2}.
 
 Inductive funspec_ :=
-   mk_funspec (sig : typesig) (cc : calling_convention) (A: TypeTree)
+   mk_funspec (sig : typesig) (cc : calling_convention) (E: coPset) (A: TypeTree)
      (P: oFunctor_car (dependent_type_functor_rec (ArgsTT A)) PROP1 PROP2)
      (Q: oFunctor_car (dependent_type_functor_rec (AssertTT A)) PROP1 PROP2).
-(* do we need nonexpansiveness proofs here? *)
 
 Import EqNotations.
 
@@ -267,8 +266,8 @@ Defined.
 
 Local Instance funspec_dist : Dist funspec_ := λ n f1 f2,
   match f1, f2 with
-  | mk_funspec sig1 cc1 A1 P1 Q1, mk_funspec sig2 cc2 A2 P2 Q2 =>
-      sig1 = sig2 /\ cc1 = cc2 /\ ∃ H : A1 = A2, rew (pre_eq H) in P1 ≡{n}≡ P2 /\ rew (post_eq H) in Q1 ≡{n}≡ Q2
+  | mk_funspec sig1 cc1 E1 A1 P1 Q1, mk_funspec sig2 cc2 E2 A2 P2 Q2 =>
+      sig1 = sig2 /\ cc1 = cc2 /\ E1 = E2 /\ ∃ H : A1 = A2, rew (pre_eq H) in P1 ≡{n}≡ P2 /\ rew (post_eq H) in Q1 ≡{n}≡ Q2
   end.
 
 Local Instance funspec_equiv : Equiv funspec_ := λ f1 f2, forall n, f1 ≡{n}≡ f2.
@@ -279,11 +278,11 @@ Proof.
   - split.
     + intros []; repeat (split; auto).
       exists eq_refl; done.
-    + intros [] [] (-> & -> & -> & ? & ?); repeat (split; auto).
+    + intros [] [] (-> & -> & -> & -> & ? & ?); repeat (split; auto).
       exists eq_refl; done.
-    + intros [] [] [] (-> & -> & -> & ? & ?) (-> & -> & -> & ? & ?); repeat (split; auto).
+    + intros [] [] [] (-> & -> & -> & -> & ? & ?) (-> & -> & -> & -> & ? & ?); repeat (split; auto).
       exists eq_refl; split; etrans; eauto.
-  - intros ?? [] [] (-> & -> & -> & ? & ?) ?; repeat (split; auto).
+  - intros ?? [] [] (-> & -> & -> & -> & ? & ?) ?; repeat (split; auto).
     exists eq_refl; split; eapply dist_lt; eauto.
 Qed.
 Canonical Structure funspecO := Ofe funspec_ funspec_ofe_mixin.
@@ -296,14 +295,14 @@ Section ofunctor.
 
 Program Definition funspecOF (PF : oFunctor) `{forall (A : ofe) (HA : Cofe A) (B : ofe) (HB : Cofe B), Cofe (oFunctor_car PF A B)} : oFunctor := {|
     oFunctor_car A CA B CB := funspecO (oFunctor_car PF B A) (oFunctor_car PF A B);
-    oFunctor_map A1 _ A2 _ B1 _ B2 _ fg := λne f, match f with mk_funspec sig cc A P Q =>
-      mk_funspec sig cc A (oFunctor_map (oFunctor_oFunctor_compose (dependent_type_functor_rec (ArgsTT A)) PF) fg P)
+    oFunctor_map A1 _ A2 _ B1 _ B2 _ fg := λne f, match f with mk_funspec sig cc E A P Q =>
+      mk_funspec sig cc E A (oFunctor_map (oFunctor_oFunctor_compose (dependent_type_functor_rec (ArgsTT A)) PF) fg P)
                           (oFunctor_map (oFunctor_oFunctor_compose (dependent_type_functor_rec (AssertTT A)) PF) fg Q) end
   |}.
 Next Obligation.
 Proof.
   intros. intros [] [].
-  intros (<- & <- & <- & HP & HQ); repeat split; auto.
+  intros (<- & <- & <- & <- & HP & HQ); repeat split; auto.
   exists eq_refl; split; by apply ofe_mor_map_ne.
 Qed.
 Next Obligation.
@@ -374,20 +373,20 @@ Proof.
 
 Definition funspec := (funspec_ (iProp Σ) (iProp Σ)).
 Definition funspecO' := (laterO (funspecO (iPropO Σ) (iPropO Σ))).
-Definition NDmk_funspec (sig : typesig) (cc : calling_convention) A (P : A -> argsassert) (Q : A -> assert) : funspec := mk_funspec sig cc (ConstType A) (λne (a : leibnizO A), (P a) : _ -d> iProp Σ) (λne (a : leibnizO A), (Q a) : _ -d> iProp Σ).
+Definition NDmk_funspec (sig : typesig) (cc : calling_convention) A (P : A -> argsassert) (Q : A -> assert) : funspec := mk_funspec sig cc ⊤ (ConstType A) (λne (a : leibnizO A), (P a) : _ -d> iProp Σ) (λne (a : leibnizO A), (Q a) : _ -d> iProp Σ).
 Definition funspecOF' := (laterOF (funspecOF idOF)).
 Definition dtfr A := (oFunctor_car (dependent_type_functor_rec A) (iProp Σ) (iProp Σ)).
 
-Lemma funspec_equivI PROP1 `{Cofe PROP1} PROP2 `{Cofe PROP2} (f1 f2 : funspec_ PROP1 PROP2) : (f1 ≡ f2 : iProp Σ) ⊣⊢ ∃ sig cc A P1 P2 Q1 Q2,
-  ⌜f1 = mk_funspec sig cc A P1 Q1 ∧ f2 = mk_funspec sig cc A P2 Q2⌝ ∧ P1 ≡ P2 ∧ Q1 ≡ Q2.
+Lemma funspec_equivI PROP1 `{Cofe PROP1} PROP2 `{Cofe PROP2} (f1 f2 : funspec_ PROP1 PROP2) : (f1 ≡ f2 : iProp Σ) ⊣⊢ ∃ sig cc E A P1 P2 Q1 Q2,
+  ⌜f1 = mk_funspec sig cc E A P1 Q1 ∧ f2 = mk_funspec sig cc E A P2 Q2⌝ ∧ P1 ≡ P2 ∧ Q1 ≡ Q2.
 Proof.
   ouPred.unseal; split=> n x ?.
   destruct f1, f2; split.
-  - intros (<- & <- & <- & HP & HQ); simpl in *.
-    exists sig, cc, A, P, P0, Q, Q0; repeat split; done.
-  - intros (? & ? & ? & ? & ? & ? & ? & ([=] & [=]) & ? & ?); subst.
+  - intros (<- & <- & <- & <- & HP & HQ); simpl in *.
+    exists sig, cc, E, A, P, P0, Q, Q0; repeat split; done.
+  - intros (? & ? & ? & ? & ? & ? & ? & ? & ([=] & [=]) & ? & ?); subst.
     repeat match goal with H : existT _ _ = existT _ _ |- _ => apply inj_pair2 in H end; subst.
-    split3; auto; exists eq_refl; done.
+    split3; auto; split; auto; exists eq_refl; done.
 Qed.
 
 Definition funspec_unfold (f : funspec) : laterO funspec := Next f.
@@ -405,7 +404,7 @@ Fixpoint typelist_of_type_list (params : list type) : typelist :=
   end.
 
 Definition type_of_funspec (fs: funspec) : type :=
-  match fs with mk_funspec fsig cc _ _ _ => 
+  match fs with mk_funspec fsig cc _ _ _ _ => 
      Tfunction (typelist_of_type_list (fst fsig)) (snd fsig) cc end.
 
 Fixpoint make_tycontext_s (G: funspecs) :=

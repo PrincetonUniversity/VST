@@ -278,7 +278,7 @@ Ltac2 rec finish_specialize (fin : unit -> unit) (agro : bool):= Control.enter (
     ]
   | [ |- forall _, _ ] => intro; fin_log "intro."; fin ()
   | [ |- exists _, _ ] => ltac1:(inst_exists); fin_log "inst_exists."; fin ()
-  | [ |- semax_body _ _ _ _ _ ] => ltac1:(start_function); fin_log "start_function."; fin ()
+  | [ |- semax_body _ _ _ _ ] => ltac1:(start_function); fin_log "start_function."; fin ()
   | [ |- semax _ _ _ _ _ ] => fastforward agro; fin ()
   | [ |- ?x = ?x ] => reflexivity; fin_log "reflexivity."
   (* | [ |- context [if _ then _ else _]] => ltac1:(if_tac); fin_log "if_tac."; fin () *) (* TODO: Breaks entailment matching?! Maybe checking nesting? *)

@@ -33,7 +33,7 @@ Lemma semax_straight_simple:
  forall E Delta (B P: assert) c (Q: assert)
   (EB : Absorbing B)
   (Hc : forall m Delta' ge ve te rho k F f,
-              tycontext_sub E Delta Delta' ->
+              tycontext_sub Delta Delta' ->
               guard_environ Delta' f rho ->
               closed_wrt_modvars c F ->
               rho = construct_rho (filter_genv ge) ve te  ->
@@ -48,7 +48,7 @@ Proof.
 intros until Q; intros EB Hc.
 rewrite semax_unfold.
 intros psi Delta' CS' TS [CSUB HGG'].
-iIntros "#believe" (???) "[% #Hsafe]".
+iIntros "#believe" (????) "[(% & %) #Hsafe]".
 iIntros (te ve) "!> (% & P & fun)".
 specialize (cenv_sub_trans CSUB HGG'); intros HGG.
 iIntros (ora _).
@@ -56,11 +56,12 @@ monPred.unseal.
 iApply jsafe_step.
 rewrite /jstep_ex.
 iIntros (m) "[Hm ?]".
+iMod (fupd_mask_subseteq E) as "Hmask".
 iMod (Hc with "[P $Hm]") as (??? Hstep) ">Hc"; first done.
 { rewrite bi.sep_and_l; iFrame.
   iSplit; last iDestruct "P" as "[_ $]".
   iDestruct "P" as "[(_ & $) _]". }
-iIntros "!>".
+iMod "Hmask" as "_"; iIntros "!>".
 destruct Hstep as (? & ? & ?); iExists _, m'; iSplit; first by iPureIntro; eauto.
 iDestruct "Hc" as "(? & Q)"; iFrame.
 iNext.

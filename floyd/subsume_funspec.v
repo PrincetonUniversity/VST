@@ -30,16 +30,16 @@ Section mpred.
 
 Context `{!heapGS Σ}.
 
-Definition NDfunspec_sub E (f1 f2 : @funspec Σ) :=
+Definition NDfunspec_sub (f1 f2 : @funspec Σ) :=
 let Delta2 := rettype_tycontext (snd (typesig_of_funspec f2)) in
 match f1 with
-| mk_funspec tpsig1 cc1 (ConstType A1) P1 Q1 =>
+| mk_funspec tpsig1 cc1 E1 (ConstType A1) P1 Q1 =>
     match f2 with
-    | mk_funspec tpsig2 cc2 (ConstType As) P2 Q2 =>
-        (tpsig1=tpsig2 /\ cc1=cc2) /\
+    | mk_funspec tpsig2 cc2 E2 (ConstType As) P2 Q2 =>
+        (tpsig1=tpsig2 /\ cc1=cc2 /\ E1 ⊆ E2) /\
         forall x2 (gargs:argsEnviron),
         (⌜argsHaveTyps(snd gargs)(fst tpsig1)⌝ ∧ P2 x2 gargs)
-         ⊢ |={E}=> (∃ x1:_, ∃ F:_,
+         ⊢ |={E2}=> (∃ x1:_, ∃ F:_,
                            (F ∗ (P1 x1 gargs)) ∧
                                (⌜forall rho',
                                            (⌜ve_of rho' = Map.empty (block * type)⌝ ∧
@@ -56,10 +56,10 @@ match f1 with
  end.*)
 
 Lemma NDsubsume_subsume:
-  forall E f1 f2,
+  forall f1 f2,
 (*   is_NDfunspec f2 ->*)
-   NDfunspec_sub E f1 f2 ->
-   funspec_sub E f1 f2.
+   NDfunspec_sub f1 f2 ->
+   funspec_sub f1 f2.
 Proof.
 intros.
 destruct f1, f2; hnf in H.
@@ -100,11 +100,11 @@ Qed.
 Inductive empty_type : Type := .
 
 Definition withtype_of_NDfunspec (fs : @funspec Σ) := match fs with
-  mk_funspec _ _ (ConstType A) _ _ => A | _ => empty_type end.
+  mk_funspec _ _ _ (ConstType A) _ _ => A | _ => empty_type end.
  
 
 Definition withtype_of_funspec (fs : @funspec Σ) := match fs with
-  mk_funspec _ _ A _ _ => A end.
+  mk_funspec _ _ _ A _ _ => A end.
 
 Lemma sepcon_ENTAIL:
  forall Delta (P Q P' Q' : @assert Σ),
@@ -116,8 +116,8 @@ Proof.
 Qed.
 
 Lemma NDfunspec_sub_refl:
-  forall E fsig cc A P Q,
-   NDfunspec_sub E (NDmk_funspec fsig cc A P Q) (NDmk_funspec fsig cc A P Q).
+  forall fsig cc A P Q,
+   NDfunspec_sub (NDmk_funspec fsig cc A P Q) (NDmk_funspec fsig cc A P Q).
 Proof.
   intros.
   simpl.
@@ -130,14 +130,14 @@ Proof.
 Qed.
 
 Lemma NDfunspec_sub_trans:
-  forall E fsig1 cc1 A1 P1 Q1 fsig2 cc2 A2 P2 Q2 fsig3 cc3 A3 P3 Q3, 
-   NDfunspec_sub E (NDmk_funspec fsig1 cc1 A1 P1 Q1) (NDmk_funspec fsig2 cc2 A2 P2 Q2) ->
-   NDfunspec_sub E (NDmk_funspec fsig2 cc2 A2 P2 Q2) (NDmk_funspec fsig3 cc3 A3 P3 Q3) ->
-   NDfunspec_sub E (NDmk_funspec fsig1 cc1 A1 P1 Q1) (NDmk_funspec fsig3 cc3 A3 P3 Q3).
+  forall fsig1 cc1 A1 P1 Q1 fsig2 cc2 A2 P2 Q2 fsig3 cc3 A3 P3 Q3, 
+   NDfunspec_sub (NDmk_funspec fsig1 cc1 A1 P1 Q1) (NDmk_funspec fsig2 cc2 A2 P2 Q2) ->
+   NDfunspec_sub (NDmk_funspec fsig2 cc2 A2 P2 Q2) (NDmk_funspec fsig3 cc3 A3 P3 Q3) ->
+   NDfunspec_sub (NDmk_funspec fsig1 cc1 A1 P1 Q1) (NDmk_funspec fsig3 cc3 A3 P3 Q3).
 Proof.
   intros.
-  destruct H as [[?E ?E'] H].
-  destruct H0 as [[?F ?F'] H0].
+  destruct H as [(?E & ?E' & ?) H].
+  destruct H0 as [(?F & ?F'& ?) H0].
   subst.
   split; auto.
   intro x3; simpl in x3. simpl in H, H0. simpl. intros.
@@ -158,7 +158,7 @@ Context {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs}.
 
 Lemma semax_call_subsume:
   forall E (fs1: funspec) A P Q argsig retsig cc,
-    funspec_sub E fs1 (mk_funspec  (argsig,retsig) cc A P Q)  ->
+    funspec_sub fs1 (mk_funspec  (argsig,retsig) cc E A P Q)  ->
   forall Delta x F ret a bl,
            Cop.classify_fun (typeof a) =
            Cop.fun_case_f (typelist_of_type_list argsig) retsig cc  ->
@@ -166,7 +166,7 @@ Lemma semax_call_subsume:
           tc_fn_return Delta ret retsig ->
   semax E Delta
        (((tc_expr Delta a ∧ tc_exprlist Delta argsig bl))  ∧
-           (assert_of (fun rho => func_ptr E fs1 (eval_expr a rho)) ∗
+           (assert_of (fun rho => func_ptr fs1 (eval_expr a rho)) ∗
           (▷(F ∗ assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho))))))
          (Scall ret a bl)
          (normal_ret_assert
@@ -189,7 +189,7 @@ Lemma semax_call_subsume_si:
           tc_fn_return Delta ret retsig ->
   semax E Delta
        ((tc_expr Delta a ∧ tc_exprlist Delta argsig bl) ∧
-           ((assert_of (fun rho => func_ptr_si E fs1 (eval_expr a rho)) ∧ ⎡funspec_sub_si E fs1 (mk_funspec  (argsig,retsig) cc A P Q)⎤) ∗
+           ((assert_of (fun rho => func_ptr_si fs1 (eval_expr a rho)) ∧ ⎡funspec_sub_si fs1 (mk_funspec  (argsig,retsig) cc E A P Q)⎤) ∗
           (▷(F ∗ assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho))))))
          (Scall ret a bl)
          (normal_ret_assert
@@ -203,25 +203,26 @@ Proof.
   rewrite comm; apply func_ptr_si_mono.
 Qed.
 
+(* For now, NDmk_funspec defaults to ⊤ mask, so functions can only be called at ⊤. *)
 Lemma semax_call_NDsubsume :
-  forall E (fs1: funspec) A P Q argsig retsig cc,
-    NDfunspec_sub E fs1
+  forall (fs1: funspec) A P Q argsig retsig cc,
+    NDfunspec_sub fs1
         (NDmk_funspec  (argsig,retsig) cc A P Q)  ->
     forall  Delta  x F ret a bl,
            Cop.classify_fun (typeof a) =
            Cop.fun_case_f (typelist_of_type_list argsig) retsig cc ->
            (retsig = Tvoid -> ret = None) ->
           tc_fn_return Delta ret retsig ->
-  semax E Delta
+  semax ⊤ Delta
        (((tc_expr Delta a ∧ tc_exprlist Delta argsig bl))  ∧
-           (assert_of (fun rho => func_ptr E fs1 (eval_expr a rho)) ∗
+           (assert_of (fun rho => func_ptr fs1 (eval_expr a rho)) ∗
           (▷(F ∗ assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho))))))
          (Scall ret a bl)
          (normal_ret_assert
           (∃ old:val, assert_of (substopt ret (`old) F) ∗ maybe_retval (assert_of (Q x)) retsig ret)).
 Proof.
   intros.
-  apply (semax_call_subsume E fs1 (ConstType A) (λne (a : leibnizO A), (P a) : _ -d> iProp Σ) (λne (a : leibnizO A), (Q a) : _ -d> iProp Σ) argsig retsig cc); auto.
+  apply (semax_call_subsume ⊤ fs1 (ConstType A) (λne (a : leibnizO A), (P a) : _ -d> iProp Σ) (λne (a : leibnizO A), (Q a) : _ -d> iProp Σ) argsig retsig cc); auto.
   apply NDsubsume_subsume. simpl; auto.
 Qed.
 

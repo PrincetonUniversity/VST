@@ -52,7 +52,7 @@ Definition set_spec :=
 
 Definition Gprog : funspecs :=   ltac:(with_library prog [get_spec; set_spec]).
 
-Lemma body_get:  semax_body Vprog Gprog ⊤ f_get get_spec.
+Lemma body_get:  semax_body Vprog Gprog f_get get_spec.
 Proof.
 Time start_function. (* 52 sec -> 1 sec*)
 Time unfold_repinj. (* 0.386 sec *)
@@ -60,7 +60,7 @@ Time forward. (* 26.8 sec -> 6.4 sec -> 1.1 sec *)
 Time forward. (* 15 sec. -> 19.5 sec -> 12.4 sec *)
 Time Qed.  (* 84 sec  -> 4.5 sec -> 5.9 sec  *)
 
-Lemma body_get':  semax_body Vprog Gprog ⊤ f_get get_spec.
+Lemma body_get':  semax_body Vprog Gprog f_get get_spec.
 Proof.
  start_function.
  unfold_repinj.
@@ -73,7 +73,7 @@ Time unfold_field_at (field_at _ _ nil _ _). (* 0.86 sec *)
 Time cancel. (* 1.875 sec *)
 Qed. (* 77 sec *)
 
-Lemma body_set:  semax_body Vprog Gprog ⊤ f_set set_spec.
+Lemma body_set:  semax_body Vprog Gprog f_set set_spec.
 Proof.
 Time start_function.
 Time forward.

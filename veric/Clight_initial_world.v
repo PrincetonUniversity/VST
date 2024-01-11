@@ -75,15 +75,15 @@ Abort.*)
    semax proofs?  We define 'matchfunspecs' which will be satisfied by
    the initial memory, and preserved under steps. *)
 
-Definition matchfunspecs (ge : genv) (G : funspecs) E : mpred :=
+Definition matchfunspecs (ge : genv) (G : funspecs) : mpred :=
   ∀ b:block, ∀ fs: funspec,
   func_at fs (b,0%Z) -∗
   ∃ id:ident, ∃ fs0: funspec, 
    ⌜Genv.find_symbol ge id = Some b /\ find_id id G = Some fs0⌝ ∧
-     ◇ funspec_sub_si E fs0 fs.
+     ◇ funspec_sub_si fs0 fs.
 
 Lemma init_funspecs_matchfunspecs prog m G:
-  funspec_auth (init_funspecs m (globalenv prog) G) ⊢ matchfunspecs (globalenv prog) G ∅.
+  funspec_auth (init_funspecs m (globalenv prog) G) ⊢ matchfunspecs (globalenv prog) G.
 Proof.
   rewrite /matchfunspecs.
   iIntros "H" (??) "f".
@@ -250,7 +250,7 @@ Lemma initialize_mem' :
       (Hm : Genv.init_mem prog = Some m),
   mem_auth Mem.empty ∗ funspec_auth ∅ ⊢
   |==> mem_auth m ∗ inflate_initial_mem m (block_bounds prog) (globalenv prog) G ∗ initial_core m (globalenv prog) G ∗
-      matchfunspecs (globalenv prog) G ∅.
+      matchfunspecs (globalenv prog) G.
 Proof.
   intros.
   assert (list_norepet (map fst G)).
@@ -297,7 +297,7 @@ Lemma initial_core_funassert :
       (Hnorepet : list_norepet (prog_defs_names prog))
       (Hmatch : match_fdecs (prog_funct prog) G)
       (Hm : Genv.init_mem prog = Some m),
-  initial_core m (globalenv prog) G ∗ matchfunspecs (globalenv prog) G ∅ ⊢ funassert (nofunc_tycontext V G) (mkEnviron (filter_genv (globalenv prog)) ve te).
+  initial_core m (globalenv prog) G ∗ matchfunspecs (globalenv prog) G ⊢ funassert (nofunc_tycontext V G) (mkEnviron (filter_genv (globalenv prog)) ve te).
 Proof.
   intros; iIntros "(#H & match)"; iSplitL ""; rewrite /initial_world.initial_core /Map.get /filter_genv /=.
   - iIntros "!>" (?? Hid); simpl in *.
@@ -315,7 +315,7 @@ Proof.
       unfold valid_block, Plt in Hfind; lia. }
   - iIntros (???) "Hsig".
     rewrite /sigcc_at.
-    iDestruct "Hsig" as (???) "Hfun".
+    iDestruct "Hsig" as (????) "Hfun".
     iDestruct ("match" with "Hfun") as (?? (? & ?)) "Hfun".
     iPureIntro; setoid_rewrite make_tycontext_s_find_id; eauto.
 Qed.

@@ -105,7 +105,7 @@ Definition Gprog : funspecs :=[ reverse_spec ].
  ** function-body (in this case, f_reverse) satisfies its specification
  ** (in this case, reverse_spec).
  **)
-Lemma body_reverse: semax_body Vprog Gprog ⊤
+Lemma body_reverse: semax_body Vprog Gprog
                                     f_reverse reverse_spec.
 Proof.
 (** The start_function tactic "opens up" a semax_body

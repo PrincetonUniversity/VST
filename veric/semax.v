@@ -71,6 +71,23 @@ Definition assert_safe
               jsafeN ge E ora (State f (Sreturn (Some e)) ctl' ve te)
        end).
 
+Lemma assert_safe_mono ge E1 E2 f ve te ctl: E1 ⊆ E2 ->
+  assert_safe ge E1 f ve te ctl ⊢ assert_safe ge E2 f ve te ctl.
+Proof.
+  rewrite /assert_safe; split => ? /=.
+  iIntros "H" (? ->); iSpecialize ("H" $! _ eq_refl).
+  destruct ctl.
+  - iMod (fupd_mask_subseteq E1); iMod "H" as "[]".
+  - destruct c; try by iApply jsafe_mask_mono.
+    iMod (fupd_mask_subseteq E1); iMod "H" as "[]".
+  - destruct o; last by iApply jsafe_mask_mono.
+    iIntros (e); iSpecialize ("H" $! e).
+    iApply (bi.impl_intro_r with "H").
+    iIntros "H".
+    iPoseProof (bi.impl_elim_l with "H") as "?".
+    by iApply jsafe_mask_mono.
+Qed.
+
 Definition list2opt {T: Type} (vl: list T) : option T :=
  match vl with nil => None | x::_ => Some x end.
 
@@ -127,7 +144,7 @@ Definition exit_cont (ek: exitkind) (vl: option val) (k: cont) : contx :=
 Definition rguard
     (gx: genv) E (Delta: tycontext) (f: function) (R : ret_assert) (ctl: cont) : mpred :=
   ∀ ek: exitkind, ∀ vl: option val,
-    _guard gx E Delta f (proj_ret_assert R ek vl)  (exit_cont ek vl ctl).
+    _guard gx E Delta f (proj_ret_assert R ek vl) (exit_cont ek vl ctl).
 
 Record semaxArg :Type := SemaxArg {
  sa_cs: compspecs;
@@ -175,28 +192,32 @@ Proof.
   inv H. apply IHvals in H5. split; trivial.
 Qed.
 
-Lemma semax_external_funspec_sub E
-  {argtypes rtype cc ef A1 P1 Q1 A P Q}
-  (Hsub: funspec_sub E (mk_funspec (argtypes, rtype) cc A1 P1 Q1)
-                       (mk_funspec (argtypes, rtype) cc A P Q))
+Lemma semax_external_funspec_sub
+  {argtypes rtype cc ef E1 A1 P1 Q1 E A P Q}
+  (Hsub: funspec_sub (mk_funspec (argtypes, rtype) cc E1 A1 P1 Q1)
+                     (mk_funspec (argtypes, rtype) cc E A P Q))
   (HSIG: ef_sig ef =
          mksignature
                      (map typ_of_type argtypes)
                      (rettype_of_type rtype) cc):
-  semax_external E ef A1 P1 Q1 ⊢ semax_external E ef A P Q.
+  semax_external E1 ef A1 P1 Q1 ⊢ semax_external E ef A P Q.
 Proof.
   apply bi.forall_mono; intros g.
   iIntros "#H" (x). iIntros "!>" (F ts args) "!> (%HT & P & F)".
-  destruct Hsub as [[??] Hsub]; subst.
+  destruct Hsub as [(? & ? & ?) Hsub]; subst.
   iMod (Hsub with "[$P]") as (x1 F1) "((F1 & P1) & %HQ)".
   { iPureIntro; split; auto.
     rewrite HSIG in HT; apply has_type_list_Forall2 in HT.
     eapply Forall2_implication; [ | apply HT]; auto. }
+  iMod (fupd_mask_subseteq E1) as "Hmask".
   iMod ("H" $! _ (F ∗ F1) with "[$P1 $F $F1]") as "H1"; first done.
+  iMod "Hmask" as "_".
   iIntros "!>" (??) "s".
   iDestruct ("H1" with "s") as (x') "[? H']".
   iExists x'; iFrame; iIntros (????) "Hpost".
+  iMod (fupd_mask_subseteq E1) as "Hmask".
   iMod ("H'" with "Hpost") as "($ & Q1 & $ & F1)".
+  iMod "Hmask" as "_".
   iApply (HQ with "[$F1 $Q1]"); iPureIntro; split; auto.
   destruct tret, ret; auto.
 Qed.
@@ -237,10 +258,10 @@ Definition believe_external (gx: genv) E (v: val) (fsig: typesig) cc
   | _ => False
   end.
 
-Lemma believe_external_funspec_sub {gx E v sig cc A P Q A' P' Q'}
-      (Hsub: funspec_sub E (mk_funspec sig cc A P Q) (mk_funspec sig cc A' P' Q'))
+Lemma believe_external_funspec_sub {gx v sig cc E A P Q E' A' P' Q'}
+      (Hsub: funspec_sub (mk_funspec sig cc E A P Q) (mk_funspec sig cc E' A' P' Q'))
       (WTE: withtype_empty A -> withtype_empty A'):
-      believe_external gx E v sig cc A P Q ⊢ believe_external gx E v sig cc A' P' Q'.
+      believe_external gx E v sig cc A P Q ⊢ believe_external gx E' v sig cc A' P' Q'.
 Proof.
   unfold believe_external.
   destruct (Genv.find_funct gx v); trivial.
@@ -287,7 +308,7 @@ Definition believe_internal_ CS
                  /\ f.(fn_callconv) = cc⌝
   ∧
    ∀ Delta':tycontext, ∀ CS':compspecs,
-   ⌜forall f, tycontext_sub E (func_tycontext' f Delta) (func_tycontext' f Delta')⌝ →
+   ⌜forall f, tycontext_sub (func_tycontext' f Delta) (func_tycontext' f Delta')⌝ →
      ⌜cenv_sub (@cenv_cs CS) (@cenv_cs CS')⌝ →
       (∀ x : dtfr A,
         ▷ semax (SemaxArg CS' E (func_tycontext' f Delta')
@@ -299,17 +320,17 @@ Definition believe_internal_ CS
 
 Definition empty_environ (ge: genv) := mkEnviron (filter_genv ge) (Map.empty _) (Map.empty _).
 
-Definition claims (ge: genv) (Delta: tycontext) v fsig cc A P Q : Prop :=
-  exists id, (glob_specs Delta) !! id = Some (mk_funspec fsig cc A P Q) /\
+Definition claims (ge: genv) (Delta: tycontext) v fsig cc E A P Q : Prop :=
+  exists id, (glob_specs Delta) !! id = Some (mk_funspec fsig cc E A P Q) /\
     exists b, Genv.find_symbol ge id = Some b /\ v = Vptr b Ptrofs.zero.
 
 Definition believepred CS (semax: semaxArg -> mpred)
-              E (Delta: tycontext) (gx: genv)  (Delta': tycontext) :=
-  ∀ v:val, ∀ fsig: typesig, ∀ cc: calling_convention,
+              (Delta: tycontext) (gx: genv)  (Delta': tycontext) :=
+  ∀ v:val, ∀ fsig: typesig, ∀ cc: calling_convention, ∀ E: coPset,
   ∀ A: TypeTree,
   ∀ P: dtfr (ArgsTT A),
   ∀ Q: dtfr (AssertTT A),
-       ⌜claims gx Delta' v fsig cc A P Q⌝ →
+       ⌜claims gx Delta' v fsig cc E A P Q⌝ →
       (believe_external gx E v fsig cc A P Q
         ∨ believe_internal_ CS semax gx E Delta v fsig cc A P Q).
 
@@ -317,14 +338,14 @@ Definition semax_
        (semax: semaxArg -d> iPropO Σ) : semaxArg -d> iPropO Σ := fun a =>
  match a with SemaxArg CS E Delta P c R =>
   ∀ gx: genv, ∀ Delta': tycontext,∀ CS':compspecs,
-       ⌜tycontext_sub E Delta Delta' 
+       ⌜tycontext_sub Delta Delta' 
             /\ cenv_sub (@cenv_cs CS) (@cenv_cs CS') 
             /\ cenv_sub (@cenv_cs CS') (genv_cenv gx)⌝ →
-      (believepred CS' semax E Delta' gx Delta') →
-     ∀ k: cont, ∀ F: assert, ∀ f:function,
-       (⌜closed_wrt_modvars c F⌝ ∧
-              rguard gx E Delta' f (frame_ret_assert R F) k) →
-        guard' gx E Delta' f (F ∗ P) (Kseq c k)
+      (believepred CS' semax Delta' gx Delta') →
+     ∀ k: cont, ∀ F: assert, ∀ f:function, ∀ E': coPset,
+       (⌜closed_wrt_modvars c F /\ E ⊆ E'⌝ ∧
+              rguard gx E' Delta' f (frame_ret_assert R F) k) →
+        guard' gx E' Delta' f (F ∗ P) (Kseq c k)
   end.
 
 Local Instance semax_contractive : Contractive semax_.
@@ -332,9 +353,9 @@ Proof.
   rewrite /semax_ => n semax semax' Hsemax [??????].
   do 8 f_equiv.
   rewrite /believepred.
-  do 14 f_equiv.
+  do 15 f_equiv.
   rewrite /believe_internal_.
-  do 13 f_equiv.
+  do 14 f_equiv.
   by f_contractive.
 Qed.
 
@@ -358,7 +379,7 @@ Definition believe_internal {CS: compspecs}
                  /\ f.(fn_callconv) = cc⌝
   ∧ 
     ∀ Delta':tycontext,∀ CS':compspecs,
-     ⌜forall f, tycontext_sub E (func_tycontext' f Delta) (func_tycontext' f Delta')⌝ →
+     ⌜forall f, tycontext_sub (func_tycontext' f Delta) (func_tycontext' f Delta')⌝ →
       ⌜cenv_sub (@cenv_cs CS) (@cenv_cs CS')⌝ →
        (∀ x : dtfr A,
      ▷ @semax' CS' E (func_tycontext' f Delta')
@@ -368,25 +389,25 @@ Definition believe_internal {CS: compspecs}
            (frame_ret_assert (function_body_ret_assert (fn_return f) (assert_of (Q x))) (stackframe_of' (@cenv_cs CS') f)))).
 
 Definition believe {CS: compspecs}
-              E (Delta: tycontext) (gx: genv) (Delta': tycontext) :=
-  ∀ v:val, ∀ fsig: typesig, ∀ cc: calling_convention,
+              (Delta: tycontext) (gx: genv) (Delta': tycontext) :=
+  ∀ v:val, ∀ fsig: typesig, ∀ cc: calling_convention, ∀ E: coPset,
   ∀ A: TypeTree,
   ∀ P: dtfr (ArgsTT A),
   ∀ Q: dtfr (AssertTT A),
-       ⌜claims gx Delta' v fsig cc A P Q⌝ →
+       ⌜claims gx Delta' v fsig cc E A P Q⌝ →
       (believe_external gx E v fsig cc A P Q
         ∨ believe_internal gx E Delta v fsig cc A P Q).
 
 Lemma semax_fold_unfold : forall {CS: compspecs} E Delta P c R,
   semax' E Delta P c R ⊣⊢
   ∀ gx: genv, ∀ Delta': tycontext,∀ CS':compspecs,
-       ⌜(tycontext_sub E Delta Delta'
+       ⌜(tycontext_sub Delta Delta'
            /\ cenv_sub (@cenv_cs CS) (@cenv_cs CS')
            /\ cenv_sub (@cenv_cs CS') (genv_cenv gx))⌝ →
-       @believe CS' E Delta' gx Delta' →
-     ∀ k: cont, ∀ F: assert, ∀ f: function,
-        (⌜(closed_wrt_modvars c F)⌝ ∧ rguard gx E Delta' f (frame_ret_assert R F) k) →
-        guard' gx E Delta' f (F ∗ P) (Kseq c k).
+       @believe CS' Delta' gx Delta' →
+     ∀ k: cont, ∀ F: assert, ∀ f: function, ∀ E': coPset,
+        (⌜(closed_wrt_modvars c F) /\ E ⊆ E'⌝ ∧ rguard gx E' Delta' f (frame_ret_assert R F) k) →
+        guard' gx E' Delta' f (F ∗ P) (Kseq c k).
 Proof.
 intros.
 unfold semax'.
@@ -446,18 +467,18 @@ Proof.
   by apply _guard_mono.
 Qed.
 
-Lemma claims_antimono gx Gamma v sig cc A P Q Gamma' 
+Lemma claims_antimono gx Gamma v sig cc E A P Q Gamma' 
   (SUB: forall id spec, (glob_specs Gamma') !! id = Some spec ->
                         (glob_specs Gamma) !! id = Some spec)
-  (CL: claims gx Gamma' v sig cc A P Q):
-  claims gx Gamma v sig cc A P Q.
+  (CL: claims gx Gamma' v sig cc E A P Q):
+  claims gx Gamma v sig cc E A P Q.
 Proof. destruct CL as [id [Hid X]]; exists id; split; auto. Qed.
 
-Lemma believe_antimonoR gx E Delta Gamma Gamma'
+Lemma believe_antimonoR gx Delta Gamma Gamma'
   (DG1: forall id spec, (glob_specs Gamma') !! id = Some spec ->
                         (glob_specs Gamma) !! id = Some spec):
-  @believe CS E Delta gx Gamma ⊢ @believe CS E Delta gx Gamma'.
-Proof. rewrite /believe. iIntros "H" (???????); iApply "H". iPureIntro; eapply claims_antimono; eauto. Qed.
+  @believe CS Delta gx Gamma ⊢ @believe CS Delta gx Gamma'.
+Proof. rewrite /believe. iIntros "H" (????????); iApply "H". iPureIntro; eapply claims_antimono; eauto. Qed.
 
 Lemma cenv_sub_complete_legal_cosu_type cenv1 cenv2 (CSUB: cenv_sub cenv1 cenv2): forall t,
     @composite_compute.complete_legal_cosu_type cenv1 t = true ->
@@ -479,7 +500,7 @@ Lemma complete_type_cspecs_sub {cs cs'} (C: cspecs_sub cs cs') t (T:complete_typ
 Proof. destruct C. apply (complete_type_cenv_sub H _ T). Qed.
 
 Lemma believe_internal_cenv_sub {CS'} gx E Delta Delta' v sig cc A P Q
-  (SUB: forall f, tycontext_sub E (func_tycontext' f Delta)
+  (SUB: forall f, tycontext_sub (func_tycontext' f Delta)
                                 (func_tycontext' f Delta'))
   (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) :
   @believe_internal CS gx E Delta v sig cc A P Q ⊢
@@ -498,8 +519,8 @@ Proof.
     + apply (cenv_sub_trans CSUB); auto.
 Qed.
 Lemma believe_internal_mono {CS'} gx E Delta Delta' v sig cc A P Q
-  (SUB: forall f, tycontext_sub E (func_tycontext' f Delta)
-                                  (func_tycontext' f Delta'))
+  (SUB: forall f, tycontext_sub (func_tycontext' f Delta)
+                                (func_tycontext' f Delta'))
   (CSUB: cspecs_sub  CS CS') :
   @believe_internal CS gx E Delta v sig cc A P Q ⊢
   @believe_internal CS' gx E Delta' v sig cc A P Q.
@@ -508,29 +529,29 @@ Proof.
   eapply (@believe_internal_cenv_sub CS'). apply SUB. apply CSUB.
 Qed. 
 
-Lemma believe_cenv_sub_L {CS'} gx E Delta Delta' Gamma
-  (SUB: forall f, tycontext_sub E (func_tycontext' f Delta)
-                                  (func_tycontext' f Delta'))
+Lemma believe_cenv_sub_L {CS'} gx Delta Delta' Gamma
+  (SUB: forall f, tycontext_sub (func_tycontext' f Delta)
+                                (func_tycontext' f Delta'))
   (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')):
-  @believe CS E Delta gx Gamma ⊢ @believe CS' E Delta' gx Gamma.
+  @believe CS Delta gx Gamma ⊢ @believe CS' Delta' gx Gamma.
 Proof.
   rewrite /believe.
-  iIntros "H" (???????); iDestruct ("H" with "[%]") as "[?|?]"; eauto.
+  iIntros "H" (????????); iDestruct ("H" with "[%]") as "[?|?]"; eauto.
   iRight; iApply (believe_internal_cenv_sub with "[$]").
 Qed.
-Lemma believe_monoL {CS'} gx E Delta Delta' Gamma
-  (SUB: forall f, tycontext_sub E (func_tycontext' f Delta)
-                                  (func_tycontext' f Delta'))
-  (CSUB: cspecs_sub  CS CS'):
-  @believe CS E Delta gx Gamma ⊢ @believe CS' E Delta' gx Gamma.
+Lemma believe_monoL {CS'} gx Delta Delta' Gamma
+  (SUB: forall f, tycontext_sub (func_tycontext' f Delta)
+                                (func_tycontext' f Delta'))
+  (CSUB: cspecs_sub CS CS'):
+  @believe CS Delta gx Gamma ⊢ @believe CS' Delta' gx Gamma.
 Proof.
   destruct CSUB as [CSUB _].
   eapply (@believe_cenv_sub_L CS'). apply SUB. apply CSUB.
 Qed.
 
 Lemma believe_internal__mono sem gx E Delta Delta' v sig cc A P Q
-  (SUB: forall f, tycontext_sub E (func_tycontext' f Delta)
-                                  (func_tycontext' f Delta')) :
+  (SUB: forall f, tycontext_sub (func_tycontext' f Delta)
+                                (func_tycontext' f Delta')) :
   believe_internal_ CS sem gx E Delta v sig cc A P Q ⊢
   believe_internal_ CS sem gx E Delta' v sig cc A P Q.
 Proof.
@@ -544,9 +565,9 @@ Qed.
 End believe_monotonicity.
 
 Lemma semax__mono {CS} E Delta Delta'
-  (SUB: tycontext_sub E Delta Delta') sem P c R:
+  (SUB: tycontext_sub Delta Delta') sem P c R:
   @semax_ sem {| sa_cs := CS; sa_E := E; sa_Delta := Delta; sa_P := P; sa_c := c; sa_R := R |} ⊢
-  @semax_ sem {| sa_cs:=CS; sa_E := E; sa_Delta := Delta'; sa_P := P; sa_c := c; sa_R := R |}.
+  @semax_ sem {| sa_cs := CS; sa_E := E; sa_Delta := Delta'; sa_P := P; sa_c := c; sa_R := R |}.
 Proof.
   unfold semax_.
   iIntros "H" (??? (? & ? & ?)).
@@ -555,7 +576,7 @@ Proof.
 Qed.
 
 Lemma semax_mono {CS} E Delta Delta' P Q
-  (SUB: tycontext_sub E Delta Delta') c:
+  (SUB: tycontext_sub Delta Delta') c:
   @semax' CS E Delta P c Q ⊢
   @semax' CS E Delta' P c Q.
 Proof.
@@ -574,6 +595,42 @@ Lemma semax_cssub {CS CS'} (CSUB: cspecs_sub  CS CS') E Delta P c R:
       @semax CS E Delta P c R -> @semax CS' E Delta P c R.
 Proof.
   by rewrite /semax -(semax'_cssub CSUB).
+Qed.
+
+Lemma guard_mask_mono gx E E' Delta f P c
+  (SUB: E ⊆ E'):
+  guard' gx E Delta f P c ⊢ guard' gx E' Delta f P c.
+Proof.
+  rewrite /guard' /_guard.
+  iIntros "#H" (??) "!> (% & Q & ?)".
+  rewrite -assert_safe_mono //.
+  iApply "H"; by iFrame.
+Qed.
+
+Lemma semax_mask_mono {CS} E E' Delta P Q
+  (SUB: E ⊆ E') c:
+  @semax' CS E Delta P c Q ⊢
+  @semax' CS E' Delta P c Q.
+Proof.
+  rewrite !semax_fold_unfold.
+  iIntros "H" (??? (? & ? & ?)).
+  iSpecialize ("H" with "[%]"); first done.
+  iApply (bi.impl_mono with "H"); first done.
+  iIntros "H" (????) "((% & %) & ?)".
+  iApply "H"; iFrame.
+  iPureIntro; split; [done | set_solver].
+Qed.
+
+Lemma believe_internal_mask_mono {CS} gx E E' Delta v sig cc A P Q
+  (SUB: E ⊆ E') :
+  believe_internal gx E Delta v sig cc A P Q ⊢
+  believe_internal gx E' Delta v sig cc A P Q.
+Proof.
+  rewrite /believe_internal.
+  iIntros "H"; iDestruct "H" as (b f Hv) "H".
+  iExists b, f; iSplit; first done.
+  iIntros (?????).
+  iApply semax_mask_mono; iApply ("H" with "[%] [%]"); done.
 Qed.
 
 End mpred.

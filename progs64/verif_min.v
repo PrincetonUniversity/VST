@@ -99,7 +99,7 @@ Definition Gprog : funspecs :=
 
 (* First approach from "Modular Verification for Computer Security",
   proved using forward_for_simple_bound *)
-Lemma body_min: semax_body Vprog Gprog ⊤ f_minimum minimum_spec.
+Lemma body_min: semax_body Vprog Gprog f_minimum minimum_spec.
 Proof.
 start_function.
 assert_PROP (Zlength al = n) by (entailer!; list_solve).
@@ -145,7 +145,7 @@ Qed.
 
 (* Demonstration of the same theorem, but using
     forward_for  instead of forward_for_simple_bound *)
-Lemma body_min': semax_body Vprog Gprog ⊤ f_minimum minimum_spec.
+Lemma body_min': semax_body Vprog Gprog f_minimum minimum_spec.
 Proof.
 start_function.
 assert_PROP (Zlength al = n) by (entailer!; list_solve).
@@ -192,8 +192,8 @@ rename a0 into i.
  autorewrite with sublist.
  apply semax_post_flipped' with (Inv 1 (Z.gt n) i).
  unfold Inv.
- rewrite (sublist_split 0 i (i+1)) by lia.
- rewrite (sublist_one i (i+1) al) by lia.
+ rewrite -> (sublist_split 0 i (i+1)) by lia.
+ rewrite -> (sublist_one i (i+1) al) by lia.
  rewrite fold_min_another.
  forward_if.
  +
@@ -328,3 +328,5 @@ forward_if.
  Exists x.
  entailer!!.
 Qed.
+
+End Spec.

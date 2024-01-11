@@ -25,7 +25,7 @@ Qed.
 
 Lemma semax_func_cons_ext_vacuous:
      forall `{heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} 
-         (V : varspecs) (G : funspecs) (C : compspecs) ge E
+         (V : varspecs) (G : funspecs) (C : compspecs) ge
          (fs : list (ident * Clight.fundef)) (id : ident) (ef : external_function)
          (argsig : typelist) (retsig : type)
          (G' : funspecs) cc b,
@@ -37,13 +37,13 @@ Lemma semax_func_cons_ext_vacuous:
          sig_cc := cc_of_fundef (External ef argsig retsig cc) |} ->
        Genv.find_symbol ge id = Some b ->
        Genv.find_funct_ptr ge b = Some (External ef argsig retsig cc) ->
-       semax_func V G ge E fs G' ->
-       semax_func V G ge E ((id, External ef argsig retsig cc) :: fs)
+       semax_func V G ge fs G' ->
+       semax_func V G ge ((id, External ef argsig retsig cc) :: fs)
          ((id, vacuous_funspec (External ef argsig retsig cc)) :: G').
 Proof.
 intros.
 
-specialize (semax_func_cons_ext V G ge E fs id ef argsig retsig
+specialize (semax_func_cons_ext V G ge fs id ef argsig retsig ⊤
   (ConstType Impossible) 
 ).
 simpl.
@@ -53,7 +53,7 @@ intros HH; eapply HH; clear HH; try assumption; trivial.
 * intros. unfold monPred_at. done. 
 * eassumption.
 * assumption.
-* pose proof (semax_external_FF E ef (ConstType Impossible)) as Hvac.
+* pose proof (semax_external_FF ⊤ ef (ConstType Impossible)) as Hvac.
   simpl in Hvac. match goal with H : ?f |- ?g => assert (f = g) as <-; last done end.
   repeat f_equal; apply proof_irr.
 Qed.
@@ -61,7 +61,7 @@ Qed.
 Lemma semax_func_cons_int_vacuous
   `{heapGS0: heapGS Σ} (Espec : OracleKind) `{externalGS0: !externalGS OK_ty Σ}
   (V : varspecs) (G : funspecs) 
-    (cs : compspecs) (ge : Genv.t (fundef function) type) E
+    (cs : compspecs) (ge : Genv.t (fundef function) type)
     (fs : list (ident * Clight.fundef)) (id : ident) ifunc
     (b : block) G'
   (ID: id_in_list id (map fst fs) = false)
@@ -72,8 +72,8 @@ Lemma semax_func_cons_int_vacuous
   (LNR_PT: list_norepet (map fst (fn_params ifunc) ++ map fst (fn_temps ifunc)))
   (LNR_Vars: list_norepet (map fst (fn_vars ifunc)))
   (VarSizes: @semax.var_sizes_ok cenv_cs (fn_vars ifunc))
-  (Sfunc: @semax_func _ _ Espec _ V G cs ge E fs G'):
-  @semax_func _ _ Espec _ V G cs ge E ((id, Internal ifunc) :: fs)
+  (Sfunc: @semax_func _ _ Espec _ V G cs ge fs G'):
+  @semax_func _ _ Espec _ V G cs ge ((id, Internal ifunc) :: fs)
     ((id, vacuous_funspec (Internal ifunc)) :: G').
 Proof.
 eapply semax_func_cons; try eassumption.
@@ -90,7 +90,7 @@ Qed.
 Lemma semax_prog_semax_func_cons_int_vacuous
   `{heapGS0: heapGS Σ} (Espec : OracleKind) `{externalGS0: !externalGS OK_ty Σ}
   (V : varspecs) (G : funspecs) 
-    (cs : compspecs) (ge : Genv.t (fundef function) type) E
+    (cs : compspecs) (ge : Genv.t (fundef function) type)
     (fs : list (ident * Clight.fundef)) (id : ident) ifunc
     (b : block) G'
   (ID: id_in_list id (map fst fs) = false)
@@ -100,8 +100,8 @@ Lemma semax_prog_semax_func_cons_int_vacuous
   (LNR_PT: list_norepet (map fst (fn_params ifunc) ++ map fst (fn_temps ifunc)))
   (LNR_Vars: list_norepet (map fst (fn_vars ifunc)))
   (VarSizes: @semax.var_sizes_ok cenv_cs (fn_vars ifunc))
-  (Sfunc: @semax_prog.semax_func _ _ Espec _ V G cs ge E fs G'):
-  @semax_prog.semax_func _ _ Espec _ V G cs ge E ((id, Internal ifunc) :: fs)
+  (Sfunc: @semax_prog.semax_func _ _ Espec _ V G cs ge fs G'):
+  @semax_prog.semax_func _ _ Espec _ V G cs ge ((id, Internal ifunc) :: fs)
     ((id, vacuous_funspec (Internal ifunc)) :: G').
 Proof.
 apply id_in_list_false in ID. destruct Sfunc as [Hyp1 [Hyp2 Hyp3]].
@@ -111,7 +111,7 @@ split3.
 { clear Hyp3. red; intros j fd J. destruct J; [ inv H | auto].
   exists b; split; trivial. }
 intros. specialize (Hyp3 _ Gfs Gffp).
-iIntros (v sig cc A P Q CL).
+iIntros (v sig cc E A P Q CL).
 hnf in CL.
 destruct CL as [j [J GJ]]. simpl in J.
 rewrite PTree.gsspec in J.
@@ -482,15 +482,15 @@ Qed.
 
 Lemma semax_switch_PQR: 
   forall `{heapGS0: heapGS Σ} (Espec : OracleKind) `{!externalGS OK_ty Σ} {CS: compspecs} ,
-  forall n E Delta (Pre: environ->mpred) a sl (Post: ret_assert),
+  forall n E Delta (Pre: assert) a sl (Post: ret_assert),
      is_int_type (typeof a) = true ->
-     ENTAIL Delta, (assert_of Pre) ⊢ tc_expr Delta a ->
-     ENTAIL Delta, (assert_of Pre) ⊢ local (`(eq (Vint (Int.repr n))) (eval_expr a)) ->
-     semax E Delta 
-               (assert_of Pre)
+     ENTAIL Delta, Pre ⊢ tc_expr Delta a ->
+     ENTAIL Delta, Pre ⊢ local (`(eq (Vint (Int.repr n))) (eval_expr a)) ->
+     semax E Delta
+               Pre
                (seq_of_labeled_statement (select_switch (Int.unsigned (Int.repr n)) sl))
                (switch_ret_assert Post) ->
-     semax E Delta (assert_of Pre) (Sswitch a sl) Post.
+     semax E Delta Pre (Sswitch a sl) Post.
 Proof.
 intros.
 eapply semax_pre.
@@ -509,8 +509,7 @@ unfold local, lift1, liftx, lift; simpl.
 normalize.
 raise_rho.
 unfold local, lift1, liftx, lift; simpl.
-(* FIXME change to normalize when normalize patch is merged *)
-iIntros "(%H3 & %H4)". iPureIntro. 
+normalize.
 rewrite <- H3 in H4.
 apply Vint_inj in H4.
 auto.

@@ -86,11 +86,11 @@ Proof.
 Qed.
 
 Lemma typecheck_environ_sub:
-  forall E Delta Delta', tycontext_sub E Delta Delta' ->
+  forall Delta Delta', tycontext_sub Delta Delta' ->
    forall rho,
    typecheck_environ Delta' rho -> typecheck_environ Delta rho.
 Proof.
-intros ??? [? [? [? [? Hs]]]] ?  [? [? ?]].
+intros ?? [? [? [? [? Hs]]]] ?  [? [? ?]].
 split; [ | split].
 * clear - H H3.
  hnf; intros.
@@ -110,14 +110,14 @@ split; [ | split].
 Qed.
 
 Lemma semax_unfold {CS: compspecs} E Delta P c R :
-  semax Espec E Delta P c R = forall (psi: Clight.genv) Delta' CS'
-          (TS: tycontext_sub E Delta Delta')
+  semax Espec E Delta P c R ↔ forall (psi: Clight.genv) Delta' CS'
+          (TS: tycontext_sub Delta Delta')
           (HGG: cenv_sub (@cenv_cs CS) (@cenv_cs CS') /\ cenv_sub (@cenv_cs CS') (genv_cenv psi)),
-    ⊢ believe(CS := CS') Espec E Delta' psi Delta' → ∀ (k: cont) (F: assert) f,
-        ⌜closed_wrt_modvars c F⌝ ∧ rguard Espec psi E Delta' f (frame_ret_assert R F) k →
-       guard' Espec psi E Delta' f (F ∗ P) (Kseq c k).
+    ⊢ believe(CS := CS') Espec Delta' psi Delta' → ∀ (k: cont) (F: assert) f E',
+        ⌜closed_wrt_modvars c F /\ E ⊆ E'⌝ ∧ rguard Espec psi E' Delta' f (frame_ret_assert R F) k →
+       guard' Espec psi E' Delta' f (F ∗ P) (Kseq c k).
 Proof.
-unfold semax; apply prop_ext. rewrite semax_fold_unfold.
+unfold semax. rewrite semax_fold_unfold.
 split; intros.
 + iIntros "?"; iApply H; eauto.
 + iIntros (??? [??]); iApply H.
@@ -132,7 +132,7 @@ intros.
 rewrite semax_unfold.
 intros psi Delta' CS' ??.
 clear dependent Delta. rename Delta' into Delta.
-iIntros "believe" (???) "[% #H]".
+iIntros "believe" (????) "[% #H]".
 iSpecialize ("H" $! EK_normal None).
 rewrite /guard' /_guard.
 iIntros (??) "!> Fp".
@@ -277,7 +277,7 @@ Lemma extract_exists_pre_later {CS: compspecs}:
 Proof.
 intros.
 rewrite semax_unfold; intros.
-iIntros "#believe" (???) "[% #rguard]".
+iIntros "#believe" (????) "[% #rguard]".
 iIntros (??) "!> H".
 rewrite bi.later_exist_except_0.
 iAssert (◇ ∃ a : A, (⌜guard_environ Delta' f (construct_rho (filter_genv psi) vx tx)⌝
@@ -299,7 +299,7 @@ Lemma extract_exists_pre {CS: compspecs}:
 Proof.
 intros.
 rewrite semax_unfold; intros.
-iIntros "#believe" (???) "[% #rguard]".
+iIntros "#believe" (????) "[% #rguard]".
 iIntros (??) "!> H".
 rewrite bi.sep_exist_l monPred_at_exist bi.sep_exist_r bi.and_exist_l; iDestruct "H" as (a) "H".
 specialize (H a); rewrite semax_unfold in H; iApply H; auto.
@@ -310,13 +310,13 @@ Definition G0: @funspecs Σ := nil.
 Definition empty_genv prog_pub cenv: Clight.genv :=
    Build_genv (Genv.globalenv (AST.mkprogram (F:=Clight.fundef)(V:=type) nil prog_pub (1%positive))) cenv.
 
-Lemma empty_program_ok {CS: compspecs}: forall E Delta ge,
+Lemma empty_program_ok {CS: compspecs}: forall Delta ge,
     glob_specs Delta = Maps.PTree.empty _ ->
-    ⊢ believe Espec E Delta ge Delta.
+    ⊢ believe Espec Delta ge Delta.
 Proof.
-intros Delta ge w ?.
+intros Delta ge H.
 rewrite /believe.
-iIntros (?????? (? & Hge & ?)).
+iIntros (??????? (? & Hge & ?)).
 rewrite H in Hge; setoid_rewrite Maps.PTree.gempty in Hge; discriminate.
 Qed.
 
@@ -328,8 +328,8 @@ Definition all_assertions_computable  :=
  *)
 
 Lemma guard_environ_sub:
-  forall {E Delta Delta' f rho},
-   tycontext_sub E Delta Delta' ->
+  forall {Delta Delta' f rho},
+   tycontext_sub Delta Delta' ->
    guard_environ Delta' f rho ->
    guard_environ Delta f rho.
 Proof.
@@ -436,13 +436,14 @@ intros until F. intros CL H.
 rewrite semax_unfold.
 rewrite semax_unfold in H.
 intros.
-iIntros "H" (???) "[% guard]".
+iIntros "H" (????) "[(% & %) guard]".
 pose (F0F := F0 ∗ F).
 iPoseProof (H with "H") as "H".
 iSpecialize ("H" $! _ F0F with "[-]").
 { rewrite /bi_affinely; iSplit; first done.
   iSplit.
   * iPureIntro.
+    split; last done.
     unfold F0F.
     hnf in *; intros; simpl in *.
     monPred.unseal. rewrite <- CL. rewrite <- H0. auto.
@@ -713,7 +714,7 @@ Qed.
 
 Lemma semax_Delta_subsumption {CS: compspecs}:
   forall E Delta Delta' P c R,
-       tycontext_sub E Delta Delta' ->
+       tycontext_sub Delta Delta' ->
      semax Espec E Delta P c R -> semax Espec E Delta' P c R.
 Proof.
 intros.
@@ -1016,7 +1017,7 @@ Lemma semax_Slabel {cs:compspecs}
 semax(CS := cs) Espec E Gamma P c Q -> semax(CS := cs) Espec E Gamma P (Slabel l c) Q.
 Proof.
 rewrite !semax_unfold; intros.
-iIntros "H" (???) "guard".
+iIntros "H" (????) "guard".
 iApply guard_safe_adj'; last iApply (H with "H guard").
 intros; iIntros "H"; iApply jsafe_local_step; last done.
 constructor.

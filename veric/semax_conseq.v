@@ -230,11 +230,11 @@ Proof.
   repeat intro; subst.
   rewrite !semax_unfold.
   split; intros.
-  - iIntros "#B" (???) "(% & ?)".
+  - iIntros "#B" (????) "(% & ?)".
     rewrite -H; iApply (H0 with "B [-]").
     iApply (bi.affinely_mono with "[$]").
     rewrite H1; iIntros "$"; done.
-  - iIntros "#B" (???) "(% & ?)".
+  - iIntros "#B" (????) "(% & ?)".
     rewrite H; iApply (H0 with "B [-]").
     iApply (bi.affinely_mono with "[$]").
     rewrite H1; iIntros "$"; done.
@@ -264,8 +264,8 @@ Qed.
 
 Lemma _guard_allp_fun_id:
   forall ge E Delta' Delta f (F P: assert) k,
-    tycontext_sub E Delta Delta' ->
-    _guard Espec ge E Delta' f (F ∗ P) k ⊣⊢ _guard Espec ge E Delta' f (F ∗ (<affine> allp_fun_id E Delta ∗ P)) k.
+    tycontext_sub Delta Delta' ->
+    _guard Espec ge E Delta' f (F ∗ P) k ⊣⊢ _guard Espec ge E Delta' f (F ∗ (<affine> allp_fun_id Delta ∗ P)) k.
 Proof.
   intros.
   unfold _guard.
@@ -279,16 +279,16 @@ Proof.
 Qed.
 
 Lemma guard_allp_fun_id: forall ge E Delta' Delta f (F P: assert) k,
-  tycontext_sub E Delta Delta' ->
-  guard' Espec ge E Delta' f (F ∗ P) k ⊣⊢ guard' Espec ge E Delta' f (F ∗ (<affine> allp_fun_id E Delta ∗ P)) k.
+  tycontext_sub Delta Delta' ->
+  guard' Espec ge E Delta' f (F ∗ P) k ⊣⊢ guard' Espec ge E Delta' f (F ∗ (<affine> allp_fun_id Delta ∗ P)) k.
 Proof.
   intros.
   apply _guard_allp_fun_id; auto.
 Qed.
 
 Lemma rguard_allp_fun_id: forall ge E Delta' Delta f (F: assert) P k,
-  tycontext_sub E Delta Delta' ->
-  rguard Espec ge E Delta' f (frame_ret_assert P F) k ⊣⊢ rguard Espec ge E Delta' f (frame_ret_assert (frame_ret_assert P (<affine> allp_fun_id E Delta)) F) k.
+  tycontext_sub Delta Delta' ->
+  rguard Espec ge E Delta' f (frame_ret_assert P F) k ⊣⊢ rguard Espec ge E Delta' f (frame_ret_assert (frame_ret_assert P (<affine> allp_fun_id Delta)) F) k.
 Proof.
   intros.
   unfold rguard.
@@ -302,7 +302,7 @@ Qed.
 
 Lemma _guard_tc_environ:
   forall ge E Delta' Delta f (F P: assert) k,
-    tycontext_sub E Delta Delta' ->
+    tycontext_sub Delta Delta' ->
     _guard Espec ge E Delta' f (F ∗ P) k ⊣⊢
     _guard Espec ge E Delta' f (F ∗ (local (typecheck_environ Delta) ∧ P)) k.
 Proof.
@@ -318,7 +318,7 @@ Proof.
 Qed.
 
 Lemma guard_tc_environ: forall ge E Delta' Delta f (F P: assert) k,
-  tycontext_sub E Delta Delta' ->
+  tycontext_sub Delta Delta' ->
   guard' Espec ge E Delta' f (F ∗ P) k ⊣⊢ guard' Espec ge E Delta' f (F ∗ (local (typecheck_environ Delta) ∧ P)) k.
 Proof.
   intros.
@@ -326,7 +326,7 @@ Proof.
 Qed.
 
 Lemma rguard_tc_environ: forall ge E Delta' Delta f (F: assert) P k,
-  tycontext_sub E Delta Delta' ->
+  tycontext_sub Delta Delta' ->
   rguard Espec ge E Delta' f (frame_ret_assert P F) k ⊣⊢ rguard Espec ge E Delta' f (frame_ret_assert (conj_ret_assert P (local (typecheck_environ Delta))) F) k.
 Proof.
   intros.
@@ -350,15 +350,15 @@ Qed.
 
 Lemma semax'_conseq {CS: compspecs}:
  forall E Delta P' (R': ret_assert) P c (R: ret_assert) ,
-   (local (typecheck_environ Delta) ∧ (<affine> allp_fun_id E Delta ∗ P) ⊢
+   (local (typecheck_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ P) ⊢
                    (|={E}=> P')) ->
-   (local (typecheck_environ Delta) ∧ (<affine> allp_fun_id E Delta ∗ RA_normal R') ⊢
+   (local (typecheck_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ RA_normal R') ⊢
                    (|={E}=> RA_normal R)) ->
-   (local (typecheck_environ Delta) ∧ (<affine> allp_fun_id E Delta ∗ RA_break R') ⊢
+   (local (typecheck_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ RA_break R') ⊢
                    (|={E}=> RA_break R)) ->
-   (local (typecheck_environ Delta) ∧ (<affine> allp_fun_id E Delta ∗ RA_continue R') ⊢
+   (local (typecheck_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ RA_continue R') ⊢
                    (|={E}=> RA_continue R)) ->
-   (forall vl, local (typecheck_environ Delta) ∧ (<affine> allp_fun_id E Delta ∗ RA_return R' vl) ⊢
+   (forall vl, local (typecheck_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ RA_return R' vl) ⊢
                    RA_return R vl) ->
    semax' Espec E Delta P' c R' ⊢ semax' Espec E Delta P c R.
 Proof.
@@ -367,7 +367,7 @@ Proof.
   iIntros "H" (??? [??]).
   iPoseProof ("H" with "[%]") as "H"; first done.
   iApply (bi.impl_mono with "H"); first done.
-  iIntros "H" (???) "[% rguard]".
+  iIntros "H" (????) "[(% & %) rguard]".
   iSpecialize ("H" with "[-]").
   + rewrite /bi_affinely; iSplit; first done; iSplit; first done.
     rewrite bi.and_elim_r.
@@ -382,25 +382,26 @@ Proof.
          | rename H1 into Hx; pose (ek:=@RA_break Σ)
          | rename H2 into Hx ; pose (ek:=@RA_continue Σ)
          | apply bi.sep_mono, H3; auto]; clear H3.
-    all: rewrite -Hx; iIntros "($ & $ & $ & $)".
+    all: rewrite fupd_mask_mono // in Hx; rewrite -Hx; iIntros "($ & $ & $ & $)".
   + erewrite (guard_allp_fun_id _ _ _ _ _ _ P) by eauto.
-    erewrite (guard_tc_environ _ _ _ _ _ _ (<affine> allp_fun_id E Delta ∗ P)) by eauto.
+    erewrite (guard_tc_environ _ _ _ _ _ _ (<affine> allp_fun_id Delta ∗ P)) by eauto.
     rewrite (guard_fupd _ _ _ _ _ P').
     iApply (guard_mono with "H").
+    rewrite -fupd_mask_mono //.
     by rewrite -H.
 Qed.
 
 Lemma semax_conseq {CS: compspecs}:
  forall E Delta P' (R': ret_assert) P c (R: ret_assert) ,
-   (local (typecheck_environ Delta) ∧ (<affine> allp_fun_id E Delta ∗ P) ⊢
+   (local (typecheck_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ P) ⊢
                    (|={E}=> P') ) ->
-   (local (typecheck_environ Delta) ∧ (<affine> allp_fun_id E Delta ∗ RA_normal R') ⊢
+   (local (typecheck_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ RA_normal R') ⊢
                    (|={E}=> RA_normal R)) ->
-   (local (typecheck_environ Delta) ∧ (<affine> allp_fun_id E Delta ∗ RA_break R') ⊢
+   (local (typecheck_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ RA_break R') ⊢
                    (|={E}=> RA_break R)) ->
-   (local (typecheck_environ Delta) ∧ (<affine> allp_fun_id E Delta ∗ RA_continue R') ⊢
+   (local (typecheck_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ RA_continue R') ⊢
                    (|={E}=> RA_continue R)) ->
-   (forall vl, local (typecheck_environ Delta) ∧ (<affine> allp_fun_id E Delta ∗ RA_return R' vl) ⊢
+   (forall vl, local (typecheck_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ RA_return R' vl) ⊢
                    RA_return R vl) ->
    semax Espec E Delta P' c R' ->  semax Espec E Delta P c R.
 Proof.
@@ -649,12 +650,12 @@ Proof.
 Qed.
 
 Lemma semax_adapt_frame {cs} E Delta c (P P': assert) (Q Q' : ret_assert)
-   (H: local (typecheck_environ Delta) ∧ (<affine> allp_fun_id E Delta ∗ P) ⊢
+   (H: local (typecheck_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ P) ⊢
                    ∃ F: assert, (⌜closed_wrt_modvars c F⌝ ∧ |={E}=> (P' ∗ F) ∧
-                         ⌜local (tc_environ Delta) ∧ <affine> allp_fun_id E Delta ∗ RA_normal (frame_ret_assert Q' F) ⊢ |={E}=> RA_normal Q⌝ ∧
-                         ⌜local (tc_environ Delta) ∧ <affine> allp_fun_id E Delta ∗ RA_break (frame_ret_assert Q' F) ⊢ |={E}=> RA_break Q⌝ ∧
-                         ⌜local (tc_environ Delta) ∧ <affine> allp_fun_id E Delta ∗ RA_continue (frame_ret_assert Q' F) ⊢ |={E}=> RA_continue Q⌝ ∧
-                         ⌜forall vl, local (tc_environ Delta) ∧ <affine> allp_fun_id E Delta ∗ RA_return (frame_ret_assert Q' F) vl ⊢ RA_return Q vl⌝))
+                         ⌜local (tc_environ Delta) ∧ <affine> allp_fun_id Delta ∗ RA_normal (frame_ret_assert Q' F) ⊢ |={E}=> RA_normal Q⌝ ∧
+                         ⌜local (tc_environ Delta) ∧ <affine> allp_fun_id Delta ∗ RA_break (frame_ret_assert Q' F) ⊢ |={E}=> RA_break Q⌝ ∧
+                         ⌜local (tc_environ Delta) ∧ <affine> allp_fun_id Delta ∗ RA_continue (frame_ret_assert Q' F) ⊢ |={E}=> RA_continue Q⌝ ∧
+                         ⌜forall vl, local (tc_environ Delta) ∧ <affine> allp_fun_id Delta ∗ RA_return (frame_ret_assert Q' F) vl ⊢ RA_return Q vl⌝))
    (SEM: semax Espec E Delta P' c Q'):
    semax Espec E Delta P c Q.
 Proof.
@@ -675,7 +676,7 @@ Proof.
 Qed.
 
 Lemma semax_adapt_frame' {cs} E Delta c (P P': assert) (Q Q' : ret_assert)
-   (H: local (typecheck_environ Delta) ∧ (<affine> allp_fun_id E Delta ∗ P) ⊢
+   (H: local (typecheck_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ P) ⊢
                    ∃ F: assert, (⌜closed_wrt_modvars c F⌝ ∧ |={E}=> (P' ∗ F) ∧
                          ⌜RA_normal (frame_ret_assert Q' F) ⊢ |={E}=> RA_normal Q⌝ ∧
                          ⌜RA_break (frame_ret_assert Q' F) ⊢ |={E}=> RA_break Q⌝ ∧
@@ -692,7 +693,7 @@ Proof.
 Qed.
 
 Lemma semax_adapt {cs} E Delta c (P P': assert) (Q Q' : ret_assert)
-   (H: local (typecheck_environ Delta) ∧ (<affine> allp_fun_id E Delta ∗ P) ⊢
+   (H: local (typecheck_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ P) ⊢
                    (|={E}=> P' ∧
                         ⌜RA_normal Q' ⊢ |={E}=> RA_normal Q⌝ ∧
                         ⌜RA_break Q' ⊢ |={E}=> RA_break Q⌝ ∧

@@ -591,10 +591,10 @@ auto.
 Qed.
  
 Lemma leaf_function': 
- forall Vprog Gprog (CS: compspecs) E f s,
+ forall Vprog Gprog (CS: compspecs) f s,
  check_no_overlap Vprog Gprog = true ->
- semax_body Vprog nil E f s ->
- semax_body Vprog Gprog E f s.
+ semax_body Vprog nil f s ->
+ semax_body Vprog Gprog f s.
 Proof.
 intros.
 unfold semax_body in *.
@@ -659,14 +659,14 @@ Definition check_no_Gvars (Gtable: PTree.t unit) (s: statement) : bool :=
     s true.
 
 Lemma leaf_function: 
- forall Vprog Gprog (CS: compspecs) E f s Gtable,
+ forall Vprog Gprog (CS: compspecs) f s Gtable,
  Gtable = fold_left
     (fun (t : PTree.t unit) (v : ident * funspec) =>
      PTree.set (fst v) tt t) Gprog (PTree.empty unit) ->
  check_no_overlap' Vprog Gtable = true ->
  check_no_Gvars Gtable (fn_body f) = true ->
- semax_body Vprog nil E f s ->
- semax_body Vprog Gprog E f s.
+ semax_body Vprog nil f s ->
+ semax_body Vprog Gprog f s.
 Proof.
 intros.
 clear H1.

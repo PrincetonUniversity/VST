@@ -45,11 +45,11 @@ Arguments Z.div _ _ / .
 #[export] Hint Rewrite @sem_add_pi_ptr_special' using (solve [try reflexivity; auto with norm]) : norm.
 #[export] Hint Rewrite @sem_add_pl_ptr_special' using (solve [try reflexivity; auto with norm]) : norm.
 
-Lemma func_ptr_emp `{!heapGS Σ} E phi v: func_ptr E phi v ⊢ emp.
+Lemma func_ptr_emp `{!heapGS Σ} phi v: func_ptr phi v ⊢ emp.
 Proof. iIntros. done. Qed.
 
-Lemma func_ptr_mono `{!heapGS Σ} {E fs gs v}: funspec_sub E fs gs ->
-       func_ptr E fs v ⊢ func_ptr E gs v.
+Lemma func_ptr_mono `{!heapGS Σ} {fs gs v}: funspec_sub fs gs ->
+       func_ptr fs v ⊢ func_ptr gs v.
 Proof. apply funspec_sub_implies_func_prt_si_mono. Qed.
 
 Lemma isptr_force_sem_add_ptr_int:
@@ -309,12 +309,12 @@ Ltac LookupB :=
 Section FORWARD.
 Context `{heapGS0:!heapGS Σ} {CS: compspecs} {Espec: OracleKind} `{!externalGS OK_ty Σ}.
 Lemma semax_body_subsumption' 
-      (cs cs':compspecs) V V' F F' E f spec
-      (SF: semax_body V F (C:=cs) E f spec)
+      (cs cs':compspecs) V V' F F' f spec
+      (SF: semax_body V F (C:=cs) f spec)
       (CSUB: cspecs_sub cs cs')
       (COMPLETE : Forall (fun it : ident * type => complete_type (@cenv_cs cs) (snd it) = true) (fn_vars f))
-      (TS: tycontext_sub E (func_tycontext f V F nil) (func_tycontext f V' F' nil)):
-  semax_body V' F' (C:=cs') E f spec.
+      (TS: tycontext_sub (func_tycontext f V F nil) (func_tycontext f V' F' nil)):
+  semax_body V' F' (C:=cs') f spec.
 Proof.
   intros.
   apply (semax_body_cenv_sub CSUB); auto.
@@ -342,17 +342,17 @@ Proof.
   destruct (s!!i); [simpl; destruct (t!!i); inv H0 | ]; trivial.
 Qed. 
 
-Definition tycontext_subVG E Vprog1 Gprog1 Vprog2 Gprog2 :=
+Definition tycontext_subVG Vprog1 Gprog1 Vprog2 Gprog2 :=
  (forall id : positive,
    sub_option ((make_tycontext_g Vprog1 Gprog1) !! id)
     ((make_tycontext_g Vprog2 Gprog2) !! id)) /\
  (forall id : positive,
-   subsumespec E ((make_tycontext_s Gprog1) !! id) ((make_tycontext_s Gprog2) !! id)).
+   subsumespec ((make_tycontext_s Gprog1) !! id) ((make_tycontext_s Gprog2) !! id)).
 
 Lemma tycontext_sub_i99:
- forall E f Vprog1 Vprog2 Gprog1 Gprog2 Annot,
- tycontext_subVG E Vprog1 Gprog1 Vprog2 Gprog2 ->
-  tycontext_sub E (func_tycontext f Vprog1 Gprog1 Annot)
+ forall f Vprog1 Vprog2 Gprog1 Gprog2 Annot,
+ tycontext_subVG Vprog1 Gprog1 Vprog2 Gprog2 ->
+  tycontext_sub (func_tycontext f Vprog1 Gprog1 Annot)
                     (func_tycontext f Vprog2 Gprog2 Annot).
 Proof.
 intros.
@@ -398,25 +398,25 @@ Qed.
     intros. eapply make_tycontext_s_app2; trivial. 
   Qed.
   
-  Lemma subsumespec_app1 E G1 G2 i:
-    subsumespec E ((make_tycontext_s G1) !! i) ((make_tycontext_s (G1++G2)) !! i).
+  Lemma subsumespec_app1 G1 G2 i:
+    subsumespec ((make_tycontext_s G1) !! i) ((make_tycontext_s (G1++G2)) !! i).
   Proof.
     red. remember ((make_tycontext_s G1) !! i) as q; destruct q; [symmetry in Heqq | trivial].
     specialize (make_tycontext_s_app1 G1 G2 i). rewrite Heqq; simpl. intros X; rewrite X; clear X.
     exists f; split. trivial. apply seplog.funspec_sub_si_refl.
   Qed.
   
-  Lemma subsumespec_app2 E G1 G2 i: list_norepet (map fst (G1++G2)) ->
-    subsumespec E ((make_tycontext_s G2) !! i) ((make_tycontext_s (G1++G2)) !! i).
+  Lemma subsumespec_app2 G1 G2 i: list_norepet (map fst (G1++G2)) ->
+    subsumespec ((make_tycontext_s G2) !! i) ((make_tycontext_s (G1++G2)) !! i).
   Proof.
     intros; red. remember ((make_tycontext_s G2) !! i) as q; destruct q; [symmetry in Heqq | trivial].
     specialize (make_tycontext_s_app2 G1 G2 i H). rewrite Heqq; simpl. intros X; rewrite X; clear X.
     exists f; split. trivial. apply seplog.funspec_sub_si_refl.
   Qed.
 
-  Lemma tycontext_sub_Gprog_app1 E f V G1 G2 (HG1: list_norepet (map fst G1))
+  Lemma tycontext_sub_Gprog_app1 f V G1 G2 (HG1: list_norepet (map fst G1))
         (HG12: list_norepet (map fst V ++ map fst (G1 ++ G2))):
-    tycontext_sub E (func_tycontext f V G1 [])
+    tycontext_sub (func_tycontext f V G1 [])
                   (func_tycontext f V (G1++G2) []).
   Proof.
      apply tycontext_sub_i99. split; intros.
@@ -424,9 +424,9 @@ Qed.
      + apply subsumespec_app1.
   Qed.
 
-  Lemma tycontext_sub_Gprog_app2 E f V G1 G2 (HG1: list_norepet (map fst G2))
+  Lemma tycontext_sub_Gprog_app2 f V G1 G2 (HG1: list_norepet (map fst G2))
         (HG12: list_norepet (map fst V ++ map fst (G1 ++ G2))):
-    tycontext_sub E (func_tycontext f V G2 [])
+    tycontext_sub (func_tycontext f V G2 [])
                   (func_tycontext f V (G1++G2) []).
   Proof.
      apply tycontext_sub_i99. split; intros.
@@ -434,18 +434,18 @@ Qed.
      + apply list_norepet_append_right in HG12. apply subsumespec_app2; trivial.
   Qed.
   
-  Lemma tycontext_sub_Gprog_nil E f V G (VG:list_norepet (map fst V ++ map fst G)):
-    tycontext_sub E (func_tycontext f V [] [])
+  Lemma tycontext_sub_Gprog_nil f V G (VG:list_norepet (map fst V ++ map fst G)):
+    tycontext_sub (func_tycontext f V [] [])
                   (func_tycontext f V G []).
   Proof.
-    specialize (tycontext_sub_Gprog_app1 E f V nil G); simpl.
+    specialize (tycontext_sub_Gprog_app1 f V nil G); simpl.
     intros H; apply H; clear H; [ constructor | trivial].
   Qed.
   
 Lemma subsume_spec_get:
-  forall E (s t: PTree.t funspec),
-   Forall (fun x => subsumespec E (Some (snd x)) (t !! (fst x))) (PTree.elements s) ->
-   (forall i, subsumespec E (s !! i) (t !! i)).
+  forall (s t: PTree.t funspec),
+   Forall (fun x => subsumespec (Some (snd x)) (t !! (fst x))) (PTree.elements s) ->
+   (forall i, subsumespec (s !! i) (t !! i)).
 Proof.
 intros.
 destruct (s !! i) eqn:?H; [ | apply I].
@@ -457,7 +457,7 @@ Qed.
 End FORWARD.
 
 Ltac apply_semax_body L := 
-eapply (@semax_body_subsumption' _ _ _ _ _ _ _ _ _ _ _ _ _ L);
+eapply (@semax_body_subsumption' _ _ _ _ _ _ _ _ _ _ _ _ L);
   [ first [ apply cspecs_sub_refl
           | split3; red; apply @sub_option_get; 
             repeat (apply Forall_cons; [reflexivity | ]);  apply Forall_nil ]
@@ -466,14 +466,14 @@ eapply (@semax_body_subsumption' _ _ _ _ _ _ _ _ _ _ _ _ _ L);
           (apply tycontext_sub_i99; assumption)].
 
 Ltac try_prove_tycontext_subVG L :=
-  match goal with |- semax_func ?V2 ?G2 _ ?E _ _ =>
+  match goal with |- semax_func ?V2 ?G2 _ _ _ =>
     try match type of L with
-    | semax_body ?V1 ?G1 _ _ _ =>
+    | semax_body ?V1 ?G1 _ _ =>
      lazymatch goal with
-     | H: tycontext_subVG E V1 G1 V2 G2 |- _ => idtac
+     | H: tycontext_subVG V1 G1 V2 G2 |- _ => idtac
      | _ => 
       let H := fresh in
-      assert (H: tycontext_subVG E V1 G1 V2 G2);
+      assert (H: tycontext_subVG V1 G1 V2 G2);
       [split;
         [apply sub_option_get;
           let A1 := fresh "A1" in let A2 := fresh "A2" in
@@ -847,7 +847,7 @@ Ltac lookup_spec id :=
    | |- ?fs = _ => check_canonical_funspec (id,fs);
       first [reflexivity |
       match goal with
-       | |- mk_funspec _ _ ?t1 _ _ = mk_funspec _ _ ?t2 _ _ =>
+       | |- mk_funspec _ _ _ ?t1 _ _ = mk_funspec _ _ _ ?t2 _ _ =>
          first [unify t1 t2
            | exfalso; error (Witness_type_of_forward_call_does_not_match_witness_type_of_funspec
       t2 t1)]
@@ -1138,19 +1138,19 @@ Ltac find_postcond_binder_names :=
      let x := constr:((glob_specs Delta) !! id) in
      let x' := eval hnf in x in
      match x' with
-     | Some (mk_funspec _ _ _ _ (fun _ => bi_exist (fun y1 => bi_exist (fun y2 => bi_exist (fun y3 => bi_exist (fun y4 => _)))))) =>
+     | Some (mk_funspec _ _ _ _ _ (fun _ => bi_exist (fun y1 => bi_exist (fun y2 => bi_exist (fun y3 => bi_exist (fun y4 => _)))))) =>
          let y4' := fresh y4 in  pose (y4' := BINDER_NAME);
          let y3' := fresh y3 in  pose (y3' := BINDER_NAME);
          let y2' := fresh y2 in  pose (y2' := BINDER_NAME);
          let y1' := fresh y1 in  pose (y1' := BINDER_NAME)
-     | Some (mk_funspec _ _ _ _ (fun _ => bi_exist (fun y1 => bi_exist (fun y2 => bi_exist (fun y3 => _))))) =>
+     | Some (mk_funspec _ _ _ _ _ (fun _ => bi_exist (fun y1 => bi_exist (fun y2 => bi_exist (fun y3 => _))))) =>
          let y3' := fresh y3 in  pose (y3' := BINDER_NAME);
          let y2' := fresh y2 in  pose (y2' := BINDER_NAME);
          let y1' := fresh y1 in  pose (y1' := BINDER_NAME)
-     | Some (mk_funspec _ _ _ _ (fun _ => bi_exist (fun y1 => bi_exist (fun y2 => _)))) =>
+     | Some (mk_funspec _ _ _ _ _ (fun _ => bi_exist (fun y1 => bi_exist (fun y2 => _)))) =>
          let y2' := fresh y2 in  pose (y2' := BINDER_NAME);
          let y1' := fresh y1 in  pose (y1' := BINDER_NAME)
-     | Some (mk_funspec _ _ _ _ (fun _ => bi_exist (fun y1 => _))) =>
+     | Some (mk_funspec _ _ _ _ _ (fun _ => bi_exist (fun y1 => _))) =>
          let y1' := fresh y1 in  pose (y1' := BINDER_NAME)
      | _ => idtac
      end
@@ -1286,8 +1286,8 @@ Qed.
 
 Lemma classify_fun_ty_hack:
  (* This is needed for the varargs (printf) hack *)
-  forall `{heapGS0:heapGS Σ} E fs fs',
-  funspec_sub E fs fs' ->
+  forall `{heapGS0:heapGS Σ} fs fs',
+  funspec_sub fs fs' ->
   forall ty typs retty cc,
   ty = type_of_funspec fs ->
   type_of_funspec fs' = Tfunction typs retty cc -> 
@@ -1296,7 +1296,7 @@ Proof.
 intros.
 subst.
 destruct fs, fs'. 
-destruct H as [[? ?] _].
+destruct H as [(? & ? & ?) _].
 subst.
 simpl in H1.
 inv H1.
@@ -1472,29 +1472,17 @@ Ltac tuple_evar2 name T cb evar_tac :=
 
 Ltac get_function_witness_type Σ func :=
  let TA := constr:(ofe_car (@dtfr Σ func)) in
-  let TA' := (*eval cbv 
-     [functors.MixVariantFunctor._functor
-      functors.MixVariantFunctorGenerator.fpair
-      functors.MixVariantFunctorGenerator.fconst
-      functors.MixVariantFunctorGenerator.fidentity
-      rmaps.dependent_type_functor_rec
-      functors.GeneralFunctorGenerator.CovariantBiFunctor_MixVariantFunctor_compose
-      functors.CovariantFunctorGenerator.fconst
-      functors.CovariantFunctorGenerator.fidentity
-      functors.CovariantBiFunctor._functor
-      functors.CovariantBiFunctorGenerator.Fpair
-      functors.GeneralFunctorGenerator.CovariantFunctor_MixVariantFunctor
-      functors.CovariantFunctor._functornew_fwd_call
-      functors.MixVariantFunctor.fmap
-      ] in*) TA
+  let TA' := eval cbv 
+     [dtfr dependent_type_functor_rec constOF idOF prodOF discrete_funOF
+      ofe_morOF sigTOF list.listOF oFunctor_car ofe_car] in TA
  in let TA'' := eval simpl in TA'
  in TA''.
 
 Ltac new_prove_call_setup :=
  prove_call_setup1 funspec_sub_refl_dep;
  [ .. | 
- match goal with |- call_setup1 _ _ _ _ _ _ _ _ _ _ _ _ _ ?A _ _ _ _ -> _ =>
-      let x := fresh "x" in tuple_evar2 x ltac:(get_function_witness_type A)
+ match goal with |- @call_setup1 ?Σ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ?A _ _ _ _ -> _ =>
+      let x := fresh "x" in tuple_evar2 x ltac:(get_function_witness_type Σ A)
       ltac:(prove_call_setup_aux (*(@nil Type)*))
       ltac:(fun _ => try refine tt; fail "Failed to infer some parts of witness")
  end].
@@ -2372,7 +2360,7 @@ Ltac forward_for_simple_bound n Pre :=
  let Σ := get_Sigma_from_semax in
  match type of Pre with
  | ?t => tryif (unify t (@assert Σ)) then idtac 
-               else fail "Type of precondition" Pre "should be environ->mpred but is" t
+               else fail "Type of precondition" Pre "should be assert but is" t
   end;
  match goal with
     | |- semax _ _ _ (Sfor _ _ _ _) _ =>
@@ -2697,12 +2685,12 @@ Tactic Notation "forward_for" constr(Inv) "continue:" constr(PreInc) :=
   check_Delta; check_POSTCONDITION;
   repeat simple apply seq_assoc1;
   lazymatch type of Inv with
-  | _ -> environ -> mpred => idtac
-  | _ => fail "Invariant (first argument to forward_for) must have type (_ -> environ -> mpred)"
+  | _ -> assert => idtac
+  | _ => fail "Invariant (first argument to forward_for) must have type (_ -> assert)"
   end;
   lazymatch type of PreInc with
-  | _ -> environ -> mpred => idtac
-  | _ => fail "PreInc (continue: argument to forward_for) must have type (_ -> environ -> mpred)"
+  | _ -> assert mpred => idtac
+  | _ => fail "PreInc (continue: argument to forward_for) must have type (_ -> assert)"
   end;
   lazymatch goal with
   | |- semax _ _ _ (Ssequence (Sfor _ _ _ _) _) _ =>
@@ -2733,16 +2721,16 @@ Tactic Notation "forward_for" constr(Inv) "continue:" constr(PreInc) "break:" co
   check_Delta; check_POSTCONDITION;
   repeat simple apply seq_assoc1;
   lazymatch type of Inv with
-  | _ -> environ -> mpred => idtac
-  | _ => fail "Invariant (first argument to forward_for) must have type (_ -> environ -> mpred)"
+  | _ -> assert => idtac
+  | _ => fail "Invariant (first argument to forward_for) must have type (_ -> assert)"
   end;
   lazymatch type of PreInc with
-  | _ -> environ -> mpred => idtac
-  | _ => fail "PreInc (second argument to forward_for) must have type (_ -> environ -> mpred)"
+  | _ -> assert => idtac
+  | _ => fail "PreInc (second argument to forward_for) must have type (_ -> assert)"
   end;
   lazymatch type of Postcond with
-  | environ -> mpred => idtac
-  | _ => fail "Postcond (third argument to forward_for) must have type (environ -> mpred)"
+  | assert => idtac
+  | _ => fail "Postcond (third argument to forward_for) must have type (assert)"
   end;
   lazymatch goal with
   | |- semax _ _ _ (Ssequence (Sfor _ _ _ _) _) _ =>
@@ -2759,9 +2747,9 @@ Tactic Notation "forward_for" constr(Inv) "break:" constr(Postcond) "continue:" 
 
 Tactic Notation "forward_for" constr(Inv) constr(PreInc) :=
   fail "Usage of the forward_for tactic:
-forward_for  Inv   (* where Inv: A->environ->mpred is a predicate on index values of type A *)
+forward_for  Inv   (* where Inv: A->assert is a predicate on index values of type A *)
 forward_for Inv continue: PreInc (* where Inv,PreInc are predicates on index values of type A *)
-forward_for Inv continue: PreInc break:Post (* where Post: environ->mpred is an assertion *)".
+forward_for Inv continue: PreInc break:Post (* where Post: assert is an assertion *)".
 
 Lemma semax_convert_for_while:
  forall `{!heapGS Σ} {CS: compspecs} {Espec: OracleKind} `{!externalGS OK_ty Σ} E Delta Pre s1 e2 s3 s4 Post,
@@ -2783,8 +2771,8 @@ Tactic Notation "forward_for" constr(Inv) :=
   check_Delta; check_POSTCONDITION;
   repeat simple apply seq_assoc1;
   lazymatch type of Inv with
-  | _ -> environ -> mpred => idtac
-  | _ => fail "Invariant (first argument to forward_for) must have type (_ -> environ -> mpred)"
+  | _ -> assert => idtac
+  | _ => fail "Invariant (first argument to forward_for) must have type (_ -> assert)"
   end;
   lazymatch goal with
   | |- semax _ _ _ (Ssequence (Sfor _ _ _ _) _) _ =>
@@ -2903,7 +2891,7 @@ match goal with
 | |- semax _ ?Delta (▷ PROPx ?P (LOCALx ?Q (SEPx ?R))) (Ssequence (Sifthenelse ?e ?c1 ?c2) _) _ =>
     tryif (unify (orb (quickflow c1 nofallthrough) (quickflow c2 nofallthrough)) true)
     then (apply semax_if_seq; forward_if'_new)
-    else fail "Because your if-statement is followed by another statement, you need to do 'forward_if Post', where Post is a postcondition of type (environ->mpred) or of type Prop"
+    else fail "Because your if-statement is followed by another statement, you need to do 'forward_if Post', where Post is a postcondition of type assert or of type Prop"
 | |- semax _ _ (@bi_exist _ _ _) _ _ =>
       fail "First use Intros ... to take care of the EXistentially quantified variables in the precondition"
 | |- semax _ _ _ (Sswitch _ _) _ =>
@@ -2911,7 +2899,7 @@ match goal with
 | |- semax _ _ _ (Ssequence (Sifthenelse _ _ _) _) _ => 
      fail "forward_if failed for some unknown reason, perhaps your precondition is not in canonical form"
 | |- semax _ _ _ (Ssequence (Sswitch _ _) _) _ => 
-     fail "Because your switch statement is followed by another statement, you need to do 'forward_if Post', where Post is a postcondition of type (environ->mpred) or of type Prop"
+     fail "Because your switch statement is followed by another statement, you need to do 'forward_if Post', where Post is a postcondition of type assert or of type Prop"
 end.
 
 Section FORWARD.
@@ -2944,8 +2932,8 @@ Ltac forward_if_tac post :=
   check_Delta; check_POSTCONDITION;
   repeat (apply -> seq_assoc; abbreviate_semax);
   repeat apply -> semax_seq_skip;
-first [ignore (post: environ->mpred)
-      | fail 1 "Invariant (first argument to forward_if) must have type (environ->mpred)"];
+first [ignore (post: assert)
+      | fail 1 "Invariant (first argument to forward_if) must have type assert"];
 match goal with
  | |- semax _ _ _ (Sifthenelse _ _ _) (overridePost post _) =>
        forward_if'_new
@@ -3416,7 +3404,7 @@ Ltac forward0 :=  (* USE FOR DEBUGGING *)
   match goal with
   | |- semax _ _ ?PQR (Ssequence ?c1 ?c2) ?PQR' =>
            let Post := fresh "Post" in
-              evar (Post : environ->mpred);
+              evar (Post : assert);
               apply semax_seq' with Post;
                [
                | unfold Post; clear Post ]
@@ -3753,46 +3741,46 @@ Ltac forward_advise_loop c :=
  try lazymatch c with
  | Sfor _ _ Sskip ?body =>
         unify (nobreaksx body) true;
-        fail "Use [forward; forward_while Inv] to prove this loop, where Inv is a loop invariant of type (environ->mpred)"
+        fail "Use [forward; forward_while Inv] to prove this loop, where Inv is a loop invariant of type assert"
  | Swhile _ ?body =>
         unify (nobreaksx body) true;
-        fail "Use [forward_while Inv] to prove this loop, where Inv is a loop invariant of type (environ->mpred)"
+        fail "Use [forward_while Inv] to prove this loop, where Inv is a loop invariant of type assert"
  | Sloop (Ssequence (Sifthenelse _ Sbreak Sskip) ?body) Sskip =>
         unify (nobreaksx body) true;
-        fail "Use [forward_while Inv] to prove this loop, where Inv is a loop invariant of type (environ->mpred)"
+        fail "Use [forward_while Inv] to prove this loop, where Inv is a loop invariant of type assert"
  end;
  lazymatch c with
   | Sfor _ ?test ?body ?incr  =>
        tryif (unify (nobreaksx body) true; test_simple_bound test incr)
        then fail "You can probably use [forward_for_simple_bound n Inv], provided that the upper bound of your loop can be expressed as a constant value (n:Z), and the loop invariant Inv can be expressed as (∃ i:Z, ...).  Note that the Inv should not mention the LOCAL binding of the loop-count variable to the value i, and need not assert the PROP that i<=n; these will be inserted automatically.
-Otherwise, you can use the general case: Use [forward_loop Inv] to prove this loop, where Inv is a loop invariant of type (environ -> mpred).  The [forward_loop] tactic will advise you if you need continue: or break: assertions in addition"
-       else fail "Use [forward_loop Inv] to prove this loop, where Inv is a loop invariant of type (environ -> mpred).  The [forward_loop] tactic will advise you if you need continue: or break: assertions in addition"
+Otherwise, you can use the general case: Use [forward_loop Inv] to prove this loop, where Inv is a loop invariant of type assert.  The [forward_loop] tactic will advise you if you need continue: or break: assertions in addition"
+       else fail "Use [forward_loop Inv] to prove this loop, where Inv is a loop invariant of type assert.  The [forward_loop] tactic will advise you if you need continue: or break: assertions in addition"
   | Sloop _ _ =>
-     fail "Use [forward_loop Inv] to prove this loop, where Inv is a loop invariant of type (environ -> mpred).  The [forward_loop] tactic will advise you if you need continue: or break: assertions in addition"
+     fail "Use [forward_loop Inv] to prove this loop, where Inv is a loop invariant of type assert.  The [forward_loop] tactic will advise you if you need continue: or break: assertions in addition"
  end.
 
 Ltac forward_advise_for :=
  lazymatch goal with
  | |- semax _ _ _ (Sfor _ _ ?body Sskip) ?R =>
        tryif unify (no_breaks body) true
-       then fail "Use [forward_while Inv] to prove this loop, where Inv is a loop invariant of type (environ->mpred)"
+       then fail "Use [forward_while Inv] to prove this loop, where Inv is a loop invariant of type assert"
        else tryif has_evar R
-            then fail "Use [forward_for Inv Inv Post] to prove this loop, where Inv is a loop invariant of type (A -> environ -> mpred), and Post is a loop-postcondition. A is the type of whatever loop-varying quantity you have, such as the value of your loop iteration variable.  You can use the same Inv twice, before and after the for-loop-increment statement, because your for-loop-increment statement is trivial"
-            else fail "Use [forward_for Inv Inv] to prove this loop, where Inv is a loop invariant of type (A -> environ -> mpred).  A is the type of whatever loop-varying quantity you have, such as your loop iteration variable.  You can use the same Inv twice, before and after the for-loop-increment statement, because your for-loop-increment statement is trivial"
+            then fail "Use [forward_for Inv Inv Post] to prove this loop, where Inv is a loop invariant of type (A -> assert), and Post is a loop-postcondition. A is the type of whatever loop-varying quantity you have, such as the value of your loop iteration variable.  You can use the same Inv twice, before and after the for-loop-increment statement, because your for-loop-increment statement is trivial"
+            else fail "Use [forward_for Inv Inv] to prove this loop, where Inv is a loop invariant of type (A -> assert).  A is the type of whatever loop-varying quantity you have, such as your loop iteration variable.  You can use the same Inv twice, before and after the for-loop-increment statement, because your for-loop-increment statement is trivial"
   | |- semax _ _ _ (Sfor _ ?test ?body ?incr) ?R =>
        tryif has_evar R
        then tryif unify (no_breaks body) true
                then tryif test_simple_bound test incr
                   then fail "You can probably use [forward_for_simple_bound n Inv], provided that the upper bound of your loop can be expressed as a constant value (n:Z), and the loop invariant Inv can be expressed as (∃ i:Z, ...).  Note that the Inv need not mention the LOCAL binding of the loop-count variable to the value i, and need not assert the PROP that i<=n; these will be inserted automatically.
 Otherwise, you can use the general case:
-Use [forward_for Inv PreInc] to prove this loop, where Inv is a loop invariant of type (A -> environ -> mpred), and PreInc is the invariant (of the same type) just before the for-loop-increment statement"
-                  else fail "Use [forward_for Inv PreInc] to prove this loop, where Inv is a loop invariant of type (A -> environ -> mpred), and PreInc is the invariant (of the same type) just before the for-loop-increment statement"
-               else fail "Use [forward_for Inv PreInc Post] to prove this loop, where Inv is a loop invariant of type (A -> environ -> mpred), PreInc is the invariant (of the same type) just before the for-loop-increment statement, and  Post is a loop-postcondition"
+Use [forward_for Inv PreInc] to prove this loop, where Inv is a loop invariant of type (A -> assert), and PreInc is the invariant (of the same type) just before the for-loop-increment statement"
+                  else fail "Use [forward_for Inv PreInc] to prove this loop, where Inv is a loop invariant of type (A -> assert), and PreInc is the invariant (of the same type) just before the for-loop-increment statement"
+               else fail "Use [forward_for Inv PreInc Post] to prove this loop, where Inv is a loop invariant of type (A -> assert), PreInc is the invariant (of the same type) just before the for-loop-increment statement, and  Post is a loop-postcondition"
        else tryif test_simple_bound test incr
                then fail "You can probably use [forward_for_simple_bound n Inv], provided that the upper bound of your loop can be expressed as a constant value (n:Z), and the loop invariant Inv can be expressed as (∃ i:Z, ...).  Note that the Inv need not mention the LOCAL binding of the loop-count variable to the value i, and need not assert the PROP that i<=n; these will be inserted automatically.
 Otherwise, you can use the general case:
-Use [forward_for Inv PreInc] to prove this loop, where Inv is a loop invariant of type (A -> environ -> mpred), and PreInc is the invariant (of the same type) for just before the for-loop-increment statement"
-               else fail "Use [forward_for Inv PreInc] to prove this loop, where Inv is a loop invariant of type (A -> environ -> mpred), and PreInc is the invariant (of the same type) for just before the for-loop-increment statement"
+Use [forward_for Inv PreInc] to prove this loop, where Inv is a loop invariant of type (A -> assert), and PreInc is the invariant (of the same type) for just before the for-loop-increment statement"
+               else fail "Use [forward_for Inv PreInc] to prove this loop, where Inv is a loop invariant of type (A -> assert), and PreInc is the invariant (of the same type) for just before the for-loop-increment statement"
   end.
 
 
@@ -4492,14 +4480,14 @@ Ltac rewrite_old_main_pre := idtac.
 
 Ltac start_function1 :=
  leaf_function;
- lazymatch goal with |- semax_body ?V ?G ?E ?F ?spec =>
+ lazymatch goal with |- semax_body ?V ?G ?F ?spec =>
     check_normalized F;
     function_body_unsupported_features F;
     let s := fresh "spec" in
     pose (s:=spec); hnf in s; cbn zeta in s; (* dependent specs defined with Program Definition often have extra lets *)
    repeat lazymatch goal with
     | s := (_, NDmk_funspec _ _ _ _ _) |- _ => fail
-    | s := (_, mk_funspec _ _ _ _ _) |- _ => fail
+    | s := (_, mk_funspec _ _ _ _ _ _) |- _ => fail
     | s := (_, ?a _ _ _ _) |- _ => unfold a in s
     | s := (_, ?a _ _ _) |- _ => unfold a in s
     | s := (_, ?a _ _) |- _ => unfold a in s
@@ -4512,22 +4500,22 @@ Ltac start_function1 :=
                POST [ tint ] _) |- _ => idtac
     | s := ?spec' |- _ => check_canonical_funspec spec'
    end;
-   change (semax_body V G E F s); subst s
+   change (semax_body V G F s); subst s
  end;
 (* let DependedTypeList := fresh "DependedTypeList" in*)
  unfold NDmk_funspec;
  let gv := fresh "gv" in
- match goal with |- semax_body _ _ _ _ (pair _ (mk_funspec _ _ _ ?Pre _)) =>
+ match goal with |- semax_body _ _ _ (pair _ (mk_funspec _ _ _ _ ?Pre _)) =>
 
    split3; [check_parameter_types' | check_return_type | ];
     match Pre with
-   | (λne _, monPred_at (convertPre _ _ (fun i => _))) =>  intros (*DependedTypeList*) gv
+   | (λne _, monPred_at (convertPre _ _ (fun i => _))) =>  intros (*DependedTypeList*) i
    | (λne x, monPred_at match _ with (a,b) => _ end) => intros (*DependedTypeList*) [a b]
-   | (λne i, _) => intros (*DependedTypeList*) gv
+   | (λne i, _) => intros (*DependedTypeList*) i
    end;
    simpl fn_body; simpl fn_params; simpl fn_return
  end;
- try change (ofe_car (dtfr _)) with globals in *;
+ change (ofe_car (dtfr (ConstType ?y))) with y in *;
  simpl dependent_type_functor_rec;
  remember main_pre as main; (* so main_pre isn't reduced in the next step*)
  simpl ofe_mor_car;
@@ -5062,10 +5050,10 @@ Ltac prove_semax_prog_aux tac :=
         fail "Funspec of _main is not in the proper form")
     end
  ]; 
- match goal with |- semax_func ?V ?G ?g ?Σ ?D ?G' =>
+ match goal with |- semax_func ?V ?G ?g ?D ?G' =>
    let Gprog := fresh "Gprog" in 
    pose (Gprog := @abbreviate _ G); 
-  change (semax_func V Gprog g Σ D G')
+  change (semax_func V Gprog g D G')
  end;
   prove_semax_prog_setup_globalenv;
  tac.

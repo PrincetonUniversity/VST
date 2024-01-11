@@ -21,9 +21,10 @@ Definition Vprog : varspecs := (_s, t_struct_foo)::(_a, tarray tdouble 2)::nil.
 
 Definition Gprog : funspecs :=   ltac:(with_library prog [main_spec]).
 
-Lemma body_main:  semax_body Vprog Gprog ⊤ f_main main_spec.
+Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
 start_function.
+rename a into gv.
 match goal with |- context [SEPx(?A::_)] => freeze FR1 := A end.
 unfold default_VSTGS in default_VSTGS0.
 destruct  default_VSTGS0 eqn:?.

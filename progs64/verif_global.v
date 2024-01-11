@@ -29,16 +29,17 @@ Definition main_spec :=
 Definition Gprog : funspecs :=
         ltac:(with_library prog [h_spec; main_spec]).
 
-Lemma body_h: semax_body Vprog Gprog ⊤ f_h h_spec.
+Lemma body_h: semax_body Vprog Gprog f_h h_spec.
 Proof.
 start_function.
 forward.  (* x = g; *)
 forward.  (* return x; *)
 Qed.
 
-Lemma body_main:  semax_body Vprog Gprog ⊤ f_main main_spec.
+Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
 start_function.
+rename a into gv.
 rewrite data_at_tuint_tint.
 forward_call gv.
 forward.

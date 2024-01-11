@@ -350,8 +350,8 @@ match (temp_types Delta) !! id with
 end.
 
 Lemma typecheck_tid_ptr_compare_sub:
-   forall E Delta Delta',
-    tycontext_sub E Delta Delta' ->
+   forall Delta Delta',
+    tycontext_sub Delta Delta' ->
     forall id : ident, typecheck_tid_ptr_compare Delta id = true ->
                 typecheck_tid_ptr_compare Delta' id = true.
 Proof.

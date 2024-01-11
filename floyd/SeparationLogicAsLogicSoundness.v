@@ -165,11 +165,12 @@ Proof.
   + apply MinimumLogic.semax_Slabel; auto.
   + apply semax_FF.
   + eapply MinimumLogic.semax_conseq; eauto.
+  + eapply MinimumLogic.semax_mask_mono; eauto.
 Qed.
 
-Theorem semax_body_sound: forall {CS : compspecs} Vspec Gspec E f id,
-  DeepEmbedded.DeepEmbeddedDefs.semax_body Vspec Gspec E f id ->
-  MinimumLogic.CSHL_Defs.semax_body Vspec Gspec E f id.
+Theorem semax_body_sound: forall {CS : compspecs} Vspec Gspec f id,
+  DeepEmbedded.DeepEmbeddedDefs.semax_body Vspec Gspec f id ->
+  MinimumLogic.CSHL_Defs.semax_body Vspec Gspec f id.
 Proof.
   intros.
   unfold MinimumLogic.CSHL_Defs.semax_body, CSHL_Defs.semax_body in H |- *.
@@ -180,9 +181,9 @@ Proof.
   apply H.
 Qed.
 
-Theorem semax_func_sound: forall {CS : compspecs} Vspec Gspec ge E ids fs,
-  DeepEmbedded.DeepEmbeddedDef.semax_func _ _ _ _ Vspec Gspec CS ge E ids fs ->
-  Def.semax_func(C := CS) Vspec Gspec ge E ids fs.
+Theorem semax_func_sound: forall {CS : compspecs} Vspec Gspec ge ids fs,
+  DeepEmbedded.DeepEmbeddedDef.semax_func _ _ _ _ Vspec Gspec CS ge ids fs ->
+  Def.semax_func(C := CS) Vspec Gspec ge ids fs.
 Proof.
   intros.
   induction H.
@@ -204,7 +205,7 @@ Theorem semax_prog_sound': forall {CS : compspecs} prog z Vspec Gspec,
 Proof.
   intros.
   hnf in H |- *.
-  pose proof semax_func_sound Vspec Gspec (Genv.globalenv prog) ⊤ (prog_funct prog) Gspec.
+  pose proof semax_func_sound Vspec Gspec (Genv.globalenv prog) (prog_funct prog) Gspec.
   tauto.
 Qed.
 
@@ -226,7 +227,7 @@ Theorem semax_prog_rule :
        (exists m', semantics.initial_core (cl_core_sem (globalenv prog)) h
                        m q m' (Vptr b Ptrofs.zero) nil) *
        (state_interp Mem.empty z ∗ funspec_auth ∅ ∗ has_ext z ⊢ |==> state_interp m z ∗ jsafeN Espec (globalenv prog) ⊤ z q ∧
-           (*no_locks ∧*) matchfunspecs (globalenv prog) G ∅ (*∗ funassert (nofunc_tycontext V G) (empty_environ (globalenv prog))*))
+           (*no_locks ∧*) matchfunspecs (globalenv prog) G (*∗ funassert (nofunc_tycontext V G) (empty_environ (globalenv prog))*))
      } }%type.
 Proof.
   intros.
