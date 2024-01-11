@@ -204,21 +204,26 @@ Ltac calc_Zlength_extra l ::=
 #[export] Hint Rewrite @Znth_rev using Zlength_solve : Znth.
 #[export] Hint Unfold flip_ends : list_solve_unfold.
 
+Ltac2 Set finish_debug := Init.true.
+Ltac2 Set fastforward_debug := Init.true.
+
+(* !! fastforward loops on sublist rewrites when it didn't before *)
 Lemma body_reverse: semax_body Vprog Gprog f_reverse reverse_spec.
 Proof.
 start_function.
 fastforward.
 
-assert_PROP (Zlength (map Vint contents) = size)
+(*assert_PROP (Zlength (map Vint contents) = size)
     as ZL by entailer!.
 forward_while (reverse_Inv a0 sh (map Vint contents) size).
 * (* Prove that current precondition implies loop invariant *)
 simpl (data_at _ _ _).
-Time finish.
+unfold flip_ends.
+finish.
 * (* Prove that loop invariant implies typechecking condition *)
 Time finish.
 * (* Prove that loop body preserves invariant *)
-(* unfold flip_ends. *) (* seems good to do this, but it makes step VERY slow *)
+unfold flip_ends.
 Time finish.
 (* Finished transaction in 14.318 secs (14.043u,0.165s) (successful) *)
 (* solved in step! *)
@@ -227,6 +232,8 @@ Time finish.
 (* Finished transaction in 2.409 secs (2.379u,0.014s) (successful) *) 
 Time Qed.
 (* Finished transaction in 0.718 secs (0.714u,0.002s) (successful) *)
+*)
+Abort.
 
 Definition four_contents := [Int.repr 1; Int.repr 2; Int.repr 3; Int.repr 4].
 

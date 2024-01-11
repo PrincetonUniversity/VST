@@ -19,16 +19,16 @@ Definition twice_spec : ident * funspec :=
       SEP ().
 
 
-Definition f_spec :=
+Definition f_spec : ident * funspec :=
   DECLARE _f
     WITH x : Z
-    PRE [ _x OF tuint ]
+    PRE [ tuint ]
       PROP  (0 <= x <= Int.max_unsigned)
-      LOCAL (temp _x (Vint (Int.repr x)))
+      PARAMS (Vint (Int.repr x))
       SEP ()
     POST [ tint ]
       PROP ()
-      LOCAL (temp ret_temp (Vint (Int.repr 1)))
+      RETURN (Vint (Int.repr 1))
       SEP ().
 
 
@@ -37,7 +37,8 @@ Definition Gprog : funspecs :=   ltac:(with_library prog [twice_spec]).
 Lemma body_twice: semax_body Vprog Gprog f_twice twice_spec.
 Proof.
 start_function.
-forward_if (PROP() LOCAL(temp _n (Vint (Int.repr (n+n)))) SEP()).
+rename a into n.
+forward_if (temp _n (Vint (Int.repr (n+n)))).
 repeat forward; entailer!!.
 repeat forward; entailer!!.
 repeat forward; entailer!!.
@@ -49,7 +50,7 @@ Qed.
 Lemma body_f: semax_body Vprog Gprog f_f f_spec.
 Proof.
 start_function.
-forward_if False.
+forward_if (False : assert).
 forward.
 forward.
 forward.

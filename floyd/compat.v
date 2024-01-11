@@ -3,10 +3,11 @@ Require Import VST.floyd.proofauto.
 
 Export Unset SsrRewrite.
 
+Notation assert := (@assert (VSTΣ unit)).
 Notation funspec := (@funspec (VSTΣ unit)).
 
 (* Concrete instance of the Iris typeclasses for no ghost state or external calls *)
-#[local] Instance default_pre : VSTGpreS unit (VSTΣ unit) := subG_VSTGpreS 
+#[local] Instance default_pre : VSTGpreS unit (VSTΣ unit) := subG_VSTGpreS _.
 
 #[export] Program Instance VST_default : VSTGS NullEspec (VSTΣ unit) := Build_VSTGS _ _ _ _.
 Next Obligation.
