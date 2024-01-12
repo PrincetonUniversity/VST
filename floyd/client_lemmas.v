@@ -1241,8 +1241,8 @@ Ltac strip1_later P cP :=
  | LOCALx ?Q ?R =>
            let cR := (fun R' => let P' := constr:(LOCALx Q R') in cP P')
             in strip1_later R cR
- | @SEPx environ ?R =>
-    let cR := fun R' => (let P' := constr:(@SEPx environ _ R') in cP P') in
+ | @SEPx ?A ?Σ ?R =>
+    let cR := fun R' => (let P' := constr:(@SEPx A Σ R') in cP P') in
      strip1_later R cR
  | ?L :: ?R =>
       let cL := (fun L' =>

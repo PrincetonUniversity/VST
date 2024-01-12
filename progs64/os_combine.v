@@ -2,24 +2,13 @@ Require Import VST.floyd.proofauto.
 Require Import VST.sepcomp.extspec.
 Require Import VST.veric.semax_ext.
 Require Import VST.veric.juicy_mem.
-Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.initial_world.
-Require Import VST.veric.ghost_PCM.
 Require Import VST.veric.SequentialClight.
 Require Import VST.veric.Clight_core.
 Require Import VST.concurrency.conclib.
 Require Import VST.sepcomp.semantics.
 Require Import ITree.ITree.
-(* Import ITreeNotations. *) (* one piece conflicts with subp notation *)
-Notation "t1 >>= k2" := (ITree.bind t1 k2)
-  (at level 50, left associativity) : itree_scope.
-Notation "x <- t1 ;; t2" := (ITree.bind t1 (fun x => t2))
-  (at level 100, t1 at next level, right associativity) : itree_scope.
-Notation "t1 ;; t2" := (ITree.bind t1 (fun _ => t2))
-  (at level 100, right associativity) : itree_scope.
-Notation "' p <- t1 ;; t2" :=
-  (ITree.bind t1 (fun x_ => match x_ with p => t2 end))
-(at level 100, t1 at next level, p pattern, right associativity) : itree_scope.
+Import ITreeNotations.
 Require Import ITree.Interp.Traces.
 Require Import Ensembles.
 

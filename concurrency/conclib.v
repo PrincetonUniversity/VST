@@ -78,6 +78,13 @@ Proof.
   apply pred_ext; entailer!; apply derives_refl.
 Qed.*)
 
+Ltac ghost_alloc G :=
+  match goal with |-semax _ _ (PROPx _ (LOCALx _ (SEPx (?R1 :: _)))) _ _ =>
+    rewrite -{1}(bi.emp_sep R1); Intros; viewshift_SEP 0 (∃ g : _, G g);
+  [go_lowerx; iIntros "_"; iApply own_alloc; auto; simpl; auto with init share|] end.
+
+#[export] Hint Resolve excl_auth_valid : init.
+
 (*Ltac cancel_for_forward_spawn :=
   eapply symbolic_cancel_setup;
    [ construct_fold_right_sepcon
@@ -133,6 +140,11 @@ Section mpred.
 Context `{!heapGS Σ}.
 
 Definition exclusive_mpred (P : mpred) := P ∗ P ⊢ False.
+
+Lemma exclusive_weak_exclusive : forall P, exclusive_mpred P -> ⊢ P ∗ P -∗ False.
+Proof.
+  auto.
+Qed.
 
 Lemma exclusive_sepcon1 : forall P Q (HP : exclusive_mpred P), exclusive_mpred (P ∗ Q).
 Proof.

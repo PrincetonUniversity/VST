@@ -1247,21 +1247,8 @@ Ltac check_witness_type (*ts*) Σ A witness :=
              exfalso)
  ||
  let TA := constr:(ofe_car (@dtfr Σ A)) in
-  let TA' := (*eval cbv 
-     [functors.MixVariantFunctor._functor
-      functors.MixVariantFunctorGenerator.fpair
-      functors.MixVariantFunctorGenerator.fconst
-      functors.MixVariantFunctorGenerator.fidentity
-      rmaps.dependent_type_functor_rec
-      functors.GeneralFunctorGenerator.CovariantBiFunctor_MixVariantFunctor_compose
-      functors.CovariantFunctorGenerator.fconst
-      functors.CovariantFunctorGenerator.fidentity
-      functors.CovariantBiFunctor._functor
-      functors.CovariantBiFunctorGenerator.Fpair
-      functors.GeneralFunctorGenerator.CovariantFunctor_MixVariantFunctor
-      functors.CovariantFunctor._functor
-      functors.MixVariantFunctor.fmap
-      ] in*) TA
+  let TA' := eval cbv [dtfr dependent_type_functor_rec constOF idOF prodOF discrete_funOF
+      ofe_morOF sigTOF list.listOF oFunctor_car ofe_car] in TA
  in let TA'' := eval simpl in TA'
   in match type of witness with ?T => 
        unify T TA''
@@ -1472,7 +1459,7 @@ Ltac tuple_evar2 name T cb evar_tac :=
 
 Ltac get_function_witness_type Σ func :=
  let TA := constr:(ofe_car (@dtfr Σ func)) in
-  let TA' := eval cbv 
+  let TA' := eval cbv
      [dtfr dependent_type_functor_rec constOF idOF prodOF discrete_funOF
       ofe_morOF sigTOF list.listOF oFunctor_car ofe_car] in TA
  in let TA'' := eval simpl in TA'
@@ -4517,9 +4504,9 @@ Ltac start_function1 :=
    end;
    simpl fn_body; simpl fn_params; simpl fn_return
  end;
- change (ofe_car (dtfr (ConstType ?y))) with y in *;
- simpl dependent_type_functor_rec;
- cbn [ofe_mor_car];
+ cbv [dtfr dependent_type_functor_rec constOF idOF prodOF discrete_funOF
+      ofe_morOF sigTOF list.listOF oFunctor_car ofe_car] in *;
+ cbv [ofe_mor_car];
 (* clear DependedTypeList; *)
  rewrite_old_main_pre;
  rewrite ?argsassert_of_at ?assert_of_at;
@@ -4528,9 +4515,13 @@ Ltac start_function1 :=
              destruct p as [a b]
  | |- semax _ _ (close_precondition _ match ?p with (a,b) => _ end ∗ _) _ _ =>
              destruct p as [a b]
+ | |- semax _ _ (close_precondition _ (argsassert_of match ?p with (a,b) => _ end) ∗ _) _ _ =>
+             destruct p as [a b]
  | |- semax _ _ ((match ?p with (a,b) => _ end) eq_refl ∗ _) _ _ =>
              destruct p as [a b]
  | |- semax _ _ (close_precondition _ ((match ?p with (a,b) => _ end) eq_refl) ∗ _) _ _ =>
+             destruct p as [a b]
+ | |- semax _ _ (close_precondition _ (argsassert_of ((match ?p with (a,b) => _ end) eq_refl)) ∗ _) _ _ =>
              destruct p as [a b]
  | |- semax _ _ (close_precondition _
                                                 (fun ae => ⌜(Datatypes.length (snd ae) = ?A)⌝ ∧ ?B
@@ -4541,6 +4532,7 @@ Ltac start_function1 :=
    so maybe not worth it ...
   repeat match goal with H: reptype _ |- _ => progress hnf in H; simpl in H; idtac "reduced a reptype" end;
 *)
+ rewrite ?argsassert_of_at ?assert_of_at;
  try start_func_convert_precondition.
 
 Ltac expand_main_pre := expand_main_pre_old.

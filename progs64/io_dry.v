@@ -4,9 +4,7 @@ Require Import VST.floyd.proofauto.
 Require Import VST.sepcomp.extspec.
 Require Import VST.veric.semax_ext.
 Require Import VST.veric.juicy_mem.
-Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.initial_world.
-Require Import VST.veric.ghost_PCM.
 Require Import VST.veric.SequentialClight.
 Require Import VST.concurrency.conclib.
 Require Import VST.progs64.dry_mem_lemmas.
@@ -35,6 +33,9 @@ Context (ext_link : String.string -> ident).
 Instance Espec : OracleKind := IO_Espec ext_link.
 
 Definition io_ext_spec := OK_spec.
+
+Lemma getchar_pre_plain : ext_spec_pre getchar m w z <-> getchar_pre m w z.
+
 
 Program Definition io_dry_spec : external_specification mem external_function (@IO_itree E).
 Proof.

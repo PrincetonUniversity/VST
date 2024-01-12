@@ -713,7 +713,7 @@ endif
 # ########## Targets ##########
 
 default_target: vst $(PROGSDIR)
-vst: _CoqProject msl veric floyd # simpleconc
+vst: _CoqProject msl veric floyd simpleconc
 
 ifeq ($(BITSIZE),64)
 test: vst progs64
@@ -738,7 +738,7 @@ files: _CoqProject $(FILES:.v=.vo)
 #
 # Add conclib_coqlib, conclib_sublist, and conclib_veric to the targets
 #
-simpleconc: concurrency/conclib.vo concurrency/ghosts.vo atomics/verif_lock.vo
+simpleconc: concurrency/conclib.vo atomics/verif_lock.vo
 msl:     _CoqProject $(MSL_FILES:%.v=msl/%.vo)
 sepcomp: _CoqProject $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo)
 concurrency: _CoqProject $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo) $(CONCUR_FILES:%.v=concurrency/%.vo)

@@ -1,18 +1,7 @@
 From iris.algebra Require Export excl auth.
-From iris_ora.algebra Require Export excl auth.
+From iris_ora.algebra Require Export excl_auth.
 From iris_ora.logic Require Export own.
 From iris.proofmode Require Import proofmode.
-
-(* external ghost state *)
-Lemma excl_orderN_includedN : forall {A : ofe} n (x y : excl' A), ✓{n} y → x ≼ₒ{n} y → x ≼{n} y.
-Proof.
-  intros.
-  destruct x, y; simpl in *; try done.
-  - exists None; rewrite right_id; constructor; done.
-  - eexists; rewrite left_id //.
-Qed.
-
-Canonical Structure excl_authR (A : ofe) := authR (optionUR (@exclR A)) excl_orderN_includedN.
 
 Class externalGS (Z : Type) (Σ : gFunctors) := ExternalGS {
   external_inG : inG Σ (excl_authR (leibnizO Z));
@@ -28,8 +17,8 @@ Definition ext_auth {Z : Type} `{!externalGS Z Σ} (z : Z) : iProp Σ :=
 Lemma ext_alloc {Z : Type} `{!inG Σ (excl_authR (leibnizO Z))} (z : Z) : ⊢ |==> ∃ _ : externalGS Z Σ, ext_auth z ∗ has_ext z.
 Proof.
   rewrite /ext_auth /has_ext.
-  iMod (own_alloc (auth_auth(A := optionUR (@exclR (leibnizO Z))) (DfracOwn 1) (Excl' z) ⋅ auth_frag(A := optionUR (@exclR (leibnizO Z))) (Excl' z))) as (γ) "?".
-  { by apply (auth_both_valid_2(A := uora_ucmraR (optionUR (@exclR (leibnizO Z))))). }
+  iMod (own_alloc (●E (z : leibnizO Z) ⋅ ◯E (z : leibnizO Z) : excl_authR (leibnizO Z))) as (γ) "?".
+  { apply excl_auth_valid. }
   iExists (ExternalGS _ _ _ γ).
   rewrite own_op //.
 Qed.
