@@ -1359,10 +1359,10 @@ Qed.
 Lemma finish_process_globvars: 
  forall E Delta PQR SF c Post,
   semax E Delta (PQR ∗ SF) c Post ->
-  semax E Delta (PQR ∗ emp ∗ SF) c Post.
+  semax E Delta ((PQR ∗ emp) ∗ SF) c Post.
 Proof.
 intros.
-rewrite bi.emp_sep; auto.
+rewrite bi.sep_emp //.
 Qed.
 
 Definition is_array_type t :=

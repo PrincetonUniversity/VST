@@ -166,21 +166,6 @@ Exists 0. unfold Inv; entailer!!.
 *
 entailer!!.
 *
-match goal with
-| P := @abbreviate ret_assert _ |- _ => unfold abbreviate in P; subst P
-end.
-match goal with
-| |- semax _ _ ?c ?P =>
-    tryif (is_sequential false false c)
-    then (apply sequential; simpl_ret_assert;
-          match goal with |- semax _ _ _ ?Q =>
-             abbreviate Q : ret_assert as POSTCONDITION
-          end)
-    else abbreviate P : ret_assert as POSTCONDITION
-end.
-
-force_sequential.
-abbreviate_semax.
 rename a0 into i.
  forward. (* j = a[i]; *)
  assert (repable_signed (Znth i al))
@@ -204,37 +189,7 @@ rename a0 into i.
  entailer!!. rewrite Z.min_l; auto; lia.
  +
  intros.
- subst POSTCONDITION; unfold abbreviate. (* TODO: some of these lines should all be done by forward_if *)
- simpl_ret_assert.
-
-Ltac go_lower ::=
-clear_Delta_specs;
-intros;
-match goal with
- | |- local _ && PROPx _ (LOCALx _ (SEPx ?R)) |-- _ => check_mpreds R
- | |- ENTAIL _, PROPx _ (LOCALx _ (SEPx ?R)) |-- _ => check_mpreds R
- | |- ENTAIL _, _ |-- _ => fail 10 "The left-hand-side of your entailment is  not in PROP/LOCAL/SEP form"
- | _ => fail 10 "go_lower requires a proof goal in the form of (ENTAIL _ , _ |-- _)"
-end;
-clean_LOCAL_canon_mix;
-repeat (simple apply derives_extract_PROP; intro_PROP);
-let rho := fresh "rho" in
-intro rho;
-first
-[ simple apply quick_finish_lower
-|          
- (let TC := fresh "TC" in apply finish_lower; intros TC ||
- match goal with
- | |- (_ && PROPx nil _) _ |-- _ => fail 1 "LOCAL part of precondition is not a concrete list (or maybe Delta is not concrete)"
- | |- _ => fail 1 "PROP part of precondition is not a concrete list"
- end);
-unfold fold_right_sepcon; fold fold_right_sepcon; rewrite ?sepcon_emp; (* for the left side *)
-unfold_for_go_lower;
-simpl tc_val; simpl msubst_denote_tc_assert;
-try clear dependent rho;
-clear_Delta
-].
-Exists i. apply ENTAIL_refl.
+ Exists i. apply ENTAIL_refl.
 *
  rename a0 into i.
  forward.
@@ -253,7 +208,7 @@ Definition minimum_spec2 :=
     PARAMS (a; Vint (Int.repr n))
     SEP   (data_at Ews (tarray tint n) (map Vint (map Int.repr al)) a)
   POST [ tint ]
-   EX j: Z,
+   ∃ j: Z,
     PROP (In j al; Forall (fun x => j<=x) al)
     RETURN (Vint (Int.repr j))
     SEP   (data_at Ews (tarray tint n) (map Vint (map Int.repr al)) a).
@@ -267,7 +222,7 @@ start_function.
 assert_PROP (Zlength al = n) by (entailer!; list_solve).
 forward.  (* min = a[0]; *)
 forward_for_simple_bound n
-  (EX i:Z, EX j:Z,
+  (∃ i:Z, ∃ j:Z,
     PROP(
          In j (sublist 0 (Z.max 1 i) al);
          Forall (Z.le j) (sublist 0 i al))
@@ -280,7 +235,7 @@ forward_for_simple_bound n
 Exists (Znth 0 al).
 autorewrite with sublist.
 entailer!!.
-rewrite sublist_one by lia.
+rewrite -> sublist_one by lia.
 constructor; auto.
 * (* Show that the loop body preserves the loop invariant *)
 Intros.
@@ -295,9 +250,9 @@ forward_if.
  forward. (* min = j; *)
  Exists (Znth i al).
  entailer!!.
- rewrite Z.max_r by lia.
- rewrite (sublist_split 0 i (i+1)) by lia.
- rewrite (sublist_one i (i+1) al) by lia.
+ rewrite -> Z.max_r by lia.
+ rewrite -> (sublist_split 0 i (i+1)) by lia.
+ rewrite -> (sublist_one i (i+1) al) by lia.
  split.
  apply in_app; right; constructor; auto.
  apply Forall_app; split.
@@ -308,25 +263,23 @@ forward_if.
  forward. (* skip; *)
  Exists j.
  entailer!!.
- rewrite Z.max_r by lia.
+ rewrite -> Z.max_r by lia.
  split.
  destruct (zlt 1 i).
- rewrite Z.max_r in H3 by lia.
- rewrite (sublist_split 0 i (i+1)) by lia.
+ rewrite -> Z.max_r in H3 by lia.
+ rewrite -> (sublist_split 0 i (i+1)) by lia.
  apply in_app; left; auto.
- rewrite Z.max_l in H3 by lia.
- rewrite (sublist_split 0 1 (i+1)) by lia.
+ rewrite -> Z.max_l in H3 by lia.
+ rewrite -> (sublist_split 0 1 (i+1)) by lia.
  apply in_app; left; auto.
- rewrite (sublist_split 0 i (i+1)) by lia.
+ rewrite -> (sublist_split 0 i (i+1)) by lia.
  apply Forall_app. split; auto.
- rewrite sublist_one by lia.
+ rewrite -> sublist_one by lia.
  repeat constructor. lia.
 * (* After the loop *)
  Intros x.
  autorewrite with sublist in *.
  forward. (* return *)
- Exists x.
- entailer!!.
 Qed.
 
 End Spec.

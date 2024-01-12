@@ -1,22 +1,22 @@
-Require Import VST.veric.rmaps.
 Require Import VST.concurrency.conclib.
 Require Import VST.floyd.library.
-Import FashNotation.
+
+Section lock_specs.
+
+Context `{!heapGS Σ}.
 
 (* lock invariants should be exclusive *)
 Class lock_impl := { t_lock : type; lock_handle : Type; ptr_of : lock_handle -> val;
   lock_inv : share -> lock_handle -> mpred -> mpred;
-  lock_inv_nonexpansive : forall sh h, nonexpansive (lock_inv sh h);
+  lock_inv_nonexpansive : forall sh h, NonExpansive (lock_inv sh h);
   lock_inv_share_join : forall sh1 sh2 sh3 h R, sh1 <> Share.bot -> sh2 <> Share.bot ->
-    sepalg.join sh1 sh2 sh3 -> lock_inv sh1 h R * lock_inv sh2 h R = lock_inv sh3 h R;
+    sepalg.join sh1 sh2 sh3 -> lock_inv sh1 h R ∗ lock_inv sh2 h R ⊣⊢ lock_inv sh3 h R;
   lock_inv_exclusive : forall sh h R, exclusive_mpred (lock_inv sh h R);
-  lock_inv_isptr : forall sh h R, lock_inv sh h R |-- !! isptr (ptr_of h) }.
-
-Section lock_specs.
+  lock_inv_isptr : forall sh h R, lock_inv sh h R ⊢ ⌜isptr (ptr_of h)⌝ }.
 
   Context {LI : lock_impl}.
 
-  Lemma lock_inv_nonexpansive2 : forall {A} (P Q : A -> mpred) sh p x, (ALL x : _, |> (P x <=> Q x) |--
+(*  Lemma lock_inv_nonexpansive2 : forall {A} (P Q : A -> mpred) sh p x, (ALL x : _, |> (P x <=> Q x) |--
     |> lock_inv sh p (P x) <=> |> lock_inv sh p (Q x))%logic.
   Proof.
     intros.
@@ -29,7 +29,7 @@ Section lock_specs.
     compcert_rmaps.RML.R.approx n (lock_inv sh h R) = compcert_rmaps.RML.R.approx n (lock_inv sh h (compcert_rmaps.RML.R.approx n R)).
   Proof.
     intros; apply nonexpansive_super_non_expansive, lock_inv_nonexpansive.
-  Qed.
+  Qed.*)
 
   Notation InvType := Mpred.
 
@@ -40,7 +40,7 @@ Section lock_specs.
        PROP ()
        PARAMS () GLOBALS (gv)
        SEP (mem_mgr gv)
-    POST [ tptr t_lock ] EX h,
+    POST [ tptr t_lock ] ∃ h,
        PROP ()
        RETURN (ptr_of h)
        SEP (mem_mgr gv; lock_inv Tsh h (R h)).

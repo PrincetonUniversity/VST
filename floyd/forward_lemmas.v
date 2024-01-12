@@ -577,14 +577,14 @@ Definition adjust_for_sign (s: signedness) (x: Z) :=
  end.
 
 Lemma semax_for_3g1 :
- forall `{heapGS0: heapGS Σ} (Espec : OracleKind) `{!externalGS OK_ty Σ} {cs: compspecs} {A} (PQR: A -> environ -> mpred) (v: A -> val)
+ forall `{heapGS0: heapGS Σ} (Espec : OracleKind) `{!externalGS OK_ty Σ} {cs: compspecs} {A} (PQR: A -> assert) (v: A -> val)
      E Delta P Q R test body incr Post,
      bool_type (typeof test) = true ->
      (forall a, ENTAIL Delta, PROPx (P a) (LOCALx (Q a) (SEPx (R a))) ⊢ (tc_expr Delta (Eunop Cop.Onotbool test tint))) ->
      (forall a, ENTAIL Delta, PROPx (P a) (LOCALx (Q a) (SEPx (R a))) ⊢ local (`(eq (v a)) (eval_expr test))) ->
      (forall a, semax E Delta (PROPx (typed_true (typeof test) (v a) :: (P a)) (LOCALx (Q a) (SEPx (R a))))
-                 body (loop1_ret_assert  (∃ a:A, assert_of (PQR a)) Post)) ->
-     (forall a, semax E Delta (assert_of (PQR a)) incr
+                 body (loop1_ret_assert  (∃ a:A, PQR a) Post)) ->
+     (forall a, semax E Delta (PQR a) incr
                          (normal_ret_assert (∃ a:A, PROPx (P a) (LOCALx (Q a) (SEPx (R a)))))) ->
      (forall a, ENTAIL Delta, PROPx (typed_false (typeof test) (v a) :: (P a)) (LOCALx (Q a) (SEPx (R a))) 
                              ⊢ RA_normal Post) ->
@@ -593,7 +593,7 @@ Lemma semax_for_3g1 :
                  Post.
 Proof.
 intros.
-apply semax_loop with (Q':= (∃ a:A, assert_of (PQR a))).
+apply semax_loop with (Q':= (∃ a:A, PQR a)).
 *
  apply extract_exists_pre; intro a.
  apply @semax_seq with (Q := PROPx (typed_true (typeof test) (v a) :: P a) (LOCALx (Q a) (SEPx (R a)))).
@@ -643,13 +643,13 @@ Qed.
 
 Lemma semax_for_3g2:  (* no break statements in loop *)
  forall `{heapGS0: heapGS Σ} (Espec : OracleKind) `{!externalGS OK_ty Σ} {cs: compspecs} 
-     {A} (PQR: A -> environ -> mpred) (v: A -> val) E Delta P Q R test body incr Post,
+     {A} (PQR: A -> assert) (v: A -> val) E Delta P Q R test body incr Post,
      bool_type (typeof test) = true ->
      (forall a, ENTAIL Delta, PROPx (P a) (LOCALx (Q a) (SEPx (R a))) ⊢ (tc_expr Delta (Eunop Cop.Onotbool test tint))) ->
      (forall a, ENTAIL Delta, PROPx (P a) (LOCALx (Q a) (SEPx (R a))) ⊢ local (`(eq (v a)) (eval_expr test))) ->
      (forall a, semax E Delta (PROPx (typed_true (typeof test) (v a) :: (P a)) (LOCALx (Q a) (SEPx (R a))))
-                 body (loop1x_ret_assert (∃ a:A, assert_of (PQR a)) Post)) ->
-     (forall a, semax E Delta (assert_of (PQR a)) incr
+                 body (loop1x_ret_assert (∃ a:A, PQR a) Post)) ->
+     (forall a, semax E Delta (PQR a) incr
                          (normal_ret_assert (∃ a:A, PROPx (P a) (LOCALx (Q a) (SEPx (R a)))))) ->
      semax E Delta (∃ a:A, PROPx (P a) (LOCALx (Q a) (SEPx (R a))))
                  (Sloop (Ssequence (Sifthenelse test Sskip Sbreak)  body) incr)

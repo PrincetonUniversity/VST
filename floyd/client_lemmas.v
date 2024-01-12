@@ -1656,7 +1656,7 @@ Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7
 (* Notations for dependent funspecs *)
 
 Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 'PRE'  [ ] P 'POST' [ tz ] Q" :=
-     (mk_funspec (nil, tz) cc_default A
+     (mk_funspec (nil, tz) cc_default ⊤ A
   (λne (x: t1*t2),
      match x with (x1,x2) => P%argsassert end)
   (λne (x: t1*t2),
@@ -1665,7 +1665,7 @@ Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 'PRE'  [ ] P 'POST' [ tz ] Q" :=
              P at level 100, Q at level 100).
 
 Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
-     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
+     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default ⊤ A
   (λne (x: t1*t2),
      match x with (x1,x2) => P%argsassert end)
   (λne (x: t1*t2),
@@ -1674,7 +1674,7 @@ Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 'PRE'  [ u , .. , v ] P 'POST' [ tz
              P at level 100, Q at level 100).
 
 Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
-     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
+     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default ⊤ A
   (λne (x: t1*t2*t3),
      match x with (x1,x2,x3) => P%argsassert end)
   (λne (x: t1*t2*t3),
@@ -1683,7 +1683,7 @@ Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 'PRE'  [ u , .. , v ] P '
              P at level 100, Q at level 100).
 
 Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 'PRE'  [ ] P 'POST' [ tz ] Q" :=
-     (mk_funspec (nil, tz) cc_default A
+     (mk_funspec (nil, tz) cc_default ⊤ A
   (λne (x: t1*t2*t3),
      match x with (x1,x2,x3) => P%argsassert end)
   (λne (x: t1*t2*t3),
@@ -1692,7 +1692,7 @@ Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 'PRE'  [ ] P 'POST' [ tz 
              P at level 100, Q at level 100).
 
 Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
-     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
+     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default ⊤ A
   (λne (x: t1*t2*t3*t4),
      match x with (x1,x2,x3,x4) => P%argsassert end)
   (λne (x: t1*t2*t3*t4),
@@ -1701,7 +1701,7 @@ Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 'PRE'  [ u , ..
              P at level 100, Q at level 100).
 
 Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
-     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
+     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default ⊤ A
   (λne (x: t1*t2*t3*t4*t5),
      match x with (x1,x2,x3,x4,x5) => P%argsassert end)
   (λne (x: t1*t2*t3*t4*t5),
@@ -1711,7 +1711,7 @@ Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 'PRE'
              P at level 100, Q at level 100).
 
 Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
-     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
+     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default ⊤ A
   (λne (x: t1*t2*t3*t4*t5*t6),
      match x with (x1,x2,x3,x4,x5,x6) => P%argsassert end)
   (λne (x: t1*t2*t3*t4*t5*t6),
@@ -1721,7 +1721,7 @@ Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 
              P at level 100, Q at level 100).
 
 Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
-     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
+     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default ⊤ A
   (λne (x: t1*t2*t3*t4*t5*t6*t7),
      match x with (x1,x2,x3,x4,x5,x6,x7) => P%argsassert end)
   (λne (x: t1*t2*t3*t4*t5*t6*t7),
@@ -1731,7 +1731,7 @@ Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 
              P at level 100, Q at level 100).
 
 Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
-     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
+     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default ⊤ A
   (λne (x: t1*t2*t3*t4*t5*t6*t7*t8),
      match x with (x1,x2,x3,x4,x5,x6,x7,x8) => P%argsassert end)
   (λne (x: t1*t2*t3*t4*t5*t6*t7*t8),
@@ -1741,7 +1741,7 @@ Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 
              P at level 100, Q at level 100).
 
 Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
-     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
+     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default ⊤ A
   (λne (x: t1*t2*t3*t4*t5*t6*t7*t8*t9),
      match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9) => P%argsassert end)
   (λne (x: t1*t2*t3*t4*t5*t6*t7*t8*t9),
@@ -1751,7 +1751,7 @@ Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 
              P at level 100, Q at level 100).
 
 Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
-     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
+     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default ⊤ A
   (fun (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10) =>
      match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10) => P%argsassert end)
   (fun (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10) =>
@@ -1761,7 +1761,7 @@ Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 
              P at level 100, Q at level 100).
 
 Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
-     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
+     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default ⊤ A
   (fun (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10) =>
      match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10) => P%argsassert end)
   (fun (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10) =>
@@ -1771,7 +1771,7 @@ Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 
              P at level 100, Q at level 100).
 
 Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
-     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
+     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default ⊤ A
   (fun (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11) =>
      match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11) => P%argsassert end)
   (fun (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11) =>
@@ -1782,7 +1782,7 @@ Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 
              P at level 100, Q at level 100).
 
 Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 , x12 : t12 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
-     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
+     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default ⊤ A
   (fun (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12) =>
      match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12) => P%argsassert end)
   (fun (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12) =>
@@ -1793,7 +1793,7 @@ Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 
              P at level 100, Q at level 100).
 
 Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 , x12 : t12 , x13 : t13 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
-     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
+     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default ⊤ A
   (fun (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13) =>
      match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13) => P%argsassert end)
   (fun (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13) =>
@@ -1804,7 +1804,7 @@ Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 
              P at level 100, Q at level 100).
 
 Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 , x12 : t12 , x13 : t13 , x14 : t14 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
-     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default A
+     (mk_funspec ((cons u%type .. (cons v%type nil) ..), tz) cc_default ⊤ A
   (fun (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13*t14) =>
      match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14) => P%argsassert end)
   (fun (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13*t14) =>
@@ -2103,10 +2103,10 @@ Tactic Notation "Intro" "?" :=
 Ltac finish_Intros :=
 repeat Intro_prop;
 (* Do this next part for backwards compatibility *)
-lazymatch goal with
- | |- ?A _ => let x := fresh "x" in set(x:=A);
-        gather_prop; subst x
-end.
+(*lazymatch goal with
+ | |- ?A _ => let x := fresh "x" in set(x:=A);*)
+        gather_prop(*; subst x
+end*).
 
 Tactic Notation "Intros" := finish_Intros.
 

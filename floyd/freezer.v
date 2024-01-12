@@ -844,6 +844,12 @@ change (@app mpred)
   | nil => m
   | cons a l1 => cons a (app l1 m)
   end);
+change (@app (ouPredI (iResUR _)))
+  with (fix app (l m : list mpred) {struct l} : list mpred :=
+  match l with
+  | nil => m
+  | cons a l1 => cons a (app l1 m)
+  end);
 change (@app Prop)
   with (fix app (l m : list Prop) {struct l} : list Prop :=
   match l with

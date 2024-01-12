@@ -905,9 +905,9 @@ Ltac cancel_for_forward_call := cancel_for_evar_frame.
 Ltac default_cancel_for_forward_call := cancel_for_evar_frame.
 
 Ltac unfold_post := match goal with |- ?Post ⊣⊢ _ => let A := fresh "A" in let B := fresh "B" in first
-  [evar (A : Type); evar (B : A -> environ -> mpred); unify Post (@bi_exist _ ?A ?B);
+  [evar (A : Type); evar (B : A -> assert); unify Post (@bi_exist _ ?A ?B);
      change Post with (@bi_exist _ A B); subst A B |
-   evar (A : list Prop); evar (B : environ -> mpred); unify Post (PROPx ?A ?B);
+   evar (A : list Prop); evar (B : assert); unify Post (PROPx ?A ?B);
      change Post with (PROPx A B); subst A B | idtac] end.
 
 
@@ -948,7 +948,7 @@ Ltac fix_up_simplified_postcondition :=
 Ltac match_postcondition := 
 fix_up_simplified_postcondition;
 cbv beta iota zeta; unfold_post; 
-constructor; let rho := fresh "rho" in intro rho; cbn; 
+constructor; let rho := fresh "rho" in intro rho; cbn [monPred_at assert_of ofe_mor_car];
    repeat rewrite exp_uncurry;
    try rewrite no_post_exists; repeat rewrite monPred_at_exist;
 tryif apply bi.exist_proper
@@ -2684,6 +2684,7 @@ Tactic Notation "forward_loop" constr(Inv) "break:" constr(Post) :=
 Tactic Notation "forward_for" constr(Inv) "continue:" constr(PreInc) :=
   check_Delta; check_POSTCONDITION;
   repeat simple apply seq_assoc1;
+(* removing these checks for now, since they keep failing on monPreds
   lazymatch type of Inv with
   | _ -> assert => idtac
   | _ => fail "Invariant (first argument to forward_for) must have type (_ -> assert)"
@@ -2691,7 +2692,7 @@ Tactic Notation "forward_for" constr(Inv) "continue:" constr(PreInc) :=
   lazymatch type of PreInc with
   | _ -> assert mpred => idtac
   | _ => fail "PreInc (continue: argument to forward_for) must have type (_ -> assert)"
-  end;
+  end;*)
   lazymatch goal with
   | |- semax _ _ _ (Ssequence (Sfor _ _ _ _) _) _ =>
       apply -> seq_assoc;
@@ -2720,6 +2721,7 @@ Tactic Notation "forward_for" constr(Inv) "continue:" constr(PreInc) :=
 Tactic Notation "forward_for" constr(Inv) "continue:" constr(PreInc) "break:" constr(Postcond) :=
   check_Delta; check_POSTCONDITION;
   repeat simple apply seq_assoc1;
+(* removing these checks for now, since they keep failing on monPreds
   lazymatch type of Inv with
   | _ -> assert => idtac
   | _ => fail "Invariant (first argument to forward_for) must have type (_ -> assert)"
@@ -2731,7 +2733,7 @@ Tactic Notation "forward_for" constr(Inv) "continue:" constr(PreInc) "break:" co
   lazymatch type of Postcond with
   | assert => idtac
   | _ => fail "Postcond (third argument to forward_for) must have type (assert)"
-  end;
+  end;*)
   lazymatch goal with
   | |- semax _ _ _ (Ssequence (Sfor _ _ _ _) _) _ =>
       apply -> seq_assoc;
@@ -2770,10 +2772,10 @@ Qed.
 Tactic Notation "forward_for" constr(Inv) :=
   check_Delta; check_POSTCONDITION;
   repeat simple apply seq_assoc1;
-  lazymatch type of Inv with
+(*  lazymatch type of Inv with
   | _ -> assert => idtac
   | _ => fail "Invariant (first argument to forward_for) must have type (_ -> assert)"
-  end;
+  end;*)
   lazymatch goal with
   | |- semax _ _ _ (Ssequence (Sfor _ _ _ _) _) _ =>
         apply semax_convert_for_while';
@@ -4517,9 +4519,7 @@ Ltac start_function1 :=
  end;
  change (ofe_car (dtfr (ConstType ?y))) with y in *;
  simpl dependent_type_functor_rec;
- remember main_pre as main; (* so main_pre isn't reduced in the next step*)
- simpl ofe_mor_car;
- subst main;
+ cbn [ofe_mor_car];
 (* clear DependedTypeList; *)
  rewrite_old_main_pre;
  rewrite ?argsassert_of_at ?assert_of_at;
@@ -5093,13 +5093,11 @@ Tactic Notation "assert_after" constr(n) constr(PQR) :=
 Ltac do_funspec_sub :=
 intros;
 apply NDsubsume_subsume;
-[ split; extensionality gv; reflexivity
-| split; [ split; reflexivity | intros w; simpl in w; intros [g args]; normalize;
-                                unfold_for_go_lower; simpl; entailer! ]
-].
+split; [ split3; reflexivity | intros w; simpl in w; intros [g args];
+                                unfold_for_go_lower; simpl; entailer! ].
 
 Ltac do_funspec_sub_nonND :=
    split; 
-   [ split; try reflexivity 
+   [ split3; try reflexivity 
    | intros ts w; simpl in w; intros [g args]; Intros;
       fold (dtfr) in * ].

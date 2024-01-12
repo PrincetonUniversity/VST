@@ -2622,3 +2622,14 @@ Tactic Notation "semax_frame" "[" "]" constr(Rframe) :=
         [auto 50 with closed | solve_perm | solve_perm | unfold app; fold @app ]
       | try solve [apply perm_derives; solve_perm]]
   ].
+
+Ltac simpl_ret_assert ::=
+ cbn [RA_normal RA_break RA_continue RA_return 
+      normal_ret_assert overridePost loop1_ret_assert
+      loop2_ret_assert function_body_ret_assert frame_ret_assert
+      switch_ret_assert loop1x_ret_assert loop1y_ret_assert
+      for_ret_assert loop_nocontinue_ret_assert];
+  try (match goal with
+      | |- context[bind_ret None tvoid ?P] =>
+        assert (bind_ret None tvoid P ⊣⊢ P) as -> by (raise_rho; unfold PROPx, LOCALx, SEPx; try monPred.unseal; done)
+      end).

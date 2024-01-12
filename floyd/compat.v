@@ -32,6 +32,9 @@ Proof.
 Defined.
 (* this works on paper, but lots of things don't notice the typeclass instance *)
 
+Opaque VST_default.
+#[export] Arguments VST_heapGS : simpl never.
+
 (* avoid unfolding typeclass instances in simplify_func_tycontext *)
 Ltac simplify_func_tycontext' DD ::=
   match DD with context [(func_tycontext ?f ?V ?G ?A)] =>

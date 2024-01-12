@@ -1,24 +1,24 @@
-Require Import stdpp.coPset.
-Require Import VST.veric.rmaps.
-Require Import VST.veric.compcert_rmaps.
-Require Import VST.concurrency.ghosts.
+(* Hoare rules for SC atomics *)
 Require Import VST.concurrency.conclib.
-Require Import VST.concurrency.fupd.
-Require Export VST.atomics.general_atomics.
-Require Import VST.atomics.SC_atomics_base.
 Require Import VST.floyd.library.
 Require Import VST.zlist.sublist.
-
-Opaque eq_dec.
 
 (* Warning: it is UNSOUND to use both this file and acq_rel_atomics.v in the same proof! There is
    not yet an operational model that can validate the use of both SC and RA atomics. *)
 
-(* At present, due to complexities in the specifications of the C11 atomics (generics, _Atomic types, etc.), these are specs for wrapper functions for common cases. *)
+(* At present, due to complexities in the specifications of the C11 atomics (generics, _Atomic types, etc.), these are specs for wrapper functions for common cases.
+   There's probably a more systematic approach possible. *)
+
+Class atomic_int_impl := { atomic_int : type; atomic_int_at : share -> val -> val -> mpred;
+  atomic_int_at__ : forall sh v p, atomic_int_at sh v p |-- atomic_int_at sh Vundef p;
+  atomic_int_conflict : forall sh v v' p, sepalg.nonidentity sh -> atomic_int_at sh v p * atomic_int_at sh v' p |-- FF }.
+
+Class atomic_ptr_impl := { atomic_ptr : type; atomic_ptr_at : share -> val -> val -> mpred;
+  atomic_ptr_conflict : forall sh v v' p, sepalg.nonidentity sh -> atomic_ptr_at sh v p * atomic_ptr_at sh v' p |-- FF }.
 
 Section SC_atomics.
 
-Context {CS : compspecs}  {AI : atomic_int_impl} {AP : atomic_ptr_impl}.
+Context {CS : compspecs} {AI : atomic_int_impl} {AP : atomic_ptr_impl}.
 
 Definition make_atomic_spec :=
   WITH v : val

@@ -897,8 +897,8 @@ Try the [f_equal] tactic first.")
 
 Ltac progress_entailer :=
  lazymatch goal with
- | |- @bi_entails mpred ?A ?B => 
-     entailer!; try match goal with |- @bi_entails mpred A B => fail 2 end
+ | |- @bi_entails _ ?A ?B => 
+     entailer!; try match goal with |- @bi_entails _ A B => fail 2 end
  | |- _ => progress entailer!
  end.
 

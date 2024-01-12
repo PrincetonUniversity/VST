@@ -1,9 +1,6 @@
-Require Import VST.veric.rmaps.
 Require Import VST.concurrency.conclib.
-Require Import VST.concurrency.ghosts.
-Require Import VST.concurrency.cancelable_invariants.
 Require Import VST.floyd.library.
-Require Import VST.atomics.SC_atomics_base.
+Require Import VST.atomics.SC_atomics.
 Require Import VST.concurrency.lock_specs.
 Require Import VST.concurrency.threads.
 

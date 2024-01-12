@@ -2,7 +2,6 @@
 Require Import VST.concurrency.conclib.
 Require Import VST.concurrency.lock_specs.
 Require Import VST.atomics.verif_lock.
-Require Import VST.concurrency.ghosts.
 Require Import VST.progs64.incr.
 
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.

@@ -675,11 +675,6 @@ subst Gtable.
 apply H0.
 Qed.
 
-Definition function_pointers := tt.
-Ltac function_pointers :=
- let x := fresh "there_are" in
- pose (x := function_pointers).
-
 Fixpoint seq_stmt_size (c: statement) : nat :=
  match c with
  | Ssequence c1 c2 => seq_stmt_size c1 + seq_stmt_size c2
@@ -802,6 +797,11 @@ Ltac first_N_statements n :=
                          [reflexivity | eapply semax_seq' ]
  end end.
 End SEMAX_TACTICS.
+
+Definition function_pointers := tt.
+Ltac function_pointers :=
+ let x := fresh "there_are" in
+ pose (x := function_pointers).
 
 Ltac leaf_function := 
  try lazymatch goal with

@@ -171,6 +171,7 @@ Lemma body_main: semax_body Vprog Gprog f_main main_spec.
 Proof.
 function_pointers.
 start_function.
+rename a into gv.
 set (ipm := gv _intpair_message).
 fold cc_default noattr.
 make_func_ptr _intpair_deserialize.
@@ -178,7 +179,7 @@ make_func_ptr _intpair_serialize.
 set (des := gv _intpair_deserialize).
 set (ser := gv _intpair_serialize).
 match goal with 
- |- context [mapsto_zeros 4 Ews _] => 
+ |- context [mapsto_zeros 4 Ews _] =>
   (* 64-bit mode *)
   sep_apply mapsto_zeros_memory_block; auto;
   gather_SEP (mapsto _ _ _ (offset_val 0 des))

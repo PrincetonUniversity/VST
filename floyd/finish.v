@@ -14,7 +14,7 @@ Require Import VST.floyd.fastforward.
 (* Things that we always want to simpl *)
 
 Ltac2 mutable simpl_safe_list () : constr list := [
-  'projT1; 'bi_and; 'bi_or
+  '@projT1; 'andb; 'orb
 ].
 
 Ltac2 simpl_safe () :=
