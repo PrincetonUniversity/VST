@@ -24,52 +24,57 @@ using the oracle, as [acquire] is.  The postcondition would be [match
 PrePost with existT ty (w, pre, post) => thread th (post w b)
 end] *)
 
+(* If we want the spawned function to itself have a higher-order or dependent spec,
+   we probably need the DependentType machinery after all. *)
 Definition spawn_arg_type := ProdType (ConstType (val * val)) (SigType Type (fun A => ProdType (ProdType
-  (ArrowType (ConstType A) (ConstType globals)) (ConstType A))
-  (ArrowType (ConstType A) (ArrowType (ConstType val) Mpred)))).
+  (DiscreteFunType A (ConstType globals)) (ConstType A))
+  (DiscreteFunType A (DiscreteFunType val Mpred)))).
 
-Program Definition spawn_spec :=
-  TYPE spawn_arg_type WITH f : _, b : _, fs : _
-  PRE [ tptr spawned_funtype, tptr tvoid ]
-    PROP (tc_val (tptr Tvoid) b)
+Local Unset Program Cases.
+
+Program Definition spawn_pre : dtfr (ArgsTT spawn_arg_type) := λne x,
+  let '(f, b, fs) := x in
+  PROP (tc_val (tptr Tvoid) b)
     PARAMS (f; b)
-    GLOBALS (let 'existT _ ((gv, w), _) := fs in gv w)
-    SEP (let 'existT _ ((gv, w), pre) := fs in
+    GLOBALS (let 'existT A ((gv, w), _) := fs in gv w)
+    SEP (let 'existT A ((gv, w), pre) := fs in
          (func_ptr
-           (WITH y : val, x : _
+           (WITH y : val, x : A
              PRE [ tptr tvoid ]
                PROP ()
                PARAMS (y)
-               GLOBALS (gv w)
+               GLOBALS (gv x)
                SEP (pre x y)
-             POST [ tptr tvoid ]
+             POST [ tint ]
                PROP  ()
-               LOCAL ()
+               RETURN (Vint Int.zero) (* spawned functions must return 0 for now *)
                SEP   ())
            f);
-         let 'existT _ ((gv, w), pre) := fs in valid_pointer b ∧ pre w b) (* Do we need the valid_pointer here? *)
-  POST [ tvoid ]
-    PROP ()
-    RETURN (Vint Int.zero) (* spawned functions must return 0 for now *)
-    SEP (). (* here's where we'd put a join condition *)
+         let 'existT A ((gv, w), pre) := fs in (*valid_pointer b ∧*) pre w b) (* Do we need the valid_pointer here? *).
 Next Obligation.
 Proof.
-  intros ? ((f, b), (?, ((gv, w), pre))) ((?, ?), (?, ((?, ?), ?))) ([=] & ? & Hfs) rho; simpl in *; subst; simpl in *.
+  intros ? ((f, b), (?, ((gv, ?), pre))) ((?, ?), (?, ((?, w), ?))) ([=] & ? & Hfs) rho; simpl in *; subst; simpl in *.
   destruct Hfs as ((Hgv & [=]) & Hpre); simpl in *; subst.
-  rewrite Hgv.
+  rewrite (Hgv _).
   do 6 f_equiv.
   - apply func_ptr_si_nonexpansive; last done.
     split3; last split; [done..|].
     exists eq_refl; simpl.
     split; intros (?, ?); simpl; last done.
-    intros ?; rewrite (Hpre _ _) //.
+    intros ?; rewrite Hgv (Hpre _ _) //.
   - rewrite (Hpre _ _) //.
-Qed.
+Defined.
+
+Program Definition spawn_post : @dtfr Σ (AssertTT spawn_arg_type) := λne x,
+  let '(f, b, fs) := x in PROP () LOCAL () SEP ().
 Next Obligation.
 Proof.
   intros ? ((f, b), ?) ((?, ?), ?) ?.
   reflexivity.
 Qed.
+
+Definition spawn_spec := mk_funspec ([tptr spawned_funtype; tptr tvoid], tvoid) cc_default
+  ⊤ spawn_arg_type spawn_pre spawn_post.
 
 (*+ Adding the specifications to a void ext_spec *)
 

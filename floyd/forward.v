@@ -560,8 +560,6 @@ Ltac semax_func_cons_ext :=
           | reflexivity ]]]
       || fail "Try 'eapply semax_func_cons_ext.'"
               "To solve [semax_external] judgments, do 'eapply semax_ext.'"
-              "Make sure that the Espec declared using 'Existing Instance'
-               is defined as 'add_funspecs NullExtension.Espec Gprog.'"
     |
     ].
 

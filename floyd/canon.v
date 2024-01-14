@@ -157,6 +157,21 @@ Proof.
   induction H; simpl; f_equiv; done.
 Qed.
 
+#[global] Instance PARAMSx_proper : Proper (eq ==> equiv ==> equiv) (@PARAMSx Σ).
+Proof.
+  intros ?? -> ?? H.
+  rewrite /PARAMSx; constructor; intros; simpl.
+  rewrite H //.
+Qed.
+
+#[global] Instance GLOBALSx_proper : Proper (eq ==> equiv ==> equiv) (@GLOBALSx Σ).
+Proof.
+  intros ?? -> ?? H.
+  rewrite /GLOBALSx /LOCALx; constructor; intros; simpl.
+  monPred.unseal.
+  rewrite H //.
+Qed.
+
 #[global] Instance PROPx_ne {A} P : NonExpansive (@PROPx A Σ P).
 Proof. solve_proper. Qed.
 

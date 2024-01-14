@@ -10,7 +10,12 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Section mpred.
 
-Context `{!default_VSTGS Σ, !cinvG Σ, !inG Σ (excl_authR natO)}.
+(* box up concurrentGS? *)
+Context `{!heapGS Σ, !externalGS unit Σ}.
+#[local] Instance Concurrent_Espec : OracleKind := Concurrent_Espec unit CompSpecs (ext_link_prog prog).
+#[local] Instance concurrentGS : VSTGS Concurrent_Espec Σ := Build_VSTGS _ _ _ _.
+
+Context `{!cinvG Σ, !inG Σ (excl_authR natO)}.
 
 Definition spawn_spec := DECLARE _spawn spawn_spec.
 
@@ -188,10 +193,6 @@ Proof.
   rename a into gv.
   set (ctr := gv _c).
   forward.
-Ltac ghost_alloc G :=
-  match goal with |-semax _ _ (PROPx _ (LOCALx _ (SEPx (?R1 :: _)))) _ _ =>
-    rewrite -{1}(bi.emp_sep R1); Intros; viewshift_SEP 0 (∃ g : _, G g);
-  [go_lowerx; iIntros "_"; iApply own_alloc; auto; simpl; auto with init share|] end.
   ghost_alloc (fun g => own g (●E O ⋅ ◯E O : excl_authR natO)).
   { apply excl_auth_valid. }
   Intro g1.
@@ -210,37 +211,38 @@ Ltac ghost_alloc G :=
     unfold_data_at (data_at _ _ _ _); entailer!. }
   (* need to split off shares for the locks here *)
   destruct split_Ews as (sh1 & sh2 & ? & ? & Hsh).
-  forward_call (gv, fun lockt => thread_lock_inv sh2 (1/2) lock g1 g2 ctr lockt).
+  forward_call (gv, fun lockt => thread_lock_inv sh2 (1/2)%Qp lock g1 g2 ctr lockt).
   Intros lockt.
   sep_apply lock_inv_isptr; Intros.
-  forward_spawn _thread_func (ptr_of lockt) (sh2, 1/2, lock, lockt, g1, g2, gv).
-  { erewrite <- lock_inv_share_join; auto.
-    erewrite <- (lock_inv_share_join _ _ 1); auto.
+  forward_spawn _thread_func (ptr_of lockt) (sh2, (1/2)%Qp, lock, lockt, g1, g2, gv).
+  { rewrite -{3}Qp.half_half -frac_op -lock_inv_share_join.
+    rewrite -{1}Qp.half_half -frac_op -lock_inv_share_join.
     erewrite <- field_at_share_join; try apply Hsh; auto.
     subst ctr; entailer!. }
   { simpl; auto. }
-  forward_call (sh1, 1/2, lock, g1, g2, false, 0, gv).
-  forward_call (1/2, lockt, thread_lock_inv sh2 (1/2) lock g1 g2 (gv _c) lockt).
+  forward_call (sh1, (1/2)%Qp, lock, g1, g2, false, 0, gv).
+  forward_call ((1/2)%Qp, lockt, thread_lock_inv sh2 (1/2)%Qp lock g1 g2 (gv _c) lockt).
   unfold thread_lock_inv at 2; unfold thread_lock_R; Intros.
   simpl.
-  forward_call (sh1, 1/2, lock, g1, g2, 1, 1, gv).
+  forward_call (sh1, (1/2)%Qp, lock, g1, g2, 1, 1, gv).
   (* We've proved that t is 2! *)
   forward.
-  forward_call (1/2, lock, cptr_lock_inv g1 g2 (gv _c)).
-  forward_call freelock_self (1/2, 1/2, lockt, thread_lock_R sh2 (1/2) lock g1 g2 (gv _c)).
+  forward_call ((1/2)%Qp, lock, cptr_lock_inv g1 g2 (gv _c)).
+  forward_call freelock_self ((1/2)%Qp, (1/2)%Qp, lockt, thread_lock_R sh2 (1/2) lock g1 g2 (gv _c)).
   { unfold thread_lock_inv, selflock; cancel. }
+  { rewrite frac_op Qp.half_half //. }
   forward.
   forward_call freelock_simple (lock, cptr_lock_inv g1 g2 (gv _c)).
   { lock_props.
-    erewrite <- (lock_inv_share_join _ _ 1); auto; subst ctr; cancel. }
+    rewrite -{2}Qp.half_half -frac_op -lock_inv_share_join.
+    subst ctr; cancel. }
   forward.
 Qed.
 
 Lemma prog_correct:
-  semax_prog _ prog tt Vprog Gprog.
+  semax_prog Concurrent_Espec prog tt Vprog Gprog.
 Proof.
 prove_semax_prog.
-repeat (apply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | ]).
 semax_func_cons_ext.
 { simpl.
   Intros h.
@@ -256,3 +258,5 @@ semax_func_cons body_read.
 semax_func_cons body_thread_func.
 semax_func_cons body_main.
 Qed.
+
+End mpred.

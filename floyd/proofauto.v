@@ -132,21 +132,10 @@ Global Arguments Qp.div : simpl nomatch.
 
 (* Where should this go? *)
 Class VSTGS (Espec : OracleKind) Σ :=
-  { VST_heapGS :> heapGS Σ;
-    VST_extGS :> externalGS OK_ty Σ }.
+  { VST_heapGS :: heapGS Σ;
+    VST_extGS :: externalGS OK_ty Σ }.
 
-Definition null_extspec : extspec.external_specification mem external_function unit
-  := extspec.Build_external_specification mem external_function unit
-     (*ext_spec_type*)
-     (fun ef => False%type)
-     (*ext_spec_pre*)
-     (fun ef Hef ge tys vl m z => False%type)
-     (*ext_spec_post*)
-     (fun ef Hef ge ty vl m z => False%type)
-     (*ext_spec_exit*)
-     (fun rv m z => True%type).
-
-#[export] Instance NullEspec : OracleKind := Build_OracleKind unit null_extspec.
+#[export] Instance NullEspec : OracleKind := ok_void_spec unit.
 
 Definition default_VSTGS Σ := VSTGS NullEspec Σ.
 

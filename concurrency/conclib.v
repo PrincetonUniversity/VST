@@ -11,6 +11,10 @@ Import -(notations) compcert.lib.Maps.
 Notation vint z := (Vint (Int.repr z)).
 Notation vptrofs z := (Vptrofs (Ptrofs.repr z)).
 
+Section mpred.
+
+Context `{!heapGS Σ}.
+
 (*Ltac forward_malloc t n := forward_call (sizeof t); [simpl; try computable |
   Intros n; rewrite malloc_compat by (auto; reflexivity); Intros;
   rewrite memory_block_data_at_ by auto].
@@ -59,85 +63,25 @@ Ltac start_dep_function := start_function.
 
 (* automation for dependent funspecs moved to call_lemmas and forward.v*)*)
 
-(*Lemma PROP_into_SEP : forall P Q R, PROPx P (LOCALx Q (SEPx R)) =
-  PROPx [] (LOCALx Q (SEPx (!!fold_right and True P && emp :: R))).
+Lemma PROP_into_SEP : forall P Q (R : list mpred), PROPx P (LOCALx Q (SEPx R)) ⊣⊢
+  PROPx [] (LOCALx Q (SEPx ((⌜fold_right and True P⌝ ∧ emp) :: R))).
 Proof.
-  intros; unfold PROPx, LOCALx, SEPx; extensionality; simpl.
-  rewrite <- andp_assoc, (andp_comm _ (fold_right_sepcon R)), <- andp_assoc.
-  rewrite prop_true_andp by auto.
-  rewrite andp_comm; f_equal.
-  rewrite andp_comm.
-  rewrite sepcon_andp_prop', emp_sepcon; auto.
+  intros; unfold PROPx, LOCALx, SEPx; split => rho; monPred.unseal.
+  iSplit.
+  - iIntros "($ & $ & $)".
+  - iIntros "(_ & $ & ($ & _) & $)".
 Qed.
 
-Lemma PROP_into_SEP_LAMBDA : forall P U Q R, PROPx P (LAMBDAx U Q (SEPx R)) =
-  PROPx [] (LAMBDAx U Q (SEPx (!!fold_right and True P && emp :: R))).
+Lemma PROP_into_SEP_LAMBDA : forall P U Q (R : list mpred), PROPx P (LAMBDAx U Q (SEPx R)) ⊣⊢
+  PROPx [] (LAMBDAx U Q (SEPx ((⌜fold_right and True P⌝ ∧ emp) :: R))).
 Proof.
   intros; unfold PROPx, LAMBDAx, GLOBALSx, LOCALx, SEPx, argsassert2assert;
-  extensionality; simpl.
-  apply pred_ext; entailer!; apply derives_refl.
-Qed.*)
+    split => rho; monPred.unseal.
+  iSplit.
+  - iIntros "($ & $ & $)".
+  - iIntros "(_ & $ & $ & ($ & _) & $)".
+Qed.
 
-Ltac ghost_alloc G :=
-  match goal with |-semax _ _ (PROPx _ (LOCALx _ (SEPx (?R1 :: _)))) _ _ =>
-    rewrite -{1}(bi.emp_sep R1); Intros; viewshift_SEP 0 (∃ g : _, G g);
-  [go_lowerx; iIntros "_"; iApply own_alloc; auto; simpl; auto with init share|] end.
-
-#[export] Hint Resolve excl_auth_valid : init.
-
-(*Ltac cancel_for_forward_spawn :=
-  eapply symbolic_cancel_setup;
-   [ construct_fold_right_sepcon
-   | construct_fold_right_sepcon
-   | fold_abnormal_mpred
-   | cbv beta iota delta [before_symbol_cancel]; cancel_for_forward_call].*)
-
-(* revisit
-Ltac forward_spawn id arg wit :=
-  match goal with gv : globals |- _ =>
-  make_func_ptr id; let f := fresh "f_" in set (f := gv id);
-  match goal with |- context[func_ptr (NDmk_funspec _ _ (val * ?A) ?Pre _) f] =>
-    let Q := fresh "Q" in let R := fresh "R" in
-
-    evar (Q : A -> globals); evar (R : A -> val -> mpred);
-    replace Pre with (fun '(a, w) => PROPx [] (PARAMSx (a::nil)
-                                                       (GLOBALSx ((Q w) :: nil) (SEPx [R w a]))));
-    [ | let x := fresh "x" in extensionality x; destruct x as (?, x);
-        instantiate (1 := fun w a => _ w) in (value of R);
-        repeat (destruct x as (x, ?);
-        instantiate (1 := fun '(a, b) => _ a) in (value of Q);
-        instantiate (1 := fun '(a, b) => _ a) in (value of R));
-        etransitivity; [|symmetry; apply PROP_into_SEP_LAMBDA]; f_equal; f_equal; f_equal;
-        [ instantiate (1 := fun _ => _) in (value of Q); subst Q; f_equal; simpl; reflexivity
-        | unfold SEPx; extensionality; simpl; rewrite sepcon_emp;
-          unfold R; instantiate (1 := fun _ => _);
-          reflexivity]
-  ];
-  forward_call funspec_sub_refl (f, arg, Q, wit, R); subst Q R;
-           [ .. | subst f]; try (subst f; simpl; cancel_for_forward_spawn)
-  end end.*)
-
-#[export] Hint Resolve unreadable_bot : core.
-
-(* The following lemma is used in atomics/verif_ptr_atomics.v which is
-   not in the Makefile any more. So I comment out the
-   lemma. Furthermore, it should be replaced by
-   valid_pointer_is_pointer_or_null. *)
-
-(* Lemma valid_pointer_isptr : forall v, valid_pointer v |-- !!(is_pointer_or_null v). *)
-(* Proof. *)
-(* Transparent mpred. *)
-(* Transparent predicates_hered.pred. *)
-(*   destruct v; simpl; try apply derives_refl. *)
-(*   apply prop_right; auto. *)
-(* Opaque mpred. Opaque predicates_hered.pred. *)
-(* Qed. *)
-
-(* #[export] Hint Resolve valid_pointer_isptr : saturate_local. *)
-
-Section mpred.
-
-Context `{!heapGS Σ}.
 
 Definition exclusive_mpred (P : mpred) := P ∗ P ⊢ False.
 
@@ -228,4 +172,57 @@ Proof.
   intros; eapply derives_exclusive, data_at_exclusive; eauto.
 Qed.
 
+
+Lemma func_ptr_pre : forall sig cc A P1 P2 Q p, (forall a, P1 a ≡ P2 a) ->
+  func_ptr (NDmk_funspec sig cc A P1 Q) p ⊢ func_ptr (NDmk_funspec sig cc A P2 Q) p.
+Proof.
+  intros; apply func_ptr_mono.
+  split; first done; intros; simpl.
+  rewrite -H -fupd_intro.
+  Exists x2 (emp : mpred); entailer!.
+  intros; entailer!.
+Qed.
+
 End mpred.
+
+#[export] Hint Resolve unreadable_bot : core.
+#[export] Hint Resolve excl_auth_valid : init.
+
+Ltac ghost_alloc G :=
+  lazymatch goal with |-semax _ _ (PROPx _ (LOCALx _ (SEPx (?R1 :: _)))) _ _ =>
+    rewrite -{1}(bi.emp_sep R1); Intros; viewshift_SEP 0 (∃ g : _, G g);
+  [go_lowerx; iIntros "_"; iApply own_alloc; auto; simpl; auto with init share|] end.
+
+(*Ltac cancel_for_forward_spawn :=
+  eapply symbolic_cancel_setup;
+   [ construct_fold_right_sepcon
+   | construct_fold_right_sepcon
+   | fold_abnormal_mpred
+   | cbv beta iota delta [before_symbol_cancel]; cancel_for_forward_call].*)
+
+Ltac go_lower1 := rewrite ENTAIL_refl; apply remove_PROP_LOCAL_left';
+  split => rho; rewrite !monPred_at_embed.
+
+Ltac forward_spawn id arg wit :=
+  lazymatch goal with gv : globals |- _ =>
+  make_func_ptr id; let f := fresh "f_" in set (f := gv id);
+  lazymatch goal with |- context[func_ptr (NDmk_funspec ?sig ?cc (val * ?A) ?Pre ?Post) f] =>
+    let Q := fresh "Q" in let R := fresh "R" in
+    evar (Q : A -> globals); evar (R : A -> val -> mpred);
+    gather_SEP (func_ptr _ f); replace_SEP 0 (func_ptr (NDmk_funspec sig cc (val * A)
+      (fun '(a, w) => PROPx [] (PARAMSx (a::nil) (GLOBALSx ((Q w) :: nil) (SEPx [R w a])))) Post) f);
+    [ go_lower1; apply func_ptr_pre; let x := fresh "x" in intros (?, x);
+        instantiate (1 := fun w a => _ w) in (value of R);
+        repeat (destruct x as (x, ?);
+        instantiate (1 := fun '(a, b) => _ a) in (value of Q);
+        instantiate (1 := fun '(a, b) => _ a) in (value of R));
+        rewrite PROP_into_SEP_LAMBDA; do 3 f_equiv;
+        [ instantiate (1 := fun _ => _) in (value of Q); subst Q; f_equiv; simpl; reflexivity
+        | unfold SEPx; f_equiv; simpl; rewrite !bi.sep_emp;
+          unfold R; instantiate (1 := fun _ => _); simpl;
+          reflexivity]
+     |];
+  forward_call (f, arg, existT(P := fun T => (T -> globals) * T * (T -> val -> mpred))%type A (Q, wit, R)); subst Q R;
+           [ .. | subst f];
+    [try (subst f; rewrite -?bi.sep_assoc; apply bi.sep_mono; [apply derives_refl|]).. |]
+  end end.

@@ -259,14 +259,14 @@ Definition add_funspecs (Espec : OracleKind) (ext_link: Strings.String.string ->
 Section semax_ext.
 
 Context `{!heapGS Σ}.
-Variable Espec : OracleKind.
-Context `{!externalGS OK_ty Σ}.
+Context `{!externalGS Z Σ}.
+Context {ext_spec0 : ext_spec Z}.
 
 Lemma semax_ext' (ext_link: Strings.String.string -> ident) id sig cc E A P Q (fs : funspecs) :
   let f := mk_funspec sig cc E A P Q in
   In (ext_link  id,f) fs ->
   funspecs_norepeat fs ->
-  ⊢semax_external {| OK_ty := OK_ty; OK_spec := add_funspecs_rec OK_ty ext_link OK_spec fs |}
+  ⊢semax_external {| OK_ty := Z; OK_spec := add_funspecs_rec Z ext_link ext_spec0 fs |}
                E (EF_external id (typesig2signature sig cc)) _ P Q.
 Proof.
 intros f Hin Hnorepeat.
@@ -283,7 +283,7 @@ Lemma semax_ext (ext_link: Strings.String.string -> ident) id sig sig' cc E A P 
   In (ext_link id,f) fs ->
   funspecs_norepeat fs ->
   sig' = typesig2signature sig cc ->
-  ⊢semax_external {| OK_ty := OK_ty; OK_spec := add_funspecs_rec OK_ty ext_link OK_spec fs |} E (EF_external id sig') _ P Q .
+  ⊢semax_external {| OK_ty := Z; OK_spec := add_funspecs_rec Z ext_link ext_spec0 fs |} E (EF_external id sig') _ P Q .
 Proof.
 intros; subst.
 eapply semax_ext'; eauto.
