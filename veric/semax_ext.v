@@ -258,9 +258,7 @@ Definition add_funspecs (Espec : OracleKind) (ext_link: Strings.String.string ->
 
 Section semax_ext.
 
-Context `{!heapGS Σ}.
-Context `{!externalGS Z Σ}.
-Context {ext_spec0 : ext_spec Z}.
+Context `{!heapGS Σ} {Z : Type} `{!externalGS Z Σ} {ext_spec0 : ext_spec Z}.
 
 Lemma semax_ext' (ext_link: Strings.String.string -> ident) id sig cc E A P Q (fs : funspecs) :
   let f := mk_funspec sig cc E A P Q in

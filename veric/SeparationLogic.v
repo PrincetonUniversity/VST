@@ -538,7 +538,7 @@ Axiom semax_Slabel:
 
 (*TODO: What's the preferred way to expose these defs in the SL interface?*)
 Axiom semax_ext:
-  forall `{!externalGS Z Σ} {ext_spec0} (ext_link: Strings.String.string -> ident)
+  forall {Z} `{!externalGS Z Σ} {ext_spec0} (ext_link: Strings.String.string -> ident)
          (id : Strings.String.string) (sig : typesig) (sig' : signature)
          cc E A P Q (fs : funspecs),
   let f := mk_funspec sig cc E A P Q in

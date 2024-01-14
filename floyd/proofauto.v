@@ -131,13 +131,13 @@ Global Arguments Qp.div : simpl nomatch.
   Global Close Scope funspec_scope.*)
 
 (* Where should this go? *)
-Class VSTGS (Espec : OracleKind) Σ :=
+Class VSTGS Z Σ :=
   { VST_heapGS :: heapGS Σ;
-    VST_extGS :: externalGS OK_ty Σ }.
+    VST_extGS :: externalGS Z Σ }.
+
+Definition default_VSTGS Σ := VSTGS unit Σ.
 
 #[export] Instance NullEspec : OracleKind := ok_void_spec unit.
-
-Definition default_VSTGS Σ := VSTGS NullEspec Σ.
 
 Arguments semax {Σ} {heapGS0} {Espec} {externalGS0} {C} E Delta Pre%assert cmd%C Post%assert.
 Export ListNotations.
