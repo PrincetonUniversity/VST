@@ -47,8 +47,12 @@ Fixpoint format_argtys (fl: list format_item) : list type :=
  | nil => nil
  end.
 
+Section mpred.
+
+Context `{!VSTGS OK_ty Σ}.
+
 Definition readable_cstring {CS: compspecs} x := 
-  !! readable_share (fst (fst x)) && cstring (fst (fst x)) (snd (fst x)) (snd x).
+  ⌜readable_share (fst (fst x))⌝ ∧ cstring (fst (fst x)) (snd (fst x)) (snd x).
 
 Fixpoint SEP_of_format {CS: compspecs}
     (fl: list format_item)
@@ -67,7 +71,7 @@ match stuff with ((sh,s,p),_) => cstring sh s p end
 - (* FI_text *)
 apply (SEP_of_format CS fl' stuff).
 - (* FI_error *)
-apply (FF::nil).
+apply (False::nil).
 Defined.
 
 
@@ -110,11 +114,14 @@ Proof.
   rewrite <- Nat2Z.inj_div by discriminate.
   rewrite !Nat2Z.id.
   apply Nat2Z.inj_lt.
-  rewrite Nat2Z.inj_div, Z2Nat.id by lia; simpl.
+  rewrite -> Nat2Z.inj_div, Z2Nat.id by lia; simpl.
   apply Z.div_lt; auto; lia.
 Qed.
 
 Definition charminus := Byte.repr 45.
+
+Local Obligation Tactic := unfold RelationClasses.complement, Equivalence.equiv;
+  Tactics.program_simpl.
 
 Program Fixpoint chars_of_Z (n : Z) { measure (Z.to_nat (if n <? 0 then Z.abs n + 1 else n)) } : list byte :=
   match n <? 0 with true => charminus :: chars_of_Z (Z.abs n) | false =>
@@ -130,7 +137,6 @@ Proof.
 Defined.
 Next Obligation.
 Proof.
-  rewrite ?Zaux.Zdiv_eucl_unique in *. (* for Coq 8.15 *)
   rewrite <- Heq_anonymous0.
   destruct (Z.ltb_spec n 0); try discriminate.
   pose proof (Z.div_pos _ 10 H).
@@ -171,16 +177,21 @@ apply (l ++ string_of_format CS fl' stuff).
 apply nil.
 Defined.
 
+End mpred.
+
 Section file_id.
 
 Class FileId := { file_id : Type; stdin : file_id; stdout : file_id }.
 Context {FI : FileId}.
-Context {E : Type -> Type} {IO_E: IO_event(file_id := file_id) -< E} {CS : compspecs}.
+Context {E : Type -> Type} {IO_E: IO_event(file_id := file_id) -< E}
+  `{!VSTGS (IO_itree(E := E)) Σ} {CS : compspecs}.
+
+Local Notation funspec := (@funspec Σ).
 
 Axiom file_at : file_id -> val -> mpred.
 
 Axiom file_at_local_facts:
-   forall f p, file_at f p |-- !! (isptr p).
+   forall f p, file_at f p ⊢ ⌜isptr p⌝.
 
 Class FileStruct := { abs_file : FileId; FILEid : ident; reent : ident; f_stdin : ident; f_stdout : ident }.
 Global Existing Instance abs_file.
@@ -189,11 +200,11 @@ Context {FS : FileStruct}.
 
 Axiom reent_struct : val -> mpred.
 
-Axiom init_stdio : emp |-- EX p : val, EX inp : val, EX outp : val, EX inp' : _, EX outp' : _,
-  !!(JMeq inp' inp /\ JMeq outp' outp) && reent_struct p *
-  field_at Ews (Tstruct reent noattr) [StructField f_stdin] inp' p *
-  field_at Ews (Tstruct reent noattr) [StructField f_stdout] outp' p *
-  file_at stdin inp * file_at stdout outp.
+Axiom init_stdio : emp ⊢ ∃ p : val, ∃ inp : val, ∃ outp : val, ∃ inp' : _, ∃ outp' : _,
+  ⌜JMeq inp' inp /\ JMeq outp' outp⌝ ∧ reent_struct p ∗
+  field_at Ews (Tstruct reent noattr) [StructField f_stdin] inp' p ∗
+  field_at Ews (Tstruct reent noattr) [StructField f_stdout] outp' p ∗
+  file_at stdin inp ∗ file_at stdout outp.
 
 Definition get_reent_spec :=
   WITH p : val
@@ -225,7 +236,7 @@ Definition fprintf_spec_parametrized FILEid (fmtz: list Z) :=
       end)
      (fun x : (val * share * list byte * val * format_stuff fl * (file_id * IO_itree)) => 
       match x with (outp,sh,fmt,fmtp,stuff,(out,k)) =>
-       EX n:int,
+       ∃ n:int,
         PROPx nil 
         (LOCALx (temp ret_temp (Vint n)::nil)
          (SEPx (cstring sh fmt fmtp :: file_at out outp :: ITREE k :: SEP_of_format fl stuff)))
@@ -249,7 +260,7 @@ Definition printf_spec_parametrized (fmtz: list Z) :=
       end)
      (fun x : (val * share * list byte * val * format_stuff fl * IO_itree) => 
       match x with (outp,sh,fmt,fmtp,stuff,k) =>
-       EX n:int,
+       ∃ n:int,
         PROPx nil 
         (LOCALx (temp ret_temp (Vint n)::nil)
          (SEPx (cstring sh fmt fmtp :: ITREE k :: SEP_of_format fl stuff)))
@@ -288,8 +299,8 @@ End file_id.
 
 #[export] Hint Resolve file_at_local_facts : saturate_local.
 
-Ltac make_stdio :=
-  sep_apply (@init_stdio _ _ _); let p := fresh "reentp" in let inp := fresh "inp" in let outp := fresh "outp" in
+Ltac make_stdio E :=
+  sep_apply (init_stdio(E := E)); let p := fresh "reentp" in let inp := fresh "inp" in let outp := fresh "outp" in
   let inp' := fresh "inp'" in let outp' := fresh "outp'" in Intros p inp outp inp' outp';
   change (reptype (tptr (Tstruct _ noattr))) with val in inp', outp';
   repeat match goal with H : JMeq _ _ |- _ => apply JMeq_eq in H; subst end.
@@ -336,13 +347,13 @@ Ltac strip_int_repr s :=
 Ltac do_string2bytes :=
 match goal with |- semax _ _ (PROPx _ (LOCALx _ (SEPx ?R))) _ _ =>
  match R with context [data_at _ (tarray tschar ?n) 
-                                     (map (Vint oo cast_int_int I8 Signed) ?il)] =>
+                                     (map (Basics.compose Vint (cast_int_int I8 Signed)) ?il)] =>
   match il with context [Int.repr 0 :: nil] =>
     let zl := strip_int_repr il in
     let s := constr:(listZ2string zl) in
     let s := eval compute in s in
     let y := constr:(string2bytes s) in
-    change  (map (Vint oo cast_int_int I8 Signed) il) 
+    change  (map (Basics.compose Vint (cast_int_int I8 Signed)) il)
              with (map Vbyte (y ++ [Byte.zero]))
  end end end.
 
@@ -391,7 +402,7 @@ Ltac forward_fprintf outv w w' :=
    rewrite -> semax_seq_skip
  end;
 lazymatch goal with
- | gv: globals |- @semax _ _ _ _ ?cs _ _ ?Pre (Ssequence (Scall None (Evar _ _) (?f :: Evar ?id _ :: _)) _) _ =>
+ | gv: globals |- semax(C := ?cs) _ _ ?Pre (Ssequence (Scall None (Evar _ _) (?f :: Evar ?id _ :: _)) _) _ =>
    let tf := constr:(typeof f) in
    let tf := eval hnf in tf in
    lazymatch tf with Tpointer (Tstruct ?FILEid _) _ =>
@@ -405,12 +416,12 @@ Ltac forward_printf w w' :=
  try match goal with |- semax _ _ _ (Scall _ _) _ =>
    rewrite -> semax_seq_skip
  end;
-match goal with
- | gv: globals |- @semax _ _ _ _ ?cs _ _ ?Pre (Ssequence (Scall None (Evar _ _) (Evar ?id _ :: _)) _) _ =>
+lazymatch goal with
+ | gv: globals |- semax(C := ?cs) _ _ ?Pre (Ssequence (Scall None (Evar _ _) (Evar ?id _ :: _)) _) _ =>
        forward_fprintf' gv Pre id (printf_spec_sub(CS := cs)) nullval w w'
 end.
 
-Fixpoint make_printf_specs' {FS : FileStruct} (defs: list (ident * globdef (fundef function) type)) : list (ident*funspec) :=
+Fixpoint make_printf_specs' `{!VSTGS (@IO_itree E) Σ} {FS : FileStruct} (defs: list (ident * globdef (fundef function) type)) : list (ident*funspec) :=
  match defs with
  | (i, Gfun (External (EF_external "fprintf" _) 
                        (Tcons (Tpointer (Tstruct id _) _) _) _ _)) :: defs' => 

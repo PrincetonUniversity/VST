@@ -1420,10 +1420,10 @@ Lemma semax_call_id01_wow:
              (Rpost: B -> list mpred)
    (_: check_retty retty)
          (* this hypothesis is not needed for soundness, just for selectivity *)
-   (POST1: Post witness = ∃ vret:B, PROPx (Ppost vret)
+   (POST1: assert_of (Post witness) ⊣⊢ ∃ vret:B, PROPx (Ppost vret)
                               (LOCALx (temp ret_temp (F vret) :: nil)
                               (SEPx (Rpost vret))))
-   (POST2: Post2 = ∃ vret:B, PROPx (P++ Ppost vret) (LOCALx Q
+   (POST2: Post2 ⊣⊢ ∃ vret:B, PROPx (P++ Ppost vret) (LOCALx Q
              (SEPx (Rpost vret ++ Frame))))
    (PPRE: fold_right_and True Ppre),
    semax E Delta (PROPx P (LOCALx Q (SEPx R')))
@@ -1448,13 +1448,16 @@ Proof.
     rewrite bi.and_elim_l comm //.
   * subst.
     clear CHECKTEMP TC1 PRE1 PPRE.
-    rewrite POST1; clear POST1.
     match goal with |- context [ifvoid retty ?A ?B] =>
           replace (ifvoid retty A B) with B
           by (destruct retty; try contradiction; auto)
     end.
     go_lowerx; normalize.
-    Exists a0.
+    eapply monPred_in_equiv in POST1.
+    simpl in POST1.
+    rewrite POST1 POST2; clear POST1 POST2.
+    unfold PROPx, LOCALx, SEPx, local, lift1; unfold_lift. monPred.unseal.
+    Intros a0; Exists a0.
     rewrite fold_right_and_app_low.
     rewrite fold_right_sepcon_app.
     normalize.
