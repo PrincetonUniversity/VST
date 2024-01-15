@@ -2325,7 +2325,7 @@ Ltac check_type_forward_for_simple_bound :=
          end
      end.
 
-Ltac get_Sigma_from_semax := match goal with |- @semax ?Σ _ _ _ _ _ _ _ _ _ => Σ end.
+Ltac get_Sigma_from_semax := match goal with |- semax(Σ := ?Σ) _ _ _ _ _ => Σ end.
 
 Ltac forward_for_simple_bound n Pre :=
   check_Delta; check_POSTCONDITION;

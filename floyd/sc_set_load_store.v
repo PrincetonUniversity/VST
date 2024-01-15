@@ -1541,7 +1541,7 @@ Ltac equal_pointers p q :=
 
 Ltac SEP_field_at_unify' gfs :=
   match goal with
-  | |- @field_at _ _ _ ?csl ?shl ?tl ?gfsl ?vl ?pl = @field_at _ _ _ ?csr ?shr ?tr ?gfsr ?vr ?pr =>
+  | |- field_at(cs := ?csl) ?shl ?tl ?gfsl ?vl ?pl = field_at(cs := ?csr) ?shr ?tr ?gfsr ?vr ?pr =>
       unify tl tr;
       unify (Floyd_skipn (length gfs - length gfsl) gfs) gfsl;
       unify gfsl gfsr;
@@ -1573,7 +1573,7 @@ Ltac SEP_field_at_unify gfs :=
 
 Ltac SEP_field_at_strong_unify' gfs :=
   match goal with
-  | |- @field_at _ _ _ ?cs ?shl ?tl ?gfsl ?vl ?pl = ?Rv ?vr /\ (_ = fun v => field_at ?shr ?tr ?gfsr v ?pr) =>
+  | |- field_at(cs := ?cs) ?shl ?tl ?gfsl ?vl ?pl = ?Rv ?vr /\ (_ = fun v => field_at ?shr ?tr ?gfsr v ?pr) =>
       unify tl tr;
       unify (Floyd_skipn (length gfs - length gfsl) gfs) gfsl;
       unify gfsl gfsr;
@@ -1581,18 +1581,18 @@ Ltac SEP_field_at_strong_unify' gfs :=
       unify vl vr;
       split;
       [ match type of vl with
-        | ?tv1 => unify Rv (fun v: tv1 => @field_at _ _ _ cs shl tl gfsl v pl)
+        | ?tv1 => unify Rv (fun v: tv1 => field_at(cs := cs) shl tl gfsl v pl)
         end; reflexivity
       | extensionality;
         rewrite <- ?field_at_offset_zero; reflexivity]
-  | |-  @data_at _ _ _ ?cs ?shl ?tl ?vl ?pl = ?Rv ?vr /\ (_ = fun v => field_at ?shr ?tr ?gfsr v ?pr) =>
+  | |-  data_at(cs := ?cs) ?shl ?tl ?vl ?pl = ?Rv ?vr /\ (_ = fun v => field_at ?shr ?tr ?gfsr v ?pr) =>
       unify tl tr;
       unify gfsr (@nil gfield);
       unify shl shr;
       unify vl vr;
       split;
       [ match type of vl with
-        | ?tv1 => unify Rv (fun v: tv1 => @data_at _ _ _ cs shl tl v pl)
+        | ?tv1 => unify Rv (fun v: tv1 => data_at(cs := cs) shl tl v pl)
         end; reflexivity
       | extensionality;
         unfold data_at;

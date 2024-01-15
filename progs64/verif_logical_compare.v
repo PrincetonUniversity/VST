@@ -68,7 +68,7 @@ match s with
 end.
 
 Lemma semax_shortcut_logical:
-  forall {cs: compspecs} Delta P Q R tid s v Qtemp Qvar GV el,
+  forall {Espec : ext_spec unit} {cs: compspecs} Delta P Q R tid s v Qtemp Qvar GV el,
    quick_shortcut_logical s = Some tid ->
    typeof_temp Delta tid = Some tint ->
    local2ptree Q = (Qtemp, Qvar, nil, GV) ->
@@ -121,7 +121,6 @@ Ltac do_semax_shortcut_logical :=
 Lemma body_do_or: semax_body Vprog Gprog f_do_or do_or_spec.
 Proof.
 start_function.
-
 eapply semax_seq'; [do_semax_shortcut_logical | abbreviate_semax].
 forward.
 destruct H,H0; subst; simpl; entailer!.
@@ -142,7 +141,7 @@ forward.
 Qed.
 
 Lemma prog_correct:
-  semax_prog _ prog tt Vprog Gprog.
+  semax_prog prog tt Vprog Gprog.
 Proof.
 prove_semax_prog.
 semax_func_cons body_do_or.

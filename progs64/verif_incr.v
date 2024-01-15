@@ -236,15 +236,18 @@ Proof.
 Qed.
 
 Lemma prog_correct:
-  semax_prog _ prog tt Vprog Gprog.
+  semax_prog prog tt Vprog Gprog.
 Proof.
 prove_semax_prog.
 semax_func_cons_ext.
 { simpl.
+  destruct x; simpl.
+  monPred.unseal.
   Intros h.
-  unfold PROPx, LOCALx, SEPx, local, lift1; simpl; unfold liftx; simpl; unfold lift; Intros.
+  unfold PROPx, LOCALx, SEPx, local, lift1; simpl; unfold liftx; simpl; unfold lift.
+  monPred.unseal; Intros.
   destruct ret; unfold eval_id in H0; simpl in H0; subst; simpl; [|contradiction].
-  saturate_local; apply prop_right; auto. }
+  saturate_local; auto. }
 semax_func_cons_ext.
 semax_func_cons_ext.
 semax_func_cons_ext.

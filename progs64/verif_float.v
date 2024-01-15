@@ -26,8 +26,6 @@ Proof.
 start_function.
 rename a into gv.
 match goal with |- context [SEPx(?A::_)] => freeze FR1 := A end.
-unfold default_VSTGS in default_VSTGS0.
-destruct  default_VSTGS0 eqn:?.
 pose (f :=  PROP () LOCAL (gvars gv)
   SEP (FRZL FR1; data_at Ews t_struct_foo (Vint (Int.repr 5),
           (Vsingle (Float32.of_bits (Int.repr 1079655793)),

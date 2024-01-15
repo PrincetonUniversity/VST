@@ -129,7 +129,7 @@ forward. (* return s; *)
 Qed.
 
 Lemma prog_correct:
-  semax_prog _ prog tt Vprog Gprog.
+  semax_prog prog tt Vprog Gprog.
 Proof.
   prove_semax_prog.
   semax_func_cons body_sumarray.
