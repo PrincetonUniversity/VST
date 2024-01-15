@@ -22,7 +22,7 @@ Definition of nested_reptype_structlist, field_at, array_at, data_at, nested_sfi
 
 Section CENV.
 
-Context `{!heapGS Σ} {cs: compspecs}.
+Context `{!VSTGS OK_ty Σ} {cs: compspecs}.
 
 Lemma struct_Prop_cons2:
   forall it it' m (A: member -> Type)
@@ -1775,7 +1775,7 @@ Qed.
 
 Section local_facts.
 
-Context `{!heapGS Σ}.
+Context `{!VSTGS OK_ty Σ}.
 
 Lemma data_array_at_local_facts {cs: compspecs}:
  forall t' n a sh (v: list (reptype t')) p,
@@ -1880,7 +1880,7 @@ Ltac data_at_valid_aux :=
 
 Section cancel.
 
-Context `{!heapGS Σ}.
+Context `{!VSTGS OK_ty Σ}.
 
 Lemma data_at_cancel:
   forall {cs: compspecs} sh t v p,
@@ -1985,25 +1985,25 @@ match goal with
    clear H; subst D; simpl in E; subst E
 end.
 
-Definition field_at_mark := @field_at.
-Definition field_at_hide := @field_at.
-Definition data_at_hide := @data_at.
+Definition field_at_mark `{!VSTGS OK_ty Σ} cs := field_at(cs := cs).
+Definition field_at_hide `{!VSTGS OK_ty Σ} cs  := field_at(cs := cs).
+Definition data_at_hide `{!VSTGS OK_ty Σ} cs  := data_at(cs := cs).
 
 Ltac find_field_at N :=
  match N with
- | S O =>  change @field_at with field_at_mark at 1;
-              change field_at_hide with @field_at
- | S ?k => change @field_at with field_at_hide at 1;
+ | S O =>  change (field_at(cs := ?cs)) with (field_at_mark cs) at 1;
+              change (field_at_hide ?cs) with (field_at(cs := cs))
+ | S ?k => change (field_at(cs := ?cs)) with (field_at_hide cs) at 1;
                 find_field_at k
  end.
 
 Ltac find_data_at N :=
  match N with
- | S O =>  match goal with |- context[@data_at _ _ ?cs ?sh ?t] =>
-                 change (@data_at _ _ cs sh t) with (field_at_mark _ _ cs sh t nil) at 1
+ | S O =>  match goal with |- context[data_at ?sh ?t] =>
+                 change (data_at(cs := ?cs) sh t) with (field_at_mark cs sh t nil) at 1
                  end;
-                 change data_at_hide with @data_at
- | S ?k => change @data_at with data_at_hide at 1;
+                 change (data_at_hide ?cs) with (data_at(cs := cs))
+ | S ?k => change (data_at(cs := ?cs)) with (data_at_hide cs) at 1;
                 find_data_at k
  end.
 
@@ -2012,7 +2012,7 @@ Global Opaque protect.
 
 Section lemmas.
 
-Context `{!heapGS Σ}.
+Context `{!VSTGS OK_ty Σ}.
 
 Lemma field_at_ptr_neq {cs: compspecs} :
    forall sh t fld p1 p2 v1 v2,
@@ -2542,7 +2542,7 @@ Ltac headptr_field_compatible :=
 (* BEGIN New experiments *)
 Section new_lemmas.
 
-Context `{!heapGS Σ}.
+Context `{!VSTGS OK_ty Σ}.
 
 Lemma data_at_data_at_cancel  {cs: compspecs}: forall sh t v v' p,
   v = v' ->
@@ -2779,7 +2779,7 @@ End new_lemmas.
 
 Section more_lemmas.
 
-Context `{!heapGS Σ}.
+Context `{!VSTGS OK_ty Σ}.
 
 Lemma data_at__Tarray:
   forall {CS: compspecs} sh t n a,

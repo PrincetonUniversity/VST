@@ -299,7 +299,7 @@ Proof.
 Qed.
 
 Lemma local_entail_at_semax_0:
-  forall Espec `{!externalGS OK_ty Σ} {cs: compspecs} E Delta P Q1 Q1' Q R c Post,
+  forall `{!VSTGS OK_ty Σ} {OK_spec: ext_spec OK_ty} {cs: compspecs} E Delta P Q1 Q1' Q R c Post,
    (local (locald_denote Q1) ⊢ local (locald_denote Q1')) ->
    semax E Delta (PROPx P (LOCALx (Q1'::Q) (SEPx R))) c Post  ->
    semax E Delta (PROPx P (LOCALx (Q1::Q) (SEPx R))) c Post.

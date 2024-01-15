@@ -18,7 +18,7 @@ Require Import VST.veric.Clight_lemmas.
 
 Section mpred.
 
-Context `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ}.
+Context `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty}.
 
 Lemma closed_wrt_modvars_switch:
   forall a sl n F,
@@ -73,9 +73,9 @@ Lemma switch_rguard:
   (f: function)
   (Delta' : tycontext)
   (k : cont),
- rguard Espec psi E Delta' f
+ rguard OK_spec psi E Delta' f
         (frame_ret_assert R F) k ⊢
-(rguard Espec psi E Delta' f
+(rguard OK_spec psi E Delta' f
    (frame_ret_assert (switch_ret_assert R) F) 
    (Kswitch k)).
 Proof.
@@ -108,9 +108,9 @@ Context {CS : compspecs}.
     app_pred (tc_expr Delta e rho) (m_phi jm) ->
      cl_step psi (State f c1 k1 vx tx)
       (m_dry jm) (State f c2 k2 vx2 tx2) (m_dry jm)) ->
-  assert_safe Espec psi f vx2 tx2 (Cont (Kseq c2 k2)) (construct_rho (filter_genv psi) vx2 tx2)
+  assert_safe OK_spec psi f vx2 tx2 (Cont (Kseq c2 k2)) (construct_rho (filter_genv psi) vx2 tx2)
  && tc_expr Delta e rho
-⊢ assert_safe Espec psi f vx tx (Cont (Kseq c1 k1)) (construct_rho (filter_genv psi) vx tx).
+⊢ assert_safe OK_spec psi f vx tx (Cont (Kseq c1 k1)) (construct_rho (filter_genv psi) vx tx).
 Proof.
 intros. intros ? [Hw Hw'] ?? Hora ???; subst.
 apply jm_fupd_intro'.
@@ -141,10 +141,10 @@ Lemma semax_switch:
      (Ht : is_int_type (typeof a) = true)
      (Htc : Q ⊢ tc_expr Delta a)
      (Hcase : forall n,
-     semax Espec E Delta (local (fun rho => eval_expr a rho = Vint n) ∧ Q)
+     semax OK_spec E Delta (local (fun rho => eval_expr a rho = Vint n) ∧ Q)
                (seq_of_labeled_statement (select_switch (Int.unsigned n) sl))
                (switch_ret_assert R)),
-     semax Espec E Delta Q (Sswitch a sl) R.
+     semax OK_spec E Delta Q (Sswitch a sl) R.
 Proof.
   intros.
   rewrite semax_unfold.

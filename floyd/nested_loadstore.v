@@ -17,7 +17,7 @@ Import LiftNotation.
 
 Section NESTED_RAMIF.
 
-Context `{!heapGS Σ} {cs: compspecs}.
+Context `{!VSTGS OK_ty Σ} {cs: compspecs}.
 
 Lemma reptype_Tarray_JMeq_constr0: forall t gfs t0 n a (v: reptype (nested_field_type t gfs)),
   legal_nested_field t gfs ->
@@ -500,7 +500,7 @@ Qed.
 End NESTED_RAMIF.
 
 Lemma semax_extract_later_prop' :
-  forall `{heapGS0: heapGS Σ} {Espec : OracleKind} `{!externalGS OK_ty Σ} {cs: compspecs} ,
+  forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {cs: compspecs} ,
     forall E (Delta : tycontext) (PP : Prop) P Q R c post,
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢ ⌜PP⌝ ->
       (PP -> semax E Delta (▷PROPx P (LOCALx Q (SEPx R))) c post) ->
@@ -516,25 +516,6 @@ Proof.
   + rewrite bi.and_comm. apply semax_extract_later_prop1.
     auto.
 Qed.
-
-(* TODO obsolete, fix later *)
-(* Lemma insert_corable_sep: forall R1 P Q R,
-  VST.msl.corable.corable R1 ->
-  `R1 ∧ PROPx P (LOCALx Q (SEPx R)) ⊣⊢ PROPx P (LOCALx Q (SEPx (R1 ∧ emp :: R))).
-Proof.
-  intros.
-  rewrite andp_comm.
-  unfold PROPx.
-  rewrite andp_assoc; f_equal.
-  unfold LOCALx.
-  rewrite andp_assoc; f_equal.
-  unfold SEPx.
-  extensionality rho.
-  simpl.
-  rewrite andp_comm.
-  rewrite andp_left_corable by auto.
-  reflexivity.
-Qed. *)
 
 (************************************************
 
@@ -557,12 +538,11 @@ Proof.
     reflexivity.
 Qed.
 
-(* TODO obsolete, fix later 
-Lemma field_at_app {cs: compspecs}:
+Lemma field_at_app `{!VSTGS OK_ty Σ} {cs: compspecs}:
  forall sh t gfs1 gfs2 v v' p,
  field_compatible t nil p ->
  JMeq v v' ->
- field_at sh t (gfs1++gfs2) v p =
+ field_at sh t (gfs1++gfs2) v p ⊣⊢
  field_at sh (nested_field_type t gfs2) gfs1 v' (field_address t gfs2 p).
 Proof.
 intros.
@@ -570,8 +550,7 @@ rewrite !field_at_data_at.
 rewrite (data_at_type_changeable sh
    (nested_field_type t (gfs1 ++ gfs2))
   (nested_field_type (nested_field_type t gfs2) gfs1) v v'); auto.
-f_equal.
+f_equiv.
 apply field_address_app.
 symmetry; apply nested_field_type_nested_field_type.
 Qed.
-*)

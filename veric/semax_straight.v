@@ -27,7 +27,7 @@ Import LiftNotation.
 Transparent intsize_eq.
 
 Section extensions.
-  Context `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs}.
+  Context `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {CS: compspecs}.
 
 Lemma semax_straight_simple:
  forall E Delta (B P: assert) c (Q: assert)
@@ -43,7 +43,7 @@ Lemma semax_straight_simple:
                   guard_environ Delta' f rho' ∧ cl_step ge (State f c k ve te) m
                                  (State f Sskip k ve te') m'⌝ ∧
                |={E}=> (mem_auth m' ∗ ▷ (F rho' ∗ Q rho'))),
-  semax Espec E Delta (B ∧ ▷ P) c (normal_ret_assert Q).
+  semax OK_spec E Delta (B ∧ ▷ P) c (normal_ret_assert Q).
 Proof.
 intros until Q; intros EB Hc.
 rewrite semax_unfold.
@@ -257,7 +257,7 @@ forall E (Delta: tycontext) (P: assert) id cmp e1 e2 ty sh1 sh2,
     eqb_type (typeof e1) int_or_ptr_type = false ->
     eqb_type (typeof e2) int_or_ptr_type = false ->
     (typecheck_tid_ptr_compare Delta id = true) ->
-    semax Espec E Delta
+    semax OK_spec E Delta
         (▷ (tc_expr Delta e1 ∧ tc_expr Delta e2 ∧
           local (`(blocks_match cmp) (eval_expr e1) (eval_expr e2)) ∧
           <absorb> assert_of (`(mapsto_ sh1 (typeof e1)) (eval_expr e1)) ∧
@@ -315,7 +315,7 @@ Qed.
 
 Lemma semax_set_forward:
 forall E (Delta: tycontext) (P: assert) id e,
-    semax Espec E Delta
+    semax OK_spec E Delta
         (▷ (tc_expr Delta e ∧ (tc_temp_id id (typeof e) Delta e) ∧ P))
           (Sset id e)
         (normal_ret_assert
@@ -367,7 +367,7 @@ Lemma semax_set_forward':
 forall E (Delta: tycontext) (P: assert) id e t,
     typeof_temp Delta id = Some t ->
     is_neutral_cast (typeof e) t = true ->
-    semax Espec E Delta
+    semax OK_spec E Delta
         (▷ (tc_expr Delta e ∧ P))
           (Sset id e)
         (normal_ret_assert
@@ -393,7 +393,7 @@ Qed.
 Lemma semax_cast_set:
 forall E (Delta: tycontext) (P: assert) id e t
     (H99 : typeof_temp Delta id = Some t),
-    semax Espec E Delta
+    semax OK_spec E Delta
         (▷ (tc_expr Delta (Ecast e t) ∧ P))
           (Sset id (Ecast e t))
         (normal_ret_assert
@@ -467,7 +467,7 @@ forall E (Delta: tycontext) sh id (P: assert) e1 t2 (v2: val),
     is_neutral_cast (typeof e1) t2 = true ->
     readable_share sh ->
    (local (typecheck_environ Delta) ∧ P ⊢ <absorb> assert_of (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2))) ->
-    semax Espec E Delta
+    semax OK_spec E Delta
        (▷
         (tc_lvalue Delta e1
         ∧ (⌜tc_val (typeof e1) v2⌝ ∧ P)))
@@ -551,7 +551,7 @@ forall E (Delta: tycontext) sh id (P: assert) e1 t1 (v2: val),
    cast_pointer_to_bool (typeof e1) t1 = false ->
     readable_share sh ->
    (local (typecheck_environ Delta) ∧ P ⊢ <absorb> assert_of (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2))) ->
-    semax Espec E Delta
+    semax OK_spec E Delta
        (▷
         (tc_lvalue Delta e1
         ∧ local (`(tc_val t1) (`(eval_cast (typeof e1) t1 v2)))
@@ -790,7 +790,7 @@ Qed.
 
 Lemma semax_store:
  forall E Delta e1 e2 sh P (WS : writable0_share sh),
-   semax Espec E Delta
+   semax OK_spec E Delta
           (▷ ((tc_lvalue Delta e1 ∧ tc_expr Delta (Ecast e2 (typeof e1))) ∧
              (assert_of (`(mapsto_ sh (typeof e1)) (eval_lvalue e1)) ∗ P)))
           (Sassign e1 e2)
@@ -867,7 +867,7 @@ Lemma semax_store_union_hack:
        access_mode t2 = By_value ch' ->
        decode_encode_val_ok ch ch' ->
        writable_share sh ->
-       semax Espec E Delta
+       semax OK_spec E Delta
          (▷ ((tc_lvalue Delta e1 ∧ tc_expr Delta (Ecast e2 (typeof e1))) ∧
               ((assert_of (`(mapsto_ sh (typeof e1)) (eval_lvalue e1))
                 ∧ assert_of (`(mapsto_ sh t2) (eval_lvalue e1)))

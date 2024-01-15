@@ -144,7 +144,7 @@ intros. by simpl_denote_tc; apply derives_refl. Qed.
 
 Section ENTAILER.
 
-Context `{!heapGS Σ}.
+Context `{!VSTGS OK_ty Σ}.
 
 Lemma denote_tc_test_eq_split:
   forall P x y,
@@ -737,11 +737,11 @@ Qed.
 
 Import ListNotations.
 
-Definition cstring `{!heapGS Σ} {CS : compspecs} sh (s: list byte) p : mpred := 
+Definition cstring `{!VSTGS OK_ty Σ} {CS : compspecs} sh (s: list byte) p : mpred := 
   ⌜(~In Byte.zero s)⌝ ∧
   data_at sh (tarray tschar (Zlength s + 1)) (map Vbyte (s ++ [Byte.zero])) p.
 
-Lemma cstring_local_facts: forall `{!heapGS Σ} {CS : compspecs} sh s p, 
+Lemma cstring_local_facts: forall `{!VSTGS OK_ty Σ} {CS : compspecs} sh s p, 
   cstring sh s p ⊢ ⌜isptr p ∧ Zlength s + 1 < Ptrofs.modulus⌝.
 Proof.
   intros; unfold cstring; entailer!.
@@ -758,7 +758,7 @@ Qed.
 
 #[export] Hint Resolve cstring_local_facts : saturate_local.
 
-Lemma cstring_valid_pointer: forall `{!heapGS Σ} {CS : compspecs} sh s p, 
+Lemma cstring_valid_pointer: forall `{!VSTGS OK_ty Σ} {CS : compspecs} sh s p, 
    sh <> Share.bot ->
    cstring sh s p ⊢ valid_pointer p.
 Proof.
@@ -771,7 +771,7 @@ Qed.
 
 #[export] Hint Resolve cstring_valid_pointer : valid_pointer.
 
-Definition cstringn `{!heapGS Σ} {CS : compspecs} sh (s: list byte) n p : mpred :=
+Definition cstringn `{!VSTGS OK_ty Σ} {CS : compspecs} sh (s: list byte) n p : mpred :=
   ⌜(~In Byte.zero s) ⌝ ∧
   data_at sh (tarray tschar n) (map Vbyte (s ++ [Byte.zero]) ++
     Zrepeat Vundef (n - (Zlength s + 1))) p.
@@ -783,7 +783,7 @@ Fixpoint no_zero_bytes (s: list byte) : bool :=
  end.
 
 Lemma data_at_to_cstring:
- forall `{!heapGS Σ} {CS: compspecs} sh n s p,
+ forall `{!VSTGS OK_ty Σ} {CS: compspecs} sh n s p,
   no_zero_bytes s = true ->
  data_at sh (tarray tschar n) (map Vbyte (s ++ [Byte.zero])) p ⊢
  cstring sh s p.
@@ -809,13 +809,13 @@ rewrite Byte.eq_true in H. inv H.
 auto.
 Qed.
 
-Lemma cstringn_equiv : forall `{!heapGS Σ} {CS : compspecs} sh s p, cstring sh s p = cstringn sh s (Zlength s + 1) p.
+Lemma cstringn_equiv : forall `{!VSTGS OK_ty Σ} {CS : compspecs} sh s p, cstring sh s p = cstringn sh s (Zlength s + 1) p.
 Proof.
   intros; unfold cstring, cstringn.
   rewrite Zminus_diag app_nil_r; auto.
 Qed.
 
-Lemma cstringn_local_facts: forall `{!heapGS Σ} {CS : compspecs} sh s n p, 
+Lemma cstringn_local_facts: forall `{!VSTGS OK_ty Σ} {CS : compspecs} sh s n p, 
    cstringn sh s n p ⊢ ⌜isptr p /\ Zlength s + 1 <= n <= Ptrofs.max_unsigned⌝.
 Proof.
   intros; unfold cstringn; entailer!.
@@ -836,7 +836,7 @@ Qed.
 
 #[export] Hint Resolve cstringn_local_facts : saturate_local.
 
-Lemma cstringn_valid_pointer: forall `{!heapGS Σ} {CS : compspecs} sh s n p, 
+Lemma cstringn_valid_pointer: forall `{!VSTGS OK_ty Σ} {CS : compspecs} sh s n p, 
      sh <> Share.bot ->
      cstringn sh s n p ⊢ valid_pointer p.
 Proof.

@@ -28,7 +28,7 @@ match f1 with
 
 Section mpred.
 
-Context `{!heapGS Σ}.
+Context `{!VSTGS OK_ty Σ}.
 
 Definition NDfunspec_sub (f1 f2 : @funspec Σ) :=
 let Delta2 := rettype_tycontext (snd (typesig_of_funspec f2)) in
@@ -154,7 +154,7 @@ Proof.
   rewrite -Hpost1; iFrame; iFrame "%".
 Qed.
 
-Context {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs}.
+Context {OK_spec: ext_spec OK_ty} {CS: compspecs}.
 
 Lemma semax_call_subsume:
   forall E (fs1: funspec) A P Q argsig retsig cc,

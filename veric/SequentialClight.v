@@ -20,10 +20,10 @@ Import VericMinimumSeparationLogic.CSHL_Defs.
 Import Clight.
 
 Class VSTGpreS (Z : Type) Σ := {
-  VSTGpreS_inv :> invGpreS Σ;
-  VSTGpreS_heap :> gen_heapGpreS share address resource Σ;
-  VSTGpreS_funspec :> inG Σ (gmap_view.gmap_viewR address (@funspecO' Σ));
-  VSTGpreS_ext :> inG Σ (excl_authR (leibnizO Z))
+  VSTGpreS_inv :: invGpreS Σ;
+  VSTGpreS_heap :: gen_heapGpreS share address resource Σ;
+  VSTGpreS_funspec :: inG Σ (gmap_view.gmap_viewR address (@funspecO' Σ));
+  VSTGpreS_ext :: inG Σ (excl_authR (leibnizO Z))
 }.
 
 Definition VSTΣ Z : gFunctors :=
@@ -34,7 +34,7 @@ Proof. solve_inG. Qed.
 
 Lemma init_VST: forall Z `{!VSTGpreS Z Σ} (z : Z),
   ⊢ |==> ∀ _ : invGS_gen HasNoLc Σ, ∃ _ : gen_heapGS share address resource Σ, ∃ _ : funspecGS Σ, ∃ _ : externalGS Z Σ,
-    let H : heapGS Σ := HeapGS _ _ _ _ in
+    let H : VSTGS Z Σ := Build_VSTGS _ _ (HeapGS _ _ _ _) _ in
     (state_interp Mem.empty z ∗ funspec_auth ∅ ∗ has_ext z) ∗ ghost_map.ghost_map_auth(H0 := gen_heapGpreS_meta) (gen_meta_name _) 1 ∅.
 Proof.
   intros; iIntros.
@@ -52,8 +52,8 @@ Proof.
   induction n; apply _.
 Qed.
 
-Lemma adequacy: forall Σ `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} ge z q m n,
-  state_interp m z ∗ jsafeN Espec ge ⊤ z q ⊢
+Lemma adequacy: forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} ge z q m n,
+  state_interp m z ∗ jsafeN OK_spec ge ⊤ z q ⊢
   |={⊤}[∅]▷=>^n ⌜dry_safeN(genv_symb := genv_symb_injective) (cl_core_sem ge) OK_spec ge n z q m⌝.
 Proof.
   intros.
@@ -95,10 +95,10 @@ Proof.
 Qed.
 
 Lemma whole_program_sequential_safety_ext:
-   forall Σ {CS: compspecs} {Espec: OracleKind} `{!VSTGpreS OK_ty Σ} (initial_oracle: OK_ty)
-     (EXIT: semax_prog.postcondition_allows_exit tint)
+   forall Σ {CS: compspecs} `{!VSTGpreS OK_ty Σ} {OK_spec : ext_spec OK_ty} (initial_oracle: OK_ty)
+     (EXIT: semax_prog.postcondition_allows_exit OK_spec tint)
      prog V G m,
-     (forall {HH : heapGS Σ} {HE : externalGS OK_ty Σ}, @semax_prog _ HH Espec HE CS prog initial_oracle V G) ->
+     (forall {HH : VSTGS OK_ty Σ}, semax_prog prog initial_oracle V G) ->
      Genv.init_mem prog = Some m ->
      exists b, exists q,
        Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some b /\
@@ -130,7 +130,7 @@ Proof.
   simpl; intros; iIntros "_".
   iMod (@init_VST _ _ VSTGpreS0) as "H".
   iDestruct ("H" $! Hinv) as (?? HE) "(H & ?)".
-  specialize (H (HeapGS _ _ _ _) HE).
+  specialize (H (Build_VSTGS _ _ (HeapGS _ _ _ _) HE)).
   eapply (semax_prog_rule _ _ _ _ n) in H as (b & q & (? & ? & Hinit & ->) & Hsafe); [| done..].
   iMod (Hsafe with "H") as "Hsafe".
   rewrite bi.and_elim_l.

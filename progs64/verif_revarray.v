@@ -174,7 +174,7 @@ Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof. finish. Qed.
 
 Lemma prog_correct:
-  semax_prog _ prog tt Vprog Gprog.
+  semax_prog prog tt Vprog Gprog.
 Proof.
 prove_semax_prog.
 semax_func_cons body_reverse.

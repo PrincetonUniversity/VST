@@ -13,7 +13,7 @@ Definition spawned_funtype := Tfunction (Tcons (tptr tvoid) Tnil) tint cc_defaul
 
 Section mpred.
 
-Context `{!heapGS Σ}.
+Context `{!VSTGS OK_ty Σ}.
 
 (*+ Specification of each concurrent primitive *)
 
@@ -99,17 +99,10 @@ Definition concurrent_specs (cs : compspecs) (ext_link : string -> ident) :=
   (ext_link "spawn"%string, spawn_spec) ::
   nil.
 
-Context (Z : Type) `{!externalGS Z Σ}.
-
-Definition concurrent_ext_spec (cs : compspecs) (ext_link : string -> ident) :=
-  add_funspecs_rec Z
+#[export] Instance concurrent_ext_spec (cs : compspecs) (ext_link : string -> ident) : ext_spec OK_ty :=
+  add_funspecs_rec OK_ty
     ext_link
-    (ok_void_spec Z).(OK_spec)
+    (void_spec OK_ty)
     (concurrent_specs cs ext_link).
-
-Definition Concurrent_Espec cs ext_link :=
-  Build_OracleKind
-    Z
-    (concurrent_ext_spec cs ext_link).
 
 End mpred.

@@ -12,7 +12,7 @@ Import -(notations) compcert.lib.Maps.
 
 Section MSUBST_DENOTE_TC_ASSERT.
 
-Context `{!heapGS Σ}.
+Context `{!VSTGS OK_ty Σ}.
 Context {cs: compspecs} (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t (type * val)) (GV: option globals).
 
 Definition msubst_simpl_tc_assert (T1: PTree.t val): tc_assert -> tc_assert :=
@@ -286,7 +286,7 @@ Qed.
 End MSUBST_DENOTE_TC_ASSERT.
 
 Section MSUBST_TC.
-Context `{!heapGS Σ}.
+Context `{!VSTGS OK_ty Σ}.
 Definition legal_tc_init (Delta: tycontext): tc_assert -> Prop :=
   fix legal_tc_init (tc: tc_assert): Prop :=
   match tc with
@@ -315,7 +315,7 @@ Proof.
   specialize (H2 H1).
   eauto.
 Qed.
-Print derives_refl.
+
 Lemma msubst_simpl_tc_assert_sound: forall {cs: compspecs} Delta P T1 T2 Q R tc,
   legal_tc_init Delta tc ->
   local (tc_environ Delta) ∧ PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) ∧

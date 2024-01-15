@@ -7,7 +7,7 @@ Require Import VST.concurrency.threads.
 
 Section mpred.
 
-Context `{!VSTGS Z Σ, !cinvG Σ}.
+Context `{!VSTGS OK_ty Σ, !cinvG Σ}.
 
 #[export] Program Instance atom_impl : atomic_int_impl := { atomic_int := Tstruct _atom_int noattr }.
 Next Obligation. Admitted.

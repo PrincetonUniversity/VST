@@ -10,7 +10,7 @@ Ltac refold_right_sepcon R :=
 
 Section mpred.
 
-Context `{!heapGS Σ}.
+Context `{!VSTGS OK_ty Σ}.
 
 Local Notation PROPx := (PROPx(Σ := Σ)).
 
@@ -809,7 +809,7 @@ Proof.
 intros. rewrite and_assoc'; auto.
 Qed.
 
-Lemma semax_later_trivial: forall {Espec} `{!externalGS OK_ty Σ} {cs: compspecs} E Delta P c Q,
+Lemma semax_later_trivial: forall {OK_spec} {cs: compspecs} E Delta P c Q,
   semax E Delta (▷ P) c Q ->
   semax E Delta P c Q.
 Proof.
@@ -1270,7 +1270,7 @@ Global Open Scope funspec_scope.
 Notation "'DECLARE' x s" := (x: ident, s: funspec)
    (at level 160, x at level 0, s at level 150, only parsing).
 
-Definition NDsemax_external `{!heapGS Σ} {Hspec: OracleKind} `{!externalGS OK_ty Σ} E (ef: external_function)
+Definition NDsemax_external `{!VSTGS OK_ty Σ} {OK_spec: ext_spec OK_ty} E (ef: external_function)
   (A: Type) (P:A -> argsassert) (Q: A -> assert): Prop :=
   ⊢ semax_external E ef (ConstType A) (λne (x : leibnizO A), P x : _ -d> mpred) (λne (x : leibnizO A), Q x : _ -d> mpred).
 
@@ -1983,7 +1983,7 @@ Ltac extract_exists_in_SEP' PQR :=
    match R with context [(@bi_exist _ ?A ?S) :: ?R'] =>
       let n := constr:((length R - Datatypes.S (length R'))%nat) in
       let n' := eval lazy beta zeta iota delta in n in
-      rewrite (@extract_nth_exists_in_SEP _ _ n' P Q R A S (eq_refl _));
+      rewrite (@extract_nth_exists_in_SEP _ _ _ n' P Q R A S (eq_refl _));
       unfold replace_nth at 1;
       rewrite ?bi.and_exist_l
    end

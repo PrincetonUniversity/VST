@@ -8,6 +8,7 @@ Require Export compcert.common.Values.
 Require Export compcert.cfrontend.Ctypes.
 Require Export compcert.cfrontend.Clight.
 Require Export VST.sepcomp.Address.
+Require Export VST.sepcomp.extspec.
 Require Export VST.msl.eq_dec.
 Require Export VST.msl.shares.
 Require Export VST.msl.log_normalize.
@@ -51,7 +52,7 @@ Export expr.
 
 Section mpred.
 
-Context `{!heapGS Σ}.
+Context `{!VSTGS OK_ty Σ}.
 
 Definition argsassert2assert (ids: list ident) (M:@argsassert Σ):assert :=
   assert_of (fun rho => M (ge_of rho, map (fun i => eval_id i rho) ids)).
@@ -209,35 +210,32 @@ End mpred.
 
 Module Type CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
-Parameter semax: forall {Σ : gFunctors} `{!heapGS Σ} {Espec : OracleKind}
-  `{!externalGS OK_ty Σ} {C : compspecs},
+Parameter semax: forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {C : compspecs},
   coPset → tycontext → @assert Σ → statement → @ret_assert Σ → Prop.
 
-Parameter semax_func: forall {Σ : gFunctors} `{!heapGS Σ} {Espec : OracleKind}
-  `{!externalGS OK_ty Σ} (V : varspecs) (G : @funspecs Σ) {C : compspecs},
+Parameter semax_func: forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} (V : varspecs) (G : @funspecs Σ) {C : compspecs},
   Genv.t fundef type → list (ident * fundef) → @funspecs Σ → Prop.
 
-Parameter semax_external: forall {Σ : gFunctors} {heapGS0 : heapGS Σ} {Espec : OracleKind}
-  `{!externalGS OK_ty Σ}, coPset → external_function →
-  ∀ A : TypeTree, (@dtfr Σ (ArgsTT A)) → (@dtfr Σ  (AssertTT A)) → mpred.
+Parameter semax_external: forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty}, coPset → external_function →
+  ∀ A : TypeTree, (@dtfr Σ (ArgsTT A)) → (@dtfr Σ (AssertTT A)) → mpred.
 
 End CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
 Module DerivedDefs (Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF).
 
-Definition semax_body `{!heapGS Σ} {Espec} `{!externalGS OK_ty Σ}
+Definition semax_body `{!VSTGS OK_ty Σ}
    (V: varspecs) (G: funspecs) {C: compspecs} (f: function) (spec: ident * funspec): Prop :=
 match spec with (_, mk_funspec fsig cc E A P Q) =>
   fst fsig = map snd (fst (fn_funsig f)) /\
   snd fsig = snd (fn_funsig f) /\
-forall (x:dtfr A),
+forall OK_spec (x:dtfr A),
   Def.semax E (func_tycontext f V G nil)
       (close_precondition (map fst f.(fn_params)) (argsassert_of (P x)) ∗ stackframe_of f)
        f.(fn_body)
       (frame_ret_assert (function_body_ret_assert (fn_return f) (assert_of (Q x))) (stackframe_of f))
 end.
 
-Definition semax_prog `{!heapGS Σ} {Espec} `{!externalGS OK_ty Σ} {C: compspecs}
+Definition semax_prog `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {C: compspecs}
        (prog: program) (ora: OK_ty) (V: varspecs) (G: funspecs) : Prop :=
 compute_list_norepet (prog_defs_names prog) = true  /\
 all_initializers_aligned prog /\
@@ -265,7 +263,7 @@ Import CSHL_Defs.
 
 Section mpred.
 
-Context `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs}.
+Context `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {CS: compspecs}.
 
 Axiom semax_mask_mono:
   forall E E' Delta P c R, E ⊆ E' -> semax E Delta P c R -> semax E' Delta P c R.
@@ -538,14 +536,14 @@ Axiom semax_Slabel:
 
 (*TODO: What's the preferred way to expose these defs in the SL interface?*)
 Axiom semax_ext:
-  forall {Z} `{!externalGS Z Σ} {ext_spec0} (ext_link: Strings.String.string -> ident)
+  forall {ext_spec0} (ext_link: Strings.String.string -> ident)
          (id : Strings.String.string) (sig : typesig) (sig' : signature)
          cc E A P Q (fs : funspecs),
   let f := mk_funspec sig cc E A P Q in
   In (ext_link id,f) fs ->
   funspecs_norepeat fs ->
   sig' = semax_ext.typesig2signature sig cc ->
-  ⊢ semax_external (Espec := {| OK_ty := Z; OK_spec := add_funspecs_rec Z ext_link ext_spec0 fs |} ) E (EF_external id sig') _ P Q.
+  ⊢ semax_external (OK_spec := add_funspecs_rec OK_ty ext_link ext_spec0 fs) E (EF_external id sig') _ P Q.
 
 Axiom semax_external_FF:
  forall E ef A,
@@ -613,7 +611,7 @@ Import CSHL_MinimumLogic.CSHL_Defs.
 
 Section mpred.
 
-Context `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs}.
+Context `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {CS: compspecs}.
 
 Axiom semax_set :
 forall E (Delta: tycontext) (P: assert) id e,

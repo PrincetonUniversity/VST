@@ -799,7 +799,7 @@ Fixpoint force_list {A} (al: list (option A)) : option (list A) :=
  end.
 
 Lemma make_func_ptr:
- forall id (Espec: OracleKind) (CS: compspecs) {HE: externalGS OK_ty Σ} E Delta P Q R fs gv p c Post,
+ forall `{!VSTGS OK_ty Σ} {OK_spec: ext_spec OK_ty} id (CS: compspecs) E Delta P Q R fs gv p c Post,
    (var_types Delta) !! id = None ->
    (glob_specs Delta) !! id = Some fs ->
    (glob_types Delta) !! id = Some (type_of_funspec fs) ->
@@ -849,4 +849,5 @@ hnf in H5.
 subst gv.
 rewrite H0. done.
 Qed.
+
 End LOCAL2PTREE_DENOTE.

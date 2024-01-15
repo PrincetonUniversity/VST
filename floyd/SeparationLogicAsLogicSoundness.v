@@ -130,9 +130,9 @@ Module Sassign := ToSassign (Def) (Conseq) (Extr) (StoreB) (StoreUnionHackB).
 
 Section mpred.
 
-Context `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ}.
+Context `{!VSTGS OK_ty Σ}.
 
-Lemma semax_FF: forall {CS : compspecs} E Delta c Q, Def.semax E Delta False c Q.
+Lemma semax_FF: forall {OK_spec: ext_spec OK_ty} {CS : compspecs} E Delta c Q, Def.semax E Delta False c Q.
 Proof.
   intros.
   apply ConseqFacts.semax_pre_simple with (False ∧ False).
@@ -140,7 +140,7 @@ Proof.
   apply semax_extract_prop; contradiction.
 Qed.
 
-Theorem semax_sound: forall {CS : compspecs} E Delta P c Q,
+Theorem semax_sound: forall {OK_spec: ext_spec OK_ty} {CS : compspecs} E Delta P c Q,
   DeepEmbedded.DeepEmbeddedDef.semax E Delta P c Q ->
   Def.semax E Delta P c Q.
 Proof.
@@ -181,7 +181,7 @@ Proof.
   apply H.
 Qed.
 
-Theorem semax_func_sound: forall {CS : compspecs} Vspec Gspec ge ids fs,
+Theorem semax_func_sound: forall {OK_spec: ext_spec OK_ty} {CS : compspecs} Vspec Gspec ge ids fs,
   DeepEmbedded.DeepEmbeddedDef.semax_func _ _ _ _ Vspec Gspec CS ge ids fs ->
   Def.semax_func(C := CS) Vspec Gspec ge ids fs.
 Proof.
@@ -199,7 +199,7 @@ Proof.
   + eapply MinimumLogic.semax_func_skipn; eauto.
 Qed.
 
-Theorem semax_prog_sound': forall {CS : compspecs} prog z Vspec Gspec,
+Theorem semax_prog_sound': forall {OK_spec: ext_spec OK_ty} {CS : compspecs} prog z Vspec Gspec,
   DeepEmbedded.DeepEmbeddedDefs.semax_prog prog z Vspec Gspec ->
   MinimumLogic.CSHL_Defs.semax_prog prog z Vspec Gspec.
 Proof.
@@ -209,24 +209,24 @@ Proof.
   tauto.
 Qed.
 
-Theorem semax_prog_sound: forall {CS : compspecs} prog z Vspec Gspec,
+Theorem semax_prog_sound: forall {OK_spec: ext_spec OK_ty} {CS : compspecs} prog z Vspec Gspec,
   DeepEmbedded.DeepEmbeddedDefs.semax_prog prog z Vspec Gspec ->
-  semax_prog.semax_prog prog z Vspec Gspec.
+  semax_prog.semax_prog OK_spec prog z Vspec Gspec.
 Proof.
   intros.
   apply Sound.semax_prog_sound, semax_prog_sound'; auto.
 Qed.
 
 Theorem semax_prog_rule :
-  forall {CS : compspecs} V G prog m h z,
-     postcondition_allows_exit tint ->
+  forall {OK_spec: ext_spec OK_ty} {CS : compspecs} V G prog m h z,
+     postcondition_allows_exit OK_spec tint ->
      DeepEmbedded.DeepEmbeddedDefs.semax_prog prog z V G ->
      Genv.init_mem prog = Some m ->
      { b : Values.block & { q : CC_core &
        (Genv.find_symbol (globalenv prog) (prog_main prog) = Some b) *
        (exists m', semantics.initial_core (cl_core_sem (globalenv prog)) h
                        m q m' (Vptr b Ptrofs.zero) nil) *
-       (state_interp Mem.empty z ∗ funspec_auth ∅ ∗ has_ext z ⊢ |==> state_interp m z ∗ jsafeN Espec (globalenv prog) ⊤ z q ∧
+       (state_interp Mem.empty z ∗ funspec_auth ∅ ∗ has_ext z ⊢ |==> state_interp m z ∗ jsafeN OK_spec (globalenv prog) ⊤ z q ∧
            (*no_locks ∧*) matchfunspecs (globalenv prog) G (*∗ funassert (nofunc_tycontext V G) (empty_environ (globalenv prog))*))
      } }%type.
 Proof.

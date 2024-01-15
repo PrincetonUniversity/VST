@@ -11,7 +11,7 @@ Require Import VST.zlist.sublist.
 
 Section SC_atomics.
 
-Context `{!heapGS Σ}.
+Context `{!VSTGS OK_ty Σ}.
 
 Class atomic_int_impl := { atomic_int : type; atomic_int_at : share -> val -> val -> mpred;
   atomic_int_at__ : forall sh v p, atomic_int_at sh v p ⊢ atomic_int_at sh Vundef p;

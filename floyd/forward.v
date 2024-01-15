@@ -45,10 +45,10 @@ Arguments Z.div _ _ / .
 #[export] Hint Rewrite @sem_add_pi_ptr_special' using (solve [try reflexivity; auto with norm]) : norm.
 #[export] Hint Rewrite @sem_add_pl_ptr_special' using (solve [try reflexivity; auto with norm]) : norm.
 
-Lemma func_ptr_emp `{!heapGS Σ} phi v: func_ptr phi v ⊢ emp.
+Lemma func_ptr_emp `{!VSTGS OK_ty Σ} phi v: func_ptr phi v ⊢ emp.
 Proof. iIntros. done. Qed.
 
-Lemma func_ptr_mono `{!heapGS Σ} {fs gs v}: funspec_sub fs gs ->
+Lemma func_ptr_mono `{!VSTGS OK_ty Σ} {fs gs v}: funspec_sub fs gs ->
        func_ptr fs v ⊢ func_ptr gs v.
 Proof. apply funspec_sub_implies_func_prt_si_mono. Qed.
 
@@ -113,7 +113,7 @@ Qed.
 
 
 Lemma var_block_lvar2:
- forall `{!heapGS Σ} {CS: compspecs} {Espec: OracleKind} `{!externalGS OK_ty Σ} id t E Delta P Q R Vs c Post,
+ forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {CS: compspecs} id t E Delta P Q R Vs c Post,
    (var_types Delta) !! id = Some t ->
    complete_legal_cosu_type t = true ->
    sizeof t < Ptrofs.modulus ->
@@ -156,7 +156,7 @@ apply extract_exists_pre. apply H3.
 Qed.
 
 Lemma var_block_lvar0
-     : forall `{!heapGS Σ} {CS: compspecs} {Espec: OracleKind} `{!externalGS OK_ty Σ}
+     : forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {CS: compspecs}
        (id : positive) (t : type) (Delta : tycontext)  v rho,
        (var_types Delta) !! id = Some t ->
        complete_legal_cosu_type t = true ->
@@ -187,7 +187,7 @@ apply la_env_cs_sound; eauto.
 Qed.
 
 Lemma postcondition_var_block:
-  forall `{heapGS0:heapGS Σ} {CS: compspecs} {Espec: OracleKind} `{!externalGS OK_ty Σ}
+  forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {CS: compspecs}
        E Delta Pre c S1 S2 i t vbs,
        (var_types  Delta) !! i = Some t ->
        complete_legal_cosu_type t = true ->
@@ -307,7 +307,7 @@ Ltac LookupB :=
  || fail "Lookup for a function pointer block in Genv failed".
 
 Section FORWARD.
-Context `{heapGS0:!heapGS Σ} {CS: compspecs} {Espec: OracleKind} `{!externalGS OK_ty Σ}.
+Context `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {CS: compspecs}.
 Lemma semax_body_subsumption' 
       (cs cs':compspecs) V V' F F' f spec
       (SF: semax_body V F (C:=cs) f spec)
@@ -457,7 +457,7 @@ Qed.
 End FORWARD.
 
 Ltac apply_semax_body L := 
-eapply (@semax_body_subsumption' _ _ _ _ _ _ _ _ _ _ _ _ L);
+eapply (semax_body_subsumption' _ _ _ _ _ _ _ _ L);
   [ first [ apply cspecs_sub_refl
           | split3; red; apply @sub_option_get; 
             repeat (apply Forall_cons; [reflexivity | ]);  apply Forall_nil ]
@@ -577,7 +577,7 @@ end.
 (* end of "stuff to move elsewhere" *)
 
 Lemma local_True_right:
- forall `{!heapGS Σ} (P: environ -> mpred),
+ forall `{!VSTGS OK_ty Σ} (P: environ -> mpred),
    assert_of P ⊢ local (`(True:Prop)).
 Proof. intros. raise_rho; apply TT_right.
 Qed.
@@ -728,10 +728,10 @@ Ltac change_compspecs_warning A cs cs' :=
 
 Ltac change_compspecs' cs cs' :=
   lazymatch goal with
-  | |- context [@data_at cs' ?sh ?t ?v1] => erewrite (@data_at_change_composite cs' cs _ sh t); [| apply JMeq_refl | prove_cs_preserve_type]
-  | |- context [@field_at cs' ?sh ?t ?gfs ?v1] => erewrite (@field_at_change_composite cs' cs _ sh t gfs); [| apply JMeq_refl | prove_cs_preserve_type]
-  | |- context [@data_at_ cs' ?sh ?t] => erewrite (@data_at__change_composite cs' cs _ sh t); [| prove_cs_preserve_type]
-  | |- context [@field_at_ cs' ?sh ?t ?gfs] => erewrite (@field_at__change_composite cs' cs _ sh t gfs); [| prove_cs_preserve_type]
+  | |- context [data_at(cs := cs') ?sh ?t ?v1] => erewrite (data_at_change_composite(cs_from := cs')(cs_to := cs) sh t); [| apply JMeq_refl | prove_cs_preserve_type]
+  | |- context [field_at(cs := cs') ?sh ?t ?gfs ?v1] => erewrite (field_at_change_composite(cs_from := cs')(cs_to := cs) sh t gfs); [| apply JMeq_refl | prove_cs_preserve_type]
+  | |- context [data_at_(cs := cs') ?sh ?t] => erewrite (data_at__change_composite(cs_from := cs')(cs_to := cs) sh t); [| prove_cs_preserve_type]
+  | |- context [field_at_(cs := cs') ?sh ?t ?gfs] => erewrite (field_at__change_composite(cs_from := cs')(cs_to := cs) sh t gfs); [| prove_cs_preserve_type]
   | |- _ => 
     match goal with 
   | |- context [?A cs'] => 
@@ -859,7 +859,7 @@ Ltac goal_has_evars :=
  match goal with |- ?A => has_evar A end.
 
 Lemma drop_SEP_tc:
- forall `{!heapGS Σ} Delta P Q R' RF R (S : @assert Σ), Absorbing S ->
+ forall `{!VSTGS OK_ty Σ} Delta P Q R' RF R (S : @assert Σ), Absorbing S ->
    fold_right_sepcon R ⊣⊢ (fold_right_sepcon R') ∗ (fold_right_sepcon RF) ->
    ENTAIL Delta, PROPx P (LOCALx Q (SEPx R')) ⊢ S ->
    ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢ S.
@@ -1271,7 +1271,7 @@ Qed.
 
 Lemma classify_fun_ty_hack:
  (* This is needed for the varargs (printf) hack *)
-  forall `{heapGS0:heapGS Σ} fs fs',
+  forall `{!VSTGS OK_ty Σ} fs fs',
   funspec_sub fs fs' ->
   forall ty typs retty cc,
   ty = type_of_funspec fs ->
@@ -1381,7 +1381,7 @@ Ltac prove_call_setup_aux  (*ts*) witness :=
 Ltac prove_call_setup (*ts*) subsumes witness :=
  prove_call_setup1 subsumes;
  [ .. | 
- match goal with |- @call_setup1  ?Σ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ?A _ _ _ _  -> _ =>
+ match goal with |- @call_setup1 _ ?Σ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ?A _ _ _ _  -> _ =>
       check_witness_type (*ts*) Σ A witness
  end;
  prove_call_setup_aux (*ts*) witness].
@@ -1466,7 +1466,7 @@ Ltac get_function_witness_type Σ func :=
 Ltac new_prove_call_setup :=
  prove_call_setup1 funspec_sub_refl_dep;
  [ .. | 
- match goal with |- @call_setup1 ?Σ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ?A _ _ _ _ -> _ =>
+ match goal with |- @call_setup1 _ ?Σ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ?A _ _ _ _ -> _ =>
       let x := fresh "x" in tuple_evar2 x ltac:(get_function_witness_type Σ A)
       ltac:(prove_call_setup_aux (*(@nil Type)*))
       ltac:(fun _ => try refine tt; fail "Failed to infer some parts of witness")
@@ -1526,7 +1526,7 @@ end.
 Tactic Notation "forward_call"  := new_fwd_call.
 
 Lemma seq_assoc2:
-  forall `{heapGS0: heapGS Σ} (Espec : OracleKind) `{!externalGS OK_ty Σ} {cs: compspecs}
+  forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {cs: compspecs}
     E Delta P c1 c2 c3 c4 Q,
   semax E Delta P (Ssequence (Ssequence c1 c2) (Ssequence c3 c4)) Q ->
   semax E Delta P (Ssequence (Ssequence (Ssequence c1 c2) c3) c4) Q.
@@ -1630,7 +1630,7 @@ Ltac intro_ex_local_semax :=
 end).
 
 Lemma do_compute_expr_helper_lemma:
- forall `{heapGS0: heapGS Σ} {cs: compspecs}
+ forall `{!VSTGS OK_ty Σ} {cs: compspecs}
    Delta P Q R v e T1 T2 GV,
  local2ptree Q = (T1,T2,nil,GV) ->
  msubst_eval_expr Delta T1 T2 GV e = Some v ->
@@ -2205,7 +2205,7 @@ Ltac special_intros_EX :=
    end.
 
 Lemma trivial_exp:
- forall `{!heapGS Σ} (P: environ -> mpred),
+ forall `{!VSTGS OK_ty Σ} (P: environ -> mpred),
  (assert_of P) ⊣⊢ bi_exist (fun x: unit => (assert_of P)).
 Proof.
 intros. iSplit; iIntros "H".
@@ -2429,7 +2429,7 @@ Ltac forward_for2 Inv PreInc :=
   end.
 
 Section FORWARD.
-Context `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS : compspecs}.
+Context `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {CS : compspecs}.
 
 Lemma seq_assoc1: 
    forall E (Delta : tycontext) P
@@ -2739,7 +2739,7 @@ forward_for Inv continue: PreInc (* where Inv,PreInc are predicates on index val
 forward_for Inv continue: PreInc break:Post (* where Post: assert is an assertion *)".
 
 Lemma semax_convert_for_while:
- forall `{!heapGS Σ} {CS: compspecs} {Espec: OracleKind} `{!externalGS OK_ty Σ} E Delta Pre s1 e2 s3 s4 Post,
+ forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {CS} E Delta Pre s1 e2 s3 s4 Post,
   nocontinue s4 = true ->
   nocontinue s3 = true ->
   semax E Delta Pre (Ssequence s1 (Swhile e2 (Ssequence s4 s3))) Post ->
@@ -2777,7 +2777,6 @@ Tactic Notation "forward_for" constr(Inv) :=
                | apply semax_seq' with (∃ x:_, Inv x);
                    [  |  forward_while (∃ x:_, Inv x);
                              [ apply ENTAIL_refl | | | eapply semax_post_flipped'; [apply semax_skip | ] ]  ] ]
-        
   end.
 
 Ltac process_cases sign := 
@@ -2890,7 +2889,7 @@ match goal with
 end.
 
 Section FORWARD.
-Context `{!heapGS Σ}.
+Context `{!VSTGS OK_ty Σ}.
 Lemma ENTAIL_break_normal:
  forall Delta R (S : @assert Σ), ENTAIL Delta, RA_break (normal_ret_assert R) ⊢ S.
 Proof.
@@ -3121,7 +3120,7 @@ Ltac warn s :=
                IGNORE_THIS_WARNING_USING_THE_ack_TACTIC_IF_YOU_WISH).
 
 Section FORWARD.
-Context `{!heapGS Σ} {CS: compspecs} {Espec: OracleKind} `{!externalGS OK_ty Σ}.
+Context `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {CS : compspecs}.
 
 Lemma semax_post3:
   forall E R' {cs: compspecs} Delta P c R,
@@ -3229,7 +3228,7 @@ Definition int_signed_or_unsigned (t: type) : int -> Z :=
   | _ => fun _ => 0 (* bogus *)
   end.
 
-Lemma efield_denote_cons_array: forall `{!heapGS Σ} {cs: compspecs} P efs gfs ei i,
+Lemma efield_denote_cons_array: forall `{!VSTGS OK_ty Σ} {cs: compspecs} P efs gfs ei i,
   (P ⊢ local(Σ:=Σ) (efield_denote efs gfs)) ->
   (P ⊢ local (`(eq (Vint i)) (eval_expr ei))) ->
   is_int_type (typeof ei) = true ->
@@ -3250,7 +3249,7 @@ Proof.
   rewrite ?Int.repr_signed ?Int.repr_unsigned; auto. 
 Qed.
 
-Lemma efield_denote_cons_struct: forall `{!heapGS Σ} {cs: compspecs} P efs gfs i,
+Lemma efield_denote_cons_struct: forall `{!VSTGS OK_ty Σ} {cs: compspecs} P efs gfs i,
   (P ⊢ local(Σ:=Σ) (efield_denote efs gfs)) ->
   P ⊢ local (efield_denote (eStructField i :: efs) (StructField i :: gfs)).
 Proof.
@@ -3261,7 +3260,7 @@ Proof.
   constructor; auto.
 Qed.
 
-Lemma efield_denote_cons_union: forall `{!heapGS Σ} {cs: compspecs} P efs gfs i,
+Lemma efield_denote_cons_union: forall `{!VSTGS OK_ty Σ} {cs: compspecs} P efs gfs i,
   (P ⊢ local(Σ:=Σ) (efield_denote efs gfs)) ->
   P ⊢ local (efield_denote (eUnionField i :: efs) (UnionField i :: gfs)).
 Proof.
@@ -3389,15 +3388,15 @@ sc_set_load_store.store_tac.
 
 Ltac forward0 :=  (* USE FOR DEBUGGING *)
   match goal with
-  | |- semax _ _ ?PQR (Ssequence ?c1 ?c2) ?PQR' =>
+  | |- semax(Σ := ?Σ) _ _ ?PQR (Ssequence ?c1 ?c2) ?PQR' =>
            let Post := fresh "Post" in
-              evar (Post : assert);
+              evar (Post : @assert Σ);
               apply semax_seq' with Post;
                [
                | unfold Post; clear Post ]
   end.
 
-Lemma bind_ret_derives `{!heapGS Σ} t P Q v: (P ⊢ Q) -> bind_ret(Σ:=Σ) v t P ⊢ bind_ret v t Q.
+Lemma bind_ret_derives `{!VSTGS OK_ty Σ} t P Q v: (P ⊢ Q) -> bind_ret(Σ:=Σ) v t P ⊢ bind_ret v t Q.
 Proof. intros. destruct v.
   - simpl; intros. raise_rho. apply bi.and_mono. done. rewrite H. done.
   - destruct t; try apply derives_refl. simpl; raise_rho. rewrite H. done. 
@@ -3437,13 +3436,13 @@ Ltac solve_return_inner_gen :=
     end
  end.
 
-Inductive fn_data_at `{!heapGS Σ} {cs: compspecs} (Delta: tycontext) (T2: PTree.t (type * val)): ident * type -> mpred -> Prop :=
+Inductive fn_data_at `{!VSTGS OK_ty Σ} {cs: compspecs} (Delta: tycontext) (T2: PTree.t (type * val)): ident * type -> mpred -> Prop :=
 | fn_data_at_intro: forall i t p,
     (complete_legal_cosu_type t && (sizeof t <? Ptrofs.modulus) && is_aligned cenv_cs ha_env_cs la_env_cs t 0 = true)%bool ->
     msubst_eval_lvar Delta T2 i t = Some p ->
     fn_data_at Delta T2 (i, t) (data_at_ Tsh t p).
 
-Lemma canonicalize_stackframe: forall `{!heapGS Σ} {cs: compspecs} Delta P Q R T1 T2 GV fn,
+Lemma canonicalize_stackframe: forall `{!VSTGS OK_ty Σ} {cs: compspecs} Delta P Q R T1 T2 GV fn,
   local2ptree Q = (T1, T2, nil, GV) ->
   Forall2 (fn_data_at Delta T2) fn R ->
   local (tc_environ Delta) ∧ PROPx P (LOCALx Q (SEPx R)) ⊢ fold_right bi_sep emp (map (var_block Tsh) fn).
@@ -3467,7 +3466,7 @@ Proof.
     auto.
 Qed.
 
-Lemma canonicalize_stackframe_emp: forall `{!heapGS Σ} {cs: compspecs} Delta P Q,
+Lemma canonicalize_stackframe_emp: forall `{!VSTGS OK_ty Σ} {cs: compspecs} Delta P Q,
   local (tc_environ Delta) ∧ PROPx(Σ:=Σ) P (LOCALx Q (SEPx nil)) ⊢ emp.
 Proof.
   intros.
@@ -3510,7 +3509,7 @@ match goal with |- semax _ _ _ _ ?R =>
 end.
 
 Lemma fold_another_var_block:
-  forall `{heapGS0 : !heapGS Σ} {CS : compspecs} {Espec : OracleKind}  `{!externalGS OK_ty Σ}
+  forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {CS : compspecs}
   Delta P Q R P' Q' R' i (t: type) vbs T1 T2 GV p,
   local2ptree Q = (T1,T2,[],GV) ->
   complete_legal_cosu_type t = true ->
@@ -3574,7 +3573,7 @@ apply Z.ltb_lt; auto.
 Qed.
 
 Lemma no_more_var_blocks:
- forall `{!heapGS Σ} {cs: compspecs} Delta PQR PQR',
+ forall `{!VSTGS OK_ty Σ} {cs: compspecs} Delta PQR PQR',
   ENTAIL Delta, PQR ⊢ PQR' ->
   ENTAIL Delta, PQR ⊢ (PQR' ∗ fold_right bi_sep emp (map (var_block Tsh) [])).
 Proof.
@@ -4080,7 +4079,7 @@ Ltac forward :=
  end.
 
 Lemma start_function_aux1:
-  forall `{!heapGS Σ} {CS: compspecs} {Espec: OracleKind} `{!externalGS OK_ty Σ}
+  forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {CS}
          E Delta R1 P Q R c Post,
     semax E Delta (PROPx P (LOCALx Q (SEPx (R1::R)))) c Post ->
     semax E Delta ((PROPx P (LOCALx Q (SEPx R))) ∗ (assert_of (`R1))) c Post.
@@ -4093,7 +4092,7 @@ rewrite insert_SEP. apply H.
 Qed.
 
 Lemma semax_stackframe_emp:
-  forall `{!heapGS Σ} {CS: compspecs} {Espec: OracleKind} `{!externalGS OK_ty Σ} {cs: compspecs} 
+  forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {CS}
          E Delta P c R,
     semax E Delta P c R ->
     semax E Delta (P ∗ emp) c (frame_ret_assert R emp) .
@@ -4115,7 +4114,7 @@ Ltac make_func_ptr id :=
   | split; reflexivity | ].
 
 Lemma gvars_denote_HP':
- forall `{!heapGS Σ} Delta P Q R gv i, 
+ forall `{!VSTGS OK_ty Σ} Delta P Q R gv i, 
   In (gvars gv) Q ->
   isSome ((glob_types Delta) !! i) ->
   ENTAIL Delta, PROPx(Σ := Σ) P (LOCALx Q (SEPx R)) ⊢ ⌜headptr (gv i)⌝.
@@ -4315,7 +4314,7 @@ match x with
 end.
 
 Lemma elim_close_precondition:
-  forall `{heapGS0: heapGS Σ} {Espec : OracleKind} `{!externalGS OK_ty Σ} {cs: compspecs} E al Delta P F c Q,
+  forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {cs: compspecs} E al Delta P F c Q,
    semax E Delta (argsassert2assert al P ∗ F) c Q ->
    semax E Delta (close_precondition al P ∗ F) c Q.
 Proof.
@@ -4379,7 +4378,7 @@ Fixpoint computeQ (ids:list ident) (vals:list val) : option (list localdef) :=
   end.
 
 Lemma compute_close_precondition_entails1: 
-  forall `{heapGS0: heapGS Σ} ids P gv vals Q R,
+  forall `{!VSTGS OK_ty Σ} ids P gv vals Q R,
   compute_list_norepet ids = true ->
   computeQ ids vals = Some Q ->
   PROPx P (LOCALx ((map gvars gv)++Q) (SEPx R))
@@ -4414,7 +4413,7 @@ apply (bi.exist_intro' _ _ vals). unfold GLOBALSx, PARAMSx. simpl.
 Qed.
 
 Lemma compute_close_precondition_entails2: 
-  forall `{heapGS0: heapGS Σ} ids P gv vals Q R,
+  forall `{!VSTGS OK_ty Σ} ids P gv vals Q R,
   compute_list_norepet ids = true ->
   computeQ ids vals = Some Q ->
   close_precondition ids (PROPx P (LAMBDAx gv vals (SEPx R)))
@@ -4439,7 +4438,7 @@ unfold GLOBALSx, PARAMSx, argsassert2assert, PROPx, LOCALx, SEPx. normalize.
 Qed.
 
 Lemma compute_close_precondition_eq:
-  forall `{heapGS0: heapGS Σ} ids P gv vals Q R,
+  forall `{!VSTGS OK_ty Σ} ids P gv vals Q R,
   compute_list_norepet ids = true ->
   computeQ ids vals = Some Q ->
   close_precondition ids (PROPx P (LAMBDAx gv vals (SEPx R)))
@@ -4451,7 +4450,7 @@ Proof. intros.
 Qed.
 
 Lemma semax_elim_close_precondition:
-  forall `{heapGS0: heapGS Σ} (Espec : OracleKind) `{!externalGS OK_ty Σ} {cs: compspecs} ids E Delta P gv vals R F c Q T,
+  forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {cs: compspecs} ids E Delta P gv vals R F c Q T,
   compute_list_norepet ids = true ->
   computeQ ids vals = Some Q ->
    semax E Delta (PROPx P (LOCALx ((map gvars gv)++Q) (SEPx R)) ∗ F) c T ->
@@ -4495,10 +4494,10 @@ Ltac start_function1 :=
  match goal with |- semax_body _ _ _ (pair _ (mk_funspec _ _ _ _ ?Pre _)) =>
 
    split3; [check_parameter_types' | check_return_type | ];
-    match Pre with
-   | (λne _, monPred_at (convertPre _ _ (fun i => _))) =>  intros (*DependedTypeList*) i
-   | (λne x, monPred_at match _ with (a,b) => _ end) => intros (*DependedTypeList*) [a b]
-   | (λne i, _) => intros (*DependedTypeList*) i
+   match Pre with
+   | (λne _, monPred_at (convertPre _ _ (fun i => _))) =>  intros Espec (*DependedTypeList*) i
+   | (λne x, monPred_at match _ with (a,b) => _ end) => intros Espec (*DependedTypeList*) [a b]
+   | (λne i, _) => intros Espec (*DependedTypeList*) i
    end;
    simpl fn_body; simpl fn_params; simpl fn_return
  end;
@@ -4842,9 +4841,9 @@ Ltac with_library' p G :=
 Ltac with_library prog G :=
   let pr := eval unfold prog in prog in  with_library' pr G.
 
-Definition semax_prog `{heapGS0:!heapGS Σ} (Espec : OracleKind) `{externalGS0:!externalGS OK_ty Σ} {cs: compspecs} prog z V G :=
- @SeparationLogicAsLogicSoundness.MainTheorem.CSHL_MinimumLogic.CSHL_Defs.semax_prog
-  Σ heapGS0 Espec externalGS0 cs prog z V (augment_funspecs prog G).
+Definition semax_prog `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {cs: compspecs} prog z V G :=
+ SeparationLogicAsLogicSoundness.MainTheorem.CSHL_MinimumLogic.CSHL_Defs.semax_prog
+  prog z V (augment_funspecs prog G).
 
 (* Lemma mk_funspec_congr:
   forall a b c d e f g a' b' c' d' e' f' g',
@@ -5019,7 +5018,7 @@ let GD := fresh "GD" in
 
 Ltac prove_semax_prog_aux tac :=
   match goal with
-    | |- semax_prog _ ?prog ?z ?Vprog ?Gprog =>
+    | |- semax_prog ?prog ?z ?Vprog ?Gprog =>
      let pr := eval unfold prog in prog in
      let x := old_with_library' pr Gprog
      in change ( SeparationLogicAsLogicSoundness.MainTheorem.CSHL_MinimumLogic.CSHL_Defs.semax_prog

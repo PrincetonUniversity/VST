@@ -16,7 +16,7 @@ Require Import VST.floyd.nested_loadstore.
 
 Section mpred.
 
-Context `{!heapGS Σ}.
+Context `{!VSTGS OK_ty Σ}.
 
 Definition array_with_hole {cs: compspecs} sh (t: type) lo hi n (al': list (reptype t)) p :=
 ⌜field_compatible (tarray t n) nil p⌝ ∧

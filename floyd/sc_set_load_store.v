@@ -22,7 +22,7 @@ Import -(notations) compcert.lib.Maps.
 
 Section SEMAX_SC.
 
-Context `{!heapGS Σ} {Espec : OracleKind} `{!externalGS OK_ty Σ} {cs: compspecs}.
+Context `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {cs: compspecs}.
 
 Lemma semax_SC_set:
     forall E Delta id P Q R (e2: expr) t v,
@@ -358,7 +358,7 @@ Ltac solve_Ptrofs_eqm_unsigned :=
 Inductive Int64_eqm_unsigned: int64 -> Z -> Prop :=
 | Int64_eqm_unsigned_repr: forall z, Int64_eqm_unsigned (Int64.repr z) z.
 
-Inductive msubst_efield_denote `{!heapGS Σ} {cs: compspecs} (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t (type * val)) (GV: option globals): list efield -> list gfield -> Prop :=
+Inductive msubst_efield_denote `{!VSTGS OK_ty Σ} {cs: compspecs} (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t (type * val)) (GV: option globals): list efield -> list gfield -> Prop :=
 | msubst_efield_denote_nil: msubst_efield_denote Delta T1 T2 GV nil nil
 | msubst_efield_denote_cons_array: forall ei i i' efs gfs,
     is_int_type (typeof ei) = true ->
@@ -385,11 +385,11 @@ Inductive msubst_efield_denote `{!heapGS Σ} {cs: compspecs} (Delta: tycontext) 
     msubst_efield_denote Delta T1 T2 GV efs gfs ->
     msubst_efield_denote Delta T1 T2 GV (eUnionField i :: efs) (UnionField i :: gfs).
 
-Lemma msubst_efield_denote_eq: forall `{!heapGS Σ} {cs: compspecs} Delta P T1 T2 GV R efs gfs,
+Lemma msubst_efield_denote_eq: forall `{!VSTGS OK_ty Σ} {cs: compspecs} Delta P T1 T2 GV R efs gfs,
   msubst_efield_denote Delta T1 T2 GV efs gfs ->
   ENTAIL Delta, PROPx(Σ := Σ) P (LOCALx (LocalD T1 T2 GV) (SEPx R)) ⊢ local (efield_denote efs gfs).
 Proof.
-  intros ? ? ? ? ? ? ? ? ? ? ? MSUBST_EFIELD_DENOTE.
+  intros ? ? ? ? ? ? ? ? ? ? ? ? MSUBST_EFIELD_DENOTE.
   induction MSUBST_EFIELD_DENOTE.
   + split => rho; apply bi.pure_intro; constructor.
   + subst i'.
@@ -598,16 +598,16 @@ Ltac solve_field_address_gen :=
       ]
   ].
 
-Inductive find_type_contradict_pred `{!heapGS Σ} {cs: compspecs} (t: type) (p: val): mpred -> Prop :=
+Inductive find_type_contradict_pred `{!VSTGS OK_ty Σ} {cs: compspecs} (t: type) (p: val): mpred -> Prop :=
 | find_type_contradict_pred_data_at: forall sh t0 v0, eqb_type t0 t = false -> find_type_contradict_pred t p (data_at sh t0 v0 p)
 | find_type_contradict_pred_data_at_: forall sh t0, eqb_type t0 t = false -> find_type_contradict_pred t p (data_at_ sh t0 p)
 | find_type_contradict_pred_field_at: forall sh t0 v0, eqb_type t0 t = false -> find_type_contradict_pred t p (field_at sh t0 nil v0 p)
 | find_type_contradict_pred_field_at_: forall sh t0, eqb_type t0 t = false -> find_type_contradict_pred t p (field_at_ sh t0 nil p).
 
-Definition find_type_contradict_preds `{!heapGS Σ} {cs: compspecs} (t: type) (p: val) :=
+Definition find_type_contradict_preds `{!VSTGS OK_ty Σ} {cs: compspecs} (t: type) (p: val) :=
   find_nth_preds (find_type_contradict_pred t p).
 
-Lemma SEP_type_contradict_lemma: forall `{!heapGS Σ} {cs: compspecs} Delta e R goal Q T1 T2 GV e_root efs lr p_full_from_e p_root_from_e gfs_from_e t_root_from_e p_root_from_hint gfs_from_hint t_root_from_hint
+Lemma SEP_type_contradict_lemma: forall `{!VSTGS OK_ty Σ} {cs: compspecs} Delta e R goal Q T1 T2 GV e_root efs lr p_full_from_e p_root_from_e gfs_from_e t_root_from_e p_root_from_hint gfs_from_hint t_root_from_hint
   mm1 mm2,
   local2ptree Q = (T1, T2, nil, GV) ->
   compute_nested_efield e = (e_root, efs, lr) ->
@@ -631,7 +631,7 @@ Ltac find_type_contradict_rec :=
         | simple eapply find_type_contradict_pred_data_at_; reflexivity
         | simple eapply find_type_contradict_pred_field_at; reflexivity
         | simple eapply find_type_contradict_pred_field_at_; reflexivity].
-
+ 
 Definition unknown_type := Tvoid.
 
 Ltac SEP_type_contradict_msg r e :=
@@ -666,7 +666,7 @@ Ltac SEP_type_contradict LOCAL2PTREE Delta e R :=
   end;
   fail 0.
 
-Lemma hint_msg_lemma: forall `{!heapGS Σ} {cs: compspecs} Delta e goal Q T1 T2 GV e_root efs lr p_full_from_e p_root_from_e gfs_from_e t_root_from_e p_root_from_hint gfs_from_hint t_root_from_hint
+Lemma hint_msg_lemma: forall `{!VSTGS OK_ty Σ} {cs: compspecs} Delta e goal Q T1 T2 GV e_root efs lr p_full_from_e p_root_from_e gfs_from_e t_root_from_e p_root_from_hint gfs_from_hint t_root_from_hint
   t gfs p,
   local2ptree Q = (T1, T2, nil, GV) ->
   compute_nested_efield e = (e_root, efs, lr) ->
@@ -828,7 +828,7 @@ Ltac find_unfold_mpred R p :=
     ]
   end.
 
-Lemma check_unfold_lemma: forall `{!heapGS Σ} {cs: compspecs} Delta e goal Q T1 T2 GV e_root efs lr p_full_from_e p_root_from_e gfs_from_e t_root_from_e p_root_from_hint gfs_from_hint t_root_from_hint,
+Lemma check_unfold_lemma: forall `{!VSTGS OK_ty Σ} {cs: compspecs} Delta e goal Q T1 T2 GV e_root efs lr p_full_from_e p_root_from_e gfs_from_e t_root_from_e p_root_from_hint gfs_from_hint t_root_from_hint,
   local2ptree Q = (T1, T2, nil, GV) ->
   compute_nested_efield e = (e_root, efs, lr) ->
   msubst_eval_lvalue Delta T1 T2 GV e = Some p_full_from_e ->
@@ -903,7 +903,7 @@ Ltac check_unfold_mpred_for_at :=
 
 Section SEMAX_PTREE.
 
-Context `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {cs: compspecs}.
+Context `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {cs: compspecs}.
 
 Lemma semax_PTree_set:
     forall E Delta id P Q R T1 T2 GV (e2: expr) t v,
@@ -1541,7 +1541,7 @@ Ltac equal_pointers p q :=
 
 Ltac SEP_field_at_unify' gfs :=
   match goal with
-  | |- @field_at _ _ ?csl ?shl ?tl ?gfsl ?vl ?pl = @field_at _ _ ?csr ?shr ?tr ?gfsr ?vr ?pr =>
+  | |- @field_at _ _ _ ?csl ?shl ?tl ?gfsl ?vl ?pl = @field_at _ _ _ ?csr ?shr ?tr ?gfsr ?vr ?pr =>
       unify tl tr;
       unify (Floyd_skipn (length gfs - length gfsl) gfs) gfsl;
       unify gfsl gfsr;
@@ -1573,7 +1573,7 @@ Ltac SEP_field_at_unify gfs :=
 
 Ltac SEP_field_at_strong_unify' gfs :=
   match goal with
-  | |- @field_at _ _ ?cs ?shl ?tl ?gfsl ?vl ?pl = ?Rv ?vr /\ (_ = fun v => field_at ?shr ?tr ?gfsr v ?pr) =>
+  | |- @field_at _ _ _ ?cs ?shl ?tl ?gfsl ?vl ?pl = ?Rv ?vr /\ (_ = fun v => field_at ?shr ?tr ?gfsr v ?pr) =>
       unify tl tr;
       unify (Floyd_skipn (length gfs - length gfsl) gfs) gfsl;
       unify gfsl gfsr;
@@ -1581,18 +1581,18 @@ Ltac SEP_field_at_strong_unify' gfs :=
       unify vl vr;
       split;
       [ match type of vl with
-        | ?tv1 => unify Rv (fun v: tv1 => @field_at _ _ cs shl tl gfsl v pl)
+        | ?tv1 => unify Rv (fun v: tv1 => @field_at _ _ _ cs shl tl gfsl v pl)
         end; reflexivity
       | extensionality;
         rewrite <- ?field_at_offset_zero; reflexivity]
-  | |-  @data_at _ _ ?cs ?shl ?tl ?vl ?pl = ?Rv ?vr /\ (_ = fun v => field_at ?shr ?tr ?gfsr v ?pr) =>
+  | |-  @data_at _ _ _ ?cs ?shl ?tl ?vl ?pl = ?Rv ?vr /\ (_ = fun v => field_at ?shr ?tr ?gfsr v ?pr) =>
       unify tl tr;
       unify gfsr (@nil gfield);
       unify shl shr;
       unify vl vr;
       split;
       [ match type of vl with
-        | ?tv1 => unify Rv (fun v: tv1 => @data_at _ _ cs shl tl v pl)
+        | ?tv1 => unify Rv (fun v: tv1 => @data_at _ _ _ cs shl tl v pl)
         end; reflexivity
       | extensionality;
         unfold data_at;
@@ -1792,7 +1792,7 @@ Ltac cast_load_tac :=
     clear T1 T2 G LOCAL2PTREE
   end.
 
-Lemma data_equal_congr `{!heapGS Σ} {cs: compspecs}:
+Lemma data_equal_congr `{!VSTGS OK_ty Σ} {cs: compspecs}:
     forall T (v1 v2: reptype T),
    v1 = v2 ->
    data_equal v1 v2.

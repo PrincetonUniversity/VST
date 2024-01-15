@@ -68,7 +68,7 @@ apply modus_ponens_wand.
 Qed.
 
 Lemma semax_load_nth_ram_field_at :
-  forall `{heapGS0: heapGS Σ} {Espec : OracleKind} `{!externalGS OK_ty Σ} {cs: compspecs} 
+  forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {cs: compspecs} 
     E n (Delta: tycontext) sh id P Q R e1 Pre
     t_id t_root gfs (p v_val: val) (v_reptype: reptype (nested_field_type t_root gfs)),
     typeof e1 = nested_field_type t_root gfs ->
@@ -107,7 +107,7 @@ Proof.
 Qed.
 
 Lemma semax_cast_load_nth_ram_field_at :
-  forall `{heapGS0: heapGS Σ} {Espec : OracleKind} `{!externalGS OK_ty Σ} {cs: compspecs}
+  forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {cs: compspecs}
     E n (Delta: tycontext) sh id P Q R e1 Pre
     t_to t_root gfs (p v_val: val) (v_reptype: reptype (nested_field_type t_root gfs)),
     typeof e1 = nested_field_type t_root gfs ->
@@ -145,13 +145,6 @@ Proof.
   eapply JMeq_sym; exact H8.
 Qed.
 
-(* TODO this lemma is obsolete, maybe fix later 
-Lemma lower_andp_lifted_val:
-  forall (P Q: val->mpred) v,
-  (`(P ∧ Q) v) = (`P v ∧ `Q v).
-Proof. reflexivity. Qed.
-*)
-
 Lemma remove_one_LOCAL_left: forall `{!heapGS Σ} P Q0 Q R S,
   (PROPx(Σ:=Σ) P (LOCALx Q R) ⊢ S) -> PROPx P (LOCALx (Q0 :: Q) R) ⊢ S.
 Proof.
@@ -162,7 +155,7 @@ Proof.
 Qed.
 
 Lemma semax_store_nth_ram_field_at:
-  forall `{heapGS0: heapGS Σ} {Espec : OracleKind} `{!externalGS OK_ty Σ} {cs: compspecs}
+  forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {cs: compspecs}
     E n Delta sh P Q R e1 e2 Pre Post
     t_root gfs (p v_val: val) (v_reptype: reptype (nested_field_type t_root gfs)),
     typeof e1 = nested_field_type t_root gfs ->
@@ -205,7 +198,7 @@ destruct t; inv H; auto.
 Qed.
 
 Lemma semax_store_nth_ram_field_at_union_hack:
-  forall `{heapGS0: heapGS Σ} {Espec : OracleKind} `{!externalGS OK_ty Σ} {cs: compspecs}
+  forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {cs: compspecs}
     E n Delta sh P Q R e1 e2 Pre Post
     t_root gfs gfs' ch ch' (p v_val v_val': val) (v_reptype: reptype (nested_field_type t_root gfs')),
     typeof e1 = nested_field_type t_root gfs ->

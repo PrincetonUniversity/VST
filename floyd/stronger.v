@@ -15,7 +15,7 @@ Require Import VST.zlist.sublist.
 
 Section STRONGER.
 
-Context `{!heapGS Σ} {cs: compspecs}.
+Context `{!VSTGS OK_ty Σ} {cs: compspecs}.
 
 Definition stronger {t: type} (v v': reptype t) : Prop :=
   forall sh p, data_at sh t v p ⊢ data_at sh t v' p.

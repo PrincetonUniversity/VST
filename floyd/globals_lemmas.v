@@ -29,7 +29,7 @@ Qed.
 
 Section mpred.
 
-Context `{!heapGS Σ}.
+Context `{!VSTGS OK_ty Σ}.
 
 Lemma tc_globalvar_sound:
   forall Delta i t gz idata rho,
@@ -810,7 +810,7 @@ Definition globvars_in_process (gv: globals) (done: list mpred)
  local (gvars_denote gv) ∧
  ⎡fold_right_sepcon done ∗ halfdone ∗ globvars2pred gv al⎤.
 
-Context {Espec: OracleKind} `{!externalGS OK_ty Σ} {cs: compspecs}.
+Context {OK_spec : ext_spec OK_ty} {cs: compspecs}.
 
 Lemma start_globvars_in_process:
   forall E Delta P Q R
@@ -1414,7 +1414,7 @@ Ltac process_one_globvar :=
   eapply ENTAIL_trans; [process_one_globvar' | simpl float_constructor].
 
 Lemma move_globfield_into_done:
- forall `{!heapGS Σ} Delta gv done S1 R al R',
+ forall `{!VSTGS OK_ty Σ} Delta gv done S1 R al R',
   ENTAIL Delta, globvars_in_process gv (S1::done) R al ⊢ R' ->
   ENTAIL Delta, globvars_in_process gv done (S1 ∗ R) al ⊢ R'.
 Proof.

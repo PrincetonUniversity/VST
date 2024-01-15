@@ -36,7 +36,7 @@ Import String.
 
 Section semax.
 
-Context `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ}.
+Context `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty}.
 
 Definition body_lemma_of_funspec (ef: external_function) (f: funspec) :=
   match f with mk_funspec sig _ E A P Q =>

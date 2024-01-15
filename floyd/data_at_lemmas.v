@@ -101,7 +101,7 @@ Import VST.veric.base.
 
 Section mpred.
 
-Context `{!heapGS Σ}.
+Context `{!VSTGS OK_ty Σ}.
 
 Lemma address_mapsto_any_sbyte_ubyte:
  forall sh b z,
@@ -170,7 +170,7 @@ Global Transparent peq.
 
 Section mpred.
 
-Context `{!heapGS Σ}.
+Context `{!VSTGS OK_ty Σ}.
 
 Lemma data_at_tarray_tschar_tuchar {cs: compspecs}:
   forall sh n bytes p,

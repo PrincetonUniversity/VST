@@ -16,7 +16,7 @@ Local Unset SsrRewrite.
 
 Section mpred.
 
-Context `{!heapGS Σ}.
+Context `{!VSTGS OK_ty Σ}.
 
 Definition data_subsume {cs : compspecs} (t : type) (x y : reptype t) : Prop :=
   forall sh p, data_at sh t x p ⊢ data_at sh t y p.

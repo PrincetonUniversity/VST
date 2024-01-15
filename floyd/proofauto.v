@@ -130,16 +130,11 @@ Global Arguments Qp.div : simpl nomatch.
   "Require Import Require Import VST.floyd.Funspec_old_Notation."
   Global Close Scope funspec_scope.*)
 
-(* Where should this go? *)
-Class VSTGS Z Σ :=
-  { VST_heapGS :: heapGS Σ;
-    VST_extGS :: externalGS Z Σ }.
-
 Definition default_VSTGS Σ := VSTGS unit Σ.
 
-#[export] Instance NullEspec : OracleKind := ok_void_spec unit.
+#[export] Instance NullEspec : ext_spec unit := void_spec unit.
 
-Arguments semax {Σ} {heapGS0} {Espec} {externalGS0} {C} E Delta Pre%assert cmd%C Post%assert.
+Arguments semax {_} {_} {_} {_} {_} E Delta Pre%assert cmd%C Post%assert.
 Export ListNotations.
 Export Clight_Cop2.
  

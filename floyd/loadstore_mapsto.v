@@ -22,7 +22,7 @@ Lemma derives_trans: forall {prop:bi} (P Q R:prop),
 Proof. intros. rewrite H H0 //. Qed.
 
 Lemma semax_load_37' :
-  forall `{heapGS0: heapGS Σ} {Espec : OracleKind} `{!externalGS OK_ty Σ} {cs: compspecs},
+  forall `{!VSTGS OK_ty Σ} {OK_spec: ext_spec OK_ty} {cs: compspecs},
 forall E (Delta: tycontext) sh id P Q R e1 t2 (v2: val),
     typeof_temp Delta id = Some t2 ->
     is_neutral_cast (typeof e1) t2 = true ->
@@ -99,7 +99,7 @@ Qed.
 Definition semax_cast_load_37 := @semax_cast_load.
 
 Lemma semax_cast_load_37' :
-  forall `{heapGS0: heapGS Σ} {Espec : OracleKind} `{!externalGS OK_ty Σ} {cs: compspecs},
+  forall `{!VSTGS OK_ty Σ} {OK_spec: ext_spec OK_ty} {cs: compspecs},
 forall E (Delta: tycontext) sh id P Q R e1 t1 (v2: val),
     typeof_temp Delta id = Some t1 ->
     cast_pointer_to_bool (typeof e1) t1 = false ->
@@ -181,7 +181,7 @@ Load/store lemmas about mapsto:
 ***************************************)
 
 Lemma semax_load_nth_ram :
-  forall `{heapGS0: heapGS Σ} {Espec : OracleKind} `{!externalGS OK_ty Σ} {cs: compspecs}
+  forall `{!VSTGS OK_ty Σ} {OK_spec: ext_spec OK_ty} {cs: compspecs}
     E n (Delta: tycontext) sh id P Q R e1 Pre t1 t2 v p,
     typeof e1 = t1 ->
     typeof_temp Delta id = Some t2 ->
@@ -220,7 +220,7 @@ Proof.
 Qed.
 
 Lemma semax_cast_load_nth_ram :
-  forall `{heapGS0: heapGS Σ} {Espec : OracleKind} `{!externalGS OK_ty Σ} {cs: compspecs}
+  forall `{!VSTGS OK_ty Σ} {OK_spec: ext_spec OK_ty} {cs: compspecs}
     E n (Delta: tycontext) sh id P Q R e1 Pre t1 t2 v p,
     typeof e1 = t1 ->
     typeof_temp Delta id = Some t2 ->
@@ -258,7 +258,7 @@ Proof.
 Qed.
 
 Lemma semax_store_nth_ram:
-  forall `{heapGS0: heapGS Σ} {Espec : OracleKind} `{!externalGS OK_ty Σ} {cs: compspecs}
+  forall `{!VSTGS OK_ty Σ} {OK_spec: ext_spec OK_ty} {cs: compspecs}
     E n Delta P Q R e1 e2 Pre Post p v sh t1,
     typeof e1 = t1 ->
     ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢
@@ -314,7 +314,7 @@ Proof.
 Qed.
 
 Lemma semax_store_nth_ram_union_hack:
-  forall `{heapGS0: heapGS Σ} {Espec : OracleKind} `{!externalGS OK_ty Σ} {cs: compspecs}
+  forall `{!VSTGS OK_ty Σ} {OK_spec: ext_spec OK_ty} {cs: compspecs}
     E n Delta P Q R e1 e2 Pre Post p v v' ch ch' sh t1 t2,
     typeof e1 = t1 ->
     ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢

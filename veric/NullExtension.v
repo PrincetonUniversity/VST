@@ -9,7 +9,7 @@ Require Import VST.veric.compspecs.
 Require Import VST.veric.semax_prog.
 Require Import VST.veric.SequentialClight.
 
-Definition extspec : external_specification mem external_function unit
+#[export] Instance extspec : external_specification mem external_function unit
   := Build_external_specification mem external_function unit
      (*ext_spec_type*)
      (fun ef => False)
@@ -20,12 +20,10 @@ Definition extspec : external_specification mem external_function unit
      (*ext_spec_exit*)
      (fun rv m z => True).
 
-#[export] Instance Espec : OracleKind := Build_OracleKind unit extspec.
-
 Lemma NullExtension_whole_program_sequential_safety:
-   forall {CS: compspecs} `{!VSTGpreS OK_ty Σ}
+   forall {CS: compspecs} `{!VSTGpreS unit Σ}
      (prog: Clight.program) V G m,
-     (forall {HH : heapGS Σ} {HE : externalGS OK_ty Σ}, @semax_prog _ HH Espec HE CS prog tt V G) ->
+     (forall {HH : semax.VSTGS unit Σ}, semax_prog extspec prog tt V G) ->
      Genv.init_mem prog = Some m ->
      exists b, exists q, exists m',
        Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some b /\

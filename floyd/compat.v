@@ -9,7 +9,7 @@ Notation funspec := (@funspec (VSTΣ unit)).
 (* Concrete instance of the Iris typeclasses for no ghost state or external calls *)
 #[local] Instance default_pre : VSTGpreS unit (VSTΣ unit) := subG_VSTGpreS _.
 
-#[export] Program Instance VST_default : VSTGS NullEspec (VSTΣ unit) := Build_VSTGS _ _ _ _.
+#[export] Program Instance VST_default : VSTGS unit (VSTΣ unit) := Build_VSTGS _ _ _ _.
 Next Obligation.
 Proof.
   split.
@@ -30,7 +30,6 @@ Proof.
   split; try apply _.
   exact 8%positive.
 Defined.
-(* this works on paper, but lots of things don't notice the typeclass instance *)
 
 Opaque VST_default.
 #[export] Arguments VST_heapGS : simpl never.
@@ -78,5 +77,3 @@ Notation "P <--> Q" := (P ↔ Q)%I
 Open Scope bi_scope.
 
 Definition pred_ext := @bi.equiv_entails_2 (iPropI (VSTΣ unit)).
-
-(* notation for the coPset -- but really, some of that should be in funspec *)

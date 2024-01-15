@@ -14,7 +14,7 @@ Inductive efield : Type :=
 
 Section CENV.
 
-Context `{!heapGS Σ} {cs: compspecs}.
+Context `{!VSTGS OK_ty Σ} {cs: compspecs}.
 
 Fixpoint nested_efield (e: expr) (efs: list efield) (tts: list type) : expr :=
   match efs, tts with

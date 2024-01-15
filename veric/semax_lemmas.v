@@ -70,7 +70,7 @@ Qed.
 
 Section SemaxContext.
 
-Context `{!heapGS Σ} {Espec : OracleKind} `{!externalGS OK_ty Σ}.
+Context `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty}.
 
 Lemma guard_environ_put_te':
  forall ge te ve Delta id v k,
@@ -110,12 +110,12 @@ split; [ | split].
 Qed.
 
 Lemma semax_unfold {CS: compspecs} E Delta P c R :
-  semax Espec E Delta P c R ↔ forall (psi: Clight.genv) Delta' CS'
+  semax OK_spec E Delta P c R ↔ forall (psi: Clight.genv) Delta' CS'
           (TS: tycontext_sub Delta Delta')
           (HGG: cenv_sub (@cenv_cs CS) (@cenv_cs CS') /\ cenv_sub (@cenv_cs CS') (genv_cenv psi)),
-    ⊢ believe(CS := CS') Espec Delta' psi Delta' → ∀ (k: cont) (F: assert) f E',
-        ⌜closed_wrt_modvars c F /\ E ⊆ E'⌝ ∧ rguard Espec psi E' Delta' f (frame_ret_assert R F) k →
-       guard' Espec psi E' Delta' f (F ∗ P) (Kseq c k).
+    ⊢ believe(CS := CS') OK_spec Delta' psi Delta' → ∀ (k: cont) (F: assert) f E',
+        ⌜closed_wrt_modvars c F /\ E ⊆ E'⌝ ∧ rguard OK_spec psi E' Delta' f (frame_ret_assert R F) k →
+       guard' OK_spec psi E' Delta' f (F ∗ P) (Kseq c k).
 Proof.
 unfold semax. rewrite semax_fold_unfold.
 split; intros.
@@ -126,7 +126,7 @@ Qed.
 Lemma derives_skip:
   forall {CS: compspecs} p E Delta (R: ret_assert),
       (p ⊢ proj_ret_assert R EK_normal None) ->
-        semax Espec E Delta p Clight.Sskip R.
+        semax OK_spec E Delta p Clight.Sskip R.
 Proof.
 intros.
 rewrite semax_unfold.
@@ -169,7 +169,7 @@ Qed.
 
 Lemma assert_safe_fupd : forall ge E f ve te c rho,
   (match c with Ret _ _ => False | _ => True end) -> (* can we work around this now? *)
-  (|={E}=> assert_safe Espec ge E f ve te c rho) ⊢ assert_safe Espec ge E f ve te c rho.
+  (|={E}=> assert_safe OK_spec ge E f ve te c rho) ⊢ assert_safe OK_spec ge E f ve te c rho.
 Proof.
   intros.
   rewrite /assert_safe /jsafeN; iIntros "H" (??).
@@ -183,7 +183,7 @@ Proof.
 Qed.
 
 Global Instance assert_safe_except_0 : forall ge E f ve te c rho,
-  IsExcept0 (assert_safe Espec ge E f ve te c rho).
+  IsExcept0 (assert_safe OK_spec ge E f ve te c rho).
 Proof.
   intros.
   rewrite /IsExcept0 /assert_safe /jsafeN; iIntros "H" (??).
@@ -199,14 +199,14 @@ Proof.
     iSpecialize ("H" with "[%]"); done.
 Qed.
 
-Global Instance believe_external_plain gx E v fsig cc A P Q : Plain (believe_external Espec gx E v fsig cc A P Q).
+Global Instance believe_external_plain gx E v fsig cc A P Q : Plain (believe_external OK_spec gx E v fsig cc A P Q).
 Proof.
   rewrite /Plain /believe_external.
   destruct (Genv.find_funct gx v); last iApply plain.
   destruct f; iApply plain.
 Qed.
 
-Global Instance believe_external_absorbing gx E v fsig cc A P Q : Absorbing (believe_external Espec gx E v fsig cc A P Q).
+Global Instance believe_external_absorbing gx E v fsig cc A P Q : Absorbing (believe_external OK_spec gx E v fsig cc A P Q).
   rewrite /Absorbing /believe_external.
   destruct (Genv.find_funct gx v); last iApply absorbing.
   destruct f; iApply absorbing.
@@ -259,21 +259,21 @@ Proof.
     + intros ??; auto.
 Qed.
 
-Lemma semax'_plain_absorbing CS E Delta P c R : Plain (semax' Espec E Delta P c R) ∧ Absorbing (semax' Espec E Delta P c R).
+Lemma semax'_plain_absorbing CS E Delta P c R : Plain (semax' OK_spec E Delta P c R) ∧ Absorbing (semax' OK_spec E Delta P c R).
 Proof.
   apply fixpoint_plain_absorbing; intros; rewrite /semax_; destruct x; apply _.
 Qed.
 
-Global Instance semax'_plain CS E Delta P c R : Plain (semax' Espec E Delta P c R).
+Global Instance semax'_plain CS E Delta P c R : Plain (semax' OK_spec E Delta P c R).
 Proof. apply semax'_plain_absorbing. Qed.
 
-Global Instance semax'_absorbing CS E Delta P c R : Absorbing (semax' Espec E Delta P c R).
+Global Instance semax'_absorbing CS E Delta P c R : Absorbing (semax' OK_spec E Delta P c R).
 Proof. apply semax'_plain_absorbing. Qed.
 
 Lemma extract_exists_pre_later {CS: compspecs}:
   forall  (A : Type) (Q: assert) (P : A -> assert) c E Delta (R: ret_assert),
-  (forall x, semax Espec E Delta (Q ∧ ▷ P x) c R) ->
-   semax Espec E Delta (Q ∧ ▷ ∃ x, P x) c R.
+  (forall x, semax OK_spec E Delta (Q ∧ ▷ P x) c R) ->
+   semax OK_spec E Delta (Q ∧ ▷ ∃ x, P x) c R.
 Proof.
 intros.
 rewrite semax_unfold; intros.
@@ -294,8 +294,8 @@ Qed.
 
 Lemma extract_exists_pre {CS: compspecs}:
   forall  (A : Type) (P : A -> assert) c E Delta (R: ret_assert),
-  (forall x, semax Espec E Delta (P x) c R) ->
-   semax Espec E Delta (∃ x, P x) c R.
+  (forall x, semax OK_spec E Delta (P x) c R) ->
+   semax OK_spec E Delta (∃ x, P x) c R.
 Proof.
 intros.
 rewrite semax_unfold; intros.
@@ -312,7 +312,7 @@ Definition empty_genv prog_pub cenv: Clight.genv :=
 
 Lemma empty_program_ok {CS: compspecs}: forall Delta ge,
     glob_specs Delta = Maps.PTree.empty _ ->
-    ⊢ believe Espec Delta ge Delta.
+    ⊢ believe OK_spec Delta ge Delta.
 Proof.
 intros Delta ge H.
 rewrite /believe.
@@ -322,7 +322,7 @@ Qed.
 
 Definition all_assertions_computable  :=
   forall psi E f tx vx (Q: assert),
-     exists k,  assert_safe Espec psi E f tx vx k = Q.
+     exists k,  assert_safe OK_spec psi E f tx vx k = Q.
 (* This is not generally true, but could be made true by adding an "assert" operator
   to the programming language
  *)
@@ -351,7 +351,7 @@ Proof.
   intros; rewrite proj_frame comm //.
 Qed.
 
-(*Lemma semax_extensionality0 {CS: compspecs} {Espec: OracleKind}:
+(*Lemma semax_extensionality0 {CS: compspecs} {OK_spec: OracleKind}:
        True ⊢
       ALL Delta:tycontext, ALL Delta':tycontext,
       ALL P:assert, ALL P':assert,
@@ -359,7 +359,7 @@ Qed.
        ((!! tycontext_sub E Delta Delta'
        &&  (ALL ek: exitkind, ALL  vl : option val, ALL rho: environ,
                (proj_ret_assert R ek vl rho >=> proj_ret_assert R' ek vl rho))
-      && (ALL rho:environ, P' rho >=> P rho)  && semax' Espec Delta P c R) >=> semax' Espec Delta' P' c R').
+      && (ALL rho:environ, P' rho >=> P rho)  && semax' OK_spec Delta P c R) >=> semax' OK_spec Delta' P' c R').
 Proof.
 apply loeb.
 intros w ? Delta Delta' P P' c R R'.
@@ -375,7 +375,7 @@ specialize (H5 gx Delta'' CS' _ _ (necR_refl _) (ext_refl _)
 
 intros k F f ? w4 Hw4 Hext4 [? ?].
 specialize (H5 k F f _ w4 Hw4 Hext4).
-assert ((rguard Espec gx Delta'' f (frame_ret_assert R F) k) w4).
+assert ((rguard OK_spec gx Delta'' f (frame_ret_assert R F) k) w4).
 do 9 intro. intros Hext' ?.
 apply (H9 b b0 b1 b2 y H10 _ _ H11 Hext').
 destruct H12; split; auto; clear H13.
@@ -410,12 +410,12 @@ eapply Nat.le_trans; try eassumption.
 rewrite Hext3; setoid_rewrite <- Hext4; auto.
 Qed.
 
-Lemma semax_extensionality1 {CS: compspecs} {Espec: OracleKind}:
+Lemma semax_extensionality1 {CS: compspecs} {OK_spec: OracleKind}:
   forall Delta Delta' (P P': assert) c (R R': ret_assert) ,
        tycontext_sub E Delta Delta' ->
        ((ALL ek: exitkind, ALL  vl : option val, ALL rho: environ,
           (proj_ret_assert R ek vl rho >=> proj_ret_assert R' ek vl rho))
-      && (ALL rho:environ, P' rho >=> P rho)  && (semax' Espec Delta P c R) |-- semax' Espec Delta' P' c R').
+      && (ALL rho:environ, P' rho >=> P rho)  && (semax' OK_spec Delta P c R) |-- semax' OK_spec Delta' P' c R').
 Proof.
 intros.
 intros n ?.
@@ -429,8 +429,8 @@ Qed.*)
 
 Lemma semax_frame {CS: compspecs} :  forall E Delta P s R F,
    closed_wrt_modvars s F ->
-  semax Espec E Delta P s R ->
-  semax Espec E Delta (P ∗ F) s (frame_ret_assert R F).
+  semax OK_spec E Delta P s R ->
+  semax OK_spec E Delta (P ∗ F) s (frame_ret_assert R F).
 Proof.
 intros until F. intros CL H.
 rewrite semax_unfold.
@@ -535,7 +535,7 @@ Section extensions.
 
 Lemma safe_loop_skip:
   forall ge E ora f ve te k,
-    ⊢ jsafeN Espec ge E ora
+    ⊢ jsafeN OK_spec ge E ora
            (State f (Sloop Clight.Sskip Clight.Sskip) k ve te).
 Proof.
   intros.
@@ -553,8 +553,8 @@ Local Open Scope nat_scope.
 
 Definition control_as_safex ge c1 k1 c2 k2 :=
     forall E (ora : OK_ty) f (ve : env) (te : temp_env),
-        jsafeN Espec ge E ora (State f c1 k1 ve te) ⊢
-          jsafeN Espec ge E ora (State f c2 k2 ve te).
+        jsafeN OK_spec ge E ora (State f c1 k1 ve te) ⊢
+          jsafeN OK_spec ge E ora (State f c2 k2 ve te).
 
 Definition control_as_safe ge ctl1 ctl2 :=
  match ctl1, ctl2 with
@@ -686,9 +686,9 @@ Lemma guard_safe_adj':
  forall
    psi E Delta f P c1 k1 c2 k2,
   (forall E ora ve te,
-     jsafeN Espec psi E ora (State f c1 k1 ve te) ⊢
-     jsafeN Espec psi E ora (State f c2 k2 ve te)) ->
-  guard' Espec psi E Delta f P (Kseq c1 k1) ⊢ guard' Espec psi E Delta f P (Kseq c2 k2).
+     jsafeN OK_spec psi E ora (State f c1 k1 ve te) ⊢
+     jsafeN OK_spec psi E ora (State f c2 k2 ve te)) ->
+  guard' OK_spec psi E Delta f P (Kseq c1 k1) ⊢ guard' OK_spec psi E Delta f P (Kseq c2 k2).
 Proof.
 intros.
 unfold guard', _guard.
@@ -701,8 +701,8 @@ Qed.
 Lemma assert_safe_adj:
   forall ge E f ve te k k' rho,
      control_as_safe ge k k' ->
-     assert_safe Espec ge E f ve te (Cont k) rho ⊢
-     assert_safe Espec ge E f ve te (Cont k') rho.
+     assert_safe OK_spec ge E f ve te (Cont k) rho ⊢
+     assert_safe OK_spec ge E f ve te (Cont k') rho.
 Proof.
   intros.
   rewrite /assert_safe.
@@ -715,7 +715,7 @@ Qed.
 Lemma semax_Delta_subsumption {CS: compspecs}:
   forall E Delta Delta' P c R,
        tycontext_sub Delta Delta' ->
-     semax Espec E Delta P c R -> semax Espec E Delta' P c R.
+     semax OK_spec E Delta P c R -> semax OK_spec E Delta' P c R.
 Proof.
 intros.
 unfold semax in *.
@@ -993,18 +993,18 @@ Proof.
 Qed.
 
 (*Lemma semax_eq:
- forall {CS: compspecs} {Espec: OracleKind} Delta P c R,
-  semax Espec Delta P c R =
+ forall {CS: compspecs} {OK_spec: OracleKind} Delta P c R,
+  semax OK_spec Delta P c R =
   (True ⊢ (ALL psi : genv,
          ALL Delta' : tycontext, ALL CS':compspecs,
          !! (tycontext_sub E Delta Delta' /\ cenv_sub (@cenv_cs CS) (@cenv_cs CS') /\
                                           cenv_sub (@cenv_cs CS') (genv_cenv psi)) -->
-         @believe CS' Espec Delta' psi Delta' -->
+         @believe CS' OK_spec Delta' psi Delta' -->
          ALL k : cont ,
          ALL F : assert , ALL f: function,
          !! closed_wrt_modvars c F &&
-         rguard Espec psi Delta' f (frame_ret_assert R F) k -->
-         guard Espec psi Delta' f (fun rho : environ => F rho * P rho) (Kseq c k))).
+         rguard OK_spec psi Delta' f (frame_ret_assert R F) k -->
+         guard OK_spec psi Delta' f (fun rho : environ => F rho * P rho) (Kseq c k))).
 Proof.
 intros.
 extensionality w.
@@ -1014,7 +1014,7 @@ Qed.*)
 
 Lemma semax_Slabel {cs:compspecs}
        E (Gamma:tycontext) (P:assert) (c:statement) (Q:ret_assert) l:
-semax(CS := cs) Espec E Gamma P c Q -> semax(CS := cs) Espec E Gamma P (Slabel l c) Q.
+semax(CS := cs) OK_spec E Gamma P c Q -> semax(CS := cs) OK_spec E Gamma P (Slabel l c) Q.
 Proof.
 rewrite !semax_unfold; intros.
 iIntros "H" (????) "guard".
@@ -1024,16 +1024,16 @@ constructor.
 Qed.
 
 Lemma assert_safe_jsafe: forall ge E f ve te c k ora,
-  assert_safe Espec ge E f ve te (Cont (Kseq c k)) (construct_rho (filter_genv ge) ve te) ⊢
-  jsafeN Espec ge E ora (State f c k ve te).
+  assert_safe OK_spec ge E f ve te (Cont (Kseq c k)) (construct_rho (filter_genv ge) ve te) ⊢
+  jsafeN OK_spec ge E ora (State f c k ve te).
 Proof.
   intros; rewrite /assert_safe.
   iIntros "H"; iApply "H"; auto.
 Qed.
 
 Lemma assert_safe_jsafe': forall ge E f ve te k ora,
-  assert_safe Espec ge E f ve te (Cont k) (construct_rho (filter_genv ge) ve te) ⊢
-  jsafeN Espec ge E ora (State f Sskip k ve te).
+  assert_safe OK_spec ge E f ve te (Cont k) (construct_rho (filter_genv ge) ve te) ⊢
+  jsafeN OK_spec ge E ora (State f Sskip k ve te).
 Proof.
   intros; rewrite /assert_safe.
   iIntros "H"; iSpecialize ("H" with "[%]"); first done.

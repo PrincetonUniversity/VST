@@ -12,11 +12,6 @@ Require Import VST.veric.tycontext.
 
 Local Open Scope nat_scope.
 
-Class OracleKind := {
-  OK_ty : Type;
-  OK_spec: ext_spec OK_ty
-}.
-
 (*! The void ext_spec *)
 Definition void_spec T : external_specification mem external_function T :=
     Build_external_specification
@@ -25,8 +20,6 @@ Definition void_spec T : external_specification mem external_function T :=
       (fun ef Hef ge tys vl m z => False%type)
       (fun ef Hef ge ty vl m z => False%type)
       (fun rv m z => False%type).
-
-Definition ok_void_spec (T : Type) : OracleKind := Build_OracleKind T (void_spec T).
 
 Section upd_exit.
   Context {Z : Type}.

@@ -26,18 +26,19 @@ hnf; intros.
 eapply Genv.genv_vars_inj; eauto.
 Defined.
 
+Class VSTGS OK_ty Σ :=
+  { VST_heapGS :: heapGS Σ;
+    VST_extGS :: externalGS OK_ty Σ }.
+
 Section mpred.
 
-Context `{!heapGS Σ} (Espec : OracleKind) `{!externalGS OK_ty Σ}.
+Context `{!VSTGS OK_ty Σ} (OK_spec : ext_spec OK_ty).
 
 Definition closed_wrt_modvars c (F: @assert Σ) : Prop :=
     closed_wrt_vars (modifiedvars c) F.
 
 Definition jsafeN (ge: genv) :=
   jsafe(genv_symb := genv_symb_injective) (cl_core_sem ge) OK_spec ge.
-
-(*Definition ext_compat (ora : Z) (w : rmap) :=
-  joins (ghost_of w) (Some (ghost_PCM.ext_ref ora, NoneP) :: nil).*)
 
 Inductive contx :=
 | Stuck

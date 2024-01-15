@@ -131,7 +131,7 @@ Module ConseqFacts :=
 
 Section mpred.
 
-Context `{!heapGS Σ}.
+Context `{!VSTGS OK_ty Σ}.
 
 #[global] Instance PROPx_proper {A} : Proper (equiv ==> equiv ==> equiv) (@PROPx A Σ).
 Proof.
@@ -722,7 +722,7 @@ Proof.
 intros. reflexivity.
 Qed.*)
 
-Context {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs}.
+Context {OK_spec : ext_spec OK_ty} {CS: compspecs}.
 
 Lemma extract_exists_pre_later:
   forall  (A : Type) (Q: assert) (P : A -> assert) c E Delta (R: ret_assert),

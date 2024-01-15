@@ -29,7 +29,7 @@ Module Type FREEZER.
 
 Section mpred.
 
-Context `{!heapGS Σ}.
+Context `{!VSTGS OK_ty Σ}.
 
 Parameter FRZ : mpred -> mpred.
 Parameter FRZ1: forall p, p ⊢ FRZ p.
@@ -54,7 +54,7 @@ Module Freezer : FREEZER.
 
 Section mpred.
 
-Context `{!heapGS Σ}.
+Context `{!VSTGS OK_ty Σ}.
 
 Definition FRZ (p: mpred) := p.
 Lemma FRZ1 p: p ⊢ FRZ p. apply derives_refl. Qed.
@@ -93,7 +93,7 @@ Notation FRZRw := Freezer.FRZRw.
 
 Section mpred.
 
-Context `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {cs: compspecs}.
+Context `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {cs: compspecs}.
 
 (************************ Freezing a single mpred ************************)
 Lemma FRZ_ax:forall p, FRZ p ⊣⊢ p.
@@ -656,7 +656,7 @@ intro x; subst a x; rewrite ?bi.sep_assoc bi.sep_emp; try subst y;
 
 Section ramification.
 
-Context `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {cs: compspecs}.
+Context `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {cs: compspecs}.
 
 (************************ Ramification ************************)
 

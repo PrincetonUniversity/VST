@@ -20,7 +20,7 @@ Require Import VST.veric.Clight_lemmas.
 Local Open Scope nat_scope.
 
 Section extensions.
-Context `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs}.
+Context `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {CS: compspecs}.
 
 Lemma tc_test_eq1:
   forall b i v m,
@@ -44,9 +44,9 @@ Qed.
 Lemma semax_ifthenelse:
    forall E Delta P (b: expr) c d R,
       bool_type (typeof b) = true ->
-     semax Espec E Delta (P ∧ local (expr_true b)) c R ->
-     semax Espec E Delta (P ∧ local (expr_false b)) d R ->
-     semax Espec E Delta
+     semax OK_spec E Delta (P ∧ local (expr_true b)) c R ->
+     semax OK_spec E Delta (P ∧ local (expr_false b)) d R ->
+     semax OK_spec E Delta
               (▷ (tc_expr Delta (Eunop Cop.Onotbool b (Tint I32 Signed noattr)) ∧ P))
               (Sifthenelse b c d) R.
 Proof.
@@ -90,7 +90,7 @@ Proof.
   iDestruct "H" as "(Hm & >%TC2 & P)"; simpl in HTCb.
   unfold liftx, lift, eval_unop in HTCb; simpl in HTCb.
   destruct (bool_val (typeof b) (eval_expr b rho)) as [b'|] eqn: Hb; [|contradiction].
-  iAssert (▷assert_safe Espec psi E' f vx tx (Cont (Kseq (if b' then c else d) k)) rho) with "[F P fun]" as "Hsafe".
+  iAssert (▷assert_safe OK_spec psi E' f vx tx (Cont (Kseq (if b' then c else d) k)) rho) with "[F P fun]" as "Hsafe".
   { iNext; destruct b'; [iApply "H0" | iApply "H1"]; (iSplit; first done); iFrame; iPureIntro; split; auto; split; auto;
       apply bool_val_strict; auto. }
   simpl in *; unfold Cop.sem_notbool in *.
@@ -117,9 +117,9 @@ Qed.
 
 Lemma semax_seq:
   forall E Delta (R: ret_assert) P Q h t,
-  semax Espec E Delta P h (overridePost Q R) ->
-  semax Espec E Delta Q t R ->
-  semax Espec E Delta P (Clight.Ssequence h t) R.
+  semax OK_spec E Delta P h (overridePost Q R) ->
+  semax OK_spec E Delta Q t R ->
+  semax OK_spec E Delta P (Clight.Ssequence h t) R.
 Proof.
   intros.
   rewrite !semax_unfold in H,H0|-*.
@@ -152,9 +152,9 @@ Qed.
 
 Lemma semax_loop:
 forall E Delta Q Q' incr body R,
-     semax Espec E Delta Q body (loop1_ret_assert Q' R) ->
-     semax Espec E Delta Q' incr (loop2_ret_assert Q R) ->
-     semax Espec E Delta Q (Sloop body incr) R.
+     semax OK_spec E Delta Q body (loop1_ret_assert Q' R) ->
+     semax OK_spec E Delta Q' incr (loop2_ret_assert Q R) ->
+     semax OK_spec E Delta Q (Sloop body incr) R.
 Proof.
   intros ?????? POST H H0.
   rewrite semax_unfold.
@@ -182,7 +182,7 @@ Proof.
   assert (closed_wrt_modvars incr F).
   { unfold closed_wrt_modvars, closed_wrt_vars in *; intros ?? Hi; apply Hclosed.
     intros i; specialize (Hi i); rewrite modifiedvars_Sloop; tauto. }
-  iAssert (guard' Espec psi E' Delta' f (F ∗ Q') (Kseq incr (Kloop2 body incr k))) as "#Hincr".
+  iAssert (guard' OK_spec psi E' Delta' f (F ∗ Q') (Kseq incr (Kloop2 body incr k))) as "#Hincr".
   { iApply "H0".
     iIntros "!>"; iSplit; first done.
     iIntros (ek2 vl2 tx2 vx2) "!>"; rewrite /loop2_ret_assert proj_frame.
@@ -212,7 +212,7 @@ Proof.
 Qed.
 
 Lemma semax_break:
-   forall E Delta Q,        semax Espec E Delta (RA_break Q) Sbreak Q.
+   forall E Delta Q,        semax OK_spec E Delta (RA_break Q) Sbreak Q.
 Proof.
   intros.
   rewrite semax_unfold; intros.
@@ -327,7 +327,7 @@ Proof.
 Qed.
 
 Lemma semax_continue:
-   forall E Delta Q,        semax Espec E Delta (RA_continue Q) Scontinue Q.
+   forall E Delta Q,        semax OK_spec E Delta (RA_continue Q) Scontinue Q.
 Proof.
   intros.
   rewrite semax_unfold; intros.

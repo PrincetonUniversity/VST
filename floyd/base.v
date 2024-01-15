@@ -34,7 +34,7 @@ Lemma alignof_pos: forall {cs: compspecs} (t: type), alignof t > 0.
 Proof. intros. apply Ctypes.alignof_pos. Qed.
 
 Definition extract_exists_pre:
-  forall `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs},
+  forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {CS: compspecs},
   forall (A : Type) (P : A -> assert) c E (Delta: tycontext) (R: ret_assert),
   (forall x, semax E Delta (P x) c R) ->
    semax E Delta (∃ x:A, P x) c R

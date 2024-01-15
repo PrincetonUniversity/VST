@@ -13,7 +13,7 @@ Notation vptrofs z := (Vptrofs (Ptrofs.repr z)).
 
 Section mpred.
 
-Context `{!heapGS Σ}.
+Context `{!VSTGS OK_ty Σ}.
 
 (*Ltac forward_malloc t n := forward_call (sizeof t); [simpl; try computable |
   Intros n; rewrite malloc_compat by (auto; reflexivity); Intros;

@@ -27,7 +27,7 @@ Proof. induction l; simpl; trivial. f_equal; trivial . Qed.
 
 Section mpred.
 
-Context `{!heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} {CS: compspecs}.
+Context `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {CS: compspecs}.
 
 Lemma typecheck_expr_sound' :
   forall {CS'} Delta rho e,
@@ -536,9 +536,9 @@ f_equal.
 Qed.
 
 Lemma assert_safe_for_external_call {psi E curf vx ret ret0 tx k z'} :
-      assert_safe Espec psi E curf vx (set_opttemp ret (force_val ret0) tx)
+      assert_safe OK_spec psi E curf vx (set_opttemp ret (force_val ret0) tx)
          (Cont k) (construct_rho (filter_genv psi) vx (set_opttemp ret (force_val ret0) tx)) ⊢
-  jsafeN Espec psi E z' (Returnstate (force_val ret0) (Kcall ret curf vx tx k)).
+  jsafeN OK_spec psi E z' (Returnstate (force_val ret0) (Kcall ret curf vx tx k)).
 Proof.
   iIntros "H".
   iApply jsafe_step; rewrite /jstep_ex.
@@ -568,11 +568,11 @@ Lemma semax_call_external
  (H16 : Genv.find_funct psi (Vptr b Ptrofs.zero) = Some ff)
  (TC8 : tc_vals (fst fsig) args)
  (Hargs : Datatypes.length (fst fsig) = Datatypes.length args)
- (ctl : cont) (Hctl : ∀ ret0 z', assert_safe Espec psi E curf vx (set_opttemp ret (force_val ret0) tx)
+ (ctl : cont) (Hctl : ∀ ret0 z', assert_safe OK_spec psi E curf vx (set_opttemp ret (force_val ret0) tx)
              (exit_cont EK_normal None k)  (construct_rho (filter_genv psi) vx (set_opttemp ret (force_val ret0) tx)) ⊢
-    jsafeN Espec psi E z' (Returnstate (force_val ret0) ctl)) :
- □ believe_external Espec psi nE (Vptr b Ptrofs.zero) fsig cc A P Q -∗
- ▷ (<affine> rguard Espec psi E Delta curf (frame_ret_assert R F0) k -∗
+    jsafeN OK_spec psi E z' (Returnstate (force_val ret0) ctl)) :
+ □ believe_external OK_spec psi nE (Vptr b Ptrofs.zero) fsig cc A P Q -∗
+ ▷ (<affine> rguard OK_spec psi E Delta curf (frame_ret_assert R F0) k -∗
     funassert Delta rho -∗
     F0 rho -∗
     (|={E}=> ∃ (x1 : dtfr A) (F1 : assert),
@@ -580,7 +580,7 @@ Lemma semax_call_external
                ∧ (∀ rho' : environ,
                     ■ ((∃ old : val, substopt ret (` old) F1 rho' ∗
                           maybe_retval (assert_of (Q x1)) (snd fsig) ret rho') -∗ RA_normal R rho'))) -∗
-    jsafeN Espec psi E ora (Callstate ff args ctl)).
+    jsafeN OK_spec psi E ora (Callstate ff args ctl)).
 Proof.
 pose proof TC3 as Hguard_env.
 destruct TC3 as [TC3 TC3'].
@@ -816,10 +816,10 @@ Lemma guard_fallthrough_return:
   (P4 : assert),
   call_cont ctl = ctl ->
   (bind_ret vl (fn_return f) P4 rho' -∗
-     assert_safe Espec psi E f ve te (exit_cont EK_return vl ctl) rho') ⊢
+     assert_safe OK_spec psi E f ve te (exit_cont EK_return vl ctl) rho') ⊢
   (proj_ret_assert (function_body_ret_assert (fn_return f) P4) ek
       vl rho' -∗
-   assert_safe Espec psi E f ve te (exit_cont ek vl ctl) rho').
+   assert_safe OK_spec psi E f ve te (exit_cont ek vl ctl) rho').
 Proof.
 intros.
 iIntros "Hsafe ret".
@@ -865,17 +865,17 @@ Lemma semax_call_aux2
   (H0 : rho = construct_rho (filter_genv psi) vx tx)
   (TC3 : guard_environ Delta curf rho)
   ctl (Hcont : call_cont ctl = ctl)
-  (Hctl : ∀ ret0 z', assert_safe Espec psi E curf vx (set_opttemp ret (force_val ret0) tx)
+  (Hctl : ∀ ret0 z', assert_safe OK_spec psi E curf vx (set_opttemp ret (force_val ret0) tx)
              (exit_cont EK_normal None k)  (construct_rho (filter_genv psi) vx (set_opttemp ret (force_val ret0) tx)) ⊢
-    jsafeN Espec psi E z' (Returnstate (force_val ret0) ctl)):
+    jsafeN OK_spec psi E z' (Returnstate (force_val ret0) ctl)):
   (∀ rho' : environ,
         ■ ((∃ old : val,
                substopt ret (liftx old) F rho' ∗
                maybe_retval (assert_of (Q x)) (snd fsig) ret rho') -∗
               RA_normal R rho')) -∗
-  ▷ rguard Espec psi E Delta curf (frame_ret_assert R F0) k -∗
+  ▷ rguard OK_spec psi E Delta curf (frame_ret_assert R F0) k -∗
   ⌜closed_wrt_modvars (fn_body f) ⎡F0 rho ∗ F rho⎤ /\ E ⊆ E⌝ ∧
-  rguard Espec psi E (func_tycontext' f Delta) f
+  rguard OK_spec psi E (func_tycontext' f Delta) f
          (frame_ret_assert
             (frame_ret_assert (function_body_ret_assert (fn_return f) (assert_of (Q x)))
                               (stackframe_of' cenv_cs f)) ⎡F0 rho ∗ F rho⎤)
@@ -896,7 +896,7 @@ Proof.
   rewrite /assert_safe.
   iIntros (? _); simpl.
   pose (rval := force_val vl).
-  iAssert (▷ jsafeN Espec psi E ora (Returnstate rval (call_cont ctl))) with "[-stack]" as "Hsafe". 
+  iAssert (▷ jsafeN OK_spec psi E ora (Returnstate rval (call_cont ctl))) with "[-stack]" as "Hsafe". 
   { iNext.
     iAssert ⌜match vl with Some v => tc_val (fn_return f) v | None => fn_return f = Tvoid end⌝ with "[Q]" as %TCvl.
     { rewrite /rval; destruct vl; simpl.
@@ -1020,14 +1020,14 @@ Lemma believe_exists_fundef':
     {fspec: funspec}
   (Findb : Genv.find_symbol (genv_genv psi) id_fun = Some b)
   (H3: (glob_specs Delta) !! id_fun = Some fspec),
-  (⊢ believe(CS := CS) Espec Delta psi Delta) ->
+  (⊢ believe(CS := CS) OK_spec Delta psi Delta) ->
   {f : Clight.fundef | Genv.find_funct_ptr (genv_genv psi) b = Some f /\
    type_of_fundef f = type_of_funspec fspec}.
 Proof.
   intros.
   destruct fspec as [fsig cc E A P Q].
   simpl.
-  assert (⊢ believe_external Espec psi E (Vptr b Ptrofs.zero) fsig cc A P Q ∨ believe_internal Espec psi E Delta (Vptr b Ptrofs.zero) fsig cc A P Q) as Bel.
+  assert (⊢ believe_external OK_spec psi E (Vptr b Ptrofs.zero) fsig cc A P Q ∨ believe_internal OK_spec psi E Delta (Vptr b Ptrofs.zero) fsig cc A P Q) as Bel.
   { rewrite /bi_emp_valid H.
     iIntros "H"; iApply "H"; iPureIntro.
     exists id_fun; eauto. }
@@ -1062,7 +1062,7 @@ Lemma believe_exists_fundef:
     {fspec: funspec}
   (Findb : Genv.find_symbol (genv_genv psi) id_fun = Some b)
   (H3: (glob_specs Delta) !! id_fun = Some fspec),
-  believe(CS := CS) Espec Delta psi Delta ⊢
+  believe(CS := CS) OK_spec Delta psi Delta ⊢
   ⌜∃ f : Clight.fundef,
    Genv.find_funct_ptr (genv_genv psi) b = Some f /\
    type_of_fundef f = type_of_funspec fspec⌝.
@@ -1130,10 +1130,10 @@ Lemma semax_call_aux0 {CS'}
   (H16' : type_of_fundef ff = type_of_funspec (mk_funspec (clientparams, retty) cc E A deltaP deltaQ))
   (TC8 : tc_vals clientparams args)
   ctl (Hcont : call_cont ctl = ctl)
-  (Hctl : ∀ ret0 z', assert_safe Espec psi E curf vx (set_opttemp ret (force_val ret0) tx)
+  (Hctl : ∀ ret0 z', assert_safe OK_spec psi E curf vx (set_opttemp ret (force_val ret0) tx)
              (exit_cont EK_normal None k)  (construct_rho (filter_genv psi) vx (set_opttemp ret (force_val ret0) tx)) ⊢
-    jsafeN Espec psi E z' (Returnstate (force_val ret0) ctl)):
-  □ believe Espec Delta psi Delta -∗
+    jsafeN OK_spec psi E z' (Returnstate (force_val ret0) ctl)):
+  □ believe OK_spec Delta psi Delta -∗
   ▷ (F0 rho ∗ F rho ∗ P x (ge_of rho, args) -∗
      funassert Delta rho -∗
      □ ■ (F rho ∗ P x (ge_of rho, args) ={E}=∗
@@ -1142,8 +1142,8 @@ Lemma semax_call_aux0 {CS'}
                             ∧ (∀ rho' : environ,
                                  ■ ((∃ old:val, substopt ret (`old) F1 rho' ∗ maybe_retval (assert_of (deltaQ x1)) retty ret rho') -∗
                                     RA_normal R rho'))) -∗
-  <affine> rguard Espec psi E Delta curf (frame_ret_assert R F0) k -∗
-  jsafeN Espec psi E ora (Callstate ff args ctl)).
+  <affine> rguard OK_spec psi E Delta curf (frame_ret_assert R F0) k -∗
+  jsafeN OK_spec psi E ora (Callstate ff args ctl)).
 Proof.
   iIntros "#Bel".
   iPoseProof ("Bel" with "[%]") as "Bel'".
@@ -1236,7 +1236,7 @@ Lemma semax_call_aux {CS'}
   (Hrho: rho = construct_rho (filter_genv psi) vx tx)
   (EvalA: eval_expr a rho = Vptr b Ptrofs.zero):
 
-  □ believe Espec Delta psi Delta -∗
+  □ believe OK_spec Delta psi Delta -∗
   (▷tc_expr Delta a rho ∧ ▷tc_exprlist Delta clientparams bl rho) ∧
   (▷ (F0 rho ∗ F rho ∗ P x (ge_of rho, args))) -∗
   funassert Delta rho -∗
@@ -1246,8 +1246,8 @@ Lemma semax_call_aux {CS'}
                             ∧ (∀ rho' : environ,
                                  ■ ((∃ old:val, substopt ret (`old) F1 rho' ∗ maybe_retval (assert_of (deltaQ x1)) retty ret rho') -∗
                                     RA_normal R rho'))) -∗
-  ▷ <affine> rguard Espec psi E Delta curf (frame_ret_assert R F0) k -∗
-   jsafeN Espec psi E ora
+  ▷ <affine> rguard OK_spec psi E Delta curf (frame_ret_assert R F0) k -∗
+   jsafeN OK_spec psi E ora
      (State curf (Scall ret a bl) k vx tx).
 Proof.
   iIntros "#Bel H fun #HR rguard".
@@ -1293,7 +1293,7 @@ Lemma semax_call_si:
    (TCF : Cop.classify_fun (typeof a) = Cop.fun_case_f (typelist_of_type_list argsig) retsig cc)
    (TC5 : retsig = Tvoid -> ret = None)
    (TC7 : tc_fn_return Delta ret retsig),
-  semax Espec E Delta
+  semax OK_spec E Delta
        (▷(tc_expr Delta a ∧ tc_exprlist Delta argsig bl) ∧
            (assert_of (fun rho => func_ptr_si (mk_funspec (argsig,retsig) cc Ef A P Q) (eval_expr a rho)) ∗
           (▷(F ∗ assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho))))))
@@ -1414,7 +1414,7 @@ Lemma semax_call:
   (TCF : Cop.classify_fun (typeof a) = Cop.fun_case_f (typelist_of_type_list argsig) retsig cc)
   (TC5 : retsig = Tvoid -> ret = None)
   (TC7 : tc_fn_return Delta ret retsig),
-  semax Espec E Delta
+  semax OK_spec E Delta
        ((▷(tc_expr Delta a ∧ tc_exprlist Delta argsig bl))  ∧
            (assert_of (fun rho => func_ptr (mk_funspec (argsig,retsig) cc Ef A P Q) (eval_expr a rho)) ∗
           (▷(F ∗ assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho))))))
@@ -1428,7 +1428,7 @@ Proof.
   monPred.unseal; rewrite bi.and_elim_r func_ptr_fun_ptr_si //.
 Qed.
 
-(*Lemma semax_call_ext {CS Espec}:
+(*Lemma semax_call_ext {CS OK_spec}:
    forall (IF_ONLY: False),
      forall Delta P Q ret a tl bl a' bl',
       typeof a = typeof a' ->
@@ -1439,8 +1439,8 @@ Qed.
             tc_expr Delta a' rho ∧ tc_exprlist Delta tl bl' rho ∧
             ⌜ (eval_expr a rho = eval_expr a' rho /\
                 eval_exprlist tl bl rho = eval_exprlist tl bl' rho)) ->
-  semax Espec Delta P (Scall ret a bl) Q ->
-  @semax CS Espec Delta P (Scall ret a' bl') Q.
+  semax OK_spec Delta P (Scall ret a bl) Q ->
+  @semax CS OK_spec Delta P (Scall ret a' bl') Q.
 Proof.
 intros until 2. intro Hbl. intros.
 rewrite semax_unfold in H1|-*.
@@ -1579,7 +1579,7 @@ Qed.
 
 Lemma semax_return:
    forall E Delta R ret,
-      semax Espec E Delta
+      semax OK_spec E Delta
                 (tc_expropt Delta ret (ret_type Delta) ∧
                              assert_of (`(RA_return R : option val -> environ -> mpred) (cast_expropt ret (ret_type Delta)) (@id environ)))
                 (Sreturn ret)
@@ -1598,7 +1598,7 @@ Proof.
   destruct H as (H & ? & Hret).
   assert (TCD: typecheck_environ Delta rho) by (eapply typecheck_environ_sub; eauto); clear TS.
   iAssert (tc_expropt Delta ret (ret_type Delta') rho ∧
-    assert_safe Espec psi E' f vx tx
+    assert_safe OK_spec psi E' f vx tx
                 (exit_cont EK_return (@cast_expropt CS' ret (ret_type Delta') rho) k)
                 (construct_rho (filter_genv psi) vx tx)) with "[-]" as "H".
   { iSplit.

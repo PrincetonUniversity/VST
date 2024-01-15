@@ -24,7 +24,7 @@ Ltac unfold_for_go_lower :=
    ] beta iota.
 
 Lemma grab_tc_environ:
-  forall `{!heapGS Σ} Delta (PQR : assert) S rho,
+  forall `{!VSTGS OK_ty Σ} Delta (PQR : assert) S rho,
     (tc_environ Delta rho -> PQR rho ⊢ S) ->
     (local(Σ := Σ) (tc_environ Delta) ∧ PQR) rho ⊢ S.
 Proof.
@@ -48,7 +48,7 @@ intros ?rho;
 
 Section mpred.
 
-Context `{!heapGS Σ}.
+Context `{!VSTGS OK_ty Σ}.
 
 Local Notation LOCALx := (LOCALx(Σ := Σ)).
 

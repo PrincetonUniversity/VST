@@ -10,11 +10,8 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Section mpred.
 
 (* box up concurrentGS? *)
-Context `{!heapGS Σ, !externalGS unit Σ}.
-#[local] Instance Concurrent_Espec : OracleKind := Concurrent_Espec unit CompSpecs (ext_link_prog prog).
-#[local] Instance concurrentGS : VSTGS Concurrent_Espec Σ := Build_VSTGS _ _ _ _.
-
-Context `{!cinvG Σ, !inG Σ (excl_authR natO)}.
+Context `{!VSTGS unit Σ, !cinvG Σ, !inG Σ (excl_authR natO)}.
+#[local] Instance concurrent_ext_spec : ext_spec unit := concurrent_ext_spec _ (ext_link_prog prog).
 
 Definition spawn_spec := DECLARE _spawn spawn_spec.
 
@@ -200,7 +197,6 @@ Proof.
   Intro g2.
   sep_apply (library.create_mem_mgr gv).
   forward_call (gv, fun _ : lock_handle => cptr_lock_inv g1 g2 ctr).
-  { simpl; cancel. }
   Intros lock.
   forward.
   forward.
@@ -240,7 +236,7 @@ Proof.
 Qed.
 
 Lemma prog_correct:
-  semax_prog Concurrent_Espec prog tt Vprog Gprog.
+  semax_prog _ prog tt Vprog Gprog.
 Proof.
 prove_semax_prog.
 semax_func_cons_ext.

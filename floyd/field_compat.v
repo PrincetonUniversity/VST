@@ -267,7 +267,7 @@ Qed.
 
 Section mpred.
 
-Context `{!heapGS Σ}.
+Context `{!VSTGS OK_ty Σ}.
 
 Lemma split2_data_at_Tarray_unfold {cs: compspecs}
      sh t n n1 (v v' v1 v2: list (reptype t)) p:

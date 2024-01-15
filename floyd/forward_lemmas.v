@@ -6,7 +6,7 @@ Import LiftNotation.
 Import -(notations) compcert.lib.Maps.
 
 Lemma semax_while_peel: 
-  forall `{heapGS Σ} {CS: compspecs} {Espec: OracleKind} `{!externalGS OK_ty Σ} Inv E Delta P expr body R,
+  forall `{!VSTGS OK_ty Σ} {OK_spec: ext_spec OK_ty} {CS} Inv E Delta P expr body R,
   semax E Delta P (Ssequence (Sifthenelse expr Sskip Sbreak) body) 
                             (loop1_ret_assert Inv R) ->
   semax E Delta Inv (Swhile expr body) R ->
@@ -24,7 +24,7 @@ intros. simpl. f_equal. apply IHl.
 Qed. 
 
 Lemma semax_func_cons_ext_vacuous:
-     forall `{heapGS Σ} {Espec: OracleKind} `{!externalGS OK_ty Σ} 
+     forall `{!VSTGS OK_ty Σ} {OK_spec: ext_spec OK_ty}
          (V : varspecs) (G : funspecs) (C : compspecs) ge
          (fs : list (ident * Clight.fundef)) (id : ident) (ef : external_function)
          (argsig : typelist) (retsig : type)
@@ -59,7 +59,7 @@ intros HH; eapply HH; clear HH; try assumption; trivial.
 Qed.
 
 Lemma semax_func_cons_int_vacuous
-  `{heapGS0: heapGS Σ} (Espec : OracleKind) `{externalGS0: !externalGS OK_ty Σ}
+  `{!VSTGS OK_ty Σ} {OK_spec: ext_spec OK_ty}
   (V : varspecs) (G : funspecs) 
     (cs : compspecs) (ge : Genv.t (fundef function) type)
     (fs : list (ident * Clight.fundef)) (id : ident) ifunc
@@ -72,8 +72,8 @@ Lemma semax_func_cons_int_vacuous
   (LNR_PT: list_norepet (map fst (fn_params ifunc) ++ map fst (fn_temps ifunc)))
   (LNR_Vars: list_norepet (map fst (fn_vars ifunc)))
   (VarSizes: @semax.var_sizes_ok cenv_cs (fn_vars ifunc))
-  (Sfunc: @semax_func _ _ Espec _ V G cs ge fs G'):
-  @semax_func _ _ Espec _ V G cs ge ((id, Internal ifunc) :: fs)
+  (Sfunc: semax_func V G ge fs G'):
+  semax_func V G ge ((id, Internal ifunc) :: fs)
     ((id, vacuous_funspec (Internal ifunc)) :: G').
 Proof.
 eapply semax_func_cons; try eassumption.
@@ -84,11 +84,11 @@ eapply semax_func_cons; try eassumption.
 + red; simpl. split3.
   - destruct ifunc; simpl; trivial.
   - destruct ifunc; simpl; trivial.
-  - intros Impos. inv Impos.
+  - intros ? Impos. inv Impos.
 Qed.
 
 Lemma semax_prog_semax_func_cons_int_vacuous
-  `{heapGS0: heapGS Σ} (Espec : OracleKind) `{externalGS0: !externalGS OK_ty Σ}
+  `{!VSTGS OK_ty Σ} {OK_spec: ext_spec OK_ty}
   (V : varspecs) (G : funspecs) 
     (cs : compspecs) (ge : Genv.t (fundef function) type)
     (fs : list (ident * Clight.fundef)) (id : ident) ifunc
@@ -100,8 +100,8 @@ Lemma semax_prog_semax_func_cons_int_vacuous
   (LNR_PT: list_norepet (map fst (fn_params ifunc) ++ map fst (fn_temps ifunc)))
   (LNR_Vars: list_norepet (map fst (fn_vars ifunc)))
   (VarSizes: @semax.var_sizes_ok cenv_cs (fn_vars ifunc))
-  (Sfunc: @semax_prog.semax_func _ _ Espec _ V G cs ge fs G'):
-  @semax_prog.semax_func _ _ Espec _ V G cs ge ((id, Internal ifunc) :: fs)
+  (Sfunc: semax_prog.semax_func OK_spec V G ge fs G'):
+  semax_prog.semax_func OK_spec V G ge ((id, Internal ifunc) :: fs)
     ((id, vacuous_funspec (Internal ifunc)) :: G').
 Proof.
 apply id_in_list_false in ID. destruct Sfunc as [Hyp1 [Hyp2 Hyp3]].
@@ -163,7 +163,7 @@ Lemma derives_trans: forall {prop:bi} (P Q R:prop),
 Proof. intros. rewrite H H0 //. Qed.
 
 Lemma semax_ifthenelse_PQR' :
-   forall `{heapGS Σ} {CS: compspecs} {Espec: OracleKind} `{!externalGS OK_ty Σ} (v: val) E Delta P Q R (b: expr) c d Post,
+   forall `{!VSTGS OK_ty Σ} {OK_spec: ext_spec OK_ty} {CS} (v: val) E Delta P Q R (b: expr) c d Post,
       bool_type (typeof b) = true ->
      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢
          (tc_expr Delta (Eunop Cop.Onotbool b tint))  ->
@@ -243,7 +243,7 @@ Proof. intros. rewrite bi.sep_comm. done. Qed.
 
 (* FIXME can this be avoided? *)
 
-Context `{heapGS Σ}.
+Context `{!heapGS Σ}.
 Lemma bi_assert_id : forall P,  bi_assert(Σ:=Σ) P ⊣⊢ P.
 Proof. intros. unfold bi_assert. constructor. intros simpl. constructor. intros.
        split; intros; simpl; done.
@@ -251,7 +251,7 @@ Qed.
 End MPRED.
 
 Lemma semax_pre_flipped :
- forall `{heapGS0: heapGS Σ} (P' : massert') (Espec : OracleKind) `{!externalGS OK_ty Σ} {cs: compspecs}
+ forall `{!VSTGS OK_ty Σ} {OK_spec: ext_spec OK_ty} (P' : massert') {cs: compspecs}
         E (Delta : tycontext) (P1 : list Prop) (P2 : list localdef)
          (P3 : list mpred) (c : statement)
          (R : ret_assert),
@@ -263,7 +263,7 @@ eapply semax_pre. apply H0.  rewrite bi_assert_id. apply H.
 Qed.
 
 Lemma semax_while :
- forall `{heapGS0: heapGS Σ} (Espec : OracleKind) `{!externalGS OK_ty Σ} {cs: compspecs}
+ forall `{!VSTGS OK_ty Σ} {OK_spec: ext_spec OK_ty} {cs: compspecs}
      E Delta Q test body (R: ret_assert),
      bool_type (typeof test) = true ->
      (local (tc_environ Delta) ∧ Q ⊢  (tc_expr Delta (Eunop Cop.Onotbool test tint))) ->
@@ -299,7 +299,7 @@ destruct R; simpl; auto.
 Qed.
 
 Lemma semax_while_3g1 :
- forall `{heapGS0: heapGS Σ} (Espec : OracleKind) `{!externalGS OK_ty Σ}  {cs: compspecs}
+ forall `{!VSTGS OK_ty Σ} {OK_spec: ext_spec OK_ty} {cs: compspecs}
      {A} (v: A -> val) E Delta P Q R test body Post,
      bool_type (typeof test) = true ->
      (forall a, ENTAIL Delta, PROPx (P a) (LOCALx (Q a) (SEPx (R a))) ⊢ (tc_expr Delta (Eunop Cop.Onotbool test tint))) ->
@@ -356,7 +356,7 @@ rewrite H3; auto.
 Qed.
 
 Lemma semax_for_x :
- forall `{heapGS0: heapGS Σ} (Espec : OracleKind) `{!externalGS OK_ty Σ} {cs: compspecs}
+ forall `{!VSTGS OK_ty Σ} {OK_spec: ext_spec OK_ty} {cs: compspecs}
      E Delta Q test body incr PreIncr Post,
      bool_type (typeof test) = true ->
      (local (tc_environ Delta) ∧ Q ⊢ (tc_expr Delta (Eunop Cop.Onotbool test tint))) ->
@@ -409,7 +409,7 @@ normalize.
 Qed.
 
 Lemma semax_for :
- forall `{heapGS0: heapGS Σ} (Espec : OracleKind) `{!externalGS OK_ty Σ} {cs: compspecs}
+ forall `{!VSTGS OK_ty Σ} {OK_spec: ext_spec OK_ty} {cs: compspecs}
      {A:Type} (v: A -> val) E Delta P Q R test body incr PreIncr Post,
      bool_type (typeof test) = true ->
      (forall a:A, ENTAIL Delta, PROPx (P a) (LOCALx (Q a) (SEPx (R a)))
@@ -461,7 +461,7 @@ apply semax_for_x with (∃ a:A, PreIncr a); auto.
 Qed.
 
 Lemma forward_setx':
-  forall `{!heapGS Σ} (Espec : OracleKind) `{!externalGS OK_ty Σ} {cs: compspecs}
+  forall `{!VSTGS OK_ty Σ} {OK_spec: ext_spec OK_ty} {cs: compspecs}
   E Delta P id e,
   (P ⊢ (tc_expr Delta e) ∧ (tc_temp_id id (typeof e) Delta e) ) ->
   semax E Delta
@@ -481,7 +481,7 @@ eapply semax_pre.
 Qed.
 
 Lemma semax_switch_PQR: 
-  forall `{heapGS0: heapGS Σ} (Espec : OracleKind) `{!externalGS OK_ty Σ} {CS: compspecs} ,
+  forall `{!VSTGS OK_ty Σ} {OK_spec: ext_spec OK_ty} {CS: compspecs} ,
   forall n E Delta (Pre: assert) a sl (Post: ret_assert),
      is_int_type (typeof a) = true ->
      ENTAIL Delta, Pre ⊢ tc_expr Delta a ->
@@ -577,7 +577,7 @@ Definition adjust_for_sign (s: signedness) (x: Z) :=
  end.
 
 Lemma semax_for_3g1 :
- forall `{heapGS0: heapGS Σ} (Espec : OracleKind) `{!externalGS OK_ty Σ} {cs: compspecs} {A} (PQR: A -> assert) (v: A -> val)
+ forall `{!VSTGS OK_ty Σ} {OK_spec: ext_spec OK_ty} {cs: compspecs} {A} (PQR: A -> assert) (v: A -> val)
      E Delta P Q R test body incr Post,
      bool_type (typeof test) = true ->
      (forall a, ENTAIL Delta, PROPx (P a) (LOCALx (Q a) (SEPx (R a))) ⊢ (tc_expr Delta (Eunop Cop.Onotbool test tint))) ->
@@ -642,7 +642,7 @@ apply semax_loop with (Q':= (∃ a:A, PQR a)).
 Qed.
 
 Lemma semax_for_3g2:  (* no break statements in loop *)
- forall `{heapGS0: heapGS Σ} (Espec : OracleKind) `{!externalGS OK_ty Σ} {cs: compspecs} 
+ forall `{!VSTGS OK_ty Σ} {OK_spec: ext_spec OK_ty} {cs: compspecs} 
      {A} (PQR: A -> assert) (v: A -> val) E Delta P Q R test body incr Post,
      bool_type (typeof test) = true ->
      (forall a, ENTAIL Delta, PROPx (P a) (LOCALx (Q a) (SEPx (R a))) ⊢ (tc_expr Delta (Eunop Cop.Onotbool test tint))) ->

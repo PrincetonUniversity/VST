@@ -3,7 +3,7 @@ Require Import VST.floyd.library.
 
 Section lock_specs.
 
-Context `{!heapGS Σ}.
+Context `{!VSTGS OK_ty Σ}.
 
 (* lock invariants should be exclusive *)
 Class lock_impl := { t_lock : type; lock_handle : Type; ptr_of : lock_handle -> val;
@@ -177,8 +177,6 @@ Class lock_impl := { t_lock : type; lock_handle : Type; ptr_of : lock_handle -> 
     iFrame; auto.
   Qed.
 
-  Context (Z : Type) `{!externalGS Z Σ}.
-
   Definition concurrent_specs (cs : compspecs) (ext_link : string -> ident) :=
     (ext_link "spawn"%string, spawn_spec) ::
     (ext_link "makelock"%string, makelock_spec) ::
@@ -187,16 +185,11 @@ Class lock_impl := { t_lock : type; lock_handle : Type; ptr_of : lock_handle -> 
     (ext_link "release"%string, release_spec) ::
     nil.
 
-  Definition concurrent_ext_spec (cs : compspecs) (ext_link : string -> ident) :=
-    add_funspecs_rec Z
+  #[export] Instance concurrent_ext_spec (cs : compspecs) (ext_link : string -> ident) : ext_spec OK_ty :=
+    add_funspecs_rec OK_ty
       ext_link
-      (ok_void_spec Z).(OK_spec)
+      (void_spec OK_ty)
       (concurrent_specs cs ext_link).
-
-  Definition Concurrent_Espec cs ext_link :=
-    Build_OracleKind
-      Z
-      (concurrent_ext_spec cs ext_link).
 
 End lock_specs.
 
