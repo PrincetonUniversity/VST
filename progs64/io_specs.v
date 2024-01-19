@@ -4,14 +4,18 @@ Require Export VST.floyd.io_events.
 Require Export ITree.ITree.
 Require Export ITree.Eq.
 Require Export ITree.Eq.SimUpToTaus.
-Import ITreeNotations.
-
+(* Import ITreeNotations. *) (* notation conflict *)
+Notation "x <- t1 ;; t2" := (ITree.bind t1 (fun x => t2))
+  (at level 100, t1 at next level, right associativity) : itree_scope.
+Notation "' p <- t1 ;; t2" :=
+  (ITree.bind t1 (fun x_ => match x_ with p => t2 end))
+(at level 100, t1 at next level, p pattern, right associativity) : itree_scope.
 Definition stdin := 0%nat.
 Definition stdout := 1%nat.
 
 Section specs.
 
-Context {E : Type -> Type} `{IO_event(file_id := nat) -< E}.
+Context {E : Type -> Type} `{IO_event(file_id := nat) -< E} `{!VSTGS (@IO_itree E) Σ}.
 
 Definition putchar_spec :=
   WITH c : byte, k : IO_itree
@@ -20,7 +24,7 @@ Definition putchar_spec :=
     PARAMS (Vubyte c) GLOBALS()
     SEP (ITREE (write stdout c ;; k)%itree)
   POST [ tint ]
-   EX i : int,
+   ∃ i : int,
     PROP (Int.signed i = -1 \/ Int.signed i = Byte.unsigned c)
     LOCAL (temp ret_temp (Vint i))
     SEP (ITREE (if eq_dec (Int.signed i) (-1) then (write stdout c ;; k)%itree else k)).
@@ -32,17 +36,19 @@ Definition getchar_spec :=
     PARAMS () GLOBALS()
     SEP (ITREE (r <- read stdin ;; k r)%itree)
   POST [ tint ]
-   EX i : int,
+   ∃ i : int,
     PROP (-1 <= Int.signed i <= Byte.max_unsigned)
     LOCAL (temp ret_temp (Vint i))
     SEP (ITREE (if eq_dec (Int.signed i) (-1) then (r <- read stdin ;; k r)%itree else k (Byte.repr (Int.signed i)))).
 
 (* Build the external specification. *)
-Program Definition IO_void_Espec : OracleKind := ok_void_spec (@IO_itree E).
-
 Definition IO_specs (ext_link : string -> ident) :=
   [(ext_link "putchar"%string, putchar_spec); (ext_link "getchar"%string, getchar_spec)].
 
-Definition IO_Espec (ext_link : string -> ident) : OracleKind := add_funspecs IO_void_Espec ext_link (IO_specs ext_link).
+#[export] Instance IO_ext_spec (ext_link : string -> ident) : ext_spec IO_itree :=
+    add_funspecs_rec IO_itree
+      ext_link
+      (void_spec IO_itree)
+      (IO_specs ext_link).
 
 End specs.

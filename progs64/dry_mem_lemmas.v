@@ -1,11 +1,8 @@
 Require Import VST.veric.juicy_mem.
-Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.initial_world.
-Require Import VST.veric.ghost_PCM.
 Require Import VST.veric.SequentialClight.
 Require Import VST.veric.mem_lessdef.
 Require Import VST.floyd.proofauto.
-Import Maps.
 
 (* functions on byte arrays and CompCert mems *)
 Lemma drop_alloc m : { m' | (let (m1, b) := Mem.alloc m 0 1 in Mem.drop_perm m1 b 0 1 Nonempty) = Some m' }.
@@ -37,68 +34,52 @@ Proof.
   if_tac; if_tac; constructor || contradiction.
 Qed.
 
-Lemma memory_block_writable_perm : forall sh n b ofs r jm, writable_share sh ->
+Section mpred.
+
+Context `{!VSTGS OK_ty Σ}.
+
+Lemma has_ext_state : forall m (z z' : OK_ty),
+  state_interp m z ∗ <absorb> has_ext z' ⊢ ⌜z = z'⌝.
+Proof.
+  intros.
+  iIntros "((_ & Hz) & >Hz')".
+  iDestruct (own_valid_2 with "Hz Hz'") as %?%@excl_auth_agree; done.
+Qed.
+
+Lemma memory_block_writable_perm : forall sh n b ofs m z, writable_share sh ->
   (0 <= ofs)%Z -> (Z.of_nat n + ofs < Ptrofs.modulus)%Z ->
-  app_pred (mapsto_memory_block.memory_block' sh n b ofs) r -> sepalg.join_sub r (m_phi jm) ->
-  Mem.range_perm (m_dry jm) b ofs (ofs + Z.of_nat n) Memtype.Cur Memtype.Writable.
+  state_interp m z ∗ <absorb> memory_block' sh n b ofs ⊢
+  ⌜Mem.range_perm m b ofs (ofs + Z.of_nat n) Memtype.Cur Memtype.Writable⌝.
 Proof.
   intros.
-  rewrite mapsto_memory_block.memory_block'_eq in H2 by auto.
-  unfold mapsto_memory_block.memory_block'_alt in H2.
-  destruct (readable_share_dec sh).
-  intros ??.
-  apply VALspec_range_e with (loc := (b, ofs0)) in H2 as [? Hb]; simpl; auto.
-  destruct H3 as [? J]; apply resource_at_join with (loc := (b, ofs0)) in J.
-  pose proof (juicy_mem_access jm (b, ofs0)) as Hperm.
-  rewrite Hb in J; inversion J; subst; simpl in *.
-  - rewrite <- H8 in Hperm; simpl in Hperm.
-    eapply access_at_writable, Hperm.
-    apply join_writable1 in RJ; auto.
-  - rewrite <- H8 in Hperm; simpl in Hperm.
-    eapply access_at_writable, Hperm.
-    apply join_writable1 in RJ; auto.
-  - apply shares.writable_readable in H; contradiction.
+  iIntros "((Hm & _) & >Hb)".
+  rewrite memory_block'_eq // /memory_block'_alt if_true; last auto.
+  destruct (eq_dec sh Share.top); first subst;
+    (iDestruct (VALspec_range_perm with "[$]") as %?; [by apply perm_of_freeable || by apply perm_of_writable|]);
+    simpl in *; iPureIntro; first eapply Mem.range_perm_implies; try done.
+  constructor.
 Qed.
 
-Lemma data_at__writable_perm : forall {cs : compspecs} sh t p r jm, writable_share sh ->
-  app_pred (@data_at_ cs sh t p) r -> sepalg.join_sub r (m_phi jm) ->
-  exists b ofs, p = Vptr b ofs /\
-    Mem.range_perm (m_dry jm) b (Ptrofs.unsigned ofs) (Ptrofs.unsigned ofs + sizeof t) Memtype.Cur Memtype.Writable.
+Local Transparent memory_block.
+
+Lemma data_at__writable_perm : forall {cs : compspecs} sh t p m z, writable_share sh ->
+  state_interp m z ∗ <absorb> data_at_ sh t p ⊢
+  ⌜exists b ofs, p = Vptr b ofs /\
+    Mem.range_perm m b (Ptrofs.unsigned ofs) (Ptrofs.unsigned ofs + sizeof t) Memtype.Cur Memtype.Writable⌝.
 Proof.
   intros.
-  rewrite data_at__memory_block in H0; destruct H0 as [[Hptr Hcompat] Hdata].
+  rewrite data_at__memory_block.
+  iIntros "(Hm & >((% & %) & Hp))".
   destruct p; try contradiction.
-  do 3 eexists; eauto.
-  destruct Hdata as [? Hblock].
-  eapply memory_block_writable_perm in Hblock; eauto;
-    rewrite ?Z2Nat.id, ?nat_of_Z_max, ?Z.max_l in * by (pose proof sizeof_pos t; lia); auto.
-  { apply Ptrofs.unsigned_range. }
-  { rewrite Z.add_comm; auto. }
+  iExists _, _; iSplit; first done.
+  iDestruct "Hp" as "(% & Hp)".
+  iDestruct (memory_block_writable_perm with "[$Hm $Hp]") as %Hperm; [rep_lia..|].
+  rewrite Z2Nat.id in Hperm; auto.
+  pose proof (sizeof_pos t); lia.
 Qed.
 
-Lemma rebuild_same : forall jm,
-  juicy_mem_lemmas.rebuild_juicy_mem_fmap jm (m_dry jm) = resource_at (m_phi jm).
-Proof.
-  intros; extensionality l.
-  unfold juicy_mem_lemmas.rebuild_juicy_mem_fmap.
-  destruct (m_phi jm @ l) eqn: Hl; auto.
-  - if_tac; auto.
-    destruct jm; simpl in *.
-    rewrite (JMaccess l) in H.
-    rewrite Hl in H; simpl in H.
-    if_tac in H; inv H.
-  - destruct k; auto.
-    destruct jm; simpl in *.
-    if_tac.
-    + apply JMcontents in Hl as [-> ?]; subst; auto.
-    + contradiction H.
-      rewrite (JMaccess l), Hl; simpl.
-      unfold perm_of_sh.
-      if_tac; if_tac; try contradiction; constructor.
-Qed.
-
-Lemma data_at__VALspec_range: forall {cs : compspecs} sh z b o (Hsh: readable_share sh),
-  @data_at_ cs sh (tarray tuchar z) (Vptr b o) |--
+(*Lemma data_at__VALspec_range: forall {cs : compspecs} sh z b o (Hsh: readable_share sh),
+  data_at_ sh (tarray tuchar z) (Vptr b o) ⊢
   res_predicates.VALspec_range z sh (b, Ptrofs.unsigned o).
 Proof.
   intros. rewrite derives_eq.
@@ -165,20 +146,22 @@ Proof.
     + lia.
     + lia.
     + rep_lia.
-Qed.
+Qed.*)
 
-Lemma data_at_bytes : forall {CS : compspecs} sh z (bytes : list val) buf jm phi
-  (Hreadable : readable_share sh) (Hlen : z = Zlength bytes) (J : join_sub phi (m_phi jm))
-  (Hbuf : app_pred (data_at sh (tarray tuchar z) bytes buf) phi)
+(*Lemma data_at_bytes : forall {CS : compspecs} sh z (bytes : list val) buf m o
+  (Hreadable : readable_share sh) (Hlen : z = Zlength bytes)
   (Hdef : Forall (fun x => x <> Vundef) bytes),
-  match buf with
-  | Vptr b ofs =>
-      Mem.loadbytes (m_dry jm) b (Ptrofs.unsigned ofs) z =
-        Some (concat (map (encode_val Mint8unsigned) bytes))
-  | _ => False
- end.
+  state_interp m o ∗ <absorb> data_at sh (tarray tuchar z) bytes buf ⊢
+  ⌜match buf with
+   | Vptr b ofs =>
+       Mem.loadbytes m b (Ptrofs.unsigned ofs) z =
+         Some (concat (map (encode_val Mint8unsigned) bytes))
+   | _ => False
+   end⌝.
 Proof.
   intros.
+  Search Mem.loadbytes Mem.load.
+Search Mem.load mem_auth.
   destruct Hbuf as [(Hptr & _ & Hlim & _) Hbuf].
   unfold at_offset in Hbuf.
   destruct buf; try contradiction; simpl in Hbuf.
@@ -271,10 +254,10 @@ Proof.
     * rewrite Z.add_assoc in *.
       replace (1 + Z.of_nat n + lo) with (Z.of_nat n + (lo + 1)) by lia; auto.
     * eapply join_sub_trans; [eexists|]; eauto.
-Qed.
+Qed.*)
 
 (* up *)
-Lemma perm_order_antisym : forall p p', perm_order p p' -> perm_order p' p -> p = p'.
+Lemma perm_order_antisym' : forall p p', perm_order p p' -> perm_order p' p -> p = p'.
 Proof.
   inversion 1; auto; inversion 1; auto.
 Qed.
@@ -288,14 +271,14 @@ Proof.
   extensionality k.
   apply equal_f with b, equal_f with o, equal_f with k in Hperm.
   unfold access_at; simpl.
-  destruct (_ !! _).
+  destruct (_ !!! _).
   - pose proof (equal_f Hperm p) as Hp; simpl in *.
     pose proof (perm_refl p) as Hrefl; rewrite Hp in Hrefl.
-    destruct (_ !! _); [simpl in * | contradiction].
-    f_equal; apply perm_order_antisym; auto.
+    destruct (_ !!! _); [simpl in * | contradiction].
+    f_equal; apply perm_order_antisym'; auto.
     apply equal_f with p0 in Hperm.
     rewrite Hperm; apply perm_refl.
-  - destruct (_ !! _); auto.
+  - destruct (_ !!! _); auto.
     apply equal_f with p in Hperm; simpl in Hperm.
     pose proof (perm_refl p) as Hrefl; rewrite <- Hperm in Hrefl; contradiction.
 Qed.
@@ -310,7 +293,7 @@ Proof.
   Opaque Mem.loadbytes.
   apply equal_f with b, equal_f with o, equal_f with 1 in Hload.
   unfold contents_at; simpl.
-  rewrite 2if_true  in Hload.
+  rewrite !if_true in Hload.
   inv Hload; auto.
   { unfold Mem.range_perm.
     intros; assert (ofs = o) by lia; subst.
@@ -319,7 +302,7 @@ Proof.
     intros; assert (ofs = o) by lia; subst; auto. }
 Qed.
 
-Lemma mem_evolve_access : forall m1 m2, access_at m1 = access_at m2 -> mem_evolve m1 m2.
+(*Lemma mem_evolve_access : forall m1 m2, access_at m1 = access_at m2 -> mem_evolve m1 m2.
 Proof.
   intros; unfold mem_evolve.
   intro; rewrite H.
@@ -357,21 +340,9 @@ Proof.
     erewrite <- mem_equiv_access; eauto.
   - unfold alloc_cohere in *.
     destruct Heq as (_ & _ & <-); auto.
-Defined.
+Defined.*)
 
-(* up *)
-Lemma has_ext_noat : forall {Z} (z : Z), has_ext z |-- ALL x : _, res_predicates.noat x.
-Proof.
-  intros; unfold has_ext, own.own.
-  change (@predicates_hered.exp rmap ag_rmap _) with (@exp mpred _).
-  apply exp_left; intro.
- unfold own.Own.
- change (@predicates_hered.andp rmap ag_rmap _) with (@andp mpred _).
-  apply andp_left1.
-  apply derives_refl.
-Qed.
-
-Lemma inflate_store_join1 : forall phi1 phi2 phi3 m (J : join phi1 phi2 phi3)
+(*Lemma inflate_store_join1 : forall phi1 phi2 phi3 m (J : join phi1 phi2 phi3)
   (Hno : app_pred (ALL x : _, res_predicates.noat x) phi1),
   join phi1 (inflate_store m phi2) (inflate_store m phi3).
 Proof.
@@ -573,18 +544,18 @@ Proof.
   specialize (H l); simpl in H.
   destruct (phi @ l); auto.
   apply YES_not_identity in H; contradiction.
-Qed.
+Qed.*)
 
 Lemma encode_vals_length : forall lv,
   length (concat (map (encode_val Mint8unsigned) lv)) = length lv.
 Proof.
   induction lv; auto; simpl.
-  rewrite app_length, IHlv.
+  rewrite app_length IHlv.
   unfold encode_val; simpl.
   destruct a; auto.
 Qed.
 
-Lemma store_bytes_data_at : forall {CS : compspecs} phi m0 m sh lv b o
+(*Lemma store_bytes_data_at : forall {CS : compspecs} phi m0 m sh lv b o
   (Hsh : readable_share sh) (Hvals : Forall (fun v => exists i, v = Vint i /\ Int.unsigned i <= Byte.max_unsigned) lv)
   (Hdata : app_pred (res_predicates.VALspec_range (Zlength lv) sh (b, Ptrofs.unsigned o)) phi)
   (Hstore : Mem.storebytes m0 b (Ptrofs.unsigned o) (concat (map (encode_val Mint8unsigned) lv)) = Some m)
@@ -675,18 +646,18 @@ Proof.
       { rewrite <- sublist_next, sublist_rejoin, sublist_same by lia; auto. }
   + destruct (phi1 @ l); auto.
     apply YES_not_identity in Hval1; contradiction.
-Qed.
+Qed.*)
 
-Definition main_pre_dry {Z} (m : mem) (prog : Clight.program) (ora : Z)
-  (ts : list Type) (gv : globals) (z : Z) :=
+Definition main_pre_dry (m : mem) (prog : Clight.program) (ora : OK_ty)
+  (ts : list Type) (gv : globals) (z : OK_ty) :=
   Genv.globals_initialized (Genv.globalenv prog) (Genv.globalenv prog) m /\ z = ora.
 
-Definition main_post_dry {Z} (m0 m : mem) (prog : Clight.program) (ora : Z)
-  (ts : list Type) (gv : globals) (z : Z) := True. (* the desired postcondition might vary by program *)
+Definition main_post_dry (m0 m : mem) (prog : Clight.program) (ora : OK_ty)
+  (ts : list Type) (gv : globals) (z : OK_ty) : Prop := True. (* the desired postcondition might vary by program *)
 
 (* simulate funspec2pre/post *)
 
-Definition main_pre_juicy {Z} prog (ora : Z) gv (x' : rmap * {ts : list Type & unit})
+(*Definition main_pre_juicy {Z} prog (ora : Z) gv (x' : rmap * {ts : list Type & unit})
   (ge_s: extspec.injective_PTree block) args (z : Z) (m : juicy_mem) :=
     Val.has_type_list args [] /\
 (*    (exists phi0 phi1 : rmap,
@@ -707,58 +678,6 @@ Definition main_post_juicy {Z} prog (ora : Z) gv (x' : rmap * {ts : list Type & 
           (semax.make_ext_rval (filter_genv (semax_ext.symb2genv ge_s)) (rettype_of_option_typ tret) ret))
          (m_phi m)(*phi0 /\
        necR (fst x') phi1*) /\ joins (ghost_of (m_phi m)) [Some (ext_ref z, NoneP)]).
-
-Lemma ext_compat_sub : forall {Z} (z : Z) a b, semax.ext_compat z b -> join_sub a b ->
-  semax.ext_compat z a.
-Proof.
-  unfold semax.ext_compat; intros.
-  eapply join_sub_joins_trans; eauto.
-  destruct H0; eexists; apply ghost_of_join; eauto.
-Qed.
-
-Lemma ext_ghost_join' : forall {Z} (z z' : Z) (p p' : preds) c, join (Some (ext_ghost z, p)) (Some (ext_ref z', p')) c ->
-  z = z' /\ p = p'.
-Proof.
-  intros.
-  apply ext_ghost_join in H as [[]|[]]; subst.
-  - assert (ghost.valid(Ghost := ext_PCM Z) (None, None)) as H.
-    { split; simpl; auto. }
-    specialize (H0 (exist _ (None, None) H)); inv H0.
-    destruct H4 as [J _]; simpl in *.
-    inv J.
-    repeat inj_pair_tac.
-    destruct H1 as [_ J]; inv J.
-  - assert (ext_ref z' = ext_ref z) as Heq by congruence.
-    unfold ext_ref in Heq; inj_pair_tac.
-    inv H0; inv H; auto.
-Qed.
-
-Lemma has_ext_compat : forall {Z} (z1 z2 : Z) a b, app_pred (has_ext z1) a ->
-  join_sub a b -> semax.ext_compat z2 b -> z1 = z2 /\
-    ghost_of a = (Some (ext_ghost z1, NoneP)) :: tl (ghost_of a) /\
-    ghost_of b = (Some (ext_ghost z1, NoneP)) :: tl (ghost_of b).
-Proof.
-  intros.
-  destruct H as [? [_ H]].
-  destruct H, H1, H0 as [? Hsub%ghost_of_join].
-  rewrite own.ghost_fmap_singleton in H; apply own.singleton_join_inv_gen in H as (? & (?, ?) & ? & ?).
-  rewrite H2 in *; unfold own.list_set in *; simpl in *.
-  match goal with H : join ?a _ _ |- _ => replace a with (Some (ext_ghost z1, NoneP)) in H
-    by (unfold ext_ghost; repeat f_equal) end.
-  apply ext_ghost_join in H as [[]|[]]; subst.
-  - inv H.
-    inv Hsub.
-    + rewrite <- H6 in H1; inv H1.
-      apply ext_ghost_join' in H10 as []; subst; auto.
-    + rewrite <- H6 in H1; inv H1.
-      apply ext_ghost_join in H7 as [[]|[]]; subst.
-      * apply ext_ghost_join' in H12 as []; subst; auto.
-      * exfalso; eapply no_two_ref; eexists; eauto.
-  - inv H3.
-    destruct (join_assoc (join_comm Hsub) H1) as (? & ? & ?).
-    inv H3.
-    exfalso; eapply no_two_ref; eexists; eauto.
-Qed.
 
 Lemma main_dry : forall {Z} prog (ora : Z) ts gv,
   (forall t b vl x jm,
@@ -788,4 +707,6 @@ Proof.
     eexists; constructor; constructor.
     instantiate (1 := (_, _)); constructor; simpl; [|constructor; auto].
     apply ext_ref_join.
-Qed.
+Qed.*)
+
+End mpred.

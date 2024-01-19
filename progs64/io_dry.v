@@ -6,12 +6,11 @@ Require Import VST.veric.semax_ext.
 Require Import VST.veric.juicy_mem.
 Require Import VST.veric.initial_world.
 Require Import VST.veric.SequentialClight.
-Require Import VST.concurrency.conclib.
 Require Import VST.progs64.dry_mem_lemmas.
 
 Section IO_Dry.
 
-Context {E : Type -> Type} {IO_E : @IO_event nat -< E}.
+Context {E : Type -> Type} {IO_E : @IO_event nat -< E} `{!VSTGS (@IO_itree E) Σ}.
 
 Definition getchar_pre (m : mem) (witness : byte -> IO_itree) (z : IO_itree) :=
   let k := witness in (sutt eq (r <- read stdin;; k r) z).
@@ -30,11 +29,53 @@ Definition putchar_post (m0 m : mem) (r : int) (witness : byte * IO_itree) (z : 
 
 Context (ext_link : String.string -> ident).
 
-Instance Espec : OracleKind := IO_Espec ext_link.
+Definition getchar_sig := typesig2signature ([], tint) cc_default.
 
-Definition io_ext_spec := OK_spec.
+(*(* up *)
+Lemma add_funspecs_pre
+              {fs id sig cc E0 A P Q}
+              Espec tys ge_s {x} {args} m z :
+  let ef := EF_external id (typesig2signature sig cc) in
+  funspecs_norepeat fs ->
+  In (ext_link id, (mk_funspec sig cc E0 A P Q)) fs -> ∃ H : ext_spec_type (add_funspecs_rec _ ext_link Espec fs) ef = (nat * iResUR Σ * dtfr A)%type,
+  ext_spec_pre (add_funspecs_rec _ ext_link Espec fs) ef x ge_s tys args z m <->
+  funspec2pre' _ A P (eq_rect _ Datatypes.id x _ H) ge_s (sig_args (ef_sig ef)) args z m.
+Proof.
+  induction fs; [intros; exfalso; auto|]; intros ?? [-> | H1]; simpl in *.
+  - clear IHfs H; unfold funspec2jspec; simpl.
+    destruct sig; unfold funspec2pre, funspec2post; simpl in *.
+    revert x; if_tac; simpl; last done.
+    intros; exists eq_refl; tauto.
+  - assert (Hin: In (ext_link id) (map fst fs)).
+    { eapply (in_map fst) in H1; apply H1. }
+    inversion H as [|? ? Ha Hb]; subst.
+    destruct a; simpl; destruct f as [(?, ?)]; simpl; unfold funspec2pre, funspec2post; simpl.
+    revert x; simpl; if_tac [e | e].
+    { injection e as ?; subst i; destruct fs; [solve [simpl; intros; exfalso; auto]|]; done. }
+    intros; apply IHfs; auto.
+Qed.*)
 
-Lemma getchar_pre_plain : ext_spec_pre getchar m w z <-> getchar_pre m w z.
+Lemma getchar_pre_plain : forall p w z m,
+  ext_spec_pre (IO_ext_spec ext_link) (EF_external "getchar" getchar_sig) w p [] [] z m ->
+    exists H : ext_spec_type (IO_ext_spec ext_link) (EF_external "getchar" getchar_sig) = (nat * iResUR Σ * (byte -> IO_itree))%type,
+    getchar_pre m (snd (eq_rect _ Datatypes.id w _ H)) z.
+Proof.
+  intros.
+  edestruct @add_funspecs_pre as (Hty & Hpre).
+  { instantiate (1 := IO_specs ext_link).
+    repeat constructor; simpl; try tauto. admit. }
+  { simpl. right; left; unfold getchar_spec.
+         instantiate (3 := ConstType (byte -> IO_itree)).
+         reflexivity. }
+  exists Hty; rewrite Hpre /funspec2pre' /= in H.
+  if_tac in H.
+    rewrite Hpre /=.
+    2: { 
+         f_equal. f_equal.
+rewrite /= /funspec2pre.
+    revert H.
+    destruct (oi_eq_dec _ _).
+  split.
 
 
 Program Definition io_dry_spec : external_specification mem external_function (@IO_itree E).

@@ -180,7 +180,53 @@ Proof.
     by etrans.
 Qed.*)
 
-Lemma add_funspecs_prepost  (ext_link: Strings.String.string -> ident)
+Lemma add_funspecs_pre (ext_link: Strings.String.string -> ident)
+              {fs id sig cc E A P Q}
+              Espec tys ge_s {x} {args} m z :
+  let ef := EF_external id (typesig2signature sig cc) in
+  funspecs_norepeat fs ->
+  In (ext_link id, (mk_funspec sig cc E A P Q)) fs -> ∃ H : ext_spec_type (add_funspecs_rec ext_link Espec fs) ef = (nat * iResUR Σ * dtfr A)%type,
+  ext_spec_pre (add_funspecs_rec ext_link Espec fs) ef x ge_s tys args z m =
+  funspec2pre' A P (eq_rect _ Datatypes.id x _ H) ge_s (sig_args (ef_sig ef)) args z m.
+Proof.
+  induction fs; [intros; exfalso; auto|]; intros ?? [-> | H1]; simpl in *.
+  - clear IHfs H; unfold funspec2jspec; simpl.
+    destruct sig; unfold funspec2pre, funspec2post; simpl in *.
+    revert x; if_tac; simpl; last done.
+    intros; exists eq_refl; tauto.
+  - assert (Hin: In (ext_link id) (map fst fs)).
+    { eapply (in_map fst) in H1; apply H1. }
+    inversion H as [|? ? Ha Hb]; subst.
+    destruct a; simpl; destruct f as [(?, ?)]; simpl; unfold funspec2pre, funspec2post; simpl.
+    revert x; simpl; if_tac [e | e].
+    { injection e as ?; subst i; destruct fs; [solve [simpl; intros; exfalso; auto]|]; done. }
+    intros; apply IHfs; auto.
+Qed.
+
+Lemma add_funspecs_post (ext_link: Strings.String.string -> ident)
+              {fs id sig cc E A P Q}
+              Espec ty ge_s {x} {v} m z :
+  let ef := EF_external id (typesig2signature sig cc) in
+  funspecs_norepeat fs ->
+  In (ext_link id, (mk_funspec sig cc E A P Q)) fs -> ∃ H : ext_spec_type (add_funspecs_rec ext_link Espec fs) ef = (nat * iResUR Σ * dtfr A)%type,
+  ext_spec_post (add_funspecs_rec ext_link Espec fs) ef x ge_s ty v z m =
+  funspec2post' A Q (eq_rect _ Datatypes.id x _ H) ge_s ty v z m.
+Proof.
+  induction fs; [intros; exfalso; auto|]; intros ?? [-> | H1]; simpl in *.
+  - clear IHfs H; unfold funspec2jspec; simpl.
+    destruct sig; unfold funspec2pre, funspec2post; simpl in *.
+    revert x; if_tac; simpl; last done.
+    intros; exists eq_refl; tauto.
+  - assert (Hin: In (ext_link id) (map fst fs)).
+    { eapply (in_map fst) in H1; apply H1. }
+    inversion H as [|? ? Ha Hb]; subst.
+    destruct a; simpl; destruct f as [(?, ?)]; simpl; unfold funspec2pre, funspec2post; simpl.
+    revert x; simpl; if_tac [e | e].
+    { injection e as ?; subst i; destruct fs; [solve [simpl; intros; exfalso; auto]|]; done. }
+    intros; apply IHfs; auto.
+Qed.
+
+Lemma add_funspecs_prepost (ext_link: Strings.String.string -> ident)
               {fs id sig cc E A P Q}
               {x: dtfr A} {args} Espec tys ge_s :
   let ef := EF_external id (typesig2signature sig cc) in
