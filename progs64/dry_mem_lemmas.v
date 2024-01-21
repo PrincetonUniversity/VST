@@ -46,6 +46,15 @@ Proof.
   iDestruct (own_valid_2 with "Hz Hz'") as %?%@excl_auth_agree; done.
 Qed.
 
+Lemma change_ext_state : forall m (z z' : OK_ty),
+  state_interp m z ∗ has_ext z ⊢ |==> state_interp m z' ∗ has_ext z'.
+Proof.
+  intros.
+  iIntros "(($ & Hz) & Hext)".
+  iMod (own_update_2 with "Hz Hext") as "($ & $)"; last done.
+  apply @excl_auth_update.
+Qed.
+
 Lemma memory_block_writable_perm : forall sh n b ofs m z, writable_share sh ->
   (0 <= ofs)%Z -> (Z.of_nat n + ofs < Ptrofs.modulus)%Z ->
   state_interp m z ∗ <absorb> memory_block' sh n b ofs ⊢

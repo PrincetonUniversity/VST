@@ -731,9 +731,10 @@ Section Invariants.
       end) evs)).
   Proof.
     induction evs as [| ev evs]; cbn -[Zlength]; intros * Hall Hmax Hlen.
-    { cbn in *.
+    { rewrite app_nil_r.
+      cbn in *.
       replace (Zlength (compute_console' tr)) with CONS_BUFFER_MAX_CHARS by lia.
-      cbn; auto using app_nil_r.
+      cbn; auto.
     }
     rewrite Zlength_cons in Hlen.
     edestruct Hall as (? & ? & ? & ?); eauto; subst.
@@ -1987,6 +1988,6 @@ Import functional_base.
       admit.
     - (* trace_itree_match *)
       admit.
-  Admitted.
+  Abort.
 
 End SpecsCorrect.

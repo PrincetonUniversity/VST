@@ -523,7 +523,7 @@ Ltac my_auto_iter H :=
          eapply try_conjuncts_lem;
             [let H1 := fresh in intro H1; my_auto_iter H1
             |let H1 := fresh in intro H1; my_auto_iter H1
-            | apply H ]
+            | exact H ]
        | apply H
        ].
 

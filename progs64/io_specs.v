@@ -17,6 +17,8 @@ Section specs.
 
 Context {E : Type -> Type} `{IO_event(file_id := nat) -< E} `{!VSTGS (@IO_itree E) Σ}.
 
+Notation IO_itree := (@IO_itree E).
+
 Definition putchar_spec :=
   WITH c : byte, k : IO_itree
   PRE [ tint ]
@@ -46,9 +48,6 @@ Definition IO_specs (ext_link : string -> ident) :=
   [(ext_link "putchar"%string, putchar_spec); (ext_link "getchar"%string, getchar_spec)].
 
 #[export] Instance IO_ext_spec (ext_link : string -> ident) : ext_spec IO_itree :=
-    add_funspecs_rec IO_itree
-      ext_link
-      (void_spec IO_itree)
-      (IO_specs ext_link).
+    add_funspecs_rec IO_itree ext_link (void_spec IO_itree) (IO_specs ext_link).
 
 End specs.

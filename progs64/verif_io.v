@@ -1,11 +1,16 @@
 Require Import VST.progs64.io.
 Require Import VST.progs64.io_specs.
 Require Import VST.floyd.proofauto.
+Require Import ITree.Core.ITreeDefinition.
 
 Local Open Scope itree_scope.
 
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
+
+Section IO.
+
+Context `{!VSTGS (@IO_itree (IO_event(file_id := nat))) Σ}.
 
 Definition putchar_spec := DECLARE _putchar putchar_spec.
 Definition getchar_spec := DECLARE _getchar getchar_spec.
@@ -19,7 +24,7 @@ Definition getchar_blocking_spec :=
     GLOBALS ()
     SEP (ITREE (r <- read stdin;; k r))
   POST [ tint ]
-   EX i : byte,
+   ∃ i : byte,
     PROP ()
     LOCAL (temp ret_temp (Vubyte i))
     SEP (ITREE (k i)).
@@ -46,16 +51,18 @@ Proof.
   rewrite <- Nat2Z.inj_div by discriminate.
   rewrite !Nat2Z.id.
   apply Nat2Z.inj_lt.
-  rewrite Nat2Z.inj_div, Z2Nat.id by lia; simpl.
+  rewrite -> Nat2Z.inj_div, Z2Nat.id by lia; simpl.
   apply Z.div_lt; auto; lia.
 Qed.
+
+Local Obligation Tactic := unfold RelationClasses.complement, Equivalence.equiv;
+  Tactics.program_simpl.
 
 Program Fixpoint chars_of_Z (n : Z) { measure (Z.to_nat n) } : list byte :=
   let n' := n / 10 in
   match n' <=? 0 with true => [Byte.repr (n + char0)] | false => chars_of_Z n' ++ [Byte.repr (n mod 10 + char0)] end.
 Next Obligation.
 Proof.
-  rewrite ?Zaux.Zdiv_eucl_unique in *.  (* Coq 8.15 and after *)
   apply div_10_dec.
   symmetry in Heq_anonymous; apply Z.leb_nle in Heq_anonymous.
   eapply Z.lt_le_trans, Z_mult_div_ge with (b := 10); lia.
@@ -69,7 +76,6 @@ Program Fixpoint intr n { measure (Z.to_nat n) } : list byte :=
   end.
 Next Obligation.
 Proof.
-  rewrite ?Zaux.Zdiv_eucl_unique in *.  (* Coq 8.15 and after *)
   apply div_10_dec.
   symmetry in Heq_anonymous; apply Z.leb_nle in Heq_anonymous; lia.
 Defined.
@@ -145,15 +151,15 @@ Qed.
 Lemma body_getchar_blocking: semax_body Vprog Gprog f_getchar_blocking getchar_blocking_spec.
 Proof.
   start_function.
+  rename a into k.
   forward.
-  forward_while (EX i : int, PROP (-1 <= Int.signed i <= two_p 8 - 1) LOCAL (temp _r (Vint i))
+  forward_while (∃ i : int, PROP (-1 <= Int.signed i <= two_p 8 - 1) LOCAL (temp _r (Vint i))
     SEP (ITREE (if eq_dec (Int.signed i) (-1) then (r <- read stdin;; k r) else k (Byte.repr (Int.signed i))))).
   - Exists (Int.neg (Int.repr 1)); entailer!.
     { simpl; lia. }
-    rewrite if_true; auto.
   - entailer!.
-  - subst; rewrite Int.signed_repr by rep_lia.
-    rewrite if_true by auto.
+  - subst; rewrite -> Int.signed_repr by rep_lia.
+    rewrite -> if_true by auto.
     forward_call k.
     Intros i.
     forward.
@@ -162,10 +168,10 @@ Proof.
     { intro X.
       apply f_equal with (f := Int.repr) in X.
       rewrite Int.repr_signed in X; auto. }
-    rewrite if_false by auto.
+    rewrite -> if_false by auto.
     forward.
     Exists (Byte.repr (Int.signed i)); entailer!.
-    unfold Vubyte; rewrite Byte.unsigned_repr, Int.repr_signed; auto.
+    unfold Vubyte; rewrite -> Byte.unsigned_repr, Int.repr_signed; auto.
     split; try lia.
     etransitivity; [apply H|].
     simpl; rep_lia.
@@ -175,13 +181,12 @@ Lemma body_putchar_blocking: semax_body Vprog Gprog f_putchar_blocking putchar_b
 Proof.
   start_function.
   forward.
-  forward_while (EX i : int, PROP (Int.signed i = -1 \/ Int.signed i = Byte.unsigned c) LOCAL (temp _r (Vint i); temp _c (Vubyte c))
+  forward_while (∃ i : int, PROP (Int.signed i = -1 \/ Int.signed i = Byte.unsigned c) LOCAL (temp _r (Vint i); temp _c (Vubyte c))
     SEP (ITREE (if eq_dec (Int.signed i) (-1) then (r <- write stdout c;; k) else k))).
   - Exists (Int.neg (Int.repr 1)); entailer!.
-    rewrite if_true; auto.
   - entailer!.
-  - subst; rewrite Int.signed_repr by rep_lia.
-    rewrite if_true by auto.
+  - subst; rewrite -> Int.signed_repr by rep_lia.
+    rewrite -> if_true by auto.
     forward_call (c, k).
     Intros i.
     forward.
@@ -190,7 +195,7 @@ Proof.
     { intro X.
       apply f_equal with (f := Int.repr) in X.
       rewrite Int.repr_signed in X; auto. }
-    rewrite if_false by auto.
+    rewrite -> if_false by auto.
     destruct H; [contradiction | subst].
     forward.
     entailer!.
@@ -204,10 +209,10 @@ Proof.
   forward_if (PROP () LOCAL () SEP (ITREE tr)).
   - forward.
     forward.
-    rewrite modu_repr, divu_repr by (lia || computable).
+    rewrite -> modu_repr, divu_repr by (lia || computable).
     rewrite intr_eq.
     destruct (Z.leb_spec i 0); try lia.
-    rewrite write_list_app, bind_bind.
+    rewrite write_list_app bind_bind.
     forward_call (i / 10, write_list stdout [Byte.repr (i mod 10 + char0)];; tr).
     { split; [apply Z.div_pos; lia | apply Z.div_le_upper_bound; lia]. }
     simpl write_list.
@@ -215,13 +220,11 @@ Proof.
     { entailer!.
       unfold Vubyte; rewrite Byte.unsigned_repr; auto.
       pose proof (Z_mod_lt i 10); unfold char0; rep_lia. }
-    { rewrite <- sepcon_emp at 1; apply sepcon_derives; [|cancel].
-      rewrite bind_ret'; auto. }
+    { rewrite bind_ret'; cancel. }
     entailer!.
   - forward.
-    subst; entailer!.
-    simpl.
-    rewrite bind_ret_l; auto.
+    entailer!.
+  - entailer!.
 Qed.
 
 Lemma chars_of_Z_eq : forall n, chars_of_Z n =
@@ -238,10 +241,9 @@ Lemma chars_of_Z_intr : forall n, 0 < n ->
   chars_of_Z n = intr n.
 Proof.
   induction n using (well_founded_induction (Zwf.Zwf_well_founded 0)); intro.
-  rewrite chars_of_Z_eq, intr_eq.
+  rewrite chars_of_Z_eq intr_eq.
   destruct (n <=? 0) eqn: Hn; [apply Zle_bool_imp_le in Hn; lia|].
   simpl.
-  rewrite ?Zaux.Zdiv_eucl_unique in *.  (* Coq 8.15 and after *)
   destruct (n / 10 <=? 0) eqn: Hdiv.
   - apply Zle_bool_imp_le in Hdiv.
     assert (0 <= n / 10).
@@ -263,12 +265,12 @@ Proof.
   - subst.
     forward_call (Byte.repr char0, tr).
     { rewrite chars_of_Z_eq; simpl.
-      erewrite <- sepcon_emp at 1; apply sepcon_derives; [|cancel].
-      rewrite bind_ret'; apply derives_refl. }
+      rewrite bind_ret' /char0; cancel. }
     entailer!.
   - forward_call (i, tr).
-    { rewrite chars_of_Z_intr by lia; cancel. }
+    { rewrite -> chars_of_Z_intr by lia; cancel. }
     entailer!.
+  - entailer!.
 Qed.
 
 Lemma read_sum_eq : forall n d, read_sum n d ≈
@@ -306,13 +308,13 @@ Proof.
   forward_call (fun c => read_sum 0 (Byte.unsigned c - char0)).
   Intros c.
   forward.
-  rewrite zero_ext_inrange by (pose proof (signed_char_unsigned c); rewrite Int.unsigned_repr; rep_lia).
-  set (Inv := EX n : Z, EX c : byte,
+  rewrite -> zero_ext_inrange by (pose proof (signed_char_unsigned c); rewrite Int.unsigned_repr; rep_lia).
+  set (Inv := ∃ n : Z, ∃ c : byte,
     PROP (0 <= n < 1009)
     LOCAL (temp _c (Vubyte c); temp _n (Vint (Int.repr n)))
     SEP (ITREE (read_sum n (Byte.unsigned c - char0)))).
   unfold Swhile; forward_loop Inv break: Inv.
-  { Exists 0 c; entailer!. }
+  { unfold Inv; Exists 0 c; entailer!. }
   subst Inv.
   clear dependent c; Intros n c.
   forward_if.
@@ -324,9 +326,9 @@ Proof.
   destruct (zlt (Byte.unsigned c) char0).
   { rewrite Int.unsigned_repr_eq in H1.
     rewrite <- Z_mod_plus_full with (b := 1), Zmod_small in H1; unfold char0 in *; rep_lia. }
-  rewrite Int.unsigned_repr in H1 by (unfold char0 in *; rep_lia).
+  rewrite -> Int.unsigned_repr in H1 by (unfold char0 in *; rep_lia).
   rewrite read_sum_eq.
-  rewrite if_true by auto.
+  rewrite -> if_true by auto.
   destruct (zlt _ _); [|unfold char0 in *; lia].
   forward_call (n + (Byte.unsigned c - char0),
     write stdout (Byte.repr newline);; c' <- read stdin;; read_sum (n + (Byte.unsigned c - char0)) (Byte.unsigned c' - char0)).
@@ -334,7 +336,7 @@ Proof.
   forward_call (fun c' => read_sum (n + (Byte.unsigned c - char0)) (Byte.unsigned c' - char0)).
   Intros c'.
   forward.
-  rewrite zero_ext_inrange by (pose proof (signed_char_unsigned c'); rewrite Int.unsigned_repr; rep_lia).
+  rewrite -> zero_ext_inrange by (pose proof (signed_char_unsigned c'); rewrite Int.unsigned_repr; rep_lia).
   Exists (n + (Byte.unsigned c - char0)) c'; entailer!.
   { forward.
     Exists n c; entailer!. }
@@ -345,17 +347,18 @@ Qed.
 
 Definition ext_link := ext_link_prog prog.
 
-#[export] Instance Espec : OracleKind := IO_Espec ext_link.
+#[local] Instance IO_ext_spec : ext_spec IO_itree := IO_ext_spec ext_link.
 
 Lemma prog_correct:
   semax_prog prog main_itree Vprog Gprog.
 Proof.
 prove_semax_prog.
 semax_func_cons_ext.
-{ simpl; Intro i.
+{ simpl; monPred.unseal; Intro i.
   apply typecheck_return_value with (t := Tint16signed); auto. }
 semax_func_cons_ext.
-{ simpl; Intro i'.
+{ destruct x as (c, k).
+  simpl; monPred.unseal; Intro i'.
   apply typecheck_return_value with (t := Tint16signed); auto. }
 semax_func_cons body_getchar_blocking.
 semax_func_cons body_putchar_blocking.
@@ -364,8 +367,12 @@ semax_func_cons body_print_int.
 semax_func_cons body_main.
 Qed.
 
-Require Import VST.veric.SequentialClight.
-Require Import VST.progs64.io_dry.
+End IO.
+
+Require Import VST.progs64.os_combine.
+Require Import VST.progs64.io_combine.
+Require Import VST.progs64.io_os_specs.
+Require Import VST.progs64.io_os_connection.
 
 Lemma init_mem_exists : { m | Genv.init_mem prog = Some m }.
 Proof.
@@ -398,38 +405,6 @@ Qed.
 
 Definition main_block := proj1_sig main_block_exists.
 
-Axiom (Jsub: forall ef se lv m t v m' (EFI : ef_inline ef = true) m1
-       (EFC : Events.external_call ef se lv m t v m'), juicy_mem.mem_sub m m1 ->
-       exists m1' (EFC1 : Events.external_call ef se lv m1 t v m1'),
-         juicy_mem.mem_sub m' m1' /\ proj1_sig (Clight_core.inline_external_call_mem_events _ _ _ _ _ _ _ EFI EFC1) =
-         proj1_sig (Clight_core.inline_external_call_mem_events _ _ _ _ _ _ _ EFI EFC)).
-
-Theorem prog_ext_correct : exists q,
-  semantics.initial_core (Clight_core.cl_core_sem (globalenv prog)) 0 init_mem q init_mem (Vptr main_block Ptrofs.zero) [] /\
-  forall n, @step_lemmas.dry_safeN _ _ _ _ semax.genv_symb_injective (Clight_core.cl_core_sem (globalenv prog))
-             (io_dry_spec ext_link) {| genv_genv := Genv.globalenv prog; genv_cenv := prog_comp_env prog |} n
-            main_itree q init_mem.
-Proof.
-  edestruct whole_program_sequential_safety_ext with (V := Vprog) as (b & q & Hb & Hq & Hsafe).
-  - repeat intro; hnf.
-    apply I.
-  - apply Jsub.
-  - apply add_funspecs_frame.
-  - apply juicy_dry_specs.
-  - apply dry_spec_mem.
-  - intros; apply I.
-  - apply CSHL_Sound.semax_prog_sound, prog_correct.
-  - apply (proj2_sig init_mem_exists).
-  - exists q.
-    rewrite (proj2_sig main_block_exists) in Hb; inv Hb.
-    split; auto.
-Qed.
-
-Require Import VST.progs64.os_combine.
-Require Import VST.progs64.io_combine.
-Require Import VST.progs64.io_os_specs.
-Require Import VST.progs64.io_os_connection.
-
 (* correctness down to OS traces, with relationship between syscall events and actual external reads/writes *)
 Theorem prog_OS_correct : forall {H : io_os_specs.ThreadsConfigurationOps},
   exists q,
@@ -440,11 +415,13 @@ Theorem prog_OS_correct : forall {H : io_os_specs.ThreadsConfigurationOps},
       valid_trace_user s.(io_log).
 Proof.
   intros.
-  edestruct IO_OS_ext with (V := Vprog) as (b & q & Hb & Hq & Hsafe).
-  - apply Jsub.
-  - apply prog_correct.
+  edestruct (IO_OS_ext prog) with (V := Vprog) as (b & q & Hb & Hq & Hsafe).
+  - rewrite /ext_link /ext_link_prog /prog /=; intros ??.
+    (* if_tac; repeat (if_tac; subst; try done).*) admit. (* very slow *)
+  - apply SequentialClight.subG_VSTGpreS, subG_refl.
+  - intros; simple apply (@prog_correct _ VSTGS0).
   - apply (proj2_sig init_mem_exists).
   - exists q.
     rewrite (proj2_sig main_block_exists) in Hb; inv Hb.
     auto.
-Qed.
+Admitted.

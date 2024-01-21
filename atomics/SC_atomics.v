@@ -292,8 +292,6 @@ Next Obligation.
   by repeat f_equiv.
 Qed.
 
-#[global] Arguments eq_dec {_} {_} !a !a'.
-
 Lemma atomic_CAS_int : funspec_sub atomic_CAS_spec atomic_CAS_int_spec.
 Proof.
   split; first done; intros; simpl in *.

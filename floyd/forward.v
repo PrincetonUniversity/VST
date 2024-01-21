@@ -4586,7 +4586,7 @@ Opaque bi_emp.
 Opaque bi_and.
 
 Arguments overridePost {_} Q R / .
-Arguments eq_dec A EqDec / a a' .
+Arguments eq_dec A EqDec / !a !a' .
 Arguments EqDec_exitkind !a !a'.
 
 (**** make_compspecs ****)
