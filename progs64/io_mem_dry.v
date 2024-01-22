@@ -70,53 +70,80 @@ Proof.
   - intros; exact True%type.
 Defined.
 
-Context {CS : compspecs} (ext_link : string -> ident) (ext_link_inj : forall s1 s2, ext_link s1 = ext_link s2 -> s1 = s2).
+Context {CS : compspecs} (ext_link : string -> ident)
+  (ext_link_inj : forall s1 s2, In s1 ["getchars"; "putchars"] -> ext_link s1 = ext_link s2 -> s1 = s2).
 
 Arguments eq_dec : simpl never.
 
 Theorem io_spec_sound : forall `{!VSTGS IO_itree Σ}, ext_spec_entails (IO_ext_spec ext_link) io_dry_spec.
 Proof.
   intros; apply juicy_dry_spec; last done; intros.
-  destruct H as [H | [H | ?]]; last done; injection H as <-%ext_link_inj <-; simpl.
+  destruct H as [H | [H | ?]]; last done; injection H as <-%ext_link_inj <-; simpl; auto.
   - if_tac; last done; intros.
     exists (m, w).
-(*    destruct w as (c, k).
-    iIntros "(Hz & _ & %Hargs & H)".
+    destruct w as (((((sh, buf), msg), len), rest), k).
+    iIntros "(Hz & (%Hsh & _) & %Hargs & H)".
     rewrite /SEPx; monPred.unseal.
-    iDestruct "H" as "(_ & (% & % & Hext) & _)".
+    iDestruct "H" as "(_ & (% & % & Hext) & Hbuf & _)".
     iDestruct (has_ext_state with "[$Hz $Hext]") as %<-.
-    iSplit; first done.
-    iIntros (???? (r & -> & ? & -> & Hr & Hz')).
-    iMod (change_ext_state with "[$]") as "($ & ?)".
-    iIntros "!>"; iExists r.
-    iSplit; first done.
-    rewrite /local /= /lift1; unfold_lift.
     iSplit.
-    { iPureIntro; destruct ty; done. }
-    iSplit; last done.
-    iExists z'; iFrame; iPureIntro.
-    split; last done.
-    if_tac; subst; done.
+    + iDestruct (data_array_at_local_facts with "Hbuf") as %((? & ?) & Hlen & ?).
+      destruct (eq_dec msg []).
+      { destruct buf; try done.
+        iPureIntro; repeat (split; first done).
+        subst; simpl.
+        rewrite Mem.loadbytes_empty //. }
+      rewrite split2_data_at_Tarray_app //.
+      iDestruct "Hbuf" as "(Hmsg & _)".
+      iDestruct (data_at_bytes with "[$Hz $Hmsg]") as %Hmsg; first done.
+      { rewrite Forall_map Forall_forall //. }
+      iPureIntro; repeat (split; first done).
+      rewrite Zlength_map map_map // in Hmsg.
+      { rewrite -> Zlength_app, Z.max_r in Hlen.
+        subst. rewrite Z.add_simpl_l //.
+        { destruct msg; first done.
+          simpl in *; rewrite Zlength_cons in Hlen; rep_lia. } }
+    + iIntros (???? (r & -> & ? & -> & -> & <-)).
+      iMod (change_ext_state with "[$]") as "($ & ?)".
+      iIntros "!>".
+      iSplit; first done.
+      rewrite /local /= /lift1; unfold_lift.
+      iSplit.
+      { iPureIntro; destruct ty; done. }
+      iFrame.
+      iExists z'; iFrame; done.
   - if_tac; last done; intros.
     exists (m, w).
-    iIntros "(Hz & _ & %Hargs & H)".
+    destruct w as (((sh, buf), len), k).
+    iIntros "(Hz & (%Hsh & _) & %Hargs & H)".
     rewrite /SEPx; monPred.unseal.
-    iDestruct "H" as "(_ & (% & % & Hext) & _)".
+    iDestruct "H" as "(_ & (% & % & Hext) & Hbuf & _)".
     iDestruct (has_ext_state with "[$Hz $Hext]") as %<-.
-    iSplit; first done.
-    iIntros (???? (r & -> & ? & -> & Hr & Hz')).
-    simpl in Hz'.
-    iMod (change_ext_state with "[$]") as "($ & ?)".
-    iIntros "!>"; iExists r.
-    iSplit; first done.
-    rewrite /local /= /lift1; unfold_lift.
     iSplit.
-    { iPureIntro; destruct ty; done. }
-    iSplit; last done.
-    iExists z'; iFrame; iPureIntro.
-    split; last done.
-    if_tac; subst; done.
-Qed.*)
-Admitted.
+    + iDestruct (data_at__writable_perm with "[$Hz $Hbuf]") as %(? & ? & -> & Hbuf).
+      iPureIntro; repeat (split; first done).
+      simpl in *.
+      rewrite Z.mul_1_l // in Hbuf.
+    + iIntros (???? (r & -> & ? & -> & msg & <- & -> & Hstore)).
+      iDestruct "Hz" as "(Hm & Hz)".
+      rewrite /state_interp.
+      iMod (own_update_2 with "Hz Hext") as "($ & ?)".
+      { apply @excl_auth_update. }
+      destruct buf; try done.
+      destruct Hstore as (? & Hstore & Heq%mem_equiv_sym).
+      rewrite -(mem_auth_equiv _ m') //.
+      iMod (data_at__storebytes _ _ _ _ _ _ (map Vubyte msg) with "[$]") as "($ & ?)".
+      { rewrite Forall_map Forall_forall; intros byte ??; simpl.
+        rewrite Int.unsigned_repr; rep_lia. }
+      { rewrite map_map //. }
+      { rewrite Zlength_map //. }
+      iIntros "!>"; iExists msg.
+      iSplit; first done.
+      rewrite /local /= /lift1; unfold_lift.
+      iSplit.
+      { iPureIntro; destruct ty; done. }
+      iFrame.
+      iExists (k msg); iSplit; done.
+Qed.
 
 End IO_Dry.

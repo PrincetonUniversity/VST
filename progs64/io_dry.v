@@ -52,14 +52,15 @@ Proof.
   - intros; exact True%type.
 Defined.
 
-Context (ext_link : string -> ident) (ext_link_inj : forall s1 s2, ext_link s1 = ext_link s2 -> s1 = s2).
+Context (ext_link : string -> ident)
+  (ext_link_inj : forall s1 s2, In s1 ["getchar"; "putchar"] -> ext_link s1 = ext_link s2 -> s1 = s2).
 
 Arguments eq_dec : simpl never.
 
 Theorem io_spec_sound : forall `{!VSTGS IO_itree Σ}, ext_spec_entails (IO_ext_spec ext_link) io_dry_spec.
 Proof.
   intros; apply juicy_dry_spec; last done; intros.
-  destruct H as [H | [H | ?]]; last done; injection H as <-%ext_link_inj <-; simpl.
+  destruct H as [H | [H | ?]]; last done; injection H as <-%ext_link_inj <-; simpl; auto.
   - if_tac; last done; intros.
     exists (m, w).
     destruct w as (c, k).

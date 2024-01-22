@@ -23,7 +23,7 @@ Variable (prog : Clight.program).
 
 Definition ext_link := ext_link_prog prog.
 
-Hypothesis ext_link_inj : forall s1 s2, ext_link s1 = ext_link s2 -> s1 = s2.
+Hypothesis ext_link_inj : forall s1 s2, List.In s1 ["getchar"; "putchar"] -> ext_link s1 = ext_link s2 -> s1 = s2.
 
 Definition sys_getc_wrap_spec (abd : RData) : option (RData * val * trace) :=
   match sys_getc_spec abd with

@@ -101,6 +101,11 @@ Definition ext_spec_entails {M E Z} (es1 es2 : external_specification M E Z) :=
                             ext_spec_post es1 e x1 p ty ret z' m') /\
   (forall v z m, ext_spec_exit es1 v z m -> ext_spec_exit es2 v z m).
 
+Lemma ext_spec_entails_refl : forall {M E Z} (es : external_specification M E Z), ext_spec_entails es es.
+Proof.
+  intros; split; eauto.
+Qed.
+
 Theorem ext_spec_entails_safe : forall {G C M Z} {genv_symb} Hcore es1 es2 ge n z c m
   (Hes : ext_spec_entails es1 es2),
   @step_lemmas.dry_safeN G C M Z genv_symb Hcore es1 ge n z c m -> @step_lemmas.dry_safeN G C M Z genv_symb Hcore es2 ge n z c m.

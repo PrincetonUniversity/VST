@@ -590,10 +590,11 @@ Proof.
   - apply SequentialClight.subG_VSTGpreS, subG_refl.
   - repeat intro; apply I.
   - apply io_spec_sound.
-    (* if_tac; repeat (if_tac; subst; try done).*) admit. (* very slow *)
+    intros ?? [<- | [<- | ?]]; last done;
+      rewrite /ext_link /ext_link_prog /prog /=; repeat (if_tac; first done); done.
   - intros; apply CSHL_Sound.semax_prog_sound, prog_correct.
   - apply (proj2_sig init_mem_exists).
   - exists q.
     rewrite (proj2_sig main_block_exists) in Hb; inv Hb.
     auto.
-Admitted.
+Qed.

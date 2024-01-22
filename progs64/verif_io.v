@@ -416,12 +416,12 @@ Theorem prog_OS_correct : forall {H : io_os_specs.ThreadsConfigurationOps},
 Proof.
   intros.
   edestruct (IO_OS_ext prog) with (V := Vprog) as (b & q & Hb & Hq & Hsafe).
-  - rewrite /ext_link /ext_link_prog /prog /=; intros ??.
-    (* if_tac; repeat (if_tac; subst; try done).*) admit. (* very slow *)
+  - intros ?? [<- | [<- | ?]]; last done;
+      rewrite /ext_link /ext_link_prog /prog /=; repeat (if_tac; first done); done.
   - apply SequentialClight.subG_VSTGpreS, subG_refl.
   - intros; simple apply (@prog_correct _ VSTGS0).
   - apply (proj2_sig init_mem_exists).
   - exists q.
     rewrite (proj2_sig main_block_exists) in Hb; inv Hb.
     auto.
-Admitted.
+Qed.
