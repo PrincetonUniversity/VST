@@ -12,7 +12,7 @@ Lemma gmap_excl_flat : forall n (x y : gmapUR K (exclR A)), ✓{n} y → x ≼�
 Proof.
   intros ??? Hv Hord i; specialize (Hord i).
   hnf in Hord.
-  destruct (x !! i)%stdpp eqn: Hx, (y !! i)%stdpp eqn: Hy; rewrite Hx Hy // in Hord |- *.
+  destruct (x !! i) eqn: Hx, (y !! i) eqn: Hy; rewrite Hx Hy // in Hord |- *.
   - inv Hord; try done.
     by repeat constructor.
   - specialize (Hv i); rewrite Hy in Hv.
@@ -47,6 +47,8 @@ End AEHist.
 
 Notation hist := (gmap nat (excl AE_hist_el)).
 
+#[global] Instance hist_inhabitant : Inhabitant hist := (∅ : hist).
+
 Fixpoint list_to_hist (l : list AE_hist_el) n : hist :=
   match l with
   | [] => ∅
@@ -54,7 +56,7 @@ Fixpoint list_to_hist (l : list AE_hist_el) n : hist :=
   end.
 
 Lemma list_to_hist_lookup : forall l n i, (n <= i)%nat ->
-  (list_to_hist l n !! i)%stdpp = option_map Excl (nth_error l (i - n)).
+  (list_to_hist l n !! i) = option_map Excl (nth_error l (i - n)).
 Proof.
   induction l; simpl; intros.
   - rewrite lookup_empty nth_error_nil //.
@@ -76,25 +78,40 @@ Proof.
     rewrite IHl //.
 Qed.
 
-Definition hist_incl (h : hist) l := forall t e, (h !! t)%stdpp = Some (Excl e) -> nth_error l t = Some e.
+Definition hist_incl (h : hist) l := forall t e, h !! t = Some (Excl e) -> nth_error l t = Some e.
 
-Definition newer (l : hist) t := forall t', (l !! t')%stdpp <> None -> (t' < t)%nat.
+Definition newer (l : hist) t := forall t', l !! t' <> None -> (t' < t)%nat.
 
 Lemma hist_incl_lt : forall (h : hist) l (Hv : ✓ (h : gmapUR _ (exclR (leibnizO _)))),
   hist_incl h l -> newer h (length l).
 Proof.
   unfold hist_incl; repeat intro.
   specialize (H t'); specialize (Hv t').
-  destruct (h !! t')%stdpp as [e|] eqn: Ht'; [|contradiction].
+  destruct (h !! t') as [e|] eqn: Ht'; [|contradiction].
   rewrite Ht' in Hv.
   destruct e; try done.
   by apply nth_error_Some; erewrite H.
 Qed.
 
+Lemma newer_over : forall h t t', newer h t -> (t <= t')%nat -> h !! t' = None.
+Proof.
+  intros.
+  specialize (H t').
+  destruct (h !! t'); auto.
+  lapply H; [lia | discriminate].
+Qed.
+
+Corollary newer_out : forall h t, newer h t -> h !! t = None.
+Proof.
+  intros; eapply newer_over; eauto.
+Qed.
+
+Class AEGS `{!VSTGS OK_ty Σ} := { histG :: inG Σ (gmap_frac_authR nat (leibnizO AE_hist_el));
+  AI :: atomic_int_impl }.
+
 Section AE.
 
-Context `{!VSTGS OK_ty Σ} `{!inG Σ (gmap_frac_authR nat (leibnizO AE_hist_el))}
-  `{!atomic_int_impl}.
+Context `{!VSTGS OK_ty Σ} `{!AEGS}.
 
 Definition ghost_ref h g := own g (●F (list_to_hist h O : gmapR _ (exclR (leibnizO _)))).
 Definition ghost_hist q (h : gmap nat (excl AE_hist_el)) g := own g (◯F{q} (h : gmapR _ (exclR (leibnizO _)))).
@@ -114,7 +131,7 @@ Proof.
     rewrite Nat.sub_0_r // in E.
   - iDestruct "H" as "(%Hh & _)"; iPureIntro.
     assert (forall i, cmra.included(A := cmra.optionR (iris.algebra.excl.exclR (leibnizO AE_hist_el)))
-      (h !! i)%stdpp (list_to_hist h' 0 !! i)%stdpp) as Hincl.
+      (h !! i) (list_to_hist h' 0 !! i)) as Hincl.
     { rewrite -gmap.lookup_included //. }
     intros ?? Ht.
     specialize (Hincl t); rewrite Ht list_to_hist_lookup in Hincl; last lia.
@@ -245,8 +262,6 @@ Proof.
     iSplit; first done.
     simpl; iFrame.
 Qed.
-
-Search Op gmap.
 
 Lemma AE_loc_join : forall sh1 sh2 p g i R h1 h2,
   AE_loc sh1 p g i R h1 ∗ AE_loc sh2 p g i R h2 ⊣⊢ AE_loc (sh1 ⋅ sh2) p g i R (@op _ (gmap.gmap_op_instance(A := exclR (leibnizO _))) h1 h2).

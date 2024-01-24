@@ -1,10 +1,10 @@
 //#include <stdlib.h>
 #include "stdlib.h"
 //#include <stdio.h>
-#include "atomic_exchange.h"
+#include "../atomics/SC_atomics.h"
+#include "../concurrency/threads.h"
 //#include "threads.h"
 //#include <stdatomic.h>
-
 
 
 void *surely_malloc (size_t n) {
@@ -30,8 +30,7 @@ typedef int buf_id;
 
 typedef struct buffer {int data;} buffer;
 buffer *bufs[B];
-lock_t *lock[N];
-buf_id *comm[N];
+atom_int *comm[N];
 
 //registrar function
 buf_id *reading[N], *last_read[N];
@@ -43,15 +42,12 @@ void initialize_channels(){
     bufs[i] = b;
   }
   for(int r = 0; r < N; r++){
+    atom_int *a = (First);
+    comm[r] = a;
     buf_id *c = surely_malloc(sizeof(buf_id));
-    *c = First;
-    comm[r] = c;
-    c = surely_malloc(sizeof(buf_id));
     reading[r] = c;
     c = surely_malloc(sizeof(buf_id));
     last_read[r] = c;
-    lock[r] = makelock();
-    release(lock[r]);
   }
 }
 
@@ -65,11 +61,10 @@ void initialize_reader(int r){
 
 buf_id start_read(int r){
   buf_id b;
-  buf_id *c = comm[r];
-  lock_t *l = lock[r];
+  atom_int *c = comm[r];
   buf_id *rr = reading[r];
   buf_id *lr = last_read[r];
-  b = simulate_atomic_exchange(c, l, Empty);
+  b = atom_exchange(c, Empty);
   if(b >= 0 && b < B)
     *lr = b;
   else
@@ -122,9 +117,8 @@ void finish_write(){
   buf_id last = last_given;
   buf_id w = writing;
   for(int r = 0; r < N; r++){
-    buf_id *c = comm[r];
-    lock_t *l = lock[r];
-    buf_id b = simulate_atomic_exchange(c, l, w);
+    atom_int *c = comm[r];
+    buf_id b = atom_exchange(c, w);
     if(b == Empty)
       last_taken[r] = last;
   }
