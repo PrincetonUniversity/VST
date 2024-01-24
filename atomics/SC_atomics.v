@@ -155,8 +155,8 @@ Program Definition atomic_exchange_spec := TYPE AEX_type
    PROP (subseteq Ei Eo)
    PARAMS (p; v)
    SEP (|={Eo,Ei}=> ∃ sh : share, ∃ v0 : val, ⌜writable_share sh⌝ ∧
-              data_at sh tint v0 p ∗
-        (data_at sh tint v p -∗ |={Ei,Eo}=> Q v0))
+              atomic_int_at sh v0 p ∗
+        (atomic_int_at sh v p -∗ |={Ei,Eo}=> Q v0))
   POST [ tint ]
    ∃ v' : val,
    PROP ()
@@ -339,8 +339,8 @@ Program Definition atomic_exchange_int_spec := TYPE AEXI_type
    PROP (repable_signed v; subseteq Ei Eo)
    PARAMS (p; vint v)
    SEP (|={Eo,Ei}=> ∃ sh : share, ∃ v0 : Z, ⌜writable_share sh /\ repable_signed v0⌝ ∧
-              data_at sh tint (vint v0) p ∗
-        (data_at sh tint (vint v) p -∗ |={Ei,Eo}=> Q v0))
+              atomic_int_at sh (vint v0) p ∗
+        (atomic_int_at sh (vint v) p -∗ |={Ei,Eo}=> Q v0))
   POST [ tint ]
    ∃ v' : Z,
    PROP (repable_signed v')
