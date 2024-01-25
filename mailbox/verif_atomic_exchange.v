@@ -106,15 +106,25 @@ Proof.
   intros; eapply newer_over; eauto.
 Qed.
 
-Class AEGS `{!VSTGS OK_ty Σ} := { histG :: inG Σ (gmap_frac_authR nat (leibnizO AE_hist_el));
-  AI :: atomic_int_impl }.
+Class AEGS `{!VSTGS OK_ty Σ} (atomic_int : type) := { histG :: inG Σ (gmap_frac_authR nat (leibnizO AE_hist_el));
+  AI :: atomic_int_impl atomic_int }.
 
 Section AE.
 
-Context `{!VSTGS OK_ty Σ} `{!AEGS}.
+Context `{!VSTGS OK_ty Σ} `{!AEGS atomic_int}.
 
 Definition ghost_ref h g := own g (●F (list_to_hist h O : gmapR _ (exclR (leibnizO _)))).
 Definition ghost_hist q (h : gmap nat (excl AE_hist_el)) g := own g (◯F{q} (h : gmapR _ (exclR (leibnizO _)))).
+Definition ghost_hist_ref q (h r : hist) g := own g (●F (r : gmapR _ (exclR (leibnizO _))) ⋅ ◯F{q} (h : gmapR _ (exclR (leibnizO _)))).
+
+Lemma ghost_hist_init : ✓ (●F (∅ : gmapR nat (exclR (leibnizO AE_hist_el))) ⋅ ◯F (∅ : gmapR nat (exclR (leibnizO AE_hist_el)))).
+Proof. by apply @frac_auth_valid. Qed.
+
+Lemma hist_ref_join_nil : forall q g, ghost_hist q ∅ g ∗ ghost_ref [] g ⊣⊢ ghost_hist_ref q ∅ ∅ g.
+Proof.
+  intros.
+  rewrite bi.sep_comm; symmetry; apply own_op.
+Qed.
 
 Lemma hist_ref_incl : forall sh h h' p,
   ghost_hist sh h p ∗ ghost_ref h' p ⊢ ⌜hist_incl h h'⌝.
@@ -279,3 +289,4 @@ Qed.
 End AE.
 
 #[export] Hint Resolve AE_inv_exclusive : core.
+#[export] Hint Resolve ghost_hist_init : init.

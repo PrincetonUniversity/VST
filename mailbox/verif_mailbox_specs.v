@@ -1,4 +1,5 @@
 Require Import VST.concurrency.conclib.
+Require Import VST.atomics.SC_atomics.
 Require Import VST.floyd.library.
 Require Import mailbox.verif_atomic_exchange.
 Require Import iris_ora.algebra.excl_auth.
@@ -8,6 +9,8 @@ Require Import mailbox.mailbox.
 (* standard VST prelude *)
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
+
+Definition t_atom_int := Tstruct _atom_int noattr.
 
 Open Scope Z.
 
@@ -32,9 +35,10 @@ Qed.
 
 Section mpred.
 
-Context `{!VSTGS unit Σ, AEGS0 : !AEGS, !inG Σ (excl_authR (leibnizO val))}.
+Context `{!VSTGS unit Σ, AEGS0 : !AEGS t_atom_int, !inG Σ (excl_authR (leibnizO val))}.
 #[local] Instance concurrent_ext_spec : ext_spec unit := concurrent_ext_spec _ (ext_link_prog prog).
 
+Definition make_atomic_spec := DECLARE _make_atomic make_atomic_spec.
 Definition atomic_exchange_spec := DECLARE _atom_exchange atomic_exchange_spec.
 Definition spawn_spec := DECLARE _spawn spawn_spec.
 
@@ -117,16 +121,16 @@ Definition initialize_channels_spec :=
   PRE [ ]
    PROP (Zlength shs = N; sepalg_list.list_join sh1 shs Ews)
    PARAMS () GLOBALS (gv)
-   SEP (data_at_ Ews (tarray (tptr tint) N) (gv _comm);
+   SEP (data_at_ Ews (tarray (tptr t_atom_int) N) (gv _comm);
         data_at_ Ews (tarray (tptr tbuffer) B) (gv _bufs);
         data_at_ Ews (tarray (tptr tint) N) (gv _reading); data_at_ Ews (tarray (tptr tint) N) (gv _last_read);
         mem_mgr gv)
   POST [ tvoid ]
    ∃ comms : list val, ∃ bufs : list val, ∃ reads : list val, ∃ lasts : list val,
      ∃ g : list gname, ∃ g0 : list gname, ∃ g1 : list gname, ∃ g2 : list gname,
-   PROP (Forall isptr comms; Zlength g = N; Zlength g0 = N; Zlength g1 = N; Zlength g2 = N)
+   PROP ((*Forall isptr comms;*) Zlength g = N; Zlength g0 = N; Zlength g1 = N; Zlength g2 = N)
    LOCAL ()
-   SEP (data_at Ews (tarray (tptr tint) N) comms (gv _comm);
+   SEP (data_at Ews (tarray (tptr t_atom_int) N) comms (gv _comm);
         data_at Ews (tarray (tptr tbuffer) B) bufs (gv _bufs);
         data_at Ews (tarray (tptr tint) N) reads (gv _reading);
         data_at Ews (tarray (tptr tint) N) lasts (gv _last_read);
@@ -176,7 +180,7 @@ Definition start_read_spec :=
    PROP (0 <= b0 < B; readable_share sh; readable_share sh1; isptr (Znth r comms); latest_read h (vint b0))
    PARAMS (vint r) GLOBALS (gv)
    SEP (data_at sh1 (tarray (tptr tint) N) reads (gv _reading); data_at sh1 (tarray (tptr tint) N) lasts (gv _last_read);
-        data_at sh1 (tarray (tptr tint) N) comms (gv _comm);
+        data_at sh1 (tarray (tptr t_atom_int) N) comms (gv _comm);
         data_at_ Ews tint (Znth r reads); data_at Ews tint (vint b0) (Znth r lasts);
         comm_loc sh2 (Znth r comms) g g0 g1 g2 bufs sh h;
         ∃ v : Z, data_at sh tbuffer (vint v) (Znth b0 bufs);
@@ -187,7 +191,7 @@ Definition start_read_spec :=
          latest_read (<[t := Excl (AE v0 Empty)]>h) (vint b))
    LOCAL (temp ret_temp (vint b))
    SEP (data_at sh1 (tarray (tptr tint) N) reads (gv _reading); data_at sh1 (tarray (tptr tint) N) lasts (gv _last_read);
-        data_at sh1 (tarray (tptr tint) N) comms (gv _comm);
+        data_at sh1 (tarray (tptr t_atom_int) N) comms (gv _comm);
         data_at Ews tint (vint b) (Znth r reads); data_at Ews tint (vint b) (Znth r lasts);
         comm_loc sh2 (Znth r comms) g g0 g1 g2 bufs sh (<[t := Excl (AE v0 Empty)]>h);
         data_at sh tbuffer (vint v) (Znth b bufs);
@@ -257,7 +261,7 @@ Definition finish_write_spec :=
    PARAMS () GLOBALS (gv)
    SEP (data_at Ews tint (vint b) (gv _writing); data_at Ews tint (vint b0) (gv _last_given);
         data_at Ews (tarray tint N) (map (fun x => vint x) lasts) (gv _last_taken);
-        data_at sh1 (tarray (tptr tint) N) comms (gv _comm);
+        data_at sh1 (tarray (tptr t_atom_int) N) comms (gv _comm);
         [∗] (map (fun r =>
           comm_loc lsh (Znth r comms) (Znth r g) (Znth r g0)
             (Znth r g1) (Znth r g2) bufs (Znth r shs) (Znth r h)) (upto (Z.to_nat N)));
@@ -274,7 +278,7 @@ Definition finish_write_spec :=
    LOCAL ()
    SEP (data_at Ews tint Empty (gv _writing); data_at Ews tint (vint b) (gv _last_given);
         data_at Ews (tarray tint N) (map (fun x => vint x) lasts') (gv _last_taken);
-        data_at sh1 (tarray (tptr tint) N) comms (gv _comm);
+        data_at sh1 (tarray (tptr t_atom_int) N) comms (gv _comm);
         [∗] (map (fun r =>
           comm_loc lsh (Znth r comms) (Znth r g) (Znth r g0)
             (Znth r g1) (Znth r g2) bufs (Znth r shs) (Znth r h')) (upto (Z.to_nat N)));
@@ -295,7 +299,7 @@ Definition reader_spec :=
    PARAMS (arg) GLOBALS (gv)
    SEP (data_at Ews tint (vint r) arg; malloc_token Ews tint arg;
         data_at sh1 (tarray (tptr tint) N) reads (gv _reading); data_at sh1 (tarray (tptr tint) N) lasts (gv _last_read);
-        data_at sh1 (tarray (tptr tint) N) comms (gv _comm);
+        data_at sh1 (tarray (tptr t_atom_int) N) comms (gv _comm);
         data_at_ Ews tint (Znth r reads); data_at_ Ews tint (Znth r lasts);
         data_at sh1 (tarray (tptr tbuffer) B) bufs (gv _bufs);
         comm_loc sh2 (Znth r comms) g g0 g1 g2 bufs sh ∅;
@@ -313,7 +317,7 @@ Definition writer_spec :=
          sepalg_list.list_join sh0 shs Ews; Zlength g1 = N; Zlength g2 = N; Forall isptr comms)
    PARAMS (arg) GLOBALS (gv)
    SEP (data_at_ Ews tint (gv _writing); data_at_ Ews tint (gv _last_given); data_at_ Ews (tarray tint N) (gv _last_taken);
-        data_at sh1 (tarray (tptr tint) N) comms (gv _comm);
+        data_at sh1 (tarray (tptr t_atom_int) N) comms (gv _comm);
         data_at sh1 (tarray (tptr tbuffer) B) bufs (gv _bufs);
         [∗] (map (fun r =>
           comm_loc lsh (Znth r comms) (Znth r g) (Znth r g0)
@@ -333,7 +337,7 @@ Definition main_spec :=
 
 (* Create the environment containing all function specs. *)
 Definition Gprog : funspecs := ltac:(with_library prog [spawn_spec;
-  surely_malloc_spec; memset_spec; atomic_exchange_spec; initialize_channels_spec; initialize_reader_spec;
+  surely_malloc_spec; memset_spec; make_atomic_spec; atomic_exchange_spec; initialize_channels_spec; initialize_reader_spec;
   start_read_spec; finish_read_spec; initialize_writer_spec; start_write_spec; finish_write_spec;
   reader_spec; writer_spec; main_spec]).
 

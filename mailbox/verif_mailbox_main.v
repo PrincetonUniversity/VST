@@ -1,6 +1,5 @@
 Require Import mailbox.verif_atomic_exchange.
 Require Import VST.concurrency.conclib.
-Require Import VST.concurrency.ghosts.
 Require Import VST.floyd.library.
 Require Import VST.zlist.sublist.
 Require Import mailbox.mailbox.
@@ -9,23 +8,16 @@ Require Import mailbox.verif_mailbox_specs.
 Opaque upto.
 Opaque eq_dec.
 
-Lemma iter_sepcon_fold_right_sepcon:
-  forall {A} (f: A -> mpred) (al: list A), iter_sepcon f al = fold_right sepcon emp (map f al).
-Proof.
-induction al; simpl; auto.
-f_equal; auto.
-Qed.
+Section mpred.
+
+Context `{!VSTGS unit Σ, AEGS0 : !AEGS t_atom_int, !inG Σ (excl_authR (leibnizO val))}.
 
 Lemma body_main : semax_body Vprog Gprog f_main main_spec.
 Proof.
   start_function.
+  rename a into gv.
   sep_apply (create_mem_mgr gv).
-  do 3 sep_apply (data_at_data_at_ Ews (tarray (tptr tint) 3)).
-  sep_apply (data_at_data_at_ Ews (tarray (tptr t_lock) 3)).
-  sep_apply (data_at_data_at_ Ews (tarray (tptr (Tstruct _buffer noattr)) 5)).
-(*  simpl readonly2share.  (* TODO: delete this line when possible *)*)
   exploit (split_shares (Z.to_nat N) Ews); auto; intros (sh0 & shs & ? & ? & ? & ?).
-  rewrite (data_at__eq _ (tarray (tptr t_lock) N)).
   forward_call (sh0, shs, gv).
   Intros x; destruct x as ((((((((comms, locks), bufs), reads), lasts), g), g0), g1), g2).
   assert_PROP (Zlength comms = N).
@@ -63,7 +55,7 @@ Proof.
       rewrite Zlength_sublist; unfold B, N in *; lia.
     }
     unfold comm_loc; cancel.
-    rewrite (sepcon_comm _ (fold_right sepcon emp (upd_Znth 0 _ _))), !sepcon_assoc.
+    rewrite (sepcon_comm _ ([∗] (upd_Znth 0 _ _))), !sepcon_assoc.
     rewrite <- !sepcon_assoc, (sepcon_comm _ (data_at sh0 tbuffer _ _)), !sepcon_assoc.
     rewrite <- sepcon_assoc; apply sepcon_derives; [|cancel].
     assert (Zlength (data_at sh0 tbuffer (vint 0) (Znth 0 bufs)
@@ -90,24 +82,21 @@ Proof.
   rewrite <- seq_assoc.
   assert_PROP (Zlength reads = N) by entailer!.
   assert_PROP (Zlength lasts = N) by entailer!.
-  forward_for_simple_bound N (EX i : Z, PROP ( )
+  forward_for_simple_bound N (∃ i : Z, PROP ( )
    LOCAL (gvars gv)
-   SEP (EX sh' : share, !!(sepalg_list.list_join sh0 (sublist i N shs) sh') &&
+   SEP (∃ sh' : share, ⌜sepalg_list.list_join sh0 (sublist i N shs) sh'⌝ ∧
           data_at sh' (tarray (tptr tint) N) lasts (gv _last_read) * data_at sh' (tarray (tptr tint) N) reads (gv _reading);
-        fold_right sepcon emp (map (fun sh => data_at sh (tarray (tptr tint) N) comms (gv _comm)) (sublist i N shs));
-        fold_right sepcon emp (map (fun sh => data_at sh (tarray (tptr t_lock) N) (map ptr_of locks) (gv _lock)) (sublist i N shs));
-        fold_right sepcon emp (map (fun sh => data_at sh (tarray (tptr tbuffer) B) bufs (gv _bufs)) (sublist i N shs));
-        fold_right sepcon emp (map (fun x => comm_loc gsh2 (Znth x locks) (Znth x comms)
-          (Znth x g) (Znth x g0) (Znth x g1) (Znth x g2) bufs (Znth x shs) gsh2
-          empty_map) (sublist i N (upto (Z.to_nat N))));
-        fold_right sepcon emp (map (ghost_var gsh1 (vint 1)) (sublist i N g0));
-        fold_right sepcon emp (map (data_at_ Ews tint) (sublist i N reads));
-        fold_right sepcon emp (map (data_at_ Ews tint) (sublist i N lasts));
-        fold_right sepcon emp (map (malloc_token Ews tint) comms);
-        fold_right sepcon emp (map (malloc_token Ews tbuffer) bufs);
-        fold_right sepcon emp (map (malloc_token Ews tint) reads);
-        fold_right sepcon emp (map (malloc_token Ews tint) lasts);
-        fold_right sepcon emp (map (fun sh => @data_at CompSpecs sh tbuffer (vint 0) (Znth 1 bufs)) (sublist i N shs));
+        [∗] (map (fun sh => data_at sh (tarray (tptr t_atom_int) N) comms (gv _comm)) (sublist i N shs));
+        [∗] (map (fun sh => data_at sh (tarray (tptr tbuffer) B) bufs (gv _bufs)) (sublist i N shs));
+        [∗] (map (fun x => comm_loc gsh2 (Znth x comms)
+          (Znth x g) (Znth x g0) (Znth x g1) (Znth x g2) bufs (Znth x shs) empty_map) (sublist i N (upto (Z.to_nat N))));
+        [∗] (map (ghost_var gsh1 (vint 1)) (sublist i N g0));
+        [∗] (map (data_at_ Ews tint) (sublist i N reads));
+        [∗] (map (data_at_ Ews tint) (sublist i N lasts));
+        [∗] (map (malloc_token Ews tbuffer) bufs);
+        [∗] (map (malloc_token Ews tint) reads);
+        [∗] (map (malloc_token Ews tint) lasts);
+        [∗] (map (fun sh => data_at sh tbuffer (vint 0) (Znth 1 bufs)) (sublist i N shs));
         mem_mgr gv; has_ext tt)).
   { unfold N; computable. }
   { Exists Ews; rewrite !sublist_same; auto; unfold N.
@@ -144,3 +133,5 @@ Proof.
     entailer!.
     forward. entailer!.
 Qed.
+
+End mpred.

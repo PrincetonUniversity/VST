@@ -1,12 +1,15 @@
 Require Import mailbox.verif_atomic_exchange.
 Require Import VST.concurrency.conclib.
-Require Import VST.concurrency.ghosts.
 Require Import VST.floyd.library.
 Require Import VST.zlist.sublist.
 Require Import mailbox.mailbox.
 Require Import mailbox.verif_mailbox_specs.
 
 Opaque upto.
+
+Section mpred.
+
+Context `{!VSTGS unit Σ, AEGS0 : !AEGS t_atom_int, !inG Σ (excl_authR (leibnizO val))}.
 
 Lemma body_initialize_writer : semax_body Vprog Gprog f_initialize_writer initialize_writer_spec.
 Proof.
@@ -1049,3 +1052,5 @@ Proof.
         split; intro Hx; [inv Hx; auto | subst; constructor].
       * destruct (eq_dec a b0); reflexivity.
 Qed.
+
+End mpred.

@@ -42,7 +42,7 @@ void initialize_channels(){
     bufs[i] = b;
   }
   for(int r = 0; r < N; r++){
-    atom_int *a = (First);
+    atom_int *a = make_atomic(First);
     comm[r] = a;
     buf_id *c = surely_malloc(sizeof(buf_id));
     reading[r] = c;

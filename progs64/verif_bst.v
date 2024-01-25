@@ -92,13 +92,13 @@ Proof.
   + unfold treebox_rep.
     apply pred_ext; entailer!!.
     - Intros pa pb.
-      Exists pb pa.
+      Exists pa pb.
       unfold_data_at (data_at _ _ _ p).
       rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
       rewrite (field_at_data_at _ t_struct_tree [StructField _right]).
       cancel.
     - Intros pa pb.
-      Exists pb pa.
+      Exists pa pb.
       unfold_data_at (data_at _ _ _ p).
       rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
       rewrite (field_at_data_at _ t_struct_tree [StructField _right]).
@@ -312,7 +312,7 @@ Proof.
   rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
   unfold treebox_rep at 1. Exists p1. cancel.
 
-  iIntros "(((((? & ?) & ?) & ?) & ?) & ?) Hleft".
+  iIntros "(? & ? & ? & ? & ? & ?) Hleft".
   clear p1.
   unfold treebox_rep.
   iExists p.
@@ -343,7 +343,7 @@ Proof.
   rewrite (field_at_data_at _ t_struct_tree [StructField _right]).
   unfold treebox_rep at 1. Exists p2. cancel.
 
-  iIntros "(((((? & ?) & ?) & ?) & ?) & ?) Hright".
+  iIntros "(? & ? & ? & ? & ? & ?) Hright".
   clear p2.
   unfold treebox_rep.
   iExists p.
@@ -411,13 +411,7 @@ Proof.
         Exists (field_address t_struct_tree [StructField _left] p) t1_1.
         entailer!. simpl.
         simpl_compb.
-        (* TODO: SIMPLY THIS LINE 
-        replace (offset_val 8 p1)
-          with (field_address t_struct_tree [StructField _left] p1)
-          by (unfold field_address; simpl;
-              rewrite if_true by auto with field_compatible; auto).
-*)
-        rewrite bst_left_entail by auto.
+        sep_apply (bst_left_entail t1_1 (insert x v t1_1)).
         iIntros "(($ & H1) & Ht) ?".
         iApply "Ht"; iApply "H1"; done.
       - (* Inner if, second branch:  k<x *)
@@ -426,13 +420,7 @@ Proof.
         Exists (field_address t_struct_tree [StructField _right] p) t1_2.
         entailer!. simpl.
         simpl_compb; simpl_compb.
-        (* TODO: SIMPLY THIS LINE 
-        replace (offset_val 12 p1)
-          with (field_address t_struct_tree [StructField _right] p1)
-          by (unfold field_address; simpl;
-              rewrite if_true by auto with field_compatible; auto).
-*)
-        rewrite bst_right_entail by auto.
+        sep_apply (bst_right_entail t1_1 t1_2 (insert x v t1_2)).
         iIntros "(($ & H1) & Ht) ?".
         iApply "Ht"; iApply "H1"; done.
       - (* Inner if, third branch: x=k *)
@@ -483,7 +471,7 @@ Proof.
       entailer!!.
       - rewrite <- H0; simpl.
         simpl_compb; auto.
-      - iIntros "(? & H) ?"; iApply "H"; iStopProof.
+      - iIntros "(? & ? & H) ?"; iApply "H"; iStopProof.
         simpl. Exists pa pb; entailer!.
     + (* else-then clause: y<x *)
       forward. (* p=p<-right *)
@@ -491,7 +479,7 @@ Proof.
       entailer!!.
       - rewrite <- H0; simpl.
         simpl_compb; simpl_compb; auto.
-      - iIntros "(? & H) ?"; iApply "H"; iStopProof.
+      - iIntros "(? & ? & H) ?"; iApply "H"; iStopProof.
         simpl. Exists pa pb; entailer!.
     + (* else-else clause: x=y *)
       assert (x=k) by lia. subst x. clear H H3 H4.
@@ -500,7 +488,7 @@ Proof.
       entailer!!.
       - rewrite <- H0. simpl.
         simpl_compb; simpl_compb; auto.
-      - iIntros "(? & H)"; iApply "H"; iStopProof.
+      - iIntros "(? & ? & ? & H)"; iApply "H"; iStopProof.
         Exists pa pb; entailer!!.
   * (* after the loop *)
     forward. (* return NULL; *)
@@ -601,7 +589,7 @@ Proof.
       Exists (field_address t_struct_tree [StructField _left] pbc) ta0 x vx tb0.
       (* TODO entailer: not to simply too much in entailer? *)
       Opaque tree_rep. entailer!. Transparent tree_rep.
-      rewrite bst_left_entail by auto.
+      sep_apply (bst_left_entail (T ta0 x vx tb0) (pushdown_left ta0 tb0)).
       iIntros "(($ & H1) & Ht) ?".
       iApply "Ht"; iApply "H1"; done.
   + forward. (* Sskip *)
@@ -653,7 +641,7 @@ Proof.
         Exists (field_address t_struct_tree [StructField _left] p1) t1_1.
         entailer!. simpl.
         simpl_compb.
-        rewrite bst_left_entail by auto.
+        sep_apply (bst_left_entail t1_1 (delete x t1_1)).
         iIntros "(($ & H1) & Ht) ?"; iApply "Ht"; iApply "H1"; done.
       - (* Inner if, second branch:  k<x *)
         forward. (* t=&p->right *)
@@ -661,7 +649,7 @@ Proof.
         Exists (field_address t_struct_tree [StructField _right] p1) t1_2.
         entailer!. simpl.
         simpl_compb; simpl_compb.
-        rewrite bst_right_entail by auto.
+        sep_apply (bst_right_entail t1_1 t1_2 (delete x t1_2)).
         iIntros "(($ & H1) & Ht) ?"; iApply "Ht"; iApply "H1"; done.
       - (* Inner if, third branch: x=k *)
         assert (x=k) by lia.

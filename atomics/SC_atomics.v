@@ -13,14 +13,14 @@ Section SC_atomics.
 
 Context `{!VSTGS OK_ty Σ}.
 
-Class atomic_int_impl := { atomic_int : type; atomic_int_at : share -> val -> val -> mpred;
+Class atomic_int_impl (atomic_int : type) := { atomic_int_at : share -> val -> val -> mpred;
   atomic_int_at__ : forall sh v p, atomic_int_at sh v p ⊢ atomic_int_at sh Vundef p;
   atomic_int_conflict : forall sh v v' p, sepalg.nonidentity sh -> atomic_int_at sh v p ∗ atomic_int_at sh v' p ⊢ False }.
 
 Class atomic_ptr_impl := { atomic_ptr : type; atomic_ptr_at : share -> val -> val -> mpred;
   atomic_ptr_conflict : forall sh v v' p, sepalg.nonidentity sh -> atomic_ptr_at sh v p ∗ atomic_ptr_at sh v' p ⊢ False }.
 
-Context {CS : compspecs} {AI : atomic_int_impl} {AP : atomic_ptr_impl}.
+Context {CS : compspecs} `{AI : atomic_int_impl} {AP : atomic_ptr_impl}.
 
 Definition make_atomic_spec :=
   WITH v : val

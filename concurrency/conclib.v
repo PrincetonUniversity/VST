@@ -186,7 +186,7 @@ Qed.
 End mpred.
 
 #[export] Hint Resolve unreadable_bot : core.
-#[export] Hint Resolve excl_auth_valid : init.
+#[export] Hint Resolve excl_auth_valid : init. (* doesn't currently seem to work *)
 
 Ltac ghost_alloc G :=
   lazymatch goal with |-semax _ _ (PROPx _ (LOCALx _ (SEPx (?R1 :: _)))) _ _ =>

@@ -2214,13 +2214,18 @@ match goal with
     extract_exists_in_SEP' Post; subst P
 end.
 
+Lemma exp_right : forall {B : bi} {A} (a : A) P (Q : A -> B), (P ⊢ Q a) -> P ⊢ ∃ a, Q a.
+Proof.
+  intros; rewrite -bi.exist_intro //.
+Qed.
+
 Ltac Exists'' a :=
-  first [rewrite -{1}(bi.exist_intro a)
+  first [apply (exp_right a)
          | rewrite bi.and_exist_l; Exists'' a
          | rewrite bi.and_exist_r; Exists'' a
          | rewrite bi.sep_exist_l; Exists'' a
          | rewrite bi.sep_exist_r; Exists'' a
-         | extract_exists_from_SEP_right; rewrite -(bi.exist_intro a)
+         | extract_exists_from_SEP_right; apply (exp_right a)
          ].
 
 Ltac Exists' a :=

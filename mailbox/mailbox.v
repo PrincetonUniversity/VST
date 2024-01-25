@@ -103,6 +103,7 @@ Definition _last_read : ident := $"last_read".
 Definition _last_taken : ident := $"last_taken".
 Definition _lr : ident := $"lr".
 Definition _main : ident := $"main".
+Definition _make_atomic : ident := $"make_atomic".
 Definition _malloc : ident := $"malloc".
 Definition _memset : ident := $"memset".
 Definition _n : ident := $"n".
@@ -123,6 +124,7 @@ Definition _writing : ident := $"writing".
 Definition _t'1 : ident := 128%positive.
 Definition _t'2 : ident := 129%positive.
 Definition _t'3 : ident := 130%positive.
+Definition _t'4 : ident := 131%positive.
 
 Definition f_surely_malloc := {|
   fn_return := (tptr tvoid);
@@ -209,8 +211,10 @@ Definition f_initialize_channels := {|
   fn_vars := nil;
   fn_temps := ((_i, tint) :: (_b, (tptr (Tstruct _buffer noattr))) ::
                (_r, tint) :: (_a, (tptr (Tstruct _atom_int noattr))) ::
-               (_c, (tptr tint)) :: (_t'3, (tptr tvoid)) ::
-               (_t'2, (tptr tvoid)) :: (_t'1, (tptr tvoid)) :: nil);
+               (_c, (tptr tint)) :: (_t'4, (tptr tvoid)) ::
+               (_t'3, (tptr tvoid)) ::
+               (_t'2, (tptr (Tstruct _atom_int noattr))) ::
+               (_t'1, (tptr tvoid)) :: nil);
   fn_body :=
 (Ssequence
   (Ssequence
@@ -256,9 +260,13 @@ Definition f_initialize_channels := {|
           Sskip
           Sbreak)
         (Ssequence
-          (Sset _a
-            (Ecast (Econst_int (Int.repr 0) tint)
-              (tptr (Tstruct _atom_int noattr))))
+          (Ssequence
+            (Scall (Some _t'2)
+              (Evar _make_atomic (Tfunction (Tcons tint Tnil)
+                                   (tptr (Tstruct _atom_int noattr))
+                                   cc_default))
+              ((Econst_int (Int.repr 0) tint) :: nil))
+            (Sset _a (Etempvar _t'2 (tptr (Tstruct _atom_int noattr)))))
           (Ssequence
             (Sassign
               (Ederef
@@ -270,11 +278,11 @@ Definition f_initialize_channels := {|
               (Etempvar _a (tptr (Tstruct _atom_int noattr))))
             (Ssequence
               (Ssequence
-                (Scall (Some _t'2)
+                (Scall (Some _t'3)
                   (Evar _surely_malloc (Tfunction (Tcons tulong Tnil)
                                          (tptr tvoid) cc_default))
                   ((Esizeof tint tulong) :: nil))
-                (Sset _c (Etempvar _t'2 (tptr tvoid))))
+                (Sset _c (Etempvar _t'3 (tptr tvoid))))
               (Ssequence
                 (Sassign
                   (Ederef
@@ -283,11 +291,11 @@ Definition f_initialize_channels := {|
                   (Etempvar _c (tptr tint)))
                 (Ssequence
                   (Ssequence
-                    (Scall (Some _t'3)
+                    (Scall (Some _t'4)
                       (Evar _surely_malloc (Tfunction (Tcons tulong Tnil)
                                              (tptr tvoid) cc_default))
                       ((Esizeof tint tulong) :: nil))
-                    (Sset _c (Etempvar _t'3 (tptr tvoid))))
+                    (Sset _c (Etempvar _t'4 (tptr tvoid))))
                   (Sassign
                     (Ederef
                       (Ebinop Oadd (Evar _last_read (tarray (tptr tint) 3))
@@ -1025,6 +1033,10 @@ Definition global_definitions : list (ident * globdef fundef type) :=
      (Tcons tint Tnil) tvoid cc_default)) ::
  (_malloc,
    Gfun(External EF_malloc (Tcons tulong Tnil) (tptr tvoid) cc_default)) ::
+ (_make_atomic,
+   Gfun(External (EF_external "make_atomic"
+                   (mksignature (AST.Tint :: nil) AST.Tlong cc_default))
+     (Tcons tint Tnil) (tptr (Tstruct _atom_int noattr)) cc_default)) ::
  (_atom_exchange,
    Gfun(External (EF_external "atom_exchange"
                    (mksignature (AST.Tlong :: AST.Tint :: nil) AST.Tint
@@ -1058,25 +1070,25 @@ Definition public_idents : list ident :=
  _initialize_writer :: _last_given :: _writing :: _last_taken ::
  _finish_read :: _start_read :: _initialize_reader :: _initialize_channels ::
  _last_read :: _reading :: _comm :: _bufs :: _memset :: _surely_malloc ::
- _spawn :: _atom_exchange :: _malloc :: _exit :: ___builtin_debug ::
- ___builtin_write32_reversed :: ___builtin_write16_reversed ::
- ___builtin_read32_reversed :: ___builtin_read16_reversed ::
- ___builtin_fnmsub :: ___builtin_fnmadd :: ___builtin_fmsub ::
- ___builtin_fmadd :: ___builtin_fmin :: ___builtin_fmax ::
- ___builtin_expect :: ___builtin_unreachable :: ___builtin_va_end ::
- ___builtin_va_copy :: ___builtin_va_arg :: ___builtin_va_start ::
- ___builtin_membar :: ___builtin_annot_intval :: ___builtin_annot ::
- ___builtin_sel :: ___builtin_memcpy_aligned :: ___builtin_sqrt ::
- ___builtin_fsqrt :: ___builtin_fabsf :: ___builtin_fabs ::
- ___builtin_ctzll :: ___builtin_ctzl :: ___builtin_ctz :: ___builtin_clzll ::
- ___builtin_clzl :: ___builtin_clz :: ___builtin_bswap16 ::
- ___builtin_bswap32 :: ___builtin_bswap :: ___builtin_bswap64 ::
- ___builtin_ais_annot :: ___compcert_i64_umulh :: ___compcert_i64_smulh ::
- ___compcert_i64_sar :: ___compcert_i64_shr :: ___compcert_i64_shl ::
- ___compcert_i64_umod :: ___compcert_i64_smod :: ___compcert_i64_udiv ::
- ___compcert_i64_sdiv :: ___compcert_i64_utof :: ___compcert_i64_stof ::
- ___compcert_i64_utod :: ___compcert_i64_stod :: ___compcert_i64_dtou ::
- ___compcert_i64_dtos :: ___compcert_va_composite ::
+ _spawn :: _atom_exchange :: _make_atomic :: _malloc :: _exit ::
+ ___builtin_debug :: ___builtin_write32_reversed ::
+ ___builtin_write16_reversed :: ___builtin_read32_reversed ::
+ ___builtin_read16_reversed :: ___builtin_fnmsub :: ___builtin_fnmadd ::
+ ___builtin_fmsub :: ___builtin_fmadd :: ___builtin_fmin ::
+ ___builtin_fmax :: ___builtin_expect :: ___builtin_unreachable ::
+ ___builtin_va_end :: ___builtin_va_copy :: ___builtin_va_arg ::
+ ___builtin_va_start :: ___builtin_membar :: ___builtin_annot_intval ::
+ ___builtin_annot :: ___builtin_sel :: ___builtin_memcpy_aligned ::
+ ___builtin_sqrt :: ___builtin_fsqrt :: ___builtin_fabsf ::
+ ___builtin_fabs :: ___builtin_ctzll :: ___builtin_ctzl :: ___builtin_ctz ::
+ ___builtin_clzll :: ___builtin_clzl :: ___builtin_clz ::
+ ___builtin_bswap16 :: ___builtin_bswap32 :: ___builtin_bswap ::
+ ___builtin_bswap64 :: ___builtin_ais_annot :: ___compcert_i64_umulh ::
+ ___compcert_i64_smulh :: ___compcert_i64_sar :: ___compcert_i64_shr ::
+ ___compcert_i64_shl :: ___compcert_i64_umod :: ___compcert_i64_smod ::
+ ___compcert_i64_udiv :: ___compcert_i64_sdiv :: ___compcert_i64_utof ::
+ ___compcert_i64_stof :: ___compcert_i64_utod :: ___compcert_i64_stod ::
+ ___compcert_i64_dtou :: ___compcert_i64_dtos :: ___compcert_va_composite ::
  ___compcert_va_float64 :: ___compcert_va_int64 :: ___compcert_va_int32 ::
  nil).
 

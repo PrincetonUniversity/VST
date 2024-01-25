@@ -1,6 +1,5 @@
 Require Import mailbox.verif_atomic_exchange.
 Require Import VST.concurrency.conclib.
-Require Import VST.concurrency.ghosts.
 Require Import VST.floyd.library.
 Require Import VST.zlist.sublist.
 Require Import mailbox.mailbox.
@@ -12,9 +11,10 @@ Require Import mailbox.verif_mailbox_reader.
 Require Import mailbox.verif_mailbox_writer.
 Require Import mailbox.verif_mailbox_main.
 
-Definition extlink := ext_link_prog prog.
-Definition Espec := add_funspecs (Concurrent_Espec unit _ extlink) extlink Gprog.
-#[export] Existing Instance Espec.
+Section mpred.
+
+Context `{!VSTGS unit Σ, AEGS0 : !AEGS t_atom_int, !inG Σ (excl_authR (leibnizO val))}.
+Existing Instance concurrent_ext_spec.
 
 (* This lemma ties all the function proofs into a single proof for the entire program. *)
 Lemma all_funcs_correct:
@@ -54,3 +54,5 @@ semax_func_cons body_reader.
 semax_func_cons body_writer.
 semax_func_cons body_main.
 Qed.
+
+End mpred.

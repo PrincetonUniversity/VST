@@ -1,6 +1,5 @@
 Require Import mailbox.verif_atomic_exchange.
 Require Import VST.concurrency.conclib.
-Require Import VST.concurrency.ghosts.
 Require Import VST.floyd.library.
 Require Import VST.zlist.sublist.
 Require Import mailbox.mailbox.
@@ -12,6 +11,10 @@ Opaque eq_dec.
 
 Ltac entailer_for_load_tac ::= unfold tc_efield; go_lower; entailer'.
 Ltac entailer_for_store_tac ::= unfold tc_efield; go_lower; entailer'.
+
+Section mpred.
+
+Context `{!VSTGS unit Σ, AEGS0 : !AEGS t_atom_int, !inG Σ (excl_authR (leibnizO val))}.
 
 Lemma body_writer : semax_body Vprog Gprog f_writer writer_spec.
 Proof.
@@ -110,3 +113,5 @@ Proof.
   replace N with (Zlength h) by auto; symmetry; eapply mem_lemmas.Forall2_Zlength; eauto.
   simpl; cancel.
 Qed.
+
+End mpred.

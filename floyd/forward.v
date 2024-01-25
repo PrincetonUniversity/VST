@@ -945,7 +945,7 @@ Ltac fix_up_simplified_postcondition :=
 
 Ltac match_postcondition := 
 fix_up_simplified_postcondition;
-cbv beta iota zeta; unfold_post; 
+cbv beta iota zeta; unfold_post;
 constructor; let rho := fresh "rho" in intro rho; cbn [monPred_at assert_of ofe_mor_car];
    repeat rewrite exp_uncurry;
    try rewrite no_post_exists; repeat rewrite monPred_at_exist;
@@ -1097,15 +1097,15 @@ eapply (semax_call_id00_wow H);
  clear H;
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [ check_result_type 
- | (*match_postcondition*)
-    fix_up_simplified_postcondition;
+ | fix_up_simplified_postcondition;
     cbv beta iota zeta; unfold_post;
+    constructor; let rho := fresh "rho" in intro rho; cbn [monPred_at assert_of ofe_mor_car];
     repeat rewrite exp_uncurry;
-    rewrite ?assert_of_at;
+    repeat rewrite monPred_at_exist;
 
-    first [ apply bi.exist_proper | try rewrite no_post_exists0; apply bi.exist_proper];
+    first [ apply bi.exist_proper | try rewrite no_post_exists0 monPred_at_exist; apply bi.exist_proper];
 
-    intros ?vret;
+    intros ?vret; generalize rho; rewrite -local_assert;
     apply PROP_LOCAL_SEP_ext'; [reflexivity | | reflexivity];
     (reflexivity || fail "The funspec of the function has a POSTcondition
 that is ill-formed.  The LOCALS part of the postcondition

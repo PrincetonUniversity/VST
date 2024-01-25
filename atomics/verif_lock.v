@@ -7,12 +7,9 @@ Require Import VST.concurrency.threads.
 
 Section mpred.
 
-Context `{!VSTGS OK_ty Σ, !cinvG Σ}.
+Context `{!VSTGS OK_ty Σ, !cinvG Σ, atom_impl : !atomic_int_impl (Tstruct _atom_int noattr)}.
 
-#[export] Program Instance atom_impl : atomic_int_impl := { atomic_int := Tstruct _atom_int noattr }.
-Next Obligation. Admitted.
-Next Obligation. Admitted.
-Next Obligation. Admitted.
+(* add these to atomic_int_impl? *)
 Axiom atomic_int_isptr : forall sh v p, atomic_int_at sh v p ⊢ ⌜isptr p⌝.
 #[local] Hint Resolve atomic_int_isptr : saturate_local.
 Axiom atomic_int_timeless : forall sh v p, Timeless (atomic_int_at sh v p).
@@ -139,7 +136,7 @@ Section PROOFS.
     forward_call (ptr_of h, vint 0, ⊤ : coPset, ∅ : coPset, Q).
     - destruct h as ((p, i), g); simpl; Intros.
       subst Frame; instantiate (1 := []); simpl; cancel.
-      iIntros "((((HR & #I) & ?) & P) & HQ)".
+      iIntros "(HR & #I & ? & P & HQ)".
       iInv i as "((% & >p & ?) & Hown)" "Hclose".
       destruct b.
       + iExists Ews; rewrite (bi.pure_True (writable_share _)) //.
