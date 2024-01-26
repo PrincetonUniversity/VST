@@ -151,7 +151,7 @@ Definition AEX_type := ProdType (ProdType (ProdType (ConstType (val * val))
 
 Program Definition atomic_exchange_spec := TYPE AEX_type
   WITH p : val, v : val, Eo : coPset, Ei : coPset, Q : val -> mpred
-  PRE [ tptr tint, tint ]
+  PRE [ tptr atomic_int, tint ]
    PROP (subseteq Ei Eo)
    PARAMS (p; v)
    SEP (|={Eo,Ei}=> ∃ sh : share, ∃ v0 : val, ⌜writable_share sh⌝ ∧
@@ -335,7 +335,7 @@ Definition AEXI_type := ProdType (ProdType (ProdType (ConstType (val * Z))
 
 Program Definition atomic_exchange_int_spec := TYPE AEXI_type
   WITH p : val, v : Z, Eo : coPset, Ei : coPset, Q : Z -> mpred
-  PRE [ tptr tint, tint ]
+  PRE [ tptr atomic_int, tint ]
    PROP (repable_signed v; subseteq Ei Eo)
    PARAMS (p; vint v)
    SEP (|={Eo,Ei}=> ∃ sh : share, ∃ v0 : Z, ⌜writable_share sh /\ repable_signed v0⌝ ∧

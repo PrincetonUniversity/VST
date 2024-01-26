@@ -39,7 +39,7 @@ Context `{!VSTGS unit Σ, AEGS0 : !AEGS t_atom_int, !inG Σ (excl_authR (leibniz
 #[local] Instance concurrent_ext_spec : ext_spec unit := concurrent_ext_spec _ (ext_link_prog prog).
 
 Definition make_atomic_spec := DECLARE _make_atomic make_atomic_spec.
-Definition atomic_exchange_spec := DECLARE _atom_exchange atomic_exchange_spec.
+Definition atomic_exchange_spec := DECLARE _atom_exchange SC_atomics.atomic_exchange_spec.
 Definition spawn_spec := DECLARE _spawn spawn_spec.
 
 (* utility function specs *)
@@ -99,6 +99,16 @@ Definition last_write h := fst (find_write h (vint 0)).
 Definition ghost_auth (v : val) (g : gname) : mpred := own g (●E v : excl_authR (leibnizO val)).
 Definition ghost_frag (v : val) (g : gname) : mpred := own g (◯E v : excl_authR (leibnizO val)).
 
+Lemma ghost_var_update : forall g v1 v2 v', ghost_auth v1 g -∗ ghost_frag v2 g ==∗
+  ⌜v1 = v2⌝ ∧ (ghost_auth v' g ∗ ghost_frag v' g).
+Proof.
+  intros; iIntros "auth frag".
+  iDestruct (own_valid_2 with "auth frag") as %->%excl_auth_agree_L; rewrite bi.pure_True // bi.True_and.
+  rewrite /ghost_auth /ghost_frag; iCombine "auth frag" as "H"; rewrite -!own_op.
+  iApply (own_update with "H").
+  apply @excl_auth_update.
+Qed.
+
 (* This is the invariant for the location buffers comm[N]. *)
 (* The ghost variables are the last value read, the last value written, and the last value read before
    the last write (i.e., last_taken). The first is updated by the reader, the rest by the writer. *)
@@ -110,6 +120,22 @@ Definition comm_R bufs sh g0 g1 g2 h v := ∃ b : Z, ∃ b1 : Z, ∃ b2 : Z,
   ghost_auth (vint b1) g0 ∗ ghost_auth (last_write (rev h)) g1 ∗ ghost_auth (prev_taken (rev h)) g2 ∗
   if eq_dec b (-1) then ∃ v : Z, data_at sh tbuffer (vint v) (Znth b2 bufs)
   else ∃ v : Z, data_at sh tbuffer (vint v) (Znth b bufs).
+
+#[export] Instance data_at_buffer_timeless sh v p : Timeless (data_at sh tbuffer v p).
+Proof.
+  apply bi.and_timeless; first apply _.
+  rewrite /at_offset data_at_rec_eq /withspacer /=.
+  apply _.
+Qed.
+
+#[export] Instance comm_R_timeless bufs sh g0 g1 g2 h v : Timeless (comm_R bufs sh g0 g1 g2 h v).
+Proof.
+  rewrite /comm_R.
+  repeat (apply bi.exist_timeless; intros).
+  apply bi.and_timeless; first apply _.
+  repeat (apply bi.sep_timeless; first apply _).
+  if_tac; apply _.
+Qed.
 
 Definition comm_loc lsh comm g g0 g1 g2 bufs sh :=
   AE_loc lsh comm g (vint 0) (comm_R bufs sh g0 g1 g2).

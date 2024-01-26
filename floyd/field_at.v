@@ -2092,6 +2092,73 @@ intros.
 destruct v; reflexivity.
 Qed.
 
+Lemma struct_pred_timeless: forall m {A} (P : forall it : member, A it -> val -> mpred) v p
+  (HP : forall it a p, (P it a p ⊣⊢ emp) \/ Timeless (P it a p)),
+  (struct_pred m P v p ⊣⊢ emp) \/ Timeless (struct_pred m P v p).
+Proof.
+  intros.
+  induction m as [| a1 m]; intros; auto.
+  destruct m; eauto.
+  rewrite struct_pred_cons2.
+  destruct (HP a1 v.1 p) as [Hemp | Htimeless], (IHm v.2) as [Hemp' | Htimeless'].
+  - left; rewrite Hemp, Hemp'; apply bi.sep_emp.
+  - right; rewrite Hemp.
+    eapply bi.Timeless_proper; first apply bi.emp_sep; done.
+  - right; rewrite Hemp'.
+    eapply bi.Timeless_proper; first apply bi.sep_emp; done.
+  - right; apply _.
+Qed.
+
+Lemma spacer_timeless : forall sh a b p, b - a > 0 -> Timeless (spacer sh a b p).
+Proof.
+  intros; unfold spacer.
+  rewrite if_false by lia.
+  by apply memory_block_timeless.
+Qed.
+
+Lemma withspacer_timeless : forall sh a b P p, a <= b -> Timeless (P p) -> Timeless (withspacer sh a b P p).
+Proof.
+  intros; unfold withspacer.
+  if_tac; last apply bi.sep_timeless; try apply _.
+  apply spacer_timeless; lia.
+Qed.
+
+Lemma data_at_rec_timeless {cs:compspecs} (sh : share) t (v : reptype t) p : sizeof t > 0 -> Timeless (data_at_rec sh t v p).
+Proof.
+  revert v p.
+  type_induction t; intros; rewrite data_at_rec_eq; try apply _;
+    try (simple_if_tac; [by apply memory_block_timeless | apply _]).
+  - simpl in *.
+    unfold array_pred, aggregate_pred.array_pred.
+    apply bi.and_timeless; first apply _.
+    rewrite Z.sub_0_r, Z.max_r by lia.
+    assert (Ctypes.sizeof t > 0) by lia.
+    set (lo := 0).
+    assert (lo >= 0) by lia.
+    assert (Z.to_nat z > 0) as Hz by lia; clear H.
+    forget (Z.to_nat z) as n; clearbody lo.
+    match goal with |-context[aggregate_pred.rangespec _ _ ?Q] => set (P := Q) end.
+    assert (forall i v, Timeless (P i v)) by apply _.
+    clearbody P; clear IH; revert dependent lo; induction n; first lia; simpl; intros.
+    destruct (eq_dec n O).
+    + subst; simpl. eapply bi.Timeless_proper; first apply bi.sep_emp.
+      apply _.
+    + apply bi.sep_timeless; try apply _.
+      apply IHn; lia.
+  - edestruct struct_pred_timeless; last done.
+    + intros.
+      destruct (Z.gt_dec (sizeof (field_type (name_member it) (co_members (get_co id)))) 0).
+      * right; apply withspacer_timeless.
+        {
+Abort.
+
+(*Lemma data_at_timeless {cs:compspecs} sh t v p : sizeof t > 0 -> Timeless (data_at sh t v p).
+Proof.
+  intros.
+  apply bi.and_timeless; first apply _.
+  by apply data_at_rec_timeless.
+Qed.*)
+
 Lemma data_at_rec_void:
   forall {cs: compspecs}
       sh t v q, t = Tvoid -> data_at_rec sh t v q = False.

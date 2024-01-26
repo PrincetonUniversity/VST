@@ -19,25 +19,20 @@ Proof.
   sep_apply (create_mem_mgr gv).
   exploit (split_shares (Z.to_nat N) Ews); auto; intros (sh0 & shs & ? & ? & ? & ?).
   forward_call (sh0, shs, gv).
-  Intros x; destruct x as ((((((((comms, locks), bufs), reads), lasts), g), g0), g1), g2).
+  Intros x; destruct x as (((((((comms, bufs), reads), lasts), g), g0), g1), g2).
   assert_PROP (Zlength comms = N).
   { go_lowerx; apply sepcon_derives_prop.
     eapply derives_trans; [apply data_array_at_local_facts'; unfold N; lia|].
     unfold unfold_reptype; simpl.
-    apply prop_left; intros (? & ? & ?); apply prop_right; auto. }
+    apply bi.pure_mono; tauto. }
   simpl fst in *. simpl snd in *.
-  assert_PROP (Zlength bufs = B).
-  { go_lowerx; rewrite <- !sepcon_assoc, (sepcon_comm _ (data_at _ _ _ (gv _bufs))), !sepcon_assoc.
-    apply sepcon_derives_prop.
-    eapply derives_trans; [apply data_array_at_local_facts'; unfold B, N; lia|].
-    unfold unfold_reptype; simpl.
-    apply prop_left; intros (? & ? & ?); apply prop_right; auto. }
+  assert_PROP (Zlength bufs = B) by entailer!.
   assert (exists sh2, sepalg.join sh0 sh2 Ews /\ readable_share sh2) as (sh2 & Hsh2 & Hrsh2).
   { destruct (sepalg_list.list_join_assoc1 (join_bot_eq _) H2) as (? & ? & ?).
     do 2 eexists; eauto.
     eapply readable_share_list_join; eauto.
     inv H1; auto; discriminate. }
-  forward_spawn _writer (vptrofs 0) (locks, comms, bufs, sh0, gsh1, sh0, shs, g, g0, g1, g2, gv).
+  forward_spawn _writer (vptrofs 0) (comms, bufs, sh0, (1/2)%Qp, shs, g, g0, g1, g2, gv).
   { rewrite !sepcon_andp_prop'.
     apply andp_right; [apply prop_right; repeat (split; auto)|].
     erewrite (map_ext (fun r => comm_loc _ _ _ _ _ _ _ _ _ _ _));
@@ -110,8 +105,8 @@ Proof.
       match goal with H : Zlength shs = _ |- _ => setoid_rewrite H; rewrite Z2Nat.id; lia end] end.
     apply sepalg.join_comm in Hj1; destruct (sepalg_list.list_join_assoc1 Hj1 Hj2) as (sh1' & ? & Hj').
     assert_PROP (isptr d) by entailer!.
-    forward_spawn _reader d (i, reads, lasts, locks, comms,
-      bufs, Znth i shs, gsh2, Znth i shs, Znth i g, Znth i g0, Znth i g1, Znth i g2, gv).
+    forward_spawn _reader d (i, reads, lasts, comms,
+      bufs, Znth i shs, Znth i shs, Znth i g, Znth i g0, Znth i g1, Znth i g2, gv).
     - rewrite !sepcon_andp_prop'.
       apply andp_right; [apply prop_right; repeat (split; auto)|].
       { apply Forall_Znth; auto; match goal with H : Zlength shs = _ |- _ => setoid_rewrite H; auto end. }
@@ -127,7 +122,7 @@ Proof.
       rewrite (@sublist_next Z N i); rewrite ?Znth_upto; auto; rewrite? Zlength_upto; simpl;
         try (unfold N in *; lia).
       Exists 0; cancel.
-    - (* Why didn't forward_call_dep discharge this? *) apply isptr_is_pointer_or_null; auto.
+    - (* Why didn't forward_call discharge this? *) apply isptr_is_pointer_or_null; auto.
     - Exists sh1'; entailer!. simpl; cancel. }
     forward_loop (PROP()LOCAL()(SEP(TT))) break: (@FF (environ->mpred) _).
     entailer!.

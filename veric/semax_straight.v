@@ -737,57 +737,6 @@ try rewrite Int.zero_ext_idem; auto; simpl; try lia;
 try solve [simple_if_tac; auto].
 Qed.
 
-(* up? *)
-Lemma big_sepL_timeless' {A} (f : nat -> A -> mpred) l `(∀ k v, Timeless (f k v)) : l ≠ [] -> Timeless ([∗ list] k↦v ∈ l, f k v).
-Proof.
-  revert dependent f; induction l; first done; simpl; intros.
-  destruct l.
-  - rewrite /= right_id //.
-  - apply bi.sep_timeless; first done.
-    by apply IHl.
-Qed.
-
-Global Instance mapsto_val_timeless l dq v : Timeless (l ↦{dq} VAL v).
-Proof.
-  rewrite gen_heap.mapsto_unseal /gen_heap.mapsto_def.
-  rewrite resource_map.resource_map_elem_unseal /resource_map.resource_map_elem_def.
-  apply _.
-Qed.
-
-Global Instance mapsto_no_timeless l dq : Timeless (mapsto_no l dq).
-Proof.
-  rewrite gen_heap.mapsto_no_unseal /gen_heap.mapsto_no_def.
-  rewrite resource_map.resource_map_elem_no_unseal /resource_map.resource_map_elem_no_def.
-  apply _.
-Qed.
-
-Global Instance address_mapsto_timeless ch v sh l : Timeless (address_mapsto ch v sh l).
-Proof.
-  rewrite /address_mapsto.
-  apply bi.exist_timeless; intros.
-  rewrite /Timeless.
-  rewrite bi.later_and; iIntros "(>(% & % & %) & H)".
-  iSplit; first done.
-  iApply (timeless with "H").
-  apply big_sepL_timeless'; first apply _.
-  destruct (size_chunk_nat_pos ch); destruct x; try done; simpl in *; lia.
-Qed.
-
-Global Instance mapsto_timeless sh t v1 v2 : Timeless (mapsto sh t v1 v2).
-Proof.
-  rewrite /mapsto.
-  destruct (access_mode t); try apply _.
-  destruct (type_is_volatile t); try apply _.
-  destruct v1; try apply _.
-  if_tac; try apply _.
-  rewrite /nonlock_permission_bytes.
-  apply bi.and_timeless; first apply _.
-  apply big_sepL_timeless'.
-  intros; if_tac; try apply _.
-  { destruct (Z.to_nat _) eqn: Hn; try done.
-    pose proof (size_chunk_pos m); lia. }
-Qed.
-
 Lemma semax_store:
  forall E Delta e1 e2 sh P (WS : writable0_share sh),
    semax OK_spec E Delta

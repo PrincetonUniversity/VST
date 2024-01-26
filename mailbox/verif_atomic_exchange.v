@@ -187,9 +187,9 @@ Definition AE_loc sh p g i (R : list AE_hist_el -d> val -d> mpred) (h : hist) :=
 Proof. solve_proper. Qed.
 
 (* This predicate describes the valid pre- and postconditions for a given atomic invariant R. *)
-Definition AE_spec i (P : hist -d> val -d> mpred) (R : list AE_hist_el -d> val -d> mpred) (Q : hist -d> val -d> mpred) := ∀ hc hx vc vx,
-  ⌜apply_hist i hx = Some vx /\ hist_incl hc hx⌝ →
-  ((▷R hx vx ∗ P hc vc) -∗ (|==> ▷R (hx ++ [AE vx vc]) vc ∗
+Definition AE_spec i (P : hist -d> val -d> mpred) (R : list AE_hist_el -d> val -d> mpred) (Q : hist -d> val -d> mpred) := ∀ (hc : hist) hx vc vx,
+  ⌜apply_hist i hx = Some vx /\ ✓ (hc : gmapR _ (exclR (leibnizO _))) /\ hist_incl hc hx⌝ →
+  ((▷R hx vx ∗ P hc vc) -∗ (|={⊤ ∖ ↑(nroot .@ "AE")}=> ▷R (hx ++ [AE vx vc]) vc ∗
     Q (<[length hx := Excl (AE vx vc)]>hc) vx)).
 
 #[export] Instance AE_spec_ne i : NonExpansive3 (AE_spec i).
@@ -205,7 +205,7 @@ Definition AE_type := ProdType (ProdType (ProdType
 Program Definition atomic_exchange_spec :=
   TYPE AE_type WITH lsh : Qp, tgt : val, g : gname,
     i : val, v : val, h : hist, P : hist -> val -> mpred, R : list AE_hist_el -> val -> mpred, Q : hist -> val -> mpred
-  PRE [ tptr tint, tint ]
+  PRE [ tptr atomic_int, tint ]
    PROP (tc_val tint v)
    PARAMS (tgt;  v) GLOBALS ()
    SEP (AE_loc lsh tgt g i R h; P h v; AE_spec i P R Q)
