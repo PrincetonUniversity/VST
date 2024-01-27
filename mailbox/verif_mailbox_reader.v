@@ -32,13 +32,13 @@ Proof.
          data_at sh1 (tarray (tptr tbuffer) B) bufs (gv _bufs);
          comm_loc sh2 c g g0 g1 g2 bufs sh h;
          ∃ v : Z, data_at sh tbuffer (vint v) (Znth b0 bufs);
-         ghost_frag (vint b0) g0)).
-(*  break: (@FF (environ->mpred) _). *)
+         ghost_frag (vint b0) g0))
+  break: (False : @assert Σ).
   { Exists 1 (∅ : hist); entailer!.
     unfold latest_read.
     left; split; auto; discriminate. }
   Intros b0 h.
-  subst c l; subst; forward_call (r, reads, lasts, locks, comms, bufs,
+  subst c; subst; forward_call (r, reads, lasts, comms, bufs,
     sh, sh1, sh2, b0, g, g0, g1, g2, h, gv).
   Intros x; destruct x as (((b, t), e), v); cbv [fst snd] in *.
   rewrite (data_at_isptr _ tbuffer); Intros.
@@ -46,7 +46,7 @@ Proof.
   forward.
   forward_call (r, reads, sh1, gv).
   entailer!.
-  Exists b (map_upd h t (AE e Empty)) v; entailer!.
+  Exists b (<[t := Excl (AE e Empty)]>h) v; entailer!.
 Qed.
 
 End mpred.

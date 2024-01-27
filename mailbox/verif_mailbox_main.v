@@ -32,7 +32,7 @@ Proof.
     do 2 eexists; eauto.
     eapply readable_share_list_join; eauto.
     inv H1; auto; discriminate. }
-  forward_spawn _writer (vptrofs 0) (comms, bufs, sh0, (1/2)%Qp, shs, g, g0, g1, g2, gv).
+  forward_spawn _writer (vptrofs 0) (comms, bufs, sh0, (1/2)%Qp, gsh2, shs, g, g0, g1, g2, gv).
   { rewrite !sepcon_andp_prop'.
     apply andp_right; [apply prop_right; repeat (split; auto)|].
     erewrite (map_ext (fun r => comm_loc _ _ _ _ _ _ _ _ _ _ _));

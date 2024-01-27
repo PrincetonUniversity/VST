@@ -22,23 +22,23 @@ Proof.
   assert (B < Int.max_signed) as HB by computable.
   forward_call gv.
   forward.
-  forward_loop (EX v : Z, EX b0 : Z, EX lasts : list Z, EX h : list hist,
+  forward_loop (∃ v : Z, ∃ b0 : Z, ∃ lasts : list Z, ∃ h : list hist,
    PROP (0 <= b0 < B; Forall (fun x => 0 <= x < B) lasts; Zlength h = N; ~In b0 lasts)
    LOCAL (temp _v (vint v); temp _arg arg; gvars gv)
    SEP (data_at Ews tint Empty (gv _writing); data_at Ews tint (vint b0) (gv _last_given);
    data_at Ews (tarray tint N) (map (fun x => vint x) lasts) (gv _last_taken);
-   data_at sh1 (tarray (tptr tint) N) comms (gv _comm); data_at sh1 (tarray (tptr t_lock) N) (map ptr_of locks) (gv _lock);
+   data_at sh1 (tarray (tptr t_atom_int) N) comms (gv _comm);
    data_at sh1 (tarray (tptr tbuffer) B) bufs (gv _bufs);
-   fold_right sepcon emp (map (fun r0 => comm_loc lsh (Znth r0 locks) (Znth r0 comms)
+   [∗] (map (fun r0 => comm_loc lsh (Znth r0 comms)
      (Znth r0 g) (Znth r0 g0) (Znth r0 g1) (Znth r0 g2) bufs
-     (Znth r0 shs) gsh2 (Znth r0 h)) (upto (Z.to_nat N)));
-   fold_right sepcon emp (map (fun r0 => ghost_var gsh1 (vint b0) (Znth r0 g1) *
-     ghost_var gsh1 (vint (@Znth Z (-1) r0 lasts)) (Znth r0 g2)) (upto (Z.to_nat N)));
-   fold_right sepcon emp (map (fun i => EX sh : share, !! (if eq_dec i b0 then sh = sh0
-     else sepalg_list.list_join sh0 (make_shares shs lasts i) sh) &&
-     (EX v : Z, @data_at CompSpecs sh tbuffer (vint v) (Znth i bufs))) (upto (Z.to_nat B)))))
-  break: (@FF (environ->mpred) _).
-  { Exists 0 0 (repeat 1 (Z.to_nat N)) (repeat (empty_map : hist) (Z.to_nat N)); entailer!; simpl.
+     (Znth r0 shs) (Znth r0 h)) (upto (Z.to_nat N)));
+   [∗] (map (fun r0 => ghost_frag (vint b0) (Znth r0 g1) ∗
+     ghost_frag (vint (@Znth Z (-1) r0 lasts)) (Znth r0 g2)) (upto (Z.to_nat N)));
+   [∗] (map (fun i => ∃ sh : share, ⌜if eq_dec i b0 then sh = sh0
+     else sepalg_list.list_join sh0 (make_shares shs lasts i) sh⌝ ∧
+     (∃ v : Z, data_at(cs := CompSpecs) sh tbuffer (vint v) (Znth i bufs))) (upto (Z.to_nat B)))))
+  break: (False : @assert Σ).
+  { Exists 0 0 (repeat 1 (Z.to_nat N)) (repeat (∅ : hist) (Z.to_nat N)); entailer!; simpl.
     my_auto.
     { repeat constructor; computable. }
     rewrite sepcon_map.
@@ -74,7 +74,7 @@ Proof.
   Intros sh v0.
   rewrite (data_at_isptr _ tbuffer); Intros.
   forward.
-  destruct (eq_dec b b0); [absurd (b = b0); auto|].
+  destruct (eq_dec b b0); first done.
   assert_PROP (Zlength lasts = N).
   { gather_SEP (data_at _ _ _ (gv _last_taken)).
     go_lowerx; apply sepcon_derives_prop.
@@ -85,14 +85,14 @@ Proof.
   rewrite make_shares_out in *; auto; [|setoid_rewrite H; auto].
   assert (sh = Ews) by (eapply sepalg_list.list_join_eq; eauto); subst.
   forward.
-  gather_SEP (fold_right sepcon emp (map (fun x : Z => ghost_var gsh1 (vint b0) _) _))
-                     (fold_right sepcon emp (map (fun x : Z => ghost_var gsh1 (vint (Znth x lasts)) _) _)).
+  gather_SEP ([∗] (map (fun x : Z => ghost_frag (vint b0) _) _))
+                     ([∗] (map (fun x : Z => ghost_frag (vint (Znth x lasts)) _) _)).
   rewrite <- sepcon_map.
   gather_SEP (data_at _ _ _ (Znth b bufs))
-                    (fold_right sepcon emp (upd_Znth b _ _)).
- replace_SEP 0 (fold_right sepcon emp (map (fun i => EX sh2 : share,
+                    ([∗] (upd_Znth b _ _)).
+ replace_SEP 0 ([∗] (map (fun i => ∃ sh2 : share,
     !! (if eq_dec i b0 then sh2 = sh0 else sepalg_list.list_join sh0 (make_shares shs lasts i) sh2) &&
-    (EX v1 : Z, data_at sh2 tbuffer (vint v1) (Znth i bufs))) (upto (Z.to_nat B)))).
+    (∃ v1 : Z, data_at sh2 tbuffer (vint v1) (Znth i bufs))) (upto (Z.to_nat B)))).
   { Opaque B.
     go_lowerx; eapply derives_trans with (Q := _ * _);
       [|erewrite replace_nth_sepcon, upd_Znth_triv; try apply derives_refl; eauto].
