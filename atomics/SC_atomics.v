@@ -158,10 +158,10 @@ Program Definition atomic_exchange_spec := TYPE AEX_type
               atomic_int_at sh v0 p ∗
         (atomic_int_at sh v p -∗ |={Ei,Eo}=> Q v0))
   POST [ tint ]
-   ∃ v' : val,
+   ∃ v' : int,
    PROP ()
-   LOCAL (temp ret_temp v')
-   SEP (Q v').
+   LOCAL (temp ret_temp (Vint v'))
+   SEP (Q (Vint v')).
 Next Obligation.
 Proof.
   intros ? ((((?, ?), ?), ?), ?) ((((?, ?), ?), ?), ?) ((([=] & [=]) & [=]) & HQ) ?; simpl in *; subst.
@@ -374,8 +374,9 @@ Proof.
     iPureIntro.
     iIntros (?) "(_ & _ & H)".
     iDestruct "H" as (r) "(_ & % & Q & _)".
-    destruct H, r; try done.
-    iExists (Int.signed i); iSplit; auto.
+    destruct H; try done.
+    monPred.unseal.
+    iExists (Int.signed r); iSplit; auto.
     { iPureIntro; split; auto.
       apply Int.signed_range. }
     iSplit; [iSplit; auto|].

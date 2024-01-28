@@ -36,8 +36,8 @@ Proof.
   { exploit (Znth_inbounds r reads); [|lia].
     intro Heq; rewrite -> Heq in *; contradiction. }
   assert (N < Int.max_signed) by computable.
+  sep_apply comm_loc_isptr; Intros.
   forward.
-(*  rewrite comm_loc_isptr; Intros. *)
   forward.
   forward.
   set (c := Znth r comms).

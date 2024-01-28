@@ -461,21 +461,6 @@ Proof.
 intros. destruct al; reflexivity.
 Qed.
 
-(* up *)
-Lemma list_insert_upd : forall {A} i (a : A) l, 0 <= i < Zlength l ->
-  <[Z.to_nat i := a]>l = upd_Znth i l a.
-Proof.
-  intros; revert dependent i; induction l; simpl; intros.
-  - rewrite Zlength_nil in H; lia.
-  - rewrite Zlength_cons in H.
-    destruct (Z.to_nat i) eqn: Hi; simpl.
-    + assert (i = 0) as -> by lia.
-      rewrite upd_Znth0 //.
-    + rewrite upd_Znth_cons; last lia.
-      rewrite -IHl; last lia.
-      replace n with (Z.to_nat (i - 1)) by lia; done.
-Qed.
-
 Lemma upd_Znth_sep : forall {B : bi} i l (P : B), 0 <= i < Zlength l ->
   P ∗ [∗] (upd_Znth i l emp) ⊣⊢ [∗] (upd_Znth i l P).
 Proof.
@@ -712,14 +697,6 @@ Proof.
         rewrite Zlength_app Zlength_cons Zlength_nil; lia.
 Qed.
 
-Lemma big_sep_map : forall {B : bi} {A} (P Q : A -> B) (l : list A),
-  [∗] map (fun a => P a ∗ Q a) l ⊣⊢ [∗] map P l ∗ [∗] map Q l.
-Proof.
-  induction l; simpl.
-  - symmetry; apply bi.sep_emp.
-  - rewrite IHl; iSplit; iIntros "H"; iStopProof; cancel.
-Qed.
-
 Lemma map_add_empty : forall (h : hist), (h : gmap.gmapR _ (exclR (leibnizO _))) ⋅ ∅ = h.
 Proof.
   intros.
@@ -790,21 +767,20 @@ Proof.
   - assert_PROP (Zlength comms = N) as Hcomms by entailer!.
     Intros t' h'.
     forward.
-    { entailer!.
-      apply Forall_Znth.
-      { rewrite Hcomms; auto. }
-      apply Forall_impl with (P := isptr); auto. }
+    { assert_PROP (isptr (Znth i comms)); [|entailer!!].
+      go_lower.
+      rewrite (big_sepL_lookup_acc _ _ (Z.to_nat i)); [|apply Znth_lookup; rewrite Zlength_map Zlength_upto //].
+      rewrite Znth_map // Znth_upto //; sep_apply comm_loc_isptr; entailer!!. }
     lazymatch goal with |-context[[∗] map ?f (upto (Z.to_nat N))] =>
       gather_SEP ([∗] map f (upto (Z.to_nat N))); evar (P : mpred); replace_SEP 0 P end.
-    { go_lowerx; rewrite bi.sep_emp; apply (big_sepL_insert_acc _ _ (Z.to_nat i)), Znth_lookup.
+    { go_lower; apply (big_sepL_insert_acc _ _ (Z.to_nat i)), Znth_lookup.
       rewrite Zlength_map Zlength_upto //. }
     subst P; rewrite Znth_map //.
     rewrite Znth_upto //.
     destruct (zlt i i); [lia | rewrite map_add_empty].
-(*    rewrite comm_loc_isptr; Intros. *)
     lazymatch goal with |-context[[∗] map ?f (upto 5)] =>
       gather_SEP ([∗] map f (upto 5)); evar (P : mpred); replace_SEP 0 P end.
-    { go_lowerx; rewrite bi.sep_emp; apply (big_sepL_insert_acc _ _ (Z.to_nat b)), Znth_lookup.
+    { go_lower; apply (big_sepL_insert_acc _ _ (Z.to_nat b)), Znth_lookup.
       rewrite Zlength_map Zlength_upto //. }
     subst P; simpl; rewrite Znth_map //.
     rewrite Znth_upto //.
@@ -817,7 +793,7 @@ Proof.
     rewrite -> sublist_len_1, <- sepalg_list.list_join_1 in Hsh; [|lia].
     repeat match goal with |-context[[∗] map ?f ?l] =>
       gather_SEP ([∗] map f l); evar (P : mpred); replace_SEP 0 P;
-      [go_lowerx; rewrite bi.sep_emp; apply (big_sepL_insert_acc _ _ (Z.to_nat i)), Znth_lookup;
+      [go_lower; apply (big_sepL_insert_acc _ _ (Z.to_nat i)), Znth_lookup;
        rewrite Zlength_map Zlength_upto // | subst P; simpl; rewrite !Znth_map // !Znth_upto //] end.
     rewrite -> Znth_overflow with (al := h'); [|lia].
     destruct (zlt i i); [clear - l; lia|].
@@ -966,10 +942,10 @@ Proof.
       forward_if (PROP () (LOCALx Q (SEPx (data_at Ews (tarray tint N)
         (upd_Znth i l (vint (if eq_dec (vint b') Empty then b0 else Znth i lasts))) (gv _last_taken) :: R)))) end.
     + forward.
-      subst. rewrite -> (if_true (vint b' = Empty)) by (rewrite H18; reflexivity).
+      subst. rewrite -> (if_true (vint b' = Empty)) by (rewrite H17; reflexivity).
       apply ENTAIL_refl.
-    + forward. rewrite neg_repr in H18.
-      rename H18 into n1.
+    + forward. rewrite neg_repr in H17.
+      rename H17 into n1.
       erewrite (upd_Znth_triv i).
       apply ENTAIL_refl.
       * rewrite !Zlength_map Zlength_upto; auto.

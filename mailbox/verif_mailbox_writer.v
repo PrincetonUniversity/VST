@@ -41,77 +41,56 @@ Proof.
   { Exists 0 0 (repeat 1 (Z.to_nat N)) (repeat (∅ : hist) (Z.to_nat N)); entailer!; simpl.
     my_auto.
     { repeat constructor; computable. }
-    rewrite sepcon_map.
-    apply derives_refl'.
-    rewrite !sepcon_assoc; f_equal; f_equal; [|f_equal].
-    - rewrite list_Znth_eq with (l := g1) at 1.
+    rewrite big_sep_map -bi.sep_assoc; f_equiv.
+    { erewrite map_ext; first done.
+      by intros ?; setoid_rewrite (Znth_repeat 3). }
+    f_equiv; first by rewrite -> list_Znth_eq with (l := g1) at 1; rewrite map_map;
       replace (length g1) with (Z.to_nat N) by (symmetry; rewrite <- Zlength_length; auto; unfold N; computable).
-      rewrite map_map; auto.
-    - rewrite list_Znth_eq with (l := g2) at 1.
+    f_equiv; first by rewrite -> list_Znth_eq with (l := g2) at 1; rewrite map_map;
       replace (length g2) with (Z.to_nat N) by (symmetry; rewrite <- Zlength_length; auto; unfold N; computable).
-      erewrite map_map, map_ext_in; eauto.
-      intros; rewrite In_upto in *.
-      match goal with |- context[@Znth Z (-1) a ?l] => replace (@Znth Z (-1) a l) with 1; auto end.
-      apply Forall_Znth; auto.
-    - erewrite map_ext_in; eauto.
-      intros; rewrite In_upto in *.
-      destruct (eq_dec a 0); auto.
-      destruct (eq_dec a 1), (eq_dec 1 a); auto; try lia.
-      { apply pred_ext; Intros sh; Exists sh; entailer!.
-        * constructor.
-        * match goal with H : sepalg_list.list_join sh0 _ sh |- _ => inv H; auto end. }
-      generalize (make_shares_out a (repeat 1 (Z.to_nat N)) shs); simpl; intro Heq.
-      destruct (eq_dec 1 a); [contradiction n0; auto|].
-       rewrite Heq; auto; [|lia].
-      apply pred_ext; Intros sh; Exists sh; entailer!.
-      eapply sepalg_list.list_join_eq; eauto. }
+    f_equiv.
+    rewrite Forall2_map Forall2_forall_Znth; split; first done.
+    intros ?; rewrite Zlength_upto.
+    intros ?; rewrite -> !Znth_upto by (unfold N; rewrite ?Zlength_upto; lia).
+    destruct (eq_dec i 0); try done.
+    destruct (eq_dec i 1), (eq_dec 1 i); try done.
+    { Intros sh; Exists sh; entailer!; constructor. }
+    generalize (make_shares_out i (repeat 1 (Z.to_nat N)) shs); simpl.
+    rewrite !if_false //; intros ->; [| lia | auto].
+    Intros sh; Exists sh; entailer!. }
   Intros v b0 lasts h.
-  rewrite sepcon_map; Intros.
+  rewrite big_sep_map; Intros.
   forward_call (b0, lasts, gv).
   Intros b.
-  rewrite (extract_nth_sepcon (map _ (upto (Z.to_nat B))) b); [|rewrite Zlength_map; auto].
-  erewrite Znth_map, Znth_upto; auto; rewrite ?Z2Nat.id; try lia.
+  lazymatch goal with |-context[[∗] map ?f (upto (Z.to_nat B))] =>
+    gather_SEP ([∗] map f (upto (Z.to_nat B))); evar (P : mpred); replace_SEP 0 P end.
+  { go_lowerx; rewrite bi.sep_emp; apply (big_sepL_lookup_acc _ _ (Z.to_nat b)), Znth_lookup.
+    rewrite Zlength_map Zlength_upto //. }
+  subst P; simpl; rewrite Znth_map // Znth_upto //.
   Intros sh v0.
   rewrite (data_at_isptr _ tbuffer); Intros.
   forward.
   destruct (eq_dec b b0); first done.
   assert_PROP (Zlength lasts = N).
-  { gather_SEP (data_at _ _ _ (gv _last_taken)).
-    go_lowerx; apply sepcon_derives_prop.
-    eapply derives_trans; [apply data_array_at_local_facts|].
-    apply prop_left; intros (_ & ? & _); apply prop_right.
-    unfold unfold_reptype in *; simpl in *.
-    rewrite Zlength_map in *; auto. }
-  rewrite make_shares_out in *; auto; [|setoid_rewrite H; auto].
+  { entailer!.
+    autorewrite with sublist in *.
+    unfold N in *; simpl in *; lia. }
+  rewrite -> make_shares_out in * by (auto; setoid_rewrite H; auto).
   assert (sh = Ews) by (eapply sepalg_list.list_join_eq; eauto); subst.
   forward.
-  gather_SEP ([∗] (map (fun x : Z => ghost_frag (vint b0) _) _))
-                     ([∗] (map (fun x : Z => ghost_frag (vint (Znth x lasts)) _) _)).
-  rewrite <- sepcon_map.
-  gather_SEP (data_at _ _ _ (Znth b bufs))
-                    ([∗] (upd_Znth b _ _)).
- replace_SEP 0 ([∗] (map (fun i => ∃ sh2 : share,
-    !! (if eq_dec i b0 then sh2 = sh0 else sepalg_list.list_join sh0 (make_shares shs lasts i) sh2) &&
+  gather_SEP 0 1; replace_SEP 0 ([∗] (map (fun i => ∃ sh2 : share,
+    ⌜if eq_dec i b0 then sh2 = sh0 else sepalg_list.list_join sh0 (make_shares shs lasts i) sh2⌝ ∧
     (∃ v1 : Z, data_at sh2 tbuffer (vint v1) (Znth i bufs))) (upto (Z.to_nat B)))).
-  { Opaque B.
-    go_lowerx; eapply derives_trans with (Q := _ * _);
-      [|erewrite replace_nth_sepcon, upd_Znth_triv; try apply derives_refl; eauto].
-
-    rewrite Znth_map by (rewrite (Zlength_upto); assumption).
-    rewrite Znth_upto by assumption.
-    destruct (eq_dec b b0); [absurd (b = b0); auto|].
-    rewrite make_shares_out; auto; [|setoid_rewrite H; auto].
-    Exists Ews v; entailer!. }
+  { go_lower; iIntros "(? & H)"; iApply "H"; eauto. }
   change (upto 3) with (upto (Z.to_nat N)).
   change (upto 5) with (upto (Z.to_nat B)).
-  forward_call (comms, locks, bufs, b, b0, lasts,
-    sh1, lsh, shs, g, g0, g1, g2, h, sh0, gv).
+  forward_call (comms, bufs, b, b0, lasts, sh1, lsh, shs, g, g0, g1, g2, h, sh0, gv).
+  { rewrite big_sep_map; cancel. }
   Intros x; destruct x as (lasts', h').
-  rewrite sepcon_map; Intros.
   forward.
-  Exists (v + 1) b lasts' h'; rewrite sepcon_map; entailer!.
-  replace N with (Zlength h) by auto; symmetry; eapply mem_lemmas.Forall2_Zlength; eauto.
-  simpl; cancel.
+  Exists (v + 1) b lasts' h'; entailer!.
+  { replace N with (Zlength h) by auto; symmetry; eapply mem_lemmas.Forall2_Zlength; eauto. }
+  cancel.
 Qed.
 
 End mpred.

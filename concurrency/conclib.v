@@ -15,6 +15,14 @@ Section mpred.
 
 Context `{!VSTGS OK_ty Σ}.
 
+Lemma big_sep_map : forall {B : bi} {A} (P Q : A -> B) (l : list A),
+  [∗] map (fun a => P a ∗ Q a) l ⊣⊢ [∗] map P l ∗ [∗] map Q l.
+Proof.
+  induction l; simpl.
+  - symmetry; apply bi.sep_emp.
+  - rewrite IHl; iSplit; iIntros "H"; iStopProof; cancel.
+Qed.
+
 (*Ltac forward_malloc t n := forward_call (sizeof t); [simpl; try computable |
   Intros n; rewrite malloc_compat by (auto; reflexivity); Intros;
   rewrite memory_block_data_at_ by auto].
@@ -224,5 +232,5 @@ Ltac forward_spawn id arg wit :=
      |];
   forward_call (f, arg, existT(P := fun T => (T -> globals) * T * (T -> val -> mpred))%type A (Q, wit, R)); subst Q R;
            [ .. | subst f];
-    [try (subst f; rewrite -?bi.sep_assoc; apply bi.sep_mono; [apply derives_refl|]).. |]
+    [try (subst f; rewrite <- ?bi.sep_assoc; apply bi.sep_mono; [apply derives_refl|]).. |]
   end end.

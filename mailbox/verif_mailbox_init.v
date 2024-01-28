@@ -195,7 +195,8 @@ Proof.
       viewshift_SEP 0 (AE_loc 1 c g' (vint 0) (comm_R bufs (Znth i shs) g0' g1' g2') ∅).
     { go_lowerx.
       rewrite bi.sep_emp /AE_loc.
-      iIntros "($ & ? & ? & ? & ? & ? & ?)"; iApply inv_alloc.
+      sep_apply atomic_int_isptr; Intros; rewrite bi.pure_True // bi.True_and.
+      iIntros "(? & $ & ? & ? & ? & ? & ?)"; iApply inv_alloc.
       rewrite /AE_inv; iNext.
       iExists [], (vint 0); iFrame.
       iSplit; first done.

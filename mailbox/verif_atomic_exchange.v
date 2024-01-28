@@ -113,6 +113,12 @@ Section AE.
 
 Context `{!VSTGS OK_ty Σ} `{!AEGS atomic_int}.
 
+(* to SC_atomics? *)
+Axiom atomic_int_timeless : forall sh v p, Timeless (atomic_int_at sh v p).
+#[export] Existing Instance atomic_int_timeless.
+Axiom atomic_int_isptr : forall sh v p, atomic_int_at sh v p ⊢ ⌜isptr p⌝.
+#[local] Hint Resolve atomic_int_isptr : saturate_local.
+
 Definition ghost_ref h g := own g (●F (list_to_hist h O : gmapR _ (exclR (leibnizO _)))).
 Definition ghost_hist q (h : gmap nat (excl AE_hist_el)) g := own g (◯F{q} (h : gmapR _ (exclR (leibnizO _)))).
 Definition ghost_hist_ref q (h r : hist) g := own g (●F (r : gmapR _ (exclR (leibnizO _))) ⋅ ◯F{q} (h : gmapR _ (exclR (leibnizO _)))).
@@ -181,7 +187,13 @@ Proof.
   iApply atomic_int_conflict; last iFrame; auto.
 Qed.
 
-Definition AE_loc sh p g i (R : list AE_hist_el -d> val -d> mpred) (h : hist) := inv (nroot .@ "AE") (AE_inv p g i R) ∗ ghost_hist sh h g.
+Definition AE_loc sh p g i (R : list AE_hist_el -d> val -d> mpred) (h : hist) := ⌜isptr p⌝ ∧ (inv (nroot .@ "AE") (AE_inv p g i R) ∗ ghost_hist sh h g).
+
+Lemma AE_loc_isptr : forall sh p g i R h, AE_loc sh p g i R h ⊢ ⌜isptr p⌝.
+Proof.
+  intros; rewrite /AE_loc.
+  iIntros "($ & _)".
+Qed.
 
 #[export] Instance AE_loc_ne sh p g i n : Proper (dist n ==> eq ==> dist n) (AE_loc sh p g i).
 Proof. solve_proper. Qed.
@@ -207,7 +219,7 @@ Program Definition atomic_exchange_spec :=
     i : val, v : val, h : hist, P : hist -> val -> mpred, R : list AE_hist_el -> val -> mpred, Q : hist -> val -> mpred
   PRE [ tptr atomic_int, tint ]
    PROP (tc_val tint v)
-   PARAMS (tgt;  v) GLOBALS ()
+   PARAMS (tgt; v) GLOBALS ()
    SEP (AE_loc lsh tgt g i R h; P h v; AE_spec i P R Q)
   POST [ tint ]
    ∃ t : nat, ∃ v' : val,
@@ -225,10 +237,6 @@ Proof.
   solve_proper.
 Qed.
 
-(* to SC_atomics? *)
-Axiom atomic_int_timeless : forall sh v p, Timeless (atomic_int_at sh v p).
-#[export] Existing Instance atomic_int_timeless.
-
 Lemma AE_sub : funspec_sub SC_atomics.atomic_exchange_spec atomic_exchange_spec.
 Proof.
   split; first done.
@@ -239,7 +247,7 @@ Proof.
   - repeat (iSplit; first done).
     rewrite /SEPx /= /LOCALx /argsassert2assert /=; monPred.unseal.
     repeat (iSplit; first done).
-    iDestruct "H" as "(_ & (#I & hist) & P & spec & _)".
+    iDestruct "H" as "(_ & (% & #I & hist) & P & spec & _)".
     iSplit; last done.
     iInv "I" as "(% & % & HI)" "Hclose".
     rewrite bi.later_and; iDestruct "HI" as "(>(%Hh0 & %) & >Hp & >ref & R)".
@@ -261,13 +269,13 @@ Proof.
       rewrite apply_hist_app Hh0 /=.
       apply eq_dec_refl. }
     iIntros "!>"; iExists _; iFrame.
-    iSplit; last done.
+    iSplit; last auto.
     iPureIntro; split; auto.
     apply hist_incl_lt; done.
   - iPureIntro; intros.
     iIntros "(% & _ & % & _ & ? & H & _)"; simpl.
     iDestruct "H" as (t ?) "(? & ?)".
-    iExists t, v'; iSplit.
+    iExists t, (Vint v'); iSplit.
     { simpl; iPureIntro; tauto. }
     iSplit; first done.
     simpl; iFrame.
@@ -282,11 +290,12 @@ Proof.
     rewrite frac_op.
     apply (@frac_auth_frag_op (gmapR _ (exclR (leibnizO _))) sh1 sh2 h1 h2). }
   iSplit.
-  - iIntros "(($ & $) & (_ & $))".
-  - iIntros "(#$ & $ & $)".
+  - iIntros "(($ & $ & $) & (_ & _ & $))".
+  - iIntros "(#$ & #$ & $ & $)".
 Qed.
 
 End AE.
 
+#[export] Hint Resolve AE_loc_isptr : saturate_local.
 #[export] Hint Resolve AE_inv_exclusive : core.
 #[export] Hint Resolve ghost_hist_init : init.

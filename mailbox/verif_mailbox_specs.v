@@ -36,11 +36,25 @@ Qed.
 Section mpred.
 
 Context `{!VSTGS unit Σ, AEGS0 : !AEGS t_atom_int, !inG Σ (excl_authR (leibnizO val))}.
-#[local] Instance concurrent_ext_spec : ext_spec unit := concurrent_ext_spec _ (ext_link_prog prog).
 
 Definition make_atomic_spec := DECLARE _make_atomic make_atomic_spec.
 Definition atomic_exchange_spec := DECLARE _atom_exchange SC_atomics.atomic_exchange_spec.
 Definition spawn_spec := DECLARE _spawn spawn_spec.
+
+(* up *)
+Lemma list_insert_upd : forall {A} i (a : A) l, 0 <= i < Zlength l ->
+  <[Z.to_nat i := a]>l = upd_Znth i l a.
+Proof.
+  intros; revert dependent i; induction l; simpl; intros.
+  - rewrite Zlength_nil in H; lia.
+  - rewrite Zlength_cons in H.
+    destruct (Z.to_nat i) eqn: Hi; simpl.
+    + assert (i = 0) as -> by lia.
+      rewrite upd_Znth0 //.
+    + rewrite upd_Znth_cons; last lia.
+      rewrite -IHl; last lia.
+      replace n with (Z.to_nat (i - 1)) by lia; done.
+Qed.
 
 (* utility function specs *)
 Definition surely_malloc_spec :=
@@ -140,6 +154,12 @@ Qed.
 Definition comm_loc lsh comm g g0 g1 g2 bufs sh :=
   AE_loc lsh comm g (vint 0) (comm_R bufs sh g0 g1 g2).
 
+Lemma comm_loc_isptr : forall lsh comm g g0 g1 g2 bufs sh h,
+  comm_loc lsh comm g g0 g1 g2 bufs sh h ⊢ ⌜isptr comm⌝.
+Proof.
+  intros; apply AE_loc_isptr.
+Qed.
+
 (* messaging system function specs *)
 Definition initialize_channels_spec :=
  DECLARE _initialize_channels
@@ -203,7 +223,7 @@ Definition start_read_spec :=
     comms : list val, bufs : list val, sh : share, sh1 : share, sh2 : Qp, b0 : Z,
     g : gname, g0 : gname, g1 : gname, g2 : gname, h : hist, gv: globals
   PRE [ tint ]
-   PROP (0 <= b0 < B; readable_share sh; readable_share sh1; isptr (Znth r comms); latest_read h (vint b0))
+   PROP (0 <= b0 < B; readable_share sh; readable_share sh1; latest_read h (vint b0))
    PARAMS (vint r) GLOBALS (gv)
    SEP (data_at sh1 (tarray (tptr tint) N) reads (gv _reading); data_at sh1 (tarray (tptr tint) N) lasts (gv _last_read);
         data_at sh1 (tarray (tptr t_atom_int) N) comms (gv _comm);
@@ -283,7 +303,7 @@ Definition finish_write_spec :=
   PRE [ ]
    PROP (0 <= b < B; 0 <= b0 < B; Forall (fun x => 0 <= x < B) lasts; Zlength h = N; Zlength shs = N;
          readable_share sh1; Forall readable_share shs;
-         sepalg_list.list_join sh0 shs Ews; Forall isptr comms; b <> b0; ~In b lasts; ~In b0 lasts)
+         sepalg_list.list_join sh0 shs Ews; (*Forall isptr comms;*) b <> b0; ~In b lasts; ~In b0 lasts)
    PARAMS () GLOBALS (gv)
    SEP (data_at Ews tint (vint b) (gv _writing); data_at Ews tint (vint b0) (gv _last_given);
         data_at Ews (tarray tint N) (map (fun x => vint x) lasts) (gv _last_taken);
@@ -321,7 +341,7 @@ Definition reader_spec :=
                       share * Qp * share * gname * gname * gname * gname * globals
   PRE [ tptr tvoid ]
    let '(r, reads, lasts, comms, bufs, sh1, sh2, sh, g, g0, g1, g2, gv) := x in
-   PROP (readable_share sh; readable_share sh1; isptr (Znth r comms))
+   PROP (readable_share sh; readable_share sh1)
    PARAMS (arg) GLOBALS (gv)
    SEP (data_at Ews tint (vint r) arg; malloc_token Ews tint arg;
         data_at sh1 (tarray (tptr tint) N) reads (gv _reading); data_at sh1 (tarray (tptr tint) N) lasts (gv _last_read);
@@ -340,7 +360,7 @@ Definition writer_spec :=
   PRE [ tptr tvoid ]
    let '(comms, bufs, sh1, lsh, sh0, shs, g, g0, g1, g2, gv) := x in
    PROP (Zlength shs = N; readable_share sh1; Forall readable_share shs;
-         sepalg_list.list_join sh0 shs Ews; Zlength g1 = N; Zlength g2 = N; Forall isptr comms)
+         sepalg_list.list_join sh0 shs Ews; Zlength g1 = N; Zlength g2 = N(*; Forall isptr comms*))
    PARAMS (arg) GLOBALS (gv)
    SEP (data_at_ Ews tint (gv _writing); data_at_ Ews tint (gv _last_given); data_at_ Ews (tarray tint N) (gv _last_taken);
         data_at sh1 (tarray (tptr t_atom_int) N) comms (gv _comm);
@@ -489,3 +509,5 @@ Proof.
 Qed.
 
 End mpred.
+
+#[export] Hint Resolve comm_loc_isptr : saturate_locals.

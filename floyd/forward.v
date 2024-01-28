@@ -902,10 +902,11 @@ end.
 Ltac cancel_for_forward_call := cancel_for_evar_frame.
 Ltac default_cancel_for_forward_call := cancel_for_evar_frame.
 
-Ltac unfold_post := match goal with |- ?Post ⊣⊢ _ => let A := fresh "A" in let B := fresh "B" in first
-  [evar (A : Type); evar (B : A -> assert); unify Post (@bi_exist _ ?A ?B);
+Ltac unfold_post := match goal with |- ?Post ⊣⊢ _ => let A := fresh "A" in let B := fresh "B" in
+  let T := type of Post in first
+  [evar (A : Type); evar (B : A -> T); unify Post (@bi_exist _ ?A ?B);
      change Post with (@bi_exist _ A B); subst A B |
-   evar (A : list Prop); evar (B : assert); unify Post (PROPx ?A ?B);
+   evar (A : list Prop); evar (B : T); unify Post (PROPx ?A ?B);
      change Post with (PROPx A B); subst A B | idtac] end.
 
 
@@ -1093,12 +1094,12 @@ should be empty, but it is not")
 
 Ltac forward_call_id00_wow  :=
 let H := fresh in intro H;
-eapply (semax_call_id00_wow H); 
+eapply (semax_call_id00_wow H);
  clear H;
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [ check_result_type 
  | fix_up_simplified_postcondition;
-    cbv beta iota zeta; unfold_post;
+    cbv beta iota zeta; rewrite ?assert_of_at; unfold_post;
     constructor; let rho := fresh "rho" in intro rho; cbn [monPred_at assert_of ofe_mor_car];
     repeat rewrite exp_uncurry;
     repeat rewrite monPred_at_exist;
