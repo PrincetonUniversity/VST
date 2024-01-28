@@ -490,7 +490,7 @@ Proof.
       { entailer!.
         rewrite Hi sum_Z_app; simpl.
         rewrite Z.add_assoc Z.add_0_r; auto. }
-      { rewrite -!assoc; apply bi.sep_mono; last cancel.
+      { apply bi.sep_mono; last cancel.
         rewrite !bind_bind.
         apply ITREE_impl.
         apply eqit_bind; [reflexivity|].

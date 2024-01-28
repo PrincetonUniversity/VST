@@ -35,12 +35,12 @@ sep_apply (has_ext_ITREE).
 
 forward_printf tt (write_list stdout (string2bytes "This is line 2.
 ")).
-{ rewrite -!bi.sep_assoc; apply bi.sep_mono; first done.
+{ apply bi.sep_mono; first done.
   cancel. }
 forward_call.
 forward.
 forward_fprintf outp ((Ers, string2bytes "line", gv ___stringlit_2), (Int.repr 2, tt)) (stdout, Ret tt : @IO_itree (@IO_event file_id)).
-{ rewrite (bi.sep_comm _ (ITREE _)) -!bi.sep_assoc; apply bi.sep_mono; [|cancel].
+{ rewrite !bi.sep_assoc (bi.sep_comm _ (ITREE _)) -!bi.sep_assoc; apply bi.sep_mono; [|cancel].
   rewrite bind_ret'; apply derives_refl. }
 forward.
 Qed.
