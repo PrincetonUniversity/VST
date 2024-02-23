@@ -1,7 +1,5 @@
 (* Specifications for locks for use with general invariants, in the style of the atomic syncer *)
-From VST.veric Require Import rmaps compcert_rmaps.
-From VST.concurrency Require Import ghosts conclib lock_specs.
-From VST.concurrency Require Export invariants fupd.
+From VST.concurrency Require Import conclib lock_specs.
 From VST.atomics Require Export general_atomics.
 
 Section locks.

@@ -1,18 +1,17 @@
-Require Import VST.veric.rmaps.
 Require Import VST.concurrency.conclib.
-Require Import VST.concurrency.ghosts.
-Require Import VST.concurrency.cancelable_invariants.
 Require Export VST.concurrency.lock_specs.
 Require Import VST.floyd.library.
-Require Export VST.atomics.SC_atomics_base.
 Require Export VST.atomics.verif_lock.
 Require Export VST.atomics.SC_atomics.
+Require Export VST.atomics.general_atomics.
 Require Import VST.concurrency.threads.
 
 Section PROOFS.
 
   #[local] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
   Definition Vprog : varspecs. mk_varspecs prog. Defined.
+
+  Context `{!VSTGS OK_ty Σ, !cinvG Σ, atom_impl : !atomic_int_impl (Tstruct _atom_int noattr)}.
 
   Definition make_atomic_spec :=
     DECLARE _make_atomic make_atomic_spec.
@@ -30,7 +29,7 @@ Section PROOFS.
        PROP ()
        PARAMS () GLOBALS (gv)
        SEP (mem_mgr gv)
-    POST [ tptr t_lock ] EX p,
+    POST [ tptr t_lock ] ∃ p,
        PROP ()
        RETURN (p)
        SEP (mem_mgr gv; atomic_int_at Ews (vint 1) p).
@@ -41,7 +40,7 @@ Section PROOFS.
     PRE [ tptr t_lock ]
      PROP ()
      PARAMS (p)
-     SEP (EX v : val, atomic_int_at Ews v p)
+     SEP (∃ v : val, atomic_int_at Ews v p)
    POST[ tvoid ]
      PROP ()
      LOCAL ()
@@ -49,7 +48,7 @@ Section PROOFS.
 
   Program Definition release_spec :=
     DECLARE _release
-    ATOMIC TYPE (rmaps.ConstType val) INVS empty
+    ATOMIC TYPE (ConstType val) INVS empty
     WITH p
     PRE [ tptr t_lock ]
        PROP ()
@@ -59,10 +58,14 @@ Section PROOFS.
        PROP ()
        LOCAL ()
        SEP () | (atomic_int_at Ews (vint 0) p).
+  (* this used to require no obligations *)
+  Next Obligation.
+  Proof.
+    
 
   Program Definition acquire_spec :=
     DECLARE _acquire
-    ATOMIC TYPE (rmaps.ConstType _) OBJ l INVS empty
+    ATOMIC TYPE (ConstType _) OBJ l INVS empty
     WITH p
     PRE [ tptr t_lock ]
        PROP ()
@@ -71,7 +74,7 @@ Section PROOFS.
     POST [ tvoid ]
        PROP ()
        LOCAL ()
-       SEP () | (!!(l = false) && atomic_int_at Ews (vint 1) p).
+       SEP () | (⌜l = false⌝ ∧ atomic_int_at Ews (vint 1) p).
 
   Definition Gprog : funspecs :=
     ltac:(with_library prog [make_atomic_spec; atom_store_spec; atom_CAS_spec;
@@ -258,10 +261,10 @@ Section PROOFS.
        PROP ()
        PARAMS () GLOBALS (gv)
        SEP (mem_mgr gv)
-    POST [ tptr t_lock ] (* asymmetric consequence makes this messy *) EX v,
+    POST [ tptr t_lock ] (* asymmetric consequence makes this messy *) ∃ v,
        PROP ()
        RETURN (v)
-       SEP (mem_mgr gv; |={⊤}=> EX h, !!(ptr_of h = v /\ name_of h = N) && lock_inv Tsh h (R h)).
+       SEP (mem_mgr gv; |={⊤}=> ∃ h, !!(ptr_of h = v /\ name_of h = N) && lock_inv Tsh h (R h)).
   Next Obligation.
   Proof.
     repeat intro.
@@ -282,7 +285,7 @@ Section PROOFS.
   Qed.
 
   (* These lemmas can be used to attach an invariant to an existing lock. *)
-  Lemma make_lock_inv_1 : forall v N (R : lock_handle -> mpred), atomic_int_at Ews (vint 1) v |-- (*|={⊤}=>*) @fupd mpred (bi_fupd_fupd(BiFUpd := mpred_bi_fupd)) ⊤ ⊤ (EX h, !!(ptr_of h = v /\ name_of h = N) && lock_inv Tsh h (R h)).
+  Lemma make_lock_inv_1 : forall v N (R : lock_handle -> mpred), atomic_int_at Ews (vint 1) v |-- (*|={⊤}=>*) @fupd mpred (bi_fupd_fupd(BiFUpd := mpred_bi_fupd)) ⊤ ⊤ (∃ h, !!(ptr_of h = v /\ name_of h = N) && lock_inv Tsh h (R h)).
   Proof.
     intros.
     iIntros "a".
@@ -294,7 +297,7 @@ Section PROOFS.
   Qed.
 
   Lemma make_lock_inv_0_self : forall v N R sh1 sh2, sh1 <> Share.bot -> sepalg.join sh1 sh2 Tsh ->
-    (atomic_int_at Ews (vint 0) v * R) |-- @fupd mpred (bi_fupd_fupd(BiFUpd := mpred_bi_fupd)) ⊤ ⊤ (EX h, !!(ptr_of h = v /\ name_of h = N) && lock_inv sh1 h (R * self_part sh2 h)).
+    (atomic_int_at Ews (vint 0) v * R) |-- @fupd mpred (bi_fupd_fupd(BiFUpd := mpred_bi_fupd)) ⊤ ⊤ (∃ h, !!(ptr_of h = v /\ name_of h = N) && lock_inv sh1 h (R * self_part sh2 h)).
   Proof.
     intros.
     iIntros "[a R]".
@@ -307,7 +310,7 @@ Section PROOFS.
     iLeft; iExists false; iFrame; auto.
   Qed.
 
-  Lemma make_lock_inv_0' : forall v N (R : lock_handle -> mpred), (atomic_int_at Ews (vint 0) v * ALL g, R g) |-- @fupd mpred (bi_fupd_fupd(BiFUpd := mpred_bi_fupd)) ⊤ ⊤ (EX h, !!(ptr_of h = v /\ name_of h = N) && lock_inv Tsh h (R h)).
+  Lemma make_lock_inv_0' : forall v N (R : lock_handle -> mpred), (atomic_int_at Ews (vint 0) v * ALL g, R g) |-- @fupd mpred (bi_fupd_fupd(BiFUpd := mpred_bi_fupd)) ⊤ ⊤ (∃ h, !!(ptr_of h = v /\ name_of h = N) && lock_inv Tsh h (R h)).
   Proof.
     intros.
     iIntros "[a R]".
@@ -318,7 +321,7 @@ Section PROOFS.
     iExists false; iFrame; auto.
   Qed.
 
-  Lemma make_lock_inv_0 : forall v N R, atomic_int_at Ews (vint 0) v * R |-- @fupd mpred (bi_fupd_fupd(BiFUpd := mpred_bi_fupd)) ⊤ ⊤ (EX h, !!(ptr_of h = v /\ name_of h = N) && lock_inv Tsh h R).
+  Lemma make_lock_inv_0 : forall v N R, atomic_int_at Ews (vint 0) v * R |-- @fupd mpred (bi_fupd_fupd(BiFUpd := mpred_bi_fupd)) ⊤ ⊤ (∃ h, !!(ptr_of h = v /\ name_of h = N) && lock_inv Tsh h R).
   Proof.
     intros.
     eapply derives_trans, make_lock_inv_0'.
