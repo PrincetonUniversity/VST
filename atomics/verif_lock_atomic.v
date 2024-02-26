@@ -110,13 +110,10 @@ Obligation Tactic := try solve_proper.*)
       simpl fold_right_sepcon. cancel.
       iIntros ">AS".
       iDestruct "AS" as (x) "[a [_ H]]".
-      iExists Ews. iModIntro. iSplitL "a".
-      + iSplit.
-        * iPureIntro. apply writable_Ews.
-        * iApply atomic_int_at__. iAssumption.
+      iExists Ews. iModIntro. iSplit; first done. iSplitL "a".
+      + iApply atomic_int_at__. iAssumption.
       + iIntros "AA".
-        iPoseProof (sepcon_emp (atomic_int_at Ews (vint 0) p)) as "HA".
-        iSpecialize ("HA" with "AA"). iMod ("H" $! tt with "HA"). auto.
+        iApply "H"; iFrame.
     - entailer !.
   Qed.
 
@@ -143,8 +140,8 @@ Obligation Tactic := try solve_proper.*)
         * iApply "H"; auto.
         * iDestruct "H" as "[_ H]"; iApply ("H" $! tt); iFrame; auto.
       + Intros r. destruct (eq_dec r (vint 0)).
+        * forward_if; try discriminate. forward. simpl. entailer!.
         * forward_if; try contradiction. forward. entailer!.
-        * forward_if; try discriminate. forward. entailer!.
   Qed.
 
   Program Definition release_spec_nonatomic :=
@@ -158,23 +155,11 @@ Obligation Tactic := try solve_proper.*)
        LOCAL ()
        SEP (atomic_int_at Ews (vint 0) p).
 
-  #[global] Instance atomic_int_timeless sh v p : Timeless (atomic_int_at sh v p).
-  Proof.
-    apply timeless'_timeless; auto.
-  Qed.
-
-  #[global] Instance inv_for_lock_timeless v R {H : Timeless R} : Timeless (inv_for_lock v R).
-  Proof.
-    unfold inv_for_lock.
-    apply bi.exist_timeless; intros []; apply _.
-  Qed.
-
   Lemma release_nonatomic: funspec_sub (snd release_spec) release_spec_nonatomic.
   Proof.
-    apply prove_funspec_sub.
     split; auto. intros. simpl in *. Intros.
-    unfold rev_curry, tcurry; simpl. iIntros "H !>". iExists nil, (x2, atomic_int_at Ews (vint 0) x2), emp.
-    rewrite emp_sepcon. iSplit.
+    unfold rev_curry, tcurry; simpl. iIntros "H !>". iExists (x2, atomic_int_at Ews (vint 0) x2), emp.
+    rewrite bi.emp_sep. iSplit.
     - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl.
       iDestruct "H" as "(% & % & _ & H & _)".
       do 4 (iSplit; auto).

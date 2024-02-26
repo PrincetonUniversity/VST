@@ -4496,7 +4496,7 @@ Ltac start_function1 :=
 
    split3; [check_parameter_types' | check_return_type | ];
    match Pre with
-   | (λne _, monPred_at (convertPre _ _ (fun i => _))) =>  intros Espec (*DependedTypeList*) i
+   | (monPred_at (convertPre _ _ (fun i => _))) =>  intros Espec (*DependedTypeList*) i
    | (λne x, monPred_at match _ with (a,b) => _ end) => intros Espec (*DependedTypeList*) [a b]
    | (λne i, _) => intros Espec (*DependedTypeList*) i
    end;

@@ -840,8 +840,11 @@ Ltac start_function1 ::=
     | |- semax_body _ _ _ (_, mk_funspec _ _ _ _ ?Pre _) =>
           split3; [ check_parameter_types' | check_return_type |  ];
            match Pre with
-           | OfeMor (fun _ => rev_curry ?t) => let i := fresh in let x := read_names t in intros Espec i; destruct_args x i; unfold rev_curry, tcurry; simpl tcurry_rev; cbn match (* added line *)
-           | λne _, monPred_at (convertPre _ _ (λ i, _)) =>
+           | atomic_spec_pre' _ _ _ _ _ (OfeMor (rev_curry ?t)) _ _ =>
+               let i := fresh in let x := read_names t in intros Espec i; destruct i as [i Q]; destruct_args x i; unfold atomic_spec_pre', atomic_spec_post', ofe_mor_car, rev_curry, tcurry; simpl tcurry_rev; cbn match (* added line *)
+           | atomic_spec_pre0 _ _ _ _ _ (OfeMor (rev_curry ?t)) _ _ =>
+               let i := fresh in let x := read_names t in intros Espec i; destruct i as [i Q]; destruct_args x i; unfold atomic_spec_pre0, atomic_spec_post0, ofe_mor_car, rev_curry, tcurry; simpl tcurry_rev; cbn match (* added line *)
+           | monPred_at (convertPre _ _ (λ i, _)) =>
                intros Espec i
            | λne x, monPred_at match _ with
                                | (a, b) => _
