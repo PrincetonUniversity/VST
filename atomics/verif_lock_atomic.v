@@ -46,6 +46,11 @@ Section PROOFS.
      LOCAL ()
      SEP ().
 
+(*Ltac atomic_nonexpansive_tac := try (let x := fresh "x" in intros ???? x;
+  repeat destruct x as [x ?]; solve_proper); try solve_proper.
+
+Obligation Tactic := try solve_proper.*)
+
   Program Definition release_spec :=
     DECLARE _release
     ATOMIC TYPE (ConstType val) INVS empty
@@ -58,10 +63,6 @@ Section PROOFS.
        PROP ()
        LOCAL ()
        SEP () | (atomic_int_at Ews (vint 0) p).
-  (* this used to require no obligations *)
-  Next Obligation.
-  Proof.
-    
 
   Program Definition acquire_spec :=
     DECLARE _acquire
@@ -95,8 +96,8 @@ Section PROOFS.
   Proof.
     start_function.
     Intros v.
-    assert_PROP (is_pointer_or_null p) by entailer.
-    forward_call (p).
+    assert_PROP (is_pointer_or_null a) by entailer.
+    forward_call.
     - Exists v. cancel.
     - entailer!.
   Qed.

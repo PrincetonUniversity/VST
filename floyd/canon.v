@@ -172,13 +172,17 @@ Proof.
   rewrite H //.
 Qed.
 
-#[global] Instance PROPx_ne {A} P : NonExpansive (@PROPx A Σ P).
-Proof. solve_proper. Qed.
-
-#[global] Instance LOCALx_ne L : NonExpansive (@LOCALx Σ L).
-Proof. solve_proper. Qed.
-
 #[global] Existing Instance list.list_dist.
+
+#[global] Instance PROPx_ne {A} : NonExpansive2 (@PROPx A Σ).
+Proof.
+  rewrite /PROPx; repeat intro. f_equiv; last done. f_equiv.
+  induction H; try tauto; simpl.
+  rewrite H IHForall2 //.
+Qed.
+
+#[global] Instance LOCALx_ne n : Proper (eq ==> dist n ==> dist n) (@LOCALx Σ).
+Proof. solve_proper. Qed.
 
 #[global] Instance SEPx_ne {A} : NonExpansive (@SEPx A Σ).
 Proof.
@@ -187,16 +191,16 @@ Proof.
   induction H; simpl; f_equiv; done.
 Qed.
 
-#[global] Instance PARAMSx_ne lv : NonExpansive (@PARAMSx Σ lv).
+#[global] Instance PARAMSx_ne n : Proper (eq ==> dist n ==> dist n) (@PARAMSx Σ).
 Proof.
-  intros ????.
+  intros ????; subst.
   rewrite /PARAMSx; constructor; intros; simpl.
   rewrite H //.
 Qed.
 
-#[global] Instance GLOBALSx_ne lg : NonExpansive (@GLOBALSx Σ lg).
+#[global] Instance GLOBALSx_ne n : Proper (eq ==> dist n ==> dist n) (@GLOBALSx Σ).
 Proof.
-  intros ????.
+  intros ????; subst.
   rewrite /GLOBALSx /LOCALx; constructor; intros; simpl.
   monPred.unseal.
   rewrite H //.
