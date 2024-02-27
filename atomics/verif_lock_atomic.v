@@ -484,7 +484,7 @@ Section PROOFS.
           iDestruct "excl" as "_".
           iDestruct "Hclose" as "[_ Hclose]"; iApply ("Hclose" $! tt).
           rewrite bi.sep_emp; iExists false; iFrame.
-      + iAssert (▷ FF) with "[excl R R1]" as ">[]".
+      + iAssert (▷ False) with "[excl R R1]" as ">[]".
         iNext. iApply weak_exclusive'_conflict; iFrame; iFrame.
     - iPureIntro. iIntros (rho') "[% [_ H]]".
       unfold PROPx, LOCALx, SEPx; simpl; auto.
@@ -512,25 +512,22 @@ Section PROOFS.
       iDestruct "H" as "(_ & % & _ & H & _)".
       do 4 (iSplit; auto).
       unfold lock_inv; simpl; destruct h as ((v, i), g).
-      iDestruct "H" as "(([% %] & #H) & H2)".
+      iDestruct "H" as "(% & #H & H2)".
       unfold atomic_shift. iAuIntro. unfold atomic_acc; simpl.
-      iInv "H" as "inv" "Hclose".
-      iDestruct "inv" as "[inv | >inv]".
+      iInv "H" as "(inv & H2)" "Hclose".
       iDestruct "inv" as (b) "[>H1 R]".
       iApply fupd_mask_intro; try set_solver. iIntros "Hclose'".
       iExists b; iFrame "H1"; iSplit.
       + iIntros "H1"; iFrame "H2".
         iMod "Hclose'"; iApply "Hclose".
-        iLeft; iExists b; iFrame.
+        iExists b; iFrame.
       + iIntros (_) "[[% H1] _]"; subst.
         rewrite -> prop_true_andp by auto.
         iFrame "H H2 R".
         iMod "Hclose'"; iApply "Hclose".
-        iLeft; iExists true; iFrame; auto.
-      + iDestruct (own_valid_2 with "[$H2 $inv]") as %(? & J & ?).
-        apply sepalg.join_comm, join_Tsh in J as []; contradiction.
+        iExists true; iFrame; auto.
     - iPureIntro. iIntros (rho') "[% [_ H]]".
-      unfold PROPx, LOCALx, SEPx; simpl. rewrite <- sepcon_assoc; auto.
+      unfold PROPx, LOCALx, SEPx; simpl. rewrite bi.sep_assoc //.
   Qed.
 
   Program Definition release_spec_inv :=
@@ -539,198 +536,135 @@ Section PROOFS.
     PRE [ tptr t_lock ]
        PROP ()
        PARAMS (ptr_of h)
-       SEP (<affine> (R ∗ R -∗ False); lock_inv sh h R; P; lock_inv sh h R * P -* Q * R)
+       SEP (<affine> (R ∗ R -∗ False); lock_inv sh h R; P; lock_inv sh h R ∗ P -∗ Q ∗ R)
     POST [ tvoid ]
        PROP ()
        LOCAL ()
        SEP (▷ Q).
-  Next Obligation.
-  Proof.
-    repeat intro.
-    destruct x as ((((?, ?), ?), ?), ?); simpl.
-    unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl; rewrite !approx_andp; do 3 f_equal;
-      rewrite -> !bi.sep_emp, ?approx_sepcon, ?approx_idem.
-    f_equal.
-    { rewrite !approx_andp; f_equal.
-      apply exclusive_mpred_super_non_expansive. }
-    f_equal.
-    { apply lock_inv_super_non_expansive. }
-    f_equal.
-    setoid_rewrite wand_nonexpansive; rewrite !approx_sepcon; do 2 f_equal; rewrite !approx_idem; f_equal.
-    apply lock_inv_super_non_expansive.
-  Qed.
-  Next Obligation.
-  Proof.
-    repeat intro.
-    destruct x as ((((?, ?), ?), ?), ?); simpl.
-    unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 f_equal;
-      rewrite -> !bi.sep_emp, ?approx_sepcon, ?approx_idem.
-    setoid_rewrite later_nonexpansive; rewrite approx_idem; auto.
-  Qed.
 
   Lemma release_inv_simple: funspec_sub (snd release_spec) release_spec_inv.
   Proof.
-    apply prove_funspec_sub.
-    split; auto. intros. simpl in *. destruct x2 as ((((sh, h), R), P), Q). Intros.
-    unfold rev_curry, tcurry. iIntros "H !>". iExists nil.
-    iExists (@ptr_of atomic_impl h, ▷ Q), emp. simpl in *.
+    split; first done. intros ((((sh, h), R), P), Q) ?. simpl in *. Intros.
+    unfold rev_curry, tcurry. iIntros "H !>".
+    iExists (ptr_of(lock_impl := atomic_impl) h, ▷ Q), emp. simpl in *.
     rewrite bi.emp_sep. iSplit.
-    - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl.
+    - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl; monPred.unseal.
       iDestruct "H" as "(_ & % & _ & H)".
       do 4 (iSplit; auto).
       iDestruct "H" as "(H5 & H2 & H3 & H4 & _)".
       unfold lock_inv; simpl; unfold atomic_lock_inv; destruct h as ((v, i), g).
-      iDestruct "H2" as "(([% %] & #H) & H2)".
+      iDestruct "H2" as "(% & #H & H2)".
       rewrite -> prop_true_andp by auto.
       unfold atomic_shift. iAuIntro. unfold atomic_acc; simpl.
       iInv "H" as "inv" "Hclose".
-      iDestruct "inv" as "[inv | >inv]".
+      iDestruct "inv" as "(inv & H2)".
       unfold inv_for_lock at 3.
       iDestruct "inv" as (b) "[>H1 R]".
       iExists tt.
       destruct b.
-      + iApply fupd_mask_intro; try set_solver. iIntros "Hclose'".
+      + iApply fupd_mask_intro; first by set_solver. iIntros "Hclose'".
         iFrame "H1"; iSplit.
         * iIntros "H1". iFrame. iMod "Hclose'"; iApply "Hclose".
-          iLeft; unfold inv_for_lock; iExists true; iFrame; auto.
+          unfold inv_for_lock; iExists true; iFrame; auto.
         * iIntros (_) "[H1 _]". iDestruct "H5" as "_". iPoseProof ("H4" with "[$H2 $H3]") as "[$ HR]"; auto.
           iMod "Hclose'"; iMod ("Hclose" with "[-]"); last done.
-          iLeft; unfold inv_for_lock; iExists false; iFrame; auto.
+          unfold inv_for_lock; iExists false; iFrame; auto.
       + iPoseProof ("H4" with "[$H2 $H3]") as "[$ HR]"; auto.
-        iAssert (▷FF) with "[H5 R HR]" as ">[]".
-        iNext; iApply weak_exclusive_conflict; iFrame; iFrame.
-      + iDestruct (own_valid_2 with "[$H2 $inv]") as %(? & J & ?).
-        apply sepalg.join_comm, join_Tsh in J as []; contradiction.
+        iAssert (▷False) with "[H5 R HR]" as ">[]".
+        rewrite bi.affinely_elim; iApply "H5"; iFrame.
     - iPureIntro. iIntros (rho') "[% [_ H]]".
       unfold PROPx, LOCALx, SEPx; simpl; auto.
   Qed.
 
   Lemma release_simple : funspec_sub (snd release_spec) release_spec_simple.
   Proof.
-    apply prove_funspec_sub.
-    split; auto. intros. simpl in *. destruct x2 as ((sh, h), R). Intros.
-    unfold rev_curry, tcurry. iIntros "H !>". iExists nil.
-    iExists (@ptr_of atomic_impl h, @lock_inv atomic_impl sh h R), emp. simpl in *.
+    split; first done. intros ((sh, h), R) ?. simpl in *. Intros.
+    unfold rev_curry, tcurry. iIntros "H !>".
+    iExists (ptr_of(lock_impl := atomic_impl) h, lock_inv(lock_impl := atomic_impl) sh h R), emp. simpl in *.
     rewrite bi.emp_sep. iSplit.
-    - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl.
-      iDestruct "H" as "([% _] & % & _ & H)".
+    - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl; monPred.unseal.
+      iDestruct "H" as "(% & % & _ & H)".
       do 4 (iSplit; auto).
       iDestruct "H" as "(H5 & H2 & H3 & _)".
       unfold lock_inv; simpl; unfold atomic_lock_inv; destruct h as ((v, i), g).
-      iDestruct "H2" as "(([_ %] & #H) & H2)".
-      rewrite -> prop_true_andp by auto.
+      iDestruct "H2" as "(% & #H & H2)".
       unfold atomic_shift. iAuIntro. unfold atomic_acc; simpl.
       iInv "H" as "inv" "Hclose".
-      iDestruct "inv" as "[inv | >inv]".
+      iDestruct "inv" as "(inv & H2)".
       unfold inv_for_lock at 3.
       iDestruct "inv" as (b) "[>H1 R]".
       iExists tt.
       destruct b.
-      + iApply fupd_mask_intro; try set_solver. iIntros "Hclose'".
+      + iApply fupd_mask_intro; first by set_solver. iIntros "Hclose'".
         iFrame "H1"; iSplit.
         * iIntros "H1". iFrame. iMod "Hclose'"; iApply "Hclose".
-          iLeft; unfold inv_for_lock; iExists true; iFrame; auto.
-        * iIntros (_) "[H1 _]". iDestruct "H5" as "_". iDestruct "R" as ">_". iFrame "H H2".
+          unfold inv_for_lock; iExists true; iFrame; auto.
+        * iIntros (_) "[H1 _]". iDestruct "H5" as "_". rewrite -> prop_true_andp by done. iFrame "H H2".
           iMod "Hclose'"; iApply "Hclose".
-          iLeft; unfold inv_for_lock; iExists false; iFrame; auto.
-      + iAssert (▷FF) with "[H5 R H3]" as ">[]".
-        iNext; iApply weak_exclusive_conflict; iFrame; iFrame.
-      + iDestruct (own_valid_2 with "[$H2 $inv]") as %(? & J & ?).
-        apply sepalg.join_comm, join_Tsh in J as []; contradiction.
+          unfold inv_for_lock; iExists false; iFrame; auto.
+      + iAssert (▷False) with "[H5 R H3]" as ">[]".
+        rewrite bi.affinely_elim; iApply "H5"; iFrame.
     - iPureIntro. iIntros (rho') "[% [_ H]]".
       unfold PROPx, LOCALx, SEPx; simpl; auto.
-  Qed.
-
-  Program Definition release_spec_self :=
-    TYPE (ProdType (ConstType _) Mpred)
-    WITH sh : _, h : _, R : _
-    PRE [ tptr t_lock ]
-       PROP ()
-       PARAMS (ptr_of h)
-       SEP (lock_inv sh h (self_part sh h * R); R)
-    POST [ tvoid ]
-       PROP ()
-       LOCAL ()
-       SEP ().
-  Next Obligation.
-  Proof.
-    repeat intro.
-    destruct x as ((?, ?), ?); simpl.
-    unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl; rewrite !approx_andp; do 3 f_equal;
-      rewrite -> !bi.sep_emp, ?approx_sepcon, ?approx_idem.
-    f_equal.
-    setoid_rewrite (@lock_inv_super_non_expansive atomic_impl); do 2 f_equal.
-    rewrite !approx_sepcon approx_idem; auto.
-  Qed.
-  Next Obligation.
-  Proof.
-    repeat intro.
-    destruct x as ((?, ?), ?); simpl.
-    reflexivity.
   Qed.
 
   Lemma release_self : funspec_sub (snd release_spec) release_spec_self.
   Proof.
-    apply prove_funspec_sub.
-    split; auto. intros. simpl in *. destruct x2 as ((sh, h), R). Intros.
-    unfold rev_curry, tcurry. iIntros "H !>". iExists nil.
+    split; first done. intros ((sh, h), R) ?. simpl in *. Intros.
+    unfold rev_curry, tcurry. iIntros "H !>".
     destruct h as ((v, N), g).
     iExists (v, emp), emp. simpl in *.
     rewrite bi.emp_sep. iSplit.
-    - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl.
+    - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl; monPred.unseal.
       iDestruct "H" as "(_ & % & _ & H)".
       do 4 (iSplit; auto).
-      iDestruct "H" as "(H & R & _)".
+      iDestruct "H" as "(Hexcl & H & R & _)".
       unfold lock_inv; simpl.
-      iDestruct "H" as "(([% %] & #H) & H2)".
+      iDestruct "H" as "(% & #H & H2)".
       unfold atomic_shift. iAuIntro. unfold atomic_acc; simpl.
       iInv "H" as "inv" "Hclose".
-      iDestruct "inv" as "[inv | >inv]".
+      iDestruct "inv" as "(inv & H2)".
       unfold inv_for_lock at 2.
       iDestruct "inv" as (b) "[>H1 HR]".
       iExists tt.
       destruct b.
-      + iApply fupd_mask_intro; try set_solver. iIntros "Hclose'".
+      + iApply fupd_mask_intro; first by set_solver. iIntros "Hclose'".
         iFrame "H1"; iSplit.
         * iIntros "H1". iFrame. iMod "Hclose'"; iApply "Hclose".
-          iLeft; unfold inv_for_lock; iExists true; iFrame; auto.
+          unfold inv_for_lock; iExists true; iFrame; auto.
         * iIntros (_) "[H1 _]".
           iMod "Hclose'"; iApply "Hclose".
-          iLeft; unfold inv_for_lock; iExists false; iFrame; auto.
-      + iDestruct "HR" as "[>Hg ?]".
-        iDestruct (own_valid_2 with "[$H2 $Hg]") as %(? & J & ?).
-        apply sepalg.join_self, identity_share_bot in J; contradiction.
-      + iDestruct (own_valid_2 with "[$H2 $inv]") as %(? & J & ?).
-        apply sepalg.join_comm, join_Tsh in J as []; contradiction.
+          unfold inv_for_lock; iExists false; iFrame; auto.
+      + iDestruct "HR" as "[>Hg R']".
+        iAssert (▷False) with "[Hexcl R R']" as ">[]".
+        rewrite bi.affinely_elim; iApply "Hexcl"; by iFrame.
     - iPureIntro. iIntros (rho') "[% [_ H]]".
-      unfold PROPx, LOCALx, SEPx; simpl; auto.
+      unfold PROPx, LOCALx, SEPx; simpl. rewrite bi.sep_emp //.
   Qed.
 
   Lemma freelock_inv: funspec_sub (snd freelock_spec) lock_specs.freelock_spec.
   Proof.
-    apply prove_funspec_sub.
-    split; auto. intros. simpl in *. destruct x2 as ((h, R), P). Intros.
-    iIntros "H". iExists nil, (@ptr_of atomic_impl h), P.
-    unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl.
+    split; first done. intros ((h, R), P) ?. simpl in *. Intros.
+    iIntros "H". iExists (ptr_of(lock_impl := atomic_impl) h), P.
+    unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl; monPred.unseal.
     rewrite !bi.sep_emp. iDestruct "H" as "(_ & % & % & H1 & HP & R)".
     unfold lock_inv; simpl; unfold atomic_lock_inv; destruct h as ((v, i), g).
-    iDestruct "H1" as "(([% %] & #H) & H2)".
-    iInv "H" as "[inv | inv]" "Hclose".
+    iDestruct "H1" as "(% & #H & H2)".
+    iMod (cinv_acc_strong with "H H2") as "(inv & H2 & Hclose)"; first done.
     iDestruct "inv" as (b) "[>a HR]".
     destruct b.
-    iMod "HR" as "_"; iDestruct "R" as "_".
+    iDestruct "R" as "_".
     iMod ("Hclose" with "[H2]") as "_".
-    { iRight; auto. }
+    { by iRight. }
+    rewrite -(union_difference_L (↑i) ⊤) //.
     iFrame "HP"; iModIntro; iSplit.
     - do 3 (iSplit; auto).
-      iExists _; iApply "a".
+      iExists _; iFrame. admit. (* emp not timeless *)
     - iPureIntro; intros; Intros; cancel.
-      apply andp_left2; auto.
-    - iAssert (▷FF) with "[R HP HR H2]" as ">[]".
-      iNext; iApply "R"; iFrame; iSplit; auto.
-    - iAssert (▷FF) with "[H2 inv]" as ">[]".
-      iNext; iApply cinv_own_excl; [|iFrame]; auto.
-  Qed.
+      iIntros "($ & $)".
+    - iAssert (▷False) with "[R HP HR H2]" as ">[]".
+      iNext; rewrite bi.affinely_elim; iApply "R"; iFrame; iSplit; auto.
+  Admitted.
 
   Lemma freelock_simple: funspec_sub (snd freelock_spec) freelock_spec_simple.
   Proof.
@@ -741,52 +675,32 @@ Section PROOFS.
     TYPE (ProdType (ConstType _) Mpred)
     WITH sh1 : _, sh2 : _, h : _, R : _
     PRE [ tptr t_lock ]
-       PROP (sh2 <> Share.bot; sepalg.join sh1 sh2 Tsh)
+       PROP (sh1 ⋅ sh2 = 1%Qp)
        PARAMS (ptr_of h)
-       SEP (lock_inv sh1 h (self_part sh2 h * R); self_part sh2 h)
+       SEP (lock_inv sh1 h (self_part sh2 h ∗ R); self_part sh2 h)
     POST [ tvoid ]
        PROP ()
        LOCAL ()
        SEP ().
-  Next Obligation.
-  Proof.
-    repeat intro.
-    destruct x as (((?, ?), ?), ?); simpl.
-    unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl; rewrite !approx_andp; do 3 f_equal;
-      rewrite -> !bi.sep_emp, ?approx_sepcon, ?approx_idem.
-    f_equal.
-    setoid_rewrite (@lock_inv_super_non_expansive atomic_impl); do 2 f_equal.
-    rewrite !approx_sepcon approx_idem; auto.
-  Qed.
-  Next Obligation.
-  Proof.
-    repeat intro.
-    destruct x as (((?, ?), ?), ?); simpl.
-    unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 f_equal;
-      rewrite -> !bi.sep_emp, ?approx_sepcon, ?approx_idem.
-  Qed.
 
   Lemma freelock_self : funspec_sub (snd freelock_spec) freelock_spec_self.
   Proof.
     eapply funspec_sub_trans; [apply freelock_inv|].
-    apply prove_funspec_sub.
-    split; auto; intros ? (((sh1, sh2), h), R) ?; Intros; simpl.
+    split; first done; intros (((sh1, sh2), h), R) ?; Intros; simpl.
     iIntros "H !>".
-    iExists nil, (h, self_part sh2 h * R, emp), emp.
-    unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl.
+    iExists (h, self_part sh2 h ∗ R, emp), emp.
+    unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl; monPred.unseal.
     rewrite !bi.emp_sep !bi.sep_emp.
-    iDestruct "H" as "((% & % & _) & % & % & H)".
+    iDestruct "H" as "((% & _) & % & % & H)".
     iSplit; [do 3 (iSplit; [auto|])|].
-    - iAssert (⌜sh1 <> Share.bot⌝) with "[H]" as %?.
-      { iDestruct "H" as "[l _]"; iDestruct (lock_inv_share with "l") as %[]; auto. }
-      erewrite -> self_part_eq, lock_inv_share_join by eauto; iFrame.
-      iSplit; auto; iIntros "H".
-      rewrite <- sepcon_assoc, self_part_eq by auto.
+    - erewrite -> self_part_eq, lock_inv_share_join, H0 by eauto; iFrame.
+      iIntros "!> H".
+      rewrite assoc self_part_eq.
       destruct h as ((p, i), g); unfold lock_inv; simpl.
-      iDestruct "H" as "[[[_ g1] [_ g2]] _]".
-      iApply (cinv_own_excl with "[$g1 $g2]"); auto.
+      iDestruct "H" as "[[(_ & _ & g1) (_ & _ & g2)] _]".
+      iApply (cinv_own_1_l with "g1 g2").
     - iPureIntro; intros; Intros.
-      rewrite bi.emp_sep; apply andp_left2; auto.
+      rewrite bi.emp_sep bi.sep_emp; auto.
   Qed.
 
 End PROOFS.

@@ -176,7 +176,7 @@ Definition atomic_spec_type0 W := ProdType W Mpred.
 Program Definition atomic_spec_pre' `{!heapGS Σ} {A T} W
   (P : dtfr W -n> _) (L : dtfr W -n> _) (G : dtfr W -n> leibnizO (list globals)) (R : dtfr W -n> _) (S2 : dtfr W -n> _)
   (E : dtfr W -n> leibnizO coPset) (SQ : dtfr W -n> _) :
-  (prodO (@dtfr Σ W) (T -d> iProp Σ)) -n> argsEnviron -d> mpred :=
+  (prodO (@dtfr Σ W) (T -d> mpred)) -n> argsEnviron -d> mpred :=
   λne '(w, Q),
     PROPx (P w) (PARAMSx (L w) (GLOBALSx (G w)
      (SEPx (atomic_shift(A := A) (S2 w) (⊤ ∖ E w) ∅ (SQ w) Q :: R w)))).
