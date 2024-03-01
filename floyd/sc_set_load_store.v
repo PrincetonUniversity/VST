@@ -1738,8 +1738,8 @@ Ltac SEP_field_at_strong_unify' gfs :=
 
 Ltac SEP_field_at_strong_unify gfs :=
   match goal with
-  | |- data_at_ ?sh ?t ?p = _ /\ _ =>
-      change (data_at_ sh t p) with (data_at sh t (default_val t) p);
+  | |- @data_at_ ?cs ?sh ?t ?p = _ /\ _ =>
+      change (@data_at_ cs sh t p) with (@data_at cs sh t (default_val t) p);
       SEP_field_at_strong_unify' gfs
   | |- field_at_ _ _ _ _ = _ /\ _ =>
       unfold field_at_; SEP_field_at_strong_unify' gfs

@@ -3071,9 +3071,9 @@ f_equal.
 Qed.
 
 Lemma data_at_int_or_ptr_int:
- forall {CS: compspecs} i p,
-  data_at Tsh int_or_ptr_type (Vptrofs i) p
-  = data_at Tsh size_t (Vptrofs i) p.
+ forall {CS: compspecs} sh i p,
+  data_at sh int_or_ptr_type (Vptrofs i) p
+  = data_at sh size_t (Vptrofs i) p.
 Proof.
  intros.
  unfold data_at, field_at.
@@ -3095,10 +3095,10 @@ Proof.
 Qed.
 
 Lemma data_at_int_or_ptr_ptr:
- forall {CS: compspecs} t v p,
+ forall {CS: compspecs} sh t v p,
   isptr v ->
-  data_at Tsh int_or_ptr_type v p
-  = data_at Tsh (tptr t) v p.
+  data_at sh int_or_ptr_type v p
+  = data_at sh (tptr t) v p.
 Proof.
  intros.
  destruct v; try contradiction.
@@ -3137,4 +3137,27 @@ Proof.
  unfold tc_val; simpl.
  rewrite N.eqb_refl.
  rewrite andb_false_r. reflexivity.
+Qed.
+
+Lemma nonempty_writable0_glb (shw shr : share) : writable0_share shw -> readable_share shr ->
+  nonempty_share (Share.glb shw shr).
+ (* this lemma might be convenient for users *)
+Proof.
+intros Hshw Hshr.
+apply leq_join_sub in Hshw.
+apply Share.ord_spec2 in Hshw.
+rewrite Share.glb_commute, <- Hshw, Share.distrib1, Share.glb_commute, Share.lub_commute.
+apply readable_nonidentity.
+apply readable_share_lub.
+apply readable_glb.
+assumption.
+Qed.
+
+Lemma nonempty_writable_glb (shw shr : share) : writable_share shw -> readable_share shr ->
+  nonempty_share (Share.glb shw shr).
+ (* this lemma might be convenient for users *)
+Proof.
+intros Hshw Hshr.
+apply nonempty_writable0_glb; try assumption.
+apply writable_writable0; assumption.
 Qed.
