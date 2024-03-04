@@ -1484,7 +1484,7 @@ Lemma data_at_long_bytes_forward:
   data_at sh tulong (Vlong (Int64.repr (decode_int [b0;b1;b2;b3;b4;b5;b6;b7]))) p.
 Proof.
   intros AP sh b0 b1 b2 b3 b4 b5 b6 b7 p. unfold data_at. unfold field_at.
-  intro. normalize.normalize. clear - H. simpl.
+  intro. normalize.normalize. clear - AP H. simpl.
  rewrite (prop_true_andp (field_compatible tulong [] p)) by auto.
  destruct H as [H0 [_ [SZ [AL _]]]]. red in SZ. simpl sizeof in SZ.
    destruct p; inversion H0. clear H0.
