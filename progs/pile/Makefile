@@ -1,3 +1,6 @@
+$(error "This directory progs/pile is obsolete.  The pile example is now supported using the VSU system (Verified Software Units) in progs/VSUpile and in progs64/VSUpile.")
+
+
 HFILES = pile.h pile_private.h onepile.h apile.h triang.h stdlib.h \
          fast/fastpile_private.h
 CFILES = pile.c onepile.c apile.c triang.c main.c stdlib.c \
