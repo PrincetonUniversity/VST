@@ -79,12 +79,12 @@ Definition GLOBALSx {Σ} (gs : list globals) (X : @argsassert Σ): argsassert :=
                   (argsassert2assert nil X)
                   (Clight_seplog.mkEnv (fst gvals) nil nil)).
 Arguments GLOBALSx {_} gs _ : simpl never.
-Global Instance: Params (@GLOBALSx) 2 := {}.
+Global Instance: Params (@GLOBALSx) 1 := {}.
 
 Definition PARAMSx {Σ} (vals:list val)(X : @argsassert Σ): argsassert :=
  argsassert_of (fun (gvals : argsEnviron) => ⌜snd gvals = vals⌝ ∧ X gvals).
 Arguments PARAMSx {Σ} vals _ : simpl never.
-Global Instance: Params (@PARAMSx) 2 := {}.
+Global Instance: Params (@PARAMSx) 1 := {}.
 
 Notation " 'PARAMS' ( x ; .. ; y )  z" := (PARAMSx (cons x%I .. (cons y%I nil) ..) z%assert4)
          (at level 9) : assert3.
