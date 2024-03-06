@@ -590,7 +590,7 @@ Ltac entbang :=
       end;
  lazymatch goal with
  | |- local _ ∧ ?P ⊢ _ => clean_up_stackframe; go_lower;
-          rewrite ->?bi.True_and, ?bi.and_True; try apply bi.True_intro
+          rewrite ?bi.True_and ?bi.and_True; try apply bi.True_intro
  | |- @bi_entails (monPredI environ_index (iPropI _)) _ _ =>
         fail "entailer! found an assert entailment that is missing its 'local' left-hand-side part (that is, Delta)"
  | |- ?P ⊢ _ =>
@@ -626,8 +626,8 @@ Ltac entbang :=
           end
         | simple apply bi.and_intro;
             [apply bi.pure_intro; my_auto 
-            | cancel; rewrite ->?bi.sep_assoc; autorewrite with norm ]
-        | normalize; cancel; rewrite ->?bi.sep_assoc
+            | cancel; rewrite ?bi.sep_assoc; autorewrite with norm ]
+        | normalize; cancel; rewrite ?bi.sep_assoc
         ].
 
 Tactic Notation "entailer" "!" := entbang.

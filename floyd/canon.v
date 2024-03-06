@@ -48,6 +48,7 @@ Declare Scope assert5. Delimit Scope assert5 with assert5.
 
 Definition PROPx {A Σ} (P: list Prop): monPred A (iPropI Σ) -d> monPred A (iPropI Σ) :=
      bi_and ⌜fold_right and True P⌝.
+Global Instance: Params (@PROPx) 2 := {}. (* could be 3 to turn off setoid rewriting in PROP *)
 
 Notation "'PROP' ( x ; .. ; y )   z" := (PROPx (cons x%type .. (cons y%type nil) ..) z%assert3) (at level 10) : assert.
 Notation "'PROP' ()   z" :=   (PROPx nil z%assert3) (at level 10) : assert.
@@ -59,6 +60,8 @@ Notation "'PROP' ( )   z" :=   (PROPx nil z%assert3) (at level 10).
 
 Definition LOCALx {Σ} (Q: list localdef) : @assert Σ -d> assert :=
                  bi_and (local (fold_right (`and) (`True%type) (map locald_denote Q))).
+Global Instance: Params (@LOCALx) 1 := {}.
+
 Notation " 'LOCAL' ( )   z" := (LOCALx nil z%assert5)  (at level 9) : assert3.
 Notation " 'LOCAL' ()   z" := (LOCALx nil z%assert5)  (at level 9) : assert3.
 
@@ -76,10 +79,12 @@ Definition GLOBALSx {Σ} (gs : list globals) (X : @argsassert Σ): argsassert :=
                   (argsassert2assert nil X)
                   (Clight_seplog.mkEnv (fst gvals) nil nil)).
 Arguments GLOBALSx {_} gs _ : simpl never.
+Global Instance: Params (@GLOBALSx) 2 := {}.
 
 Definition PARAMSx {Σ} (vals:list val)(X : @argsassert Σ): argsassert :=
  argsassert_of (fun (gvals : argsEnviron) => ⌜snd gvals = vals⌝ ∧ X gvals).
 Arguments PARAMSx {Σ} vals _ : simpl never.
+Global Instance: Params (@PARAMSx) 2 := {}.
 
 Notation " 'PARAMS' ( x ; .. ; y )  z" := (PARAMSx (cons x%I .. (cons y%I nil) ..) z%assert4)
          (at level 9) : assert3.
@@ -96,6 +101,7 @@ Notation " 'GLOBALS' ()  z" := (GLOBALSx nil z%assert5) (at level 9) : assert4.
 Definition SEPx {A Σ} (R: list (iProp Σ)) : monPred A (iPropI Σ) :=
     ⎡fold_right_sepcon R⎤.
 Arguments SEPx {A _} R : simpl never.
+Global Instance: Params (@SEPx) 2 := {}.
 
 Notation " 'SEP' ( x ; .. ; y )" := (GLOBALSx nil (SEPx (cons x%I .. (cons y%I nil) ..)))
          (at level 8) : assert4.

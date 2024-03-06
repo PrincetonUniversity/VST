@@ -789,15 +789,6 @@ install: VST.config
 	for f in $(INSTALL_FILES); do install -m 0644 $$f "$(INSTALLDIR)/$$(dirname $$f)"; done
 	for f in $(EXTRA_INSTALL_FILES); do install -m 0644 $$f "$(INSTALLDIR)/$$(dirname $$f)"; done
 
-build-iris: _CoqProject
-	$(COQC) $(COQFLAGS) $(PROGSDIR)/incr.v
-	for f in $(IRIS_INSTALL_FILES_SRC); do if [ "$${f##*.}" = "v" ]; then echo COQC $$f; $(COQC) $(COQFLAGS) $$f; fi; done
-
-install-iris: VST.config
-	install -d "$(INSTALLDIR)"
-	for d in $(sort $(dir $(IRIS_INSTALL_FILES))); do install -d "$(INSTALLDIR)/$$d"; done
-	for f in $(IRIS_INSTALL_FILES); do install -m 0644 $$f "$(INSTALLDIR)/$$(dirname $$f)"; done
-
 dochtml:
 	mkdir -p doc/html
 	$(COQDOC) $(MSL_FILES:%=msl/%) $(VERIC_FILES:%=veric/%) $(FLOYD_FILES:%=floyd/%) $(SEPCOMP_FILES:%=sepcomp/%)

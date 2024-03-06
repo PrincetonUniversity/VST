@@ -18,6 +18,8 @@ Export SeparationLogicAsLogicSoundness.MainTheorem.CSHL_PracticalLogic.CSHL_Mini
 Export SeparationLogicAsLogicSoundness.MainTheorem.CSHL_PracticalLogic.CSHL_MinimumLogic.CSHL_Def.
 Export SeparationLogicAsLogicSoundness.MainTheorem.CSHL_PracticalLogic.CSHL_MinimumLogic.CSHL_Defs.
 
+Global Instance: Params (@semax) 7 := {}.
+
 Create HintDb gather_prop discriminated.
 Create HintDb gather_prop_core discriminated.
 
