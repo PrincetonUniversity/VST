@@ -626,8 +626,8 @@ Ltac entbang :=
           end
         | simple apply bi.and_intro;
             [apply bi.pure_intro; my_auto 
-            | cancel; rewrite ?bi.sep_assoc; autorewrite with norm ]
-        | normalize; cancel; rewrite ?bi.sep_assoc
+            | cancel; autorewrite with norm ]
+        | normalize; cancel
         ].
 
 Tactic Notation "entailer" "!" := entbang.

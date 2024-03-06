@@ -152,7 +152,7 @@ forward_if.
    clear.
    entailer!!.
    unfold listrep at 3; fold listrep. Intros.
-   iIntros "(((Ha & Hb) & Hc) & Hd)".
+   iIntros "(Ha & Hb & Hc & Hd)".
    iApply "Ha".
    unfold listrep at -1; fold listrep. iExists y; iFrame.
 Qed.
@@ -217,7 +217,7 @@ forward_if.
    destruct H3 as [? _]. specialize (H3 (eq_refl _)). subst s1b.
    unfold listrep at 1.  Intros. autorewrite with norm.  rewrite H0. rewrite <- app_assoc. simpl app.
    unfold lseg.
-   iIntros "((H1 & H2) & H3)".
+   iIntros "(H1 & H2 & H3)".
    iApply ("H1" $! (a :: s2)).
    unfold listrep at 2; fold listrep. iExists y; iFrame.
 Qed.

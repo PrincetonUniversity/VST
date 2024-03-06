@@ -72,10 +72,9 @@ Proof.
       split; last by if_tac.
       if_tac; last done.
       if_tac; auto. }
+    rewrite -!bi.sep_exist_l -!bi.sep_exist_r.
     setoid_rewrite (if_true (Empty = Empty)); [|done..].
-    setoid_rewrite (if_true (-1 = -1)); [|done..].
-    Exists (if eq_dec (vint b) Empty then b0 else b).
-    rewrite -!bi.sep_exist_l -!bi.sep_exist_r; cancel.
+    Exists (if eq_dec (vint b) Empty then b0 else b); cancel.
     apply hist_incl_lt in Hincl; last done.
     destruct (eq_dec (vint b) Empty).
     - assert (b = -1) by (apply Empty_inj; auto; apply repable_buf; auto).
