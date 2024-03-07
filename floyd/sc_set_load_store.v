@@ -1785,7 +1785,9 @@ Qed.
 Ltac quick_typecheck3 :=
   (* do not clear hyps anymore!  See issue #772 *)
  apply quick_derives_right; go_lowerx; intros;
- repeat apply andp_right; auto; fail.
+ repeat apply andp_right; 
+ try apply derives_refl;  (* see issue #756 *)
+ auto; fail.
 
 Ltac default_entailer_for_load_store :=
   (* Don't clear!  See issue #772 repeat match goal with H := _ |- _ => clear H end; *)
