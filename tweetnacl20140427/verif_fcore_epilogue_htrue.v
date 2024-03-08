@@ -607,7 +607,7 @@ deadvars!.
 
     Time entailer!. (*3.6 versus 11.5*)
     assert (AA:  Z.to_nat (i + 1) = S (Z.to_nat i)).
-      rewrite (Z.add_comm _ 1), Z2Nat.inj_add. simpl. apply NPeano.Nat.add_1_l. lia. lia.
+      rewrite (Z.add_comm _ 1), Z2Nat.inj_add. simpl. lia. lia. lia.
     rewrite AA. simpl.
     thaw FR6. thaw FR5. Time cancel. (*0.8*)
 (*    rewrite <- Heqll. clear Heqll.*)
