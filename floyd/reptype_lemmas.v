@@ -58,20 +58,20 @@ Proof.
 Defined.
 
 Definition compact_prod_map {X: Type} {F F0: X -> Type} (l: list X)
-  (f: ListType (map (fun x => F x -> F0 x) l)): compact_prod (map F l) -> compact_prod (map F0 l).
+  (f: hlist (tmap (fun x => F x -> F0 x) l)): compact_prod (map F l) -> compact_prod (map F0 l).
 Proof.
   intros.
   destruct l; [exact tt |].
   revert x f X0; induction l; intros; simpl in *.
   + inversion f; subst.
-    exact (a X0).
+    exact (X1 X0).
   + remember ((F a -> F0 a) :: map (fun x0 : X => F x0 -> F0 x0) l) as L;
     inversion f; subst.
-    exact (a0 (fst X0), IHl a b (snd X0)).
+    exact (X1 (fst X0), IHl a X2 (snd X0)).
 Defined.
 
 Lemma compact_prod_map_nil: forall {X: Type} {F F0: X -> Type},
-  @compact_prod_map X F F0 nil Nil tt = tt.
+  @compact_prod_map X F F0 nil hnil tt = tt.
 Proof.
   intros.
   reflexivity.
@@ -79,39 +79,39 @@ Qed.
 
 Lemma compact_prod_map_single: forall {X: Type} {F F0: X -> Type} (x: X)
   (f: F x -> F0 x) (v: F x),
-  compact_prod_map (x :: nil) (Cons f Nil) v = f v.
+  compact_prod_map (x :: nil) (hcons f hnil) v = f v.
 Proof.
   intros.
   reflexivity.
 Qed.
 
 Lemma compact_prod_map_cons: forall {X: Type} {F F0: X -> Type} (x x0: X) (l: list X)
-  (f: F x -> F0 x) (fl: ListType (map (fun x => F x -> F0 x) (x0 :: l)))
+  (f: F x -> F0 x) (fl: hlist (tmap (fun x => F x -> F0 x) (x0 :: l)))
   (v: F x) (vl: compact_prod (map F (x0 :: l))),
-  compact_prod_map (x :: x0 :: l) (Cons f fl) (v, vl) = (f v, compact_prod_map _ fl vl).
+  compact_prod_map (x :: x0 :: l) (hcons f fl) (v, vl) = (f v, compact_prod_map _ fl vl).
 Proof.
   intros.
   reflexivity.
 Qed.
 
 Definition compact_sum_map {X: Type} {F F0: X -> Type} (l: list X)
-  (f: ListType (map (fun x => F x -> F0 x) l)): compact_sum (map F l) -> compact_sum (map F0 l).
+  (f: hlist (tmap (fun x => F x -> F0 x) l)): compact_sum (map F l) -> compact_sum (map F0 l).
 Proof.
   intros.
   destruct l; [exact tt |].
   revert x f X0; induction l; intros; simpl in *.
   + inversion f; subst.
-    exact (a X0).
+    exact (X1 X0).
   + remember ((F a -> F0 a) :: map (fun x0 : X => F x0 -> F0 x0) l) as L;
     inversion f; subst.
     exact match X0 with
-          | inl X0_l => inl (a0 X0_l)
-          | inr X0_r => inr (IHl a b X0_r)
+          | inl X0_l => inl (X1 X0_l)
+          | inr X0_r => inr (IHl a X2 X0_r)
           end.
 Defined.
 
 Lemma compact_sum_map_nil: forall {X: Type} {F F0: X -> Type},
-  @compact_sum_map X F F0 nil Nil tt = tt.
+  @compact_sum_map X F F0 nil hnil tt = tt.
 Proof.
   intros.
   reflexivity.
@@ -119,25 +119,25 @@ Qed.
 
 Lemma compact_sum_map_single: forall {X: Type} {F F0: X -> Type} (x: X)
   (f: F x -> F0 x) (v: F x),
-  compact_sum_map (x :: nil) (Cons f Nil) v = f v.
+  compact_sum_map (x :: nil) (hcons f hnil) v = f v.
 Proof.
   intros.
   reflexivity.
 Qed.
 
 Lemma compact_sum_map_cons_inl: forall {X: Type} {F F0: X -> Type} (x x0: X) (l: list X)
-  (f: F x -> F0 x) (fl: ListType (map (fun x => F x -> F0 x) (x0 :: l)))
+  (f: F x -> F0 x) (fl: hlist (tmap (fun x => F x -> F0 x) (x0 :: l)))
   (v: F x),
-  compact_sum_map (x :: x0 :: l) (Cons f fl) (inl v) = inl (f v).
+  compact_sum_map (x :: x0 :: l) (hcons f fl) (inl v) = inl (f v).
 Proof.
   intros.
   reflexivity.
 Qed.
 
 Lemma compact_sum_map_cons_inr: forall {X: Type} {F F0: X -> Type} (x x0: X) (l: list X)
-  (f: F x -> F0 x) (fl: ListType (map (fun x => F x -> F0 x) (x0 :: l)))
+  (f: F x -> F0 x) (fl: hlist (tmap (fun x => F x -> F0 x) (x0 :: l)))
   (vl: compact_sum (map F (x0 :: l))),
-  compact_sum_map (x :: x0 :: l) (Cons f fl) (inr vl) = inr (compact_sum_map _ fl vl).
+  compact_sum_map (x :: x0 :: l) (hcons f fl) (inr vl) = inr (compact_sum_map _ fl vl).
 Proof.
   intros.
   reflexivity.
@@ -728,10 +728,10 @@ Definition repinj_bv (t: type): reptype' t -> reptype t :=
    | Tunion id a => fun _ => union_default_val _
    end (unfold_reptype' v)).
 
-Definition repinj_aux_s (id: ident) (a: attr) (F: ListType (map (fun it => reptype' (field_type (name_member it) (co_members (get_co id))) -> reptype (field_type (name_member it) (co_members (get_co id)))) (co_members (get_co id)))): reptype' (Tstruct id a) -> reptype (Tstruct id a) :=
+Definition repinj_aux_s (id: ident) (a: attr) (F: hlist (tmap (fun it => reptype' (field_type (name_member it) (co_members (get_co id))) -> reptype (field_type (name_member it) (co_members (get_co id)))) (co_members (get_co id)))): reptype' (Tstruct id a) -> reptype (Tstruct id a) :=
   fun v => @fold_reptype (Tstruct id a) (compact_prod_map _ F (unfold_reptype' v)).
 
-Definition repinj_aux_u (id: ident) (a: attr) (F: ListType (map (fun it => reptype' (field_type (name_member it) (co_members (get_co id))) -> reptype (field_type (name_member it) (co_members (get_co id)))) (co_members (get_co id)))): reptype' (Tunion id a) -> reptype (Tunion id a) :=
+Definition repinj_aux_u (id: ident) (a: attr) (F: hlist (tmap (fun it => reptype' (field_type (name_member it) (co_members (get_co id))) -> reptype (field_type (name_member it) (co_members (get_co id)))) (co_members (get_co id)))): reptype' (Tunion id a) -> reptype (Tunion id a) :=
   fun v => @fold_reptype (Tunion id a) (compact_sum_map _ F (unfold_reptype' v)).
 
 Definition repinj: forall t: type, reptype' t -> reptype t :=
@@ -752,8 +752,8 @@ Lemma repinj_eq: forall t v,
    | Tfloat _ a => Vfloat
    | Tpointer _ a => pointer_val_val
    | Tarray t0 _ _ => map (repinj t0)
-   | Tstruct id a => compact_prod_map _ (ListTypeGen (fun it => reptype' (field_type (name_member it) (co_members (get_co id))) -> reptype (field_type (name_member it) (co_members (get_co id)))) (fun it => repinj (field_type (name_member it) (co_members (get_co id)))) (co_members (get_co id)))
-   | Tunion id a => compact_sum_map _ (ListTypeGen (fun it => reptype' (field_type (name_member it) (co_members (get_co id))) -> reptype (field_type (name_member it) (co_members (get_co id)))) (fun it => repinj (field_type (name_member it) (co_members (get_co id)))) (co_members (get_co id)))
+   | Tstruct id a => compact_prod_map _ (hmap (fun it => reptype' (field_type (name_member it) (co_members (get_co id))) -> reptype (field_type (name_member it) (co_members (get_co id)))) (fun it => repinj (field_type (name_member it) (co_members (get_co id)))) (co_members (get_co id)))
+   | Tunion id a => compact_sum_map _ (hmap (fun it => reptype' (field_type (name_member it) (co_members (get_co id))) -> reptype (field_type (name_member it) (co_members (get_co id)))) (fun it => repinj (field_type (name_member it) (co_members (get_co id)))) (co_members (get_co id)))
    end (unfold_reptype' v)).
 Proof.
   intros.

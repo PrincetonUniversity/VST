@@ -1,9 +1,10 @@
 Require Import VST.floyd.base2.
 Require Import VST.floyd.fieldlist.
 Require Import VST.floyd.computable_theorems.
+Require Export stdpp.hlist. (* use this instead of ListType to avoid universe inconsistencies? *)
 Open Scope nat.
 
-Inductive ListType: list Type -> Type :=
+(*Inductive ListType: list Type -> Type :=
   | Nil: ListType nil
   | Cons: forall {A B} (a: A) (b: ListType B), ListType (A :: B).
 
@@ -85,6 +86,101 @@ Definition decay {X} {F: Type} {l: list X} (v: ListType (map (fun _ => F) l)): l
 
 Lemma decay_spec: forall A F f l,
   decay (ListTypeGen (fun _: A => F) f l) = map f l.
+Proof.
+  intros.
+  unfold decay.
+  induction l.
+  + simpl.
+    reflexivity.
+  + simpl.
+    f_equal.
+    auto.
+Defined.*)
+
+Fixpoint tmap {A} (f : A -> Type) l : tlist :=
+  match l with
+  | [] => tnil
+  | x :: rest => tcons (f x) (tmap f rest)
+  end.
+
+Fixpoint hmap {A} (F: A -> Type) (f: forall A, F A) (l: list A) : hlist (tmap F l) :=
+  match l with
+  | nil => hnil
+  | cons h t => hcons (f h) (hmap F f t)
+  end.
+
+Lemma hmap_preserve: forall A F f1 f2 (l: list A),
+  (forall a, In a l -> f1 a = f2 a) ->
+  hmap F f1 l = hmap F f2 l.
+Proof.
+  intros.
+  induction l.
+  + reflexivity.
+  + simpl.
+    rewrite H; first rewrite IHl.
+    - reflexivity.
+    - intros; apply H; simpl; tauto.
+    - simpl; left; auto.
+Defined.
+
+Definition decay' {X} {F: Type} {l: list X} (v: hlist (tmap (fun _ => F) l)): list F.
+  remember (tmap (fun _ : X => F) l) eqn:E.
+  revert l E.
+  induction v; intros.
+  + exact nil.
+  + destruct l; inversion E.
+    specialize (IHv l H1).
+    rewrite H0 in a.
+    exact (a :: IHv).
+Defined.
+
+Fixpoint decay'' {X} {F: Type} (l0 : tlist) (v: hlist l0) :
+  forall (l: list X), l0 = tmap (fun _ => F) l -> list F :=
+  match v in hlist l1
+    return forall l2, l1 = tmap (fun _ => F) l2 -> list F
+  with
+  | hnil => fun _ _ => nil
+  | hcons A B a b =>
+    fun (l1 : list X) (E0 : tcons A B = tmap (fun _ : X => F) l1) =>
+    match l1 as l2 return (tcons A B = tmap (fun _ : X => F) l2 -> list F) with
+    | nil => fun _ => nil (* impossible case *)
+    | x :: l2 =>
+       fun E1 : tcons A B = tmap (fun _ : X => F) (x :: l2) =>
+       (fun
+          X0 : tmap (fun _ : X => F) (x :: l2) =
+               tmap (fun _ : X => F) (x :: l2) -> list F =>
+        X0 eq_refl)
+         match
+           E1 in (_ = y)
+           return (y = tmap (fun _ : X => F) (x :: l2) -> list F)
+         with
+         | eq_refl =>
+             fun H0 : tcons A B = tmap (fun _ : X => F) (x :: l2) =>
+              (fun (H3 : A = F) (H4 : B = tmap (fun _ : X => F) l2) =>
+                  (eq_rect A (fun A0 : Type => A0) a F H3) :: (decay'' B b l2 H4))
+                 (f_equal
+                    (fun e : tlist =>
+                     match e with
+                     | tnil => A
+                     | tcons T _ => T
+                     end) H0)
+                (f_equal
+                   (fun e : tlist =>
+                    match e with
+                    | tnil => B
+                    | tcons _ l3 => l3
+                    end) H0)
+         end
+    end E0
+  end.
+
+Definition decay {X} {F: Type} {l: list X} (v: hlist (tmap (fun _ => F) l)): list F :=
+  let l0 := tmap (fun _ => F) l in
+  let E := @eq_refl _ (tmap (fun _ => F) l) : l0 = tmap (fun _ => F) l in
+  decay'' l0 v l E.
+
+Lemma decay_spec: forall A F f l,
+  decay (hmap (fun _: A => F) f l) = map f l.
 Proof.
   intros.
   unfold decay.
@@ -188,7 +284,7 @@ Definition A_members (ms: members) (m: member) : Type :=
     A (field_type (name_member m) ms).
 
 Definition FT_aux id :=
-    let m := co_members (get_co id) in ListType (map (fun it => A (field_type (name_member it) m)) m).
+    let m := co_members (get_co id) in hlist (tmap (fun it => A (field_type (name_member it) m)) m).
 
 Variable F_ByValue: forall t: type, A t.
 Variable F_Tarray: forall t n a, A t -> A (Tarray t n a).
@@ -203,14 +299,14 @@ Fixpoint type_func_rec (n: nat) (t: type): A t :=
     | Tstruct id a =>
        match Maps.PTree.get id cenv_cs with
        | None => let m := co_members (get_co id) in
-                       F_Tstruct id a (ListTypeGen (fun it => A (field_type (name_member it) m))
+                       F_Tstruct id a (hmap (fun it => A (field_type (name_member it) m))
                                      (fun it => F_ByValue (field_type (name_member it) m)) m)
        | _ => F_ByValue (Tstruct id a)
        end
     | Tunion id a =>
        match Maps.PTree.get id cenv_cs with
        | None => let m := co_members (get_co id) in
-                      F_Tunion id a (ListTypeGen (fun it => A (field_type (name_member it) m))
+                      F_Tunion id a (hmap (fun it => A (field_type (name_member it) m))
                                      (fun it => F_ByValue (field_type (name_member it) m)) m)
        | _ => F_ByValue (Tunion id a)
        end
@@ -220,10 +316,10 @@ Fixpoint type_func_rec (n: nat) (t: type): A t :=
     match t as t0 return A t0 with
     | Tarray t0 n a => F_Tarray t0 n a (type_func_rec n' t0)
     | Tstruct id a =>  let m := co_members (get_co id) in
-                            F_Tstruct id a (ListTypeGen (fun it => A (field_type (name_member it) m))
+                            F_Tstruct id a (hmap (fun it => A (field_type (name_member it) m))
                                         (fun it => type_func_rec n' (field_type (name_member it) m)) m)
     | Tunion id a =>  let m := co_members (get_co id) in
-                            F_Tunion id a (ListTypeGen (fun it => A (field_type (name_member it) m))
+                            F_Tunion id a (hmap (fun it => A (field_type (name_member it) m))
                                         (fun it => type_func_rec n' (field_type (name_member it) m)) m)
     | t' => F_ByValue t'
     end
@@ -273,7 +369,7 @@ Proof.
     destruct n0; simpl in H; try solve [inv H0].
       simpl.
       f_equal.
-      apply ListTypeGen_preserve.
+      apply hmap_preserve.
       intros m Hin.
       simpl in IH.
       generalize (Forall_forall1 _ _ IH); clear IH; intro IH.
@@ -298,7 +394,7 @@ Proof.
     destruct n0; simpl in H; try solve [inv H0].
       simpl.
       f_equal.
-      apply ListTypeGen_preserve.
+      apply hmap_preserve.
       intros m Hin.
       generalize (Forall_forall1 _ _ IH); clear IH; intro IH.
       specialize (IH _ Hin n n0).
@@ -316,7 +412,7 @@ Defined.
 
 Definition FTI_aux id :=
     let m := co_members (get_co id) in
-    (ListTypeGen (fun it => A (field_type (name_member it) m)) (fun it => type_func (field_type (name_member it) m)) m).
+    (hmap (fun it => A (field_type (name_member it) m)) (fun it => type_func (field_type (name_member it) m)) m).
 
 Lemma type_func_eq: forall t,
   type_func t =
@@ -334,7 +430,7 @@ Proof.
     simpl type_func_rec.
     destruct (Maps.PTree.get id cenv_cs) as [co |] eqn:CO; simpl.
     - f_equal.
-      apply ListTypeGen_preserve; intro m.
+      apply hmap_preserve; intro m.
       unfold get_co; rewrite CO.
       intro Hin.
       generalize (Forall_forall1 _ _ IH); clear IH; intro IH.
@@ -355,7 +451,7 @@ Proof.
     simpl type_func_rec.
     destruct (Maps.PTree.get id cenv_cs) as [co |] eqn:CO; simpl.
     - f_equal.
-      apply ListTypeGen_preserve; intro m.
+      apply hmap_preserve; intro m.
       unfold get_co; rewrite CO.
       intro Hin.
       generalize (Forall_forall1 _ _ IH); clear IH; intro IH.

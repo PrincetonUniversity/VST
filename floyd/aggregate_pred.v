@@ -1702,7 +1702,7 @@ Context `{!heapGS Σ} {cs: compspecs}.
 Variable sh: share.
 
 Definition struct_data_at_rec_aux (m m0: members) (sz: Z) 
-       (P: ListType (map (fun it => reptype (field_type (name_member it) m0) -> (val -> mpred)) m))
+       (P: hlist (tmap (fun it => reptype (field_type (name_member it) m0) -> (val -> mpred)) m))
        (v: compact_prod (map (fun it => reptype (field_type (name_member it) m0)) m)) : (val -> mpred).
 Proof.
   destruct m as [| a0 m]; [exact (fun _ => emp) |].
@@ -1712,34 +1712,34 @@ Proof.
     exact (withspacer sh
             (field_offset cenv_cs (name_member a0) m0 + sizeof (field_type (name_member a0) m0))
             (field_offset_next cenv_cs (name_member a0) m0 sz)
-            (at_offset (a v) (field_offset cenv_cs (name_member a0) m0))).
+            (at_offset (X v) (field_offset cenv_cs (name_member a0) m0))).
   + simpl in v, P.
     inversion P; subst.
     exact (fun v0 => withspacer sh
             (field_offset cenv_cs (name_member a1) m0 + sizeof (field_type (name_member a1) m0))
             (field_offset_next cenv_cs (name_member a1) m0 sz)
-            (at_offset (a (fst v)) (field_offset cenv_cs (name_member a1) m0)) v0 ∗ IHm a0 (snd v) b v0).
+            (at_offset (X (fst v)) (field_offset cenv_cs (name_member a1) m0)) v0 ∗ IHm a0 (snd v) X0 v0).
 Defined.
 
 Definition union_data_at_rec_aux (m m0: members) (sz: Z)
-      (P: ListType (map (fun it => reptype (field_type (name_member it) m0) -> (val -> mpred)) m))
+      (P: hlist (tmap (fun it => reptype (field_type (name_member it) m0) -> (val -> mpred)) m))
       (v: compact_sum (map (fun it => reptype (field_type (name_member it) m0)) m)) : (val -> mpred).
 Proof.
   destruct m as [| a0 m]; [exact (fun _ => emp) |].
   revert a0 v P; induction m as [| a0 m]; intros ? v P.
   + simpl in v, P.
     inversion P; subst.
-    exact (withspacer sh (sizeof (field_type (name_member a0) m0)) sz (a v)).
+    exact (withspacer sh (sizeof (field_type (name_member a0) m0)) sz (X v)).
   + simpl in v, P.
     inversion P; subst.
     destruct v as [v | v].
-    - exact (withspacer sh (sizeof (field_type (name_member a1) m0)) sz (a v)).
-    - exact (IHm a0 v b).
+    - exact (withspacer sh (sizeof (field_type (name_member a1) m0)) sz (X v)).
+    - exact (IHm a0 v X0).
 Defined.
 
 Lemma struct_data_at_rec_aux_spec: forall m m0 sz v P,
   struct_data_at_rec_aux m m0 sz
-   (ListTypeGen
+   (hmap
      (fun it => reptype (field_type (name_member it) m0) -> val -> mpred)
      P m) v =
   struct_pred m
@@ -1755,21 +1755,21 @@ Proof.
   + simpl; reflexivity.
   + change
      (struct_data_at_rec_aux (a1 :: a0 :: m) m0 sz
-     (ListTypeGen (fun it : member => reptype (field_type (name_member it) m0) -> val -> mpred)
+     (hmap (fun it : member => reptype (field_type (name_member it) m0) -> val -> mpred)
         P (a1 :: a0 :: m)) v) with
      (fun v0 => withspacer sh
        (field_offset cenv_cs (name_member a1) m0 + sizeof (field_type (name_member a1) m0))
          (field_offset_next cenv_cs (name_member a1) m0 sz)
            (at_offset (P a1 (fst v)) (field_offset cenv_cs (name_member a1) m0)) v0 ∗
       struct_data_at_rec_aux (a0 :: m) m0 sz
-     (ListTypeGen (fun it : member => reptype (field_type (name_member it) m0) -> val -> mpred)
+     (hmap (fun it : member => reptype (field_type (name_member it) m0) -> val -> mpred)
         P (a0 :: m)) (snd v) v0).
     rewrite IHm //.
 Qed.
 
 Lemma union_data_at_rec_aux_spec: forall m m0 sz v P,
   union_data_at_rec_aux m m0 sz
-   (ListTypeGen
+   (hmap
      (fun it => reptype (field_type (name_member it) m0) -> val -> mpred)
      P m) v =
   union_pred m
@@ -1792,38 +1792,38 @@ Proof.
 Qed.
 
 Definition struct_value_fits_aux (m m0: members)
-      (P: ListType (map (fun it => reptype (field_type (name_member it) m0) -> Prop) m))
+      (P: hlist (tmap (fun it => reptype (field_type (name_member it) m0) -> Prop) m))
       (v: compact_prod (map (fun it => reptype (field_type (name_member it) m0)) m)) : Prop.
 Proof.
   destruct m as [| a0 m]; [exact True%type |].
   revert a0 v P; induction m as [| a0 m]; intros ? v P.
   + simpl in v, P.
     inversion P; subst.
-    apply (a v).
+    apply (X v).
   + simpl in v, P.
     inversion P; subst.
-    apply (a (fst v) /\ IHm a0 (snd v) b).
+    apply (X (fst v) /\ IHm a0 (snd v) X0).
 Defined.
 
 Definition union_value_fits_aux (m m0: members)
-      (P: ListType (map (fun it => reptype (field_type (name_member it) m0) -> Prop) m))
+      (P: hlist (tmap (fun it => reptype (field_type (name_member it) m0) -> Prop) m))
       (v: compact_sum (map (fun it => reptype (field_type (name_member it) m0)) m)) : Prop.
 Proof.
   destruct m as [| a0 m]; [exact True%type |].
   revert a0 v P; induction m as [| a0 m]; intros ? v P.
   + simpl in v, P.
     inversion P; subst.
-    exact (a v).
+    exact (X v).
   + simpl in v, P.
     inversion P; subst.
     destruct v as [v | v].
-    - exact (a v).
-    - exact (IHm a0 v b).
+    - exact (X v).
+    - exact (IHm a0 v X0).
 Defined.
 
 Lemma struct_value_fits_aux_spec: forall m m0 v P,
   struct_value_fits_aux m m0
-   (ListTypeGen
+   (hmap
      (fun it => reptype (field_type (name_member it) m0) -> Prop)
      P m) v =
   struct_Prop m P v.
@@ -1834,17 +1834,17 @@ Proof.
   + simpl; reflexivity.
   + change
      (struct_value_fits_aux (a1 :: a0 :: m) m0
-     (ListTypeGen (fun it : member => reptype (field_type (name_member it) m0) -> Prop)
+     (hmap (fun it : member => reptype (field_type (name_member it) m0) -> Prop)
         P (a1 :: a0 :: m)) v) with
      (P a1 (fst v) /\  struct_value_fits_aux (a0 :: m) m0
-     (ListTypeGen (fun it : member => reptype (field_type (name_member it) m0) -> Prop)
+     (hmap (fun it : member => reptype (field_type (name_member it) m0) -> Prop)
         P (a0 :: m)) (snd v)).
     rewrite IHm //.
 Qed.
 
 Lemma union_value_fits_aux_spec: forall m m0 v P,
   union_value_fits_aux m m0
-   (ListTypeGen
+   (hmap
      (fun it => reptype (field_type (name_member it) m0) -> Prop)
      P m) v =
   union_Prop m P v.
@@ -1869,19 +1869,19 @@ Import aggregate_pred.
 
 Definition struct_data_at_rec_aux:
    forall `{!heapGS Σ} {cs: compspecs} (sh: share) (m m0: members) (sz: Z) 
-     (P: ListType (map (fun it => reptype (field_type (name_member it) m0) -> (val -> mpred)) m)) 
+     (P: hlist (tmap (fun it => reptype (field_type (name_member it) m0) -> (val -> mpred)) m)) 
      (v: compact_prod (map (fun it => reptype (field_type (name_member it) m0)) m)), (val -> mpred)
 := @struct_data_at_rec_aux.
 
 Definition union_data_at_rec_aux:
   forall `{!heapGS Σ} {cs: compspecs} (sh: share) (m m0: members) (sz: Z) 
-    (P: ListType (map (fun it => reptype (field_type (name_member it) m0) -> (val -> mpred)) m)) 
+    (P: hlist (tmap (fun it => reptype (field_type (name_member it) m0) -> (val -> mpred)) m)) 
     (v: compact_sum (map (fun it => reptype (field_type (name_member it) m0)) m)), (val -> mpred)
 := @union_data_at_rec_aux.
 
 Definition struct_data_at_rec_aux_spec: forall `{!heapGS Σ} {cs: compspecs} (sh: share) m m0 sz v P,
   struct_data_at_rec_aux sh m m0 sz
-   (ListTypeGen
+   (hmap
      (fun it => reptype (field_type (name_member it) m0) -> val -> mpred)
      P m) v =
   struct_pred m
@@ -1894,7 +1894,7 @@ Definition struct_data_at_rec_aux_spec: forall `{!heapGS Σ} {cs: compspecs} (sh
 
 Definition union_data_at_rec_aux_spec: forall `{!heapGS Σ} {cs: compspecs} sh m m0 sz v P,
   union_data_at_rec_aux sh m m0 sz
-   (ListTypeGen
+   (hmap
      (fun it => reptype (field_type (name_member it) m0) -> val -> mpred)
      P m) v =
   union_pred m
@@ -1907,19 +1907,19 @@ Definition union_data_at_rec_aux_spec: forall `{!heapGS Σ} {cs: compspecs} sh m
 
 Definition struct_value_fits_aux:
   forall {cs: compspecs} (m m0: members)
-      (P: ListType (map (fun it => reptype (field_type (name_member it) m0) -> Prop) m))
+      (P: hlist (tmap (fun it => reptype (field_type (name_member it) m0) -> Prop) m))
       (v: compact_prod (map (fun it => reptype (field_type (name_member it) m0)) m)), Prop
 := @struct_value_fits_aux.
 
 Definition union_value_fits_aux:
   forall {cs: compspecs} (m m0: members)
-      (P: ListType (map (fun it => reptype (field_type (name_member it) m0) -> Prop) m))
+      (P: hlist (tmap (fun it => reptype (field_type (name_member it) m0) -> Prop) m))
       (v: compact_sum (map (fun it => reptype (field_type (name_member it) m0)) m)), Prop
 := @union_value_fits_aux.
 
 Definition struct_value_fits_aux_spec: forall {cs: compspecs} m m0 v P,
   struct_value_fits_aux m m0
-   (ListTypeGen
+   (hmap
      (fun it => reptype (field_type (name_member it) m0) -> Prop)
      P m) v =
   struct_Prop m P v
@@ -1927,7 +1927,7 @@ Definition struct_value_fits_aux_spec: forall {cs: compspecs} m m0 v P,
 
 Definition union_value_fits_aux_spec: forall {cs: compspecs} m m0 v P,
   union_value_fits_aux m m0
-   (ListTypeGen
+   (hmap
      (fun it => reptype (field_type (name_member it) m0) -> Prop)
      P m) v =
   union_Prop m P v
