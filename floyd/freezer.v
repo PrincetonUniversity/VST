@@ -703,6 +703,9 @@ Proof.
     apply pred_ext; cancel.
 Qed.
 
+
+Definition protect_evar {A} (x: A) := x.
+
 Lemma localize: forall R_L Espec {cs: compspecs} Delta P Q R R_FR R_G c Post,
   split_FRZ_in_SEP R R_G R_FR ->
   (let FR_L := @abbreviate _ R_L in
@@ -746,7 +749,12 @@ Ltac localize R_L :=
   let FR_L := fresh "RamL" in
   let FR_G := fresh "RamG" in
   intros FR_L FR_G;
-  eexists;
+  (* regarding the next 4 lines, see 
+      https://github.com/PrincetonUniversity/VST/issues/756 *)
+  let w := fresh "w" in let wx := fresh "wx" in 
+  evar(wx: FRZRw FR_L FR_G);
+  pose (w := protect_evar wx); subst wx;
+  exists w;
   unfold_app.
 
 Lemma unlocalize_aux: forall R_G2 R R_FR R_L1 R_G1 R_L2 F w,
@@ -914,7 +922,13 @@ Proof.
   eapply unlocalize_aux; eauto.
 Qed.
 
+Ltac unprotect_evar := 
+ match goal with w := protect_evar _ |- _ => 
+        unfold protect_evar in w; subst w 
+ end.
+
 Ltac unlocalize_plain R_G2 :=
+  unprotect_evar; 
   match goal with
   | |- @semax _ _ _ _ _ _ =>
           eapply (unlocalize_triple R_G2)
@@ -941,6 +955,7 @@ Ltac unlocalize_plain R_G2 :=
   ].
 
 Ltac unlocalize_wit R_G2 wit tac :=
+  unprotect_evar; 
   match goal with
   | |- @semax _ _ _ _ _ _ =>
           eapply (unlocalizeQ_triple R_G2)
