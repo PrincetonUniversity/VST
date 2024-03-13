@@ -1,7 +1,7 @@
 Require Import VST.concurrency.conclib.
 Require Import VST.zlist.sublist.
 
-Set Bullet Behavior "Strict Subproofs".
+Local Unset SsrRewrite.
 
 Opaque eq_dec.
 
@@ -436,11 +436,14 @@ Qed.
 
 End Hashtable.
 
-Lemma sepcon_rebase : forall {B} f (l : list B) m, 0 <= m <= Zlength l ->
-  iter_sepcon f l = iter_sepcon f (rebase l m).
+Set SsrRewrite.
+
+Lemma sepcon_rebase : forall {Σ} {B} (f : B -> iProp Σ) (l : list B) m, 0 <= m <= Zlength l ->
+  ([∗ list] x ∈ l, f x) ⊣⊢ [∗ list] x ∈ (rebase l m), f x.
 Proof.
   intros; unfold rebase, rotate.
-  rewrite iter_sepcon_app, subsub1, sepcon_comm, <- iter_sepcon_app, sublist_rejoin, sublist_same by lia; auto.
+  rewrite big_sepL_app subsub1 bi.sep_comm -big_sepL_app sublist_rejoin; [|lia..].
+  rewrite sublist_same //.
 Qed.
 
 Lemma rebase_map : forall {A B} (f : A -> B) l m, rebase (map f l) m = map f (rebase l m).

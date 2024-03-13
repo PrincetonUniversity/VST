@@ -165,6 +165,11 @@ Section PROOFS.
     - iPureIntro. intros. Intros. rewrite bi.emp_sep //.
   Qed.
 
+  #[global] Instance inv_for_lock_timeless v R {H : Timeless R} : Timeless (inv_for_lock v R).
+  Proof.
+    unfold inv_for_lock.
+    apply bi.exist_timeless; intros []; rewrite ?bi.sep_emp; apply _.
+  Qed.
 
 
   (* Asymmetric consequence means we can't prove the specs from lock_specs directly,

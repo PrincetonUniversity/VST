@@ -197,4 +197,4 @@ End lock_specs.
 #[export] Hint Resolve data_at_exclusive data_at__exclusive field_at_exclusive field_at__exclusive : core.
 
 Ltac lock_props := match goal with |-context[<affine> (?P ∗ ?P -∗ False)] => rewrite -(exclusive_weak_exclusive P);
-  [rewrite bi.affinely_emp bi.emp_sep | auto with share] end.
+  [rewrite bi.affinely_emp ?bi.emp_sep ?bi.sep_emp | auto with share] end.
