@@ -1,3 +1,16 @@
+CHANGES SINCE LAST RELEASE (udpated March 2024)
+
+- repr_inj handles int64 compares better
+- Added nonempty_writable_glb lemma for user convenience (#734)
+- Remove unnecessary premise in field_at_app lemma (#743)
+- Improve error message in forward_if  (#744)
+- Fix slow unification in load/store forward tactics (#748)
+- Generalize permission share in data_at_in_or_ptr_int lemma (etc.) (#749)
+- Improve error messages from deadvars tactic (#751)
+- Fix issue #745 (minor bug in entailer tactic)
+- Localize/unlocalize more robust regarding unification vars (#756)
+- Ensure veric.version is present in opam distributions
+
 CHANGES IN RELEASE 2.13 (October 2023)
 
 - Improved error diagnostics when compspecs mismatch
