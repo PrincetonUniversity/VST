@@ -181,7 +181,7 @@ Section PROOFS.
 
   (* caller can request the lock's namespace *)
   Program Definition makelock_spec_inv :=
-    TYPE (ProdType (ConstType (globals * namespace)) (ArrowType (ConstType lock_handle) Mpred)) WITH gv: _, N : _, R : _
+    TYPE (ProdType (ConstType (globals * namespace)) (DiscreteFunType lock_handle Mpred)) WITH gv: _, N : _, R : _
     PRE [ ]
        PROP ()
        PARAMS () GLOBALS (gv)
@@ -190,6 +190,11 @@ Section PROOFS.
        PROP ()
        RETURN (v)
        SEP (mem_mgr gv; |={⊤}=> ∃ h, ⌜ptr_of h = v /\ name_of h = N⌝ ∧ lock_inv 1 h (R h)).
+  Next Obligation.
+  Proof.
+    intros ?.
+    by repeat f_equiv.
+  Qed. (* not sure why solve_proper doesn't do this *)
 
   (* These lemmas can be used to attach an invariant to an existing lock. *)
   Lemma make_lock_inv_1 : forall v N (R : lock_handle -> mpred), atomic_int_at Ews (vint 1) v ⊢ |={⊤}=> (∃ h, ⌜ptr_of h = v /\ name_of h = N⌝ ∧ lock_inv 1 h (R h)).
@@ -707,6 +712,21 @@ Section PROOFS.
     - iPureIntro; intros; Intros.
       rewrite bi.emp_sep bi.sep_emp; auto.
   Qed.
+
+(* export atomic lock specs *)
+Definition concurrent_specs (cs : compspecs) (ext_link : string -> ident) :=
+  (ext_link "spawn"%string, spawn_spec) ::
+  (makelock_spec) ::
+  (freelock_spec) ::
+  (acquire_spec) ::
+  (release_spec) ::
+  nil.
+
+#[export] Instance concurrent_ext_spec (cs : compspecs) (ext_link : string -> ident) : ext_spec OK_ty :=
+  add_funspecs_rec OK_ty
+    ext_link
+    (void_spec OK_ty)
+    (concurrent_specs cs ext_link).
 
 End PROOFS.
 

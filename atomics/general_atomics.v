@@ -787,6 +787,25 @@ Ltac atomic_nonexpansive_tac := try (let x := fresh "x" in let y := fresh "y" in
 
 #[export] Obligation Tactic := atomic_nonexpansive_tac.
 
+(* We might want to make atomic_spec_post transparent/simplify it when we define
+   funspecs, but for now, patching match_postcondition instead. *)
+Ltac match_postcondition ::=
+unfold atomic_spec_post', atomic_spec_post0, rev_curry, tcurry, tcurry_rev, tcurry_rev';
+fix_up_simplified_postcondition;
+cbv beta iota zeta; unfold_post;
+constructor; let rho := fresh "rho" in intro rho; cbn [monPred_at assert_of ofe_mor_car];
+   repeat rewrite exp_uncurry;
+   try rewrite no_post_exists; repeat rewrite monPred_at_exist;
+tryif apply bi.exist_proper
+ then (intros ?vret;
+          generalize rho; rewrite -local_assert; apply PROP_LOCAL_SEP_ext';
+          [reflexivity | | reflexivity];
+          (reflexivity || fail "The funspec of the function has a POSTcondition
+that is ill-formed.  The LOCALS part of the postcondition
+should be (temp ret_temp ...), but it is not"))
+ else fail "The funspec of the function should have a POSTcondition that starts
+with an existential, that is,  ∃ _:_, PROP...LOCAL...SEP".
+
 (* change start_function to handle curried arguments -- also thanks to Jason *)
 Ltac read_names term :=
   lazymatch term with
