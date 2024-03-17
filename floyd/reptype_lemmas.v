@@ -1183,7 +1183,7 @@ change 0 with (Z.of_nat 0).
 rewrite Zlength_correct.
 rewrite replist_firstn_skipn by lia.
 rewrite skipn_0 by auto.
-rewrite NPeano.Nat.sub_0_r.
+rewrite Nat.sub_0_r.
 apply firstn_exact_length.
 Qed.
 

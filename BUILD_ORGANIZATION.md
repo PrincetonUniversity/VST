@@ -31,6 +31,8 @@ add more packages, et cetera.
 If you install VST via opam, opam will try to install a
 suitable version of CompCert, Flocq and other dependencies.
 ```
+opam install coq  # best to install coq by opam instead of some other method
+
 opam install coq-vst
 AND/OR
 opam install coq-vst-64

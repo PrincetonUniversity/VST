@@ -2099,11 +2099,14 @@ Lemma typed_true_ptr' :
   typed_true (tptr t) v -> isptr v.
 Proof. intros ? ?. apply typed_true_ptr. Qed.
 
+
 Ltac do_repr_inj H :=
    simpl typeof in H;  (* this 'simpl' should be fine, since its argument is just clightgen-produced ASTs *)
+   cbv delta [Int64.zero Int.zero] in H;
    lazymatch type of H with
       | typed_true _ ?A => 
            change (typed_true tuint) with (typed_true tint) in H;
+           change (typed_true tulong) with (typed_true tlong) in H;
           let B := eval hnf in A in change A with B in H;
           try first
                [ simple apply typed_true_of_bool' in H
@@ -2115,20 +2118,23 @@ Ltac do_repr_inj H :=
                | simple apply typed_true_Ceq_eq' in H
                | apply typed_true_nullptr4 in H
                | simple apply typed_true_Cne_neq' in H
+               | simple apply typed_true_tlong_Vlong in H
               ]
       | typed_false _ ?A => 
            change (typed_false tuint) with (typed_false tint) in H;
+           change (typed_false tulong) with (typed_false tlong) in H;
            let B := eval hnf in A in change A with B in H;
            try first
                [ simple apply typed_false_of_bool' in H
                | simple apply typed_false_ptr_e in H
-               | simple apply typed_false_negb_bool_val_p in H; [| solve [auto]]
+               | simple apply typed_false_negb_bool_val_p in H; [| solve [auto ] ]
                | apply typed_false_negb_bool_val_p' in H
                | simple apply typed_false_tint_Vint in H
                | apply typed_false_nullptr3 in H
                | simple apply typed_false_Ceq_neq' in H
                | apply typed_false_nullptr4 in H
                | simple apply typed_false_Cne_eq' in H
+               | simple apply typed_false_tlong_Vlong in H
                ]
      | _ => idtac
     end;
@@ -2152,6 +2158,8 @@ Ltac do_repr_inj H :=
   end;
   first [ simple apply repr_inj_signed in H; [ | rep_lia | rep_lia ]
          | simple apply repr_inj_unsigned in H; [ | rep_lia | rep_lia ]
+         | simple apply repr_inj_signed64 in H; [ | rep_lia | rep_lia ]
+         | simple apply repr_inj_unsigned64 in H; [ | rep_lia | rep_lia ]
          | simple apply repr_inj_signed' in H; [ | rep_lia | rep_lia ]
          | simple apply repr_inj_unsigned' in H; [ | rep_lia | rep_lia ]
          | simple apply ltu_repr in H; [ | rep_lia | rep_lia]
@@ -2869,15 +2877,15 @@ match goal with
 | |- semax ?Delta (|> PROPx ?P (LOCALx ?Q (SEPx ?R))) (Ssequence (Sifthenelse ?e ?c1 ?c2) _) _ =>
     tryif (unify (orb (quickflow c1 nofallthrough) (quickflow c2 nofallthrough)) true)
     then (apply semax_if_seq; forward_if'_new)
-    else fail "Because your if-statement is followed by another statement, you need to do 'forward_if Post', where Post is a postcondition of type (environ->mpred) or of type Prop"
+    else fail 1 "Because your if-statement is followed by another statement, you need to do 'forward_if Post', where Post is a postcondition of type (environ->mpred) or of type Prop"
 | |- semax _ (@exp _ _ _ _) _ _ =>
-      fail "First use Intros ... to take care of the EXistentially quantified variables in the precondition"
+      fail 1 "First use Intros ... to take care of the EXistentially quantified variables in the precondition"
 | |- semax _ _ (Sswitch _ _) _ =>
   forward_switch'
 | |- semax _ _ (Ssequence (Sifthenelse _ _ _) _) _ => 
-     fail "forward_if failed for some unknown reason, perhaps your precondition is not in canonical form"
+     fail 1 "forward_if failed for some unknown reason, perhaps your precondition is not in canonical form"
 | |- semax _ _ (Ssequence (Sswitch _ _) _) _ => 
-     fail "Because your switch statement is followed by another statement, you need to do 'forward_if Post', where Post is a postcondition of type (environ->mpred) or of type Prop"
+     fail 1 "Because your switch statement is followed by another statement, you need to do 'forward_if Post', where Post is a postcondition of type (environ->mpred) or of type Prop"
 end.
 
 Lemma ENTAIL_break_normal:

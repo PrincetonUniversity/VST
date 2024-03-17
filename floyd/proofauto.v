@@ -1,5 +1,6 @@
 From compcert Require Export common.AST cfrontend.Ctypes cfrontend.Clight.
 Export Cop.
+Require VST.veric.version.
 Require Export VST.floyd.base2.
 Require Export VST.floyd.functional_base.
 Require Export VST.floyd.client_lemmas.

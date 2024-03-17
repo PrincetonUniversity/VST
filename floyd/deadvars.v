@@ -188,11 +188,14 @@ Ltac inhabited_value T :=
  | prod ?A ?B => let x := inhabited_value A in
                            let y := inhabited_value B in
                                constr:(pair x y)
- | _ => let t := eval unfold T in T in inhabited_value t
+ (* delete the old "eval unfold" that was here, and put it below as shown: *)
  | _ => match goal with
             | x:T |- _ => x 
             | x := _ : T |- _ => x
-            | _ => fail 3 "cannot prove that type" T "is inhabited, so cannot compute deadvars.  Fix this by asserting (X:"T") above the line"
+            | _ => let t := eval unfold T in T in
+                   tryif constr_eq t T 
+                   then fail 3 "cannot prove that type" T "is inhabited, so cannot compute deadvars.  Fix this by asserting (X:"T") above the line"
+                   else inhabited_value t
             end
  end.
 
@@ -259,16 +262,16 @@ Ltac find_dead_vars P c Q :=
       let d := eval compute in d in
       d.
 
-Ltac deadvars := 
+Ltac deadvars :=
  lazymatch goal with
  | X := @abbreviate ret_assert ?Q |-
     semax _ ?P ?c ?Y =>
     check_POSTCONDITION;
-    constr_eq X Y;
+    tryif constr_eq X Y then idtac else fail 99 "@abbreviate ret_assert above the line does not match postcondition";
     match find_dead_vars P c Q with
     | nil => idtac
     | ?d =>  idtac "Dropping dead vars!"; drop_LOCALs d
-     end + fail 99 "deadvars failed for an unknown reason"
+     end
  | |- semax _ _ _ _ => 
        check_POSTCONDITION;
        fail "deadvars: Postcondition must be an abbreviated local definition (POSTCONDITION); try abbreviate_semax first"
@@ -277,18 +280,20 @@ Ltac deadvars :=
  end.
 
 Tactic Notation "deadvars" "!" :=
- match goal with
+  lazymatch goal with
+  | |- semax _ _ _ _ => idtac
+  | |- _ => fail "deadvars!: the proof goal should be a semax"
+  end;
+ lazymatch goal with
  | X := @abbreviate ret_assert ?Q |-
     semax _ ?P ?c ?Y =>
-   check_POSTCONDITION;
-    constr_eq X Y;
-    match find_dead_vars P c Q with
-    | nil => fail 2 "deadvars!: Did not find any dead variables"
+    tryif constr_eq X Y then idtac
+    else fail "deadvars!: Postcondition must be an abbreviated local definition (POSTCONDITION); try abbreviate_semax first";
+    lazymatch find_dead_vars P c Q with
+    | nil => fail "deadvars!: Did not find any dead variables"
     | ?d =>  drop_LOCALs d
      end
  | |- semax _ _ _ _ => 
-       check_POSTCONDITION;
-       fail 1 "deadvars!: Postcondition must be an abbreviated local definition (POSTCONDITION); try abbreviate_semax first"
- | |- _ => fail 1 "deadvars!: the proof goal should be a semax"
+       fail "deadvars!: Postcondition must be an abbreviated local definition (POSTCONDITION); try abbreviate_semax first"
  end.
 

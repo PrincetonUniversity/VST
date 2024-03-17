@@ -824,13 +824,16 @@ intros. eapply derives_trans; try eassumption; auto.
 Qed.
 
 Ltac quick_typecheck3 :=
+ (* do not clear hyps anymore!  See issue #772 
  clear;
  repeat match goal with
  | H := _ |- _ => clear H
  | H : _ |- _ => clear H
- end;
+ end; *)
  apply quick_derives_right; clear; go_lowerx; intros;
- clear; repeat apply andp_right; auto; fail.
+ clear; repeat apply andp_right; 
+ try apply derives_refl;  (* see issue #756 *)
+ auto; fail.
 
 Ltac default_entailer_for_load_store :=
   repeat match goal with H := _ |- _ => clear H end;

@@ -40,6 +40,12 @@ Create HintDb entailer_rewrite discriminated.
 
 Require Import VST.veric.val_lemmas.
 
+Lemma Vlong_inj : forall x y : int64, Vlong x = Vlong y -> x = y.
+Proof.
+intros.
+inv H. auto.
+Qed.
+
 Lemma Vint_injective i j (H: Vint i = Vint j): i=j.
 Proof. inv H; trivial. Qed. 
 
@@ -721,6 +727,18 @@ Proof.
 intros.
 rewrite <- (Int.signed_repr i) by rep_lia.
 rewrite <- (Int.signed_repr j) by rep_lia.
+congruence.
+Qed.
+
+Lemma repr_inj_signed64:
+  forall i j,
+    Int64.min_signed <= i <= Int.max_signed ->
+    Int64.min_signed <= j <= Int.max_signed ->
+    Int64.repr i = Int64.repr j -> i=j.
+Proof.
+intros.
+rewrite <- (Int64.signed_repr i) by rep_lia.
+rewrite <- (Int64.signed_repr j) by rep_lia.
 congruence.
 Qed.
 
