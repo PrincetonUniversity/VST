@@ -340,12 +340,12 @@ Fixpoint fold_right_and_True (l: list Prop) : Prop :=
 
 Definition fold_right_PROP_SEP (l1: list Prop) (l2: list mpred) : mpred :=
  match l1 with
- | nil => fold_right_sepcon l2
- | l => ⌜fold_right_and_True l⌝ ∧ fold_right_sepcon l2
+ | nil => fold_right_sepconx l2
+ | l => ⌜fold_right_and_True l⌝ ∧ fold_right_sepconx l2
  end.
 
 Lemma fold_right_PROP_SEP_spec: forall l1 l2,
-  fold_right_PROP_SEP l1 l2 ⊣⊢ ⌜fold_right and True l1⌝ ∧ fold_right_sepcon l2.
+  fold_right_PROP_SEP l1 l2 ⊣⊢ ⌜fold_right and True l1⌝ ∧ fold_right_sepconx l2.
 Proof.
   intros.
   assert (fold_right_and_True l1 <-> fold_right and True%type l1).

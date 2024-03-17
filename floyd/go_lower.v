@@ -538,7 +538,7 @@ Proof.
   + etrans; [| eapply (go_lower_localdef_canon_canon Delta P Q R); eauto].
     apply bi.and_intro; [rewrite bi.and_elim_l; auto |].
     go_lowerx.
-    rewrite fold_right_PROP_SEP_spec.
+    rewrite fold_right_PROP_SEP_spec fold_right_sepconx_eq.
     normalize.
   + eapply go_lower_localdef_canon_eval_lvalue; eauto.
   + eapply go_lower_localdef_canon_eval_expr; eauto.
@@ -616,6 +616,11 @@ Proof.
     rewrite embed_pure; apply bi.True_intro.
   + rewrite /PROPx /LOCALx /SEPx /local /lift1; monPred.unseal; split => rho; simpl.
     iIntros "(#(? & ? & ? & ?) & >$) !>"; auto.
+Qed.
+
+Lemma remove_emp_l : forall (P Q : mpred), (P ⊢ Q) -> P ∗ emp ⊢ Q.
+Proof.
+  intros; rewrite bi.sep_emp //.
 Qed.
 
 End mpred.
@@ -725,7 +730,7 @@ Ltac solve_clean_LOCAL_right :=
       unify_for_go_lower;
       unfold VST_floyd_app;
       unfold fold_right_PROP_SEP, fold_right_and_True;
-      cbv [fold_right_sepcon];
+      cbv [fold_right_sepconx];
       reflexivity
     | simple apply clean_LOCAL_right_eval_lvalue; solve_msubst_eval_lvalue
     | simple apply clean_LOCAL_right_eval_expr; solve_msubst_eval_expr
@@ -914,15 +919,15 @@ first
  | |- (_ ∧ PROPx nil _) _ ⊢ _ => fail 1 "LOCAL part of precondition is not a concrete list (or maybe Delta is not concrete)"
  | |- _ => fail 1 "PROP part of precondition is not a concrete list"
  end);
-cbv [fold_right_sepcon];
 unfold_for_go_lower;
+rewrite -!fold_right_sepconx_eq;
+cbv [fold_right_sepconx];
 simpl tc_val;
 cbv [typecheck_exprlist typecheck_expr]; simpl tc_andp;
 simpl msubst_denote_tc_assert;
 try monPred.unseal; unfold monPred_at;
 try clear dependent rho;
-clear_Delta;
-rewrite ?bi.sep_emp
+clear_Delta
 ].
 
 Ltac sep_apply_in_lifted_entailment H :=

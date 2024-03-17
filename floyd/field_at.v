@@ -132,6 +132,7 @@ Definition field_at_ (sh: Share.t) (t: type) (gfs: list gfield) (p: val): mpred 
 Arguments field_at_ sh t gfs p : simpl never.
 
 Definition data_at (sh: Share.t) (t: type) (v: reptype t) := field_at sh t nil v.
+Global Typeclasses Opaque data_at.
 
 Definition data_at_ (sh: Share.t) (t: type) := field_at_ sh t nil.
 

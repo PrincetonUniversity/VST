@@ -58,7 +58,7 @@ Proof.
  Intros y.
  apply sepcon_valid_pointer1.
  apply data_at_valid_ptr; auto.
- simpl;  computable.
+ simpl; computable.
 Qed.
 
 Lemma listrep_null: forall sh contents,
@@ -67,7 +67,7 @@ Proof.
 destruct contents; unfold listrep; fold listrep.
 autorewrite with norm. auto.
 apply bi.equiv_entails_2.
-Intros y. entailer. destruct H; contradiction.
+Intros y. entailer!. destruct H; contradiction.
 Intros. discriminate.
 Qed.
 
@@ -95,7 +95,8 @@ Definition append_spec :=
 Definition Gprog : funspecs :=   ltac:(with_library prog [ append_spec ]).
 
 Hint Resolve listrep_local_facts : saturate_local.
-Hint Resolve listrep_valid_pointer : valid_pointer.
+Hint Extern 1 (listrep _ _ _ ⊢ valid_pointer _) =>
+    (simple apply listrep_valid_pointer; now auto) : valid_pointer.
 
 Section Proof1.
 
@@ -104,20 +105,21 @@ Proof.
 start_function.
 forward_if.
 *
- subst x. rewrite listrep_null.  Intros.  subst.
+ subst x.
  forward.
+ rewrite listrep_null. Intros; subst.
  Exists y.
  entailer!!.
  simpl; auto.
 *
  forward.
  destruct s1 as [ | v s1']; unfold listrep at 1; fold listrep.
- Intros.  contradiction.
+ { Intros. contradiction. }
  Intros u.
  remember (v::s1') as s1.
  forward.
  forward_while
-      ( ∃ a: val, ∃ s1b: list val, ∃ t: val, ∃ u: val,
+      (∃ a: val, ∃ s1b: list val, ∃ t: val, ∃ u: val,
             PROP ()
             LOCAL (temp _x x; temp _t t; temp _u u; temp _y y)
             SEP (listrep sh (a::s1b++s2) t -∗ listrep sh (s1++s2) x;
@@ -263,7 +265,8 @@ Proof.
  auto with valid_pointer.
 Qed.
 
-Hint Resolve lseg_valid_pointer : valid_pointer.
+Hint Extern 1 (lseg _ _ _ nullval ⊢ valid_pointer _) =>
+    (simple apply lseg_valid_pointer; now auto) : valid_pointer.
 
 Lemma lseg_eq: forall sh contents x,
     lseg sh contents x x ⊣⊢ ⌜contents=nil /\ is_pointer_or_null x⌝ ∧ emp.
@@ -296,7 +299,7 @@ intros.
      destruct s; unfold lseg at 1; fold lseg; entailer.
 Qed.
 
-Lemma lseg_cons': forall sh (v u x a b: val) ,
+Lemma lseg_cons': forall sh (v u x a b: val),
    readable_share sh ->
  data_at sh t_struct_list (v, u) x ∗ data_at sh t_struct_list (a,b) u
  ⊢ lseg sh [v] x u ∗ data_at sh t_struct_list (a,b) u.
@@ -408,7 +411,7 @@ forward_if.
     subst. rewrite lseg_eq. Intros. subst. 
     forward.
     forward.
-    Exists x. 
+    Exists x.
     entailer!!.
     sep_apply (lseg_cons sh a y t s2); auto.
     sep_apply (lseg_app_null sh [a] s2 t y); auto.

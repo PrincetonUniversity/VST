@@ -58,7 +58,7 @@ Proof.
     rewrite field_at_Tarray //; last by lia.
     iDestruct (split3seg_array_at' _ _ _ 0 lo hi n with "H") as "(? & ? & ?)"; try lia.
     { rewrite H1; lia. }
-    rewrite !Z.sub_0_r; iFrame.
+    rewrite !Z.sub_0_r /data_at; iFrame.
     iIntros (v) "H".
     unfold data_at.
     iDestruct (field_at_local_facts with "H") as %(? & H4).
@@ -74,10 +74,10 @@ Proof.
     rewrite H4.
     replace (hi - lo - (hi - lo) + hi) with hi by lia.
     replace (n - lo - (hi - lo) + hi) with n by lia.
-    iFrame.
+    rewrite /data_at; iFrame.
     autorewrite with sublist; iFrame.
   + iIntros "(% & ? & _ & H)".
-    iSpecialize ("H" with "[$]").
+    rewrite /data_at; iSpecialize ("H" with "[$]").
     autorewrite with sublist.
     auto.
 Qed.
