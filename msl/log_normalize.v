@@ -1637,6 +1637,68 @@ Qed.
     G |-- Rec (F P) >=> Rec (F Q).
 *)
 
+Section HORec_sub_strong.
+Variable A B : Type.
+Variable NA : NatDed A.
+Variable IA : Indir A.
+Variable RA : RecIndir A.
+Variable F:(B -> A) -> (B -> A) -> B -> A.
+Variable HF1 : forall (f:B->A), HOcontractive (F f).
+Variable HF2 : forall (R: B -> A) (P Q: B->A), ALL b, P b >=> Q b |-- ALL b, F P R b >=> F Q R b.
+Variable HF3 : forall (P Q: B -> A) (f:B->A), ALL b:B, |>(P b >=> Q b) |-- ALL b:B, F f P b >=> F f Q b.
+ 
+Lemma HORec_sub_strong G (f g : B->A) (H: G |-- ALL b:B, (f b) >=> (g b)):
+      G |-- ALL b:B, HORec (F f) b >=> HORec (F g) b.
+Proof.
+  assert (HF2': forall (R: B -> A) b (P Q: B->A), ALL a, P a >=> Q a |-- F P R b >=> F Q R b).
+  { intros. eapply derives_trans. apply (HF2 R P Q).
+    apply allp_left with b. trivial. }
+  clear HF2.
+  apply @derives_trans with (ALL b, f b >=> g b); auto.
+  clear G H.
+  apply goedel_loeb.
+  apply allp_right; intro b.
+  rewrite HORec_fold_unfold by auto.
+  pose proof (HORec_fold_unfold _ _ (HF1 f)).
+  pose proof (HORec_fold_unfold _ _ (HF1 g)).
+  set (P' := HORec (F f)) in *.
+  set (Q' := HORec (F g)) in *.
+  rewrite <- H.
+  specialize (HF3 P' Q' f).
+  rewrite later_allp.
+  eapply derives_trans; [apply andp_derives ; [apply derives_refl | apply HF3] | ].
+  specialize (HF2' Q' b f g). rewrite <- H0 in HF2'.
+  rewrite <- H in *.
+  apply subp_trans with  (F f Q' b).
+  apply andp_left2. apply allp_left with b; auto.
+  apply andp_left1; auto.
+Qed.
+
+End HORec_sub_strong.
+
+Lemma HORec_sub' {A}  {NA: NatDed A}{IA: Indir A}{RA: RecIndir A} : forall G B
+  (F : A -> (B -> A) -> B -> A)
+  (HF1 : forall (X:A), HOcontractive (F X))
+  (HF2 : forall (R: B -> A) (P Q: A), P >=> Q |-- ALL b, F P R b >=> F Q R b)
+  (HF3 : forall (P Q: B -> A) (X:A), ALL b:B, |>(P b >=> Q b) |-- ALL b:B, F X P b >=> F X Q b),
+  forall P Q : A,
+    (G |-- P >=> Q) ->
+    G |-- ALL b:B, HORec (F P) b >=> HORec (F Q) b.
+Proof. intros.
+apply (@HORec_sub_strong A B NA IA RA (fun f g b => F (f b) g b)).
++ clear - HF1. red; intros.
+  apply allp_right; intros b.
+  eapply derives_trans; [ apply (HF1 (f b) P Q) | clear HF1].
+  apply allp_left with b; trivial.
++ clear - HF2. intros R f g. apply allp_derives; intros b.
+  eapply derives_trans; [ apply (HF2 R (f b) (g b)) | clear HF2].
+  apply allp_left with b; trivial.
++ clear - HF3. intros P Q f. apply allp_right; intros b.
+  eapply derives_trans; [ apply (HF3 P Q (f b)) | clear HF3].
+  apply allp_left with b; trivial.
++ apply allp_right; intros b; trivial.
+Qed. 
+
 Lemma HORec_sub {A}  {NA: NatDed A}{IA: Indir A}{RA: RecIndir A} : forall G B
   (F : A -> (B -> A) -> B -> A)
   (HF1 : forall X, HOcontractive (F X))
@@ -1646,6 +1708,9 @@ Lemma HORec_sub {A}  {NA: NatDed A}{IA: Indir A}{RA: RecIndir A} : forall G B
     (G |-- P >=> Q) ->
     G |-- ALL b:B, HORec (F P) b >=> HORec (F Q) b.
 Proof.
+intros. apply HORec_sub'; trivial. 
+intros. apply allp_right; intros b; apply HF2.
+(*old proof:
   intros.
   apply @derives_trans with (P>=>Q); auto.
   clear G H.
@@ -1664,9 +1729,9 @@ Proof.
  rewrite <- H in *.
   apply subp_trans with  (F P Q' b).
   apply andp_left2.  apply allp_left with b; auto.
-  apply andp_left1; auto.
+  apply andp_left1. auto.
+*)
 Qed.
-
 
 (****** End contractiveness *****)
 
