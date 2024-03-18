@@ -281,7 +281,7 @@ Ltac deadvars :=
 
 Tactic Notation "deadvars" "!" :=
   lazymatch goal with
-  | |- semax _ _ _ _ => idtac
+  | |- semax _ _ _ _ _ => idtac
   | |- _ => fail "deadvars!: the proof goal should be a semax"
   end;
  lazymatch goal with

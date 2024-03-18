@@ -693,7 +693,6 @@ Proof.
   rewrite memory_block_data_at_ by auto.
   forward.
   forward.
-  Exists p. entailer!!.
 Qed.
 
 Lemma body_tree_free: semax_body Vprog Gprog f_tree_free tree_free_spec.

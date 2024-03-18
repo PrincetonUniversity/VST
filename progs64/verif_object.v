@@ -296,7 +296,6 @@ assert_PROP (p<>Vundef) by entailer!.
    Method 1:  comment out lines AA and BB and the entire range CC-DD.
    Method 2:  comment out lines AA-BB, inclusive.
 *)
-(* TODO fix method_call *)
 (* AA *) try (tryif 
   (method_call (p, @nil Z) (@nil Z) whatever;
    method_call (p, 3, @nil Z) [3%Z] i;
