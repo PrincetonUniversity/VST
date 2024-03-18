@@ -3098,24 +3098,24 @@ Ltac unfold_data_at_ p :=
     (tryif constr_eq cs1 cs2 then fail
      else simple apply change_compspecs_data_at_cancel2; reflexivity) : cancel.
 
-#[export] Hint Extern 2 (@data_at(cs := ?cs1) ?sh _ _ ?p ⊢ @data_at_(cs := ?cs2) ?sh _ ?p) =>
+#[export] Hint Extern 2 (data_at(cs := ?cs1) ?sh _ _ ?p ⊢ data_at_(cs := ?cs2) ?sh _ ?p) =>
     (tryif constr_eq cs1 cs2 then fail
      else simple apply change_compspecs_data_at_cancel3; reflexivity) : cancel.
 
-#[export] Hint Extern 2 (@data_at(cs := ?cs1) ?sh _ _ ?p ⊢ @data_at(cs := ?cs2) ?sh _ _ ?p) =>
+#[export] Hint Extern 2 (data_at(cs := ?cs1) ?sh _ _ ?p ⊢ data_at(cs := ?cs2) ?sh _ _ ?p) =>
     (tryif constr_eq cs1 cs2 then fail
      else simple apply change_compspecs_data_at_cancel;
        [ reflexivity | reflexivity | apply JMeq_refl]) : cancel.
 
-#[export] Hint Extern 2 (@field_at_(cs := ?cs1) ?sh _ ?gfs ?p ⊢ @field_at_(cs := ?cs2) ?sh _ ?gfs ?p) =>
+#[export] Hint Extern 2 (field_at_(cs := ?cs1) ?sh _ ?gfs ?p ⊢ field_at_(cs := ?cs2) ?sh _ ?gfs ?p) =>
     (tryif constr_eq cs1 cs2 then fail
      else simple apply change_compspecs_field_at_cancel2; reflexivity) : cancel.
 
-#[export] Hint Extern 2 (@field_at(cs := ?cs1) ?sh _ ?gfs _ ?p ⊢ @field_at_(cs := ?cs2) ?sh _ ?gfs ?p) =>
+#[export] Hint Extern 2 (field_at(cs := ?cs1) ?sh _ ?gfs _ ?p ⊢ field_at_(cs := ?cs2) ?sh _ ?gfs ?p) =>
     (tryif constr_eq cs1 cs2 then fail
      else simple apply change_compspecs_field_at_cancel3; reflexivity) : cancel.
 
-#[export] Hint Extern 2 (@field_at(cs := ?cs1) ?sh _ ?gfs _ ?p ⊢ @field_at(cs := ?cs2) ?sh _ ?gfs _ ?p) =>
+#[export] Hint Extern 2 (field_at(cs := ?cs1) ?sh _ ?gfs _ ?p ⊢ field_at(cs := ?cs2) ?sh _ ?gfs _ ?p) =>
     (tryif constr_eq cs1 cs2 then fail
      else simple apply change_compspecs_field_at_cancel;
         [ reflexivity | reflexivity | apply JMeq_refl]) : cancel.
