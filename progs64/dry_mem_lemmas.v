@@ -100,7 +100,7 @@ Lemma data_at_bytes : forall {CS : compspecs} sh z (bytes : list val) buf m o
 Proof.
   intros.
   assert_PROP (field_compatible (tarray tuchar z) [] buf).
-  { iIntros "(_ & >($ & _))". }
+  { unfold data_at, field_at; iIntros "(_ & >($ & _))". }
   destruct buf; try by destruct H.
   remember (Z.to_nat z) as n; revert dependent i; revert dependent bytes; revert dependent z; induction n; intros.
   { assert (z = 0) as -> by rep_lia.
@@ -115,12 +115,12 @@ Proof.
   2: { rewrite field_compatible0_cons; split; auto; lia. }
   rewrite sublist_1_cons (sublist_same _ (z - 1)) //; last lia.
   iAssert ⌜field_compatible (tarray tuchar (z - 1)) [] (Vptr b (Ptrofs.add i (Ptrofs.repr 1)))⌝ with "[Hrest]" as %?.
-  { iDestruct "Hrest" as "($ & _)". }
+  { unfold data_at, field_at; iDestruct "Hrest" as "($ & _)". }
   iDestruct (IHn with "[$Hz $Hrest]") as %Hrest; [try lia..|].
   iDestruct "Hz" as "(Hm & _)".
   rewrite sublist_0_cons // sublist_nil data_at_tuchar_singleton_array_inv.
   iAssert ⌜field_compatible tuchar [] (Vptr b i)⌝ with "[H]" as %?.
-  { iDestruct "H" as "($ & _)". }
+  { unfold data_at, field_at; iDestruct "H" as "($ & _)". }
   rewrite -mapsto_data_at' // mapsto_core_load //.
   iDestruct (core_load_load' with "[$Hm $H]") as %Hbyte.
   apply Mem.load_loadbytes in Hbyte as (byte & Hbyte & ->); subst.
@@ -242,7 +242,7 @@ Proof.
   apply Mem.storebytes_store in Hstore1; last by apply Z.divide_1_l.
   rewrite data_at__eq data_at_tuchar_singleton_array_inv /=.
   iAssert ⌜field_compatible tuchar [] (Vptr b o)⌝ with "[H]" as %?.
-  { iDestruct "H" as "($ & _)". }
+  { unfold data_at, field_at; iDestruct "H" as "($ & _)". }
   rewrite -mapsto_data_at' //.
   inv Hty.
   iMod (mapsto_store with "[$Hm $H]") as "(Hm & H)"; [auto..|].

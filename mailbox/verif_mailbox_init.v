@@ -28,7 +28,7 @@ Proof.
   * if_tac.
     + forward. subst p. congruence.
     + Intros. forward. entailer!.
-  * forward. Exists p; entailer!.
+  * forward.
 Qed.
 
 Lemma body_memset : semax_body Vprog Gprog f_memset memset_spec.

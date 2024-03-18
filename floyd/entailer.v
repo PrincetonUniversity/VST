@@ -403,7 +403,7 @@ Ltac prove_it_now :=
  first [ splittable; fail 1
         | computable
         | apply Coq.Init.Logic.I
-        | reflexivity
+        | apply eq_refl
         | rewrite ?intsigned_intrepr_bytesigned; rep_lia
         | prove_signed_range
         | congruence
