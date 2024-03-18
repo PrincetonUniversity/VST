@@ -1144,12 +1144,372 @@ intros.
   reflexivity.
 Qed.
 
+
+Section Foo.
+
+Import predicates_hered predicates_sl res_predicates msl.normalize.
+
+Lemma address_mapsto_8bytes_aux: 
+ forall (sh : Share.t)
+   (b0 b1 b2 b3 b4 b5 b6 b7: byte)
+   (b : block) (i : ptrofs)
+   (SZ : Ptrofs.unsigned i + 8 < Ptrofs.modulus)
+   (r : readable_share sh),
+
+predicates_sl.sepcon
+  (predicates_sl.sepcon
+     (predicates_sl.sepcon
+        (predicates_sl.sepcon
+           (predicates_sl.sepcon
+              (predicates_sl.sepcon
+                 (predicates_sl.sepcon
+                    (predicates_hered.allp
+                       (res_predicates.jam
+                          (adr_range_dec (b, Ptrofs.unsigned i) (size_chunk Mint8unsigned))
+                          (fun loc : address =>
+                           res_predicates.yesat compcert_rmaps.RML.R.NoneP
+                             (compcert_rmaps.VAL
+                                (nth (Z.to_nat (snd loc - snd (b, Ptrofs.unsigned i)))
+                                   [Byte b0] Undef)) sh loc) res_predicates.noat))
+                    (predicates_hered.allp
+                       (res_predicates.jam
+                          (adr_range_dec
+                             (b, Ptrofs.unsigned (Ptrofs.add i (Ptrofs.repr 1)))
+                             (size_chunk Mint8unsigned))
+                          (fun loc : address =>
+                           res_predicates.yesat compcert_rmaps.RML.R.NoneP
+                             (compcert_rmaps.VAL
+                                (nth
+                                   (Z.to_nat
+                                      (snd loc
+                                         - snd
+                                             (b,
+                                              Ptrofs.unsigned
+                                                (Ptrofs.add i (Ptrofs.repr 1)))))
+                                   [Byte b1] Undef)) sh loc) res_predicates.noat)))
+                 (predicates_hered.allp
+                    (res_predicates.jam
+                       (adr_range_dec (b, Ptrofs.unsigned (Ptrofs.add i (Ptrofs.repr 2)))
+                          (size_chunk Mint8unsigned))
+                       (fun loc : address =>
+                        res_predicates.yesat compcert_rmaps.RML.R.NoneP
+                          (compcert_rmaps.VAL
+                             (nth
+                                (Z.to_nat
+                                   (snd loc
+                                      - snd
+                                          (b,
+                                           Ptrofs.unsigned (Ptrofs.add i (Ptrofs.repr 2)))))
+                                [Byte b2] Undef)) sh loc) res_predicates.noat)))
+              (predicates_hered.allp
+                 (res_predicates.jam
+                    (adr_range_dec (b, Ptrofs.unsigned (Ptrofs.add i (Ptrofs.repr 3)))
+                       (size_chunk Mint8unsigned))
+                    (fun loc : address =>
+                     res_predicates.yesat compcert_rmaps.RML.R.NoneP
+                       (compcert_rmaps.VAL
+                          (nth
+                             (Z.to_nat
+                                (snd loc
+                                   - snd
+                                       (b, Ptrofs.unsigned (Ptrofs.add i (Ptrofs.repr 3)))))
+                             [Byte b3] Undef)) sh loc) res_predicates.noat)))
+           (predicates_hered.allp
+              (res_predicates.jam
+                 (adr_range_dec (b, Ptrofs.unsigned (Ptrofs.add i (Ptrofs.repr 4)))
+                    (size_chunk Mint8unsigned))
+                 (fun loc : address =>
+                  res_predicates.yesat compcert_rmaps.RML.R.NoneP
+                    (compcert_rmaps.VAL
+                       (nth
+                          (Z.to_nat
+                             (snd loc
+                                - snd (b, Ptrofs.unsigned (Ptrofs.add i (Ptrofs.repr 4)))))
+                          [Byte b4] Undef)) sh loc) res_predicates.noat)))
+        (predicates_hered.allp
+           (res_predicates.jam
+              (adr_range_dec (b, Ptrofs.unsigned (Ptrofs.add i (Ptrofs.repr 5)))
+                 (size_chunk Mint8unsigned))
+              (fun loc : address =>
+               res_predicates.yesat compcert_rmaps.RML.R.NoneP
+                 (compcert_rmaps.VAL
+                    (nth
+                       (Z.to_nat
+                          (snd loc
+                             - snd (b, Ptrofs.unsigned (Ptrofs.add i (Ptrofs.repr 5)))))
+                                    [Byte b5] Undef)) sh loc) res_predicates.noat)))
+     (predicates_hered.allp
+        (res_predicates.jam
+           (adr_range_dec (b, Ptrofs.unsigned (Ptrofs.add i (Ptrofs.repr 6)))
+              (size_chunk Mint8unsigned))
+           (fun loc : address =>
+            res_predicates.yesat compcert_rmaps.RML.R.NoneP
+              (compcert_rmaps.VAL
+                 (nth
+                    (Z.to_nat
+                       (snd loc - snd (b, Ptrofs.unsigned (Ptrofs.add i (Ptrofs.repr 6)))))
+                    [Byte b6] Undef)) sh loc) res_predicates.noat)))
+  (predicates_hered.allp
+     (res_predicates.jam
+        (adr_range_dec (b, Ptrofs.unsigned (Ptrofs.add i (Ptrofs.repr 7)))
+           (size_chunk Mint8unsigned))
+        (fun loc : address =>
+         res_predicates.yesat compcert_rmaps.RML.R.NoneP
+           (compcert_rmaps.VAL
+              (nth
+                 (Z.to_nat
+                    (snd loc - snd (b, Ptrofs.unsigned (Ptrofs.add i (Ptrofs.repr 7)))))
+                 [Byte b7] Undef)) sh loc) res_predicates.noat)) = 
+predicates_hered.allp
+  (res_predicates.jam (adr_range_dec (b, Ptrofs.unsigned i) (size_chunk Mint64))
+     (fun loc : address =>
+      res_predicates.yesat compcert_rmaps.RML.R.NoneP
+        (compcert_rmaps.VAL
+           (nth (Z.to_nat (snd loc - snd (b, Ptrofs.unsigned i)))
+              [Byte b0; Byte b1; Byte b2; Byte b3; Byte b4; Byte b5; Byte b6; Byte b7]
+              Undef)) sh loc) res_predicates.noat).
+Proof.
+intros.
+
+     simpl snd.
+    simpl size_chunk.
+ repeat   match goal with |- context [Ptrofs.add i (Ptrofs.repr ?A)] =>
+    replace (Ptrofs.unsigned (Ptrofs.add i (Ptrofs.repr A)))
+    with (A + Ptrofs.unsigned i)
+    by (unfold Ptrofs.add; rewrite (Ptrofs.unsigned_repr (Z.pos _)) by rep_lia;
+        rewrite Ptrofs.unsigned_repr by rep_lia; rep_lia)
+   end.
+  change [Byte b0; Byte b1; Byte b2; Byte b3; Byte b4; Byte b5; Byte b6; Byte b7] 
+  with (map Byte [b0;b1;b2;b3;b4;b5;b6;b7]).
+   
+
+repeat lazymatch goal with |- _ = ?R =>
+ lazymatch R with context [nth _ (map Byte ?al)] =>
+  lazymatch al with _ :: _ =>
+   let len := constr:(Zlength al) in let len := eval compute in len in 
+   let part1 := constr:(sublist.sublist 0 (len-1) al) in let part1 := eval compute in part1 in
+   let part2 := constr:(sublist.sublist (len-1) len al) in let part2 := eval compute in part2 in
+   rewrite  (res_predicates.allp_jam_split2 _ _ _ 
+           (fun loc : address =>
+            yesat compcert_rmaps.RML.R.NoneP
+              (compcert_rmaps.VAL
+                 (nth (Z.to_nat (snd loc - Ptrofs.unsigned i))
+                    (map Byte al) Undef)) sh loc)
+           (fun loc : address =>
+            yesat compcert_rmaps.RML.R.NoneP
+              (compcert_rmaps.VAL
+                 (nth (Z.to_nat (snd loc - Ptrofs.unsigned i))
+                    (map Byte part1) Undef)) sh loc)
+           (fun loc : address =>
+            yesat compcert_rmaps.RML.R.NoneP
+              (compcert_rmaps.VAL
+                 (nth (Z.to_nat (snd loc - ((len-1)+Ptrofs.unsigned i)))
+                    (map Byte part2) Undef)) sh loc)
+           (adr_range_dec (b, Ptrofs.unsigned i) len)
+           (adr_range_dec (b, Ptrofs.unsigned i) (len-1))
+           (adr_range_dec (b, (len-1) + Ptrofs.unsigned i) 1));
+  [ 
+  | eexists; apply res_predicates.is_resource_pred_YES_VAL'
+  | eexists; apply res_predicates.is_resource_pred_YES_VAL'
+  | eexists; apply res_predicates.is_resource_pred_YES_VAL'
+  | clear; split; intros [? ?]; simpl; intuition rep_lia
+  |intros; f_equal; f_equal;
+       destruct l; destruct H; subst; simpl snd;
+       change al with (List.app (sublist.sublist 0 (len-1) al) (sublist.sublist (len-1) len al));
+       rewrite map_app, app_nth1 by (simpl; lia);
+       reflexivity
+  | intros; f_equal; f_equal; 
+       destruct l; destruct H; subst; simpl snd;
+       change al with (List.app (sublist.sublist 0 (len-1) al) (sublist.sublist (len-1) len al));
+       rewrite map_app, app_nth2 by (simpl; lia);simpl sublist.sublist;
+       simpl length;
+       match type of H0 with ?a <= _ < _ => assert (z=a) by lia end; subst z;
+       rewrite Z.sub_diag;
+       replace (_ - _) with (len-1) by lia;
+       reflexivity
+  |intros; left; destruct H0; hnf in H0; rewrite H0 in H1; clear H0;
+        destruct l, H; subst; simpl snd in *;
+    rewrite nth_map'  with (d' :=  Byte.zero) in H1 by (simpl; lia);
+    inv H1; apply I
+  ];
+  f_equal; (set (jj:= len-1) in *; compute in jj; subst jj) (*  really_simplify (len-1)   *)
+  end end end.
+Qed.
+
+Lemma address_mapsto_8bytes_forward:
+ forall 
+    (AP: Archi.ptr64 = true)  (* Perhaps this premise could be eliminated. *)
+   (sh : Share.t)
+    (b0 b1 b2 b3 b4 b5 b6 b7 : byte)
+    (b : block)
+    (i : ptrofs)
+    (SZ : Ptrofs.unsigned i + 8 < Ptrofs.modulus)
+    (AL : (8 | Ptrofs.unsigned i))
+    (r : readable_share sh),
+predicates_hered.derives
+ (predicates_sl.sepcon
+ (predicates_sl.sepcon
+  (predicates_sl.sepcon
+   (predicates_sl.sepcon
+    (predicates_sl.sepcon
+     (predicates_sl.sepcon
+      (predicates_sl.sepcon
+       (res_predicates.address_mapsto Mint8unsigned 
+           (Vubyte b0) sh (b, Ptrofs.unsigned i))
+       (res_predicates.address_mapsto Mint8unsigned 
+           (Vubyte b1) sh
+           (b, Ptrofs.unsigned (Ptrofs.add i (Ptrofs.repr 1)))))
+       (res_predicates.address_mapsto Mint8unsigned 
+         (Vubyte b2) sh (b, Ptrofs.unsigned (Ptrofs.add i (Ptrofs.repr 2)))))
+       (res_predicates.address_mapsto Mint8unsigned (Vubyte b3) sh
+          (b, Ptrofs.unsigned (Ptrofs.add i (Ptrofs.repr 3)))))
+       (res_predicates.address_mapsto Mint8unsigned (Vubyte b4) sh
+          (b, Ptrofs.unsigned (Ptrofs.add i (Ptrofs.repr 4)))))
+       (res_predicates.address_mapsto Mint8unsigned (Vubyte b5) sh
+          (b, Ptrofs.unsigned (Ptrofs.add i (Ptrofs.repr 5)))))
+       (res_predicates.address_mapsto Mint8unsigned (Vubyte b6) sh
+          (b, Ptrofs.unsigned (Ptrofs.add i (Ptrofs.repr 6)))))
+       (res_predicates.address_mapsto Mint8unsigned (Vubyte b7) sh
+          (b, Ptrofs.unsigned (Ptrofs.add i (Ptrofs.repr 7)))))
+ (res_predicates.address_mapsto Mint64
+  (Vlong (Int64.repr (decode_int [b0; b1; b2; b3; b4; b5; b6; b7]))) sh
+  (b, Ptrofs.unsigned i)).
+Proof.
+intros.
+      unfold res_predicates.address_mapsto. rewrite <- !exp_equiv.
+    repeat change (seplog.exp ?A) with (predicates_hered.exp A).
+    normalize.normalize.
+    intros bl7 [A7 [B7 _]] bl6 bl5 bl4 bl3 bl2 bl1 bl0.
+    normalize.normalize.
+    destruct H as [A6 [ B6 _]].
+    destruct H0 as [A5 [ B5 _]].
+    destruct H1 as [A4 [ B4 _]].
+    destruct H2 as [A3 [ B3 _]].
+    destruct H3 as [A2 [ B2 _]].
+    destruct H4 as [A1 [ B1 _]].
+    destruct H5 as [A0 [ B0 _]].
+    destruct bl0 as [ | c0 [|]]; inv A0; inv B0. 
+    destruct bl1 as [ | c1 [|]]; inv A1; inv B1.
+    destruct bl2 as [ | c2 [|]]; inv A2; inv B2. 
+    destruct bl3 as [ | c3 [|]]; inv A3; inv B3.
+    destruct bl4 as [ | c4 [|]]; inv A4; inv B4. 
+    destruct bl5 as [ | c5 [|]]; inv A5; inv B5.
+    destruct bl6 as [ | c6 [|]]; inv A6; inv B6. 
+    destruct bl7 as [ | c7 [|]]; inv A7; inv B7.
+    destruct c0; try discriminate H0.
+    destruct c1; try discriminate H1.
+    destruct c2; try discriminate H2.
+    destruct c3; try discriminate H3.
+    destruct c4; try discriminate H4.
+    destruct c5; try discriminate H5.
+    destruct c6; try discriminate H6.
+    destruct c7; try discriminate H7.
+    apply decode_val_Vubyte_inj in H0,H1,H2,H3,H4,H5,H6,H7; subst.
+   apply (predicates_hered.exp_right (map Byte [b0;b1;b2;b3;b4;b5;b6;b7])).
+     rewrite predicates_hered.prop_true_andp.
+      2:{ split3. reflexivity. reflexivity. apply AL. }
+   rewrite address_mapsto_8bytes_aux; auto.
+Qed.
+
+
+Lemma nonlock_permission_8bytes:
+ forall (sh : Share.t)
+     (b : block) (i : ptrofs) 
+     (SZ : Ptrofs.unsigned i + 8 < Ptrofs.modulus),
+(res_predicates.nonlock_permission_bytes sh (b, Ptrofs.unsigned i) 1
+   * res_predicates.nonlock_permission_bytes sh
+       (b, Ptrofs.unsigned (Ptrofs.add i (Ptrofs.repr 1))) 1
+   * res_predicates.nonlock_permission_bytes sh
+       (b, Ptrofs.unsigned (Ptrofs.add i (Ptrofs.repr 2))) 1
+   * res_predicates.nonlock_permission_bytes sh
+       (b, Ptrofs.unsigned (Ptrofs.add i (Ptrofs.repr 3))) 1
+   * res_predicates.nonlock_permission_bytes sh
+       (b, Ptrofs.unsigned (Ptrofs.add i (Ptrofs.repr 4))) 1
+   * res_predicates.nonlock_permission_bytes sh
+       (b, Ptrofs.unsigned (Ptrofs.add i (Ptrofs.repr 5))) 1
+   * res_predicates.nonlock_permission_bytes sh
+       (b, Ptrofs.unsigned (Ptrofs.add i (Ptrofs.repr 6))) 1
+   * res_predicates.nonlock_permission_bytes sh
+       (b, Ptrofs.unsigned (Ptrofs.add i (Ptrofs.repr 7))) 1)%logic = 
+res_predicates.nonlock_permission_bytes sh (b, Ptrofs.unsigned i) 8.
+Proof.
+intros.
+ repeat   match goal with |- context [Ptrofs.add i (Ptrofs.repr ?A)] =>
+    replace (Ptrofs.unsigned (Ptrofs.add i (Ptrofs.repr A)))
+    with (A + Ptrofs.unsigned i)
+    by (unfold Ptrofs.add; rewrite (Ptrofs.unsigned_repr (Z.pos _)) by rep_lia;
+        rewrite Ptrofs.unsigned_repr by rep_lia; rep_lia)
+   end.
+ rewrite (res_predicates.nonlock_permission_bytes_split2 7 1 8 sh) by lia.
+ rewrite (res_predicates.nonlock_permission_bytes_split2 6 1 7 sh) by lia.
+ rewrite (res_predicates.nonlock_permission_bytes_split2 5 1 6 sh) by lia.
+ rewrite (res_predicates.nonlock_permission_bytes_split2 4 1 5 sh) by lia.
+ rewrite (res_predicates.nonlock_permission_bytes_split2 3 1 4 sh) by lia.
+ rewrite (res_predicates.nonlock_permission_bytes_split2 2 1 3 sh) by lia.
+ rewrite (res_predicates.nonlock_permission_bytes_split2 1 1 2 sh) by lia.
+ repeat change (predicates_sl.sepcon ?A ?B) with (A * B)%logic.
+ rewrite !(Z.add_comm (Ptrofs.unsigned i)).
+ f_equal.
+Qed.
+
 Lemma tc_val_Vubyte: forall b, tc_val tuchar (Vubyte b).
 Proof.
 intros; red. 
 simpl. rewrite Int.unsigned_repr by rep_lia.
 rep_lia.
 Qed.
+
+End Foo.
+
+Lemma data_at_long_bytes_forward: 
+  forall 
+    (AP: Archi.ptr64 = true)  (* Perhaps this premise could be eliminated. *)
+  sh 
+   (b0 b1 b2 b3 b4 b5 b6 b7: byte) p,
+  field_compatible tulong [] p  ->
+  (data_at sh tuchar (Vubyte b0) p *
+  data_at sh tuchar (Vubyte b1) (offset_val 1 p) *
+  data_at sh tuchar (Vubyte b2) (offset_val 2 p) *
+  data_at sh tuchar (Vubyte b3) (offset_val 3 p) *
+  data_at sh tuchar (Vubyte b4) (offset_val 4 p) *
+  data_at sh tuchar (Vubyte b5) (offset_val 5 p) *
+  data_at sh tuchar (Vubyte b6) (offset_val 6 p) *
+  data_at sh tuchar (Vubyte b7) (offset_val 7 p))%logic |--
+  data_at sh tulong (Vlong (Int64.repr (decode_int [b0;b1;b2;b3;b4;b5;b6;b7]))) p.
+Proof.
+  intros AP sh b0 b1 b2 b3 b4 b5 b6 b7 p. unfold data_at. unfold field_at.
+  intro. normalize.normalize. clear - AP H. simpl.
+ rewrite (prop_true_andp (field_compatible tulong [] p)) by auto.
+ destruct H as [H0 [_ [SZ [AL _]]]]. red in SZ. simpl sizeof in SZ.
+   destruct p; inversion H0. clear H0.
+ assert (8 | Ptrofs.unsigned i)
+   by (eapply align_compatible_rec_by_value_inv in AL; [ | reflexivity]; assumption).
+ clear AL.
+ Intros.
+ unfold at_offset.
+ rewrite !offset_offset_val. rewrite !Z.add_0_r.
+ simpl offset_val. rewrite !ptrofs_add_repr_0_r.
+ rewrite !data_at_rec_eq. simpl.
+ change (unfold_reptype ?x) with x.
+ unfold mapsto.
+ simpl access_mode; simpl type_is_volatile; cbv iota.
+ rewrite !(prop_true_andp _ _ (tc_val_Vubyte _)).
+ rewrite !(prop_false_andp (_ = _)) by (intro Hx; inv Hx).
+ rewrite !(prop_true_andp (tc_val tulong _)) by (apply Logic.I).
+ rewrite ?prop_and_mpred.
+ rewrite ?(prop_true_andp _ _ (tc_val_tc_val' _ _ (tc_val_Vubyte _))).
+ rewrite !(prop_true_andp (tc_val' tulong _)) by (apply tc_val_tc_val'; apply Logic.I).
+ rewrite ?(prop_true_andp _ _ (Z.divide_1_l _)).
+ rewrite !orp_FF.
+ rewrite (prop_true_andp (_ | _)) by apply H.
+ if_tac.
+-
+ rewrite derives_eq.
+ apply address_mapsto_8bytes_forward; auto.
+- rewrite nonlock_permission_8bytes; auto.
+  apply derives_refl.
+Qed.
+
 
 Lemma nonlock_permission_4bytes:
  forall (sh : Share.t)

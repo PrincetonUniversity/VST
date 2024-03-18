@@ -40,6 +40,12 @@ Create HintDb entailer_rewrite discriminated.
 
 Require Import VST.veric.val_lemmas.
 
+Lemma Vlong_inj : forall x y : int64, Vlong x = Vlong y -> x = y.
+Proof.
+intros.
+inv H. auto.
+Qed.
+
 Lemma Vint_injective i j (H: Vint i = Vint j): i=j.
 Proof. inv H; trivial. Qed. 
 

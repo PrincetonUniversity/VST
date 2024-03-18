@@ -430,13 +430,17 @@ Ltac try_prove_it_now :=
   where B and D are easily provable, one wants to leave the
   goal A/\C.
 *)
+
+Definition conjuncts_marker (P: Prop) : Prop := P.
+(* The purpose of this conjuncts marker is to try to address VST issue #745 *) 
+
 Lemma try_conjuncts_lem2: forall A B : Prop,
    B -> A -> (A /\ B).
 Proof. tauto. Qed.
 
 Lemma try_conjuncts_lem: forall A B A' B' : Prop,
-   (A -> A') -> (B -> B') -> (A /\ B -> A' /\ B').
-Proof. tauto. Qed.
+   (conjuncts_marker A -> A') -> (conjuncts_marker B -> B') -> ((A /\ B) -> A' /\ B').
+Proof. unfold conjuncts_marker; tauto. Qed.
 
 Lemma try_conjuncts_start: forall A B: Prop,
    (A -> B) -> (A -> B).
@@ -449,22 +453,23 @@ Ltac try_conjuncts_solver :=
     end.
 
 Ltac try_conjuncts :=
- first [ simple eapply conj;
+ first [ simple apply conj;
                 [try_conjuncts_solver | try_conjuncts ]
         | simple eapply try_conjuncts_lem2;
-                [try_conjuncts_solver | match goal with H:_ |- _ => apply H end ]
+                [try_conjuncts_solver 
+                | match goal with H: conjuncts_marker _ |- _ => red in H; apply H end ]
         | simple eapply try_conjuncts_lem;
             [intro; try_conjuncts | intro; try_conjuncts
-            |match goal with H:_ |- _ => apply H end ]
-        | match goal with H:_ |- _ => instantiate (1:=True%type) in H;
+            |match goal with H: conjuncts_marker _ |- _ => red in H; apply H end ]
+        | match goal with H: conjuncts_marker _ |- _ => instantiate (1:=True%type) in H;
                 try_conjuncts_solver
           end
-        | match goal with H:_ |- _ => apply H end
+        | match goal with H: conjuncts_marker _ |- _ => red in H; apply H end
         ].
 
 Lemma try_conjuncts_prop_and:
   forall {A:bi} (S: A) (P P': Prop) Q,
-      (P' -> P) ->
+      (conjuncts_marker P' -> P) ->
       (S ⊢ ⌜P'⌝ ∧ Q) ->
       S ⊢ ⌜P⌝ ∧ Q.
 Proof. intros.
@@ -475,7 +480,7 @@ Qed.
 
 Lemma try_conjuncts_prop:
   forall {A:bi} (S: A) (P P': Prop),
-      (P' -> P) ->
+      (conjuncts_marker P' -> P) ->
       (S ⊢ ⌜P'⌝) ->
       S ⊢ ⌜P⌝ .
 Proof. intros.
@@ -514,7 +519,7 @@ Qed.
 Ltac clean_up_stackframe := idtac.
 
 Lemma my_auto_lem:
- forall (P Q: Prop), (P -> Q) -> (P -> Q).
+ forall (P Q: Prop), (conjuncts_marker P -> Q) -> (P -> Q).
 Proof. auto. Qed.
 
 Ltac my_auto_iter H :=
@@ -523,8 +528,8 @@ Ltac my_auto_iter H :=
          eapply try_conjuncts_lem;
             [let H1 := fresh in intro H1; my_auto_iter H1
             |let H1 := fresh in intro H1; my_auto_iter H1
-            | exact H ]
-       | apply H
+            | apply H ]
+       | red in H (* remove conjuncts_marker*); apply H
        ].
 
 Ltac all_True :=  solve [repeat simple apply conj; simple apply Coq.Init.Logic.I].
@@ -536,7 +541,7 @@ Ltac my_auto_reiter :=
                 [intro; my_auto_reiter
                 |intro; my_auto_reiter
                 |eassumption]
-        |eassumption].
+        |lazymatch goal with H: conjuncts_marker _ |- _ => red in H; apply H end].
 
 Ltac my_auto :=
  repeat match goal with |- ?P -> _ => match type of P with Prop => intro end end;

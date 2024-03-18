@@ -1601,8 +1601,8 @@ Ltac SEP_field_at_strong_unify' gfs :=
 
 Ltac SEP_field_at_strong_unify gfs :=
   match goal with
-  | |- data_at_ ?sh ?t ?p = _ /\ _ =>
-      change (data_at_ sh t p) with (data_at sh t (default_val t) p);
+  | |- @data_at_ ?cs ?sh ?t ?p = _ /\ _ =>
+      change (@data_at_ cs sh t p) with (@data_at cs sh t (default_val t) p);
       SEP_field_at_strong_unify' gfs
   | |- field_at_ _ _ _ _ = _ /\ _ =>
       unfold field_at_; SEP_field_at_strong_unify' gfs
@@ -1648,7 +1648,9 @@ Qed.
 Ltac quick_typecheck3 :=
   (* do not clear hyps anymore!  See issue #772 *)
  apply quick_derives_right; go_lowerx; intros;
- repeat apply bi.and_intro; auto; fail.
+ repeat apply bi.and_intro;
+ try apply derives_refl;  (* see issue #756 *)
+ auto; fail.
 
 Ltac default_entailer_for_load_store :=
   (* Don't clear!  See issue #772 repeat match goal with H := _ |- _ => clear H end; *)

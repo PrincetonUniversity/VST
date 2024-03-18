@@ -295,7 +295,7 @@ Ltac solve_load_rule_evaluation :=
     | |- JMeq (@proj_reptype ?cs ?t ?gfs ?v) _ =>
         let opaque_v := fresh "opaque_v" in
               remember v as opaque_v;
-              change proj_reptype with proj_reptype';
+              change @proj_reptype with @proj_reptype';
               cbv - [ sublist.Znth Int.repr JMeq myfst mysnd];
               change @myfst with @fst;
               change @mysnd with @snd;
@@ -345,7 +345,7 @@ Ltac solve_store_rule_evaluation :=
    let h0 := fresh "h0" in let h1 := fresh "h1" in
    set (h0:=v0 : @reptype cs t); 
    set (h1:=v1 : @reptype cs (@nested_field_type cs t gfs)); 
-   change (upd_reptype t gfs h0 h1 = rhs);
+   change (@upd_reptype cs t gfs h0 h1 = rhs);
    remember_indexes gfs;
    let j := fresh "j" in match type of h0 with ?J => set (j := J) in h0 end;
    lazy beta zeta iota delta in j; subst j;

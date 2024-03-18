@@ -540,7 +540,6 @@ Qed.
 
 Lemma field_at_app `{!VSTGS OK_ty Σ} {cs: compspecs}:
  forall sh t gfs1 gfs2 v v' p,
- field_compatible t nil p ->
  JMeq v v' ->
  field_at sh t (gfs1++gfs2) v p ⊣⊢
  field_at sh (nested_field_type t gfs2) gfs1 v' (field_address t gfs2 p).

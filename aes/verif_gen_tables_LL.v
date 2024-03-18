@@ -226,8 +226,8 @@ Proof.
            && data_at Tsh (tarray tint 256) pow v_pow;
          tables_uninitialized (gv _tables))).
   { (* init *)
-    forward. forward. Exists 0. entailer!. do 2 Exists (repeat Vundef 256).
-    entailer!.
+    forward. forward. Exists 0. entailer!!. do 2 Exists (repeat Vundef 256).
+    entailer!!.
   }
   { (* body *)
     (* forward. TODO floyd: "forward" should tell me to use Intros instead of just failing *)
@@ -238,7 +238,7 @@ Proof.
        TODO floyd: error message should say that I have to thaw *)
     thaw Fr.
     forward.
-    + entailer!. apply pow3_range; lia.
+    + entailer!!. apply pow3_range; lia.
     + (* t'1 = ( x & 0x80 ) ? 0x1B : 0x00 ) *)
       forward_if_diff (PROP () LOCAL (temp _t'1 (Vint (
         if Int.eq (Int.and (pow3 i) (Int.repr 128)) Int.zero
@@ -246,18 +246,18 @@ Proof.
         else (Int.repr 27)
       ))) SEP ()).
       * (* then-branch of "_ ? _ : _" *)
-        forward. rewrite Int.eq_false by assumption. entailer!.
+        forward. rewrite Int.eq_false by assumption. entailer!!.
       * (* else-branch of "_ ? _ : _" *)
         forward.
         match goal with
         | H: @eq int _ _ |- _ => rewrite H
         end.
         rewrite Int.eq_true.
-        entailer!.
+        entailer!!.
       * (* after  "_ ? _ : _" *)
         (* x = (x ^ ((x << 1) ^ t'1)) & 0xFF *)
         forward.
-        entailer!.
+        entailer!!.
         { f_equal. unfold pow3. rewrite repeat_op_step by lia. reflexivity. }
         { Exists (upd_Znth i pow (Vint (pow3 i))).
           Exists (upd_Znth (Int.unsigned (pow3 i)) log (Vint (Int.repr i))).
@@ -291,10 +291,10 @@ Proof.
 
   forward_for_simple_bound 10 (rcon_loop_inv0 v_pow v_log gv Fr).
   { (* init *)
-    forward. forward. Exists 0. entailer!.
+    forward. forward. Exists 0. entailer!!.
   }
   { (* body *)
-    forward. entailer!.
+    forward. entailer!!.
     (* t'2 = ( x & 0x80 ) ? 0x1B : 0x00 ) *)
     forward_if_diff (PROP () LOCAL (temp _t'2 (Vint (
       if Int.eq (Int.and (pow2 i) (Int.repr 128)) Int.zero
@@ -302,18 +302,18 @@ Proof.
       else (Int.repr 27)
     ))) SEP ()).
     * (* then-branch of "_ ? _ : _" *)
-      forward. rewrite Int.eq_false by assumption. entailer!.
+      forward. rewrite Int.eq_false by assumption. entailer!!.
     * (* else-branch of "_ ? _ : _" *)
       forward.
       match goal with
       | H: @eq int _ _ |- _ => rewrite H
       end.
       rewrite Int.eq_true.
-      entailer!.
+      entailer!!.
     * (* after  "_ ? _ : _" *)
       (* x = ((x << 1) ^ t'2)) & 0xFF *)
       forward.
-      entailer!.
+      entailer!!.
       - f_equal. unfold pow2 at 1. rewrite repeat_op_step by lia. reflexivity.
       - apply field_at_update_val.
         rewrite upd_Znth_app2.
@@ -389,16 +389,16 @@ Proof.
   forward_for_simple_bound 256 (gen_sbox_inv0 v_pow v_log (map Z_to_val log) (map Vint pow) gv Fr).
   { (* loop invariant holds initially: *)
     unfold gen_sbox_inv00.
-    entailer!.
+    entailer!!.
     Exists (upd_Znth 99 Vundef256 (Vint (Int.repr 0))).
     Exists (upd_Znth 0 Vundef256 (Vint (Int.repr 99))).
-    entailer!.
+    entailer!!.
     intros. assert (j = 0) by lia. subst j. rewrite upd_Znth_same.
       * reflexivity.
       * change (Zlength Vundef256) with 256. lia.
   }
   { (* loop body preserves invariant: *)
-    forward. { entailer!. rewrite Hlog' by lia. auto. }
+    forward. { entailer!!. rewrite Hlog' by lia. auto. }
     pose proof (log3range i).
     rewrite Hlog' by lia.
     (* TODO floyd: If I don't do the above to make sure that "temp _logi" is a Vint,
@@ -426,14 +426,14 @@ Proof.
     Intro fsb. Intro rsb.
     forward. forward.
     - (* entailment of "forward" *)
-      entailer!.
+      entailer!!.
       apply FSb_range.
     - (* postcondition implies loop invariant *)
-      entailer!.
+      entailer!!.
         match goal with
         | |- (field_at _ _ _ ?fsb' _ * field_at _ _ _ ?rsb' _)%logic |-- _ => Exists rsb'; Exists fsb'
         end.
-        entailer!. repeat split.
+        entailer!!. repeat split.
         + rewrite upd_Znth_diff; (lia || auto).
         + rewrite upd_Znth_Zlength; lia.
         + intros.
@@ -477,7 +477,7 @@ Proof.
     (forall j : Z, 1 <= j < 256 ->
        Znth (Int.unsigned (Znth j FSb)) rsb = Vint (Int.repr j)) /\
     (Znth 99 rsb = Vint Int.zero)
-  ) as P. { entailer!. }
+  ) as P. { entailer!!. }
   destruct P as [?H [?H ?H]]. normalize. (*
   match goal with
   | |- semax ?D (PROPx ?P (LOCALx ?Q (SEPx ?R))) ?e ?Post => match R with
@@ -518,7 +518,7 @@ Proof.
   forward_for_simple_bound 256 (gen_ftrt_inv0 v_pow v_log (map Z_to_val log) (map Vint pow) gv).
   { (* loop invariant holds initially: *)
     unfold gen_ftrt_inv00.
-    entailer!.
+    entailer!!.
   }
   { (* loop body preserves invariant: *)
 
@@ -535,14 +535,14 @@ Proof.
       else (Int.repr 27)
     ))) SEP ()).
     * (* then-branch of "_ ? _ : _" *)
-      forward. rewrite Int.eq_false by assumption. entailer!.
+      forward. rewrite Int.eq_false by assumption. entailer!!.
     * (* else-branch of "_ ? _ : _" *)
       forward.
       match goal with
       | H: @eq int _ _ |- _ => rewrite H
       end.
       rewrite Int.eq_true.
-      entailer!.
+      entailer!!.
     * (* after  "_ ? _ : _" *)
       forward.
       match goal with
@@ -619,7 +619,7 @@ Proof.
       }
       pose proof (RSb_range i).
       forward. forward. forward. {
-        entailer!.
+        entailer!!.
        (* We have to show that we're not in the case "INT_MIN % -1", because that's undefined behavior.
           TODO floyd: Make sure floyd can solve this automatically, also in solve_efield_denote, so
           that we don't have to factor out the modulo, but can use it directly as the array index. *)
@@ -635,13 +635,15 @@ Proof.
       }
       pose proof (mod_range _ 255 A).
       forward.
-      entailer!.
+      entailer!!.
+      fold Int.zero in *.
       destruct (Int.eq (Znth i RSb) Int.zero) eqn: E.
-      - exfalso. apply H3. reflexivity.
+      - exfalso. apply H3; auto.
       - simpl. reflexivity.
     }
     { (* else-branch *)
-      forward. entailer!.
+      forward. entailer!!.
+      fold Int.zero in *.
       destruct (Int.eq (Znth i RSb) Int.zero) eqn: E.
       - simpl. reflexivity.
       - discriminate.
@@ -663,7 +665,7 @@ Proof.
       pose proof (RSb_range i).
       forward. forward. 
       forward. { 
-         entailer!.
+         entailer!!.
          split.
          intros [? H99]; inv H99.
          apply add_no_overflow; auto; computable.
@@ -675,13 +677,15 @@ Proof.
       }
       pose proof (mod_range _ 255 A).
       forward.
-      entailer!.
+      fold Int.zero in *.
+      entailer!!.
       destruct (Int.eq (Znth i RSb) Int.zero) eqn: E.
       - exfalso. apply H3. reflexivity.
       - simpl. reflexivity.
     }
     { (* else-branch *)
-      forward. entailer!.
+      forward. entailer!!.
+      fold Int.zero in *.
       destruct (Int.eq (Znth i RSb) Int.zero) eqn: E.
       - simpl. reflexivity.
       - discriminate.
@@ -703,7 +707,7 @@ Proof.
       pose proof (RSb_range i).
       forward. forward. 
       forward. { 
-         entailer!. 
+         entailer!!. 
          split. 
          intros [? H99]; inv H99.
          apply add_no_overflow; auto; computable.
@@ -716,12 +720,14 @@ Proof.
       pose proof (mod_range _ 255 A).
       forward.
       entailer!.
+      fold Int.zero in *.
       destruct (Int.eq (Znth i RSb) Int.zero) eqn: E.
       - exfalso. apply H3. reflexivity.
       - simpl. reflexivity.
     }
     { (* else-branch *)
-      forward. entailer!.
+      forward. entailer!!.
+      fold Int.zero in *.
       destruct (Int.eq (Znth i RSb)) eqn: E.
       - simpl. reflexivity.
       - discriminate.
@@ -743,7 +749,7 @@ Proof.
       pose proof (RSb_range i).
       forward. forward.
       forward. { 
-         entailer!.
+         entailer!!.
          split.
          intros [? H99]; inv H99.
          apply add_no_overflow; auto; computable.
@@ -756,12 +762,14 @@ Proof.
       pose proof (mod_range _ 255 A).
       forward.
       entailer!.
+      fold Int.zero in *.
       destruct (Int.eq (Znth i RSb) Int.zero) eqn: E.
       - exfalso. apply H3. reflexivity.
       - simpl. reflexivity.
     }
     { (* else-branch *)
       forward. entailer!.
+      fold Int.zero in *.
       destruct (Int.eq (Znth i RSb) Int.zero) eqn: E.
       - simpl. reflexivity.
       - discriminate.
@@ -814,7 +822,7 @@ Proof.
     Ltac canon_load_result ::= default_canon_load_result.
 
     (* postcondition implies loop invariant: *)
-    entailer!.
+    entailer!!.
   }
   unfold partially_filled. change (repeat_op_table (256 - 256) Vundef id) with (@nil val).
   do 8 rewrite app_nil_r.
@@ -837,11 +845,17 @@ Proof.
   forget RT1 as RT1'.
   forget RT2 as RT2'.
   forget RT3 as RT3'.
-
-  entailer!.
+  repeat (let j := fresh "j" in set (j := field_at _ _ _ _ _); clearbody j).
+  go_lowerx. cancel.
+  unfold stackframe_of.
+  simpl.
+  rewrite sepcon_emp.
+  apply sepcon_derives;
+    sep_apply data_at_data_at_; eapply var_block_lvar0; eauto; reflexivity.
 } }
 (*  Show.*)
 Time Qed.
 (* Coq 8.5.2: 177s
    Coq 8.6  :  75s
+   Coq 8.18 with VST 2.13+ and some tweaks to this proof, and a Mac M2: 5.6 secs
 *)

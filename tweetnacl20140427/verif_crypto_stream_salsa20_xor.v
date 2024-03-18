@@ -335,15 +335,23 @@ forward_if (IfPost v_z v_x bInit (N0, N1, N2, N3) K mCont (Int64.unsigned bInit)
   eapply (loop2 Espec (FRZL FR1) v_x v_z c mInit); try eassumption; try lia.
   unfold IfPost.
   Intros l.
-  unfold typed_true in BR. inversion BR; clear BR.
+ (* unfold typed_true in BR. inversion BR; clear BR.*)
   entailer!!.
-   rename H1 into H8.
+  rewrite Int64.eq_false.
+  2:{intro; subst. rewrite Int64.unsigned_zero in *. 
+     assert (rounds=0%nat) by (clear - R64a; lia). subst rounds.
+     clear - H'. simpl in H'. lia.
+  }
+(*
+  rename H1 into H8.
   rewrite RR in *. eapply negb_true_iff in H8. 
   unfold Int64.eq in H8. rewrite RR in H8. unfold Int64.zero in H8.
   rewrite Int64.unsigned_repr in H8. 2: lia.
-  if_tac in H8. inv H8. clear H8. thaw FR1.
+  if_tac in H8. inv H8. clear H8. *)
+  thaw FR1.
   unfold CoreInSEP.
-  rewrite Int64.eq_false. 2: assumption.
+(*  rewrite Int64.eq_false. 2: assumption.
+*)
   Exists (srbytes ++ l). unfold SByte.
   specialize (CONT_Zlength _ _ _ _ _ _ _ _ CONT); intros CZ.
   entailer!. 
@@ -361,31 +369,41 @@ forward_if (IfPost v_z v_x bInit (N0, N1, N2, N3) K mCont (Int64.unsigned bInit)
     assert (Arith2: Int64.unsigned bInit mod 64 = Int64.unsigned bInit - Z.of_nat rounds * 64).
     { symmetry; eapply Zmod_unique. lia. instantiate (1:=Z.of_nat rounds); lia. }
     rewrite Arith1, Arith2, (CONTCONT _ _ _ _ _ _ _ _ CONT).
+    rewrite <- (Int64.repr_unsigned bInit) in H.
+    rewrite sub64_repr in H. rewrite Int64.unsigned_repr in H by lia.
     rewrite if_false.
-    - exists zbytesR, srbytes, d, snuff, sr_bytes, l. 
-      intuition.
-    - trivial.
-  + erewrite (split2_data_at_Tarray_tuchar _ (Int64.unsigned bInit) (Z.of_nat rounds * 64)).
+    - exists zbytesR, srbytes, d, snuff, sr_bytes, l.
+      repeat simple apply conj; auto.
+    -  rewrite <- (Int64.repr_unsigned bInit) in BR.
+       rewrite sub64_repr in BR. contradict BR. rewrite BR. reflexivity.
+  +
+    rewrite <- (Int64.repr_unsigned bInit). rewrite !sub64_repr.
+    rewrite !Int64.unsigned_repr by lia. rewrite Int64.repr_unsigned.
+    erewrite (split2_data_at_Tarray_tuchar _ (Int64.unsigned bInit) (Z.of_nat rounds * 64)).
     2: lia. 
     2: rewrite Zlength_Bl2VL in *; rewrite Zlength_app. 2: lia. 
     rewrite Zlength_Bl2VL in *; unfold Bl2VL in *.
     repeat rewrite map_app. autorewrite with sublist.
-    unfold Sigma_vector. cancel. 
+    cancel. 
     rewrite field_address0_clarify; simpl.
     rewrite Zplus_0_l, Z.mul_1_l; trivial.
     unfold field_address0; simpl.
     rewrite Zplus_0_l, Z.mul_1_l, if_true; trivial. 
-    apply field_compatible_isptr in H13. 
+    apply field_compatible_isptr in H12. 
     destruct cInit; simpl in *; try contradiction; trivial.
     auto with field_compatible.
 }
 { forward.
-  hnf in H. inversion H; clear H. rewrite RR in *. eapply negb_false_iff in H1. 
-  unfold Int64.eq in H1. rewrite RR in H1. unfold Int64.zero in H1.
-  rewrite Int64.unsigned_repr in H1 by lia.
-  if_tac in H1. 2: inv H1. clear H1. 
+  hnf in H. inversion H; clear H. rewrite RR in *. (* eapply negb_false_iff in H1. *)
+  (* unfold Int64.eq in H1. rewrite RR in H1. unfold Int64.zero in H1.*)
+ (* rewrite Int64.unsigned_repr in H1 by lia.*)
+ (* if_tac in H1. 2: inv H1. clear H1. *)
+  clear RR.
+  rewrite !Int64.Z_mod_modulus_eq in H1.
+  rewrite Zminus_mod_idemp_r in H1. 
+  rewrite Z.mod_small in H1 by rep_lia.
   assert (XX: Int64.unsigned bInit = r64) by lia.
-  rewrite XX in *. clear H RR.
+  rewrite XX in *. clear H1.
   unfold IfPost, CoreInSEP.
   entailer!.
   rewrite Zminus_diag in *; rewrite Tarray_0_emp_iff_; try assumption.

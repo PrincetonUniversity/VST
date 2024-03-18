@@ -772,13 +772,16 @@ Qed.
 End mpred.
 
 Ltac quick_typecheck3 :=
+ (* do not clear hyps anymore!  See issue #772 
  clear;
  repeat match goal with
  | H := _ |- _ => clear H
  | H : _ |- _ => clear H
- end;
+ end; *)
  apply quick_derives_right; clear; go_lowerx; intros;
- clear; repeat apply bi.and_intro; auto; fail.
+ clear; repeat apply bi.and_intro;
+ try apply derives_refl;  (* see issue #756 *)
+ auto; fail.
 
 Ltac default_entailer_for_load_store :=
   repeat match goal with H := _ |- _ => clear H end;

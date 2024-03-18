@@ -837,6 +837,9 @@ Ltac prove_split_FRZ_in_SEP :=
     | simple apply split_FRZ_in_SEP_FRZR
     | simple apply split_FRZ_in_SEP_other]].
 
+
+Definition protect_evar {A} (x: A) := x.
+
 Ltac unfold_app :=
 change (@app mpred)
   with (fix app (l m : list mpred) {struct l} : list mpred :=
@@ -863,7 +866,12 @@ Ltac localize R_L :=
   let FR_L := fresh "RamL" in
   let FR_G := fresh "RamG" in
   intros FR_L FR_G;
-  eexists;
+  (* regarding the next 4 lines, see 
+      https://github.com/PrincetonUniversity/VST/issues/756 *)
+  let w := fresh "w" in let wx := fresh "wx" in 
+  evar(wx: FRZRw FR_L FR_G);
+  pose (w := protect_evar wx); subst wx;
+  exists w;
   unfold_app.
 
 Ltac prove_ramif_frame_gen_rec wit :=
@@ -900,7 +908,14 @@ Ltac prove_ramif_frame_gen_prop assu :=
   let Pure := type of H in
     apply (ramif_frame_gen_prop Pure _ _ H).
 
+
+Ltac unprotect_evar := 
+ match goal with w := protect_evar _ |- _ => 
+        unfold protect_evar in w; subst w 
+ end.
+
 Ltac unlocalize_plain R_G2 :=
+  unprotect_evar; 
   match goal with
   | |- @semax _ _ _ _ _ _ _ _ _ _ =>
           eapply (unlocalize_triple R_G2)
@@ -927,6 +942,7 @@ Ltac unlocalize_plain R_G2 :=
   ].
 
 Ltac unlocalize_wit R_G2 wit tac :=
+  unprotect_evar; 
   match goal with
   | |- @semax _ _ _ _ _ _ _ _ _ _ =>
           eapply (unlocalizeQ_triple R_G2)
