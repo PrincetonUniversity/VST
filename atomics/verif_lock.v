@@ -160,7 +160,7 @@ Section PROOFS.
                        LOCAL (temp _b (vint 0); lvar _expected tint v_expected;
                               temp _lock (ptr_of h))
                        SEP (data_at_ Tsh tint v_expected; atomic_lock_inv sh h R)).
-    { entailer!. }
+    { unfold lock_inv; simpl; entailer!. }
     forward.
     forward_call
       (ptr_of h, Tsh, v_expected, (vint 0), (vint 1), ⊤ : coPset, ∅ : coPset,
