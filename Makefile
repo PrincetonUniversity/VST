@@ -325,6 +325,12 @@ ifdef MATHCOMP
 EXTFLAGS:=$(EXTFLAGS) -R $(MATHCOMP) mathcomp
 endif
 
+# ##### ORA Flags #####
+
+ifneq ($(wildcard ora/theories),)
+EXTFLAGS:=$(EXTFLAGS) -Q ora/theories iris_ora
+endif
+
 # ##### Flag summary #####
 
 COQFLAGS=$(foreach d, $(VSTDIRS), $(if $(wildcard $(d)), -Q $(d) VST.$(d))) $(foreach d, $(OTHERDIRS), $(if $(wildcard $(d)), -Q $(d) $(d))) $(EXTFLAGS) $(SHIM) # -Q ../stdpp/theories stdpp -Q ../iris/iris iris -Q ../InteractionTrees/theories ITree -Q ../paco/src Paco -Q ../coq-ext-lib/theories ExtLib -Q ../fcf/src/fcf FCF
