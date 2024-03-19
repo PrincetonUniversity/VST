@@ -56,8 +56,11 @@ jobs:
               opam install -y ${{ matrix.coq_version == 'dev' && 'coq-flocq' || matrix.bit_size == 32 && 'coq-compcert-32.3.13' || 'coq-compcert.3.13' }}
               # Required by test2
               opam install -y coq-ext-lib
-              echo ${{ github.ref_name }}
-              opam install -y ${{ github.ref_name == 'vst_on_iris' && 'coq-iris.dev.2023-05-31.0.a22a81c2' || '' }}
+              if [ ${{ github.ref_name }} = '755/merge']
+              then
+                opam repo add -y iris-dev https://gitlab.mpi-sws.org/iris/opam.git
+                opam install -y coq-iris.dev.2023-05-31.0.a22a81c2
+              fi
             endGroup
           # See https://github.com/coq-community/docker-coq-action/tree/v1#permissions
           before_script: |

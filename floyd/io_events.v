@@ -48,6 +48,7 @@ Lemma has_ext_ITREE : forall tr, has_ext tr ⊢ ITREE tr.
 Proof.
   intro; unfold ITREE.
   Exists tr; entailer!.
+  reflexivity.
 Qed.
 
 Lemma ITREE_impl' : forall tr tr', sutt eq tr' tr ->

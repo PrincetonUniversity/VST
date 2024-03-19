@@ -182,10 +182,9 @@ Proof.
   forward.
   forward_while (∃ i : int, PROP (Int.signed i = -1 \/ Int.signed i = Byte.unsigned c) LOCAL (temp _r (Vint i); temp _c (Vubyte c))
     SEP (ITREE (if eq_dec (Int.signed i) (-1) then (r <- write stdout c;; k) else k))).
-  - Exists (Int.neg (Int.repr 1)); entailer!.
+  - Exists (Int.neg (Int.repr 1)); simpl; entailer!.
   - entailer!.
-  - subst; rewrite -> Int.signed_repr by rep_lia.
-    rewrite -> if_true by auto.
+  - subst; rewrite -> if_true by auto.
     forward_call (c, k).
     Intros i.
     forward.
