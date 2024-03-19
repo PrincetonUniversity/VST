@@ -872,6 +872,9 @@ ifneq ($(wildcard InteractionTrees/theories),)
 #	$(COQDEP) -Q coq-ext-lib/theories ExtLib -Q paco/src Paco -Q InteractionTrees/theories ITree InteractionTrees/theories >>.depend
 	$(COQDEP) -Q paco/src Paco -Q InteractionTrees/theories ITree InteractionTrees/theories >>.depend
 endif
+ifneq ($(wildcard ora/theories),)
+	$(COQDEP) -Q ora/theories iris_ora >>.depend
+endif
 ifneq ($(wildcard fcf/src/FCF),)
 	$(COQDEP) -Q fcf/src/FCF FCF fcf/src/FCF/*.v >>.depend
 endif
