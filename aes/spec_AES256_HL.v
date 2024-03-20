@@ -199,7 +199,7 @@ Definition KeyExpansion (k : list word) : list block :=
     let b1 := (w1, w2, w3, w4) in
 	let b2 := (w5, w6, w7, w8) in
 	b1 :: b2 :: (grow_key b1 b2 RCon)
-  | l => [] (* should not happen *)
+  | _ => [] (* should not happen *)
   end.
 
 (* AddRoundKey() described in section 5.1.4: it uses a block from the expanded key, xoring
@@ -299,7 +299,7 @@ Definition InverseKeyExpansion (k : list word) : list block :=
   match exp_key with
   (* don't apply inv mix columns to first round key either *)
   | k1 :: tl => k1 :: grow_inv_key tl
-  | ek => [] (* should not happen *)
+  | _ => [] (* should not happen *)
   end.
 
 (* Inverse cipher described in figure 15 *)
@@ -324,5 +324,5 @@ Fixpoint apply_inv_rounds (s: state) (ek: list block) : state :=
 Definition EqInvCipher (exp_key: list block) (init: state) : state :=
   match exp_key with
   | kb :: tl => apply_inv_rounds (AddRoundKey init kb) tl
-  | l => init (* should not happen *)
+  | _ => init (* should not happen *)
   end.

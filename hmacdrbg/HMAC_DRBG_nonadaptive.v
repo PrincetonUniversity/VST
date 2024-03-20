@@ -4385,7 +4385,7 @@ Proof.
       rewrite forNats_length.
       unfold Pr_collisions.
       eapply leRat_terms; intuition.
-      eapply Nat.pow_le_mono; lia.
+all:      eapply Nat.pow_le_mono; lia.  (* needed before Coq 8.19 *)
     + unfold PRG.compMap_v.
       rewrite compMap_hasDups_cons_prob.
       rewrite forNats_length.

@@ -21,7 +21,7 @@ COQLIB=$(shell $(COQC) -where | tr -d '\r' | tr '\\' '/')
 
 # Check Coq version
 
-COQVERSION= 8.16.0 or-else 8.16.1 or-else 8.17+rc1 or-else 8.17 or-else 8.17.0 or-else 8.17.1 or-else 8.18.0
+COQVERSION= 8.17.0 or-else 8.17.1 or-else 8.18.0 or-else 8.19.1
 
 COQV=$(shell $(COQC) -v)
 ifneq ($(IGNORECOQVERSION),true)

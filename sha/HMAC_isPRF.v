@@ -68,11 +68,11 @@ Require Import hmacfcf.HMAC_PRF.
 
 Module Type HMAC_is_PRF_Parameters (HF:HP.HASH_FUNCTION) (EQ: EQUIV_Inst HF).
   Parameter P : Blist -> Prop.
-  Parameter HP: forall m, P m -> NPeano.Nat.divide 8 (length m).
+  Parameter HP: forall m, P m -> Nat.divide 8 (length m).
 
   Parameter splitAndPad_1to1: forall b1 b2 (B:EQ.splitAndPad_v b1 = EQ.splitAndPad_v b2)
-       (L1: NPeano.Nat.divide 8 (length b1))
-       (L2: NPeano.Nat.divide 8 (length b2)), b1 = b2.
+       (L1: Nat.divide 8 (length b1))
+       (L2: Nat.divide 8 (length b2)), b1 = b2.
 End HMAC_is_PRF_Parameters.
 
 Module HMAC_is_PRF (HF:HP.HASH_FUNCTION) (EQ: EQUIV_Inst HF) (PARS:HMAC_is_PRF_Parameters HF EQ).

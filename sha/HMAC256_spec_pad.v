@@ -62,7 +62,7 @@ Proof.
   apply bytes_bits_def_eq.
 Qed.
 
-Lemma gap_divide16 bits: NPeano.Nat.divide 16 (length (generate_and_pad' (bitsToBytes bits))).
+Lemma gap_divide16 bits: Nat.divide 16 (length (generate_and_pad' (bitsToBytes bits))).
 Proof.
     unfold generate_and_pad'.
     destruct (pad_len_64_nat (bitsToBytes bits)).

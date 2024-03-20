@@ -2040,7 +2040,7 @@ Module Share <: SHARE_MODEL.
          ( n < m -> False ) /\
          ( n > m -> shareTreeEq (union_tree tok fac) (Leaf true) -> False).
     Proof.
-      intros fac n H; induction H; simpl; intuition.
+      intros fac n H; induction H; simpl; intuition auto with *.
       subst m; inv H.
       simpl; auto.
       inv H.
