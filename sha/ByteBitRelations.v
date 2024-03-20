@@ -2,7 +2,7 @@ Require Import compcert.lib.Coqlib.
 Require Import List. Import ListNotations.
 Require Import ZArith Lia.
 Require Import compcert.lib.Integers.          (* byte *)
-Require Import Coq.Numbers.Natural.Peano.NPeano.
+(*Require Import Coq.Numbers.Natural.Peano.NPeano.*)
 
 Require Import Coq.Strings.Ascii.
 Require Import Coq.Program.Tactics.

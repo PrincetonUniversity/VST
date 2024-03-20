@@ -105,7 +105,7 @@ exists (Z.to_nat i).
 rewrite Zlength_correct in H0.
 destruct (zeq n 0). subst.
 simpl. rewrite Z.mul_0_r in H0. destruct al; inv H0.
-rewrite mult_0_r. reflexivity.
+rewrite Nat.mul_0_r. reflexivity.
 assert (0 <= i).
 assert (0 <= i * n) by lia.
 apply Z.mul_nonneg_cancel_r in H1; auto; lia.
@@ -132,7 +132,7 @@ Proof.
 induction n; intros.
 destruct l; inv H; reflexivity.
 replace (S n) with (1 + n)%nat in H by lia.
-rewrite mult_plus_distr_l in H.
+rewrite Nat.mul_add_distr_l in H.
 destruct l as [|i0 l]; [ inv H |].
 destruct l as [|i1 l]; [ inv H |].
 destruct l as [|i2 l]; [ inv H |].
@@ -310,7 +310,7 @@ Qed.
 
 Theorem Zmod_mod_mult :
   forall n a b, (0 < a)%Z -> (0 <= b)%Z ->
-  Zmod (Zmod n (a * b)) b = Zmod n b.
+  Z.modulo (Z.modulo n (a * b)) b = Z.modulo n b.
 Proof.
 intros n a [|b|b] Ha Hb.
 rewrite ?Z.mul_0_r.

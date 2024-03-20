@@ -145,7 +145,7 @@ Proof.
     replace (4 * i)%Z with (i * 4)%Z by lia.
     assert (forall sh t gfs v1 v2 p, v1 = v2 -> field_at sh t gfs v1 p |-- field_at sh t gfs v2 p)
     as field_at_change_value. (* TODO floyd: this might be useful elsewhere *)
-    { intros. replace v1 with v2 by assumption. apply derives_refl. }
+    { intros. rewrite H0. apply derives_refl. }
     apply field_at_change_value.
     fold ((fun i0 => get_uint32_le key_chars (i0 * 4)) i).
    rewrite <- update_partially_filled by lia. f_equal. f_equal. 

@@ -30,7 +30,7 @@ Lemma key_vector l:
   length (bytesToBits (HMAC_SHA256.mkKey l)) = b.
 Proof. rewrite bytesToBits_len, hmac_common_lemmas.mkKey_length; reflexivity. Qed.
 
-Definition mkCont (l:list byte) : HMAC_spec_abstract.HMAC_Abstract.Message (fun x => x=bytesToBits l /\ NPeano.Nat.divide 8 (length x)).
+Definition mkCont (l:list byte) : HMAC_spec_abstract.HMAC_Abstract.Message (fun x => x=bytesToBits l /\ Nat.divide 8 (length x)).
 eapply exist. split. reflexivity.
 rewrite bytesToBits_len. exists (length l). trivial.
 Qed.

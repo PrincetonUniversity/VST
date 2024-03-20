@@ -136,7 +136,7 @@ Proof. unfold pad_inc.
    destruct H. rewrite H. clear H.
    assert (Z.to_nat (zz mod 64 - 1) = minus (Z.to_nat (zz mod 64)) 1).
      clear - n H0. remember (zz mod 64).  clear Heqz. rewrite Z2Nat.inj_sub. reflexivity. lia.
-   rewrite H; clear H. rewrite <- NPeano.Nat.add_sub_swap. rewrite <- Nat.sub_succ_l. simpl. exists k. lia.
+   rewrite H; clear H. rewrite <- Nat.add_sub_swap. rewrite <- Nat.sub_succ_l. simpl. exists k. lia.
    lia. apply (Z2Nat.inj_le 1). lia. lia. lia.
 Qed.
 

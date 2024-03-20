@@ -28,8 +28,8 @@ Proof. intros. do 2 rewrite <- splitAndPad_v_to_sha_splitandpad_blocks.
 Qed.
 
 Lemma splitAndPad_1to1 b1 b2 (B:splitAndPad_v b1 = splitAndPad_v b2)
-       (L1: NPeano.Nat.divide 8 (length b1))
-       (L2: NPeano.Nat.divide 8 (length b2)): b1 = b2.
+       (L1: PeanoNat.Nat.divide 8 (length b1))
+       (L2: PeanoNat.Nat.divide 8 (length b2)): b1 = b2.
 Proof. intros.
   apply splitAndPad_v_eq_inverse in B.
   unfold sha_splitandpad_blocks in B.
@@ -53,11 +53,11 @@ Qed.
 Module PARS256 <: HMAC_is_PRF_Parameters SHA256 EQ256.
 
   Parameter P : Blist -> Prop.
-  Parameter HP: forall m, P m -> NPeano.Nat.divide 8 (length m).
+  Parameter HP: forall m, P m -> PeanoNat.Nat.divide 8 (length m).
 
   Lemma splitAndPad_1to1: forall b1 b2 (B:EQ256.splitAndPad_v b1 = EQ256.splitAndPad_v b2)
-       (L1: NPeano.Nat.divide 8 (length b1))
-       (L2: NPeano.Nat.divide 8 (length b2)), b1 = b2.
+       (L1: PeanoNat.Nat.divide 8 (length b1))
+       (L2: PeanoNat.Nat.divide 8 (length b2)), b1 = b2.
    Proof. apply splitAndPad_1to1. Qed.
 End PARS256.
 
