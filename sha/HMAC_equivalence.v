@@ -24,7 +24,7 @@ Module Type EQUIV_Inst (HF:HP.HASH_FUNCTION).
 
 (*Section EQUIV.*)
   Parameter c:nat.
-  Parameter C: NPeano.Nat.divide 8 c.
+  Parameter C: Nat.divide 8 c.
   Parameter p:nat.
   Definition b := (c+p)%nat.
   Parameter B: (0<b)%nat.
@@ -88,7 +88,7 @@ Module Type EQUIV_Inst (HF:HP.HASH_FUNCTION).
   Parameter D: (d * 32)%nat = b.
 
   Parameter gap:list byte -> list int.
-  Parameter GAP: forall bits, NPeano.Nat.divide d (length (gap (bitsToBytes bits))).
+  Parameter GAP: forall bits, Nat.divide d (length (gap (bitsToBytes bits))).
   Parameter sap_gap: splitAndPad = fun bits => bytesToBits (intlist_to_bytelist (gap (bitsToBytes bits))).
 
   Parameter HASH: forall m, HF.Hash m = intlist_to_bytelist (hashblocks ir (gap m)).
@@ -189,7 +189,7 @@ Qed.
   apply BS_pos.
 Qed.
 
-Lemma Equivalence (P : Blist -> Prop) (HP: forall msg, P msg -> NPeano.Nat.divide 8 (length msg))
+Lemma Equivalence (P : Blist -> Prop) (HP: forall msg, P msg -> Nat.divide 8 (length msg))
       (kv : Bvector EQ.b) (m : HMAC_Abstract.Message P):
       Vector.to_list (HMAC_spec.HMAC h_v EQ.iv_v (HMAC_Abstract.wrappedSAP _ _ EQ.splitAndPad_v)
                       EQ.fpad_v opad_v ipad_v kv m) =

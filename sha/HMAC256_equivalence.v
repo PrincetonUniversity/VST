@@ -120,7 +120,7 @@ Proof.
            rewrite Heql in pf. apply Forall_inv in pf.  clear Heql.
            rewrite firstn_length in pf.
            symmetry in Heqd. apply leb_complete in Heqd.
-           eapply NPeano.Nat.min_l_iff in pf. lia.
+           eapply Nat.min_l_iff in pf. lia.
     rewrite splitAndPad_aux_consD.
     constructor.
       rewrite of_length_proof_irrel. trivial.
@@ -164,7 +164,7 @@ Lemma length_splitandpad_inner m :
      (splitAndPad_v m) (sha_splitandpad_blocks m).
 Proof. apply length_splitandpad_inner_aux. Qed.
 
-Lemma C: NPeano.Nat.divide 8 c.
+Lemma C: Nat.divide 8 c.
   exists 32%nat. reflexivity.
 Qed.
 
@@ -233,7 +233,7 @@ Module EQ256 <: EQUIV_Inst SHA256.
   Lemma D: (d * 32)%nat = b. reflexivity. Qed.
 
   Definition gap:list byte -> list int := SHA256.generate_and_pad.
-  Lemma GAP: forall bits, NPeano.Nat.divide d (length (gap (bitsToBytes bits))).
+  Lemma GAP: forall bits, Nat.divide d (length (gap (bitsToBytes bits))).
     intros. rewrite <- pad_compose_equal. apply gap_divide16. Qed.
 
   Lemma sap_gap: splitAndPad = fun bits => bytesToBits (intlist_to_bytelist (gap (bitsToBytes bits))).
@@ -269,7 +269,7 @@ End EQ256.
 Module EQ := HMAC_Equiv SHA256 EQ256.
 
 (* Note we're comparing to HP.HMAC_SHA256.HmacCore, not HMAC. *)
-Lemma Equivalence (P : Blist -> Prop) (HP: forall msg, P msg -> NPeano.Nat.divide 8 (length msg))
+Lemma Equivalence (P : Blist -> Prop) (HP: forall msg, P msg -> Nat.divide 8 (length msg))
       (kv : Bvector b) (m : HMAC_Abstract.Message P):
       Vector.to_list (HMAC_spec.HMAC EQ.h_v iv_v (HMAC_Abstract.wrappedSAP _ _ splitAndPad_v)
                       fpad_v EQ.opad_v EQ.ipad_v kv m) =

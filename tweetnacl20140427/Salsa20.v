@@ -24,14 +24,14 @@ Definition bytelist2Z (l:list byte) : Z :=
     | _ => 0 end.
 Definition hexstring_to_Z s := bytelist2Z (hexstring_to_bytelist s).
 
-Goal Zmod (hexstring_to_Z "c0a8787e"%string +
+Goal Z.modulo (hexstring_to_Z "c0a8787e"%string +
       hexstring_to_Z "9fd1161d"%string) (2^32)  =
      hexstring_to_Z "60798e9b"%string.
 reflexivity. Qed.
 
 (*Explicit definition of sum following Bernstein's "Salsa20 specification" paper:*)
 Definition sum (a b:int): int :=
-  Int.repr (Zmod (Int.unsigned a + Int.unsigned b) (2^32)).
+  Int.repr (Z.modulo (Int.unsigned a + Int.unsigned b) (2^32)).
 
 (*Of course, it's equivalnt to Int.add:*)
 Lemma sum_add: forall x y, sum x y = Int.add x y.

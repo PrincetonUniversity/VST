@@ -265,19 +265,19 @@ Proof.
           - rewrite upd_Znth_diff.
               + assumption.
               + lia.
-              + replace (Zlength log) with 256 by assumption. apply pow3_range; lia.
+              + rewrite H2. apply pow3_range; lia.
               + intro E. change 0 with (Int.unsigned Int.zero) in E. apply unsigned_eq_eq in E.
                 symmetry in E. apply (pow3_not0 i E).
           - intros. assert (1 <= j < i \/ j = i) as C by lia. destruct C as [C | C].
             * rewrite upd_Znth_diff.
               + auto.
-              + replace (Zlength log) with 256 by assumption. apply pow3_range; lia.
-              + replace (Zlength log) with 256 by assumption. apply pow3_range; lia.
+              + rewrite H2. apply pow3_range; lia.
+              + rewrite H2. apply pow3_range; lia.
               + intro E. apply unsigned_eq_eq in E.
                 apply pow3_inj in E. unfold Zbits.eqmod in E. destruct E as [k E]. lia.
             * subst. rewrite upd_Znth_same.
               + reflexivity.
-              + replace (Zlength log) with 256 by assumption. apply pow3_range; lia.
+              + rewrite H2. apply pow3_range; lia.
           - intros. assert (0 <= j < i \/ j = i) as C by lia. destruct C as [C | C].
             * rewrite upd_Znth_diff by lia. auto.
             * subst. rewrite upd_Znth_same by lia. reflexivity.
@@ -449,23 +449,23 @@ Proof.
           by lia. destruct C as [C | C].
           { rewrite upd_Znth_diff.
             - auto.
-            - replace (Zlength rsb) with 256 by assumption. apply FSb_range.
-            - replace (Zlength rsb) with 256 by assumption. apply FSb_range.
+            - rewrite H6. apply FSb_range.
+            - rewrite H6. apply FSb_range.
             - intro HH. apply unsigned_eq_eq in HH.
               apply FSb_inj in HH; lia.
           }
           { subst j. rewrite upd_Znth_same.
             - repeat rewrite zero_ext_nop; try reflexivity; rewrite Int.unsigned_repr; rep_lia.
-            - replace (Zlength rsb) with 256 by assumption. apply FSb_range.
+            - rewrite H6. apply FSb_range.
           }
         + rewrite upd_Znth_diff.
           { auto. }
           { lia. }
-          { replace (Zlength rsb) with 256 by assumption. apply FSb_range. }
+          { rewrite H6. apply FSb_range. }
           { replace 99 with (Int.unsigned (Znth 0 FSb)) by reflexivity.
             intro HH. apply unsigned_eq_eq in HH. apply FSb_inj in HH; lia. }
         + rewrite upd_Znth_Zlength; [ lia | ].
-          replace (Zlength rsb) with 256 by reflexivity. apply FSb_range.
+          rewrite H6. apply FSb_range.
   }
 
   thaw Fr.

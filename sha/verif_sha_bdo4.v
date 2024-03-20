@@ -139,8 +139,9 @@ forward_call (* l = __builtin_read32_reversed(_data) *)
  autorewrite with sublist; lia.
 gather_SEP (array_at _ _ _ 0 _ _ data) (data_at _ _ _ (offset_val (i*4) data)) (array_at _ _ _ (i*4+4) _ _ data).
  match goal with |- context [SEPx (?A::_)] =>
-  replace A with (data_block sh (intlist_to_bytelist b) data)
-    by (rewrite H1,<- !sepcon_assoc; auto)
+  replace A with (data_block sh (intlist_to_bytelist b) data);
+   (* next line needed only before Coq 8.19 *)
+   try solve [rewrite H1,<- !sepcon_assoc; auto]
  end.
  clear H1.
 rewrite <- Znth_big_endian_integer by lia.
