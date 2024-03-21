@@ -22,6 +22,8 @@ Local Open Scope nat_scope.
 Section extensions.
 Context `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {CS: compspecs}.
 
+Local Arguments typecheck_expr : simpl never.
+
 Lemma tc_test_eq1:
   forall b i v m,
   mem_auth m ∗ denote_tc_test_eq (Vptr b i) v ⊢
