@@ -529,7 +529,8 @@ PROGS32_FILES= \
   libglob.v verif_libglob.v peel.v verif_peel.v \
   printf.v stackframe_demo.v verif_stackframe_demo.v \
 	rotate.v verif_rotate.v \
-  verif_objectSelf.v verif_objectSelfFancy.v verif_objectSelfFancyOverriding.v
+  verif_objectSelf.v verif_objectSelfFancy.v verif_objectSelfFancyOverriding.v \
+  alias.v verif_alias.v
 # verif_insertion_sort.v
 
 C64_ORDINARY = reverse.c revarray.c sumarray.c append.c bin_search.c \
@@ -543,7 +544,8 @@ V64_ORDINARY = verif_reverse2.v verif_revarray.v verif_sumarray.v \
     verif_bst.v verif_field_loadstore.v verif_float.v verif_object.v \
     verif_global.v verif_min.v verif_min64.v verif_nest2.v verif_nest3.v \
     verif_logical_compare.v \
-    verif_strlib.v verif_switch.v verif_union.v verif_message.v verif_incr.v
+    verif_strlib.v verif_switch.v verif_union.v verif_message.v verif_incr.v \
+    alias.v verif_alias.v
 
 SHA_FILES= \
   general_lemmas.v SHA256.v common_lemmas.v pure_lemmas.v sha_lemmas.v functional_prog.v \
