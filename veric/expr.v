@@ -1051,6 +1051,7 @@ Proof. destruct p; simpl; auto. Qed.
 End mpred.
 
 Global Arguments typecheck_expr {_ _ _} _ !e / : simpl nomatch.
+Global Arguments typecheck_lvalue {_ _ _} _ !e / : simpl nomatch.
 
 (** Environment typechecking functions **)
 

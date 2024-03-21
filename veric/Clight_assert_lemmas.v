@@ -227,9 +227,9 @@ Lemma tc_exprlist_sub:
   forall e t rho, typecheck_environ Delta rho -> tc_exprlist Delta e t rho ⊢ tc_exprlist Delta' e t rho.
 Proof.
   intros.
-  revert t; induction e; destruct t; simpl; auto.
-  unfold tc_exprlist; simpl.
-  rewrite !(denote_tc_assert_andp _ (typecheck_exprlist _ _ _)).
+  revert t; induction e; destruct t; auto.
+  unfold tc_exprlist, typecheck_exprlist; fold typecheck_exprlist.
+  setoid_rewrite denote_tc_assert_andp.
   by setoid_rewrite IHe; setoid_rewrite tc_expr_sub.
 Qed.
 

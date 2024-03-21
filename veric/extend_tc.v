@@ -354,16 +354,16 @@ Lemma tc_exprlist_cenv_sub Delta rho:
   forall types bl, @tc_exprlist CS Delta types bl rho ⊢
                    @tc_exprlist CS' Delta types bl rho.
 Proof.
-  induction types; simpl in *; intros.
+  induction types; intros.
   + destruct bl; simpl in *; trivial.
   + destruct bl. trivial.
     unfold tc_exprlist.
     unfold typecheck_exprlist; 
       fold (typecheck_exprlist(CS := CS));
       fold (typecheck_exprlist(CS := CS')).
-    rewrite !(denote_tc_assert_andp _ (typecheck_exprlist _ _ _)).
+    setoid_rewrite denote_tc_assert_andp.
     unfold tc_exprlist in IHtypes; fold (tc_expr(CS := CS) Delta (Ecast e a) rho);
-      fold (tc_expr(CS := CS') Delta (Ecast e a) rho). setoid_rewrite tc_expr_cenv_sub. rewrite IHtypes //.
+      fold (tc_expr(CS := CS') Delta (Ecast e a) rho). setoid_rewrite tc_expr_cenv_sub. setoid_rewrite IHtypes; done.
 Qed.
 
 End CENV_SUB.

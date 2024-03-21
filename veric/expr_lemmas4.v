@@ -575,11 +575,10 @@ Lemma eval_both_relate:
               eval_lvalue e rho = Vptr b ofs⌝).
 Proof.
 intros.
-induction e; simpl; split; iIntros "[Hm H]"; try done; try solve [iPureIntro; constructor; auto].
-
+induction e; split; iIntros "[Hm H]"; try done; try solve [iPureIntro; constructor; auto].
 * (* eval_expr Evar*)
 iDestruct (typecheck_expr_sound with "H") as %TC; first done.
-simpl in TC.
+simpl in *.
 unfold typecheck_expr.
 destruct (access_mode t) eqn:MODE; try iDestruct "H" as "[]".
 unfold get_var_type, eval_var in *.
@@ -626,7 +625,7 @@ apply Clight.eval_Evar_global; auto.
 
 * (*temp*)
 iDestruct (typecheck_expr_sound with "H") as %TC; first done.
-simpl in TC.
+simpl in *.
 iPureIntro.
 constructor. unfold eval_id in *. remember (Map.get (te_of rho) i);
 destruct o; subst; auto.
@@ -638,7 +637,7 @@ destruct (access_mode t) eqn:?H; try done.
 rewrite !denote_tc_assert_andp tc_bool_e.
 iDestruct "H" as "((H & %) & %)".
 iDestruct (proj1 IHe with "[$]") as %?; iPureIntro.
-destruct (eval_expr e rho) eqn:?H; try contradiction.
+simpl; destruct (eval_expr e rho) eqn:?H; try contradiction.
 eapply eval_Elvalue.
 econstructor. eassumption.
 constructor. auto.
@@ -654,7 +653,7 @@ exists b, i. split; auto; constructor; auto.
 unfold typecheck_expr; fold typecheck_lvalue.
 rewrite !denote_tc_assert_andp tc_bool_e.
 iDestruct "H" as "[H %]".
-iDestruct (proj2 IHe with "[$]") as %(b & ? & ? & ->); iPureIntro.
+simpl; iDestruct (proj2 IHe with "[$]") as %(b & ? & ? & ->); iPureIntro.
 constructor; auto.
 
 * (*unop*)
@@ -698,7 +697,7 @@ econstructor; eauto.
     intros. specialize (Hcenv id); setoid_rewrite -> H2 in Hcenv; apply Hcenv.
     apply co_consistent_complete.
     apply (cenv_consistent i0); auto. }
-  unfold_lift; simpl.
+  simpl; unfold_lift; rewrite Heqt0 /eval_field.
   rewrite He Hco Heqr.
   apply Clight.deref_loc_reference. auto.
 
@@ -717,8 +716,9 @@ econstructor; eauto.
   { intros. specialize (Hcenv id); setoid_rewrite H3 in Hcenv; apply Hcenv. }
   { apply co_consistent_complete. 
     apply (cenv_consistent i0); auto. }
+  simpl; unfold_lift; rewrite Heqt0 /eval_field.
   rewrite ptrofs_add_repr_0 /= Hco H2.
-  unfold_lift; rewrite He /=.
+  rewrite He /=.
   rewrite ptrofs_add_repr_0.
   apply Clight.deref_loc_reference; auto.
 *
@@ -738,7 +738,7 @@ destruct (field_offset cenv_cs i (co_members co)) as [(?, ?)|] eqn:?; try iDestr
 destruct b0; try iDestruct "H" as "[]".
 iPureIntro.
 exists b. exists (Ptrofs.add ofs (Ptrofs.repr z)).
-simpl.
+simpl; unfold_lift; rewrite Heqt0 /eval_field.
 rewrite Hco He Heqr; split; auto.
 eapply Clight.eval_Efield_struct; auto; try eassumption.
 eapply Clight.eval_Elvalue; eauto.
@@ -753,7 +753,7 @@ destruct (union_field_offset cenv_cs i (co_members co)) as [(?, ?)|] eqn:?; try 
 destruct z; try iDestruct "H" as "[]". destruct b0; try iDestruct "H" as "[]".
 iPureIntro.
 exists b. exists (Ptrofs.add ofs (Ptrofs.repr 0)).
-simpl.
+simpl; unfold_lift; rewrite Heqt0 /eval_field.
 rewrite Hco He Heqr; split; auto.
 eapply Clight.eval_Efield_union; eauto; try eassumption.
 eapply Clight.eval_Elvalue; eauto.

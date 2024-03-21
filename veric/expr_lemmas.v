@@ -888,14 +888,12 @@ Lemma typecheck_exprlist_sound_cenv_sub {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (
     ⌜@eval_exprlist CS types e rho = @eval_exprlist CS' types e rho⌝.
 Proof.
 induction types; destruct e; intros; auto.
-simpl.
-unfold_lift.
+unfold typecheck_exprlist; fold typecheck_exprlist.
 rewrite denote_tc_assert_andp.
 rewrite (typecheck_expr_sound_cenv_sub CSUB); last done.
 rewrite IHtypes /=; unfold_lift.
 by unfold force_val1; iIntros "[-> ->]".
 Qed.
-
 
 End CENV_SUB.
 
