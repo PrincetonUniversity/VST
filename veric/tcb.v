@@ -9,6 +9,7 @@ Require Import VST.veric.compspecs.
 Require Import VST.veric.semax_prog.
 Require Import VST.veric.SequentialClight.
 Require Import VST.veric.NullExtension.
+Import Axioms.
 
 Theorem VST_sound: 
   forall (CS: compspecs) `(!VSTGpreS unit Σ)
