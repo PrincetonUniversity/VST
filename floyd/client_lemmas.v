@@ -213,18 +213,8 @@ Lemma bool_val_int_eq_e:
     i=j.
 Proof.
  intros.
- unfold Cop.bool_val in H.
- destruct Archi.ptr64 eqn:Hp;
- revert H; case_eq (Val.of_bool (Int.eq i j)); simpl; intros; inv H0.
-+
- pose proof (Int.eq_spec i j).
- revert H H0; case_eq (Int.eq i j); intros; auto.
- simpl in H0; unfold Vfalse in H0. inv H0.
-(*+
- pose proof (Int.eq_spec i j).
- revert H H0; case_eq (Int.eq i j); intros; auto.
- simpl in H0; unfold Vfalse in H0. inv H0. inv H2.
-+ unfold Val.of_bool in H.  destruct (Int.eq i j); inv H.*)
+ unfold Cop.bool_val in H; simpl in H.
+ pose proof (Int.eq_spec i j); destruct (Int.eq i j) eqn: Hij; auto; inv H.
 Qed.
 
 Lemma bool_val_notbool_ptr:
@@ -237,23 +227,15 @@ Proof.
  destruct t; try contradiction. clear H.
  unfold Cop.sem_notbool, Cop.bool_val, Val.of_bool, Cop.classify_bool, nullval.
  destruct Archi.ptr64 eqn:Hp; simpl;
- apply prop_ext; split; intros.
--
- destruct v; simpl in H; try solve [inv H].
- destruct (Int64.eq i Int64.zero) eqn:?; inv H.
-  apply expr_lemmas.int64_eq_e in Heqb. subst; reflexivity.
- destruct (Memory.Mem.weak_valid_pointer m b (Ptrofs.unsigned i)) eqn:?;
-  simpl in H; inv H.
--
-  subst v; simpl. reflexivity.
--
- destruct v; simpl in H; try solve [inv H].
-(* destruct (Int.eq i Int.zero) eqn:?; inv H.
-  apply int_eq_e in Heqb. subst; reflexivity.
- destruct (Memory.Mem.weak_valid_pointer m b (Ptrofs.unsigned i)) eqn:?;
-  simpl in H; inv H.*)
--
-  subst v; simpl. reflexivity.
+ apply prop_ext.
+- destruct v; simpl; try (split; congruence).
+  + pose proof (Int64.eq_spec i Int64.zero); destruct (Int64.eq i Int64.zero); subst; simpl; first tauto.
+    split; inversion 1; auto.
+  + destruct (Memory.Mem.weak_valid_pointer m b (Ptrofs.unsigned i)) eqn:?; simpl; split; congruence.
+- destruct v; simpl; try (split; congruence).
+  + pose proof (Int.eq_spec i Int.zero); destruct (Int.eq i Int.zero); subst; simpl; first tauto.
+    split; inversion 1; auto.
+  + destruct (Memory.Mem.weak_valid_pointer m b (Ptrofs.unsigned i)) eqn:?; simpl; split; congruence.
 Qed.
 
 Definition retval : environ -> val := eval_id ret_temp.

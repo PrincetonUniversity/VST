@@ -1104,7 +1104,7 @@ Proof.
   { rewrite Zlength_Zrepeat by (rewrite Zlength_correct in H; lia); lia. }
   intros.
   destruct (field_compatible0_dec t (ArraySubsc i :: gfs) p).
-  + revert dependent u1; erewrite <- @nested_field_type_ArraySubsc with (i := i).
+  + generalize dependent u1; erewrite <- @nested_field_type_ArraySubsc with (i := i).
     intros ? ->%JMeq_eq. unfold Znth. rewrite if_false by lia.
     unfold Zrepeat; rewrite nth_repeat.
     apply field_at_field_at_; auto.
@@ -2141,7 +2141,7 @@ Proof.
     match goal with |-context[aggregate_pred.rangespec _ _ ?Q] => set (P := Q) end.
     assert (forall i v, Timeless (P i v)).
     { intros; apply IH; auto. }
-    clearbody P; clear IH; revert dependent lo; induction n; first lia; simpl; intros.
+    clearbody P; clear IH; generalize dependent lo; induction n; first lia; simpl; intros.
     destruct (eq_dec n O).
     + subst; simpl. eapply bi.Timeless_proper; first apply bi.sep_emp.
       apply _.

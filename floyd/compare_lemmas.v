@@ -34,12 +34,12 @@ Proof.
      by (intro Hx; inv Hx).
    simpl in H.
  destruct Archi.ptr64  eqn:Hp;
- destruct t0, v; inv H;
- try solve [revert H1; simple_if_tac; intro H1; inv H1].
+ destruct t0, v; inversion H;
+ try solve [revert H1; simple_if_tac; intro H1; inversion H1].
  pose proof (Int64.eq_spec i0 Int64.zero);
  destruct (Int64.eq i0 Int64.zero); inv H1; auto.
-(* pose proof (Int.eq_spec i0 Int.zero);
- destruct (Int.eq i0 Int.zero); inv H1; auto.*)
+ pose proof (Int.eq_spec i0 Int.zero);
+ destruct (Int.eq i0 Int.zero); inv H1; auto.
 Qed.
 
 Section mpred.
@@ -236,13 +236,11 @@ Proof.
  rewrite !andb_false_r in H.
  unfold sem_cmp_pp, nullval in *.
  destruct Archi.ptr64 eqn:Hp;
- destruct (v rho); inv H.
+ destruct (v rho); inversion H.
  pose proof (Int64.eq_spec i Int64.zero).
- destruct (Int64.eq i Int64.zero); inv H1.
- reflexivity.
-(* pose proof (Int.eq_spec i Int.zero).
- destruct (Int.eq i Int.zero); inv H1.
- reflexivity.*)
+ destruct (Int64.eq i Int64.zero); inv H1; reflexivity.
+ pose proof (Int.eq_spec i Int.zero).
+ destruct (Int.eq i Int.zero); inv H1; reflexivity.
 Qed.
 
 Lemma typed_true_One_nullval:
@@ -340,10 +338,10 @@ clear.
 unfold sem_cmp_pp, compare_pp, Ptrofs.cmpu, Val.cmplu_bool.
 destruct Archi.ptr64 eqn:Hp.
 destruct op; simpl; auto.
-if_tac. if_tac. inv H0. rewrite Ptrofs.eq_true; reflexivity.
+if_tac. if_tac. inversion H0. rewrite Ptrofs.eq_true; reflexivity.
 rewrite -> Ptrofs.eq_false by congruence; reflexivity.
 if_tac. congruence. reflexivity.
-if_tac. if_tac. inv H0. rewrite -> Ptrofs.eq_true by auto. reflexivity.
+if_tac. if_tac. inversion H0. rewrite -> Ptrofs.eq_true by auto. reflexivity.
 rewrite -> Ptrofs.eq_false by congruence; reflexivity.
 rewrite -> if_false by congruence. reflexivity.
 if_tac; [destruct (Ptrofs.ltu i i0); reflexivity | reflexivity].
@@ -351,10 +349,10 @@ if_tac; [destruct (Ptrofs.ltu i0 i); reflexivity | reflexivity].
 if_tac; [destruct (Ptrofs.ltu i0 i); reflexivity | reflexivity].
 if_tac; [destruct (Ptrofs.ltu i i0); reflexivity | reflexivity].
 destruct op; simpl; auto; rewrite Hp.
-if_tac. if_tac. inv H0.
+if_tac. if_tac. inversion H0; subst. rewrite -> Ptrofs.eq_true by auto. reflexivity.
 rewrite -> Ptrofs.eq_false by congruence; reflexivity.
 if_tac. congruence. reflexivity.
-if_tac. if_tac. inv H0.
+if_tac. if_tac. inversion H0; subst. rewrite -> Ptrofs.eq_true by auto. reflexivity.
 rewrite -> Ptrofs.eq_false by congruence; reflexivity.
 rewrite -> if_false by congruence. reflexivity.
 if_tac; [destruct (Ptrofs.ltu i i0); reflexivity | reflexivity].

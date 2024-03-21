@@ -394,10 +394,10 @@ Lemma typed_false_tint:
  forall v, typed_false tint v -> v=nullval.
 Proof.
 intros.
- hnf in H0. destruct v; inv H0.
-(* destruct (Int.eq i Int.zero) eqn:?; inv H2.
+ hnf in H0. destruct v; inversion H0.
+ destruct (Int.eq i Int.zero) eqn:?; inversion H2.
  apply int_eq_e in Heqb. subst.
- inv H; reflexivity.*)
+ inv H; reflexivity.
 Qed.
 
 Lemma typed_false_tlong:
@@ -405,9 +405,9 @@ Lemma typed_false_tlong:
  forall v, typed_false tlong v -> v=nullval.
 Proof.
 intros. unfold nullval. rewrite H.
- hnf in H0. destruct v; inv H0.
+ hnf in H0. destruct v; inversion H0.
 pose proof (Int64.eq_spec i Int64.zero).
- destruct (Int64.eq i Int64.zero); inv H2.
+ destruct (Int64.eq i Int64.zero); inversion H2; subst.
 reflexivity.
 Qed.
 

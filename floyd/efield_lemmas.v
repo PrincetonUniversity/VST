@@ -729,13 +729,13 @@ Proof.
        clear - H1 H0 H.
        unfold is_ptrofs_type, Vptrofs in *.
        destruct Archi.ptr64 eqn:Hp.
-       destruct (typeof ei); inv H.
-       inv H0. rewrite <- H in H1; inv H1.
+       destruct (typeof ei); inversion H; clear H.
+       inversion H0; subst. rewrite <- H in H1; inv H1.
        rewrite <- H. f_equal.  apply Ptrofs.agree64_to_int_eq.
        apply Ptrofs.agree64_repr; auto.
-       destruct (typeof ei); inv H. (*destruct i0; inv H3.
-       inv H0. 2: rewrite <- H in H1; inv H1.
-       rewrite <- H. f_equal. apply ptrofs_to_int_repr.*)
+       destruct (typeof ei); inversion H; clear H. destruct i0; inversion H3.
+       inversion H0. 2: rewrite <- H in H1; inv H1.
+       rewrite <- H. f_equal. apply ptrofs_to_int_repr.
     }
     unfold_lift.
     rewrite <- H3.
