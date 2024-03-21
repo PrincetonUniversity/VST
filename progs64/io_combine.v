@@ -233,8 +233,7 @@ Local Ltac destruct_spec Hspec :=
     forall t' sf, traces (t', sf) -> valid_trace sf /\ app_trace (trace_of_ostrace s0.(io_log)) t' = trace_of_ostrace sf.(io_log).
   Proof.
     induction n as [n IHn] using lt_wf_ind; intros; inv H.
-    - inv H0.
-      rewrite app_trace_end; auto.
+    - rewrite app_trace_end; auto.
     - eauto.
     - destruct (H3 _ H0) as (? & s' & ? & ? & ? & ? & ? & ? & Hinj & Hcall & ? & ? & ? & ? & ? & ? & ? & ? & Hsafe & ? & ? & ? & Heq).
       inv Heq.
@@ -244,8 +243,7 @@ Local Ltac destruct_spec Hspec :=
       split; auto.
       rewrite -> Htrace, <- Htrace', <- app_trace_assoc, app_trace_strip; auto.
       { rewrite Htrace app_trace_strip; auto. }
-    - inv H0.
-      rewrite app_trace_end; auto.
+    - rewrite app_trace_end; auto.
   Qed.
 
   Lemma init_log_valid : forall s, io_log s = [] -> console s = {| cons_buf := []; rpos := 0 |} -> valid_trace s.

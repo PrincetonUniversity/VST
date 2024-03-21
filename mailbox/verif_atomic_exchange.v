@@ -146,12 +146,13 @@ Proof.
     destruct (nth_error _ _) eqn: E; inversion 1; subst.
     rewrite Nat.sub_0_r // in E.
   - iDestruct "H" as "(%Hh & _)"; iPureIntro.
-    assert (forall i, cmra.included(A := cmra.optionR (iris.algebra.excl.exclR (leibnizO AE_hist_el)))
+    assert (forall i, included(A := optionR (exclR (leibnizO AE_hist_el)))
       (h !! i) (list_to_hist h' 0 !! i)) as Hincl.
-    { rewrite -gmap.lookup_included //. }
+    { rewrite -gmap.lookup_included /included.
+      destruct Hh as (z & Hz); exists z; rewrite Hz //. }
     intros ?? Ht.
     specialize (Hincl t); rewrite Ht list_to_hist_lookup in Hincl; last lia.
-    rewrite  Nat.sub_0_r in Hincl.
+    rewrite Nat.sub_0_r in Hincl.
     destruct (nth_error h' t) eqn: Hnth.
     rewrite Excl_included in Hincl; rewrite Hincl //.
     { rewrite option_included in Hincl.
@@ -249,6 +250,7 @@ Proof.
     repeat (iSplit; first done).
     iDestruct "H" as "(_ & (% & #I & hist) & P & spec & _)".
     iSplit; last done.
+    unfold AE_inv.
     iInv "I" as "(% & % & HI)" "Hclose".
     rewrite bi.later_and; iDestruct "HI" as "(>(%Hh0 & %) & >Hp & >ref & R)".
     iApply fupd_mask_intro; first set_solver; iIntros "Hmask".

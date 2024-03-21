@@ -59,7 +59,7 @@ jobs:
               if [ ${{ github.ref_name }} = "755/merge" ]
               then
                 opam repo add -y iris-dev https://gitlab.mpi-sws.org/iris/opam.git
-                opam install -y coq-iris
+                opam install -y coq-iris.dev.2024-02-04.0.0771fa71
               fi
             endGroup
           # See https://github.com/coq-community/docker-coq-action/tree/v1#permissions

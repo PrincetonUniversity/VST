@@ -977,7 +977,7 @@ Proof.
       * iIntros "($ & ? & ? & H)".
         iSpecialize ("H" $! emp with "[]"); first done.
         rewrite list_insert_upd //.
-        replace (Zlength t') with (Zlength h') in *; iApply (upd_write_shares with "[$]").
+        replace (Zlength t') with (Zlength h') in *; by iApply (upd_write_shares with "[$]").
   - Intros t' h'.
     forward.
     forward.

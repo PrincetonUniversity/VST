@@ -122,7 +122,7 @@ Proof.
     { destruct H as [? [? [? [? ?]]]].
       split; [| split; [| split; [| split]]]; auto.
       destruct b; inv H.
-      inv H2. inv H.
+      inv H2.
       specialize (H7 0 ltac:(lia)).
       simpl.
       eapply align_compatible_rec_Tstruct; [reflexivity.. |].

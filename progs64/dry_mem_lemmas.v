@@ -82,7 +82,7 @@ Proof.
   destruct p; try contradiction.
   iExists _, _; iSplit; first done.
   iDestruct "Hp" as "(% & Hp)".
-  iDestruct (memory_block_writable_perm with "[$Hm $Hp]") as %Hperm; [rep_lia..|].
+  iDestruct (memory_block_writable_perm with "[$Hm $Hp]") as %Hperm; [done | rep_lia..|].
   rewrite Z2Nat.id in Hperm; auto.
   pose proof (sizeof_pos t); lia.
 Qed.
@@ -116,7 +116,7 @@ Proof.
   rewrite sublist_1_cons (sublist_same _ (z - 1)) //; last lia.
   iAssert ⌜field_compatible (tarray tuchar (z - 1)) [] (Vptr b (Ptrofs.add i (Ptrofs.repr 1)))⌝ with "[Hrest]" as %?.
   { unfold data_at, field_at; iDestruct "Hrest" as "($ & _)". }
-  iDestruct (IHn with "[$Hz $Hrest]") as %Hrest; [try lia..|].
+  iDestruct (IHn with "[$Hz $Hrest]") as %Hrest; [lia || done..|].
   iDestruct "Hz" as "(Hm & _)".
   rewrite sublist_0_cons // sublist_nil data_at_tuchar_singleton_array_inv.
   iAssert ⌜field_compatible tuchar [] (Vptr b i)⌝ with "[H]" as %?.
@@ -219,7 +219,7 @@ Proof.
   - by erewrite <- Mem.nextblock_storebytes.
 Qed.
 
-Lemma data_at__storebytes : forall {CS} m m' sh z b o lv (Hsh : writable_share sh)
+Lemma data_at__storebytes : forall {CS : compspecs} m m' sh z b o lv (Hsh : writable_share sh)
   (Hty : Forall (tc_val' tuchar) lv)
   (Hstore : Mem.storebytes m b (Ptrofs.unsigned o) (concat (map (encode_val Mint8unsigned) lv)) = Some m')
   (Hz : z = Zlength lv),
@@ -245,11 +245,11 @@ Proof.
   { unfold data_at, field_at; iDestruct "H" as "($ & _)". }
   rewrite -mapsto_data_at' //.
   inv Hty.
-  iMod (mapsto_store with "[$Hm $H]") as "(Hm & H)"; [auto..|].
+  iMod (mapsto_store with "[$Hm $H]") as "(Hm & H)"; [eauto..|].
   rewrite encode_val_length /= in Hstore2.
   rewrite /Ptrofs.add Ptrofs.unsigned_repr //.
   rewrite -> Zlength_cons in *.
-  iMod (IHn with "[$Hm $Hrest]") as "($ & Hrest)"; try lia.
+  iMod (IHn with "[$Hm $Hrest]") as "($ & Hrest)"; [lia || done..| |].
   { rewrite Ptrofs.unsigned_repr //.
     destruct H as (_ & _ & H & _); simpl in H; rep_lia. }
   rewrite (split2_data_at_Tarray_tuchar _ (Z.succ (Zlength lv)) 1) // /=; try lia.

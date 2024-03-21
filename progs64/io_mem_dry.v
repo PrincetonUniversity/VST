@@ -95,7 +95,7 @@ Proof.
         rewrite Mem.loadbytes_empty //. }
       rewrite split2_data_at_Tarray_app //.
       iDestruct "Hbuf" as "(Hmsg & _)".
-      iDestruct (data_at_bytes with "[$Hz $Hmsg]") as %Hmsg; first done.
+      iDestruct (data_at_bytes with "[$Hz $Hmsg]") as %Hmsg; [done.. | |].
       { rewrite Forall_map Forall_forall //. }
       iPureIntro; repeat (split; first done).
       rewrite Zlength_map map_map // in Hmsg.
@@ -120,7 +120,7 @@ Proof.
     iDestruct "H" as "(_ & (% & % & Hext) & Hbuf & _)".
     iDestruct (has_ext_state with "[$Hz $Hext]") as %<-.
     iSplit.
-    + iDestruct (data_at__writable_perm with "[$Hz $Hbuf]") as %(? & ? & -> & Hbuf).
+    + iDestruct (data_at__writable_perm with "[$Hz $Hbuf]") as %(? & ? & -> & Hbuf); first done.
       iPureIntro; repeat (split; first done).
       simpl in *.
       rewrite Z.mul_1_l // in Hbuf.
@@ -132,7 +132,7 @@ Proof.
       destruct buf; try done.
       destruct Hstore as (? & Hstore & Heq%mem_equiv_sym).
       rewrite -(mem_auth_equiv _ m') //.
-      iMod (data_at__storebytes _ _ _ _ _ _ (map Vubyte msg) with "[$]") as "($ & ?)".
+      iMod (data_at__storebytes _ _ _ _ _ _ (map Vubyte msg) with "[$]") as "($ & ?)"; first done.
       { rewrite Forall_map Forall_forall; intros byte ??; simpl.
         rewrite Int.unsigned_repr; rep_lia. }
       { rewrite map_map //. }
