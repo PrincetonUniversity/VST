@@ -974,7 +974,7 @@ Lemma sepconN_mapsto_array {cenv t b sh} K : forall z
     (Hz: 0 <= Ptrofs.unsigned z /\
                Z.of_nat K * size_chunk Mptr + Ptrofs.unsigned z < Ptrofs.modulus),
     sepconN K (fun p : val => mapsto sh (Tpointer t noattr) p nullval) (size_chunk Mptr) (Vptr b z)
-⊢ data_at sh (tarray (Tpointer t noattr) (Z.of_nat K)) (repeat nullval K) (Vptr b z).
+⊢ data_at(cs := cenv) sh (tarray (Tpointer t noattr) (Z.of_nat K)) (repeat nullval K) (Vptr b z).
 Proof.
   specialize (Zle_0_nat K); specialize size_chunk_range; intros SZ Kpos.
   induction K; intros.
@@ -1012,13 +1012,13 @@ Proof.
          unfold Mptr in *. destruct Archi.ptr64; simpl in *; lia.
       ++ red. constructor; intros. econstructor. reflexivity. rewrite Csizeof_Tpointer.
          simpl. unfold Mptr in *. destruct (Archi.ptr64).
-         -- apply Z.divide_add_r. trivial. 
+         -- apply Z.divide_add_r. trivial.
             eapply Z.divide_trans. apply align_size_chunk_divides. simpl size_chunk. exists i; lia.
          -- apply Z.divide_add_r. trivial.
             eapply Z.divide_trans. apply align_size_chunk_divides. simpl size_chunk. exists i; lia.
 Qed.
 
-Lemma mapsto_zeros_data_atTarrayTptr_nullval_N {cenv} N sh t b z:
+Lemma mapsto_zeros_data_atTarrayTptr_nullval_N {cenv : compspecs} N sh t b z:
        readable_share sh ->
        (align_chunk Mptr | Ptrofs.unsigned z) ->
        mapsto_zeros (Z.of_nat N * size_chunk Mptr) sh (Vptr b z)

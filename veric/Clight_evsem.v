@@ -311,8 +311,8 @@ Lemma eval_exprTlist_fun: forall es ts vs1 T1 (E1:eval_exprTlist es ts vs1 T1)
                           vs2 T2 (E2:eval_exprTlist es ts vs2 T2), (vs1,T1)=(vs2,T2).
 Proof.
   intros es ts vs1 T1 E; induction E; simpl; intros; inv E2; trivial.
-  exploit eval_exprT_fun. apply H. apply H5. intros X; inv X. rewrite H8 in H0; inv H0.
-  apply IHE in H9; congruence. 
+  exploit eval_exprT_fun. apply H. apply H5. intros X; inv X.
+  apply IHE in H9; congruence.
 Qed.
 
 End EXPR_T.
@@ -644,7 +644,6 @@ Qed.
          induction K; simpl; intros; try solve [ inv K'; eauto ].
  - inv K'. exploit eval_exprT_fun. apply H14. apply H0. intros X; inv X.
     exploit eval_lvalueT_fun. apply H13. apply H. intros X; inv X.
-    rewrite H15 in H1; inv H1.
     exploit assign_locT_fun. apply H16. apply H2. intros X; inv X; trivial.
    destruct H12; discriminate.
    destruct H12; discriminate.
@@ -655,7 +654,6 @@ Qed.
     + rewrite H15 in H; inv H.
       exploit eval_exprT_fun. eassumption. apply H0. intros X; inv X.
       exploit eval_exprTlist_fun. eassumption. apply H1. intros X; inv X.
-      rewrite H18 in H2; inv H2.
       rewrite H19 in H3; inv H3. auto.
     + destruct H13; discriminate.
     + destruct H13; discriminate.
@@ -671,7 +669,7 @@ Qed.
     destruct H10; discriminate.
  - destruct H; subst x; inv K'; auto. contradiction.
  - inv K'; auto; contradiction.
- - inv K'; try solve [destruct H9; discriminate]. inversion2 H H8. auto.
+ - inv K'; try solve [destruct H9; discriminate]. inversion H. auto.
  - inv K'; try solve [destruct H11; discriminate].
     exploit eval_exprT_fun. eassumption. eapply H. intros X; inv X. auto.
  - inv K'; try contradiction. auto.
@@ -788,14 +786,13 @@ Proof.
 Qed.
 
 Lemma builtin_event_determ ef m vargs T1 (BE1: builtin_event ef m vargs T1) T2 (BE2: builtin_event ef m vargs T2): T1=T2.
-inversion BE1; inv BE2; try discriminate; try contradiction; simpl in *; trivial.
+inversion BE1; inversion BE2; subst; try discriminate; try contradiction; simpl in *; trivial.
 + assert (Vptrofs n0 = Vptrofs n) as H by congruence.
   rewrite H; rewrite -> (Vptrofs_inj _ _ H) in *.
-  rewrite ALLOC0 in ALLOC; inv ALLOC; trivial.
+  rewrite ALLOC0 in ALLOC; inversion ALLOC; trivial.
 + inv H5.
-  rewrite LB0 in LB; inv LB. rewrite <- SZ in SZ0. rewrite (Vptrofs_inj _ _ SZ0); trivial.
-+ inv H3; inv H5.
-  rewrite LB0 in LB; inv LB; trivial.
+  rewrite <- SZ in SZ0. rewrite (Vptrofs_inj _ _ SZ0); trivial.
++ inv H3; trivial.
 Qed.
 
 Inductive ev_star ge: state -> mem -> _ -> state -> mem -> Prop :=

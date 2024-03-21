@@ -317,7 +317,7 @@ intros f Hin Hnorepeat.
 unfold semax_external.
 iIntros (ge ????) "!> !> (%Hargsty & Hp & Hf)".
 iIntros "!>" (??) "Hs".
-iDestruct (add_funspecs_prepost _ _ _ _ (genv_symb_injective ge) with "[$Hp $Hs]") as (x' ?) "Hpost"; first done.
+iDestruct (add_funspecs_prepost _ _ _ _ (genv_symb_injective ge) with "[$Hp $Hs]") as (x' ?) "Hpost"; [done..|].
 iExists x'; iFrame; iSplit; first done.
 iIntros (?????); iMod ("Hpost" with "[%]") as "$"; done.
 Qed.

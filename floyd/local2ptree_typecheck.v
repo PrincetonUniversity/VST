@@ -329,10 +329,10 @@ Proof.
     rewrite denote_tc_assert_andp'.
     rewrite denote_tc_assert_andp.
     apply bi.and_intro.
-    - iIntros "H". iApply (IHtc1 with "[H]"). iStopProof.
+    - iIntros "H". iApply (IHtc1 with "[H]"); first done. iStopProof.
       raise_rho.
       solve_andp.
-    - iIntros "H". iApply (IHtc2 with "[H]"). iStopProof.
+    - iIntros "H". iApply (IHtc2 with "[H]"); first done. iStopProof.
       raise_rho.
       solve_andp.
   + inversion H.

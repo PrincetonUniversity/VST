@@ -567,7 +567,7 @@ Proof.
   rewrite den_isBinOpR.
   unfold eval_binop, sem_binary_operation', isBinOpResultType, Clight_Cop2.sem_mul.
   unfold force_val2, force_val.
-  iIntros "IBR"; iApply tc_val_sem_binarith'.
+  iIntros "IBR"; iApply tc_val_sem_binarith'; [done..|].
   unfold binarithType'.
   destruct (classify_binarith' (typeof e1) (typeof e2)); eauto.
   + destruct s; simpl; unfold_lift; by rewrite bi.and_elim_r.

@@ -259,8 +259,8 @@ Proof.
   unfold get_co.
   intros.
   destruct (Maps.PTree.get id cenv_cs) as [co |] eqn:CO.
-  + inv H. inv H1.
-      inversion2 CO H3.
+  + inv H.
+      inversion CO.
       apply (H6 i (field_type i (co_members co)) (field_offset cenv_cs i (co_members co))); clear H6.
       clear - H0; unfold in_members in H0.
       induction (co_members co).
@@ -283,8 +283,8 @@ Proof.
   intros.
   unfold in_members in *.
   destruct (Maps.PTree.get id cenv_cs) as [co |] eqn:CO.
-  + inv H. inv H1.
-      inversion2 CO H3.
+  + inv H.
+      inversion CO.
       apply (H6 i (field_type i (co_members co))); clear H6.
       clear - H0; unfold in_members in H0.
       induction (co_members co).

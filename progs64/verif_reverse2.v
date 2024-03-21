@@ -34,7 +34,7 @@ Context `{!default_VSTGS Σ}.
 Fixpoint listrep (sigma: list val) (x: val) : mpred :=
  match sigma with
  | h::hs => 
-    ∃ y:val, 
+    ∃ y:val,
       data_at Tsh t_struct_list (h,y) x ∗ listrep hs y
  | nil => 
     ⌜x = nullval⌝ ∧ emp

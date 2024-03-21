@@ -78,9 +78,9 @@ Proof.
   rewrite /assert_safe; split => ? /=.
   iIntros "H" (? ->); iSpecialize ("H" $! _ eq_refl).
   destruct ctl.
-  - iMod (fupd_mask_subseteq E1); iMod "H" as "[]".
+  - iMod (fupd_mask_subseteq E1); first done; iMod "H" as "[]".
   - destruct c; try by iApply jsafe_mask_mono.
-    iMod (fupd_mask_subseteq E1); iMod "H" as "[]".
+    iMod (fupd_mask_subseteq E1); first done; iMod "H" as "[]".
   - destruct o; last by iApply jsafe_mask_mono.
     iIntros (e); iSpecialize ("H" $! e).
     iApply (bi.impl_intro_r with "H").
@@ -210,13 +210,13 @@ Proof.
   { iPureIntro; split; auto.
     rewrite HSIG in HT; apply has_type_list_Forall2 in HT.
     eapply Forall2_implication; [ | apply HT]; auto. }
-  iMod (fupd_mask_subseteq E1) as "Hmask".
+  iMod (fupd_mask_subseteq E1) as "Hmask"; first done.
   iMod ("H" $! _ (F ∗ F1) with "[$P1 $F $F1]") as "H1"; first done.
   iMod "Hmask" as "_".
   iIntros "!>" (??) "s".
   iDestruct ("H1" with "s") as (x') "[? H']".
   iExists x'; iFrame; iIntros (????) "Hpost".
-  iMod (fupd_mask_subseteq E1) as "Hmask".
+  iMod (fupd_mask_subseteq E1) as "Hmask"; first done.
   iMod ("H'" with "Hpost") as "($ & Q1 & $ & F1)".
   iMod "Hmask" as "_".
   iApply (HQ with "[$F1 $Q1]"); iPureIntro; split; auto.
@@ -538,7 +538,7 @@ Lemma believe_cenv_sub_L {CS'} gx Delta Delta' Gamma
 Proof.
   rewrite /believe.
   iIntros "H" (????????); iDestruct ("H" with "[%]") as "[?|?]"; eauto.
-  iRight; iApply (believe_internal_cenv_sub with "[$]").
+  iRight; by iApply (believe_internal_cenv_sub with "[$]").
 Qed.
 Lemma believe_monoL {CS'} gx Delta Delta' Gamma
   (SUB: forall f, tycontext_sub (func_tycontext' f Delta)
@@ -624,14 +624,14 @@ Qed.
 
 Lemma believe_internal_mask_mono {CS} gx E E' Delta v sig cc A P Q
   (SUB: E ⊆ E') :
-  believe_internal gx E Delta v sig cc A P Q ⊢
+  believe_internal(CS := CS) gx E Delta v sig cc A P Q ⊢
   believe_internal gx E' Delta v sig cc A P Q.
 Proof.
   rewrite /believe_internal.
   iIntros "H"; iDestruct "H" as (b f Hv) "H".
   iExists b, f; iSplit; first done.
   iIntros (?????).
-  iApply semax_mask_mono; iApply ("H" with "[%] [%]"); done.
+  iApply semax_mask_mono; first done; iApply ("H" with "[%] [%]"); done.
 Qed.
 
 End mpred.

@@ -101,7 +101,6 @@ Context `{ST : ShareType}.
       intros [[?|?] [= ->]]; by eexists.
     - split; last by (intros [o ->]; exists (DfracBoth o)).
       intros [[?|?] [= ->]]; try done.
-      by eexists.
     - split; last done.
       intros [[?|?] [= ->]]; done.
     - split; last by (intros [o ->]; exists (DfracOwn o)).

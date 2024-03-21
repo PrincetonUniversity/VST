@@ -468,9 +468,9 @@ Proof.
           (∃ v : val, address_mapsto m0 v sh (b0, Ptrofs.unsigned i0))).
     { apply bi.sep_mono; (iIntros "[[% H] | [% H]]"; [|iDestruct "H" as (?) "H"]); eauto. }
     iIntros "[H1 H2]"; iDestruct "H1" as (?) "H1"; iDestruct "H2" as (?) "H2".
-    iApply address_mapsto_overlap; iFrame.
+    iApply address_mapsto_overlap; eauto with iFrame.
   + iIntros "[[% H] [% ?]]".
-    iApply nonlock_permission_bytes_overlap; iFrame.
+    iApply nonlock_permission_bytes_overlap; eauto with iFrame.
 Qed.
 
 Lemma Nat2Z_add_lt: forall n i, Ptrofs.unsigned i + n < Ptrofs.modulus ->
@@ -512,7 +512,7 @@ Proof.
   if_tac.
   + iApply (VALspec_range_overlap with "[$]").
     rewrite !Z2Nat.id; auto; lia.
-  + iApply (nonlock_permission_bytes_overlap with "[$]").
+  + iApply (nonlock_permission_bytes_overlap with "[$]"); first done.
     rewrite !Z2Nat.id; auto; lia.
 Qed.
 
@@ -525,7 +525,7 @@ Proof.
   iDestruct (mapsto_pure_facts with "H1") as %[[??] ?].
   assert (sizeof t > 0).
   { destruct t; try discriminate; simpl; try destruct i; try destruct f; try simple_if_tac; lia. }
-  iApply (mapsto_overlap _ (cs := cs) with "[$]").
+  iApply (mapsto_overlap _ (cs := cs) with "[$]"); first done.
   apply pointer_range_overlap_refl; auto.
 Qed.
 
@@ -545,7 +545,7 @@ Proof.
     exists (b, Ptrofs.unsigned i).
     simpl; repeat split; auto; try lia;
     rewrite Z2Nat.id; lia.
-  + iApply nonlock_permission_bytes_overlap; last iFrame.
+  + iApply nonlock_permission_bytes_overlap; first done; last iFrame.
     exists (b, Ptrofs.unsigned i).
     repeat split; auto; try rewrite Z2Nat.id; lia.
 Qed.
@@ -960,7 +960,7 @@ Proof.
   assert (Ptrofs.unsigned (Ptrofs.add z (Ptrofs.repr (size_chunk Mptr))) = Ptrofs.unsigned z + size_chunk Mptr) as Heq.
   { rewrite Ptrofs.add_unsigned !Ptrofs.unsigned_repr; unfold Ptrofs.max_unsigned; lia. }
   rewrite -(bi.True_and (address_mapsto_zeros _ _ _)) -bi.pure_True; last apply Hz.
-  iSplit; [|iDestruct (IHN with "[$]") as "[_ $]"].
+  iSplit; [|iDestruct (IHN with "[$]") as "[_ $]"; first done].
   - rewrite Heq in Hz; iPureIntro; repeat split; auto; lia.
   - rewrite Heq. by apply Z.divide_add_r, Z.divide_refl.
 Qed.
@@ -986,7 +986,7 @@ Proof.
   iIntros "H".
   destruct (type_is_volatile t); try done.
   rewrite -> if_true by auto.
-  iDestruct "H" as "[(% & H) | (% & % & H)]"; try done; iApply (mapsto_core_load with "H").
+  iDestruct "H" as "[(% & H) | (% & % & H)]"; try done; by iApply (mapsto_core_load with "H").
 Qed.
 
 (* Timeless *)
@@ -1037,6 +1037,8 @@ Proof.
   apply bi.and_timeless; first apply _.
   apply big_sepL_timeless'.
   intros; if_tac; try apply _.
+  apply bi.exist_timeless; intros; apply bi.and_timeless; try apply _.
+  apply mapsto_timeless; done.
   { destruct (Z.to_nat _) eqn: Hn; try done.
     pose proof (size_chunk_pos m); lia. }
 Qed.
@@ -1045,7 +1047,7 @@ Lemma memory_block'_timeless sh n b o : (n > 0)%nat -> Timeless (memory_block' s
 Proof.
   revert o; induction n; simpl; first lia; intros.
   destruct (gt_dec n O).
-  - apply _.
+  - apply bi.sep_timeless; [apply _ | eauto].
   - replace n with O by lia; rewrite bi.sep_emp; apply _.
 Qed.
 

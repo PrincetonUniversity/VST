@@ -38,8 +38,8 @@ Proof.
  try solve [revert H1; simple_if_tac; intro H1; inv H1].
  pose proof (Int64.eq_spec i0 Int64.zero);
  destruct (Int64.eq i0 Int64.zero); inv H1; auto.
- pose proof (Int.eq_spec i0 Int.zero);
- destruct (Int.eq i0 Int.zero); inv H1; auto.
+(* pose proof (Int.eq_spec i0 Int.zero);
+ destruct (Int.eq i0 Int.zero); inv H1; auto.*)
 Qed.
 
 Section mpred.
@@ -240,9 +240,9 @@ Proof.
  pose proof (Int64.eq_spec i Int64.zero).
  destruct (Int64.eq i Int64.zero); inv H1.
  reflexivity.
- pose proof (Int.eq_spec i Int.zero).
+(* pose proof (Int.eq_spec i Int.zero).
  destruct (Int.eq i Int.zero); inv H1.
- reflexivity.
+ reflexivity.*)
 Qed.
 
 Lemma typed_true_One_nullval:
@@ -351,10 +351,10 @@ if_tac; [destruct (Ptrofs.ltu i0 i); reflexivity | reflexivity].
 if_tac; [destruct (Ptrofs.ltu i0 i); reflexivity | reflexivity].
 if_tac; [destruct (Ptrofs.ltu i i0); reflexivity | reflexivity].
 destruct op; simpl; auto; rewrite Hp.
-if_tac. if_tac. inv H0. rewrite Ptrofs.eq_true; reflexivity.
+if_tac. if_tac. inv H0.
 rewrite -> Ptrofs.eq_false by congruence; reflexivity.
 if_tac. congruence. reflexivity.
-if_tac. if_tac. inv H0. rewrite -> Ptrofs.eq_true by auto. reflexivity.
+if_tac. if_tac. inv H0.
 rewrite -> Ptrofs.eq_false by congruence; reflexivity.
 rewrite -> if_false by congruence. reflexivity.
 if_tac; [destruct (Ptrofs.ltu i i0); reflexivity | reflexivity].

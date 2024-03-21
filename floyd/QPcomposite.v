@@ -872,7 +872,7 @@ intros.
  rewrite H in MERGE.
  destruct (Maps.PTree.get i ce1) eqn:?H; destruct (Maps.PTree.get i ce2) eqn:?H.
  destruct MERGE as [c' [? ?]].
- destruct (QPcomposite_eq c0 c1) eqn:?H in H4; inv H4. apply QPcomposite_eq_e in H6; subst c'. inv H5.
+ destruct (QPcomposite_eq c0 c1) eqn:?H in H4; inv H4. apply QPcomposite_eq_e in H6.
  eapply composite_consistent_stable. apply SUB1. apply H1; eauto.
  eapply composite_consistent_stable. apply SUB1. apply H1; eauto.
  eapply composite_consistent_stable. apply SUB2. apply H2; eauto.
@@ -887,7 +887,7 @@ intros.
  rewrite H in MERGE.
  destruct (Maps.PTree.get i ce1) eqn:?H; destruct (Maps.PTree.get i ce2) eqn:?H.
  destruct MERGE as [c' [? ?]].
- destruct (QPcomposite_eq c0 c1) eqn:?H in H4; inv H4. apply QPcomposite_eq_e in H6; subst c'. inv H5.
+ destruct (QPcomposite_eq c0 c1) eqn:?H in H4; inv H4. apply QPcomposite_eq_e in H6.
  eauto.
  eauto.
  eauto.
@@ -902,7 +902,7 @@ intros.
  rewrite H in MERGE.
  destruct (ce1 !! i) eqn:?H; destruct (ce2 !! i) eqn:?H.
  destruct MERGE as [c' [? ?]].
- destruct (QPcomposite_eq c0 c1) eqn:?H in H4; inv H4. apply QPcomposite_eq_e in H6; subst c'. inv H5.
+ destruct (QPcomposite_eq c0 c1) eqn:?H in H4; inv H4. apply QPcomposite_eq_e in H6.
  eapply complete_legal_cosu_stable. apply SUB1. apply H1; eauto.
  eapply complete_legal_cosu_stable. apply SUB1. apply H1; eauto.
  eapply complete_legal_cosu_stable. apply SUB2. apply H2; eauto.
@@ -1039,7 +1039,7 @@ intros.
    specialize (H3 (eq_refl _)).
    specialize (H4 (eq_refl _)).   
     simpl QP.co_ha in *; simpl QP.co_la  in *.
-   destruct  (Maps.PTree.get i ce) eqn:?H; inv H3. inv H4. inv H1. simpl in H.  auto.
+   destruct  (Maps.PTree.get i ce) eqn:?H; inv H3. simpl in H. auto.
  +
    unfold is_aligned in *; simpl in *; unfold is_aligned_aux in *.
    rewrite get_composite_env_of_QPcomposite_env in *.
@@ -1053,7 +1053,7 @@ intros.
    specialize (H3 (eq_refl _)).
    specialize (H4 (eq_refl _)).
     simpl.
-   destruct  (Maps.PTree.get i ce) eqn:?H; inv H3. inv H4. inv H1. simpl in H.  auto.
+   destruct  (Maps.PTree.get i ce) eqn:?H; inv H3. simpl in H.  auto.
  -
  destruct (Maps.PTree.get i (composite_env_of_QPcomposite_env ce OKce)) eqn:?H; inv H.
  destruct (co_su c) eqn:?H; try discriminate.
@@ -1088,7 +1088,7 @@ intros.
    unfold option_map in *. rewrite H1,H2 in *.
    specialize (H4 (eq_refl _)).
    specialize (H5 (eq_refl _)).
-    simpl. inv H4; inv H5. simpl in H0. rewrite H3. auto.
+    simpl. inv H4. simpl in H0. rewrite H3. auto.
  +
    unfold is_aligned in *; simpl in *; unfold is_aligned_aux in *.
    rewrite get_composite_env_of_QPcomposite_env in *.
@@ -1101,7 +1101,7 @@ intros.
    unfold option_map in *. rewrite H1,H2 in *.
    specialize (H4 (eq_refl _)).
    specialize (H5 (eq_refl _)).
-    simpl. inv H4; inv H5. simpl in H0. rewrite H3; auto.
+    simpl. inv H4. simpl in H0. rewrite H3; auto.
  }
   hnf; intros.
   destruct (H9 _ _ H H0) as [[??]|[??]]; clear H9.

@@ -146,7 +146,7 @@ destruct rho.
 rewrite denote_tc_assert_andp.
 unfold typecheck_environ in H.
 destruct H as [_ [Hve Hge]].
-iDestruct (eval_lvalue_ptr with "[H]") as %PTR; first done.
+iDestruct (eval_lvalue_ptr with "[H]") as %PTR; [try done..|].
 { by rewrite bi.and_elim_l. }
 rewrite (IHl t).
 2: { clear - MODE; destruct t; try destruct i; try destruct s; try destruct f; inv MODE; simpl; auto. }
@@ -187,7 +187,7 @@ destruct IHe as [IHe IHl].
 destruct rho.
 unfold typecheck_environ in *. intuition.
 iIntros "H".
-iDestruct (eval_lvalue_ptr with "[H]") as %PTR; first done.
+iDestruct (eval_lvalue_ptr with "[H]") as %PTR; [try done..|].
 { by rewrite bi.and_elim_l. }
 rewrite (IHl pt); last done.
 iDestruct "H" as (Hpt) "H".

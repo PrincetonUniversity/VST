@@ -476,7 +476,7 @@ Lemma gen_heap_init_names {S} `{!@gen_heapGpreS S L V Σ H1 H2 H3} σ (Hvalid : 
 Proof.
   iMod (resource_map_alloc ∅) as (γh) "(Hm & _)".
   { done. }
-  iMod (resource_map_set _ σ with "Hm") as "(? & ?)".
+  iMod (resource_map_set _ σ with "Hm") as "(? & ?)"; first done.
   iMod (ghost_map_alloc_empty) as (γm) "?".
   iExists γh, γm; iFrame.
   rewrite mapsto_unseal mapsto_no_unseal //.
@@ -500,7 +500,7 @@ Lemma gen_heap_init {S} `{!@gen_heapGpreS S L V Σ H1 H2 H3} σ (Hvalid : ✓ σ
                         | _ => False
                         end) ∗ ghost_map_auth (gen_meta_name _) 1 ∅.
 Proof.
-  iMod (gen_heap_init_names σ) as (γh γm) "Hinit".
+  iMod (gen_heap_init_names σ) as (γh γm) "Hinit"; first done.
   iExists (GenHeapGS _ _ _ _ γh γm).
   done.
 Qed.

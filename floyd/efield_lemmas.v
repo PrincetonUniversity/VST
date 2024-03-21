@@ -220,7 +220,7 @@ Lemma By_reference_eval_expr: forall Delta e rho,
 Proof.
   intros.
   iIntros "H".
-  iPoseProof (typecheck_lvalue_sound with "[-]") as "%HH"; auto.
+  iPoseProof (typecheck_lvalue_sound with "[-]") as "%HH"; eauto.
   iPureIntro.
   destruct e; try contradiction; simpl in *;
   reflexivity.
@@ -733,9 +733,9 @@ Proof.
        inv H0. rewrite <- H in H1; inv H1.
        rewrite <- H. f_equal.  apply Ptrofs.agree64_to_int_eq.
        apply Ptrofs.agree64_repr; auto.
-       destruct (typeof ei); inv H. destruct i0; inv H3.
+       destruct (typeof ei); inv H. (*destruct i0; inv H3.
        inv H0. 2: rewrite <- H in H1; inv H1.
-       rewrite <- H. f_equal. apply ptrofs_to_int_repr.
+       rewrite <- H. f_equal. apply ptrofs_to_int_repr.*)
     }
     unfold_lift.
     rewrite <- H3.
@@ -1007,9 +1007,8 @@ Proof.
     subst.
     destruct (typeof e) eqn:?H; inv H2.
     iSplit.
-    - iPoseProof (By_reference_eval_expr with "[-]") as "%HH".
-      2: { done. }
-      rewrite H; auto. iPureIntro. done.
+    - iPoseProof (By_reference_eval_expr with "[-]") as "%HH"; try done.
+      rewrite H; auto.
     - iApply By_reference_tc_expr; auto.
       rewrite H; auto.
 Qed.
@@ -1231,8 +1230,6 @@ Proof.
   Opaque eqb_type.
   destruct (typeof e); inv H2; inv H3; inv H4; simpl;
   try rewrite eqb_type_spec; auto.
-  + inv H0.
-  + inv H0.
 Qed.
 
 Lemma compute_nested_efield_aux: forall e rho lr_default,

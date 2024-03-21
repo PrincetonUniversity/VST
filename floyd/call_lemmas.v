@@ -462,6 +462,7 @@ Proof.
   assert (H18 := msubst_eval_expr_eq Delta P Qtemp Qvar GV R' a v H0).
   assert (H19 := local2ptree_soundness P Q R' Qtemp Qvar nil GV H).
   split; repeat match goal with |- _ /\ _ => split end; auto.
+  2: { iIntros "($ & $ & ?)"; rewrite /SEPx H3; by iNext. }
   hnf; intros.
   eapply semax_pre; [ | eassumption].
   clear c Post0 H8.
@@ -753,7 +754,7 @@ Proof.
   split => rho; monPred.unseal; rewrite monPred_at_intuitionistically.
   unfold_lift; simpl.
   iIntros "((% & ->) & ?)".
-  iPoseProof (tc_eval_exprlist with "[-]") as "%"; first done.
+  iPoseProof (tc_eval_exprlist with "[-]") as "%"; [done..|].
   iPureIntro.
   eapply tc_vals_Vundef; eauto.
 Qed.
@@ -1184,8 +1185,8 @@ Proof.
         with true
         by (clear- OKretty'; destruct retty' as [ | [ | | |] [| ]| [|] | [ | ] |  | | | | ]; try contradiction; unfold is_neutral_cast; rewrite ?eqb_type_refl; reflexivity).
       rewrite denote_tc_assert_andp.
-      iSplit; last iApply (neutral_isCastResultType with "H").
-      iApply PQR_denote_tc_initialized; auto.
+      iSplit; last by iApply (neutral_isCastResultType with "H").
+      iApply PQR_denote_tc_initialized; eauto.
     - unfold tc_temp_id, typecheck_temp_id.
       unfold typeof_temp in TYret.
       destruct ((temp_types Delta) !! ret); inversion TYret; clear TYret; try subst t.
@@ -1323,7 +1324,7 @@ Proof.
       replace ((is_neutral_cast retty' retty' || same_base_type retty' retty')%bool)
         with true
         by (clear- OKretty'; destruct retty' as [ | [ | | |] [| ]| [|] | [ | ] |  | | | | ]; try contradiction; unfold is_neutral_cast; rewrite ?eqb_type_refl; reflexivity).
-      iApply PQR_denote_tc_initialized; auto.
+      iApply PQR_denote_tc_initialized; eauto.
     - unfold tc_temp_id, typecheck_temp_id.
       unfold typeof_temp in TYret.
       destruct ((temp_types Delta) !! ret); inversion TYret; clear TYret; try subst t.

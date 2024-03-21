@@ -162,7 +162,7 @@ iDestruct (H2 with "[$Hm H]") as %?.
 { iDestruct "H" as "(_ & $)". }
 rewrite !typecheck_expr_sound; try assumption.
 iDestruct "H" as "[[H %] %]".
-iApply (eval_binop_relate' with "[$]").
+by iApply (eval_binop_relate' with "[$]").
 Qed.
 
 Lemma valid_pointer_dry0:
@@ -221,8 +221,8 @@ Clight.eval_expr ge ve te m (Ebinop b e1 e2 t) Vundef⌝.
 Proof.
 intros.
 iIntros "H".
-iDestruct (typecheck_expr_sound with "[H]") as %?; first iDestruct "H" as "(_ & _ & $)".
-iDestruct (typecheck_expr_sound with "[H]") as %?; first iDestruct "H" as "($ & _)".
+iDestruct (typecheck_expr_sound with "[H]") as %?; first done; first iDestruct "H" as "(_ & _ & $)".
+iDestruct (typecheck_expr_sound with "[H]") as %?; first done; first iDestruct "H" as "($ & _)".
 rewrite typecheck_binop_sound2; try done.
 iDestruct "H" as %TC; iPureIntro.
 unfold eval_binop, force_val2 in TC.
@@ -512,7 +512,7 @@ Lemma eval_unop_relate:
 Proof.
 intros.
 iIntros "[Hm H]".
-iDestruct (typecheck_expr_sound with "H") as %TC.
+iDestruct (typecheck_expr_sound with "H") as %TC; first done.
 unfold typecheck_expr; fold typecheck_expr.
 unfold eval_expr in TC; fold eval_expr in TC.
 simpl; super_unfold_lift.
@@ -578,7 +578,7 @@ intros.
 induction e; simpl; split; iIntros "[Hm H]"; try done; try solve [iPureIntro; constructor; auto].
 
 * (* eval_expr Evar*)
-iDestruct (typecheck_expr_sound with "H") as %TC.
+iDestruct (typecheck_expr_sound with "H") as %TC; first done.
 simpl in TC.
 unfold typecheck_expr.
 destruct (access_mode t) eqn:MODE; try iDestruct "H" as "[]".
@@ -625,7 +625,7 @@ apply Clight.eval_Evar_global; auto.
  constructor 2; auto.
 
 * (*temp*)
-iDestruct (typecheck_expr_sound with "H") as %TC.
+iDestruct (typecheck_expr_sound with "H") as %TC; first done.
 simpl in TC.
 iPureIntro.
 constructor. unfold eval_id in *. remember (Map.get (te_of rho) i);
@@ -658,18 +658,18 @@ iDestruct (proj2 IHe with "[$]") as %(b & ? & ? & ->); iPureIntro.
 constructor; auto.
 
 * (*unop*)
- destruct IHe; iApply (eval_unop_relate with "[$]").
+ destruct IHe; by iApply (eval_unop_relate with "[$]").
 * (*binop*)
- destruct IHe1, IHe2; iApply (eval_binop_relate with "[$]").
+ destruct IHe1, IHe2; by iApply (eval_binop_relate with "[$]").
 * (*Cast*)
-iDestruct (typecheck_expr_sound with "H") as %TC.
+iDestruct (typecheck_expr_sound with "H") as %TC; first done.
 unfold typecheck_expr; fold typecheck_expr.
 rewrite denote_tc_assert_andp.
-iDestruct (typecheck_expr_sound with "[H]") as %?.
+iDestruct (typecheck_expr_sound with "[H]") as %?; first done.
 { iDestruct "H" as "($ & _)". }
 iDestruct (proj1 IHe with "[$Hm H]") as %?.
 { iDestruct "H" as "($ & _)". }
-iDestruct "H" as "[_ H]"; iDestruct (cop2_sem_cast' with "[$]") as %?; iPureIntro.
+iDestruct "H" as "[_ H]"; iDestruct (cop2_sem_cast' with "[$]") as %?; first done; iPureIntro.
 simpl in *; super_unfold_lift; unfold force_val1 in *.
 destruct (sem_cast _ _ _); [|apply tc_val_Vundef in TC; contradiction].
 econstructor; eauto.
@@ -722,7 +722,7 @@ econstructor; eauto.
   rewrite ptrofs_add_repr_0.
   apply Clight.deref_loc_reference; auto.
 *
-  iDestruct (typecheck_lvalue_sound with "H") as %TC.
+  iDestruct (typecheck_lvalue_sound with "H") as %TC; first done.
   simpl in TC.
   unfold typecheck_lvalue; fold typecheck_lvalue.
   rewrite denote_tc_assert_andp.

@@ -129,9 +129,9 @@ apply H.
 split; try lia.
 * (* Tstruct *)
 destruct (cenv_cs !! i) eqn:?H;
- [ | right; intro H0; inv H0; [inv H1 | congruence]].
+ [ | right; intro H0; inv H0].
 destruct (plain_members (co_members c)) eqn:?PLAIN;
-   [ | right; intro Hx; inv Hx; [ discriminate | congruence]].
+   [ | right; intro Hx; inv Hx; congruence].
 simpl in Hrank. rewrite H in Hrank.
 pose (FO id := match Ctypes.field_offset cenv_cs id (co_members c) with
                       | Errors.OK (z0, Full) => z0 | _ => 0 end).
@@ -181,7 +181,7 @@ destruct (Forall_dec D H1 (make_in_list (co_members c))) as [H2|H2]; clear H1; [
  apply id_in_list_false in Heqb.
  exfalso. apply Heqb. apply (in_map name_member) in H. apply H.
  apply IHm. auto.
- destruct i0. inv H0. contradiction. auto.
+ destruct i0. inv H0. auto.
  simpl in H1. destruct (id_in_list id0 (map name_member m)) eqn:?; try discriminate.
  auto.
  unfold FO; simpl.
@@ -190,9 +190,9 @@ destruct (Forall_dec D H1 (make_in_list (co_members c))) as [H2|H2]; clear H1; [
  pose proof (plain_members_field_offset _ PLAIN _ _ H). rewrite H0. auto.
 * (* Tunion *)
 destruct (cenv_cs !! i) eqn:?H;
- [ | right; intro H0; inv H0; [inv H1 | congruence]].
+ [ | right; intro H0; inv H0; congruence].
 destruct (plain_members (co_members c)) eqn:?PLAIN;
-   [ | right; intro Hx; inv Hx; [ discriminate | congruence]].
+   [ | right; intro Hx; inv Hx; congruence].
 simpl in Hrank. rewrite H in Hrank.
 pose (D := fun x: {it: member | In it (co_members c)} =>
                 align_compatible_rec cenv_cs (type_member (proj1_sig x)) z).
@@ -230,13 +230,13 @@ destruct (Forall_dec D H1 (make_in_list (co_members c))) as [H2|H2]; clear H1; [
  unfold get_co in H1. rewrite H in H1. unfold members_no_replicate in H1.
  clear - i0 H1 PLAIN.
  induction (co_members c) as [|[|]]; [ | | discriminate]. inv i0. simpl.
- if_tac. subst. 
+ if_tac. subst.
  simpl in H1. destruct (id_in_list id0 (map name_member m)) eqn:?; try discriminate.
  destruct i0. inv H. auto.
  apply id_in_list_false in Heqb.
  exfalso. apply Heqb. apply (in_map name_member) in H. apply H.
  apply IHm; auto.  
- destruct i0. inv H0. contradiction. auto.
+ destruct i0. inv H0. auto.
  simpl in H1. destruct (id_in_list id0 (map name_member m)) eqn:?; try discriminate.
  auto.
 Qed.

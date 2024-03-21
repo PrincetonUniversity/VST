@@ -131,7 +131,7 @@ Global Arguments Qp.div : simpl nomatch.
   "Require Import Require Import VST.floyd.Funspec_old_Notation."
   Global Close Scope funspec_scope.*)
 
-Definition default_VSTGS Σ := VSTGS unit Σ.
+Notation default_VSTGS Σ := (VSTGS unit Σ).
 
 #[export] Instance NullEspec : ext_spec unit := void_spec unit.
 
@@ -288,5 +288,4 @@ Ltac eapply_clean_LOCAL_right_spec'' R ::=
 Ltac eapply_clean_LOCAL_right_spec'' R :=
    eapply_clean_LOCAL_right_spec' emptyCS.
 *)
-
 

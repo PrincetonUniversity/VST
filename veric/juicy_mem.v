@@ -1002,8 +1002,7 @@ Section mpred.
   Lemma resR_le : forall x1 x2 (Hv : ✓x2) (Hmono : x1 ≼ x2), res_le (resR_to_resource x1) (resR_to_resource x2).
   Proof.
     intros ??? [-> | (? & ? & -> & -> & ?)]%option_included.
-    { split; simpl; auto.
-      apply @ucmra_unit_least. }
+    { split; simpl; auto. }
     destruct H as [H | H].
     { erewrite resR_to_resource_eq; last by constructor.
       split; auto.
@@ -1141,7 +1140,7 @@ Section mpred.
       + intros (n & H1 & H2).
         destruct l2; first done.
         rewrite !lookup_cons in H1 H2.
-        destruct n; first by destruct x; inv H1; inv H2; constructor.
+        destruct n; first by destruct x; inv H1; constructor.
         constructor; rewrite IHl1; eauto.
   Qed.
 
@@ -1336,7 +1335,7 @@ Section mpred.
   Proof.
     intros Hstore; iIntros "(% & % & Hm) H".
     iDestruct (resource_map_auth_valid with "Hm") as %(_ & Hvalid).
-    iMod (mapsto_update with "Hm H") as (?? (? & ? & Hk)) "(Hm & $)".
+    iMod (mapsto_update with "Hm H") as (?? (? & ? & Hk)) "(Hm & $)"; first done.
     iExists _; iFrame; iPureIntro; split; last done.
     unfold coherent, resource_at in *; intros l.
     destruct (H l) as (Hnext & Hcontents & Haccess); clear H.
@@ -1444,9 +1443,9 @@ Section mpred.
       { rewrite !fmap_length seq_length //. } }
     rewrite big_sepL2_alt -(big_sepM_list_to_map (λ x y, x ↦{#sh} y)) //.
     iDestruct (resource_map_auth_valid with "Hm") as %(_ & Hvalid).
-    iMod (mapsto_update_big with "Hm H") as "(Hm & $)".
+    rewrite !fmap_length seq_length bi.pure_True // bi.True_and.
+    iMod (mapsto_update_big with "Hm H") as "(Hm & $)"; first done.
     { rewrite Hlen !dom_list_to_map_L !fst_zip //; rewrite !fmap_length seq_length //; lia. }
-    rewrite !fmap_length seq_length bi.pure_True // bi.True_and bi.sep_emp.
     iDestruct (resource_map_auth_valid with "Hm") as %(_ & Hvalid').
     iExists _; iFrame; iPureIntro; split; last done.
     unfold coherent, resource_at in *; intros l.
@@ -1507,7 +1506,7 @@ Section mpred.
   Proof.
     iIntros "(% & % & Hm)".
     apply coherent_empty in H as ->.
-    iMod (gen_heap_set with "Hm") as "(? & $)".
+    iMod (gen_heap_set with "Hm") as "(? & $)"; first done.
     iExists _; iFrame; iPureIntro; split; last done; split; auto.
   Qed.
 

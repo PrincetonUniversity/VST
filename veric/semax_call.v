@@ -153,9 +153,9 @@ bind_parameter_temps l1 l2 t2 = Some te2 ->
 t1 !! i = t2 !! i ->
 te !! i = te2 !! i.
 Proof.
-induction l1; intros; simpl in *; try destruct a; destruct l2; inv H; inv H0.
+induction l1; intros; simpl in *; try destruct a; destruct l2; inv H.
 apply H1.
-eapply IHl1. apply H3. apply H2.
+eapply IHl1; eauto.
 repeat rewrite Maps.PTree.gsspec. destruct (peq i i0); auto.
 Qed.
 
@@ -166,9 +166,9 @@ i <> id ->
 (bind_parameter_temps l l1 t = Some te') -> te' !! i = te !! i.
 Proof.
 induction l; intros.
-- simpl in *. destruct l1; inv H. inv H1. rewrite Maps.PTree.gso; auto.
+- simpl in *. destruct l1; inv H. rewrite Maps.PTree.gso; auto.
 - simpl in *. destruct a. destruct l1; inv H.
-  eapply smaller_temps_exists2. apply H1. apply H3.
+  eapply smaller_temps_exists2; eauto.
   intros. repeat rewrite Maps.PTree.gsspec. destruct (peq i i0); auto.
   destruct (peq i id). subst. tauto. auto.
 Qed.
@@ -491,7 +491,7 @@ Proof.
   iDestruct "stack" as "(H & stack)".
   iDestruct (VALspec_range_can_free with "[$Hm $H]") as %(m' & ?).
   rewrite /= Zplus_minus in H; rewrite H.
-  iMod (VALspec_range_free with "[$Hm $H]") as "Hm".
+  iMod (VALspec_range_free with "[$Hm $H]") as "Hm"; first done.
   iApply ("IHel" with "Hm stack").
 Qed.
 
@@ -592,7 +592,7 @@ rename t into tys.
 iIntros "!> rguard fun F0 HR".
 iMod "HR" as (??) "((F1 & P) & #HR)".
 iApply fupd_jsafe.
-iMod (fupd_mask_subseteq nE) as "Hmask".
+iMod (fupd_mask_subseteq nE) as "Hmask"; first done.
 iMod ("He" $! psi x1 (F0 rho ∗ F1 rho) (typlist_of_typelist tys) args with "[F0 F1 P]") as "He1".
 { subst rho; iFrame; iPureIntro; split; auto.
   (* typechecking arguments *)
@@ -614,7 +614,7 @@ rewrite Eef.
 iDestruct "rguard" as "#rguard".
 iNext.
 iIntros (??? [??]) "?".
-iMod (fupd_mask_subseteq nE) as "Hmask".
+iMod (fupd_mask_subseteq nE) as "Hmask"; first done.
 iMod ("post" with "[$]") as "(? & Q & F0 & F)".
 iMod "Hmask" as "_".
 iDestruct ("Htc" with "[Q]") as %Htc; first by iFrame.
@@ -739,7 +739,7 @@ Lemma alloc_block:
    mem_auth m ⊢ |==> mem_auth m' ∗ memory_block Share.top n (Vptr b Ptrofs.zero).
 Proof.
   intros.
-  iIntros "Hm"; iMod (mapsto_alloc_bytes with "Hm") as "($ & H)"; iIntros "!>".
+  iIntros "Hm"; iMod (mapsto_alloc_bytes with "Hm") as "($ & H)"; first done; iIntros "!>".
   rewrite /memory_block Ptrofs.unsigned_zero.
   iSplit; first by iPureIntro; lia.
   rewrite Z.sub_0_r memory_block'_eq; [| lia..].
@@ -779,7 +779,7 @@ Proof.
     destruct (Mem.alloc m 0 (sizeof ty)) as (m', b) eqn: Halloc.
     inv COMPLETE; inv Hsize; inv H.
     rewrite cenv_sub_sizeof // in H4.
-    iMod (alloc_block with "Hm") as "(Hm & block)".
+    iMod (alloc_block with "Hm") as "(Hm & block)"; first done.
     { pose proof sizeof_pos ty; unfold sizeof, Ptrofs.max_unsigned in *; simpl in *; lia. }
     unshelve iMod (IHvars _ _ (Maps.PTree.set id (b,ty) ve0) with "Hm") as (?? (Hsub & ?)) "(Hm & ?)"; try done.
     { intros; rewrite Maps.PTree.gso //; last by intros ->.
@@ -888,7 +888,7 @@ Proof.
   rewrite !proj_frame.
   monPred.unseal.
   iIntros "(% & ((F0 & F) & stack & Q) & fun)".
-  iApply (guard_fallthrough_return with "[-Q] Q").
+  iApply (guard_fallthrough_return with "[-Q] Q"); first done.
   rewrite /bind_ret; monPred.unseal.
   iIntros "Q".
   set (rho' := construct_rho _ _ _).
@@ -958,12 +958,12 @@ Proof.
     iAssert ⌜∃ v' : val, Clight.eval_expr psi ve te m e v' ∧ Cop.sem_cast v' (typeof e) (fn_return f) m = Some v⌝ as %(v1 & ? & ?).
     { iDestruct "H" as "[H _]"; iApply ("H" with "Hm"). }
     iDestruct "H" as "(_ & stack & ?)".
-    iMod (free_stackframe with "[$Hm $stack]") as (??) "Hm".
+    iMod (free_stackframe with "[$Hm $stack]") as (??) "Hm"; [done..|].
     iIntros "!>"; iExists _, _; iSplit; last iFrame.
     iPureIntro; rewrite {1}Hcont; econstructor; done.
   - iApply jsafe_step; rewrite /jstep_ex.
     iIntros (?) "(Hm & ?)".
-    iMod (free_stackframe with "[$Hm $stack]") as (??) "Hm".
+    iMod (free_stackframe with "[$Hm $stack]") as (??) "Hm"; [done..|].
     iIntros "!>"; iExists _, _; iSplit; last iFrame.
     iPureIntro; rewrite {1}Hcont; econstructor; done.
 Qed.
@@ -1006,10 +1006,10 @@ Proof.
   rewrite !denote_tc_assert_andp.
   iDestruct (IHtys with "[$Hm H]") as %?; first by iDestruct "H" as "[_ $]".
   rewrite bi.and_elim_l.
-  iDestruct (eval_expr_relate with "[$Hm H]") as %?; first by iDestruct "H" as "[$ _]".
-  iDestruct (cast_exists with "H") as %?.
+  iDestruct (eval_expr_relate with "[$Hm H]") as %?; [done..| |]; first by iDestruct "H" as "[$ _]".
+  iDestruct (cast_exists with "H") as %?; first done.
   rewrite typecheck_expr_sound //; iDestruct "H" as (?) "H".
-  iDestruct (cop2_sem_cast' with "[$Hm $H]") as %?; iPureIntro.
+  iDestruct (cop2_sem_cast' with "[$Hm $H]") as %?; first done; iPureIntro.
   econstructor; eauto.
   unfold_lift; congruence.
 Qed.
@@ -1151,7 +1151,7 @@ Proof.
   pose proof (tc_vals_length _ _ TC8) as Hlen.
   iDestruct "Bel'" as "[BE | BI]".
   - (* external call *)
-    iPoseProof (semax_call_external with "BE") as "Hsafe".
+    iPoseProof (semax_call_external with "BE") as "Hsafe"; [done..|].
     iNext; iIntros "(F0 & ?) fun #HR rguard".
     iApply ("Hsafe" with "rguard fun F0").
     by iApply "HR".
@@ -1177,7 +1177,7 @@ Proof.
     iIntros (?) "(Hm & ?)".
     destruct (build_call_temp_env f args) as (te & Hte).
     { rewrite /= in H18; rewrite H18 map_length // in Hlen. }
-    iMod (alloc_stackframe with "Hm") as (?? [??]) "(Hm & stack)".
+    iMod (alloc_stackframe with "Hm") as (?? [??]) "(Hm & stack)"; [try done.. |].
     { unfold var_sizes_ok in Hvars.
       rewrite !Forall_forall in Hvars, COMPLETE |- *.
       intros v H0. specialize (COMPLETE v H0). specialize (Hvars v H0).
@@ -1211,7 +1211,7 @@ Proof.
         unfold eval_id, construct_rho; simpl.
         erewrite pass_params_ni; try eassumption.
         rewrite Maps.PTree.gss. reflexivity.
-      * iApply (make_args_close_precondition _ _ _ _ ve _ (argsassert_of _)); last done.
+      * iApply (make_args_close_precondition _ _ _ _ ve _ (argsassert_of _)); try done.
         eapply tc_vals_Vundef; eauto.
 Qed.
 
@@ -1251,7 +1251,7 @@ Lemma semax_call_aux {CS'}
      (State curf (Scall ret a bl) k vx tx).
 Proof.
   iIntros "#Bel H fun #HR rguard".
-  iDestruct (believe_exists_fundef with "Bel") as %[ff [H16 H16']].
+  iDestruct (believe_exists_fundef with "Bel") as %[ff [H16 H16']]; [done..|].
   rewrite <- Genv.find_funct_find_funct_ptr in H16.
   rewrite /jsafeN jsafe_unfold /jsafe_pre.
   iIntros "!>" (?) "(Hm & ?)".
@@ -1270,7 +1270,7 @@ Proof.
   iDestruct "H" as "(_ & F0 & P)".
   iFrame.
   rewrite closed_wrt_modvars_Scall in Closed.
-  subst args; iApply (semax_call_aux0 with "Bel [F0 P] [fun] HR rguard"); [done | | | done].
+  subst args; iApply (semax_call_aux0 with "Bel [F0 P] [fun] HR rguard"); try done.
   - intros; apply assert_safe_for_external_call.
   - iNext; iFrame.
 Qed.
@@ -1372,7 +1372,8 @@ Proof.
   iDestruct "H" as "(H & >%Heval_eq)"; rewrite Heval_eq in EvalA.
   subst rho; iApply (@semax_call_aux CS' _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ (normal_ret_assert
                    (∃ old : val, assert_of (substopt ret (` old) (monPred_at F)) ∗
-                      maybe_retval (assert_of (Q x)) retty ret)) with "Prog_OK [F0 H] [fun] [] [rguard]"); try reflexivity; [set_solver | | by monPred.unseal | | by repeat monPred.unseal].
+                      maybe_retval (assert_of (Q x)) retty ret)) with "Prog_OK [F0 H] [fun] [] [rguard]"); try eassumption; try reflexivity;
+    [set_solver | | by monPred.unseal | | by repeat monPred.unseal].
   - iCombine "F0 H" as "H"; rewrite bi.sep_and_l; iSplit.
     + rewrite bi.later_and; iDestruct "H" as "[(_ & ?) _]".
       rewrite tc_exprlist_cenv_sub // tc_expr_cenv_sub //.
@@ -1620,9 +1621,9 @@ Proof.
     iIntros (?) "Hm"; iDestruct "H" as "[H _]".
     rewrite /tc_expr /typecheck_expr; fold typecheck_expr.
     rewrite denote_tc_assert_andp.
-    subst rho; iDestruct (eval_expr_relate(CS := CS') with "[$Hm H]") as %?; [| iDestruct "H" as "[$ _]" |]; try done.
-    iDestruct (typecheck_expr_sound' with "[H]") as %Htc; first iDestruct "H" as "($ & _)".
-    iDestruct (cop2_sem_cast' with "[$Hm H]") as %?; first iDestruct "H" as "[_ $]".
+    subst rho; iDestruct (eval_expr_relate(CS := CS') with "[$Hm H]") as %?; try done; [iDestruct "H" as "[$ _]" |].
+    iDestruct (typecheck_expr_sound' with "[H]") as %Htc; first done; first iDestruct "H" as "($ & _)".
+    iDestruct (cop2_sem_cast' with "[$Hm H]") as %?; first done; first iDestruct "H" as "[_ $]".
     rewrite cast_exists //; iDestruct "H" as %Hcast.
     iPureIntro; unfold_lift; rewrite /force_val1 -Hret.
     rewrite -> Hcast in *; eauto.

@@ -599,6 +599,7 @@ Proof.
   intros.
   rewrite <- (bi.sep_emp (fold_right_sepcon L1)).
   eapply syntactic_cancel_spec1; eauto.
+  rewrite bi.sep_emp //.
 Qed.
 
 Inductive merge_abnormal_PROP: PROP -> option PROP -> option PROP -> Prop :=
@@ -721,6 +722,7 @@ Proof.
   rewrite <- H, <- H0.
   etrans; [| exact H1].
   destruct Qr; auto.
+  rewrite bi.sep_emp //.
 Qed.
 
 (*

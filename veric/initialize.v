@@ -780,7 +780,7 @@ Proof.
   rewrite -Z2Nat.inj_add // IHla //; try lia.
   rewrite /Ptrofs.add !Ptrofs.unsigned_repr; [| rewrite /Ptrofs.max_unsigned; lia..].
   iDestruct "H" as "(H & $)".
-  iApply (init_data_lem with "H").
+  iApply (init_data_lem with "H"); try assumption.
   - by eapply Hinit.
   - intros (?, ?) (? & ?); apply Haccess; lia.
   - lia.
@@ -1298,7 +1298,7 @@ Proof.
     rewrite Nat.sub_0_r Pos2Nat.id.
     erewrite drop_perm_access by eassumption.
     if_tac; first by destruct (funspec_of_loc _ _ _); apply _.
-    eapply alloc_dry_unchanged_on in H0 as [Ha _]; last done.
+    eapply alloc_dry_unchanged_on in H2 as [Ha _]; last done.
     rewrite -Ha nextblock_access_empty //; last lia.
     apply _. }
   iApply (big_sepL_mono with "Hmem").

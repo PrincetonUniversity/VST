@@ -489,7 +489,7 @@ rewrite semax_unfold in SB; rewrite semax_fold_unfold. iIntros (? DD ? [SUB GX])
 assert (HDD: tycontext_sub (func_tycontext f V G nil) DD).
 { unfold func_tycontext, func_tycontext'. simpl.
 eapply tycontext_sub_trans; eauto. }
-iPoseProof (SB with "BEL") as "#SB".
+iPoseProof (SB with "BEL") as "#SB"; [done..|].
 iIntros (kk F curf ?) "H"; iPoseProof ("SB" with "H") as "#guard".
 rewrite /guard' /_guard.
 iIntros (??) "!>".
@@ -1073,7 +1073,7 @@ iAssert (rguard OK_spec psi ⊤ Delta f0 (frame_ret_assert (normal_ret_assert (m
   iIntros (??); simpl.
   iApply jsafe_step; rewrite /jstep_ex.
   iIntros (?) "(Hm & ?)".
-  iMod (free_stackframe _ f0  _ _ vx tx with "[$Hm]") as (??) "?"; try solve [constructor].
+  iMod (free_stackframe _ f0  _ _ vx tx with "[$Hm]") as (??) "?"; try eassumption; try solve [constructor].
   { destruct H as (? & Hmatch & ?); split3; auto.
     split3; simpl; eauto.
     * intros ??; setoid_rewrite Maps.PTree.gempty; done.
@@ -1086,7 +1086,7 @@ iAssert (rguard OK_spec psi ⊤ Delta f0 (frame_ret_assert (normal_ret_assert (m
   iIntros "!>"; iExists _, _; iSplit.
   { iPureIntro; econstructor; eauto. }
   iFrame.
-  by iApply return_stop_safe; iPureIntro. }
+  by iApply return_stop_safe; try iPureIntro. }
 iPoseProof (semax_call_aux0 _ _ _ _ _ _ _ _ _ P _ _ _ _ _ _ True (fun _ => emp) _ _ _ _ (Maps.PTree.empty _) (Maps.PTree.empty _) with "Prog_OK") as "Himp"; try done;
   last (iNext; iIntros "(P & fun)"; iApply ("Himp" with "[P] [fun] [] rguard")); try done.
 * split3; first split3; simpl; auto.
@@ -1097,7 +1097,7 @@ iPoseProof (semax_call_aux0 _ _ _ _ _ _ _ _ _ P _ _ _ _ _ _ True (fun _ => emp) 
   + intros ?; done.
 * by monPred.unseal.
 * intros; iIntros "?".
-  by iApply return_stop_safe; iPureIntro.
+  by iApply return_stop_safe; try iPureIntro.
 * iMod "P" as "$". by monPred.unseal.
 * iClear "Himp"; iIntros "!> !> (_ & P) !>".
   iExists a, emp; iFrame.
@@ -1167,7 +1167,7 @@ Proof.
   clear Hinit.
 
   iIntros "((Hm & $) & Hf & Hz)".
-  iMod (initialize_mem' with "[$Hm $Hf]") as "($ & Hm & Hcore & Hmatch)".
+  iMod (initialize_mem' with "[$Hm $Hf]") as "($ & Hm & Hcore & Hmatch)"; [done..|].
   iIntros "!>"; iSplit; last done.
   destruct H4 as [post [H4 H4']].
   unfold main_spec_ext' in H4'.
@@ -1261,7 +1261,7 @@ Lemma make_tycontext_s_app_inv i fs G1 G2 (G: make_tycontext_s (G1 ++ G2) !! i =
 Proof. rewrite -> !find_id_maketycontext_s in *. apply find_id_app; trivial. Qed.
 
 Lemma believe_app {cs} ge V H G1 G2:
-believe OK_spec (nofunc_tycontext V H) ge (nofunc_tycontext V G1) ∧
+believe(CS := cs) OK_spec (nofunc_tycontext V H) ge (nofunc_tycontext V G1) ∧
 believe OK_spec (nofunc_tycontext V H) ge (nofunc_tycontext V G2) ⊢
 believe OK_spec (nofunc_tycontext V H) ge (nofunc_tycontext V (G1 ++ G2)).
 Proof.
@@ -1271,7 +1271,7 @@ simpl in G. apply make_tycontext_s_app_inv in G; destruct G; [iApply "B1" | iApp
 Qed.
 
 Lemma semax_func_app cs ge V H: forall funs1 funs2 G1 G2
-(SF1: semax_func V H ge funs1 G1) (SF2: semax_func V H ge funs2 G2)
+(SF1: semax_func(C := cs) V H ge funs1 G1) (SF2: semax_func V H ge funs2 G2)
 (L:length funs1 = length G1),
 semax_func V H ge (funs1 ++ funs2) (G1++G2).
 Proof.
@@ -1285,7 +1285,7 @@ Qed.
 Lemma semax_func_subsumption cs ge V V' F F'
   (SUB: tycontext_sub (nofunc_tycontext V F) (nofunc_tycontext V F'))
   (HV: forall id, sub_option ((make_tycontext_g V F) !! id) ((make_tycontext_g V' F') !! id)):
-forall funs G (SF: semax_func V F ge funs G), semax_func V' F' ge funs G.
+forall funs G (SF: semax_func(C := cs) V F ge funs G), semax_func V' F' ge funs G.
 Proof.
 intros. destruct SF as [MF [GC B]]. split; [trivial | split; [ trivial | intros]]. specialize (B _ Gfs Gffp).
 assert (TS: forall f, tycontext_sub (func_tycontext' f (nofunc_tycontext V F)) (func_tycontext' f (nofunc_tycontext V' F'))).
@@ -1510,7 +1510,7 @@ destruct G; simpl in *. congruence. inv SF1. inv H0. constructor; auto.
 + clear SF1 SF3. red; intros. apply SF2. eapply In_firstn; eauto.
 + clear SF2. intros ? ? ?.
 iIntros (??????? HP).
-iApply SF3; iPureIntro.
+iApply SF3; [done.. | iPureIntro].
 hnf; hnf in HP. destruct HP as [i [GS B]].
 exists i; split; trivial.
 clear -GS. simpl in *. rewrite find_id_maketycontext_s.
@@ -1528,7 +1528,7 @@ destruct funs; simpl in *. inv SF1; constructor. destruct G; simpl in *; inv SF1
 + clear SF1 SF3. red; intros. apply SF2. eapply In_skipn; eauto.
 + clear SF2. intros ? ? ?.
 iIntros (??????? HP).
-iApply SF3; iPureIntro.
+iApply SF3; [done.. | iPureIntro].
 eapply match_fdecs_norepet in HV; [|eassumption ].
 hnf; hnf in HP. destruct HP as [i [GS B]].
 exists i; split; trivial.
@@ -1631,7 +1631,7 @@ Lemma typecheck_environ_eval_id {f V G lia} (LNR: list_norepet (map fst (fn_para
 Proof. apply typecheck_temp_environ_eval_id; trivial. apply TC. Qed.
 
 Lemma map_Some_inv {A}: forall {l l':list A}, map Some l = map Some l' -> l=l'.
-Proof. induction l; simpl; intros; destruct l'; inv H; trivial. f_equal; auto. Qed.
+Proof. induction l; simpl; intros; destruct l'; inv H; trivial. Qed.
 
 Lemma semax_body_funspec_sub {cs V G f i phi phi'} (SB: @semax_body V G cs f (i, phi))
   (Sub: funspec_sub phi phi')

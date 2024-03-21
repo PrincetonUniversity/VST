@@ -94,11 +94,11 @@ Lemma jsafe_mask_mono E1 E2 z c : E1 ⊆ E2 → jsafe E1 z c ⊢ jsafe E2 z c.
 Proof.
   iIntros (?) "H". iLöb as "IH" forall (z c).
   rewrite !jsafe_unfold /jsafe_pre.
-  iMod (fupd_mask_subseteq E1) as "Hclose"; iMod "H"; iMod "Hclose" as "_".
+  iMod (fupd_mask_subseteq E1) as "Hclose"; first done; iMod "H"; iMod "Hclose" as "_".
   iIntros "!>" (?) "?"; iDestruct ("H" with "[$]") as "[H | [H | H]]".
   - by iLeft.
   - iRight; iLeft.
-    iMod (fupd_mask_subseteq E1) as "Hclose"; iMod "H"; iMod "Hclose" as "_".
+    iMod (fupd_mask_subseteq E1) as "Hclose"; first done; iMod "H"; iMod "Hclose" as "_".
     iDestruct "H" as (???) "[??]"; iIntros "!>".
     iExists _, _; iSplit; first done.
     iFrame; by iApply "IH".
@@ -106,7 +106,7 @@ Proof.
     iDestruct "H" as (????) "H".
     iExists _, _, _; iSplit; first done.
     iIntros "!>" (????) "Hext".
-    iMod (fupd_mask_subseteq E1) as "Hclose"; iMod ("H" with "[%] Hext") as "H'"; first done; iMod "Hclose" as "_".
+    iMod (fupd_mask_subseteq E1) as "Hclose"; first done; iMod ("H" with "[%] Hext") as "H'"; first done; iMod "Hclose" as "_".
     iIntros "!>".
     iDestruct "H'" as (??) "[??]"; iExists _; iFrame "%"; iFrame.
     by iApply "IH".

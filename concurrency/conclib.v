@@ -95,7 +95,7 @@ Definition exclusive_mpred (P : mpred) := P ∗ P ⊢ False.
 
 Lemma exclusive_weak_exclusive : forall P, exclusive_mpred P -> ⊢ P ∗ P -∗ False.
 Proof.
-  auto.
+  unfold exclusive_mpred; intros ? ->; auto.
 Qed.
 
 Lemma exclusive_sepcon1 : forall P Q (HP : exclusive_mpred P), exclusive_mpred (P ∗ Q).

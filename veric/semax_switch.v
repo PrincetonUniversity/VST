@@ -159,7 +159,7 @@ Proof.
   destruct (typeof a) eqn: Hta; try discriminate.
   destruct (eval_expr a rho) as [ | n | | | |] eqn:?; try contradiction.
   specialize (Hcase n); rewrite semax_unfold in Hcase.
-  iPoseProof (Hcase with "Prog_OK []") as "Hcase".
+  iPoseProof (Hcase with "Prog_OK []") as "Hcase"; [done | done | ..].
   { iIntros "!>"; iSplit; last by iApply switch_rguard.
     iPureIntro; split; last done.
     eapply closed_wrt_modvars_switch with (n:= Int.unsigned n); eauto. }
@@ -167,7 +167,7 @@ Proof.
   iIntros (? _).
   iApply jsafe_step; rewrite /jstep_ex.
   iIntros (?) "(Hm & ?) !>".
-  destruct HGG as [CSUB ?]; iDestruct (eval_expr_relate with "[$Hm Q]") as %?; first done.
+  destruct HGG as [CSUB ?]; iDestruct (eval_expr_relate with "[$Hm Q]") as %?; [done.. | |].
   { inversion Htc as [->]; rewrite tc_expr_cenv_sub //. }
   iExists _, _; iSplit.
   { iPureIntro; econstructor; try done.

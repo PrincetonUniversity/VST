@@ -1505,7 +1505,7 @@ Proof.
   }
   rewrite !field_at_field_at_.
   rewrite field_at__memory_block by auto.
-  iApply (memory_block_conflict with "[$]"); try (unfold Ptrofs.max_unsigned; lia).
+  iApply (memory_block_conflict with "[$]"); first done; unfold Ptrofs.max_unsigned; lia.
 Qed.
 
 Lemma data_at_conflict: forall sh t v v' p,
@@ -2043,7 +2043,7 @@ Lemma field_at_ptr_neq_andp_emp {cs: compspecs} :
 Proof.
   intros.
   iIntros "H".
-  iDestruct (field_at_ptr_neq with "H") as %?.
+  iDestruct (field_at_ptr_neq with "H") as %?; [done..|].
   iDestruct "H" as "($ & $)"; done.
 Qed.
 
@@ -2139,7 +2139,8 @@ Proof.
     assert (Z.to_nat z > 0) as Hz by lia; clear H.
     forget (Z.to_nat z) as n; clearbody lo.
     match goal with |-context[aggregate_pred.rangespec _ _ ?Q] => set (P := Q) end.
-    assert (forall i v, Timeless (P i v)) by apply _.
+    assert (forall i v, Timeless (P i v)).
+    { intros; apply IH; auto. }
     clearbody P; clear IH; revert dependent lo; induction n; first lia; simpl; intros.
     destruct (eq_dec n O).
     + subst; simpl. eapply bi.Timeless_proper; first apply bi.sep_emp.
@@ -2229,8 +2230,7 @@ Proof.
   rewrite <- (data_at_share_join _ _ _ _ _ _ H1).
   rewrite <- (data_at_share_join _ _ _ _ _ _ H2).
   iIntros "((H11 & H12) & (H21 & H22))".
-  iDestruct (data_at_conflict with "[$H11 $H21]") as "[]".
-  auto.
+  iDestruct (data_at_conflict with "[$H11 $H21]") as "[]"; auto.
 Qed.
 
 Lemma nonreadable_memory_block_field_at:
@@ -2546,7 +2546,7 @@ Proof.
 Qed.
 
 (* TODO: rename and clean up all array_at_data_at lemmas. *)
-Lemma array_at_data_at1 {cs} : forall sh t gfs lo hi v p,
+Lemma array_at_data_at1 {cs : compspecs} : forall sh t gfs lo hi v p,
    lo <= hi ->
    field_compatible0 t (gfs SUB lo) p ->
    field_compatible0 t (gfs SUB hi) p ->
@@ -2557,12 +2557,12 @@ Proof.
   intros. rewrite array_at_data_at by auto. unfold at_offset. apply bi.equiv_entails_2; normalize.
 Qed.
 
-Lemma data_at_ext_derives {cs} sh t v v' p q: v=v' -> p=q -> data_at sh t v p ⊢ data_at sh t v' q.
+Lemma data_at_ext_derives {cs : compspecs} sh t v v' p q: v=v' -> p=q -> data_at sh t v p ⊢ data_at sh t v' q.
 Proof. intros; subst.
 apply derives_refl.
 Qed.
 
-Lemma data_at_ext_eq {cs} sh t v v' p q: v=v' -> p=q -> data_at sh t v p = data_at sh t v' q.
+Lemma data_at_ext_eq {cs : compspecs} sh t v v' p q: v=v' -> p=q -> data_at sh t v p = data_at sh t v' q.
 Proof. intros; subst. trivial. Qed.
 
 End lemmas.
@@ -2633,7 +2633,7 @@ Proof.
   intros; unfold data_at_, data_at, field_at_; auto.
 Qed.
 
-Lemma data_at_shares_join : forall {cs} sh t v p shs sh1 (Hsplit : sepalg_list.list_join sh1 shs sh),
+Lemma data_at_shares_join : forall {cs : compspecs} sh t v p shs sh1 (Hsplit : sepalg_list.list_join sh1 shs sh),
   data_at sh1 t v p ∗ ([∗ list] sh ∈ shs, data_at sh t v p) ⊣⊢
   data_at sh t v p.
 Proof.
@@ -2644,7 +2644,7 @@ Proof.
     rewrite assoc, data_at_share_join; eauto; apply _.
 Qed.
 
-Lemma data_at_shares_join_old : forall {cs} sh t v p shs sh1 (Hsplit : sepalg_list.list_join sh1 shs sh),
+Lemma data_at_shares_join_old : forall {cs : compspecs} sh t v p shs sh1 (Hsplit : sepalg_list.list_join sh1 shs sh),
   data_at sh1 t v p ∗ fold_right bi_sep emp (map (fun sh => data_at sh t v p) shs) ⊣⊢
   data_at sh t v p.
 Proof.
@@ -2778,7 +2778,7 @@ Proof.
   iDestruct "H1" as "(H1a & H1b)"; iDestruct "H2" as "(H2a & H2b)".
   unfold at_offset.
   rewrite !by_value_data_at_rec_nonvolatile by auto.
-  iDestruct (mapsto_value_cohere with "[$H1a $H2a]") as "($ & $)".
+  iDestruct (mapsto_value_cohere with "[$H1a $H2a]") as "($ & $)"; first done.
   iApply ("IH" with "H1b H2b").
 Qed.
 

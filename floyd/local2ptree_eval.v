@@ -271,7 +271,7 @@ revert tys vl H; induction el; destruct tys, vl; intros;
   apply @msubst_eval_expr_eq with (P:=P) (GV:=GV) (R:=R) in Heqo1.
   iApply (bi.wand_trans _ (local (`(eq v0) (eval_expr a)) ∧ local (`(eq vl) (eval_exprlist tys el)))).
   iSplitL. 
-  - iIntros. iSplit; auto.
+  - iIntros. rewrite -IHel -Heqo1; auto.
   - iStopProof. go_lowerx. iIntros. destruct H0.
     subst. done.
 Qed.

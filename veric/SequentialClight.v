@@ -90,7 +90,7 @@ Proof.
       iIntros "Hclose !>"; iMod "Hclose" as "_".
       iMod ("Hpost" with "[%] [%]") as (??) "(S & Hsafe)"; [done..|].
       iSpecialize ("IH" with "[$] [$]").
-      iModIntro; iApply step_fupdN_le; first done.
+      iModIntro; iApply step_fupdN_le; [done..|].
       iApply (step_fupdN_mono with "IH"); eauto.
 Qed.
 

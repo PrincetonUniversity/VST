@@ -120,7 +120,7 @@ Proof.
 unfold semax. rewrite semax_fold_unfold.
 split; intros.
 + iIntros "?"; iApply H; eauto.
-+ iIntros (??? [??]); iApply H.
++ iIntros (??? [??]); iApply H; done.
 Qed.
 
 Lemma derives_skip:
@@ -187,9 +187,9 @@ Global Instance assert_safe_except_0 : forall ge E f ve te c rho,
 Proof.
   intros.
   rewrite /IsExcept0 /assert_safe /jsafeN; iIntros "H" (??).
-  destruct c.
-  - by iMod "H"; iApply "H".
-  - destruct c; by iMod "H"; iApply "H".
+  destruct c; simpl.
+  - by iMod "H"; iApply ("H" $! ora).
+  - destruct c; by iMod "H"; iApply ("H" $! ora).
   - destruct o; try by iMod "H"; iApply "H".
     iIntros (?).
     iApply (bi.impl_intro_r with "H").
@@ -259,15 +259,15 @@ Proof.
     + intros ??; auto.
 Qed.
 
-Lemma semax'_plain_absorbing CS E Delta P c R : Plain (semax' OK_spec E Delta P c R) ∧ Absorbing (semax' OK_spec E Delta P c R).
+Lemma semax'_plain_absorbing CS E Delta P c R : Plain (semax'(CS := CS) OK_spec E Delta P c R) ∧ Absorbing (semax' OK_spec E Delta P c R).
 Proof.
   apply fixpoint_plain_absorbing; intros; rewrite /semax_; destruct x; apply _.
 Qed.
 
-Global Instance semax'_plain CS E Delta P c R : Plain (semax' OK_spec E Delta P c R).
+Global Instance semax'_plain CS E Delta P c R : Plain (semax'(CS := CS) OK_spec E Delta P c R).
 Proof. apply semax'_plain_absorbing. Qed.
 
-Global Instance semax'_absorbing CS E Delta P c R : Absorbing (semax' OK_spec E Delta P c R).
+Global Instance semax'_absorbing CS E Delta P c R : Absorbing (semax'(CS := CS) OK_spec E Delta P c R).
 Proof. apply semax'_plain_absorbing. Qed.
 
 Lemma extract_exists_pre_later {CS: compspecs}:
@@ -289,7 +289,7 @@ iAssert (◇ ∃ a : A, (⌜guard_environ Delta' f (construct_rho (filter_genv p
   iDestruct "H" as "($ & H)".
   rewrite monPred_at_except_0 {1}(bi.except_0_intro (Q _)) -bi.except_0_and bi.and_exist_l //. }
 iDestruct "H" as (a) "H".
-specialize (H a); rewrite semax_unfold in H; iApply H; auto.
+specialize (H a); rewrite semax_unfold in H; iApply H; auto; done.
 Qed.
 
 Lemma extract_exists_pre {CS: compspecs}:
@@ -302,7 +302,7 @@ rewrite semax_unfold; intros.
 iIntros "#believe" (????) "[% #rguard]".
 iIntros (??) "!> H".
 rewrite bi.sep_exist_l monPred_at_exist bi.sep_exist_r bi.and_exist_l; iDestruct "H" as (a) "H".
-specialize (H a); rewrite semax_unfold in H; iApply H; auto.
+specialize (H a); rewrite semax_unfold in H; iApply H; auto; done.
 Qed.
 
 Definition G0: @funspecs Σ := nil.
@@ -438,7 +438,7 @@ rewrite semax_unfold in H.
 intros.
 iIntros "H" (????) "[(% & %) guard]".
 pose (F0F := F0 ∗ F).
-iPoseProof (H with "H") as "H".
+iPoseProof (H with "H") as "H"; [done..|].
 iSpecialize ("H" $! _ F0F with "[-]").
 { rewrite /bi_affinely; iSplit; first done.
   iSplit.
@@ -709,7 +709,7 @@ Proof.
   iIntros "H" (??).
   destruct k as [ | s ctl' | | | |] eqn:Hk; try contradiction;
   destruct k' as [ | s2 ctl2' | | | |] eqn:Hk'; try contradiction;
-  try discriminate; rewrite -?H; iApply "H"; auto.
+  try discriminate; rewrite -?H; iApply ("H" $! ora); auto.
 Qed.
 
 Lemma semax_Delta_subsumption {CS: compspecs}:
@@ -1018,7 +1018,7 @@ semax(CS := cs) OK_spec E Gamma P c Q -> semax(CS := cs) OK_spec E Gamma P (Slab
 Proof.
 rewrite !semax_unfold; intros.
 iIntros "H" (????) "guard".
-iApply guard_safe_adj'; last iApply (H with "H guard").
+iApply guard_safe_adj'; last iApply (H with "H guard"); [|done..].
 intros; iIntros "H"; iApply jsafe_local_step; last done.
 constructor.
 Qed.

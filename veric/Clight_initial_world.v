@@ -50,7 +50,7 @@ revert G; induction dl; simpl; intros.
 inv H0. inv H.
 destruct a as [i' [?|?]].
 inv H0.
-simpl in H; if_tac in H. subst i'; inv H.
+simpl in H2; if_tac in H2. subst i'; inv H2.
 eauto.
 destruct (IHdl G0) as [fd [? ?]]; auto.
 exists fd; split; auto.

@@ -304,7 +304,7 @@ lia.
 rename s into b.
 assert (z = Zaux.cond_Zopp b (Z.pos m / Z.pow 2 (- e))). {
   destruct e; inv H3.
-  lia. pose proof (Zgt_pos_0 p); lia. clear g.
+  clear g.
   rewrite Zpower_pos_nat. rewrite Zpower_nat_Z.
   rewrite positive_nat_Z; auto.
 }
@@ -545,7 +545,6 @@ all:   try match goal with
    end.
 all: try apply I.
 all: rewrite ?Hp; hnf; auto.
-inv J; congruence.
 Qed.
 
 End mpred.

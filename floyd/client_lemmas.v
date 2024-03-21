@@ -219,12 +219,12 @@ Proof.
 +
  pose proof (Int.eq_spec i j).
  revert H H0; case_eq (Int.eq i j); intros; auto.
- simpl in H0; unfold Vfalse in H0. inv H0. rewrite Int.eq_true in H2. inv H2.
-+
+ simpl in H0; unfold Vfalse in H0. inv H0.
+(*+
  pose proof (Int.eq_spec i j).
  revert H H0; case_eq (Int.eq i j); intros; auto.
  simpl in H0; unfold Vfalse in H0. inv H0. inv H2.
-+ unfold Val.of_bool in H.  destruct (Int.eq i j); inv H.
++ unfold Val.of_bool in H.  destruct (Int.eq i j); inv H.*)
 Qed.
 
 Lemma bool_val_notbool_ptr:
@@ -248,10 +248,10 @@ Proof.
   subst v; simpl. reflexivity.
 -
  destruct v; simpl in H; try solve [inv H].
- destruct (Int.eq i Int.zero) eqn:?; inv H.
+(* destruct (Int.eq i Int.zero) eqn:?; inv H.
   apply int_eq_e in Heqb. subst; reflexivity.
  destruct (Memory.Mem.weak_valid_pointer m b (Ptrofs.unsigned i)) eqn:?;
-  simpl in H; inv H.
+  simpl in H; inv H.*)
 -
   subst v; simpl. reflexivity.
 Qed.
@@ -810,7 +810,7 @@ intros. rewrite and_assoc'; auto.
 Qed.
 
 Lemma semax_later_trivial: forall {OK_spec} {cs: compspecs} E Delta P c Q,
-  semax E Delta (▷ P) c Q ->
+  semax(C := cs)(OK_spec := OK_spec) E Delta (▷ P) c Q ->
   semax E Delta P c Q.
 Proof.
  intros until Q.
@@ -832,10 +832,9 @@ Lemma subst_make_args':
 Proof.
   split => rho; rewrite /subst; simpl.
   f_equiv. unfold make_args'.
-  revert tl el H H0; induction (fst fsig); destruct tl,el; simpl; intros; inv H; inv H0.
+  revert tl el H H0; induction (fst fsig); destruct tl,el; simpl; intros; inv H.
   reflexivity.
-  specialize (IHl _ _ H2 H1).
-  unfold_lift; rewrite IHl. auto.
+  rewrite IHl //.
 Qed.
 
 Lemma map_cons: forall {A B} (f: A -> B) x y,
@@ -1019,7 +1018,7 @@ Lemma saturate_aux21x:
    (P ⊢ S) ->
    (S ∧ P ⊢ Q) -> P ⊢ Q.
 Proof.
-intros ???? <-; auto.
+intros ???? <-; apply bi.and_intro; auto.
 Qed.
 
 Lemma prop_right_emp:

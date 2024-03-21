@@ -92,7 +92,7 @@ Proof.
   intros.
   iSplit.
   * iIntros "H (% & P & ?)".
-    iApply assert_safe_fupd; iMod "P"; iApply "H"; auto.
+    iApply assert_safe_fupd; first done; iMod "P"; iApply "H"; auto.
     by iFrame.
   * iIntros "H (% & P & ?)"; iApply "H"; auto.
     by iFrame.
@@ -225,17 +225,17 @@ Proof.
   split3; last split; simpl; intros; f_equiv; done.
 Qed.
 
-Global Instance semax_proper {CS} E Delta : Proper (equiv ==> eq ==> equiv ==> iff) (semax OK_spec E Delta).
+Global Instance semax_proper {CS} E Delta : Proper (equiv ==> eq ==> equiv ==> iff) (semax(CS := CS) OK_spec E Delta).
 Proof.
   repeat intro; subst.
   rewrite !semax_unfold.
   split; intros.
   - iIntros "#B" (????) "(% & ?)".
-    rewrite -H; iApply (H0 with "B [-]").
+    rewrite -H; iApply (H0 with "B [-]"); [done..|].
     iApply (bi.affinely_mono with "[$]").
     rewrite H1; iIntros "$"; done.
   - iIntros "#B" (????) "(% & ?)".
-    rewrite H; iApply (H0 with "B [-]").
+    rewrite H; iApply (H0 with "B [-]"); [done..|].
     iApply (bi.affinely_mono with "[$]").
     rewrite H1; iIntros "$"; done.
 Qed.
@@ -656,7 +656,7 @@ Lemma semax_adapt_frame {cs} E Delta c (P P': assert) (Q Q' : ret_assert)
                          ⌜local (tc_environ Delta) ∧ <affine> allp_fun_id Delta ∗ RA_break (frame_ret_assert Q' F) ⊢ |={E}=> RA_break Q⌝ ∧
                          ⌜local (tc_environ Delta) ∧ <affine> allp_fun_id Delta ∗ RA_continue (frame_ret_assert Q' F) ⊢ |={E}=> RA_continue Q⌝ ∧
                          ⌜forall vl, local (tc_environ Delta) ∧ <affine> allp_fun_id Delta ∗ RA_return (frame_ret_assert Q' F) vl ⊢ RA_return Q vl⌝))
-   (SEM: semax OK_spec E Delta P' c Q'):
+   (SEM: semax(CS := cs) OK_spec E Delta P' c Q'):
    semax OK_spec E Delta P c Q.
 Proof.
   intros.
@@ -682,7 +682,7 @@ Lemma semax_adapt_frame' {cs} E Delta c (P P': assert) (Q Q' : ret_assert)
                          ⌜RA_break (frame_ret_assert Q' F) ⊢ |={E}=> RA_break Q⌝ ∧
                          ⌜RA_continue (frame_ret_assert Q' F) ⊢ |={E}=> RA_continue Q⌝ ∧
                          ⌜forall vl, RA_return (frame_ret_assert Q' F) vl ⊢ RA_return Q vl⌝))
-   (SEM: semax OK_spec E Delta P' c Q'):
+   (SEM: semax(CS := cs) OK_spec E Delta P' c Q'):
    semax OK_spec E Delta P c Q.
 Proof.
   intros. eapply semax_adapt_frame, SEM.
@@ -699,7 +699,7 @@ Lemma semax_adapt {cs} E Delta c (P P': assert) (Q Q' : ret_assert)
                         ⌜RA_break Q' ⊢ |={E}=> RA_break Q⌝ ∧
                         ⌜RA_continue Q' ⊢ |={E}=> RA_continue Q⌝ ∧
                         ⌜forall vl, RA_return Q' vl ⊢ RA_return Q vl⌝))
-   (SEM: semax OK_spec E Delta P' c Q'):
+   (SEM: semax(CS := cs) OK_spec E Delta P' c Q'):
    semax OK_spec E Delta P c Q.
 Proof.
   intros. eapply semax_adapt_frame'; eauto. intros. rewrite H; iIntros "H"; iExists emp.

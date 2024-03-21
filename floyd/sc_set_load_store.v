@@ -122,7 +122,7 @@ Proof.
     apply derives_trans with (local (tc_environ Delta) ∧ local (` (eq (field_address t_root gfs p)) (eval_lvalue e1)) ∧ (tc_lvalue Delta e1)); [solve_andp |].
     unfold local, lift1; raise_rho; simpl; unfold_lift.
     iIntros "(% & % & H)".
-    iDestruct (typecheck_lvalue_sound with "H") as %Htc.
+    iDestruct (typecheck_lvalue_sound with "H") as %Htc; first done.
     rewrite -H10 in Htc; normalize.
   }
   subst gfs.
@@ -173,7 +173,7 @@ Proof.
     apply derives_trans with (local (tc_environ Delta) ∧ local (` (eq (field_address t_root gfs p)) (eval_lvalue e1)) ∧ (tc_lvalue Delta e1)); [solve_andp |].
     unfold local, lift1; split => rho; monPred.unseal; unfold_lift.
     iIntros "(% & % & H)".
-    iDestruct (typecheck_lvalue_sound with "H") as %Htc.
+    iDestruct (typecheck_lvalue_sound with "H") as %Htc; first done.
     rewrite -H11 in Htc; normalize.
   }
   subst gfs.
@@ -221,7 +221,7 @@ Proof.
     apply derives_trans with (local (tc_environ Delta) ∧ local (` (eq (field_address t_root gfs p)) (eval_lvalue e1)) ∧ (tc_lvalue Delta e1)); [solve_andp |].
     unfold local, lift1; split => rho; monPred.unseal; unfold_lift.
     iIntros "(% & % & H)".
-    iDestruct (typecheck_lvalue_sound with "H") as %Htc.
+    iDestruct (typecheck_lvalue_sound with "H") as %Htc; first done.
     rewrite -H10 in Htc; auto.
   }
   subst gfs.
@@ -281,7 +281,7 @@ Proof.
                 ∧ (tc_lvalue Delta e1) ∧ ⌜field_compatible t_root gfs' p⌝); [solve_andp |].
     unfold local, lift1; split => rho; monPred.unseal; unfold_lift.
     iIntros "(% & % & H & %)".
-    iDestruct (typecheck_lvalue_sound with "H") as %Htc.
+    iDestruct (typecheck_lvalue_sound with "H") as %Htc; first done.
     rewrite -H10 in Htc; auto.
   }
   destruct H8 as [H8 FC'].

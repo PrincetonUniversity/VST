@@ -224,7 +224,7 @@ Proof.
   apply store_storebytes in H.
   iIntros "[Hm H]"; rewrite /address_mapsto.
   iDestruct "H" as (? (Hlen & <- & ?)) "H".
-  iMod (mapsto_storebytes _ (b, ofs) _ (encode_val ch v') with "Hm H") as "[$ H]".
+  iMod (mapsto_storebytes _ (b, ofs) _ (encode_val ch v') with "Hm H") as "[$ H]"; try assumption.
   { rewrite encode_val_length //. }
   iIntros "!>"; iExists _; iSplit; first by iPureIntro; apply decode_encode_val_general.
   iExists _; iFrame.
@@ -254,7 +254,7 @@ Proof.
   rewrite address_mapsto_align.
   iIntros "[Hm [H %]]".
   pose proof (decode_encode_val_ok_same ch).
-  iMod (mapsto_store' with "[$]") as "($ & % & %Hv'' & H)".
+  iMod (mapsto_store' with "[$]") as "($ & % & %Hv'' & H)"; [done..|].
   eapply decode_encode_val_fun in Hv'' as <-; try done.
   destruct (eq_dec v' Vundef); first by subst.
   specialize (Htc n).
@@ -341,7 +341,7 @@ Lemma mapsto_alloc_bytes: forall m lo hi m' b,
   mem_auth m ⊢ |==> mem_auth m' ∗ [∗ list] i ∈ seq 0 (Z.to_nat (hi - lo)), address_mapsto Mint8unsigned Vundef Tsh (b, lo + Z.of_nat i).
 Proof.
   intros.
-  iIntros "Hm"; iMod (mapsto_alloc with "Hm") as "[$ H]".
+  iIntros "Hm"; iMod (mapsto_alloc with "Hm") as "[$ H]"; first done.
   rewrite /address_mapsto.
   iApply (big_sepL_mono with "H"); intros ?? [-> ?]%lookup_seq.
   iIntros "?"; iExists [Undef]; simpl.
@@ -356,7 +356,7 @@ Lemma mapsto_alloc: forall m ch lo hi m' b
   mem_auth m ⊢ |==> mem_auth m' ∗ address_mapsto ch Vundef Tsh (b, lo).
 Proof.
   intros.
-  iIntros "Hm"; iMod (mapsto_alloc with "Hm") as "[$ H]".
+  iIntros "Hm"; iMod (mapsto_alloc with "Hm") as "[$ H]"; first done.
   rewrite /address_mapsto.
   iExists (replicate (Z.to_nat (hi - lo)) Undef).
   rewrite (big_sepL_seq (replicate _ _)) replicate_length; setoid_rewrite nth_replicate; iFrame.
@@ -443,7 +443,7 @@ Proof.
   rewrite big_sepL_seq_exist.
   iDestruct "H" as (? Hlen) "H".
   rewrite -(big_sepL_fmap _ (fun i b0 => adr_add (b, lo) i ↦ b0)).
-  iApply (mapsto_free with "Hm H").
+  iApply (mapsto_free with "Hm H"); first done.
   rewrite fmap_length Hlen //.
 Qed.
 

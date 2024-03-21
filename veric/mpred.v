@@ -327,7 +327,8 @@ Global Instance funspecOF_contractive {PF} `{forall (A : ofe) (HA : Cofe A) (B :
 Proof.
   rewrite /oFunctorContractive; intros.
   intros ??? []; repeat split; auto.
-  exists eq_refl; split; rewrite /eq_rect /pre_eq /post_eq /eq_ind_r /eq_ind /eq_sym; f_equiv; by apply oFunctor_map_contractive.
+  exists eq_refl; split; rewrite /eq_rect /pre_eq /post_eq /eq_ind_r /eq_ind /eq_sym; f_equiv;
+    (apply @oFunctor_map_contractive; [apply oFunctor_oFunctor_compose_contractive_2|]; done).
 Qed.
 
 End ofunctor.
@@ -418,14 +419,14 @@ End FUNSPEC.
 (* collect up all the ghost state required for the logic
    Should this include external state as well? *)
 Class funspecGS Σ := FunspecG {
-    funspec_inG :> inG Σ (gmap_viewR address (@funspecO' Σ));
+    funspec_inG :: inG Σ (gmap_viewR address (@funspecO' Σ));
     funspec_name : gname
 }.
 
 Class heapGS Σ := HeapGS {
-  heapGS_invGS :> invGS_gen HasNoLc Σ;
-  heapGS_gen_heapGS :> gen_heapGS share address resource Σ;
-  heapGS_funspecGS :> funspecGS Σ
+  heapGS_invGS :: invGS_gen HasNoLc Σ;
+  heapGS_gen_heapGS :: gen_heapGS share address resource Σ;
+  heapGS_funspecGS :: funspecGS Σ
 }.
 
 (* To use the heap, do Context `{!heapGS Σ}. *)

@@ -54,12 +54,12 @@ Proof.
   rewrite !semax_unfold in H0, H1 |- *.
   intros.
   iIntros "#Prog_OK" (????) "[(%Hclosed & %) #rguard]".
-  iPoseProof (H0 with "Prog_OK [rguard]") as "H0".
+  iPoseProof (H0 with "Prog_OK [rguard]") as "H0"; [done..| |].
   { iIntros "!>"; iFrame "rguard"; iPureIntro.
     split; last done.
     unfold closed_wrt_modvars, closed_wrt_vars in *; intros ?? Hi; apply Hclosed.
     intros i; specialize (Hi i); rewrite modifiedvars_Sifthenelse; tauto. }
-  iPoseProof (H1 with "Prog_OK [rguard]") as "H1".
+  iPoseProof (H1 with "Prog_OK [rguard]") as "H1"; [done..| |].
   { iIntros "!>"; iFrame "rguard"; iPureIntro.
     split; last done.
     unfold closed_wrt_modvars, closed_wrt_vars in *; intros ?? Hi; apply Hclosed.
@@ -89,8 +89,8 @@ Proof.
   rewrite bi.later_and.
   iDestruct "H" as "(Hm & >%TC2 & P)"; simpl in HTCb.
   unfold liftx, lift, eval_unop in HTCb; simpl in HTCb.
-  destruct (bool_val (typeof b) (eval_expr b rho)) as [b'|] eqn: Hb; [|contradiction].
-  iAssert (▷assert_safe OK_spec psi E' f vx tx (Cont (Kseq (if b' then c else d) k)) rho) with "[F P fun]" as "Hsafe".
+  destruct (bool_val (typeof b) (eval_expr b _)) as [b'|] eqn: Hb; [|contradiction].
+  iAssert (▷assert_safe OK_spec psi E' f vx tx (Cont (Kseq (if b' then c else d) k)) _) with "[F P fun]" as "Hsafe".
   { iNext; destruct b'; [iApply "H0" | iApply "H1"]; (iSplit; first done); iFrame; iPureIntro; split; auto; split; auto;
       apply bool_val_strict; auto. }
   simpl in *; unfold Cop.sem_notbool in *.
@@ -125,8 +125,8 @@ Proof.
   rewrite !semax_unfold in H,H0|-*.
   intros.
   iIntros "#Prog_OK" (????) "[(%Hclosed & %) #rguard]".
-  iPoseProof (H with "Prog_OK") as "H".
-  iPoseProof (H0 with "Prog_OK [rguard]") as "H0".
+  iPoseProof (H with "Prog_OK") as "H"; [done..|].
+  iPoseProof (H0 with "Prog_OK [rguard]") as "H0"; [done..| |].
   { iIntros "!>"; iFrame "rguard"; iPureIntro.
     split; last done.
     unfold closed_wrt_modvars, closed_wrt_vars in *; intros ?? Hi; apply Hclosed.
@@ -170,14 +170,14 @@ Proof.
   iFrame; iNext.
   iApply assert_safe_jsafe.
   rewrite semax_unfold in H.
-  iApply (H with "Prog_OK"); last done.
+  iApply (H with "Prog_OK"); [done..| |done].
   iIntros "!>"; iSplit.
   { iPureIntro; split; last done.
     unfold closed_wrt_modvars, closed_wrt_vars in *; intros ?? Hi; apply Hclosed.
     intros i; specialize (Hi i); rewrite modifiedvars_Sloop; tauto. }
   iIntros (??).
   rewrite semax_unfold in H0.
-  iPoseProof (H0 with "Prog_OK") as "H0".
+  iPoseProof (H0 with "Prog_OK") as "H0"; [done..|].
   iSpecialize ("IH" with "Prog_OK").
   assert (closed_wrt_modvars incr F).
   { unfold closed_wrt_modvars, closed_wrt_vars in *; intros ?? Hi; apply Hclosed.
@@ -346,7 +346,7 @@ Proof.
     + iApply jsafe_local_step.
       { constructor. }
       iApply ("IHk" with "[%] [%] rguard"); eauto.
-    + inv Hcont. inv H2.
+    + inv Hcont.
       iApply jsafe_local_step.
       { intros; apply step_skip_or_continue_loop1; auto. }
       iApply "rguard".

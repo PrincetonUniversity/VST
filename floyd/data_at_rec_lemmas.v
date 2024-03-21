@@ -1408,8 +1408,7 @@ Proof.
   rewrite !data_at_rec_eq;
     try solve [simple_if_tac;
         [ apply memory_block_share_join; auto
-        | apply mapsto_share_join; auto]];
-    try solve [normalize].
+        | apply mapsto_share_join; auto]]; try apply bi.sep_False.
   + (* Tarray *)
     rewrite array_pred_sepcon.
     apply array_pred_ext; auto.
@@ -1439,7 +1438,8 @@ Transparent field_type field_offset.
     apply JMeq_eq.
     apply (@proj_compact_prod_JMeq _ _ _ (fun it => reptype (field_type (name_member it) (co_members (get_co id)))) (fun it => reptype (field_type (name_member it) (co_members (get_co id))))); auto.
     apply in_get_member; auto.
-  + rewrite union_pred_sepcon.
+  + (* Tunion *)
+    rewrite union_pred_sepcon.
     apply union_pred_ext; [apply get_co_members_no_replicate | reflexivity | ].
     intros.
 Opaque field_type field_offset.
@@ -1926,4 +1926,3 @@ split; auto.
 subst.
 unfold unfold_reptype. simpl. rep_lia.
 Qed.
-

@@ -360,7 +360,7 @@ Proof.
   { by etrans. }
   iIntros "[% H]".
   iMod (H23 with "[$H]") as (x2 F2) "[[F2 H] %H32]"; first done.
-  iMod (fupd_mask_subseteq E2) as "Hmask".
+  iMod (fupd_mask_subseteq E2) as "Hmask"; first done.
   iMod (H12 with "[$H]") as (x1 F1) "[[F1 H] %H21]"; first done.
   iMod "Hmask" as "_".
   iIntros "!>"; iExists x1, (F2 ∗ F1)%I.
@@ -386,7 +386,7 @@ Proof.
   iIntros "!> !>" (x gargs) "[% H]".
   iMod ("H23" with "[$H]") as (x2 F2) "H"; first done.
   rewrite -plainly_forall; iDestruct "H" as "[[F2 H] #H32]".
-  iMod (fupd_mask_subseteq E2) as "Hmask".
+  iMod (fupd_mask_subseteq E2) as "Hmask"; first done.
   iMod ("H12" with "[$H]") as (x1 F1) "H"; first done.
   rewrite -plainly_forall; iDestruct "H" as "[[F1 H] #H21]".
   iMod "Hmask" as "_".

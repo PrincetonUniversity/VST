@@ -78,7 +78,7 @@ Some (force_val (sem_cast (typeof e2) t (eval_expr e2 rho)))⌝.
 Proof.
 intros.
 iIntros "H".
-iDestruct (typecheck_expr_sound _ _ (Ecast e2 t) with "[H]") as %H.
+iDestruct (typecheck_expr_sound _ _ (Ecast e2 t) with "[H]") as %H; first done.
 { unfold typecheck_expr at 2; fold typecheck_expr.
   by rewrite denote_tc_assert_andp. }
 simpl in H.
@@ -234,7 +234,7 @@ Proof.
        ++ inv H0.
       * destruct H0.
        ++ destruct a. destruct H0.
-         -- subst. inv H0. tauto.
+         -- subst. inv H0.
          -- simpl in *. apply IHp.
            ** inv H; auto.
            ** intro. intros. inv H5.
@@ -379,7 +379,7 @@ Lemma tc_val_sem_cast:
       ⌜tc_val t2 (force_val (sem_cast (typeof e2) t2 (eval_expr e2 rho)))⌝.
 Proof.
 intros.
-iIntros "H"; iApply (typecheck_expr_sound _ _ (Ecast e2 t2)).
+iIntros "H"; iApply (typecheck_expr_sound _ _ (Ecast e2 t2)); first done.
 unfold typecheck_expr at 2; fold typecheck_expr.
 by rewrite denote_tc_assert_andp.
 Qed.

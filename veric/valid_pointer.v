@@ -98,7 +98,7 @@ Proof.
   pose proof (Ptrofs.unsigned_range i0).
   destruct (readable_share_dec sh).
   + iDestruct "H" as "[(% & H) | (% & % & H)]"; iApply (address_mapsto_valid_pointer1 with "H"); rewrite ?Ptrofs.unsigned_repr /Ptrofs.max_unsigned; lia.
-  + iDestruct "H" as "[% H]"; iApply (nonlock_permission_bytes_valid_pointer1 with "H"); rewrite ?Ptrofs.unsigned_repr /Ptrofs.max_unsigned; lia.
+  + iDestruct "H" as "[% H]"; iApply (nonlock_permission_bytes_valid_pointer1 with "H"); last done; rewrite ?Ptrofs.unsigned_repr /Ptrofs.max_unsigned; lia.
 Qed.
 
 Lemma mapsto_valid_pointer: forall {cs: compspecs} sh t p v i,
@@ -126,7 +126,7 @@ Proof.
   rewrite -> Z2Nat.id by lia.
   destruct (readable_share_dec sh).
   + iApply (VALspec_range_valid_pointer with "H"); rewrite ?Ptrofs.unsigned_repr /Ptrofs.max_unsigned; lia.
-  + iApply (nonlock_permission_bytes_valid_pointer with "H"); rewrite ?Ptrofs.unsigned_repr /Ptrofs.max_unsigned; lia.
+  + iApply (nonlock_permission_bytes_valid_pointer with "H"); last done; rewrite ?Ptrofs.unsigned_repr /Ptrofs.max_unsigned; lia.
 Qed.
 
 Lemma VALspec_range_weak_valid_pointer: forall sh b ofs n i,
@@ -167,7 +167,7 @@ Proof.
   unfold memory_block'_alt.
   rewrite -> Z2Nat.id by lia. destruct (readable_share_dec sh).
   + iApply (VALspec_range_weak_valid_pointer with "H"); rewrite ?Ptrofs.unsigned_repr /Ptrofs.max_unsigned; lia.
-  + iApply (nonlock_permission_bytes_weak_valid_pointer with "H"); rewrite ?Ptrofs.unsigned_repr /Ptrofs.max_unsigned; lia.
+  + iApply (nonlock_permission_bytes_weak_valid_pointer with "H"); last done; rewrite ?Ptrofs.unsigned_repr /Ptrofs.max_unsigned; lia.
 Qed.
 
 End mpred.

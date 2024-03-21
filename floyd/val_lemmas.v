@@ -395,9 +395,9 @@ Lemma typed_false_tint:
 Proof.
 intros.
  hnf in H0. destruct v; inv H0.
- destruct (Int.eq i Int.zero) eqn:?; inv H2.
+(* destruct (Int.eq i Int.zero) eqn:?; inv H2.
  apply int_eq_e in Heqb. subst.
- inv H; reflexivity.
+ inv H; reflexivity.*)
 Qed.
 
 Lemma typed_false_tlong:

@@ -6,7 +6,7 @@ Import LiftNotation.
 Import -(notations) compcert.lib.Maps.
 
 Lemma semax_while_peel: 
-  forall `{!VSTGS OK_ty Σ} {OK_spec: ext_spec OK_ty} {CS} Inv E Delta P expr body R,
+  forall `{!VSTGS OK_ty Σ} {OK_spec: ext_spec OK_ty} {CS : compspecs} Inv E Delta P expr body R,
   semax E Delta P (Ssequence (Sifthenelse expr Sskip Sbreak) body) 
                             (loop1_ret_assert Inv R) ->
   semax E Delta Inv (Swhile expr body) R ->
@@ -163,7 +163,7 @@ Lemma derives_trans: forall {prop:bi} (P Q R:prop),
 Proof. intros. rewrite H H0 //. Qed.
 
 Lemma semax_ifthenelse_PQR' :
-   forall `{!VSTGS OK_ty Σ} {OK_spec: ext_spec OK_ty} {CS} (v: val) E Delta P Q R (b: expr) c d Post,
+   forall `{!VSTGS OK_ty Σ} {OK_spec: ext_spec OK_ty} {CS : compspecs} (v: val) E Delta P Q R (b: expr) c d Post,
       bool_type (typeof b) = true ->
      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢
          (tc_expr Delta (Eunop Cop.Onotbool b tint))  ->

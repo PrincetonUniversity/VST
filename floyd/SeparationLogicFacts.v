@@ -558,7 +558,7 @@ Lemma semax_pre_post : forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {CS:
     (forall vl, local (tc_environ Delta) ∧ RA_return R' vl ⊢ RA_return R vl) ->
    semax E Delta P' c R' -> semax E Delta P c R.
 Proof.
-  intros; eapply semax_pre_post_fupd, H4; eauto.
+  intros; eapply semax_pre_post_fupd, H4; rewrite ?H ?H0 ?H1 ?H2; auto.
 Qed.
 
 End GenConseq.
@@ -1347,7 +1347,7 @@ Proof.
   rewrite bi.and_elim_r; iDestruct "H" as "($ & H)".
   iNext; iDestruct "H" as "(F & $)".
   assert (temp_guard_opt Delta ret) by (eapply fn_return_temp_guard; done).
-  iPoseProof (odiaopt_D _ ret F with "[$F]") as "H"; auto.
+  iPoseProof (odiaopt_D _ ret F with "[$F]") as "H"; first done; auto.
   rewrite -oboxopt_odiaopt //.
   iApply (oboxopt_K with "H").
   iIntros "? $".

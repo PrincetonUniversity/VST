@@ -1340,16 +1340,16 @@ Proof.
  super_unfold_lift. apply H.  auto.
 Qed.
 
-Lemma expr_closed: forall {cs} S e, closed_wrt_vars S (eval_expr e) -> expr_closed_wrt_vars S e.
+Lemma expr_closed: forall {cs : compspecs} S e, closed_wrt_vars S (eval_expr e) -> expr_closed_wrt_vars S e.
 Proof. auto. Qed.
 
-Lemma closed_expr: forall {cs} S e, expr_closed_wrt_vars S e -> closed_wrt_vars S (eval_expr e).
+Lemma closed_expr: forall {cs : compspecs} S e, expr_closed_wrt_vars S e -> closed_wrt_vars S (eval_expr e).
 Proof. auto. Qed.
 
-Lemma lvalue_closed: forall {cs} S e, closed_wrt_vars S (eval_lvalue e) -> lvalue_closed_wrt_vars S e.
+Lemma lvalue_closed: forall {cs : compspecs} S e, closed_wrt_vars S (eval_lvalue e) -> lvalue_closed_wrt_vars S e.
 Proof. auto. Qed.
 
-Lemma closed_lvalue: forall {cs} S e, lvalue_closed_wrt_vars S e -> closed_wrt_vars S (eval_lvalue e).
+Lemma closed_lvalue: forall {cs : compspecs} S e, lvalue_closed_wrt_vars S e -> closed_wrt_vars S (eval_lvalue e).
 Proof. auto. Qed.
 
 End CLOSED_LEMMAS2.

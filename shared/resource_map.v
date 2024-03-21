@@ -315,7 +315,7 @@ Section lemmas.
   Proof.
     unseal. intros.
     setoid_rewrite <- own_op.
-    iApply own_alloc_strong.
+    iApply own_alloc_strong; first done.
     apply auth_both_valid_2; done.
   Qed.
   Lemma resource_map_alloc_strong_empty P :
@@ -323,14 +323,14 @@ Section lemmas.
     ⊢ |==> ∃ γ, ⌜P γ⌝ ∧ resource_map_auth γ 1 ∅.
   Proof.
     unseal. intros.
-    iApply own_alloc_strong.
+    iApply own_alloc_strong; first done.
     by apply auth_auth_valid.
   Qed.
   Lemma resource_map_alloc (m : rmapUR S K (leibnizO V)) :
     ✓ m →
     ⊢ |==> ∃ γ, resource_map_auth γ 1 m ∗ own γ (◯ m).
   Proof.
-    intros; iMod (resource_map_alloc_strong (λ _, True) m) as (γ) "[_ Hmap]".
+    intros; iMod (resource_map_alloc_strong (λ _, True) m) as (γ) "[_ Hmap]"; [|done|].
     - by apply pred_infinite_True.
     - eauto.
   Qed.
@@ -603,7 +603,7 @@ Section lemmas.
     { rewrite dom_delete_L -Hdom difference_union_distr_l_L difference_diag_L left_id_L difference_disjoint_L //.
       apply disjoint_singleton_r, not_elem_of_dom_2; done. }
     assert (k ∈ dom m1) as (v1 & Hm1)%elem_of_dom by set_solver.
-    iMod (resource_map_update with "Hm Hk") as (?? (? & ? & Hmk)) "(Hm & Hk)".
+    iMod (resource_map_update with "Hm Hk") as (?? (? & ? & Hmk)) "(Hm & Hk)"; first done.
     iCombine "Hk Hrest" as "Hm1".
     rewrite -(big_sepM_insert_delete (λ k v, k ↪[γ]{#sh} v))%I insert_id //; iFrame.
     rewrite -{2}(insert_delete _ _ _ Hm1) map_imap_insert.

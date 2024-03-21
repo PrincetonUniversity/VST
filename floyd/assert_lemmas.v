@@ -746,7 +746,7 @@ Lemma later_ENTAIL: forall Delta P Q,
   local (tc_environ Delta) ∧ ▷ P ⊢ ▷ Q.
 Proof.
   intros.
-  by iIntros "? !>".
+  iIntros "? !>"; by iApply H.
 Qed.
 
 Lemma andp_ENTAILL: forall Delta P P' Q Q',

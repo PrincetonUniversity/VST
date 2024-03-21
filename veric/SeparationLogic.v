@@ -164,7 +164,7 @@ Proof.
   iIntros "H"; iSplit.
   + iDestruct "H" as "[H _]"; rewrite (@denote_tc_assert_tc_bool_cs_invariant CS' CS) //.
   + rewrite tc_bool_e; iDestruct "H" as (?) "?".
-    iApply (expr2.neutral_isCastResultType with "[$]").
+    by iApply (expr2.neutral_isCastResultType with "[$]").
 Qed.
 
 Lemma castexpropt_cenv_sub {CS CS'} (CSUB: cspecs_sub CS CS') Delta rho (D:typecheck_environ Delta rho) ret t:
@@ -229,7 +229,7 @@ match spec with (_, mk_funspec fsig cc E A P Q) =>
   fst fsig = map snd (fst (fn_funsig f)) /\
   snd fsig = snd (fn_funsig f) /\
 forall OK_spec (x:dtfr A),
-  Def.semax E (func_tycontext f V G nil)
+  Def.semax(OK_spec := OK_spec) E (func_tycontext f V G nil)
       (close_precondition (map fst f.(fn_params)) (argsassert_of (P x)) ∗ stackframe_of f)
        f.(fn_body)
       (frame_ret_assert (function_body_ret_assert (fn_return f) (assert_of (Q x))) (stackframe_of f))
