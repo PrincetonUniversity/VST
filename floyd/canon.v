@@ -1826,6 +1826,8 @@ Proof.
   iClear "#"; iStopProof; split => rho; monPred.unseal; done.
 Qed.
 
+Local Arguments typecheck_expr : simpl never.
+
 Lemma semax_return_Some: forall E Delta Ppre Qpre Rpre Post1 sf SEPsf post2 post3 ret v_gen,
   ENTAIL Delta, PROPx Ppre (LOCALx Qpre (SEPx Rpre)) ⊢ local (`(eq v_gen) (eval_expr (Ecast ret (ret_type Delta)))) ->
   ENTAIL Delta, PROPx Ppre (LOCALx Qpre (SEPx Rpre)) ⊢ tc_expr Delta (Ecast ret (ret_type Delta)) ->
