@@ -737,6 +737,8 @@ try rewrite Int.zero_ext_idem; auto; simpl; try lia;
 try solve [simple_if_tac; auto].
 Qed.
 
+Local Arguments typecheck_expr : simpl never.
+
 Lemma semax_store:
  forall E Delta e1 e2 sh P (WS : writable0_share sh),
    semax OK_spec E Delta
@@ -759,7 +761,7 @@ Proof.
   iIntros "(Hm & H)".
   assert (typecheck_environ Delta rho) as TYCON_ENV
     by (destruct TC as [TC' TC'']; eapply typecheck_environ_sub; eauto).
-  monPred.unseal; unfold_lift.
+  monPred.unseal. unfold_lift.
   rewrite (add_and (_ ∧ (_ ∗ _)) (▷ ⌜_⌝)).
   2: { iIntros "(_ & _ & ? & _) !>"; iApply (mapsto_pure_facts with "[$]"). }
   iDestruct "H" as "(H & >%H)".
@@ -791,7 +793,7 @@ Proof.
     iPureIntro; econstructor; eauto.
     eapply assign_loc_value; eauto.
   + iIntros "!>".
-    rewrite /tc_expr /= typecheck_expr_sound //.
+    rewrite typecheck_expr_sound //.
     rewrite (bi.and_elim_r (▷ tc_lvalue _ _ _)).
     iDestruct "H" as "(>%Htc & F & >Hmapsto & P)".
     subst; iPoseProof (mapsto_store with "[$Hm $Hmapsto]") as ">[? ?]"; [try done..|].
