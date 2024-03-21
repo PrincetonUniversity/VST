@@ -1050,6 +1050,8 @@ Proof. destruct p; simpl; auto. Qed.
 
 End mpred.
 
+Global Arguments typecheck_expr {_ _ _} _ !e / : simpl nomatch.
+
 (** Environment typechecking functions **)
 
 Lemma typecheck_var_environ_None: forall ve vt,
