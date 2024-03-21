@@ -1413,7 +1413,7 @@ Proof. destruct HI. split3.
            (close_precondition (map fst (fn_params f)) (argsassert_of ((Pre_of_funspec (phi i)) x)) ∗ stackframe_of f) 
            (fn_body f) (frame_ret_assert (function_body_ret_assert (fn_return f) (assert_of ((Post_of_funspec (phi i)) x))) (stackframe_of f)))) as HH.
   { intros. specialize (H1 i); specialize (H2 i). specialize (HE i). subst. unfold semax_body in H.
-    destruct (phi i); subst. destruct H as [? [? ?]]. split3; auto. }
+    destruct (phi i); subst. destruct H as [? [? ?]]. split3; simpl; auto. }
   clear H H1 H2. destruct HH as [HH1 [HH2 HH3]].
   apply (HH3 Hi).
 Qed.
@@ -1499,6 +1499,8 @@ Proof.
   apply Clight_assert_lemmas.allp_fun_id_sub; auto.
 Qed.
 
+Local Arguments typecheck_expr : simpl never.
+
 Theorem semax_Delta_subsumption {OK_spec: ext_spec OK_ty} {CS: compspecs}:
   forall E Delta Delta' P c R,
        tycontext_sub Delta Delta' ->
@@ -1510,7 +1512,7 @@ Proof.
     apply andp_ENTAIL; [apply ENTAIL_refl |].
     rewrite !bi.later_and; apply andp_ENTAIL, ENTAIL_refl.
     unfold local, lift1; normalize.
-    apply bi.later_mono; eapply Clight_assert_lemmas.tc_expr_sub; eauto.
+    apply bi.later_mono; eapply Clight_assert_lemmas.tc_expr_sub; auto.
     eapply semax_lemmas.typecheck_environ_sub; eauto.
   + eapply AuxDefs.semax_seq; intuition eauto.
   + eapply AuxDefs.semax_break; eauto.
