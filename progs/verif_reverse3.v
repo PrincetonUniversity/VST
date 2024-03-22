@@ -3,6 +3,7 @@
 (** First, import the entire Floyd proof automation system, which includes
  ** the VeriC program logic and the MSL theory of separation logic**)
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat.
 
 (** Import the [reverse.v] file, which is produced by CompCert's clightgen
  ** from reverse.c.   The file reverse.v defines abbreviations for identifiers
@@ -55,14 +56,11 @@ Lemma list_ind_in_logc: forall {A: Type} (P: mpred) (Q: list A -> mpred),
   P |-- ALL l: list A, Q l.
 Proof.
   intros.
-  apply allp_right; intro l.
+  apply bi.forall_intro; intro l.
   induction l; auto.
-  rewrite (add_andp _ _ IHl), (add_andp _ _ H0).
-  apply imp_andp_adjoint.
-  apply andp_left2.
-  apply (allp_left _ a).
-  apply (allp_left _ l).
-  auto.
+  trans (Q l && (Q l --> Q (a :: l))); [|apply bi.impl_elim_r].
+  apply bi.and_intro; auto.
+  rewrite H0; rewrite !bi.forall_elim; auto.
 Qed.
 
 (* application *)
@@ -70,33 +68,23 @@ Qed.
 Lemma listrep2lsegrec: forall l x,
   listrep l x |-- lsegrec l x nullval.
 Proof.
-  assert (emp |-- ALL l: list val, (ALL x: val, listrep l x -* lsegrec l x nullval)).
+  assert (emp |-- ALL l: list val, (ALL x: val, (listrep l x -* lsegrec l x nullval))).
   + apply list_ind_in_logc.
-    - apply allp_right; intros.
-      apply wand_sepcon_adjoint.
-      rewrite emp_sepcon.
-      simpl.
-      apply derives_refl.
-    - apply allp_right; intros a.
-      apply allp_right; intros l.
-      apply imp_andp_adjoint.
-      apply allp_right; intros x.
-      apply andp_left2.
-      apply wand_sepcon_adjoint.
+    - apply bi.forall_intro; intros.
+      auto.
+    - apply bi.forall_intro; intros a.
+      apply bi.forall_intro; intros l.
+      apply bi.impl_intro_r.
+      apply bi.forall_intro; intros x.
+      rewrite bi.and_elim_r.
+      apply bi.wand_intro_r.
       simpl.
       Intros y.
       Exists y.
-      apply wand_sepcon_adjoint.
-      apply (allp_left _ y).
-      apply wand_sepcon_adjoint.
       cancel.
-      apply wand_sepcon_adjoint.
-      apply derives_refl.
+      rewrite bi.forall_elim; apply bi.wand_elim_l.
   + intros.
-    rewrite <- (emp_sepcon (listrep _ _)).
-    apply wand_sepcon_adjoint.
-    eapply derives_trans; [exact H | clear H].
-    apply (allp_left _ l).
-    apply (allp_left _ x).
-    apply derives_refl.
+    rewrite <- (bi.emp_sep (listrep _ _)).
+    rewrite H.
+    rewrite !bi.forall_elim; apply bi.wand_elim_l.
 Qed.

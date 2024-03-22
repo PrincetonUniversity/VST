@@ -1,10 +1,11 @@
 Require Import VST.veric.SequentialClight.
 Require Import VST.floyd.proofauto.
 
-Export Unset SsrRewrite.
+#[export] Unset SsrRewrite.
 
 Notation assert := (@assert (VSTΣ unit)).
 Notation funspec := (@funspec (VSTΣ unit)).
+Notation funspecs := (@funspecs (VSTΣ unit)).
 
 (* Concrete instance of the Iris typeclasses for no ghost state or external calls *)
 #[local] Instance default_pre : VSTGpreS unit (VSTΣ unit) := subG_VSTGpreS _.
@@ -54,6 +55,8 @@ Ltac simplify_func_tycontext' DD ::=
 
 Notation "P |-- Q" := (P ⊢ Q)
   (at level 99, Q at level 200, right associativity, only parsing) : stdpp_scope.
+Notation " 'ENTAIL' d ',' P |-- Q " :=
+  (@bi_entails (monPredI environ_index (iPropI _)) (local (tc_environ d) ∧ P%assert) Q%assert) (at level 99, P at level 98, Q at level 98).
 Notation "'!!' φ" := (bi_pure φ%type%stdpp) (at level 15) : bi_scope.
 Notation "P && Q" := (P ∧ Q)%I (only parsing) : bi_scope.
 Notation "P || Q" := (P ∨ Q)%I (only parsing) : bi_scope.

@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat.
 Require Import VST.floyd.library.
 Require Import VST.progs.object.
 
@@ -6,7 +7,6 @@ Require Import VST.progs.object.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Local Open Scope Z.
-Local Open Scope logic.
 
 Definition object_invariant := list Z -> val -> mpred.
 
@@ -37,8 +37,8 @@ Definition twiddle_spec (instance: object_invariant) :=
 Definition object_methods (instance: object_invariant) (mtable: val) : mpred :=
   EX sh: share, EX reset: val, EX twiddle: val,
   !! readable_share sh && 
-  func_ptr' (reset_spec instance) reset *
-  func_ptr' (twiddle_spec instance) twiddle *
+  func_ptr (reset_spec instance) reset *
+  func_ptr (twiddle_spec instance) twiddle *
   data_at sh (Tstruct _methods noattr) (reset,twiddle) mtable.
 
 Lemma object_methods_local_facts: forall instance p,
@@ -143,8 +143,8 @@ Intros sh reset twiddle.
 
 Exists (fst (slice.cleave sh)) reset twiddle.
 Exists (snd (slice.cleave sh)) reset twiddle.
-rewrite (split_func_ptr' (reset_spec instance) reset) at 1.
-rewrite (split_func_ptr' (twiddle_spec instance) twiddle) at 1.
+rewrite (split_func_ptr (reset_spec instance) reset) at 1.
+rewrite (split_func_ptr (twiddle_spec instance) twiddle) at 1.
 entailer!!.
 split.
 apply slice.cleave_readable1; auto.
@@ -224,8 +224,8 @@ Qed.
 Lemma make_object_methods:
   forall sh instance reset twiddle mtable,
   readable_share sh ->
-  func_ptr' (reset_spec instance) reset *
-  func_ptr' (twiddle_spec instance) twiddle *
+  func_ptr (reset_spec instance) reset *
+  func_ptr (twiddle_spec instance) twiddle *
   data_at sh (Tstruct _methods noattr) (reset, twiddle) mtable
   |-- object_methods instance mtable.
 Proof.

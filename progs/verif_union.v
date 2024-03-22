@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat.
 Require Import VST.progs.union.
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
@@ -9,7 +10,7 @@ Definition Gprog : funspecs :=
     ltac:(with_library prog (@nil(ident*funspec))).
 
 
-Definition g_spec :=
+Definition g_spec : ident * funspec :=
  DECLARE _g
  WITH i: Z
  PRE [ size_t]

@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat.
 Require Import VST.progs.even.
 Require Import VST.progs.verif_evenodd_spec.
 

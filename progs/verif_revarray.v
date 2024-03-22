@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat.
 Require Import VST.progs.revarray.
 Require Import VST.zlist.sublist.
 
@@ -154,8 +155,7 @@ forward. (* hi--; *)
  entailer!.
  f_equal; f_equal; lia.
  simpl.
- apply derives_refl'.
- unfold data_at.    f_equal.
+ f_equiv.
  clear - H0 HRE H1.
  unfold Z.succ.
  rewrite <- flip_fact_3 by auto with typeclass_instances.

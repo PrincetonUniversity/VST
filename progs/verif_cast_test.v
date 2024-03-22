@@ -1,12 +1,11 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat.
 Require Import VST.progs.cast_test.
 
 #[export] Instance CompSpecs : compspecs.
 Proof. make_compspecs prog. Defined.
 
-Local Open Scope logic.
-
-Definition test_spec :=
+Definition test_spec : ident * funspec :=
  DECLARE _test
   WITH n: Z
   PRE [ tlong ]
@@ -18,7 +17,7 @@ Definition test_spec :=
         RETURN (Vint (Int.repr 0))
         SEP ().
 
-Definition issue500_spec := 
+Definition issue500_spec : ident * funspec := 
   DECLARE _issue500
   WITH i: Int64.int
   PRE [ tlong ]

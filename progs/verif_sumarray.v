@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto. (* Import the Verifiable C system *)
+Require Import VST.floyd.compat.
 Require Import VST.progs.sumarray. (* Import the AST of this C program *)
 (* The next line is "boilerplate", always required after importing an AST. *)
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
@@ -36,10 +37,10 @@ Definition main_spec :=
  DECLARE _main
   WITH gv : globals
   PRE  [] main_pre prog tt gv
-  POST [ tint ]  
-     PROP() 
+  POST [ tint ]
+     PROP()
      LOCAL (temp ret_temp (Vint (Int.repr (1+2+3+4)))) 
-     SEP(TT).
+     SEP(True).
 
 (* Note: It would also be reasonable to let [contents] have type [list int].
   Then the [Forall] would not be needed in the PROP part of PRE.
@@ -117,6 +118,7 @@ Definition four_contents := [1; 2; 3; 4].
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
 start_function.
+rename a into gv.
 forward_call (*  s = sumarray(four,4); *)
   (gv _four, Ews,four_contents,4).
  repeat constructor; computable.

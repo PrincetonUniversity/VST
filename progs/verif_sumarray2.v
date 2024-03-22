@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto. (* Import the Verifiable C system *)
+Require Import VST.floyd.compat.
 Require Import VST.progs.sumarray2. (* Import the AST of this C program *)
 
 (* The next line is "boilerplate", always required after importing an AST. *)
@@ -31,10 +32,10 @@ Definition main_spec :=
  DECLARE _main
   WITH gv: globals
   PRE  [] main_pre prog tt gv
-  POST [ tint ]  
+  POST [ tint ]
      PROP() 
      RETURN (Vint (Int.repr (3+4))) 
-     SEP(TT).
+     SEP(True).
 
 (* Packaging the API spec all together. *)
 Definition Gprog : funspecs :=

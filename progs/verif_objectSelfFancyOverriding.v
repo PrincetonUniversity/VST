@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat.
 Require Import VST.floyd.library.
 Require Import VST.progs.objectSelfFancyOverriding.
 
@@ -12,7 +13,6 @@ the client has enough knowledge to call the correct function*)
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Local Open Scope Z.
-Local Open Scope logic.
 
 Section FOO.
 
@@ -51,9 +51,9 @@ Definition twiddle_spec (instance: object_invariant) :=
 Definition object_methods (instance: object_invariant) (mtable: val) : mpred :=
   EX sh: share, EX reset: val, EX twiddle: val, EX twiddleR:val,
   !! readable_share sh && 
-  func_ptr' (reset_spec instance) reset *
-  func_ptr' (twiddle_spec instance) twiddle *
-  func_ptr' (twiddle_spec instance) twiddleR *
+  func_ptr (reset_spec instance) reset *
+  func_ptr (twiddle_spec instance) twiddle *
+  func_ptr (twiddle_spec instance) twiddleR *
   data_at sh (Tstruct _methods noattr) (reset,(twiddle, twiddleR)) mtable.
 
 Lemma object_methods_local_facts: forall instance p,
@@ -70,9 +70,9 @@ Local Hint Resolve object_methods_local_facts : saturate_local.
 Lemma make_object_methods:
   forall sh instance reset twiddle twiddleR mtable,
   readable_share sh ->
-  func_ptr' (reset_spec instance) reset *
-  func_ptr' (twiddle_spec instance) twiddle *
-  func_ptr' (twiddle_spec instance) twiddleR * 
+  func_ptr (reset_spec instance) reset *
+  func_ptr (twiddle_spec instance) twiddle *
+  func_ptr (twiddle_spec instance) twiddleR * 
   data_at sh (Tstruct _methods noattr) (reset, (twiddle, twiddleR)) mtable
   |-- object_methods instance mtable.
 Proof.
@@ -85,13 +85,13 @@ Qed.
 Lemma make_object_methods_later:
   forall sh instance reset twiddle twiddleR mtable,
   readable_share sh ->
-  func_ptr' (reset_spec instance) reset *
-  func_ptr' (twiddle_spec instance) twiddle *
-  func_ptr' (twiddle_spec instance) twiddleR * 
+  func_ptr (reset_spec instance) reset *
+  func_ptr (twiddle_spec instance) twiddle *
+  func_ptr (twiddle_spec instance) twiddleR * 
   data_at sh (Tstruct _methods noattr) (reset, (twiddle, twiddleR)) mtable
   |-- |> object_methods instance mtable.
 Proof.
-intros. eapply derives_trans. apply make_object_methods; trivial. apply now_later.
+intros. eapply derives_trans. apply make_object_methods; trivial. apply bi.later_intro.
 Qed.
 
 (*Andrew's definition
@@ -169,7 +169,7 @@ apply subp_sepcon_mpred; [ | apply subp_refl].
 repeat simple apply subp_sepcon_mpred;
 try (simple apply subp_andp; [simple apply subp_refl | ]).
 +
-unfold func_ptr'.
+unfold func_ptr.
 apply subp_andp; [ | apply subp_refl].
 clear - instance.
 eapply derives_trans; [ | apply fash_func_ptr_ND].
@@ -213,7 +213,7 @@ apply andp_derives.
 apply andp_left1. apply derives_refl. apply derives_refl.
 rewrite andp_comm. apply modus_ponens.
 +
-unfold func_ptr'.
+unfold func_ptr.
 apply subp_andp; [ | apply subp_refl].
 clear - instance.
 eapply derives_trans; [ | apply fash_func_ptr_ND].
@@ -259,7 +259,7 @@ apply andp_derives.
 apply andp_left1. apply derives_refl. apply derives_refl.
 rewrite andp_comm. apply modus_ponens.
 +
-unfold func_ptr'.
+unfold func_ptr.
 apply subp_andp; [ | apply subp_refl].
 clear - instance.
 eapply derives_trans; [ | apply fash_func_ptr_ND].
@@ -544,9 +544,9 @@ Intros sh reset twiddle twiddleR.
 
 Exists (fst (slice.cleave sh)) reset twiddle twiddleR.
 Exists (snd (slice.cleave sh)) reset twiddle twiddleR.
-rewrite (split_func_ptr' (reset_spec instance) reset) at 1.
-rewrite (split_func_ptr' (twiddle_spec instance) twiddle) at 1.
-rewrite (split_func_ptr' (twiddle_spec instance) twiddleR) at 1.
+rewrite (split_func_ptr (reset_spec instance) reset) at 1.
+rewrite (split_func_ptr (twiddle_spec instance) twiddle) at 1.
+rewrite (split_func_ptr (twiddle_spec instance) twiddleR) at 1.
 entailer!.
 split.
 apply slice.cleave_readable1; auto.
@@ -618,7 +618,7 @@ unfold object_mpred.
 Exists foo_data. entailer!!. 1: solve [apply foo_data_HOcontr].
 rewrite ObjMpred_fold_unfold by (apply foo_data_HOcontr).
 Exists (gv _foo_methods). simpl. normalize.
-rewrite ! sepcon_assoc. apply sepcon_derives. apply now_later.
+rewrite ! sepcon_assoc. apply sepcon_derives. apply bi.later_intro.
 unfold foo_data; simpl. unfold withspacer; simpl.
 cancel.
 unfold_data_at (field_at _ _ nil _ p).
@@ -703,11 +703,11 @@ Definition fgetcolor_spec (instance: fobject_invariant) :=
 Definition fobject_methods (instance: fobject_invariant) (mtable: val) : mpred :=
   EX sh: share, EX reset: val, EX twiddle: val, EX twiddleR:val, EX setcol: val, EX getcol:val,
   !! readable_share sh && 
-  func_ptr' (freset_spec instance) reset *
-  func_ptr' (ftwiddle_spec instance) twiddle *
-  func_ptr' (ftwiddleR_spec instance) twiddleR *
-  func_ptr' (fsetcolor_spec instance) setcol *
-  func_ptr' (fgetcolor_spec instance) getcol *
+  func_ptr (freset_spec instance) reset *
+  func_ptr (ftwiddle_spec instance) twiddle *
+  func_ptr (ftwiddleR_spec instance) twiddleR *
+  func_ptr (fsetcolor_spec instance) setcol *
+  func_ptr (fgetcolor_spec instance) getcol *
   data_at sh (Tstruct _fancymethods noattr) (reset,(twiddle, (twiddleR, (setcol, getcol)))) mtable.
 
 Lemma fobject_methods_local_facts: forall instance p,
@@ -723,11 +723,11 @@ Local Hint Resolve fobject_methods_local_facts : saturate_local.
 Lemma make_fobject_methods:
   forall sh instance reset twiddle twiddleR setcol getcol mtable,
   readable_share sh ->
-  func_ptr' (freset_spec instance) reset *
-  func_ptr' (ftwiddle_spec instance) twiddle *
-  func_ptr' (ftwiddleR_spec instance) twiddleR * 
-  func_ptr' (fsetcolor_spec instance) setcol *
-  func_ptr' (fgetcolor_spec instance) getcol *
+  func_ptr (freset_spec instance) reset *
+  func_ptr (ftwiddle_spec instance) twiddle *
+  func_ptr (ftwiddleR_spec instance) twiddleR * 
+  func_ptr (fsetcolor_spec instance) setcol *
+  func_ptr (fgetcolor_spec instance) getcol *
   data_at sh (Tstruct _fancymethods noattr) (reset,(twiddle, (twiddleR, (setcol, getcol)))) mtable
   |-- fobject_methods instance mtable.
 Proof.
@@ -740,15 +740,15 @@ Qed.
 Lemma make_fobject_methods_later:
   forall sh instance reset twiddle twiddleR setcol getcol mtable,
   readable_share sh ->
-  func_ptr' (freset_spec instance) reset *
-  func_ptr' (ftwiddle_spec instance) twiddle *
-  func_ptr' (ftwiddleR_spec instance) twiddleR * 
-  func_ptr' (fsetcolor_spec instance) setcol *
-  func_ptr' (fgetcolor_spec instance) getcol *
+  func_ptr (freset_spec instance) reset *
+  func_ptr (ftwiddle_spec instance) twiddle *
+  func_ptr (ftwiddleR_spec instance) twiddleR * 
+  func_ptr (fsetcolor_spec instance) setcol *
+  func_ptr (fgetcolor_spec instance) getcol *
   data_at sh (Tstruct _fancymethods noattr) (reset,(twiddle, (twiddleR, (setcol, getcol)))) mtable
   |-- |> fobject_methods instance mtable.
 Proof.
-intros. eapply derives_trans. apply make_fobject_methods; trivial. apply now_later.
+intros. eapply derives_trans. apply make_fobject_methods; trivial. apply bi.later_intro.
 Qed.
 
 Section FObjMpred.
@@ -787,7 +787,7 @@ apply subp_sepcon_mpred; [ | apply subp_refl].
 repeat simple apply subp_sepcon_mpred;
 try (simple apply subp_andp; [simple apply subp_refl | ]).
 +
-unfold func_ptr'.
+unfold func_ptr.
 apply subp_andp; [ | apply subp_refl].
 clear - instance.
 eapply derives_trans; [ | apply fash_func_ptr_ND].
@@ -831,7 +831,7 @@ apply andp_derives.
 apply andp_left1. apply derives_refl. apply derives_refl.
 rewrite andp_comm. apply modus_ponens.
 +
-unfold func_ptr'.
+unfold func_ptr.
 apply subp_andp; [ | apply subp_refl].
 clear - instance.
 eapply derives_trans; [ | apply fash_func_ptr_ND].
@@ -877,7 +877,7 @@ apply andp_derives.
 apply andp_left1. apply derives_refl. apply derives_refl.
 rewrite andp_comm. apply modus_ponens.
 +
-unfold func_ptr'.
+unfold func_ptr.
 apply subp_andp; [ | apply subp_refl].
 clear - instance.
 eapply derives_trans; [ | apply fash_func_ptr_ND].
@@ -923,7 +923,7 @@ apply andp_derives.
 apply andp_left1. apply derives_refl. apply derives_refl.
 rewrite andp_comm. apply modus_ponens.
 +
-unfold func_ptr'.
+unfold func_ptr.
 apply subp_andp; [ | apply subp_refl].
 clear - instance.
 eapply derives_trans; [ | apply fash_func_ptr_ND].
@@ -969,7 +969,7 @@ apply andp_derives.
 apply andp_left1. apply derives_refl. apply derives_refl.
 rewrite andp_comm. apply modus_ponens.
 +
-unfold func_ptr'.
+unfold func_ptr.
 apply subp_andp; [ | apply subp_refl].
 clear - instance.
 eapply derives_trans; [ | apply fash_func_ptr_ND].
@@ -1316,11 +1316,11 @@ Intros sh reset twiddle twiddleR setC getC.
 
 Exists (fst (slice.cleave sh)) reset twiddle twiddleR setC getC.
 Exists (snd (slice.cleave sh)) reset twiddle twiddleR setC getC.
-rewrite (split_func_ptr' (freset_spec instance) reset) at 1.
-rewrite (split_func_ptr' (ftwiddle_spec instance) twiddle) at 1.
-rewrite (split_func_ptr' (ftwiddleR_spec instance) twiddleR) at 1.
-rewrite (split_func_ptr' (fsetcolor_spec instance) setC) at 1.
-rewrite (split_func_ptr' (fgetcolor_spec instance) getC) at 1.
+rewrite (split_func_ptr (freset_spec instance) reset) at 1.
+rewrite (split_func_ptr (ftwiddle_spec instance) twiddle) at 1.
+rewrite (split_func_ptr (ftwiddleR_spec instance) twiddleR) at 1.
+rewrite (split_func_ptr (fsetcolor_spec instance) setC) at 1.
+rewrite (split_func_ptr (fgetcolor_spec instance) getC) at 1.
 entailer!!.
 split.
 apply slice.cleave_readable1; auto.
@@ -1369,7 +1369,7 @@ unfold fobject_mpred.
 Exists fancyfoo_data. entailer!!. 1: solve [apply fancyfoo_data_HOcontr].
 rewrite fObjMpred_fold_unfold by (apply fancyfoo_data_HOcontr).
 Exists (gv _fancyfoo_methods). simpl. normalize.
-rewrite ! sepcon_assoc. apply sepcon_derives. apply now_later.
+rewrite ! sepcon_assoc. apply sepcon_derives. apply bi.later_intro.
 unfold fancyfoo_data; simpl. unfold withspacer; simpl.
 cancel.
 unfold_data_at (field_at _ _ nil _ p).
@@ -1446,7 +1446,7 @@ unfold fobject_mpred.
 Exists fancyfoo_data. entailer!. 1: solve [apply fancyfoo_data_HOcontr].
 rewrite fObjMpred_fold_unfold by (apply fancyfoo_data_HOcontr).
 Exists (gv _fancyfoo_methods). simpl. normalize.
-rewrite ! sepcon_assoc. apply sepcon_derives. apply now_later.
+rewrite ! sepcon_assoc. apply sepcon_derives. apply bi.later_intro.
 unfold fancyfoo_data; simpl. unfold withspacer; simpl.
 cancel.
 unfold_data_at (field_at _ _ nil _ p).
@@ -1607,19 +1607,19 @@ replace_SEP 0 (data_at Ews (Tstruct _fancymethods noattr)
         fancymethods is a proper method table for fancyfoo-objects *)
 
 make_func_ptr _foo_reset. (*
-replace_SEP 0 (func_ptr' (reset_spec foo_obj_invariant) (gv _foo_reset)(* *
-               func_ptr' (freset_spec fancyfoo_obj_invariant) (gv _foo_reset)*)).
-{ entailer!. (*rewrite split_func_ptr'. apply sepcon_derives; *)apply func_ptr'_mono.
+replace_SEP 0 (func_ptr (reset_spec foo_obj_invariant) (gv _foo_reset)(* *
+               func_ptr (freset_spec fancyfoo_obj_invariant) (gv _foo_reset)*)).
+{ entailer!. (*rewrite split_func_ptr. apply sepcon_derives; *)apply func_ptr_mono.
   apply reset_sub_foo. (* apply reset_sub_fancy.*) }*)
 make_func_ptr _foo_twiddle.
-replace_SEP 0 (func_ptr' (twiddle_spec foo_obj_invariant) (gv _foo_twiddle) *
-               func_ptr' (ftwiddle_spec fancyfoo_obj_invariant) (gv _foo_twiddle)).
-{ entailer!. rewrite split_func_ptr'. apply sepcon_derives; apply func_ptr'_mono.
+replace_SEP 0 (func_ptr (twiddle_spec foo_obj_invariant) (gv _foo_twiddle) *
+               func_ptr (ftwiddle_spec fancyfoo_obj_invariant) (gv _foo_twiddle)).
+{ entailer!. rewrite split_func_ptr. apply sepcon_derives; apply func_ptr_mono.
   apply twiddle_sub_foo. apply twiddle_sub_fancy. }
 make_func_ptr _foo_twiddleR.
-replace_SEP 0 (func_ptr' (twiddle_spec foo_obj_invariant) (gv _foo_twiddleR) *
-               func_ptr' (ftwiddleR_spec fancyfoo_obj_invariant) (gv _foo_twiddleR)).
-{ entailer!. rewrite split_func_ptr'. apply sepcon_derives; apply func_ptr'_mono.
+replace_SEP 0 (func_ptr (twiddle_spec foo_obj_invariant) (gv _foo_twiddleR) *
+               func_ptr (ftwiddleR_spec fancyfoo_obj_invariant) (gv _foo_twiddleR)).
+{ entailer!. rewrite split_func_ptr. apply sepcon_derives; apply func_ptr_mono.
   apply twiddleR_sub_foo. apply twiddleR_sub_fancy. }
 sep_apply (make_object_methods Ews foo_obj_invariant (gv _foo_reset) (gv _foo_twiddle) (gv _foo_twiddleR) (gv _foo_methods)); auto.
 
@@ -1850,15 +1850,15 @@ Proof. do_funspec_sub. simpl in H. inv H. inv H6.
   rewrite later_exp'; normalize. rename x into gC.
   Exists ((
      field_at Ews (Tstruct _fancyfoo_object noattr) [StructField _color] (Vint (Int.repr c)) q *
-     (|> (func_ptr' (fsetcolor_spec fancyfoo_obj_invariant) sC *
-          func_ptr' (fgetcolor_spec fancyfoo_obj_invariant) gC))) * 
+     (|> (func_ptr (fsetcolor_spec fancyfoo_obj_invariant) sC *
+          func_ptr (fgetcolor_spec fancyfoo_obj_invariant) gC))) * 
      ((malloc_token Ews (Tstruct _foo_object noattr) q) -* malloc_token Ews (Tstruct _fancyfoo_object noattr) q)).
   rewrite later_andp. rewrite ! later_sepcon. Intros.
   entailer. apply andp_right.
   + entailer!. intros. rewrite fancyfoo_obj_invariant_fold_unfold'; simpl.
     Exists m. entailer!.
     sep_apply wand_frame_elim''. cancel.
-(*    eapply derives_trans. apply sepcon_derives. apply now_later. apply derives_refl.*)
+(*    eapply derives_trans. apply sepcon_derives. apply bi.later_intro. apply derives_refl.*)
     rewrite  <- ! later_sepcon. 
     apply later_derives. Exists sh r t tR sC gC. entailer!. admit. (*readable_share*)
     unfold object_methods. admit.

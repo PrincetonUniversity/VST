@@ -1,10 +1,9 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat.
 Require Import VST.progs.libglob.
 
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
-
-Local Open Scope logic.
 
 (*  The LG module has two global variables of its own:
 <<

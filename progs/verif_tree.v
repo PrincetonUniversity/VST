@@ -1,10 +1,6 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat.
 Require Import VST.progs.tree.
-Require Import VST.msl.iter_sepcon.
-Require Import VST.msl.wand_frame.
-Require Import VST.msl.wandQ_frame.
-
-Open Scope logic.
 
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.

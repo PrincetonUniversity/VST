@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat.
 Require Import VST.progs.bst.
 
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.

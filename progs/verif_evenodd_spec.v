@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat.
 Require Import VST.progs.even.
 
 #[export] Instance CompSpecs : compspecs.
@@ -7,7 +8,7 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Local Open Scope assert.
 
-Definition odd_spec :=
+Definition odd_spec : ident * funspec :=
  DECLARE _odd
   WITH z : Z, b: unit
   PRE [ tuint]
@@ -15,7 +16,7 @@ Definition odd_spec :=
   POST [ tint ]
     PROP() RETURN(Vint (if Z.odd z then Int.one else Int.zero)) SEP().
 
-Definition even_spec :=
+Definition even_spec : ident * funspec :=
  DECLARE _even
   WITH z : Z
   PRE [ tuint]
@@ -23,7 +24,7 @@ Definition even_spec :=
   POST [ tint ]
     PROP() RETURN (Vint (if Z.even z then Int.one else Int.zero)) SEP().
 
-Definition main_spec :=
+Definition main_spec : ident * funspec :=
  DECLARE _main
   WITH gv : globals
   PRE  [] main_pre prog tt gv

@@ -1,9 +1,8 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat.
 Require Import VST.progs.nest3.
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
-
-Local Open Scope logic.
 
 Definition t_struct_c := Tstruct _c noattr.
 

@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat.
 Require Import VST.progs.strlib.
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
@@ -134,8 +135,6 @@ forward_loop (EX i : Z,
   rewrite app_Znth1 in H4 by rep_lia. auto.
   }
 Qed.
-
-Open Scope logic.
 
 Lemma split_data_at_app_tschar:
  forall sh n (al bl: list val) p ,

@@ -1,13 +1,13 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat.
 Require Import VST.progs.funcptr.
 
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Local Open Scope Z.
-Local Open Scope logic.
 
-Definition myspec :=
+Definition myspec : funspec :=
   WITH i: Z
   PRE [ tint ]
           PROP (Int.min_signed <= i < Int.max_signed)

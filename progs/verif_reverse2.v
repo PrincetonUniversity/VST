@@ -34,7 +34,7 @@ Context `{!default_VSTGS Σ}.
 Fixpoint listrep (sigma: list val) (x: val) : mpred :=
  match sigma with
  | h::hs => 
-    ∃ y:val, 
+    ∃ y:val,
       data_at Tsh t_struct_list (h,y) x ∗ listrep hs y
  | nil => 
     ⌜x = nullval⌝ ∧ emp
@@ -105,7 +105,7 @@ Definition Gprog : funspecs :=[ reverse_spec ].
  ** function-body (in this case, f_reverse) satisfies its specification
  ** (in this case, reverse_spec).
  **)
-Lemma body_reverse: semax_body Vprog Gprog ⊤
+Lemma body_reverse: semax_body Vprog Gprog
                                     f_reverse reverse_spec.
 Proof.
 (** The start_function tactic "opens up" a semax_body
@@ -155,7 +155,7 @@ Exists w; entailer!.
 rewrite -> (proj1 H1) by auto.
 unfold listrep at 2; fold listrep.
 entailer!.
-rewrite app_nil_r, rev_involutive.
+rewrite app_nil_r rev_involutive.
 auto.
 Qed.
 

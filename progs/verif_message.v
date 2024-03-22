@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat.
 Require Import VST.progs.message.
 
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
@@ -8,7 +9,6 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
    of _Program Logics for Certified Compilers_, by Appel et al., 2014 *)
 
 Local Open Scope Z.
-Local Open Scope logic.
 
 (*   mf_assert msgfmt sh buf len data  := the [data] is formatted into a message
          at most [len] bytes,  stored starting at address [buf] with share [sh] *)

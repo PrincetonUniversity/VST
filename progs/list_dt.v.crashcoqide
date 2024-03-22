@@ -32,7 +32,7 @@ Proof.
  intros. apply pred_ext.
  apply allp_right; intro x.
  apply andp_derives; auto. apply allp_left with x; auto.
- apply bi.and_intro. apply allp_right; intro x. apply allp_left with x. apply andp_left1; auto.
+ apply andp_right. apply allp_right; intro x. apply allp_left with x. apply andp_left1; auto.
  apply allp_left with any. apply andp_left2; auto.
 Qed.
 
@@ -741,18 +741,19 @@ apply bi.pure_elim_l; intros.
 destruct H.
 apply bi.exist_elim; intro tail.
 normalize.
-rewrite <- (bi.exist_intro e).
-rewrite <- (bi.exist_intro l).
-rewrite <- (bi.exist_intro tail).
+rewrite <- (bi.exist_intro e). rewrite TT_andp.
+apply bi.exist_intro with l.
+apply bi.exist_intro with tail.
 repeat rewrite sepcon_andp_prop'.
-apply bi.and_intro.
-apply bi.pure_intro; auto.
+apply andp_right.
+apply prop_right; split; auto.
 subst.
 auto.
 subst. auto.
-apply bi.or_elim.
-rewrite <- bi.pure_and.
-apply bi.pure_elim_l; intros []; auto.
+apply orp_left.
+rewrite andp_assoc;
+do 2 (apply bi.pure_elim_l; intro).
+ rewrite prop_true_andp by auto. auto.
 unfold lseg_cons.
 apply bi.pure_elim_l; intros.
 apply bi.exist_elim; intro h.
@@ -762,9 +763,9 @@ do 3 rewrite sepcon_andp_prop'.
 apply bi.pure_elim_l; intros [? ?].
 inv H0.
 destruct p.
-apply bi.or_elim.
-rewrite <- bi.pure_and.
-apply bi.pure_elim_l; intros [].
+apply orp_left.
+rewrite andp_assoc;
+do 2 (apply bi.pure_elim_l; intro).
 inv H0.
 unfold lseg_cons.
 apply bi.pure_elim_l; intros.
@@ -775,7 +776,7 @@ do 3 rewrite sepcon_andp_prop'.
 apply bi.pure_elim_l; intros [? ?].
 symmetry in H0; inv H0.
  rewrite prop_true_andp by auto.
-rewrite <- (bi.exist_intro y).
+apply bi.exist_intro with y.
 normalize.
 Qed.
 
@@ -788,35 +789,38 @@ Lemma lseg_unroll_nonempty1 (ls: listspec list_structid list_link list_token):
                    (valinject (nested_field_type list_struct (StructField list_link :: nil)) p) v1 *
                lseg ls dsh psh tail p v2)) ->
     P |-- lseg ls dsh psh ((v1,h)::tail) v1 v2.
-Proof. intros. rewrite lseg_unroll. rewrite <- bi.or_intro_r. unfold lseg_cons.
+Proof. intros. rewrite lseg_unroll. apply bi.or_intro_r. unfold lseg_cons.
   rewrite prop_true_andp by auto.
-  rewrite <- (bi.exist_intro h). rewrite <- (bi.exist_intro tail). rewrite <- (bi.exist_intro p).
+  apply bi.exist_intro with h. apply bi.exist_intro with tail. apply bi.exist_intro with p.
     rewrite prop_true_andp by auto.
-  rewrite H1; cancel.
+ rewrite sepcon_assoc.
+ eapply derives_trans; [ apply H1 | ].
+ apply sepcon_derives; auto.
 Qed.
 
 Lemma lseg_neq (ls: listspec list_structid list_link list_token):
   forall dsh psh s v v2,
     ptr_neq v v2 ->
-     lseg ls dsh psh s v v2 ⊣⊢ lseg_cons ls dsh psh s v v2.
+     lseg ls dsh psh s v v2 = lseg_cons ls dsh psh s v v2.
 intros. rewrite lseg_unroll.
-apply pred_ext. apply bi.or_elim; auto.
-rewrite <- bi.pure_and.
-apply bi.pure_elim_l; intros [].
+apply pred_ext. apply orp_left; auto.
+rewrite andp_assoc.
+do 2 (apply bi.pure_elim_l; intro).
 congruence.
-apply bi.or_intro_r.
+apply bi.or_intro_r. auto.
 Qed.
 
 Lemma lseg_nonnull (ls: listspec list_structid list_link list_token):
   forall dsh psh s v,
       typed_true (tptr list_struct) v ->
-     lseg ls dsh psh s v nullval ⊣⊢ lseg_cons ls dsh psh s v nullval.
+     lseg ls dsh psh s v nullval = lseg_cons ls dsh psh s v nullval.
 Proof.
 intros. unfold nullval.
 apply lseg_neq.
 destruct v; inv H; intuition; try congruence.
 intro. apply ptr_eq_e in H.
 destruct Archi.ptr64 eqn:Hp; inv H.
+inv H1.
 intro. simpl in H.
 destruct Archi.ptr64; congruence.
 Qed.
@@ -838,19 +842,35 @@ Lemma unfold_lseg_neq (ls: listspec list_structid list_link list_token):
         end.
 Proof.
 intros.
-trans
+apply derives_trans with
 (PROPx P (LOCALx (Q1::Q) (SEPx (lseg_cons ls dsh psh s v v2 :: R)))).
-trans
+apply derives_trans with
 (!! ptr_neq v v2 && PROPx P (LOCALx (Q1::Q) (SEPx (lseg ls dsh psh s v v2 :: R)))).
-apply bi.and_intro; auto.
-apply bi.pure_elim_l; intros.
+apply andp_right; auto.
+intro rho; unfold PROPx,LOCALx,SEPx,local,tc_expr,tc_lvalue; unfold_lift; simpl.
+unfold lift1; simpl.
+ repeat (apply bi.pure_elim_l; intro).
+ rewrite prop_true_andp by auto.
+ rewrite prop_true_andp by auto.
+apply sepcon_derives; auto.
 rewrite lseg_neq; auto.
-unfold lseg_cons.
-rewrite <- insert_local.
-iIntros "(#? & #? & #? & ((% & % & % & % & H) & ?))".
-iExists (h, r, y, v).
-iDestruct "H" as "(((((% & %) & ?) & ?) & ?) & ?)"; iSplit; auto.
-iFrame; auto.
+intro rho; unfold PROPx,LOCALx,SEPx,local,tc_expr,tc_lvalue,lift2,lift1,lift0; simpl.
+ unfold_lift.
+ unfold lseg_cons. simpl.
+ apply bi.pure_elim_l; intro.
+ apply bi.pure_elim_l; intros [? ?].
+ rewrite sepcon_andp_prop'.
+ apply bi.pure_elim_l; intro.
+ rewrite exp_sepcon1; apply bi.exist_elim; intro h.
+ rewrite exp_sepcon1; apply bi.exist_elim; intro r.
+ rewrite exp_sepcon1; apply bi.exist_elim; intro y.
+ repeat rewrite sepcon_andp_prop'.
+ apply bi.pure_elim_l; intros [? ?].
+ subst.
+ apply bi.exist_intro with (h,r,y, v).
+ repeat rewrite prop_true_andp by auto.
+ repeat rewrite sepcon_assoc.
+ auto.
 Qed.
 
 Lemma unfold_lseg_cons (ls: listspec list_structid list_link list_token):
@@ -870,26 +890,29 @@ Lemma unfold_lseg_cons (ls: listspec list_structid list_link list_token):
         end.
 Proof.
 intros. apply unfold_lseg_neq.
-rewrite H. normalize.
+eapply derives_trans.
+apply H. normalize.
+unfold local. super_unfold_lift.
+unfold nullval.
 intro.
 apply ptr_eq_e in H1. subst.
 normalize.
 Qed.
 
 Lemma semax_lseg_neq (ls: listspec list_structid list_link list_token):
-  forall {OK_spec}
-      E Delta P Q dsh psh s v v2 R c Post,
+  forall (Espec: OracleKind)
+      Delta P Q dsh psh s v v2 R c Post,
     ~ (ptr_eq v v2) ->
   (forall (h: elemtype ls) (r: list (val * elemtype ls)) (y: val),
     s=(v,h)::r -> is_pointer_or_null y ->
-    semax(OK_spec := OK_spec) E Delta
+    semax Delta
         (PROPx P (LOCALx Q
         (SEPx (list_token dsh v :: list_cell ls dsh h v ::
                   field_at psh list_struct (StructField list_link :: nil)
                       (valinject (nested_field_type list_struct (StructField list_link :: nil)) y) v ::
                   lseg ls dsh psh r y v2 ::
                   R)))) c Post) ->
-   semax E Delta
+   semax Delta
        (PROPx P (LOCALx Q (SEPx (lseg ls dsh psh s v v2 :: R))))
        c Post.
 Proof.
@@ -905,9 +928,11 @@ apply semax_pre0 with
                       (nested_field_type list_struct
                          (StructField list_link :: nil)) y) v ::
         lseg ls dsh psh r y v2 :: R)))).
-go_lowerx; entailer!.
+go_lowerx; entailer.
 Exists h r y.
-entailer!.
+rewrite <- ?sepcon_assoc.
+normalize.
+  autorewrite with subst norm1 norm2; normalize.
 Intros h r y.
 apply semax_extract_prop; intros [? ?].
 eapply H0; eauto.
@@ -915,45 +940,47 @@ Qed.
 
 
 Lemma semax_lseg_nonnull (ls: listspec list_structid list_link list_token):
-  forall OK_spec
-      E Delta P Q dsh psh s v R c Post,
-   (ENTAIL Delta, PROPx P (LOCALx Q
-            (SEPx (lseg ls dsh psh s v nullval :: R))) ⊢
-                        !!(typed_true (tptr list_struct) v))  ->
+  forall (Espec: OracleKind)
+      Delta P Q dsh psh s v R c Post,
+   ENTAIL Delta, PROPx P (LOCALx Q
+            (SEPx (lseg ls dsh psh s v nullval :: R))) |--
+                        !!(typed_true (tptr list_struct) v)  ->
   (forall (h: elemtype ls) (r: list (val * elemtype ls)) (y: val),
     s=(v,h)::r -> is_pointer_or_null y ->
-    semax(OK_spec := OK_spec) E Delta
+    semax Delta
         (PROPx P (LOCALx Q
         (SEPx (list_token dsh v :: list_cell ls dsh h v ::
                   field_at psh list_struct (StructField list_link :: nil) (valinject (nested_field_type list_struct (StructField list_link :: nil)) y) v ::
                   lseg ls dsh psh r y nullval ::
                   R)))) c Post) ->
-   semax E Delta
+   semax Delta
        (PROPx P (LOCALx Q (SEPx (lseg ls dsh psh s v nullval :: R))))
        c Post.
 Proof.
 intros.
 assert_PROP (~ ptr_eq v nullval).
-rewrite H.
+eapply derives_trans; [apply H |].
 normalize.
 apply semax_lseg_neq; auto.
 Qed.
 
 Lemma lseg_nil_eq (ls: listspec list_structid list_link list_token):
-    forall dsh psh p q, lseg ls dsh psh nil p q ⊣⊢ !! (ptr_eq p q) && emp.
+    forall dsh psh p q, lseg ls dsh psh nil p q = !! (ptr_eq p q) && emp.
 Proof. intros.
  rewrite lseg_unroll.
  apply pred_ext.
- apply bi.or_elim.
- rewrite <- bi.pure_and; apply bi.pure_elim_l; intros []; auto.
+ apply orp_left.
+ rewrite andp_assoc.
+ apply andp_derives; auto.
+rewrite prop_true_andp by auto. auto.
  unfold lseg_cons. normalize. inv H0.
- rewrite <- bi.or_intro_l. rewrite <- bi.and_assoc.
+ apply bi.or_intro_l.  rewrite andp_assoc.
  rewrite (prop_true_andp (_ = _)) by auto. auto.
 Qed.
 
 Lemma lseg_cons_eq (ls: listspec list_structid list_link list_token):
      forall dsh psh h r x z ,
-    lseg ls dsh psh (h::r) x z ⊣⊢
+    lseg ls dsh psh (h::r) x z =
         !!(x = fst h /\ ~ ptr_eq x z) &&
          (EX  y : val,
           !!(is_pointer_or_null y) &&
@@ -962,20 +989,23 @@ Lemma lseg_cons_eq (ls: listspec list_structid list_link list_token):
 Proof.
  intros. rewrite lseg_unroll.
  apply pred_ext.
- apply bi.or_elim.
- rewrite <- bi.pure_and.
- apply bi.pure_elim_l; intros [].
+ apply orp_left.
+ rewrite andp_assoc.
+ apply bi.pure_elim_l; intro.
+ apply bi.pure_elim_l; intro.
  inv H0.
  unfold lseg_cons.
  normalize.
  symmetry in H0; inv H0.
- rewrite <- (bi.exist_intro y). entailer!. auto.
+ apply bi.exist_intro with y. normalize.
+  autorewrite with subst norm1 norm2; normalize.
  normalize. destruct h as [p h]. simpl in *.
- rewrite <- bi.or_intro_r.
+ apply bi.or_intro_r.
  unfold lseg_cons.
  rewrite prop_true_andp by auto.
-  rewrite <- !bi.exist_intro.
-  normalize.
+ apply bi.exist_intro with h. apply bi.exist_intro with r.  apply bi.exist_intro with y.
+ normalize.
+  autorewrite with subst norm1 norm2; normalize.
 Qed.
 
 Definition lseg_cons_right (ls: listspec list_structid list_link list_token)
@@ -1001,17 +1031,27 @@ normalize.
 revert x; induction l; simpl; intros.
 *
 normalize.
- rewrite <- (bi.exist_intro z).
+  autorewrite with subst norm1 norm2; normalize.
+ apply bi.exist_intro with z.
  entailer!.
 *
 destruct a as [v el].
-iIntros "((H & (% & %) & % & ? & lseg) & Hz)"; subst.
-iAssert ⌜~ptr_eq x z⌝ as %?.
-{ iStopProof; entailer!. }
-iPoseProof (IHl with "[$H $lseg $Hz]") as "(? & ?)".
-iFrame.
-iSplit; first done.
-iExists y0; iFrame.
+normalize.
+apply bi.exist_intro with x0.
+normalize.
+rewrite <- ?sepcon_assoc.
+  autorewrite with subst norm1 norm2; normalize.
+specialize (IHl x0).
+entailer.
+pull_right (list_cell ls dsh el x).
+apply sepcon_derives; auto.
+pull_right (field_at psh list_struct (StructField list_link :: nil)
+      (valinject
+         (nested_field_type list_struct (StructField list_link :: nil)) x0)
+      x).
+pull_right (list_token dsh x).
+apply sepcon_derives; auto.
+apply sepcon_derives; auto.
 Qed.
 
 Lemma lseg_cons_right_null (ls: listspec list_structid list_link list_token): forall dsh psh l x h y,
@@ -1023,20 +1063,35 @@ intros.
 revert x; induction l; simpl; intros.
 *
 normalize.
-rewrite <- (bi.exist_intro nullval).
-apply bi.and_intro; first by entailer!.
+  autorewrite with subst norm1 norm2; normalize.
+apply bi.exist_intro with nullval.
+apply andp_right.
+apply not_prop_right; intro.
+apply ptr_eq_e in H. subst y.
+entailer!.
+destruct H. contradiction H.
 rewrite prop_true_andp by reflexivity.
 rewrite prop_true_andp
   by (unfold nullval; destruct Archi.ptr64 eqn:Hp; simpl; auto).
 normalize.
 *
 destruct a as [v el].
-iIntros "(H & (% & %) & % & ? & lseg)"; subst.
-iAssert ⌜~ptr_eq x nullval⌝ as %?.
-{ iStopProof; entailer!. }
-iPoseProof (IHl with "[$H $lseg]") as "?".
-iSplit; first done.
-iExists y0; iFrame.
+normalize.
+apply bi.exist_intro with x0.
+normalize.
+  autorewrite with subst norm1 norm2; normalize.
+specialize (IHl x0).
+apply andp_right.
+rewrite prop_and.
+apply andp_right; [ | apply prop_right; auto].
+apply not_prop_right; intro.
+apply ptr_eq_e in H0. subst x.
+entailer.
+destruct H2; contradiction H2.
+eapply derives_trans.
+2: apply sepcon_derives; [ | eassumption]; apply derives_refl.
+clear IHl.
+cancel.
 Qed.
 
 
@@ -1051,14 +1106,20 @@ Proof.
 intros.
 destruct l'.
 rewrite lseg_nil_eq.
-entailer!.
-rewrite <- lseg_cons_right_null; cancel.
-
+normalize.
+rewrite prop_true_andp by apply ptr_eq_nullval.
+apply lseg_cons_right_null.
 rewrite lseg_cons_eq.
 Intros u. Exists u. subst z.
-iIntros "(H & (? & Hp) & ?)".
-iPoseProof (lseg_cons_right_neq with "[$H $Hp]") as "?"; first done.
-iStopProof; entailer!.
+rewrite <- ?sepcon_assoc.
+rewrite !prop_true_andp by auto.
+normalize.
+apply sepcon_derives; auto.
+pull_right (list_cell ls dsh (snd p) (fst p)).
+pull_right (list_token dsh (fst p)).
+apply sepcon_derives; auto.
+apply sepcon_derives; auto.
+apply lseg_cons_right_neq; auto.
 Qed.
 
 Lemma lseg_unroll_right (ls: listspec list_structid list_link list_token): forall sh sh' l x z ,
@@ -1076,20 +1137,20 @@ rewrite lseg_unfold.
 destruct contents.
 apply bi.pure_elim_l; intro.
 unfold ptr_eq in H.
-apply bi.pure_intro.
+apply prop_right.
 destruct p; try contradiction; simpl; auto.
 destruct q; try contradiction; auto.
 unfold Int.cmpu in H.
 destruct H as [? [? ?]].
 apply int_eq_e in H0.
-apply int_eq_e in H1. subst.
+apply int_eq_e in H1. subst. rewrite H.
 split; auto; split; auto.
 destruct q; try contradiction; auto.
 unfold Int64.cmpu in H.
 destruct H as [? [? ?]].
 apply int64_eq_e in H0.
-apply int64_eq_e in H1. subst.
-split3; auto; done.
+apply int64_eq_e in H1. subst. rewrite H.
+split3; auto.
 destruct q; try contradiction.
 destruct H; subst.
 unfold Ptrofs.cmpu in H0.
@@ -1098,7 +1159,9 @@ subst. tauto.
 destruct p0.
 normalize.
 rewrite field_at_isptr.
-Intros; entailer!.
+normalize.
+  autorewrite with subst norm1 norm2; normalize.
+apply prop_right.
 split. intro; subst q.
 contradiction H. normalize.
 intros. discriminate.
@@ -1112,7 +1175,7 @@ Definition lseg_cell  (ls: listspec list_structid list_link list_token)
 Lemma lseg_cons_eq2: forall
   (ls : listspec list_structid list_link list_token) (dsh psh : share) (h : elemtype ls)
    (r : list (val * elemtype ls))
-  (x x' z : val), lseg ls dsh psh ((x',h) :: r) x z ⊣⊢
+  (x x' z : val), lseg ls dsh psh ((x',h) :: r) x z =
   !!(x=x' /\ ~ ptr_eq x z) && (EX  y : val, lseg_cell ls dsh psh h x y * lseg ls dsh psh r y z).
 Proof.
   intros.
@@ -1123,7 +1186,7 @@ Qed.
 
 Lemma list_append: forall {dsh psh: share}
   {ls : listspec list_structid list_link list_token} (hd mid tl:val) ct1 ct2 P,
-  (forall x tl', lseg_cell ls dsh psh x tl tl' * P tl |-- False) ->
+  (forall x tl', lseg_cell ls dsh psh x tl tl' * P tl |-- FF) ->
   (lseg ls dsh psh ct1 hd mid) * lseg ls dsh psh ct2 mid tl * P tl|--
   (lseg ls dsh psh (ct1 ++ ct2) hd tl) * P tl.
 Proof.
@@ -1134,15 +1197,26 @@ Proof.
   *
   destruct a  as [v a].
   normalize.
-  rewrite <- (bi.exist_intro y).
-  apply bi.and_intro.
-  destruct (eq_dec hd tl); last by entailer!.
-  subst; clear IHct1.
+  autorewrite with subst norm1 norm2; normalize.
+  apply bi.exist_intro with y.
+  apply andp_right.
+  apply not_prop_right; intro. apply ptr_eq_e in H1; subst hd.
+  clear IHct1.
   unfold lseg_cell in H.
   specialize (H a y).
   rewrite prop_true_andp in H by auto.
-  iIntros "(((? & ?) & ?) & ?)"; iDestruct (H with "[$]") as "[]".
-  rewrite <- !bi.sep_assoc, <- IHct1; entailer!.
+  apply derives_trans with
+        (lseg ls dsh psh ct1 y mid * lseg ls dsh psh ct2 mid tl * FF).
+ cancel. auto.
+  rewrite sepcon_FF; auto.
+  normalize.
+  specialize (IHct1 y). clear H.
+   do 2 rewrite sepcon_assoc.
+  eapply derives_trans.
+ apply sepcon_derives.
+  apply derives_refl.
+  rewrite <- !sepcon_assoc; eassumption.
+  cancel.
 Qed.
 
 Lemma list_append_null:
@@ -1154,9 +1228,9 @@ Lemma list_append_null:
    lseg ls dsh psh (ct1++ct2) hd nullval.
 Proof.
 intros.
- rewrite <- bi.sep_emp.
- rewrite (list_append _ _ _ _ _ (fun _ => emp)).
- iIntros "($ & _)".
+ rewrite <- sepcon_emp.
+ eapply derives_trans; [ | apply (list_append hd mid nullval ct1 ct2 (fun _ => emp))].
+ normalize.
  intros.
   unfold lseg_cell. simpl. saturate_local. destruct H. contradiction H.
 Qed.
@@ -1188,7 +1262,7 @@ Definition lseg (ls: listspec list_structid list_link list_token) (sh: share)
              LsegGeneral.lseg ls sh sh al x y.
 
 Lemma lseg_unfold (ls: listspec list_structid list_link list_token): forall sh contents v1 v2,
-    lseg ls sh contents v1 v2 ⊣⊢
+    lseg ls sh contents v1 v2 =
      match contents with
      | h::t => !! (~ ptr_eq v1 v2) && EX tail: val,
                       !! is_pointer_or_null tail &&
@@ -1205,37 +1279,39 @@ Proof.
  apply pred_ext.
  normalize. destruct al; inv H.
  rewrite LsegGeneral.lseg_nil_eq; auto.
- rewrite <- (bi.exist_intro nil).
+ apply bi.exist_intro with nil.
  apply bi.pure_elim_l; intro.
  normalize.
  apply pred_ext.
  apply bi.exist_elim; intros [ | [v1' a'] al].
- Intros. inv H.
+ normalize. inv H.
  apply bi.pure_elim_l; intro.
  symmetry in H; inv H.
  rewrite LsegGeneral.lseg_cons_eq; auto.
  apply bi.pure_elim_l; intros [? ?].
  simpl in H;  subst v1'.
  apply bi.exist_elim; intro y.
- normalize. rewrite <- (bi.exist_intro y). normalize.
- rewrite <- (bi.exist_intro al); normalize.
- Intros tail al.
- rewrite <- (bi.exist_intro ((v1,a)::al)); entailer!.
+ normalize. apply bi.exist_intro with y. normalize.
+ repeat apply sepcon_derives; auto.
+ apply bi.exist_intro with al; normalize.
+ normalize.
+ apply bi.exist_intro with ((v1,a)::al); normalize.
  simpl.
- normalize. rewrite <- (bi.exist_intro tail). entailer!.
+ normalize. apply bi.exist_intro with tail. normalize.
+  autorewrite with subst norm1 norm2; normalize.
 Qed.
 
 Lemma lseg_eq (ls: listspec list_structid list_link list_token):
   forall sh l v ,
   is_pointer_or_null v ->
-    lseg ls sh l v v ⊣⊢ !!(l=nil) && emp.
+    lseg ls sh l v v = !!(l=nil) && emp.
 Proof.
 intros.
 unfold lseg.
 apply pred_ext.
 normalize.
 rewrite LsegGeneral.lseg_eq by auto. normalize.
-rewrite <- (bi.exist_intro nil).
+apply bi.exist_intro with nil.
 normalize.
 Qed.
 
@@ -1248,7 +1324,7 @@ Definition lseg_cons (ls: listspec list_structid list_link list_token) sh (l: li
               lseg ls sh r y z.
 
 Lemma lseg_unroll (ls: listspec list_structid list_link list_token): forall sh l x z ,
-    lseg ls sh l x z ⊣⊢
+    lseg ls sh l x z =
       (!! (ptr_eq x z) && !! (l=nil) && emp) || lseg_cons ls sh l x z.
 Proof.
 intros.
@@ -1258,25 +1334,28 @@ apply pred_ext.
 apply bi.exist_elim; intros.
 apply bi.pure_elim_l; intro.
 rewrite LsegGeneral.lseg_unroll.
-apply bi.or_elim; [rewrite <- bi.or_intro_l | rewrite <- bi.or_intro_r].
-rewrite <- bi.pure_and; apply bi.pure_elim_l; intros [].
-entailer!.
+apply orp_left; [apply bi.or_intro_l | apply bi.or_intro_r].
+rewrite andp_assoc; repeat (apply bi.pure_elim_l; intro).
+subst. simpl.
+normalize.
 unfold LsegGeneral.lseg_cons.
 apply bi.pure_elim_l; intro.
 rewrite prop_true_andp by auto.
-apply bi.exist_mono; intro h.
-apply bi.exist_elim; intro r; rewrite <- (bi.exist_intro (map snd r)).
-apply bi.exist_mono; intro y.
+apply exp_derives; intro h.
+apply bi.exist_elim; intro r; apply bi.exist_intro with (map snd r).
+apply exp_derives; intro y.
 normalize.
 subst l.
 unfold lseg.
 cancel.
-rewrite <- (bi.exist_intro r); normalize.
+apply bi.exist_intro with r; normalize.
 *
-apply bi.or_elim.
-rewrite <- bi.pure_and; apply bi.pure_elim_l; intros [].
-rewrite <- (bi.exist_intro nil).
-simpl. entailer!.
+apply orp_left.
+rewrite andp_assoc; repeat (apply bi.pure_elim_l; intro).
+subst.
+apply bi.exist_intro with nil.
+simpl. normalize.
+  autorewrite with subst norm1 norm2; normalize.
 apply bi.pure_elim_l; intro.
 apply bi.exist_elim; intro h.
 apply bi.exist_elim; intro r.
@@ -1284,12 +1363,13 @@ apply bi.exist_elim; intro y.
 normalize.
 unfold lseg.
 normalize.
-rewrite <- (bi.exist_intro ((x,h)::al)).
+apply bi.exist_intro with ((x,h)::al).
 normalize.
 simpl.
 normalize.
-rewrite <- (bi.exist_intro y).
-entailer!.
+apply bi.exist_intro with y.
+normalize.
+  autorewrite with subst norm1 norm2; normalize.
 Qed.
 
 Lemma lseg_unroll_nonempty1 (ls: listspec list_structid list_link list_token):
@@ -1301,32 +1381,31 @@ Lemma lseg_unroll_nonempty1 (ls: listspec list_structid list_link list_token):
                    (valinject (nested_field_type list_struct (StructField list_link :: nil)) p) v1 *
                lseg ls sh tail p v2)) ->
     P |-- lseg ls sh (h::tail) v1 v2.
-Proof. intros. rewrite lseg_unroll. rewrite <- bi.or_intro_r. unfold lseg_cons.
+Proof. intros. rewrite lseg_unroll. apply bi.or_intro_r. unfold lseg_cons.
   rewrite prop_true_andp by auto.
-  Exists h tail p.
+  apply bi.exist_intro with h. apply bi.exist_intro with tail. apply bi.exist_intro with p.
     rewrite prop_true_andp by auto.
- rewrite H1; entailer!.
+ rewrite sepcon_assoc.
+ eapply derives_trans; [ apply H1 | ].
+ apply sepcon_derives; auto.
 Qed.
 
 Lemma lseg_neq (ls: listspec list_structid list_link list_token):
   forall sh s v v2,
     ptr_neq v v2 ->
-     lseg ls sh s v v2 ⊣⊢ lseg_cons ls sh s v v2.
-Proof.
+     lseg ls sh s v v2 = lseg_cons ls sh s v v2.
 intros. rewrite lseg_unroll.
-apply pred_ext. apply bi.or_elim; auto.
-rewrite <- bi.pure_and.
-apply bi.pure_elim_l; intros [].
+apply pred_ext. apply orp_left; auto.
+rewrite andp_assoc.
+do 2 (apply bi.pure_elim_l; intro).
 congruence.
-apply bi.or_intro_r.
+apply bi.or_intro_r. auto.
 Qed.
-
-Opaque Archi.ptr64.
 
 Lemma lseg_nonnull (ls: listspec list_structid list_link list_token):
   forall sh s v,
       typed_true (tptr list_struct) v ->
-     lseg ls sh s v nullval ⊣⊢ lseg_cons ls sh s v nullval.
+     lseg ls sh s v nullval = lseg_cons ls sh s v nullval.
 Proof.
 intros. unfold nullval.
 apply lseg_neq.
@@ -1334,12 +1413,12 @@ unfold typed_true, strict_bool_val in H.
 simpl in H.
 destruct Archi.ptr64 eqn:Hp.
 *
-destruct v; inversion H; clear H.
-destruct (Int64.eq i Int64.zero); inversion H1.
+destruct v; inv H. 
+destruct (Int64.eq i Int64.zero); inv H1.
 intro; apply ptr_eq_e in H; inv H.
 *
-destruct v; inversion H; clear H.
-destruct (Int.eq i Int.zero); inversion H1.
+destruct v; inv H.
+destruct (Int.eq i Int.zero); inv H1.
 intro; apply ptr_eq_e in H; inv H.
 Qed.
 
@@ -1359,30 +1438,35 @@ Lemma unfold_lseg_neq (ls: listspec list_structid list_link list_token):
         end.
 Proof.
 intros.
-trans
+apply derives_trans with
 (PROPx P (LOCALx (Q1::Q) (SEPx (lseg_cons ls sh s v v2 :: R)))).
-trans
+apply derives_trans with
 (!! (ptr_neq v v2) && PROPx P (LOCALx (Q1::Q) (SEPx (lseg ls sh s v v2 :: R)))).
-apply bi.and_intro; auto.
-split => rho; unfold PROPx,LOCALx,SEPx,local,tc_expr,tc_lvalue; unfold_lift; simpl; monPred.unseal.
+apply andp_right; auto.
+intro rho; unfold PROPx,LOCALx,SEPx,local,tc_expr,tc_lvalue; unfold_lift; simpl.
 unfold lift1; simpl.
  repeat (apply bi.pure_elim_l; intro).
  rewrite prop_true_andp by auto.
  rewrite prop_true_andp by auto.
-apply bi.sep_mono; auto.
+apply sepcon_derives; auto.
 rewrite lseg_neq; auto.
-split => rho; unfold PROPx,LOCALx,SEPx,local,tc_expr,tc_lvalue,lift2,lift1,lift0; simpl; monPred.unseal.
+intro rho; unfold PROPx,LOCALx,SEPx,local,tc_expr,tc_lvalue,lift2,lift1,lift0; simpl.
  unfold_lift.
  unfold lseg_cons. simpl.
  apply bi.pure_elim_l; intro.
  apply bi.pure_elim_l; intros [? ?].
  rewrite sepcon_andp_prop'.
  apply bi.pure_elim_l; intro.
- Intros h r y.
+ rewrite exp_sepcon1; apply bi.exist_elim; intro h.
+ rewrite exp_sepcon1; apply bi.exist_elim; intro r.
+ rewrite exp_sepcon1; apply bi.exist_elim; intro y.
+ repeat rewrite sepcon_andp_prop'.
+ apply bi.pure_elim_l; intros [? ?].
  subst.
- rewrite <- (bi.exist_intro (h,r,y)); simpl.
+ apply bi.exist_intro with (h,r,y).
  repeat rewrite prop_true_andp by auto.
- cancel.
+ repeat rewrite sepcon_assoc.
+ auto.
 Qed.
 
 Lemma unfold_lseg_cons (ls: listspec list_structid list_link list_token):
@@ -1401,26 +1485,29 @@ Lemma unfold_lseg_cons (ls: listspec list_structid list_link list_token):
         end.
 Proof.
 intros. apply unfold_lseg_neq.
-rewrite H. normalize.
+eapply derives_trans.
+apply H. normalize.
+unfold local. super_unfold_lift.
+unfold nullval.
 destruct e; inv H0; try congruence; auto.
 intro. apply ptr_eq_e in H0.
 destruct Archi.ptr64; inv H0.
 Qed.
 
 Lemma semax_lseg_neq (ls: listspec list_structid list_link list_token):
-  forall Espec
-      E Delta P Q sh s v v2 R c Post,
+  forall (Espec: OracleKind)
+      Delta P Q sh s v v2 R c Post,
     ~ (ptr_eq v v2) ->
   (forall (h: elemtype ls) (r: list (elemtype ls)) (y: val),
     s=h::r -> is_pointer_or_null y ->
-    semax E Delta
+    semax Delta
         (PROPx P (LOCALx Q
         (SEPx (list_token sh v :: list_cell ls sh h v ::
                   field_at sh list_struct (StructField list_link :: nil)
                       (valinject (nested_field_type list_struct (StructField list_link :: nil)) y) v ::
                    lseg ls sh r y v2 ::
                   R)))) c Post) ->
-   semax(OK_spec := Espec) E Delta
+   semax Delta
        (PROPx P (LOCALx Q (SEPx (lseg ls sh s v v2 :: R))))
        c Post.
 Proof.
@@ -1438,7 +1525,9 @@ apply semax_pre0 with
         lseg ls sh r y v2 :: R)))).
 go_lowerx; entailer.  (* Intros h r y should work here, but doesn't. *)
 Exists h r y.
-entailer!.
+rewrite <- ?sepcon_assoc.
+normalize.
+  autorewrite with subst norm1 norm2; normalize.
 Intros h r y.
 apply semax_extract_prop; intros [? ?].
 eapply H0; eauto.
@@ -1475,7 +1564,7 @@ Lemma lseg_nil_eq (ls: listspec list_structid list_link list_token):
 Proof. intros.
  rewrite lseg_unroll.
  apply pred_ext.
- apply bi.or_elim.
+ apply orp_left.
  rewrite andp_assoc.
  apply andp_derives; auto.
 rewrite prop_true_andp by auto. auto.
@@ -1495,7 +1584,7 @@ Lemma lseg_cons_eq (ls: listspec list_structid list_link list_token):
 Proof.
  intros. rewrite lseg_unroll.
  apply pred_ext.
- apply bi.or_elim.
+ apply orp_left.
  rewrite andp_assoc.
  apply bi.pure_elim_l; intro.
  apply bi.pure_elim_l; intro.
@@ -1507,7 +1596,7 @@ Proof.
  apply bi.or_intro_r.
  unfold lseg_cons.
  apply andp_derives; auto.
- apply bi.exist_intro with h. apply bi.exist_intro with r.  apply bi.exist_mono; intro y.
+ apply bi.exist_intro with h. apply bi.exist_intro with r.  apply exp_derives; intro y.
  normalize.
   autorewrite with subst norm1 norm2; normalize.
 Qed.
@@ -1568,11 +1657,11 @@ Intros u.
 Exists u.
 rewrite !prop_true_andp by auto.
 rewrite <- !sepcon_assoc.
-apply bi.sep_mono; auto.
+apply sepcon_derives; auto.
 pull_right (list_cell ls sh e z).
 pull_right (list_token sh z).
-apply bi.sep_mono; auto.
-apply bi.sep_mono; auto.
+apply sepcon_derives; auto.
+apply sepcon_derives; auto.
 apply lseg_cons_right_neq.
 auto.
 Qed.
@@ -1616,7 +1705,7 @@ Qed.
 
 Lemma list_append: forall {sh: share}
   {ls : listspec list_structid list_link list_token} (hd mid tl:val) ct1 ct2 P,
-  (forall x tl', lseg_cell ls sh x tl tl' * P tl |-- False) ->
+  (forall x tl', lseg_cell ls sh x tl tl' * P tl |-- FF) ->
   (lseg ls sh ct1 hd mid) * lseg ls sh ct2 mid tl * P tl|--
   (lseg ls sh (ct1 ++ ct2) hd tl) * P tl.
 Proof.
@@ -1669,7 +1758,7 @@ Proof.
  change (Int.repr (nested_field_offset list_struct nil)) with Int.zero.
   rewrite valid_pointer_offset_val_zero; auto.
  simpl.
- change predicates_hered.False with False. apply False_left.
+ change predicates_hered.FF with FF. apply FF_left.
 Qed.
 
 Lemma lseg_valid_pointer:
@@ -1694,7 +1783,7 @@ apply sepcon_valid_pointer1.
 rewrite sepcon_assoc.
 apply sepcon_valid_pointer2.
 eapply derives_trans; [ | eapply list_cell_valid_pointer; eauto].
-apply bi.sep_mono ; [ apply derives_refl | ].
+apply sepcon_derives ; [ apply derives_refl | ].
 cancel.
 Qed.
 
@@ -1929,7 +2018,7 @@ apply bi.exist_intro with l.
 apply bi.exist_intro with tail.
 normalize.
   autorewrite with subst norm1 norm2; normalize.
-apply bi.or_elim.
+apply orp_left.
 rewrite andp_assoc;
 do 2 (apply bi.pure_elim_l; intro).
  rewrite prop_true_andp by auto. auto.
@@ -1941,7 +2030,7 @@ apply bi.exist_elim; intro y.
 do 3 rewrite sepcon_andp_prop'.
 apply bi.pure_elim_l; intros [? ?].
 inv H0.
-apply bi.or_elim.
+apply orp_left.
 rewrite andp_assoc;
 do 2 (apply bi.pure_elim_l; intro).
 inv H0.
@@ -1956,7 +2045,7 @@ symmetry in H0; inv H0.
  rewrite prop_true_andp by auto.
 apply bi.exist_intro with y.
 normalize.
-repeat (apply bi.sep_mono; auto).
+repeat (apply sepcon_derives; auto).
 clear - NR.
 apply derives_refl'; apply nonreadable_list_cell_eq; auto.
 Qed.
@@ -1977,7 +2066,7 @@ Proof. intros. rewrite lseg_unroll by auto. apply bi.or_intro_r. unfold lseg_con
     rewrite prop_true_andp by auto.
  rewrite sepcon_assoc.
  eapply derives_trans; [ eassumption | ].
- apply bi.sep_mono; auto.
+ apply sepcon_derives; auto.
 Qed.
 
 Lemma lseg_neq (ls: listspec list_structid list_link list_token):
@@ -1986,7 +2075,7 @@ Lemma lseg_neq (ls: listspec list_structid list_link list_token):
     ptr_neq v v2 ->
      lseg ls dsh psh s v v2 = lseg_cons ls dsh psh s v v2.
 intros. rewrite lseg_unroll by auto.
-apply pred_ext. apply bi.or_elim; auto.
+apply pred_ext. apply orp_left; auto.
 rewrite andp_assoc.
 do 2 (apply bi.pure_elim_l; intro).
 congruence.
@@ -2029,13 +2118,13 @@ apply derives_trans with
 (PROPx P (LOCALx (Q1::Q) (SEPx (lseg_cons ls dsh psh s v v2 :: R)))).
 apply derives_trans with
 (!! (ptr_neq v v2) && PROPx P (LOCALx (Q1::Q) (SEPx (lseg ls dsh psh s v v2 :: R)))).
-apply bi.and_intro; auto.
+apply andp_right; auto.
 intro rho; unfold PROPx,LOCALx,SEPx,local,tc_expr,tc_lvalue; unfold_lift; simpl.
 unfold lift1; simpl.
  repeat (apply bi.pure_elim_l; intro).
  rewrite prop_true_andp by auto.
  rewrite prop_true_andp by auto.
-apply bi.sep_mono; auto.
+apply sepcon_derives; auto.
 rewrite lseg_neq; auto.
 intro rho; unfold PROPx,LOCALx,SEPx,local,tc_expr,tc_lvalue,lift2,lift1,lift0; simpl.
  unfold_lift.
@@ -2168,7 +2257,7 @@ Lemma lseg_cons_eq (ls: listspec list_structid list_link list_token):
 Proof.
  intros. rewrite lseg_unroll by auto.
  apply pred_ext.
- apply bi.or_elim.
+ apply orp_left.
  rewrite andp_assoc.
  apply bi.pure_elim_l; intro.
  apply bi.pure_elim_l; intro.
@@ -2178,7 +2267,7 @@ Proof.
  symmetry in H1; inv H1.
  apply bi.exist_intro with y. normalize.
   autorewrite with subst norm1 norm2; normalize.
- repeat (apply bi.sep_mono; auto).
+ repeat (apply sepcon_derives; auto).
  apply derives_refl'; apply nonreadable_list_cell_eq; auto.
  apply bi.or_intro_r.
  normalize.
@@ -2231,13 +2320,13 @@ normalize.
 specialize (IHl x0).
 entailer.
 pull_right (list_token dsh x); pull_right (list_cell ls dsh (vund ls) x).
-apply bi.sep_mono; auto.
-apply bi.sep_mono; auto.
+apply sepcon_derives; auto.
+apply sepcon_derives; auto.
 pull_right (field_at psh list_struct (StructField list_link :: nil)
       (valinject
          (nested_field_type list_struct (StructField list_link :: nil)) x0)
       x).
-apply bi.sep_mono; auto.
+apply sepcon_derives; auto.
 Qed.
 
 Lemma lseg_cons_right_null (ls: listspec list_structid list_link list_token): forall dsh psh l x h y,
@@ -2253,8 +2342,8 @@ revert x; induction l; simpl; intros.
 normalize.
   autorewrite with subst norm1 norm2; normalize.
 apply bi.exist_intro with nullval.
-apply bi.and_intro.
-apply not_bi.pure_intro; intro.
+apply andp_right.
+apply not_prop_right; intro.
 apply ptr_eq_e in H. subst y.
 entailer!.
 destruct H. contradiction H.
@@ -2269,15 +2358,15 @@ apply bi.exist_intro with x0.
 normalize.
   autorewrite with subst norm1 norm2; normalize.
 specialize (IHl x0).
-apply bi.and_intro.
+apply andp_right.
 rewrite prop_and.
-apply bi.and_intro; [ | apply bi.pure_intro; auto].
-apply not_bi.pure_intro; intro.
+apply andp_right; [ | apply prop_right; auto].
+apply not_prop_right; intro.
 apply ptr_eq_e in H0. subst x.
 entailer.
 destruct H2; contradiction H2.
 eapply derives_trans.
-2: apply bi.sep_mono; [ | eassumption]; apply derives_refl.
+2: apply sepcon_derives; [ | eassumption]; apply derives_refl.
 clear IHl.
 cancel.
 Qed.
@@ -2301,11 +2390,11 @@ rewrite lseg_cons_eq; auto.
 Intros u. Exists u. subst.
 rewrite !prop_true_andp by auto.
 rewrite <- !sepcon_assoc.
-apply bi.sep_mono; auto.
+apply sepcon_derives; auto.
 pull_right (list_cell ls dsh (vund ls) v).
-apply bi.sep_mono; auto.
+apply sepcon_derives; auto.
 pull_right (list_token dsh v).
-apply bi.sep_mono; auto.
+apply sepcon_derives; auto.
 apply lseg_cons_right_neq; auto.
 Qed.
 
@@ -2323,7 +2412,7 @@ rewrite lseg_unfold.
 destruct contents.
 apply bi.pure_elim_l; intro.
 unfold ptr_eq in H.
-apply bi.pure_intro.
+apply prop_right.
 destruct p; try contradiction; simpl; auto.
 destruct q; try contradiction; auto.
 destruct H as [? [? ?]]. rewrite H.
@@ -2346,7 +2435,7 @@ normalize.
 rewrite field_at_isptr.
 normalize.
   autorewrite with subst norm1 norm2; normalize.
-apply bi.pure_intro.
+apply prop_right.
 split. intro; subst q.
 contradiction H. normalize.
 intros. discriminate.
@@ -2376,7 +2465,7 @@ Qed.
 
 Lemma list_append: forall {dsh psh: share}
   {ls : listspec list_structid list_link list_token} (hd mid tl:val) ct1 ct2 P,
-  (forall tl', lseg_cell ls dsh psh (vund ls) tl tl' * P tl |-- False) ->
+  (forall tl', lseg_cell ls dsh psh (vund ls) tl tl' * P tl |-- FF) ->
   (lseg ls dsh psh ct1 hd mid) * lseg ls dsh psh ct2 mid tl * P tl|--
   (lseg ls dsh psh (ct1 ++ ct2) hd tl) * P tl.
 Proof.
@@ -2389,9 +2478,9 @@ Proof.
  normalize.
  progress (autorewrite with subst norm1 norm2); normalize.
  apply bi.exist_intro with y.
- apply bi.and_intro.
+ apply andp_right.
  +
-  apply not_bi.pure_intro; intro. apply ptr_eq_e in H1; subst hd.
+  apply not_prop_right; intro. apply ptr_eq_e in H1; subst hd.
   clear IHct1.
   specialize (H y).
   unfold lseg_cell in H.
@@ -2401,15 +2490,15 @@ Proof.
   change (LsegGeneral.lseg ls dsh psh (map (fun v : val => (v, vund ls)) ct2))
     with (lseg ls dsh psh ct2).
   apply derives_trans with
-        (lseg ls dsh psh ct1 y mid * lseg ls dsh psh ct2 mid tl * False).
+        (lseg ls dsh psh ct1 y mid * lseg ls dsh psh ct2 mid tl * FF).
   cancel. auto.
-  rewrite sepcon_False; auto.
+  rewrite sepcon_FF; auto.
  +
   normalize.
   specialize (IHct1 y). clear H.
    do 2 rewrite sepcon_assoc.
   eapply derives_trans.
- apply bi.sep_mono.
+ apply sepcon_derives.
   apply derives_refl.
   rewrite <- !sepcon_assoc; eassumption.
   cancel.
@@ -2455,7 +2544,7 @@ Proof.
  change (Int.repr (nested_field_offset list_struct nil)) with Int.zero.
   rewrite valid_pointer_offset_val_zero; auto.
  simpl.
- change predicates_hered.False with False. apply False_left.
+ change predicates_hered.FF with FF. apply FF_left.
 Qed.
 
 Lemma list_cell_valid_pointerx:

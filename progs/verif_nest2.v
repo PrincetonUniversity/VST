@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat.
 Require Import VST.progs.nest2.
 
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
