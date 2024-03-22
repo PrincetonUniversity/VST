@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat.
 Require Import VST.progs.list_dt. Import LsegSpecial.
 Require Import VST.progs.append.
 

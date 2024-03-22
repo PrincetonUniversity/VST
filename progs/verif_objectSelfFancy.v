@@ -91,7 +91,7 @@ Lemma make_object_methods_later:
   data_at sh (Tstruct _methods noattr) (reset, (twiddle, twiddleR)) mtable
   |-- |> object_methods instance mtable.
 Proof.
-intros. eapply derives_trans. apply make_object_methods; trivial. apply now_later.
+intros. eapply derives_trans. apply make_object_methods; trivial. apply bi.later_intro.
 Qed.
 
 (*Andrew's definition
@@ -618,7 +618,7 @@ unfold object_mpred.
 Exists foo_data. entailer!!. 1: solve [apply foo_data_HOcontr].
 rewrite ObjMpred_fold_unfold by (apply foo_data_HOcontr).
 Exists (gv _foo_methods). simpl. normalize.
-rewrite ! sepcon_assoc. apply sepcon_derives. apply now_later.
+rewrite ! sepcon_assoc. apply sepcon_derives. apply bi.later_intro.
 unfold foo_data; simpl. unfold withspacer; simpl.
 cancel.
 unfold_data_at (field_at _ _ nil _ p).
@@ -747,7 +747,7 @@ Lemma make_fobject_methods_later:
   data_at sh (Tstruct _fancymethods noattr) (reset,(twiddle, (twiddleR, (setcol, getcol)))) mtable
   |-- |> fobject_methods instance mtable.
 Proof.
-intros. eapply derives_trans. apply make_fobject_methods; trivial. apply now_later.
+intros. eapply derives_trans. apply make_fobject_methods; trivial. apply bi.later_intro.
 Qed.
 
 Section FObjMpred.
@@ -1362,7 +1362,7 @@ unfold fobject_mpred.
 Exists fancyfoo_data. entailer!!. 1: solve [apply fancyfoo_data_HOcontr].
 rewrite fObjMpred_fold_unfold by (apply fancyfoo_data_HOcontr).
 Exists (gv _fancyfoo_methods). simpl. normalize.
-rewrite ! sepcon_assoc. apply sepcon_derives. apply now_later.
+rewrite ! sepcon_assoc. apply sepcon_derives. apply bi.later_intro.
 unfold fancyfoo_data; simpl. unfold withspacer; simpl.
 cancel.
 unfold_data_at (field_at _ _ nil _ p).
@@ -1439,7 +1439,7 @@ unfold fobject_mpred.
 Exists fancyfoo_data. entailer!!. 1: solve [apply fancyfoo_data_HOcontr].
 rewrite fObjMpred_fold_unfold by (apply fancyfoo_data_HOcontr).
 Exists (gv _fancyfoo_methods). simpl. normalize.
-rewrite ! sepcon_assoc. apply sepcon_derives. apply now_later.
+rewrite ! sepcon_assoc. apply sepcon_derives. apply bi.later_intro.
 unfold fancyfoo_data; simpl. unfold withspacer; simpl.
 cancel.
 unfold_data_at (field_at _ _ nil _ p).
@@ -1841,7 +1841,7 @@ Proof. do_funspec_sub. simpl in H. inv H. inv H6.
   + entailer!!. intros. rewrite fancyfoo_obj_invariant_fold_unfold'; simpl.
     Exists m. entailer!!. (*
     sep_apply wand_frame_elim''. cancel.
-(*    eapply derives_trans. apply sepcon_derives. apply now_later. apply derives_refl.*)
+(*    eapply derives_trans. apply sepcon_derives. apply bi.later_intro. apply derives_refl.*)
     rewrite  <- ! later_sepcon. 
     apply later_derives. Exists sh r t tR sC gC. entailer!. admit. (*readable_share*)
     unfold object_methods. admit.

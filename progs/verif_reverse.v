@@ -6,6 +6,7 @@
  ** includes the VeriC program logic and the MSL theory of separation logic
  **)
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat.
 
 (** Import the theory of list segments.  This is not, strictly speaking,
  ** part of the Floyd system.  In principle, any user of Floyd can build
@@ -24,8 +25,6 @@ Require Import VST.progs.list_dt. Import LsegSpecial.
  ** of the C program in the reverse.c file.
  **)
 Require Import VST.progs.reverse.
-
-Open Scope logic.
 
 (* The C programming language has a special namespace for struct
 ** and union identifiers, e.g., "struct foo {...}".  Some type-based operators

@@ -30,7 +30,7 @@ start_function.
 rename a into gv.
 make_stdio (@IO_event file_id).
 repeat do_string2bytes.
-repeat (sep_apply data_at_to_cstring; []).
+do 3 (sep_apply data_at_to_cstring; []).
 sep_apply (has_ext_ITREE).
 
 forward_printf tt (write_list stdout (string2bytes "This is line 2.

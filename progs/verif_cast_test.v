@@ -46,7 +46,7 @@ forward.  (*  c = c << 8; *)
 forward.  (*  d = c & 0xff; *)
 forward.  (*  d = d & b; *)
 forward.  (* return d *)
-clear. apply prop_right; f_equal.
+clear. apply bi.pure_intro; f_equal.
 rewrite <- Int64.mul_pow2 with (n:= Int64.repr 256) by reflexivity.
 rewrite mul64_repr, and64_repr.
 rewrite (Z.land_ones _ 8) by computable.

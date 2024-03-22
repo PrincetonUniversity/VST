@@ -125,8 +125,6 @@ forward_call (*  s = sumarray(four,4); *)
 forward. (* return s; *)
 Qed.
 
-#[export] Existing Instance NullExtension.Espec.
-
 Lemma prog_correct:
   semax_prog prog tt Vprog Gprog.
 Proof.

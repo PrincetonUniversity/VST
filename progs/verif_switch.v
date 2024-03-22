@@ -6,7 +6,7 @@ Require Export VST.floyd.Funspec_old_Notation.
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
-Definition twice_spec :=
+Definition twice_spec : ident * funspec :=
   DECLARE _twice
     WITH n : Z
     PRE [ _n OF tint ]
@@ -19,7 +19,7 @@ Definition twice_spec :=
       SEP ().
 
 
-Definition f_spec :=
+Definition f_spec : ident * funspec :=
   DECLARE _f
     WITH x : Z
     PRE [ _x OF tuint ]
@@ -49,7 +49,7 @@ Qed.
 Lemma body_f: semax_body Vprog Gprog f_f f_spec.
 Proof.
 start_function.
-forward_if (@FF (environ->mpred) _).
+forward_if (False).
 forward.
 forward.
 forward.

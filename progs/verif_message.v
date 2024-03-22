@@ -58,7 +58,7 @@ Next Obligation.
 compute; split; congruence.
 Qed.
 Next Obligation.
-  entailer!!.
+  entailer!.
   change 8 with (sizeof (tarray tint 2)).
   apply data_at_memory_block.
 Qed.
@@ -106,8 +106,8 @@ Definition main_spec :=
 
 Definition message (sh: share) {t: type} (format: message_format t) (m: val) : mpred :=
   EX fg: val*val,
-          func_ptr' (serialize_spec format) (fst fg) *
-          func_ptr' (deserialize_spec format) (snd fg) *
+          func_ptr (serialize_spec format) (fst fg) *
+          func_ptr (deserialize_spec format) (snd fg) *
        data_at sh t_struct_message (Vint (Int.repr (mf_size format)), (fst fg, snd fg)) m.
 
 Definition Gprog : funspecs :=   ltac:(with_library prog [

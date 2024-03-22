@@ -4,8 +4,6 @@ Require Import VST.progs.structcopy.
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
-Local Open Scope logic.
-
 Definition tfoo := Tstruct _foo noattr.
 
 Definition f_spec :=

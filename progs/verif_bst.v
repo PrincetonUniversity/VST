@@ -1,5 +1,4 @@
-Require Import VST.floyd.proofauto.
-Require Import VST.floyd.compat.
+Require Import VST.floyd.proofauto VST.floyd.compat.
 Require Import VST.progs.bst.
 
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
@@ -71,7 +70,7 @@ Definition treebox_rep (t: tree val) (b: val) :=
 
 (* TODO: seems not useful *)
 Lemma treebox_rep_spec: forall (t: tree val) (b: val),
-  treebox_rep t b =
+  treebox_rep t b ⊣⊢
   EX p: val, 
   match t with
   | E => !!(p=nullval) && data_at Tsh (tptr t_struct_tree) p b
@@ -86,20 +85,19 @@ Lemma treebox_rep_spec: forall (t: tree val) (b: val),
 Proof.
   intros.
   unfold treebox_rep at 1.
-  f_equal.
-  extensionality p.
+  f_equiv; intros p.
   destruct t; simpl.
   + apply pred_ext; entailer!!.
   + unfold treebox_rep.
     apply pred_ext; entailer!!.
     - Intros pa pb.
-      Exists pb pa.
+      Exists pa pb.
       unfold_data_at (data_at _ _ _ p).
       rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
       rewrite (field_at_data_at _ t_struct_tree [StructField _right]).
       cancel.
     - Intros pa pb.
-      Exists pb pa.
+      Exists pa pb.
       unfold_data_at (data_at _ _ _ p).
       rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
       rewrite (field_at_data_at _ t_struct_tree [StructField _right]).
@@ -271,22 +269,11 @@ Qed.
 
 #[export] Hint Resolve treebox_rep_saturate_local: saturate_local.
 
-Definition insert_inv (b0: val) (t0: tree val) (x: Z) (v: val): environ -> mpred :=
+Definition insert_inv (b0: val) (t0: tree val) (x: Z) (v: val): assert :=
   EX b: val, EX t: tree val,
   PROP()
   LOCAL(temp _t b; temp _x (Vint (Int.repr x));   temp _value v)
   SEP(treebox_rep t b;  (treebox_rep (insert x v t) b -* treebox_rep (insert x v t0) b0)).
-
-Open Scope logic.
-
-Lemma ramify_PPQQ {A: Type} {NA: NatDed A} {SA: SepLog A} {CA: ClassicalSep A}: forall P Q,
-  P |-- P * (Q -* Q).
-Proof.
-  intros.
-  apply RAMIF_PLAIN.solve with emp.
-  + rewrite sepcon_emp; auto.
-  + rewrite emp_sepcon; auto.
-Qed.
 
 Lemma tree_rep_nullval: forall t,
   tree_rep t nullval |-- !! (t = E).
@@ -324,17 +311,19 @@ Proof.
   rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
   unfold treebox_rep at 1. Exists p1. cancel.
 
-  rewrite <- wand_sepcon_adjoint.
+  iIntros "(? & ? & ? & ? & ? & ?) Hleft".
   clear p1.
   unfold treebox_rep.
-  Exists p.
+  iExists p.
   simpl.
-  Intros p1.
-  Exists p1 p2.
-  entailer!!.
+  iDestruct "Hleft" as (p1) "(? & ?)".
+  iFrame.
+  iSplit; first done.
+  iExists p1, p2.
+  iFrame.
   unfold_data_at (data_at _ _ _ p).
   rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
-  cancel.
+  iFrame.
 Qed.
 
 Lemma bst_right_entail: forall (t1 t2 t2': tree val) k (v p1 p2 p b: val),
@@ -353,26 +342,19 @@ Proof.
   rewrite (field_at_data_at _ t_struct_tree [StructField _right]).
   unfold treebox_rep at 1. Exists p2. cancel.
 
-  rewrite <- wand_sepcon_adjoint.
+  iIntros "(? & ? & ? & ? & ? & ?) Hright".
   clear p2.
   unfold treebox_rep.
-  Exists p.
+  iExists p.
   simpl.
-  Intros p2.
-  Exists p1 p2.
-  entailer!!.
+  iDestruct "Hright" as (p2) "(? & ?)".
+  iFrame.
+  iSplit; first done.
+  iExists p1, p2.
+  iFrame.
   unfold_data_at (data_at _ _ _ p).
   rewrite (field_at_data_at _ t_struct_tree [StructField _right]).
-  cancel.
-Qed.
-
-Lemma modus_ponens_wand' {A}{ND: NatDed A}{SL: SepLog A}:
-  forall P Q R: A, (P |-- Q) -> P * (Q -* R) |-- R.
-Proof.
-  intros.
-  eapply derives_trans; [| apply modus_ponens_wand].
-  apply sepcon_derives; [| apply derives_refl].
-  auto.
+  iFrame.
 Qed.
 
 Lemma if_trueb: forall {A: Type} b (a1 a2: A), b = true -> (if b then a1 else a2) = a1.
@@ -388,11 +370,11 @@ Lemma body_insert: semax_body Vprog Gprog f_insert insert_spec.
 Proof.
   start_function.
   eapply semax_pre; [
-    | apply (semax_loop _ (insert_inv b t x v) (insert_inv b t x v) )].
+    | apply (semax_loop _ _ (insert_inv b t x v) (insert_inv b t x v) )].
   * (* Precondition *)
     unfold insert_inv.
     Exists b t. entailer.
-    apply ramify_PPQQ.
+    iIntros "$ $".
   * (* Loop body *)
     unfold insert_inv at 1.
     Intros b1 t1.
@@ -413,8 +395,8 @@ Proof.
       subst t1. simpl tree_rep. rewrite !prop_true_andp by auto.
       forward. (* *t = p; *)
       forward. (* return; *)
-      apply modus_ponens_wand'.
-      apply treebox_rep_leaf; auto.
+      iIntros "(? & H)"; iApply "H".
+      by iApply treebox_rep_leaf.
     + (* else clause *)
       destruct t1.
         { simpl tree_rep. Intros. contradiction. }
@@ -428,28 +410,18 @@ Proof.
         Exists (field_address t_struct_tree [StructField _left] p) t1_1.
         entailer!. simpl.
         simpl_compb.
-        (* TODO: SIMPLY THIS LINE 
-        replace (offset_val 8 p1)
-          with (field_address t_struct_tree [StructField _left] p1)
-          by (unfold field_address; simpl;
-              rewrite if_true by auto with field_compatible; auto).
-*)
-        apply RAMIF_PLAIN.trans'.
-        apply bst_left_entail; auto.
+        sep_apply (bst_left_entail t1_1 (insert x v t1_1)).
+        iIntros "(($ & H1) & Ht) ?".
+        iApply "Ht"; iApply "H1"; done.
       - (* Inner if, second branch:  k<x *)
         forward. (* t=&p->right *)
         unfold insert_inv.
         Exists (field_address t_struct_tree [StructField _right] p) t1_2.
         entailer!. simpl.
         simpl_compb; simpl_compb.
-        (* TODO: SIMPLY THIS LINE 
-        replace (offset_val 12 p1)
-          with (field_address t_struct_tree [StructField _right] p1)
-          by (unfold field_address; simpl;
-              rewrite if_true by auto with field_compatible; auto).
-*)
-        apply RAMIF_PLAIN.trans'.
-        apply bst_right_entail; auto.
+        sep_apply (bst_right_entail t1_1 t1_2 (insert x v t1_2)).
+        iIntros "(($ & H1) & Ht) ?".
+        iApply "Ht"; iApply "H1"; done.
       - (* Inner if, third branch: x=k *)
         assert (x=k) by lia.
         subst x.  clear H H1 H3.
@@ -458,15 +430,15 @@ Proof.
         (* TODO: SIMPLY THIS LINE *)
         simpl_compb.
         simpl_compb.
-        apply modus_ponens_wand'.
+        iIntros "(? & H)"; iApply "H"; iStopProof.
         unfold treebox_rep. Exists p.
         simpl tree_rep. Exists pa pb. entailer!!.
   * (* After the loop *)
     forward.
-    apply andp_left2. auto.
+    auto.
 Qed.
 
-Definition lookup_inv (b0 p0: val) (t0: tree val) (x: Z): environ -> mpred :=
+Definition lookup_inv (b0 p0: val) (t0: tree val) (x: Z): assert :=
   EX p: val, EX t: tree val, 
   PROP(lookup nullval x t = lookup nullval x t0) 
   LOCAL(temp _p p; temp _x (Vint (Int.repr x)))
@@ -484,7 +456,7 @@ Proof.
   forward_while (lookup_inv b p t x).
   * (* precondition implies loop invariant *)
     Exists p t. entailer!.
-    apply -> wand_sepcon_adjoint. cancel.
+    auto.
   * (* type-check loop condition *)
     entailer!.
   * (* loop body preserves invariant *)
@@ -498,9 +470,7 @@ Proof.
       entailer!!.
       - rewrite <- H0; simpl.
         simpl_compb; auto.
-      - (* TODO: merge the following 2 lines *)
-        apply RAMIF_PLAIN.trans''.
-        apply -> wand_sepcon_adjoint.
+      - iIntros "(? & ? & H) ?"; iApply "H"; iStopProof.
         simpl. Exists pa pb; entailer!.
     + (* else-then clause: y<x *)
       forward. (* p=p<-right *)
@@ -508,9 +478,7 @@ Proof.
       entailer!!.
       - rewrite <- H0; simpl.
         simpl_compb; simpl_compb; auto.
-      - (* TODO: merge the following 2 lines *)
-        apply RAMIF_PLAIN.trans''.
-        apply -> wand_sepcon_adjoint.
+      - iIntros "(? & ? & H) ?"; iApply "H"; iStopProof.
         simpl. Exists pa pb; entailer!.
     + (* else-else clause: x=y *)
       assert (x=k) by lia. subst x. clear H H3 H4.
@@ -519,13 +487,12 @@ Proof.
       entailer!!.
       - rewrite <- H0. simpl.
         simpl_compb; simpl_compb; auto.
-      - (* TODO: merge the following 2 lines *)
-        apply modus_ponens_wand'.
+      - iIntros "(? & ? & ? & H)"; iApply "H"; iStopProof.
         Exists pa pb; entailer!!.
   * (* after the loop *)
     forward. (* return NULL; *)
     entailer!.
-    apply modus_ponens_wand.
+    iIntros "(? & H)"; iApply "H"; done.
 Qed.
 
 Lemma body_turn_left: semax_body Vprog Gprog f_turn_left turn_left_spec.
@@ -544,7 +511,7 @@ Proof.
   entailer!!.
 Qed.
 
-Definition pushdown_left_inv (b_res: val) (t_res: tree val): environ -> mpred :=
+Definition pushdown_left_inv (b_res: val) (t_res: tree val): assert :=
   EX b: val, EX ta: tree val, EX x: Z, EX v: val, EX tb: tree val,
   PROP  () 
   LOCAL (temp _t b)
@@ -552,7 +519,7 @@ Definition pushdown_left_inv (b_res: val) (t_res: tree val): environ -> mpred :=
          (treebox_rep (pushdown_left ta tb) b -* treebox_rep t_res b_res)).
 
 Lemma cancel_emp_spacer:
-  forall sh x y p, x=y -> 
+  forall sh x y p, x=y ->
     emp |-- spacer sh x y p.
 Proof.
 intros.
@@ -575,16 +542,16 @@ Lemma body_pushdown_left: semax_body Vprog Gprog f_pushdown_left pushdown_left_s
 Proof.
   start_function.
   eapply semax_pre; [
-    | apply (semax_loop _ (pushdown_left_inv b (pushdown_left ta tb))
+    | apply (semax_loop _ _ (pushdown_left_inv b (pushdown_left ta tb))
                          (pushdown_left_inv b (pushdown_left ta tb)))].
   + (* Precondition *)
     unfold pushdown_left_inv.
     Exists b ta x v tb.
     entailer!!.
-    eapply derives_trans; [| apply ramify_PPQQ].
     rewrite (treebox_rep_spec (T ta x v tb)).
     Exists p.
     entailer!!.
+    auto.
   + (* Loop body *)
     unfold pushdown_left_inv.
     clear x v H H0.
@@ -593,8 +560,6 @@ Proof.
     Intros p0.
     forward. (* skip *)
     forward. (* p = *t; *)
-      (* TODO entailer: The following should be solve automatically. satuate local does not work *)
- (*     1: rewrite (add_andp _ _ (tree_rep_saturate_local _ _)); entailer!. *)
     simpl tree_rep.
     Intros pa pbc.
     forward. (* q = p->right *)
@@ -612,8 +577,8 @@ Proof.
       }
       forward. (* return *)
       simpl.
-      apply modus_ponens_wand'.
-      Exists pa.
+      iIntros "(? & H)"; iApply "H"; iStopProof.
+      unfold treebox_rep; Exists pa.
       entailer!!.
     - destruct tbc0 as [| tb0 y vy tc0].
         { simpl tree_rep. Intros; contradiction. }
@@ -623,14 +588,14 @@ Proof.
       Exists (field_address t_struct_tree [StructField _left] pbc) ta0 x vx tb0.
       (* TODO entailer: not to simply too much in entailer? *)
       Opaque tree_rep. entailer!. Transparent tree_rep.
-        (* TODO: simplify this line *)
-      apply RAMIF_PLAIN.trans'.
-      apply bst_left_entail; auto.
+      sep_apply (bst_left_entail (T ta0 x vx tb0) (pushdown_left ta0 tb0)).
+      iIntros "(($ & H1) & Ht) ?".
+      iApply "Ht"; iApply "H1"; done.
   + forward. (* Sskip *)
-    apply andp_left2; auto.
+    auto.
 Qed.
 
-Definition delete_inv (b0: val) (t0: tree val) (x: Z): environ -> mpred :=
+Definition delete_inv (b0: val) (t0: tree val) (x: Z): assert :=
   EX b: val, EX t: tree val,
   PROP()
   LOCAL(temp _t b; temp _x (Vint (Int.repr x)))
@@ -640,11 +605,11 @@ Lemma body_delete: semax_body Vprog Gprog f_delete delete_spec.
 Proof.
   start_function.
   eapply semax_pre; [
-    | apply (semax_loop _ (delete_inv b t x) (delete_inv b t x) )].
+    | apply (semax_loop _ _ (delete_inv b t x) (delete_inv b t x) )].
   * (* Precondition *)
     unfold delete_inv.
     Exists b t. entailer.
-    apply ramify_PPQQ.
+    iIntros "$ $".
   * (* Loop body *)
     unfold delete_inv.
     Intros b1 t1.
@@ -658,7 +623,7 @@ Proof.
       subst t1. simpl tree_rep. rewrite !prop_true_andp by auto.
       forward. (* return; *)
       unfold treebox_rep at 1.
-      apply modus_ponens_wand'.
+      iIntros "(? & H)"; iApply "H"; iStopProof.
       Exists nullval.
       simpl tree_rep.
       entailer!!.
@@ -675,28 +640,16 @@ Proof.
         Exists (field_address t_struct_tree [StructField _left] p1) t1_1.
         entailer!. simpl.
         simpl_compb.
-        (* TODO: SIMPLY THIS LINE 
-        replace (offset_val 8 p1)
-          with (field_address t_struct_tree [StructField _left] p1)
-          by (unfold field_address; simpl;
-              rewrite if_true by auto with field_compatible; auto).
-*)
-        apply RAMIF_PLAIN.trans'.
-        apply bst_left_entail; auto.
+        sep_apply (bst_left_entail t1_1 (delete x t1_1)).
+        iIntros "(($ & H1) & Ht) ?"; iApply "Ht"; iApply "H1"; done.
       - (* Inner if, second branch:  k<x *)
         forward. (* t=&p->right *)
         unfold delete_inv.
         Exists (field_address t_struct_tree [StructField _right] p1) t1_2.
         entailer!. simpl.
         simpl_compb; simpl_compb.
-        (* TODO: SIMPLY THIS LINE 
-        replace (offset_val 12 p1)
-          with (field_address t_struct_tree [StructField _right] p1)
-          by (unfold field_address; simpl;
-              rewrite if_true by auto with field_compatible; auto).
-*)
-        apply RAMIF_PLAIN.trans'.
-        apply bst_right_entail; auto.
+        sep_apply (bst_right_entail t1_1 t1_2 (delete x t1_2)).
+        iIntros "(($ & H1) & Ht) ?"; iApply "Ht"; iApply "H1"; done.
       - (* Inner if, third branch: x=k *)
         assert (x=k) by lia.
         subst x.
@@ -726,10 +679,9 @@ Proof.
         simpl.
         simpl_compb.
         simpl_compb.
-        apply modus_ponens_wand'.
-        auto.
+        iIntros "(? & H)"; iApply "H"; done.
   * (* After the loop *)
-    forward. apply andp_left2; auto. 
+    forward. auto.
 Qed.
 
 Lemma body_treebox_new: semax_body Vprog Gprog f_treebox_new treebox_new_spec.
@@ -740,13 +692,12 @@ Proof.
   rewrite memory_block_data_at_ by auto.
   forward.
   forward.
-  Exists p. entailer!!.
 Qed.
 
 Lemma body_tree_free: semax_body Vprog Gprog f_tree_free tree_free_spec.
 Proof.
   start_function.
-  forward_if (PROP()LOCAL()SEP()).
+  forward_if.
   + destruct t; simpl tree_rep.
       1: Intros. contradiction.
     Intros pa pb.
@@ -764,7 +715,6 @@ Proof.
   + forward.
     subst.
     unfold tree_rep; entailer!.
-  + forward.
 Qed.
 
 Lemma body_treebox_free: semax_body Vprog Gprog f_treebox_free treebox_free_spec.
@@ -774,10 +724,10 @@ Proof.
   Intros p.
   forward.
   Time forward_call (t,p).
+  simpl.
   Time forward_call (b, sizeof (tptr t_struct_tree)).
-  entailer!.
-  rewrite memory_block_data_at_ by auto.
-  cancel.
+  saturate_local.
+  rewrite memory_block_data_at_ by auto; cancel.
   forward.
 Qed.
 
@@ -871,15 +821,17 @@ Lemma subsume_insert:
  funspec_sub (snd insert_spec) (snd abs_insert_spec).
 Proof.
 do_funspec_sub. destruct w as [[[b x] v] m]. simpl.
-unfold convertPre. Intros.
-destruct args. inv H1. 
+rewrite <- fupd_intro.
+monPred.unseal. Intros.
 destruct args. inv H1.
-destruct args. inv H1. 
+destruct args. inv H1.
+destruct args. inv H1.
 destruct args; inv H1. simpl in *.
 unfold env_set, eval_id in *. simpl in *. subst. 
 unfold tmap_rep.
 Intros t.
-Exists (b, x, v, t) emp. simpl. entailer!!.
+Exists (b, x, v, t) (emp : mpred). simpl.
+entailer!!.
 intros. Exists (insert x v t).
 entailer!!. apply insert_relate; trivial.
 Qed.
@@ -887,8 +839,10 @@ Qed.
 Lemma subsume_treebox_new:
  funspec_sub (snd treebox_new_spec) (snd abs_treebox_new_spec).
 Proof.
-do_funspec_sub. unfold convertPre. simpl; Intros.
-Exists emp. entailer!!.
+do_funspec_sub.
+rewrite <- fupd_intro.
+monPred.unseal. Intros.
+Exists tt (emp : mpred). entailer!!.
 intros tau ? ?. Exists (eval_id ret_temp tau). entailer!!.
 unfold tmap_rep.
 Exists (empty_tree val).
@@ -902,17 +856,20 @@ Qed.
 Lemma subsume_treebox_free:
  funspec_sub (snd treebox_free_spec) (snd abs_treebox_free_spec).
 Proof.
-do_funspec_sub. destruct w as [m p]. clear H. unfold convertPre. simpl; Intros.
+do_funspec_sub. destruct w as [m p]. clear H.
+rewrite <- fupd_intro.
+simpl; monPred.unseal. Intros.
 subst.
 unfold env_set, eval_id in *. simpl in *. 
 unfold tmap_rep.
 Intros t.
-Exists (t,p) emp. entailer!!.
+Exists (t,p) (emp : mpred). simpl. entailer!!.
 Qed.
 
 Lemma body_main: semax_body Vprog Gprog f_main main_spec.
 Proof.
 start_function.
+rename a into gv.
 assert_PROP (isptr (gv ___stringlit_1)) by entailer!.
 assert_PROP (isptr (gv ___stringlit_2)) by entailer!.
 assert_PROP (isptr (gv ___stringlit_3)) by entailer!.

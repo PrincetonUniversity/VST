@@ -108,7 +108,7 @@ Definition F (X: ObjInv -> mpred) (hs: ObjInv): mpred :=
    ((EX mtable: val, !!(isptr mtable) (*This has to hold NOW, not ust LATER*)&&
      (|> object_methods X mtable) *
      field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable (snd hs)) *
-   instance hs)%logic.
+   instance hs).
 
 Definition HOcontractive1 {A: Type}{NA: NatDed A}{IA: Indir A}{RI: RecIndir A}{X: Type}
      (f: (X -> A) -> (X -> A)) := 
@@ -315,7 +315,7 @@ fun hs =>
   ((EX mtable: val,!!(isptr mtable) &&
      (|> object_methods obj_mpred mtable) *
      field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable (snd hs)) *
-   instance hs)%logic.
+   instance hs).
 Proof.
   intros; unfold obj_mpred at 1.
   rewrite HORec_fold_unfold; [ reflexivity | apply HOcontrF]; trivial.
@@ -326,7 +326,7 @@ obj_mpred hs =
   ((EX mtable: val, !!(isptr mtable) &&
      (|> object_methods obj_mpred mtable) *
      field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable (snd hs)) *
-   instance hs)%logic.
+   instance hs).
 Proof.
   intros. rewrite ObjMpred_fold_unfold, <- ObjMpred_fold_unfold; trivial. 
 Qed.
@@ -402,7 +402,7 @@ Lemma foo_obj_invariant_fold_unfold: foo_obj_invariant =
   ((EX mtable: val, !!(isptr mtable) &&
      (|>object_methods foo_obj_invariant  mtable) *
      field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable (snd hs)) *
-   foo_data hs)%logic.
+   foo_data hs).
 Proof.
   unfold foo_obj_invariant.
   rewrite <- ObjMpred_fold_unfold. trivial. apply foo_data_HOcontr.
@@ -413,7 +413,7 @@ Lemma foo_obj_invariant_fold_unfold' hs: foo_obj_invariant hs =
   ((EX mtable: val, !!(isptr mtable) &&
      (|>object_methods foo_obj_invariant  mtable) *
      field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable (snd hs)) *
-   foo_data hs)%logic.
+   foo_data hs).
 Proof. rewrite foo_obj_invariant_fold_unfold. rewrite <- foo_obj_invariant_fold_unfold; trivial. Qed.
 
 Lemma foo_data_isptr hs: foo_data hs = !!(isptr (snd hs)) && foo_data hs.
@@ -758,7 +758,7 @@ Definition G (X: fObjInv -> mpred) (hs: fObjInv): mpred :=
    ((EX mtable: val, !!(isptr mtable) (*This has to hold NOW, not ust LATER*)&&
      (|> fobject_methods X mtable) *
      field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable (snd hs)) *
-   instance hs)%logic.
+   instance hs).
 
 Lemma HOcontrG
      (*Need sth like this (HI: HOcontractive (fun (_ : ObjInv -> mpred) (x : ObjInv) => instance x))*):
@@ -1025,7 +1025,7 @@ fun hs =>
   ((EX mtable: val,!!(isptr mtable) &&
      (|> fobject_methods fobj_mpred mtable) *
      field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable (snd hs)) *
-   instance hs)%logic.
+   instance hs).
 Proof.
   intros; unfold fobj_mpred at 1.
   rewrite HORec_fold_unfold; [ reflexivity | apply HOcontrG]; trivial.
@@ -1036,7 +1036,7 @@ fobj_mpred hs =
   ((EX mtable: val, !!(isptr mtable) &&
      (|> fobject_methods fobj_mpred mtable) *
      field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable (snd hs)) *
-   instance hs)%logic.
+   instance hs).
 Proof.
   intros. rewrite fObjMpred_fold_unfold, <- fObjMpred_fold_unfold; trivial. 
 Qed.
@@ -1090,7 +1090,7 @@ Lemma fancyfoo_obj_invariant_fold_unfold: fancyfoo_obj_invariant =
   ((EX mtable: val, !!(isptr mtable) &&
      (|>fobject_methods fancyfoo_obj_invariant  mtable) *
      field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable (snd hs)) *
-   fancyfoo_data hs)%logic.
+   fancyfoo_data hs).
 Proof.
   unfold fancyfoo_obj_invariant.
   rewrite <- fObjMpred_fold_unfold. trivial. apply fancyfoo_data_HOcontr.
@@ -1101,7 +1101,7 @@ Lemma fancyfoo_obj_invariant_fold_unfold' hs: fancyfoo_obj_invariant hs =
   ((EX mtable: val, !!(isptr mtable) &&
      (|>fobject_methods fancyfoo_obj_invariant  mtable) *
      field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable (snd hs)) *
-   fancyfoo_data hs)%logic.
+   fancyfoo_data hs).
 Proof. rewrite fancyfoo_obj_invariant_fold_unfold. rewrite <- fancyfoo_obj_invariant_fold_unfold; trivial. Qed.
 
 Lemma fancyfoo_data_isptr hs: fancyfoo_data hs = !!(isptr (snd hs)) && fancyfoo_data hs.

@@ -166,15 +166,12 @@ forward. (* hi--; *)
 forward. (* return; *)
 entailer!!.
 rewrite map_rev. rewrite flip_fact_1; try lia; auto.
-cancel.
 Qed.
 
 Definition four_contents := [Int.repr 1; Int.repr 2; Int.repr 3; Int.repr 4].
 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof. finish. Qed.
-
-#[export] Existing Instance NullExtension.Espec.
 
 Lemma prog_correct:
   semax_prog prog tt Vprog Gprog.

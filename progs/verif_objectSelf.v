@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat.
 Require Import VST.floyd.library.
 Require Import VST.progs.objectSelf.
 
@@ -8,7 +9,6 @@ Require Import VST.floyd.Funspec_old_Notation.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Local Open Scope Z.
-Local Open Scope logic.
 
 (*Andrew's definition
 Definition object_invariant := list Z -> val -> mpred.*)
