@@ -22,7 +22,7 @@ jobs:
         coq_version:
           # See https://github.com/coq-community/docker-coq/wiki for supported images
           - '8.17'
-          - '8.18.1'
+          - '8.18'
           - '8.19'
           - 'dev'
         bit_size:
@@ -33,7 +33,7 @@ jobs:
         exclude:   
           - coq_version: 8.17
             bit_size: 32
-          - coq_version: 8.18.1
+          - coq_version: 8.18
             bit_size: 32
           - coq_version: dev
             bit_size: 32
@@ -95,7 +95,7 @@ jobs:
       matrix:
         coq_version:
           - '8.17'
-          - '8.18.1'
+          - '8.18'
           - '8.19'
           - 'dev' 
         make_target:
@@ -111,7 +111,7 @@ jobs:
         exclude:
           - coq_version: 8.17
             bit_size: 32
-          - coq_version: 8.18.1
+          - coq_version: 8.18
             bit_size: 32
           - coq_version: dev
             bit_size: 32
