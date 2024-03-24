@@ -311,7 +311,7 @@ Proof.
   rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
   unfold treebox_rep at 1. Exists p1. cancel.
 
-  iIntros "(? & ? & ? & ? & ? & ?) Hleft".
+  iIntros "(? & ? & ? & ?) Hleft".
   clear p1.
   unfold treebox_rep.
   iExists p.
@@ -323,7 +323,7 @@ Proof.
   iFrame.
   unfold_data_at (data_at _ _ _ p).
   rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
-  iFrame.
+  by iFrame.
 Qed.
 
 Lemma bst_right_entail: forall (t1 t2 t2': tree val) k (v p1 p2 p b: val),
@@ -342,7 +342,7 @@ Proof.
   rewrite (field_at_data_at _ t_struct_tree [StructField _right]).
   unfold treebox_rep at 1. Exists p2. cancel.
 
-  iIntros "(? & ? & ? & ? & ? & ?) Hright".
+  iIntros "(? & ? & ? & ?) Hright".
   clear p2.
   unfold treebox_rep.
   iExists p.
@@ -354,7 +354,7 @@ Proof.
   iFrame.
   unfold_data_at (data_at _ _ _ p).
   rewrite (field_at_data_at _ t_struct_tree [StructField _right]).
-  iFrame.
+  by iFrame.
 Qed.
 
 Lemma if_trueb: forall {A: Type} b (a1 a2: A), b = true -> (if b then a1 else a2) = a1.

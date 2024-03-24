@@ -77,6 +77,34 @@ Notation "|> P" := (▷ P)%I
 Notation "P <--> Q" := (P ↔ Q)%I
   (at level 95, no associativity, only parsing) : bi_scope.
 
+Notation TT := (True)%I.
+Notation FF := (False)%I.
+
 Open Scope bi_scope.
 
-Definition pred_ext := @bi.equiv_entails_2 (iPropI (VSTΣ unit)).
+Definition pred_ext := @bi.equiv_entails_2.
+Definition andp_right := @bi.and_intro.
+Definition prop_right := @bi.pure_intro.
+Definition sepcon_derives := @bi.sep_mono.
+Definition andp_derives := @bi.and_mono.
+Definition sepcon_emp := @bi.sep_emp.
+Definition emp_sepcon := @bi.emp_sep.
+Definition sepcon_comm := @bi.sep_comm.
+Definition sepcon_assoc := @bi.sep_assoc.
+Definition allp_right := @bi.forall_intro.
+
+Fixpoint iter_sepcon2 {B1 B2} (p : B1 -> B2 -> mpred) l :=
+    match l with
+    | nil => fun l2 =>
+       match l2 with
+       | nil => emp
+       | _ => FF
+       end
+    | x :: xl => fun l' =>
+       match l' with
+       | nil => FF
+       | y :: yl => p x y * iter_sepcon2 p xl yl
+       end
+    end.
+
+Global Tactic Notation "inv" ident(H):= Coqlib.inv H.

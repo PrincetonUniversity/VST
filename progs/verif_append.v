@@ -32,18 +32,12 @@ Definition append_spec :=
 
 Definition Gprog : funspecs :=   ltac:(with_library prog [ append_spec ]).
 
-Lemma ENTAIL_refl: forall Delta P, ENTAIL Delta, P |-- P.
-Proof. intros; apply andp_left2; auto. Qed.
-
 Lemma body_append: semax_body Vprog Gprog f_append append_spec.
 Proof.
 start_function.
 forward_if.
 *
  forward.
- Exists y.
- simpl app.
- entailer!!.
 *
  forward.
  apply semax_lseg_nonnull; [ | intros a s3 u ? ?].
@@ -64,10 +58,9 @@ forward_if.
  + entailer!!.
  + clear u H1; rename u0 into u. clear a s3 H0. rename a0 into a.
    gather_SEP (list_cell _ _ _ _) (field_at _ _ _ _ _) (lseg _ _ _ x _) (lseg _ _ _ u _).
-   replace_SEP 0 (lseg LS sh (s1a++[a]) x u * lseg LS sh s1b u nullval)%logic.
+   replace_SEP 0 (lseg LS sh (s1a++[a]) x u * lseg LS sh s1b u nullval).
    entailer.
-   rewrite <- (emp_sepcon (list_cell LS sh a t)).
-   apply (lseg_cons_right_list LS); auto.
+   rewrite <- lseg_cons_right_list; first cancel; auto.
    Intros. gather_SEP (lseg _ _ _ u _).
    apply semax_lseg_nonnull; [ | intros a1 s4 u2 ? ?].
    entailer!.
@@ -83,7 +76,7 @@ forward_if.
     forward.
     forward.
     Exists x. entailer!!.
-    apply derives_trans with (lseg LS sh (s1a++[a0]) x y * lseg LS sh s2 y nullval)%logic.
+    apply derives_trans with (lseg LS sh (s1a++[a0]) x y * lseg LS sh s2 y nullval).
     eapply derives_trans; [ | apply (lseg_cons_right_list LS) with (y:=t)]; auto.
     simpl valinject.
     cancel.

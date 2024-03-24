@@ -178,7 +178,7 @@ Lemma body_get22_root_expr: semax_body Vprog Gprog f_get22 get22_spec.
  forward.
  simpl (temp _p _).
  (* Assert_PROP what forward asks us for (only for the root expression "p"):  *)
- assert_PROP (offset_val 8 (force_val (sem_add_ptr_int (Tstruct _pair_pair noattr) Signed pps (Vint (Int.repr i))))
+ assert_PROP (offset_val (64/8) (force_val (sem_add_ptr_int (Tstruct _pair_pair noattr) Signed pps (Vint (Int.repr i))))
    = field_address (tarray pair_pair_t array_size) [StructField _right; ArraySubsc i] pps) as E. {
    entailer!. rewrite field_compatible_field_address by auto with field_compatible.
   simpl. normalize.
@@ -199,7 +199,7 @@ simpl (temp _p _).
 
 (* Assert_PROP what forward asks us for (for the full expression "p->snd"): *)
 assert_PROP (
-  offset_val 4 (offset_val 8 (force_val
+  offset_val (32/8) (offset_val (64/8) (force_val
     (sem_add_ptr_int (Tstruct _pair_pair noattr) Signed pps (Vint (Int.repr i)))))
   = (field_address (tarray pair_pair_t array_size)
                    [StructField _snd; StructField _right; ArraySubsc i] pps)). {
@@ -220,7 +220,7 @@ forward.
 simpl (temp _p _).
 
 (* Alternative: Make p nice enough so that no hint is required: *)
-assert_PROP (offset_val 8 (force_val (sem_add_ptr_int (Tstruct _pair_pair noattr) Signed pps (Vint (Int.repr i))))
+assert_PROP (offset_val (64/8) (force_val (sem_add_ptr_int (Tstruct _pair_pair noattr) Signed pps (Vint (Int.repr i))))
   = field_address (tarray pair_pair_t array_size) [StructField _right; ArraySubsc i] pps) as E. {
   entailer!. rewrite field_compatible_field_address by auto with field_compatible.
   simpl.

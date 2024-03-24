@@ -816,7 +816,7 @@ intros. unfold nullval.
 apply lseg_neq.
 destruct v; inv H; intuition; try congruence.
 intro. apply ptr_eq_e in H.
-destruct Archi.ptr64 eqn:Hp; inv H.
+destruct Archi.ptr64 eqn:Hp; inv H; try done.
 intro. simpl in H.
 destruct Archi.ptr64; congruence.
 Qed.

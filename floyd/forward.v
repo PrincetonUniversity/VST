@@ -4487,7 +4487,8 @@ Ltac start_function1 :=
                POST [ tint ] _) |- _ => idtac
     | s := ?spec' |- _ => check_canonical_funspec spec'
    end;
-   change (semax_body V G F s); subst s
+   change (semax_body V G F s); subst s;
+   unfold mk_funspec'
  end;
 (* let DependedTypeList := fresh "DependedTypeList" in*)
  unfold NDmk_funspec;
@@ -4498,7 +4499,7 @@ Ltac start_function1 :=
    match Pre with
    | (monPred_at (convertPre _ _ (fun i => _))) =>  intros Espec (*DependedTypeList*) i
    | (λne x, monPred_at match _ with (a,b) => _ end) => intros Espec (*DependedTypeList*) [a b]
-   | (λne i, _) => intros Espec (*DependedTypeList*) i
+   | (λne i, _) => intros Espec (*DependedTypeList*) i (* this seems to be named "a" no matter what *)
    end;
    simpl fn_body; simpl fn_params; simpl fn_return
  end;

@@ -25,7 +25,7 @@ Qed.
 
 (* The Espec for odd is different from the Espec for even;
   the former has only "even" as an external function, and vice versa. *)
-Definition Espec := add_funspecs NullExtension.Espec (ext_link_prog odd.prog) Gprog.
+Definition Espec := add_funspecs_rec unit (ext_link_prog odd.prog) (void_spec _) Gprog.
 #[export] Existing Instance Espec.
 
 (* Can't prove   prog_correct: semax_prog prog Vprog Gprog

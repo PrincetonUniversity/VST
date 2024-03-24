@@ -171,6 +171,7 @@ Lemma body_main: semax_body Vprog Gprog f_main main_spec.
 Proof.
 function_pointers.
 start_function.
+rename a into gv.
 set (ipm := gv _intpair_message).
 fold cc_default noattr.
 make_func_ptr _intpair_deserialize.

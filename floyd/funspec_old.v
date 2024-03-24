@@ -780,7 +780,7 @@ Admitted. (* might be true *)
 
 End mpred.
 
-Ltac rewrite_old_main_pre ::= rewrite ?old_main_pre_eq; unfold convertPre.
+Ltac rewrite_old_main_pre ::= rewrite ?old_main_pre_eq; unfold convertPre, convertPre'.
 
 Ltac prove_all_defined := 
  red; simpl makePARAMS;

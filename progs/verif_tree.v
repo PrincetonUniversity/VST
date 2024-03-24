@@ -100,12 +100,8 @@ Definition map_tree {V1 V2: Type} (f: V1 -> V2): tree V1 -> tree V2 :=
 
 Section IterTreeSepCon.
 
-  Context {A : Type}.
+  Context {A : bi}.
   Context {B : Type}.
-  Context {ND : NatDed A}.
-  Context {SL : SepLog A}.
-  Context {ClS: ClassicalSep A}.
-  Context {CoSL: CorableSepLog A}.
   Context (p : B -> A).
 
 Fixpoint iter_tree_sepcon (t1 : tree B) : A :=
@@ -118,12 +114,8 @@ End IterTreeSepCon.
 
 Section IterTreeSepCon2.
 
-  Context {A : Type}.
+  Context {A : bi}.
   Context {B1 B2 : Type}.
-  Context {ND : NatDed A}.
-  Context {SL : SepLog A}.
-  Context {ClS: ClassicalSep A}.
-  Context {CoSL: CorableSepLog A}.
   Context (p : B1 -> B2 -> A).
 
 Fixpoint iter_tree_sepcon2 (t1 : tree B1) : tree B2 -> A :=
@@ -131,17 +123,17 @@ Fixpoint iter_tree_sepcon2 (t1 : tree B1) : tree B2 -> A :=
     | E => fun t2 =>
        match t2 with
        | E => emp
-       | _ => FF
+       | _ => False
        end
     | T xa x xb => fun t2 =>
        match t2 with
-       | E => FF
+       | E => False
        | T ya y yb => p x y * iter_tree_sepcon2 xa ya * iter_tree_sepcon2 xb yb
        end
   end.
 
 Lemma iter_tree_sepcon2_spec: forall tl1 tl2,
-  iter_tree_sepcon2 tl1 tl2 =
+  iter_tree_sepcon2 tl1 tl2 ⊣⊢
   EX tl: tree (B1 * B2),
   !! (tl1 = map_tree fst tl /\ tl2 = map_tree snd tl) &&
   iter_tree_sepcon (uncurry p) tl.
@@ -151,29 +143,25 @@ Proof.
   + revert tl2; induction tl1; intros; destruct tl2.
     - apply (exp_right E); simpl.
       apply andp_right; auto.
-      apply prop_right; auto.
     - simpl.
-      apply FF_left.
+      apply False_left.
     - simpl.
-      apply FF_left.
+      apply False_left.
     - simpl.
       specialize (IHtl1_1 tl2_1).
       specialize (IHtl1_2 tl2_2).
       eapply derives_trans; [apply sepcon_derives; [apply sepcon_derives |]; [apply derives_refl | apply IHtl1_1 | apply IHtl1_2] | clear IHtl1_1 IHtl1_2].
       Intros tl_2 tl_1; subst.
-      rewrite sepcon_andp_prop. apply derives_extract_prop; intros [? ?].
-      rewrite sepcon_andp_prop, sepcon_andp_prop'.
-      apply derives_extract_prop; intros [? ?].
       Exists (T tl_1 (v, b) tl_2).
       simpl.
       apply andp_right; [apply prop_right; subst; auto |].
       apply derives_refl.
-  + apply exp_left; intros tl. Intros; subst.
+  + Intros tl. subst.
     induction tl.
     - simpl. auto.
     - simpl.
       eapply derives_trans; [apply sepcon_derives; [apply sepcon_derives |]; [apply derives_refl | apply IHtl1 | apply IHtl2] | clear IHtl1 IHtl2].
-      apply derives_refl.
+      destruct v; simpl; cancel.
 Qed.
 
 End IterTreeSepCon2.
@@ -888,8 +876,6 @@ Proof.
   forward.
 Qed.
 
-#[export] Existing Instance NullExtension.Espec.
-
 Lemma prog_correct:
   semax_prog prog tt Vprog Gprog.
 Proof.
@@ -901,5 +887,3 @@ semax_func_cons body_YTree_add.
 semax_func_cons body_Xfoo.
 semax_func_cons body_main.
 Qed.
-
-

@@ -15,7 +15,7 @@ Definition t_struct_fifo := Tstruct _fifo noattr.
 Proof. eapply mk_listspec; reflexivity. Defined.
 
 Lemma isnil: forall {T: Type} (s: list T), {s=nil}+{s<>nil}.
-Proof. intros. destruct s; [left|right]; auto. intro Hx; inv Hx. Qed.
+Proof. intros. destruct s; [left|right]; auto. Qed.
 
 Definition Qsh : share := fst (Share.split extern_retainer).
 Definition Qsh' := Share.lub (snd (Share.split extern_retainer)) Share.Rsh.
@@ -47,7 +47,6 @@ unfold Share.Lsh in *.
 destruct (Share.split Share.top) eqn:?H.
 simpl in *; subst.
 apply Share.split_nontrivial in H; auto.
-apply Share.nontrivial; auto.
 *
 apply leq_join_sub.
 apply Share.lub_upper2.
@@ -181,8 +180,8 @@ intros.
 f_equal.
 unfold field_at, list_cell.
 autorewrite with gather_prop.
-f_equal.
-apply ND_prop_ext.
+f_equiv.
+f_equiv.
 rewrite field_compatible_cons; simpl.
 rewrite field_compatible_cons; simpl.
 intuition.
@@ -562,8 +561,6 @@ forward_call (*  free(p, sizeof( *p)); *)
 forward. (* return i+j; *)
 Qed.
 
-#[export] Existing Instance NullExtension.Espec.
-
 Lemma prog_correct:
   semax_prog prog tt Vprog Gprog.
 Proof.
@@ -579,5 +576,3 @@ semax_func_cons body_fifo_get.
 semax_func_cons body_make_elem.
 semax_func_cons body_main.
 Qed.
-
-

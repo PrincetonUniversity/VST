@@ -23,7 +23,7 @@ Definition valid_int_or_ptr (x: val) :=
  | Vint i => Int.testbit i 0 = true
               \/ Int.unsigned i < POINTER_BOUNDARY
  | Vptr b z => Ptrofs.testbit z 0 = false
- | _ => False
+ | _ => False%type
  end.
 
 Lemma valid_int_or_ptr_ii1:
@@ -100,7 +100,7 @@ Qed.
 
 #[export] Hint Resolve treerep_local_facts : saturate_local.
 
-Definition test_int_or_ptr_spec :=
+Definition test_int_or_ptr_spec : ident * funspec :=
  DECLARE _test_int_or_ptr
  WITH x : val
  PRE [ int_or_ptr_type ]
@@ -113,7 +113,7 @@ Definition test_int_or_ptr_spec :=
                     end)))
    SEP().
 
-Definition int_or_ptr_to_int_spec :=
+Definition int_or_ptr_to_int_spec : ident * funspec :=
  DECLARE _int_or_ptr_to_int
  WITH x : val
  PRE [ int_or_ptr_type ]
@@ -121,7 +121,7 @@ Definition int_or_ptr_to_int_spec :=
  POST [ tint ]
    PROP() RETURN (x) SEP().
 
-Definition int_or_ptr_to_ptr_spec :=
+Definition int_or_ptr_to_ptr_spec : ident * funspec :=
  DECLARE _int_or_ptr_to_ptr
  WITH x : val
  PRE [ int_or_ptr_type ]
@@ -129,7 +129,7 @@ Definition int_or_ptr_to_ptr_spec :=
  POST [ tptr tvoid ]
    PROP() RETURN (x) SEP().
 
-Definition int_to_int_or_ptr_spec :=
+Definition int_to_int_or_ptr_spec : ident * funspec :=
  DECLARE _int_to_int_or_ptr
  WITH x : val
  PRE [ tint ]
@@ -137,7 +137,7 @@ Definition int_to_int_or_ptr_spec :=
  POST [ int_or_ptr_type ]
    PROP() RETURN(x) SEP().
 
-Definition ptr_to_int_or_ptr_spec :=
+Definition ptr_to_int_or_ptr_spec : ident * funspec :=
  DECLARE _ptr_to_int_or_ptr
  WITH x : val
  PRE [ tptr tvoid ]
@@ -145,7 +145,7 @@ Definition ptr_to_int_or_ptr_spec :=
  POST [ int_or_ptr_type ]
    PROP() RETURN(x) SEP().
 
-Definition makenode_spec :=
+Definition makenode_spec : ident * funspec :=
  DECLARE _makenode 
   WITH p: val, q: val
   PRE [ int_or_ptr_type, int_or_ptr_type ]
@@ -155,7 +155,7 @@ Definition makenode_spec :=
     PROP() RETURN (r) 
     SEP (data_at Tsh (Tstruct _tree noattr) (p,q) r).
 
-Definition copytree_spec :=
+Definition copytree_spec : ident * funspec :=
  DECLARE _copytree
   WITH t: tree, p : val
   PRE  [ int_or_ptr_type ]
@@ -186,9 +186,7 @@ Proof.
  forward_call (Vint (Int.repr (i+i+1))).
  forward_if.
  - (* then clause *)
-   forward. simpl.
-   Exists (Vint (Int.repr(i+i+1))).
-   entailer!!.
+   forward.
  - (* else clause *)
   inv H0.
 * (* NODE *) 
@@ -230,8 +228,6 @@ Proof.
   }
   forward_call r.
   forward. simpl.
-  Exists r p q p1 p2.
+  Exists r p1 p2 p q.
   entailer!!.
 Qed.
-
-

@@ -85,7 +85,7 @@ Definition main_spec :=
   WITH gv : globals
   PRE  [] main_pre prog tt gv
   POST [ tint ]
-     PROP() RETURN (Vint (Int.repr (3+2+1))) SEP(TT).
+     PROP() RETURN (Vint (Int.repr (3+2+1))) SEP(True).
 
 (** List all the function-specs, to form the global hypothesis *)
 Definition Gprog : funspecs :=   ltac:(with_library prog [
@@ -95,7 +95,7 @@ Definition Gprog : funspecs :=   ltac:(with_library prog [
 Lemma list_cell_eq: forall sh i p ,
    sepalg.nonidentity sh ->
    field_compatible t_struct_list [] p ->
-   list_cell LS sh (Vint i) p =
+   list_cell LS sh (Vint i) p ⊣⊢
    field_at sh t_struct_list (DOT _head) (Vint i) p.
 Proof.
   intros.
@@ -199,7 +199,7 @@ Exists (h::cts1,r,v,y).
 entailer!.  (* smt_test verif_reverse_example2 *)
  - rewrite <- app_assoc. auto.
  - rewrite (lseg_unroll _ sh (h::cts1)).
-    apply orp_right2.
+    rewrite <- bi.or_intro_r.
    unfold lseg_cons.
    apply andp_right.
    + apply prop_right.
@@ -219,8 +219,6 @@ Qed.
  ** The proof is not very beautiful at present; it would be helpful
  ** to have a nicer proof theory for reasoning about this kind of thing.
  **)
-
-Import compcert.lib.Maps.
 
 Lemma setup_globals:
  forall Delta gv,
@@ -287,6 +285,7 @@ Qed.
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
 start_function.
+rename a into gv.
 change (Tstruct _ _) with t_struct_list.
 fold noattr. fold (tptr t_struct_list).
 eapply semax_pre; [
@@ -302,8 +301,6 @@ forward_call  (* s = sumlist(r); *)
 forward.  (* return s; *)
 Qed.
 
-#[export] Existing Instance NullExtension.Espec.
-
 Lemma prog_correct:
   semax_prog prog tt Vprog Gprog.
 Proof.
@@ -312,5 +309,3 @@ semax_func_cons body_sumlist.
 semax_func_cons body_reverse.
 semax_func_cons body_main.
 Qed.
-
-

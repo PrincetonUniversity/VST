@@ -150,11 +150,11 @@ Definition SHA256_Init_spec :=
 Definition SHA256_Update_spec :=
   DECLARE _SHA256_Update
    WITH a: s256abs, data: list byte, c : val, wsh: share, d: val, sh: share, len : Z, gv: globals
-   PRE [ _c OF tptr t_struct_SHA256state_st, _data_ OF tptr tvoid, _len OF tuint ]
+   PRE [ _c OF tptr t_struct_SHA256state_st, _data OF tptr tvoid, _len OF tuint ]
          PROP (writable_share wsh; readable_share sh; 
                    len <= Zlength data; 0 <= len <= Int.max_unsigned;
                    (s256a_len a + len * 8 < two_p 64)%Z)
-         LOCAL (temp _c c; temp _data_ d; temp _len (Vint (Int.repr len));
+         LOCAL (temp _c c; temp _data d; temp _len (Vint (Int.repr len));
                      gvars gv)
          SEP(K_vector gv;
                sha256state_ wsh a c; data_block sh data d)
@@ -209,7 +209,7 @@ Definition Gprog : funspecs :=
 Fixpoint do_builtins (n: nat) (defs : list (ident * globdef Clight.fundef type)) : funspecs :=
  match n, defs with
   | S n', (id, Gfun (External (EF_builtin _ sig) argtys resty cc_default))::defs' =>
-     (id, NDmk_funspec ((*iota_formals 1%positive*) typelist2list argtys, resty) cc_default unit FF FF)
+     (id, NDmk_funspec ((*iota_formals 1%positive*) typelist2list argtys, resty) cc_default unit (fun _ => FF) (fun _ => FF))
       :: do_builtins n' defs'
   | _, _ => nil
  end.

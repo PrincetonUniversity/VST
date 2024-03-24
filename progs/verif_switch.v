@@ -37,7 +37,8 @@ Definition Gprog : funspecs :=   ltac:(with_library prog [twice_spec]).
 Lemma body_twice: semax_body Vprog Gprog f_twice twice_spec.
 Proof.
 start_function.
-forward_if (PROP() LOCAL(temp _n (Vint (Int.repr (n+n)))) SEP()).
+rename a into n.
+forward_if (PROP() LOCAL(temp _n (Vint (Int.repr (n+n)))) SEP() : assert).
 repeat forward; entailer!!.
 repeat forward; entailer!!.
 repeat forward; entailer!!.
@@ -49,12 +50,10 @@ Qed.
 Lemma body_f: semax_body Vprog Gprog f_f f_spec.
 Proof.
 start_function.
-forward_if (False).
+forward_if (False : assert).
 forward.
 forward.
 forward.
 forward.
 forward.
 Qed.
-
-

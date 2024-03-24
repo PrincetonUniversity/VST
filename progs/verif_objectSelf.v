@@ -1,14 +1,14 @@
+Require Import iris.bi.lib.fixpoint.
 Require Import VST.floyd.proofauto.
-Require Import VST.floyd.compat.
 Require Import VST.floyd.library.
 Require Import VST.progs.objectSelf.
-
-Require Import VST.floyd.Funspec_old_Notation.
 
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
-Local Open Scope Z.
+Section mpred.
+
+Context `{!default_VSTGS Σ}.
 
 (*Andrew's definition
 Definition object_invariant := list Z -> val -> mpred.*)
@@ -21,61 +21,48 @@ Definition tobject := tptr (Tstruct _object noattr).
 
 Definition reset_spec (instance: object_invariant) :=
   WITH hs:ObjInv (*modified*)
-  PRE [ _self OF tobject]
+  PRE [ tobject]
           PROP (isptr (snd hs) (*NEW*))
-          LOCAL (temp _self (snd hs))
+          PARAMS (snd hs)
           SEP (instance hs)
   POST [ tvoid ]
           PROP() LOCAL () SEP(instance (nil, snd hs)).
 
 Definition twiddle_spec (instance: object_invariant) :=
   WITH hs: ObjInv, i: Z (*modified*)
-  PRE [ _self OF tobject, _i OF tint]
+  PRE [ tobject, tint]
           PROP (0 < i <= Int.max_signed / 4;
                 0 <= fold_right Z.add 0 (fst hs) <= Int.max_signed / 4; 
                isptr (snd hs) (*NEW*))
-          LOCAL (temp _self (snd hs); temp _i (Vint (Int.repr i)))
+          PARAMS (snd hs; Vint (Int.repr i))
           SEP (instance hs)
   POST [ tint ]
-      EX v: Z, 
+      ∃ v: Z,
           PROP(2* fold_right Z.add 0 (fst hs) < v <= 2* fold_right Z.add 0 (i::(fst hs)))
           LOCAL (temp ret_temp (Vint (Int.repr v))) 
           SEP(instance (i::(fst hs), snd hs)).
-(*
-Require Import VST.concurrency.conclib.
-Require Import VST.concurrency.semax_conc.
-Require Import VST.msl.seplog.
-Require Import VST.msl.predicates_hered.
-Lemma Contractive: forall Q R v, 
-  predicates_hered.allp (fun x : ObjInv => |> R x <=> |> Q x)
-  |-- func_ptr (reset_spec R) v <=> func_ptr (reset_spec Q) v.
-Proof. intros. rewrite fash_andp. apply andp_right. 
-+ red. intros n N. unfold func_ptr, func_ptr_si. apply subp_exp.
-Search seplog.imp fash. exp.
- red. intros r. simpl. apply subp_i1. Search fash seplog.imp. unfold func_ptr, func_ptr_si.
-apply eqp_exp. p_right. red.
-   *)
+
 Definition object_methods (instance: object_invariant) (mtable: val) : mpred :=
-  EX sh: share, EX reset: val, EX twiddle: val, EX twiddleR:val,
-  !! readable_share sh && 
-  func_ptr' (reset_spec instance) reset *
-  func_ptr' (twiddle_spec instance) twiddle *
-  func_ptr' (twiddle_spec instance) twiddleR *
+  ∃ sh: share, ∃ reset: val, ∃ twiddle: val, ∃ twiddleR:val,
+  ⌜readable_share sh⌝ ∧
+  func_ptr (reset_spec instance) reset ∗
+  func_ptr (twiddle_spec instance) twiddle ∗
+  func_ptr (twiddle_spec instance) twiddleR ∗
   data_at sh (Tstruct _methods noattr) (reset,(twiddle, twiddleR)) mtable.
 
 Lemma object_methods_local_facts: forall instance p,
-  object_methods instance p |-- !! isptr p.
+  object_methods instance p ⊢ ⌜isptr p⌝.
 Proof.
 intros.
 unfold object_methods.
 Intros sh reset twiddle twiddleR.
 entailer!.
 Qed.
-#[export] Hint Resolve object_methods_local_facts : saturate_local.
+Hint Resolve object_methods_local_facts : saturate_local.
 
 (*Andrew's definition
 Definition object_mpred (history: list Z) (self: val) : mpred :=
-  EX instance: object_invariant, EX mtable: val, 
+  ∃ instance: object_invariant, ∃ mtable: val, 
        (object_methods instance mtable *
      field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable self*
      instance history self).*)
@@ -84,250 +71,67 @@ Section ObjMpred.
 Variable instance: object_invariant.
 
 Definition F (X: ObjInv -> mpred) (hs: ObjInv): mpred :=
-   ((EX mtable: val, !!(isptr mtable) (*This has to hold NOW, not ust LATER*)&&
-     (|> object_methods X mtable) *
-     field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable (snd hs)) *
-   instance hs)%logic.
+   ((∃ mtable: val, ⌜isptr mtable⌝ (*This has to hold NOW, not just LATER*)∧
+     (▷ object_methods X mtable) ∗
+     field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable (snd hs)) ∗
+   instance hs)%I.
 
-Definition HOcontractive1 {A: Type}{NA: NatDed A}{IA: Indir A}{RI: RecIndir A}{X: Type}
-     (f: (X -> A) -> (X -> A)) := 
- forall P Q : X -> A,
- ALL x : X, |> fash (P x <--> Q x)
- |-- ALL x : X, fash (f P x --> f Q x).
+Program Instance F_mono : BiMonoPred F.
 
-Lemma HOcontractive_i1:
- forall  (A: Type)(NA: NatDed A){IA: Indir A}{RI: RecIndir A}{X: Type}
-     (f: (X -> A) -> (X -> A)),
-  HOcontractive1 f -> HOcontractive f.
+(*Local Instance F_contractive : Contractive F.
 Proof.
-intros.
-red in H|-*.
-intros.
-eapply derives_trans.
-apply andp_right.
-apply H.
-specialize (H Q P).
-eapply derives_trans.
-2: apply H.
-apply allp_derives; intros.
-apply later_derives.
-apply fash_derives.
-rewrite andp_comm.
-auto.
-apply allp_right; intro.
-rewrite fash_andp.
-apply andp_right.
-apply andp_left1.
-apply allp_left with v; auto.
-apply andp_left2.
-apply allp_left with v; auto.
-Qed.
+  rewrite /semax_ => n semax semax' Hsemax [??????].
+  do 8 f_equiv.
+  rewrite /believepred.
+  do 15 f_equiv.
+  rewrite /believe_internal_.
+  do 14 f_equiv.
+  by f_contractive.
+Qed.*)
 
-Lemma HOcontrF
-     (*Need sth like this (HI: HOcontractive (fun (_ : ObjInv -> mpred) (x : ObjInv) => instance x))*):
-      HOcontractive F.
-Proof.
-unfold F.
-apply HOcontractive_i1.
-red; intros.
-apply allp_right; intro oi.
-apply subp_sepcon_mpred; [ | apply subp_refl].
-apply subp_exp; intro v.
-apply subp_sepcon_mpred; [ | apply subp_refl].
-clear oi.
-apply subp_andp; [ apply subp_refl | ].
-eapply derives_trans, subp_later1.
-rewrite <- later_allp.
-apply later_derives.
-unfold object_methods.
-apply subp_exp; intro sh.
-apply subp_exp; intro reset.
-apply subp_exp; intro twiddle.
-apply subp_exp; intro twiddleR.
-apply subp_sepcon_mpred; [ | apply subp_refl].
-repeat simple apply subp_sepcon_mpred;
-try (simple apply subp_andp; [simple apply subp_refl | ]).
-+
-unfold func_ptr'.
-apply subp_andp; [ | apply subp_refl].
-clear - instance.
-eapply derives_trans; [ | apply fash_func_ptr_ND].
-apply allp_right; intro oi.
-apply andp_right.
-*
-apply allp_right; intro rho.
-apply subp_i1.
-rewrite unfash_allp.
-set (zz := allp _).
-unfold convertPre.
-unfold PROPx, LOCALx, SEPx, local, lift1; simpl.
-unfold_lift.
-normalize.
-rewrite prop_true_andp by tauto.
-subst zz.
-eapply derives_trans.
-apply andp_derives; [ | apply derives_refl].
-apply allp_left with oi.
-apply unfash_fash.
-eapply derives_trans.
-apply andp_derives.
-apply andp_left2. apply derives_refl. apply derives_refl.
-rewrite andp_comm. apply modus_ponens.
-*
-apply allp_right; intro rho.
-apply subp_i1.
-rewrite unfash_allp.
-set (zz := allp _).
-unfold convertPre.
-unfold PROPx, LOCALx, SEPx, local, lift1; simpl.
-unfold_lift.
-normalize.
-subst zz.
-eapply derives_trans.
-apply andp_derives; [ | apply derives_refl].
-apply allp_left with ([], snd oi).
-apply unfash_fash.
-eapply derives_trans.
-apply andp_derives.
-apply andp_left1. apply derives_refl. apply derives_refl.
-rewrite andp_comm. apply modus_ponens.
-+
-unfold func_ptr'.
-apply subp_andp; [ | apply subp_refl].
-clear - instance.
-eapply derives_trans; [ | apply fash_func_ptr_ND].
-apply allp_right; intros [hs i].
-apply andp_right.
-*
-apply allp_right; intro rho.
-apply subp_i1.
-rewrite unfash_allp.
-set (zz := allp _).
-unfold convertPre.
-unfold PROPx, LOCALx, SEPx, local, lift1; simpl.
-unfold_lift.
-normalize.
-rewrite prop_true_andp by tauto.
-subst zz.
-eapply derives_trans.
-apply andp_derives; [ | apply derives_refl].
-apply allp_left with hs.
-apply unfash_fash.
-eapply derives_trans.
-apply andp_derives.
-apply andp_left2. apply derives_refl. apply derives_refl.
-rewrite andp_comm. apply modus_ponens.
-*
-apply allp_right; intro rho.
-apply subp_i1.
-rewrite unfash_allp.
-set (zz := allp _).
-unfold PROPx, LOCALx, SEPx, local, lift1; simpl.
-unfold_lift.
-normalize.
-subst zz.
-apply exp_right with x.
-normalize.
-rewrite prop_true_andp by tauto.
-eapply derives_trans.
-apply andp_derives; [ | apply derives_refl].
-apply allp_left with (i::fst hs, snd hs).
-apply unfash_fash.
-eapply derives_trans.
-apply andp_derives.
-apply andp_left1. apply derives_refl. apply derives_refl.
-rewrite andp_comm. apply modus_ponens.
-+
-unfold func_ptr'.
-apply subp_andp; [ | apply subp_refl].
-clear - instance.
-eapply derives_trans; [ | apply fash_func_ptr_ND].
-apply allp_right; intros [hs i].
-apply andp_right.
-*
-apply allp_right; intro rho.
-apply subp_i1.
-rewrite unfash_allp.
-set (zz := allp _).
-unfold convertPre.
-unfold PROPx, LOCALx, SEPx, local, lift1; simpl.
-unfold_lift.
-normalize.
-rewrite prop_true_andp by tauto.
-subst zz.
-eapply derives_trans.
-apply andp_derives; [ | apply derives_refl].
-apply allp_left with hs.
-apply unfash_fash.
-eapply derives_trans.
-apply andp_derives.
-apply andp_left2. apply derives_refl. apply derives_refl.
-rewrite andp_comm. apply modus_ponens.
-*
-apply allp_right; intro rho.
-apply subp_i1.
-rewrite unfash_allp.
-set (zz := allp _).
-unfold PROPx, LOCALx, SEPx, local, lift1; simpl.
-unfold_lift.
-normalize.
-subst zz.
-apply exp_right with x.
-normalize.
-rewrite prop_true_andp by tauto.
-eapply derives_trans.
-apply andp_derives; [ | apply derives_refl].
-apply allp_left with (i::fst hs, snd hs).
-apply unfash_fash.
-eapply derives_trans.
-apply andp_derives.
-apply andp_left1. apply derives_refl. apply derives_refl.
-rewrite andp_comm. apply modus_ponens.
-Qed.
-
-Definition obj_mpred:ObjInv -> mpred := (HORec F). (*ie same type as Andrew's object_mpred.*)
+Definition obj_mpred:ObjInv -> mpred := bi_least_fixpoint(A := leibnizO ObjInv) F.
 
 Lemma ObjMpred_fold_unfold: 
-HOcontractive (fun (_ : ObjInv -> mpred) (x : ObjInv) => instance x) ->
-obj_mpred = 
-fun hs => 
-  ((EX mtable: val,!!(isptr mtable) &&
-     (|> object_methods obj_mpred mtable) *
-     field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable (snd hs)) *
-   instance hs)%logic.
+(*HOcontractive (fun (_ : ObjInv -> mpred) (x : ObjInv) => instance x) ->*)
+forall hs, obj_mpred hs ⊣⊢
+  ((∃ mtable: val,⌜isptr mtable⌝ ∧
+     (▷ object_methods obj_mpred mtable) ∗
+     field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable (snd hs)) ∗
+   instance hs).
 Proof.
   intros; unfold obj_mpred at 1.
+  rewrite least_fixpoint_unfold.
   rewrite HORec_fold_unfold; [ reflexivity | apply HOcontrF]; trivial.
 Qed.
 Lemma ObjMpred_fold_unfold' hs: 
 HOcontractive (fun (_ : ObjInv -> mpred) (x : ObjInv) => instance x) ->
 obj_mpred hs = 
-  ((EX mtable: val, !!(isptr mtable) &&
-     (|> object_methods obj_mpred mtable) *
+  ((∃ mtable: val, ⌜isptr mtable) ∧
+     (▷ object_methods obj_mpred mtable) *
      field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable (snd hs)) *
-   instance hs)%logic.
+   instance hs).
 Proof.
   intros. rewrite ObjMpred_fold_unfold, <- ObjMpred_fold_unfold; trivial. 
 Qed.
 
 Lemma ObjMpred_isptr
    (H: HOcontractive (fun (_ : ObjInv -> mpred) (x : ObjInv) => instance x))
-    hs: obj_mpred hs |-- !!(isptr (snd hs)).
+    hs: obj_mpred hs ⊢ ⌜isptr (snd hs)).
 Proof. rewrite ObjMpred_fold_unfold' by trivial; Intros m. entailer!. Qed.
 
 End ObjMpred.
 
 Definition object_mpred: object_invariant := fun hs =>
-  EX instance, !!(HOcontractive (fun (_ : ObjInv -> mpred) (x : ObjInv) => instance x)) &&
+  ∃ instance, ⌜HOcontractive (fun (_ : ObjInv -> mpred) (x : ObjInv) => instance x)) ∧
                obj_mpred instance hs.
 (*This now plays the role of Andrew's obj_mpred*)
 
-Lemma object_mpred_isptr hs: object_mpred hs |-- !!(isptr (snd hs)).
+Lemma object_mpred_isptr hs: object_mpred hs ⊢ ⌜isptr (snd hs)).
 Proof. unfold object_mpred; Intros inst. apply ObjMpred_isptr; trivial. Qed.
 
 Lemma obj_mpred_entails_object_mpred inst hs
   (H: HOcontractive (fun (_ : ObjInv -> mpred) (x : ObjInv) => inst x)):
-  obj_mpred inst hs |-- object_mpred hs.
+  obj_mpred inst hs ⊢ object_mpred hs.
 Proof. unfold object_mpred. Exists inst. entailer!. Qed.
 
 (*Andrew's specs 
@@ -352,7 +156,7 @@ Definition make_foo_spec :=
     PROP () LOCAL (gvars gv) 
     SEP (mem_mgr gv; object_methods foo_invariant (gv _foo_methods))
  POST [ tobject ]
-    EX p: val, PROP () LOCAL (temp ret_temp p)
+    ∃ p: val, PROP () LOCAL (temp ret_temp p)
      SEP (mem_mgr gv; object_mpred (*nil p*)(nil, p); object_methods foo_invariant (gv _foo_methods)).
 
 *)
@@ -378,10 +182,10 @@ Definition foo_obj_invariant :object_invariant := obj_mpred foo_data.
 (*New lemma!*)
 Lemma foo_obj_invariant_fold_unfold: foo_obj_invariant =
  fun hs =>
-  ((EX mtable: val, !!(isptr mtable) &&
-     (|>object_methods foo_obj_invariant  mtable) *
+  ((∃ mtable: val, ⌜isptr mtable) ∧
+     (▷object_methods foo_obj_invariant  mtable) *
      field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable (snd hs)) *
-   foo_data hs)%logic.
+   foo_data hs).
 Proof.
   unfold foo_obj_invariant.
   rewrite <- ObjMpred_fold_unfold. trivial. apply foo_data_HOcontr.
@@ -389,13 +193,13 @@ Qed.
 
 (*Sometimes this variant is preferable, sometimes the one above*)
 Lemma foo_obj_invariant_fold_unfold' hs: foo_obj_invariant hs =
-  ((EX mtable: val, !!(isptr mtable) &&
-     (|>object_methods foo_obj_invariant  mtable) *
+  ((∃ mtable: val, ⌜isptr mtable) ∧
+     (▷object_methods foo_obj_invariant  mtable) *
      field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable (snd hs)) *
-   foo_data hs)%logic.
+   foo_data hs).
 Proof. rewrite foo_obj_invariant_fold_unfold. rewrite <- foo_obj_invariant_fold_unfold; trivial. Qed.
 
-Lemma foo_data_isptr hs: foo_data hs = !!(isptr (snd hs)) && foo_data hs.
+Lemma foo_data_isptr hs: foo_data hs = ⌜isptr (snd hs)) ∧ foo_data hs.
 apply pred_ext; entailer.
 unfold foo_data. entailer!. destruct (snd hs); simpl in *; trivial;  contradiction.
 Qed.
@@ -416,7 +220,7 @@ Definition make_foo_spec :=
     PROP () LOCAL (gvars gv) 
     SEP (mem_mgr gv; object_methods foo_obj_invariant (gv _foo_methods))
  POST [ tobject ]
-    EX p: val, PROP () LOCAL (temp ret_temp p)
+    ∃ p: val, PROP () LOCAL (temp ret_temp p)
      SEP (mem_mgr gv; object_mpred (nil,p); object_methods foo_obj_invariant (gv _foo_methods)).
 End NewSpecs.
 
@@ -425,7 +229,7 @@ Definition main_spec :=
   WITH gv: globals
   PRE  [] main_pre prog tt gv
   POST [ tint ]
-     EX i:Z, PROP(0<=i<=6) LOCAL (temp ret_temp (Vint (Int.repr i))) SEP(TT).
+     ∃ i:Z, PROP(0<=i<=6) LOCAL (temp ret_temp (Vint (Int.repr i))) SEP(TT).
 
 Definition Gprog : funspecs :=   ltac:(with_library prog [
     foo_reset_spec; foo_twiddle_spec; foo_twiddleR_spec; make_foo_spec; main_spec]).
@@ -434,11 +238,11 @@ Definition Gprog : funspecs :=   ltac:(with_library prog [
 Lemma object_mpred_i:
   forall (*(history: list Z) (self: val)*)(x:ObjInv) (instance: object_invariant) (mtable: val)
   ((*NEW*)CONTR: HOcontractive (fun (_ : ObjInv -> mpred) (x : ObjInv) => instance x)),
-  match x with (history, self) => !!(isptr mtable) &&
-     (|>object_methods instance mtable) *
+  match x with (history, self) => ⌜isptr mtable) ∧
+     (▷object_methods instance mtable) *
      field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable self *
      instance (*history self*)x 
-    |-- object_mpred (*history self*)x
+    ⊢ object_mpred (*history self*)x
   end.
 Proof.
 (*intros. unfold object_mpred. Exists instance mtable; auto.*)
@@ -451,17 +255,17 @@ apply exp_derives; intros r.
 apply exp_derives; intros t.
 apply exp_derives; intros tR. entailer!.
 apply sepcon_derives. admit.
-apply func_ptr'_mono. clear - CONTR. do_funspec_sub.
+apply func_ptr_mono. clear - CONTR. do_funspec_sub.
  rewrite ObjMpred_fold_unfold by trivial.
 Exists w; destruct w; entailer!. unfold convertPre. Intros.
-Exists (EX mtable : val,
- !! isptr mtable && |> object_methods (obj_mpred instance) mtable *
+Exists (∃ mtable : val,
+ ⌜isptr mtable ∧ ▷ object_methods (obj_mpred instance) mtable *
  field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable (snd o)).
 entailer!.
 intros. Exists mtable x0. entailer!. destruct w.
- Exists w (EX mtable : val,
-      !! isptr mtable &&
-      |> object_methods (obj_mpred instance) mtable *
+ Exists w (∃ mtable : val,
+      ⌜isptr mtable ∧
+      ▷ object_methods (obj_mpred instance) mtable *
       field_at Ews (Tstruct _object noattr) [
         StructField _mtable] mtable (snd hs)). entailer!.
   intros. destruct w as [hist i]. 
@@ -532,11 +336,11 @@ Qed.
 Lemma make_object_methods:
   forall sh instance reset twiddle twiddleR mtable,
   readable_share sh ->
-  func_ptr' (reset_spec instance) reset *
-  func_ptr' (twiddle_spec instance) twiddle *
-  func_ptr' (twiddle_spec instance) twiddleR * 
+  func_ptr (reset_spec instance) reset *
+  func_ptr (twiddle_spec instance) twiddle *
+  func_ptr (twiddle_spec instance) twiddleR * 
   data_at sh (Tstruct _methods noattr) (reset, (twiddle, twiddleR)) mtable
-  |-- object_methods instance mtable.
+  ⊢ object_methods instance mtable.
 Proof.
   intros.
   unfold object_methods.
@@ -547,11 +351,11 @@ Qed.
 Lemma make_object_methods_later:
   forall sh instance reset twiddle twiddleR mtable,
   readable_share sh ->
-  func_ptr' (reset_spec instance) reset *
-  func_ptr' (twiddle_spec instance) twiddle *
-  func_ptr' (twiddle_spec instance) twiddleR * 
+  func_ptr (reset_spec instance) reset *
+  func_ptr (twiddle_spec instance) twiddle *
+  func_ptr (twiddle_spec instance) twiddleR * 
   data_at sh (Tstruct _methods noattr) (reset, (twiddle, twiddleR)) mtable
-  |-- |> object_methods instance mtable.
+  ⊢ ▷ object_methods instance mtable.
 Proof.
 intros. eapply derives_trans. apply make_object_methods; trivial. apply now_later.
 Qed.
@@ -598,7 +402,7 @@ Qed.
 
 Lemma split_object_methods:
   forall instance m, 
-    object_methods instance m |-- object_methods instance m * object_methods instance m.
+    object_methods instance m ⊢ object_methods instance m * object_methods instance m.
 Proof.
 intros.
 unfold object_methods.
@@ -606,9 +410,9 @@ Intros sh reset twiddle twiddleR.
 
 Exists (fst (slice.cleave sh)) reset twiddle twiddleR.
 Exists (snd (slice.cleave sh)) reset twiddle twiddleR.
-rewrite (split_func_ptr' (reset_spec instance) reset) at 1.
-rewrite (split_func_ptr' (twiddle_spec instance) twiddle) at 1.
-rewrite (split_func_ptr' (twiddle_spec instance) twiddleR) at 1.
+rewrite (split_func_ptr (reset_spec instance) reset) at 1.
+rewrite (split_func_ptr (twiddle_spec instance) twiddle) at 1.
+rewrite (split_func_ptr (twiddle_spec instance) twiddleR) at 1.
 entailer!!.
 split.
 apply slice.cleave_readable1; auto.
@@ -827,7 +631,4 @@ forward.  (* return i; *)
 Exists i; entailer!!.
 Qed.
 
-
-
-
-
+end mpred.

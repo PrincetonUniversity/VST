@@ -28,6 +28,7 @@ Qed.
 Lemma body_iden': semax_body Vprog Gprog f_iden iden_spec.
 Proof.
   start_function.
+  rename a into x.
   forward.
   forward.
   forward.
@@ -41,4 +42,3 @@ Proof.
   (* Should it fail? Yes. Because the lvar clause are used in stackframe cancel.
      The error message? We'd Better improve it.  --- Qinxiang 2019.11.8 *)
 Abort.
-

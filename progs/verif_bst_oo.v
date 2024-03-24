@@ -63,11 +63,11 @@ Fixpoint treebox_rep (t: tree val) (b: val) : mpred :=
   match t with
   | E => data_at Tsh (tptr t_struct_tree) nullval b
   | T l x p r =>
-      !! (Int.min_signed <= x <= Int.max_signed) &&
+      (!! (Int.min_signed <= x <= Int.max_signed) &&
       data_at Tsh (tptr t_struct_tree) p b *
       field_at Tsh t_struct_tree [StructField _key] (Vint (Int.repr x)) p *
       treebox_rep l (field_address t_struct_tree [StructField _left] p) *
-      treebox_rep r (field_address t_struct_tree [StructField _right] p)
+      treebox_rep r (field_address t_struct_tree [StructField _right] p))%I
   end.
 
 Fixpoint key_store (s: tree val) (x: key) (q: val): Prop :=
@@ -88,8 +88,8 @@ Definition value_at (t: tree val) (v: val) (x: Z): mpred :=
 
 (* TODO: maybe not useful *)
 Lemma treebox_rep_spec: forall (t: tree val) (b: val),
-  treebox_rep t b =
-  data_at Tsh (tptr t_struct_tree)
+  treebox_rep t b ⊣⊢
+  (data_at Tsh (tptr t_struct_tree)
     match t return val with
     | E => nullval
     | T _ _ p _ => p
@@ -101,7 +101,7 @@ Lemma treebox_rep_spec: forall (t: tree val) (b: val),
       field_at Tsh t_struct_tree [StructField _key] (Vint (Int.repr x)) p *
       treebox_rep l (field_address t_struct_tree [StructField _left] p) *
       treebox_rep r (field_address t_struct_tree [StructField _right] p)
-  end.
+  end)%I.
 Proof.
   intros.
   destruct t; simpl; apply pred_ext; entailer!.
@@ -290,24 +290,15 @@ Qed.
 #[export] Hint Resolve tree_rep_valid_pointer: valid_pointer.
 
 *)
-Lemma modus_ponens_wand' {A}{ND: NatDed A}{SL: SepLog A}:
-  forall P Q R: A, (P |-- Q) -> P * (Q -* R) |-- R.
-Proof.
-  intros.
-  eapply derives_trans; [| apply modus_ponens_wand].
-  apply sepcon_derives; [| apply derives_refl].
-  auto.
-Qed.
-
-Lemma RAMIF_Q2_trans' {X Y A : Type} {ND : NatDed A} {SL : SepLog A}:
+Lemma RAMIF_Q2_trans' {X Y} {A : bi}:
   forall (m l: A) (g' m' l' : X -> Y -> A),
-    (m |-- l * (ALL p: X, ALL q: Y, l' p q -* m' p q)) ->
-    m * (ALL p: X, ALL q: Y, m' p q -* g' p q) |-- l * (ALL p: X, ALL q: Y, l' p q -* g' p q).
+    (m |-- l * (ALL p: X, ALL q: Y, (l' p q -* m' p q))) ->
+    m * (ALL p: X, ALL q: Y, (m' p q -* g' p q)) |-- l * (ALL p: X, ALL q: Y, (l' p q -* g' p q)).
 Proof.
   intros.
   eapply derives_trans; [apply sepcon_derives; [exact H | apply derives_refl] |].
   clear H.
-  rewrite sepcon_assoc.
+  rewrite <- sepcon_assoc.
   apply sepcon_derives; auto.
   apply allp_right; intros p.
   apply allp_right; intros q.
