@@ -547,7 +547,7 @@ Qed.
 End IO.
 
 Require Import VST.veric.SequentialClight.
-Require Import VST.progs64.io_mem_dry.
+Require Import VST.progs.io_mem_dry.
 
 Definition init_mem_exists : { m | Genv.init_mem prog = Some m }.
 Proof.

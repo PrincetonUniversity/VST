@@ -99,6 +99,7 @@ Section PROOFS.
       rewrite /inv_for_lock.
       iExists true; auto. }
     forward.
+    unfold lock_inv; simpl.
     Exists (p, i, g); unfold atomic_lock_inv; entailer!.
   Qed.
 

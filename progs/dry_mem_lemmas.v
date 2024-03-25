@@ -102,7 +102,7 @@ Proof.
   assert_PROP (field_compatible (tarray tuchar z) [] buf).
   { unfold data_at, field_at; iIntros "(_ & >($ & _))". }
   destruct buf; try by destruct H.
-  remember (Z.to_nat z) as n; revert dependent i; revert dependent bytes; revert dependent z; induction n; intros.
+  remember (Z.to_nat z) as n; generalize dependent i; generalize dependent bytes; generalize dependent z; induction n; intros.
   { assert (z = 0) as -> by rep_lia.
     destruct bytes; last by autorewrite with sublist in *; rep_lia.
     rewrite Mem.loadbytes_empty //; auto. }
@@ -227,7 +227,7 @@ Lemma data_at__storebytes : forall {CS : compspecs} m m' sh z b o lv (Hsh : writ
   mem_auth m' ∗ data_at sh (tarray tuchar z) lv (Vptr b o).
 Proof.
   intros.
-  remember (Z.to_nat z) as n; revert dependent o; revert dependent lv; revert dependent z; revert dependent m; induction n; intros; subst.
+  remember (Z.to_nat z) as n; generalize dependent o; generalize dependent lv; generalize dependent z; generalize dependent m; induction n; intros; subst.
   { destruct lv; try done; simpl in *.
     rewrite mem_auth_equiv; last by eapply storebytes_nil.
     rewrite data_at__Tarray Zlength_nil Zrepeat_0; auto.

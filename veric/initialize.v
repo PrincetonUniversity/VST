@@ -1108,7 +1108,7 @@ Proof.
   rewrite <- (app_nil_r G).
   rewrite <- (rev_involutive vl), <- (rev_involutive G).
   apply match_fdecs_rev'; auto.
-  rewrite rev_involutive -app_nil_end; auto.
+  rewrite rev_involutive app_nil_r; auto.
   constructor.
 *
   rewrite <- (app_nil_r (rev vl)).

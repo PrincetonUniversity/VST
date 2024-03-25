@@ -1,5 +1,4 @@
 Require Import VST.floyd.proofauto.
-Require Import VST.floyd.compat.
 Require Import VST.floyd.library.
 Require Import VST.progs.objectSelfFancyOverriding.
 
@@ -12,7 +11,9 @@ the client has enough knowledge to call the correct function*)
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
-Local Open Scope Z.
+Section mpred.
+
+Context `{!default_VSTGS Σ}.
 
 Section FOO.
 
@@ -21,7 +22,7 @@ Definition object_invariant := list Z -> val -> mpred.*)
 
 (*But the uncurried version is easier for the HOrec construction*)
 Definition ObjInv : Type:= (list Z * val).
-Definition object_invariant := ObjInv -> mpred.
+Definition object_invariant := ObjInv -d> mpred.
 
 Definition tobject := tptr (Tstruct _object noattr).
 
@@ -43,21 +44,38 @@ Definition twiddle_spec (instance: object_invariant) :=
           PARAMS (snd hs; Vint (Int.repr i)) GLOBALS ()
           SEP (instance hs)
   POST [ tint ]
-      EX v: Z, 
+      ∃ v: Z,
           PROP(2* fold_right Z.add 0 (fst hs) < v <= 2* fold_right Z.add 0 (i::(fst hs)))
-          LOCAL (temp ret_temp (Vint (Int.repr v))) 
+          LOCAL (temp ret_temp (Vint (Int.repr v)))
           SEP(instance (i::(fst hs), snd hs)).
 
 Definition object_methods (instance: object_invariant) (mtable: val) : mpred :=
-  EX sh: share, EX reset: val, EX twiddle: val, EX twiddleR:val,
-  !! readable_share sh && 
-  func_ptr (reset_spec instance) reset *
-  func_ptr (twiddle_spec instance) twiddle *
-  func_ptr (twiddle_spec instance) twiddleR *
+  ∃ sh: share, ∃ reset: val, ∃ twiddle: val, ∃ twiddleR:val,
+  ⌜readable_share sh⌝ ∧
+  func_ptr (reset_spec instance) reset ∗
+  func_ptr (twiddle_spec instance) twiddle ∗
+  func_ptr (twiddle_spec instance) twiddleR ∗
   data_at sh (Tstruct _methods noattr) (reset,(twiddle, twiddleR)) mtable.
 
+Global Instance reset_spec_ne : NonExpansive reset_spec.
+Proof.
+  intros ????.
+  unfold reset_spec, NDmk_funspec.
+  f_equiv; intros ??; simpl; by repeat f_equiv.
+Qed.
+
+Global Instance twiddle_spec_ne : NonExpansive twiddle_spec.
+Proof.
+  intros ????.
+  unfold twiddle_spec, NDmk_funspec.
+  f_equiv; intros ??; simpl; by repeat f_equiv.
+Qed.
+
+Global Instance object_methods_ne n : Proper (dist n ==> eq ==> dist n) object_methods.
+Proof. solve_proper. Qed.
+
 Lemma object_methods_local_facts: forall instance p,
-  object_methods instance p |-- !! isptr p.
+  object_methods instance p ⊢ ⌜isptr p⌝.
 Proof.
 intros.
 unfold object_methods.
@@ -70,11 +88,11 @@ Local Hint Resolve object_methods_local_facts : saturate_local.
 Lemma make_object_methods:
   forall sh instance reset twiddle twiddleR mtable,
   readable_share sh ->
-  func_ptr (reset_spec instance) reset *
-  func_ptr (twiddle_spec instance) twiddle *
-  func_ptr (twiddle_spec instance) twiddleR * 
+  func_ptr (reset_spec instance) reset ∗
+  func_ptr (twiddle_spec instance) twiddle ∗
+  func_ptr (twiddle_spec instance) twiddleR ∗
   data_at sh (Tstruct _methods noattr) (reset, (twiddle, twiddleR)) mtable
-  |-- object_methods instance mtable.
+  ⊢ object_methods instance mtable.
 Proof.
   intros.
   unfold object_methods.
@@ -85,18 +103,18 @@ Qed.
 Lemma make_object_methods_later:
   forall sh instance reset twiddle twiddleR mtable,
   readable_share sh ->
-  func_ptr (reset_spec instance) reset *
-  func_ptr (twiddle_spec instance) twiddle *
-  func_ptr (twiddle_spec instance) twiddleR * 
+  func_ptr (reset_spec instance) reset ∗
+  func_ptr (twiddle_spec instance) twiddle ∗
+  func_ptr (twiddle_spec instance) twiddleR ∗
   data_at sh (Tstruct _methods noattr) (reset, (twiddle, twiddleR)) mtable
-  |-- |> object_methods instance mtable.
+  ⊢ ▷ object_methods instance mtable.
 Proof.
 intros. eapply derives_trans. apply make_object_methods; trivial. apply bi.later_intro.
 Qed.
 
 (*Andrew's definition
 Definition object_mpred (history: list Z) (self: val) : mpred :=
-  EX instance: object_invariant, EX mtable: val, 
+  ∃ instance: object_invariant, ∃ mtable: val, 
        (object_methods instance mtable *
      field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable self*
      instance history self).*)
@@ -104,252 +122,58 @@ Definition object_mpred (history: list Z) (self: val) : mpred :=
 Section ObjMpred.
 Variable instance: object_invariant.
 
-Definition F (X: ObjInv -> mpred) (hs: ObjInv): mpred :=
-   ((EX mtable: val, !!(isptr mtable) (*This has to hold NOW, not ust LATER*)&&
-     (|> object_methods X mtable) *
-     field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable (snd hs)) *
+Definition F (X: ObjInv -d> mpred) : ObjInv -d> mpred := fun hs =>
+   ((∃ mtable: val, ⌜isptr mtable⌝ (*This has to hold NOW, not just LATER*)∧
+     (▷ object_methods X mtable) ∗
+     field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable (snd hs)) ∗
    instance hs).
 
-Definition HOcontractive1 {A: Type}{NA: NatDed A}{IA: Indir A}{RI: RecIndir A}{X: Type}
-     (f: (X -> A) -> (X -> A)) := 
- forall P Q : X -> A,
- ALL x : X, |> fash (P x <--> Q x)
- |-- ALL x : X, fash (f P x --> f Q x).
-
-Lemma HOcontractive_i1:
- forall  (A: Type)(NA: NatDed A){IA: Indir A}{RI: RecIndir A}{X: Type}
-     (f: (X -> A) -> (X -> A)),
-  HOcontractive1 f -> HOcontractive f.
+Local Instance F_contractive : Contractive F.
 Proof.
-intros.
-red in H|-*.
-intros.
-eapply derives_trans.
-apply andp_right.
-apply H.
-specialize (H Q P).
-eapply derives_trans.
-2: apply H.
-apply allp_derives; intros.
-apply later_derives.
-apply fash_derives.
-rewrite andp_comm.
-auto.
-apply allp_right; intro.
-rewrite fash_andp.
-apply andp_right.
-apply andp_left1.
-apply allp_left with v; auto.
-apply andp_left2.
-apply allp_left with v; auto.
+  intros ?????.
+  unfold F.
+  do 5 f_equiv.
+  f_contractive.
+  rewrite H //.
 Qed.
 
-Lemma HOcontrF
-     (*Need sth like this (HI: HOcontractive (fun (_ : ObjInv -> mpred) (x : ObjInv) => instance x))*):
-      HOcontractive F.
-Proof.
-unfold F.
-apply HOcontractive_i1.
-red; intros.
-apply allp_right; intro oi.
-apply subp_sepcon_mpred; [ | apply subp_refl].
-apply subp_exp; intro v.
-apply subp_sepcon_mpred; [ | apply subp_refl].
-clear oi.
-apply subp_andp; [ apply subp_refl | ].
-eapply derives_trans, subp_later1.
-rewrite <- later_allp.
-apply later_derives.
-unfold object_methods.
-apply subp_exp; intro sh.
-apply subp_exp; intro reset.
-apply subp_exp; intro twiddle.
-apply subp_exp; intro twiddleR.
-apply subp_sepcon_mpred; [ | apply subp_refl].
-repeat simple apply subp_sepcon_mpred;
-try (simple apply subp_andp; [simple apply subp_refl | ]).
-+
-unfold func_ptr.
-apply subp_andp; [ | apply subp_refl].
-clear - instance.
-eapply derives_trans; [ | apply fash_func_ptr_ND].
-apply allp_right; intro oi.
-apply andp_right.
-*
-apply allp_right; intro rho.
-apply subp_i1.
-rewrite unfash_allp.
-set (zz := allp _).
-unfold convertPre.
-unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, local, lift1; simpl.
-unfold_lift.
-normalize.
-rewrite prop_true_andp by tauto.
-subst zz.
-eapply derives_trans.
-apply andp_derives; [ | apply derives_refl].
-apply allp_left with oi.
-apply unfash_fash.
-eapply derives_trans.
-apply andp_derives.
-apply andp_left2. apply derives_refl. apply derives_refl.
-rewrite andp_comm. apply modus_ponens.
-*
-apply allp_right; intro rho.
-apply subp_i1.
-rewrite unfash_allp.
-set (zz := allp _).
-unfold convertPre.
-unfold PROPx, LOCALx, SEPx, local, lift1; simpl.
-unfold_lift.
-normalize.
-subst zz.
-eapply derives_trans.
-apply andp_derives; [ | apply derives_refl].
-apply allp_left with ([], snd oi).
-apply unfash_fash.
-eapply derives_trans.
-apply andp_derives.
-apply andp_left1. apply derives_refl. apply derives_refl.
-rewrite andp_comm. apply modus_ponens.
-+
-unfold func_ptr.
-apply subp_andp; [ | apply subp_refl].
-clear - instance.
-eapply derives_trans; [ | apply fash_func_ptr_ND].
-apply allp_right; intros [hs i].
-apply andp_right.
-*
-apply allp_right; intro rho.
-apply subp_i1.
-rewrite unfash_allp.
-set (zz := allp _).
-unfold convertPre.
-unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, local, lift1; simpl.
-unfold_lift.
-normalize.
-rewrite prop_true_andp by tauto.
-subst zz.
-eapply derives_trans.
-apply andp_derives; [ | apply derives_refl].
-apply allp_left with hs.
-apply unfash_fash.
-eapply derives_trans.
-apply andp_derives.
-apply andp_left2. apply derives_refl. apply derives_refl.
-rewrite andp_comm. apply modus_ponens.
-*
-apply allp_right; intro rho.
-apply subp_i1.
-rewrite unfash_allp.
-set (zz := allp _).
-unfold PROPx, LOCALx, SEPx, local, lift1; simpl.
-unfold_lift.
-normalize.
-subst zz.
-apply exp_right with x.
-normalize.
-rewrite prop_true_andp by tauto.
-eapply derives_trans.
-apply andp_derives; [ | apply derives_refl].
-apply allp_left with (i::fst hs, snd hs).
-apply unfash_fash.
-eapply derives_trans.
-apply andp_derives.
-apply andp_left1. apply derives_refl. apply derives_refl.
-rewrite andp_comm. apply modus_ponens.
-+
-unfold func_ptr.
-apply subp_andp; [ | apply subp_refl].
-clear - instance.
-eapply derives_trans; [ | apply fash_func_ptr_ND].
-apply allp_right; intros [hs i].
-apply andp_right.
-*
-apply allp_right; intro rho.
-apply subp_i1.
-rewrite unfash_allp.
-set (zz := allp _).
-unfold convertPre.
-unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, local, lift1; simpl.
-unfold_lift.
-normalize.
-rewrite prop_true_andp by tauto.
-subst zz.
-eapply derives_trans.
-apply andp_derives; [ | apply derives_refl].
-apply allp_left with hs.
-apply unfash_fash.
-eapply derives_trans.
-apply andp_derives.
-apply andp_left2. apply derives_refl. apply derives_refl.
-rewrite andp_comm. apply modus_ponens.
-*
-apply allp_right; intro rho.
-apply subp_i1.
-rewrite unfash_allp.
-set (zz := allp _).
-unfold PROPx, LOCALx, SEPx, local, lift1; simpl.
-unfold_lift.
-normalize.
-subst zz.
-apply exp_right with x.
-normalize.
-rewrite prop_true_andp by tauto.
-eapply derives_trans.
-apply andp_derives; [ | apply derives_refl].
-apply allp_left with (i::fst hs, snd hs).
-apply unfash_fash.
-eapply derives_trans.
-apply andp_derives.
-apply andp_left1. apply derives_refl. apply derives_refl.
-rewrite andp_comm. apply modus_ponens.
-Qed.
+Definition obj_mpred:ObjInv -> mpred := fixpoint F.
 
-Definition obj_mpred:ObjInv -> mpred := (HORec F). (*ie same type as Andrew's object_mpred.*)
-
-Lemma ObjMpred_fold_unfold: 
-HOcontractive (fun (_ : ObjInv -> mpred) (x : ObjInv) => instance x) ->
-obj_mpred = 
-fun hs => 
-  ((EX mtable: val,!!(isptr mtable) &&
-     (|> object_methods obj_mpred mtable) *
-     field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable (snd hs)) *
+Lemma ObjMpred_fold_unfold:
+forall hs, obj_mpred hs ⊣⊢
+  ((∃ mtable: val,⌜isptr mtable⌝ ∧
+     (▷ object_methods obj_mpred mtable) ∗
+     field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable (snd hs)) ∗
    instance hs).
 Proof.
   intros; unfold obj_mpred at 1.
-  rewrite HORec_fold_unfold; [ reflexivity | apply HOcontrF]; trivial.
+  by rewrite (fixpoint_unfold F _).
 Qed.
-Lemma ObjMpred_fold_unfold' hs: 
-HOcontractive (fun (_ : ObjInv -> mpred) (x : ObjInv) => instance x) ->
-obj_mpred hs = 
-  ((EX mtable: val, !!(isptr mtable) &&
-     (|> object_methods obj_mpred mtable) *
-     field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable (snd hs)) *
+Lemma ObjMpred_fold_unfold' hs:
+obj_mpred hs ⊣⊢
+  ((∃ mtable: val, ⌜isptr mtable⌝ ∧
+     (▷ object_methods obj_mpred mtable) ∗
+     field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable (snd hs)) ∗
    instance hs).
 Proof.
-  intros. rewrite ObjMpred_fold_unfold, <- ObjMpred_fold_unfold; trivial. 
+  intros. rewrite ObjMpred_fold_unfold -ObjMpred_fold_unfold; trivial.
 Qed.
 
-Lemma ObjMpred_isptr
-   (H: HOcontractive (fun (_ : ObjInv -> mpred) (x : ObjInv) => instance x))
-    hs: obj_mpred hs |-- !!(isptr (snd hs)).
-Proof. rewrite ObjMpred_fold_unfold' by trivial; Intros m. entailer!. Qed.
+Lemma ObjMpred_isptr hs: obj_mpred hs ⊢ ⌜isptr (snd hs)⌝.
+Proof. rewrite -> ObjMpred_fold_unfold' by trivial; Intros m. entailer!. Qed.
 
 End ObjMpred.
 
 Definition object_mpred: object_invariant := fun hs =>
-  EX instance, !!(HOcontractive (fun (_ : ObjInv -> mpred) (x : ObjInv) => instance x)) &&
-               obj_mpred instance hs.
+  ∃ instance, obj_mpred instance hs.
 (*This now plays the role of Andrew's obj_mpred*)
 
-Lemma object_mpred_isptr hs: object_mpred hs |-- !!(isptr (snd hs)).
+Lemma object_mpred_isptr hs: object_mpred hs ⊢ ⌜isptr (snd hs)⌝.
 Proof. unfold object_mpred; Intros inst. apply ObjMpred_isptr; trivial. Qed.
 
-Lemma obj_mpred_entails_object_mpred inst hs
-  (H: HOcontractive (fun (_ : ObjInv -> mpred) (x : ObjInv) => inst x)):
-  obj_mpred inst hs |-- object_mpred hs.
-Proof. unfold object_mpred. Exists inst. entailer!!. Qed.
+Lemma obj_mpred_entails_object_mpred inst hs:
+  obj_mpred inst hs ⊢ object_mpred hs.
+Proof. unfold object_mpred. Exists inst. entailer!. Qed.
 
 (*Andrew's specs 
 Definition foo_invariant : object_invariant :=
@@ -373,7 +197,7 @@ Definition make_foo_spec :=
     PROP () LOCAL (gvars gv) 
     SEP (mem_mgr gv; object_methods foo_invariant (gv _foo_methods))
  POST [ tobject ]
-    EX p: val, PROP () LOCAL (temp ret_temp p)
+    ∃ p: val, PROP () LOCAL (temp ret_temp p)
      SEP (mem_mgr gv; object_mpred (*nil p*)(nil, p); object_methods foo_invariant (gv _foo_methods)).
 
 *)
@@ -383,42 +207,37 @@ Definition foo_data : object_invariant :=
   (fun (x:ObjInv) => 
     withspacer Ews (sizeof size_t + sizeof tint) (2 * sizeof size_t) (field_at Ews (Tstruct _foo_object noattr) 
             [StructField _data] (Vint (Int.repr (2*fold_right Z.add 0 (fst x))))) (snd x)
-      *  malloc_token Ews (Tstruct _foo_object noattr) (snd x)).
-Lemma foo_data_HOcontr: HOcontractive (fun (_ : ObjInv -> mpred) (x : ObjInv) => foo_data x).
-Proof.
-  assert (predicates_rec.HOcontractive (fun (_ : ObjInv -> mpred) (x : ObjInv) => foo_data x)). 2: constructor; apply H.
-  unfold foo_data.
-  unfold withspacer; simpl.
-  apply Trashcan.sepcon_HOcontractive.
-  apply Trashcan.const_HOcontractive.
-  apply Trashcan.const_HOcontractive.
-Qed.
+      ∗ malloc_token Ews (Tstruct _foo_object noattr) (snd x)).
 
-Definition foo_obj_invariant :object_invariant := obj_mpred foo_data.
+Definition foo_obj_invariant : object_invariant := obj_mpred foo_data.
 
 (*New lemma!*)
-Lemma foo_obj_invariant_fold_unfold: foo_obj_invariant =
+Lemma foo_obj_invariant_fold_unfold: foo_obj_invariant ≡
  fun hs =>
-  ((EX mtable: val, !!(isptr mtable) &&
-     (|>object_methods foo_obj_invariant  mtable) *
-     field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable (snd hs)) *
+  ((∃ mtable: val, ⌜isptr mtable⌝ ∧
+     (▷object_methods foo_obj_invariant  mtable) ∗
+     field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable (snd hs)) ∗
    foo_data hs).
 Proof.
-  unfold foo_obj_invariant.
-  rewrite <- ObjMpred_fold_unfold. trivial. apply foo_data_HOcontr.
+  unfold foo_obj_invariant; intros ?.
+  rewrite <- ObjMpred_fold_unfold. trivial.
 Qed.
 
 (*Sometimes this variant is preferable, sometimes the one above*)
-Lemma foo_obj_invariant_fold_unfold' hs: foo_obj_invariant hs =
-  ((EX mtable: val, !!(isptr mtable) &&
-     (|>object_methods foo_obj_invariant  mtable) *
-     field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable (snd hs)) *
+Lemma foo_obj_invariant_fold_unfold' hs: foo_obj_invariant hs ⊣⊢
+  ((∃ mtable: val, ⌜isptr mtable⌝ ∧
+     (▷object_methods foo_obj_invariant  mtable) ∗
+     field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable (snd hs)) ∗
    foo_data hs).
-Proof. rewrite foo_obj_invariant_fold_unfold. rewrite <- foo_obj_invariant_fold_unfold; trivial. Qed.
+Proof. apply (foo_obj_invariant_fold_unfold hs). Qed.
 
-Lemma foo_data_isptr hs: foo_data hs = !!(isptr (snd hs)) && foo_data hs.
-apply pred_ext; entailer.
-unfold foo_data. entailer!. destruct (snd hs); simpl in *; trivial;  contradiction.
+Lemma foo_data_isptr hs: foo_data hs ⊣⊢ ⌜isptr (snd hs)⌝ ∧ foo_data hs.
+Proof.
+  iSplit.
+  - iIntros; iSplit; last done.
+    unfold foo_data; iStopProof.
+    destruct (hs.2); entailer!.
+  - iIntros "(_ & $)".
 Qed.
 
 
@@ -438,7 +257,7 @@ Definition make_foo_spec :=
     PROP () PARAMS () GLOBALS (gv) 
     SEP (mem_mgr gv; object_methods foo_obj_invariant (gv _foo_methods))
  POST [ tobject ]
-    EX p: val, PROP () LOCAL (temp ret_temp p)
+    ∃ p: val, PROP () LOCAL (temp ret_temp p)
      SEP (mem_mgr gv; object_mpred (nil,p); object_methods foo_obj_invariant (gv _foo_methods)).
 End NewSpecs.
 
@@ -447,18 +266,18 @@ Definition FooGprog : funspecs :=   ltac:(with_library prog [
 
 Lemma body_foo_reset: semax_body Vprog FooGprog f_foo_reset foo_reset_spec.
 Proof.
-start_function. 
-(*New:*) rewrite foo_obj_invariant_fold_unfold. Intros m; unfold foo_data.
+start_function.
+(*New:*) rewrite foo_obj_invariant_fold_unfold'. Intros m; unfold foo_data.
 unfold withspacer; simpl; Intros.
 forward.  (* self->data=0; *)
 entailer!!.
-(*New:*) rewrite foo_obj_invariant_fold_unfold, <- foo_obj_invariant_fold_unfold. Exists m; unfold foo_data.
-all: unfold withspacer; simpl; entailer!!.  (* needed if Archi.ptr64=true *)
+(*New:*) rewrite foo_obj_invariant_fold_unfold'. Exists m; unfold foo_data.
+all: unfold withspacer; simpl; entailer!.  (* needed if Archi.ptr64=true *)
 Qed.
 
-Lemma body_foo_reset_alternativeproof: semax_body Vprog FooGprog f_foo_reset foo_reset_spec.
+(*Lemma body_foo_reset_alternativeproof: semax_body Vprog Gprog f_foo_reset foo_reset_spec.
 Proof.
-(*New*) unfold foo_reset_spec. rewrite foo_obj_invariant_fold_unfold; unfold reset_spec.
+(*New*) unfold foo_reset_spec. rewrite foo_obj_invariant_fold_unfold'; unfold reset_spec.
 start_function. 
 (*New:*) Intros m; unfold foo_data.
 unfold withspacer; simpl; Intros.
@@ -466,12 +285,13 @@ forward.  (* self->data=0; *)
 entailer!!.
 (*New:*) Exists m; unfold foo_data.
 all: unfold withspacer; simpl; entailer!!.  (* needed if Archi.ptr64=true *)
-Qed.
+Qed.*)
 
 Lemma body_foo_twiddle: semax_body Vprog FooGprog f_foo_twiddle foo_twiddle_spec.
 Proof.
-(*New*) unfold foo_twiddle_spec. rewrite foo_obj_invariant_fold_unfold; unfold twiddle_spec.
+(*New*) unfold foo_twiddle_spec. unfold twiddle_spec.
 start_function.
+rewrite foo_obj_invariant_fold_unfold'.
 (*New:*) Intros m; unfold foo_data.
 unfold withspacer; simpl.
 Intros.
@@ -486,18 +306,20 @@ forward.  (* return d+i; *)
   forget (fold_right Z.add 0 (*history*)(fst hs)) as h.
   entailer!!. }
 Exists (2 * fold_right Z.add 0 (*history*)(fst hs) + i).
+rewrite foo_obj_invariant_fold_unfold'.
 (*New:*) Exists m; unfold foo_data.
 simpl;
 entailer!!.
-rewrite Z.mul_add_distr_l, Z.add_comm.
+rewrite Z.mul_add_distr_l Z.add_comm.
 unfold withspacer; simpl.
 entailer!!.
 Qed.
 
 Lemma body_foo_twiddleR: semax_body Vprog FooGprog f_foo_twiddleR foo_twiddleR_spec.
 Proof.
-(*New*) unfold foo_twiddleR_spec. rewrite foo_obj_invariant_fold_unfold; unfold twiddle_spec.
+(*New*) unfold foo_twiddleR_spec. unfold twiddle_spec.
 start_function.
+rewrite foo_obj_invariant_fold_unfold'.
 (*New:*) Intros m; unfold foo_data.
 unfold withspacer; simpl.
 Intros.
@@ -507,13 +329,13 @@ forward.  (* d = self->data; *)
 forward.
 unfold object_methods. Intros sh r t tR.
 forward. (*_s_reset = (_mtable -> _reset);*)
-forward_call hs. 
+forward_call hs.
 { rewrite foo_obj_invariant_fold_unfold'.
   Exists m. unfold foo_data, withspacer; simpl. entailer!!.
   sep_apply make_object_methods_later. cancel. }
 (*The spec has folded the object, so need to unfold again*)
 deadvars!. clear - H H0.
-rewrite foo_obj_invariant_fold_unfold. Intros m. unfold foo_data, withspacer; Intros; simpl.
+rewrite foo_obj_invariant_fold_unfold'. Intros m. unfold foo_data, withspacer; Intros; simpl.
 
 forward.  (* self -> data = d+2*i; *) 
 { set (j:= Int.max_signed / 4) in *; compute in j; subst j.
@@ -526,17 +348,18 @@ forward.  (* return d+i; *)
   forget (fold_right Z.add 0 (*history*)(fst hs)) as h.
   entailer!!. }
 Exists (2 * fold_right Z.add 0 (*history*)(fst hs) + i).
+rewrite foo_obj_invariant_fold_unfold'.
 (*New:*) Exists m; unfold foo_data.
 simpl;
-entailer!!.
-rewrite Z.mul_add_distr_l, Z.add_comm.
+entailer!.
+rewrite Z.mul_add_distr_l Z.add_comm.
 unfold withspacer; simpl.
 entailer!!.
 Qed.
 
 Lemma split_object_methods:
-  forall instance m, 
-    object_methods instance m |-- object_methods instance m * object_methods instance m.
+  forall instance m,
+    object_methods instance m ⊢ object_methods instance m ∗ object_methods instance m.
 Proof.
 intros.
 unfold object_methods.
@@ -544,16 +367,10 @@ Intros sh reset twiddle twiddleR.
 
 Exists (fst (slice.cleave sh)) reset twiddle twiddleR.
 Exists (snd (slice.cleave sh)) reset twiddle twiddleR.
-rewrite (split_func_ptr (reset_spec instance) reset) at 1.
-rewrite (split_func_ptr (twiddle_spec instance) twiddle) at 1.
-rewrite (split_func_ptr (twiddle_spec instance) twiddleR) at 1.
-entailer!.
-split.
-apply slice.cleave_readable1; auto.
-apply slice.cleave_readable2; auto.
-rewrite (data_at_share_join (fst (slice.cleave sh)) (snd (slice.cleave sh)) sh).
-auto.
-apply slice.cleave_join.
+iIntros "(#$ & #$ & #$ & H)".
+rewrite -(data_at_share_join (fst (slice.cleave sh)) (snd (slice.cleave sh)) sh); last apply slice.cleave_join.
+iDestruct "H" as "($ & $)".
+iPureIntro; repeat split; auto; apply slice.cleave_readable1 || apply slice.cleave_readable2; auto.
 Qed.
 
 (* Isolate a lemma from Andrew's proof of body_make_foo; TODO: simplify the following proof. *)
@@ -584,6 +401,7 @@ Lemma body_make_foo: semax_body Vprog FooGprog f_make_foo make_foo_spec.
 Proof.
 unfold make_foo_spec.
 start_function.
+rename a into gv.
 forward_call (Tstruct _foo_object noattr, gv).
 Intros p.
 forward_if
@@ -600,7 +418,7 @@ if_tac; entailer!!.
 forward_call 1.
 contradiction.
 *
-rewrite if_false by auto.
+rewrite -> if_false by auto.
 Intros.
 forward.  (*  /*skip*/;  *)
 entailer!!.
@@ -612,34 +430,32 @@ forward. (* return (struct object * ) p; *)
 Exists p.
 sep_apply (split_object_methods foo_obj_invariant (gv _foo_methods)).
 entailer!!.
-unfold object_mpred.
+unfold obj_mpred.
 
 (*slight variation of Andrew's proof from here on*)
-Exists foo_data. entailer!!. 1: solve [apply foo_data_HOcontr].
-rewrite ObjMpred_fold_unfold by (apply foo_data_HOcontr).
+Exists foo_data. entailer!!.
+rewrite -> ObjMpred_fold_unfold by (apply foo_data_HOcontr).
 Exists (gv _foo_methods). simpl. normalize.
-rewrite ! sepcon_assoc. apply sepcon_derives. apply bi.later_intro.
 unfold foo_data; simpl. unfold withspacer; simpl.
 cancel.
+apply bi.sep_mono; first apply bi.later_intro.
 unfold_data_at (field_at _ _ nil _ p).
 cancel.
 clear -H.
 rewrite !field_at_data_at.
 simpl.
-apply derives_refl'.
-rewrite <- ?sepcon_assoc. (* needed if Archi.ptr64=true *)
+f_equiv.
 rewrite !field_compatible_field_address; auto with field_compatible.
 apply MC_FC; trivial.
 Qed.
-
 End FOO.
 
 Section FancyFoo.
 
 Definition fObjInv : Type:= ((list Z * Z) * val).
-Definition fobject_invariant := fObjInv -> mpred.
+Definition fobject_invariant := fObjInv -d> mpred.
 
-(*not replcatedDefinition tobject := tptr (Tstruct _object noattr).*)
+(*not replicated: Definition tobject := tptr (Tstruct _object noattr).*)
 
 (*A new spec, not just the adpatation of reset_spec to fancy invariants*)
 Definition freset_spec (instance: fobject_invariant) :=
@@ -660,9 +476,9 @@ Definition ftwiddle_spec (instance: fobject_invariant) :=
           PARAMS (snd hs; Vint (Int.repr i)) GLOBALS ()
           SEP (instance hs)
   POST [ tint ]
-      EX v: Z, 
+      ∃ v: Z,
           PROP(2* fold_right Z.add 0 (fst (fst hs)) < v <= 2* fold_right Z.add 0 (i::(fst (fst hs))))
-          LOCAL (temp ret_temp (Vint (Int.repr v))) 
+          LOCAL (temp ret_temp (Vint (Int.repr v)))
           SEP(instance ((i::(fst (fst hs)), snd(fst hs)), snd hs)).
 
 (*A separate spec, since this method is affected by the overrising of reset*)
@@ -675,7 +491,7 @@ Definition ftwiddleR_spec (instance: fobject_invariant) :=
           PARAMS (snd hs; Vint (Int.repr i)) GLOBALS ()
           SEP (instance hs)
   POST [ tint ]
-      EX v: Z, 
+      ∃ v: Z, 
           PROP(2* fold_right Z.add 0 (fst (fst hs)) < v <= 2* fold_right Z.add 0 (i::(fst (fst hs))))
           LOCAL (temp ret_temp (Vint (Int.repr v))) 
           SEP(instance ((i::(fst (fst hs)), 0), snd hs)).
@@ -701,17 +517,48 @@ Definition fgetcolor_spec (instance: fobject_invariant) :=
           SEP(instance hs).
 
 Definition fobject_methods (instance: fobject_invariant) (mtable: val) : mpred :=
-  EX sh: share, EX reset: val, EX twiddle: val, EX twiddleR:val, EX setcol: val, EX getcol:val,
-  !! readable_share sh && 
-  func_ptr (freset_spec instance) reset *
-  func_ptr (ftwiddle_spec instance) twiddle *
-  func_ptr (ftwiddleR_spec instance) twiddleR *
-  func_ptr (fsetcolor_spec instance) setcol *
-  func_ptr (fgetcolor_spec instance) getcol *
+  ∃ sh: share, ∃ reset: val, ∃ twiddle: val, ∃ twiddleR:val, ∃ setcol: val, ∃ getcol:val,
+  ⌜readable_share sh⌝ ∧ 
+  func_ptr (freset_spec instance) reset ∗
+  func_ptr (ftwiddle_spec instance) twiddle ∗
+  func_ptr (ftwiddle_spec instance) twiddleR ∗
+  func_ptr (fsetcolor_spec instance) setcol ∗
+  func_ptr (fgetcolor_spec instance) getcol ∗
   data_at sh (Tstruct _fancymethods noattr) (reset,(twiddle, (twiddleR, (setcol, getcol)))) mtable.
 
+Global Instance freset_spec_ne : NonExpansive freset_spec.
+Proof.
+  intros ????.
+  unfold freset_spec, NDmk_funspec.
+  f_equiv; intros ??; simpl; by repeat f_equiv.
+Qed.
+
+Global Instance ftwiddle_spec_ne : NonExpansive ftwiddle_spec.
+Proof.
+  intros ????.
+  unfold ftwiddle_spec, NDmk_funspec.
+  f_equiv; intros ??; simpl; by repeat f_equiv.
+Qed.
+
+Global Instance fsetcolor_spec_ne : NonExpansive fsetcolor_spec.
+Proof.
+  intros ????.
+  unfold fsetcolor_spec, NDmk_funspec.
+  f_equiv; intros ??; simpl; by repeat f_equiv.
+Qed.
+
+Global Instance fgetcolor_spec_ne : NonExpansive fgetcolor_spec.
+Proof.
+  intros ????.
+  unfold fgetcolor_spec, NDmk_funspec.
+  f_equiv; intros ??; simpl; by repeat f_equiv.
+Qed.
+
+Global Instance fobject_methods_ne n : Proper (dist n ==> eq ==> dist n) fobject_methods.
+Proof. solve_proper. Qed.
+
 Lemma fobject_methods_local_facts: forall instance p,
-  fobject_methods instance p |-- !! isptr p.
+  fobject_methods instance p ⊢ ⌜isptr p⌝.
 Proof.
 intros.
 unfold fobject_methods.
@@ -723,13 +570,13 @@ Local Hint Resolve fobject_methods_local_facts : saturate_local.
 Lemma make_fobject_methods:
   forall sh instance reset twiddle twiddleR setcol getcol mtable,
   readable_share sh ->
-  func_ptr (freset_spec instance) reset *
-  func_ptr (ftwiddle_spec instance) twiddle *
-  func_ptr (ftwiddleR_spec instance) twiddleR * 
-  func_ptr (fsetcolor_spec instance) setcol *
-  func_ptr (fgetcolor_spec instance) getcol *
+  func_ptr (freset_spec instance) reset ∗
+  func_ptr (ftwiddle_spec instance) twiddle ∗
+  func_ptr (ftwiddle_spec instance) twiddleR ∗
+  func_ptr (fsetcolor_spec instance) setcol ∗
+  func_ptr (fgetcolor_spec instance) getcol ∗
   data_at sh (Tstruct _fancymethods noattr) (reset,(twiddle, (twiddleR, (setcol, getcol)))) mtable
-  |-- fobject_methods instance mtable.
+  ⊢ fobject_methods instance mtable.
 Proof.
   intros.
   unfold fobject_methods.
@@ -740,13 +587,13 @@ Qed.
 Lemma make_fobject_methods_later:
   forall sh instance reset twiddle twiddleR setcol getcol mtable,
   readable_share sh ->
-  func_ptr (freset_spec instance) reset *
-  func_ptr (ftwiddle_spec instance) twiddle *
-  func_ptr (ftwiddleR_spec instance) twiddleR * 
-  func_ptr (fsetcolor_spec instance) setcol *
-  func_ptr (fgetcolor_spec instance) getcol *
+  func_ptr (freset_spec instance) reset ∗
+  func_ptr (ftwiddle_spec instance) twiddle ∗
+  func_ptr (ftwiddle_spec instance) twiddleR ∗
+  func_ptr (fsetcolor_spec instance) setcol ∗
+  func_ptr (fgetcolor_spec instance) getcol ∗
   data_at sh (Tstruct _fancymethods noattr) (reset,(twiddle, (twiddleR, (setcol, getcol)))) mtable
-  |-- |> fobject_methods instance mtable.
+  ⊢ ▷ fobject_methods instance mtable.
 Proof.
 intros. eapply derives_trans. apply make_fobject_methods; trivial. apply bi.later_intro.
 Qed.
@@ -754,312 +601,58 @@ Qed.
 Section FObjMpred.
 Variable instance: fobject_invariant.
 
-Definition G (X: fObjInv -> mpred) (hs: fObjInv): mpred :=
-   ((EX mtable: val, !!(isptr mtable) (*This has to hold NOW, not ust LATER*)&&
-     (|> fobject_methods X mtable) *
-     field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable (snd hs)) *
+Definition G (X: fObjInv -d> mpred) : fObjInv -d> mpred := fun hs =>
+   ((∃ mtable: val, ⌜isptr mtable⌝ (*This has to hold NOW, not ust LATER*)∧
+     (▷ fobject_methods X mtable) ∗
+     field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable (snd hs)) ∗
    instance hs).
 
-Lemma HOcontrG
-     (*Need sth like this (HI: HOcontractive (fun (_ : ObjInv -> mpred) (x : ObjInv) => instance x))*):
-      HOcontractive G.
+Local Instance G_contractive : Contractive G.
 Proof.
-unfold F.
-apply HOcontractive_i1.
-red; intros.
-apply allp_right; intro oi.
-apply subp_sepcon_mpred; [ | apply subp_refl].
-apply subp_exp; intro v.
-apply subp_sepcon_mpred; [ | apply subp_refl].
-clear oi.
-apply subp_andp; [ apply subp_refl | ].
-eapply derives_trans, subp_later1.
-rewrite <- later_allp.
-apply later_derives.
-unfold fobject_methods.
-apply subp_exp; intro sh.
-apply subp_exp; intro reset.
-apply subp_exp; intro twiddle.
-apply subp_exp; intro twiddleR.
-apply subp_exp; intro setCol.
-apply subp_exp; intro getCol.
-apply subp_sepcon_mpred; [ | apply subp_refl].
-repeat simple apply subp_sepcon_mpred;
-try (simple apply subp_andp; [simple apply subp_refl | ]).
-+
-unfold func_ptr.
-apply subp_andp; [ | apply subp_refl].
-clear - instance.
-eapply derives_trans; [ | apply fash_func_ptr_ND].
-apply allp_right; intro oi.
-apply andp_right.
-*
-apply allp_right; intro rho.
-apply subp_i1.
-rewrite unfash_allp.
-set (zz := allp _).
-unfold convertPre.
-unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, local, lift1; simpl.
-unfold_lift.
-normalize.
-rewrite prop_true_andp by tauto.
-subst zz.
-eapply derives_trans.
-apply andp_derives; [ | apply derives_refl].
-apply allp_left with oi.
-apply unfash_fash.
-eapply derives_trans.
-apply andp_derives.
-apply andp_left2. apply derives_refl. apply derives_refl.
-rewrite andp_comm. apply modus_ponens.
-*
-apply allp_right; intro rho.
-apply subp_i1.
-rewrite unfash_allp.
-set (zz := allp _).
-unfold convertPre.
-unfold PROPx, LOCALx, SEPx, local, lift1; simpl.
-unfold_lift.
-normalize.
-subst zz.
-eapply derives_trans.
-apply andp_derives; [ | apply derives_refl].
-apply allp_left with ([], 0, snd oi).
-apply unfash_fash.
-eapply derives_trans.
-apply andp_derives.
-apply andp_left1. apply derives_refl. apply derives_refl.
-rewrite andp_comm. apply modus_ponens.
-+
-unfold func_ptr.
-apply subp_andp; [ | apply subp_refl].
-clear - instance.
-eapply derives_trans; [ | apply fash_func_ptr_ND].
-apply allp_right; intros [hs i].
-apply andp_right.
-*
-apply allp_right; intro rho.
-apply subp_i1.
-rewrite unfash_allp.
-set (zz := allp _).
-unfold convertPre.
-unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, local, lift1; simpl.
-unfold_lift.
-normalize.
-rewrite prop_true_andp by tauto.
-subst zz.
-eapply derives_trans.
-apply andp_derives; [ | apply derives_refl].
-apply allp_left with hs.
-apply unfash_fash.
-eapply derives_trans.
-apply andp_derives.
-apply andp_left2. apply derives_refl. apply derives_refl.
-rewrite andp_comm. apply modus_ponens.
-*
-apply allp_right; intro rho.
-apply subp_i1.
-rewrite unfash_allp.
-set (zz := allp _).
-unfold PROPx, LOCALx, SEPx, local, lift1; simpl.
-unfold_lift.
-normalize.
-subst zz.
-apply exp_right with x.
-normalize.
-rewrite prop_true_andp by tauto.
-eapply derives_trans.
-apply andp_derives; [ | apply derives_refl].
-apply allp_left with (i :: fst (fst hs), snd (fst hs), snd hs).
-apply unfash_fash.
-eapply derives_trans.
-apply andp_derives.
-apply andp_left1. apply derives_refl. apply derives_refl.
-rewrite andp_comm. apply modus_ponens.
-+
-unfold func_ptr.
-apply subp_andp; [ | apply subp_refl].
-clear - instance.
-eapply derives_trans; [ | apply fash_func_ptr_ND].
-apply allp_right; intros [hs i].
-apply andp_right.
-*
-apply allp_right; intro rho.
-apply subp_i1.
-rewrite unfash_allp.
-set (zz := allp _).
-unfold convertPre.
-unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, local, lift1; simpl.
-unfold_lift.
-normalize.
-rewrite prop_true_andp by tauto.
-subst zz.
-eapply derives_trans.
-apply andp_derives; [ | apply derives_refl].
-apply allp_left with hs.
-apply unfash_fash.
-eapply derives_trans.
-apply andp_derives.
-apply andp_left2. apply derives_refl. apply derives_refl.
-rewrite andp_comm. apply modus_ponens.
-*
-apply allp_right; intro rho.
-apply subp_i1.
-rewrite unfash_allp.
-set (zz := allp _).
-unfold PROPx, LOCALx, SEPx, local, lift1; simpl.
-unfold_lift.
-normalize.
-subst zz.
-apply exp_right with x.
-normalize.
-rewrite prop_true_andp by tauto.
-eapply derives_trans.
-apply andp_derives; [ | apply derives_refl].
-apply allp_left with (i :: fst (fst hs), 0, snd hs).
-apply unfash_fash.
-eapply derives_trans.
-apply andp_derives.
-apply andp_left1. apply derives_refl. apply derives_refl.
-rewrite andp_comm. apply modus_ponens.
-+
-unfold func_ptr.
-apply subp_andp; [ | apply subp_refl].
-clear - instance.
-eapply derives_trans; [ | apply fash_func_ptr_ND].
-apply allp_right; intros [hs i].
-apply andp_right.
-*
-apply allp_right; intro rho.
-apply subp_i1.
-rewrite unfash_allp.
-set (zz := allp _).
-unfold convertPre.
-unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, local, lift1; simpl.
-unfold_lift.
-normalize.
-rewrite prop_true_andp by tauto.
-subst zz.
-eapply derives_trans.
-apply andp_derives; [ | apply derives_refl].
-apply allp_left with hs.
-apply unfash_fash.
-eapply derives_trans.
-apply andp_derives.
-apply andp_left2. apply derives_refl. apply derives_refl.
-rewrite andp_comm. apply modus_ponens.
-*
-apply allp_right; intro rho.
-apply subp_i1.
-rewrite unfash_allp.
-set (zz := allp _).
-unfold PROPx, LOCALx, SEPx, local, lift1; simpl.
-unfold_lift.
-normalize.
-subst zz. (*
-apply exp_right with x.
-normalize.
-rewrite prop_true_andp by tauto.*)
-eapply derives_trans.
-apply andp_derives; [ | apply derives_refl].
-apply allp_left with (fst (fst hs), i, snd hs).
-apply unfash_fash.
-eapply derives_trans.
-apply andp_derives.
-apply andp_left1. apply derives_refl. apply derives_refl.
-rewrite andp_comm. apply modus_ponens.
-+
-unfold func_ptr.
-apply subp_andp; [ | apply subp_refl].
-clear - instance.
-eapply derives_trans; [ | apply fash_func_ptr_ND].
-apply allp_right; intros [hs i].
-apply andp_right.
-*
-apply allp_right; intro rho.
-apply subp_i1.
-rewrite unfash_allp.
-set (zz := allp _).
-unfold convertPre.
-unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, local, lift1; simpl.
-unfold_lift.
-normalize.
-rewrite prop_true_andp by tauto.
-subst zz.
-eapply derives_trans.
-apply andp_derives; [ | apply derives_refl].
-apply allp_left with (hs,i).
-apply unfash_fash.
-eapply derives_trans.
-apply andp_derives.
-apply andp_left2. apply derives_refl. apply derives_refl.
-rewrite andp_comm. apply modus_ponens.
-*
-apply allp_right; intro rho.
-apply subp_i1.
-rewrite unfash_allp.
-set (zz := allp _).
-unfold PROPx, LOCALx, SEPx, local, lift1; simpl.
-unfold_lift.
-normalize.
-subst zz. (*
-apply exp_right with x.
-normalize.
-rewrite prop_true_andp by tauto.*)
-eapply derives_trans.
-apply andp_derives; [ | apply derives_refl].
-apply allp_left with (hs,i).
-apply unfash_fash.
-eapply derives_trans.
-apply andp_derives.
-apply andp_left1. apply derives_refl. apply derives_refl.
-rewrite andp_comm. apply modus_ponens.
+  intros ?????.
+  unfold G.
+  do 5 f_equiv.
+  f_contractive.
+  rewrite H //.
 Qed.
 
-Definition fobj_mpred:fObjInv -> mpred := (HORec G). (*ie same type as Andrew's object_mpred.*)
+Definition fobj_mpred:fObjInv -> mpred := fixpoint G.
 
-Lemma fObjMpred_fold_unfold: 
-HOcontractive (fun (_ : fObjInv -> mpred) (x : fObjInv) => instance x) ->
-fobj_mpred = 
-fun hs => 
-  ((EX mtable: val,!!(isptr mtable) &&
-     (|> fobject_methods fobj_mpred mtable) *
-     field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable (snd hs)) *
+Lemma fObjMpred_fold_unfold:
+forall hs, fobj_mpred hs ⊣⊢
+  ((∃ mtable: val,⌜isptr mtable⌝ ∧
+     (▷ fobject_methods fobj_mpred mtable) ∗
+     field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable (snd hs)) ∗
    instance hs).
 Proof.
   intros; unfold fobj_mpred at 1.
-  rewrite HORec_fold_unfold; [ reflexivity | apply HOcontrG]; trivial.
+  by rewrite (fixpoint_unfold G _).
 Qed.
-Lemma fObjMpred_fold_unfold' hs: 
-HOcontractive (fun (_ : fObjInv -> mpred) (x : fObjInv) => instance x) ->
-fobj_mpred hs = 
-  ((EX mtable: val, !!(isptr mtable) &&
-     (|> fobject_methods fobj_mpred mtable) *
-     field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable (snd hs)) *
+Lemma fObjMpred_fold_unfold' hs:
+fobj_mpred hs ⊣⊢
+  ((∃ mtable: val, ⌜isptr mtable⌝ ∧
+     (▷ fobject_methods fobj_mpred mtable) ∗
+     field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable (snd hs)) ∗
    instance hs).
 Proof.
-  intros. rewrite fObjMpred_fold_unfold, <- fObjMpred_fold_unfold; trivial. 
+  intros. rewrite fObjMpred_fold_unfold -fObjMpred_fold_unfold; trivial.
 Qed.
 
-Lemma fObjMpred_isptr
-   (H: HOcontractive (fun (_ : fObjInv -> mpred) (x : fObjInv) => instance x))
-    hs: fobj_mpred hs |-- !!(isptr (snd hs)).
-Proof. rewrite fObjMpred_fold_unfold' by trivial; Intros m. entailer!. Qed.
+Lemma fObjMpred_isptr hs: fobj_mpred hs ⊢ ⌜isptr (snd hs)⌝.
+Proof. rewrite -> fObjMpred_fold_unfold' by trivial; Intros m. entailer!. Qed.
 
 End FObjMpred.
 
 Definition fobject_mpred: fobject_invariant := fun hs =>
-  EX instance, !!(HOcontractive (fun (_ : fObjInv -> mpred) (x : fObjInv) => instance x)) &&
-               fobj_mpred instance hs.
+  ∃ instance, fobj_mpred instance hs.
 (*This now plays the role of Andrew's obj_mpred*)
 
-Lemma fobject_mpred_isptr hs: fobject_mpred hs |-- !!(isptr (snd hs)).
+Lemma fobject_mpred_isptr hs: fobject_mpred hs ⊢ ⌜isptr (snd hs)⌝.
 Proof. unfold fobject_mpred; Intros inst. apply fObjMpred_isptr; trivial. Qed.
 
-Lemma fobj_mpred_entails_object_mpred inst hs
-  (H: HOcontractive (fun (_ : fObjInv -> mpred) (x : fObjInv) => inst x)):
-  fobj_mpred inst hs |-- fobject_mpred hs.
-Proof. unfold object_mpred. Exists inst. entailer!!. Qed.
+Lemma fobj_mpred_entails_object_mpred inst hs:
+  fobj_mpred inst hs ⊢ fobject_mpred hs.
+Proof. unfold fobject_mpred. Exists inst. entailer!!. Qed.
 
 Section FancySpecs.
 
@@ -1069,44 +662,39 @@ Definition fancyfoo_data : fobject_invariant :=
   (fun (x:fObjInv) => 
     withspacer Ews (sizeof size_t + sizeof tint) (2 * sizeof size_t) (field_at Ews (Tstruct _foo_object noattr) 
             [StructField _data] (Vint (Int.repr (2*fold_right Z.add 0 (fst (fst x)))))) (snd x) 
-   * withspacer Ews (sizeof size_t + 2*sizeof tint) (3 * sizeof size_t) (field_at Ews (Tstruct _fancyfoo_object noattr)
+   ∗ withspacer Ews (sizeof size_t + 2*sizeof tint) (3 * sizeof size_t) (field_at Ews (Tstruct _fancyfoo_object noattr)
             [StructField _color] (Vint (Int.repr (snd(fst x))))) (snd x)
-      *  malloc_token Ews (Tstruct _fancyfoo_object noattr) (snd x)).
-Lemma fancyfoo_data_HOcontr: HOcontractive (fun (_ : fObjInv -> mpred) (x : fObjInv) => fancyfoo_data x).
-Proof.
-  assert (predicates_rec.HOcontractive (fun (_ : fObjInv -> mpred) (x : fObjInv) => fancyfoo_data x)). 2: constructor; apply H.
-  unfold fancyfoo_data.
-  unfold withspacer; simpl.
-  apply Trashcan.sepcon_HOcontractive.
-  apply Trashcan.const_HOcontractive.
-  apply Trashcan.const_HOcontractive.
-Qed.
+      ∗ malloc_token Ews (Tstruct _fancyfoo_object noattr) (snd x)).
 
 Definition fancyfoo_obj_invariant :fobject_invariant := fobj_mpred fancyfoo_data.
 
 (*New lemma!*)
-Lemma fancyfoo_obj_invariant_fold_unfold: fancyfoo_obj_invariant =
+Lemma fancyfoo_obj_invariant_fold_unfold: fancyfoo_obj_invariant ≡
  fun hs =>
-  ((EX mtable: val, !!(isptr mtable) &&
-     (|>fobject_methods fancyfoo_obj_invariant  mtable) *
-     field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable (snd hs)) *
+  ((∃ mtable: val, ⌜isptr mtable⌝ ∧
+     (▷fobject_methods fancyfoo_obj_invariant  mtable) ∗
+     field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable (snd hs)) ∗
    fancyfoo_data hs).
 Proof.
-  unfold fancyfoo_obj_invariant.
-  rewrite <- fObjMpred_fold_unfold. trivial. apply fancyfoo_data_HOcontr.
+  unfold fancyfoo_obj_invariant; intros ?.
+  rewrite <- fObjMpred_fold_unfold. trivial.
 Qed.
 
 (*Sometimes this variant is preferable, sometimes the one above*)
-Lemma fancyfoo_obj_invariant_fold_unfold' hs: fancyfoo_obj_invariant hs =
-  ((EX mtable: val, !!(isptr mtable) &&
-     (|>fobject_methods fancyfoo_obj_invariant  mtable) *
-     field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable (snd hs)) *
+Lemma fancyfoo_obj_invariant_fold_unfold' hs: fancyfoo_obj_invariant hs ⊣⊢
+  ((∃ mtable: val, ⌜isptr mtable⌝ ∧
+     (▷fobject_methods fancyfoo_obj_invariant  mtable) ∗
+     field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable (snd hs)) ∗
    fancyfoo_data hs).
-Proof. rewrite fancyfoo_obj_invariant_fold_unfold. rewrite <- fancyfoo_obj_invariant_fold_unfold; trivial. Qed.
+Proof. apply (fancyfoo_obj_invariant_fold_unfold hs). Qed.
 
-Lemma fancyfoo_data_isptr hs: fancyfoo_data hs = !!(isptr (snd hs)) && fancyfoo_data hs.
-apply pred_ext; entailer.
-unfold fancyfoo_data. entailer!. destruct (snd hs); simpl in *; trivial;  contradiction.
+Lemma fancyfoo_data_isptr hs: fancyfoo_data hs ⊣⊢ ⌜isptr (snd hs)⌝ ∧ fancyfoo_data hs.
+Proof.
+  iSplit.
+  - iIntros; iSplit; last done.
+    unfold fancyfoo_data; iStopProof.
+    destruct (hs.2); entailer!.
+  - iIntros "(_ & $)".
 Qed.
 
 
@@ -1135,7 +723,7 @@ Definition make_fancyfoo_spec :=
     PROP () PARAMS (Vint(Int.repr c)) GLOBALS (gv) 
     SEP (mem_mgr gv; fobject_methods fancyfoo_obj_invariant (gv _fancyfoo_methods))
  POST [ tobject ]
-    EX p: val, PROP () LOCAL (temp ret_temp p)
+    ∃ p: val, PROP () LOCAL (temp ret_temp p)
      SEP (mem_mgr gv; fobject_mpred ((nil,c),p); fobject_methods fancyfoo_obj_invariant (gv _fancyfoo_methods)).
 
 Definition make_fancyfooTyped_spec :=
@@ -1145,7 +733,7 @@ Definition make_fancyfooTyped_spec :=
     PROP () PARAMS (Vint(Int.repr c)) GLOBALS (gv) 
     SEP (mem_mgr gv; fobject_methods fancyfoo_obj_invariant (gv _fancyfoo_methods))
  POST [ tptr (Tstruct _fancyfoo_object noattr) ]
-    EX p: val, PROP () LOCAL (temp ret_temp p)
+    ∃ p: val, PROP () LOCAL (temp ret_temp p)
      SEP (mem_mgr gv; fobject_mpred ((nil,c),p); fobject_methods fancyfoo_obj_invariant (gv _fancyfoo_methods)).
 
 End FancySpecs.
@@ -1158,20 +746,20 @@ Definition FancyGprog : funspecs :=   ltac:(with_library prog [
 (*Now concerns the function f_fancy_reset*)
 Lemma body_fancyfoo_reset: semax_body Vprog FancyGprog f_fancy_reset ffoo_reset_spec.
 Proof.
-start_function. 
-(*New:*) rewrite fancyfoo_obj_invariant_fold_unfold. Intros m; unfold fancyfoo_data.
+start_function.
+(*New:*) rewrite fancyfoo_obj_invariant_fold_unfold'. Intros m; unfold fancyfoo_data.
 unfold withspacer; simpl; Intros.
 forward.  (* self->data=0; *)
 forward.  (* self->color=0; *)
 entailer!!.
-(*New:*) rewrite fancyfoo_obj_invariant_fold_unfold, <- fancyfoo_obj_invariant_fold_unfold. Exists m; unfold fancyfoo_data.
+(*New:*) rewrite fancyfoo_obj_invariant_fold_unfold'. Exists m; unfold fancyfoo_data.
 all: unfold withspacer; simpl; entailer!!.  (* needed if Archi.ptr64=true *)
 Qed.
 
 Lemma body_fancyfoo_twiddle: semax_body Vprog FancyGprog f_foo_twiddle ffoo_twiddle_spec.
 Proof.
 start_function.
-(*New:*) rewrite fancyfoo_obj_invariant_fold_unfold. Intros m; unfold fancyfoo_data.
+(*New:*) rewrite fancyfoo_obj_invariant_fold_unfold'. Intros m; unfold fancyfoo_data.
 unfold withspacer; simpl.
 Intros.
 forward.  (* d = self->data; *)
@@ -1185,11 +773,11 @@ forward.  (* return d+i; *)
   forget (fold_right Z.add 0 (*(fst hs)*) (fst(fst hs))) as h.
   entailer!!. }
 Exists (2 * fold_right Z.add 0 (*(fst hs)*) (fst(fst hs)) + i).
-(*New:*) rewrite fancyfoo_obj_invariant_fold_unfold, <- fancyfoo_obj_invariant_fold_unfold.
+(*New:*) rewrite fancyfoo_obj_invariant_fold_unfold'.
 Exists m; unfold fancyfoo_data.
 simpl;
 entailer!!.
-rewrite Z.mul_add_distr_l, Z.add_comm.
+rewrite Z.mul_add_distr_l Z.add_comm.
 unfold withspacer; simpl.
 entailer!!.
 Qed.
@@ -1203,7 +791,7 @@ Proof.
   destruct m; try inv X1. clear - L SZ AL.
   repeat split; auto.
   + simpl in *.  unfold sizeof in *; simpl in *; lia.
-  + inv AL. inv H. inv H1. 
+  + inv AL. inv H1.
     eapply align_compatible_rec_Tstruct; [reflexivity.. |].
     simpl co_members in *; intros. specialize (H4 i0 t0).
     simpl in H.
@@ -1212,13 +800,13 @@ Proof.
       inv H4. inv H0. inv H. simpl in H1.
       eapply align_compatible_rec_by_value.
       reflexivity. apply H1. }
-    clear H1. 
+    clear H1.
     if_tac in H.
     { inv H. specialize (H4 _ (eq_refl _) (eq_refl _)).
       inv H4. inv H0. inv H. simpl in H1.
       eapply align_compatible_rec_by_value.
       reflexivity. apply H1. }
-    clear H1. 
+    clear H1.
     if_tac in H.
     { inv H. specialize (H4 _ (eq_refl _) (eq_refl _)).
       inv H4. inv H0. inv H. simpl in H1.
@@ -1231,7 +819,7 @@ Qed.
 Lemma body_fancyfoo_twiddleR: semax_body Vprog FancyGprog f_foo_twiddleR ffoo_twiddleR_spec.
 Proof.
 start_function.
-(*New:*) rewrite fancyfoo_obj_invariant_fold_unfold. Intros m; unfold fancyfoo_data.
+(*New:*) rewrite fancyfoo_obj_invariant_fold_unfold'. Intros m; unfold fancyfoo_data.
 unfold withspacer; simpl.
 Intros.
 forward.  (* d = self->data; *)
@@ -1248,19 +836,17 @@ replace_SEP 5 (field_at sh (Tstruct _methods noattr) [StructField _reset] r m).
   apply FC_fancymethods; trivial. left; auto. }
 
 forward. (*_s_reset = (_mtable -> _reset);*)
-forward_call hs. 
+forward_call hs.
 { (*NEW side condition - again a property of subclasses*)
   rewrite fancyfoo_obj_invariant_fold_unfold'.
   Exists m. unfold fancyfoo_data, withspacer; simpl. entailer!!.
-  eapply derives_trans. 
-  2:{ apply sepcon_derives.
-      apply ( make_fobject_methods_later sh fancyfoo_obj_invariant r t tR g s m); trivial.
-      apply derives_refl. } 
-  cancel. unfold_data_at (data_at sh (Tstruct _fancymethods noattr) _ _ ).
-  cancel. unfold field_at; simpl; entailer!. }
+  rewrite -make_fobject_methods_later; last done.
+  ecancel.
+  unfold_data_at (data_at sh (Tstruct _fancymethods noattr) _ _).
+  cancel. unfold field_at; simpl; entailer!!. }
 (*The spec has folded the object, so need to unfold again*)
 deadvars!. clear - H H0.
-rewrite fancyfoo_obj_invariant_fold_unfold. Intros m. unfold fancyfoo_data, withspacer; Intros; simpl.
+rewrite fancyfoo_obj_invariant_fold_unfold'. Intros m. unfold fancyfoo_data, withspacer; Intros; simpl.
 
 forward.  (* self -> data = d+2*i; *) 
 { set (j:= Int.max_signed / 4) in *; compute in j; subst j.
@@ -1273,11 +859,11 @@ forward.  (* return d+i; *)
   forget (fold_right Z.add 0 (*(fst hs)*)(fst(fst hs))) as h.
   entailer!!. }
 Exists (2 * fold_right Z.add 0 (*(fst hs)*)(fst(fst hs)) + i).
-(*New:*) rewrite fancyfoo_obj_invariant_fold_unfold, <- fancyfoo_obj_invariant_fold_unfold.
+(*New:*) rewrite fancyfoo_obj_invariant_fold_unfold'.
 Exists m; unfold fancyfoo_data.
 simpl;
 entailer!.
-rewrite Z.mul_add_distr_l, Z.add_comm.
+rewrite Z.mul_add_distr_l Z.add_comm.
 unfold withspacer; simpl.
 entailer!!.
 Qed.
@@ -1285,30 +871,30 @@ Qed.
 Lemma body_ffoo_setcolor: semax_body Vprog FancyGprog f_setcolor ffoo_setcolor_spec.
 Proof.
 start_function. 
-(*New:*) rewrite fancyfoo_obj_invariant_fold_unfold. Intros m; unfold fancyfoo_data.
+(*New:*) rewrite fancyfoo_obj_invariant_fold_unfold'. Intros m; unfold fancyfoo_data.
 unfold withspacer; simpl; Intros.
 forward.  (* self->color=0; *)
 entailer!!.
-(*New:*) rewrite fancyfoo_obj_invariant_fold_unfold, <- fancyfoo_obj_invariant_fold_unfold. Exists m; unfold fancyfoo_data.
+(*New:*) rewrite fancyfoo_obj_invariant_fold_unfold'. Exists m; unfold fancyfoo_data.
 all: unfold withspacer; simpl; entailer!!.  (* needed if Archi.ptr64=true *)
 Qed.
 
 Lemma body_ffoo_getcolor: semax_body Vprog FancyGprog f_getcolor ffoo_getcolor_spec.
 Proof.
 start_function. 
-(*New:*) rewrite fancyfoo_obj_invariant_fold_unfold. Intros m; unfold fancyfoo_data.
+(*New:*) rewrite fancyfoo_obj_invariant_fold_unfold'. Intros m; unfold fancyfoo_data.
 unfold withspacer; simpl; Intros.
 forward.  (* _t'1 = ((tptr (Tstruct _fancyfoo_object noattr)) _self -> _color); *)
 forward.
 entailer!!.
-(*New:*) rewrite fancyfoo_obj_invariant_fold_unfold, <- fancyfoo_obj_invariant_fold_unfold. Exists m; unfold fancyfoo_data.
+(*New:*) rewrite fancyfoo_obj_invariant_fold_unfold'. Exists m; unfold fancyfoo_data.
 all: unfold withspacer; simpl; entailer!!.  (* needed if Archi.ptr64=true *)
 Qed.
 
 (*TINY ADAPTATION IN PROOF*)
 Lemma split_fobject_methods:
-  forall instance m, 
-    fobject_methods instance m |-- fobject_methods instance m * fobject_methods instance m.
+  forall instance m,
+    fobject_methods instance m ⊢ fobject_methods instance m ∗ fobject_methods instance m.
 Proof.
 intros.
 unfold fobject_methods.
@@ -1316,18 +902,10 @@ Intros sh reset twiddle twiddleR setC getC.
 
 Exists (fst (slice.cleave sh)) reset twiddle twiddleR setC getC.
 Exists (snd (slice.cleave sh)) reset twiddle twiddleR setC getC.
-rewrite (split_func_ptr (freset_spec instance) reset) at 1.
-rewrite (split_func_ptr (ftwiddle_spec instance) twiddle) at 1.
-rewrite (split_func_ptr (ftwiddleR_spec instance) twiddleR) at 1.
-rewrite (split_func_ptr (fsetcolor_spec instance) setC) at 1.
-rewrite (split_func_ptr (fgetcolor_spec instance) getC) at 1.
-entailer!!.
-split.
-apply slice.cleave_readable1; auto.
-apply slice.cleave_readable2; auto.
-rewrite (data_at_share_join (fst (slice.cleave sh)) (snd (slice.cleave sh)) sh).
-auto.
-apply slice.cleave_join.
+iIntros "(#$ & #$ & #$ & #$ & #$ & H)".
+rewrite -(data_at_share_join (fst (slice.cleave sh)) (snd (slice.cleave sh)) sh); last apply slice.cleave_join.
+iDestruct "H" as "($ & $)".
+iPureIntro; repeat split; auto; apply slice.cleave_readable1 || apply slice.cleave_readable2; auto.
 Qed.
 
 Lemma body_make_fancyfoo: semax_body Vprog FancyGprog f_make_fancyfoo make_fancyfoo_spec.
@@ -1350,7 +928,7 @@ if_tac; entailer!!.
 forward_call 1.
 contradiction.
 *
-rewrite if_false by auto.
+rewrite -> if_false by auto.
 Intros.
 forward.  (*  /*skip*/;  *)
 entailer!!.
@@ -1366,34 +944,33 @@ entailer!!.
 unfold fobject_mpred.
 
 (*slight variation of Andrew's proof from here on*)
-Exists fancyfoo_data. entailer!!. 1: solve [apply fancyfoo_data_HOcontr].
-rewrite fObjMpred_fold_unfold by (apply fancyfoo_data_HOcontr).
-Exists (gv _fancyfoo_methods). simpl. normalize.
-rewrite ! sepcon_assoc. apply sepcon_derives. apply bi.later_intro.
+Exists fancyfoo_data. entailer!!.
+rewrite fObjMpred_fold_unfold.
+Exists (gv _fancyfoo_methods). entailer!.
+apply bi.sep_mono; first apply bi.later_intro.
 unfold fancyfoo_data; simpl. unfold withspacer; simpl.
 cancel.
 unfold_data_at (field_at _ _ nil _ p).
 cancel.
 assert_PROP (isptr p) by entailer!. destruct p; inv H2. entailer!.
-apply sepcon_derives.
+apply bi.sep_mono.
 + clear - H2. unfold field_at; simpl; entailer!!.
   - unfold field_compatible. destruct H2 as [_ [_ [SZ [AL _]]]].
     repeat split; trivial.
     ++ red. red in SZ. simpl sizeof in *. lia.
-    ++ clear SZ. inv AL. inv H.
+    ++ clear SZ. inv AL.
        eapply align_compatible_rec_Tstruct; [reflexivity.. | intros]. specialize (H4 i0).
-       simpl co_members in *; intros. inv H. 
+       simpl co_members in *; intros. inv H.
        if_tac in H5; inv H5.
        inv H0. inv H1. specialize (H4 _ 0 (eq_refl _) (eq_refl _)).
        inv H4. inv H. econstructor. reflexivity. trivial.
     ++ simpl. left; auto.
-  - unfold at_offset. entailer!. unfold data_at_rec. simpl.
-    unfold mapsto; simpl. if_tac; entailer!!.
+  - unfold at_offset. entailer!.
 + clear - H4. unfold field_at; simpl; entailer!!.
   - unfold field_compatible. destruct H4 as [_ [_ [SZ [AL _]]]].
     repeat split; trivial.
     ++ red. red in SZ. simpl sizeof in *. lia.
-    ++ clear SZ; inv AL. inv H.
+    ++ clear SZ; inv AL.
        eapply align_compatible_rec_Tstruct; [reflexivity.. | intros]. specialize (H4 i0).
        simpl co_members in *; intros. inv H. 
        if_tac in H5; inv H5.
@@ -1427,7 +1004,7 @@ if_tac; entailer!!.
 forward_call 1.
 contradiction.
 *
-rewrite if_false by auto.
+rewrite -> if_false by auto.
 Intros.
 forward.  (*  /*skip*/;  *)
 entailer!!.
@@ -1443,36 +1020,33 @@ entailer!!.
 unfold fobject_mpred.
 
 (*slight variation of Andrew's proof from here on*)
-Exists fancyfoo_data. entailer!. 1: solve [apply fancyfoo_data_HOcontr].
-rewrite fObjMpred_fold_unfold by (apply fancyfoo_data_HOcontr).
-Exists (gv _fancyfoo_methods). simpl. normalize.
-rewrite ! sepcon_assoc. apply sepcon_derives. apply bi.later_intro.
+Exists fancyfoo_data. entailer!!.
+rewrite fObjMpred_fold_unfold.
+Exists (gv _fancyfoo_methods). entailer!.
+apply bi.sep_mono; first apply bi.later_intro.
 unfold fancyfoo_data; simpl. unfold withspacer; simpl.
 cancel.
 unfold_data_at (field_at _ _ nil _ p).
 cancel.
-
-(*TODO: There's at least one variation of Lemma MC_FC in here...*)
 assert_PROP (isptr p) by entailer!. destruct p; inv H2. entailer!.
-apply sepcon_derives.
+apply bi.sep_mono.
 + clear - H2. unfold field_at; simpl; entailer!!.
   - unfold field_compatible. destruct H2 as [_ [_ [SZ [AL _]]]].
     repeat split; trivial.
     ++ red. red in SZ. simpl sizeof in *. lia.
-    ++ clear SZ. inv AL. inv H.
+    ++ clear SZ. inv AL.
        eapply align_compatible_rec_Tstruct; [reflexivity.. | intros]. specialize (H4 i0).
-       simpl co_members in *; intros. inv H. 
+       simpl co_members in *; intros. inv H.
        if_tac in H5; inv H5.
        inv H0. inv H1. specialize (H4 _ 0 (eq_refl _) (eq_refl _)).
        inv H4. inv H. econstructor. reflexivity. trivial.
     ++ simpl. left; auto.
-  - unfold at_offset. entailer!!. unfold data_at_rec. simpl.
-    unfold mapsto; simpl. if_tac; entailer!!.
+  - unfold at_offset. entailer!.
 + clear - H4. unfold field_at; simpl; entailer!!.
   - unfold field_compatible. destruct H4 as [_ [_ [SZ [AL _]]]].
     repeat split; trivial.
     ++ red. red in SZ. simpl sizeof in *. lia.
-    ++ clear SZ; inv AL. inv H.
+    ++ clear SZ; inv AL.
        eapply align_compatible_rec_Tstruct; [reflexivity.. | intros]. specialize (H4 i0).
        simpl co_members in *; intros. inv H. 
        if_tac in H5; inv H5.
@@ -1489,13 +1063,15 @@ End FancyFoo.
 
 Section Putting_It_All_Together.
 
+Notation funspec := (@funspec Σ).
+
 (*Since the code calls reset on q and u before acessing their color, the result value is just 0*)
 Definition main_spec :=
  DECLARE _main
   WITH gv: globals
   PRE  [] main_pre prog tt gv
   POST [ tint ]
-     EX i:Z, PROP(0<=i<=6) LOCAL (temp ret_temp (Vint (Int.repr (i)))) SEP(TT).
+     ∃ i:Z, PROP(0<=i<=6) LOCAL (temp ret_temp (Vint (Int.repr (i)))) SEP(True).
 (*
 Definition reset_intersection: funspec.
 Proof.
@@ -1503,13 +1079,13 @@ eapply (binary_intersection' (reset_spec foo_obj_invariant) (freset_spec fancyfo
 Defined.*)
 Definition twiddle_intersection: funspec.
 Proof.
-eapply (binary_intersection' (twiddle_spec foo_obj_invariant) (ftwiddle_spec fancyfoo_obj_invariant)); reflexivity.
+eapply (binary_intersection'(A1 := ConstType _)(A2 := ConstType _) (twiddle_spec foo_obj_invariant) (ftwiddle_spec fancyfoo_obj_invariant)); reflexivity.
 Defined.
 
 (*New: for twiddleR, take intersection of twiidle_spec and ftwiddleR_spec*)
 Definition twiddleR_intersection: funspec.
 Proof.
-eapply (binary_intersection' (twiddle_spec foo_obj_invariant) (ftwiddleR_spec fancyfoo_obj_invariant)); reflexivity.
+eapply (binary_intersection'(A1 := ConstType _)(A2 := ConstType _) (twiddle_spec foo_obj_invariant) (ftwiddleR_spec fancyfoo_obj_invariant)); reflexivity.
 Defined.
 (*
 Lemma reset_sub_foo: funspec_sub reset_intersection (reset_spec foo_obj_invariant).
@@ -1525,13 +1101,11 @@ Qed.*)
 
 Lemma twiddle_sub_foo: funspec_sub twiddle_intersection (twiddle_spec foo_obj_invariant).
 Proof.
-  rewrite funspec_sub_iff.
 apply (binaryintersection_sub (twiddle_spec foo_obj_invariant) (ftwiddle_spec fancyfoo_obj_invariant)).
 apply binary_intersection'_sound.
 Qed.
 Lemma twiddle_sub_fancy: funspec_sub twiddle_intersection (ftwiddle_spec fancyfoo_obj_invariant).
 Proof.
-  rewrite funspec_sub_iff.
 apply (binaryintersection_sub (twiddle_spec foo_obj_invariant) (ftwiddle_spec fancyfoo_obj_invariant)).
 apply binary_intersection'_sound.
 Qed.
@@ -1539,13 +1113,11 @@ Qed.
 (*2 new lemmas for twiddleR*)
 Lemma twiddleR_sub_foo: funspec_sub twiddleR_intersection (twiddle_spec foo_obj_invariant).
 Proof.
-  rewrite funspec_sub_iff.
 apply (binaryintersection_sub (twiddle_spec foo_obj_invariant) (ftwiddleR_spec fancyfoo_obj_invariant)).
 apply binary_intersection'_sound.
 Qed.
 Lemma twiddleR_sub_fancy: funspec_sub twiddleR_intersection (ftwiddleR_spec fancyfoo_obj_invariant).
 Proof. 
-  rewrite funspec_sub_iff.
 apply (binaryintersection_sub (twiddle_spec foo_obj_invariant) (ftwiddleR_spec fancyfoo_obj_invariant)).
 apply binary_intersection'_sound.
 Qed.
@@ -1561,6 +1133,7 @@ Definition Gprog : funspecs :=   ltac:(with_library prog [
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
 start_function.
+rename a into gv.
 sep_apply (create_mem_mgr gv).
 (* assert_gvar _foo_methods. (* TODO: this is needed for a field_compatible later on *) *)
 fold noattr cc_default.
@@ -1577,8 +1150,8 @@ replace_SEP 0 (data_at Ews (Tstruct _methods noattr)
   by  auto with field_compatible. 
   rewrite <- mapsto_field_at with (gfs := [StructField _twiddleR]) (v:= (gv _foo_twiddleR))
   by  auto with field_compatible.
-  rewrite field_at_data_at. rewrite !field_compatible_field_address by auto with field_compatible.
-  rewrite !isptr_offset_val_zero by auto.
+  rewrite field_at_data_at. rewrite -> !field_compatible_field_address by auto with field_compatible.
+  rewrite -> !isptr_offset_val_zero by auto.
   cancel.
 } 
 gather_SEP (mapsto _ _ (offset_val 16 (gv _fancyfoo_methods)) _) 
@@ -1598,8 +1171,8 @@ replace_SEP 0 (data_at Ews (Tstruct _fancymethods noattr)
   by  auto with field_compatible. 
   rewrite <- mapsto_field_at with (gfs := [StructField _getcolor]) (v:= (gv _getcolor))
   by  auto with field_compatible.
-  rewrite field_at_data_at. rewrite !field_compatible_field_address by auto with field_compatible.
-  rewrite !isptr_offset_val_zero by auto.
+  rewrite field_at_data_at. rewrite -> !field_compatible_field_address by auto with field_compatible.
+  rewrite -> !isptr_offset_val_zero by auto.
   cancel.
 }
 
@@ -1612,21 +1185,21 @@ replace_SEP 0 (func_ptr (reset_spec foo_obj_invariant) (gv _foo_reset)(* *
 { entailer!. (*rewrite split_func_ptr. apply sepcon_derives; *)apply func_ptr_mono.
   apply reset_sub_foo. (* apply reset_sub_fancy.*) }*)
 make_func_ptr _foo_twiddle.
-replace_SEP 0 (func_ptr (twiddle_spec foo_obj_invariant) (gv _foo_twiddle) *
+replace_SEP 0 (func_ptr (twiddle_spec foo_obj_invariant) (gv _foo_twiddle) ∗
                func_ptr (ftwiddle_spec fancyfoo_obj_invariant) (gv _foo_twiddle)).
-{ entailer!. rewrite split_func_ptr. apply sepcon_derives; apply func_ptr_mono.
+{ entailer!. iIntros "#?"; iSplit; iApply (func_ptr_mono with "[$]").
   apply twiddle_sub_foo. apply twiddle_sub_fancy. }
 make_func_ptr _foo_twiddleR.
-replace_SEP 0 (func_ptr (twiddle_spec foo_obj_invariant) (gv _foo_twiddleR) *
+replace_SEP 0 (func_ptr (twiddle_spec foo_obj_invariant) (gv _foo_twiddleR) ∗
                func_ptr (ftwiddleR_spec fancyfoo_obj_invariant) (gv _foo_twiddleR)).
-{ entailer!. rewrite split_func_ptr. apply sepcon_derives; apply func_ptr_mono.
+{ entailer!. iIntros "#?"; iSplit; iApply (func_ptr_mono with "[$]").
   apply twiddleR_sub_foo. apply twiddleR_sub_fancy. }
 sep_apply (make_object_methods Ews foo_obj_invariant (gv _foo_reset) (gv _foo_twiddle) (gv _foo_twiddleR) (gv _foo_methods)); auto.
 
 make_func_ptr _fancy_reset.
 make_func_ptr _setcolor.
 make_func_ptr _getcolor.
-sep_apply (make_fobject_methods Ews fancyfoo_obj_invariant (gv _fancy_reset) (gv _foo_twiddle) (gv _foo_twiddleR) (gv _setcolor) (gv _getcolor)(gv _fancyfoo_methods)); auto.
+sep_apply (make_fobject_methods Ews fancyfoo_obj_invariant (gv _fancy_reset) (gv _foo_twiddle) (gv _foo_twiddleR) (gv _setcolor) (gv _getcolor) (gv _fancyfoo_methods)); auto.
 
 (* 2. Build an instance of class [foo], called [p] *)
 forward_call (* p = make_foo(); *)
@@ -1637,7 +1210,7 @@ Intros p.
 forward_call (* q = make_fancyfoo(); *)
         (gv,4).
 Intros q.
-(*New*) freeze [0;2; 4;5 ] FR1. (*Hide the global method tables, memmgr, and the has_ext *)
+(*New*) freeze [0; 2; 4; 5] FR1. (*Hide the global method tables, memmgr, and the has_ext *)
 
 assert_PROP (p<>Vundef) as pNotVundef by entailer!.
 (* Illustration of an alternate method to prove the method calls.
@@ -1864,3 +1437,5 @@ Proof. do_funspec_sub. simpl in H. inv H. inv H6.
     unfold object_methods. admit.
   + entailer!. cancel. normalize.
 Abort.*)
+
+End mpred.

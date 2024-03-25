@@ -4,9 +4,7 @@ Require Import sha.SHA256.
 Require Import sha.spec_sha.
 Require Import sha.sha_lemmas.
 Local Open Scope nat.
-Local Open Scope logic.
 Import LiftNotation.
-Import compcert.lib.Maps.
 
 Lemma Zlength_repeat:
   forall {A} n (x:A), Zlength (repeat x (Z.to_nat n)) = Z.max 0 n.

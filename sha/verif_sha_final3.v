@@ -3,7 +3,6 @@ Require Import sha.sha.
 Require Import sha.SHA256.
 Require Import sha.spec_sha.
 Require Import sha.sha_lemmas.
-Local Open Scope logic.
 
 Definition final_loop :=
  Sfor (Sset _xn (Econst_int (Int.repr 0) tint))

@@ -7,8 +7,6 @@ Require Export sha.general_lemmas.
 Require Export sha.vst_lemmas.
 Export ListNotations.
 
-Local Open Scope logic.
-
 Global Opaque K256.
 
 Transparent peq.
@@ -17,14 +15,14 @@ Lemma mapsto_tc_val:
   forall sh t p v,
   readable_share sh ->
   v <> Vundef ->
-  mapsto sh t p v = !! tc_val t v && mapsto sh t p v .
+  mapsto sh t p v ⊣⊢ !! tc_val t v && mapsto sh t p v .
 Proof.
 intros.
 apply pred_ext; [ | normalize].
 apply andp_right; auto.
 unfold mapsto; simpl.
 destruct (access_mode t); try apply FF_left.
-destruct (attr_volatile (attr_of_type t)); try apply FF_left.
+destruct (type_is_volatile t); try apply FF_left.
 destruct p; try apply FF_left.
 if_tac; try contradiction. apply orp_left.
 normalize.
@@ -98,7 +96,6 @@ rewrite firstn_intlist_to_bytelist.
 rewrite intlist_to_bytelist_to_intlist.
 clear H0.
 revert bl H; induction i; destruct bl; simpl; intros; inv H; auto.
-rewrite (IHi _ H1). reflexivity.
 Qed.
 
 Lemma Znth_big_endian_integer:
@@ -134,9 +131,9 @@ Fixpoint rsequence (cs: list statement) s :=
  end.
 
 Lemma sequence_rsequence:
- forall Espec CS Delta P cs s0 s R,
-    @semax CS Espec Delta P (Ssequence s0 (sequence cs s)) R  <->
-  @semax CS Espec Delta P (Ssequence (rsequence (rev cs) s0) s) R.
+ forall Espec CS E Delta P cs s0 s R,
+    semax(OK_spec := Espec)(C := CS) E Delta P (Ssequence s0 (sequence cs s)) R  <->
+  semax E Delta P (Ssequence (rsequence (rev cs) s0) s) R.
 Proof.
 intros.
 revert Delta P R s0 s; induction cs; intros.
@@ -151,12 +148,11 @@ rewrite IHl. auto.
 Qed.
 
 Lemma seq_assocN:
-  forall {Espec: OracleKind} CS,
-   forall Q Delta P cs s R,
-        @semax CS Espec Delta P (sequence cs Sskip) (normal_ret_assert Q) ->
-         @semax CS Espec
-       Delta  Q s R ->
-        @semax CS Espec Delta P (sequence cs s) R.
+  forall {Espec} CS,
+   forall Q E Delta P cs s R,
+        semax(OK_spec := Espec)(C := CS) E Delta P (sequence cs Sskip) (normal_ret_assert Q) ->
+         semax E Delta Q s R ->
+         semax E Delta P (sequence cs s) R.
 Proof.
 intros.
 rewrite semax_skip_seq.
@@ -226,8 +222,6 @@ Ltac MyOmega :=
 (*** End Omega stuff ***)
 
 Local Open Scope Z.
-
-Local Open Scope logic.
 
 Lemma sizeof_tarray_tuchar:
  forall (n:Z), (n>=0)%Z -> (sizeof (tarray tuchar n) =  n)%Z.

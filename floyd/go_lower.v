@@ -17,7 +17,7 @@ Ltac unfold_for_go_lower :=
                       make_args' bind_ret get_result1 retval
                        classify_cast
                        (* force_val sem_cast_neutral ... NOT THESE TWO!  *)
-                      denote_tc_assert (* tc_andp tc_iszero *)
+                      expr2.denote_tc_assert (* tc_andp tc_iszero *)
     liftx LiftEnviron Tarrow Tend lift_S lift_T
     lift_prod lift_last lifted lift_uncurry_open lift_curry
      local lift lift0 lift1 lift2 lift3
@@ -913,7 +913,7 @@ let rho := fresh "rho" in
 split => rho;
 first
 [ simple apply quick_finish_lower
-|          
+|
  (let TC := fresh "TC" in apply finish_lower; intros TC ||
  match goal with
  | |- (_ ∧ PROPx nil _) _ ⊢ _ => fail 1 "LOCAL part of precondition is not a concrete list (or maybe Delta is not concrete)"
@@ -925,7 +925,9 @@ cbv [fold_right_sepconx];
 simpl tc_val;
 cbv [typecheck_exprlist typecheck_expr]; simpl tc_andp;
 simpl msubst_denote_tc_assert;
-try monPred.unseal; unfold monPred_at;
+try monPred.unseal; unfold assert_of;
+repeat match goal with |-context[@monPred_at ?A ?B ?C ?D] =>
+  change (@monPred_at A B C D) with (let (monPred_at, _) := C in monPred_at D); cbv match beta end;
 try clear dependent rho;
 clear_Delta
 ].

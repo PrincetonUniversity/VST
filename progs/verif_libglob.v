@@ -77,11 +77,9 @@ intros.
 unfold initialized_globals, data.
 rewrite !data_at_tuint_tint.
 entailer!.
-apply orp_right2.
+rewrite <- bi.or_intro_r.
 cancel.
 unfold_data_at (data_at _ (Tstruct _foo _) _ _).
-rewrite sepcon_comm.
-apply sepcon_derives.
 rewrite field_at_data_at.
 simpl.
 rewrite field_compatible_field_address
@@ -159,7 +157,7 @@ Definition main_spec :=
   DECLARE _main
   WITH gv : globals
   PRE  [] main_pre prog tt gv
-  POST [ tint ]  
+  POST [ tint ]
      PROP() 
      RETURN (Vint (Int.repr 5))
      SEP(TT).
@@ -168,32 +166,17 @@ Definition Gprog : funspecs :=
     ltac:(with_library prog [
     init_spec; bump_spec; get_spec; client_spec; main_spec]).
 
-Lemma orp_if_bool:
- forall {A} {NA: NatDed A} (P Q: A),
-   orp P Q = EX b: bool, if b then P else Q.
-Proof.
-intros.
-apply pred_ext.
-apply orp_left.
-Exists true; auto.
-Exists false; auto.
-Intros b.
-destruct b.
-apply orp_right1; auto.
-apply orp_right2; auto.
-Qed.
-
 Lemma body_init:  semax_body Vprog Gprog f_LG_init init_spec.
 Proof.
 start_function.
 unfold LG.data.
 unfold LG.data_ok.
-rewrite orp_if_bool.
+rewrite bi.or_alt.
 Intros b; destruct b.
 *
 Intros.
 forward.
-forward_if (PROP() LOCAL() SEP(LG.data_ok n gv)).
+forward_if.
 inv H0.
 forward.
 unfold LG.data_ok.
@@ -201,7 +184,7 @@ entailer!.
 *
 Intros.
 forward.
-forward_if (PROP() LOCAL() SEP(LG.data_ok n gv)).
+forward_if.
 forward.
 forward.
 unfold LG.data_ok.
@@ -223,7 +206,7 @@ forward.
 forward.
 entailer!!.
 unfold LG.data.
-apply orp_right1.
+rewrite <- bi.or_intro_l.
 unfold LG.data_ok.
 entailer!.
 Qed.
@@ -235,22 +218,20 @@ forward_call (n,gv).
 unfold LG.data_ok.
 Intros.
 forward.
-forward_if False.
+forward_if (False : assert).
 *
 forward.
 unfold LG.data.
-apply orp_right1.
+rewrite <- bi.or_intro_l.
 unfold LG.data_ok.
 entailer!!.
 *
 forward.
 forward.
 unfold LG.data.
-apply orp_right1.
+rewrite <- bi.or_intro_l.
 unfold LG.data_ok.
 entailer!!.
-*
-Intros. contradiction.
 Qed.
 
 
@@ -267,8 +248,8 @@ Qed.
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
 start_function.
+rename a into gv.
 sep_apply (LG.initial gv); auto.
 forward_call (3,gv).
 forward.
 Qed.
-

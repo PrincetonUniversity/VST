@@ -4,8 +4,6 @@ Require Import sha.SHA256.
 Require Import sha.sha_lemmas.
 Require Import sha.spec_sha.
 
-Local Open Scope logic.
-
 Lemma int_unsigned_mod:
  forall i, Int.unsigned i mod Int.modulus = Int.unsigned i.
 Proof.

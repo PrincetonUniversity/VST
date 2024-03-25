@@ -391,7 +391,7 @@ Ltac pull_left A :=
   and which sometimes fails when the terms get complicated.
  *)
   repeat match goal with
-  | |- context [?Q ∗ ?R ∗ A] => rewrite <- (pull_right A Q R)
+  | |- context [(?Q ∗ ?R) ∗ A] => rewrite <- (pull_right A Q R)
   | |- context [?Q ∗ A] => rewrite <- (pull_right0 A Q)
   end.
 

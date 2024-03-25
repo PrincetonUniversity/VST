@@ -15,7 +15,7 @@ Definition object_invariant := list Z -> val -> mpred.*)
 
 (*But the uncurried version is easier for the HOrec construction*)
 Definition ObjInv : Type:= (list Z * val).
-Definition object_invariant := ObjInv -> mpred.
+Definition object_invariant := ObjInv -d> mpred.
 
 Definition tobject := tptr (Tstruct _object noattr).
 
@@ -50,6 +50,23 @@ Definition object_methods (instance: object_invariant) (mtable: val) : mpred :=
   func_ptr (twiddle_spec instance) twiddleR ∗
   data_at sh (Tstruct _methods noattr) (reset,(twiddle, twiddleR)) mtable.
 
+Global Instance reset_spec_ne : NonExpansive reset_spec.
+Proof.
+  intros ????.
+  unfold reset_spec, NDmk_funspec.
+  f_equiv; intros ??; simpl; by repeat f_equiv.
+Qed.
+
+Global Instance twiddle_spec_ne : NonExpansive twiddle_spec.
+Proof.
+  intros ????.
+  unfold twiddle_spec, NDmk_funspec.
+  f_equiv; intros ??; simpl; by repeat f_equiv.
+Qed.
+
+Global Instance object_methods_ne n : Proper (dist n ==> eq ==> dist n) object_methods.
+Proof. solve_proper. Qed.
+
 Lemma object_methods_local_facts: forall instance p,
   object_methods instance p ⊢ ⌜isptr p⌝.
 Proof.
@@ -61,7 +78,7 @@ Qed.
 Hint Resolve object_methods_local_facts : saturate_local.
 
 (*Andrew's definition
-Definition object_mpred (history: list Z) (self: val) : mpred :=
+Definition obj_mpred (history: list Z) (self: val) : mpred :=
   ∃ instance: object_invariant, ∃ mtable: val, 
        (object_methods instance mtable *
      field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable self*
@@ -70,29 +87,24 @@ Definition object_mpred (history: list Z) (self: val) : mpred :=
 Section ObjMpred.
 Variable instance: object_invariant.
 
-Definition F (X: ObjInv -> mpred) (hs: ObjInv): mpred :=
+Definition F (X: ObjInv -d> mpred) : ObjInv -d> mpred := fun hs =>
    ((∃ mtable: val, ⌜isptr mtable⌝ (*This has to hold NOW, not just LATER*)∧
      (▷ object_methods X mtable) ∗
      field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable (snd hs)) ∗
    instance hs)%I.
 
-Program Instance F_mono : BiMonoPred F.
-
-(*Local Instance F_contractive : Contractive F.
+Local Instance F_contractive : Contractive F.
 Proof.
-  rewrite /semax_ => n semax semax' Hsemax [??????].
-  do 8 f_equiv.
-  rewrite /believepred.
-  do 15 f_equiv.
-  rewrite /believe_internal_.
-  do 14 f_equiv.
-  by f_contractive.
-Qed.*)
+  intros ?????.
+  unfold F.
+  do 5 f_equiv.
+  f_contractive.
+  rewrite H //.
+Qed.
 
-Definition obj_mpred:ObjInv -> mpred := bi_least_fixpoint(A := leibnizO ObjInv) F.
+Definition obj_mpred:ObjInv -> mpred := fixpoint F.
 
-Lemma ObjMpred_fold_unfold: 
-(*HOcontractive (fun (_ : ObjInv -> mpred) (x : ObjInv) => instance x) ->*)
+Lemma ObjMpred_fold_unfold:
 forall hs, obj_mpred hs ⊣⊢
   ((∃ mtable: val,⌜isptr mtable⌝ ∧
      (▷ object_methods obj_mpred mtable) ∗
@@ -100,37 +112,31 @@ forall hs, obj_mpred hs ⊣⊢
    instance hs).
 Proof.
   intros; unfold obj_mpred at 1.
-  rewrite least_fixpoint_unfold.
-  rewrite HORec_fold_unfold; [ reflexivity | apply HOcontrF]; trivial.
+  by rewrite (fixpoint_unfold F _).
 Qed.
-Lemma ObjMpred_fold_unfold' hs: 
-HOcontractive (fun (_ : ObjInv -> mpred) (x : ObjInv) => instance x) ->
-obj_mpred hs = 
-  ((∃ mtable: val, ⌜isptr mtable) ∧
-     (▷ object_methods obj_mpred mtable) *
-     field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable (snd hs)) *
+Lemma ObjMpred_fold_unfold' hs:
+obj_mpred hs ⊣⊢
+  ((∃ mtable: val, ⌜isptr mtable⌝ ∧
+     (▷ object_methods obj_mpred mtable) ∗
+     field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable (snd hs)) ∗
    instance hs).
 Proof.
-  intros. rewrite ObjMpred_fold_unfold, <- ObjMpred_fold_unfold; trivial. 
+  intros. rewrite ObjMpred_fold_unfold -ObjMpred_fold_unfold; trivial.
 Qed.
 
-Lemma ObjMpred_isptr
-   (H: HOcontractive (fun (_ : ObjInv -> mpred) (x : ObjInv) => instance x))
-    hs: obj_mpred hs ⊢ ⌜isptr (snd hs)).
-Proof. rewrite ObjMpred_fold_unfold' by trivial; Intros m. entailer!. Qed.
+Lemma ObjMpred_isptr hs: obj_mpred hs ⊢ ⌜isptr (snd hs)⌝.
+Proof. rewrite -> ObjMpred_fold_unfold' by trivial; Intros m. entailer!. Qed.
 
 End ObjMpred.
 
 Definition object_mpred: object_invariant := fun hs =>
-  ∃ instance, ⌜HOcontractive (fun (_ : ObjInv -> mpred) (x : ObjInv) => instance x)) ∧
-               obj_mpred instance hs.
+  ∃ instance, obj_mpred instance hs.
 (*This now plays the role of Andrew's obj_mpred*)
 
-Lemma object_mpred_isptr hs: object_mpred hs ⊢ ⌜isptr (snd hs)).
+Lemma object_mpred_isptr hs: object_mpred hs ⊢ ⌜isptr (snd hs)⌝.
 Proof. unfold object_mpred; Intros inst. apply ObjMpred_isptr; trivial. Qed.
 
-Lemma obj_mpred_entails_object_mpred inst hs
-  (H: HOcontractive (fun (_ : ObjInv -> mpred) (x : ObjInv) => inst x)):
+Lemma obj_mpred_entails_object_mpred inst hs:
   obj_mpred inst hs ⊢ object_mpred hs.
 Proof. unfold object_mpred. Exists inst. entailer!. Qed.
 
@@ -157,7 +163,7 @@ Definition make_foo_spec :=
     SEP (mem_mgr gv; object_methods foo_invariant (gv _foo_methods))
  POST [ tobject ]
     ∃ p: val, PROP () LOCAL (temp ret_temp p)
-     SEP (mem_mgr gv; object_mpred (*nil p*)(nil, p); object_methods foo_invariant (gv _foo_methods)).
+     SEP (mem_mgr gv; obj_mpred (*nil p*)(nil, p); object_methods foo_invariant (gv _foo_methods)).
 
 *)
 
@@ -166,43 +172,39 @@ Definition foo_data : object_invariant :=
   (fun (x:ObjInv) => 
     withspacer Ews (sizeof size_t + sizeof tint) (2 * sizeof size_t) (field_at Ews (Tstruct _foo_object noattr) 
             [StructField _data] (Vint (Int.repr (2*fold_right Z.add 0 (fst x))))) (snd x)
-      *  malloc_token Ews (Tstruct _foo_object noattr) (snd x)).
-Lemma foo_data_HOcontr: HOcontractive (fun (_ : ObjInv -> mpred) (x : ObjInv) => foo_data x).
-Proof.
-  assert (predicates_rec.HOcontractive (fun (_ : ObjInv -> mpred) (x : ObjInv) => foo_data x)). 2: constructor; apply H.
-  unfold foo_data.
-  unfold withspacer; simpl.
-  apply Trashcan.sepcon_HOcontractive.
-  apply Trashcan.const_HOcontractive.
-  apply Trashcan.const_HOcontractive.
-Qed.
+      ∗ malloc_token Ews (Tstruct _foo_object noattr) (snd x)).
 
 Definition foo_obj_invariant :object_invariant := obj_mpred foo_data.
 
 (*New lemma!*)
-Lemma foo_obj_invariant_fold_unfold: foo_obj_invariant =
+Lemma foo_obj_invariant_fold_unfold: foo_obj_invariant ≡
  fun hs =>
-  ((∃ mtable: val, ⌜isptr mtable) ∧
-     (▷object_methods foo_obj_invariant  mtable) *
-     field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable (snd hs)) *
+  ((∃ mtable: val, ⌜isptr mtable⌝ ∧
+     (▷object_methods foo_obj_invariant  mtable) ∗
+     field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable (snd hs)) ∗
    foo_data hs).
 Proof.
-  unfold foo_obj_invariant.
-  rewrite <- ObjMpred_fold_unfold. trivial. apply foo_data_HOcontr.
+  unfold foo_obj_invariant; intros ?.
+  rewrite <- ObjMpred_fold_unfold. trivial.
 Qed.
 
 (*Sometimes this variant is preferable, sometimes the one above*)
-Lemma foo_obj_invariant_fold_unfold' hs: foo_obj_invariant hs =
-  ((∃ mtable: val, ⌜isptr mtable) ∧
-     (▷object_methods foo_obj_invariant  mtable) *
-     field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable (snd hs)) *
+Lemma foo_obj_invariant_fold_unfold' hs: foo_obj_invariant hs ⊣⊢
+  ((∃ mtable: val, ⌜isptr mtable⌝ ∧
+     (▷object_methods foo_obj_invariant  mtable) ∗
+     field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable (snd hs)) ∗
    foo_data hs).
-Proof. rewrite foo_obj_invariant_fold_unfold. rewrite <- foo_obj_invariant_fold_unfold; trivial. Qed.
+Proof. apply (foo_obj_invariant_fold_unfold hs). Qed.
 
-Lemma foo_data_isptr hs: foo_data hs = ⌜isptr (snd hs)) ∧ foo_data hs.
-apply pred_ext; entailer.
-unfold foo_data. entailer!. destruct (snd hs); simpl in *; trivial;  contradiction.
+Lemma foo_data_isptr hs: foo_data hs ⊣⊢ ⌜isptr (snd hs)⌝ ∧ foo_data hs.
+Proof.
+  iSplit.
+  - iIntros; iSplit; last done.
+    unfold foo_data; iStopProof.
+    destruct (hs.2); entailer!.
+  - iIntros "(_ & $)".
 Qed.
+
 
 Definition foo_reset_spec :=
  DECLARE _foo_reset (reset_spec foo_obj_invariant).
@@ -217,7 +219,7 @@ Definition make_foo_spec :=
  DECLARE _make_foo
  WITH gv: globals
  PRE [ ]
-    PROP () LOCAL (gvars gv) 
+    PROP () PARAMS () GLOBALS (gv)
     SEP (mem_mgr gv; object_methods foo_obj_invariant (gv _foo_methods))
  POST [ tobject ]
     ∃ p: val, PROP () LOCAL (temp ret_temp p)
@@ -229,24 +231,24 @@ Definition main_spec :=
   WITH gv: globals
   PRE  [] main_pre prog tt gv
   POST [ tint ]
-     ∃ i:Z, PROP(0<=i<=6) LOCAL (temp ret_temp (Vint (Int.repr i))) SEP(TT).
+     ∃ i:Z, PROP(0<=i<=6) LOCAL (temp ret_temp (Vint (Int.repr i))) SEP(True).
 
 Definition Gprog : funspecs :=   ltac:(with_library prog [
     foo_reset_spec; foo_twiddle_spec; foo_twiddleR_spec; make_foo_spec; main_spec]).
 
-(*Redundant given obj_mpred_entails_object_mpred and the fact that our funspecs yield a folded  obj_mpred.
-Lemma object_mpred_i:
+(*Redundant given obj_mpred_entails_obj_mpred and the fact that our funspecs yield a folded  obj_mpred.
+Lemma obj_mpred_i:
   forall (*(history: list Z) (self: val)*)(x:ObjInv) (instance: object_invariant) (mtable: val)
   ((*NEW*)CONTR: HOcontractive (fun (_ : ObjInv -> mpred) (x : ObjInv) => instance x)),
   match x with (history, self) => ⌜isptr mtable) ∧
      (▷object_methods instance mtable) *
      field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable self *
      instance (*history self*)x 
-    ⊢ object_mpred (*history self*)x
+    ⊢ obj_mpred (*history self*)x
   end.
 Proof.
-(*intros. unfold object_mpred. Exists instance mtable; auto.*)
-intros. destruct x as [history self]. unfold object_mpred. Exists instance. entailer!.
+(*intros. unfold obj_mpred. Exists instance mtable; auto.*)
+intros. destruct x as [history self]. unfold obj_mpred. Exists instance. entailer!.
 rewrite ObjMpred_fold_unfold by trivial.
 Exists mtable. simpl. entailer!.
 unfold object_methods. apply later_derives.
@@ -285,18 +287,18 @@ all: unfold withspacer; simpl; entailer!.  (* needed if Archi.ptr64=true *)
 Qed.*)
 Lemma body_foo_reset: semax_body Vprog Gprog f_foo_reset foo_reset_spec.
 Proof.
-start_function. 
-(*New:*) rewrite foo_obj_invariant_fold_unfold. Intros m; unfold foo_data.
+start_function.
+(*New:*) rewrite foo_obj_invariant_fold_unfold'. Intros m; unfold foo_data.
 unfold withspacer; simpl; Intros.
 forward.  (* self->data=0; *)
 entailer!!.
-(*New:*) rewrite foo_obj_invariant_fold_unfold, <- foo_obj_invariant_fold_unfold. Exists m; unfold foo_data.
+(*New:*) rewrite foo_obj_invariant_fold_unfold'. Exists m; unfold foo_data.
 all: unfold withspacer; simpl; entailer!.  (* needed if Archi.ptr64=true *)
 Qed.
 
-Lemma body_foo_reset_alternativeproof: semax_body Vprog Gprog f_foo_reset foo_reset_spec.
+(*Lemma body_foo_reset_alternativeproof: semax_body Vprog Gprog f_foo_reset foo_reset_spec.
 Proof.
-(*New*) unfold foo_reset_spec. rewrite foo_obj_invariant_fold_unfold; unfold reset_spec.
+(*New*) unfold foo_reset_spec. rewrite foo_obj_invariant_fold_unfold'; unfold reset_spec.
 start_function. 
 (*New:*) Intros m; unfold foo_data.
 unfold withspacer; simpl; Intros.
@@ -304,12 +306,13 @@ forward.  (* self->data=0; *)
 entailer!!.
 (*New:*) Exists m; unfold foo_data.
 all: unfold withspacer; simpl; entailer!!.  (* needed if Archi.ptr64=true *)
-Qed.
+Qed.*)
 
 Lemma body_foo_twiddle: semax_body Vprog Gprog f_foo_twiddle foo_twiddle_spec.
 Proof.
-(*New*) unfold foo_twiddle_spec. rewrite foo_obj_invariant_fold_unfold; unfold twiddle_spec.
+(*New*) unfold foo_twiddle_spec. unfold twiddle_spec.
 start_function.
+rewrite foo_obj_invariant_fold_unfold'.
 (*New:*) Intros m; unfold foo_data.
 unfold withspacer; simpl.
 Intros.
@@ -324,10 +327,11 @@ forward.  (* return d+i; *)
   forget (fold_right Z.add 0 (*history*)(fst hs)) as h.
   entailer!!. }
 Exists (2 * fold_right Z.add 0 (*history*)(fst hs) + i).
+rewrite foo_obj_invariant_fold_unfold'.
 (*New:*) Exists m; unfold foo_data.
 simpl;
 entailer!!.
-rewrite Z.mul_add_distr_l, Z.add_comm.
+rewrite Z.mul_add_distr_l Z.add_comm.
 unfold withspacer; simpl.
 entailer!!.
 Qed.
@@ -336,9 +340,9 @@ Qed.
 Lemma make_object_methods:
   forall sh instance reset twiddle twiddleR mtable,
   readable_share sh ->
-  func_ptr (reset_spec instance) reset *
-  func_ptr (twiddle_spec instance) twiddle *
-  func_ptr (twiddle_spec instance) twiddleR * 
+  func_ptr (reset_spec instance) reset ∗
+  func_ptr (twiddle_spec instance) twiddle ∗
+  func_ptr (twiddle_spec instance) twiddleR ∗
   data_at sh (Tstruct _methods noattr) (reset, (twiddle, twiddleR)) mtable
   ⊢ object_methods instance mtable.
 Proof.
@@ -351,19 +355,20 @@ Qed.
 Lemma make_object_methods_later:
   forall sh instance reset twiddle twiddleR mtable,
   readable_share sh ->
-  func_ptr (reset_spec instance) reset *
-  func_ptr (twiddle_spec instance) twiddle *
-  func_ptr (twiddle_spec instance) twiddleR * 
+  func_ptr (reset_spec instance) reset ∗
+  func_ptr (twiddle_spec instance) twiddle ∗
+  func_ptr (twiddle_spec instance) twiddleR ∗
   data_at sh (Tstruct _methods noattr) (reset, (twiddle, twiddleR)) mtable
   ⊢ ▷ object_methods instance mtable.
 Proof.
-intros. eapply derives_trans. apply make_object_methods; trivial. apply now_later.
+intros. eapply derives_trans. apply make_object_methods; trivial. apply bi.later_intro.
 Qed.
 
 Lemma body_foo_twiddleR: semax_body Vprog Gprog f_foo_twiddleR foo_twiddleR_spec.
 Proof.
-(*New*) unfold foo_twiddleR_spec. rewrite foo_obj_invariant_fold_unfold; unfold twiddle_spec.
+(*New*) unfold foo_twiddleR_spec. unfold twiddle_spec.
 start_function.
+rewrite foo_obj_invariant_fold_unfold'.
 (*New:*) Intros m; unfold foo_data.
 unfold withspacer; simpl.
 Intros.
@@ -373,13 +378,13 @@ forward.  (* d = self->data; *)
 forward.
 unfold object_methods. Intros sh r t tR.
 forward. (*_s_reset = (_mtable -> _reset);*)
-forward_call hs. 
+forward_call hs.
 { rewrite foo_obj_invariant_fold_unfold'.
   Exists m. unfold foo_data, withspacer; simpl. entailer!!.
   sep_apply make_object_methods_later. cancel. }
 (*The spec has folded the object, so need to unfold again*)
 deadvars!. clear - H H0.
-rewrite foo_obj_invariant_fold_unfold. Intros m. unfold foo_data, withspacer; Intros; simpl.
+rewrite foo_obj_invariant_fold_unfold'. Intros m. unfold foo_data, withspacer; Intros; simpl.
 
 forward.  (* self -> data = d+2*i; *) 
 { set (j:= Int.max_signed / 4) in *; compute in j; subst j.
@@ -392,17 +397,18 @@ forward.  (* return d+i; *)
   forget (fold_right Z.add 0 (*history*)(fst hs)) as h.
   entailer!!. }
 Exists (2 * fold_right Z.add 0 (*history*)(fst hs) + i).
+rewrite foo_obj_invariant_fold_unfold'.
 (*New:*) Exists m; unfold foo_data.
 simpl;
 entailer!.
-rewrite Z.mul_add_distr_l, Z.add_comm.
+rewrite Z.mul_add_distr_l Z.add_comm.
 unfold withspacer; simpl.
 entailer!!.
 Qed.
 
 Lemma split_object_methods:
-  forall instance m, 
-    object_methods instance m ⊢ object_methods instance m * object_methods instance m.
+  forall instance m,
+    object_methods instance m ⊢ object_methods instance m ∗ object_methods instance m.
 Proof.
 intros.
 unfold object_methods.
@@ -410,16 +416,10 @@ Intros sh reset twiddle twiddleR.
 
 Exists (fst (slice.cleave sh)) reset twiddle twiddleR.
 Exists (snd (slice.cleave sh)) reset twiddle twiddleR.
-rewrite (split_func_ptr (reset_spec instance) reset) at 1.
-rewrite (split_func_ptr (twiddle_spec instance) twiddle) at 1.
-rewrite (split_func_ptr (twiddle_spec instance) twiddleR) at 1.
-entailer!!.
-split.
-apply slice.cleave_readable1; auto.
-apply slice.cleave_readable2; auto.
-rewrite (data_at_share_join (fst (slice.cleave sh)) (snd (slice.cleave sh)) sh).
-auto.
-apply slice.cleave_join.
+iIntros "(#$ & #$ & #$ & H)".
+rewrite -(data_at_share_join (fst (slice.cleave sh)) (snd (slice.cleave sh)) sh); last apply slice.cleave_join.
+iDestruct "H" as "($ & $)".
+iPureIntro; repeat split; auto; apply slice.cleave_readable1 || apply slice.cleave_readable2; auto.
 Qed.
 
 (* Isolate a lemma from Andrew's proof of body_make_foo; TODO: simplify the following proof. *)
@@ -450,6 +450,7 @@ Lemma body_make_foo: semax_body Vprog Gprog f_make_foo make_foo_spec.
 Proof.
 unfold make_foo_spec.
 start_function.
+rename a into gv.
 forward_call (Tstruct _foo_object noattr, gv).
 Intros p.
 forward_if
@@ -466,7 +467,7 @@ if_tac; entailer!!.
 forward_call 1.
 contradiction.
 *
-rewrite if_false by auto.
+rewrite -> if_false by auto.
 Intros.
 forward.  (*  /*skip*/;  *)
 entailer!!.
@@ -478,22 +479,21 @@ forward. (* return (struct object * ) p; *)
 Exists p.
 sep_apply (split_object_methods foo_obj_invariant (gv _foo_methods)).
 entailer!!.
-unfold object_mpred.
+unfold obj_mpred.
 
 (*slight variation of Andrew's proof from here on*)
-Exists foo_data. entailer!!. 1: solve [apply foo_data_HOcontr].
-rewrite ObjMpred_fold_unfold by (apply foo_data_HOcontr).
+Exists foo_data. entailer!!.
+rewrite -> ObjMpred_fold_unfold by (apply foo_data_HOcontr).
 Exists (gv _foo_methods). simpl. normalize.
-rewrite ! sepcon_assoc. apply sepcon_derives. apply now_later.
 unfold foo_data; simpl. unfold withspacer; simpl.
 cancel.
+apply bi.sep_mono; first apply bi.later_intro.
 unfold_data_at (field_at _ _ nil _ p).
 cancel.
 clear -H.
 rewrite !field_at_data_at.
 simpl.
-apply derives_refl'.
-rewrite <- ?sepcon_assoc. (* needed if Archi.ptr64=true *)
+f_equiv.
 rewrite !field_compatible_field_address; auto with field_compatible.
 apply MC_FC; trivial.
 Qed.
@@ -505,9 +505,9 @@ match goal with
             (Ssequence (Sset ?mt (Efield (Ederef (Etempvar ?x _)  _) _ _))
                  _) _  =>
     match Q with context [temp ?x ?x'] =>
-     match R with context [object_mpred _ x'] =>
+     match R with context [obj_mpred _ x'] =>
           let instance := fresh "instance" in let mtable := fresh "mtable" in
-          unfold object_mpred; Intros instance mtable;
+          unfold obj_mpred; Intros instance mtable;
           forward;
           unfold object_methods at 1; 
           let sh := fresh "sh" in let r := fresh "r" in let t := fresh "t" in
@@ -516,7 +516,7 @@ match goal with
           forward_call witness;
           [ .. | try Intros result;
                   sep_apply (make_object_methods sh instance r t mtable); [ auto .. | ];
-                  sep_apply (object_mpred_i hist' x' instance mtable);
+                  sep_apply (obj_mpred_i hist' x' instance mtable);
                   deadvars; try clear dependent sh; try clear r; try clear t
            ]
     end end
@@ -525,6 +525,7 @@ end.*)
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
 start_function.
+rename a into gv.
 sep_apply (create_mem_mgr gv).
 (* assert_gvar _foo_methods. (* TODO: this is needed for a field_compatible later on *) *)
 fold noattr cc_default.
@@ -539,8 +540,8 @@ replace_SEP 0 (data_at Ews (Tstruct _methods noattr)
   by  auto with field_compatible. 
   rewrite <- mapsto_field_at with (gfs := [StructField _twiddleR]) (v:= (gv _foo_twiddleR))
   by  auto with field_compatible.
-  rewrite field_at_data_at. rewrite !field_compatible_field_address by auto with field_compatible.
-  rewrite !isptr_offset_val_zero by auto.
+  rewrite field_at_data_at. rewrite -> !field_compatible_field_address by auto with field_compatible.
+  rewrite -> !isptr_offset_val_zero by auto.
   cancel.
 }
 
@@ -572,11 +573,12 @@ assert_PROP (p<>Vundef) as pNotVundef by entailer!.
 
 (* CC *)
 (* 4. first method-call *)
+
 (*NEW*) assert_PROP (isptr p) as isptrP by (sep_apply object_mpred_isptr; entailer!).
 unfold object_mpred.
 
 (*WAS:Intros instance mtable0.*)
-(*Now*) Intros instance. rename H into HOC. rewrite ObjMpred_fold_unfold by trivial. Intros mtable0; simpl.
+(*Now*) Intros instance. rewrite -> ObjMpred_fold_unfold by trivial. Intros mtable0; simpl.
 
 forward. (*  mtable = p->mtable; *)
 unfold object_methods at 1.
@@ -586,11 +588,11 @@ forward_call (* p_reset(p); *)
       (@nil Z,p).
 { (*NEW subgoal*)
    sep_apply make_object_methods_later.
-   rewrite ObjMpred_fold_unfold, <- ObjMpred_fold_unfold by trivial.
-   Exists mtable0. entailer!!. } 
+   rewrite ObjMpred_fold_unfold.
+   Exists mtable0. entailer!!. }
 (* WAS (*Finish the method-call by regathering the object p back together *)
 sep_apply (make_object_methods sh instance r0 t0 mtable0); auto.
-sep_apply (object_mpred_i [] p instance mtable0).*)
+sep_apply (obj_mpred_i [] p instance mtable0).*)
 
 (*Now: folding partially done by forward_call (and the preceding new subgoal*)
 sep_apply obj_mpred_entails_object_mpred; simpl.
@@ -602,24 +604,23 @@ deadvars!. clear.
 unfold object_mpred.
 
 (*WAS:Intros instance mtable0.*)
-(*Now*) Intros instance. rename H into HOC. rewrite ObjMpred_fold_unfold by trivial. Intros mtable0; simpl.
+(*Now*) Intros instance. rewrite -> ObjMpred_fold_unfold by trivial. Intros mtable0; simpl.
 
 forward.  (* mtable = p->mtable; *)
 unfold object_methods at 1.
 Intros sh r0 t0 tR0.
 forward.   (* p_twiddle = mtable->twiddle; *)
-(*Now redundant: assert_PROP (p<>Vundef) by entailer!.*)
 forward_call (* i = p_twiddle(p,3); *)
       ((@nil Z,p), 3).
 { (*NEW subgoal*)
    sep_apply make_object_methods_later.
-   rewrite ObjMpred_fold_unfold, <- ObjMpred_fold_unfold by trivial.
+   rewrite ObjMpred_fold_unfold.
    Exists mtable0. entailer!!. }
 { simpl. repeat split; try trivial; computable. }
 Intros i.
 simpl in H0. (*
 sep_apply (make_object_methods sh instance r0 t0 mtable0); auto.
-sep_apply (object_mpred_i [3] p instance mtable0).*)
+sep_apply (obj_mpred_i [3] p instance mtable0).*)
 sep_apply obj_mpred_entails_object_mpred; simpl.
 deadvars!.
 (*simpl in H1.*)
@@ -631,4 +632,4 @@ forward.  (* return i; *)
 Exists i; entailer!!.
 Qed.
 
-end mpred.
+End mpred.

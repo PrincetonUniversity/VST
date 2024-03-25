@@ -993,7 +993,7 @@ Qed.
 (* up? *)
 Lemma big_sepL_timeless' {A} (f : nat -> A -> mpred) l `(∀ k v, Timeless (f k v)) : l ≠ [] -> Timeless ([∗ list] k↦v ∈ l, f k v).
 Proof.
-  revert dependent f; induction l; first done; simpl; intros.
+  generalize dependent f; induction l; first done; simpl; intros.
   destruct l.
   - rewrite /= right_id //.
   - apply bi.sep_timeless; first done.

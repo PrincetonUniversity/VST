@@ -246,20 +246,31 @@ Proof.
   assert_PROP (size_compatible tuint (gv _three) /\ align_compatible tuint (gv _three)) by (entailer!; clear - H5; hnf in H5; intuition).
   rewrite <- mapsto_data_at with (v := Vint(Int.repr 1)); try intuition. 
   clear H0.
-  rewrite <- (sepcon_emp (mapsto _ _ (offset_val 20 _) _)).
   assert (FC: field_compatible (tarray t_struct_list 3) [] (gv _three))
     by auto with field_compatible.
   match goal with |- ?A |-- _ => set (a:=A) end.
   replace (gv _three) with (offset_val 0 (gv _three)) by (autorewrite with norm; auto).
   subst a.
 
-  rewrite (sepcon_comm (has_ext tt)).
-  rewrite <- !sepcon_assoc. apply sepcon_derives; auto.
-  rewrite !sepcon_assoc.
-  rewrite (sepcon_emp (lseg _ _ _ _ _)).
-  rewrite sepcon_emp.
-
- repeat
+  cancel.
+  repeat match goal with |- _ * (mapsto _ _ _ ?q * _) |-- lseg _ _ _ (offset_val ?n _) _ =>
+    assert (FC': field_compatible t_struct_list [] (offset_val n (gv _three)));
+      [apply (@field_compatible_nested_field CompSpecs (tarray t_struct_list 3)
+         [ArraySubsc (n/8)] (gv _three));
+       simpl;
+       unfold field_compatible in FC |- *; simpl in FC |- *;
+       assert (0 <= n/8 < 3) by (cbv [Z.div]; simpl; lia);
+       tauto
+      |];
+    apply @lseg_unroll_nonempty1 with q;
+      [destruct (gv _three); try contradiction; intro Hx; inv Hx | normalize; try reflexivity | ];
+    rewrite list_cell_eq by auto;
+    do 2 (apply sepcon_derives;
+      [ unfold field_at; rewrite prop_true_andp by auto with field_compatible;
+        unfold data_at_rec, at_offset; simpl; normalize; try apply derives_refl | ]);
+    clear FC'
+    end.
+  rewrite <- bi.sep_emp, <- bi.sep_assoc.
   match goal with |- _ * (mapsto _ _ _ ?q * _) |-- lseg _ _ _ (offset_val ?n _) _ =>
     assert (FC': field_compatible t_struct_list [] (offset_val n (gv _three)));
       [apply (@field_compatible_nested_field CompSpecs (tarray t_struct_list 3)
@@ -277,7 +288,7 @@ Proof.
         unfold data_at_rec, at_offset; simpl; normalize; try apply derives_refl | ]);
     clear FC'
     end.
-  rewrite mapsto_tuint_tptr_nullval; auto. apply derives_refl.
+  rewrite mapsto_tuint_tptr_nullval; auto.
   rewrite @lseg_nil_eq.
   entailer!.
 Qed.

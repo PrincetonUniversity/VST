@@ -155,7 +155,7 @@ Qed.
 Lemma globals_bounds_app1 : forall {F V} b0 (gl1 gl2 : list (ident * globdef F V)) b,
   (Pos.to_nat b < Pos.to_nat b0 + length gl1)%nat -> globals_bounds b0 (gl1 ++ gl2) b = globals_bounds b0 gl1 b.
 Proof.
-  intros; revert dependent b0; induction gl1; simpl; intros.
+  intros; generalize dependent b0; induction gl1; simpl; intros.
   { apply globals_bounds_min; lia. }
   if_tac; first done.
   apply IHgl1; lia.
@@ -168,7 +168,7 @@ Lemma globals_bounds_nth : forall {F V} b0 (gl : list (ident * globdef F V)) b i
                            | Gvar v => let init := gvar_init v in let sz := init_data_list_size init in (0, Z.to_nat sz)
                            end.
 Proof.
-  intros; revert dependent b0; induction gl; simpl; intros.
+  intros; generalize dependent b0; induction gl; simpl; intros.
   - rewrite nth_error_nil // in H.
   - destruct (Pos.to_nat b - Pos.to_nat b0)%nat eqn: Hn; simpl in H.
     + inv H.

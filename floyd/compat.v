@@ -87,13 +87,23 @@ Definition andp_right := @bi.and_intro.
 Definition prop_right := @bi.pure_intro.
 Definition sepcon_derives := @bi.sep_mono.
 Definition andp_derives := @bi.and_mono.
+Definition andp_left1 := @bi.and_elim_l.
+Definition andp_left2 := @bi.and_elim_r.
+Definition orp_left := @bi.or_elim.
 Definition sepcon_emp := @bi.sep_emp.
 Definition emp_sepcon := @bi.emp_sep.
 Definition sepcon_comm := @bi.sep_comm.
 Definition sepcon_assoc := @bi.sep_assoc.
 Definition allp_right := @bi.forall_intro.
+Definition FF_left := @False_left.
 
-Fixpoint iter_sepcon2 {B1 B2} (p : B1 -> B2 -> mpred) l :=
+Section iter_sepcon2.
+(* progs/verif_tree relies on this playing well with Fixpoint, so we have to define it
+   in this particular way instead of using [∗ list]. *)
+
+Context {A : bi} {B1 B2} (p : B1 -> B2 -> A).
+
+Fixpoint iter_sepcon2 (l : list B1) : list B2 -> A :=
     match l with
     | nil => fun l2 =>
        match l2 with
@@ -103,8 +113,39 @@ Fixpoint iter_sepcon2 {B1 B2} (p : B1 -> B2 -> mpred) l :=
     | x :: xl => fun l' =>
        match l' with
        | nil => FF
-       | y :: yl => p x y * iter_sepcon2 p xl yl
+       | y :: yl => p x y * iter_sepcon2 xl yl
        end
     end.
+
+Lemma iter_sepcon2_spec: forall l1 l2,
+  iter_sepcon2 l1 l2 ⊣⊢ EX l: list (B1 * B2), !! (l1 = map fst l /\ l2 = map snd l) && [∗ list] x ∈ l, uncurry p x.
+Proof.
+  intros.
+  apply pred_ext.
+  + revert l2; induction l1; intros; destruct l2.
+    - rewrite <- (bi.exist_intro nil).
+      simpl; auto.
+    - simpl.
+      apply FF_left.
+    - simpl.
+      apply FF_left.
+    - simpl.
+      specialize (IHl1 l2).
+      eapply derives_trans; [apply sepcon_derives; [apply derives_refl | apply IHl1] | clear IHl1].
+      Intros l.
+      apply (exp_right ((a, b) :: l)).
+      simpl.
+      apply andp_right; [apply prop_right; subst; auto |].
+      apply derives_refl.
+  + Intros l.
+    subst.
+    induction l.
+    - simpl. auto.
+    - simpl.
+      eapply derives_trans; [apply sepcon_derives; [apply derives_refl | apply IHl] | clear IHl].
+      destruct a; apply derives_refl.
+Qed.
+
+End iter_sepcon2.
 
 Global Tactic Notation "inv" ident(H):= Coqlib.inv H.

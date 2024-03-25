@@ -272,6 +272,13 @@ Local Instance funspec_dist : Dist funspec_ := λ n f1 f2,
 
 Local Instance funspec_equiv : Equiv funspec_ := λ f1 f2, forall n, f1 ≡{n}≡ f2.
 
+Global Instance mk_funspec_ne sig cc E A : NonExpansive2 (mk_funspec sig cc E A).
+Proof.
+  intros ???????.
+  repeat (split; first done).
+  by exists eq_refl.
+Qed.
+
 Lemma funspec_ofe_mixin : OfeMixin funspec_.
 Proof.
   split; try done.

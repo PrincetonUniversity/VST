@@ -5085,10 +5085,10 @@ Ltac do_funspec_sub :=
 intros;
 apply NDsubsume_subsume;
 split; [ split3; reflexivity | intros w; simpl in w; intros [g args];
-                                unfold_for_go_lower; simpl; entailer! ].
+                                unfold_for_go_lower; simpl; monPred.unseal; entailer! ].
 
 Ltac do_funspec_sub_nonND :=
    split; 
-   [ split3; try reflexivity 
-   | intros ts w; simpl in w; intros [g args]; Intros;
+   [ split3; try reflexivity
+   | intros (*ts*) w; simpl in w; intros [g args]; Intros;
       fold (dtfr) in * ].
