@@ -787,13 +787,12 @@ Proof.
   {
     unfold lt_ytree_rep.
     entailer!!.
-    Exists r; cancel.
   }
   forward_call (y, t').
   forward.
   clear.
   unfold lt_ytree_rep.
-  Intros r.
+  rewrite bi.sep_exist_r; Intros r.
   Exists (v :: r).
   unfold y_list_rep; simpl.
   Exists y.
@@ -830,7 +829,6 @@ Proof.
   {
     unfold t_ytree_rep.
     entailer!!.
-    Exists s1; cancel.
   }
   forward_call (pa, a).
   forward.
@@ -839,13 +837,12 @@ Proof.
   {
     unfold t_ytree_rep.
     entailer!.
-    Exists s2; cancel.
   }
   forward_call (pb, b).
   forward.
   clear.
   unfold t_ytree_rep.
-  Intros s2 s1.
+  Intros s1 s2.
   Exists (T s1 v s2).
   unfold y_tree_rep; simpl.
   Exists pa pb.

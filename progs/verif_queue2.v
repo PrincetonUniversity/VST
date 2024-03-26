@@ -222,8 +222,7 @@ Intros ht; destruct ht as [hd tl].
 Intros.
 forward. (* p->next = NULL; *)
 forward. (*   h = Q->head; *)
-forward_if
-  (PROP() LOCAL () SEP (fifo (contents ++ last :: nil) q))%assert.
+forward_if.
 * unfold fifo_body; if_tac. entailer!. Intros prefix last0; entailer!.
 * (* then clause *)
   subst.
@@ -257,7 +256,7 @@ forward_if
      Exists  (prefix ++ last0 :: nil) last.
      entailer.   (* not entailer!, which would cancel *)
      rewrite (field_at_list_cell Ews last0 p).
-     unfold_data_at (@data_at CompSpecs Ews t_struct_elem (last,nullval) p).
+     unfold_data_at (data_at(cs := CompSpecs) Ews t_struct_elem (last,nullval) p).
      unfold_data_at (data_at _ _ _ p).
      simpl sizeof.
      match goal with
@@ -306,15 +305,12 @@ Qed.
 Lemma body_make_elem: semax_body Vprog Gprog f_make_elem make_elem_spec.
 Proof.
 start_function.
-rename a into gv.
 forward_call (*  p = surely_malloc(sizeof ( *p));  *)
     (t_struct_elem, gv).
 Intros p.
 forward.  (*  p->data=i; *)
 simpl.
 forward. (* return p; *)
-Exists p.
-entailer!.
 Qed.
 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
@@ -352,7 +348,7 @@ Lemma prog_correct:
   semax_prog prog tt Vprog Gprog.
 Proof.
   prove_semax_prog.
-  semax_func_cons body_malloc. apply semax_func_cons_malloc_aux.
+  semax_func_cons body_malloc. destruct x; apply semax_func_cons_malloc_aux.
   semax_func_cons body_free.
   semax_func_cons body_exit.
   semax_func_cons body_surely_malloc.

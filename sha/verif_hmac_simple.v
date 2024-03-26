@@ -2,7 +2,6 @@ Require Import VST.floyd.proofauto.
 Import ListNotations.
 Require sha.sha.
 Require Import sha.SHA256.
-Local Open Scope logic.
 
 Require Import sha.spec_sha.
 Require Import sha.sha_lemmas.

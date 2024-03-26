@@ -2,7 +2,6 @@ Require Import VST.floyd.proofauto.
 Import ListNotations.
 Require sha.sha.
 Require Import sha.SHA256.
-Local Open Scope logic.
 
 Require Import sha.spec_sha.
 Require Import sha.sha_lemmas.
@@ -16,14 +15,14 @@ Require Import sha.hmac_common_lemmas.
 Require Import sha.spec_hmac.
 
 Lemma change_compspecs_t_struct_SHA256state_st':
-  @data_at_ spec_sha.CompSpecs Ews t_struct_SHA256state_st =
-  @data_at_ CompSpecs Ews t_struct_SHA256state_st.
+  data_at_(cs := spec_sha.CompSpecs) Ews t_struct_SHA256state_st =
+  data_at_(cs := CompSpecs) Ews t_struct_SHA256state_st.
 Proof.
   extensionality v.
-  change (@data_at_ spec_sha.CompSpecs Ews t_struct_SHA256state_st v) with
-      (@data_at spec_sha.CompSpecs Ews t_struct_SHA256state_st (default_val _) v).
-  change (@data_at_ CompSpecs Ews t_struct_SHA256state_st v) with
-      (@data_at CompSpecs Ews t_struct_SHA256state_st (default_val _) v).
+  change (data_at_(cs := spec_sha.CompSpecs) Ews t_struct_SHA256state_st v) with
+      (data_at(cs := spec_sha.CompSpecs) Ews t_struct_SHA256state_st (default_val _) v).
+  change (data_at_(cs := CompSpecs) Ews t_struct_SHA256state_st v) with
+      (data_at(cs :=  CompSpecs) Ews t_struct_SHA256state_st (default_val _) v).
   rewrite change_compspecs_t_struct_SHA256state_st.
   auto.
 Qed.

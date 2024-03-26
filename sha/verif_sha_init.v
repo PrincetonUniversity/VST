@@ -4,11 +4,38 @@ Require Import sha.SHA256.
 Require Import sha.sha_lemmas.
 Require Import sha.spec_sha.
 Local Open Scope nat.
-Local Open Scope logic.
 
 Lemma body_SHA256_Init: semax_body Vprog Gtot f_SHA256_Init SHA256_Init_spec.
 Proof.
-start_function.
+start_function1.
+ match goal with
+      | |- semax _ _ (match ?p with
+                      | (a, b) => _
+                      end ∗ _) _ _ => destruct p as [a b]
+      | |- semax _ _ (close_precondition _ match ?p with
+                                           | (a, b) => _
+                                           end ∗ _) _ _ => destruct p as [a b]
+      | |- semax _ _ (close_precondition _ match ?p with
+                                           | (a, b) => _
+                                           end ∗ _) _ _ => destruct p as [a b]
+      | |- semax _ _ (match ?p with
+                      | (a, b) => _
+                      end eq_refl ∗ _) _ _ => destruct p as [a b]
+      | |- semax _ _ (close_precondition _ (match ?p with
+                                            | (a, b) => _
+                                            end eq_refl) ∗ _) _ _ => 
+        destruct p as [a b]
+      | |- semax _ _ (close_precondition _ (match ?p with
+                                            | (a, b) => _
+                                            end eq_refl) ∗ _) _ _ => 
+        destruct p as [a b]
+      | |-
+        semax _ _
+          ((close_precondition _
+             (argsassert_of (λ ae, !!(Datatypes.length ae.2 = ?A) ∧ @monPred_at environ_index (iPropI (SequentialClight.VSTΣ ())) ?B))) ∗
+           _) _ _ => idtac B
+      end.
+start_function2.
 name c_ _c.
 unfold data_at_.
 (* BEGIN: without these lines, the "do 8 forward" takes 40 times as long. *)

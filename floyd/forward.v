@@ -4522,8 +4522,7 @@ Ltac start_function1 :=
              destruct p as [a b]
  | |- semax _ _ (close_precondition _ (argsassert_of ((match ?p with (a,b) => _ end) eq_refl)) ∗ _) _ _ =>
              destruct p as [a b]
- | |- semax _ _ (close_precondition _
-                                                (fun ae => ⌜(Datatypes.length (snd ae) = ?A)⌝ ∧ ?B
+ | |- semax _ _ (close_precondition _ (fun ae => ⌜(Datatypes.length (snd ae) = ?A)⌝ ∧ monPred_at ?B
                                                       (make_args ?C (snd ae) (mkEnviron (fst ae) _ _))) ∗ _) _ _ =>
           match B with match ?p with (a,b) => _ end => destruct p as [a b] end
        end;

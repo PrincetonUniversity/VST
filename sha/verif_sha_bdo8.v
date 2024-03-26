@@ -30,11 +30,11 @@ apply Nat2Z.inj_lt in H; auto.
 Qed.
 
 Lemma sha256_block_load8:
-  forall (Espec : OracleKind)
+  forall Espec E
      (data: val) (r_h: list int) (ctx: val) gv (wsh: share)
    (Hwsh: writable_share wsh)
    (H5 : length r_h = 8%nat),
-     semax
+     semax(OK_spec := Espec) E
          (func_tycontext f_sha256_block_data_order Vprog Gtot nil)
   (PROP  ()
    LOCAL  (temp _data data; gvars gv; temp _ctx ctx; temp _in data)
@@ -289,11 +289,11 @@ simpl; auto.
 Qed.
 
 Lemma add_them_back_proof:
-  forall (Espec : OracleKind)
+  forall Espec E
      (regs regs': list int) (ctx: val) gv (wsh: share) (Hwsh: writable_share wsh),
      length regs = 8%nat ->
      length regs' = 8%nat ->
-     semax  (func_tycontext f_sha256_block_data_order Vprog Gtot nil)
+     semax(OK_spec := Espec) E (func_tycontext f_sha256_block_data_order Vprog Gtot nil)
    (PROP  ()
    LOCAL  (temp _ctx ctx;
                 temp _a  (Vint (nthi regs' 0));
@@ -358,6 +358,3 @@ simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; lia).
 rewrite (add_upto_8 _ _ H H0).
 entailer!.
 Qed.
-
-
-

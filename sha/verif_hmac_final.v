@@ -3,7 +3,6 @@ Require Import VST.floyd.proofauto.
 Import ListNotations.
 Require sha.sha.
 Require sha.SHA256.
-Local Open Scope logic.
 
 Require Import sha.spec_sha.
 Require Import sha.sha_lemmas.
@@ -21,10 +20,10 @@ Proof. intros. unfold withspacer.
   rewrite <- Zminus_diag_reverse. trivial.
 Qed.
 
-Lemma finalbodyproof Espec c md wsh shmd gv buf (h1 : hmacabs)
+Lemma finalbodyproof Espec E c md wsh shmd gv buf (h1 : hmacabs)
       (Hwsh: writable_share wsh)
       (SH : writable_share shmd):
-@semax CompSpecs Espec (func_tycontext f_HMAC_Final HmacVarSpecs HmacFunSpecs nil)
+semax(OK_spec := Espec)(C := CompSpecs) E (func_tycontext f_HMAC_Final HmacVarSpecs HmacFunSpecs nil)
   (PROP  ()
    LOCAL  (lvar _buf (tarray tuchar 32) buf; gvars gv; temp _ctx c; temp _md md
 (*lvar _buf (tarray tuchar 32) buf; temp _md md;

@@ -9,7 +9,6 @@ Require Import sha.ByteBitRelations.
 
 Require sha.sha.
 Require Import sha.SHA256.
-Local Open Scope logic.
 
 Require Import sha.spec_sha.
 Require Import sha.sha_lemmas.
@@ -87,11 +86,11 @@ Definition HMAC_crypto :=
               initPostKey shk keyVal (CONT KEY);
               data_block shm (CONT MSG) msgVal).
 
-Lemma hmacbodycryptoproof Espec k KEY msg  MSG gv shk shm shmd md buf
+Lemma hmacbodycryptoproof Espec E k KEY msg  MSG gv shk shm shmd md buf
       (Hshk: readable_share shk) (Hshm: readable_share shm) (SH : writable_share shmd) 
       (KL: has_lengthK (LEN KEY) (CONT KEY))
       (DL: has_lengthD 512 (LEN MSG) (CONT MSG)):
-@semax CompSpecs Espec (func_tycontext f_HMAC HmacVarSpecs HmacFunSpecs nil)
+semax(OK_spec := Espec)(C := CompSpecs) E (func_tycontext f_HMAC HmacVarSpecs HmacFunSpecs nil)
   (PROP  ()
    LOCAL  (lvar _c (Tstruct _hmac_ctx_st noattr) buf; temp _md md;
      temp _key k; temp _key_len (Vint (Int.repr (LEN KEY)));

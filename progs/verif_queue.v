@@ -415,8 +415,7 @@ Intros.
 forward. (* p->next = NULL; *)
 forward. (*   h = Q->head; *)
 
-forward_if
-  (PROP() LOCAL () SEP (fifo (contents ++ p :: nil) q))%assert.
+forward_if.
 * unfold fifo_body.
    if_tac. entailer!. Intros prefix. entailer!.
 * (* then clause *)
@@ -512,7 +511,7 @@ forward_call (*  p = surely_malloc(sizeof ( *p));  *)
   Exists p.
   entailer!.
   rewrite make_unmake.
-  apply derives_refl.
+  cancel.
 Qed.
 
 #[export] Hint Resolve readable_share_Qsh' : core.
@@ -546,7 +545,7 @@ forward_call (*  free(p, sizeof( *p)); *)
    (t_struct_elem, p', gv).
 {
  assert_PROP (isptr p'); [entailer! | rewrite if_false by (intro; subst; contradiction) ].
- sep_apply (eq_sym (make_unmake (Int.repr 1) (Int.repr 10) p')).
+ sep_apply (bi.equiv_entails_1_2 _ _ (make_unmake (Int.repr 1) (Int.repr 10) p')).
  cancel.
 }
 forward. (* return i+j; *)
@@ -555,8 +554,8 @@ Qed.
 Lemma prog_correct:
   semax_prog prog tt Vprog Gprog.
 Proof.
-prove_semax_prog. 
-semax_func_cons body_malloc. apply semax_func_cons_malloc_aux.
+prove_semax_prog.
+semax_func_cons body_malloc. destruct x; apply semax_func_cons_malloc_aux.
 semax_func_cons body_free.
 semax_func_cons body_exit.
 semax_func_cons body_surely_malloc.

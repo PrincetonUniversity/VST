@@ -2,7 +2,6 @@ Require Import VST.floyd.proofauto.
 Import ListNotations.
 Require sha.sha.
 Require sha.SHA256.
-Local Open Scope logic.
 
 Require Import sha.spec_sha.
 Require Import sha.sha_lemmas.
@@ -13,11 +12,11 @@ Require Import sha.hmac_common_lemmas.
 Require Import sha.hmac.
 Require Import sha.spec_hmac.
 
-Lemma updatebodyproof Espec wsh sh c d len data gv (h1 : hmacabs)
+Lemma updatebodyproof Espec E wsh sh c d len data gv (h1 : hmacabs)
       (H : has_lengthD (s256a_len (absCtxt h1)) len data)
    (Hwsh: writable_share wsh)
    (Hsh: readable_share sh):
-@semax CompSpecs Espec (func_tycontext f_HMAC_Update HmacVarSpecs HmacFunSpecs nil)
+semax(OK_spec := Espec)(C := CompSpecs) E (func_tycontext f_HMAC_Update HmacVarSpecs HmacFunSpecs nil)
   (PROP  ()
    LOCAL  (gvars gv; temp _ctx c; temp _data d;
            temp _len (Vint (Int.repr len)))
@@ -44,7 +43,7 @@ assert (FC_md_ctx: field_compatible t_struct_hmac_ctx_st [StructField _md_ctx] c
  {red in FC_c. repeat split; try solve [apply FC_c]. constructor; trivial. }
 assert (FC_i_ctx: field_compatible t_struct_hmac_ctx_st [StructField _i_ctx] c).
  {red in FC_c. repeat split; try solve [apply FC_c]. simpl. right; left; reflexivity. }
-unfold_data_at (@data_at CompSpecs _ _ _ c). 
+unfold_data_at (data_at(cs := CompSpecs) _ _ _ c). 
 freeze FR := - (K_vector _) (field_at _ _ [StructField _md_ctx] _ _) (data_block _ _ d).
 rewrite (field_at_data_at _ _ [StructField _md_ctx]).
 rewrite field_address_offset by auto with field_compatible.

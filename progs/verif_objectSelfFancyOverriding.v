@@ -521,7 +521,7 @@ Definition fobject_methods (instance: fobject_invariant) (mtable: val) : mpred :
   ⌜readable_share sh⌝ ∧ 
   func_ptr (freset_spec instance) reset ∗
   func_ptr (ftwiddle_spec instance) twiddle ∗
-  func_ptr (ftwiddle_spec instance) twiddleR ∗
+  func_ptr (ftwiddleR_spec instance) twiddleR ∗
   func_ptr (fsetcolor_spec instance) setcol ∗
   func_ptr (fgetcolor_spec instance) getcol ∗
   data_at sh (Tstruct _fancymethods noattr) (reset,(twiddle, (twiddleR, (setcol, getcol)))) mtable.
@@ -537,6 +537,13 @@ Global Instance ftwiddle_spec_ne : NonExpansive ftwiddle_spec.
 Proof.
   intros ????.
   unfold ftwiddle_spec, NDmk_funspec.
+  f_equiv; intros ??; simpl; by repeat f_equiv.
+Qed.
+
+Global Instance ftwiddleR_spec_ne : NonExpansive ftwiddleR_spec.
+Proof.
+  intros ????.
+  unfold ftwiddleR_spec, NDmk_funspec.
   f_equiv; intros ??; simpl; by repeat f_equiv.
 Qed.
 
@@ -572,7 +579,7 @@ Lemma make_fobject_methods:
   readable_share sh ->
   func_ptr (freset_spec instance) reset ∗
   func_ptr (ftwiddle_spec instance) twiddle ∗
-  func_ptr (ftwiddle_spec instance) twiddleR ∗
+  func_ptr (ftwiddleR_spec instance) twiddleR ∗
   func_ptr (fsetcolor_spec instance) setcol ∗
   func_ptr (fgetcolor_spec instance) getcol ∗
   data_at sh (Tstruct _fancymethods noattr) (reset,(twiddle, (twiddleR, (setcol, getcol)))) mtable
@@ -589,7 +596,7 @@ Lemma make_fobject_methods_later:
   readable_share sh ->
   func_ptr (freset_spec instance) reset ∗
   func_ptr (ftwiddle_spec instance) twiddle ∗
-  func_ptr (ftwiddle_spec instance) twiddleR ∗
+  func_ptr (ftwiddleR_spec instance) twiddleR ∗
   func_ptr (fsetcolor_spec instance) setcol ∗
   func_ptr (fgetcolor_spec instance) getcol ∗
   data_at sh (Tstruct _fancymethods noattr) (reset,(twiddle, (twiddleR, (setcol, getcol)))) mtable
@@ -1231,7 +1238,7 @@ assert_PROP (p<>Vundef) as pNotVundef by entailer!.
 unfold object_mpred.
 
 (*WAS:Intros instance mtable0.*)
-(*Now*) Intros instance. rename H into HOC. rewrite ObjMpred_fold_unfold by trivial. Intros mtable0; simpl.
+(*Now*) Intros instance. rewrite ObjMpred_fold_unfold. Intros mtable0; simpl.
 
 forward. (*  mtable = p->mtable; *)
 unfold object_methods at 1.
@@ -1241,8 +1248,8 @@ forward_call (* p_reset(p); *)
       (@nil Z,p).
 { (*NEW subgoal*)
    sep_apply make_object_methods_later.
-   rewrite ObjMpred_fold_unfold, <- ObjMpred_fold_unfold by trivial.
-   Exists mtable0. entailer!!. } 
+   rewrite ObjMpred_fold_unfold.
+   Exists mtable0. entailer!!. }
 (* WAS (*Finish the method-call by regathering the object p back together *)
 sep_apply (make_object_methods sh instance r0 t0 mtable0); auto.
 sep_apply (object_mpred_i [] p instance mtable0).*)
@@ -1257,7 +1264,7 @@ deadvars!. clear.
 unfold fobject_mpred.
 
 (*WAS:Intros instance mtable0.*)
-(*Now*) Intros instance. rename H into HOC. rewrite fObjMpred_fold_unfold by trivial. Intros mtable0; simpl.
+(*Now*) Intros instance. rewrite fObjMpred_fold_unfold. Intros mtable0; simpl.
 
 forward. (*_t'9 = (_q -> _mtable);*)
 forward. (*_mtable = (tptr (Tstruct _fancymethods noattr)) _t'9;*)
@@ -1269,8 +1276,8 @@ forward_call (* q_reset(q); *)
       ((@nil Z,4),q).
 { (*NEW subgoal*)
    sep_apply make_fobject_methods_later.
-   rewrite fObjMpred_fold_unfold, <- fObjMpred_fold_unfold by trivial.
-   Exists mtable0. entailer!. } 
+   rewrite fObjMpred_fold_unfold.
+   Exists mtable0. entailer!. }
 (* WAS (*Finish the method-call by regathering the object p back together *)
 sep_apply (make_object_methods sh instance r0 t0 mtable0); auto.
 sep_apply (object_mpred_i [] p instance mtable0).*)
@@ -1286,7 +1293,7 @@ deadvars!. clear.
 unfold fobject_mpred.
 
 (*WAS:Intros instance mtable0.*)
-(*Now*) Intros instance. rename H into HOC. rewrite fObjMpred_fold_unfold by trivial. Intros mtable0; simpl.
+(*Now*) Intros instance. rewrite fObjMpred_fold_unfold. Intros mtable0; simpl.
 
 forward. (*_t'8 = (_q -> _mtable);*)
 forward. (*_mtable = (tptr (Tstruct _fancymethods noattr)) _t'8;*)
@@ -1298,8 +1305,8 @@ forward_call (* q_reset(q); *)
       ((@nil Z,(*4*)0),q).
 { (*NEW subgoal*)
    sep_apply make_fobject_methods_later.
-   rewrite fObjMpred_fold_unfold, <- fObjMpred_fold_unfold by trivial.
-   Exists mtable0. entailer!!. } 
+   rewrite fObjMpred_fold_unfold.
+   Exists mtable0. entailer!!. }
 (* WAS (*Finish the method-call by regathering the object p back together *)
 sep_apply (make_object_methods sh instance r0 t0 mtable0); auto.
 sep_apply (object_mpred_i [] p instance mtable0).*)
@@ -1314,7 +1321,7 @@ deadvars!. clear.
 unfold object_mpred.
 
 (*WAS:Intros instance mtable0.*)
-(*Now*) Intros instance. rename H into HOC. rewrite ObjMpred_fold_unfold by trivial. Intros mtable0; simpl.
+(*Now*) Intros instance. rewrite ObjMpred_fold_unfold. Intros mtable0; simpl.
 
 forward.  (* pmtable = p->mtable; *)
 unfold object_methods at 1.
@@ -1325,7 +1332,7 @@ forward_call (* i = p_twiddle(p,3); *)
       ((@nil Z,p), 3).
 { (*NEW subgoal*)
    sep_apply make_object_methods_later.
-   rewrite ObjMpred_fold_unfold, <- ObjMpred_fold_unfold by trivial.
+   rewrite ObjMpred_fold_unfold.
    Exists mtable0. entailer!!. }
 { simpl. repeat split; try trivial; computable. }
 Intros i.
@@ -1347,7 +1354,7 @@ freeze [2;3] PQ. (*Hide the other objects p and q*)
 unfold fobject_mpred.
 
 (*WAS:Intros instance mtable0.*)
-(*Now*) Intros instance. rename H into HOC. rewrite fObjMpred_fold_unfold by trivial. Intros mtable0; simpl.
+(*Now*) Intros instance. rewrite fObjMpred_fold_unfold. Intros mtable0; simpl.
 
 forward. (*_t'7 = ((tptr (Tstruct _object noattr)) _u -> _mtable);*)
 forward. (* _umtable = (tptr (Tstruct _fancymethods noattr)) _t'7;*)
@@ -1359,8 +1366,8 @@ forward_call (* u_reset(u); *)
       ((@nil Z,9),u).
 { (*NEW subgoal*)
    sep_apply make_fobject_methods_later.
-   rewrite fObjMpred_fold_unfold, <- fObjMpred_fold_unfold by trivial.
-   Exists mtable0. entailer!!. } 
+   rewrite fObjMpred_fold_unfold.
+   Exists mtable0. entailer!!. }
 (* WAS (*Finish the method-call by regathering the object p back together *)
 sep_apply (make_object_methods sh instance r0 t0 mtable0); auto.
 sep_apply (object_mpred_i [] p instance mtable0).*)
@@ -1377,7 +1384,7 @@ deadvars!. clear -Hi.
 unfold fobject_mpred.
 
 (*WAS:Intros instance mtable0.*)
-(*Now*) Intros instance. rename H into HOC. rewrite fObjMpred_fold_unfold by trivial. Intros mtable0; simpl.
+(*Now*) Intros instance. rewrite fObjMpred_fold_unfold. Intros mtable0; simpl.
 
 forward. (*_t'7 = ((tptr (Tstruct _object noattr)) _u -> _mtable);*)
 forward. (* _umtable = (tptr (Tstruct _fancymethods noattr)) _t'7;*)
@@ -1389,8 +1396,8 @@ forward_call (* u_getcolor(u); *)
       ((@nil Z,(*9*)0),u).
 { (*NEW subgoal*)
    sep_apply make_fobject_methods_later.
-   rewrite fObjMpred_fold_unfold, <- fObjMpred_fold_unfold by trivial.
-   Exists mtable0. entailer!. } 
+   rewrite fObjMpred_fold_unfold.
+   Exists mtable0. entailer!. }
 (* WAS (*Finish the method-call by regathering the object p back together *)
 sep_apply (make_object_methods sh instance r0 t0 mtable0); auto.
 sep_apply (object_mpred_i [] p instance mtable0).*)

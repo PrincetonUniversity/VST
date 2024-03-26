@@ -115,14 +115,14 @@ apply Z.divide_1_l.
 Qed.
 
 Lemma sha_final_part3:
-forall (Espec : OracleKind) (md c : val) (wsh shmd : share)
+forall Espec E (md c : val) (wsh shmd : share)
   (hashed lastblock: list int) msg gv
  (Hwsh: writable_share wsh)
  (Hshmd: writable_share shmd),
  (LBLOCKz | Zlength hashed) ->
  Zlength lastblock = LBLOCKz ->
  generate_and_pad msg = hashed++lastblock ->
-semax
+semax(OK_spec := Espec) E
      (func_tycontext f_SHA256_Final Vprog Gtot nil)
   (PROP  ()
    LOCAL  (temp _p (field_address t_struct_SHA256state_st [StructField _data] c);
@@ -313,7 +313,7 @@ Proof.
 Time Qed. (*02/21/20: 1.9s (WAS: 64 sec) *)
 
 Lemma final_part2:
-forall (Espec : OracleKind) (hashed : list int) (md c : val) (wsh shmd : share) gv
+forall Espec E (hashed : list int) (md c : val) (wsh shmd : share) gv
 (Hwsh: writable_share wsh),
 writable_share shmd ->
 forall bitlen (dd : list byte),
@@ -327,8 +327,8 @@ forall (hashed': list int) (dd' : list byte) (pad : Z),
 (LBLOCKz | Zlength hashed') ->
 intlist_to_bytelist hashed' ++ dd' =
 intlist_to_bytelist hashed ++ dd ++ [Byte.repr 128%Z] ++ repeat Byte.zero (Z.to_nat pad) ->
-semax
-     (func_tycontext f_SHA256_Final Vprog Gtot nil)
+semax(OK_spec := Espec)
+     (func_tycontext f_SHA256_Final Vprog Gtot nil) E
   (PROP  ()
       LOCAL
       (temp _p
@@ -356,7 +356,7 @@ semax
         data_at_ wsh t_struct_SHA256state_st c;
         data_block shmd (SHA_256 (intlist_to_bytelist hashed ++ dd)) md))) emp).
 Proof.
-  intros Espec hashed md c wsh shmd kv Hwsh H
+  intros Espec E hashed md c wsh shmd kv Hwsh H
   bitlen dd H4 H7 H3 hashed' dd' pad
   PAD H0 H1 H2 H5(* Pofs*).
   unfold sha_final_part2, sha_final_epilog; abbreviate_semax.

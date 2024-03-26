@@ -36,12 +36,12 @@ Definition block_data_order_loop1 :=
    (nth 0 (loops (fn_body f_sha256_block_data_order)) Sskip).
 
 Lemma sha256_block_data_order_loop1_proof:
-  forall (Espec : OracleKind) (sh: share)
+  forall Espec E (sh: share)
      (b: list int) ctx (data: val) (regs: list int) gv Xv
      (Hregs: length regs = 8%nat)
      (Hsh: readable_share sh),
      Zlength b = LBLOCKz ->
-     semax (func_tycontext f_sha256_block_data_order Vprog Gtot nil)
+     semax(OK_spec := Espec) E (func_tycontext f_sha256_block_data_order Vprog Gtot nil)
   (PROP  ()
    LOCAL  (temp _a (Vint (nthi regs 0)); temp _b (Vint (nthi regs 1));
                 temp _c (Vint (nthi regs 2)); temp _d (Vint (nthi regs 3));
