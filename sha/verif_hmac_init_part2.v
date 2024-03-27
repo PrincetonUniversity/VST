@@ -287,7 +287,7 @@ Proof. intros. abbreviate_semax.
             repeat rewrite map_nth. rewrite Qb. trivial.
           }
 
-        Time freeze FR1 := - (@data_at CompSpecs _ _ _ (Vptr ckb _)).
+        Time freeze FR1 := - (data_at(cs := CompSpecs) _ _ _ (Vptr ckb _)).
         Time forward; (*6.7 versus 9*)
         change Inhabitant_val with Vundef in X;
          rewrite X.
@@ -323,7 +323,7 @@ Proof. intros. abbreviate_semax.
         Time (rewrite (*HeqIPADcont,*) UPD_IPAD; simpl; trivial; cancel). (*0.6*)
       }
 cbv beta. rewrite sublist_same, sublist_nil, app_nil_r; trivial.
-intros; apply andp_left2.
+intros; rewrite andp_left2.
 drop_LOCAL 0%nat. apply derives_refl.
 subst IPADcont; rewrite Zlength_map. rewrite ZLI; trivial.
 Time Qed. (*VST 2.0: 0.4s*) (*11.1 versus 16.8*) (*FIXME NOW 39*)
@@ -431,7 +431,7 @@ freeze FR1 := - (data_at _ _ _ (Vptr ckb _)) (data_block _ _ _).
            with a residual subgoal thats more complex to discharge*)
         Time forward. (*5.8 versus 4.8*) (*FIXME NOW: 19 secs*)
         Time entailer!. (*4.2 versus 5.6*)
-        apply derives_refl'. f_equal.
+        f_equiv.
         set (y := nth (Z.to_nat i) (HMAC_SHA256.mkKey key) Byte.zero).
         rewrite <- (isbyte_zeroExt8 (Byte.unsigned _)) by rep_lia.
         unfold Int.xor. rewrite !Int.unsigned_repr by rep_lia.

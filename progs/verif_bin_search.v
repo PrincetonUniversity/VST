@@ -78,9 +78,9 @@ Proof.
   rewrite firstn_nil, skipn_nil; auto.
 Qed.
 
-Fixpoint sorted2 l :=
+Fixpoint sorted2 l : Prop :=
   match l with
-  | [] => True%type
+  | [] => True
   | x :: rest => Forall (fun y => x <= y) rest /\ sorted2 rest
   end.
 
@@ -261,7 +261,7 @@ Qed.
 (* Contents of the extern global initialized array "_four" *)
 Definition four_contents := [1; 2; 3; 4].
 
-Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
+Lemma body_main: semax_body Vprog Gprog f_main main_spec.
 Proof.
   start_function.
   rename a into gv.

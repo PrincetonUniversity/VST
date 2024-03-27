@@ -137,7 +137,7 @@ forward_loop (EX i : Z,
 Qed.
 
 Lemma split_data_at_app_tschar:
- forall sh n (al bl: list val) p ,
+ forall sh n (al bl: list val) p,
    n = Zlength (al++bl) ->
    data_at sh (tarray tschar n) (al++bl) p ⊣⊢
          data_at sh (tarray tschar (Zlength al)) al p
@@ -147,7 +147,7 @@ Proof.
 intros.
 apply (split2_data_at_Tarray_app _ n  sh tschar al bl); auto.
 rewrite Zlength_app in H.
-change ( Zlength bl = n - Zlength al); lia.
+change (Zlength bl = n - Zlength al); lia.
 Qed.
 
 Lemma body_strcat: semax_body Vprog Gprog f_strcat strcat_spec.
@@ -532,7 +532,7 @@ forward_loop (EX i : Z,
            repeat Vundef (Z.to_nat (n - (Zlength ld + j)))) dest;
          data_at sh' (tarray tschar (Zlength ls + 1))
            (map Vbyte (ls ++ [Byte.zero])) src)).
- all: finish.
+  all: finish.
 Qed.
 
 Lemma body_strcmp: semax_body Vprog Gprog f_strcmp strcmp_spec.

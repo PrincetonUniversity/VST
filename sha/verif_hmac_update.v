@@ -12,11 +12,11 @@ Require Import sha.hmac_common_lemmas.
 Require Import sha.hmac.
 Require Import sha.spec_hmac.
 
-Lemma updatebodyproof Espec E wsh sh c d len data gv (h1 : hmacabs)
+Lemma updatebodyproof Espec wsh sh c d len data gv (h1 : hmacabs)
       (H : has_lengthD (s256a_len (absCtxt h1)) len data)
    (Hwsh: writable_share wsh)
    (Hsh: readable_share sh):
-semax(OK_spec := Espec)(C := CompSpecs) E (func_tycontext f_HMAC_Update HmacVarSpecs HmacFunSpecs nil)
+semax(OK_spec := Espec)(C := CompSpecs) ⊤ (func_tycontext f_HMAC_Update HmacVarSpecs HmacFunSpecs nil)
   (PROP  ()
    LOCAL  (gvars gv; temp _ctx c; temp _data d;
            temp _len (Vint (Int.repr len)))
@@ -70,7 +70,7 @@ unfold hmacstate_, sha256state_, hmac_relate.
 Intros r.  Exists (r,(iCtx ST, oCtx ST)).
 Time entailer!. (*2.1*)
 thaw FR.
-unfold_data_at (@data_at CompSpecs _ _ _ (Vptr b i)).
+unfold_data_at (data_at(cs := CompSpecs) _ _ _ (Vptr b i)).
 destruct ST as [ST1 [ST2 ST3]]. simpl in *.
 Time cancel. (*0.5*)
 rewrite (field_at_data_at _ _ [StructField _md_ctx]).

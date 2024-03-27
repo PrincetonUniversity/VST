@@ -280,6 +280,9 @@ unfold K_vector.
 change CBLOCKz with 64%Z.
 assert (LEN: Zlength K256 = 64%Z) by reflexivity.
 forward.  (* Ki=K256[i]; *)
+replace (Int.repr (Znth i _)) with (Znth i K256).
+2: { rewrite <- (Znth_map _ Int.repr); auto.
+     unfold Zlength; simpl; lia. }
 autorewrite with sublist.
 rename b into bb.
 assert (Hregs' := length_Round _ (nthi bb) (i-1) Hregs).

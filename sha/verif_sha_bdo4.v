@@ -36,12 +36,12 @@ Definition block_data_order_loop1 :=
    (nth 0 (loops (fn_body f_sha256_block_data_order)) Sskip).
 
 Lemma sha256_block_data_order_loop1_proof:
-  forall Espec E (sh: share)
+  forall Espec (sh: share)
      (b: list int) ctx (data: val) (regs: list int) gv Xv
      (Hregs: length regs = 8%nat)
      (Hsh: readable_share sh),
      Zlength b = LBLOCKz ->
-     semax(OK_spec := Espec) E (func_tycontext f_sha256_block_data_order Vprog Gtot nil)
+     semax(OK_spec := Espec) ⊤ (func_tycontext f_sha256_block_data_order Vprog Gtot nil)
   (PROP  ()
    LOCAL  (temp _a (Vint (nthi regs 0)); temp _b (Vint (nthi regs 1));
                 temp _c (Vint (nthi regs 2)); temp _d (Vint (nthi regs 3));
@@ -98,7 +98,7 @@ forward_for_simple_bound 16
  entailer!.
  all: simpl; cancel.  (* Needed in Coq 8.16 and before *)
 * (* loop body & loop condition preserves loop invariant *)
-assert_PROP (data_block sh (intlist_to_bytelist b) data =
+assert_PROP (data_block sh (intlist_to_bytelist b) data ⊣⊢
    array_at sh (tarray tuchar (Zlength b * 4)) [] 0 (i * 4)
        (sublist 0 (i * 4) (map Vubyte (intlist_to_bytelist b)))
        data *
@@ -118,12 +118,12 @@ assert_PROP (data_block sh (intlist_to_bytelist b) data =
    rewrite (split2_array_at _ _ _ (i*4) (i*4+4)) by (autorewrite with sublist; lia).
    autorewrite with sublist.
   rewrite <- !sepcon_assoc.
-  f_equal. f_equal.
+  f_equiv; auto. f_equiv; auto.
   rewrite Zlength_intlist_to_bytelist in H5.
   rewrite array_at_data_at' by (auto with field_compatible; lia).
   simpl.
   autorewrite with sublist.
-  fold (tarray tuchar 4). f_equal.
+  fold (tarray tuchar 4). f_equiv.
    rewrite <- sublist_map.
   rewrite Z.add_comm, Z.mul_add_distr_r.
   reflexivity.
@@ -138,7 +138,7 @@ forward_call (* l = __builtin_read32_reversed(_data) *)
  autorewrite with sublist; lia.
 gather_SEP (array_at _ _ _ 0 _ _ data) (data_at _ _ _ (offset_val (i*4) data)) (array_at _ _ _ (i*4+4) _ _ data).
  match goal with |- context [SEPx (?A::_)] =>
-  replace A with (data_block sh (intlist_to_bytelist b) data);
+  setoid_replace A with (data_block sh (intlist_to_bytelist b) data);
    (* next line needed only before Coq 8.19 *)
    try solve [rewrite H1,<- !sepcon_assoc; auto]
  end.
@@ -155,6 +155,9 @@ unfold K_vector.
 assert (i < Zlength K256)
   by (change (Zlength K256) with 64; lia).
 forward.  (* Ki=K256[i]; *)
+replace (Vint (Int.repr (Znth i _))) with (Vint (Znth i K256)).
+2: { rewrite <- (Znth_map _ Int.repr); auto.
+     unfold Zlength; simpl; lia. }
 (* 1,811,028 1,406,332 *)
 autorewrite with sublist.
 subst POSTCONDITION; unfold abbreviate.
@@ -167,7 +170,7 @@ replace (M i) with (W M i)
 assert_PROP (isptr data) as H3 by entailer!.
 change (data_at Tsh (tarray tuint  (Zlength K256)) (map Vint K256) (gv _K256)) with (K_vector gv).
 change (tarray tuint LBLOCKz) with (tarray tuint 16).
-match goal with |- semax _ (PROPx _ (LOCALx _ (SEPx ?R))) _ _ =>
+match goal with |- semax _ _ (PROPx _ (LOCALx _ (SEPx ?R))) _ _ =>
   semax_frame [  ] R
 end.
 clear b H1 H.

@@ -2526,20 +2526,20 @@ Ltac clean_up_app_carefully := (* useful after rewriting by SEP_PROP *)
 
 Tactic Notation "semax_frame" constr(Qframe) constr(Rframe) :=
  first
-    [ simple eapply (semax_frame_perm Qframe Rframe);
+    [ (*simple*) eapply (semax_frame_perm Qframe Rframe);
           [auto 50 with closed | solve_perm | solve_perm | unfold app; fold @app ]
     | eapply semax_post_flipped';
-      [simple eapply (semax_frame_perm Qframe Rframe);
+      [(*simple*) eapply (semax_frame_perm Qframe Rframe);
         [auto 50 with closed | solve_perm | solve_perm | unfold app; fold @app ]
       | try solve [apply perm_derives; solve_perm]]
   ].
 
 Tactic Notation "semax_frame" "[" "]" constr(Rframe) :=
  first
-    [ simple eapply (semax_frame_perm nil Rframe);
+    [ (*simple*) eapply (semax_frame_perm nil Rframe);
           [auto 50 with closed | solve_perm | solve_perm | unfold app; fold @app ]
     | eapply semax_post_flipped';
-      [simple eapply (semax_frame_perm nil Rframe);
+      [(*simple*) eapply (semax_frame_perm nil Rframe);
         [auto 50 with closed | solve_perm | solve_perm | unfold app; fold @app ]
       | try solve [apply perm_derives; solve_perm]]
   ].

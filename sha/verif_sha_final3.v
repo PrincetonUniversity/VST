@@ -115,14 +115,14 @@ apply Z.divide_1_l.
 Qed.
 
 Lemma sha_final_part3:
-forall Espec E (md c : val) (wsh shmd : share)
+forall Espec (md c : val) (wsh shmd : share)
   (hashed lastblock: list int) msg gv
  (Hwsh: writable_share wsh)
  (Hshmd: writable_share shmd),
  (LBLOCKz | Zlength hashed) ->
  Zlength lastblock = LBLOCKz ->
  generate_and_pad msg = hashed++lastblock ->
-semax(OK_spec := Espec) E
+semax(OK_spec := Espec) ⊤
      (func_tycontext f_SHA256_Final Vprog Gtot nil)
   (PROP  ()
    LOCAL  (temp _p (field_address t_struct_SHA256state_st [StructField _data] c);
@@ -205,7 +205,7 @@ Proof.
  unfold final_loop.
 
  forward_for_simple_bound 8
-   (@exp (environ -> mpred) _ _ (fun i: Z =>
+   (EX i: Z,
    PROP  ()
    LOCAL  (temp _md (offset_val (i * 4) md);
                 temp _c c)
@@ -217,7 +217,7 @@ Proof.
     data_at shmd (tarray tuchar 32)
          (map Vubyte (intlist_to_bytelist (sublist 0 i hashedmsg))
            ++ repeat Vundef (Z.to_nat (32 - WORD*i))) md)
-     )).
+     ).
 *
  entailer!.
  change 32%Z with (sizeof (tarray tuchar 32)) at 1.
@@ -300,8 +300,7 @@ Proof.
     rewrite !array_at_data_at' by (auto with field_compatible; lia).
     simpl.
     autorewrite with sublist.
-    apply derives_refl'.
-    f_equal.
+    f_equiv.
     rewrite field_address0_offset by auto with field_compatible.
     normalize.
 * change 64%Z with CBLOCKz.
@@ -313,7 +312,7 @@ Proof.
 Time Qed. (*02/21/20: 1.9s (WAS: 64 sec) *)
 
 Lemma final_part2:
-forall Espec E (hashed : list int) (md c : val) (wsh shmd : share) gv
+forall Espec (hashed : list int) (md c : val) (wsh shmd : share) gv
 (Hwsh: writable_share wsh),
 writable_share shmd ->
 forall bitlen (dd : list byte),
@@ -327,8 +326,8 @@ forall (hashed': list int) (dd' : list byte) (pad : Z),
 (LBLOCKz | Zlength hashed') ->
 intlist_to_bytelist hashed' ++ dd' =
 intlist_to_bytelist hashed ++ dd ++ [Byte.repr 128%Z] ++ repeat Byte.zero (Z.to_nat pad) ->
-semax(OK_spec := Espec)
-     (func_tycontext f_SHA256_Final Vprog Gtot nil) E
+semax(OK_spec := Espec) ⊤
+     (func_tycontext f_SHA256_Final Vprog Gtot nil)
   (PROP  ()
       LOCAL
       (temp _p
@@ -356,7 +355,7 @@ semax(OK_spec := Espec)
         data_at_ wsh t_struct_SHA256state_st c;
         data_block shmd (SHA_256 (intlist_to_bytelist hashed ++ dd)) md))) emp).
 Proof.
-  intros Espec E hashed md c wsh shmd kv Hwsh H
+  intros Espec hashed md c wsh shmd kv Hwsh H
   bitlen dd H4 H7 H3 hashed' dd' pad
   PAD H0 H1 H2 H5(* Pofs*).
   unfold sha_final_part2, sha_final_epilog; abbreviate_semax.
@@ -367,10 +366,6 @@ Proof.
 
   Time forward. (* cNh=c->Nh; *) (*3.5*)
 
-  match goal with |- semax _ (PROPx _ (LOCALx _ (SEPx (?A :: _)))) _ _ =>
-    pattern A;
-    match goal with |- ?F A => set (GOAL := F) end
-  end.
   erewrite field_at_Tarray;
    [ | apply compute_legal_nested_field_spec'; repeat constructor; auto; lia
    | reflexivity | lia | apply JMeq_refl].
@@ -380,6 +375,10 @@ Proof.
    rewrite (split3seg_array_at _ _ _ 0 56 60) by (autorewrite with sublist; rep_lia).
    rewrite !app_assoc.
    assert (CBZ := CBLOCKz_eq).
+  match goal with |- semax _ _ (PROPx _ (LOCALx _ (SEPx (?A :: _)))) _ _ =>
+    pattern A;
+    match goal with |- ?F A => set (GOAL := F) end
+  end.
    Time autorewrite with sublist. (*7*)
     clear CBZ.
   subst GOAL. cbv beta. Intros.
@@ -388,7 +387,7 @@ Proof.
                     [ArraySubsc 56; StructField _data] c,
       wsh, hibytes). (*9*)
   { apply prop_right; repeat constructor; hnf; simpl.
-    rewrite (nth_big_endian_integer 0 [hi_part bitlen]) at 1 by reflexivity.
+    rewrite (nth_big_endian_integer 0 [hi_part bitlen] (hi_part bitlen)) by reflexivity.
     rewrite field_address_offset.
     rewrite field_address0_offset by auto with field_compatible; reflexivity.
     red in FC; red. simpl in FC; simpl. intuition. }
@@ -405,14 +404,14 @@ Proof.
                     [ArraySubsc 60; StructField _data] c,
      wsh, lobytes). (*8.8*)
   { apply prop_right; repeat constructor; hnf; simpl.
-    rewrite (nth_big_endian_integer 0 [lo_part bitlen]) at 1 by reflexivity.
+    rewrite (nth_big_endian_integer 0 [lo_part bitlen] (lo_part bitlen)) by reflexivity.
     rewrite field_address0_offset by auto with field_compatible.
     rewrite field_address_offset by (pose proof CBLOCKz_eq; auto with field_compatible).
     reflexivity. }
   { clear; compute; congruence. }
 
   match goal with |- context [SEPx (?A :: _)] =>
-   replace A with (array_at wsh t_struct_SHA256state_st [StructField _data] 60 64
+   setoid_replace A with (array_at wsh t_struct_SHA256state_st [StructField _data] 60 64
                            (map Vubyte lobytes) c)
   by (clear - FC;
         rewrite array_at_data_at' by auto with field_compatible;
@@ -475,4 +474,3 @@ Proof.
      assumption.
   * eapply generate_and_pad_lemma1; eassumption.
 Time Qed. (*VST2.0: 3.1s *)
-

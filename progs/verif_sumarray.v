@@ -21,8 +21,6 @@ Definition sumarray_spec : ident * funspec :=
           PROP  (readable_share sh; 0 <= size <= Int.max_signed;
                  Forall (fun x => 0 <= x <= Int.max_unsigned) contents)
           PARAMS (a; Vint (Int.repr size))
-          GLOBALS () (*TODO: make this line optional, ie insert GLOBALx nil during parsing of notation.
-                          Currently, omitting the line leads to failaure of start_function, specifically of compute_close_precondition_eq *)
           SEP   (data_at sh (tarray tuint size) (map Vint (map Int.repr contents)) a)
   POST [ tuint ]
         PROP () LOCAL(temp ret_temp  (Vint (Int.repr (sum_Z contents))))

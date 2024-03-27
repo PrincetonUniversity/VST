@@ -44,7 +44,7 @@ Time forward_if  (
 Time normalize. (*0.8*)
 freeze FR1 := - (data_at_ _ _ c) (data_block _ _ k) (K_vector _).
 assert_PROP (isptr k) as isPtrK.
-{ unfold data_block. Time normalize. (*1.6 versus 2.2*) rewrite data_at_isptr with (p:=k). Time entailer!. (*1.6 versus 2.5*) }
+{ unfold data_block. entailer!. }
 
 Time forward_call (Tsh, shk, c, k, kl, key, HMACabs nil nil nil, gv). (*3*)
  { apply isptrD in isPtrK. destruct isPtrK as [kb [kofs HK]]. rewrite HK.

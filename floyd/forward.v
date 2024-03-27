@@ -976,7 +976,7 @@ eapply (semax_call_id1_wow_nil H);
  | prove_PROP_preconditions
  ].*)
 
-Ltac  forward_call_id1_wow := 
+Ltac  forward_call_id1_wow :=
 let H := fresh in intro H;
 eapply (semax_call_id1_wow H);
  clear H;
@@ -4492,7 +4492,6 @@ Ltac start_function1 :=
  end;
 (* let DependedTypeList := fresh "DependedTypeList" in*)
  unfold NDmk_funspec;
- let gv := fresh "gv" in
  match goal with |- semax_body _ _ _ (pair _ (mk_funspec _ _ _ _ ?Pre _)) =>
 
    split3; [check_parameter_types' | check_return_type | ];
@@ -4522,8 +4521,8 @@ Ltac start_function1 :=
              destruct p as [a b]
  | |- semax _ _ (close_precondition _ (argsassert_of ((match ?p with (a,b) => _ end) eq_refl)) ∗ _) _ _ =>
              destruct p as [a b]
- | |- semax _ _ (close_precondition _ (fun ae => ⌜(Datatypes.length (snd ae) = ?A)⌝ ∧ monPred_at ?B
-                                                      (make_args ?C (snd ae) (mkEnviron (fst ae) _ _))) ∗ _) _ _ =>
+ | |- semax _ _ (close_precondition _ (argsassert_of (fun ae => ⌜(Datatypes.length (snd ae) = ?A)⌝ ∧ monPred_at ?B
+                                                      (make_args ?C (snd ae) (mkEnviron (fst ae) _ _)))) ∗ _) _ _ =>
           match B with match ?p with (a,b) => _ end => destruct p as [a b] end
        end;
 (* this speeds things up, but only in the very rare case where it applies,

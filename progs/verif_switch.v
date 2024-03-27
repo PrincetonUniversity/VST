@@ -38,7 +38,7 @@ Lemma body_twice: semax_body Vprog Gprog f_twice twice_spec.
 Proof.
 start_function.
 rename a into n.
-forward_if (PROP() LOCAL(temp _n (Vint (Int.repr (n+n)))) SEP() : assert).
+forward_if (temp _n (Vint (Int.repr (n+n)))).
 repeat forward; entailer!!.
 repeat forward; entailer!!.
 repeat forward; entailer!!.

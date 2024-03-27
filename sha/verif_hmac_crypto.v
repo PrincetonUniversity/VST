@@ -35,7 +35,7 @@ rewrite bytesToBits_len. exists (length l). trivial.
 Qed.
 
 Definition bitspec KEY MSG :=
-  Vector.to_list ( HMAC_spec.HMAC EQ.h_v iv_v (HMAC_spec_abstract.HMAC_Abstract.wrappedSAP _ _ splitAndPad_v)
+  Vector.to_list (HMAC_spec.HMAC EQ.h_v iv_v (HMAC_spec_abstract.HMAC_Abstract.wrappedSAP _ _ splitAndPad_v)
                       fpad_v EQ.opad_v EQ.ipad_v
                       (of_list_length _ (key_vector (CONT KEY)))
                       (mkCont (CONT MSG))).
@@ -86,11 +86,11 @@ Definition HMAC_crypto :=
               initPostKey shk keyVal (CONT KEY);
               data_block shm (CONT MSG) msgVal).
 
-Lemma hmacbodycryptoproof Espec E k KEY msg  MSG gv shk shm shmd md buf
+Lemma hmacbodycryptoproof Espec k KEY msg  MSG gv shk shm shmd md buf
       (Hshk: readable_share shk) (Hshm: readable_share shm) (SH : writable_share shmd) 
       (KL: has_lengthK (LEN KEY) (CONT KEY))
       (DL: has_lengthD 512 (LEN MSG) (CONT MSG)):
-semax(OK_spec := Espec)(C := CompSpecs) E (func_tycontext f_HMAC HmacVarSpecs HmacFunSpecs nil)
+semax(OK_spec := Espec)(C := CompSpecs) ⊤ (func_tycontext f_HMAC HmacVarSpecs HmacFunSpecs nil)
   (PROP  ()
    LOCAL  (lvar _c (Tstruct _hmac_ctx_st noattr) buf; temp _md md;
      temp _key k; temp _key_len (Vint (Int.repr (LEN KEY)));
@@ -149,25 +149,24 @@ destruct RES as [h2 dig].
 simpl.
 
 forward_call (Tsh, h2,buf).
-freeze FR1 := - . 
+freeze FR1 := - .
+assert (forall A Awf, CRYPTO A Awf). (* if we don't assert this in advance, we hit a unification loop *)
+{ intros ? X.
+  unfold CRYPTO; intros. apply HMAC256_isPRF; assumption. }
 forward.
 (*assert_PROP (field_compatible (tarray tuchar (sizeof t_struct_hmac_ctx_st)) nil buf).
 { unfold data_block at 1. unfold Zlength. simpl. apply prop_right. assumption. }
 rename H5 into FBUF.*)
 specialize (hmac_sound key data). unfold hmac.
 rewrite <- HeqRES. simpl; intros.
-Exists dig. thaw FR1.  entailer!. 
-{ subst.
-       split. unfold bitspec. simpl. rewrite Equivalence.
-         f_equal. unfold HMAC_spec_abstract.HMAC_Abstract.Message2Blist.
-         remember (mkCont data) as dd. destruct dd. destruct a; subst x.
-         rewrite ByteBitRelations.bytes_bits_bytes_id.
-         rewrite HMAC_equivalence.of_length_proof_irrel.
-         rewrite ByteBitRelations.bytes_bits_bytes_id. reflexivity.
-           intros ? X. apply X.
-       (*split; trivial. split; trivial. *)
-       intros ? X.
-        unfold CRYPTO; intros. apply HMAC256_isPRF; assumption. }
+Exists dig. thaw FR1. entailer!.
+{ unfold bitspec. simpl. rewrite Equivalence.
+  f_equal. unfold HMAC_spec_abstract.HMAC_Abstract.Message2Blist.
+  remember (mkCont data) as dd. destruct dd. destruct a; subst x.
+  rewrite ByteBitRelations.bytes_bits_bytes_id.
+  rewrite HMAC_equivalence.of_length_proof_irrel.
+  rewrite ByteBitRelations.bytes_bits_bytes_id. reflexivity.
+  intros ? X. apply X. }
 unfold data_block.
   rewrite Zlength_correct; simpl.
   rewrite <- memory_block_data_at_; trivial.

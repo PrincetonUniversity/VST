@@ -87,6 +87,7 @@ Definition andp_right := @bi.and_intro.
 Definition prop_right := @bi.pure_intro.
 Definition sepcon_derives := @bi.sep_mono.
 Definition andp_derives := @bi.and_mono.
+Definition prop_derives := @bi.pure_mono.
 Definition andp_left1 := @bi.and_elim_l.
 Definition andp_left2 := @bi.and_elim_r.
 Definition orp_left := @bi.or_elim.
@@ -94,6 +95,8 @@ Definition sepcon_emp := @bi.sep_emp.
 Definition emp_sepcon := @bi.emp_sep.
 Definition sepcon_comm := @bi.sep_comm.
 Definition sepcon_assoc := @bi.sep_assoc.
+Definition andp_comm := @bi.and_comm.
+Definition andp_assoc := @bi.and_assoc.
 Definition allp_right := @bi.forall_intro.
 Definition FF_left := @False_left.
 

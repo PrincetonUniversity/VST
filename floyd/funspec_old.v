@@ -1,3 +1,6 @@
+(* Note: this still sort of works, at least for simple examples, but calling functions
+   declared with old_funspecs may fail and making it work will hurt the performance of
+   regular funspecs. Consider this file deprecated. *)
 Require Import VST.floyd.base2.
 Require Import VST.floyd.canon.
 Require Import VST.floyd.client_lemmas.
@@ -784,7 +787,7 @@ Ltac rewrite_old_main_pre ::= rewrite ?old_main_pre_eq; unfold convertPre, conve
 
 Ltac prove_all_defined := 
  red; simpl makePARAMS;
-lazymatch goal with |- ⌜ ?A _ _ _⌝ ∧ _ ⊢ ⌜?B⌝ =>
+lazymatch goal with |- ⌜?A _ _ _⌝ ∧ _ ⊢ ⌜?B⌝ =>
  let a := fresh "a" in let b := fresh "b" in 
   set (b:=B); set (a:=A); 
   unfold fold_right in a;
@@ -800,13 +803,13 @@ try congruence;
 try apply Vptrofs_neq_Vundef;
 try apply Vbyte_neq_Vundef;
 try apply nullval_neq_Vundef;
-try (intro H; rewrite H in *;
+try (intro H; rewrite -> H in *;
       (contradiction || eapply field_compatible_Vundef; eassumption));
 match goal with  |- ?A <> Vundef =>
   fail 100 "From assumptions above the line and PROP and SEP clauses in precondition, cannot prove LOCAL variable" A "<>Vundef"
 end.
 
-Ltac convertPreElim' := 
+Ltac convertPreElim' :=
 unfold convertPre;
 let ae := fresh "ae" in split => ae;
 let g := fresh "g" in let args := fresh "args" in destruct ae as [g args];
@@ -818,7 +821,7 @@ apply convertPre_helper2;
  [intro;
   simpl fst; simpl snd;
   match goal with |- ⌜_ = Datatypes.length ?L⌝ ∧ local (fold_right _ _ (map _ ?D)) _ ⊣⊢
-                              ⌜args = ?A⌝ ∧ local (fold_right _ _ (map _ (map _ ?G))) _ => 
+                              ⌜args = ?A⌝ ∧ local (fold_right _ _ (map _ (map _ ?G))) _ =>
   let p := constr:(makePARAMS L D) in
   let p := eval simpl in p in 
     unify A p
@@ -826,38 +829,38 @@ apply convertPre_helper2;
   | ];
   [ | prove_all_defined ];
 unfold local, lift1; unfold_lift; rewrite -!bi.pure_and; f_equiv;
-let H0 := fresh in let H1 := fresh  in
+let H0 := fresh in let H1 := fresh in
 apply prop_ext; split; intros [H0 H1];
 [ simpl in H0;
   repeat (destruct args as [ | ? args]; [discriminate H0 | ]);
   destruct args; [clear H0 | inv H0];
   simpl in H1; unfold_lift in H1;
   unfold eval_id, env_set in H1;
-  simpl in H1; 
+  simpl in H1;
   decompose [and] H1; clear H1; subst;
   simpl;
   repeat split; auto
-| subst args; 
+| subst args;
   simpl in H1; unfold_lift in H1;
   unfold eval_id, env_set in H1;
-  simpl in H1; 
+  simpl in H1;
   decompose [and] H1; clear H1; subst;
   simpl; unfold_lift; unfold eval_id, env_set; simpl;
   repeat match goal with H: Forall _ _ |- _ => inv H end;
   repeat split; auto
 ].
 
-Ltac convertPreElim := 
+Ltac convertPreElim :=
   match goal with |- convertPre _ _ _ _ = _ => idtac end;
   convertPreElim' || fail 100 "Could not convert old-style precondition to new-style".
 
-Ltac try_convertPreElim ::= 
+Ltac try_convertPreElim ::=
   lazymatch goal with
-  | |- convertPre _ _ _ _ = _ =>  convertPreElim
+  | |- convertPre _ _ _ _ = _ => convertPreElim
   | |- _ => reflexivity
   end.
 
-Ltac prove_norepet := 
+Ltac prove_norepet :=
    clear; repeat constructor; simpl; intros ?H;
      repeat match goal with H: _ \/ _ |- _ => destruct H end;
       repeat match goal with H: _ = _ |- _ => inv H end; auto.
@@ -865,7 +868,7 @@ Ltac prove_norepet :=
 
 Ltac start_func_convert_precondition ::=
 erewrite convertPre_helper3;
- [ 
+ [
  | reflexivity || fail 100 "makePARAMS filed in start_func_convert_precondition"
  | prove_norepet || fail 100 "repeated temp-identifier in LOCAL clause"
  | prove_norepet || fail 100 "repeated formal parameter in funsig"

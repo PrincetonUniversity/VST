@@ -231,7 +231,7 @@ Definition logical_and tid e1 e2 :=
               (Sset tid (Ecast (Etempvar tid tint) tint)))
             (Sset tid (Econst_int (Int.repr 0) tint))).
 
-
+(*
 (* TODO move to mpred.v *)
 Section MPRED.
 Definition massert' `{heapGS Σ} := environ -> mpred.
@@ -249,9 +249,10 @@ Proof. intros. unfold bi_assert. constructor. intros simpl. constructor. intros.
        split; intros; simpl; done.
 Qed.
 End MPRED.
+*)
 
 Lemma semax_pre_flipped :
- forall `{!VSTGS OK_ty Σ} {OK_spec: ext_spec OK_ty} (P' : massert') {cs: compspecs}
+ forall `{!VSTGS OK_ty Σ} {OK_spec: ext_spec OK_ty} (P' : assert) {cs: compspecs}
         E (Delta : tycontext) (P1 : list Prop) (P2 : list localdef)
          (P3 : list mpred) (c : statement)
          (R : ret_assert),
@@ -259,7 +260,7 @@ Lemma semax_pre_flipped :
        ENTAIL Delta, PROPx P1 (LOCALx P2 (SEPx P3)) ⊢ P' ->
        semax E Delta (PROPx P1 (LOCALx P2 (SEPx P3))) c R.
 Proof. intros.
-eapply semax_pre. apply H0.  rewrite bi_assert_id. apply H.
+eapply semax_pre. apply H0. apply H.
 Qed.
 
 Lemma semax_while :

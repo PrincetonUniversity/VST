@@ -179,7 +179,7 @@ make_func_ptr _intpair_serialize.
 set (des := gv _intpair_deserialize).
 set (ser := gv _intpair_serialize).
 match goal with 
- |- context [mapsto_zeros 4 Ews _] => 
+ |- context [mapsto_zeros 4 Ews _] =>
   (* 64-bit mode *)
   sep_apply mapsto_zeros_memory_block; auto;
   gather_SEP (mapsto _ _ _ (offset_val 0 des))
