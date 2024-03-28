@@ -438,7 +438,7 @@ Proof.
          (read_sum_inner n nums) ;; if (b : bool) then Ret tt else lc' <- read_list stdin 4 ;; read_sum (n + sum_Z nums) lc');
              data_at Ews (tarray tuchar 4) (map Vubyte lc) buf; mem_mgr gv; malloc_token Ews (tarray tuchar 4) buf)).
     + entailer!.
-      { lia. }
+      { tauto. }
     + simpl.
       forward.
       { entailer!.
