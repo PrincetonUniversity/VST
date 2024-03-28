@@ -312,7 +312,7 @@ Proof.
   rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
   unfold treebox_rep at 1. Exists p1. cancel.
 
-  iIntros "(? & ? & ? & ? & ? & ?) Hleft".
+  iIntros "(? & ? & ? & ?) Hleft".
   clear p1.
   unfold treebox_rep.
   iExists p.
@@ -324,7 +324,7 @@ Proof.
   iFrame.
   unfold_data_at (data_at _ _ _ p).
   rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
-  iFrame.
+  iStopProof; cancel.
 Qed.
 
 Lemma bst_right_entail: forall (t1 t2 t2': tree val) k (v p1 p2 p b: val),
@@ -343,7 +343,7 @@ Proof.
   rewrite (field_at_data_at _ t_struct_tree [StructField _right]).
   unfold treebox_rep at 1. Exists p2. cancel.
 
-  iIntros "(? & ? & ? & ? & ? & ?) Hright".
+  iIntros "(? & ? & ? & ?) Hright".
   clear p2.
   unfold treebox_rep.
   iExists p.
@@ -355,7 +355,7 @@ Proof.
   iFrame.
   unfold_data_at (data_at _ _ _ p).
   rewrite (field_at_data_at _ t_struct_tree [StructField _right]).
-  iFrame.
+  iStopProof; cancel.
 Qed.
 
 Lemma if_trueb: forall {A: Type} b (a1 a2: A), b = true -> (if b then a1 else a2) = a1.
@@ -823,7 +823,7 @@ Lemma subsume_insert:
 Proof.
 do_funspec_sub. destruct w as [[[b x] v] m]. simpl.
 rewrite <- fupd_intro.
-monPred.unseal. Intros.
+Intros.
 destruct args. inv H1.
 destruct args. inv H1.
 destruct args. inv H1.
@@ -842,7 +842,7 @@ Lemma subsume_treebox_new:
 Proof.
 do_funspec_sub.
 rewrite <- fupd_intro.
-monPred.unseal. Intros.
+Intros.
 Exists tt (emp : mpred). entailer!!.
 intros tau ? ?. Exists (eval_id ret_temp tau). entailer!!.
 unfold tmap_rep.
@@ -859,7 +859,7 @@ Lemma subsume_treebox_free:
 Proof.
 do_funspec_sub. destruct w as [m p]. clear H.
 rewrite <- fupd_intro.
-simpl; monPred.unseal. Intros.
+Intros.
 subst.
 unfold env_set, eval_id in *. simpl in *. 
 unfold tmap_rep.
