@@ -3,7 +3,7 @@ Require Import compcert.lib.Axioms.
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat eqtype seq.
 Require Import Lists.List.
 Require Import Coq.ZArith.ZArith.
-Require Import PreOmega.
+Require Import Lia.
 Set Implicit Arguments.
 Import Axioms.
 (* tactics to support Omega for ssrnats*)
@@ -28,10 +28,10 @@ Ltac arith_goal_ssrnat2coqnat :=
            | |- is_true (_ < _) => try apply/ltP
          end.
 
-Ltac ssromega :=
+Ltac ssrlia :=
   repeat arith_hypo_ssrnat2coqnat;
   arith_goal_ssrnat2coqnat; simpl;
-  omega.
+  lia.
 
 Class monad (mon : Type -> Type) :=
   {
@@ -145,7 +145,7 @@ Lemma lt_succ_neq:
     (x <= y < x + z)%Z.
 Proof.
   intros.
-  omega.
+  lia.
 Qed.
 
 
@@ -157,9 +157,9 @@ Lemma le_sub:
 Proof.
   intros x y z H H0.
   zify.
-  rewrite <-Pos2Z.add_pos_neg.
+  rewrite <-Pos2Z.add_pos_neg in H2.
   assert (x < z)%positive by auto.
-  rewrite Z2Pos.id; zify; omega.
+  zify; lia.
 Qed.
 
 Lemma lt_sub_bound:
@@ -169,8 +169,8 @@ Lemma lt_sub_bound:
 Proof.
   intros x y H.
   zify.
-  rewrite <-Pos2Z.add_pos_neg.
-  rewrite Z2Pos.id; zify; omega.
+  rewrite <-Pos2Z.add_pos_neg in H1.
+  zify; lia.
 Qed.
 
 Lemma lt_lt_sub:
@@ -180,7 +180,7 @@ Lemma lt_lt_sub:
     (b - a < c)%positive.
 Proof.
   intros a b c H H0.
-  zify; omega.
+  zify; lia.
 Qed.
 
 Lemma prod_fun :
@@ -264,14 +264,14 @@ Module BlockList.
     intros n.
     induction n;
       intros.
-    simpl. ssromega.
-    destruct n. ssromega.
+    simpl. ssrlia.
+    destruct n. ssrlia.
     rewrite <- mkBlockList_unfold'. simpl. simpl in IHn.
     destruct (beq_nat k (S n)) eqn:?. apply beq_nat_true in Heqb. subst.
     now left.
     right. apply IHn; auto;  clear IHn.
-    apply beq_nat_false in Heqb. ssromega.
-    apply beq_nat_false in Heqb. ssromega.
+    apply beq_nat_false in Heqb. ssrlia.
+    apply beq_nat_false in Heqb. ssrlia.
   Qed.
 
   Lemma mkBlockList_not_in : forall n m
@@ -328,7 +328,7 @@ Module SeqLemmas.
     intros T s. induction s; intros.
     destruct n; simpl in Hdrop; rewrite <- Hdrop; auto.
     simpl in *. destruct n. rewrite <- Hdrop. auto.
-    eapply IHs in Hdrop. ssromega.
+    eapply IHs in Hdrop. ssrlia.
   Defined.
   Lemma subSeq_det : forall {T:eqType} (s s' s'' : seq T) (Hsize: size s' = size s'')
                        (Hsub': subSeq s' s) (Hsub'': subSeq s'' s),
@@ -343,8 +343,8 @@ Module SeqLemmas.
       reflexivity.
       apply IHs. assumption.
       unfold subSeq.
-        by replace n with (size s - size s') in Hsub' by ssromega.
-          by replace n with (size s - size s'') in Hsub'' by ssromega.
+        by replace n with (size s - size s') in Hsub' by ssrlia.
+          by replace n with (size s - size s'') in Hsub'' by ssrlia.
   Defined.
 
   Lemma in_rcons : forall {T:Type} x y (s : seq T) (HIn: List.In x (rcons s y)),

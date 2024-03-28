@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat.
 Require Import VST.progs.reverse_client.
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
@@ -64,7 +65,7 @@ Definition last_foo_spec :=
      SEP (listrep sigma p)
   POST [ tuint ]
      PROP () RETURN (Vint x)
-     SEP (TT).
+     SEP (True).
 
 Definition Gprog : funspecs :=
          ltac:(with_library prog [ reverse_spec; last_foo_spec ]).

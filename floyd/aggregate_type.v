@@ -6,6 +6,8 @@ Require Export VST.floyd.fieldlist.
 Require Export VST.floyd.compact_prod_sum.
 Require Export VST.zlist.sublist.
 
+Local Unset SsrRewrite.
+
 Definition proj_struct (i : ident) (m : members) {A: member -> Type} (v: compact_prod (map A m)) 
     (d: A (get_member i m)): A (get_member i m) :=
   proj_compact_prod (get_member i m) m v d member_dec.

@@ -94,9 +94,9 @@ Proof.
 Qed.
 
 Ltac find_nth_rec tac :=
-  first [ simple eapply find_nth_preds_rec_cons_head; tac
-        | simple eapply find_nth_preds_rec_cons_tail; find_nth_rec tac
-        | simple eapply find_nth_preds_rec_nil].
+  first [ (*simple*) eapply find_nth_preds_rec_cons_head; tac
+        | (*simple*) eapply find_nth_preds_rec_cons_tail; find_nth_rec tac
+        | (*simple*) eapply find_nth_preds_rec_nil].
 
 Ltac find_nth tac :=
   eapply find_nth_preds_constr; find_nth_rec tac.

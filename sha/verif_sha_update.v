@@ -7,7 +7,6 @@ Require Import sha.verif_sha_update3.
 Require Import sha.verif_sha_update4.
 Require Import sha.call_memcpy.
 Local Open Scope Z.
-Local Open Scope logic.
 
 Lemma body_SHA256_Update: semax_body Vprog Gtot f_SHA256_Update SHA256_Update_spec.
 Proof.
@@ -79,13 +78,13 @@ forward. (* n = c->num; *)
 forward. (* p=c->data; *)
 simpl (temp _p _).
     (* TODO: should this produce field_address instead of (Int.repr 40) ? *)
-assert_PROP (field_address t_struct_SHA256state_st [StructField _data] c = offset_val 40 c).
+assert_PROP (field_address t_struct_SHA256state_st [StructField _data] c = offset_val (320/8) c).
   unfold_data_at (data_at _ _ _ _).
   rewrite (field_at_compatible' _ _ [StructField _data]).
   entailer!.
   normalize.
 rewrite <- H0.
-clear H0; pose (H0:=True).
+clear H0; pose (H0:=True%type).
 apply semax_seq with (sha_update_inv wsh sh (s256a_hashed a) len c d (s256a_data a) data gv false).
 * semax_subcommand Vprog Gtot f_SHA256_Update (@nil (ident * Annotation)).
  eapply semax_post_flipped.
@@ -101,8 +100,8 @@ apply semax_seq with (sha_update_inv wsh sh (s256a_hashed a) len c d (s256a_data
 + simpl_ret_assert; apply ENTAIL_refl.
 + intros; simpl_ret_assert.
  rewrite S256abs_recombine by auto.
- apply andp_left2.
- normalize.
+ rewrite andp_left2.
+ apply bi.sep_mono; last cancel.
  apply bind_ret_derives.
  Intros a'.
  apply derives_extract_PROP'; intro. (* this should be done a better way *)
@@ -159,12 +158,12 @@ forward_if (   PROP  ()
     assert (H2: len - b4d = Zlength dd')
       by (unfold dd'; autorewrite with sublist; MyOmega).
     make_sequential.
+    unfold_data_at (data_at _ _ _ c).
+    freeze FR1 := -(field_at(cs := CompSpecs) wsh t_struct_SHA256state_st (DOT _data) (repeat Vundef (Z.to_nat CBLOCKz)) c)
+      (data_at sh (tarray tuchar (Zlength data)) (map Vubyte data) d).
     eapply semax_post_flipped3.
-  -
-    assert_PROP (field_compatible0 (tarray tuchar (Zlength data)) [ArraySubsc b4d] d)
+  - assert_PROP (field_compatible0 (tarray tuchar (Zlength data)) [ArraySubsc b4d] d)
       by (entailer!; auto with field_compatible).
- evar (Frame: list mpred).
-  unfold_data_at (data_at _ _ _ c).
   eapply(call_memcpy_tuchar
    (*dst*) wsh t_struct_SHA256state_st [StructField _data] 0
                    (repeat Vundef (Z.to_nat CBLOCKz)) c
@@ -172,11 +171,11 @@ forward_if (   PROP  ()
                    (map Int.repr (map Byte.unsigned data))
                    d
    (*len*) (len - b4d)
-        Frame); try reflexivity; auto; try MyOmega.
+        [FRZL FR1]); try reflexivity; auto; try MyOmega.
   entailer!.
   rewrite map_Vubyte_eq'. cancel.
  -
- simpl tc_environ.
+ thaw' FR1; simpl.
  subst POSTCONDITION; unfold abbreviate. simpl_ret_assert.
  pose proof CBLOCKz_eq.
  unfold splice_into_list; autorewrite with sublist.

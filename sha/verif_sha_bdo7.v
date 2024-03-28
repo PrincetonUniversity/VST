@@ -4,7 +4,6 @@ Require Import sha.SHA256.
 Require Import sha.spec_sha.
 Require Import sha.sha_lemmas.
 Require Import sha.bdo_lemmas.
-Local Open Scope logic.
 
 Definition block_data_order_loop2 :=
    nth 1 (loops (fn_body f_sha256_block_data_order)) Sskip.
@@ -170,11 +169,11 @@ Qed.
 
 
 Lemma sha256_block_data_order_loop2_proof:
-  forall (Espec : OracleKind)
+  forall Espec E
      (b: list int) ctx (regs: list int) gv Xv
      (Hregs: length regs = 8%nat),
      Zlength b = LBLOCKz ->
-     semax (func_tycontext f_sha256_block_data_order Vprog Gtot nil)
+     semax(OK_spec := Espec) E (func_tycontext f_sha256_block_data_order Vprog Gtot nil)
  (PROP ()
    LOCAL (temp _ctx ctx; temp _i (Vint (Int.repr 16));
                temp _a (Vint (nthi (Round regs (nthi b) (LBLOCKz-1)) 0));
@@ -281,6 +280,9 @@ unfold K_vector.
 change CBLOCKz with 64%Z.
 assert (LEN: Zlength K256 = 64%Z) by reflexivity.
 forward.  (* Ki=K256[i]; *)
+replace (Int.repr (Znth i _)) with (Znth i K256).
+2: { rewrite <- (Znth_map _ Int.repr); auto.
+     unfold Zlength; simpl; lia. }
 autorewrite with sublist.
 rename b into bb.
 assert (Hregs' := length_Round _ (nthi bb) (i-1) Hregs).

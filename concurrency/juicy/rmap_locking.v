@@ -12,9 +12,8 @@ Require Import compcert.common.Values.
 
 Require Import VST.msl.Coqlib2.
 Require Import VST.msl.eq_dec.
-Require Import VST.msl.seplog.
 Require Import VST.veric.shares.
-Require Import VST.veric.compcert_rmaps.
+Require Import VST.veric.shared.
 Require Import VST.veric.semax.
 Require Import VST.veric.semax_ext.
 Require Import VST.veric.SeparationLogic.
@@ -28,21 +27,19 @@ Require Import VST.sepcomp.event_semantics.
 Require Import VST.veric.coqlib4.
 Require Import VST.floyd.type_induction.
 (*Require Import VST.concurrency.permjoin.*)
-Require Import VST.concurrency.juicy.sync_preds_defs.
+(*Require Import VST.concurrency.juicy.sync_preds_defs.*)
 Require Import VST.concurrency.juicy.semax_conc_pred.
 Require Import VST.concurrency.common.lksize.
 
 Require Import Setoid.
 
-Set Bullet Behavior "Strict Subproofs".
-
 Local Open Scope Z_scope.
 
-Lemma data_at_unfolding CS sh b ofs phi :
+(*Lemma data_at_unfolding CS sh b ofs phi :
   readable_share sh ->
-  app_pred (@data_at_ CS sh (Tarray (Tpointer Tvoid noattr) 4 noattr) (Vptr b ofs)) phi ->
+  app_pred (data_at_ sh (Tarray (Tpointer Ctypes.Tvoid noattr) 4 noattr) (Vptr b ofs)) phi ->
   forall loc,
-    adr_range (b, Ptrofs.intval ofs) 4%Z loc ->
+    adr_range (b, Ptrofs.intval ofs) 8%Z loc ->
     exists p v,
       phi @ loc =
       YES sh p
@@ -63,10 +60,10 @@ Proof.
   simpl in *.
   unfold SeparationLogic.mapsto in *.
   if_tac in s3. 2:tauto.
-  destruct s0 as [([], _) | (_, (v0, (vs0 & (C0 & D0) & G0)))].
-  destruct s1 as [([], _) | (_, (v1, (vs1 & (C1 & D1) & G1)))].
-  destruct s2 as [([], _) | (_, (v2, (vs2 & (C2 & D2) & G2)))].
-  destruct s3 as [([], _) | (_, (v3, (vs3 & (C3 & D3) & G3)))].
+  destruct s0 as [([], _) | (_, (v0, (vs0 & (C0 & D0))))].
+  destruct s1 as [([], _) | (_, (v1, (vs1 & (C1 & D1))))].
+  destruct s2 as [([], _) | (_, (v2, (vs2 & (C2 & D2))))].
+  destruct s3 as [([], _) | (_, (v3, (vs3 & (C3 & D3))))].
   rewrite reptype_lemmas.ptrofs_add_repr_0_r in *. simpl in *.
   intros (b', ofs').
   specialize (D0 (b', ofs')).
@@ -87,7 +84,7 @@ Proof.
     unfold Z.modulo in *; simpl in *;
     unfold Ptrofs.modulus, two_power_nat, Ptrofs.wordsize, Wordsize_Ptrofs.wordsize,
       size_chunk, Mptr in *;
-    destruct Archi.ptr64; simpl in *; omega.
+    destruct Archi.ptr64; simpl in *; lia.
   destruct (adr_range_dec _ _ _) as [(_, a1) | n1] in D1. t ofs (if Archi.ptr64 then 8 else 4).
   destruct (adr_range_dec _ _ _) as [(_, a2) | n2] in D2. t ofs (if Archi.ptr64 then 16 else 8).
   destruct (adr_range_dec _ _ _) as [(_, a3) | n3] in D3. t ofs (if Archi.ptr64 then 24 else 12).
@@ -112,7 +109,7 @@ Ltac app_pred_unfold :=
 
 Lemma mapsto_unfold sh z b ofs phi loc :
   readable_share sh ->
-  app_pred (mapsto sh (Tpointer Tvoid noattr) (offset_val (size_chunk Mptr * z) (Vptr b ofs)) Vundef) phi ->
+  app_pred (mapsto sh (Tpointer Ctypes.Tvoid noattr) (offset_val (size_chunk Mptr * z) (Vptr b ofs)) Vundef) phi ->
   if adr_range_dec (b, Ptrofs.unsigned (Ptrofs.add ofs (Ptrofs.repr (size_chunk Mptr * z)))) (size_chunk Mptr) loc then
     exists p v,
       phi @ loc =
@@ -126,7 +123,7 @@ Proof.
   simple_if_tac. now intros _ [].
   unfold offset_val.
   if_tac. 2:tauto.
-  intros _ [[[]] | [[] (v2 & bl & (wob & Sat) & _)]].
+  intros _ [[[]] | [[] (v2 & bl & (wob & Sat))]].
   specialize (Sat loc).
   unfold jam in *.
   app_pred_unfold.
@@ -146,7 +143,7 @@ Qed.
 
 Lemma data_at_unfold_readable CS sh b ofs phi length :
   readable_share sh ->
-  app_pred (@data_at_ CS sh (Tarray (Tpointer Tvoid noattr) (Z.of_nat length) noattr) (Vptr b ofs)) phi ->
+  app_pred (@data_at_ CS sh (Tarray (Tpointer Ctypes.Tvoid noattr) (Z.of_nat length) noattr) (Vptr b ofs)) phi ->
   forall loc,
     if adr_range_dec (b, Ptrofs.intval ofs) (size_chunk Mptr * Z.of_nat length)%Z loc then
       exists p v,
@@ -158,8 +155,7 @@ Lemma data_at_unfold_readable CS sh b ofs phi length :
 Proof.
   intros Readable.
   intros [(_ & _ & bound & align & _) [_ H]].
-  unfold size_compatible, sizeof in bound.
-  rewrite <- size_chunk_Mptr in bound.
+  unfold size_compatible, Ctypes.sizeof in bound; simpl in bound.
   simpl in H.
   unfold mapsto_memory_block.at_offset in *.
   unfold reptype_lemmas.unfold_reptype in *.
@@ -173,20 +169,20 @@ Proof.
   unfold nested_field_lemmas.nested_field_offset in *.
   simpl in H.
   rewrite <-Zminus_0_l_reverse in H.
-  rewrite Z.max_r in * by omega.
+  rewrite Z.max_r in * by lia.
   assert (H' :
             app_pred
               (aggregate_pred.rangespec
                  0 (Z.to_nat (Z.of_nat length))
                  (fun (i : Z) (v : val) =>
                     SeparationLogic.mapsto
-                      sh (Tpointer Tvoid noattr)
+                      sh (Tpointer Ctypes.Tvoid noattr)
                       (offset_val (size_chunk Mptr * i)%Z v)
                       Vundef) (Vptr b (Ptrofs.add ofs (Ptrofs.repr 0)))) phi).
   {
     exact_eq H. repeat (f_equal || extensionality).
     unfold sublist.Znth. if_tac; auto.
-    apply data_at_rec_lemmas.nth_list_repeat.
+    apply data_at_rec_lemmas.nth_repeat.
   }
 
   clear H. revert H'.
@@ -195,39 +191,40 @@ Proof.
   replace (Ptrofs.intval ofs) with (Ptrofs.intval (Ptrofs.add ofs (Ptrofs.repr (size_chunk Mptr * 0))))
     by (rewrite ptrofs_add_repr_0_r; reflexivity).
 
-  assert (bound3 : (Ptrofs.unsigned ofs + (size_chunk Mptr * 0) + size_chunk Mptr * Z.of_nat length <= Ptrofs.modulus)%Z) by omega.
+  assert (bound3 : (Ptrofs.unsigned ofs + (size_chunk Mptr * 0) + size_chunk Mptr * Z.of_nat length <= Ptrofs.modulus)%Z) by (simpl in *; lia).
 
-  remember 0%Z as z; assert (z0 : 0 <= z) by omega; clear Heqz.
-  assert (RR : forall z,
+  remember 0%Z as z; assert (z0 : 0 <= z) by lia; clear Heqz.
+(*  assert (RR : forall z,
              (match z with 0 => 0 | Z.pos y' => Z.pos y'~0~0 | Z.neg y' => Z.neg y'~0~0 end = size_chunk Mptr * z)%Z)
-    by reflexivity.
+    by reflexivity.*)
 
   assert (AA : forall P, (b = b /\ P) <-> P) by (intros; tauto).
   revert z z0 bound3 phi.
   induction length.
   - intros z z0 bound3 phi SAT (b', ofs'). simpl.
     if_tac.
-    + simpl in *. omega.
-    + apply resource_at_identity, SAT.
+    + simpl in *. lia.
+    + setoid_rewrite emp_no in SAT.
+      apply SAT.
   - rewrite Nat2Z.inj_succ in *.
     intros z z0 bound3 phi (phi1 & phi2 & j & SAT1 & SAT2) loc.
     inv align; try discriminate.
     rename H3 into align.
     pose proof (size_chunk_pos Mptr) as Hpos.
     spec IHlength.
-    { rewrite size_chunk_Mptr in *; simple_if_tac; omega. }
+    { rewrite size_chunk_Mptr in *; lia. }
     spec IHlength.
-    { constructor; intros; apply align; omega. }
+    { constructor; intros; apply align; lia. }
     specialize (IHlength (Z.succ z)).
-    specialize (IHlength ltac:(omega)).
+    specialize (IHlength ltac:(lia)).
     spec IHlength.
-    { rewrite size_chunk_Mptr in *; simple_if_tac; omega. }
+    { rewrite size_chunk_Mptr in *; simple_if_tac; lia. }
     specialize (IHlength phi2 SAT2 loc).
     assert (E4 : size_chunk Mptr * z mod Ptrofs.modulus = (size_chunk Mptr * z)). {
       apply Zmod_small.
-      split; [rewrite size_chunk_Mptr; simple_if_tac; omega|].
+      split; [rewrite size_chunk_Mptr; simple_if_tac; lia|].
       pose proof (Ptrofs.unsigned_range ofs).
-      rewrite size_chunk_Mptr in *; simple_if_tac; omega.
+      rewrite size_chunk_Mptr in *; simple_if_tac; lia.
     }
     if_tac.
     + if_tac in IHlength.
@@ -257,11 +254,11 @@ Proof.
         -- rewrite E in *.
            rewrite Ptrofs.unsigned_repr_eq in *.
            change (size_chunk Mptr mod Ptrofs.modulus)%Z with (size_chunk Mptr) in *.
-           omega.
+           lia.
         -- rewrite E in *.
            rewrite Ptrofs.unsigned_repr_eq in *.
            change (size_chunk Mptr mod Ptrofs.modulus)%Z with (size_chunk Mptr) in *.
-           pose proof (Ptrofs.unsigned_range ofs); omega.
+           pose proof (Ptrofs.unsigned_range ofs); simpl in *; lia.
       * apply resource_at_join with (loc := loc) in j.
         pose proof (join_unit2_e _ _ IHlength j) as E.
         rewrite <-E in *. clear SAT2 E j IHlength.
@@ -273,9 +270,9 @@ Proof.
         assert (b' = b) by intuition; subst b'.
         rewrite AA in *.
         replace (size_chunk Mptr * Z.of_nat (S length))%Z with (size_chunk Mptr + size_chunk Mptr * Z.of_nat length)%Z in *.
-        2:simpl (Z.of_nat); zify; unfold size_chunk, Mptr; simple_if_tac; omega.
+        2:simpl (Z.of_nat); zify; unfold size_chunk, Mptr; simple_if_tac; lia.
         replace (size_chunk Mptr * Z.succ z)%Z with (size_chunk Mptr + size_chunk Mptr * z)%Z in *.
-        2:zify; unfold size_chunk, Mptr; simple_if_tac; omega.
+        2:zify; unfold size_chunk, Mptr; simple_if_tac; lia.
         rewrite <-coqlib3.ptrofs_add_repr in *.
         rewrite <-Ptrofs.add_assoc in *.
         rewrite (Ptrofs.add_commut ofs) in H0.
@@ -289,7 +286,7 @@ Proof.
         remember (Ptrofs.unsigned a) as c(* ; clear Heqc a *).
         if_tac [If|If] in H0.
         -- change (Ptrofs.unsigned Ptrofs.zero) with 0%Z in *.
-           unfold size_chunk, Mptr in *; destruct Archi.ptr64; omega.
+           unfold size_chunk, Mptr in *; destruct Archi.ptr64; lia.
         -- subst c a.
            (* clear -If bound3. *)
            rewrite Ptrofs.unsigned_add_carry in *.
@@ -297,11 +294,11 @@ Proof.
            if_tac [If2|If2] in If.
            ++ change (Ptrofs.unsigned Ptrofs.zero) with 0%Z in *.
               rewrite Ptrofs.unsigned_repr_eq in *.
-              omega.
+              lia.
            ++ change (Ptrofs.unsigned Ptrofs.zero) with 0%Z in *.
               change (Ptrofs.unsigned Ptrofs.one) with 1%Z in *.
               rewrite Ptrofs.unsigned_repr_eq in *.
-              omega.
+              lia.
     + apply mapsto_unfold with (loc := loc) in SAT1; auto.
       if_tac in SAT1.
       * exfalso.
@@ -313,9 +310,9 @@ Proof.
         rewrite Ptrofs.unsigned_add_carry in *.
         unfold Ptrofs.add_carry in *.
         rewrite Ptrofs.unsigned_repr_eq, E4 in *.
-        assert (0 <= size_chunk Mptr * Z.of_nat length) by (apply Z.mul_nonneg_nonneg; omega).
+        assert (0 <= size_chunk Mptr * Z.of_nat length) by (apply Z.mul_nonneg_nonneg; lia).
         rewrite Z.mul_succ_r in *.
-        if_tac in H0; omega.
+        if_tac in H0; lia.
       * if_tac in IHlength.
         -- exfalso. clear SAT1 SAT2 phi phi1 phi2 IHlength j.
            destruct loc as (b', ofs').
@@ -323,7 +320,7 @@ Proof.
            assert (b' = b) by intuition; subst b'.
            rewrite AA in *.
            replace (size_chunk Mptr * Z.succ z)%Z with (size_chunk Mptr + size_chunk Mptr * z)%Z in *.
-           2:zify; unfold size_chunk, Mptr; simple_if_tac; omega.
+           2:zify; unfold size_chunk, Mptr; simple_if_tac; lia.
            rewrite <-coqlib3.ptrofs_add_repr in *.
            rewrite <-Ptrofs.add_assoc in *.
            rewrite (Ptrofs.add_commut ofs) in H1.
@@ -337,21 +334,21 @@ Proof.
            remember (Ptrofs.unsigned a) as c.
            if_tac [If|If] in H1.
            ++ change (Ptrofs.unsigned Ptrofs.zero) with 0%Z in *.
-              unfold size_chunk, Mptr in *; destruct Archi.ptr64; omega.
+              unfold size_chunk, Mptr in *; destruct Archi.ptr64; lia.
            ++ subst a c.
               rewrite Ptrofs.unsigned_add_carry in *.
               unfold Ptrofs.add_carry in *.
-              assert (0 <= size_chunk Mptr * Z.of_nat length) by (apply Z.mul_nonneg_nonneg; omega).
+              assert (0 <= size_chunk Mptr * Z.of_nat length) by (apply Z.mul_nonneg_nonneg; lia).
               rewrite Z.mul_succ_r in *.
               if_tac [If2|If2] in If.
               ** change (Ptrofs.unsigned Ptrofs.zero) with 0%Z in *.
                  change (Ptrofs.unsigned Ptrofs.one) with 1%Z in *.
                  rewrite Ptrofs.unsigned_repr_eq in *.
-                 omega.
+                 lia.
               ** change (Ptrofs.unsigned Ptrofs.zero) with 0%Z in *.
                  change (Ptrofs.unsigned Ptrofs.one) with 1%Z in *.
                  rewrite Ptrofs.unsigned_repr_eq in *.
-                 omega.
+                 lia.
         -- apply resource_at_join with (loc := loc) in j.
            generalize (join_unit1_e _ _ SAT1 j).
            intros <-; auto.
@@ -370,7 +367,7 @@ Qed.*)
 
 Lemma data_at_unfold CS sh b ofs phi length :
   forall (Hw: writable0_share sh),
-  app_pred (@data_at_ CS sh (Tarray (Tpointer Tvoid noattr) (Z.of_nat length) noattr) (Vptr b ofs)) phi ->
+  app_pred (@data_at_ CS sh (Tarray (Tpointer Ctypes.Tvoid noattr) (Z.of_nat length) noattr) (Vptr b ofs)) phi ->
   forall loc,
     if adr_range_dec (b, Ptrofs.intval ofs) (size_chunk Mptr * Z.of_nat length)%Z loc then
       exists v, phi @ loc = YES sh (writable0_readable Hw) (VAL v) NoneP
@@ -389,7 +386,7 @@ Qed.
 
 Lemma data_at_unfold_weak CS sh b ofs phi z z' loc :
   readable_share sh ->
-  app_pred (@data_at_ CS sh (Tarray (Tpointer Tvoid noattr) z noattr) (Vptr b ofs)) phi ->
+  app_pred (@data_at_ CS sh (Tarray (Tpointer Ctypes.Tvoid noattr) z noattr) (Vptr b ofs)) phi ->
   adr_range (b, Ptrofs.intval ofs) z' loc ->
   z' <= size_chunk Mptr * z ->
   exists p v,
@@ -402,15 +399,15 @@ Proof.
   pose proof data_at_unfold_readable CS sh b ofs phi (Z.to_nat z) R as H.
   assert (z0 : 0 <= z). {
     destruct loc; simpl in range.
-    assert (0 <= z') by omega.
+    assert (0 <= z') by lia.
     pose proof (size_chunk_pos Mptr).
     eapply Zmult_le_0_reg_r; eauto.
-    rewrite Z.mul_comm; omega.
+    rewrite Z.mul_comm; lia.
   }
   assert_specialize H. {
     intros.
     exact_eq AT; repeat f_equal.
-    rewrite Z2Nat.id; omega.
+    rewrite Z2Nat.id; lia.
   }
   specialize (H loc).
   if_tac [If|If] in H; auto.
@@ -420,56 +417,30 @@ Proof.
   destruct range as (<- & A & B).
   split; auto.
   split; auto.
-  rewrite Z2Nat.id; omega.
-Qed.
+  rewrite Z2Nat.id; lia.
+Qed.*)
 
-Lemma data_at_noghost CS sh b ofs phi :
-  app_pred (@data_at_ CS sh (Tarray (Tpointer Tvoid noattr) 2 noattr) (Vptr b ofs)) phi ->
-  noghost phi.
-Proof.
-  intros Hw; simpl in *.
-  destruct Hw as (_ & _ & ? & ? & ? & ? & ? & ? & J2 & ? & Hemp).
-  apply join_comm, Hemp in J2; subst.
-  unfold mapsto_memory_block.at_offset in *; simpl in *.
-  unfold mapsto in *; simpl in *.
-  destruct (readable_share_dec sh).
-  - destruct H0 as [[]|[_ H0]], H1 as [[]|[_ H1]]; try contradiction.
-    destruct H0 as (_ & _ & _ & ?), H1 as (_ & _ & _ & ?); simpl in *.
-    apply ghost_of_join, H0 in H.
-    rewrite <- H; auto.
-  - destruct H0 as (_ & _ & ?), H1 as (_ & _ & ?).
-    apply ghost_of_join, H0 in H.
-    rewrite <- H; auto.
-Qed.
-
-Definition rmap_makelock phi phi' loc R length :=
-  (level phi = level phi') /\
+Definition rmap_makelock phi phi' loc length :=
   (forall x, ~ adr_range loc length x -> phi @ x = phi' @ x) /\
   (forall x,
       adr_range loc length x ->
-      exists val sh Psh,
-        phi @ x = YES sh Psh (VAL val) NoneP /\
+      exists val sh,
+        phi @ x = (DfracOwn (Share sh), Some (VAL val)) /\
         writable0_share sh /\
-        phi' @ x =
-          YES sh Psh (LK length (snd x - snd loc)) (pack_res_inv (approx (level phi) R)))
-    /\  (ghost_of phi = ghost_of phi').
+        phi' @ x = (DfracOwn (Share sh), Some (LK length (snd x - snd loc)))).
 
 (* rmap_freelock phi phi' is ALMOST rmap_makelock phi' phi but we
 specify that the VAL will be the dry memory's *)
-Definition rmap_freelock phi phi' m loc R length :=
-  (level phi = level phi') /\
+Definition rmap_freelock phi phi' m loc length :=
   (forall x, ~ adr_range loc length x -> phi @ x = phi' @ x) /\
   (forall x,
       adr_range loc length x ->
-      exists sh Psh,
-        phi' @ x = YES sh Psh (VAL (contents_at m x)) NoneP /\
+      exists sh,
+        phi' @ x = (DfracOwn (Share sh), Some (VAL (contents_at m x))) /\
         writable0_share sh /\
-        phi @ x =
-  
-          YES sh Psh (LK length  (snd x - snd loc)) (pack_res_inv (approx (level phi) R))) /\
-  (ghost_of phi = ghost_of phi').
+        phi @ x = (DfracOwn (Share sh), Some (LK length  (snd x - snd loc)))).
 
-Definition makelock_f phi loc R length : address -> resource :=
+(*Definition makelock_f phi loc R length : address -> resource :=
   fun x =>
     if adr_range_dec loc length x then
       match phi @ x with
@@ -692,13 +663,13 @@ Definition LK_at R lksize sh :=
 Lemma data_at_rmap_makelock CS sh b ofs R phi length :
   0 < length ->
   writable0_share sh ->
-  app_pred (@data_at_ CS sh (Tarray (Tpointer Tvoid noattr) length noattr) (Vptr b ofs)) phi ->
+  app_pred (@data_at_ CS sh (Tarray (Tpointer Ctypes.Tvoid noattr) length noattr) (Vptr b ofs)) phi ->
   exists phi',
     rmap_makelock phi phi' (b, Ptrofs.unsigned ofs) R (size_chunk Mptr * length) /\
     LK_at R (size_chunk Mptr * length) sh (b, Ptrofs.unsigned ofs) phi'.
 Proof.
   intros Hpos Hwritable Hat.
-  destruct (Z_of_nat_complete length) as (n, Hn). omega.
+  destruct (Z_of_nat_complete length) as (n, Hn). lia.
   rewrite Hn in Hat.
   pose proof data_at_unfold _ _ _ _ _ _ Hwritable Hat as Hbefore.
   rewrite <-Hn in *. clear n Hn.
@@ -739,12 +710,14 @@ Proof.
       destruct Hbefore as (val & ->).
       exists val, sh, (writable0_readable Hwritable).
       repeat split; auto; reflexivity.
-  - intros x.
+  - unfold LK_at, LKspec_ext; simpl.
+    match goal with |-(app_pred (allp ?a) ?b) => change (app_pred (predicates_hered.allp a) b) end.
+    intros x.
     simpl.
     unfold Ptrofs.unsigned in *.
     specialize (Hbefore x).
     rewrite Ephi'. unfold makelock_f.
-    if_tac. 2:easy.
+    simpl in *. if_tac. 2:easy.
     destruct Hbefore as (v, ->).
      eexists.
       f_equal.
@@ -768,13 +741,13 @@ Lemma lock_inv_rmap_freelock CS sh b ofs R phi m :
   app_pred (@lock_inv sh (Vptr b ofs) R) phi ->
   exists phi',
     rmap_freelock phi phi' m (b, Ptrofs.unsigned ofs) R LKSIZE /\
-    app_pred (@data_at_ CS sh (Tarray (Tpointer Tvoid noattr) (LKSIZE/size_chunk Mptr) noattr) (Vptr b ofs)) phi'.
+    app_pred (@data_at_ CS sh (Tarray (Tpointer Ctypes.Tvoid noattr) (LKSIZE/size_chunk Mptr) noattr) (Vptr b ofs)) phi'.
 Proof.
   unfold LKSIZE at 3.
-  assert (size_chunk Mptr > 0) as Hpos by (rewrite size_chunk_Mptr; destruct Archi.ptr64; omega).
-  rewrite Z.div_mul by omega.
+  assert (size_chunk Mptr > 0) as Hpos by (rewrite size_chunk_Mptr; destruct Archi.ptr64; lia).
+  rewrite Z.div_mul by lia.
   intros Halign Hbound Hwritable Hli.
-  destruct Hli as (? & ? & E & Hli & Hg). injection E as <- <- .
+  destruct Hli as (? & ? & E & Hli). injection E as <- <- .
 
   pose proof make_rmap (freelock_f phi m (b, Ptrofs.unsigned ofs) LKSIZE) (ghost_of phi) as Hphi'.
   unfold LKSIZE in *.
@@ -812,8 +785,7 @@ Proof.
     split.
     + repeat split.
       * unfold size_compatible, sizeof.
-        rewrite size_chunk_Mptr in Hbound.
-        rewrite Z.max_r; omega.
+        rewrite size_chunk_Mptr in Hbound; simpl in *; auto.
       * constructor; econstructor; simpl; eauto.
         rewrite align_chunk_Mptr.
         apply Z.divide_add_r; auto.
@@ -823,15 +795,14 @@ Proof.
       rewrite mapsto_memory_block.memory_block'_eq;
         unfold mapsto_memory_block.memory_block'_alt; rewrite ?Z2Nat.id; try apply Z.ge_le, sizeof_pos.
       rewrite if_true by (apply writable0_readable; auto).
-      split; simpl; [|rewrite Hg'; auto].
+      simpl.
       rewrite Ephi'; unfold freelock_f.
       rewrite (Z.mul_comm 2) in *.
       intro b0; specialize (Hli b0); simpl in Hli.
-      rewrite <- size_chunk_Mptr; if_tac; auto.
+      simpl; if_tac; auto.
       destruct Hli as [? ->]; eauto.
       { apply Ptrofs.unsigned_range. }
-      { simpl.
-        rewrite <- size_chunk_Mptr; omega. }
+      { simpl in *. lia. }
 Qed.
 
 Lemma rmap_makelock_unique phi phi1 phi2 loc R len :
@@ -953,7 +924,8 @@ Next Obligation.
   destruct (phi @ _); simpl in *; auto.
 Qed.
 Next Obligation.
-  rewrite ghost_core; auto.
+  rewrite !core_ghost_of; replace (level phi) with (level (core phi)) by apply level_core;
+    apply ghost_of_approx.
 Qed.
 
 Lemma getYES_getNO_join phi : join (getYES phi) (getNO phi) phi.
@@ -1023,7 +995,7 @@ Proof.
     - destruct At. eexists. apply CUT; eauto. }
   clear v v' At. intros m v loc M.
   unfold address_mapsto in *.
-  destruct M as (bl & (I & M) & G); exists bl; split; [split; auto|].
+  destruct M as (bl & (I & M)); exists bl; split; auto.
   intros x; specialize (M x).
   simpl in *.
   if_tac.
@@ -1045,7 +1017,6 @@ Proof.
     destruct M as [-> | (k & pp & ->)].
     + apply NO_identity.
     + apply PURE_identity.
-  - simpl; unfold getYES; rewrite ghost_of_make_rmap; auto.
 Qed.
 
 Lemma memory_block_getYES sh z v phi :
@@ -1060,7 +1031,7 @@ Proof.
   unfold mapsto_memory_block.memory_block' in *.
 Abort.
 
-Lemma field_at_getYES CS sh t gfs v v' phi :
+(*Lemma field_at_getYES CS sh t gfs v v' phi :
   writable0_share sh ->
   app_pred (@field_at CS sh t gfs v v') phi ->
   app_pred (@field_at CS Share.Rsh t gfs v v') (getYES phi).
@@ -1073,6 +1044,7 @@ Proof.
   destruct (nested_field_lemmas.nested_field_type t gfs); simpl in *; repeat if_tac.
   all: try (eapply mapsto_getYES; eauto).
   all: try (eapply memory_block_getYES; eauto).
-Abort.
+Abort.*)
 
 End simpler_invariant_tentative.
+*)

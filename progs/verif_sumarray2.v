@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto. (* Import the Verifiable C system *)
+Require Import VST.floyd.compat.
 Require Import VST.progs.sumarray2. (* Import the AST of this C program *)
 
 (* The next line is "boilerplate", always required after importing an AST. *)
@@ -31,10 +32,10 @@ Definition main_spec :=
  DECLARE _main
   WITH gv: globals
   PRE  [] main_pre prog tt gv
-  POST [ tint ]  
+  POST [ tint ]
      PROP() 
      RETURN (Vint (Int.repr (3+4))) 
-     SEP(TT).
+     SEP(True).
 
 (* Packaging the API spec all together. *)
 Definition Gprog : funspecs :=
@@ -101,6 +102,7 @@ Qed.
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
 start_function.
+rename a into gv.
 set (four := gv _four).
 change [Int.repr 1; Int.repr 2; Int.repr 3; Int.repr 4] with (map Int.repr four_contents).
 set (contents :=  map Vint (map Int.repr four_contents)).
@@ -122,8 +124,6 @@ forward_call (*  s = sumarray(four+2,2); *)
   rewrite (sublist_same 0 4) by auto.
   forward. (* return *)
 Qed.
-
-#[export] Existing Instance NullExtension.Espec.
 
 Lemma prog_correct:
   semax_prog prog tt Vprog Gprog.

@@ -3,15 +3,12 @@ Require Import compcert.common.AST.
 Require Import compcert.common.Values.
 Require Import compcert.common.Globalenvs.
 
-Require Import VST.msl.ageable.
-
 Require Import VST.sepcomp.extspec.
 Require Import VST.sepcomp.step_lemmas.
 
-Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.juicy_mem.
 
-Definition pures_sub (phi phi' : rmap) :=
+(*Definition pures_sub (phi phi' : rmap) :=
   forall adr,
   match resource_at phi adr with
     | PURE k pp => resource_at phi' adr
@@ -66,4 +63,4 @@ Proof.
   intros lev [S1 E1] [S2 E2]; split. apply pures_sub_trans with phi2; auto.
   intros l; specialize (E1 l); specialize (E2 l).
   destruct (phi3 @ l); auto. destruct E2 as (pp, E2). rewrite E2 in E1; auto.
-Qed.
+Qed.*)

@@ -6,7 +6,7 @@ Require Import VST.veric.aging_lemmas.
 Require Import VST.veric.juicy_mem.
 Require Import VST.veric.juicy_mem_lemmas.
 Require Import VST.veric.compcert_rmaps.
-Require Import VST.veric.Clight_new.
+Require Import VST.veric.Clight_core.
 Require Import VST.veric.semax.
 Require Import VST.veric.semax_ext.
 Require Import VST.veric.juicy_extspec.
@@ -17,8 +17,6 @@ Require Import VST.veric.mem_lessdef.
 Require Import VST.veric.coqlib4.
 Require Import VST.concurrency.common.lksize.
 Require Import VST.concurrency.juicy.sync_preds_defs.
-
-Set Bullet Behavior "Strict Subproofs".
 
 Lemma resource_decay_LK {b phi phi'} :
   resource_decay b phi phi' ->

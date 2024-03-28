@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat.
 Require Import VST.progs.fib.
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
@@ -72,7 +73,7 @@ Proof.
   intros; simpl in *. lia.
 Qed.
 
-Definition fib_spec fun_id :=
+Definition fib_spec fun_id : ident * funspec :=
  DECLARE fun_id
   WITH n : Z
   PRE  [ tint ]
@@ -89,13 +90,14 @@ Definition Gprog : funspecs :=
 Lemma body_fib_loop: semax_body Vprog Gprog f_fib_loop (fib_spec _fib_loop).
 Proof.
   start_function.
+  rename a into n.
   forward.  (* a0 = 0; *)
   forward.  (* a1 = 1; *)
   forward_for_simple_bound n
     (EX i: Z,
     (PROP ()
      LOCAL (temp _a1 (Vint (Int.repr (fib_of_Z (i + 1)))); temp _a0 (Vint (Int.repr (fib_of_Z i))); temp _n (Vint (Int.repr n)))
-     SEP ()))%assert.
+     SEP ()) : assert).
   { (* Prove that loop invariant implies typechecking of loop condition *)
     entailer!!.
   }
@@ -120,6 +122,7 @@ Qed.
 Lemma body_fib_rec: semax_body Vprog Gprog f_fib_rec (fib_spec _fib_rec).
 Proof.
   start_function.
+  rename a into n.
   forward_if.
   { forward. }
   forward_if.
@@ -144,6 +147,7 @@ Qed.
 Lemma body_fib_loop_save_var: semax_body Vprog Gprog f_fib_loop_save_var (fib_spec _fib_loop_save_var).
 Proof.
   start_function.
+  rename a into n.
   forward.  (* a0 = 0; *)
   forward.  (* a1 = 1; *)
   forward_loop
@@ -152,11 +156,11 @@ Proof.
      LOCAL (temp _a1 (Vint (Int.repr (fib_of_Z (i + 1))));
             temp _a0 (Vint (Int.repr (fib_of_Z i)));
             temp _n (Vint (Int.repr (n - i))))
-     SEP ()))%assert
+     SEP ()) : assert)
   break:
     (PROP ()
      LOCAL (temp _a0 (Vint (Int.repr (fib_of_Z n))))
-     SEP ())%assert.
+     SEP () : assert).
   { (* Prove that the precon implies the loop invariant *)
     Exists 0.
     entailer!.

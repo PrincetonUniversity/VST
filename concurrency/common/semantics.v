@@ -1,5 +1,6 @@
 From mathcomp.ssreflect Require Import ssreflect seq ssrbool.
-Require Import VST.concurrency.common.core_semantics.
+(*Require Import VST.concurrency.common.core_semantics.*)
+Require Export VST.sepcomp.semantics.
 Require Import VST.sepcomp.event_semantics.
 
 Require Import VST.concurrency.common.machine_semantics.

@@ -1,10 +1,9 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat.
 Require Import VST.progs.float.
 
 #[export] Instance CompSpecs : compspecs.
 Proof. make_compspecs prog. Defined.
-
-Local Open Scope logic.
 
 Definition main_spec :=
  DECLARE _main
@@ -21,6 +20,7 @@ Definition Gprog : funspecs :=   ltac:(with_library prog [main_spec]).
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
 start_function.
+rename a into gv.
 match goal with |- context [SEPx(?A::_)] => freeze FR1 := A end.
 pose (f :=  PROP () LOCAL (gvars gv)
   SEP (FRZL FR1; data_at Ews t_struct_foo (Vint (Int.repr 5),

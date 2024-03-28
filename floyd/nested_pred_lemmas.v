@@ -2,8 +2,9 @@ Require Import VST.floyd.base2.
 Require Import VST.floyd.client_lemmas.
 Require Import VST.floyd.type_induction.
 Require Import VST.floyd.fieldlist.
-Import compcert.lib.Maps.
 Open Scope Z.
+
+Local Unset SsrRewrite.
 
 (************************************************
 
@@ -153,7 +154,7 @@ Proof.
   intros.
   simpl in H.
   unfold get_co.
-  destruct (cenv_cs ! id); auto.
+  destruct (cenv_cs !! id); auto.
   destruct (co_su c); congruence.
 Qed.
 
@@ -164,7 +165,7 @@ Proof.
   intros.
   simpl in H.
   unfold get_co.
-  destruct (cenv_cs ! id); auto; try congruence.
+  destruct (cenv_cs !! id); auto; try congruence.
   destruct (co_su c); congruence.
 Qed.
 
@@ -189,7 +190,7 @@ Lemma complete_Tstruct_plain:
 Proof.
 intros.
 unfold get_co; simpl in H.
-destruct (cenv_cs ! id); [ | discriminate].
+destruct (cenv_cs !! id); [ | discriminate].
 destruct (co_su c); auto; discriminate.
 Qed.
 
@@ -200,7 +201,7 @@ Lemma complete_Tunion_plain:
 Proof.
 intros.
 unfold get_co; simpl in H.
-destruct (cenv_cs ! id); [ | discriminate].
+destruct (cenv_cs !! id); [ | discriminate].
 destruct (co_su c); auto; discriminate.
 Qed.
 

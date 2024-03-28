@@ -1,6 +1,5 @@
 Require Import VST.floyd.proofauto.
 Import ListNotations.
-Local Open Scope logic.
 
 Require Import sha.spec_sha.
 Require Import sha.sha_lemmas.
@@ -270,7 +269,7 @@ Proof. unfold REP, FULL. Intros r.
   Exists (hmacUpdate data (hmacInit key)) r (fst r).
   apply andp_right.
     apply prop_right. simpl. intuition.
-  apply derives_refl'. f_equal. destruct r as [md [IS OS]]. simpl. reflexivity.
+  f_equiv. destruct r as [md [IS OS]]. simpl. reflexivity.
 Qed.
 
 Lemma FULL_EMPTY sh key c: FULL sh key c |-- EMPTY sh c.
@@ -417,11 +416,12 @@ eapply semax_pre_post.
 6: eapply (hmacbodycryptoproof Espec (Vptr b i) KEY msg MSG gv shk shm shmd md c); auto; eassumption.
 entailer!.
 simpl_ret_assert; normalize.
+monPred.unseal; normalize.
 simpl_ret_assert; normalize.
 simpl_ret_assert; normalize.
 subst POSTCONDITION; unfold abbreviate; simpl_ret_assert.
 intros.
-apply andp_left2.
+rewrite andp_left2.
 apply sepcon_derives; auto.
 apply bind_ret_derives.
 unfold initPostKey.
@@ -453,7 +453,7 @@ entailer!.
 +
 subst POSTCONDITION; unfold abbreviate;
 simpl_ret_assert.
-apply andp_left2.
+rewrite andp_left2.
 apply sepcon_derives; auto.
   go_lowerx.
   entailer!.
@@ -474,9 +474,9 @@ destruct H as [mREL [iREL [oREL [iLEN oLEN]]]].
 eapply semax_pre_post.
   6: apply (finalbodyproof Espec c md sh shmd gv buf (hmacUpdate data (hmacInit key)) SH SH0).
   
-  apply andp_left2. unfold hmacstate_. Exists r. go_lowerx. entailer!.
+  rewrite andp_left2. unfold hmacstate_. Exists r. go_lowerx. entailer!.
 +
-  intros. apply andp_left2.
+  intros. rewrite andp_left2.
   subst POSTCONDITION; unfold abbreviate; simpl_ret_assert.
   apply sepcon_derives; auto.
   rewrite <- hmac_sound. unfold FULL.
@@ -496,9 +496,9 @@ destruct H as [Prop1 Prop2].
 eapply semax_pre_post.
   6: apply (updatebodyproof Espec shc shd c d (Zlength data1) data1 gv (hmacUpdate data (hmacInit key))); auto.
 
-  apply andp_left2. go_lowerx. entailer!; try apply derives_refl.
+  rewrite andp_left2. go_lowerx. entailer!; try apply derives_refl.
 +
-  apply andp_left2.
+  rewrite andp_left2.
   subst POSTCONDITION; unfold abbreviate; simpl_ret_assert.
   apply sepcon_derives; auto.
   rewrite hmacUpdate_app. go_lowerx. entailer!; try apply derives_refl.
@@ -512,7 +512,7 @@ eapply semax_pre_post.
   rewrite Zlength_app, Zlength_mkArgZ, mkKey_length, Nat.min_id.
   simpl. rewrite (Z.add_comm 64), <- Z.mul_add_distr_r, Z.add_assoc. 
   assert (Tpp: (two_power_pos 64 = two_power_pos 61 * 8)%Z) by reflexivity.
-  rewrite Tpp.  
+  rewrite Tpp.
   apply Zmult_lt_compat_r. lia. trivial. 
 Qed.  
 
@@ -528,7 +528,7 @@ eapply semax_pre_post.
 +
  entailer!; simpl. normalize.
 +
-  apply andp_left2.
+  rewrite andp_left2.
   subst POSTCONDITION; unfold abbreviate; simpl_ret_assert.
   apply sepcon_derives; auto.
    go_lowerx. entailer!.
@@ -549,18 +549,19 @@ assert_PROP (field_compatible t_struct_hmac_ctx_st [] c).
 eapply semax_pre_post.
   6: apply (cleanupbodyproof1 Espec sh c h); auto.
 +
-  Exists key. apply andp_left2. apply derives_refl.
-+  apply andp_left2.
+  Exists key. apply andp_left2.
++  rewrite andp_left2.
   subst POSTCONDITION; unfold abbreviate; simpl_ret_assert.
   Opaque repeat. go_lowerx. Transparent repeat.
   normalize.
-  unfold EMPTY. 
+  cancel.
+  unfold EMPTY.
   rewrite <- memory_block_data_at_.  unfold data_block.
   clear. simpl. apply data_at_memory_block.
   trivial.
 + simpl_ret_assert; normalize.
 + simpl_ret_assert; normalize.
 + simpl_ret_assert; normalize.
-Qed. 
+Qed.
 
 End OPENSSL_HMAC_ABSTRACT_SPEC.

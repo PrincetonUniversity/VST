@@ -1,12 +1,12 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat.
 Require Import Recdef.
-#[export] Existing Instance NullExtension.Espec.
 Require Import VST.progs.switch.
 Require Export VST.floyd.Funspec_old_Notation.
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
-Definition twice_spec :=
+Definition twice_spec : ident * funspec :=
   DECLARE _twice
     WITH n : Z
     PRE [ _n OF tint ]
@@ -19,7 +19,7 @@ Definition twice_spec :=
       SEP ().
 
 
-Definition f_spec :=
+Definition f_spec : ident * funspec :=
   DECLARE _f
     WITH x : Z
     PRE [ _x OF tuint ]
@@ -37,7 +37,8 @@ Definition Gprog : funspecs :=   ltac:(with_library prog [twice_spec]).
 Lemma body_twice: semax_body Vprog Gprog f_twice twice_spec.
 Proof.
 start_function.
-forward_if (PROP() LOCAL(temp _n (Vint (Int.repr (n+n)))) SEP()).
+rename a into n.
+forward_if (temp _n (Vint (Int.repr (n+n)))).
 repeat forward; entailer!!.
 repeat forward; entailer!!.
 repeat forward; entailer!!.
@@ -49,12 +50,10 @@ Qed.
 Lemma body_f: semax_body Vprog Gprog f_f f_spec.
 Proof.
 start_function.
-forward_if (@FF (environ->mpred) _).
+forward_if (False : assert).
 forward.
 forward.
 forward.
 forward.
 forward.
 Qed.
-
-

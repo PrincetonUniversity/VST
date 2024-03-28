@@ -18,6 +18,7 @@ Notice that the variable [a] is uninitialized until the middle of the first iter
 *)
 
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat.
 Require Import VST.progs.peel.
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
@@ -41,6 +42,7 @@ Definition Gprog : funspecs :=
 Lemma body_f: semax_body Vprog Gprog f_f f_spec.
 Proof.
 start_function.
+rename a into b.
 (* First: some preliminary arithmetic assertions. *)
 assert (0 <= b <= b*b). {
    split; auto.
@@ -102,7 +104,7 @@ rewrite add_repr.
 *)
 forward_seq (EX a:Z,  PROP ((a-1)*(a-1)<=b /\ a*a>b)
                      LOCAL(temp _a (Vint (Int.repr a)))
-                     SEP ()).
+                     SEP () : assert).
 (*  Then, peel off the first iteration: *)
 eapply semax_while_peel.
 (* Now the rest is straightforward. *)
@@ -115,7 +117,7 @@ eapply semax_while_peel.
 -
  forward_while (EX i:Z, PROP (0 <= i <= b+1; b < (i+1)*(i+1))
              LOCAL(temp _i (Vint (Int.repr i)); temp _b (Vint (Int.repr b)); temp _a (Vint (Int.repr (i+1))))
-             SEP()).
+             SEP() : assert).
  *
   Exists b; entailer!!.
   f_equal; f_equal; lia.
@@ -152,6 +154,4 @@ eapply semax_while_peel.
 abbreviate_semax.
 Intros a.
 forward.
-Exists a.
-entailer!!.
 Qed.

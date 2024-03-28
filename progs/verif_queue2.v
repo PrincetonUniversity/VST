@@ -1,9 +1,8 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat.
 Require Import VST.floyd.library.
 Require Import VST.progs.list_dt.  Import LsegSpecial.
 Require Import VST.progs.queue2.
-
-Open Scope logic.
 
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
@@ -15,21 +14,21 @@ Definition t_struct_fifo := Tstruct _fifo noattr.
 Proof. eapply mk_listspec; reflexivity. Defined.
 
 Lemma isnil: forall {T: Type} (s: list T), {s=nil}+{s<>nil}.
-Proof. intros. destruct s; [left|right]; auto. intro Hx; inv Hx. Qed.
+Proof. intros. destruct s; [left|right]; auto. Qed.
 
 Lemma field_at_list_cell:
   forall sh i v p,
   data_at sh t_struct_elem (i,v) p
-  = list_cell QS sh i p *
+  ⊣⊢ list_cell QS sh i p *
   field_at sh t_struct_elem [StructField _next] v p.
 Proof.
 intros.
 unfold_data_at (data_at _ _ _ _).
-f_equal.
+f_equiv.
 unfold field_at, list_cell.
 autorewrite with gather_prop.
-f_equal.
-apply ND_prop_ext.
+f_equiv; last done.
+f_equiv.
 rewrite field_compatible_cons; simpl.
 intuition.
 left; auto.
@@ -56,7 +55,7 @@ Definition fifo_body (contents: list val) (hd tl : val) :=
               !!(contents = prefix++last::nil)
             &&  (lseg QS Ews prefix hd tl
                    * malloc_token Ews t_struct_elem tl
-                   * data_at Ews t_struct_elem (last, nullval) tl)))%logic.
+                   * data_at Ews t_struct_elem (last, nullval) tl))).
 
 Definition fifo (contents: list val) (p: val) : mpred :=
   EX ht: (val*val), let (hd,tl) := ht in
@@ -154,7 +153,7 @@ Proof.
     + forward. subst p. congruence.
     + Intros. forward. entailer!.
 *
-  forward. Exists p; entailer!.
+  forward.
 Qed.
 
 Lemma fifo_isptr: forall al q, fifo al q |-- !! isptr q.
@@ -200,7 +199,7 @@ Qed.
 Lemma body_fifo_new: semax_body Vprog Gprog f_fifo_new fifo_new_spec.
 Proof.
   start_function.
-
+  rename a into gv.
   forward_call (* Q = surely_malloc(sizeof ( *Q)); *)
      (t_struct_fifo, gv).
   Intros q.
@@ -223,8 +222,7 @@ Intros ht; destruct ht as [hd tl].
 Intros.
 forward. (* p->next = NULL; *)
 forward. (*   h = Q->head; *)
-forward_if
-  (PROP() LOCAL () SEP (fifo (contents ++ last :: nil) q))%assert.
+forward_if.
 * unfold fifo_body; if_tac. entailer!. Intros prefix last0; entailer!.
 * (* then clause *)
   subst.
@@ -258,7 +256,7 @@ forward_if
      Exists  (prefix ++ last0 :: nil) last.
      entailer.   (* not entailer!, which would cancel *)
      rewrite (field_at_list_cell Ews last0 p).
-     unfold_data_at (@data_at CompSpecs Ews t_struct_elem (last,nullval) p).
+     unfold_data_at (data_at(cs := CompSpecs) Ews t_struct_elem (last,nullval) p).
      unfold_data_at (data_at _ _ _ p).
      simpl sizeof.
      match goal with
@@ -313,13 +311,12 @@ Intros p.
 forward.  (*  p->data=i; *)
 simpl.
 forward. (* return p; *)
-Exists p.
-entailer!.
 Qed.
 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
 start_function.
+rename a into gv.
 sep_apply (create_mem_mgr gv).
 forward_call (* Q = fifo_new(); *)  gv.
 Intros q.
@@ -347,13 +344,11 @@ assert_PROP (isptr p3); [entailer! | rewrite if_false by (intro; subst; contradi
 forward. (* return i; *)
 Qed.
 
-#[export] Existing Instance NullExtension.Espec.
-
 Lemma prog_correct:
   semax_prog prog tt Vprog Gprog.
 Proof.
   prove_semax_prog.
-  semax_func_cons body_malloc. apply semax_func_cons_malloc_aux.
+  semax_func_cons body_malloc. destruct x; apply semax_func_cons_malloc_aux.
   semax_func_cons body_free.
   semax_func_cons body_exit.
   semax_func_cons body_surely_malloc.
@@ -364,4 +359,3 @@ Proof.
   semax_func_cons body_make_elem.
   semax_func_cons body_main.
 Qed.
-

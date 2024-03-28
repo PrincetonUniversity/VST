@@ -2,7 +2,6 @@ Require Import VST.floyd.proofauto.
 Import ListNotations.
 Require sha.sha.
 Require Import sha.SHA256.
-Local Open Scope logic.
 
 Require Import sha.spec_sha.
 Require Import sha.sha_lemmas.
@@ -39,7 +38,7 @@ Qed.*)
 Lemma initbodyproof Espec c k l wsh sh key gv h1 pad ctxkey
   (Hwsh: writable_share wsh)
   (Hsh: readable_share sh):
-@semax CompSpecs Espec (func_tycontext f_HMAC_Init HmacVarSpecs HmacFunSpecs nil)
+semax(OK_spec := Espec)(C := CompSpecs) ⊤ (func_tycontext f_HMAC_Init HmacVarSpecs HmacFunSpecs nil)
   (PROP  ()
    LOCAL (lvar _ctx_key (tarray tuchar 64) ctxkey;
    lvar _pad (tarray tuchar 64) pad; gvars gv; temp _ctx c; 
@@ -52,11 +51,11 @@ Lemma initbodyproof Espec c k l wsh sh key gv h1 pad ctxkey
                    (PROP ( )
                     LOCAL ()
                     SEP (hmacstate_ wsh (hmacInit key) c;
-                    initPostKey sh k key; 
+                    initPostKey sh k key;
                     K_vector gv) *
                     stackframe_of f_HMAC_Init)).
 Proof. abbreviate_semax.
-simpl. 
+simpl.
 Time forward. (*0.8 versus 1.3*)
 
 Time assert_PROP (isptr ctxkey) as Pckey by entailer!. (*0.7*)
@@ -69,17 +68,17 @@ forward_if (PostKeyNull c k pad gv h1 l wsh sh key ckb ckoff).
     clear H.
     remember (Int.eq i Int.zero). destruct b.
      apply binop_lemmas2.int_eq_true in Heqb. rewrite Heqb; auto with valid_pointer. entailer!.
-     entailer!. apply sepcon_valid_pointer2. apply @data_block_valid_pointer. auto.
+     Intros. rewrite @data_block_valid_pointer; auto. iIntros "(_ & _ & $)".
      red in H2. lia.
      apply valid_pointer_null. }
 
   { (* THEN*)
     simpl.
     unfold initPre.
-    destruct k; try solve [eapply semax_pre; try eapply semax_ff; entailer].
+    destruct k; try solve [eapply semax_pre; try eapply semax_ff; entailer!].
     (*key' is integer, ie Null*)
       remember (Int.eq i Int.zero) as d.
-      destruct d; try solve [eapply semax_pre; try eapply semax_ff; entailer].
+      destruct d; try solve [eapply semax_pre; try eapply semax_ff; go_lower; iIntros "(_ & _ & _ & [])"].
       apply binop_lemmas2.int_eq_true in Heqd. simpl in *. elim H. subst; reflexivity.
     (*key' is ptr*)
     Intros. clear H. rename H0 into keyLen.
@@ -197,21 +196,21 @@ forward_if (EX shaStates:_ ,
               lvar _pad (Tarray tuchar 64 noattr) (Vptr pb pofs);
               temp _ctx (Vptr cb cofs); temp _key (Vptr b i);
               temp _len (Vint (Int.repr l)); gvars gv)
-       SEP  (@data_at CompSpecs wsh t_struct_hmac_ctx_st HMS (Vptr cb cofs);
-             @data_at CompSpecs Tsh (tarray tuchar 64)
+       SEP  (data_at(cs := CompSpecs) wsh t_struct_hmac_ctx_st HMS (Vptr cb cofs);
+             data_at(cs := CompSpecs) Tsh (tarray tuchar 64)
                   (@map byte val Vubyte(HMAC_SHA256.mkKey key))
                   (Vptr ckb ckoff);
-            @data_at CompSpecs sh (tarray tuchar (@Zlength byte key))
+            data_at(cs := CompSpecs) sh (tarray tuchar (@Zlength byte key))
                   (@map byte val Vubyte key) (Vptr b i);
-            @field_at_ CompSpecs Tsh (Tarray tuchar 64 noattr) [] (Vptr pb pofs);
+            field_at_(cs := CompSpecs) Tsh (Tarray tuchar 64 noattr) [] (Vptr pb pofs);
             K_vector gv)).
     { clear POSTCONDITION.
       unfold initPostKeyNullConditional.
       go_lower. ent_iter. (* Issue: we just want these two parts of entailer here... *)
       destruct k; try contradiction.
-      Time simple_if_tac; entailer!. (* 0.92 *)
+      simple_if_tac; iIntros "(? & [] & ?)".
       Exists b i.
-      entailer!. simpl; entailer!. }
+      simpl; entailer!. }
     Intros kb kofs.
     rename H into H0.
        assert (ZZ: exists HMS':reptype t_struct_hmac_ctx_st, HMS'=HMS). exists HMS. trivial.
@@ -223,8 +222,8 @@ forward_if (EX shaStates:_ ,
     { (*ipad loop*)
       (*semax_subcommand HmacVarSpecs HmacFunSpecs f_HMAC_Init.*)
        eapply semax_pre.
-       2:{ eapply (ipad_loop Espec pb pofs cb cofs ckb ckoff kb kofs l key gv myPred); try eassumption. }
-       subst HMS'. clear - HeqmyPred.  Time entailer!; apply derives_refl. 
+       2:{ eapply (ipad_loop Espec _ pb pofs cb cofs ckb ckoff kb kofs l key gv myPred); try eassumption. }
+       subst HMS'. clear - HeqmyPred.  Time entailer!; apply derives_refl.
     }
     subst myPred HMS'.
 
@@ -233,7 +232,7 @@ forward_if (EX shaStates:_ ,
     freeze FR1 := - (K_vector _) (data_at _ _ _ (Vptr cb _)).
     Time (assert_PROP (field_compatible t_struct_hmac_ctx_st [] (Vptr cb cofs)) as FC_C
        by entailer!). (*1.9 versus 6.5*)
-    Time unfold_data_at (@data_at CompSpecs _ _ _ _).
+    Time unfold_data_at (data_at(cs := CompSpecs) _ _ _ _).
     freeze FR2 := - (field_at _ _ [StructField _md_ctx] _ (Vptr cb _))
                              (field_at _ _ [StructField _i_ctx] _ (Vptr cb _)).
     rewrite (field_at_data_at  wsh t_struct_hmac_ctx_st [StructField _i_ctx]).
@@ -245,6 +244,7 @@ forward_if (EX shaStates:_ ,
 
     (*Call to _SHA256_Init*)
     Time forward_call (Vptr cb (Ptrofs.add cofs (Ptrofs.repr 108)), wsh). (*9.5 versus 10.5*)
+    { change_compspecs CompSpecs; cancel. }
 
     (*Call to _SHA256_Update*)
     thaw FR2.
@@ -259,7 +259,7 @@ forward_if (EX shaStates:_ ,
       rewrite FR; clear FR Frame.
       simpl. Time cancel. (*0.3*)
       unfold data_block. rewrite  ZLI, HeqIPADcont.
-      simpl. Time entailer!. (*0.9*)
+      simpl. change_compspecs CompSpecs. Time entailer!. (*0.9*)
     }
     simpl.
     rewrite sublist_same; try rewrite ZLI; trivial.
@@ -267,11 +267,12 @@ forward_if (EX shaStates:_ ,
 
     (*essentially the same for opad*)
     thaw FR3.
+    change_compspecs CompSpecs.
     freeze FR4 := - (sha256state_ _ _ _) (data_block _ _ _) (data_at _ _ _ (Vptr ckb _)).
     forward_seq.
     { (*opad loop*)
       eapply semax_pre.
-      2: apply (opadloop Espec pb pofs cb cofs ckb ckoff kb kofs l wsh key gv (FRZL FR4) Hwsh IPADcont) with (ipadSHAabs:=ipadSHAabs); try reflexivity; subst ipadSHAabs; try assumption.
+      2: apply (opadloop Espec _ pb pofs cb cofs ckb ckoff kb kofs l wsh key gv (FRZL FR4) Hwsh IPADcont) with (ipadSHAabs:=ipadSHAabs); try reflexivity; subst ipadSHAabs; try assumption.
       entailer!.
     }
 
@@ -289,19 +290,20 @@ forward_if (EX shaStates:_ ,
     unfold MORE_COMMANDS, abbreviate.
 
     Time forward_call (Vptr cb (Ptrofs.add cofs (Ptrofs.repr 216)), wsh). (*6.4 versus 10.6*)
+    { change_compspecs CompSpecs; cancel. }
 
     (* Call to sha_update*)
     thaw FR6.
     Time forward_call (@nil byte,
             HMAC_SHA256.mkArg (HMAC_SHA256.mkKey key) Opad,
-            Vptr cb (Ptrofs.add cofs (Ptrofs.repr 216)), wsh, 
+            Vptr cb (Ptrofs.add cofs (Ptrofs.repr 216)), wsh,
             Vptr pb pofs, Tsh, 64, gv). (*4.5*)
     { assert (FR : Frame = [FRZL FR5]).
         subst Frame; reflexivity.
       rewrite FR; clear FR Frame.
       unfold data_block. simpl.
       rewrite ZLO; trivial.
-      Time entailer!. (*1.5*)
+      change_compspecs CompSpecs; time entailer!. (*1.5*)
     }
 
     rewrite sublist_same; try rewrite ZLO; trivial.
@@ -309,12 +311,12 @@ forward_if (EX shaStates:_ ,
     Time entailer!. (*4.7 *)
     thaw FR5. unfold sha256state_, data_block.
     rewrite ZLO. (*superfluous...subst ipadSHAabs.*)
-    Intros oUpd iUpd.
+    Intros iUpd oUpd.
     change_compspecs CompSpecs.
     Exists (innerShaInit (HMAC_SHA256.mkKey key),(iUpd,(outerShaInit (HMAC_SHA256.mkKey key),oUpd))).
-    simpl. rewrite !prop_true_andp by (auto; intuition).
+    simpl. rewrite !prop_true_andp by (intuition; auto).
     Time cancel. (*5 versus 4*)
-    unfold_data_at (@data_at CompSpecs _ t_struct_hmac_ctx_st _ (Vptr cb _)).
+    unfold_data_at (data_at(cs := CompSpecs) _ t_struct_hmac_ctx_st _ (Vptr cb _)).
     rewrite (field_at_data_at wsh t_struct_hmac_ctx_st [StructField _i_ctx]).
     rewrite (field_at_data_at wsh t_struct_hmac_ctx_st [StructField _o_ctx]).
     rewrite field_address_offset by auto with field_compatible.
@@ -324,17 +326,17 @@ forward_if (EX shaStates:_ ,
   { (*ELSE*)
     Time forward. (*0.2*)
     subst. unfold initPostKeyNullConditional. go_lower. (*Time entailer!.  (*6.5*)*)
-    destruct R; subst; [clear H |discriminate]. 
-    Time destruct k; try solve[entailer]. (*2.9*)
+    destruct R; subst; [clear H |discriminate].
+    destruct k; try solve[iIntros "(? & [] & ?)"].
     unfold hmacstate_PreInitNull, hmac_relate_PreInitNull; simpl.
-    Time simple_if_tac; [ | entailer!].
+    simple_if_tac; [ | iIntros "(? & [] & ?)"].
     Intros v x. destruct h1.
     Exists (iSha, (iCtx v, (oSha, oCtx v))). simpl.
     unfold hmacstate_PreInitNull, hmac_relate_PreInitNull; simpl.
     Exists v x.
     change (Tarray tuchar 64 noattr) with (tarray tuchar 64).
     rewrite !prop_true_andp by (auto; intuition). cancel.
-   } 
+   }
 
 { (*Continuation after if (reset*)
   apply extract_exists_pre; intros [iSA [iS [oSA oS]]]. simpl.
@@ -343,7 +345,7 @@ forward_if (EX shaStates:_ ,
   { (*Case key==null*)
     subst i.
     destruct R; subst r; simpl.
-    2: solve [apply semax_pre with (P':=FF); try entailer!; try apply semax_ff].
+    2: solve [eapply semax_pre, semax_ff; go_lower; iIntros "(? & ? & [] & ?)"].
     freeze FR2 := - (hmacstate_PreInitNull _ _ _ _).
     Intros.
     rename H0 into InnerRelate.
@@ -369,10 +371,10 @@ forward_if (EX shaStates:_ ,
      assert (FC_cb_md: field_compatible t_struct_hmac_ctx_st [StructField _md_ctx] (Vptr cb cofs)).
      { red in FC_cb. repeat split; try solve [apply FC_cb]. left. reflexivity. }
 
-     Time unfold_data_at (@data_at CompSpecs _ _ _ _).
+     Time unfold_data_at (data_at(cs := CompSpecs) _ _ _ _).
      rewrite (field_at_data_at _ _ [StructField _i_ctx]).
      (*VST Issue: why does rewrite field_at_data_at at 2 FAIL, but focus_SEP 3; rewrite field_at_data_at at 1. SUCCEED???
-        Answer: instead of using "at 2", use the field-specificer in the line above.*)
+        Answer: instead of using "at 2", use the field-specifier in the line above.*)
      rewrite field_address_offset by auto with field_compatible.
 
      freeze FR3 := - (field_at _ _ [StructField _md_ctx] _ _) (data_at _ _ _ (offset_val _ (Vptr cb _))).
@@ -382,11 +384,11 @@ forward_if (EX shaStates:_ ,
              mkTrep t_struct_SHA256state_st iS,
              @sizeof CompSpecs t_struct_SHA256state_st).
      (*5.9 versus 13*)
-     { rewrite sepcon_comm.
+     { rewrite <- sepcon_comm.
        rewrite (field_at_data_at _ _ [StructField _md_ctx]).
        rewrite field_address_offset by auto with field_compatible.
        apply sepcon_derives.
-         eapply derives_trans. apply data_at_memory_block. apply derives_refl'. f_equal.
+         eapply derives_trans. apply data_at_memory_block. f_equiv.
          apply isptr_offset_val_zero; simpl; trivial.
        Time cancel. (*0 versus 2*)
      }
@@ -412,19 +414,19 @@ forward_if (EX shaStates:_ ,
   { (*k is Vptr, key!=NULL*)
     freeze FR5 := - (initPostResetConditional _ _ _ _ _ _ _ _ _).
     destruct R as [R | R]; rewrite R; simpl.
-    solve [apply semax_pre with (P':=FF); try entailer; try apply semax_ff].
+    solve [eapply semax_pre, semax_ff; go_lower; iIntros "(_ & [])"].
     Intros.
     rename H0 into InnerRelate.
     rename H2 into OuterRelate.
     unfold postResetHMS. simpl.
-    freeze FR6 := - (@data_at CompSpecs _ _ _ (Vptr cb _)).
+    freeze FR6 := - (data_at(cs := CompSpecs) _ _ _ (Vptr cb _)).
     Time assert_PROP (field_compatible t_struct_hmac_ctx_st [] (Vptr cb cofs)) as FC_cb by entailer!. (*2.8*)
     assert (FC_cb_ictx: field_compatible t_struct_hmac_ctx_st [StructField _i_ctx] (Vptr cb cofs)).
     { red in FC_cb. repeat split; try solve [apply FC_cb]. right; left; reflexivity. }
     assert (FC_cb_md: field_compatible t_struct_hmac_ctx_st [StructField _md_ctx] (Vptr cb cofs)).
     { red in FC_cb. repeat split; try solve [apply FC_cb]. left; reflexivity. }
 
-    unfold_data_at (@data_at CompSpecs _ _ _ _).
+    unfold_data_at (data_at(cs := CompSpecs) _ _ _ _).
     freeze FR7 := - (field_at _ _ [StructField _md_ctx] _ _) (field_at _ _ [StructField _i_ctx] _ _).
     rewrite (field_at_data_at _ t_struct_hmac_ctx_st [StructField _i_ctx]).
     rewrite (field_at_data_at _ t_struct_hmac_ctx_st [StructField _md_ctx]).
@@ -438,7 +440,7 @@ forward_if (EX shaStates:_ ,
              mkTrep t_struct_SHA256state_st iS,
              @sizeof CompSpecs t_struct_SHA256state_st).
     (* 4.7 versus 14.7 *)
-    { rewrite sepcon_comm.
+    { rewrite <- sepcon_comm.
       apply sepcon_derives.
           eapply derives_trans. apply data_at_memory_block. apply derives_refl.
           Time cancel. (*0 versus 2*)
@@ -448,14 +450,14 @@ forward_if (EX shaStates:_ ,
     simpl.
     unfold data_block, hmacstate_, hmac_relate.
     Exists (iS, (iS, oS)).
-    change (@data_at spec_sha.CompSpecs sh (tarray tuchar (@Zlength byte key)))
-       with (@data_at CompSpecs sh (tarray tuchar (@Zlength byte key))).
+    change (data_at(cs := spec_sha.CompSpecs) sh (tarray tuchar (@Zlength byte key)))
+       with (data_at(cs := CompSpecs) sh (tarray tuchar (@Zlength byte key))).
     change (Tarray tuchar 64 noattr) with (tarray tuchar 64). simpl.
     Time entailer!. (*2.9*)
       unfold s256a_len, innerShaInit, outerShaInit.
            rewrite !Zlength_mkArgZ.
            rewrite mkKey_length. split; reflexivity.
-    unfold_data_at (@data_at CompSpecs _ _ _ (Vptr cb cofs)).
+    unfold_data_at (data_at(cs := CompSpecs) _ _ _ (Vptr cb cofs)).
       rewrite (field_at_data_at _ _ [StructField _md_ctx]).
       rewrite (field_at_data_at _ _ [StructField _i_ctx]).
     rewrite field_address_offset by auto with field_compatible.
@@ -463,11 +465,11 @@ forward_if (EX shaStates:_ ,
     simpl; rewrite Ptrofs.add_zero.
     thaw FR8. thaw FR7. thaw FR6. thaw FR5.
       change (Tarray tuchar 64 noattr) with (tarray tuchar 64).
-    Time cancel. (*1.7 versus 1.2 penalty when melting*)
+    Time cancel. (*1.7 versus 1.2 penalty when thawing*)
   }
 }
 }
-Time Qed. (*VST 2.0: 10.7s*) 
+Time Qed. (*VST 2.0: 10.7s*)
 
 Lemma body_hmac_init: semax_body HmacVarSpecs HmacFunSpecs
        f_HMAC_Init HMAC_Init_spec.

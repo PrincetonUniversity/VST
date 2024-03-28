@@ -1,4 +1,3 @@
-Require Import Omega.
 Require Import compcert.lib.Coqlib.
 Require Import compcert.lib.Maps.
 Require Import VST.concurrency.lib.tactics.
@@ -13,21 +12,16 @@ Lemma trivial_map1:
   forall {A} (t : PTree.t A),
     PTree.map1 (fun (a : A) => a) t = t.
 Proof.
-  intros ? t; induction t; auto.
-  simpl; f_equal; eauto.
-  destruct o; reflexivity.
+  intros; apply PTree.extensionality; intros.
+  rewrite PTree.gmap1.
+  destruct (t ! i); auto.
 Qed.
 Lemma map_map1:
   forall {A B} f m,
     @PTree.map1 A B f m = PTree.map (fun _=> f) m.
 Proof.
-  intros. unfold PTree.map.
-  remember 1%positive as p eqn:Heq.
-  clear Heq; revert p.
-  induction m; try reflexivity.
-  intros; simpl; rewrite <- IHm1.
-  destruct o; simpl; (*2 goals*)
-    rewrite <- IHm2; auto.
+  intros; apply PTree.extensionality; intros.
+  rewrite PTree.gmap1, PTree.gmap; reflexivity.
 Qed.
 Lemma trivial_map:
   forall {A} (t : PTree.t A),
@@ -42,7 +36,7 @@ Definition merge_func {A} (f1 f2:Z -> option A):
   fun ofs => if f1 ofs then f1 ofs else f2 ofs.
 
 
-Lemma xmap_compose:
+(*Lemma xmap_compose:
   forall A B C t f1 f2 p,
     @PTree.xmap B C f2 (@PTree.xmap A B f1 t p) p =
     (@PTree.xmap A C (fun p x => f2 p (f1 p x)) t p).
@@ -67,50 +61,38 @@ Proof.
       rewrite IHt1; f_equal.
     + rewrite IHt2; symmetry.
       rewrite IHt2; f_equal.
-Qed.
+Qed.*)
 
 Lemma trivial_ptree_map:
   forall {A} t F,
     (forall b f, t ! b = Some f -> F b f = f) ->
     @PTree.map A A F t = t.
 Proof.
-  intros ? ?.
-  unfold PTree.map.
-  (* remember 1%positive as p eqn:HH; clear HH; revert p.*)
-  induction t; try reflexivity.
-  unfold PTree.map; simpl.
-  intros. f_equal.
-  - intros.
-    erewrite xmap_step.
-    erewrite <- IHt1 at 2.
-    reflexivity.
-    intros; simpl. rewrite H; auto.
-  - destruct o; eauto.
-  - f_equal. eapply H; eauto.
-  - intros. erewrite xmap_step.
-    erewrite <- IHt2 at 2.
-    reflexivity.
-    intros; simpl. rewrite H; auto.
+  intros; apply PTree.extensionality; intros.
+  rewrite PTree.gmap.
+  destruct (t ! i) eqn: Hi; [simpl | reflexivity].
+  rewrite H; auto.
 Qed.
 
+Lemma max_maximum : forall l, Forall (Pos.ge (fold_right Pos.max 1 l))%positive l.
+Proof.
+  induction l; auto.
+  constructor; simpl.
+  - lia.
+  - eapply Forall_impl, IHl; lia.
+Qed.
 
 Lemma finite_ptree:
   forall {A} (t:PTree.t A), exists b, forall b', (b < b')%positive -> (t ! b') = None.
 Proof.
-  intros ? t; induction t.
-  - exists xH; intros; simpl. eapply PTree.gleaf.
-  - normal_hyp.
-    exists (Pos.max (x0~0) (x~1)); intros.
-    destruct b'; simpl;
-      first [eapply H0| eapply H| idtac].
-    + cut (x~1 <  b'~1)%positive.
-      * unfold Pos.lt, Pos.compare in *; auto.
-      * eapply Pos.max_lub_lt_iff in H1 as [? ?].
-        auto.
-    + cut (x0~0 <  b'~0)%positive.
-      * unfold Pos.lt, Pos.compare in *; auto.
-      * eapply Pos.max_lub_lt_iff in H1 as [? ?]; auto.
-    + exfalso. eapply Pos.nlt_1_r; eassumption.
+  intros.
+  exists (fold_right Pos.max 1 (map fst (PTree.elements t)))%positive; intros.
+  destruct (t ! b') eqn: Hb'; [|auto].
+  apply PTree.elements_correct in Hb'.
+  pose proof (max_maximum (map fst (PTree.elements t))) as Hmax.
+  rewrite Forall_forall in Hmax; specialize (Hmax b').
+  lapply Hmax; [lia|].
+  rewrite in_map_iff; do 2 eexists; eauto; auto.
 Qed.
 
 Infix "++":= seq.cat.

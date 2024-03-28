@@ -8,6 +8,8 @@ Require Import VST.veric.mem_lessdef.
 
 Transparent intsize_eq.
 
+Global Instance EqDec_type: EqDec type := type_eq.
+
 Lemma mem_lessdef_sem_cast:
   forall m1 m2, mem_lessdef m1 m2 ->
   forall v1 v1', Val.lessdef v1 v1' ->

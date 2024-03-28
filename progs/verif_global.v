@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat.
 Require Import VST.progs.global.
 
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
@@ -34,9 +35,8 @@ Qed.
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
 start_function.
+rename a into gv.
 rewrite data_at_tuint_tint.
 forward_call gv.
 forward.
 Qed.
-
-

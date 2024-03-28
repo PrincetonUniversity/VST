@@ -1,5 +1,6 @@
-Require Import VST.floyd.base.
-Import compcert.lib.Maps.
+Require Import VST.veric.Cop2.
+Require Import VST.veric.seplog.
+Require Import compcert.lib.Maps.
 
 Ltac make_ground_PTree a :=
  let a := eval hnf in a in
