@@ -3,7 +3,7 @@ Require Import VST.floyd.library.
 Require Import VST.progs.objectSelfFancyOverriding.
 
 (*Version 1 -- leave specs of foo methods unchanged, and require neither funcspec_sub nor 
-anything else. Just replictae the spec/proof structure of foo in fancy foo and see whether
+anything else. Just replicate the spec/proof structure of foo in fancy foo and see whether
 the client has enough knowledge to call the correct function*)
 
 (*Require Import VST.floyd.Funspec_old_Notation.*)

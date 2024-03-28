@@ -1645,12 +1645,13 @@ Proof.
 intros. eapply derives_trans; try eassumption; auto.
 Qed.
 
+(* I'm not sure this tactic ever succeeds in practice. *)
 Ltac quick_typecheck3 :=
   (* do not clear hyps anymore!  See issue #772 *)
  apply quick_derives_right; go_lowerx; intros;
  repeat apply bi.and_intro;
  try apply derives_refl;  (* see issue #756 *)
- auto; fail.
+ (*auto;*) fail.
 
 Ltac default_entailer_for_load_store :=
   (* Don't clear!  See issue #772 repeat match goal with H := _ |- _ => clear H end; *)

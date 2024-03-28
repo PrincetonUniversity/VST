@@ -1845,7 +1845,7 @@ Ltac hoist_later_in_pre :=
      match goal with |- semax _ _ ?P _ _ =>
        match P with
        | context[bi_later] =>
-            let cP := (fun P' => apply semax_pre0 with (▷ P'); [solve [auto 50 with derives] | ])
+            let cP := (fun P' => apply semax_pre0 with (▷ P'); [solve [auto 50 with nocore derives] | ])
              in strip1_later P cP
        | _ => apply semax_later_trivial
        end
