@@ -9,6 +9,7 @@
 *)
 
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat.
 Require Import VST.progs64.min.
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
@@ -30,7 +31,7 @@ destruct H.
 subst a.
 simpl.
 apply Z.le_min_l.
-simpl. rewrite ->Z.le_min_r.
+simpl. rewrite Z.le_min_r.
 apply IHal.
 apply H.
 Qed.
@@ -78,10 +79,6 @@ Qed.
 #[export] Hint Extern 3 (is_int I32 _ (Znth _ (map Vint _))) =>
   (apply  is_int_I32_Znth_map_Vint; rewrite ?Zlength_map; lia) : core.
 
-Section Spec.
-
-Context `{!default_VSTGS Σ}.
-
 Definition minimum_spec :=
  DECLARE _minimum
   WITH a: val, n: Z, al: list Z
@@ -105,13 +102,12 @@ start_function.
 assert_PROP (Zlength al = n) by (entailer!; list_solve).
 forward.  (* min = a[0]; *)
 forward_for_simple_bound n
-  (∃ i:Z,
+  (EX i:Z,
     PROP()
     LOCAL(temp _min (Vint (Int.repr (fold_right Z.min (Znth 0 al) (sublist 0 i al))));
           temp _a a;
           temp _n (Vint (Int.repr n)))
     SEP(data_at Ews (tarray tint n) (map Vint (map Int.repr al)) a)).
-
 * (* Prove that the precondition implies the loop invariant *)
   entailer!!.
 * (* Prove that the loop body preserves the loop invariant *)
@@ -124,8 +120,8 @@ forward_for_simple_bound n
           |apply Forall_sublist; auto]).
  autorewrite with sublist.
  subst POSTCONDITION; unfold abbreviate.
- rewrite ->(sublist_split 0 i (i+1)) by lia.
- rewrite ->(sublist_one i (i+1) al) by lia.
+ rewrite (sublist_split 0 i (i+1)) by lia.
+ rewrite (sublist_one i (i+1) al) by lia.
  rewrite fold_min_another.
  forward_if.
  +
@@ -177,8 +173,8 @@ rename a0 into i.
  autorewrite with sublist.
  apply semax_post_flipped' with (Inv 1 (Z.gt n) i).
  unfold Inv.
- rewrite -> (sublist_split 0 i (i+1)) by lia.
- rewrite -> (sublist_one i (i+1) al) by lia.
+ rewrite (sublist_split 0 i (i+1)) by lia.
+ rewrite (sublist_one i (i+1) al) by lia.
  rewrite fold_min_another.
  forward_if.
  +
@@ -188,8 +184,7 @@ rename a0 into i.
  forward. (* skip; *)
  entailer!!. rewrite Z.min_l; auto; lia.
  +
- intros.
- Exists i. apply ENTAIL_refl.
+Exists i. apply ENTAIL_refl.
 *
  rename a0 into i.
  forward.
@@ -208,7 +203,7 @@ Definition minimum_spec2 :=
     PARAMS (a; Vint (Int.repr n))
     SEP   (data_at Ews (tarray tint n) (map Vint (map Int.repr al)) a)
   POST [ tint ]
-   ∃ j: Z,
+   EX j: Z,
     PROP (In j al; Forall (fun x => j<=x) al)
     RETURN (Vint (Int.repr j))
     SEP   (data_at Ews (tarray tint n) (map Vint (map Int.repr al)) a).
@@ -222,7 +217,7 @@ start_function.
 assert_PROP (Zlength al = n) by (entailer!; list_solve).
 forward.  (* min = a[0]; *)
 forward_for_simple_bound n
-  (∃ i:Z, ∃ j:Z,
+  (EX i:Z, EX j:Z,
     PROP(
          In j (sublist 0 (Z.max 1 i) al);
          Forall (Z.le j) (sublist 0 i al))
@@ -235,7 +230,7 @@ forward_for_simple_bound n
 Exists (Znth 0 al).
 autorewrite with sublist.
 entailer!!.
-rewrite -> sublist_one by lia.
+rewrite sublist_one by lia.
 constructor; auto.
 * (* Show that the loop body preserves the loop invariant *)
 Intros.
@@ -250,9 +245,9 @@ forward_if.
  forward. (* min = j; *)
  Exists (Znth i al).
  entailer!!.
- rewrite -> Z.max_r by lia.
- rewrite -> (sublist_split 0 i (i+1)) by lia.
- rewrite -> (sublist_one i (i+1) al) by lia.
+ rewrite Z.max_r by lia.
+ rewrite (sublist_split 0 i (i+1)) by lia.
+ rewrite (sublist_one i (i+1) al) by lia.
  split.
  apply in_app; right; constructor; auto.
  apply Forall_app; split.
@@ -263,23 +258,21 @@ forward_if.
  forward. (* skip; *)
  Exists j.
  entailer!!.
- rewrite -> Z.max_r by lia.
+ rewrite Z.max_r by lia.
  split.
  destruct (zlt 1 i).
- rewrite -> Z.max_r in H3 by lia.
- rewrite -> (sublist_split 0 i (i+1)) by lia.
+ rewrite Z.max_r in H3 by lia.
+ rewrite (sublist_split 0 i (i+1)) by lia.
  apply in_app; left; auto.
- rewrite -> Z.max_l in H3 by lia.
- rewrite -> (sublist_split 0 1 (i+1)) by lia.
+ rewrite Z.max_l in H3 by lia.
+ rewrite (sublist_split 0 1 (i+1)) by lia.
  apply in_app; left; auto.
- rewrite -> (sublist_split 0 i (i+1)) by lia.
+ rewrite (sublist_split 0 i (i+1)) by lia.
  apply Forall_app. split; auto.
- rewrite -> sublist_one by lia.
+ rewrite sublist_one by lia.
  repeat constructor. lia.
 * (* After the loop *)
  Intros x.
  autorewrite with sublist in *.
  forward. (* return *)
 Qed.
-
-End Spec.

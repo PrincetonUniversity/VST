@@ -210,7 +210,7 @@ forward_if.
    iIntros "[H1 H2]".
    iIntros (cts2) "H3".
    iSpecialize ("H2" $! (a :: cts2)).
-   rewrite app_ass.
+   rewrite -app_assoc.
    iApply ("H2").
    unfold listrep at -1; fold listrep. iExists u0. iFrame.
  + (* after the loop *)
