@@ -886,8 +886,6 @@ Qed.
 
 End PROP.
 
-Global Set Keyed Unification.
-
 Ltac local_cancel_in_syntactic_cancel unify_tac :=
   cbv beta;
   match goal with |- ?A ⊢ ?B => 

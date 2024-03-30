@@ -292,4 +292,3 @@ Ltac eapply_clean_LOCAL_right_spec'' R ::=
 Ltac eapply_clean_LOCAL_right_spec'' R :=
    eapply_clean_LOCAL_right_spec' emptyCS.
 *)
-
