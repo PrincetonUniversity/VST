@@ -332,7 +332,7 @@ forward. (*_s_reset = (_mtable -> _reset);*)
 forward_call hs.
 { rewrite foo_obj_invariant_fold_unfold'.
   Exists m. unfold foo_data, withspacer; simpl. entailer!!.
-  sep_apply make_object_methods_later. cancel. }
+  rewrite -make_object_methods_later //. ecancel. }
 (*The spec has folded the object, so need to unfold again*)
 deadvars!. clear - H H0.
 rewrite foo_obj_invariant_fold_unfold'. Intros m. unfold foo_data, withspacer; Intros; simpl.
@@ -428,7 +428,7 @@ forward. (* p->mtable = &foo_methods; *)
 forward. (* p->data = 0; *)
 forward. (* return (struct object * ) p; *)
 Exists p.
-sep_apply (split_object_methods foo_obj_invariant (gv _foo_methods)).
+Time sep_apply (split_object_methods foo_obj_invariant (gv _foo_methods)).
 entailer!!.
 unfold obj_mpred.
 
@@ -946,15 +946,15 @@ forward. (* p->data = 0; *)
 forward. (* p->color = c;*)
 forward. (* return (struct object * ) p; *)
 Exists p.
-sep_apply (split_fobject_methods fancyfoo_obj_invariant (gv _fancyfoo_methods)).
+match goal with |- _ ⊢ ?C => set (D := C); rewrite split_fobject_methods; subst D end.
 entailer!!.
 unfold fobject_mpred.
 
 (*slight variation of Andrew's proof from here on*)
 Exists fancyfoo_data. entailer!!.
 rewrite fObjMpred_fold_unfold.
-Exists (gv _fancyfoo_methods). entailer!.
-apply bi.sep_mono; first apply bi.later_intro.
+Exists (gv _fancyfoo_methods).
+rewrite -bi.later_intro /fancyfoo_obj_invariant. entailer!.
 unfold fancyfoo_data; simpl. unfold withspacer; simpl.
 cancel.
 unfold_data_at (field_at _ _ nil _ p).
@@ -1022,15 +1022,15 @@ forward. (* p->data = 0; *)
 forward. (* p->color = c;*)
 forward. (* return (struct object * ) p; *)
 Exists p.
-sep_apply (split_fobject_methods fancyfoo_obj_invariant (gv _fancyfoo_methods)).
+match goal with |- _ ⊢ ?C => set (D := C); rewrite split_fobject_methods; subst D end.
 entailer!!.
 unfold fobject_mpred.
 
 (*slight variation of Andrew's proof from here on*)
 Exists fancyfoo_data. entailer!!.
 rewrite fObjMpred_fold_unfold.
-Exists (gv _fancyfoo_methods). entailer!.
-apply bi.sep_mono; first apply bi.later_intro.
+Exists (gv _fancyfoo_methods).
+rewrite -bi.later_intro /fancyfoo_obj_invariant; entailer!.
 unfold fancyfoo_data; simpl. unfold withspacer; simpl.
 cancel.
 unfold_data_at (field_at _ _ nil _ p).

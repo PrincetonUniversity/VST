@@ -886,6 +886,8 @@ Qed.
 
 End PROP.
 
+Global Set Keyed Unification.
+
 Ltac local_cancel_in_syntactic_cancel unify_tac :=
   cbv beta;
   match goal with |- ?A ⊢ ?B => 
@@ -1038,9 +1040,6 @@ Ltac new_cancel local_tac :=
            cbv iota beta delta [before_symbol_cancel];
            cancel_for_evar_frame' local_tac
     | |- before_symbol_cancel _ _ (Some True) =>
-           cbv iota beta delta [before_symbol_cancel];
-           cancel_for_TT local_tac
-    | |- before_symbol_cancel _ _ (Some ⌜True⌝) =>
            cbv iota beta delta [before_symbol_cancel];
            cancel_for_TT local_tac
     end
