@@ -64,7 +64,7 @@ Proof.
   iInv "I" as "R" "Hclose".
   iMod (Ha1 with "[$I $R]") as (x) "(a & shift)".
   iExists x; iFrame.
-  iApply fupd_mask_intro.
+  iApply fupd_mask_intro; first done.
   iIntros "Hclose'"; iSplit.
   - iIntros "a"; iMod ("shift" with "a") as "R".
     iMod "Hclose'"; iMod ("Hclose" with "R"); auto.

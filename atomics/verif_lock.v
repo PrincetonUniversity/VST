@@ -242,6 +242,8 @@ Proof.
   split; first done; intros ((sh, h), R) ?; Intros.
   iIntros "(? & ? & H) !>"; iExists (sh, h, self_part sh h ∗ R, R, emp), emp.
   iSplit.
+  - iPureIntro; intros.
+    unfold PROPx, LOCALx, SEPx; simpl; entailer!.
   - repeat (iSplit; first done).
     rewrite /SEPx /= /LOCALx /argsassert2assert /=; monPred.unseal.
     repeat (iSplit; first done).
@@ -251,8 +253,6 @@ Proof.
       rewrite bi.affinely_elim; iApply ("HR" with "[$]").
     + iSplit; first done; iSplit; last done.
       destruct h as ((?, ?), ?); iIntros "((% & (? & $)) & $)".
-  - iPureIntro; intros.
-    unfold PROPx, LOCALx, SEPx; simpl; entailer!.
 Qed.
 
 Lemma freelock_self : funspec_sub lock_specs.freelock_spec freelock_spec_self.
@@ -261,6 +261,8 @@ Proof.
   split; first done; intros (((sh1, sh2), h), R) ?; Intros.
   iIntros "((%Hsh & _) & ? & H) !>"; iExists (h, self_part sh2 h ∗ R, emp), emp.
   iSplit.
+  - iPureIntro; intros.
+    unfold PROPx, LOCALx, SEPx; simpl; entailer!.
   - repeat (iSplit; first done).
     rewrite /SEPx /= /LOCALx /argsassert2assert /=; monPred.unseal.
     repeat (iSplit; first done).
@@ -271,8 +273,6 @@ Proof.
     iCombine "p self" as "p"; rewrite self_part_eq lock_inv_share_join.
     destruct h as ((?, ?), ?); simpl.
     iDestruct "p" as "(_ & _ & ? & ?)"; iApply (cinv_own_1_l with "[$] [$]").
-  - iPureIntro; intros.
-    unfold PROPx, LOCALx, SEPx; simpl; entailer!.
 Qed.
 
 Definition selflock R sh h := self_part sh h ∗ R.
