@@ -884,6 +884,11 @@ Proof.
   rewrite bi.sep_comm. apply prop_sepcon.
 Qed.
 
+Lemma eq_equiv : forall (A B : PROP), A = B -> A ⊣⊢ B.
+Proof.
+  by intros ?? ->.
+Qed.
+
 End PROP.
 
 Ltac local_cancel_in_syntactic_cancel unify_tac :=
@@ -1045,6 +1050,7 @@ Ltac new_cancel local_tac :=
 
 Ltac cancel_unify_tac :=
   autorewrite with cancel;
+  apply eq_equiv;
   careful_unify.
 
 Ltac cancel_local_tac :=
@@ -1052,7 +1058,7 @@ Ltac cancel_local_tac :=
   match goal with |- ?A ⊢ ?B =>
     solve [ constr_eq A B; simple apply (entails_refl A)
           | auto with nocore cancel
-          | apply entails_refl'; cancel_unify_tac]
+          | apply bi.equiv_entails_1_1; cancel_unify_tac]
   end.
 
 Ltac cancel ::= new_cancel cancel_local_tac.

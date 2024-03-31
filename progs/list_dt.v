@@ -1022,13 +1022,7 @@ Proof.
 intros.
 revert x; induction l; simpl; intros.
 *
-normalize.
-rewrite <- (bi.exist_intro nullval).
-apply bi.and_intro; first by entailer!.
-rewrite prop_true_andp by reflexivity.
-rewrite prop_true_andp
-  by (unfold nullval; destruct Archi.ptr64 eqn:Hp; simpl; auto).
-normalize.
+Exists nullval; entailer!.
 *
 destruct a as [v el].
 iIntros "(H & (% & %) & % & ? & lseg)"; subst.
@@ -1133,8 +1127,7 @@ Proof.
   normalize.
   *
   destruct a  as [v a].
-  normalize.
-  rewrite <- (bi.exist_intro y).
+  Intros y.
   apply bi.and_intro.
   destruct (eq_dec hd tl); last by entailer!.
   subst; clear IHct1.
@@ -1142,7 +1135,8 @@ Proof.
   specialize (H a y).
   rewrite prop_true_andp in H by auto.
   iIntros "(((? & ?) & ?) & ?)"; iDestruct (H with "[$]") as "[]".
-  rewrite <- !bi.sep_assoc, <- IHct1; entailer!.
+  go_lower.sep_apply IHct1.
+  Exists y; entailer!.
 Qed.
 
 Lemma list_append_null:
@@ -2272,8 +2266,7 @@ Proof.
   unfold lseg_cell.
  normalize.
  f_equiv. intros y.
- f_equiv. f_equiv. tauto. f_equiv. f_equiv. f_equiv.
- apply nonreadable_list_cell_eq; auto.
+ f_equiv. f_equiv. tauto. rewrite nonreadable_list_cell_eq; done.
 Qed.
 
 Lemma list_append: forall {dsh psh: share}
@@ -2300,7 +2293,7 @@ Proof.
   iIntros "(((H & ?) & ?) & P)"; iDestruct (H with "[H $P]") as "[]".
   iStopProof; entailer!.
  +
-  rewrite <- !bi.sep_assoc, <- IHct1.
+  go_lower.sep_apply IHct1.
   entailer!.
 Qed.
 

@@ -73,6 +73,7 @@ compcert/test/
 version.v
 coqide
 *.cache
+*.timing
 *~
 *#
 .#*
