@@ -411,9 +411,9 @@ Qed.
 
 Lemma raise_and:
 forall {Σ:gFunctors} (A B : assert),
-    assert_of(Σ:=Σ) (fun rho: environ => A rho ∧ B rho) ⊣⊢ (A ∧ B).
+    assert_of(Σ:=Σ) (fun rho: environ => A rho ∧ B rho) = (A ∧ B).
 Proof.
-intros. monPred.unseal. done.
+intros. apply assert_ext; intros; monPred.unseal. done.
 Qed.
 
 Lemma local_assert:
@@ -422,7 +422,7 @@ forall {Σ:gFunctors} (P Q : (assert(Σ:=Σ))),
 Proof.
   intros. split; intros.
   - rewrite H. reflexivity.
-  - constructor. done.
+  - constructor; auto.
 Qed.
 
 Section LOCAL2PTREE_DENOTE.
@@ -465,20 +465,34 @@ Lemma LOCALx_shuffle_derives: forall P Q Q' R,
   PROPx P (LOCALx Q (SEPx R)) ⊢ PROPx P (LOCALx Q' (SEPx R)).
 Proof. intros. apply LOCALx_shuffle_derives'. auto. Qed.
 
+Lemma foldr_Forall' : forall Q rho, foldr (` and) (` True%type) (map locald_denote Q) rho ↔
+  Forall (fun P => P rho) (map locald_denote Q).
+Proof.
+  induction Q; simpl; intros; unfold_lift.
+  - split; [constructor | auto].
+  - rewrite IHQ; split.
+    + intros (? & ?); constructor; auto.
+    + inversion 1; auto.
+Qed.
+
 Lemma LOCALx_shuffle': forall P Q Q' R,
   (forall Q0, In Q0 Q' <-> In Q0 Q) ->
-  PROPx P (LOCALx Q R) ⊣⊢ PROPx P (LOCALx Q' R).
+  PROPx P (LOCALx Q R) = PROPx P (LOCALx Q' R).
 Proof.
   intros.
-  apply bi.equiv_entails_2; apply LOCALx_shuffle_derives'; intros; apply H; auto.
+  f_equal.
+  unfold LOCALx; f_equal; f_equal.
+  extensionality; apply prop_ext.
+  rewrite !foldr_Forall' !Forall_forall.
+  setoid_rewrite in_map_iff. setoid_rewrite H. done.
 Qed.
 
 Lemma LOCALx_shuffle: forall P Q Q' R,
   (forall Q0, In Q0 Q' <-> In Q0 Q) ->
-  PROPx P (LOCALx Q (SEPx R)) ⊣⊢ PROPx P (LOCALx Q' (SEPx R)).
+  PROPx P (LOCALx Q (SEPx R)) = PROPx P (LOCALx Q' (SEPx R)).
 Proof.
   intros.
-  apply bi.equiv_entails_2; apply LOCALx_shuffle_derives; intros; apply H; auto.
+  apply LOCALx_shuffle'; done.
 Qed.
 
 Lemma LocalD_remove_empty_from_PTree1: forall i T1 T2 Q Q0,
@@ -572,7 +586,7 @@ Proof.
 Qed.
 
 Lemma LOCALx_expand_vardesc': forall P R i vd T1 T2 Q,
-  PROPx P (LOCALx (LocalD T1 (PTree.set i vd T2) Q) R) ⊣⊢
+  PROPx P (LOCALx (LocalD T1 (PTree.set i vd T2) Q) R) =
   PROPx P (LOCALx (match vd with (t,v) => lvar i t v end :: LocalD T1 (PTree.remove i T2) Q) R).
 Proof.
  intros.
@@ -581,7 +595,7 @@ Proof.
 Qed.
 
 Lemma LOCALx_expand_gvars': forall P R gv T1 T2,
-  PROPx P (LOCALx (LocalD T1 T2 (Some gv)) R) ⊣⊢
+  PROPx P (LOCALx (LocalD T1 T2 (Some gv)) R) =
   PROPx P (LOCALx (gvars gv :: LocalD T1 T2 None) R).
 Proof.
  intros.
@@ -591,66 +605,61 @@ Qed.
 
 Lemma local_equal_lemma :
  forall i t v t' v',
-  local(Σ:=Σ) (locald_denote (lvar i t v)) ∧ local (locald_denote (lvar i t' v')) ⊣⊢
-  ⌜(v' = v)⌝ ∧ ⌜(t'=t)⌝ ∧ local (locald_denote (lvar i t' v')).
+  (local(Σ:=Σ) (locald_denote (lvar i t v)) ∧ local (locald_denote (lvar i t' v'))) =
+  (⌜(v' = v)⌝ ∧ ⌜(t'=t)⌝ ∧ local (locald_denote (lvar i t' v'))).
 Proof.
 intros. raise_rho.
 unfold local, lift1; simpl.
-normalize.
-rewrite /locald_denote /lvar_denote.
-apply bi.equiv_entails_2; iIntros "[%H %H0]".
-- destruct (Map.get (ve_of rho) i) as [[? ?] | ] eqn:H8; try contradiction.
-  destruct H, H0; subst.
-  repeat split; auto.
-- destruct (Map.get (ve_of rho) i) as [[? ?] | ] eqn:H8; try contradiction.
-  all: destruct H; destruct H0; subst; done.
+apply assert_ext; intros; monPred.unseal; normalize.
+f_equal; apply prop_ext; split.
+- intros (? & ?).
+  unfold lvar_denote in *.
+  destruct (Map.get (ve_of rho) i) as [[? ?] | ] eqn:H8; try contradiction.
+  destruct H, H0; subst; auto.
+- intros (-> & -> & ?); auto.
 Qed.
 
 Lemma gvars_equal_lemma :
   forall g g0,
-  local(Σ:=Σ) (locald_denote (gvars g)) ∧ local (locald_denote (gvars g0)) ⊣⊢ ⌜g0 = g⌝ ∧ local (locald_denote (gvars g0)).
+  (local(Σ:=Σ) (locald_denote (gvars g)) ∧ local (locald_denote (gvars g0))) = (⌜g0 = g⌝ ∧ local (locald_denote (gvars g0))).
 Proof.
 intros. raise_rho.
 unfold local, lift1; simpl.
-normalize.
-unfold gvars_denote.
-apply bi.equiv_entails_2; iIntros "[%H %H0]"; iPureIntro.
-+
-subst; split; auto.
-+
-subst; split; auto.
+apply assert_ext; intros; monPred.unseal.
+rewrite -!pure_and; f_equal; apply prop_ext; intuition.
+- unfold gvars_denote in *; subst; auto.
+- subst; auto.
 Qed.
 
 Lemma insert_locals:
   forall P A B C,
-  local (fold_right `(and) `((True:Prop)) (map locald_denote A)) ∧ PROPx P (LOCALx B C) ⊣⊢
+  (local (fold_right `(and) `((True:Prop)) (map locald_denote A)) ∧ PROPx P (LOCALx B C)) =
   PROPx P (LOCALx (A++B) C).
 Proof.
 intros.
 induction A.
-constructor; intro rho; rewrite monPred_at_and. unfold local, lift1. simpl. rewrite prop_true_andp //.
+apply assert_ext; intros; monPred.unseal; simpl. rewrite prop_true_andp //.
 simpl app. rewrite <- (insert_local' a).
 rewrite <- IHA.
-rewrite bi.and_assoc.
-constructor; intro rho. rewrite !monPred_at_and; unfold_lift; unfold local, lift1; simpl.
+rewrite assert_lemmas.and_assoc'.
+simpl.
+apply assert_ext; intros; unfold PROPx; monPred.unseal; unfold_lift; unfold lift1.
 normalize.
 Qed.
 
 Lemma LOCALx_app_swap:
-  forall A B R, LOCALx (A++B) R ⊣⊢ LOCALx (B++A) R.
+  forall A B R, LOCALx (A++B) R = LOCALx (B++A) R.
 Proof.
 intros.
 unfold LOCALx.
-rewrite !map_app.
-unfold local,lift1. constructor; intro rho; rewrite !monPred_at_and /=.
-rewrite !fold_right_and_app.
-rewrite and_comm. done.
+rewrite !map_app !fold_right_local_app.
+rewrite (and_comm' (local _)) //.
 Qed.
 
 Lemma and_mono_iff:
-  forall {prop:bi} (P P' Q Q': prop), (P ⊣⊢ Q) → (P' ⊣⊢ Q') → P ∧ P' ⊣⊢ Q ∧ Q'.
+  forall {prop:bi} (P P' Q Q': prop), (P ⊣⊢ Q) → (P' ⊣⊢ Q') → (P ∧ P') ⊣⊢ (Q ∧ Q').
 Proof.
-intros. rewrite H H0. done.
+  intros; by apply bi.and_proper.
 Qed.
 
 Lemma local2ptree_soundness' : forall P Q R T1a T2a Pa Qa T1 T2 P' Q',
@@ -672,12 +681,10 @@ Proof.
     unfold locald_denote; simpl.
     unfold local, lift1; unfold_lift; simpl.
     constructor; intro rho; rewrite !monPred_at_and /=.
-    rewrite monPred_at_pure. normalize.
-    apply bi.pure_iff. split.
-    intros [? [? [? ?]]]; subst; split; auto.
-    intros [? [? ?]]; subst; split; auto.
+    rewrite monPred_at_pure. rewrite -!pure_and.
+    apply bi.pure_iff. split; intuition congruence.
     rewrite in_app; right. apply LocalD_sound_temp. auto.
-    apply LOCALx_shuffle'; intros.
+    erewrite LOCALx_shuffle'; first done; intros.
     simpl In. rewrite !in_app. simpl In. intuition.
     apply LOCALx_expand_temp_var in H0. simpl In in H0.
     destruct H0; auto. right. right.
@@ -832,7 +839,7 @@ assert (forall rho, local(Σ:=Σ) (tc_environ Delta) rho ⊢ ⌜Map.get (ve_of r
   inv H4.
 }
 clear - H2 H2' H3 TC.
-rewrite <- insert_SEP.
+rewrite -insert_SEP.
 unfold func_ptr.
 normalize.
 iIntros "(%H0 & H1 & H2)". iSplit. 2: { done. }

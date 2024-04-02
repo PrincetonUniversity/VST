@@ -155,7 +155,6 @@ Section PROOFS.
     split; first done. intros p ?. simpl in *. Intros.
     unfold rev_curry, tcurry; simpl. iIntros "H !>". iExists (p, atomic_int_at Ews (vint 0) p), emp.
     rewrite bi.emp_sep. iSplit.
-    - iPureIntro. intros. Intros. rewrite bi.emp_sep //.
     - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl; monPred.unseal.
       iDestruct "H" as "(% & % & _ & H & _)".
       do 4 (iSplit; auto).
@@ -163,6 +162,7 @@ Section PROOFS.
       iExists tt; iFrame "H".
       iApply fupd_mask_intro; first done; iIntros "Hclose".
       iSplit; [iIntros "$" | iIntros (_) "[$ _]"]; auto.
+    - iPureIntro. intros. Intros. rewrite bi.emp_sep //.
   Qed.
 
   #[global] Instance inv_for_lock_timeless v R {H : Timeless R} : Timeless (inv_for_lock v R).
@@ -271,8 +271,6 @@ Section PROOFS.
     unfold rev_curry, tcurry; simpl. iIntros "H !>".
     iExists (p, Q), emp; simpl.
     rewrite bi.emp_sep. iSplit.
-    - iPureIntro. iIntros (rho') "[% [_ H]]".
-      unfold PROPx, LOCALx, SEPx; simpl; auto.
     - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl; monPred.unseal.
       iDestruct "H" as "(% & % & _ & H & _)".
       do 4 (iSplit; auto).
@@ -286,6 +284,8 @@ Section PROOFS.
       + iIntros (_) "[[% H1] _]"; subst.
         iDestruct "Hclose" as "[_ Hclose]"; iApply ("Hclose" $! tt).
         rewrite bi.sep_emp; iFrame "R"; iExists true; iFrame.
+    - iPureIntro. iIntros (rho') "[% [_ H]]".
+      unfold PROPx, LOCALx, SEPx; simpl; auto.
   Qed.
 
   Program Definition acquire_spec_inv_atomic :=
@@ -306,8 +306,6 @@ Section PROOFS.
     unfold rev_curry, tcurry; simpl. iIntros "H !>".
     iExists (p, Q ∗ R), emp; simpl.
     rewrite bi.emp_sep. iSplit.
-    - iPureIntro. iIntros (rho') "[% [_ H]]".
-      unfold PROPx, LOCALx, SEPx; simpl. rewrite bi.sep_assoc //.
     - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl; monPred.unseal.
       iDestruct "H" as "(% & % & _ & H & _)".
       do 4 (iSplit; auto).
@@ -322,6 +320,8 @@ Section PROOFS.
         iFrame "R".
         iDestruct "Hclose" as "[_ Hclose]"; iApply ("Hclose" $! tt).
         rewrite bi.sep_emp; iExists true; iFrame.
+    - iPureIntro. iIntros (rho') "[% [_ H]]".
+      unfold PROPx, LOCALx, SEPx; simpl. rewrite bi.sep_assoc //.
   Qed.
 
 (*  (* "lock variant" version where the lock has a parameter held in the global state *)
@@ -384,8 +384,6 @@ Section PROOFS.
     unfold rev_curry, tcurry; simpl. iIntros "H !>".
     iExists (p, Q), emp; simpl.
     rewrite bi.emp_sep. iSplit.
-    - iPureIntro. iIntros (rho') "[% [_ H]]".
-      unfold PROPx, LOCALx, SEPx; simpl; auto.
     - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl; monPred.unseal.
       iDestruct "H" as "(% & % & _ & H & excl & _)".
       do 4 (iSplit; auto).
@@ -403,6 +401,8 @@ Section PROOFS.
           rewrite bi.sep_emp; iExists false; iFrame.
       + iAssert (▷ False) with "[excl R R1]" as ">[]".
         rewrite bi.affinely_elim; iApply "excl"; by iFrame.
+    - iPureIntro. iIntros (rho') "[% [_ H]]".
+      unfold PROPx, LOCALx, SEPx; simpl; auto.
   Qed.
 
   Program Definition release_spec_inv_atomic1 :=
@@ -423,8 +423,6 @@ Section PROOFS.
     unfold rev_curry, tcurry; simpl. iIntros "H !>".
     iExists (p, Q), emp; simpl.
     rewrite bi.emp_sep. iSplit.
-    - iPureIntro. iIntros (rho') "[% [_ H]]".
-      unfold PROPx, LOCALx, SEPx; simpl; auto.
     - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl; monPred.unseal.
       iDestruct "H" as "(% & % & _ & H & _)".
       do 4 (iSplit; auto).
@@ -443,6 +441,8 @@ Section PROOFS.
         rewrite bi.sep_emp; iExists false; iFrame.
       + iAssert (▷ False) with "[excl R R1]" as ">[]".
         rewrite bi.affinely_elim; iApply "excl"; by iFrame.
+    - iPureIntro. iIntros (rho') "[% [_ H]]".
+      unfold PROPx, LOCALx, SEPx; simpl; auto.
   Qed.
 
 (*  Program Definition release_spec_inv_variant :=
@@ -518,8 +518,6 @@ Section PROOFS.
     unfold rev_curry, tcurry. iIntros "H !>".
     iExists (ptr_of(lock_impl := atomic_impl) h, lock_inv(lock_impl := atomic_impl) sh h R ∗ ▷ R), emp; simpl.
     rewrite bi.emp_sep. iSplit.
-    - iPureIntro. iIntros (rho') "[% [_ H]]".
-      unfold PROPx, LOCALx, SEPx; simpl. rewrite bi.sep_assoc //.
     - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx; simpl; monPred.unseal.
       iDestruct "H" as "(_ & % & _ & H & _)".
       do 4 (iSplit; auto).
@@ -538,6 +536,8 @@ Section PROOFS.
         iFrame "H H2 R".
         iMod "Hclose'"; iApply "Hclose".
         iExists true; iFrame; auto.
+    - iPureIntro. iIntros (rho') "[% [_ H]]".
+      unfold PROPx, LOCALx, SEPx; simpl. rewrite bi.sep_assoc //.
   Qed.
 
   Program Definition release_spec_inv :=
@@ -558,8 +558,6 @@ Section PROOFS.
     unfold rev_curry, tcurry. iIntros "H !>".
     iExists (ptr_of(lock_impl := atomic_impl) h, ▷ Q), emp. simpl in *.
     rewrite bi.emp_sep. iSplit.
-    - iPureIntro. iIntros (rho') "[% [_ H]]".
-      unfold PROPx, LOCALx, SEPx; simpl; auto.
     - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl; monPred.unseal.
       iDestruct "H" as "(_ & % & _ & H)".
       do 4 (iSplit; auto).
@@ -584,6 +582,8 @@ Section PROOFS.
       + iPoseProof ("H4" with "[$H2 $H3]") as "[$ HR]"; auto.
         iAssert (▷False) with "[H5 R HR]" as ">[]".
         rewrite bi.affinely_elim; iApply "H5"; iFrame.
+    - iPureIntro. iIntros (rho') "[% [_ H]]".
+      unfold PROPx, LOCALx, SEPx; simpl; auto.
   Qed.
 
   Lemma release_simple : funspec_sub (snd release_spec) release_spec_simple.
@@ -592,8 +592,6 @@ Section PROOFS.
     unfold rev_curry, tcurry. iIntros "H !>".
     iExists (ptr_of(lock_impl := atomic_impl) h, lock_inv(lock_impl := atomic_impl) sh h R), emp. simpl in *.
     rewrite bi.emp_sep. iSplit.
-    - iPureIntro. iIntros (rho') "[% [_ H]]".
-      unfold PROPx, LOCALx, SEPx; simpl; auto.
     - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl; monPred.unseal.
       iDestruct "H" as "(% & % & _ & H)".
       do 4 (iSplit; auto).
@@ -616,6 +614,8 @@ Section PROOFS.
           unfold inv_for_lock; iExists false; iFrame; auto.
       + iAssert (▷False) with "[H5 R H3]" as ">[]".
         rewrite bi.affinely_elim; iApply "H5"; iFrame.
+    - iPureIntro. iIntros (rho') "[% [_ H]]".
+      unfold PROPx, LOCALx, SEPx; simpl; auto.
   Qed.
 
   Lemma release_self : funspec_sub (snd release_spec) release_spec_self.
@@ -625,8 +625,6 @@ Section PROOFS.
     destruct h as ((v, N), g).
     iExists (v, emp), emp. simpl in *.
     rewrite bi.emp_sep. iSplit.
-    - iPureIntro. iIntros (rho') "[% [_ H]]".
-      unfold PROPx, LOCALx, SEPx; simpl. rewrite bi.sep_emp //.
     - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl; monPred.unseal.
       iDestruct "H" as "(_ & % & _ & H)".
       do 4 (iSplit; auto).
@@ -650,6 +648,8 @@ Section PROOFS.
       + iDestruct "HR" as "[>Hg R']".
         iAssert (▷False) with "[Hexcl R R']" as ">[]".
         rewrite bi.affinely_elim; iApply "Hexcl"; by iFrame.
+    - iPureIntro. iIntros (rho') "[% [_ H]]".
+      unfold PROPx, LOCALx, SEPx; simpl. rewrite bi.sep_emp //.
   Qed.
 
   Lemma freelock_inv: funspec_sub (snd freelock_spec) lock_specs.freelock_spec.
@@ -668,10 +668,10 @@ Section PROOFS.
     { by iRight. }
     rewrite -(union_difference_L (↑i) ⊤) //.
     iFrame "HP"; iModIntro; iSplit.
-    - iPureIntro; intros; Intros; cancel.
-      iIntros "($ & $)".
     - do 4 (iSplit; auto).
       iExists _; iFrame. admit. (* emp not timeless *)
+    - iPureIntro; intros; Intros; cancel.
+      iIntros "($ & $)".
     - iAssert (▷False) with "[R HP HR H2]" as ">[]".
       iNext; rewrite bi.affinely_elim; iApply "R"; iFrame; iSplit; auto.
   Admitted.
@@ -702,14 +702,14 @@ Section PROOFS.
     unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl; monPred.unseal.
     iDestruct "H" as "((% & _) & % & % & H)".
     iSplit; [|do 4 (iSplit; [auto|])].
-    - iPureIntro; intros; Intros.
-      rewrite bi.emp_sep bi.sep_emp; auto.
     - erewrite !bi.sep_emp, !bi.emp_sep, -> self_part_eq, lock_inv_share_join, H0 by eauto; iFrame.
       iIntros "!> H".
       rewrite assoc self_part_eq.
       destruct h as ((p, i), g); unfold lock_inv; simpl.
       iDestruct "H" as "[[(_ & _ & g1) (_ & _ & g2)] _]".
       iApply (cinv_own_1_l with "g1 g2").
+    - iPureIntro; intros; Intros.
+      rewrite bi.emp_sep bi.sep_emp; auto.
   Qed.
 
 (* export atomic lock specs *)

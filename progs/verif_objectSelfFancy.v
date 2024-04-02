@@ -503,14 +503,13 @@ Proof. intros [[hs c] p]. apply (INV (hs,p)). Defined.
 
 Lemma reset_spec_local_sub INV: funspec_sub (reset_spec INV)
                                             (freset_spec (fobject_invariant_of_inv INV)).
-Proof. split; first done. intros ((hs, c), p) ?; simpl. rewrite -fupd_intro. Exists (hs,p) (emp : mpred); simpl. entailer!. intros; cancel. Qed.
+Proof. split; first done. intros ((hs, c), p) ?; simpl. rewrite -fupd_intro. Exists (hs,p) (emp : mpred); simpl. entailer!. Qed.
 
 Lemma twiddle_spec_local_sub INV: funspec_sub (twiddle_spec INV)
                                               (ftwiddle_spec (fobject_invariant_of_inv INV)).
 Proof. split; first done. intros (((hs, c), p), i) ?; simpl.
   rewrite -fupd_intro.
   Exists ((hs,p),i) (emp : mpred); entailer!!; auto.
-  intros; cancel.
 Qed.
 
 Definition fobject_methods (instance: fobject_invariant) (mtable: val) : mpred :=

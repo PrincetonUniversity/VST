@@ -114,11 +114,10 @@ End IterTreeSepCon.
 
 Section IterTreeSepCon2.
 
-  Context {A : bi}.
   Context {B1 B2 : Type}.
-  Context (p : B1 -> B2 -> A).
+  Context (p : B1 -> B2 -> mpred).
 
-Fixpoint iter_tree_sepcon2 (t1 : tree B1) : tree B2 -> A :=
+Fixpoint iter_tree_sepcon2 (t1 : tree B1) : tree B2 -> mpred :=
     match t1 with
     | E => fun t2 =>
        match t2 with

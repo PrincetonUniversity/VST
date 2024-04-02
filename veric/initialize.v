@@ -1,5 +1,6 @@
 Require Import FunInd.
 Require Import VST.zlist.sublist.
+Require Import VST.veric.log_normalize.
 Require Import VST.veric.juicy_base.
 Require Import VST.veric.shares.
 Require Import VST.veric.juicy_mem VST.veric.juicy_mem_lemmas (*VST.veric.juicy_mem_ops*).
@@ -584,12 +585,6 @@ Qed.
 
 Definition genviron2globals (g: genviron) (i: ident) : val :=
   match Map.get g i with Some b => Vptr b Ptrofs.zero | None => Vundef end.
-
-(* up *)
-Lemma prop_true_andp : forall (P : Prop) (Q : mpred), P -> ⌜P⌝ ∧ Q ⊣⊢ Q.
-Proof.
-  intros; iSplit; [iIntros "(_ & $)" | iIntros "$"; done].
-Qed.
 
 Lemma getN_seq : forall n z c, getN n z c = map (fun i => Maps.ZMap.get (z + Z.of_nat i) c) (seq 0 n).
 Proof.

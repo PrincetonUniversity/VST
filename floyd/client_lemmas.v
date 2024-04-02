@@ -293,7 +293,7 @@ Lemma liftx_local_retval:
    `(local (`P retval)) (get_result1 i) = local (`P (eval_id i)).
 Proof. intros. reflexivity. Qed.*)
 
-Lemma Vint_inj': forall i j,  (Vint i = Vint j) =  (i=j).
+Lemma Vint_inj': forall i j,  (Vint i = Vint j) = (i=j).
 Proof. intros; apply prop_ext; split; intro; congruence. Qed.
 
 Notation assert := (@assert Σ).
@@ -327,21 +327,21 @@ Definition fold_right_PROP_SEP (l1: list Prop) (l2: list mpred) : mpred :=
  end.
 
 Lemma fold_right_PROP_SEP_spec: forall l1 l2,
-  fold_right_PROP_SEP l1 l2 ⊣⊢ ⌜fold_right and True l1⌝ ∧ fold_right_sepconx l2.
+  fold_right_PROP_SEP l1 l2 = (⌜fold_right and True l1⌝ ∧ fold_right_sepconx l2).
 Proof.
   intros.
-  assert (fold_right_and_True l1 <-> fold_right and True%type l1).
-  { destruct l1; [tauto |].
+  assert (fold_right_and_True l1 = fold_right and True%type l1).
+  { apply prop_ext.
+    destruct l1; [tauto |].
     revert P; induction l1; intros.
     - simpl; tauto.
     - change (P /\ fold_right_and_True (a :: l1) <-> P /\ fold_right and True%type (a :: l1)).
       specialize (IHl1 a).
       tauto. }
   destruct l1.
-  + rewrite /= bi.True_and //.
+  + rewrite /= log_normalize.True_and //.
   + unfold fold_right_PROP_SEP.
-    rewrite H.
-    auto.
+    rewrite H //.
 Qed.
 
 Lemma typed_true_isptr:
@@ -591,8 +591,8 @@ Notation assert_of := (@assert_of Σ).
 
 Lemma raise_sepcon:
  forall A B : assert,
-    assert_of (fun rho: environ => A rho ∗ B rho) ⊣⊢ (A ∗ B).
-Proof. split => rho; monPred.unseal; done. Qed.
+    assert_of (fun rho: environ => A rho ∗ B rho) = (A ∗ B).
+Proof. intros; apply assert_ext; intros; monPred.unseal; done. Qed.
 
 Lemma lift1_lift1_retval {A}: forall i (P: val -> A),
 lift1 (lift1 P retval) (get_result1 i) = lift1 P (eval_id i).
@@ -615,69 +615,69 @@ Lemma lift_lift_x:  (* generalizes lift_lift_val *)
 Proof. reflexivity. Qed.
 
 Lemma lift0_exp:
-  forall (B: Type) (f: B -> mpred), assert_of (lift0 (∃ x, f x)) ⊣⊢ ∃ x:B, assert_of (lift0 (f x)).
+  forall (B: Type) (f: B -> mpred), assert_of (lift0 (∃ x, f x)) = ∃ x:B, assert_of (lift0 (f x)).
 Proof.
-  split => rho; rewrite /lift0; simpl; monPred.unseal; done.
+  intros; apply assert_ext; intros; rewrite /lift0; simpl; monPred.unseal; done.
 Qed.
 
 Lemma lift0C_exp:
-  forall (B: Type) (f: B -> mpred), assert_of (`(∃ x, f x)) ⊣⊢ ∃ x:B, assert_of (`(f x)).
+  forall (B: Type) (f: B -> mpred), assert_of (`(∃ x, f x)) = ∃ x:B, assert_of (`(f x)).
 Proof.
-  split => rho; unfold_lift; simpl; monPred.unseal; done.
+  intros; apply assert_ext; intros; unfold_lift; simpl; monPred.unseal; done.
 Qed.
 
 Lemma lift0_andp:
  forall P Q,
-   assert_of (lift0 (P ∧ Q)) ⊣⊢ assert_of (lift0 P) ∧ assert_of (lift0 Q).
+   assert_of (lift0 (P ∧ Q)) = (assert_of (lift0 P) ∧ assert_of (lift0 Q)).
 Proof.
-  split => rho; monPred.unseal; done.
+  intros; apply assert_ext; intros; monPred.unseal; done.
 Qed.
 
 Lemma lift0C_andp:
  forall P Q,
-  assert_of `(P ∧ Q) ⊣⊢ assert_of (`P) ∧ assert_of (`Q).
+  assert_of `(P ∧ Q) = (assert_of (`P) ∧ assert_of (`Q)).
 Proof.
-  split => rho; monPred.unseal; done.
+  intros; apply assert_ext; intros; monPred.unseal; done.
 Qed.
 
 Lemma lift0_prop:
- forall P : Prop, assert_of (lift0 ⌜P⌝) ⊣⊢ ⌜P⌝.
+ forall P : Prop, assert_of (lift0 ⌜P⌝) = ⌜P⌝.
 Proof.
-  split => rho; monPred.unseal; done.
+  intros; apply assert_ext; intros; monPred.unseal; done.
 Qed.
 
 Lemma lift0C_prop:
- forall P : Prop, assert_of (`⌜P⌝) ⊣⊢ ⌜P⌝.
+ forall P : Prop, assert_of (`⌜P⌝) = ⌜P⌝.
 Proof.
-  split => rho; monPred.unseal; done.
+  intros; apply assert_ext; intros; monPred.unseal; done.
 Qed.
 
 Lemma lift0_sepcon:
  forall P Q,
-  assert_of (lift0 (P ∗ Q)) ⊣⊢ assert_of (lift0 P) ∗ assert_of (lift0 Q).
+  assert_of (lift0 (P ∗ Q)) = (assert_of (lift0 P) ∗ assert_of (lift0 Q)).
 Proof.
-  split => rho; monPred.unseal; done.
+  intros; apply assert_ext; intros; monPred.unseal; done.
 Qed.
 
 Lemma lift0C_sepcon:
  forall P Q,
-  assert_of (` (P ∗ Q)) ⊣⊢ assert_of (`P) ∗ assert_of (`Q).
+  assert_of (` (P ∗ Q)) = (assert_of (`P) ∗ assert_of (`Q)).
 Proof.
-  split => rho; monPred.unseal; done.
+  intros; apply assert_ext; intros; monPred.unseal; done.
 Qed.
 
 Lemma lift0_later:
   forall P,
-   assert_of (lift0 (▷ P)) ⊣⊢ ▷ assert_of (lift0 P).
+   assert_of (lift0 (▷ P)) = ▷ assert_of (lift0 P).
 Proof.
-  split => rho; monPred.unseal; done.
+  intros; apply assert_ext; intros; monPred.unseal; done.
 Qed.
 
 Lemma lift0C_later:
   forall P,
-   assert_of (`(▷ P)) ⊣⊢ ▷ assert_of (`P).
+   assert_of (`(▷ P)) = ▷ assert_of (`P).
 Proof.
-  split => rho; monPred.unseal; done.
+  intros; apply assert_ext; intros; monPred.unseal; done.
 Qed.
 
 Lemma fst_unfold: forall {A B} (x: A) (y: B), fst (x,y) = x.
@@ -694,26 +694,27 @@ unfold PROPx in *.
 intros.
 rewrite fold_right_cons.
 normalize.
-rewrite -H //; monPred.unseal.
+rewrite -H //.
+monPred.unseal.
 normalize.
 Qed.
 
 Notation local := (@local Σ).
 
-Lemma local_andp_prop:  forall P Q, local P ∧ ⌜Q⌝ ⊣⊢ ⌜Q⌝ ∧ local P.
-Proof. intros. apply bi.and_comm. Qed.
-Lemma local_andp_prop1: forall P Q R, local P ∧ (⌜Q⌝ ∧ R) ⊣⊢ ⌜Q⌝ ∧ (local P ∧ R).
-Proof. intros. rewrite bi.and_comm. rewrite -bi.and_assoc. f_equiv. apply bi.and_comm. Qed.
+Lemma local_andp_prop:  forall P Q, (local P ∧ ⌜Q⌝) = (⌜Q⌝ ∧ local P).
+Proof. intros. apply and_comm'. Qed.
+Lemma local_andp_prop1: forall P Q R, (local P ∧ (⌜Q⌝ ∧ R)) = (⌜Q⌝ ∧ (local P ∧ R)).
+Proof. intros. rewrite and_comm'. rewrite -and_assoc'. f_equiv. apply and_comm'. Qed.
 
 Lemma local_sepcon_assoc1:
-   forall P Q R, (local P ∧ Q) ∗ R ⊣⊢ local P ∧ (Q ∗ R).
+   forall P Q R, ((local P ∧ Q) ∗ R) = (local P ∧ (Q ∗ R)).
 Proof.
-  intros; rewrite bi.persistent_and_sep_assoc //.
+  intros; rewrite local_and_sep_assoc //.
 Qed.
 Lemma local_sepcon_assoc2:
-   forall P Q R, R ∗ (local P ∧ Q) ⊣⊢ local P ∧ (R ∗ Q).
+   forall P Q R, (R ∗ (local P ∧ Q)) = (local P ∧ (R ∗ Q)).
 Proof.
-  intros; rewrite persistent_and_sep_assoc' //.
+  intros; rewrite local_and_sep_assoc' //.
 Qed.
 
 Definition do_canon (x y : assert) := x ∗ y.
@@ -765,9 +766,9 @@ Definition ImpossibleFunspec :=
 
 Lemma prop_true_andp1 :
   forall {B : bi} (P1 P2: Prop) (Q : B),
-    P1 -> ⌜P1 /\ P2⌝ ∧ Q ⊣⊢ ⌜P2⌝ ∧ Q.
+    P1 -> (⌜P1 /\ P2⌝ ∧ Q) = (⌜P2⌝ ∧ Q).
 Proof.
-  intros; rewrite bi.pure_and bi.pure_True // bi.True_and //.
+  intros; f_equal; f_equal; apply prop_ext; tauto.
 Qed.
 
 Lemma and_assoc': forall A B C: Prop,
@@ -780,13 +781,13 @@ Definition splittablex (A: Prop) := True%type.
 
 Lemma and_assoc_splittablex: forall {BI : bi} (A B C: Prop),
     splittablex (A /\ B) ->
-  (⌜(A /\ B) /\ C⌝ : BI) ⊣⊢ ⌜A /\ (B /\ C)⌝.
+  (⌜(A /\ B) /\ C⌝ : BI) = ⌜A /\ (B /\ C)⌝.
 Proof.
 intros. rewrite and_assoc'; auto.
 Qed.
 
 Lemma and_assoc'': forall {BI : bi} (A B C: Prop),
-  (⌜(A /\ B) /\ C⌝ : BI) ⊣⊢ ⌜A /\ (B /\ C)⌝.
+  (⌜(A /\ B) /\ C⌝ : BI) = ⌜A /\ (B /\ C)⌝.
 Proof.
 intros. rewrite and_assoc'; auto.
 Qed.
@@ -800,19 +801,19 @@ Proof.
 Qed.
 
 Lemma prop_and1:
-  forall {BI : bi} (P Q : Prop), P -> (⌜P /\ Q⌝ : BI) ⊣⊢ ⌜Q⌝.
+  forall {BI : bi} (P Q : Prop), P -> (⌜P /\ Q⌝ : BI) = ⌜Q⌝.
 Proof.
- intros. f_equiv; tauto.
+ intros. f_equiv; apply prop_ext; tauto.
 Qed.
 
 Lemma subst_make_args':
   forall  {cs: compspecs}  id v (P: assert) fsig tl el,
   length tl = length el ->
   length (fst fsig) = length el ->
-  assert_of (subst id v (fun rho => P (make_args' fsig (eval_exprlist tl el) rho))) ⊣⊢
+  assert_of (subst id v (fun rho => P (make_args' fsig (eval_exprlist tl el) rho))) =
            assert_of (fun rho => P (make_args' fsig (subst id v (eval_exprlist tl el)) rho)).
 Proof.
-  split => rho; rewrite /subst; simpl.
+  intros; apply assert_ext; intros; rewrite /subst; simpl.
   f_equiv. unfold make_args'.
   revert tl el H H0; induction (fst fsig); destruct tl,el; simpl; intros; inv H.
   reflexivity.
@@ -844,14 +845,14 @@ Fixpoint remove_localdef_temp (i: ident) (l: list localdef) : list localdef :=
   end.
 
 Lemma subst_stackframe_of:
-  forall {cs: compspecs} i v f, assert_of (subst i v (stackframe_of f)) ⊣⊢ stackframe_of f.
+  forall {cs: compspecs} i v f, assert_of (subst i v (stackframe_of f)) = stackframe_of f.
 Proof.
   unfold stackframe_of; simpl; intros.
   unfold subst.
-  split => rho; simpl.
-  induction (fn_vars f); simpl; [|revert IHl]; monPred.unseal; first done; intros.
-  rewrite IHl; f_equiv.
-  rewrite /var_block; monPred.unseal; done.
+  intros; apply assert_ext; intros; simpl.
+  induction (fn_vars f); simpl; [|revert IHl]; unfold var_block; monPred.unseal; first done; intros; simpl.
+  rewrite IHl.
+  rewrite /var_block; done.
 Qed.
 
 Lemma remove_localdef_temp_PROP: forall (i: ident) P Q R,
@@ -1015,10 +1016,11 @@ Lemma prop_and_right:
 Proof. intros ????? ->; auto. Qed.
 
 Lemma fold_right_sepcon_subst:
- forall i e (R : list assert), fold_right bi_sep emp (map (fun r : assert => assert_of (subst i e r)) R) ⊣⊢ assert_of (subst i e (fold_right bi_sep emp R)).
+ forall i e (R : list assert), fold_right bi_sep emp (map (fun r : assert => assert_of (subst i e r)) R) = assert_of (subst i e (fold_right bi_sep emp R)).
 Proof.
- intros. induction R; simpl; first by monPred.unseal.
- autorewrite with subst. f_equiv; auto.
+ intros. induction R; simpl.
+ - apply assert_ext; intros; monPred.unseal; auto.
+ - autorewrite with subst. f_equiv; auto.
 Qed.
 
 Lemma unsigned_eq_eq: forall i j, Int.unsigned i = Int.unsigned j -> i = j.
@@ -1027,12 +1029,6 @@ Proof.
   rewrite <- (Int.repr_unsigned i), <- (Int.repr_unsigned j).
   rewrite H.
   reflexivity.
-Qed.
-
-Lemma prop_false_andp:
- forall {BI : bi} P (Q : BI), ~P -> ⌜P⌝ ∧ Q ⊣⊢ False.
-Proof.
-  intros; rewrite bi.pure_False // bi.False_and //.
 Qed.
 
 Lemma wand_join:
@@ -1067,26 +1063,34 @@ Proof.
   - rewrite IHn //; lia.
 Qed.
 
+(* up *)
+Lemma embed_exist : forall {A} (P : A -> mpred), (⎡∃ x : A, P x⎤ : assert) = ∃ x, ⎡P x⎤.
+Proof.
+  intros; apply assert_ext; intros; monPred.unseal; auto.
+Qed.
+
 Lemma extract_nth_exists_in_SEP:
   forall n P Q (R: list mpred)
               {A} (S: A -> mpred),
    nth n R emp = (∃ x, S x) ->
-   PROPx P (LOCALx Q (SEPx R)) ⊣⊢
+   PROPx P (LOCALx Q (SEPx R)) =
    ∃ x, PROPx P (LOCALx Q (SEPx (replace_nth n R (S x)))).
 Proof.
   intros.
   destruct (lt_dec n (length R)).
   - eapply nth_error_nth in l; setoid_rewrite H in l.
-    rewrite SEP_nth_isolate // PROP_LOCAL_SEP_cons embed_exist bi.sep_exist_r.
-    f_equiv; intros ?.
-    rewrite -PROP_LOCAL_SEP_cons -SEP_replace_nth_isolate //.
+    erewrite SEP_nth_isolate, PROP_LOCAL_SEP_cons, embed_exist by done. rewrite sep_exist_r'.
+    f_equiv; extensionality.
+    setoid_rewrite <- PROP_LOCAL_SEP_cons.
+    erewrite <- SEP_replace_nth_isolate; done.
   - rewrite nth_overflow in H; last lia.
-    iSplit.
-    + iIntros "H"; iAssert ⌜∃ x : A, True⌝ as %(x & ?).
-      { rewrite -(bi.emp_sep (PROPx _ _)) -embed_emp H embed_exist.
-        iDestruct "H" as "((% & ?) & ?)"; auto. }
-      iExists x; rewrite replace_nth_overflow //.
-    + iIntros "(% & ?)"; rewrite replace_nth_overflow //.
+    apply assert_ext; intros; rewrite /PROPx /LOCALx /SEPx; monPred.unseal.
+    rewrite -!and_exist_l; f_equal; f_equal.
+    assert (exists x : A, True%type) as [a _].
+    { apply (ouPred.soundness(M := iResUR Σ) _ 0).
+      rewrite /bi_emp_valid H; iIntros "(% & ?)"; eauto. }
+    rewrite -(exp_trivial a (fold_right_sepcon R)); f_equal; extensionality.
+    rewrite replace_nth_overflow //.
 Qed.
 
 Lemma derives_extract_PROP' :
@@ -2054,10 +2058,14 @@ Ltac Intro'' a :=
   tryif apply extract_exists_pre then intro a
   else tryif apply bi.exist_elim then intro a
   else tryif extract_exists_from_SEP then intro a
-  else tryif rewrite bi.and_exist_l then Intro'' a
-  else tryif rewrite bi.and_exist_r then Intro'' a
-  else tryif rewrite bi.sep_exist_l then Intro'' a
-  else tryif rewrite bi.sep_exist_r then Intro'' a
+  else tryif rewrite and_exist_l' then Intro'' a
+  else tryif rewrite and_exist_r' then Intro'' a
+  else tryif rewrite sep_exist_l' then Intro'' a
+  else tryif rewrite sep_exist_r' then Intro'' a
+  else tryif rewrite and_exist_l then Intro'' a
+  else tryif rewrite and_exist_r then Intro'' a
+  else tryif rewrite sep_exist_l then Intro'' a
+  else tryif rewrite sep_exist_r then Intro'' a
   else fail.
 
 Ltac Intro a :=

@@ -135,7 +135,8 @@ Proof.
     - simpl.
       specialize (IHl1 l2).
       eapply derives_trans; [apply sepcon_derives; [apply derives_refl | apply IHl1] | clear IHl1].
-      Intros l.
+      rewrite bi.sep_exist_l; apply bi.exist_elim; intros l.
+      rewrite persistent_and_sep_assoc' by apply _; apply bi.pure_elim_l; intros (-> & ->).
       apply (exp_right ((a, b) :: l)).
       simpl.
       apply andp_right; [apply prop_right; subst; auto |].

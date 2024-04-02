@@ -26,9 +26,9 @@ Qed.
 Lemma local_facts_offset_zero: forall (P : val -> mpred), (forall p, P p ⊢ ⌜isptr p⌝) -> (forall p, P p ⊣⊢ P (offset_val 0 p)).
 Proof.
   intros.
-  pose proof (H p) as Hp.
+  rewrite (add_andp (P p)); last apply H.
+  rewrite (add_andp (P (offset_val 0 p))); last apply H.
   destruct p; simpl in *; apply bi.equiv_entails_2; normalize.
-  all: rewrite ?Hp ?(H Vundef); iIntros "[]".
 Qed.
 
 (******************************************
@@ -55,37 +55,36 @@ Proof.
 Qed.
 
 Lemma mapsto_offset_zero:
-  forall sh t v1 v2, mapsto sh t v1 v2 ⊣⊢ mapsto sh t (offset_val 0 v1) v2.
+  forall sh t v1 v2, mapsto sh t v1 v2 = mapsto sh t (offset_val 0 v1) v2.
 Proof.
   intros.
-  apply (local_facts_offset_zero (fun v => mapsto sh t v v2)).
-  intros; rewrite mapsto_local_facts.
-  by iIntros ((? & ?)).
+  unfold mapsto.
+  destruct (access_mode t), (type_is_volatile t); auto.
+  destruct v1; auto.
+  rewrite isptr_offset_val_zero //.
 Qed.
 
 Lemma mapsto__offset_zero:
-  forall sh t v1, mapsto_ sh t v1 ⊣⊢ mapsto_ sh t (offset_val 0 v1).
+  forall sh t v1, mapsto_ sh t v1 = mapsto_ sh t (offset_val 0 v1).
 Proof.
   unfold mapsto_.
   intros.
   apply mapsto_offset_zero.
 Qed.
 
-Lemma mapsto_isptr: forall sh t v1 v2, mapsto sh t v1 v2 ⊣⊢ ⌜isptr v1⌝ ∧ mapsto sh t v1 v2.
+Lemma mapsto_isptr: forall sh t v1 v2, mapsto sh t v1 v2 = (⌜isptr v1⌝ ∧ mapsto sh t v1 v2).
 Proof.
   intros.
-  change (mapsto sh t v1 v2) with ((fun v1 => mapsto sh t v1 v2) v1).
-  eapply local_facts_isptr.
-  + apply mapsto_local_facts.
-  + tauto.
+  unfold mapsto.
+  destruct (access_mode t); try by rewrite log_normalize.and_False.
+  destruct (type_is_volatile t); try by rewrite log_normalize.and_False.
+  destruct v1; try by rewrite log_normalize.and_False.
+  rewrite (prop_true_andp (isptr _)) //.
 Qed.
 
-Lemma mapsto__isptr: forall sh t v1, mapsto_ sh t v1 ⊣⊢ ⌜isptr v1⌝ ∧ mapsto_ sh t v1.
+Lemma mapsto__isptr: forall sh t v1, mapsto_ sh t v1 = (⌜isptr v1⌝ ∧ mapsto_ sh t v1).
 Proof.
-  intros.
-  eapply local_facts_isptr.
-  + apply mapsto_local_facts.
-  + tauto.
+  intros; apply mapsto_isptr.
 Qed.
 
 (******************************************
@@ -113,29 +112,28 @@ Proof.
 Qed.
 
 Lemma memory_block_offset_zero:
-  forall sh n v, memory_block sh n v ⊣⊢ memory_block sh n (offset_val 0 v).
+  forall sh n v, memory_block sh n v = memory_block sh n (offset_val 0 v).
 Proof.
   intros.
-  apply local_facts_offset_zero.
-  intros; rewrite memory_block_local_facts.
-  by iIntros ((? & ?)).
+  unfold memory_block.
+  destruct v; try done.
+  rewrite isptr_offset_val_zero //.
 Qed.
 
-Lemma memory_block_isptr: forall sh n p, memory_block sh n p ⊣⊢ ⌜isptr p⌝ ∧ memory_block sh n p.
+Lemma memory_block_isptr: forall sh n p, memory_block sh n p = (⌜isptr p⌝ ∧ memory_block sh n p).
 Proof.
   intros.
-  eapply local_facts_isptr.
-  + apply memory_block_local_facts.
-  + intuition.
+  unfold memory_block.
+  destruct p; try by rewrite log_normalize.and_False.
+  rewrite (prop_true_andp (isptr _)) //.
 Qed.
 
-Lemma memory_block_zero: forall sh p, memory_block sh 0 p ⊣⊢ ⌜isptr p⌝ ∧ emp.
+Lemma memory_block_zero: forall sh p, memory_block sh 0 p = (⌜isptr p⌝ ∧ emp).
 Proof.
   intros.
   rewrite memory_block_isptr.
   destruct p;
-  try rewrite memory_block_zero_Vptr;
-  simpl; try done; iSplit; iIntros "([] & _)".
+  try rewrite memory_block_zero_Vptr //; try rewrite !log_normalize.False_and //.
 Qed.
 
 Lemma access_mode_by_value: forall t, type_is_by_value t = true -> exists ch, access_mode t = By_value ch.
@@ -150,13 +148,11 @@ Proof.
   - apply H0.
 Qed.
 
-Lemma mapsto_by_value: forall sh t p v, mapsto sh t p v ⊣⊢ ⌜type_is_by_value t = true⌝ ∧ mapsto sh t p v.
+Lemma mapsto_by_value: forall sh t p v, mapsto sh t p v = (⌜type_is_by_value t = true⌝ ∧ mapsto sh t p v).
 Proof.
   intros.
-  iSplit; last iIntros "(_ & $)".
-  iIntros "H"; iSplit; last done.
   unfold mapsto.
-  destruct t; simpl; normalize.
+  destruct t; simpl; try rewrite log_normalize.and_False //; try normalize.
 Qed.
 
 (******************************************
@@ -217,14 +213,13 @@ Qed.
 
 Lemma memory_block_size_compatible:
   forall sh t p,
-  memory_block sh (sizeof t) p ⊣⊢ 
-  ⌜size_compatible t p⌝ ∧ memory_block sh (sizeof t) p.
+  memory_block sh (sizeof t) p =
+  (⌜size_compatible t p⌝ ∧ memory_block sh (sizeof t) p).
 Proof.
   intros.
   unfold memory_block, size_compatible.
-  apply bi.equiv_entails_2; destruct p; try iIntros "[]"; try iIntros "(_ & [])".
-  - iIntros "($ & $)".
-  - iIntros "($ & _ & $)".
+  destruct p; simpl; try by rewrite log_normalize.True_and.
+  normalize; f_equal; f_equal; apply prop_ext; tauto.
 Qed.
 
 Global Opaque memory_block.
@@ -232,7 +227,7 @@ Global Opaque memory_block.
 End COMPSPECS.
 
 Lemma mapsto_force_ptr: forall sh t v v',
-  mapsto sh t (force_ptr v) v' ⊣⊢ mapsto sh t v v'.
+  mapsto sh t (force_ptr v) v' = mapsto sh t v v'.
 Proof.
 intros.
 destruct v; simpl; auto.
@@ -252,22 +247,21 @@ Definition at_offset (P: val -> mpred) (z: Z): val -> mpred :=
 Arguments at_offset P z v : simpl never.
 
 Lemma at_offset_eq: forall P z v,
-  at_offset P z v ⊣⊢ P (offset_val z v).
+  at_offset P z v = P (offset_val z v).
 Proof.
 intros; auto.
 Qed.
 
 Lemma lifted_at_offset_eq: forall (P: val -> mpred) z v,
-  assert_of (`(at_offset P z) v) ⊣⊢ assert_of (`P (`(offset_val z) v)).
+  assert_of (`(at_offset P z) v) = assert_of (`P (`(offset_val z) v)).
 Proof.
   intros.
-  unfold liftx, lift in *. simpl in *.
-  split => rho.
+  apply assert_ext; intros; unfold_lift.
   apply at_offset_eq.
 Qed.
 
 Lemma at_offset_eq2: forall pos pos' P,
-  forall p, at_offset P (pos + pos') p ⊣⊢ at_offset P pos' (offset_val pos p).
+  forall p, at_offset P (pos + pos') p = at_offset P pos' (offset_val pos p).
 Proof.
   intros.
   rewrite at_offset_eq.
@@ -279,7 +273,7 @@ Proof.
 Qed.
 
 Lemma at_offset_eq3: forall P z b ofs,
-  at_offset P z (Vptr b (Ptrofs.repr ofs)) ⊣⊢ P (Vptr b (Ptrofs.repr (ofs + z))).
+  at_offset P z (Vptr b (Ptrofs.repr ofs)) = P (Vptr b (Ptrofs.repr (ofs + z))).
 Proof.
   intros.
   rewrite at_offset_eq.
@@ -317,19 +311,18 @@ Definition withspacer sh (be: Z) (ed: Z) P (p: val): mpred :=
    else P p ∗ spacer sh be ed p.
 
 Lemma withspacer_spacer: forall sh be ed P p,
-   withspacer sh be ed P p ⊣⊢ spacer sh be ed p ∗ P p.
+   withspacer sh be ed P p = (spacer sh be ed p ∗ P p).
 Proof.
   intros.
   unfold withspacer, spacer.
   if_tac.
-  + rewrite bi.emp_sep //.
-  + rewrite bi.sep_comm //.
+  + rewrite emp_sep //.
+  + rewrite sep_comm //.
 Qed.
 
 Global Instance withspacer_proper: Proper (eq ==> eq ==> eq ==> pointwise_relation _ equiv ==> eq ==> equiv) withspacer.
 Proof.
   intros ?? -> ?? -> ?? -> ?? H ?? ->.
-  match goal with |- ?A ≡ ?B => change (A ⊣⊢ B) end.
   rewrite !withspacer_spacer H //.
 Qed.
 
@@ -345,7 +338,7 @@ Proof.
 Qed.
 
 Lemma spacer_offset_zero:
-  forall sh be ed v, spacer sh be ed v ⊣⊢ spacer sh be ed (offset_val 0 v).
+  forall sh be ed v, spacer sh be ed v = spacer sh be ed (offset_val 0 v).
 Proof.
   intros;
   unfold spacer.
@@ -356,7 +349,7 @@ Qed.
 
 Lemma withspacer_add:
   forall sh pos be ed P p,
-  withspacer sh (pos + be) (pos + ed) (fun p0 => P (offset_val pos p)) p ⊣⊢
+  withspacer sh (pos + be) (pos + ed) (fun p0 => P (offset_val pos p)) p =
   withspacer sh be ed P (offset_val pos p).
 Proof.
   intros.
@@ -400,7 +393,7 @@ Transparent memory_block.
 
 Lemma spacer_memory_block:
   forall sh be ed v, isptr v ->
- spacer sh be ed v ⊣⊢ memory_block sh (ed - be) (offset_val be v).
+ spacer sh be ed v = memory_block sh (ed - be) (offset_val be v).
 Proof.
   intros.
   destruct v; inv H.

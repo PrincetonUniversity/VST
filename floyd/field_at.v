@@ -246,14 +246,12 @@ Qed.
 
 Lemma field_at_compatible':
  forall sh t path v c,
-     field_at sh t path v c ⊣⊢
-     ⌜field_compatible t path c⌝ ∧ field_at sh t path v c.
+     field_at sh t path v c =
+     (⌜field_compatible t path c⌝ ∧ field_at sh t path v c).
 Proof.
 intros.
-iSplit; last by iIntros "(_ & $)".
-rewrite bi.and_comm; iApply add_and.
-rewrite field_at_local_facts.
-normalize.
+unfold field_at; normalize.
+f_equal; f_equal; apply prop_ext; tauto.
 Qed.
 
 Lemma field_at__local_facts: forall sh t gfs p,
@@ -301,42 +299,41 @@ Proof.
 Qed.
 
 Lemma field_at_isptr: forall sh t gfs v p,
-  field_at sh t gfs v p ⊣⊢ ⌜isptr p⌝ ∧ field_at sh t gfs v p.
-Proof. intros. eapply local_facts_isptr; [apply field_at_local_facts | intros [? ?]; auto]. Qed.
+  field_at sh t gfs v p = (⌜isptr p⌝ ∧ field_at sh t gfs v p).
+Proof.
+  intros. unfold field_at.
+  normalize.
+  do 2 f_equal; apply prop_ext; split; last tauto.
+  intros (? & ?); split3; auto.
+Qed.
 
 Lemma field_at_offset_zero: forall sh t gfs v p,
-  field_at sh t gfs v p ⊣⊢ field_at sh t gfs v (offset_val 0 p).
-Proof. intros. apply local_facts_offset_zero.
- intros. rewrite field_at_isptr; normalize.
+  field_at sh t gfs v p = field_at sh t gfs v (offset_val 0 p).
+Proof.
+  intros. unfold field_at.
+  destruct p; try done; simpl.
+  rewrite Ptrofs.add_zero; auto.
 Qed.
 
 Lemma field_at__isptr: forall sh t gfs p,
-  field_at_ sh t gfs p ⊣⊢ ⌜isptr p⌝ ∧ field_at_ sh t gfs p.
-Proof. intros.
- intros. eapply local_facts_isptr; [apply field_at__local_facts | intros [? ?]; auto].
-Qed.
+  field_at_ sh t gfs p = (⌜isptr p⌝ ∧ field_at_ sh t gfs p).
+Proof. intros; apply field_at_isptr. Qed.
 
 Lemma field_at__offset_zero: forall sh t gfs p,
-  field_at_ sh t gfs p ⊣⊢ field_at_ sh t gfs (offset_val 0 p).
-Proof. intros. apply local_facts_offset_zero.
- intros. rewrite field_at__isptr; normalize.
-Qed.
+  field_at_ sh t gfs p = field_at_ sh t gfs (offset_val 0 p).
+Proof. intros; apply field_at_offset_zero. Qed.
 
-Lemma data_at_isptr: forall sh t v p, data_at sh t v p ⊣⊢ ⌜isptr p⌝ ∧ data_at sh t v p.
-Proof. intros. eapply local_facts_isptr; [apply data_at_local_facts | intros [? ?]; auto].
-Qed.
+Lemma data_at_isptr: forall sh t v p, data_at sh t v p = (⌜isptr p⌝ ∧ data_at sh t v p).
+Proof. intros; apply field_at_isptr. Qed.
 
-Lemma data_at_offset_zero: forall sh t v p, data_at sh t v p ⊣⊢ data_at sh t v (offset_val 0 p).
-Proof. intros. rewrite <- local_facts_offset_zero. reflexivity.
-    intros; rewrite data_at_isptr; normalize.
-Qed.
+Lemma data_at_offset_zero: forall sh t v p, data_at sh t v p = data_at sh t v (offset_val 0 p).
+Proof. intros; apply field_at_offset_zero. Qed.
 
-Lemma data_at__isptr: forall sh t p, data_at_ sh t p ⊣⊢ ⌜isptr p⌝ ∧ data_at_ sh t p.
-Proof. intros. eapply local_facts_isptr; [apply data_at__local_facts | intros [? ?]; auto].
-Qed.
+Lemma data_at__isptr: forall sh t p, data_at_ sh t p = (⌜isptr p⌝ ∧ data_at_ sh t p).
+Proof. intros; apply data_at_isptr. Qed.
 
-Lemma data_at__offset_zero: forall sh t p, data_at_ sh t p ⊣⊢ data_at_ sh t (offset_val 0 p).
-Proof. intros. apply field_at__offset_zero. Qed.
+Lemma data_at__offset_zero: forall sh t p, data_at_ sh t p = data_at_ sh t (offset_val 0 p).
+Proof. intros; apply field_at__offset_zero. Qed.
 
 (************************************************
 
@@ -744,7 +741,7 @@ Reroot lemmas
 ************************************************)
 
 Lemma field_at_data_at: forall sh t gfs v (p: val),
-  field_at sh t gfs v p ⊣⊢
+  field_at sh t gfs v p =
   data_at sh (nested_field_type t gfs) v (field_address t gfs p).
 Proof.
   intros.
@@ -752,17 +749,20 @@ Proof.
   rewrite (nested_field_offset_ind (nested_field_type t gfs) nil) by (simpl; tauto).
   unfold field_address.
   if_tac.
-  + unfold at_offset; normalize.
-    rewrite prop_true_andp; [auto |].
-    destruct p; try (destruct H; contradiction).
-    generalize (field_compatible_nested_field t gfs (Vptr b i));
-    unfold at_offset; solve_mod_modulus; intros. auto.
-  + apply bi.equiv_entails_2; normalize. destruct H0; contradiction.
+  + f_equal.
+    * f_equal.
+      apply prop_ext; split; auto.
+      apply field_compatible_nested_field.
+    * unfold at_offset.
+      rewrite isptr_offset_val_zero by (destruct H; auto).
+      done.
+  + rewrite !prop_false_andp; auto.
+    intros (? & ?); contradiction.
 Qed.
 
-Lemma field_at_data_at' : forall sh t gfs v p, field_at sh t gfs v p ⊣⊢
-  ⌜field_compatible t gfs p⌝ ∧
-  data_at sh (nested_field_type t gfs) v (offset_val (nested_field_offset t gfs) p).
+Lemma field_at_data_at' : forall sh t gfs v p, field_at sh t gfs v p =
+  (⌜field_compatible t gfs p⌝ ∧
+   data_at sh (nested_field_type t gfs) v (offset_val (nested_field_offset t gfs) p)).
 Proof.
   intros.
   rewrite field_at_data_at.
@@ -774,28 +774,27 @@ Proof.
 Qed.
 
 Lemma field_at__data_at_: forall sh t gfs p,
-  field_at_ sh t gfs p ⊣⊢
+  field_at_ sh t gfs p =
   data_at_ sh (nested_field_type t gfs) (field_address t gfs p).
 Proof.
-  intros.
-  unfold data_at_, field_at_. apply field_at_data_at.
+  intros. apply field_at_data_at.
 Qed.
 
 Lemma lifted_field_at_data_at: forall sh t gfs v p,
-  assert_of (`(field_at sh t gfs) v p) ⊣⊢
+  assert_of (`(field_at sh t gfs) v p) =
   assert_of (`(data_at sh (nested_field_type t gfs)) v (`(field_address t gfs) p)).
 Proof.
   intros.
-  split => rho; unfold_lift; simpl.
+  apply assert_ext; intros; unfold_lift.
   apply field_at_data_at.
 Qed.
 
 Lemma lifted_field_at__data_at_: forall sh t gfs p,
-  assert_of (`(field_at_ sh t gfs) p) ⊣⊢
+  assert_of (`(field_at_ sh t gfs) p) =
   assert_of (`(data_at_ sh (nested_field_type t gfs)) (`(field_address t gfs) p)).
 Proof.
   intros.
-  split => rho; unfold_lift; simpl.
+  apply assert_ext; intros; unfold_lift.
   apply field_at__data_at_.
 Qed.
 
@@ -809,11 +808,11 @@ Qed.
 
 Lemma array_at_data_at: forall sh t gfs lo hi v p,
   lo <= hi ->
-  array_at sh t gfs lo hi v p ⊣⊢
-  ⌜field_compatible0 t (ArraySubsc lo :: gfs) p⌝ ∧
+  array_at sh t gfs lo hi v p =
+  (⌜field_compatible0 t (ArraySubsc lo :: gfs) p⌝ ∧
   ⌜field_compatible0 t (ArraySubsc hi :: gfs) p⌝ ∧
   at_offset (data_at sh (nested_field_array_type t gfs lo hi) v)
-               (nested_field_offset t (ArraySubsc lo :: gfs)) p.
+               (nested_field_offset t (ArraySubsc lo :: gfs)) p).
 Proof.
   intros.
   unfold array_at.
@@ -825,11 +824,13 @@ Proof.
   rewrite data_at_rec_eq.
   rewrite <- at_offset_eq.
   normalize.
-  apply andp_prop_ext.
-  + pose proof field_compatible0_nested_field_array t gfs lo hi p.
+  destruct (field_compatible0_dec t (gfs SUB lo) p); last by rewrite !prop_false_andp by tauto.
+  destruct (field_compatible0_dec t (gfs SUB hi) p); last by rewrite !prop_false_andp by tauto.
+  f_equal.
+  + f_equal; apply prop_ext.
+    pose proof field_compatible0_nested_field_array t gfs lo hi p.
     tauto.
-  + intros [? ?].
-    rewrite at_offset_eq, <- at_offset_eq2.
+  + rewrite at_offset_eq, <- at_offset_eq2.
     rewrite at_offset_array_pred.
     rewrite Z.max_r by lia.
     eapply array_pred_shift; [reflexivity | lia |].
@@ -844,7 +845,7 @@ Proof.
     rewrite @nested_field_offset_ind with (gfs := ArraySubsc i' :: _) by auto.
     rewrite @nested_field_offset_ind with (gfs := ArraySubsc lo :: _) by auto.
     rewrite @nested_field_type_ind with (gfs := ArraySubsc 0 :: _).
-    rewrite field_compatible0_cons in H4.
+    rewrite field_compatible0_cons in H2.
     destruct (nested_field_type t gfs); try tauto.
     unfold gfield_offset, gfield_type.
     assert (sizeof t0 * i' = sizeof t0 * lo + sizeof t0 * i)%Z by (rewrite Zred_factor4; f_equal; lia).
@@ -856,7 +857,7 @@ forall sh t gfs lo hi v p,
   lo <= hi ->
   field_compatible0 t (ArraySubsc lo :: gfs) p ->
   field_compatible0 t (ArraySubsc hi :: gfs) p ->
-  array_at sh t gfs lo hi v p ⊣⊢
+  array_at sh t gfs lo hi v p =
   data_at sh (nested_field_array_type t gfs lo hi) v
                (field_address0 t (ArraySubsc lo::gfs) p).
 Proof.
@@ -873,7 +874,7 @@ Lemma array_at_data_at'':
 forall sh t gfs lo hi v p,
   lo <= hi ->
   field_compatible0 t (ArraySubsc hi :: gfs) p ->
-  array_at sh t gfs lo hi v p ⊣⊢
+  array_at sh t gfs lo hi v p =
   data_at sh (nested_field_array_type t gfs lo hi) v
                (field_address0 t (ArraySubsc lo::gfs) p).
 Proof.
@@ -884,17 +885,15 @@ Proof.
   if_tac.
   + rewrite !prop_true_andp by auto.
     auto.
-  + apply bi.equiv_entails_2.
-    - normalize.
-    - rewrite data_at_isptr.
-      normalize.
+  + rewrite (data_at_isptr _ _ _ Vundef).
+    rewrite !prop_false_andp by auto; done.
 Qed.
 
 Lemma array_at_data_at''':
   forall sh t gfs lo hi v p t0 n a,
   nested_field_type t gfs = Tarray t0 n a ->
   lo <= hi <= n ->
-  array_at sh t gfs lo hi v p ⊣⊢
+  array_at sh t gfs lo hi v p =
   data_at sh (nested_field_array_type t gfs lo hi) v
                (field_address0 t (ArraySubsc lo::gfs) p).
 Proof.
@@ -912,10 +911,8 @@ Proof.
       lia.
     - rewrite !prop_true_andp by auto.
       auto.
-  + apply bi.equiv_entails_2.
-    - normalize.
-    - rewrite data_at_isptr.
-      normalize.
+  + rewrite (data_at_isptr _ _ _ Vundef).
+    rewrite !prop_false_andp by auto; done.
 Qed.
 
 Lemma split3seg_array_at': forall sh t gfs lo ml mr hi v p,
@@ -1051,7 +1048,7 @@ Qed.
 
 Lemma data_at__memory_block: forall sh t p,
   data_at_ sh t p ⊣⊢
-  ⌜field_compatible t nil p⌝ ∧ memory_block sh (sizeof t) p.
+  (⌜field_compatible t nil p⌝ ∧ memory_block sh (sizeof t) p).
 Proof.
   intros.
   unfold data_at_, data_at.
@@ -2094,19 +2091,17 @@ destruct v; reflexivity.
 Qed.
 
 Lemma struct_pred_timeless: forall m {A} (P : forall it : member, A it -> val -> mpred) v p
-  (HP : forall it a p, (P it a p ⊣⊢ emp) \/ Timeless (P it a p)),
-  (struct_pred m P v p ⊣⊢ emp) \/ Timeless (struct_pred m P v p).
+  (HP : forall it a p, (P it a p = emp) \/ Timeless (P it a p)),
+  (struct_pred m P v p = emp) \/ Timeless (struct_pred m P v p).
 Proof.
   intros.
   induction m as [| a1 m]; intros; auto.
   destruct m; eauto.
   rewrite struct_pred_cons2.
   destruct (HP a1 v.1 p) as [Hemp | Htimeless], (IHm v.2) as [Hemp' | Htimeless'].
-  - left; rewrite Hemp, Hemp'; apply bi.sep_emp.
-  - right; rewrite Hemp.
-    eapply bi.Timeless_proper; first apply bi.emp_sep; done.
-  - right; rewrite Hemp'.
-    eapply bi.Timeless_proper; first apply bi.sep_emp; done.
+  - left; rewrite Hemp, Hemp'; apply sep_emp.
+  - right; rewrite Hemp, emp_sep; done.
+  - right; rewrite Hemp', sep_emp; done.
   - right; apply _.
 Qed.
 
@@ -2366,13 +2361,13 @@ hnf. intro. apply Coq.Init.Logic.I.
 Qed.
 
 (* TODO: move all change type lemmas into one file. Also those change compspecs lemmas. *)
-Lemma data_at_tuint_tint {cs: compspecs}: forall sh v p, data_at sh tuint v p ⊣⊢ data_at sh tint v p.
+Lemma data_at_tuint_tint {cs: compspecs}: forall sh v p, data_at sh tuint v p = data_at sh tint v p.
 Proof.
   intros.
   unfold data_at, field_at.
-  apply bi.and_proper; last done.
+  f_equal.
+  f_equal; apply prop_ext.
   unfold field_compatible.
-  apply bi.pure_iff.
   assert (align_compatible tuint p <-> align_compatible tint p); [| tauto].
   destruct p; simpl; try tauto.
   split; intros.
@@ -2389,7 +2384,7 @@ Lemma mapsto_field_at {cs: compspecs} sh t gfs v v' p:
   type_is_volatile (nested_field_type t gfs) = false ->
   field_compatible t gfs p ->
   JMeq v v' ->
-  mapsto sh (nested_field_type t gfs) (field_address t gfs p) v ⊣⊢ field_at sh t gfs v' p.
+  mapsto sh (nested_field_type t gfs) (field_address t gfs p) v = field_at sh t gfs v' p.
 Proof.
   intros.
   unfold field_at, at_offset.
@@ -2430,7 +2425,7 @@ Lemma mapsto_data_at {cs: compspecs} sh t v v' p :  (* not needed here *)
   align_compatible t p ->
   complete_legal_cosu_type t = true ->
   JMeq v v' ->
-  mapsto sh t p v ⊣⊢ data_at sh t v' p.
+  mapsto sh t p v = data_at sh t v' p.
 Proof.
   intros.
   unfold data_at, field_at, at_offset, offset_val.
@@ -2449,7 +2444,7 @@ Lemma mapsto_data_at' {cs: compspecs} sh t v v' p:
   type_is_volatile t = false ->
   field_compatible t nil p ->
   JMeq v v' ->
-  mapsto sh t p v ⊣⊢ data_at sh t v' p.
+  mapsto sh t p v = data_at sh t v' p.
 Proof.
   intros.
   unfold data_at, field_at, at_offset, offset_val.
@@ -2479,7 +2474,7 @@ Lemma mapsto_data_at'' {cs: compspecs}: forall sh t v v' p,
   ((type_is_by_value t) && (complete_legal_cosu_type t) && (negb (type_is_volatile t)) && is_aligned cenv_cs ha_env_cs la_env_cs t 0 = true)%bool ->
   headptr p ->
   JMeq v v' ->
-  mapsto sh t p v ⊣⊢ data_at sh t v' p.
+  mapsto sh t p v = data_at sh t v' p.
 Proof.
   intros.
   rewrite !andb_true_iff in H.
@@ -2550,11 +2545,12 @@ Lemma array_at_data_at1 {cs : compspecs} : forall sh t gfs lo hi v p,
    lo <= hi ->
    field_compatible0 t (gfs SUB lo) p ->
    field_compatible0 t (gfs SUB hi) p ->
-  array_at sh t gfs lo hi v p ⊣⊢
+  array_at sh t gfs lo hi v p =
   at_offset (data_at sh (nested_field_array_type t gfs lo hi) v)
                (nested_field_offset t (ArraySubsc lo :: gfs)) p.
 Proof.
-  intros. rewrite array_at_data_at by auto. unfold at_offset. apply bi.equiv_entails_2; normalize.
+  intros. rewrite array_at_data_at by auto. unfold at_offset.
+  normalize.
 Qed.
 
 Lemma data_at_ext_derives {cs : compspecs} sh t v v' p q: v=v' -> p=q -> data_at sh t v p ⊢ data_at sh t v' q.
@@ -2810,11 +2806,9 @@ intros; subst; unfold field_at_; apply derives_refl.
 Qed.
 
 Lemma field_at_data_at_cancel': forall {cs : compspecs} sh t v p,
-  field_at sh t nil v p ⊣⊢ data_at sh t v p.
+  field_at sh t nil v p = data_at sh t v p.
 Proof.
-  intros. apply bi.equiv_entails_2.
-  apply field_at_data_at_cancel.
-  apply data_at_field_at_cancel.
+  intros. reflexivity.
 Qed.
 
 End new_lemmas.
@@ -2842,7 +2836,7 @@ End new_lemmas.
   @field_at_data_at_cancel'
   @field_at_data_at
   @field_at__data_at_ : cancel.
-
+ 
 (* END new experiments *)
 
 Section more_lemmas.

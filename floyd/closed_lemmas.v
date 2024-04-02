@@ -1617,7 +1617,7 @@ try solve [destruct t  as [ | [ | | | ] [ | ] | | [ | ] | | | | | ]; simpl; auto
  destruct u;
  destruct (typeof e) as   [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
    simpl classify_notint; simpl classify_neg; cbv match;
-   repeat simple apply closed_wrt_tc_andp; auto 50 with closed;
+   repeat simple apply closed_wrt_tc_andp; auto 50 with nocore closed;
   rewrite denote_tc_assert_test_eq';
   simpl; unfold_lift;
   hnf; intros ? ? H8; simpl;
@@ -1628,15 +1628,15 @@ try solve [destruct t  as [ | [ | | | ] [ | ] | | [ | ] | | | | | ]; simpl; auto
  apply closed_eval_expr_e in H; apply closed_eval_expr_e in H0.
  repeat apply closed_wrt_tc_andp; auto with closed.
  unfold isBinOpResultType.
- destruct b; auto 50 with closed;
+ destruct b; auto 50 with nocore closed;
  try solve [destruct (Cop.classify_binarith (typeof e1) (typeof e2));
-                try destruct s;  auto with closed];
+                try destruct s;  auto with nocore closed];
  try solve [destruct (Cop.classify_cmp (typeof e1) (typeof e2));
-                 simpl check_pp_int; auto 50 with closed].
- destruct (Cop.classify_add (typeof e1) (typeof e2)); auto 50 with closed.
- destruct (Cop.classify_sub (typeof e1) (typeof e2)); auto 50 with closed.
- destruct (Cop.classify_shift (typeof e1) (typeof e2)); auto 50 with closed.
- destruct (Cop.classify_shift (typeof e1) (typeof e2)); auto 50 with closed.
+                 simpl check_pp_int; auto 50 with nocore closed].
+ destruct (Cop.classify_add (typeof e1) (typeof e2)); auto 50 with nocore closed.
+ destruct (Cop.classify_sub (typeof e1) (typeof e2)); auto 50 with nocore closed.
+ destruct (Cop.classify_shift (typeof e1) (typeof e2)); auto 50 with nocore closed.
+ destruct (Cop.classify_shift (typeof e1) (typeof e2)); auto 50 with nocore closed.
 
 +
  apply closed_wrt_tc_andp; auto with closed.
@@ -1725,7 +1725,7 @@ induction Q; intros.
   revert HT; by monPred.unseal.
 - inv H.
   simpl foldr.
-  rewrite closed_wrt_proper; [|intros ?; apply local_lift2_and].
+  rewrite local_lift2_and.
   apply closed_wrt_andp; auto with closed.
 Qed.
 
@@ -1743,7 +1743,7 @@ induction Q; intros.
   revert HT; by monPred.unseal.
 - inv H.
   simpl foldr.
-  rewrite closed_wrtl_proper; [|intros ?; apply local_lift2_and].
+  rewrite local_lift2_and.
   apply closed_wrtl_andp; auto with closed.
 Qed.
 

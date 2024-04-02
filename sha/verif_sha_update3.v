@@ -267,7 +267,7 @@ forward_if.
   rewrite field_address_offset by auto.
   rewrite !field_address0_offset by (subst k; auto with field_compatible).
   simpl.
-  normalize. rewrite map_Vubyte_eq'; cancel.
+  rewrite map_Vubyte_eq'; entailer!!.
   * thaw' FR1; simpl; Intros.
   replace (Zlength dd + k)%Z with 64%Z by Omega1.
   subst k.

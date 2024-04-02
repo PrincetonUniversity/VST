@@ -6,7 +6,7 @@ Require Import VST.floyd.reptype_lemmas.
 Require Import VST.floyd.data_at_rec_lemmas.
 Require Import VST.floyd.field_at VST.floyd.nested_field_lemmas.
 
-Lemma ptrofs_of_ints_unfold: 
+Lemma ptrofs_of_ints_unfold:
   forall x, Ptrofs.of_ints x = Ptrofs.repr (Int.signed x).
 Proof. reflexivity. Qed.
 #[export] Hint Rewrite ptrofs_of_ints_unfold : norm.

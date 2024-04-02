@@ -172,7 +172,7 @@ assert (Ptrofs.unsigned Ptrofs.zero + sizeof t <= Ptrofs.modulus)
  by (rewrite Ptrofs.unsigned_zero; lia).
 unfold var_block.
 simpl @fst; simpl @snd.
-raise_rho.
+monPred.unseal.
 rewrite ->prop_true_andp
   by (change (Ptrofs.max_unsigned) with (Ptrofs.modulus-1); lia).
 unfold_lift.
@@ -669,6 +669,15 @@ first [
   fail 100 "Before forward_call, assert and prove" G
  end
   | idtac (*alternative: fail 99 "Fail in tactic check_vl_eq_args"*)] .
+
+Lemma exp_uncurry: forall {T:bi} A B (F : A -> B -> T),
+  (∃ a : A, ∃ b : B, F a b) ⊣⊢ ∃ ab : A * B, F (fst ab) (snd ab).
+Proof.
+  intros.
+  apply bi.equiv_entails; split.
+  - iIntros "(% & % & H)"; iExists (_, _); done.
+  - iIntros "(%ab & H)"; destruct ab; eauto.
+Qed.
 
 Lemma exp_uncurry2:
   forall {T:bi} A B C F,
@@ -1644,7 +1653,7 @@ eapply derives_trans;
  _ P Q R _ _ _ _ v v H H0)].
 rewrite bi.and_assoc.
 apply bi.and_intro; auto.
-unfold_lift. raise_rho.
+unfold_lift. split => rho; monPred.unseal.
 apply bi.pure_intro; auto.
 Qed.
 

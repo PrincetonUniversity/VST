@@ -214,12 +214,11 @@ Qed.
 
 Lemma PROPx_Permutation {A}: forall P Q R,
   Permutation P Q ->
-  @PROPx A Σ P R ≡ PROPx Q R.
+  @PROPx A Σ P R = PROPx Q R.
 Proof.
   intros.
   unfold PROPx.
-  f_equiv.
-  apply bi.pure_iff.
+  f_equal; f_equal; apply prop_ext.
   induction H; simpl; tauto.
 Qed.
 
@@ -227,327 +226,47 @@ Local Notation LOCALx := (@LOCALx Σ).
 
 Lemma LOCALx_Permutation: forall P Q R,
   Permutation P Q ->
-  LOCALx P R ≡ LOCALx Q R.
+  LOCALx P R = LOCALx Q R.
 Proof.
   intros.
   unfold LOCALx.
-  f_equiv.
+  f_equal.
   unfold local, lift1; unfold_lift.
-  split => rho; simpl.
-  apply bi.pure_iff.
+  apply assert_ext; intros; simpl.
+  f_equal; apply prop_ext.
   induction H; simpl; tauto.
 Qed.
 
 Lemma SEPx_Permutation {A}: forall P Q,
   Permutation P Q ->
-  @SEPx A Σ P ≡ SEPx Q.
+  @SEPx A Σ P = SEPx Q.
 Proof.
   intros.
   unfold SEPx.
-  f_equiv.
+  f_equal.
   induction H; simpl.
   + auto.
-  + f_equiv; auto.
-  + rewrite assoc (bi.sep_comm y x) -assoc //.
+  + rewrite IHPermutation //.
+  + rewrite sep_assoc (sep_comm y x) -sep_assoc //.
   + rewrite IHPermutation1 //.
 Qed.
 
-(*Lemma SEPx_args_super_non_expansive: forall A R ,
-  Forall (fun R0 => @args_super_non_expansive A (fun ts a _ => R0 ts a)) R ->
-  @args_super_non_expansive A (fun ts a ae => SEPx (map (fun R0 => R0 ts a) R) ae).
+Lemma insert_prop : forall {A} (P: Prop) PP QR, (⌜P⌝ ∧ (@PROPx A Σ PP QR)) = PROPx (P::PP) QR.
 Proof.
-  intros.
-  hnf; intros.
-  unfold SEPx.
-  induction H.
-  + simpl; auto.
-  + simpl in *.
-    rewrite !approx_sepcon.
-    f_equal;
-    auto.
-Qed.
-
-Lemma SEPx_super_non_expansive: forall A R ,
-  Forall (fun R0 => @super_non_expansive A (fun ts a _ => R0 ts a)) R ->
-  @super_non_expansive A (fun ts a rho => SEPx (map (fun R0 => R0 ts a) R) rho).
-Proof.
-  intros.
-  hnf; intros.
-  unfold SEPx.
-  induction H.
-  + simpl; auto.
-  + simpl in *.
-    rewrite !approx_sepcon.
-    f_equal;
-    auto.
-Qed.
-
-Lemma SEPx_super_non_expansive': forall A R,
-  @super_non_expansive_list A (fun ts a _ => R ts a) ->
-  @super_non_expansive A (fun ts a rho => SEPx (R ts a) rho).
-Proof.
-  intros.
-  hnf; intros.
-  unfold SEPx; unfold super_non_expansive_list in H.
-  specialize (H n ts x rho).
-  induction H.
-  + simpl; auto.
-  + simpl in *.
-    rewrite !approx_sepcon.
-    f_equal;
-    auto.
-Qed.
-
-Lemma LOCALx_super_non_expansive: forall A Q R,
-  super_non_expansive R ->
-  Forall (fun Q0 => @super_non_expansive A (fun ts a rho => prop (locald_denote (Q0 ts a) rho))) Q ->
-  @super_non_expansive A (fun ts a rho => LOCALx (map (fun Q0 => Q0 ts a) Q) (R ts a) rho).
-Proof.
-  intros.
-  hnf; intros.
-  unfold LOCALx.
-  simpl.
-  rewrite !approx_andp.
-  f_equal; auto.
-  induction H0.
-  + auto.
-  + simpl.
-    unfold local, lift1.
-    unfold_lift.
-    rewrite !prop_and.
-    rewrite !approx_andp.
-    f_equal; auto.
-Qed.
-
-Lemma PROPx_args_super_non_expansive: forall A P Q,
-  args_super_non_expansive Q ->
-  Forall (fun P0 => @args_super_non_expansive A (fun ts a ae => prop (P0 ts a))) P ->
-  @args_super_non_expansive A (fun ts a ae => PROPx (map (fun P0 => P0 ts a) P) (Q ts a) ae).
-Proof.
-  intros.
-  hnf; intros.
-  unfold PROPx.
-  simpl.
-  rewrite !approx_andp.
-  f_equal; auto.
-  induction H0.
-  + auto.
-  + simpl.
-    rewrite !prop_and.
-    rewrite !approx_andp.
-    f_equal; auto.
-Qed.
-
-Lemma LOCALx_super_non_expansive': forall A Q R,
-  super_non_expansive R ->
-  @super_non_expansive_list A (fun ts a rho => map (fun Q0 => prop (locald_denote Q0 rho)) (Q ts a)) ->
-  @super_non_expansive A (fun ts a rho => LOCALx (Q ts a) (R ts a) rho).
-Proof.
-  intros.
-  hnf; intros.
-  unfold LOCALx.
-  simpl.
-  rewrite !approx_andp.
-  f_equal; auto.
-  specialize (H0 n ts x rho).
-  simpl in H0.
-  match goal with H : Forall2 _ _ (map _ ?l) |- _ => forget l as Q1 end.
-  generalize dependent Q1; induction (Q ts x); intros; inv H0; destruct Q1; try discriminate.
-  + auto.
-  + inv H3.
-    simpl.
-    unfold local, lift1 in IHl |- *.
-    unfold_lift in IHl; unfold_lift.
-    rewrite !prop_and.
-    rewrite !approx_andp.
-    f_equal; auto.
-Qed.
-
-Lemma PROPx_super_non_expansive: forall A P Q,
-  super_non_expansive Q ->
-  Forall (fun P0 => @super_non_expansive A (fun ts a (rho: environ) => prop (P0 ts a))) P ->
-  @super_non_expansive A (fun ts a rho => PROPx (map (fun P0 => P0 ts a) P) (Q ts a) rho).
-Proof.
-  intros.
-  hnf; intros.
-  unfold PROPx.
-  simpl.
-  rewrite !approx_andp.
-  f_equal; auto.
-  induction H0.
-  + auto.
-  + simpl.
-    rewrite !prop_and.
-    rewrite !approx_andp.
-    f_equal; auto.
-Qed.
-
-Lemma PROPx_super_non_expansive': forall A P Q,
-  super_non_expansive Q ->
-  @super_non_expansive_list A (fun ts a (rho: environ) => map prop (P ts a)) ->
-  @super_non_expansive A (fun ts a rho => PROPx (P ts a) (Q ts a) rho).
-Proof.
-  intros.
-  hnf; intros.
-  unfold PROPx.
-  simpl.
-  rewrite !approx_andp.
-  f_equal; auto.
-  specialize (H0 n ts x rho).
-  simpl in H0.
-  match goal with H : Forall2 _ _ (map _ ?l) |- _ => forget l as P1 end.
-  generalize dependent P1; induction (P ts x); intros; inv H0; destruct P1; try discriminate.
-  + auto.
-  + inv H3.
-    simpl.
-    rewrite !prop_and.
-    rewrite !approx_andp.
-    f_equal; auto.
-Qed.
-
-Lemma PROP_LOCAL_SEP_super_non_expansive: forall A P Q R,
-  Forall (fun P0 => @super_non_expansive A (fun ts a _ => prop (P0 ts a))) P ->
-  Forall (fun Q0 => @super_non_expansive A (fun ts a rho => prop (locald_denote (Q0 ts a) rho))) Q ->
-  Forall (fun R0 => @super_non_expansive A (fun ts a _ => R0 ts a)) R ->
-  @super_non_expansive A (fun ts a rho =>
-     PROPx (map (fun P0 => P0 ts a) P)
-      (LOCALx (map (fun Q0 => Q0 ts a) Q)
-        (SEPx (map (fun R0 => R0 ts a) R))) rho).
-Proof.
-  intros.
-  apply PROPx_super_non_expansive; auto.
-  apply LOCALx_super_non_expansive; auto.
-  apply SEPx_super_non_expansive; auto.
-Qed.
-
-Lemma PROP_LOCAL_SEP_super_non_expansive': forall A P Q R,
-  @super_non_expansive_list A (fun ts a (rho: environ) => map prop (P ts a)) ->
-  @super_non_expansive_list A (fun ts a rho => map (fun Q0 => prop (locald_denote Q0 rho)) (Q ts a)) ->
-  @super_non_expansive_list A (fun ts a _ => R ts a) ->
-  @super_non_expansive A (fun ts a rho =>
-     PROPx (P ts a)
-      (LOCALx (Q ts a)
-        (SEPx (R ts a))) rho).
-Proof.
-  intros.
-  apply PROPx_super_non_expansive'; auto.
-  apply LOCALx_super_non_expansive'; auto.
-  apply SEPx_super_non_expansive'; auto.
-Qed.
-
-Lemma SEPx_nonexpansive {A}: forall R rho,
-  Forall (fun R0 => predicates_rec.nonexpansive R0) R ->
-  nonexpansive (fun S => @SEPx A (map (fun R0 => R0 S) R) rho).
-Proof.
-  intros.
-  unfold SEPx.
-  induction R.
-  + simpl.
-    apply const_nonexpansive.
-  + simpl.
-    apply sepcon_nonexpansive.
-    - inversion H; auto.
-    - apply IHR.
-      inversion H; auto.
-Qed.
-
-Lemma LOCALx_nonexpansive: forall Q R rho,
-  nonexpansive (fun S => R S rho) ->
-  nonexpansive (fun S => LOCALx Q (R S) rho).
-Proof.
-  intros.
-  unfold LOCALx.
-  apply (conj_nonexpansive (fun S => local (fold_right `(and) `(True) (map locald_denote Q)) rho) (fun S => R S rho)); [| auto].
-  apply const_nonexpansive.
-Qed.
-
-Lemma PARAMSx_nonexpansive: forall Q R rho,
-  nonexpansive (fun S => R S rho) ->
-  nonexpansive (fun S => PARAMSx Q (R S) rho).
-Proof.
-  intros.
-  unfold PARAMSx.
-  specialize (conj_nonexpansive (fun S => (!! (snd rho = Q)) rho) (fun S => R S rho)).
-  intros CN; apply CN; clear CN; trivial.
-   red; intros. red; intros. simpl in *; intros. destruct (H0 y H1); clear H0.
-   split; trivial.
-Qed.
-
-Lemma PROPx_nonexpansive {A}: forall P Q rho,
-  Forall (fun P0 => nonexpansive (fun S => prop (P0 S))) P ->
-  nonexpansive (fun S => Q S rho) ->
-  nonexpansive (fun S => @PROPx A (map (fun P0 => P0 S) P) (Q S) rho).
-Proof.
-  intros.
-  unfold PROPx.
-  apply (conj_nonexpansive (fun S => @prop mpred Nveric (fold_right and True
-         (map
-            (fun P0 : mpred -> Prop
-             => P0 S) P))) (fun S => Q S rho)); [| auto].
-  clear - H.
-  induction P.
-  + simpl.
-    apply const_nonexpansive.
-  + simpl.
-    replace
-      (fun P0 => (prop (a P0 /\ fold_right and True (map (fun P1 => P1 P0) P)))%I)
-    with
-      (fun P0 => (prop (a P0) ∧ prop (fold_right and True (map (fun P1 => P1 P0) P)))%I).
-    2: {
-      extensionality S.
-      rewrite prop_and; auto.
-    }
-    apply (conj_nonexpansive (fun S => @prop mpred Nveric (a S)) _).
-    - inversion H; auto.
-    - apply IHP.
-      inversion H; auto.
-Qed.
-
-Lemma PROP_LOCAL_SEP_nonexpansive: forall P Q R rho,
-  Forall (fun P0 => nonexpansive (fun S => prop (P0 S))) P ->
-  Forall (fun R0 => nonexpansive R0) R ->
-  nonexpansive (fun S => PROPx (map (fun P0 => P0 S) P) (LOCALx Q (SEPx (map (fun R0 => R0 S) R))) rho).
-Proof.
-  intros.
-  apply PROPx_nonexpansive; auto.
-  apply LOCALx_nonexpansive.
-  apply SEPx_nonexpansive; auto.
-Qed.
-
-Lemma PROP_PARAMS_GLOBALS_SEP_nonexpansive: forall P U Q R rho,
-  Forall (fun P0 => nonexpansive (fun S => prop (P0 S))) P ->
-  Forall (fun R0 => nonexpansive R0) R ->
-  nonexpansive (fun S => PROPx (map (fun P0 => P0 S) P) (PARAMSx U (GLOBALSx Q (SEPx (map (fun R0 => R0 S) R)))) rho).
-Proof.
-  intros.
-  apply PROPx_nonexpansive; auto.
-  apply PARAMSx_nonexpansive.
-  apply LOCALx_nonexpansive.
-  apply SEPx_nonexpansive; auto.
-Qed.*)
-
-(*Notation "'∃' x .. y , P " :=
-  (@exp (assert) _ _ (fun x =>
-    ..
-    (@exp (assert) _ _ (fun y => P%assert))
-    ..
-    )) (at level 65, x binder, y binder, right associativity) : assert.*)
-
-Lemma insert_prop : forall {A} (P: Prop) PP QR, ⌜P⌝ ∧ (@PROPx A Σ PP QR) ⊣⊢ PROPx (P::PP) QR.
-Proof.
-  intros. unfold PROPx. simpl.
-  rewrite assoc -bi.pure_and //.
+  intros. apply assert_ext; intros.
+  unfold PROPx; monPred.unseal.
+  rewrite log_normalize.and_assoc pure_and //.
 Qed.
 
 Lemma insert_local': forall (Q1: localdef) P Q R,
-  local (locald_denote Q1) ∧ (PROPx P (LOCALx Q R)) ⊣⊢ (PROPx P (LOCALx (Q1 :: Q) R)).
+  (local (locald_denote Q1) ∧ (PROPx P (LOCALx Q R))) = (PROPx P (LOCALx (Q1 :: Q) R)).
 Proof.
   intros.
-  rewrite /PROPx /LOCALx /= local_lift2_and !assoc (bi.and_comm (⌜_⌝)) //.
+  rewrite /PROPx /LOCALx /= local_lift2_and !and_assoc' (and_comm' (⌜_⌝)) //.
 Qed.
 
 Lemma insert_local: forall Q1 P Q R,
-  local (locald_denote Q1) ∧ (PROPx P (LOCALx Q (SEPx R))) ⊣⊢ (PROPx P (LOCALx (Q1 :: Q) (SEPx R))).
+  (local (locald_denote Q1) ∧ (PROPx P (LOCALx Q (SEPx R)))) = (PROPx P (LOCALx (Q1 :: Q) (SEPx R))).
 Proof. intros. apply insert_local'. Qed.
 
 Lemma go_lower_lem20:
@@ -558,13 +277,13 @@ Proof. unfold PROPx; intros; normalize. Qed.
 
 Lemma grab_nth_SEP:
    forall n P Q R,
-    PROPx P (LOCALx Q (SEPx R)) ⊣⊢ (PROPx P (LOCALx Q (SEPx (nth n R emp :: delete_nth n R)))).
+    PROPx P (LOCALx Q (SEPx R)) = (PROPx P (LOCALx Q (SEPx (nth n R emp :: delete_nth n R)))).
 Proof.
   intros.
   rewrite /PROPx /LOCALx /SEPx; do 3 f_equiv.
-  revert R; induction n; intros; destruct R; simpl; rewrite ?bi.sep_emp //.
+  revert R; induction n; intros; destruct R; simpl; rewrite ?sep_emp //.
   rewrite IHn /=.
-  rewrite !assoc (bi.sep_comm o) //.
+  rewrite !sep_assoc (sep_comm o) //.
 Qed.
 
 Fixpoint insert {A} (n: nat) (x: A) (ys: list A) {struct n} : list A :=
@@ -636,27 +355,27 @@ Qed.
 
 Lemma fold_right_local_app:
   forall (Q1 Q2: list (environ -> Prop)),
-   @local Σ (fold_right `(and) `(True%type) (Q1 ++ Q2)) ≡
+   @local Σ (fold_right `(and) `(True%type) (Q1 ++ Q2)) =
    (local (fold_right `(and) `(True%type) Q1) ∧ local (fold_right `(and) `(True%type) Q2)).
 Proof.
-  intros; split => rho; rewrite /local; monPred.unseal.
-  rewrite /lift1 fold_right_and_app bi.pure_and //.
+  intros; apply assert_ext; intros; rewrite /local; monPred.unseal.
+  rewrite /lift1 fold_right_and_app pure_and //.
 Qed.
 
-Lemma fold_right_sepcon_app {B : bi} :
- forall P Q, @fold_right_sepcon B (P++Q) ⊣⊢
-        fold_right_sepcon P ∗ fold_right_sepcon Q.
+Lemma fold_right_sepcon_app :
+ forall (P Q : list mpred), fold_right_sepcon (P++Q) =
+        (fold_right_sepcon P ∗ fold_right_sepcon Q).
 Proof.
   intros; induction P; simpl.
-  - rewrite bi.emp_sep //.
-  - rewrite -assoc IHP //.
+  - rewrite emp_sep //.
+  - rewrite -sep_assoc IHP //.
 Qed.
 
 Lemma grab_indexes_SEP {A}:
-  forall (ns: list Z) xs, @SEPx A Σ xs ⊣⊢ SEPx (grab_indexes ns xs).
+  forall (ns: list Z) xs, @SEPx A Σ xs = SEPx (grab_indexes ns xs).
 Proof.
   intros.
-  rewrite /SEPx; f_equiv.
+  rewrite /SEPx; f_equal.
   unfold grab_indexes. change @Floyd_app with @app.
   forget (grab_calc 0 ns nil) as ks.
   revert xs; induction ks; intro; auto.
@@ -671,11 +390,11 @@ Proof.
     rewrite IHks.
     rewrite fold_right_sepcon_app.
     forget (fold_right_sepcon l0) as P.
-    rewrite assoc. f_equiv.
+    rewrite sep_assoc. f_equal.
     clear.
     revert l; induction n; intro l. reflexivity.
     simpl. destruct l; auto.
-    simpl. rewrite assoc (bi.sep_comm o) -assoc IHn //.
+    simpl. rewrite sep_assoc (sep_comm o) -sep_assoc IHn //.
   - destruct xs. reflexivity.
     unfold grab_indexes';  fold @grab_indexes'.
     simpl.
@@ -686,7 +405,7 @@ Proof.
     simpl in IHks; rewrite IHks.
     clear.
     induction l; simpl; auto.
-    rewrite -IHl !assoc (bi.sep_comm o) //.
+    rewrite -IHl !sep_assoc (sep_comm o) //.
 Qed.
 
 (*
@@ -903,7 +622,7 @@ Qed.
 
 Lemma gather_SEP {A}:
   forall R1 R2,
-    @SEPx A Σ (R1 ++ R2) ⊣⊢ SEPx (fold_right bi_sep emp R1 :: R2).
+    @SEPx A Σ (R1 ++ R2) = SEPx (fold_right bi_sep emp R1 :: R2).
 Proof.
   intros.
   unfold SEPx.
@@ -1002,16 +721,20 @@ induction i; destruct j,R; intros; simpl; auto.
 contradiction H; auto.
 Qed.
 
-Lemma PROP_LOCAL_sep1 : forall P Q R1 R, PROPx P (LOCALx Q (SEPx (R1 :: R))) ⊣⊢ PROPx P (LOCALx Q (SEPx [R1])) ∗ SEPx R.
+Lemma PROP_LOCAL_sep1 : forall P Q R1 R, PROPx P (LOCALx Q (SEPx (R1 :: R))) = (PROPx P (LOCALx Q (SEPx [R1])) ∗ SEPx R).
 Proof.
-  intros; rewrite /PROPx /LOCALx /SEPx /= !embed_sep embed_emp bi.sep_emp.
-  rewrite assoc !bi.persistent_and_sep_assoc -!assoc //.
+  intros; rewrite /PROPx /LOCALx /SEPx /=.
+  apply assert_ext; intros; monPred.unseal; unfold lift1.
+  rewrite !log_normalize.and_assoc -!pure_and.
+  normalize.
 Qed.
 
-Lemma PROP_LOCAL_sep2 : forall P Q R1 R, PROPx P (LOCALx Q (SEPx (R1 :: R))) ⊣⊢ ⎡R1⎤ ∗ PROPx P (LOCALx Q (SEPx R)).
+Lemma PROP_LOCAL_sep2 : forall P Q R1 R, PROPx P (LOCALx Q (SEPx (R1 :: R))) = (⎡R1⎤ ∗ PROPx P (LOCALx Q (SEPx R))).
 Proof.
-  intros; rewrite /PROPx /LOCALx /SEPx /= !embed_sep.
-  rewrite assoc !persistent_and_sep_assoc' -!assoc //.
+  intros; rewrite /PROPx /LOCALx /SEPx /=.
+  apply assert_ext; intros; monPred.unseal; unfold lift1.
+  rewrite !log_normalize.and_assoc -!pure_and.
+  normalize.
 Qed.
 
 Lemma replace_SEP'':
@@ -1124,9 +847,9 @@ Proof.
   iIntros "($ & $)".
 Qed.
 
-Lemma local_lift0: forall P, @local Σ (lift0 P) ⊣⊢ ⌜P⌝.
+Lemma local_lift0: forall P, @local Σ (lift0 P) = ⌜P⌝.
 Proof.
-  intros. rewrite /local /lift0; split => rho; monPred.unseal; done.
+  intros. rewrite /local /lift0; apply assert_ext; intros; monPred.unseal; done.
 Qed.
 
 Lemma extract_exists_post:
@@ -1141,35 +864,35 @@ Qed.
 
 Lemma extract_exists_in_SEP:
   forall {A} (R1: A -> mpred) P Q R,
-    PROPx P (LOCALx Q (SEPx ((∃ x, R1 x) :: R))) ⊣⊢
+    PROPx P (LOCALx Q (SEPx ((∃ x, R1 x) :: R))) =
     (∃ x:A, PROPx P (LOCALx Q (SEPx (R1 x::R))))%assert.
 Proof.
   intros.
-  rewrite /PROPx /LOCALx /SEPx /= !embed_sep embed_exist; normalize.
-  setoid_rewrite embed_sep; done.
+  rewrite /PROPx /LOCALx /SEPx; apply assert_ext; intros; monPred.unseal.
+  normalize.
 Qed.
 
 Lemma flatten_sepcon_in_SEP:
   forall P Q R1 R2 R,
-           PROPx P (LOCALx Q (SEPx ((R1∗R2) :: R))) ⊣⊢
+           PROPx P (LOCALx Q (SEPx ((R1∗R2) :: R))) =
            PROPx P (LOCALx Q (SEPx (R1 :: R2 :: R))).
 Proof.
   intros.
-  rewrite /PROPx /LOCALx /SEPx /= -assoc //.
+  rewrite /PROPx /LOCALx /SEPx /= -sep_assoc //.
 Qed.
 
 Lemma flatten_sepcon_in_SEP'':
   forall n P Q (R1 R2: mpred) (R: list mpred) R',
    nth_error R n = Some ((R1 ∗ R2)) ->
    R' = Floyd_firstn n R ++ R1 :: R2 :: Floyd_skipn (S n) R ->
-   PROPx P (LOCALx Q (SEPx R)) ⊣⊢ PROPx P (LOCALx Q (SEPx R')).
+   PROPx P (LOCALx Q (SEPx R)) = PROPx P (LOCALx Q (SEPx R')).
 Proof.
   intros.
   rewrite /PROPx /LOCALx /SEPx; do 3 f_equiv.
   subst R'.
   revert R H; clear; induction n; destruct R; intros; simpl in *; try done.
   - inv H.
-    rewrite assoc //.
+    rewrite sep_assoc //.
   - rewrite IHn //.
 Qed.
 
@@ -1186,23 +909,23 @@ Qed.
 Lemma extract_prop_in_SEP:
   forall n P1 Rn P Q R,
    nth n R emp = (⌜P1⌝ ∧ Rn) ->
-   PROPx P (LOCALx Q (SEPx R)) ⊣⊢ PROPx (P1::P) (LOCALx Q (SEPx (replace_nth n R Rn))).
+   PROPx P (LOCALx Q (SEPx R)) = PROPx (P1::P) (LOCALx Q (SEPx (replace_nth n R Rn))).
 Proof.
   intros.
-  rewrite /PROPx /LOCALx /SEPx /= bi.pure_and.
-  rewrite (bi.and_comm ⌜P1⌝) -assoc; f_equiv.
-  rewrite assoc (bi.and_comm ⌜P1⌝) -assoc; f_equiv.
-  rewrite -embed_pure -embed_and; f_equiv.
+  rewrite /PROPx /LOCALx /SEPx /= pure_and'.
+  rewrite (and_comm' ⌜P1⌝) -and_assoc'; f_equal.
+  rewrite and_assoc' (and_comm' ⌜P1⌝) -and_assoc'; f_equiv.
+  apply assert_ext; intros; monPred.unseal.
   revert R H; induction n; destruct R; simpl; intros.
-  - rewrite bi.entails_equiv_and H bi.and_elim_l //.
-  - rewrite H bi.persistent_and_sep_assoc //.
-  - rewrite bi.entails_equiv_and H bi.and_elim_l //.
+  - rewrite H log_normalize.and_assoc -pure_and (@prop_ext (P1 /\ P1) P1) //; tauto.
+  - rewrite H sepcon_andp_prop' //.
+  - rewrite H log_normalize.and_assoc -pure_and (@prop_ext (P1 /\ P1) P1) //; tauto.
   - rewrite IHn //.
-    iSplit; iIntros "($ & $ & $)".
+    rewrite sepcon_andp_prop //.
 Qed.
 
 Lemma insert_SEP:
- forall R1 P Q R, ⎡R1⎤ ∗ PROPx P (LOCALx Q (SEPx R)) ⊣⊢ PROPx P (LOCALx Q (SEPx (R1::R))).
+ forall R1 P Q R, (⎡R1⎤ ∗ PROPx P (LOCALx Q (SEPx R))) = PROPx P (LOCALx Q (SEPx (R1::R))).
 Proof.
   intros; rewrite PROP_LOCAL_sep2 //.
 Qed.
@@ -1210,13 +933,13 @@ Qed.
 Lemma delete_emp_in_SEP {A}:
   forall n (R: list mpred),
     nth_error R n = Some emp ->
-    @SEPx A Σ R ⊣⊢ SEPx (firstn n R ++ list_drop (S n) R).
+    @SEPx A Σ R = SEPx (firstn n R ++ list_drop (S n) R).
 Proof.
   intros.
   rewrite /SEPx.
   f_equiv.
   revert R H; induction n; destruct R; simpl; intros; auto.
-  - inv H; rewrite bi.emp_sep //.
+  - inv H; rewrite emp_sep //.
   - rewrite IHn //.
 Qed.
 
@@ -1403,7 +1126,7 @@ Lemma perm_derives:
     ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢ PROPx P' (LOCALx Q' (SEPx R')).
 Proof.
   intros.
-  rewrite bi.and_elim_r PROPx_Permutation // LOCALx_Permutation // SEPx_Permutation //.
+  erewrite bi.and_elim_r, PROPx_Permutation, LOCALx_Permutation, SEPx_Permutation; done.
 Qed.
 
 Lemma semax_frame_perm:
@@ -1456,8 +1179,8 @@ Proof.
 Qed.
 
 Lemma PROP_LOCAL_SEP_cons: forall P1 P2 P3 F,
-  PROPx P1 (LOCALx P2 (SEPx (F :: P3))) ⊣⊢
-  ⎡F⎤ ∗ PROPx P1 (LOCALx P2 (SEPx P3)).
+  PROPx P1 (LOCALx P2 (SEPx (F :: P3))) =
+  (⎡F⎤ ∗ PROPx P1 (LOCALx P2 (SEPx P3))).
 Proof.
   intros; apply PROP_LOCAL_sep2.
 Qed.
@@ -1884,17 +1607,17 @@ Proof.
 Qed.
 
 Lemma replace_nth_sepcon : forall n R (Rn : mpred), nth_error R n = Some Rn ->
-  fold_right_sepcon R ⊣⊢ Rn ∗ fold_right_sepcon (replace_nth n R emp).
+  fold_right_sepcon R = (Rn ∗ fold_right_sepcon (replace_nth n R emp)).
 Proof.
   induction n; destruct R; simpl; try done.
-  - inversion 1; rewrite bi.emp_sep //.
-  - intros; rewrite IHn //.
-    rewrite !assoc (bi.sep_comm m) //.
+  - inversion 1; rewrite emp_sep //.
+  - intros; erewrite IHn by done.
+    rewrite !sep_assoc (sep_comm m) //.
 Qed.
 
 Lemma SEP_nth_isolate {A}:
   forall n R Rn, nth_error R n = Some Rn ->
-      @SEPx A Σ R ⊣⊢ SEPx (Rn :: replace_nth n R emp).
+      @SEPx A Σ R = SEPx (Rn :: replace_nth n R emp).
 Proof.
   intros; unfold SEPx.
   f_equiv; simpl.
@@ -1915,16 +1638,16 @@ Qed.
 Lemma SEP_replace_nth_isolate {A}:
   forall n R Rn Rn',
        nth_error R n = Some Rn ->
-      @SEPx A Σ (replace_nth n R Rn') ⊣⊢ SEPx (Rn' :: replace_nth n R emp).
+      @SEPx A Σ (replace_nth n R Rn') = SEPx (Rn' :: replace_nth n R emp).
 Proof.
   intros; unfold SEPx.
   f_equiv; simpl.
-  rewrite replace_nth_sepcon; last by eapply nth_error_replace_nth.
+  erewrite replace_nth_sepcon; last by eapply nth_error_replace_nth.
   rewrite replace_nth_replace_nth //.
 Qed.
 
 Lemma local_andp_lemma:
-  forall P Q, (P ⊢ local Q) -> P ⊣⊢ @local Σ Q ∧ P.
+  forall P Q, (P ⊢ local Q) -> P ⊣⊢ (@local Σ Q ∧ P).
 Proof.
   intros; rewrite comm; apply add_andp; done.
 Qed.
@@ -1967,18 +1690,17 @@ Lemma nth_error_SEP_prop:
     PROPx P (LOCALx Q (SEPx R)) ⊢ ⌜Rn'⌝.
 Proof.
   intros.
-  rewrite SEP_nth_isolate //.
+  erewrite SEP_nth_isolate by done.
   rewrite /PROPx /LOCALx /SEPx /= embed_sep H0 embed_pure.
   iIntros "(_ & _ & $ & _)".
 Qed.
 
 Lemma LOCAL_2_hd: forall P Q R Q1 Q2,
-  (PROPx P (LOCALx (Q1 :: Q2 :: Q) (SEPx R))) ⊣⊢
+  (PROPx P (LOCALx (Q1 :: Q2 :: Q) (SEPx R))) =
   (PROPx P (LOCALx (Q2 :: Q1 :: Q) (SEPx R))).
 Proof.
   intros.
-  rewrite LOCALx_Permutation //.
-  constructor.
+  erewrite LOCALx_Permutation by constructor; done.
 Qed.
 
 Lemma lvar_eval_lvar:
@@ -2035,157 +1757,6 @@ intros.
 erewrite lvar_eval_var; eauto.
 eapply lvar_isptr; eauto.
 Qed.
-
-(*Lemma PARAMSx_args_super_non_expansive: forall A Q R,
-  args_super_non_expansive R ->
-  (forall n ts x, Q ts x = Q ts (functors.MixVariantFunctor.fmap _ (compcert_rmaps.RML.R.approx n) (compcert_rmaps.RML.R.approx n) x)) ->
-  @args_super_non_expansive A (fun ts a ae => PARAMSx (Q ts a) (R ts a) ae).
-Proof. intros. simpl in *.
-  hnf; intros.
-  unfold PARAMSx.
-  simpl.
-  rewrite !approx_andp.
-  f_equal; auto.
-  f_equal; f_equal; f_equal.
-  apply H0.
-Qed.
-
-Lemma GLOBALSx_args_super_non_expansive: forall A G R,
-  args_super_non_expansive R ->
-  @super_non_expansive_list A (fun ts a rho => map (fun Q0 => prop (locald_denote (gvars Q0) rho)) (G ts a)) ->
-  @args_super_non_expansive A (fun ts a ae => GLOBALSx (G ts a) (R ts a) ae).
-Proof.
-  intros. simpl in *.
-  hnf; intros.
-  unfold GLOBALSx, LOCALx. simpl. rewrite ! approx_andp. f_equal; [|apply H].
-  specialize (H0 n ts x (Clight_seplog.mkEnv (fst gargs) nil nil)).
-  simpl in H0.
-  match goal with H : Forall2 _ _ (map _ ?l) |- _ => forget l as Q1 end.
-  generalize dependent Q1; induction (G ts x); intros; inv H0; destruct Q1; try discriminate.
-  + auto.
-  + inv H3.
-    simpl.
-    unfold local, lift1 in IHl |- *.
-    unfold_lift in IHl; unfold_lift.
-    rewrite !prop_and.
-    rewrite !approx_andp.
-    f_equal; auto.
-Qed.
-
-Lemma PROP_PARAMS_GLOBALS_SEP_args_super_non_expansive: forall A P Q G R
-  (HypP: Forall (fun P0 => @args_super_non_expansive A (fun ts a _ => prop (P0 ts a))) P)
-  (HypQ: forall n ts x, Q ts x = Q ts (functors.MixVariantFunctor.fmap _ (compcert_rmaps.RML.R.approx n) (compcert_rmaps.RML.R.approx n) x))
-  (HypG: @super_non_expansive_list A (fun ts a rho => map (fun Q0 => prop (locald_denote (gvars Q0) rho)) (G ts a)))
-  (HypR: Forall (fun R0 => @args_super_non_expansive A (fun ts a _ => R0 ts a)) R),
-  @args_super_non_expansive A (fun ts a =>
-    PROPx (map (fun P0 => P0 ts a) P)
-       (PARAMSx (Q ts a)
-         (GLOBALSx (G ts a) (SEPx (map (fun R0 => R0 ts a) R))))).
-Proof. intros. simpl.
- apply (PROPx_args_super_non_expansive A P) ; [ clear P HypP| apply HypP].
-  apply (PARAMSx_args_super_non_expansive A Q); [|apply HypQ].
-  apply (GLOBALSx_args_super_non_expansive A G); [|apply HypG].
-  apply (SEPx_args_super_non_expansive A R); apply HypR.
-Qed.
-
-Lemma super_non_expansive_args_super_non_expansive {A P}
-      (H: @super_non_expansive A (fun ts a _ => P ts a)):
-      @args_super_non_expansive A (fun ts a _ => P ts a).
-Proof. red; intros. apply H. apply any_environ. Qed.
-
-Lemma PROPx_args_super_non_expansive': forall A P Q,
-  args_super_non_expansive Q ->
-  @super_non_expansive_list A (fun ts a _ => map prop (P ts a)) ->
-  @args_super_non_expansive A (fun ts a => PROPx (P ts a) (Q ts a)).
-Proof.
-  intros.
-  hnf; intros.
-  unfold PROPx.
-  simpl.
-  rewrite !approx_andp.
-  f_equal; auto.
-  specialize (H0 n ts x any_environ).
-  simpl in H0.
-  match goal with H : Forall2 _ _ (map _ ?l) |- _ => forget l as P1 end.
-  generalize dependent P1; induction (P ts x); intros; inv H0; destruct P1; try discriminate.
-  + auto.
-  + inv H3.
-    simpl.
-    rewrite !prop_and.
-    rewrite !approx_andp.
-    f_equal; auto.
-Qed.
-
-Lemma SEPx_args_super_non_expansive': forall A R ,
-  @super_non_expansive_list A (fun ts a _ => R ts a) ->
-  @args_super_non_expansive A (fun ts a ae => SEPx (R ts a) ae).
-Proof.
-  intros.
-  hnf; intros.
-  unfold SEPx; unfold super_non_expansive_list in H.
-  specialize (H n ts x any_environ).
-  induction H.
-  + simpl; auto.
-  + simpl in *.
-    rewrite !approx_sepcon.
-    f_equal;
-    auto.
-Qed.
-
-Lemma PROP_PARAMS_GLOBALS_SEP_args_super_non_expansive': forall A P Q G R
-  (HypP: @super_non_expansive_list A (fun ts a _ => map prop (P ts a)))
-  (HypQ: forall n ts x, Q ts x = Q ts (functors.MixVariantFunctor.fmap _ (compcert_rmaps.RML.R.approx n) (compcert_rmaps.RML.R.approx n) x))
-  (HypG: @super_non_expansive_list A (fun ts a rho => map (fun Q0 => prop (locald_denote (gvars Q0) rho)) (G ts a)))
-  (HypR: @super_non_expansive_list A (fun ts a _ => R ts a)),
-  @args_super_non_expansive A (fun ts a =>
-    PROPx (P ts a)
-       (PARAMSx (Q ts a)
-         (GLOBALSx (G ts a) (SEPx (R ts a))))).
-Proof. intros.
-  apply PROPx_args_super_non_expansive'; [|auto].
-  apply PARAMSx_args_super_non_expansive; [|auto].
-  apply GLOBALSx_args_super_non_expansive; [|auto].
-  apply SEPx_args_super_non_expansive'; auto.
-Qed.
-
-Lemma PARAMSx_super_non_expansive: forall A Q R,
-  super_non_expansive R ->
-  @super_non_expansive A (fun ts a rho => PARAMSx Q (fun ae:argsEnviron => R ts a rho) (ge_of rho, nil)).
-Proof. intros. simpl in *.
-  hnf; intros.
-  unfold PARAMSx.
-  simpl.
-  rewrite !approx_andp.
-  f_equal; auto.
-Qed.
-
-Lemma GLOBALSx_super_non_expansive: forall A G R,
-  super_non_expansive R ->
-  @super_non_expansive A (fun ts a rho => GLOBALSx G (fun ae : argsEnviron => let (g, _) := ae in !! gvars_denote (initialize.globals_of_genv g) rho ∧ R ts a rho)
-  (Map.empty block, nil)).
-Proof.
-  intros. simpl in *.
-  hnf; intros.
-  unfold GLOBALSx, LOCALx, argsassert2assert, Clight_seplog.mkEnv.
-  simpl. rewrite ! approx_andp. f_equal. f_equal. apply H.
-Qed.
-
-Lemma PROP_PARAMS_GLOBALS_SEP_super_non_expansive: forall A P (Q:list val)(G : list globals) R
-  (HypP: Forall (fun P0 => @super_non_expansive A (fun ts a _ => prop (P0 ts a))) P)
-  (HypR: Forall (fun R0 => @super_non_expansive A (fun ts a _ => R0 ts a)) R),
-  @super_non_expansive A (fun ts a rho =>
-    PROPx (map (fun P0 => P0 ts a) P)
-       (PARAMSx Q (fun _ : argsEnviron =>
-         GLOBALSx G (fun ae0 : argsEnviron =>
-            let (g, _) := ae0 in
-            !! gvars_denote (initialize.globals_of_genv g) rho
-            ∧ SEPx (map (fun R0 => R0 ts a) R) rho) (Map.empty block, nil))) (ge_of rho, nil)).
-Proof. intros. simpl.
- apply (PROPx_super_non_expansive A P) ; [ clear P HypP| apply HypP].
-  apply (PARAMSx_super_non_expansive A Q).
-  apply (GLOBALSx_super_non_expansive A G).
-  apply (SEPx_super_non_expansive A R); apply HypR.
-Qed.*)
 
 Lemma semax_extract_later_prop'':
     forall E (Delta : tycontext) (PP : Prop) P Q R c post P1 P2,
@@ -2552,5 +2123,5 @@ Ltac simpl_ret_assert ::=
       for_ret_assert loop_nocontinue_ret_assert];
   try (match goal with
       | |- context[bind_ret None tvoid ?P] =>
-        assert (bind_ret None tvoid P ⊣⊢ P) as -> by (raise_rho; unfold PROPx, LOCALx, SEPx; try monPred.unseal; done)
+        assert (bind_ret None tvoid P = P) as -> by (unfold PROPx, LOCALx, SEPx; apply assert_ext; intros; try monPred.unseal; done)
       end).

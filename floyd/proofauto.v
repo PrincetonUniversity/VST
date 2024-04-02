@@ -266,7 +266,7 @@ Ltac entailer := time "ent1" floyd.entailer.entailer.
 
 Ltac gather_prop ::=
 (* autorewrite with gather_prop_core;  (* faster to do this first *)*)
- try rewrite_strat topdown hints gather_prop.
+ autorewrite with gather_prop.
 
 #[export] Hint Resolve Clight_mapsto_memory_block.tc_val_pointer_nullval : core.
 #[export] Hint Resolve mapsto_memory_block.tc_val_pointer_nullval : core.

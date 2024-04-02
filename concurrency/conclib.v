@@ -188,7 +188,6 @@ Proof.
   split; first done; intros; simpl.
   rewrite -H -fupd_intro.
   Exists x2 (emp : mpred); entailer!.
-  intros; entailer!.
 Qed.
 
 End mpred.

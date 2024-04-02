@@ -435,8 +435,7 @@ apply semax_for_x with (∃ a:A, PreIncr a); auto.
   iDestruct "H6" as "-# H6". (* by moving to spatail context, H6 gets an affine modality when exiting ipm,
                                 and allows normalize to extract info from it instead of just throwing it away *)
   iStopProof. unfold local.  super_unfold_lift. raise_rho. normalize. rewrite H5. apply bi.pure_intro. done.
-- normalize.
-  apply extract_exists_pre; intro a.
+- Intro'' a.
   eapply semax_pre_post; try apply (H2 a).
   + rewrite <- insert_prop.
     eapply derives_trans; [ | eapply derives_trans].

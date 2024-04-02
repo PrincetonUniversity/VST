@@ -276,7 +276,7 @@ Lemma go_lower_localdef_one_step_canon_left: forall Delta Ppre l Qpre Rpre post 
 Proof.
   intros.
   rewrite -H.
-  rewrite (PROPx_Permutation (_ ++ _)); last by apply Permutation_app_comm.
+  erewrite (PROPx_Permutation (_ ++ _)) by apply Permutation_app_comm.
   rewrite <- !insert_local'.
   apply bi.and_intro; [solve_andp |].
   apply bi.and_intro; [solve_andp |].
@@ -361,7 +361,7 @@ Lemma go_lower_localdef_one_step_canon_canon: forall Delta Ppre Qpre Rpre Ppost 
   local (tc_environ Delta) ∧ PROPx Ppre (LOCALx Qpre (SEPx Rpre)) ∧ PROPx (Ppost ++ msubst_extract_local Delta T1 T2 GV l :: nil) (LOCALx Qpost (SEPx Rpost)) ⊢ PROPx Ppost (LOCALx (l :: Qpost) (SEPx Rpost)).
 Proof.
   intros.
-  rewrite (PROPx_Permutation (_ ++ _)); last by apply Permutation_app_comm.
+  erewrite (PROPx_Permutation (_ ++ _)) by apply Permutation_app_comm.
   rewrite /= -!insert_local' -!insert_prop.
   apply bi.and_intro; [| rewrite /PROPx /LOCALx; solve_andp].
   apply (local2ptree_soundness Ppre _ Rpre) in H; simpl in H.
@@ -465,7 +465,7 @@ Proof.
 Qed.
 
 Inductive clean_LOCAL_right (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t (type * val)) (GV: option globals): assert -> mpred -> Prop :=
-| clean_LOCAL_right_sep_lift: forall P, clean_LOCAL_right Delta T1 T2 GV (assert_of (`P)) (P)
+| clean_LOCAL_right_sep_lift: forall P, clean_LOCAL_right Delta T1 T2 GV ⎡P⎤ (P)
 | clean_LOCAL_right_local_lift: forall P, clean_LOCAL_right Delta T1 T2 GV (local (`P)) (⌜P⌝)
 | clean_LOCAL_right_prop: forall P, clean_LOCAL_right Delta T1 T2 GV (⌜P⌝) (⌜P⌝)
 | clean_LOCAL_right_tc_lvalue: forall (cs: compspecs) e, clean_LOCAL_right Delta T1 T2 GV (denote_tc_assert (typecheck_lvalue Delta e)) (msubst_tc_lvalue Delta T1 T2 GV e)
@@ -518,6 +518,12 @@ Proof.
   subst; auto.
 Qed.
 
+Lemma assert_of_liftx_embed P: assert_of(Σ:=Σ) (liftx P) ⊣⊢ ⎡P⎤.
+Proof.
+  intros.
+  split => rho //; monPred.unseal; done.
+Qed.
+
 Lemma clean_LOCAL_right_aux: forall gvar_ident (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t (type * val)) (GV: option globals) P Q R S S'
   (LEGAL: fold_right andb true (map (legal_glob_ident Delta) gvar_ident) = true),
   local2ptree Q = (T1, T2, nil, GV) ->
@@ -526,7 +532,7 @@ Lemma clean_LOCAL_right_aux: forall gvar_ident (Delta: tycontext) (T1: PTree.t v
 Proof.
   intros.
   induction H0.
-  + solve_andp.
+  + rewrite assert_of_liftx_embed; solve_andp.
   + solve_andp.
   + rewrite lift0C_prop; solve_andp.
   + eapply go_lower_localdef_canon_tc_lvalue; eauto.
@@ -714,7 +720,7 @@ Ltac simply_msubst_extract_locals :=
 
 Ltac solve_clean_LOCAL_right :=
   solve
-    [ simple apply clean_LOCAL_right_sep_lift
+    [ (*simple*) apply clean_LOCAL_right_sep_lift
     | simple apply clean_LOCAL_right_local_lift
     | simple apply clean_LOCAL_right_prop
     | simple apply clean_LOCAL_right_True
@@ -829,14 +835,7 @@ therefore entailer or go_lower cannot operate on them."
 Then entailer or go_lower will work"
 end.
 
-Lemma assert_of_liftx_embed {Σ} P: assert_of(Σ:=Σ) (liftx P) ⊣⊢ ⎡P⎤.
-Proof.
-  intros.
-  split => rho //; monPred.unseal; done.
-Qed.
-
 Ltac clean_LOCAL_canon_mix :=
-  rewrite -?assert_of_liftx_embed; (* in case the goal has embed, which makes solve_clean_LOCAL_right fail *)
   eapply_clean_LOCAL_right_spec;
   [solve_all_legal_glob_ident | prove_local2ptree | solve_clean_LOCAL_right | simpl_app_localdefs_tc].
 
@@ -961,12 +960,12 @@ Ltac sep_apply H :=
 
 Ltac new_sep_apply_in_lifted_entailment H evar_tac prop_tac :=
   apply SEP_entail';
-  go_lower; (* Using SEP_entail' and go_lower, instead of just SEP_entail,
+  match goal with |- ?R ⊢ ⎡?R2⎤ =>
+    let r2 := fresh "R2" in pose (r2 := R2); change (R ⊢ ⎡r2⎤);
+    go_lower; (* Using SEP_entail' and go_lower, instead of just SEP_entail,
      allows us to use propositional facts derived from the PROP and LOCAL
      parts of the left-hand side *)
   (* unfold fold_right_sepcon at 1; *)
-  match goal with |- ?R ⊢ ?R2 =>
-    let r2 := fresh "R2" in pose (r2 := R2); change (R ⊢ r2);
     new_sep_apply_in_entailment H evar_tac prop_tac; [ .. |
     match goal with |- ?R' ⊢ _ =>
       let R'' := refold_right_sepcon R' in

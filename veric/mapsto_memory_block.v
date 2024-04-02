@@ -8,20 +8,12 @@ Require Import VST.veric.val_lemmas.
 Require Import VST.veric.Cop2.
 Require Import VST.veric.shares.
 Require Import VST.veric.slice.
-
 Require Import VST.veric.mpred.
+Require Import VST.veric.log_normalize.
 
 Section mpred.
 
 Context `{!heapGS Σ}.
-
-(*Lemma address_mapsto_exists:
-  forall ch v sh (rsh: readable_share sh) loc w0
-      (RESERVE: forall l', adr_range loc (size_chunk ch) l' -> w0 @ l' = NO Share.bot bot_unreadable),
-      (align_chunk ch | snd loc) ->
-      exists w, address_mapsto ch (decode_val ch (encode_val ch v)) sh loc w 
-                    /\ core w = core w0.
-Proof.  exact address_mapsto_exists. Qed.*)
 
 Definition permission_block (sh: Share.t)  (v: val) (t: type) : mpred :=
     match access_mode t with
@@ -550,16 +542,16 @@ Proof.
     repeat split; auto; try rewrite Z2Nat.id; lia.
 Qed.
 
-Lemma memory_block_non_pos_Vptr: forall sh n b z, n <= 0 -> memory_block sh n (Vptr b z) ⊣⊢ emp.
+Lemma memory_block_non_pos_Vptr: forall sh n b z, n <= 0 -> memory_block sh n (Vptr b z) = emp.
 Proof.
   intros. unfold memory_block.
   rewrite -> Z_to_nat_neg by auto.
   unfold memory_block'.
-  iSplit; auto; iIntros "_"; iPureIntro; split; auto.
+  rewrite prop_true_andp //.
   pose proof Ptrofs.unsigned_range z. lia.
 Qed.
 
-Lemma memory_block_zero_Vptr: forall sh b z, memory_block sh 0 (Vptr b z) ⊣⊢ emp.
+Lemma memory_block_zero_Vptr: forall sh b z, memory_block sh 0 (Vptr b z) = emp.
 Proof.
   intros; apply memory_block_non_pos_Vptr.
   lia.
@@ -883,7 +875,7 @@ Qed.
 
 Lemma address_mapsto_zeros'_split:
   forall a b sh p,
- 0 <= a -> 0 <= b -> 
+ 0 <= a -> 0 <= b ->
  address_mapsto_zeros' (a+b) sh p ⊣⊢
  address_mapsto_zeros' a sh p 
  ∗ address_mapsto_zeros' b sh (adr_add p a).

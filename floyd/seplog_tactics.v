@@ -1,24 +1,23 @@
 Require Import VST.floyd.base.
 Require Import VST.floyd.val_lemmas.
+Require Import VST.veric.log_normalize.
 
-#[export] Hint Rewrite <- @bi.pure_and : gather_prop.
+Section pred.
 
-Section PROP.
+Context {M : uora}.
 
-Context {PROP : bi}.
-
-Implicit Types (P Q R : PROP).
+Implicit Types (P Q R : ouPred M).
 
 Lemma gather_prop_left:
-  forall (P Q : Prop) R,  ⌜P⌝ ∧ (⌜Q⌝ ∧ R) ⊣⊢ ⌜P /\ Q⌝ ∧ R.
-Proof. intros. rewrite assoc -bi.pure_and //. Qed.
+  forall (P Q : Prop) R,  (⌜P⌝ ∧ (⌜Q⌝ ∧ R)) = (⌜P /\ Q⌝ ∧ R).
+Proof. intros. rewrite and_assoc -pure_and //. Qed.
 
 Lemma gather_prop_right:
-  forall (P Q : Prop) R,  (R ∧ ⌜P⌝) ∧ ⌜Q⌝ ⊣⊢ ⌜P /\ Q⌝ ∧ R.
-Proof. intros. rewrite -assoc -bi.pure_and bi.and_comm //. Qed.
+  forall (P Q : Prop) R,  ((R ∧ ⌜P⌝) ∧ ⌜Q⌝) = (⌜P /\ Q⌝ ∧ R).
+Proof. intros. rewrite -and_assoc -pure_and and_comm //. Qed.
 
 Lemma andp_in_order1:
-  forall P Q, P ∧ Q ⊣⊢ P ∧ (P → Q).
+  forall P Q, (P ∧ Q) ⊣⊢ (P ∧ (P → Q)).
 Proof.
   intros.
   iSplit; iIntros "H"; (iSplit; first rewrite bi.and_elim_l //).
@@ -55,28 +54,162 @@ Qed.
 Definition not_a_prop P := True%type.
 
 Lemma flip_prop: forall P (Q : Prop),
-      not_a_prop P -> (P ∧ ⌜Q⌝ ⊣⊢ ⌜Q⌝ ∧ P).
-Proof. intros; rewrite comm //. Qed.
+      not_a_prop P -> ((P ∧ ⌜Q⌝) = (⌜Q⌝ ∧ P)).
+Proof. intros; rewrite and_comm //. Qed.
 
 Lemma gather_prop3:
-  forall (P: Prop) Q R,  not_a_prop R -> not_a_prop Q -> R ∧ (⌜P⌝ ∧ Q) ⊣⊢ ⌜P⌝ ∧ (R ∧ Q).
+  forall (P: Prop) Q R,  not_a_prop R -> not_a_prop Q -> (R ∧ (⌜P⌝ ∧ Q)) = (⌜P⌝ ∧ (R ∧ Q)).
 Proof.
-  intros. rewrite bi.and_comm. rewrite -bi.and_assoc.
-  rewrite (bi.and_comm Q); auto.
+  intros. rewrite and_comm. rewrite -and_assoc.
+  rewrite (and_comm Q); auto.
 Qed.
 
 Lemma gather_prop4:
-  forall (P: Prop) Q R,  not_a_prop R -> not_a_prop Q -> (⌜P⌝ ∧ R) ∧ Q ⊣⊢ ⌜P⌝ ∧ (R ∧ Q).
+  forall (P: Prop) Q R,  not_a_prop R -> not_a_prop Q -> ((⌜P⌝ ∧ R) ∧ Q) = (⌜P⌝ ∧ (R ∧ Q)).
 Proof.
-  intros. rewrite -bi.and_assoc. auto.
+  intros. rewrite -and_assoc. auto.
 Qed.
 
 Lemma gather_prop5:
-  forall (P: Prop) Q R,  not_a_prop R -> not_a_prop Q -> ((R ∧ ⌜P⌝) ∧ Q) ⊣⊢ ⌜P⌝ ∧ (R ∧ Q).
+  forall (P: Prop) Q R,  not_a_prop R -> not_a_prop Q -> ((R ∧ ⌜P⌝) ∧ Q) = (⌜P⌝ ∧ (R ∧ Q)).
 Proof.
-  intros. rewrite -bi.and_assoc. rewrite bi.and_comm. rewrite -bi.and_assoc.
-  f_equiv; apply bi.and_comm.
+  intros. rewrite -and_assoc. rewrite and_comm. rewrite -and_assoc.
+  f_equal; apply and_comm.
 Qed.
+
+Lemma pull_left_special: forall (A B C : ouPred M),
+    (B ∗ (A ∗ C)) = (A ∗ (B ∗ C)).
+Proof.
+intros. rewrite sep_comm. rewrite -sep_assoc. f_equal.
+ apply sep_comm.
+Qed.
+
+Lemma pull_left_special0: forall (A B : ouPred M),
+    (B ∗ A) = (A ∗ B).
+Proof.
+intros; apply sep_comm.
+Qed.
+
+Lemma prop_sepcon: forall (P : Prop) Q, (⌜P⌝ ∗ Q) = (⌜P⌝ ∧ (True ∗ Q)).
+Proof.
+  intros.
+  rewrite -{1}(and_True ⌜_⌝) sepcon_andp_prop' //.
+Qed.
+
+Lemma prop_sepcon2: forall (P : Prop) Q, (Q ∗ ⌜P⌝) = (⌜P⌝ ∧ (True ∗ Q)).
+Proof.
+  intros.
+  rewrite sep_comm. apply prop_sepcon.
+Qed.
+
+Fixpoint fold_right_sepconx {PROP : bi} (l: list PROP) : PROP :=
+match l with
+| nil => emp
+| a::nil => a
+| a::b => a ∗ fold_right_sepconx b
+end.
+
+Definition fold_left_sepconx {PROP : bi} (l: list PROP) : PROP :=
+match l with
+| nil => emp
+| a::l => (fix fold_left_sepconx (a: PROP) (l: list PROP) {struct l}: PROP :=
+          match l with
+          | nil => a
+          | b :: l => fold_left_sepconx (bi_sep a b) l
+          end) a l
+end.
+
+Lemma fold_right_sepconx_eq: forall (l : list (ouPred M)), fold_right_sepconx l = fold_right_sepcon l.
+Proof.
+induction l; simpl; auto.
+rewrite -IHl.
+destruct l; simpl; auto. rewrite sep_emp; auto.
+Qed.
+
+Lemma fold_left_sepconx_eq: forall (l : list (ouPred M)), fold_left_sepconx l = fold_right_sepcon l.
+Proof.
+  intros; rewrite <- fold_right_sepconx_eq.
+  destruct l; auto; simpl.
+  revert o; induction l; intros; auto.
+  simpl in *.
+  rewrite <- IHl.
+  clear IHl.
+  revert o a; induction l; intros; auto.
+  simpl.
+  rewrite !IHl sep_assoc //.
+Qed.
+
+Lemma fold_right_sepconx_eqx:
+  forall (A : ouPred M) B, (A ⊢ fold_right_sepconx B) -> A ⊢ fold_right_sepcon B.
+Proof.
+intros.
+rewrite <- fold_right_sepconx_eq; auto.
+Qed.
+
+Lemma local_and_sep_assoc : forall {Σ} (P : environ -> Prop) (Q R : @assert Σ), (local P ∧ (Q ∗ R)) = ((local P ∧ Q) ∗ R).
+Proof.
+  intros; apply assert_ext; intros; monPred.unseal.
+  rewrite sepcon_andp_prop' //.
+Qed.
+
+Lemma local_and_sep_assoc' : forall {Σ} (P : @assert Σ) (Q : environ -> Prop) (R : @assert Σ), (P ∗ (local Q ∧ R)) = (local Q ∧ (P ∗ R)).
+Proof.
+  intros; rewrite sep_comm' -local_and_sep_assoc sep_comm' //.
+Qed.
+
+Lemma local_and_sep_assoc2 : forall {Σ} (P : environ -> Prop) (Q R : @assert Σ), (local P ∧ (Q ∗ R)) = ((Q ∧ local P) ∗ R).
+Proof.
+  intros; rewrite (and_comm' Q); apply local_and_sep_assoc.
+Qed.
+
+Lemma local_and_sep_assoc2' : forall {Σ} (P : @assert Σ) (Q : environ -> Prop) (R : @assert Σ), (P ∗ (R ∧ local Q)) = (local Q ∧ (P ∗ R)).
+Proof.
+  intros; rewrite (and_comm' R); apply local_and_sep_assoc'.
+Qed.
+
+Lemma pure_and_sep_assoc : forall {Σ} (P : Prop) (Q R : @assert Σ), (⌜P⌝ ∧ (Q ∗ R)) = ((⌜P⌝ ∧ Q) ∗ R).
+Proof.
+  intros; apply assert_ext; intros; monPred.unseal.
+  rewrite sepcon_andp_prop' //.
+Qed.
+
+Lemma pure_and_sep_assoc' : forall {Σ} (P : @assert Σ) (Q : Prop) (R : @assert Σ), (P ∗ (⌜Q⌝ ∧ R)) = (⌜Q⌝ ∧ (P ∗ R)).
+Proof.
+  intros; rewrite sep_comm' -pure_and_sep_assoc sep_comm' //.
+Qed.
+
+Lemma pure_and_sep_assoc2 : forall {Σ} (P : Prop) (Q R : @assert Σ), (⌜P⌝ ∧ (Q ∗ R)) = ((Q ∧ ⌜P⌝) ∗ R).
+Proof.
+  intros; rewrite (and_comm' Q); apply pure_and_sep_assoc.
+Qed.
+
+Lemma pure_and_sep_assoc2' : forall {Σ} (P : @assert Σ) (Q : Prop) (R : @assert Σ), (P ∗ (R ∧ ⌜Q⌝)) = (⌜Q⌝ ∧ (P ∗ R)).
+Proof.
+  intros; rewrite (and_comm' R); apply pure_and_sep_assoc'.
+Qed.
+
+Lemma sepcon_andp_prop2' : forall (P : Prop) Q R, ((Q ∧ ⌜P⌝) ∗ R) = (⌜P⌝ ∧ (Q ∗ R)).
+Proof.
+  intros; rewrite (and_comm Q); apply sepcon_andp_prop'.
+Qed.
+
+Lemma sepcon_andp_prop2 : forall P (Q : Prop) R, (P ∗ (R ∧ ⌜Q⌝)) = (⌜Q⌝ ∧ (P ∗ R)).
+Proof.
+  intros; rewrite (and_comm R); apply sepcon_andp_prop.
+Qed.
+
+Lemma and_assoc2 : forall P Q R, (Q ∧ (P ∧ R)) = (P ∧ (Q ∧ R)).
+Proof.
+  intros; rewrite !and_assoc (and_comm Q) //.
+Qed.
+
+End pred.
+
+#[export] Hint Rewrite <- @pure_and : gather_prop.
+
+Section PROP.
+
+Context {PROP : bi}.
 
 Lemma go_lower_lem1:
   forall (P1 P: Prop) (QR PQR: PROP),
@@ -96,7 +229,7 @@ Lemma go_lower_lem1':
       (⌜(P1 /\ P2) /\ P⌝ ∧ QR ⊢ PQR).
 Proof.
  intros.
- rewrite -H and_assoc //.
+ rewrite -H base.and_assoc //.
 Qed.
 
 (* These versions can sometimes take minutes,
@@ -167,67 +300,10 @@ Lemma cancel_frame1: forall (P: PROP),
 Proof. intros. unfold fold_right_sepcon. rewrite bi.sep_emp //.
 Qed.
 
-Fixpoint fold_right_sepconx (l: list PROP) : PROP :=
-match l with
-| nil => emp
-| a::nil => a
-| a::b => a ∗ fold_right_sepconx b
-end.
-
-Definition fold_left_sepconx (l: list PROP) : PROP :=
-match l with
-| nil => emp
-| a::l => (fix fold_left_sepconx (a: PROP) (l: list PROP) {struct l}: PROP :=
-          match l with
-          | nil => a
-          | b :: l => fold_left_sepconx (bi_sep a b) l
-          end) a l
-end.
-
-Lemma fold_right_sepconx_eq: forall l, fold_right_sepconx l ⊣⊢ fold_right_sepcon l.
-Proof.
-induction l; simpl; auto.
-rewrite -IHl.
-destruct l; simpl; auto. rewrite bi.sep_emp; auto.
-Qed.
-
-Lemma fold_left_sepconx_eq: forall l, fold_left_sepconx l ⊣⊢ fold_right_sepcon l.
-Proof.
-  intros; rewrite <- fold_right_sepconx_eq.
-  destruct l; auto; simpl.
-  revert b; induction l; intros; auto.
-  simpl in *.
-  rewrite <- IHl.
-  clear IHl.
-  revert b a; induction l; intros; auto.
-  simpl.
-  rewrite !IHl bi.sep_assoc //.
-Qed.
-
-Lemma fold_right_sepconx_eqx:
-  forall A B, (A ⊢ fold_right_sepconx B) -> A ⊢ fold_right_sepcon B.
-Proof.
-intros.
-rewrite <- fold_right_sepconx_eq; auto.
-Qed.
-
 Lemma cancel_left: forall P Q R: PROP,
    (Q ⊢ R) -> P ∗ Q ⊢ P ∗ R.
 Proof.
 intros; apply bi.sep_mono; auto.
-Qed.
-
-Lemma pull_left_special: forall A B C : PROP,
-    (B ∗ (A ∗ C)) ⊣⊢ (A ∗ (B ∗ C)).
-Proof.
-intros. rewrite bi.sep_comm. rewrite -bi.sep_assoc. f_equiv.
- apply bi.sep_comm.
-Qed.
-
-Lemma pull_left_special0: forall A B : PROP,
-    (B ∗ A) ⊣⊢ (A ∗ B).
-Proof.
-intros; apply bi.sep_comm.
 Qed.
 
 Lemma fun_equal: forall {A B} (f g : A -> B) (x y : A),
@@ -447,7 +523,7 @@ Proof.
 Qed.
 
 Ltac cancel :=
-  rewrite -?bi.sep_assoc;
+  rewrite -?sep_assoc;
   repeat match goal with |- ?A ∗ _ ⊢ ?B ∗ _ => 
      constr_eq A B;  simple apply (cancel_left A)
   end;
@@ -872,18 +948,6 @@ Lemma wand_frame_elim'': forall (P Q : PROP),
   (P -∗ Q) ∗ P ⊢ Q.
 Proof. apply bi.wand_elim_l. Qed.
 
-Lemma prop_sepcon: forall P (Q : PROP), ⌜P⌝ ∗ Q ⊣⊢ ⌜P⌝ ∧ (True ∗ Q).
-Proof.
-  intros.
-  iSplit; iIntros "($ & $)"; done.
-Qed.
-
-Lemma prop_sepcon2: forall P (Q : PROP), Q ∗ ⌜P⌝ ⊣⊢ ⌜P⌝ ∧ (True ∗ Q).
-Proof.
-  intros.
-  rewrite bi.sep_comm. apply prop_sepcon.
-Qed.
-
 Lemma eq_equiv : forall (A B : PROP), A = B -> A ⊣⊢ B.
 Proof.
   by intros ?? ->.
@@ -1050,7 +1114,6 @@ Ltac new_cancel local_tac :=
 
 Ltac cancel_unify_tac :=
   autorewrite with cancel;
-  apply eq_equiv;
   careful_unify.
 
 Ltac cancel_local_tac :=
@@ -1058,7 +1121,7 @@ Ltac cancel_local_tac :=
   match goal with |- ?A ⊢ ?B =>
     solve [ constr_eq A B; simple apply (entails_refl A)
           | auto with nocore cancel
-          | apply bi.equiv_entails_1_1; cancel_unify_tac]
+          | apply entails_refl'; cancel_unify_tac]
   end.
 
 Ltac cancel ::= new_cancel cancel_local_tac.
@@ -1252,10 +1315,10 @@ Qed.  (* Yes, this works in Coq 8.7.2 *)
 Ltac normalize1 :=
          match goal with
             | |- bi_entails(PROP := monPredI _ _) _ _ => let rho := fresh "rho" in split => rho; monPred.unseal
-            | |- context [((?P ∧ ?Q) ∗ ?R)%I] => rewrite <- (bi.persistent_and_sep_assoc P Q R) by (auto with norm)
-            | |- context [(?Q ∗ (?P ∧ ?R))%I] => rewrite -> (persistent_and_sep_assoc' P Q R) by (auto with norm)
-            | |- context [((?Q ∧ ?P) ∗ ?R)%I] => rewrite <- (bi.persistent_and_sep_assoc P Q R) by (auto with norm)
-            | |- context [(?Q ∗ (?R ∧ ?P))%I] => rewrite -> (persistent_and_sep_assoc' P Q R) by (auto with norm)
+            | |- context [((⌜?P⌝ ∧ ?Q) ∗ ?R)%I] => rewrite -> (sepcon_andp_prop' Q P R)
+            | |- context [(?P ∗ (⌜?Q⌝ ∧ ?R))%I] => rewrite -> (sepcon_andp_prop P Q R)
+            | |- context [((?Q ∧ ⌜?P⌝) ∗ ?R)%I] => rewrite -> (sepcon_andp_prop2' P Q R)
+            | |- context [(?Q ∗ (?R ∧ ⌜?P⌝))%I] => rewrite -> (sepcon_andp_prop2 Q P R)
             | |-  bi_entails ?A ?B => match A with
                    | False => apply bi.False_elim
                    | ⌜True⌝ => apply bi.pure_intro
@@ -1263,9 +1326,9 @@ Ltac normalize1 :=
                    | bi_exist (fun y => _) => apply bi.exist_elim; (intro y || intro)
                    | ⌜_⌝ ∧ _ => apply bi.pure_elim_l
                    | _ ∧ ⌜_⌝ => apply bi.pure_elim_r
-                   | context [ (⌜?P⌝ ∧ ?Q) ∧ ?R ] => rewrite -(bi.and_assoc (⌜P⌝) Q R)
+                   | context [ (⌜?P⌝ ∧ ?Q) ∧ ?R ] => rewrite -(log_normalize.and_assoc (⌜P⌝) Q R)
                    | context [ ?Q ∧ (⌜?P⌝ ∧ ?R)] =>
-                                  match Q with ⌜_⌝ => fail 2 | _ => rewrite (bi.and_assoc (⌜P⌝) Q R) end
+                                  match Q with ⌜_⌝ => fail 2 | _ => rewrite (and_assoc2 (⌜P⌝) Q R) end
                  (* In the next four rules, doing it this way (instead of leaving it to autorewrite)
                     preserves the name of the "y" variable *)
                    | context [(∃ y, _) ∧ _] =>
@@ -1304,7 +1367,7 @@ Ltac normalize :=
               fancy_intros true);
    repeat normalize1; try contradiction.
 
-Ltac allp_left x := 
+Ltac allp_left x :=
  match goal with |- ?A ⊢ _ => match A with context [@bi_forall ?PROP ?B ?P] =>
    sep_apply_in_entailment (@allp_instantiate PROP B P x)
  end end.

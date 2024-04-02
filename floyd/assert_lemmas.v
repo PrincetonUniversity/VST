@@ -83,6 +83,117 @@ Global Transparent Int.repr.
 Global Transparent Int64.repr.
 Global Transparent Ptrofs.repr.
 
+(* up? *)
+Lemma pure_and : forall {M} P Q, bi_pure(PROP := ouPredI M) (P /\ Q) = (⌜P⌝ ∧ ⌜Q⌝).
+Proof.
+  intros.
+  ouPred.unseal; apply IProp_eq; extensionality n x; apply prop_ext; tauto.
+Qed.
+
+(* up? *)
+Lemma monPred_eq : forall {I B} a1 a2 b1 b2, a1 = a2 -> @MonPred I B a1 b1 = MonPred a2 b2.
+Proof.
+  intros; subst; f_equal; apply proof_irr.
+Qed.
+
+Section monPred.
+
+Context {A : biIndex} {M : uora}.
+Implicit Types (P Q : monPred A (ouPredI M)).
+
+Lemma assert_ext : forall P Q, (forall rho, monPred_at P rho = monPred_at Q rho) -> P = Q.
+Proof.
+  intros.
+  destruct P, Q; apply monPred_eq.
+  extensionality; auto.
+Qed.
+
+Lemma False_sep' : forall P, (P ∗ False) = False.
+Proof.
+  intros; apply assert_ext; intros; monPred.unseal; apply False_sep.
+Qed.
+
+Lemma sep_False' : forall P, (False ∗ P) = False.
+Proof.
+  intros; apply assert_ext; intros; monPred.unseal; apply sep_False.
+Qed.
+
+Lemma True_and' : forall P, (True ∧ P) = P.
+Proof.
+  intros; apply assert_ext; intros; monPred.unseal; apply log_normalize.True_and.
+Qed.
+
+Lemma and_True' : forall P, (P ∧ True) = P.
+Proof.
+  intros; apply assert_ext; intros; monPred.unseal; apply log_normalize.and_True.
+Qed.
+
+Lemma emp_sep' : forall P, (emp ∗ P) = P.
+Proof.
+  intros; apply assert_ext; intros; monPred.unseal; apply emp_sep.
+Qed.
+
+Lemma sep_emp' : forall P, (P ∗ emp) = P.
+Proof.
+  intros; apply assert_ext; intros; monPred.unseal; apply sep_emp.
+Qed.
+
+Lemma and_comm' : forall P Q, (P ∧ Q) = (Q ∧ P).
+Proof.
+  intros; apply assert_ext; intros; monPred.unseal; apply log_normalize.and_comm.
+Qed.
+
+Lemma and_assoc' : forall P Q R, (P ∧ Q ∧ R) = ((P ∧ Q) ∧ R).
+Proof.
+  intros; apply assert_ext; intros; monPred.unseal; apply log_normalize.and_assoc.
+Qed.
+
+Lemma sep_comm' : forall P Q, (P ∗ Q) = (Q ∗ P).
+Proof.
+  intros; apply assert_ext; intros; monPred.unseal; apply sep_comm.
+Qed.
+
+Lemma sep_assoc' : forall P Q R, (P ∗ Q ∗ R) = ((P ∗ Q) ∗ R).
+Proof.
+  intros; apply assert_ext; intros; monPred.unseal; apply sep_assoc.
+Qed.
+
+Lemma pure_and' : forall (P Q : Prop), bi_pure(PROP := monPredI A (ouPredI M)) (P /\ Q) = (⌜P⌝ ∧ ⌜Q⌝).
+Proof.
+intros.
+  intros; apply assert_ext; intros; monPred.unseal; apply pure_and.
+Qed.
+
+Lemma and_exist_l' : forall {A} P (Q : A -> _), (P ∧ (∃ a : A, Q a)) = ∃ a, P ∧ Q a.
+Proof.
+  intros; apply assert_ext; intros; monPred.unseal; apply and_exist_l.
+Qed.
+
+Lemma and_exist_r' : forall {A} P (Q : A -> _), ((∃ a : A, Q a) ∧ P) = ∃ a, Q a ∧ P.
+Proof.
+  intros; apply assert_ext; intros; monPred.unseal; apply and_exist_r.
+Qed.
+
+Lemma sep_exist_l' : forall {A} P (Q : A -> _), (P ∗ (∃ a : A, Q a)) = ∃ a, P ∗ Q a.
+Proof.
+  intros; apply assert_ext; intros; monPred.unseal; apply sep_exist_l.
+Qed.
+
+Lemma sep_exist_r' : forall {A} P (Q : A -> _), ((∃ a : A, Q a) ∗ P) = ∃ a, Q a ∗ P.
+Proof.
+  intros; apply assert_ext; intros; monPred.unseal; apply sep_exist_r.
+Qed.
+
+End monPred.
+
+#[export] Hint Rewrite @False_sep' @sep_False' @True_and' @and_True' : norm.
+
+#[export] Hint Rewrite @sep_emp' @emp_sep'
+             @sep_exist_l' @sep_exist_r'
+               @and_exist_l' @and_exist_r'
+     using (solve [auto with typeclass_instances])
+        : norm.
+
 Section mpred.
 
 Context `{!heapGS Σ}.
@@ -119,11 +230,11 @@ Qed.
 
 Lemma frame_normal:
   forall P F,
-   frame_ret_assert (normal_ret_assert P) F ≡ normal_ret_assert (P ∗ F).
+   frame_ret_assert (normal_ret_assert P) F = normal_ret_assert (P ∗ F).
 Proof.
 intros.
 unfold normal_ret_assert; simpl.
-split3; last split; intros; rewrite /= // left_absorb //.
+f_equal; last extensionality; apply sep_False'.
 Qed.
 
 Lemma frame_for1:
@@ -137,11 +248,12 @@ Qed.
 
 Lemma frame_loop1:
   forall Q R F,
-   frame_ret_assert (loop2_ret_assert Q R) F ≡
+   frame_ret_assert (loop2_ret_assert Q R) F =
    loop2_ret_assert (Q ∗ F) (frame_ret_assert R F).
 Proof.
 intros.
-destruct R; split3; last split; rewrite /= // left_absorb //.
+destruct R; simpl; f_equal.
+apply sep_False'.
 Qed.
 
 Lemma overridePost_overridePost:
@@ -220,44 +332,45 @@ Proof.
  rewrite H2. destruct (eqb_type _ _); apply Coq.Init.Logic.I.
 Qed.
 
-Lemma local_lift2_and: forall (P Q : environ -> Prop), (local (`and P Q) : assert) ≡
+Lemma local_lift2_and: forall (P Q : environ -> Prop), (local (`and P Q) : assert) =
         (local P ∧ local Q).
 Proof.
   intros.
-  split => rho; monPred.unseal; super_unfold_lift.
-  rewrite bi.pure_and //.
+  apply assert_ext; intros; monPred.unseal; super_unfold_lift.
+  rewrite pure_and //.
 Qed.
 
-Lemma subst_True : forall i v, assert_of (subst i v (True : assert)) ⊣⊢ True.
+Lemma subst_True : forall i v, assert_of (subst i v (True : assert)) = True.
 Proof.
   intros.
-  split => rho; rewrite /subst /=; monPred.unseal; done.
+  apply assert_ext; intros; rewrite /subst /=; monPred.unseal; done.
 Qed.
 
-Lemma subst_False : forall i v, assert_of (subst i v (False : assert)) ⊣⊢ False.
+Lemma subst_False : forall i v, assert_of (subst i v (False : assert)) = False.
 Proof.
   intros.
-  split => rho; rewrite /subst /=; monPred.unseal; done.
+  apply assert_ext; intros; rewrite /subst /=; monPred.unseal; done.
 Qed.
 
 Lemma subst_sepcon: forall i v P Q,
-  assert_of (subst i v (P ∗ Q)) ⊣⊢ (assert_of (subst i v P) ∗ assert_of (subst i v Q)).
+  assert_of (subst i v (P ∗ Q)) = (assert_of (subst i v P) ∗ assert_of (subst i v Q)).
 Proof.
-  intros; rewrite /subst; split => rho; monPred.unseal; done.
+  intros; rewrite /subst; apply assert_ext; intros; monPred.unseal; done.
 Qed.
 
 Lemma subst_wand: forall i v P Q,
-  assert_of (subst i v (P -∗ Q)) ⊣⊢ (assert_of (subst i v P) -∗ assert_of (subst i v Q)).
+  (assert_of (subst i v (P -∗ Q)%I)) = (assert_of (subst i v P) -∗ assert_of (subst i v Q))%I.
 Proof.
-  intros; rewrite /subst; split => rho; monPred.unseal.
-  iSplit; iIntros "H" (? [=]) "P"; subst; by iApply "H".
+  intros; rewrite /subst; apply assert_ext; intros; monPred.unseal.
+  ouPred.unseal; apply IProp_eq; extensionality n x; apply prop_ext.
+  split; intros ??????? [=]; subst; by apply H.
 Qed.
 
 Lemma subst_exp:
   forall (B: Type) (a : ident) (v : environ -> val) (P: B -> assert),
-    assert_of (subst a v (∃ b: B, P b)) ⊣⊢ ∃ b: B, assert_of (subst a v (P b)).
+    assert_of (subst a v (∃ b: B, P b)) = ∃ b: B, assert_of (subst a v (P b)).
 Proof.
-  intros; rewrite /subst; split => rho; monPred.unseal; done.
+  intros; rewrite /subst; apply assert_ext; intros; monPred.unseal; done.
 Qed.
 
 Lemma env_set_env_set: forall id v1 v2 rho, env_set (env_set rho id v1) id v2 = env_set rho id v2.
@@ -329,15 +442,15 @@ Proof.
 Qed.
 
 Lemma subst_andp: forall id v P Q,
-  assert_of (subst id v (P ∧ Q)) ⊣⊢ assert_of (subst id v P) ∧ assert_of (subst id v Q).
+  assert_of (subst id v (P ∧ Q)) = (assert_of (subst id v P) ∧ assert_of (subst id v Q)).
 Proof.
-  intros; rewrite /subst; split => rho; monPred.unseal; done.
+  intros; rewrite /subst; apply assert_ext; intros; monPred.unseal; done.
 Qed.
 
 Lemma subst_prop: forall i v (P : Prop),
-    assert_of (subst i v (⌜P⌝ : assert)) ⊣⊢ ⌜P⌝.
+    assert_of (subst i v (⌜P⌝ : assert)) = ⌜P⌝.
 Proof.
-  intros; rewrite /subst; split => rho; monPred.unseal; done.
+  intros; rewrite /subst; apply assert_ext; intros; monPred.unseal; done.
 Qed.
 
 Lemma eval_expr_Econst_int: forall {cs: compspecs}  i t, eval_expr (Econst_int i t) = `(Vint i).
@@ -358,9 +471,9 @@ Lemma eval_lvalue_Ederef:
   forall {cs: compspecs}  e t, eval_lvalue (Ederef e t) = eval_expr e.
 Proof. reflexivity. Qed.
 
-Lemma local_lift0_True:     @local Σ (`True%type) ⊣⊢ True.
+Lemma local_lift0_True:     @local Σ (`True%type) = True.
 Proof.
-  rewrite /local; split => rho; monPred.unseal; done.
+  rewrite /local; apply assert_ext; intros; monPred.unseal; done.
 Qed.
 
 Lemma overridePost_EK_return:
@@ -370,9 +483,9 @@ Proof.
 Qed.
 
 Lemma frame_ret_assert_emp:
-  forall (P : @ret_assert Σ), frame_ret_assert P emp ≡ P.
+  forall (P : @ret_assert Σ), frame_ret_assert P emp = P.
 Proof. intros.
-  destruct P; split3; last split; intros; rewrite /= bi.sep_emp //.
+  destruct P; simpl; f_equal; last extensionality; apply sep_emp'.
 Qed.
 
 Lemma frame_ret_assert_EK_return:
@@ -386,15 +499,15 @@ Lemma function_body_ret_assert_EK_return:
 Proof. reflexivity. Qed.
 
 Lemma bind_ret0_unfold:
-  forall Q, bind_ret None tvoid Q ⊣⊢ (assert_of (fun rho => Q (globals_only rho))).
+  forall Q, bind_ret None tvoid Q = (assert_of (fun rho => Q (globals_only rho))).
 Proof.
-  rewrite /bind_ret; split => rho; monPred.unseal; done.
+  intros; rewrite /bind_ret; apply assert_ext; intros; monPred.unseal; done.
 Qed.
 
 Lemma bind_ret1_unfold:
-  forall v t Q, bind_ret (Some v) t Q ⊣⊢ (⌜tc_val t v⌝ ∧ assert_of (fun rho => Q (make_args (ret_temp :: nil)(v::nil) rho))).
+  forall v t Q, bind_ret (Some v) t Q = (⌜tc_val t v⌝ ∧ assert_of (fun rho => Q (make_args (ret_temp :: nil)(v::nil) rho))).
 Proof.
-  rewrite /bind_ret; split => rho; monPred.unseal; done.
+  intros; rewrite /bind_ret; apply assert_ext; intros; monPred.unseal; done.
 Qed.
 
 Lemma bind_ret1_unfold':
@@ -601,41 +714,6 @@ Lemma ENTAIL_refl:
 Proof.
   intros; apply bi.and_elim_r.
 Qed.
-
-(*Lemma corable_andp_bupd: forall (P Q: environ -> mpred),
-  corable P ->
-  (P ∧ |==> Q) ⊢ |==> P ∧ Q.
-Proof.
-  intros.
-  rewrite !(andp_comm P).
-  apply bupd_andp2_corable; auto.
-Qed.
-
-Lemma corable_andp_fupd: forall E1 E2 (P Q: environ -> mpred),
-  corable P ->
-  (P ∧ |={E1,E2}=> Q) ⊢ |={E1,E2}=> P ∧ Q.
-Proof.
-  intros.
-  rewrite !(andp_comm P).
-  apply fupd_andp2_corable; auto.
-Qed.
-
-Lemma local_andp_fupd: forall E1 E2 P Q,
-  (local P ∧ |={E1,E2}=> Q) ⊢ |={E1,E2}=> (local P ∧ Q).
-Proof.
-  intros.
-  rewrite !(andp_comm (local P)).
-  apply fupd_andp2_corable.
-  intro; apply corable_prop.
-Qed.
-
-Lemma fupd_andp_local: forall E1 E2 P Q,
-  (|={E1,E2}=> P) ∧ local Q ⊢ |={E1,E2}=> (P ∧ local Q).
-Proof.
-  intros.
-  apply fupd_andp2_corable.
-  intro; apply corable_prop.
-Qed.*)
 
 Implicit Type (R : assert).
 

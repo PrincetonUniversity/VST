@@ -85,7 +85,6 @@ and @reptype CompSpecs t_struct_hmac_ctx_st
   is not corrrectly identified here: instead of the pose l:=...; assert (exists l':..., ...);
    use l' in data_at c, we'd really like to simply write
   data_at Tsh t_struct_hmac_ctx_st (default_val t_struct_SHA256state_st, (iCTX, oCTX)) c.*)
-
 pose  (l:=(default_val t_struct_SHA256state_st, (iCTX, oCTX))).
 assert (exists l':@reptype CompSpecs t_struct_hmac_ctx_st, l'=l).
   exists l. trivial.
@@ -165,12 +164,10 @@ change_compspecs CompSpecs.
 unfold data_block. simpl. rewrite SFL.
 unfold PROPx, LOCALx, SEPx, local, liftx, lift1, lift; simpl; split => tau; monPred.unseal.
 
-Time (normalize; cancel). (*5.5*)
-unfold stackframe_of. simpl. cancel.
+entailer!.
+unfold stackframe_of. simpl.
 rewrite bi.sep_emp.
-eapply derives_trans.
-2:{  apply sepcon_derives.  apply derives_refl.
-     apply (var_block_lvar0 _ _ Delta); trivial. apply H0. }
+rewrite <- (var_block_lvar0 _ _ Delta) by (trivial; apply H0).
 cancel.
 
 unfold hmacstate_PostFinal, hmac_relate_PostFinal.
@@ -179,7 +176,6 @@ Exists (updShaST, (iCTX, oCTX)). rewrite prop_true_andp by (split3; auto).
 match goal with |- _ |-- data_at _ _ ?A _ =>
 change A with (default_val t_struct_SHA256state_st, (iCTX, oCTX))
 end.
-subst c.
 Time unfold_data_at (data_at(cs := CompSpecs) _ _ _ (Vptr b i)).
 Time assert_PROP (field_compatible t_struct_SHA256state_st [] (Vptr b i)) as FC by entailer!. (*1.2*)
 Time cancel. (*0.7*)

@@ -204,18 +204,18 @@ unfold field_at_.
 change (default_val (nested_field_type t_struct_elem [StructField _next])) with Vundef.
 rewrite <- (field_at_share_join _ _ _ _ _ _ _ Qsh_Qsh').
 pull_left (field_at Qsh' t_struct_elem [StructField _next] Vundef p).
-rewrite assoc by apply _.
+rewrite sep_assoc.
 pull_left (field_at Qsh' t_struct_elem [StructField _next] Vundef p).
 pull_left (field_at Qsh' t_struct_elem [StructField _b] (Vint b) p).
 pull_left (field_at Qsh' t_struct_elem [StructField _a] (Vint a) p).
-rewrite field_at_list_cell_weak  by apply readable_share_Qsh'.
+rewrite field_at_list_cell_weak by apply readable_share_Qsh'.
 pull_left (list_cell QS Qsh (Vundef, Vundef) p).
 rewrite join_cell_link with (psh:=Ews) by (auto; try apply Qsh_Qsh'; apply readable_share_Qsh').
-rewrite <- bi.sep_assoc.
+rewrite <- sep_assoc.
 change (field_at _ _ _ _ _) with (field_at_ Qsh t_struct_elem (DOT _next) p).
 rewrite field_at__share_join by (apply sepalg.join_comm, Qsh_Qsh').
 rewrite <- field_at_list_cell_weak by auto.
-rewrite <- bi.sep_assoc; reflexivity.
+rewrite <- sep_assoc; reflexivity.
 Qed.
 
 Definition surely_malloc_spec :=

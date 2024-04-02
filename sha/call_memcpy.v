@@ -544,15 +544,17 @@ eapply semax_pre_post';
        try eassumption;
        try (rewrite ?Hspec, ?Hglob; reflexivity)].
 * unfold convertPre. simpl fst; simpl snd.
- rewrite <- (andp_dup (local (tc_environ _))), <- bi.and_assoc.
- eapply derives_trans; [ apply andp_derives; [apply derives_refl | apply Hpre] | ].
- apply bi.and_intro; [solve_andp|].
- rewrite <- bi.later_intro.
- assert_PROP (field_address0 tp (pathp SUB lop) p <> Vundef) as DEFp.
+ iIntros "(#TC & ?)".
+ iPoseProof (Hpre with "[$]") as "H".
+ iSplit; first by rewrite !bi.and_elim_l.
+ iNext.
+ iAssert ⌜field_address0 tp (pathp SUB lop) p <> Vundef⌝ as %DEFp.
  {
    unfold tc_exprlist.
    simpl typecheck_exprlist.
    rewrite !denote_tc_assert_andp.
+   iDestruct "TC" as "-#TC".
+   iStopProof; rewrite <- bi.persistent_and_affinely_sep_r by apply _.
    apply derives_trans with (local (tc_environ Delta) && denote_tc_assert (typecheck_expr Delta e_p) && local ((` (eq (field_address0 tp (pathp SUB lop) p))) (eval_expr e_p))); [solve_andp |].
    go_lowerx.
    eapply derives_trans; [apply typecheck_expr_sound; auto |].
@@ -562,6 +564,8 @@ eapply semax_pre_post';
    rewrite H7 in H6.
    revert H6; apply tc_val_Vundef.
  }
+ iDestruct "TC" as "-#TC".
+ iStopProof; rewrite <- bi.persistent_and_affinely_sep_r by apply _.
  subst witness. cbv beta iota. simpl @fst; simpl @snd.
  clear Hpre.
  autorewrite with norm1 norm2.

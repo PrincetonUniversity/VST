@@ -121,7 +121,7 @@ Proof.
   rewrite sublist_0_cons // sublist_nil data_at_tuchar_singleton_array_inv.
   iAssert ⌜field_compatible tuchar [] (Vptr b i)⌝ with "[H]" as %?.
   { unfold data_at, field_at; iDestruct "H" as "($ & _)". }
-  rewrite -mapsto_data_at' // mapsto_core_load //.
+  erewrite <-mapsto_data_at', mapsto_core_load by done.
   iDestruct (core_load_load' with "[$Hm $H]") as %Hbyte.
   apply Mem.load_loadbytes in Hbyte as (byte & Hbyte & ->); subst.
   rewrite Ptrofs.add_unsigned !Ptrofs.unsigned_repr // in Hrest.
@@ -243,7 +243,7 @@ Proof.
   rewrite data_at__eq data_at_tuchar_singleton_array_inv /=.
   iAssert ⌜field_compatible tuchar [] (Vptr b o)⌝ with "[H]" as %?.
   { unfold data_at, field_at; iDestruct "H" as "($ & _)". }
-  rewrite -mapsto_data_at' //.
+  erewrite <- mapsto_data_at' by done.
   inv Hty.
   iMod (mapsto_store with "[$Hm $H]") as "(Hm & H)"; [eauto..|].
   rewrite encode_val_length /= in Hstore2.
@@ -256,7 +256,7 @@ Proof.
   2: { apply Zlength_cons. }
   rewrite sublist_0_cons // sublist_nil sublist_1_cons sublist_same //; last lia.
   rewrite -data_at_tuchar_singleton_array.
-  rewrite mapsto_data_at' //.
+  erewrite mapsto_data_at' by done.
   rewrite /field_address0 if_true /=.
   by iFrame.
   { rewrite field_compatible0_cons; split; auto; lia. }

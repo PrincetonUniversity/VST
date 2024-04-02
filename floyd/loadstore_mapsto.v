@@ -42,19 +42,14 @@ Proof.
   rename H1 into H_READABLE; rename H2 into H1.
   eapply semax_pre_post'; [ | | apply semax_load with sh t2; auto].
   + instantiate (1:= PROPx (tc_val (typeof e1) v2 :: P) (LOCALx Q (SEPx R))).
-    apply later_left2.
-    match goal with |- ?A ⊢ _ => rewrite <- (andp_dup A) end.
-    eapply derives_trans.
-    apply bi.and_mono; [apply derives_refl | apply H1].
-    clear H.
-    go_lowerx.
-    gather_prop.
-    apply bi.pure_elim_l; intro.
-    apply bi.and_intro.
-    apply bi.pure_intro; repeat split; try eassumption.
-    apply bi.and_intro.
-    rewrite bi.and_elim_r. rewrite bi.and_elim_l; auto.
-    rewrite bi.and_elim_l; auto.
+    iIntros "(#? & H)"; iNext.
+    iAssert ⌜tc_val (typeof e1) v2⌝ as %?.
+    { iDestruct (H1 with "[$]") as "(_ & ? & _)"; unfold local. rewrite lift0C_prop //. }
+    iSplit.
+    { iDestruct (H1 with "[$]") as "($ & _)". }
+    iSplit; first done.
+    iDestruct "H" as "(? & $ & $)"; simpl.
+    iSplit; auto; iSplit; auto.
   + rewrite bi.and_elim_r.
     apply (derives_trans _ (⌜tc_val (typeof e1) v2⌝ ∧
                             (∃ old : val,
@@ -62,7 +57,7 @@ Proof.
                               (assert_of (subst id (` old) (PROPx P (LOCALx Q (SEPx R)))))))).
     - apply bi.and_intro.
       * apply bi.exist_elim; intros.
-        rewrite bi.and_elim_r.        
+        rewrite bi.and_elim_r.
         constructor => rho; simpl.
         unfold subst.
         rewrite <- insert_prop.
@@ -118,19 +113,13 @@ Proof.
   intros until 1. intros HCAST H_READABLE H1. pose proof I.
   eapply semax_pre_post'; [ | | apply @semax_cast_load with (sh:=sh)(v2:= v2); auto].
   + instantiate (1:= PROPx (tc_val t1 (force_val (sem_cast (typeof e1) t1 v2)) :: P) (LOCALx Q (SEPx R))).
-    apply later_left2.
-    match goal with |- ?A ⊢ _ => rewrite <- (andp_dup A) end.
-    eapply derives_trans.
-    apply bi.and_mono; [apply derives_refl | apply H1].
-    clear H1.
-    go_lowerx.
-    gather_prop.
-    apply bi.pure_elim_l; intro.
-    apply bi.and_intro.
-    apply bi.pure_intro; repeat split; eassumption.
-    apply bi.and_intro.
-    rewrite bi.and_elim_r. rewrite bi.and_elim_l; auto.
-    rewrite bi.and_elim_l; auto.
+    iIntros "(#? & H)"; iNext.
+    iAssert ⌜tc_val t1 (force_val (sem_cast (typeof e1) t1 v2))⌝ as %?.
+    { iDestruct (H1 with "[$]") as "(_ & ? & _)"; unfold local. rewrite lift0C_prop //. }
+    rewrite assoc; iSplit.
+    { iPoseProof (H1 with "[$]") as "H"; iSplit; [iDestruct "H" as "($ & _)" | iDestruct "H" as "(_ & $ & _)"]. }
+    iDestruct "H" as "(? & $ & $)"; simpl.
+    iSplit; auto; iSplit; auto.
   + intros. rewrite bi.and_elim_r.
     eapply (derives_trans _ (⌜tc_val t1 (force_val (sem_cast (typeof e1) t1 v2))⌝ ∧
                              (∃ old : val,
@@ -278,27 +267,20 @@ Lemma semax_store_nth_ram:
 Proof.
   intros.
   eapply semax_pre_simple; [| eapply semax_post'; [| apply semax_store; eauto]].
-  + apply later_left2.
-    apply bi.and_intro;  [subst; auto |].
-    simpl lifted.
-    rewrite (add_andp _ _ H0).
-    rewrite (add_andp _ _ H1).
+  + iIntros "(#? & H)"; iNext.
+    iSplit; first by subst; iApply H5; auto.
+    iDestruct (H0 with "[$]") as "#?".
+    iDestruct (H1 with "[$]") as "#?".
     erewrite SEP_nth_isolate, <- insert_SEP by eauto.
-    rewrite !(bi.and_comm _ (local _)).
-    rewrite <- (andp_dup (local (`(eq p) (eval_lvalue e1)))), <-bi.and_assoc.
-    do 3 rewrite <- local_sepcon_assoc2.  rewrite <- local_sepcon_assoc1.
-    apply (derives_trans _ (((assert_of (`( mapsto_ sh (typeof e1)) (eval_lvalue e1))) ∗ 
-                             (assert_of (`(bi_wand (mapsto sh t1 p v) Post)))) ∗
+    instantiate (1 := (assert_of (`(bi_wand (mapsto sh t1 p v) Post))) ∗
                             ((local ((` (eq p)) (eval_lvalue e1))) ∧
                              (local ((` (eq v)) (eval_expr (Ecast e2 t1))) ∧
                              (local (tc_environ Delta)) ∧ 
-                             PROPx P (LOCALx Q (SEPx (replace_nth n R emp))))))).
-    - apply bi.sep_mono; [| apply derives_refl].
-      unfold local, lift1; unfold_lift; raise_rho; simpl.
-      subst t1.
-      normalize.
-    - rewrite -bi.sep_assoc.
-      apply derives_refl.
+                             PROPx P (LOCALx Q (SEPx (replace_nth n R emp)))))).
+    rewrite H4.
+    iFrame "#".
+    iStopProof; split => rho; monPred.unseal; unfold_lift; rewrite monPred_at_intuitionistically /=.
+    iIntros "(#(? & -> & ?) & (? & $) & $)"; subst; auto.
   + rewrite bi.sep_assoc.
     rewrite ->!local_sepcon_assoc2, <- !local_sepcon_assoc1.
     erewrite SEP_replace_nth_isolate with (Rn' := Post), <- insert_SEP by eauto.
@@ -339,24 +321,20 @@ Lemma semax_store_nth_ram_union_hack:
 Proof.
   intros * ? ? ? ? ? NT OK; intros.
   eapply semax_pre_simple; [| eapply semax_post'; [| apply semax_store_union_hack; subst; eauto]].
-  + apply later_left2.
-    apply bi.and_intro;  [subst; auto |].
-    simpl lifted.
-    rewrite (add_andp _ _ H0).
-    rewrite (add_andp _ _ H1).
+  + iIntros "(#? & H)"; iNext.
+    iSplit; first by subst; iApply H8; auto.
+    iDestruct (H0 with "[$]") as "#?".
+    iDestruct (H1 with "[$]") as "#?".
     erewrite SEP_nth_isolate, <- insert_SEP by eauto.
-    rewrite !(bi.and_comm _ (local _)).
-    rewrite -(andp_dup (local (`(eq p) (eval_lvalue e1)))) -bi.and_assoc.
-    do 3 rewrite <- local_sepcon_assoc2.  rewrite <- local_sepcon_assoc1.
-    eapply derives_trans.
-    - apply bi.sep_mono; [| apply derives_refl].
-      instantiate (1 := ((assert_of (`(mapsto_ sh (typeof e1)) (eval_lvalue e1))) ∧ 
-                                 (assert_of (`(mapsto_ sh t2) (eval_lvalue e1)))) ∗ (assert_of `(bi_wand (mapsto sh t2 p v') Post))).
-      unfold local, lift1; unfold_lift; raise_rho; simpl.
-      subst t1.
-      normalize.
-    - rewrite -bi.sep_assoc.
-      apply derives_refl.
+    instantiate (1 := (assert_of (`(bi_wand (mapsto sh t2 p v') Post))) ∗
+                            ((local ((` (eq p)) (eval_lvalue e1))) ∧
+                             (local ((` (eq v)) (eval_expr (Ecast e2 t1))) ∧
+                             (local (tc_environ Delta)) ∧ 
+                             PROPx P (LOCALx Q (SEPx (replace_nth n R emp)))))).
+    rewrite H7.
+    iFrame "#".
+    iStopProof; split => rho; monPred.unseal; unfold_lift; rewrite monPred_at_intuitionistically /=.
+    iIntros "(#(? & -> & ?) & (? & $) & $)"; subst; auto.
   +
     rewrite (@bi.and_exist_l _ _).
     apply bi.exist_elim; intro v''.
@@ -372,9 +350,8 @@ Proof.
     Transparent eval_lvalue eval_expr.
     subst t1.
     assert (v''=v'). eapply juicy_mem_lemmas.decode_encode_val_fun; eauto.
-    subst v''.    
+    subst v''.
     rewrite bi.sep_assoc.
     apply bi.sep_mono; auto.
     apply modus_ponens_wand.
 Qed.
-

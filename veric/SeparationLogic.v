@@ -11,7 +11,7 @@ Require Export VST.sepcomp.Address.
 Require Export VST.sepcomp.extspec.
 Require Export VST.msl.eq_dec.
 Require Export VST.msl.shares.
-Require Export VST.msl.log_normalize.
+Require Export VST.veric.log_normalize.
 Require Export VST.veric.tycontext.
 Require Export VST.veric.change_compspecs.
 Require Export VST.veric.mpred.
