@@ -13,6 +13,7 @@ Section CLOSED_LEMMAS.
 
 Context `{!heapGS Σ}.
 
+(* consider switching this to eq *)
 Lemma closed_env_set:
  forall `{Equiv B} i v (P: environ -> B) rho,
      closed_wrt_vars (eq i) P ->

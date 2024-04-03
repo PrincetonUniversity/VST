@@ -108,8 +108,7 @@ intros. subst. apply field_compatible_field_address; auto.
 Qed.
 
 #[export] Hint Resolve field_address_eq_offset' : prove_it_now.
-#[export] Hint Rewrite <- @bi.pure_and using solve [auto with typeclass_instances]: norm1.
-
+#[export] Hint Rewrite <- @pure_and @pure_and': norm1.
 
 
 Lemma var_block_lvar2:
