@@ -461,7 +461,7 @@ Proof.
 intros. destruct al; reflexivity.
 Qed.
 
-Lemma upd_Znth_sep : forall {B : bi} i l (P : B), 0 <= i < Zlength l ->
+Lemma upd_Znth_sep : forall i l (P : mpred), 0 <= i < Zlength l ->
   P ∗ [∗] (upd_Znth i l emp) ⊣⊢ [∗] (upd_Znth i l P).
 Proof.
   intros; iSplit.
@@ -977,6 +977,7 @@ Proof.
       * iIntros "($ & ? & ? & H)".
         iSpecialize ("H" $! emp with "[]"); first done.
         rewrite list_insert_upd //.
+        rewrite -and_exist_l.
         replace (Zlength t') with (Zlength h') in *; by iApply (upd_write_shares with "[$]").
   - Intros t' h'.
     forward.
