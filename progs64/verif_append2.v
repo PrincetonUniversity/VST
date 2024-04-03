@@ -173,9 +173,6 @@ forward_if.
 *
  subst x. rewrite listrep_null. Intros; subst. 
  forward.
- Exists y.
- entailer!!.
- simpl; auto.
 *
  forward.
  destruct s1 as [ | v s1']; unfold listrep; fold listrep. Intros; contradiction.
@@ -368,9 +365,6 @@ forward_if.
 *
  subst x. rewrite lseg_null. Intros. subst.
  forward.
- Exists y.
- entailer!!.
- simpl; auto.
 *
  forward.
  destruct s1 as [ | v s1']; unfold lseg at 1; fold lseg.

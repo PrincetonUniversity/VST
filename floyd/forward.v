@@ -131,8 +131,10 @@ assert (Int.unsigned Int.zero + sizeof t <= Ptrofs.modulus)
 eapply semax_pre.
 instantiate (1 := ∃ v:val, (PROPx P (LOCALx (lvar id t v :: Q) (SEPx (data_at_ Tsh t v :: R))))
                       ∗ fold_right bi_sep emp Vs).
-unfold var_block,  eval_lvar.
-go_lowerx. unfold lvar_denote.
+unfold var_block, eval_lvar; simpl.
+go_lowerx.
+rewrite -sep_exist_r; cancel.
+unfold lvar_denote.
 normalize.
 unfold Map.get.
 destruct (ve_of rho id) as [[? ?] | ] eqn:?.
@@ -148,9 +150,8 @@ split3; auto. apply Coq.Init.Logic.I.
 split3; auto.
 apply la_env_cs_sound; auto.
 apply Coq.Init.Logic.I.
-unfold foldr.
-rewrite memory_block_isptr; normalize.
-rewrite memory_block_isptr; normalize.
+rewrite memory_block_isptr; Intros; contradiction.
+rewrite memory_block_isptr; Intros; contradiction.
 apply extract_exists_pre. apply H3.
 Qed.
 
