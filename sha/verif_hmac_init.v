@@ -68,7 +68,7 @@ forward_if (PostKeyNull c k pad gv h1 l wsh sh key ckb ckoff).
     clear H.
     remember (Int.eq i Int.zero). destruct b.
      apply binop_lemmas2.int_eq_true in Heqb. rewrite Heqb; auto with valid_pointer. entailer!.
-     Intros. rewrite @data_block_valid_pointer; auto. iIntros "(_ & _ & $)".
+     Intros. rewrite @data_block_valid_pointer; auto. iIntros "(_ & _ & _ & _ & $)".
      red in H2. lia.
      apply valid_pointer_null. }
 

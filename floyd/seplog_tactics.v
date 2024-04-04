@@ -1322,7 +1322,7 @@ Ltac normalize1 :=
             | |-  bi_entails ?A ?B => match A with
                    | False => apply bi.False_elim
                    | ⌜True⌝ => apply bi.pure_intro
-                   | ⌜_⌝ => apply bi.pure_elim'
+                   | ⌜?P⌝ => tryif (constr_eq P True%type) then fail else apply bi.pure_elim'
                    | bi_exist (fun y => _) => apply bi.exist_elim; (intro y || intro)
                    | ⌜_⌝ ∧ _ => apply bi.pure_elim_l
                    | _ ∧ ⌜_⌝ => apply bi.pure_elim_r
@@ -1346,7 +1346,7 @@ Ltac normalize1 :=
                    | _ => simple apply bi.True_intro
                    | _ => constr_eq A B; done
                    end
-              | |- _ => solve [auto]
+              | |- _ => first [done | (* by apply bi.pure_mono | *) by apply bi.pure_intro]
               | |- _ ⊢ ⌜?x = ?y⌝ ∧ _ =>
                             (apply pure_intro_l; first by (unfold y; reflexivity); unfold y in *; clear y) ||
                             (apply pure_intro_l; first by (unfold x; reflexivity); unfold x in *; clear x)

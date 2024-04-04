@@ -103,8 +103,8 @@ Lemma msubst_denote_tc_assert_sound: forall P R tc,
 Proof.
   Ltac and_elim_rightmost := 
     rewrite bi.and_elim_l; apply bi.impl_intro_r; rewrite bi.and_elim_r;
-    simpl denote_tc_nonzero; unfold local, lift1; unfold_lift; raise_rho;
-    normalize.
+    simpl denote_tc_nonzero; unfold local, lift1; unfold_lift;
+    raise_rho; try apply bi.pure_mono; normalize.
   intros.
   induction tc.
   + rewrite !bi.and_elim_r. done.

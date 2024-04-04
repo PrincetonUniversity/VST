@@ -395,8 +395,8 @@ Proof.
       subst t1. simpl tree_rep. rewrite !prop_true_andp by auto.
       forward. (* *t = p; *)
       forward. (* return; *)
-      iIntros "(? & H)"; iApply "H".
-      by iApply treebox_rep_leaf.
+      iIntros "(? & ? & H)"; iApply "H".
+      by iApply (treebox_rep_leaf with "[$]").
     + (* else clause *)
       destruct t1.
         { simpl tree_rep. Intros. contradiction. }
@@ -430,7 +430,7 @@ Proof.
         (* TODO: SIMPLY THIS LINE *)
         simpl_compb.
         simpl_compb.
-        iIntros "(? & H)"; iApply "H"; iStopProof.
+        iIntros "(? & ? & ? & ? & H)"; iApply "H"; iStopProof.
         unfold treebox_rep. Exists p.
         simpl tree_rep. Exists pa pb. entailer!!.
   * (* After the loop *)
@@ -577,7 +577,7 @@ Proof.
       }
       forward. (* return *)
       simpl.
-      iIntros "(? & H)"; iApply "H"; iStopProof.
+      iIntros "(? & ? & ? & H)"; iApply "H"; iStopProof.
       unfold treebox_rep; Exists pa.
       entailer!!.
     - destruct tbc0 as [| tb0 y vy tc0].
@@ -692,6 +692,7 @@ Proof.
   rewrite memory_block_data_at_ by auto.
   forward.
   forward.
+  Exists p; entailer!!.
 Qed.
 
 Lemma body_tree_free: semax_body Vprog Gprog f_tree_free tree_free_spec.

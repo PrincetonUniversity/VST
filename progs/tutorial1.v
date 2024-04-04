@@ -80,9 +80,7 @@ intros.
 simpl.
 (* It's not nice that [simpl] unfolded the list_repeat. *)
 entailer!.
-repeat rewrite Zlength_cons. rewrite Zlength_nil. 
-rep_lia.
-Abort.
+Qed.
 
 (* To avoid unfolding of the list_repeat, let us make N opaque. *)
 

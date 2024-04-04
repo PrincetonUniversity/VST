@@ -20,7 +20,7 @@ Section FOO.
 (*Andrew's definition
 Definition object_invariant := list Z -> val -> mpred.*)
 
-(*But the uncurried version is easier for the HOrec construction*)
+(*But the uncurried version is easier for the fixpoint construction*)
 Definition ObjInv : Type:= (list Z * val).
 Definition object_invariant := ObjInv -d> mpred.
 
@@ -56,6 +56,7 @@ Definition object_methods (instance: object_invariant) (mtable: val) : mpred :=
   func_ptr (twiddle_spec instance) twiddle ∗
   func_ptr (twiddle_spec instance) twiddleR ∗
   data_at sh (Tstruct _methods noattr) (reset,(twiddle, twiddleR)) mtable.
+Typeclasses Opaque object_methods.
 
 Global Instance reset_spec_ne : NonExpansive reset_spec.
 Proof.
@@ -428,7 +429,7 @@ forward. (* p->mtable = &foo_methods; *)
 forward. (* p->data = 0; *)
 forward. (* return (struct object * ) p; *)
 Exists p.
-Time sep_apply (split_object_methods foo_obj_invariant (gv _foo_methods)).
+sep_apply (split_object_methods foo_obj_invariant (gv _foo_methods)).
 entailer!!.
 unfold obj_mpred.
 
@@ -1334,7 +1335,6 @@ forward_call (* i = p_twiddle(p,3); *)
    sep_apply make_object_methods_later.
    rewrite ObjMpred_fold_unfold.
    Exists mtable0. entailer!!. }
-{ simpl. repeat split; try trivial; computable. }
 Intros i.
 simpl in H0. (*
 sep_apply (make_object_methods sh instance r0 t0 mtable0); auto.

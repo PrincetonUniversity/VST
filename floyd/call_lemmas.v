@@ -918,7 +918,7 @@ Proof.
  go_lowerx.
  unfold tc_exprlist.
  revert bl; induction argsig; destruct bl;
-   simpl; try normalize.
+   simpl; auto.
  rewrite expr2.denote_tc_assert_andp bi.and_elim_r IHargsig; auto.
 Qed.
 

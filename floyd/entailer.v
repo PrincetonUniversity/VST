@@ -546,6 +546,7 @@ Ltac my_auto_reiter :=
 Ltac my_auto :=
  repeat match goal with |- ?P -> _ => match type of P with Prop => intro end end;
  rewrite ->?isptr_force_ptr by auto;
+ norm_rewrite;
  let H := fresh in eapply my_auto_lem; [intro H; my_auto_iter H | ];
  try all_True;
  (eapply my_auto_lem; [intro; my_auto_reiter | ]);
@@ -580,9 +581,8 @@ Ltac entailer :=
  try solve [apply bi.pure_intro; my_auto];
  try solve [apply prop_and_same_derives_mpred; my_auto];
  saturate_local;
- entailer';
- (* TODO iris bi_sep is right assoc, so making the goal look like ((_∗_)∗_) introduces lots of parens. Do we want to change that? *)
- rewrite ?bi.sep_assoc.
+ entailer'(*;
+ rewrite ?bi.sep_assoc*).
 
 
 Ltac entbang :=

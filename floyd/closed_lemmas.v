@@ -1531,10 +1531,9 @@ Lemma closed_wrt_tc_nosignedover:
 Proof.
 intros; hnf; intros.
 simpl. unfold_lift.
-destruct (typeof e1)  as [ | _ [ | ] _ | | | | | | | ]; 
-destruct (typeof e2)  as [ | _ [ | ] _ | | | | | | | ]; 
-rewrite <- H; auto;
-rewrite <- H0; auto.
+destruct (typeof e1)  as [ | _ [ | ] _ | | | | | | | ];
+destruct (typeof e2)  as [ | _ [ | ] _ | | | | | | | ];
+rewrite <- (H _ _ H1), (H0 _ _ H1); done.
 Qed.
 
 #[local] Hint Resolve closed_wrt_tc_nosignedover : closed.

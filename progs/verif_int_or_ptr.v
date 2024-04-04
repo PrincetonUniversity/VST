@@ -187,6 +187,7 @@ Proof.
  forward_if.
  - (* then clause *)
    forward.
+   EExists; unfold treerep; entailer!.
  - (* else clause *)
   inv H0.
 * (* NODE *) 

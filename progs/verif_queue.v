@@ -347,6 +347,7 @@ Proof.
     + Intros. forward. entailer!.
 *
   forward.
+  Exists p; entailer!!.
 Qed.
 
 Lemma fifo_isptr: forall al q, fifo al q |-- !! isptr q.
@@ -454,15 +455,9 @@ forward_if.
      rewrite if_false by (clear; destruct prefix; simpl; congruence).
      Exists  (prefix ++ tl :: nil).
      entailer. (* do this to avoid canceling *)
-     match goal with
-     | |- _ |-- _ * _ * ?AA => remember AA as A
-     end.     (* prevent it from canceling! *)
-     simpl sizeof.
-     cancel. subst A.
-     eapply derives_trans; [ |
-       apply (lseg_cons_right_neq _ _ _ _ _ ((Vundef,Vundef) : elemtype QS));
-        auto ].
-     cancel.
+     iIntros "($ & $ & ? & ? & ? & $ & ?)".
+     iApply (lseg_cons_right_neq with "[-]"); [auto..|].
+     iFrame.
 Qed.
 
 Lemma body_fifo_get: semax_body Vprog Gprog f_fifo_get fifo_get_spec.

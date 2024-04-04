@@ -38,8 +38,7 @@ Lemma list_rep_local_facts:
 Proof.
   intros.
   destruct l; simpl; Intros; try Intros y; entailer!.
-  + split; auto.
-  + split; intros; subst; try congruence; try contradiction.
+  split; intros; subst; try congruence; try contradiction.
 Qed.
 
 End LISTS.
@@ -79,9 +78,8 @@ Lemma tree_rep_local_facts:
 Proof.
   intros.
   destruct t; simpl; Intros; try Intros x y; subst; entailer!.
-  + split; auto.
-  + split; intros; try congruence.
-    subst; inv Pp.
+  split; intros; try congruence.
+  subst; inv Pp.
 Qed.
 
 End TREES.
@@ -196,9 +194,8 @@ Lemma xtree_rep_local_facts:
 Proof.
 intros.
 destruct t; simpl; Intros; try Intros q;  entailer!.
-+ split; auto.
-+ split; intros; try congruence.
-  subst; destruct H as [? _]; inv H.
+split; intros; try congruence.
+subst; destruct H as [? _]; inv H.
 Qed.
 #[export] Hint Resolve xtree_rep_local_facts: saturate_local.
 
@@ -325,9 +322,8 @@ Lemma ytree_rep_local_facts:
 Proof.
 intros.
 destruct t; simpl; Intros; try Intros q; entailer!.
-+ split; auto.
-+ split; intros; try congruence.
-  subst; destruct H as [? _]; inv H.
+split; intros; try congruence.
+subst; destruct H as [? _]; inv H.
 Qed.
 #[export] Hint Resolve ytree_rep_local_facts: saturate_local.
 
@@ -785,13 +781,14 @@ Proof.
   replace_SEP 0 (lt_ytree_rep t' y).
   {
     unfold lt_ytree_rep.
-    entailer!!.
+    go_lower.
+    Exists r; cancel.
   }
   forward_call (y, t').
   forward.
   clear.
   unfold lt_ytree_rep.
-  rewrite bi.sep_exist_r; Intros r.
+  rewrite sep_exist_r; Intros r.
   Exists (v :: r).
   unfold y_list_rep; simpl.
   Exists y.
@@ -827,7 +824,8 @@ Proof.
   replace_SEP 0 (t_ytree_rep a pa).
   {
     unfold t_ytree_rep.
-    entailer!!.
+    go_lower.
+    Exists s1; cancel.
   }
   forward_call (pa, a).
   forward.
@@ -835,13 +833,14 @@ Proof.
   replace_SEP 0 (t_ytree_rep b pb).
   {
     unfold t_ytree_rep.
-    entailer!.
+    go_lower.
+    Exists s2; cancel.
   }
   forward_call (pb, b).
   forward.
   clear.
   unfold t_ytree_rep.
-  Intros s1 s2.
+  Intros s2 s1.
   Exists (T s1 v s2).
   unfold y_tree_rep; simpl.
   Exists pa pb.

@@ -1006,7 +1006,7 @@ Qed.
 
 Lemma prop_right_emp:
  forall {BI : bi} (P: Prop), P -> (emp : BI) ⊢ ⌜P⌝.
-Proof. intros. normalize. Qed.
+Proof. intros. auto. Qed.
 
 Lemma prop_and_right:
  forall {BI : bi} (U: BI) (X Y: Prop),

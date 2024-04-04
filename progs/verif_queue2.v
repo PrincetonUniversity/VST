@@ -154,6 +154,7 @@ Proof.
     + Intros. forward. entailer!.
 *
   forward.
+  Exists p; entailer!!.
 Qed.
 
 Lemma fifo_isptr: forall al q, fifo al q |-- !! isptr q.
@@ -259,13 +260,9 @@ forward_if.
      unfold_data_at (data_at(cs := CompSpecs) Ews t_struct_elem (last,nullval) p).
      unfold_data_at (data_at _ _ _ p).
      simpl sizeof.
-     match goal with
-     | |- _ |-- _ * _ * (_ * ?AA) => remember AA as A
-     end.     (* prevent it from canceling! *)
-     cancel. subst A.
-     eapply derives_trans;
-        [ | apply (lseg_cons_right_neq QS Ews prefix hd last0 tl nullval p ); auto].
-     simpl sizeof.  cancel.
+     iIntros "($ & $ & ? & ? & ? & $ & $ & ?)".
+     iApply (lseg_cons_right_neq with "[-]"); [auto..|].
+     auto with iFrame.
 Qed.
 
 Lemma body_fifo_get: semax_body Vprog Gprog f_fifo_get fifo_get_spec.
@@ -311,6 +308,7 @@ Intros p.
 forward.  (*  p->data=i; *)
 simpl.
 forward. (* return p; *)
+Exists p; entailer!!.
 Qed.
 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.

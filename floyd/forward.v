@@ -596,8 +596,7 @@ Lemma prop_Forall_cons:
   (P ⊢ ⌜F a⌝ ∧ ⌜Forall F b⌝) ->
   P ⊢ ⌜Forall F (a::b)⌝.
 Proof.
-intros. eapply derives_trans; [apply H |].
-normalize.
+intros. rewrite H. normalize; auto.
 Qed.
 
 Lemma prop_Forall_cons':
@@ -605,8 +604,7 @@ Lemma prop_Forall_cons':
   (P ⊢ ⌜P1 ∧ F a⌝ ∧ ⌜Forall F b⌝) ->
   P ⊢ ⌜P1⌝ ∧ ⌜Forall F (a::b)⌝.
 Proof.
-intros. eapply derives_trans; [apply H |].
-normalize.
+intros. rewrite H. normalize; auto.
 Qed.
 
 Lemma prop_Forall_nil:
@@ -621,8 +619,7 @@ Lemma prop_Forall_nil':
   (P ⊢ ⌜P1⌝)->
   P ⊢ ⌜P1⌝ ∧ ⌜Forall F nil⌝.
 Proof.
-intros. eapply derives_trans; [apply H |].
-normalize.
+intros. rewrite H. normalize; auto.
 Qed.
 
 Lemma prop_Forall_cons1:
@@ -631,8 +628,7 @@ Lemma prop_Forall_cons1:
   (P ⊢ ⌜Forall F b⌝) ->
   P ⊢ ⌜Forall F (a::b)⌝.
 Proof.
-intros. eapply derives_trans; [apply H0 |].
-normalize.
+intros. rewrite H0. normalize; auto.
 Qed.
 
 Ltac check_vl_eq_args:=

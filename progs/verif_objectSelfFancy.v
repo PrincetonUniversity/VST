@@ -1297,7 +1297,6 @@ forward_call (* i = p_twiddle(p,3); *)
    sep_apply make_object_methods_later.
    rewrite ObjMpred_fold_unfold.
    Exists mtable0. entailer!. }
-{ simpl. repeat split; try trivial; computable. }
 Intros i.
 simpl in H0. (*
 sep_apply (make_object_methods sh instance r0 t0 mtable0); auto.

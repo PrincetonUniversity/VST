@@ -373,7 +373,7 @@ Proof.
       forward. (* return (&p->value); *)
       Exists p1 (offset_val 4 p1).
       apply bi.and_intro; auto.
-      iIntros "(? & H)"; iApply "H".
+      iIntros "(? & ? & H)"; iApply "H".
       unfold subscr_post; simpl.
       simpl_compb. simpl_compb.
       replace (offset_val 4 p1)

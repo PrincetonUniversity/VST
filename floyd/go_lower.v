@@ -66,7 +66,7 @@ revert H0; monPred.unseal; intros H0.
 unfold_lift; apply bi.pure_elim_l; intros.
 apply bi.pure_elim_l; intros (-> & ?).
 rewrite -H0 //.
-- normalize.
+- auto.
 - apply tc_val_tc_val'; last done.
   apply tc_eval'_id_i with Delta; auto.
 Qed.
@@ -129,7 +129,7 @@ Proof.
   revert H; monPred.unseal; intros H.
   apply bi.pure_elim_l; intros.
   apply bi.pure_elim_l; intros.
-  rewrite -H //; first normalize.
+  rewrite -H //; first auto.
   intros.
   eapply gvars_denote_HP; eauto.
 Qed.
@@ -142,7 +142,7 @@ Proof.
 intros.
 simpl.
 unfold_for_go_lower; simpl; monPred.unseal.
-normalize.
+normalize; auto.
 Qed.
 
 Lemma lower_one_temp_Vint':
@@ -174,7 +174,7 @@ forget (PROPx P (LOCALx Q (SEPx R))) as PQR.
 revert H0; monPred.unseal; intros H0.
 unfold_lift; apply bi.pure_elim_l; intros.
 apply bi.pure_elim_l; intros (-> & ?).
-rewrite -H0 //; first normalize.
+rewrite -H0 //; first auto.
 apply tc_val_tc_val'; last done.
 apply tc_eval'_id_i with Delta; auto.
 Qed.

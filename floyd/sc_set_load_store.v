@@ -123,7 +123,7 @@ Proof.
     unfold local, lift1; raise_rho; simpl; unfold_lift.
     iIntros "(% & % & H)".
     iDestruct (typecheck_lvalue_sound with "H") as %Htc; first done.
-    rewrite -H10 in Htc; normalize.
+    rewrite -H10 in Htc; auto.
   }
   subst gfs.
   pose proof nested_field_ramif_load sh _ _ _ _ _ _ H9 H7 as [v_reptype' [? ?]].
@@ -174,7 +174,7 @@ Proof.
     unfold local, lift1; split => rho; monPred.unseal; unfold_lift.
     iIntros "(% & % & H)".
     iDestruct (typecheck_lvalue_sound with "H") as %Htc; first done.
-    rewrite -H11 in Htc; normalize.
+    rewrite -H11 in Htc; auto.
   }
   subst gfs.
   pose proof nested_field_ramif_load sh _ _ _ _ _ _ H10 H8 as [v_reptype' [? ?]].
@@ -445,12 +445,10 @@ Proof.
     apply Int.eqm_samerepr; auto.
   + eapply derives_trans; [eassumption |].
     unfold local, lift1; unfold_lift; split => rho; simpl.
-    normalize.
-    constructor; auto.
+    apply bi.pure_mono; constructor; auto.
   + eapply derives_trans; [eassumption |].
     unfold local, lift1; unfold_lift; split => rho; simpl.
-    normalize.
-    constructor; auto.
+    apply bi.pure_mono; constructor; auto.
 Qed.
 
 Ltac insist_rep_lia :=

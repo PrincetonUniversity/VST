@@ -263,7 +263,7 @@ Proof.
        tauto
       |];
     apply @lseg_unroll_nonempty1 with q;
-      [destruct (gv _three); try contradiction; intro Hx; inv Hx | normalize; try reflexivity | ];
+      [destruct (gv _three); try contradiction; intro Hx; inv Hx | auto; try reflexivity | ];
     rewrite list_cell_eq by auto;
     do 2 (apply sepcon_derives;
       [ unfold field_at; rewrite prop_true_andp by auto with field_compatible;
@@ -281,7 +281,7 @@ Proof.
        tauto
       |];
     apply @lseg_unroll_nonempty1 with q;
-      [destruct (gv _three); try contradiction; intro Hx; inv Hx | normalize; try reflexivity | ];
+      [destruct (gv _three); try contradiction; intro Hx; inv Hx | auto; try reflexivity | ];
     rewrite list_cell_eq by auto;
     do 2 (apply sepcon_derives;
       [ unfold field_at; rewrite prop_true_andp by auto with field_compatible;

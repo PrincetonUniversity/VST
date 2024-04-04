@@ -946,7 +946,7 @@ Proof. intros.
  apply pred_ext.
  apply bi.or_elim.
  rewrite <- bi.pure_and; apply bi.pure_elim_l; intros []; auto.
- unfold lseg_cons. normalize. inv H0.
+ unfold lseg_cons. normalize.
  rewrite <- bi.or_intro_l. rewrite <- bi.and_assoc.
  rewrite (prop_true_andp (_ = _)) by auto. auto.
 Qed.
@@ -975,7 +975,8 @@ Proof.
  unfold lseg_cons.
  rewrite prop_true_andp by auto.
   rewrite <- !bi.exist_intro.
-  normalize.
+  cancel.
+  simpl; entailer!.
 Qed.
 
 Definition lseg_cons_right (ls: listspec list_structid list_link list_token)
@@ -1472,7 +1473,7 @@ Proof. intros.
  - apply bi.or_elim.
    + rewrite <- bi.pure_and.
      apply bi.pure_elim_l; intros []; auto.
-   + unfold lseg_cons. normalize. inv H0.
+   + unfold lseg_cons. normalize.
  - rewrite <- bi.or_intro_l.
    apply bi.pure_elim_l; intros; auto.
 Qed.
@@ -1895,9 +1896,10 @@ subst x.
 apply bi.exist_elim; intro tail.
 rewrite (prop_true_andp (~ptr_eq v z)) by auto.
 Exists (vund ls) l tail.
+entailer!.
 normalize.
 apply bi.or_elim.
-rewrite <- bi.pure_and; apply bi.pure_elim_l; intros [].
+apply bi.pure_elim_l; intros [].
 auto.
 unfold lseg_cons.
 Intros h r y.

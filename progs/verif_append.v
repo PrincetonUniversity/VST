@@ -38,6 +38,7 @@ start_function.
 forward_if.
 *
  forward.
+ Exists y; simpl; entailer!!.
 *
  forward.
  apply semax_lseg_nonnull; [ | intros a s3 u ? ?].

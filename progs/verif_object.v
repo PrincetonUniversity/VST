@@ -253,7 +253,7 @@ match goal with
           forward;
           forward_call witness;
           [ .. | try Intros result;
-                  sep_apply (make_object_methods sh instance r t mtable); [ auto .. | ];
+                  sep_apply (make_object_methods sh instance r t mtable); first auto;
                   sep_apply (object_mpred_i hist' x' instance mtable);
                   deadvars; try clear dependent sh; try clear r; try clear t
            ]
@@ -295,10 +295,10 @@ assert_PROP (p<>Vundef) by entailer!.
    Method 1:  comment out lines AA and BB and the entire range CC-DD.
    Method 2:  comment out lines AA-BB, inclusive.
 *)
-(* AA *) try (tryif 
+(* AA *) try (tryif
   (method_call (p, @nil Z) (@nil Z) whatever;
-   method_call (p, 3, @nil Z) [3%Z] i;
-     [simpl; computable | ])
+   method_call (p, 3, @nil Z) [3%Z] i(*;
+     [simpl; computable | ]*))
 (* BB *)  then fail else fail 99)
   .
 
@@ -327,7 +327,6 @@ forward.   (* p_twiddle = mtable->twiddle; *)
 assert_PROP (p<>Vundef) by entailer!.
 forward_call (* i = p_twiddle(p,3); *)
       (p, 3, @nil Z).
-  simpl. computable.
 Intros i.
 simpl in H0.
 sep_apply (make_object_methods sh instance r0 t0 mtable0); auto.

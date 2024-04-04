@@ -154,4 +154,5 @@ eapply semax_while_peel.
 abbreviate_semax.
 Intros a.
 forward.
+Exists a; entailer!!.
 Qed.

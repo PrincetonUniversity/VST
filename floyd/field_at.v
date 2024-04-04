@@ -125,6 +125,7 @@ Definition field_at (sh: Share.t) (t: type) (gfs: list gfield) (v: reptype (nest
  ⌜field_compatible t gfs p⌝ ∧
  at_offset (data_at_rec sh (nested_field_type t gfs) v) (nested_field_offset t gfs) p.
 Arguments field_at sh t gfs v p : simpl never.
+Global Typeclasses Opaque field_at.
 
 Definition field_at_ (sh: Share.t) (t: type) (gfs: list gfield) (p: val): mpred :=
   field_at sh t gfs (default_val (nested_field_type t gfs)) p.
