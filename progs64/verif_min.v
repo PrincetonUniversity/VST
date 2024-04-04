@@ -275,4 +275,5 @@ forward_if.
  Intros x.
  autorewrite with sublist in *.
  forward. (* return *)
+ Exists x; entailer!.
 Qed.

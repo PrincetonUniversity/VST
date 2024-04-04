@@ -171,8 +171,9 @@ Proof.
 start_function.
 forward_if.
 *
- subst x. rewrite listrep_null. Intros; subst. 
+ subst x. rewrite listrep_null. Intros; subst.
  forward.
+ Exists y; simpl; entailer!.
 *
  forward.
  destruct s1 as [ | v s1']; unfold listrep; fold listrep. Intros; contradiction.
@@ -247,7 +248,6 @@ revert p; induction contents; intros; simpl; unfold lseg; fold lseg.
 { normalize. }
 Intros y.
 entailer!.
-intuition congruence.
 Qed.
 
 Hint Resolve lseg_local_facts : saturate_local.
@@ -291,7 +291,7 @@ Lemma lseg_cons: forall sh (v u x: val) (s: list val),
  ⊢ lseg sh [v] x u ∗ lseg sh s u nullval.
 Proof.
 intros.
-     unfold lseg at 2. Exists u. 
+     unfold lseg at 2. Exists u.
      entailer.
      destruct s; unfold lseg at 1; fold lseg; entailer.
 Qed.
@@ -365,6 +365,7 @@ forward_if.
 *
  subst x. rewrite lseg_null. Intros. subst.
  forward.
+ Exists y; simpl; entailer!.
 *
  forward.
  destruct s1 as [ | v s1']; unfold lseg at 1; fold lseg.
