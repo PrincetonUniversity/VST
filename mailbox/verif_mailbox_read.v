@@ -49,7 +49,7 @@ Proof.
       (∃ v : Z, data_at sh tbuffer (vint v) (Znth b' bufs)) ∗ ghost_frag (vint b') g0).
   { unfold comm_loc; entailer!.
     rewrite <- bi.emp_sep at 1; apply bi.sep_mono; last cancel.
-    rewrite /AE_spec.
+    rewrite /AE_spec -sep_exist_r.
     iIntros "_" (???? (? & ? & Hincl)) "(>comm & (% & %) & buf & g0)".
     rewrite /comm_R.
     rewrite !rev_app_distr /= !last_two_reads_cons prev_taken_cons.
@@ -63,16 +63,16 @@ Proof.
     lapply (repable_buf b); auto; intro.
     rewrite Hlast.
     iIntros "!>". rewrite -bi.later_intro.
-    rewrite bi.sep_exist_r; iExists (-1).
-    rewrite bi.sep_exist_r; iExists (if eq_dec (vint b) Empty then b0 else b).
-    rewrite bi.sep_exist_r; iExists (if eq_dec (vint b) Empty then b2 else b0).
+    rewrite sep_exist_r; iExists (-1).
+    rewrite sep_exist_r; iExists (if eq_dec (vint b) Empty then b0 else b).
+    rewrite sep_exist_r; iExists (if eq_dec (vint b) Empty then b2 else b0).
     iStopProof; entailer!.
     { split; [rewrite Forall_app; repeat constructor; auto|].
       { exists b, (-1); split; [|split]; auto; lia. }
       split; last by if_tac.
       if_tac; last done.
       if_tac; auto. }
-    rewrite -!bi.sep_exist_l -!bi.sep_exist_r.
+    rewrite -!bi.sep_exist_l -!sep_exist_r.
     setoid_rewrite (if_true (Empty = Empty)); [|done..].
     Exists (if eq_dec (vint b) Empty then b0 else b); cancel.
     apply hist_incl_lt in Hincl; last done.
