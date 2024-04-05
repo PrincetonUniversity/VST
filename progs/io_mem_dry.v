@@ -93,7 +93,7 @@ Proof.
         iPureIntro; repeat (split; first done).
         subst; simpl.
         rewrite Mem.loadbytes_empty //. }
-      rewrite split2_data_at_Tarray_app //.
+      erewrite split2_data_at_Tarray_app; [| done |].
       iDestruct "Hbuf" as "(Hmsg & _)".
       iDestruct (data_at_bytes with "[$Hz $Hmsg]") as %Hmsg; [done.. | |].
       { rewrite Forall_map Forall_forall //. }
