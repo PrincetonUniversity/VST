@@ -121,6 +121,11 @@ jobs:
             make_target: test4
           - bit_size: 64
             make_target: test5
+          # avoid Coq issue https://github.com/coq/coq/issues/18126
+          - coq_version: 8.18
+            make_target: test
+          - coq_version: 8.18
+            make_target: test4
 
     steps:
       - name: 'Download archive'
