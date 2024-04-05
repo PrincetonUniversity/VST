@@ -143,5 +143,4 @@ all:  # need this so that _CoqProject does not become the default target
 _CoqProject: Makefile
 	@echo $(VSTFLAGS) > _CoqProject
 
-FLOYD= $(VST_LOC)/floyd/proofauto.vo $(VST_LOC)/floyd/VSU.vo
-
+FLOYD= $(VST_LOC)/floyd/proofauto.vo $(VST_LOC)/floyd/compat.vo $(VST_LOC)/floyd/VSU.vo
