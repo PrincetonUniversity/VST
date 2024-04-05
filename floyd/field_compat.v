@@ -269,6 +269,47 @@ Section mpred.
 
 Context `{!VSTGS OK_ty Σ}.
 
+Lemma andp_prop_eq' : forall P P' (Q Q' : mpred) (Hdec : {P} + {~P} ),
+  (P <-> P') -> (P -> (⌜P⌝ ∧ Q) = (⌜P'⌝ ∧ Q')) -> (⌜P⌝ ∧ Q) = (⌜P'⌝ ∧ Q').
+Proof.
+  intros.
+  apply andp_prop_eq; auto; intros.
+  rewrite !prop_true_andp in H0 by tauto; auto.
+Qed.
+
+Lemma split2_data_at_Tarray {cs: compspecs} sh t n n1 (v v' v1 v2: list (reptype t)) p:
+   0 <= n1 <= n ->
+   n <= Zlength v' ->
+   v = (sublist 0 n v') ->
+   v1 = (sublist 0 n1 v') ->
+   v2 = (sublist n1 n v') ->
+   data_at sh (Tarray t n noattr) v p =
+    (data_at sh (Tarray t n1 noattr) v1 p ∗
+     data_at sh (Tarray t (n - n1) noattr) v2 (field_address0 (Tarray t n noattr) (ArraySubsc n1::nil) p)).
+Proof.
+  intros.
+  unfold data_at, field_at; normalize.
+  apply andp_prop_eq'.
+  { apply field_compatible_dec. }
+  { apply field_compatible_Tarray_split; auto. }
+  intros Hcompat.
+  assert (Zlength v = n) as Hv by (subst; autorewrite with sublist; auto).
+  setoid_rewrite field_at_Tarray; eauto; [|lia].
+  rewrite (split2_array_at sh (Tarray t n noattr) nil 0 n1); auto; [|setoid_rewrite Hv; lia].
+  trans (data_at sh (Tarray t n1 noattr) v1 p ∗
+    data_at sh (Tarray t (n - n1) noattr) v2 (field_address0 (Tarray t n noattr) (SUB n1) p)); [|unfold data_at, field_at; normalize].
+  erewrite !array_at_data_at''' by (eauto; lia).
+  subst; autorewrite with sublist.
+  f_equal.
+  rewrite field_address0_offset, !nested_field_offset_ind; simpl; auto.
+  rewrite Z.mul_0_r, isptr_offset_val_zero by (destruct Hcompat; auto).
+  erewrite (data_at_type_changable _ _ (Tarray t n1 noattr)); auto.
+  rewrite nested_field_type_ind; simpl.
+  rewrite Z.sub_0_r; auto.
+  { lia. }
+  { rewrite field_compatible0_cons; simpl; split; auto; lia. }
+Qed.
+
 Lemma split2_data_at_Tarray_unfold {cs: compspecs}
      sh t n n1 (v v' v1 v2: list (reptype t)) p:
    0 <= n1 <= n ->
@@ -286,39 +327,9 @@ Proof.
     intros [? ?]. destruct H4 as [? _]. rewrite Z.max_r in H4 by lia.
     rewrite <- H0. exact H4.
   }
-  assert_PROP (field_compatible0 (Tarray t n noattr) (ArraySubsc n1::nil) p). {
-    rewrite data_at_local_facts; apply bi.pure_mono.
-     intros [? _]; auto with field_compatible.
-  }
-  rewrite field_address0_offset by auto.
-  rewrite !nested_field_offset_ind by (repeat split; auto; lia).
-  rewrite nested_field_type_ind. unfold gfield_offset.
-  rewrite Z.add_0_l.
-  rewrite data_at_isptr at 1.
-  unfold data_at at 1. intros; simpl; normalize.
-  erewrite (field_at_Tarray sh  (Tarray t n noattr) _ t); try reflexivity; trivial.
-  2: lia.
-  rewrite (split2_array_at sh (Tarray t n noattr) nil 0 n1).
-  2: auto. 2: rewrite Z.sub_0_r, H0; auto.
-  do 2 rewrite array_at_data_at by tauto.
-  rewrite Zminus_0_r.
-  unfold at_offset.
-  erewrite (data_at_type_changable sh
-            (nested_field_array_type (Tarray t n noattr) nil 0 n1)
-            (Tarray t n1 noattr) _ v1).
-  2: unfold nested_field_array_type; simpl; rewrite Zminus_0_r; trivial.
-  2: rewrite H1, H0; auto.
-  erewrite (data_at_type_changable sh
-            (nested_field_array_type (Tarray t n noattr) nil n1 n)
-            (Tarray t (n - n1) noattr) _  v2).
-  2: unfold nested_field_array_type; simpl; trivial.
-  2: rewrite H2, <- H3, H0; auto.
-  rewrite !nested_field_offset_ind by (repeat split; auto; lia).
-  rewrite !nested_field_type_ind.
-  unfold gfield_offset.
-  rewrite !Z.add_0_l. rewrite Z.mul_0_r.
-  rewrite isptr_offset_val_zero; trivial.
-  normalize.
+  subst; erewrite split2_data_at_Tarray; eauto.
+  - lia.
+  - autorewrite with sublist; auto.
 Qed.
 
 Lemma split2_data_at_Tarray_fold {cs: compspecs} sh t n n1 (v v' v1 v2: list (reptype t)) p:
@@ -333,60 +344,9 @@ Lemma split2_data_at_Tarray_fold {cs: compspecs} sh t n n1 (v v' v1 v2: list (re
    ⊢
    data_at sh (Tarray t n noattr) v p.
 Proof.
-  intros until 1. intro Hn; intros.
-  unfold field_address0.
-  if_tac; [| iIntros "(? & H)"; iDestruct (data_at_local_facts with "H") as %((? & ?) & ?); contradiction].
-  assert_PROP (field_compatible (Tarray t n noattr) nil p). {
-    iIntros "(? & H)"; iDestruct (data_at_local_facts with "H") as %(H4 & _).
-    clear - H3 H4 H; iPureIntro.
-    hnf in H3,H4|-*; intuition.
-  } clear H3; rename H4 into H3.
-  rewrite data_at_isptr at 1. unfold at_offset. intros; normalize.
-  unfold data_at at 3. erewrite field_at_Tarray; try reflexivity; eauto; try lia.
-  rewrite H0.
-  rewrite (split2_array_at sh (Tarray t n noattr) nil 0 n1); trivial.
-  2: autorewrite with sublist; auto.
-  autorewrite with sublist.
-  unfold data_at at 1; erewrite field_at_Tarray; try reflexivity; eauto; try lia.
-  unfold data_at at 1; erewrite field_at_Tarray; try reflexivity; eauto; try lia.
-  apply bi.sep_mono.
-  unfold array_at.
-  rewrite H1.
-  simpl. apply bi.and_mono; auto.
-  { apply bi.pure_mono. intuition auto with field_compatible. }
-  assert (sublist n1 (Z.min n (Zlength v')) v' = sublist n1 n v').
-  { f_equal. autorewrite with sublist. auto. }
-  rewrite H2.
-  clear - H H3.
-  rewrite array_at_data_at by lia. normalize.
-  rewrite array_at_data_at by lia.
-  rewrite !prop_true_andp by auto with field_compatible.
-  unfold at_offset.
-  rewrite offset_offset_val.
-  rewrite !nested_field_offset_ind by (repeat split; auto; lia).
-  rewrite !nested_field_type_ind. unfold gfield_offset.
-  rewrite !Z.add_0_l. rewrite Z.mul_0_r, Z.add_0_r.
-  erewrite data_at_type_changable; auto.
-  unfold nested_field_array_type.
-  rewrite !nested_field_type_ind.  unfold gfield_type. simpl. f_equal; lia.
-Qed.
-
-Lemma split2_data_at_Tarray {cs: compspecs} sh t n n1 (v v' v1 v2: list (reptype t)) p:
-   0 <= n1 <= n ->
-   n <= Zlength v' ->
-   v = (sublist 0 n v') ->
-   v1 = (sublist 0 n1 v') ->
-   v2 = (sublist n1 n v') ->
-   data_at sh (Tarray t n noattr) v p ⊣⊢
-    data_at sh (Tarray t n1 noattr) v1 p ∗
-    data_at sh (Tarray t (n - n1) noattr) v2 (field_address0 (Tarray t n noattr) (ArraySubsc n1::nil) p).
-Proof.
   intros.
-  apply bi.equiv_entails_2.
-  - eapply split2_data_at_Tarray_unfold; try eassumption.
-    autorewrite with sublist; auto.
-    autorewrite with sublist; auto.
-  - eapply split2_data_at_Tarray_fold; try eassumption.
+  erewrite <-
+ split2_data_at_Tarray; eauto.
 Qed.
 
 Lemma field_compatible0_Tarray_offset:
@@ -458,10 +418,10 @@ Lemma split3_data_at_Tarray {cs: compspecs} sh t n n1 n2 v (v' v1 v2 v3: list (r
    v1 = (sublist 0 n1 v') ->
    v2 = (sublist n1 n2 v') ->
    v3 = (sublist n2 n v') ->
-   data_at sh (Tarray t n noattr) v p ⊣⊢
-    data_at sh (Tarray t n1 noattr) v1 p ∗
-    data_at sh (Tarray t (n2 - n1) noattr) v2 (field_address0 (Tarray t n noattr) (ArraySubsc n1::nil) p) ∗
-    data_at sh (Tarray t (n - n2) noattr) v3 (field_address0 (Tarray t n noattr) (ArraySubsc n2::nil) p).
+   data_at sh (Tarray t n noattr) v p =
+    (data_at sh (Tarray t n1 noattr) v1 p ∗
+     data_at sh (Tarray t (n2 - n1) noattr) v2 (field_address0 (Tarray t n noattr) (ArraySubsc n1::nil) p) ∗
+     data_at sh (Tarray t (n - n2) noattr) v3 (field_address0 (Tarray t n noattr) (ArraySubsc n2::nil) p)).
 Proof.
   intros until 1. rename H into NA; intros.
   destruct (field_compatible0_dec (tarray t n) (ArraySubsc n2::nil) p).
@@ -496,22 +456,21 @@ Proof.
   rewrite Z.add_0_l.
   eapply field_compatible0_Tarray_offset; try eassumption; try lia.
   f_equal. f_equal. lia.
-  apply bi.equiv_entails_2.
-  iIntros "H"; iDestruct (data_at_local_facts with "H") as %(? & ?).
-  contradiction n0. auto with field_compatible.
-  unfold field_address0 at 2.
-  if_tac.
-  contradiction n0. auto with field_compatible.
-  iIntros "(? & ? & H)"; iDestruct (data_at_local_facts with "H") as %((? & ?) & ?).
-  contradiction.
+  unfold data_at, field_at; normalize; rewrite !prop_false_andp; auto.
+  - intros (? & ? & Hcompat).
+    unfold field_address0 in Hcompat.
+    if_tac in Hcompat; auto.
+    destruct Hcompat; done.
+  - intros ?.
+    contradiction n0. auto with field_compatible.
 Qed.
 
 Lemma split2_data_at_Tarray_tuchar {cs: compspecs} sh n n1 (v: list val) p:
    0 <= n1 <= n ->
    Zlength v = n ->
-   data_at sh (Tarray tuchar n noattr) v p ⊣⊢
-    data_at sh (Tarray tuchar n1 noattr) (sublist 0 n1 v) p ∗
-    data_at sh (Tarray tuchar (n - n1) noattr) (sublist n1 n v) (field_address0 (Tarray tuchar n noattr) (ArraySubsc n1::nil) p).
+   data_at sh (Tarray tuchar n noattr) v p =
+   (data_at sh (Tarray tuchar n1 noattr) (sublist 0 n1 v) p ∗
+    data_at sh (Tarray tuchar (n - n1) noattr) (sublist n1 n v) (field_address0 (Tarray tuchar n noattr) (ArraySubsc n1::nil) p)).
 Proof.
   intros.
   eapply split2_data_at_Tarray; auto;
@@ -524,9 +483,9 @@ Qed.
 Lemma split2_data_at_Tarray_tschar {cs: compspecs} sh n n1 (v: list val) p:
    0 <= n1 <= n ->
    Zlength v = n ->
-   data_at sh (Tarray tschar n noattr) v p ⊣⊢
-    data_at sh (Tarray tschar n1 noattr) (sublist 0 n1 v) p ∗
-    data_at sh (Tarray tschar (n - n1) noattr) (sublist n1 n v) (field_address0 (Tarray tschar n noattr) (ArraySubsc n1::nil) p).
+   data_at sh (Tarray tschar n noattr) v p =
+   (data_at sh (Tarray tschar n1 noattr) (sublist 0 n1 v) p ∗
+    data_at sh (Tarray tschar (n - n1) noattr) (sublist n1 n v) (field_address0 (Tarray tschar n noattr) (ArraySubsc n1::nil) p)).
 Proof.
   intros.
   eapply split2_data_at_Tarray; auto;
@@ -540,10 +499,10 @@ Lemma split3_data_at_Tarray_tuchar {cs: compspecs} sh n n1 n2 (v: list val) p:
    0 <= n1 <= n2 ->
    n2 <= n ->
    Zlength v = n ->
-   data_at sh (Tarray tuchar n noattr) v p ⊣⊢
-    data_at sh (Tarray tuchar n1 noattr) (sublist 0 n1 v) p ∗
+   data_at sh (Tarray tuchar n noattr) v p =
+   (data_at sh (Tarray tuchar n1 noattr) (sublist 0 n1 v) p ∗
     data_at sh (Tarray tuchar (n2 - n1) noattr) (sublist n1 n2 v) (field_address0 (Tarray tuchar n noattr) (ArraySubsc n1::nil) p) ∗
-    data_at sh (Tarray tuchar (n - n2) noattr) (sublist n2 n v) (field_address0 (Tarray tuchar n noattr) (ArraySubsc n2::nil) p).
+    data_at sh (Tarray tuchar (n - n2) noattr) (sublist n2 n v) (field_address0 (Tarray tuchar n noattr) (ArraySubsc n2::nil) p)).
 Proof.
   intros.
   eapply split3_data_at_Tarray; auto;
@@ -556,10 +515,10 @@ Lemma split3_data_at_Tarray_tschar {cs: compspecs} sh n n1 n2 (v: list val) p:
    0 <= n1 <= n2 ->
    n2 <= n ->
    Zlength v = n ->
-   data_at sh (Tarray tschar n noattr) v p ⊣⊢
-    data_at sh (Tarray tschar n1 noattr) (sublist 0 n1 v) p ∗
+   data_at sh (Tarray tschar n noattr) v p =
+   (data_at sh (Tarray tschar n1 noattr) (sublist 0 n1 v) p ∗
     data_at sh (Tarray tschar (n2 - n1) noattr) (sublist n1 n2 v) (field_address0 (Tarray tschar n noattr) (ArraySubsc n1::nil) p) ∗
-    data_at sh (Tarray tschar (n - n2) noattr) (sublist n2 n v) (field_address0 (Tarray tschar n noattr) (ArraySubsc n2::nil) p).
+    data_at sh (Tarray tschar (n - n2) noattr) (sublist n2 n v) (field_address0 (Tarray tschar n noattr) (ArraySubsc n2::nil) p)).
 Proof.
   intros.
   eapply split3_data_at_Tarray; auto;
@@ -681,7 +640,7 @@ Transparent sizeof.
 
 Lemma data_at_singleton_array {cs : compspecs} sh t vl v p:
   vl = [v] ->
-  data_at sh t v p ⊢ data_at sh (tarray t 1) vl p.  
+  data_at sh t v p ⊢ data_at sh (tarray t 1) vl p.
 Proof.
   intros. rename H into Heq.
   rewrite data_at_isptr. normalize.
@@ -741,34 +700,34 @@ Proof.
 Qed.
 
 Lemma data_at_tuchar_singleton_array {cs : compspecs} sh (v: val) p:
-  data_at sh tuchar v p ⊢ data_at sh (tarray tuchar 1) [v] p.  
+  data_at sh tuchar v p ⊢ data_at sh (tarray tuchar 1) [v] p.
 Proof. apply data_at_singleton_array. reflexivity. Qed.
 
 Lemma data_at_tschar_singleton_array {cs : compspecs} sh (v: val) p:
-  data_at sh tschar v p ⊢ data_at sh (tarray tschar 1) [v] p.  
+  data_at sh tschar v p ⊢ data_at sh (tarray tschar 1) [v] p.
 Proof. apply data_at_singleton_array. reflexivity. Qed.
 
 Lemma data_at_tuchar_singleton_array_inv {cs : compspecs} sh (v: val) p:
-  data_at sh (tarray tuchar 1) [v] p ⊢ data_at sh tuchar v p.  
+  data_at sh (tarray tuchar 1) [v] p ⊢ data_at sh tuchar v p.
 Proof. apply data_at_singleton_array_inv. reflexivity. Qed.
 
 Lemma data_at_tschar_singleton_array_inv {cs : compspecs} sh (v: val) p:
-  data_at sh (tarray tschar 1) [v] p ⊢ data_at sh tschar v p.  
+  data_at sh (tarray tschar 1) [v] p ⊢ data_at sh tschar v p.
 Proof. apply data_at_singleton_array_inv. reflexivity. Qed.
 
 Lemma data_at_tuchar_singleton_array_eq {cs : compspecs} sh (v: val) p:
-  data_at sh (tarray tuchar 1) [v] p ⊣⊢ data_at sh tuchar v p.  
+  data_at sh (tarray tuchar 1) [v] p ⊣⊢ data_at sh tuchar v p.
 Proof. apply data_at_singleton_array_eq. reflexivity. Qed.
 
 Lemma data_at_tschar_singleton_array_eq {cs : compspecs} sh (v: val) p:
-  data_at sh (tarray tschar 1) [v] p ⊣⊢ data_at sh tschar v p.  
+  data_at sh (tarray tschar 1) [v] p ⊣⊢ data_at sh tschar v p.
 Proof. apply data_at_singleton_array_eq. reflexivity. Qed.
 
 Lemma data_at_zero_array {cs : compspecs} sh t (v: list (reptype t)) p:
   complete_legal_cosu_type t = true ->
   isptr p ->
   v = (@nil (reptype t)) ->
-  emp ⊢ data_at sh (tarray t 0) v p.  
+  emp ⊢ data_at sh (tarray t 0) v p.
 Proof. intros.
   unfold data_at. 
   erewrite field_at_Tarray. 3: reflexivity. 3: lia. 3: apply JMeq_refl. 2: simpl; trivial.
@@ -777,14 +736,14 @@ Proof. intros.
   apply bi.pure_intro.
   apply field_compatible0_ArraySubsc0.
   apply isptr_field_compatible0_tarray; auto.
- simpl.
+  simpl.
   split; auto. lia.
 Qed.
 
 Lemma data_at_zero_array_inv {cs : compspecs} sh t (v: list (reptype t)) p:
   complete_legal_cosu_type t = true ->
   v = (@nil (reptype t)) ->
-  data_at sh (tarray t 0) v p ⊢ emp.  
+  data_at sh (tarray t 0) v p ⊢ emp.
 Proof. intros.
   unfold data_at. 
   erewrite field_at_Tarray. 3: reflexivity. 3: lia. 3: rewrite H0; apply JMeq_refl. 2: simpl; trivial.
@@ -804,45 +763,45 @@ Proof. intros.
 Qed. 
 
 Lemma data_at_tuchar_zero_array {cs : compspecs} sh p: isptr p ->
-  emp ⊢ data_at sh (tarray tuchar 0) [] p.  
+  emp ⊢ data_at sh (tarray tuchar 0) [] p.
 Proof. intros. apply data_at_zero_array; auto. Qed.
 
 Lemma data_at_tschar_zero_array {cs : compspecs} sh p: isptr p ->
-  emp ⊢ data_at sh (tarray tschar 0) [] p.  
+  emp ⊢ data_at sh (tarray tschar 0) [] p.
 Proof. intros. apply data_at_zero_array; auto. Qed.
 
 Lemma data_at_tuchar_zero_array_inv {cs : compspecs} sh p:
-  data_at sh (tarray tuchar 0) [] p ⊢ emp.  
+  data_at sh (tarray tuchar 0) [] p ⊢ emp.
 Proof. intros. apply data_at_zero_array_inv; auto. Qed.
 
 Lemma data_at_tschar_zero_array_inv {cs : compspecs} sh p:
-  data_at sh (tarray tschar 0) [] p ⊢ emp.  
+  data_at sh (tarray tschar 0) [] p ⊢ emp.
 Proof. intros. apply data_at_zero_array_inv; auto. Qed.
 
 Lemma data_at_tuchar_zero_array_eq {cs : compspecs} sh p:
   isptr p ->
-  data_at sh (tarray tuchar 0) [] p ⊣⊢ emp.  
+  data_at sh (tarray tuchar 0) [] p ⊣⊢ emp.
 Proof. intros. apply data_at_zero_array_eq; auto. Qed.
 
 Lemma data_at_tschar_zero_array_eq {cs : compspecs} sh p:
   isptr p ->
-  data_at sh (tarray tschar 0) [] p ⊣⊢ emp.  
+  data_at sh (tarray tschar 0) [] p ⊣⊢ emp.
 Proof. intros. apply data_at_zero_array_eq; auto. Qed.
 
 Lemma data_at__tuchar_zero_array {cs : compspecs} sh p (H: isptr p):
-  emp ⊢ data_at_ sh (tarray tuchar 0) p.  
+  emp ⊢ data_at_ sh (tarray tuchar 0) p.
 Proof. unfold data_at_, field_at_. apply data_at_tuchar_zero_array; trivial. Qed.
 
 Lemma data_at__tschar_zero_array {cs : compspecs} sh p (H: isptr p):
-  emp ⊢ data_at_ sh (tarray tschar 0) p.  
+  emp ⊢ data_at_ sh (tarray tschar 0) p.
 Proof. unfold data_at_, field_at_. apply data_at_tschar_zero_array; trivial. Qed.
 
 Lemma data_at__tuchar_zero_array_inv {cs : compspecs} sh p:
-  data_at_ sh (tarray tuchar 0) p ⊢ emp.  
+  data_at_ sh (tarray tuchar 0) p ⊢ emp.
 Proof. unfold data_at_, field_at_. apply data_at_tuchar_zero_array_inv. Qed.
 
 Lemma data_at__tschar_zero_array_inv {cs : compspecs} sh p:
-  data_at_ sh (tarray tschar 0) p ⊢ emp.  
+  data_at_ sh (tarray tschar 0) p ⊢ emp.
 Proof. unfold data_at_, field_at_. apply data_at_tschar_zero_array_inv. Qed.
 
 Lemma data_at__tuchar_zero_array_eq {cs : compspecs} sh p (H: isptr p):
@@ -864,10 +823,10 @@ Qed.
 Lemma split2_data_at__Tarray_tuchar
      : forall {cs : compspecs} (sh : Share.t)  (n n1 : Z) (p : val),
        0 <= n1 <= n -> isptr p ->field_compatible (Tarray tuchar n noattr) [] p ->
-       data_at_ sh (Tarray tuchar n noattr) p ⊣⊢
-       data_at_ sh (Tarray tuchar n1 noattr) p ∗
-       data_at_ sh (Tarray tuchar (n - n1) noattr)
-         (field_address0 (Tarray tuchar n noattr) [ArraySubsc n1] p).
+       data_at_ sh (Tarray tuchar n noattr) p =
+       (data_at_ sh (Tarray tuchar n1 noattr) p ∗
+        data_at_ sh (Tarray tuchar (n - n1) noattr)
+          (field_address0 (Tarray tuchar n noattr) [ArraySubsc n1] p)).
 Proof.
 intros. unfold data_at_ at 1; unfold field_at_.
 rewrite field_at_data_at.
@@ -888,10 +847,10 @@ Qed.
 Lemma split2_data_at__Tarray_tschar
      : forall {cs : compspecs} (sh : Share.t)  (n n1 : Z) (p : val),
        0 <= n1 <= n -> isptr p ->field_compatible (Tarray tschar n noattr) [] p ->
-       data_at_ sh (Tarray tschar n noattr) p ⊣⊢
-       data_at_ sh (Tarray tschar n1 noattr) p ∗
-       data_at_ sh (Tarray tschar (n - n1) noattr)
-         (field_address0 (Tarray tschar n noattr) [ArraySubsc n1] p).
+       data_at_ sh (Tarray tschar n noattr) p =
+       (data_at_ sh (Tarray tschar n1 noattr) p ∗
+        data_at_ sh (Tarray tschar (n - n1) noattr)
+         (field_address0 (Tarray tschar n noattr) [ArraySubsc n1] p)).
 Proof. intros. unfold data_at_ at 1; unfold field_at_.
 rewrite field_at_data_at.
 erewrite (@split2_data_at_Tarray cs sh tschar n n1).
@@ -914,10 +873,10 @@ Lemma split2_data_at_Tarray_app:
                            (v1 v2: list (reptype t)) p,
     Zlength v1 = mid ->
     Zlength v2 = n-mid ->
-    data_at sh (tarray t n) (v1 ++ v2) p ⊣⊢
-    data_at sh (tarray t mid) v1  p ∗
-    data_at sh (tarray t (n-mid)) v2
-            (field_address0 (tarray t n) [ArraySubsc mid] p).
+    data_at sh (tarray t n) (v1 ++ v2) p =
+    (data_at sh (tarray t mid) v1  p ∗
+     data_at sh (tarray t (n-mid)) v2
+            (field_address0 (tarray t n) [ArraySubsc mid] p)).
 Proof.
 intros.
 pose proof (Zlength_nonneg v1).

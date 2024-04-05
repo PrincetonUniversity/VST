@@ -55,9 +55,9 @@ Proof.
   + iIntros "H".
     iDestruct (field_at_local_facts with "H") as %(H7 & H8).
     rewrite -!prop_and_same_derives' //.
-    rewrite field_at_Tarray //; last by lia.
-    iDestruct (split3seg_array_at' _ _ _ 0 lo hi n with "H") as "(? & ? & ?)"; try lia.
-    { rewrite H1; lia. }
+    erewrite field_at_Tarray by (try done; lia).
+    rewrite (split3seg_array_at' _ _ _ 0 lo hi n); try lia. iDestruct "H" as "(? & ? & ?)".
+    2: { rewrite H1; lia. }
     rewrite !Z.sub_0_r /data_at; iFrame.
     iIntros (v) "H".
     unfold data_at.
@@ -66,7 +66,7 @@ Proof.
     destruct H4.
     rewrite -> Z.max_r in H4 by lia.
     change (@Zlength (reptype t) v = hi - lo) in H4.
-    rewrite (field_at_Tarray _ (tarray t n)) //; last lia.
+    erewrite (field_at_Tarray _ (tarray t n)) by (try done; lia).
     erewrite (split3seg_array_at' _ _ _ 0 lo hi n); try lia.
     2:{ autorewrite with sublist. lia. }
     autorewrite with norm.

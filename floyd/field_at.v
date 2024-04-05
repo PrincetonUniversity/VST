@@ -370,18 +370,42 @@ Proof.
   auto.
 Qed.
 
+Lemma andp_prop_eq : forall P P' (Q Q' : mpred) (Hdec : {P} + {~P} ),
+  (P <-> P') -> (P -> Q = Q') -> (⌜P⌝ ∧ Q) = (⌜P'⌝ ∧ Q').
+Proof.
+  intros.
+  destruct Hdec; [rewrite !prop_true_andp by tauto | rewrite !prop_false_andp by tauto]; auto.
+Qed.
+
+Lemma andp_prop_eq1 : forall P (Q Q' : mpred) (Hdec : {P} + {~P} ), (P -> Q = Q') ->
+  (⌜P⌝ ∧ Q) = (⌜P⌝ ∧ Q').
+Proof.
+  intros; apply andp_prop_eq; auto.
+Qed.
+
 Lemma array_at_ext: forall sh t gfs lo hi v0 v1 p,
   Zlength v0 = Zlength v1 ->
   (forall i u0 u1,
      lo <= i < hi ->
      JMeq u0 (Znth (i-lo) v0) ->
      JMeq u1 (Znth (i-lo) v1) ->
-     field_at sh t (ArraySubsc i :: gfs) u0 p ⊣⊢
+     field_at sh t (ArraySubsc i :: gfs) u0 p =
      field_at sh t (ArraySubsc i :: gfs) u1 p) ->
-  array_at sh t gfs lo hi v0 p ⊣⊢ array_at sh t gfs lo hi v1 p.
+  array_at sh t gfs lo hi v0 p = array_at sh t gfs lo hi v1 p.
 Proof.
   intros.
-  iSplit; iApply array_at_ext_derives; try done; intros; [rewrite H0 | rewrite <- H0]; done.
+  unfold array_at.
+  apply andp_prop_eq1.
+  { destruct (field_compatible0_dec t (gfs SUB lo) p); [|right; tauto].
+    destruct (field_compatible0_dec t (gfs SUB hi) p); [left | right]; tauto. }
+  intros (? & ?).
+  apply aggregate_pred.array_pred_eq; auto.
+  intros.
+  specialize (H0 i).
+  unfold field_at in H0.
+  rewrite @nested_field_type_ArraySubsc with (i := i) in H0.
+  assert (field_compatible t (gfs SUB i) p) as Hcompat by (eapply (field_compatible_range _ lo hi); eauto).
+  setoid_rewrite <- (prop_true_andp _ _ Hcompat); auto.
 Qed.
 
 (************************************************
@@ -395,7 +419,7 @@ Lemma field_at_Tarray: forall sh t gfs t0 n a v1 v2 p,
   nested_field_type t gfs = Tarray t0 n a ->
   0 <= n ->
   JMeq v1 v2 ->
-  field_at sh t gfs v1 p ⊣⊢ array_at sh t gfs 0 n v2 p.
+  field_at sh t gfs v1 p = array_at sh t gfs 0 n v2 p.
 Proof.
   intros.
   unfold field_at, array_at.
@@ -405,19 +429,20 @@ Proof.
   intros.
   rewrite data_at_rec_eq.
   rewrite at_offset_array_pred.
-  apply bi.and_proper.
-  + f_equiv.
-    rewrite !field_compatible0_cons, H0.
+  apply andp_prop_eq.
+  { apply field_compatible_dec. }
+  + rewrite !field_compatible0_cons, H0.
     assert (0 <= 0 <= n) by lia.
     assert (0 <= n <= n) by lia.
     tauto.
-  + apply (JMeq_trans (unfold_reptype_JMeq _ v1)) in H2.
+  + intros.
+    apply (JMeq_trans (unfold_reptype_JMeq _ v1)) in H2.
     forget (unfold_reptype v1) as v1'.
     clear v1.
     cbv iota beta in v1'.
     apply JMeq_eq in H2.
     rewrite Z.max_r by lia.
-    apply array_pred_ext.
+    apply aggregate_pred.array_pred_eq.
     - subst; auto.
     - intros.
       rewrite at_offset_eq.
@@ -644,17 +669,17 @@ Proof.
 Qed.
 
 Lemma array_at_len_0: forall sh t gfs i p,
-  array_at sh t gfs i i nil p ⊣⊢ ⌜field_compatible0 t (ArraySubsc i :: gfs) p⌝ ∧ emp.
+  array_at sh t gfs i i nil p = (⌜field_compatible0 t (ArraySubsc i :: gfs) p⌝ ∧ emp).
 Proof.
   intros.
   unfold array_at.
   rewrite array_pred_len_0 by lia.
-  apply bi.equiv_entails_2; normalize.
+  f_equal; f_equal; apply prop_ext; tauto.
 Qed.
 
 Lemma array_at_len_1: forall sh t gfs i v v' p,
   JMeq v v' ->
-  array_at sh t gfs i (i + 1) (v :: nil) p ⊣⊢ field_at sh t (ArraySubsc i :: gfs) v' p.
+  array_at sh t gfs i (i + 1) (v :: nil) p = field_at sh t (ArraySubsc i :: gfs) v' p.
 Proof.
   intros.
   unfold array_at, field_at.
@@ -663,8 +688,7 @@ Proof.
   rewrite @nested_field_type_ArraySubsc with (i := i).
   intros.
   apply JMeq_eq in H; rewrite H.
-  apply bi.and_proper; last done.
-  apply bi.pure_iff.
+  f_equal; f_equal; apply prop_ext.
   rewrite field_compatible_field_compatible0'.
   reflexivity.
 Qed.
@@ -672,14 +696,16 @@ Qed.
 Lemma split2_array_at: forall sh t gfs lo mid hi v p,
   lo <= mid <= hi ->
   Zlength v = hi - lo ->
-  array_at sh t gfs lo hi v p ⊣⊢
-  array_at sh t gfs lo mid (sublist 0 (mid-lo) v) p ∗
-  array_at sh t gfs mid hi (sublist (mid-lo) (Zlength v) v) p.
+  array_at sh t gfs lo hi v p =
+  (array_at sh t gfs lo mid (sublist 0 (mid-lo) v) p ∗
+   array_at sh t gfs mid hi (sublist (mid-lo) (Zlength v) v) p).
 Proof.
   intros.
   unfold array_at.
   normalize.
-  apply andp_prop_ext.
+  apply andp_prop_eq.
+  { destruct (field_compatible0_dec t (gfs SUB lo) p); [|right; tauto].
+    destruct (field_compatible0_dec t (gfs SUB hi) p); [left | right]; tauto. }
   + split; [| tauto].
     intros [? ?].
     assert (field_compatible0 t (gfs SUB mid) p) by (apply (field_compatible0_range _ lo hi); auto).
@@ -694,14 +720,14 @@ Lemma split3seg_array_at: forall sh t gfs lo ml mr hi v p,
   ml <= mr ->
   mr <= hi ->
   Zlength v = hi-lo ->
-  array_at sh t gfs lo hi v p ⊣⊢
-    array_at sh t gfs lo ml (sublist 0 (ml-lo) v) p ∗
-    array_at sh t gfs ml mr (sublist (ml-lo) (mr-lo) v) p ∗
-    array_at sh t gfs mr hi (sublist (mr-lo) (hi-lo) v) p.
+  array_at sh t gfs lo hi v p =
+    (array_at sh t gfs lo ml (sublist 0 (ml-lo) v) p ∗
+     array_at sh t gfs ml mr (sublist (ml-lo) (mr-lo) v) p ∗
+     array_at sh t gfs mr hi (sublist (mr-lo) (hi-lo) v) p).
 Proof.
   intros.
   rewrite split2_array_at with (lo := lo) (mid := ml) (hi := hi) by lia.
-  apply bi.sep_proper; first done.
+  f_equal.
   assert (Zlength (sublist (ml - lo) (hi - lo) v) = hi - ml).
   {
     replace (hi - ml) with (hi - lo - (ml - lo)) by lia.
@@ -709,7 +735,7 @@ Proof.
   }
   rewrite H2.
   rewrite split2_array_at with (lo := ml) (mid := mr) (hi := hi) by lia.
-  apply bi.sep_proper.
+  f_equal.
   rewrite sublist_sublist; try lia. f_equiv. f_equal; lia.
   rewrite Zlength_sublist by lia.
   rewrite sublist_sublist; try lia. f_equiv. f_equal; lia.
@@ -719,16 +745,15 @@ Lemma split3_array_at: forall sh t gfs lo mid hi v v0 p,
   lo <= mid < hi ->
   Zlength v = hi-lo ->
   JMeq v0 (Znth (mid-lo) v) ->
-  array_at sh t gfs lo hi v p ⊣⊢
-    array_at sh t gfs lo mid (sublist 0 (mid-lo) v) p ∗
-    field_at sh t (ArraySubsc mid :: gfs) v0 p ∗
-    array_at sh t gfs (mid + 1) hi (sublist (mid+1-lo) (hi-lo) v) p.
+  array_at sh t gfs lo hi v p =
+    (array_at sh t gfs lo mid (sublist 0 (mid-lo) v) p ∗
+     field_at sh t (ArraySubsc mid :: gfs) v0 p ∗
+     array_at sh t gfs (mid + 1) hi (sublist (mid+1-lo) (hi-lo) v) p).
 Proof.
   intros.
   rename H0 into e; rename H1 into H0.
   rewrite split3seg_array_at with (ml := mid) (mr := mid + 1) by lia.
-  apply bi.sep_proper; first done.
-  apply bi.sep_proper; last done.
+  f_equal. f_equal.
   replace (mid + 1 - lo) with (mid - lo + 1) by lia.
   rewrite sublist_len_1 by lia.
   rewrite array_at_len_1 with (v' :=v0); [auto |].
@@ -825,13 +850,13 @@ Proof.
   rewrite data_at_rec_eq.
   rewrite <- at_offset_eq.
   normalize.
-  destruct (field_compatible0_dec t (gfs SUB lo) p); last by rewrite !prop_false_andp by tauto.
-  destruct (field_compatible0_dec t (gfs SUB hi) p); last by rewrite !prop_false_andp by tauto.
-  f_equal.
-  + f_equal; apply prop_ext.
-    pose proof field_compatible0_nested_field_array t gfs lo hi p.
+  apply andp_prop_eq.
+  { destruct (field_compatible0_dec t (gfs SUB lo) p); [|right; tauto].
+    destruct (field_compatible0_dec t (gfs SUB hi) p); [left | right]; tauto. }
+  + pose proof field_compatible0_nested_field_array t gfs lo hi p.
     tauto.
-  + rewrite at_offset_eq, <- at_offset_eq2.
+  + intros (? & ?).
+    rewrite at_offset_eq, <- at_offset_eq2.
     rewrite at_offset_array_pred.
     rewrite Z.max_r by lia.
     eapply array_pred_shift; [reflexivity | lia |].
@@ -841,12 +866,12 @@ Proof.
     f_equiv.
     f_equiv.
     rewrite @nested_field_offset_ind with (gfs := nil) by (apply (field_compatible0_nested_field_array t gfs lo hi p); auto).
-    assert (field_compatible0 t (gfs SUB i') p)
+    assert (field_compatible0 t (gfs SUB i') p) as Hcompat
       by (apply (field_compatible0_range _ lo hi); auto; lia).
     rewrite @nested_field_offset_ind with (gfs := ArraySubsc i' :: _) by auto.
     rewrite @nested_field_offset_ind with (gfs := ArraySubsc lo :: _) by auto.
     rewrite @nested_field_type_ind with (gfs := ArraySubsc 0 :: _).
-    rewrite field_compatible0_cons in H2.
+    rewrite field_compatible0_cons in Hcompat.
     destruct (nested_field_type t gfs); try tauto.
     unfold gfield_offset, gfield_type.
     assert (sizeof t0 * i' = sizeof t0 * lo + sizeof t0 * i)%Z by (rewrite Zred_factor4; f_equal; lia).
@@ -921,19 +946,20 @@ Lemma split3seg_array_at': forall sh t gfs lo ml mr hi v p,
   ml <= mr ->
   mr <= hi ->
   Zlength v = hi-lo ->
-  array_at sh t gfs lo hi v p ⊣⊢
-    array_at sh t gfs lo ml (sublist 0 (ml-lo) v) p ∗
-    data_at sh (nested_field_array_type t gfs ml mr)
+  array_at sh t gfs lo hi v p =
+    (array_at sh t gfs lo ml (sublist 0 (ml-lo) v) p ∗
+     data_at sh (nested_field_array_type t gfs ml mr)
         (sublist (ml-lo) (mr-lo) v)
                (field_address0 t (ArraySubsc ml::gfs) p) ∗
-    array_at sh t gfs mr hi (sublist (mr-lo) (hi-lo) v) p.
+     array_at sh t gfs mr hi (sublist (mr-lo) (hi-lo) v) p).
 Proof.
   intros.
   rewrite (split3seg_array_at sh t gfs lo ml mr hi); auto.
-  rewrite (add_andp _ _ (array_at_local_facts sh t gfs mr hi _ _)).
-  normalize.
-  apply andp_prop_ext; [tauto |].
-  intros [? [? _]].
+  unfold array_at at 3 5; normalize.
+  apply andp_prop_eq1.
+  { destruct (field_compatible0_dec t (gfs SUB mr) p); [|right; tauto].
+    destruct (field_compatible0_dec t (gfs SUB hi) p); [left | right]; tauto. }
+  intros (? & ?).
   rewrite (array_at_data_at'' sh t gfs ml mr); auto.
 Qed.
 

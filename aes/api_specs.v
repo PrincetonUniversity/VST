@@ -1,4 +1,5 @@
 Require Export VST.floyd.proofauto.
+Require Export VST.floyd.compat.
 Require Export VST.floyd.reassoc_seq.
 Require Export aes.aes.
 Require Export aes.GF_ops_LL.
@@ -6,9 +7,6 @@ Require Export aes.tablesLL.
 Require Export aes.spec_utils_LL.
 Require Export aes.list_utils.
 Require Export aes.spec_encryption_LL.
-
-Open Scope logic.
-Local Open Scope Z.
 
 Require Import VST.floyd.Funspec_old_Notation.
 #[export] Instance CompSpecs : compspecs.
