@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat.
 Require Import stdlib.
 
 
@@ -19,21 +20,18 @@ Definition malloc_token {cs: compspecs} sh t v :=
 Lemma malloc_token_valid_pointer: forall {cs: compspecs} sh t p, 
       malloc_token sh t p |-- valid_pointer p.
 Proof. intros. unfold malloc_token.
- apply andp_left2. apply malloc_token'_valid_pointer.
+ rewrite andp_left2. apply malloc_token'_valid_pointer.
 Qed.
 
 #[export] Hint Resolve malloc_token'_valid_pointer : valid_pointer.
+#[export] Hint Resolve malloc_token'_local_facts : saturate_local.
 #[export] Hint Resolve malloc_token_valid_pointer : valid_pointer.
 
 Lemma malloc_token_local_facts:  forall {cs: compspecs} sh t p,
       malloc_token sh t p |-- !! (field_compatible t [] p /\ malloc_compatible (sizeof t) p).
 Proof. intros.
- unfold malloc_token.
- normalize. rewrite prop_and.
- apply andp_right. apply prop_right; auto.
- apply malloc_token'_local_facts.
+ unfold malloc_token. entailer!.
 Qed.
-#[export] Hint Resolve malloc_token'_local_facts : saturate_local.
 #[export] Hint Resolve malloc_token_local_facts : saturate_local.
 
 Definition malloc_spec' :=
@@ -64,7 +62,7 @@ Definition free_spec' :=
        LOCAL ()
        SEP (mem_mgr gv).
 
-Definition exit_spec :=
+Definition exit_spec : ident * funspec :=
  DECLARE _exit
  WITH i: Z
  PRE [tint]
@@ -107,7 +105,8 @@ Lemma malloc_spec_sub:
    funspec_sub (snd malloc_spec') (snd (malloc_spec t)).
 Proof.
 do_funspec_sub. rename w into gv. clear H.
-Exists (sizeof t, gv) emp. simpl; entailer!.
+rewrite <- fupd_intro.
+Exists (sizeof t, gv) (emp : mpred). simpl; entailer!.
 intros tau ? ?. Exists (eval_id ret_temp tau).
 entailer!.
 if_tac; auto.
@@ -124,7 +123,8 @@ Lemma free_spec_sub:
    funspec_sub (snd free_spec') (snd (free_spec t)).
 Proof.
 do_funspec_sub. destruct w as [p gv]. clear H.
-Exists (sizeof t, p, gv) emp. simpl; entailer!.
+rewrite <- fupd_intro.
+Exists (sizeof t, p, gv) (emp : mpred). simpl; entailer!.
 if_tac; trivial.
 sep_apply data_at__memory_block_cancel.
 unfold malloc_token; entailer!.

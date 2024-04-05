@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat.
 Require Import pile.
 Require Import spec_stdlib.
 Require Import PileModel.

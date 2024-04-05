@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat.
 Require Import VST.veric.initial_world.
 Require Import VST.floyd.VSU.
 
@@ -19,6 +20,7 @@ Lemma body_main: semax_body Vprog Gprog f_main mainspec.
 Proof.
 pose Core_VSU.
 start_function.
+rename a into gv.
 change (verif_fastonepile.one_pile PILE None gv)
  with (spec_onepile.onepile (verif_fastonepile.ONEPILE PILE) None gv).
 forward_call gv.
@@ -43,14 +45,12 @@ unfold APILE, M. simpl; cancel.
 -
 unfold APILE, M, ONEPILE.
 forward_call (decreasing (Z.to_nat 10), gv).
-compute; split; congruence.
 forward_call (decreasing (Z.to_nat 10), gv).
-compute; split; congruence.
 forward_call (10,gv).
 forward.
 Qed.
 
-Definition MainComp:  MainCompType nil main_QPprog Core_VSU whole_prog (snd (main_spec whole_prog))  emp.
+Definition MainComp:  MainCompType nil main_QPprog Core_VSU whole_prog (snd (main_spec whole_prog)) (fun _ => emp).
 Proof.
 mkComponent prog.
 solve_SF_internal body_main.

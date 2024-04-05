@@ -968,6 +968,9 @@ Qed.
 
 End mpred.
 
+Infix "oo" := Basics.compose (at level 54, right associativity).
+Arguments Basics.compose {A B C} g f x / .
+
 #[export] Hint Rewrite @loop1x_ret_assert_EK_normal: ret_assert.
 Ltac simpl_ret_assert :=
  cbn [RA_normal RA_break RA_continue RA_return 

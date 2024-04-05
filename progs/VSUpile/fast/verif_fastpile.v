@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat.
 Require Import VST.floyd.VSU.
 Require Import fastpile.
 Require Import spec_stdlib.
@@ -65,6 +66,7 @@ Definition PileGprog: funspecs := pile_imported_specs ++ pile_internal_specs.
 Lemma body_Pile_new: semax_body PileVprog PileGprog f_Pile_new (Pile_new_spec M PILE).
 Proof.
 start_function.
+rename a into gv.
 forward_call (tpile, gv).
 Intros p.
 forward.
@@ -151,18 +153,19 @@ forward_call (malloc_spec_sub M t) gv.
 Intros p.
 if_tac.
 { subst.
-  forward_if False.
+  forward_if False%type.
   - forward_call 1. contradiction.
-  - congruence. }
-forward_if True.
+  - congruence.
+  - forward. }
+forward_if True%type.
 + contradiction.
 + forward. entailer!.
 + forward. Exists p. entailer!.
 Qed.
 
-  Definition PileVSU: @VSU NullExtension.Espec
-      nil pile_imported_specs ltac:(QPprog prog) Pile_ASI emp.
-  Proof. 
+  Definition PileVSU: VSU
+      nil pile_imported_specs ltac:(QPprog prog) Pile_ASI (fun _ => emp).
+  Proof.
     mkVSU prog pile_internal_specs.
     + solve_SF_internal body_surely_malloc.
     + solve_SF_internal body_Pile_new.
@@ -171,9 +174,9 @@ Qed.
     + solve_SF_internal body_Pile_free.
   Qed.
 
-  Definition PilePrivateVSU: @VSU NullExtension.Espec
-      nil pile_imported_specs ltac:(QPprog prog) (FastpilePrivateASI M PILEPRIV) emp.
-  Proof. 
+  Definition PilePrivateVSU: VSU
+      nil pile_imported_specs ltac:(QPprog prog) (FastpilePrivateASI M PILEPRIV) (fun _ => emp).
+  Proof.
     mkVSU prog pile_internal_specs.
     + solve_SF_internal body_surely_malloc.
     + solve_SF_internal body_Pile_new.
@@ -183,4 +186,3 @@ Qed.
   Qed.
 
 End Pile_VSU.
-

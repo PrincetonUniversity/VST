@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat.
 Require Import VST.floyd.VSU. (* must have this or get wrong version of main_pre *)
 Require Import main.
 
@@ -11,5 +12,3 @@ Definition main_spec p :=
     LOCAL(temp ret_temp (Vint (Int.repr 0)))
     SEP(TT).
 (*Refine postcondition to ...   SEP(spec_stdlib.mem_mgr gv; has_ext tt).?*)
-
-

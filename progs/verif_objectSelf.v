@@ -13,7 +13,7 @@ Context `{!default_VSTGS Σ}.
 (*Andrew's definition
 Definition object_invariant := list Z -> val -> mpred.*)
 
-(*But the uncurried version is easier for the HOrec construction*)
+(*But the uncurried version is easier for the fixpoint construction*)
 Definition ObjInv : Type:= (list Z * val).
 Definition object_invariant := ObjInv -d> mpred.
 
@@ -32,7 +32,7 @@ Definition twiddle_spec (instance: object_invariant) :=
   WITH hs: ObjInv, i: Z (*modified*)
   PRE [ tobject, tint]
           PROP (0 < i <= Int.max_signed / 4;
-                0 <= fold_right Z.add 0 (fst hs) <= Int.max_signed / 4; 
+                0 <= fold_right Z.add 0 (fst hs) <= Int.max_signed / 4;
                isptr (snd hs) (*NEW*))
           PARAMS (snd hs; Vint (Int.repr i))
           SEP (instance hs)

@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat.
 Require Import VST.floyd.VSU.
 Require Import triang.
 Require Import spec_stdlib.
@@ -52,8 +53,8 @@ reflexivity.
 simpl. congruence.
 Qed.
  
-Definition TriangVSU: @VSU NullExtension.Espec
-      nil triang_imported_specs ltac:(QPprog prog) (TriangASI M) emp.
+Definition TriangVSU: VSU
+      nil triang_imported_specs ltac:(QPprog prog) (TriangASI M) (fun _ => emp).
 Proof.
   mkVSU prog triang_internal_specs.
     + solve_SF_internal body_Triang_nth.

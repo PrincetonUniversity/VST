@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat.
 
 (*Model-level definitions and associated lemmas.*)
 

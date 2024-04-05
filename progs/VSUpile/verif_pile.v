@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat.
 Require Import VST.floyd.VSU.
 Require Import pile.
 Require Import spec_stdlib.
@@ -92,13 +93,14 @@ Proof.
 start_function.
 forward_call (malloc_spec_sub M t) gv.
 Intros p.
-if_tac; [ forward_if False | forward_if True ].
+if_tac; [ forward_if False%type | forward_if True%type ].
 all: finish.
 Qed.
 
 Lemma body_Pile_new: semax_body PileVprog PileGprog f_Pile_new (Pile_new_spec M PILE).
 Proof.
 start_function.
+rename a into gv.
 forward_call (tpile, gv).
 fastforward.
 Exists vret. entailer!.
@@ -143,7 +145,7 @@ forward_loop (EX r:val, EX s2: list Z,
 -
 Exists head sigma.
 entailer!. rewrite Z.sub_diag. auto.
-apply wand_sepcon_adjoint. cancel.
+auto.
 -
 Intros r s2.
 forward_if (r<>nullval).
@@ -154,11 +156,11 @@ forward.
 entailer!.
 assert (s2=nil) by intuition; subst s2.
 simpl. rewrite Z.sub_0_r; auto.
-sep_apply (modus_ponens_wand (listrep M s2 nullval)).
+sep_apply (modus_ponens_wand _ (listrep M s2 nullval)).
 cancel.
 Intros.
 destruct s2.
-assert_PROP False; [ | contradiction]. {
+assert_PROP False%type; [ | contradiction]. {
  entailer!. assert (r=nullval) by intuition; subst r. congruence.
 }
 unfold listrep at 3; fold (listrep M).
@@ -187,13 +189,8 @@ simpl in H0.
  }
  rep_lia.
  f_equal; f_equal; lia.
-apply -> wand_sepcon_adjoint.
-match goal with |- (_ * ?A * ?B * ?C)%logic |-- _ => 
- assert ((A * B * C)%logic |-- listrep M (z::s2) r) end.
+iIntros "(H & ? & ?) ?"; iApply "H"; iStopProof.
 unfold listrep at 2; fold (listrep M). Exists r'. entailer!.
-sep_apply H10.
-sep_apply modus_ponens_wand.
-auto.
  -
 forward.
 simpl pilerep; unfold prep.
@@ -216,7 +213,7 @@ forward_while (EX q:val, EX s2: list Z,
 { Exists head sigma; entailer!. }
 { entailer!. }
 { destruct s2.
-   assert_PROP False; [|contradiction]. unfold listrep. entailer!.
+   assert_PROP False%type; [|contradiction]. unfold listrep. entailer!.
   unfold listrep; fold (listrep M).
   Intros y.
   forward.
@@ -238,26 +235,26 @@ entailer!.
 Qed.
 
 
-Definition PileVSU: @VSU NullExtension.Espec
-           nil pile_imported_specs ltac:(QPprog prog) Pile_ASI emp.
- Proof. 
-    mkVSU prog pile_internal_specs.
-    + solve_SF_internal body_surely_malloc.
-    + solve_SF_internal body_Pile_new.
-    + solve_SF_internal body_Pile_add.
-    + solve_SF_internal body_Pile_count.
-    + solve_SF_internal body_Pile_free.
-  Qed.
+Definition PileVSU: VSU
+           nil pile_imported_specs ltac:(QPprog prog) Pile_ASI (fun _ => emp).
+Proof.
+  mkVSU prog pile_internal_specs.
+  + solve_SF_internal body_surely_malloc.
+  + solve_SF_internal body_Pile_new.
+  + solve_SF_internal body_Pile_add.
+  + solve_SF_internal body_Pile_count.
+  + solve_SF_internal body_Pile_free.
+Qed.
 
-Definition PilePrivateVSU: @VSU NullExtension.Espec
-      nil pile_imported_specs ltac:(QPprog prog) (PilePrivateASI M PILEPRIV) emp.
- Proof. 
-    mkVSU prog pile_internal_specs.
-    + solve_SF_internal body_surely_malloc.
-    + solve_SF_internal body_Pile_new.
-    + solve_SF_internal body_Pile_add.
-    + solve_SF_internal body_Pile_count.
-    + solve_SF_internal body_Pile_free.
-  Qed.
+Definition PilePrivateVSU: VSU
+      nil pile_imported_specs ltac:(QPprog prog) (PilePrivateASI M PILEPRIV) (fun _ => emp).
+Proof.
+  mkVSU prog pile_internal_specs.
+  + solve_SF_internal body_surely_malloc.
+  + solve_SF_internal body_Pile_new.
+  + solve_SF_internal body_Pile_add.
+  + solve_SF_internal body_Pile_count.
+  + solve_SF_internal body_Pile_free.
+Qed.
 
 End Pile_VSU.

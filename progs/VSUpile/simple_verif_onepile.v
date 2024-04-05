@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat.
 Require Import VST.floyd.VSU.
 Require Import onepile.
 Require Import simple_spec_stdlib.
@@ -16,6 +17,7 @@ Definition OnepileGprog: funspecs := onepile_imported_specs ++ onepile_internal_
 Lemma body_Onepile_init: semax_body OnepileVprog OnepileGprog f_Onepile_init Onepile_init_spec.
 Proof.
 start_function.
+rename a into gv.
 forward_call gv.
 Intros p.
 unfold onepile.
@@ -54,7 +56,7 @@ Lemma onepile_Init: VSU_initializer prog (onepile None).
 Proof. InitGPred_tac. normalize. apply data_at_data_at_. Qed.
 
 
-Definition OnepileVSU: @VSU NullExtension.Espec
+Definition OnepileVSU: VSU
       nil onepile_imported_specs ltac:(QPprog prog) OnepileASI (onepile None).
   Proof.
     mkVSU prog onepile_internal_specs. 

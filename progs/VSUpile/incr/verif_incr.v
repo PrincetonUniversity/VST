@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat.
 Require Import incr.
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
@@ -16,7 +17,7 @@ Definition incr1_spec :=
     LOCAL(temp ret_temp (Vint (Int.repr (i+1))))
     SEP(data_at sh (tarray tuint 10) private' a).
 
-Definition incr2_spec :=
+Definition incr2_spec : ident * funspec :=
  DECLARE _incr2
  WITH i: Z, a: val
  PRE [ tint, tptr tuint ]
@@ -32,6 +33,7 @@ Lemma sub_incr12:
   funspec_sub (snd incr2_spec)  (snd incr1_spec).
 Proof.
 do_funspec_sub. destruct w as [[[i a] sh] data]. clear H.
+rewrite <- fupd_intro.
 Exists (i,a) (data_at sh (tarray tuint 10) data a). simpl; entailer!.
 intros tau ? ?. Exists data.
 entailer!.
@@ -50,7 +52,7 @@ Definition incr3_spec :=
     LOCAL(temp ret_temp (Vint (Int.repr (i+1))))
     SEP(data_at sh (tarray tuint 10) private' (gv _global_auxdata)).
 
-Definition incr4_spec :=
+Definition incr4_spec : ident * funspec :=
  DECLARE _incr4
  WITH i: Z
  PRE [ tint ]
@@ -66,6 +68,7 @@ Lemma sub_incr34:
   funspec_sub (snd incr4_spec)  (snd incr3_spec).
 Proof.
 do_funspec_sub. destruct w as [[[i gv] sh] data]. clear H.
+rewrite <- fupd_intro.
 Exists i (data_at sh (tarray tuint 10) data (gv _global_auxdata)).
 simpl; entailer!.
 intros tau ? ?. Exists data.

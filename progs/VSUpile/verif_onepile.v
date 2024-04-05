@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat.
 Require Import VST.floyd.VSU.
 Require Import onepile.
 Require Import spec_stdlib.
@@ -46,6 +47,7 @@ Definition ONEPILE: OnePileAPD := Build_OnePileAPD one_pile.
 Lemma body_Onepile_init: semax_body OnepileVprog OnepileGprog f_Onepile_init (Onepile_init_spec M ONEPILE).
 Proof.
 start_function.
+rename a into gv.
 forward_call gv.
 Intros p.
 simpl onepile. unfold one_pile.
@@ -85,10 +87,10 @@ Qed.
     |-- data_at_ Ews (tptr (Tstruct _pile noattr)) (gv _the_pile).
   Proof. intros.
     unfold globvar2pred. simpl.
-         rewrite sepcon_emp.
+         rewrite sep_emp.
     destruct H as [b Hb]; rewrite Hb in *.
-    eapply derives_trans. 
-    + apply mapsto_zeros_memory_block. apply writable_readable. apply writable_Ews.
+    eapply derives_trans.
+    + apply mapsto_zeros_memory_block.
     + rewrite <- memory_block_data_at_; simpl; trivial.
       apply headptr_field_compatible; trivial. exists b; trivial. cbv; trivial. simpl; rep_lia.
       econstructor. reflexivity. apply Z.divide_0_r.
@@ -98,7 +100,7 @@ Qed.
   Lemma onepile_Init: VSU_initializer prog (one_pile None).
   Proof. InitGPred_tac. unfold one_pile. normalize. apply data_at_data_at_. Qed.
 
-Definition OnepileVSU: @VSU NullExtension.Espec
+Definition OnepileVSU: VSU
       nil onepile_imported_specs ltac:(QPprog prog) Onepile_ASI (one_pile None).
 Proof.
  mkVSU prog onepile_internal_specs.
