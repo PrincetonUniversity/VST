@@ -140,10 +140,10 @@ Qed.
 Lemma split_data_at_app_tschar:
  forall sh n (al bl: list val) p,
    n = Zlength (al++bl) ->
-   data_at sh (tarray tschar n) (al++bl) p ⊣⊢
-         data_at sh (tarray tschar (Zlength al)) al p
-        * data_at sh (tarray tschar (n - Zlength al)) bl
-                 (field_address0 (tarray tschar n) [ArraySubsc (Zlength al)] p).
+   data_at sh (tarray tschar n) (al++bl) p =
+         (data_at sh (tarray tschar (Zlength al)) al p
+          * data_at sh (tarray tschar (n - Zlength al)) bl
+                 (field_address0 (tarray tschar n) [ArraySubsc (Zlength al)] p)).
 Proof.
 intros.
 apply (split2_data_at_Tarray_app _ n  sh tschar al bl); auto.
