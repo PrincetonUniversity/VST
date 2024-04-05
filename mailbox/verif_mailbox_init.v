@@ -29,6 +29,7 @@ Proof.
     + forward. subst p. congruence.
     + Intros. forward. entailer!.
   * forward.
+    Exists p; entailer!!.
 Qed.
 
 Lemma body_memset : semax_body Vprog Gprog f_memset memset_spec.
