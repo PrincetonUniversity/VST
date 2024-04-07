@@ -244,6 +244,7 @@ Proof.
   intros ((((((((q, p), g), i), v), h), P), R), Q) ?; simpl.
   iIntros "(% & (% & _) & % & H) !>"; iExists (p, v, ⊤, ∅,
     fun v' => ∃ t, ⌜tc_val tint v' /\ newer h t⌝ ∧ AE_loc q p g i R (<[t := Excl (AE v' v)]>h) ∗ Q (<[t := Excl (AE v' v)]>h) v'), emp.
+  iSplit; first done.
   iSplit.
   - repeat (iSplit; first done).
     rewrite /SEPx /= /LOCALx /argsassert2assert /=; monPred.unseal.
