@@ -162,6 +162,7 @@ forward. (* y = ((int * )buf)[1]; *)
 forward. (* p->x = x; *)
 forward. (* p->y = y; *)
 entailer!.
+simpl; auto.
 unfold mf_assert.
 simpl.
 entailer!!.
@@ -221,6 +222,7 @@ assert_PROP (align_compatible tint v_buf).
   econstructor; [reflexivity | apply Z.divide_0_r].
 forward_call (* len = ser(&p, buf); *)
       ((Vint (Int.repr 1), Vint (Int.repr 2)), v_p, v_buf, Tsh, Tsh).
+{ simpl; auto. }
 Intros rest.
 simpl.
 Intros. subst rest.
@@ -229,6 +231,7 @@ forward. (* des = intpair_message.deserialize; *)
 forward_call (* des(&q, buf, 8); *)
         ((Vint (Int.repr 1), Vint (Int.repr 2)), v_q, v_buf, Tsh, Tsh, 8).
   simpl. fold t_struct_intpair. entailer!.
+  simpl; computable.
 (* after the call *)
 forward. (* x = q.x; *)
 forward. (* y = q.y; *)
