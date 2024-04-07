@@ -9,7 +9,7 @@ Lemma not_bot_nonidentity : forall sh,  sh <> Share.bot -> sepalg.nonidentity sh
 Proof.
    intros.
    unfold sepalg.nonidentity. unfold not.
-   intros. apply identity_share_bot in H0. contradiction.   
+   intros. apply identity_share_bot in H0. contradiction.
 Qed.
 Lemma nonidentity_not_bot : forall sh, sepalg.nonidentity sh -> sh <> Share.bot.
 Proof.
@@ -40,7 +40,7 @@ Lemma listrep_local_facts:
 Proof.
 intros.
 revert p; induction contents; 
-  unfold listrep; fold listrep; intros. entailer!. intuition.
+  unfold listrep; fold listrep; intros. entailer!. tauto.
 Intros y. entailer!.
 split; intro. subst p. destruct H; contradiction. inv H2.
 Qed.
@@ -247,6 +247,7 @@ revert p; induction contents; intros; simpl; unfold lseg; fold lseg.
 { normalize. }
 Intros y.
 entailer!.
+intuition discriminate.
 Qed.
 
 Hint Resolve lseg_local_facts : saturate_local.

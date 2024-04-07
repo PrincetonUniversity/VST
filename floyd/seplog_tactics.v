@@ -1312,6 +1312,24 @@ rewrite_strat (topdown hints test888).
 match goal with |- S n = S n => reflexivity end.
 Qed.  (* Yes, this works in Coq 8.7.2 *)
 
+(* In some data-intensive proofs, discriminate can run forever, so here's a safer done
+   for normalize to use. *)
+Ltac safe_done :=
+  solve
+  [ repeat (first
+    [ fast_done
+    | solve [trivial]
+    (* All the tactics below will introduce themselves anyway, or make no sense
+       for goals of product type. So this is a good place for us to do it. *)
+    | progress intros
+    | solve [symmetry; trivial]
+    | solve [apply not_symmetry; trivial]
+(*    | discriminate*)
+    | contradiction
+    | match goal with |- _ /\ _ => split end
+    | match goal with H : (¬_)%type |- _ => case H; clear H; fast_done end ])
+  ].
+
 Ltac normalize1 :=
          match goal with
             | |- bi_entails(PROP := monPredI _ _) _ _ => let rho := fresh "rho" in split => rho; monPred.unseal
@@ -1346,7 +1364,7 @@ Ltac normalize1 :=
                    | _ => simple apply bi.True_intro
                    | _ => constr_eq A B; done
                    end
-              | |- _ => first [done | (* by apply bi.pure_mono | *) by apply bi.pure_intro]
+              | |- _ => first [safe_done | (* by apply bi.pure_mono | *) by apply bi.pure_intro]
               | |- _ ⊢ ⌜?x = ?y⌝ ∧ _ =>
                             (apply pure_intro_l; first by (unfold y; reflexivity); unfold y in *; clear y) ||
                             (apply pure_intro_l; first by (unfold x; reflexivity); unfold x in *; clear x)

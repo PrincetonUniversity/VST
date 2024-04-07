@@ -309,7 +309,7 @@ Proof.
         rewrite H4.
         set (m'1 := Int64.repr m') in *.
         set (m'2 := Int.repr m') in *. clearbody m'1. clearbody m'2. clear m'.
-        destruct (is_long_type type_i); inv H5; normalize.
+        destruct (is_long_type type_i); inv H5; by normalize.
     - exists int_min, int_max.
       split; auto. lia.
   + inv H3.

@@ -88,6 +88,7 @@ Class lock_impl := { t_lock : type; lock_handle : Type; ptr_of : lock_handle -> 
     unfold funspec_sub; simpl.
     split; first done; intros (h, R) ?; Intros.
     iIntros "(? & ? & H) !>"; iExists (h, R, R), emp.
+    iSplit; first done.
     iSplit; last by iPureIntro; entailer!.
     repeat (iSplit; first done).
     rewrite /SEPx /= /LOCALx /argsassert2assert /=; monPred.unseal.
@@ -169,6 +170,7 @@ Class lock_impl := { t_lock : type; lock_handle : Type; ptr_of : lock_handle -> 
     unfold funspec_sub; simpl.
     split; first done; intros ((sh, h), R) ?; Intros.
     iIntros "(? & ? & H) !>"; iExists (sh, h, R, R, lock_inv sh h R), emp.
+    iSplit; first done.
     iSplit; last by iPureIntro; entailer!.
     repeat (iSplit; first done).
     rewrite /SEPx /= /LOCALx /argsassert2assert /=; monPred.unseal.

@@ -241,6 +241,7 @@ Proof.
   unfold funspec_sub; simpl.
   split; first done; intros ((sh, h), R) ?; Intros.
   iIntros "(? & ? & H) !>"; iExists (sh, h, self_part sh h ∗ R, R, emp), emp.
+  iSplit; first done.
   iSplit.
   - repeat (iSplit; first done).
     rewrite /SEPx /= /LOCALx /argsassert2assert /=; monPred.unseal.
@@ -260,6 +261,7 @@ Proof.
   unfold funspec_sub; simpl.
   split; first done; intros (((sh1, sh2), h), R) ?; Intros.
   iIntros "((%Hsh & _) & ? & H) !>"; iExists (h, self_part sh2 h ∗ R, emp), emp.
+  iSplit; first done.
   iSplit.
   - repeat (iSplit; first done).
     rewrite /SEPx /= /LOCALx /argsassert2assert /=; monPred.unseal.

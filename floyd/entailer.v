@@ -412,7 +412,7 @@ Ltac prove_it_now :=
                       | H: @value_fits _ _ _ |- _ => clear H  (* delete these because they can cause slowness in the 'auto' *)
                       end;
           auto with prove_it_now field_compatible;
-          autorewrite with (*norm*) entailer_rewrite; (*normalize*) try fancy_intro true;
+          autorewrite with (*norm*) entailer_rewrite; (*normalize*) try fancy_intro true; try safe_done;
           first [eapply field_compatible_nullval; eassumption
                  | eapply field_compatible_nullval1; eassumption
                  | eapply field_compatible_nullval2; eassumption

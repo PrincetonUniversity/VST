@@ -205,6 +205,7 @@ Proof.
   destruct x2 as (((p, Eo), Ei), Q).
   intros; iIntros "[_ H] !>".
   iExists (p, Eo, Ei, fun v => match v with Vint i => Q (Int.signed i) | _ => False end), emp.
+  iSplit; first done.
   iSplit.
   - iSplit; first done.
     unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl.
@@ -256,6 +257,7 @@ Proof.
   destruct x2 as ((((p, v), Eo), Ei), Q).
   intros; iIntros "[_ H] !>".
   iExists (p, vint v, Eo, Ei, Q), emp.
+  iSplit; first done.
   iSplit.
   - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx; simpl.
     monPred.unseal.
@@ -298,6 +300,7 @@ Proof.
   destruct x2 as (((((((p, shc), pc), c), v), Eo), Ei), Q).
   intros; iIntros "[_ H] !>".
   iExists (p, shc, pc, vint c, vint v, Eo, Ei, fun v => match v with Vint i => Q (Int.signed i) | _ => False end), emp.
+  iSplit; first done.
   iSplit.
   - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx; simpl; monPred.unseal.
     iDestruct "H" as "(% & $ & $ & $ & H & $)".
@@ -362,6 +365,7 @@ Proof.
   destruct x2 as ((((p, v), Eo), Ei), Q).
   intros; iIntros "[_ H] !>".
   iExists (p, vint v, Eo, Ei, fun v => match v with Vint i => Q (Int.signed i) | _ => False end), emp.
+  iSplit; first done.
   iSplit.
   - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx; simpl; monPred.unseal.
     iDestruct "H" as "(% & $ & $ & H & $)".

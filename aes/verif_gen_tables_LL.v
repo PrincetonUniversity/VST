@@ -1,7 +1,6 @@
 Require Import aes.api_specs.
 Require Import aes.partially_filled.
 Require Import aes.bitfiddling.
-Open Scope Z.
 Require Import VST.floyd.Funspec_old_Notation.
 
 (* Note: x must be non-zero, y is allowed to be zero (because x is a constant in all usages, its
@@ -72,7 +71,7 @@ Proof.
   intros. rewrite H. apply derives_refl.
 Qed.
 
-Definition rcon_loop_inv00(i: Z)(v_pow v_log: val)(gv: globals)(frozen: list mpred) : environ -> mpred :=
+Definition rcon_loop_inv00(i: Z)(v_pow v_log: val)(gv: globals)(frozen: list mpred) : assert :=
      PROP ( 0 <= i) (* note: the upper bound is added by the tactic, but the lower isn't! *)
      LOCAL (temp _x (Vint (pow2 i));
             lvar _log (tarray tint 256) v_log;

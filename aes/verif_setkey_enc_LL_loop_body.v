@@ -1,8 +1,6 @@
 Require Import aes.api_specs.
 Require Import aes.partially_filled.
 Require Import aes.bitfiddling.
-Open Scope Z.
-Local Open Scope logic.
 
 (* Calls forward_if with the current precondition to which the provided conditions are added *)
 (* QQQ TODO does this already exist? Add to library? *)
@@ -483,13 +481,13 @@ Definition setkey_enc_loop_body :=
                                                                     (tptr tuint)))))))))))))))))))))))))))))))))))).
 
 Lemma setkey_enc_loop_body_lemma:
-forall 
- (Espec : OracleKind) (ctx key : val) (ctx_sh key_sh : share) 
+forall
+ Espec M (ctx key : val) (ctx_sh key_sh : share) 
  (key_chars : list Z) (init_done : Z) (ish : share) (gv: globals)
  (SH : writable_share ctx_sh) (SH0 : readable_share key_sh) (SH1 : readable_share ish)
  (H : Zlength key_chars = 32) (H0 : init_done = 1) (i : Z)
  (H1 : 0 <= i < 7),
-semax (func_tycontext f_mbedtls_aes_setkey_enc Vprog Gprog [])
+semax(OK_spec := Espec) M (func_tycontext f_mbedtls_aes_setkey_enc Vprog Gprog [])
   (PROP ( )
    LOCAL (temp _i (Vint (Int.repr i));
    temp _RK
@@ -553,8 +551,8 @@ clearbody Delta_specs.
     Ltac RK_load :=
       let A := fresh "A" in let E2 := fresh "E" in
       match goal with 
-        E: forall j, 0 <= j < 16 -> force_val _ = _ |- 
-        semax _ _ (Ssequence (Sset _ (Ederef (Ebinop _ _ (Econst_int (Int.repr ?j) _) _) _)) _) _
+        E: forall j, 0 <= j < 16 -> force_val _ = _ |-
+        semax _ _ _ (Ssequence (Sset _ (Ederef (Ebinop _ _ (Econst_int (Int.repr ?j) _) _) _)) _) _
        =>
         assert (0 <= j < 16) as A by computable;
         pose proof (E _ A) as E2; clear A

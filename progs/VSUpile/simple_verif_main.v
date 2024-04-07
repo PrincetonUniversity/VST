@@ -58,7 +58,9 @@ rewrite decreasing_inc by lia.
 entailer!.
 -
 forward_call (decreasing (Z.to_nat 10), gv).
+compute; split; congruence.
 forward_call (decreasing (Z.to_nat 10), gv).
+compute; split; congruence.
 forward_call (10,gv).
 forward.
 Qed.

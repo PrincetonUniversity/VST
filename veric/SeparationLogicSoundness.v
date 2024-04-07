@@ -100,7 +100,7 @@ Definition make_ext_rval := veric.semax.make_ext_rval.
 Definition tc_option_val := veric.semax.tc_option_val.
 
 Lemma semax_func_cons_ext: forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} (V: varspecs) (G: funspecs)
-     {C: compspecs} ge fs id ef argsig retsig E A P (Q: dtfr (AssertTT A)) argsig'
+     {C: compspecs} ge fs id ef argsig retsig A E P (Q: dtfr (AssertTT A)) argsig'
       (G': funspecs) cc b,
   argsig' = typelist2list argsig ->
   ef_sig ef = mksignature (typlist_of_typelist argsig) (rettype_of_type retsig) cc ->
@@ -112,10 +112,10 @@ Lemma semax_func_cons_ext: forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} 
       ⌜tc_option_val retsig ret⌝) ->
   Genv.find_symbol ge id = Some b ->
   Genv.find_funct_ptr ge b = Some (Ctypes.External ef argsig retsig cc) ->
-  (⊢ CSHL_Def.semax_external _ _ _ OK_spec E ef A P Q) ->
+  (⊢ CSHL_Def.semax_external _ _ _ OK_spec ef A E P Q) ->
   CSHL_Def.semax_func _ _ _ OK_spec V G C ge fs G' ->
   CSHL_Def.semax_func _ _ _ OK_spec V G C ge ((id, Ctypes.External ef argsig retsig cc)::fs)
-             ((id, mk_funspec (argsig', retsig) cc E A P Q)  :: G').
+             ((id, mk_funspec (argsig', retsig) cc A E P Q)  :: G').
 Proof. intros. eapply semax_func_cons_ext; eauto. Qed.
 
 Definition semax_Delta_subsumption := @semax_lemmas.semax_Delta_subsumption.
@@ -123,26 +123,26 @@ Definition semax_Delta_subsumption := @semax_lemmas.semax_Delta_subsumption.
 Definition semax_external_binaryintersection := @semax_external_binaryintersection.
 
 Lemma semax_external_funspec_sub: forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty}
-  {argtypes rtype cc ef E1 A1 P1 Q1 E A P Q}
-  (Hsub: funspec_sub (mk_funspec (argtypes, rtype) cc E1 A1 P1 Q1)
-                   (mk_funspec (argtypes, rtype) cc E A P Q))
+  {argtypes rtype cc ef A1 E1 P1 Q1 A E P Q}
+  (Hsub: funspec_sub (mk_funspec (argtypes, rtype) cc A1 E1 P1 Q1)
+                   (mk_funspec (argtypes, rtype) cc A E P Q))
   (HSIG: ef_sig ef =
          mksignature (map typ_of_type argtypes)
                      (rettype_of_type rtype) cc),
-  CSHL_Def.semax_external _ _ _ OK_spec E1 ef A1 P1 Q1 ⊢
-  CSHL_Def.semax_external _ _ _ OK_spec E ef A P Q.
+  CSHL_Def.semax_external _ _ _ OK_spec ef A1 E1 P1 Q1 ⊢
+  CSHL_Def.semax_external _ _ _ OK_spec ef A E P Q.
 Proof.
   intros. eapply semax_external_funspec_sub; eauto.
 Qed.
 
 Lemma general_intersection_funspec_subIJ `{!VSTGS OK_ty Σ} I (HI: inhabited I) J
-      sig cc E phi1 ToF1 CoF1 HE1 phi2 ToF2 CoF2 HE2
+      sig cc phi1 ToF1 CoF1 phi2 ToF2 CoF2
       (H: forall i, exists j, funspec_sub (phi1 j) (phi2 i)):
-    funspec_sub (@general_intersection _ J sig cc E phi1 ToF1 CoF1 HE1) (@general_intersection _ I sig cc E phi2 ToF2 CoF2 HE2).
+    funspec_sub (@general_intersection _ J sig cc phi1 ToF1 CoF1) (@general_intersection _ I sig cc phi2 ToF2 CoF2).
 Proof.
-  apply (@generalintersection_sub3 _ _ I sig cc E HI phi2 ToF2 CoF2 HE2 _ (eq_refl _)).
+  apply (@generalintersection_sub3 _ _ I sig cc HI phi2 ToF2 CoF2 _ (eq_refl _)).
   intros i. destruct (H i) as [j Hj]. eapply seplog.funspec_sub_trans.
-  apply (@generalintersection_sub _ _ J sig cc E phi1 ToF1 CoF1 HE1 _ (eq_refl _)).
+  apply (@generalintersection_sub _ _ J sig cc phi1 ToF1 CoF1 _ (eq_refl _)).
   apply Hj.
 Qed.
 
@@ -182,19 +182,20 @@ Definition semax_return := @semax_return.
 
 (* Why are the implicits so inconsistent here? *)
 Lemma semax_call `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {CS : compspecs}:
-  forall E Delta Ef A
+  forall E Delta A
+  (Ef : dtfr (MaskTT A))
   (P : dtfr (ArgsTT A))
   (Q : dtfr (AssertTT A))
   (x : dtfr A)
    F ret argsig retsig cc a bl,
-           Ef ⊆ E ->
+           Ef x ⊆ E ->
            Cop.classify_fun (typeof a) =
            Cop.fun_case_f (typelist_of_type_list argsig) retsig cc ->
             (retsig = Ctypes.Tvoid -> ret = None) ->
           tc_fn_return Delta ret retsig ->
   semax OK_spec E Delta
        ((tc_expr Delta a ∧ tc_exprlist Delta argsig bl) ∧
-         (assert_of (fun rho => func_ptr (mk_funspec (argsig,retsig) cc Ef A P Q) (eval_expr a rho)) ∗
+         (assert_of (fun rho => func_ptr (mk_funspec (argsig,retsig) cc A Ef P Q) (eval_expr a rho)) ∗
           (▷(F ∗ assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho))))))
          (Scall ret a bl)
          (normal_ret_assert (∃ old:val, assert_of (substopt ret (`old) F) ∗ maybe_retval (assert_of (Q x)) retsig ret)).

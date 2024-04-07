@@ -1167,15 +1167,15 @@ Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 Import CSHL_Def.
 
 Axiom semax_call_forward: forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {CS: compspecs} E (Delta: tycontext),
-    forall Ef A P Q x (F: assert) ret argsig retsig cc a bl,
-           Ef ⊆ E ->
+    forall A (Ef : dtfr (MaskTT A)) P Q x (F: assert) ret argsig retsig cc a bl,
+           Ef x ⊆ E ->
            Cop.classify_fun (typeof a) =
            Cop.fun_case_f (typelist_of_type_list argsig) retsig cc ->
            (retsig = Ctypes.Tvoid -> ret = None) ->
           tc_fn_return Delta ret retsig ->
   semax E Delta
           (((*▷*)((tc_expr Delta a) ∧ (tc_exprlist Delta argsig bl)))  ∧
-         (assert_of (`(func_ptr (mk_funspec (argsig,retsig) cc Ef A P Q)) (eval_expr a)) ∗
+         (assert_of (`(func_ptr (mk_funspec (argsig,retsig) cc A Ef P Q)) (eval_expr a)) ∗
           (▷ (F ∗ assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho))))))
          (Scall ret a bl)
          (normal_ret_assert
@@ -1193,13 +1193,13 @@ Axiom semax_call_backward: forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} 
     forall ret a bl R,
   semax E Delta
          (∃ argsig: _, ∃ retsig: _, ∃ cc: _,
-          ∃ Ef, ∃ A: _, ∃ P: _, ∃ Q: _, ∃ x: _,
-         ⌜Ef ⊆ E /\ Cop.classify_fun (typeof a) =
+          ∃ A: _, ∃ Ef : dtfr (MaskTT A), ∃ P: _, ∃ Q: _, ∃ x: _,
+         ⌜Ef x ⊆ E /\ Cop.classify_fun (typeof a) =
              Cop.fun_case_f (typelist_of_type_list argsig) retsig cc /\
              (retsig = Ctypes.Tvoid -> ret = None) /\
              tc_fn_return Delta ret retsig⌝ ∧
           ((*▷*)((tc_expr Delta a) ∧ (tc_exprlist Delta argsig bl)))  ∧
-         assert_of (`(func_ptr (mk_funspec  (argsig,retsig) cc Ef A P Q)) (eval_expr a)) ∗
+         assert_of (`(func_ptr (mk_funspec  (argsig,retsig) cc A Ef P Q)) (eval_expr a)) ∗
           ▷(assert_of (fun rho => (P x (ge_of rho, eval_exprlist argsig bl rho))) ∗ oboxopt Delta ret (maybe_retval (assert_of (Q x)) retsig ret -∗ R)))
          (Scall ret a bl)
          (normal_ret_assert R).
@@ -1235,13 +1235,13 @@ Theorem semax_call_backward: forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty
     forall ret a bl R,
   semax E Delta
          (∃ argsig: _, ∃ retsig: _, ∃ cc: _,
-          ∃ Ef, ∃ A: _, ∃ P: _, ∃ Q: _, ∃ x: _,
-         ⌜Ef ⊆ E /\ Cop.classify_fun (typeof a) =
+          ∃ A: _, ∃ Ef : dtfr (MaskTT A), ∃ P: _, ∃ Q: _, ∃ x: _,
+         ⌜Ef x ⊆ E /\ Cop.classify_fun (typeof a) =
              Cop.fun_case_f (typelist_of_type_list argsig) retsig cc /\
              (retsig = Ctypes.Tvoid -> ret = None) /\
              tc_fn_return Delta ret retsig⌝ ∧
           ((*▷*)((tc_expr Delta a) ∧ (tc_exprlist Delta argsig bl)))  ∧
-         assert_of (`(func_ptr (mk_funspec (argsig,retsig) cc Ef A P Q)) (eval_expr a)) ∗
+         assert_of (`(func_ptr (mk_funspec (argsig,retsig) cc A Ef P Q)) (eval_expr a)) ∗
           ▷(assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho)) ∗ oboxopt Delta ret (maybe_retval (assert_of (Q x)) retsig ret -∗ R)))
          (Scall ret a bl)
          (normal_ret_assert R).
@@ -1250,13 +1250,13 @@ Proof.
   apply semax_extract_exists; intro argsig.
   apply semax_extract_exists; intro retsig.
   apply semax_extract_exists; intro cc.
-  apply semax_extract_exists; intro Ef.
   apply semax_extract_exists; intro A.
+  apply semax_extract_exists; intro Ef.
   apply semax_extract_exists; intro P.
   apply semax_extract_exists; intro Q.
   apply semax_extract_exists; intro x.
   apply semax_extract_prop; intros (? & ? & ? & ?).
-  eapply semax_pre_post'; [.. | apply (semax_call_forward _ _ Ef); auto].
+  eapply semax_pre_post'; [.. | apply (semax_call_forward _ _ _ Ef); auto].
   + rewrite bi.and_elim_r; apply bi.and_mono; first done; apply bi.sep_mono; first done.
     apply bi.later_mono.
     rewrite comm //.
@@ -1264,6 +1264,7 @@ Proof.
     rewrite substopt_oboxopt.
     iPoseProof (oboxopt_T with "[$TC $H]") as "H"; last by iApply "H".
     by eapply fn_return_temp_guard.
+  + auto.
   + auto.
   + auto.
   + auto.
@@ -1325,15 +1326,15 @@ Proof.
 Qed.
 *)
 Theorem semax_call_forward: forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {CS: compspecs} E (Delta: tycontext),
-    forall Ef A P Q x (F: assert) ret argsig retsig cc a bl,
-           Ef ⊆ E ->
+    forall A (Ef : dtfr (MaskTT A)) P Q x (F: assert) ret argsig retsig cc a bl,
+           Ef x ⊆ E ->
            Cop.classify_fun (typeof a) =
            Cop.fun_case_f (typelist_of_type_list argsig) retsig cc ->
            (retsig = Ctypes.Tvoid -> ret = None) ->
           tc_fn_return Delta ret retsig ->
   semax E Delta
           (((*▷*)((tc_expr Delta a) ∧ (tc_exprlist Delta argsig bl)))  ∧
-         (assert_of (`(func_ptr (mk_funspec  (argsig,retsig) cc Ef A P Q)) (eval_expr a)) ∗
+         (assert_of (`(func_ptr (mk_funspec  (argsig,retsig) cc A Ef P Q)) (eval_expr a)) ∗
           (▷ (F ∗ assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho))))))
          (Scall ret a bl)
          (normal_ret_assert
@@ -1341,7 +1342,7 @@ Theorem semax_call_forward: forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty}
 Proof.
   intros.
   eapply semax_pre; [| apply semax_call_backward].
-  iIntros "(#? & H)"; iExists argsig, retsig, cc, Ef, A, P, Q, x.
+  iIntros "(#? & H)"; iExists argsig, retsig, cc, A, Ef, P, Q, x.
   iSplit; first done.
   iSplit; first by rewrite bi.and_elim_l.
   rewrite bi.and_elim_r; iDestruct "H" as "($ & H)".

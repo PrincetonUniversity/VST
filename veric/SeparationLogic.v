@@ -216,8 +216,8 @@ Parameter semax: forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {C : comps
 Parameter semax_func: forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} (V : varspecs) (G : @funspecs Σ) {C : compspecs},
   Genv.t fundef type → list (ident * fundef) → @funspecs Σ → Prop.
 
-Parameter semax_external: forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty}, coPset → external_function →
-  ∀ A : TypeTree, (@dtfr Σ (ArgsTT A)) → (@dtfr Σ (AssertTT A)) → mpred.
+Parameter semax_external: forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty}, external_function →
+  ∀ A : TypeTree, (@dtfr Σ (MaskTT A)) → (@dtfr Σ (ArgsTT A)) → (@dtfr Σ (AssertTT A)) → mpred.
 
 End CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
@@ -225,11 +225,11 @@ Module DerivedDefs (Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF).
 
 Definition semax_body `{!VSTGS OK_ty Σ}
    (V: varspecs) (G: funspecs) {C: compspecs} (f: function) (spec: ident * funspec): Prop :=
-match spec with (_, mk_funspec fsig cc E A P Q) =>
+match spec with (_, mk_funspec fsig cc A E P Q) =>
   fst fsig = map snd (fst (fn_funsig f)) /\
   snd fsig = snd (fn_funsig f) /\
 forall OK_spec (x:dtfr A),
-  Def.semax(OK_spec := OK_spec) E (func_tycontext f V G nil)
+  Def.semax(OK_spec := OK_spec) (E x) (func_tycontext f V G nil)
       (close_precondition (map fst f.(fn_params)) (argsassert_of (P x)) ∗ stackframe_of f)
        f.(fn_body)
       (frame_ret_assert (function_body_ret_assert (fn_return f) (assert_of (Q x))) (stackframe_of f))
@@ -295,7 +295,7 @@ Axiom semax_func_cons:
        ((id, mk_funspec fsig cc E A P Q)  :: G').
 
 Axiom semax_func_cons_ext: forall (V: varspecs) (G: funspecs) 
-     {C: compspecs} ge fs id ef argsig retsig E A (P: dtfr (ArgsTT A)) (Q: dtfr (AssertTT A)) argsig'
+     {C: compspecs} ge fs id ef argsig retsig A E (P: dtfr (ArgsTT A)) (Q: dtfr (AssertTT A)) argsig'
       (G': funspecs) cc b,
   argsig' = typelist2list argsig ->
   ef_sig ef = mksignature (typlist_of_typelist argsig) (rettype_of_type retsig) cc ->
@@ -306,10 +306,10 @@ Axiom semax_func_cons_ext: forall (V: varspecs) (G: funspecs)
         ∧ ⌜Builtins0.val_opt_has_rettype ret (rettype_of_type retsig)⌝
         ⊢ ⌜tc_option_val retsig ret⌝)) ->
   Genv.find_symbol ge id = Some b -> Genv.find_funct_ptr ge b = Some (External ef argsig retsig cc) ->
-  (⊢semax_external E ef A P Q) ->
+  (⊢semax_external ef A E P Q) ->
   semax_func V G ge fs G' ->
   semax_func V G ge ((id, External ef argsig retsig cc)::fs)
-       ((id, mk_funspec (argsig', retsig) cc E A P Q)  :: G').
+       ((id, mk_funspec (argsig', retsig) cc A E P Q)  :: G').
 
 Axiom semax_func_mono: forall {CS'} (CSUB: cspecs_sub CS CS') ge ge'
   (Gfs: forall i,  sub_option (Genv.find_symbol ge i) (Genv.find_symbol ge' i))
@@ -401,16 +401,16 @@ Axiom semax_switch:
 (* THESE RULES FROM semax_call *)
 
 Axiom semax_call:
-  forall E Delta Ef A P Q x
+  forall E Delta A (Ef : dtfr (MaskTT A)) P Q x
    F ret argsig retsig cc a bl,
-           Ef ⊆ E ->
+           Ef x ⊆ E ->
            Cop.classify_fun (typeof a) =
            Cop.fun_case_f (typelist_of_type_list argsig) retsig cc ->
             (retsig = Tvoid -> ret = None) ->
           tc_fn_return Delta ret retsig ->
   semax E Delta
           ((tc_expr Delta a ∧ tc_exprlist Delta argsig bl) ∧
-         (assert_of (fun rho => func_ptr (mk_funspec (argsig,retsig) cc Ef A P Q) (eval_expr a rho)) ∗
+         (assert_of (fun rho => func_ptr (mk_funspec (argsig,retsig) cc A Ef P Q) (eval_expr a rho)) ∗
           (▷(F ∗ assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho))))))
          (Scall ret a bl)
          (normal_ret_assert
@@ -538,36 +538,36 @@ Axiom semax_Slabel:
 Axiom semax_ext:
   forall {ext_spec0} (ext_link: Strings.String.string -> ident)
          (id : Strings.String.string) (sig : typesig) (sig' : signature)
-         cc E A P Q (fs : funspecs),
-  let f := mk_funspec sig cc E A P Q in
+         cc A E P Q (fs : funspecs),
+  let f := mk_funspec sig cc A E P Q in
   In (ext_link id,f) fs ->
   funspecs_norepeat fs ->
   sig' = semax_ext.typesig2signature sig cc ->
-  ⊢ semax_external (OK_spec := add_funspecs_rec OK_ty ext_link ext_spec0 fs) E (EF_external id sig') _ P Q.
+  ⊢ semax_external (OK_spec := add_funspecs_rec OK_ty ext_link ext_spec0 fs) (EF_external id sig') _ E P Q.
 
 Axiom semax_external_FF:
- forall E ef A,
- ⊢ semax_external E ef A (λne _, monPred_at(I := argsEnviron_index) False : _ -d> _) (λne _, monPred_at(I := environ_index) False : _ -d> _).
+ forall ef A E,
+ ⊢ semax_external ef A E (λne _, monPred_at(I := argsEnviron_index) False : _ -d> _) (λne _, monPred_at(I := environ_index) False : _ -d> _).
 
 Axiom semax_external_binaryintersection: 
-forall {ef A1 P1 Q1 A2 P2 Q2
-      E A P Q sig cc}
-  (EXT1: ⊢ semax_external E ef A1 P1 Q1)
-  (EXT2: ⊢ semax_external E ef A2 P2 Q2)
-  (BI: binary_intersection (mk_funspec sig cc E A1 P1 Q1)
-                      (mk_funspec sig cc E A2 P2 Q2) =
-     Some (mk_funspec sig cc E A P Q))
+forall {ef A1 E1 P1 Q1 A2 E2 P2 Q2
+      A E P Q sig cc}
+  (EXT1: ⊢ semax_external ef A1 E1 P1 Q1)
+  (EXT2: ⊢ semax_external ef A2 E2 P2 Q2)
+  (BI: binary_intersection (mk_funspec sig cc A1 E1 P1 Q1)
+                      (mk_funspec sig cc A2 E2 P2 Q2) =
+     Some (mk_funspec sig cc A E P Q))
   (LENef: length (fst sig) = length (sig_args (ef_sig ef))),
-  ⊢ semax_external E ef A P Q.
+  ⊢ semax_external ef A E P Q.
 
 Axiom semax_external_funspec_sub: forall 
-  {argtypes rtype cc ef E1 A1 P1 Q1 E A P Q}
-  (Hsub: funspec_sub (mk_funspec (argtypes, rtype) cc E1 A1 P1 Q1)
-                   (mk_funspec (argtypes, rtype) cc E A P Q))
+  {argtypes rtype cc ef A1 E1 P1 Q1 A E P Q}
+  (Hsub: funspec_sub (mk_funspec (argtypes, rtype) cc A1 E1 P1 Q1)
+                   (mk_funspec (argtypes, rtype) cc A E P Q))
   (HSIG: ef_sig ef = 
          mksignature (map typ_of_type argtypes)
                      (rettype_of_type rtype) cc),
-  semax_external E1 ef A1 P1 Q1 ⊢ semax_external E ef A P Q.
+  semax_external ef A1 E1 P1 Q1 ⊢ semax_external ef A E P Q.
 
 Axiom semax_body_binaryintersection:
 forall {V G} f sp1 sp2 phi
@@ -576,12 +576,12 @@ forall {V G} f sp1 sp2 phi
   semax_body V G f (fst sp1, phi).
 
 Axiom semax_body_generalintersection:
-forall {V G cs f iden I sig cc E} {phi : I -> funspec}
+forall {V G cs f iden I sig cc} {phi : I -> funspec}
         (H1: forall i : I, typesig_of_funspec (phi i) = sig)
         (H2: forall i : I, callingconvention_of_funspec (phi i) = cc)
-        (HE: forall i, mask_of_funspec (phi i) = E) (HI: inhabited I)
+        (HI: inhabited I)
   (H: forall i, semax_body(C := cs) V G f (iden, phi i)),
-  semax_body V G f (iden, general_intersection phi H1 H2 HE).
+  semax_body V G f (iden, general_intersection phi H1 H2).
 
 Axiom semax_body_funspec_sub: forall {V G f i phi phi'} 
   (SB: semax_body V G f (i, phi)) (Sub: funspec_sub phi phi')
@@ -589,9 +589,9 @@ Axiom semax_body_funspec_sub: forall {V G f i phi phi'}
   semax_body V G f (i, phi').
 
 Axiom general_intersection_funspec_subIJ: forall I (HI: inhabited I) J
-      sig cc E phi1 ToF1 CoF1 HE1 phi2 ToF2 CoF2 HE2
+      sig cc phi1 ToF1 CoF1 phi2 ToF2 CoF2 
       (H: forall i, exists j, funspec_sub (phi1 j) (phi2 i)),
-   funspec_sub (@general_intersection _ J sig cc E phi1 ToF1 CoF1 HE1) (@general_intersection _ I sig cc E phi2 ToF2 CoF2 HE2).
+   funspec_sub (@general_intersection _ J sig cc phi1 ToF1 CoF1) (@general_intersection _ I sig cc phi2 ToF2 CoF2).
 
 Axiom semax_Delta_subsumption:
   forall E Delta Delta' P c R,

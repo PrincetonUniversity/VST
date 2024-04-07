@@ -269,6 +269,7 @@ Proof.
   + sep_apply (array_at_memory_block shmd (tarray tuchar N32) nil (i*4)).
     lia. simpl. normalize. replace  (i * 4 + 4 - i * 4) with 4 by lia.
     cancel.
+  + unfold bytes; autorewrite with sublist; clear; lia.
   + forward. (* md += 4; *)
     replace (32 - WORD * (i+1)) with (N32 - i*4-WORD)
       by  (subst N32; change WORD with 4; lia).
@@ -390,6 +391,7 @@ Proof.
     rewrite field_address_offset.
     rewrite field_address0_offset by auto with field_compatible; reflexivity.
     red in FC; red. simpl in FC; simpl. intuition. }
+  { clear; compute; congruence. }
   Time forward. (* p += 4; *) (*11 secs*)
   replace (force_val _) 
    with  (field_address t_struct_SHA256state_st [ArraySubsc 60; StructField _data] c)
@@ -406,6 +408,7 @@ Proof.
     rewrite field_address0_offset by auto with field_compatible.
     rewrite field_address_offset by (pose proof CBLOCKz_eq; auto with field_compatible).
     reflexivity. }
+  { clear; compute; congruence. }
 
   match goal with |- context [SEPx (?A :: _)] =>
    setoid_replace A with (array_at wsh t_struct_SHA256state_st [StructField _data] 60 64

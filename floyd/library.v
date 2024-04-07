@@ -39,8 +39,8 @@ Section semax.
 Context `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty}.
 
 Definition body_lemma_of_funspec (ef: external_function) (f: funspec) :=
-  match f with mk_funspec sig _ E A P Q =>
-    ⊢ semax_external E ef A P Q
+  match f with mk_funspec sig _ A E P Q =>
+    ⊢ semax_external ef A E P Q
   end.
 
 Local Notation funspec := (@funspec Σ).

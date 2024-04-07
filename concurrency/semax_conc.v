@@ -58,9 +58,9 @@ Proof.
   rewrite (Hgv _).
   do 6 f_equiv.
   - apply func_ptr_si_nonexpansive; last done.
-    split3; last split; [done..|].
+    split; last split; [done..|].
     exists eq_refl; simpl.
-    split; intros (?, ?); simpl; last done.
+    split3; intros (?, ?); simpl; try done.
     intros ?; rewrite Hgv (Hpre _ _) //.
   - rewrite (Hpre _ _) //.
 Defined.
@@ -74,7 +74,7 @@ Proof.
 Qed.
 
 Definition spawn_spec := mk_funspec ([tptr spawned_funtype; tptr tvoid], tvoid) cc_default
-  ⊤ spawn_arg_type spawn_pre spawn_post.
+  spawn_arg_type (λne _, ⊤) spawn_pre spawn_post.
 
 (*+ Adding the specifications to a void ext_spec *)
 

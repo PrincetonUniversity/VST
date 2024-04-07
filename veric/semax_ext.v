@@ -121,7 +121,7 @@ Definition funspec2post (ext_link: Strings.String.string -> ident) (A : TypeTree
 Definition funspec2extspec (ext_link: Strings.String.string -> ident) (f : (ident*funspec))
   : external_specification mem external_function Z :=
   match f with
-    | (id, mk_funspec ((params, sigret) as fsig) cc E A P Q) =>
+    | (id, mk_funspec ((params, sigret) as fsig) cc A E P Q) =>
       let sig := typesig2signature fsig cc in
       Build_external_specification mem external_function Z
         (fun ef => if oi_eq_dec (Some (id, sig)) (ef_id_sig ext_link ef) then (nat * iResUR Σ * dtfr A)%type else ext_spec_type Espec ef)
@@ -181,11 +181,11 @@ Proof.
 Qed.*)
 
 Lemma add_funspecs_pre (ext_link: Strings.String.string -> ident)
-              {fs id sig cc E A P Q}
+              {fs id sig cc A E P Q}
               Espec tys ge_s {x} {args} m z :
   let ef := EF_external id (typesig2signature sig cc) in
   funspecs_norepeat fs ->
-  In (ext_link id, (mk_funspec sig cc E A P Q)) fs -> ∃ H : ext_spec_type (add_funspecs_rec ext_link Espec fs) ef = (nat * iResUR Σ * dtfr A)%type,
+  In (ext_link id, (mk_funspec sig cc A E P Q)) fs -> ∃ H : ext_spec_type (add_funspecs_rec ext_link Espec fs) ef = (nat * iResUR Σ * dtfr A)%type,
   ext_spec_pre (add_funspecs_rec ext_link Espec fs) ef x ge_s tys args z m =
   funspec2pre' A P (eq_rect _ Datatypes.id x _ H) ge_s (sig_args (ef_sig ef)) args z m.
 Proof.
@@ -204,11 +204,11 @@ Proof.
 Qed.
 
 Lemma add_funspecs_post (ext_link: Strings.String.string -> ident)
-              {fs id sig cc E A P Q}
+              {fs id sig cc A E P Q}
               Espec ty ge_s {x} {v} m z :
   let ef := EF_external id (typesig2signature sig cc) in
   funspecs_norepeat fs ->
-  In (ext_link id, (mk_funspec sig cc E A P Q)) fs -> ∃ H : ext_spec_type (add_funspecs_rec ext_link Espec fs) ef = (nat * iResUR Σ * dtfr A)%type,
+  In (ext_link id, (mk_funspec sig cc A E P Q)) fs -> ∃ H : ext_spec_type (add_funspecs_rec ext_link Espec fs) ef = (nat * iResUR Σ * dtfr A)%type,
   ext_spec_post (add_funspecs_rec ext_link Espec fs) ef x ge_s ty v z m =
   funspec2post' A Q (eq_rect _ Datatypes.id x _ H) ge_s ty v z m.
 Proof.
@@ -227,11 +227,11 @@ Proof.
 Qed.
 
 Lemma add_funspecs_prepost (ext_link: Strings.String.string -> ident)
-              {fs id sig cc E A P Q}
+              {fs id sig cc A E P Q}
               {x: dtfr A} {args} Espec tys ge_s :
   let ef := EF_external id (typesig2signature sig cc) in
   funspecs_norepeat fs ->
-  In (ext_link id, (mk_funspec sig cc E A P Q)) fs ->
+  In (ext_link id, (mk_funspec sig cc A E P Q)) fs ->
   forall md z, ⌜Val.has_type_list args (sig_args (ef_sig ef))⌝ ∧
         state_interp md z ∗ P x (filter_genv (symb2genv ge_s), args) ⊢
   ∃ x' : ext_spec_type (add_funspecs_rec ext_link Espec fs) ef,
@@ -276,12 +276,12 @@ if_tac [e|e].
 Qed.
 
 Lemma add_funspecs_prepost_void  (ext_link: Strings.String.string -> ident)
-              {fs id sig cc E A P Q}
+              {fs id sig cc A E P Q}
               {x: dtfr A}
               {args} Espec tys ge_s :
   let ef := EF_external id (mksignature (map typ_of_type sig) Tvoid cc) in
   funspecs_norepeat fs ->
-  In (ext_link id, (mk_funspec (sig, tvoid) cc E A P Q)) fs ->
+  In (ext_link id, (mk_funspec (sig, tvoid) cc A E P Q)) fs ->
   forall md z, ⌜Val.has_type_list args (sig_args (ef_sig ef))⌝ ∧
         state_interp md z ∗ P x (filter_genv (symb2genv ge_s), args) ⊢
   ∃ x' : ext_spec_type (add_funspecs_rec ext_link Espec fs) ef,
@@ -306,12 +306,12 @@ Section semax_ext.
 
 Context {Z : Type} `{!VSTGS Z Σ} {ext_spec0 : ext_spec Z}.
 
-Lemma semax_ext' (ext_link: Strings.String.string -> ident) id sig cc E A P Q (fs : funspecs) :
-  let f := mk_funspec sig cc E A P Q in
+Lemma semax_ext' (ext_link: Strings.String.string -> ident) id sig cc A E P Q (fs : funspecs) :
+  let f := mk_funspec sig cc A E P Q in
   In (ext_link  id,f) fs ->
   funspecs_norepeat fs ->
   ⊢semax_external (add_funspecs_rec Z ext_link ext_spec0 fs)
-               E (EF_external id (typesig2signature sig cc)) _ P Q.
+               (EF_external id (typesig2signature sig cc)) _ E P Q.
 Proof.
 intros f Hin Hnorepeat.
 unfold semax_external.
@@ -322,12 +322,12 @@ iExists x'; iFrame; iSplit; first done.
 iIntros (?????); iMod ("Hpost" with "[%]") as "$"; done.
 Qed.
 
-Lemma semax_ext (ext_link: Strings.String.string -> ident) id sig sig' cc E A P Q (fs : funspecs) :
-  let f := mk_funspec sig cc E A P Q in
+Lemma semax_ext (ext_link: Strings.String.string -> ident) id sig sig' cc A E P Q (fs : funspecs) :
+  let f := mk_funspec sig cc A E P Q in
   In (ext_link id,f) fs ->
   funspecs_norepeat fs ->
   sig' = typesig2signature sig cc ->
-  ⊢semax_external (add_funspecs_rec Z ext_link ext_spec0 fs) E (EF_external id sig') _ P Q .
+  ⊢semax_external (add_funspecs_rec Z ext_link ext_spec0 fs) (EF_external id sig') _ E P Q.
 Proof.
 intros; subst.
 eapply semax_ext'; eauto.

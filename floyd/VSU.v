@@ -516,10 +516,6 @@ Lemma VSULink':
         initial_world.find_id i Imports1 = Some phi1 ->
         initial_world.find_id i Imports2 = Some phi2 ->
         phi1 = phi2) ->
-       (forall i phi1 phi2,
-        initial_world.find_id i Exports1 = Some phi1 ->
-        initial_world.find_id i Exports2 = Some phi2 ->
-        mask_of_funspec phi1 = mask_of_funspec phi2) ->
        VSU E Imports p Exports (fun gv => GP1 gv ∗ GP2 gv).
 Proof.
 intros.
@@ -648,10 +644,6 @@ Lemma VSULink'':
        SC_test (map fst E1 ++ IntIDs p1) Imports2 Exports1 ->
        SC_test (map fst E2 ++ IntIDs p2) Imports1 Exports2 ->
        imports_agree Imports1 Imports2 ->
-       (forall i phi1 phi2,
-        initial_world.find_id i Exports1 = Some phi1 ->
-        initial_world.find_id i Exports2 = Some phi2 ->
-        mask_of_funspec phi1 = mask_of_funspec phi2) ->
        VSU E Imports p Exports (fun gv => GP1 gv ∗ GP2 gv).
 Proof.
 intros.
@@ -1005,8 +997,7 @@ Qed.
 Lemma semax_body_Gmerge1 {cs} V G1 G2 f iphi (SB: semax_body V G1 (C := cs) f iphi)
   (G12: forall i phi1 phi2, find_id i G1 = Some phi1 -> find_id i G2 = Some phi2 ->
         typesig_of_funspec phi1 = typesig_of_funspec phi2 /\
-        callingconvention_of_funspec phi1 = callingconvention_of_funspec phi2 /\
-        mask_of_funspec phi1 = mask_of_funspec phi2)
+        callingconvention_of_funspec phi1 = callingconvention_of_funspec phi2)
    (LNR: list_norepet (map fst V ++ map fst (G_merge G1 G2))):
    semax_body V (G_merge G1 G2) (C := cs) f iphi.
 Proof. 
@@ -1043,8 +1034,8 @@ remember (find_id i V) as q; destruct q; symmetry in Heqq.
     2:  rewrite make_tycontext_s_find_id; eassumption. 
     inv Heqw.
     remember (find_id i G2) as b; symmetry in Heqb; destruct b.
-    * destruct (G12 _ _ (eq_refl _) (eq_refl _)) as (? & ? & Hmasks); clear G12.
-      destruct (G_merge_find_id_SomeSome Heqa Heqb H H0 Hmasks) as [psi [Psi PSI]].
+    * destruct (G12 _ _ (eq_refl _) (eq_refl _)) as (? & ?); clear G12.
+      destruct (G_merge_find_id_SomeSome Heqa Heqb H H0) as [psi [Psi PSI]].
       apply funspectype_of_binary_intersection in Psi; destruct Psi.
       erewrite semax_prog.make_tycontext_s_g.
       2: rewrite make_tycontext_s_find_id; eassumption.
@@ -1059,8 +1050,7 @@ Qed.
 Lemma semax_body_Gmerge2 {cs} V G1 G2 f iphi (SB:semax_body V G2 (C := cs) f iphi)
   (G12: forall i phi1 phi2, find_id i G1 = Some phi1 -> find_id i G2 = Some phi2 ->
         typesig_of_funspec phi1 = typesig_of_funspec phi2 /\
-        callingconvention_of_funspec phi1 = callingconvention_of_funspec phi2 /\
-        mask_of_funspec phi1 = mask_of_funspec phi2)
+        callingconvention_of_funspec phi1 = callingconvention_of_funspec phi2)
    (LNR_VG1: list_norepet (map fst V ++ map fst G1))
    (LNR_VG2: list_norepet (map fst V ++ map fst G2)):
    semax_body V (G_merge G1 G2) (C := cs) f iphi.
@@ -1101,8 +1091,8 @@ remember (find_id i V) as q; destruct q; symmetry in Heqq.
     2:  rewrite make_tycontext_s_find_id; eassumption. 
     inv Heqw.
     remember (find_id i G1) as b; symmetry in Heqb; destruct b.
-    * destruct (G12 _ _ (eq_refl _) (eq_refl _)) as (? & ? & Hmasks); clear G12.
-      destruct (G_merge_find_id_SomeSome Heqb Heqa H H0 Hmasks) as [psi [Psi PSI]].
+    * destruct (G12 _ _ (eq_refl _) (eq_refl _)) as (? & ?); clear G12.
+      destruct (G_merge_find_id_SomeSome Heqb Heqa H H0) as [psi [Psi PSI]].
       apply funspectype_of_binary_intersection in Psi; destruct Psi.
       erewrite semax_prog.make_tycontext_s_g.
       2: rewrite make_tycontext_s_find_id; eassumption.
@@ -1506,14 +1496,6 @@ Lemma ComponentJoin':
         initial_world.find_id i Imports1 = Some phi1 ->
         initial_world.find_id i Imports2 = Some phi2 ->
         phi1 = phi2) ->
-       (forall (i : ident) (phi1 phi2 : funspec),
-        initial_world.find_id i G1 = Some phi1 ->
-        initial_world.find_id i G2 = Some phi2 ->
-        mask_of_funspec phi1 = mask_of_funspec phi2) ->
-       (forall (i : ident) (phi1 phi2 : funspec),
-        initial_world.find_id i Exports1 = Some phi1 ->
-        initial_world.find_id i Exports2 = Some phi2 ->
-        mask_of_funspec phi1 = mask_of_funspec phi2) ->
      E = G_merge E1 E2 ->
      Imports = JoinedImports E1 Imports1 E2 Imports2 p1 p2 ->
      Exports = G_merge Exports1 Exports2 ->
@@ -1667,17 +1649,6 @@ eapply Comp_Exports_sub2;
    destruct H as [? _]. eexists phiI. split; auto.
    apply funspec_sub_refl.
 - intros. inv H0.
-- simpl; intros. if_tac in H; inv H.
-  apply find_id_In_map_fst in H0.
-  apply QPlink_progs_main in Linked as [Hmain' _]; rewrite Hmain' in H0.
-  rewrite <- (Comp_G_dom coreC) in H0.
-  apply id_in_list_false in Hmain; contradiction Hmain.
-  rewrite in_app_iff; auto.
-- simpl; intros. if_tac in H; inv H.
-  apply find_id_In_map_fst in H0.
-  apply QPlink_progs_main in Linked as [Hmain' _]; rewrite Hmain' in H0.
-  apply id_in_list_false in Hmain; contradiction Hmain.
-  rewrite in_app_iff; auto.
 - reflexivity.
 - symmetry in NOimports |- *.
    unfold JoinedImports in *.
@@ -2731,12 +2702,12 @@ Definition sigBool_right {A B} (x:dtfr B):
   {i : bool & dtfr (if i then A else B)}.
 Proof. exists false; trivial. Defined.
 
-Lemma binary_intersection'_funspec_sub_mono {f c E A1 P1 Q1 B1 R1 S1 phi1 psi1 Phi1 Psi1
-             A2 P2 Q2 B2 R2 S2 phi2 psi2 Phi2 Psi2}
+Lemma binary_intersection'_funspec_sub_mono {f c A1 E1 P1 Q1 B1 F1 R1 S1 phi1 psi1 Phi1 Psi1
+             A2 E2 P2 Q2 B2 F2 R2 S2 phi2 psi2 Phi2 Psi2}
 (Hphi: funspec_sub phi1 phi2)
 (Hpsi: funspec_sub psi1 psi2):
-funspec_sub (@binary_intersection' Σ f c E A1 P1 Q1 B1 R1 S1 phi1 psi1 Phi1 Psi1)
-            (@binary_intersection' Σ f c E A2 P2 Q2 B2 R2 S2 phi2 psi2 Phi2 Psi2).
+funspec_sub (@binary_intersection' Σ f c A1 E1 P1 Q1 B1 F1 R1 S1 phi1 psi1 Phi1 Psi1)
+            (@binary_intersection' Σ f c A2 E2 P2 Q2 B2 F2 R2 S2 phi2 psi2 Phi2 Psi2).
 Proof.
 split; [ split3; trivial | intros].
 subst.
@@ -3045,12 +3016,6 @@ Ltac ImportsDef_tac := first [ reflexivity | idtac ].
 Ltac ExportsDef_tac := first [ reflexivity | idtac ].
 Ltac domV_tac := compute; tauto.
 
-Ltac Hmasks_tac := simpl;
-  let i := fresh "i" in
-   intros i ? ? H1 H2;
-  repeat (if_tac in H1; subst; simpl in *; try discriminate);
-    (first [ congruence | inv H1; inv H2; reflexivity | fail "Masks disagree at identifier" i] ).
-
 Ltac find_id_subset_tac := simpl; intros ? ? H;
   repeat (if_tac in H; [ inv H; simpl; try reflexivity | ]); discriminate.
 
@@ -3220,7 +3185,6 @@ Ltac linkVSUs v1 v2 :=
   | SC_tac
   | SC_tac
   | HImports_tac'
-  | Hmasks_tac
   ].
 
 Ltac linkVSUs_Type v1 v2 := let t := VSULink_type v1 v2 in exact t.
@@ -3235,8 +3199,7 @@ apply (VSULink'' _ _ _ _ _ _ _ _ _ _ _ v1 v2);
    | reflexivity || fail "Externs of vsu2 overlap with Internals of vsu1"
    | SC_tac
    | SC_tac
-   | HImports_tac'
-   | Hmasks_tac ].
+   | HImports_tac' ].
 
 Ltac report_failure :=
  match goal with |- ?G => fail 99 "expand_main_pre_new failed with goal" G end.

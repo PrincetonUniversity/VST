@@ -327,6 +327,7 @@ forward.   (* p_twiddle = mtable->twiddle; *)
 assert_PROP (p<>Vundef) by entailer!.
 forward_call (* i = p_twiddle(p,3); *)
       (p, 3, @nil Z).
+{ simpl; computable. }
 Intros i.
 simpl in H0.
 sep_apply (make_object_methods sh instance r0 t0 mtable0); auto.

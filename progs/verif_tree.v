@@ -37,7 +37,7 @@ Lemma list_rep_local_facts:
   forall l p, list_rep l p |-- !! (is_pointer_or_null p  /\ (p=nullval <-> l=nil)).
 Proof.
   intros.
-  destruct l; simpl; Intros; try Intros y; entailer!.
+  destruct l; simpl; Intros; try Intros y; entailer!. tauto.
   split; intros; subst; try congruence; try contradiction.
 Qed.
 
@@ -77,7 +77,7 @@ Lemma tree_rep_local_facts:
   forall t p, tree_rep t p |-- !! (is_pointer_or_null p  /\ (p=nullval <-> t=E)).
 Proof.
   intros.
-  destruct t; simpl; Intros; try Intros x y; subst; entailer!.
+  destruct t; simpl; Intros; try Intros x y; subst; entailer!. tauto.
   split; intros; try congruence.
   subst; inv Pp.
 Qed.
@@ -193,7 +193,7 @@ Lemma xtree_rep_local_facts:
   forall t p, xtree_rep t p |-- !! (is_pointer_or_null p /\ (p = nullval <-> t = XLeaf)).
 Proof.
 intros.
-destruct t; simpl; Intros; try Intros q;  entailer!.
+destruct t; simpl; Intros; try Intros q; entailer!. tauto.
 split; intros; try congruence.
 subst; destruct H as [? _]; inv H.
 Qed.
@@ -321,7 +321,7 @@ Lemma ytree_rep_local_facts:
   forall t p, ytree_rep t p |-- !! (is_pointer_or_null p /\ (p = nullval <-> t = YLeaf)).
 Proof.
 intros.
-destruct t; simpl; Intros; try Intros q; entailer!.
+destruct t; simpl; Intros; try Intros q; entailer!. tauto.
 split; intros; try congruence.
 subst; destruct H as [? _]; inv H.
 Qed.

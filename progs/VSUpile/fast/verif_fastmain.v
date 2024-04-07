@@ -45,7 +45,9 @@ unfold APILE, M. simpl; cancel.
 -
 unfold APILE, M, ONEPILE.
 forward_call (decreasing (Z.to_nat 10), gv).
+compute; split; congruence.
 forward_call (decreasing (Z.to_nat 10), gv).
+compute; split; congruence.
 forward_call (10,gv).
 forward.
 Qed.

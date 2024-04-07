@@ -1067,7 +1067,7 @@ eapply (semax_call_id01_wow_nil H);
 
 Ltac forward_call_id01_wow :=
 let H := fresh in intro H;
-eapply (semax_call_id01_wow H); 
+eapply (semax_call_id01_wow H);
  clear H;
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [ apply Coq.Init.Logic.I 
@@ -1286,8 +1286,8 @@ Lemma classify_fun_ty_hack:
 Proof.
 intros.
 subst.
-destruct fs, fs'. 
-destruct H as [(? & ? & ?) _].
+destruct fs, fs'.
+destruct H as [(? & ?) _].
 subst.
 simpl in H1.
 inv H1.
@@ -1369,8 +1369,9 @@ Ltac prove_call_setup_aux  (*ts*) witness :=
  match goal with | |- @semax _ _ _ _ ?CS _ _ (PROPx ?P (LOCALx ?L (SEPx ?R'))) _ _ =>
  let Frame := fresh "Frame" in evar (Frame: list mpred); 
  let cR := (fun R =>
- exploit (call_setup2_i _ _ _ _ _ _ _ _ R R' _ _ _ _ (*ts*) _ _ _ _ _ H witness Frame); clear H;
- [ try_convertPreElim
+ exploit (call_setup2_i _ _ _ _ _ _ _ _ R R' _ _ _ _ (*ts*) _ _ _ _ _ _ H witness Frame); clear H;
+ [ set_solver
+ | try_convertPreElim
  | check_prove_local2ptree
  | check_vl_eq_args
  | auto 50 with derives
@@ -1387,7 +1388,7 @@ Ltac prove_call_setup_aux  (*ts*) witness :=
 Ltac prove_call_setup (*ts*) subsumes witness :=
  prove_call_setup1 subsumes;
  [ .. | 
- match goal with |- @call_setup1 _ ?Σ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ?A _ _ _ _  -> _ =>
+ match goal with |- @call_setup1 _ ?Σ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ?A _ _ _ _ _  -> _ =>
       check_witness_type (*ts*) Σ A witness
  end;
  prove_call_setup_aux (*ts*) witness].
@@ -1403,7 +1404,7 @@ lazymatch goal with
       lazymatch goal with
       | |- _ -> semax _ _ _ (Scall (Some _) _ _) _ =>
          forward_call_id1_wow
-      | |- call_setup2 _ _ _ _ _ _ _ _ _ _ _ _ ?retty _ _ _ _ _ _ _ _ _ _ _ _ _ -> 
+      | |- call_setup2 _ _ _ _ _ _ _ _ _ _ _ _ ?retty _ _ _ _ _ _ _ _ _ _ _ _ _ _ -> 
                 semax _ _ _ (Scall None _ _) _ =>
         tryif (unify retty Tvoid)
         then forward_call_id00_wow
@@ -1472,7 +1473,7 @@ Ltac get_function_witness_type Σ func :=
 Ltac new_prove_call_setup :=
  prove_call_setup1 funspec_sub_refl_dep;
  [ .. | 
- match goal with |- @call_setup1 _ ?Σ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ?A _ _ _ _ -> _ =>
+ match goal with |- @call_setup1 _ ?Σ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ?A _ _ _ _ _ -> _ =>
       let x := fresh "x" in tuple_evar2 x ltac:(get_function_witness_type Σ A)
       ltac:(prove_call_setup_aux (*(@nil Type)*))
       ltac:(fun _ => try refine tt; fail "Failed to infer some parts of witness")
@@ -1488,7 +1489,7 @@ lazymatch goal with
       lazymatch goal with
       | |- _ -> semax _ _ _ (Scall (Some _) _ _) _ =>
          forward_call_id1_wow
-      | |- call_setup2 _ _ _ _ _ _ _ _ _ _ _ _ ?retty _ _ _ _ _ _ _ _ _ _ _ _ _ ->
+      | |- call_setup2 _ _ _ _ _ _ _ _ _ _ _ _ ?retty _ _ _ _ _ _ _ _ _ _ _ _ _ _ ->
                 semax _ _ _ (Scall None _ _) _ =>
         tryif (unify retty Tvoid)
         then forward_call_id00_wow
@@ -1515,7 +1516,7 @@ lazymatch goal with
 end.
 
 
-Ltac new_fwd_call:=
+Ltac new_fwd_call :=
  try lazymatch goal with
       | |- semax _ _ _ (Scall _ _ _) _ => rewrite -> semax_seq_skip
       end;

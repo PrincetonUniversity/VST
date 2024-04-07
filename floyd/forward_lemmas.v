@@ -43,7 +43,7 @@ Lemma semax_func_cons_ext_vacuous:
 Proof.
 intros.
 
-specialize (semax_func_cons_ext V G ge fs id ef argsig retsig ⊤
+specialize (semax_func_cons_ext V G ge fs id ef argsig retsig
   (ConstType Impossible) 
 ).
 simpl.
@@ -53,7 +53,7 @@ intros HH; eapply HH; clear HH; try assumption; trivial.
 * intros. unfold monPred_at. done. 
 * eassumption.
 * assumption.
-* pose proof (semax_external_FF ⊤ ef (ConstType Impossible)) as Hvac.
+* pose proof (semax_external_FF ef (ConstType Impossible) (λne _, ⊤)) as Hvac.
   simpl in Hvac. match goal with H : ?f |- ?g => assert (f = g) as <-; last done end.
   repeat f_equal; apply proof_irr.
 Qed.
@@ -111,7 +111,7 @@ split3.
 { clear Hyp3. red; intros j fd J. destruct J; [ inv H | auto].
   exists b; split; trivial. }
 intros. specialize (Hyp3 _ Gfs Gffp).
-iIntros (v sig cc E A P Q CL).
+iIntros (v sig cc A E P Q CL).
 hnf in CL.
 destruct CL as [j [J GJ]]. simpl in J.
 rewrite PTree.gsspec in J.
@@ -185,12 +185,12 @@ Proof.
    apply bi.and_elim_r; auto.
  - eapply semax_pre; [ | eassumption].
    rewrite <- insert_prop.
-   forget ( PROPx P (LOCALx Q (SEPx R))) as PQR.
+   forget (PROPx P (LOCALx Q (SEPx R))) as PQR.
    go_lowerx. normalize. apply bi.and_intro; auto.
    subst; apply bi.pure_intro; repeat split; auto.
  - eapply semax_pre; [ | eassumption].
    rewrite <- insert_prop.
-   forget ( PROPx P (LOCALx Q (SEPx R))) as PQR.
+   forget (PROPx P (LOCALx Q (SEPx R))) as PQR.
    go_lowerx. normalize. apply bi.and_intro; auto.
    subst; apply bi.pure_intro; repeat split; auto.
 Qed.

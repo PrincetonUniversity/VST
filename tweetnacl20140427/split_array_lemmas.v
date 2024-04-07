@@ -587,12 +587,14 @@ Proof.
   rewrite split3_data_at_Tarray_tuchar with (n1:=Zlength data1)(n2:=Zlength data2 +Zlength data1); try lia.
   autorewrite with sublist.
   unfold Select_at, Unselect_at. simpl.
-  unfold offset_val. red in F. destruct d; intuition auto with *.
+  unfold offset_val. red in F.
+  destruct d; try solve [unfold data_at, field_at; normalize; rewrite !prop_false_andp; auto;
+      intros ((Hptr & ?) & _); unfold field_address0 in Hptr; try if_tac in Hptr; done].
   rewrite field_address0_offset. simpl.
   rewrite field_address0_offset. simpl.
-  rewrite (sepcon_comm (data_at sh (Tarray tuchar (Zlength data2) noattr) data2
+  rewrite (sepcon_comm _ (data_at sh (Tarray tuchar (Zlength data2) noattr) data2
   (Vptr b (Ptrofs.add i (Ptrofs.repr (Zlength data1)))))).
-  repeat rewrite sepcon_assoc.
+  repeat rewrite <- sepcon_assoc.
   f_equal. repeat rewrite Z.mul_1_l. rewrite sepcon_comm. f_equal.
   repeat rewrite Zlength_app in *.
   red; simpl. intuition lia.

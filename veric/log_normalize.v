@@ -77,6 +77,27 @@ Proof.
   tauto.
 Qed.
 
+Lemma True_or : forall P, (True ∨ P) = True.
+Proof.
+  intros.
+  ouPred.unseal.
+  apply IProp_eq; extensionality n x.
+  apply prop_ext.
+  unfold oupred.ouPred_holds; simpl.
+  tauto.
+Qed.
+
+Lemma or_True : forall P, (P ∨ True) = True.
+Proof.
+  intros.
+  ouPred.unseal.
+  destruct P.
+  apply IProp_eq; extensionality n x.
+  apply prop_ext.
+  unfold oupred.ouPred_holds; simpl.
+  tauto.
+Qed.
+
 Lemma pure_True : forall (P : Prop), P -> (bi_pure(PROP := ouPred M) P) = True.
 Proof.
   intros.
@@ -650,9 +671,31 @@ Qed.
 Lemma andp_assoc' : forall P Q R, (Q ∧ (P ∧ R)) = (P ∧ (Q ∧ R)).
 Proof. intros. rewrite and_comm -and_assoc (and_comm R) //. Qed.
 
+Lemma or_comm : forall P Q, (P ∨ Q) = (Q ∨ P).
+Proof.
+  intros; ouPred.unseal; apply IProp_eq; extensionality n x; apply prop_ext; tauto.
+Qed.
+
+Lemma or_assoc : forall P Q R, (P ∨ (Q ∨ R)) = ((P ∨ Q) ∨ R).
+Proof.
+  intros; ouPred.unseal; apply IProp_eq; extensionality n x; apply prop_ext.
+  unfold ouPred_or_def, ouPred_holds; simpl; intuition auto.
+Qed.
+
 Lemma and_False : forall P, (P ∧ False) = False.
 Proof.
   intros; rewrite and_comm; apply False_and.
+Qed.
+
+Lemma False_or : forall P, (P ∨ False) = P.
+Proof.
+  intros; destruct P; ouPred.unseal; apply IProp_eq; extensionality n x; apply prop_ext.
+  unfold ouPred_pure_def, oupred.ouPred_holds; intuition auto.
+Qed.
+
+Lemma or_False : forall P, (False ∨ P) = P.
+Proof.
+  intros; rewrite or_comm; apply False_or.
 Qed.
 
 Lemma False_sep : forall P, (P ∗ False) = False.

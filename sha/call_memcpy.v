@@ -202,10 +202,10 @@ Lemma semax_call_id0_alt:
 Proof.
 intros.
 subst tfun.
-eapply (semax_call_id0 _ Delta P Q R id bl (NDmk_funspec (argsig, retty) cc A Pre Post)
-           argsig retty cc (ConstType A) x
+eapply (semax_call_id0 Delta P Q R id bl (NDmk_funspec (argsig, retty) cc A Pre Post)
+           argsig retty cc (ConstType A) (λne _, ⊤)
            (λne a : leibnizO A, monPred_at (Pre a) : argsEnviron -d> mpred)
-           (λne a : leibnizO A, monPred_at (Post a) : environ -d> mpred)); eauto.
+           (λne a : leibnizO A, monPred_at (Post a) : environ -d> mpred) x); eauto.
 apply funspec_sub_refl.
 Qed.
 

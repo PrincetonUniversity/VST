@@ -43,7 +43,9 @@ unfold APILE, MEM_MGR, ONEPILE; simpl; cancel.
 -
 forward_call (decreasing (Z.to_nat 10), gv).
 unfold APILE, MEM_MGR, ONEPILE; cancel.
+compute; split; congruence.
 forward_call (decreasing (Z.to_nat 10), gv).
+compute; split; congruence.
 forward_call (10,gv).
 forward.
 Qed.

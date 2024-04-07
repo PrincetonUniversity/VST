@@ -199,14 +199,14 @@ Proof.
     iSpecialize ("H" with "[%]"); done.
 Qed.
 
-Global Instance believe_external_plain gx E v fsig cc A P Q : Plain (believe_external OK_spec gx E v fsig cc A P Q).
+Global Instance believe_external_plain gx v fsig cc A E P Q : Plain (believe_external OK_spec gx v fsig cc A E P Q).
 Proof.
   rewrite /Plain /believe_external.
   destruct (Genv.find_funct gx v); last iApply plain.
   destruct f; iApply plain.
 Qed.
 
-Global Instance believe_external_absorbing gx E v fsig cc A P Q : Absorbing (believe_external OK_spec gx E v fsig cc A P Q).
+Global Instance believe_external_absorbing gx v fsig cc A E P Q : Absorbing (believe_external OK_spec gx v fsig cc A E P Q).
   rewrite /Absorbing /believe_external.
   destruct (Genv.find_funct gx v); last iApply absorbing.
   destruct f; iApply absorbing.

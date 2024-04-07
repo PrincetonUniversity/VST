@@ -291,6 +291,7 @@ Lemma body_print_int: semax_body Vprog Gprog f_print_int print_int_spec.
 Proof.
   start_function.
   forward_call (tarray tuchar 5, gv).
+  { simpl; computable. }
   Intro buf.
   forward_if (buf <> nullval).
   { if_tac; entailer!. }
@@ -403,6 +404,7 @@ Proof.
   replace_SEP 0 (mem_mgr gv) by (go_lower; apply create_mem_mgr).
   forward.
   forward_call (tarray tuchar 4, gv).
+  { simpl; computable. }
   Intro buf.
   forward_if (buf <> nullval).
   { if_tac; entailer!. }

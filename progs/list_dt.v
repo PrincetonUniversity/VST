@@ -27,28 +27,6 @@ Proof. intros. pose proof (Int64.eq_spec i j); rewrite H in H0; auto. Qed.
 Lemma ptrofs_eq_e: forall i j, Ptrofs.eq i j = true -> i=j.
 Proof. intros. pose proof (Ptrofs.eq_spec i j); rewrite H in H0; auto. Qed.
 
-(*Lemma allp_andp1  {A}{ND: NatDed A}:  forall B (any: B) (p: B -> A) q, andp (allp p) q = (allp (fun x => andp (p x) q)).
-Proof.
- intros. apply pred_ext.
- apply allp_right; intro x.
- apply andp_derives; auto. apply allp_left with x; auto.
- apply bi.and_intro. apply allp_right; intro x. apply allp_left with x. apply andp_left1; auto.
- apply allp_left with any. apply andp_left2; auto.
-Qed.
-
-Lemma allp_andp2  {A}{ND: NatDed A}:  forall B (any: B) p (q: B -> A),
-     andp p (allp q) = (allp (fun x => andp p (q x))).
-Proof.
-intros. rewrite andp_comm. rewrite allp_andp1; auto.
-f_equal. extensionality x. rewrite andp_comm; auto.
-Qed.*)
-
-(*Lemma valid_pointer_offset_val_zero:
-  forall p, valid_pointer (offset_val 0 p) ⊣⊢ valid_pointer p.
-Proof.
-  This isn't true, since nullval is valid but can't be offset.
-Admitted.*)
-
 Class listspec {cs: compspecs} (list_structid: ident) (list_link: ident) (token: share -> val -> mpred):=
   mk_listspec {
    list_fields: members;
@@ -647,11 +625,11 @@ Lemma list_cell_link_join_nospacer:
    field_offset_next cenv_cs list_link list_fields
                         (co_sizeof (get_co list_structid)) ->
    list_cell LS sh v p * field_at_ sh list_struct (StructField list_link :: nil) p
-     ⊣⊢ data_at sh list_struct (list_data v) p.
+     = data_at sh list_struct (list_data v) p.
 Proof.
 intros.
 rewrite <- list_cell_link_join.
-unfold spacer. rewrite if_true. rewrite bi.sep_emp. auto.
+unfold spacer. rewrite if_true. rewrite sep_emp. auto.
 lia.
 Qed.
 
@@ -694,12 +672,12 @@ Qed.
 Lemma lseg_eq (ls: listspec list_structid list_link list_token):
   forall dsh psh l v ,
   is_pointer_or_null v ->
-    lseg ls dsh psh l v v ⊣⊢ !!(l=nil) && emp.
+    lseg ls dsh psh l v v = (!!(l=nil) && emp).
 Proof.
 intros.
 rewrite (lseg_unfold ls dsh psh l v v).
 destruct l.
-f_equiv. f_equiv.
+f_equiv. f_equiv. apply prop_ext.
 split; intro; auto.
 unfold ptr_eq.
 unfold is_pointer_or_null in H.
@@ -707,12 +685,8 @@ destruct Archi.ptr64 eqn:Hp;
 destruct v; inv H; auto;
 unfold Ptrofs.cmpu; rewrite Ptrofs.eq_true; auto.
 destruct p.
-apply pred_ext;
-apply bi.pure_elim_l; intro.
-destruct H0.
-contradiction H1.
-destruct v; inv H; try split; auto; apply Ptrofs.eq_true.
-inv H0.
+rewrite !prop_false_andp; auto.
+rewrite ptr_eq_True; tauto.
 Qed.
 
 Definition lseg_cons (ls: listspec list_structid list_link list_token) dsh psh (l: list (val * elemtype ls)) (x z: val) : mpred :=
@@ -774,7 +748,7 @@ apply bi.exist_elim; intro y.
 do 3 rewrite sepcon_andp_prop'.
 apply bi.pure_elim_l; intros [? ?].
 symmetry in H0; inv H0.
- rewrite prop_true_andp by auto.
+rewrite prop_true_andp by auto.
 rewrite <- (bi.exist_intro y).
 normalize.
 Qed.
@@ -946,7 +920,7 @@ Proof. intros.
  apply pred_ext.
  apply bi.or_elim.
  rewrite <- bi.pure_and; apply bi.pure_elim_l; intros []; auto.
- unfold lseg_cons. normalize.
+ unfold lseg_cons. by normalize.
  rewrite <- bi.or_intro_l. rewrite <- bi.and_assoc.
  rewrite (prop_true_andp (_ = _)) by auto. auto.
 Qed.
@@ -1473,13 +1447,13 @@ Proof. intros.
  - apply bi.or_elim.
    + rewrite <- bi.pure_and.
      apply bi.pure_elim_l; intros []; auto.
-   + unfold lseg_cons. normalize.
+   + unfold lseg_cons. by normalize.
  - rewrite <- bi.or_intro_l.
    apply bi.pure_elim_l; intros; auto.
 Qed.
 
 Lemma lseg_cons_eq (ls: listspec list_structid list_link list_token):
-     forall sh h r x z ,
+     forall sh h r x z,
     lseg ls sh (h::r) x z ⊣⊢
         !!(~ ptr_eq x z) &&
          (EX  y : val,
@@ -1559,7 +1533,7 @@ iFrame.
 Qed.
 
 Lemma lseg_unroll_right (ls: listspec list_structid list_link list_token): forall sh l x z ,
-    lseg ls sh l x z = (!! (ptr_eq x z) && !! (l=nil) && emp) || lseg_cons_right ls sh l x z.
+    lseg ls sh l x z ⊣⊢ (!! (ptr_eq x z) && !! (l=nil) && emp) || lseg_cons_right ls sh l x z.
 Abort.  (* not likely true *)
 
 Lemma lseg_local_facts:
@@ -1754,7 +1728,7 @@ unfold list_cell; intros.
  f_equiv. f_equiv.
  * admit. (* unfold at_offset. apply nonreadable_data_at_rec_eq; auto.*)
  * apply IHm.
-   simpl; auto. 
+   simpl; auto.
 Admitted.
 
 Lemma cell_share_join:
@@ -1849,21 +1823,16 @@ Qed.
 Lemma lseg_eq (ls: listspec list_structid list_link list_token):
   forall dsh psh l v ,
   is_pointer_or_null v ->
-    lseg ls dsh psh l v v ⊣⊢ !!(l=nil) && emp.
+    lseg ls dsh psh l v v = !!(l=nil) && emp.
 Proof.
 intros.
 rewrite (lseg_unfold ls dsh psh l v v).
 destruct l.
-f_equiv. f_equiv.
+f_equiv. f_equiv. apply prop_ext.
 split; intro; auto.
 normalize.
-apply pred_ext;
-apply bi.pure_elim_l; intro.
-destruct H0.
-contradiction H1.
-destruct v; inv H; try split; auto.
-unfold Ptrofs.cmpu. apply Ptrofs.eq_true.
-inv H0.
+rewrite !prop_false_andp; auto.
+rewrite ptr_eq_True; tauto.
 Qed.
 
 Definition lseg_cons (ls: listspec list_structid list_link list_token) dsh psh
@@ -2211,7 +2180,7 @@ iStopProof; cancel.
 Qed.
 
 Lemma lseg_unroll_right (ls: listspec list_structid list_link list_token): forall sh sh' l x z ,
-    lseg ls sh sh' l x z = (!! (ptr_eq x z) && !! (l=nil) && emp) || lseg_cons_right ls sh sh' l x z.
+    lseg ls sh sh' l x z ⊣⊢ (!! (ptr_eq x z) && !! (l=nil) && emp) || lseg_cons_right ls sh sh' l x z.
 Abort.  (* not likely true *)
 
 Lemma lseg_local_facts:

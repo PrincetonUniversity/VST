@@ -330,10 +330,9 @@ forward_if.
   change 64%Z with CBLOCKz.
   simpl (temp _data _).
   entailer!.
-  split; first done.
   rewrite field_address0_offset
     by (pose proof LBLOCKz_eq; subst k; auto with field_compatible).
-  f_equal. f_equal. unfold k. simpl. Omega1.
+  f_equal. unfold k. simpl. Omega1.
   unfold data_block.
   unfold_data_at (data_at _ _ _ c).
   rewrite map_Vubyte_eq'; cancel.

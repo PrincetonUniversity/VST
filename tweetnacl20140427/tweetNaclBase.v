@@ -1,12 +1,11 @@
 Require Import Recdef.
 Require Import VST.floyd.proofauto.
-Local Open Scope logic.
+Require Export VST.floyd.compat.
 Require Import List. Import ListNotations.
 Require Import sha.general_lemmas.
 
 (*Require Import tweetnacl20140427.split_array_lemmas.*)
 Require Import ZArith.
-Local Open Scope Z.
 
 Lemma Zlength_repeat' {A} n (v:A): Zlength (repeat v n) = Z.of_nat n.
 Proof. rewrite Zlength_correct, repeat_length; trivial. Qed.
@@ -334,7 +333,7 @@ Proof. induction l; simpl; intros.
   destruct (IHl _ LL' _ _ M H2); subst. split; trivial.
 Qed.
 
-Lemma list_eq_dec_app {A} (eq_dec: forall x y : A, {x = y} + {x <> y}):
+Lemma list_eq_dec_app {A} (eq_dec: forall x y : A, {x = y} + {x <> y} ):
   forall l m l' m'
   (L:Zlength l = Zlength l') (M: Zlength m = Zlength m'),
   ((if list_eq_dec eq_dec (l++m) (l'++m') then true else false) =

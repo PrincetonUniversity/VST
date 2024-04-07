@@ -133,7 +133,8 @@ Module AuxDefs.
 
 Section AuxDefs.
 
-Variable semax_external: forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} (E: coPset) (ef: external_function) (A : TypeTree)
+Variable semax_external: forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} (ef: external_function) (A : TypeTree)
+       (E: @dtfr Σ (MaskTT A))
        (P: @dtfr Σ (ArgsTT A))
        (Q: @dtfr Σ (AssertTT A)), mpred.
 
@@ -180,13 +181,13 @@ Inductive semax `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {CS: compspecs} (E
 | semax_call_backward: forall ret a bl R,
      semax E Delta
          (∃ argsig: _, ∃ retsig: _, ∃ cc: _,
-          ∃ Ef, ∃ A: _, ∃ P: _, ∃ Q: _, ∃ x: _,
-         ⌜Ef ⊆ E /\ Cop.classify_fun (typeof a) =
+          ∃ A: _, ∃ Ef : dtfr (MaskTT A), ∃ P: _, ∃ Q: _, ∃ x: _,
+         ⌜Ef x ⊆ E /\ Cop.classify_fun (typeof a) =
              Cop.fun_case_f (typelist_of_type_list argsig) retsig cc /\
              (retsig = Tvoid -> ret = None) /\
              tc_fn_return Delta ret retsig⌝ ∧
           (((tc_expr Delta a) ∧ (tc_exprlist Delta argsig bl)))  ∧
-         assert_of (`(func_ptr (mk_funspec  (argsig,retsig) cc Ef A P Q)) (eval_expr a)) ∗
+         assert_of (`(func_ptr (mk_funspec  (argsig,retsig) cc A Ef P Q)) (eval_expr a)) ∗
           ▷(assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho)) ∗ oboxopt Delta ret (maybe_retval (assert_of (Q x)) retsig ret -∗ R)))
          (Scall ret a bl)
          (normal_ret_assert R)
@@ -271,11 +272,11 @@ Inductive semax `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {CS: compspecs} (E
 
 Definition semax_body `{!VSTGS OK_ty Σ}
    (V: varspecs) (G: funspecs) {C: compspecs} (f: function) (spec: ident * funspec): Prop :=
-match spec with (_, mk_funspec fsig cc E A P Q) => 
+match spec with (_, mk_funspec fsig cc A E P Q) => 
   fst fsig = map snd (fst (fn_funsig f)) /\ 
   snd fsig = snd (fn_funsig f) /\
 forall OK_spec x,
-  semax(OK_spec := OK_spec) E (func_tycontext f V G nil)
+  semax(OK_spec := OK_spec) (E x) (func_tycontext f V G nil)
       (Clight_seplog.close_precondition (map fst f.(fn_params)) (argsassert_of (P x)) ∗ stackframe_of f)
        f.(fn_body)
       (frame_ret_assert (function_body_ret_assert (fn_return f) (assert_of (Q x))) (stackframe_of f))
@@ -285,7 +286,7 @@ Inductive semax_func `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} : forall (V: 
 | semax_func_nil:
     forall C V G ge, semax_func(C := C) V G ge nil nil
 | semax_func_cons:
-     forall {C: compspecs} fs id f fsig cc E A P Q (V: varspecs) (G G': funspecs) ge b,
+     forall {C: compspecs} fs id f fsig cc A E P Q (V: varspecs) (G G': funspecs) ge b,
       andb (id_in_list id (map (@fst _ _) G))
       (andb (negb (id_in_list id (map (@fst ident Clight.fundef) fs)))
         (semax_body_params_ok f)) = true ->
@@ -296,12 +297,12 @@ Inductive semax_func `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} : forall (V: 
        var_sizes_ok (f.(fn_vars)) ->
        f.(fn_callconv) = cc ->
        Genv.find_symbol ge id = Some b -> Genv.find_funct_ptr ge b = Some (Internal f) -> 
-      semax_body V G f (id, mk_funspec fsig cc E A P Q)->
+      semax_body V G f (id, mk_funspec fsig cc A E P Q)->
       semax_func(C := C) V G ge fs G' ->
       semax_func V G ge ((id, Internal f)::fs)
-                 ((id, mk_funspec fsig cc E A P Q)  :: G')
+                 ((id, mk_funspec fsig cc A E P Q)  :: G')
 | semax_func_cons_ext:
-   forall (V: varspecs) (G: funspecs) {C: compspecs} ge fs id ef argsig retsig E A P (Q : dtfr (AssertTT A))
+   forall (V: varspecs) (G: funspecs) {C: compspecs} ge fs id ef argsig retsig A E P (Q : dtfr (AssertTT A))
           argsig'
           (G': funspecs) cc b,
   argsig' = typelist2list argsig ->
@@ -313,15 +314,15 @@ Inductive semax_func `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} : forall (V: 
         ∧ ⌜Builtins0.val_opt_has_rettype ret (rettype_of_type retsig)⌝
         ⊢ ⌜tc_option_val retsig ret⌝)) ->
   Genv.find_symbol ge id = Some b -> Genv.find_funct_ptr ge b = Some (External ef argsig retsig cc) ->
-  (⊢ semax_external E ef A P Q) ->
+  (⊢ semax_external ef A E P Q) ->
   semax_func(C := C) V G ge fs G' ->
   semax_func V G ge ((id, External ef argsig retsig cc)::fs)
-       ((id, mk_funspec (argsig', retsig) cc E A P Q)  :: G')
+       ((id, mk_funspec (argsig', retsig) cc A E P Q)  :: G')
 | semax_func_mono: forall  {CS CS'} (CSUB: cspecs_sub CS CS') ge ge'
   (Gfs: forall i,  sub_option (Genv.find_symbol ge i) (Genv.find_symbol ge' i))
   (Gffp: forall b, sub_option (Genv.find_funct_ptr ge b) (Genv.find_funct_ptr ge' b))
   V G fdecs G1 (H: semax_func V G (C := CS) ge fdecs G1), semax_func V G (C := CS') ge' fdecs G1
-                                                                      
+
 | semax_func_app:
   forall C ge V H funs1 funs2 G1 G2
          (SF1: semax_func V H ge funs1 G1) (SF2: semax_func V H ge funs2 G2)
@@ -648,13 +649,13 @@ Lemma semax_call_inv: forall E Delta ret a bl Pre Post,
   semax E Delta Pre (Scall ret a bl) Post ->
   local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ Pre) ⊢ |={E}=>
          (∃ argsig: _, ∃ retsig: _, ∃ cc: _,
-          ∃ Ef, ∃ A: _, ∃ P: _, ∃ Q: _, ∃ x: _,
-         ⌜Ef ⊆ E /\ Cop.classify_fun (typeof a) =
+          ∃ A: _, ∃ Ef : dtfr (MaskTT A), ∃ P: _, ∃ Q: _, ∃ x: _,
+         ⌜Ef x ⊆ E /\ Cop.classify_fun (typeof a) =
              Cop.fun_case_f (typelist_of_type_list argsig) retsig cc /\
              (retsig = Tvoid -> ret = None) /\
              tc_fn_return Delta ret retsig⌝ ∧
           ((*▷*)((tc_expr Delta a) ∧ (tc_exprlist Delta argsig bl)))  ∧
-         assert_of (`(func_ptr (mk_funspec (argsig,retsig) cc Ef A P Q)) (eval_expr a)) ∗
+         assert_of (`(func_ptr (mk_funspec (argsig,retsig) cc A Ef P Q)) (eval_expr a)) ∗
           ▷(assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho)) ∗ oboxopt Delta ret (maybe_retval (assert_of (Q x)) retsig ret -∗ |={E}=> RA_normal Post))).
 Proof.
   intros.
@@ -665,8 +666,8 @@ Proof.
     apply bi.exist_mono; intro argsig.
     apply bi.exist_mono; intro retsig.
     apply bi.exist_mono; intro cc.
-    apply bi.exist_mono; intro Ef.
     apply bi.exist_mono; intro A.
+    apply bi.exist_mono; intro Ef.
     apply bi.exist_mono; intro P.
     apply bi.exist_mono; intro Q.
     apply bi.exist_mono; intro x.
@@ -701,9 +702,8 @@ Proof.
     iMod (fupd_mask_subseteq E') as "Hmask"; first done.
     iMod (IHsemax with "H") as (????????) "((% & %) & H)"; first done.
     iMod "Hmask" as "_"; iIntros "!>".
-    iExists _, _, _, Ef, _, _, _, _; iSplit.
-    { iPureIntro; split; [set_solver | done]. }
-    rewrite oboxopt_K // fupd_mask_mono //.
+    iExists _, _, _, _, Ef, _, _, _; iSplit; last by rewrite oboxopt_K // fupd_mask_mono //.
+    iPureIntro; split; [set_solver | done].
 Qed.
 
 Lemma typecheck_expr_sound' : forall Delta e, local (typecheck_environ Delta) ∧ tc_expr Delta e ⊢ local ((`(tc_val (typeof e))) (eval_expr e)).
@@ -1383,11 +1383,11 @@ forall {CS: compspecs} {V G} f sp1 sp2 phi
   (BI: binary_intersection (snd sp1) (snd sp2) = Some phi),
   semax_body V G f (fst sp1, phi).
 Proof. intros.
-  destruct sp1 as [i phi1]. destruct phi1 as [sig1 cc1 E1 A1 P1 Q1].
-  destruct sp2 as [i2 phi2]. destruct phi2 as [sig2 cc2 E2 A2 P2 Q2].
-  destruct phi as [sig cc E A P Q]. simpl snd in BI.
+  destruct sp1 as [i phi1]. destruct phi1 as [sig1 cc1 A1 E1 P1 Q1].
+  destruct sp2 as [i2 phi2]. destruct phi2 as [sig2 cc2 A2 E2 P2 Q2].
+  destruct phi as [sig cc A E P Q]. simpl snd in BI.
   simpl in BI.
-  if_tac in BI; [inv H | discriminate]. if_tac in BI; [| discriminate]. if_tac in BI; [| discriminate].
+  if_tac in BI; [inv H | discriminate]. if_tac in BI; [| discriminate].
   apply Some_inj, mk_funspec_inj in BI as ([=] & ? & ? & ? & ? & ?); subst.
   clear - SB1 SB2.
   destruct SB1 as [X [X1 SB1]]; destruct SB2 as [_ [X2 SB2]].
@@ -1395,12 +1395,12 @@ Proof. intros.
   destruct x as [[|] ?]; [ apply SB1 | apply SB2].
 Qed.
 
-Definition semax_body_generalintersection {V G cs f iden I sig cc E} {phi : I -> funspec}
+Definition semax_body_generalintersection {V G cs f iden I sig cc} {phi : I -> funspec}
         (H1: forall i : I, typesig_of_funspec (phi i) = sig)
         (H2: forall i : I, callingconvention_of_funspec (phi i) = cc)
-        (HE: forall i, mask_of_funspec (phi i) = E) (HI: inhabited I)
+        (HI: inhabited I)
   (H: forall i, semax_body(C := cs) V G f (iden, phi i)):
-  semax_body V G f (iden, @general_intersection _ I sig cc E phi H1 H2 HE).
+  semax_body V G f (iden, @general_intersection _ I sig cc phi H1 H2).
 Proof. destruct HI. split3.
   { specialize (H X). specialize (H1 X); subst. destruct (phi X). simpl. apply H. }
   { specialize (H X). specialize (H1 X); subst. destruct (phi X). simpl. apply H. }
@@ -1409,10 +1409,10 @@ Proof. destruct HI. split3.
   assert (fst sig = map snd (fst (fn_funsig f)) /\
         snd sig = snd (fn_funsig f) /\
         (forall (x : dtfr ((WithType_of_funspec (phi i)))),
-         semax E (func_tycontext f V G nil)
+         semax (mask_of_funspec (phi i) x) (func_tycontext f V G nil)
            (close_precondition (map fst (fn_params f)) (argsassert_of ((Pre_of_funspec (phi i)) x)) ∗ stackframe_of f) 
            (fn_body f) (frame_ret_assert (function_body_ret_assert (fn_return f) (assert_of ((Post_of_funspec (phi i)) x))) (stackframe_of f)))) as HH.
-  { intros. specialize (H1 i); specialize (H2 i). specialize (HE i). subst. unfold semax_body in H.
+  { intros. specialize (H1 i); specialize (H2 i). subst. unfold semax_body in H.
     destruct (phi i); subst. destruct H as [? [? ?]]. split3; simpl; auto. }
   clear H H1 H2. destruct HH as [HH1 [HH2 HH3]].
   apply (HH3 Hi).
@@ -1779,15 +1779,15 @@ Definition CALLpre (CS: compspecs) E Delta ret a bl R :=
      ∃ argsig : list type,
      ∃ retsig : type,
      ∃ cc : calling_convention,
-     ∃ Ef : coPset,
      ∃ A : TypeTree,
+     ∃ Ef : dtfr (MaskTT A),
      ∃ P : dtfr (ArgsTT A),
      ∃ Q : dtfr (AssertTT A),
      ∃ x : dtfr A,
-     ⌜Ef ⊆ E /\ Cop.classify_fun (typeof a) = Cop.fun_case_f (typelist_of_type_list argsig) retsig cc /\
+     ⌜Ef x ⊆ E /\ Cop.classify_fun (typeof a) = Cop.fun_case_f (typelist_of_type_list argsig) retsig cc /\
          (retsig = Tvoid -> ret = @None ident) /\ tc_fn_return Delta ret retsig⌝ ∧
      (tc_expr Delta a ∧ tc_exprlist Delta argsig bl) ∧
-     assert_of ((` (func_ptr (mk_funspec (argsig, retsig) cc Ef A P Q))) (@eval_expr CS a)) ∧
+     assert_of ((` (func_ptr (mk_funspec (argsig, retsig) cc A Ef P Q))) (@eval_expr CS a)) ∧
      ▷  (assert_of (fun rho => P x (ge_of rho, @eval_exprlist CS argsig bl rho)) ∗
                    (oboxopt Delta ret (maybe_retval (assert_of (Q x)) retsig ret -∗ R))).
 
@@ -2236,9 +2236,9 @@ Lemma semax_body_funspec_sub {CS : compspecs} {V G f i phi phi'} (SB: semax_body
   (LNR: list_norepet (map fst (fn_params f) ++ map fst (fn_temps f))):
   semax_body V G f (i, phi').
 Proof.
-destruct phi as [sig cc E A P Q].
-destruct phi' as [sig' cc' E' A' P' Q'].
-destruct Sub as [(Tsigs & CC & HE) Sub]. subst cc' sig'. simpl in Sub.
+destruct phi as [sig cc A E P Q].
+destruct phi' as [sig' cc' A' E' P' Q'].
+destruct Sub as [(Tsigs & CC) Sub]. subst cc' sig'. simpl in Sub.
 destruct SB as [SB1 [SB2 SB3]].
 split3; trivial. intros.
 specialize (Sub x).
@@ -2250,7 +2250,7 @@ apply semax_adapt
     ∃ vals:list val,
     ∃ x1 : dtfr A,
     ∃ FR: _,
-    ⌜forall rho' : environ,
+    ⌜E x1 ⊆ E' x /\ forall rho' : environ,
               ⌜tc_environ (rettype_tycontext (snd sig)) rho'⌝ ∧ (FR ∗ Q x1 rho') ⊢ (Q' x rho')⌝ ∧
       ((stackframe_of f ∗ ⎡FR⎤ ∗ assert_of (fun tau => P x1 (ge_of tau, vals))) ∧
             local (fun tau => map (Map.get (te_of tau)) (map fst (fn_params f)) = map Some vals /\ tc_vals (map snd (fn_params f)) vals))).
@@ -2274,10 +2274,10 @@ apply semax_adapt
          intros. apply TE. right; trivial. }
    iIntros "!>"; iSplit; last iPureIntro.
    clear Sub.
-   iDestruct "Sub" as (x1 FR1) "(A1 & %RetQ)".
+   iDestruct "Sub" as (x1 FR1 HE1) "(A1 & %RetQ)".
    iExists vals, x1, FR1.
    iSplit; last iSplit.
-    + iPureIntro; simpl; intros. rewrite -RetQ.
+    + iPureIntro; split; first done; intros. rewrite -RetQ.
       iIntros "(% & $)"; iPureIntro; split; last trivial.
       simpl in H. clear - H. destruct H as [_ [Hve _]].
       simpl in *. red in Hve. destruct rho'; simpl in *.
@@ -2303,9 +2303,9 @@ apply semax_adapt
    apply semax_extract_exists; intros vals.
    apply semax_extract_exists; intros x1.
    apply semax_extract_exists; intros FRM.
-   apply semax_extract_prop; intros QPOST.
+   apply semax_extract_prop; intros (HE & QPOST).
    unfold fn_funsig in *. simpl in SB2; rewrite -> SB2 in *.
-   apply (semax_frame E (func_tycontext f V G nil)
+   apply (semax_frame (E x1) (func_tycontext f V G nil)
       (close_precondition (map fst (fn_params f)) (argsassert_of (P x1)) ∗
          stackframe_of f)
       (fn_body f)

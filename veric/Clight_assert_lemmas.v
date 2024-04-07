@@ -44,7 +44,7 @@ Proof.
   rewrite /func_ptr_si.
   iIntros "H"; iDestruct "H" as (? Heq ?) "[#H1 H2]"; inv Heq.
   rewrite /func_at /sigcc_at /funspec_sub_si.
-  destruct fs, gs; iDestruct "H1" as "[(-> & -> & _) _]"; eauto.
+  destruct fs, gs; iDestruct "H1" as "[(-> & ->) _]"; eauto.
 Qed.
 
 Lemma allp_fun_id_sigcc_sub: forall Delta Delta' rho,
@@ -61,7 +61,7 @@ Proof.
   iExists b; iFrame "%".
   iPoseProof Hsub as "Hsub".
   rewrite /funspec_sub_si.
-  by destruct fs, gs; iDestruct "Hsub" as "[(-> & -> & _) _]".
+  by destruct fs, gs; iDestruct "Hsub" as "[(-> & ->) _]".
 Qed.
 
 Lemma allp_fun_id_sub: forall Delta Delta' rho,

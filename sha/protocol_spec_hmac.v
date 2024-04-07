@@ -98,7 +98,7 @@ Definition hmac_starts_spec :=
          LOCAL (temp _ctx c; temp _key (Vptr b i); temp _len (Vint (Int.repr l));
                 gvars gv)
          SEP (EMPTY sh c; data_block shk key (Vptr b i); K_vector gv)
-  POST [ tvoid ] 
+  POST [ tvoid ]
      PROP ()
      LOCAL ()
      SEP (REP sh (hABS key nil) c; data_block shk key (Vptr b i); K_vector gv).
@@ -115,8 +115,8 @@ Definition hmac_update_spec :=
          LOCAL (temp _ctx c; temp _data d; temp  _len (Vint (Int.repr (Zlength data1)));
                 gvars gv)
          SEP(REP shc (hABS key data) c; data_block shd data1 d; K_vector gv)
-  POST [ tvoid ] 
-          PROP () 
+  POST [ tvoid ]
+          PROP ()
           LOCAL ()
           SEP(REP shc (hABS key (data++data1)) c; 
               data_block shd data1 d; K_vector gv).
@@ -131,8 +131,8 @@ Definition hmac_final_spec :=
               gvars gv)
        SEP(REP sh (hABS key data) c; K_vector gv;
            memory_block shmd 32 md)
-  POST [ tvoid ] 
-          PROP () 
+  POST [ tvoid ]
+          PROP ()
           LOCAL ()
           SEP(K_vector gv; FULL sh key c;
               data_block shmd (HMAC256 data key) md).
@@ -145,8 +145,8 @@ Definition hmac_cleanup_spec :=
          PROP (writable_share sh) 
          LOCAL (temp _ctx c)
          SEP(FULL sh key c)
-  POST [ tvoid ]  
-          PROP () 
+  POST [ tvoid ]
+          PROP ()
           LOCAL ()
           SEP(EMPTY sh c).
 
@@ -308,7 +308,7 @@ Definition hmac_reset_spec :=
          LOCAL (temp _ctx c; temp _key nullval; temp _len (Vint (Int.repr l));
                 gvars gv)
          SEP (FULL sh key c; K_vector gv)
-  POST [ tvoid ] 
+  POST [ tvoid ]
      PROP ()
      LOCAL ()
      SEP (REP sh (hABS key nil) c; K_vector gv).
@@ -323,7 +323,7 @@ Definition hmac_starts_spec :=
          LOCAL (temp _ctx c; temp _key (Vptr b i); temp _len (Vint (Int.repr l));
                 gvars gv)
          SEP (EMPTY sh c; data_block shk key (Vptr b i); K_vector gv)
-  POST [ tvoid ] 
+  POST [ tvoid ]
      PROP ()
      LOCAL ()
      SEP (REP sh (hABS key nil) c; data_block shk key (Vptr b i); K_vector gv).
@@ -340,8 +340,8 @@ Definition hmac_update_spec :=
          LOCAL (temp _ctx c; temp _data d; temp  _len (Vint (Int.repr (Zlength data1)));
                 gvars gv)
          SEP(REP shc (hABS key data) c; data_block shd data1 d; K_vector gv)
-  POST [ tvoid ] 
-          PROP () 
+  POST [ tvoid ]
+          PROP ()
           LOCAL ()
           SEP(REP shc (hABS key (data++data1)) c; 
               data_block shd data1 d; K_vector gv).
@@ -356,8 +356,8 @@ Definition hmac_final_spec :=
               gvars gv)
        SEP(REP sh (hABS key data) c; K_vector gv;
            memory_block shmd 32 md)
-  POST [ tvoid ] 
-          PROP () 
+  POST [ tvoid ]
+          PROP ()
           LOCAL ()
           SEP(K_vector gv;
               FULL sh key c;
@@ -370,8 +370,8 @@ Definition hmac_cleanup_spec :=
          PROP (writable_share sh) 
          LOCAL (temp _ctx c)
          SEP(FULL sh key c)
-  POST [ tvoid ]  
-          PROP () 
+  POST [ tvoid ]
+          PROP ()
           LOCAL ()
           SEP(EMPTY sh c).
 
@@ -396,7 +396,7 @@ Definition hmac_crypto_spec :=
              data_block shm (CONT MSG) msg; 
              memory_block shmd 32 md;
              K_vector gv)
-  POST [ tptr tuchar ] 
+  POST [ tptr tuchar ]
          EX digest:_,
           PROP (digest= HMAC256 (CONT MSG) (CONT KEY) /\
                 ByteBitRelations.bytesToBits digest = 

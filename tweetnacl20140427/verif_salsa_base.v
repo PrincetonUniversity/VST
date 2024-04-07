@@ -1,12 +1,10 @@
 Require Import Recdef.
 Require Import VST.floyd.proofauto.
-Local Open Scope logic.
 Require Import Coq.Lists.List. Import ListNotations.
 Require Import sha.general_lemmas.
 
 Require Import tweetnacl20140427.split_array_lemmas.
 Require Import ZArith.
-Local Open Scope Z.
 Require Import tweetnacl20140427.Salsa20.
 Require Import tweetnacl20140427.tweetnaclVerifiableC.
 Require Import tweetnacl20140427.tweetNaclBase.
@@ -54,7 +52,7 @@ Qed.
 
 Definition ThirtyTwoByte (q:SixteenByte * SixteenByte) (v:val) : mpred :=
   match q with (q1, q2) =>
-    @data_at CompSpecs Tsh (Tarray tuchar 32 noattr) ((SixteenByte2ValList q1) ++ (SixteenByte2ValList q2)) v
+    data_at(cs := CompSpecs) Tsh (Tarray tuchar 32 noattr) ((SixteenByte2ValList q1) ++ (SixteenByte2ValList q2)) v
   end.
 
 Definition QByte (q:QuadByte) (v:val) : mpred :=
@@ -83,12 +81,12 @@ Lemma SixteenByte2ValList_Zlength C: 16 = Zlength (SixteenByte2ValList C).
   reflexivity. Qed.
 
 Definition SByte (q:SixteenByte) (v:val) : mpred :=
-  @data_at CompSpecs Tsh (Tarray tuchar 16 noattr) (SixteenByte2ValList q) v.
+  data_at(cs := CompSpecs) Tsh (Tarray tuchar 16 noattr) (SixteenByte2ValList q) v.
 
 Lemma ThirtyTwoByte_split16 q v:
   field_compatible (Tarray tuchar 32 noattr) [] v ->
   ThirtyTwoByte q v =
-  (SByte (fst q) v * SByte (snd q) (offset_val 16 v))%logic.
+  (SByte (fst q) v * SByte (snd q) (offset_val 16 v)).
 Proof. destruct q as [s1 s2]. simpl; intros. unfold SByte.
   rewrite split2_data_at_Tarray_tuchar with (n1:= Zlength (SixteenByte2ValList s1));
      try rewrite Zlength_app; repeat rewrite <- SixteenByte2ValList_Zlength; try lia.
