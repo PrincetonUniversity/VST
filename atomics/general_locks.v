@@ -5,13 +5,13 @@ From iris_ora.algebra Require Import frac_auth.
 
 Section locks.
 
-Context {A : ora} (Hflat : forall n (x y : A), ✓{n} y → x ≼ₒ{n} y → x ≡{n}≡ y).
+Context {A : cmra}.
 
-Context `{!inG Σ (frac_authR Hflat)}.
+Context `{!inG Σ (frac_authR A)}.
 
-Definition my_half g sh (a : A) := own g (◯F{ sh } a : frac_authR Hflat).
-Definition public_half g (a : A) := own g (●F a : frac_authR Hflat).
-Definition both_halves (a : A) g := own g (●F a ⋅ ◯F a : frac_authR Hflat).
+Definition my_half g sh (a : A) := own g (frac_auth_frag(A := A) sh a : frac_authR A).
+Definition public_half g (a : A) := own g (frac_auth_auth(A := A) a : frac_authR A).
+Definition both_halves (a : A) g := own g (frac_auth_auth(A := A) a ⋅ frac_auth_frag(A := A) 1 a : frac_authR A).
 
 Lemma my_half_join : forall sh1 sh2 a1 a2 g,
   my_half g sh1 a1 ∗ my_half g sh2 a2 ⊣⊢ my_half g (sh1 ⋅ sh2) (a1 ⋅ a2).
@@ -28,14 +28,14 @@ Lemma public_agree : forall g (a b: A), my_half g 1 a ∗ public_half g b ⊢ a 
 Proof.
   intros.
   iIntros "(a & b)"; iPoseProof (own_valid_2 with "a b") as "H".
-  rewrite frac_auth_agree_fullI internal_eq_sym bi.and_elim_l //.
+  rewrite frac_auth_agree_fullI internal_eq_sym //.
 Qed.
 
 Lemma public_part_agree : forall g sh (a b: A), my_half g sh a ∗ public_half g b ⊢ if decide (sh = 1%Qp) then a ≡ b else ∃ c, b ≡ a ⋅ c.
 Proof.
   intros.
   iIntros "(a & b)"; iPoseProof (own_valid_2 with "a b") as "H".
-  rewrite frac_auth_agreeI bi.and_elim_l; if_tac; try done.
+  rewrite frac_auth_agreeI; if_tac; try done.
   by iApply internal_eq_sym.
 Qed.
 
@@ -51,7 +51,7 @@ Proof.
   by apply @frac_auth_update_1.
 Qed.
 
-Lemma public_part_update : forall g sh (a b a' b' : A) (Ha' : local_update(A := ora_cmraR A) (b, a) (b', a')),
+Lemma public_part_update : forall g sh (a b a' b' : A) (Ha' : local_update(A := A) (b, a) (b', a')),
   my_half g sh a ∗ public_half g b ⊢ (if decide (sh = 1%Qp) then a ≡ b else ∃ c, b ≡ a ⋅ c) ∧ (|==> my_half g sh a' ∗ public_half g b')%I.
 Proof.
   intros.
@@ -180,7 +180,7 @@ Qed.
 
 Lemma sync_commit_gen : forall {B} a Eo Ei (b : A -> B -> mpred) Q R R' g sh (x0 : A)
   (Ha : forall x, R ∗ a x ⊢ (|==> ∃ x1, public_half g x1 ∗ ((if decide (sh = 1%Qp) then x0 ≡ x1 else ∃ x, x1 ≡ x0 ⋅ x) -∗
-    |==> (∃ x0' x1' : A, ⌜local_update(A := ora_cmraR A) (x1, x0) (x1', x0')⌝ ∧ (my_half g sh x0' ∗ public_half g x1' -∗ |==> (∃ y, b x y ∗ R' y))))%I)%I),
+    |==> (∃ x0' x1' : A, ⌜local_update(A := A) (x1, x0) (x1', x0')⌝ ∧ (my_half g sh x0' ∗ public_half g x1' -∗ |==> (∃ y, b x y ∗ R' y))))%I)%I),
   (atomic_shift a Eo Ei b Q ∗ my_half g sh x0 ∗ R ⊢ |={Eo}=> ∃ y, Q y ∗ R' y)%I.
 Proof.
   intros.
@@ -209,7 +209,7 @@ Qed.
 
 Lemma sync_commit_gen1 : forall {B} a Eo Ei (b : A -> B -> mpred) Q R R' g sh (x0 : A)
   (Ha : forall x, R ∗ a x ⊢ (|==> ∃ x1, public_half g x1 ∗ ((if decide (sh = 1%Qp) then x0 ≡ x1 else ∃ x, x1 ≡ x0 ⋅ x) -∗
-    |==> (∃ x0' x1' : A, ⌜local_update(A := ora_cmraR A) (x1, x0) (x1', x0')⌝ ∧ (my_half g sh x0' ∗ public_half g x1' -∗ |==> (∃ y, b x y) ∗ R')))%I)%I),
+    |==> (∃ x0' x1' : A, ⌜local_update(A := A) (x1, x0) (x1', x0')⌝ ∧ (my_half g sh x0' ∗ public_half g x1' -∗ |==> (∃ y, b x y) ∗ R')))%I)%I),
   (atomic_shift a Eo Ei b (fun _ => Q) ∗ my_half g sh x0 ∗ R ⊢ |={Eo}=> Q ∗ R')%I.
 Proof.
   intros.
@@ -280,7 +280,7 @@ Qed.
 Lemma two_sync_commit : forall {B} a Eo Ei (b : A -> B -> mpred) Q R R' g1 g2 sh1 sh2 (x1 x2 : A)
   (Ha : forall x, R ∗ a x ⊢ (|==> ∃ y1 y2, public_half g1 y1 ∗ public_half g2 y2 ∗
     ((if decide (sh1 = 1%Qp) then x1 ≡ y1 else ∃ x, y1 ≡ x1 ⋅ x) -∗ (if decide (sh2 = 1%Qp) then x2 ≡ y2 else ∃ x, y2 ≡ x2 ⋅ x) -∗
-    |==> (∃ x1' x2' y1' y2' : A, ⌜local_update(A := ora_cmraR A) (y1, x1) (y1', x1') /\ local_update(A := ora_cmraR A) (y2, x2) (y2', x2')⌝ ∧
+    |==> (∃ x1' x2' y1' y2' : A, ⌜local_update(A := A) (y1, x1) (y1', x1') /\ local_update(A := A) (y2, x2) (y2', x2')⌝ ∧
       (my_half g1 sh1 x1' ∗ public_half g1 y1' ∗ my_half g2 sh2 x2' ∗ public_half g2 y2' -∗ |==> (∃ y, b x y ∗ R' y))))%I)%I),
   (atomic_shift a Eo Ei b Q ∗ my_half g1 sh1 x1 ∗ my_half g2 sh2 x2 ∗ R ⊢ |={Eo}=> ∃ y, Q y ∗ R' y)%I.
 Proof.
@@ -299,7 +299,7 @@ Qed.
 Lemma two_sync_commit1 : forall {B} a Eo Ei (b : A -> B -> mpred) Q R R' g1 g2 sh1 sh2 (x1 x2 : A)
   (Ha : forall x, R ∗ a x ⊢ (|==> ∃ y1 y2, public_half g1 y1 ∗ public_half g2 y2 ∗
     ((if decide (sh1 = 1%Qp) then x1 ≡ y1 else ∃ x, y1 ≡ x1 ⋅ x) -∗ (if decide (sh2 = 1%Qp) then x2 ≡ y2 else ∃ x, y2 ≡ x2 ⋅ x) -∗
-    |==> (∃ x1' x2' y1' y2' : A, ⌜local_update(A := ora_cmraR A) (y1, x1) (y1', x1') /\ local_update(A := ora_cmraR A) (y2, x2) (y2', x2')⌝ ∧
+    |==> (∃ x1' x2' y1' y2' : A, ⌜local_update(A := A) (y1, x1) (y1', x1') /\ local_update(A := A) (y2, x2) (y2', x2')⌝ ∧
       (my_half g1 sh1 x1' ∗ public_half g1 y1' ∗ my_half g2 sh2 x2' ∗ public_half g2 y2' -∗ |==> ((∃ y, b x y) ∗ R'))))%I)),
   (atomic_shift a Eo Ei b (fun _ => Q) ∗ my_half g1 sh1 x1 ∗ my_half g2 sh2 x2 ∗ R ⊢ |={Eo}=> Q ∗ R')%I.
 Proof.
