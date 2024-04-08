@@ -245,7 +245,7 @@ Section PROOFS.
   Lemma makelock_inv: funspec_sub (snd makelock_spec) makelock_spec_inv.
   Proof.
     split; first done. intros ((gv, N), R) ?; simpl in *. Intros.
-    iIntros "H !>". iExists gv, emp. rewrite bi.emp_sep. iSplit; auto.
+    iIntros "H !>". iExists gv, emp. rewrite bi.emp_sep. iSplit; first done; iSplit; auto.
     iPureIntro. intros. Intros. rewrite bi.emp_sep. monPred.unseal. Intros x; Exists x.
     iIntros "(? & $ & $ & ? & _)".
     iSplit; first done.
@@ -270,7 +270,7 @@ Section PROOFS.
     split; first done. intros (p, Q) ?; simpl in *. Intros.
     unfold rev_curry, tcurry; simpl. iIntros "H !>".
     iExists (p, Q), emp; simpl.
-    rewrite bi.emp_sep. iSplit.
+    rewrite bi.emp_sep. iSplit; first done; iSplit.
     - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl; monPred.unseal.
       iDestruct "H" as "(% & % & _ & H & _)".
       do 4 (iSplit; auto).
@@ -305,7 +305,7 @@ Section PROOFS.
     split; first done. intros. simpl in *. destruct x2 as ((p, R), Q). Intros.
     unfold rev_curry, tcurry; simpl. iIntros "H !>".
     iExists (p, Q ∗ R), emp; simpl.
-    rewrite bi.emp_sep. iSplit.
+    rewrite bi.emp_sep. iSplit; first done; iSplit.
     - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl; monPred.unseal.
       iDestruct "H" as "(% & % & _ & H & _)".
       do 4 (iSplit; auto).
@@ -383,7 +383,7 @@ Section PROOFS.
     split; first done. intros ((p, R), Q) ?. simpl in *. Intros.
     unfold rev_curry, tcurry; simpl. iIntros "H !>".
     iExists (p, Q), emp; simpl.
-    rewrite bi.emp_sep. iSplit.
+    rewrite bi.emp_sep. iSplit; first done; iSplit.
     - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl; monPred.unseal.
       iDestruct "H" as "(% & % & _ & H & excl & _)".
       do 4 (iSplit; auto).
@@ -422,7 +422,7 @@ Section PROOFS.
     split; first done. intros (p, Q) ?. simpl in *. Intros.
     unfold rev_curry, tcurry; simpl. iIntros "H !>".
     iExists (p, Q), emp; simpl.
-    rewrite bi.emp_sep. iSplit.
+    rewrite bi.emp_sep. iSplit; first done; iSplit.
     - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl; monPred.unseal.
       iDestruct "H" as "(% & % & _ & H & _)".
       do 4 (iSplit; auto).
@@ -517,7 +517,7 @@ Section PROOFS.
     split; first done. intros ((sh, h), R) ?. simpl in *. Intros.
     unfold rev_curry, tcurry. iIntros "H !>".
     iExists (ptr_of(lock_impl := atomic_impl) h, lock_inv(lock_impl := atomic_impl) sh h R ∗ ▷ R), emp; simpl.
-    rewrite bi.emp_sep. iSplit.
+    rewrite bi.emp_sep. iSplit; first done; iSplit.
     - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx; simpl; monPred.unseal.
       iDestruct "H" as "(_ & % & _ & H & _)".
       do 4 (iSplit; auto).
@@ -557,7 +557,7 @@ Section PROOFS.
     split; first done. intros ((((sh, h), R), P), Q) ?. simpl in *. Intros.
     unfold rev_curry, tcurry. iIntros "H !>".
     iExists (ptr_of(lock_impl := atomic_impl) h, ▷ Q), emp. simpl in *.
-    rewrite bi.emp_sep. iSplit.
+    rewrite bi.emp_sep. iSplit; first done; iSplit.
     - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl; monPred.unseal.
       iDestruct "H" as "(_ & % & _ & H)".
       do 4 (iSplit; auto).
@@ -591,7 +591,7 @@ Section PROOFS.
     split; first done. intros ((sh, h), R) ?. simpl in *. Intros.
     unfold rev_curry, tcurry. iIntros "H !>".
     iExists (ptr_of(lock_impl := atomic_impl) h, lock_inv(lock_impl := atomic_impl) sh h R), emp. simpl in *.
-    rewrite bi.emp_sep. iSplit.
+    rewrite bi.emp_sep. iSplit; first done; iSplit.
     - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl; monPred.unseal.
       iDestruct "H" as "(% & % & _ & H)".
       do 4 (iSplit; auto).
@@ -624,7 +624,7 @@ Section PROOFS.
     unfold rev_curry, tcurry. iIntros "H !>".
     destruct h as ((v, N), g).
     iExists (v, emp), emp. simpl in *.
-    rewrite bi.emp_sep. iSplit.
+    rewrite bi.emp_sep. iSplit; first done; iSplit.
     - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl; monPred.unseal.
       iDestruct "H" as "(_ & % & _ & H)".
       do 4 (iSplit; auto).
@@ -667,8 +667,8 @@ Section PROOFS.
     iMod ("Hclose" with "[H2]") as "_".
     { by iRight. }
     rewrite -(union_difference_L (↑i) ⊤) //.
-    iFrame "HP"; iModIntro; iSplit.
-    - do 4 (iSplit; auto).
+    iFrame "HP"; iModIntro; iSplit; first done; iSplit.
+    - do 3 (iSplit; auto).
       iExists _; iFrame. admit. (* emp not timeless *)
     - iPureIntro; intros; Intros; cancel.
       iIntros "($ & $)".
@@ -701,7 +701,7 @@ Section PROOFS.
     iExists (h, self_part sh2 h ∗ R, emp), emp.
     unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl; monPred.unseal.
     iDestruct "H" as "((% & _) & % & % & H)".
-    iSplit; [|do 4 (iSplit; [auto|])].
+    iSplit; first done; iSplit; [do 4 (iSplit; [auto|])|].
     - erewrite !bi.sep_emp, !bi.emp_sep, -> self_part_eq, lock_inv_share_join, H0 by eauto; iFrame.
       iIntros "!> H".
       rewrite assoc self_part_eq.

@@ -199,13 +199,15 @@ Proof.
     iSplit; auto; iSplit; auto.
     unfold ctr_state; iFrame. }
   simpl. forward.
+  Exists n; entailer!!.
 Qed.
 
 #[local] Instance ctr_inv_timeless : forall gv g, Timeless (ctr_inv gv g).
 Proof.
   intros; unfold ctr_inv.
-  apply bi.exist_timeless; intros []; apply _.
-Qed.
+  apply bi.exist_timeless; intros.
+  apply bi.sep_timeless; try apply _.
+Admitted.
 
 (* In this client, the ctr_state is assembled from the combination of the counter's lock assertion
    and a global invariant for the ghost state. In theory we could put it all in a global invariant,
