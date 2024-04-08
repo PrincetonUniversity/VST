@@ -5,6 +5,7 @@ Require Import VST.floyd.functional_base.
 Require Import VST.floyd.client_lemmas.
 Require Import VST.floyd.nested_field_lemmas.
 Require Import VST.floyd.go_lower.
+Require Import VST.floyd.data_at_lemmas.
 Require Import VST.floyd.entailer.
 Require Import VST.floyd.forward. (* must come after entailer because of Ltac override *)
 Require Import VST.floyd.deadvars.

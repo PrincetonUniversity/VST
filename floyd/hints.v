@@ -9,6 +9,7 @@ Require Import VST.floyd.efield_lemmas.
 Require Import VST.floyd.type_induction.
 Require Import VST.floyd.mapsto_memory_block.
 Require Import VST.floyd.data_at_rec_lemmas.
+Require Import VST.floyd.data_at_lemmas.
 Require Import VST.floyd.field_at.
 Require Import VST.floyd.loadstore_mapsto.
 Require Import VST.floyd.loadstore_field_at.
