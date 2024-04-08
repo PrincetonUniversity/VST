@@ -184,9 +184,7 @@ Proof. intros. abbreviate_semax.
       thaw FR1.
       freeze FR4 := - (sha256state_ _ _ _) (data_at _ _ _ (Vptr kb _)) (K_vector _).
       Time forward_call (@nil byte, key, Vptr cb cofs, wsh, Vptr kb kofs, sh, l, gv). (*4.5*)
-
-      rewrite sublist_same; trivial.
-
+      change_compspecs CompSpecs. cancel.
      (*call Final*)
      thaw FR4. simpl.
      freeze FR5 := - (K_vector _) (sha256state_ _ _ _) (data_at_ _ _ (Vptr ckb _)).
@@ -213,7 +211,7 @@ Proof. intros. abbreviate_semax.
      thaw FR6.
      freeze FR7 := - (K_vector _) (sha256state_ _ _ _) (memory_block _ _ (Vptr ckb _)).
      Time forward_call (key, Vptr ckb ckoff, Vptr cb cofs, wsh, Tsh, gv). (*3.3.versus 4.3*)
-       
+     rewrite sublist_same by lia. cancel.
      (*call memset*)
      thaw FR7.
      unfold tarray.
