@@ -10,6 +10,7 @@ Require Import VST.floyd.efield_lemmas.
 Require Import VST.floyd.type_induction.
 Require Import VST.floyd.mapsto_memory_block.
 Require Import VST.floyd.data_at_rec_lemmas.
+Require Import VST.floyd.data_at_lemmas.
 Require Import VST.floyd.field_at.
 Require Import VST.floyd.loadstore_mapsto.
 Require Import VST.floyd.loadstore_field_at.
@@ -712,6 +713,32 @@ a "versus" b ")"
  else fail
 end.
 
+Lemma change_compspecs_cstring: forall cs1 cs2: compspecs, 
+    @cstring cs1 = @cstring cs2.
+Proof.
+intros.
+extensionality sh s p.
+unfold cstring.
+f_equal.
+set (u := map _ _). clearbody u.
+set (n := Zlength _ + _). clearbody n.
+unfold data_at.
+unfold field_at.
+f_equal.
+f_equal.
+unfold field_compatible.
+f_equal; auto.
+f_equal; auto.
+f_equal; auto.
+f_equal; auto.
+unfold align_compatible.
+destruct p; simpl; auto.
+apply prop_ext; split; intro;
+(apply align_compatible_rec_Tarray; intros j ?;
+ apply align_compatible_rec_Tarray_inv with (i:=j) in H; auto;
+ inv H; econstructor; eauto).
+Qed.
+
 Ltac change_compspecs_warning A cs cs' := 
      idtac "Remark: change_compspecs on user-defined mpred:" A cs cs'
  "(to disable this message, Ltac change_compspecs_warning A cs cs' ::= idtac".
@@ -750,7 +777,8 @@ Ltac change_compspecs cs :=
  match goal with |- context [?cs'] =>
    match type of cs' with compspecs =>
      try (constr_eq cs cs'; fail 1);
-     change_compspecs' cs cs';
+     first [rewrite !(change_compspecs_cstring cs' cs)
+            | change_compspecs' cs' cs];
      repeat change_compspecs' cs cs'
    end
 end.
