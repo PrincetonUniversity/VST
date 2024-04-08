@@ -154,7 +154,7 @@ Section PROOFS.
   Proof.
     split; first done. intros p ?. simpl in *. Intros.
     unfold rev_curry, tcurry; simpl. iIntros "H !>". iExists (p, atomic_int_at Ews (vint 0) p), emp.
-    rewrite bi.emp_sep. iSplit.
+    rewrite bi.emp_sep. iSplit; first done. iSplit.
     - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl; monPred.unseal.
       iDestruct "H" as "(% & % & _ & H & _)".
       do 4 (iSplit; auto).

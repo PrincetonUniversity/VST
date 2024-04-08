@@ -249,7 +249,7 @@ Program Definition atomic_spec `{!heapGS Σ} {A T} {t : Inhabitant T} W args (tz
   (HG: @super_non_expansive_list W (fun ts a rho => map (fun Q0 => prop (locald_denote (gvars Q0) rho)) (G ts a)))
   (HE: super_non_expansive_E E)
   (Hlb : super_non_expansive_lb lb) (Hb : super_non_expansive_b b)*) :=
-  mk_funspec(PROP1 := iProp Σ) (pair args tz) cc_default coPset_top (atomic_spec_type W T)
+  mk_funspec(PROP1 := iProp Σ) (pair args tz) cc_default (atomic_spec_type W T) (λne _, ⊤)
   (λne '(w, Q),
     PROP ()
     (PARAMSx (la w) (GLOBALSx (G w) (
