@@ -1879,4 +1879,185 @@ Proof. intros.
   apply field_at_values_cohere; auto.
 Qed.
 
+Import ListNotations.
+
+Definition cstring {CS : compspecs} sh (s: list byte) p := 
+  ⌜~In Byte.zero s⌝ ∧
+  data_at sh (tarray tschar (Zlength s + 1)) (map Vbyte (s ++ [Byte.zero])) p.
+
+Lemma cstring_local_facts: forall {CS : compspecs} sh s p,
+  cstring sh s p ⊢ ⌜isptr p /\ Zlength s + 1 < Ptrofs.modulus⌝.
+Proof.
+  intros; unfold cstring.
+  Intros.
+  saturate_local.
+  apply bi.pure_intro.
+  destruct H0 as [? [_ [? _]]].
+  destruct p; try contradiction.
+  red in H3.
+  split. simpl. auto.
+  unfold sizeof, Ctypes.sizeof in H3; clear H1.
+  rewrite Z.max_r in H3 by list_solve.
+  fold Ctypes.sizeof in H3.
+  change (Ctypes.sizeof tschar) with 1 in H3.
+  pose proof (Ptrofs.unsigned_range i).
+  lia. 
+Qed.
+
+Lemma cstring_valid_pointer: forall {CS : compspecs} sh s p, 
+   nonempty_share sh ->
+   cstring sh s p ⊢ valid_pointer p.
+Proof.
+  intros; unfold cstring; Intros.
+  apply data_at_valid_ptr; auto.
+  unfold tarray, tschar, sizeof, Ctypes.sizeof.
+  pose proof (Zlength_nonneg s).
+  rewrite Z.max_r; lia.
+Qed.
+
+Definition cstringn {CS : compspecs} sh (s: list byte) n p :=
+  ⌜~In Byte.zero s⌝ ∧
+  data_at sh (tarray tschar n) (map Vbyte (s ++ [Byte.zero]) ++
+    Zrepeat Vundef (n - (Zlength s + 1))) p.
+
+Fixpoint no_zero_bytes (s: list byte) : bool :=
+ match s with
+ | nil => true
+ | b :: s' => andb (negb (Byte.eq b Byte.zero)) (no_zero_bytes s')
+ end.
+
+Lemma data_at_to_cstring:
+ forall {CS: compspecs} sh n s p,
+  no_zero_bytes s = true ->
+ data_at sh (tarray tschar n) (map Vbyte (s ++ [Byte.zero])) p ⊢
+ cstring sh s p.
+Proof.
+intros.
+saturate_local. clear H0 H2.
+rewrite Zlength_map, Zlength_app, Zlength_cons, Zlength_nil in H1.
+simpl in H1.
+destruct (Z.max_spec 0 n) as [[? ?]|[? ?]].
+2:{ rewrite H2 in H1. pose proof (Zlength_nonneg s). lia. }
+rewrite H2 in *.
+clear H0 H2.
+subst n.
+unfold cstring.
+apply bi.and_intro; auto.
+apply bi.pure_intro.
+intro.
+induction s; simpl in *; auto.
+rewrite andb_true_iff in H.
+destruct H.
+destruct H0; subst.
+rewrite Byte.eq_true in H. inv H.
+auto.
+Qed.
+
+Lemma cstringn_equiv : forall {CS : compspecs} sh s p, cstring sh s p = cstringn sh s (Zlength s + 1) p.
+Proof.
+  intros; unfold cstring, cstringn.
+  rewrite Zminus_diag, app_nil_r; auto.
+Qed.
+
+Lemma cstringn_local_facts: forall {CS : compspecs} sh s n p, 
+   cstringn sh s n p ⊢ ⌜isptr p /\ Zlength s + 1 <= n <= Ptrofs.max_unsigned⌝.
+Proof.
+  intros; unfold cstringn.
+  Intros. saturate_local. apply bi.pure_intro.
+  rewrite !Zlength_app, !Zlength_map, Zlength_app in H1.
+  assert (H8 := Zlength_nonneg s).
+  destruct (zlt n (Zlength s + 1)).
+  autorewrite with sublist in H1. lia.
+  split.
+  destruct p, H0; try contradiction; auto.
+  autorewrite with sublist in *.
+  destruct H0 as [? [_ [? _]]].
+  destruct p; try contradiction.
+  red in H3. 
+  unfold sizeof, Ctypes.sizeof in H3;  fold Ctypes.sizeof in H3.
+  rewrite Z.max_r in H3 by lia. change (Ctypes.sizeof tschar) with 1 in H3.
+  pose proof (Ptrofs.unsigned_range i).
+  rep_lia.
+Qed.
+
+
+Lemma cstringn_valid_pointer: forall {CS : compspecs} sh s n p,
+     nonempty_share sh ->
+     cstringn sh s n p ⊢ valid_pointer p.
+Proof.
+  intros.
+  unfold cstringn. Intros.
+  saturate_local.
+  apply data_at_valid_ptr; auto.
+  unfold tarray, tschar, sizeof, Ctypes.sizeof; cbv beta iota zeta.
+  rewrite Z.mul_1_l.
+  rewrite <- H2.
+  rewrite !Zlength_app, Zlength_map, Zlength_app, Zlength_cons.
+  rewrite Zlength_nil.
+  rep_lia.
+Qed.
+
+
+
+Lemma Znth_zero_zero:
+  forall i, Znth i [Byte.zero] = Byte.zero.
+Proof.
+intros.
+unfold Znth.
+if_tac; auto. destruct (Z.to_nat i). reflexivity. destruct n; reflexivity.
+Qed.
+
 End mpred.
+
+#[export] Hint Resolve cstring_local_facts : saturate_local.
+#[export] Hint Resolve cstring_valid_pointer : valid_pointer.
+#[export] Hint Resolve cstringn_local_facts : saturate_local.
+#[export] Hint Resolve cstringn_valid_pointer : valid_pointer.
+
+(* THIS TACTIC solves goals of the form,
+    ~In 0 ls,  Znth i (ls++[0]) = 0 |-  (any lia consequence of)  i < Zlength ls
+    ~In 0 ls,  Znth i (ls++[0]) <> 0 |-  (any lia consequence of)  i >= Zlength ls
+*)
+Ltac cstring :=
+  lazymatch goal with
+  | H: ~In Byte.zero _ |- _ => idtac
+  | |- _ => fail "The cstring tactic expects to see a hypothesis above the line of the form, ~ In Byte.zero _"
+  end;
+ lazymatch goal with
+ | H1: Znth _ (_++[Byte.zero]) = Byte.zero |- _ => idtac 
+ | H1: Znth _ (_++[Byte.zero]) <> Byte.zero |- _ => idtac 
+ | |- _ => fail "The cstring tactic expects to see one of the following hypotheses above the line:
+Znth _ (_++[Byte.zero]) = Byte.zero
+Znth _ (_++[Byte.zero]) <> Byte.zero"
+ end;
+ (pose_Zlength_nonneg;
+  apply Classical_Prop.NNPP; intro;
+  match goal with
+  | H: ~In Byte.zero ?ls, H1: Znth ?i (?ls' ++ [Byte.zero]) = Byte.zero |- _ =>
+     constr_eq ls ls'; apply H; rewrite <- H1;
+    rewrite app_Znth1 by lia; apply Znth_In; lia
+  | H: ~In Byte.zero ?ls, H1: Znth ?i (?ls' ++ [Byte.zero]) <> Byte.zero |- _ =>
+     constr_eq ls ls'; apply H1;
+     rewrite -> app_Znth2 by lia; apply Znth_zero_zero
+  end) ||
+  match goal with |- @eq ?t (?f1 _) (?f2 _) =>
+       (unify t Z || unify t nat) ||
+       (constr_eq f1 f2;
+        fail "The cstring tactic solves lia-style goals.
+Your goal is an equality at type" t ", not type Z.
+Try the [f_equal] tactic first.")
+ end.
+
+Ltac cstring' := 
+lazymatch goal with
+| |- @eq Z _ _ => cstring
+| |- ?A _ = ?B _ => constr_eq A B; f_equal; cstring'
+| |- _ => cstring
+end.
+
+Ltac cstring1 :=
+match goal with 
+| H: 0 <= ?x < Zlength ?s + 1,
+  H1: Znth ?x (?s ++ [Byte.zero]) = Byte.zero |- _ =>
+  is_var x; assert (x = Zlength s) by cstring; subst x
+end.
