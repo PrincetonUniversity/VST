@@ -2149,6 +2149,5 @@ Ltac simpl_ret_assert ::=
       for_ret_assert loop_nocontinue_ret_assert];
   try (match goal with
       | |- context[bind_ret None tvoid ?P] =>
-        (*assert (bind_ret None tvoid P = P) as -> by (unfold PROPx, LOCALx, SEPx; apply assert_ext; intros; unfold bind_ret; cbv delta [tvoid] match beta; rewrite ?monPred_at_assert_of; try reflexivity; try monPred.unseal; done)*)
-        rewrite ?bind_ret_exist bind_ret_noret
+        assert (bind_ret None tvoid P = P) as -> by (repeat (rewrite bind_ret_exist; f_equal; extensionality); apply bind_ret_noret)
       end).
