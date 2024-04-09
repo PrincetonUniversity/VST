@@ -37,6 +37,7 @@ Program Fixpoint chars_of_Z (n : Z) { measure (Z.to_nat n) } : list byte :=
   match n' <=? 0 with true => [Byte.repr (n + char0)] | false => chars_of_Z n' ++ [Byte.repr (n mod 10 + char0)] end.
 Next Obligation.
 Proof.
+  rewrite -> ?Zaux.Zdiv_eucl_unique in *.  (* Coq 8.15 and after *)
   apply div_10_dec.
   symmetry in Heq_anonymous; apply Z.leb_nle in Heq_anonymous.
   eapply Z.lt_le_trans, Z_mult_div_ge with (b := 10); lia.
@@ -239,6 +240,7 @@ Proof.
   intros.
   destruct (Z.leb_spec n 0).
   { rewrite chars_of_Z_eq; simpl.
+    rewrite -> ?Zaux.Zdiv_eucl_unique in *.  (* Coq 8.15 and after *)
     apply Zdiv_le_compat_r with (p := 10) in H; try lia.
     rewrite Zdiv_0_l in H.
     destruct (Z.leb_spec (n / 10) 0); auto; lia. }
@@ -246,6 +248,7 @@ Proof.
   rewrite chars_of_Z_eq intr_eq.
   destruct (n <=? 0) eqn: Hn; [apply Zle_bool_imp_le in Hn; lia|].
   simpl.
+  rewrite -> ?Zaux.Zdiv_eucl_unique in *.  (* Coq 8.15 and after *)
   destruct (n / 10 <=? 0) eqn: Hdiv.
   - apply Zle_bool_imp_le in Hdiv.
     assert (0 <= n / 10).

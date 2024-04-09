@@ -541,7 +541,7 @@ rename H into I.
                        (Znth (Zlength l) xbytes)) as mybyte.
     Exists (l++ [mybyte]). cancel.
     apply andp_right.
-    + apply prop_right. 
+    + apply prop_right.
       eapply (bxorlist_snoc mInit q m mybyte l); trivial; lia.
     + autorewrite with sublist.
        f_equiv. unfold Bl2VL. subst mybyte. clear.
@@ -553,7 +553,7 @@ rename H into I.
       assert (X:cLen - Zlength l - 1 = cLen - (Zlength l + 1)) by lia.
       rewrite X; trivial.
   }
-apply andp_left2.
+apply andp_left2. apply derives_refl.
 Qed.
 
 Definition loop2Inv F x z c mInit m b k gv q xbytes mbytes cLen: assert :=

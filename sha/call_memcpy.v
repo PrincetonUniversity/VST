@@ -266,7 +266,7 @@ apply semax_post' with
 clear H6. rename H5 into Hpre.
 assert_PROP (Zlength vp' = np /\ Zlength contents = nq). {
 eapply derives_trans; [apply Hpre |].
-rewrite andp_left2.
+apply andp_left2.
 go_lowerx; entailer!.
 clear - H8 H10 H0 H1 H2 H3 H Hlop Hloq Hnp Hnq Hlen.
 forget (nested_field_type tp pathp) as t0.
@@ -289,7 +289,7 @@ assert (exists vpx : list (reptype (nested_field_type tp (ArraySubsc 0 :: pathp)
   by (rewrite H99, <- H5; exists vp; auto).
 destruct H6 as [vpx Hvpx].
 assert_PROP (legal_nested_field tp pathp /\ legal_nested_field tq pathq). {
-  eapply derives_trans; [apply Hpre | rewrite andp_left2].
+  eapply derives_trans; [apply Hpre | apply andp_left2].
 go_lowerx; entailer!.
 } destruct H6 as [LNFp LNFq].
 
@@ -490,7 +490,7 @@ apply semax_post' with
 rename H5 into Hpre.
 clear H1.
 assert_PROP (Zlength vp' = np). {
-eapply derives_trans; [apply Hpre | rewrite andp_left2].
+eapply derives_trans; [apply Hpre | apply andp_left2].
 go_lowerx; entailer!.
 clear - H6 H4 H3 Hnp H0 Hlen Hlop.
 forget (nested_field_type tp pathp) as t0.
@@ -509,7 +509,7 @@ assert (H6: exists vpx : list (reptype (nested_field_type tp (ArraySubsc 0 :: pa
 rewrite H99. eauto.
 destruct H6 as [vpx Hvpx].
 assert_PROP (legal_nested_field tp pathp). {
-  eapply derives_trans; [apply Hpre | rewrite andp_left2].
+  eapply derives_trans; [apply Hpre | apply andp_left2].
 go_lowerx; entailer!.
 } rename H1 into LNFp.
 apply (fun H => JMeq_trans H Hvpx) in H3.
@@ -526,7 +526,7 @@ assert_PROP (field_compatible0 tp (pathp SUB lop) p /\
             field_compatible0 tp (pathp SUB (lop + len)) p)
   as FC. {
  eapply derives_trans; [apply Hpre | clear Hpre].
- go_lowerx. rewrite andp_left2. normalize.
+ go_lowerx. apply andp_left2. normalize.
  saturate_local.
  apply prop_right.
  split; auto.
@@ -559,7 +559,7 @@ eapply semax_pre_post';
    go_lowerx.
    eapply derives_trans; [apply typecheck_expr_sound; auto |].
    apply bi.pure_mono; intros.
-   rewrite <- H2 in H6.
+   rewrite <- H1 in H6.
    intro.
    rewrite H7 in H6.
    revert H6; apply tc_val_Vundef.
@@ -609,7 +609,7 @@ eapply semax_pre_post';
    rewrite nested_field_type_ind, H0. simpl.
   rewrite Z.max_r by lia. lia.
 *
- intros. rewrite andp_left2.
+ intros. apply andp_left2.
  unfold ifvoid. unfold tptr at 1.
  Intros v. subst witness. cbv beta zeta iota.
  clear Hpre.

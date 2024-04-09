@@ -263,9 +263,10 @@ unfold HFalsePostCond, fcore_EpiloguePOST.
 destruct data as [[? ?] [? ?]].
 Exists snuffleRes l.
 rewrite H0, <- H1, H. clear - H2.
+Opaque CoreInSEP.
 go_lowerx. (* must do this explicitly because it's not an ENTAIL *)
 Time entailer!. (*3.4*)
-Intros intsums. Exists intsums; entailer!. apply H2.
+Intros intsums. Exists intsums; entailer!. rewrite H2; cancel.
 Qed.
 
 Opaque HTruePostCond. Opaque HFalsePostCond.
@@ -291,7 +292,7 @@ Intros xInit. red in H. rename H into XInit.
 thaw FR2. freeze [0;2;3;5] FR3.
 subst MORE_COMMANDS; unfold abbreviate.
 eapply semax_seq.
-apply (f_core_loop2 _ (FRZL FR3) c k h nonce out w x y t data); trivial.
+apply (f_core_loop2 _ _ (FRZL FR3) c k h nonce out w x y t data); trivial.
     (* mkConciseDelta SalsaVarSpecs SalsaFunSpecs f_core Delta.*)
 
     Intros YS.
@@ -363,7 +364,7 @@ apply (f_core_loop2 _ (FRZL FR3) c k h nonce out w x y t data); trivial.
         destruct (HFalse_inv16_char _ _ _ H99) as [sums [SUMS1 SUMS2]].
           rewrite Zlength_correct, L; reflexivity. trivial.
         rewrite <- SUMS1, <- SUMS2. rewrite hh. auto.
-        unfold fcorePOST_SEP, OutLen.  
+        unfold fcorePOST_SEP, OutLen.
         rewrite hh. auto.
   +  Intros intsums.   unfold fcorePOST_SEP.
       Exists (hPosLoop3 4 (hPosLoop2 4 intsums C Nonce) OUT).

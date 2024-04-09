@@ -249,7 +249,7 @@ Proof.
     { subst contents'. unfold contents_with_add.
       destruct (eq_dec add_len 0); simpl.
         rewrite andb_false_r. left; apply Zlength_nil.
-        destruct (EqDec_val additional nullval); simpl. left; apply Zlength_nil.
+        destruct (eq_dec additional nullval); simpl. left; apply Zlength_nil.
         right; trivial.
     }
 
@@ -619,7 +619,7 @@ Proof. start_function.
     { entailer!.
       destruct additional; simpl in PNadditional; try contradiction.
       subst i; simpl; trivial.
-      simpl. destruct (EqDec_Z add_len 0); trivial; lia.
+      simpl. destruct (eq_dec add_len 0); trivial; lia.
     }
   }
 

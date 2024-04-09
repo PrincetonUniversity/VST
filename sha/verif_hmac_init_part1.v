@@ -178,7 +178,6 @@ Proof. intros. abbreviate_semax.
       freeze FR3 := - (data_at _ _ _ (Vptr cb _)).
       Time forward_call (Vptr cb cofs, wsh). (* 4.3 versus 18 *)
        (*call to SHA256_Update*)
-      { change_compspecs CompSpecs. cancel. }
       thaw FR3.
       thaw FR2.
       thaw FR1.

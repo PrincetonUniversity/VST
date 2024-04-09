@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat.
 Import ListNotations.
 
 Require Import sha.spec_sha.
@@ -37,9 +38,9 @@ semax(C := hmac_drbg_compspecs.CompSpecs)(OK_spec := Espec) ⊤
    data_at_ Tsh (tarray tuchar 1) sep;
    da_emp sha (tarray tuchar (Zlength contents))
      (map Vubyte contents) additional;
-   data_at shc t_struct_hmac256drbg_context_st initial_state ctx;
+   data_at(cs := hmac_drbg_compspecs.CompSpecs) shc t_struct_hmac256drbg_context_st initial_state ctx;
    hmac256drbg_relate initial_state_abs initial_state;
-   data_at shc t_struct_mbedtls_md_info info_contents
+   data_at(cs := hmac_drbg_compspecs.CompSpecs) shc t_struct_mbedtls_md_info info_contents
      (hmac256drbgstate_md_info_pointer initial_state); K_vector gv))
   (fn_body f_mbedtls_hmac_drbg_update)
   (normal_ret_assert
@@ -98,7 +99,7 @@ Proof. intros. do 2 pose proof I.
     { entailer!.
       destruct additional; simpl in PNadditional; try contradiction.
       subst i; simpl; trivial.
-      simpl. destruct (EqDec_Z add_len 0); trivial; lia.
+      simpl. destruct (eq_dec add_len 0); trivial; lia.
     }
   }
 
@@ -338,7 +339,7 @@ Proof. intros. do 2 pose proof I.
                        HMAC256 (V ++ [Byte.repr i] ++ (if na then contents else [])) key, sk, ik, Tsh, gv). 
     {
       (* prove the function parameters match up *)
-      apply prop_right. 
+      apply prop_right.
       rewrite hmac_common_lemmas.HMAC_Zlength, FA_ctx_MDCTX; simpl.
       rewrite offset_val_force_ptr, isptr_force_ptr; trivial.
     }

@@ -1290,7 +1290,7 @@ Proof. intros.
       destruct ctx''; inversion Hisptr. reflexivity.
     }
     unfold_data_at 1%nat.
-    
+
     freeze [2;3;4;5] FR_unused_struct_fields.
     freeze [0;3;5] FR1.
 
@@ -1370,6 +1370,8 @@ Proof. intros.
                field_address t_struct_hmac256drbg_context_st [StructField _md_ctx] (*ctx*)(Vptr b i), 
                (*md_ctx'*)(mc1, (mc2, mc3)), shc,
                field_address t_struct_hmac256drbg_context_st [StructField _V] (*ctx*)(Vptr b i), shc, gv).
+    { simpl; entailer!. f_equal; [|f_equal]; auto with field_compatible.
+      rewrite field_compatible_field_address; auto. }
     {
       rewrite <- memory_block_data_at_ by trivial. cancel.
     }

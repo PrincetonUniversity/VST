@@ -20,7 +20,7 @@ Definition malloc_token {cs: compspecs} sh t v :=
 Lemma malloc_token_valid_pointer: forall {cs: compspecs} sh t p, 
       malloc_token sh t p |-- valid_pointer p.
 Proof. intros. unfold malloc_token.
- rewrite andp_left2. apply malloc_token'_valid_pointer.
+ apply andp_left2. apply malloc_token'_valid_pointer.
 Qed.
 
 #[export] Hint Resolve malloc_token'_valid_pointer : valid_pointer.

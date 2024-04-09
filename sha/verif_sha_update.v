@@ -78,7 +78,7 @@ forward. (* n = c->num; *)
 forward. (* p=c->data; *)
 simpl (temp _p _).
     (* TODO: should this produce field_address instead of (Int.repr 40) ? *)
-assert_PROP (field_address t_struct_SHA256state_st [StructField _data] c = offset_val (320/8) c).
+assert_PROP (field_address t_struct_SHA256state_st [StructField _data] c = offset_val 40 c).
   unfold_data_at (data_at _ _ _ _).
   rewrite (field_at_compatible' _ _ [StructField _data]).
   entailer!.
@@ -100,7 +100,7 @@ apply semax_seq with (sha_update_inv wsh sh (s256a_hashed a) len c d (s256a_data
 + simpl_ret_assert; apply ENTAIL_refl.
 + intros; simpl_ret_assert.
  rewrite S256abs_recombine by auto.
- rewrite andp_left2.
+ apply andp_left2.
  apply bi.sep_mono; last cancel.
  apply bind_ret_derives.
  Intros a'.

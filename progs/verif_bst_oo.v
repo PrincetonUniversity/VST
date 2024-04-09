@@ -466,7 +466,7 @@ Proof.
         tauto.
   * (* After the loop *)
     forward.
-    simpl loop2_ret_assert. apply andp_left2.
+    simpl loop2_ret_assert. apply andp_left2; auto.
 all:fail.
 Admitted.
 (*

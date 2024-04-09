@@ -405,115 +405,6 @@ f_equal.
 auto.
 Qed.
 
-Ltac ident_diff al bl F :=
-     let l := constr:(map string_of_ident 
-              (diff_ident_lists (linking.SortPos.sort al) 
-                   (linking.SortPos.sort bl))) in
-     let l := eval compute in l
-     in F l. 
-  
-Ltac prove_Comp_G_dom :=
-lazymatch goal with |- forall i, In i ?A <-> In i ?B =>
-  apply prove_idlists_equiv;
-  compute; 
-  try reflexivity; 
-  lazymatch goal with |- ?al = ?bl =>
-     ident_diff al bl ltac:(fun l =>
-     ident_diff bl al ltac:(fun r => 
-      fail "Identifier mismatch!
-Present only in" A ":" l "
-Present only in" B ":" r))
-  end
-end.
-
-
-Ltac mkComponent prog ::=
- hnf;
- match goal with |- Component _ _ ?IMPORTS _ _ _ _ =>
-     let i := compute_list IMPORTS in
-     let IMP := fresh "IMPORTS" in
-     pose (IMP := @abbreviate funspecs i);
-     change_no_check IMPORTS with IMP
- end;
- test_Component_prog_computed;
- let p := fresh "p" in
- match goal with |- @Component _ _ _ _ ?pp _ _ _ => set (p:=pp) end;
- let HA := fresh "HA" in 
-   assert (HA: PTree_samedom cenv_cs ha_env_cs) by repeat constructor;
- let LA := fresh "LA" in 
-   assert (LA: PTree_samedom cenv_cs la_env_cs) by repeat constructor;
- let OK := fresh "OK" in
-  assert (OK: QPprogram_OK p)
-   by (split; [apply compute_list_norepet_e; reflexivity 
-           |  apply (QPcompspecs_OK_i HA LA) ]);
- (* Doing the  set(myenv...), instead of before proving the CSeq assertion,
-     prevents nontermination in some cases  *)
- pose (myenv:= (QP.prog_comp_env (QPprogram_of_program prog ha_env_cs la_env_cs)));
- assert (CSeq: _ = compspecs_of_QPcomposite_env myenv 
-                     (proj2 OK))
-   by (apply compspecs_eq_of_QPcomposite_env; reflexivity);
- subst myenv;
- change (QPprogram_of_program prog ha_env_cs la_env_cs) with p in CSeq;
- clear HA LA;
- exists OK;
-  [ check_Comp_Imports_Exports
-  | apply compute_list_norepet_e; reflexivity || fail "Duplicate funspec among the Externs++Imports"
-  | apply compute_list_norepet_e; reflexivity || fail "Duplicate funspec among the Exports"
-  | apply compute_list_norepet_e; reflexivity
-  | apply forallb_isSomeGfunExternal_e; reflexivity
-  | prove_Comp_G_dom (*intros; simpl; split; trivial; try solve [lookup_tac]*)
-  | let i := fresh in let H := fresh in 
-    intros i H; first [ solve contradiction | simpl in H];
-    repeat (destruct H; [ subst; reflexivity |]); try contradiction
-  | apply prove_G_justified;
-    repeat apply Forall_cons; [ .. | apply Forall_nil];
-    try SF_vacuous
-  | finishComponent
-  | first [ solve [intros; apply derives_refl] | solve [intros; reflexivity] | solve [intros; simpl; cancel] | idtac]
-  ].
-
-
-Ltac Vprogs_domain_eq :=
- lazymatch goal with |- ?m = ?m' => 
-   let x := constr:(Maps.PTree.map1 (fun _ => tt) m = Maps.PTree.map1 (fun _ => tt) m') in
-   let x := eval compute in x in
-   reflexivity
- end.
-
-Ltac apply_semax_body P :=
-lazymatch goal with |- semax_body ?V ?G ?F (?I, ?S) =>
-  lazymatch type of P with semax_body ?V' ?G' ?F' ?IS =>
-    let IS' := eval hnf in IS in 
-    let I' := constr:(fst IS') in 
-    let I' := eval red in I' in
-    let I := eval simpl in I in
-    (tryif unify I I' then idtac
-     else fail 1 "You have provided a semax_body proof for" I' " but required is a semax_body proof for" I);
-    (tryif change G with G' then idtac
-     else fail 1 "Lemma" P "has a Gprog argument of" G' "but you have provided" G);
-    (tryif change F with F' then idtac
-     else fail 1 "Lemma" P "has a fundef argument of" F' "but you have provided" F);
-    let S2 := constr:(snd IS) in 
-    (tryif change (I,S) with IS then idtac
-     else fail 1 "Lemma" P "has a funspec argument of" S "but you have provided" S);
-    (tryif constr_eq V V' then idtac
-     else ((apply (semax_body_permute_Vprog V V'); 
-               [ compute; Vprogs_domain_eq; reflexivity 
-               | ] ) 
-           || (let a := constr:(map fst V') in 
-            let b := constr:(map fst V) in
-            let a' := constr:(map string_of_ident a) in let a' := eval compute in a' in
-            let b' := constr:(map string_of_ident b) in let b' := eval compute in b' in
-            ident_diff a b ltac:(fun l => 
-            ident_diff b a ltac:(fun r =>
-            fail 1 "Lemma" P "has a Vprog argument of" V' "but you have provided" V "
-Present only in" V' ":" l "
-Present only in" V ":" r "
-(if those lists are both empty then the domains are the same but the types differ)")))));
-    exact P
-  end
-end.
-
 Fixpoint FDM_entries (funs1 funs2 : list (ident * fundef function)): option (list (ident * fundef function * fundef function)) :=
   match funs1 with
     nil => Some nil
@@ -2994,7 +2885,7 @@ lazymatch goal with
        fail 1  "The QPprog of this component is of the form (QPprog _), which has not been calculated out to normal form.  Perhaps you meant   ltac:(QPprog _) instead of (QPprog _) in the theorem statement"
  | |- Component _ _ _ (@abbreviate _ {| QP.prog_builtins := _;
          QP.prog_defs := _; QP.prog_public := _;
-       QP.prog_main := _;    QP.prog_comp_env := _ |} ) _ _ _ =>
+       QP.prog_main := _;    QP.prog_comp_env := _ |}) _ _ _ =>
     fail 0 "success"
  | |- Component _ _ _ abbreviate _ _ _ => 
      fail 1 "The QPprog of this component is not in normal form"
@@ -3017,21 +2908,45 @@ Ltac lookup_tac_with_diagnosis := clear; intros; split; try solve [simpl in *; t
    end
  end.
 
+Ltac ident_diff al bl F :=
+     let l := constr:(map string_of_ident 
+              (diff_ident_lists (linking.SortPos.sort al) 
+                   (linking.SortPos.sort bl))) in
+     let l := eval compute in l
+     in F l.
+
+Ltac prove_Comp_G_dom :=
+lazymatch goal with |- forall i, In i ?A <-> In i ?B =>
+  apply prove_idlists_equiv;
+  compute; 
+  try reflexivity; 
+  lazymatch goal with |- ?al = ?bl =>
+     ident_diff al bl ltac:(fun l =>
+     ident_diff bl al ltac:(fun r => 
+      fail "Identifier mismatch!
+Present only in" A ":" l "
+Present only in" B ":" r))
+  end
+end.
+
 Ltac mkComponent prog :=
  hnf;
  match goal with |- Component _ _ ?IMPORTS _ _ _ _ =>
-     let i := compute_list' IMPORTS in change_no_check IMPORTS with i 
+     let i := compute_list IMPORTS in
+     let IMP := fresh "IMPORTS" in
+     pose (IMP := @abbreviate funspecs i);
+     change_no_check IMPORTS with IMP
  end;
  test_Component_prog_computed;
  let p := fresh "p" in
  match goal with |- Component _ _ _ ?pp _ _ _ => set (p:=pp) end;
- let HA := fresh "HA" in 
+ let HA := fresh "HA" in
    assert (HA: PTree_samedom cenv_cs ha_env_cs) by repeat constructor;
- let LA := fresh "LA" in 
+ let LA := fresh "LA" in
    assert (LA: PTree_samedom cenv_cs la_env_cs) by repeat constructor;
  let OK := fresh "OK" in
   assert (OK: QPprogram_OK p)
-   by (split; [apply compute_list_norepet_e; reflexivity 
+   by (split; [apply compute_list_norepet_e; reflexivity
            |  apply (QPcompspecs_OK_i HA LA) ]);
  (* Doing the  set(myenv...), instead of before proving the CSeq assertion,
      prevents nontermination in some cases  *)
@@ -3048,7 +2963,7 @@ Ltac mkComponent prog :=
   | apply compute_list_norepet_e; reflexivity || fail "Duplicate funspec among the Exports"
   | apply compute_list_norepet_e; reflexivity
   | apply forallb_isSomeGfunExternal_e; reflexivity
-  | intros; simpl; split; trivial; try solve [lookup_tac]
+  | prove_Comp_G_dom (*intros; simpl; split; trivial; try solve [lookup_tac]*)
   | let i := fresh in let H := fresh in 
     intros i H; first [ solve contradiction | simpl in H];
     repeat (destruct H; [ subst; reflexivity |]); try contradiction
@@ -3062,11 +2977,53 @@ Ltac mkComponent prog :=
 Ltac mkVSU prog internal_specs := 
  lazymatch goal with
   | |- VSU ?E ?Imports ?qprog ?ASI _ =>
-     let augmented_intspecs := 
+     let augmented_intspecs :=
        constr:((*makeSomeVacuousFunspecs qprog internal_specs ++*) internal_specs)
        in exists augmented_intspecs; mkComponent prog
   | _ => fail "mkVSU must be applied to a VSU goal"
  end.
+
+Ltac Vprogs_domain_eq :=
+ lazymatch goal with |- ?m = ?m' => 
+   let x := constr:(Maps.PTree.map1 (fun _ => tt) m = Maps.PTree.map1 (fun _ => tt) m') in
+   let x := eval compute in x in
+   reflexivity
+ end.
+
+Ltac apply_semax_body P :=
+lazymatch goal with |- semax_body ?V ?G ?F (?I, ?S) =>
+  lazymatch type of P with semax_body ?V' ?G' ?F' ?IS =>
+    let IS' := eval hnf in IS in 
+    let I' := constr:(fst IS') in 
+    let I' := eval red in I' in
+    let I := eval simpl in I in
+    (tryif unify I I' then idtac
+     else fail 1 "You have provided a semax_body proof for" I' " but required is a semax_body proof for" I);
+    (tryif change G with G' then idtac
+     else fail 1 "Lemma" P "has a Gprog argument of" G' "but you have provided" G);
+    (tryif change F with F' then idtac
+     else fail 1 "Lemma" P "has a fundef argument of" F' "but you have provided" F);
+    let S2 := constr:(snd IS) in 
+    (tryif change (I,S) with IS then idtac
+     else fail 1 "Lemma" P "has a funspec argument of" S "but you have provided" S);
+    (tryif constr_eq V V' then idtac
+     else ((apply (semax_body_permute_Vprog V V'); 
+               [ compute; Vprogs_domain_eq; reflexivity 
+               | ] ) 
+           || (let a := constr:(map fst V') in 
+            let b := constr:(map fst V) in
+            let a' := constr:(map string_of_ident a) in let a' := eval compute in a' in
+            let b' := constr:(map string_of_ident b) in let b' := eval compute in b' in
+            ident_diff a b ltac:(fun l => 
+            ident_diff b a ltac:(fun r =>
+            fail 1 "Lemma" P "has a Vprog argument of" V' "but you have provided" V "
+Present only in" V' ":" l "
+Present only in" V ":" r "
+(if those lists are both empty then the domains are the same but the types differ)")))));
+    exact P
+  end
+end.
+
 
 Ltac solve_SF_internal P :=
   apply SF_internal_sound; eapply _SF_internal;
@@ -3098,8 +3055,8 @@ Ltac solve_SF_external B :=
                 | reflexivity
                 | split3;
                    [ left; trivial
-                   | clear; intros ? ? ? ?; try solve [entailer!];
-                     repeat match goal with |- (let (y, z) := ?x in _) _ && _ |--  _ =>
+                   | clear; intros ? ? ?; try solve [entailer!];
+                     repeat match goal with |- (let (y, z) := ?x in _) _ ∧ _ ⊢ _ =>
                                      destruct x as [y z]
                      end
                     | split; [ try apply B | eexists; split; cbv; reflexivity ]

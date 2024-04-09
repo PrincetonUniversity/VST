@@ -323,7 +323,7 @@ Proof. intros. abbreviate_semax.
         Time (rewrite (*HeqIPADcont,*) UPD_IPAD; simpl; trivial; cancel). (*0.6*)
       }
 cbv beta. rewrite sublist_same, sublist_nil, app_nil_r; trivial.
-intros; rewrite andp_left2.
+intros; apply andp_left2.
 drop_LOCAL 0%nat. apply derives_refl.
 subst IPADcont; rewrite Zlength_map. rewrite ZLI; trivial.
 Time Qed. (*VST 2.0: 0.4s*) (*11.1 versus 16.8*) (*FIXME NOW 39*)

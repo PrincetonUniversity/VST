@@ -244,7 +244,6 @@ forward_if (EX shaStates:_ ,
 
     (*Call to _SHA256_Init*)
     Time forward_call (Vptr cb (Ptrofs.add cofs (Ptrofs.repr 108)), wsh). (*9.5 versus 10.5*)
-    { change_compspecs CompSpecs; cancel. }
 
     (*Call to _SHA256_Update*)
     thaw FR2.
@@ -273,7 +272,6 @@ forward_if (EX shaStates:_ ,
     { (*opad loop*)
       eapply semax_pre.
       2: apply (opadloop Espec _ pb pofs cb cofs ckb ckoff kb kofs l wsh key gv (FRZL FR4) Hwsh IPADcont) with (ipadSHAabs:=ipadSHAabs); try reflexivity; subst ipadSHAabs; try assumption.
-      change_compspecs CompSpecs.
       entailer!.
     }
 

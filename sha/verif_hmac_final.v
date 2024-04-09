@@ -77,7 +77,6 @@ Time forward_call (ctx, buf, Vptr b i, wsh, Tsh, gv). (*3.6 versus 9.5*)
    change_compspecs CompSpecs.
    cancel.
   }
-   change_compspecs CompSpecs.
 
 (*Coq (8.4?) Issue: type equality between
     @reptype CompSpecs t_struct_SHA256state_st * (s256state * s256state)
@@ -176,8 +175,6 @@ Exists (updShaST, (iCTX, oCTX)). rewrite prop_true_andp by (split3; auto).
 match goal with |- _ |-- data_at _ _ ?A _ =>
 change A with (default_val t_struct_SHA256state_st, (iCTX, oCTX))
 end.
-subst c.
-change_compspecs CompSpecs.
 Time unfold_data_at (data_at(cs := CompSpecs) _ _ _ (Vptr b i)).
 Time assert_PROP (field_compatible t_struct_SHA256state_st [] (Vptr b i)) as FC by entailer!. (*1.2*)
 Time cancel. (*0.7*)
@@ -189,7 +186,7 @@ rewrite field_address_offset by auto with field_compatible.
 simpl snd. simpl fst.
 rewrite field_at_data_at.
 rewrite field_address_offset by auto with field_compatible. subst; simpl.  apply derives_refl.
-Time Qed. (*VST 2.0: 6s*) 
+Time Qed. (*VST 2.0: 6s*)
 
 Lemma body_hmac_final: semax_body HmacVarSpecs HmacFunSpecs
        f_HMAC_Final HMAC_Final_spec.

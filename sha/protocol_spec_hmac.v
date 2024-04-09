@@ -419,7 +419,7 @@ simpl_ret_assert; normalize.
 simpl_ret_assert; normalize.
 subst POSTCONDITION; unfold abbreviate; simpl_ret_assert.
 intros.
-rewrite andp_left2.
+apply andp_left2.
 apply sepcon_derives; auto.
 apply bind_ret_derives.
 unfold initPostKey.
@@ -451,7 +451,7 @@ entailer!.
 +
 subst POSTCONDITION; unfold abbreviate;
 simpl_ret_assert.
-rewrite andp_left2.
+apply andp_left2.
 apply sepcon_derives; auto.
   go_lowerx.
   entailer!.
@@ -471,10 +471,10 @@ unfold REP, abs_relate. Intros r.
 destruct H as [mREL [iREL [oREL [iLEN oLEN]]]].
 eapply semax_pre_post.
   6: apply (finalbodyproof Espec c md sh shmd gv buf (hmacUpdate data (hmacInit key)) SH SH0).
-  
-  rewrite andp_left2. unfold hmacstate_. Exists r. go_lowerx. entailer!.
+
+  apply andp_left2. unfold hmacstate_. Exists r. go_lowerx. entailer!.
 +
-  intros. rewrite andp_left2.
+  intros. apply andp_left2.
   subst POSTCONDITION; unfold abbreviate; simpl_ret_assert.
   apply sepcon_derives; auto.
   rewrite <- hmac_sound. unfold FULL.
@@ -494,9 +494,9 @@ destruct H as [Prop1 Prop2].
 eapply semax_pre_post.
   6: apply (updatebodyproof Espec shc shd c d (Zlength data1) data1 gv (hmacUpdate data (hmacInit key))); auto.
 
-  rewrite andp_left2. go_lowerx. entailer!; try apply derives_refl.
+  apply andp_left2. go_lowerx. entailer!; try apply derives_refl.
 +
-  rewrite andp_left2.
+  apply andp_left2.
   subst POSTCONDITION; unfold abbreviate; simpl_ret_assert.
   apply sepcon_derives; auto.
   rewrite hmacUpdate_app. go_lowerx. entailer!; try apply derives_refl.
@@ -526,7 +526,7 @@ eapply semax_pre_post.
 +
  entailer!; simpl. normalize.
 +
-  rewrite andp_left2.
+  apply andp_left2.
   subst POSTCONDITION; unfold abbreviate; simpl_ret_assert.
   apply sepcon_derives; auto.
    go_lowerx. entailer!.
@@ -547,8 +547,8 @@ assert_PROP (field_compatible t_struct_hmac_ctx_st [] c).
 eapply semax_pre_post.
   6: apply (cleanupbodyproof1 Espec sh c h); auto.
 +
-  Exists key. apply andp_left2.
-+  rewrite andp_left2.
+  Exists key. apply andp_left2. apply derives_refl.
++  apply andp_left2.
   subst POSTCONDITION; unfold abbreviate; simpl_ret_assert.
   Opaque repeat. go_lowerx. Transparent repeat.
   normalize.

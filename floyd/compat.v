@@ -91,8 +91,6 @@ Definition prop_right := @bi.pure_intro.
 Definition sepcon_derives := @bi.sep_mono.
 Definition andp_derives := @bi.and_mono.
 Definition prop_derives := @bi.pure_mono.
-Definition andp_left1 := @bi.and_elim_l.
-Definition andp_left2 := @bi.and_elim_r.
 Definition orp_left := @bi.or_elim.
 Definition sepcon_emp := @sep_emp.
 Definition emp_sepcon := @emp_sep.
@@ -102,6 +100,14 @@ Definition andp_comm := @log_normalize.and_comm.
 Definition andp_assoc := @log_normalize.and_assoc.
 Definition allp_right := @bi.forall_intro.
 Definition FF_left := @False_left.
+
+Lemma andp_left1 : forall {B : bi} (P Q R : B), (P ⊢ R) -> P ∧ Q ⊢ R.
+Proof. intros; rewrite bi.and_elim_l; auto. Qed.
+Lemma andp_left2 : forall {B : bi} (P Q R : B), (Q ⊢ R) -> P ∧ Q ⊢ R.
+Proof. intros; rewrite bi.and_elim_r; auto. Qed.
+
+Lemma derives_refl' : forall {B : bi} {P Q : B}, P = Q -> P ⊢ Q.
+Proof. intros; subst; auto. Qed.
 
 Section iter_sepcon2.
 (* progs/verif_tree relies on this playing well with Fixpoint, so we have to define it
