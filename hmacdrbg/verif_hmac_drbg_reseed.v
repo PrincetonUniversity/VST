@@ -47,7 +47,7 @@ Proof.
     { subst contents'. unfold contents_with_add.
       destruct (eq_dec add_len 0); simpl.
         rewrite andb_false_r. left; apply Zlength_nil.
-        destruct (EqDec_val additional nullval); simpl. left; apply Zlength_nil.
+        destruct (eq_dec additional nullval); simpl. left; apply Zlength_nil.
         right; trivial.
     }
 
@@ -220,7 +220,7 @@ Proof.
   rewrite <- XH7.
   simple eapply reseed_REST  with (s0:=s0)(contents':=contents'); try eassumption;
     auto.
-idtac "Timing the Qed of drbg_reseed (goal: 25secs)". lia. 
+idtac "Timing the Qed of drbg_reseed (goal: 25secs)". lia.
 Time Qed. (*May23th, Coq8.6:12secs
            Feb 23 2017: Finished transaction in 105.344 secs (74.078u,0.015s) (successful)*)
           (*earlier Coq8.5pl2: 24secs*)

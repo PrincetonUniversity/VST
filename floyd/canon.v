@@ -1785,6 +1785,14 @@ Proof.
   reflexivity.
 Qed.
 
+Lemma bind_ret_noret : forall P (R : list mpred), bind_ret None tvoid (PROPx P (LOCALx [] (SEPx R))) = PROPx P (LOCALx [] (SEPx R)).
+Proof.
+  intros.
+  unfold bind_ret; simpl.
+  apply assert_ext; intros.
+  unfold PROPx, LOCALx, SEPx; monPred.unseal; reflexivity.
+Qed.
+
 End mpred.
 
 #[export] Hint Rewrite @insert_local :  norm2.
@@ -1876,7 +1884,7 @@ Qed.
 
 Ltac go_lowerx' simpl_tac :=
    unfold PROPx, LOCALx, SEPx, local, lift1; unfold_lift; split => rho; monPred.unseal; simpl_tac;
-   repeat rewrite -bi.and_assoc;
+   repeat rewrite <- and_assoc;
    repeat ((simple apply go_lower_lem1 || apply bi.pure_elim_l || apply bi.pure_elim_r); intro);
    try apply bi.pure_elim';
    repeat rewrite -> prop_true_andp by assumption;
@@ -2133,5 +2141,6 @@ Ltac simpl_ret_assert ::=
       for_ret_assert loop_nocontinue_ret_assert];
   try (match goal with
       | |- context[bind_ret None tvoid ?P] =>
-        assert (bind_ret None tvoid P = P) as -> by (unfold PROPx, LOCALx, SEPx; apply assert_ext; intros; unfold bind_ret; cbv delta [tvoid] match beta; rewrite ?monPred_at_assert_of; try reflexivity; try monPred.unseal; done)
+        (*assert (bind_ret None tvoid P = P) as -> by (unfold PROPx, LOCALx, SEPx; apply assert_ext; intros; unfold bind_ret; cbv delta [tvoid] match beta; rewrite ?monPred_at_assert_of; try reflexivity; try monPred.unseal; done)*)
+        rewrite bind_ret_noret
       end).

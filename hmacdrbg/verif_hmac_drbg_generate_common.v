@@ -1332,9 +1332,10 @@ Proof. intros.
     assert_PROP (field_compatible t_struct_hmac256drbg_context_st
          [StructField _md_ctx] (Vptr b i)) as FC_M by entailer.
     forward_call (field_address t_struct_hmac256drbg_context_st [StructField _md_ctx] (*ctx*)(Vptr b i),  (*md_ctx'*)(mc1,(mc2,mc3)), shc, key0, gv).
+    { simpl; entailer!. f_equal; auto with field_compatible. }
     { unfold md_full; simpl. cancel. }
     (* mbedtls_md_hmac_update( &ctx->md_ctx, ctx->V, md_len ); *)
-    rename H into HZlength_V.  
+    rename H into HZlength_V.
     assert_PROP (field_compatible t_struct_hmac256drbg_context_st [StructField _V] (Vptr b i)) as FCV by entailer!.
 
     forward_call (key0, field_address t_struct_hmac256drbg_context_st [StructField _md_ctx] (*ctx*)(Vptr b i),
@@ -1390,13 +1391,13 @@ Proof. intros.
         apply hmac_common_lemmas.HMAC_Zlength.
         exists n; reflexivity.
       }
-      
+
       apply data_at_complete_split; try rewrite HZlength1; try rewrite Zlength_repeat; auto; try lia.
       (*simpl. simpl in HZlength1. rewrite HZlength1.*)
       replace ((n * 32)%Z + (out_len - (n * 32)%Z)) with out_len by lia. assumption.
     }
     normalize.
-    
+
     remember (offset_val done output) as done_output.
     remember (Z.min 32 (out_len - done)) as use_len.
     assert_PROP (field_compatible (tarray tuchar (out_len - done)) [] done_output) as Hfield_compat_done_output.

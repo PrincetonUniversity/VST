@@ -108,13 +108,13 @@ Proof.
   start_function.
   rename H into HDlen1; rename H0 into HDlen2.
   unfold seedbufREP.
-  rewrite extract_exists_in_SEP. Intros Ctx.
+  Intros Ctx.
   rename H into WF1. rename H0 into WF2. rename H1 into WF3.
   rewrite data_at_isptr with (p:=ctx). Intros.
   destruct ctx; try contradiction; clear Pctx.
   unfold_data_at 1%nat.
   destruct Ctx as [mds [V [RC [EL [PR RI]]]]]; simpl.
-  destruct mds as [M1 [M2 M3]]. 
+  destruct mds as [M1 [M2 M3]].
   freeze [1;2;3;4;5] FIELDS. unfold hmac256drbgstate_md_info_pointer; simpl.
   rewrite field_at_compatible'. Intros. rename H into FC_mdx.
   rewrite field_at_data_at. unfold field_address. simpl. rewrite if_true; trivial. rewrite ptrofs_add_repr_0_r.
@@ -122,7 +122,7 @@ Proof.
   time forward_call ((M1,(M2,M3)), Vptr b i, sh, Vint (Int.repr 1), info, gv).
 
   Intros v. rename H into Hv. simpl.
-  freeze [0] FR1. forward. thaw FR1. 
+  freeze [0] FR1. forward. thaw FR1.
   forward_if.
   { destruct Hv; try lia. rewrite if_false; trivial.
     forward. Exists (Vint (Int.repr (-20864))). rewrite if_true; trivial.
@@ -226,8 +226,8 @@ Proof.
   rename H1 into BOUND.
   rename v_seed into seed.
   unfold AREP. focus_SEP 2.
-  rewrite extract_exists_in_SEP. Intros Info. unfold REP.
-  rewrite extract_exists_in_SEP. Intros i. rename H into WFI. 
+  Intros Info. unfold REP.
+  Intros i. rename H into WFI. 
   destruct I.
   destruct i as [md_ctx' [V' [reseed_counter' [entropy_len' [prediction_resistance' reseed_interval']]]]].
   unfold hmac256drbg_relate.
@@ -483,8 +483,8 @@ Proof.
   start_function.
   rename H0 into M. destruct H as [N1 N2].
   unfold AREP. focus_SEP 1.
-  rewrite extract_exists_in_SEP. Intros Info. unfold REP.
-  rewrite extract_exists_in_SEP. Intros i. 
+  Intros Info. unfold REP.
+  Intros i.
   destruct H as [WF1 [WF2 [WF3 [WF4 WF5]]]].
   forward. simpl.
   forward_call (@nil byte, nullval, Tsh, Z0, output, sho, n, ctx, shc, i,
@@ -524,8 +524,8 @@ Proof.
   start_function.
   destruct H as [N1 N2]. rename H0 into M.
   unfold AREP. focus_SEP 1.
-  rewrite extract_exists_in_SEP. Intros Info. unfold REP.
-  rewrite extract_exists_in_SEP. Intros i. 
+  Intros Info. unfold REP.
+  Intros i.
   destruct H as [WF1 [WF2 [WF3 [WF4 WF5]]]].
   forward. simpl.
   forward_call (@nil byte, nullval, Tsh, Z0, output, sho, n, ctx, shc, i, 
@@ -580,9 +580,9 @@ Proof. start_function.
   rename v_K into K. rename v_sep into sep.
   rename H into AL1. rename H0 into HAL.
   unfold AREP. focus_SEP 2.
-  rewrite extract_exists_in_SEP. Intros Info.
-  unfold REP. 
-  rewrite extract_exists_in_SEP. Intros i.
+  Intros Info.
+  unfold REP.
+  Intros i.
   rename H into WFI.
   destruct i as [IS1 [IS2 [IS3 [IS4 [IS5 IS6]]]]].
   rewrite da_emp_isptrornull.
@@ -947,9 +947,9 @@ Lemma body_hmac_drbg_setEntropyLen:
       f_mbedtls_hmac_drbg_set_entropy_len drbg_setEntropyLen_spec_abs.
 Proof.
   start_function. unfold AREP.
-  rewrite extract_exists_in_SEP. Intros Info.
+  Intros Info.
   unfold REP. 
-  rewrite extract_exists_in_SEP. Intros a.
+  Intros a.
   destruct a as [md_ctx [V [rc [el [pr ri]]]]].
   destruct A as [K VV RC EL PR RI].
   unfold hmac256drbg_relate. normalize.
@@ -994,8 +994,8 @@ Lemma body_hmac_drbg_setReseedInterval:
       f_mbedtls_hmac_drbg_set_reseed_interval drbg_setReseedInterval_spec_abs.
 Proof.
   start_function. unfold AREP.
-  rewrite extract_exists_in_SEP. Intros Info.
-  unfold REP. 
+  Intros Info.
+  unfold REP.
   rewrite extract_exists_in_SEP. Intros a.
   destruct a as [md_ctx [V [rc [el [pr z]]]]].
   destruct A as [K VV RC EL PR RI].
@@ -1003,12 +1003,12 @@ Proof.
   rewrite data_at_isptr. Intros. destruct ctx; try contradiction.
   unfold_data_at 1%nat.
   freeze [0;1;2;3;4;6;7;8] FR. forward. entailer!.
-  unfold AREP, REP. 
+  unfold AREP, REP.
   Exists Info (md_ctx,
      (map Vubyte VV,
      (Vint (Int.repr RC),
      (Vint (Int.repr EL), (bool2val PR, Vint (Int.repr ri)))))).
-  simpl; entailer!. 
+  simpl; entailer!.
   + red; simpl. red in H0; simpl in H0. intuition.
   + unfold_data_at 1%nat; thaw FR; cancel.
 Time Qed. (*1.8s*)

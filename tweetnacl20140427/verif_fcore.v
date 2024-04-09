@@ -244,7 +244,7 @@ unfold HTruePostCond, fcore_EpiloguePOST.
 destruct data as [[? ?] [? ?]].
 Exists snuffleRes l.
 rewrite H0, <- H1, H. clear - H2.
-Time normalize. (*1.4*)
+Intros intsums.
  Exists intsums.
  go_lowerx. (* must do this explicitly because it's not an ENTAIL *)
  Time entailer!; auto. (*6.8*)

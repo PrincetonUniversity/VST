@@ -20,7 +20,7 @@ Proof.
   - (*ctx==null*)
     simpl in PNctx; subst i. rewrite da_emp_null; trivial.
     forward_if (FF : assert).
-    + forward. Exists tt; auto.
+    + forward.
     + contradiction H; reflexivity.
   - (*isptr ctx*)
     rewrite if_false; try discriminate.
