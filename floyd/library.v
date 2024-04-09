@@ -16,6 +16,7 @@ Require Import VST.floyd.aggregate_type.
 Require VST.floyd.aggregate_pred. Import VST.floyd.aggregate_pred.aggregate_pred.
 Require Import VST.floyd.reptype_lemmas.
 Require Import VST.floyd.data_at_rec_lemmas.
+Require Import VST.floyd.data_at_lemmas.
 Require Import VST.floyd.field_at.
 Require Import VST.floyd.field_compat.
 Require Import VST.floyd.stronger.

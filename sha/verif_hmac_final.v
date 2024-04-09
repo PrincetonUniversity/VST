@@ -108,6 +108,7 @@ apply semax_pre with (P':=
       simpl. rewrite Ptrofs.add_zero.
       fold t_struct_SHA256state_st.
       change (Tstruct _SHA256state_st noattr) with t_struct_SHA256state_st.
+      change_compspecs CompSpecs.
       Time cancel. (*0.9*)
 }
 subst l'. clear FR1.
@@ -181,6 +182,7 @@ match goal with |- _ |-- data_at _ _ ?A _ =>
 change A with (default_val t_struct_SHA256state_st, (iCTX, oCTX))
 end.
 subst c.
+change_compspecs CompSpecs.
 Time unfold_data_at (@data_at CompSpecs _ _ _ (Vptr b i)).
 Time assert_PROP (field_compatible t_struct_SHA256state_st [] (Vptr b i)) as FC by entailer!. (*1.2*)
 Time cancel. (*0.7*)
