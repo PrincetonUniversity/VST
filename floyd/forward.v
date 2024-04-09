@@ -728,8 +728,8 @@ a "versus" b ")"
  else fail
 end.
 
-Lemma change_compspecs_cstring: forall cs1 cs2: compspecs, 
-    @cstring cs1 = @cstring cs2.
+Lemma change_compspecs_cstring: forall `{VSTGS0 : VSTGS OK_ty Σ} (cs1 cs2: compspecs),
+    cstring(CS := cs1) = cstring(CS := cs2).
 Proof.
 intros.
 extensionality sh s p.
@@ -754,7 +754,7 @@ apply prop_ext; split; intro;
  inv H; econstructor; eauto).
 Qed.
 
-Ltac change_compspecs_warning A cs cs' := 
+Ltac change_compspecs_warning A cs cs' :=
      idtac "Remark: change_compspecs on user-defined mpred:" A cs cs'
  "(to disable this message, Ltac change_compspecs_warning A cs cs' ::= idtac".
 
