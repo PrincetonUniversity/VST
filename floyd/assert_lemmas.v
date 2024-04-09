@@ -1028,6 +1028,7 @@ Ltac simpl_ret_assert :=
 #[export] Hint Rewrite @elim_globals_only using (split3; [eassumption | reflexivity.. ]) : norm.
 #[export] Hint Rewrite @elim_globals_only' : norm.
 #[export] Hint Rewrite @globvars2pred_unfold : norm.
+#[export] Hint Rewrite @exp_trivial : norm.
 
 
 Ltac lifted_derives_L2R H :=

@@ -5,7 +5,6 @@
    Lennart Beringer, June 2015*)
 (*Processing time for this file: approx 13mins*)
 Require Import VST.floyd.proofauto.
-Local Open Scope logic.
 Require Import List. Import ListNotations.
 (*Require Import general_lemmas.
 
@@ -118,7 +117,7 @@ destruct intsums; simpl in H. lia. rename i into v13.
 destruct intsums; simpl in H. lia. rename i into v14.
 destruct intsums; simpl in H. lia. rename i into v15.
 destruct intsums; simpl in H. 2: lia. clear H. simpl.
-unfold Znth. simpl.
+unfold Znth. Time simpl.
 destruct OUT; simpl in H0. lia. rename v into u0.
 destruct OUT; simpl in H0. lia. rename v into u1.
 destruct OUT; simpl in H0. lia. rename v into u2.
@@ -231,13 +230,13 @@ LOCAL (lvar _t (tarray tuint 4) t;
                  (map Vint (hPosLoop2 4 intsums C Nonce)) x))
 end. 
 
-Opaque Snuffle. Opaque hPosLoop2. Opaque hPosLoop3. 
+Opaque Snuffle. Opaque hPosLoop2. Opaque hPosLoop3.
 
 Lemma HTruePOST F t y x w nonce out c k h snuffleRes l data OUT:
       Snuffle 20 l = Some snuffleRes ->
       Int.eq (Int.repr h) Int.zero = false ->
       l = prepare_data data ->
-      F |-- (data_at_ Tsh (tarray tuint 4) t * data_at_ Tsh (tarray tuint 16) w)%logic ->
+      (F |-- (data_at_ Tsh (tarray tuint 4) t * data_at_ Tsh (tarray tuint 16) w)%I) ->
       HTruePostCond F t y x w nonce out c k h snuffleRes l data OUT
 |-- fcore_EpiloguePOST t y x w nonce out c k h OUT data.
 Proof. intros.
@@ -255,8 +254,8 @@ Lemma HFalsePOST F t y x w nonce out c k h snuffleRes l data OUT:
       Snuffle 20 l = Some snuffleRes ->
       Int.eq (Int.repr h) Int.zero = true ->
       l = prepare_data data ->
-      F |-- ((CoreInSEP data (nonce, c,k) * data_at_ Tsh (tarray tuint 4) t *
-             data_at_ Tsh (tarray tuint 16) w))%logic ->
+      (F |-- ((CoreInSEP data (nonce, c,k) * data_at_ Tsh (tarray tuint 4) t *
+             data_at_ Tsh (tarray tuint 16) w))%I) ->
       HFalsePostCond F t y x w nonce out c k h snuffleRes l
      |-- fcore_EpiloguePOST t y x w nonce out c k h OUT data.
 Proof. intros.

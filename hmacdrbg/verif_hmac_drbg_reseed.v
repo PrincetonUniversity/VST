@@ -1,6 +1,6 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat.
 Import ListNotations.
-Local Open Scope logic.
 
 Require Import hmacdrbg.entropy.
 Require Import hmacdrbg.entropy_lemmas.
@@ -13,7 +13,7 @@ Require Import hmacdrbg.HMAC_DRBG_common_lemmas.
 Require Import hmacdrbg.verif_hmac_drbg_reseed_common.
 
 Opaque hmac256drbgabs_reseed.
-Opaque mbedtls_HMAC256_DRBG_reseed_function. 
+Opaque mbedtls_HMAC256_DRBG_reseed_function.
 
 Lemma body_hmac_drbg_reseed: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
        f_mbedtls_hmac_drbg_reseed hmac_drbg_reseed_spec.

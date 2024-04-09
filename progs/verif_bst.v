@@ -843,7 +843,7 @@ Proof.
 do_funspec_sub.
 rewrite <- fupd_intro.
 Intros.
-Exists tt (emp : mpred). entailer!!.
+Exists (emp : mpred). entailer!!.
 intros tau ? ?. Exists (eval_id ret_temp tau). entailer!!.
 unfold tmap_rep.
 Exists (empty_tree val).
@@ -884,7 +884,7 @@ forward_call subsume_insert (p, 1, gv ___stringlit_2, (t_update (t_empty nullval
 forward_call subsume_insert (p, 4, gv ___stringlit_3, (t_update
              (t_update (t_empty nullval) 3
                 (gv ___stringlit_1)) 1 (gv ___stringlit_2))).
-forward_call subsume_insert (p, 1, gv ___stringlit_4, 
+forward_call subsume_insert (p, 1, gv ___stringlit_4,
            (t_update
              (t_update
                 (t_update (t_empty nullval) 3

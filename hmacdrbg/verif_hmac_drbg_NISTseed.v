@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat.
 Import ListNotations.
 Require Import VST.zlist.sublist.
 

@@ -50,7 +50,7 @@ Qed.
 Lemma body_f: semax_body Vprog Gprog f_f f_spec.
 Proof.
 start_function.
-forward_if (False : assert).
+forward_if (FF : assert).
 forward.
 forward.
 forward.

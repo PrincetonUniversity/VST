@@ -85,7 +85,7 @@ Definition main_spec :=
   WITH gv : globals
   PRE  [] main_pre prog tt gv
   POST [ tint ]
-     PROP() RETURN (Vint (Int.repr (3+2+1))) SEP(True).
+     PROP() RETURN (Vint (Int.repr (3+2+1))) SEP(TT).
 
 (** List all the function-specs, to form the global hypothesis *)
 Definition Gprog : funspecs :=   ltac:(with_library prog [

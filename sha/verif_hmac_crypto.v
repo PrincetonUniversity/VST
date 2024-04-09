@@ -1,6 +1,5 @@
 Require Import VST.floyd.proofauto.
 Import ListNotations.
-Require Export VST.floyd.Funspec_old_Notation.
 Require Import FCF.Blist.
 
 Require Import sha.vst_lemmas.
@@ -59,23 +58,23 @@ Definition HMAC_crypto :=
    WITH keyVal: val, KEY:DATA,
         msgVal: val, MSG:DATA,
         shk: share, shm: share, shmd: share, md: val, gv: globals
-   PRE [ _key OF tptr tuchar,
-         _key_len OF tint,
-         _d OF tptr tuchar,
-         _n OF tint,
-         _md OF tptr tuchar ]
+   PRE [ tptr tuchar,
+         tint,
+         tptr tuchar,
+         tint,
+         tptr tuchar ]
          PROP (readable_share shk; readable_share shm; writable_share shmd;
                has_lengthK (LEN KEY) (CONT KEY);
                has_lengthD 512 (LEN MSG) (CONT MSG))
-         LOCAL (temp _md md; temp _key keyVal;
-                temp _key_len (Vint (Int.repr (LEN KEY)));
-                temp _d msgVal; temp _n (Vint (Int.repr (LEN MSG)));
-                gvars gv)
+         PARAMS (keyVal;
+                 Vint (Int.repr (LEN KEY));
+                 msgVal; Vint (Int.repr (LEN MSG)); md)
+         GLOBALS (gv)
          SEP(data_block shk (CONT KEY) keyVal;
              data_block shm (CONT MSG) msgVal;
              K_vector gv;
              memory_block shmd 32 md)
-  POST [ tptr tuchar ] 
+  POST [ tptr tuchar ]
          EX digest:_,
           PROP (digest= HMAC256 (CONT MSG) (CONT KEY) /\
                 bytesToBits digest = bitspec KEY MSG /\ 

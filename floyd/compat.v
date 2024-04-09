@@ -80,6 +80,9 @@ Notation "P <--> Q" := (P ↔ Q)%I
 Notation TT := (True)%I.
 Notation FF := (False)%I.
 
+Disable Notation "True" : bi_scope.
+Disable Notation "False" : bi_scope.
+
 Open Scope bi_scope.
 
 Definition pred_ext := @bi.equiv_entails_2.

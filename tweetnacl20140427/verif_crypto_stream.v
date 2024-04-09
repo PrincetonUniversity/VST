@@ -1,5 +1,5 @@
 Require Import VST.floyd.proofauto.
-Local Open Scope logic.
+Require Import VST.floyd.compat.
 Require Import Coq.Lists.List. Import ListNotations.
 Require Import sha.general_lemmas.
 
@@ -59,12 +59,7 @@ destruct H0 as [HSalsaRes HS]. rewrite HS.
 forward_call (c, v_s, offset_val 16 nonce, d, Nonce2, HSalsaRes, gv).
 { unfold SByte, Sigma_vector, ThirtyTwoByte.
   destruct HSalsaRes as [q1 q2].
-  replace (@field_at CompSpecs Tsh
-  (Tarray tuchar (Int64.unsigned d) noattr) [])
-  with (@data_at CompSpecs Tsh
-  (Tarray tuchar (Int64.unsigned d) noattr)).
-  cancel.
-  unfold data_at. extensionality z. reflexivity. }
+  cancel. }
 forward.
 unfold ThirtyTwoByte. entailer.
  Exists HSalsaRes. entailer. cancel.

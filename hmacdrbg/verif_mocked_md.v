@@ -139,7 +139,7 @@ Proof.
   Intros vret.
 
   forward_if.
-  { simpl. destruct (EqDec_val vret nullval).
+  { simpl. destruct (eq_dec vret nullval).
     + subst vret; entailer!.
     + entailer!.
   }

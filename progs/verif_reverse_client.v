@@ -65,7 +65,7 @@ Definition last_foo_spec :=
      SEP (listrep sigma p)
   POST [ tuint ]
      PROP () RETURN (Vint x)
-     SEP (True).
+     SEP (TT).
 
 Definition Gprog : funspecs :=
          ltac:(with_library prog [ reverse_spec; last_foo_spec ]).

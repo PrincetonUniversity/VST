@@ -75,12 +75,12 @@ Definition hmac_reset_spec :=
   DECLARE _HMAC_Init (*Naphat: you'll probably have DECLARE mbedtls_hmac_reset here, and the
                        body of your wrapper function is a call to hmac_init with key==null.*)
    WITH c : val, sh: share, l:Z, key:list byte, gv: globals
-   PRE [ _ctx OF tptr t_struct_hmac_ctx_st,
-         _key OF tptr tuchar,
-         _len OF tint ]
+   PRE [ tptr t_struct_hmac_ctx_st,
+         tptr tuchar,
+         tint ]
          PROP (writable_share sh)
-         LOCAL (temp _ctx c; temp _key nullval; temp _len (Vint (Int.repr l));
-                gvars gv)
+         PARAMS (c; nullval; Vint (Int.repr l))
+         GLOBALS (gv)
          SEP (FULL sh key c; K_vector gv)
   POST [ tvoid ] 
      PROP ()
@@ -91,12 +91,12 @@ Definition hmac_starts_spec :=
   DECLARE _HMAC_Init (*Naphat: you'll probably have DECLARE mbedtls_hmac_starts here, and the
                        body of your wrapper function is a call to hmac_init with the nonnull key*)
    WITH c : val, sh: share, l:Z, key:list byte, b:block, i:ptrofs, shk: share, gv: globals
-   PRE [ _ctx OF tptr t_struct_hmac_ctx_st,
-         _key OF tptr tuchar,
-         _len OF tint ]
+   PRE [ tptr t_struct_hmac_ctx_st,
+         tptr tuchar,
+         tint ]
          PROP (writable_share sh; readable_share shk; has_lengthK l key)
-         LOCAL (temp _ctx c; temp _key (Vptr b i); temp _len (Vint (Int.repr l));
-                gvars gv)
+         PARAMS (c; Vptr b i; Vint (Int.repr l))
+         GLOBALS (gv)
          SEP (EMPTY sh c; data_block shk key (Vptr b i); K_vector gv)
   POST [ tvoid ]
      PROP ()
@@ -106,14 +106,14 @@ Definition hmac_starts_spec :=
 Definition hmac_update_spec :=
   DECLARE _HMAC_Update
    WITH key: list byte, c : val, shc: share, d:val, shd: share, data:list byte, data1:list byte, gv:globals
-   PRE [ _ctx OF tptr t_struct_hmac_ctx_st, 
-         _data OF tptr tvoid, 
-         _len OF tuint]
+   PRE [ tptr t_struct_hmac_ctx_st, 
+         tptr tvoid, 
+         tuint]
          PROP (writable_share shc; readable_share shd;
                    0 <= Zlength data1 <= Int.max_unsigned /\
                Zlength data1 + Zlength data + 64 < two_power_pos 61) 
-         LOCAL (temp _ctx c; temp _data d; temp  _len (Vint (Int.repr (Zlength data1)));
-                gvars gv)
+         PARAMS (c; d; Vint (Int.repr (Zlength data1)))
+         GLOBALS (gv)
          SEP(REP shc (hABS key data) c; data_block shd data1 d; K_vector gv)
   POST [ tvoid ]
           PROP ()
@@ -124,11 +124,11 @@ Definition hmac_update_spec :=
 Definition hmac_final_spec :=
   DECLARE _HMAC_Final
    WITH data:list byte, key:list byte, c : val, sh: share, md:val, shmd: share, gv:globals
-   PRE [ _ctx OF tptr t_struct_hmac_ctx_st,
-         _md OF tptr tuchar ]
+   PRE [ tptr t_struct_hmac_ctx_st,
+         tptr tuchar ]
        PROP (writable_share sh; writable_share shmd) 
-       LOCAL (temp _md md; temp _ctx c;
-              gvars gv)
+       PARAMS (c; md)
+       GLOBALS (gv)
        SEP(REP sh (hABS key data) c; K_vector gv;
            memory_block shmd 32 md)
   POST [ tvoid ]
@@ -141,9 +141,9 @@ Definition hmac_final_spec :=
 Definition hmac_cleanup_spec :=
   DECLARE _HMAC_cleanup
    WITH key: list byte, c : val, sh: share
-   PRE [ _ctx OF tptr t_struct_hmac_ctx_st ]
+   PRE [ tptr t_struct_hmac_ctx_st ]
          PROP (writable_share sh) 
-         LOCAL (temp _ctx c)
+         PARAMS (c)
          SEP(FULL sh key c)
   POST [ tvoid ]
           PROP ()
@@ -155,27 +155,25 @@ Definition hmac_crypto_spec :=
    WITH md: val, KEY:DATA, shk: share,
         msg: val, MSG:DATA, shm: share,
         shmd: share, b:block, i:ptrofs, gv: globals
-   PRE [ _key OF tptr tuchar,
-         _key_len OF tint,
-         _d OF tptr tuchar,
-         _n OF tint,
-         _md OF tptr tuchar ]
+   PRE [ tptr tuchar,
+         tint,
+         tptr tuchar,
+         tint,
+         tptr tuchar ]
          PROP (readable_share shk; readable_share shm; writable_share shmd; 
                has_lengthK (LEN KEY) (CONT KEY);
                has_lengthD 512 (LEN MSG) (CONT MSG))
-         LOCAL (temp _md md; temp _key (Vptr b i);
-                temp _key_len (Vint (Int.repr (LEN KEY)));
-                temp _d msg; temp _n (Vint (Int.repr (LEN MSG)));
-                gvars gv)
-         SEP(data_block shk (CONT KEY) (Vptr b i); 
-             data_block shm (CONT MSG) msg; 
+         PARAMS (Vptr b i; Vint (Int.repr (LEN KEY)); msg; Vint (Int.repr (LEN MSG)); md)
+         GLOBALS (gv)
+         SEP(data_block shk (CONT KEY) (Vptr b i);
+             data_block shm (CONT MSG) msg;
              memory_block shmd 32 md;
              K_vector gv)
-  POST [ tptr tuchar ] 
+  POST [ tptr tuchar ]
          EX digest:_,
           PROP (digest= HMAC256 (CONT MSG) (CONT KEY) /\
-                ByteBitRelations.bytesToBits digest = 
-                verif_hmac_crypto.bitspec KEY MSG /\ 
+                ByteBitRelations.bytesToBits digest =
+                verif_hmac_crypto.bitspec KEY MSG /\
                 forall A Awf, CRYPTO A Awf)
           LOCAL (temp ret_temp md)
           SEP(K_vector gv;
@@ -206,7 +204,7 @@ End HMAC_ABSTRACT_SPEC.
 
 
 Lemma haslengthK_simple: forall l, 0 < l <= Int.max_signed -> l * 8 < two_p 64.
-intros. 
+intros.
 assert (l < Int.half_modulus). unfold Int.max_signed in H. lia. clear H.
 rewrite Int.half_modulus_power in H0. 
 assert (Int.zwordsize = 32) by reflexivity. rewrite H in *; clear H. simpl in *.
@@ -301,12 +299,12 @@ Qed.
 Definition hmac_reset_spec :=
   DECLARE _HMAC_Init
    WITH c : val, sh: share, l:Z, key:list byte, gv: globals (*, d:list Z*)
-   PRE [ _ctx OF tptr t_struct_hmac_ctx_st,
-         _key OF tptr tuchar,
-         _len OF tint ]
+   PRE [ tptr t_struct_hmac_ctx_st,
+         tptr tuchar,
+         tint ]
          PROP (writable_share sh)
-         LOCAL (temp _ctx c; temp _key nullval; temp _len (Vint (Int.repr l));
-                gvars gv)
+         PARAMS (c; nullval; Vint (Int.repr l))
+         GLOBALS (gv)
          SEP (FULL sh key c; K_vector gv)
   POST [ tvoid ]
      PROP ()
@@ -316,12 +314,12 @@ Definition hmac_reset_spec :=
 Definition hmac_starts_spec :=
   DECLARE _HMAC_Init
    WITH c : val, sh: share, l:Z, key:list byte, b:block, i:ptrofs, shk: share, gv: globals
-   PRE [ _ctx OF tptr t_struct_hmac_ctx_st,
-         _key OF tptr tuchar,
-         _len OF tint ]
+   PRE [ tptr t_struct_hmac_ctx_st,
+         tptr tuchar,
+         tint ]
          PROP (writable_share sh; readable_share shk; has_lengthK l key)
-         LOCAL (temp _ctx c; temp _key (Vptr b i); temp _len (Vint (Int.repr l));
-                gvars gv)
+         PARAMS (c; Vptr b i; Vint (Int.repr l))
+         GLOBALS (gv)
          SEP (EMPTY sh c; data_block shk key (Vptr b i); K_vector gv)
   POST [ tvoid ]
      PROP ()
@@ -331,14 +329,14 @@ Definition hmac_starts_spec :=
 Definition hmac_update_spec :=
   DECLARE _HMAC_Update
    WITH key: list byte, c : val, shc: share, d:val, shd: share, data:list byte, data1:list byte, gv: globals
-   PRE [ _ctx OF tptr t_struct_hmac_ctx_st, 
-         _data OF tptr tvoid, 
-         _len OF tuint]
+   PRE [ tptr t_struct_hmac_ctx_st,
+         tptr tvoid, 
+         tuint]
          PROP (writable_share shc; readable_share shd;
                0 <= Zlength data1 <= Int.max_unsigned /\
-               Zlength data1 + Zlength data + 64 < two_power_pos 61) 
-         LOCAL (temp _ctx c; temp _data d; temp  _len (Vint (Int.repr (Zlength data1)));
-                gvars gv)
+               Zlength data1 + Zlength data + 64 < two_power_pos 61)
+         PARAMS (c; d; Vint (Int.repr (Zlength data1)))
+         GLOBALS (gv)
          SEP(REP shc (hABS key data) c; data_block shd data1 d; K_vector gv)
   POST [ tvoid ]
           PROP ()
@@ -349,11 +347,11 @@ Definition hmac_update_spec :=
 Definition hmac_final_spec :=
   DECLARE _HMAC_Final
    WITH data:list byte, key:list byte, c : val, sh: share, md:val, shmd: share, gv: globals
-   PRE [ _ctx OF tptr t_struct_hmac_ctx_st,
-         _md OF tptr tuchar ]
-       PROP (writable_share sh; writable_share shmd) 
-       LOCAL (temp _md md; temp _ctx c;
-              gvars gv)
+   PRE [ tptr t_struct_hmac_ctx_st,
+         tptr tuchar ]
+       PROP (writable_share sh; writable_share shmd)
+       PARAMS (c; md)
+       GLOBALS (gv)
        SEP(REP sh (hABS key data) c; K_vector gv;
            memory_block shmd 32 md)
   POST [ tvoid ]
@@ -366,9 +364,9 @@ Definition hmac_final_spec :=
 Definition hmac_cleanup_spec :=
   DECLARE _HMAC_cleanup
    WITH key: list byte, c : val, sh: share
-   PRE [ _ctx OF tptr t_struct_hmac_ctx_st ]
+   PRE [ tptr t_struct_hmac_ctx_st ]
          PROP (writable_share sh) 
-         LOCAL (temp _ctx c)
+         PARAMS (c)
          SEP(FULL sh key c)
   POST [ tvoid ]
           PROP ()
@@ -380,27 +378,27 @@ Definition hmac_crypto_spec :=
    WITH md: val, KEY:DATA, shk: share,
         msg: val, MSG:DATA, shm: share,
         shmd: share, b:block, i:ptrofs, gv: globals
-   PRE [ _key OF tptr tuchar,
-         _key_len OF tint,
-         _d OF tptr tuchar,
-         _n OF tint,
-         _md OF tptr tuchar ]
+   PRE [ tptr tuchar,
+         tint,
+         tptr tuchar,
+         tint,
+         tptr tuchar ]
          PROP (readable_share shk; readable_share shm; writable_share shmd; 
                has_lengthK (LEN KEY) (CONT KEY);
                has_lengthD 512 (LEN MSG) (CONT MSG))
-         LOCAL (temp _md md; temp _key (Vptr b i);
-                temp _key_len (Vint (Int.repr (LEN KEY)));
-                temp _d msg; temp _n (Vint (Int.repr (LEN MSG)));
-                gvars gv)
-         SEP(data_block shk (CONT KEY) (Vptr b i); 
-             data_block shm (CONT MSG) msg; 
+         PARAMS (Vptr b i;
+                Vint (Int.repr (LEN KEY));
+                msg; Vint (Int.repr (LEN MSG)); md)
+         GLOBALS (gv)
+         SEP(data_block shk (CONT KEY) (Vptr b i);
+             data_block shm (CONT MSG) msg;
              memory_block shmd 32 md;
              K_vector gv)
   POST [ tptr tuchar ]
          EX digest:_,
           PROP (digest= HMAC256 (CONT MSG) (CONT KEY) /\
-                ByteBitRelations.bytesToBits digest = 
-                verif_hmac_crypto.bitspec KEY MSG /\ 
+                ByteBitRelations.bytesToBits digest =
+                verif_hmac_crypto.bitspec KEY MSG /\
                 forall A Awf, CRYPTO A Awf)
           LOCAL (temp ret_temp md)
           SEP(K_vector gv;

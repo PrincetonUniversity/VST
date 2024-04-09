@@ -1,6 +1,6 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat.
 Import ListNotations.
-Local Open Scope logic.
 
 Require Import sha.general_lemmas.
 Require Import hmacdrbg.hmac_drbg.
@@ -40,7 +40,7 @@ Require hmacdrbg.verif_hmac_drbg_seed.
 Require Import VST.floyd.subsume_funspec.
 
 Lemma drb_seed_256_subsume:
-  NDfunspec_sub 
+  NDfunspec_sub
        (snd hmac_drbg_seed_inst256_spec)
        (snd drbg_seed_inst256_spec_abs).
 Proof.
@@ -50,11 +50,14 @@ intros [[[[[[[[[[[[[sh dp] ctx] info] len] data] Data]
                          Info] s] rc] pr_flag] ri] handle_ss] gv].
 unfold seedREP.
 intros [g args]. entailer. clear H.
-unfold LAMBDAx, PROPx, GLOBALSx, LOCALx, SEPx, argsassert2assert. simpl. Intros a.
-Exists (dp,  ctx, sh, info, Zlength Data, data, sh, Data, a, 
+unfold LAMBDAx, PROPx, GLOBALSx, LOCALx, SEPx, argsassert2assert. monPred.unseal. simpl. Intros a.
+rewrite <- fupd_intro.
+Exists (dp,  ctx, sh, info, Zlength Data, data, sh, Data, a,
               Info, s, rc, pr_flag, ri, handle_ss, gv).
-Exists emp.
+Exists (emp : mpred).
 rewrite emp_sepcon.
+simpl.
+apply andp_right; [apply prop_right; auto|].
 apply andp_right.
 *
 entailer!. apply andp_derives. trivial. cancel.
@@ -1007,5 +1010,5 @@ Proof.
      (Vint (Int.repr EL), (bool2val PR, Vint (Int.repr ri)))))).
   simpl; entailer!. 
   + red; simpl. red in H0; simpl in H0. intuition.
-  + unfold_data_at 1%nat; thaw FR; cancel. 
+  + unfold_data_at 1%nat; thaw FR; cancel.
 Time Qed. (*1.8s*)

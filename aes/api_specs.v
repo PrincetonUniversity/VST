@@ -8,7 +8,6 @@ Require Export aes.spec_utils_LL.
 Require Export aes.list_utils.
 Require Export aes.spec_encryption_LL.
 
-Require Import VST.floyd.Funspec_old_Notation.
 #[export] Instance CompSpecs : compspecs.
 Proof. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
@@ -33,7 +32,8 @@ Definition gen_tables_spec :=
     WITH gv: globals
     PRE [  ]
       PROP ()
-      LOCAL (gvars gv)
+      PARAMS ()
+      GLOBALS (gv)
       SEP (tables_uninitialized (gv _tables))
     POST [ tvoid ]
       PROP ()
@@ -118,12 +118,12 @@ Definition key_expansion_spec :=
   DECLARE _mbedtls_aes_setkey_enc
     WITH ctx : val, key : val, ctx_sh : share, key_sh : share, key_chars : list Z,
          init_done : Z, ish: share, gv: globals
-    PRE [ _ctx OF (tptr t_struct_aesctx), _key OF (tptr tuchar), _keybits OF tuint  ]
+    PRE [ tptr t_struct_aesctx, tptr tuchar, tuint ]
       PROP (writable_share ctx_sh; readable_share key_sh; readable_share ish;
             Zlength key_chars = 32;
             init_done = 1 (*TODO also prove case where init_done=0*))
-      LOCAL (temp _ctx ctx; temp _key key; temp _keybits (Vint (Int.repr 256)); 
-             gvars gv)
+      PARAMS (ctx; key; Vint (Int.repr 256))
+      GLOBALS (gv)
       SEP (data_at ctx_sh t_struct_aesctx 
                    (Vint Int.zero,
                    (nullval, 
@@ -132,8 +132,8 @@ Definition key_expansion_spec :=
            (*if init_done ?= 1 then tables_initialized tables else tables_uninitialized tables*)
            data_at ish tint (Vint (Int.repr init_done)) (gv _aes_init_done);
            tables_initialized (gv _tables))
-    POST [  tint ]
-      PROP () 
+    POST [ tint ]
+      PROP ()
       LOCAL (temp ret_temp (Vint Int.zero))
       SEP (data_at key_sh (tarray tuchar (4*8)) (map Vint (map Int.repr key_chars)) key;
            data_at ctx_sh t_struct_aesctx 
@@ -152,10 +152,11 @@ Definition encryption_spec_ll :=
        plaintext : list Z, (* 16 chars *)
        exp_key : list Z, (* expanded key, 4*(Nr+1)=60 32-bit integers *)
        gv: globals (* global var *)
-  PRE [ _ctx OF (tptr t_struct_aesctx), _input OF (tptr tuchar), _output OF (tptr tuchar) ]
+  PRE [ tptr t_struct_aesctx, tptr tuchar, tptr tuchar ]
     PROP (Zlength plaintext = 16; Zlength exp_key = 60;
           readable_share ctx_sh; readable_share in_sh; writable_share out_sh)
-    LOCAL (temp _ctx ctx; temp _input input; temp _output output; gvars gv)
+    PARAMS (ctx; input; output)
+    GLOBALS (gv)
     SEP (data_at ctx_sh (t_struct_aesctx) (
           (Vint (Int.repr Nr)),
           ((field_address t_struct_aesctx [StructField _buf] ctx),

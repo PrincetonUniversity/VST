@@ -120,11 +120,11 @@ Fixpoint iter_tree_sepcon2 (t1 : tree B1) : tree B2 -> mpred :=
     | E => fun t2 =>
        match t2 with
        | E => emp
-       | _ => False
+       | _ => FF
        end
     | T xa x xb => fun t2 =>
        match t2 with
-       | E => False
+       | E => FF
        | T ya y yb => p x y * iter_tree_sepcon2 xa ya * iter_tree_sepcon2 xb yb
        end
   end.

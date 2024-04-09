@@ -1,6 +1,6 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat.
 Import ListNotations.
-Local Open Scope logic.
 Require Import VST.zlist.sublist.
 
 Require Import sha.HMAC256_functional_prog.
@@ -881,13 +881,13 @@ Opaque HMAC256_DRBG_generate_function.
         unfold contents_with_add in HeqCONT.
         destruct (eq_dec (Zlength contents) 0); simpl in HeqCONT. 
         ++ rewrite e in *. rewrite (Zlength_nil_inv _ e) in *.
-           simpl in na. destruct (EqDec_Z (Zlength contents) 0); try solve [lia]; simpl in na.
-           subst na; rewrite andb_false_r in *. 
-           assert (F: (negb (EqDec_val additional nullval) &&
+           simpl in na. destruct (eq_dec (Zlength contents) 0); try solve [lia]; simpl in na.
+           subst na; rewrite andb_false_r in *.
+           assert (F: (negb (eq_dec additional nullval) &&
                             false)%bool = false).
            { rewrite andb_false_r. trivial. }
            subst after_update_state_abs; rewrite F in *.
-           inv HeqAUSA. simpl.  
+           inv HeqAUSA. simpl.
            rewrite hmac_common_lemmas.HMAC_Zlength.
            inv Heqq. inv HeqUPD.
            unfold hmac256drbgstate_md_info_pointer; simpl in *. entailer!. 
@@ -897,7 +897,7 @@ Opaque HMAC256_DRBG_generate_function.
            rewrite <- Heqp, sublist_firstn; simpl. cancel.
            unfold_data_at 1%nat. cancel.
            }
-        ++ destruct (EqDec_val additional nullval); simpl in na, HeqCONT.
+        ++ destruct (eq_dec additional nullval); simpl in na, HeqCONT.
            2: subst contents; elim n; apply Zlength_nil.
            subst na. simpl in *.
            inv HeqUPD. inv HeqAUSA. inv Heqq.
@@ -914,8 +914,8 @@ Opaque HMAC256_DRBG_generate_function.
        destruct Heqf as [Heqf1 Heqf2]. apply negb_true_iff in Heqf1. apply negb_true_iff in Heqf2.
        destruct (eq_dec additional nullval); try discriminate.
        destruct (eq_dec (Zlength contents) 0); try discriminate.
-       destruct (EqDec_val additional nullval). { subst additional. elim n; trivial. }
-       destruct (EqDec_Z (Zlength contents) 0); simpl in na. { lia. }
+       destruct (eq_dec additional nullval). { subst additional. elim n; trivial. }
+       destruct (eq_dec (Zlength contents) 0); simpl in na. { lia. }
        subst na. simpl in HeqAUSA.
        Exists (mc1, (mc2, mc3),
              (map Vubyte l0,
@@ -937,7 +937,7 @@ Opaque HMAC256_DRBG_generate_function.
          apply hmac_common_lemmas.HMAC_Zlength.
          apply hmac_common_lemmas.HMAC_Zlength. }
        unfold_data_at 1%nat. cancel.
-  - subst HLP MRES'.  
+  - subst HLP MRES'.
       remember  MGen as MGen'. subst MGen.
 Transparent mbedtls_HMAC256_DRBG_generate_function.
 Transparent HMAC256_DRBG_generate_function.
@@ -961,11 +961,11 @@ Opaque HMAC256_DRBG_generate_function.
              (Vfalse, Vint (Int.repr reseed_interval)))))).
         subst MGen'. subst Gen.
         unfold contents_with_add in HeqCONT.
-        destruct (eq_dec (Zlength contents) 0); simpl in HeqCONT. 
+        destruct (eq_dec (Zlength contents) 0); simpl in HeqCONT.
         ++ rewrite e0 in *. rewrite (Zlength_nil_inv _ e0) in *.
-           simpl in na. destruct (EqDec_Z (Zlength contents) 0); try solve [lia]; simpl in na.
-           subst na; rewrite andb_false_r in *. 
-           assert (F: (negb (EqDec_val additional nullval) &&
+           simpl in na. destruct (eq_dec (Zlength contents) 0); try solve [lia]; simpl in na.
+           subst na; rewrite andb_false_r in *.
+           assert (F: (negb (eq_dec additional nullval) &&
                             false)%bool = false).
            { rewrite andb_false_r. trivial. }
            subst after_update_state_abs; rewrite F in *.
@@ -977,12 +977,12 @@ Opaque HMAC256_DRBG_generate_function.
              apply hmac_common_lemmas.HMAC_Zlength. }
            rewrite <- Heqp, sublist_firstn; simpl. cancel.
            unfold_data_at 1%nat. cancel.
-        ++ destruct (EqDec_val additional nullval); simpl in na, HeqCONT.
+        ++ destruct (eq_dec additional nullval); simpl in na, HeqCONT.
            2: subst contents; elim n; apply Zlength_nil.
            subst na. simpl in *.
            inv HeqUPD. inv HeqAUSA. inv Heqq.
            apply andp_right. apply prop_right. repeat split; trivial.
-           rewrite hmac_common_lemmas.HMAC_Zlength. 
+           rewrite hmac_common_lemmas.HMAC_Zlength.
            entailer!.
            { destruct WFI as [WFI1 [WFI2 [WFI3 WFI4]]]. red in Hreseed_interval. red in WFI3; simpl in *; repeat split; simpl; trivial; try lia. 
              apply hmac_common_lemmas.HMAC_Zlength. }
@@ -994,8 +994,8 @@ Opaque HMAC256_DRBG_generate_function.
        destruct Heqf as [Heqf1 Heqf2]. apply negb_true_iff in Heqf1. apply negb_true_iff in Heqf2.
        destruct (eq_dec additional nullval); try discriminate.
        destruct (eq_dec (Zlength contents) 0); try discriminate.
-       destruct (EqDec_val additional nullval). { subst additional. elim n; trivial. }
-       destruct (EqDec_Z (Zlength contents) 0); simpl in na. { lia. }
+       destruct (eq_dec additional nullval). { subst additional. elim n; trivial. }
+       destruct (eq_dec (Zlength contents) 0); simpl in na. { lia. }
        subst na. simpl in HeqAUSA.
        Exists (mc1, (mc2, mc3),
              (map Vubyte l0,
@@ -1022,7 +1022,7 @@ Time Qed. (*laptop 11s, desktop25s*)
 Opaque mbedtls_HMAC256_DRBG_reseed_function.
 Opaque mbedtls_HMAC256_DRBG_generate_function.
 
-Lemma loopbody_explicit (StreamAdd:list mpred) : forall (Espec : OracleKind)
+Lemma loopbody_explicit (StreamAdd:list mpred) : forall Espec
 (contents : list byte)
 (additional : val)
 (add_len : Z)
@@ -1100,7 +1100,7 @@ Lemma loopbody_explicit (StreamAdd:list mpred) : forall (Espec : OracleKind)
 (WFI : drbg_protocol_specs.WF
         (HMAC256DRBGabs key V reseed_counter entropy_len
            prediction_resistance reseed_interval)),
-@semax hmac_drbg_compspecs.CompSpecs Espec
+semax(C := hmac_drbg_compspecs.CompSpecs)(OK_spec := Espec) ⊤
      (func_tycontext f_mbedtls_hmac_drbg_random_with_add HmacDrbgVarSpecs
         HmacDrbgFunSpecs nil)
   (PROP ( )
@@ -1682,7 +1682,7 @@ Time Qed. (*Coq8.10.1: 8.9s; was: 27s*)
 Opaque mbedtls_HMAC256_DRBG_generate_function.
 
 Lemma generate_loopbody: forall (StreamAdd: list mpred)
-(Espec : OracleKind)
+Espec
 (contents : list byte)
 (additional : val)
 (add_len : Z)
@@ -1750,7 +1750,7 @@ Lemma generate_loopbody: forall (StreamAdd: list mpred)
 (Hshc: writable_share shc)
 (H : 0 <= done <= out_len)
 (H0 : is_multiple done 32 \/ done = out_len),
-@semax hmac_drbg_compspecs.CompSpecs Espec
+semax(C := hmac_drbg_compspecs.CompSpecs)(OK_spec := Espec) ⊤
   (func_tycontext f_mbedtls_hmac_drbg_random_with_add HmacDrbgVarSpecs
         HmacDrbgFunSpecs nil)
   (PROP ( )

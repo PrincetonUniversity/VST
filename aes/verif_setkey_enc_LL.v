@@ -8,7 +8,7 @@ Require Import VST.floyd.Funspec_old_Notation.
 (* QQQ TODO does this already exist? Add to library? *)
 Ltac forward_if_diff add := match add with
 | (PROPx ?P2 (LOCALx ?Q2 (SEPx ?R2))) => match goal with
-  | |- semax ?Delta (PROPx ?P1 (LOCALx ?Q1 (SEPx ?R1))) _ _ =>
+  | |- semax _ ?Delta (PROPx ?P1 (LOCALx ?Q1 (SEPx ?R1))) _ _ =>
     let P3 := fresh "P3" in let Q3 := fresh "Q3" in let R3 := fresh "R3" in
     pose (P3 := P1 ++ P2); pose (Q3 := Q1 ++ Q2); pose (R3 := R1 ++ R2);
     simpl in P3, Q3, R3;
@@ -188,10 +188,10 @@ Proof.
   set (R:=(KeyExpansion2 (key_bytes_to_key_words key_chars))).
   forward.
   rewrite Vundef_is_Vint. cancel.
-  unfold_data_at (1%nat). rewrite <- sepcon_assoc.
-  apply sepcon_derives. cancel.
-  apply derives_refl'. subst R. Time (simpl; reflexivity). (*45s*)
-
+  unfold_data_at (1%nat).
+  f_equiv. f_equiv. subst R.
+  match goal with |-field_at _ _ _ ?a _ ⊢ field_at _ _ _ ?b _ => replace b with a; [auto|] end.
+  Time (simpl; reflexivity). (*45s*)
 
   Fail idtac.  (* make sure there are no subgoals *)
 (* Time Qed. takes forever, many minutes on a fast machine, then I gave up.  Appel, March 2018, Coq 8.7.2 *)

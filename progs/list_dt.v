@@ -1092,7 +1092,7 @@ Qed.
 
 Lemma list_append: forall {dsh psh: share}
   {ls : listspec list_structid list_link list_token} (hd mid tl:val) ct1 ct2 P,
-  (forall x tl', lseg_cell ls dsh psh x tl tl' * P tl |-- False) ->
+  (forall x tl', lseg_cell ls dsh psh x tl tl' * P tl |-- FF) ->
   (lseg ls dsh psh ct1 hd mid) * lseg ls dsh psh ct2 mid tl * P tl|--
   (lseg ls dsh psh (ct1 ++ ct2) hd tl) * P tl.
 Proof.
@@ -1571,7 +1571,7 @@ Qed.
 
 Lemma list_append: forall {sh: share}
   {ls : listspec list_structid list_link list_token} (hd mid tl:val) ct1 ct2 P,
-  (forall x tl', lseg_cell ls sh x tl tl' * P tl |-- False) ->
+  (forall x tl', lseg_cell ls sh x tl tl' * P tl |-- FF) ->
   (lseg ls sh ct1 hd mid) * lseg ls sh ct2 mid tl * P tl|--
   (lseg ls sh (ct1 ++ ct2) hd tl) * P tl.
 Proof.
@@ -1654,10 +1654,10 @@ Ltac resolve_lseg_valid_pointer :=
 match goal with
  | |- ?Q |-- valid_pointer ?p =>
    match Q with context [lseg ?A ?B ?C p ?q] =>
-   repeat rewrite bi.sep_assoc;
    pull_right (lseg A B C p q);
+   repeat rewrite sep_assoc;
    apply lseg_valid_pointer; [auto | reflexivity | ];
-   auto 50 with valid_pointer
+   auto 50 with nocore valid_pointer
    end
  end.
 
@@ -2242,7 +2242,7 @@ Qed.
 
 Lemma list_append: forall {dsh psh: share}
   {ls : listspec list_structid list_link list_token} (hd mid tl:val) ct1 ct2 P,
-  (forall tl', lseg_cell ls dsh psh (vund ls) tl tl' * P tl |-- False) ->
+  (forall tl', lseg_cell ls dsh psh (vund ls) tl tl' * P tl |-- FF) ->
   (lseg ls dsh psh ct1 hd mid) * lseg ls dsh psh ct2 mid tl * P tl|--
   (lseg ls dsh psh (ct1 ++ ct2) hd tl) * P tl.
 Proof.
@@ -2358,10 +2358,10 @@ Ltac resolve_lseg_valid_pointer :=
 match goal with
  | |- ?Q |-- valid_pointer ?p =>
    match Q with context [lseg ?A ?B ?C ?D p ?q] =>
-   repeat rewrite bi.sep_assoc;
    pull_right (lseg A B C D p q);
+   repeat rewrite sep_assoc;
    apply lseg_valid_pointer; [auto | | | reflexivity | ];
-   auto 50 with valid_pointer
+   auto 50 with nocore valid_pointer
    end
  end.
 
@@ -2373,11 +2373,11 @@ Ltac resolve_list_cell_valid_pointer :=
   match A with context [@list_cell ?cs ?sid ?lid ?tok ?LS ?dsh ?v p] =>
    match A with context [field_at ?psh ?t (StructField lid::nil) ?v' p] =>
     trans
-      (@list_cell cs sid lid tok LS dsh v p *
-      field_at_ psh t (StructField lid::nil) p * True);
+      ((@list_cell cs sid lid tok LS dsh v p *
+      field_at_ psh t (StructField lid::nil) p) * TT);
       [cancel
       | apply sepcon_valid_pointer1;
-        apply list_cell_valid_pointer; [auto | | reflexivity]; auto with valid_pointer]
+        apply list_cell_valid_pointer; [auto | | reflexivity]; auto with nocore valid_pointer]
    end
   end
  end.

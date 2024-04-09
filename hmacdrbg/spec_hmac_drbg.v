@@ -974,18 +974,14 @@ f_equiv. unfold hmac_init_funspec. simpl. unfold NDmk_funspec; f_equiv.
       intros rho; monPred.unseal.
       apply pred_ext; simpl; intros.
       * unfold argsassert2assert, local, lift1, liftx, lift; simpl. destruct rho as [g args]. simpl.
-        normalize. destruct args; [ inv H |]. destruct args; [ inv H |]. destruct args; [ inv H |].
-        destruct args; [ | inv H].
-        unfold env_set, eval_id in *.  simpl in *. subst. entailer!.
+        normalize. entailer!!.
       * unfold argsassert2assert, local, lift1, liftx, lift; simpl. destruct rho as [g args]. simpl.
         normalize. entailer!.
     - unfold convertPre, convertPre'. simpl. unfold PROPx, LAMBDAx, GLOBALSx, LOCALx, SEPx.
       intros rho; monPred.unseal. change_compspecs CompSpecs.
       apply pred_ext; simpl; intros.
       * unfold argsassert2assert, local, lift1, liftx, lift; simpl. destruct rho as [g args]. simpl.
-        normalize. destruct args; [ inv H |]. destruct args; [ inv H |]. destruct args; [ inv H |].
-        destruct args; [ | inv H].
-        unfold env_set, eval_id in *.  simpl in *. subst. entailer!.
+        normalize. entailer!!.
       * unfold argsassert2assert, local, lift1, liftx, lift; simpl. destruct rho as [g args]. simpl.
         normalize. entailer!.
   + intros x.

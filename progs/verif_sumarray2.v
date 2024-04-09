@@ -35,7 +35,7 @@ Definition main_spec :=
   POST [ tint ]
      PROP() 
      RETURN (Vint (Int.repr (3+4))) 
-     SEP(True).
+     SEP(TT).
 
 (* Packaging the API spec all together. *)
 Definition Gprog : funspecs :=

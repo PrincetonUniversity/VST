@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat.
 Import ListNotations.
 
 Require Import sha.general_lemmas.
@@ -22,7 +23,7 @@ Proof. extensionality l. induction l; auto. Qed.
 
 
 Lemma FRZL_ax' ps: FRZL ps ⊣⊢ my_fold_right bi_sep emp ps.
-Proof. rewrite FRZL_ax. rewrite my_fold_right_eq. trivial. Qed.
+Proof. rewrite FRZL_ax. rewrite my_fold_right_eq. rewrite fold_right_sepcon_eq. trivial. Qed.
 
 (*Tactic requires the resulting goal to be normalized manually.*)
 Ltac my_thaw' name :=
@@ -64,7 +65,7 @@ Lemma reseed_REST: forall Espec (contents : list byte) additional (sha: share) a
   (Heqentropy_result : ENTROPY.success entropy_bytes s0 = ENTROPY.get_bytes (Z.to_nat entropy_len) s)
   (Hsha: readable_share sha)
   (Hshc: writable_share shc),
-semax(cs := hmac_drbg_compspecs.CompSpecs)(OK_spec := Espec) ⊤
+semax(C := hmac_drbg_compspecs.CompSpecs)(OK_spec := Espec) ⊤
   (func_tycontext f_mbedtls_hmac_drbg_reseed HmacDrbgVarSpecs
         HmacDrbgFunSpecs nil)
   (PROP ( )
@@ -149,8 +150,7 @@ Proof.
          ((map Vubyte entropy_bytes) ++ (repeat (Vint Int.zero) (Z.to_nat (384 - entropy_len)))) seed).
   {
     entailer!. thaw SEED; clear FR6. (*subst entropy_len.*) rewrite ?sepcon_emp.
-    apply derives_refl'. symmetry.
-    apply data_at_complete_split; repeat rewrite Zlength_map;
+    erewrite <- data_at_complete_split; eauto; repeat rewrite Zlength_map;
     try rewrite (*Hentropy_bytes_length,*) Zlength_repeat; try rewrite Zplus_minus; trivial; lia.
   }
 
@@ -213,14 +213,14 @@ Proof.
     rewrite da_emp_ptr. Intros. rename H into addlen_pos.
     assert (contents' = contents).
     { subst contents'. unfold contents_with_add. simpl.
-        destruct (EqDec_Z add_len 0). lia. reflexivity. }
+        destruct (eq_dec add_len 0). lia. reflexivity. }
     clear Heqcontents'; subst contents'. clear ZLc'.
     replace_SEP 0 ((data_at Tsh (tarray tuchar entropy_len)
          (map Vubyte entropy_bytes) seed) * (data_at Tsh (tarray tuchar (384 - entropy_len))
          (repeat (Vint Int.zero) (Z.to_nat (384 - entropy_len))) (offset_val entropy_len seed))).
     {
       entailer!.
-      apply derives_refl'; apply data_at_complete_split; trivial; try lia.
+      erewrite data_at_complete_split; trivial; try lia.
       rewrite Zlength_app in H0; rewrite H0; trivial.
       repeat rewrite Zlength_map; trivial.
       rewrite Zlength_repeat; lia.
@@ -240,8 +240,7 @@ Proof.
       remember (Vptr b (Ptrofs.add i (Ptrofs.repr entropy_len))) as seed'.
       clear Heqseed'.
       (*entailer!*) go_lower.
-      apply derives_refl'.
-      apply data_at_complete_split; try rewrite Zlength_repeat; try lia; auto.
+      erewrite data_at_complete_split; eauto; try rewrite Zlength_repeat; try lia; auto.
       + rewrite Zlength_repeat.
         replace (Zlength contents + (384 - entropy_len - Zlength contents)) with (384 - entropy_len); trivial; lia.
         lia.
@@ -325,7 +324,7 @@ Proof.
     { subst contents'. unfold contents_with_add.
       destruct (eq_dec add_len 0); simpl in *.
       + rewrite e in *. rewrite andb_false_r; trivial.
-      + destruct (EqDec_val additional nullval); simpl in *; trivial; discriminate. }
+      + destruct (eq_dec additional nullval); simpl in *; trivial; discriminate. }
     clear Heqcontents'; subst contents'.
     rewrite Zlength_nil, Zplus_0_r.
     apply andp_right.
@@ -345,8 +344,7 @@ Proof.
     rewrite app_assoc.
     entailer!.
     autorewrite with sublist in H0.
-    apply derives_refl'.
-    apply data_at_complete_split; try list_solve.
+    erewrite data_at_complete_split; eauto; try list_solve.
   }
   flatten_sepcon_in_SEP.
 
@@ -399,7 +397,7 @@ Proof.
     entailer!.
     destruct seed; simpl in Pseed; try contradiction.
     rewrite da_emp_ptr. Intros.
-    apply derives_refl'; symmetry; apply data_at_complete_split;
+    erewrite <- data_at_complete_split; eauto;
      repeat rewrite Zlength_repeat; try lia; auto; try rewrite Zlength_app;
      try rewrite ZLbytes; repeat rewrite Zlength_map; auto.
      replace (Zlength entropy_bytes + Zlength contents' +
@@ -458,7 +456,7 @@ Proof.
   unfold HMAC256_DRBG_functional_prog.HMAC256_DRBG_update in Heqp.
   destruct seed; simpl in Pseed; try contradiction.
   unfold contents_with_add in Heqp at 1. simpl in Heqp.
-  destruct (EqDec_Z (Zlength entropy_bytes +
+  destruct (eq_dec (Zlength entropy_bytes +
                  Zlength (contents_with_add additional (Zlength contents) contents)) 0); simpl in Heqp.
   specialize (Zlength_nonneg (contents_with_add additional (Zlength contents) contents)).
   intros; lia.

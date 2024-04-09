@@ -987,7 +987,7 @@ thaw' i;
 let x := fresh "x" in let y := fresh "y" in let a := fresh "a" in 
 match goal with |- context [fold_right_sepcon (map ?F ?A)] =>
   set (x:= fold_right_sepcon (map F A));
-  set (y := F) in *; 
+  set (y := F) in *;
   simpl in x
 end;
 pattern x;
