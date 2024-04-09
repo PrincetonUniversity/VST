@@ -71,13 +71,13 @@ unfold globals_of_env.
 rewrite Heqo0 H1 H2 //.
 Qed.
 
-Lemma init_data_tarray_tuchar: (* move this to vst/floyd/globals_lemmas.v *)
+Lemma init_data_tarray_tuchar:
   forall {cs : compspecs} sh (gv : globals) (b : block) (xs : list int) (i : ptrofs),
   Ptrofs.unsigned i + Zlength xs < Ptrofs.modulus ->
   Forall (fun a => Int.unsigned a <= Byte.max_unsigned) xs ->
   init_data_list2pred gv (map Init_int8 xs) sh (Vptr b i)
-  |-- data_at sh (tarray tuchar (Zlength xs)) (map Vint xs) (Vptr b i).
-Proof. 
+  ⊢ data_at sh (tarray tuchar (Zlength xs)) (map Vint xs) (Vptr b i).
+Proof.
   intros.
   replace xs with (map (Int.zero_ext 8) xs). 
   2:{
@@ -96,29 +96,29 @@ Proof.
             (sublist 0 1 (Vint (Int.zero_ext 8 a) :: map Vint (map (Int.zero_ext 8) xs)))
             (sublist 1 (Zlength (Int.zero_ext 8 a :: xs)) (Vint (Int.zero_ext 8 a) :: map Vint (map (Int.zero_ext 8) xs))) (Vptr b i)); try list_solve.
 
-   apply sepcon_derives.
-   + fold tuchar. 
-     rewrite (data_at_singleton_array_eq sh tuchar (Vint (Int.zero_ext 8 a)))
+   apply bi.sep_mono.
+   + fold tuchar.
+     rewrite -> (data_at_singleton_array_eq sh tuchar (Vint (Int.zero_ext 8 a)))
        by trivial.
-     erewrite mapsto_data_at'; auto; trivial.
-     rewrite Int.zero_ext_idem by lia. auto.
-     red; simpl; intuition auto with *.
+     erewrite mapsto_data_at'; [|auto..].
+     rewrite -> Int.zero_ext_idem by lia. auto.
+     red; simpl; intuition auto. lia.
      econstructor. reflexivity. simpl; trivial. apply Z.divide_1_l.
-   + eapply derives_trans. apply IHxs; clear IHxs.
+   + etrans. apply IHxs; clear IHxs.
      * rewrite ! Ptrofs.unsigned_repr; try rep_lia.
      * rewrite Zlength_cons.
        unfold Z.succ. rewrite Z.add_simpl_r. autorewrite with sublist.
-       rewrite sublist_1_cons by lia.
-       rewrite sublist_same by list_solve.
-       apply derives_refl'. f_equal.
+       rewrite -> sublist_1_cons by lia.
+       rewrite -> sublist_same by list_solve.
+       f_equiv.
        unfold field_address0. rewrite if_true; simpl; trivial.
-       red; intuition auto with *.
+       red; intuition auto with field_compatible.
        -- reflexivity.
-       -- red. rewrite sizeof_Tarray, Z.max_r. simpl sizeof; rep_lia. list_solve.
+       -- red. rewrite sizeof_Tarray Z.max_r. simpl sizeof; rep_lia. list_solve.
        -- eapply align_compatible_rec_Tarray; intros.
           econstructor. reflexivity.
           simpl. apply Z.divide_1_l.
-Qed. 
+Qed.
 
 
 
@@ -1127,18 +1127,18 @@ Definition init_data2byte (d: init_data) : byte :=
 Import ListNotations.
 
 (* The following lemma is not yet made use of by the tactics *)
-Lemma globvar2pred_cstring: (* move this to vst/floyd/globals_lemmas.v *)
- forall {cs: compspecs} gv i v,
+Lemma globvar2pred_cstring:
+ forall gv i v,
   headptr (gv i) ->
   0 < Zlength (gvar_init v) < Ptrofs.modulus ->
   Znth (Zlength (gvar_init v)-1) (gvar_init v) = Init_int8 Int.zero ->
   gvar_volatile v = false ->
   forallb ok_initbyte (sublist 0 (Zlength (gvar_init v)-1) (gvar_init v)) = true ->
   gvar_info v = tarray tschar (Zlength (gvar_init v)) ->
-  (globvar2pred gv (i, v) |--
+  (globvar2pred gv (i, v) ⊢
   cstring (readonly2share (gvar_readonly v)) (map init_data2byte (sublist 0 (Zlength (gvar_init v)-1) (gvar_init v))) (gv i)).
 Proof.
-intros cs gv i v HEAD BOUND ZERO; intros.
+intros gv i v HEAD BOUND ZERO; intros.
 destruct HEAD as [b ?].
 destruct v;
 unfold globvar2pred; simpl in *.
@@ -1164,7 +1164,7 @@ assert (exists al, map Init_int8 al = bl
   apply negb_true_iff, Z.eqb_neq in H. 
   apply Z.leb_le in H0. apply Z.ltb_lt in H2.
   assert (Byte.signed (Byte.repr j) = Byte.signed (Byte.zero)) by congruence.
-  rewrite Byte.signed_repr in H3 by rep_lia. contradiction.
+  rewrite -> Byte.signed_repr in H3 by rep_lia. contradiction.
 }
 rewrite H2.
 destruct H as [al [H3 H3']].
@@ -1173,7 +1173,7 @@ replace bl0 with (map Init_int8 (al ++ [Int.zero])).
  2:{ rewrite map_app. rewrite H3.
       simpl map. rewrite <- ZERO. list_solve.
 }
-eapply derives_trans.
+etrans.
 apply init_data_tarray_tuchar.
 list_solve.
 { rewrite <- H3 in H0. clear - H0.
@@ -1188,12 +1188,12 @@ list_solve.
 }
 unfold cstring.
 rewrite data_at_tarray_tschar_tuchar.
-apply andp_right.
-apply prop_right.
+apply bi.and_intro.
+apply bi.pure_intro.
 replace (map _ _) with (map (Byte.repr oo Int.intval) al); auto.
 autorewrite with sublist. rewrite sublist_map.
-rewrite sublist_app1 by rep_lia.
-rewrite sublist_same by lia.
+rewrite -> sublist_app1 by rep_lia.
+rewrite -> sublist_same by lia.
 clear.
 induction al; simpl; auto. f_equal; auto.
 rewrite !Zlength_map.
@@ -1206,13 +1206,12 @@ assert (map Vubyte (map init_data2byte (map Init_int8 al)) = map Vint al). {
   f_equal; auto.
   apply Z.leb_le in H0. apply Z.ltb_lt in H1.
   unfold Vubyte. f_equal.
-  rewrite Byte.unsigned_repr by rep_lia.
+  rewrite -> Byte.unsigned_repr by rep_lia.
   change (Int.intval a) with (Int.unsigned a).
   rewrite Int.repr_unsigned. auto.
 }
 autorewrite with sublist.
-apply derives_refl'.
-f_equal.
+f_equiv.
 rewrite sublist_map.
 autorewrite with sublist.
 rewrite !map_app.

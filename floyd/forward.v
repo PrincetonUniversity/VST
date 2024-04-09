@@ -3468,8 +3468,8 @@ Proof.
     go_lowerx.
     apply bi.sep_mono; auto.
     subst.
-    rewrite var_block_data_at_ //. 
-    unfold is_aligned, is_aligned_aux. destruct H4. rewrite H4. auto.
+    rewrite var_block_data_at_ //.
+    unfold is_aligned, is_aligned_aux. destruct H4 as [-> ->]. auto.
     auto.
 Qed.
 

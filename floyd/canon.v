@@ -1793,6 +1793,14 @@ Proof.
   unfold PROPx, LOCALx, SEPx; monPred.unseal; reflexivity.
 Qed.
 
+Lemma bind_ret_exist : forall {A} (P : A -> assert), bind_ret(Σ := Σ) None tvoid (∃ x : A, P x) = ∃ x : A, bind_ret None tvoid (P x).
+Proof.
+  intros.
+  unfold bind_ret; simpl.
+  apply assert_ext; intros.
+  unfold PROPx, LOCALx, SEPx; monPred.unseal; reflexivity.
+Qed.
+
 End mpred.
 
 #[export] Hint Rewrite @insert_local :  norm2.
@@ -2142,5 +2150,5 @@ Ltac simpl_ret_assert ::=
   try (match goal with
       | |- context[bind_ret None tvoid ?P] =>
         (*assert (bind_ret None tvoid P = P) as -> by (unfold PROPx, LOCALx, SEPx; apply assert_ext; intros; unfold bind_ret; cbv delta [tvoid] match beta; rewrite ?monPred_at_assert_of; try reflexivity; try monPred.unseal; done)*)
-        rewrite bind_ret_noret
+        rewrite ?bind_ret_exist bind_ret_noret
       end).
