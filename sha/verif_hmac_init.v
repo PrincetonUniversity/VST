@@ -273,6 +273,7 @@ forward_if (EX shaStates:_ ,
     { (*opad loop*)
       eapply semax_pre.
       2: apply (opadloop Espec _ pb pofs cb cofs ckb ckoff kb kofs l wsh key gv (FRZL FR4) Hwsh IPADcont) with (ipadSHAabs:=ipadSHAabs); try reflexivity; subst ipadSHAabs; try assumption.
+      change_compspecs CompSpecs.
       entailer!.
     }
 

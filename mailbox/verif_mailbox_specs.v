@@ -8,6 +8,13 @@ Require Import mailbox.mailbox.
 
 (* standard VST prelude *)
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+#[export] Instance CompSpecs_Preserve: change_composite_env verif_atomic_exchange.CompSpecs CompSpecs.
+  make_cs_preserve verif_atomic_exchange.CompSpecs CompSpecs.
+Defined.
+#[export] Instance CompSpecs_Preserve': change_composite_env CompSpecs verif_atomic_exchange.CompSpecs.
+  make_cs_preserve CompSpecs verif_atomic_exchange.CompSpecs.
+Defined.
+
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Definition t_atom_int := Tstruct _atom_int noattr.
