@@ -24,7 +24,7 @@ lazymatch goal with
     remember_temp_Vints ((temp Id (Vint V0)) :: done)
   | _ => remember_temp_Vints (T :: done)
   end
-| |- semax _ (PROPx _ (LOCALx done (SEPx _))) _ _ => idtac
+| |- semax _ _ (PROPx _ (LOCALx done (SEPx _))) _ _ => idtac
 | _ => fail 100 "assertion failure: did not find" done
 end.
 

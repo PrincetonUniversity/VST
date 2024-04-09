@@ -1,11 +1,9 @@
 Require Import VST.floyd.proofauto.
-Local Open Scope logic.
 Require Import Coq.Lists.List. Import ListNotations.
 Require Import sha.general_lemmas.
 
 Require Import tweetnacl20140427.split_array_lemmas.
 Require Import ZArith.
-Local Open Scope Z. 
 Require Import tweetnacl20140427.tweetNaclBase.
 Require Import tweetnacl20140427.Salsa20.
 Require Import tweetnacl20140427.verif_salsa_base.
@@ -167,38 +165,41 @@ Proof. intros H; symmetry in H.
   apply combinelist_length in H. rewrite Zlength_correct, H. rewrite Zlength_correct; reflexivity.
 Qed. 
 
+Lemma Tarray_0_emp_iff sh c: field_compatible (Tarray tuchar 0 noattr) [] c ->
+  data_at sh (Tarray tuchar 0 noattr) nil c = emp.
+Proof.
+  intros. unfold data_at, field_at, at_offset. rewrite prop_true_andp by auto.
+  rewrite data_at_rec_eq; simpl.
+  unfold array_pred, unfold_reptype, aggregate_pred.array_pred; simpl.
+  rewrite prop_true_andp by auto; reflexivity.
+Qed.
 Lemma Tarray_0_emp sh v c: data_at sh (Tarray tuchar 0 noattr) v c |--  emp.
 Proof.
   unfold data_at. unfold field_at, data_at_rec, at_offset; simpl.
   unfold array_pred, unfold_reptype, aggregate_pred.array_pred. entailer.
-Qed. 
+Qed.
 Lemma Tarray_0_emp' sh c: field_compatible (Tarray tuchar 0 noattr) nil c ->
   emp |-- data_at sh (Tarray tuchar 0 noattr) nil c.
-Proof. intros.
-  unfold data_at. unfold field_at, data_at_rec, at_offset; simpl.
-  unfold array_pred, unfold_reptype, aggregate_pred.array_pred. simpl.
-  entailer.
-Qed. 
-Lemma Tarray_0_emp_iff sh c: field_compatible (Tarray tuchar 0 noattr) [] c ->
-  data_at sh (Tarray tuchar 0 noattr) nil c = emp.
-Proof. intros. apply pred_ext. apply Tarray_0_emp. apply Tarray_0_emp'; trivial.
+Proof.
+  intros; rewrite Tarray_0_emp_iff; auto.
 Qed.
 
-Lemma Tarray_0_emp_ sh c: data_at_ sh (Tarray tuchar 0 noattr) c |--  emp.
-Proof.
-  unfold data_at_. unfold field_at_, field_at, data_at_rec, at_offset; simpl.
-  unfold array_pred, unfold_reptype, aggregate_pred.array_pred. entailer.
-Qed. 
-Lemma Tarray_0_emp'_ sh c: field_compatible (Tarray tuchar 0 noattr) nil c ->
-  emp |-- data_at_ sh (Tarray tuchar 0 noattr) c.
-Proof. intros.
-  unfold data_at_, field_at_, field_at, data_at_rec, at_offset; simpl.
-  unfold array_pred, unfold_reptype, aggregate_pred.array_pred. simpl.
-  entailer.
-Qed. 
 Lemma Tarray_0_emp_iff_ sh c: field_compatible (Tarray tuchar 0 noattr) [] c ->
   data_at_ sh (Tarray tuchar 0 noattr) c = emp.
-Proof. intros. apply pred_ext. apply Tarray_0_emp_. apply Tarray_0_emp'_; trivial.
+Proof.
+  intros. unfold data_at_, field_at_, field_at, at_offset. rewrite prop_true_andp by auto.
+  rewrite data_at_rec_eq; simpl.
+  unfold array_pred, unfold_reptype, aggregate_pred.array_pred; simpl.
+  rewrite prop_true_andp by auto; reflexivity.
+Qed.
+Lemma Tarray_0_emp_ sh c: data_at_ sh (Tarray tuchar 0 noattr) c |--  emp.
+Proof.
+  saturate_local. rewrite Tarray_0_emp_iff_; auto.
+Qed.
+Lemma Tarray_0_emp'_ sh c: field_compatible (Tarray tuchar 0 noattr) nil c ->
+  emp |-- data_at_ sh (Tarray tuchar 0 noattr) c.
+Proof.
+  intros; rewrite Tarray_0_emp_iff_; auto.
 Qed.
 
 Lemma bxorlist_app xs2 ys2: forall xs1 ys1 zs1 zs2,
@@ -242,7 +243,7 @@ Proof. induction n; simpl; intros.
   destruct (Byte.unsigned_range_2 b). 
   rewrite Int.shru_div_two_p. rewrite (Int.unsigned_repr 8) by rep_lia.
   assert (B3: 0 <= Int.unsigned i + Byte.unsigned b <= Int.max_unsigned).
-    split. lia. rep_lia. 
+    split. lia. rep_lia.
   assert (0 <= (Int.unsigned i + Byte.unsigned b) / two_p 8 < 256).
     split. apply Z_div_pos. cbv; trivial. lia.
     apply Zdiv_lt_upper_bound. cbv; trivial. lia. 
@@ -250,7 +251,7 @@ Proof. induction n; simpl; intros.
 Qed.
 
 
-Definition i_8_16_inv F x z c b m k zbytes gv: environ -> mpred := 
+Definition i_8_16_inv F x z c b m k zbytes gv: assert := 
 EX i:_,
   (PROP  ()
    LOCAL  (temp _u (Vint (fst (ZZ zbytes (Z.to_nat (i-8)))));
@@ -259,7 +260,7 @@ EX i:_,
      temp _b b; temp _k k; gvars gv)
    SEP  (F; data_at Tsh (Tarray tuchar 16 noattr) (Bl2VL (snd (ZZ zbytes (Z.to_nat (i-8))))) z)).
 
-Definition for_loop_statement:=
+Definition for_loop_statement :=
 Sfor (Sset _i (Econst_int (Int.repr 8) tint))
      (Ebinop Olt (Etempvar _i tuint) (Econst_int (Int.repr 16) tint) tint)
      (Ssequence
@@ -283,8 +284,8 @@ Sfor (Sset _i (Econst_int (Int.repr 8) tint))
      (Sset _i
         (Ebinop Oadd (Etempvar _i tuint) (Econst_int (Int.repr 1) tint) tuint)).
 
-Lemma For_i_8_16_loop Espec F x z c m b k zbytes gv:
-@semax CompSpecs Espec 
+Lemma For_i_8_16_loop Espec E F x z c m b k zbytes gv:
+semax(C := CompSpecs)(OK_spec := Espec) E
   (func_tycontext f_crypto_stream_salsa20_tweet_xor SalsaVarSpecs SalsaFunSpecs nil)
   (PROP  ()
    LOCAL  (temp _u (Vint (Int.repr 1)); lvar _x (Tarray tuchar 64 noattr) x;
@@ -293,11 +294,11 @@ Lemma For_i_8_16_loop Espec F x z c m b k zbytes gv:
    SEP  (F; data_at Tsh (Tarray tuchar 16 noattr) (Bl2VL zbytes) z))
  for_loop_statement
  (normal_ret_assert 
-  ( PROP ()
-    LOCAL (lvar _x (Tarray tuchar 64 noattr) x;
-           lvar _z (Tarray tuchar 16 noattr) z; temp _c c; temp _m m;
-           temp _b b; temp _k k; gvars gv)
-    SEP (F; data_at Tsh (Tarray tuchar 16 noattr) (Bl2VL (snd (ZZ zbytes 8))) z))).
+  (PROP ()
+   LOCAL (lvar _x (Tarray tuchar 64 noattr) x;
+          lvar _z (Tarray tuchar 16 noattr) z; temp _c c; temp _m m;
+          temp _b b; temp _k k; gvars gv)
+   SEP (F; data_at Tsh (Tarray tuchar 16 noattr) (Bl2VL (snd (ZZ zbytes 8))) z))).
 Proof.
 unfold for_loop_statement.
 forward_for_simple_bound 16 (i_8_16_inv F x z c b m k zbytes gv).
@@ -328,7 +329,7 @@ forward_for_simple_bound 16 (i_8_16_inv F x z c b m k zbytes gv).
      rewrite W. f_equal.
      unfold Int.add. rewrite Int_unsigned_repr_byte. trivial.
 
-  apply derives_refl'. f_equal.
+  f_equiv.
   clear H2. unfold Bl2VL.
   rewrite Q; simpl; rewrite <- HeqX.
   rewrite upd_Znth_map. f_equal. simpl.
@@ -349,7 +350,7 @@ Opaque ZZ.
 entailer!!.
 Qed.
 
-Definition null_or_offset x q y :=
+Definition null_or_offset x q y : Prop :=
 match x with 
   Vint i => i=Int.zero /\ y=nullval
 | Vptr _ _ => y=offset_val q x
@@ -416,10 +417,10 @@ Sfor (Sset _i (Econst_int (Int.repr 0) tint))
      (Sset _i
         (Ebinop Oadd (Etempvar _i tuint) (Econst_int (Int.repr 1) tint) tuint)).
 
-Lemma loop1 Espec F x z c mInit b k m xbytes mbytes gv cLen 
+Lemma loop1 Espec E F x z c mInit b k m xbytes mbytes gv cLen 
       q (M: null_or_offset mInit q m)
       (Q: 0 <= q <= (Zlength mbytes) - 64) (CL: 64 <= cLen):
-@semax CompSpecs Espec 
+semax(C := CompSpecs)(OK_spec := Espec) E
   (func_tycontext f_crypto_stream_salsa20_tweet_xor SalsaVarSpecs SalsaFunSpecs nil)
   (PROP  ()
    LOCAL  (lvar _x (Tarray tuchar 64 noattr) x;
@@ -447,7 +448,7 @@ loop1_statement
             (Bl2VL l ++ repeat Vundef (Z.to_nat (cLen - 64))) c))).
 Proof. intros.
 Intros.
-unfold loop1_statement.       
+unfold loop1_statement.
 forward_for_simple_bound 64 (EX i:Z, 
   (PROP  ()
    LOCAL  (lvar _x (Tarray tuchar 64 noattr) x;
@@ -484,7 +485,7 @@ rename H into I.
         eapply derives_trans. apply memory_block_valid_pointer.
         3: apply derives_refl.
         simpl. rewrite Z.max_r. lia. apply Zlength_nonneg.
-        apply top_share_nonidentity.
+        auto.
     + apply valid_pointer_null. }
   { unfold Bl2VL in *.
     destruct mInit; simpl in *; try contradiction.
@@ -500,8 +501,7 @@ rename H into I.
     2:{ elim n; clear n. apply field_compatible0_cons. simpl. split; trivial. lia. }
     assert (X: 0 + 1 * q = q) by lia. rewrite X; clear X. 
     forward; unfold Bl2VL; autorewrite with sublist. 
-    + entailer!!. 
-        apply Byte.unsigned_range_2.
+    + entailer!!.
     + forward. erewrite (split2_data_at_Tarray_tuchar _ (Zlength mbytes) q).
       2: lia. 2: unfold Bl2VL; repeat rewrite Zlength_map; trivial. 
       unfold field_address0. entailer!. simpl.
@@ -544,7 +544,7 @@ rename H into I.
     + apply prop_right. 
       eapply (bxorlist_snoc mInit q m mybyte l); trivial; lia.
     + autorewrite with sublist.
-      apply derives_refl'. f_equal. unfold Bl2VL. subst mybyte. clear.
+       f_equiv. unfold Bl2VL. subst mybyte. clear.
       repeat rewrite map_app. rewrite <- app_assoc. f_equal. simpl.
       f_equal.
       repeat rewrite zero_ext_inrange; try rewrite xor_byte_int; try rewrite Int.unsigned_repr; trivial;
@@ -553,11 +553,11 @@ rename H into I.
       assert (X:cLen - Zlength l - 1 = cLen - (Zlength l + 1)) by lia.
       rewrite X; trivial.
   }
-apply andp_left2. apply derives_refl.
+apply andp_left2.
 Qed.
 
-Definition loop2Inv F x z c mInit m b k gv q xbytes mbytes cLen: environ -> mpred:=
-EX i:Z, 
+Definition loop2Inv F x z c mInit m b k gv q xbytes mbytes cLen: assert :=
+EX i:Z,
   (PROP  ()
    LOCAL  (lvar _x (Tarray tuchar 64 noattr) x;
    lvar _z (Tarray tuchar 16 noattr) z; temp _c c; temp _m m;
@@ -572,7 +572,7 @@ EX i:Z,
          && data_at Tsh (Tarray tuchar cLen noattr)
                         (Bl2VL l ++ repeat Vundef (Z.to_nat (cLen - i))) c)).
 
-Definition loop2_statement:=
+Definition loop2_statement :=
 Sfor (Sset _i (Econst_int (Int.repr 0) tint))
      (Ebinop Olt (Etempvar _i tuint) (Etempvar _b tulong) tint)
      (Ssequence
@@ -597,10 +597,10 @@ Sfor (Sset _i (Econst_int (Int.repr 0) tint))
      (Sset _i
         (Ebinop Oadd (Etempvar _i tuint) (Econst_int (Int.repr 1) tint) tuint)).
 
-Lemma loop2 Espec F x z c mInit m b k xbytes mbytes gv
+Lemma loop2 Espec E F x z c mInit m b k xbytes mbytes gv
       q (M: null_or_offset mInit q m) (Q: 0 <= q) (QB: q+Int64.unsigned b = Zlength mbytes) (*(CL: 64 > cLen) *) (*should be b <= cLen or so?*)
       (B: Int64.unsigned b < 64):
-@semax CompSpecs Espec
+semax(C := CompSpecs)(OK_spec := Espec) E
   (func_tycontext f_crypto_stream_salsa20_tweet_xor SalsaVarSpecs SalsaFunSpecs nil)
   (PROP  ()
    LOCAL  (lvar _x (Tarray tuchar 64 noattr) x;
@@ -654,7 +654,7 @@ forward_for_simple_bound (Int64.unsigned b)
         eapply derives_trans. apply memory_block_valid_pointer.
         3: apply derives_refl.
         simpl. rewrite Z.max_r. lia. apply Zlength_nonneg.
-        apply top_share_nonidentity.
+        auto.
     + apply valid_pointer_null. }
   { unfold Bl2VL in *.
     destruct mInit; try contradiction; simpl in M. 
@@ -670,8 +670,7 @@ forward_for_simple_bound (Int64.unsigned b)
     2:{ elim n; clear n. apply field_compatible0_cons. simpl. split; trivial. lia. }
     assert (X: 0 + 1 * q = q) by lia. rewrite X; clear X.
     forward; unfold Bl2VL; autorewrite with sublist.
-    { entailer!!.
-      apply Byte.unsigned_range_2.  }
+    { entailer!!. }
     forward. entailer!!.
     erewrite (split2_data_at_Tarray_tuchar _ (Zlength mbytes) q).
       2: lia. 2: unfold Bl2VL; repeat rewrite Zlength_map; trivial. 
@@ -715,7 +714,7 @@ forward_for_simple_bound (Int64.unsigned b)
     - apply prop_right. 
       eapply (bxorlist_snoc mInit q m mybyte l); trivial; lia.
     - autorewrite with sublist.
-      apply derives_refl'. f_equal. unfold Bl2VL. subst mybyte. clear.
+      f_equiv. unfold Bl2VL. subst mybyte. clear.
       repeat rewrite map_app. rewrite <- app_assoc. f_equal. simpl.
       f_equal.
       repeat rewrite zero_ext_inrange; try rewrite xor_byte_int; try rewrite Int.unsigned_repr; trivial;

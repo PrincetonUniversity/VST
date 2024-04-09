@@ -6,7 +6,7 @@ Require Import hmacdrbg.HMAC256_DRBG_functional_prog.
 Require Import hmacdrbg.DRBG_functions.
 Require Import hmacdrbg.HMAC_DRBG_algorithms.
 Require Import hmacdrbg.entropy.
-Require Import sha.protocol_spec_hmac. 
+Require Import sha.protocol_spec_hmac.
 Require Import sha.vst_lemmas.
 Require Import sha.HMAC256_functional_prog.
 
@@ -967,30 +967,31 @@ Lemma hmac_init_merge:
                  _ _ _ _ _ (snd UNDER_SPEC.hmac_starts_spec) (eq_refl _))
       (Some hmac_init_funspec).
 Proof. unfold ndfs_merge. simpl. rewrite if_true by trivial.
-f_equiv. unfold hmac_init_funspec. simpl.
-  f_equiv.
-  + extensionality x.
+f_equiv. unfold hmac_init_funspec. simpl. unfold NDmk_funspec; f_equiv.
+  + intros x.
     destruct x as [[[[[c sh] l] key] gv] | [[[[[[[c sh] l] key] b] i] shk] gv]].
-    - unfold convertPre. simpl. unfold PROPx, LAMBDAx, GLOBALSx, LOCALx, SEPx.
+    - unfold convertPre, convertPre'. simpl. unfold PROPx, LAMBDAx, GLOBALSx, LOCALx, SEPx.
+      intros rho; monPred.unseal.
       apply pred_ext; simpl; intros.
-      * unfold argsassert2assert, local, lift1, liftx, lift; simpl. destruct x as [g args]. simpl.
+      * unfold argsassert2assert, local, lift1, liftx, lift; simpl. destruct rho as [g args]. simpl.
         normalize. destruct args; [ inv H |]. destruct args; [ inv H |]. destruct args; [ inv H |].
-        destruct args; [ | inv H]. 
+        destruct args; [ | inv H].
         unfold env_set, eval_id in *.  simpl in *. subst. entailer!.
-      * unfold argsassert2assert, local, lift1, liftx, lift; simpl. destruct x as [g args]. simpl.
-        normalize. entailer!.  discriminate. 
-    - unfold convertPre. simpl. unfold PROPx, LAMBDAx, GLOBALSx, LOCALx, SEPx. change_compspecs CompSepcs.
-      apply pred_ext; simpl; intros.
-      * unfold argsassert2assert, local, lift1, liftx, lift; simpl. destruct x as [g args]. simpl.
-        normalize. destruct args; [ inv H |]. destruct args; [ inv H |]. destruct args; [ inv H |].
-        destruct args; [ | inv H]. 
-        unfold env_set, eval_id in *.  simpl in *. subst. entailer!.
-      * unfold argsassert2assert, local, lift1, liftx, lift; simpl. destruct x as [g args]. simpl.
+      * unfold argsassert2assert, local, lift1, liftx, lift; simpl. destruct rho as [g args]. simpl.
         normalize. entailer!.
-  + extensionality ts x.
+    - unfold convertPre, convertPre'. simpl. unfold PROPx, LAMBDAx, GLOBALSx, LOCALx, SEPx.
+      intros rho; monPred.unseal. change_compspecs CompSpecs.
+      apply pred_ext; simpl; intros.
+      * unfold argsassert2assert, local, lift1, liftx, lift; simpl. destruct rho as [g args]. simpl.
+        normalize. destruct args; [ inv H |]. destruct args; [ inv H |]. destruct args; [ inv H |].
+        destruct args; [ | inv H].
+        unfold env_set, eval_id in *.  simpl in *. subst. entailer!.
+      * unfold argsassert2assert, local, lift1, liftx, lift; simpl. destruct rho as [g args]. simpl.
+        normalize. entailer!.
+  + intros x.
     destruct x as [[[[[c sh] l] key] gv] | [[[[[[[c sh] l] key] b] i] shk] gv]].
     - auto.
-    - change_compspecs CompSepcs.
+    - intros rho; simpl. change_compspecs CompSpecs.
       auto.
 Qed.
 
@@ -1077,7 +1078,7 @@ Definition HmacDrbgFunSpecs : funspecs :=  ltac:(with_library prog (
   drbg_memcpy_spec:: drbg_memset_spec::
   sha.spec_hmac.sha256init_spec::sha.spec_hmac.sha256update_spec::sha.spec_hmac.sha256final_spec::nil)).
 
-Lemma datablock_NoVundef sh bytes v: data_block sh  bytes v |-- !!(v <> Vundef).
+Lemma datablock_NoVundef sh bytes v: data_block sh bytes v |-- !!(v <> Vundef).
 Proof. unfold data_block. entailer!. Qed.
 
 #[export] Hint Resolve datablock_NoVundef : saturate_local.

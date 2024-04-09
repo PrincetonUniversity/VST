@@ -1,6 +1,6 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat.
 Import ListNotations.
-Local Open Scope logic.
 
 Require Import sha.general_lemmas.
 Require Import hmacdrbg.hmac_drbg.
@@ -15,7 +15,7 @@ Require Import VST.floyd.library.
 Require Import hmacdrbg.HMAC256_DRBG_bridge_to_FCF.
 
 Definition WF (I:hmac256drbgabs):=
-         Zlength (hmac256drbgabs_value I) = 32 /\ 
+         Zlength (hmac256drbgabs_value I) = 32 /\
          0 < hmac256drbgabs_entropy_len I <= 384 /\
          RI_range (hmac256drbgabs_reseed_interval I) /\
          0 <= hmac256drbgabs_reseed_counter I < Int.max_signed.

@@ -32,6 +32,7 @@ Section mpred.
 Context `{!VSTGS OK_ty Σ}.
 
 Parameter FRZ : mpred -> mpred.
+(* Should we just replace these by FRZ p = p? *)
 Parameter FRZ1: forall p, p ⊢ FRZ p.
 Parameter FRZ2: forall p, FRZ p ⊢ p.
 
@@ -265,32 +266,31 @@ Lemma FRZL_ax ps: FRZL ps ⊣⊢ fold_right_sepcon ps.
 Proof. intros. rewrite fold_right_sepcon_eq. iSplit; [iApply Freezer.FRZL2 | iApply Freezer.FRZL1]. Qed.
 
 Lemma fold_right_sepcon_deletenth: forall n (l: list mpred),
-  fold_right_sepcon l ⊣⊢ nth n l emp ∗ fold_right_sepcon (delete_nth n l).
+  fold_right_sepcon l = (nth n l emp ∗ fold_right_sepcon (delete_nth n l)).
 Proof.
-  induction n; destruct l; simpl. rewrite bi.sep_emp; trivial.
+  induction n; destruct l; simpl. rewrite sep_emp; trivial.
   reflexivity.
-  rewrite bi.sep_emp; trivial.
-  rewrite IHn.
-  iSplit; iIntros "($ & $ & $)".
+  rewrite sep_emp; trivial.
+  rewrite IHn. rewrite sep_assoc (sep_comm m) -sep_assoc //.
 Qed.
 Lemma fold_right_sepcon_deletenth': forall n (l:list (@assert Σ)),
-  @fold_right assert assert bi_sep emp l ⊣⊢
-  nth n l emp ∗ fold_right bi_sep emp (delete_nth n l).
+  @fold_right assert assert bi_sep emp l =
+  (nth n l emp ∗ fold_right bi_sep emp (delete_nth n l)).
 Proof.
-  induction n; destruct l; simpl. rewrite bi.sep_emp; trivial.
+  induction n; destruct l; simpl. rewrite sep_emp'; trivial.
   reflexivity.
-  rewrite bi.sep_emp; trivial.
+  rewrite sep_emp'; trivial.
   rewrite IHn; clear IHn.
-  iSplit; iIntros "($ & $ & $)".
+  rewrite sep_assoc' (sep_comm' a) -sep_assoc' //.
 Qed.
 
 Lemma fold_right_sepcon_permutation:
- forall (al bl : list mpred), Permutation al bl -> fold_right_sepcon al ⊣⊢ fold_right_sepcon bl.
+ forall (al bl : list mpred), Permutation al bl -> fold_right_sepcon al = fold_right_sepcon bl.
 Proof.
 intros.
 induction H; simpl; auto.
 - rewrite IHPermutation //.
-- iSplit; iIntros "($ & $ & $)".
+- rewrite sep_assoc (sep_comm y) -sep_assoc //.
 - rewrite IHPermutation1 //.
 Qed.
 
@@ -306,7 +306,7 @@ eapply semax_pre; try eassumption.
 go_lowerx.
 pose proof (freezelist_nth_permutation _ _ Hii) as HR.
 rewrite -H /= in HR.
-rewrite fold_right_sepcon_permutation // fold_right_sepcon_app FRZL_ax //.
+erewrite fold_right_sepcon_permutation, fold_right_sepcon_app, FRZL_ax; done.
 Qed.
 
 Lemma freeze_SEP'entail:
@@ -321,7 +321,7 @@ rewrite -H0.
 go_lowerx.
 pose proof (freezelist_nth_permutation _ _ Hii) as HR.
 rewrite -H /= in HR.
-rewrite fold_right_sepcon_permutation // fold_right_sepcon_app FRZL_ax //.
+erewrite fold_right_sepcon_permutation, fold_right_sepcon_app, FRZL_ax; done.
 Qed.
 
 Lemma map_delete_nth {A B} (f:A->B): forall n l, delete_nth n (map f l) = map f (delete_nth n l).
@@ -557,13 +557,13 @@ Tactic Notation "freeze" ident(i) ":=" "-" uconstr(a1) uconstr(a2) uconstr(a3) u
 Lemma flatten_emp_in_mpreds' `{!heapGS Σ} {A}:
   forall n (R: list mpred),
    nth_error R n = Some emp ->
-   SEPx(A := A) R ⊣⊢ SEPx (Floyd_firstn n R ++ Floyd_skipn (S n) R).
+   SEPx(A := A) R = SEPx (Floyd_firstn n R ++ Floyd_skipn (S n) R).
 Proof.
-unfold SEPx. intros. split => rho; monPred.unseal.
+unfold SEPx. intros. apply assert_ext; intros; monPred.unseal.
 revert R H. clear.
 induction n; destruct R; intros.
 + inv H.
-+ simpl nth_error in H. inv H. simpl. apply bi.emp_sep.
++ simpl nth_error in H. inv H. simpl. apply emp_sep.
 + reflexivity.
 + inv H.
   specialize (IHn _ H1). clear H1. simpl Floyd_firstn.
@@ -576,7 +576,7 @@ Lemma flatten_emp_in_SEP':
   forall `{!heapGS Σ} n P Q (R: list mpred) R',
    nth_error R n = Some emp ->
    R' = Floyd_firstn n R ++ Floyd_skipn (S n) R ->
-   PROPx P (LOCALx Q (SEPx R)) ⊣⊢ PROPx P (LOCALx Q (SEPx R')).
+   PROPx P (LOCALx Q (SEPx R)) = PROPx P (LOCALx Q (SEPx R')).
 Proof.
 intros.
 f_equiv. f_equiv. subst R'.
@@ -641,7 +641,7 @@ let x := fresh "x" in let y := fresh "y" in let a := fresh "a" in
 lazymatch goal with
 |  |- context [fold_right_sepcon (map ?F ?A)] =>
   set (x:= fold_right_sepcon (map F A));
-  set (y := F) in *; 
+  set (y := F) in *;
   simpl in x
 |  |- context [fold_right_sepcon ?A] =>
   set (x:= fold_right_sepcon A);
@@ -650,7 +650,7 @@ end;
 pattern x;
 match goal with |- ?A x => set (a:=A) end;
 revert x;
-intro x; subst a x; rewrite ?bi.sep_assoc bi.sep_emp; try subst y;
+intro x; subst a x; rewrite -> ?sep_assoc, sep_emp; try subst y;
   unfold my_delete_list, my_delete_nth, my_nth, fold_right_sepcon;
   repeat flatten_sepcon_in_SEP; repeat flatten_emp.
 
@@ -669,24 +669,24 @@ Inductive split_FRZ_in_SEP : list mpred -> list mpred -> list mpred -> Prop :=
 
 Lemma split_FRZ_in_SEP_spec: forall R R' RF,
   split_FRZ_in_SEP R R' RF ->
-  fold_right_sepcon R ⊣⊢ fold_right_sepcon R' ∗ fold_right_sepcon RF.
+  fold_right_sepcon R = (fold_right_sepcon R' ∗ fold_right_sepcon RF).
 Proof.
   intros.
   induction H.
   + simpl.
-    rewrite bi.sep_emp; auto.
+    rewrite sep_emp; auto.
   + simpl.
     rewrite IHsplit_FRZ_in_SEP.
-    iSplit; iIntros "($ & $ & $)".
+    rewrite sep_assoc (sep_comm (FRZ F)) -sep_assoc //.
   + simpl.
     rewrite IHsplit_FRZ_in_SEP.
-    iSplit; iIntros "($ & $ & $)".
+    rewrite sep_assoc (sep_comm (FRZL F)) -sep_assoc //.
   + simpl.
     rewrite IHsplit_FRZ_in_SEP.
-    iSplit; iIntros "($ & $ & $)".
+    rewrite sep_assoc (sep_comm (FRZR L G)) -sep_assoc //.
   + simpl.
     rewrite IHsplit_FRZ_in_SEP.
-    rewrite -assoc; iSplit; iIntros "($ & $ & $)".
+    rewrite -sep_assoc //.
 Qed.
 
 Lemma localize: forall R_L E Delta P Q R R_FR R_G c Post,

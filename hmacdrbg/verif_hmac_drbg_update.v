@@ -1,6 +1,5 @@
 Require Import VST.floyd.proofauto.
 Import ListNotations.
-Local Open Scope logic.
 
 Require Import sha.spec_sha.
 Require Import hmacdrbg.hmac_drbg.
@@ -12,7 +11,7 @@ Require Import hmacdrbg.HMAC_DRBG_common_lemmas.
 Require Import hmacdrbg.verif_hmac_drbg_update_common.
 
 Lemma BDY_update: forall
-(Espec : OracleKind)
+Espec
 (contents : list byte)
 (additional : val) (sha: share)
 (add_len : Z)
@@ -27,7 +26,7 @@ Lemma BDY_update: forall
 (H1 : add_len = Zlength contents \/ add_len = 0)
 (Hsha: readable_share sha)
 (Hshc: writable_share shc),
-@semax hmac_drbg_compspecs.CompSpecs Espec
+semax(C := hmac_drbg_compspecs.CompSpecs)(OK_spec := Espec) ⊤
  (func_tycontext f_mbedtls_hmac_drbg_update HmacDrbgVarSpecs
         HmacDrbgFunSpecs nil)
   (PROP ( )

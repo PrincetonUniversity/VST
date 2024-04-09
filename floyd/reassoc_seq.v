@@ -8,7 +8,7 @@ Ltac reassoc_seq_raw :=
   | |- semax _ _ _ ?cs _ =>
     let cs' := eval cbv [unfold_seq fold_seq app]
                in (fold_seq (unfold_seq cs)) in
-    apply (semax_unfold_seq cs' cs eq_refl)
+    apply (semax_unfold_seq _ cs' cs eq_refl)
   end.
 
 Ltac reassoc_seq := unfold_abbrev'; reassoc_seq_raw; abbreviate_semax.

@@ -1,6 +1,5 @@
 Require Import VST.floyd.proofauto.
 Import ListNotations.
-Local Open Scope logic.
 
 Require Import sha.general_lemmas.
 Require Import hmacdrbg.entropy.
@@ -22,7 +21,7 @@ Lemma my_fold_right_eq {A B} (f : B -> A -> A) a: my_fold_right f a = fold_right
 Proof. extensionality l. induction l; auto. Qed.
 
 
-Lemma FRZL_ax' ps: FRZL ps = my_fold_right sepcon emp ps.
+Lemma FRZL_ax' ps: FRZL ps ⊣⊢ my_fold_right bi_sep emp ps.
 Proof. rewrite FRZL_ax. rewrite my_fold_right_eq. trivial. Qed.
 
 (*Tactic requires the resulting goal to be normalized manually.*)
@@ -38,7 +37,7 @@ Ltac my_thaw name :=
 Lemma isptrD v: isptr v -> exists b ofs, v = Vptr b ofs.
 Proof. intros. destruct v; try contradiction. eexists; eexists; reflexivity. Qed.
 
-Lemma reseed_REST: forall (Espec : OracleKind) (contents : list byte) additional (sha: share) add_len ctx
+Lemma reseed_REST: forall Espec (contents : list byte) additional (sha: share) add_len ctx
   (md_ctx': mdstate) reseed_counter' entropy_len' prediction_resistance' reseed_interval'
   key (V: list byte) reseed_counter entropy_len prediction_resistance reseed_interval gv
   info_contents (s : ENTROPY.stream)
@@ -65,7 +64,7 @@ Lemma reseed_REST: forall (Espec : OracleKind) (contents : list byte) additional
   (Heqentropy_result : ENTROPY.success entropy_bytes s0 = ENTROPY.get_bytes (Z.to_nat entropy_len) s)
   (Hsha: readable_share sha)
   (Hshc: writable_share shc),
-@semax hmac_drbg_compspecs.CompSpecs Espec
+semax(cs := hmac_drbg_compspecs.CompSpecs)(OK_spec := Espec) ⊤
   (func_tycontext f_mbedtls_hmac_drbg_reseed HmacDrbgVarSpecs
         HmacDrbgFunSpecs nil)
   (PROP ( )

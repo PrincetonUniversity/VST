@@ -155,9 +155,6 @@ unfold K_vector.
 assert (i < Zlength K256)
   by (change (Zlength K256) with 64; lia).
 forward.  (* Ki=K256[i]; *)
-replace (Vint (Int.repr (Znth i _))) with (Vint (Znth i K256)).
-2: { rewrite <- (Znth_map _ Int.repr); auto.
-     unfold Zlength; simpl; lia. }
 (* 1,811,028 1,406,332 *)
 autorewrite with sublist.
 subst POSTCONDITION; unfold abbreviate.

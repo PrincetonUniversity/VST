@@ -596,7 +596,7 @@ clearbody Delta_specs.
       let A := fresh "A" in let E2 := fresh "E" in
       match goal with
          E: forall j, 0 <= j < 16 -> force_val _ = _
-        |- semax _ _ (Ssequence (Sassign (Ederef (Ebinop _ _ (Econst_int (Int.repr ?j) _) _) _) _) _) _ 
+        |- semax _ _ _ (Ssequence (Sassign (Ederef (Ebinop _ _ (Econst_int (Int.repr ?j) _) _) _) _) _) _ 
         =>
           assert (0 <= j < 16) as A by computable;
          pose proof (E _ A) as E2; clear A
@@ -657,18 +657,17 @@ clearbody Delta_specs.
     RK_load.
     RK_store.
 
-    forward. 
+    forward.
     destruct ctx; inv P.
-    thaw FR1. 
+    thaw FR1.
     entailer!.
     - clear. f_equal. simpl. lia. 
     - clear.
       subst PFUN ROT KE2.
       repeat match goal with A := _ |- _ => fold A end.
-      apply derives_refl'.
-      f_equal.
+      f_equiv.
       match goal with |- _ = ?b => set (B:=b) end.
       rewrite ?update_partially_expanded_key by lia.
-      subst B. clear. 
+      subst B. clear.
       f_equal. f_equal. f_equal. f_equal. lia. f_equal. lia.
 Time Qed.

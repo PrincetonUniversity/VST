@@ -1,6 +1,6 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat.
 Import ListNotations.
-Local Open Scope logic.
 Require Import VST.zlist.sublist.
 
 Require Import sha.HMAC256_functional_prog.

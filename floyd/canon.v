@@ -1775,6 +1775,16 @@ Proof.
   apply semax_extract_later_prop; auto.
 Qed.
 
+Lemma monPred_at_assert_of : forall P, monPred_at (@assert_of Σ P) = P.
+Proof.
+  reflexivity.
+Qed.
+
+Lemma monPred_at_argsassert_of : forall P, monPred_at (@argsassert_of Σ P) = P.
+Proof.
+  reflexivity.
+Qed.
+
 End mpred.
 
 #[export] Hint Rewrite @insert_local :  norm2.
@@ -2123,5 +2133,5 @@ Ltac simpl_ret_assert ::=
       for_ret_assert loop_nocontinue_ret_assert];
   try (match goal with
       | |- context[bind_ret None tvoid ?P] =>
-        assert (bind_ret None tvoid P = P) as -> by (unfold PROPx, LOCALx, SEPx; apply assert_ext; intros; try monPred.unseal; done)
+        assert (bind_ret None tvoid P = P) as -> by (unfold PROPx, LOCALx, SEPx; apply assert_ext; intros; unfold bind_ret; cbv delta [tvoid] match beta; rewrite ?monPred_at_assert_of; try reflexivity; try monPred.unseal; done)
       end).

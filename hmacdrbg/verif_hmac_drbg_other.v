@@ -1,6 +1,5 @@
 Require Import VST.floyd.proofauto.
 Import ListNotations.
-Local Open Scope logic.
 
 Require Import sha.spec_sha.
 Require Import hmacdrbg.entropy.
@@ -20,7 +19,7 @@ Proof.
   destruct ctx; try contradiction.
   - (*ctx==null*)
     simpl in PNctx; subst i. rewrite da_emp_null; trivial.
-    forward_if (liftx FF).
+    forward_if (False : assert).
     + forward. apply tt.
     + contradiction H; reflexivity.
     + apply semax_ff.

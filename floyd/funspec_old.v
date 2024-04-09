@@ -468,7 +468,7 @@ Lemma convertPre_helper2:
          local (fold_right (liftx and) (liftx True%type) (map locald_denote (map gvars G)))
                    (Clight_seplog.mkEnv (fst y) [] [])) ->
    all_defined P R L ->
-   ⌜P1⌝ ∧ PROPx P (LOCALx Q (SEPx R)) x 
+   ⌜P1⌝ ∧ PROPx P (LOCALx Q (SEPx R)) x
    ⊣⊢ PROPx P (LAMBDAx G L (SEPx R)) y.
 Proof.
 intros.
@@ -785,7 +785,7 @@ End mpred.
 
 Ltac rewrite_old_main_pre ::= rewrite ?old_main_pre_eq; unfold convertPre, convertPre'.
 
-Ltac prove_all_defined := 
+Ltac prove_all_defined :=
  red; simpl makePARAMS;
 lazymatch goal with |- ⌜?A _ _ _⌝ ∧ _ ⊢ ⌜?B⌝ =>
  let a := fresh "a" in let b := fresh "b" in 
@@ -808,6 +808,8 @@ try (intro H; rewrite -> H in *;
 match goal with  |- ?A <> Vundef =>
   fail 100 "From assumptions above the line and PROP and SEP clauses in precondition, cannot prove LOCAL variable" A "<>Vundef"
 end.
+
+
 
 Ltac convertPreElim' :=
 unfold convertPre;
@@ -851,12 +853,13 @@ apply prop_ext; split; intros [H0 H1];
 ].
 
 Ltac convertPreElim :=
-  match goal with |- convertPre _ _ _ _ = _ => idtac end;
+  match goal with |- monPred_at (convertPre _ _ _ _) ⊣⊢ _ => idtac end;
   convertPreElim' || fail 100 "Could not convert old-style precondition to new-style".
 
 Ltac try_convertPreElim ::=
   lazymatch goal with
-  | |- convertPre _ _ _ _ = _ => convertPreElim
+  | |- (ofe_mor_car _ _ (λne _, monPred_at (convertPre _ _ _ _)) _) ⊣⊢ _ => unfold ofe_mor_car; convertPreElim
+  | |- monPred_at (convertPre _ _ _ _) ⊣⊢ _ => convertPreElim
   | |- _ => reflexivity
   end.
 

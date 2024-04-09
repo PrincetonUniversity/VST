@@ -1,11 +1,9 @@
 Require Import VST.floyd.proofauto.
-Local Open Scope logic.
 Require Import List. Import ListNotations.
 Require Import sha.general_lemmas.
 
 Require Import tweetnacl20140427.split_array_lemmas.
 Require Import ZArith.
-Local Open Scope Z.
 Require Import tweetnacl20140427.tweetNaclBase.
 Require Import tweetnacl20140427.Salsa20.
 Require Import tweetnacl20140427.tweetnaclVerifiableC.
@@ -61,8 +59,8 @@ Proof.
   auto.
 Qed.
 
-Lemma HTrue_loop1 Espec (FR:mpred) t y x w nonce out c k h (xs ys: list int):
-@semax CompSpecs Espec
+Lemma HTrue_loop1 Espec E (FR:mpred) t y x w nonce out c k h (xs ys: list int):
+semax(C := CompSpecs)(OK_spec := Espec) E
   (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil)
   (PROP  ()
    LOCAL  (temp _i (Vint (Int.repr 20)); lvar _t (tarray tuint 4) t;
@@ -205,8 +203,8 @@ Fixpoint hPosLoop2 (n:nat) (sumlist: list int) (C Nonce: SixteenByte): list int 
                 upd_Znth (6+j) (upd_Znth (5*j) s five) six
        end.
 
-Lemma HTrue_loop2 Espec (FR:mpred) t y x w nonce out c k h intsums Nonce C K:
-@semax CompSpecs Espec
+Lemma HTrue_loop2 Espec E (FR:mpred) t y x w nonce out c k h intsums Nonce C K:
+semax(C := CompSpecs)(OK_spec := Espec) E
   (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil)
   (PROP  ()
    LOCAL  (lvar _t (tarray tuint 4) t;
@@ -498,8 +496,8 @@ Sfor (Sset _i (Econst_int (Int.repr 0) tint))
      (Sset _i
         (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint) tint)).
 
-Lemma HTrue_loop3 Espec (FR:mpred) t y x w nonce out c k h (OUT: list val) xs (*ys Nonce C K*):
-@semax CompSpecs Espec
+Lemma HTrue_loop3 Espec E (FR:mpred) t y x w nonce out c k h (OUT: list val) xs (*ys Nonce C K*):
+semax(C := CompSpecs)(OK_spec := Espec) E
   (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil)
   (PROP  ()
    LOCAL  (lvar _t (tarray tuint 4) t;
@@ -767,8 +765,8 @@ Definition epilogue_htrue_statement:=
 
 Opaque hPosLoop2. Opaque hPosLoop3.
 
-Lemma verif_fcore_epilogue_htrue Espec (FR:mpred) t y x w nonce out c k h (OUT: list val) xs ys data:
-@semax CompSpecs Espec
+Lemma verif_fcore_epilogue_htrue Espec E (FR:mpred) t y x w nonce out c k h (OUT: list val) xs ys data:
+semax(C := CompSpecs)(OK_spec := Espec) E
   (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil)
   (PROP  ()
    LOCAL  (temp _i (Vint (Int.repr 20)); lvar _t (tarray tuint 4) t;

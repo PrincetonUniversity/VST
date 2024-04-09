@@ -53,7 +53,7 @@ Qed.
 (* QQQ TODO does this already exist? Add to library? *)
 Ltac forward_if_diff add := match add with
 | (PROPx ?P2 (LOCALx ?Q2 (SEPx ?R2))) => match goal with
-  | |- semax ?Delta (PROPx ?P1 (LOCALx ?Q1 (SEPx ?R1))) _ _ =>
+  | |- semax _ ?Delta (PROPx ?P1 (LOCALx ?Q1 (SEPx ?R1))) _ _ =>
     let P3 := fresh "P3" in let Q3 := fresh "Q3" in let R3 := fresh "R3" in
     pose (P3 := P1 ++ P2); pose (Q3 := Q1 ++ Q2); pose (R3 := R1 ++ R2);
     simpl in P3, Q3, R3;
@@ -199,6 +199,7 @@ Proof.
   start_function.
   reassoc_seq.
   (* DONE floyd: Thanks to reassoc_seq, we don't need the two preparation steps any more *)
+  rename a into gv.
   forward_for_simple_bound 256 (EX i: Z,
     PROP ( 0 <= i ) (* TODO floyd: why do we only get "Int.min_signed <= i < 256", instead of lo=0 ?
                        Probably because there are 2 initialisations in the for-loop... *)
@@ -243,7 +244,7 @@ Proof.
         if Int.eq (Int.and (pow3 i) (Int.repr 128)) Int.zero
         then Int.zero
         else (Int.repr 27)
-      ))) SEP ()).
+      ))) SEP () : assert).
       * (* then-branch of "_ ? _ : _" *)
         forward. rewrite Int.eq_false by assumption. entailer!!.
       * (* else-branch of "_ ? _ : _" *)
@@ -258,8 +259,8 @@ Proof.
         forward.
         entailer!!.
         { f_equal. unfold pow3. rewrite repeat_op_step by lia. reflexivity. }
-        { Exists (upd_Znth i pow (Vint (pow3 i))).
-          Exists (upd_Znth (Int.unsigned (pow3 i)) log (Vint (Int.repr i))).
+        { Exists (upd_Znth (Int.unsigned (pow3 i)) log (Vint (Int.repr i))).
+          Exists (upd_Znth i pow (Vint (pow3 i))).
           entailer!. assert (0 <= i < 256) by lia. repeat split.
           - rewrite upd_Znth_diff.
               + assumption.
@@ -299,7 +300,7 @@ Proof.
       if Int.eq (Int.and (pow2 i) (Int.repr 128)) Int.zero
       then Int.zero
       else (Int.repr 27)
-    ))) SEP ()).
+    ))) SEP () : assert).
     * (* then-branch of "_ ? _ : _" *)
       forward. rewrite Int.eq_false by assumption. entailer!!.
     * (* else-branch of "_ ? _ : _" *)
@@ -389,8 +390,8 @@ Proof.
   { (* loop invariant holds initially: *)
     unfold gen_sbox_inv00.
     entailer!!.
-    Exists (upd_Znth 99 Vundef256 (Vint (Int.repr 0))).
     Exists (upd_Znth 0 Vundef256 (Vint (Int.repr 99))).
+    Exists (upd_Znth 99 Vundef256 (Vint (Int.repr 0))).
     entailer!!.
     intros. assert (j = 0) by lia. subst j. rewrite upd_Znth_same.
       * reflexivity.
@@ -430,7 +431,7 @@ Proof.
     - (* postcondition implies loop invariant *)
       entailer!!.
         match goal with
-        | |- (field_at _ _ _ ?fsb' _ * field_at _ _ _ ?rsb' _)%logic |-- _ => Exists rsb'; Exists fsb'
+        | |- (field_at _ _ _ ?fsb' _ * field_at _ _ _ ?rsb' _) |-- _ => Exists fsb'; Exists rsb'
         end.
         entailer!!. repeat split.
         + rewrite upd_Znth_diff; (lia || auto).
@@ -532,7 +533,7 @@ Proof.
       if Int.eq (Int.and (Znth i FSb) (Int.repr 128)) Int.zero
       then Int.zero
       else (Int.repr 27)
-    ))) SEP ()).
+    ))) SEP () : assert).
     * (* then-branch of "_ ? _ : _" *)
       forward. rewrite Int.eq_false by assumption. entailer!!.
     * (* else-branch of "_ ? _ : _" *)
@@ -610,7 +611,7 @@ Proof.
       else (Znth (Int.unsigned
               (Int.mods (Int.repr (Znth 14 log + Znth (Int.unsigned (Znth i RSb)) log))
                         (Int.repr 255))) pow)
-    ))) SEP ()).
+    ))) SEP (): assert).
     { (* TODO floyd: this should be derived automatically from H3 *)
       assert (Int.unsigned (Znth i RSb) <> 0) as Ne. {
         intro E. apply H3. change 0 with (Int.unsigned Int.zero) in E.
@@ -656,7 +657,7 @@ Proof.
       else (Znth (Int.unsigned
               (Int.mods (Int.repr (Znth 9 log + Znth (Int.unsigned (Znth i RSb)) log))
                         (Int.repr 255))) pow)
-    ))) SEP ()). {
+    ))) SEP () : assert). {
       assert (Int.unsigned (Znth i RSb) <> 0) as Ne. {
         intro E. apply H3. change 0 with (Int.unsigned Int.zero) in E.
         apply unsigned_eq_eq in E. rewrite E. rewrite Int.eq_true. reflexivity.
@@ -698,7 +699,7 @@ Proof.
       else (Znth (Int.unsigned
               (Int.mods (Int.repr (Znth 13 log + Znth (Int.unsigned (Znth i RSb)) log))
                         (Int.repr 255))) pow)
-    ))) SEP ()). {
+    ))) SEP () : assert). {
       assert (Int.unsigned (Znth i RSb) <> 0) as Ne. {
         intro E. apply H3. change 0 with (Int.unsigned Int.zero) in E.
         apply unsigned_eq_eq in E. rewrite E. rewrite Int.eq_true. reflexivity.
@@ -740,7 +741,7 @@ Proof.
       else (Znth (Int.unsigned
               (Int.mods (Int.repr (Znth 11 log + Znth (Int.unsigned (Znth i RSb)) log))
                         (Int.repr 255))) pow)
-    ))) SEP ()). {
+    ))) SEP () : assert). {
       assert (Int.unsigned (Znth i RSb) <> 0) as Ne. {
         intro E. apply H3. change 0 with (Int.unsigned Int.zero) in E.
         apply unsigned_eq_eq in E. rewrite E. rewrite Int.eq_true. reflexivity.
@@ -845,10 +846,8 @@ Proof.
   forget RT2 as RT2'.
   forget RT3 as RT3'.
   repeat (let j := fresh "j" in set (j := field_at _ _ _ _ _); clearbody j).
-  go_lowerx. cancel.
   unfold stackframe_of.
-  simpl.
-  rewrite sepcon_emp.
+  go_lowerx. cancel.
   apply sepcon_derives;
     sep_apply data_at_data_at_; eapply var_block_lvar0; eauto; reflexivity.
 } }

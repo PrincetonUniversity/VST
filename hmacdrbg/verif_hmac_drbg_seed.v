@@ -1,6 +1,5 @@
 Require Import VST.floyd.proofauto.
 Import ListNotations.
-Local Open Scope logic.
 Require Import VST.zlist.sublist.
 
 Require Import sha.HMAC256_functional_prog.
@@ -24,7 +23,7 @@ Require Import hmacdrbg.verif_hmac_drbg_seed_common.
 Opaque mbedtls_HMAC256_DRBG_reseed_function.
 Opaque initial_key. Opaque initial_value.
 Opaque mbedtls_HMAC256_DRBG_reseed_function.
-Opaque repeat. 
+Opaque repeat.
 
 Lemma body_hmac_drbg_seed_256: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
       f_mbedtls_hmac_drbg_seed hmac_drbg_seed_inst256_spec.

@@ -2,8 +2,6 @@ Require Import aes.api_specs.
 Require Import aes.partially_filled.
 Require Import aes.bitfiddling.
 Require Import aes.verif_setkey_enc_LL_loop_body.
-Local Open Scope logic.
-Open Scope Z.
 Require Import VST.floyd.Funspec_old_Notation.
 
 (* Calls forward_if with the current precondition to which the provided conditions are added *)
@@ -87,7 +85,7 @@ Proof.
   start_function.
   forward.
   match goal with
-  | |- semax ?Delta (PROPx ?P1 (LOCALx ?Q1 (SEPx ?R1))) _ _ =>
+  | |- semax _ ?Delta (PROPx ?P1 (LOCALx ?Q1 (SEPx ?R1))) _ _ =>
     forward_if (PROPx P1 (LOCALx Q1 (SEPx R1)))
   end.
   congruence. (* then-branch: contradiction *)

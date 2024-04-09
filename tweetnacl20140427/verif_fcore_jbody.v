@@ -1,12 +1,10 @@
 Require Import Recdef.
 Require Import VST.floyd.proofauto.
-Local Open Scope logic.
 Require Import List. Import ListNotations.
 Require Import sha.general_lemmas.
 
 Require Import tweetnacl20140427.split_array_lemmas.
 Require Import ZArith.
-Local Open Scope Z.
 Require Import tweetnacl20140427.tweetNaclBase.
 Require Import tweetnacl20140427.Salsa20.
 Require Import tweetnacl20140427.verif_salsa_base.
@@ -104,9 +102,9 @@ Definition array_copy1_statement :=
                  (tptr tuint)) tuint) (Etempvar _t'33 tuint)))
      (Sset _m
         (Ebinop Oadd (Etempvar _m tint) (Econst_int (Int.repr 1) tint) tint))).
-Lemma array_copy1: forall (Espec: OracleKind) j t x (xs:list int)
+Lemma array_copy1: forall Espec E j t x (xs:list int)
   (J:0<=j<4),
- semax (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil)
+ semax(OK_spec := Espec) E (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil)
   (PROP  ()
    LOCAL  (temp _j (Vint (Int.repr j));
    lvar _t (tarray tuint 4) t;
@@ -348,7 +346,7 @@ Definition Jbody_statement :=
                        (Ebinop Oadd (Etempvar _m tint)
                           (Econst_int (Int.repr 1) tint) tint)))))))).
 
-Lemma Jbody (Espec : OracleKind) FR c k h nonce out w x y t i j xs
+Lemma Jbody Espec FR c k h nonce out w x y t i j xs
   (I : 0 <= i < 20)
   (J : 0 <= j < 4)
   wlist
@@ -357,7 +355,7 @@ Lemma Jbody (Espec : OracleKind) FR c k h nonce out w x y t i j xs
   (T1: Znth ((5*j+4*1) mod 16) (map Vint  xs) = Vint t1)
   (T2: Znth ((5*j+4*2) mod 16) (map Vint xs) = Vint t2)
   (T3: Znth ((5*j+4*3) mod 16) (map Vint xs) = Vint t3):
-@semax CompSpecs Espec
+semax(C := CompSpecs)(OK_spec := Espec) ⊤
   (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil)
   (PROP  ()
    LOCAL  (temp _j (Vint (Int.repr j)); temp _i (Vint (Int.repr i));
@@ -428,7 +426,7 @@ Ltac compute_upd_Znth :=
 deadvars!.
   (*pattern1*)
   forward. compute_Znth.
-  forward. compute_Znth. 
+  forward. compute_Znth.
   forward_call (Int.add t0 t3, Int.repr 7).
   forward. compute_Znth.
   forward.
@@ -506,7 +504,8 @@ deadvars!.
    unfold Int.mods. rewrite (Int.signed_repr (j+m)) by rep_lia.
    change (Int.signed (Int.repr 4)) with 4. 
    rewrite Int.signed_repr by rep_lia.
-   split. rep_lia. intros [? H9]; inv H9.  }
+   repeat split; try rep_lia.
+   intros [? H9]; inv H9.  }
   { apply prop_right.
     unfold Int.mods. (*rewrite ! mul_repr, add_repr.*)
     rewrite ! Int.signed_repr by rep_lia(*, add_repr, Int.signed_repr*).
@@ -545,4 +544,3 @@ subst.
 rewrite <- Z0, <- Z1, <- Z2, <- Z3.
 reflexivity.
 Time Qed. (*VST 2.0: 4.9s*) (*June 4th,2017 (laptop):Finished transaction in 9.528 secs (8.024u,0.02s) (successful)*)
-

@@ -1,10 +1,9 @@
 Require Import VST.floyd.proofauto.
-Local Open Scope logic.
+Require Import VST.floyd.compat.
 Require Import List. Import ListNotations.
 Require Import tweetnacl20140427.Snuffle.
 Require Import tweetnacl20140427.Salsa20.
 Require Import ZArith.
-Local Open Scope Z.
 
 Require Import tweetnacl20140427.tweetnaclVerifiableC.
 Require Import tweetnacl20140427.spec_salsa.
@@ -69,7 +68,7 @@ unfold fcorePOST_SEP; cancel.
   destruct Nonce as [[[N1 N2] N3] N4].
   destruct K as [[[K1 K2] K3] K4].
   destruct L as [[[L1 L2] L3] L4].
-apply derives_refl'. f_equal.
+f_equiv.
   do 8 rewrite X2 in H by (try lia; reflexivity).
   apply H.
 Time Qed. (*2.8*)

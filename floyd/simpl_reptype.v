@@ -8,6 +8,8 @@ Require Import VST.floyd.simple_reify.
 Require Import VST.floyd.aggregate_type.
 Require Import VST.zlist.Zlength_solver.
 
+Local Unset SsrRewrite.
+
 Definition int_signed_or_unsigned (t: type) : int -> Z :=
   match typeconv t with
   | Tint _ Signed _ => Int.signed
