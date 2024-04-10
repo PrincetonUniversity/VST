@@ -1,30 +1,8 @@
 Require Import VST.concurrency.conclib.
-From iris_ora.algebra Require Import gmap frac_auth.
+From iris_ora.algebra Require Import frac_auth.
 Require Import VST.atomics.SC_atomics.
 
 Section AEHist.
-
-Section gmap_frac.
-
-Context K `{Countable K} (A : ofe).
-
-Lemma gmap_excl_flat : forall n (x y : gmapUR K (exclR A)), ✓{n} y → x ≼ₒ{n} y → x ≡{n}≡ y.
-Proof.
-  intros ??? Hv Hord i; specialize (Hord i).
-  hnf in Hord.
-  destruct (x !! i) eqn: Hx, (y !! i) eqn: Hy; rewrite Hx Hy // in Hord |- *.
-  - inv Hord; try done.
-    by repeat constructor.
-  - specialize (Hv i); rewrite Hy in Hv.
-    specialize (Hord o).
-    destruct o; try done.
-    inv Hord.
-Qed.
-
-Canonical Structure gmap_frac_authR := frac_authR gmap_excl_flat.
-Canonical Structure gmap_frac_authUR := frac_authUR gmap_excl_flat.
-
-End gmap_frac.
 
 (* These histories should be usable for any atomically accessed location. *)
 Inductive AE_hist_el := AE (r : val) (w : val).
@@ -46,6 +24,7 @@ Qed.
 End AEHist.
 
 Notation hist := (gmap nat (excl AE_hist_el)).
+Notation histR := (iris.algebra.gmap.gmapR nat (iris.algebra.excl.exclR (leibnizO AE_hist_el))).
 
 #[global] Instance hist_inhabitant : Inhabitant hist := (∅ : hist).
 
@@ -82,7 +61,7 @@ Definition hist_incl (h : hist) l := forall t e, h !! t = Some (Excl e) -> nth_e
 
 Definition newer (l : hist) t := forall t', l !! t' <> None -> (t' < t)%nat.
 
-Lemma hist_incl_lt : forall (h : hist) l (Hv : ✓ (h : gmapUR _ (exclR (leibnizO _)))),
+Lemma hist_incl_lt : forall (h : histR) l (Hv : ✓ h),
   hist_incl h l -> newer h (length l).
 Proof.
   unfold hist_incl; repeat intro.
@@ -106,7 +85,7 @@ Proof.
   intros; eapply newer_over; eauto.
 Qed.
 
-Class AEGS `{!VSTGS OK_ty Σ} (atomic_int : type) := { histG :: inG Σ (gmap_frac_authR nat (leibnizO AE_hist_el));
+Class AEGS `{!VSTGS OK_ty Σ} (atomic_int : type) := { histG :: inG Σ (frac_authR histR);
   AI :: atomic_int_impl atomic_int }.
 
 Section AE.
@@ -119,11 +98,11 @@ Axiom atomic_int_timeless : forall sh v p, Timeless (atomic_int_at sh v p).
 Axiom atomic_int_isptr : forall sh v p, atomic_int_at sh v p ⊢ ⌜isptr p⌝.
 #[local] Hint Resolve atomic_int_isptr : saturate_local.
 
-Definition ghost_ref h g := own g (●F (list_to_hist h O : gmapR _ (exclR (leibnizO _)))).
-Definition ghost_hist q (h : gmap nat (excl AE_hist_el)) g := own g (◯F{q} (h : gmapR _ (exclR (leibnizO _)))).
-Definition ghost_hist_ref q (h r : hist) g := own g (●F (r : gmapR _ (exclR (leibnizO _))) ⋅ ◯F{q} (h : gmapR _ (exclR (leibnizO _)))).
+Definition ghost_ref h g := own g (●F (list_to_hist h O : histR) : frac_authR _).
+Definition ghost_hist q (h : histR) g := own g (◯F{q} h : frac_authR _).
+Definition ghost_hist_ref q (h r : histR) g := own g (●F r ⋅ ◯F{q} h : frac_authR _).
 
-Lemma ghost_hist_init : ✓ (●F (∅ : gmapR nat (exclR (leibnizO AE_hist_el))) ⋅ ◯F (∅ : gmapR nat (exclR (leibnizO AE_hist_el)))).
+Lemma ghost_hist_init : ✓ (●F (∅ : histR) ⋅ ◯F (∅ : histR) : frac_authR _).
 Proof. by apply @frac_auth_valid. Qed.
 
 Lemma hist_ref_join_nil : forall q g, ghost_hist q ∅ g ∗ ghost_ref [] g ⊣⊢ ghost_hist_ref q ∅ ∅ g.
@@ -139,13 +118,13 @@ Proof.
   iPoseProof (own_valid_2 with "Hr Hh") as "H".
   rewrite frac_auth_agreeI.
   if_tac.
-  - iDestruct "H" as "(%Hh & _)"; iPureIntro.
+  - iDestruct "H" as %Hh; iPureIntro.
     apply leibniz_equiv in Hh as <-.
     intros ??.
     rewrite list_to_hist_lookup; last lia.
     destruct (nth_error _ _) eqn: E; inversion 1; subst.
     rewrite Nat.sub_0_r // in E.
-  - iDestruct "H" as "(%Hh & _)"; iPureIntro.
+  - iDestruct "H" as %Hh; iPureIntro.
     assert (forall i, included(A := optionR (exclR (leibnizO AE_hist_el)))
       (h !! i) (list_to_hist h' 0 !! i)) as Hincl.
     { rewrite -gmap.lookup_included /included.
@@ -165,8 +144,7 @@ Lemma hist_add' : forall sh h h' e p,
 Proof.
   intros; iIntros "(Hh & Hr)".
   iMod (own_update_2 with "Hr Hh") as "H".
-  { apply (@frac_auth_update (iris.algebra.gmap.gmapR _ _) sh (list_to_hist h' 0:
-      iris.algebra.gmap.gmapUR nat (iris.algebra.excl.exclR (leibnizO AE_hist_el)))).
+  { apply (frac_auth_update sh (list_to_hist h' 0: histR)).
     apply (gmap.alloc_local_update _ _ (length h') ((Excl e) : exclR (leibnizO _))); last done.
     rewrite list_to_hist_lookup; last lia.
     rewrite (proj2 (nth_error_None _ _)) //; lia. }
@@ -200,8 +178,8 @@ Qed.
 Proof. solve_proper. Qed.
 
 (* This predicate describes the valid pre- and postconditions for a given atomic invariant R. *)
-Definition AE_spec i (P : hist -d> val -d> mpred) (R : list AE_hist_el -d> val -d> mpred) (Q : hist -d> val -d> mpred) := ∀ (hc : hist) hx vc vx,
-  ⌜apply_hist i hx = Some vx /\ ✓ (hc : gmapR _ (exclR (leibnizO _))) /\ hist_incl hc hx⌝ →
+Definition AE_spec i (P : histR -d> val -d> mpred) (R : list AE_hist_el -d> val -d> mpred) (Q : histR -d> val -d> mpred) := ∀ (hc : histR) hx vc vx,
+  ⌜apply_hist i hx = Some vx /\ ✓ (hc : histR) /\ hist_incl hc hx⌝ →
   ((▷R hx vx ∗ P hc vc) -∗ (|={⊤ ∖ ↑(nroot .@ "AE")}=> ▷R (hx ++ [AE vx vc]) vc ∗
     Q (<[length hx := Excl (AE vx vc)]>hc) vx)).
 
@@ -258,9 +236,8 @@ Proof.
     iExists _, _; iFrame "Hp"; iSplit; first done.
     iIntros "Hp".
     iMod "Hmask" as "_".
-    iDestruct (own_valid with "hist") as "#Hh".
-    rewrite frac_auth_frag_validI ouPred.discrete_valid.
-    iDestruct "Hh" as "(_ & %)".
+    iDestruct (own_valid with "hist") as %Hh.
+    rewrite auth_frag_valid in Hh; destruct Hh.
     iDestruct (hist_ref_incl with "[$hist $ref]") as %?.
     iMod (hist_add' with "[$hist $ref]") as "(hist & ref)".
     rewrite /AE_spec.
@@ -291,7 +268,7 @@ Proof.
   assert (ghost_hist (sh1 ⋅ sh2) (h1 ⋅ h2) g ⊣⊢ ghost_hist sh1 h1 g ∗ ghost_hist sh2 h2 g) as ->.
   { rewrite -own_op. rewrite /ghost_hist; f_equiv.
     rewrite frac_op.
-    apply (@frac_auth_frag_op (gmapR _ (exclR (leibnizO _))) sh1 sh2 h1 h2). }
+    apply (frac_auth_frag_op(A := histR) sh1 sh2 h1 h2). }
   iSplit.
   - iIntros "(($ & $ & $) & (_ & _ & $))".
   - iIntros "(#$ & #$ & $ & $)".

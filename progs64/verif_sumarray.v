@@ -39,7 +39,7 @@ Definition main_spec :=
   POST [ tint ]
      PROP()
      LOCAL (temp ret_temp (Vint (Int.repr (1+2+3+4)))) 
-     SEP(True).
+     SEP(TT).
 
 (* Note: It would also be reasonable to let [contents] have type [list int].
   Then the [Forall] would not be needed in the PROP part of PRE.

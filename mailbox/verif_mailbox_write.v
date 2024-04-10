@@ -148,6 +148,10 @@ Proof.
     Intros.
     assert (0 <= i < Zlength (upto (Z.to_nat B))) by tauto.
     forward.
+    { entailer!.
+      subst available; apply Forall_Znth; [rewrite Zlength_map Zlength_upto; unfold B, N in *; simpl; lia|].
+      rewrite Forall_forall; intros ? Hin.
+      rewrite in_map_iff in Hin; destruct Hin as (? & ? & ?); subst; simpl; auto. }
     forward_if (PROP (Znth i available = vint 0)
       LOCAL (temp _i__1 (vint i); lvar _available (tarray tint B) v_available; gvars gv)
       SEP (field_at Tsh (tarray tint B) [] available v_available; data_at_ Ews tint (gv _writing);
@@ -156,16 +160,16 @@ Proof.
       forward.
       Exists i; entailer!.
       { subst available.
-        rewrite -> Znth_upto in *.
-        destruct (eq_dec i b0); [|destruct (in_dec eq_dec i lasts)]; auto; discriminate.
-        all: change B with 5 in * ; lia. }
+        match goal with H : typed_true _ _ |- _ => setoid_rewrite Znth_map in H; [rewrite Znth_upto in H|];
+          try assumption; rewrite ?Zlength_upto ?Z2Nat.id; try lia; unfold typed_true in H; simpl in H; inv H end.
+        destruct (eq_dec i b0); [|destruct (in_dec eq_dec i lasts)]; auto; discriminate. }
       unfold data_at_, field_at_; entailer!. }
     { forward.
       entailer!.
       subst available.
       erewrite Znth_map, Znth_upto; rewrite -> ?Zlength_upto, ?Z2Nat.id; try assumption; try lia.
-      match goal with H : Int.repr _ = Int.zero |- _ => rewrite Znth_upto in H;
-        try assumption; rewrite -> ?Zlength_upto, ?Z2Nat.id; try lia end.
+      match goal with H : typed_false _ _ |- _ => setoid_rewrite Znth_map in H; [rewrite Znth_upto in H|];
+        try assumption; rewrite ?Zlength_upto ?Z2Nat.id; try lia; unfold typed_true in H; simpl in H; inv H end.
       destruct (eq_dec _ _); auto.
       destruct (in_dec _ _ _); auto; discriminate. }
     instantiate (1 := ∃ i : Z, PROP (0 <= i < B; Znth i available = vint 0;

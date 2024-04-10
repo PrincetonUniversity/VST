@@ -3,16 +3,15 @@ Require Import VST.floyd.proofauto.
 Require Import VST.floyd.compat.
 Require Import Recdef.
 Require Import VST.progs64.switch.
-Require Export VST.floyd.Funspec_old_Notation.
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Definition twice_spec : ident * funspec :=
   DECLARE _twice
     WITH n : Z
-    PRE [ _n OF tint ]
+    PRE [ tint ]
       PROP  (Int.min_signed <= n+n <= Int.max_signed)
-      LOCAL (temp _n (Vint (Int.repr n)))
+      PARAMS (Vint (Int.repr n))
       SEP ()
     POST [ tint ]
       PROP ()
@@ -23,9 +22,9 @@ Definition twice_spec : ident * funspec :=
 Definition f_spec : ident * funspec :=
   DECLARE _f
     WITH x : Z
-    PRE [ _x OF tuint ]
+    PRE [ tuint ]
       PROP  (0 <= x <= Int.max_unsigned)
-      LOCAL (temp _x (Vint (Int.repr x)))
+      PARAMS (Vint (Int.repr x))
       SEP ()
     POST [ tint ]
       PROP ()
@@ -51,7 +50,7 @@ Qed.
 Lemma body_f: semax_body Vprog Gprog f_f f_spec.
 Proof.
 start_function.
-forward_if (False : assert).
+forward_if (FF : assert).
 forward.
 forward.
 forward.
