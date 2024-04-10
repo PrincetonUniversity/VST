@@ -871,7 +871,6 @@ Qed.
 Lemma body_main: semax_body Vprog Gprog f_main main_spec.
 Proof.
 start_function.
-rename a into gv.
 assert_PROP (isptr (gv ___stringlit_1)) by entailer!.
 assert_PROP (isptr (gv ___stringlit_2)) by entailer!.
 assert_PROP (isptr (gv ___stringlit_3)) by entailer!.
