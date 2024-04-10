@@ -14,7 +14,6 @@ Context `{!VSTGS unit Σ, AEGS0 : !AEGS t_atom_int, !inG Σ (excl_authR (leibniz
 Lemma body_initialize_writer : semax_body Vprog Gprog f_initialize_writer initialize_writer_spec.
 Proof.
   start_function.
-  rename a into gv.
   forward.
   forward.
   forward_for_simple_bound N (∃ i : Z, PROP ( )

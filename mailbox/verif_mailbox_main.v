@@ -16,7 +16,6 @@ Context `{!VSTGS unit Σ, AEGS0 : !AEGS t_atom_int, !inG Σ (excl_authR (leibniz
 Lemma body_main : semax_body Vprog Gprog f_main main_spec.
 Proof.
   start_function.
-  rename a into gv.
   change 3 with N; change 5 with B.
   sep_apply (create_mem_mgr gv).
   exploit (split_shares (Z.to_nat N) Ews); auto; intros (sh0 & shs & ? & ? & ? & ?).
