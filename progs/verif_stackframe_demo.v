@@ -28,7 +28,6 @@ Qed.
 Lemma body_iden': semax_body Vprog Gprog f_iden iden_spec.
 Proof.
   start_function.
-  rename a into x.
   forward.
   forward.
   forward.

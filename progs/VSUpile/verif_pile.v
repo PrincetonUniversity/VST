@@ -100,7 +100,6 @@ Qed.
 Lemma body_Pile_new: semax_body PileVprog PileGprog f_Pile_new (Pile_new_spec M PILE).
 Proof.
 start_function.
-rename a into gv.
 forward_call (tpile, gv).
 fastforward.
 Exists vret. entailer!.

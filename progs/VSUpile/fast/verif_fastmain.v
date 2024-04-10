@@ -20,7 +20,6 @@ Lemma body_main: semax_body Vprog Gprog f_main mainspec.
 Proof.
 pose Core_VSU.
 start_function.
-rename a into gv.
 change (verif_fastonepile.one_pile PILE None gv)
  with (spec_onepile.onepile (verif_fastonepile.ONEPILE PILE) None gv).
 forward_call gv.

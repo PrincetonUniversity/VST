@@ -41,7 +41,6 @@ Lemma body_main: semax_body Vprog Gprog f_main mainspec.
 Proof.
 pose Core_VSU.
 start_function.
-rename a into gv.
 forward_call gv.
 forward_for_simple_bound 10
   (EX i:Z,

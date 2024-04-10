@@ -401,7 +401,6 @@ Qed.
 Lemma body_main: semax_body Vprog Gprog f_main main_spec.
 Proof.
   start_function.
-  rename a into gv.
   sep_apply (has_ext_ITREE(E := @IO_event nat)).
   rewrite <- (bi.emp_sep (ITREE _)); Intros.
   replace_SEP 0 (mem_mgr gv) by (go_lower; apply create_mem_mgr).

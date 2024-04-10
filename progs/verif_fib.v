@@ -90,7 +90,6 @@ Definition Gprog : funspecs :=
 Lemma body_fib_loop: semax_body Vprog Gprog f_fib_loop (fib_spec _fib_loop).
 Proof.
   start_function.
-  rename a into n.
   forward.  (* a0 = 0; *)
   forward.  (* a1 = 1; *)
   forward_for_simple_bound n
@@ -122,7 +121,6 @@ Qed.
 Lemma body_fib_rec: semax_body Vprog Gprog f_fib_rec (fib_spec _fib_rec).
 Proof.
   start_function.
-  rename a into n.
   forward_if.
   { forward. }
   forward_if.
@@ -147,7 +145,6 @@ Qed.
 Lemma body_fib_loop_save_var: semax_body Vprog Gprog f_fib_loop_save_var (fib_spec _fib_loop_save_var).
 Proof.
   start_function.
-  rename a into n.
   forward.  (* a0 = 0; *)
   forward.  (* a1 = 1; *)
   forward_loop

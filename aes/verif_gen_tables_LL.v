@@ -199,7 +199,6 @@ Proof.
   start_function.
   reassoc_seq.
   (* DONE floyd: Thanks to reassoc_seq, we don't need the two preparation steps any more *)
-  rename a into gv.
   forward_for_simple_bound 256 (EX i: Z,
     PROP ( 0 <= i ) (* TODO floyd: why do we only get "Int.min_signed <= i < 256", instead of lo=0 ?
                        Probably because there are 2 initialisations in the for-loop... *)

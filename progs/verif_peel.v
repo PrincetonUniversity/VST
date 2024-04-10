@@ -42,7 +42,6 @@ Definition Gprog : funspecs :=
 Lemma body_f: semax_body Vprog Gprog f_f f_spec.
 Proof.
 start_function.
-rename a into b.
 (* First: some preliminary arithmetic assertions. *)
 assert (0 <= b <= b*b). {
    split; auto.

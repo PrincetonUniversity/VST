@@ -402,7 +402,6 @@ Lemma body_make_foo: semax_body Vprog FooGprog f_make_foo make_foo_spec.
 Proof.
 unfold make_foo_spec.
 start_function.
-rename a into gv.
 forward_call (Tstruct _foo_object noattr, gv).
 Intros p.
 forward_if
@@ -1141,7 +1140,6 @@ Definition Gprog : funspecs :=   ltac:(with_library prog [
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
 start_function.
-rename a into gv.
 sep_apply (create_mem_mgr gv).
 (* assert_gvar _foo_methods. (* TODO: this is needed for a field_compatible later on *) *)
 fold noattr cc_default.

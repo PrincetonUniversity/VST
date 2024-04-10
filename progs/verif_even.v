@@ -11,7 +11,6 @@ Definition Gprog : funspecs :=
 Lemma body_even : semax_body Vprog Gprog f_even even_spec.
 Proof.
 start_function.
-rename a into z.
 forward_if.
 *
  forward.

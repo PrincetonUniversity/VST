@@ -186,7 +186,6 @@ Qed.
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
   start_function.
-  rename a into gv.
   set (ctr := gv _c).
   forward.
   ghost_alloc (fun g => own g (●E O ⋅ ◯E O : excl_authR natO)).

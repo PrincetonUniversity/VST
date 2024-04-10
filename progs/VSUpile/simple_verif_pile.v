@@ -41,7 +41,6 @@ Qed.
 Lemma body_Pile_new: semax_body PileVprog PileGprog f_Pile_new Pile_new_spec.
 Proof.
 start_function.
-rename a into gv.
 forward_call (tpile, gv).
 fastforward.
 unfold pilerep, listrep, pile_freeable.

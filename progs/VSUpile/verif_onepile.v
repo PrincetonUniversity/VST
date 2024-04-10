@@ -47,7 +47,6 @@ Definition ONEPILE: OnePileAPD := Build_OnePileAPD one_pile.
 Lemma body_Onepile_init: semax_body OnepileVprog OnepileGprog f_Onepile_init (Onepile_init_spec M ONEPILE).
 Proof.
 start_function.
-rename a into gv.
 forward_call gv.
 Intros p.
 simpl onepile. unfold one_pile.

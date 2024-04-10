@@ -200,7 +200,6 @@ Qed.
 Lemma body_fifo_new: semax_body Vprog Gprog f_fifo_new fifo_new_spec.
 Proof.
   start_function.
-  rename a into gv.
   forward_call (* Q = surely_malloc(sizeof ( *Q)); *)
      (t_struct_fifo, gv).
   Intros q.
@@ -314,7 +313,6 @@ Qed.
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
 start_function.
-rename a into gv.
 sep_apply (create_mem_mgr gv).
 forward_call (* Q = fifo_new(); *)  gv.
 Intros q.

@@ -27,7 +27,6 @@ Definition Gprog : funspecs :=
 Lemma body_main: semax_body Vprog Gprog f_main main_spec.
 Proof.
 start_function.
-rename a into gv.
 make_stdio (@IO_event file_id).
 repeat do_string2bytes.
 do 3 (sep_apply data_at_to_cstring; []).

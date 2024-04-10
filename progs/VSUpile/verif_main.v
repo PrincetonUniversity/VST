@@ -20,7 +20,6 @@ Lemma body_main: semax_body Vprog Gprog f_main mainspec.
 Proof.
 pose Core_VSU.
 start_function.
-rename a into gv.
 forward_call gv.
 set (ONEPILE := spec_onepile.onepile _).
 set (APILE := verif_apile.apile _ _).

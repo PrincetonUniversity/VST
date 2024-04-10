@@ -17,7 +17,6 @@ Definition OnepileGprog: funspecs := onepile_imported_specs ++ onepile_internal_
 Lemma body_Onepile_init: semax_body OnepileVprog OnepileGprog f_Onepile_init Onepile_init_spec.
 Proof.
 start_function.
-rename a into gv.
 forward_call gv.
 Intros p.
 unfold onepile.
