@@ -38,8 +38,9 @@ Lemma SEP_entail'_fupd:
    ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢ |={E}=> PROPx P (LOCALx Q (SEPx R')).
 Proof.
 intros.
-iIntros "(#? & #? & #? & H)"; iFrame "#".
-iApply H; iFrame; auto.
+iIntros "(#? & #? & #? & H)".
+iMod (H with "[H]") as "$"; auto.
+repeat (iSplit; auto).
 Qed.
 
 Arguments sem_cmp c !t1 !t2 / v1 v2.

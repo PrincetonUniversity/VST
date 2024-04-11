@@ -634,9 +634,8 @@ Proof.
     * iIntros "(#? & P & ?)".
       iSplitL "P"; first by iSplit.
       setoid_rewrite <- IHm; by iSplit.
-    * iIntros "(($ & $) & ?)".
-      setoid_rewrite <- IHm.
-      rewrite bi.and_elim_r //.
+    * iIntros "((? & $) & ?)".
+      setoid_rewrite <- IHm; auto.
 Qed.
 
 Lemma struct_pred_sepcon: forall m {A} (P Q: forall it, A it -> val -> mpred) v p,

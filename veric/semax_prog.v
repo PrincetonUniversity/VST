@@ -1719,8 +1719,7 @@ Proof.
       6: rewrite /semax -semax_mask_mono //; apply SB3.
       all: clear SB3; intros; simpl; try iIntros "(_ & ([] & ?) & _)".
       * split => rho; monPred.unseal; iIntros "(%TC & (N1 & (? & N2)) & (%VALS & %TCVals)) !>"; iFrame.
-        unfold close_precondition.
-        iExists vals; iFrame; iPureIntro; repeat (split; trivial).
+        iPureIntro; repeat (split; trivial).
         apply (tc_vals_Vundef TCVals).
       * split => rho; rewrite /bind_ret; monPred.unseal; destruct (fn_return f); try iIntros "(_ & ([] & _) & _)".
         rewrite /= -QPOST; iIntros "(? & (? & ?) & ?)"; iFrame.

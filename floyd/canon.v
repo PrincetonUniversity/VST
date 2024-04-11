@@ -507,9 +507,8 @@ Proof.
     iSplit.
     * iIntros "($ & L & $ & $)".
       rewrite bi.affinely_and; iDestruct "L" as "($ & $)".
-    * iIntros "(($ & $ & $) & $ & $)". }
-  (*Fail rewrite Hequiv.*)
-  rewrite semax_proper; [| apply Hequiv | done.. ].
+    * iIntros "((? & ? & ?) & ? & $)"; auto. }
+  rewrite Hequiv.
   eapply ConseqFacts.semax_post, semax_frame, H0; simpl; try done; intros; try by iIntros "(_ & [] & _)".
   rewrite Hequiv bi.and_elim_r //.
 Qed.
@@ -776,11 +775,13 @@ Proof.
   intros.
   rewrite -(fupd_trans _ E) -H0.
   clear - H.
-  iIntros "(#? & #? & #? & H)"; iFrame "#".
+  iIntros "(#? & #? & #? & H)".
   rewrite /SEPx.
-  iInduction n as [|] "IH" forall (Rs H); destruct Rs; simpl; try done.
+  iInduction n as [|] "IH" forall (Rs H); destruct Rs; simpl.
+  - iIntros "!>"; iFrame; auto.
   - rewrite !embed_sep; iDestruct "H" as "(? & $)".
-    iApply H; rewrite /= /SEPx; iFrame "#"; iFrame.
+    iMod (H with "[$]") as "$"; auto.
+  - iIntros "!>"; iFrame; auto.
   - rewrite !embed_sep; iDestruct "H" as "($ & ?)".
     by iApply "IH".
 Qed.
@@ -833,7 +834,7 @@ Lemma LOCAL_later_derives:
  forall Q R R', (R ⊢ ▷R') -> LOCALx Q R ⊢ ▷ LOCALx Q R'.
 Proof.
   intros.
-  rewrite /LOCALx H; iIntros "($ & $)".
+  rewrite /LOCALx H; iIntros "(? & $)"; auto.
 Qed.
 
 Lemma SEP_later_derives:
@@ -1676,8 +1677,8 @@ Proof.
   rewrite /SEPx; iInduction n as [|] "IH" forall (R); destruct R; simpl; try done.
   - rewrite !embed_sep.
     iDestruct "H" as "(? & $)".
-    iApply H; iFrame "#".
-    rewrite /SEPx /= bi.sep_emp //.
+    iApply H.
+    rewrite /SEPx /= bi.sep_emp; iFrame; auto.
   - rewrite !embed_sep.
     iDestruct "H" as "($ & ?)".
     by iApply "IH".
@@ -1769,9 +1770,9 @@ Proof.
   apply semax_pre0 with (P' := ▷⌜PP⌝ ∧ PROPx P (LOCALx Q (SEPx ((P1 ∧ ▷P2) :: R)))).
   { apply bi.and_intro.
     - rewrite /SEPx /= embed_sep embed_and embed_later embed_and embed_pure; iIntros "(_ & _ & (_ & _ & $) & _)".
-    - iIntros "($ & $ & H)".
+    - iIntros "(? & ? & H)".
       rewrite /SEPx /=.
-      rewrite (bi.and_elim_l P2) //. }
+      rewrite (bi.and_elim_l P2); iFrame. }
   apply semax_extract_later_prop; auto.
 Qed.
 

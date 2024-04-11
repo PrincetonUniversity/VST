@@ -48,7 +48,7 @@ Proof.
     iSplit.
     { iDestruct (H1 with "[$]") as "($ & _)". }
     iSplit; first done.
-    iDestruct "H" as "(? & $ & $)"; simpl.
+    iDestruct "H" as "(? & ? & $)".
     iSplit; auto; iSplit; auto.
   + rewrite bi.and_elim_r.
     apply (derives_trans _ (⌜tc_val (typeof e1) v2⌝ ∧
@@ -118,7 +118,7 @@ Proof.
     { iDestruct (H1 with "[$]") as "(_ & ? & _)"; unfold local. rewrite lift0C_prop //. }
     rewrite assoc; iSplit.
     { iPoseProof (H1 with "[$]") as "H"; iSplit; [iDestruct "H" as "($ & _)" | iDestruct "H" as "(_ & $ & _)"]. }
-    iDestruct "H" as "(? & $ & $)"; simpl.
+    iDestruct "H" as "(? & ? & $)"; simpl.
     iSplit; auto; iSplit; auto.
   + intros. rewrite bi.and_elim_r.
     eapply (derives_trans _ (⌜tc_val t1 (force_val (sem_cast (typeof e1) t1 v2))⌝ ∧
@@ -278,9 +278,8 @@ Proof.
                              (local (tc_environ Delta)) ∧ 
                              PROPx P (LOCALx Q (SEPx (replace_nth n R emp)))))).
     rewrite H4.
-    iFrame "#".
     iStopProof; split => rho; monPred.unseal; unfold_lift; rewrite monPred_at_intuitionistically /=.
-    iIntros "(#(? & -> & ?) & (? & $) & $)"; subst; auto.
+    iIntros "(#(? & -> & ?) & (? & $) & $)"; subst; auto with iFrame.
   + rewrite bi.sep_assoc.
     rewrite ->!local_sepcon_assoc2, <- !local_sepcon_assoc1.
     erewrite SEP_replace_nth_isolate with (Rn' := Post), <- insert_SEP by eauto.
@@ -332,9 +331,8 @@ Proof.
                              (local (tc_environ Delta)) ∧ 
                              PROPx P (LOCALx Q (SEPx (replace_nth n R emp)))))).
     rewrite H7.
-    iFrame "#".
     iStopProof; split => rho; monPred.unseal; unfold_lift; rewrite monPred_at_intuitionistically /=.
-    iIntros "(#(? & -> & ?) & (? & $) & $)"; subst; auto.
+    iIntros "(#(? & -> & ?) & (? & $) & $)"; subst; auto with iFrame.
   +
     rewrite (@bi.and_exist_l _ _).
     apply bi.exist_elim; intro v''.

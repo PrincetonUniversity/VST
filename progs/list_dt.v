@@ -984,9 +984,7 @@ iIntros "((H & (% & %) & % & ? & lseg) & Hz)"; subst.
 iAssert ⌜~ptr_eq x z⌝ as %?.
 { iStopProof; entailer!. }
 iPoseProof (IHl with "[$H $lseg $Hz]") as "(? & ?)".
-iFrame.
-iSplit; first done.
-iExists y0; iFrame.
+iFrame; auto.
 Qed.
 
 Lemma lseg_cons_right_null (ls: listspec list_structid list_link list_token): forall dsh psh l x h y,
@@ -1640,7 +1638,7 @@ rewrite LsegGeneral.lseg_cons_eq.
 Intros y.
 subst; destruct p0 as [p z]; simpl in *.
 iIntros "(? & ((? & cell) & Hp) & ?)".
-iPoseProof (list_cell_valid_pointer with "[$cell Hp]") as "$"; auto.
+iPoseProof (list_cell_valid_pointer with "[$cell Hp]") as "?"; auto.
 iStopProof; cancel.
 Qed.
 

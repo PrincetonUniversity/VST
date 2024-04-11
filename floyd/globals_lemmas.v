@@ -893,10 +893,11 @@ Proof.
 intros.
 apply start_globvars_in_process.
 eapply semax_pre; [ | apply H0].
-iIntros "(#? & (($ & $ & HR) & Hglob) & $)".
+iIntros "(#? & ((% & #? & HR) & Hglob) & $)".
 rewrite /globvars_in_process in H |- *.
 iPoseProof (H with "[-]") as "(_ & $ & _)".
-iDestruct "Hglob" as "($ & _ & $ & $)"; auto.
+iDestruct "Hglob" as "(? & _ & $ & $)"; auto.
+iSplit; auto.
 Qed.
 
 Lemma process_globvar':
@@ -1585,7 +1586,7 @@ intros.
 rewrite -H.
 apply bi.and_mono; first done.
 unfold globvars_in_process; simpl.
-iIntros "($ & $ & ($ & $) & $)".
+iIntros "(? & $ & ($ & $) & $)"; auto.
 Qed.
 
 (*

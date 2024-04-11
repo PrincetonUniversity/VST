@@ -1642,8 +1642,7 @@ Lemma valid_pointer_weak:
  forall a, valid_pointer a ⊢ weak_valid_pointer a.
 Proof.
 intros.
-unfold valid_pointer, weak_valid_pointer.
-iIntros "$".
+unfold valid_pointer, weak_valid_pointer; auto.
 Qed.
 
 Lemma valid_pointer_weak':

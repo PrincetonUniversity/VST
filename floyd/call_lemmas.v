@@ -152,9 +152,9 @@ Proof.
   intros.
   apply (semax_fun_id id f E Delta); auto.
   eapply semax_pre_post; try apply H1; intros; try by rewrite bi.and_elim_r.
-  iIntros "($ & ? & ?)"; iSplit.
+  iIntros "(? & ? & ?)"; iSplit.
   { rewrite bi.and_elim_l; iFrame.
-    iStopProof; split => rho; auto. }
+    iStopProof; split => rho; monPred.unseal; auto. }
   rewrite bi.and_elim_r; iFrame.
 Qed.
 
@@ -461,18 +461,19 @@ Proof.
   assert (H18 := msubst_eval_expr_eq Delta P Qtemp Qvar GV R' a v H0).
   assert (H19 := local2ptree_soundness P Q R' Qtemp Qvar nil GV H).
   split; repeat match goal with |- _ /\ _ => split end; auto.
-  2: { iIntros "($ & $ & ?)"; rewrite /SEPx H3; by iNext. }
+  2: { iIntros "(? & ? & ?)"; rewrite /SEPx H3; repeat (iSplit; auto). }
   hnf; intros.
   eapply semax_pre; [ | eassumption].
   clear c Post0 H8.
   Exists v.
   iIntros "(#? & H)"; iSplit; last done.
-  iAssert (local ((` (eq v)) (eval_expr a))) with "[-]" as "#$".
+  iAssert (local ((` (eq v)) (eval_expr a))) with "[-]" as "#?".
   - rewrite -H18.
     iSplit; first done.
     by iApply H19.
   - iDestruct "H" as "(_ & _ & H)".
-    rewrite /SEPx H1 embed_absorbingly //.
+    rewrite /SEPx H1 embed_absorbingly.
+    rewrite bi.persistent_and_affinely_sep_r bi.absorbingly_sep; iFrame; auto.
 Qed.
 
 Lemma call_setup1_i:
@@ -506,12 +507,13 @@ Proof.
   clear c Post0 H7.
   Exists v.
   iIntros "(#? & H)"; iSplit; last done.
-  iAssert (local ((` (eq v)) (eval_expr a))) with "[-]" as "#$".
+  iAssert (local ((` (eq v)) (eval_expr a))) with "[-]" as "#?".
   - rewrite -H18.
     iSplit; first done.
     by iApply H19.
   - iDestruct "H" as "(_ & _ & H)".
-    rewrite /SEPx H1 embed_absorbingly //.
+    rewrite /SEPx H1 embed_absorbingly.
+    rewrite bi.persistent_and_affinely_sep_r bi.absorbingly_sep; iFrame; auto.
 Qed.
 
 Lemma OLDcall_setup1_i2:
@@ -578,12 +580,13 @@ Proof.
   eapply semax_pre; [ | eassumption].
   Exists v.
   iIntros "(#? & H)"; iSplit; last done.
-  iAssert (local ((` (eq v)) (eval_expr a))) with "[-]" as "#$".
+  iAssert (local ((` (eq v)) (eval_expr a))) with "[-]" as "#?".
   - assert (H8 := msubst_eval_expr_eq Delta P Qtemp Qvar GV R a v H0).
     eapply local2ptree_soundness' in H.
     simpl in H; rewrite <- H in H8.
-    rewrite -H8 app_nil_r; by iFrame "#".
-  - iApply H1; by iFrame "#".
+    rewrite -H8 app_nil_r; auto.
+  - rewrite bi.persistent_and_affinely_sep_r bi.absorbingly_sep; iSplit; auto.
+    iApply H1; auto.
 Qed.
 
 Lemma can_assume_funcptr2:
@@ -749,7 +752,7 @@ Proof.
   iSplit; first done.
   iIntros "!>"; iSplit; first rewrite bi.and_elim_r //.
   iPoseProof (EVAL with "[-]") as "#H1".
-  { rewrite bi.and_elim_r; by iFrame "#". }
+  { rewrite bi.and_elim_r; auto. }
   rewrite bi.and_elim_l.
   iStopProof.
   split => rho; monPred.unseal; rewrite monPred_at_intuitionistically.
@@ -852,7 +855,7 @@ Proof.
     iAssert (local ((` (eq vl)) (eval_exprlist argsig bl))) with "[-]" as "#?".
     { apply (local2ptree_soundness P _ R) in PTREE. simpl app in PTREE.
       apply @msubst_eval_exprlist_eq with (P:=P)(R:=R)(GV:=GV) in MSUBST.
-      iApply MSUBST; rewrite PTREE; by iFrame "#". }
+      iApply MSUBST; rewrite PTREE; auto. }
     iClear "TC FP A".
     iDestruct "H" as "(#? & #? & H)".
     rewrite PRE1 /SEPx FRAME.
@@ -873,7 +876,7 @@ Proof.
       * simpl in CHECKG; subst. apply rev_nil_elim in H2. apply map_eq_nil in H2.
         subst. simpl.
         apply (local2ptree_aux_elim _ _ H0 _ _ _ _ _ _ _ _ PTREE); trivial.
-    + rewrite /PROPx /LOCALx; by iFrame "#".
+    + rewrite /PROPx /LOCALx; auto.
 Qed.
 
 (*Lemma semax_call_aux55_nil:
@@ -943,11 +946,11 @@ Proof.
   eapply semax_pre, H.
   iIntros "(#? & $ & ?)".
   iSplit.
-  { iApply tc_exprlist_len; iApply TC1; by iFrame "#". }
+  { iApply tc_exprlist_len; iApply TC1; auto. }
   iSplit.
-  { iApply CHECKTEMP; by iFrame "#". }
+  { iApply CHECKTEMP; auto. }
   iSplit; first done.
-  iSplit; [iApply TC0 | iApply TC1]; by iFrame "#".
+  iSplit; [iApply TC0 | iApply TC1]; auto.
 Qed.
 
 Lemma semax_call_id00_wow:
@@ -986,7 +989,8 @@ Proof.
   eapply semax_pre_post', (semax_call0 Delta fs A Ef Pre Post
               witness argsig retty cc a bl P Q Frame Hsub).
   * subst TChecks. rewrite -semax_call_aux55 //.
-    iIntros "($ & H)"; iSplit.
+    iIntros "(? & H)"; iSplit; auto.
+    iSplit.
     { iDestruct "H" as "((_ & $ & _) & _)". }
     iSplit.
     { iDestruct "H" as "((_ & _ & $) & _)". }
@@ -1074,7 +1078,7 @@ Proof.
       destruct ((temp_types Delta) !! ret); inv TYret; auto
     ].
   * subst TChecks. rewrite -semax_call_aux55 //.
-    iIntros "($ & H)"; iSplit.
+    iIntros "(? & H)"; iSplit; auto; iSplit.
     { iDestruct "H" as "((_ & $ & _) & _)". }
     iSplit.
     { iDestruct "H" as "((_ & _ & $) & _)". }
@@ -1205,7 +1209,7 @@ Proof.
       iSplit; first done.
       iApply (neutral_isCastResultType with "H"); auto.
     - rewrite <- !insert_local.
-      iDestruct "H" as "($ & H)".
+      iDestruct "H" as "(? & H)"; iSplit; first done.
       subst Qnew; by iApply derives_remove_localdef_PQR.
   + intros.
     rewrite HPOST2.
@@ -1342,7 +1346,7 @@ Proof.
       iSplit; first done.
       iApply (neutral_isCastResultType with "H"); auto.
     - rewrite <- !insert_local.
-      iDestruct "H" as "($ & H)".
+      iDestruct "H" as "(? & H)"; iSplit; first done.
       subst Qnew; by iApply derives_remove_localdef_PQR.
   + intros. rewrite HPOST2.
     Exists vret.
@@ -1446,7 +1450,7 @@ Proof.
   eapply semax_pre_post', semax_call0 with (fs:=fs)(cc:=cc)(A:= A)(x:=witness) (P:=P)(Q:=Q)(R := Frame);
      try eassumption.
   * subst TChecks. rewrite -semax_call_aux55 //.
-    iIntros "($ & H)"; iSplit.
+    iIntros "(? & H)"; iSplit; auto; iSplit.
     { iDestruct "H" as "((_ & $ & _) & _)". }
     iSplit.
     { iDestruct "H" as "((_ & _ & $) & _)". }

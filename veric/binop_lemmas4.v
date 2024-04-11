@@ -373,6 +373,7 @@ rewrite Ptrofs.unsigned_repr in H0;
     lia]).
 -
 iIntros "[% $]"; iPureIntro.
+split; auto.
 destruct si, si'; auto.
 *
 unfold Ptrofs.of_ints, Ptrofs.of_intu in *.
@@ -446,6 +447,7 @@ rewrite Ptrofs.unsigned_repr in H;
     lia]).
 -
 iIntros "[% $]"; iPureIntro.
+split; auto.
 destruct si, si'; auto.
 *
 unfold Ptrofs.of_ints, Ptrofs.of_intu in *.

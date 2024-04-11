@@ -705,7 +705,7 @@ Lemma ENTAIL_trans:
   local (tc_environ Delta) ∧ P ⊢ R.
 Proof.
 intros ????? <-; rewrite -H.
-iIntros "($ & $)".
+iIntros "(? & $)"; auto.
 Qed.
 
 Lemma ENTAIL_refl:
@@ -760,7 +760,7 @@ Lemma derives_fupd_derives_full: forall Delta E P Q,
   (local (tc_environ Delta) ∧ P ⊢ (|={E}=> Q)) ->
   local (tc_environ Delta) ∧ (allp_fun_id Delta ∧ P) ⊢ (|={E}=> Q).
 Proof.
-  intros. rewrite -H. iIntros "($ & _ & $)".
+  intros. rewrite -H. iIntros "(? & _ & $)"; auto.
 Qed.
 
 Lemma andp_ENTAIL: forall TC P P' Q Q',
@@ -769,7 +769,7 @@ Lemma andp_ENTAIL: forall TC P P' Q Q',
   local TC ∧ (P ∧ Q) ⊢ P' ∧ Q'.
 Proof.
   intros ????? <- <-.
-  iIntros "($ & $)".
+  iIntros "(? & ?)"; iSplit; [rewrite bi.and_elim_l | rewrite bi.and_elim_r]; auto.
 Qed.
 
 Lemma orp_ENTAIL: forall TC P P' Q Q',
@@ -778,7 +778,7 @@ Lemma orp_ENTAIL: forall TC P P' Q Q',
   local TC ∧ (P ∨ Q) ⊢ P' ∨ Q'.
 Proof.
   intros ????? <- <-.
-  iIntros "($ & $)".
+  iIntros "(? & [? | ?])"; auto.
 Qed.
 
 Lemma sepcon_ENTAIL: forall TC P P' Q Q',
@@ -833,7 +833,7 @@ Lemma andp_ENTAILL: forall Delta P P' Q Q',
   local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ (P ∧ Q)) ⊢ P' ∧ Q'.
 Proof.
   intros ????? <- <-.
-  iIntros "($ & $ & $)".
+  iIntros "(? & ? & ?)"; iSplit; [rewrite bi.and_elim_l | rewrite bi.and_elim_r]; auto.
 Qed.
 
 Lemma orp_ENTAILL: forall Delta P P' Q Q',
@@ -842,7 +842,7 @@ Lemma orp_ENTAILL: forall Delta P P' Q Q',
   local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ (P ∨ Q)) ⊢ P' ∨ Q'.
 Proof.
   intros ????? <- <-.
-  iIntros "($ & $ & $)".
+  iIntros "(? & ? & [? | ?])"; auto.
 Qed.
 
 Lemma imp_ENTAILL: forall Delta P P' Q Q',
@@ -852,13 +852,13 @@ Lemma imp_ENTAILL: forall Delta P P' Q Q',
 Proof.
   intros ????? <- <-.
   iIntros "H"; iApply bi.impl_intro_r; last iApply "H".
-  iIntros "H"; iSplit; first by iDestruct "H" as "(($ & _ & _) & _)".
+  iIntros "H"; iSplit; first by iDestruct "H" as "((? & _ & _) & _)".
   iSplit; first by iDestruct "H" as "((_ & $ & _) & _)".
   iApply (bi.impl_elim with "H").
   - iIntros "((_ & _ & $) & _)".
   - rewrite -bi.and_assoc {1}(persistent (allp_fun_id _)).
     rewrite -bi.persistently_and_intuitionistically_sep_l -bi.and_assoc.
-    iIntros "($ & ? & _ & $)".
+    iIntros "(? & ? & _ & $)"; iFrame.
     by iApply bi.intuitionistically_affinely.
 Qed.
 
@@ -868,7 +868,7 @@ Lemma sepcon_ENTAILL: forall Delta P P' Q Q',
   local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ (P ∗ Q)) ⊢ P' ∗ Q'.
 Proof.
   intros ????? <- <-.
-  iIntros "(#$ & #$ & $ & $)".
+  iIntros "(#? & #? & $ & $)"; auto.
 Qed.
 
 Lemma wand_ENTAILL: forall Delta P P' Q Q',
@@ -920,7 +920,10 @@ Proof.
   iAssert (local (`(tc_val' t) v)) as "#Hty".
   { iDestruct "H" as "(? & ? & ? & _)".
     iApply (H0 with "[$]"). }
-  assert (local ((` (tc_val' t)) v) ∧ local (tc_environ Delta) ∧ <affine> allp_fun_id Delta ∗ assert_of (subst i v P) ⊢ assert_of (subst i v Q)) as <-; last by iFrame "#"; iDestruct "H" as "($ & $ & $)".
+  assert (local ((` (tc_val' t)) v) ∧ local (tc_environ Delta) ∧ <affine> allp_fun_id Delta ∗ assert_of (subst i v P) ⊢ assert_of (subst i v Q)) as <-.
+  2: { iDestruct "H" as "(? & ? & ?)"; iSplit; iSplit; auto.
+       * rewrite bi.and_elim_l; iFrame.
+       * rewrite bi.and_elim_r; iFrame. }
   split => rho; rewrite /subst /= -H1; monPred.unseal.
   rewrite !monPred_at_affinely.
   iIntros "(% & %TC & $ & $)"; iPureIntro.

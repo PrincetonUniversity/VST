@@ -157,7 +157,6 @@ Proof.
   * iIntros "H (% & P & ?)".
     rewrite (assert_safe_fupd' _ _ _ _ (F ∗ P)); last done.
     iApply "H"; iFrame "%"; iFrame.
-    rewrite -bi.sep_True_2.
     monPred.unseal; by iDestruct "P" as "($ & >$)".
   * iIntros "H (% & P & ?)"; iApply "H"; iFrame.
     iFrame "%"; monPred.unseal; by iDestruct "P" as "($ & $)".
@@ -311,7 +310,7 @@ Proof.
   do 6 f_equiv.
   iSplit.
   * monPred.unseal; iIntros "(%Henv & ($ & $) & $)"; iPureIntro.
-    split3; last done; auto; split; auto.
+    split3; last done; auto.
     eapply typecheck_environ_sub; eauto.
     destruct Henv as [? _]; auto.
   * monPred.unseal; iIntros "($ & ($ & [_ $]) & $)".
@@ -382,7 +381,7 @@ Proof.
          | rename H1 into Hx; pose (ek:=@RA_break Σ)
          | rename H2 into Hx ; pose (ek:=@RA_continue Σ)
          | apply bi.sep_mono, H3; auto]; clear H3.
-    all: rewrite fupd_mask_mono // in Hx; rewrite -Hx; iIntros "($ & $ & $ & $)".
+    all: rewrite fupd_mask_mono // in Hx; rewrite -Hx; iIntros "($ & ? & $ & $ & $)"; auto.
   + erewrite (guard_allp_fun_id _ _ _ _ _ _ P) by eauto.
     erewrite (guard_tc_environ _ _ _ _ _ _ (<affine> allp_fun_id Delta ∗ P)) by eauto.
     rewrite (guard_fupd _ _ _ _ _ P').
@@ -421,16 +420,16 @@ Lemma semax'_post_fupd:
    semax' OK_spec E Delta P c R' ⊢ semax' OK_spec E Delta P c R.
 Proof.
 intros.
-apply semax'_conseq; [by iIntros "(_ & _ & $)" | .. | intros; rewrite -H0; iIntros "($ & _ & $)"]; intros.
+apply semax'_conseq; [by iIntros "(_ & _ & $)" | .. | intros; rewrite -H0; iIntros "(? & _ & $)"; auto]; intros.
 - specialize (H EK_normal None); simpl in H.
   rewrite (bi.pure_True (None = None)) in H; last done; rewrite !bi.True_and in H.
-  rewrite -H; last done; iIntros "($ & _ & $)".
+  rewrite -H; last done; iIntros "(? & _ & $)"; auto.
 - specialize (H EK_break None); simpl in H.
   rewrite (bi.pure_True (None = None)) in H; last done; rewrite !bi.True_and in H.
-  rewrite -H; last done; iIntros "($ & _ & $)".
+  rewrite -H; last done; iIntros "(? & _ & $)"; auto.
 - specialize (H EK_continue None); simpl in H.
   rewrite (bi.pure_True (None = None)) in H; last done; rewrite !bi.True_and in H.
-  rewrite -H; last done; iIntros "($ & _ & $)".
+  rewrite -H; last done; iIntros "(? & _ & $)"; auto.
 Qed.
 
 Lemma semax'_post:

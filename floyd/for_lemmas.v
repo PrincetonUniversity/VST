@@ -185,10 +185,10 @@ Proof.
       rewrite <- insert_local, <- insert_prop.
       Exists n'.
       rewrite -H1.
-      iIntros "($ & _ & _ & $)"; auto.
+      iIntros "(? & _ & _ & $)"; auto.
     - rewrite <- insert_local, <- insert_prop.
       rewrite -H3.
-      iIntros "($ & _ & _ & $)"; auto.
+      iIntros "(? & _ & _ & $)"; auto.
     - rewrite closed_wrt_proper; last by intros ?; rewrite local2ptree_soundness. (* Proper should let us rewrite local2ptree_soundness directly *)
       apply closed_wrt_PROPx.
       apply closed_wrt_LOCALx; [| apply closed_wrt_SEPx].
@@ -488,7 +488,7 @@ Lemma Sfor_loop_cond_true:
 Proof.
   intros.
   iIntros "(#? & inv0 & #?)".
-  iPoseProof (EVAL_hi with "[-]") as (??) "#?"; first by iFrame "#".
+  iPoseProof (EVAL_hi with "[-]") as (??) "#?"; first auto.
   rewrite -EQ_inv0.
   iDestruct "inv0" as (i ?) "inv1".
   iExists i.
@@ -536,7 +536,7 @@ Lemma Sfor_loop_cond_false:
 Proof.
   intros.
   iIntros "(#? & inv0 & #?)".
-  iPoseProof (EVAL_hi with "[-]") as (??) "#?"; first by iFrame "#".
+  iPoseProof (EVAL_hi with "[-]") as (??) "#?"; first auto.
   rewrite -EQ_inv0.
   iDestruct "inv0" as (i ?) "inv1".
   iAssert ⌜i = n⌝ as %?; [| subst; done].

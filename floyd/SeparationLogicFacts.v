@@ -1003,7 +1003,7 @@ Proof.
   iSplit; first done.
   iNext.
   iApply (bi.and_mono with "H"); first done.
-  iIntros "($ & $)"; eauto.
+  iIntros "($ & ?)"; eauto with iFrame.
 Qed.
 
 End StoreUnionHackB2F.
@@ -1262,7 +1262,7 @@ Proof.
     rewrite comm //.
   + iIntros "(TC & % & H & ?)".
     rewrite substopt_oboxopt.
-    iPoseProof (oboxopt_T with "[$TC $H]") as "H"; last by iApply "H".
+    iPoseProof (oboxopt_T with "[TC $H]") as "H"; auto; last by iApply "H".
     by eapply fn_return_temp_guard.
   + auto.
   + auto.

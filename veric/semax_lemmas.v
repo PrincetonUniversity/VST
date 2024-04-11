@@ -284,7 +284,6 @@ iAssert (◇ ∃ a : A, (⌜guard_environ Delta' f (construct_rho (filter_genv p
       ∧ (F ∗ Q ∧ ▷ P a) (construct_rho (filter_genv psi) vx tx) ∗
       funassert Delta' (construct_rho (filter_genv psi) vx tx))) with "[H]" as ">H".
 { iDestruct "H" as "($ & H & $)".
-  setoid_rewrite <- bi.sep_True_2.
   monPred.unseal.
   iDestruct "H" as "($ & H)".
   rewrite monPred_at_except_0 {1}(bi.except_0_intro (Q _)) -bi.except_0_and bi.and_exist_l //. }

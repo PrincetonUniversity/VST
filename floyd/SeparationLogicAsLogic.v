@@ -2043,7 +2043,7 @@ Proof.
     - iIntros "(_ & ($ & $) & $)".
     - rewrite H0; iIntros "($ & _)".
     - intros; eapply semax_pre_post, H2; try solve [destruct R; simpl; intros; rewrite bi.and_elim_r //].
-      * iIntros "(_ & $ & $ & $)".
+      * iIntros "(_ & ? & $ & $)"; auto.
       * destruct R; simpl; iIntros "(_ & [] & _)".
       * eapply semax_lemmas.closed_Sswitch; eauto.
   + eapply semax_pre_post; [.. | apply (AuxDefs.semax_call_backward _ _ _ _ _ (R ∗ F)); auto];
@@ -2132,8 +2132,8 @@ Proof.
       iIntros "(($ & H) & ?)".
       iNext.
       repeat (iSplit; first rewrite bi.and_elim_l //; rewrite bi.and_elim_r).
-      iDestruct "H" as "($ & H)"; iIntros (?) "?".
-      iFrame; iApply "H"; done.
+      iDestruct "H" as "($ & H)"; iIntros (?) "??".
+      iFrame; iApply ("H" with "[$]"); auto.
   + eapply semax_post, AuxDefs.semax_skip; try solve [simpl; intros; rewrite bi.and_elim_r //; iIntros "[]"].
   + eapply semax_pre, AuxDefs.semax_builtin.
     iIntros "(_ & [] & _)".
@@ -2316,8 +2316,7 @@ apply semax_adapt
       6: apply SB3.
       all: clear SB3; intros; simpl; try iIntros "(_ & ([] & ?) & _)".
       * split => rho; monPred.unseal; iIntros "(%TC & (N1 & (? & N2)) & (%VALS & %TCVals)) !>"; iFrame.
-        unfold close_precondition.
-        iExists vals; iFrame; iPureIntro; repeat (split; trivial).
+        iPureIntro; repeat (split; trivial).
         apply (tc_vals_Vundef TCVals).
       * split => rho; rewrite /bind_ret; monPred.unseal; destruct (fn_return f); try iIntros "(_ & ([] & _) & _)".
         rewrite /= -QPOST; iIntros "(? & (? & ?) & ?)"; iFrame.

@@ -939,7 +939,7 @@ Proof.
           simpl in TCret; intros ? Hi; rewrite Hi in TCret; subst.
           rewrite H18b; by apply tc_val_tc_val', TCvl.
         * rewrite H18b /= TCvl in TC5; specialize (TC5 eq_refl); done.
-      + iSplit; last done; iSplit; last done.
+      + iSplit; last done.
         destruct ret as [ret|]; last done.
         rewrite closed_wrt_modvars_Scall in H.
         rewrite -(H (construct_rho (filter_genv psi) vx tx)); first done.
@@ -1195,7 +1195,7 @@ Proof.
       * destruct GuardEnv as ((? & ? & ?) & ?); done.
       * rewrite snd_split -H18 //.
     + iFrame; monPred.unseal; iFrame.
-      monPred.unseal; iFrame; iSplit; last done.
+      monPred.unseal; iFrame.
       apply list_norepet_app in H17 as [H17 [_ _]].
       rewrite /bind_args; monPred.unseal; iSplit.
       * iPureIntro.
@@ -1592,7 +1592,7 @@ Proof.
   replace (ret_type Delta) with (ret_type Delta')
     by (destruct TS as [_ [_ [? _]]]; auto).
   iIntros "#Prog_OK" (????) "[(%Hclosed & %HE) #rguard]".
-  iIntros (??) "!> (% & H & ?)".
+  iIntros (??) "!> (% & H & fun)".
   monPred.unseal.
   set (rho := construct_rho _ _ _).
   iSpecialize ("rguard" $! EK_return (@cast_expropt CS' ret (ret_type Delta') rho) tx vx).
@@ -1604,7 +1604,8 @@ Proof.
                 (construct_rho (filter_genv psi) vx tx)) with "[-]" as "H".
   { iSplit.
     + rewrite tc_expropt_cenv_sub //.
-      iDestruct "H" as "(? & $ & _)".
+      iDestruct "fun" as "_".
+      iDestruct "H" as "(_ & $ & _)".
     + iApply "rguard".
       rewrite proj_frame /=; subst rho.
       rewrite RA_return_castexpropt_cenv_sub //.
