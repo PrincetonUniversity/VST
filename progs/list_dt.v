@@ -2333,7 +2333,7 @@ rewrite lseg_nil_eq, H3. entailer!.
 unfold lseg; simpl.
 Intros y.
 iIntros "(? & ((? & cell) & Hp) & ?)".
-iPoseProof (list_cell_valid_pointer with "[$cell Hp]") as "$"; eauto.
+iPoseProof (list_cell_valid_pointer with "[$cell Hp]") as "?"; eauto.
 iStopProof; cancel.
 Qed.
 
@@ -2341,7 +2341,7 @@ End LIST2.
 
 Lemma join_sub_Tsh:
   forall sh, sepalg.join_sub sh Tsh.
-Admitted. (* easy *)
+Proof. apply top_correct'. Qed.
 #[export] Hint Resolve join_sub_Tsh: valid_pointer.
 
 #[export] Hint Rewrite @lseg_nil_eq : norm.
