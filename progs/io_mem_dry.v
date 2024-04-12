@@ -110,8 +110,7 @@ Proof.
       rewrite /local /= /lift1; unfold_lift.
       iSplit.
       { iPureIntro; destruct ty; done. }
-      iFrame.
-      iExists z'; iFrame; done.
+      iFrame; done.
   - if_tac; last done; intros.
     exists (m, w).
     destruct w as (((sh, buf), len), k).
