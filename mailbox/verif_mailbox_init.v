@@ -201,7 +201,7 @@ Proof.
       rewrite /AE_inv; iNext.
       iExists [], (vint 0); iFrame.
       iSplit; first done.
-      iExists 0, 1, 1; simpl.
+      iExists 0, 1; simpl.
       eauto with iFrame. }
     forward.
     Exists (comms ++ [c]) (g ++ [g']) (g0 ++ [g0']) (g1 ++ [g1']) (g2 ++ [g2'])
