@@ -368,6 +368,17 @@ MSL_FILES = \
   boolean_alg.v tree_shares.v shares.v pshares.v \
   Coqlib2.v sepalg_list.v
 
+ORA_FILES = \
+  theories/algebra/ora.v theories/algebra/excl.v theories/algebra/osum.v \
+  theories/algebra/agree.v theories/algebra/gmap.v theories/algebra/functions.v \
+  theories/algebra/dfrac.v theories/algebra/ext_order.v theories/algebra/view.v \
+  theories/algebra/auth.v theories/algebra/excl_auth.v theories/algebra/frac_auth.v \
+  theories/algebra/gmap_view.v theories/logic/oupred.v theories/logic/algebra.v \
+  theories/logic/iprop.v theories/logic/derived.v theories/logic/own.v \
+  theories/logic/proofmode.v theories/logic/logic.v theories/logic/wsat.v \
+  theories/logic/later_credits.v theories/logic/fancy_updates.v theories/logic/invariants.v \
+  theories/logic/cancelable_invariants.v theories/logic/weakestpre.v theories/logic/ghost_map.v
+
 SEPCOMP_FILES = \
   Address.v \
   effect_semantics.v \
@@ -625,6 +636,7 @@ C_FILES = $(SINGLE_C_FILES) $(LINKED_C_FILES)
 FILES = \
  veric/version.v \
  $(MSL_FILES:%=msl/%) \
+ $(ORA_FILES:%=ora/%) \
  $(SEPCOMP_FILES:%=sepcomp/%) \
  $(VERIC_FILES:%=veric/%) \
  $(FLOYD_FILES:%=floyd/%) \
@@ -740,8 +752,7 @@ files: _CoqProject $(FILES:.v=.vo)
 #
 simpleconc: concurrency/conclib.vo atomics/verif_lock.vo
 msl:     _CoqProject $(MSL_FILES:%.v=msl/%.vo)
-ora:     _CoqProject
-	cd ora; $(MAKE)
+ora:     _CoqProject $(ORA_FILES:%.v=ora/%.vo)
 sepcomp: _CoqProject $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo)
 concurrency: _CoqProject $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo) $(CONCUR_FILES:%.v=concurrency/%.vo)
 linking: _CoqProject $(LINKING_FILES:%.v=linking/%.vo)
