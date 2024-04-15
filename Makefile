@@ -789,7 +789,7 @@ install: VST.config
 	for d in $(sort $(dir $(INSTALL_FILES) $(EXTRA_INSTALL_FILES))); do install -d "$(INSTALLDIR)/$$d"; done
 	for f in $(INSTALL_FILES); do install -m 0644 $$f "$(INSTALLDIR)/$$(dirname $$f)"; done
 	for f in $(EXTRA_INSTALL_FILES); do install -m 0644 $$f "$(INSTALLDIR)/$$(dirname $$f)"; done
-  cd ora; $(MAKE) install
+	cd ora; $(MAKE) install
 
 dochtml:
 	mkdir -p doc/html
