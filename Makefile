@@ -713,7 +713,7 @@ endif
 # ########## Targets ##########
 
 default_target: vst $(PROGSDIR)
-vst: _CoqProject msl veric floyd simpleconc
+vst: _CoqProject msl veric ora floyd simpleconc
 
 ifeq ($(BITSIZE),64)
 test: vst progs64
@@ -740,6 +740,8 @@ files: _CoqProject $(FILES:.v=.vo)
 #
 simpleconc: concurrency/conclib.vo atomics/verif_lock.vo
 msl:     _CoqProject $(MSL_FILES:%.v=msl/%.vo)
+ora:     _CoqProject
+	cd ora; $(MAKE)
 sepcomp: _CoqProject $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo)
 concurrency: _CoqProject $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo) $(CONCUR_FILES:%.v=concurrency/%.vo)
 linking: _CoqProject $(LINKING_FILES:%.v=linking/%.vo)
@@ -889,6 +891,7 @@ clean:
 	rm -f $(addprefix veric/version., v vo vos vok glob) .lia.cache .nia.cache floyd/floyd.coq .depend _CoqProject _CoqProject-export $(wildcard */.*.aux)  $(wildcard */*.glob) $(wildcard */*.vo */*.vos */*.vok) compcert/*/*.{vo,vos,vok} compcert/*/*/*.{vo,vos,vok}  compcert_new/*/*.{vo,vos,vok} compcert_new/*/*/*.{vo,vos,vok}
 	rm -f progs/VSUpile/{*,*/*}.{vo,vos,vok,glob}
 	rm -f progs/memmgr/*.{vo,vos,vok,glob}
+	rm -f ora/theories/*/*.{vo,vos,vok,glob}
 	rm -f coq-ext-lib/theories/*.{vo,vos,vok,glob} InteractionTrees/theories/{*,*/*}.{vo,vos,vok,glob}
 	rm -f paco/src/*.{vo,vos,vok,glob}
 	rm -f fcf/src/FCF/*.{vo,vos,vok,glob}
