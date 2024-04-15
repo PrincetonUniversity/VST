@@ -65,7 +65,7 @@ endif
 # CLIGHTGEN=$(my_local_bin_path)/clightgen
 
 # # User settable variables #
-COMPCERT ?= bundled
+COMPCERT ?= platform
 ZLIST ?= bundled
 ARCH ?= 
 BITSIZE ?= 64
@@ -674,11 +674,6 @@ INSTALL_FILES_SRC=$(shell COMPCERT=$(COMPCERT) COMPCERT_INST_DIR=$(COMPCERT_INST
 INSTALL_FILES_VO=$(patsubst %.v,%.vo,$(INSTALL_FILES_SRC))
 INSTALL_FILES=$(sort $(INSTALL_FILES_SRC) $(INSTALL_FILES_VO))
 
-IRIS_INSTALL_FILES_BASE=$(shell COMPCERT=$(COMPCERT) COMPCERT_INST_DIR=$(COMPCERT_INST_DIR) ZLIST=$(ZLIST) BITSIZE=$(BITSIZE) ARCH=$(ARCH) IGNORECOQVERSION=$(IGNORECOQVERSION) IGNORECOMPCERTVERSION=$(IGNORECOMPCERTVERSION) MAKE=$(MAKE) util/calc_install_files atomics)
-IRIS_INSTALL_FILES_SRC=$(filter-out $(INSTALL_FILES_SRC),$(IRIS_INSTALL_FILES_BASE))
-IRIS_INSTALL_FILES_VO=$(patsubst %.v,%.vo,$(IRIS_INSTALL_FILES_SRC))
-IRIS_INSTALL_FILES=$(sort $(IRIS_INSTALL_FILES_SRC) $(IRIS_INSTALL_FILES_VO))
-
 # ########## Rules ##########
 
 %_stripped.v: %.v
@@ -790,9 +785,11 @@ VST.config:
 # This is not ideal but otherwise it gets tricky to handle variants
 install: VST.config
 	install -d "$(INSTALLDIR)"
+	install -d "$(INSTALLDIR)"
 	for d in $(sort $(dir $(INSTALL_FILES) $(EXTRA_INSTALL_FILES))); do install -d "$(INSTALLDIR)/$$d"; done
 	for f in $(INSTALL_FILES); do install -m 0644 $$f "$(INSTALLDIR)/$$(dirname $$f)"; done
 	for f in $(EXTRA_INSTALL_FILES); do install -m 0644 $$f "$(INSTALLDIR)/$$(dirname $$f)"; done
+  cd ora; $(MAKE) install
 
 dochtml:
 	mkdir -p doc/html
