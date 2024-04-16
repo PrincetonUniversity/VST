@@ -733,7 +733,8 @@ test: vst progs64
 	@# need this tab here to turn of special behavior of 'test' target
 test2: io
 test4: mailbox 
-tests: test test2 test4
+test6: VSUpile64
+tests: test test2 test4 test6
 all: tests
 else
 test: vst progs
@@ -741,7 +742,7 @@ test: vst progs
 test2: io
 test3: sha hmac 
 test5: VSUpile
-tests: test test2 test3 test5
+tests: test test2 test3 test5 test6
 all: vst files tests hmacdrbg tweetnacl aes
 endif
 
@@ -905,6 +906,7 @@ endif
 clean:
 	rm -f $(addprefix veric/version., v vo vos vok glob) .lia.cache .nia.cache floyd/floyd.coq .depend _CoqProject _CoqProject-export $(wildcard */.*.aux)  $(wildcard */*.glob) $(wildcard */*.vo */*.vos */*.vok) compcert/*/*.{vo,vos,vok} compcert/*/*/*.{vo,vos,vok}  compcert_new/*/*.{vo,vos,vok} compcert_new/*/*/*.{vo,vos,vok}
 	rm -f progs/VSUpile/{*,*/*}.{vo,vos,vok,glob}
+	rm -f progs64/VSUpile/{*,*/*}.{vo,vos,vok,glob}
 	rm -f progs/memmgr/*.{vo,vos,vok,glob}
 	rm -f coq-ext-lib/theories/*.{vo,vos,vok,glob} InteractionTrees/theories/{*,*/*}.{vo,vos,vok,glob}
 	rm -f paco/src/*.{vo,vos,vok,glob}
@@ -942,6 +944,8 @@ progs64: _CoqProject  $(PROGS64_FILES:%.v=progs64/%.vo)
 
 VSUpile: floyd/proofauto.vo floyd/library.vo floyd/VSU.vo
 	cd progs/VSUpile; $(MAKE) VST_LOC=../..
+VSUpile64: floyd/proofauto.vo floyd/library.vo floyd/VSU.vo
+	cd progs64/VSUpile; $(MAKE) VST_LOC=../..
 memmgr:  floyd/proofauto.vo floyd/library.vo floyd/VSU.vo
 	cd progs/memmgr; $(MAKE) VST_LOC=../..
 

@@ -13,7 +13,7 @@ Definition whole_prog := ltac:(QPlink_progs main_QPprog (VSU_prog Core_VSU)).
 Definition Vprog: varspecs := QPvarspecs whole_prog.
 Definition Main_imports := filter (matchImportExport main_QPprog) (VSU_Exports Core_VSU). 
 Definition mainspec :=  main_spec whole_prog.
-Definition Gprog := mainspec :: Main_imports.
+Definition Gprog := Main_imports ++ [mainspec].
 
 Lemma body_main: semax_body Vprog Gprog f_main mainspec.
 Proof.
@@ -34,9 +34,8 @@ forward_for_simple_bound 10
 -
 forward_call (i+1, decreasing(Z.to_nat i), gv).
 unfold APILE, MEM_MGR, ONEPILE; cancel.
-rep_lia.
 forward_call (i+1, decreasing(Z.to_nat i), gv).
-rep_lia. rewrite decreasing_inc by lia.
+rewrite decreasing_inc by lia.
 entailer!.
 unfold APILE, MEM_MGR, ONEPILE; simpl; cancel.
 -
@@ -46,7 +45,6 @@ compute; split; congruence.
 forward_call (decreasing (Z.to_nat 10), gv).
 compute; split; congruence.
 forward_call (10,gv).
-lia.
 forward.
 Qed.
 
