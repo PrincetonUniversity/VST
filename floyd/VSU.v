@@ -3270,7 +3270,6 @@ Proof.
   destruct g; auto.
   f_equal; auto.
 Qed.
-Check @Comp_prog_OK.
 
 Section WholeComp_semaxprogConstructive.
 Variable Espec : OracleKind.
