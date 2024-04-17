@@ -62,6 +62,15 @@ compcert/doc/html/
 compcert/extraction/
 compcert/test/
 
+progs/alias
+progs/alias.compcert.c
+progs/alias.i
+progs/alias.parsed.c
+progs64/alias
+progs64/alias.compcert.c
+progs64/alias.i
+progs64/alias.parsed.c
+
 *.vo
 *.vos
 *.vok
