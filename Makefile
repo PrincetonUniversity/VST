@@ -507,7 +507,8 @@ FLOYD_FILES= \
    freezer.v deadvars.v Clightnotations.v unfold_data_at.v hints.v reassoc_seq.v \
    SeparationLogicAsLogicSoundness.v SeparationLogicAsLogic.v SeparationLogicFacts.v \
    subsume_funspec.v linking.v data_at_lemmas.v assoclists.v quickprogram.v PTops.v QPcomposite.v \
-   data_at_list_solver.v step.v fastforward.v finish.v
+   data_at_list_solver.v step.v fastforward.v finish.v \
+   compat.v
 # Component.v VSU.v
 #real_forward.v
 
