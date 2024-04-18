@@ -3,7 +3,7 @@
 (** First, import the entire Floyd proof automation system, which includes
  ** the VeriC program logic and the MSL theory of separation logic**)
 Require Import VST.floyd.proofauto.
-Require Import VST.floyd.compat.
+Require Import VST.floyd.compat. Import NoOracle.
 
 (** Import the [reverse.v] file, which is produced by CompCert's clightgen
  ** from reverse.c.   The file reverse.v defines abbreviations for identifiers

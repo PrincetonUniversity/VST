@@ -1,5 +1,5 @@
 Require Import VST.floyd.proofauto.
-Require Import VST.floyd.compat.
+Require Import VST.floyd.compat. Import NoOracle.
 Require Import Coq.Lists.List. Import ListNotations.
 Require Import sha.general_lemmas.
 

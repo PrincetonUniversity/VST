@@ -1,5 +1,5 @@
 Require Import VST.floyd.proofauto.
-Require Import VST.floyd.compat.
+Require Import VST.floyd.compat. Import NoOracle.
 Require Import List. Import ListNotations.
 Require Import tweetnacl20140427.Snuffle.
 Require Import tweetnacl20140427.Salsa20.

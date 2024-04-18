@@ -5,7 +5,7 @@
 *)
 
 Require Import VST.floyd.proofauto.
-Require Import VST.floyd.compat.
+Require Import VST.floyd.compat. Import NoOracle.
 Require Import VST.progs.bst.
 
 Require Export VST.floyd.Funspec_old_Notation.

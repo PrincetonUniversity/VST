@@ -1,6 +1,6 @@
 Require Import Recdef.
 Require Import VST.floyd.proofauto.
-Require Export VST.floyd.compat.
+Require Export VST.floyd.compat. Import NoOracle.
 Require Import List. Import ListNotations.
 Require Import sha.general_lemmas.
 

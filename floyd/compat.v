@@ -3,12 +3,20 @@ Require Import VST.floyd.proofauto.
 
 #[export] Unset SsrRewrite.
 
+(*Section GFUNCTORS.
+Context `{Σ: gFunctors}.
+*)
+(*
 Notation assert := (@assert (VSTΣ unit)).
 Notation funspec := (@funspec (VSTΣ unit)).
 Notation funspecs := (@funspecs (VSTΣ unit)).
+*)
 
+#[export] Arguments VST_heapGS : simpl never.
+
+Module NoOracle.
 (* Concrete instance of the Iris typeclasses for no ghost state or external calls *)
-#[local] Instance default_pre : VSTGpreS unit (VSTΣ unit) := subG_VSTGpreS _.
+Definition default_pre : VSTGpreS unit (VSTΣ unit) := subG_VSTGpreS _.
 
 #[export] Program Instance VST_default : VSTGS unit (VSTΣ unit) := Build_VSTGS _ _ _ _.
 Next Obligation.
@@ -52,6 +60,13 @@ Ltac simplify_func_tycontext' DD ::=
     subst D1;
     check_ground_Delta
    end.
+
+
+#[export] Notation assert := (@assert (VSTΣ unit)).
+#[export] Notation funspec := (@funspec (VSTΣ unit)).
+#[export] Notation funspecs := (@funspecs (VSTΣ unit)).
+
+End NoOracle.
 
 Notation "P |-- Q" := (P ⊢ Q)
   (at level 99, Q at level 200, right associativity, only parsing) : stdpp_scope.
@@ -161,4 +176,4 @@ Qed.
 
 End iter_sepcon2.
 
-Global Tactic Notation "inv" ident(H):= Coqlib.inv H.
+#[export] Tactic Notation "inv" ident(H):= Coqlib.inv H.

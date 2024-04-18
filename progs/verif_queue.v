@@ -1,5 +1,5 @@
 Require Import VST.floyd.proofauto.
-Require Import VST.floyd.compat.
+Require Import VST.floyd.compat. Import NoOracle.
 Require Import VST.floyd.library.
 Require Import VST.progs.list_dt. Import Links.
 Require Import VST.progs.queue.

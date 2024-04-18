@@ -1,5 +1,5 @@
 Require Export VST.floyd.proofauto.
-Require Export VST.floyd.compat.
+Require Export VST.floyd.compat. Import NoOracle.
 Require Export VST.floyd.reassoc_seq.
 Require Export aes.aes.
 Require Export aes.GF_ops_LL.

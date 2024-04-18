@@ -1,5 +1,5 @@
 Require Import VST.floyd.proofauto. (* Import the Verifiable C system *)
-Require Import VST.floyd.compat.
+Require Import VST.floyd.compat. Import NoOracle.
 Require Import VST.progs.bin_search. (* Import the AST of this C program *)
 
 (* The next line is "boilerplate", always required after importing an AST. *)

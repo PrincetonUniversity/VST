@@ -18,7 +18,7 @@ Require Import VST.floyd.field_at.
 Require Import VST.floyd.nested_loadstore.
 (*Require Import VST.floyd.unfold_data_at.*)
 Require Import VST.floyd.entailer.
-Require Import VST.floyd.compat.
+Require Import VST.floyd.compat. Import NoOracle.
 (*  End TEMPORARILY *)
 
 Lemma int64_eq_e: forall i j, Int64.eq i j = true -> i=j.

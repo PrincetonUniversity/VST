@@ -6,7 +6,7 @@
  ** includes the VeriC program logic and the MSL theory of separation logic
  **)
 Require Import VST.floyd.proofauto.
-Require Import VST.floyd.compat.
+Require Import VST.floyd.compat. Import NoOracle.
 
 (** Import the theory of list segments.  This is not, strictly speaking,
  ** part of the Floyd system.  In principle, any user of Floyd can build
