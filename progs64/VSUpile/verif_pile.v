@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat. Import NoOracle.
 Require Import VST.floyd.VSU.
 Require Import pile.
 Require Import spec_stdlib.
@@ -96,30 +97,30 @@ if_tac.
 { subst.
   forward_if False.
   - forward_call 1. contradiction.
-  - congruence. }
+  - congruence.
+  - Intros. contradiction. }
 forward_if True.
 + contradiction.
-+ forward. entailer!.
-+ forward. Exists p. entailer!.
++ forward. entailer!!.
++ forward. Exists p. entailer!!.
 Qed.
 
 Lemma body_Pile_new: semax_body PileVprog PileGprog f_Pile_new (Pile_new_spec M PILE).
 Proof.
 start_function.
 forward_call (tpile, gv).
-split3; simpl; auto; computable.
 Intros p.
-repeat step!.
-simpl spec_pile.pilerep.
-unfold prep, listrep, pile_freeable.
-repeat step!.
+step. step. step.
+Exists p.
+entailer!!.
+simpl.
+unfold prep, listrep. Exists nullval. entailer!!. 
 Qed.
 
 Lemma body_Pile_add: semax_body PileVprog PileGprog f_Pile_add (Pile_add_spec M PILE).
 Proof.
 start_function.
 forward_call (tlist, gv).
-split3; simpl; auto; computable.
 Intros q.
 simpl spec_pile.pilerep; unfold prep.
 Intros head.
@@ -131,7 +132,7 @@ simpl pilerep; unfold prep.
 Exists q.
 unfold listrep at 2; fold listrep.
 Exists head.
-entailer!; try apply derives_refl.
+entailer!!. apply derives_refl.
 Qed.
 
 Lemma body_Pile_count: semax_body PileVprog PileGprog f_Pile_count (Pile_count_spec PILE).
@@ -156,7 +157,7 @@ forward_loop (EX r:val, EX s2: list Z,
 -
 Exists head sigma.
 entailer!. rewrite Z.sub_diag. auto.
-apply wand_sepcon_adjoint. cancel.
+rewrite <- wand_sepcon_adjoint. cancel.
 -
 Intros r s2.
 forward_if (r<>nullval).
@@ -167,8 +168,7 @@ forward.
 entailer!.
 assert (s2=nil) by intuition; subst s2.
 simpl. rewrite Z.sub_0_r; auto.
-sep_apply (modus_ponens_wand (listrep M s2 nullval)).
-cancel.
+rewrite sepcon_comm. apply modus_ponens_wand.
 Intros.
 destruct s2.
 assert_PROP False; [ | contradiction]. {
@@ -200,9 +200,10 @@ simpl in H0.
  }
  rep_lia.
  f_equal; f_equal; lia.
-apply -> wand_sepcon_adjoint.
-match goal with |- (_ * ?A * ?B * ?C)%logic |-- _ => 
- assert ((A * B * C)%logic |-- listrep M (z::s2) r) end.
+rewrite <- wand_sepcon_adjoint.
+rewrite <- !sepcon_assoc.
+match goal with |- _ ∗ ?A ∗ ?B ∗ ?C ⊢ _ => 
+ assert (A ∗ B ∗ C ⊢ listrep M (z::s2) r) end.
 unfold listrep at 2; fold (listrep M). Exists r'. entailer!.
 sep_apply H10.
 sep_apply modus_ponens_wand.
@@ -251,8 +252,8 @@ entailer!.
 Qed.
 
 
-Definition PileVSU: @VSU NullExtension.Espec
-           nil pile_imported_specs ltac:(QPprog prog) Pile_ASI emp.
+Definition PileVSU: VSU
+           nil pile_imported_specs ltac:(QPprog prog) Pile_ASI (fun _ => emp).
  Proof. 
     mkVSU prog pile_internal_specs.
     + solve_SF_internal body_surely_malloc.
@@ -262,8 +263,8 @@ Definition PileVSU: @VSU NullExtension.Espec
     + solve_SF_internal body_Pile_free.
   Qed.
 
-Definition PilePrivateVSU: @VSU NullExtension.Espec
-      nil pile_imported_specs ltac:(QPprog prog) (PilePrivateASI M PILEPRIV) emp.
+Definition PilePrivateVSU: VSU
+      nil pile_imported_specs ltac:(QPprog prog) (PilePrivateASI M PILEPRIV) (fun _ => emp).
  Proof. 
     mkVSU prog pile_internal_specs.
     + solve_SF_internal body_surely_malloc.

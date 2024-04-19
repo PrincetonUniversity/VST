@@ -98,7 +98,22 @@ Notation FF := (False)%I.
 Disable Notation "True" : bi_scope.
 Disable Notation "False" : bi_scope.
 
+
 Open Scope bi_scope.
+
+Definition prop_and: ∀ {M : uora} (P Q : Prop),  
+  (@bi_pure (ouPredI M) (and P Q))
+  = @bi_and (ouPredI M) (@bi_pure (ouPredI M) P) (@bi_pure (ouPredI M) Q)
+   := @pure_and.
+
+Lemma wand_sepcon_adjoint  : forall {B : bi} (P Q R: B),
+  ((P * Q) |-- R) = (P |-- (Q -* R)).
+Proof.
+intros.
+apply prop_ext; split.
+apply bi.wand_intro_r.
+apply bi.wand_elim_l'.
+Qed.
 
 Definition pred_ext := @bi.equiv_entails_2.
 Definition andp_right := @bi.and_intro.

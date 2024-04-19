@@ -1,5 +1,5 @@
 Require Import VST.floyd.proofauto.
-Require Import VST.floyd.compat.
+Require Import VST.floyd.compat. Import NoOracle.
 Require Import onepile.
 Require Import simple_spec_stdlib.
 Require Import simple_spec_pile.

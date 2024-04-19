@@ -2790,20 +2790,22 @@ End mpred.
 
 Ltac findentry := repeat try first [ left; reflexivity | right].
 
-Ltac finishComponent :=(*
-    intros i phi E; simpl in E;
-    repeat (if_tac in E;
-            [inv E; eexists; split; [ reflexivity
-                                    | try solve [apply funspec_sub_refl]]
-            | ]);
-    try solve [discriminate].*)
-    intros i phi E; simpl in E;
-    repeat (if_tac in E;
-       [  inv E; first [ solve [apply funspec_sub_refl]
-                    | eexists; split; [ reflexivity
-                                    | try solve [apply funspec_sub_refl]]]
-       | ]);
-    try solve [discriminate].
+Ltac finishComponent_aux i E :=
+ match type of E with (if eq_dec ?i ?c then _ else _) = _ =>
+  let H := fresh in  
+  destruct (eq_dec i c) as [H|H];
+  [subst i; inv E;
+   first [ solve [apply funspec_sub_refl]
+         | eexists; split; 
+               [ reflexivity
+               | try solve [apply funspec_sub_refl]]]
+ | clear H]
+ end.
+
+Ltac finishComponent :=
+   intros i phi E; simpl in E;
+   repeat finishComponent_aux i E; 
+   try solve [discriminate E].
 
 Ltac lookup_tac := 
     intros H;
@@ -2929,24 +2931,42 @@ Present only in" B ":" r))
   end
 end.
 
+Ltac carefully_unroll_Forall := 
+match goal with |- Forall _ (_ _ ?L) => 
+     let z := constr:(L) in let z := eval hnf in z 
+     in lazymatch z with 
+         | (_ , _)::_ => change L with z
+         | ?u :: ?r => let u' := eval hnf in u in change L with (u'::r)
+         | _ => apply Forall_nil
+          end
+end;
+(cbv beta delta [filter_options] fix;
+ cbv match;
+ match goal with |- context [Maps.PTree.get ?i ?m] =>
+    let u := fresh "u" in set (u := Maps.PTree.get i m); hnf in u; subst u; 
+    cbv beta zeta match  delta [snd]
+ end;
+ match goal with |- Forall _ (?hx :: ?tx) => 
+    let h := fresh "h" in let t := fresh "t" in 
+     set (h := hx); set (t := tx); simple apply Forall_cons; subst h t
+ end; 
+  [ |  carefully_unroll_Forall]).
+
 Ltac mkComponent prog :=
  hnf;
  match goal with |- Component _ _ ?IMPORTS _ _ _ _ =>
-     let i := compute_list IMPORTS in
-     let IMP := fresh "IMPORTS" in
-     pose (IMP := @abbreviate funspecs i);
-     change_no_check IMPORTS with IMP
+     let i := compute_list' IMPORTS in change_no_check IMPORTS with i 
  end;
  test_Component_prog_computed;
  let p := fresh "p" in
- match goal with |- Component _ _ _ ?pp _ _ _ => set (p:=pp) end;
- let HA := fresh "HA" in
+ match goal with |- @Component _ _ _ _ _ _ _ ?pp _ _ _ => set (p:=pp) end;
+ let HA := fresh "HA" in 
    assert (HA: PTree_samedom cenv_cs ha_env_cs) by repeat constructor;
- let LA := fresh "LA" in
+ let LA := fresh "LA" in 
    assert (LA: PTree_samedom cenv_cs la_env_cs) by repeat constructor;
  let OK := fresh "OK" in
   assert (OK: QPprogram_OK p)
-   by (split; [apply compute_list_norepet_e; reflexivity
+   by (split; [apply compute_list_norepet_e; reflexivity 
            |  apply (QPcompspecs_OK_i HA LA) ]);
  (* Doing the  set(myenv...), instead of before proving the CSeq assertion,
      prevents nontermination in some cases  *)
@@ -2963,13 +2983,11 @@ Ltac mkComponent prog :=
   | apply compute_list_norepet_e; reflexivity || fail "Duplicate funspec among the Exports"
   | apply compute_list_norepet_e; reflexivity
   | apply forallb_isSomeGfunExternal_e; reflexivity
-  | prove_Comp_G_dom (*intros; simpl; split; trivial; try solve [lookup_tac]*)
+  | intros; simpl; split; trivial; try solve [lookup_tac]
   | let i := fresh in let H := fresh in 
     intros i H; first [ solve contradiction | simpl in H];
     repeat (destruct H; [ subst; reflexivity |]); try contradiction
-  | apply prove_G_justified;
-    repeat apply Forall_cons; [ .. | apply Forall_nil];
-    try SF_vacuous
+  | apply prove_G_justified; carefully_unroll_Forall;  try SF_vacuous
   | finishComponent
   | first [ solve [intros; apply derives_refl] | solve [intros; reflexivity] | solve [intros; simpl; cancel] | idtac]
   ].
@@ -3055,7 +3073,8 @@ Ltac solve_SF_external B :=
                 | reflexivity
                 | split3;
                    [ left; trivial
-                   | clear; intros ? ? ?; try solve [entailer!];
+                   | clear; intros ? ? ?; cbv [ofe_mor_car]; 
+                     try solve [entailer!]; try apply TT_right;
                      repeat match goal with |- (let (y, z) := ?x in _) _ ∧ _ ⊢ _ =>
                                      destruct x as [y z]
                      end

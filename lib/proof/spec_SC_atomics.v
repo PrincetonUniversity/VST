@@ -1,33 +1,33 @@
 (* SC atomics without importing Iris *)
 
 Require Import VST.floyd.proofauto.
-Require Import VST.floyd.compat.
 Require Import VSTlib.SC_atomics_extern.
 
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 (*Import VST.veric.rmaps.*)
-Require Import Ensembles.
+(*Require Import Ensembles.*)
 Notation vint z := (Vint (Int.repr z)).
 
 
-#[export] Class AtomicsAPD := {
+#[export] Class AtomicsAPD `{!VSTGS OK_ty Σ} := {
    atomic_int : type := Tstruct _atom_int noattr;
    atomic_int_at: share -> val -> val -> mpred;
-   atomic_int_at__ : forall sh v p, atomic_int_at sh v p |-- atomic_int_at sh Vundef p;
-   atomic_int_conflict : forall sh v v' p, sepalg.nonidentity sh -> atomic_int_at sh v p * atomic_int_at sh v' p |-- FF ;
-   atomic_int_isptr : forall sh v p, atomic_int_at sh v p |-- !! isptr p;
+   atomic_int_at__ : forall sh v p, atomic_int_at sh v p ⊢ atomic_int_at sh Vundef p;
+   atomic_int_conflict : forall sh v v' p, sepalg.nonidentity sh -> atomic_int_at sh v p ∗ atomic_int_at sh v' p ⊢ False%I;
+   atomic_int_isptr : forall sh v p, atomic_int_at sh v p ⊢ ⌜isptr p⌝;
    atomic_int_timeless : forall sh v p, Timeless (atomic_int_at sh v p);
    atomic_ptr : type := Tstruct _atom_ptr noattr; 
    atomic_ptr_at : share -> val -> val -> mpred;
-  atomic_ptr_conflict : forall sh v v' p, sepalg.nonidentity sh -> atomic_ptr_at sh v p * atomic_ptr_at sh v' p |-- FF 
+  atomic_ptr_conflict : forall sh v v' p, sepalg.nonidentity sh -> atomic_ptr_at sh v p ∗ atomic_ptr_at sh v' p ⊢ False%I
 }.
 
 #[export] Hint Resolve atomic_int_isptr : saturate_local.
 #[export] Hint Resolve atomic_int_timeless : core.
 
 Section AtomicsASI.
+Context `{VOK: !VSTGS OK_ty Σ}.
 Context {M: AtomicsAPD}.
 
 Definition make_atomic_spec :=
@@ -37,7 +37,7 @@ Definition make_atomic_spec :=
     PARAMS (v)
     SEP ()
   POST [ tptr atomic_int ]
-   EX p : val,
+    ∃p : val,
     PROP ()
     RETURN (p)
     SEP (atomic_int_at Ews v p).
@@ -49,7 +49,7 @@ Definition make_atomic_ptr_spec :=
     PARAMS (v)
     SEP ()
   POST [ tptr atomic_ptr ]
-   EX p : val,
+     ∃ p : val,
     PROP (is_pointer_or_null p)
     RETURN (p)
     SEP (atomic_ptr_at Ews v p).
@@ -59,7 +59,7 @@ Definition free_atomic_ptr_spec :=
   PRE [ tptr atomic_ptr ]
     PROP (is_pointer_or_null p)
     PARAMS (p)
-    SEP (EX v : val, atomic_ptr_at Ews v p)
+    SEP (∃v : val, atomic_ptr_at Ews v p)
   POST[ tvoid ]
     PROP ()
     LOCAL ()
@@ -70,7 +70,7 @@ Definition free_atomic_int_spec :=
   PRE [ tptr atomic_int ]
     PROP (is_pointer_or_null p)
     PARAMS (p)
-    SEP (EX v : val, atomic_int_at Ews v p)
+    SEP (∃v : val, atomic_int_at Ews v p)
   POST[ tvoid ]
     PROP ()
     LOCAL ()

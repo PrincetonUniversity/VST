@@ -1,5 +1,5 @@
 Require Import VST.floyd.proofauto.
-Require Import VST.floyd.compat.
+Require Import VST.floyd.compat. Import NoOracle.
 Require Import pile.
 Require Import spec_stdlib.
 Require Import spec_pile.

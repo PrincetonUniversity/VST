@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat. Import NoOracle.
 Require Import VST.floyd.VSU.
 Require Import fastapile.
 Require Import spec_stdlib.
@@ -74,7 +75,7 @@ forward_call (gv _a_pile, sigma).
 forward.
 Qed.
 
-Definition ApileVSU: @VSU NullExtension.Espec 
+Definition ApileVSU: VSU
       nil apile_imported_specs ltac:(QPprog prog) Apile_ASI (apile nil).
   Proof. 
     mkVSU prog apile_internal_specs.

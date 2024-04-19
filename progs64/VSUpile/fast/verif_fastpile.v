@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat. Import NoOracle.
 Require Import VST.floyd.VSU.
 Require Import fastpile.
 Require Import spec_stdlib.
@@ -66,14 +67,13 @@ Lemma body_Pile_new: semax_body PileVprog PileGprog f_Pile_new (Pile_new_spec M 
 Proof.
 start_function.
 forward_call (tpile, gv).
-split3; simpl; auto; computable.
 Intros p.
 forward.
 forward.
 simpl pilerep; unfold fastprep. 
 simpl pile_freeable. unfold pfreeable.
 Exists p 0.
-entailer!.
+entailer!!.
 Qed.
 
 Lemma body_Pile_add: semax_body PileVprog PileGprog f_Pile_add (Pile_add_spec M PILE).
@@ -84,52 +84,36 @@ Intros s.
 forward.
 forward_if (temp _t'1 (if zle 0 n then if zle n (Int.max_signed-s) then Vtrue else Vfalse else Vfalse)).
 forward.
-entailer!.
+entailer!!.
 destruct (zle 0 n); [ | lia].
 destruct (zle _ _).
-unfold Int.lt. rewrite zlt_false.
+destruct (zlt _ _); [ rep_lia | ].
 reflexivity.
-normalize. rep_lia.
-unfold Int.lt. rewrite zlt_true.
+destruct (zlt _ _); [ | rep_lia].
 reflexivity.
-normalize.
 rep_lia.
-forward.
-entailer!.
-destruct (zle 0 n); try lia. clear l.
-destruct (zle n (Int.max_signed - s)).
 -
-forward_if (PROP()LOCAL (temp _pp p)
-   SEP(data_at Ews tpile (Vint (Int.repr (s+n))) p;
-         mem_mgr M gv)).
+forward_if.
++
+destruct (zle _ _); try discriminate H3.
+destruct (zle _ _); try discriminate H3.
 forward.
-entailer!.
-inversion H3.
+entailer!!.
+simpl pilerep. unfold fastprep. 
+Exists (s+n); entailer!!.
+simpl in *. rewrite H2. lia.
+apply sumlist_nonneg in H1.
+rep_lia.
++
+destruct (zle _ _); try discriminate H3; [ | lia].
+destruct (zle _ _); try discriminate H3.
+clear H3.
 forward.
-simpl pilerep. unfold fastprep.
-Exists (s+n).
-entailer!.
-split.
-constructor; auto. lia.
-simpl. intros.
-rewrite H2.
-lia.
-apply sumlist_nonneg in H1; lia.
--
-forward_if (PROP()LOCAL (temp _pp p)
-   SEP(data_at Ews tpile (Vint (Int.repr s)) p;
-         mem_mgr M gv)).
-contradiction H3'; auto.
-forward.
-entailer!.
-forward.
+entailer!!.
 simpl pilerep. unfold fastprep.
 Exists s.
-entailer!.
-split.
-constructor; auto.
-lia.
-simpl.
+entailer!!.
+simpl in *.
 apply sumlist_nonneg in H1; lia.
 Qed.
 
@@ -167,15 +151,16 @@ if_tac.
 { subst.
   forward_if False.
   - forward_call 1. contradiction.
-  - congruence. }
+  - congruence.
+  - Intros. contradiction. }
 forward_if True.
 + contradiction.
-+ forward. entailer!.
-+ forward. Exists p. entailer!.
++ forward. entailer!!.
++ forward. Exists p. entailer!!.
 Qed.
 
-  Definition PileVSU: @VSU NullExtension.Espec
-      nil pile_imported_specs ltac:(QPprog prog) Pile_ASI emp.
+  Definition PileVSU: VSU
+      nil pile_imported_specs ltac:(QPprog prog) Pile_ASI (fun _ => emp).
   Proof. 
     mkVSU prog pile_internal_specs.
     + solve_SF_internal body_surely_malloc.
@@ -185,8 +170,8 @@ Qed.
     + solve_SF_internal body_Pile_free.
   Qed.
 
-  Definition PilePrivateVSU: @VSU NullExtension.Espec
-      nil pile_imported_specs ltac:(QPprog prog) (FastpilePrivateASI M PILEPRIV) emp.
+  Definition PilePrivateVSU: VSU
+      nil pile_imported_specs ltac:(QPprog prog) (FastpilePrivateASI M PILEPRIV) (fun _ => emp).
   Proof. 
     mkVSU prog pile_internal_specs.
     + solve_SF_internal body_surely_malloc.

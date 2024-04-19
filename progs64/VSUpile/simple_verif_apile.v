@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat. Import NoOracle.
 Require Import VST.floyd.VSU.
 Require Import apile.
 Require Import simple_spec_stdlib.
@@ -8,13 +9,13 @@ Require Import simple_spec_apile.
 
 Lemma make_apile: forall gv, 
      globals_ok gv ->
-    @data_at APileCompSpecs Ews size_t nullval
+    data_at (cs:=APileCompSpecs) Ews size_t nullval
           (gv _a_pile) |-- apile nil gv.
 Proof.
 intros. unfold apile, pilerep.
 assert_PROP (headptr (gv _a_pile)) by entailer!.
 Exists nullval.
-unfold listrep. entailer!.
+unfold listrep. entailer!!.
 unfold_data_at (data_at _ tpile _ _).
 rewrite field_at_data_at. simpl.
 rewrite field_compatible_field_address
@@ -54,7 +55,7 @@ forward_call (gv _a_pile, sigma).
 forward.
 Qed. 
 
-  Definition ApileVSU: @VSU NullExtension.Espec 
+  Definition ApileVSU: VSU
       nil apile_imported_specs ltac:(QPprog prog) ApileASI (apile nil) .
   Proof. 
     mkVSU prog apile_internal_specs. 
