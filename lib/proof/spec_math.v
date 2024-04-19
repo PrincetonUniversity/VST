@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat.
 Require Import VSTlib.math_extern.
 Require Import vcfloat.FPCompCert vcfloat.klist vcfloat.FPCore.
 Require Import Reals.
@@ -130,15 +131,21 @@ Defined.
 Definition reflect_to_val (t: FPCore.type) (x: ftype t) : val :=
   reflect_to_val_constructor t x.
 
+
+Section GFUNCTORS.
+Context `{VSTGS_OK: !VSTGS OK_ty Σ}.
+
 Definition vacuous_funspec' args result : funspec := 
-  mk_funspec (map reflect_to_ctype args, reflect_to_ctype result) cc_default
-     (rmaps.ConstType Impossible)
-     (fun _ _ => FF) (fun _ _ => FF) 
-     (args_const_super_non_expansive _ _) (const_super_non_expansive _ _).
+  mk_funspec (map reflect_to_ctype args, reflect_to_ctype result)
+     cc_default
+     (ConstType Impossible)
+  (λne a, ⊤)
+ (λne a : leibnizO Impossible , (fun _ => FF): _ -d> iProp Σ)
+ (λne a : leibnizO Impossible , (fun _ => FF): _ -d> iProp Σ).
 
 Definition floatspec {args result} :
   forall {precond rfunc} 
-       (ff: floatfunc args result precond rfunc), funspec.
+       (ff: floatfunc args result precond rfunc), @funspec Σ.
 refine (match args with [a1] => _ | [a1;a2] => _ | [a1;a2;a3] => _ | _ => _ end); 
   intros.
 exact (vacuous_funspec' args result).
@@ -174,12 +181,6 @@ refine (
        SEP ()).
 exact (vacuous_funspec' args result).
 Defined.
-
-Ltac floatspec f :=
-   let a := constr:(floatspec f) in
-   let a := eval cbv [floatspec reflect_to_ctype reflect_to_val reflect_to_val_constructor] in a in 
-   let a := eval simpl in a in
-   exact a.
 
 Lemma generic_round_property:
   forall (t: type) (x: R),
@@ -393,7 +394,7 @@ simpl.
 rewrite !Rmult_1_l.
 apply generic_round_property.
 +
-exfalso; clear - H H0 H2 FIN.
+exfalso; clear - VSTGS_OK H H0 H2 FIN.
 pose proof trunc_ff_aux t x FIN.
 Lra.lra.
 -
@@ -551,7 +552,7 @@ apply fma_ff_aux1.
 apply fma_ff_aux2.
 Defined.
 
-Definition ldexp_spec' (t: type) `{STD: is_standard t}:=
+Definition ldexp_spec' (t: type) `{STD: is_standard t} : @funspec Σ :=
    WITH x : ftype t, i: Z
    PRE [ reflect_to_ctype t , tint ]
        PROP (Int.min_signed <= i <= Int.max_signed)
@@ -570,13 +571,13 @@ Definition frexp_spec' (t: type) `{STD: is_standard t} :=
    PRE [ reflect_to_ctype t , tptr tint ]
        PROP (writable_share sh)
        PARAMS (reflect_to_val t x; p)
-       SEP (@data_at_ emptyCS sh tint p)
+       SEP (data_at_ (cs:=emptyCS) sh tint p)
     POST [ reflect_to_ctype t ]
        PROP ()
        RETURN (reflect_to_val t 
                      (ftype_of_float (fst (Binary.Bfrexp (fprec t) (femax t)  (fprec_gt_0 t) 
                               (float_of_ftype x)))))
-       SEP (@data_at emptyCS sh tint (Vint (Int.repr 
+       SEP (data_at (cs:=emptyCS) sh tint (Vint (Int.repr 
                          (snd (Binary.Bfrexp (fprec t) (femax t)  (fprec_gt_0 t) 
                               (float_of_ftype x)))))
                          p).
@@ -595,7 +596,7 @@ Definition nextafter (t: type) `{STD: is_standard t} (x y: ftype t) : ftype t :=
   | None => ftype_of_float (proj1_sig (bogus_nan t _))
   end.
 
-Definition nextafter_spec' (t: type) `{STD: is_standard t}  :=
+Definition nextafter_spec' (t: type) `{STD: is_standard t} : @funspec Σ  :=
    WITH x : ftype t, y: ftype t
    PRE [ reflect_to_ctype t , reflect_to_ctype t ]
        PROP ()
@@ -615,7 +616,7 @@ Definition copysign (t: type) `{STD: is_standard t} (x y: ftype t) : ftype t :=
  | Binary.B754_nan _ _ _ pl H => Binary.B754_nan _ _ (Binary.Bsign _ _ (float_of_ftype y)) pl H
 end.
 
-Definition copysign_spec' (t: type) `{STD: is_standard t} :=
+Definition copysign_spec' (t: type) `{STD: is_standard t} : @funspec Σ  :=
    WITH x : ftype t, y : ftype t
    PRE [ reflect_to_ctype t , reflect_to_ctype t ]
        PROP ()
@@ -626,7 +627,7 @@ Definition copysign_spec' (t: type) `{STD: is_standard t} :=
        RETURN (reflect_to_val t (copysign t x y))
        SEP ().
 
-Definition nan_spec' (t: type) `{STD: is_standard t} :=
+Definition nan_spec' (t: type) `{STD: is_standard t}: @funspec Σ  :=
    WITH p: val
    PRE [ tptr tschar ]
        PROP ()
@@ -646,6 +647,14 @@ Fixpoint always_true (args: list type) : function_type (map RR args) Prop :=
  | nil => True
  | _ :: args' => fun _ => always_true args'
  end.
+
+End GFUNCTORS.
+
+Ltac floatspec Σ f :=
+   let a := constr:(floatspec (Σ:=Σ) f) in
+   let a := eval cbv [floatspec reflect_to_ctype reflect_to_val reflect_to_val_constructor] in a in 
+   let a := eval simpl in a in
+   exact a.
 
 Ltac vacuous_bnds_list tys :=
  match tys with
@@ -735,61 +744,64 @@ Ltac reduce1 t :=
    let a := eval simpl in a in
    exact a.
 
-Definition acos_spec := DECLARE _acos ltac:(floatspec MF.acos).
-Definition acosf_spec := DECLARE _acosf ltac:(floatspec MF.acosf).
-Definition acosh_spec := DECLARE _acosh ltac:(floatspec MF.acosh).
-Definition acoshf_spec := DECLARE _acoshf ltac:(floatspec MF.acoshf).
-Definition asin_spec := DECLARE _asin ltac:(floatspec MF.asin).
-Definition asinf_spec := DECLARE _asinf ltac:(floatspec MF.asinf).
-Definition asinh_spec := DECLARE _asinh ltac:(floatspec MF.asinh).
-Definition asinhf_spec := DECLARE _asinhf ltac:(floatspec MF.asinhf).
-Definition atan_spec := DECLARE _atan ltac:(floatspec MF.atan).
-Definition atanf_spec := DECLARE _atanf ltac:(floatspec MF.atanf).
-Definition atan2_spec := DECLARE _atan2 ltac:(floatspec MF.atan2).
-Definition atan2f_spec := DECLARE _atan2f ltac:(floatspec MF.atan2f).
-Definition atanh_spec := DECLARE _atanh ltac:(floatspec MF.atanh).
-Definition atanhf_spec := DECLARE _atanhf ltac:(floatspec MF.atanhf).
-Definition cbrt_spec := DECLARE _cbrt ltac:(floatspec MF.cbrt).
-Definition cbrtf_spec := DECLARE _cbrtf ltac:(floatspec MF.cbrtf).
-Definition copysign_spec := DECLARE _copysign ltac:(reduce1 (copysign_spec' Tdouble)).
-Definition copysignf_spec := DECLARE _copysignf ltac:(reduce1 (copysign_spec' Tsingle)).
-Definition cos_spec := DECLARE _cos ltac:(floatspec MF.cos).
-Definition cosf_spec := DECLARE _cosf ltac:(floatspec MF.cosf).
-Definition cosh_spec := DECLARE _cosh ltac:(floatspec MF.cosh).
-Definition coshf_spec := DECLARE _coshf ltac:(floatspec MF.coshf).
-Definition exp_spec := DECLARE _exp ltac:(floatspec MF.exp).
-Definition expf_spec := DECLARE _expf ltac:(floatspec MF.expf).
-Definition exp2_spec := DECLARE _exp2 ltac:(floatspec MF.exp2).
-Definition exp2f_spec := DECLARE _exp2f ltac:(floatspec MF.exp2f).
-Definition expm1_spec := DECLARE _expm1 ltac:(floatspec MF.expm1).
-Definition expm1f_spec := DECLARE _expm1f ltac:(floatspec MF.expm1f).
-Definition fabs_spec := DECLARE _fabs ltac:(floatspec (abs_ff Tdouble)).
-Definition fabsf_spec := DECLARE _fabsf ltac:(floatspec (abs_ff Tsingle)).
-Definition pow_spec := DECLARE _pow ltac:(floatspec MF.pow).
-Definition powf_spec := DECLARE _powf ltac:(floatspec MF.powf).
-Definition sqrt_spec := DECLARE _sqrt ltac:(floatspec (sqrt_ff Tdouble)).
-Definition sqrtf_spec := DECLARE _sqrtf ltac:(floatspec (sqrt_ff Tsingle)).
-Definition sin_spec := DECLARE _sin ltac:(floatspec MF.sin).
-Definition sinf_spec := DECLARE _sinf ltac:(floatspec MF.sinf).
-Definition sinh_spec := DECLARE _sinh ltac:(floatspec MF.sinh).
-Definition sinhf_spec := DECLARE _sinhf ltac:(floatspec MF.sinhf).
-Definition tan_spec := DECLARE _tan ltac:(floatspec MF.tan).
-Definition tanf_spec := DECLARE _tanf ltac:(floatspec MF.tanf).
-Definition tanh_spec := DECLARE _tanh ltac:(floatspec MF.tanh).
-Definition tanhf_spec := DECLARE _tanhf ltac:(floatspec MF.tanhf).
+Section GFUNCTORS.
+Context `{VSTGS_OK: !VSTGS OK_ty Σ}.
 
-Definition fma_spec := DECLARE _fma ltac:(floatspec (fma_ff Tdouble)).
-Definition fmaf_spec := DECLARE _fmaf ltac:(floatspec (fma_ff Tsingle)).
+Definition acos_spec := DECLARE _acos ltac:(floatspec Σ MF.acos). 
+Definition acosf_spec := DECLARE _acosf ltac:(floatspec Σ MF.acosf).
+Definition acosh_spec := DECLARE _acosh ltac:(floatspec Σ MF.acosh).
+Definition acoshf_spec := DECLARE _acoshf ltac:(floatspec Σ MF.acoshf).
+Definition asin_spec := DECLARE _asin ltac:(floatspec Σ MF.asin).
+Definition asinf_spec := DECLARE _asinf ltac:(floatspec Σ MF.asinf).
+Definition asinh_spec := DECLARE _asinh ltac:(floatspec Σ MF.asinh).
+Definition asinhf_spec := DECLARE _asinhf ltac:(floatspec Σ MF.asinhf).
+Definition atan_spec := DECLARE _atan ltac:(floatspec Σ MF.atan).
+Definition atanf_spec := DECLARE _atanf ltac:(floatspec Σ MF.atanf).
+Definition atan2_spec := DECLARE _atan2 ltac:(floatspec Σ MF.atan2).
+Definition atan2f_spec := DECLARE _atan2f ltac:(floatspec Σ MF.atan2f).
+Definition atanh_spec := DECLARE _atanh ltac:(floatspec Σ MF.atanh).
+Definition atanhf_spec := DECLARE _atanhf ltac:(floatspec Σ MF.atanhf).
+Definition cbrt_spec := DECLARE _cbrt ltac:(floatspec Σ MF.cbrt).
+Definition cbrtf_spec := DECLARE _cbrtf ltac:(floatspec Σ MF.cbrtf).
+Definition copysign_spec := DECLARE _copysign ltac:(reduce1 (copysign_spec' (Σ:=Σ) Tdouble)).
+Definition copysignf_spec := DECLARE _copysignf ltac:(reduce1 (copysign_spec' (Σ:=Σ)  Tsingle)).
+Definition cos_spec := DECLARE _cos ltac:(floatspec Σ MF.cos).
+Definition cosf_spec := DECLARE _cosf ltac:(floatspec Σ MF.cosf).
+Definition cosh_spec := DECLARE _cosh ltac:(floatspec Σ MF.cosh).
+Definition coshf_spec := DECLARE _coshf ltac:(floatspec Σ MF.coshf).
+Definition exp_spec := DECLARE _exp ltac:(floatspec Σ MF.exp).
+Definition expf_spec := DECLARE _expf ltac:(floatspec Σ MF.expf).
+Definition exp2_spec := DECLARE _exp2 ltac:(floatspec Σ MF.exp2).
+Definition exp2f_spec := DECLARE _exp2f ltac:(floatspec Σ MF.exp2f).
+Definition expm1_spec := DECLARE _expm1 ltac:(floatspec Σ MF.expm1).
+Definition expm1f_spec := DECLARE _expm1f ltac:(floatspec Σ MF.expm1f).
+Definition fabs_spec := DECLARE _fabs ltac:(floatspec Σ (abs_ff Tdouble)).
+Definition fabsf_spec := DECLARE _fabsf ltac:(floatspec Σ (abs_ff Tsingle)).
+Definition pow_spec := DECLARE _pow ltac:(floatspec Σ MF.pow).
+Definition powf_spec := DECLARE _powf ltac:(floatspec Σ MF.powf).
+Definition sqrt_spec := DECLARE _sqrt ltac:(floatspec Σ (sqrt_ff Tdouble)).
+Definition sqrtf_spec := DECLARE _sqrtf ltac:(floatspec Σ (sqrt_ff Tsingle)).
+Definition sin_spec := DECLARE _sin ltac:(floatspec Σ MF.sin).
+Definition sinf_spec := DECLARE _sinf ltac:(floatspec Σ MF.sinf).
+Definition sinh_spec := DECLARE _sinh ltac:(floatspec Σ MF.sinh).
+Definition sinhf_spec := DECLARE _sinhf ltac:(floatspec Σ MF.sinhf).
+Definition tan_spec := DECLARE _tan ltac:(floatspec Σ MF.tan).
+Definition tanf_spec := DECLARE _tanf ltac:(floatspec Σ MF.tanf).
+Definition tanh_spec := DECLARE _tanh ltac:(floatspec Σ MF.tanh).
+Definition tanhf_spec := DECLARE _tanhf ltac:(floatspec Σ MF.tanhf).
+
+Definition fma_spec := DECLARE _fma ltac:(floatspec Σ (fma_ff Tdouble)).
+Definition fmaf_spec := DECLARE _fmaf ltac:(floatspec Σ (fma_ff Tsingle)).
 Definition frexp_spec := DECLARE _frexp ltac:(reduce1 (frexp_spec' Tdouble)).
 Definition frexpf_spec := DECLARE _frexpf ltac:(reduce1 (frexp_spec' Tsingle)).
-Definition ldexp_spec := DECLARE _ldexp ltac:(reduce1 (ldexp_spec' Tdouble)).
-Definition ldexpf_spec := DECLARE _ldexpf ltac:(reduce1 (ldexp_spec' Tsingle)).
-Definition nan_spec := DECLARE _nan ltac:(reduce1 (nan_spec' Tdouble)).
-Definition nanf_spec := DECLARE _nanf ltac:(reduce1 (nan_spec' Tsingle)).
-Definition nextafter_spec := DECLARE _nextafter ltac:(reduce1 (nextafter_spec' Tdouble)).
-Definition nextafterf_spec := DECLARE _nextafterf ltac:(reduce1 (nextafter_spec' Tsingle)).
-Definition trunc_spec := DECLARE _trunc ltac:(floatspec (trunc_ff Tdouble)).
-Definition truncf_spec := DECLARE _truncf ltac:(floatspec (trunc_ff Tsingle)).
+Definition ldexp_spec := DECLARE _ldexp ltac:(reduce1 (ldexp_spec' (Σ:=Σ) Tdouble)).
+Definition ldexpf_spec := DECLARE _ldexpf ltac:(reduce1 (ldexp_spec' (Σ:=Σ) Tsingle)).
+Definition nan_spec := DECLARE _nan ltac:(reduce1 (nan_spec' (Σ:=Σ) Tdouble)).
+Definition nanf_spec := DECLARE _nanf ltac:(reduce1 (nan_spec' (Σ:=Σ) Tsingle)).
+Definition nextafter_spec := DECLARE _nextafter ltac:(reduce1 (nextafter_spec' (Σ:=Σ) Tdouble)).
+Definition nextafterf_spec := DECLARE _nextafterf ltac:(reduce1 (nextafter_spec' (Σ:=Σ) Tsingle)).
+Definition trunc_spec := DECLARE _trunc ltac:(floatspec Σ (trunc_ff Tdouble)).
+Definition truncf_spec := DECLARE _truncf ltac:(floatspec Σ (trunc_ff Tsingle)).
 
 Definition MathASI:funspecs := [ 
   acos_spec; acosf_spec; acosh_spec; acoshf_spec; asin_spec; asinf_spec; asinh_spec; asinhf_spec;
@@ -856,4 +868,5 @@ exists {| nonneg:= FT2R x; cond_nonneg := H |}.
 split; auto.
 Admitted.
 
+End GFUNCTORS.
 

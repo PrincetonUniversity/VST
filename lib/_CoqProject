@@ -1,3 +1,4 @@
+-Q .. VST  # temporarily
 -Q proof VSTlib
 -Q test VSTlibtest
 proof/version.v
