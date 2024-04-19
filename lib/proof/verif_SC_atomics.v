@@ -151,3 +151,4 @@ Definition SCAVSU `{Espec: ext_spec OK_ty}: VSU SCA_E SCA_imported_specs ltac:(Q
 Admitted.  (* all these admits are undoubtedly provable; see for example 
                             Lemma RETURN_tc_option_val_float  in verif_math.v *)
 
+End AtomicsASI.
