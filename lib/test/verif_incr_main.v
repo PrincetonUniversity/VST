@@ -3,6 +3,7 @@ Require Import VST.floyd.proofauto.
 Require Import VST.concurrency.conclib.
 From VSTlib Require Import spec_locks spec_threads spec_malloc.
 Require VSTlib.verif_locks.
+Require Import iris_ora.logic.cancelable_invariants.
 Require Import VSTlibtest.incr_main.
 Require Import VSTlibtest.verif_incr.
 Require Import VST.floyd.VSU.
@@ -13,15 +14,16 @@ Section mpred.
 Context `{VSTGS1: !VSTGS unit Σ, 
           cinvG1: !cinvG Σ, 
           inG1: !inG Σ (excl_authR natO), 
-          aii1: !atomic_int_impl (Tstruct _atom_int noattr)}.
+          aii1: !atomic_int_impl (Tstruct locks._atom_int noattr)}.
 
 
 Definition AB_VSU :=
   ltac:(linkVSUs (verif_SC_atomics.SCAVSU) (verif_threads.ThreadsVSU)).
 
 Require VSTlib.verif_locks.
-Definition ABC_VSU :=
-  ltac:(linkVSUs AB_VSU verif_locks.LockVSU).
+Definition ABC_VSU:=
+  ltac:(linkVSUs AB_VSU 
+         (verif_locks.LockVSU (atom_impl := aii1))).
 
 Ltac SC_tac ::=
  match goal with |- SC_test ?ids _ _ =>
@@ -40,7 +42,7 @@ Ltac SC_tac ::=
           end.
 
 Definition core_VSU :=
-  ltac:(linkVSUs IncrVSU ABC_VSU).
+  ltac:(linkVSUs (IncrVSU (aii1:=aii1)) ABC_VSU).
 
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition main_QPprog := ltac:(QPprog prog).
@@ -52,9 +54,9 @@ Definition main_spec :=
  DECLARE _main
   WITH gv : globals
   PRE  [] main_pre whole_prog tt gv
-  POST [ tint ] PROP() RETURN (Vint (Int.repr 2)) SEP (TT).
+  POST [ tint ] PROP() RETURN (Vint (Int.repr 2)) SEP (True).
 
-Definition Gprog :=  [main_spec] ++ Main_imports.
+Definition Gprog :=  Main_imports ++ [main_spec].
 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
@@ -65,7 +67,7 @@ pose core_VSU.
  unfold InitGPred; simpl. Intros. unfold globvar2pred; simpl.
  change (Maps.PTree.prev _) with incr._c.
  change 16 with (@sizeof verif_incr.CompSpecs t_counter).
- sep_apply (@mapsto_zero_data_at_zero verif_incr.CompSpecs t_counter Ews (gv incr._c)); 
+ sep_apply (mapsto_zero_data_at_zero (cs:=verif_incr.CompSpecs) t_counter Ews (gv incr._c)); 
        auto with field_compatible.
   repeat (rewrite zero_val_eq; simpl).
   repeat change (fold_reptype ?a) with a.
@@ -74,7 +76,7 @@ pose core_VSU.
   forward.
 Qed.
 
-Definition MainComp:  MainCompType nil main_QPprog core_VSU whole_prog (snd main_spec)  emp.
+Definition MainComp:  MainCompType nil main_QPprog core_VSU whole_prog (snd main_spec) (fun _ => emp).
 Proof.
 mkComponent prog.
 solve_SF_internal body_main.
@@ -95,3 +97,5 @@ Definition extlink := ext_link_prog prog. (* this is wrong, because
        it doesn't include the programs of all the imported VSUs *)
 Definition Espec := add_funspecs (Concurrent_Espec unit _ extlink) extlink Gprog.
 *)
+End mpred.
+
