@@ -1,9 +1,13 @@
 Require Import VST.concurrency.conclib.
 Require Import VST.atomics.verif_lock_atomic.
+Require Import iris_ora.algebra.ext_order.
+Require Import iris.algebra.lib.excl_auth.
 Require Import VST.progs64.incr.
 
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
+
+Canonical Structure excl_authR A := inclR (excl_authR A).
 
 Section mpred.
 
@@ -69,6 +73,16 @@ Definition thread_func_spec :=
          RETURN (Vint Int.zero)
          SEP ().
 
+Definition compute2_spec :=
+ DECLARE _compute2
+ WITH gv: globals
+ PRE [] PROP() PARAMS() GLOBALS(gv)
+          SEP(library.mem_mgr gv;
+                data_at Ews t_counter (Vint (Int.repr 0), Vundef) (gv _c);
+                has_ext tt)
+ POST [ tint ] PROP() RETURN (Vint (Int.repr 2)) 
+                    SEP(library.mem_mgr gv; data_at_ Ews t_counter (gv _c); has_ext tt).
+
 Definition main_spec :=
  DECLARE _main
   WITH gv : globals
@@ -76,7 +90,7 @@ Definition main_spec :=
   POST [ tint ] main_post prog gv.
 
 Definition Gprog : funspecs :=   ltac:(with_library prog [acquire_spec; release_spec; makelock_spec;
-  freelock_spec; spawn_spec; incr_spec; read_spec; thread_func_spec; main_spec]).
+  freelock_spec; spawn_spec; incr_spec; read_spec; thread_func_spec; compute2_spec; main_spec]).
 
 Lemma ctr_inv_exclusive : forall gv g, exclusive_mpred (ctr_inv gv g).
 Proof.
@@ -207,7 +221,8 @@ Proof.
   intros; unfold ctr_inv.
   apply bi.exist_timeless; intros.
   apply bi.sep_timeless; try apply _.
-Admitted.
+  apply bi.and_timeless; apply _.
+Qed.
 
 (* In this client, the ctr_state is assembled from the combination of the counter's lock assertion
    and a global invariant for the ghost state. In theory we could put it all in a global invariant,
@@ -269,7 +284,7 @@ Qed.
 
 Opaque Qp.div.
 
-Lemma body_main : semax_body Vprog Gprog f_main main_spec.
+Lemma body_compute2 : semax_body Vprog Gprog f_compute2 compute2_spec.
 Proof.
   start_function.
   forward.
@@ -282,8 +297,6 @@ Proof.
   ghost_alloc (fun g => own g (●E O ⋅ ◯E O : excl_authR natO)).
   { apply excl_auth_valid. }
   Intro g.
-  rename a into gv.
-  sep_apply (library.create_mem_mgr gv).
   (* We allocate the lock here, but give it an invariant later. *)
   forward_call (gv).
   Intros lockp.
@@ -365,6 +378,23 @@ Proof.
   { lock_props.
     rewrite -{3}Qp.half_half -frac_op -lock_inv_share_join; cancel. }
   forward.
+  unfold_data_at (data_at_ _ _ _). simpl.
+  cancel.
+  unfold ctr_inv; Intros n; cancel.
+  rewrite -(field_at_share_join _ _ Ews); [|eauto]; cancel.
+  by iIntros "(_ & _ & _)".
+Qed.
+
+Lemma body_main : semax_body Vprog Gprog f_main main_spec.
+Proof.
+  start_function.
+  sep_apply (library.create_mem_mgr gv).
+  forward_call.
+  { rewrite zero_val_eq.
+    repeat change (fold_reptype ?a) with a.
+    repeat unfold_data_at (data_at _ _ _ _); simpl.
+    rewrite zero_val_eq; cancel. }
+  forward.
 Qed.
 
 Lemma prog_correct:
@@ -384,6 +414,7 @@ semax_func_cons_ext.
 semax_func_cons body_incr.
 semax_func_cons body_read.
 semax_func_cons body_thread_func.
+semax_func_cons body_compute2.
 semax_func_cons body_main.
 Qed.
 

@@ -9,12 +9,6 @@ Section mpred.
 
 Context `{!VSTGS OK_ty Σ, !cinvG Σ, atom_impl : !atomic_int_impl (Tstruct _atom_int noattr)}.
 
-(* add these to atomic_int_impl? *)
-Axiom atomic_int_isptr : forall sh v p, atomic_int_at sh v p ⊢ ⌜isptr p⌝.
-#[local] Hint Resolve atomic_int_isptr : saturate_local.
-Axiom atomic_int_timeless : forall sh v p, Timeless (atomic_int_at sh v p).
-#[export] Existing Instance atomic_int_timeless.
-
 #[global] Opaque atomic_int_at.
 
 Section PROOFS.

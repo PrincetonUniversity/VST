@@ -17,8 +17,8 @@ Notation vint z := (Vint (Int.repr z)).
    atomic_int_at__ : forall sh v p, atomic_int_at sh v p ⊢ atomic_int_at sh Vundef p;
    atomic_int_conflict : forall sh v v' p, sepalg.nonidentity sh -> atomic_int_at sh v p ∗ atomic_int_at sh v' p ⊢ False%I;
    atomic_int_isptr : forall sh v p, atomic_int_at sh v p ⊢ ⌜isptr p⌝;
-   atomic_int_timeless : forall sh v p, Timeless (atomic_int_at sh v p);
-   atomic_ptr : type := Tstruct _atom_ptr noattr; 
+   atomic_int_timeless sh v p :: Timeless (atomic_int_at sh v p);
+   atomic_ptr : type := Tstruct _atom_ptr noattr;
    atomic_ptr_at : share -> val -> val -> mpred;
   atomic_ptr_conflict : forall sh v v' p, sepalg.nonidentity sh -> atomic_ptr_at sh v p ∗ atomic_ptr_at sh v' p ⊢ False%I
 }.

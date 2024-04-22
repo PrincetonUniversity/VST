@@ -2,10 +2,14 @@ Require Import VST.concurrency.conclib.
 Require Import VST.concurrency.lock_specs.
 Require Import VST.atomics.SC_atomics.
 Require Import VST.atomics.verif_lock.
+Require Import iris_ora.algebra.ext_order.
+Require Import iris.algebra.lib.excl_auth.
 Require Import VST.progs.incr.
 
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
+
+Canonical Structure excl_authR A := inclR (excl_authR A).
 
 Section mpred.
 
@@ -69,6 +73,16 @@ Definition thread_func_spec :=
          RETURN (Vint Int.zero)
          SEP ().
 
+Definition compute2_spec :=
+ DECLARE _compute2
+ WITH gv: globals
+ PRE [] PROP() PARAMS() GLOBALS(gv)
+          SEP(library.mem_mgr gv;
+                data_at Ews t_counter (Vint (Int.repr 0), Vundef) (gv _c);
+                has_ext tt)
+ POST [ tint ] PROP() RETURN (Vint (Int.repr 2)) 
+                    SEP(library.mem_mgr gv; data_at_ Ews t_counter (gv _c); has_ext tt).
+
 Definition main_spec :=
  DECLARE _main
   WITH gv : globals
@@ -76,7 +90,7 @@ Definition main_spec :=
   POST [ tint ] main_post prog gv.
 
 Definition Gprog : funspecs := ltac:(with_library prog [acquire_spec; release_spec; makelock_spec; freelock_spec;
-  spawn_spec; incr_spec; read_spec; thread_func_spec; main_spec]).
+  spawn_spec; incr_spec; read_spec; thread_func_spec; compute2_spec; main_spec]).
 
 Lemma ctr_inv_exclusive : forall g1 g2 p,
   exclusive_mpred (cptr_lock_inv g1 g2 p).
@@ -183,7 +197,7 @@ Proof.
   forward.
 Qed.
 
-Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
+Lemma body_compute2:  semax_body Vprog Gprog f_compute2 compute2_spec.
 Proof.
   start_function.
   set (ctr := gv _c).
@@ -194,7 +208,6 @@ Proof.
   ghost_alloc (fun g => own g (●E O ⋅ ◯E O : excl_authR natO)).
   { apply excl_auth_valid. }
   Intro g2.
-  sep_apply (library.create_mem_mgr gv).
   forward_call (gv, fun _ : lock_handle => cptr_lock_inv g1 g2 ctr).
   Intros lock.
   forward.
@@ -232,6 +245,23 @@ Proof.
     rewrite -{2}Qp.half_half -frac_op -lock_inv_share_join.
     subst ctr; cancel. }
   forward.
+  unfold_data_at (data_at_ _ _ _). simpl.
+  cancel.
+  unfold cptr_lock_inv; Intros z x y; cancel.
+  rewrite -(field_at_share_join _ _ Ews); [|eauto]; cancel.
+  by iIntros "(_ & _ & _ & _)".
+Qed.
+
+Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
+Proof.
+  start_function.
+  sep_apply (library.create_mem_mgr gv).
+  forward_call.
+  { rewrite zero_val_eq.
+    repeat change (fold_reptype ?a) with a.
+    repeat unfold_data_at (data_at _ _ _ _); simpl.
+    rewrite zero_val_eq; cancel. }
+  forward.
 Qed.
 
 Lemma prog_correct:
@@ -254,6 +284,7 @@ semax_func_cons_ext.
 semax_func_cons body_incr.
 semax_func_cons body_read.
 semax_func_cons body_thread_func.
+semax_func_cons body_compute2.
 semax_func_cons body_main.
 Qed.
 

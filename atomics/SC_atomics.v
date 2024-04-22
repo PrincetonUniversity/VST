@@ -15,10 +15,16 @@ Context `{!VSTGS OK_ty Σ}.
 
 Class atomic_int_impl (atomic_int : type) := { atomic_int_at : share -> val -> val -> mpred;
   atomic_int_at__ : forall sh v p, atomic_int_at sh v p ⊢ atomic_int_at sh Vundef p;
-  atomic_int_conflict : forall sh v v' p, sepalg.nonidentity sh -> atomic_int_at sh v p ∗ atomic_int_at sh v' p ⊢ False }.
+  atomic_int_conflict : forall sh v v' p, sepalg.nonidentity sh -> atomic_int_at sh v p ∗ atomic_int_at sh v' p ⊢ False;
+  atomic_int_isptr : forall sh v p, atomic_int_at sh v p ⊢ ⌜isptr p⌝;
+  atomic_int_timeless sh v p :: Timeless (atomic_int_at sh v p)
+ }.
 
 Class atomic_ptr_impl := { atomic_ptr : type; atomic_ptr_at : share -> val -> val -> mpred;
-  atomic_ptr_conflict : forall sh v v' p, sepalg.nonidentity sh -> atomic_ptr_at sh v p ∗ atomic_ptr_at sh v' p ⊢ False }.
+  atomic_ptr_conflict : forall sh v v' p, sepalg.nonidentity sh -> atomic_ptr_at sh v p ∗ atomic_ptr_at sh v' p ⊢ False;
+  atomic_ptr_isptr : forall sh v p, atomic_ptr_at sh v p ⊢ ⌜isptr p⌝;
+  atomic_ptr_timeless sh v p :: Timeless (atomic_ptr_at sh v p)
+ }.
 
 Context {CS : compspecs} `{AI : atomic_int_impl} {AP : atomic_ptr_impl}.
 

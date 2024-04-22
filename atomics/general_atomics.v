@@ -855,7 +855,7 @@ Ltac start_function1 ::=
               |- _ => idtac
             | s:=?spec':_ |- _ => check_canonical_funspec spec'
             end; change (semax_body V G F s); subst s)
-   end; unfold NDmk_funspec;
+   end;
    (let gv := fresh "gv" in
     match goal with
     | |- semax_body _ _ _ (_, mk_funspec _ _ _ _ ?Pre _) =>
@@ -871,8 +871,15 @@ Ltac start_function1 ::=
                                | (a, b) => _
                                end => intros Espec [a b]
            | λne i, _ => intros Espec i
-           end; simpl fn_body; simpl fn_params; simpl fn_return
-    end;
+           end
+    | |- semax_body _ _ _ (pair _ (NDmk_funspec _ _ _ ?Pre _)) =>
+          split3; [check_parameter_types' | check_return_type | ];
+           match Pre with
+           | (convertPre _ _ (fun i => _)) =>  intros Espec (*DependedTypeList*) i
+           | (fun x => match _ with (a,b) => _ end) => intros Espec (*DependedTypeList*) [a b]
+           | (fun i => _) => intros Espec (*DependedTypeList*) i (* this seems to be named "a" no matter what *)
+           end
+    end; simpl fn_body; simpl fn_params; simpl fn_return;
      cbv[dtfr dependent_type_functor_rec constOF idOF prodOF discrete_funOF ofe_morOF
         sigTOF listOF oFunctor_car ofe_car] in *; cbv[ofe_mor_car];
      rewrite_old_main_pre; rewrite ?argsassert_of_at ?assert_of_at;

@@ -23,7 +23,7 @@ Definition AB_VSU :=
 Require VSTlib.verif_locks.
 Definition ABC_VSU:=
   ltac:(linkVSUs AB_VSU 
-         (verif_locks.LockVSU (atom_impl := aii1))).
+         (verif_locks.LockVSU)).
 
 Ltac SC_tac ::=
  match goal with |- SC_test ?ids _ _ =>
@@ -42,13 +42,13 @@ Ltac SC_tac ::=
           end.
 
 Definition core_VSU :=
-  ltac:(linkVSUs (IncrVSU (aii1:=aii1)) ABC_VSU).
+  ltac:(linkVSUs IncrVSU ABC_VSU).
 
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition main_QPprog := ltac:(QPprog prog).
 Definition whole_prog := ltac:(QPlink_progs main_QPprog (VSU_prog core_VSU)).
 Definition Vprog: varspecs := QPvarspecs whole_prog.
-Definition Main_imports := filter (matchImportExport main_QPprog) (VSU_Exports core_VSU). 
+Definition Main_imports := filter (matchImportExport main_QPprog) (VSU_Exports core_VSU).
 
 Definition main_spec :=
  DECLARE _main

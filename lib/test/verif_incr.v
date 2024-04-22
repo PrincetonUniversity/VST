@@ -3,7 +3,9 @@ Require Import VST.floyd.VSU.
 Require Import VST.concurrency.conclib.
 From VSTlib Require Import spec_locks spec_threads spec_malloc.
 Require VSTlib.verif_locks.
+Require Import iris_ora.algebra.ext_order.
 Require Import iris_ora.logic.cancelable_invariants.
+Require Import iris.algebra.lib.excl_auth.
 Require Import VSTlibtest.incr.
 
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
@@ -12,11 +14,12 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
 #[export] Existing Instance verif_locks.M.
 #[export] Existing Instance verif_malloc.M.
 
+Canonical Structure excl_authR A := inclR (excl_authR A).
 
 Section mpred.
-Context `{VSTGS1: !VSTGS unit Σ, 
-          cinvG1: !cinvG Σ, 
-          inG1: !inG Σ (excl_authR natO), 
+Context `{VSTGS1: !VSTGS unit Σ,
+          cinvG1: !cinvG Σ,
+          inG1: !inG Σ (excl_authR natO),
           aii1: !atomic_int_impl (Tstruct _atom_int noattr)}.
 
 Definition spawn_spec := DECLARE _spawn spawn_spec.
@@ -216,7 +219,6 @@ Proof.
   ghost_alloc (fun g => own g (●E O ⋅ ◯E O : excl_authR natO)).
   { apply excl_auth_valid. }
   Intro g2.
-  sep_apply (library.create_mem_mgr gv).
   forward_call (gv, fun _ : lock_handle => cptr_lock_inv g1 g2 ctr).
   Intros lock.
   forward.
@@ -253,11 +255,13 @@ Proof.
   { lock_props.
     rewrite -{2}Qp.half_half -frac_op -lock_inv_share_join.
     subst ctr; cancel. }
-  forward. 
+  forward.
   unfold_data_at (data_at_ _ _ _). simpl.
   cancel.
-  admit.
- Admitted.
+  unfold cptr_lock_inv; Intros z x y; cancel.
+  rewrite -(field_at_share_join _ _ Ews); [|eauto]; cancel.
+  by iIntros "(_ & _ & _ & _)".
+ Qed.
 
 (*
 

@@ -25,7 +25,7 @@ int thread_func(void *thread_lock) {
   return 0;
 }
 
-int main(void)
+int compute2(void)
 {
   c.ctr = 0;
   c.lock = makelock();
@@ -48,4 +48,8 @@ int main(void)
   /*printf("I'm done with a final counter of: %d\n", t);*/
 
   return t;
+}
+
+int main(void) {
+ return compute2();
 }

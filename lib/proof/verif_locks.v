@@ -17,7 +17,7 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Section mpred.
 
-Context `{!VSTGS OK_ty Σ, !cinvG Σ, atom_impl : !atomic_int_impl (Tstruct _atom_int noattr)}.
+Context `{!VSTGS OK_ty Σ, !cinvG Σ(*, atom_impl : !atomic_int_impl (Tstruct _atom_int noattr)*)}.
 
 
 #[export] Program Instance M : lockAPD := {
@@ -98,8 +98,6 @@ Definition Gprog := lockImports ++ LockASI.
       { eapply semax_pre, semax_ff; go_lower; done. }
   Qed.
 
-Opaque inv_for_lock.
-
   Lemma body_release: semax_body Vprog Gprog f_release release_spec.
   Proof.
   (* the following line should not be necessary;
@@ -112,7 +110,6 @@ Opaque inv_for_lock.
     - destruct h as ((p, i), g); simpl; Intros.
       subst Frame; instantiate (1 := []); simpl; cancel.
       iIntros "(HR & #I & ? & P & HQ)".
- (* the next line fails for some reason 
       iInv i as "((% & >p & ?) & Hown)" "Hclose".
       destruct b.
       + iExists Ews; rewrite (bi.pure_True (writable_share _)) //.
@@ -127,7 +124,6 @@ Opaque inv_for_lock.
         rewrite bi.affinely_elim; iNext; iApply ("HR" with "[$]").
     - entailer!.
   Qed.
-*) Admitted.
 
   Lemma body_acquire: semax_body Vprog Gprog f_acquire acquire_spec.
   Proof.
@@ -151,7 +147,7 @@ Opaque inv_for_lock.
     - unfold lock_inv; destruct h as ((p, i), g); Intros.
       subst Frame; instantiate (1 := []); simpl fold_right_sepcon; cancel.
       iIntros "(#I & ?)".
- (* the next line fails for some reason 
+      rewrite {1}/inv_for_lock /=.
       iInv "I" as "((% & >? & ?) & ?)" "Hclose".
       iExists Ews, (Val.of_bool b); rewrite (bi.pure_True (writable_share _)) //.
       iFrame.
@@ -165,8 +161,9 @@ Opaque inv_for_lock.
     - Intros r. if_tac; forward_if; try discriminate; try contradiction.
       + forward. simpl lock_inv; entailer!.
       + forward. simpl lock_inv; entailer!.
-  Qed. *)
-  Admitted.
+  Qed.
+
+Opaque inv_for_lock.
 
 #[global] Opaque M.
 

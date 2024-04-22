@@ -91,7 +91,7 @@ Section PROOFS.
   Proof.
     start_function.
     Intros v.
-    assert_PROP (is_pointer_or_null a) by entailer.
+    assert_PROP (is_pointer_or_null p) by entailer.
     forward_call.
     - Exists v. cancel.
     - entailer!.
