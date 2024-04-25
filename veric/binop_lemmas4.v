@@ -137,6 +137,13 @@ destruct H as [x H]; apply perm_order'_dec_fiddle with x; auto.
 assert (exists x, (Mem.mem_access (m_dry m)) !! b (Ptrofs.unsigned ofs + d) Cur = Some x).
 rewrite H1. unfold perm_of_sh. repeat if_tac; try contradiction; eauto.
 destruct H as [x H]; apply perm_order'_dec_fiddle with x; auto.
+* (*new case:Pure*) 
+unfold Mem.valid_pointer. destruct m. simpl in *.
+Search access_cohere.
+specialize (JMaccess (b, Ptrofs.unsigned ofs + d)).
+remember (Mem.perm_dec m b (Ptrofs.unsigned ofs + d) Cur Nonempty) as q; destruct q; simpl in *; trivial.
+exfalso; apply n; clear n Heqq.
+apply perm_access. rewrite JMaccess, H0. apply perm_refl.
 Qed.
 
 Lemma weak_valid_pointer_dry:

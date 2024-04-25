@@ -64,6 +64,7 @@ Definition ListClassicalSep_environ := @LiftClassicalSep environ.
 Definition func_ptr' f v := func_ptr f v && emp.
 
 #[export] Hint Resolve func_ptr_isptr: saturate_local.
+#[export] Hint Resolve SeparationLogic.func_ptr_valid_pointer: saturate_local.
 
 Lemma func_ptr'_isptr: forall f v, func_ptr' f v |-- !! isptr v.
 Proof.
@@ -72,6 +73,11 @@ unfold func_ptr'.
 apply andp_left1. apply func_ptr_isptr.
 Qed.
 #[export] Hint Resolve func_ptr'_isptr: saturate_local.
+
+Lemma func_ptr'_valid_pointer: forall spec f, func_ptr' spec f |-- valid_pointer f.
+Proof. intros. unfold func_ptr'.
+apply andp_left1. apply SeparationLogic.func_ptr_valid_pointer. Qed.
+(*#[export] Hint Resolve func_ptr'_valid_pointer: saturate_local.*)
 
 Lemma split_func_ptr':
  forall fs p, func_ptr' fs p = func_ptr' fs p * func_ptr' fs p.

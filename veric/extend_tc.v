@@ -120,16 +120,21 @@ simpl in *.
 destruct a; simpl in *; auto.
 forget (b0, Ptrofs.unsigned i + b) as p.
 destruct (w @ p) eqn:?H; try contradiction.
-destruct H as [w2 ?].
-apply (resource_at_join _ _ _ p) in H.
-rewrite H1 in H.
-inv H; auto.
-clear - H0 RJ.
-eapply join_nonidentity; eauto.
-destruct H as [w2 ?].
-apply (resource_at_join _ _ _ p) in H.
-rewrite H1 in H.
-inv H; auto.
++ destruct H as [w2 ?].
+  apply (resource_at_join _ _ _ p) in H.
+  rewrite H1 in H.
+  inv H; auto.
+  clear - H0 RJ.
+  eapply join_nonidentity; eauto.
++ destruct H as [w2 ?].
+  apply (resource_at_join _ _ _ p) in H.
+  rewrite H1 in H.
+  inv H; auto.
++ (*new case: PURE*)
+  destruct H as [w2 ?].
+  apply (resource_at_join _ _ _ p) in H.
+  rewrite H1 in H.
+  inv H; auto.
 Qed.
 
 Lemma extend_andp: forall (P Q : mpred),

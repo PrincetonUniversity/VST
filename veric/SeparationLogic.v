@@ -857,6 +857,12 @@ Lemma func_ptr_isptr: forall spec f, func_ptr spec f |-- !! isptr f.
 Proof. constructor; apply seplog.func_ptr_si_isptr.
 Qed.
 
+Lemma func_ptr_si_valid_pointer: forall spec f, func_ptr_si spec f |-- valid_pointer f.
+Proof. constructor. apply (@func_ptr_si_valid_pointer _ spec f). Qed.
+
+Lemma func_ptr_valid_pointer: forall spec f, func_ptr spec f |-- valid_pointer f.
+Proof. constructor. unfold func_ptr. apply func_ptr_si_valid_pointer. Qed.
+
 Definition NDmk_funspec (f: compcert_rmaps.typesig) (cc: calling_convention)
   (A: Type) (Pre: A -> argsEnviron -> mpred) (Post: A -> environ -> mpred): funspec :=
   mk_funspec f cc (rmaps.ConstType A) (fun _ => Pre) (fun _ => Post)

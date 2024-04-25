@@ -1068,7 +1068,7 @@ Program Definition valid_pointer' (p: val) (d: Z) : mpred :=
     match m @ (b, Ptrofs.unsigned ofs + d) with
     | YES _ _ _ pp => True
     | NO sh _ => nonidentity sh
-    | _ => False
+    | _ => True (*using 'True' here enables Lemma func_at_valid_pointer below, and hence func_ptr_valid_pointer*)
     end
  | _ => FF
  end.
@@ -1077,16 +1077,19 @@ split; intros; congruence.
 Qed.
 Next Obligation.
 split; simpl; repeat intro.
-destruct (a@(b,Ptrofs.unsigned ofs + d)) eqn:?; try contradiction.
-rewrite (necR_NO a a') in Heqr.
-rewrite Heqr; auto.
-constructor; auto.
-subst.
-apply (necR_YES a a') in Heqr; [ | constructor; auto].
-rewrite Heqr.
-auto.
-
-apply rmap_order in H as (_ & <- & _); auto.
++ destruct (a@(b,Ptrofs.unsigned ofs + d)) eqn:?; try contradiction.
+  - (*NO*) rewrite (necR_NO a a') in Heqr.
+    * rewrite Heqr; auto.
+    * constructor; auto.
+  - (*YES*) subst.
+    apply (necR_YES a a') in Heqr; [ | constructor; auto].
+    rewrite Heqr.
+    auto.
+  - (*new case, PURE*)
+     destruct (a'@(b,Ptrofs.unsigned ofs + d)) eqn:?; try contradiction; trivial.
+     specialize (@age_resource_at _ _  (b, Ptrofs.unsigned ofs + d) H).
+     rewrite Heqr0, Heqr; simpl; congruence.
++ apply rmap_order in H as (_ & <- & _); auto.
 Qed.
 Next Obligation.
 split3; intros; congruence.
@@ -1103,6 +1106,41 @@ Definition valid_pointer (p: val) : mpred :=
 
 Definition weak_valid_pointer (p: val) : mpred :=
  orp (valid_pointer' p 0) (valid_pointer' p (-1)).
+
+Lemma func_at_valid_pointer {phi  b z} (Hz: 0 <= z <= Ptrofs.max_unsigned):
+      func_at phi (b,z) |-- valid_pointer (Vptr b (Ptrofs.repr z)).
+Proof. unfold func_at. destruct phi.
+unfold res_predicates.pureat. red; intros. simpl in *.
+rewrite Zplus_0_r, Ptrofs.unsigned_repr, H; clear H; trivial.
+Qed.
+
+Lemma func_at'_valid_pointer {phi  b z} (Hz: 0 <= z <= Ptrofs.max_unsigned):
+      func_at' phi (b,z) |-- valid_pointer (Vptr b (Ptrofs.repr z)).
+Proof. unfold func_at'. destruct phi.
+unfold res_predicates.pureat. red; intros. simpl in *.
+destruct H.
+rewrite Zplus_0_r, Ptrofs.unsigned_repr, H; clear H; trivial.
+Qed.
+
+Lemma func_ptr_si_valid_pointer {G phi v}: @func_ptr_si G phi v |-- valid_pointer v.
+Proof.
+  unfold func_ptr_si. apply exp_left; intros.
+  apply prop_andp_left; intros; subst v.
+  apply exp_left; intros psi.
+  apply andp_left2.
+  apply func_at_valid_pointer.
+  specialize (Ptrofs.unsigned_range_2 (Ptrofs.zero)); lia.
+Qed.
+
+Lemma func_ptr_valid_pointer {G phi v}: @func_ptr G phi v |-- valid_pointer v.
+Proof.
+  unfold func_ptr. apply exp_left; intros.
+  apply prop_andp_left; intros; subst v.
+  apply exp_left; intros psi.
+  apply andp_left2.
+  apply func_at_valid_pointer.
+  specialize (Ptrofs.unsigned_range_2 (Ptrofs.zero)). lia.
+Qed.
 
 (********************SUBSUME****************)
 
