@@ -45,7 +45,6 @@ Definition test_fptr_spec (phi:funspec) :=
 Lemma verif_test_fptr phi: semax_body Vprog nil f_test_fptr (test_fptr_spec phi).
 Proof. start_function.
   forward_if.
-+ sep_apply func_ptr'_valid_pointer. entailer!. 
 + sep_apply func_ptr'_emp; forward.
 + rewrite H. sep_apply func_ptr'_isptr. simpl; Intros. contradiction.
 Qed.
@@ -81,8 +80,7 @@ Proof. start_function.
   make_func_ptr _test_id2.
   unfold test_id1_spec. simpl.
   forward.
-+ do 2 sep_apply func_ptr'_valid_pointer. entailer!. 
-+ do 2 sep_apply func_ptr'_emp. simpl.
+  do 2 sep_apply func_ptr'_emp. simpl.
   destruct (EqDec_val (gv _test_id1) (gv _test_id2)).
   - exfalso. apply (H _test_id1 _test_id2); trivial. intros N; inv N.
   - entailer!.
@@ -95,7 +93,6 @@ Lemma verif_test_id1: semax_body Vprog Gprog f_test_id1 test_id1_spec.
 Proof. start_function.
   make_func_ptr _id.
   forward_if.
-+ sep_apply func_ptr'_valid_pointer. entailer!. 
 + sep_apply func_ptr'_emp; forward.
 + rewrite H. sep_apply func_ptr'_isptr. simpl; Intros. contradiction.
 Qed.
