@@ -11,6 +11,9 @@ int test_fptr (int (*f)(int)) {
 int test_id2 () {
     return (test_fptr (&id)); }
 
+int test_fptr_fptr () {
+  return ((&test_id1)==(&test_id2)); }
+
 int main (){
-  return (test_id1() + test_id2()); 
+  return (test_id1() + test_id2() + test_fptr_fptr()); 
 }

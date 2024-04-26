@@ -50,18 +50,43 @@ Proof. start_function.
 + rewrite H. sep_apply func_ptr'_isptr. simpl; Intros. contradiction.
 Qed.
 
+(*A little adhoc... *)
+Definition globals_injective (gv:globals):Prop := 
+  forall i j, i <> j -> gv i <> gv j. 
+
+Definition test_fptr_fptr_spec := 
+  DECLARE _test_fptr_fptr
+  WITH gv:globals
+  PRE [] PROP (globals_injective gv) PARAMS () GLOBALS (gv) SEP ()
+  POST [tint] 
+    PROP ()
+    RETURN (Vzero)
+    SEP ().
+
 Definition main_spec := 
   DECLARE _main
   WITH gv:globals
-  PRE [] PROP () PARAMS () GLOBALS (gv) SEP ()
+  PRE [] PROP (globals_injective gv) PARAMS () GLOBALS (gv) SEP ()
   POST [tint] 
     PROP ()
     RETURN (Vint (Int.repr 2))
     SEP ().
 
-
 Definition Gprog: funspecs := [test_id1_spec; id_spec; test_fptr_spec (snd id_spec);
-                                (_test_id2, snd test_id1_spec); main_spec].
+                                (_test_id2, snd test_id1_spec); main_spec; test_fptr_fptr_spec].
+
+Lemma verif_test_fptr_fptr: semax_body Vprog Gprog f_test_fptr_fptr test_fptr_fptr_spec.
+Proof. start_function.
+  make_func_ptr _test_id1.
+  make_func_ptr _test_id2.
+  unfold test_id1_spec. simpl.
+  forward.
++ do 2 sep_apply func_ptr'_valid_pointer. entailer!. 
++ do 2 sep_apply func_ptr'_emp. simpl.
+  destruct (EqDec_val (gv _test_id1) (gv _test_id2)).
+  - exfalso. apply (H _test_id1 _test_id2); trivial. intros N; inv N.
+  - entailer!.
+Qed.
 
 Lemma verif_id: semax_body Vprog Gprog f_id id_spec.
 Proof. start_function. forward. Qed.  
@@ -81,4 +106,4 @@ Proof. unfold test_id1_spec. simpl snd. start_function.
 Qed.
 
 Lemma verif_test_main: semax_body Vprog Gprog f_main main_spec.
-Proof. start_function. forward_call. forward_call. forward. Qed.
+Proof. start_function. forward_call. forward_call. forward_call. forward. Qed.
