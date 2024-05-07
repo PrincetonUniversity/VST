@@ -4455,8 +4455,10 @@ Lemma compute_close_precondition_entails2:
   close_precondition ids (PROPx P (LAMBDAx gv vals (SEPx R)))
   ⊢  (PROPx(Σ:=Σ) P (LOCALx ((map gvars gv)++Q) (SEPx R))).
 Proof.
-intros. rewrite <- insert_locals. unfold close_precondition; normalize. raise_rho. super_unfold_lift. 
-unfold GLOBALSx, PARAMSx, argsassert2assert, PROPx, LOCALx, SEPx. normalize.
+intros. rewrite <- insert_locals. 
+  unfold close_precondition; split => rho; monPred.unseal; normalize. raise_rho. super_unfold_lift.
+ unfold GLOBALSx, PARAMSx, argsassert2assert, PROPx, LOCALx, SEPx.
+  normalize. 
   apply bi.and_intro; [|by done].
   rewrite bi.pure_and; apply bi.and_intro.
   { apply bi.pure_intro.

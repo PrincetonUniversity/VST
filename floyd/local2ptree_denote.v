@@ -437,10 +437,8 @@ Lemma LOCALx_shuffle_derives': forall P Q Q' R,
 Proof.
   intros.
   induction Q'.
-  {
-    unfold PROPx, LOCALx.
+  { go_lowerx.
     normalize.
-    solve_andp.
   }
   pose proof (H a (or_introl _ eq_refl)).
   rewrite <- insert_local'.
@@ -841,8 +839,9 @@ assert (forall rho, local(Σ:=Σ) (tc_environ Delta) rho ⊢ ⌜Map.get (ve_of r
 clear - H2 H2' H3 TC.
 rewrite -insert_SEP.
 unfold func_ptr.
+split => rho; monPred.unseal.
 normalize.
-iIntros "(%H0 & H1 & H2)". iSplit. 2: { done. }
+iIntros "(%H0 & H1 & H2)".  iSplit. 2: { done. }
 rewrite H3.
 iPoseProof (in_local _ Delta (l ++ P) _ (SEPx R) H2 with "[H1]") as "H3".
 { rewrite /PROPx /LOCALx. iSplit;  done. }

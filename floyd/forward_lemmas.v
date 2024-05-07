@@ -388,7 +388,8 @@ destruct Post as [?P ?P ?P ?P]; simpl; normalize.
 intros vl; destruct Post as [?P ?P ?P ?P]; simpl; normalize.
 *
 eapply semax_pre_simple; [ | apply semax_break].
-destruct Post as [?P ?P ?P ?P]; simpl; normalize.
+destruct Post as [?P ?P ?P ?P]; simpl.
+split => rho; monPred.unseal; normalize.
 eapply derives_trans; [ | apply H1].
 rewrite (bi.and_comm (Q rho)).
 simpl.

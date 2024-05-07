@@ -694,6 +694,7 @@ Proof.
 unfold PROPx in *.
 intros.
 rewrite fold_right_cons.
+go_lowerx.
 normalize.
 rewrite -H //.
 monPred.unseal.

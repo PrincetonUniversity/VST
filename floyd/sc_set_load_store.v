@@ -85,6 +85,7 @@ Proof.
   rewrite <- insert_local.
   eapply derives_trans; [| apply bi.and_mono; [apply derives_refl | apply remove_localdef_temp_PROP]].
   (* TODO maybe normalize shouldn't unfold local? *)
+  split => rho; monPred.unseal.
   Opaque local. normalize. Transparent local.
   apply (bi.exist_intro' _ _ x).
   rewrite bi.and_comm -bi.and_assoc bi.and_comm.

@@ -344,6 +344,7 @@ Proof.
     with (eval_expr (Ecast e2 t1)).
     Opaque eval_lvalue eval_expr.
     unfold local, lift1; unfold_lift; simpl.
+    go_lowerx.
     normalize.
     Transparent eval_lvalue eval_expr.
     subst t1.

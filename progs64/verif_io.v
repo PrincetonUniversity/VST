@@ -222,7 +222,6 @@ Proof.
     entailer!.
   - forward.
     entailer!.
-  - entailer!.
 Qed.
 
 Lemma chars_of_Z_eq : forall n, chars_of_Z n =
@@ -269,7 +268,6 @@ Proof.
   - forward_call (i, tr).
     { rewrite -> chars_of_Z_intr by lia; cancel. }
     entailer!.
-  - entailer!.
 Qed.
 
 Lemma read_sum_eq : forall n d, read_sum n d ≈

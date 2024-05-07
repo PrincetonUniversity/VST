@@ -448,6 +448,7 @@ Proof.
   intros.
   erewrite local2ptree_soundness by eassumption.
   rewrite assoc msubst_eval_lvalue_eq //.
+  split => rho; monPred.unseal.
   normalize.
   apply bi.pure_elim_r; intros ->; done.
 Qed.
@@ -460,6 +461,7 @@ Proof.
   intros.
   erewrite local2ptree_soundness by eassumption.
   rewrite assoc msubst_eval_expr_eq //.
+  split => rho; monPred.unseal.
   normalize.
   apply bi.pure_elim_r; intros ->; done.
 Qed.

@@ -130,6 +130,7 @@ Proof.
     - eapply derives_trans; [eapply msubst_eval_expr_eq; eauto |].
       apply bi.impl_intro_r.
       unfold local, lift1; unfold_lift.
+      split => rho; monPred.unseal;
       normalize.
     - and_elim_rightmost.
   + simpl msubst_denote_tc_assert; simpl denote_tc_assert.

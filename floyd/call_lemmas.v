@@ -1534,6 +1534,7 @@ Proof.
     apply bi.pure_mono; simpl; auto.
   - apply bi.exist_elim; intros.
     rewrite /PROPx /=.
+    split => rho; monPred.unseal.
     normalize.
 Qed.
 

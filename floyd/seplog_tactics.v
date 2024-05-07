@@ -1332,7 +1332,9 @@ Ltac safe_done :=
 
 Ltac normalize1 :=
          match goal with
+         (* SEE ISSUE   https://github.com/PrincetonUniversity/VST/issues/773
             | |- bi_entails(PROP := monPredI _ _) _ _ => let rho := fresh "rho" in split => rho; monPred.unseal
+	  *)
             | |- context [((⌜?P⌝ ∧ ?Q) ∗ ?R)%I] => rewrite -> (sepcon_andp_prop' Q P R)
             | |- context [(?P ∗ (⌜?Q⌝ ∧ ?R))%I] => rewrite -> (sepcon_andp_prop P Q R)
             | |- context [((?Q ∧ ⌜?P⌝) ∗ ?R)%I] => rewrite -> (sepcon_andp_prop2' P Q R)
