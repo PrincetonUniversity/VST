@@ -2519,7 +2519,8 @@ Ltac forward_loop_aux2 Inv PreInc :=
   | |- semax _ _ _ (Sloop _ Sskip) _ => 
          tryif (constr_eq Inv PreInc) then (apply (semax_loop_noincr _ Inv); abbreviate_semax)
          else (apply (semax_loop _ Inv PreInc); [delete_skip | ]; abbreviate_semax)
-  | |- semax _ _ _ (Sloop _ _) _ =>apply (semax_loop _ Inv PreInc); [delete_skip | ]; abbreviate_semax
+  | |- semax _ _ _ (Sloop _ _) _ =>
+     apply semax_loop with (Q:=Inv) (Q':=PreInc); [delete_skip | ]; abbreviate_semax
  end.
 
 Ltac forward_loop_aux1 Inv PreInc:=
