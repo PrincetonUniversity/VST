@@ -1510,6 +1510,27 @@ do 2 rewrite Share.rel_top1.
 erewrite Share.split_together; eauto.
 Qed.
 
+Lemma field_at_share_joins: forall sh1 sh2 t fld p v,
+  0 < sizeof (nested_field_type t fld) ->
+  field_at sh1 t fld v p ∗ field_at sh2 t fld v p ⊢ ⌜sepalg.joins sh1 sh2⌝.
+Proof.
+  intros.
+  rewrite field_at_compatible'.
+  iIntros "(((% & % & % & % & %) & H1) & H2)".
+  destruct (nested_field_offset_in_range t fld); [done..|].
+  assert (0 < sizeof (nested_field_type t fld) < Ptrofs.modulus).
+  {
+    destruct p; try done.
+    simpl in *.
+    inv_int i.
+    unfold expr.sizeof in *.
+    lia.
+  }
+  rewrite !field_at_field_at_.
+  rewrite !field_at__memory_block by auto.
+  iApply (memory_block_share_joins with "[$H1 $H2]"); lia.
+Qed.
+
 Lemma field_at_conflict: forall sh t fld p v v',
   sh ≠ Share.bot ->
   0 < sizeof (nested_field_type t fld) ->
@@ -1530,6 +1551,13 @@ Proof.
   rewrite !field_at_field_at_.
   rewrite field_at__memory_block by auto.
   iApply (memory_block_conflict with "[$]"); first done; unfold Ptrofs.max_unsigned; lia.
+Qed.
+
+Lemma data_at_share_joins: forall sh1 sh2 t v p,
+  0 < sizeof t ->
+  data_at sh1 t v p ∗ data_at sh2 t v p ⊢ ⌜sepalg.joins sh1 sh2⌝.
+Proof.
+  intros. unfold data_at. apply field_at_share_joins; auto.
 Qed.
 
 Lemma data_at_conflict: forall sh t v v' p,

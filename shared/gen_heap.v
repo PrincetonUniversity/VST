@@ -199,6 +199,8 @@ Section gen_heap.
   Proof. rewrite mapsto_no_unseal. apply resource_map_elem_no_valid. Qed.
   Lemma mapsto_no_valid_2 l dq1 dq2 : mapsto_no l dq1 -∗ mapsto_no l dq2 -∗ ⌜✓ (Share dq1 ⋅ Share dq2) ∧ ~readable_share' (Share dq1 ⋅ Share dq2)⌝.
   Proof. rewrite mapsto_no_unseal. apply resource_map_elem_no_valid_2. Qed.
+  Lemma mapsto_no_mapsto_valid_2 l dq1 dq2 v : mapsto_no l dq1 -∗ l ↦{dq2} v -∗ ⌜✓ (DfracOwn (Share dq1) ⋅ dq2) ∧ readable_dfrac (DfracOwn (Share dq1) ⋅ dq2)⌝.
+  Proof. rewrite mapsto_no_unseal mapsto_unseal. apply resource_map_elem_no_elem_valid_2. Qed.
 
   Global Instance mapsto_no_combine_sep_gives l dq1 dq2 : 
     CombineSepGives (mapsto_no l dq1) (mapsto_no l dq2) ⌜✓ (Share dq1 ⋅ Share dq2) ∧ ~readable_share' (Share dq1 ⋅ Share dq2)⌝ | 30.

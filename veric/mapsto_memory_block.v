@@ -403,6 +403,29 @@ Proof.
     * iIntros "(% & $ & $)"; auto.
 Qed.
 
+Lemma mapsto_share_joins:
+ forall sh1 sh2 t p v,
+   mapsto sh1 t p v ∗ mapsto sh2 t p v ⊢ ⌜sepalg.joins sh1 sh2⌝.
+Proof.
+  intros.
+  unfold mapsto.
+  iIntros "[H1 H2]".
+  destruct (access_mode t) eqn:?; try done.
+  destruct (type_is_volatile t) eqn:?; try done.
+  destruct p; try done.
+  destruct (readable_share_dec sh1), (readable_share_dec sh2).
+  + iDestruct "H1" as "[(% & H1) | (% & % & H1)]"; iDestruct "H2" as "[(% & H2) | (% & % & H2)]";
+      try iDestruct (address_mapsto_value_cohere with "[$H1 $H2]") as %->;
+      by iApply (address_mapsto_share_joins with "[$H1 $H2]").
+  + iDestruct "H1" as "[(% & H1) | (% & % & H1)]"; iDestruct "H2" as "(% & H2)";
+      iDestruct (nonlock_permission_bytes_address_mapsto_joins with "[$H1 $H2]") as %?; iPureIntro; by apply psepalg.joins_comm.
+  + iDestruct "H1" as "(% & H1)"; iDestruct "H2" as "[(% & H2) | (% & % & H2)]";
+      by iApply (nonlock_permission_bytes_address_mapsto_joins with "[$H1 $H2]").
+  + iDestruct "H1" as "(% & H1)"; iDestruct "H2" as "(% & H2)";
+      iApply (nonlock_permission_bytes_share_joins with "[$H1 $H2]").
+    apply size_chunk_pos.
+Qed.
+
 Lemma mapsto_mapsto_: forall sh t v v', mapsto sh t v v' ⊢ mapsto_ sh t v.
 Proof. unfold mapsto_; intros.
   unfold mapsto.
@@ -413,6 +436,19 @@ Proof. unfold mapsto_; intros.
   + iIntros "[[% ?] | [% ?]]"; eauto.
   + iIntros "[[% %] $]"; iPureIntro; repeat split; auto.
     apply tc_val'_Vundef.
+Qed.
+
+Lemma memory_block_share_joins:
+  forall sh1 sh2 n p, n > 0 ->
+   memory_block sh1 n p ∗ memory_block sh2 n p ⊢ ⌜sepalg.joins sh1 sh2⌝.
+Proof.
+  intros.
+  unfold memory_block.
+  iIntros "[H1 H2]".
+  destruct p; try done.
+  destruct (Z.to_nat n) eqn: Hn; simpl; first lia.
+  iDestruct "H1" as (?) "(H1 & _)"; iDestruct "H2" as (?) "(H2 & _)".
+  iApply (mapsto_share_joins with "[$H1 $H2]").
 Qed.
 
 (*Lemma mapsto_not_nonunit: forall sh t p v, ~ nonunit sh -> mapsto sh t p v ⊢ emp.
