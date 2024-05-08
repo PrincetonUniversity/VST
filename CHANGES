@@ -1,4 +1,4 @@
-CHANGES SINCE LAST RELEASE (udpated March 2024)
+CHANGES IN RELEASE 2.14 (March 2024)
 
 - repr_inj handles int64 compares better
 - Added nonempty_writable_glb lemma for user convenience (#734)
@@ -20,7 +20,7 @@ CHANGES IN RELEASE 2.13 (October 2023)
 - forward tactic is slightly more careful about not simplifying user's terms
 - bug fixes and improved diagnostic messages in list_solve tactic
 - field_compatible0_Tarray_offset no longer requires naturally_aligned hypothesis
-- 'forward' now interacts better with 'localize/unlocalize' (#773)
+- 'forward' now interacts better with 'localize/unlocalize' (#756)
 - Performance improvements in VSU system (#716)
 - VSU permits sharing of globals between compilation units (#713)
 - Compatible with Coq 8.18.0, 8.17.1, 8.16.1; with CompCert 3.13.1, 3.12, 3.11.

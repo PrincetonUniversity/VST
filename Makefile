@@ -506,10 +506,10 @@ FLOYD_FILES= \
    for_lemmas.v semax_tactics.v diagnosis.v simple_reify.v simpl_reptype.v \
    freezer.v deadvars.v Clightnotations.v unfold_data_at.v hints.v reassoc_seq.v \
    SeparationLogicAsLogicSoundness.v SeparationLogicAsLogic.v SeparationLogicFacts.v \
-   subsume_funspec.v linking.v data_at_lemmas.v assoclists.v quickprogram.v PTops.v QPcomposite.v \
+   subsume_funspec.v linking.v data_at_lemmas.v Funspec_old_Notation.v assoclists.v VSU.v quickprogram.v PTops.v Component.v QPcomposite.v \
    data_at_list_solver.v step.v fastforward.v finish.v \
-   compat.v \
-   Component.v VSU.v
+   compat.v
+#  VSU_DrySafe.v \   # does not yet work in VST 3.x 
 #real_forward.v
 
 
@@ -741,7 +741,8 @@ test: vst progs
 	@# need this tab here to turn of special behavior of 'test' target
 test2: io
 test3: sha hmac 
-tests: test test2 test3
+test5: VSUpile
+tests: test test2 test3 test5
 all: vst files tests hmacdrbg tweetnacl aes
 endif
 

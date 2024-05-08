@@ -82,7 +82,8 @@ start_function.
 simpl pilerep. unfold fastprep.
 Intros s.
 forward.
-forward_if (temp _t'1 (if zle 0 n then if zle n (Int.max_signed-s) then Vtrue else Vfalse else Vfalse)).
+forward_if (temp _t'1 (bool2val (zle 0 n && zle n (Int.max_signed-s)))).
+-
 forward.
 entailer!!.
 destruct (zle 0 n); [ | lia].
@@ -91,7 +92,9 @@ destruct (zlt _ _); [ rep_lia | ].
 reflexivity.
 destruct (zlt _ _); [ | rep_lia].
 reflexivity.
-rep_lia.
+-
+forward.
+entailer!!.
 -
 forward_if.
 +
