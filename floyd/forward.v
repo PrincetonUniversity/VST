@@ -53,39 +53,10 @@ Lemma func_ptr_mono `{!VSTGS OK_ty Σ} {fs gs v}: funspec_sub fs gs ->
        func_ptr fs v ⊢ func_ptr gs v.
 Proof. apply funspec_sub_implies_func_prt_si_mono. Qed.
 
-Lemma func_ptr_persistent `{!VSTGS OK_ty Σ} : forall fs p, Persistent (func_ptr fs p).
-Proof.
-Locate func_ptr.
-intros.
-unfold func_ptr, func_ptr_si.
-apply bi.exist_persistent; intros.
-apply bi.and_persistent.
-apply bi.pure_persistent.
-apply bi.exist_persistent; intros.
-apply bi.and_persistent.
-apply plain_persistent. apply funspec_sub_si_plain.
-unfold func_at.
-apply bi.sep_persistent.
-apply mapsto_persistent.
-unfold know_funspec.
-apply own_core_persistent.
-unfold gmap_view.gmap_view_frag.
-apply view_frag_oracore_id.
-apply gmap.gmap_singleton_core_id.
-apply pair_core_id.
-apply dfrac_discarded_oracore_id.
-constructor.
-reflexivity.
-Qed.
-
-Definition func_ptr_affine: forall `{!VSTGS OK_ty Σ} fs p, Affine (func_ptr fs p) := @func_ptr_emp.
-
 Lemma split_func_ptr `{!VSTGS OK_ty Σ}:  forall fs p, func_ptr fs p ⊣⊢ func_ptr fs p ∗ func_ptr fs p.
 Proof.
 intros.
-apply bi.persistent_sep_dup.
-- constructor. apply func_ptr_affine.
-- apply func_ptr_persistent.
+apply bi.persistent_sep_dup; apply _.
 Qed.
 
 Lemma isptr_force_sem_add_ptr_int:
