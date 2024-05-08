@@ -1214,4 +1214,42 @@ Proof.
   by iApply func_ptr_si_mono.
 Qed.
 
+Lemma func_ptr_persistent: forall fs p, Persistent (func_ptr fs p).
+Proof.
+intros.
+unfold func_ptr, func_ptr_si.
+apply bi.exist_persistent; intros.
+apply bi.and_persistent.
+apply bi.pure_persistent.
+apply bi.exist_persistent; intros.
+apply bi.and_persistent.
+apply bi.pure_persistent.
+unfold func_at.
+apply bi.sep_persistent.
+apply mapsto_persistent.
+unfold know_funspec.
+apply own_core_persistent.
+unfold gmap_view.gmap_view_frag.
+apply view_frag_oracore_id.
+apply gmap.gmap_singleton_core_id.
+apply (@pair_core_id _ _ dfrac.DfracDiscarded (to_agree (funspec_unfold x0))).
+apply dfrac.dfrac_discarded_oracore_id.
+constructor.
+reflexivity.
+Qed.
+
+Lemma func_ptr_emp phi v: func_ptr phi v ⊢ emp.
+Proof. iIntros. done. Qed.
+
+
+Definition func_ptr_affine: forall fs p, Affine (func_ptr fs p) := func_ptr_emp.
+
+Lemma split_func_ptr:  forall fs p, func_ptr fs p ⊣⊢ func_ptr fs p ∗ func_ptr fs p.
+Proof.
+intros.
+apply bi.persistent_sep_dup.
+- constructor. apply func_ptr_affine.
+- apply func_ptr_persistent.
+Qed.
+
 End mpred.
