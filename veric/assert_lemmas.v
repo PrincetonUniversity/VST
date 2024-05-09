@@ -1,6 +1,8 @@
 Require Export VST.veric.base.
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.veric.res_predicates.
 Require Import VST.veric.juicy_mem.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Import compcert.cfrontend.Ctypes.
 Require Import VST.veric.mpred.
 Require Import VST.veric.seplog.

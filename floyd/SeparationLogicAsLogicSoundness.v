@@ -1,12 +1,13 @@
 From compcert Require Export Clightdefs.
 Require Import VST.sepcomp.semantics.
-
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.veric.juicy_base.
 Require Import VST.veric.juicy_mem VST.veric.juicy_mem_lemmas.
 Require Import VST.veric.res_predicates.
 Require Import VST.veric.extend_tc.
 Require Import VST.veric.Clight_seplog.
 Require Import VST.veric.Clight_assert_lemmas.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Import VST.sepcomp.extspec.
 Require Import VST.sepcomp.step_lemmas.
 Require Import VST.veric.juicy_extspec.
@@ -23,9 +24,11 @@ Require Import VST.veric.semax_loop.
 Require Import VST.veric.semax_switch.
 Require Import VST.veric.semax_prog.
 Require Import VST.veric.semax_ext.
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.veric.SeparationLogic.
 Require Import VST.floyd.SeparationLogicFacts.
 Require Import VST.floyd.SeparationLogicAsLogic.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Import VST.veric.SeparationLogicSoundness.
 
 Import Clight.

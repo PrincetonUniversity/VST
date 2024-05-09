@@ -3,7 +3,9 @@ Require Import compcert.cfrontend.Cop.
 Require Import compcert.cfrontend.Clight.
 Require Import VST.msl.base.
 Require Import VST.veric.base.
+Set Warnings "-custom-entry-overridden".
 Require Import VST.veric.juicy_mem.
+Set Warnings "custom-entry-overridden".
 Require Import VST.veric.mem_lessdef.
 
 Transparent intsize_eq.

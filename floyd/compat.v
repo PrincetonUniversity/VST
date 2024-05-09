@@ -1,5 +1,7 @@
+Set Warnings "-custom-entry-overridden".
 Require Import VST.veric.SequentialClight.
 Require Import VST.floyd.proofauto.
+Set Warnings "custom-entry-overridden".
 
 #[export] Unset SsrRewrite.
 

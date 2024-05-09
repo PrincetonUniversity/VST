@@ -1,7 +1,9 @@
 Require Import VST.veric.base.
 Require Import VST.veric.shares.
 Require Import VST.shared.share_alg.
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.veric.res_predicates.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Import VST.zlist.sublist.
 
 Definition cleave (sh: share) :=

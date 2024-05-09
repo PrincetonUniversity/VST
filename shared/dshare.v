@@ -5,9 +5,11 @@
 From stdpp Require Import countable.
 From iris.algebra Require Export cmra.
 From iris.algebra Require Import updates proofmode_classes.
+Set Warnings "-notation-overridden,-hiding-delimiting-key".
 From iris_ora.algebra Require Export ora.
 From iris.prelude Require Import options.
 Require Export VST.shared.share_alg.
+Set Warnings "notation-overridden,hiding-delimiting-key".
 
 (** Since shares have a unit, we use DfracBoth Share.bot as the persistent fraction. *)
 Inductive dfrac `{ShareType} :=
@@ -29,8 +31,9 @@ Notation "" := (DfracOwn (Share share_top)) (in custom dfrac).
 Section dfrac.
 
 Context `{ST : ShareType}.
-
+Set Warnings "-redundant-canonical-projection".
   Canonical Structure dfracO := leibnizO dfrac.
+Set Warnings "redundant-canonical-projection".
 
   Implicit Types p q : share_car.
   Implicit Types dp dq : dfrac.
@@ -128,7 +131,9 @@ Context `{ST : ShareType}.
         eexists; split; first done.
         intros X; apply writable_mono in J; auto.
   Qed.
+Set Warnings "-redundant-canonical-projection".
   Canonical Structure dfracC := discreteR dfrac dfrac_ra_mixin.
+Set Warnings "redundant-canonical-projection".
 
   Global Instance dfrac_cmra_total : CmraTotal dfracC.
   Proof. hnf; eauto. Qed.
@@ -171,7 +176,9 @@ Context `{ST : ShareType}.
     split; try done.
     intros [|]; rewrite /op /dfrac_op_instance /= left_id //.
   Qed.
+Set Warnings "-redundant-canonical-projection".
   Canonical Structure dfracUC := Ucmra dfrac dfrac_ucmra_mixin.
+Set Warnings "redundant-canonical-projection".
 
   Lemma dfrac_valid_own_1 : ✓ DfracOwn (Share share_top).
   Proof. hnf; eauto. Qed.
@@ -266,8 +273,10 @@ Context `{ST : ShareType}.
       rewrite dfrac_op_own_discarded //.
   Qed.
 
+Set Warnings "-redundant-canonical-projection".
   Canonical Structure dfracR := discreteOra dfrac dfrac_ora_mixin.
   Canonical Structure dfracUR := Uora dfrac dfrac_ucmra_mixin.
+Set Warnings "redundant-canonical-projection".
 
   Global Instance dfrac_discarded_oracore_id : OraCoreId DfracDiscarded.
   Proof. by constructor. Qed.

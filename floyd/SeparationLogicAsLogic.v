@@ -1,6 +1,8 @@
 From compcert Require Export Clightdefs.
 Require Export VST.veric.base.
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Export VST.veric.SeparationLogic.
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Export VST.msl.Extensionality.
 Require Export compcert.lib.Coqlib.
 Require Export VST.msl.Coqlib2 VST.veric.coqlib4 VST.floyd.coqlib3.
@@ -395,7 +397,7 @@ Module ConseqFacts := GenConseqFacts (DeepEmbeddedDef) (Conseq).
 
 Import CConseq CConseqFacts Conseq ConseqFacts.
 
-Arguments semax _ _ _ _ _ _ _ (_)%I.
+Arguments semax _ _ _ _ _ _ _ (_)%_I.
 
 Section mpred.
 

@@ -1,6 +1,7 @@
 Require Import FunInd.
 Require Import VST.zlist.sublist.
 Require Import VST.veric.log_normalize.
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.veric.juicy_base.
 Require Import VST.veric.shares.
 Require Import VST.veric.juicy_mem VST.veric.juicy_mem_lemmas (*VST.veric.juicy_mem_ops*).
@@ -8,6 +9,7 @@ Require Import VST.veric.res_predicates.
 Require Import VST.veric.extend_tc.
 Require Import VST.veric.Clight_seplog.
 Require Import VST.veric.Clight_assert_lemmas.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Import VST.veric.Clight_core.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.

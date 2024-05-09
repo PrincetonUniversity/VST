@@ -1,4 +1,5 @@
 From iris.bi Require Export derived_connectives.
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.veric.juicy_base.
 Require Import VST.sepcomp.semantics.
 Require Import VST.sepcomp.extspec.
@@ -7,6 +8,7 @@ Require Import VST.veric.shares.
 Require Import iris_ora.logic.ghost_map.
 Require Import VST.veric.juicy_mem.
 Require Import VST.veric.external_state.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 
 Require Import VST.veric.tycontext.
 

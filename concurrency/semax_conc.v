@@ -1,5 +1,7 @@
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.SeparationLogic.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Import compcert.cfrontend.Ctypes.
 Require Import VST.veric.expr.
 Require Import VST.concurrency.semax_conc_pred.

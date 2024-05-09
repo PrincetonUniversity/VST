@@ -5,10 +5,12 @@ ownership of the entire heap, and a "points-to-like" proposition for (mutable,
 fractional, or persistent read-only) ownership of individual elements. *)
 From iris.proofmode Require Import proofmode.
 From iris.algebra Require Export auth csum gmap.
+Set Warnings "-notation-overridden,-hiding-delimiting-key".
 From iris_ora.algebra Require Export osum gmap view auth.
 From iris_ora.logic Require Export logic own algebra.
 From VST.shared Require Export share_alg.
 From VST.shared Require Import shared.
+Set Warnings "notation-overridden,hiding-delimiting-key".
 From iris.prelude Require Import options.
 
 Section shared.
@@ -54,7 +56,9 @@ Proof.
 Qed.
 
 Canonical Structure rmap_authR S `{ShareType S} K `{Countable K} V := authR _ (rmap_order_includedN S K V).
+Set Warnings "-redundant-canonical-projection".
 Canonical Structure rmap_authUR S `{ShareType S} `{Countable K} V := authUR _ (rmap_order_includedN S K V).
+Set Warnings "redundant-canonical-projection".
 
 Global Instance rmap_frag_core_id `{ShareType} {K} `{Countable K} {V} (a : rmapUR _ K V) : OraCoreId a → OraCoreId (◯ a).
 Proof. apply @auth_frag_core_id. Qed.

@@ -1,5 +1,7 @@
 (* TODO: remove this file *)
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.floyd.base2.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Import VST.floyd.client_lemmas.
 Require Import VST.floyd.nested_field_lemmas.
 Require Import VST.floyd.mapsto_memory_block.

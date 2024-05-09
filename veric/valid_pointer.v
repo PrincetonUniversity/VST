@@ -1,5 +1,7 @@
 Require Import VST.veric.base.
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.veric.res_predicates.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Import VST.veric.Clight_seplog. (*need Clight_seplog rather than general seplog to ensure availability of 
                                           mapsto and memory_block -maybe move the lemmas using them elsewhere?*)
 Require Import VST.veric.tycontext.

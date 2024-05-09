@@ -1,4 +1,5 @@
 From iris.algebra Require Import agree.
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 From iris_ora.algebra Require Import agree.
 Require Import VST.zlist.sublist.
 Require Import VST.shared.shared.
@@ -12,6 +13,7 @@ Require Import VST.veric.shares.
 Require Import VST.shared.dshare.
 Require Import VST.veric.mpred.
 Require Import VST.veric.mapsto_memory_block.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Import Values.
 
 Open Scope maps.

@@ -49,7 +49,9 @@ Section share.
   Lemma readable_top : share_readable share_top.
   Proof. apply writable_readable, writable_top. Qed.
 
+Set Warnings "-redundant-canonical-projection".
   Canonical Structure shareO := leibnizO share_car.
+Set Warnings "redundant-canonical-projection".
 
   Global Instance share_car_inhabited : Inhabited share_car := populate ShareBot.
 (*  Global Instance share_car_eq_dec : EqDecision share_car.

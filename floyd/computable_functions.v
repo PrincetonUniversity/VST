@@ -1,5 +1,7 @@
 Require Import VST.veric.Cop2.
+Set Warnings "-custom-entry-overridden".
 Require Import VST.veric.seplog.
+Set Warnings "custom-entry-overridden".
 Require Import compcert.lib.Maps.
 
 Ltac make_ground_PTree a :=

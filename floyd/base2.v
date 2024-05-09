@@ -1,4 +1,6 @@
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Export VST.floyd.base.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Export VST.floyd.typecheck_lemmas.
 Require Export VST.floyd.functional_base.
 Require Export VST.floyd.seplog_tactics.

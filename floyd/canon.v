@@ -1,6 +1,8 @@
 Require Export Coq.Sorting.Permutation.
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.veric.seplog.
 Require Import VST.floyd.base2.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Import LiftNotation.
 
 Inductive localdef : Type :=
@@ -8,7 +10,7 @@ Inductive localdef : Type :=
  | lvar: ident -> type -> val -> localdef   (* local variable *)
  | gvars: globals -> localdef.              (* global variables *)
 
-Arguments temp i%positive v.
+Arguments temp i%_positive v.
 
 Definition lvar_denote (i: ident) (t: type) (v: val) rho :=
      match Map.get (ve_of rho) i with
@@ -118,7 +120,7 @@ Notation " 'SEP' () " := (SEPx nil) (at level 8) : assert5.
 Notation " 'ENTAIL' d ',' P '⊢' Q " :=
   (@bi_entails (monPredI environ_index (iPropI _)) (local (tc_environ d) ∧ P%assert) Q%assert) (at level 99, P at level 98, Q at level 98).
 
-Arguments semax {_ _ _ _ _} E Delta Pre%assert cmd Post%assert.
+Arguments semax {_ _ _ _ _} E Delta Pre%_assert cmd Post%_assert.
 
 Module CConseqFacts :=
   SeparationLogicFacts.GenCConseqFacts

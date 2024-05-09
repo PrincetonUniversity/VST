@@ -1,7 +1,9 @@
 From iris.bi Require Export monpred.
 Require Import VST.veric.base.
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import iris_ora.algebra.gmap_view.
 Require Import VST.veric.res_predicates.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Export compcert.common.AST.
 Require Export compcert.cfrontend.Ctypes.
 

@@ -1,5 +1,7 @@
 Require Import VST.veric.Clight_base.
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.veric.res_predicates.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 
 (*Clight-specific Imports*)
 Require Import VST.veric.Clight_lemmas.

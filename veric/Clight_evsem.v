@@ -3,8 +3,10 @@
 (* Event semantics for ClightCore *)
 
 Require Import compcert.common.Memory.
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.veric.juicy_mem.
 Require Import VST.veric.res_predicates.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key". 
 
 Require Import List. Import ListNotations.
 

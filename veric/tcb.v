@@ -1,10 +1,12 @@
 Require Import VST.sepcomp.extspec.
 Require Import VST.sepcomp.step_lemmas.
 Require Import VST.veric.base.
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.juicy_mem.
 Require Import VST.veric.mpred.
 Require Import VST.veric.external_state.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Import VST.veric.compspecs.
 Require Import VST.veric.semax_prog.
 Require Import VST.veric.SequentialClight.
