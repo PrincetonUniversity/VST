@@ -23,6 +23,16 @@ Require Import VST.veric.Clight_lemmas.
 
 (* Part 1: Proof of semax_conseq *)
 
+Global Instance local_absorbing `{!heapGS Σ} l : Absorbing (local l).
+Proof.
+  rewrite /local; apply monPred_absorbing, _.
+Qed.
+
+Global Instance local_persistent `{!heapGS Σ} l : Persistent (local l).
+Proof.
+  rewrite /local; apply monPred_persistent, _.
+Qed.
+
 Section mpred.
 
 Context `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty}.
@@ -218,7 +228,7 @@ Proof.
   destruct a; simpl; last done; f_equiv; done.
 Qed.
 
-Global Instance frame_ret_assert_proper : Proper (equiv ==> equiv ==> equiv) (@frame_ret_assert Σ).
+Global Instance frame_ret_assert_proper : Proper (equiv ==> equiv ==> equiv) frame_ret_assert.
 Proof.
   intros [????] [????] (? & ? & ? & ?); repeat intro; simpl in *.
   split3; last split; simpl; intros; f_equiv; done.
@@ -335,16 +345,6 @@ Proof.
   rewrite !guard_proj_frame _guard_tc_environ; eauto.
   apply guard_proper; auto.
   intros; by rewrite proj_conj.
-Qed.
-
-Global Instance local_absorbing l : Absorbing (@local Σ l).
-Proof.
-  rewrite /local; apply monPred_absorbing, _.
-Qed.
-
-Global Instance local_persistent l : Persistent (@local Σ l).
-Proof.
-  rewrite /local; apply monPred_persistent, _.
 Qed.
 
 Lemma semax'_conseq {CS: compspecs}:

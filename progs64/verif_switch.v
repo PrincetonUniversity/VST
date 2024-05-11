@@ -6,7 +6,7 @@ Require Import VST.progs64.switch.
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
-Definition twice_spec : ident * funspec :=
+Definition twice_spec :=
   DECLARE _twice
     WITH n : Z
     PRE [ tint ]
@@ -19,7 +19,7 @@ Definition twice_spec : ident * funspec :=
       SEP ().
 
 
-Definition f_spec : ident * funspec :=
+Definition f_spec :=
   DECLARE _f
     WITH x : Z
     PRE [ tuint ]
@@ -49,7 +49,7 @@ Qed.
 Lemma body_f: semax_body Vprog Gprog f_f f_spec.
 Proof.
 start_function.
-forward_if (FF : assert).
+forward_if (False).
 forward.
 forward.
 forward.

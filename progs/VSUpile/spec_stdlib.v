@@ -67,7 +67,7 @@ Definition free_spec' :=
        LOCAL ()
        SEP (mem_mgr M gv).
 
-Definition exit_spec : ident * funspec :=
+Definition exit_spec :=
  DECLARE _exit
  WITH i: Z
  PRE [tint]

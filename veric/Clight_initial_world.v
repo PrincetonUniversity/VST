@@ -28,7 +28,7 @@ Context `{!heapGS Σ}.
 Inductive match_fdecs: list  (ident * Clight.fundef) -> funspecs -> Prop :=
 | match_fdecs_nil: match_fdecs nil nil
 | match_fdecs_cons: forall i fd fspec fs G,
-                  type_of_fundef fd = @type_of_funspec Σ fspec ->
+                  type_of_fundef fd = type_of_funspec fspec ->
                   match_fdecs fs G ->
                   match_fdecs ((i,fd)::fs) ((i,fspec)::G)
 (* EXPERIMENT

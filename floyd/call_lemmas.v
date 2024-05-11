@@ -20,7 +20,7 @@ Section mpred.
 
 Context `{!VSTGS OK_ty Σ} {OK_spec: ext_spec OK_ty} {CS: compspecs}.
 
-Definition maybe_retval (Q: @assert Σ) retty ret : assert :=
+Definition maybe_retval (Q: assert) retty ret : assert :=
  match ret with
  | Some id => assert_of (fun rho => Q (get_result1 id rho))
  | None =>
@@ -1133,7 +1133,7 @@ Proof.
   rewrite /subst //.
 Qed.
 
-Global Instance assert_of_proper : Proper (pointwise_relation _ equiv ==> equiv) (@assert_of Σ).
+Global Instance assert_of_proper : Proper (pointwise_relation _ equiv ==> equiv) (assert_of).
 Proof.
   intros ???.
   apply bi.equiv_entails_2; split => rho; simpl; rewrite H //.

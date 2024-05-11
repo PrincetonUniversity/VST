@@ -219,7 +219,7 @@ Definition for_ret_assert (I: assert) (Post: ret_assert) :=
  end.
 
 Lemma RA_normal_loop2_ret_assert:
-  forall Inv R, @RA_normal Σ (loop2_ret_assert Inv R) = Inv.
+  forall Inv R, RA_normal (loop2_ret_assert Inv R) = Inv.
 Proof. destruct R; reflexivity. Qed.
 
 Lemma overridePost_normal:
@@ -464,14 +464,14 @@ simpl. auto.
 Qed.
 
 Lemma subst_local: forall id v (P : environ -> Prop),
-  subst id v (@local Σ P) = local (subst id v P).
+  subst id v (local P) = local (subst id v P).
 Proof. reflexivity. Qed.
 
 Lemma eval_lvalue_Ederef:
   forall {cs: compspecs}  e t, eval_lvalue (Ederef e t) = eval_expr e.
 Proof. reflexivity. Qed.
 
-Lemma local_lift0_True:     @local Σ (`True%type) = True.
+Lemma local_lift0_True:     local (`True%type) = True.
 Proof.
   rewrite /local; apply assert_ext; intros; monPred.unseal; done.
 Qed.
@@ -483,7 +483,7 @@ Proof.
 Qed.
 
 Lemma frame_ret_assert_emp:
-  forall (P : @ret_assert Σ), frame_ret_assert P emp = P.
+  forall (P : ret_assert), frame_ret_assert P emp = P.
 Proof. intros.
   destruct P; simpl; f_equal; last extensionality; apply sep_emp'.
 Qed.

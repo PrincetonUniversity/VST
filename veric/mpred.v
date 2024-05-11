@@ -163,51 +163,6 @@ Inductive funspec :=
     funspec.
  *)
 
-(* assertions (environ -> mpred as pred) *)
-Global Instance environ_inhabited : Inhabited environ := {| inhabitant := any_environ |}.
-
-Definition environ_index : biIndex := {| bi_index_type := environ |}.
-
-Definition assert' := environ -> iProp Σ.
-Definition assert := monPred environ_index (iPropI Σ).
-
-Program Definition assert_of (P : assert') : assert := {| monPred_at := P |}.
-
-Fail Example assert_of_test : forall (P: assert'), ∃ Q:assert, (@eq assert P Q).
-Global Coercion assert_of : assert' >-> assert.
-Example assert_of_test : forall (P: assert'), ∃ Q:assert, (@eq assert P Q).
-Proof. intros.  exists (assert_of P). reflexivity. Qed.
-
-Fail Example bi_of_assert'_test : forall (P Q : assert'), P ∗ Q ⊢ Q ∗ P.
-Program Definition bi_assert (P : assert) : bi_car assert := {| monPred_at := P |}.
-Global Coercion bi_assert : assert >-> bi_car.
-(* "Print Coercion Paths assert' bi_car" prints "[assert_of; bi_assert]" *)
-Example test : forall (P Q : assert'), P ∗ Q ⊢ Q ∗ P. 
-Proof. intros. rewrite bi.sep_comm. done. Qed.
-
-Global Instance argsEnviron_inhabited : Inhabited argsEnviron := {| inhabitant := (Map.empty _, nil) |}.
-
-Definition argsEnviron_index : biIndex := {| bi_index_type := argsEnviron |}.
-
-Definition argsassert' := argsEnviron -> iProp Σ.
-Definition argsassert := monPred argsEnviron_index (iPropI Σ).
-
-Program Definition argsassert_of (P : argsassert') : argsassert := {| monPred_at := P |}.
-
-Coercion argsassert_of : argsassert' >-> argsassert.
-
-Lemma assert_of_at : forall (P : assert), assert_of (monPred_at P) ⊣⊢ P.
-Proof. done. Qed.
-
-Lemma argsassert_of_at : forall (P : argsassert), argsassert_of (monPred_at P) ⊣⊢ P.
-Proof. done. Qed.
-
-Lemma assert_of_embed P: assert_of (fun _ => P) ⊣⊢ ⎡P⎤.
-Proof.
-  intros.
-  split => rho //; monPred.unseal; done.
-Qed.
-
 Section funspec.
 
 (* funspecs are effectively dependent pairs of an algebra and a pair of assertions on that algebra.
@@ -394,10 +349,7 @@ Next Obligation.
 Proof.
   intros.*)
 
-Definition funspec := (funspec_ (iProp Σ) (iProp Σ)).
 Definition funspecO' := (laterO (funspecO (iPropO Σ) (iPropO Σ))).
-Definition NDmk_funspec (sig : typesig) (cc : calling_convention) A (P : A -> argsassert) (Q : A -> assert) : funspec :=
-  mk_funspec sig cc (ConstType A) (λne a, ⊤) (λne (a : leibnizO A), (P a) : _ -d> iProp Σ) (λne (a : leibnizO A), (Q a) : _ -d> iProp Σ).
 Definition funspecOF' := (laterOF (funspecOF idOF)).
 Definition dtfr A := (oFunctor_car (dependent_type_functor_rec A) (iProp Σ) (iProp Σ)).
 
@@ -421,11 +373,82 @@ Proof.
     split3; auto; exists eq_refl; done.
 Qed.
 
+End FUNSPEC.
+
+(* collect up all the ghost state required for the logic
+   Should this include external state as well? *)
+Class funspecGS Σ := FunspecG {
+    funspec_inG :: inG Σ (gmap_viewR address (@funspecO' Σ));
+    funspec_name : gname
+}.
+
+Class heapGS Σ := HeapGS {
+  heapGS_invGS :: invGS_gen HasNoLc Σ;
+  heapGS_gen_heapGS :: gen_heapGS share address resource Σ;
+  heapGS_funspecGS :: funspecGS Σ
+}.
+
+Definition mpred `{heapGS Σ} := iProp Σ.
+
+Section heap.
+
+Context `{!heapGS Σ}.
+
+(* assertions (environ -> mpred as pred) *)
+Global Instance environ_inhabited : Inhabited environ := {| inhabitant := any_environ |}.
+
+Definition environ_index : biIndex := {| bi_index_type := environ |}.
+
+Definition assert' := environ -> mpred.
+Definition assert `{!heapGS Σ} := monPred environ_index (iPropI Σ).
+
+Program Definition assert_of (P : assert') : assert := {| monPred_at := P |}.
+
+Fail Example assert_of_test : forall (P: assert'), ∃ Q:assert, (@eq assert P Q).
+Global Coercion assert_of : assert' >-> assert.
+Example assert_of_test : forall (P: assert'), ∃ Q:assert, (@eq assert P Q).
+Proof. intros.  exists (assert_of P). reflexivity. Qed.
+
+Fail Example bi_of_assert'_test : forall (P Q : assert'), P ∗ Q ⊢ Q ∗ P.
+Program Definition bi_assert (P : assert) : bi_car assert := {| monPred_at := P |}.
+Global Coercion bi_assert : assert >-> bi_car.
+(* "Print Coercion Paths assert' bi_car" prints "[assert_of; bi_assert]" *)
+Example test : forall (P Q : assert'), P ∗ Q ⊢ Q ∗ P. 
+Proof. intros. rewrite bi.sep_comm. done. Qed.
+
+Global Instance argsEnviron_inhabited : Inhabited argsEnviron := {| inhabitant := (Map.empty _, nil) |}.
+
+Definition argsEnviron_index : biIndex := {| bi_index_type := argsEnviron |}.
+
+Definition argsassert' := argsEnviron -> mpred.
+Definition argsassert `{!heapGS Σ} := monPred argsEnviron_index (iPropI Σ).
+
+Program Definition argsassert_of (P : argsassert') : argsassert := {| monPred_at := P |}.
+
+Coercion argsassert_of : argsassert' >-> argsassert.
+
+Lemma assert_of_at : forall (P : assert), assert_of (monPred_at P) ⊣⊢ P.
+Proof. done. Qed.
+
+Lemma argsassert_of_at : forall (P : argsassert), argsassert_of (monPred_at P) ⊣⊢ P.
+Proof. done. Qed.
+
+Lemma assert_of_embed P: assert_of (fun _ => P) ⊣⊢ ⎡P⎤.
+Proof.
+  intros.
+  split => rho //; monPred.unseal; done.
+Qed.
+
+(* funspecs on mpreds *)
+Definition funspec := funspec_ mpred mpred.
+Definition NDmk_funspec (sig : typesig) (cc : calling_convention) A (P : A -> argsassert) (Q : A -> assert) : funspec :=
+  mk_funspec sig cc (ConstType A) (λne a, ⊤) (λne (a : leibnizO A), (P a) : _ -d> mpred) (λne (a : leibnizO A), (Q a) : _ -d> mpred).
+
 Definition funspec_unfold (f : funspec) : laterO funspec := Next f.
 
 Definition varspecs : Type := list (ident * type).
 
-Definition funspecs := list (ident * funspec).
+Definition funspecs := list (ident * funspec_ (iProp Σ) (iProp Σ)).
 
 
 (*plays role of type_of_params *)
@@ -445,24 +468,7 @@ Fixpoint make_tycontext_s (G: funspecs) :=
  | (id,f)::r => Maps.PTree.set id f (make_tycontext_s r)
  end.
 
-End FUNSPEC.
-
-(* collect up all the ghost state required for the logic
-   Should this include external state as well? *)
-Class funspecGS Σ := FunspecG {
-    funspec_inG :: inG Σ (gmap_viewR address (@funspecO' Σ));
-    funspec_name : gname
-}.
-
-Class heapGS Σ := HeapGS {
-  heapGS_invGS :: invGS_gen HasNoLc Σ;
-  heapGS_gen_heapGS :: gen_heapGS share address resource Σ;
-  heapGS_funspecGS :: funspecGS Σ
-}.
-
-(* To use the heap, do Context `{!heapGS Σ}. *)
-
-Definition mpred `{heapGS Σ} := iProp Σ.
+End heap.
 
 Definition int_range (sz: intsize) (sgn: signedness) (i: int) :=
  match sz, sgn with

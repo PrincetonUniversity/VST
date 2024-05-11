@@ -410,26 +410,24 @@ Proof.
 Qed.
 
 Lemma raise_and:
-forall {Σ:gFunctors} (A B : assert),
-    assert_of(Σ:=Σ) (fun rho: environ => A rho ∧ B rho) = (A ∧ B).
+forall `{heapGS Σ} (A B : assert),
+    assert_of (fun rho: environ => A rho ∧ B rho) = (A ∧ B).
 Proof.
 intros. apply assert_ext; intros; monPred.unseal. done.
 Qed.
 
 Lemma local_assert:
-forall {Σ:gFunctors} (P Q : (assert(Σ:=Σ))),
+forall `{heapGS Σ} (P Q : assert),
   P ⊣⊢ Q <-> forall rho, (P rho ⊣⊢ Q rho).
 Proof.
-  intros. split; intros.
-  - rewrite H. reflexivity.
+  intros. split; intros HPQ; intros.
+  - rewrite HPQ //.
   - constructor; auto.
 Qed.
 
 Section LOCAL2PTREE_DENOTE.
 
 Context  `{heapGS0: heapGS Σ}.
-Notation PROPx := (@PROPx _ Σ).
-Notation LOCALx := (@LOCALx Σ).
 
 Lemma LOCALx_shuffle_derives': forall P Q Q' R,
   (forall Q0, In Q0 Q' -> In Q0 Q) ->

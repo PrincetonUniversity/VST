@@ -14,7 +14,7 @@ Proof.
   intros. induction a; simpl; lia.
 Qed.
 
-Definition sumarray_spec : ident * funspec :=
+Definition sumarray_spec :=
  DECLARE _sumarray
   WITH a: val, sh : share, contents : list Z, size: Z
   PRE [ (tptr tuint), tint ]

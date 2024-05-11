@@ -73,7 +73,7 @@ Proof.
   intros; simpl in *. lia.
 Qed.
 
-Definition fib_spec fun_id : ident * funspec :=
+Definition fib_spec fun_id :=
  DECLARE fun_id
   WITH n : Z
   PRE  [ tint ]
@@ -96,7 +96,7 @@ Proof.
     (EX i: Z,
     (PROP ()
      LOCAL (temp _a1 (Vint (Int.repr (fib_of_Z (i + 1)))); temp _a0 (Vint (Int.repr (fib_of_Z i))); temp _n (Vint (Int.repr n)))
-     SEP ()) : assert).
+     SEP ())).
   { (* Prove that loop invariant implies typechecking of loop condition *)
     entailer!!.
   }
@@ -153,11 +153,11 @@ Proof.
      LOCAL (temp _a1 (Vint (Int.repr (fib_of_Z (i + 1))));
             temp _a0 (Vint (Int.repr (fib_of_Z i)));
             temp _n (Vint (Int.repr (n - i))))
-     SEP ()) : assert)
+     SEP ()))
   break:
     (PROP ()
      LOCAL (temp _a0 (Vint (Int.repr (fib_of_Z n))))
-     SEP () : assert).
+     SEP ()).
   { (* Prove that the precon implies the loop invariant *)
     Exists 0.
     entailer!.

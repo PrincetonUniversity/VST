@@ -22,7 +22,7 @@ Parameter body_exit:
     (EF_external "exit" (mksignature (AST.Tint :: nil) AST.Tvoid cc_default))
     (snd (exit_spec)).
 
-Definition placeholder_spec : ident * funspec :=
+Definition placeholder_spec :=
  DECLARE _placeholder
  WITH u: unit
  PRE [ ]

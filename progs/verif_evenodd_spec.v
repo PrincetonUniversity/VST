@@ -8,7 +8,7 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Local Open Scope assert.
 
-Definition odd_spec : ident * funspec :=
+Definition odd_spec :=
  DECLARE _odd
   WITH z : Z, b: unit
   PRE [ tuint]
@@ -16,7 +16,7 @@ Definition odd_spec : ident * funspec :=
   POST [ tint ]
     PROP() RETURN(Vint (if Z.odd z then Int.one else Int.zero)) SEP().
 
-Definition even_spec : ident * funspec :=
+Definition even_spec :=
  DECLARE _even
   WITH z : Z
   PRE [ tuint]
@@ -24,7 +24,7 @@ Definition even_spec : ident * funspec :=
   POST [ tint ]
     PROP() RETURN (Vint (if Z.even z then Int.one else Int.zero)) SEP().
 
-Definition main_spec : ident * funspec :=
+Definition main_spec :=
  DECLARE _main
   WITH gv : globals
   PRE  [] main_pre prog tt gv

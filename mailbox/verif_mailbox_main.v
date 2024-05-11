@@ -117,7 +117,7 @@ Proof.
     Exists 0; simpl; cancel.
   - (* Why didn't forward_call discharge this? *) apply isptr_is_pointer_or_null; auto.
   - Exists sh1'; entailer!. simpl; cancel.
-  - forward_loop (True : @assert Σ) break: (False : @assert Σ); auto.
+  - forward_loop (True : assert) break: (False : assert); auto.
     forward. done.
 Qed.
 

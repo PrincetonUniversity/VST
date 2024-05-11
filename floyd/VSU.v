@@ -973,14 +973,14 @@ apply (Build_Component _ _ _ _ _ _ _ _ (Comp_prog_OK c)); try apply c; auto.
     rewrite 2 make_tycontext_s_find_id, 2 find_id_app_char.
     remember (find_id j Imports) as w; destruct w; symmetry in Heqw.
     * destruct (find_funspec_sub Imports Imports' H H0 _ _ Heqw) as [psi [Psi PSI]].
-      apply type_of_funspec_sub in PSI; rewrite Psi, PSI; trivial.
+      apply type_of_funspec_sub in PSI; setoid_rewrite Psi; rewrite PSI; trivial.
     * apply find_id_None_iff in Heqw. rewrite H in Heqw. apply find_id_None_iff in Heqw. rewrite Heqw.
       destruct (find_id j G); trivial. destruct (find_id j (QPvarspecs p));  trivial.
   - intros. red. remember (find_id j (Imports ++ G) ) as w; destruct w; trivial; symmetry in Heqw. 
     rewrite find_id_app_char; rewrite find_id_app_char in Heqw.
     remember (find_id j Imports) as q; destruct q; symmetry in Heqq.
     * inv Heqw. destruct (find_funspec_sub _ _ H H0 _ _ Heqq) as [psi [Psi PSI]].
-      rewrite Psi. eexists; split. reflexivity. apply (funspec_sub_sub_si _ _ PSI).
+      setoid_rewrite Psi. eexists; split. reflexivity. apply (funspec_sub_sub_si _ _ PSI).
     * apply find_id_None_iff in Heqq. rewrite H in Heqq. apply find_id_None_iff in Heqq. rewrite Heqq, Heqw.
       eexists; split. reflexivity. apply funspec_sub_si_refl.
 + apply (Comp_MkInitPred c).
@@ -1640,7 +1640,7 @@ destruct coreVSU as [coreG coreC].
 exists coreG.
 split. {
  rewrite find_id_None_iff.
- rewrite <- (Comp_G_dom coreC).
+ setoid_rewrite <- (Comp_G_dom coreC).
  apply id_in_list_false in Hmain.
  contradict Hmain. apply in_app; right; auto.
 }
@@ -2766,8 +2766,8 @@ Lemma binary_intersection'_funspec_sub_mono {f c A1 E1 P1 Q1 B1 F1 R1 S1 phi1 ps
              A2 E2 P2 Q2 B2 F2 R2 S2 phi2 psi2 Phi2 Psi2}
 (Hphi: funspec_sub phi1 phi2)
 (Hpsi: funspec_sub psi1 psi2):
-funspec_sub (@binary_intersection' Σ f c A1 E1 P1 Q1 B1 F1 R1 S1 phi1 psi1 Phi1 Psi1)
-            (@binary_intersection' Σ f c A2 E2 P2 Q2 B2 F2 R2 S2 phi2 psi2 Phi2 Psi2).
+funspec_sub (@binary_intersection' Σ _ f c A1 E1 P1 Q1 B1 F1 R1 S1 phi1 psi1 Phi1 Psi1)
+            (@binary_intersection' Σ _ f c A2 E2 P2 Q2 B2 F2 R2 S2 phi2 psi2 Phi2 Psi2).
 Proof.
 split; [ split3; trivial | intros].
 subst.

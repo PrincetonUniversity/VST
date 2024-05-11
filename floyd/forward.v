@@ -259,8 +259,8 @@ Ltac process_stackframe_of :=
    end;
   repeat (simple apply postcondition_var_block;
    [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity |  ]);
- change (fold_right bi_sep emp (@nil (@assert ?Σ))) with
-   (@bi_emp (@assert Σ));
+ change (fold_right bi_sep emp (@nil assert)) with
+   (@bi_emp assert);
  rewrite ?bi.emp_sep ?bi.sep_emp.
 
 Definition tc_option_val' (t: type) : option val -> Prop :=
@@ -273,8 +273,8 @@ unfold tc_val. destruct (eqb_type _ _); reflexivity.
 Qed.
 #[export] Hint Rewrite tc_option_val'_eq : norm.
 
-Lemma emp_make_ext_rval {Σ:gFunctors}:
-  forall ge t v, @bi_emp (assert(Σ:=Σ)) (make_ext_rval ge t v) = emp.
+Lemma emp_make_ext_rval `{heapGS Σ}:
+  forall ge t v, @bi_emp assert (make_ext_rval ge t v) = emp.
 Proof. intros. monPred.unseal. reflexivity. Qed.
 #[export] Hint Rewrite @emp_make_ext_rval : norm2.
 
@@ -531,9 +531,9 @@ Proof.
 Qed.
 
 Lemma typecheck_return_value:
-  forall {Σ: gFunctors} (f: val -> Prop)  t (v: val) (gx: genviron) (ret: option val) P R,
+  forall `{HH: heapGS Σ} (f: val -> Prop)  t (v: val) (gx: genviron) (ret: option val) P R,
  f v -> 
- (@PROPx _ Σ P
+ (PROPx P
  (LOCALx (temp ret_temp v::nil)
  (SEPx R))) (make_ext_rval gx t ret) ⊢ ⌜f (force_val ret)⌝.
 Proof.
@@ -898,7 +898,7 @@ Ltac goal_has_evars :=
  match goal with |- ?A => has_evar A end.
 
 Lemma drop_SEP_tc:
- forall `{!VSTGS OK_ty Σ} Delta P Q R' RF R (S : @assert Σ), Absorbing S ->
+ forall `{!VSTGS OK_ty Σ} Delta P Q R' RF R (S : assert), Absorbing S ->
    fold_right_sepcon R ⊣⊢ (fold_right_sepcon R') ∗ (fold_right_sepcon RF) ->
    ENTAIL Delta, PROPx P (LOCALx Q (SEPx R')) ⊢ S ->
    ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢ S.
@@ -950,15 +950,15 @@ Ltac unfold_post := match goal with |- ?Post ⊣⊢ _ => let A := fresh "A" in l
 
 
 Lemma PROP_LOCAL_SEP_ext :
-  forall {Σ:gFunctors} P P' Q Q' R R', P=P' -> Q=Q' -> R=R' -> 
-     PROPx P (LOCALx Q (SEPx R)) = PROPx(Σ:=Σ) P' (LOCALx Q' (SEPx R')).
+  forall `{heapGS Σ} P P' Q Q' R R', P=P' -> Q=Q' -> R=R' -> 
+     PROPx P (LOCALx Q (SEPx R)) = PROPx P' (LOCALx Q' (SEPx R')).
 Proof.
 intros; subst; auto.
 Qed.
 
 Lemma PROP_LOCAL_SEP_ext' :
-  forall {Σ:gFunctors} P P' Q Q' R R', P=P' -> Q=Q' -> R=R' -> 
-     PROPx P (LOCALx Q (SEPx R)) ⊣⊢ PROPx(Σ:=Σ) P' (LOCALx Q' (SEPx R')).
+  forall `{heapGS Σ} P P' Q Q' R R', P=P' -> Q=Q' -> R=R' -> 
+     PROPx P (LOCALx Q (SEPx R)) ⊣⊢ PROPx P' (LOCALx Q' (SEPx R')).
 Proof.
 intros; subst; auto.
 Qed.
@@ -2385,7 +2385,7 @@ Ltac forward_for_simple_bound n Pre :=
  end;
  let Σ := get_Sigma_from_semax in
  match type of Pre with
- | ?t => tryif (unify t (@assert Σ)) then idtac 
+ | ?t => tryif (unify t (assert)) then idtac 
                else fail "Type of precondition" Pre "should be assert but is" t
   end;
  match goal with
@@ -2933,19 +2933,19 @@ end.
 Section FORWARD.
 Context `{!VSTGS OK_ty Σ}.
 Lemma ENTAIL_break_normal:
- forall Delta R (S : @assert Σ), ENTAIL Delta, RA_break (normal_ret_assert R) ⊢ S.
+ forall Delta R (S : assert), ENTAIL Delta, RA_break (normal_ret_assert R) ⊢ S.
 Proof.
 intros. simpl_ret_assert. rewrite bi.and_elim_r; apply bi.False_elim.
 Qed.
 
 Lemma ENTAIL_continue_normal:
- forall Delta R (S : @assert Σ), ENTAIL Delta, RA_continue (normal_ret_assert R) ⊢ S.
+ forall Delta R (S : assert), ENTAIL Delta, RA_continue (normal_ret_assert R) ⊢ S.
 Proof.
 intros. simpl_ret_assert. rewrite bi.and_elim_r; apply bi.False_elim.
 Qed.
 
 Lemma ENTAIL_return_normal:
- forall Delta R v (S : @assert Σ), ENTAIL Delta, RA_return (normal_ret_assert R) v ⊢ S.
+ forall Delta R v (S : assert), ENTAIL Delta, RA_return (normal_ret_assert R) v ⊢ S.
 Proof.
 intros. simpl_ret_assert. rewrite bi.and_elim_r; apply bi.False_elim.
 Qed.
@@ -3432,7 +3432,7 @@ Ltac forward0 :=  (* USE FOR DEBUGGING *)
   match goal with
   | |- semax(Σ := ?Σ) _ _ ?PQR (Ssequence ?c1 ?c2) ?PQR' =>
            let Post := fresh "Post" in
-              evar (Post : @assert Σ);
+              evar (Post : assert);
               apply semax_seq' with Post;
                [
                | unfold Post; clear Post ]
@@ -4634,7 +4634,7 @@ Opaque bi_sep.
 Opaque bi_emp.
 Opaque bi_and.
 
-Arguments overridePost {_} Q R / .
+Arguments overridePost {_ _} Q R / .
 Arguments eq_dec A EqDec / !a !a' .
 Arguments EqDec_exitkind !a !a'.
 

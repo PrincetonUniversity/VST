@@ -1638,7 +1638,7 @@ end.
 Ltac search_field_at_in_SEP := find_nth test_field_at_in_SEP.
 
 Lemma quick_derives_right:
-  forall {Σ} (P Q : @assert Σ),
+  forall `{!heapGS Σ} (P Q : assert),
    (True ⊢ Q) -> P ⊢ Q.
 Proof.
 intros. eapply derives_trans; try eassumption; auto.

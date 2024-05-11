@@ -62,9 +62,9 @@ Ltac simplify_func_tycontext' DD ::=
    end.
 
 
-#[export] Notation assert := (@assert (VSTΣ unit)).
+(*#[export] Notation assert := (@assert (VSTΣ unit)).
 #[export] Notation funspec := (@funspec (VSTΣ unit)).
-#[export] Notation funspecs := (@funspecs (VSTΣ unit)).
+#[export] Notation funspecs := (@funspecs (VSTΣ unit)).*)
 
 End NoOracle.
 

@@ -265,7 +265,7 @@ Qed.
 
 Definition Tint32s := Tint I32 Signed noattr.
 
-Definition main_post (prog: program) : (ident->val) -> @assert Σ :=
+Definition main_post (prog: program) : (ident->val) -> assert :=
 (fun _ => True).
 
 Definition main_spec_ext' (prog: program) (ora: OK_ty)
@@ -950,7 +950,7 @@ Proof.
 induction G as [|(i,t) G]; simpl.
 - destruct id; reflexivity.
 - rewrite Maps.PTree.gsspec.
-  do 2 if_tac; congruence.
+  do 2 if_tac; done.
 Qed.
 
 (**************Adaptation of seplog.funspecs_assert, plus lemmas ********)
@@ -1253,7 +1253,7 @@ Lemma genv_contains_app ge funs1 funs2 (G1:genv_contains ge funs1) (G2: genv_con
 genv_contains ge (funs1 ++ funs2).
 Proof. red; intros. apply in_app_or in H; destruct H; [apply G1 | apply G2]; trivial. Qed.
 
-Lemma find_id_app i fs: forall (G1 G2: @funspecs Σ) (G: find_id i (G1 ++ G2) = Some fs),
+Lemma find_id_app i fs: forall (G1 G2: funspecs(Σ := Σ)) (G: find_id i (G1 ++ G2) = Some fs),
 find_id i G1 = Some fs \/ find_id i G2 = Some fs.
 Proof. induction G1; simpl; intros. right; trivial.
 destruct a. destruct (eq_dec i i0); [ left; trivial | eauto].
@@ -1800,7 +1800,7 @@ Proof.
     + intros.
       rewrite sublist.incl_cons_iff in HG; destruct HG.
       setoid_rewrite Maps.PTree.gsspec.
-      destruct (peq id (fst a)); eauto; subst; simpl.
+      if_tac; eauto; subst; simpl.
       apply lookup_distinct; auto.
   - unfold make_tycontext_s.
     generalize dependent G2; induction G; simpl; intros.

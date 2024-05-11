@@ -304,7 +304,7 @@ rewrite bi.sep_exist_l monPred_at_exist bi.sep_exist_r bi.and_exist_l; iDestruct
 specialize (H a); rewrite semax_unfold in H; iApply H; auto; done.
 Qed.
 
-Definition G0: @funspecs Σ := nil.
+Definition G0: funspecs(Σ := Σ) := nil.
 
 Definition empty_genv prog_pub cenv: Clight.genv :=
    Build_genv (Genv.globalenv (AST.mkprogram (F:=Clight.fundef)(V:=type) nil prog_pub (1%positive))) cenv.
@@ -839,8 +839,6 @@ End eq_dec.
 
 #[export] Instance EqDec_statement: EqDec statement := eq_dec_statement.
 #[export] Instance EqDec_external_function: EqDec external_function := eq_dec_external_function.
-
-Local Notation closed_wrt_modvars := (@closed_wrt_modvars Σ).
 
 Lemma closed_Slabel l c F: closed_wrt_modvars (Slabel l c) F = closed_wrt_modvars c F.
 Proof. unfold closed_wrt_modvars. rewrite modifiedvars_Slabel. trivial. Qed.

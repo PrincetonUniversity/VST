@@ -218,7 +218,7 @@ forward_call (n,gv).
 unfold LG.data_ok.
 Intros.
 forward.
-forward_if (FF : assert).
+forward_if (FF).
 *
 forward.
 unfold LG.data.

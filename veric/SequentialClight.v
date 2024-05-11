@@ -125,7 +125,7 @@ Proof.
     eapply step_lemmas.safeN_halted; eauto.
 Qed.
 
-Definition sig_of_funspec {Σ} (f : @funspec Σ) := typesig2signature (typesig_of_funspec f) (callingconvention_of_funspec f).
+Definition sig_of_funspec `{!heapGS Σ} (f : funspec) := typesig2signature (typesig_of_funspec f) (callingconvention_of_funspec f).
 
 Lemma juicy_dry_spec : forall `{!VSTGS OK_ty Σ} ext_link fs es
   (Hspecs : forall s f, In (ext_link s, f) fs -> match f with mk_funspec ts cc E A P Q =>

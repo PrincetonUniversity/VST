@@ -37,7 +37,7 @@ Proof.
    [∗] (map (fun i => ∃ sh : share, ⌜if eq_dec i b0 then sh = sh0
      else sepalg_list.list_join sh0 (make_shares shs lasts i) sh⌝ ∧
      (∃ v : Z, data_at(cs := CompSpecs) sh tbuffer (vint v) (Znth i bufs))) (upto (Z.to_nat B)))))
-  break: (False : @assert Σ).
+  break: (False : assert).
   { Exists 0 0 (repeat 1 (Z.to_nat N)) (repeat (∅ : hist) (Z.to_nat N)); entailer!; simpl.
     my_auto.
     { repeat constructor; computable. }

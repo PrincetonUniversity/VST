@@ -58,9 +58,9 @@ Notation "'PROP' ( x ; .. ; y )   z" := (PROPx (cons x%type .. (cons y%type nil)
 Notation "'PROP' ()   z" :=   (PROPx nil z%assert3) (at level 10).
 Notation "'PROP' ( )   z" :=   (PROPx nil z%assert3) (at level 10).
 
-Definition LOCALx {Σ} (Q: list localdef) : @assert Σ -d> assert :=
+Definition LOCALx `{!heapGS Σ} (Q: list localdef) : assert -d> assert :=
                  bi_and (local (fold_right (`and) (`True%type) (map locald_denote Q))).
-Global Instance: Params (@LOCALx) 1 := {}.
+Global Instance: Params (@LOCALx) 2 := {}.
 
 Notation " 'LOCAL' ( )   z" := (LOCALx nil z%assert5)  (at level 9) : assert3.
 Notation " 'LOCAL' ()   z" := (LOCALx nil z%assert5)  (at level 9) : assert3.
@@ -73,18 +73,18 @@ Notation " 'RETURN' () z" := (LOCALx nil z%assert5) (at level 9) : assert3.
 Notation " 'RETURN' ( ) z" := (LOCALx nil z%assert5) (at level 9) : assert3.
 Notation " 'RETURN' ( x ) z" := (LOCALx (temp ret_temp x :: nil) z%assert5) (at level 9) :assert3.
 
-Definition GLOBALSx {Σ} (gs : list globals) (X : @argsassert Σ): argsassert :=
+Definition GLOBALSx `{!heapGS Σ} (gs : list globals) (X : argsassert): argsassert :=
  argsassert_of (fun (gvals : argsEnviron) =>
            LOCALx (map gvars gs)
                   (argsassert2assert nil X)
                   (Clight_seplog.mkEnv (fst gvals) nil nil)).
-Arguments GLOBALSx {_} gs _ : simpl never.
-Global Instance: Params (@GLOBALSx) 1 := {}.
+Arguments GLOBALSx {_ _} gs _ : simpl never.
+Global Instance: Params (@GLOBALSx) 2 := {}.
 
-Definition PARAMSx {Σ} (vals:list val)(X : @argsassert Σ): argsassert :=
+Definition PARAMSx `{!heapGS Σ} (vals:list val)(X : argsassert): argsassert :=
  argsassert_of (fun (gvals : argsEnviron) => ⌜snd gvals = vals⌝ ∧ X gvals).
-Arguments PARAMSx {Σ} vals _ : simpl never.
-Global Instance: Params (@PARAMSx) 1 := {}.
+Arguments PARAMSx {Σ _} vals _ : simpl never.
+Global Instance: Params (@PARAMSx) 2 := {}.
 
 Notation " 'PARAMS' ( x ; .. ; y )  z" := (PARAMSx (cons x%I .. (cons y%I nil) ..) z%assert4)
          (at level 9) : assert3.
@@ -137,7 +137,7 @@ Module ConseqFacts :=
 
 Section mpred.
 
-Context `{!VSTGS OK_ty Σ}.
+Context `{!heapGS Σ}.
 
 #[global] Instance PROPx_proper {A} : Proper (equiv ==> equiv ==> equiv) (@PROPx A Σ).
 Proof.
@@ -147,7 +147,7 @@ Proof.
   induction H; simpl; f_equiv; done.
 Qed.
 
-#[global] Instance LOCALx_proper : Proper (equiv(Equiv := list.list_equiv(H := equivL)) ==> equiv ==> equiv) (@LOCALx Σ).
+#[global] Instance LOCALx_proper : Proper (equiv(Equiv := list.list_equiv(H := equivL)) ==> equiv ==> equiv) (LOCALx).
 Proof.
   intros ??????.
   rewrite /LOCALx; f_equiv; last done.
@@ -163,14 +163,14 @@ Proof.
   induction H; simpl; f_equiv; done.
 Qed.
 
-#[global] Instance PARAMSx_proper : Proper (eq ==> equiv ==> equiv) (@PARAMSx Σ).
+#[global] Instance PARAMSx_proper : Proper (eq ==> equiv ==> equiv) (PARAMSx).
 Proof.
   intros ?? -> ?? H.
   rewrite /PARAMSx; constructor; intros; simpl.
   rewrite H //.
 Qed.
 
-#[global] Instance GLOBALSx_proper : Proper (eq ==> equiv ==> equiv) (@GLOBALSx Σ).
+#[global] Instance GLOBALSx_proper : Proper (eq ==> equiv ==> equiv) (GLOBALSx).
 Proof.
   intros ?? -> ?? H.
   rewrite /GLOBALSx /LOCALx; constructor; intros; simpl.
@@ -187,7 +187,7 @@ Proof.
   rewrite H IHForall2 //.
 Qed.
 
-#[global] Instance LOCALx_ne n : Proper (eq ==> dist n ==> dist n) (@LOCALx Σ).
+#[global] Instance LOCALx_ne n : Proper (eq ==> dist n ==> dist n) (LOCALx).
 Proof. solve_proper. Qed.
 
 #[global] Instance SEPx_ne {A} : NonExpansive (@SEPx A Σ).
@@ -197,14 +197,14 @@ Proof.
   induction H; simpl; f_equiv; done.
 Qed.
 
-#[global] Instance PARAMSx_ne n : Proper (eq ==> dist n ==> dist n) (@PARAMSx Σ).
+#[global] Instance PARAMSx_ne n : Proper (eq ==> dist n ==> dist n) (PARAMSx).
 Proof.
   intros ????; subst.
   rewrite /PARAMSx; constructor; intros; simpl.
   rewrite H //.
 Qed.
 
-#[global] Instance GLOBALSx_ne n : Proper (eq ==> dist n ==> dist n) (@GLOBALSx Σ).
+#[global] Instance GLOBALSx_ne n : Proper (eq ==> dist n ==> dist n) (GLOBALSx).
 Proof.
   intros ????; subst.
   rewrite /GLOBALSx /LOCALx; constructor; intros; simpl.
@@ -355,7 +355,7 @@ Qed.
 
 Lemma fold_right_local_app:
   forall (Q1 Q2: list (environ -> Prop)),
-   @local Σ (fold_right `(and) `(True%type) (Q1 ++ Q2)) =
+   local (fold_right `(and) `(True%type) (Q1 ++ Q2)) =
    (local (fold_right `(and) `(True%type) Q1) ∧ local (fold_right `(and) `(True%type) Q2)).
 Proof.
   intros; apply assert_ext; intros; rewrite /local; monPred.unseal.
@@ -451,7 +451,11 @@ Proof.
 intros. reflexivity.
 Qed.*)
 
-Context {OK_spec : ext_spec OK_ty} {CS: compspecs}.
+End mpred.
+
+Section VST.
+
+Context `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {CS: compspecs}.
 
 Lemma extract_exists_pre_later:
   forall  (A : Type) (Q: assert) (P : A -> assert) c E Delta (R: ret_assert),
@@ -848,7 +852,7 @@ Proof.
   iIntros "($ & $)".
 Qed.
 
-Lemma local_lift0: forall P, @local Σ (lift0 P) = ⌜P⌝.
+Lemma local_lift0: forall P, local (lift0 P) = ⌜P⌝.
 Proof.
   intros. rewrite /local /lift0; apply assert_ext; intros; monPred.unseal; done.
 Qed.
@@ -1398,7 +1402,7 @@ Proof.
       apply make_args0_tc_environ; auto.
 Qed.
 
-Inductive return_outer_gen: @ret_assert Σ -> ret_assert -> Prop :=
+Inductive return_outer_gen: ret_assert -> ret_assert -> Prop :=
 | return_outer_gen_refl: forall P t sf,
     return_outer_gen
       (frame_ret_assert (function_body_ret_assert t P) sf)
@@ -1648,7 +1652,7 @@ Proof.
 Qed.
 
 Lemma local_andp_lemma:
-  forall P Q, (P ⊢ local Q) -> P ⊣⊢ (@local Σ Q ∧ P).
+  forall P Q, (P ⊢ local Q) -> P ⊣⊢ (local Q ∧ P).
 Proof.
   intros; rewrite comm; apply add_andp; done.
 Qed.
@@ -1776,12 +1780,12 @@ Proof.
   apply semax_extract_later_prop; auto.
 Qed.
 
-Lemma monPred_at_assert_of : forall P, monPred_at (@assert_of Σ P) = P.
+Lemma monPred_at_assert_of : forall P, monPred_at (assert_of P) = P.
 Proof.
   reflexivity.
 Qed.
 
-Lemma monPred_at_argsassert_of : forall P, monPred_at (@argsassert_of Σ P) = P.
+Lemma monPred_at_argsassert_of : forall P, monPred_at (argsassert_of P) = P.
 Proof.
   reflexivity.
 Qed.
@@ -1802,7 +1806,7 @@ Proof.
   unfold PROPx, LOCALx, SEPx; monPred.unseal; reflexivity.
 Qed.
 
-End mpred.
+End VST.
 
 #[export] Hint Rewrite @insert_local :  norm2.
 

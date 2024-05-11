@@ -100,7 +100,7 @@ Qed.
 
 #[export] Hint Resolve treerep_local_facts : saturate_local.
 
-Definition test_int_or_ptr_spec : ident * funspec :=
+Definition test_int_or_ptr_spec :=
  DECLARE _test_int_or_ptr
  WITH x : val
  PRE [ int_or_ptr_type ]
@@ -113,7 +113,7 @@ Definition test_int_or_ptr_spec : ident * funspec :=
                     end)))
    SEP().
 
-Definition int_or_ptr_to_int_spec : ident * funspec :=
+Definition int_or_ptr_to_int_spec :=
  DECLARE _int_or_ptr_to_int
  WITH x : val
  PRE [ int_or_ptr_type ]
@@ -121,7 +121,7 @@ Definition int_or_ptr_to_int_spec : ident * funspec :=
  POST [ tint ]
    PROP() RETURN (x) SEP().
 
-Definition int_or_ptr_to_ptr_spec : ident * funspec :=
+Definition int_or_ptr_to_ptr_spec :=
  DECLARE _int_or_ptr_to_ptr
  WITH x : val
  PRE [ int_or_ptr_type ]
@@ -129,7 +129,7 @@ Definition int_or_ptr_to_ptr_spec : ident * funspec :=
  POST [ tptr tvoid ]
    PROP() RETURN (x) SEP().
 
-Definition int_to_int_or_ptr_spec : ident * funspec :=
+Definition int_to_int_or_ptr_spec :=
  DECLARE _int_to_int_or_ptr
  WITH x : val
  PRE [ tint ]
@@ -137,7 +137,7 @@ Definition int_to_int_or_ptr_spec : ident * funspec :=
  POST [ int_or_ptr_type ]
    PROP() RETURN(x) SEP().
 
-Definition ptr_to_int_or_ptr_spec : ident * funspec :=
+Definition ptr_to_int_or_ptr_spec :=
  DECLARE _ptr_to_int_or_ptr
  WITH x : val
  PRE [ tptr tvoid ]
@@ -145,7 +145,7 @@ Definition ptr_to_int_or_ptr_spec : ident * funspec :=
  POST [ int_or_ptr_type ]
    PROP() RETURN(x) SEP().
 
-Definition makenode_spec : ident * funspec :=
+Definition makenode_spec :=
  DECLARE _makenode 
   WITH p: val, q: val
   PRE [ int_or_ptr_type, int_or_ptr_type ]
@@ -155,7 +155,7 @@ Definition makenode_spec : ident * funspec :=
     PROP() RETURN (r) 
     SEP (data_at Tsh (Tstruct _tree noattr) (p,q) r).
 
-Definition copytree_spec : ident * funspec :=
+Definition copytree_spec :=
  DECLARE _copytree
   WITH t: tree, p : val
   PRE  [ int_or_ptr_type ]

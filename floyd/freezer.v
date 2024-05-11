@@ -273,7 +273,7 @@ Proof.
   rewrite sep_emp; trivial.
   rewrite IHn. rewrite sep_assoc (sep_comm m) -sep_assoc //.
 Qed.
-Lemma fold_right_sepcon_deletenth': forall n (l:list (@assert Σ)),
+Lemma fold_right_sepcon_deletenth': forall n (l:list assert),
   @fold_right assert assert bi_sep emp l =
   (nth n l emp ∗ fold_right bi_sep emp (delete_nth n l)).
 Proof.

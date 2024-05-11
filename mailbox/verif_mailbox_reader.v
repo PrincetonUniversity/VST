@@ -33,7 +33,7 @@ Proof.
          comm_loc sh2 c g g0 g1 g2 bufs sh h;
          ∃ v : Z, data_at sh tbuffer (vint v) (Znth b0 bufs);
          ghost_frag (vint b0) g0))
-  break: (False : @assert Σ).
+  break: (False : assert).
   { Exists 1 (∅ : hist); entailer!.
     unfold latest_read.
     left; split; auto; discriminate. }

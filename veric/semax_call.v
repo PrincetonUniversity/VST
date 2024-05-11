@@ -448,7 +448,7 @@ Proof.
  destruct H7; auto. inv H6; congruence.
 Qed.
 
-Definition maybe_retval (Q: @assert Σ) retty ret :=
+Definition maybe_retval (Q: assert) retty ret :=
  assert_of (match ret with
  | Some id => fun rho => ⌜tc_val' retty (eval_id id rho)⌝ ∧ Q (get_result1 id rho)
  | None =>
@@ -713,7 +713,7 @@ rewrite IHil; auto.
 Qed.
 
 Lemma make_args_close_precondition:
-  forall bodyparams args ge tx ve' te' (P : @argsassert Σ),
+  forall bodyparams args ge tx ve' te' (P : argsassert),
     list_norepet (map fst bodyparams) ->
     bind_parameter_temps bodyparams args tx = Some te' ->
     Forall (fun v : val => v <> Vundef) args ->

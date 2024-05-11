@@ -23,7 +23,7 @@ Require Import VST.progs.peel.
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
 
-Definition f_spec : ident * funspec :=
+Definition f_spec :=
  DECLARE _f
   WITH b: Z
   PRE [ tint ]
@@ -103,7 +103,7 @@ rewrite add_repr.
 *)
 forward_seq (EX a:Z,  PROP ((a-1)*(a-1)<=b /\ a*a>b)
                      LOCAL(temp _a (Vint (Int.repr a)))
-                     SEP () : assert).
+                     SEP ()).
 (*  Then, peel off the first iteration: *)
 eapply semax_while_peel.
 (* Now the rest is straightforward. *)
@@ -116,7 +116,7 @@ eapply semax_while_peel.
 -
  forward_while (EX i:Z, PROP (0 <= i <= b+1; b < (i+1)*(i+1))
              LOCAL(temp _i (Vint (Int.repr i)); temp _b (Vint (Int.repr b)); temp _a (Vint (Int.repr (i+1))))
-             SEP() : assert).
+             SEP()).
  *
   Exists b; entailer!!.
   f_equal; f_equal; lia.

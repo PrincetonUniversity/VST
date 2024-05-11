@@ -138,7 +138,7 @@ Variable semax_external: forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} (e
        (P: @dtfr Σ (ArgsTT A))
        (Q: @dtfr Σ (AssertTT A)), mpred.
 
-Inductive semax `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {CS: compspecs} (E: coPset) (Delta: tycontext): assert -> statement -> @ret_assert Σ -> Prop :=
+Inductive semax `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {CS: compspecs} (E: coPset) (Delta: tycontext): assert -> statement -> ret_assert -> Prop :=
 | semax_ifthenelse :
    forall (P: assert) (b: expr) c d R,
      semax E Delta (P ∧ local (`(typed_true (typeof b)) (eval_expr b))) c R ->
@@ -282,7 +282,7 @@ forall OK_spec x,
       (frame_ret_assert (function_body_ret_assert (fn_return f) (assert_of (Q x))) (stackframe_of f))
 end.
 
-Inductive semax_func `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} : forall (V: varspecs) (G: @funspecs Σ) {C: compspecs} (ge: Genv.t Clight.fundef type) (fdecs: list (ident * Clight.fundef)) (G1: funspecs), Prop :=
+Inductive semax_func `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} : forall (V: varspecs) (G: funspecs(Σ := Σ)) {C: compspecs} (ge: Genv.t Clight.fundef type) (fdecs: list (ident * Clight.fundef)) (G1: funspecs), Prop :=
 | semax_func_nil:
     forall C V G ge, semax_func(C := C) V G ge nil nil
 | semax_func_cons:
@@ -1400,7 +1400,7 @@ Definition semax_body_generalintersection {V G cs f iden I sig cc} {phi : I -> f
         (H2: forall i : I, callingconvention_of_funspec (phi i) = cc)
         (HI: inhabited I)
   (H: forall i, semax_body(C := cs) V G f (iden, phi i)):
-  semax_body V G f (iden, @general_intersection _ I sig cc phi H1 H2).
+  semax_body V G f (iden, @general_intersection _ _ I sig cc phi H1 H2).
 Proof. destruct HI. split3.
   { specialize (H X). specialize (H1 X); subst. destruct (phi X). simpl. apply H. }
   { specialize (H X). specialize (H1 X); subst. destruct (phi X). simpl. apply H. }

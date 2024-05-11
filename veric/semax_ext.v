@@ -130,7 +130,7 @@ Definition funspec2extspec (ext_link: Strings.String.string -> ident) (f : (iden
         (fun rv z m => True%type)
   end.
 
-Definition wf_funspec (f : @funspec Σ) :=
+Definition wf_funspec (f : funspec) :=
   match f with
     | mk_funspec sig cc E A P Q =>
         forall a (ge ge': genv) args,
@@ -161,7 +161,7 @@ Definition funspec2jspec (ext_link: Strings.String.string -> ident) f : ext_spec
 
 End funspecs2jspec.
 
-Definition funspecs_norepeat (fs : @funspecs Σ) := list_norepet (map fst fs).
+Definition funspecs_norepeat (fs : funspecs(Σ := Σ)) := list_norepet (map fst fs).
 
 Fixpoint add_funspecs_rec (ext_link: Strings.String.string -> ident) (Espec : ext_spec Z) (fs : funspecs) :=
   match fs with

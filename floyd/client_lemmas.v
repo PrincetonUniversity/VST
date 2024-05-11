@@ -10,9 +10,7 @@ Ltac refold_right_sepcon R :=
 
 Section mpred.
 
-Context `{!VSTGS OK_ty Σ}.
-
-Local Notation PROPx := (PROPx(Σ := Σ)).
+Context `{!heapGS Σ}.
 
 Lemma SEP_entail:
  forall R' Delta P Q R,
@@ -297,8 +295,6 @@ Proof. intros. reflexivity. Qed.*)
 Lemma Vint_inj': forall i j,  (Vint i = Vint j) = (i=j).
 Proof. intros; apply prop_ext; split; intro; congruence. Qed.
 
-Notation assert := (@assert Σ).
-
 Lemma overridePost_normal_right:
   forall (P Q : assert) R,
    (P ⊢ Q) ->
@@ -454,7 +450,7 @@ reflexivity.
 Qed.
 
 Lemma force_eval_var_int_ptr :
-forall  {cs: compspecs}  Delta rho i t,
+forall {cs: compspecs} Delta rho i t,
 tc_environ Delta rho ->
 tc_lvalue Delta (Evar i t) rho ⊢
         ⌜force_val
@@ -689,7 +685,7 @@ Proof. reflexivity. Qed.
 Lemma derives_extract_PROP :
   forall {B} (P1: Prop) (A : monPred B _) P QR S,
      (P1 -> A ∧ PROPx P QR ⊢ S) ->
-     A ∧ PROPx (P1 :: P) QR ⊢ S.
+     A ∧ PROPx(Σ := Σ) (P1 :: P) QR ⊢ S.
 Proof.
 unfold PROPx in *.
 intros.
@@ -700,8 +696,6 @@ rewrite -H //.
 monPred.unseal.
 normalize.
 Qed.
-
-Notation local := (@local Σ).
 
 Lemma local_andp_prop:  forall P Q, (local P ∧ ⌜Q⌝) = (⌜Q⌝ ∧ local P).
 Proof. intros. apply and_comm'. Qed.
@@ -764,7 +758,7 @@ end.
 
 Definition ImpossibleFunspec :=
    NDmk_funspec (nil,Tvoid) cc_default (Impossible)
-        (fun _ => False : @argsassert Σ) (fun _ => False : assert).
+        (fun _ => False : argsassert) (fun _ => False : assert).
 
 Lemma prop_true_andp1 :
   forall {B : bi} (P1 P2: Prop) (Q : B),
@@ -792,14 +786,6 @@ Lemma and_assoc'': forall {BI : bi} (A B C: Prop),
   (⌜(A /\ B) /\ C⌝ : BI) = ⌜A /\ (B /\ C)⌝.
 Proof.
 intros. rewrite and_assoc'; auto.
-Qed.
-
-Lemma semax_later_trivial: forall {OK_spec} {cs: compspecs} E Delta P c Q,
-  semax(C := cs)(OK_spec := OK_spec) E Delta (▷ P) c Q ->
-  semax E Delta P c Q.
-Proof.
- intros until Q.
- apply semax_pre0; auto.
 Qed.
 
 Lemma prop_and1:
@@ -1071,6 +1057,30 @@ Proof.
   intros; apply assert_ext; intros; monPred.unseal; auto.
 Qed.
 
+Lemma derives_extract_PROP' :
+  forall {A} (P1: Prop) P QR (S : monPred A _),
+     (P1 -> PROPx P QR ⊢ S) ->
+     PROPx(Σ := Σ) (P1::P) QR ⊢ S.
+Proof.
+  intros.
+  rewrite -(bi.True_and (PROPx _ _)).
+  apply derives_extract_PROP; intros; rewrite bi.and_elim_r; auto.
+Qed.
+
+End mpred.
+
+Section VST.
+
+Context `{!VSTGS OK_ty Σ}.
+
+Lemma semax_later_trivial: forall {OK_spec} {cs: compspecs} E Delta P c Q,
+  semax(C := cs)(OK_spec := OK_spec) E Delta (▷ P) c Q ->
+  semax E Delta P c Q.
+Proof.
+ intros until Q.
+ apply semax_pre0; auto.
+Qed.
+
 Lemma extract_nth_exists_in_SEP:
   forall n P Q (R: list mpred)
               {A} (S: A -> mpred),
@@ -1081,7 +1091,8 @@ Proof.
   intros.
   destruct (lt_dec n (length R)).
   - eapply nth_error_nth in l; setoid_rewrite H in l.
-    erewrite SEP_nth_isolate, PROP_LOCAL_SEP_cons, embed_exist by done. rewrite sep_exist_r'.
+    erewrite SEP_nth_isolate, PROP_LOCAL_SEP_cons by done.
+    rewrite embed_exist //. rewrite sep_exist_r'.
     f_equiv; extensionality.
     setoid_rewrite <- PROP_LOCAL_SEP_cons.
     erewrite <- SEP_replace_nth_isolate; done.
@@ -1095,17 +1106,7 @@ Proof.
     rewrite replace_nth_overflow //.
 Qed.
 
-Lemma derives_extract_PROP' :
-  forall {A} (P1: Prop) P QR (S : monPred A _),
-     (P1 -> PROPx P QR ⊢ S) ->
-     PROPx (P1::P) QR ⊢ S.
-Proof.
-  intros.
-  rewrite -(bi.True_and (PROPx _ _)).
-  apply derives_extract_PROP; intros; rewrite bi.and_elim_r; auto.
-Qed.
-
-End mpred.
+End VST.
 
 #[export] Hint Resolve func_ptr_isptr: saturate_local.
 #[export] Hint Rewrite @lift0_unfold @lift1_unfold @lift2_unfold @lift3_unfold @lift4_unfold : norm2.

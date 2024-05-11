@@ -146,44 +146,46 @@ intros.
 rewrite <- fold_right_sepconx_eq; auto.
 Qed.
 
-Lemma local_and_sep_assoc : forall {Σ} (P : environ -> Prop) (Q R : @assert Σ), (local P ∧ (Q ∗ R)) = ((local P ∧ Q) ∗ R).
+Context `{!heapGS Σ}.
+
+Lemma local_and_sep_assoc : forall (P : environ -> Prop) (Q R : assert), (local P ∧ (Q ∗ R)) = ((local P ∧ Q) ∗ R).
 Proof.
   intros; apply assert_ext; intros; monPred.unseal.
   rewrite sepcon_andp_prop' //.
 Qed.
 
-Lemma local_and_sep_assoc' : forall {Σ} (P : @assert Σ) (Q : environ -> Prop) (R : @assert Σ), (P ∗ (local Q ∧ R)) = (local Q ∧ (P ∗ R)).
+Lemma local_and_sep_assoc' : forall (P : assert) (Q : environ -> Prop) (R : assert), (P ∗ (local Q ∧ R)) = (local Q ∧ (P ∗ R)).
 Proof.
   intros; rewrite sep_comm' -local_and_sep_assoc sep_comm' //.
 Qed.
 
-Lemma local_and_sep_assoc2 : forall {Σ} (P : environ -> Prop) (Q R : @assert Σ), (local P ∧ (Q ∗ R)) = ((Q ∧ local P) ∗ R).
+Lemma local_and_sep_assoc2 : forall (P : environ -> Prop) (Q R : assert), (local P ∧ (Q ∗ R)) = ((Q ∧ local P) ∗ R).
 Proof.
   intros; rewrite (and_comm' Q); apply local_and_sep_assoc.
 Qed.
 
-Lemma local_and_sep_assoc2' : forall {Σ} (P : @assert Σ) (Q : environ -> Prop) (R : @assert Σ), (P ∗ (R ∧ local Q)) = (local Q ∧ (P ∗ R)).
+Lemma local_and_sep_assoc2' : forall (P : assert) (Q : environ -> Prop) (R : assert), (P ∗ (R ∧ local Q)) = (local Q ∧ (P ∗ R)).
 Proof.
   intros; rewrite (and_comm' R); apply local_and_sep_assoc'.
 Qed.
 
-Lemma pure_and_sep_assoc : forall {Σ} (P : Prop) (Q R : @assert Σ), (⌜P⌝ ∧ (Q ∗ R)) = ((⌜P⌝ ∧ Q) ∗ R).
+Lemma pure_and_sep_assoc : forall (P : Prop) (Q R : assert), (⌜P⌝ ∧ (Q ∗ R)) = ((⌜P⌝ ∧ Q) ∗ R).
 Proof.
   intros; apply assert_ext; intros; monPred.unseal.
   rewrite sepcon_andp_prop' //.
 Qed.
 
-Lemma pure_and_sep_assoc' : forall {Σ} (P : @assert Σ) (Q : Prop) (R : @assert Σ), (P ∗ (⌜Q⌝ ∧ R)) = (⌜Q⌝ ∧ (P ∗ R)).
+Lemma pure_and_sep_assoc' : forall (P : assert) (Q : Prop) (R : assert), (P ∗ (⌜Q⌝ ∧ R)) = (⌜Q⌝ ∧ (P ∗ R)).
 Proof.
   intros; rewrite sep_comm' -pure_and_sep_assoc sep_comm' //.
 Qed.
 
-Lemma pure_and_sep_assoc2 : forall {Σ} (P : Prop) (Q R : @assert Σ), (⌜P⌝ ∧ (Q ∗ R)) = ((Q ∧ ⌜P⌝) ∗ R).
+Lemma pure_and_sep_assoc2 : forall (P : Prop) (Q R : assert), (⌜P⌝ ∧ (Q ∗ R)) = ((Q ∧ ⌜P⌝) ∗ R).
 Proof.
   intros; rewrite (and_comm' Q); apply pure_and_sep_assoc.
 Qed.
 
-Lemma pure_and_sep_assoc2' : forall {Σ} (P : @assert Σ) (Q : Prop) (R : @assert Σ), (P ∗ (R ∧ ⌜Q⌝)) = (⌜Q⌝ ∧ (P ∗ R)).
+Lemma pure_and_sep_assoc2' : forall (P : assert) (Q : Prop) (R : assert), (P ∗ (R ∧ ⌜Q⌝)) = (⌜Q⌝ ∧ (P ∗ R)).
 Proof.
   intros; rewrite (and_comm' R); apply pure_and_sep_assoc'.
 Qed.

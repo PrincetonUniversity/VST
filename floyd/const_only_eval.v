@@ -134,7 +134,7 @@ Fixpoint const_only_eval_expr {cs: compspecs} (e: Clight.expr): option val :=
     else None
   end.
 
-Lemma TT_right' : forall {Σ} P, P ⊢ @assert_of Σ (liftx True).
+Lemma TT_right' : forall `{heapGS Σ} P, P ⊢ assert_of (liftx True).
 Proof.
   split => rho; simpl; unfold_lift; auto.
 Qed.

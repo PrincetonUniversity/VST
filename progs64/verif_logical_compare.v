@@ -81,7 +81,7 @@ Admitted.
 
 (***** END *)
 
-Definition do_or_spec : ident * funspec :=
+Definition do_or_spec :=
  DECLARE _do_or
   WITH a: int, b : int
   PRE [ tbool, tbool ]
@@ -91,7 +91,7 @@ Definition do_or_spec : ident * funspec :=
         SEP().
 
 
-Definition do_and_spec : ident * funspec :=
+Definition do_and_spec :=
  DECLARE _do_and
   WITH a: int, b : int
   PRE [ tbool, tbool ]

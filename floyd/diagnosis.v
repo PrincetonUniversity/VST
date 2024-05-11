@@ -4,12 +4,12 @@ Require Import VST.floyd.reptype_lemmas.
 Import -(notations) compcert.lib.Maps.
 
 Section DIAGNOSIS.
-Context {Σ: gFunctors}.
+Context `{!heapGS Σ}.
 
 Lemma no_post_exists_unit:
   forall P Q R,
   PROPx P (LOCALx Q (SEPx R)) ⊣⊢
-   ∃ _:unit, (PROPx (Σ:=Σ)) P (LOCALx Q (SEPx R)).
+   ∃ _:unit, PROPx P (LOCALx Q (SEPx R)).
 Proof.
 intros. iSplit; iIntros "H". iFrame. done.
 iApply bi.exist_elim. intros. apply derives_refl. done.
@@ -29,8 +29,8 @@ Section DIAGNOSIS.
 Context `{!heapGS Σ}.
 Definition not_in_canonical_form := tt.
 Definition Error__Funspec (id: ident) (what: unit) (reason: unit) := Stuck.
-Definition Cannot_unfold_funspec (fs: ident*(@funspec Σ)) := Stuck.
-Definition for_some_undiagnosed_reason (fs: ident*(@funspec Σ)) := tt.
+Definition Cannot_unfold_funspec (fs: ident*funspec) := Stuck.
+Definition for_some_undiagnosed_reason (fs: ident*funspec) := tt.
 Definition because_of_LOCAL (Q: environ->Prop) := tt.
 Definition because_of_SEP (R: environ->mpred) := tt.
 Definition because_temp_out_of_scope (i: ident) := tt.

@@ -30,7 +30,7 @@ Section mpred.
 
 Context `{!VSTGS OK_ty Σ}.
 
-Definition NDfunspec_sub (f1 f2 : @funspec Σ) :=
+Definition NDfunspec_sub (f1 f2 : funspec) :=
 let Delta2 := rettype_tycontext (snd (typesig_of_funspec f2)) in
 match f1 with
 | mk_funspec tpsig1 cc1 (ConstType A1) E1 P1 Q1 =>
@@ -99,15 +99,15 @@ Qed.
 
 Inductive empty_type : Type := .
 
-Definition withtype_of_NDfunspec (fs : @funspec Σ) := match fs with
+Definition withtype_of_NDfunspec (fs : funspec) := match fs with
   mk_funspec _ _ (ConstType A) _ _ _ => A | _ => empty_type end.
  
 
-Definition withtype_of_funspec (fs : @funspec Σ) := match fs with
+Definition withtype_of_funspec (fs : funspec) := match fs with
   mk_funspec _ _ A _ _ _ => A end.
 
 Lemma sepcon_ENTAIL:
- forall Delta (P Q P' Q' : @assert Σ),
+ forall Delta (P Q P' Q' : assert),
   (ENTAIL Delta, P ⊢ P') ->
   (ENTAIL Delta, Q ⊢ Q') ->
   (ENTAIL Delta, (P ∗ Q) ⊢ (P' ∗ Q')).

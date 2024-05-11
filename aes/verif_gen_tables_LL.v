@@ -243,7 +243,7 @@ Proof.
         if Int.eq (Int.and (pow3 i) (Int.repr 128)) Int.zero
         then Int.zero
         else (Int.repr 27)
-      ))) SEP () : assert).
+      ))) SEP ()).
       * (* then-branch of "_ ? _ : _" *)
         forward. rewrite Int.eq_false by assumption. entailer!!.
       * (* else-branch of "_ ? _ : _" *)
@@ -299,7 +299,7 @@ Proof.
       if Int.eq (Int.and (pow2 i) (Int.repr 128)) Int.zero
       then Int.zero
       else (Int.repr 27)
-    ))) SEP () : assert).
+    ))) SEP ()).
     * (* then-branch of "_ ? _ : _" *)
       forward. rewrite Int.eq_false by assumption. entailer!!.
     * (* else-branch of "_ ? _ : _" *)
@@ -532,7 +532,7 @@ Proof.
       if Int.eq (Int.and (Znth i FSb) (Int.repr 128)) Int.zero
       then Int.zero
       else (Int.repr 27)
-    ))) SEP () : assert).
+    ))) SEP ()).
     * (* then-branch of "_ ? _ : _" *)
       forward. rewrite Int.eq_false by assumption. entailer!!.
     * (* else-branch of "_ ? _ : _" *)
@@ -610,7 +610,7 @@ Proof.
       else (Znth (Int.unsigned
               (Int.mods (Int.repr (Znth 14 log + Znth (Int.unsigned (Znth i RSb)) log))
                         (Int.repr 255))) pow)
-    ))) SEP (): assert).
+    ))) SEP ()).
     { (* TODO floyd: this should be derived automatically from H3 *)
       assert (Int.unsigned (Znth i RSb) <> 0) as Ne. {
         intro E. apply H3. change 0 with (Int.unsigned Int.zero) in E.
@@ -656,7 +656,7 @@ Proof.
       else (Znth (Int.unsigned
               (Int.mods (Int.repr (Znth 9 log + Znth (Int.unsigned (Znth i RSb)) log))
                         (Int.repr 255))) pow)
-    ))) SEP () : assert). {
+    ))) SEP ()). {
       assert (Int.unsigned (Znth i RSb) <> 0) as Ne. {
         intro E. apply H3. change 0 with (Int.unsigned Int.zero) in E.
         apply unsigned_eq_eq in E. rewrite E. rewrite Int.eq_true. reflexivity.
@@ -698,7 +698,7 @@ Proof.
       else (Znth (Int.unsigned
               (Int.mods (Int.repr (Znth 13 log + Znth (Int.unsigned (Znth i RSb)) log))
                         (Int.repr 255))) pow)
-    ))) SEP () : assert). {
+    ))) SEP ()). {
       assert (Int.unsigned (Znth i RSb) <> 0) as Ne. {
         intro E. apply H3. change 0 with (Int.unsigned Int.zero) in E.
         apply unsigned_eq_eq in E. rewrite E. rewrite Int.eq_true. reflexivity.
@@ -740,7 +740,7 @@ Proof.
       else (Znth (Int.unsigned
               (Int.mods (Int.repr (Znth 11 log + Znth (Int.unsigned (Znth i RSb)) log))
                         (Int.repr 255))) pow)
-    ))) SEP () : assert). {
+    ))) SEP ()). {
       assert (Int.unsigned (Znth i RSb) <> 0) as Ne. {
         intro E. apply H3. change 0 with (Int.unsigned Int.zero) in E.
         apply unsigned_eq_eq in E. rewrite E. rewrite Int.eq_true. reflexivity.

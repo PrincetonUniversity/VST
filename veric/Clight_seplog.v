@@ -139,7 +139,7 @@ Definition funassert (Delta: tycontext): assert := funspecs_assert (glob_specs D
   using different shares that don't have a common core, whereas address_mapsto
   requires the same share on all four bytes. *)
 
-Definition proj_ret_assert (Q: @ret_assert Σ) (ek: exitkind) (vl: option val) : assert :=
+Definition proj_ret_assert (Q: ret_assert) (ek: exitkind) (vl: option val) : assert :=
  match ek with
  | EK_normal => ⌜vl=None⌝ ∧ RA_normal Q
  | EK_break => ⌜vl=None⌝ ∧ RA_break Q
@@ -153,7 +153,7 @@ Definition overridePost  (Q: assert)  (R: ret_assert) :=
   {| RA_normal := Q; RA_break := b; RA_continue := c; RA_return := r |}
  end.
 
-Definition existential_ret_assert {A: Type} (R: A -> @ret_assert Σ) :=
+Definition existential_ret_assert {A: Type} (R: A -> ret_assert) :=
   {| RA_normal := ∃ x:A, (R x).(RA_normal);
      RA_break := ∃ x:A, (R x).(RA_break);
      RA_continue := ∃ x:A, (R x).(RA_continue);
@@ -181,7 +181,7 @@ Definition conj_ret_assert (R: ret_assert) (F: assert) : ret_assert :=
      RA_return := fun vl => r vl ∧ F |}
  end.
 
-Definition switch_ret_assert (R: @ret_assert Σ) : ret_assert :=
+Definition switch_ret_assert (R: ret_assert) : ret_assert :=
  match R with 
   {| RA_normal := n; RA_break := b; RA_continue := c; RA_return := r |} =>
   {| RA_normal := False; 
@@ -209,7 +209,7 @@ destruct ek; simpl; auto; by rewrite bi.and_False.
 Qed.
 
 (* Do we care about the kind of equivalence? Should this be an assert? *)
-Global Instance ret_assert_equiv : Equiv (@ret_assert Σ) := fun a b =>
+Global Instance ret_assert_equiv : Equiv (ret_assert) := fun a b =>
   (RA_normal a ⊣⊢ RA_normal b) /\ (RA_break a ⊣⊢ RA_break b) /\
   (RA_continue a ⊣⊢ RA_continue b) /\ (forall v, RA_return a v ⊣⊢ RA_return b v).
 

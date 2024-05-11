@@ -105,7 +105,7 @@ Qed.
 
 
 Lemma bind_ret0_unfold:
-  forall Q, bind_ret None tvoid Q ⊣⊢ (@assert_of Σ (fun rho => Q (globals_only rho))).
+  forall Q, bind_ret None tvoid Q ⊣⊢ (assert_of (fun rho => Q (globals_only rho))).
 Proof.
   rewrite /bind_ret; split => rho; monPred.unseal; done.
 Qed.

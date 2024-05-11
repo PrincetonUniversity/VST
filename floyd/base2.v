@@ -32,9 +32,7 @@ Definition funsig_of_fundef (fd: Clight.fundef) : funsig :=
 
 Section funspecs.
 
-Context {Σ : gFunctors}.
-
-Notation funspec := (@funspec Σ).
+Context `{!heapGS Σ}.
 
 Definition vacuous_funspec (fd: Clight.fundef): funspec :=
    NDmk_funspec (typesig_of_funsig (funsig_of_fundef fd)) (cc_of_fundef fd) 

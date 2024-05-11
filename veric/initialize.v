@@ -1022,7 +1022,7 @@ Definition prog_var_block (rho: environ) (il: list ident) (b: block) : Prop :=
 Lemma match_fdecs_in:
   forall i vl G,
      In i (map (@fst _ _) G) ->
-     @match_fdecs Σ vl G ->
+     match_fdecs vl G ->
      In i (map (@fst _ _) vl).
 Proof.
  induction vl; simpl; intros; auto.
@@ -1050,7 +1050,7 @@ Qed.
 Lemma match_fdecs_rev':
   forall vl G vl' G',
    list_norepet (map (@fst _ _) (rev vl ++ vl')) ->
-   @match_fdecs Σ vl G ->
+   match_fdecs vl G ->
    match_fdecs vl' G' ->
    match_fdecs (rev vl ++ vl') (rev G ++ G').
 Proof.
@@ -1095,7 +1095,7 @@ Qed.
 Lemma match_fdecs_rev:
   forall vl G,
    list_norepet (map (@fst _ _) vl) ->
-   @match_fdecs Σ (rev vl) (rev G) = match_fdecs vl G.
+   match_fdecs (rev vl) (rev G) = match_fdecs vl G.
 Proof.
   intros; apply prop_ext; split; intros.
 *
@@ -1225,7 +1225,7 @@ Proof.
     apply list_norepet_prog_funct'; auto.
   }
   clear SAME_IDS Heqgev.
-  change (map fst vl) with (map fst (@nil (ident*@funspec Σ)) ++ map fst vl) in Hnorepet.
+  change (map fst vl) with (map fst (@nil (ident*funspec)) ++ map fst vl) in Hnorepet.
   change G with (nil++G).
   set (G0 := @nil (ident*funspec)) in *.
   change G with (G0++G) in NRG.

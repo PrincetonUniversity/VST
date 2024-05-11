@@ -10,7 +10,7 @@ Definition Gprog : funspecs :=
     ltac:(with_library prog (@nil(ident*funspec))).
 
 
-Definition g_spec : ident * funspec :=
+Definition g_spec :=
  DECLARE _g
  WITH i: Z
  PRE [ size_t]
@@ -292,7 +292,7 @@ End FABS_STUFF.
 
 Module Single.
 
-Definition fabs_single_spec : ident * funspec :=
+Definition fabs_single_spec :=
  DECLARE _fabs_single
  WITH x: float32
  PRE [ Tfloat F32 noattr]
@@ -321,7 +321,7 @@ Module Float.
    In fact, Vfloat x is wrong, leading to an unsatisfying precondition,
    it must be Vsingle. *)
 
-Definition fabs_single_spec : ident * funspec :=
+Definition fabs_single_spec :=
  DECLARE _fabs_single
  WITH x: float
  PRE [ Tfloat F32 noattr]

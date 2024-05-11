@@ -4,7 +4,7 @@ Require Import VST.progs.stackframe_demo.
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
-Definition iden_spec : ident * funspec :=
+Definition iden_spec :=
  DECLARE _iden
   WITH x : Z
   PRE  [ tint ]

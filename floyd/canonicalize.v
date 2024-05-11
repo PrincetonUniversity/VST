@@ -7,10 +7,6 @@ Section mpred.
 
 Context `{!heapGS Σ}.
 
-Local Notation assert := (@assert Σ).
-Local Notation do_canon := (@do_canon Σ).
-Local Notation PROPx := (@PROPx _ Σ).
-
 Lemma canon1: forall P1 B  P Q R,
    do_canon (⌜P1⌝ ∧ B) (PROPx P (LOCALx Q (SEPx R))) = do_canon B  (PROPx (P1::P) (LOCALx Q (SEPx R))).
 Proof.

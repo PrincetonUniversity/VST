@@ -26,7 +26,7 @@ Ltac unfold_for_go_lower :=
 Lemma grab_tc_environ:
   forall `{!VSTGS OK_ty Σ} Delta (PQR : assert) S rho,
     (tc_environ Delta rho -> PQR rho ⊢ S) ->
-    (local(Σ := Σ) (tc_environ Delta) ∧ PQR) rho ⊢ S.
+    (local (tc_environ Delta) ∧ PQR) rho ⊢ S.
 Proof.
 intros.
 unfold PROPx,LOCALx in *; simpl in *.
@@ -49,8 +49,6 @@ intros ?rho;
 Section mpred.
 
 Context `{!VSTGS OK_ty Σ}.
-
-Local Notation LOCALx := (LOCALx(Σ := Σ)).
 
 Lemma lower_one_temp:
  forall t rho Delta P i v Q R S,
@@ -137,7 +135,7 @@ Qed.
 Lemma finish_lower:
   forall rho (D: environ -> Prop) R S,
   (D rho -> fold_right_sepcon R ⊢ S) ->
-  (local D ∧ PROP() LOCAL() (SEPx R) : @assert Σ)%assert rho ⊢ S.
+  (local D ∧ PROP() LOCAL() (SEPx R))%assert rho ⊢ S.
 Proof.
 intros.
 simpl.

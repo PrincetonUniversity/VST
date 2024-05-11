@@ -34,7 +34,7 @@ Section mpred.
 
 Context `{!VSTGS OK_ty Σ} (OK_spec : ext_spec OK_ty).
 
-Definition closed_wrt_modvars c (F: @assert Σ) : Prop :=
+Definition closed_wrt_modvars c (F: assert) : Prop :=
     closed_wrt_vars (modifiedvars c) F.
 
 Definition jsafeN (ge: genv) :=
@@ -151,9 +151,9 @@ Record semaxArg :Type := SemaxArg {
  sa_cs: compspecs;
  sa_E: coPset;
  sa_Delta: tycontext;
- sa_P: @assert Σ;
+ sa_P: assert;
  sa_c: statement;
- sa_R: @ret_assert Σ
+ sa_R: ret_assert
 }.
 
 Definition make_ext_rval  (gx: genviron) (tret: rettype) (v: option val):=

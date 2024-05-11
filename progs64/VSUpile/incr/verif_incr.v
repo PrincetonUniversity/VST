@@ -17,7 +17,7 @@ Definition incr1_spec :=
     LOCAL(temp ret_temp (Vint (Int.repr (i+1))))
     SEP(data_at sh (tarray tuint 10) private' a).
 
-Definition incr2_spec : ident * funspec :=
+Definition incr2_spec :=
  DECLARE _incr2
  WITH i: Z, a: val
  PRE [ tint, tptr tuint ]
@@ -52,7 +52,7 @@ Definition incr3_spec :=
     LOCAL(temp ret_temp (Vint (Int.repr (i+1))))
     SEP(data_at sh (tarray tuint 10) private' (gv _global_auxdata)).
 
-Definition incr4_spec : ident * funspec :=
+Definition incr4_spec :=
  DECLARE _incr4
  WITH i: Z
  PRE [ tint ]

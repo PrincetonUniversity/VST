@@ -50,12 +50,12 @@ Export expr.
 
 #[export] Hint Resolve any_environ : typeclass_instances.
 
+Definition argsassert2assert `{heapGS Σ} (ids: list ident) (M:argsassert):assert :=
+  assert_of (fun rho => M (ge_of rho, map (fun i => eval_id i rho) ids)).
+
 Section mpred.
 
 Context `{!VSTGS OK_ty Σ}.
-
-Definition argsassert2assert (ids: list ident) (M:@argsassert Σ):assert :=
-  assert_of (fun rho => M (ge_of rho, map (fun i => eval_id i rho) ids)).
 
 (* Somehow, this fixes a universe collapse issue that will occur if fool is not defined.
 Definition fool := @map _ Type (fun it : ident * type => mpred).*)
@@ -109,23 +109,23 @@ Fixpoint arglist (n: positive) (tl: typelist) : list (ident*type) :=
   | Tcons t tl' => (n,t):: arglist (n+1)%positive tl'
  end.
 
-Definition loop_nocontinue_ret_assert := @loop2_ret_assert Σ.
+Definition loop_nocontinue_ret_assert := loop2_ret_assert.
 
 (* Misc lemmas *)
-Lemma typecheck_lvalue_sound {CS: compspecs} :
+Lemma typecheck_lvalue_sound {CS: compspecs} `{!heapGS Σ}:
   forall Delta rho e,
     typecheck_environ Delta rho ->
     tc_lvalue Delta e rho ⊢ ⌜is_pointer_or_null (eval_lvalue e rho)⌝.
 Proof.
-eapply expr_lemmas4.typecheck_lvalue_sound; eauto.
+  exact expr_lemmas4.typecheck_lvalue_sound.
 Qed.
 
-Lemma typecheck_expr_sound {CS: compspecs} :
+Lemma typecheck_expr_sound {CS: compspecs}  `{!heapGS Σ}:
   forall Delta rho e,
     typecheck_environ Delta rho ->
     tc_expr Delta e rho ⊢ ⌜tc_val (typeof e) (eval_expr e rho)⌝.
 Proof.
-eapply expr_lemmas4.typecheck_expr_sound; eauto.
+  exact expr_lemmas4.typecheck_expr_sound.
 Qed.
 
 
@@ -211,10 +211,10 @@ End mpred.
 Module Type CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
 Parameter semax: forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {C : compspecs},
-  coPset → tycontext → @assert Σ → statement → @ret_assert Σ → Prop.
+  coPset → tycontext → assert → statement → ret_assert → Prop.
 
-Parameter semax_func: forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} (V : varspecs) (G : @funspecs Σ) {C : compspecs},
-  Genv.t fundef type → list (ident * fundef) → @funspecs Σ → Prop.
+Parameter semax_func: forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} (V : varspecs) (G : funspecs(Σ := Σ)) {C : compspecs},
+  Genv.t fundef type → list (ident * fundef) → funspecs(Σ := Σ) → Prop.
 
 Parameter semax_external: forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty}, external_function →
   ∀ A : TypeTree, (@dtfr Σ (MaskTT A)) → (@dtfr Σ (ArgsTT A)) → (@dtfr Σ (AssertTT A)) → mpred.
@@ -591,7 +591,7 @@ Axiom semax_body_funspec_sub: forall {V G f i phi phi'}
 Axiom general_intersection_funspec_subIJ: forall I (HI: inhabited I) J
       sig cc phi1 ToF1 CoF1 phi2 ToF2 CoF2 
       (H: forall i, exists j, funspec_sub (phi1 j) (phi2 i)),
-   funspec_sub (@general_intersection _ J sig cc phi1 ToF1 CoF1) (@general_intersection _ I sig cc phi2 ToF2 CoF2).
+   funspec_sub (@general_intersection _ _ J sig cc phi1 ToF1 CoF1) (@general_intersection _ _ I sig cc phi2 ToF2 CoF2).
 
 Axiom semax_Delta_subsumption:
   forall E Delta Delta' P c R,

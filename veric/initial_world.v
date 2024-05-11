@@ -169,7 +169,7 @@ Lemma find_id_app2 {A} i x G2: forall G1, list_norepet (map fst (G1++G2)) ->
 Section inflate.
 (* build an initial resource map from a CompCert memory, including funspecs *)
 Variable (m: mem) (block_bounds: block -> (Z * nat)).
-Context {F} (ge: Genv.t (fundef F) type) (G: @funspecs Σ).
+Context {F} (ge: Genv.t (fundef F) type) (G: funspecs(Σ := Σ)).
 
 Definition funspec_of_loc loc := if eq_dec loc.2 0 then
   match Genv.invert_symbol ge loc.1 with
@@ -1248,7 +1248,7 @@ Proof.
   lia.
 Qed.
 
-Local Instance decide_fun_lt m {F} (ge : Genv.t (fundef F) type) : ∀ x : ident * @funspec Σ, Decision ((fun '(id, _) => match Genv.find_symbol ge id with Some b => Plt b (nextblock m) | None => False%type end) x).
+Local Instance decide_fun_lt m {F} (ge : Genv.t (fundef F) type) : ∀ x : ident * funspec, Decision ((fun '(id, _) => match Genv.find_symbol ge id with Some b => Plt b (nextblock m) | None => False%type end) x).
 Proof.
   intros (?, ?); destruct (Genv.find_symbol _ _); last by right; intros ?.
   destruct (plt b (nextblock m)); by [left | right].

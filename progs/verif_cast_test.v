@@ -5,7 +5,7 @@ Require Import VST.progs.cast_test.
 #[export] Instance CompSpecs : compspecs.
 Proof. make_compspecs prog. Defined.
 
-Definition test_spec : ident * funspec :=
+Definition test_spec :=
  DECLARE _test
   WITH n: Z
   PRE [ tlong ]
@@ -17,7 +17,7 @@ Definition test_spec : ident * funspec :=
         RETURN (Vint (Int.repr 0))
         SEP ().
 
-Definition issue500_spec : ident * funspec := 
+Definition issue500_spec :=
   DECLARE _issue500
   WITH i: Int64.int
   PRE [ tlong ]

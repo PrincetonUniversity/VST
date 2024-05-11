@@ -32,7 +32,7 @@ Definition tc_expropt {CS: compspecs} Delta (e: option expr) (t: type) : assert 
                      | Some e' => (tc_expr Delta (Ecast e' t))
   end.
 
-Definition tc_temp_id_load id tfrom Delta v : @assert Σ :=
+Definition tc_temp_id_load id tfrom Delta v : assert :=
 local (fun rho => exists tto, (temp_types Delta) !! id = Some tto
                       /\ tc_val tto (eval_cast tfrom tto (v rho))).
 
