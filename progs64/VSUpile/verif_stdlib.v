@@ -32,7 +32,7 @@ Definition placeholder_spec :=
 
   Definition MF_ASI: funspecs := MallocFreeASI M.
 
-  Definition MF_imported_specs:funspecs :=  nil.
+  Definition MF_imported_specs: funspecs :=  nil.
 
   Definition MF_internal_specs: funspecs := placeholder_spec::MF_ASI.
 

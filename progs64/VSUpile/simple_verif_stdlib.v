@@ -28,7 +28,7 @@ Definition placeholder_spec :=
  POST [ tint ]
    PROP() LOCAL() SEP().
 
-Definition MF_imported_specs:funspecs :=  nil.
+Definition MF_imported_specs: funspecs :=  nil.
 
 Definition MF_internal_specs: funspecs := placeholder_spec::MallocFreeASI.
 
