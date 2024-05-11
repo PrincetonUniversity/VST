@@ -1,5 +1,7 @@
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.floyd.base2.
 Require Import VST.floyd.assert_lemmas.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Import VST.floyd.type_induction.
 Require Import VST.floyd.jmeq_lemmas.
 Require Export VST.floyd.fieldlist.

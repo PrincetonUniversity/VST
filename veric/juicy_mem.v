@@ -1,7 +1,10 @@
 From iris.algebra Require Import agree.
 Require Import VST.sepcomp.mem_lemmas.
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 From VST.veric Require Import base Memory juicy_base shares.
 From VST.shared Require Import shared resource_map gen_heap dshare.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
+
 Require Import VST.zlist.sublist.
 Export Values.
 

@@ -1,4 +1,6 @@
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.floyd.base2.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Import VST.floyd.fieldlist.
 Require Import VST.floyd.computable_theorems.
 Require Export stdpp.hlist. (* use this instead of ListType to avoid universe inconsistencies? *)

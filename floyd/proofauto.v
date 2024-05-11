@@ -1,7 +1,9 @@
 From compcert Require Export common.AST cfrontend.Ctypes cfrontend.Clight.
 Export Cop.
 Require VST.veric.version.
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Export VST.floyd.base2.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Export VST.floyd.functional_base.
 Require Export VST.floyd.client_lemmas.
 Require Export VST.floyd.go_lower.
@@ -137,7 +139,7 @@ Notation default_VSTGS Σ := (VSTGS unit Σ).
 
 #[export] Instance NullEspec : ext_spec unit := void_spec unit.
 
-Arguments semax {_} {_} {_} {_} {_} E Delta Pre%assert cmd%C Post%assert.
+Arguments semax {_} {_} {_} {_} {_} E Delta Pre%_assert cmd%_C Post%_assert.
 Export ListNotations.
 Export Clight_Cop2.
  

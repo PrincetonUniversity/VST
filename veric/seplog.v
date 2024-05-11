@@ -1,6 +1,8 @@
 Require Export VST.veric.base.
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import iris_ora.algebra.gmap_view.
 Require Import VST.veric.res_predicates.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Import VST.veric.mpred.
 Require Import VST.veric.address_conflict.
 Require Export VST.veric.shares.

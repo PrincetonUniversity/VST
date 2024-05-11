@@ -1,5 +1,5 @@
 Require Import VST.sepcomp.semantics.
-
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.veric.juicy_base.
 Require Import VST.veric.juicy_mem VST.veric.juicy_mem_lemmas.
 Require Import VST.veric.external_state.
@@ -25,6 +25,7 @@ Require Import VST.veric.semax_switch.
 Require Import VST.veric.semax_prog.
 Require Import VST.veric.semax_ext.
 Require Import VST.veric.SeparationLogic.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Import LiftNotation.
 
 Module Type SEPARATION_HOARE_LOGIC_SOUNDNESS.

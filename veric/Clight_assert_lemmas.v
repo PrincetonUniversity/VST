@@ -1,5 +1,7 @@
 Require Export VST.veric.base.
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Export VST.veric.res_predicates.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Import VST.veric.Clight_seplog.
 Require Export VST.veric.assert_lemmas.
 

@@ -1,4 +1,6 @@
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.floyd.base2.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Export VST.zlist.Zlength_solver.
 Require Export VST.zlist.list_solver.
 Require Import VST.floyd.reptype_lemmas.

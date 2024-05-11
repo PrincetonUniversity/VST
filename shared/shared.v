@@ -3,8 +3,10 @@
 
 From iris.algebra Require Export agree.
 From iris.algebra Require Import updates local_updates proofmode_classes big_op.
+Set Warnings "-notation-overridden,-hiding-delimiting-key".
 From VST.shared Require Export share_alg dshare.
 From iris_ora.algebra Require Export ora agree.
+Set Warnings "notation-overridden,hiding-delimiting-key".
 From iris.prelude Require Import options.
 
 Section shared.

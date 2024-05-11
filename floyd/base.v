@@ -1,5 +1,6 @@
 From compcert Require Export Clightdefs.
 Require Export VST.veric.base.
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Export VST.veric.SeparationLogic.
 Require Export VST.msl.Extensionality.
 Require Export compcert.lib.Coqlib.
@@ -9,6 +10,7 @@ Require Export VST.floyd.jmeq_lemmas.
 Require Export VST.floyd.find_nth_tactic.
 Require Export VST.floyd.val_lemmas.
 Require Export VST.floyd.assert_lemmas.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Export compcert.cfrontend.Ctypes.
 Require Export VST.veric.expr.
 Require VST.floyd.SeparationLogicAsLogicSoundness.

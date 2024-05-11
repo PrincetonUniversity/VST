@@ -1,4 +1,6 @@
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.floyd.base2.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Import VST.floyd.client_lemmas.
 Import LiftNotation.
 Import -(notations) compcert.lib.Maps.
@@ -143,7 +145,9 @@ intros.
 apply closed_wrt_map_subst. done.
 Qed.
 
+Set Warnings "-redundant-canonical-projection".
 Canonical Structure valC := @leibnizO val.
+Set Warnings "redundant-canonical-projection".
 Definition val_valC val : valC := val.
 
 Lemma closed_wrt_subst_eval_expr:

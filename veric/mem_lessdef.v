@@ -9,9 +9,10 @@ Require Import compcert.common.Values.
 Require Import VST.msl.Coqlib2.
 Require Import VST.msl.eq_dec.
 Require Import VST.veric.Memory.
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.veric.juicy_mem.
-
 Require Import VST.veric.res_predicates.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 
 (*Lenb: Should Imports from sepcomp really be here?*)
 Require Import VST.sepcomp.extspec.

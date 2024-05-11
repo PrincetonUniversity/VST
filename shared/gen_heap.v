@@ -3,11 +3,13 @@
 From stdpp Require Export namespaces.
 From iris.algebra Require Import reservation_map.
 From iris.algebra Require Import agree.
+Set Warnings "-notation-overridden,-hiding-delimiting-key".
 From iris_ora.algebra Require Import agree ext_order.
 From iris.proofmode Require Import proofmode.
 From iris_ora.logic Require Export logic own ghost_map.
 From VST.shared Require Import shared resource_map.
 From VST.shared Require Export dshare.
+Set Warnings "notation-overridden,hiding-delimiting-key".
 From iris.prelude Require Import options.
 
 (** This file defines the language-level points-to

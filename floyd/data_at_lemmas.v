@@ -1,6 +1,8 @@
 From compcert Require Import common.AST cfrontend.Ctypes cfrontend.Clight.
 Import Cop.
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.floyd.base2.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Import VST.floyd.functional_base.
 Require Import VST.floyd.client_lemmas.
 Require Import VST.floyd.compare_lemmas.

@@ -6,7 +6,9 @@ Require Import VST.veric.Clight_lemmas.
 Require Import VST.veric.type_induction.
 Require Import VST.veric.composite_compute.
 Require Import VST.veric.align_mem.
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.veric.tycontext.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Import VST.veric.Cop2.
 Require Import VST.veric.expr.
 Import compcert.lib.Maps.

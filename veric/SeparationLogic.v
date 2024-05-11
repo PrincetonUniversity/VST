@@ -12,7 +12,9 @@ Require Export VST.sepcomp.extspec.
 Require Export VST.msl.eq_dec.
 Require Export VST.msl.shares.
 Require Export VST.veric.log_normalize.
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Export VST.veric.tycontext.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Export VST.veric.change_compspecs.
 Require Export VST.veric.mpred.
 Require Export VST.veric.expr.
@@ -24,13 +26,17 @@ Require Export VST.veric.align_mem.
 Require Export VST.veric.shares.
 Require Export VST.veric.seplog.
 Require Export VST.veric.Clight_seplog.
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Export VST.veric.Clight_assert_lemmas.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Export VST.veric.extend_tc.
 Require Import VST.msl.Coqlib2.
 Require Import VST.veric.juicy_extspec.
 Require Export VST.veric.mapsto_memory_block.
 Require Export VST.veric.valid_pointer.
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Export VST.veric.external_state.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Export VST.veric.Clight_initial_world.
 Require Export VST.veric.initialize.
 Require Export VST.veric.semax.
@@ -159,7 +165,7 @@ Lemma tc_temp_id_cspecs_sub {CS CS'} (CSUB: cspecs_sub CS CS') Delta rho e i:
   tc_environ Delta rho -> tc_temp_id i (typeof e) (CS := CS) Delta e rho ⊢ tc_temp_id i (typeof e) (CS := CS') Delta e rho.
 Proof.
   intros. unfold tc_temp_id, typecheck_temp_id; simpl.
-  destruct ((temp_types Delta) !! i); last done.
+  destruct (Maps.PTree.get i (temp_types Delta)); last done.
   rewrite !denote_tc_assert_andp.
   iIntros "H"; iSplit.
   + iDestruct "H" as "[H _]"; rewrite (@denote_tc_assert_tc_bool_cs_invariant CS' CS) //.

@@ -1,7 +1,9 @@
 Require Import Coq.Reals.Rdefinitions.
 Require Import VST.veric.Clight_base.
 Require Import VST.veric.Clight_lemmas.
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.veric.res_predicates.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Import VST.veric.mpred.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.

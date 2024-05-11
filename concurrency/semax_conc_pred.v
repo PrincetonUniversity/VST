@@ -1,6 +1,8 @@
 Require Import VST.msl.msl_standard.
 Require Import VST.veric.Clight_base.
+Set Warnings "-custom-entry-overridden".
 Require Import VST.veric.juicy_mem.
+Set Warnings "custom-entry-overridden".
 Require Import VST.veric.juicy_mem_lemmas.
 Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.tycontext.
@@ -8,13 +10,14 @@ Require Import VST.veric.expr2.
 Require Import VST.veric.semax.
 Require Import VST.veric.semax_call.
 Require Import VST.veric.semax_ext.
-(*Require Import VST.veric.semax_ext_oracle.*)
 Require Import VST.veric.juicy_safety.
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.veric.res_predicates.
 Require Import VST.veric.SeparationLogic.
 Require Import VST.sepcomp.semantics.
 Require Import VST.sepcomp.extspec.
 Require Import VST.floyd.base VST.floyd.seplog_tactics.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Import VST.floyd.reptype_lemmas.
 Require Import VST.floyd.field_at.
 Require Import VST.floyd.nested_field_lemmas.
