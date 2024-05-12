@@ -3444,16 +3444,16 @@ Ltac QPlink_progs p1 p2 :=
                end in
   exact p.
 
-(* Commented out, for now.  All this needs to be ported from VST 2.14 to VST 3.0 
 Section WholeComp_semaxprogConstructive.
-Variable Espec : OracleKind.
-Variable Externs : funspecs.
+Context `{!VSTGS OK_ty Σ}.
+Variable Espec : ext_spec OK_ty.
+Variable Externs : @funspecs Σ.
 Variable p : QP.program function.
-Variable Exports : funspecs.
+Variable Exports : @funspecs Σ.
 Variable GP : globals -> mpred.
 Variable mainspec : funspec.
 Variable G: list(ident * funspec).
-Variable c: @Component Espec (QPvarspecs p) Externs nil p Exports GP (G_merge
+Variable c: Component (Espec := Espec) (QPvarspecs p) Externs nil p Exports GP (G_merge
                  [(QP.prog_main p, mainspec)] G).
 
 Lemma WholeComponent_semax_progConstructive: forall
@@ -3471,7 +3471,7 @@ Lemma WholeComponent_semax_progConstructive: forall
          (composite_env_of_QPcomposite_env (QP.prog_comp_env p) H) 
            = Errors.OK tt),
 let CBC1 := CBC _ in
-@semax_prog Espec (Comp_cs c)
+semax_prog (OK_spec := Espec) (cs := Comp_cs c)
    (wholeprog_of_QPprog p (Comp_prog_OK c)
     (cenv_built_correctly_e
          (map compdef_of_compenv_element
@@ -3497,14 +3497,14 @@ Proof.
  replace (fun x : ident * QP.builtin => fst (of_builtin x)) with (@fst ident QP.builtin); auto.
  extensionality x. destruct x,b; simpl; auto.
 -
- red. unfold SeparationLogic.prog_vars;
+ red. unfold prog_vars;
  subst prog; simpl.
  clear - ALIGNED.
  unfold QPall_initializers_aligned in *.
  unfold QPprog_vars in ALIGNED.
-  replace  (SeparationLogic.prog_vars'
+  replace  (prog_vars'
      (map of_builtin (QP.prog_builtins p) ++ PTree.elements (QP.prog_defs p)))
-    with  (SeparationLogic.prog_vars'(PTree.elements (QP.prog_defs p)))
+    with  (prog_vars'(PTree.elements (QP.prog_defs p)))
        by (induction (QP.prog_builtins p) as [|[i ?]]; try destruct b; simpl; auto).
  induction (PTree.elements (QP.prog_defs p)) as [|[i?]]; auto.
  destruct g; auto.
@@ -3514,14 +3514,14 @@ Proof.
   f_equal.
   apply (proj1 (QPcompspecs_OK_e _ (proj2 (Comp_prog_OK c)))).
 -
- apply (@WholeComponent_semax_func _ _ _ _ _ _ c EXT_OK DEFS_NOT_BUILTIN).
+ apply (WholeComponent_semax_func c EXT_OK DEFS_NOT_BUILTIN).
 -
   subst prog; simpl.
-  unfold QPvarspecs, QPprog_vars, SeparationLogic.prog_vars. simpl.
+  unfold QPvarspecs, QPprog_vars, prog_vars. simpl.
   clear.
-  replace  (SeparationLogic.prog_vars'
+  replace  (prog_vars'
      (map of_builtin (QP.prog_builtins p) ++ PTree.elements (QP.prog_defs p)))
-    with  (SeparationLogic.prog_vars'(PTree.elements (QP.prog_defs p)))
+    with  (prog_vars'(PTree.elements (QP.prog_defs p)))
        by (induction (QP.prog_builtins p) as [|[i ?]]; try destruct b; simpl; auto).
   induction (PTree.elements (QP.prog_defs p)) as [|[i?]].
   simpl. auto.
@@ -3532,7 +3532,6 @@ Proof.
   simpl; auto.
 - simpl find_id.
    unfold augment_funspecs.
-   change SeparationLogic.prog_funct with prog_funct.
    erewrite prog_funct_QP_prog_funct; [ | reflexivity].
   set (G1 := G_merge [(QP.prog_main p, mainspec)] G).
    destruct (augment_funspecs'_exists G1 (QP.prog_builtins p) (QPprog_funct p)) 
@@ -3587,14 +3586,14 @@ Proof.
    exists post.
    unfold QPmain_spec_ext', main_spec_ext'.
    f_equal.
-   subst prog. unfold main_pre, SeparationLogic.main_pre.
-   unfold SeparationLogic.prog_vars. simpl.
+   subst prog. unfold main_pre, semax_prog.main_pre.
+   unfold prog_vars. simpl.
    unfold QPprog_vars.
-   replace  (SeparationLogic.prog_vars'
+   replace  (prog_vars'
      (map of_builtin (QP.prog_builtins p) ++ PTree.elements (QP.prog_defs p)))
-    with  (SeparationLogic.prog_vars'(PTree.elements (QP.prog_defs p)))
+    with  (prog_vars'(PTree.elements (QP.prog_defs p)))
        by (clear; induction (QP.prog_builtins p) as [|[i ?]]; try destruct b; simpl; auto).
-   extensionality gv rho.
+   extensionality gv. f_equal; extensionality rho.
    normalize. f_equal. f_equal. f_equal. f_equal.
   clear.
   induction (PTree.elements (QP.prog_defs p)) as [|[i?]]; auto.
@@ -3606,14 +3605,14 @@ Qed.
 End WholeComp_semaxprogConstructive.
 
 (*another variant, currently unused*)
-Definition WholeProgSafeType' {Espec E p Exports GP mainspec} G
+Definition WholeProgSafeType' `{!VSTGS OK_ty Σ} {Espec E p Exports GP mainspec} G
        (c: find_id (QP.prog_main p) G = None /\
-             @Component Espec (QPvarspecs p) E nil p Exports GP 
+             Component (Espec := Espec) (QPvarspecs p) E nil p Exports GP 
          (G_merge
                  [(QP.prog_main p, mainspec)] G))
-             (z: @OK_ty Espec) :=
+             (z: OK_ty) :=
  exists cs, exists OK, exists CBC, (*exists G, *)
-@semax_prog Espec cs
+semax_prog (OK_spec := Espec) (cs := cs)
    (wholeprog_of_QPprog p OK
     (cenv_built_correctly_e
          (map compdef_of_compenv_element
@@ -3624,10 +3623,10 @@ Definition WholeProgSafeType' {Espec E p Exports GP mainspec} G
       (G_merge [(QP.prog_main p, mainspec)] G).
 
 Lemma WholeComponent_semax_prog':
- forall {Espec Externs p Exports GP mainspec} G
+ forall `{!VSTGS OK_ty Σ} {Espec Externs p Exports GP mainspec} G
   (c:  
     find_id (QP.prog_main p) G = None /\
-     @Component Espec (QPvarspecs p) Externs nil p Exports GP (G_merge
+     Component (Espec := Espec) (QPvarspecs p) Externs nil p Exports GP (G_merge
                  [(QP.prog_main p, mainspec)] G))
   (NOMAIN:find_id (QP.prog_main p) G = None)
   (z: OK_ty)
@@ -3644,7 +3643,7 @@ Lemma WholeComponent_semax_prog':
            = Errors.OK tt),
   WholeProgSafeType' G c z.
 Proof.
- intros ? ? ? ? ? mainspec; intros.
+ intros ? ? ? ? ? ? ? ? mainspec; intros.
  destruct c as [NO_MAIN c].
  pose (prog := prog_of_component c (CBC _)).
  red.
@@ -3662,18 +3661,18 @@ Proof.
  clear - c.
  rewrite map_app.
  destruct (Comp_prog_OK c).
- rewrite map_map. 
+ rewrite map_map.
  replace (fun x : ident * QP.builtin => fst (of_builtin x)) with (@fst ident QP.builtin); auto.
  extensionality x. destruct x,b; simpl; auto.
 -
- red. unfold SeparationLogic.prog_vars;
+ red. unfold prog_vars;
  subst prog; simpl.
  clear - ALIGNED.
  unfold QPall_initializers_aligned in *.
  unfold QPprog_vars in ALIGNED.
-  replace  (SeparationLogic.prog_vars'
+  replace  (prog_vars'
      (map of_builtin (QP.prog_builtins p) ++ PTree.elements (QP.prog_defs p)))
-    with  (SeparationLogic.prog_vars'(PTree.elements (QP.prog_defs p)))
+    with  (prog_vars'(PTree.elements (QP.prog_defs p)))
        by (induction (QP.prog_builtins p) as [|[i ?]]; try destruct b; simpl; auto).
  induction (PTree.elements (QP.prog_defs p)) as [|[i?]]; auto.
  destruct g; auto.
@@ -3683,14 +3682,14 @@ Proof.
   f_equal.
   apply (proj1 (QPcompspecs_OK_e _ (proj2 (Comp_prog_OK c)))).
 -
- apply (@WholeComponent_semax_func _ _ _ _ _ _ c EXT_OK DEFS_NOT_BUILTIN).
+ apply (WholeComponent_semax_func c EXT_OK DEFS_NOT_BUILTIN).
 -
   subst prog; simpl.
-  unfold QPvarspecs, QPprog_vars, SeparationLogic.prog_vars. simpl.
+  unfold QPvarspecs, QPprog_vars, prog_vars. simpl.
   clear.
-  replace  (SeparationLogic.prog_vars'
+  replace  (prog_vars'
      (map of_builtin (QP.prog_builtins p) ++ PTree.elements (QP.prog_defs p)))
-    with  (SeparationLogic.prog_vars'(PTree.elements (QP.prog_defs p)))
+    with  (prog_vars'(PTree.elements (QP.prog_defs p)))
        by (induction (QP.prog_builtins p) as [|[i ?]]; try destruct b; simpl; auto).
   induction (PTree.elements (QP.prog_defs p)) as [|[i?]].
   simpl. auto.
@@ -3701,7 +3700,6 @@ Proof.
   simpl; auto.
 - simpl find_id.
    unfold augment_funspecs.
-   change SeparationLogic.prog_funct with prog_funct.
    erewrite prog_funct_QP_prog_funct; [ | reflexivity].
   set (G1 := G_merge [(QP.prog_main p, mainspec)] G).
    destruct (augment_funspecs'_exists G1 (QP.prog_builtins p) (QPprog_funct p)) 
@@ -3756,14 +3754,14 @@ Proof.
    exists post.
    unfold QPmain_spec_ext', main_spec_ext'.
    f_equal.
-   subst prog. unfold main_pre, SeparationLogic.main_pre.
-   unfold SeparationLogic.prog_vars. simpl.
+   subst prog. unfold main_pre, semax_prog.main_pre.
+   unfold prog_vars. simpl.
    unfold QPprog_vars.
-   replace  (SeparationLogic.prog_vars'
+   replace  (prog_vars'
      (map of_builtin (QP.prog_builtins p) ++ PTree.elements (QP.prog_defs p)))
-    with  (SeparationLogic.prog_vars'(PTree.elements (QP.prog_defs p)))
+    with  (prog_vars'(PTree.elements (QP.prog_defs p)))
        by (clear; induction (QP.prog_builtins p) as [|[i ?]]; try destruct b; simpl; auto).
-   extensionality gv rho.
+   extensionality gv; f_equal; extensionality rho.
    normalize. f_equal. f_equal. f_equal. f_equal.
   clear.
   induction (PTree.elements (QP.prog_defs p)) as [|[i?]]; auto.
@@ -3773,22 +3771,22 @@ Proof.
 Qed.
 
 (*another variant, currently unused*)
-Definition WholeProgSafeType'' {Espec E p Exports GP mainspec} G
+Definition WholeProgSafeType'' `{!VSTGS OK_ty Σ} {Espec E p Exports GP mainspec} G
        (NOMAIN:find_id (QP.prog_main p) G = None)
-        (COMP: @Component Espec (QPvarspecs p) E nil p Exports GP
+        (COMP: Component (Espec := Espec) (QPvarspecs p) E nil p Exports GP
          (G_merge
                  [(QP.prog_main p, mainspec)] G))
-             (z: @OK_ty Espec) :=
+             (z: OK_ty) :=
  exists cs, (*exists OK, *)exists CBC, (*exists G, *)
-@semax_prog Espec cs (prog_of_component COMP CBC)
+semax_prog (OK_spec := Espec) (cs := cs) (prog_of_component COMP CBC)
     z (QPvarspecs p) 
       (G_merge [(QP.prog_main p, mainspec)] G).
 
 Lemma WholeComponent_semax_prog'':
- forall {Espec Externs p Exports GP mainspec} G
+ forall `{!VSTGS OK_ty Σ} {Espec Externs p Exports GP mainspec} G
   (NOMAIN:
     find_id (QP.prog_main p) G = None )
-  (COMP: @Component Espec (QPvarspecs p) Externs nil p Exports GP (G_merge
+  (COMP: Component (Espec := Espec) (QPvarspecs p) Externs nil p Exports GP (G_merge
                  [(QP.prog_main p, mainspec)] G))
   (z: OK_ty)
   (MAIN: exists post, mainspec = QPmain_spec_ext' p z post)
@@ -3804,7 +3802,7 @@ Lemma WholeComponent_semax_prog'':
            = Errors.OK tt),
   WholeProgSafeType'' G NOMAIN COMP z.
 Proof.
- intros ? ? ? ? ? mainspec; intros.
+ intros ? ? ? ? ? ? ? ? mainspec; intros.
 (* destruct c as [NO_MAIN c].
  pose (prog := prog_of_component c (CBC _)).*)
  red.
@@ -3827,14 +3825,14 @@ Proof.
  replace (fun x : ident * QP.builtin => fst (of_builtin x)) with (@fst ident QP.builtin); auto.
  extensionality x. destruct x,b; simpl; auto.
 -
- red. unfold SeparationLogic.prog_vars;
+ red. unfold prog_vars;
  (*subst prog;*) simpl.
  clear - ALIGNED.
  unfold QPall_initializers_aligned in *.
  unfold QPprog_vars in ALIGNED.
-  replace  (SeparationLogic.prog_vars'
+  replace  (prog_vars'
      (map of_builtin (QP.prog_builtins p) ++ PTree.elements (QP.prog_defs p)))
-    with  (SeparationLogic.prog_vars'(PTree.elements (QP.prog_defs p)))
+    with  (prog_vars'(PTree.elements (QP.prog_defs p)))
        by (induction (QP.prog_builtins p) as [|[i ?]]; try destruct b; simpl; auto).
  induction (PTree.elements (QP.prog_defs p)) as [|[i?]]; auto.
  destruct g; auto.
@@ -3844,14 +3842,14 @@ Proof.
   f_equal.
   apply (proj1 (QPcompspecs_OK_e _ (proj2 (Comp_prog_OK c)))).
 -
- apply (@WholeComponent_semax_func _ _ _ _ _ _ c EXT_OK DEFS_NOT_BUILTIN).
+ apply (WholeComponent_semax_func c EXT_OK DEFS_NOT_BUILTIN).
 -
   (*subst prog;*) simpl.
-  unfold QPvarspecs, QPprog_vars, SeparationLogic.prog_vars. simpl.
+  unfold QPvarspecs, QPprog_vars, prog_vars. simpl.
   clear.
-  replace  (SeparationLogic.prog_vars'
+  replace  (prog_vars'
      (map of_builtin (QP.prog_builtins p) ++ PTree.elements (QP.prog_defs p)))
-    with  (SeparationLogic.prog_vars'(PTree.elements (QP.prog_defs p)))
+    with  (prog_vars'(PTree.elements (QP.prog_defs p)))
        by (induction (QP.prog_builtins p) as [|[i ?]]; try destruct b; simpl; auto).
   induction (PTree.elements (QP.prog_defs p)) as [|[i?]].
   simpl. auto.
@@ -3862,7 +3860,6 @@ Proof.
   simpl; auto.
 - simpl find_id.
    unfold augment_funspecs.
-   change SeparationLogic.prog_funct with prog_funct.
    erewrite prog_funct_QP_prog_funct; [ | reflexivity].
   set (G1 := G_merge [(QP.prog_main p, mainspec)] G).
    destruct (augment_funspecs'_exists G1 (QP.prog_builtins p) (QPprog_funct p)) 
@@ -3917,14 +3914,14 @@ Proof.
    exists post.
    unfold QPmain_spec_ext', main_spec_ext'.
    f_equal.
-   (*subst prog.*) unfold main_pre, SeparationLogic.main_pre.
-   unfold SeparationLogic.prog_vars. simpl.
+   (*subst prog.*) unfold main_pre, semax_prog.main_pre.
+   unfold prog_vars. simpl.
    unfold QPprog_vars.
-   replace  (SeparationLogic.prog_vars'
+   replace  (prog_vars'
      (map of_builtin (QP.prog_builtins p) ++ PTree.elements (QP.prog_defs p)))
-    with  (SeparationLogic.prog_vars'(PTree.elements (QP.prog_defs p)))
+    with  (prog_vars'(PTree.elements (QP.prog_defs p)))
        by (clear; induction (QP.prog_builtins p) as [|[i ?]]; try destruct b; simpl; auto).
-   extensionality gv rho.
+   extensionality gv; f_equal; extensionality rho.
    normalize. f_equal. f_equal. f_equal. f_equal.
   clear.
   induction (PTree.elements (QP.prog_defs p)) as [|[i?]]; auto.
@@ -3932,8 +3929,6 @@ Proof.
   destruct g; auto.
   f_equal; auto.
 Qed.
-
-end of: commented out, needs to be ported from VST 2.14 to VST 3.0 *)
 
 
 Ltac QPlink_prog_tac p1 p2 :=

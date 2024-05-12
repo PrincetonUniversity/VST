@@ -37,9 +37,10 @@ Lemma NullExtension_whole_program_sequential_safety:
              n tt q m'.
 Proof.
 intros.
-eapply whole_program_sequential_safety_ext in H as (? & ? & ?); eauto.
+eapply whole_program_sequential_safety_ext in H0 as (? & ? & ?); eauto.
 - intros ?????; apply I.
 - intros; apply ext_spec_entails_refl.
+- intros; exists CS; apply H.
 Qed.
 
 (*Lemma module_sequential_safety : (*TODO*)

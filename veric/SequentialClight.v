@@ -158,11 +158,11 @@ Proof.
 Qed.
 
 Lemma whole_program_sequential_safety_ext:
-   forall Σ {CS: compspecs} `{!VSTGpreS OK_ty Σ} {Espec : forall `{VSTGS OK_ty Σ}, ext_spec OK_ty} {dryspec : ext_spec OK_ty} (initial_oracle: OK_ty)
+   forall Σ `{!VSTGpreS OK_ty Σ} {Espec : forall `{VSTGS OK_ty Σ}, ext_spec OK_ty} {dryspec : ext_spec OK_ty} (initial_oracle: OK_ty)
      (EXIT: forall `{!VSTGS OK_ty Σ}, semax_prog.postcondition_allows_exit Espec tint)
      (Hdry : forall `{!VSTGS OK_ty Σ}, ext_spec_entails Espec dryspec)
      prog V (G : forall `{VSTGS OK_ty Σ}, funspecs) m,
-     (forall {HH : VSTGS OK_ty Σ}, semax_prog(OK_spec := Espec) prog initial_oracle V G) ->
+     (forall {HH : VSTGS OK_ty Σ}, exists CS: compspecs, semax_prog(OK_spec := Espec) prog initial_oracle V G) ->
      Genv.init_mem prog = Some m ->
      exists b, exists q,
        Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some b /\
@@ -195,7 +195,7 @@ Proof.
   iMod (@init_VST _ _ VSTGpreS0) as "H".
   iDestruct ("H" $! Hinv) as (?? HE) "(H & ?)".
   set (HH := Build_VSTGS _ _ (HeapGS _ _ _ _) HE).
-  specialize (H HH); specialize (EXIT HH).
+  specialize (H HH); specialize (EXIT HH); destruct H.
   eapply (semax_prog_rule _ _ _ _ n) in H as (b & q & (? & ? & Hinit & ->) & Hsafe); [|done..].
   iMod (Hsafe with "H") as "Hsafe".
   rewrite bi.and_elim_l.
