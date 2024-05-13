@@ -38,7 +38,7 @@ OFILES = $(patsubst %.c,%.o,$(CFILES))
 VOFILES = $(patsubst %.v,%.vo,$(CVFILES) $(VFILES))
 
 
-VST_DIRS= msl sepcomp veric zlist floyd
+VST_DIRS= msl shared sepcomp veric zlist floyd
 VSTFLAGS= -R $(VST_LOC)/compcert compcert $(foreach d, $(VST_DIRS), -Q $(VST_LOC)/$(d) VST.$(d)) -R . pile
 
 

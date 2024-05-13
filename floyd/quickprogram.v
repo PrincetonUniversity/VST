@@ -1,4 +1,6 @@
+Set Warnings "-hiding-delimiting-key,-custom-entry-overridden,-notation-overridden".
 Require Import VST.floyd.base.
+Set Warnings "hiding-delimiting-key,custom-entry-overridden,notation-overridden".
 Require Import VST.floyd.PTops.
 Require Import VST.floyd.QPcomposite.
 Import -(notations) compcert.lib.Maps.

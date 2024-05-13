@@ -413,7 +413,9 @@ Proof. intros.  exists (assert_of P). reflexivity. Qed.
 
 Fail Example bi_of_assert'_test : forall (P Q : assert'), P ∗ Q ⊢ Q ∗ P.
 Program Definition bi_assert (P : assert) : bi_car assert := {| monPred_at := P |}.
+Set Warnings "-uniform-inheritance".
 Global Coercion bi_assert : assert >-> bi_car.
+Set Warnings "uniform-inheritance".
 (* "Print Coercion Paths assert' bi_car" prints "[assert_of; bi_assert]" *)
 Example test : forall (P Q : assert'), P ∗ Q ⊢ Q ∗ P. 
 Proof. intros. rewrite bi.sep_comm. done. Qed.

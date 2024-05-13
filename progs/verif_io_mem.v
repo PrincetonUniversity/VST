@@ -593,7 +593,7 @@ Proof.
   - apply io_spec_sound.
     intros ?? [<- | [<- | ?]]; last done;
       rewrite /ext_link /ext_link_prog /prog /=; repeat (if_tac; first done); done.
-  - intros; apply CSHL_Sound.semax_prog_sound, prog_correct.
+  - intros; eexists; apply CSHL_Sound.semax_prog_sound, prog_correct.
   - apply (proj2_sig init_mem_exists).
   - exists q.
     rewrite (proj2_sig main_block_exists) in Hb; inv Hb.

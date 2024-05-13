@@ -142,7 +142,7 @@ Section ext_trace.
   Proof.
     intros.
     eapply whole_program_sequential_safety_ext in EXIT as (b & q & ? & ? & Hsafe); eauto.
-    2: { intros; apply CSHL_Sound.semax_prog_sound, H. }
+    2: { intros; eexists; apply CSHL_Sound.semax_prog_sound, H. }
     do 3 eexists; eauto; split; eauto; intros n.
     eapply dry_safe_ext_trace_safe; eauto.
   Qed.

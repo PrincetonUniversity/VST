@@ -1,4 +1,6 @@
+Set Warnings "-custom-entry-overridden".
 Require Import VST.floyd.proofauto.
+Set Warnings "custom-entry-overridden".
 Require Import VST.veric.Clight_initial_world.
 Require Import VST.floyd.assoclists.
 Require Import VST.floyd.PTops.

@@ -4,6 +4,7 @@ Require Import VST.veric.Clight_core.
 Require Import VST.veric.Clight_lemmas.
 Require Import VST.sepcomp.step_lemmas.
 Require Import VST.sepcomp.event_semantics.
+Set Warnings "-hiding-delimiting-key,-custom-entry-overridden,-notation-overridden".
 Require Import VST.veric.Clight_evsem.
 Require Import VST.veric.SeparationLogic.
 Require Import VST.veric.juicy_extspec.
@@ -11,6 +12,7 @@ Require Import VST.veric.juicy_mem.
 Require Import VST.veric.SeparationLogicSoundness.
 Require Import iris_ora.logic.wsat.
 Require Import iris_ora.logic.fancy_updates.
+Set Warnings "hiding-delimiting-key,custom-entry-overridden,notation-overridden".
 Require Import VST.sepcomp.extspec.
 
 Import VericSound.
