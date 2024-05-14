@@ -11,9 +11,9 @@ Ltac safe_auto_with_closed :=
           solve [first [has_evar A | auto 50 with closed]]
  end.
 
-Section CLOSED_LEMMAS.
+(*Section CLOSED_LEMMAS.*)
 
-Context `{!heapGS Σ}.
+(*Context `{!heapGS Σ}.*)
 
 (* consider switching this to eq *)
 Lemma closed_env_set:
@@ -136,7 +136,7 @@ constructor; auto.
 rewrite closed_wrt_subst; auto.
 Qed.
 
-Lemma closed_wrt_map_subst':
+Lemma closed_wrt_map_subst' `{!heapGS Σ}:
    forall id e (Q: list (environ -d> mpred)),
          Forall (closed_wrt_vars (eq id)) Q ->
           @equiv _ (list.list_equiv(H:=discrete_fun_equiv)) (map (subst id e) Q) Q.
@@ -166,8 +166,11 @@ Proof.
 intros; rewrite <- subst_eval_lvalue_eq.
 apply closed_wrt_subst; auto.
 Qed.
+(*`{!heapGS Σ}
 Local Notation local := (local (Σ:=Σ)). 
-Lemma closed_wrt_local: forall S P, closed_wrt_vars S P -> closed_wrt_vars S (local P).
+*)
+Lemma closed_wrt_local `{!heapGS Σ}: 
+  forall S P, closed_wrt_vars S P -> closed_wrt_vars S (local P).
 Proof.
 intros.
 hnf in H|-*; intros.
@@ -176,7 +179,7 @@ unfold local, lift1.
 rewrite /= H //.
 Qed.
 
-Lemma closed_wrtl_local: forall S P, closed_wrt_lvars S P -> closed_wrt_lvars S (local P).
+Lemma closed_wrtl_local `{!heapGS Σ}: forall S P, closed_wrt_lvars S P -> closed_wrt_lvars S (local P).
 Proof.
 intros.
 hnf in H|-*; intros.
@@ -213,15 +216,19 @@ intros ? ? ?.
 unfold_lift; auto.
 Qed.
 
+(*
 Local Notation assert := (@assert Σ).
+*)
 
-Lemma closed_wrt_embed: forall S (Q : iProp _), closed_wrt_vars S (⎡Q⎤ : assert).
+Lemma closed_wrt_embed {Σ: gFunctors} : forall S (Q : iProp Σ), 
+   closed_wrt_vars S (⎡Q⎤:  monPred environ_index (ouPredI (iResUR Σ))).
 Proof.
 intros.
 intros ? ? ?.
 by monPred.unseal.
 Qed.
-Lemma closed_wrtl_embed: forall S (Q : iProp _), closed_wrt_lvars S (⎡Q⎤ : assert).
+Lemma closed_wrtl_embed {Σ: gFunctors} : forall S (Q : iProp Σ), 
+   closed_wrt_lvars S (⎡Q⎤:  monPred environ_index (ouPredI (iResUR Σ))).
 Proof.
 intros.
 intros ? ? ?.
@@ -603,36 +610,36 @@ intros. unfold get_result1. simpl.
  hnf. f_equal.
 Qed.
 
-Lemma closed_wrt_tc_FF:
+Lemma closed_wrt_tc_FF `{!heapGS Σ}:
  forall {cs: compspecs} S e, closed_wrt_vars S (denote_tc_assert (tc_FF e)).
 Proof.
  intros. hnf; intros. reflexivity.
 Qed.
-Lemma closed_wrtl_tc_FF:
+Lemma closed_wrtl_tc_FF `{!heapGS Σ}:
  forall {cs: compspecs} S e, closed_wrt_lvars S (denote_tc_assert (tc_FF e)).
 Proof.
  intros. hnf; intros. reflexivity.
 Qed.
 
-Lemma closed_wrt_tc_TT:
+Lemma closed_wrt_tc_TT `{!heapGS Σ}:
  forall {cs: compspecs} S, closed_wrt_vars S (denote_tc_assert (tc_TT)).
 Proof.
  intros. hnf; intros. reflexivity.
 Qed.
-Lemma closed_wrtl_tc_TT:
+Lemma closed_wrtl_tc_TT `{!heapGS Σ}:
  forall {cs: compspecs} S, closed_wrt_lvars S (denote_tc_assert (tc_TT)).
 Proof.
  intros. hnf; intros. reflexivity.
 Qed.
 
-Lemma closed_wrt_andp: forall S (P Q: assert),
+Lemma closed_wrt_andp `{!heapGS Σ}: forall S (P Q: assert),
   closed_wrt_vars S P -> closed_wrt_vars S Q ->
   closed_wrt_vars S (P ∧ Q).
 Proof.
   intros; hnf in *; intros.
   monPred.unseal; f_equiv; eauto.
 Qed.
-Lemma closed_wrtl_andp: forall S (P Q: assert),
+Lemma closed_wrtl_andp `{!heapGS Σ}: forall S (P Q: assert),
   closed_wrt_lvars S P -> closed_wrt_lvars S Q ->
   closed_wrt_lvars S (P ∧ Q).
 Proof.
@@ -640,7 +647,7 @@ Proof.
   monPred.unseal; f_equiv; eauto.
 Qed.
 
-Lemma closed_wrt_exp: forall {A} S (P: A -> assert),
+Lemma closed_wrt_exp `{!heapGS Σ}: forall {A} S (P: A -> assert),
   (forall a, closed_wrt_vars S (P a)) ->
   closed_wrt_vars S (∃ x, P x).
 Proof.
@@ -650,7 +657,7 @@ Proof.
   apply H; auto.
 Qed.
 
-Lemma closed_wrtl_exp: forall {A} S (P: A -> assert),
+Lemma closed_wrtl_exp `{!heapGS Σ}: forall {A} S (P: A -> assert),
   (forall a, closed_wrt_lvars S (P a)) ->
   closed_wrt_lvars S (∃ x, P x).
 Proof.
@@ -680,14 +687,14 @@ intros; hnf in *; intros.
 simpl. f_equal; eauto.
 Qed.*)
 
-Lemma closed_wrt_sepcon: forall S (P Q: assert),
+Lemma closed_wrt_sepcon `{!heapGS Σ}: forall S (P Q: assert),
   closed_wrt_vars S P -> closed_wrt_vars S Q ->
   closed_wrt_vars S (P ∗ Q).
 Proof.
   intros; hnf in *; intros.
   monPred.unseal; f_equiv; auto.
 Qed.
-Lemma closed_wrtl_sepcon: forall S (P Q: assert),
+Lemma closed_wrtl_sepcon `{!heapGS Σ}: forall S (P Q: assert),
   closed_wrt_lvars S P -> closed_wrt_lvars S Q ->
   closed_wrt_lvars S (P ∗ Q).
 Proof.
@@ -695,12 +702,12 @@ Proof.
   monPred.unseal; f_equiv; auto.
 Qed.
 
-Lemma closed_wrt_emp: forall S, closed_wrt_vars S (emp : assert).
+Lemma closed_wrt_emp `{!heapGS Σ}: forall S, closed_wrt_vars S (emp : assert).
 Proof. repeat intro. monPred.unseal. reflexivity. Qed.
-Lemma closed_wrtl_emp: forall S, closed_wrt_lvars S (emp : assert).
+Lemma closed_wrtl_emp `{!heapGS Σ}: forall S, closed_wrt_lvars S (emp : assert).
 Proof. repeat intro. monPred.unseal. reflexivity. Qed.
 
-Lemma closed_wrt_allp: forall A S (P : A -> assert),
+Lemma closed_wrt_allp `{!heapGS Σ}: forall A S (P : A -> assert),
   (forall x: A, closed_wrt_vars S (P x)) ->
   closed_wrt_vars S (∀ x, P x).
 Proof.
@@ -709,7 +716,7 @@ Proof.
   f_equiv; intros a.
   apply H; auto.
 Qed.
-Lemma closed_wrtl_allp: forall A S (P : A -> assert),
+Lemma closed_wrtl_allp `{!heapGS Σ}: forall A S (P : A -> assert),
   (forall x: A, closed_wrt_lvars S (P x)) ->
   closed_wrt_lvars S (∀ x, P x).
 Proof.
@@ -729,7 +736,7 @@ hnf.
 intros; subst; congruence.
 Qed.
 
-Lemma closed_wrt_tc_andp:
+Lemma closed_wrt_tc_andp `{!heapGS Σ}:
   forall {cs: compspecs} S a b,
   closed_wrt_vars S (denote_tc_assert a) ->
   closed_wrt_vars S (denote_tc_assert b) ->
@@ -741,7 +748,7 @@ Proof.
 Qed.
 
 
-Lemma closed_wrt_tc_orp:
+Lemma closed_wrt_tc_orp `{!heapGS Σ}:
   forall {cs: compspecs} S a b,
   closed_wrt_vars S (denote_tc_assert a) ->
   closed_wrt_vars S (denote_tc_assert b) ->
@@ -752,7 +759,7 @@ Proof.
   monPred.unseal; f_equiv; eauto.
 Qed.
 
-Lemma closed_wrt_tc_bool:
+Lemma closed_wrt_tc_bool `{!heapGS Σ}:
   forall {cs: compspecs} S b e, closed_wrt_vars S (denote_tc_assert (tc_bool b e)).
 Proof.
  intros.
@@ -760,7 +767,7 @@ Proof.
  destruct b; simpl; auto.
 Qed.
 
-Lemma closed_wrt_tc_int_or_ptr_type:
+Lemma closed_wrt_tc_int_or_ptr_type `{!heapGS Σ}:
   forall {cs: compspecs} S t, 
   closed_wrt_vars S (denote_tc_assert (tc_int_or_ptr_type t)).
 Proof.
@@ -769,7 +776,7 @@ Proof.
 Qed.
 
 
-Lemma closed_wrtl_tc_andp:
+Lemma closed_wrtl_tc_andp `{!heapGS Σ}:
   forall {cs: compspecs} S a b,
   closed_wrt_lvars S (denote_tc_assert a) ->
   closed_wrt_lvars S (denote_tc_assert b) ->
@@ -781,7 +788,7 @@ Proof.
 Qed.
 
 
-Lemma closed_wrtl_tc_orp:
+Lemma closed_wrtl_tc_orp `{!heapGS Σ}:
   forall {cs: compspecs} S a b,
   closed_wrt_lvars S (denote_tc_assert a) ->
   closed_wrt_lvars S (denote_tc_assert b) ->
@@ -791,7 +798,7 @@ Proof.
   rewrite !denote_tc_assert_orp.
   monPred.unseal; f_equiv; eauto.
 Qed.
-Lemma closed_wrtl_tc_bool:
+Lemma closed_wrtl_tc_bool `{!heapGS Σ}:
   forall {cs: compspecs} S b e, closed_wrt_lvars S (denote_tc_assert (tc_bool b e)).
 Proof.
  intros.
@@ -799,7 +806,7 @@ Proof.
  destruct b; simpl; auto.
 Qed.
 
-Lemma closed_wrt_tc_test_eq:
+Lemma closed_wrt_tc_test_eq `{!heapGS Σ}:
   forall {cs: compspecs} S e e',
           expr_closed_wrt_vars S e ->
           expr_closed_wrt_vars S e' ->
@@ -812,7 +819,7 @@ hnf; intros.
 rewrite !denote_tc_assert_test_eq'.
 simpl. unfold_lift. f_equiv; hnf; eauto.
 Qed.
-Lemma closed_wrtl_tc_test_eq:
+Lemma closed_wrtl_tc_test_eq `{!heapGS Σ}:
   forall {cs: compspecs} S e e',
           expr_closed_wrt_lvars S e ->
           expr_closed_wrt_lvars S e' ->
@@ -826,7 +833,7 @@ rewrite !denote_tc_assert_test_eq'.
 simpl. unfold_lift. f_equiv; hnf; eauto.
 Qed.
 
-Lemma closed_wrt_tc_test_order:
+Lemma closed_wrt_tc_test_order `{!heapGS Σ}:
   forall {cs: compspecs} S e e',
           expr_closed_wrt_vars S e ->
           expr_closed_wrt_vars S e' ->
@@ -839,7 +846,7 @@ hnf; intros.
 rewrite !denote_tc_assert_test_order'.
 simpl. unfold_lift. f_equiv; hnf; eauto.
 Qed.
-Lemma closed_wrtl_tc_test_order:
+Lemma closed_wrtl_tc_test_order `{!heapGS Σ}:
   forall {cs: compspecs} S e e',
           expr_closed_wrt_lvars S e ->
           expr_closed_wrt_lvars S e' ->
@@ -867,7 +874,7 @@ super_unfold_lift. auto.
 Qed.
 
 
-Lemma closed_wrt_tc_iszero:
+Lemma closed_wrt_tc_iszero `{!heapGS Σ}:
   forall {cs: compspecs}  S e, expr_closed_wrt_vars S e ->
     closed_wrt_vars S (denote_tc_assert (tc_iszero e)).
 Proof.
@@ -878,7 +885,7 @@ hnf; intros. hnf in H. specialize (H _ _ H0).
 unfold_lift. rewrite <- H. auto.
 Qed.
 
-Lemma closed_wrtl_tc_iszero:
+Lemma closed_wrtl_tc_iszero `{!heapGS Σ}:
   forall {cs: compspecs}  S e, expr_closed_wrt_lvars S e ->
     closed_wrt_lvars S (denote_tc_assert (tc_iszero e)).
 Proof.
@@ -888,7 +895,7 @@ hnf; intros. specialize (H _ _ _ H0).
 simpl. unfold_lift; simpl. rewrite <- H; auto.
 Qed.
 
-Lemma closed_wrt_tc_isptr:
+Lemma closed_wrt_tc_isptr `{!heapGS Σ}:
  forall {cs: compspecs} S e,
      expr_closed_wrt_vars S e ->
      closed_wrt_vars S (denote_tc_assert (tc_isptr e)).
@@ -899,7 +906,7 @@ Proof.
  simpl. unfold_lift. f_equiv; auto.
 Qed.
 
-Lemma closed_wrtl_tc_isptr:
+Lemma closed_wrtl_tc_isptr `{!heapGS Σ}:
  forall {cs: compspecs} S e,
      expr_closed_wrt_lvars S e ->
      closed_wrt_lvars S (denote_tc_assert (tc_isptr e)).
@@ -909,7 +916,7 @@ Proof.
  simpl. unfold_lift; simpl. rewrite <- H; auto.
 Qed.
 
-Lemma closed_wrt_tc_isint:
+Lemma closed_wrt_tc_isint `{!heapGS Σ}:
  forall {cs: compspecs} S e,
      expr_closed_wrt_vars S e ->
      closed_wrt_vars S (denote_tc_assert (tc_isint e)).
@@ -920,7 +927,7 @@ Proof.
  simpl. unfold_lift. f_equiv; auto.
 Qed.
 
-Lemma closed_wrtl_tc_isint:
+Lemma closed_wrtl_tc_isint `{!heapGS Σ}:
  forall {cs: compspecs} S e,
      expr_closed_wrt_lvars S e ->
      closed_wrt_lvars S (denote_tc_assert (tc_isint e)).
@@ -931,7 +938,7 @@ Proof.
  simpl. unfold_lift. f_equiv; auto.
 Qed.
 
-Lemma closed_wrt_tc_islong:
+Lemma closed_wrt_tc_islong `{!heapGS Σ}:
  forall {cs: compspecs} S e,
      expr_closed_wrt_vars S e ->
      closed_wrt_vars S (denote_tc_assert (tc_islong e)).
@@ -942,7 +949,7 @@ Proof.
  simpl. unfold_lift. f_equiv; auto.
 Qed.
 
-Lemma closed_wrtl_tc_islong:
+Lemma closed_wrtl_tc_islong `{!heapGS Σ}:
  forall {cs: compspecs} S e,
      expr_closed_wrt_lvars S e ->
      closed_wrt_lvars S (denote_tc_assert (tc_islong e)).
@@ -953,7 +960,7 @@ Proof.
  simpl. unfold_lift. f_equiv; auto.
 Qed.
 
-Lemma closed_wrtl_tc_Zge:
+Lemma closed_wrtl_tc_Zge `{!heapGS Σ}:
   forall  {cs: compspecs} S e i,
    expr_closed_wrt_lvars S e ->
    closed_wrt_lvars S  (denote_tc_assert (tc_Zge e i)).
@@ -962,7 +969,7 @@ intros.
 hnf; intros. simpl. unfold_lift. rewrite (H _ _ _ H0). auto.
 Qed.
 
-Lemma closed_wrtl_tc_Zle:
+Lemma closed_wrtl_tc_Zle `{!heapGS Σ}:
   forall  {cs: compspecs} S e i,
    expr_closed_wrt_lvars S e ->
    closed_wrt_lvars S  (denote_tc_assert (tc_Zle e i)).
@@ -971,7 +978,7 @@ intros.
 hnf; intros. simpl. unfold_lift. rewrite (H _ _ _ H0). auto.
 Qed.
 
-Lemma closed_wrt_tc_Zge:
+Lemma closed_wrt_tc_Zge `{!heapGS Σ}:
   forall {cs: compspecs} S e n,
     closed_wrt_vars S (eval_expr e) ->
     closed_wrt_vars S (denote_tc_assert (tc_Zge e n)).
@@ -980,7 +987,7 @@ Proof.
  simpl. unfold_lift; f_equiv; auto.
 Qed.
 
-Lemma closed_wrt_tc_Zle:
+Lemma closed_wrt_tc_Zle `{!heapGS Σ}:
   forall {cs: compspecs} S e n,
     closed_wrt_vars S (eval_expr e) ->
     closed_wrt_vars S (denote_tc_assert (tc_Zle e n)).
@@ -989,7 +996,7 @@ Proof.
  simpl. unfold_lift; f_equiv; auto.
 Qed.
 
-End CLOSED_LEMMAS.
+(*End CLOSED_LEMMAS. *)
 
 #[export] Hint Rewrite @closed_env_set using safe_auto_with_closed : norm2.
 #[export] Hint Rewrite subst_eval_id_eq : subst.
@@ -1051,11 +1058,12 @@ End CLOSED_LEMMAS.
 #[export] Hint Resolve closed_wrt_tc_Zge : closed.
 #[export] Hint Resolve closed_wrt_tc_Zle : closed.
 
-Section CLOSED_LEMMAS2.
+(*Section CLOSED_LEMMAS2.
 
 Context `{!heapGS Σ}.
+*)
 
-Lemma closed_wrt_isCastResultType:
+Lemma closed_wrt_isCastResultType `{!heapGS Σ}:
   forall {cs: compspecs} S e t t0,
           expr_closed_wrt_vars S e ->
           closed_wrt_vars S
@@ -1072,7 +1080,7 @@ Proof.
   hnf; intros. reflexivity.
 Qed.
 
-Lemma closed_wrtl_isCastResultType:
+Lemma closed_wrtl_isCastResultType `{!heapGS Σ}:
   forall {cs: compspecs} S e t t0,
           expr_closed_wrt_lvars S e ->
           closed_wrt_lvars S
@@ -1092,7 +1100,7 @@ Qed.
 
 #[local] Hint Resolve closed_wrt_isCastResultType closed_wrtl_isCastResultType : closed.
 
-Lemma closed_wrt_tc_temp_id :
+Lemma closed_wrt_tc_temp_id `{!heapGS Σ}:
   forall {cs: compspecs} Delta S e id t, expr_closed_wrt_vars S e ->
                          expr_closed_wrt_vars S (Etempvar id t) ->
              closed_wrt_vars S (tc_temp_id id t Delta e).
@@ -1103,7 +1111,7 @@ unfold typecheck_temp_id.
 destruct ( (temp_types Delta) !! id) eqn:?; try destruct p; auto with closed.
 Qed.
 
-Lemma closed_wrtl_tc_temp_id :
+Lemma closed_wrtl_tc_temp_id `{!heapGS Σ}:
   forall {cs: compspecs} Delta S e id t, expr_closed_wrt_lvars S e ->
                          expr_closed_wrt_lvars S (Etempvar id t) ->
              closed_wrt_lvars S (tc_temp_id id t Delta e).
@@ -1208,7 +1216,7 @@ Proof.
  super_unfold_lift. f_equal; auto.
 Qed.
 
-Lemma closed_wrt_stackframe_of:
+Lemma closed_wrt_stackframe_of `{!heapGS Σ}:
   forall {cs: compspecs} S f, closed_wrt_vars S (stackframe_of f).
 Proof.
 intros.
@@ -1222,15 +1230,15 @@ Qed.
 
 Definition included {U} (S S': U -> Prop) := forall x, S x -> S' x.
 
-Local Notation assert := (@assert Σ).
+(*Local Notation assert := (@assert Σ).*)
 
-Lemma closed_wrt_TT:
+Lemma closed_wrt_TT `{!heapGS Σ}:
  forall  (S: ident -> Prop),
   closed_wrt_vars S (True : assert).
 Proof.
 intros. hnf; intros. by monPred.unseal.
 Qed.
-Lemma closed_wrtl_TT:
+Lemma closed_wrtl_TT `{!heapGS Σ}:
  forall  (S: ident -> Prop),
   closed_wrt_lvars S (True : assert).
 Proof.
@@ -1357,7 +1365,7 @@ Proof. auto. Qed.
 Lemma closed_lvalue: forall {cs : compspecs} S e, lvalue_closed_wrt_vars S e -> closed_wrt_vars S (eval_lvalue e).
 Proof. auto. Qed.
 
-End CLOSED_LEMMAS2.
+(*End CLOSED_LEMMAS2. *)
 
 #[export] Hint Resolve closed_wrt_isCastResultType closed_wrtl_isCastResultType : closed.
 #[export] Hint Resolve closed_wrt_tc_temp_id closed_wrtl_tc_temp_id : closed.
@@ -1376,7 +1384,7 @@ End CLOSED_LEMMAS2.
 #[export] Hint Resolve lvalue_closed_deref lvalue_closedl_deref: closed.
 #[export] Hint Resolve expr_closed closed_expr lvalue_closed closed_lvalue: closed.
 
-Section EXPR_LEMMAS.
+(*Section EXPR_LEMMAS.*)
 
 Fixpoint closed_eval_expr (j: ident) (e: expr) : bool :=
  match e with
@@ -1436,9 +1444,9 @@ intros; specialize (H0 _ _ H1); clear H1; super_unfold_lift;
 auto.
 Qed.
 
-Context `{!heapGS Σ}.
+(*Context `{!heapGS Σ}. ) *)
 
-Lemma closed_wrt_ideq: forall {cs: compspecs} a b e,
+Lemma closed_wrt_ideq `{!heapGS Σ}: forall {cs: compspecs} a b e,
   a <> b ->
   closed_eval_expr a e = true ->
   closed_wrt_vars (eq a) (fun rho => ⌜eval_id b rho = eval_expr e rho⌝ : mpred).
@@ -1455,7 +1463,7 @@ eapply closed_eval_expr_e in H0.
 apply H0; auto.
 Qed.
 
-Lemma closed_wrt_tc_nonzero:
+Lemma closed_wrt_tc_nonzero `{!heapGS Σ}:
  forall {cs: compspecs} S e,
      closed_wrt_vars S (eval_expr e) ->
      closed_wrt_vars S (denote_tc_assert (tc_nonzero e)).
@@ -1467,7 +1475,7 @@ Proof.
  rewrite <- H; auto.
 Qed.
 
-Lemma closed_wrt_binarithType:
+Lemma closed_wrt_binarithType `{!heapGS Σ}:
   forall {cs: compspecs} S t1 t2 t a b,
   closed_wrt_vars S (denote_tc_assert (binarithType t1 t2 t a b)).
 Proof.
@@ -1476,7 +1484,7 @@ Proof.
  destruct (Cop.classify_binarith t1 t2); auto with closed.
 Qed.
 
-Lemma closed_wrt_tc_samebase :
+Lemma closed_wrt_tc_samebase `{!heapGS Σ}:
  forall {cs: compspecs} S e1 e2,
  closed_wrt_vars S (eval_expr e1) ->
  closed_wrt_vars S (eval_expr e2) ->
@@ -1485,7 +1493,7 @@ Proof.
  intros;  hnf; intros. simpl. unfold_lift. f_equiv; auto.
 Qed.
 
-Lemma closed_wrt_tc_ilt:
+Lemma closed_wrt_tc_ilt `{!heapGS Σ}:
   forall {cs: compspecs} S e n,
     closed_wrt_vars S (eval_expr e) ->
     closed_wrt_vars S (denote_tc_assert (tc_ilt e n)).
@@ -1495,7 +1503,7 @@ Proof.
  simpl. unfold_lift. f_equiv. auto.
 Qed.
 
-Lemma closed_wrt_tc_llt:
+Lemma closed_wrt_tc_llt `{!heapGS Σ}:
   forall {cs: compspecs} S e n,
     closed_wrt_vars S (eval_expr e) ->
     closed_wrt_vars S (denote_tc_assert (tc_llt e n)).
@@ -1516,7 +1524,7 @@ revert R H0; induction n; destruct R; simpl; intros; auto with closed;
 inv H0; constructor; auto with closed.
 Qed.
 
-Lemma closed_wrt_tc_nodivover :
+Lemma closed_wrt_tc_nodivover `{!heapGS Σ}:
  forall {cs: compspecs} S e1 e2,
  closed_wrt_vars S (eval_expr e1) ->
  closed_wrt_vars S (eval_expr e2) ->
@@ -1527,7 +1535,7 @@ Proof.
  rewrite <- H0; auto. rewrite <- H; auto.
 Qed.
 
-Lemma closed_wrt_tc_nosignedover:
+Lemma closed_wrt_tc_nosignedover `{!heapGS Σ}:
   forall op {CS: compspecs} S e1 e2,
   closed_wrt_vars S (eval_expr e1) ->
   closed_wrt_vars S (eval_expr e2) ->
@@ -1542,7 +1550,7 @@ Qed.
 
 #[local] Hint Resolve closed_wrt_tc_nosignedover : closed.
 
-Lemma closed_wrt_tc_nobinover:
+Lemma closed_wrt_tc_nobinover `{!heapGS Σ}:
   forall op {CS: compspecs} S e1 e2,
   closed_wrt_vars S (eval_expr e1) ->
   closed_wrt_vars S (eval_expr e2) ->
@@ -1560,7 +1568,7 @@ destruct (typeof e2); auto with closed;
 destruct s; auto with closed.
 Qed.
 
-End EXPR_LEMMAS.
+(*End EXPR_LEMMAS.*)
 
 #[export] Hint Extern 2 (closed_wrt_vars (eq _) (@eval_expr _ _)) => (apply closed_eval_expr_e; reflexivity) : closed.
 #[export] Hint Extern 2 (closed_wrt_vars (eq _) (@eval_lvalue _ _)) => (apply closed_eval_lvalue_e; reflexivity) : closed.
@@ -1576,14 +1584,14 @@ End EXPR_LEMMAS.
 #[export] Hint Resolve closed_wrt_tc_nosignedover : closed.
 #[export] Hint Resolve closed_wrt_tc_nobinover : closed.
 
-Section EXPR_LEMMAS2.
+(*Section EXPR_LEMMAS2.*)
 
-Context `{!heapGS Σ}.
+(*Context `{!heapGS Σ}.*)
 
-Lemma closed_wrt_tc_expr:
+Lemma closed_wrt_tc_expr `{!heapGS Σ}:
   forall {cs: compspecs} Delta j e, closed_eval_expr j e = true ->
              closed_wrt_vars (eq j) (tc_expr Delta e)
- with closed_wrt_tc_lvalue:
+ with closed_wrt_tc_lvalue `{!heapGS Σ}:
   forall {cs: compspecs} Delta j e, closed_eval_lvalue j e = true ->
              closed_wrt_vars (eq j) (tc_lvalue Delta e).
 Proof.
@@ -1667,7 +1675,7 @@ all: repeat simple_if_tac; try destruct si2; auto with closed.
  +
  destruct (get_var_type Delta i); auto with closed.
  +
- specialize (closed_wrt_tc_expr cs Delta _ _ H).
+ specialize (closed_wrt_tc_expr _ _ cs Delta _ _ H).
  apply closed_eval_expr_e in H.
  auto 50 with closed.
  +
@@ -1698,16 +1706,16 @@ simpl; intros.
 auto with closed.
 Qed.
 
-Local Notation assert := (@assert Σ).
+(*Local Notation assert := (@assert Σ).*)
 
-Lemma closed_wrt_PROPx:
+Lemma closed_wrt_PROPx `{!heapGS Σ}:
  forall S P (Q : assert), closed_wrt_vars S Q -> closed_wrt_vars S (PROPx P Q).
 Proof.
 intros.
 apply closed_wrt_andp; auto.
 hnf; intros. by monPred.unseal.
 Qed.
-Lemma closed_wrtl_PROPx:
+Lemma closed_wrtl_PROPx `{!heapGS Σ}:
  forall S P (Q : assert), closed_wrt_lvars S Q -> closed_wrt_lvars S (PROPx P Q).
 Proof.
 intros.
@@ -1716,7 +1724,7 @@ hnf; intros. by monPred.unseal.
 Qed.
 
 
-Lemma closed_wrt_LOCALx:
+Lemma closed_wrt_LOCALx `{!heapGS Σ}:
  forall S Q (R : assert), Forall (closed_wrt_vars S) (map locald_denote Q) ->
                     closed_wrt_vars S R ->
                     closed_wrt_vars S (LOCALx Q R).
@@ -1734,7 +1742,7 @@ induction Q; intros.
 Qed.
 
 
-Lemma closed_wrtl_LOCALx:
+Lemma closed_wrtl_LOCALx `{!heapGS Σ}:
  forall S Q (R : assert), Forall (closed_wrt_lvars S) (map locald_denote Q) ->
                     closed_wrt_lvars S R ->
                     closed_wrt_lvars S (LOCALx Q R).
@@ -1752,16 +1760,16 @@ induction Q; intros.
 Qed.
 
 
-Lemma closed_wrt_SEPx: forall S P,
-     closed_wrt_vars S (SEPx P : assert).
+Lemma closed_wrt_SEPx: forall {Σ: gFunctors} S P,
+     closed_wrt_vars S (SEPx P : monPred environ_index (iPropI Σ)).
 Proof.
 intros.
 unfold SEPx.
 apply closed_wrt_embed.
 Qed.
 
-Lemma closed_wrtl_SEPx: forall S P,
-     closed_wrt_lvars S (SEPx P : assert).
+Lemma closed_wrtl_SEPx: forall {Σ: gFunctors} S P,
+     closed_wrt_lvars S (SEPx P : monPred environ_index (iPropI Σ)).
 Proof.
 intros.
 unfold SEPx.
@@ -1810,7 +1818,6 @@ simpl.
 intros.
 constructor; auto.
 Qed.
-End EXPR_LEMMAS2.
 
 #[export] Hint Resolve closed_wrt_tc_expr : closed.
 #[export] Hint Resolve closed_wrt_tc_lvalue : closed.
