@@ -21,7 +21,7 @@ jobs:
         # except for the "make_target" field and make_target related excludes
         coq_version:
           # See https://github.com/coq-community/docker-coq/wiki for supported images
-          - '8.18'
+#          - '8.18'
           - '8.19'
           - 'dev'
         bit_size:
@@ -30,8 +30,8 @@ jobs:
         make_target:
           - vst
         exclude:   
-          - coq_version: 8.18
-            bit_size: 32
+#          - coq_version: 8.18
+#            bit_size: 32
           - coq_version: dev
             bit_size: 32
     steps:
@@ -87,7 +87,7 @@ jobs:
       fail-fast: false
       matrix:
         coq_version:
-          - '8.18'
+#          - '8.18'
           - '8.19'
           - 'dev' 
         make_target:
@@ -101,8 +101,8 @@ jobs:
           - 32
           - 64
         exclude:
-          - coq_version: 8.18
-            bit_size: 32
+#          - coq_version: 8.18
+#            bit_size: 32
           - coq_version: dev
             bit_size: 32
           - bit_size: 64
@@ -112,10 +112,10 @@ jobs:
           - bit_size: 64
             make_target: test5
           # avoid Coq issue https://github.com/coq/coq/issues/18126
-          - coq_version: 8.18
-            make_target: test
-          - coq_version: 8.18
-            make_target: test4
+#          - coq_version: 8.18
+#            make_target: test
+#          - coq_version: 8.18
+#            make_target: test4
 
     steps:
       - name: 'Download archive'
