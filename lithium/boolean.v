@@ -112,7 +112,7 @@ Notation u8 := (Tint I8 Unsigned noattr).
 Notation builtin_boolean := (generic_boolean StrictBool u8).
 
 Section generic_boolean.
-  Context `{!typeG Σ}.
+  Context `{!typeG Σ} {cs : compspecs}.
 
   Inductive trace_if_bool :=
   | TraceIfBool (b : bool).
@@ -122,18 +122,21 @@ Section generic_boolean.
      li_trace (TraceIfBool b, b') (if b' then T1 else T2))
     ⊢ typed_if it v (v ◁ᵥ b @ generic_boolean stn it) T1 T2.
   Proof.
-    unfold case_destruct, li_trace. iIntros "[% [% Hs]] (%n&%Hv&%Hb)".
-    destruct ot; destruct_and? => //; simplify_eq/=.
-    - iExists _. iFrame. iPureIntro. by apply val_to_bool_iff_val_to_Z.
-    - rewrite <-(represents_boolean_eq stn n b); last done. by eauto with iFrame.
-  Qed.
+    unfold case_destruct, li_trace. iIntros "[% Hs] (%n&%Hv&%Hb)".
+    apply represents_boolean_eq in Hb as <-.
+    iExists (Val.of_bool (bool_decide (n ≠ 0))); iSplit.
+    - iPureIntro.
+(*Hv : sem_cast it tint v = Some (Vint (Int.repr n))
+______________________________________(1/1)
+sem_cast it tbool v = Some (Val.of_bool (bool_decide (n ≠ 0)))*) admit.
+    - by destruct (bool_decide (n ≠ 0)).
+  Admitted.
   Definition type_if_generic_boolean_inst := [instance type_if_generic_boolean].
   Global Existing Instance type_if_generic_boolean_inst.
 
-  Lemma type_assert_generic_boolean v stn it ot (b : bool) s fn ls R Q :
-    (⌜match ot with | BoolOp => it = u8 ∧ stn = StrictBool | IntOp it' => it = it' | _ => False end⌝ ∗
-      ⌜b⌝ ∗ typed_stmt s fn ls R Q)
-    ⊢ typed_assert ot v (v ◁ᵥ b @ generic_boolean stn it) s fn ls R Q.
+(*  Lemma type_assert_generic_boolean v stn it (b : bool) s fn ls R Q :
+    (<affine> ⌜b⌝ ∗ typed_stmt s fn ls R Q)
+    ⊢ typed_assert it v (v ◁ᵥ b @ generic_boolean stn it) s fn ls R Q.
   Proof.
     iIntros "[% [% ?]] (%n&%&%Hb)". destruct b; last by exfalso.
     destruct ot; destruct_and? => //; simplify_eq/=.
@@ -142,13 +145,13 @@ Section generic_boolean.
       by apply represents_boolean_eq, bool_decide_eq_true in Hb.
   Qed.
   Definition type_assert_generic_boolean_inst := [instance type_assert_generic_boolean].
-  Global Existing Instance type_assert_generic_boolean_inst.
+  Global Existing Instance type_assert_generic_boolean_inst.*)
 End generic_boolean.
 
 Section boolean.
   Context `{!typeG Σ}.
 
-  Lemma type_relop_boolean b1 b2 op b it v1 v2
+(*  Lemma type_relop_boolean b1 b2 op b it v1 v2
     (Hop : match op with
            | EqOp rit => Some (eqb b1 b2       , rit)
            | NeOp rit => Some (negb (eqb b1 b2), rit)
@@ -231,24 +234,24 @@ Section boolean.
     iExists _. iSplit; last done. iPureIntro. by eapply val_to_of_Z.
   Qed.
   Definition type_cast_boolean_inst := [instance type_cast_boolean].
-  Global Existing Instance type_cast_boolean_inst.
+  Global Existing Instance type_cast_boolean_inst.*)
 
 End boolean.
 
 Notation "'if' p " := (TraceIfBool p) (at level 100, only printing).
 
 Section builtin_boolean.
-  Context `{!typeG Σ}.
+  Context `{!typeG Σ} {cs : compspecs}.
 
   Lemma type_val_builtin_boolean b T:
-    (T (b @ builtin_boolean)) ⊢ typed_value (val_of_bool b) T.
+    (T (b @ builtin_boolean)) ⊢ typed_value (Val.of_bool b) T.
   Proof.
-    iIntros "HT". iExists _. iFrame. iPureIntro. naive_solver.
+    iIntros "HT". iExists _. iFrame. iPureIntro. exists (if b then 1 else 0); destruct b; simpl; auto.
   Qed.
   Definition type_val_builtin_boolean_inst := [instance type_val_builtin_boolean].
   Global Existing Instance type_val_builtin_boolean_inst.
 
-  Lemma type_cast_boolean_builtin_boolean b it v T:
+(*  Lemma type_cast_boolean_builtin_boolean b it v T:
     (∀ v, T v (b @ builtin_boolean))
     ⊢ typed_un_op v (v ◁ᵥ b @ boolean it)%I (CastOp BoolOp) (IntOp it) T.
   Proof.
@@ -270,7 +273,7 @@ Section builtin_boolean.
     iPureIntro => /=. eexists _. split;[|done]. by apply: val_to_of_Z.
   Qed.
   Definition type_cast_builtin_boolean_boolean_inst := [instance type_cast_builtin_boolean_boolean].
-  Global Existing Instance type_cast_builtin_boolean_boolean_inst.
+  Global Existing Instance type_cast_builtin_boolean_boolean_inst.*)
 
 End builtin_boolean.
 Global Typeclasses Opaque generic_boolean_type generic_boolean.

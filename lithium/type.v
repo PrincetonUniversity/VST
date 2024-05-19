@@ -512,7 +512,7 @@ Section rmovable.
   Next Obligation.
     iIntros (A r ? E ly l ??). iDestruct 1 as (x) "Hl".
     iMod (copy_shr_acc with "Hl") as (? q' vl) "(?&?&?)" => //.
-    iSplitR => //. iExists _, _. iFrame. iIntros "!>"; iSplit; last done. by iExists _.
+    iSplitR => //. iExists _, _. iFrame. auto.
   Qed.
 End rmovable.
 
