@@ -47,18 +47,81 @@ Section is_bool_ot.
   Qed.*)
 End is_bool_ot.
 
+Definition val_to_Z (v : val) (t : Ctypes.type) : option Z :=
+  match v, t with
+  | Vint i, Tint _ Signed _ => Some (Int.signed i)
+  | Vint i, Tint _ Unsigned _ => Some (Int.unsigned i)
+  | Vlong i, Tlong Signed _ => Some (Int64.signed i)
+  | Vlong i, Tlong Unsigned _ => Some (Int64.unsigned i)
+  | _, _ => None
+  end.
+
+Definition i2v n t :=
+  match t with
+  | Tint _ _ _ => Vint (Int.repr n)
+  | Tlong _ _ => Vlong (Int64.repr n)
+  | _ => Vundef
+  end.
+
+Inductive in_range n : Ctypes.type → Prop :=
+| in_range_int_s sz a : repable_signed n -> in_range n (Tint sz Signed a)
+| in_range_int_u sz a : (0 <= n <= Int.max_unsigned)%Z -> in_range n (Tint sz Unsigned a)
+| in_range_long_s a : (Int64.min_signed <= n <= Int64.max_signed)%Z -> in_range n (Tlong Signed a)
+| in_range_long_u a : (0 <= n <= Int64.max_unsigned)%Z -> in_range n (Tlong Unsigned a).
+
+Lemma val_to_Z_in_range : forall v t n, val_to_Z v t = Some n -> in_range n t.
+Proof.
+  intros; destruct v, t; try discriminate; destruct s; inv H; constructor; rep_lia.
+Qed.
+
+Definition int_eq v1 v2 :=
+  match v1, v2 with
+  | Vint i1, Vint i2 => Int.eq i1 i2
+  | Vlong i1, Vlong i2 => Int64.eq i1 i2
+  | _, _ => false
+  end.
+
+Global Instance elem_of_type : ElemOf Z Ctypes.type := in_range.
+
+Lemma i2v_to_Z : forall n t, in_range n t -> val_to_Z (i2v n t) t = Some n.
+Proof.
+  intros.
+  inv H; rewrite /val_to_Z /i2v.
+  - rewrite Int.signed_repr //.
+  - rewrite Int.unsigned_repr //.
+  - rewrite Int64.signed_repr //.
+  - rewrite Int64.unsigned_repr //.
+Qed.
+
+Lemma signed_inj_64 : forall i1 i2, Int64.signed i1 = Int64.signed i2 -> i1 = i2.
+Proof.
+  intros ?? H%(f_equal Int64.repr).
+  by rewrite !Int64.repr_signed in H.
+Qed.
+
+Lemma unsigned_inj_64 : forall i1 i2, Int64.unsigned i1 = Int64.unsigned i2 -> i1 = i2.
+Proof.
+  intros ?? H%(f_equal Int64.repr).
+  by rewrite !Int64.repr_unsigned in H.
+Qed.
+
+Lemma val_of_bool_eq : forall b, Val.of_bool b = Vint (Int.repr (bool_to_Z b)).
+Proof.
+  intros; rewrite /Val.of_bool /bool_to_Z.
+  simple_if_tac; auto.
+Qed.
+
 Section generic_boolean.
   Context `{!typeG Σ} {cs : compspecs}.
 
-  (* Not sure Caesium distinguishes between int and long. We might need to. *)
   Program Definition generic_boolean_type (stn: bool_strictness) (it: Ctypes.type) (b: bool) : type := {|
     ty_has_op_type ot mt := (*is_bool_ot ot it stn*) ot = it;
     ty_own β l :=
-      ∃ v n, ⌜sem_cast it tint v = Some (Vint (Int.repr n))⌝ ∧
+      ∃ v n, ⌜val_to_Z v it = Some n⌝ ∧
              ⌜represents_boolean stn n b⌝ ∧
              ⌜field_compatible it [] l⌝ ∧
              l ↦_it[β] v;
-      ty_own_val v := ∃ n, <affine> ⌜sem_cast it tint v = Some (Vint (Int.repr n))⌝ ∗ <affine> ⌜represents_boolean stn n b⌝;
+      ty_own_val v := ∃ n, <affine> ⌜val_to_Z v it = Some n⌝ ∗ <affine> ⌜represents_boolean stn n b⌝;
   |}%I.
   Next Obligation.
     iIntros (??????) "(%v&%n&%&%&%&Hl)". iExists v, n.
@@ -126,11 +189,25 @@ Section generic_boolean.
     apply represents_boolean_eq in Hb as <-.
     iExists (Val.of_bool (bool_decide (n ≠ 0))); iSplit.
     - iPureIntro.
-(*Hv : sem_cast it tint v = Some (Vint (Int.repr n))
-______________________________________(1/1)
-sem_cast it tbool v = Some (Val.of_bool (bool_decide (n ≠ 0)))*) admit.
+      destruct v; try discriminate; destruct it; try discriminate; destruct s; inv Hv; simpl.
+      + pose proof (Int.eq_spec i Int.zero).
+        case_bool_decide; simple_if_tac; subst; try done.
+        assert (Int.repr (Int.signed i) = Int.repr 0) as Hz by congruence;
+          rewrite Int.repr_signed // in Hz.
+      + pose proof (Int.eq_spec i Int.zero).
+        case_bool_decide; simple_if_tac; subst; try done.
+        assert (Int.repr (Int.unsigned i) = Int.repr 0) as Hz by congruence;
+          rewrite Int.repr_unsigned // in Hz.
+      + pose proof (Int64.eq_spec i Int64.zero).
+        case_bool_decide; simple_if_tac; subst; try done.
+        assert (Int64.repr (Int64.signed i) = Int64.repr 0) as Hz by congruence;
+          rewrite Int64.repr_signed // in Hz.
+      + pose proof (Int64.eq_spec i Int64.zero).
+        case_bool_decide; simple_if_tac; subst; try done.
+        assert (Int64.repr (Int64.unsigned i) = Int64.repr 0) as Hz by congruence;
+          rewrite Int64.repr_unsigned // in Hz.
     - by destruct (bool_decide (n ≠ 0)).
-  Admitted.
+  Qed.
   Definition type_if_generic_boolean_inst := [instance type_if_generic_boolean].
   Global Existing Instance type_if_generic_boolean_inst.
 
@@ -149,35 +226,58 @@ sem_cast it tbool v = Some (Val.of_bool (bool_decide (n ≠ 0)))*) admit.
 End generic_boolean.
 
 Section boolean.
-  Context `{!typeG Σ}.
+  Context `{!typeG Σ} {cs : compspecs}.
 
-(*  Lemma type_relop_boolean b1 b2 op b it v1 v2
+  Lemma type_relop_boolean b1 b2 op b it v1 v2
     (Hop : match op with
-           | EqOp rit => Some (eqb b1 b2       , rit)
-           | NeOp rit => Some (negb (eqb b1 b2), rit)
+           | Oeq => Some (eqb b1 b2)
+           | One => Some (negb (eqb b1 b2))
            | _ => None
-           end = Some (b, i32)) T:
-    T (i2v (bool_to_Z b) i32) (b @ boolean i32)
-    ⊢ typed_bin_op v1 (v1 ◁ᵥ b1 @ boolean it)
-                 v2 (v2 ◁ᵥ b2 @ boolean it) op (IntOp it) (IntOp it) T.
+           end = Some b) T:
+    T (i2v (bool_to_Z b) tint) (b @ boolean tint)
+    ⊢ typed_bin_op v1 ⎡v1 ◁ᵥ b1 @ boolean it⎤
+                 v2 ⎡v2 ◁ᵥ b2 @ boolean it⎤ op it it T.
   Proof.
     iIntros "HT (%n1&%Hv1&%Hb1) (%n2&%Hv2&%Hb2) %Φ HΦ".
-    have [v Hv]:= val_of_Z_bool_is_Some None i32 b.
-    iApply (wp_binop_det_pure (i2v (bool_to_Z b) i32)).
-    { rewrite /i2v Hv /=. destruct op, b1, b2; simplify_eq.
-      all: split; [inversion 1; simplify_eq /=; done | move => ->]; simplify_eq /=.
-      all: econstructor => //; by case_bool_decide. }
-    iApply "HΦ"; last done. iExists (bool_to_Z b).
-    iSplit; [by destruct b | done].
+    rewrite /wp_binop.
+    iExists (i2v (bool_to_Z b) tint); iSplitL "".
+    - rewrite /eval_binop_rel.
+      iStopProof; split => rho; monPred.unseal.
+      iIntros "_" (?) "Hm".
+      assert (classify_cmp it it = cmp_default) as Hclass.
+      { destruct it; try by destruct v1.
+        by destruct i. }
+      rewrite -val_of_bool_eq.
+      assert (eqb b1 b2 = int_eq v1 v2) as Heq.
+      { destruct it, v1; try done; destruct v2; try done; simpl in *.
+        * pose proof (Int.eq_spec i0 i1) as Heq.
+          destruct (Int.eq i0 i1).
+          -- subst; destruct s; inv Hv1; destruct b1, b2; simpl in *; congruence.
+          -- destruct s; inv Hv1; destruct b1, b2; try done;
+               by (exploit (signed_inj i0 i1); congruence || exploit (unsigned_eq_eq i0 i1); congruence).
+        * pose proof (Int64.eq_spec i i0) as Heq.
+          destruct (Int64.eq i i0).
+          -- subst; destruct s; inv Hv1; destruct b1, b2; simpl in *; congruence.
+          -- destruct s; inv Hv1; destruct b1, b2; try done;
+               by (exploit (signed_inj_64 i i0); congruence || exploit (unsigned_inj_64 i i0); congruence). }
+      destruct op; inv Hop; rewrite /= /Cop.sem_cmp Hclass /Cop.sem_binarith Heq.
+      + destruct it; try by destruct v1; simpl.
+        * destruct i, v1; try done; destruct v2; try done; destruct s; done.
+        * destruct v1; try done; destruct v2; try done; destruct s; done.
+      + destruct it; try by destruct v1; simpl.
+        * destruct i, v1; try done; destruct v2; try done; destruct s; done.
+        * destruct v1; try done; destruct v2; try done; destruct s; done.
+    - iApply "HΦ"; last done. iExists (bool_to_Z b).
+      iSplit; [by destruct b | done].
   Qed.
   Definition type_eq_boolean_inst b1 b2 :=
-    [instance type_relop_boolean b1 b2 (EqOp i32) (eqb b1 b2)].
+    [instance type_relop_boolean b1 b2 Oeq (eqb b1 b2)].
   Global Existing Instance type_eq_boolean_inst.
   Definition type_ne_boolean_inst b1 b2 :=
-    [instance type_relop_boolean b1 b2 (NeOp i32) (negb (eqb b1 b2))].
+    [instance type_relop_boolean b1 b2 One (negb (eqb b1 b2))].
   Global Existing Instance type_ne_boolean_inst.
 
-  (* TODO: replace this with a typed_cas once it is refactored to take E as an argument. *)
+(*  (* TODO: replace this with a typed_cas once it is refactored to take E as an argument. *)
   Lemma wp_cas_suc_boolean it ot b1 b2 bd l1 l2 vd Φ E:
     ((ot_layout ot).(ly_size) ≤ bytes_per_addr)%nat →
     match ot with | BoolOp => it = u8 | IntOp it' => it = it' | _ => False end →

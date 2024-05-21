@@ -106,7 +106,7 @@ Arguments li_tactic : simpl never.
 
 (** ** [li_vm_compute] *)
 Definition li_vm_compute {PROP : bi} {A B} (f : A → option B) (x : A) (T : B → PROP) : PROP :=
-  ∃ y, ⌜f x = Some y⌝ ∗ T y.
+  ∃ y, <affine> ⌜f x = Some y⌝ ∗ T y.
 Arguments li_vm_compute : simpl never.
 Global Typeclasses Opaque li_vm_compute.
 

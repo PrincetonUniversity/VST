@@ -96,10 +96,10 @@ Search val bool.
               Clight.eval_expr ge ve te m e v (*/\ typeof e = t /\ tc_val t v*)⌝.
   (* In Clight, expressions can't have side effects, so they don't need a postcondition? *)
 
-  Definition wp_expr e Φ : assert := ∃ v, assert_of (fun rho => eval_rel e v rho ∗ Φ v).
+  Definition wp_expr e Φ : assert := ∃ v, assert_of (fun rho => eval_rel e v rho) ∗ Φ v.
 
-  Definition typed_val_expr (e : expr) (T : val → type → iProp Σ) : assert :=
-    (∀ Φ, ⎡∀ v (ty : type), v ◁ᵥ ty -∗ T v ty -∗ Φ v⎤ -∗ wp_expr e Φ).
+  Definition typed_val_expr (e : expr) (T : val → type → assert) : assert :=
+    (∀ Φ, (∀ v (ty : type), ⎡v ◁ᵥ ty⎤ -∗ T v ty -∗ Φ v) -∗ wp_expr e Φ).
   Global Arguments typed_val_expr _ _%_I.
 
   Definition typed_value (v : val) (T : type → iProp Σ) : iProp Σ :=
@@ -107,19 +107,48 @@ Search val bool.
   Class TypedValue (v : val) : Type :=
     typed_value_proof T : iProp_to_Prop (typed_value v T).
 
-(*  Definition typed_bin_op (v1 : val) (P1 : iProp Σ) (v2 : val) (P2 : iProp Σ) (o : bin_op) (ot1 ot2 : op_type) (T : val → type → iProp Σ) : iProp Σ :=
-    (P1 -∗ P2 -∗ typed_val_expr (BinOp o ot1 ot2 v1 v2) T).
+  (* Caesium uses a small-step semantics for exprs, so the wp/typing for an operation can be broken up into
+     evaluating the arguments and then the op. Clight uses big-step and can't in general inject vals
+     into expr, so for now, hacking in a different wp judgment for ops. *)
+  Definition eval_binop_rel op t1 v1 t2 v2 v rho
+    : iProp Σ :=
+    ∀ m, juicy_mem.mem_auth m -∗
+           ⌜forall ge ve te,
+              cenv_sub cenv_cs (genv_cenv ge) ->
+              rho = construct_rho (filter_genv ge) ve te ->
+              sem_binary_operation (genv_cenv ge) op v1 t1 v2 t2 m = Some v (*/\ typeof e = t /\ tc_val t v*)⌝.
 
-  Class TypedBinOp (v1 : val) (P1 : iProp Σ) (v2 : val) (P2 : iProp Σ) (o : bin_op) (ot1 ot2 : op_type) : Type :=
+  Definition wp_binop op t1 v1 t2 v2 Φ : assert := ∃ v, assert_of (eval_binop_rel op t1 v1 t2 v2 v) ∗ Φ v.
+
+  Definition typed_val_binop op t1 v1 t2 v2 (T : val → type → assert) : assert :=
+    (∀ Φ, (∀ v (ty : type), ⎡v ◁ᵥ ty⎤ -∗ T v ty -∗ Φ v) -∗ wp_binop op t1 v1 t2 v2 Φ).
+  Global Arguments typed_val_binop _ _ _ _ _ _%_I.
+
+  Definition typed_bin_op (v1 : val) (P1 : assert) (v2 : val) (P2 : assert) (o : Cop.binary_operation) (t1 t2 : Ctypes.type) (T : val → type → assert) : assert :=
+    (P1 -∗ P2 -∗ typed_val_binop o t1 v1 t2 v2 T)%I.
+
+  Class TypedBinOp (v1 : val) (P1 : assert) (v2 : val) (P2 : assert) (o : Cop.binary_operation) (ot1 ot2 : Ctypes.type) : Type :=
     typed_bin_op_proof T : iProp_to_Prop (typed_bin_op v1 P1 v2 P2 o ot1 ot2 T).
 
-  Definition typed_un_op (v : val) (P : iProp Σ) (o : un_op) (ot : op_type) (T : val → type → iProp Σ) : iProp Σ :=
-    (P -∗ typed_val_expr (UnOp o ot v) T).
+  (* Clight unops don't depend on environ. *)
+  Definition eval_unop_rel op t1 v1 v (rho : environ)
+    : iProp Σ :=
+    ∀ m, juicy_mem.mem_auth m -∗
+           ⌜Cop.sem_unary_operation op v1 t1 m = Some v⌝.
 
-  Class TypedUnOp (v : val) (P : iProp Σ) (o : un_op) (ot : op_type) : Type :=
+  Definition wp_unop op t1 v1 Φ : assert := ∃ v, assert_of (eval_unop_rel op t1 v1 v) ∗ Φ v.
+
+  Definition typed_val_unop op t v (T : val → type → assert) : assert :=
+    (∀ Φ, (∀ v (ty : type), ⎡v ◁ᵥ ty⎤ -∗ T v ty -∗ Φ v) -∗ wp_unop op t v Φ).
+  Global Arguments typed_val_unop _ _ _ _%_I.
+
+  Definition typed_un_op (v : val) (P : assert) (o : Cop.unary_operation) (ot : Ctypes.type) (T : val → type → assert) : assert :=
+    (P -∗ typed_val_unop o ot v T)%I.
+
+  Class TypedUnOp (v : val) (P : assert) (o : Cop.unary_operation) (ot : Ctypes.type) : Type :=
     typed_un_op_proof T : iProp_to_Prop (typed_un_op v P o ot T).
 
-  Definition typed_call (v : val) (P : iProp Σ) (vl : list val) (tys : list type) (T : val → type → iProp Σ) : iProp Σ :=
+(*  Definition typed_call (v : val) (P : iProp Σ) (vl : list val) (tys : list type) (T : val → type → iProp Σ) : iProp Σ :=
     (P -∗ ([∗ list] v;ty∈vl;tys, v ◁ᵥ ty) -∗ typed_val_expr (Call v (Val <$> vl)) T)%I.
   Class TypedCall (v : val) (P : iProp Σ) (vl : list val) (tys : list type) : Type :=
     typed_call_proof T : iProp_to_Prop (typed_call v P vl tys T).
@@ -397,7 +426,7 @@ Section proper.
   (** wand lemmas *)
   Lemma typed_val_expr_wand e T1 T2:
     typed_val_expr e T1 -∗
-    ⎡∀ v ty, T1 v ty -∗ T2 v ty⎤ -∗
+    (∀ v ty, T1 v ty -∗ T2 v ty) -∗
     typed_val_expr e T2.
   Proof.
     iIntros "He HT" (Φ) "HΦ".
@@ -417,11 +446,11 @@ Section proper.
     + iDestruct "HT" as "[_ HT]". by iApply "HT".
   Qed.
 
-(*  Lemma typed_bin_op_wand v1 P1 Q1 v2 P2 Q2 op ot1 ot2 T:
+  Lemma typed_bin_op_wand v1 P1 Q1 v2 P2 Q2 op ot1 ot2 T:
     typed_bin_op v1 Q1 v2 Q2 op ot1 ot2 T -∗
     (P1 -∗ Q1) -∗
     (P2 -∗ Q2) -∗
-    typed_bin_op v1 P1 v2 P2  op ot1 ot2 T.
+    typed_bin_op v1 P1 v2 P2 op ot1 ot2 T.
   Proof.
     iIntros "H Hw1 Hw2 H1 H2".
     iApply ("H" with "[Hw1 H1]"); [by iApply "Hw1"|by iApply "Hw2"].
@@ -437,7 +466,7 @@ Section proper.
 
   Lemma type_val_expr_mono_strong e T :
     typed_val_expr e (λ v ty,
-      ∃ ty', subsume (v ◁ᵥ ty) (λ _ : unit, v ◁ᵥ ty') (λ _, T v ty'))%I
+      ∃ ty', subsume ⎡v ◁ᵥ ty⎤ (λ _ : unit, ⎡v ◁ᵥ ty'⎤) (λ _, T v ty'))%I
     -∗ typed_val_expr e T.
   Proof.
     iIntros "HT". iIntros (Φ) "HΦ".
@@ -447,6 +476,8 @@ Section proper.
     iApply ("HΦ" with "Hv HT'").
   Qed.
 
+
+(*
   (** typed_read_end *)
   Lemma typed_read_end_mono_strong (a : bool) E1 E2 l β ty ot mc T:
     (if a then ∅ else E2) = (if a then ∅ else E1) →
@@ -591,7 +622,8 @@ Section proper.
     iMod "Hacc" as (x) "[Hα Hclose]".
     iApply (typed_write_end_wand with "(Hinner Hα)").
     iIntros (ty3) ">[Hβ HT]". iMod ("Hclose" with "Hβ"). by iApply "HT".
-  Qed.*)
+  Qed.
+*)
 End proper.
 (*Global Typeclasses Opaque typed_read_end.
 Global Typeclasses Opaque typed_write_end.*)
@@ -600,8 +632,8 @@ Definition FindLoc `{!typeG Σ} {cs : compspecs} (l : address) :=
   {| fic_A := own_state * type; fic_Prop '(β, ty):= (l ◁ₗ{β} ty)%I; |}.
 Definition FindVal `{!typeG Σ} {cs : compspecs} (v : val) :=
   {| fic_A := type; fic_Prop ty := (v ◁ᵥ ty)%I; |}.
-Definition FindValP {Σ} (v : val) :=
-  {| fic_A := iProp Σ; fic_Prop P := P; |}.
+Definition FindValP {B : bi} (v : val) :=
+  {| fic_A := B; fic_Prop P := P; |}.
 Definition FindValOrLoc {Σ} (v : val) (l : address) :=
   {| fic_A := iProp Σ; fic_Prop P := P; |}.
 Definition FindLocInBounds {Σ} (l : address) :=
@@ -614,9 +646,9 @@ Global Typeclasses Opaque FindLoc FindVal FindValP FindValOrLoc FindLocInBounds 
 Ltac generate_i2p_instance_to_tc_hook arg c ::=
   lazymatch c with
   | typed_value ?x => constr:(TypedValue x)
-(*   | typed_bin_op ?x1 ?x2 ?x3 ?x4 ?x5 ?x6 ?x7 => constr:(TypedBinOp x1 x2 x3 x4 x5 x6 x7)
+  | typed_bin_op ?x1 ?x2 ?x3 ?x4 ?x5 ?x6 ?x7 => constr:(TypedBinOp x1 x2 x3 x4 x5 x6 x7)
   | typed_un_op ?x1 ?x2 ?x3 ?x4 => constr:(TypedUnOp x1 x2 x3 x4)
-  | typed_call ?x1 ?x2 ?x3 ?x4 => constr:(TypedCall x1 x2 x3 x4)
+(*  | typed_call ?x1 ?x2 ?x3 ?x4 => constr:(TypedCall x1 x2 x3 x4)
   | typed_copy_alloc_id ?x1 ?x2 ?x3 ?x4 ?x5 => constr:(TypedCopyAllocId x1 x2 x3 x4 x5)
   | typed_place ?x1 ?x2 ?x3 ?x4 => constr:(TypedPlace x1 x2 x3 x4)
   | typed_read_end ?x1 ?x2 ?x3 ?x4 ?x5 ?x6 ?x7 => constr:(TypedReadEnd x1 x2 x3 x4 x5 x6 x7)
@@ -640,7 +672,6 @@ Section typing.
     (∃ β ty, l ◁ₗ{β} ty ∗ T (β, ty))
     ⊢ find_in_context (FindLoc l) T.
   Proof. iDestruct 1 as (β ty) "[Hl HT]". iExists (_, _) => /=. iFrame. Qed.
-Locate "[instance".
   Definition find_in_context_type_loc_id_inst :=
     [instance find_in_context_type_loc_id with FICSyntactic].
   Global Existing Instance find_in_context_type_loc_id_inst | 1.
@@ -917,7 +948,7 @@ Locate "[instance".
   (* This must be an Hint Extern because an instance would be a big slowdown. *)
   Definition subtype_var_inst := [instance @subtype_var].
 
-(*  Lemma typed_binop_simplify v1 P1 v2 P2 o1 o2 ot1 ot2 {SH1 : SimplifyHyp P1 o1} {SH2 : SimplifyHyp P2 o2} `{!TCOneIsSome o1 o2} op T:
+  Lemma typed_binop_simplify v1 P1 v2 P2 o1 o2 ot1 ot2 {SH1 : SimplifyHyp P1 o1} {SH2 : SimplifyHyp P2 o2} `{!TCOneIsSome o1 o2} op T:
     let G1 := (SH1 (find_in_context (FindValP v1) (λ P, typed_bin_op v1 P v2 P2 op ot1 ot2 T))).(i2p_P) in
     let G2 := (SH2 (find_in_context (FindValP v2) (λ P, typed_bin_op v1 P1 v2 P op ot1 ot2 T))).(i2p_P) in
     let G :=
@@ -938,7 +969,7 @@ Locate "[instance".
   Definition typed_binop_simplify_inst := [instance typed_binop_simplify].
   Global Existing Instance typed_binop_simplify_inst | 1000.
 
-  Lemma typed_binop_comma v1 v2 P (ty : type) ot1 ot2 T:
+(*  Lemma typed_binop_comma v1 v2 P (ty : type) ot1 ot2 T:
     (P -∗ T v2 ty)
     ⊢ typed_bin_op v1 P v2 (v2 ◁ᵥ ty) Comma ot1 ot2 T.
   Proof.
@@ -947,7 +978,7 @@ Locate "[instance".
     iDestruct ("HT" with "H1") as "HT". iApply ("HΦ" $! v2 ty with "H2 HT").
   Qed.
   Definition typed_binop_comma_inst := [instance typed_binop_comma].
-  Global Existing Instance typed_binop_comma_inst.
+  Global Existing Instance typed_binop_comma_inst. *)
 
   Lemma typed_unop_simplify v P n ot {SH : SimplifyHyp P (Some n)} op T:
     (SH (find_in_context (FindValP v) (λ P, typed_un_op v P op ot T))).(i2p_P)
@@ -958,7 +989,7 @@ Locate "[instance".
   Definition typed_unop_simplify_inst := [instance typed_unop_simplify].
   Global Existing Instance typed_unop_simplify_inst | 1000.
 
-  Lemma typed_copy_alloc_id_simplify v1 P1 v2 P2 o1 o2 ot {SH1 : SimplifyHyp P1 o1} {SH2 : SimplifyHyp P2 o2} `{!TCOneIsSome o1 o2} T:
+(*  Lemma typed_copy_alloc_id_simplify v1 P1 v2 P2 o1 o2 ot {SH1 : SimplifyHyp P1 o1} {SH2 : SimplifyHyp P2 o2} `{!TCOneIsSome o1 o2} T:
     let G1 := (SH1 (find_in_context (FindValP v1) (λ P, typed_copy_alloc_id v1 P v2 P2 ot T))).(i2p_P) in
     let G2 := (SH2 (find_in_context (FindValP v2) (λ P, typed_copy_alloc_id v1 P1 v2 P ot T))).(i2p_P) in
     let G :=
@@ -1204,7 +1235,6 @@ Locate "[instance".
   Definition type_val_context_inst := [instance type_val_context].
   Global Existing Instance type_val_context_inst | 100.
 
-Print expr.
 (*  Lemma type_val v T:
     typed_value v (T v)
     ⊢ typed_val_expr (Val v) T.
@@ -1214,26 +1244,83 @@ Print expr.
     iApply wp_value. iApply ("HΦ" with "Hv HT").
   Qed. *)
 
-(*  Lemma type_bin_op o e1 e2 ot1 ot2 T:
-    typed_val_expr e1 (λ v1 ty1, typed_val_expr e2 (λ v2 ty2, typed_bin_op v1 (v1 ◁ᵥ ty1) v2 (v2 ◁ᵥ ty2) o ot1 ot2 T))
-    ⊢ typed_val_expr (BinOp o ot1 ot2 e1 e2) T.
+  (* up *)
+  Lemma eval_rel_binop : forall rho e1 e2 v1 v2 o t v, eval_rel e1 v1 rho -∗ eval_rel e2 v2 rho -∗ eval_binop_rel o (typeof e1) v1 (typeof e2) v2 v rho -∗
+    eval_rel (Ebinop o e1 e2 t) v rho.
+  Proof.
+    intros.
+    rewrite /eval_rel /eval_binop_rel.
+    iIntros "H1 H2 H" (?) "Hm".
+    iAssert ⌜∀ (ge : genv) (ve : env) (te : temp_env),
+            cenv_sub cenv_cs (genv_cenv ge)
+            → rho = construct_rho (filter_genv ge) ve te → Clight.eval_expr ge ve te m e1 v1⌝%I as %H1.
+    { iApply ("H1" with "Hm"). }
+    iAssert ⌜∀ (ge : genv) (ve : env) (te : temp_env),
+            cenv_sub cenv_cs (genv_cenv ge)
+            → rho = construct_rho (filter_genv ge) ve te → Clight.eval_expr ge ve te m e2 v2⌝%I as %H2.
+    { iApply ("H2" with "Hm"). }
+    iDestruct ("H" with "Hm") as %H.
+    iPureIntro; intros; econstructor; eauto.
+  Qed.
+
+  Lemma wp_binop_rule : forall e1 e2 Φ o t, wp_expr e1 (λ v1, wp_expr e2 (λ v2, wp_binop o (typeof e1) v1 (typeof e2) v2 Φ))
+    ⊢ wp_expr (Ebinop o e1 e2 t) Φ.
+  Proof.
+    intros.
+    rewrite /wp_expr /wp_binop.
+    iIntros "(%v1 & H1 & %v2 & H2 & %v & H & ?)".
+    iExists _; iFrame.
+    iStopProof; split => rho; monPred.unseal.
+    iIntros "(H1 & H2 & H)"; iApply (eval_rel_binop with "H1 H2 H").
+  Qed.
+
+  Lemma type_bin_op o e1 e2 ot T:
+    typed_val_expr e1 (λ v1 ty1, typed_val_expr e2 (λ v2 ty2, typed_bin_op v1 ⎡v1 ◁ᵥ ty1⎤ v2 ⎡v2 ◁ᵥ ty2⎤ o (typeof e1) (typeof e2) T))
+    ⊢ typed_val_expr (Ebinop o e1 e2 ot) T.
   Proof.
     iIntros "He1" (Φ) "HΦ".
-    wp_bind. iApply "He1". iIntros (v1 ty1) "Hv1 He2".
-    wp_bind. iApply "He2". iIntros (v2 ty2) "Hv2 Hop".
+    iApply wp_binop_rule. iApply "He1". iIntros (v1 ty1) "Hv1 He2".
+    iApply "He2". iIntros (v2 ty2) "Hv2 Hop".
     by iApply ("Hop" with "Hv1 Hv2").
   Qed.
 
+  (* up *)
+  Lemma eval_rel_unop : forall rho e1 v1 o t v, eval_rel e1 v1 rho -∗ eval_unop_rel o (typeof e1) v1 v rho -∗
+    eval_rel (Eunop o e1 t) v rho.
+  Proof.
+    intros.
+    rewrite /eval_rel /eval_unop_rel.
+    iIntros "H1 H" (?) "Hm".
+    iAssert ⌜∀ (ge : genv) (ve : env) (te : temp_env),
+            cenv_sub cenv_cs (genv_cenv ge)
+            → rho = construct_rho (filter_genv ge) ve te → Clight.eval_expr ge ve te m e1 v1⌝%I as %H1.
+    { iApply ("H1" with "Hm"). }
+    iDestruct ("H" with "Hm") as %H.
+    iPureIntro; intros; econstructor; eauto.
+  Qed.
+
+  Lemma wp_unop_rule : forall e Φ o t, wp_expr e (λ v, wp_unop o (typeof e) v Φ)
+    ⊢ wp_expr (Eunop o e t) Φ.
+  Proof.
+    intros.
+    rewrite /wp_expr /wp_unop.
+    iIntros "(%v1 & H1 & %v & H & ?)".
+    iExists _; iFrame.
+    iStopProof; split => rho; monPred.unseal.
+    iIntros "(H1 & H)". iApply (eval_rel_unop with "H1 H").
+  Qed.
+
   Lemma type_un_op o e ot T:
-    typed_val_expr e (λ v ty, typed_un_op v (v ◁ᵥ ty) o ot T)
-    ⊢ typed_val_expr (UnOp o ot e) T.
+    typed_val_expr e (λ v ty, typed_un_op v ⎡v ◁ᵥ ty⎤ o (typeof e) T)
+    ⊢ typed_val_expr (Eunop o e ot) T.
   Proof.
     iIntros "He" (Φ) "HΦ".
-    wp_bind. iApply "He". iIntros (v ty) "Hv Hop".
+    iApply wp_unop_rule. iApply "He". iIntros (v ty) "Hv Hop".
+    rewrite /typed_un_op /typed_val_unop.
     by iApply ("Hop" with "Hv").
   Qed.
 
-  Lemma type_call_syn T ef es:
+(*  Lemma type_call_syn T ef es:
     typed_val_expr (Call ef es) T :-
       vf, tyf ← {typed_val_expr ef};
       vl, tys ← iterate: es with [], [] {{e T vl tys,
