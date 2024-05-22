@@ -47,70 +47,6 @@ Section is_bool_ot.
   Qed.*)
 End is_bool_ot.
 
-Definition val_to_Z (v : val) (t : Ctypes.type) : option Z :=
-  match v, t with
-  | Vint i, Tint _ Signed _ => Some (Int.signed i)
-  | Vint i, Tint _ Unsigned _ => Some (Int.unsigned i)
-  | Vlong i, Tlong Signed _ => Some (Int64.signed i)
-  | Vlong i, Tlong Unsigned _ => Some (Int64.unsigned i)
-  | _, _ => None
-  end.
-
-Definition i2v n t :=
-  match t with
-  | Tint _ _ _ => Vint (Int.repr n)
-  | Tlong _ _ => Vlong (Int64.repr n)
-  | _ => Vundef
-  end.
-
-Inductive in_range n : Ctypes.type → Prop :=
-| in_range_int_s sz a : repable_signed n -> in_range n (Tint sz Signed a)
-| in_range_int_u sz a : (0 <= n <= Int.max_unsigned)%Z -> in_range n (Tint sz Unsigned a)
-| in_range_long_s a : (Int64.min_signed <= n <= Int64.max_signed)%Z -> in_range n (Tlong Signed a)
-| in_range_long_u a : (0 <= n <= Int64.max_unsigned)%Z -> in_range n (Tlong Unsigned a).
-
-Lemma val_to_Z_in_range : forall v t n, val_to_Z v t = Some n -> in_range n t.
-Proof.
-  intros; destruct v, t; try discriminate; destruct s; inv H; constructor; rep_lia.
-Qed.
-
-Definition int_eq v1 v2 :=
-  match v1, v2 with
-  | Vint i1, Vint i2 => Int.eq i1 i2
-  | Vlong i1, Vlong i2 => Int64.eq i1 i2
-  | _, _ => false
-  end.
-
-Global Instance elem_of_type : ElemOf Z Ctypes.type := in_range.
-
-Lemma i2v_to_Z : forall n t, in_range n t -> val_to_Z (i2v n t) t = Some n.
-Proof.
-  intros.
-  inv H; rewrite /val_to_Z /i2v.
-  - rewrite Int.signed_repr //.
-  - rewrite Int.unsigned_repr //.
-  - rewrite Int64.signed_repr //.
-  - rewrite Int64.unsigned_repr //.
-Qed.
-
-Lemma signed_inj_64 : forall i1 i2, Int64.signed i1 = Int64.signed i2 -> i1 = i2.
-Proof.
-  intros ?? H%(f_equal Int64.repr).
-  by rewrite !Int64.repr_signed in H.
-Qed.
-
-Lemma unsigned_inj_64 : forall i1 i2, Int64.unsigned i1 = Int64.unsigned i2 -> i1 = i2.
-Proof.
-  intros ?? H%(f_equal Int64.repr).
-  by rewrite !Int64.repr_unsigned in H.
-Qed.
-
-Lemma val_of_bool_eq : forall b, Val.of_bool b = Vint (Int.repr (bool_to_Z b)).
-Proof.
-  intros; rewrite /Val.of_bool /bool_to_Z.
-  simple_if_tac; auto.
-Qed.
-
 Section generic_boolean.
   Context `{!typeG Σ} {cs : compspecs}.
 
@@ -187,26 +123,7 @@ Section generic_boolean.
   Proof.
     unfold case_destruct, li_trace. iIntros "[% Hs] (%n&%Hv&%Hb)".
     apply represents_boolean_eq in Hb as <-.
-    iExists (Val.of_bool (bool_decide (n ≠ 0))); iSplit.
-    - iPureIntro.
-      destruct v; try discriminate; destruct it; try discriminate; destruct s; inv Hv; simpl.
-      + pose proof (Int.eq_spec i Int.zero).
-        case_bool_decide; simple_if_tac; subst; try done.
-        assert (Int.repr (Int.signed i) = Int.repr 0) as Hz by congruence;
-          rewrite Int.repr_signed // in Hz.
-      + pose proof (Int.eq_spec i Int.zero).
-        case_bool_decide; simple_if_tac; subst; try done.
-        assert (Int.repr (Int.unsigned i) = Int.repr 0) as Hz by congruence;
-          rewrite Int.repr_unsigned // in Hz.
-      + pose proof (Int64.eq_spec i Int64.zero).
-        case_bool_decide; simple_if_tac; subst; try done.
-        assert (Int64.repr (Int64.signed i) = Int64.repr 0) as Hz by congruence;
-          rewrite Int64.repr_signed // in Hz.
-      + pose proof (Int64.eq_spec i Int64.zero).
-        case_bool_decide; simple_if_tac; subst; try done.
-        assert (Int64.repr (Int64.unsigned i) = Int64.repr 0) as Hz by congruence;
-          rewrite Int64.repr_unsigned // in Hz.
-    - by destruct (bool_decide (n ≠ 0)).
+    destruct it, v; try discriminate; eauto.
   Qed.
   Definition type_if_generic_boolean_inst := [instance type_if_generic_boolean].
   Global Existing Instance type_if_generic_boolean_inst.
@@ -253,8 +170,11 @@ Section boolean.
         * pose proof (Int.eq_spec i0 i1) as Heq.
           destruct (Int.eq i0 i1).
           -- subst; destruct s; inv Hv1; destruct b1, b2; simpl in *; congruence.
-          -- destruct s; inv Hv1; destruct b1, b2; try done;
-               by (exploit (signed_inj i0 i1); congruence || exploit (unsigned_eq_eq i0 i1); congruence).
+          -- destruct s; inv Hv1; destruct (eqb_spec b1 b2); try done; subst.
+             ++ exploit (signed_inj i0 i1); congruence.
+             ++ if_tac in H0; inv H0.
+                if_tac in Hv2; inv Hv2.
+                exploit (unsigned_eq_eq i0 i1); congruence.
         * pose proof (Int64.eq_spec i i0) as Heq.
           destruct (Int64.eq i i0).
           -- subst; destruct s; inv Hv1; destruct b1, b2; simpl in *; congruence.

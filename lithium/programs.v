@@ -3,6 +3,81 @@ From lithium Require Import hooks.
 From VST.lithium Require Export type.
 From VST.lithium Require Import type_options.
 
+Open Scope Z.
+
+(* int infrastructure *)
+Definition val_to_Z (v : val) (t : Ctypes.type) : option Z :=
+  match v, t with
+  | Vint i, Tint _ Signed _ => Some (Int.signed i)
+  | Vint i, Tint sz Unsigned _ => if zlt (Int.unsigned i) (Z.pow (bitsize_intsize sz) 2) then Some (Int.unsigned i) else None
+  | Vlong i, Tlong Signed _ => Some (Int64.signed i)
+  | Vlong i, Tlong Unsigned _ => Some (Int64.unsigned i)
+  | _, _ => None
+  end.
+
+Lemma bitsize_max : forall sz, Z.pow (bitsize_intsize sz) 2 ≤ Int.modulus.
+Proof.
+  destruct sz; simpl; rep_lia.
+Qed.
+
+Definition i2v n t :=
+  match t with
+  | Tint _ _ _ => Vint (Int.repr n)
+  | Tlong _ _ => Vlong (Int64.repr n)
+  | _ => Vundef
+  end.
+
+Inductive in_range n : Ctypes.type → Prop :=
+| in_range_int_s sz a : repable_signed n -> in_range n (Tint sz Signed a)
+| in_range_int_u sz a : 0 <= n < Z.pow (bitsize_intsize sz) 2 -> in_range n (Tint sz Unsigned a)
+| in_range_long_s a : Int64.min_signed <= n <= Int64.max_signed -> in_range n (Tlong Signed a)
+| in_range_long_u a : 0 <= n <= Int64.max_unsigned -> in_range n (Tlong Unsigned a).
+
+Lemma val_to_Z_in_range : forall v t n, val_to_Z v t = Some n -> in_range n t.
+Proof.
+  intros; destruct v, t; try discriminate; destruct s; inv H; constructor; try rep_lia.
+  if_tac in H1; inv H1.
+  rep_lia.
+Qed.
+
+Definition int_eq v1 v2 :=
+  match v1, v2 with
+  | Vint i1, Vint i2 => Int.eq i1 i2
+  | Vlong i1, Vlong i2 => Int64.eq i1 i2
+  | _, _ => false
+  end.
+
+Global Instance elem_of_type : ElemOf Z Ctypes.type := in_range.
+
+Lemma i2v_to_Z : forall n t, in_range n t -> val_to_Z (i2v n t) t = Some n.
+Proof.
+  intros.
+  inv H; rewrite /val_to_Z /i2v.
+  - rewrite Int.signed_repr //.
+  - rewrite Int.unsigned_repr; last by pose proof (bitsize_max sz); rep_lia.
+    if_tac; [done | lia].
+  - rewrite Int64.signed_repr //.
+  - rewrite Int64.unsigned_repr //.
+Qed.
+
+Lemma signed_inj_64 : forall i1 i2, Int64.signed i1 = Int64.signed i2 -> i1 = i2.
+Proof.
+  intros ?? H%(f_equal Int64.repr).
+  by rewrite !Int64.repr_signed in H.
+Qed.
+
+Lemma unsigned_inj_64 : forall i1 i2, Int64.unsigned i1 = Int64.unsigned i2 -> i1 = i2.
+Proof.
+  intros ?? H%(f_equal Int64.repr).
+  by rewrite !Int64.repr_unsigned in H.
+Qed.
+
+Lemma val_of_bool_eq : forall b, Val.of_bool b = Vint (Int.repr (bool_to_Z b)).
+Proof.
+  intros; rewrite /Val.of_bool /bool_to_Z.
+  simple_if_tac; auto.
+Qed.
+
 Section judgements.
   Context `{!typeG Σ} {cs : compspecs}.
 
@@ -47,9 +122,10 @@ Section judgements.
   Class TypedAnnotStmt {A} (a : A) (l : address) (P : iProp Σ) : Type :=
     typed_annot_stmt_proof T : iProp_to_Prop (typed_annot_stmt a l P T).
 
-Search val bool.
   Definition typed_if (ot : Ctypes.type) (v : val) (P : iProp Σ) (T1 T2 : iProp Σ) : iProp Σ :=
-    (P -∗ ∃ b, <affine> ⌜sem_cast ot tbool v = Some b⌝ ∗ (if eq_dec b (Vint Int.one) then T1 else T2)).
+    (P -∗ match ot with
+          | Tint _ _ _ | Tlong _ _ => ∃ z, <affine> ⌜val_to_Z v ot = Some z⌝ ∗ (if bool_decide (z ≠ 0) then T1 else T2)
+          | _ => ∃ b, <affine> ⌜sem_cast ot tbool v = Some b⌝ ∗ (if eq_dec b (Vint Int.zero) then T2 else T1) end).
   Class TypedIf (ot : Ctypes.type) (v : val) (P : iProp Σ) : Type :=
     typed_if_proof T1 T2 : iProp_to_Prop (typed_if ot v P T1 T2).
 
@@ -102,8 +178,8 @@ Search val bool.
     (∀ Φ, (∀ v (ty : type), ⎡v ◁ᵥ ty⎤ -∗ T v ty -∗ Φ v) -∗ wp_expr e Φ).
   Global Arguments typed_val_expr _ _%_I.
 
-  Definition typed_value (v : val) (T : type → iProp Σ) : iProp Σ :=
-    (∃ (ty: type), v ◁ᵥ ty ∗ T ty).
+  Definition typed_value (v : val) (T : type → assert) : assert :=
+    (∃ (ty: type), ⎡v ◁ᵥ ty⎤ ∗ T ty).
   Class TypedValue (v : val) : Type :=
     typed_value_proof T : iProp_to_Prop (typed_value v T).
 
@@ -440,10 +516,8 @@ Section proper.
     typed_if ot v P T1' T2'.
   Proof.
     iIntros "Hif HT Hv". iDestruct ("Hif" with "Hv") as "Hif".
-    iDestruct "Hif" as (z ?) "HC"; iExists z.
-    iSplit; first done. case_match.
-    + iDestruct "HT" as "[HT _]". by iApply "HT".
-    + iDestruct "HT" as "[_ HT]". by iApply "HT".
+    destruct ot; iDestruct "Hif" as (b ?) "HC"; iExists b; (iSplit; first done); (case_bool_decide || if_tac;
+      (iDestruct "HT" as "[_ HT]"; by iApply "HT") || (iDestruct "HT" as "[HT _]"; by iApply "HT")).
   Qed.
 
   Lemma typed_bin_op_wand v1 P1 Q1 v2 P2 Q2 op ot1 ot2 T:
@@ -630,8 +704,8 @@ Global Typeclasses Opaque typed_write_end.*)
 
 Definition FindLoc `{!typeG Σ} {cs : compspecs} (l : address) :=
   {| fic_A := own_state * type; fic_Prop '(β, ty):= (l ◁ₗ{β} ty)%I; |}.
-Definition FindVal `{!typeG Σ} {cs : compspecs} (v : val) :=
-  {| fic_A := type; fic_Prop ty := (v ◁ᵥ ty)%I; |}.
+Definition FindVal `{!typeG Σ} `{!heapGS Σ} {cs : compspecs} (v : val) : @find_in_context_info assert :=
+  {| fic_A := type; fic_Prop ty := ⎡v ◁ᵥ ty⎤%I; |}.
 Definition FindValP {B : bi} (v : val) :=
   {| fic_A := B; fic_Prop P := P; |}.
 Definition FindValOrLoc {Σ} (v : val) (l : address) :=
@@ -677,7 +751,7 @@ Section typing.
   Global Existing Instance find_in_context_type_loc_id_inst | 1.
 
   Lemma find_in_context_type_val_id v T:
-    (∃ ty, v ◁ᵥ ty ∗ T ty)
+    (∃ ty, ⎡v ◁ᵥ ty⎤ ∗ T ty)
     ⊢ find_in_context (FindVal v) T.
   Proof. iDestruct 1 as (ty) "[Hl HT]". iExists _ => /=. iFrame. Qed.
   Definition find_in_context_type_val_id_inst :=
@@ -1235,14 +1309,57 @@ Section typing.
   Definition type_val_context_inst := [instance type_val_context].
   Global Existing Instance type_val_context_inst | 100.
 
-(*  Lemma type_val v T:
-    typed_value v (T v)
-    ⊢ typed_val_expr (Val v) T.
+  Lemma type_const_int i t T:
+    typed_value (Vint i) (T (Vint i))
+    ⊢ typed_val_expr (Econst_int i t) T.
   Proof.
     iIntros "HP" (Φ) "HΦ".
     iDestruct "HP" as (ty) "[Hv HT]".
-    iApply wp_value. iApply ("HΦ" with "Hv HT").
-  Qed. *)
+    iExists (Vint i); iSplitR.
+    - iStopProof; split => rho; monPred.unseal.
+      iIntros "_" (?) "Hm".
+      iPureIntro; intros; constructor.
+    - iApply ("HΦ" with "Hv HT").
+  Qed.
+
+  Lemma type_const_long i t T:
+    typed_value (Vlong i) (T (Vlong i))
+    ⊢ typed_val_expr (Econst_long i t) T.
+  Proof.
+    iIntros "HP" (Φ) "HΦ".
+    iDestruct "HP" as (ty) "[Hv HT]".
+    iExists (Vlong i); iSplitR.
+    - iStopProof; split => rho; monPred.unseal.
+      iIntros "_" (?) "Hm".
+      iPureIntro; intros; constructor.
+    - iApply ("HΦ" with "Hv HT").
+  Qed.
+
+  Lemma type_const_float i t T:
+    typed_value (Vfloat i) (T (Vfloat i))
+    ⊢ typed_val_expr (Econst_float i t) T.
+  Proof.
+    iIntros "HP" (Φ) "HΦ".
+    iDestruct "HP" as (ty) "[Hv HT]".
+    iExists (Vfloat i); iSplitR.
+    - iStopProof; split => rho; monPred.unseal.
+      iIntros "_" (?) "Hm".
+      iPureIntro; intros; constructor.
+    - iApply ("HΦ" with "Hv HT").
+  Qed.
+
+  Lemma type_const_single i t T:
+    typed_value (Vsingle i) (T (Vsingle i))
+    ⊢ typed_val_expr (Econst_single i t) T.
+  Proof.
+    iIntros "HP" (Φ) "HΦ".
+    iDestruct "HP" as (ty) "[Hv HT]".
+    iExists (Vsingle i); iSplitR.
+    - iStopProof; split => rho; monPred.unseal.
+      iIntros "_" (?) "Hm".
+      iPureIntro; intros; constructor.
+    - iApply ("HΦ" with "Hv HT").
+  Qed.
 
   (* up *)
   Lemma eval_rel_binop : forall rho e1 e2 v1 v2 o t v, eval_rel e1 v1 rho -∗ eval_rel e2 v2 rho -∗ eval_binop_rel o (typeof e1) v1 (typeof e2) v2 v rho -∗
