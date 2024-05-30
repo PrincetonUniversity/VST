@@ -504,7 +504,7 @@ FLOYD_FILES= \
    for_lemmas.v semax_tactics.v diagnosis.v simple_reify.v simpl_reptype.v \
    freezer.v deadvars.v Clightnotations.v unfold_data_at.v hints.v reassoc_seq.v \
    SeparationLogicAsLogicSoundness.v SeparationLogicAsLogic.v SeparationLogicFacts.v \
-   subsume_funspec.v linking.v data_at_lemmas.v Funspec_old_Notation.v assoclists.v VSU.v VSU_DrySafe.v quickprogram.v PTops.v Component.v QPcomposite.v \
+   subsume_funspec.v linking.v data_at_lemmas.v Funspec_old_Notation.v assoclists.v VSU.v quickprogram.v PTops.v Component.v QPcomposite.v \
    data_at_list_solver.v step.v fastforward.v finish.v
 #real_forward.v
 
@@ -515,7 +515,7 @@ PROGS32_FILES= \
   insertionsort.v reverse.v reverse_client.v queue.v sumarray.v message.v string.v object.v \
   revarray.v verif_revarray.v insertionsort.v append.v min.v min64.v int_or_ptr.v \
   dotprod.v strlib.v fib.v \
-  verif_min.v verif_min64.v verif_float.v verif_global.v verif_ptr_compare.v \
+  verif_min.v verif_min64.v verif_float.v verif_global.v verif_ptr_compare.v\
   verif_nest3.v verif_nest2.v verif_load_demo.v verif_store_demo.v \
   logical_compare.v verif_logical_compare.v field_loadstore.v  verif_field_loadstore.v \
   even.v verif_even.v odd.v verif_odd.v verif_evenodd_spec.v  \
@@ -535,14 +535,14 @@ PROGS32_FILES= \
 C64_ORDINARY = reverse.c revarray.c sumarray.c append.c bin_search.c \
     bst.c field_loadstore.c float.c object.c \
     global.c min.c min64.c nest2.c nest3.c \
-    logical_compare.c \
+    logical_compare.c fptr_cmp.c \
     strlib.c switch.c union.c message.c
 
 V64_ORDINARY = verif_reverse2.v verif_revarray.v verif_sumarray.v \
     verif_append2.v verif_bin_search.v \
     verif_bst.v verif_field_loadstore.v verif_float.v verif_object.v \
     verif_global.v verif_min.v verif_min64.v verif_nest2.v verif_nest3.v \
-    verif_logical_compare.v \
+    verif_logical_compare.v  verif_fptr_cmp.v\
     verif_strlib.v verif_switch.v verif_union.v verif_message.v verif_incr.v
 
 SHA_FILES= \
@@ -624,7 +624,7 @@ AES_FILES = \
 # LINKED_C_FILES are those that need to be clightgen'd in a batch with others
 
 SINGLE_C_FILES = reverse.c reverse_client.c revarray.c queue.c queue2.c message.c object.c insertionsort.c float.c global.c logical_compare.c nest2.c nest3.c ptr_compare.c load_demo.c store_demo.c dotprod.c string.c field_loadstore.c merge.c append.c bin_search.c bst.c bst_oo.c min.c min64.c switch.c funcptr.c floyd_tests.c cond.c sumarray.c sumarray2.c int_or_ptr.c union.c cast_test.c strlib.c tree.c fib.c loop_minus1.c libglob.c peel.c structcopy.c printf.c stackframe_demo.c rotate.c \
-  objectSelf.c objectSelfFancy.c objectSelfFancyOverriding.c io.c io_mem.c
+  objectSelf.c objectSelfFancy.c objectSelfFancyOverriding.c io.c io_mem.c fptr_cmp.c
 
 
 LINKED_C_FILES = even.c odd.c
