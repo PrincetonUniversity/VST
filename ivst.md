@@ -1,4 +1,5 @@
 # Notes on VST-on-Iris 
+(beware: these instructions are now out of date)
 
 ## Building
 
