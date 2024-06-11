@@ -334,6 +334,8 @@ DEPFLAGS:=$(COQFLAGS)
 
 COQFLAGS+=$(COQEXTRAFLAGS)
 
+PROFILING?=
+
 ifneq (,$(PROFILING))
   # does this coq version dupport -profile ? (Coq >= 8.19)
   ifeq (,$(shell "$(COQBIN)coqc" -profile /dev/null 2>&1))
@@ -344,6 +346,24 @@ ifneq (,$(PROFILING))
 endif
 PROFILE_FLAGS ?=
 PROFILE_ZIP ?= true
+
+TIMED?=
+
+# Use command time on linux, gtime on Mac OS
+TIMEFMT?="$(if $(findstring undefined, $(flavor 1)),$@,$(1)) (real: %e, user: %U, sys: %S, mem: %M ko)"
+ifneq (,$(TIMED))
+ifeq (0,$(shell command time -f "" true >/dev/null 2>/dev/null; echo $$?))
+STDTIME?=command time -f $(TIMEFMT)
+else
+ifeq (0,$(shell gtime -f "" true >/dev/null 2>/dev/null; echo $$?))
+STDTIME?=gtime -f $(TIMEFMT)
+else
+STDTIME?=command time
+endif
+endif
+else
+STDTIME?=command time -f $(TIMEFMT)
+endif
 
 # ##### Print configuration summary #####
 
@@ -715,7 +735,7 @@ IRIS_INSTALL_FILES=$(sort $(IRIS_INSTALL_FILES_SRC) $(IRIS_INSTALL_FILES_VO))
 %.vo: %.v
 	@echo COQC $*.v
 ifneq (,$(TIMING))
-	@$(COQC) $(COQF) -time $*.v > $<.timing
+	@$(if $(TIMED),$(STDTIME)) $(COQC) $(COQF) -time $*.v > $<.timing
 else ifeq ($(TIMINGS), true)
 #	bash -c "wc $*.v >>timings; date +'%s.%N before' >> timings; $(COQC) $(COQF) $*.v; date +'%s.%N after' >>timings" 2>>timings
 	@bash -c "/usr/bin/time --output=TIMINGS -a -f '%e real, %U user, %S sys %M mem, '\"$(shell wc $*.v)\" $(COQC) $(COQF) $*.v"
