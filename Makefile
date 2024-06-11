@@ -334,6 +334,17 @@ DEPFLAGS:=$(COQFLAGS)
 
 COQFLAGS+=$(COQEXTRAFLAGS)
 
+ifneq (,$(PROFILING))
+  # does this coq version dupport -profile ? (Coq >= 8.19)
+  ifeq (,$(shell "$(COQBIN)coqc" -profile /dev/null 2>&1))
+    PROFILE_FLAGS+=-profile $<.prof.json
+    PROFILE_ZIP = gzip -f $<.prof.json
+  else
+  endif
+endif
+PROFILE_FLAGS ?=
+PROFILE_ZIP ?= true
+
 # ##### Print configuration summary #####
 
 $(info ===== CONFIGURATION SUMMARY =====)
@@ -696,7 +707,7 @@ IRIS_INSTALL_FILES=$(sort $(IRIS_INSTALL_FILES_SRC) $(IRIS_INSTALL_FILES_VO))
 
 # This line sets COQF depending on the folder of the input file $<
 # If the folder name contains compcert, $(COMPCERT_R_FLAGS) is added, otherwise not.
-%.vo: COQF=$(if $(findstring $(COMPCERT_SRC_DIR), $(dir $<)), $(COMPCERT_R_FLAGS) $(COQEXTRAFLAGS), $(COQFLAGS))
+%.vo: COQF=$(if $(findstring $(COMPCERT_SRC_DIR), $(dir $<)), $(COMPCERT_R_FLAGS) $(COQEXTRAFLAGS), $(COQFLAGS) $(PROFILE_FLAGS))
 
 # If CompCert changes, all .vo files need to be recompiled
 %.vo: $(COMPCERT_CONFIG)
@@ -721,6 +732,7 @@ else
 	@$(COQC) $(COQF) $*.v
 #	@util/annotate $(COQC) $(COQF) $*.v
 endif
+	@$(PROFILE_ZIP)
 
 
 # ########## Targets ##########
