@@ -3,35 +3,31 @@ From iris.algebra Require Import big_op gset frac agree.
 From VST.lithium Require Import programs.
 From VST.lithium Require Import type_options.
 Require Import iris_ora.algebra.frac_auth.
+Require Import iris_ora.algebra.ext_order.
 
 Definition lockN : namespace := nroot.@"lockN".
 Definition lock_id := gname.
 
 (** Registering the necessary ghost state. *)
 
-Lemma gs_disjUR (n : nat) (x y : gset_disjUR string): ✓{n} y → x ≼ₒ{n} y → x ≼{n} y.
-  Proof. intros Hv Hxy; destruct y; destruct Hxy; subst; hnf; eexists x0; auto. Qed.
-Canonical Structure gset_disjUR_authR := @authR (gset_disjUR string) gs_disjUR.
+Canonical Structure gset_disjUR_authR := inclR(iris.algebra.auth.authR (gset_disjUR string)).
 
 Class lockG Σ := LockG {
    lock_inG :: inG Σ (gset_disjUR_authR);
    lock_excl_inG :: inG Σ (iris.algebra.excl.exclR unitO);
 }.
 
-(*
 Definition lockΣ : gFunctors :=
-  #[GFunctor (constRF (authR (gset_disjUR string)));
-    GFunctor (constRF (exclR unitO))].
+  #[GFunctor (OraconstRF (gset_disjUR_authR));
+    GFunctor (OraconstRF (exclR unitO))].
 Global Instance subG_lockG {Σ} : subG lockΣ Σ → lockG Σ.
 Proof. solve_inG. Qed.
-*)
-
 
 Section type.
   Context `{!lockG Σ} `{!typeG Σ} {cs : compspecs} .
 
   Definition lock_token (γ : lock_id) (l : list string) : mpred :=
-    ∃ s : gset string, ⌜l ≡ₚ elements s⌝ ∧ own  γ (● (GSet s)).
+    ∃ s : gset string, ⌜l ≡ₚ elements s⌝ ∧ own  γ (● (GSet s) : gset_disjUR_authR).
 
   Global Instance lock_token_timeless γ l : Timeless (lock_token γ l).
   Proof. apply _. Qed.
@@ -42,15 +38,14 @@ Section type.
     iIntros "H1 H2".
     iDestruct "H1" as (?) "[_ H1]".
     iDestruct "H2" as (?) "[_ H2]".
-    iCombine "H1 H2" as "H".
-    rewrite -own_op own_valid.
-    (* iDestruct "H" as %H. *)
-  Admitted.
-
+    iDestruct (own_valid_2 with "H1 H2") as %Hown. exfalso.
+    by apply auth_auth_op_valid in Hown.
+  Qed.
+  
   Theorem alloc_lock_token :
     ⊢ |==> ∃ γ, lock_token γ [].
   Proof.
-    iMod (own_alloc (● GSet ∅)) as (γ) "Hγ"; first by apply auth_auth_valid.
+    iMod (own_alloc (● (GSet ∅): gset_disjUR_authR)) as (γ) "Hγ"; first by apply auth_auth_valid.
     iModIntro. iExists γ, ∅. by iFrame.
   Qed.
 
@@ -58,7 +53,8 @@ Section type.
     ty_has_op_type ot mt := (ty x).(ty_has_op_type) ot mt;
     ty_own β l := (match β return _ with
                   | Own => l ◁ₗ ty x
-                  | Shr => ∃ γ', inv lockN ((∃ x', l ◁ₗ ty x' ∗ own γ' (Excl ())) ∨ own γ (◯ GSet {[ n ]}))
+                  | Shr => ∃ γ', inv lockN ((∃ x', l ◁ₗ ty x' ∗
+                                                    own γ' (Excl ())) ∨ own γ (◯ (GSet {[ n ]}): gset_disjUR_authR))
                   end)%I;
     ty_own_val v := (v ◁ᵥ (ty x))%I;
   |}.
@@ -97,13 +93,14 @@ Section type.
   Global Existing Instance tylocked_subsume_inst | 10.
 
   Definition tylocked_ex_token {A} (γ : lock_id) (n : string) (l : address) (β : own_state) (ty : A → type)  : mpred :=
-    (∀ E x, <affine> ⌜↑lockN ⊆ E⌝ -∗ l ◁ₗ ty x ={E}=∗ l ◁ₗ{β} tylocked_ex γ n x ty ∗ own γ (◯ GSet {[ n ]}))%I.
+    (∀ E x, <affine> ⌜↑lockN ⊆ E⌝ -∗ l ◁ₗ ty x ={E}=∗ l ◁ₗ{β} tylocked_ex γ n x ty ∗
+                                                      own γ (◯ (GSet {[ n ]}) : gset_disjUR_authR))%I.
 
   Lemma locked_open A n s l γ (x : A) ty β E:
     n ∉ s → ↑lockN ⊆ E →
     l ◁ₗ{β} tylocked_ex γ n x ty -∗
       lock_token γ s ={E}=∗
-      ▷ ∃ x', l ◁ₗ ty x' ∗ lock_token γ (n :: s) ∗ tylocked_ex_token γ n l β ty ∗ ⌜β = Own → x = x'⌝.
+      ▷ ∃ x', l ◁ₗ ty x' ∗ lock_token γ (n :: s) ∗ tylocked_ex_token γ n l β ty ∗ <affine> ⌜β = Own → x = x'⌝.
   Proof.
     iIntros (Hnotin ?) "Hl Hown".
     iDestruct "Hown" as (st Hperm) "Hown". rewrite ->Hperm in Hnotin.
@@ -120,30 +117,21 @@ Section type.
     }
 
     iDestruct "Hl" as (γ') "#Hinv".
-    iInv "Hinv" as "[Hl|>Hn]" "Hc".
-    2: {
-      Check own_valid_2 γ.
-      
-    Admitted.
-  (*
-    2: {
-      iDestruct (own_valid_2 with "Hs Hn") as %Hown. exfalso. move: Hown.
+    iInv "Hinv" as "[Hl|>Hn]" "Hc"; last first.
+    - iDestruct (own_valid_2 with "Hs Hn") as %Hown. exfalso. move: Hown.
       rewrite -auth_frag_op auth_frag_valid gset_disj_valid_op. set_solver.
-    }
-    iMod ("Hc" with "[Hs]") as "_"; [by iRight|].
-    iIntros "!# !#". iDestruct "Hl" as (x') "[Hl Hexcl]".
-    iExists _. iFrame. iSplitL => //.
-    (** locked_token *)
-    iIntros (E' x'' ?) "Hl".
-    iInv "Hinv" as "[H|>$]" "Hc". 1: {
-      have ? : Inhabited A by apply (populate x).
-      iDestruct "H" as (?) "[_ >He]".
+    - iMod ("Hc" with "[Hs]") as "_"; [by iRight|].
+      iIntros "!# !#". iDestruct "Hl" as (x') "[Hl Hexcl]".
+      iExists _. iFrame. iSplitL => //.
+      (** locked_token *)
+      iIntros (E' x'' ?) "Hl".
+      iInv "Hinv" as "[H|>$]" "Hc".
+      + have ? : Inhabited A by apply (populate x).
+        iDestruct "H" as (?) "(H1 & >He)".
         by iDestruct (own_valid_2 with "Hexcl He") as %Hown%exclusive_l.
-    }
-    iMod ("Hc" with "[Hl Hexcl]") as "_". 2: by iExists _.
-    iModIntro. iLeft. iExists _. iFrame.
+      + iMod ("Hc" with "[Hl Hexcl]") as "_"; last first. { by iExists _. }
+        iModIntro. iLeft. iExists _. iFrame.
   Qed.
-*)
   
   Lemma locked_close A n s l γ (x : A) ty β E:
     ↑lockN ⊆ E →
@@ -155,21 +143,21 @@ Section type.
     iDestruct "Hlock" as (st Hst) "Htok".
     iExists (st ∖ {[n]}).
     iModIntro.
-    iSplit.
-    - iPureIntro.
-      move: (Hst). rewrite {1}(union_difference_L {[n]} st).
-      + rewrite ->elements_union_singleton => ?; last set_solver.
+    iSplit. {
+      iPureIntro. move: (Hst). rewrite {1}(union_difference_L {[n]} st).
+      - rewrite ->elements_union_singleton => ?; last set_solver.
         by apply: Permutation.Permutation_cons_inv.
-      + set_unfold => ??. subst. apply elem_of_elements. rewrite -Hst. set_solver.
-    - iCombine "Htok" "Hn" as "Htok".
-    Admitted.
-      (*
-      iMod (own_update with "[Htok]") as "H".
-      iMod (own_update with "Htok") as "$" => //.
+      - set_unfold => ??. subst. apply elem_of_elements. rewrite -Hst. set_solver.
+    }
+    iCombine "Htok" "Hn" as "Htok".
+    (* FIX ME*)
+    (* I should try to eliminate  own γ (● GSet (st ∖ {[n]})) before iSplit, but not working *)
+    (*
+    iMod (own_update with "Htok") as "$" => //.
     eapply auth_update_dealloc.
       by apply gset_disj_dealloc_local_update.
-  Qed.
-*)
+     *)
+    Admitted.
 
   Lemma annot_unlock A l β γ n ty (x : A) T:
     (find_in_context (FindDirect (lock_token γ)) (λ s : list string, ⌜n∉s⌝ ∗ (∀ x',
@@ -180,9 +168,9 @@ Section type.
     iDestruct 1 as (s) "(Hs&%&HT)". iIntros "Hlocked".
     iMod (locked_open with "Hlocked Hs") as "Htok" => //.
     iApply step_fupd_intro => //. iModIntro.
-   (* iDestruct "Htok" as (x') "(Hl&Hs&Htok&%)".
+    iDestruct "Htok" as (x') "(Hl&Hs&Htok&%)".
     by iApply ("HT" with "Hs Htok [//] Hl").
-  Qed. *) Admitted.
+  Qed. 
   
   Definition annot_unlock_inst := [instance annot_unlock].
   Global Existing Instance annot_unlock_inst.
