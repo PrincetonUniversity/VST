@@ -453,6 +453,8 @@ Section optionalO.
   Definition type_neq_optionalO_inst := [instance type_neq_optionalO].
   Global Existing Instance type_neq_optionalO_inst.
 
+  (* FIX ME: We don't have typed_read_end *)
+(*
   Lemma read_optionalO_case A E l b (ty : A → type) optty ly mc a (T : val → type → _):
     case_destruct b (λ b _, li_trace (TraceOptionalO, b)
      (typed_read_end a E l Own (if b is Some x then ty x else optty) ly mc T))
@@ -461,7 +463,7 @@ Section optionalO.
   (* This should be tried very late *)
   Definition read_optionalO_case_inst := [instance read_optionalO_case].
   Global Existing Instance read_optionalO_case_inst | 1001.
-
+*)
   Global Program Instance optionalO_copyable A (ty : A → type) optty x `{!∀ x, Copyable (ty x)} `{!Copyable optty} : Copyable (x @ optionalO ty optty).
   Next Obligation.
     iIntros (A ty optty x ? ? E ly l ? [Hty ?]). unfold optionalO; simpl_type. destruct x.
