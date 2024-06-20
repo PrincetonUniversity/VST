@@ -1,5 +1,5 @@
 From VST.lithium Require Export type.
-From VST.lithium Require Import programs (* optional *) .
+From VST.lithium Require Import programs optional.
 From VST.lithium Require Import type_options.
 
 Definition ty_exists_rty_def `{!typeG Σ} {cs : compspecs} {A} (ty : A → type) (a : A) : type := ty a.
@@ -99,7 +99,6 @@ Section tyexist.
     SimpleSubsumePlace ty1 (x @ tyexists ty2) P.
   Proof. iIntros (l β) "HP Hl". rewrite ! tyexists_eq. iApply (@simple_subsume_place with "HP Hl"). Qed.
 
-  (*
   Global Program Instance tyexist_optional x (ty : A → _) optty ot1 ot2
     `{!∀ x, Optionable (ty x) optty ot1 ot2} : Optionable (x @ tyexists ty) optty ot1 ot2 := {|
     opt_pre v1 v2 := opt_pre (ty x) v1 v2
@@ -112,7 +111,6 @@ Section tyexist.
     `{!∀ x, OptionableAgree (ty2 x) ty1} : OptionableAgree (tyexists ty2) ty1.
   Proof. done. Qed.
 
-*)
 End tyexist.
 
 Global Typeclasses Opaque tyexists_type tyexists.

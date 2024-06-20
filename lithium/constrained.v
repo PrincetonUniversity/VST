@@ -17,10 +17,10 @@ Section own_constrained.
     ty_own β l := (l ◁ₗ{β} ty ∗ P β)%I;
      ty_own_val v := (v ◁ᵥ ty ∗ P Own)%I;
   |}.
-  Next Obligation.
-    move => ty P ? l E ?. iIntros "[Hl HP]".
-    iMod (ty_share with "Hl") as "$" => //.
-    by iApply own_constraint_share.
+  Next Obligation. Admitted. (*FIX ME: prove it is Affine*)
+  Next Obligation. iIntros (??????) "(H1 & H2)".
+                   iMod (ty_share with "[$H1]") as "$" => //.
+                   by iApply own_constraint_share.
   Qed.
   Next Obligation. iIntros (???????) "[? _]". by iApply ty_aligned. Qed.
   Next Obligation. iIntros (???????) "(H & H1)". iFrame "H1". iApply (ty_deref with "[H]"); done. Qed.
@@ -76,7 +76,6 @@ Section own_constrained.
     [instance simplify_goal_val_own_constrained with 0%N].
   Global Existing Instance simplify_goal_val_own_constrained_inst.
 
-  (*
   Global Program Instance own_constrained_optional ty P optty ot1 ot2 `{!OwnConstraint P} `{!Optionable ty optty ot1 ot2} : Optionable (own_constrained P ty) optty ot1 ot2 := {|
     opt_pre v1 v2 := opt_pre ty v1 v2
   |}.
@@ -88,7 +87,6 @@ Section own_constrained.
 
   Global Instance optionable_agree_own_constrained P (ty2 : type) `{!OwnConstraint P} `{!OptionableAgree ty1 ty2} : OptionableAgree (own_constrained P ty1) ty2.
   Proof. done. Qed.
-  *)
 
   Definition tyown_constraint (l : address) (ty : type) (β : own_state) : iProp Σ := l ◁ₗ{β} ty.
 
