@@ -6,19 +6,20 @@ From VST.lithium Require Import type_options.
 uses the same instances as Optionable.
   TODO: findout if there is a better way, maybe using Canonical Structures?
  *)
-Class Optionable `{!typeG Σ} (ty : type) (optty : type) (ot1 ot2 : op_type) := {
+
+Class Optionable `{!typeG Σ} {cs : compspecs} (ty : type) (optty : type) (ot1 ot2 : Ctypes.type) := {
   opt_pre : val → val → iProp Σ;
   opt_bin_op (bty beq : bool) v1 v2 σ v :
-    (⊢ opt_pre v1 v2 -∗ (if bty then v1 ◁ᵥ ty else v1 ◁ᵥ optty) -∗ v2 ◁ᵥ optty -∗ state_ctx σ -∗
-        ⌜eval_bin_op (if beq then EqOp i32 else NeOp i32) ot1 ot2 σ v1 v2 v ↔ val_of_Z (bool_to_Z (xorb bty beq)) i32 None = Some v⌝);
+    (⊢ opt_pre v1 v2 -∗ (if bty then v1 ◁ᵥ ty else v1 ◁ᵥ optty) -∗ v2 ◁ᵥ optty -∗ juicy_mem.mem_auth σ -∗
+      ⌜sem_binary_operation _ (if beq then Oeq else One) v1 ot1 v2 ot2 σ = Some v ↔ Vint (Int.repr (bool_to_Z (xorb bty beq))) = v⌝);
 }.
-Arguments opt_pre {_ _} _ {_ _ _ _} _ _.
+Arguments opt_pre {_ _ _} _ {_ _ _ _} _ _.
 
-Class OptionableAgree `{!typeG Σ} (ty1 ty2 : type) : Prop :=
+Class OptionableAgree `{!typeG Σ} {cs : compspecs} (ty1 ty2 : type) : Prop :=
   optionable_dist : True.
 
 Section optional.
-  Context `{!typeG Σ}.
+  Context `{!typeG Σ} {cs : compspecs}.
 
   Global Program Instance optionable_ty_of_rty A (r : rtype A) `{!Inhabited A} optty ot1 ot2
     `{!∀ x, Optionable (x @ r) optty ot1 ot2}: Optionable r optty ot1 ot2 := {|
@@ -42,9 +43,9 @@ Section optional.
 
   (* Separate definition such that we can make it typeclasses opaque later. *)
   Program Definition optional_type (ty : type) (optty : type) (b : Prop) : type := {|
-      ty_has_op_type ot mt := ty.(ty_has_op_type) ot mt ∧ optty.(ty_has_op_type) ot mt;
-      ty_own β l := (⌜b⌝ ∗ l◁ₗ{β}ty ∨ ⌜¬b⌝ ∗ l◁ₗ{β}optty)%I;
-      ty_own_val v := (⌜b⌝ ∗ v ◁ᵥ ty ∨ ⌜¬b⌝ ∗ v ◁ᵥ optty)%I
+      ty_has_op_type ot mt := (ty.(ty_has_op_type) ot mt ∧ optty.(ty_has_op_type) ot mt)%type;
+      ty_own β l := (<affine> ⌜b⌝ ∗ l◁ₗ{β}ty ∨ <affine> ⌜¬b⌝ ∗ l◁ₗ{β}optty)%I;
+      ty_own_val v := (<affine> ⌜b⌝ ∗ v ◁ᵥ ty ∨ <affine> ⌜¬b⌝ ∗ v ◁ᵥ optty)%I
   |}.
   Next Obligation.
     iIntros (??????).
@@ -53,9 +54,9 @@ Section optional.
   Next Obligation.
     iIntros (ty?????[??]). by iDestruct 1 as "[[% Hv]|[% Hv]]";iDestruct (ty_aligned with "Hv") as %?.
   Qed.
-  Next Obligation.
+(*   Next Obligation.
     iIntros (ty?????[??]). by iDestruct 1 as "[[% Hv]|[% Hv]]";iDestruct (ty_size_eq with "Hv") as %?.
-  Qed.
+  Qed. *)
   Next Obligation.
     iIntros (ty optty ????[??]) "Hl".
     iDestruct "Hl" as "[[% Hl]|[% Hl]]"; iDestruct (ty_deref with "Hl") as (?) "[? ?]"; eauto with iFrame.
@@ -65,12 +66,12 @@ Section optional.
     iDestruct "Hv" as "[[% Hv]|[% Hv]]"; iDestruct (ty_ref with "[] Hl Hv") as "H"; rewrite -?opt_alt_sz//;
        [iLeft | iRight]; by iFrame.
   Qed.
-  Next Obligation.
+(*   Next Obligation.
     iIntros (ty optty b v ot mt st [??]) "[[% Hv]|[% Hv]]".
     all: iDestruct (ty_memcast_compat with "Hv") as "Hv" => //.
     all: case_match => //. 1: iLeft. 2: iRight.
     all: by iFrame.
-  Qed.
+  Qed. *)
 
   Global Instance optional_type_le : Proper ((⊑) ==> (⊑) ==> (=) ==> (⊑)) optional_type.
   Proof. solve_type_proper. Qed.
@@ -82,13 +83,13 @@ Section optional.
   optionalO with () instead. *)
   Definition optional (ty : type) (optty : type) : rtype _ := RType (optional_type ty optty).
 
-  Global Instance optional_loc_in_bounds ty e ot β n `{!LocInBounds ty β n} `{!LocInBounds ot β n}:
+(*   Global Instance optional_loc_in_bounds ty e ot β n `{!LocInBounds ty β n} `{!LocInBounds ot β n}:
     LocInBounds (e @ optional ty ot) β n.
   Proof.
     constructor. rewrite /with_refinement /=. iIntros (l) "Hl".
     iDestruct "Hl" as "[[_ Hl]|[_ Hl]]"; by iApply (loc_in_bounds_in_bounds with "Hl").
   Qed.
-
+ *)
   (* We could add rules like *)
   (* Lemma simplify_optional_goal ty optty l β T b `{!Decision b}: *)
   (*   T (if decide b then l◁ₗ{β}ty else l◁ₗ{β}optty) -∗ *)
@@ -99,8 +100,8 @@ Section optional.
   cause unnecssary case splits. *)
 
   (* TODO: should be allow different opttys? *)
-  Global Instance simple_subsume_place_optional ty1 ty2 optty b1 b2 `{!SimpleSubsumePlace ty1 ty2 P}:
-    SimpleSubsumePlace (b1 @ optional ty1 optty) (b2 @ optional ty2 optty) (⌜b1 ↔ b2⌝ ∗ P).
+  Global Instance simple_subsume_place_optional ty1 ty2 optty b1 b2 `{!Affine P} `{!SimpleSubsumePlace ty1 ty2 P}:
+    SimpleSubsumePlace (b1 @ optional ty1 optty) (b2 @ optional ty2 optty) (<affine> ⌜b1 ↔ b2⌝ ∗ P).
   Proof.
     iIntros (l β) "HP Hl". iDestruct "HP" as (Hequiv) "HP".
     iDestruct "Hl" as "[[% Hl]|[% Hl]]"; [iLeft | iRight]; rewrite -Hequiv. 2: by iFrame.
@@ -108,8 +109,8 @@ Section optional.
   Qed.
 
   Global Instance simple_subsume_val_optional ty1 ty2 optty b1 b2
-       `{!SimpleSubsumeVal ty1 ty2 P}:
-    SimpleSubsumeVal (b1 @ optional ty1 optty) (b2 @ optional ty2 optty) (⌜b1 ↔ b2⌝ ∗ P).
+       `{!Affine P} `{!SimpleSubsumeVal ty1 ty2 P}:
+    SimpleSubsumeVal (b1 @ optional ty1 optty) (b2 @ optional ty2 optty) (<affine> ⌜b1 ↔ b2⌝ ∗ P).
   Proof.
     iIntros (v) "[Heq P] H". rewrite /ty_own_val /=. iDestruct "Heq" as %->.
     iDestruct "H" as "[[?H] | [??]]"; last (iRight; by iFrame).
@@ -117,14 +118,14 @@ Section optional.
   Qed.
 
   Lemma subsume_optional_optty_ref A b ty optty l β T:
-    (∃ x, ⌜¬ (b x)⌝ ∗ T x) ⊢ subsume (l ◁ₗ{β} optty) (λ x : A, l ◁ₗ{β} (b x) @ optional (ty x) optty) T.
+    (∃ x, <affine> ⌜¬ (b x)⌝ ∗ T x) ⊢ subsume (l ◁ₗ{β} optty) (λ x : A, l ◁ₗ{β} (b x) @ optional (ty x) optty) T.
   Proof. iIntros "[% [Hb ?]] Hl". iExists _. iFrame. iRight. by iFrame. Qed.
   Definition subsume_optional_optty_ref_inst := [instance subsume_optional_optty_ref].
   Global Existing Instance subsume_optional_optty_ref_inst.
 
   Lemma subsume_optional_ty_ref A b (ty : A → type) ty' optty l β
     `{!∀ x, OptionableAgree (ty x) ty'} T:
-    (l ◁ₗ{β} ty' -∗ ∃ x, l ◁ₗ{β} ty x ∗ ⌜b x⌝ ∗ T x)
+    (l ◁ₗ{β} ty' -∗ ∃ x, l ◁ₗ{β} ty x ∗ <affine> ⌜b x⌝ ∗ T x)
     ⊢ subsume (l ◁ₗ{β} ty') (λ x : A, l ◁ₗ{β} (b x) @ optional (ty x) (optty x)) T.
   Proof.
     iIntros "Hsub Hl". iDestruct ("Hsub" with "Hl") as (?) "[? [% ?]]".
@@ -134,13 +135,13 @@ Section optional.
   Global Existing Instance subsume_optional_ty_ref_inst.
 
   Lemma subsume_optional_val_optty_ref A b ty optty v T:
-    (∃ x, ⌜¬ b x⌝ ∗ T x) ⊢ subsume (v ◁ᵥ optty) (λ x : A, v ◁ᵥ (b x) @ optional (ty x) optty) T.
+    (∃ x, <affine> ⌜¬ b x⌝ ∗ T x) ⊢ subsume (v ◁ᵥ optty) (λ x : A, v ◁ᵥ (b x) @ optional (ty x) optty) T.
   Proof. iIntros "[% [Hb ?]] Hl". iExists _. iFrame. iRight. by iFrame. Qed.
   Definition subsume_optional_val_optty_ref_inst := [instance subsume_optional_val_optty_ref].
   Global Existing Instance subsume_optional_val_optty_ref_inst.
 
   Lemma subsume_optional_val_ty_ref A b ty ty' optty v `{!∀ x, OptionableAgree (ty x) ty'} T:
-    (v ◁ᵥ ty' -∗ ∃ x, v ◁ᵥ ty x ∗ ⌜b x⌝ ∗ T x)
+    (v ◁ᵥ ty' -∗ ∃ x, v ◁ᵥ ty x ∗ <affine> ⌜b x⌝ ∗ T x)
     ⊢ subsume (v ◁ᵥ ty') (λ x : A, v ◁ᵥ (b x) @ optional (ty x) (optty x)) T.
   Proof.
     iIntros "Hsub Hl". iDestruct ("Hsub" with "Hl") as (?) "[? [% ?]]".
@@ -153,37 +154,35 @@ Section optional.
   | TraceOptionalEq (P : Prop)
   | TraceOptionalNe (P : Prop).
 
-  Lemma type_eq_optional_refined v1 v2 ty optty ot1 ot2 `{!Optionable ty optty ot1 ot2} b T :
-    opt_pre ty v1 v2 ∧
+  Lemma type_eq_optional_refined v1 v2 ty optty ot1 ot2 `{!Optionable ty optty ot1 ot2} b (T : _ → _ → assert) :
+    ⎡opt_pre ty v1 v2⎤ ∧
     case_if b
-      (li_trace (TraceOptionalEq b) (v1 ◁ᵥ ty -∗ T (i2v (bool_to_Z false) i32) (false @ boolean i32)))
-      (li_trace (TraceOptionalEq (¬ b)) (v1 ◁ᵥ optty -∗ T (i2v (bool_to_Z true) i32) (true @ boolean i32)))
-    ⊢ typed_bin_op v1 (v1 ◁ᵥ b @ (optional ty optty)) v2 (v2 ◁ᵥ optty) (EqOp i32) ot1 ot2 T.
+      (li_trace (TraceOptionalEq b) (⎡v1 ◁ᵥ ty⎤ -∗ T (i2v (bool_to_Z false) tint) (false @ boolean tint)))
+      (li_trace (TraceOptionalEq (¬ b)) (⎡v1 ◁ᵥ optty⎤ -∗ T (i2v (bool_to_Z true) tint) (true @ boolean tint)))
+    ⊢ typed_bin_op v1 ⎡v1 ◁ᵥ b @ (optional ty optty)⎤ v2 ⎡v2 ◁ᵥ optty⎤ Oeq ot1 ot2 T.
   Proof.
     iIntros "HT Hv1 Hv2" (Φ) "HΦ".
     iDestruct "Hv1" as "[[% Hv1]|[% Hv1]]".
-    - iApply (wp_binop_det (i2v (bool_to_Z false) i32)).
-      iIntros (σ) "Hctx". iApply fupd_mask_intro; [set_solver|]. iIntros "HE".
+    - iIntros (?) "Hctx".
+      iExists (i2v (bool_to_Z false) tint).
       iSplit. {
-        iIntros (v). iDestruct "HT" as "[Hpre _]".
-        iDestruct (opt_bin_op true true with "Hpre Hv1 Hv2 Hctx") as %->.
-        iPureIntro. rewrite /i2v.
-        have [|v' ->] := val_of_Z_is_Some None i32 (bool_to_Z false) => //.
-        naive_solver.
+        iStopProof; split => rho; monPred.unseal.
+        iIntros "([Hpre _] & Hv1 & Hv2 & _ & Hctx)".
+        iDestruct (opt_bin_op true true with "Hpre Hv1 Hv2 Hctx") as %Hiff.
+        iPureIntro; intros. simpl in Hiff. rewrite Hiff //.
       }
-      iDestruct "HT" as "[_ [HT _]]". iModIntro. iMod "HE". iModIntro. iFrame.
+      iDestruct "HT" as "[_ [HT _]]". iFrame.
       iDestruct ("HT" with "[//] Hv1") as "HT".
       iApply ("HΦ" with "[] HT"). by iExists _.
-    - iApply (wp_binop_det (i2v (bool_to_Z true) i32)).
-      iIntros (σ) "Hctx". iApply fupd_mask_intro; [set_solver|]. iIntros "HE".
+    - iIntros (?) "Hctx".
+      iExists (i2v (bool_to_Z true) tint).
       iSplit. {
-        iIntros (v). iDestruct "HT" as "[Hpre _]".
-        iDestruct (opt_bin_op false true with "Hpre Hv1 Hv2 Hctx") as %->.
-        iPureIntro. rewrite /i2v.
-        have [|v' ->] := val_of_Z_is_Some None i32 (bool_to_Z true) => //.
-        naive_solver.
+        iStopProof; split => rho; monPred.unseal.
+        iIntros "([Hpre _] & Hv1 & Hv2 & _ & Hctx)".
+        iDestruct (opt_bin_op false true with "Hpre Hv1 Hv2 Hctx") as %Hiff.
+        iPureIntro; intros. simpl in Hiff. rewrite Hiff //.
       }
-      iDestruct "HT" as "[_ [_ HT]]". iModIntro. iMod "HE". iModIntro. iFrame.
+      iDestruct "HT" as "[_ [_ HT]]". iFrame.
       iDestruct ("HT" with "[//] Hv1") as "HT".
       iApply ("HΦ" with "[] HT"). by iExists _.
   Qed.
@@ -191,55 +190,53 @@ Section optional.
   Global Existing Instance type_eq_optional_refined_inst.
 
   Lemma type_eq_optional_neq v1 v2 ty optty ot1 ot2 `{!Optionable ty optty ot1 ot2} T :
-    opt_pre ty v1 v2 ∧ (∀ v, v1 ◁ᵥ ty -∗ T v (false @ boolean i32))
-    ⊢ typed_bin_op v1 (v1 ◁ᵥ ty) v2 (v2 ◁ᵥ optty) (EqOp i32) ot1 ot2 T.
+    ⎡opt_pre ty v1 v2⎤ ∧ (∀ v, ⎡v1 ◁ᵥ ty⎤ -∗ T v (false @ boolean tint))
+    ⊢ typed_bin_op v1 ⎡v1 ◁ᵥ ty⎤ v2 ⎡v2 ◁ᵥ optty⎤ Oeq ot1 ot2 T.
   Proof.
     iIntros "HT Hv1 Hv2". iIntros (Φ) "HΦ".
-    have [|v' Hv] := val_of_Z_is_Some None i32 (bool_to_Z false) => //.
-    iApply (wp_binop_det v').
-    iIntros (σ) "Hctx". iApply fupd_mask_intro; [set_solver|]. iIntros "HE".
+    iIntros (?) "Hctx".
+    iExists (i2v (bool_to_Z false) tint).
     iSplit. {
-      iIntros (v). iDestruct "HT" as "[Hpre _]".
-      iDestruct (opt_bin_op true true with "Hpre Hv1 Hv2 Hctx") as %->.
-      iPureIntro. by split => ?; simpl in *; simplify_eq.
+        iStopProof; split => rho; monPred.unseal.
+        iIntros "([Hpre _] & Hv1 & Hv2 & _ & Hctx)".
+        iDestruct (opt_bin_op true true with "Hpre Hv1 Hv2 Hctx") as %Hiff.
+        iPureIntro; intros. simpl in Hiff. rewrite Hiff //.
     }
-    iDestruct ("HT" with "Hv1") as "HT". iModIntro. iMod "HE". iModIntro. iFrame.
-    iApply "HΦ" => //. iExists _. iSplit; iPureIntro; first by eapply val_to_of_Z. done.
+    iDestruct ("HT" with "Hv1") as "HT". iFrame.
+    iApply "HΦ" => //. iExists _. iSplit; iPureIntro; done.
   Qed.
   Definition type_eq_optional_neq_inst := [instance type_eq_optional_neq].
   Global Existing Instance type_eq_optional_neq_inst.
 
   Lemma type_neq_optional v1 v2 ty optty ot1 ot2 `{!Optionable ty optty ot1 ot2} b T :
-    opt_pre ty v1 v2 ∧
+    ⎡opt_pre ty v1 v2⎤ ∧
     case_if b
-      (li_trace (TraceOptionalNe b) (v1 ◁ᵥ ty -∗ T (i2v (bool_to_Z true) i32) (true @ boolean i32)))
-      (li_trace (TraceOptionalNe (¬ b)) (v1 ◁ᵥ optty -∗ T (i2v (bool_to_Z false) i32) (false @ boolean i32)))
-    ⊢ typed_bin_op v1 (v1 ◁ᵥ b @ (optional ty optty)) v2 (v2 ◁ᵥ optty) (NeOp i32) ot1 ot2 T.
+      (li_trace (TraceOptionalNe b) (⎡v1 ◁ᵥ ty⎤ -∗ T (i2v (bool_to_Z true) tint) (true @ boolean tint)))
+      (li_trace (TraceOptionalNe (¬ b)) (⎡v1 ◁ᵥ optty⎤ -∗ T (i2v (bool_to_Z false) tint) (false @ boolean tint)))
+    ⊢ typed_bin_op v1 ⎡v1 ◁ᵥ b @ (optional ty optty)⎤ v2 ⎡v2 ◁ᵥ optty⎤ One ot1 ot2 T.
   Proof.
     unfold li_trace. iIntros "HT Hv1 Hv2" (Φ) "HΦ".
     iDestruct "Hv1" as "[[% Hv1]|[% Hv1]]".
-    - iApply (wp_binop_det (i2v (bool_to_Z true) i32)).
-      iIntros (σ) "Hctx". iApply fupd_mask_intro; [set_solver|]. iIntros "HE".
+    - iIntros (?) "Hctx".
+      iExists (i2v (bool_to_Z true) tint).
       iSplit. {
-        iIntros (v). iDestruct "HT" as "[Hpre _]".
-        iDestruct (opt_bin_op true false with "Hpre Hv1 Hv2 Hctx") as %->.
-        iPureIntro. rewrite /i2v.
-        have [|v' ->] := val_of_Z_is_Some None i32 (bool_to_Z true) => //.
-        naive_solver.
+        iStopProof; split => rho; monPred.unseal.
+        iIntros "([Hpre _] & Hv1 & Hv2 & _ & Hctx)".
+        iDestruct (opt_bin_op true false with "Hpre Hv1 Hv2 Hctx") as %Hiff.
+        iPureIntro; intros. simpl in Hiff. rewrite Hiff //.
       }
-      iDestruct "HT" as "[_ [HT _]]". iModIntro. iMod "HE". iModIntro. iFrame.
+      iDestruct "HT" as "[_ [HT _]]". iFrame.
       iDestruct ("HT" with "[//] Hv1") as "HT".
       iApply ("HΦ" with "[] HT"). by iExists _.
-    - iApply (wp_binop_det (i2v (bool_to_Z false) i32)).
-      iIntros (σ) "Hctx". iApply fupd_mask_intro; [set_solver|]. iIntros "HE".
+    - iIntros (?) "Hctx".
+      iExists (i2v (bool_to_Z false) tint).
       iSplit. {
-        iIntros (v). iDestruct "HT" as "[Hpre _]".
-        iDestruct (opt_bin_op false false with "Hpre Hv1 Hv2 Hctx") as %->.
-        iPureIntro. rewrite /i2v.
-        have [|v' ->] := val_of_Z_is_Some None i32 (bool_to_Z false) => //.
-        naive_solver.
+        iStopProof; split => rho; monPred.unseal.
+        iIntros "([Hpre _] & Hv1 & Hv2 & _ & Hctx)".
+        iDestruct (opt_bin_op false false with "Hpre Hv1 Hv2 Hctx") as %Hiff.
+        iPureIntro; intros. simpl in Hiff. rewrite Hiff //.
       }
-      iDestruct "HT" as "[_ [_ HT]]". iModIntro. iMod "HE". iModIntro. iFrame.
+      iDestruct "HT" as "[_ [_ HT]]". iFrame.
       iDestruct ("HT" with "[//] Hv1") as "HT".
       iApply ("HΦ" with "[] HT"). by iExists _.
   Qed.
@@ -264,32 +261,35 @@ Notation "'optional' == ... : P" := (TraceOptionalEq P) (at level 100, only prin
 Notation "'optional' != ... : P" := (TraceOptionalNe P) (at level 100, only printing).
 
 Section optionalO.
-  Context `{!typeG Σ}.
+  Context `{!typeG Σ} {cs : compspecs}.
     (* Separate definition such that we can make it typeclasses opaque later. *)
   Program Definition optionalO_type {A : Type} (ty : A → type) (optty : type) (b : option A) : type := {|
-      ty_has_op_type ot mt := (∀ x, (ty x).(ty_has_op_type) ot mt) ∧ optty.(ty_has_op_type) ot mt;
+      ty_has_op_type ot mt := ((∀ x, (ty x).(ty_has_op_type) ot mt) ∧ optty.(ty_has_op_type) ot mt)%type;
       ty_own β l := (if b is Some x return _ then l◁ₗ{β}(ty x) else l◁ₗ{β}optty)%I;
       ty_own_val v := (if b is Some x return _ then v ◁ᵥ (ty x) else v ◁ᵥ optty)%I
   |}.
+  Next Obligation.
+    iIntros (A ty? [x|]); apply _.
+  Qed.
   Next Obligation.
     iIntros (A ty? [x|]); apply ty_share.
   Qed.
   Next Obligation.
     iIntros (A ty? [x|] ???[Hty ?]) "Hv";iDestruct (ty_aligned with "Hv") as %Ha => //.
   Qed.
-  Next Obligation.
+(*   Next Obligation.
     iIntros (A ty? [x|] ???[??]) "Hv";iDestruct (ty_size_eq with "Hv") as %Ha => //.
-  Qed.
+  Qed. *)
   Next Obligation.
     iIntros (A ty optty [] ?? l[??]) "Hl"; rewrite /with_refinement/ty_own/=; iDestruct (ty_deref with "Hl") as (?) "[? ?]"; eauto with iFrame.
   Qed.
   Next Obligation.
     iIntros (A ty optty [] ?? l v [??]?) "Hl Hv"; iApply (ty_ref with "[] Hl Hv") => //.
   Qed.
-  Next Obligation.
+(*   Next Obligation.
     iIntros (A ty optty [x|] v ot mt st [??]) "Hl".
     all: by iDestruct (ty_memcast_compat with "Hl") as "Hl".
-  Qed.
+  Qed. *)
 
   Global Instance optionalO_type_le A : Proper (pointwise_relation A (⊑) ==> (⊑) ==> (eq) ==> (⊑)) optionalO_type.
   Proof. solve_type_proper. Qed.
@@ -298,16 +298,16 @@ Section optionalO.
 
   Definition optionalO {A : Type} (ty : A → type) (optty : type) : rtype _ := RType (optionalO_type ty optty).
 
-  Global Instance optionalO_loc_in_bounds A (ty : A → type) e ot β n `{!∀ x, LocInBounds (ty x) β n} `{!LocInBounds ot β n}:
+(*   Global Instance optionalO_loc_in_bounds A (ty : A → type) e ot β n `{!∀ x, LocInBounds (ty x) β n} `{!LocInBounds ot β n}:
     LocInBounds (e @ optionalO ty ot) β n.
   Proof.
     constructor. iIntros (l) "Hl". unfold optionalO; simpl_type.
     destruct e; by iApply (loc_in_bounds_in_bounds with "Hl").
-  Qed.
+  Qed. *)
 
   (* TODO: should be allow different opttys? *)
   Global Instance simple_subsume_place_optionalO A (ty1 : A → _) ty2 optty b
-    `{!∀ x, SimpleSubsumePlace (ty1 x) (ty2 x) P}:
+    `{!Affine P} `{!∀ x, SimpleSubsumePlace (ty1 x) (ty2 x) P}:
     SimpleSubsumePlace (b @ optionalO ty1 optty) (b @ optionalO ty2 optty) P.
   Proof.
     iIntros (l β) "HP Hl". destruct b. 2: by iFrame.
@@ -337,7 +337,7 @@ Section optionalO.
   Global Existing Instance simpl_hyp_optionalO_None_val_inst.
 
   Lemma subsume_optionalO_optty B A (ty : B → A → type) optty l β b T:
-    (∃ x, ⌜b x = None⌝ ∗ T x)
+    (∃ x, <affine> ⌜b x = None⌝ ∗ T x)
     ⊢ subsume (l ◁ₗ{β} optty) (λ x : B, l ◁ₗ{β} (b x) @ optionalO (ty x) optty) T.
   Proof. iIntros "[% [%Heq ?]] Hl". iExists _. iFrame. by rewrite Heq. Qed.
   Definition subsume_optionalO_optty_inst := [instance subsume_optionalO_optty].
@@ -345,7 +345,7 @@ Section optionalO.
 
   Lemma subsume_optionalO_ty B A (ty : B → A → type) optty l β b ty'
     `{!∀ x y, OptionableAgree (ty y x) ty'} T:
-    (l ◁ₗ{β} ty' -∗ ∃ y x, ⌜b y = Some x⌝ ∗ l ◁ₗ{β} ty y x ∗ T y)
+    (l ◁ₗ{β} ty' -∗ ∃ y x, <affine> ⌜b y = Some x⌝ ∗ l ◁ₗ{β} ty y x ∗ T y)
     ⊢ subsume (l ◁ₗ{β} ty') (λ y : B, l ◁ₗ{β} (b y) @ optionalO (ty y) (optty y)) T.
   Proof.
     iIntros "Hsub Hl". iDestruct ("Hsub" with "Hl") as (?? Heq) "[??]".
@@ -355,14 +355,14 @@ Section optionalO.
   Global Existing Instance subsume_optionalO_ty_inst.
 
   Lemma subsume_optionalO_optty_val B A (ty : B → A → type) optty v b T:
-    (∃ x, ⌜b x = None⌝ ∗ T x) ⊢ subsume (v ◁ᵥ optty) (λ x : B, v ◁ᵥ (b x) @ optionalO (ty x) optty) T.
+    (∃ x, <affine> ⌜b x = None⌝ ∗ T x) ⊢ subsume (v ◁ᵥ optty) (λ x : B, v ◁ᵥ (b x) @ optionalO (ty x) optty) T.
   Proof. iIntros "[% [%Heq ?]] Hl". iExists _. iFrame. by rewrite Heq. Qed.
   Definition subsume_optionalO_optty_val_inst := [instance subsume_optionalO_optty_val].
   Global Existing Instance subsume_optionalO_optty_val_inst.
 
   Lemma subsume_optionalO_ty_val B A (ty : B → A → type) optty v b ty'
     `{!∀ y x, OptionableAgree (ty y x) ty'} T:
-    (v ◁ᵥ ty' -∗ ∃ y x, ⌜b y = Some x⌝ ∗ v ◁ᵥ ty y x ∗ T y)
+    (v ◁ᵥ ty' -∗ ∃ y x, <affine> ⌜b y = Some x⌝ ∗ v ◁ᵥ ty y x ∗ T y)
     ⊢ subsume (v ◁ᵥ ty') (λ y : B, v ◁ᵥ (b y) @ optionalO (ty y) (optty y)) T.
   Proof.
     iIntros "Hsub Hl". iDestruct ("Hsub" with "Hl") as (?? Heq) "[??]".
@@ -385,70 +385,70 @@ Section optionalO.
   | TraceOptionalO.
 
   Lemma type_eq_optionalO A v1 v2 (ty : A → type) optty ot1 ot2 `{!∀ x, Optionable (ty x) optty ot1 ot2} b `{!Inhabited A} T :
-    opt_pre (ty (default inhabitant b)) v1 v2 ∧
+    ⎡opt_pre (ty (default inhabitant b)) v1 v2⎤ ∧
     case_destruct b (λ b _,
-      li_trace (TraceOptionalO, b) (∀ v, (if b is Some x then v1 ◁ᵥ ty x else v1 ◁ᵥ optty) -∗
-         T v ((if b is Some x then false else true) @ boolean i32)))
-    ⊢ typed_bin_op v1 (v1 ◁ᵥ b @ optionalO ty optty) v2 (v2 ◁ᵥ optty) (EqOp i32) ot1 ot2 T.
+      li_trace (TraceOptionalO, b) (∀ v, ⎡if b is Some x then v1 ◁ᵥ ty x else v1 ◁ᵥ optty⎤ -∗
+         T v ((if b is Some x then false else true) @ boolean tint)))
+    ⊢ typed_bin_op v1 ⎡v1 ◁ᵥ b @ optionalO ty optty⎤ v2 ⎡v2 ◁ᵥ optty⎤ Oeq ot1 ot2 T.
   Proof.
     unfold li_trace. iIntros "HT Hv1 Hv2". iIntros (Φ) "HΦ".
     destruct b.
-    - have [|v' Hv] := val_of_Z_is_Some None i32 (bool_to_Z false) => //.
-      iApply (wp_binop_det v').
-      iIntros (σ) "Hctx". iApply fupd_mask_intro; [set_solver|]. iIntros "HE".
+    - iIntros (?) "Hctx".
+      iExists (i2v (bool_to_Z false) tint).
       iSplit. {
-        iIntros (v). iDestruct "HT" as "[Hpre _]".
-        iDestruct (opt_bin_op true true with "Hpre [$Hv1] [$Hv2] Hctx") as %->.
-        iPureIntro. by split => ?; simpl in *; simplify_eq.
+        iStopProof; split => rho; monPred.unseal.
+        iIntros "([Hpre _] & Hv1 & Hv2 & _ & Hctx)".
+        iDestruct (opt_bin_op true true with "Hpre [$Hv1] [$Hv2] Hctx") as %Hiff.
+        iPureIntro; intros. simpl in Hiff. rewrite Hiff //.
       }
       iDestruct "HT" as "[_ [% HT]]".
-      iDestruct ("HT" with "Hv1") as "HT". iModIntro. iMod "HE". iModIntro. iFrame.
-      iApply "HΦ" => //. iExists _. iSplit; iPureIntro; first by apply: val_to_of_Z. done.
-    - have [|v' Hv] := val_of_Z_is_Some None i32 (bool_to_Z true) => //.
-      iApply (wp_binop_det v').
-      iIntros (σ) "Hctx". iApply fupd_mask_intro; [set_solver|]. iIntros "HE".
+      iDestruct ("HT" with "Hv1") as "HT". iFrame.
+      iApply "HΦ" => //. iExists _. iSplit; iPureIntro; done.
+    - iIntros (?) "Hctx".
+      iExists (i2v (bool_to_Z true) tint).
       iSplit. {
-        iIntros (v). iDestruct "HT" as "[Hpre _]".
-        iDestruct (opt_bin_op false true with "Hpre [$Hv1] [$Hv2] Hctx") as %->.
-        iPureIntro. by split => ?; simpl in *; simplify_eq.
+        iStopProof; split => rho; monPred.unseal.
+        iIntros "([Hpre _] & Hv1 & Hv2 & _ & Hctx)".
+        iDestruct (opt_bin_op false true with "Hpre [$Hv1] [$Hv2] Hctx") as %Hiff.
+        iPureIntro; intros. simpl in Hiff. rewrite Hiff //.
       }
       iDestruct "HT" as "[_ [% HT]]".
-      iDestruct ("HT" with "Hv1") as "HT". iModIntro. iMod "HE". iModIntro. iFrame.
-      iApply "HΦ" => //. iExists _. iSplit; iPureIntro; first by apply: val_to_of_Z. done.
+      iDestruct ("HT" with "Hv1") as "HT". iFrame.
+      iApply "HΦ" => //. iExists _. iSplit; iPureIntro; done.
   Qed.
   Definition type_eq_optionalO_inst := [instance type_eq_optionalO].
   Global Existing Instance type_eq_optionalO_inst.
 
   Lemma type_neq_optionalO A v1 v2 (ty : A → type) optty ot1 ot2 `{!∀ x, Optionable (ty x) optty ot1 ot2} b `{!Inhabited A} T :
-    opt_pre (ty (default inhabitant b)) v1 v2 ∧
+    ⎡opt_pre (ty (default inhabitant b)) v1 v2⎤ ∧
     case_destruct b (λ b _,
-      li_trace (TraceOptionalO, b) (∀ v, (if b is Some x then v1 ◁ᵥ ty x else v1 ◁ᵥ optty) -∗ T v ((if b is Some x then true else false) @ boolean i32)))
-    ⊢ typed_bin_op v1 (v1 ◁ᵥ b @ optionalO ty optty) v2 (v2 ◁ᵥ optty) (NeOp i32) ot1 ot2 T.
+      li_trace (TraceOptionalO, b) (∀ v, ⎡if b is Some x then v1 ◁ᵥ ty x else v1 ◁ᵥ optty⎤ -∗ T v ((if b is Some x then true else false) @ boolean tint)))
+    ⊢ typed_bin_op v1 ⎡v1 ◁ᵥ b @ optionalO ty optty⎤ v2 ⎡v2 ◁ᵥ optty⎤ One ot1 ot2 T.
   Proof.
     unfold li_trace. iIntros "HT Hv1 Hv2". iIntros (Φ) "HΦ".
     destruct b.
-    - have [|v' Hv] := val_of_Z_is_Some None i32 (bool_to_Z true) => //.
-      iApply (wp_binop_det v').
-      iIntros (σ) "Hctx". iApply fupd_mask_intro; [set_solver|]. iIntros "HE".
+    - iIntros (?) "Hctx".
+      iExists (i2v (bool_to_Z true) tint).
       iSplit. {
-        iIntros (v). iDestruct "HT" as "[Hpre _]".
-        iDestruct (opt_bin_op true false with "Hpre [$Hv1] [$Hv2] Hctx") as %->.
-        iPureIntro. by split => ?; simpl in *; simplify_eq.
+        iStopProof; split => rho; monPred.unseal.
+        iIntros "([Hpre _] & Hv1 & Hv2 & _ & Hctx)".
+        iDestruct (opt_bin_op true false with "Hpre [$Hv1] [$Hv2] Hctx") as %Hiff.
+        iPureIntro; intros. simpl in Hiff. rewrite Hiff //.
       }
       iDestruct "HT" as "[_ [% HT]]".
-      iDestruct ("HT" with "Hv1") as "HT". iModIntro. iMod "HE". iModIntro. iFrame.
-      iApply "HΦ" => //. iExists _. iSplit; iPureIntro; first by apply: val_to_of_Z. done.
-    - have [|v' Hv] := val_of_Z_is_Some None i32 (bool_to_Z false) => //.
-      iApply (wp_binop_det v').
-      iIntros (σ) "Hctx". iApply fupd_mask_intro; [set_solver|]. iIntros "HE".
+      iDestruct ("HT" with "Hv1") as "HT". iFrame.
+      iApply "HΦ" => //. iExists _. iSplit; iPureIntro; done.
+    - iIntros (?) "Hctx".
+      iExists (i2v (bool_to_Z false) tint).
       iSplit. {
-        iIntros (v). iDestruct "HT" as "[Hpre _]".
-        iDestruct (opt_bin_op false false with "Hpre [$Hv1] [$Hv2] Hctx") as %->.
-        iPureIntro. by split => ?; simpl in *; simplify_eq.
+        iStopProof; split => rho; monPred.unseal.
+        iIntros "([Hpre _] & Hv1 & Hv2 & _ & Hctx)".
+        iDestruct (opt_bin_op false false with "Hpre [$Hv1] [$Hv2] Hctx") as %Hiff.
+        iPureIntro; intros. simpl in Hiff. rewrite Hiff //.
       }
       iDestruct "HT" as "[_ [% HT]]".
-      iDestruct ("HT" with "Hv1") as "HT". iModIntro. iMod "HE". iModIntro. iFrame.
-      iApply "HΦ" => //. iExists _. iSplit; iPureIntro; first by apply: val_to_of_Z. done.
+      iDestruct ("HT" with "Hv1") as "HT". iFrame.
+      iApply "HΦ" => //. iExists _. iSplit; iPureIntro; done.
   Qed.
   Definition type_neq_optionalO_inst := [instance type_neq_optionalO].
   Global Existing Instance type_neq_optionalO_inst.

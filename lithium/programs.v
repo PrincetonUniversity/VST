@@ -162,7 +162,7 @@ Section judgements.
 
   (*** expressions *)
 
-  (* worked out with Arnaud Daby-Seesaram *)
+  (* worked out with Arnaud Daby-Seesaram; not used, but inspiration for wp_expr *)
   Definition eval_rel (*(t : type)*) (e : expr) (v : val) (rho : environ)
     : iProp Σ :=
     ∀ m, juicy_mem.mem_auth m -∗
@@ -170,9 +170,17 @@ Section judgements.
               cenv_sub cenv_cs (genv_cenv ge) ->
               rho = construct_rho (filter_genv ge) ve te ->
               Clight.eval_expr ge ve te m e v (*/\ typeof e = t /\ tc_val t v*)⌝.
-  (* In Clight, expressions can't have side effects, so they don't need a postcondition? *)
 
-  Definition wp_expr e Φ : assert := ∃ v, assert_of (fun rho => eval_rel e v rho) ∗ Φ v.
+  (* the position of the ∧ makes this annoying
+  Definition wp_expr e Φ : assert := ∃ v, assert_of (fun rho => eval_rel e v rho) ∧ Φ v. *)
+
+  Definition wp_expr e Φ : assert :=
+    ∀ m, ⎡juicy_mem.mem_auth m⎤ -∗
+           ∃ v, local (λ rho, forall ge ve te,
+              cenv_sub cenv_cs (genv_cenv ge) ->
+              rho = construct_rho (filter_genv ge) ve te ->
+              Clight.eval_expr ge ve te m e v (*/\ typeof e = t /\ tc_val t v*)) ∧
+           ⎡juicy_mem.mem_auth m⎤ ∗ Φ v.
 
   Definition typed_val_expr (e : expr) (T : val → type → assert) : assert :=
     (∀ Φ, (∀ v (ty : type), ⎡v ◁ᵥ ty⎤ -∗ T v ty -∗ Φ v) -∗ wp_expr e Φ).
@@ -186,15 +194,23 @@ Section judgements.
   (* Caesium uses a small-step semantics for exprs, so the wp/typing for an operation can be broken up into
      evaluating the arguments and then the op. Clight uses big-step and can't in general inject vals
      into expr, so for now, hacking in a different wp judgment for ops. *)
-  Definition eval_binop_rel op t1 v1 t2 v2 v rho
+(*   Definition eval_binop_rel op t1 v1 t2 v2 v rho (* could we just pass ge instead? or use cenv_cs directly? *)
     : iProp Σ :=
     ∀ m, juicy_mem.mem_auth m -∗
            ⌜forall ge ve te,
               cenv_sub cenv_cs (genv_cenv ge) ->
               rho = construct_rho (filter_genv ge) ve te ->
-              sem_binary_operation (genv_cenv ge) op v1 t1 v2 t2 m = Some v (*/\ typeof e = t /\ tc_val t v*)⌝.
+              sem_binary_operation (genv_cenv ge) op v1 t1 v2 t2 m = Some v (*/\ typeof e = t /\ tc_val t v*)⌝. *)
 
-  Definition wp_binop op t1 v1 t2 v2 Φ : assert := ∃ v, assert_of (eval_binop_rel op t1 v1 t2 v2 v) ∗ Φ v.
+(*   Definition wp_binop op t1 v1 t2 v2 Φ : assert := ∃ v, assert_of (eval_binop_rel op t1 v1 t2 v2 v) ∗ Φ v. *)
+
+  Definition wp_binop op t1 v1 t2 v2 Φ : assert :=
+    ∀ m, ⎡juicy_mem.mem_auth m⎤ -∗
+           ∃ v, local (λ rho, forall ge ve te,
+              cenv_sub cenv_cs (genv_cenv ge) ->
+              rho = construct_rho (filter_genv ge) ve te ->
+              sem_binary_operation (genv_cenv ge) op v1 t1 v2 t2 m = Some v (*/\ typeof e = t /\ tc_val t v*)) ∧
+           ⎡juicy_mem.mem_auth m⎤ ∗ Φ v.
 
   Definition typed_val_binop op t1 v1 t2 v2 (T : val → type → assert) : assert :=
     (∀ Φ, (∀ v (ty : type), ⎡v ◁ᵥ ty⎤ -∗ T v ty -∗ Φ v) -∗ wp_binop op t1 v1 t2 v2 Φ).
@@ -206,13 +222,18 @@ Section judgements.
   Class TypedBinOp (v1 : val) (P1 : assert) (v2 : val) (P2 : assert) (o : Cop.binary_operation) (ot1 ot2 : Ctypes.type) : Type :=
     typed_bin_op_proof T : iProp_to_Prop (typed_bin_op v1 P1 v2 P2 o ot1 ot2 T).
 
-  (* Clight unops don't depend on environ. *)
+(*   (* Clight unops don't depend on environ. *)
   Definition eval_unop_rel op t1 v1 v (rho : environ)
     : iProp Σ :=
     ∀ m, juicy_mem.mem_auth m -∗
            ⌜Cop.sem_unary_operation op v1 t1 m = Some v⌝.
 
-  Definition wp_unop op t1 v1 Φ : assert := ∃ v, assert_of (eval_unop_rel op t1 v1 v) ∗ Φ v.
+  Definition wp_unop op t1 v1 Φ : assert := ∃ v, assert_of (eval_unop_rel op t1 v1 v) ∗ Φ v. *)
+
+  Definition wp_unop op t1 v1 Φ : assert :=
+    ∀ m, ⎡juicy_mem.mem_auth m⎤ -∗
+           ∃ v, ⌜Cop.sem_unary_operation op v1 t1 m = Some v⌝ ∧
+           ⎡juicy_mem.mem_auth m⎤ ∗ Φ v.
 
   Definition typed_val_unop op t v (T : val → type → assert) : assert :=
     (∀ Φ, (∀ v (ty : type), ⎡v ◁ᵥ ty⎤ -∗ T v ty -∗ Φ v) -∗ wp_unop op t v Φ).
@@ -1315,11 +1336,10 @@ Section typing.
   Proof.
     iIntros "HP" (Φ) "HΦ".
     iDestruct "HP" as (ty) "[Hv HT]".
-    iExists (Vint i); iSplitR.
+    iIntros (?) "Hm"; iExists (Vint i); iSplit.
     - iStopProof; split => rho; monPred.unseal.
-      iIntros "_" (?) "Hm".
-      iPureIntro; intros; constructor.
-    - iApply ("HΦ" with "Hv HT").
+      apply bi.pure_intro; intros; constructor.
+    - iFrame. iApply ("HΦ" with "Hv HT").
   Qed.
 
   Lemma type_const_long i t T:
@@ -1328,11 +1348,10 @@ Section typing.
   Proof.
     iIntros "HP" (Φ) "HΦ".
     iDestruct "HP" as (ty) "[Hv HT]".
-    iExists (Vlong i); iSplitR.
+    iIntros (?) "Hm"; iExists (Vlong i); iSplit.
     - iStopProof; split => rho; monPred.unseal.
-      iIntros "_" (?) "Hm".
-      iPureIntro; intros; constructor.
-    - iApply ("HΦ" with "Hv HT").
+      apply bi.pure_intro; intros; constructor.
+    - iFrame. iApply ("HΦ" with "Hv HT").
   Qed.
 
   Lemma type_const_float i t T:
@@ -1341,11 +1360,10 @@ Section typing.
   Proof.
     iIntros "HP" (Φ) "HΦ".
     iDestruct "HP" as (ty) "[Hv HT]".
-    iExists (Vfloat i); iSplitR.
+    iIntros (?) "Hm"; iExists (Vfloat i); iSplit.
     - iStopProof; split => rho; monPred.unseal.
-      iIntros "_" (?) "Hm".
-      iPureIntro; intros; constructor.
-    - iApply ("HΦ" with "Hv HT").
+      apply bi.pure_intro; intros; constructor.
+    - iFrame. iApply ("HΦ" with "Hv HT").
   Qed.
 
   Lemma type_const_single i t T:
@@ -1354,14 +1372,13 @@ Section typing.
   Proof.
     iIntros "HP" (Φ) "HΦ".
     iDestruct "HP" as (ty) "[Hv HT]".
-    iExists (Vsingle i); iSplitR.
+    iIntros (?) "Hm"; iExists (Vsingle i); iSplit.
     - iStopProof; split => rho; monPred.unseal.
-      iIntros "_" (?) "Hm".
-      iPureIntro; intros; constructor.
-    - iApply ("HΦ" with "Hv HT").
+      apply bi.pure_intro; intros; constructor.
+    - iFrame. iApply ("HΦ" with "Hv HT").
   Qed.
 
-  (* up *)
+(*   (* up *)
   Lemma eval_rel_binop : forall rho e1 e2 v1 v2 o t v, eval_rel e1 v1 rho -∗ eval_rel e2 v2 rho -∗ eval_binop_rel o (typeof e1) v1 (typeof e2) v2 v rho -∗
     eval_rel (Ebinop o e1 e2 t) v rho.
   Proof.
@@ -1378,17 +1395,22 @@ Section typing.
     { iApply ("H2" with "Hm"). }
     iDestruct ("H" with "Hm") as %H.
     iPureIntro; intros; econstructor; eauto.
-  Qed.
+  Qed. *)
 
   Lemma wp_binop_rule : forall e1 e2 Φ o t, wp_expr e1 (λ v1, wp_expr e2 (λ v2, wp_binop o (typeof e1) v1 (typeof e2) v2 Φ))
     ⊢ wp_expr (Ebinop o e1 e2 t) Φ.
   Proof.
     intros.
     rewrite /wp_expr /wp_binop.
-    iIntros "(%v1 & H1 & %v2 & H2 & %v & H & ?)".
+    iIntros "H" (?) "Hm".
+    iDestruct ("H" with "Hm") as "(%v1 & H1 & Hm & H)".
+    iDestruct ("H" with "Hm") as "(%v2 & H2 & Hm & H)".
+    iDestruct ("H" with "Hm") as "(%v & H & Hm & ?)".
     iExists _; iFrame.
     iStopProof; split => rho; monPred.unseal.
-    iIntros "(H1 & H2 & H)"; iApply (eval_rel_binop with "H1 H2 H").
+    rewrite !monPred_at_affinely /local /lift1 /=.
+    iIntros "(%H1 & %H2 & %H)"; iPureIntro.
+    split; auto; intros; econstructor; eauto.
   Qed.
 
   Lemma type_bin_op o e1 e2 ot T:
@@ -1401,7 +1423,7 @@ Section typing.
     by iApply ("Hop" with "Hv1 Hv2").
   Qed.
 
-  (* up *)
+(*   (* up *)
   Lemma eval_rel_unop : forall rho e1 v1 o t v, eval_rel e1 v1 rho -∗ eval_unop_rel o (typeof e1) v1 v rho -∗
     eval_rel (Eunop o e1 t) v rho.
   Proof.
@@ -1414,17 +1436,21 @@ Section typing.
     { iApply ("H1" with "Hm"). }
     iDestruct ("H" with "Hm") as %H.
     iPureIntro; intros; econstructor; eauto.
-  Qed.
+  Qed. *)
 
   Lemma wp_unop_rule : forall e Φ o t, wp_expr e (λ v, wp_unop o (typeof e) v Φ)
     ⊢ wp_expr (Eunop o e t) Φ.
   Proof.
     intros.
-    rewrite /wp_expr /wp_unop.
-    iIntros "(%v1 & H1 & %v & H & ?)".
+    rewrite /wp_expr /wp_binop.
+    iIntros "H" (?) "Hm".
+    iDestruct ("H" with "Hm") as "(%v1 & H1 & Hm & H)".
+    iDestruct ("H" with "Hm") as "(%v & H & Hm & ?)".
     iExists _; iFrame.
     iStopProof; split => rho; monPred.unseal.
-    iIntros "(H1 & H)". iApply (eval_rel_unop with "H1 H").
+    rewrite !monPred_at_affinely /local /lift1 /=.
+    iIntros "(%H1 & %H)"; iPureIntro.
+    split; auto; intros; econstructor; eauto.
   Qed.
 
   Lemma type_un_op o e ot T:

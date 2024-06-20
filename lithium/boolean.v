@@ -157,10 +157,10 @@ Section boolean.
   Proof.
     iIntros "HT (%n1&%Hv1&%Hb1) (%n2&%Hv2&%Hb2) %Φ HΦ".
     rewrite /wp_binop.
-    iExists (i2v (bool_to_Z b) tint); iSplitL "".
-    - rewrite /eval_binop_rel.
-      iStopProof; split => rho; monPred.unseal.
-      iIntros "_" (?) "Hm".
+    iIntros (?) "$".
+    iExists (i2v (bool_to_Z b) tint); iSplit.
+    - iStopProof; split => rho; monPred.unseal.
+      apply bi.pure_intro.
       assert (classify_cmp it it = cmp_default) as Hclass.
       { destruct it; try by destruct v1.
         by destruct i. }

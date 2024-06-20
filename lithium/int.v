@@ -236,10 +236,10 @@ Section programs.
     iDestruct ("HT" with "[] []" ) as "HT".
     1-2: iPureIntro; by apply: val_to_Z_in_range.
     rewrite /wp_binop.
-    iExists (i2v (bool_to_Z b) tint); iSplitL "".
-    - rewrite /eval_binop_rel.
-      iStopProof; split => rho; monPred.unseal.
-      iIntros "_" (?) "Hm".
+    iIntros (?) "$".
+    iExists (i2v (bool_to_Z b) tint); iSplit.
+    - iStopProof; split => rho; monPred.unseal.
+      apply bi.pure_intro.
       assert (classify_cmp it it = cmp_default) as Hclass.
       { destruct it; try by destruct v1.
         by destruct i. }
@@ -401,9 +401,10 @@ Section programs.
     iDestruct ("HT" with "[] []" ) as ((Hin & Hsc)) "HT".
     1-2: iPureIntro; by apply: val_to_Z_in_range.
     rewrite /wp_binop.
-    iExists (i2v n it); iSplitR.
+    iIntros (?) "$".
+    iExists (i2v n it); iSplit.
     - iStopProof; split => rho; monPred.unseal.
-      iIntros "_" (?) "Hm".
+      apply bi.pure_intro.
       destruct op; inv Hop; rewrite /=.
       + rewrite /Cop.sem_add.
         replace (classify_add it it) with add_default by (destruct it; try done; destruct i; done).
@@ -687,9 +688,10 @@ Section programs.
     iIntros "HT %Hv %Φ HΦ". move: (Hv) => /val_to_Z_in_range Hin.
     iDestruct ("HT" with "[//]") as (Hs Hn) "HT".
     rewrite /wp_unop.
-    iExists (i2v (- n) it); iSplitR.
+    iIntros (?) "$".
+    iExists (i2v (- n) it); iSplit.
     - iStopProof; split => rho; monPred.unseal.
-      iIntros "_" (?) "Hm".
+      apply bi.pure_intro.
       destruct it; try done; destruct s; try done; simpl in *.
       + rewrite /Cop.sem_neg.
         replace (classify_neg _) with (neg_case_i Signed) by (destruct i; done).
