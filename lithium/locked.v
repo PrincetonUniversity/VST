@@ -2,8 +2,7 @@ From iris.algebra Require Import csum excl auth cmra_big_op.
 From iris.algebra Require Import big_op gset frac agree.
 From VST.lithium Require Import programs.
 From VST.lithium Require Import type_options.
-Require Import iris_ora.algebra.frac_auth.
-Require Import iris_ora.algebra.ext_order.
+From iris_ora.algebra Require Import frac_auth ext_order.
 
 Definition lockN : namespace := nroot.@"lockN".
 Definition lock_id := gname.
@@ -69,8 +68,7 @@ Section type.
 
   Lemma tylocked_simplify_hyp_place A γ n x (ty : A → type) l T:
     (l ◁ₗ ty x -∗ T)
-    ⊢ simplify_hyp (l ◁ₗ tylocked_ex γ n x ty) T.
-  Proof. done. Qed.
+    ⊢ simplify_hyp (l ◁ₗ tylocked_ex γ n x ty) T. done. Qed.
 
   Definition tylocked_simplify_hyp_place_inst := [instance tylocked_simplify_hyp_place with 0%N].
   Global Existing Instance tylocked_simplify_hyp_place_inst.
@@ -92,7 +90,7 @@ Section type.
   Definition tylocked_subsume_inst := [instance tylocked_subsume].
   Global Existing Instance tylocked_subsume_inst | 10.
 
-  Definition tylocked_ex_token {A} (γ : lock_id) (n : string) (l : address) (β : own_state) (ty : A → type)  : mpred :=
+  Definition tylocked_ex_token {A} (γ : lock_id) (n : string) (l : address) (β : own_state) (ty : A → type):=
     (∀ E x, <affine> ⌜↑lockN ⊆ E⌝ -∗ l ◁ₗ ty x ={E}=∗ l ◁ₗ{β} tylocked_ex γ n x ty ∗
                                                       own γ (◯ (GSet {[ n ]}) : gset_disjUR_authR))%I.
 
@@ -112,10 +110,8 @@ Section type.
     }
     destruct β.
     { iIntros "!# !#". iExists _. iFrame. iSplit => //.
-      iIntros (? ?) "H1 Hl". iModIntro.
-      iFrame "Hl". 
+      iIntros (? ?) "H1 Hl !>". done. 
     }
-
     iDestruct "Hl" as (γ') "#Hinv".
     iInv "Hinv" as "[Hl|>Hn]" "Hc"; last first.
     - iDestruct (own_valid_2 with "Hs Hn") as %Hown. exfalso. move: Hown.
@@ -142,22 +138,16 @@ Section type.
     iMod ("Hlocked" with "[//] Hl") as "[$ Hn]".
     iDestruct "Hlock" as (st Hst) "Htok".
     iExists (st ∖ {[n]}).
-    iModIntro.
-    iSplit. {
-      iPureIntro. move: (Hst). rewrite {1}(union_difference_L {[n]} st).
-      - rewrite ->elements_union_singleton => ?; last set_solver.
-        by apply: Permutation.Permutation_cons_inv.
-      - set_unfold => ??. subst. apply elem_of_elements. rewrite -Hst. set_solver.
-    }
-    iCombine "Htok" "Hn" as "Htok".
-    (* FIX ME*)
-    (* I should try to eliminate  own γ (● GSet (st ∖ {[n]})) before iSplit, but not working *)
-    (*
-    iMod (own_update with "Htok") as "$" => //.
-    eapply auth_update_dealloc.
-      by apply gset_disj_dealloc_local_update.
-     *)
-    Admitted.
+    iMod (own_update γ (● GSet st ⋅ ◯ GSet {[n]} : gset_disjUR_authR) (● GSet (st ∖ {[n]}))
+           with "[Htok Hn]") as "H".
+    - eapply auth_update_dealloc, gset_disj_dealloc_local_update.
+    - rewrite own_op. iFrame.
+    - iModIntro. iFrame. iPureIntro. split; auto.
+      move: (Hst). rewrite {1}(union_difference_L {[n]} st).
+      + rewrite ->elements_union_singleton => ?; last set_solver.
+        by eapply Permutation.Permutation_cons_inv.
+      + set_unfold => ??. subst. apply elem_of_elements. rewrite -Hst. set_solver.
+   Qed.
 
   Lemma annot_unlock A l β γ n ty (x : A) T:
     (find_in_context (FindDirect (lock_token γ)) (λ s : list string, ⌜n∉s⌝ ∗ (∀ x',
