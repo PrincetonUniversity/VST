@@ -133,7 +133,7 @@ Section constrained.
   Lemma simplify_goal_place_persistent_constrained P `{!Persistent P} β T:
     P ∗ T ⊢ simplify_goal (persistent_own_constraint P β) T.
   (* Proof. iIntros "[#$ $]". Qed. *)
-    (* require P is affine *)
+  (* require P is affine *)
   Admitted.
   Definition simplify_goal_place_persistent_constrained_inst :=
     [instance simplify_goal_place_persistent_constrained with 0%N].
