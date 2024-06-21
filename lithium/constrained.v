@@ -126,12 +126,11 @@ Section constrained.
     [instance simplify_hyp_place_persistent_constrained with 0%N].
   Global Existing Instance simplify_hyp_place_persistent_constrained_inst.
 
-  Lemma simplify_goal_place_persistent_constrained P `{!Persistent P} β T:
+  Lemma simplify_goal_place_persistent_constrained P `{!Persistent P} `{!Affine P} β T:
     P ∗ T ⊢ simplify_goal (persistent_own_constraint P β) T.
   Proof. iIntros "(H1 & H2)". iFrame "H2".
-         unfold persistent_own_constraint .
-         (* require P is affine *)
-  Admitted.
+         by iApply bi.intuitionistic.
+  Qed.
   Definition simplify_goal_place_persistent_constrained_inst :=
     [instance simplify_goal_place_persistent_constrained with 0%N].
   Global Existing Instance simplify_goal_place_persistent_constrained_inst.
