@@ -1,5 +1,5 @@
 From VST.lithium Require Export type.
-From VST.lithium Require Import programs (* optional *).
+From VST.lithium Require Import programs optional.
 From VST.lithium Require Import type_options.
 
 Class OwnConstraint `{!typeG Σ} {cs : compspecs} (P : own_state → mpred) : Prop := {
@@ -17,7 +17,6 @@ Section own_constrained.
     ty_own β l := (l ◁ₗ{β} ty ∗ P β)%I;
      ty_own_val v := (v ◁ᵥ ty ∗ P Own)%I;
   |}.
-  Next Obligation. Admitted. (*FIX ME: prove it is Affine*)
   Next Obligation. iIntros (??????) "(H1 & H2)".
                    iMod (ty_share with "[$H1]") as "$" => //.
                    by iApply own_constraint_share.
@@ -26,7 +25,6 @@ Section own_constrained.
   Next Obligation. iIntros (???????) "(H & H1)". iFrame "H1". iApply (ty_deref with "[H]"); done. Qed.
   Next Obligation. iIntros (?????????) "Hl [? $]". by iApply (ty_ref with "[//] [Hl]"). Qed.
   
-
   Global Instance own_constrained_rty_le P `{!OwnConstraint P} : Proper ((⊑) ==> (⊑)) (own_constrained P).
   Proof. solve_type_proper. Qed.
   Global Instance own_constrained_rty_proper P `{!OwnConstraint P} : Proper ((≡) ==> (≡)) (own_constrained P).
@@ -130,8 +128,9 @@ Section constrained.
 
   Lemma simplify_goal_place_persistent_constrained P `{!Persistent P} β T:
     P ∗ T ⊢ simplify_goal (persistent_own_constraint P β) T.
-  (* Proof. iIntros "[#$ $]". Qed. *)
-  (* require P is affine *)
+  Proof. iIntros "(H1 & H2)". iFrame "H2".
+         unfold persistent_own_constraint .
+         (* require P is affine *)
   Admitted.
   Definition simplify_goal_place_persistent_constrained_inst :=
     [instance simplify_goal_place_persistent_constrained with 0%N].
