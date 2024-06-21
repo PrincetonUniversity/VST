@@ -126,12 +126,12 @@ Section at_value.
   Context `{!typeG Σ} {cs : compspecs}.
 
   (* up *)
-  Lemma field_compatible_tptr : forall p a b c d, field_compatible (Tpointer a b) [] p →
-    field_compatible (Tpointer c d) [] p.
+  Lemma field_compatible_tptr : forall p a b, field_compatible (Tpointer a b) [] p ↔ field_compatible (tptr tvoid) [] p.
   Proof.
-    intros ????? (? & ? & ? & Ha & ?); split3; auto; split3; auto.
-    destruct p; try done; simpl in *.
-    inv Ha; econstructor; eauto.
+    intros.
+    split; intros (? & ? & ? & Ha & ?); split3; auto; split3; auto;
+      destruct p; try done; simpl in *;
+      inv Ha; econstructor; eauto.
   Qed.
 
   Lemma mapsto_tptr:
@@ -149,9 +149,8 @@ Section at_value.
   Proof.
     rewrite /ty_own /=.
     rewrite /tc_val' /tc_val /=.
-    rewrite !andb_false_r; f_equiv; f_equiv.
-    - f_equiv; split; apply field_compatible_tptr.
-    - rewrite /heap_mapsto_own_state; erewrite mapsto_tptr; done.
+    rewrite !field_compatible_tptr !andb_false_r.
+    rewrite /heap_mapsto_own_state; erewrite mapsto_tptr; done.
   Qed.
 
   Lemma value_tptr_val v t1 t2 v' : v ◁ᵥ value (tptr t1) v' = v ◁ᵥ value (tptr t2) v'.
@@ -168,9 +167,9 @@ Section at_value.
     ty_own_val v' := (∃ t, v' ◁ᵥ value (tptr t) v ∗ v ◁ᵥ ty)%I;
   |}.
   Next Obligation. by iIntros (?????) "?". Qed.
-  Next Obligation. iIntros (v ty ot mt l (? & ->)) "(% & [Hv ?])". iDestruct (ty_aligned _ _ MCId with "Hv") as %?; first done. iPureIntro; by eapply field_compatible_tptr. Qed.
+  Next Obligation. iIntros (v ty ot mt l (? & ->)) "(% & [Hv ?])". iDestruct (ty_aligned _ _ MCId with "Hv") as %?; first done. rewrite !field_compatible_tptr // in H |- *. Qed.
   Next Obligation. iIntros (v ty ot mt l (? & ->)) "(% & [Hv $])". iDestruct (ty_deref _ _ MCId with "Hv") as "(% & ? & ?)"; first done. erewrite mapsto_tptr; iFrame. Qed.
-  Next Obligation. iIntros (v ty ot mt l v' (? & ->) ?) "Hl (% & [Hv $])". erewrite mapsto_tptr; eapply field_compatible_tptr in H; iExists _; by iApply ((ty_ref _ _ MCId) with "[] Hl Hv"). Qed.
+  Next Obligation. iIntros (v ty ot mt l v' (? & ->) ?) "Hl (% & [Hv $])". erewrite mapsto_tptr. iExists _; iApply (ty_ref _ _ MCId with "[] Hl Hv"); first done. rewrite !field_compatible_tptr // in H |- *. Qed.
 (*   Next Obligation.
     iIntros (v ty v' ot mt st ?) "[Hv ?]".
     iDestruct (ty_memcast_compat with "Hv") as "?"; [done|]. destruct mt => //. iFrame.

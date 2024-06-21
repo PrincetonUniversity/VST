@@ -135,9 +135,23 @@ Section judgements.
     (∃ ty, v ◁ᵥ ty ∗ ([∗ list] l;v ∈ ls;(fn.(f_args) ++ fn.(f_local_vars)), l ↦|v.2|) ∗ R v ty)%I.
   Definition typed_stmt (s : stmt) (fn : function) (ls : list address) (R : val → type → iProp Σ) (Q : gmap label stmt) : iProp Σ :=
     (⌜length ls = length (fn.(f_args) ++ fn.(f_local_vars))⌝ -∗ WPs s {{Q, typed_stmt_post_cond fn ls R}})%I.
-  Global Arguments typed_stmt _%E _ _ _%I _.
 
-  Definition typed_block (P : iProp Σ) (b : label) (fn : function) (ls : list address) (R : val → type → iProp Σ) (Q : gmap label stmt) : iProp Σ :=
+  Maybe:
+  Context `{!externalGS OK_ty Σ}.
+  #[export] Instance VSTGS0 : VSTGS OK_ty Σ := Build_VSTGS _ _ _ _.
+
+  Definition wp_stmt Espec Delta s R := ∃ P, semax' Espec ⊤ Delta P s R.
+  Definition typed_stmt_post_cond (R : val → type → assert) : ret_assert :=
+    {| RA_normal := ∃ ty, ⎡Vundef ◁ᵥ ty⎤ ∗ R Vundef ty;
+       RA_break := ∃ ty, ⎡Vundef ◁ᵥ ty⎤ ∗ R Vundef ty;
+       RA_continue := ∃ ty, ⎡Vundef ◁ᵥ ty⎤ ∗ R Vundef ty;
+       RA_return ret := let v := match ret with Some v => v | None => Vundef end in
+         ∃ ty, ⎡v ◁ᵥ ty⎤ ∗ R v ty |}.
+  Definition typed_stmt Espec Delta s (R : val → type → assert) : iProp Σ :=
+    wp_stmt Espec Delta s (typed_stmt_post_cond R)%I.
+  Global Arguments typed_stmt _ _ _ _%_I. *)
+
+(*  Definition typed_block (P : iProp Σ) (b : label) (fn : function) (ls : list address) (R : val → type → iProp Σ) (Q : gmap label stmt) : iProp Σ :=
     (wps_block P b Q (typed_stmt_post_cond fn ls R)).
 
   Definition typed_switch (v : val) (ty : type) (it : int_type) (m : gmap Z nat) (ss : list stmt) (def : stmt) (fn : function) (ls : list address) (R : val → type → iProp Σ) (Q : gmap label stmt) : iProp Σ :=

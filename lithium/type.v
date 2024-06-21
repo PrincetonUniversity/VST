@@ -126,6 +126,7 @@ Definition own_state_min (β1 β2 : own_state) : own_state :=
   | Own => β2
   | _ => Shr
   end.
+(* Should this be lower (e.g., no type and memval, and a single ↦ instead of mapsto)? *)
 Definition heap_mapsto_own_state `{!typeG Σ} (t : type) (l : address) (β : own_state) (v : val) : iProp Σ :=
   match β with
   | Own => mapsto Tsh t l v
