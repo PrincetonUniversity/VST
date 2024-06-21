@@ -154,7 +154,9 @@ Section optional.
   | TraceOptionalEq (P : Prop)
   | TraceOptionalNe (P : Prop).
 
-  Lemma type_eq_optional_refined v1 v2 ty optty ot1 ot2 `{!Optionable ty optty ot1 ot2} b (T : _ → _ → assert) :
+  Lemma type_eq_optional_refined v1 v2 ty optty ot1 ot2 `{!Optionable ty optty ot1 ot2} `{!Affine (v2 ◁ᵥ optty)} b (T : _ → _ → assert)
+    (* We'll throw away any ownership associated with v2 (e.g. through an ownership type), so it needs to be affine.
+       We could require T to be absorbing instead. *)  :
     ⎡opt_pre ty v1 v2⎤ ∧
     case_if b
       (li_trace (TraceOptionalEq b) (⎡v1 ◁ᵥ ty⎤ -∗ T (i2v (bool_to_Z false) tint) (false @ boolean tint)))
@@ -189,7 +191,7 @@ Section optional.
   Definition type_eq_optional_refined_inst := [instance type_eq_optional_refined].
   Global Existing Instance type_eq_optional_refined_inst.
 
-  Lemma type_eq_optional_neq v1 v2 ty optty ot1 ot2 `{!Optionable ty optty ot1 ot2} T :
+  Lemma type_eq_optional_neq v1 v2 ty optty ot1 ot2 `{!Optionable ty optty ot1 ot2} `{!Affine (v2 ◁ᵥ optty)} T :
     ⎡opt_pre ty v1 v2⎤ ∧ (∀ v, ⎡v1 ◁ᵥ ty⎤ -∗ T v (false @ boolean tint))
     ⊢ typed_bin_op v1 ⎡v1 ◁ᵥ ty⎤ v2 ⎡v2 ◁ᵥ optty⎤ Oeq ot1 ot2 T.
   Proof.
@@ -208,7 +210,7 @@ Section optional.
   Definition type_eq_optional_neq_inst := [instance type_eq_optional_neq].
   Global Existing Instance type_eq_optional_neq_inst.
 
-  Lemma type_neq_optional v1 v2 ty optty ot1 ot2 `{!Optionable ty optty ot1 ot2} b T :
+  Lemma type_neq_optional v1 v2 ty optty ot1 ot2 `{!Optionable ty optty ot1 ot2} `{!Affine (v2 ◁ᵥ optty)} b T :
     ⎡opt_pre ty v1 v2⎤ ∧
     case_if b
       (li_trace (TraceOptionalNe b) (⎡v1 ◁ᵥ ty⎤ -∗ T (i2v (bool_to_Z true) tint) (true @ boolean tint)))
@@ -268,9 +270,6 @@ Section optionalO.
       ty_own β l := (if b is Some x return _ then l◁ₗ{β}(ty x) else l◁ₗ{β}optty)%I;
       ty_own_val v := (if b is Some x return _ then v ◁ᵥ (ty x) else v ◁ᵥ optty)%I
   |}.
-  Next Obligation.
-    iIntros (A ty? [x|]); apply _.
-  Qed.
   Next Obligation.
     iIntros (A ty? [x|]); apply ty_share.
   Qed.
@@ -384,7 +383,8 @@ Section optionalO.
   Inductive trace_optionalO :=
   | TraceOptionalO.
 
-  Lemma type_eq_optionalO A v1 v2 (ty : A → type) optty ot1 ot2 `{!∀ x, Optionable (ty x) optty ot1 ot2} b `{!Inhabited A} T :
+  Lemma type_eq_optionalO A v1 v2 (ty : A → type) optty ot1 ot2 `{!∀ x, Optionable (ty x) optty ot1 ot2}
+    `{!Affine (v2 ◁ᵥ optty)} b `{!Inhabited A} T :
     ⎡opt_pre (ty (default inhabitant b)) v1 v2⎤ ∧
     case_destruct b (λ b _,
       li_trace (TraceOptionalO, b) (∀ v, ⎡if b is Some x then v1 ◁ᵥ ty x else v1 ◁ᵥ optty⎤ -∗
@@ -419,7 +419,8 @@ Section optionalO.
   Definition type_eq_optionalO_inst := [instance type_eq_optionalO].
   Global Existing Instance type_eq_optionalO_inst.
 
-  Lemma type_neq_optionalO A v1 v2 (ty : A → type) optty ot1 ot2 `{!∀ x, Optionable (ty x) optty ot1 ot2} b `{!Inhabited A} T :
+  Lemma type_neq_optionalO A v1 v2 (ty : A → type) optty ot1 ot2 `{!∀ x, Optionable (ty x) optty ot1 ot2}
+    `{!Affine (v2 ◁ᵥ optty)} b `{!Inhabited A} T :
     ⎡opt_pre (ty (default inhabitant b)) v1 v2⎤ ∧
     case_destruct b (λ b _,
       li_trace (TraceOptionalO, b) (∀ v, ⎡if b is Some x then v1 ◁ᵥ ty x else v1 ◁ᵥ optty⎤ -∗ T v ((if b is Some x then true else false) @ boolean tint)))

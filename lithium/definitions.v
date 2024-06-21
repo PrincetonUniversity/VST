@@ -87,7 +87,7 @@ Global Hint Mode Subsume + + + ! : typeclass_instances.
 
 (** * case distinction *)
 Definition case_if {PROP : bi} (P : Prop) (T1 T2 : PROP) : PROP :=
-  (⌜P⌝ -∗ T1) ∧ (⌜¬ P⌝ -∗ T2).
+  (<affine> ⌜P⌝ -∗ T1) ∧ (<affine> ⌜¬ P⌝ -∗ T2).
 
 Definition case_destruct {PROP : bi} {A} (a : A) (T : A → bool → PROP) : PROP :=
   ∃ b, T a b.

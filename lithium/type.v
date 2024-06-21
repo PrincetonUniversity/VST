@@ -248,8 +248,6 @@ Record type `{!typeG Σ} {cs : compspecs} := {
   ty_own : own_state → address → iProp Σ;
   (** [ty_own v ty], also [v ◁ᵥ ty], states that the value [v] has type [ty]. *)
   ty_own_val : val → iProp Σ;
-  (** [ty_own v ty], also [v ◁ᵥ ty], states that the value [v] has type [ty]. *)
-  ty_own_val_affine v : Affine (ty_own_val v);
   (** [ty_share] states that full ownership can always be turned into shared ownership. *)
   ty_share l E : ↑shrN ⊆ E → ty_own Own l ={E}=∗ ty_own Shr l;
   (** [ty_shr_pers] states that shared ownership is persistent. *)
@@ -278,13 +276,12 @@ Record type `{!typeG Σ} {cs : compspecs} := {
     match mt with
     | MCNone => True
     | MCCopy => ty_own_val (mem_cast v ot st)
-    | MCId => ⌜mem_cast_id v ot⌝
+    | MCId => ⌜mem_cast_id v ot⌝ (* This could be tc_val' ot v *)
     end;*)
 }.
 Arguments ty_own : simpl never.
 Arguments ty_has_op_type {_ _ _} _.
 Arguments ty_own_val {_ _ _} _ : simpl never.
-Global Existing Instance ty_own_val_affine.
 Global Existing Instance ty_shr_pers.
 
 (*Section memcast.
