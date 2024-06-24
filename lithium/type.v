@@ -149,6 +149,10 @@ Section own_state.
   Global Instance heap_mapsto_own_state_shr_persistent t l v : Persistent (l ↦_t[ Shr ] v).
   Proof. apply _. Qed.
 
+(* Caesium uses a ghost heap to track the bounds of each allocation (block) persistently.
+   We don't have anything analogous; when it would be required, we use valid_pointer, but
+   that's not a persistent assertion and actually owns part of the memory. *)
+
 (*  Lemma heap_mapsto_own_state_loc_in_bounds l β v :
     l ↦[β] v ⊢ loc_in_bounds l (length v).
   Proof.
