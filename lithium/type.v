@@ -262,7 +262,7 @@ Record type `{!typeG Σ} {cs : compspecs} := {
   ty_aligned ot mt l : ty_has_op_type ot mt → ty_own Own l -∗ ⌜field_compatible ot [] l⌝;
   (** [ty_size_eq] states that from [v ◁ᵥ ty] follows that [v] has a
   size according to [ty_has_op_type]. *)
-(*  ty_size_eq ot mt v : ty_has_op_type ot mt → ty_own_val v -∗ ⌜v `has_layout_val` ot_layout ot⌝; *)
+(*  ty_size_eq ot mt v : ty_has_op_type ot mt → ty_own_val v -∗ ⌜v sizeof ot⌝; *)
   (** [ty_deref] states that [l ◁ₗ ty] can be turned into [v ◁ᵥ ty] and a points-to
   according to [ty_has_op_type]. *)
   ty_deref ot mt l : ty_has_op_type ot mt → ty_own Own l -∗ ∃ v, mapsto Tsh ot l v ∗ ty_own_val v;

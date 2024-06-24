@@ -149,7 +149,76 @@ Section judgements.
          ∃ ty, ⎡v ◁ᵥ ty⎤ ∗ R v ty |}.
   Definition typed_stmt Espec Delta s (R : val → type → assert) : iProp Σ :=
     wp_stmt Espec Delta s (typed_stmt_post_cond R)%I.
-  Global Arguments typed_stmt _ _ _ _%_I. *)
+  Global Arguments typed_stmt _ _ _ _%_I.*)
+
+  (* This is annoying because semax builds up a ton of machinery around the triple (including
+     plainly modalities, which interact poorly with fupd), but safety before semax doesn't have a
+     postcondition. *)
+  Context `{!externalGS OK_ty Σ}.
+  #[export] Instance VSTGS0 : VSTGS OK_ty Σ := Build_VSTGS _ _ _ _.
+
+  (* modified from the definition of semax' *)
+  Definition wp_stmt Espec E Delta s R : assert :=
+    ∀ gx: genv, ∀ vx tx, ∀ Delta': tycontext,∀ CS':compspecs,
+       local (λ rho, rho = construct_rho (filter_genv gx) vx tx) →
+       ⌜(tycontext_sub Delta Delta'
+           /\ cenv_sub (@cenv_cs cs) (@cenv_cs CS')
+           /\ cenv_sub (@cenv_cs CS') (genv_cenv gx))⌝ →
+       ⎡believe(CS := CS') Espec Delta' gx Delta'⎤ →
+     ∀ k: cont, ∀ F: assert, ∀ f: function, ∀ E': coPset,
+        (⌜(closed_wrt_modvars s F) /\ E ⊆ E'⌝ ∧
+         ∀ ek vl, (local (guard_environ Delta' f) ∧ (proj_ret_assert (frame_ret_assert R F) ek vl) ∗ funassert Delta' -∗
+       assert_safe Espec gx E' f vx tx (exit_cont ek vl k))) -∗
+        local (guard_environ Delta' f) ∧ F ∗ funassert Delta' -∗
+       assert_safe Espec gx E' f vx tx (Cont (Kseq s k)).
+
+  (* up *)
+  Lemma assert_safe_fupd Espec : ∀ (ge : genv) (E : coPset) (f : function) (ve : env) (te : temp_env) 
+         (c : contx),
+         match c with
+         | Ret _ _ => False
+         | _ => True
+         end → (|={E}=> assert_safe Espec ge E f ve te c) ⊢ assert_safe Espec ge E f ve te c.
+  Proof.
+    intros; split => rho; rewrite monPred_at_fupd.
+    change (type_heapG) with (VST_heapGS); apply semax_lemmas.assert_safe_fupd; done.
+  Qed.
+
+  Global Instance elim_modal_bupd_wp_stmt p Espec E Delta s R P :
+    ElimModal True%type p false (|==> P) P (wp_stmt Espec E Delta s R) (wp_stmt Espec E Delta s R).
+  Proof.
+    rewrite /ElimModal bi.intuitionistically_if_elim (bupd_fupd E) fupd_frame_r bi.wand_elim_r.
+    iIntros "_ Hs".
+    rewrite /wp_stmt.
+    iIntros (?????) "#?"; iIntros (?) "#?"; iIntros (????) "([% %] & A) B".
+    iApply assert_safe_fupd; first done.
+    iMod fupd_mask_subseteq as "Hmask"; first done.
+    iMod "Hs"; iMod "Hmask" as "_".
+    iApply ("Hs" with "[] [] [] [A] [B]"); auto.
+  Qed.
+
+  Global Instance elim_modal_fupd_wp_stmt p Espec E Delta s R P :
+    ElimModal True%type p false (|={E}=> P) P (wp_stmt Espec E Delta s R) (wp_stmt Espec E Delta s R).
+  Proof.
+    rewrite /ElimModal bi.intuitionistically_if_elim fupd_frame_r bi.wand_elim_r.
+    iIntros "_ Hs".
+    rewrite /wp_stmt.
+    iIntros (?????) "#?"; iIntros (?) "#?"; iIntros (????) "([% %] & A) B".
+    iApply assert_safe_fupd; first done.
+    iMod fupd_mask_subseteq as "Hmask"; first done.
+    iMod "Hs"; iMod "Hmask" as "_".
+    iApply ("Hs" with "[] [] [] [A] [B]"); auto.
+  Qed.
+
+  Definition typed_stmt_post_cond (R : val → type → assert) : ret_assert :=
+    {| RA_normal := ∃ ty, ⎡Vundef ◁ᵥ ty⎤ ∗ R Vundef ty;
+       RA_break := ∃ ty, ⎡Vundef ◁ᵥ ty⎤ ∗ R Vundef ty;
+       RA_continue := ∃ ty, ⎡Vundef ◁ᵥ ty⎤ ∗ R Vundef ty;
+       RA_return ret := let v := match ret with Some v => v | None => Vundef end in
+         ∃ ty, ⎡v ◁ᵥ ty⎤ ∗ R v ty |}.
+
+  Definition typed_stmt Espec Delta (s : statement) (R : val → type → assert) :=
+    wp_stmt Espec ⊤ Delta s (typed_stmt_post_cond R)%I.
 
 (*  Definition typed_block (P : iProp Σ) (b : label) (fn : function) (ls : list address) (R : val → type → iProp Σ) (Q : gmap label stmt) : iProp Σ :=
     (wps_block P b Q (typed_stmt_post_cond fn ls R)).
@@ -1185,24 +1254,26 @@ Section typing.
     iApply ("HT" with "HP'").
   Qed.
   Definition typed_assert_simplify_inst := [instance typed_assert_simplify].
-  Global Existing Instance typed_assert_simplify_inst | 1000.
+  Global Existing Instance typed_assert_simplify_inst | 1000. *)
 
   (*** statements *)
-  Global Instance elim_modal_bupd_typed_stmt p s fn ls R Q P :
-    ElimModal True p false (|==> P) P (typed_stmt s fn ls R Q) (typed_stmt s fn ls R Q).
+  Context `{!externalGS OK_ty Σ}.
+
+  Global Instance elim_modal_bupd_typed_stmt p Espec Delta s R P :
+    ElimModal True%type p false (|==> P) P (typed_stmt Espec Delta s R) (typed_stmt Espec Delta s R).
   Proof.
     rewrite /ElimModal bi.intuitionistically_if_elim (bupd_fupd ⊤) fupd_frame_r bi.wand_elim_r.
-    iIntros "_ Hs ?". iMod "Hs". by iApply "Hs".
+    iIntros "_ Hs". iMod "Hs". by iApply "Hs".
   Qed.
 
-  Global Instance elim_modal_fupd_typed_stmt p s fn ls R Q P :
-    ElimModal True p false (|={⊤}=> P) P (typed_stmt s fn ls R Q) (typed_stmt s fn ls R Q).
+  Global Instance elim_modal_fupd_typed_stmt p Espec Delta s R P :
+    ElimModal True%type p false (|={⊤}=> P) P (typed_stmt Espec Delta s R) (typed_stmt Espec Delta s R).
   Proof.
     rewrite /ElimModal bi.intuitionistically_if_elim fupd_frame_r bi.wand_elim_r.
-    iIntros "_ Hs ?". iMod "Hs". by iApply "Hs".
+    iIntros "_ Hs". iMod "Hs". by iApply "Hs".
   Qed.
 
-  Lemma type_goto Q b fn ls R s:
+(*  Lemma type_goto Q b fn ls R s:
     Q !! b = Some s →
     typed_stmt s fn ls R Q
     ⊢ typed_stmt (Goto b) fn ls R Q.
