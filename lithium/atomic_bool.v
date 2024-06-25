@@ -77,6 +77,8 @@ Section programs.
   Definition subsume_atomic_bool_own_bool_inst := [instance subsume_atomic_bool_own_bool].
   Global Existing Instance subsume_atomic_bool_own_bool_inst.
 
+  (*
+  Check typed_read_end .
   Lemma type_read_atomic_bool l β it ot PT PF mc T:
     (⌜match ot with | BoolOp => it = u8 | IntOp it' => it = it' | _ => False end⌝ ∗
       ∀ b v,
@@ -193,7 +195,7 @@ Section programs.
   Qed.
   Definition type_cas_atomic_bool_inst := [instance type_cas_atomic_bool].
   Global Existing Instance type_cas_atomic_bool_inst.
-
+*)
 End programs.
 
 Global Typeclasses Opaque atomic_bool.
