@@ -1241,6 +1241,59 @@ simpl.
 eapply expr_lemmas4.typecheck_expr_sound; eauto.
 Qed.
 
+Lemma fash_func_ptr_ND_AB:
+ forall fsig cc (A B: Type) 
+             (Pre: A -> argsEnviron -> mpred) 
+             (Pre': B -> argsEnviron -> mpred)
+             (Post: A -> environ -> mpred)
+             (Post': B -> environ -> mpred) v,
+         (ALL b, ALL rho:argsEnviron, fash (Pre' b rho --> EX a, (Pre a rho &&
+                     prop (TT |-- ALL sigma:environ, (*fash*) (Post a sigma --> Post' b sigma)))))
+   |-- fash (func_ptr_si (NDmk_funspec fsig cc A Pre Post) v --> 
+                  func_ptr_si (NDmk_funspec fsig cc B Pre' Post') v).
+Proof. constructor.
+  red; intros. apply (seplog.fash_func_ptr_ND_AB fsig cc A B Pre Pre' Post Post' v).
+  simpl. simpl in H; intros b rho y Hay a1 a2 Ya1 A12 P.
+  destruct (H b rho y Hay a1 a2 Ya1 A12 P) as [aa [Ha1 Ha2]]; clear H.
+  exists aa; split. apply Ha1.
+  inv Ha2. apply derivesI.
+Qed.
+
+Lemma fash_func_ptr_ND_AB':
+ forall fsig cc (A B: Type) 
+             (Pre: A -> argsEnviron -> mpred) 
+             (Pre': B -> argsEnviron -> mpred)
+             (Post: A -> environ -> mpred)
+             (Post': B -> environ -> mpred) v,
+   ALL b:B, EX a:A,
+         (ALL rho:argsEnviron, fash (Pre' b rho --> (Pre a rho &&
+                     prop (TT |-- ALL sigma:environ, fash (Post a sigma --> Post' b sigma)))))
+   |-- fash (func_ptr_si (NDmk_funspec fsig cc A Pre Post) v --> 
+                  func_ptr_si (NDmk_funspec fsig cc B Pre' Post') v).
+Proof. constructor.
+  red; intros. apply (seplog.fash_func_ptr_ND_AB' fsig cc A B Pre Pre' Post Post' v).
+  simpl. simpl in H; intros b. destruct (H b) as [aa Haa]; clear H.
+  exists aa. intros rho y Hay a1 a2 Ya1 A12 P.
+  destruct (Haa rho y Hay a1 a2 Ya1 A12 P) as [Ha1 Ha2]; clear Haa.
+  split. apply Ha1.
+  inv Ha2. apply derivesI.
+Qed.
+Lemma fash_func_ptr_ND_AB_alt:
+ forall fsig cc (A B: Type) 
+             (Pre: A -> argsEnviron -> mpred) 
+             (Pre': B -> argsEnviron -> mpred)
+             (Post: A -> environ -> mpred)
+             (Post': B -> environ -> mpred) v,
+   ALL b:B, EX a:A,
+         (ALL rho:argsEnviron, fash (Pre' b rho --> Pre a rho)) &&
+         (ALL rho:environ, fash (Post a rho --> Post' b rho))
+   |-- fash (func_ptr_si (NDmk_funspec fsig cc A Pre Post) v --> 
+                  func_ptr_si (NDmk_funspec fsig cc B Pre' Post') v).
+Proof. constructor.
+  red; intros. apply (seplog.fash_func_ptr_ND_AB_alt fsig cc A B Pre Pre' Post Post' v).
+  apply H.
+Qed.
+
 Lemma fash_func_ptr_ND:
  forall fsig cc (A: Type) 
              (Pre Pre': A -> argsEnviron -> mpred) (Post Post': A -> environ -> mpred) v,

@@ -1620,6 +1620,125 @@ Proof.
     eauto.
 Qed.
 
+Lemma fash_func_ptr_ND_AB:
+ forall fsig cc (A B: Type) 
+             (Pre: A -> argsEnviron -> mpred) 
+             (Pre': B -> argsEnviron -> mpred)
+             (Post: A -> environ -> mpred)
+             (Post': B -> environ -> mpred) v,
+         (ALL b, ALL rho:argsEnviron, fash (Pre' b rho --> EX a, (Pre a rho &&
+                     prop (TT |-- ALL sigma:environ, (*fash*) (Post a sigma --> Post' b sigma)))))
+   |-- fash (func_ptr_si (NDmk_funspec fsig cc A Pre Post) v --> 
+                  func_ptr_si (NDmk_funspec fsig cc B Pre' Post') v).
+Proof.
+intros.
+unfold func_ptr_si.
+apply subp_exp; intro c.
+apply subp_andp.
+apply subp_refl.
+intros ? ? ? ? ? ? ? ? [gs [? ?]].
+exists gs. split; auto.
+eapply funspec_sub_si_trans.
+split.
+eassumption.
+clear gs H3 H4.
+split.
+split; auto.
+intros ? ? ? ? ? ? ? ? ? ? ? [? ?].
+apply fupd_intro. simpl in H.
+
+assert (Ha_y0: (a >= level y0)%nat).
+{ clear - H4 H3 H2 H1 H0. apply necR_level in H1.
+  apply ext_level in H2. apply laterR_level in H3. lia. }
+destruct (H b0 b1 y0 Ha_y0 a'1 _ H5 H6 H8) as [aa [Haa1 Haa2]]; clear H.
+exists nil, aa, emp.
+rewrite emp_sepcon.
+split. trivial.
+clear H7 H8 Haa1 b1. intros ? ? ? ? ? ? ? [? Hpost].
+rewrite emp_sepcon in Hpost.
+red in Haa2.
+assert (Ha_y1: (a >= level y1)%nat).
+{ simpl in *. clear - H H0 H1 H2 H3 H4 H5 H6.
+    apply necR_level in H1.  apply necR_level in H5.
+    apply ext_level in H2. apply ext_level in H6.
+    apply laterR_level in H3. lia. }
+eapply Haa2. (*5: apply Hpost. 4:apply H9. 3: apply H8. 2: apply H. trivial.*)
+4: apply Hpost. 3:apply H8. 2: apply H7. trivial.
+Qed.
+
+Lemma fash_func_ptr_ND_AB':
+ forall fsig cc (A B: Type) 
+             (Pre: A -> argsEnviron -> mpred) 
+             (Pre': B -> argsEnviron -> mpred)
+             (Post: A -> environ -> mpred)
+             (Post': B -> environ -> mpred) v,
+   ALL b:B, EX a:A,
+         (ALL rho:argsEnviron, fash (Pre' b rho --> (Pre a rho &&
+                     prop (TT |-- ALL sigma:environ, fash (Post a sigma --> Post' b sigma)))))
+   |-- fash (func_ptr_si (NDmk_funspec fsig cc A Pre Post) v --> 
+                  func_ptr_si (NDmk_funspec fsig cc B Pre' Post') v).
+Proof.
+intros. eapply derives_trans. 2: apply fash_func_ptr_ND_AB.
+apply allp_derives; intros b.
+apply allp_right; intros rho.
+red; simpl; intros. destruct H as [aa Haa].
+destruct (Haa rho _ H0 _ _ H1 H2 H3); clear Haa.
+exists aa; split. trivial.
+(*apply allp_derives; intros b.
+ apply exp_derives; intros a.
+apply allp_derives; intros rho. apply fash_derives. apply imp_derives. trivial.
+apply andp_derives. trivial.*)
+red; simpl. intros ? ? ? ? ? ?; intros.
+eapply H4; clear H4. 5: apply H8. 4: apply H7. 3: apply H6. instantiate (1:= level a0). trivial. lia.
+Qed.
+
+Lemma fash_func_ptr_ND_AB_alt:
+ forall fsig cc (A B: Type) 
+             (Pre: A -> argsEnviron -> mpred) 
+             (Pre': B -> argsEnviron -> mpred)
+             (Post: A -> environ -> mpred)
+             (Post': B -> environ -> mpred) v,
+   ALL b:B, EX a:A,
+         (ALL rho:argsEnviron, fash (Pre' b rho --> Pre a rho)) &&
+         (ALL rho:environ, fash (Post a rho --> Post' b rho))
+   |-- fash (func_ptr_si (NDmk_funspec fsig cc A Pre Post) v --> 
+                  func_ptr_si (NDmk_funspec fsig cc B Pre' Post') v).
+Proof.
+intros.
+unfold func_ptr_si.
+apply subp_exp; intro c.
+apply subp_andp.
+apply subp_refl.
+intros ? ? ? ? ? ? ? ? [gs [? ?]].
+exists gs. split; auto.
+eapply funspec_sub_si_trans.
+split.
+eassumption.
+clear gs H3 H4.
+split.
+split; auto.
+intros ? ? ? ? ? ? ? ? ? ? ? [? ?].
+apply fupd_intro.
+
+destruct (H b0) as [aa [Ha1 Ha2]]; clear H H7.
+simpl in Ha1.
+assert (Ha_y0: (a >= level y0)%nat).
+{ clear - H4 H3 H2 H1 H0. apply necR_level in H1.
+  apply ext_level in H2. apply laterR_level in H3. lia. }
+apply (Ha1 b1 y0 Ha_y0 a'1 _ H5 H6) in H8; clear Ha1.
+exists nil, aa, emp.
+rewrite emp_sepcon.
+split. trivial.
+clear H8 b1. intros ? ? ? ? ? ? ? [? Hpost].
+rewrite emp_sepcon in Hpost.
+simpl in Ha2.
+assert (Ha_y1: (a >= level y1)%nat).
+{ simpl in *. clear - H H0 H1 H2 H3 H4 H5 H6.
+    apply necR_level in H1.  apply necR_level in H5.
+    apply ext_level in H2. apply ext_level in H6.
+    apply laterR_level in H3. lia. }
+apply (Ha2 b1 y1 Ha_y1 a'2 _ H7 H8 Hpost).
+Qed.
 
 Lemma fash_func_ptr_ND:
  forall fsig cc (A: Type) 
@@ -1631,6 +1750,11 @@ Lemma fash_func_ptr_ND:
                   func_ptr_si (NDmk_funspec fsig cc A Pre' Post') v).
 Proof.
 intros.
+eapply derives_trans.
+2: apply (fash_func_ptr_ND_AB_alt fsig0 cc A A Pre Pre' Post Post' v).
+apply allp_derives; intros a. exists a; trivial.
+Qed.
+(*explicit proof
 unfold func_ptr_si.
 apply subp_exp; intro b.
 apply subp_andp.
@@ -1657,7 +1781,7 @@ destruct (H b1) as [_ Hpost'].
 eapply (Hpost' b3); auto.
 apply necR_level in H1, H5, H10. apply ext_level in H2, H6, H11. apply laterR_level in H3. lia.
 Qed.
-
+*)
 
 (*
 Lemma eqp_andp : forall (G : Triv) (P P' Q Q' : mpred)
