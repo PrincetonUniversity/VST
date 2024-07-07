@@ -122,11 +122,11 @@ Section judgements.
   Class TypedAnnotStmt {A} (a : A) (l : address) (P : iProp Σ) : Type :=
     typed_annot_stmt_proof T : iProp_to_Prop (typed_annot_stmt a l P T).
 
-  Definition typed_if (ot : Ctypes.type) (v : val) (P : iProp Σ) (T1 T2 : iProp Σ) : iProp Σ :=
+  Definition typed_if {B : bi} (ot : Ctypes.type) (v : val) (P : B) (T1 T2 : B) : B :=
     (P -∗ match ot with
           | Tint _ _ _ | Tlong _ _ => ∃ z, <affine> ⌜val_to_Z v ot = Some z⌝ ∗ (if bool_decide (z ≠ 0) then T1 else T2)
           | _ => ∃ b, <affine> ⌜sem_cast ot tbool v = Some b⌝ ∗ (if eq_dec b (Vint Int.zero) then T2 else T1) end).
-  Class TypedIf (ot : Ctypes.type) (v : val) (P : iProp Σ) : Type :=
+  Class TypedIf {B : bi} (ot : Ctypes.type) (v : val) (P : B) : Type :=
     typed_if_proof T1 T2 : iProp_to_Prop (typed_if ot v P T1 T2).
 
   (*** statements *)
@@ -136,24 +136,61 @@ Section judgements.
   Definition typed_stmt (s : stmt) (fn : function) (ls : list address) (R : val → type → iProp Σ) (Q : gmap label stmt) : iProp Σ :=
     (⌜length ls = length (fn.(f_args) ++ fn.(f_local_vars))⌝ -∗ WPs s {{Q, typed_stmt_post_cond fn ls R}})%I.
 
-  Maybe:
+  Maybe: *)
   Context `{!externalGS OK_ty Σ}.
   #[export] Instance VSTGS0 : VSTGS OK_ty Σ := Build_VSTGS _ _ _ _.
 
-  Definition wp_stmt Espec Delta s R := ∃ P, semax' Espec ⊤ Delta P s R.
+  Definition wp_stmt Espec E Delta s R := |={E}=> ∃ P, P ∧ ⌜semax(OK_spec := Espec) E Delta P s R⌝.
+
+  Definition ret_assert_entails R1 R2 : Prop :=
+    (RA_normal R1 ⊢ RA_normal R2) ∧
+    (RA_break R1 ⊢ RA_break R2) ∧
+    (RA_continue R1 ⊢ RA_continue R2) ∧
+    (∀ v, RA_return R1 v ⊢ RA_return R2 v).
+
+  Lemma wp_stmt_mono Espec E Delta s R1 R2 : ret_assert_entails R1 R2 →
+    wp_stmt Espec E Delta s R1 ⊢ wp_stmt Espec E Delta s R2.
+  Proof.
+    intros (? & ? & ? & ?).
+    iIntros ">(% & H & %Hs) !>".
+    iExists P; iFrame.
+    iPureIntro; split; first done.
+    eapply semax_post, Hs; intros; rewrite bi.and_elim_r //.
+  Qed.
+
+  Global Instance elim_modal_bupd_wp_stmt p Espec E Delta s R P :
+    ElimModal True%type p false (|==> P) P (wp_stmt Espec E Delta s R) (wp_stmt Espec E Delta s R).
+  Proof.
+    rewrite /ElimModal bi.intuitionistically_if_elim (bupd_fupd E) fupd_frame_r bi.wand_elim_r.
+    iIntros "_ Hs".
+    by iMod "Hs".
+  Qed.
+
+  Global Instance elim_modal_fupd_wp_stmt p Espec E Delta s R P :
+    ElimModal True%type p false (|={E}=> P) P (wp_stmt Espec E Delta s R) (wp_stmt Espec E Delta s R).
+  Proof.
+    rewrite /ElimModal bi.intuitionistically_if_elim fupd_frame_r bi.wand_elim_r.
+    iIntros "_ Hs".
+    by iMod "Hs".
+  Qed.
+
   Definition typed_stmt_post_cond (R : val → type → assert) : ret_assert :=
     {| RA_normal := ∃ ty, ⎡Vundef ◁ᵥ ty⎤ ∗ R Vundef ty;
        RA_break := ∃ ty, ⎡Vundef ◁ᵥ ty⎤ ∗ R Vundef ty;
        RA_continue := ∃ ty, ⎡Vundef ◁ᵥ ty⎤ ∗ R Vundef ty;
        RA_return ret := let v := match ret with Some v => v | None => Vundef end in
          ∃ ty, ⎡v ◁ᵥ ty⎤ ∗ R v ty |}.
-  Definition typed_stmt Espec Delta s (R : val → type → assert) : iProp Σ :=
-    wp_stmt Espec Delta s (typed_stmt_post_cond R)%I.
-  Global Arguments typed_stmt _ _ _ _%_I.*)
+  Definition typed_stmt Espec Delta s (R : val → type → assert) : assert :=
+    wp_stmt Espec ⊤ Delta s (typed_stmt_post_cond R)%I.
+  Global Arguments typed_stmt _ _ _ _%_I.
 
-  (* This is annoying because semax builds up a ton of machinery around the triple (including
-     plainly modalities, which interact poorly with fupd), but safety before semax doesn't have a
-     postcondition. *)
+  Lemma typed_stmt_mono Espec Delta s R1 R2 : (∀ v t, R1 v t ⊢ R2 v t) →
+    typed_stmt Espec Delta s R1 ⊢ typed_stmt Espec Delta s R2.
+  Proof.
+    intros; apply wp_stmt_mono; split3; last split; intros; simpl; iIntros "(% & ? & ?)"; rewrite H; eauto with iFrame.
+  Qed.
+
+(*  alternative that strips out some of the pieces around semax instead of putting |={E}=> on top
   Context `{!externalGS OK_ty Σ}.
   #[export] Instance VSTGS0 : VSTGS OK_ty Σ := Build_VSTGS _ _ _ _.
 
@@ -218,7 +255,7 @@ Section judgements.
          ∃ ty, ⎡v ◁ᵥ ty⎤ ∗ R v ty |}.
 
   Definition typed_stmt Espec Delta (s : statement) (R : val → type → assert) :=
-    wp_stmt Espec ⊤ Delta s (typed_stmt_post_cond R)%I.
+    wp_stmt Espec ⊤ Delta s (typed_stmt_post_cond R)%I.*)
 
 (*  Definition typed_block (P : iProp Σ) (b : label) (fn : function) (ls : list address) (R : val → type → iProp Σ) (Q : gmap label stmt) : iProp Σ :=
     (wps_block P b Q (typed_stmt_post_cond fn ls R)).
@@ -1276,7 +1313,7 @@ Section typing.
 (*  Lemma type_goto Q b fn ls R s:
     Q !! b = Some s →
     typed_stmt s fn ls R Q
-    ⊢ typed_stmt (Goto b) fn ls R Q.
+    ⊢ typed_stmt (Sgoto b) fn ls R Q.
   Proof.
     iIntros (HQ) "Hs". iIntros (Hls). iApply wps_goto => //.
     iModIntro. by iApply "Hs".
@@ -1301,26 +1338,88 @@ Section typing.
     iApply wps_assign; rewrite ?val_to_of_loc //. { destruct o; naive_solver. }
     iMod ("HT" with "Hv") as "[$ [$ HT]]". destruct o; iIntros "!# !# Hl".
     all: by iApply ("HT" with "Hl").
-  Qed.
+  Qed. *)
 
-  Lemma type_if Q ot join e s1 s2 fn ls R:
-    typed_val_expr e (λ v ty, typed_if ot v (v ◁ᵥ ty)
-          (typed_stmt s1 fn ls R Q) (typed_stmt s2 fn ls R Q))
-    ⊢ typed_stmt (if{ot, join}: e then s1 else s2) fn ls R Q.
+  Lemma wp_semax : forall Espec E Delta P s Q, (P ⊢ wp_stmt Espec E Delta s Q) → semax(OK_spec := Espec) E Delta P s Q.
   Proof.
-    iIntros "He" (Hls). wps_bind.
-    iApply "He". iIntros (v ty) "Hv Hs".
-    iDestruct ("Hs" with "Hv") as "Hs". destruct ot => //.
-    - iDestruct "Hs" as (b Hv) "Hs".
-      iApply wps_if_bool; first done. by destruct b => /=; iApply "Hs".
-    - iDestruct "Hs" as (z Hz) "Hs".
-      iApply wps_if; [done|..]. by case_decide; iApply "Hs".
-    - iDestruct "Hs" as (l Hl) "[Hlib Hs]".
-      iApply (wps_if_ptr with "Hlib [Hs]") => //.
-      case_bool_decide; simplify_eq => /=; by iApply "Hs".
+    intros.
+    rewrite /wp_stmt in H.
+    eapply semax_pre_fupd.
+    { rewrite bi.and_elim_r //. }
+    apply semax_extract_exists; intros.
+    rewrite comm.
+    apply semax_extract_prop; done.
   Qed.
 
-  Lemma type_switch Q it e m ss def fn ls R:
+(* This should be able to reuse semax_ifthenelse, but it's not currently factored correctly. The right way
+   might be to define a set of more primitive/direct rules with wp, and then build the VeriC semax rules on
+   top of those. *)
+  Lemma wp_if: forall Espec E Delta e s1 s2 R, bool_type (typeof e) = true →
+    ▷(tc_expr Delta (Eunop Cop.Onotbool e (Tint I32 Signed noattr)) ∧ wp_expr e (λ v, (⌜typed_true (typeof e) v⌝ → wp_stmt Espec E Delta s1 R) ∧
+                    (⌜typed_false (typeof e) v⌝ → wp_stmt Espec E Delta s2 R)))
+    ⊢ wp_stmt Espec E Delta (Sifthenelse e s1 s2) R.
+  Proof.
+    intros.
+    rewrite /wp_stmt.
+    iIntros "H !>"; iExists (▷ _); iFrame "H".
+    iPureIntro; split; first done.
+    apply semax_ifthenelse; first done.
+    - apply wp_semax.
+      iIntros "(H & #?)".
+      (* different eval_expr *)
+  Admitted.
+
+  Lemma type_if Espec Delta e s1 s2 R:
+    typed_val_expr e (λ v ty, typed_if (typeof e) v ⎡v ◁ᵥ ty⎤
+          (typed_stmt Espec Delta s1 R) (typed_stmt Espec Delta s2 R))
+    ⊢ typed_stmt Espec Delta (Sifthenelse e s1 s2) R.
+  Proof.
+    iIntros "He".
+    iApply wp_if.
+    { admit. }
+    iNext; iSplit.
+    { admit. }
+    iApply "He". iIntros (v ty) "Hv Hs".
+    iDestruct ("Hs" with "Hv") as "Hs". destruct (typeof e) eqn: Ht; iDestruct "Hs" as (b Hv) "Hs"; try done.
+    - rewrite /typed_true /typed_false /strict_bool_val.
+      iSplit; iIntros (Hb); destruct v; try done; case_bool_decide; try done; exfalso; inv Hv.
+      + assert (i0 = Int.zero) as ->; [|rewrite Int.eq_true // in Hb].
+        destruct s; [|if_tac in H1]; inv H1.
+        * apply signed_inj; rewrite Int.signed_zero //.
+        * apply unsigned_eq_eq; rewrite Int.unsigned_zero //.
+      + apply negb_false_iff, int_eq_e in Hb as ->.
+        destruct s; [|if_tac in H1]; inv H1.
+    - rewrite /typed_true /typed_false /strict_bool_val.
+      iSplit; iIntros (Hb); destruct v; try done; case_bool_decide; try done; exfalso; inv Hv.
+      + assert (i = Int64.zero) as ->; [|rewrite Int64.eq_true // in Hb].
+        destruct s; inv H1.
+        * apply signed_inj_64; rewrite Int64.signed_zero //.
+        * apply unsigned_inj_64; rewrite Int64.unsigned_zero //.
+      + apply negb_false_iff, int64_eq_e in Hb as ->.
+        destruct s; inv H1.
+    - rewrite /typed_true /typed_false /strict_bool_val.
+      rewrite /sem_cast /= in Hv.
+      destruct f; iSplit; iIntros (Hb); destruct v; try done; if_tac; try done; exfalso; inv Hv;
+        rewrite ?negb_true_iff ?negb_false_iff in Hb; rewrite -> Hb in *; done.
+    - rewrite /typed_true /typed_false /strict_bool_val.
+      rewrite /sem_cast /= in Hv.
+      revert Hv; simple_if_tac; first done; intros.
+      iSplit; iIntros (Hb); destruct v; try done; if_tac; try done; exfalso; inv Hv.
+      + destruct (Int64.eq _ _); done.
+      + destruct (Int64.eq _ _); done.
+    - rewrite /typed_true /typed_false /strict_bool_val.
+      rewrite /sem_cast /= in Hv.
+      iSplit; iIntros (Hb); destruct v; try done; if_tac; try done; exfalso; inv Hv.
+      + destruct (Int64.eq _ _); done.
+      + destruct (Int64.eq _ _); done.
+    - rewrite /typed_true /typed_false /strict_bool_val.
+      rewrite /sem_cast /= in Hv.
+      iSplit; iIntros (Hb); destruct v; try done; if_tac; try done; exfalso; inv Hv.
+      + destruct (Int64.eq _ _); done.
+      + destruct (Int64.eq _ _); done.
+  Admitted.
+
+(*  Lemma type_switch Q it e m ss def fn ls R:
     typed_val_expr e (λ v ty, typed_switch v ty it m ss def fn ls R Q)
     ⊢ typed_stmt (Switch it e m ss def) fn ls R Q.
   Proof.
@@ -1366,8 +1465,8 @@ Section typing.
     by iApply ("Hs" with "Hv").
   Qed.
 
-  Lemma type_skips s fn ls Q R:
-    (|={⊤}[∅]▷=> typed_stmt s fn ls R Q) ⊢ typed_stmt (SkipS s) fn ls R Q.
+  Lemma type_skips Espec Delta s R:
+    (|={⊤}[∅]▷=> typed_stmt Espec Delta s R) ⊢ typed_stmt (Sskip s) fn ls R Q.
   Proof.
     iIntros "Hs ?". iApply wps_skip. iApply (step_fupd_wand with "Hs"). iIntros "Hs". by iApply "Hs".
   Qed.
