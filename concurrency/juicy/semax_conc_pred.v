@@ -3,7 +3,7 @@ Require Import VST.concurrency.common.lksize.
 
 Section mpred.
 
-Context `{!heapGS Σ}.
+Context `{!VSTGS OK_ty Σ}.
 
 Definition exclusive_mpred R : mpred := ((R ∗ R) -∗ False)%I.
 
@@ -15,7 +15,7 @@ Definition lock_inv : share -> val -> mpred -> mpred :=
       inv LKN (∃ st, LKspec LKSIZE st sh (b, Ptrofs.unsigned ofs) ∗ if st then emp else R)).
 
 Definition rec_inv sh v (Q R: mpred): mpred :=
-  (R ∗-∗ Q ∗ ▷lock_inv sh v R).
+  ((bi_wand_iff R Q) ∗ ▷ lock_inv sh v R).
 
 Lemma lockinv_isptr sh v R : lock_inv sh v R ⊣⊢ (⌜isptr v⌝ ∧ lock_inv sh v R).
 Proof.
