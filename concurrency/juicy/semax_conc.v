@@ -19,7 +19,7 @@ Proof. reflexivity. Qed.
 
 Section mpred.
 
-Context `{!heapGS Σ}.
+Context `{!VSTGS ty_OK Σ}.
 
 Definition selflock_fun Q sh p : mpred -> mpred :=
   fun R => (Q ∗ ▷lock_inv sh p R).
@@ -159,7 +159,7 @@ Proof.
   rewrite /exclusive_mpred HR //.
 Qed.
 
-Program Definition makelock_spec cs: funspec :=
+Program Definition makelock_spec (cs : compspecs) : funspec :=
   TYPE ProdType (ConstType (val * share)) Mpred WITH v : _, sh : _, R : _
   PRE [ tptr tvoid ]
     PROP (writable_share sh)
@@ -179,7 +179,7 @@ Next Obligation.
   rewrite HR //.
 Qed.
 
-Program Definition freelock_spec cs: funspec :=
+Program Definition freelock_spec (cs : compspecs) : funspec :=
   TYPE ProdType (ConstType (val * share)) Mpred WITH v : _, sh : _, R : _
   PRE [ tptr tvoid ]
     PROP (writable_share sh)
@@ -205,11 +205,11 @@ Qed.
 Lemma selflock_rec : forall sh v R, ⊢rec_inv sh v R (selflock R sh v).
 Proof.
   intros; unfold rec_inv.
-  rewrite {1}selflock_eq.
+  rewrite {1} selflock_eq.
   apply bi.wand_iff_refl.
 Qed.
 
-Program Definition freelock2_spec cs: funspec :=
+Program Definition freelock2_spec (cs : compspecs) : funspec :=
   TYPE ProdType (ProdType (ConstType (val * share * share)) Mpred) Mpred
   WITH v : _, sh : _, sh' : _, Q : _, R : _
   PRE [ tptr tvoid ]
