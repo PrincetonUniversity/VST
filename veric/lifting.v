@@ -10,6 +10,16 @@ Require Import VST.veric.tycontext.
 Require Import VST.veric.semax.
 Require Import VST.veric.semax_straight.
 
+Global Instance local_absorbing `{!heapGS Σ} l : Absorbing (local l).
+Proof.
+  rewrite /local; apply monPred_absorbing, _.
+Qed.
+
+Global Instance local_persistent `{!heapGS Σ} l : Persistent (local l).
+Proof.
+  rewrite /local; apply monPred_persistent, _.
+Qed.
+
 Section mpred.
 
 Context `{!VSTGS OK_ty Σ} (OK_spec : ext_spec OK_ty).
@@ -58,16 +68,6 @@ Definition wp_lvalue e Φ : assert :=
             rho = construct_rho (filter_genv ge) ve te ->
             Clight.eval_lvalue ge ve te m e b o Full (*/\ typeof e = t /\ tc_val t v*)) ∧
          ⎡juicy_mem.mem_auth m⎤ ∗ Φ (Vptr b o).
-
-Global Instance local_absorbing `{!heapGS Σ} l : Absorbing (local l).
-Proof.
-  rewrite /local; apply monPred_absorbing, _.
-Qed.
-
-Global Instance local_persistent `{!heapGS Σ} l : Persistent (local l).
-Proof.
-  rewrite /local; apply monPred_persistent, _.
-Qed.
 
 Lemma wp_seq : forall E f s1 s2 Q, wp E f s1 (wp E f s2 Q) ⊢ wp E f (Ssequence s1 s2) Q.
 Proof.
@@ -226,3 +226,148 @@ Proof.
 Qed.
 
 End mpred.
+
+(* adequacy: copied from veric/SequentialClight *)
+Require Import VST.veric.external_state.
+Require Import VST.sepcomp.step_lemmas.
+Require Import VST.sepcomp.semantics.
+
+Class VSTGpreS (Z : Type) Σ := {
+  VSTGpreS_inv :: invGpreS Σ;
+  VSTGpreS_heap :: gen_heapGpreS share address resource Σ;
+  VSTGpreS_funspec :: inG Σ (gmap_view.gmap_viewR address (@funspecO' Σ));
+  VSTGpreS_ext :: inG Σ (excl_authR (leibnizO Z))
+}.
+
+Definition VSTΣ Z : gFunctors :=
+  #[invΣ; gen_heapΣ share address resource; GFunctor (gmap_view.gmap_viewRF address funspecOF');
+    GFunctor (excl_authR (leibnizO Z)) ].
+Global Instance subG_VSTGpreS {Z Σ} : subG (VSTΣ Z) Σ → VSTGpreS Z Σ.
+Proof. solve_inG. Qed.
+
+Lemma init_VST: forall Z `{!VSTGpreS Z Σ} (z : Z),
+  ⊢ |==> ∀ _ : invGS_gen HasNoLc Σ, ∃ _ : gen_heapGS share address resource Σ, ∃ _ : funspecGS Σ, ∃ _ : externalGS Z Σ,
+    let H : VSTGS Z Σ := Build_VSTGS _ _ (HeapGS _ _ _ _) _ in
+    (state_interp Mem.empty z ∗ funspec_auth ∅ ∗ has_ext z) ∗ ghost_map.ghost_map_auth(H0 := gen_heapGpreS_meta) (gen_meta_name _) 1 ∅.
+Proof.
+  intros; iIntros.
+  iMod gen_heap_init_names_empty as (??) "(? & ?)".
+  iMod (own_alloc(A := gmap_view.gmap_viewR address (@funspecO' Σ)) (gmap_view.gmap_view_auth (DfracOwn 1) ∅)) as (γf) "?".
+  { apply gmap_view.gmap_view_auth_valid. }
+  iMod (ext_alloc z) as (?) "(? & ?)".
+  iIntros "!>" (?); iExists (GenHeapGS _ _ _ _ γh γm), (FunspecG _ _ γf), _.
+  rewrite /state_interp /juicy_mem.mem_auth /funspec_auth /=; iFrame.
+  iSplit; [|done]. iPureIntro. apply juicy_mem.empty_coherent.
+Qed.
+
+Global Instance stepN_absorbing {PROP : bi} `{!BiFUpd PROP} n E1 E2 (P : PROP) `{!Absorbing P}: Absorbing (|={E1}[E2]▷=>^n P).
+Proof.
+  induction n; apply _.
+Qed.
+
+Lemma adequacy: forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} ge z q m n,
+  state_interp m z ∗ jsafeN OK_spec ge ⊤ z q ⊢
+  |={⊤}[∅]▷=>^n ⌜dry_safeN(genv_symb := genv_symb_injective) (cl_core_sem ge) OK_spec ge n z q m⌝.
+Proof.
+  intros.
+  iIntros "(S & Hsafe)".
+  iLöb as "IH" forall (m z q n).
+  destruct n as [|n]; simpl.
+  { iPureIntro. constructor. }
+  rewrite [in (environments.Esnoc _ "Hsafe" _)]/jsafeN jsafe_unfold /jsafe_pre.
+  iMod ("Hsafe" with "S") as "[Hsafe_halt | [Hsafe_core | Hsafe_ext]]".
+  - iDestruct "Hsafe_halt" as %(ret & Hhalt & Hexit).
+    iApply step_fupd_intro; first done; iApply step_fupdN_intro; first done.
+    iPureIntro; eapply safeN_halted; eauto.
+  - iDestruct "Hsafe_core" as ">(%c' & %m' & % & s_interp & ▷jsafe)".
+    iApply fupd_mask_intro; first done.
+    iIntros "Hclose !>"; iMod "Hclose" as "_".
+    iSpecialize ("IH" with "[$] [$]").
+    iModIntro; iApply (step_fupdN_mono with "IH").
+    iPureIntro. eapply safeN_step; eauto.
+  - iDestruct "Hsafe_ext" as (ef args w (at_external & Hpre)) "Hpost".
+    iAssert (|={⊤}[∅]▷=>^(S n) ⌜(∀ (ret : option val) m' z' n',
+      Val.has_type_list args (sig_args (ef_sig ef))
+      → Builtins0.val_opt_has_rettype ret (sig_res (ef_sig ef))
+        → n' ≤ n
+            → ext_spec_post OK_spec ef w
+                (genv_symb_injective ge) (sig_res (ef_sig ef)) ret z' m'
+              → ∃ q',
+                  (after_external (cl_core_sem ge) ret q m' = Some q'
+                   ∧ dry_safeN(genv_symb := genv_symb_injective) (cl_core_sem ge) OK_spec ge n' z' q' m'))⌝) with "[-]" as "Hdry".
+      2: { iApply (step_fupdN_mono with "Hdry"); iPureIntro; intros; eapply safeN_external; eauto. }
+      iApply step_fupdN_mono; first by do 8 setoid_rewrite bi.pure_forall.
+      repeat (setoid_rewrite step_fupdN_plain_forall; last done; [|apply _..]).
+      iIntros (ret m' z' n' ????).
+      iApply fupd_mask_intro; first done.
+      iIntros "Hclose !>"; iMod "Hclose" as "_".
+      iMod ("Hpost" with "[%] [%]") as (??) "(S & Hsafe)"; [done..|].
+      iSpecialize ("IH" with "[$] [$]").
+      iModIntro; iApply step_fupdN_le; [done..|].
+      iApply (step_fupdN_mono with "IH"); eauto.
+Qed.
+
+Definition ext_spec_entails {M E Z} (es1 es2 : external_specification M E Z) :=
+  (forall e x1 p tys args z m, ext_spec_pre es1 e x1 p tys args z m ->
+     exists x2, ext_spec_pre es2 e x2 p tys args z m /\
+       forall ty ret z' m', ext_spec_post es2 e x2 p ty ret z' m' ->
+                            ext_spec_post es1 e x1 p ty ret z' m') /\
+  (forall v z m, ext_spec_exit es1 v z m -> ext_spec_exit es2 v z m).
+
+Lemma ext_spec_entails_refl : forall {M E Z} (es : external_specification M E Z), ext_spec_entails es es.
+Proof.
+  intros; split; eauto.
+Qed.
+
+Theorem ext_spec_entails_safe : forall {G C M Z} {genv_symb} Hcore es1 es2 ge n z c m
+  (Hes : ext_spec_entails es1 es2),
+  @step_lemmas.dry_safeN G C M Z genv_symb Hcore es1 ge n z c m -> @step_lemmas.dry_safeN G C M Z genv_symb Hcore es2 ge n z c m.
+Proof.
+  induction n as [n IHn] using lt_wf_ind; intros.
+  inv H.
+  - constructor.
+  - eapply step_lemmas.safeN_step; eauto.
+    eapply IHn; eauto.
+  - destruct Hes as (Hes & ?).
+    apply Hes in H1 as (x2 & ? & ?).
+    eapply step_lemmas.safeN_external; eauto; intros.
+    edestruct H2 as (c' & ? & ?); eauto.
+    exists c'; split; auto.
+    eapply IHn; eauto; [lia | by split].
+  - destruct Hes.
+    eapply step_lemmas.safeN_halted; eauto.
+Qed.
+
+Lemma wp_adequacy: forall `{!VSTGpreS OK_ty Σ} {Espec : forall `{VSTGS OK_ty Σ}, ext_spec OK_ty} {dryspec : ext_spec OK_ty}
+  (Hdry : forall `{!VSTGS OK_ty Σ}, ext_spec_entails Espec dryspec)
+  ge m z f s φ ve te,
+  (∀ `{HH : invGS_gen HasNoLc Σ}, ⊢ |={⊤}=> ∃ _ : gen_heapGS share address resource Σ, ∃ _ : funspecGS Σ, ∃ _ : externalGS OK_ty Σ,
+    let H : VSTGS OK_ty Σ := Build_VSTGS _ _ (HeapGS _ _ _ _) _ in
+    local (λ rho, rho = construct_rho (filter_genv ge) ve te) ∧ ⎡state_interp m z⎤ ∗ wp Espec ⊤ f s ⌜φ⌝) →
+       (forall n,
+        @dry_safeN _ _ _ OK_ty (genv_symb_injective) (cl_core_sem ge) dryspec
+            ge n z (State f s Kstop ve te) m) (*∧ φ if it terminates *).
+Proof.
+  intros.
+(*  assert (forall n, @dry_safeN _ _ _ OK_ty (genv_symb_injective) (cl_core_sem ge) dryspec
+            ge n z (State f s Kstop ve te) m ∧ φ) as H'; last (split; [eapply H' | apply (H' 0)]; eauto). *)
+  (*intros n;*)
+  eapply ouPred.pure_soundness, (step_fupdN_soundness_no_lc'(Σ := Σ) _ (S n) O); [apply _..|].
+  simpl; intros. apply (embed_emp_valid_inj(PROP2 := monPred environ_index _)). iIntros "_".
+  iMod (H Hinv) as (???) "?".
+  iStopProof.
+  rewrite /wp; split => rho; monPred.unseal.
+  iIntros "(% & S & H)".
+  iApply step_fupd_intro; first done.
+  iNext.
+  set (HH := Build_VSTGS _ _ _ _).
+  iApply step_fupdN_mono.
+  { apply bi.pure_mono, (ext_spec_entails_safe _ (Espec HH)); auto. }
+  iApply (adequacy(VSTGS0 := HH)(OK_spec := Espec HH)).
+  iFrame.
+  iApply "H"; last done.
+  iIntros (?) "?". (* should be able to prove φ now *)
+  rewrite /assert_safe.
+  iIntros.
+  (* are we halted? *)
+Admitted.
