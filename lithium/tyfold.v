@@ -5,7 +5,7 @@ From VST.lithium Require Import type_options.
 Section tyfold.
   Context `{!typeG Σ} {cs : compspecs}.
 
-  Program Definition tyfold_type (tys : list (type → type)) (base : type) (ls : list address) : type := {|
+  Program Definition tyfold_type (tys : list (type → type)) (base : type) (ls : list address) : type :=   {|
     ty_own β l := <affine>⌜length ls = length tys⌝ ∗
             ([∗ list] i ↦ ty ∈ tys, ∃ l1 l2, <affine>⌜(l::ls) !! i = Some l1⌝ ∗
                                              <affine>⌜ls !! i = Some l2⌝ ∗
@@ -20,12 +20,12 @@ Section tyfold.
     iMod (ty_share with "Hb") as "$" => //=.
     iSplitR => //.
     iInduction (tys) as [|ty tys] "IH" forall (l ls Hlen) => //.
-    - destruct ls as [|l' ls] => //=. move: Hlen => /= [Hlen].
-      iDestruct "Htys" as "(Hty & Htys)".
-      iDestruct "Hty" as (l1 l2 [=->] [=->]) "Hty".
-      iMod (ty_share with "Hty") as "Hty" => //.
-      iSplitL "Hty". 1: { iExists _, _; by iFrame. }
-      by iApply "IH".
+    destruct ls as [|l' ls] => //=. move: Hlen => /= [Hlen].
+    iDestruct "Htys" as "(Hty & Htys)".
+    iDestruct "Hty" as (l1 l2 [=->] [=->]) "Hty".
+    iMod (ty_share with "Hty") as "Hty" => //.
+    iSplitL "Hty". 1: { iExists _, _; by iFrame. }
+    by iApply "IH".
   Qed.
 
   Definition tyfold (tys : list (type → type)) (base : type) : rtype _ :=
@@ -43,10 +43,9 @@ Section tyfold.
     destruct tys  as [|ty tys], ls as [ |l' ls] => //=.
     iDestruct "Hl" as "[H1 Hty2]".
     iDestruct "H1" as (l1 l2 ??) "H1". simplify_eq.
-    iExists l2. rewrite tyexists_eq. iExists ls. rewrite tyexists_eq. iSplit => //.
-    - iSplitL "H1" => //=. rewrite /tyown_constraint. iSplit => //. iFrame.
-      iStopProof. f_equiv. destruct ls =>//=. by apply default_last_cons.
-    - auto.
+    iExists l2. rewrite tyexists_eq. iExists ls. rewrite tyexists_eq. iSplit => //; last first; auto.
+    iSplitL "H1" => //=. rewrite /tyown_constraint. iSplit => //. iFrame.
+    iStopProof. f_equiv. destruct ls =>//=. by apply default_last_cons.
   Qed.
   
   Definition simplify_hyp_place_tyfold_optional_inst :=
@@ -55,9 +54,7 @@ Section tyfold.
 
   Lemma simplify_goal_place_tyfold_nil l β ls b T:
     <affine> ⌜ls = []⌝ ∗ l ◁ₗ{β} b ∗ T ⊢ simplify_goal (l◁ₗ{β} ls @ tyfold [] b) T.
-  Proof. iIntros "[-> [Hl $]]".
-         repeat iSplit => //=.
-  Qed.
+  Proof. iIntros "[-> [Hl $]]". repeat iSplit => //=. Qed.
 
   Definition simplify_goal_place_tyfold_nil_inst := [instance simplify_goal_place_tyfold_nil with 0%N].
   Global Existing Instance simplify_goal_place_tyfold_nil_inst.
@@ -67,9 +64,7 @@ Section tyfold.
     ⊢ simplify_goal (l◁ₗ{β} ls @ tyfold (ty :: tys) b) T.
   Proof.
     iDestruct 1 as (l1 l2) "(% & (H1 & ((% & H3) & $)))".
-    
-    (* iDestruct 1 as (l2 ls2 ->) "[Hl [[% [Htys Hb]] $]]". *)
-    iSplit => /=. 1: iPureIntro; f_equal. { rewrite H /=. auto. }
+    iSplit => /=. 1: iPureIntro; f_equal. { rewrite H //=; auto. }
      { iDestruct "H3" as "(Hl & Hd)". rewrite H /=. iFrame.
        iSplit; last first; try done.
        iStopProof. f_equiv. destruct l2 => //=.
