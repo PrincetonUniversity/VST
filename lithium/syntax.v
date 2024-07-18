@@ -1,5 +1,5 @@
-From lithium Require Export base.
-From VST.lithium Require Import definitions.
+From iris.proofmode Require Export tactics.
+From lithium Require Export base pure_definitions.
 From lithium Require Import hooks.
 
 Import environments.
@@ -28,29 +28,113 @@ Section lithium.
   Definition and_map {K A} `{!EqDecision K} `{!Countable K}
     (m : gmap K A) (Φ : K → A → PROP) : PROP :=
     big_opM bi_and Φ m.
+    
+About find_in_context_info.
 
-  Definition find_in_context : ∀ fic : find_in_context_info, (fic.(fic_A) → PROP) → PROP :=
-    find_in_context.
+Record find_in_context_info {PROP : bi} : Type := {
+  fic_A : Type;
+  fic_Prop : fic_A → PROP;
+}.
 
-  Definition case_if : Prop → PROP → PROP → PROP :=
-    case_if.
-  Definition case_destruct {A} : A → (A → bool → PROP) → PROP :=
-    @case_destruct PROP A.
+Definition find_in_context {PROP : bi} (fic : find_in_context_info) (T : fic.(fic_A) → PROP) : PROP :=
+  (∃ b, fic.(fic_Prop) b ∗ T b).
+  
+  Definition FindDirect {PROP : bi}{A} (P : A → PROP) := {| fic_A := A; fic_Prop := P; |}.
+Global Typeclasses Opaque FindDirect.
+
+
+
+Definition case_if {PROP : bi} (P : Prop) (T1 T2 : PROP) : PROP :=
+  (⌜P⌝ -∗ T1) ∧ (⌜¬ P⌝ -∗ T2).
+
+Definition case_destruct {PROP : bi} {A} (a : A) (T : A → bool → PROP) : PROP :=
+  ∃ b, T a b.
+
 
   Definition drop_spatial : PROP → PROP :=
     bi_intuitionistically.
 
+Class LiTactic {PROP : bi}{A} (t : (A → PROP) → PROP) := {
+  li_tactic_P : (A → PROP) → PROP;
+  li_tactic_proof T : li_tactic_P T ⊢ t T;
+}.
+Arguments li_tactic_proof {_ _ _} _ _.
+Arguments li_tactic_P {_ _ _} _ _.
+
+Definition li_tactic {PROP : bi}{A} (t : (A → PROP) → PROP) (T : A → PROP) : PROP :=
+  t T.
+Arguments li_tactic : simpl never.
+
+
   Definition tactic {A} : ((A → PROP) → PROP) → (A → PROP) → PROP :=
     @li_tactic PROP A.
+    
+Definition li_vm_compute {PROP : bi} {A B} (f : A → option B) (x : A) (T : B → PROP) : PROP :=
+  ∃ y, ⌜f x = Some y⌝ ∗ T y.
+Arguments li_vm_compute : simpl never.
+Global Typeclasses Opaque li_vm_compute.
 
-  Definition accu : (PROP → PROP) → PROP :=
-    accu.
+Program Definition li_vm_compute_hint {PROP : bi} {A B} (f : A → option B) x a :
+  f a = Some x →
+  LiTactic (li_vm_compute (PROP:=PROP) f a) := λ H, {|
+    li_tactic_P T := T x;
+|}.
+Next Obligation. move => ????????. iIntros "HT". iExists _. iFrame. iPureIntro. naive_solver. Qed.
+
+(** * [accu] *)
+Definition accu {PROP : bi} (f : PROP → PROP) : PROP :=
+  ∃ P, P ∗ □ f P.
+Arguments accu : simpl never.
+Global Typeclasses Opaque accu.
+
+(** * trace *)
+Definition li_trace {PROP : bi} {A} (t : A) (T : PROP) : PROP := T.
 
   Definition trace {A} : A → PROP → PROP :=
     @li_trace PROP A.
+    
+    Class IntroPersistent {PROP : bi} (P P' : PROP) := {
+  ip_persistent : P ⊢ □ P'
+}.
+Global Hint Mode IntroPersistent + + - : typeclass_instances.
+(** ** Instances *)
+Global Instance intro_persistent_intuit  {P : PROP} : IntroPersistent (□ P) P.
+Proof. constructor. iIntros "$". Qed.
 
-  Definition subsume {A} : PROP → (A → PROP) → (A → PROP) → PROP :=
-    subsume.
+(** * Simplification *)
+(* n:
+   None: no simplification
+   Some 0: simplification which is always safe
+   Some n: lower n: should be done before higher n (when compared with simplifyGoal)   *)
+Definition simplify_hyp {PROP : bi} (P : PROP) (T : PROP) : PROP :=
+  P -∗ T.
+  
+  Record iProp_to_Prop {PROP : bi} (P : PROP) : Type := i2p {
+  i2p_P :> PROP;
+  i2p_proof : i2p_P ⊢ P;
+}.
+Arguments i2p {_ _ _} _.
+Arguments i2p_P {_ _} _.
+Arguments i2p_proof {_ _} _.
+
+Class SimplifyHyp {PROP : bi} (P : PROP) (n : option N) : Type :=
+  simplify_hyp_proof T : iProp_to_Prop (simplify_hyp P T).
+
+Definition simplify_goal {PROP : bi} (P : PROP) (T : PROP) : PROP :=
+  (P ∗ T).
+Class SimplifyGoal {PROP : bi} (P : PROP) (n : option N) : Type :=
+  simplify_goal_proof T : iProp_to_Prop (simplify_goal P T).
+
+Global Hint Mode SimplifyHyp + + - : typeclass_instances.
+Global Hint Mode SimplifyGoal + ! - : typeclass_instances.
+
+(** * Subsumption *)
+Definition subsume {PROP : bi} {A} (P1 : PROP) (P2 T : A → PROP) : PROP :=
+  P1 -∗ ∃ x, P2 x ∗ T x.
+Class Subsume {PROP : bi} {A} (P1 : PROP) (P2 : A → PROP) : Type :=
+  subsume_proof T : iProp_to_Prop (subsume P1 P2 T).
+Global Hint Mode Subsume + + + ! : typeclass_instances.
+
   (* TODO: Should we also have a syntax for subsume list? *)
 
   Definition ret (T : PROP) : PROP := T.
@@ -237,15 +321,14 @@ Ltac liToSyntax :=
   change (@bi_pure ?PROP False) with (@li.false PROP);
   repeat (progress change (big_opM bi_and ?f ?m) with (li.bind2 (li.and_map m) f));
   change (@bi_and ?PROP) with (@li.and PROP);
-  change (find_in_context ?a) with (li.bind1 (li.find_in_context a));
-  change (@case_if ?PROP ?P) with (@li.case_if PROP P);
-  change (@case_destruct ?PROP ?A ?a) with (li.bind2 (@li.case_destruct PROP A a));
+  change (li.find_in_context ?a) with (li.bind1 (li.find_in_context a));
+  change (@li.case_if ?PROP ?P) with (@li.case_if PROP P);
+  change (@li.case_destruct ?PROP ?A ?a) with (li.bind2 (@li.case_destruct PROP A a));
   change (@bi_intuitionistically ?PROP) with (li.bind0 (@li.drop_spatial PROP));
-  change (li_tactic ?t) with (li.bind1 (li.tactic t));
-  change (@accu ?PROP) with (li.bind1 (@li.accu PROP));
-  change (@li_trace ?PROP ?A ?t) with (li.bind0 (@li.trace PROP A t));
+  change (li.li_tactic ?t) with (li.bind1 (li.tactic t));
+  change (@li.li_trace ?PROP ?A ?t) with (li.bind0 (@li.trace PROP A t));
   (* TODO: check if the unfold marker for b works *)
-  change (subsume ?a ?b) with (li.bind1 (li.subsume (liToSyntax_UNFOLD_MARKER a) (liToSyntax_UNFOLD_MARKER b)));
+  change (li.subsume ?a ?b) with (li.bind1 (li.subsume (liToSyntax_UNFOLD_MARKER a) (liToSyntax_UNFOLD_MARKER b)));
   (* Try to at least unfold some spurious conversions. *)
   repeat (first [
               progress change (liToSyntax_UNFOLD_MARKER (li.bind0 (@li.exhale ?Σ ?a) ?b))
@@ -377,7 +460,7 @@ Section test.
     change (get_tuple) with (li.bind1 (get_tuple)).
 
   Lemma ex1_1 :
-    ⊢ get_tuple (λ '(x1, x2, x3), ⌜x1 = 0⌝ ∗ subsume False (λ x : unit, False) (λ _, True)).
+    ⊢ get_tuple (λ '(x1, x2, x3), ⌜x1 = 0⌝ ∗ li.subsume False (λ x : unit, False) (λ _, True)).
   Proof.
     iStartProof.
     (* Important: '(...) syntax should be preserved *)
@@ -397,12 +480,12 @@ Section test.
   Lemma ex1_3 :
     ⊢ ∀ n1 n2, (⌜n1 + Z.to_nat n2 > 0⌝ ∗ ⌜n2 = 1⌝) -∗
      check_wp (n1 + 1) (λ v,
-       ∃ n' : nat, (⌜v = n'⌝ ∗ ⌜n' > 0⌝) ∗ li_trace 1 $ accu (λ P,
-       find_in_context (FindDirect (λ '(n, m), ⌜n =@{Z} m⌝)) (λ '(n, m), ⌜n = m⌝ ∗
+       ∃ n' : nat, (⌜v = n'⌝ ∗ ⌜n' > 0⌝) ∗ li.li_trace 1 $ li.accu (λ P,
+       li.find_in_context (li.FindDirect (λ '(n, m), ⌜n =@{Z} m⌝)) (λ '(n, m), ⌜n = m⌝ ∗
        get_tuple (λ '(x1, x2, x3), □ ⌜x1 = 0⌝ ∗ (P ∧
          □ [∧ map] a↦'(b1, b2)∈{[1 := (1, 1)]}, ⌜a = b1⌝ ∗
-         case_if (n' = 1) (case_destruct n' (λ n'' b,
-          ⌜b = b⌝ ∗ ⌜n'' = 0⌝ ∗ subsume True (λ x : unit, True) (λ _, True ∗ True ∗ True ∗ True ∗ True ∗ True))) False))))).
+         li.case_if (n' = 1) (li.case_destruct n' (λ n'' b,
+          ⌜b = b⌝ ∗ ⌜n'' = 0⌝ ∗ li.subsume True (λ x : unit, True) (λ _, True ∗ True ∗ True ∗ True ∗ True ∗ True))) False))))).
   Proof.
     iStartProof.
     liToSyntax.
