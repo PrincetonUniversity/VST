@@ -146,6 +146,7 @@ rewrite andb_true_iff in H.
 destruct H as [H H0].
 apply Z.leb_le in H0.
 unfold SpecFloat.canonical_mantissa in H.
+rewrite ?Z.eqb_compare in H.
 apply Zeq_bool_eq in H.
 unfold FLT.FLT_exp in H.
 rewrite Digits.Zpos_digits2_pos in H.
@@ -220,6 +221,7 @@ destruct e0 as [H' ?H].
 assert (-149 <= e). {
  clear - H'.
  unfold SpecFloat.canonical_mantissa in H'.
+rewrite ?Z.eqb_compare in H'.
 apply Zeq_bool_eq in H'.
 unfold FLT.FLT_exp in H'.
 rewrite Digits.Zpos_digits2_pos in H'.
