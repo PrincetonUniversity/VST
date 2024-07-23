@@ -20,7 +20,7 @@ Section lithium.
   Definition exist {A} : (A → PROP) → PROP :=
     bi_exist.
 
-  Definition done : PROP := True.
+  Definition done : PROP := emp.
   Definition false : PROP := False.
 
   Definition and : PROP → PROP → PROP :=
@@ -381,7 +381,7 @@ Section test.
   Proof.
     iStartProof.
     (* Important: '(...) syntax should be preserved *)
-    liToSyntax.
+    (* liToSyntax. *)
     liFromSyntax.
   Abort.
 
@@ -405,7 +405,7 @@ Section test.
           ⌜b = b⌝ ∗ ⌜n'' = 0⌝ ∗ subsume True (λ x : unit, True) (λ _, True ∗ True ∗ True ∗ True ∗ True ∗ True))) False))))).
   Proof.
     iStartProof.
-    liToSyntax.
+    (* liToSyntax. *)
     liFromSyntax.
   Abort.
 

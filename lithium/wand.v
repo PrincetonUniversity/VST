@@ -17,7 +17,7 @@ Section wand.
     ty_own_val _ := True;
   |}%I.
   Solve Obligations with try done.
-  Next Obligation. iIntros (?????) "H". iModIntro. done. Qed.
+  Next Obligation. iIntros (?????) "H". done. Qed.
   
   Lemma subsume_wand B l P1 (P2 : B → A → iProp Σ) ty1 ty2 T:
     (* The trick is that we prove the wand at the very end so it can
@@ -30,10 +30,10 @@ Section wand.
     iIntros "(%&?&Hwand) Hwand2". iExists _. iFrame.
     iIntros (x) "HP2". iDestruct ("Hwand" with "HP2") as (y) "[HP1 Hty]".
     iDestruct ("Hwand2" with "HP1") as "Hty1".
-    iDestruct ("Hty" with "[$Hty1]") as "H".  
+    iDestruct ("Hty" with "[$Hty1]") as "H".
     iDestruct "H" as "(H & ?)". iFrame.
   Qed.
-  
+
   Definition subsume_wand_inst := [instance subsume_wand].
   Global Existing Instance subsume_wand_inst.
 
@@ -50,9 +50,12 @@ Section wand.
     and:
     | drop_spatial; ∀ x, inhale P x; exhale l ◁ₗ ty x; done
     | return T.
-  Proof. iIntros "[#Hwand $]". iIntros (?) "H1".
+  Proof. iIntros "[#Hwand $]".
+         liFromSyntax.
+         iIntros (?) "H1".
          iDestruct ("Hwand" with "[$H1]") as "H".
-         Admitted.
+         iDestruct "H" as "(? & ?)". iFrame.
+  Qed.
   Definition simplify_goal_wand_inst := [instance simplify_goal_wand with 50%N].
   Global Existing Instance simplify_goal_wand_inst | 50.
 
@@ -84,31 +87,20 @@ Section wand_val.
     iMod (heap_mapsto_own_state_share with "Hl") as "Hl". eauto with iFrame.
   Qed. 
   Next Obligation. iIntros (??????->) "Hl". iDestruct "Hl" as (?) "[$ _]". Qed.
-  Next Obligation. iIntros (???????).
-                   iIntros "Hl".
+  Next Obligation. iIntros (???????) "Hl".
                    iDestruct "Hl" as (v) "(% & % & Hl1 & Hl2)".
+                   rewrite / heap_mapsto_own_state.
                    iExists _. iFrame.
-                   iSplit; last first; try done.
-                   iDestruct (heap_mapsto_own_state_to_mt ot l v _ Own with "[Hl1]") as "Hl1"; try done.
-                   { assert (ot = ly) as ->; try done. }
-                   
-                    Admitted.
-    
-  Next Obligation. iIntros (????????) "Hl".
-                   iDestruct "Hl" as (v1) "(% & % & % & %)".
-                   iIntros "H1 (H2 & H3)".
-                   iExists v. iFrame.
-                   iSplit; last first.
-                   {
-                     iDestruct (heap_mapsto_own_state_from_mt ot l v _ Own with "[$H1]")
-                       as "H1"; try done.
-                     assert (ot = ly) as ->; try done.
-                     admit.
-                   }
-                   { iPureIntro.
-                     admit.
-                   }
-                   Admitted.
+                   simpl in H. rewrite H. by iFrame. Qed.
+  Next Obligation. iIntros (?????????) "Hl".
+                   iIntros "(% & H3)".
+                   rewrite /heap_mapsto_own_state.
+                   iExists _. iFrame.
+                   simpl in H.
+                   rewrite H. iFrame.
+                   iPureIntro.
+                   split; auto.
+                   subst. done. Qed.
 
   (*
   Global Instance wand_val_loc_in_bounds P ly β (ty : A → type):
@@ -154,7 +146,7 @@ Section wand_val.
   Proof.
     iIntros "[#Hwand [% $]]". iSplit; [done|].
     iIntros (?) "?". iDestruct ("Hwand" with "[$]") as "[H1 H2]". iFrame "H1".
-  Admitted.
+  Qed.
   Definition simplify_goal_wand_val_inst := [instance simplify_goal_wand_val with 50%N].
   Global Existing Instance simplify_goal_wand_val_inst | 50.
 
