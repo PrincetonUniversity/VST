@@ -71,7 +71,7 @@ Section ext_trace.
       cl_at_external c = Some (e,args) ->
       (forall s s' ret m' t' n'
          (Hargsty : Val.has_type_list args (sig_args (ef_sig e)))
-         (Hretty : Builtins0.val_opt_has_rettype ret (sig_res (ef_sig e))),
+         (Hretty : Builtins0.val_opt_has_xtype ret (sig_res (ef_sig e))),
          inj_mem e args m t s ->
          ext_sem e args s = Some (s', ret, t') ->
          m' = extr_mem e args m s' ->
@@ -82,7 +82,7 @@ Section ext_trace.
            (forall t'', In traces' t'' -> In traces (app_trace t' t''))) ->
       (forall t1, In traces t1 ->
         exists s s' ret m' t' n', Val.has_type_list args (sig_args (ef_sig e)) /\
-         Builtins0.val_opt_has_rettype ret (sig_res (ef_sig e)) /\
+         Builtins0.val_opt_has_xtype ret (sig_res (ef_sig e)) /\
          inj_mem e args m t s /\ ext_sem e args s = Some (s', ret, t') /\ m' = extr_mem e args m s' /\
          (n' <= n)%nat /\ OS_valid s' /\ exists traces' z' c', consume_trace z z' t' /\
            cl_after_external ret c = Some c' /\ ext_safeN_trace n' (app_trace t t') traces' z' c' m' /\
@@ -110,7 +110,7 @@ Section ext_trace.
     - eexists; constructor.
     - edestruct IHn as [traces ?]; eauto; exists traces; econstructor; eauto.
     - exists (fun t1 => exists s s' ret m' t' n', Val.has_type_list args (sig_args (ef_sig e)) /\
-         Builtins0.val_opt_has_rettype ret (sig_res (ef_sig e)) /\
+         Builtins0.val_opt_has_xtype ret (sig_res (ef_sig e)) /\
          inj_mem e args m t s /\ ext_sem e args s = Some (s', ret, t') /\ m' = extr_mem e args m s' /\
          (n' <= n0)%nat /\ OS_valid s' /\ exists traces' z' c', consume_trace z z' t' /\
            cl_after_external ret q = Some c' /\ ext_safeN_trace n' (app_trace t t') traces' z' c' m' /\

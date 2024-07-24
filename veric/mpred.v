@@ -253,32 +253,16 @@ Goal forall {cs: compspecs} t, sizeof t >= 0.
 Proof. intros. apply sizeof_pos.
 Abort.
 
-(*plays role of type_of_params *)
-Fixpoint typelist_of_type_list (params : list type) : typelist :=
-  match params with
-  | nil => Tnil
-  | ty :: rem => Tcons ty (typelist_of_type_list rem)
-  end.
 
 Definition type_of_funspec (fs: funspec) : type :=
   match fs with mk_funspec fsig cc _ _ _ _ _ => 
-     Tfunction (typelist_of_type_list (fst fsig)) (snd fsig) cc end.
+     Tfunction (fst fsig) (snd fsig) cc end.
 
-(*same definition as in Clight_core?*)
-Fixpoint typelist2list (tl: typelist) : list type :=
- match tl with Tcons t r => t::typelist2list r | Tnil => nil end.
+Lemma TTL1 l:  (map snd l) = type_of_params l.
+Proof. induction l; simpl; trivial. Qed.
 
-Lemma TTL1 l: typelist_of_type_list (map snd l) = type_of_params l.
-Proof. induction l; simpl; trivial. destruct a. f_equal; trivial. Qed.
-
-Lemma TTL2 l: (typlist_of_typelist (typelist_of_type_list l)) = map typ_of_type l.
-Proof. induction l; simpl; trivial. f_equal; trivial . Qed.
-
-Lemma TTL4 l: map snd l = typelist2list (type_of_params l).
-Proof. induction l; simpl; trivial. destruct a. simpl. f_equal; trivial. Qed.
-
-Lemma TTL5 {l}: typelist2list (typelist_of_type_list l) = l.
-Proof. induction l; simpl; trivial. f_equal; trivial. Qed.
+Lemma TTL4 l: map snd l = (type_of_params l).
+Proof. induction l; simpl; trivial. Qed.
 
 Definition idset := PTree.t unit.
 

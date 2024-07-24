@@ -1148,8 +1148,8 @@ Definition funsig_of_function (f: function) : funsig :=
   (fn_params f, fn_return f).
 
 Lemma binary_intersection_retty {phi1 phi2 phi} (BI : binary_intersection phi1 phi2 = Some phi):
-      rettype_of_funspec phi1 = rettype_of_funspec phi.
-Proof. unfold rettype_of_funspec. rewrite (binary_intersection_typesig BI); trivial. Qed.
+      xtype_of_funspec phi1 = xtype_of_funspec phi.
+Proof. unfold xtype_of_funspec. rewrite (binary_intersection_typesig BI); trivial. Qed.
 
 Section invs.
 

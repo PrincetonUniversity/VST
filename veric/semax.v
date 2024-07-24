@@ -268,7 +268,7 @@ Qed.
 
 Program Definition ext_spec_post' (Espec: OracleKind)
    (ef: external_function) (x': ext_spec_type OK_spec ef) (ge_s: injective_PTree block)
-   (tret: rettype) (ret: option val) (z: OK_ty) : pred juicy_mem :=
+   (tret: xtype) (ret: option val) (z: OK_ty) : pred juicy_mem :=
   exist (fun p => hereditary age p /\ hereditary ext_order p)
    (ext_spec_post OK_spec ef x' ge_s tret ret z)
      (conj (JE_post_hered _ _ _ _ _ _ _ _) (JE_post_ext _ _ _ _ _ _ _ _) ).
@@ -276,8 +276,8 @@ Program Definition ext_spec_post' (Espec: OracleKind)
 (*Definition juicy_mem_pred (P : pred rmap) (jm: juicy_mem): pred nat :=
      # diamond fashionM (exactly (m_phi jm) && P).*)
 
-Definition make_ext_rval  (gx: genviron) (tret: rettype) (v: option val):=
-  match tret with AST.Tvoid => mkEnviron gx (Map.empty _) (Map.empty _) 
+Definition make_ext_rval  (gx: genviron) (tret: xtype) (v: option val):=
+  match tret with Xvoid => mkEnviron gx (Map.empty _) (Map.empty _) 
  | _ => 
   match v with
   | Some v' =>  mkEnviron gx (Map.empty _)
@@ -308,11 +308,11 @@ Definition semax_external
  ALL x: (dependent_type_functor_rec Ts A (pred rmap)),
    |>  ALL F: pred rmap, ALL ts: list typ,
    ALL args: list val,
-   !!Val.has_type_list args (sig_args (ef_sig ef)) &&
+   !!Val.has_type_list args (map proj_xtype (sig_args (ef_sig ef))) &&
    juicy_mem_op (P Ts x (filter_genv gx, args) * F) >=>
    EX x': ext_spec_type OK_spec ef,
     (ALL z:_, ext_spec_pre' Hspec ef x' (genv_symb_injective gx) ts args z) &&
-     ! ALL tret: rettype, ALL ret: option val, ALL z': OK_ty,
+     ! ALL tret: xtype, ALL ret: option val, ALL z': OK_ty,
       ext_spec_post' Hspec ef x' (genv_symb_injective gx) tret ret z' >=>
           juicy_mem_op (Q Ts x (make_ext_rval (filter_genv gx) tret ret) * F).
 
@@ -327,6 +327,21 @@ Proof.
   inv H. apply IHvals in H5. split; trivial.
 Qed.
 
+Lemma proj_xtype_argtype: 
+  forall a, proj_xtype (argtype_of_type a) = typ_of_type a.
+Proof.
+destruct a; simpl; auto. destruct i,s; auto. destruct f; auto.
+Qed.
+
+Lemma map_proj_xtype_argtype: 
+  forall a, map proj_xtype (map argtype_of_type a) = map typ_of_type a.
+Proof.
+induction a; auto.
+simpl; f_equal; auto.
+apply proj_xtype_argtype.
+Qed.
+
+
 Lemma semax_external_funspec_sub
   (DISABLE: False)
   {Espec argtypes rtype cc ef A1 P1 Q1 P1ne Q1ne A P Q Pne Qne}
@@ -334,7 +349,7 @@ Lemma semax_external_funspec_sub
                      (mk_funspec (argtypes, rtype) cc A P Q Pne Qne))
   (HSIG: ef_sig ef = 
          mksignature
-                     (map typ_of_type argtypes)
+                     (map argtype_of_type argtypes)
                      (rettype_of_type rtype) cc):
   @semax.semax_external Espec ef A1 P1 Q1 |-- @semax.semax_external Espec ef A P Q.
   (* This needs a fupd, but it's unclear how, since it's a pred nat. *)
@@ -347,8 +362,9 @@ intros n N m NM F typs vals y MY ? z YZ EZ [HT HP].
 simpl in HP.
 rewrite HSIG in HT; simpl in HT.
 eapply sepcon_derives, fupd_frame_r in HP; [| intros ??; eapply H; split; eauto | apply derives_refl].
-2: { clear -HT. 
-  apply has_type_list_Forall2 in HT.
+2: { clear -HT.
+  rewrite map_proj_xtype_argtype in HT. 
+  apply has_type_list_Forall2 in HT. simpl. red.
   eapply Forall2_implication; [ | apply HT]; auto.
 }
 clear H. (*
@@ -387,9 +403,9 @@ Definition tc_option_val (sig: type) (ret: option val) :=
     | _, _ => False
   end.
 
-Fixpoint zip_with_tl {A : Type} (l1 : list A) (l2 : typelist) : list (A*type) :=
+Fixpoint zip_with_tl {A : Type} (l1 : list A) (l2 : list type) : list (A*type) :=
   match l1, l2 with
-    | a::l1', Tcons b l2' => (a,b)::zip_with_tl l1' l2'
+    | a::l1', cons b l2' => (a,b)::zip_with_tl l1' l2'
     | _, _ => nil
   end.
 
@@ -402,9 +418,9 @@ Definition believe_external (Hspec: OracleKind) (gx: genv) (v: val) (fsig: types
   pred nat :=
   match Genv.find_funct gx v with
   | Some (External ef sigargs sigret cc') =>
-        !! (fsig = (typelist2list sigargs, sigret) /\ cc'=cc
+        !! (fsig = ( sigargs, sigret) /\ cc'=cc
            /\ ef_sig ef = mksignature
-                           (typlist_of_typelist (typelist_of_type_list (fst fsig)))
+                           (map argtype_of_type (fst fsig))
                            (rettype_of_type (snd fsig)) cc
            /\ (ef_inline ef = false \/ withtype_empty A))
         && semax_external Hspec ef A P Q
@@ -426,7 +442,7 @@ Proof.
   destruct (Genv.find_funct gx v); trivial.
   destruct f; trivial. destruct sig as [argtypes rtype].
   destruct N as [[[N1a [N1b [N1c N1d]]] N2] N3].
-  inv N1a. simpl in N1c; rewrite TTL2 in *; split.
+  inv N1a. simpl in N1c; split.
 + split.
   - split3; trivial. split; trivial.
     destruct N1d; [ left; trivial | right; auto].

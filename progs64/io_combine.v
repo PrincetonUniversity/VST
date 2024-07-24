@@ -165,7 +165,7 @@ Definition trace_set := @trace (@io_events.IO_event nat) unit * RData -> Prop.
       cl_at_external c = Some (e,args) ->
       (forall s s' ret m' t' n'
          (Hargsty : Val.has_type_list args (sig_args (ef_sig e)))
-         (Hretty : Builtins0.val_opt_has_rettype  ret (sig_res (ef_sig e))),
+         (Hretty : Builtins0.val_opt_has_xtype  ret (sig_res (ef_sig e))),
          IO_inj_mem e args m t s ->
          IO_ext_sem e args s = Some (s', ret, t') ->
          m' = OS_mem e args m s' ->
@@ -176,7 +176,7 @@ Definition trace_set := @trace (@io_events.IO_event nat) unit * RData -> Prop.
            (forall t'' sf, traces' (t'', sf) -> traces (app_trace t' t'', sf))) ->
       (forall t1, traces t1 ->
         exists s s' ret m' t' n', Val.has_type_list args (sig_args (ef_sig e)) /\
-         Builtins0.val_opt_has_rettype  ret (sig_res (ef_sig e)) /\
+         Builtins0.val_opt_has_xtype  ret (sig_res (ef_sig e)) /\
          IO_inj_mem e args m t s /\ IO_ext_sem e args s = Some (s', ret, t') /\ m' = OS_mem e args m s' /\
          (n' <= n)%nat /\ valid_trace s' /\ exists traces' z' c', consume_trace z z' t' /\
            cl_after_external ret c = Some c' /\ OS_safeN_trace n' (app_trace t t') traces' z' s' c' m' /\
@@ -340,7 +340,7 @@ Local Ltac destruct_spec Hspec :=
       do 2 eexists; eauto.
       eapply OS_safeN_trace_step; eauto.
     - exists (fun t1 => exists s s' ret m' t' n', Val.has_type_list args (sig_args (ef_sig e)) /\
-         Builtins0.val_opt_has_rettype ret (sig_res (ef_sig e)) /\
+         Builtins0.val_opt_has_xtype ret (sig_res (ef_sig e)) /\
          IO_inj_mem e args m t s /\ IO_ext_sem e args s = Some (s', ret, t') /\ m' = OS_mem e args m s' /\
          (n' <= n0)%nat /\ valid_trace s' /\ exists traces' z' c', consume_trace z z' t' /\
            cl_after_external ret q = Some c' /\ OS_safeN_trace n' (app_trace t t') traces' z' s' c' m' /\

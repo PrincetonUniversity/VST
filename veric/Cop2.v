@@ -76,22 +76,17 @@ Fixpoint eqb_type (a b: type) {struct a} : bool :=
  | Tfloat sa aa, Tfloat sb ab => andb (eqb_floatsize sa sb) (eqb_attr aa ab)
  | Tpointer ta aa, Tpointer tb ab => andb (eqb_type ta tb) (eqb_attr aa ab)
  | Tarray ta sa aa, Tarray tb sb ab => andb (eqb_type ta tb)
-                                                                   (andb (Zeq_bool sa sb) (eqb_attr aa ab))
+                     (andb (Zeq_bool sa sb) (eqb_attr aa ab))
  | Tfunction sa ta ca, Tfunction sb tb cb =>
-       andb (andb (eqb_typelist sa sb) (eqb_type ta tb)) (eqb_calling_convention ca cb)
+       andb (andb (eqb_list eqb_type sa sb) (eqb_type ta tb)) (eqb_calling_convention ca cb)
  | Tstruct ia aa, Tstruct ib ab => andb (eqb_ident ia ib) (eqb_attr aa ab)
  | Tunion ia aa, Tunion ib ab => andb (eqb_ident ia ib) (eqb_attr aa ab)
  | _, _ => false
- end
-with eqb_typelist (a b: typelist)  {struct a}: bool :=
-  match a, b with
-  | Tcons ta ra, Tcons tb rb => andb (eqb_type ta tb) (eqb_typelist ra rb)
-  | Tnil, Tnil => true
-  | _ , _ => false
-  end.
+ end.  
 
-Scheme eqb_type_sch := Induction for type Sort Prop
-  with eqb_typelist_sch := Induction for  typelist Sort Prop.
+(*  The following would work, but it would (probably) compute a lot slower in Coq: 
+Definition eqb_type (a b: type) := proj_sumbool (type_eq a b).
+*)
 
 Definition eqb_member (it1 it2: member): bool :=
   match it1, it2 with
@@ -152,33 +147,80 @@ apply Z.eqb_eq in H1; subst.
 auto.
 Qed.
 
+Lemma eqb_type_refl: forall a, eqb_type a a = true.
+Proof.
+ fix REC 1.
+destruct a; simpl; intros; rewrite ?andb_true_iff; repeat split; auto;
+try apply eqb_intsize_spec; 
+try apply eqb_floatsize_spec; 
+try apply eqb_signedness_spec;
+try apply eqb_attr_spec;  
+try apply Zaux.Zeq_bool_diag;
+try apply eqb_calling_convention_refl;
+try apply eqb_ident_spec;
+auto.
+induction l; simpl; intros; auto.
+rewrite andb_true_iff; split; auto.
+Qed.
+
 Lemma eqb_type_spec: forall a b, eqb_type a b = true <-> a=b.
 Proof.
-apply (eqb_type_sch
-           (fun a => forall b, eqb_type a b = true <-> a=b)
-          (fun a => forall b, eqb_typelist a b = true <-> a=b));
-  destruct b; simpl;
-   split; intro;
-   repeat rewrite andb_true_iff in *;
-   try rewrite eqb_intsize_spec in *;
-   try rewrite eqb_floatsize_spec in *;
-   try rewrite eqb_signedness_spec in *;
-   try rewrite eqb_attr_spec in *;
-   try rewrite eqb_ident_spec in *;
-   try rewrite <- Zeq_is_eq_bool in *;
-   repeat match goal with H: _ /\ _ |- _  => destruct H end;
-   repeat split; subst; f_equal; try  congruence;
-    try solve [apply H; auto];
-    try solve [inv H0; apply H; auto].
-*  apply H0; auto.
-*  apply eqb_calling_convention_prop; auto. 
-*  inv H1; apply H; auto.
-*  inv H1; apply H0; auto.
-*  inv H1. apply eqb_calling_convention_refl.
-*  apply H0; auto.
-*   inv H1; apply H; auto.
-*   inv H1; apply H0; auto.
+ fix REC 1.
+intros.
+destruct a,b; simpl; split; auto; try discriminate;
+ rewrite ?andb_true_iff; intro; 
+ repeat match goal with
+ | H: _ /\ _ |- _ => destruct H 
+ | H: eqb_intsize _ _ = true |- _ => apply eqb_intsize_spec in H
+ | H: eqb_signedness _ _ = true |- _ => apply eqb_signedness_spec in H
+ | H: eqb_attr _ _ = true |- _ => apply eqb_attr_spec in H
+ | H: eqb_floatsize _ _ = true |- _ => apply eqb_floatsize_spec in H
+ | H: eqb_calling_convention _ _ = true |- _ => apply eqb_calling_convention_prop in H
+ | H: Zeq_bool _ _ = true |- _ => apply Zeq_bool_eq in H
+ | H: eqb_ident _ _ = true |- _ => apply eqb_ident_spec in H
+ | H: eqb_type _ _ = true |- _ => apply REC in H
+ | H: Tint _ _ _ = _ |- _ => inv H
+ | H: Tlong _ _ = _ |- _ => inv H
+ | H: Tfloat _ _ = _ |- _ => inv H
+ | H: Tpointer _ _ = _ |- _ => inv H
+ | H: Tarray _ _ _ = _ |- _ => inv H
+ | H: Tstruct _ _ = _ |- _ => inv H
+ | H: Tunion _ _ = _ |- _ => inv H
+ | H: Tfunction _ _ _ = _ |- _ => inv H
+ end;
+ subst;
+ repeat split; repeat f_equal; auto;
+ try apply <- eqb_intsize_spec;
+ try apply <- eqb_signedness_spec;
+ try apply <- eqb_attr_spec;
+ try apply <- eqb_floatsize_spec;
+ try apply <- eqb_ident_spec;
+ try apply Zaux.Zeq_bool_true;
+ try apply eqb_calling_convention_refl;
+ try apply eqb_type_refl;
+ auto.
+-
+clear - H REC.
+revert l0 H; induction l; destruct l0; simpl; intros; auto; try discriminate.
+rewrite andb_true_iff in H. destruct H.
+f_equal; auto.
+apply REC; auto.
+-
+induction l0; simpl; auto.
+rewrite andb_true_iff.
+split; auto.
+apply eqb_type_refl.
 Qed.
+
+(* for alternate eqb_type 
+Lemma eqb_type_spec: forall a b, eqb_type a b = true <-> a=b.
+Proof.
+intros.
+unfold eqb_type.
+destruct (type_eq _ _); try tauto.
+split; intros. inv H. contradiction.
+Qed.
+*)
 
 Lemma eqb_type_true: forall a b, eqb_type a b = true -> a=b.
 Proof.
@@ -195,11 +237,6 @@ destruct H. rewrite H in H0 by auto. congruence.
 intro; subst.
 destruct H; try congruence.
 spec H1; auto. congruence.
-Qed.
-
-Lemma eqb_type_refl: forall a, eqb_type a a = true.
-Proof.
-intros. apply eqb_type_spec; auto.
 Qed.
 
 Lemma eqb_member_spec: forall a b, eqb_member a b = true <-> a=b.

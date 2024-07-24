@@ -92,7 +92,7 @@ Lemma module_sequential_safety : (*TODO*)
      Genv.find_symbol ge f_id = Some f_b ->
      Genv.find_funct  ge (Vptr f_b Ptrofs.zero) = Some f_body ->
      forall x : ext_spec_type (@OK_spec spec) f,
-     ext_spec_pre (@OK_spec spec) f x (semax.genv_symb_injective ge) tys args ora m ->
+     ext_spec_pre (@OK_spec spec) f x (semax.genv_symb_injective ge) (map proj_xtype tys) args ora m ->
      exists q,
        semantics.initial_core sem 
          0 (*additional temporary argument - TODO (Santiago): FIXME*)

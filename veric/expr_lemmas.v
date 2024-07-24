@@ -1100,11 +1100,11 @@ Proof.
     destruct t0; auto. 
     destruct (eqb_type t t0 && (Zeq_bool z z0 && eqb_attr a a0)); auto.
   - destruct (get_var_type Delta i); auto. simpl in *.
-    destruct t1; auto.
-    destruct ((eqb_typelist t t1 && eqb_type t0 t2 && eqb_calling_convention c c0)); auto.
+    destruct t0; auto.
+    destruct ((eqb_list eqb_type l l0 && eqb_type t t0 && eqb_calling_convention c c0)); auto.
   + destruct ((temp_types Delta) ! i); auto.
     destruct (is_neutral_cast t0 t || same_base_type t0 t); auto.    
-  + destruct t; auto; simpl in *.      
+  + destruct t; auto; simpl in *.         
   - destruct i; destruct s; auto.
   - destruct f; auto.                      
   - repeat rewrite denote_tc_assert_andp.

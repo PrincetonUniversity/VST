@@ -62,7 +62,7 @@ Parameter body_exit:
  forall {Espec: OracleKind},
   body_lemma_of_funspec
     (EF_external "exit"
-       {| sig_args := AST.Tint :: nil; sig_res := AST.Tvoid; sig_cc := cc_default |})
+       {| sig_args := Xint :: nil; sig_res := Xvoid; sig_cc := cc_default |})
    exit_spec'.
 
 Parameter mem_mgr: globals -> mpred.

@@ -694,9 +694,9 @@ Section juicy_safety.
   | jsafeN_external:
       forall z c m e args x,
       j_at_external Hcore c m = Some (e,args) ->
-      ext_spec_pre Hspec e x (genv_symb ge) (sig_args (ef_sig e)) args z m ->
+      ext_spec_pre Hspec e x (genv_symb ge) (map proj_xtype (sig_args (ef_sig e))) args z m ->
       (forall ret m' z'
-         (Hargsty : Val.has_type_list args (sig_args (ef_sig e)))
+         (Hargsty : Val.has_type_list args (map proj_xtype (sig_args (ef_sig e))))
          (Hretty : Builtins0.val_opt_has_rettype  ret (sig_res (ef_sig e))),
          Hrel m m' ->
          ext_spec_post Hspec e x (genv_symb ge) (sig_res (ef_sig e)) ret z' m' ->

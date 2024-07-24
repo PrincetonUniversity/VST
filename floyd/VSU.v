@@ -2711,7 +2711,7 @@ Definition unspecified_info (ge: Genv.t (fundef function) type)
           Genv.find_symbol ge id = Some b /\
           Genv.find_funct_ptr ge b = Some g /\
           ef_sig ef =   {|
-             sig_args := typlist_of_typelist argsig;
+             sig_args := map argtype_of_type argsig;
              sig_res := rettype_of_type retsig;
              sig_cc := cc_of_fundef (External ef argsig retsig cc) |}
  end. 
@@ -2742,7 +2742,7 @@ intros.
    rewrite H.
    rewrite id_in_list_false_i; auto.
   *
-   destruct f, t1.
+   destruct f, t0.
    hnf in H7; decompose [and] H7; clear H7.
    subst t0 c0 l.
    destruct H10 as [b [? ?]].  
@@ -2768,7 +2768,7 @@ Definition builtin_unspecified_OK (ge : Genv.t (fundef function) type)
      | External ef argsig retsig cc =>  
             eqb_signature (ef_sig ef) 
               {|
-             sig_args := typlist_of_typelist argsig;
+             sig_args := map argtype_of_type argsig;
              sig_res := rettype_of_type retsig;
              sig_cc := cc |}
       end
@@ -2788,7 +2788,7 @@ Definition funct_unspecified_OK (ge : Genv.t (fundef function) type)
            andb (fundef_eq g g')
             (eqb_signature (ef_sig ef) 
               {|
-             sig_args := typlist_of_typelist argsig;
+             sig_args := map argtype_of_type argsig;
              sig_res := rettype_of_type retsig;
              sig_cc := cc |})
       end

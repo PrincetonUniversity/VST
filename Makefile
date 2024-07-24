@@ -860,7 +860,7 @@ ifdef CLIGHTGEN
 all-cv-files: $(patsubst %.c,$(PROGSDIR)/%.v, $(SINGLE_C_FILES) even.c odd.c) \
               $(patsubst %.c,%.v, $(SHA_C_FILES)) \
               aes/aes.v tweetnacl20140427/tweetnaclVerifiableC.v \
-              mailbox/mailbox.v concurrency/threads.v atomics/SC_atomics.v
+              mailbox/mailbox.v atomics/SC_atomics.v # concurrency/threads.v 
 ifneq (, $(findstring -short-idents, $(CGFLAGS)))
 $(patsubst %.c,%.v, $(SHA_C_FILES)) &: $(SHA_C_FILES)
 	$(CLIGHTGEN) ${CGFLAGS} $^
@@ -874,8 +874,8 @@ endif
 $(patsubst %.c,%.v, $(SHA_C_FILES)): %.v: %.c
 	$(CLIGHTGEN) ${CGFLAGS} $^
 endif
-concurrency/threads.v: concurrency/threads.c
-	$(CLIGHTGEN) -normalize $^
+# concurrency/threads.v: concurrency/threads.c
+# 	$(CLIGHTGEN) -normalize $^
 atomics/SC_atomics.v: atomics/SC_atomics.c
 	$(CLIGHTGEN) -normalize $^
 progs/incr.v: progs/incr.c

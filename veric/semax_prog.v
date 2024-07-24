@@ -645,15 +645,10 @@ destruct H3 as [? [? [? [? [? ?]]]]].
 contradiction.
 Qed.
 
-Lemma TTL6 {l}: typelist_of_type_list (typelist2list l) = l.
-Proof. induction l; simpl; intros; trivial. rewrite IHl; trivial. Qed.
-
 Lemma semax_func_cons_ext:
 forall (V: varspecs) (G: funspecs) {C: compspecs} ge fs id ef argsig retsig A P Q NEP NEQ
-      argsig'
       (G': funspecs) cc b,
-  argsig' = typelist2list argsig ->
-  ef_sig ef = mksignature (typlist_of_typelist argsig) (rettype_of_type retsig) cc ->
+  ef_sig ef = mksignature (map argtype_of_type argsig) (rettype_of_type retsig) cc ->
   id_in_list id (map (@fst _ _) fs) = false ->
   (ef_inline ef = false \/ withtype_empty A) ->
   (forall gx ts x (ret : option val),
@@ -664,16 +659,14 @@ forall (V: varspecs) (G: funspecs) {C: compspecs} ge fs id ef argsig retsig A P 
   (forall n, semax_external Espec ef A P Q n) ->
   semax_func V G ge fs G' ->
   semax_func V G ge ((id, External ef argsig retsig cc)::fs)
-       ((id, mk_funspec (argsig', retsig) cc A P Q NEP NEQ)  :: G').
+       ((id, mk_funspec (argsig, retsig) cc A P Q NEP NEQ)  :: G').
 Proof.
 intros until b.
-intros Hargsig' Hef Hni Hinline Hretty B1 B2 H [Hf' [GC Hf]].
-subst argsig'.
+intros Hef Hni Hinline Hretty B1 B2 H [Hf' [GC Hf]].
 apply id_in_list_false in Hni.
 split.
 { hnf; simpl; f_equal; auto.
-  constructor 2; trivial.
-  simpl; rewrite TTL6; trivial. }
+  constructor 2; trivial. }
 split; [ clear - B1 B2 GC; red; intros; destruct H; [ symmetry in H; inv H; exists b; auto | apply GC; trivial] |].
 intros ge' GE1 GE2 ?.
 specialize (Hf ge' GE1 GE2).
@@ -694,7 +687,7 @@ apply JMeq_eq in H4c.
 subst P' Q'.
 unfold believe_external; simpl; rewrite if_true; trivial.
 unfold fundef in GE2; unfold fundef; simpl; rewrite GE2.
-simpl map. rewrite TTL6 in *.
+simpl map.
 split. { split; trivial. split3; eauto. }
 intros ts x ret phi Hlev ? Hx Hnec ?. apply Hretty.
 +
@@ -1065,7 +1058,7 @@ simpl; do 3 f_equal. unfold ext_ghost; f_equal. apply exist_ext. f_equal; intros
 Qed.*)
 
 Definition Delta1 V G {C: compspecs}: tycontext :=
-make_tycontext ((1%positive,(Tfunction Tnil Tvoid cc_default))::nil) nil nil Tvoid V G nil.
+make_tycontext ((1%positive,(Tfunction nil Tvoid cc_default))::nil) nil nil Tvoid V G nil.
 
 Lemma match_globvars_in':
 forall i t vl vs,
@@ -1650,19 +1643,19 @@ destruct H5 as [H5|H5].
  subst c.
  simpl in H4.
  injection H; clear H; intros.
- subst t0.
+ subst t.
  change (level (m_phi jm)) with (level jm) in H6.
  specialize (H5 psi ts a (level jm)).
  spec H5. constructor. reflexivity.
- specialize (H5 TT (typlist_of_typelist (typelist_of_type_list params)) args).
+ specialize (H5 TT (map typ_of_type params) args).
  specialize (H5 jm (Nat.le_refl _) _ _ (necR_refl _) (ext_refl _)).
- rewrite TTL2 in *.
  spec H5. { clear H5.
  split. simpl.
  rewrite H4; simpl.
  clear - arg_p.
  revert args arg_p; induction params; destruct args; simpl; intros; try discriminate; try contradiction;  auto.
  destruct arg_p;  split; auto.
+ rewrite proj_xtype_argtype.
  apply tc_val_has_type; auto.
  simpl fst.
  clear H3 H6.
@@ -1680,6 +1673,7 @@ destruct H5 as [H5|H5].
  simpl. rewrite Hinline.
  reflexivity.
  rewrite H4. simpl.
+ rewrite map_proj_xtype_argtype.
  apply H5.
  apply Hora.
  simpl.
@@ -2552,7 +2546,7 @@ Proof.
     EX ts1:list Type, EX x1 : dependent_type_functor_rec ts1 A mpred,
     EX FR: mpred,
     !!(forall rho' : environ,
-              !! tc_environ (rettype_tycontext (snd sig)) rho' && (FR * Q ts1 x1 rho') |-- (Q' ts x rho')) &&
+              !! tc_environ (xtype_tycontext (snd sig)) rho' && (FR * Q ts1 x1 rho') |-- (Q' ts x rho')) &&
       (stackframe_of f tau * FR * P ts1 x1 (ge_of tau, vals) &&
             !! (map (Map.get (te_of tau)) (map fst (fn_params f)) = map Some vals /\ tc_vals (map snd (fn_params f)) vals))).
  - intros rho m [TC [OM [m1 [m2 [JM [[vals [[MAP VUNDEF] HP']] M2]]]]]].
@@ -2634,16 +2628,16 @@ Proof.
         eapply derives_trans, fupd.fupd_intro.
         eapply derives_trans, QPOST.
         apply andp_right; trivial.
-        -- intros k K; clear; apply tc_environ_rettype.
+        -- intros k K; clear; apply tc_environ_xtype.
         -- apply prop_andp_left; intros; auto.
       * apply andp_left2. rewrite sepcon_comm, <- sepcon_assoc.
         apply sepcon_derives; auto.
         destruct vl; simpl; normalize.
         -- eapply derives_trans; [ | apply QPOST]; apply andp_right; trivial.
-           intros k K; clear. apply tc_environ_rettype_env_set.
+           intros k K; clear. apply tc_environ_xtype_env_set.
         -- destruct (fn_return f).
            { eapply derives_trans; [ | apply QPOST]; apply andp_right; trivial.
-           intros k K; clear; apply tc_environ_rettype. }
+           intros k K; clear; apply tc_environ_xtype. }
            all: rewrite semax_lemmas.sepcon_FF; apply derives_refl.
     + do 2 red; intros; trivial.
 Qed.

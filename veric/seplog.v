@@ -137,9 +137,9 @@ Definition ret0_tycon (Delta: tycontext): tycontext :=
 Definition typesig_of_funspec (fs: funspec) : typesig :=
  match fs with mk_funspec fsig _ _ _ _ _ _ => fsig end.
 
-Definition rettype_of_funspec (fs: funspec) : type := snd (typesig_of_funspec fs).
+Definition xtype_of_funspec (fs: funspec) : type := snd (typesig_of_funspec fs).
 
-Definition rettype_tycontext t := make_tycontext nil nil nil t nil nil nil.
+Definition xtype_tycontext t := make_tycontext nil nil nil t nil nil nil.
 
 Definition tc_genv g Delta := typecheck_glob_environ g (glob_types Delta).
 
@@ -149,7 +149,7 @@ Definition tc_argsenv Delta tys (gargs:argsEnviron):Prop :=
   match gargs with (g, args) => tc_genv g Delta /\ Forall2 tc_val' tys args end.
 
 Lemma fssub_prop1: forall rt ptypes gargs, 
-    tc_argsenv (rettype_tycontext rt) ptypes gargs = 
+    tc_argsenv (xtype_tycontext rt) ptypes gargs = 
      Forall2 tc_val' ptypes (snd gargs).
 intros. destruct gargs. unfold tc_argsenv. simpl.
 unfold tc_genv. simpl.
@@ -157,9 +157,9 @@ unfold typecheck_glob_environ. apply prop_ext; split; intros. apply H.
 split; trivial. intros. rewrite PTree.gempty in H0. congruence.
 Qed.
 
-Lemma fssub_prop2: forall rt rho, (local (tc_environ (rettype_tycontext rt)) rho) = !!(ve_of rho = Map.empty (block * type)).
+Lemma fssub_prop2: forall rt rho, (local (tc_environ (xtype_tycontext rt)) rho) = !!(ve_of rho = Map.empty (block * type)).
 intros. unfold local, tc_environ, lift1.
-unfold rettype_tycontext, typecheck_environ, typecheck_temp_environ,
+unfold xtype_tycontext, typecheck_environ, typecheck_temp_environ,
 typecheck_var_environ, typecheck_glob_environ.
 simpl.
 destruct rho; simpl. apply pred_ext. 
@@ -182,7 +182,7 @@ Qed.
    definition (and in NDfunspec_sub). *)
 (*
 Definition funspec_sub_si_ORIG (f1 f2 : funspec):mpred :=
-let Delta2 := rettype_tycontext (snd (typesig_of_funspec f2)) in
+let Delta2 := xtype_tycontext (snd (typesig_of_funspec f2)) in
 match f1 with
 | mk_funspec tpsig1 cc1 A1 P1 Q1 _ _ =>
     match f2 with
@@ -193,7 +193,7 @@ match f1 with
         ((!!(tc_argsenv Delta2 (fst tpsig2) gargs) && P2 ts2 x2 gargs)
          >=> EX ts1:_,  EX x1:dependent_type_functor_rec ts1 A1 mpred, EX F:_, 
             (F * (P1 ts1 x1 gargs)) &&
-            ALL rho':_, (     !( ((local (tc_environ (rettype_tycontext (snd tpsig1))) rho') && (F * (Q1 ts1 x1 rho')))
+            ALL rho':_, (     !( ((local (tc_environ (xtype_tycontext (snd tpsig1))) rho') && (F * (Q1 ts1 x1 rho')))
                          >=> (Q2 ts2 x2 rho')))))
     end
 end.
@@ -202,7 +202,7 @@ match f1 with
 | mk_funspec tpsig1 cc1 A1 P1 Q1 _ _ =>
     match f2 with
     | mk_funspec tpsig2 cc2 A2 P2 Q2 _ _ =>
-       let Delta := rettype_tycontext (snd tpsig1) in
+       let Delta := xtype_tycontext (snd tpsig1) in
         !!(tpsig1=tpsig2 /\ cc1=cc2) &&
         ! (ALL ts2 :_, ALL x2:dependent_type_functor_rec ts2 A2 mpred,
              ALL gargs:genviron * list val,
@@ -1541,19 +1541,19 @@ Proof.
       apply (make_context_t_get H).
 Qed.
 
-Lemma tc_environ_rettype t rho: tc_environ (rettype_tycontext t) (globals_only rho).
+Lemma tc_environ_xtype t rho: tc_environ (xtype_tycontext t) (globals_only rho).
 Proof.
-  unfold rettype_tycontext; simpl. split3; intros; simpl.
+  unfold xtype_tycontext; simpl. split3; intros; simpl.
   red; intros. rewrite PTree.gempty in H; congruence.
   split; intros. rewrite PTree.gempty in H; congruence. destruct H; inv H.
   red; intros. rewrite PTree.gempty in H; congruence.
 Qed.
 
-Lemma tc_environ_rettype_env_set t rho i v:
-tc_environ (rettype_tycontext t)
+Lemma tc_environ_xtype_env_set t rho i v:
+tc_environ (xtype_tycontext t)
          (env_set (globals_only rho) i v).
 Proof.
-  unfold rettype_tycontext; simpl. split3; intros; simpl.
+  unfold xtype_tycontext; simpl. split3; intros; simpl.
   red; intros. rewrite PTree.gempty in H; congruence.
   split; intros. rewrite PTree.gempty in H; congruence. destruct H; inv H.
   red; intros. rewrite PTree.gempty in H; congruence.

@@ -6,212 +6,187 @@ Local Open Scope string_scope.
 Local Open Scope clight_scope.
 
 Module Info.
-  Definition version := "3.10".
+  Definition version := "3.13".
   Definition build_number := "".
   Definition build_tag := "".
   Definition build_branch := "".
-  Definition arch := "x86".
-  Definition model := "32sse2".
-  Definition abi := "standard".
-  Definition bitsize := 32.
+  Definition arch := "aarch64".
+  Definition model := "default".
+  Definition abi := "apple".
+  Definition bitsize := 64.
   Definition big_endian := false.
-  Definition source_file := "hmacdrbg/hmac_drbg.c".
-  Definition normalized := false.
+  Definition source_file := "hmac_drbg.c".
+  Definition normalized := true.
 End Info.
 
-Definition _HMAC : ident := 117%positive.
-Definition _HMAC2 : ident := 119%positive.
-Definition _HMAC_Final : ident := 113%positive.
-Definition _HMAC_Init : ident := 110%positive.
-Definition _HMAC_Update : ident := 111%positive.
-Definition _HMAC_cleanup : ident := 114%positive.
-Definition _K : ident := 163%positive.
-Definition _K256 : ident := 45%positive.
-Definition _Ki : ident := 62%positive.
-Definition _Nh : ident := 3%positive.
-Definition _Nl : ident := 2%positive.
-Definition _SHA256 : ident := 79%positive.
-Definition _SHA256_Final : ident := 78%positive.
-Definition _SHA256_Init : ident := 65%positive.
-Definition _SHA256_Update : ident := 74%positive.
-Definition _SHA256_addlength : ident := 69%positive.
-Definition _SHA256state_st : ident := 6%positive.
-Definition _T1 : ident := 57%positive.
-Definition _T2 : ident := 58%positive.
-Definition _V : ident := 124%positive.
-Definition _X : ident := 60%positive.
-Definition ___builtin_annot : ident := 23%positive.
-Definition ___builtin_annot_intval : ident := 24%positive.
-Definition ___builtin_bswap : ident := 8%positive.
-Definition ___builtin_bswap16 : ident := 10%positive.
-Definition ___builtin_bswap32 : ident := 9%positive.
-Definition ___builtin_bswap64 : ident := 7%positive.
-Definition ___builtin_clz : ident := 11%positive.
-Definition ___builtin_clzl : ident := 12%positive.
-Definition ___builtin_clzll : ident := 13%positive.
-Definition ___builtin_ctz : ident := 14%positive.
-Definition ___builtin_ctzl : ident := 15%positive.
-Definition ___builtin_ctzll : ident := 16%positive.
-Definition ___builtin_debug : ident := 40%positive.
-Definition ___builtin_expect : ident := 31%positive.
-Definition ___builtin_fabs : ident := 17%positive.
-Definition ___builtin_fabsf : ident := 18%positive.
-Definition ___builtin_fmadd : ident := 34%positive.
-Definition ___builtin_fmax : ident := 32%positive.
-Definition ___builtin_fmin : ident := 33%positive.
-Definition ___builtin_fmsub : ident := 35%positive.
-Definition ___builtin_fnmadd : ident := 36%positive.
-Definition ___builtin_fnmsub : ident := 37%positive.
-Definition ___builtin_fsqrt : ident := 19%positive.
-Definition ___builtin_membar : ident := 25%positive.
-Definition ___builtin_memcpy_aligned : ident := 21%positive.
-Definition ___builtin_read16_reversed : ident := 38%positive.
-Definition ___builtin_read32_reversed : ident := 41%positive.
-Definition ___builtin_sel : ident := 22%positive.
-Definition ___builtin_sqrt : ident := 20%positive.
-Definition ___builtin_unreachable : ident := 30%positive.
-Definition ___builtin_va_arg : ident := 27%positive.
-Definition ___builtin_va_copy : ident := 28%positive.
-Definition ___builtin_va_end : ident := 29%positive.
-Definition ___builtin_va_start : ident := 26%positive.
-Definition ___builtin_write16_reversed : ident := 39%positive.
-Definition ___builtin_write32_reversed : ident := 42%positive.
-Definition ___compcert_i64_dtos : ident := 84%positive.
-Definition ___compcert_i64_dtou : ident := 85%positive.
-Definition ___compcert_i64_sar : ident := 96%positive.
-Definition ___compcert_i64_sdiv : ident := 90%positive.
-Definition ___compcert_i64_shl : ident := 94%positive.
-Definition ___compcert_i64_shr : ident := 95%positive.
-Definition ___compcert_i64_smod : ident := 92%positive.
-Definition ___compcert_i64_smulh : ident := 97%positive.
-Definition ___compcert_i64_stod : ident := 86%positive.
-Definition ___compcert_i64_stof : ident := 88%positive.
-Definition ___compcert_i64_udiv : ident := 91%positive.
-Definition ___compcert_i64_umod : ident := 93%positive.
-Definition ___compcert_i64_umulh : ident := 98%positive.
-Definition ___compcert_i64_utod : ident := 87%positive.
-Definition ___compcert_i64_utof : ident := 89%positive.
-Definition ___compcert_va_composite : ident := 83%positive.
-Definition ___compcert_va_float64 : ident := 82%positive.
-Definition ___compcert_va_int32 : ident := 80%positive.
-Definition ___compcert_va_int64 : ident := 81%positive.
-Definition _a : ident := 48%positive.
-Definition _add_len : ident := 159%positive.
-Definition _additional : ident := 158%positive.
-Definition _aux : ident := 108%positive.
-Definition _b : ident := 49%positive.
-Definition _buf : ident := 112%positive.
-Definition _c : ident := 50%positive.
-Definition _cNh : ident := 68%positive.
-Definition _cNl : ident := 67%positive.
-Definition _ctx : ident := 46%positive.
-Definition _ctx_key : ident := 109%positive.
-Definition _custom : ident := 171%positive.
-Definition _d : ident := 51%positive.
-Definition _data : ident := 4%positive.
-Definition _data_ : ident := 70%positive.
-Definition _data_len : ident := 166%positive.
-Definition _dummy : ident := 130%positive.
-Definition _e : ident := 52%positive.
-Definition _entropy_len : ident := 126%positive.
-Definition _f : ident := 53%positive.
-Definition _fragment : ident := 73%positive.
-Definition _free : ident := 131%positive.
-Definition _g : ident := 54%positive.
-Definition _get_entropy : ident := 154%positive.
-Definition _h : ident := 1%positive.
-Definition _hmac : ident := 142%positive.
-Definition _hmac_ctx : ident := 122%positive.
-Definition _hmac_ctx_st : ident := 103%positive.
-Definition _i : ident := 63%positive.
-Definition _i_ctx : ident := 101%positive.
-Definition _ilen : ident := 149%positive.
-Definition _in : ident := 47%positive.
-Definition _info : ident := 139%positive.
-Definition _input : ident := 148%positive.
-Definition _interval : ident := 177%positive.
-Definition _j : ident := 105%positive.
-Definition _key : ident := 104%positive.
-Definition _key_len : ident := 116%positive.
-Definition _keylen : ident := 145%positive.
-Definition _l : ident := 61%positive.
-Definition _left : ident := 181%positive.
-Definition _len : ident := 66%positive.
-Definition _ll : ident := 76%positive.
-Definition _m : ident := 115%positive.
-Definition _m__1 : ident := 118%positive.
-Definition _main : ident := 99%positive.
-Definition _malloc : ident := 132%positive.
-Definition _mbedtls_hmac_drbg_context : ident := 129%positive.
-Definition _mbedtls_hmac_drbg_free : ident := 186%positive.
-Definition _mbedtls_hmac_drbg_init : ident := 157%positive.
-Definition _mbedtls_hmac_drbg_random : ident := 185%positive.
-Definition _mbedtls_hmac_drbg_random_with_add : ident := 184%positive.
-Definition _mbedtls_hmac_drbg_reseed : ident := 170%positive.
-Definition _mbedtls_hmac_drbg_seed : ident := 173%positive.
-Definition _mbedtls_hmac_drbg_seed_buf : ident := 167%positive.
-Definition _mbedtls_hmac_drbg_set_entropy_len : ident := 176%positive.
-Definition _mbedtls_hmac_drbg_set_prediction_resistance : ident := 175%positive.
-Definition _mbedtls_hmac_drbg_set_reseed_interval : ident := 178%positive.
-Definition _mbedtls_hmac_drbg_update : ident := 165%positive.
-Definition _mbedtls_md_context_t : ident := 123%positive.
-Definition _mbedtls_md_free : ident := 153%positive.
-Definition _mbedtls_md_get_size : ident := 138%positive.
-Definition _mbedtls_md_hmac_finish : ident := 152%positive.
-Definition _mbedtls_md_hmac_reset : ident := 147%positive.
-Definition _mbedtls_md_hmac_starts : ident := 146%positive.
-Definition _mbedtls_md_hmac_update : ident := 150%positive.
-Definition _mbedtls_md_info_from_string : ident := 135%positive.
-Definition _mbedtls_md_info_from_type : ident := 137%positive.
-Definition _mbedtls_md_info_t : ident := 121%positive.
-Definition _mbedtls_md_setup : ident := 144%positive.
-Definition _mbedtls_zeroize : ident := 156%positive.
-Definition _md : ident := 75%positive.
-Definition _md_ctx : ident := 100%positive.
-Definition _md_info : ident := 120%positive.
-Definition _md_len : ident := 160%positive.
-Definition _md_name : ident := 134%positive.
-Definition _md_size : ident := 172%positive.
-Definition _md_type : ident := 136%positive.
-Definition _memcpy : ident := 43%positive.
-Definition _memset : ident := 44%positive.
-Definition _mocked_sha256_info : ident := 133%positive.
-Definition _n : ident := 72%positive.
-Definition _num : ident := 5%positive.
-Definition _o_ctx : ident := 102%positive.
-Definition _out : ident := 182%positive.
-Definition _out_len : ident := 180%positive.
-Definition _output : ident := 151%positive.
-Definition _p : ident := 71%positive.
-Definition _p_rng : ident := 179%positive.
-Definition _pad : ident := 107%positive.
-Definition _prediction_resistance : ident := 127%positive.
-Definition _reseed_counter : ident := 125%positive.
-Definition _reseed_interval : ident := 128%positive.
-Definition _reset : ident := 106%positive.
-Definition _resistance : ident := 174%positive.
-Definition _ret : ident := 140%positive.
-Definition _rounds : ident := 161%positive.
-Definition _s0 : ident := 55%positive.
-Definition _s1 : ident := 56%positive.
-Definition _seed : ident := 168%positive.
-Definition _seedlen : ident := 169%positive.
-Definition _sep : ident := 162%positive.
-Definition _sep_value : ident := 164%positive.
-Definition _sha256_block_data_order : ident := 64%positive.
-Definition _sha_ctx : ident := 143%positive.
-Definition _t : ident := 59%positive.
-Definition _test_md_get_size : ident := 141%positive.
-Definition _use_len : ident := 183%positive.
-Definition _v : ident := 155%positive.
-Definition _xn : ident := 77%positive.
-Definition _t'1 : ident := 187%positive.
-Definition _t'2 : ident := 188%positive.
-Definition _t'3 : ident := 189%positive.
-Definition _t'4 : ident := 190%positive.
-Definition _t'5 : ident := 191%positive.
-Definition _t'6 : ident := 192%positive.
-Definition _t'7 : ident := 193%positive.
+Definition _HMAC : ident := $"HMAC".
+Definition _HMAC2 : ident := $"HMAC2".
+Definition _HMAC_Final : ident := $"HMAC_Final".
+Definition _HMAC_Init : ident := $"HMAC_Init".
+Definition _HMAC_Update : ident := $"HMAC_Update".
+Definition _HMAC_cleanup : ident := $"HMAC_cleanup".
+Definition _K : ident := $"K".
+Definition _Nh : ident := $"Nh".
+Definition _Nl : ident := $"Nl".
+Definition _SHA256_Final : ident := $"SHA256_Final".
+Definition _SHA256_Init : ident := $"SHA256_Init".
+Definition _SHA256_Update : ident := $"SHA256_Update".
+Definition _SHA256state_st : ident := $"SHA256state_st".
+Definition _V : ident := $"V".
+Definition ___builtin_annot : ident := $"__builtin_annot".
+Definition ___builtin_annot_intval : ident := $"__builtin_annot_intval".
+Definition ___builtin_bswap : ident := $"__builtin_bswap".
+Definition ___builtin_bswap16 : ident := $"__builtin_bswap16".
+Definition ___builtin_bswap32 : ident := $"__builtin_bswap32".
+Definition ___builtin_bswap64 : ident := $"__builtin_bswap64".
+Definition ___builtin_cls : ident := $"__builtin_cls".
+Definition ___builtin_clsl : ident := $"__builtin_clsl".
+Definition ___builtin_clsll : ident := $"__builtin_clsll".
+Definition ___builtin_clz : ident := $"__builtin_clz".
+Definition ___builtin_clzl : ident := $"__builtin_clzl".
+Definition ___builtin_clzll : ident := $"__builtin_clzll".
+Definition ___builtin_ctz : ident := $"__builtin_ctz".
+Definition ___builtin_ctzl : ident := $"__builtin_ctzl".
+Definition ___builtin_ctzll : ident := $"__builtin_ctzll".
+Definition ___builtin_debug : ident := $"__builtin_debug".
+Definition ___builtin_expect : ident := $"__builtin_expect".
+Definition ___builtin_fabs : ident := $"__builtin_fabs".
+Definition ___builtin_fabsf : ident := $"__builtin_fabsf".
+Definition ___builtin_fence : ident := $"__builtin_fence".
+Definition ___builtin_fmadd : ident := $"__builtin_fmadd".
+Definition ___builtin_fmax : ident := $"__builtin_fmax".
+Definition ___builtin_fmin : ident := $"__builtin_fmin".
+Definition ___builtin_fmsub : ident := $"__builtin_fmsub".
+Definition ___builtin_fnmadd : ident := $"__builtin_fnmadd".
+Definition ___builtin_fnmsub : ident := $"__builtin_fnmsub".
+Definition ___builtin_fsqrt : ident := $"__builtin_fsqrt".
+Definition ___builtin_membar : ident := $"__builtin_membar".
+Definition ___builtin_memcpy_aligned : ident := $"__builtin_memcpy_aligned".
+Definition ___builtin_sel : ident := $"__builtin_sel".
+Definition ___builtin_sqrt : ident := $"__builtin_sqrt".
+Definition ___builtin_unreachable : ident := $"__builtin_unreachable".
+Definition ___builtin_va_arg : ident := $"__builtin_va_arg".
+Definition ___builtin_va_copy : ident := $"__builtin_va_copy".
+Definition ___builtin_va_end : ident := $"__builtin_va_end".
+Definition ___builtin_va_start : ident := $"__builtin_va_start".
+Definition ___compcert_i64_dtos : ident := $"__compcert_i64_dtos".
+Definition ___compcert_i64_dtou : ident := $"__compcert_i64_dtou".
+Definition ___compcert_i64_sar : ident := $"__compcert_i64_sar".
+Definition ___compcert_i64_sdiv : ident := $"__compcert_i64_sdiv".
+Definition ___compcert_i64_shl : ident := $"__compcert_i64_shl".
+Definition ___compcert_i64_shr : ident := $"__compcert_i64_shr".
+Definition ___compcert_i64_smod : ident := $"__compcert_i64_smod".
+Definition ___compcert_i64_smulh : ident := $"__compcert_i64_smulh".
+Definition ___compcert_i64_stod : ident := $"__compcert_i64_stod".
+Definition ___compcert_i64_stof : ident := $"__compcert_i64_stof".
+Definition ___compcert_i64_udiv : ident := $"__compcert_i64_udiv".
+Definition ___compcert_i64_umod : ident := $"__compcert_i64_umod".
+Definition ___compcert_i64_umulh : ident := $"__compcert_i64_umulh".
+Definition ___compcert_i64_utod : ident := $"__compcert_i64_utod".
+Definition ___compcert_i64_utof : ident := $"__compcert_i64_utof".
+Definition ___compcert_va_composite : ident := $"__compcert_va_composite".
+Definition ___compcert_va_float64 : ident := $"__compcert_va_float64".
+Definition ___compcert_va_int32 : ident := $"__compcert_va_int32".
+Definition ___compcert_va_int64 : ident := $"__compcert_va_int64".
+Definition _add_len : ident := $"add_len".
+Definition _additional : ident := $"additional".
+Definition _aux : ident := $"aux".
+Definition _buf : ident := $"buf".
+Definition _c : ident := $"c".
+Definition _ctx : ident := $"ctx".
+Definition _ctx_key : ident := $"ctx_key".
+Definition _custom : ident := $"custom".
+Definition _d : ident := $"d".
+Definition _data : ident := $"data".
+Definition _data_len : ident := $"data_len".
+Definition _dummy : ident := $"dummy".
+Definition _entropy_len : ident := $"entropy_len".
+Definition _free : ident := $"free".
+Definition _get_entropy : ident := $"get_entropy".
+Definition _h : ident := $"h".
+Definition _hmac : ident := $"hmac".
+Definition _hmac_ctx : ident := $"hmac_ctx".
+Definition _hmac_ctx_st : ident := $"hmac_ctx_st".
+Definition _i : ident := $"i".
+Definition _i_ctx : ident := $"i_ctx".
+Definition _ilen : ident := $"ilen".
+Definition _info : ident := $"info".
+Definition _input : ident := $"input".
+Definition _interval : ident := $"interval".
+Definition _j : ident := $"j".
+Definition _key : ident := $"key".
+Definition _key_len : ident := $"key_len".
+Definition _keylen : ident := $"keylen".
+Definition _left : ident := $"left".
+Definition _len : ident := $"len".
+Definition _m : ident := $"m".
+Definition _m__1 : ident := $"m__1".
+Definition _main : ident := $"main".
+Definition _malloc : ident := $"malloc".
+Definition _mbedtls_hmac_drbg_context : ident := $"mbedtls_hmac_drbg_context".
+Definition _mbedtls_hmac_drbg_free : ident := $"mbedtls_hmac_drbg_free".
+Definition _mbedtls_hmac_drbg_init : ident := $"mbedtls_hmac_drbg_init".
+Definition _mbedtls_hmac_drbg_random : ident := $"mbedtls_hmac_drbg_random".
+Definition _mbedtls_hmac_drbg_random_with_add : ident := $"mbedtls_hmac_drbg_random_with_add".
+Definition _mbedtls_hmac_drbg_reseed : ident := $"mbedtls_hmac_drbg_reseed".
+Definition _mbedtls_hmac_drbg_seed : ident := $"mbedtls_hmac_drbg_seed".
+Definition _mbedtls_hmac_drbg_seed_buf : ident := $"mbedtls_hmac_drbg_seed_buf".
+Definition _mbedtls_hmac_drbg_set_entropy_len : ident := $"mbedtls_hmac_drbg_set_entropy_len".
+Definition _mbedtls_hmac_drbg_set_prediction_resistance : ident := $"mbedtls_hmac_drbg_set_prediction_resistance".
+Definition _mbedtls_hmac_drbg_set_reseed_interval : ident := $"mbedtls_hmac_drbg_set_reseed_interval".
+Definition _mbedtls_hmac_drbg_update : ident := $"mbedtls_hmac_drbg_update".
+Definition _mbedtls_md_context_t : ident := $"mbedtls_md_context_t".
+Definition _mbedtls_md_free : ident := $"mbedtls_md_free".
+Definition _mbedtls_md_get_size : ident := $"mbedtls_md_get_size".
+Definition _mbedtls_md_hmac_finish : ident := $"mbedtls_md_hmac_finish".
+Definition _mbedtls_md_hmac_reset : ident := $"mbedtls_md_hmac_reset".
+Definition _mbedtls_md_hmac_starts : ident := $"mbedtls_md_hmac_starts".
+Definition _mbedtls_md_hmac_update : ident := $"mbedtls_md_hmac_update".
+Definition _mbedtls_md_info_from_string : ident := $"mbedtls_md_info_from_string".
+Definition _mbedtls_md_info_from_type : ident := $"mbedtls_md_info_from_type".
+Definition _mbedtls_md_info_t : ident := $"mbedtls_md_info_t".
+Definition _mbedtls_md_setup : ident := $"mbedtls_md_setup".
+Definition _mbedtls_zeroize : ident := $"mbedtls_zeroize".
+Definition _md : ident := $"md".
+Definition _md_ctx : ident := $"md_ctx".
+Definition _md_info : ident := $"md_info".
+Definition _md_len : ident := $"md_len".
+Definition _md_name : ident := $"md_name".
+Definition _md_size : ident := $"md_size".
+Definition _md_type : ident := $"md_type".
+Definition _memcpy : ident := $"memcpy".
+Definition _memset : ident := $"memset".
+Definition _mocked_sha256_info : ident := $"mocked_sha256_info".
+Definition _n : ident := $"n".
+Definition _num : ident := $"num".
+Definition _o_ctx : ident := $"o_ctx".
+Definition _out : ident := $"out".
+Definition _out_len : ident := $"out_len".
+Definition _output : ident := $"output".
+Definition _p : ident := $"p".
+Definition _p_rng : ident := $"p_rng".
+Definition _pad : ident := $"pad".
+Definition _prediction_resistance : ident := $"prediction_resistance".
+Definition _reseed_counter : ident := $"reseed_counter".
+Definition _reseed_interval : ident := $"reseed_interval".
+Definition _reset : ident := $"reset".
+Definition _resistance : ident := $"resistance".
+Definition _ret : ident := $"ret".
+Definition _rounds : ident := $"rounds".
+Definition _seed : ident := $"seed".
+Definition _seedlen : ident := $"seedlen".
+Definition _sep : ident := $"sep".
+Definition _sep_value : ident := $"sep_value".
+Definition _sha_ctx : ident := $"sha_ctx".
+Definition _test_md_get_size : ident := $"test_md_get_size".
+Definition _use_len : ident := $"use_len".
+Definition _v : ident := $"v".
+Definition _t'1 : ident := 128%positive.
+Definition _t'2 : ident := 129%positive.
+Definition _t'3 : ident := 130%positive.
+Definition _t'4 : ident := 131%positive.
+Definition _t'5 : ident := 132%positive.
+Definition _t'6 : ident := 133%positive.
 
 Definition f_HMAC_Init := {|
   fn_return := tvoid;
@@ -221,7 +196,7 @@ Definition f_HMAC_Init := {|
   fn_vars := ((_pad, (tarray tuchar 64)) :: (_ctx_key, (tarray tuchar 64)) ::
               nil);
   fn_temps := ((_i, tint) :: (_j, tint) :: (_reset, tint) ::
-               (_aux, tuchar) :: nil);
+               (_aux, tuchar) :: (_t'2, tuchar) :: (_t'1, tuchar) :: nil);
   fn_body :=
 (Ssequence
   (Sset _reset (Econst_int (Int.repr 0) tint))
@@ -253,7 +228,7 @@ Definition f_HMAC_Init := {|
                                          (Tcons
                                            (tptr (Tstruct _SHA256state_st noattr))
                                            (Tcons (tptr tvoid)
-                                             (Tcons tuint Tnil))) tvoid
+                                             (Tcons tulong Tnil))) tvoid
                                          cc_default))
                   ((Eaddrof
                      (Efield
@@ -282,7 +257,7 @@ Definition f_HMAC_Init := {|
                   (Scall None
                     (Evar _memset (Tfunction
                                     (Tcons (tptr tvoid)
-                                      (Tcons tint (Tcons tuint Tnil)))
+                                      (Tcons tint (Tcons tulong Tnil)))
                                     (tptr tvoid) cc_default))
                     ((Ebinop Oadd (Evar _ctx_key (tarray tuchar 64))
                        (Econst_int (Int.repr 32) tint) (tptr tuchar)) ::
@@ -292,7 +267,7 @@ Definition f_HMAC_Init := {|
               (Scall None
                 (Evar _memcpy (Tfunction
                                 (Tcons (tptr tvoid)
-                                  (Tcons (tptr tvoid) (Tcons tuint Tnil)))
+                                  (Tcons (tptr tvoid) (Tcons tulong Tnil)))
                                 (tptr tvoid) cc_default))
                 ((Evar _ctx_key (tarray tuchar 64)) ::
                  (Etempvar _key (tptr tuchar)) :: (Etempvar _len tint) ::
@@ -300,13 +275,13 @@ Definition f_HMAC_Init := {|
               (Scall None
                 (Evar _memset (Tfunction
                                 (Tcons (tptr tvoid)
-                                  (Tcons tint (Tcons tuint Tnil)))
+                                  (Tcons tint (Tcons tulong Tnil)))
                                 (tptr tvoid) cc_default))
                 ((Ebinop Oadd (Evar _ctx_key (tarray tuchar 64))
                    (Etempvar _len tint) (tptr tuchar)) ::
                  (Econst_int (Int.repr 0) tint) ::
-                 (Ebinop Osub (Esizeof (tarray tuchar 64) tuint)
-                   (Etempvar _len tint) tuint) :: nil))))))
+                 (Ebinop Osub (Esizeof (tarray tuchar 64) tulong)
+                   (Etempvar _len tint) tulong) :: nil))))))
       Sskip)
     (Ssequence
       (Sifthenelse (Etempvar _reset tint)
@@ -320,11 +295,12 @@ Definition f_HMAC_Init := {|
                   Sskip
                   Sbreak)
                 (Ssequence
-                  (Sset _aux
-                    (Ecast
+                  (Ssequence
+                    (Sset _t'2
                       (Ederef
                         (Ebinop Oadd (Evar _ctx_key (tarray tuchar 64))
-                          (Etempvar _i tint) (tptr tuchar)) tuchar) tuchar))
+                          (Etempvar _i tint) (tptr tuchar)) tuchar))
+                    (Sset _aux (Ecast (Etempvar _t'2 tuchar) tuchar)))
                   (Ssequence
                     (Sset _aux
                       (Ecast
@@ -357,7 +333,7 @@ Definition f_HMAC_Init := {|
                                        (Tcons
                                          (tptr (Tstruct _SHA256state_st noattr))
                                          (Tcons (tptr tvoid)
-                                           (Tcons tuint Tnil))) tvoid
+                                           (Tcons tulong Tnil))) tvoid
                                        cc_default))
                 ((Eaddrof
                    (Efield
@@ -378,12 +354,12 @@ Definition f_HMAC_Init := {|
                         Sskip
                         Sbreak)
                       (Ssequence
-                        (Sset _aux
-                          (Ecast
+                        (Ssequence
+                          (Sset _t'1
                             (Ederef
                               (Ebinop Oadd (Evar _ctx_key (tarray tuchar 64))
-                                (Etempvar _i tint) (tptr tuchar)) tuchar)
-                            tuchar))
+                                (Etempvar _i tint) (tptr tuchar)) tuchar))
+                          (Sset _aux (Ecast (Etempvar _t'1 tuchar) tuchar)))
                         (Sassign
                           (Ederef
                             (Ebinop Oadd (Evar _pad (tarray tuchar 64))
@@ -411,7 +387,7 @@ Definition f_HMAC_Init := {|
                                            (Tcons
                                              (tptr (Tstruct _SHA256state_st noattr))
                                              (Tcons (tptr tvoid)
-                                               (Tcons tuint Tnil))) tvoid
+                                               (Tcons tulong Tnil))) tvoid
                                            cc_default))
                     ((Eaddrof
                        (Efield
@@ -426,7 +402,7 @@ Definition f_HMAC_Init := {|
       (Scall None
         (Evar _memcpy (Tfunction
                         (Tcons (tptr tvoid)
-                          (Tcons (tptr tvoid) (Tcons tuint Tnil)))
+                          (Tcons (tptr tvoid) (Tcons tulong Tnil)))
                         (tptr tvoid) cc_default))
         ((Eaddrof
            (Efield
@@ -440,21 +416,21 @@ Definition f_HMAC_Init := {|
                (Tstruct _hmac_ctx_st noattr)) _i_ctx
              (Tstruct _SHA256state_st noattr))
            (tptr (Tstruct _SHA256state_st noattr))) ::
-         (Esizeof (Tstruct _SHA256state_st noattr) tuint) :: nil)))))
+         (Esizeof (Tstruct _SHA256state_st noattr) tulong) :: nil)))))
 |}.
 
 Definition f_HMAC_Update := {|
   fn_return := tvoid;
   fn_callconv := cc_default;
   fn_params := ((_ctx, (tptr (Tstruct _hmac_ctx_st noattr))) ::
-                (_data, (tptr tvoid)) :: (_len, tuint) :: nil);
+                (_data, (tptr tvoid)) :: (_len, tulong) :: nil);
   fn_vars := nil;
   fn_temps := nil;
   fn_body :=
 (Scall None
   (Evar _SHA256_Update (Tfunction
                          (Tcons (tptr (Tstruct _SHA256state_st noattr))
-                           (Tcons (tptr tvoid) (Tcons tuint Tnil))) tvoid
+                           (Tcons (tptr tvoid) (Tcons tulong Tnil))) tvoid
                          cc_default))
   ((Eaddrof
      (Efield
@@ -462,7 +438,7 @@ Definition f_HMAC_Update := {|
          (Tstruct _hmac_ctx_st noattr)) _md_ctx
        (Tstruct _SHA256state_st noattr))
      (tptr (Tstruct _SHA256state_st noattr))) ::
-   (Etempvar _data (tptr tvoid)) :: (Etempvar _len tuint) :: nil))
+   (Etempvar _data (tptr tvoid)) :: (Etempvar _len tulong) :: nil))
 |}.
 
 Definition f_HMAC_Final := {|
@@ -490,8 +466,8 @@ Definition f_HMAC_Final := {|
     (Scall None
       (Evar _memcpy (Tfunction
                       (Tcons (tptr tvoid)
-                        (Tcons (tptr tvoid) (Tcons tuint Tnil))) (tptr tvoid)
-                      cc_default))
+                        (Tcons (tptr tvoid) (Tcons tulong Tnil)))
+                      (tptr tvoid) cc_default))
       ((Eaddrof
          (Efield
            (Ederef (Etempvar _ctx (tptr (Tstruct _hmac_ctx_st noattr)))
@@ -504,12 +480,12 @@ Definition f_HMAC_Final := {|
              (Tstruct _hmac_ctx_st noattr)) _o_ctx
            (Tstruct _SHA256state_st noattr))
          (tptr (Tstruct _SHA256state_st noattr))) ::
-       (Esizeof (Tstruct _SHA256state_st noattr) tuint) :: nil))
+       (Esizeof (Tstruct _SHA256state_st noattr) tulong) :: nil))
     (Ssequence
       (Scall None
         (Evar _SHA256_Update (Tfunction
                                (Tcons (tptr (Tstruct _SHA256state_st noattr))
-                                 (Tcons (tptr tvoid) (Tcons tuint Tnil)))
+                                 (Tcons (tptr tvoid) (Tcons tulong Tnil)))
                                tvoid cc_default))
         ((Eaddrof
            (Efield
@@ -543,11 +519,11 @@ Definition f_HMAC_cleanup := {|
   fn_body :=
 (Scall None
   (Evar _memset (Tfunction
-                  (Tcons (tptr tvoid) (Tcons tint (Tcons tuint Tnil)))
+                  (Tcons (tptr tvoid) (Tcons tint (Tcons tulong Tnil)))
                   (tptr tvoid) cc_default))
   ((Etempvar _ctx (tptr (Tstruct _hmac_ctx_st noattr))) ::
    (Econst_int (Int.repr 0) tint) ::
-   (Esizeof (Tstruct _hmac_ctx_st noattr) tuint) :: nil))
+   (Esizeof (Tstruct _hmac_ctx_st noattr) tulong) :: nil))
 |}.
 
 Definition v_m := {|
@@ -584,8 +560,8 @@ Definition f_HMAC := {|
       (Scall None
         (Evar _HMAC_Update (Tfunction
                              (Tcons (tptr (Tstruct _hmac_ctx_st noattr))
-                               (Tcons (tptr tvoid) (Tcons tuint Tnil))) tvoid
-                             cc_default))
+                               (Tcons (tptr tvoid) (Tcons tulong Tnil)))
+                             tvoid cc_default))
         ((Eaddrof (Evar _c (Tstruct _hmac_ctx_st noattr))
            (tptr (Tstruct _hmac_ctx_st noattr))) ::
          (Etempvar _d (tptr tuchar)) :: (Etempvar _n tint) :: nil))
@@ -641,8 +617,8 @@ Definition f_HMAC2 := {|
       (Scall None
         (Evar _HMAC_Update (Tfunction
                              (Tcons (tptr (Tstruct _hmac_ctx_st noattr))
-                               (Tcons (tptr tvoid) (Tcons tuint Tnil))) tvoid
-                             cc_default))
+                               (Tcons (tptr tvoid) (Tcons tulong Tnil)))
+                             tvoid cc_default))
         ((Eaddrof (Evar _c (Tstruct _hmac_ctx_st noattr))
            (tptr (Tstruct _hmac_ctx_st noattr))) ::
          (Etempvar _d (tptr tuchar)) :: (Etempvar _n tint) :: nil))
@@ -669,7 +645,7 @@ Definition f_HMAC2 := {|
               (Evar _HMAC_Update (Tfunction
                                    (Tcons
                                      (tptr (Tstruct _hmac_ctx_st noattr))
-                                     (Tcons (tptr tvoid) (Tcons tuint Tnil)))
+                                     (Tcons (tptr tvoid) (Tcons tulong Tnil)))
                                    tvoid cc_default))
               ((Eaddrof (Evar _c (Tstruct _hmac_ctx_st noattr))
                  (tptr (Tstruct _hmac_ctx_st noattr))) ::
@@ -769,8 +745,8 @@ Definition f_mbedtls_md_setup := {|
 (Ssequence
   (Ssequence
     (Scall (Some _t'1)
-      (Evar _malloc (Tfunction (Tcons tuint Tnil) (tptr tvoid) cc_default))
-      ((Esizeof (Tstruct _hmac_ctx_st noattr) tuint) :: nil))
+      (Evar _malloc (Tfunction (Tcons tulong Tnil) (tptr tvoid) cc_default))
+      ((Esizeof (Tstruct _hmac_ctx_st noattr) tulong) :: nil))
     (Sset _sha_ctx
       (Ecast (Etempvar _t'1 (tptr tvoid))
         (tptr (Tstruct _hmac_ctx_st noattr)))))
@@ -802,7 +778,7 @@ Definition f_mbedtls_md_hmac_starts := {|
   fn_return := tint;
   fn_callconv := cc_default;
   fn_params := ((_ctx, (tptr (Tstruct _mbedtls_md_context_t noattr))) ::
-                (_key, (tptr tuchar)) :: (_keylen, tuint) :: nil);
+                (_key, (tptr tuchar)) :: (_keylen, tulong) :: nil);
   fn_vars := nil;
   fn_temps := ((_hmac_ctx, (tptr (Tstruct _hmac_ctx_st noattr))) :: nil);
   fn_body :=
@@ -819,7 +795,7 @@ Definition f_mbedtls_md_hmac_starts := {|
                          cc_default))
       ((Etempvar _hmac_ctx (tptr (Tstruct _hmac_ctx_st noattr))) ::
        (Ecast (Etempvar _key (tptr tuchar)) (tptr tuchar)) ::
-       (Etempvar _keylen tuint) :: nil))
+       (Etempvar _keylen tulong) :: nil))
     (Sreturn (Some (Econst_int (Int.repr 0) tint)))))
 |}.
 
@@ -851,7 +827,7 @@ Definition f_mbedtls_md_hmac_update := {|
   fn_return := tint;
   fn_callconv := cc_default;
   fn_params := ((_ctx, (tptr (Tstruct _mbedtls_md_context_t noattr))) ::
-                (_input, (tptr tuchar)) :: (_ilen, tuint) :: nil);
+                (_input, (tptr tuchar)) :: (_ilen, tulong) :: nil);
   fn_vars := nil;
   fn_temps := ((_hmac_ctx, (tptr (Tstruct _hmac_ctx_st noattr))) :: nil);
   fn_body :=
@@ -864,11 +840,11 @@ Definition f_mbedtls_md_hmac_update := {|
     (Scall None
       (Evar _HMAC_Update (Tfunction
                            (Tcons (tptr (Tstruct _hmac_ctx_st noattr))
-                             (Tcons (tptr tvoid) (Tcons tuint Tnil))) tvoid
+                             (Tcons (tptr tvoid) (Tcons tulong Tnil))) tvoid
                            cc_default))
       ((Etempvar _hmac_ctx (tptr (Tstruct _hmac_ctx_st noattr))) ::
        (Ecast (Etempvar _input (tptr tuchar)) (tptr tvoid)) ::
-       (Etempvar _ilen tuint) :: nil))
+       (Etempvar _ilen tulong) :: nil))
     (Sreturn (Some (Econst_int (Int.repr 0) tint)))))
 |}.
 
@@ -915,10 +891,10 @@ Definition f_mbedtls_md_free := {|
 Definition f_mbedtls_zeroize := {|
   fn_return := tvoid;
   fn_callconv := cc_default;
-  fn_params := ((_v, (tptr tvoid)) :: (_n, tuint) :: nil);
+  fn_params := ((_v, (tptr tvoid)) :: (_n, tulong) :: nil);
   fn_vars := nil;
   fn_temps := ((_p, (tptr tuchar)) :: (_t'2, (tptr tuchar)) ::
-               (_t'1, tuint) :: nil);
+               (_t'1, tulong) :: nil);
   fn_body :=
 (Ssequence
   (Sset _p (Etempvar _v (tptr tvoid)))
@@ -926,11 +902,11 @@ Definition f_mbedtls_zeroize := {|
     (Ssequence
       (Ssequence
         (Ssequence
-          (Sset _t'1 (Etempvar _n tuint))
+          (Sset _t'1 (Etempvar _n tulong))
           (Sset _n
-            (Ebinop Osub (Etempvar _t'1 tuint) (Econst_int (Int.repr 1) tint)
-              tuint)))
-        (Sifthenelse (Etempvar _t'1 tuint) Sskip Sbreak))
+            (Ebinop Osub (Etempvar _t'1 tulong)
+              (Econst_int (Int.repr 1) tint) tulong)))
+        (Sifthenelse (Etempvar _t'1 tulong) Sskip Sbreak))
       (Ssequence
         (Ssequence
           (Sset _t'2 (Etempvar _p (tptr tuchar)))
@@ -952,21 +928,21 @@ Definition f_mbedtls_hmac_drbg_init := {|
   fn_body :=
 (Scall None
   (Evar _memset (Tfunction
-                  (Tcons (tptr tvoid) (Tcons tint (Tcons tuint Tnil)))
+                  (Tcons (tptr tvoid) (Tcons tint (Tcons tulong Tnil)))
                   (tptr tvoid) cc_default))
   ((Etempvar _ctx (tptr (Tstruct _mbedtls_hmac_drbg_context noattr))) ::
    (Econst_int (Int.repr 0) tint) ::
-   (Esizeof (Tstruct _mbedtls_hmac_drbg_context noattr) tuint) :: nil))
+   (Esizeof (Tstruct _mbedtls_hmac_drbg_context noattr) tulong) :: nil))
 |}.
 
 Definition f_mbedtls_hmac_drbg_update := {|
   fn_return := tvoid;
   fn_callconv := cc_default;
   fn_params := ((_ctx, (tptr (Tstruct _mbedtls_hmac_drbg_context noattr))) ::
-                (_additional, (tptr tuchar)) :: (_add_len, tuint) :: nil);
+                (_additional, (tptr tuchar)) :: (_add_len, tulong) :: nil);
   fn_vars := ((_sep, (tarray tuchar 1)) :: (_K, (tarray tuchar 32)) :: nil);
   fn_temps := ((_info, (tptr (Tstruct _mbedtls_md_info_t noattr))) ::
-               (_md_len, tuint) :: (_rounds, tint) :: (_sep_value, tint) ::
+               (_md_len, tulong) :: (_rounds, tint) :: (_sep_value, tint) ::
                (_t'3, tint) :: (_t'2, tint) :: (_t'1, tuchar) :: nil);
   fn_body :=
 (Ssequence
@@ -986,11 +962,11 @@ Definition f_mbedtls_hmac_drbg_update := {|
                                        (tptr (Tstruct _mbedtls_md_info_t noattr))
                                        Tnil) tuchar cc_default))
         ((Etempvar _info (tptr (Tstruct _mbedtls_md_info_t noattr))) :: nil))
-      (Sset _md_len (Etempvar _t'1 tuchar)))
+      (Sset _md_len (Ecast (Etempvar _t'1 tuchar) tulong)))
     (Ssequence
       (Ssequence
         (Ssequence
-          (Sifthenelse (Ebinop One (Etempvar _add_len tuint)
+          (Sifthenelse (Ebinop One (Etempvar _add_len tulong)
                          (Econst_int (Int.repr 0) tint) tint)
             (Sset _t'2
               (Ecast
@@ -1035,7 +1011,7 @@ Definition f_mbedtls_hmac_drbg_update := {|
                                                     (Tcons
                                                       (tptr (Tstruct _mbedtls_md_context_t noattr))
                                                       (Tcons (tptr tuchar)
-                                                        (Tcons tuint Tnil)))
+                                                        (Tcons tulong Tnil)))
                                                     tint cc_default))
                     ((Eaddrof
                        (Efield
@@ -1048,7 +1024,7 @@ Definition f_mbedtls_hmac_drbg_update := {|
                        (Ederef
                          (Etempvar _ctx (tptr (Tstruct _mbedtls_hmac_drbg_context noattr)))
                          (Tstruct _mbedtls_hmac_drbg_context noattr)) _V
-                       (tarray tuchar 32)) :: (Etempvar _md_len tuint) ::
+                       (tarray tuchar 32)) :: (Etempvar _md_len tulong) ::
                      nil))
                   (Ssequence
                     (Scall None
@@ -1056,7 +1032,7 @@ Definition f_mbedtls_hmac_drbg_update := {|
                                                       (Tcons
                                                         (tptr (Tstruct _mbedtls_md_context_t noattr))
                                                         (Tcons (tptr tuchar)
-                                                          (Tcons tuint Tnil)))
+                                                          (Tcons tulong Tnil)))
                                                       tint cc_default))
                       ((Eaddrof
                          (Efield
@@ -1076,7 +1052,7 @@ Definition f_mbedtls_hmac_drbg_update := {|
                                                             (tptr (Tstruct _mbedtls_md_context_t noattr))
                                                             (Tcons
                                                               (tptr tuchar)
-                                                              (Tcons tuint
+                                                              (Tcons tulong
                                                                 Tnil))) tint
                                                           cc_default))
                           ((Eaddrof
@@ -1088,7 +1064,7 @@ Definition f_mbedtls_hmac_drbg_update := {|
                                (Tstruct _mbedtls_md_context_t noattr))
                              (tptr (Tstruct _mbedtls_md_context_t noattr))) ::
                            (Etempvar _additional (tptr tuchar)) ::
-                           (Etempvar _add_len tuint) :: nil))
+                           (Etempvar _add_len tulong) :: nil))
                         Sskip)
                       (Ssequence
                         (Scall None
@@ -1115,7 +1091,7 @@ Definition f_mbedtls_hmac_drbg_update := {|
                                                               (tptr (Tstruct _mbedtls_md_context_t noattr))
                                                               (Tcons
                                                                 (tptr tuchar)
-                                                                (Tcons tuint
+                                                                (Tcons tulong
                                                                   Tnil)))
                                                             tint cc_default))
                             ((Eaddrof
@@ -1127,7 +1103,7 @@ Definition f_mbedtls_hmac_drbg_update := {|
                                  (Tstruct _mbedtls_md_context_t noattr))
                                (tptr (Tstruct _mbedtls_md_context_t noattr))) ::
                              (Evar _K (tarray tuchar 32)) ::
-                             (Etempvar _md_len tuint) :: nil))
+                             (Etempvar _md_len tulong) :: nil))
                           (Ssequence
                             (Scall None
                               (Evar _mbedtls_md_hmac_update (Tfunction
@@ -1136,7 +1112,7 @@ Definition f_mbedtls_hmac_drbg_update := {|
                                                                 (Tcons
                                                                   (tptr tuchar)
                                                                   (Tcons
-                                                                    tuint
+                                                                    tulong
                                                                     Tnil)))
                                                               tint
                                                               cc_default))
@@ -1153,7 +1129,7 @@ Definition f_mbedtls_hmac_drbg_update := {|
                                    (Etempvar _ctx (tptr (Tstruct _mbedtls_hmac_drbg_context noattr)))
                                    (Tstruct _mbedtls_hmac_drbg_context noattr))
                                  _V (tarray tuchar 32)) ::
-                               (Etempvar _md_len tuint) :: nil))
+                               (Etempvar _md_len tulong) :: nil))
                             (Scall None
                               (Evar _mbedtls_md_hmac_finish (Tfunction
                                                               (Tcons
@@ -1185,7 +1161,7 @@ Definition f_mbedtls_hmac_drbg_seed_buf := {|
   fn_callconv := cc_default;
   fn_params := ((_ctx, (tptr (Tstruct _mbedtls_hmac_drbg_context noattr))) ::
                 (_md_info, (tptr (Tstruct _mbedtls_md_info_t noattr))) ::
-                (_data, (tptr tuchar)) :: (_data_len, tuint) :: nil);
+                (_data, (tptr tuchar)) :: (_data_len, tulong) :: nil);
   fn_vars := nil;
   fn_temps := ((_ret, tint) :: (_t'4, tuchar) :: (_t'3, tuchar) ::
                (_t'2, tint) :: (_t'1, tint) :: nil);
@@ -1230,7 +1206,7 @@ Definition f_mbedtls_hmac_drbg_seed_buf := {|
                                         (Tcons
                                           (tptr (Tstruct _mbedtls_md_context_t noattr))
                                           (Tcons (tptr tuchar)
-                                            (Tcons tuint Tnil))) tint
+                                            (Tcons tulong Tnil))) tint
                                         cc_default))
         ((Eaddrof
            (Efield
@@ -1256,7 +1232,7 @@ Definition f_mbedtls_hmac_drbg_seed_buf := {|
         (Scall None
           (Evar _memset (Tfunction
                           (Tcons (tptr tvoid)
-                            (Tcons tint (Tcons tuint Tnil))) (tptr tvoid)
+                            (Tcons tint (Tcons tulong Tnil))) (tptr tvoid)
                           cc_default))
           ((Efield
              (Ederef
@@ -1270,10 +1246,10 @@ Definition f_mbedtls_hmac_drbg_seed_buf := {|
                                             (Tcons
                                               (tptr (Tstruct _mbedtls_hmac_drbg_context noattr))
                                               (Tcons (tptr tuchar)
-                                                (Tcons tuint Tnil))) tvoid
+                                                (Tcons tulong Tnil))) tvoid
                                             cc_default))
           ((Etempvar _ctx (tptr (Tstruct _mbedtls_hmac_drbg_context noattr))) ::
-           (Etempvar _data (tptr tuchar)) :: (Etempvar _data_len tuint) ::
+           (Etempvar _data (tptr tuchar)) :: (Etempvar _data_len tulong) ::
            nil))
         (Sreturn (Some (Econst_int (Int.repr 0) tint)))))))
 |}.
@@ -1282,35 +1258,35 @@ Definition f_mbedtls_hmac_drbg_reseed := {|
   fn_return := tint;
   fn_callconv := cc_default;
   fn_params := ((_ctx, (tptr (Tstruct _mbedtls_hmac_drbg_context noattr))) ::
-                (_additional, (tptr tuchar)) :: (_len, tuint) :: nil);
+                (_additional, (tptr tuchar)) :: (_len, tulong) :: nil);
   fn_vars := ((_seed, (tarray tuchar 384)) :: nil);
-  fn_temps := ((_seedlen, tuint) :: (_entropy_len, tuint) :: (_t'3, tint) ::
-               (_t'2, tint) :: (_t'1, tint) :: nil);
+  fn_temps := ((_seedlen, tulong) :: (_entropy_len, tulong) ::
+               (_t'3, tint) :: (_t'2, tint) :: (_t'1, tint) :: nil);
   fn_body :=
 (Ssequence
   (Sset _entropy_len
     (Efield
       (Ederef
         (Etempvar _ctx (tptr (Tstruct _mbedtls_hmac_drbg_context noattr)))
-        (Tstruct _mbedtls_hmac_drbg_context noattr)) _entropy_len tuint))
+        (Tstruct _mbedtls_hmac_drbg_context noattr)) _entropy_len tulong))
   (Ssequence
     (Ssequence
-      (Sifthenelse (Ebinop Ogt (Etempvar _len tuint)
+      (Sifthenelse (Ebinop Ogt (Etempvar _len tulong)
                      (Econst_int (Int.repr 256) tint) tint)
         (Sset _t'1 (Econst_int (Int.repr 1) tint))
         (Sset _t'1
           (Ecast
             (Ebinop Ogt
-              (Ebinop Oadd (Etempvar _entropy_len tuint)
-                (Etempvar _len tuint) tuint) (Econst_int (Int.repr 384) tint)
-              tint) tbool)))
+              (Ebinop Oadd (Etempvar _entropy_len tulong)
+                (Etempvar _len tulong) tulong)
+              (Econst_int (Int.repr 384) tint) tint) tbool)))
       (Sifthenelse (Etempvar _t'1 tint)
         (Sreturn (Some (Eunop Oneg (Econst_int (Int.repr 5) tint) tint)))
         Sskip))
     (Ssequence
       (Scall None
         (Evar _memset (Tfunction
-                        (Tcons (tptr tvoid) (Tcons tint (Tcons tuint Tnil)))
+                        (Tcons (tptr tvoid) (Tcons tint (Tcons tulong Tnil)))
                         (tptr tvoid) cc_default))
         ((Evar _seed (tarray tuchar 384)) ::
          (Econst_int (Int.repr 0) tint) ::
@@ -1319,16 +1295,16 @@ Definition f_mbedtls_hmac_drbg_reseed := {|
         (Ssequence
           (Scall (Some _t'2)
             (Evar _get_entropy (Tfunction
-                                 (Tcons (tptr tuchar) (Tcons tuint Tnil))
+                                 (Tcons (tptr tuchar) (Tcons tulong Tnil))
                                  tint cc_default))
             ((Evar _seed (tarray tuchar 384)) ::
-             (Etempvar _entropy_len tuint) :: nil))
+             (Etempvar _entropy_len tulong) :: nil))
           (Sifthenelse (Ebinop One (Etempvar _t'2 tint)
                          (Econst_int (Int.repr 0) tint) tint)
             (Sreturn (Some (Eunop Oneg (Econst_int (Int.repr 9) tint) tint)))
             Sskip))
         (Ssequence
-          (Sset _seedlen (Etempvar _entropy_len tuint))
+          (Sset _seedlen (Etempvar _entropy_len tulong))
           (Ssequence
             (Ssequence
               (Sifthenelse (Ebinop One (Etempvar _additional (tptr tuchar))
@@ -1336,7 +1312,7 @@ Definition f_mbedtls_hmac_drbg_reseed := {|
                                (tptr tvoid)) tint)
                 (Sset _t'3
                   (Ecast
-                    (Ebinop One (Etempvar _len tuint)
+                    (Ebinop One (Etempvar _len tulong)
                       (Econst_int (Int.repr 0) tint) tint) tbool))
                 (Sset _t'3 (Econst_int (Int.repr 0) tint)))
               (Sifthenelse (Etempvar _t'3 tint)
@@ -1344,15 +1320,16 @@ Definition f_mbedtls_hmac_drbg_reseed := {|
                   (Scall None
                     (Evar _memcpy (Tfunction
                                     (Tcons (tptr tvoid)
-                                      (Tcons (tptr tvoid) (Tcons tuint Tnil)))
-                                    (tptr tvoid) cc_default))
+                                      (Tcons (tptr tvoid)
+                                        (Tcons tulong Tnil))) (tptr tvoid)
+                                    cc_default))
                     ((Ebinop Oadd (Evar _seed (tarray tuchar 384))
-                       (Etempvar _seedlen tuint) (tptr tuchar)) ::
+                       (Etempvar _seedlen tulong) (tptr tuchar)) ::
                      (Etempvar _additional (tptr tuchar)) ::
-                     (Etempvar _len tuint) :: nil))
+                     (Etempvar _len tulong) :: nil))
                   (Sset _seedlen
-                    (Ebinop Oadd (Etempvar _seedlen tuint)
-                      (Etempvar _len tuint) tuint)))
+                    (Ebinop Oadd (Etempvar _seedlen tulong)
+                      (Etempvar _len tulong) tulong)))
                 Sskip))
             (Ssequence
               (Scall None
@@ -1360,11 +1337,11 @@ Definition f_mbedtls_hmac_drbg_reseed := {|
                                                   (Tcons
                                                     (tptr (Tstruct _mbedtls_hmac_drbg_context noattr))
                                                     (Tcons (tptr tuchar)
-                                                      (Tcons tuint Tnil)))
+                                                      (Tcons tulong Tnil)))
                                                   tvoid cc_default))
                 ((Etempvar _ctx (tptr (Tstruct _mbedtls_hmac_drbg_context noattr))) ::
                  (Evar _seed (tarray tuchar 384)) ::
-                 (Etempvar _seedlen tuint) :: nil))
+                 (Etempvar _seedlen tulong) :: nil))
               (Ssequence
                 (Sassign
                   (Efield
@@ -1380,10 +1357,10 @@ Definition f_mbedtls_hmac_drbg_seed := {|
   fn_callconv := cc_default;
   fn_params := ((_ctx, (tptr (Tstruct _mbedtls_hmac_drbg_context noattr))) ::
                 (_md_info, (tptr (Tstruct _mbedtls_md_info_t noattr))) ::
-                (_custom, (tptr tuchar)) :: (_len, tuint) :: nil);
+                (_custom, (tptr tuchar)) :: (_len, tulong) :: nil);
   fn_vars := nil;
-  fn_temps := ((_ret, tint) :: (_entropy_len, tuint) :: (_md_size, tuint) ::
-               (_t'7, tint) :: (_t'6, tint) :: (_t'5, tint) ::
+  fn_temps := ((_ret, tint) :: (_entropy_len, tulong) ::
+               (_md_size, tulong) :: (_t'6, tint) :: (_t'5, tint) ::
                (_t'4, tint) :: (_t'3, tuchar) :: (_t'2, tint) ::
                (_t'1, tint) :: nil);
   fn_body :=
@@ -1422,14 +1399,14 @@ Definition f_mbedtls_hmac_drbg_seed := {|
                                        Tnil) tuchar cc_default))
         ((Etempvar _md_info (tptr (Tstruct _mbedtls_md_info_t noattr))) ::
          nil))
-      (Sset _md_size (Etempvar _t'3 tuchar)))
+      (Sset _md_size (Ecast (Etempvar _t'3 tuchar) tulong)))
     (Ssequence
       (Scall None
         (Evar _mbedtls_md_hmac_starts (Tfunction
                                         (Tcons
                                           (tptr (Tstruct _mbedtls_md_context_t noattr))
                                           (Tcons (tptr tuchar)
-                                            (Tcons tuint Tnil))) tint
+                                            (Tcons tulong Tnil))) tint
                                         cc_default))
         ((Eaddrof
            (Efield
@@ -1442,19 +1419,19 @@ Definition f_mbedtls_hmac_drbg_seed := {|
            (Ederef
              (Etempvar _ctx (tptr (Tstruct _mbedtls_hmac_drbg_context noattr)))
              (Tstruct _mbedtls_hmac_drbg_context noattr)) _V
-           (tarray tuchar 32)) :: (Etempvar _md_size tuint) :: nil))
+           (tarray tuchar 32)) :: (Etempvar _md_size tulong) :: nil))
       (Ssequence
         (Scall None
           (Evar _memset (Tfunction
                           (Tcons (tptr tvoid)
-                            (Tcons tint (Tcons tuint Tnil))) (tptr tvoid)
+                            (Tcons tint (Tcons tulong Tnil))) (tptr tvoid)
                           cc_default))
           ((Efield
              (Ederef
                (Etempvar _ctx (tptr (Tstruct _mbedtls_hmac_drbg_context noattr)))
                (Tstruct _mbedtls_hmac_drbg_context noattr)) _V
              (tarray tuchar 32)) :: (Econst_int (Int.repr 1) tint) ::
-           (Etempvar _md_size tuint) :: nil))
+           (Etempvar _md_size tulong) :: nil))
         (Ssequence
           (Sassign
             (Efield
@@ -1464,48 +1441,48 @@ Definition f_mbedtls_hmac_drbg_seed := {|
               tint) (Econst_int (Int.repr 10000) tint))
           (Ssequence
             (Ssequence
-              (Sifthenelse (Ebinop Ole (Etempvar _md_size tuint)
+              (Sifthenelse (Ebinop Ole (Etempvar _md_size tulong)
                              (Econst_int (Int.repr 20) tint) tint)
                 (Sset _t'4 (Ecast (Econst_int (Int.repr 16) tint) tint))
-                (Sifthenelse (Ebinop Ole (Etempvar _md_size tuint)
+                (Sifthenelse (Ebinop Ole (Etempvar _md_size tulong)
                                (Econst_int (Int.repr 28) tint) tint)
                   (Ssequence
-                    (Sset _t'5 (Ecast (Econst_int (Int.repr 24) tint) tint))
-                    (Sset _t'4 (Ecast (Etempvar _t'5 tint) tint)))
+                    (Sset _t'4 (Ecast (Econst_int (Int.repr 24) tint) tint))
+                    (Sset _t'4 (Ecast (Etempvar _t'4 tint) tint)))
                   (Ssequence
-                    (Sset _t'5 (Ecast (Econst_int (Int.repr 32) tint) tint))
-                    (Sset _t'4 (Ecast (Etempvar _t'5 tint) tint)))))
-              (Sset _entropy_len (Etempvar _t'4 tint)))
+                    (Sset _t'4 (Ecast (Econst_int (Int.repr 32) tint) tint))
+                    (Sset _t'4 (Ecast (Etempvar _t'4 tint) tint)))))
+              (Sset _entropy_len (Ecast (Etempvar _t'4 tint) tulong)))
             (Ssequence
               (Sassign
                 (Efield
                   (Ederef
                     (Etempvar _ctx (tptr (Tstruct _mbedtls_hmac_drbg_context noattr)))
                     (Tstruct _mbedtls_hmac_drbg_context noattr)) _entropy_len
-                  tuint)
+                  tulong)
                 (Ebinop Odiv
-                  (Ebinop Omul (Etempvar _entropy_len tuint)
-                    (Econst_int (Int.repr 3) tint) tuint)
-                  (Econst_int (Int.repr 2) tint) tuint))
+                  (Ebinop Omul (Etempvar _entropy_len tulong)
+                    (Econst_int (Int.repr 3) tint) tulong)
+                  (Econst_int (Int.repr 2) tint) tulong))
               (Ssequence
                 (Ssequence
                   (Ssequence
                     (Ssequence
-                      (Scall (Some _t'6)
+                      (Scall (Some _t'5)
                         (Evar _mbedtls_hmac_drbg_reseed (Tfunction
                                                           (Tcons
                                                             (tptr (Tstruct _mbedtls_hmac_drbg_context noattr))
                                                             (Tcons
                                                               (tptr tuchar)
-                                                              (Tcons tuint
+                                                              (Tcons tulong
                                                                 Tnil))) tint
                                                           cc_default))
                         ((Etempvar _ctx (tptr (Tstruct _mbedtls_hmac_drbg_context noattr))) ::
                          (Etempvar _custom (tptr tuchar)) ::
-                         (Etempvar _len tuint) :: nil))
-                      (Sset _t'7 (Ecast (Etempvar _t'6 tint) tint)))
-                    (Sset _ret (Etempvar _t'7 tint)))
-                  (Sifthenelse (Ebinop One (Etempvar _t'7 tint)
+                         (Etempvar _len tulong) :: nil))
+                      (Sset _t'6 (Ecast (Etempvar _t'5 tint) tint)))
+                    (Sset _ret (Etempvar _t'6 tint)))
+                  (Sifthenelse (Ebinop One (Etempvar _t'6 tint)
                                  (Econst_int (Int.repr 0) tint) tint)
                     (Sreturn (Some (Etempvar _ret tint)))
                     Sskip))
@@ -1515,7 +1492,7 @@ Definition f_mbedtls_hmac_drbg_seed := {|
                       (Ederef
                         (Etempvar _ctx (tptr (Tstruct _mbedtls_hmac_drbg_context noattr)))
                         (Tstruct _mbedtls_hmac_drbg_context noattr))
-                      _entropy_len tuint) (Etempvar _entropy_len tuint))
+                      _entropy_len tulong) (Etempvar _entropy_len tulong))
                   (Sreturn (Some (Econst_int (Int.repr 0) tint))))))))))))
 |}.
 
@@ -1539,7 +1516,7 @@ Definition f_mbedtls_hmac_drbg_set_entropy_len := {|
   fn_return := tvoid;
   fn_callconv := cc_default;
   fn_params := ((_ctx, (tptr (Tstruct _mbedtls_hmac_drbg_context noattr))) ::
-                (_len, tuint) :: nil);
+                (_len, tulong) :: nil);
   fn_vars := nil;
   fn_temps := nil;
   fn_body :=
@@ -1547,8 +1524,8 @@ Definition f_mbedtls_hmac_drbg_set_entropy_len := {|
   (Efield
     (Ederef
       (Etempvar _ctx (tptr (Tstruct _mbedtls_hmac_drbg_context noattr)))
-      (Tstruct _mbedtls_hmac_drbg_context noattr)) _entropy_len tuint)
-  (Etempvar _len tuint))
+      (Tstruct _mbedtls_hmac_drbg_context noattr)) _entropy_len tulong)
+  (Etempvar _len tulong))
 |}.
 
 Definition f_mbedtls_hmac_drbg_set_reseed_interval := {|
@@ -1571,16 +1548,17 @@ Definition f_mbedtls_hmac_drbg_random_with_add := {|
   fn_return := tint;
   fn_callconv := cc_default;
   fn_params := ((_p_rng, (tptr tvoid)) :: (_output, (tptr tuchar)) ::
-                (_out_len, tuint) :: (_additional, (tptr tuchar)) ::
-                (_add_len, tuint) :: nil);
+                (_out_len, tulong) :: (_additional, (tptr tuchar)) ::
+                (_add_len, tulong) :: nil);
   fn_vars := nil;
   fn_temps := ((_ret, tint) ::
                (_ctx, (tptr (Tstruct _mbedtls_hmac_drbg_context noattr))) ::
-               (_md_len, tuint) :: (_left, tuint) :: (_out, (tptr tuchar)) ::
+               (_md_len, tulong) :: (_left, tulong) ::
+               (_out, (tptr tuchar)) ::
                (_info, (tptr (Tstruct _mbedtls_md_info_t noattr))) ::
                (_prediction_resistance, tint) :: (_reseed_counter, tint) ::
-               (_reseed_interval, tint) :: (_use_len, tuint) ::
-               (_t'6, tuint) :: (_t'5, tint) :: (_t'4, tint) ::
+               (_reseed_interval, tint) :: (_use_len, tulong) ::
+               (_t'6, tulong) :: (_t'5, tint) :: (_t'4, tint) ::
                (_t'3, tint) :: (_t'2, tint) :: (_t'1, tuchar) :: nil);
   fn_body :=
 (Ssequence
@@ -1588,7 +1566,7 @@ Definition f_mbedtls_hmac_drbg_random_with_add := {|
     (Ecast (Etempvar _p_rng (tptr tvoid))
       (tptr (Tstruct _mbedtls_hmac_drbg_context noattr))))
   (Ssequence
-    (Sset _left (Etempvar _out_len tuint))
+    (Sset _left (Etempvar _out_len tulong))
     (Ssequence
       (Sset _out (Etempvar _output (tptr tuchar)))
       (Ssequence
@@ -1630,15 +1608,15 @@ Definition f_mbedtls_hmac_drbg_random_with_add := {|
                                                    Tnil) tuchar cc_default))
                     ((Etempvar _info (tptr (Tstruct _mbedtls_md_info_t noattr))) ::
                      nil))
-                  (Sset _md_len (Etempvar _t'1 tuchar)))
+                  (Sset _md_len (Ecast (Etempvar _t'1 tuchar) tulong)))
                 (Ssequence
-                  (Sifthenelse (Ebinop Ogt (Etempvar _out_len tuint)
+                  (Sifthenelse (Ebinop Ogt (Etempvar _out_len tulong)
                                  (Econst_int (Int.repr 1024) tint) tint)
                     (Sreturn (Some (Eunop Oneg (Econst_int (Int.repr 3) tint)
                                      tint)))
                     Sskip)
                   (Ssequence
-                    (Sifthenelse (Ebinop Ogt (Etempvar _add_len tuint)
+                    (Sifthenelse (Ebinop Ogt (Etempvar _add_len tulong)
                                    (Econst_int (Int.repr 256) tint) tint)
                       (Sreturn (Some (Eunop Oneg
                                        (Econst_int (Int.repr 5) tint) tint)))
@@ -1665,13 +1643,13 @@ Definition f_mbedtls_hmac_drbg_random_with_add := {|
                                                                     (Tcons
                                                                     (tptr tuchar)
                                                                     (Tcons
-                                                                    tuint
+                                                                    tulong
                                                                     Tnil)))
                                                                     tint
                                                                     cc_default))
                                     ((Etempvar _ctx (tptr (Tstruct _mbedtls_hmac_drbg_context noattr))) ::
                                      (Etempvar _additional (tptr tuchar)) ::
-                                     (Etempvar _add_len tuint) :: nil))
+                                     (Etempvar _add_len tulong) :: nil))
                                   (Sset _t'3
                                     (Ecast (Etempvar _t'2 tint) tint)))
                                 (Sset _ret (Etempvar _t'3 tint)))
@@ -1680,7 +1658,8 @@ Definition f_mbedtls_hmac_drbg_random_with_add := {|
                                              tint)
                                 (Sreturn (Some (Etempvar _ret tint)))
                                 Sskip))
-                            (Sset _add_len (Econst_int (Int.repr 0) tint)))
+                            (Sset _add_len
+                              (Ecast (Econst_int (Int.repr 0) tint) tulong)))
                           Sskip))
                       (Ssequence
                         (Ssequence
@@ -1691,7 +1670,7 @@ Definition f_mbedtls_hmac_drbg_random_with_add := {|
                                            (tptr tvoid)) tint)
                             (Sset _t'5
                               (Ecast
-                                (Ebinop One (Etempvar _add_len tuint)
+                                (Ebinop One (Etempvar _add_len tulong)
                                   (Econst_int (Int.repr 0) tint) tint) tbool))
                             (Sset _t'5 (Econst_int (Int.repr 0) tint)))
                           (Sifthenelse (Etempvar _t'5 tint)
@@ -1702,28 +1681,29 @@ Definition f_mbedtls_hmac_drbg_random_with_add := {|
                                                                   (Tcons
                                                                     (tptr tuchar)
                                                                     (Tcons
-                                                                    tuint
+                                                                    tulong
                                                                     Tnil)))
                                                                 tvoid
                                                                 cc_default))
                               ((Etempvar _ctx (tptr (Tstruct _mbedtls_hmac_drbg_context noattr))) ::
                                (Etempvar _additional (tptr tuchar)) ::
-                               (Etempvar _add_len tuint) :: nil))
+                               (Etempvar _add_len tulong) :: nil))
                             Sskip))
                         (Ssequence
                           (Swhile
-                            (Ebinop One (Etempvar _left tuint)
+                            (Ebinop One (Etempvar _left tulong)
                               (Econst_int (Int.repr 0) tint) tint)
                             (Ssequence
                               (Ssequence
                                 (Sifthenelse (Ebinop Ogt
-                                               (Etempvar _left tuint)
-                                               (Etempvar _md_len tuint) tint)
+                                               (Etempvar _left tulong)
+                                               (Etempvar _md_len tulong)
+                                               tint)
                                   (Sset _t'6
-                                    (Ecast (Etempvar _md_len tuint) tuint))
+                                    (Ecast (Etempvar _md_len tulong) tulong))
                                   (Sset _t'6
-                                    (Ecast (Etempvar _left tuint) tuint)))
-                                (Sset _use_len (Etempvar _t'6 tuint)))
+                                    (Ecast (Etempvar _left tulong) tulong)))
+                                (Sset _use_len (Etempvar _t'6 tulong)))
                               (Ssequence
                                 (Scall None
                                   (Evar _mbedtls_md_hmac_reset (Tfunction
@@ -1748,7 +1728,7 @@ Definition f_mbedtls_hmac_drbg_random_with_add := {|
                                                                     (Tcons
                                                                     (tptr tuchar)
                                                                     (Tcons
-                                                                    tuint
+                                                                    tulong
                                                                     Tnil)))
                                                                     tint
                                                                     cc_default))
@@ -1765,7 +1745,7 @@ Definition f_mbedtls_hmac_drbg_random_with_add := {|
                                          (Etempvar _ctx (tptr (Tstruct _mbedtls_hmac_drbg_context noattr)))
                                          (Tstruct _mbedtls_hmac_drbg_context noattr))
                                        _V (tarray tuchar 32)) ::
-                                     (Etempvar _md_len tuint) :: nil))
+                                     (Etempvar _md_len tulong) :: nil))
                                   (Ssequence
                                     (Scall None
                                       (Evar _mbedtls_md_hmac_finish (Tfunction
@@ -1794,7 +1774,7 @@ Definition f_mbedtls_hmac_drbg_random_with_add := {|
                                         (Evar _memcpy (Tfunction
                                                         (Tcons (tptr tvoid)
                                                           (Tcons (tptr tvoid)
-                                                            (Tcons tuint
+                                                            (Tcons tulong
                                                               Tnil)))
                                                         (tptr tvoid)
                                                         cc_default))
@@ -1804,16 +1784,18 @@ Definition f_mbedtls_hmac_drbg_random_with_add := {|
                                              (Etempvar _ctx (tptr (Tstruct _mbedtls_hmac_drbg_context noattr)))
                                              (Tstruct _mbedtls_hmac_drbg_context noattr))
                                            _V (tarray tuchar 32)) ::
-                                         (Etempvar _use_len tuint) :: nil))
+                                         (Etempvar _use_len tulong) :: nil))
                                       (Ssequence
                                         (Sset _out
                                           (Ebinop Oadd
                                             (Etempvar _out (tptr tuchar))
-                                            (Etempvar _use_len tuint)
+                                            (Etempvar _use_len tulong)
                                             (tptr tuchar)))
                                         (Sset _left
-                                          (Ebinop Osub (Etempvar _left tuint)
-                                            (Etempvar _use_len tuint) tuint)))))))))
+                                          (Ebinop Osub
+                                            (Etempvar _left tulong)
+                                            (Etempvar _use_len tulong)
+                                            tulong)))))))))
                           (Ssequence
                             (Scall None
                               (Evar _mbedtls_hmac_drbg_update (Tfunction
@@ -1822,13 +1804,13 @@ Definition f_mbedtls_hmac_drbg_random_with_add := {|
                                                                   (Tcons
                                                                     (tptr tuchar)
                                                                     (Tcons
-                                                                    tuint
+                                                                    tulong
                                                                     Tnil)))
                                                                 tvoid
                                                                 cc_default))
                               ((Etempvar _ctx (tptr (Tstruct _mbedtls_hmac_drbg_context noattr))) ::
                                (Etempvar _additional (tptr tuchar)) ::
-                               (Etempvar _add_len tuint) :: nil))
+                               (Etempvar _add_len tulong) :: nil))
                             (Ssequence
                               (Sset _reseed_counter
                                 (Efield
@@ -1853,7 +1835,7 @@ Definition f_mbedtls_hmac_drbg_random := {|
   fn_return := tint;
   fn_callconv := cc_default;
   fn_params := ((_p_rng, (tptr tvoid)) :: (_output, (tptr tuchar)) ::
-                (_out_len, tuint) :: nil);
+                (_out_len, tulong) :: nil);
   fn_vars := nil;
   fn_temps := ((_ret, tint) ::
                (_ctx, (tptr (Tstruct _mbedtls_hmac_drbg_context noattr))) ::
@@ -1869,12 +1851,13 @@ Definition f_mbedtls_hmac_drbg_random := {|
         (Evar _mbedtls_hmac_drbg_random_with_add (Tfunction
                                                    (Tcons (tptr tvoid)
                                                      (Tcons (tptr tuchar)
-                                                       (Tcons tuint
+                                                       (Tcons tulong
                                                          (Tcons (tptr tuchar)
-                                                           (Tcons tuint Tnil)))))
-                                                   tint cc_default))
+                                                           (Tcons tulong
+                                                             Tnil))))) tint
+                                                   cc_default))
         ((Etempvar _ctx (tptr (Tstruct _mbedtls_hmac_drbg_context noattr))) ::
-         (Etempvar _output (tptr tuchar)) :: (Etempvar _out_len tuint) ::
+         (Etempvar _output (tptr tuchar)) :: (Etempvar _out_len tulong) ::
          (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) ::
          (Econst_int (Int.repr 0) tint) :: nil))
       (Sset _ret (Etempvar _t'1 tint)))
@@ -1910,10 +1893,10 @@ Definition f_mbedtls_hmac_drbg_free := {|
          (tptr (Tstruct _mbedtls_md_context_t noattr))) :: nil))
     (Scall None
       (Evar _mbedtls_zeroize (Tfunction
-                               (Tcons (tptr tvoid) (Tcons tuint Tnil)) tvoid
+                               (Tcons (tptr tvoid) (Tcons tulong Tnil)) tvoid
                                cc_default))
       ((Etempvar _ctx (tptr (Tstruct _mbedtls_hmac_drbg_context noattr))) ::
-       (Esizeof (Tstruct _mbedtls_hmac_drbg_context noattr) tuint) :: nil))))
+       (Esizeof (Tstruct _mbedtls_hmac_drbg_context noattr) tulong) :: nil))))
 |}.
 
 Definition f_main := {|
@@ -1937,7 +1920,7 @@ Definition composites : list composite_definition :=
  Composite _mbedtls_hmac_drbg_context Struct
    (Member_plain _md_ctx (Tstruct _mbedtls_md_context_t noattr) ::
     Member_plain _V (tarray tuchar 32) ::
-    Member_plain _reseed_counter tint :: Member_plain _entropy_len tuint ::
+    Member_plain _reseed_counter tint :: Member_plain _entropy_len tulong ::
     Member_plain _prediction_resistance tint ::
     Member_plain _reseed_interval tint :: nil)
    noattr ::
@@ -1957,20 +1940,20 @@ Definition composites : list composite_definition :=
 Definition global_definitions : list (ident * globdef fundef type) :=
 ((___compcert_va_int32,
    Gfun(External (EF_runtime "__compcert_va_int32"
-                   (mksignature (AST.Tint :: nil) AST.Tint cc_default))
+                   (mksignature (AST.Tlong :: nil) AST.Tint cc_default))
      (Tcons (tptr tvoid) Tnil) tuint cc_default)) ::
  (___compcert_va_int64,
    Gfun(External (EF_runtime "__compcert_va_int64"
-                   (mksignature (AST.Tint :: nil) AST.Tlong cc_default))
+                   (mksignature (AST.Tlong :: nil) AST.Tlong cc_default))
      (Tcons (tptr tvoid) Tnil) tulong cc_default)) ::
  (___compcert_va_float64,
    Gfun(External (EF_runtime "__compcert_va_float64"
-                   (mksignature (AST.Tint :: nil) AST.Tfloat cc_default))
+                   (mksignature (AST.Tlong :: nil) AST.Tfloat cc_default))
      (Tcons (tptr tvoid) Tnil) tdouble cc_default)) ::
  (___compcert_va_composite,
    Gfun(External (EF_runtime "__compcert_va_composite"
-                   (mksignature (AST.Tint :: AST.Tint :: nil) AST.Tint
-                     cc_default)) (Tcons (tptr tvoid) (Tcons tuint Tnil))
+                   (mksignature (AST.Tlong :: AST.Tlong :: nil) AST.Tlong
+                     cc_default)) (Tcons (tptr tvoid) (Tcons tulong Tnil))
      (tptr tvoid) cc_default)) ::
  (___compcert_i64_dtos,
    Gfun(External (EF_runtime "__compcert_i64_dtos"
@@ -2063,8 +2046,8 @@ Definition global_definitions : list (ident * globdef fundef type) :=
      (Tcons tuint Tnil) tint cc_default)) ::
  (___builtin_clzl,
    Gfun(External (EF_builtin "__builtin_clzl"
-                   (mksignature (AST.Tint :: nil) AST.Tint cc_default))
-     (Tcons tuint Tnil) tint cc_default)) ::
+                   (mksignature (AST.Tlong :: nil) AST.Tint cc_default))
+     (Tcons tulong Tnil) tint cc_default)) ::
  (___builtin_clzll,
    Gfun(External (EF_builtin "__builtin_clzll"
                    (mksignature (AST.Tlong :: nil) AST.Tint cc_default))
@@ -2075,8 +2058,8 @@ Definition global_definitions : list (ident * globdef fundef type) :=
      (Tcons tuint Tnil) tint cc_default)) ::
  (___builtin_ctzl,
    Gfun(External (EF_builtin "__builtin_ctzl"
-                   (mksignature (AST.Tint :: nil) AST.Tint cc_default))
-     (Tcons tuint Tnil) tint cc_default)) ::
+                   (mksignature (AST.Tlong :: nil) AST.Tint cc_default))
+     (Tcons tulong Tnil) tint cc_default)) ::
  (___builtin_ctzll,
    Gfun(External (EF_builtin "__builtin_ctzll"
                    (mksignature (AST.Tlong :: nil) AST.Tint cc_default))
@@ -2100,10 +2083,10 @@ Definition global_definitions : list (ident * globdef fundef type) :=
  (___builtin_memcpy_aligned,
    Gfun(External (EF_builtin "__builtin_memcpy_aligned"
                    (mksignature
-                     (AST.Tint :: AST.Tint :: AST.Tint :: AST.Tint :: nil)
-                     AST.Tvoid cc_default))
+                     (AST.Tlong :: AST.Tlong :: AST.Tlong :: AST.Tlong ::
+                      nil) AST.Tvoid cc_default))
      (Tcons (tptr tvoid)
-       (Tcons (tptr tvoid) (Tcons tuint (Tcons tuint Tnil)))) tvoid
+       (Tcons (tptr tvoid) (Tcons tulong (Tcons tulong Tnil)))) tvoid
      cc_default)) ::
  (___builtin_sel,
    Gfun(External (EF_builtin "__builtin_sel"
@@ -2113,13 +2096,13 @@ Definition global_definitions : list (ident * globdef fundef type) :=
      {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|})) ::
  (___builtin_annot,
    Gfun(External (EF_builtin "__builtin_annot"
-                   (mksignature (AST.Tint :: nil) AST.Tvoid
+                   (mksignature (AST.Tlong :: nil) AST.Tvoid
                      {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|}))
      (Tcons (tptr tschar) Tnil) tvoid
      {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|})) ::
  (___builtin_annot_intval,
    Gfun(External (EF_builtin "__builtin_annot_intval"
-                   (mksignature (AST.Tint :: AST.Tint :: nil) AST.Tint
+                   (mksignature (AST.Tlong :: AST.Tint :: nil) AST.Tint
                      cc_default)) (Tcons (tptr tschar) (Tcons tint Tnil))
      tint cc_default)) ::
  (___builtin_membar,
@@ -2128,21 +2111,21 @@ Definition global_definitions : list (ident * globdef fundef type) :=
      cc_default)) ::
  (___builtin_va_start,
    Gfun(External (EF_builtin "__builtin_va_start"
-                   (mksignature (AST.Tint :: nil) AST.Tvoid cc_default))
+                   (mksignature (AST.Tlong :: nil) AST.Tvoid cc_default))
      (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
  (___builtin_va_arg,
    Gfun(External (EF_builtin "__builtin_va_arg"
-                   (mksignature (AST.Tint :: AST.Tint :: nil) AST.Tvoid
+                   (mksignature (AST.Tlong :: AST.Tint :: nil) AST.Tvoid
                      cc_default)) (Tcons (tptr tvoid) (Tcons tuint Tnil))
      tvoid cc_default)) ::
  (___builtin_va_copy,
    Gfun(External (EF_builtin "__builtin_va_copy"
-                   (mksignature (AST.Tint :: AST.Tint :: nil) AST.Tvoid
+                   (mksignature (AST.Tlong :: AST.Tlong :: nil) AST.Tvoid
                      cc_default))
      (Tcons (tptr tvoid) (Tcons (tptr tvoid) Tnil)) tvoid cc_default)) ::
  (___builtin_va_end,
    Gfun(External (EF_builtin "__builtin_va_end"
-                   (mksignature (AST.Tint :: nil) AST.Tvoid cc_default))
+                   (mksignature (AST.Tlong :: nil) AST.Tvoid cc_default))
      (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
  (___builtin_unreachable,
    Gfun(External (EF_builtin "__builtin_unreachable"
@@ -2150,19 +2133,25 @@ Definition global_definitions : list (ident * globdef fundef type) :=
      cc_default)) ::
  (___builtin_expect,
    Gfun(External (EF_builtin "__builtin_expect"
-                   (mksignature (AST.Tint :: AST.Tint :: nil) AST.Tint
-                     cc_default)) (Tcons tint (Tcons tint Tnil)) tint
+                   (mksignature (AST.Tlong :: AST.Tlong :: nil) AST.Tlong
+                     cc_default)) (Tcons tlong (Tcons tlong Tnil)) tlong
      cc_default)) ::
- (___builtin_fmax,
-   Gfun(External (EF_builtin "__builtin_fmax"
-                   (mksignature (AST.Tfloat :: AST.Tfloat :: nil) AST.Tfloat
-                     cc_default)) (Tcons tdouble (Tcons tdouble Tnil))
-     tdouble cc_default)) ::
- (___builtin_fmin,
-   Gfun(External (EF_builtin "__builtin_fmin"
-                   (mksignature (AST.Tfloat :: AST.Tfloat :: nil) AST.Tfloat
-                     cc_default)) (Tcons tdouble (Tcons tdouble Tnil))
-     tdouble cc_default)) ::
+ (___builtin_fence,
+   Gfun(External (EF_builtin "__builtin_fence"
+                   (mksignature nil AST.Tvoid cc_default)) Tnil tvoid
+     cc_default)) ::
+ (___builtin_cls,
+   Gfun(External (EF_builtin "__builtin_cls"
+                   (mksignature (AST.Tint :: nil) AST.Tint cc_default))
+     (Tcons tint Tnil) tint cc_default)) ::
+ (___builtin_clsl,
+   Gfun(External (EF_builtin "__builtin_clsl"
+                   (mksignature (AST.Tlong :: nil) AST.Tint cc_default))
+     (Tcons tlong Tnil) tint cc_default)) ::
+ (___builtin_clsll,
+   Gfun(External (EF_builtin "__builtin_clsll"
+                   (mksignature (AST.Tlong :: nil) AST.Tint cc_default))
+     (Tcons tlong Tnil) tint cc_default)) ::
  (___builtin_fmadd,
    Gfun(External (EF_builtin "__builtin_fmadd"
                    (mksignature
@@ -2191,59 +2180,50 @@ Definition global_definitions : list (ident * globdef fundef type) :=
                      AST.Tfloat cc_default))
      (Tcons tdouble (Tcons tdouble (Tcons tdouble Tnil))) tdouble
      cc_default)) ::
- (___builtin_read16_reversed,
-   Gfun(External (EF_builtin "__builtin_read16_reversed"
-                   (mksignature (AST.Tint :: nil) AST.Tint16unsigned
-                     cc_default)) (Tcons (tptr tushort) Tnil) tushort
-     cc_default)) ::
- (___builtin_read32_reversed,
-   Gfun(External (EF_builtin "__builtin_read32_reversed"
-                   (mksignature (AST.Tint :: nil) AST.Tint cc_default))
-     (Tcons (tptr tuint) Tnil) tuint cc_default)) ::
- (___builtin_write16_reversed,
-   Gfun(External (EF_builtin "__builtin_write16_reversed"
-                   (mksignature (AST.Tint :: AST.Tint :: nil) AST.Tvoid
-                     cc_default)) (Tcons (tptr tushort) (Tcons tushort Tnil))
-     tvoid cc_default)) ::
- (___builtin_write32_reversed,
-   Gfun(External (EF_builtin "__builtin_write32_reversed"
-                   (mksignature (AST.Tint :: AST.Tint :: nil) AST.Tvoid
-                     cc_default)) (Tcons (tptr tuint) (Tcons tuint Tnil))
-     tvoid cc_default)) ::
+ (___builtin_fmax,
+   Gfun(External (EF_builtin "__builtin_fmax"
+                   (mksignature (AST.Tfloat :: AST.Tfloat :: nil) AST.Tfloat
+                     cc_default)) (Tcons tdouble (Tcons tdouble Tnil))
+     tdouble cc_default)) ::
+ (___builtin_fmin,
+   Gfun(External (EF_builtin "__builtin_fmin"
+                   (mksignature (AST.Tfloat :: AST.Tfloat :: nil) AST.Tfloat
+                     cc_default)) (Tcons tdouble (Tcons tdouble Tnil))
+     tdouble cc_default)) ::
  (___builtin_debug,
    Gfun(External (EF_external "__builtin_debug"
                    (mksignature (AST.Tint :: nil) AST.Tvoid
                      {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|}))
      (Tcons tint Tnil) tvoid
      {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|})) ::
- (_free, Gfun(External EF_free (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
  (_malloc,
-   Gfun(External EF_malloc (Tcons tuint Tnil) (tptr tvoid) cc_default)) ::
+   Gfun(External EF_malloc (Tcons tulong Tnil) (tptr tvoid) cc_default)) ::
+ (_free, Gfun(External EF_free (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
  (_memcpy,
    Gfun(External (EF_external "memcpy"
-                   (mksignature (AST.Tint :: AST.Tint :: AST.Tint :: nil)
-                     AST.Tint cc_default))
-     (Tcons (tptr tvoid) (Tcons (tptr tvoid) (Tcons tuint Tnil)))
+                   (mksignature (AST.Tlong :: AST.Tlong :: AST.Tlong :: nil)
+                     AST.Tlong cc_default))
+     (Tcons (tptr tvoid) (Tcons (tptr tvoid) (Tcons tulong Tnil)))
      (tptr tvoid) cc_default)) ::
  (_memset,
    Gfun(External (EF_external "memset"
-                   (mksignature (AST.Tint :: AST.Tint :: AST.Tint :: nil)
-                     AST.Tint cc_default))
-     (Tcons (tptr tvoid) (Tcons tint (Tcons tuint Tnil))) (tptr tvoid)
+                   (mksignature (AST.Tlong :: AST.Tint :: AST.Tlong :: nil)
+                     AST.Tlong cc_default))
+     (Tcons (tptr tvoid) (Tcons tint (Tcons tulong Tnil))) (tptr tvoid)
      cc_default)) ::
  (_SHA256_Init,
    Gfun(External (EF_external "SHA256_Init"
-                   (mksignature (AST.Tint :: nil) AST.Tvoid cc_default))
+                   (mksignature (AST.Tlong :: nil) AST.Tvoid cc_default))
      (Tcons (tptr (Tstruct _SHA256state_st noattr)) Tnil) tvoid cc_default)) ::
  (_SHA256_Update,
    Gfun(External (EF_external "SHA256_Update"
-                   (mksignature (AST.Tint :: AST.Tint :: AST.Tint :: nil)
+                   (mksignature (AST.Tlong :: AST.Tlong :: AST.Tlong :: nil)
                      AST.Tvoid cc_default))
      (Tcons (tptr (Tstruct _SHA256state_st noattr))
-       (Tcons (tptr tvoid) (Tcons tuint Tnil))) tvoid cc_default)) ::
+       (Tcons (tptr tvoid) (Tcons tulong Tnil))) tvoid cc_default)) ::
  (_SHA256_Final,
    Gfun(External (EF_external "SHA256_Final"
-                   (mksignature (AST.Tint :: AST.Tint :: nil) AST.Tvoid
+                   (mksignature (AST.Tlong :: AST.Tlong :: nil) AST.Tvoid
                      cc_default))
      (Tcons (tptr tuchar)
        (Tcons (tptr (Tstruct _SHA256state_st noattr)) Tnil)) tvoid
@@ -2266,8 +2246,8 @@ Definition global_definitions : list (ident * globdef fundef type) :=
  (_mbedtls_md_free, Gfun(Internal f_mbedtls_md_free)) ::
  (_get_entropy,
    Gfun(External (EF_external "get_entropy"
-                   (mksignature (AST.Tint :: AST.Tint :: nil) AST.Tint
-                     cc_default)) (Tcons (tptr tuchar) (Tcons tuint Tnil))
+                   (mksignature (AST.Tlong :: AST.Tlong :: nil) AST.Tint
+                     cc_default)) (Tcons (tptr tuchar) (Tcons tulong Tnil))
      tint cc_default)) ::
  (_mbedtls_zeroize, Gfun(Internal f_mbedtls_zeroize)) ::
  (_mbedtls_hmac_drbg_init, Gfun(Internal f_mbedtls_hmac_drbg_init)) ::
@@ -2296,12 +2276,11 @@ Definition public_idents : list ident :=
  _test_md_get_size :: _mbedtls_md_get_size :: _mbedtls_md_info_from_type ::
  _mbedtls_md_info_from_string :: _HMAC2 :: _HMAC :: _HMAC_cleanup ::
  _HMAC_Final :: _HMAC_Update :: _HMAC_Init :: _SHA256_Final ::
- _SHA256_Update :: _SHA256_Init :: _memset :: _memcpy :: _malloc :: _free ::
- ___builtin_debug :: ___builtin_write32_reversed ::
- ___builtin_write16_reversed :: ___builtin_read32_reversed ::
- ___builtin_read16_reversed :: ___builtin_fnmsub :: ___builtin_fnmadd ::
- ___builtin_fmsub :: ___builtin_fmadd :: ___builtin_fmin ::
- ___builtin_fmax :: ___builtin_expect :: ___builtin_unreachable ::
+ _SHA256_Update :: _SHA256_Init :: _memset :: _memcpy :: _free :: _malloc ::
+ ___builtin_debug :: ___builtin_fmin :: ___builtin_fmax ::
+ ___builtin_fnmsub :: ___builtin_fnmadd :: ___builtin_fmsub ::
+ ___builtin_fmadd :: ___builtin_clsll :: ___builtin_clsl :: ___builtin_cls ::
+ ___builtin_fence :: ___builtin_expect :: ___builtin_unreachable ::
  ___builtin_va_end :: ___builtin_va_copy :: ___builtin_va_arg ::
  ___builtin_va_start :: ___builtin_membar :: ___builtin_annot_intval ::
  ___builtin_annot :: ___builtin_sel :: ___builtin_memcpy_aligned ::

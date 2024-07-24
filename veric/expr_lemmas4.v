@@ -289,8 +289,9 @@ assert (Cop.classify_cast t1 t2 = classify_cast t1 t2). {
   clear - H0 H1.
   apply eqb_type_false in H0.
   apply eqb_type_false in H1.
-  destruct t1; auto; destruct t2; auto;
-  unfold Cop.classify_cast, classify_cast; auto; rewrite ?H0,?H1; auto.
+  unfold Cop.classify_cast, classify_cast; rewrite ?H0,?H1.
+  destruct t1 as [| [| | |] | | [|] | | | | |], t2 as [| [| | |] | | [|] | | | | |];
+  auto.
 }
 rewrite <- H3 in *.
 rewrite H3.
@@ -334,7 +335,8 @@ Lemma classify_cast_eq:
   classify_cast t1 t2 = Cop.classify_cast t1 t2.
 Proof.
 intros.
-destruct t1,t2; try reflexivity;
+destruct t1 as [| [| | |] | | [|] | | | | |], t2 as [| [| | |] | | [|] | | | | |]; 
+ try reflexivity;
 unfold classify_cast;
 try rewrite (proj2 (eqb_type_false _ _) H0);
 try rewrite (proj2 (eqb_type_false _ _) H);

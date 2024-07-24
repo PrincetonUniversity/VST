@@ -35,7 +35,7 @@ Definition test_fptr_spec :=
 Definition test_fptr_spec (phi:funspec) := 
   DECLARE _test_fptr
   WITH f:val
-  PRE [tptr (Tfunction (Tcons tint Tnil) tint cc_default)] 
+  PRE [tptr (Tfunction (tint::nil) tint cc_default)] 
       PROP () PARAMS (f) GLOBALS () SEP (func_ptr' phi f)
   POST [tint] 
     PROP ()
