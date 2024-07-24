@@ -236,7 +236,7 @@ Arguments fn_ret_prop _ _ _ /.
 (* We need start a new section since the following rules use multiple different A. *)
 Section function_extra.
   Context `{!typeG Σ}.
-
+ 
   (*
   Lemma subsume_fnptr_no_ex A A1 A2 v l1 l2 (fnty1 : { A1 : TypeTree & (dtfr A1 → fn_params)%type}) (fnty2 : { A2 : TypeTree & (dtfr A2 → fn_params)%type})
     `{!Inhabited A1} T:
@@ -338,33 +338,41 @@ Global Typeclasses Opaque function_ptr_type function_ptr.
 *)
 
 Section inline_function.
-  Context `{!typeG Σ} {cs : compspecs} {A : Type}.
+  Context `{!typeG Σ} {cs : compspecs}. 
 
-  Program Definition inline_function_ptr_type (fn : function) (f : loc) : type := {|
-    ty_has_op_type ot mt := is_ptr_ot ot;
-    ty_own β l := (⌜l `has_layout_loc` void*⌝ ∗ l ↦[β] val_of_loc f ∗ fntbl_entry f fn)%I;
-    ty_own_val v := (⌜v = val_of_loc f⌝ ∗ fntbl_entry f fn)%I;
+  Context `{!externalGS OK_ty Σ}.
+
+  Program Definition inline_function_ptr_type (fn : funspec) (f : address) : type := {|
+    ty_has_op_type ot mt := (∃ t, ot = tptr t)%type;
+    ty_own β l := (<affine> ⌜field_compatible (tptr tvoid) [] l⌝ ∗
+                              l ↦_(tptr tvoid)[β] (addr_to_val f) ∗ func_ptr fn f)%I;
+    ty_own_val v := (<affine> ⌜v = addr_to_val f⌝ ∗ func_ptr fn f)%I;
   |}.
-  Next Obligation. iDestruct 1 as "[? [H ?]]". iFrame. by iApply heap_mapsto_own_state_share. Qed.
-  Next Obligation. iIntros (fn f ot mt l ->%is_ptr_ot_layout). by iDestruct 1 as (?) "?". Qed.
-  Next Obligation. iIntros (fn f ot mt v ->%is_ptr_ot_layout). by iDestruct 1 as (->) "?". Qed.
-  Next Obligation. iIntros (fn f ot mt v ?). iDestruct 1 as (?) "(?&?)". eauto with iFrame. Qed.
-  Next Obligation. iIntros (fn f ot mt l v ->%is_ptr_ot_layout ?) "?". iDestruct 1 as (->) "?". by iFrame. Qed.
-  Next Obligation.
-    iIntros (fn f v ot mt st ?). apply mem_cast_compat_loc; [done|].
-    iIntros "[-> ?]". iPureIntro. naive_solver.
-  Qed.
+  Next Obligation. iDestruct 1 as "[% [H ?]]". iFrame.
+                   iMod (heap_mapsto_own_state_share with "[$H]") as "H". iFrame "H". done. Qed.
+  Next Obligation. iIntros (fn f ot mt l ?). destruct H as (t & ->).
+                   rewrite singleton.field_compatible_tptr.
+                   by iDestruct 1 as "(% & ?)". Qed.
+  Next Obligation. iIntros (fn f ot mt v ?). destruct H as (t & ->).
+                   iIntros "(% & (? & ?))".
+                   iExists f.
+                   rewrite /heap_mapsto_own_state. erewrite singleton.mapsto_tptr. by iFrame. Qed.
+  Next Obligation. iIntros (fn f ot mt l v ? ?) "? (% & ?)". destruct H as (t & ->).
+                   rewrite /heap_mapsto_own_state.
+                   erewrite singleton.mapsto_tptr. rewrite <- H1. iFrame.
+                   iPureIntro.
+                   by rewrite <- singleton.field_compatible_tptr. Qed.
 
-  Definition inline_function_ptr (fn : function) : rtype _ :=
+  Definition inline_function_ptr (fn : funspec) : rtype _ :=
     RType (inline_function_ptr_type fn).
 
   Global Program Instance copyable_inline_function_ptr p fn : Copyable (p @ inline_function_ptr fn).
   Next Obligation.
-    iIntros (p fn E l ly ? ->%is_ptr_ot_layout). iDestruct 1 as (Hl) "(Hl&?)".
-    iMod (heap_mapsto_own_state_to_mt with "Hl") as (q) "[_ Hl]" => //. iSplitR => //.
-    iExists _, _. iFrame. iModIntro. iSplit; [done|].
-    by iIntros "_".
+    iIntros (p fp E ly l ? (? & ->)). iDestruct 1 as "(%&Hl&?)".
+    iMod (heap_mapsto_own_state_to_mt with "Hl") as (q) "[_ Hl]" => //.
+    erewrite singleton.mapsto_tptr. iFrame. iModIntro. rewrite singleton.field_compatible_tptr. do 2 iSplit => //. by iIntros "_".
   Qed.
+
 
   Lemma type_call_inline_fnptr l v vl tys fn T:
     (⌜Forall2 (λ ty '(_, p), ty.(ty_has_op_type) (UntypedOp p) MCNone) tys (f_args fn)⌝ ∗
