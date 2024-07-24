@@ -147,6 +147,7 @@ Section function.
     erewrite singleton.mapsto_tptr. iFrame. iModIntro. rewrite singleton.field_compatible_tptr. do 2 iSplit => //. by iIntros "_".
   Qed.
 
+  (*
   Lemma type_call_fnptr l v vl tys fp T:
     (([∗ list] v;ty∈vl; tys, v ◁ᵥ ty) -∗ ∃ x,
       ([∗ list] v;ty∈vl; (fp x).(fp_atys), v ◁ᵥ ty) ∗
@@ -205,19 +206,28 @@ Section function.
   Qed.
   Definition type_call_fnptr_inst := [instance type_call_fnptr].
   Global Existing Instance type_call_fnptr_inst.
-
-  Lemma subsume_fnptr_val_ex B v l1 l2 (fnty1 : A → fn_params) fnty2 `{!∀ x, ContainsEx (fnty2 x)} T:
-    (∃ x, ⌜l1 = l2 x⌝ ∗ ⌜fnty1 = fnty2 x⌝ ∗ T x)
+*)
+  
+  Lemma subsume_fnptr_val_ex B v l1 l2 (fnty1 : { A : TypeTree & (dtfr A → fn_params)%type}) fnty2 `{!∀ x, ContainsEx (fnty2 x)} T:
+    (∃ x, <affine> ⌜l1 = l2 x⌝ ∗ <affine> ⌜fnty1 = fnty2 x⌝ ∗ T x)
     ⊢ subsume (v ◁ᵥ l1 @ function_ptr fnty1) (λ x : B, v ◁ᵥ (l2 x) @ function_ptr (fnty2 x)) T.
-  Proof. iIntros "(%&->&->&?) ?". iExists _. iFrame. Qed.
+  Proof. iIntros "H".
+         iDestruct "H" as (x) "(% & (-> & ?))".
+         rewrite /subsume.
+         iIntros "H".
+         iExists x. rewrite H0. iFrame.
+  Qed.
   Definition subsume_fnptr_val_ex_inst := [instance subsume_fnptr_val_ex].
   Global Existing Instance subsume_fnptr_val_ex_inst | 5.
 
   (* TODO: split this in an ex and no_ex variant as for values *)
-  Lemma subsume_fnptr_loc B l l1 l2  (fnty1 : A → fn_params) fnty2 T:
-    (∃ x, ⌜l1 = l2 x⌝ ∗ ⌜fnty1 = fnty2 x⌝ ∗ T x)
+  Lemma subsume_fnptr_loc B l l1 l2  (fnty1 : { A : TypeTree & (dtfr A → fn_params)%type}) fnty2 T:
+    (∃ x, <affine> ⌜l1 = l2 x⌝ ∗ <affine> ⌜fnty1 = fnty2 x⌝ ∗ T x)
       ⊢ subsume (l ◁ₗ l1 @ function_ptr fnty1) (λ x : B, l ◁ₗ (l2 x)  @ function_ptr (fnty2 x))  T .
-  Proof. iIntros "(%&->&->&?) ?". iExists _. iFrame. Qed.
+  Proof.
+    iIntros "H". iDestruct "H" as (x) "(% & (% & ?))".
+    iIntros "H". iExists x. rewrite H0 H. iFrame.
+  Qed.
   Definition subsume_fnptr_loc_inst := [instance subsume_fnptr_loc].
   Global Existing Instance subsume_fnptr_loc_inst | 5.
 End function.
@@ -227,7 +237,8 @@ Arguments fn_ret_prop _ _ _ /.
 Section function_extra.
   Context `{!typeG Σ}.
 
-  Lemma subsume_fnptr_no_ex A A1 A2 v l1 l2 (fnty1 : A1 → fn_params) (fnty2 : A2 → fn_params)
+  (*
+  Lemma subsume_fnptr_no_ex A A1 A2 v l1 l2 (fnty1 : { A1 : TypeTree & (dtfr A1 → fn_params)%type}) (fnty2 : { A2 : TypeTree & (dtfr A2 → fn_params)%type})
     `{!Inhabited A1} T:
     subsume (v ◁ᵥ l1 @ function_ptr fnty1) (λ x : A, v ◁ᵥ (l2 x) @ function_ptr fnty2) T :-
       and:
@@ -308,7 +319,7 @@ Section function_extra.
   Qed.
   Definition subsume_fnptr_no_ex_inst := [instance subsume_fnptr_no_ex].
   Global Existing Instance subsume_fnptr_no_ex_inst | 10.
-
+*)
 End function_extra.
 
 Notation "'fn(∀' x ':' A ';' T1 ',' .. ',' TN ';' Pa ')' '→' '∃' y ':' B ',' rty ';' Pr" :=
@@ -321,12 +332,13 @@ Notation "'fn(∀' x ':' A ';' Pa ')' '→' '∃' y ':' B ',' rty ';' Pr" :=
   (at level 99, Pr at level 200, x pattern, y pattern,
    format "'fn(∀'  x  ':'  A ';' '/'  Pa ')'  '→' '/'  '∃'  y  ':'  B ','  rty  ';'  Pr") : stdpp_scope.
 
-
+(*
 Global Typeclasses Opaque typed_function.
 Global Typeclasses Opaque function_ptr_type function_ptr.
+*)
 
 Section inline_function.
-  Context `{!typeG Σ} {A : Type}.
+  Context `{!typeG Σ} {cs : compspecs} {A : Type}.
 
   Program Definition inline_function_ptr_type (fn : function) (f : loc) : type := {|
     ty_has_op_type ot mt := is_ptr_ot ot;
