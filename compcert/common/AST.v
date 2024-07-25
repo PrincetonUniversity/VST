@@ -89,29 +89,56 @@ Fixpoint subtype_list (tyl1 tyl2: list typ) : bool :=
   | _, _ => false
   end.
 
-(** To describe the values returned by functions, we use the more precise
-    types below. *)
+(** To describe function arguments and function return values,
+    we use the more precise types below. *)
 
-Inductive rettype : Type :=
-  | Tret (t: typ)                       (**r like type [t] *)
-  | Tint8signed                         (**r 8-bit signed integer *)
-  | Tint8unsigned                       (**r 8-bit unsigned integer *)
-  | Tint16signed                        (**r 16-bit signed integer *)
-  | Tint16unsigned                      (**r 16-bit unsigned integer *)
-  | Tvoid.                              (**r no value returned *)
+Inductive xtype : Type :=
+  | Xbool               (**r Boolean value (0 or 1) *)
+  | Xint8signed         (**r 8-bit signed integer *)
+  | Xint8unsigned       (**r 8-bit unsigned integer *)
+  | Xint16signed        (**r 16-bit signed integer *)
+  | Xint16unsigned      (**r 16-bit unsigned integer *)
+  | Xint                (**r 32-bit integers or pointers *)
+  | Xfloat              (**r 64-bit double-precision floats *)
+  | Xlong               (**r 64-bit integers *)
+  | Xsingle             (**r 32-bit single-precision floats *)
+  | Xptr                (**r pointers and pointer-sized integers *)
+  | Xany32              (**r any 32-bit value *)
+  | Xany64              (**r any 64-bit value, i.e. any value *)
+  | Xvoid.              (**r no meaningful value *)
 
-Coercion Tret: typ >-> rettype.
+Definition Xsize_t := if Archi.ptr64 then Xlong else Xint.
 
-Lemma rettype_eq: forall (t1 t2: rettype), {t1=t2} + {t1<>t2}.
-Proof. generalize typ_eq; decide equality. Defined.
-Global Opaque rettype_eq.
+Lemma xtype_eq: forall (t1 t2: xtype), {t1=t2} + {t1<>t2}.
+Proof. decide equality. Defined.
+Global Opaque xtype_eq.
 
-Definition proj_rettype (r: rettype) : typ :=
-  match r with
-  | Tret t => t
-  | Tint8signed | Tint8unsigned | Tint16signed | Tint16unsigned => Tint
-  | Tvoid => Tint
+Definition inj_type (t: typ) : xtype :=
+  match t with
+  | Tint => Xint
+  | Tfloat => Xfloat
+  | Tlong => Xlong
+  | Tsingle => Xsingle
+  | Tany32 => Xany32
+  | Tany64 => Xany64
   end.
+
+Definition proj_xtype (x: xtype) : typ :=
+  match x with
+  | Xbool | Xint8signed | Xint8unsigned | Xint16signed | Xint16unsigned | Xint => Tint
+  | Xfloat => Tfloat
+  | Xlong => Tlong
+  | Xsingle => Tsingle
+  | Xptr => Tptr
+  | Xany32 => Tany32
+  | Xany64 => Tany64
+  | Xvoid => Tint
+  end.
+
+Lemma proj_inj_type: forall t, proj_xtype (inj_type t) = t.
+Proof.
+  destruct t; auto.
+Qed.
 
 (** Additionally, function definitions and function calls are annotated
   by function signatures indicating:
@@ -138,27 +165,38 @@ Defined.
 Global Opaque calling_convention_eq.
 
 Record signature : Type := mksignature {
-  sig_args: list typ;
-  sig_res: rettype;
+  sig_args: list xtype;
+  sig_res: xtype;
   sig_cc: calling_convention
 }.
 
-Definition proj_sig_res (s: signature) : typ := proj_rettype s.(sig_res).
+Definition proj_sig_args (s: signature) : list typ := List.map proj_xtype s.(sig_args).
+Definition proj_sig_res (s: signature) : typ := proj_xtype s.(sig_res).
 
 Definition signature_eq: forall (s1 s2: signature), {s1=s2} + {s1<>s2}.
 Proof.
-  generalize rettype_eq, list_typ_eq, calling_convention_eq; decide equality.
+  generalize xtype_eq, list_eq_dec, calling_convention_eq; decide equality.
 Defined.
 Global Opaque signature_eq.
 
-Definition signature_main :=
-  {| sig_args := nil; sig_res := Tint; sig_cc := cc_default |}.
+Declare Scope asttyp_scope.
+Notation "[ ---> y ]" := (mksignature nil y cc_default) : asttyp_scope.
+Notation "[ x ---> y ]" :=
+  (mksignature (@cons xtype x nil) y cc_default) : asttyp_scope.
+Notation "[ x1 ; x2 ; .. ; xn ---> y ]" :=
+  (mksignature (@cons xtype x1 (@cons xtype x2 .. (@cons xtype xn nil) ..)) y cc_default) : asttyp_scope.
+
+Delimit Scope asttyp_scope with asttyp.
+Local Open Scope asttyp_scope.
+
+Definition signature_main :=  [ ---> Xint].
 
 (** Memory accesses (load and store instructions) are annotated by
   a ``memory chunk'' indicating the type, size and signedness of the
   chunk of memory being accessed. *)
 
 Inductive memory_chunk : Type :=
+  | Mbool           (**r 8-bit integer containing 0 or 1 *)
   | Mint8signed     (**r 8-bit signed integer *)
   | Mint8unsigned   (**r 8-bit unsigned integer *)
   | Mint16signed    (**r 16-bit signed integer *)
@@ -180,6 +218,7 @@ Definition Mptr : memory_chunk := if Archi.ptr64 then Mint64 else Mint32.
 
 Definition type_of_chunk (c: memory_chunk) : typ :=
   match c with
+  | Mbool => Tint
   | Mint8signed => Tint
   | Mint8unsigned => Tint
   | Mint16signed => Tint
@@ -195,24 +234,25 @@ Definition type_of_chunk (c: memory_chunk) : typ :=
 Lemma type_of_Mptr: type_of_chunk Mptr = Tptr.
 Proof. unfold Mptr, Tptr; destruct Archi.ptr64; auto. Qed.
 
-(** Same, as a return type. *)
+(** Same, as an extended type. *)
 
-Definition rettype_of_chunk (c: memory_chunk) : rettype :=
+Definition xtype_of_chunk (c: memory_chunk) : xtype :=
   match c with
-  | Mint8signed => Tint8signed
-  | Mint8unsigned => Tint8unsigned
-  | Mint16signed => Tint16signed
-  | Mint16unsigned => Tint16unsigned
-  | Mint32 => Tint
-  | Mint64 => Tlong
-  | Mfloat32 => Tsingle
-  | Mfloat64 => Tfloat
-  | Many32 => Tany32
-  | Many64 => Tany64
+  | Mbool => Xbool
+  | Mint8signed => Xint8signed
+  | Mint8unsigned => Xint8unsigned
+  | Mint16signed => Xint16signed
+  | Mint16unsigned => Xint16unsigned
+  | Mint32 => Xint
+  | Mint64 => Xlong
+  | Mfloat32 => Xsingle
+  | Mfloat64 => Xfloat
+  | Many32 => Xany32
+  | Many64 => Xany64
   end.
 
-Lemma proj_rettype_of_chunk:
-  forall chunk, proj_rettype (rettype_of_chunk chunk) = type_of_chunk chunk.
+Lemma proj_xtype_of_chunk:
+  forall chunk, proj_xtype (xtype_of_chunk chunk) = type_of_chunk chunk.
 Proof.
   destruct chunk; auto.
 Qed.
@@ -517,15 +557,15 @@ Definition ef_sig (ef: external_function): signature :=
   | EF_external name sg => sg
   | EF_builtin name sg => sg
   | EF_runtime name sg => sg
-  | EF_vload chunk => mksignature (Tptr :: nil) (rettype_of_chunk chunk) cc_default
-  | EF_vstore chunk => mksignature (Tptr :: type_of_chunk chunk :: nil) Tvoid cc_default
-  | EF_malloc => mksignature (Tptr :: nil) Tptr cc_default
-  | EF_free => mksignature (Tptr :: nil) Tvoid cc_default
-  | EF_memcpy sz al => mksignature (Tptr :: Tptr :: nil) Tvoid cc_default
-  | EF_annot kind text targs => mksignature targs Tvoid cc_default
-  | EF_annot_val kind text targ => mksignature (targ :: nil) targ cc_default
+  | EF_vload chunk => [Xptr ---> xtype_of_chunk chunk]
+  | EF_vstore chunk => [Xptr; xtype_of_chunk chunk ---> Xvoid]
+  | EF_malloc => [Xsize_t ---> Xptr]
+  | EF_free => [Xptr ---> Xvoid]
+  | EF_memcpy sz al => [Xptr; Xptr ---> Xvoid]
+  | EF_annot kind text targs => mksignature (List.map inj_type targs) Xvoid cc_default
+  | EF_annot_val kind text targ => [inj_type targ ---> inj_type targ]
   | EF_inline_asm text sg clob => sg
-  | EF_debug kind text targs => mksignature targs Tvoid cc_default
+  | EF_debug kind text targs => mksignature (List.map inj_type targs) Xvoid cc_default
   end.
 
 (** Whether an external function should be inlined by the compiler. *)
@@ -541,7 +581,7 @@ Definition ef_inline (ef: external_function) : bool :=
   | EF_free => false
   | EF_memcpy sz al => true
   | EF_annot kind text targs => true
-  | EF_annot_val kind Text rg => true
+  | EF_annot_val kind text rg => true
   | EF_inline_asm text sg clob => true
   | EF_debug kind text targs => true
   end.
@@ -559,7 +599,7 @@ Definition ef_reloads (ef: external_function) : bool :=
 
 Definition external_function_eq: forall (ef1 ef2: external_function), {ef1=ef2} + {ef1<>ef2}.
 Proof.
-  generalize ident_eq string_dec signature_eq chunk_eq typ_eq list_eq_dec zeq Int.eq_dec; intros.
+  generalize ident_eq string_dec signature_eq chunk_eq typ_eq xtype_eq list_eq_dec zeq Int.eq_dec; intros.
   decide equality.
 Defined.
 Global Opaque external_function_eq.

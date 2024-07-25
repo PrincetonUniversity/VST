@@ -866,7 +866,7 @@ $(patsubst %.c,%.v, $(SHA_C_FILES)) &: $(SHA_C_FILES)
 	$(CLIGHTGEN) ${CGFLAGS} $^
 $(PROGSDIR)/odd.v: $(PROGSDIR)/even.v
 mailbox/mailbox.v: mailbox/atomic_exchange.c mailbox/mailbox.c
-	$(CLIGHTGEN) ${CGFLAGS} $^
+	$(CLIGHTGEN) -DCOMPCERT -canonical-idents $^
 else
 ifeq (, $(findstring -canonical-idents, $(CGFLAGS)))
   $(warning CGFLAGS contains neither -short-idents nor -canonical-idents, using default which is probably -canonical-idents)
@@ -874,8 +874,8 @@ endif
 $(patsubst %.c,%.v, $(SHA_C_FILES)): %.v: %.c
 	$(CLIGHTGEN) ${CGFLAGS} $^
 endif
-# concurrency/threads.v: concurrency/threads.c
-# 	$(CLIGHTGEN) -normalize $^
+concurrency/threads.v: concurrency/threads.c
+	$(CLIGHTGEN) -normalize $^
 atomics/SC_atomics.v: atomics/SC_atomics.c
 	$(CLIGHTGEN) -normalize $^
 progs/incr.v: progs/incr.c

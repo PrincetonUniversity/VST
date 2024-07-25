@@ -19,6 +19,7 @@
 Require Import String Coqlib.
 Require Import AST Integers Floats Values.
 Require Import Builtins0.
+Local Open Scope asttyp_scope.
 
 Inductive platform_builtin : Type :=
   | BI_fmin
@@ -33,20 +34,19 @@ Definition platform_builtin_table : list (string * platform_builtin) :=
 
 Definition platform_builtin_sig (b: platform_builtin) : signature :=
   match b with
-  | BI_fmin | BI_fmax =>
-      mksignature (Tfloat :: Tfloat :: nil) Tfloat cc_default
+  | BI_fmin | BI_fmax => [Xfloat; Xfloat ---> Xfloat]
   end.
 
 Definition platform_builtin_sem (b: platform_builtin) : builtin_sem (sig_res (platform_builtin_sig b)) :=
   match b with
   | BI_fmin =>
-      mkbuiltin_n2t Tfloat Tfloat Tfloat
+      mkbuiltin_n2t Tfloat Tfloat Xfloat
         (fun f1 f2 => match Float.compare f1 f2 with
                       | Some Lt => f1
                       | Some Eq | Some Gt | None => f2
                       end)
   | BI_fmax =>
-      mkbuiltin_n2t Tfloat Tfloat Tfloat
+      mkbuiltin_n2t Tfloat Tfloat Xfloat
         (fun f1 f2 => match Float.compare f1 f2 with
                       | Some Gt => f1
                       | Some Eq | Some Lt | None => f2

@@ -493,7 +493,7 @@ Ltac semax_func_cons L :=
            | try solve [apply L]; apply_semax_body L
            | ]
         | eapply semax_func_cons_ext;
-             [reflexivity | reflexivity | reflexivity
+             [reflexivity | reflexivity
              | left; reflexivity
              | semax_func_cons_ext_tc | LookupID | LookupB | apply L |
              ]
@@ -538,7 +538,7 @@ Qed.
 Ltac semax_func_cons_ext :=
  repeat (eapply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | LookupID | LookupB | ]);
   eapply semax_func_cons_ext;
-    [ reflexivity | reflexivity |  reflexivity 
+    [ reflexivity | reflexivity
     | left; reflexivity
     | semax_func_cons_ext_tc;
       try solve [apply typecheck_return_value; auto]

@@ -351,12 +351,13 @@ Lemma prog_correct:
   semax_prog prog main_itree Vprog Gprog.
 Proof.
 prove_semax_prog.
+Import extcall_lemmas.
 semax_func_cons_ext.
 { simpl; Intro i.
-  apply typecheck_return_value with (t := Tint16signed); auto. }
+  apply typecheck_return_value with (t := Xint16signed); auto. }
 semax_func_cons_ext.
 { simpl; Intro i'.
-  apply typecheck_return_value with (t := Tint16signed); auto. }
+  apply typecheck_return_value with (t := Xint16signed); auto. }
 semax_func_cons body_getchar_blocking.
 semax_func_cons body_putchar_blocking.
 semax_func_cons body_print_intr.
