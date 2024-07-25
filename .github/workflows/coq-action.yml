@@ -64,7 +64,9 @@ jobs:
             endGroup
           script: |
             startGroup "Build & Install"
-              make ${{matrix.make_target}} BITSIZE=${{matrix.bit_size}} COMPCERT=${{ matrix.coq_version=='dev' && 'bundled' || 'platform' }} IGNORECOQVERSION=true IGNORECOMPCERTVERSION=true
+# put the first version back once CompCert 3.15 is in the Coq Platform
+#              make ${{matrix.make_target}} BITSIZE=${{matrix.bit_size}} COMPCERT=${{ matrix.coq_version=='dev' && 'bundled' || 'platform' }} IGNORECOQVERSION=true IGNORECOMPCERTVERSION=true
+              make ${{matrix.make_target}} BITSIZE=${{matrix.bit_size}} COMPCERT=${{ 'bundled' }} IGNORECOQVERSION=true IGNORECOMPCERTVERSION=true
             endGroup
           after_script: |
             startGroup 'Copy Opam coq/user-contrib and coq-variant'
