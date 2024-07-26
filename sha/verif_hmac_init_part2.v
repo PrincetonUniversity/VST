@@ -226,11 +226,17 @@ Lemma ipad_loop Espec pb pofs cb cofs ckb ckoff kb kofs l key gv (FR:mpred): for
   (Sfor (Sset _i (Econst_int (Int.repr 0) tint))
      (Ebinop Olt (Etempvar _i tint) (Econst_int (Int.repr 64) tint) tint)
      (Ssequence
-        (Sset _aux
+         (Ssequence
+                    (Sset _t'2
+                      (Ederef
+                        (Ebinop Oadd (Evar _ctx_key (tarray tuchar 64))
+                          (Etempvar _i tint) (tptr tuchar)) tuchar))
+                    (Sset _aux (Ecast (Etempvar _t'2 tuchar) tuchar)))
+(*        (Sset _aux
            (Ecast
               (Ederef
                  (Ebinop Oadd (Evar _ctx_key (Tarray tuchar 64 noattr))
-                    (Etempvar _i tint) (tptr tuchar)) tuchar) tuchar))
+                    (Etempvar _i tint) (tptr tuchar)) tuchar) tuchar))*)
         (Ssequence
            (Sset _aux
               (Ecast
@@ -289,10 +295,10 @@ Proof. intros. abbreviate_semax.
           }
 
         Time freeze FR1 := - (@data_at CompSpecs _ _ _ (Vptr ckb _)).
-        Time forward; (*6.7 versus 9*)
+        Time forward; [ | forward]; (*6.7 versus 9*)
         change Inhabitant_val with Vundef in X;
          rewrite X.
-        { entailer!. apply isbyte_zeroExt8'. }
+        { entailer!!. rep_lia.  }
         Time forward. (*1.9 versus 3.4*)
         unfold Int.xor.
         rewrite Int.unsigned_repr. 2: rewrite int_max_unsigned_eq; lia.
@@ -360,11 +366,15 @@ Lemma opadloop Espec pb pofs cb cofs ckb ckoff kb kofs l wsh key gv (FR:mpred): 
   (Sfor (Sset _i (Econst_int (Int.repr 0) tint))
      (Ebinop Olt (Etempvar _i tint) (Econst_int (Int.repr 64) tint) tint)
      (Ssequence
-        (Sset _aux
+       (Ssequence
+        (Sset _t'1 (Ederef (Ebinop Oadd (Evar _ctx_key (tarray tuchar 64))
+                                (Etempvar _i tint) (tptr tuchar)) tuchar))
+           (Sset _aux (Ecast (Etempvar _t'1 tuchar) tuchar)))
+(*        (Sset _aux
            (Ecast
               (Ederef
                  (Ebinop Oadd (Evar _ctx_key (tarray tuchar 64))
-                    (Etempvar _i tint) (tptr tuchar)) tuchar) tuchar))
+                    (Etempvar _i tint) (tptr tuchar)) tuchar) tuchar))*)
         (Sassign
            (Ederef
               (Ebinop Oadd (Evar _pad (tarray tuchar 64)) (Etempvar _i tint)
@@ -421,11 +431,10 @@ freeze FR1 := - (data_at _ _ _ (Vptr ckb _)) (data_block _ _ _).
             repeat rewrite map_nth. rewrite Qb. trivial.
           }
         freeze FR2 := - (data_at _ _ _ (Vptr ckb _)).
-        Time forward;
+        Time forward; [ | forward];
         change Inhabitant_val with Vundef in X;
         rewrite X.  (*5.3 versus 7.8, and we've eliminated some floyds preceding the call*)
-        { Time entailer!. (*1.8 versus 2.9*)
-          apply isbyte_zeroExt8'.
+        { Time entailer!!. rep_lia. (*1.8 versus 2.9*)
         }
         thaw FR2.
        (*doing freeze [0; 2] FR3. here lets the entailer! 2 lines below take 11 secs instead of 5,

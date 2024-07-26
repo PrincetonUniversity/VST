@@ -89,62 +89,56 @@ Lemma Init_part1_j_lt_len Espec (kb ckb cb: block) (kofs ckoff cofs: ptrofs)
    K_vector gv; data_at_ wsh t_struct_hmac_ctx_st (Vptr cb cofs);
    data_at_ Tsh (tarray tuchar 64) (Vptr ckb ckoff)))
 
-     (Ssequence
-                 (Scall None
-                    (Evar _SHA256_Init
-                       (Tfunction
-                          (Tcons (tptr (Tstruct _SHA256state_st noattr)) Tnil)
-                          tvoid cc_default))
-                    [Eaddrof
+           (Ssequence
+              (Scall None
+                (Evar _SHA256_Init (Tfunction
+                                     ((tptr (Tstruct _SHA256state_st noattr)) ::
+                                      nil) tvoid cc_default))
+                ((Eaddrof
+                   (Efield
+                     (Ederef
+                       (Etempvar _ctx (tptr (Tstruct _hmac_ctx_st noattr)))
+                       (Tstruct _hmac_ctx_st noattr)) _md_ctx
+                     (Tstruct _SHA256state_st noattr))
+                   (tptr (Tstruct _SHA256state_st noattr))) :: nil))
+              (Ssequence
+                (Scall None
+                  (Evar _SHA256_Update (Tfunction
+                                         ((tptr (Tstruct _SHA256state_st noattr)) ::
+                                          (tptr tvoid) :: tuint :: nil) tvoid
+                                         cc_default))
+                  ((Eaddrof
+                     (Efield
+                       (Ederef
+                         (Etempvar _ctx (tptr (Tstruct _hmac_ctx_st noattr)))
+                         (Tstruct _hmac_ctx_st noattr)) _md_ctx
+                       (Tstruct _SHA256state_st noattr))
+                     (tptr (Tstruct _SHA256state_st noattr))) ::
+                   (Etempvar _key (tptr tuchar)) :: (Etempvar _len tint) ::
+                   nil))
+                (Ssequence
+                  (Scall None
+                    (Evar _SHA256_Final (Tfunction
+                                          ((tptr tuchar) ::
+                                           (tptr (Tstruct _SHA256state_st noattr)) ::
+                                           nil) tvoid cc_default))
+                    ((Evar _ctx_key (tarray tuchar 64)) ::
+                     (Eaddrof
                        (Efield
-                          (Ederef
-                             (Etempvar _ctx
-                                (tptr (Tstruct _hmac_ctx_st noattr)))
-                             (Tstruct _hmac_ctx_st noattr)) _md_ctx
-                          (Tstruct _SHA256state_st noattr))
-                       (tptr (Tstruct _SHA256state_st noattr))])
-                 (Ssequence
-                    (Scall None
-                       (Evar _SHA256_Update
-                          (Tfunction
-                             (Tcons (tptr (Tstruct _SHA256state_st noattr))
-                                (Tcons (tptr tvoid) (Tcons tuint Tnil)))
-                             tvoid cc_default))
-                       [Eaddrof
-                          (Efield
-                             (Ederef
-                                (Etempvar _ctx
-                                   (tptr (Tstruct _hmac_ctx_st noattr)))
-                                (Tstruct _hmac_ctx_st noattr)) _md_ctx
-                             (Tstruct _SHA256state_st noattr))
-                          (tptr (Tstruct _SHA256state_st noattr));
-                       Etempvar _key (tptr tuchar); Etempvar _len tint])
-                    (Ssequence
-                       (Scall None
-                          (Evar _SHA256_Final
-                             (Tfunction
-                                (Tcons (tptr tuchar)
-                                   (Tcons
-                                      (tptr (Tstruct _SHA256state_st noattr))
-                                      Tnil)) tvoid cc_default))
-                          [Evar _ctx_key (tarray tuchar 64);
-                          Eaddrof
-                            (Efield
-                               (Ederef
-                                  (Etempvar _ctx
-                                     (tptr (Tstruct _hmac_ctx_st noattr)))
-                                  (Tstruct _hmac_ctx_st noattr)) _md_ctx
-                               (Tstruct _SHA256state_st noattr))
-                            (tptr (Tstruct _SHA256state_st noattr))])
+                         (Ederef
+                           (Etempvar _ctx (tptr (Tstruct _hmac_ctx_st noattr)))
+                           (Tstruct _hmac_ctx_st noattr)) _md_ctx
+                         (Tstruct _SHA256state_st noattr))
+                       (tptr (Tstruct _SHA256state_st noattr))) :: nil))
                   (Scall None
                     (Evar _memset (Tfunction
-                                    (Tcons (tptr tvoid)
-                                      (Tcons tint (Tcons tuint Tnil)))
+                                    ((tptr tvoid) :: tint :: tuint :: nil)
                                     (tptr tvoid) cc_default))
                     ((Ebinop Oadd (Evar _ctx_key (tarray tuchar 64))
                        (Econst_int (Int.repr 32) tint) (tptr tuchar)) ::
                      (Econst_int (Int.repr 0) tint) ::
                      (Econst_int (Int.repr 32) tint) :: nil)))))
+
   (normal_ret_assert  (PROP  ()
                   LOCAL  (temp _reset (Vint (Int.repr 1));
                   lvar _ctx_key (tarray tuchar 64) (Vptr ckb ckoff);
@@ -297,16 +291,16 @@ Lemma Init_part1_len_le_j Espec (kb ckb cb: block) (kofs ckoff cofs:ptrofs)
             (Ssequence
               (Scall None
                 (Evar _memcpy (Tfunction
-                                (Tcons (tptr tvoid)
-                                  (Tcons (tptr tvoid) (Tcons tuint Tnil)))
+                                (cons (tptr tvoid)
+                                  (cons (tptr tvoid) (cons tuint nil)))
                                 (tptr tvoid) cc_default))
                 ((Evar _ctx_key (tarray tuchar 64)) ::
                  (Etempvar _key (tptr tuchar)) :: (Etempvar _len tint) ::
                  nil))
               (Scall None
                 (Evar _memset (Tfunction
-                                (Tcons (tptr tvoid)
-                                  (Tcons tint (Tcons tuint Tnil)))
+                                (cons (tptr tvoid)
+                                  (cons tint (cons tuint nil)))
                                 (tptr tvoid) cc_default))
                 ((Ebinop Oadd (Evar _ctx_key (tarray tuchar 64))
                    (Etempvar _len tint) (tptr tuchar)) ::

@@ -40,7 +40,7 @@
 #define mbedtls_printf printf
 #endif /* MBEDTLS_PLATFORM_C */
 
-#include <stdlib.h>
+#include <stddef.h>
 #include "../sha/hmac.c"
 
 struct mbedtls_md_info_t {
