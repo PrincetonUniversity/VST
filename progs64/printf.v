@@ -498,6 +498,7 @@ Definition global_definitions : list (ident * globdef fundef type) :=
                    (mksignature (AST.Xlong :: AST.Xlong :: nil) AST.Xlong
                      cc_default)) (tulong :: tulong :: nil) tulong
      cc_default)) ::
+ (___stringlit_3, Gvar v___stringlit_3) ::
  (___stringlit_2, Gvar v___stringlit_2) ::
  (___stringlit_1, Gvar v___stringlit_1) ::
  (___builtin_bswap64,
