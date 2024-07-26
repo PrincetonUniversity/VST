@@ -6,7 +6,7 @@ Local Open Scope string_scope.
 Local Open Scope clight_scope.
 
 Module Info.
-  Definition version := "3.10".
+  Definition version := "3.13".
   Definition build_number := "".
   Definition build_tag := "".
   Definition build_branch := "".
@@ -19,6 +19,7 @@ Module Info.
   Definition normalized := true.
 End Info.
 
+Definition ___builtin_ais_annot : ident := $"__builtin_ais_annot".
 Definition ___builtin_annot : ident := $"__builtin_annot".
 Definition ___builtin_annot_intval : ident := $"__builtin_annot_intval".
 Definition ___builtin_bswap : ident := $"__builtin_bswap".
@@ -74,14 +75,8 @@ Definition ___compcert_va_composite : ident := $"__compcert_va_composite".
 Definition ___compcert_va_float64 : ident := $"__compcert_va_float64".
 Definition ___compcert_va_int32 : ident := $"__compcert_va_int32".
 Definition ___compcert_va_int64 : ident := $"__compcert_va_int64".
-Definition ___dummy : ident := $"__dummy".
-Definition ___pthread_t : ident := $"__pthread_t".
-Definition _acquire : ident := $"acquire".
 Definition _arg : ident := $"arg".
-Definition _args : ident := $"args".
-Definition _atom_CAS : ident := $"atom_CAS".
 Definition _atom_int : ident := $"atom_int".
-Definition _atom_store : ident := $"atom_store".
 Definition _avail : ident := $"avail".
 Definition _available : ident := $"available".
 Definition _b : ident := $"b".
@@ -93,13 +88,8 @@ Definition _comm : ident := $"comm".
 Definition _d : ident := $"d".
 Definition _data : ident := $"data".
 Definition _exit : ident := $"exit".
-Definition _exit_thread : ident := $"exit_thread".
-Definition _expected : ident := $"expected".
-Definition _f : ident := $"f".
 Definition _finish_read : ident := $"finish_read".
 Definition _finish_write : ident := $"finish_write".
-Definition _free_atomic : ident := $"free_atomic".
-Definition _freelock : ident := $"freelock".
 Definition _i : ident := $"i".
 Definition _i__1 : ident := $"i__1".
 Definition _initialize_channels : ident := $"initialize_channels".
@@ -113,7 +103,6 @@ Definition _last_taken : ident := $"last_taken".
 Definition _lock : ident := $"lock".
 Definition _lr : ident := $"lr".
 Definition _main : ident := $"main".
-Definition _make_atomic : ident := $"make_atomic".
 Definition _makelock : ident := $"makelock".
 Definition _malloc : ident := $"malloc".
 Definition _memset : ident := $"memset".
@@ -130,15 +119,10 @@ Definition _spawn : ident := $"spawn".
 Definition _start_read : ident := $"start_read".
 Definition _start_write : ident := $"start_write".
 Definition _surely_malloc : ident := $"surely_malloc".
-Definition _t : ident := $"t".
-Definition _tgt : ident := $"tgt".
-Definition _thrd_create : ident := $"thrd_create".
-Definition _thrd_exit : ident := $"thrd_exit".
 Definition _v : ident := $"v".
 Definition _w : ident := $"w".
 Definition _writer : ident := $"writer".
 Definition _writing : ident := $"writing".
-Definition _x : ident := $"x".
 Definition _t'1 : ident := 128%positive.
 Definition _t'2 : ident := 129%positive.
 Definition _t'3 : ident := 130%positive.
@@ -789,8 +773,7 @@ Definition f_main := {|
              (Evar _writer (Tfunction (Tcons (tptr tvoid) Tnil) tint
                              cc_default))
              (tptr (Tfunction (Tcons (tptr tvoid) Tnil) tint cc_default)))
-           (tptr tvoid)) ::
-         (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) :: nil))
+           (tptr tvoid)) :: (Econst_int (Int.repr 0) tint) :: nil))
       (Ssequence
         (Ssequence
           (Sset _i (Econst_int (Int.repr 0) tint))
@@ -922,6 +905,12 @@ Definition global_definitions : list (ident * globdef fundef type) :=
                    (mksignature (AST.Tlong :: AST.Tlong :: nil) AST.Tlong
                      cc_default)) (Tcons tulong (Tcons tulong Tnil)) tulong
      cc_default)) ::
+ (___builtin_ais_annot,
+   Gfun(External (EF_builtin "__builtin_ais_annot"
+                   (mksignature (AST.Tlong :: nil) AST.Tvoid
+                     {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|}))
+     (Tcons (tptr tschar) Tnil) tvoid
+     {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|})) ::
  (___builtin_bswap64,
    Gfun(External (EF_builtin "__builtin_bswap64"
                    (mksignature (AST.Tlong :: nil) AST.Tlong cc_default))
@@ -1097,12 +1086,12 @@ Definition global_definitions : list (ident * globdef fundef type) :=
                      {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|}))
      (Tcons tint Tnil) tvoid
      {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|})) ::
+ (_malloc,
+   Gfun(External EF_malloc (Tcons tulong Tnil) (tptr tvoid) cc_default)) ::
  (_exit,
    Gfun(External (EF_external "exit"
                    (mksignature (AST.Tint :: nil) AST.Tvoid cc_default))
      (Tcons tint Tnil) tvoid cc_default)) ::
- (_malloc,
-   Gfun(External EF_malloc (Tcons tulong Tnil) (tptr tvoid) cc_default)) ::
  (_makelock,
    Gfun(External (EF_external "makelock"
                    (mksignature nil AST.Tlong cc_default)) Tnil
@@ -1145,7 +1134,7 @@ Definition public_idents : list ident :=
  _finish_read :: _start_read :: _initialize_reader :: _initialize_channels ::
  _last_read :: _reading :: _comm :: _lock :: _bufs :: _memset ::
  _surely_malloc :: _simulate_atomic_exchange :: _spawn :: _release ::
- _makelock :: _malloc :: _exit :: ___builtin_debug ::
+ _makelock :: _exit :: _malloc :: ___builtin_debug ::
  ___builtin_write32_reversed :: ___builtin_write16_reversed ::
  ___builtin_read32_reversed :: ___builtin_read16_reversed ::
  ___builtin_fnmsub :: ___builtin_fnmadd :: ___builtin_fmsub ::
@@ -1158,13 +1147,14 @@ Definition public_idents : list ident :=
  ___builtin_ctzll :: ___builtin_ctzl :: ___builtin_ctz :: ___builtin_clzll ::
  ___builtin_clzl :: ___builtin_clz :: ___builtin_bswap16 ::
  ___builtin_bswap32 :: ___builtin_bswap :: ___builtin_bswap64 ::
- ___compcert_i64_umulh :: ___compcert_i64_smulh :: ___compcert_i64_sar ::
- ___compcert_i64_shr :: ___compcert_i64_shl :: ___compcert_i64_umod ::
- ___compcert_i64_smod :: ___compcert_i64_udiv :: ___compcert_i64_sdiv ::
- ___compcert_i64_utof :: ___compcert_i64_stof :: ___compcert_i64_utod ::
- ___compcert_i64_stod :: ___compcert_i64_dtou :: ___compcert_i64_dtos ::
- ___compcert_va_composite :: ___compcert_va_float64 ::
- ___compcert_va_int64 :: ___compcert_va_int32 :: nil).
+ ___builtin_ais_annot :: ___compcert_i64_umulh :: ___compcert_i64_smulh ::
+ ___compcert_i64_sar :: ___compcert_i64_shr :: ___compcert_i64_shl ::
+ ___compcert_i64_umod :: ___compcert_i64_smod :: ___compcert_i64_udiv ::
+ ___compcert_i64_sdiv :: ___compcert_i64_utof :: ___compcert_i64_stof ::
+ ___compcert_i64_utod :: ___compcert_i64_stod :: ___compcert_i64_dtou ::
+ ___compcert_i64_dtos :: ___compcert_va_composite ::
+ ___compcert_va_float64 :: ___compcert_va_int64 :: ___compcert_va_int32 ::
+ nil).
 
 Definition prog : Clight.program := 
   mkprogram composites global_definitions public_idents _main Logic.I.
