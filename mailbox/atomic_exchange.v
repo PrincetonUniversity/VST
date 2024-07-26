@@ -6,13 +6,13 @@ Local Open Scope string_scope.
 Local Open Scope clight_scope.
 
 Module Info.
-  Definition version := "3.10".
+  Definition version := "3.15".
   Definition build_number := "".
   Definition build_tag := "".
   Definition build_branch := "".
-  Definition arch := "x86".
-  Definition model := "64".
-  Definition abi := "standard".
+  Definition arch := "aarch64".
+  Definition model := "default".
+  Definition abi := "apple".
   Definition bitsize := 64.
   Definition big_endian := false.
   Definition source_file := "mailbox/atomic_exchange.c".
@@ -25,6 +25,9 @@ Definition ___builtin_bswap : ident := $"__builtin_bswap".
 Definition ___builtin_bswap16 : ident := $"__builtin_bswap16".
 Definition ___builtin_bswap32 : ident := $"__builtin_bswap32".
 Definition ___builtin_bswap64 : ident := $"__builtin_bswap64".
+Definition ___builtin_cls : ident := $"__builtin_cls".
+Definition ___builtin_clsl : ident := $"__builtin_clsl".
+Definition ___builtin_clsll : ident := $"__builtin_clsll".
 Definition ___builtin_clz : ident := $"__builtin_clz".
 Definition ___builtin_clzl : ident := $"__builtin_clzl".
 Definition ___builtin_clzll : ident := $"__builtin_clzll".
@@ -44,8 +47,6 @@ Definition ___builtin_fnmsub : ident := $"__builtin_fnmsub".
 Definition ___builtin_fsqrt : ident := $"__builtin_fsqrt".
 Definition ___builtin_membar : ident := $"__builtin_membar".
 Definition ___builtin_memcpy_aligned : ident := $"__builtin_memcpy_aligned".
-Definition ___builtin_read16_reversed : ident := $"__builtin_read16_reversed".
-Definition ___builtin_read32_reversed : ident := $"__builtin_read32_reversed".
 Definition ___builtin_sel : ident := $"__builtin_sel".
 Definition ___builtin_sqrt : ident := $"__builtin_sqrt".
 Definition ___builtin_unreachable : ident := $"__builtin_unreachable".
@@ -53,8 +54,6 @@ Definition ___builtin_va_arg : ident := $"__builtin_va_arg".
 Definition ___builtin_va_copy : ident := $"__builtin_va_copy".
 Definition ___builtin_va_end : ident := $"__builtin_va_end".
 Definition ___builtin_va_start : ident := $"__builtin_va_start".
-Definition ___builtin_write16_reversed : ident := $"__builtin_write16_reversed".
-Definition ___builtin_write32_reversed : ident := $"__builtin_write32_reversed".
 Definition ___compcert_i64_dtos : ident := $"__compcert_i64_dtos".
 Definition ___compcert_i64_dtou : ident := $"__compcert_i64_dtou".
 Definition ___compcert_i64_sar : ident := $"__compcert_i64_sar".
@@ -74,33 +73,13 @@ Definition ___compcert_va_composite : ident := $"__compcert_va_composite".
 Definition ___compcert_va_float64 : ident := $"__compcert_va_float64".
 Definition ___compcert_va_int32 : ident := $"__compcert_va_int32".
 Definition ___compcert_va_int64 : ident := $"__compcert_va_int64".
-Definition ___dummy : ident := $"__dummy".
-Definition ___pthread_t : ident := $"__pthread_t".
 Definition _acquire : ident := $"acquire".
-Definition _args : ident := $"args".
-Definition _atom_CAS : ident := $"atom_CAS".
 Definition _atom_int : ident := $"atom_int".
-Definition _atom_store : ident := $"atom_store".
-Definition _b : ident := $"b".
-Definition _exit : ident := $"exit".
-Definition _exit_thread : ident := $"exit_thread".
-Definition _expected : ident := $"expected".
-Definition _f : ident := $"f".
-Definition _free_atomic : ident := $"free_atomic".
-Definition _freelock : ident := $"freelock".
 Definition _l : ident := $"l".
-Definition _lock : ident := $"lock".
 Definition _main : ident := $"main".
-Definition _make_atomic : ident := $"make_atomic".
-Definition _makelock : ident := $"makelock".
-Definition _r : ident := $"r".
 Definition _release : ident := $"release".
 Definition _simulate_atomic_exchange : ident := $"simulate_atomic_exchange".
-Definition _spawn : ident := $"spawn".
-Definition _t : ident := $"t".
 Definition _tgt : ident := $"tgt".
-Definition _thrd_create : ident := $"thrd_create".
-Definition _thrd_exit : ident := $"thrd_exit".
 Definition _v : ident := $"v".
 Definition _x : ident := $"x".
 
@@ -114,7 +93,7 @@ Definition f_simulate_atomic_exchange := {|
   fn_body :=
 (Ssequence
   (Scall None
-    (Evar _acquire (Tfunction (cons (tptr (Tstruct _atom_int noattr)) nil)
+    (Evar _acquire (Tfunction ((tptr (Tstruct _atom_int noattr)) :: nil)
                      tvoid cc_default))
     ((Etempvar _l (tptr (Tstruct _atom_int noattr))) :: nil))
   (Ssequence
@@ -124,8 +103,8 @@ Definition f_simulate_atomic_exchange := {|
       (Ssequence
         (Scall None
           (Evar _release (Tfunction
-                           (cons (tptr (Tstruct _atom_int noattr)) nil)
-                           tvoid cc_default))
+                           ((tptr (Tstruct _atom_int noattr)) :: nil) tvoid
+                           cc_default))
           ((Etempvar _l (tptr (Tstruct _atom_int noattr))) :: nil))
         (Sreturn (Some (Etempvar _x tint)))))))
 |}.
@@ -325,6 +304,18 @@ Definition global_definitions : list (ident * globdef fundef type) :=
    Gfun(External (EF_builtin "__builtin_expect"
                    (mksignature (AST.Xlong :: AST.Xlong :: nil) AST.Xlong
                      cc_default)) (tlong :: tlong :: nil) tlong cc_default)) ::
+ (___builtin_cls,
+   Gfun(External (EF_builtin "__builtin_cls"
+                   (mksignature (AST.Xint :: nil) AST.Xint cc_default))
+     (tint :: nil) tint cc_default)) ::
+ (___builtin_clsl,
+   Gfun(External (EF_builtin "__builtin_clsl"
+                   (mksignature (AST.Xlong :: nil) AST.Xint cc_default))
+     (tlong :: nil) tint cc_default)) ::
+ (___builtin_clsll,
+   Gfun(External (EF_builtin "__builtin_clsll"
+                   (mksignature (AST.Xlong :: nil) AST.Xint cc_default))
+     (tlong :: nil) tint cc_default)) ::
  (___builtin_fmadd,
    Gfun(External (EF_builtin "__builtin_fmadd"
                    (mksignature
@@ -367,21 +358,20 @@ Definition global_definitions : list (ident * globdef fundef type) :=
      {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|})) ::
  (_acquire,
    Gfun(External (EF_external "acquire"
-                   (mksignature (Xlong :: nil) Xvoid cc_default))
-     (cons (tptr (Tstruct _atom_int noattr)) nil) tvoid cc_default)) ::
+                   (mksignature (AST.Xptr :: nil) AST.Xvoid cc_default))
+     ((tptr (Tstruct _atom_int noattr)) :: nil) tvoid cc_default)) ::
  (_release,
    Gfun(External (EF_external "release"
-                   (mksignature (Xlong :: nil) Xvoid cc_default))
-     (cons (tptr (Tstruct _atom_int noattr)) nil) tvoid cc_default)) ::
+                   (mksignature (AST.Xptr :: nil) AST.Xvoid cc_default))
+     ((tptr (Tstruct _atom_int noattr)) :: nil) tvoid cc_default)) ::
  (_simulate_atomic_exchange, Gfun(Internal f_simulate_atomic_exchange)) ::
  nil).
 
 Definition public_idents : list ident :=
 (_simulate_atomic_exchange :: _release :: _acquire :: ___builtin_debug ::
- ___builtin_write32_reversed :: ___builtin_write16_reversed ::
- ___builtin_read32_reversed :: ___builtin_read16_reversed ::
- ___builtin_fnmsub :: ___builtin_fnmadd :: ___builtin_fmsub ::
- ___builtin_fmadd :: ___builtin_fmin :: ___builtin_fmax ::
+ ___builtin_fmin :: ___builtin_fmax :: ___builtin_fnmsub ::
+ ___builtin_fnmadd :: ___builtin_fmsub :: ___builtin_fmadd ::
+ ___builtin_clsll :: ___builtin_clsl :: ___builtin_cls ::
  ___builtin_expect :: ___builtin_unreachable :: ___builtin_va_end ::
  ___builtin_va_copy :: ___builtin_va_arg :: ___builtin_va_start ::
  ___builtin_membar :: ___builtin_annot_intval :: ___builtin_annot ::

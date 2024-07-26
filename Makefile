@@ -866,7 +866,7 @@ $(patsubst %.c,%.v, $(SHA_C_FILES)) &: $(SHA_C_FILES)
 	$(CLIGHTGEN) ${CGFLAGS} $^
 $(PROGSDIR)/odd.v: $(PROGSDIR)/even.v
 mailbox/mailbox.v: mailbox/atomic_exchange.c mailbox/mailbox.c
-	$(CLIGHTGEN) -DCOMPCERT -canonical-idents $^
+	$(CLIGHTGEN) -DCOMPCERT -normalize -canonical-idents $^
 else
 ifeq (, $(findstring -canonical-idents, $(CGFLAGS)))
   $(warning CGFLAGS contains neither -short-idents nor -canonical-idents, using default which is probably -canonical-idents)

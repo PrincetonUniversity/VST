@@ -31,7 +31,7 @@ typedef int buf_id;
 
 typedef struct buffer {int data;} buffer;
 buffer *bufs[B];
-lock_t *lock[N];
+lock_t lock[N];
 buf_id *comm[N];
 
 //registrar function
@@ -67,7 +67,7 @@ void initialize_reader(int r){
 buf_id start_read(int r){
   buf_id b;
   buf_id *c = comm[r];
-  lock_t *l = lock[r];
+  lock_t l = lock[r];
   buf_id *rr = reading[r];
   buf_id *lr = last_read[r];
   b = simulate_atomic_exchange(c, l, Empty);
@@ -124,7 +124,7 @@ void finish_write(){
   buf_id w = writing;
   for(int r = 0; r < N; r++){
     buf_id *c = comm[r];
-    lock_t *l = lock[r];
+    lock_t l = lock[r];
     buf_id b = simulate_atomic_exchange(c, l, w);
     if(b == Empty)
       last_taken[r] = last;
