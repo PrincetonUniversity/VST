@@ -353,10 +353,10 @@ Proof.
 prove_semax_prog.
 semax_func_cons_ext.
 { simpl; Intro i.
-  apply typecheck_return_value with (t := Tint16signed); auto. }
+  apply typecheck_return_value with (t := Xint16signed); auto. }
 semax_func_cons_ext.
 { simpl; Intro i'.
-  apply typecheck_return_value with (t := Tint16signed); auto. }
+  apply typecheck_return_value with (t := Xint16signed); auto. }
 semax_func_cons body_getchar_blocking.
 semax_func_cons body_putchar_blocking.
 semax_func_cons body_print_intr.
@@ -367,6 +367,11 @@ Qed.
 Require Import VST.veric.SequentialClight.
 Require Import VST.progs.io_dry.
 
+Definition countfuns (prog: Clight.program) : nat :=
+ length
+  (filter (fun d => match snd d with Gfun _ => true | _ => false end)
+   (AST.prog_defs prog)).
+
 Lemma init_mem_exists : { m | Genv.init_mem prog = Some m }.
 Proof.
   unfold Genv.init_mem; simpl.
@@ -375,17 +380,13 @@ Ltac alloc_block m n := match n with
   | S ?n' => let m' := fresh "m" in let Hm' := fresh "Hm" in
     destruct (dry_mem_lemmas.drop_alloc m) as [m' Hm']; alloc_block m' n'
   end.
-try first [
-  (* This version works in Coq 8.15, CompCert 3.10 *)
-  alloc_block Mem.empty 62%nat;
-  eexists; repeat match goal with H : ?a = _ |- match ?a with Some m' => _ | None => None end = _ => rewrite H end;
-  reflexivity
- | 
-  (* This version worked in Coq 8.13, CompCert 3.9 *)
-  alloc_block Mem.empty 60%nat;
-  eexists; repeat match goal with H : ?a = _ |- match ?a with Some m' => _ | None => None end = _ => rewrite H end;
-  reflexivity
-].
+ let n := constr:(countfuns prog) in let n := eval compute in n in
+ alloc_block Mem.empty n.
+ eexists;
+ repeat  match goal with
+          | H : ?a = _ |- match ?a with Some m' => _ | None => None end = _ =>
+            rewrite H; clear H end;
+  reflexivity.
 Qed.
 
 Definition init_mem := proj1_sig init_mem_exists.

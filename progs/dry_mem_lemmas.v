@@ -867,7 +867,8 @@ Definition main_pre_juicy {Z} prog (ora : Z) gv (x' : rmap * {ts : list Type & u
        necR (fst x') phi1*) /\ joins (ghost_of (m_phi m)) [Some (ext_ref z, NoneP)]).
 
 Definition xtype_of_option_typ (t: option typ) : xtype :=
-match t with Some t => AST.Tret t | None => AST.Tvoid end.
+match t with Some t => inj_type t | None => Xvoid end.
+
 
 Definition main_post_juicy {Z} prog (ora : Z) gv (x' : rmap * {ts : list Type & unit})
   (ge_s: extspec.injective_PTree block) (tret : option typ) ret (z : Z) (m : juicy_mem) :=
