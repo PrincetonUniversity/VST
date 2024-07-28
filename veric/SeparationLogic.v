@@ -1093,10 +1093,10 @@ match cop with
 | _ => Ceq (*doesn't matter*)
 end.
 
-Fixpoint arglist (n: positive) (tl: typelist) : list (ident*type) :=
+Fixpoint arglist (n: positive) (tl: list type) : list (ident*type) :=
  match tl with
-  | Tnil => nil
-  | Tcons t tl' => (n,t):: arglist (n+1)%positive tl'
+  | nil => nil
+  | cons t tl' => (n,t):: arglist (n+1)%positive tl'
  end.
 
 Definition closed_wrt_modvars c (F: environ->mpred) : Prop :=
@@ -1156,8 +1156,8 @@ Definition semax_body_params_ok f : bool :=
 Definition var_sizes_ok {cs: compspecs} (vars: list (ident*type)) :=
    Forall (fun var : ident * type => sizeof (snd var) <= Ptrofs.max_unsigned)%Z vars.
 
-Definition make_ext_rval  (gx: genviron) (tret: rettype) (v: option val):=
-  match tret with AST.Tvoid => mkEnviron gx (Map.empty _) (Map.empty _) 
+Definition make_ext_rval  (gx: genviron) (tret: xtype) (v: option val):=
+  match tret with Xvoid => mkEnviron gx (Map.empty _) (Map.empty _) 
  | _ => 
   match v with
   | Some v' =>  mkEnviron gx (Map.empty _)
@@ -1172,9 +1172,9 @@ Definition tc_option_val (sig: type) (ret: option val) :=
     | _, _ => False
   end.
 
-Fixpoint zip_with_tl {A : Type} (l1 : list A) (l2 : typelist) : list (A*type) :=
+Fixpoint zip_with_tl {A : Type} (l1 : list A) (l2 : list type) : list (A*type) :=
   match l1, l2 with
-    | a::l1', Tcons b l2' => (a,b)::zip_with_tl l1' l2'
+    | a::l1', b :: l2' => (a,b)::zip_with_tl l1' l2'
     | _, _ => nil
   end.
 
@@ -1188,11 +1188,12 @@ Definition add_funspecs (Espec : OracleKind)
    veric.semax_ext.add_funspecs Espec ext_link fs.
 
 Definition funsig2signature (s : funsig) cc : signature :=
-  mksignature (map typ_of_type (map snd (fst s))) (rettype_of_type (snd s)) cc.
+  mksignature (map argtype_of_type (map snd (fst s))) (rettype_of_type (snd s)) cc.
 
 
 Definition decode_encode_val_ok (chunk1 chunk2: memory_chunk) : Prop :=
   match chunk1, chunk2 with
+  | Mbool, Mbool => True
   | Mint8signed, Mint8signed => True
   | Mint8unsigned, Mint8signed => True
   | Mint8signed, Mint8unsigned => True
@@ -1466,10 +1467,9 @@ Axiom semax_func_cons:
        ((id, mk_funspec fsig cc A P Q NEP NEQ)  :: G').
 
 Axiom semax_func_cons_ext: forall {Espec:OracleKind} (V: varspecs) (G: funspecs) 
-     {C: compspecs} ge fs id ef argsig retsig A P Q NEP NEQ argsig'
+     {C: compspecs} ge fs id ef argsig retsig A P Q NEP NEQ
       (G': funspecs) cc b,
-  argsig' = typelist2list argsig ->
-  ef_sig ef = mksignature (typlist_of_typelist argsig) (rettype_of_type retsig) cc ->
+  ef_sig ef = mksignature (map argtype_of_type argsig) (rettype_of_type retsig) cc ->
   id_in_list id (map (@fst _ _) fs) = false ->
   (ef_inline ef = false \/ withtype_empty A) ->
   (forall gx ts x (ret : option val),
@@ -1480,7 +1480,7 @@ Axiom semax_func_cons_ext: forall {Espec:OracleKind} (V: varspecs) (G: funspecs)
   @semax_external Espec ef A P Q ->
   semax_func V G ge fs G' ->
   semax_func V G ge ((id, External ef argsig retsig cc)::fs)
-       ((id, mk_funspec (argsig', retsig) cc A P Q NEP NEQ)  :: G').
+       ((id, mk_funspec (argsig, retsig) cc A P Q NEP NEQ)  :: G').
 
 Axiom semax_func_mono: forall  {Espec CS CS'} (CSUB: cspecs_sub CS CS') ge ge'
   (Gfs: forall i,  sub_option (Genv.find_symbol ge i) (Genv.find_symbol ge' i))
@@ -1584,7 +1584,7 @@ Axiom semax_call: forall {CS Espec},
   (ts: list Type) x
    F ret argsig retsig cc a bl,
            Cop.classify_fun (typeof a) =
-           Cop.fun_case_f (typelist_of_type_list argsig) retsig cc ->
+           Cop.fun_case_f argsig retsig cc ->
             (retsig = Tvoid -> ret = None) ->
           tc_fn_return Delta ret retsig ->
   @semax CS Espec Delta
@@ -1757,7 +1757,7 @@ Axiom semax_external_funspec_sub: forall
   (Hsub: funspec_sub (mk_funspec (argtypes, rtype) cc A1 P1 Q1 P1ne Q1ne) 
                    (mk_funspec (argtypes, rtype) cc A P Q Pne Qne))
   (HSIG: ef_sig ef = 
-         mksignature (map typ_of_type argtypes)
+         mksignature (map argtype_of_type argtypes)
                      (rettype_of_type rtype) cc)
   (SE: @semax_external Espec ef A1 P1 Q1),
   @semax_external Espec ef A P Q.

@@ -596,9 +596,6 @@ Lemma sem_cast_pointer2:
 Proof.
 intros.
 subst.
-hnf in H1.
-simpl in H1. rewrite andb_false_r in H1.
-unfold sem_cast, classify_cast; simpl.
 reflexivity.
 Qed.
 
@@ -1808,10 +1805,10 @@ Proof.
   auto.
 Qed.
 
-Fixpoint iota_formals (i: ident) (tl: typelist) :=
+Fixpoint iota_formals (i: ident) (tl: list type) :=
  match tl with
- | Tcons t tl' => (i,t) :: iota_formals (i+1)%positive tl'
- | Tnil => nil
+ | t::tl' => (i,t) :: iota_formals (i+1)%positive tl'
+ | nil => nil
  end.
 
 Ltac make_sequential :=

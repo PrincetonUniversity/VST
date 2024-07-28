@@ -212,14 +212,14 @@ Scheme eval_exprT_ind2 := Minimality for eval_exprT Sort Prop
   with eval_lvalueT_ind2 := Minimality for eval_lvalueT Sort Prop.
 Combined Scheme eval_exprT_lvalue_ind from eval_exprT_ind2, eval_lvalueT_ind2.
 
-Inductive eval_exprTlist: list expr -> typelist -> list val -> list mem_event-> Prop :=
+Inductive eval_exprTlist: list expr -> list type -> list val -> list mem_event-> Prop :=
   | eval_ETnil:
-      eval_exprTlist nil Tnil nil nil
+      eval_exprTlist nil nil nil nil
   | eval_ETcons:   forall a bl ty tyl v1 v2 vl T1 T2,
       eval_exprT a v1 T1 ->
       sem_cast v1 (typeof a) ty m = Some v2 ->
       eval_exprTlist bl tyl vl T2 ->
-      eval_exprTlist (a :: bl) (Tcons ty tyl) (v2 :: vl) (T1++T2).
+      eval_exprTlist (a :: bl) (ty:: tyl) (v2 :: vl) (T1++T2).
 
 Lemma eval_exprT_ax1: forall a v T, eval_exprT a v T -> eval_expr g e le m a v
 with eval_lvalueT_ax1: forall a b z bf T, eval_lvalueT a b z bf T -> eval_lvalue g e le m a b z bf.
@@ -465,7 +465,7 @@ Inductive cl_evstep (ge: Clight.genv): forall (q: CC_core) (m: mem) (T:list mem_
 
   | evstep_builtin : forall (f : function)
                      (optid : option ident) (ef : external_function)
-                     (tyargs : typelist) (al : list expr) 
+                     (tyargs : list type) (al : list expr) 
                      (k : cont) (e : env) (le : temp_env) 
                      (m : mem) (vargs : list val) 
                      (t : Events.trace) (vres : val) 

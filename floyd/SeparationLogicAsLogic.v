@@ -184,7 +184,7 @@ Inductive semax {CS: compspecs} {Espec: OracleKind} (Delta: tycontext): (environ
          (EX argsig: _, EX retsig: _, EX cc: _,
           EX A: _, EX P: _, EX Q: _, EX NEP: _, EX NEQ: _, EX ts: _, EX x: _,
          !! (Cop.classify_fun (typeof a) =
-             Cop.fun_case_f (typelist_of_type_list argsig) retsig cc /\
+             Cop.fun_case_f argsig retsig cc /\
              (retsig = Tvoid -> ret = None) /\
              tc_fn_return Delta ret retsig) &&
           (((tc_expr Delta a) && (tc_exprlist Delta argsig bl)))  &&
@@ -305,10 +305,8 @@ Inductive semax_func: forall {Espec: OracleKind} (V: varspecs) (G: funspecs) {C:
 | semax_func_cons_ext:
   forall {Espec: OracleKind},
    forall (V: varspecs) (G: funspecs) {C: compspecs} ge fs id ef argsig retsig A P Q NEP NEQ
-          argsig'
           (G': funspecs) cc b,
-  argsig' = typelist2list argsig ->
-  ef_sig ef = mksignature (typlist_of_typelist argsig) (rettype_of_type retsig) cc ->
+  ef_sig ef = mksignature (map argtype_of_type argsig) (rettype_of_type retsig) cc ->
   id_in_list id (map (@fst _ _) fs) = false ->
   (ef_inline ef = false \/ withtype_empty A) ->
   (forall gx ts x (ret : option val),
@@ -319,7 +317,7 @@ Inductive semax_func: forall {Espec: OracleKind} (V: varspecs) (G: funspecs) {C:
   @semax_external Espec ef A P Q ->
   semax_func V G ge fs G' ->
   semax_func V G ge ((id, External ef argsig retsig cc)::fs)
-       ((id, mk_funspec (argsig', retsig) cc A P Q NEP NEQ)  :: G')
+       ((id, mk_funspec (argsig, retsig) cc A P Q NEP NEQ)  :: G')
 | semax_func_mono: forall  {Espec CS CS'} (CSUB: cspecs_sub CS CS') ge ge'
   (Gfs: forall i,  sub_option (Genv.find_symbol ge i) (Genv.find_symbol ge' i))
   (Gffp: forall b, sub_option (Genv.find_funct_ptr ge b) (Genv.find_funct_ptr ge' b))
@@ -617,7 +615,7 @@ Lemma semax_call_inv: forall {CS: compspecs} {Espec: OracleKind} Delta ret a bl 
          (EX argsig: _, EX retsig: _, EX cc: _,
           EX A: _, EX P: _, EX Q: _, EX NEP: _, EX NEQ: _, EX ts: _, EX x: _,
          !! (Cop.classify_fun (typeof a) =
-             Cop.fun_case_f (typelist_of_type_list argsig) retsig cc /\
+             Cop.fun_case_f argsig retsig cc /\
              (retsig = Tvoid -> ret = None) /\
              tc_fn_return Delta ret retsig) &&
           ((*|>*)((tc_expr Delta a) && (tc_exprlist Delta argsig bl)))  &&
@@ -1822,7 +1820,7 @@ Definition CALLpre CS Delta ret a bl R :=
              | rmaps.PiType I0 f => @functors.MixVariantFunctorGenerator.fpi I0 (fun i : I0 => dtfr (f i))
              | rmaps.ListType T0 => functors.MixVariantFunctorGenerator.flist (dtfr T0)
              end) A) mpred,
-     !! (Cop.classify_fun (typeof a) = Cop.fun_case_f (typelist_of_type_list argsig) retsig cc /\
+     !! (Cop.classify_fun (typeof a) = Cop.fun_case_f argsig retsig cc /\
          (retsig = Tvoid -> ret = @None ident) /\ tc_fn_return Delta ret retsig) &&
      (@tc_expr CS Delta a && @tc_exprlist CS Delta argsig bl) &&
      (` (func_ptr (mk_funspec (argsig, retsig) cc A P Q NEP NEQ))) (@eval_expr CS a) &&
@@ -2504,14 +2502,14 @@ Proof.
   repeat apply andp_derives; auto; apply prop_derives; intros; destruct Q'; simpl in *; rewrite sepcon_emp; apply andp_left2; auto.
 Qed.
 
-Lemma typecheck_environ_globals_only t rho: typecheck_environ (rettype_tycontext t) (globals_only rho).
+Lemma typecheck_environ_globals_only t rho: typecheck_environ (xtype_tycontext t) (globals_only rho).
 Proof.
   split3; red; simpl; intros. rewrite PTree.gempty in H. congruence.
   split; intros. rewrite PTree.gempty in H. congruence. destruct H; inv H.
   rewrite PTree.gempty in H. congruence.
 Qed. 
 
-Lemma typecheck_environ_env_setglobals_only t rho x v: typecheck_environ (rettype_tycontext t) (env_set (globals_only rho) x v).
+Lemma typecheck_environ_env_setglobals_only t rho x v: typecheck_environ (xtype_tycontext t) (env_set (globals_only rho) x v).
 Proof.
   split3; red; simpl; intros. rewrite PTree.gempty in H. congruence.
   split; intros. rewrite PTree.gempty in H. congruence. destruct H; inv H.
@@ -2543,7 +2541,7 @@ eapply @semax_adapt
        (@andp mpred Nveric
           (@prop mpred Nveric
              (seplog.tc_environ
-                (rettype_tycontext (@snd (list (prod ident type)) type (fn_funsig f))) tau))
+                (xtype_tycontext (@snd (list (prod ident type)) type (fn_funsig f))) tau))
           (@sepcon mpred Nveric Sveric FR (Q ts1 x1 tau))) ((Q' ts x tau))) &&
       (stackframe_of f * (fun tau => FR * P ts1 x1 (ge_of tau, vals)) &&
                          (fun tau =>  !! (map (Map.get (te_of tau)) (map fst (fn_params f)) = map Some vals)))).

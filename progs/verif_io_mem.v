@@ -533,7 +533,7 @@ semax_func_cons body_free.
 semax_func_cons body_malloc. apply semax_func_cons_malloc_aux.
 semax_func_cons_ext.
 { simpl; Intro msg.
-  apply typecheck_return_value with (t := Tint16signed); auto. }
+  apply typecheck_return_value with (t := Xint16signed); auto. }
 semax_func_cons_ext.
 semax_func_cons body_print_intr.
 semax_func_cons body_print_int.

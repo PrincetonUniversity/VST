@@ -413,7 +413,7 @@ end.
 Fixpoint make_printf_specs' {FS : FileStruct} (defs: list (ident * globdef (fundef function) type)) : list (ident*funspec) :=
  match defs with
  | (i, Gfun (External (EF_external "fprintf" _) 
-                       (Tcons (Tpointer (Tstruct id _) _) _) _ _)) :: defs' => 
+                       (cons (Tpointer (Tstruct id _) _) _) _ _)) :: defs' => 
          (i, fprintf_placeholder_spec id) :: make_printf_specs' defs'
  | (i, Gfun (External (EF_external "printf" _) _ _ _)) :: defs' => 
          (i, printf_placeholder_spec) :: make_printf_specs' defs'

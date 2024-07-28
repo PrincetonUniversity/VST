@@ -54,11 +54,11 @@ Proof.
     + destruct X as (m0 & _ & w).
       destruct X1; [|exact False].
       destruct v; [exact False | | exact False | exact False | exact False | exact False].
-      exact (ot <> AST.Tvoid /\ putchar_post m0 X3 i w X2).
+      exact (ot <> Xvoid /\ putchar_post m0 X3 i w X2).
     + destruct X as (m0 & _ & w).
       destruct X1; [|exact False].
       destruct v; [exact False | | exact False | exact False | exact False | exact False].
-      exact (ot <> AST.Tvoid /\ getchar_post m0 X3 i w X2).
+      exact (ot <> Xvoid /\ getchar_post m0 X3 i w X2).
   - intros; exact True.
 Defined.
 

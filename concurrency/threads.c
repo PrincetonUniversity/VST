@@ -2,7 +2,12 @@
    using the Verified Software Toolchain */
 
 #include <stdlib.h>
+// MacOS is never going to implement C11 threads
+#ifdef __STDC_NO_THREADS__
+#include <pthread.h>
+#else
 #include <threads.h>
+#endif
 #include "../atomics/SC_atomics.h"
 #include "threads.h"
 
@@ -32,14 +37,24 @@ void release(lock_t lock) {
 
 
 void spawn(int (*f)(void*), void* args) {
+#ifdef __STDC_NO_THREADS__
+  pthread_t t;
+  if (pthread_create(&t, NULL, f, args) != 0) {
+    exit(1);
+  }
+#else
   thrd_t t;
   if(thrd_create(&t, f, args) != thrd_success)
     exit(1);
-  return;
+#endif
 }
 
 void exit_thread(int r) {
+#ifdef __STDC_NO_THREADS__
+  pthread_exit(NULL);
+#else
   thrd_exit(r);
+#endif
 }
 
 /*void makecond(cond_t *cond) {

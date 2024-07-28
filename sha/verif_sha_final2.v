@@ -89,11 +89,10 @@ auto.
 Qed.
 
 Definition Body_final_if1 :=
-  (Ssequence
+            (Ssequence
               (Scall None
                 (Evar _memset (Tfunction
-                                (Tcons (tptr tvoid)
-                                  (Tcons tint (Tcons tuint Tnil)))
+                                ((tptr tvoid) :: tint :: tuint :: nil)
                                 (tptr tvoid) cc_default))
                 ((Ebinop Oadd (Etempvar _p (tptr tuchar)) (Etempvar _n tuint)
                    (tptr tuchar)) :: (Econst_int (Int.repr 0) tint) ::
@@ -105,11 +104,10 @@ Definition Body_final_if1 :=
                 (Sset _n (Econst_int (Int.repr 0) tint))
                 (Scall None
                   (Evar _sha256_block_data_order (Tfunction
-                                                   (Tcons
-                                                     (tptr t_struct_SHA256state_st)
-                                                     (Tcons (tptr tvoid)
-                                                       Tnil)) tvoid cc_default))
-                  ((Etempvar _c (tptr t_struct_SHA256state_st)) ::
+                                                   ((tptr (Tstruct _SHA256state_st noattr)) ::
+                                                    (tptr tvoid) :: nil)
+                                                   tvoid cc_default))
+                  ((Etempvar _c (tptr (Tstruct _SHA256state_st noattr))) ::
                    (Etempvar _p (tptr tuchar)) :: nil)))).
 
 Lemma Byte_repr_128:  Vubyte (Byte.repr 128) = Vint (Int.repr 128).

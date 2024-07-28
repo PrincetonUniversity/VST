@@ -181,11 +181,11 @@ Definition semaxfunc_InternalInfo C V G (ge : Genv.t Clight.fundef type) id f ph
   genv_find_func ge id (Internal f).
 
 Definition semaxfunc_ExternalInfo Espec (ge : Genv.t Clight.fundef type) (id : ident)
-    (ef : external_function) (argsig : typelist) (retsig : type) (cc : calling_convention) phi := 
+    (ef : external_function) (argsig : list type) (retsig : type) (cc : calling_convention) phi := 
   match phi with mk_funspec (argsig', retsig') cc' A P Q NEP NEQ => 
   retsig = retsig' /\ cc=cc' /\
-  argsig' = typelist2list argsig /\
-  ef_sig ef = mksignature (typlist_of_typelist argsig) (rettype_of_type retsig) cc /\
+  argsig' = argsig /\
+  ef_sig ef = mksignature (map argtype_of_type argsig) (rettype_of_type retsig) cc /\
   (ef_inline ef = false \/ withtype_empty A) /\
   (forall (gx : genviron) (ts : list Type) x (ret : option val),
    Q ts x (make_ext_rval gx (rettype_of_type retsig) ret) && !! Builtins0.val_opt_has_rettype ret (rettype_of_type retsig) |-- !! tc_option_val retsig ret) /\
@@ -253,8 +253,10 @@ Proof.
   repeat split; trivial. apply Hb6.
 Qed.
 
+(*
 Lemma TTL7: forall l l' (L:typelist_of_type_list l = typelist_of_type_list l'), l=l'.
 Proof. induction l; destruct l'; simpl; intros; trivial; inv L. f_equal. auto. Qed.
+*)
 
 Lemma InternalInfo_cc {cs V G ge i f phi} (SF: @semaxfunc_InternalInfo cs V G ge i f phi):
   fn_callconv f = callingconvention_of_funspec phi.
@@ -280,8 +282,10 @@ Proof.
     apply (semax_body_binaryintersection _ (i,phi1) (i, phi2)); trivial.
 Qed.
 
-Lemma length_of_typelist2: forall l, length (typelist2list l) = length (typlist_of_typelist l).
+(*
+Lemma length_of_typelist2: forall l, length l = length (typlist_of_typelist l).
 Proof. induction l; simpl; trivial. rewrite IHl; trivial. Qed.
+*)
 
 Lemma externalInfo_binary_intersection {Espec ge i ef argsig retsig cc phi1 phi2 phi}
       (F1_external : semaxfunc_ExternalInfo Espec ge i ef argsig retsig cc phi1)
@@ -318,7 +322,7 @@ Proof.
   + split; trivial.
     eapply semax_external_binaryintersection. apply EXT1. apply EXT2.
       apply BI.
-      rewrite Sig2; simpl. rewrite length_of_typelist2. trivial. 
+      rewrite Sig2; simpl. rewrite map_length. trivial. 
 Qed.
 
 Lemma find_funspec_sub: forall specs' specs 
@@ -1393,7 +1397,7 @@ Proof. intros. specialize (FM i).
   destruct SF2 as [? [? [? _]]]. subst.
   unfold merge_globdef in H2.
   destruct (fundef_eq 
-         (External e t0 t4 c3) (External e0 t2 t5 c4)) eqn:?H; inv H2.
+         (External e l0 t2 c3) (External e0 l1 t3 c4)) eqn:?H; inv H2.
   apply fundef_eq_prop in H3. inv H3. auto.
 Qed.
 
@@ -1676,7 +1680,7 @@ Proof.
    destruct H0 as [g [? _]].
    simpl in H0.
    destruct (eqb_external_function x x3 &&
-        eqb_typelist x0 x4 && eqb_type x1 x5)%bool; [ | discriminate].
+        eqb_list eqb_type x0 x4 && eqb_type x1 x5)%bool; [ | discriminate].
    destruct (eqb_calling_convention x2 x6)%bool eqn:?H; [ | discriminate].
    apply eqb_calling_convention_prop; auto.
 -
@@ -2215,7 +2219,7 @@ Qed.
 
 Local Lemma Condition1:
      forall i, In i (map fst JoinedImports) ->
-        exists (f : external_function) (ts : typelist) (t : type) (cc : calling_convention),
+        exists (f : external_function) (ts : list type) (t : type) (cc : calling_convention),
         PTree.get i (QP.prog_defs p) = Some (Gfun (External f ts t cc)). 
 Proof.
 unfold JoinedImports; clear - c1 c2 Linked. intros. rewrite map_app in H. apply in_app_or in H; destruct H.
@@ -2979,13 +2983,14 @@ Proof.
         inv Hx.
         destruct f; destruct f0; simpl in HH.
         * destruct (function_eq f f0); inv HH.
-        * destruct ((eqb_list eqb_typ (map typ_of_type (map snd (fn_params f))) (typlist_of_typelist t) &&
-                     eqb_rettype (rettype_of_type (fn_return f)) (rettype_of_type t0) &&
-                     eqb_calling_convention (fn_callconv f) c)%bool); inv HH.
-        * destruct ((eqb_list eqb_typ (typlist_of_typelist t) (map typ_of_type (map snd (fn_params f))) &&
-                     eqb_rettype (rettype_of_type t0) (rettype_of_type (fn_return f)) &&
+        * destruct ((eqb_list eqb_xtype
+          (map argtype_of_type (map snd (fn_params f))) (map argtype_of_type l) &&
+            eqb_xtype (rettype_of_type (fn_return f)) (rettype_of_type t) &&
+            eqb_calling_convention (fn_callconv f) c)%bool); inv HH.
+        * destruct ((eqb_list eqb_xtype (map argtype_of_type l) (map argtype_of_type (map snd (fn_params f))) &&
+                     eqb_xtype (rettype_of_type t) (rettype_of_type (fn_return f)) &&
                      eqb_calling_convention c (fn_callconv f))%bool); inv HH.
-        * destruct ((eqb_external_function e e0 && eqb_typelist t t1 && eqb_type t0 t2 && eqb_calling_convention c c0)%bool); inv HH. 
+        * destruct ((eqb_external_function e e0 && eqb_list eqb_type l l0 && eqb_type t t0 && eqb_calling_convention c c0)%bool); inv HH. 
     - destruct (find_id i (QPvarspecs p2)). 
       + destruct (Hp2 t) as [X _]; clear Hp2.
         destruct (X (eq_refl _)) as [x [Hx XX]]; clear X; discriminate.

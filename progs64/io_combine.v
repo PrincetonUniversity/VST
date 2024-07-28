@@ -119,7 +119,7 @@ Proof.
       destruct (get_sys_arg1 _) eqn:Harg; try discriminate.
       destruct (eq_dec _ _); subst; try discriminate.
       destruct (sys_putc_spec _) eqn:Hspec; inv H3.
-      assert (sig_res (ef_sig e) <> AST.Tvoid).
+      assert (sig_res (ef_sig e) <> Xvoid).
       { destruct e; inv H2; discriminate. }
       eapply sys_putc_correct in Hspec as (? & -> & [? Hpost ?]); eauto.
     + destruct w as (? & _ & ?).
@@ -129,7 +129,7 @@ Proof.
       rewrite if_true in H3 by auto.
       unfold sys_getc_wrap_spec in *.
       destruct (sys_getc_spec) eqn:Hspec; inv H3.
-      assert (sig_res (ef_sig e) <> AST.Tvoid).
+      assert (sig_res (ef_sig e) <> Xvoid).
       { destruct e; inv H4; discriminate. }
       eapply (sys_getc_correct _ _ m) in Hspec as (? & -> & [? Hpost ? ?]); eauto.
       * split; auto; do 2 eexists; eauto.
@@ -164,7 +164,7 @@ Definition trace_set := @trace (@io_events.IO_event nat) unit * RData -> Prop.
       forall n t (traces : trace_set) z s0 c m e args,
       cl_at_external c = Some (e,args) ->
       (forall s s' ret m' t' n'
-         (Hargsty : Val.has_type_list args (sig_args (ef_sig e)))
+         (Hargsty : Val.has_type_list args (map proj_xtype (sig_args (ef_sig e))))
          (Hretty : Builtins0.val_opt_has_rettype  ret (sig_res (ef_sig e))),
          IO_inj_mem e args m t s ->
          IO_ext_sem e args s = Some (s', ret, t') ->
@@ -175,7 +175,7 @@ Definition trace_set := @trace (@io_events.IO_event nat) unit * RData -> Prop.
            OS_safeN_trace n' (app_trace t t') traces' z' s' c' m' /\
            (forall t'' sf, traces' (t'', sf) -> traces (app_trace t' t'', sf))) ->
       (forall t1, traces t1 ->
-        exists s s' ret m' t' n', Val.has_type_list args (sig_args (ef_sig e)) /\
+        exists s s' ret m' t' n', Val.has_type_list args (map proj_xtype (sig_args (ef_sig e))) /\
          Builtins0.val_opt_has_rettype  ret (sig_res (ef_sig e)) /\
          IO_inj_mem e args m t s /\ IO_ext_sem e args s = Some (s', ret, t') /\ m' = OS_mem e args m s' /\
          (n' <= n)%nat /\ valid_trace s' /\ exists traces' z' c', consume_trace z z' t' /\
@@ -339,7 +339,7 @@ Local Ltac destruct_spec Hspec :=
     - edestruct IHn as (traces' & ? & ?); eauto.
       do 2 eexists; eauto.
       eapply OS_safeN_trace_step; eauto.
-    - exists (fun t1 => exists s s' ret m' t' n', Val.has_type_list args (sig_args (ef_sig e)) /\
+    - exists (fun t1 => exists s s' ret m' t' n', Val.has_type_list args (map proj_xtype (sig_args (ef_sig e))) /\
          Builtins0.val_opt_has_rettype ret (sig_res (ef_sig e)) /\
          IO_inj_mem e args m t s /\ IO_ext_sem e args s = Some (s', ret, t') /\ m' = OS_mem e args m s' /\
          (n' <= n0)%nat /\ valid_trace s' /\ exists traces' z' c', consume_trace z z' t' /\

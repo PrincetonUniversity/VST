@@ -771,7 +771,9 @@ Proof.
   remember (proj_bytes
          (Mem.getN (size_chunk_nat ch) ofs (Mem.mem_contents m) !! b)) as v.
   destruct v.
-  + destruct ch; inv LD.
+  + destruct ch; inv LD. unfold Val.norm_bool in H0.  unfold Val.is_bool in H0.
+    destruct (Val.eq _ _) in H0; simpl in *. congruence.
+    destruct (Val.eq _ _) in H0; simpl in *. congruence. congruence.
   + destruct ch; try solve [inv LD].
     - unfold Val.load_result in LD. unfold proj_bytes in Heqv. simpl in *.
       remember (ZMap.get ofs (Mem.mem_contents m) !! b) as w.

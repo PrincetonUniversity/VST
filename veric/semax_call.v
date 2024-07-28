@@ -34,9 +34,6 @@ Proof.
     apply andp_left2; auto.
 Qed.
 
-Lemma TTL3 l: typelist_of_type_list (Clight_core.typelist2list l) = l.
-Proof. induction l; simpl; trivial. f_equal; trivial . Qed.
-
 Lemma age_later {A} {agA : ageable A}: forall {w w1 w2} (AGE: age w w1) (L: laterR w w2), w1=w2 \/ laterR w1 w2.
 Proof. intros. induction L.
 + unfold age in *. rewrite AGE in H. left; inv H; trivial.
@@ -1418,8 +1415,8 @@ destruct ff; try contradiction H15.
 destruct H15 as [[H5 H15] Hretty]. hnf in H5.
 destruct H5 as [H5 [H5' [Eef Hinline]]]. subst c.
 inversion H5. destruct fsig as [params retty].
-injection H2; clear H2; intros H8 H7. subst t0.
-rename t into tys. subst rho.
+injection H2; clear H2; intros H8 H7.
+rename l into tys. subst rho.
 destruct (age1 jm) as  [jm' |] eqn:Hage.
 2:{ constructor. apply age1_level0; auto. }
 specialize (H15 psi ts x (level jm)).
@@ -1427,7 +1424,7 @@ spec H15. apply age_laterR. constructor.
 specialize (H15
   (F0 (construct_rho (filter_genv psi) vx tx) *
           F (construct_rho (filter_genv psi) vx tx))
-   (typlist_of_typelist tys) args jm).
+   (map typ_of_type tys) args jm).
 spec H15; [ clear; lia | ].
 specialize (H15 _ _ (necR_refl _) (ext_refl _)).
 spec H15.
@@ -1443,10 +1440,11 @@ spec H15.
   split.
   { (* typechecking arguments *)
     rewrite Eef; simpl.
-    clear - TC8. rewrite TTL2.
+    clear - TC8.
     revert args TC8; induction params; destruct args; intros; try discriminate; auto.
     inv TC8.
     split; auto.
+    rewrite proj_xtype_argtype.
     apply tc_val_has_type; auto.
   }
   apply AP.
@@ -1462,7 +1460,7 @@ destruct Hinline as [Hinline|Hempty].
 exfalso; clear - Hempty x.
 eapply Hempty. eassumption.
 }
-assert (Hty: typelist_of_type_list params = tys) by (rewrite H7, TTL3; trivial).
+assert (Hty: params = tys) by (rewrite H7; trivial).
 eapply @jsafeN_external with (x := x'); eauto.
 
 + (*1/3*)
@@ -1471,7 +1469,7 @@ eapply @jsafeN_external with (x := x'); eauto.
   reflexivity.
 
 + (*2/3*)
-  rewrite Eef. subst tys. apply H5; auto.
+  rewrite Eef. subst tys. simpl. rewrite map_proj_xtype_argtype. apply H5; auto.
 
 +
 assert (H2 := I). assert (H3 := I). simpl.
@@ -1530,6 +1528,7 @@ clear H1; rename H1' into H1. clear R HR.
 simpl exit_cont in H1.
 do 3 red in H5.
 specialize (H1 _ (necR_refl _)).
+subst t.
 
 assert (Htc: tc_option_val retty ret0).
 { clear - TCret TC3 H0 TC5 H15 Hretty Hretty0 H6 Hage.
@@ -1550,6 +1549,7 @@ assert (Htc: tc_option_val retty ret0).
 }
 spec H1.
 { clear H1. clear - TCret TC3 H0 TC5 H15 Hretty Hretty0 H0 H6 Hage TC3' tx' Htc H H4.
+
   split; [split; [split |] |].
   * (*1/4*)
     clear - TC3 Htc TCret Hretty0.
@@ -2440,16 +2440,16 @@ destruct H; auto.
 Qed.
 
 Lemma eval_exprlist_relate {CS}:
-  forall (Delta : tycontext) (tys: typelist)
+  forall (Delta : tycontext) (tys: list type)
      (bl : list expr) (psi : genv) (vx : env) (tx : temp_env)
      (rho : environ) m,
-   @denote_tc_assert CS (typecheck_exprlist Delta (typelist2list tys) bl) rho (m_phi m) ->
+   @denote_tc_assert CS (typecheck_exprlist Delta tys bl) rho (m_phi m) ->
    typecheck_environ Delta rho ->
    cenv_sub cenv_cs (genv_cenv psi) ->
    rho = construct_rho (filter_genv psi) vx tx ->
    Clight.eval_exprlist psi vx tx (m_dry m) bl
      tys
-     (eval_exprlist (typelist2list tys) bl rho).
+     (eval_exprlist tys bl rho).
 Proof.
   intros.
   revert bl H; induction tys; destruct bl; simpl; intros; try contradiction H.
@@ -2461,7 +2461,7 @@ Proof.
  constructor 2 with (eval_expr e (construct_rho (filter_genv psi) vx tx)); auto.
  subst.
  eapply eval_expr_relate; eauto.
- pose proof (cast_exists Delta e t rho (m_phi m) H0 H H3).
+ pose proof (cast_exists Delta e a rho (m_phi m) H0 H H3).
  rewrite <- H5; clear H5.
  subst.
  apply cop2_sem_cast'; try eassumption.
@@ -2503,7 +2503,7 @@ destruct Believe as [BE|BI].
     destruct f as [ | ef sigargs sigret c'']. tauto.
     simpl.
     destruct BE as [((Es & -> & ASD & _) & ?) _].
-    inv Es. f_equal. rewrite TTL3; trivial.
+    inv Es. f_equal.
  -
     destruct BI as (b' & fu & (? & WOB & ? & ? & ? & ? & wob & ? & ?) & _).
     unfold fn_funsig in *. simpl fst in *; simpl snd in *.
@@ -2512,22 +2512,20 @@ destruct Believe as [BE|BI].
     simpl.
     unfold type_of_function.
     f_equal.
-    forget (fn_params fu) as l. clear. rewrite TTL1; trivial.
 Qed.
 
 Lemma eval_exprlist_relate' {CS}:
-  forall (Delta : tycontext) (tys: typelist)
+  forall (Delta : tycontext) (tys: list type)
      (bl : list expr) (psi : genv) (vx : env) (tx : temp_env)
-     (rho : environ) m tys',
-   @denote_tc_assert CS (typecheck_exprlist Delta (typelist2list tys) bl) rho (m_phi m) ->
+     (rho : environ) m,
+   @denote_tc_assert CS (typecheck_exprlist Delta tys bl) rho (m_phi m) ->
    typecheck_environ Delta rho ->
    cenv_sub cenv_cs (genv_cenv psi) ->
    rho = construct_rho (filter_genv psi) vx tx ->
-   tys' = typelist2list tys ->
    Clight.eval_exprlist psi vx tx (m_dry m) bl
      tys
-     (eval_exprlist tys' bl rho).
-Proof. intros. subst tys'. eapply eval_exprlist_relate; eassumption. Qed.
+     (eval_exprlist tys bl rho).
+Proof. intros. eapply eval_exprlist_relate; eassumption. Qed.
 
 Lemma tc_vals_Vundef {args ids} (TC:tc_vals ids args): Forall (fun v : val => v <> Vundef) args.
 Proof.
@@ -2547,7 +2545,7 @@ Lemma semax_call_aux {CS Espec}
   (Spec: (glob_specs Delta)!id = Some (mk_funspec (clientparams, retty) cc A deltaP deltaQ NEP' NEQ'))
   (FindSymb: Genv.find_symbol psi id = Some b)
 
-  (Classify: Cop.classify_fun (typeof a) = Cop.fun_case_f (typelist_of_type_list clientparams) retty cc)
+  (Classify: Cop.classify_fun (typeof a) = Cop.fun_case_f clientparams retty cc)
   (TCRet: tc_fn_return Delta ret retty)
   (TCA: (|>tc_expr Delta a rho) (m_phi jm))
   (TCbl: (|>tc_exprlist Delta clientparams bl rho) (m_phi jm))
@@ -2589,12 +2587,11 @@ Proof.
     eapply TCA. apply age_laterR; apply age_jm_phi; auto.
     erewrite age_jm_dry by eauto.
     eapply eval_exprlist_relate' with Delta.
-    - clear -  H13 TCbl. rewrite TTL5. eapply TCbl.
+    - clear -  H13 TCbl. eapply TCbl.
       apply age_laterR; apply age_jm_phi; auto.
     - destruct GuardEnv ; auto.
     - assumption.
-    - auto.
-    - rewrite TTL5; trivial. }
+    - auto. }
   intros jm2 H22.
   assert (jmx = jm2).
   { clear - H13 H22. red in H22. congruence. } subst jmx.
@@ -2641,7 +2638,7 @@ Proof.
   clear jm LATER H22 H2 H13.
   rename jm2 into jm.
 
-  unfold type_of_funspec, rettype_of_funspec in H16'; simpl in H16'.
+  unfold type_of_funspec, xtype_of_funspec in H16'; simpl in H16'.
   assert (H2 := I).
 
   assert (H14':  fupd
@@ -2793,10 +2790,7 @@ Proof.
     destruct (build_call_temp_env f args) as [te' H21]; auto.
     { clear - H16' Hargs.
       simpl in H16'. unfold type_of_function in H16'. inv H16'. rewrite <- Hargs.
-      clear - H0.
-      revert clientparams H0; induction (fn_params f) as [|[? ?]];
-        destruct clientparams; simpl; intros; try discriminate; auto.
-        inv H0; f_equal; auto. }
+      unfold type_of_params. rewrite map_length. auto. }
     pose proof (age_twin' _ _ _ H20' H13) as [jm''' [_ H20x]].
     apply @jsafeN_step with (c' := State f (f.(fn_body)) ctl ve' te')
                            (m' := jm'''); auto.
@@ -2900,7 +2894,7 @@ Lemma semax_call_aux' {CS Espec}
   (Spec: (glob_specs Delta)!id = Some (mk_funspec (clientparams, retty) cc A deltaP deltaQ NEP' NEQ'))
   (FindSymb: Genv.find_symbol psi id = Some b)
 
-  (Classify: Cop.classify_fun (typeof a) = Cop.fun_case_f (typelist_of_type_list clientparams) retty cc)
+  (Classify: Cop.classify_fun (typeof a) = Cop.fun_case_f clientparams retty cc)
   (TCRet: tc_fn_return Delta ret retty)
   (TCA: (|>tc_expr Delta a rho) (m_phi jm))
   (TCbl: (|>tc_exprlist Delta clientparams bl rho) (m_phi jm))
@@ -2946,7 +2940,7 @@ Lemma semax_call {CS Espec}:
   (ts: list Type) (x : dependent_type_functor_rec ts A mpred)
    F ret argsig retsig cc a bl,
            Cop.classify_fun (typeof a) =
-           Cop.fun_case_f (typelist_of_type_list argsig) retsig cc ->
+           Cop.fun_case_f argsig retsig cc ->
             (retsig = Tvoid -> ret = None) ->
           tc_fn_return Delta ret retsig ->
   @semax CS Espec Delta
@@ -3217,7 +3211,7 @@ Lemma semax_call_si {CS Espec}:
   (ts: list Type) (x : dependent_type_functor_rec ts A mpred)
    F ret argsig retsig cc a bl,
            Cop.classify_fun (typeof a) =
-           Cop.fun_case_f (typelist_of_type_list argsig) retsig cc ->
+           Cop.fun_case_f argsig retsig cc ->
             (retsig = Tvoid -> ret = None) ->
           tc_fn_return Delta ret retsig ->
   @semax CS Espec Delta
@@ -3487,7 +3481,7 @@ Lemma semax_call_alt {CS Espec}:
    (NEP: args_super_non_expansive P) (NEQ: super_non_expansive Q)
      ts x F ret argsig retsig cc a bl,
            Cop.classify_fun (typeof a) =
-           Cop.fun_case_f (typelist_of_type_list argsig) retsig cc ->
+           Cop.fun_case_f argsig retsig cc ->
             (retsig = Tvoid -> ret = None) ->
           tc_fn_return Delta ret retsig ->
   @semax CS Espec Delta

@@ -762,19 +762,19 @@ vst: _CoqProject msl veric floyd simpleconc
 
 ifeq ($(BITSIZE),64)
 test: vst progs64
-	@# need this tab here to turn of special behavior of 'test' target
+	@# need this tab here to turn off special behavior of 'test' target
 test2: io
 test4: mailbox 
-test6: VSUpile64
-tests: test test2 test4 test6
+test5: VSUpile64
+tests: test test2 test4 test5
 all: tests
 else
 test: vst progs
-	@# need this tab here to turn of special behavior of 'test' target
+	@# need this tab here to turn off special behavior of 'test' target
 test2: io
 test3: sha hmac 
 test5: VSUpile
-tests: test test2 test3 test5 test6
+tests: test test2 test3 test5
 all: vst files tests hmacdrbg tweetnacl aes
 endif
 
@@ -860,13 +860,13 @@ ifdef CLIGHTGEN
 all-cv-files: $(patsubst %.c,$(PROGSDIR)/%.v, $(SINGLE_C_FILES) even.c odd.c) \
               $(patsubst %.c,%.v, $(SHA_C_FILES)) \
               aes/aes.v tweetnacl20140427/tweetnaclVerifiableC.v \
-              mailbox/mailbox.v concurrency/threads.v atomics/SC_atomics.v
+              mailbox/mailbox.v atomics/SC_atomics.v # concurrency/threads.v 
 ifneq (, $(findstring -short-idents, $(CGFLAGS)))
 $(patsubst %.c,%.v, $(SHA_C_FILES)) &: $(SHA_C_FILES)
 	$(CLIGHTGEN) ${CGFLAGS} $^
 $(PROGSDIR)/odd.v: $(PROGSDIR)/even.v
 mailbox/mailbox.v: mailbox/atomic_exchange.c mailbox/mailbox.c
-	$(CLIGHTGEN) ${CGFLAGS} $^
+	$(CLIGHTGEN) -DCOMPCERT -normalize -canonical-idents $^
 else
 ifeq (, $(findstring -canonical-idents, $(CGFLAGS)))
   $(warning CGFLAGS contains neither -short-idents nor -canonical-idents, using default which is probably -canonical-idents)

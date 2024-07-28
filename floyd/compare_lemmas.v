@@ -264,7 +264,6 @@ intros.
  subst; inv H.
 Qed.
 
-
 Lemma typed_false_Oeq_nullval:
  forall  {cs: compspecs} v t t',
    local (`(typed_false tint) (`(eval_binop Cop.Oeq (tptr t) (tptr t')) v `(nullval))) |--

@@ -1308,7 +1308,7 @@ Import CSHL_Def.
 Axiom semax_call_forward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
     forall A P Q NEP NEQ ts x (F: environ -> mpred) ret argsig retsig cc a bl,
            Cop.classify_fun (typeof a) =
-           Cop.fun_case_f (typelist_of_type_list argsig) retsig cc ->
+           Cop.fun_case_f argsig retsig cc ->
            (retsig = Ctypes.Tvoid -> ret = None) ->
           tc_fn_return Delta ret retsig ->
   @semax CS Espec Delta
@@ -1333,7 +1333,7 @@ Axiom semax_call_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: ty
          (EX argsig: _, EX retsig: _, EX cc: _,
           EX A: _, EX P: _, EX Q: _, EX NEP: _, EX NEQ: _, EX ts: _, EX x: _,
          !! (Cop.classify_fun (typeof a) =
-             Cop.fun_case_f (typelist_of_type_list argsig) retsig cc /\
+             Cop.fun_case_f argsig retsig cc /\
              (retsig = Ctypes.Tvoid -> ret = None) /\
              tc_fn_return Delta ret retsig) &&
           ((*|>*)((tc_expr Delta a) && (tc_exprlist Delta argsig bl)))  &&
@@ -1367,7 +1367,7 @@ Theorem semax_call_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: 
          (EX argsig: _, EX retsig: _, EX cc: _,
           EX A: _, EX P: _, EX Q: _, EX NEP: _, EX NEQ: _, EX ts: _, EX x: _,
          !! (Cop.classify_fun (typeof a) =
-             Cop.fun_case_f (typelist_of_type_list argsig) retsig cc /\
+             Cop.fun_case_f argsig retsig cc /\
              (retsig = Ctypes.Tvoid -> ret = None) /\
              tc_fn_return Delta ret retsig) &&
           ((*|>*)((tc_expr Delta a) && (tc_exprlist Delta argsig bl)))  &&
@@ -1468,7 +1468,7 @@ Qed.
 Theorem semax_call_forward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
     forall A P Q NEP NEQ ts x (F: environ -> mpred) ret argsig retsig cc a bl,
            Cop.classify_fun (typeof a) =
-             Cop.fun_case_f (typelist_of_type_list argsig) retsig cc ->
+             Cop.fun_case_f argsig retsig cc ->
            (retsig = Ctypes.Tvoid -> ret = None) ->
           tc_fn_return Delta ret retsig ->
   @semax CS Espec Delta

@@ -7,59 +7,59 @@ Require Import sha.call_memcpy.
 Local Open Scope logic.
 
 Definition update_inner_if_then :=
+ (Ssequence
+  (Scall None
+    (Evar _memcpy (Tfunction
+    ((tptr tvoid) :: (tptr tvoid) :: tuint ::
+     nil) (tptr tvoid) cc_default))
+    ((Ebinop Oadd (Etempvar _p (tptr tuchar))
+       (Etempvar _n tuint) (tptr tuchar)) ::
+     (Etempvar _data (tptr tuchar)) ::
+     (Etempvar _fragment tuint) :: nil))
   (Ssequence
-      (Scall None
-           (Evar _memcpy
-              (Tfunction
-                 (Tcons (tptr tvoid) (Tcons (tptr tvoid) (Tcons tuint Tnil)))
-                 (tptr tvoid) cc_default))
-           [Ebinop Oadd (Etempvar _p (tptr tuchar)) (Etempvar _n tuint)
-              (tptr tuchar); Etempvar _data (tptr tuchar);
-           Etempvar _fragment tuint])
-     (Ssequence
+    (Scall None
+      (Evar _sha256_block_data_order (Tfunction
+       ((tptr (Tstruct _SHA256state_st noattr)) ::
+        (tptr tvoid) :: nil)
+       tvoid cc_default))
+      ((Etempvar _c (tptr (Tstruct _SHA256state_st noattr))) ::
+       (Etempvar _p (tptr tuchar)) :: nil))
+    (Ssequence
+      (Sset _data
+        (Ebinop Oadd (Etempvar _data (tptr tuchar))
+          (Etempvar _fragment tuint) (tptr tuchar)))
+      (Ssequence
+        (Sset _len
+          (Ebinop Osub (Etempvar _len tuint)
+            (Etempvar _fragment tuint) tuint))
         (Scall None
-           (Evar _sha256_block_data_order
-              (Tfunction
-                 (Tcons (tptr t_struct_SHA256state_st)
-                    (Tcons (tptr tvoid) Tnil)) tvoid cc_default))
-           [Etempvar _c (tptr t_struct_SHA256state_st);
-           Etempvar _p (tptr tuchar)])
-        (Ssequence
-           (Sset _data
-              (Ebinop Oadd (Etempvar _data (tptr tuchar))
-                 (Etempvar _fragment tuint) (tptr tuchar)))
-           (Ssequence
-              (Sset _len
-                 (Ebinop Osub (Etempvar _len tuint)
-                    (Etempvar _fragment tuint) tuint))
-                 (Scall None
-                    (Evar _memset
-                       (Tfunction
-                          (Tcons (tptr tvoid) (Tcons tint (Tcons tuint Tnil)))
-                          (tptr tvoid) cc_default))
-                    [Etempvar _p (tptr tuchar); Econst_int (Int.repr 0) tint;
-                    Ebinop Omul (Econst_int (Int.repr 16) tint)
-                      (Econst_int (Int.repr 4) tint) tint]))))).
+          (Evar _memset (Tfunction
+          ((tptr tvoid) :: tint :: tuint ::
+           nil) (tptr tvoid) cc_default))
+          ((Etempvar _p (tptr tuchar)) ::
+           (Econst_int (Int.repr 0) tint) ::
+           (Ebinop Omul (Econst_int (Int.repr 16) tint)
+             (Econst_int (Int.repr 4) tint) tint) :: nil)))))).
 
 Definition  update_inner_if_else :=
-                (Ssequence
-                    (Scall None
-                      (Evar _memcpy (Tfunction
-                                      (Tcons (tptr tvoid)
-                                        (Tcons (tptr tvoid)
-                                          (Tcons tuint Tnil))) (tptr tvoid) cc_default))
-                      ((Ebinop Oadd (Etempvar _p (tptr tuchar))
-                         (Etempvar _n tuint) (tptr tuchar)) ::
-                       (Etempvar _data (tptr tuchar)) ::
-                       (Etempvar _len tuint) :: nil))
-                  (Ssequence
-                    (Sassign
-                      (Efield
-                        (Ederef (Etempvar _c (tptr t_struct_SHA256state_st))
-                          t_struct_SHA256state_st) _num tuint)
-                      (Ebinop Oadd (Etempvar _n tuint)
-                        (Ecast (Etempvar _len tuint) tuint) tuint))
-                    (Sreturn None))).
+ (Ssequence
+  (Scall None
+    (Evar _memcpy (Tfunction
+    ((tptr tvoid) :: (tptr tvoid) :: tuint ::
+     nil) (tptr tvoid) cc_default))
+    ((Ebinop Oadd (Etempvar _p (tptr tuchar))
+       (Etempvar _n tuint) (tptr tuchar)) ::
+     (Etempvar _data (tptr tuchar)) ::
+     (Etempvar _len tuint) :: nil))
+  (Ssequence
+    (Sassign
+      (Efield
+        (Ederef
+          (Etempvar _c (tptr (Tstruct _SHA256state_st noattr)))
+          (Tstruct _SHA256state_st noattr)) _num tuint)
+      (Ebinop Oadd (Etempvar _n tuint)
+        (Ecast (Etempvar _len tuint) tuint) tuint))
+    (Sreturn None))).
 
 Definition update_inner_if :=
         Sifthenelse (Ebinop Oge (Etempvar _len tuint)
