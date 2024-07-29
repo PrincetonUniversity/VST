@@ -102,6 +102,8 @@ Section function.
   (* The design of this in RefinedC is to associate a function pointer with actual function code,
      and then prove that that code has the desired type spec (typed_function fn fp). For VST, maybe
      typed_function should instead relate a funspec to a type spec. *)
+  (* On the other hand, we don't really want to require the user to provide both a funspec
+     and a type signature for every function. Can we derive the funspec from the type? *)
   Import EqNotations.
   Definition typed_funspec (fs : funspec) (fp : { A : TypeTree & (dtfr A → fn_params)%type}) : iProp Σ :=
     match fs, fp with
@@ -374,7 +376,7 @@ Section inline_function.
   Qed.
 
 
-  Lemma type_call_inline_fnptr l v vl tys fn T:
+(*  Lemma type_call_inline_fnptr l v vl tys fn T:
     (⌜Forall2 (λ ty '(_, p), ty.(ty_has_op_type) (UntypedOp p) MCNone) tys (f_args fn)⌝ ∗
       foldr (λ '(v, ty) T lsa, ∀ l, l ◁ₗ ty -∗ T (lsa ++ [l]))
       (λ lsa, foldr (λ ly T lsv, ∀ l, l ◁ₗ uninit ly -∗ T (lsv ++ [l]))
@@ -440,7 +442,7 @@ Section inline_function.
       by iApply ("HΦ" with "Hv HPr").
   Qed.
   Definition type_call_inline_fnptr_inst := [instance type_call_inline_fnptr].
-  Global Existing Instance type_call_inline_fnptr_inst.
+  Global Existing Instance type_call_inline_fnptr_inst.*)
 End inline_function.
 
 Global Typeclasses Opaque inline_function_ptr_type inline_function_ptr.
@@ -449,10 +451,10 @@ Global Typeclasses Opaque inline_function_ptr_type inline_function_ptr.
 Section test.
   Context  `{!typeG Σ}.
 
-  Local Definition test_fn := fn(∀ () : (); (uninit size_t); True) → ∃ () : (), void; True.
+(*  Local Definition test_fn := fn(∀ () : (); (uninit size_t); True) → ∃ () : (), void; True.
   Local Definition test_fn2 := fn(∀ () : (); True) → ∃ () : (), void; True.
   Local Definition test_fn3 := fn(∀ (n1, n2, n3, n4, n5, n6, n7) : Z * Z * Z * Z * Z * Z * Z; uninit size_t, uninit size_t, uninit size_t, uninit size_t, uninit size_t, uninit size_t, uninit size_t, uninit size_t; True ∗ True ∗ True ∗ True ∗ True ∗ True ∗ True ∗ True ∗ True ∗ True ∗ True ∗ True ∗ True) → ∃ (n1, n2, n3, n4, n5, n6, n7) : Z * Z * Z * Z * Z * Z * Z, uninit size_t; True%I.
 
   Goal ∀ (l : loc) fn, l ◁ᵥ l @ function_ptr test_fn2 -∗ typed_function fn test_fn.
-  Abort.
+  Abort. *)
 End test.

@@ -2,22 +2,20 @@ From VST.lithium Require Export type.
 From VST.lithium Require Import programs.
 From VST.lithium Require Import type_options.
 
-Context `{!typeG Σ} {cs : compspecs}.
-
-Record global_type `{!typeG Σ} := GT {
+Record global_type `{!typeG Σ} {cs : compspecs} := GT {
   gt_A : Type;
   gt_type : gt_A → type;
 }.
-Arguments GT {_  } _ _ .
+Arguments GT {_ _ _} _ _.
 
-Class globalG `{!typeG Σ} := {
+Class globalG `{!typeG Σ} {cs : compspecs} := {
   global_locs : gmap string address;
   global_initialized_types : gmap string global_type;
 }.
-Arguments globalG  {_}.
+Arguments globalG _ {_ _}.
 
 Section globals.
-  Context `{!typeG Σ} `{!globalG } {cs : compspecs}.
+  Context `{!typeG Σ} {cs : compspecs} `{!globalG Σ}.
   Import EqNotations.
 
   Definition global_with_type (name : string) (β : own_state) (ty : type) : iProp Σ :=
