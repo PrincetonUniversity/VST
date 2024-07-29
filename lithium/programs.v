@@ -1501,11 +1501,6 @@ Admitted.
     iFrame. done.
 Admitted.
 
-
-  Example type_assign_eg Espec Delta e1 e2 (T: val -> type -> assert):
-    ⊢ typed_stmt Espec Delta (Sassign e1 e2) T.
-  Proof. liRStep.
-
   Lemma wp_semax : forall Espec E Delta P s Q, (P ⊢ wp_stmt Espec E Delta s Q) → semax(OK_spec := Espec) E Delta P s Q.
   Proof.
     intros.
@@ -2010,6 +2005,8 @@ Admitted.
 
   (* for expr `e:=v` => eval_expr e = l ∧ typed l v  *)
   (* typed_lvalue e (typed_write_end ...)   *)
+
+  (*
   Lemma type_write (a : bool) ty T T' e v ot:
     IntoPlaceCtx e T' →
     T' (λ K l, find_in_context (FindLoc l) (λ '(β1, ty1),
@@ -2098,7 +2095,7 @@ Admitted.
     iIntros "HT" (Φ) "Hl HΦ". iApply ("HΦ" with "Hl [] HT").  by iIntros (ty') "$".
   Qed.
   Definition type_place_id_inst := [instance type_place_id].
-  Global Existing Instance type_place_id_inst | 20.*)
+  Global Existing Instance type_place_id_inst | 20.
 
   Lemma copy_as_id l β ty `{!Copyable ty} T:
     T ty ⊢ copy_as l β ty T.
@@ -2179,3 +2176,5 @@ Global Hint Extern 5 (Subsume (_ ◁ₗ{_} _) (λ _, _ ◁ₗ{_} _.1ₗ)%I) =>
 
 (*Global Typeclasses Opaque typed_block.
 *)
+*)
+End typing.
