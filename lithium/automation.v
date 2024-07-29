@@ -3,7 +3,7 @@ From iris.proofmode Require Import coq_tactics reduction.
 From lithium Require Import hooks normalize.
 From VST.lithium Require Export all.
 From VST.lithium Require Export type.
-From VST.lithium Require Export proof_state (* solvers simplification  loc_eq. *).
+From VST.lithium.automation Require Export proof_state (* solvers simplification  loc_eq. *).
 From VST.lithium Require Import programs (* function singleton own struct bytes int *).
 Set Default Proof Using "Type".
 
