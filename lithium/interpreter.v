@@ -471,11 +471,12 @@ Module liSideCond_tests. Section test.
     liSideCond.
     liSideCond.
     liSideCond.
+    liSideCond.
     liSideCond. simpl.
     liSideCond.
     liExist.
     lazymatch goal with
-    | |- envs_entails _ (P 1 (Z.of_nat 1)) => idtac
+    | |- envs_entails _ (P 1 1%Z) => idtac
     end.
   Abort.
 End test. End liSideCond_tests.
@@ -585,16 +586,16 @@ accidentally by various tactics. *)
 #[projections(primitive)] Record li_done_evar_type (A : Type) := { li_done_evar_val : A }.
 Global Arguments li_done_evar_val {_} _.
 
-Definition li_done_evar {Σ A X} (x : A) (y : li_done_evar_type X) (f : X → A) : prop :=
+Definition li_done_evar {prop:bi} {A X} (x : A) (y : li_done_evar_type X) (f : X → A) : prop :=
   ⌜x = f (li_done_evar_val y)⌝.
 Section coq_tactics.
   Context {prop : bi}.
   Lemma tac_li_done_evar_ex {A X} (f : X → A) y Δ :
-    envs_entails Δ (∃ x', li_done_evar (Σ := Σ) (f x') y f).
+    envs_entails Δ (∃ x', li_done_evar (prop := prop) (f x') y f).
   Proof. rewrite envs_entails_unseal. iIntros "HΔ". by iExists _. Qed.
 
   Lemma tac_li_done_evar {A} (x : A) y Δ :
-    envs_entails Δ (li_done_evar (Σ := Σ) x y (λ _ : unit, x)).
+    envs_entails Δ (li_done_evar (prop := prop) x y (λ _ : unit, x)).
   Proof. rewrite envs_entails_unseal. iIntros "HΔ". done. Qed.
 End coq_tactics.
 
@@ -609,6 +610,8 @@ Ltac liDoneEvar :=
 (** ** [liSep] *)
 Section coq_tactics.
   Context {prop : bi}.
+  Hypothesis BiPositive_prop : BiPositive prop.
+  Hypothesis BiPersistentlyForall_prop : BiPersistentlyForall prop.
 
   Lemma tac_sep_sep_assoc Δ (P Q R : prop) :
     envs_entails Δ (P ∗ Q ∗ R) → envs_entails Δ ((P ∗ Q) ∗ R).
@@ -632,13 +635,13 @@ Section coq_tactics.
 
   Lemma tac_do_intro_intuit_sep Δ (P Q : prop) :
     envs_entails Δ (□ (P ∗ True) ∧ Q) → envs_entails Δ (□ P ∗ Q).
-  Proof. apply tac_fast_apply. iIntros "[#[$ _] $]". Qed.
+  Proof using BiPersistentlyForall_prop BiPositive_prop. apply tac_fast_apply. iIntros "[#[$ _] $]". Qed.
 
   Lemma tac_do_intro_intuit_sep_ex {A B X} Δ (P Q : (A *ₗ B) → prop) (f : X → _) :
     (∀ y, envs_entails Δ (□ (∃ₗ x, P x ∗ li_done_evar x y f))) →
     envs_entails Δ (∃ y, Q (f y)) →
     envs_entails Δ (∃ₗ x, □ (P x) ∗ Q x).
-  Proof.
+  Proof using BiPersistentlyForall_prop BiPositive_prop.
     rewrite envs_entails_unseal /li_done_evar. move => /bi.forall_intro HP HQ.
     iIntros "HΔ". iDestruct (HP with "HΔ") as "#HP".
     iDestruct (HQ with "HΔ") as (y) "HQ".
@@ -660,7 +663,7 @@ Section coq_tactics.
 
   Lemma tac_intro_subsume_related Δ P T {Hrel : RelatedTo (λ _ : unit, P)}:
     envs_entails Δ (find_in_context Hrel.(rt_fic) (λ x,
-      subsume (Σ:=Σ) (A:=unit) (Hrel.(rt_fic).(fic_Prop) x) (λ _, P) (λ _, T))) →
+      @subsume prop unit (Hrel.(rt_fic).(fic_Prop) x) (λ _, P) (λ _, T))) →
     envs_entails Δ (P ∗ T).
   Proof.
     apply tac_fast_apply. iDestruct 1 as (x) "[HP HT]".
@@ -669,7 +672,7 @@ Section coq_tactics.
 
   Lemma tac_intro_subsume_related_ex Δ {A B} (P T : (A *ₗ B) → prop) {Hrel : RelatedTo P}:
     envs_entails Δ (find_in_context Hrel.(rt_fic) (λ x,
-      subsume (Σ:=Σ) (Hrel.(rt_fic).(fic_Prop) x) P T)) →
+      @subsume prop _ (Hrel.(rt_fic).(fic_Prop) x) P T)) →
     envs_entails Δ (∃ₗ x, P x ∗ T x).
   Proof. apply tac_fast_apply. iDestruct 1 as (x) "[HP HT]". by iApply "HT". Qed.
 
@@ -684,7 +687,7 @@ Ltac liSep :=
     | bi_exist _ => notypeclasses refine (tac_sep_exist_assoc _ _ _ _)
     | bi_emp => notypeclasses refine (tac_sep_emp _ _ _)
     | (⌜_⌝)%I => fail "handled by liSideCond"
-    | (□ ?P)%I => notypeclasses refine (tac_do_intro_intuit_sep _ _ _ _)
+    | (□ ?P)%I => notypeclasses refine (tac_do_intro_intuit_sep _ _ _ _ _ _)
     | match ?x with _ => _ end => fail "should not have match in sep"
     | ?P => first [
         progress liFindHyp FICSyntactic
@@ -701,7 +704,7 @@ Ltac liSep :=
     | (λ _, bi_exist _) => notypeclasses refine (tac_sep_exist_assoc_ex _ _ _ _)
     (* bi_emp cannot happen because it is independent of evars *)
     | (λ _, (⌜_⌝)%I) => fail "handled by liSideCond"
-    | (λ _, (□ _)%I) => notypeclasses refine (tac_do_intro_intuit_sep_ex _ _ _ _ _ _)
+    | (λ _, (□ _)%I) => refine (tac_do_intro_intuit_sep_ex _ _ _ _ _ _ _ _)
     (* The following is probably not necessary: *)
     (* | match ?x with _ => _ end => fail "should not have match in sep" *)
     | ?P => first [
@@ -721,9 +724,12 @@ Ltac liSep :=
 
 Module liSep_tests. Section test.
   Context {prop : bi}.
+  Hypothesis BiPositive_prop : BiPositive prop.
+  Hypothesis BiPersistentlyForall_prop : BiPersistentlyForall prop.
+
   Variable A1 A2 A3 : Z → prop.
 
-  Hypothesis HA2 : ∀ (n : Z) G, (⌜n = 1%Z⌝ ∗ G ⊢ simplify_goal (A2 n) G).
+  Hypothesis HA2 : ∀ (n : Z) G, (<affine> ⌜n = 1%Z⌝ ∗ G ⊢ simplify_goal (A2 n) G).
   Definition HA2_inst := [instance HA2 with 0%N].
   Local Existing Instance HA2_inst.
 
@@ -740,7 +746,7 @@ Module liSep_tests. Section test.
     {| rt_fic := FindA3 |}.
 
   Lemma subsume_A3 A n m G:
-    subsume (A3 n) (λ x : A, A3 (m x)) G :- ∃ x, exhale ⌜n = m x⌝; return G x.
+    subsume (A3 n) (λ x : A, A3 (m x)) G :- ∃ x, exhale <affine> ⌜n = m x⌝; return G x.
   Proof. liFromSyntax. iDestruct 1 as (? ->) "?". iIntros "?". iExists _. iFrame. Qed.
 
   Definition subsume_A3_inst := [instance subsume_A3].
@@ -748,7 +754,7 @@ Module liSep_tests. Section test.
 
 
   Goal ∀ P : Z → Z → prop,
-      ⊢ A1 1 -∗ A3 1 -∗ ∃ x y, (A1 1 ∗ ∃ z, A2 x ∗ A3 z ∗ ⌜z = y⌝) ∗ P x y.
+      ⊢ A1 1 -∗ A3 1 -∗ ∃ x y, (A1 1 ∗ ∃ z, A2 x ∗ A3 z ∗ <affine> ⌜z = y⌝) ∗ P x y.
     intros. iStartProof. iIntros. repeat liExist.
     liSep.
     liSep.
@@ -769,7 +775,7 @@ Module liSep_tests. Section test.
   Abort.
 
   Goal  ∀ P : Z → Z → Z → prop,
-      ⊢ ∃ x y z, □ (⌜x = 1%Z⌝ ∗ ⌜y = 2%Z⌝) ∗ ⌜z = 3%Z⌝ ∗ P x y z.
+      ⊢ ∃ x y z, □ (<affine> ⌜x = 1%Z⌝ ∗ <affine> ⌜y = 2%Z⌝) ∗ <affine> ⌜z = 3%Z⌝ ∗ P x y z.
     intros. iStartProof. iIntros. repeat liExist.
     1: liSep.
     1: liForall.
@@ -786,7 +792,7 @@ Module liSep_tests. Section test.
   Abort.
 
   Goal  ∀ P : Z → Z → Z → prop,
-      ⊢ ∃ x y z, □ (⌜x = 1%Z⌝ ∗ □ ⌜y = 2%Z⌝) ∗ ⌜z = 3%Z⌝ ∗ P x y z.
+      ⊢ ∃ x y z, □ (<affine> ⌜x = 1%Z⌝ ∗ □ <affine> ⌜y = 2%Z⌝) ∗ <affine> ⌜z = 3%Z⌝ ∗ P x y z.
     intros. iStartProof. iIntros. repeat liExist.
     1: liSep.
     1: liForall.
@@ -807,7 +813,7 @@ Module liSep_tests. Section test.
   Abort.
 
   Goal  ∀ P : Z → Z → Z → prop,
-      ⊢ ∃ x y z, □ (⌜x = 1%Z⌝ ∗ ⌜y = 2%Z⌝ ∗ ⌜z = 3%Z⌝) ∗ P x y z.
+      ⊢ ∃ x y z, □ (<affine> ⌜x = 1%Z⌝ ∗ <affine> ⌜y = 2%Z⌝ ∗ <affine> ⌜z = 3%Z⌝) ∗ P x y z.
     intros. iStartProof. iIntros. repeat liExist.
     1: liSep.
     1: liForall.
@@ -827,7 +833,7 @@ Module liSep_tests. Section test.
   Abort.
 
   Goal  ∀ P : Z → prop,
-      ⊢ ∃ x, □ (const True x) ∗ ⌜x = 1%Z⌝ ∗ P x.
+      ⊢ ∃ x, □ (const (<affine> True) x) ∗ <affine> ⌜x = 1%Z⌝ ∗ P x.
     intros. iStartProof. iIntros. repeat liExist.
     1: liSep.
     1: liForall.
@@ -847,9 +853,11 @@ End test. End liSep_tests.
 (** ** [liWand] *)
 Section coq_tactics.
   Context {prop : bi}.
+  Hypothesis BiPositive_prop : BiPositive prop.
+  Hypothesis BiPersistentlyForall_prop : BiPersistentlyForall prop.
 
   Lemma tac_do_intro_pure Δ (P : Prop) (Q : prop) :
-    (P → envs_entails Δ Q) → envs_entails Δ (⌜P⌝ -∗ Q).
+    (P → envs_entails Δ Q) → envs_entails Δ (<affine> ⌜P⌝ -∗ Q).
   Proof.
     rewrite envs_entails_unseal => HP. iIntros "HΔ %".  by iApply HP.
   Qed.
@@ -878,7 +886,7 @@ Section coq_tactics.
     env_lookup i Γs = None →
     env_lookup i Γp = None →
     envs_entails (Envs (Esnoc Γp i P') Γs n') T →
-    envs_entails (Envs Γp Γs n) (P -∗ T).
+    envs_entails (Envs Γp Γs n) (<affine> P -∗ T).
   Proof.
     rewrite envs_entails_unseal => Hs Hp HP. iIntros "Henv HP".
     iDestruct (@ip_persistent _ _ _ Hpers with "HP") as "#HP'".
@@ -893,11 +901,11 @@ Section coq_tactics.
 
   Lemma tac_wand_emp Δ (P : prop) :
     envs_entails Δ P → envs_entails Δ (emp -∗ P).
-  Proof. apply tac_fast_apply. by iIntros "$". Qed.
+  Proof. apply tac_fast_apply. by iIntros. Qed.
 
   Lemma tac_wand_pers_sep Δ (P : prop) (Q1 Q2 : prop) :
     envs_entails Δ ((□ Q1 ∗ □ Q2) -∗ P) → envs_entails Δ (□ (Q1 ∗ Q2) -∗ P).
-  Proof. apply tac_fast_apply. iIntros "Hx #[? ?]". iApply "Hx". iFrame "#". Qed.
+  Proof using BiPositive_prop. apply tac_fast_apply. iIntros "Hx #[? ?]". iApply "Hx". iFrame "#". Qed.
 
   Lemma tac_wand_pers_exist A Δ (P : prop) (Q : A → prop) :
     envs_entails Δ ((∃ x, □ Q x) -∗ P) → envs_entails Δ (□ (∃ x, Q x) -∗ P).
@@ -952,13 +960,13 @@ Section coq_tactics.
   Proof. rewrite envs_entails_unseal => HP1 HP2. by apply bi.and_intro. Qed.
 
   Lemma tac_big_andM_insert Δ {A B} `{Countable A} (m : gmap A B) i n (Φ : _ → _→ prop) :
-    envs_entails Δ (⌜m !! i = None⌝ ∗ (Φ i n ∧ [∧ map] k↦v∈m, Φ k v)) →
+    envs_entails Δ (<affine> ⌜m !! i = None⌝ ∗ (Φ i n ∧ [∧ map] k↦v∈m, Φ k v)) →
     envs_entails Δ ([∧ map] k↦v∈<[i:=n]>m, Φ k v).
   Proof. apply tac_fast_apply. iIntros "[% HT]". by rewrite big_andM_insert. Qed.
 
   Lemma tac_big_andM_empty Δ {A B} `{Countable A} (Φ : _ → _→ prop) :
     envs_entails Δ ([∧ map] k↦v∈(∅ : gmap A B), Φ k v).
-  Proof. rewrite envs_entails_unseal. iIntros "_". by rewrite big_andM_empty. Qed.
+  Proof. rewrite envs_entails_unseal. iIntros "?". by rewrite big_andM_empty. Qed.
 End coq_tactics.
 
 Ltac liAnd :=
@@ -971,6 +979,8 @@ Ltac liAnd :=
     notypeclasses refine (tac_big_andM_empty _ _)
   end.
 
+(* TODO Ke: is not valid anymore because logic is linear? maybe to a weaker version where spatial context is empty? *)
+(* 
 (** ** [liPersistent] *)
 Section coq_tactics.
   Context {prop : bi}.
@@ -981,7 +991,7 @@ Section coq_tactics.
     rewrite envs_entails_unseal => HP. iIntros "Henv".
     iDestruct (envs_clear_spatial_sound with "Henv") as "[#Henv _]".
     iModIntro. iApply (HP with "Henv").
-  Qed.
+  Qed. 
 End coq_tactics.
 
 Ltac liPersistent :=
@@ -989,6 +999,7 @@ Ltac liPersistent :=
   | |- envs_entails ?Δ (bi_intuitionistically ?P) =>
       notypeclasses refine (tac_persistent _ _ _); li_pm_reduce
   end.
+*)
 
 (** ** [liCase] *)
 Section coq_tactics.
@@ -997,7 +1008,7 @@ Section coq_tactics.
   Lemma tac_case_if Δ (P : Prop) T1 T2 :
     (P → envs_entails Δ T1) →
     (¬ P → envs_entails Δ T2) →
-    envs_entails Δ (@case_if Σ P T1 T2).
+    envs_entails Δ (@case_if prop P T1 T2).
   Proof.
     rewrite envs_entails_unseal => HT1 HT2.
     iIntros "Henvs". iSplit; iIntros (?).
@@ -1008,7 +1019,7 @@ Section coq_tactics.
   Lemma tac_case_destruct_bool_decide Δ (P : Prop) `{!Decision P} T:
     (P → envs_entails Δ (T true true)) →
     (¬ P → envs_entails Δ (T false true)) →
-    envs_entails Δ (@case_destruct Σ bool (bool_decide P) T).
+    envs_entails Δ (@case_destruct prop bool (bool_decide P) T).
   Proof.
     rewrite envs_entails_unseal => HP HnotP.
     iIntros "Henvs". iExists true. case_bool_decide.
@@ -1018,7 +1029,7 @@ Section coq_tactics.
 
   Lemma tac_case_destruct {A} (b : bool) Δ a T:
     envs_entails Δ (T a b) →
-    envs_entails Δ (@case_destruct Σ A a T).
+    envs_entails Δ (@case_destruct prop A a T).
   Proof. apply tac_fast_apply. iIntros "?". iExists _. iFrame. Qed.
 End coq_tactics.
 
@@ -1113,7 +1124,7 @@ Ltac liStep :=
     | liCase
     | liTrace
     | liTactic
-    | liPersistent
+    (* | liPersistent *)
     | liTrue
     | liFalse
     | liAccu
