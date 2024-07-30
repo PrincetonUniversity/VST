@@ -1,6 +1,5 @@
 From iris.proofmode Require Import coq_tactics reduction.
-From VST.lithium Require Export base.
-From lithium Require Import hooks normalize solvers.
+From lithium Require Import base hooks normalize solvers.
 From VST.lithium Require Import definitions simpl_classes proof_state syntax.
 From VST.lithium Require Import simpl_instances. (* required for tests *)
 Set Default Proof Using "Type".

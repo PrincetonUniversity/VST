@@ -65,7 +65,7 @@ endif
 # CLIGHTGEN=$(my_local_bin_path)/clightgen
 
 # # User settable variables #
-COMPCERT ?= platform
+COMPCERT ?= bundled
 ZLIST ?= bundled
 ARCH ?= 
 BITSIZE ?= 64
@@ -268,9 +268,9 @@ endif
 # ########## Flags ##########
 
 ifeq ($(ZLIST),platform)
-  VSTDIRS= shared msl sepcomp veric floyd $(PROGSDIR) concurrency ccc26x86 atomics lithium
+  VSTDIRS= shared msl sepcomp veric floyd $(PROGSDIR) concurrency ccc26x86 atomics
 else
-  VSTDIRS= shared msl sepcomp veric zlist floyd $(PROGSDIR) concurrency ccc26x86 atomics lithium
+  VSTDIRS= shared msl sepcomp veric zlist floyd $(PROGSDIR) concurrency ccc26x86 atomics
 endif
 OTHERDIRS= wand_demo sha hmacfcf tweetnacl20140427 hmacdrbg aes mailbox boringssl_fips_20180730
 DIRS = $(VSTDIRS) $(OTHERDIRS)
@@ -330,6 +330,9 @@ endif
 ifneq ($(wildcard ora/theories),)
 EXTFLAGS:=$(EXTFLAGS) -Q ora/theories iris_ora
 endif
+
+# ##### refinedVST Flags #####
+EXTFLAGS:=$(EXTFLAGS) -Q refinedVST/lithium VST.lithium -Q refinedVST/typing VST.typing
 
 # ##### Flag summary #####
 
@@ -872,11 +875,11 @@ floyd/floyd.coq: floyd/proofauto.vo
 	@echo 'coqdep ... >.depend'
 ifeq ($(COMPCERT_NEW),true)
 	# DEPENDENCIES VARIANT COMPCERT_NEW
-	$(COQDEP) $(DEPFLAGS) 2>&1 >.depend `find $(filter $(wildcard *), $(DIRS) concurrency/common concurrency/compiler concurrency/juicy concurrency/util paco concurrency/sc_drf) -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
+	$(COQDEP) $(DEPFLAGS) 2>&1 >.depend `find $(filter $(wildcard *), $(DIRS) refinedVST concurrency/common concurrency/compiler concurrency/juicy concurrency/util paco concurrency/sc_drf) -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
 	@echo "" >>.depend
 else
 	# DEPENDENCIES DEFAULT
-	$(COQDEP) $(DEPFLAGS) 2>&1 >.depend `find $(filter $(wildcard *), $(DIRS)) -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
+	$(COQDEP) $(DEPFLAGS) 2>&1 >.depend `find $(filter $(wildcard *), $(DIRS) refinedVST) -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
 endif
 ifeq ($(COMPCERT_BUILD_FROM_SRC),true)
 	# DEPENDENCIES TO BUILD COMPCERT FROM SOURCE

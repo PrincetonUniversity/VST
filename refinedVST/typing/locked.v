@@ -1,7 +1,7 @@
 From iris.algebra Require Import csum excl auth cmra_big_op.
 From iris.algebra Require Import big_op gset frac agree.
-From VST.lithium Require Import programs.
-From VST.lithium Require Import type_options.
+From VST.typing Require Import programs.
+From VST.typing Require Import type_options.
 From iris_ora.algebra Require Import frac_auth ext_order.
 
 Definition lockN : namespace := nroot.@"lockN".

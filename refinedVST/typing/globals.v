@@ -1,6 +1,6 @@
-From VST.lithium Require Export type.
-From VST.lithium Require Import programs.
-From VST.lithium Require Import type_options.
+From VST.typing Require Export type.
+From VST.typing Require Import programs.
+From VST.typing Require Import type_options.
 
 Record global_type `{!typeG Σ} {cs : compspecs} := GT {
   gt_A : Type;

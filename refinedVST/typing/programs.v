@@ -1,7 +1,7 @@
 From VST.lithium Require Export proof_state.
 From lithium Require Import hooks.
-From VST.lithium Require Export type.
-From VST.lithium Require Import type_options.
+From VST.typing Require Export type.
+From VST.typing Require Import type_options.
 From VST.floyd Require Import globals_lemmas.
 
 Open Scope Z.

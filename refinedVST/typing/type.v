@@ -1,5 +1,5 @@
 From lithium Require Import simpl_classes.
-From VST.lithium Require Export base annotations.
+From VST.typing Require Export base annotations.
 Set Default Proof Using "Type".
 
 Class typeG Σ := TypeG {

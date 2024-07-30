@@ -1,6 +1,6 @@
-From VST.lithium Require Export type.
-From VST.lithium Require Import programs optional.
-From VST.lithium Require Import type_options.
+From VST.typing Require Export type.
+From VST.typing Require Import programs optional.
+From VST.typing Require Import type_options.
 
 Class OwnConstraint `{!typeG Σ} {cs : compspecs} (P : own_state → mpred) : Prop := {
   own_constraint_persistent : Persistent (P Shr);

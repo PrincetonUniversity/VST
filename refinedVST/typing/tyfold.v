@@ -1,6 +1,6 @@
-From VST.lithium Require Export type.
-From VST.lithium Require Import programs singleton optional constrained exist.
-From VST.lithium Require Import type_options.
+From VST.typing Require Export type.
+From VST.typing Require Import programs singleton optional constrained exist.
+From VST.typing Require Import type_options.
 
 Section tyfold.
   Context `{!typeG Σ} {cs : compspecs}.

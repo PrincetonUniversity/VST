@@ -1,4 +1,4 @@
-From VST.lithium Require Import base.
+From VST.typing Require Import base.
 
 Inductive to_uninit_annot : Type :=
   ToUninit.

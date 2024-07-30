@@ -1,6 +1,6 @@
-From VST.lithium Require Export type.
-From VST.lithium Require Import programs exist constrained.
-From VST.lithium Require Import type_options.
+From VST.typing Require Export type.
+From VST.typing Require Import programs exist constrained.
+From VST.typing Require Import type_options.
 
 Definition type_fixpoint_def `{!typeG Σ} {cs : compspecs} {A} : ((A -> type) → (A -> type)) → (A → type) :=
   λ T x, tyexists (λ ty, constrained (ty x) (⌜∀ x, ty x ⊑ T ty x⌝)).

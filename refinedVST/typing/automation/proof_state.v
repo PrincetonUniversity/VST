@@ -1,6 +1,6 @@
 From VST.lithium Require Import all.
 From lithium Require Import hooks. 
-From VST.lithium Require Import type globals.
+From VST.typing Require Import type globals.
 (* From VST.lithium.automation Require Import solvers. *)
 
 
