@@ -1,8 +1,8 @@
 From iris.algebra Require Import csum excl auth cmra_big_op gmap.
 (*From iris.base_logic.lib Require Import ghost_map.*)
 From VST.veric Require Import SequentialClight.
-From VST.lithium Require Export type.
-From VST.lithium Require Import programs function bytes globals int fixpoint.
+From VST.typing Require Export type.
+From VST.typing Require Import programs function bytes globals int fixpoint.
 Set Default Proof Using "Type".
 
 (* Class typePreG Σ := PreTypeG {

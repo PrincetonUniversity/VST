@@ -1,6 +1,6 @@
-From VST.lithium Require Export type.
-From VST.lithium Require Import programs boolean int.
-From VST.lithium Require Import type_options.
+From VST.typing Require Export type.
+From VST.typing Require Import programs boolean int.
+From VST.typing Require Import type_options.
 
 Definition atomic_boolN : namespace := nroot.@"atomic_boolN".
 Section atomic_bool.

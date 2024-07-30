@@ -1,6 +1,6 @@
-From VST.lithium Require Export type.
-From VST.lithium Require Import programs optional.
-From VST.lithium Require Import type_options.
+From VST.typing Require Export type.
+From VST.typing Require Import programs optional.
+From VST.typing Require Import type_options.
 
 Definition ty_exists_rty_def `{!typeG Σ} {cs : compspecs} {A} (ty : A → type) (a : A) : type := ty a.
 Definition ty_exists_rty_aux : seal (@ty_exists_rty_def). by eexists. Qed.

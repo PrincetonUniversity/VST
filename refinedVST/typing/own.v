@@ -1,6 +1,6 @@
-From VST.lithium Require Export type.
-From VST.lithium Require Import programs optional boolean int singleton.
-From VST.lithium Require Import type_options.
+From VST.typing Require Export type.
+From VST.typing Require Import programs optional boolean int singleton.
+From VST.typing Require Import type_options.
 
 Section own.
   Context `{!typeG Σ} {cs : compspecs}.

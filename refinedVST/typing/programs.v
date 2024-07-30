@@ -1,9 +1,94 @@
 From VST.lithium Require Export proof_state.
 From lithium Require Import hooks.
-From VST.lithium Require Export type.
-From VST.lithium Require Import type_options.
+From VST.typing Require Export type.
+From VST.typing Require Import type_options.
+From VST.floyd Require Import globals_lemmas.
 
 Open Scope Z.
+
+Section CompatRefinedC.
+  Context `{!typeG Σ} {cs : compspecs}.
+
+  Definition has_layout_val (v:val) (ot:Ctypes.type) : Prop := tc_val' ot v.
+  Arguments has_layout_val : simpl never.
+  Global Typeclasses Opaque has_layout_val.
+
+  
+  (*  NOTE maybe change this with field_compatible? *)
+  Definition has_layout_loc (l:address) (ot:Ctypes.type) : Prop :=
+    (* field_compatible ot [] l. *)
+    match access_mode ot with
+    | By_value ch =>  (align_chunk ch | Ptrofs.unsigned (Ptrofs.repr l.2))
+    | _ => False
+    end.
+
+  Arguments has_layout_loc : simpl never.
+  Global Typeclasses Opaque has_layout_loc.
+
+  Definition mapsto (l : address) (q : Share.t) (ot : Ctypes.type) (v : val) : mpred := mapsto q ot l v. 
+  Definition mapsto_layout (l : address) (q : Share.t) (ot : Ctypes.type) : mpred :=
+    (∃ v,  <affine>⌜has_layout_val v ot⌝ ∗ <affine>⌜has_layout_loc l ot⌝ ∗ mapsto l q ot v).
+  Definition mapsto_layout_ (l : address) (q : Share.t) (ot : Ctypes.type) : mpred :=
+    (∃ v, mapsto l q ot v).
+  
+  Lemma maptso_layout_has_layout_val l q ot (v:val) :
+    mapsto l q ot v ⊢ ⌜has_layout_val v ot⌝.
+  Proof.
+    unfold mapsto, mapsto_memory_block.mapsto.
+    iIntros "H".
+    destruct (access_mode ot) eqn:Hot; try done.
+    destruct (type_is_volatile ot) eqn:Hotv; try done.
+    destruct l eqn:Hl; try done.
+    destruct (readable_share_dec q) eqn:Hq; unfold has_layout_val, tc_val'.
+    - rewrite bi.pure_impl.  iIntros "%". iDestruct "H" as "[[$ _]|[% _]]". done.
+    - iDestruct "H" as "[[$ _] _]".
+  Qed.
+
+  Lemma maptso_layout_has_layout_loc (l:address) q ot (v:val) :
+    mapsto l q ot v ⊢ ⌜has_layout_loc l ot⌝.
+  Proof.
+    unfold mapsto, mapsto_memory_block.mapsto, has_layout_loc.
+    iIntros "H".
+    destruct (access_mode ot) eqn:Hot; try done.
+    destruct (type_is_volatile ot) eqn:Hotv; try done.
+    destruct (addr_to_val l) eqn:Hl; try done.
+    destruct (readable_share_dec q) eqn:Hq.
+    - iDestruct "H" as "[[% H]|[% H]]".
+      + unfold address_mapsto.
+        inv Hl.
+        iDestruct "H" as (ms) "((% & % & $) & ?)".
+      + unfold address_mapsto.
+        inv Hl.
+        iDestruct "H" as (??) "((% & % & $) & ?)".  
+    -  iDestruct "H" as "[[_ %] _]"; iPureIntro.
+       inv Hl.
+       done.
+Qed.
+
+  Lemma mapsto_layout_equiv l q ot :
+    mapsto_layout l q ot ⊣⊢ mapsto_layout_ l q ot.
+  Proof.
+    rewrite /mapsto_layout /mapsto_layout_.
+    apply bi.equiv_entails_2; apply bi.exist_mono => v.
+    - iIntros "(? & ? & $)".
+    - iIntros "H".
+      iSplit. { rewrite maptso_layout_has_layout_val //. iDestruct "H" as "%". iPureIntro; done. }
+      iSplit. { rewrite maptso_layout_has_layout_loc //. iDestruct "H" as "%". iPureIntro; done. }
+      done.
+  Qed.
+
+  End CompatRefinedC.
+
+  Notation "v `has_layout_val` ot" := (has_layout_val v ot) (at level 50) : stdpp_scope.
+  Notation "l `has_layout_loc` ot" := (has_layout_loc l ot) (at level 50) : stdpp_scope.
+  Notation "l ↦{ sh '}' '|' ot '|' v" := (mapsto l sh ot v)
+    (at level 20, sh at level 50, format "l ↦{ sh '}' '|' ot '|' v") : bi_scope.
+  Notation "l ↦| ot | v" := (mapsto l Tsh ot v)
+    (at level 20, format "l  ↦| ot | v") : bi_scope.
+  Notation "l ↦{ sh '}' '|' ot '|' '_'" := (mapsto_layout l sh ot)
+    (at level 20, sh at level 50, format "l ↦{ sh '}' '|' ot '|' _") : bi_scope.
+  Notation "l ↦| ot '|' '-'" := (mapsto_layout l Tsh ot)
+    (at level 20, format "l ↦| ot '|' '-'") : bi_scope.
 
 (* int infrastructure *)
 Definition val_to_Z (v : val) (t : Ctypes.type) : option Z :=
@@ -306,6 +391,17 @@ Section judgements.
     (∀ Φ, (∀ v (ty : type), ⎡v ◁ᵥ ty⎤ -∗ T v ty -∗ Φ v) -∗ wp_expr e Φ).
   Global Arguments typed_val_expr _ _%_I.
 
+  Definition wp_lvalue e Φ : assert :=
+  ∀ m, ⎡juicy_mem.mem_auth m⎤ -∗
+         ∃ b o, local (λ rho, forall ge ve te,
+            rho = construct_rho (filter_genv ge) ve te ->
+            Clight.eval_lvalue ge ve te m e b o Full (*/\ typeof e = t /\ tc_val t v*)) ∧
+         ⎡juicy_mem.mem_auth m⎤ ∗ Φ (Vptr b o).
+
+  Definition typed_lvalue e T : assert :=
+    (∀ Φ, (∀ v (ty : type), ⎡v ◁ᵥ ty⎤ -∗ T v ty -∗ Φ v) -∗ wp_lvalue e Φ).
+  Global Arguments typed_lvalue _ _%_I.
+
   Definition typed_value (v : val) (T : type → assert) : assert :=
     (∃ (ty: type), ⎡v ◁ᵥ ty⎤ ∗ T ty).
   Class TypedValue (v : val) : Type :=
@@ -369,17 +465,22 @@ Section judgements.
     (P -∗ ([∗ list] v;ty∈vl;tys, v ◁ᵥ ty) -∗ typed_val_expr (Call v (Val <$> vl)) T)%I.
   Class TypedCall (v : val) (P : iProp Σ) (vl : list val) (tys : list type) : Type :=
     typed_call_proof T : iProp_to_Prop (typed_call v P vl tys T).
+*)
 
+(* There does not seem to be a copy stmt in Clight, just Sassign 
   Definition typed_copy_alloc_id (v1 : val) (P1 : iProp Σ) (v2 : val) (P2 : iProp Σ) (ot : op_type) (T : val → type → iProp Σ) : iProp Σ :=
     (P1 -∗ P2 -∗ typed_val_expr (CopyAllocId ot v1 v2) T).
 
   Class TypedCopyAllocId (v1 : val) (P1 : iProp Σ) (v2 : val) (P2 : iProp Σ) (ot : op_type) : Type :=
     typed_copy_alloc_id_proof T : iProp_to_Prop (typed_copy_alloc_id v1 P1 v2 P2 ot T).
+*)
 
+(*
   Definition typed_cas (ot : op_type) (v1 : val) (P1 : iProp Σ) (v2 : val) (P2 : iProp Σ) (v3 : val) (P3 : iProp Σ)  (T : val → type → iProp Σ) : iProp Σ :=
     (P1 -∗ P2 -∗ P3 -∗ typed_val_expr (CAS ot v1 v2 v3) T).
   Class TypedCas (ot : op_type) (v1 : val) (P1 : iProp Σ) (v2 : val) (P2 : iProp Σ) (v3 : val) (P3 : iProp Σ) : Type :=
-    typed_cas_proof T : iProp_to_Prop (typed_cas ot v1 P1 v2 P2 v3 P3 T).*)
+    typed_cas_proof T : iProp_to_Prop (typed_cas ot v1 P1 v2 P2 v3 P3 T).
+*)
 
   (* This does not allow overloading the macro based on the type of
   es. Is this a problem? There is a work around where the rule inserts
@@ -394,56 +495,80 @@ Section judgements.
   ot of value [v] of type [ty] to the expression [e]. [atomic] says
   whether the write is an atomic write. The typing rule for [typed_write]
   typechecks [e] and then dispatches to [typed_write_end]. *)
-(*  Definition typed_write (atomic : bool) (e : expr) (ot : Ctypes.type) (v : val) (ty : type) (T : iProp Σ) : iProp Σ :=
+ (* Ke: probably for SAssign. TODO add a rule for Sset? *)
+ (* Ke: for RefinedC mapsto, use ⎡VST.mapsto_memory_block.mapsto q ot l v⎤ 
+        which is basically RefinedC.mapsto l v + l aligns according to ot + v fits in size of ot *)
+
+  Definition typed_write (atomic : bool) (e : expr) (ot : Ctypes.type) (v : val) (ty : type) (T : assert) : assert :=
     let E := if atomic then ∅ else ⊤ in
-    (∀ Φ,
-        (∀ l, (v ◁ᵥ ty ={⊤, E}=∗ ⌜field_compatible ot [] v⌝ ∗ l↦|ot_layout ot| ∗ ▷ (l ↦ v ={E, ⊤}=∗ T)) -∗ Φ (val_of_loc l)) -∗
-       WP e {{ Φ }}).
+    (∀ (Φ: val->assert),
+        (∀ (l:address), (⎡v ◁ᵥ ty⎤ ={⊤, E}=∗
+                <affine> ⌜v `has_layout_val` ot⌝ ∗ ⎡ l ↦|ot| v ⎤ ∗ 
+                (* NOTE Ke:  no later because eval expr does not increase step index *)
+                (⎡ l ↦|ot| v ⎤ ={E, ⊤}=∗ T))
+              -∗ Φ l) -∗
+       wp_expr e Φ)%I.
 
   (** [typed_read atomic e ot memcast] typechecks a read with op_type
   ot of the expression [e]. [atomic] says whether the read is an
   atomic read and [memcast] says whether a memcast is performed during
   the read. The typing rule for [typed_read] typechecks [e] and then
   dispatches to [typed_read_end] *)
-  Definition typed_read (atomic : bool) (e : expr) (ot : op_type) (memcast : bool) (T : val → type → iProp Σ) : iProp Σ :=
+  (* FIXME cast need whole memory? *)
+Definition typed_read (atomic : bool) (e : expr) (ot : Ctypes.type) (memcast : bool) (m: mem) (T : val → type → assert) : assert :=
     let E := if atomic then ∅ else ⊤ in
-    (∀ Φ,
-       (∀ (l : loc), (|={⊤, E}=> ∃ v q (ty : type), ⌜l `has_layout_loc` ot_layout ot⌝ ∗ ⌜v `has_layout_val` ot_layout ot⌝ ∗ l↦{q}v ∗ ▷ v ◁ᵥ ty ∗ ▷ (∀ st, l↦{q}v -∗ v ◁ᵥ ty ={E, ⊤}=∗ ∃ ty' : type, (if memcast then mem_cast v ot st else v) ◁ᵥ ty' ∗ T (if memcast then mem_cast v ot st else v) ty')) -∗ Φ (val_of_loc l)) -∗
-       WP e {{ Φ }}).
+    (∀ (Φ: val->assert),
+       (∀ (l:address), 
+          (|={⊤, E}=> ∃ v q (ty : type), ⌜l `has_layout_loc` ot⌝ ∗ ⌜v `has_layout_val` ot⌝ ∗
+                        ⎡ l ↦{q} |ot| v ⎤ ∗ ▷ ⎡v ◁ᵥ ty⎤ ∗ 
+                        ▷ (∀ st, ⎡ l ↦{q} |ot| v ⎤ -∗ ⎡v ◁ᵥ ty⎤ ={E, ⊤}=∗ 
+                        ∃ (ty' : type) v', 
+                          ⌜Some v'=if memcast then Cop.sem_cast v ot st m else Some v⌝ ∧
+                          ⎡v' ◁ᵥ ty'⎤ ∗
+                          T v' ty')) 
+        -∗ Φ l) -∗
+     wp_expr e Φ)%I.
 
   (** [typed_addr_of e] typechecks an address of operation on the expression [e].
   The typing rule for [typed_addr_of] typechecks [e] and then dispatches to [typed_addr_of_end]*)
-  Definition typed_addr_of (e : expr) (T : loc → own_state → type → iProp Σ) : iProp Σ :=
-    (∀ Φ,
-       (∀ (l : loc) β ty, l ◁ₗ{β} ty -∗ T l β ty -∗ Φ (val_of_loc l)) -∗
-       WP e {{ Φ }}).
+  Definition typed_addr_of (e : expr) (T : address → own_state → type → assert) : assert :=
+    ∀ (Φ: val->assert),
+       (∀ (l : address) β ty, ⎡l ◁ₗ{β} ty⎤ -∗ T l β ty -∗ Φ l) -∗
+       wp_expr e Φ.
 
   (** [typed_read_end atomic E l β ty ot memcast] typechecks a read with op_type
   ot of the location [l] with type [l ◁ₗ{β} ty]. [atomic] says whether the read is an
   atomic read, [E] gives the current mask, and [memcast] says whether a memcast is
   performed during the read. *)
-  Definition typed_read_end (atomic : bool) (E : coPset) (l : loc) (β : own_state) (ty : type) (ot : op_type) (memcast : bool) (T : val → type → type → iProp Σ) : iProp Σ :=
-    let E' := if atomic then ∅ else E in
-    l◁ₗ{β}ty ={E, E'}=∗ ∃ q v (ty2 : type),
-        ⌜l `has_layout_loc` ot_layout ot⌝ ∗ ⌜v `has_layout_val` ot_layout ot⌝ ∗ l↦{q}v ∗ ▷ v ◁ᵥ ty2 ∗
-         ▷ (∀ st, l↦{q}v -∗ v ◁ᵥ ty2 ={E', E}=∗
-            ∃ ty' (ty3 : type), (if memcast then mem_cast v ot st else v) ◁ᵥ ty3 ∗ l◁ₗ{β} ty' ∗ T (if memcast then mem_cast v ot st else v) ty' ty3).
-  Class TypedReadEnd (atomic : bool) (E : coPset) (l : loc) (β : own_state) (ty : type) (ot : op_type) (memcast : bool) : Type :=
-    typed_read_end_proof T : iProp_to_Prop (typed_read_end atomic E l β ty ot memcast T).
+  Definition typed_read_end (atomic : bool) (E : coPset) (l : address) (β : own_state) (ty : type) (ot : Ctypes.type) (memcast : bool) (m:mem) (T : val → type → type → assert) : assert :=
+    (let E' := if atomic then ∅ else E in
+    ⎡l◁ₗ{β}ty⎤ ={E, E'}=∗ ∃ q v (ty2 : type),
+    ⌜l `has_layout_loc` ot⌝ ∗ ⌜v `has_layout_val` ot⌝ ∗
+    ⎡l↦{q}|ot|v⎤ ∗ ▷ ⎡v ◁ᵥ ty2⎤ ∗
+         ▷ (∀ st, ⎡l↦{q}|ot|v⎤ -∗ ⎡v ◁ᵥ ty2⎤ ={E', E}=∗
+            ∃ ty' (ty3 : type) (v':val), ⌜Some v'=if memcast then Cop.sem_cast v ot st m else Some v⌝ ∧
+              ⎡v' ◁ᵥ ty3⎤ ∗ ⎡l◁ₗ{β} ty'⎤ ∗ T v' ty' ty3))%I.
+
+  Class TypedReadEnd (atomic : bool) (E : coPset) (l : address) (β : own_state) (ty : type) (ot : Ctypes.type) (m:mem) (memcast : bool) : Type :=
+    typed_read_end_proof T : iProp_to_Prop (typed_read_end atomic E l β ty ot memcast m T).
 
   (** [typed_write atomic E ot v1 ty1 l2 β2 ty2] typechecks a write with op_type
   ot of value [v1] of type [ty1] to the location [l2] with type [l2 ◁ₗ{β2} ty].
   [atomic] says whether the write is an atomic write and [E] gives the current mask. *)
-  Definition typed_write_end (atomic : bool) (E : coPset) (ot : op_type) (v1 : val) (ty1 : type) (l2 : loc) (β2 : own_state) (ty2 : type) (T : type → iProp Σ) : iProp Σ :=
+  Definition typed_write_end (atomic : bool) (E : coPset) (ot : Ctypes.type) (v1 : val) (ty1 : type) (l2 : address) (β2 : own_state) (ty2 : type) (T : type → assert) : assert :=
     let E' := if atomic then ∅ else E in
-    l2 ◁ₗ{β2} ty2 -∗ (v1 ◁ᵥ ty1 ={E, E'}=∗ ⌜v1 `has_layout_val` ot_layout ot⌝ ∗ l2↦|ot_layout ot| ∗ ▷ (l2↦v1 ={E', E}=∗ ∃ ty3, l2 ◁ₗ{β2} ty3 ∗ T ty3)).
-  Class TypedWriteEnd (atomic : bool) (E : coPset) (ot : op_type) (v1 : val) (ty1 : type) (l2 : loc) (β2 : own_state) (ty2 : type) : Type :=
-    typed_write_end_proof T : iProp_to_Prop (typed_write_end atomic E ot v1 ty1 l2 β2 ty2 T).*)
+    (⎡l2 ◁ₗ{β2} ty2⎤ -∗ 
+    (⎡v1 ◁ᵥ ty1⎤ ={E, E'}=∗
+       ⌜v1 `has_layout_val` ot⌝ ∗
+      ⎡ l2↦|ot| - ⎤ ∗ 
+      ▷ (⎡ l2 ↦|ot| v1 ⎤ ={E', E}=∗ ∃ ty3, ⎡l2 ◁ₗ{β2} ty3⎤ ∗ T ty3)))%I.
+  Class TypedWriteEnd (atomic : bool) (E : coPset) (ot : Ctypes.type) (v1 : val) (ty1 : type) (l2 : address) (β2 : own_state) (ty2 : type) : Type :=
+    typed_write_end_proof T : iProp_to_Prop (typed_write_end atomic E ot v1 ty1 l2 β2 ty2 T).
 
   (** [typed_addr_of_end l β ty] typechecks an address of operation on the location [l]
   with type [l ◁ₗ{β} ty]. *)
-  Definition typed_addr_of_end (l : address) (β : own_state) (ty : type) (T : own_state → type → type → iProp Σ) : iProp Σ :=
-    l◁ₗ{β}ty ={⊤}=∗ ∃ β2 ty2 ty', l◁ₗ{β2}ty2 ∗ l◁ₗ{β}ty' ∗ T β2 ty2 ty'.
+  Definition typed_addr_of_end (l : address) (β : own_state) (ty : type) (T : own_state → type → type → assert) : assert :=
+    (⎡l◁ₗ{β}ty⎤ ={⊤}=∗ ∃ β2 ty2 ty', ⎡l◁ₗ{β2}ty2⎤ ∗ ⎡l◁ₗ{β}ty'⎤ ∗ T β2 ty2 ty')%I.
   Class TypedAddrOfEnd (l : address) (β : own_state) (ty : type) : Type :=
     typed_addr_of_end_proof T : iProp_to_Prop (typed_addr_of_end l β ty T).
 
@@ -1327,18 +1452,54 @@ Section typing.
     by iApply "Hblock".
   Qed.
 
-  Lemma type_assign ot e1 e2 Q s fn ls R o:
-    typed_val_expr e2 (λ v ty, ⌜if o is Na2Ord then False else True⌝ ∗
-      typed_write (if o is ScOrd then true else false) e1 ot v ty (typed_stmt s fn ls R Q))
-    ⊢ typed_stmt (e1 <-{ot, o} e2; s) fn ls R Q.
+*)
+
+
+Lemma wp_store: forall ESpec E Delta e1 e2 R_ret,
+  wp_expr (Ecast e2 (typeof e1)) (λ v2,
+      ⌜Cop2.tc_val' (typeof e1) v2⌝ ∧ wp_expr e1 (λ (v1: val),
+      |={⊤}=> (* ? *)
+    ∃ sh,  <affine> ⌜writable0_share sh⌝ ∗ ⎡mapsto_ sh (typeof e1) v1⎤ ∗
+    (∃ l1, ⌜val2address v1 = Some l1⌝ ∧ ⎡mapsto l1 sh (typeof e1) v2⎤ ={E}=∗ (RA_normal R_ret))))
+  ⊢ wp_stmt ESpec E Delta (Sassign e1 e2) R_ret.
+Admitted.
+
+  (* Ke: possible way to handle cast: dispatch type checking rules to 
+     type_Ecast, and only cover cases where it doesn't need memory.
+     similar to lithium.theories.typing.int, have one rule for each 
+     concrete (t1, t2) in (Ecast t1 t2) *)
+  Lemma type_assign Espec Delta e1 e2 (T: val -> type -> assert):
+    typed_val_expr (Ecast e2 (typeof e1)) (λ v ty,
+      ⌜Cop2.tc_val' (typeof e1) v⌝ ∧
+       typed_write false e1 (typeof e1) v ty (T Vundef tytrue))
+    ⊢ typed_stmt Espec Delta (Sassign e1 e2) T.
   Proof.
-    iIntros "He" (Hls).
-    wps_bind. iApply "He". iIntros (v ty) "Hv [% He1]".
-    wps_bind. iApply "He1". iIntros (l) "HT".
-    iApply wps_assign; rewrite ?val_to_of_loc //. { destruct o; naive_solver. }
-    iMod ("HT" with "Hv") as "[$ [$ HT]]". destruct o; iIntros "!# !# Hl".
-    all: by iApply ("HT" with "Hl").
-  Qed. *)
+    unfold typed_stmt.
+    rewrite -wp_store.
+    -
+    (* unfold typed_val_expr. *)
+    (* unfold wp_expr. *)
+    unfold typed_val_expr.
+    iIntros "H". iApply "H".
+    iIntros (v ty) "H [% ty_write]".
+    iSplit; [done|].
+
+    iApply "ty_write".
+    iIntros (l) "upd".
+    iMod ("upd" with "H") as "(%Hot & b & c)"; iModIntro.
+    unfold has_layout_val in Hot.
+    iExists Tsh.
+    iSplit; [auto|].
+    iSplitL "b". { unfold mapsto.
+    rewrite mapsto_mapsto_ //. }
+    iExists l.
+    iIntros "[%a b]".
+    iMod ("c" with "b").
+    iModIntro.
+    unfold typed_stmt_post_cond; simpl.
+    iExists tytrue.
+    iFrame. done.
+Admitted.
 
   Lemma wp_semax : forall Espec E Delta P s Q, (P ⊢ wp_stmt Espec E Delta s Q) → semax(OK_spec := Espec) E Delta P s Q.
   Proof.
@@ -1840,7 +2001,12 @@ Section typing.
   Qed.
   Definition type_read_copy_inst := [instance type_read_copy].
   Global Existing Instance type_read_copy_inst | 10.
+*)
 
+  (* for expr `e:=v` => eval_expr e = l ∧ typed l v  *)
+  (* typed_lvalue e (typed_write_end ...)   *)
+
+  (*
   Lemma type_write (a : bool) ty T T' e v ot:
     IntoPlaceCtx e T' →
     T' (λ K l, find_in_context (FindLoc l) (λ '(β1, ty1),
@@ -1929,7 +2095,7 @@ Section typing.
     iIntros "HT" (Φ) "Hl HΦ". iApply ("HΦ" with "Hl [] HT").  by iIntros (ty') "$".
   Qed.
   Definition type_place_id_inst := [instance type_place_id].
-  Global Existing Instance type_place_id_inst | 20.*)
+  Global Existing Instance type_place_id_inst | 20.
 
   Lemma copy_as_id l β ty `{!Copyable ty} T:
     T ty ⊢ copy_as l β ty T.
@@ -2010,3 +2176,5 @@ Global Hint Extern 5 (Subsume (_ ◁ₗ{_} _) (λ _, _ ◁ₗ{_} _.1ₗ)%I) =>
 
 (*Global Typeclasses Opaque typed_block.
 *)
+*)
+End typing.

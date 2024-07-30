@@ -1,4 +1,4 @@
-From VST.lithium Require Import type.
+From VST.typing Require Import type.
 
 (** This file collects options for files with type definitions.
 

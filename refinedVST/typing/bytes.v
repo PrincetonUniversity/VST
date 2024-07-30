@@ -1,6 +1,6 @@
-From VST.lithium Require Export type.
-From VST.lithium Require Import programs int own.
-From VST.lithium Require Import type_options.
+From VST.typing Require Export type.
+From VST.typing Require Import programs int own.
+From VST.typing Require Import type_options.
 
 (* NOTE: we might want to have a type [bytes : list mbyte → type] one day,
 and the [bytewise] abstraction could be encoded on top of it. *)

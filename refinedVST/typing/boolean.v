@@ -1,6 +1,6 @@
-From VST.lithium Require Export type.
-From VST.lithium Require Import programs.
-From VST.lithium Require Import type_options.
+From VST.typing Require Export type.
+From VST.typing Require Import programs.
+From VST.typing Require Import type_options.
 
 (** A [Strict] boolean can only have value 0 (false) or 1 (true). A [Relaxed]
     boolean can have any value: 0 means false, anything else means true. *)

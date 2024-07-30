@@ -5,7 +5,7 @@ From lithium Require Export base pure_definitions.
 infrastructure for pure sideconditions. *)
 
 (** * [SimplExist] and [SimplForall] *)
-Class SimplExist {PROP : bi} {A} (Q : (A → PROP) → PROP) :=
+Class SimplExist {PROP : bi} (A : Type) (Q : (A → PROP) → PROP) :=
   simpl_exist P : Q P ⊢ ∃ x : A, P x.
 Global Hint Mode SimplExist + ! - : typeclass_instances.
 
