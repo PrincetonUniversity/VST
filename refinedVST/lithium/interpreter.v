@@ -475,7 +475,7 @@ Module liSideCond_tests. Section test.
     liSideCond.
     liExist.
     lazymatch goal with
-    | |- envs_entails _ (P 1 1%Z) => idtac
+    | |- envs_entails _ (P 1 (Z.of_nat 1)) => idtac
     end.
   Abort.
 End test. End liSideCond_tests.

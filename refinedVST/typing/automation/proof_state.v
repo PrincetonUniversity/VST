@@ -34,7 +34,7 @@ Arguments CODE_MARKER : simpl never.
 Ltac unfold_code_marker_and_compute_map_lookup :=
   unfold CODE_MARKER in *; solvers.compute_map_lookup.
 
-Definition RETURN_MARKER `{!typeG Σ} (R : val → type → iProp Σ) : val → type → iProp Σ := R.
+Definition RETURN_MARKER `{!typeG Σ} {cs:compspecs} (R : val → type → iProp Σ) : val → type → iProp Σ := R.
 Notation "'HIDDEN'" := (RETURN_MARKER _) (only printing).
 
 

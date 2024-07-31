@@ -139,7 +139,7 @@ Record sep_list_id : Set := { sep_list_len : nat }.
 Z.to_nat Z.of_nat roundtrip? It is a bit annoying since one needs to
 introduce Z.of_nat for the list insert. *)
 Definition sep_list {PROP : bi} (id : sep_list_id) A (ig : list nat) (l : list A) (f : nat → A → PROP) : PROP :=
-  ⌜length l = sep_list_len id⌝ ∗ ([∗ list] i↦x∈l, if bool_decide (i ∈ ig) then True%I else f i x).
+  <affine>⌜length l = sep_list_len id⌝ ∗ ([∗ list] i↦x∈l, if bool_decide (i ∈ ig) then <affine> True%I else <affine> f i x).
 Global Typeclasses Opaque sep_list.
 
 Definition FindSepList {PROP : bi} (id : sep_list_id) := {| fic_A := PROP; fic_Prop P := P; |}.
