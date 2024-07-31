@@ -1,11 +1,11 @@
-From iris.proofmode Require Export tactics.
-From lithium Require Export base pure_definitions.
+From iris.bi Require Import bi.
+From lithium Require Export base.
 
 (** This file provides the classes for the simplification
 infrastructure for pure sideconditions. *)
 
 (** * [SimplExist] and [SimplForall] *)
-Class SimplExist {PROP : bi} (A : Type) (Q : (A → PROP) → PROP) :=
+Class SimplExist {prop:bi} (A : Type) (Q : (A → prop) → prop) :=
   simpl_exist P : Q P ⊢ ∃ x : A, P x.
 Global Hint Mode SimplExist + ! - : typeclass_instances.
 
