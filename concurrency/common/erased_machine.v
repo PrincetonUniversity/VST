@@ -163,7 +163,7 @@ Module BareMachine.
       - intros [cntj' [ q' running]].
         inversion H; subst.
         assert (cntj:=cntj').
-        eapply cntUpdateC' with (c:=Krun c') in cntj; eauto.
+        eapply cntUpdateC' with (c0:=Krun c') in cntj; eauto.
         exists cntj.
         destruct (NatTID.eq_tid_dec i j).
         + subst j; exists c.
@@ -235,7 +235,7 @@ Module BareMachine.
             ** pose proof (cntUpdateC' _ _ HH) as cntj0.
               exists cntj0, q.
               rewrite <- running.
-              erewrite gsoAddCode with (cntj := HH).
+              erewrite gsoAddCode with (cntj1 := HH).
               erewrite <- gsoThreadCC;
                 now eauto.
             ** exfalso.
@@ -263,7 +263,7 @@ Module BareMachine.
     
     Definition init_mach (_ : option unit) (m: mem)
                (tp:thread_pool)(m':mem)(v:val)(args:list val) : Prop :=
-      exists c, initial_core semSem 0 m c m' v args /\ tp = mkPool (Krun c) tt tt.
+      exists c, initial_core semSem 0 m c m' v args /\ tp = mkPool (Krun c) tt.
 
     Definition install_perm tp m tid (Hcmpt: mem_compatible tp m) (Hcnt: containsThread tp tid) m' :=
       m = m'.
@@ -289,6 +289,6 @@ Module BareMachine.
       ).
 
   End BareMachine.
-
+  Set Printing All.
 End BareMachine.
 

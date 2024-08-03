@@ -267,11 +267,10 @@ Module BlockList.
     simpl. ssrlia.
     destruct n. ssrlia.
     rewrite <- mkBlockList_unfold'. simpl. simpl in IHn.
-    destruct (beq_nat k (S n)) eqn:?. apply beq_nat_true in Heqb. subst.
-    now left.
+    destruct (k =? (S n)) eqn:?. apply Nat.eqb_eq in Heqb. now left.
     right. apply IHn; auto;  clear IHn.
-    apply beq_nat_false in Heqb. ssrlia.
-    apply beq_nat_false in Heqb. ssrlia.
+    apply Nat.eqb_neq in Heqb. ssrlia.
+    apply Nat.eqb_neq in Heqb. ssrlia.
   Qed.
 
   Lemma mkBlockList_not_in : forall n m

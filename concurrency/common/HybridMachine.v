@@ -30,7 +30,6 @@ Require Import VST.concurrency.common.coinductive_safety.*)
 
 Require Import VST.concurrency.common.HybridMachineSig.
 (* Require Import VST.concurrency.CoreSemantics_sum. *)
-Import Maps.
 
 
 Module DryHybridMachine.
@@ -187,7 +186,7 @@ Module DryHybridMachine.
             (** To acquire the lock the thread must have [Readable] permission on it*)
             (Haccess: Mem.range_perm m0 b (Ptrofs.intval ofs) ((Ptrofs.intval ofs) + LKSIZE) Cur Readable)
             (** check if the lock is free*)
-            (Hload: Mem.load Mptr m0 b (Ptrofs.intval ofs) = Some (Vptrofs Ptrofs.one))
+            (Hload: Mem.load Mint32 m0 b (Ptrofs.intval ofs) = Some (Vint Int.one))
             (** set the permissions on the lock location equal to the max permissions on the memory*)
             (Hset_perm: setPermBlock (Some Writable)
                                      b (Ptrofs.intval ofs) ((getThreadR cnt0).2) LKSIZE_nat = pmap_tid')
@@ -198,7 +197,7 @@ Module DryHybridMachine.
                      else True )
             (Hrestrict_pmap: restrPermMap Hlt' = m1)
             (** acquire the lock*)
-            (Hstore: Mem.store Mptr m1 b (Ptrofs.intval ofs) (Vptrofs Ptrofs.zero) = Some m')
+            (Hstore: Mem.store Mint32 m1 b (Ptrofs.intval ofs) (Vint Int.zero) = Some m')
             (HisLock: lockRes tp (b, Ptrofs.intval ofs) = Some pmap)
             (Hangel1: permMapJoin pmap.1 (getThreadR cnt0).1 newThreadPerm.1)
             (Hangel2: permMapJoin pmap.2 (getThreadR cnt0).2 newThreadPerm.2)
@@ -236,14 +235,14 @@ Module DryHybridMachine.
             (Hrestrict_pmap0: restrPermMap (Hcompat tid0 cnt0).2 = m0)
             (** To release the lock the thread must have [Readable] permission on it*)
             (Haccess: Mem.range_perm m0 b (Ptrofs.intval ofs) ((Ptrofs.intval ofs) + LKSIZE) Cur Readable)
-            (Hload: Mem.load Mptr m0 b (Ptrofs.intval ofs) = Some (Vptrofs Ptrofs.zero))
+            (Hload: Mem.load Mint32 m0 b (Ptrofs.intval ofs) = Some (Vint Int.zero))
             (** set the permissions on the lock location equal to [Writable]*)
             (Hset_perm: setPermBlock (Some Writable)
                                      b (Ptrofs.intval ofs) ((getThreadR cnt0).2) LKSIZE_nat = pmap_tid')
             (Hlt': permMapLt pmap_tid' (getMaxPerm m))
             (Hrestrict_pmap: restrPermMap Hlt' = m1)
             (** release the lock *)
-            (Hstore: Mem.store Mptr m1 b (Ptrofs.intval ofs) (Vptrofs Ptrofs.one) = Some m')
+            (Hstore: Mem.store Mint32 m1 b (Ptrofs.intval ofs) (Vint Int.one) = Some m')
             (HisLock: lockRes tp (b, Ptrofs.intval ofs) = Some rmap)
             (Hrmap: forall b ofs, rmap.1 !! b ofs = None /\ rmap.2 !! b ofs = None)
             (Hangel1: permMapJoin newThreadPerm.1 virtueLP.1 (getThreadR cnt0).1)
@@ -304,7 +303,7 @@ Module DryHybridMachine.
             (** To create the lock the thread must have [Writable] permission on it*)
             (Hfreeable: Mem.range_perm m1 b (Ptrofs.intval ofs) ((Ptrofs.intval ofs) + LKSIZE) Cur Writable)
             (** lock is created in acquired state*)
-            (Hstore: Mem.store Mptr m1 b (Ptrofs.intval ofs) (Vptrofs Ptrofs.zero) = Some m')
+            (Hstore: Mem.store Mint32 m1 b (Ptrofs.intval ofs) (Vint Int.zero) = Some m')
             (** The thread's data permissions are set to Nonempty*)
             (Hdata_perm: setPermBlock
                            (Some Nonempty)
@@ -381,7 +380,7 @@ Module DryHybridMachine.
            (** To acquire the lock the thread must have [Readable] permission on it*)
            (Haccess: Mem.range_perm m1 b (Ptrofs.intval ofs) ((Ptrofs.intval ofs) + LKSIZE) Cur Readable)
            (** Lock is already acquired.*)
-           (Hload: Mem.load Mptr m1 b (Ptrofs.intval ofs) = Some (Vptrofs Ptrofs.zero)),
+           (Hload: Mem.load Mint32 m1 b (Ptrofs.intval ofs) = Some (Vint Int.zero)),
           ext_step cnt0 Hcompat tp m (failacq (b, Ptrofs.intval ofs)).
 
     Definition threadStep: forall {tid0 ms m},
@@ -596,12 +595,13 @@ Module DryHybridMachine.
     Qed.
 
 
-    Definition initial_machine pmap c := mkPool (Krun c) (pmap, empty_map) (empty_map, empty_map).
+    Definition initial_machine pmap c := mkPool (Krun c) (pmap, empty_map).
 
     Definition init_mach (pmap : option res) (m: mem)
                (ms:thread_pool) (m' : mem) (v:val) (args:list val) : Prop :=
       exists c, semantics.initial_core semSem 0 m c m' v args /\
-           ms = mkPool (Krun c) (getCurPerm m', empty_map) (empty_map, empty_map).
+           ms = mkPool (Krun c) (getCurPerm m', empty_map).
+    Set Printing All.
 
 
 
@@ -669,9 +669,9 @@ Module DryHybridMachine.
       (** *Invariant Lemmas*)
 
       (** ** Updating the machine state**)
-      (* Many invariant lemmas were removed from here. *)
-
-
+      (* Many invaraint lemmas were removed from here. *)
+      
+    
     Notation thread_perms st i cnt:= (fst (@getThreadR _ _ _ st i cnt)).
     Notation lock_perms st i cnt:= (snd (@getThreadR  _ _ _ st i cnt)).
     Record thread_compat st i

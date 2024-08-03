@@ -27,10 +27,11 @@ Module AsmContext.
     Existing Instance DryHybridMachine.DryHybridMachineSig.
 
     (** Instantiating the Dry Fine Concurrency Machine *)
-    Program Instance FineDilMem : DiluteMem :=
+    Instance FineDilMem : DiluteMem :=
       {| diluteMem := setMaxPerm |}.
-    Next Obligation.
-    Proof. intuition. Qed.
+    intros.
+    split; auto.
+    Defined.
     Instance dryFineMach : @HybridMachine _ _ _ _ _ _ :=
       HybridFineMachine.HybridFineMachine.
 
@@ -43,10 +44,11 @@ Module AsmContext.
     (** Instatiating the Bare Concurrency Machine *)
     Existing Instance BareMachine.resources.
 
-    Program Instance BareDilMem : DiluteMem :=
+    Instance BareDilMem : DiluteMem :=
       {| diluteMem := erasePerm |}.
-    Next Obligation.
-    Proof. intuition. Qed.
+    intros.
+    split; auto.
+    Defined.
     Instance bareMach : @HybridMachine BareMachine.resources _ OrdinalPool.OrdinalThreadPool _ _ _ :=
       @HybridFineMachine.HybridFineMachine BareMachine.resources _ _ BareMachine.BareMachineSig BareDilMem.
 
@@ -67,4 +69,5 @@ Module AsmContext.
 
   End AsmContext.
 End AsmContext.
+
 

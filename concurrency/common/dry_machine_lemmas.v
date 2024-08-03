@@ -1,5 +1,4 @@
 (** * Lemmas about the Dry Machine*)
-Require Export Lia.
 Require Import compcert.lib.Axioms.
 
 Require Import VST.concurrency.common.sepcomp. Import SepComp.
@@ -29,8 +28,6 @@ Require Import VST.concurrency.common.threadPool.
 Require Import VST.concurrency.common.semantics.
 Require Import VST.concurrency.common.tactics.
 
-Set Bullet Behavior "Strict Subproofs".
-
 Global Notation "a # b" := (Maps.PMap.get b a) (at level 1).
 
 (** This file holds various results about the dry machine*)
@@ -40,13 +37,13 @@ Module ThreadPoolWF.
   Import HybridMachine ThreadPool DryHybridMachine HybridMachineSig.
   Section ThreadPoolWF.
     Context {Sem : Semantics}.
-
+    
     Existing Instance DryHybridMachine.dryResources.
-    Existing Instance OrdinalPool.OrdinalThreadPool.
+    Existing Instance OrdinalPool.OrdinalThreadPool.   
     (** Take an instance of the Dry Machine *)
     Existing Instance DryHybridMachine.DryHybridMachineSig.
 
-
+    
   Lemma unlift_m_inv :
     forall tp tid (Htid : tid < (OrdinalPool.num_threads tp).+1) ord
       (Hunlift: unlift (ordinal_pos_incr (OrdinalPool.num_threads tp))
@@ -135,10 +132,10 @@ Module ThreadPoolWF.
   Defined. *)
 
   Lemma initial_invariant0: forall pmap c,
-      DryHybridMachine.invariant (mkPool c (pmap, empty_map) (empty_map, empty_map)).
+      DryHybridMachine.invariant (mkPool c (pmap, empty_map)).
   Proof.
     intros pmap c.
-    pose (IM:=mkPool c (pmap,empty_map) (empty_map, empty_map)); fold IM.
+    pose (IM:=mkPool c (pmap,empty_map)); fold IM.
     assert (isZ: forall i, OrdinalPool.containsThread IM i -> (i = 0)%N).
     { rewrite /containsThread /IM /=.
       move => i; destruct i; first[reflexivity | intros HH; inversion HH].
@@ -173,32 +170,6 @@ Module ThreadPoolWF.
     + move => l mr /noLock contra; exfalso; now eauto.
     + move => b ofs.
       rewrite / IM /= //.
-  Qed.
-
-  Lemma initial_mem_compatible: forall c m,
-      mem_compatible (mkPool c (getCurPerm m, empty_map) (empty_map, empty_map)) m.
-  Proof.
-    intros c m.
-    pose (IM:=mkPool c (getCurPerm m,empty_map) (empty_map, empty_map)); fold IM.
-    assert (isZ: forall i, OrdinalPool.containsThread IM i -> (i = 0)%N).
-    { rewrite /containsThread /IM /=.
-      move => i; destruct i; first[reflexivity | intros HH; inversion HH].
-    }
-    assert (noLock: forall l rm,
-               OrdinalPool.lockRes IM l = Some rm -> False).
-    { rewrite /OrdinalPool.lockRes /IM /=.
-      move => l rm.
-      rewrite /lockRes
-              /OrdinalPool.mkPool
-              /OrdinalPool.empty_lset /= OrdinalPool.find_empty => HH.
-      inversion HH.
-    }
-
-    constructor; try done.
-    intros ??.
-    pose proof (isZ _ cnt); subst.
-    subst IM; simpl.
-    split; [apply cur_lt_max | apply empty_LT].
   Qed.
 
   Lemma updThread_inv: forall ds i (cnt: containsThread ds i) c pmap,
@@ -524,7 +495,7 @@ Module ThreadPoolWF.
         erewrite gsolockResUpdLock.
         apply Hvalid1 || apply Hvalid2; auto.
         intros Hcontra; inversion Hcontra; subst.
-        now lia.
+        now omega.
       + rewrite gsolockResUpdLock; auto.
         specialize (lockRes_valid0 b' ofs').
         destruct (lockRes tp (b', ofs')) eqn:Hres;
@@ -725,10 +696,10 @@ Module ThreadPoolWF.
   Lemma invariant_freeable_empty_threads:
     forall tp i (cnti: containsThread tp i) b ofs
       (Hinv: invariant tp)
-      (Hfreeable: (getThreadR cnti).1 # b ofs = Some Freeable),
+      (Hfreeable: (getThreadR cnti).1 !! b ofs = Some Freeable),
     forall j (cntj: containsThread tp j),
-      (getThreadR cntj).2 # b ofs = None /\
-      (i <> j -> (getThreadR cntj).1 # b ofs = None).
+      (getThreadR cntj).2 !! b ofs = None /\
+      (i <> j -> (getThreadR cntj).1 !! b ofs = None).
   Proof.
     intros.
     pose proof ((thread_data_lock_coh _ Hinv _ cntj).1 _ cnti b ofs) as Hcoh.
@@ -736,7 +707,7 @@ Module ThreadPoolWF.
     simpl in Hcoh.
     split.
     simpl.
-    destruct ((OrdinalPool.getThreadR cntj).2 # b ofs); auto; now exfalso.
+    destruct ((OrdinalPool.getThreadR cntj).2 !! b ofs); auto; now exfalso.
     intros Hneq.
     pose proof ((no_race_thr _ Hinv _ _ cnti cntj Hneq).1 b ofs).
     rewrite Hfreeable in H.
@@ -748,11 +719,11 @@ Module ThreadPoolWF.
   Lemma invariant_freeable_empty_locks:
     forall tp i (cnti: containsThread tp i) b ofs
       (Hinv: invariant tp)
-      (Hfreeable: (getThreadR cnti).1 # b ofs = Some Freeable),
+      (Hfreeable: (getThreadR cnti).1 !! b ofs = Some Freeable),
     forall laddr rmap,
       lockRes tp laddr = Some rmap ->
-      rmap.1 # b ofs = None /\
-      rmap.2 # b ofs = None.
+      rmap.1 !! b ofs = None /\
+      rmap.2 !! b ofs = None.
   Proof.
     intros.
     pose proof ((locks_data_lock_coh _ Hinv _ _ H).1 _ cnti b ofs) as Hcoh.
@@ -763,7 +734,7 @@ Module ThreadPoolWF.
     inversion Hdisjoint;
       now auto.
     simpl in Hcoh;
-      destruct (rmap.2 # b ofs); eauto; by exfalso.
+      destruct (rmap.2 !! b ofs); eauto; by exfalso.
   Qed.
 
   Lemma mem_compatible_invalid_block:
@@ -771,12 +742,12 @@ Module ThreadPoolWF.
       (Hcomp: mem_compatible tp m)
       (Hinvalid: ~ Mem.valid_block m b),
       (forall i (cnti: containsThread tp i),
-          (getThreadR cnti).1 # b ofs = None /\
-          (getThreadR cnti).2 # b ofs = None) /\
+          (getThreadR cnti).1 !! b ofs = None /\
+          (getThreadR cnti).2 !! b ofs = None) /\
       (forall laddr rmap,
           lockRes tp laddr = Some rmap ->
-          rmap.1 # b ofs = None /\
-          rmap.2 # b ofs = None).
+          rmap.1 !! b ofs = None /\
+          rmap.2 !! b ofs = None).
   Proof.
     intros.
     destruct Hcomp.
@@ -811,7 +782,7 @@ Module ThreadPoolWF.
     unfold OrdinalPool.mkPool in *. simpl in *.
     unfold OrdinalPool.containsThread in *. simpl in *.
     clear - H.
-    ssrlia.
+    ssromega.
   Qed.
 
   (** [getThreadR] on the initial thread returns the [access_map] that was used
@@ -909,7 +880,7 @@ Module CoreLanguage.
               (Hvalid: Mem.valid_block m b)
               (Hstable: ~ Mem.perm m b ofs Cur Writable),
               Maps.ZMap.get ofs (Maps.PMap.get b (Mem.mem_contents m)) =
-              Maps.ZMap.get ofs (Maps.PMap.get b (Mem.mem_contents m'));
+              Maps.ZMap.get ofs (Maps.PMap.get b (Mem.mem_contents m'));          
           (** Memories between thread steps are related by [decay] of permissions*)
           corestep_decay:
             forall c c' m m',
@@ -965,7 +936,8 @@ Module CoreLanguage.
         intros.
         eapply corestep_nextblock in H.
         unfold Mem.valid_block, Coqlib.Plt in *.
-        lia.
+        zify;
+          by omega.
       Qed.
 
       Lemma initial_core_validblock:
@@ -977,7 +949,8 @@ Module CoreLanguage.
         intros.
         eapply initial_core_nextblock in H.
         unfold Mem.valid_block, Coqlib.Plt in *.
-        lia.
+        zify;
+          by omega.
       Qed.
 
       Definition ev_step_det:
@@ -1040,7 +1013,8 @@ Module CoreLanguage.
         eapply ev_step_ax1 in H.
         eapply corestep_nextblock in H.
         unfold Mem.valid_block, Coqlib.Plt in *.
-        lia.
+        zify;
+          by omega.
       Qed.
 
     End CoreLanguage.
@@ -1109,8 +1083,8 @@ Module CoreLanguageDry.
       (* and it's resources are below the maximum permissions on the memory*)
       destruct (DryHybridMachine.compat_th _ _ Hcompatible cnt0) as [Hlt1 Hlt2].
       (* let's prove a slightly different statement that will reduce proof duplication*)
-      assert (Hhelper: forall b ofs, Mem.perm_order'' ((getMaxPerm m') # b ofs) ((getThreadR cnt).1 # b ofs)  /\
-                                Mem.perm_order''  ((getMaxPerm m') # b ofs) ((getThreadR cnt).2 # b ofs)).
+      assert (Hhelper: forall b ofs, Mem.perm_order'' ((getMaxPerm m') !! b ofs) ((getThreadR cnt).1 !! b ofs)  /\
+                                Mem.perm_order''  ((getMaxPerm m') !! b ofs) ((getThreadR cnt).2 !! b ofs)).
       { intros b ofs.
         (* we proceed by case analysis on whether the block was a valid one or not*)
         destruct (valid_block_dec (restrPermMap (DryHybridMachine.compat_th _ _ Hcompatible pf).1) b)
@@ -1123,7 +1097,7 @@ Module CoreLanguageDry.
             (* since the data of thread tid have a Freeable permission on (b,
                  ofs) it must be that no lock permission exists in the threadpool and
                  hence on thread tid as well*)
-            assert (Hlock_empty: (getThreadR cnt)#2 # b ofs = None).
+            assert (Hlock_empty: (getThreadR cnt)#2 !! b ofs = None).
             { destruct (DryHybridMachine.thread_data_lock_coh _ Hinv _ cnt0) as [Hcoh _].
               specialize (Hcoh _ pf b ofs).
               assert (Hp := restrPermMap_Cur (DryHybridMachine.compat_th _ _ Hcompatible pf).1 b ofs).
@@ -1225,8 +1199,8 @@ Module CoreLanguageDry.
       (* the resources in the lockpool did not change*)
       rewrite OrdinalPool.gsoThreadLPool in Hres.
       (* proving something more convenient*)
-      assert (Hgoal: forall b ofs, Mem.perm_order'' ((getMaxPerm m') # b ofs) (pmaps.1 # b ofs) /\
-                              Mem.perm_order'' ((getMaxPerm m') # b ofs) (pmaps.2 # b ofs)).
+      assert (Hgoal: forall b ofs, Mem.perm_order'' ((getMaxPerm m') !! b ofs) (pmaps.1 !! b ofs) /\
+                              Mem.perm_order'' ((getMaxPerm m') !! b ofs) (pmaps.2 !! b ofs)).
       {
         (* the resources on the lp are below the maximum permissions on the memory*)
         destruct (DryHybridMachine.compat_lp _ _ Hcompatible l _ Hres) as [Hlt1 Hlt2].
@@ -1241,7 +1215,7 @@ Module CoreLanguageDry.
             (* since the data of thread tid have a Freeable permission on (b,
                  ofs) it must be that no lock permission exists in the threadpool and
                  hence on pmaps as well*)
-            assert (HemptyL: pmaps.2 # b ofs = None).
+            assert (HemptyL: pmaps.2 !! b ofs = None).
             { (*for lock permissions this is derived by coherency between data and locks*)
               destruct (DryHybridMachine.locks_data_lock_coh _ Hinv l _ Hres) as [Hcoh _].
               specialize (Hcoh _ pf b ofs).
@@ -1253,7 +1227,7 @@ Module CoreLanguageDry.
                        first by exfalso.
               reflexivity.
             }
-            assert (HemptyD: pmaps.1 # b ofs = None).
+            assert (HemptyD: pmaps.1 !! b ofs = None).
             { (*for data permissions this is derived by the disjointness invariant *)
               assert (Hp := restrPermMap_Cur (DryHybridMachine.compat_th _ _ Hcompatible pf).1 b ofs).
               unfold permission_at in Hp. rewrite Hp in HFree.
@@ -1582,7 +1556,7 @@ Module CoreLanguageDry.
     }
   Qed.
   
- (** [invariant] is preserved by initial_core *)
+ (** [invariant] is preserved by a corestep *)
   Lemma initial_core_invariant:
     forall (tp : t)  (m : mem) (i : nat) n
       (pf : containsThread tp i) c m1 m' vf arg

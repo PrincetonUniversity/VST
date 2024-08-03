@@ -267,7 +267,7 @@ Proof.
        split.
        * replace (6 * N) with
          (6 * (N - 1) + 6 ).
-         { eapply (NPeano.Nat.lt_le_trans _ (6 * i  + 6)).
+         { eapply (Nat.lt_le_trans _ (6 * i  + 6)).
            - apply /leP.
              rewrite ltn_add2l.
              destruct (f hi) as [p|];
@@ -294,8 +294,8 @@ Proof.
            - subst.
              rewrite addnC.
              rewrite mulnC.
-             rewrite NPeano.Nat.mod_add; try lia.
-             rewrite NPeano.Nat.mod_small;
+             rewrite Nat.mod_add; try lia.
+             rewrite Nat.mod_small;
                try (apply /ltP; eapply perm_to_nat_bound).
              rewrite nat_to_perm_perm_to_nat.
              reflexivity.
@@ -306,7 +306,7 @@ Proof.
                destruct (Nat.eq_dec i0 hi);
                  try solve [exfalso; apply n; auto].
                reflexivity.
-             + eapply NPeano.Nat.div_unique;
+             + eapply Nat.div_unique;
                try (apply /ltP; eapply perm_to_nat_bound).
                reflexivity.
          }
@@ -355,7 +355,7 @@ Proof.
        split.
        * replace (5 * N) with
          (5 * (N - 1) + 5 ).
-         { eapply (NPeano.Nat.lt_le_trans _ (5 * i  + 5)).
+         { eapply (Nat.lt_le_trans _ (5 * i  + 5)).
            - apply /leP.
              rewrite ltn_add2l.
              destruct (f hi) as [p|]; [destruct p|]; simpl; apply /leP; try lia.
@@ -381,8 +381,8 @@ Proof.
            - subst.
              rewrite addnC.
              rewrite mulnC.
-             rewrite NPeano.Nat.mod_add; try lia.
-             rewrite NPeano.Nat.mod_small;
+             rewrite Nat.mod_add; try lia.
+             rewrite Nat.mod_small;
                try (apply /ltP; eapply perm_to_nat_bound_simpl).
              rewrite nat_to_perm_perm_to_nat_simpl.
              reflexivity.
@@ -393,7 +393,7 @@ Proof.
                destruct (Nat.eq_dec i0 hi);
                  try solve [exfalso; apply n; auto].
                reflexivity.
-             + eapply NPeano.Nat.div_unique;
+             + eapply Nat.div_unique;
                try (apply /ltP; eapply perm_to_nat_bound_simpl).
                reflexivity.
          }

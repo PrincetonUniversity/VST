@@ -375,8 +375,6 @@ Module HybridMachineSig.
           (HschedN: schedPeek U = Some tid)
           (Htid: containsThread ms tid)
           (Hhalt: halted_thread Htid i)
-          (Hinv: invariant ms)
-          (Hcmpt: mem_compatible ms m)
           (HschedS: schedSkip U = U'),        (*Schedule Forward*)
           machine_step U tr ms m U' tr ms m
     | schedfail :
@@ -428,13 +426,13 @@ Module HybridMachineSig.
     intros. inversion H; subst; rewrite HschedN; intro Hcontra; discriminate.
     Defined.
 
-    Definition make_init_machine c r ex := 
-        mkPool (Krun c) r ex.
+    Definition make_init_machine c r:= 
+        mkPool (Krun c) r.
     Definition init_machine' (the_ge : semG) m
-               c m' (f : val) (args : list val) ex
+               c m' (f : val) (args : list val) 
       : option res -> Prop := fun op_r =>
                             if op_r is Some r then 
-                              init_mach op_r m (make_init_machine c r ex) m' f args
+                              init_mach op_r m (make_init_machine c r) m' f args
                             else False.
     Definition init_machine'' (op_m: option mem)(op_r : option res)(m: mem)
                (tp : thread_pool) (m': mem) (f : val) (args : list val)
@@ -443,7 +441,7 @@ Module HybridMachineSig.
       if op_r is Some r then 
         init_mach op_r m tp m' f args
       else False.
-
+    
     Definition unique_Krun tp i :=
       forall j cnti q, 
         @getThreadC _ _ _ j tp cnti = Krun q ->
@@ -499,14 +497,12 @@ Module HybridMachineSig.
             (Htstep: syncStep isCoarse Htid Hcmpt ms' m' ev),
             external_step U tr ms m  U' (tr ++ [:: external tid ev]) ms' m'
       | halted_step':
-          forall tid U U' ms m tr i
-            (HschedN: schedPeek U = Some tid)
-            (Htid: containsThread ms tid)
-            (Hhalt: halted_thread Htid i)
-            (Hinv: invariant ms)
-            (Hcmpt: mem_compatible ms m)
-            (HschedS: schedSkip U = U'),        (*Schedule Forward*)
-            external_step U tr ms m U' tr ms m
+        forall tid U U' ms m tr i
+          (HschedN: schedPeek U = Some tid)
+          (Htid: containsThread ms tid)
+          (Hhalt: halted_thread Htid i)
+          (HschedS: schedSkip U = U'),        (*Schedule Forward*)
+          external_step U tr ms m U' tr ms m
       | schedfail':
           forall tid U U' ms m tr
             (HschedN: schedPeek U = Some tid)
@@ -598,7 +594,7 @@ Module HybridMachineSig.
 
       Program Instance DilMem : DiluteMem :=
         {| diluteMem := fun x => x |}.
-
+      
       Instance scheduler : Scheduler :=
         {| isCoarse := true;
            yield := fun x => x |}.

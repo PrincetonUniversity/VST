@@ -12,8 +12,9 @@ Require Import compcert.common.Values.
 
 Require Import VST.msl.Coqlib2.
 Require Import VST.msl.eq_dec.
+Require Import VST.msl.seplog.
 Require Import VST.veric.shares.
-Require Import VST.veric.shared.
+Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.semax.
 Require Import VST.veric.semax_ext.
 Require Import VST.veric.SeparationLogic.
@@ -27,7 +28,7 @@ Require Import VST.sepcomp.event_semantics.
 Require Import VST.veric.coqlib4.
 Require Import VST.floyd.type_induction.
 (*Require Import VST.concurrency.permjoin.*)
-(*Require Import VST.concurrency.juicy.sync_preds_defs.*)
+Require Import VST.concurrency.juicy.sync_preds_defs.
 Require Import VST.concurrency.juicy.semax_conc_pred.
 Require Import VST.concurrency.common.lksize.
 
@@ -35,9 +36,9 @@ Require Import Setoid.
 
 Local Open Scope Z_scope.
 
-(*Lemma data_at_unfolding CS sh b ofs phi :
+Lemma data_at_unfolding CS sh b ofs phi :
   readable_share sh ->
-  app_pred (data_at_ sh (Tarray (Tpointer Ctypes.Tvoid noattr) 4 noattr) (Vptr b ofs)) phi ->
+  app_pred (@data_at_ CS sh (Tarray (Tpointer Ctypes.Tvoid noattr) 4 noattr) (Vptr b ofs)) phi ->
   forall loc,
     adr_range (b, Ptrofs.intval ofs) 8%Z loc ->
     exists p v,
@@ -418,29 +419,36 @@ Proof.
   split; auto.
   split; auto.
   rewrite Z2Nat.id; lia.
-Qed.*)
+Qed.
 
-Definition rmap_makelock phi phi' loc length :=
+Definition rmap_makelock phi phi' loc R length :=
+  (level phi = level phi') /\
   (forall x, ~ adr_range loc length x -> phi @ x = phi' @ x) /\
   (forall x,
       adr_range loc length x ->
-      exists val sh,
-        phi @ x = (DfracOwn (Share sh), Some (VAL val)) /\
+      exists val sh Psh,
+        phi @ x = YES sh Psh (VAL val) NoneP /\
         writable0_share sh /\
-        phi' @ x = (DfracOwn (Share sh), Some (LK length (snd x - snd loc)))).
+        phi' @ x =
+          YES sh Psh (LK length (snd x - snd loc)) (pack_res_inv (approx (level phi) R)))
+    /\  (ghost_of phi = ghost_of phi').
 
 (* rmap_freelock phi phi' is ALMOST rmap_makelock phi' phi but we
 specify that the VAL will be the dry memory's *)
-Definition rmap_freelock phi phi' m loc length :=
+Definition rmap_freelock phi phi' m loc R length :=
+  (level phi = level phi') /\
   (forall x, ~ adr_range loc length x -> phi @ x = phi' @ x) /\
   (forall x,
       adr_range loc length x ->
-      exists sh,
-        phi' @ x = (DfracOwn (Share sh), Some (VAL (contents_at m x))) /\
+      exists sh Psh,
+        phi' @ x = YES sh Psh (VAL (contents_at m x)) NoneP /\
         writable0_share sh /\
-        phi @ x = (DfracOwn (Share sh), Some (LK length  (snd x - snd loc)))).
+        phi @ x =
+  
+          YES sh Psh (LK length  (snd x - snd loc)) (pack_res_inv (approx (level phi) R))) /\
+  (ghost_of phi = ghost_of phi').
 
-(*Definition makelock_f phi loc R length : address -> resource :=
+Definition makelock_f phi loc R length : address -> resource :=
   fun x =>
     if adr_range_dec loc length x then
       match phi @ x with
@@ -1047,4 +1055,3 @@ Proof.
 Abort.*)
 
 End simpler_invariant_tentative.
-*)

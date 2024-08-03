@@ -17,6 +17,7 @@ Require Import ProofIrrelevance.
 Require Import compcert.common.Memory.
 
 (* VST imports *)
+Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.juicy_mem.
 Require Import VST.veric.res_predicates.
 

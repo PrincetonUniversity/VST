@@ -10,12 +10,18 @@ Require Import compcert.common.Values.
 
 Require Import VST.msl.Coqlib2.
 Require Import VST.msl.eq_dec.
+Require Import VST.msl.seplog.
+Require Import VST.veric.aging_lemmas.
+Require Import VST.veric.initial_world.
 Require Import VST.veric.juicy_mem.
 Require Import VST.veric.juicy_mem_lemmas.
 Require Import VST.veric.semax_prog.
+Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.Clight_core.
 Require Import VST.veric.Clightcore_coop.
 Require Import VST.veric.semax.
+Require Import VST.veric.semax_ext.
+Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.juicy_safety.
 Require Import VST.veric.initial_world.
 Require Import VST.veric.juicy_extspec.
