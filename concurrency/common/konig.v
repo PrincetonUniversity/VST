@@ -194,7 +194,10 @@ Proof.
     2: { f_equal. lia. }
 
     rewrite PeanoNat.Nat.mul_add_distr_r.
-    admit.
+    apply Nat.add_lt_le_mono. lia.
+    apply Nat.lt_le_pred in ineqb.
+    assert (ib <= (NB - 1)). lia.
+    apply Nat.mul_le_mono_pos_r. lia. auto.
 
   - f_equal.
     + rewrite Nat.mod_add.
@@ -207,7 +210,7 @@ Proof.
       rewrite ineqa; auto.
       lia.
       lia.
-Admitted.
+Qed.
 
 (* We have a simpler characterization of finite for subsets of nat  *)
 Lemma finite_nat_bound A : @finite nat A <-> exists b, forall a, A a -> a < b.
