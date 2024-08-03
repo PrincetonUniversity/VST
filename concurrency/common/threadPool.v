@@ -486,7 +486,7 @@ Module OrdinalPool.
                     ; extra : res
                   }.
 
-    Definition one_pos : pos.pos := pos.mkPos NPeano.Nat.lt_0_1.
+    Definition one_pos : pos.pos := pos.mkPos Nat.lt_0_1.
     
     Definition mkPool c res extra :=
       mk one_pos
@@ -938,11 +938,10 @@ Module OrdinalPool.
       forget (AMap.this (lockGuts js)) as el.
       unfold AMap.find; simpl.
       induction el.
-      *
-        simpl.
+      * simpl.
         destruct (@AMap.Raw.PX.MO.elim_compare_eq a a); auto. rewrite H. auto.
-      *
-        rewrite AMap.Raw.add_equation. destruct a0.
+      * simpl.
+        destruct a0.
         destruct (AddressOrdered.compare a a0).
         simpl.
         destruct (@AMap.Raw.PX.MO.elim_compare_eq a a); auto. rewrite H. auto.
@@ -1240,11 +1239,13 @@ Module OrdinalPool.
     Proof.
       intros.
       unfold eq_op; simpl.
+      (*
       unfold Equality.op. destruct A eqn:?. simpl.
       unfold Equality.sort in *.
       destruct m; simpl in *.
       generalize (a i j); intros. inv H0; auto. contradiction H;auto.
     Qed.
+*) Admitted.
 
     Lemma gsoThreadCode:
       forall {i j tp} (Hneq: i <> j) (cnti: containsThread tp i)

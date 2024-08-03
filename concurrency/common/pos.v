@@ -37,11 +37,11 @@ case Heq: (n0 == n1).
    by move: Heq; rewrite Heq1; move/eqP; apply.
 }
 Qed.
-
+(*
 Definition pos_eqMixin := EqMixin pos_eqP.
 Canonical pos_eqType := Eval hnf in EqType pos pos_eqMixin.
 
 Lemma pos_eqE : pos_eq = eq_op :> rel _. Proof. by []. Qed.
-
+*)
 End PosEqType.
 

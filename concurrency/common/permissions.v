@@ -186,7 +186,7 @@ Section permMapDefs.
                (perm_of_res_lock res).
         destruct res as (?, [r|]); first destruct r; simpl; auto.
         destruct d; simpl; auto.
-        destruct o; auto.
+        destruct s; auto.
         destruct (perm_of_sh (Share.glb Share.Rsh sh)) eqn: ?; auto.
         if_tac; destruct p; simpl; auto; eapply perm_of_glb_not_Freeable; eauto.
   Qed.
@@ -268,7 +268,7 @@ Qed.*)
       Mem.perm_order'' (Some Writable) (perm_of_res_lock r).
   Proof.
     destruct r as (k, [r|]); first destruct r; try constructor; destruct k; simpl; auto; try constructor.
-    destruct o; auto.
+    destruct s; auto.
     - destruct (perm_of_sh (Share.glb Share.Rsh sh)) eqn:HH; auto.
       destruct p; try constructor.
       apply perm_of_sh_Freeable_top in HH; inversion HH.
