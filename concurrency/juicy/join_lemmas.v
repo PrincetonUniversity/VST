@@ -7,138 +7,10 @@ Require Import Coq.Sorting.Permutation.
 Require Import compcert.lib.Coqlib.
 
 Require Import VST.msl.Coqlib2.
-Require Import VST.msl.seplog.
-Require Import VST.msl.sepalg.
-Require Import VST.msl.age_to.
 Require Import VST.veric.coqlib4.
 Require Import VST.concurrency.common.threadPool.
 
 Set Bullet Behavior "Strict Subproofs".
-
-(** * Results on joining lists and the necessary algebras *)
-
-Fixpoint joinlist {A} {JA : Join A} (l : list A) (x : A) :=
-  match l with
-  | nil => identity x
-  | h :: l => exists y, joinlist l y /\ join h y x
-  end.
-
-(* joinlist is injective (for non-empty lists) *)
-Lemma joinlist_inj {A} {JA : Join A} {PA : Perm_alg A} l r1 r2 :
-  l <> nil ->
-  joinlist l r1 ->
-  joinlist l r2 ->
-  r1 = r2.
-Proof.
-  revert r1 r2; induction l; intros r1 r2 n j1 j2. tauto. clear n.
-  destruct j1 as (r1' & j1 & h1).
-  destruct j2 as (r2' & j2 & h2).
-  destruct l; simpl in *.
-  - apply join_comm in h1; apply join_comm in h2.
-    pose proof join_unit1_e _ _ j1 h1.
-    pose proof join_unit1_e _ _ j2 h2.
-    congruence.
-  - cut (r1' = r2').
-    + intros <-.
-      eapply join_eq; eauto.
-    + eapply IHl; eauto.
-      congruence.
-Qed.
-
-Lemma joinlist_permutation {A} {JA : Join A} {PA : Perm_alg A} l1 l2 r :
-  Permutation l1 l2 ->
-  joinlist l1 r ->
-  joinlist l2 r.
-Proof.
-  intros p; revert r; induction p; intros r; auto.
-  - intros (r' & jl & j).
-    exists r'; split; auto.
-  - simpl.
-    intros (a & (b & jb & ja) & jr).
-    apply join_comm in jr.
-    destruct (join_assoc ja jr) as (d & jd & jr').
-    eauto.
-Qed.
-
-#[export] Instance Permutation_length' A {JA : Join A} {PA : Perm_alg A} :
-  Proper (@Permutation A ==> @eq A ==> Logic.iff) joinlist | 10.
-Proof.
-  intros l1 l2 p x y <-; split; apply joinlist_permutation; auto.
-  apply Permutation_sym, p.
-Qed.
-
-Lemma joinlist_app {A} {JA : Join A} {PA : Perm_alg A} l1 l2 x1 x2 x :
-  joinlist l1 x1 ->
-  joinlist l2 x2 ->
-  join x1 x2 x ->
-  joinlist (l1 ++ l2) x.
-Proof.
-  revert l2 x1 x2 x; induction l1; intros l2 x1 x2 x j1 j2 j; simpl in *.
-  - erewrite <-join_unit1_e; eauto.
-  - destruct j1 as (x1' & jl & jx1).
-    destruct (join_assoc jx1 j) as (r & ? & ?).
-    exists r; split; eauto.
-Qed.
-
-(*Lemma app_joinlist {A} {JA : Join A} {SA : Sep_alg A} {PA : Perm_alg A} l1 l2 x :
-  joinlist (l1 ++ l2) x ->
-  exists x1 x2,
-    joinlist l1 x1 /\
-    joinlist l2 x2 /\
-    join x1 x2 x.
-Proof.
-  revert l2 x; induction l1; intros l2 x j; simpl in *.
-  - exists (core x), x; split.
-    + apply core_identity.
-    + split; auto. apply core_unit.
-  - destruct j as (y & h & ayx).
-    destruct (IHl1 _ _ h) as (x1 & x2 & h1 & h2 & j).
-    apply join_comm in j.
-    apply join_comm in ayx.
-    destruct (join_assoc j ayx) as (r & ? & ?).
-    exists r, x2. eauto.
-Qed.*)
-
-Lemma joinlist_merge {A} {JA : Join A} {PA : Perm_alg A} (a b c x : A) l :
-  join a b c -> joinlist (a :: b :: l) x <-> joinlist (c :: l) x.
-Proof.
-  intros j; split; intros h; swap 1 2.
-  - destruct h as (rl & hl & jx).
-    destruct (join_assoc j jx) as (bl & jbl & jabx).
-    simpl. eauto.
-  - rename c into ab, x into abc, j into a_b.
-    destruct h as (bc & hl & a_bc).
-    destruct hl as (c & hl & b_c).
-    exists c; split; auto.
-    clear hl l.
-    apply join_comm in b_c.
-    apply join_comm in a_bc.
-    destruct (join_assoc b_c a_bc) as (ab' & a_b' & ab_c).
-    apply join_comm in ab_c.
-    exact_eq ab_c; f_equal.
-    eapply join_eq; eauto.
-Qed.
-
-Lemma joinlist_swap {A} {JA : Join A} {PA : Perm_alg A} (a b x : A) l :
-  joinlist (a :: b :: l) x =
-  joinlist (b :: a :: l) x.
-Proof.
-  apply prop_ext; split; apply joinlist_permutation; constructor.
-Qed.
-
-Lemma joinlist_join_sub {A} {JA : Join A} {PA : Perm_alg A} (x phi : A) l :
-  joinlist l phi ->
-  In x l -> join_sub x phi.
-Proof.
-  revert x phi; induction l; simpl. tauto.
-  intros x phi (b & jb & ab) [-> | i].
-  - exists b; auto.
-  - specialize (IHl _ _ jb i); auto.
-    destruct IHl as (c, xc).
-    apply sepalg.join_comm in ab.
-    destruct (sepalg.join_assoc xc ab) as (d, H).
-    exists d; intuition.
-Qed.
 
 (** * Other list functions *)
 
@@ -298,135 +170,7 @@ Proof.
       apply upd_app_Some. congruence.
 Qed.
 
-Require Import VST.msl.ageable.
-Require Import VST.msl.age_sepalg.
-
-Lemma age_by_overflow {A} {_ : ageable A} {JA: Join A} (x : A) n : le (level x) n -> age_by n x = age_by (level x) x.
-Proof.
-  intros l.
-  replace n with ((n - level x) + level x)%nat by lia.
-  generalize (n - level x)%nat; intros k. clear n l.
-  revert x; induction k; intros x. reflexivity.
-  simpl. rewrite IHk.
-  unfold age1' in *.
-  destruct (age1 (age_by (level x) x)) eqn:E. 2:reflexivity. exfalso.
-  eapply age1_level0_absurd. eauto.
-  rewrite level_age_by. lia.
-Qed.
-
-Lemma age_by_minusminus {A} {_ : ageable A} {JA: Join A} (x : A) n : age_by (level x - (level x - n)) x = age_by n x.
-Proof.
-  assert (D : le (level x) n \/ lt n (level x)). lia.
-  destruct D as [D|D].
-  - replace (level x - (level x - n))%nat with (level x) by lia.
-    symmetry; apply age_by_overflow, D.
-  - f_equal; lia.
-Qed.
-
-Lemma age_by_join {A} {JA: Join A} {PA: Perm_alg A} {agA: ageable A} {SA: Sep_alg A} {AgeA: Age_alg A} {EO: predicates_hered.Ext_ord A} :
-  forall k x1 x2 x3,
-    join x1 x2 x3 ->
-    join (age_by k x1) (age_by k x2) (age_by k x3).
-Proof.
-  intros k x1 x2 x3 H.
-  pose proof age_to_join_eq (level x3 - k) x1 x2 x3 H ltac:(lia) as G.
-  pose proof join_level _ _ _ H as [e1 e2].
-  exact_eq G; f_equal; unfold age_to.
-  - rewrite <-e1; apply age_by_minusminus.
-  - rewrite <-e2; apply age_by_minusminus.
-  - apply age_by_minusminus.
-Qed.
-
-(* this generalizes [age_to_join_eq], but we do use [age_to_join_eq] inside this proof *)
-Lemma age_to_join {A} {JA: Join A} {PA: Perm_alg A} {agA: ageable A} {SA: Sep_alg A} {AgeA: Age_alg A} {EO: predicates_hered.Ext_ord A} :
-  forall k x1 x2 x3,
-    join x1 x2 x3 ->
-    join (age_to k x1) (age_to k x2) (age_to k x3).
-Proof.
-  intros k x1 x2 x3 J.
-  unfold age_to in *.
-  pose proof age_by_join ((level x1 - k)%nat) _ _ _ J as G.
-  exact_eq G; do 3 f_equal.
-  all: apply join_level in J; destruct J; congruence.
-Qed.
-
-Lemma age_by_joins {A} {JA: Join A} {PA: Perm_alg A} {agA: ageable A} {SA: Sep_alg A} {AgeA: Age_alg A} {EO: predicates_hered.Ext_ord A} :
-  forall k x1 x2,
-    joins x1 x2 ->
-    joins (age_by k x1) (age_by k x2).
-Proof.
-  intros k x1 x2 [].
-  eexists; apply age_by_join; eauto.
-Qed.
-
-Lemma age_to_joins {A} {JA: Join A} {PA: Perm_alg A} {agA: ageable A} {SA: Sep_alg A} {AgeA: Age_alg A} {EO: predicates_hered.Ext_ord A} :
-  forall k x1 x2,
-    joins x1 x2 ->
-    joins (age_to k x1) (age_to k x2).
-Proof.
-  intros k x1 x2 [].
-  eexists; apply age_to_join; eauto.
-Qed.
-
-Lemma age_to_join_sub {A} {JA: Join A} {PA: Perm_alg A} {agA: ageable A} {SA: Sep_alg A} {AgeA: Age_alg A} {EO: predicates_hered.Ext_ord A} :
-  forall k x1 x2,
-    join_sub x1 x2 ->
-    join_sub (age_to k x1) (age_to k x2).
-Proof.
-  intros k x1 x3 [].
-  eexists; apply age_to_join; eauto.
-Qed.
-
-Lemma joinlist_level {A} `{agA : ageable A} {J : Join A} {_ : Perm_alg A} {SA: Sep_alg A} {AgeA: Age_alg A} (x : A) l Phi :
-  joinlist l Phi ->
-  In x l -> level x = level Phi.
-Proof.
-  intros j i.
-  destruct (joinlist_join_sub x Phi l j i) as (y, Hy).
-  apply join_level in Hy. apply Hy.
-Qed.
-
-Lemma joinlist_age1' {A} `{agA : ageable A} {J : Join A} {SA: Sep_alg A} {AgeA: Age_alg A} {_ : Perm_alg A} (l : list A) (x : A) :
-  joinlist l x ->
-  joinlist (map age1' l) (age1' x).
-Proof.
-  revert x; induction l; intros x h.
-  - simpl in *. unfold age1'.
-    destruct (age1 x) eqn:E; auto.
-    eapply age_identity. apply E. apply h.
-  - destruct h as (y & h & j).
-    exists (age1' y); split. auto.
-    unfold age1'.
-    destruct (age1 a) eqn:Ea.
-    + destruct (age1_join _ j Ea) as (y' & z' & j' & -> & ->). auto.
-    + rewrite age1_level0 in Ea.
-      pose proof (join_level _ _ _ j).
-      assert (Ex : age1 x = None). apply age1_level0. intuition; congruence.
-      assert (Ey : age1 y = None). apply age1_level0. intuition; congruence.
-      rewrite Ex, Ey. auto.
-Qed.
-
-Lemma joinlist_age_to {A} `{agA : ageable A} {J : Join A} {SA: Sep_alg A} {AgeA: Age_alg A} {_ : Perm_alg A} n (l : list A) (x : A) :
-  joinlist l x ->
-  joinlist (map (age_to n) l) (age_to n x).
-Proof.
-  intros h.
-  unfold age_to at 2.
-  replace (map (age_to n) l) with (map (age_by (level x - n)) l).
-  - generalize (level x - n)%nat; clear n; intros n; induction n.
-    + exact_eq h; f_equal.
-      induction l; auto. rewrite IHl at 1. reflexivity.
-    + apply joinlist_age1' in IHn.
-      exact_eq IHn; f_equal. clear.
-      induction l; simpl; auto. f_equal; auto.
-  - revert x h; induction l; auto; intros y (x & h & j); simpl.
-    apply join_level in j.
-    f_equal.
-    + unfold age_to. do 2 f_equal. intuition.
-    + rewrite <-IHl with x; auto. do 3 f_equal. intuition.
-Qed.
-
-Require Import VST.veric.compcert_rmaps.
+Require Import VST.veric.res_predicates.
 Require Import VST.concurrency.common.enums_equality.
 Require Import VST.concurrency.juicy.juicy_machine.
 Require Import VST.concurrency.common.HybridMachineSig.
@@ -446,14 +190,14 @@ Set Bullet Behavior "Strict Subproofs".
 
 Section Machine.
 
-Context {ge : Clight.genv}.
+Context {ge : Clight.genv} {Σ : gFunctors}.
 
 Definition getLocksR (tp : jstate ge) := listoption_inv (map snd (AMap.elements (lset tp))).
 
-Definition maps tp := (getThreadsR tp ++ getLocksR tp)%list.
+Definition maps tp := (getThreadsR tp ++ getLocksR tp ++ (extraRes tp :: nil))%list.
 
 Lemma all_but_maps i tp (cnti : containsThread tp i) :
-  all_but i (maps tp) = all_but i (getThreadsR tp) ++ getLocksR tp.
+  all_but i (maps tp) = all_but i (getThreadsR tp) ++ getLocksR tp ++ (extraRes tp :: nil).
 Proof.
   unfold maps. generalize (getLocksR tp); intros l.
   apply all_but_app.
@@ -467,128 +211,6 @@ Proof.
   pose proof @ssrnat.ltP i n.
   rewrite cnti in H.
   inversion H; auto.
-Qed.
-
-Lemma join_list_joinlist : join_list = joinlist.
-Proof.
-  extensionality l; induction l; extensionality phi; simpl; auto.
-  f_equal. extensionality r. apply prop_ext.
-  split; intros []; split; auto; simpl in *; congruence.
-Qed.
-
-Lemma join_list'_None l : join_list' l None <-> listoption_inv l = nil.
-Proof.
-  induction l. simpl. split; auto.
-  simpl.
-  split; destruct a as [r|].
-  - intros (r' & j & h). inversion j.
-  - intros (r' & j & h). inversion j; subst; tauto.
-  - congruence.
-  - rewrite <-IHl. intro. exists None; split; auto. constructor.
-Qed.
-
-Lemma join_list'_Some l phi : join_list' l (Some phi) -> joinlist (listoption_inv l) phi.
-Proof.
-  revert phi; induction l; intros phi. simpl. congruence.
-  intros (r & j & h).
-  simpl.
-  destruct a.
-  - inversion j; subst.
-    + apply join_list'_None in h.
-      simpl in *; rewrite h.
-      simpl.
-      exists (id_core phi).
-      split.
-      * apply id_core_identity.
-      * apply join_comm, id_core_unit.
-    + inversion j; subst; simpl; eauto.
-  - inversion j; subst; simpl; eauto.
-Qed.
-
-Lemma join_list'_Some' l phi : listoption_inv l <> nil -> joinlist (listoption_inv l) phi -> join_list' l (Some phi).
-Proof.
-  revert phi; induction l; intros phi. simpl; congruence.
-  destruct a as [r|]; simpl.
-  - intros _ (y & h & j).
-    simpl in *.
-    assert (D:forall l:list rmap, l = nil \/ l <> nil)
-      by (intros []; [left|right]; congruence).
-    destruct (D (listoption_inv l)) as [E|E].
-    + rewrite E in *.
-      rewrite <-join_list'_None in E.
-      exists None; split; auto.
-      simpl in h.
-      pose proof join_unit2_e _ _ h j. subst.
-      constructor.
-    + exists (Some y). split; auto.
-      constructor; auto.
-  - intros n j; specialize (IHl _ n j).
-    exists (Some phi); split; eauto. constructor.
-Qed.
-
-Lemma app_join_list {A} {JA : Join A} {SA : Sep_alg A} {PA : Perm_alg A} l1 l2 x :
-  join_list (l1 ++ l2) x ->
-  exists x1 x2,
-    join_list l1 x1 /\
-    join_list l2 x2 /\
-    join x1 x2 x.
-Proof.
-  revert l2 x; induction l1; intros l2 x j; simpl in *.
-  - exists (id_core x), x; split.
-    + apply id_core_identity.
-    + split; auto. apply id_core_unit.
-  - destruct j as (y & ayx & h).
-    destruct (IHl1 _ _ h) as (x1 & x2 & h1 & h2 & j).
-    apply join_comm in j.
-    apply join_comm in ayx.
-    destruct (join_assoc j ayx) as (r & ? & ?).
-    exists r, x2. eauto.
-Qed.
-
-Lemma join_all_joinlist tp : join_all tp = joinlist (maps tp).
-Proof.
-  extensionality phi. apply prop_ext. split.
-  - intros J. inversion J as [? rt rl ? jt jl j]; subst.
-    destruct rl as [rl|].
-    + inversion j; subst.
-      apply joinlist_app with (x1 := rt) (x2 := rl); auto.
-      * rewrite <-join_list_joinlist.
-        apply jt.
-      * apply join_list'_Some.
-        apply jl.
-    + inversion j; subst.
-      rewrite <-join_list_joinlist.
-      apply join_list'_None in jl.
-      unfold maps.
-      cut (join_list (getThreadsR tp ++ nil) phi).
-      { intro H; exact_eq H. f_equal. f_equal. symmetry. apply jl. }
-      rewrite app_nil_r.
-      apply jt.
-  - intros j.
-    unfold maps in j.
-    rewrite <- join_list_joinlist in j.
-    apply app_join_list in j.
-    destruct j as (rt & rl & jt & jl & j).
-    set (l' := getLocksR tp).
-    assert (D:l' = nil \/ l' <> nil)
-      by (destruct l'; [left|right]; congruence).
-    destruct D as [D|D].
-    + exists rt None; unfold l' in *; simpl in *.
-      * hnf. apply jt.
-      * hnf. unfold l' in D.
-        rewrite join_list'_None.
-        simpl in *.
-        rewrite <-D.
-        reflexivity.
-      * rewrite D in jl.
-        simpl in jl.
-        pose proof join_unit2_e _ _ jl j. subst.
-        constructor.
-    + exists rt (Some rl).
-      * hnf. apply jt.
-      * hnf. apply join_list'_Some'; auto.
-        rewrite <- join_list_joinlist; auto.
-      * constructor; auto.
 Qed.
 
 (** * Results about handling threads' rmaps *)
@@ -615,8 +237,8 @@ Proof.
     + f_equal.
       simpl minus in *.
       revert Hi.
-      rewrite <-minus_n_O in *.
-      rewrite <-minus_n_O in *.
+      rewrite -> Nat.sub_0_r in *.
+      rewrite -> Nat.sub_0_r in *.
       intros Hi.
       simpl.
       f_equal.
@@ -624,7 +246,7 @@ Proof.
       apply proof_irr.
     + simpl minus in *.
       revert Hi.
-      rewrite <-minus_n_O in *.
+      rewrite -> Nat.sub_0_r in *.
       intros Hi.
       simpl.
       unshelve erewrite IHn.
@@ -636,7 +258,9 @@ Proof.
         reflexivity.
       * f_equal.
         rewrite <- Nat.sub_add_distr.
-        reflexivity.
+        simpl.
+        f_equal.
+        apply proof_irr.
       * lia.
 Qed.
 
@@ -659,7 +283,7 @@ Proof.
       end.
       pose proof (ssrbool.elimT ssrnat.leP pr).
       assert (R : (n - 1 - (n - i - 1) = i)%nat) by lia.
-      rewrite R in *.
+      rewrite -> R in *.
       intros pr'.
       do 2 f_equal.
       apply proof_irr.
@@ -749,8 +373,8 @@ Proof.
     apply (ssrbool.elimT ssrnat.leP cnti).
   }
   rewrite upd_rev; auto.
-  2:now rewrite map_length, length_enum_from; auto.
-  rewrite List.map_length, length_enum_from.
+  2:now rewrite map_length length_enum_from; auto.
+  rewrite List.map_length length_enum_from.
   match goal with
     |- _ = Some (?a ?x) =>
     change (Some (a x)) with (option_map a (Some x))
@@ -774,7 +398,6 @@ Proof.
   generalize m at 1 2 4 7 13 14; intros n; revert i.
   induction n; intros i li cnti Hnm. now inversion li.
   match goal with |- _ = Some (map ?F _) => set (f := F) end.
-  Unset Printing Implicit.
   destruct i.
   - simpl.
     f_equal.
@@ -909,9 +532,8 @@ Lemma maps_getthread i tp cnti :
               (@getThreadR _ _ _ i tp cnti :: all_but i (maps tp)).
 Proof.
   rewrite all_but_maps; auto.
-  transitivity
-    ((getThreadR cnti :: all_but i (getThreadsR tp)) ++ getLocksR tp); auto.
-  rewrite <-getThreadsR_but. reflexivity.
+  match goal with |-context[?a :: ?b ++ ?c] => change (a :: b ++ c) with ((a :: b) ++ c) end.
+  rewrite <- getThreadsR_but; reflexivity.
 Qed.
 
 Lemma maps_updthread i tp cnti c phi :
@@ -935,7 +557,7 @@ Qed.
 Lemma maps_updlock1 (tp : jstate ge) addr :
   maps (updLockSet tp addr None) = maps (remLockSet tp addr).
 Proof.
-  unfold maps; f_equal.
+  unfold maps; do 2 f_equal.
   apply getLocksR_updLockSet_None.
 Qed.
 
@@ -980,26 +602,11 @@ Lemma maps_addthread tp v1 v2 phi :
               (phi :: maps tp).
 Proof.
   unfold maps.
-  change (phi :: getThreadsR tp ++ getLocksR tp)
-  with ((phi :: getThreadsR tp) ++ getLocksR tp).
+  match goal with |-context[?a :: ?b ++ ?c] => change (a :: b ++ c) with ((a :: b) ++ c) end.
   apply Permutation_app_tail.
   rewrite Permutation_cons_append.
   rewrite getThreadsR_addThread.
   apply Permutation_refl.
-Qed.
-
-Lemma maps_age_to i tp :
-  maps (age_tp_to i tp) = map (age_to i) (maps tp).
-Proof.
-  destruct tp as [n th ph ls]; simpl.
-  unfold maps, getThreadsR, getLocksR in *.
-  rewrite map_app.
-  f_equal.
-  - apply map_compose.
-  - unfold lset.
-    rewrite AMap_map.
-    rewrite map_listoption_inv.
-    reflexivity.
 Qed.
 
 Lemma maps_remLockSet_updThread i tp addr cnti c phi :
@@ -1007,28 +614,6 @@ Lemma maps_remLockSet_updThread i tp addr cnti c phi :
   maps (@updThread _ _ _ i (remLockSet tp addr) cnti c phi).
 Proof.
   reflexivity.
-Qed.
-
-Lemma getThread_level i tp cnti Phi :
-  join_all tp Phi ->
-  level (@getThreadR _ _ _ i tp cnti) = level Phi.
-Proof.
-  intros j.
-  apply juicy_mem.rmap_join_sub_eq_level, compatible_threadRes_sub, j.
-Qed.
-
-Lemma join_sub_level {A} `{JA : sepalg.Join A} `{_ : ageable A} {_ : Perm_alg A} {_ : Sep_alg A} {_ : Age_alg A} :
-  forall x y : A, join_sub x y -> level x = level y.
-Proof.
-  intros x y (z, j).
-  apply (join_level _ _ _ j).
-Qed.
-
-Lemma joins_level {A} `{JA : sepalg.Join A} `{_ : ageable A} {_ : Perm_alg A} {_ : Sep_alg A} {_ : Age_alg A} :
-  forall x y : A, joins x y -> level x = level y.
-Proof.
-  intros x y (z, j).
-  destruct (join_level _ _ _ j); congruence.
 Qed.
 
 End Machine.

@@ -10,18 +10,12 @@ Require Import compcert.common.Values.
 
 Require Import VST.msl.Coqlib2.
 Require Import VST.msl.eq_dec.
-Require Import VST.msl.seplog.
-Require Import VST.msl.age_to.
-Require Import VST.veric.aging_lemmas.
-Require Import VST.veric.initial_world.
 Require Import VST.veric.juicy_mem.
 Require Import VST.veric.juicy_mem_lemmas.
 Require Import VST.veric.semax_prog.
-Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.Clight_core.
 Require Import VST.veric.Clightcore_coop.
 Require Import VST.veric.semax.
-Require Import VST.veric.semax_ext.
 Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.juicy_safety.
 Require Import VST.veric.initial_world.
@@ -30,14 +24,13 @@ Require Import VST.veric.tycontext.
 Require Import VST.veric.semax_ext.
 Require Import VST.veric.res_predicates.
 Require Import VST.veric.mem_lessdef.
-Require Import VST.veric.age_to_resource_at.
 Require Import VST.veric.seplog.
 Require Import VST.floyd.coqlib3.
 Require Import VST.sepcomp.step_lemmas.
 Require Import VST.sepcomp.event_semantics.
 Require Import VST.sepcomp.semantics_lemmas.
 Require Import VST.concurrency.common.permjoin.
-Require Import VST.concurrency.semax_conc.
+Require Import VST.concurrency.juicy.semax_conc.
 Require Import VST.concurrency.juicy.juicy_machine.
 Require Import VST.concurrency.common.HybridMachineSig.
 Require Import VST.concurrency.common.scheduler.
@@ -45,11 +38,7 @@ Require Import VST.concurrency.common.addressFiniteMap.
 Require Import VST.concurrency.common.permissions.
 Require Import VST.concurrency.juicy.JuicyMachineModule.
 Require Import VST.concurrency.juicy.sync_preds_defs.
-Require Import VST.concurrency.juicy.sync_preds.
 Require Import VST.concurrency.juicy.join_lemmas.
-(*Require Import VST.concurrency.cl_step_lemmas.
-Require Import VST.concurrency.resource_decay_lemmas.
-Require Import VST.concurrency.resource_decay_join.*)
 Require Import VST.concurrency.juicy.semax_invariant.
 Require Import VST.concurrency.juicy.semax_simlemmas.
 Require Import VST.concurrency.juicy.sync_preds.
@@ -173,6 +162,16 @@ Proof.
   intro p. apply p.
 Qed.
 
+Lemma set_ghost_join : forall a c w1 w2 w (J : join w1 w2 w) H1 H,
+  join a (ghost_of w2) c ->
+  join (set_ghost w1 a H1) w2 (set_ghost w c H).
+Proof.
+  intros.
+  destruct (join_level _ _ _ J).
+  apply resource_at_join2; unfold set_ghost; intros; rewrite ?level_make_rmap, ?resource_at_make_rmap, ?ghost_of_make_rmap; auto.
+  apply resource_at_join; auto.
+Qed.
+
 Lemma safety_induction_spawn ge Gamma n state
   (CS : compspecs)
   (ext_link : string -> ident)
@@ -230,9 +229,10 @@ Proof.
 (*  intros (phix, (ts, ((((xf, xarg), globals), f_with_x), f_with_Pre))) (Hargsty, Pre). *)
   simpl (and _) in Post.
   destruct Pre as (phi0 & phi1 & jphi & A). simpl in A.
-  destruct A as (((PreA & _) & (PreB1 & PreB2 & [phi00 [phi01 [jphi0 [[Func Hphi00] fPRE]]]])) & necr).
-  simpl in fPRE.
-  rewrite seplog.sepcon_emp in fPRE.
+  destruct A as (((PreA & _) & (PreB1 & PreB2 & A)) & necr).
+  unfold SeparationLogic.argsassert2assert, canon.SEPx, client_lemmas.func_ptr' in A; simpl in A.
+  rewrite seplog.corable_andp_sepcon1, log_normalize.emp_sepcon, seplog.sepcon_emp in A by apply SeparationLogic.corable_func_ptr.
+  destruct A as [Func fPre].
   clear Heq_name.
 
 
@@ -242,10 +242,6 @@ Proof.
   { rewrite <-li. apply join_sub_level. eexists; eauto. }
   assert (l0 : level phi0 = S n).
   { rewrite <-li. apply join_sub_level. eexists; eauto. }
-  assert (l00 : level phi00 = S n).
-  { rewrite <-l0. apply join_sub_level. eexists; eauto. }
-  assert (l01 : level phi01 = S n).
-  { rewrite <-l0. apply join_sub_level. eexists; eauto. }
   Import SeparationLogic Clight_initial_world Clightdefs.
 (*  Import VericMinimumSeparationLogic.CSHL_Defs *)
 (*   Import SeparationLogicSoundness.VericSound.CSHL_Defs. *)
@@ -274,11 +270,10 @@ Proof.
       set (NEP := NEP_); set (NEQ := NEQ_)
   end.
 
-  assert (gam0 : matchfunspecs ge Gamma phi00). {
+  assert (gam0 : matchfunspecs ge Gamma phi0). {
     revert gam. apply pures_same_matchfunspecs.
     join_level_tac.
     apply pures_same_sym, join_sub_pures_same.
-    apply join_sub_trans with phi0. eexists; eassumption.
     apply join_sub_trans with (getThreadR i tp cnti). exists phi1. auto.
     join_sub_tac.
   }
@@ -289,10 +284,13 @@ Proof.
   destruct FAT as (gs & Hsub & FAT').
   specialize (gam0 _ _ _ (necR_refl _) (ext_refl _) FAT').
   destruct gam0 as (id_fun & fs0 & [? Eid] & Hsub0).
+  pose proof (funspec_sub_si_trans fs0 gs (mk_funspec fsig cc A P Q NEP NEQ) phi0) as Hsub1.
+  spec Hsub1. { split; auto. }
+  clear Hsub Hsub0.
   destruct fs0 as [sig' cc' A' P' Q' NEP' NEQ'].
   assert (sig' = fsig /\ cc' = cc) as []; subst.
   { destruct gs; simpl in *.
-    destruct Hsub0 as [[] _], Hsub as [[] _]; subst; auto. }
+    destruct Hsub1 as [[] _]; subst; auto. }
 
   pose proof semax_prog_entry_point (Concurrent_Espec unit CS ext_link) V Gamma prog f_b
        id_fun (tptr tvoid :: nil) (b :: nil) A' P' Q' NEP' NEQ' 0 ora (allows_exit ext_link) semaxprog as HEP.
@@ -391,12 +389,12 @@ specialize (all_coh0 (b, Ptrofs.unsigned i0)); spec all_coh0; auto.
                          (Vptr f_b Ptrofs.zero) b phi0) m Phi).
   {
     split; try apply compat.
-    clear -jphi compat. destruct compat as [jj jj']. simpl in jphi.
-    rewrite join_all_joinlist in *.
-    rewrite maps_addthread.
-    rewrite maps_updthread.
-    rewrite (maps_getthread _ _ cnti) in jj.
-    rewrite joinlist_merge; eauto.
+    * clear -jphi compat extcompat. destruct compat as [jj jj']. simpl in jphi.
+      rewrite join_all_joinlist in *.
+      rewrite maps_addthread.
+      rewrite maps_updthread.
+      rewrite (maps_getthread _ _ cnti) in jj.
+      rewrite joinlist_merge; eauto.
   }
 
   apply (@mem_compatible_with_age _ n) in compat'.
@@ -410,7 +408,7 @@ specialize (all_coh0 (b, Ptrofs.unsigned i0)); spec all_coh0; auto.
 
   - (* env_coherence *)
     apply env_coherence_age_to; auto.
-  - rewrite age_to_ghost_of.
+  - unfold ext_compat; rewrite age_to_ghost_of.
     destruct extcompat as [? J]; eapply ghost_fmap_join in J; eexists; eauto.
 
   - (* lock sparsity *)
@@ -441,139 +439,87 @@ specialize (all_coh0 (b, Ptrofs.unsigned i0)); spec all_coh0; auto.
       { destruct (Initcore (jm_ cnti compat)) as [? Hinit]; apply Hinit. }
 
       intros jm. REWR. rewrite gssAddRes by reflexivity.
-      specialize (Safety jm ts).
+(*      specialize (Safety jm ts). *)
       intros Ejm.
-      destruct ora; eapply Safety.
-      * rewrite Ejm.
-        (* need to use funspec_sub *)
-        eapply args_cond_approx_eq_app with (y := (b, f_with_x)).
-
-        (* cond_approx_eq *)
-        eauto.
-
-        (* level *)
-        rewrite level_age_to. lia. cleanup. lia.
-
-        (* PROP / LOCAL / SEP *)
-        simpl.
-        apply age_to_pred.
-        split.
-
-        (* nothing in PROP *)
-        now constructor.
-
-        split.
-        unfold SeparationLogic.local, lift1.
-
-        split.
-
-        -- (* LOCAL 1 : value of xarg *)
-        split.
-        simpl.
-        unfold liftx, lift. simpl.
-        unfold eval_id in *.
-        unfold val_lemmas.force_val in *.
-        unfold te_of in *.
-        unfold construct_rho in *.
-        unfold make_tenv in *.
-        unfold Map.get in *.
-        rewrite PTree.gss.
-        reflexivity.
-       do 8 red. intro Hx; subst; contradiction PreA.
-      
-
-       --  (* LOCAL 2 : locald_denote of global variables *)
-        split3. hnf.
-        clear - PreB3. destruct PreB3 as [PreB3 _].
-        hnf in PreB3. rewrite PreB3; clear PreB3.
-        unfold Map.get, make_ext_args. unfold env_set. 
-        unfold ge_of.
-        unfold filter_genv.
-        extensionality i. unfold Genv.find_symbol. simpl. auto.
-       
-
-        -- (* SEP: only precondition of spawned condition *)
-        unfold canon.SEPx in *.
-        simpl.
-        rewrite seplog.sepcon_emp.
-        destruct fPRE; assumption.
-      * (* funnassert *)
-        rewrite Ejm.
-        apply funassert_pures_eq with Phi.
+      (* do a fupd to satisfy the spawned function's precondition *)
+      apply (semax_lemmas.assert_safe1_fupd (globalenv prog) _ q_new).
+      destruct Hsub1 as [_ Hsub1].
+      specialize (Hsub1 (age_to n phi0)); spec Hsub1.
+      { destruct (nec_refl_or_later _ _ (age_to_necR n phi0)) as [Heq | ]; auto.
+        apply (f_equal level) in Heq; rewrite level_age_to, l0 in Heq; lia. }
+      specialize (Hsub1 ts (b, f_with_x) (filter_genv (symb2genv (genv_symb_injective (globalenv prog))), b :: nil) _ (le_refl _) _ _ (necR_refl _) (ext_refl _)).
+      spec Hsub1.
+      { split.
+        * repeat constructor; simpl.
+          destruct b; try contradiction; simpl; auto.
+        * eapply pred_nec_hereditary; [apply age_to_necR|].
+          unfold P; rewrite sepcon_emp; split3; constructor; auto. }
+      assert (app_pred (fungassert (nofunc_tycontext V Gamma) (filter_genv (globalenv prog), b :: nil)) (age_to n phi0)) as Hfung.
+      { apply fungassert_pures_eq with Phi.
         { rewrite level_age_to. lia. cleanup. lia. }
-        { apply pures_same_eq_l with phi0. 2: now apply pures_eq_age_to; lia.
+        { apply pures_same_eq_l with phi0, pures_eq_age_to; [|lia].
           apply join_sub_pures_same. subst.
           apply join_sub_trans with (getThreadR i tp cnti). exists phi1; auto.
           apply compatible_threadRes_sub, compat. }
-        apply FA.
-      * rewrite Ejm; simpl.
-         rewrite age_to_ghost_of.
-         destruct ora.
-         eapply join_sub_joins_trans, ext_join_approx, extcompat.
-         destruct (compatible_threadRes_sub cnti (juice_join compat)).
-         eapply join_sub_trans.
-         -- eexists; apply ghost_fmap_join, ghost_of_join; eauto.
-         -- eexists; apply ghost_fmap_join, ghost_of_join; eauto.
+        apply FA. }
+      pose proof (conj Hfung Hsub1) as Hpre; eapply fupd.fupd_andp_corable in Hpre; [|apply corable_fungassert].
+      rewrite Ejm; eapply fupd.fupd_mono, Hpre.
+      intros ? (? & ? & ? & F & HP & _) [] ? Hext ??; subst.
+      rewrite predicates_sl.sepcon_comm in HP.
+      destruct ora; eapply jm_fupd_intro', Safety; auto.
+      eapply predicates_sl.sepcon_derives, HP; eauto.
 
     + (* safety of spawning thread *)
       subst j.
       REWR. unshelve erewrite (@gsoAddCode _ _ _ _ _ _ _ i); auto. REWR. REWR.
       unshelve erewrite (@gsoAddRes _ _ _ _ _ _ _ i); auto. REWR.
       intros c' afterex jm Ejm.
-      specialize (Post None jm ora n Hargsty Logic.I (le_refl _)).
+      specialize (Post None jm ora Hargsty Logic.I).
 
       spec Post. (* Hrel *)
-      { split. rewrite <-level_m_phi, Ejm. symmetry. apply level_age_to. cleanup; lia.
-        rewrite <-!level_m_phi. rewrite m_phi_jm_, Ejm. split.
+      { unfold Hrel. rewrite <-!level_m_phi. rewrite m_phi_jm_, Ejm. split.
         rewrite level_age_to. cleanup; lia. cleanup; lia.
         apply pures_same_eq_l with phi1. apply join_sub_pures_same. exists phi0. auto.
         apply pures_eq_age_to. lia. }
 
       spec Post. (* Postcondition *)
-      { exists (age_to n phi00), (age_to n phi1); split; [ | split3].
-        - rewrite Ejm. apply age_to_join. auto.
-        - split; auto. split; auto. split.
-          apply prop_app_pred; auto.
-          unfold canon.SEPx in *. simpl.
-          apply age_to_pred. auto.
+      { exists (core (age_to n phi1)), (age_to n phi1); split3.
+        - rewrite Ejm. apply core_unit.
+        - split; auto. split; auto. split; [constructor|].
+          setoid_rewrite emp_no; intros ?; apply resource_at_core_identity.
         - simpl.
           apply necR_trans with phi1; [ |apply age_to_necR].
           destruct necr; auto.
-        - destruct necr as [? JOINS].
-           rewrite Ejm, age_to_ghost_of.
-           destruct ora.
-           eapply join_sub_joins_trans; [|apply ext_join_approx, JOINS].
-           eexists; apply ghost_fmap_join, ghost_of_join; eauto.
       }
 
       destruct Post as (c'_ & afterex_ & safe').
       assert (c'_ = c').
       { cut (Some c'_ = Some c'). congruence. rewrite <-afterex, <-afterex_. reflexivity. }
       subst c'_.
-      apply safe'.
+      destruct ora; apply safe'.
 
     + assert (cntj : containsThread tp j).
       { apply cnt_age, cntAdd' in lj.
         destruct lj as [[lj ?] | lj ]. apply lj. simpl in lj. tauto. }
       specialize (safety j cntj ora).
+      destruct ora.
       REWR. REWR. REWR. REWR.
       destruct (getThreadC j tp cntj) eqn:Ej.
       -- edestruct (unique_Krun_neq(ge := globalenv prog) i j); eauto.
-      -- apply jsafe_phi_age_to; auto. apply jsafe_phi_downward.
+      -- apply jsafe_phi_age_to; auto.
          unshelve erewrite gsoAddRes; auto. REWR.
       -- intros c' Ec'; specialize (safety c' Ec').
-         apply jsafe_phi_bupd_age_to; auto. apply jsafe_phi_bupd_downward.
+         apply jsafe_phi_fupd_age_to; auto.
          unshelve erewrite gsoAddRes; auto. REWR.
-      -- destruct safety as (? & c_new & Einit & safety).
-         split; auto.
+      -- destruct safety as (c_new & Einit & safety).
          exists c_new; split; auto.
          unshelve erewrite gsoAddRes; auto. REWR.
-         apply jsafe_phi_age_to; auto. apply jsafe_phi_downward, safety.
+         apply jsafe_phi_fupd_age_to; auto.
 
   - (* wellformed *)
     intros j cntj.
     destruct (eq_dec j tp.(num_threads).(pos.n)); [ | destruct (eq_dec i j)].
-    + subst j. REWR. rewrite gssAddCode. 2:reflexivity. constructor.
+    + subst j. REWR. rewrite gssAddCode by reflexivity. constructor.
     + subst j. REWR. REWR. REWR.
        unfold cl_at_external; simpl. split; congruence.
     + assert (cntj' : containsThread tp j).
@@ -585,7 +531,7 @@ specialize (all_coh0 (b, Ptrofs.unsigned i0)); spec all_coh0; auto.
     (* rewrite no_Krun_age_tp_to. *)
     intros j cntj q.
     destruct (eq_dec j tp.(num_threads).(pos.n)); [ | destruct (eq_dec i j)].
-    + subst j. REWR. rewrite gssAddCode. 2:reflexivity. clear; congruence.
+    + subst j. REWR. rewrite gssAddCode by reflexivity. clear; congruence.
     + subst j. REWR. REWR. REWR. clear; congruence.
     + assert (cntj' : containsThread tp j).
       { apply cnt_age, cntAdd' in cntj. destruct cntj as [[lj ?] | lj ]. apply lj. simpl in lj. tauto. }
@@ -593,4 +539,4 @@ specialize (all_coh0 (b, Ptrofs.unsigned i0)); spec all_coh0; auto.
       eapply unique_Krun_no_Krun. eassumption.
       instantiate (1 := cnti). rewr (getThreadC i tp cnti).
       congruence.
-Admitted. (* safety_induction_spawn *)
+Qed. (* safety_induction_spawn *)

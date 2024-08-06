@@ -1238,15 +1238,11 @@ Module OrdinalPool.
     Lemma eq_op_false: forall A i j, i <>j -> @eq_op A i j = false.
     Proof.
       intros.
-      unfold eq_op; simpl.
-      (*
-      unfold Equality.op. destruct A eqn:?. simpl.
-      unfold Equality.sort in *.
-      destruct m; simpl in *.
-      generalize (a i j); intros. inv H0; auto. contradiction H;auto.
+      apply (@negbRL _ true).
+      eapply contraFneq; last done.
+      intros. easy.
     Qed.
-*) Admitted.
-
+    
     Lemma gsoThreadCode:
       forall {i j tp} (Hneq: i <> j) (cnti: containsThread tp i)
         (cntj: containsThread tp j) c' p'
@@ -1254,7 +1250,8 @@ Module OrdinalPool.
         getThreadC cntj' = getThreadC cntj.
     Proof.
       intros.
-      simpl.
+      simpl. Search eq_op.
+      Check contraFneq.
       unfold eq_op. simpl.
       rewrite eq_op_false; auto.
       unfold updThread in cntj'. unfold containsThread in *. simpl in *.

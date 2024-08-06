@@ -10,26 +10,18 @@ Require Import compcert.common.Values.
 
 Require Import VST.msl.Coqlib2.
 Require Import VST.msl.eq_dec.
-Require Import VST.msl.seplog.
-Require Import VST.msl.age_to.
-Require Import VST.veric.aging_lemmas.
-Require Import VST.veric.initial_world.
 Require Import VST.veric.juicy_mem.
 Require Import VST.veric.juicy_mem_lemmas.
 Require Import VST.veric.semax_prog.
-Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.Clight_core.
 Require Import VST.veric.Clightcore_coop.
 Require Import VST.veric.semax.
-Require Import VST.veric.semax_ext.
-Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.initial_world.
 Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.semax_ext.
 Require Import VST.veric.res_predicates.
 Require Import VST.veric.shares.
-Require Import VST.veric.age_to_resource_at.
 Require Import VST.floyd.coqlib3.
 Require Import VST.floyd.field_at.
 Require Import VST.sepcomp.extspec.
@@ -46,9 +38,6 @@ Require Import VST.concurrency.juicy.JuicyMachineModule.
 Require Import VST.concurrency.juicy.sync_preds_defs.
 Require Import VST.concurrency.juicy.sync_preds.
 Require Import VST.concurrency.juicy.join_lemmas.
-(*Require Import VST.concurrency.cl_step_lemmas.
-Require Import VST.concurrency.resource_decay_lemmas.
-Require Import VST.concurrency.resource_decay_join.*)
 Require Import VST.concurrency.juicy.semax_invariant.
 Require Import VST.concurrency.juicy.semax_simlemmas.
 Require Import VST.concurrency.juicy.rmap_locking.
@@ -223,7 +212,7 @@ Section Progress.
       state_step(ge := ge) state state'.
   Proof.
     intros not_spawn I.
-    inversion I as [m tr sch tp Phi En envcoh (*mwellformed*) compat extcompat sparse lock_coh safety wellformed unique E]. rewrite <-E in *.
+    inversion I as [m tr sch tp Phi En envcoh (*mwellformed*) compat extcompat sparse lock_coh safety wellformed unique invcompat E]. rewrite <-E in *.
     destruct sch as [ | i sch ].
 
     (* empty schedule: we loop in the same state *)
@@ -492,7 +481,7 @@ Section Progress.
           }
 
           (* changing value of lock in dry mem *)
-          assert (Hm' : exists m', Mem.store Mptr (restrPermMap Hlt') b (Ptrofs.intval ofs) (Vint Int.zero) = Some m'). {
+          assert (Hm' : exists m', Mem.store Mptr (restrPermMap Hlt') b (Ptrofs.intval ofs) (Vptrofs Ptrofs.zero) = Some m'). {
             Transparent Mem.store.
             unfold Mem.store in *.
             destruct (Mem.valid_access_dec _ Mptr b (Ptrofs.intval ofs) Writable) as [N|N].

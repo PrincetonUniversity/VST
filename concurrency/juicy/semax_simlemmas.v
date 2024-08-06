@@ -10,19 +10,12 @@ Require Import compcert.common.Values.
 
 Require Import VST.msl.Coqlib2.
 Require Import VST.msl.eq_dec.
-Require Import VST.msl.seplog.
-Require Import VST.msl.age_to.
-Require Import VST.veric.aging_lemmas.
-Require Import VST.veric.initial_world.
 Require Import VST.veric.juicy_mem.
 Require Import VST.veric.juicy_mem_lemmas.
 Require Import VST.veric.semax_prog.
-Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.Clight_core.
 Require Import VST.veric.Clightcore_coop.
 Require Import VST.veric.semax.
-Require Import VST.veric.semax_ext.
-Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.initial_world.
 Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.juicy_safety.
@@ -30,7 +23,6 @@ Require Import VST.veric.tycontext.
 Require Import VST.veric.semax_ext.
 Require Import VST.veric.res_predicates.
 Require Import VST.veric.mem_lessdef.
-Require Import VST.veric.age_to_resource_at.
 Require Import VST.veric.seplog.
 Require Import VST.floyd.coqlib3.
 Require Import VST.sepcomp.step_lemmas.
@@ -49,14 +41,11 @@ Require Import VST.concurrency.juicy.sync_preds_defs.
 Require Import VST.concurrency.juicy.sync_preds.
 Require Import VST.concurrency.juicy.join_lemmas.
 Require Import VST.concurrency.common.lksize.
-(*Require Import VST.concurrency.cl_step_lemmas.*)
-Require Import VST.concurrency.juicy.resource_decay_lemmas.
-Require Import VST.concurrency.juicy.resource_decay_join.
+(*Require Import VST.concurrency.juicy.resource_decay_lemmas.
+Require Import VST.concurrency.juicy.resource_decay_join.*)
 Require Import VST.concurrency.juicy.semax_invariant.
-Require Import VST.veric.Clight_aging_lemmas.
 Import Clight_initial_world.
 Import Clight_seplog.
-Import ghost_PCM.
 
 Set Bullet Behavior "Strict Subproofs".
 
@@ -367,6 +356,25 @@ Proof.
     destruct (necR_PURE' _ _ _ _ _ necr pat) as (pp', E).
     rewrite E in SP. destruct SP as (pp'', SP). exists pp''.
     rewrite <-resource_at_approx, SP. reflexivity.
+Qed.
+
+Lemma fungassert_funassert : forall G rho, fungassert G rho = funassert G (mkEnviron (fst rho) (Map.empty _) (Map.empty _)).
+Proof.
+  reflexivity.
+Qed.
+
+Lemma fungassert_pures_eq G rho phi1 phi2 :
+  (level phi1 >= level phi2)%nat ->
+  pures_eq phi1 phi2 ->
+  app_pred (fungassert G rho) phi1 ->
+  app_pred (fungassert G rho) phi2.
+Proof.
+  rewrite fungassert_funassert; apply funassert_pures_eq.
+Qed.
+
+Lemma corable_fungassert : forall G rho, corable (fungassert G rho).
+Proof.
+  intros; rewrite fungassert_funassert; apply Clight_assert_lemmas.corable_funassert.
 Qed.
 
 Lemma env_coherence_hered Z Jspec ge G :
@@ -958,17 +966,11 @@ Qed.
       (lock_sparse : lock_sparsity (lset tp))
       (lock_coh : lock_coherence' tp PHI m mcompat)
       (safety : exists i (cnti : containsThread tp i), let phi := getThreadR cnti in
-       (exists k, getThreadC cnti = Krun k /\
-       forall c, join_sub (Some (ext_ref tt, NoneP) :: nil) c ->
-          joins (ghost_of phi) (ghost_fmap (approx (level phi)) (approx (level phi)) c) ->
-        exists b, joins b (ghost_fmap (approx (level phi)) (approx (level phi)) c) /\
-        exists phi' (Hr : resource_at phi' = resource_at phi), level phi' = level phi /\ ghost_of phi' = b /\
-        forall ora, jsafeN Jspec ge ora k
-          (personal_mem (mem_cohere'_res _ _ _ (compatible_threadRes_cohere cnti (mem_compatible_forget mcompat)) Hr))) /\
+       (exists k, getThreadC cnti = Krun k /\ fupd (semax_lemmas.assert_safe1 ge k) phi) /\
        forall j (cntj : containsThread tp j), j <> i -> thread_safety Jspec m ge tp PHI mcompat j cntj)
       (wellformed : threads_wellformed tp)
       (uniqkrun :  unique_Krun tp sch),
-  state_bupd (state_invariant Jspec Gamma n) (m, (tr, sch, tp)).
+  state_fupd (state_invariant Jspec Gamma n) (m, (tr, sch, tp)).
 Proof.
   intros; apply state_inv_upd with (mcompat := mcompat); auto; intros.
   destruct safety as (i & cnti & [(k & Hk & Hsafe) Hrest]).
