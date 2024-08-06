@@ -10,12 +10,18 @@ Require Import compcert.common.Values.
 
 Require Import VST.msl.Coqlib2.
 Require Import VST.msl.eq_dec.
+Require Import VST.msl.seplog.
+Require Import VST.msl.age_to.
+Require Import VST.veric.aging_lemmas.
+Require Import VST.veric.initial_world.
 Require Import VST.veric.juicy_mem.
 Require Import VST.veric.juicy_mem_lemmas.
 Require Import VST.veric.semax_prog.
+Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.Clight_core.
 Require Import VST.veric.Clightcore_coop.
 Require Import VST.veric.semax.
+Require Import VST.veric.semax_ext.
 Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.juicy_safety.
 Require Import VST.veric.initial_world.
@@ -23,6 +29,7 @@ Require Import VST.veric.tycontext.
 Require Import VST.veric.semax_ext.
 Require Import VST.veric.res_predicates.
 Require Import VST.veric.mem_lessdef.
+Require Import VST.veric.age_to_resource_at.
 Require Import VST.floyd.coqlib3.
 Require Import VST.sepcomp.step_lemmas.
 Require Import VST.sepcomp.event_semantics.
@@ -40,6 +47,9 @@ Require Import VST.concurrency.juicy.JuicyMachineModule.
 Require Import VST.concurrency.juicy.sync_preds_defs.
 Require Import VST.concurrency.juicy.sync_preds.
 Require Import VST.concurrency.juicy.join_lemmas.
+(*Require Import VST.concurrency.cl_step_lemmas.
+Require Import VST.concurrency.resource_decay_lemmas.
+Require Import VST.concurrency.resource_decay_join.*)
 Require Import VST.concurrency.juicy.semax_invariant.
 Require Import VST.concurrency.juicy.semax_simlemmas.
 Require Import VST.concurrency.juicy.sync_preds.
@@ -292,7 +302,7 @@ Proof.
     apply store_access in Hstore.
     admit.  (* Santiago *) *)
   + (* external coherence *)
-    unfold ext_compat; rewrite age_to_ghost_of.
+    rewrite age_to_ghost_of.
     destruct extcompat as [? J]; eapply ghost_fmap_join in J; eexists; eauto.
 
   + (* lock sparsity *)
@@ -573,7 +583,7 @@ Proof.
       -- intros c' Ec'; specialize (safety c' Ec'). apply jsafe_phi_fupd_age_to; auto.
       -- destruct safety as (q_new & Einit & safety).
          exists q_new; split; auto.
-         apply jsafe_phi_fupd_age_to; auto.
+         apply jsafe_phi_age_to; auto.
 
   + (* well_formedness *)
     rename j into Hj. intros j lj.

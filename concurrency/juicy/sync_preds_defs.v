@@ -2,16 +2,16 @@ Require Import VST.concurrency.common.lksize.
 Require Import VST.concurrency.common.addressFiniteMap.
 Require Import VST.msl.Coqlib2.
 Require Import VST.msl.eq_dec.
+Require Import VST.msl.seplog.
+Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.res_predicates.
-Require Import VST.veric.shared.
-Require Import VST.veric.juicy_mem.
 
 (* Those were overwritten in structured_injections *)
 Notation join := sepalg.join.
 Notation join_assoc := sepalg.join_assoc.
 
-(*Definition islock_pred (R: mpred) r := 
+Definition islock_pred (R: pred rmap) r := 
  exists sh sh' z, r = YES sh sh' (LK z 0) (SomeP rmaps.Mpred (fun _ => R)).
 
 Lemma islock_pred_join_sub {r1 r2 R} : join_sub r1 r2 -> islock_pred R r1  -> islock_pred R r2.
@@ -20,7 +20,7 @@ Proof.
   inversion J; subst; eexists; eauto.
 Qed.
 
-Definition LKspec_ext (R: mpred) : spec :=
+Definition LKspec_ext (R: pred rmap) : spec :=
    fun (sh: Share.t) (l: AV.address)  =>
      allp
        (jam
@@ -36,7 +36,7 @@ the LK, CT, ... have the same share, which might not be true. The
 following definition has the same structure as rmap_makelock in
 rmap_locking *)
 
-Definition pack_res_inv (R: mpred) := SomeP rmaps.Mpred (fun _ => R).
+Definition pack_res_inv (R: pred rmap) := SomeP rmaps.Mpred (fun _ => R).
 
 Definition lkat (R : mpred) loc phi :=
   (forall x,
@@ -57,10 +57,10 @@ Definition same_locks phi1 phi2 :=
 Definition lockSet_block_bound lset b :=
   forall loc, isSome (AMap.find (elt:=option rmap) loc lset) -> (fst loc < b)%positive.
 
-Definition predat phi loc (R: mpred) :=
-  exists sh sh' z, phi @ loc = YES sh sh' (LK z 0) (SomeP rmaps.Mpred (fun _ => R)).*)
+Definition predat phi loc (R: pred rmap) :=
+  exists sh sh' z, phi @ loc = YES sh sh' (LK z 0) (SomeP rmaps.Mpred (fun _ => R)).
 
-(*Definition rmap_bound b phi :=
+Definition rmap_bound b phi :=
   (forall loc, (fst loc >= b)%positive -> phi @ loc = NO Share.bot shares.bot_unreadable).
 
 (* Constructive version of resource_decay (equivalent to the
@@ -79,7 +79,7 @@ Definition resource_decay_aux (nextb: block) (phi1 phi2: rmap) : Type :=
 
   + (fst l >= nextb)%positive * { v | phi2 @ l = YES Share.top shares.readable_share_top  (VAL v) NoneP }
 
-  + { v : _ & { pp : _ | phi1 @ l = YES Share.top shares.readable_share_top (VAL v) pp /\ phi2 @ l = NO Share.bot shares.bot_unreadable} })).*)
+  + { v : _ & { pp : _ | phi1 @ l = YES Share.top shares.readable_share_top (VAL v) pp /\ phi2 @ l = NO Share.bot shares.bot_unreadable} })).
 
 Ltac breakhyps :=
   repeat
@@ -112,7 +112,7 @@ Ltac sumsimpl :=
   | |- sumbool ?A ?B => check_false B; left
   end.
 
-(*Definition resource_decay_at (nextb: block) n (r1 r2 : resource) b :=
+Definition resource_decay_at (nextb: block) n (r1 r2 : resource) b :=
   ((b >= nextb)%positive -> r1 = NO Share.bot shares.bot_unreadable) /\
   (resource_fmap (approx (n)) (approx (n)) (r1) = (r2) \/
   (exists sh, exists Psh, exists v, exists v',
@@ -120,7 +120,7 @@ Ltac sumsimpl :=
        r2 = YES sh Psh (VAL v') NoneP /\
        shares.writable0_share sh)
   \/ ((b >= nextb)%positive /\ exists v, r2 = YES Share.top shares.readable_share_top  (VAL v) NoneP)
-  \/ (exists v, exists pp, r1 = YES Share.top shares.readable_share_top (VAL v) pp /\ r2 = NO Share.bot shares.bot_unreadable)).*)
+  \/ (exists v, exists pp, r1 = YES Share.top shares.readable_share_top (VAL v) pp /\ r2 = NO Share.bot shares.bot_unreadable)).
 
 Ltac range_tac :=
   match goal with

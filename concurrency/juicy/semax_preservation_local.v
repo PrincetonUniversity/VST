@@ -10,12 +10,18 @@ Require Import compcert.common.Values.
 
 Require Import VST.msl.Coqlib2.
 Require Import VST.msl.eq_dec.
+Require Import VST.msl.seplog.
+Require Import VST.msl.age_to.
+Require Import VST.veric.aging_lemmas.
+Require Import VST.veric.initial_world.
 Require Import VST.veric.juicy_mem.
 Require Import VST.veric.juicy_mem_lemmas.
 Require Import VST.veric.semax_prog.
+Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.Clight_core.
 Require Import VST.veric.Clightcore_coop.
 Require Import VST.veric.semax.
+Require Import VST.veric.semax_ext.
 Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.juicy_safety.
 Require Import VST.veric.initial_world.
@@ -24,13 +30,14 @@ Require Import VST.veric.tycontext.
 Require Import VST.veric.semax_ext.
 Require Import VST.veric.res_predicates.
 Require Import VST.veric.mem_lessdef.
+Require Import VST.veric.age_to_resource_at.
 Require Import VST.floyd.coqlib3.
 Require Import VST.sepcomp.step_lemmas.
 Require Import VST.sepcomp.mem_lemmas.
 Require Import VST.sepcomp.event_semantics.
 Require Import VST.sepcomp.semantics_lemmas.
 Require Import VST.concurrency.common.permjoin.
-Require Import VST.concurrency.juicy.semax_conc.
+Require Import VST.concurrency.semax_conc.
 Require Import VST.concurrency.juicy.juicy_machine.
 Require Import VST.concurrency.common.HybridMachineSig.
 Require Import VST.concurrency.common.scheduler.
@@ -38,10 +45,11 @@ Require Import VST.concurrency.common.addressFiniteMap.
 Require Import VST.concurrency.common.permissions.
 Require Import VST.concurrency.juicy.JuicyMachineModule.
 Require Import VST.concurrency.juicy.sync_preds_defs.
+Require Import VST.concurrency.juicy.sync_preds.
 Require Import VST.concurrency.juicy.join_lemmas.
 Require Import VST.concurrency.juicy.cl_step_lemmas.
-(*Require Import VST.concurrency.juicy.resource_decay_lemmas.
-Require Import VST.concurrency.juicy.resource_decay_join.*)
+Require Import VST.concurrency.juicy.resource_decay_lemmas.
+Require Import VST.concurrency.juicy.resource_decay_join.
 Require Import VST.concurrency.juicy.semax_invariant.
 Require Import VST.concurrency.juicy.semax_simlemmas.
 Require Import VST.concurrency.juicy.sync_preds.
@@ -288,10 +296,9 @@ Lemma invariant_thread_step
   (safety : threads_safety Jspec m tp Phi compat)
   (wellformed : threads_wellformed tp)
   (unique : unique_Krun tp (i :: sch))
-  (invcompat : inv_compatible tp)
   (cnti : containsThread tp i)
   (stepi : corestep (juicy_core_sem (cl_core_sem ge)) ci (jm_ cnti compat) ci' jmi')
-  (safei' : forall ora, jm_fupd ora Ensembles.Full_set Ensembles.Full_set (jsafeN Jspec ge ora ci') jmi')
+  (safei' : forall ora, jm_bupd ora (jsafeN Jspec ge ora ci') jmi')
   (Eci : getThreadC i tp cnti = Krun ci)
   (tp' := age_tp_to (level jmi') tp)
   (tp'' := updThread i tp' (cnt_age' cnti) (Krun ci') (m_phi jmi') : jstate ge)
@@ -593,8 +600,6 @@ Proof.
           changed.
    *)
 
-  (* We somehow need to track the fact that the thread already owns all the resources it would
-     need to take from invariants in safei'. *)
   apply state_inv_upd1 with (PHI := Phi'') (mcompat := compat'').
   - (* level *)
     assumption.
@@ -805,7 +810,7 @@ Proof.
         REWR.
         REWR.
         intros c' Ec'; specialize (safej c' Ec').
-        apply jsafe_phi_fupd_age_to; auto.
+        apply jsafe_phi_bupd_age_to; auto.
       * destruct safej as (Harg & q_new & Einit & safej); split.
         { destruct stepi as (stepi & _).
           apply (corestep_mem (msem (Clight_evsem.CLC_evsem ge))), mem_step_nextblock'

@@ -502,6 +502,55 @@ Proof.
   destruct 1; constructor; auto.
 Qed.
 
+Instance ClightAxioms : @CoreLanguage.SemAxioms (ClightSem ge).
+Proof.
+  constructor.
+  - intros.
+    apply memsem_lemmas.mem_step_obeys_cur_write; auto.
+    eapply corestep_mem; eauto.
+  - intros.
+    apply ev_step_ax2 in H as [].
+    eapply CLC_step_decay; simpl in *; eauto.
+  - intros.
+    apply mem_forward_nextblock, memsem_lemmas.mem_step_forward.
+    eapply corestep_mem; eauto.
+  - intros; simpl.
+    destruct q; auto.
+    right; repeat intro.
+    inv H.
+  - intros.
+    inv Hstep.
+    inv H; simpl.
+    apply memsem_lemmas.mem_step_obeys_cur_write; auto.
+  (* apply memsem_lemmas.mem_step_refl. *)
+    eapply mem_step_alloc; eauto.
+  - intros.
+    inv H.
+    inv H0; simpl.
+    split; intros.
+    + (*contradiction. *)
+      eapply juicy_mem.fullempty_after_alloc in H8.
+      admit. 
+      (* destruct H8; [right|left].
+     
+       should be able to prove that 
+                1. b = Mem.nextblock m
+                which satisfies the goal at all offsets.
+              *)
+        
+    + auto. inv H8.
+      simpl.
+      Transparent Mem.alloc.
+      unfold Mem.alloc; simpl.
+      admit.
+      
+  - intros.
+    inv H.
+    inv H0; simpl.
+    erewrite (Mem.nextblock_alloc _ _ _ _ _ H8).
+    xomega.
+Admitted.
+
 Lemma CoreSafe_star: forall n U tr tp m tid (c : @semC (ClightSem ge)) c' tp' m' ev
   (HschedN: schedPeek U = Some tid)
   (Htid: containsThread tp tid)

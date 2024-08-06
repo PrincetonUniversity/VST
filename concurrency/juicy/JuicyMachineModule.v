@@ -1,5 +1,7 @@
 Require Import compcert.common.Memory.
 
+
+Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.juicy_mem.
 Require Import VST.veric.res_predicates.
 
@@ -11,7 +13,7 @@ Require Export VST.concurrency.common.threadPool.
 Require Import VST.concurrency.common.scheduler.
 Require Import VST.concurrency.common.HybridMachineSig.
 Require Import VST.concurrency.juicy.juicy_machine. Import Concur.
-(*Require Import VST.concurrency.common.HybridMachine. Import Concur. *)
+Require Import VST.concurrency.common.HybridMachine. Import Concur.
 Require Import VST.concurrency.common.lksize.
 Require Import VST.concurrency.common.permissions.
 
@@ -29,20 +31,22 @@ Module THE_JUICY_MACHINE.
 
   Context {ge : Clight.genv}.
   Instance JSem : Semantics := ClightSem ge.
-  Context {Σ : gFunctors}.
-  Definition JMachineSem := MachineSemantics(HybridMachine := HybridCoarseMachine.HybridCoarseMachine(machineSig:=JuicyMachineShell(Σ := Σ))).
+  Definition JMachineSem := MachineSemantics(HybridMachine := HybridCoarseMachine.HybridCoarseMachine(machineSig:=JuicyMachineShell)).
   Definition jstate := ThreadPool.t(resources := LocksAndResources)(ThreadPool := OrdinalPool.OrdinalThreadPool).
   Definition jmachine_state := MachState(resources := LocksAndResources)(ThreadPool := OrdinalPool.OrdinalThreadPool).
 
   Import threadPool.ThreadPool.
 
-  (* safety with ghost updates? *)
-  Definition tp_update (tp : jstate) (phi : rmap) tp' phi' :=
+  (* safety with ghost updates *)
+  Definition tp_update (tp : jstate) phi tp' phi' :=
+    level phi' = level phi /\ resource_at phi' = resource_at phi /\
     join_all tp' phi' /\
     exists (Hiff : forall t, containsThread tp' t <-> containsThread tp t),
-      (forall t (cnt : containsThread tp t), getThreadC cnt = getThreadC (proj2 (Hiff _) cnt)) /\
+      (forall t (cnt : containsThread tp t), getThreadC cnt = getThreadC (proj2 (Hiff _) cnt) /\
+         level (getThreadR cnt) = level (getThreadR (proj2 (Hiff _) cnt)) /\
+         resource_at (getThreadR cnt) = resource_at (getThreadR (proj2 (Hiff _) cnt))) /\
       lockGuts tp' = lockGuts tp /\ lockSet tp' = lockSet tp /\
-      lockRes tp' = lockRes tp /\ latestThread tp'= latestThread tp /\ extraRes tp' = extraRes tp.
+      lockRes tp' = lockRes tp /\ latestThread tp'= latestThread tp.
 
   Lemma tp_update_refl : forall tp phi, join_all tp phi -> tp_update tp phi tp phi.
   Proof.
@@ -52,54 +56,36 @@ Module THE_JUICY_MACHINE.
     replace (proj2 _ _) with cnt by apply proof_irr; auto.
   Qed.
 
-  Print bupd.
   Definition tp_bupd P (tp : jstate) :=
   (* Without this initial condition, a thread pool could be vacuously safe by being inconsistent
      with itself or the external environment. Since we want juicy safety to imply dry safety,
      we need to rule out the vacuous case. *)
-  (exists phi, join_all tp phi) /\
-  (* should we provide a level? *)
+  (exists phi, join_all tp phi /\ joins (ghost_of phi) (Some (ghost_PCM.ext_ref tt, NoneP) :: nil)) /\
   forall phi, join_all tp phi ->
-    forall c, valid(A := resource_map.rmapUR _ _) (phi ⋅ c) ->
-     exists phi', valid(A := resource_map.rmapUR _ _) (phi' ⋅ c) /\
-       exists tp', tp_update tp phi tp' phi' /\ P tp'.
+    forall c : ghost, join_sub (Some (ghost_PCM.ext_ref tt, NoneP) :: nil) c ->
+     joins (ghost_of phi) (ghost_fmap (approx (level phi)) (approx (level phi)) c) ->
+     exists b : ghost,
+       joins b (ghost_fmap (approx (level phi)) (approx (level phi)) c) /\
+       exists phi' tp', tp_update tp phi tp' phi' /\ ghost_of phi' = b /\ P tp'.
 
-(*  Definition tp_update_weak (tp tp' : jstate) :=
-    exists (Hiff : forall t, containsThread tp' t <-> containsThread tp t),
-      (forall t (cnt : containsThread tp t), getThreadC cnt = getThreadC (proj2 (Hiff _) cnt) /\
-         level (getThreadR cnt) = level (getThreadR (proj2 (Hiff _) cnt))) /\
-      lockGuts tp' = lockGuts tp /\ lockSet tp' = lockSet tp /\
-      lockRes tp' = lockRes tp /\ latestThread tp'= latestThread tp.
+Print juicy_extspec.jm_fupd. (*
+(* Should we do a fupd on threadpools, or explicitly represent the wsat the way we represent lock invariants?
+   Probably the latter, but the former might be easier to write. *)
+  Definition tp_fupd P (tp : jstate) :=
+  (* Without this initial condition, a thread pool could be vacuously safe by being inconsistent
+     with itself or the external environment. Since we want juicy safety to imply dry safety,
+     we need to rule out the vacuous case. *)
+  exists phi, join_all tp phi /\ joins (ghost_of phi) (Some (ghost_PCM.ext_ref tt, NoneP) :: nil) /\
+    forall phi' w z phiz, necR phi phi' -> join_all z phiz -> join phi' w phiz ->
+    (invariants.wsat * invariants.ghost_set invariants.g_en E1) w ->
+    tp_bupd (fun z2 => exists tp2 phi2 w2 phiz2, join_all z2 phi2 /\ join phi2 w2 ) z.
 
-  Lemma tp_update_weak_refl : forall tp, tp_update_weak tp tp.
-  Proof.
-    unshelve eexists; [reflexivity|].
-    split; auto; intros.
-    replace (proj2 _ _) with cnt by apply proof_irr; auto.
-  Qed.
-
-  (* This is the intuitive definition, but it's dubious from a DRF perspective, since it allows
-     threads to transfer writable permissions without a synchronization operation.
-     We might instead need to treat each thread as already holding whatever resources it's going
-     to extract from invariants. Not sure how that will work. *)
-(*  Definition tp_fupd P (tp : jstate) := app_pred invariants.wsat (extraRes tp) /\
-    (tp_level_is 0 tp \/
-     tp_bupd (fun tp1 => exists phi tp2, join_all tp1 phi /\ join_all tp2 phi /\
-       tp_update_weak tp1 tp2 /\ app_pred invariants.wsat (extraRes tp2) /\ P tp2) tp). *)
-
-  (* Try 2: each thread holds the resources it's going to use from the wsat, while extraRes holds the
-     shared ghost state. So a fupd really is just a kind of bupd. *)
-Definition tp_fupd P (tp : jstate) := exists i (cnti : containsThread tp i),
-  exists m r w, join m r (getThreadR cnti) /\ join r (extraRes tp) w /\
-    app_pred (invariants.wsat * invariants.ghost_set invariants.g_en Ensembles.Full_set)%pred w /\
-    (tp_level_is 0 tp \/
-     tp_bupd (fun tp2 => exists (cnti2 : containsThread tp2 i) m2 r2 w2, join m2 r2 (getThreadR cnti2) /\
-       join r2 (extraRes tp2) w2 /\ app_pred (invariants.wsat * invariants.ghost_set invariants.g_en Ensembles.Full_set)%pred w2 /\ P tp2) tp).
-
-  (* Try 3: actually, getThreadR gives the resources the current assertion holds on, so we'd need
-     an extraRes for each thread. But this doesn't solve the fundamental problem: how do we know
-     how to distribute the contents of invariants? *)
-*)
+  forall phi, join_all tp phi ->
+    forall c : ghost, join_sub (Some (ghost_PCM.ext_ref tt, NoneP) :: nil) c ->
+     joins (ghost_of phi) (ghost_fmap (approx (level phi)) (approx (level phi)) c) ->
+     exists b : ghost,
+       joins b (ghost_fmap (approx (level phi)) (approx (level phi)) c) /\
+       exists phi' tp', tp_update tp phi tp' phi' /\ ghost_of phi' = b /\ P tp'.*)
 
   Existing Instance JuicyMachineShell.
   Existing Instance HybridMachineSig.HybridCoarseMachine.DilMem.

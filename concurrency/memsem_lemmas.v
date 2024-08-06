@@ -10,9 +10,8 @@ Require Import compcert.common.AST.
 Require Import compcert.common.Globalenvs.
 Require Import VST.msl.Extensionality.
 
-Require Export VST.sepcomp.semantics.
 Require Import VST.sepcomp.mem_lemmas.
-(*Require Import VST.concurrency.common.core_semantics.*)
+Require Import VST.concurrency.common.core_semantics.
 
 Require Import VST.msl.Coqlib2.
 
@@ -134,9 +133,9 @@ split; intros.
   destruct (eq_block b0 b); subst.
   - destruct (zle ofs ofs0).
       destruct (zlt ofs0 (ofs + Z.of_nat (length l))).
-        elim H. eapply Mem.perm_max. apply L. lia.
-      rewrite PMap.gss. apply Mem.setN_other. intros. lia.
-    rewrite PMap.gss. apply Mem.setN_other. intros. lia.
+        elim H. eapply Mem.perm_max. apply L. omega.
+      rewrite PMap.gss. apply Mem.setN_other. intros. omega.
+    rewrite PMap.gss. apply Mem.setN_other. intros. omega.
   - rewrite PMap.gso; trivial.
 Qed.
 
@@ -205,8 +204,8 @@ Proof. induction l; simpl; intros.
         split; intros. apply (Mem.perm_free_1 _ _ _ _ _ Heqw) in H0; eauto.
                        eapply Mem.perm_free_3; eassumption.
         split; intros.
-          eelim (Mem.perm_free_2 _ _ _ _ _ Heqw ofs Max Nonempty); clear Heqw; trivial. lia.
-        eelim (Mem.perm_free_2 _ _ _ _ _ Heqw ofs Max Nonempty); clear Heqw. lia.
+          eelim (Mem.perm_free_2 _ _ _ _ _ Heqw ofs Max Nonempty); clear Heqw; trivial. omega.
+        eelim (Mem.perm_free_2 _ _ _ _ _ Heqw ofs Max Nonempty); clear Heqw. omega.
           eapply Mem.perm_implies. eapply Mem.perm_max. eassumption. constructor.
     - split; intros.
       * eapply (Mem.perm_free_1 _ _ _ _ _ Heqw); trivial. intuition.
@@ -355,15 +354,15 @@ Qed.
 
 Lemma mem_step_nextblock:  memstep_preserve (fun m m' => Mem.nextblock m <= Mem.nextblock m')%positive.
 constructor.
-+ intros. lia.
++ intros. xomega.
 + induction 1.
  - apply Mem.nextblock_storebytes in H;
-   rewrite H; lia.
+   rewrite H; xomega.
  - apply Mem.nextblock_alloc in H.
-   rewrite H. clear. lia.
+   rewrite H. clear. xomega.
  - apply nextblock_freelist in H.
-   rewrite H; lia.
- - lia.
+   rewrite H; xomega.
+ - xomega.
 Qed.
 
 Lemma mem_step_nextblock':
@@ -413,7 +412,7 @@ induction E.
   destruct (peq b0 b); subst; simpl. 2: intuition.
   destruct (zle lo ofs); simpl. 2: intuition.
   destruct (zlt ofs hi); simpl. 2: intuition.
-  elim H. eapply Mem.perm_max. eapply Mem.perm_implies. apply r. lia. constructor.
+  elim H. eapply Mem.perm_max. eapply Mem.perm_implies. apply r. omega. constructor.
 + trivial.
 + eapply unch_on_loc_not_writable_trans; try eassumption. eapply estep_forward; eassumption.
 Qed.
@@ -433,12 +432,12 @@ Transparent Mem.loadbytes.
   red; intros. specialize (Mem.perm_drop_1 _ _ _ _ _ _ D ofs0 Cur); intros.
     destruct (eq_block b' b); subst.
       destruct H. eapply Mem.perm_drop_3. eassumption. left; trivial. apply r. trivial.
-      destruct (zlt ofs lo). eapply Mem.perm_drop_3. eassumption. right. lia. apply r. trivial.
-      destruct H. lia.
-      destruct (zle hi ofs). eapply Mem.perm_drop_3. eassumption. right. lia. apply r. trivial.
-      destruct H. lia.
-      eapply Mem.perm_implies. apply H1. lia. trivial.
-   eapply Mem.perm_drop_3. eassumption. left; trivial. apply r. lia.
+      destruct (zlt ofs lo). eapply Mem.perm_drop_3. eassumption. right. omega. apply r. trivial.
+      destruct H. omega.
+      destruct (zle hi ofs). eapply Mem.perm_drop_3. eassumption. right. omega. apply r. trivial.
+      destruct H. omega.
+      eapply Mem.perm_implies. apply H1. omega. trivial.
+   eapply Mem.perm_drop_3. eassumption. left; trivial. apply r. omega.
 
   destruct (Mem.range_perm_dec m' b' ofs (ofs + 1) Cur Readable); trivial.
   elim n; clear n. red; intros. eapply Mem.perm_drop_4. eassumption. apply r. trivial.
@@ -478,7 +477,7 @@ Opaque Mem.storebytes.
  destruct (peq b b0). subst b0.
  rewrite PMap.gss.
  destruct (zeq ofs0 ofs). subst.
- contradiction H0. apply r. simpl. lia.
+ contradiction H0. apply r. simpl. omega.
  rewrite ZMap.gso; auto.
  rewrite PMap.gso; auto.
  clear - H H1.
@@ -500,7 +499,7 @@ Opaque Mem.storebytes.
  intros [? ?]. subst b0. apply H0.
  apply Mem.free_range_perm in Heqo.
    specialize (Heqo ofs).
-   eapply Mem.perm_implies. apply Heqo. lia. constructor.
+   eapply Mem.perm_implies. apply Heqo. omega. constructor.
  clear - H Heqo.
  unfold Mem.valid_block in *.
  apply Mem.nextblock_free in Heqo. rewrite Heqo.
@@ -555,10 +554,10 @@ revert j H; induction n; intros; simpl; f_equal.
 apply perm_le_cont.
 apply (H j).
 rewrite inj_S.
-lia.
+omega.
 apply IHn.
 rewrite inj_S in H.
-intros ofs ?; apply H. lia.
+intros ofs ?; apply H. omega.
 clear - H perm_le_Cur.
 destruct H; split; auto.
 intros ? ?. specialize (H ofs H1).
@@ -593,19 +592,19 @@ forget (Ptrofs.unsigned i) as z.
 destruct (eq_block b0 b). subst.
 rewrite !PMap.gss.
 forget (encode_val ch v2) as vl.
-assert (z <= ofs < z + Z.of_nat (length vl) \/ ~ (z <= ofs < z + Z.of_nat (length vl))) by lia.
+assert (z <= ofs < z + Z.of_nat (length vl) \/ ~ (z <= ofs < z + Z.of_nat (length vl))) by omega.
 destruct H0.
 clear - H0.
 forget ((Mem.mem_contents m1) !! b) as mA.
 forget ((Mem.mem_contents m) !! b) as mB.
 revert z mA mB H0; induction vl; intros; simpl.
-simpl in H0; lia.
+simpl in H0; omega.
 simpl length in H0; rewrite inj_S in H0.
 destruct (zeq z ofs).
 subst ofs.
-rewrite !Mem.setN_outside by lia. rewrite !ZMap.gss; auto.
-apply IHvl; lia.
-rewrite !Mem.setN_outside by lia.
+rewrite !Mem.setN_outside by omega. rewrite !ZMap.gss; auto.
+apply IHvl; omega.
+rewrite !Mem.setN_outside by omega.
 apply perm_le_cont. auto.
 rewrite !PMap.gso by auto.
 apply perm_le_cont. auto.
@@ -647,7 +646,7 @@ destruct (peq b' b); subst.
   - left. split; trivial. destruct (zle lo ofs); simpl in *; try discriminate.
     split; trivial. destruct (zlt ofs hi); simpl in *; try discriminate.
     split; trivial.
-    assert (RP: Mem.perm m b ofs Cur Freeable). apply (Mem.free_range_perm _ _ _ _ _ FR ofs); lia.
+    assert (RP: Mem.perm m b ofs Cur Freeable). apply (Mem.free_range_perm _ _ _ _ _ FR ofs); omega.
     destruct k.
     * eapply Mem.perm_max in RP.
       unfold Mem.perm in RP. destruct ((Mem.mem_access m) !! b ofs Max); simpl in *; try discriminate.
@@ -655,7 +654,7 @@ destruct (peq b' b); subst.
     * unfold Mem.perm in RP. destruct ((Mem.mem_access m) !! b ofs Cur); simpl in *; try discriminate.
       destruct p; simpl in *; try inv RP; simpl; trivial. contradiction.
   - right; split; trivial. right.
-    destruct (zle lo ofs); destruct (zlt ofs hi); simpl in *; try discriminate; try lia.
+    destruct (zle lo ofs); destruct (zlt ofs hi); simpl in *; try discriminate; try omega.
 + right; split; trivial. left; trivial.
 Qed.
 
@@ -689,7 +688,7 @@ Proof. intros.
            rewrite (Mem.free_result _ _ _ _ _ FL) in *. simpl in *.
            rewrite PMap.gss in Heqw.
            remember (zle lo ofs&& zlt ofs hi ) as t; destruct t; simpl in *; try discriminate.
-           destruct (zle lo ofs); destruct (zlt ofs hi); simpl in *; try discriminate; lia.
+           destruct (zle lo ofs); destruct (zlt ofs hi); simpl in *; try discriminate; omega.
         ++ destruct H0 as [? ?]. rewrite H1 in *; simpl in *; contradiction.
   - specialize (perm_le_Max b0 ofs); clear perm_le_Cur perm_le_cont.
     remember ((Mem.mem_access mm) !! b0 ofs Max) as q; symmetry in Heqq.
@@ -706,7 +705,7 @@ Proof. intros.
            rewrite (Mem.free_result _ _ _ _ _ FL) in *. simpl in *.
            rewrite PMap.gss in Heqw.
            remember (zle lo ofs&& zlt ofs hi ) as t; destruct t; simpl in *; try discriminate.
-           destruct (zle lo ofs); destruct (zlt ofs hi); simpl in *; try discriminate; lia.
+           destruct (zle lo ofs); destruct (zlt ofs hi); simpl in *; try discriminate; omega.
         ++ destruct H0 as [? ?]. rewrite H1 in *; simpl in *; contradiction.
   - rewrite (Mem.free_result _ _ _ _ _ FL). rewrite (Mem.free_result _ _ _ _ _ MM).
     simpl. apply perm_le_cont. eapply Mem.perm_free_3; eassumption.
@@ -744,16 +743,16 @@ destruct (Mem.range_perm_dec m1 b ofs (ofs + Z.of_nat (length bytes)) Cur Writab
     * destruct (zlt ofs0 ofs).
       ++ rewrite Mem.setN_outside. 2: left; trivial.  rewrite Mem.setN_outside. 2: left; trivial.  apply perm_le_cont. apply H.
       ++ destruct (zle (ofs+Z.of_nat (length bytes)) ofs0).
-         rewrite Mem.setN_outside. 2: right; lia.  rewrite Mem.setN_outside. 2: right; lia.  apply perm_le_cont. apply H.
+         rewrite Mem.setN_outside. 2: right; xomega.  rewrite Mem.setN_outside. 2: right; xomega.  apply perm_le_cont. apply H.
          clear - g g0.
          remember ((Mem.mem_contents m1) !! b) as mA. clear HeqmA.
          remember ((Mem.mem_contents m) !! b) as mB. clear HeqmB.
          revert ofs mA mB g g0; induction bytes; intros; simpl.
-         -- simpl in *; lia.
+         -- simpl in *; omega.
          -- simpl length in g0; rewrite inj_S in g0.
             destruct (zeq ofs ofs0).
-            ** subst ofs0. rewrite !Mem.setN_outside by lia. rewrite !ZMap.gss; auto.
-            ** apply IHbytes; lia.
+            ** subst ofs0. rewrite !Mem.setN_outside by omega. rewrite !ZMap.gss; auto.
+            ** apply IHbytes; omega.
     * apply perm_le_cont. apply H.
   - assumption .
 + elim n; clear - PLE r. destruct PLE.
@@ -777,7 +776,7 @@ apply loadbytes_D in LD. destruct LD as [RP1 CONT].
 destruct PLE.
 destruct (Mem.range_perm_dec m1 b ofs (ofs + n) Cur Readable).
 + rewrite CONT; f_equal. eapply Mem.getN_exten.
-  intros. apply perm_le_cont. apply RP1. rewrite Z2Nat.id in H; lia.
+  intros. apply perm_le_cont. apply RP1. rewrite Z2Nat.id in H; omega.
 + elim n0; clear - RP1 perm_le_Cur.
   red; intros. specialize (RP1 _ H). specialize (perm_le_Cur b ofs0).
   unfold Mem.perm in *.
@@ -797,7 +796,7 @@ rewrite PMap.gsspec in P.
 destruct (peq b' (Mem.nextblock m)); subst; trivial.
 + left; split; trivial.
   remember (zle lo ofs && zlt ofs hi) as q. destruct q; inv P; trivial.
-  destruct (zle lo ofs); destruct (zlt ofs hi); simpl in *; try discriminate; lia.
+  destruct (zle lo ofs); destruct (zlt ofs hi); simpl in *; try discriminate; omega.
 + right; split; trivial.
 Qed.
 
@@ -807,7 +806,7 @@ Proof.
 Transparent Mem.alloc. unfold Mem.alloc in ALLOC. Opaque Mem.alloc. inv ALLOC; simpl in *.
 rewrite PMap.gsspec in P.
 destruct (peq b' (Mem.nextblock m)); subst; trivial.
-apply Mem.nextblock_noaccess. unfold Plt; lia.
+apply Mem.nextblock_noaccess. xomega.
 Qed.
 
 Lemma alloc_inc_perm: forall m lo hi m' b
