@@ -706,6 +706,42 @@ Section programs.
   Definition type_neg_int_inst := [instance type_neg_int].
   Global Existing Instance type_neg_int_inst.
 
+  Lemma wp_Ecast : forall e Φ ct, wp_expr e (λ v, ∃ v', ∀ m, <affine>⌜Cop.sem_cast v (typeof e) ct m = Some v'⌝ ∗ Φ v')
+    ⊢ wp_expr (Ecast e ct) Φ.
+  Proof.
+  intros.
+  rewrite /wp_expr.
+  iIntros "H" (?) "Hm".
+  iDestruct ("H" with "Hm") as "(%v & H1 & Hm & %v' & H)".
+  iDestruct ("H" $! m) as "[%Hcast HΦ]".
+  iExists _; iFrame.
+  iStopProof; split => rho; monPred.unseal.
+  rewrite !monPred_at_affinely /local /lift1 /=.
+  iIntros "%H1"; iPureIntro.
+  split; auto; intros; econstructor; eauto.
+  Qed.
+
+(* Ke: the equivalent to Caesium's CastOp is Clight's Ecast, so use typed_val_expr *)
+  Lemma type_Ecast_int_int e it2 T:
+    typed_val_expr e (λ v ty,
+      ∃ v', ∀ m (* Ke: for now only handle cases where m is irrelevant *),
+        <affine>⌜Cop.sem_cast v (typeof e) it2 m = Some v'⌝ ∗
+        (⎡ v ◁ᵥ ty ⎤ -∗ ⎡ v' ◁ᵥ ty ⎤) ∗
+         T v' ty)
+    ⊢ typed_val_expr (Ecast e it2) T.
+  Proof.
+    iIntros "typed %Φ HΦ".
+    iApply wp_Ecast.
+    unfold typed_val_expr.
+    iApply "typed".
+    iIntros (v ty) "own_v (%v' & Hcast)".
+    iExists v'. iIntros (m).
+    iDestruct ("Hcast" $! m) as "(Hcast & wand & T)". iFrame.
+
+    iSpecialize ("wand" with "own_v").
+    iApply ("HΦ" with "[wand]"); done.
+  Qed.
+
 (*  Lemma type_cast_int n it1 it2 v T:
     (⌜n ∈ it1⌝ -∗ ⌜n ∈ it2⌝ ∗ ∀ v, T v (n @ int it2))
     ⊢ typed_un_op v (v ◁ᵥ n @ int it1)%I (CastOp (IntOp it2)) (IntOp it1) T.
