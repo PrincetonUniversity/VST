@@ -5,6 +5,7 @@ Require Import Relation_Definitions.
 
 Require Import compcert.common.Values.
 Require Import compcert.common.Memory.
+Require Import compcert.lib.Maps.
 
 Require Import VST.concurrency.lib.setoid_help.
 Require Import VST.concurrency.common.permissions. Import permissions.
@@ -33,7 +34,7 @@ Lemma part_reflexive_proper_proxy {A P} {R: relation A}
       `(PartReflexive A P R) (x : A) : P x -> ProperProxy R x.
   intros. eapply H; auto.
 Qed.
-(* This ensures that when ProperProxy is ebing resolved,
+(* This ensures that when ProperProxy is being resolved,
    partial reflexivity is considered
  *)
 #[export] Hint Extern 3 (ProperProxy ?R _) => 
@@ -78,7 +79,6 @@ Qed.
 
 
 
-
 Ltac rewrite_getPerm_goal:=
   match goal with
   | [|- context[(?f ?m) !! ?b ?ofs ?k] ] =>
@@ -112,6 +112,14 @@ Proof.
   - unfold access_map_equiv in *; etransitivity; auto.
 Qed.
 
+Global Instance permMapLt_order : PartialOrder access_map_equiv permMapLt.
+Proof.
+  split.
+  - intros H; split; intros ??; rewrite H; apply po_refl.
+  - intros [H1 H2] ?.
+    extensionality o.
+    apply perm_order_antisym; auto.
+Qed.
 
 Ltac destruct_address_range b ofs b0 ofs0 n:=
   let Hrange:= fresh "Hrange" in
@@ -367,7 +375,7 @@ Proof.
       unfold permission_at in Hlt.
     unfold PMap.get in Hlt.
     rewrite HH in Hlt.
-    rewrite Clight_bounds.Mem_canonical_useful in Hlt.
+    rewrite Mem_canonical_useful in Hlt.
     simpl in Hlt.
     destruct ( (snd perm) ! b).
     + destruct (o ofs); first [contradiction | auto].

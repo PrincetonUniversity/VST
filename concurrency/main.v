@@ -77,7 +77,7 @@ Module MainTheorem
         CSL_init_setup C_program src_m src_cpm ->
         
         (*Correct entry point Clight (There is inconsistencies with CSL_init_Setup)*)
-        (* TODO: fix initial state inconsistenciees and unify. *)
+        (* TODO: fix initial state inconsistencies and unify. *)
         Clight.entry_point (Clight.globalenv C_program) src_m src_cpm (main_ptr C_program) nil ->
         
         (* ASM memory good. *)
