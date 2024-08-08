@@ -135,10 +135,10 @@ Section at_value.
   Qed.
 
   Lemma mapsto_tptr:
-    forall sh t1 t2, mapsto sh (tptr t1) = mapsto sh (tptr t2).
+    forall sh t1 t2, mapsto_memory_block.mapsto sh (tptr t1) = mapsto_memory_block.mapsto sh (tptr t2).
   Proof.
     intros.
-    unfold mapsto.
+    unfold mapsto_memory_block.mapsto.
     extensionality v1 v2.
     unfold tc_val', tc_val. simpl.
     rewrite !andb_false_r //.
