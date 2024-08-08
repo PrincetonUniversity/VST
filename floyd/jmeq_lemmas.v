@@ -363,7 +363,7 @@ Lemma eq_JMeq: forall A (x y: A), x=y -> JMeq x y.
 Proof. intros. subst. apply JMeq_refl.
 Qed.
 
-Lemma list_func_JMeq: forall {A: Type} {B: Type} {C: Type} (a: list A) (b: list B) (f: forall X, list X -> C), @eq Type A B -> JMeq a b -> f A a = f B b.
+Lemma list_func_JMeq: forall {A: Type} {B: Type} {C: Type} (a: list A) (b: list B) (f: forall X : Type, list X -> C), @eq Type A B -> JMeq a b -> f A a = f B b.
 Proof.
   intros.
   destruct H0 as [? ?].
@@ -373,7 +373,7 @@ Proof.
   auto.
 Qed.
 
-Lemma list_func_JMeq': forall {A: Type} {B: Type} (a: list A) (b: list B) (a': A) (b': B) (f: forall X, list X -> X -> X), JMeq a b -> JMeq a' b' -> JMeq (f A a a') (f B b b').
+Lemma list_func_JMeq': forall {A: Type} {B: Type} (a: list A) (b: list B) (a': A) (b': B) (f: forall X : Type, list X -> X -> X), JMeq a b -> JMeq a' b' -> JMeq (f A a a') (f B b b').
 Proof.
   intros.
   destruct H as [?H ?H], H0 as [?H ?H].
