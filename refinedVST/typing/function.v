@@ -1,3 +1,4 @@
+Require Import VST.veric.Clight_core.
 From VST.typing Require Export type.
 From VST.typing Require Import programs bytes.
 From VST.typing Require Import type_options.
@@ -26,7 +27,7 @@ Section introduce_typed_stmt.
 End introduce_typed_stmt. *)
 
 Section function.
-  Context `{!typeG Σ} {cs : compspecs}.
+  Context `{!typeG Σ} {cs : compspecs} `{!externalGS OK_ty Σ} {A : TypeTree}. (* should we fix this to ConstType? *)
   Record fn_ret := FR {
     (* return type (rc::returns) *)
     fr_rty : type;
@@ -51,24 +52,28 @@ Section function.
     fp_fr: fp_rtype → fn_ret;
   }.
 
-  Definition fn_ret_prop {B} (fr : B → fn_ret) : val → (*type →*) iProp Σ :=
-    (λ v (*ty*), (*v ◁ᵥ ty -∗*) ∃ x, v ◁ᵥ (fr x).(fr_rty) ∗ (fr x).(fr_R) ∗ True)%I.
+  Definition fn_ret_prop {B} (fr : B → fn_ret) : val → type → assert :=
+    (λ v ty, ⎡v ◁ᵥ ty⎤ -∗ ∃ x, ⎡v ◁ᵥ (fr x).(fr_rty)⎤ ∗ ⎡(fr x).(fr_R)⎤ ∗ True)%I.
 
-  Definition FP_wf {B} (atys : list type) (Pa : iProp Σ) (fr : B → fn_ret)  :=
+  Definition FP_wf {B} (atys : list type) Pa (fr : B → fn_ret)  :=
     FP atys Pa B fr.
 
-(*  Definition typed_function Espec Delta (fn : function) (fp : A → fn_params) : assert :=
+  Context (Espec : ext_spec OK_ty) (Delta : tycontext) (ge : genv).
+
+  (* using Delta here is suspect because it contains funspecs, but maybe we can just ignore them? *)
+  Definition typed_function (fn : function) (fp : @dtfr Σ A → fn_params) : iProp Σ :=
     (∀ x, <affine> ⌜Forall2 (λ (ty : type) '(_, p), ty.(ty_has_op_type) p MCNone) (fp x).(fp_atys) (Clight.fn_params fn)⌝ ∗
       □ ∀ (lsa : vec address (length (fp x).(fp_atys))) (lsv : vec address (length fn.(fn_temps))),
           let Qinit := ([∗list] l;t∈lsa;(fp x).(fp_atys), l ◁ₗ t) ∗
                        ([∗list] l;p∈lsv;fn.(fn_temps), l ◁ₗ uninit (p.2)) ∗ (fp x).(fp_Pa) in
-          ⎡Qinit⎤ -∗ typed_stmt Espec Delta (fn.(fn_body)) (fn_ret_prop (fp x).(fp_fr))
+          Qinit -∗ ∃ le, ⌜bind_parameter_temps (Clight.fn_params fn) (map addr_to_val (lsa ++ lsv)) (create_undef_temps fn.(fn_temps)) = Some le⌝ ∧
+          typed_stmt Espec Delta (fn.(fn_body)) (fn_ret_prop (fp x).(fp_fr)) (construct_rho (filter_genv ge) empty_env le)
     )%I.
 
-  Global Instance typed_function_persistent Espec Delta fn fp : Persistent (typed_function Espec Delta fn fp) := _.
+  Global Instance typed_function_persistent fn fp : Persistent (typed_function fn fp) := _.
 
   Import EqNotations.
-  Lemma typed_function_equiv Espec Delta fn1 fn2 (fp1 fp2 : A → _) :
+  Lemma typed_function_equiv fn1 fn2 (fp1 fp2 : @dtfr Σ A → _) :
     fn1 = fn2 →
     ((∀ x, Forall2 (λ ty '(_, p), ty_has_op_type ty p MCNone) (fp_atys (fp2 x)) (Clight.fn_params fn2)) →
     (* TODO: replace the following with an equivalenve relation for fn_params? *)
@@ -77,7 +82,7 @@ Section function.
           (fp1 x).(fp_Pa) ≡ (fp2 x).(fp_Pa) ∧
           (∀ y, ((fp1 x).(fp_fr) y).(fr_rty) ≡ ((fp2 x).(fp_fr) (rew [λ x : Type, x] Heq in y)).(fr_rty) ∧
                 ((fp1 x).(fp_fr) y).(fr_R) ≡ ((fp2 x).(fp_fr) (rew [λ x : Type, x] Heq in y)).(fr_R))) →
-    typed_function Espec Delta fn1 fp1 ⊢ typed_function Espec Delta fn2 fp2)%type.
+    typed_function fn1 fp1 ⊢ typed_function fn2 fp2)%type.
   Proof.
     iIntros (-> Hly Hfn) "HT".
     rewrite /typed_function.
@@ -86,29 +91,32 @@ Section function.
     iSplit; [done|].
     iIntros "!>" (lsa lsv) "[Hv Ha]". rewrite -HPa.
     have [|lsa' Hlsa]:= vec_cast _ lsa (length (fp_atys (fp1 x))). { by rewrite Hatys. }
-    iApply typed_stmt_mono; last iApply "HT".
-    - iIntros (??) "HR Hty". iDestruct ("HR" with "Hty") as (y) "[?[??]]".
+    iDestruct ("HT" with "[Hv Ha]") as (??) "HT'"; last first.
+    - rewrite Hlsa. iExists _; iSplit; first done.
+      iClear "#"; iStopProof; apply monPred_in_entails, typed_stmt_mono.
+      iIntros (??) "HR Hty". iDestruct ("HR" with "Hty") as (y) "[?[??]]".
       have [-> ->]:= Hret y.
       iExists (rew [λ x : Type, x] Heq in y). iFrame.
-    - rewrite Hlsa. iFrame. iClear "#". iStopProof; split => rho; monPred.unseal.
+    - rewrite Hlsa. iFrame. iClear "#". iStopProof.
       apply bi.equiv_entails_1_1, big_sepL2_proper_2; [done..|].
       intros ??????? Hy. inv Hy.
       move: Hatys => /list_equiv_lookup Hatys.
       intros Haty2 Haty1.
       have := Hatys k. rewrite Haty1 Haty2=> /(Some_equiv_eq _ _)[?[? [Heql ?]]].
       rewrite -Heql. by simplify_eq.
-  Qed. *)
+  Qed.
 
   (* The design of this in RefinedC is to associate a function pointer with actual function code,
      and then prove that that code has the desired type spec (typed_function fn fp). For VST, maybe
      typed_function should instead relate a funspec to a type spec. *)
   (* On the other hand, we don't really want to require the user to provide both a funspec
      and a type signature for every function. Can we derive the funspec from the type? *)
-  Import EqNotations.
-  Definition typed_funspec (fs : funspec) (fp : { A : TypeTree & (dtfr A → fn_params)%type}) : iProp Σ :=
+(*  Import EqNotations.
+  Definition typed_funspec (fs : funspec) (fp : dtfr A → fn_params) : iProp Σ :=
     match fs, fp with
-    | mk_funspec (tys, retty) _ A E P Q, existT B fsp => ∃ Heq : A = B,
-      ∀ x : dtfr A, let x' := rew [λ x, dtfr x] Heq in x in
+    | mk_funspec (tys, retty) _ B E P Q, fsp => believe_internal ∗
+      ∃ Heq : B = A,
+      ∀ x : dtfr B, let x' := rew [λ x, dtfr x] Heq in x in
       <affine> ⌜Forall2 (λ (ty : type) p, ty.(ty_has_op_type) p MCNone) (fsp x').(fp_atys) tys⌝ ∗
       □ ∀ args : list val,
         let Qinit := ([∗list] v;t∈args;(fsp x').(fp_atys), v ◁ᵥ t) in
@@ -119,15 +127,15 @@ Section function.
   Global Instance typed_function_persistent fs fp : Persistent (typed_funspec fs fp).
   Proof.
     rewrite /typed_funspec.
-    destruct fs as [[]], fp; apply _.
-  Qed.
+    destruct fs as [[]]; apply _.
+  Qed.*)
 
-  Context `{!externalGS OK_ty Σ}.
+  Definition fntbl_entry f fn : iProp Σ := <affine> ⌜exists b, f = Vptr b Ptrofs.zero /\ Genv.find_funct_ptr ge b = Some (Internal fn)⌝.
 
-  Program Definition function_ptr_type (fp : { A : TypeTree & (dtfr A → fn_params)%type}) (f : address) : type := {|
+  Program Definition function_ptr_type (fp : dtfr A → fn_params) (f : address) : type := {|
     ty_has_op_type ot mt := (∃ t, ot = tptr t)%type;
-    ty_own β l := (∃ fs, <affine> ⌜field_compatible (tptr tvoid) [] l⌝ ∗ l ↦_(tptr tvoid)[β] (addr_to_val f) ∗ func_ptr fs f ∗ ▷ typed_funspec fs fp)%I;
-    ty_own_val v := (∃ fs, <affine> ⌜v = addr_to_val f⌝ ∗ func_ptr fs f ∗ ▷ typed_funspec fs fp)%I;
+    ty_own β l := (∃ fn, <affine> ⌜field_compatible (tptr tvoid) [] l⌝ ∗ l ↦_(tptr tvoid)[β] (addr_to_val f) ∗ fntbl_entry f fn ∗ ▷ typed_function fn fp)%I;
+    ty_own_val v := (∃ fn, <affine> ⌜v = addr_to_val f⌝ ∗ fntbl_entry f fn ∗ ▷ typed_function fn fp)%I;
   |}.
   Next Obligation. iDestruct 1 as (fn) "[? [H [? ?]]]". iExists _. iFrame. by iApply heap_mapsto_own_state_share. Qed.
   Next Obligation. iIntros (fp f ot mt l (? & ->)). rewrite singleton.field_compatible_tptr. by iDestruct 1 as (??) "?". Qed.
@@ -139,7 +147,7 @@ Section function.
     iIntros "[%fn [-> ?]]". iPureIntro. naive_solver.
   Qed. *)
 
-  Definition function_ptr (fp : { A : TypeTree & (dtfr A → fn_params)%type}) : rtype _ :=
+  Definition function_ptr (fp : dtfr A → fn_params) : rtype _ :=
     RType (function_ptr_type fp).
 
   Global Program Instance copyable_function_ptr p fp : Copyable (p @ function_ptr fp).
@@ -210,7 +218,7 @@ Section function.
   Global Existing Instance type_call_fnptr_inst.
 *)
   
-  Lemma subsume_fnptr_val_ex B v l1 l2 (fnty1 : { A : TypeTree & (dtfr A → fn_params)%type}) fnty2 `{!∀ x, ContainsEx (fnty2 x)} T:
+  Lemma subsume_fnptr_val_ex B v l1 l2 (fnty1 : dtfr A → fn_params) fnty2 `{!∀ x, ContainsEx (fnty2 x)} T:
     (∃ x, <affine> ⌜l1 = l2 x⌝ ∗ <affine> ⌜fnty1 = fnty2 x⌝ ∗ T x)
     ⊢ subsume (v ◁ᵥ l1 @ function_ptr fnty1) (λ x : B, v ◁ᵥ (l2 x) @ function_ptr (fnty2 x)) T.
   Proof. iIntros "H".
@@ -223,7 +231,7 @@ Section function.
   Global Existing Instance subsume_fnptr_val_ex_inst | 5.
 
   (* TODO: split this in an ex and no_ex variant as for values *)
-  Lemma subsume_fnptr_loc B l l1 l2  (fnty1 : { A : TypeTree & (dtfr A → fn_params)%type}) fnty2 T:
+  Lemma subsume_fnptr_loc B l l1 l2  (fnty1 : dtfr A → fn_params) fnty2 T:
     (∃ x, <affine> ⌜l1 = l2 x⌝ ∗ <affine> ⌜fnty1 = fnty2 x⌝ ∗ T x)
       ⊢ subsume (l ◁ₗ l1 @ function_ptr fnty1) (λ x : B, l ◁ₗ (l2 x)  @ function_ptr (fnty2 x))  T .
   Proof.
