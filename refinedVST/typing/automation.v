@@ -4,7 +4,7 @@ From lithium Require Import hooks normalize.
 From VST.lithium Require Export all.
 From VST.typing Require Export type.
 From VST.typing.automation Require Export proof_state (* solvers simplification  loc_eq. *).
-From VST.typing Require Import programs (* function singleton own struct bytes int *).
+From VST.typing Require Import programs (* function singleton own struct bytes *) int.
 Set Default Proof Using "Type".
 
 (** * Defining extensions *)
@@ -213,7 +213,7 @@ Ltac liRExpr :=
   lazymatch goal with
   | |- envs_entails ?Δ (typed_val_expr ?e ?T) =>
     lazymatch e with
-    (* | Ecast _ _ => notypeclasses refine (tac_fast_apply (type_cast ???) _) *)
+    | Ecast _ _ => notypeclasses refine (tac_fast_apply (type_Ecast_same_val _ _ _) _)
     | Econst_int _ _ => notypeclasses refine (tac_fast_apply (type_const_int _ _ _) _)
     | _ => fail "do_expr: unknown expr" e
     end
@@ -240,7 +240,7 @@ Ltac liRStep :=
    liRPopLocationInfo
  | liRStmt
  (* | liRIntroduceTypedStmt *)
- (* | liRExpr *)
+ | liRExpr
  | liRJudgement
  | liStep
 ]; liSimpl.
@@ -311,8 +311,7 @@ Ltac liRSplitBlocksIntro :=
         | liForall
         | liExist
         | liUnfoldLetGoal]; liSimpl);
-  li_unfold_lets_in_context.
-
+        li_unfold_lets_in_context.
 (*
 (* TODO: don't use i... tactics here *)
 Ltac split_blocks Pfull Ps :=
@@ -343,13 +342,26 @@ Ltac split_blocks Pfull Ps :=
 
 From VST.typing Require Import int.
 Section automation_tests.
-Context `{!typeG Σ} {cs : compspecs} `{!externalGS OK_ty Σ}.
+  Context `{!typeG Σ} {cs : compspecs} `{!externalGS OK_ty Σ}.
 
-  Goal forall Espec Delta _id (l:address) (T: val -> type -> assert),
-  ⊢ typed_stmt Espec Delta (Sassign (Evar _id tint) (Econst_int (Int.repr 0) tint)) T.
+  Goal forall Espec Delta (_x:ident) (x: address),
+  (local $ locald_denote $ temp _x x) ∗
+  ⎡data_at_ Tsh tint x ⎤ ∗
+  ⎡ ty_own_val (0 @ int tint) (Vint (Int.repr 0))  ⎤
+  ⊢ typed_stmt Espec Delta (Sassign (Evar _x tint) (Econst_int (Int.repr 0) tint)) (λ v t, True).
   Proof.
   iIntros.
-  Info 0 liRStep.
-  (** Ke: TODO need type_cast and type_const *)
+  liRStep.
+  liRStep.
+  liRStep.
+  liRStep.
+  liRStep.
+  liRStep.
+  liRStep.
+  liRStep.
+  liRStep.
+  liRStep.
+  
+  (** Ke: TODO need type_write *)
   Abort.
 End automation_tests.

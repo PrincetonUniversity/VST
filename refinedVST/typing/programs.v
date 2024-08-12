@@ -94,13 +94,13 @@ Qed.
 Definition val_to_Z (v : val) (t : Ctypes.type) : option Z :=
   match v, t with
   | Vint i, Tint _ Signed _ => Some (Int.signed i)
-  | Vint i, Tint sz Unsigned _ => if zlt (Int.unsigned i) (Z.pow (bitsize_intsize sz) 2) then Some (Int.unsigned i) else None
+  | Vint i, Tint sz Unsigned _ => if zlt (Int.unsigned i) (Z.pow 2 (bitsize_intsize sz)) then Some (Int.unsigned i) else None
   | Vlong i, Tlong Signed _ => Some (Int64.signed i)
   | Vlong i, Tlong Unsigned _ => Some (Int64.unsigned i)
   | _, _ => None
   end.
 
-Lemma bitsize_max : forall sz, Z.pow (bitsize_intsize sz) 2 ≤ Int.modulus.
+Lemma bitsize_max : forall sz, Z.pow 2 (bitsize_intsize sz) ≤ Int.modulus.
 Proof.
   destruct sz; simpl; rep_lia.
 Qed.
@@ -114,7 +114,7 @@ Definition i2v n t :=
 
 Inductive in_range n : Ctypes.type → Prop :=
 | in_range_int_s sz a : repable_signed n -> in_range n (Tint sz Signed a)
-| in_range_int_u sz a : 0 <= n < Z.pow (bitsize_intsize sz) 2 -> in_range n (Tint sz Unsigned a)
+| in_range_int_u sz a : 0 <= n < Z.pow 2 (bitsize_intsize sz) -> in_range n (Tint sz Unsigned a)
 | in_range_long_s a : Int64.min_signed <= n <= Int64.max_signed -> in_range n (Tlong Signed a)
 | in_range_long_u a : 0 <= n <= Int64.max_unsigned -> in_range n (Tlong Unsigned a).
 
@@ -1470,7 +1470,7 @@ Admitted.
      concrete (t1, t2) in (Ecast t1 t2) *)
   Lemma type_assign Espec Delta e1 e2 (T: val -> type -> assert):
     typed_val_expr (Ecast e2 (typeof e1)) (λ v ty,
-      ⌜Cop2.tc_val' (typeof e1) v⌝ ∧
+      <affine> ⌜v `has_layout_val` typeof e1⌝ ∗
        typed_write false e1 (typeof e1) v ty (T Vundef tytrue))
     ⊢ typed_stmt Espec Delta (Sassign e1 e2) T.
   Proof.
