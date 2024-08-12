@@ -4,9 +4,9 @@ From VST.typing Require Import type_options.
 
 Open Scope Z.
 
-Lemma bitsize_small : forall sz, sz ≠ I32 -> Z.pow (bitsize_intsize sz) 2 ≤ Int.half_modulus.
+Lemma bitsize_small : forall sz, sz ≠ I32 -> Z.pow 2 (bitsize_intsize sz) ≤ Int.half_modulus.
 Proof.
-  destruct sz; simpl; rep_lia.
+  destruct sz; simpl; first [rep_lia | contradiction].
 Qed.
 
 Definition is_signed t :=
@@ -215,6 +215,38 @@ Section programs.
   Qed.
   Definition type_val_int_inst := [instance type_val_int].
   Global Existing Instance type_val_int_inst.
+
+  Lemma type_val_int_i32 (n:Integers.int) T :
+    typed_value (Vint n) T :-
+      exhale (<affine> ⌜(Int.signed n) ∈ tint⌝);
+      return T ((Int.signed n) @ (int tint)).
+  Proof.
+    iIntros "[%Hn HT]".
+    iExists _. iFrame. by iPureIntro.
+  Qed.
+  Definition type_val_int_i32_inst := [instance type_val_int_i32].
+  Global Existing Instance type_val_int_i32_inst.
+
+  Lemma Int_modulus_Z_pow_pos : Int.modulus = Z.pow_pos 2 32.
+  Proof.
+    rep_lia.
+  Qed.
+
+  (** Ke: TODO this rule should have a different triggering condition *)
+  (* Lemma type_val_int_u32 (n:Integers.int) T :
+    typed_value (Vint n) T :-
+      exhale (<affine> ⌜(Int.unsigned n) ∈ tuint⌝);
+      return T ((Int.unsigned n) @ (int tuint)).
+  Proof.
+    iIntros "[%Hn HT]".
+    iExists _. iFrame.  iPureIntro. simpl.
+    rewrite -Int_modulus_Z_pow_pos.
+    pose proof (Int.unsigned_range n).
+    erewrite zlt_true. -done. - lia.
+  Qed.
+
+  Definition type_val_int_u32_inst := [instance type_val_int_u32].
+  Global Existing Instance type_val_int_u32_inst. *)
 
   (* TODO: instead of adding it_in_range to the context here, have a
   SimplifyPlace/Val instance for int which adds it to the context if
@@ -705,6 +737,39 @@ Section programs.
   Qed.
   Definition type_neg_int_inst := [instance type_neg_int].
   Global Existing Instance type_neg_int_inst.
+
+  Lemma wp_Ecast : forall e Φ ct, wp_expr e (λ v, ∃ v', ∀ m, <affine>⌜Some v' = Cop.sem_cast v (typeof e) ct m ⌝ ∗ Φ v')
+    ⊢ wp_expr (Ecast e ct) Φ.
+  Proof.
+  intros.
+  rewrite /wp_expr.
+  iIntros "H" (?) "Hm".
+  iDestruct ("H" with "Hm") as "(%v & H1 & Hm & %v' & H)".
+  iDestruct ("H" $! m) as "[%Hcast HΦ]".
+  iExists _; iFrame.
+  iStopProof; split => rho; monPred.unseal.
+  rewrite !monPred_at_affinely /local /lift1 /=.
+  iIntros "%H1"; iPureIntro.
+  split; auto; intros; econstructor; eauto.
+  Qed.
+
+(* Ke: the equivalent to Caesium's CastOp is Clight's Ecast, so use typed_val_expr *)
+  Lemma type_Ecast_same_val e it2 T:
+    typed_val_expr e (λ v ty,
+      ∀ m (* Ke: for now only handle cases where m is irrelevant *),
+        <affine>⌜Some v = Cop.sem_cast v (typeof e) it2 m⌝ ∗
+        T v ty)
+    ⊢ typed_val_expr (Ecast e it2) T.
+  Proof.
+    iIntros "typed %Φ HΦ".
+    iApply wp_Ecast.
+    unfold typed_val_expr.
+    iApply "typed".
+    iIntros (v ty) "own_v Hcast".
+    iExists v. iIntros (m).
+    iDestruct ("Hcast" $! m) as "(Hcast & T)". iFrame.
+    iApply ("HΦ" with "[own_v]"); done.
+  Qed.
 
 (*  Lemma type_cast_int n it1 it2 v T:
     (⌜n ∈ it1⌝ -∗ ⌜n ∈ it2⌝ ∗ ∀ v, T v (n @ int it2))
