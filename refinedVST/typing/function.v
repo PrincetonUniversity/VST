@@ -60,13 +60,14 @@ Section function.
 
   Context (Espec : ext_spec OK_ty) (Delta : tycontext) (ge : genv).
 
+  Definition Qinit (temps : list (ident * Ctypes.type)) fp lsa lsv := ([∗list] l;t∈lsa;fp.(fp_atys), l ◁ₗ t) ∗
+                       ([∗list] l;p∈lsv;temps, l ◁ₗ uninit (p.2)) ∗ fp.(fp_Pa).
+
   (* using Delta here is suspect because it contains funspecs, but maybe we can just ignore them? *)
   Definition typed_function (fn : function) (fp : @dtfr Σ A → fn_params) : iProp Σ :=
     (∀ x, <affine> ⌜Forall2 (λ (ty : type) '(_, p), ty.(ty_has_op_type) p MCNone) (fp x).(fp_atys) (Clight.fn_params fn)⌝ ∗
       □ ∀ (lsa : vec address (length (fp x).(fp_atys))) (lsv : vec address (length fn.(fn_temps))),
-          let Qinit := ([∗list] l;t∈lsa;(fp x).(fp_atys), l ◁ₗ t) ∗
-                       ([∗list] l;p∈lsv;fn.(fn_temps), l ◁ₗ uninit (p.2)) ∗ (fp x).(fp_Pa) in
-          Qinit -∗ ∃ le, ⌜bind_parameter_temps (Clight.fn_params fn) (map addr_to_val (lsa ++ lsv)) (create_undef_temps fn.(fn_temps)) = Some le⌝ ∧
+          Qinit fn.(fn_temps) (fp x) lsa lsv -∗ ∃ le, ⌜bind_parameter_temps (Clight.fn_params fn) (map addr_to_val (lsa ++ lsv)) (create_undef_temps fn.(fn_temps)) = Some le⌝ ∧
           typed_stmt Espec Delta (fn.(fn_body)) (fn_ret_prop (fp x).(fp_fr)) (construct_rho (filter_genv ge) empty_env le)
     )%I.
 

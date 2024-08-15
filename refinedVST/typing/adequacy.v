@@ -1,6 +1,6 @@
 From iris.algebra Require Import csum excl auth cmra_big_op gmap.
 (*From iris.base_logic.lib Require Import ghost_map.*)
-From VST.veric Require Import SequentialClight.
+From VST.veric Require Import Clight_core SequentialClight.
 From VST.typing Require Export type.
 From VST.typing Require Import programs function bytes globals int fixpoint.
 Set Default Proof Using "Type".
@@ -22,37 +22,36 @@ Definition typeΣ : gFunctors :=
 Global Instance subG_typePreG {Σ} : subG typeΣ Σ → typePreG Σ.
 Proof. solve_inG. Qed. *)
 
-Definition main_type `{!typeG Σ} {cs : compspecs} (P : iProp Σ) : {A : TypeTree & (dtfr(Σ := Σ) A → function.fn_params)%type} :=
-  existT (ConstType unit) (fn(∀ () : (); P) → ∃ () : (), int.int tint; True).
+Definition main_type `{!typeG Σ} {cs : compspecs} (P : iProp Σ) : unit → function.fn_params :=
+  fn(∀ () : (); P) → ∃ () : (), int.int tint; True.
 
 Global Instance VST_typeG `{!VSTGS OK_ty Σ} : typeG Σ := TypeG _ _.
 
-Definition typed_func `{!VSTGS OK_ty Σ} (V: varspecs) {C: compspecs}
-  (t : {A : TypeTree & (dtfr A → function.fn_params)%type})
-  (ge: Genv.t Clight.fundef Ctypes.type) (id: ident) (f: function) :=
-  semax_body_params_ok f = true /\
+Definition typed_func `{!VSTGS OK_ty Σ} {Espec : ext_spec OK_ty} (V: varspecs) (G : funspecs) {C: compspecs}
+  (A : TypeTree) (t : dtfr A → function.fn_params)
+  (ge: Genv.t Clight.fundef Ctypes.type) (id: ident) :=
+  exists f, semax_body_params_ok f = true /\
       Forall
          (fun it : ident * Ctypes.type =>
           complete_type cenv_cs (snd it) =
           true) (fn_vars f) /\
        var_sizes_ok (f.(fn_vars)) /\
        ∃ b, Genv.find_symbol ge id = Some b /\ Genv.find_funct_ptr ge b = Some (Internal f) /\
-      ∀ OK_spec : ext_spec OK_ty,
-      (* at least need function pointers *) ⊢ (Vptr b Ptrofs.zero) ◁ᵥ (b, 0%Z) @ function_ptr t.
+      ⊢ Vptr b Ptrofs.zero ◁ᵥ (b, 0%Z) @ function_ptr Espec (nofunc_tycontext V G) (Build_genv ge cenv_cs) t.
 
 (* RefinedC assumes that typechecking main implicitly typechecks all functions it calls.
    Can we do that too, or do we need to say that each function meets its specified type
    (and convert G to a list of types for each function)? *)
 
 (* just main *)
-Definition typed_prog `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {C: compspecs}
-       (prog: Clight.program) (ora: OK_ty) (V: varspecs) : Prop :=
+Definition typed_prog `{!VSTGS OK_ty Σ} {Espec : ext_spec OK_ty} {C : compspecs}
+       (prog: Clight.program) (ora: OK_ty) (V: varspecs) G : Prop :=
 compute_list_norepet (prog_defs_names prog) = true  /\
 all_initializers_aligned prog /\
 Maps.PTree.elements cenv_cs = Maps.PTree.elements (prog_comp_env prog) /\
 (*typed_func V G (Genv.globalenv prog) (prog_funct prog) G /\*)
 match_globvars (prog_vars prog) V = true /\
-∃ f, typed_func V (main_type emp) (Genv.globalenv (program_of_program prog)) prog.(prog_main) f.
+  typed_func V G (ConstType unit) (main_type emp) (Genv.globalenv (program_of_program prog)) prog.(prog_main).
 
 (* Definition typed_prog `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {C: compspecs}
        (prog: program) (ora: OK_ty) (V: varspecs) (G: funspecs) : Prop :=
@@ -70,25 +69,161 @@ end. *)
 
 (*[∗ list] main ∈ thread_mains, ∃ P, main ◁ᵥ main @ function_ptr (main_type P) ∗ P*)
 
+(* mimicking semax_prog_rule for typed_prog *)
+Lemma typed_func_entry_point `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {CS: compspecs}
+  V f G prog b id_fun args A t
+(*    (E: dtfr (MaskTT A))
+   (P: dtfr (ArgsTT A))
+   (Q: dtfr (AssertTT A)) *)
+  h z:
+  let retty := tint in
+  postcondition_allows_exit OK_spec retty ->
+  typed_func V G A t (globalenv prog) id_fun ->
+  Genv.find_symbol (globalenv prog) id_fun = Some b ->
+  Genv.find_funct_ptr (globalenv prog) b = Some (Internal f) ->
+(*   find_id id_fun G =
+     Some (mk_funspec (params, retty) cc_default A E P Q) ->
+ *)  tc_vals (map snd f.(fn_params)) args ->
+  let gargs := (filter_genv (globalenv prog), args) in
+  { q : CC_core |
+   (forall m,
+(*     Forall (fun v => Val.inject (Mem.flat_inj (nextblock m)) v v)  args->*)
+(*     inject_neutral (nextblock m) m /\ *)
+(*     Coqlib.Ple (Genv.genv_next (Genv.globalenv prog)) (nextblock m) ->*)
+    exists m', semantics.initial_core (cl_core_sem (globalenv prog)) h
+    m q m' (Vptr b Ptrofs.zero) args) /\
+
+  forall (a: dtfr A) (lsa : vec address (length (fp_atys (t a))))
+    (lsv : vec address (length (fn_temps f))),
+    <absorb> Qinit f.(fn_temps) (t a) lsa lsv ⊢ jsafeN OK_spec (globalenv prog) ⊤ z q }.
+Proof.
+intro retty.
+intros EXIT SP Findb Findf arg_p.
+assert (semax_body_params_ok f = true
+     ∧ Forall (λ it : ident * Ctypes.type, complete_type cenv_cs it.2 = true)
+         (fn_vars f)
+       ∧ var_sizes_ok (fn_vars f)
+          ∧ (⊢ Vptr b Ptrofs.zero
+                   ◁ᵥ (b, 0%Z) @
+                      function_ptr OK_spec (nofunc_tycontext V G)
+                        {| genv_genv := globalenv prog; genv_cenv := cenv_cs |} t))%type as Hf.
+{ destruct SP as (? & ? & ? & ? & ? & Hb & Hf & ?).
+  rewrite Hb in Findb; inv Findb; auto. }
+clear SP; destruct Hf as (? & ? & ? & Hty).
+rewrite /ty_own_val /= in Hty.
+exists (Clight_core.Callstate (Internal f) args Kstop).
+split.
+{ intros m; exists m.
+  simpl.
+  rewrite Findf //. }
+intros.
+rewrite /bi_absorbingly.
+iIntros "(? & P)".
+assert (⊢ ∃ fn : function, <affine> ⌜Vptr b Ptrofs.zero = addr_to_val (b, 0%Z)⌝ ∗
+          fntbl_entry {| genv_genv := Genv.globalenv prog; genv_cenv := cenv_cs |}
+            (addr_to_val (b, 0%Z)) fn ∗
+          typed_function OK_spec (nofunc_tycontext V G)
+              {| genv_genv := Genv.globalenv prog; genv_cenv := cenv_cs |} fn t)%I as Hty'.
+{ apply ouPred.later_soundness.
+  rewrite Hty; auto. }
+iDestruct Hty' as (fn _ Hb') "Hty".
+destruct Hb' as (? & [=] & Hfn); subst.
+rewrite Hfn in Findf; inv Findf.
+rewrite /typed_function.
+iDestruct ("Hty" $! a) as "(% & #Hf)".
+iDestruct ("Hf" with "P") as (??) "Hbody".
+rewrite /typed_stmt /wp_stmt; monPred.unseal. (* should use semax.semax *)
+iMod "Hbody" as (P) "(HP & %Hbody)".
+iApply jsafe_step.
+rewrite /jstep_ex.
+iIntros (?) "Hm".
+(* see semax_call_aux0 *)
+iModIntro.
+iExists _, _; iSplit.
+{ iPureIntro; constructor. admit. }
+iFrame.
+(* iApply Hbody. *)
+Admitted.
+
+Lemma typed_prog_rule `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {CS: compspecs} :
+  forall V G prog m h z,
+     postcondition_allows_exit OK_spec tint ->
+     typed_prog(C := CS) prog z V G ->
+     Genv.init_mem prog = Some m ->
+     { b & { q : CC_core &
+       (Genv.find_symbol (globalenv prog) (prog_main prog) = Some b) *
+       (exists m', semantics.initial_core (cl_core_sem (globalenv prog)) h
+                       m q m' (Vptr b Ptrofs.zero) nil) *
+       (state_interp Mem.empty z ∗ funspec_auth ∅ ∗ has_ext z ⊢ |==> state_interp m z ∗ jsafeN OK_spec (globalenv prog) ⊤ z q)
+     } }%type.
+Proof.
+  intros until z. intro EXIT. intros ? H1.
+  generalize H; intros [? [AL [HGG [GV Hty]]]].
+  destruct (Genv.find_symbol (globalenv prog) (prog_main prog)) eqn: Hmain.
+  2: { exfalso; destruct Hty as (? & ? & ? & ? & ? & Hmain' & ?). rewrite Hmain in Hmain'; done. }
+  destruct (Genv.find_funct_ptr (globalenv prog) b) as [ [|] |] eqn: Hf;
+    [|exfalso; destruct Hty as (? & ? & ? & ? & ? & Hmain' & Hf' & ?); rewrite Hmain in Hmain'; inv Hmain'; rewrite Hf in Hf'; done..].
+  eapply typed_func_entry_point in Hty as (q & Hinit & Hsafe); eauto.
+  2: { admit. }
+  exists b, q; split; first auto.
+  specialize (Hsafe tt).
+  rewrite /main_type /= in Hsafe.
+  iIntros "((Hm & $) & Hf & Hz)".
+  apply compute_list_norepet_e in H0.
+  (* need a version of this without funspec_auth *)
+  iMod (initialize_mem' with "[$Hm $Hf]") as "($ & Hm & Hcore & Hmatch)"; [try done..|].
+  { admit. }
+  iApply Hsafe.
+  rewrite /Qinit /=.
+  admit.
+Admitted.
+
 (** * The main adequacy lemma *)
 Lemma refinedc_adequacy Σ `{!VSTGpreS OK_ty Σ} {Espec : forall `{VSTGS OK_ty Σ}, ext_spec OK_ty} {dryspec : ext_spec OK_ty} (initial_oracle: OK_ty)
      (EXIT: forall `{!VSTGS OK_ty Σ}, semax_prog.postcondition_allows_exit Espec tint)
      (Hdry : forall `{!VSTGS OK_ty Σ}, ext_spec_entails Espec dryspec)
      prog V m :
-     (forall {HH : VSTGS OK_ty Σ}, exists CS: compspecs, typed_prog(OK_spec := Espec) prog initial_oracle V) ->
+     (∃ (G : forall `{VSTGS OK_ty Σ}, funspecs), forall (HH : VSTGS OK_ty Σ), exists CS: compspecs,
+        typed_prog(Espec := Espec) prog initial_oracle V G) ->
      Genv.init_mem prog = Some m ->
      exists b, exists q,
        Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some b /\
-       semantics.initial_core (Clight_core.cl_core_sem (globalenv prog))
+       semantics.initial_core (cl_core_sem (globalenv prog))
            0 m q m (Vptr b Ptrofs.zero) nil /\
        forall n,
         @step_lemmas.dry_safeN _ _ _ OK_ty (genv_symb_injective)
-            (Clight_core.cl_core_sem (globalenv prog))
+            (cl_core_sem (globalenv prog))
             dryspec
             (Build_genv (Genv.globalenv prog) (prog_comp_env prog))
              n initial_oracle q m.
 Proof.
-  
+  intros (G & H) Hm.
+  assert (forall n, exists b, exists q,
+       Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some b /\
+       semantics.initial_core (cl_core_sem (globalenv prog))
+           0 m q m (Vptr b Ptrofs.zero) nil /\
+        @step_lemmas.dry_safeN _ _ _ OK_ty (genv_symb_injective)
+            (cl_core_sem (globalenv prog))
+            dryspec
+            (Build_genv (Genv.globalenv prog) (prog_comp_env prog))
+             n initial_oracle q m).
+  2: { destruct (H0 O) as (b0 & q0 & ? & (? & _) & _); eexists _, _; split; first done; split; first done.
+       intros n; destruct (H0 n) as (b & q & ? & (? & _) & Hsafe).
+       assert (b0 = b) as -> by congruence.
+       assert (q0 = q) as -> by congruence.
+       done. }
+  intros n; eapply ouPred.pure_soundness, (step_fupdN_soundness_no_lc' _ (S n) O); [apply _..|].
+  simpl; intros; iIntros "_".
+  iMod (@init_VST _ _ VSTGpreS0) as "H".
+  iDestruct ("H" $! Hinv) as (?? HE) "(H & ?)".
+  set (HH := Build_VSTGS _ _ (HeapGS _ _ _ _) HE).
+  specialize (H HH); specialize (EXIT HH); destruct H.
+  eapply (typed_prog_rule _ _ _ _ n) in H as (b & q & (? & ? & Hinit & ->) & Hsafe); [|done..].
+  iMod (Hsafe with "H") as "Hsafe".
+  iPoseProof (adequacy with "Hsafe") as "Hsafe".
+  iApply step_fupd_intro; first done; iNext.
+  iApply (step_fupdN_mono with "Hsafe"); apply bi.pure_mono; intros.
+  eapply ext_spec_entails_safe in H; eauto 6.
 Qed.
 
 (*Lemma refinedc_adequacy Σ `{!typePreG Σ} (thread_mains : list loc) (fns : gmap addr function) (gls : list loc) (gvs : list val.val) n t2 σ2 κs hs σ:
