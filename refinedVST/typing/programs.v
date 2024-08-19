@@ -1,3 +1,4 @@
+From compcert.cfrontend Require Import Clight.
 From VST.lithium Require Export proof_state.
 From lithium Require Import hooks.
 From VST.typing Require Export type.
@@ -461,11 +462,16 @@ Section judgements.
   Class TypedUnOp (v : val) (P : assert) (o : Cop.unary_operation) (ot : Ctypes.type) : Type :=
     typed_un_op_proof T : iProp_to_Prop (typed_un_op v P o ot T).
 
-(*  Definition typed_call (v : val) (P : iProp Σ) (vl : list val) (tys : list type) (T : val → type → iProp Σ) : iProp Σ :=
-    (P -∗ ([∗ list] v;ty∈vl;tys, v ◁ᵥ ty) -∗ typed_val_expr (Call v (Val <$> vl)) T)%I.
-  Class TypedCall (v : val) (P : iProp Σ) (vl : list val) (tys : list type) : Type :=
-    typed_call_proof T : iProp_to_Prop (typed_call v P vl tys T).
-*)
+  Fixpoint typed_exprs (el : list expr) (T : list val → list type → assert) : assert :=
+    match el with
+    | [] => T [] []
+    | e :: rest => typed_val_expr e (λ v t, typed_exprs rest (λ vl tl, T (v :: vl) (t :: tl)))
+    end.
+
+  Definition typed_call Espec Delta (e : expr) (P : assert) (el : list expr) (tys : list type) (T : val → type → assert) : assert :=
+    (P -∗ (typed_exprs el (λ _ tl, <affine> ⌜tl = tys⌝)) -∗ typed_stmt Espec Delta (Scall None e el) T)%I.
+  Class TypedCall Espec Delta (e : expr) (P : assert) (el : list expr) (tys : list type) : Type :=
+    typed_call_proof T : iProp_to_Prop (typed_call Espec Delta e P el tys T).
 
 (* There does not seem to be a copy stmt in Clight, just Sassign 
   Definition typed_copy_alloc_id (v1 : val) (P1 : iProp Σ) (v2 : val) (P2 : iProp Σ) (ot : op_type) (T : val → type → iProp Σ) : iProp Σ :=

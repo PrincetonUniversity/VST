@@ -66,8 +66,8 @@ Section function.
   (* using Delta here is suspect because it contains funspecs, but maybe we can just ignore them? *)
   Definition typed_function (fn : function) (fp : @dtfr Σ A → fn_params) : iProp Σ :=
     (∀ x, <affine> ⌜Forall2 (λ (ty : type) '(_, p), ty.(ty_has_op_type) p MCNone) (fp x).(fp_atys) (Clight.fn_params fn)⌝ ∗
-      □ ∀ (lsa : vec address (length (fp x).(fp_atys))) (lsv : vec address (length fn.(fn_temps))),
-          Qinit fn.(fn_temps) (fp x) lsa lsv -∗ ∃ le, ⌜bind_parameter_temps (Clight.fn_params fn) (map addr_to_val (lsa ++ lsv)) (create_undef_temps fn.(fn_temps)) = Some le⌝ ∧
+      □ ∀ (lsa : vec address (length (fp x).(fp_atys))) (lsv : vec address (length fn.(fn_vars))),
+          Qinit fn.(fn_vars) (fp x) lsa lsv -∗ ∃ le, ⌜bind_parameter_temps (Clight.fn_params fn) (map addr_to_val (lsa ++ lsv)) (create_undef_temps fn.(fn_vars)) = Some le⌝ ∧
           typed_stmt Espec Delta (fn.(fn_body)) (fn_ret_prop (fp x).(fp_fr)) (construct_rho (filter_genv ge) empty_env le)
     )%I.
 
@@ -158,14 +158,13 @@ Section function.
     erewrite singleton.mapsto_tptr. iFrame. iModIntro. rewrite singleton.field_compatible_tptr. do 2 iSplit => //. by iIntros "_".
   Qed.
 
-  (*
-  Lemma type_call_fnptr l v vl tys fp T:
-    (([∗ list] v;ty∈vl; tys, v ◁ᵥ ty) -∗ ∃ x,
-      ([∗ list] v;ty∈vl; (fp x).(fp_atys), v ◁ᵥ ty) ∗
-      (fp x).(fp_Pa) ∗ ∀ v x',
-      ((fp x).(fp_fr) x').(fr_R) -∗
-      T v ((fp x).(fp_fr) x').(fr_rty))
-    ⊢ typed_call v (v ◁ᵥ l @ function_ptr fp) vl tys T.
+  Lemma type_call_fnptr l e el tys fp T:
+    (typed_exprs el (λ vl tl, ⌜tl = tys⌝ ∧ ∃ x,
+      ([∗ list] v;ty∈vl; (fp x).(fp_atys), ⎡v ◁ᵥ ty⎤) ∗
+      ⎡(fp x).(fp_Pa)⎤ ∗ ∀ v x',
+      ⎡((fp x).(fp_fr) x').(fr_R)⎤ -∗
+      T v ((fp x).(fp_fr) x').(fr_rty)))
+    ⊢ typed_call Espec Delta e (typed_val_expr e (λ v _, ⎡v ◁ᵥ l @ function_ptr fp⎤)) el tys T.
   Proof.
     iIntros "HT (%fn&->&He&Hfn) Htys" (Φ) "HΦ".
     iDestruct ("HT" with "Htys") as "(%x&Hvl&HPa&Hr)".

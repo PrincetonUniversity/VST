@@ -93,9 +93,8 @@ Lemma typed_func_entry_point `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {CS: 
     exists m', semantics.initial_core (cl_core_sem (globalenv prog)) h
     m q m' (Vptr b Ptrofs.zero) args) /\
 
-  forall (a: dtfr A) (lsa : vec address (length (fp_atys (t a))))
-    (lsv : vec address (length (fn_temps f))),
-    <absorb> Qinit f.(fn_temps) (t a) lsa lsv ⊢ jsafeN OK_spec (globalenv prog) ⊤ z q }.
+  forall (a: @dtfr Σ A),
+    (*<absorb> Qinit f.(fn_temps) (t a) lsa lsv*) True ⊢ jsafeN OK_spec (globalenv prog) ⊤ z q }.
 Proof.
 intro retty.
 intros EXIT SP Findb Findf arg_p.
@@ -118,7 +117,6 @@ split.
   rewrite Findf //. }
 intros.
 rewrite /bi_absorbingly.
-iIntros "(? & P)".
 assert (⊢ ∃ fn : function, <affine> ⌜Vptr b Ptrofs.zero = addr_to_val (b, 0%Z)⌝ ∗
           fntbl_entry {| genv_genv := Genv.globalenv prog; genv_cenv := cenv_cs |}
             (addr_to_val (b, 0%Z)) fn ∗
@@ -131,7 +129,9 @@ destruct Hb' as (? & [=] & Hfn); subst.
 rewrite Hfn in Findf; inv Findf.
 rewrite /typed_function.
 iDestruct ("Hty" $! a) as "(% & #Hf)".
-iDestruct ("Hf" with "P") as (??) "Hbody".
+(* this is where we should take the call step and set up the initial function body;
+   should probably apply a call rule from function instead of proving it here *)
+(*iDestruct ("Hf" with "P") as (??) "Hbody".
 rewrite /typed_stmt /wp_stmt; monPred.unseal. (* should use semax.semax *)
 iMod "Hbody" as (P) "(HP & %Hbody)".
 iApply jsafe_step.
@@ -141,7 +141,7 @@ iIntros (?) "Hm".
 iModIntro.
 iExists _, _; iSplit.
 { iPureIntro; constructor. admit. }
-iFrame.
+iFrame.*)
 (* iApply Hbody. *)
 Admitted.
 
@@ -173,10 +173,12 @@ Proof.
   (* need a version of this without funspec_auth *)
   iMod (initialize_mem' with "[$Hm $Hf]") as "($ & Hm & Hcore & Hmatch)"; [try done..|].
   { admit. }
-  iApply Hsafe.
-  rewrite /Qinit /=.
-  admit.
+  by iApply Hsafe.
 Admitted.
+
+(* The G in typed_prog is pretty much arbitrary, and we could replace it with a
+   dummy that has default funspecs for every function in prog_funct prog, or work
+   around it entirely. *)
 
 (** * The main adequacy lemma *)
 Lemma refinedc_adequacy Σ `{!VSTGpreS OK_ty Σ} {Espec : forall `{VSTGS OK_ty Σ}, ext_spec OK_ty} {dryspec : ext_spec OK_ty} (initial_oracle: OK_ty)
