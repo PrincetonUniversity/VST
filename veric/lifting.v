@@ -271,7 +271,7 @@ Definition wp_exprs es ts Φ : assert :=
 Require Import VST.veric.semax_call.
 
 Lemma alloc_stackframe:
-  forall m f  te
+  forall m f te
       (COMPLETE: Forall (fun it => complete_type (genv_cenv ge) (snd it) = true) (fn_vars f))
       (Hsize: Forall (fun var => @Ctypes.sizeof ge (snd var) <= Ptrofs.max_unsigned) (fn_vars f)),
       list_norepet (map fst (fn_vars f)) ->

@@ -27,14 +27,27 @@ Definition main_type `{!typeG Σ} {cs : compspecs} (P : iProp Σ) : unit → fun
 
 Global Instance VST_typeG `{!VSTGS OK_ty Σ} : typeG Σ := TypeG _ _.
 
+(* up *)
+Lemma var_sizes_ok_sub : forall c1 c2 vars (Hsub : cenv_sub c1 c2)
+  (Hcomplete : Forall (fun it : ident * Ctypes.type => complete_type c1 (snd it) = true) vars),
+  @var_sizes_ok c1 vars -> @var_sizes_ok c2 vars.
+Proof.
+  intros.
+  pose proof (List.Forall_and Hcomplete H) as H1.
+  eapply Forall_impl; first apply H1.
+  simpl; intros ? (? & ?).
+  rewrite (cenv_sub_sizeof Hsub) //.
+Qed.
+
+(* see believe_internal *)
 Definition typed_func `{!VSTGS OK_ty Σ} {Espec : ext_spec OK_ty} (V: varspecs) (G : funspecs) {C: compspecs}
   (A : TypeTree) (t : dtfr A → function.fn_params)
   (ge: Genv.t Clight.fundef Ctypes.type) (id: ident) :=
   exists f, semax_body_params_ok f = true /\
-      Forall
-         (fun it : ident * Ctypes.type =>
-          complete_type cenv_cs (snd it) =
-          true) (fn_vars f) /\
+      Forall (fun it : ident * Ctypes.type =>
+          complete_type cenv_cs (snd it) = true) (fn_vars f) /\
+       list_norepet (map fst (fn_params f) ++ map fst (fn_temps f)) /\
+       list_norepet (map fst (fn_vars f)) /\
        var_sizes_ok (f.(fn_vars)) /\
        ∃ b, Genv.find_symbol ge id = Some b /\ Genv.find_funct_ptr ge b = Some (Internal f) /\
       ⊢ Vptr b Ptrofs.zero ◁ᵥ (b, 0%Z) @ function_ptr Espec (nofunc_tycontext V G) (Build_genv ge cenv_cs) t.
@@ -70,6 +83,7 @@ end. *)
 (*[∗ list] main ∈ thread_mains, ∃ P, main ◁ᵥ main @ function_ptr (main_type P) ∗ P*)
 
 (* mimicking semax_prog_rule for typed_prog *)
+
 Lemma typed_func_entry_point `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {CS: compspecs}
   V f G prog b id_fun args A t
 (*    (E: dtfr (MaskTT A))
@@ -78,6 +92,7 @@ Lemma typed_func_entry_point `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {CS: 
   h z:
   let retty := tint in
   postcondition_allows_exit OK_spec retty ->
+  Maps.PTree.elements cenv_cs = Maps.PTree.elements (prog_comp_env prog) ->
   typed_func V G A t (globalenv prog) id_fun ->
   Genv.find_symbol (globalenv prog) id_fun = Some b ->
   Genv.find_funct_ptr (globalenv prog) b = Some (Internal f) ->
@@ -94,55 +109,57 @@ Lemma typed_func_entry_point `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {CS: 
     m q m' (Vptr b Ptrofs.zero) args) /\
 
   forall (a: @dtfr Σ A),
-    (*<absorb> Qinit f.(fn_temps) (t a) lsa lsv*) True ⊢ jsafeN OK_spec (globalenv prog) ⊤ z q }.
+    fp_Pa (t a) ∗ ([∗ list] v;ty∈args;fp_atys (t a), v ◁ᵥ ty)
+    ⊢ jsafeN OK_spec (globalenv prog) ⊤ z q }.
 Proof.
 intro retty.
-intros EXIT SP Findb Findf arg_p.
+intros EXIT CSEQ SP Findb Findf arg_p.
 assert (semax_body_params_ok f = true
      ∧ Forall (λ it : ident * Ctypes.type, complete_type cenv_cs it.2 = true)
          (fn_vars f)
+       ∧ list_norepet (map fst (fn_params f) ++ map fst (fn_temps f))
+       ∧ list_norepet (map fst (fn_vars f))
        ∧ var_sizes_ok (fn_vars f)
           ∧ (⊢ Vptr b Ptrofs.zero
                    ◁ᵥ (b, 0%Z) @
                       function_ptr OK_spec (nofunc_tycontext V G)
                         {| genv_genv := globalenv prog; genv_cenv := cenv_cs |} t))%type as Hf.
-{ destruct SP as (? & ? & ? & ? & ? & Hb & Hf & ?).
-  rewrite Hb in Findb; inv Findb; auto. }
-clear SP; destruct Hf as (? & ? & ? & Hty).
-rewrite /ty_own_val /= in Hty.
+{ destruct SP as (? & ? & ? & ? & ? & ? & ? & Hb & Hf & ?).
+  rewrite Hb in Findb; inv Findb; auto 6. }
+clear SP; destruct Hf as (? & ? & Hparams & ? & Hsz & Hty).
 exists (Clight_core.Callstate (Internal f) args Kstop).
 split.
 { intros m; exists m.
   simpl.
   rewrite Findf //. }
 intros.
-rewrite /bi_absorbingly.
-assert (⊢ ∃ fn : function, <affine> ⌜Vptr b Ptrofs.zero = addr_to_val (b, 0%Z)⌝ ∗
-          fntbl_entry {| genv_genv := Genv.globalenv prog; genv_cenv := cenv_cs |}
-            (addr_to_val (b, 0%Z)) fn ∗
-          typed_function OK_spec (nofunc_tycontext V G)
-              {| genv_genv := Genv.globalenv prog; genv_cenv := cenv_cs |} fn t)%I as Hty'.
-{ apply ouPred.later_soundness.
-  rewrite Hty; auto. }
-iDestruct Hty' as (fn _ Hb') "Hty".
-destruct Hb' as (? & [=] & Hfn); subst.
-rewrite Hfn in Findf; inv Findf.
-rewrite /typed_function.
-iDestruct ("Hty" $! a) as "(% & #Hf)".
-(* this is where we should take the call step and set up the initial function body;
-   should probably apply a call rule from function instead of proving it here *)
-(*iDestruct ("Hf" with "P") as (??) "Hbody".
-rewrite /typed_stmt /wp_stmt; monPred.unseal. (* should use semax.semax *)
-iMod "Hbody" as (P) "(HP & %Hbody)".
+iIntros "(P & args)".
 iApply jsafe_step.
 rewrite /jstep_ex.
-iIntros (?) "Hm".
-(* see semax_call_aux0 *)
-iModIntro.
+iIntros (?) "(Hm & ?)".
+change (prog_comp_env prog) with (genv_cenv (globalenv prog)) in *.
+assert (HGG: cenv_sub (@cenv_cs CS) (globalenv prog)).
+ { clear - CSEQ. forget (@cenv_cs CS) as cs1.
+   forget (genv_cenv (globalenv prog)) as cs2.
+   hnf; intros; hnf.
+   destruct (cs1 !! i)%maps eqn:?H; auto.
+   apply Maps.PTree.elements_correct in H.
+   apply Maps.PTree.elements_complete. congruence.
+ }
+eapply var_sizes_ok_sub in Hsz; [|done..].
+iMod (alloc_stackframe with "Hm") as (m' ve' (? & ?)) "(Hm & Hstack)"; [done..|].
+iIntros "!>".
 iExists _, _; iSplit.
-{ iPureIntro; constructor. admit. }
-iFrame.*)
-(* iApply Hbody. *)
+{ iPureIntro; constructor.
+  constructor; eauto.
+  all: admit. }
+iFrame.
+(* This will be annoying to use because args are already values, not exprs. *)
+iPoseProof (type_call_fnptr _ _ _ _ (Evar id_fun (Tfunction (type_of_params (fn_params f)) (fn_return f) (fn_callconv f))) with "[Hstack]") as "Hty".
+{ simpl.
+  admit. (* use Hstack, args, Hty; also need an assumption that the input types are satisfied *) }
+rewrite /typed_call /=.
+admit.
 Admitted.
 
 Lemma typed_prog_rule `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {CS: compspecs} :
@@ -160,11 +177,11 @@ Proof.
   intros until z. intro EXIT. intros ? H1.
   generalize H; intros [? [AL [HGG [GV Hty]]]].
   destruct (Genv.find_symbol (globalenv prog) (prog_main prog)) eqn: Hmain.
-  2: { exfalso; destruct Hty as (? & ? & ? & ? & ? & Hmain' & ?). rewrite Hmain in Hmain'; done. }
+  2: { exfalso; destruct Hty as (? & ? & ? & ? & ? & ? & ? & Hmain' & ?). rewrite Hmain in Hmain'; done. }
   destruct (Genv.find_funct_ptr (globalenv prog) b) as [ [|] |] eqn: Hf;
-    [|exfalso; destruct Hty as (? & ? & ? & ? & ? & Hmain' & Hf' & ?); rewrite Hmain in Hmain'; inv Hmain'; rewrite Hf in Hf'; done..].
+    [|exfalso; destruct Hty as (? & ? & ? & ? & ? & ? & ? & Hmain' & Hf' & ?); rewrite Hmain in Hmain'; inv Hmain'; rewrite Hf in Hf'; done..].
   eapply typed_func_entry_point in Hty as (q & Hinit & Hsafe); eauto.
-  2: { admit. }
+  2: { (* no args *) admit. }
   exists b, q; split; first auto.
   specialize (Hsafe tt).
   rewrite /main_type /= in Hsafe.
@@ -173,7 +190,7 @@ Proof.
   (* need a version of this without funspec_auth *)
   iMod (initialize_mem' with "[$Hm $Hf]") as "($ & Hm & Hcore & Hmatch)"; [try done..|].
   { admit. }
-  by iApply Hsafe.
+  rewrite -Hsafe.
 Admitted.
 
 (* The G in typed_prog is pretty much arbitrary, and we could replace it with a
