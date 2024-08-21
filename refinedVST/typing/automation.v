@@ -222,8 +222,7 @@ Ltac liRExpr :=
 Ltac liRJudgement :=
   lazymatch goal with
     | |- envs_entails _ (typed_write _ _ _ _ _ _) => 
-      fail "liRJudgement: type_write not implemented yet"
-      (* notypeclasses refine (tac_fast_apply (type_write _ _ _ _ _ _ _ _) _); [ solve [refine _ ] |] *)
+      notypeclasses refine (tac_fast_apply (type_write_simple _ _ _ _ _ _) _)
     | |- envs_entails _ (typed_read _ _ _ _ _) =>
       fail "liRJudgement: type_read not implemented yet"
       (* notypeclasses refine (tac_fast_apply (type_read _ _ _ _ _ _ _) _); [ solve [refine _ ] |] *)
@@ -351,8 +350,10 @@ Section automation_tests.
   ⊢ typed_stmt Espec Delta (Sassign (Evar _x tint) (Econst_int (Int.repr 0) tint)) (λ v t, True).
   Proof.
   iIntros.
-  liRStep.
-  liRStep.
+  (* usually Info level 0 is able to see the tactic applied *)
+  Info 0 liRStep. (* type_assign *)
+  Info 0 liRStep. (* type_Ecast_same_val *)
+  Info 0 liRStep. (* type_const_int *)
   liRStep.
   liRStep.
   liRStep.
@@ -362,6 +363,6 @@ Section automation_tests.
   liRStep.
   liRStep.
   
-  (** Ke: TODO need type_write *)
+  (** Ke: TODO need typed_val_expr (Evar _x tint)  *)
   Abort.
 End automation_tests.

@@ -525,9 +525,9 @@ Section judgements.
     let E := if atomic then ∅ else ⊤ in
     (∀ (Φ: val->assert),
         (∀ (l:address), (⎡v ◁ᵥ ty⎤ ={⊤, E}=∗
-                <affine> ⌜v `has_layout_val` ot⌝ ∗ ⎡ l ↦|ot| v ⎤ ∗ 
-                (* NOTE Ke:  no later because eval expr does not increase step index *)
-                (⎡ l ↦|ot| v ⎤ ={E, ⊤}=∗ T))
+                <affine> ⌜v `has_layout_val` ot⌝ ∗ ⎡ l ↦|ot| - ⎤ ∗
+                (* Ke : maybe we need later afterall because write is only done a write statement after? *)
+                ▷(⎡ l ↦|ot| v ⎤ ={E, ⊤}=∗ T))
               -∗ Φ l) -∗
        wp_expr e Φ)%I.
 
@@ -581,7 +581,7 @@ Definition typed_read (atomic : bool) (e : expr) (ot : Ctypes.type) (memcast : b
     let E' := if atomic then ∅ else E in
     (⎡l2 ◁ₗ{β2} ty2⎤ -∗ 
     (⎡v1 ◁ᵥ ty1⎤ ={E, E'}=∗
-       ⌜v1 `has_layout_val` ot⌝ ∗
+       <affine> ⌜v1 `has_layout_val` ot⌝ ∗
       ⎡ l2↦|ot| - ⎤ ∗ 
       ▷ (⎡ l2 ↦|ot| v1 ⎤ ={E', E}=∗ ∃ ty3, ⎡l2 ◁ₗ{β2} ty3⎤ ∗ T ty3)))%I.
   Class TypedWriteEnd (atomic : bool) (E : coPset) (ot : Ctypes.type) (v1 : val) (ty1 : type) (l2 : address) (β2 : own_state) (ty2 : type) : Type :=
@@ -709,15 +709,17 @@ Definition typed_read (atomic : bool) (e : expr) (ot : Ctypes.type) (memcast : b
     all: iIntros (?); by iDestruct 1 as (? ->) "$".
   Qed.
   End find_place_ctx_correct.
+*)
 
   (* TODO: have something like typed_place_cond which uses a fraction? Seems *)
   (* tricky since stating that they have the same size requires that ty1 *)
   (* and ty2 are movable (which they might not be) *)
-  Definition typed_place (P : list place_ectx_item) (l1 : loc) (β1 : own_state) (ty1 : type) (T : loc → own_state → type → (type → type) → (type → iProp Σ) → iProp Σ) : iProp Σ :=
-    (∀ Φ, l1 ◁ₗ{β1} ty1 -∗
-       (∀ (l2 : loc) β2 ty2 typ R, l2 ◁ₗ{β2} ty2 -∗ (∀ ty', l2 ◁ₗ{β2} ty' ={⊤}=∗ l1 ◁ₗ{β1} typ ty' ∗ R ty') -∗ T l2 β2 ty2 typ R -∗ Φ l2) -∗ place_to_wp P Φ l1).
-  Class TypedPlace (P : list place_ectx_item) (l1 : loc) (β1 : own_state) (ty1 : type) : Type :=
-    typed_place_proof T : iProp_to_Prop (typed_place P l1 β1 ty1 T).*)
+  (* Ke: ignoring typed_place_context for now, might need it later *)
+  (* Definition typed_place (l1 : address) (β1 : own_state) (ty1 : type) (T : address → own_state → type → (type → type) → (type → assert) → assert) : assert :=
+    (∀ Φ, ⎡l1 ◁ₗ{β1} ty1⎤ -∗
+       (∀ (l2 : address) β2 ty2 typ R, ⎡l2 ◁ₗ{β2} ty2⎤ -∗ (∀ ty', ⎡l2 ◁ₗ{β2} ty'⎤ ={⊤}=∗ ⎡l1 ◁ₗ{β1} typ ty'⎤ ∗ R ty') -∗ T l2 β2 ty2 typ R -∗ Φ l2) -∗ (wp_expr (EConst l) Φ))%I.
+  Class TypedPlace  (l1 : address) (β1 : own_state) (ty1 : type) : Type :=
+    typed_place_proof T : iProp_to_Prop (typed_place l1 β1 ty1 T). *)
 
 End judgements.
 
@@ -741,11 +743,11 @@ Global Hint Mode TypedValue + + + + : typeclass_instances.
 (*Global Hint Mode TypedBinOp + + + + + + + + + : typeclass_instances.
 Global Hint Mode TypedUnOp + + + + + + : typeclass_instances.
 Global Hint Mode TypedCall + + + + + + : typeclass_instances.
-Global Hint Mode TypedCopyAllocId + + + + + + + : typeclass_instances.
-Global Hint Mode TypedReadEnd + + + + + + + + + : typeclass_instances.
-Global Hint Mode TypedWriteEnd + + + + + + + + + + : typeclass_instances.*)
+Global Hint Mode TypedCopyAllocId + + + + + + + : typeclass_instances. *)
+Global Hint Mode TypedReadEnd + + + + + + + + + + + : typeclass_instances.
+Global Hint Mode TypedWriteEnd + + + + + + + + + + + : typeclass_instances.
 Global Hint Mode TypedAddrOfEnd + + + + + + : typeclass_instances.
-(* Global Hint Mode TypedPlace + + + + + + : typeclass_instances.*)
+(* Global Hint Mode TypedPlace + + + + + + : typeclass_instances. *)
 Global Hint Mode TypedAnnotExpr + + + + + + + : typeclass_instances.
 Global Hint Mode TypedAnnotStmt + + + + + + : typeclass_instances.
 (* Global Hint Mode TypedMacroExpr + + + + : typeclass_instances. *)
@@ -1498,9 +1500,6 @@ Admitted.
   Proof.
     unfold typed_stmt.
     rewrite -wp_store.
-    -
-    (* unfold typed_val_expr. *)
-    (* unfold wp_expr. *)
     unfold typed_val_expr.
     iIntros "H". iApply "H".
     iIntros (v ty) "H [% ty_write]".
@@ -1509,10 +1508,9 @@ Admitted.
     iApply "ty_write".
     iIntros (l) "upd".
     iMod ("upd" with "H") as "(%Hot & b & c)"; iModIntro.
-    unfold has_layout_val in Hot.
     iExists Tsh.
     iSplit; [auto|].
-    iSplitL "b". { unfold mapsto.
+    (* iSplitL "b". { unfold mapsto.
     rewrite mapsto_mapsto_ //. }
     iExists l.
     iIntros "[%a b]".
@@ -1520,7 +1518,7 @@ Admitted.
     iModIntro.
     unfold typed_stmt_post_cond; simpl.
     iExists tytrue.
-    iFrame. done.
+    iFrame. done. *)
 Admitted.
 
   Lemma wp_semax : forall Espec E Delta P s Q, (P ⊢ wp_stmt Espec E Delta s Q) → semax(OK_spec := Espec) E Delta P s Q.
@@ -2028,24 +2026,28 @@ Admitted.
   (* for expr `e:=v` => eval_expr e = l ∧ typed l v  *)
   (* typed_lvalue e (typed_write_end ...)   *)
 
-  (*
-  Lemma type_write (a : bool) ty T T' e v ot:
-    IntoPlaceCtx e T' →
-    T' (λ K l, find_in_context (FindLoc l) (λ '(β1, ty1),
-      typed_place K l β1 ty1 (λ l2 β2 ty2 typ R,
-         typed_write_end a ⊤ ot v ty l2 β2 ty2 (λ ty3, l ◁ₗ{β1} typ ty3 -∗ R ty3 -∗ T))))
+  (* Ke: a simple version of type_write that treat typed_place as just typed_val_expr. 
+         Not so sure about what's inside typed_val_expr outside of typed_write_end. *)
+  Lemma type_write_simple (a : bool) ty T e v ot:
+    (typed_val_expr e (λ lv ty1, ∃ l β1, <affine> ⌜addr_to_val l = lv⌝ ∗ ⎡l ◁ₗ{β1} ty1⎤ ∗
+      (⎡ lv ◁ᵥ ty1 ⎤ -∗
+      typed_write_end a ⊤ ot v ty l β1 ty1 (λ ty3:type, ⎡l ◁ₗ{β1} ty3⎤ -∗ T))))%I
     ⊢ typed_write a e ot v ty T.
   Proof.
-    iIntros (HT') "HT'". iIntros (Φ) "HΦ".
-    iApply (HT' with "HT'"). iIntros (K l). iDestruct 1 as ([β1 ty1]) "[Hl HK]".
-    iApply ("HK" with "Hl"). iIntros (l2 β2 ty2 typ R) "Hl' Hc He".
-    iApply "HΦ". iIntros "Hv".
-    rewrite /typed_write_end. iMod ("He" with "Hl' Hv") as "[$ [$ Hc2]]".
-    iIntros "!# !# Hl".
-    iMod ("Hc2" with "Hl") as (ty3) "[Hl HT]".
-    iMod ("Hc" with "Hl") as "[? ?]". by iApply ("HT" with "[$]").
-  Qed.
+    iIntros "typed_e".
+    iIntros (Φ) "HΦ".
+    iApply "typed_e". iIntros (lv ty1) "Hv".
+    iIntros "(%l & %β1 & %Hl & own_l & H)".
+    iEval (rewrite -Hl). iApply "HΦ".
+    iIntros "own_v".
 
+    unfold typed_write_end.
+    iMod ("H" with "Hv own_l own_v") as "($ & $ & H)". iModIntro. iModIntro.
+    iIntros "l↦". iMod ("H" with "l↦") as (ty3) "[own_l T]".
+    by iApply "T".
+Qed.
+
+  (*
   (* TODO: this constraint on the layout is too strong, we only need
   that the length is the same and the alignment is lower. Adapt when necessary. *)
   Lemma type_write_own_copy a E ty l2 ty2 v ot T:
@@ -2108,14 +2110,15 @@ Admitted.
     iApply ("HΦ" with "Hty3").
     by iApply ("HT" with "[$]").
   Qed.
-
-
+*)
+(*
   Lemma type_place_id l ty β T:
     T l β ty id (λ _, True)
-    ⊢ typed_place [] l β ty T.
+    ⊢ typed_place l β ty T.
   Proof.
-    iIntros "HT" (Φ) "Hl HΦ". iApply ("HΦ" with "Hl [] HT").  by iIntros (ty') "$".
-  Qed.
+    unfold typed_place.
+    iIntros  "HT Hl" (l2 β2 ty2 typ R) "Hl2". iApply ("HΦ" with "Hl [] HT").  by iIntros (ty') "$".
+  Qed.s
   Definition type_place_id_inst := [instance type_place_id].
   Global Existing Instance type_place_id_inst | 20.
 
