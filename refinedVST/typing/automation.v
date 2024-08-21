@@ -172,6 +172,7 @@ Ltac liRStmt :=
       let s' := s in
       lazymatch s' with
       | Sassign _ _ => notypeclasses refine (tac_fast_apply (type_assign _ _ _ _ _) _)
+      | Sset _ _ => notypeclasses refine (tac_fast_apply (type_set _ _ _ _ _ _) _)
       | _ => fail "do_stmt: unknown stmt" s
       end
     end
@@ -215,6 +216,7 @@ Ltac liRExpr :=
     lazymatch e with
     | Ecast _ _ => notypeclasses refine (tac_fast_apply (type_Ecast_same_val _ _ _) _)
     | Econst_int _ _ => notypeclasses refine (tac_fast_apply (type_const_int _ _ _) _)
+    | Ebinop _ _ _ _ => notypeclasses refine (tac_fast_apply (type_bin_op _ _ _ _ _) _)
     | _ => fail "do_expr: unknown expr" e
     end
   end.
@@ -342,6 +344,34 @@ Ltac split_blocks Pfull Ps :=
 From VST.typing Require Import int.
 Section automation_tests.
   Context `{!typeG Σ} {cs : compspecs} `{!externalGS OK_ty Σ}.
+ 
+   Opaque local locald_denote.
+
+  Goal forall Espec Delta (_x:ident) (x:val),
+  (local $ locald_denote $ temp _x x)
+  ⊢ typed_stmt Espec Delta (Sset _x (Ebinop Oadd (Econst_int (Int.repr 41) tint) (Econst_int (Int.repr 1) tint) tint)) 
+                           (λ v t, local (locald_denote (temp _x (Vint (Int.repr 42))))).
+  Proof.
+    iIntros.
+    Info 0 liRStep. (* type_set *)
+    Info 0 liRStep. (* frame temp _x *)
+    Info 0 liRStep. (* type_bin_op *)
+    
+    Info 0 liRStep. (* type first const expr *)
+    liRStep.
+    liRStep.
+    liRStep.
+
+    Info 0 liRStep.  (* type second const expr *)
+    liRStep.
+    liRStep.
+    liRStep.
+    liRStep.
+    repeat liRStep; liShow.
+    done. (* Ke: we shouldn't need this; *)
+    Unshelve. (* TODO write solvers for side conditions, register to sidecond_hook or some other hook *)
+  Admitted.
+
 
   Goal forall Espec Delta (_x:ident) (x: address),
   (local $ locald_denote $ temp _x x) ∗

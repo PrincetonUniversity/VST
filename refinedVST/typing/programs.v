@@ -1479,14 +1479,14 @@ Section typing.
 *)
 
 
-Lemma wp_store: forall ESpec E Delta e1 e2 R_ret,
-  wp_expr (Ecast e2 (typeof e1)) (λ v2,
-      ⌜Cop2.tc_val' (typeof e1) v2⌝ ∧ wp_expr e1 (λ (v1: val),
-      |={⊤}=> (* ? *)
-    ∃ sh,  <affine> ⌜writable0_share sh⌝ ∗ ⎡mapsto_ sh (typeof e1) v1⎤ ∗
-    (∃ l1, ⌜val2address v1 = Some l1⌝ ∧ ⎡mapsto l1 sh (typeof e1) v2⎤ ={E}=∗ (RA_normal R_ret))))
-  ⊢ wp_stmt ESpec E Delta (Sassign e1 e2) R_ret.
-Admitted.
+  Lemma wp_store: forall ESpec E Delta e1 e2 R_ret,
+    wp_expr (Ecast e2 (typeof e1)) (λ v2,
+        ⌜Cop2.tc_val' (typeof e1) v2⌝ ∧ wp_expr e1 (λ (v1: val),
+        |={⊤}=> (* ? *)
+      ∃ sh,  <affine> ⌜writable0_share sh⌝ ∗ ⎡mapsto_ sh (typeof e1) v1⎤ ∗
+      (∃ l1, ⌜val2address v1 = Some l1⌝ ∧ ⎡mapsto l1 sh (typeof e1) v2⎤ ={E}=∗ (RA_normal R_ret))))
+    ⊢ wp_stmt ESpec E Delta (Sassign e1 e2) R_ret.
+  Admitted.
 
   (* Ke: possible way to handle cast: dispatch type checking rules to 
      type_Ecast, and only cover cases where it doesn't need memory.
@@ -1519,7 +1519,14 @@ Admitted.
     unfold typed_stmt_post_cond; simpl.
     iExists tytrue.
     iFrame. done. *)
-Admitted.
+  Admitted.
+
+  Lemma type_set Espec Delta (id:ident) v e (T: val -> type -> assert):
+    (local $ locald_denote $ temp id v) ∗
+    typed_val_expr e (λ v' ty, (local $ locald_denote $ temp id v') -∗ T v ty)%I
+      ⊢ typed_stmt Espec Delta (Sset id e) T.
+    Proof.
+  Admitted.
 
   Lemma wp_semax : forall Espec E Delta P s Q, (P ⊢ wp_stmt Espec E Delta s Q) → semax(OK_spec := Espec) E Delta P s Q.
   Proof.
