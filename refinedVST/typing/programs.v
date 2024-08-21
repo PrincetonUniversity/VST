@@ -1521,13 +1521,6 @@ Section typing.
     iFrame. done. *)
   Admitted.
 
-  Lemma type_set Espec Delta (id:ident) v e (T: val -> type -> assert):
-    (local $ locald_denote $ temp id v) ∗
-    typed_val_expr e (λ v' ty, (local $ locald_denote $ temp id v') -∗ T v ty)%I
-      ⊢ typed_stmt Espec Delta (Sset id e) T.
-    Proof.
-  Admitted.
-
   Lemma wp_semax : forall Espec E Delta P s Q, (P ⊢ wp_stmt Espec E Delta s Q) → semax(OK_spec := Espec) E Delta P s Q.
   Proof.
     intros.
@@ -1537,6 +1530,32 @@ Section typing.
     apply semax_extract_exists; intros.
     rewrite comm.
     apply semax_extract_prop; done.
+  Qed.
+
+  (* see semax_set *)
+  Lemma wp_set: forall Espec E Delta i e R,
+    wp_expr e (λ v, assert_of (subst i (liftx v) (RA_normal R))) ⊢ wp_stmt Espec E Delta (Sset i e) R.
+  Proof.
+  Admitted.
+
+  Lemma type_set Espec Delta (id:ident) v e (T: val -> type -> assert):
+    <affine> (local $ locald_denote $ temp id v) ∗
+    typed_val_expr e (λ v' ty, ⌜v' ≠ Vundef⌝ ∧ ⎡∀ rho, <affine> (local $ locald_denote $ temp id v') rho -∗ v' ◁ᵥ ty -∗ T Vundef tytrue rho⎤)%I
+      ⊢ typed_stmt Espec Delta (Sset id e) T.
+  Proof.
+    iIntros "(#? & He)".
+    iApply wp_set.
+    iApply "He".
+    iIntros (??) "??".
+    rewrite /typed_stmt_post_cond /RA_normal.
+    iStopProof; split => rho; monPred.unseal.
+    rewrite monPred_at_intuitionistically /= /lift1 /subst /=.
+    iIntros "(% & ? & % & HT)".
+    super_unfold_lift.
+    iExists tytrue; iSplit; first done.
+    iApply ("HT" with "[%] [$]").
+    split; auto.
+    symmetry; apply eval_id_same.
   Qed.
 
 (* This should be able to reuse semax_ifthenelse, but it's not currently factored correctly. The right way

@@ -348,7 +348,7 @@ Section automation_tests.
    Opaque local locald_denote.
 
   Goal forall Espec Delta (_x:ident) (x:val),
-  (local $ locald_denote $ temp _x x)
+  <affine> (local $ locald_denote $ temp _x x)
   ⊢ typed_stmt Espec Delta (Sset _x (Ebinop Oadd (Econst_int (Int.repr 41) tint) (Econst_int (Int.repr 1) tint) tint)) 
                            (λ v t, local (locald_denote (temp _x (Vint (Int.repr 42))))).
   Proof.
