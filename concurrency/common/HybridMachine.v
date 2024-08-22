@@ -384,6 +384,8 @@ Module DryHybridMachine.
            (Hload: Mem.load Mptr m1 b (Ptrofs.intval ofs) = Some (Vptrofs Ptrofs.zero)),
           ext_step cnt0 Hcompat tp m (failacq (b, Ptrofs.intval ofs)).
 
+    Print permission.
+
     Definition threadStep: forall {tid0 ms m},
         containsThread ms tid0 -> mem_compatible ms m ->
         thread_pool -> mem -> seq.seq mem_event -> Prop:=

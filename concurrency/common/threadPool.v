@@ -1249,9 +1249,7 @@ Module OrdinalPool.
         (cntj': containsThread (updThread cnti c' p') j),
         getThreadC cntj' = getThreadC cntj.
     Proof.
-      intros.
-      simpl. Search eq_op.
-      Check contraFneq.
+      intros. simpl.
       unfold eq_op. simpl.
       rewrite eq_op_false; auto.
       unfold updThread in cntj'. unfold containsThread in *. simpl in *.

@@ -784,6 +784,8 @@ Module StepLemmas.
     Qed.
 
     (** The [lockRes] is preserved by [internal_execution]*)
+
+    (*
     Lemma gsoLockPool_execution :
       forall (tp : t) (m : mem) (tp' : t)
         (m' : mem) (i : nat) (xs : seq nat_eqType)
@@ -807,6 +809,8 @@ Module StepLemmas.
         rewrite <- IHxs.
         erewrite gsoLockPool_step; eauto.
     Qed.
+
+*)
 
     (** Lock resources of the threads are preserved by [internal_step] *)
     Lemma internal_step_locks_eq:
