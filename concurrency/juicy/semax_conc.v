@@ -19,7 +19,7 @@ Proof. reflexivity. Qed.
 
 Section mpred.
 
-Context `{!VSTGS ty_OK Σ}.
+Context `{!VSTGS OK_ty Σ}.
 
 Definition selflock_fun Q sh p : mpred -> mpred :=
   fun R => (Q ∗ ▷lock_inv sh p R).
@@ -439,7 +439,7 @@ Program Definition spawn_spec :=
     PARAMS (f; b)
     GLOBALS (let 'existT _ ((gv, w), _) := fs in gv w)
     SEP (let 'existT _ ((gv, w), pre) := fs in
-         (func_ptr ⊤
+         (func_ptr
            (WITH y : val, x : _
              PRE [ tptr tvoid ]
                PROP ()
@@ -466,6 +466,7 @@ Proof.
   - apply func_ptr_si_nonexpansive; last done.
     split3; [done..|].
     exists eq_refl; simpl.
+    split; first done.
     split; intros (?, ?); simpl; last done.
     rewrite (Hpre _ _) //.
   - rewrite (Hpre _ _) //.
@@ -486,16 +487,11 @@ Definition concurrent_simple_specs (cs : compspecs) (ext_link : string -> ident)
   (ext_link "release"%string, release_spec) ::
   nil.
 
-Definition concurrent_simple_ext_spec (cs : compspecs) (ext_link : string -> ident) :=
-  add_funspecs_rec Z
+#[local] Instance concurrent_simple_ext_spec (cs : compspecs) (ext_link : string -> ident) : ext_spec OK_ty :=
+  add_funspecs_rec OK_ty
     ext_link
-    (ok_void_spec Z).(OK_spec)
+    (void_spec OK_ty)
     (concurrent_simple_specs cs ext_link).
-
-Definition Concurrent_Simple_Espec cs ext_link :=
-  Build_OracleKind
-    Z
-    (concurrent_simple_ext_spec cs ext_link).
 
 Lemma strong_nat_ind (P : nat -> Prop) (IH : forall n, (forall i, lt i n -> P i) -> P n) n : P n.
 Proof.
@@ -510,15 +506,10 @@ Definition concurrent_specs (cs : compspecs) (ext_link : string -> ident) :=
   (ext_link "spawn"%string, spawn_spec) ::
   nil.
 
-Definition concurrent_ext_spec (cs : compspecs) (ext_link : string -> ident) :=
-  add_funspecs_rec Z
+#[export] Instance concurrent_ext_spec (cs : compspecs) (ext_link : string -> ident) : ext_spec OK_ty :=
+  add_funspecs_rec OK_ty
     ext_link
-    (ok_void_spec Z).(OK_spec)
+    (void_spec OK_ty)
     (concurrent_specs cs ext_link).
-
-Definition Concurrent_Espec cs ext_link :=
-  Build_OracleKind
-    Z
-    (concurrent_ext_spec cs ext_link).
 
 End mpred.

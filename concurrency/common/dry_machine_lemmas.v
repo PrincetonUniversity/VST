@@ -135,10 +135,10 @@ Module ThreadPoolWF.
   Defined. *)
 
   Lemma initial_invariant0: forall pmap c,
-      DryHybridMachine.invariant (mkPool c (pmap, empty_map) (empty_map, empty_map)).
+      DryHybridMachine.invariant (mkPool c (pmap, empty_map) (* (empty_map, empty_map) *)).
   Proof.
     intros pmap c.
-    pose (IM:=mkPool c (pmap,empty_map) (empty_map, empty_map)); fold IM.
+    pose (IM:=mkPool c (pmap,empty_map) (* (empty_map, empty_map) *)); fold IM.
     assert (isZ: forall i, OrdinalPool.containsThread IM i -> (i = 0)%N).
     { rewrite /containsThread /IM /=.
       move => i; destruct i; first[reflexivity | intros HH; inversion HH].
@@ -176,10 +176,10 @@ Module ThreadPoolWF.
   Qed.
 
   Lemma initial_mem_compatible: forall c m,
-      mem_compatible (mkPool c (getCurPerm m, empty_map) (empty_map, empty_map)) m.
+      mem_compatible (mkPool c (getCurPerm m, empty_map) (* (empty_map, empty_map) *)) m.
   Proof.
     intros c m.
-    pose (IM:=mkPool c (getCurPerm m,empty_map) (empty_map, empty_map)); fold IM.
+    pose (IM:=mkPool c (getCurPerm m,empty_map) (* (empty_map, empty_map) *)); fold IM.
     assert (isZ: forall i, OrdinalPool.containsThread IM i -> (i = 0)%N).
     { rewrite /containsThread /IM /=.
       move => i; destruct i; first[reflexivity | intros HH; inversion HH].

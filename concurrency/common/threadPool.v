@@ -47,7 +47,7 @@ Module ThreadPool.
     (* !! TODO: remove extraRes? remove lockGuts, lockSet? *)
     Class ThreadPool :=
       { t : Type;
-        mkPool : ctl -> res -> res -> t;
+        mkPool : ctl -> res -> (*res ->*) t;
         containsThread : t -> tid -> Prop;
         getThreadC : forall {tid tp}, containsThread tp tid -> ctl;
         getThreadR : forall {tid tp}, containsThread tp tid -> res;
@@ -55,14 +55,14 @@ Module ThreadPool.
         lockGuts : t -> AMap.t lock_info;  (* Gets the set of locks + their info    *)
         lockSet : t -> access_map;         (* Gets the permissions for the lock set *)
         lockRes : t -> address -> option lock_info;
-        extraRes : t -> res; (* extra resources not held by any thread or lock *)
+(*         extraRes : t -> res; (* extra resources not held by any thread or lock *) *)
         addThread : t -> val -> val -> res -> t;
         updThreadC : forall {tid tp}, containsThread tp tid -> ctl -> t;
         updThreadR : forall {tid tp}, containsThread tp tid -> res -> t;
         updThread : forall {tid tp}, containsThread tp tid -> ctl -> res -> t;
         updLockSet : t -> address -> lock_info -> t;
         remLockSet : t -> address -> t;
-        updExtraRes : t -> res -> t;
+(*         updExtraRes : t -> res -> t; *)
         latestThread : t -> tid;
         lr_valid : (address -> option lock_info) -> Prop;
         (*Find the first thread i that satisfies (filter i) *)
@@ -144,10 +144,10 @@ Module ThreadPool.
              forall {j tp} add,
                containsThread (remLockSet tp add) j ->
                containsThread tp j
-        ;  cntUpdateExtra:
+(*         ;  cntUpdateExtra:
              forall {j tp} res,
                containsThread tp j ->
-               containsThread (updExtraRes tp res) j
+               containsThread (updExtraRes tp res) j *)
 
         (*;  gssLockPool:
     forall tp ls,
@@ -328,7 +328,7 @@ Module ThreadPool.
                lr_valid (lockRes tp) ->
                lr_valid (lockRes (updThread cnti c' m'))
 
-        (* extraRes properties *)
+(*        (* extraRes properties *)
 
         ; gssExtraRes : forall tp res, extraRes (updExtraRes tp res) = res
 
@@ -356,7 +356,7 @@ Module ThreadPool.
                lockRes (updExtraRes tp res) addr = lockRes tp addr
 
         ; gsoExtraLock : forall tp res,
-               lockSet (updExtraRes tp res) = lockSet tp
+               lockSet (updExtraRes tp res) = lockSet tp *)
 
         (*New axioms, to avoid breaking the modularity *)
         ; lockSet_spec_2 :
@@ -483,17 +483,17 @@ Module OrdinalPool.
                     ; pool :> 'I_num_threads -> ctl
                     ; perm_maps : 'I_num_threads -> res
                     ; lset : AMap.t lock_info
-                    ; extra : res
+(*                     ; extra : res *)
                   }.
 
     Definition one_pos : pos.pos := pos.mkPos Nat.lt_0_1.
     
-    Definition mkPool c res extra :=
+    Definition mkPool c res (* extra *) :=
       mk one_pos
         (fun _ =>  c)
         (fun _ => res)
         empty_lset (* initially there are no locks *)
-        extra. (* no obvious initial value for extra *)
+        (* extra *). (* no obvious initial value for extra *)
     
     Definition lockGuts := lset.
     Definition lockSet (tp:t) := A2PMap (lset tp).
@@ -501,7 +501,7 @@ Module OrdinalPool.
     Definition lockRes t : address -> option lock_info:=
       AMap.find (elt:=lock_info)^~ (lockGuts t).
 
-    Definition extraRes := extra.
+(*     Definition extraRes := extra. *)
 
     Definition lr_valid (lr: address -> option lock_info):=
       forall b ofs,
@@ -672,28 +672,28 @@ Module OrdinalPool.
             | None => pmap
             | Some n' => (perm_maps tp) n'
             end)
-         (lset tp) (extra tp).
+         (lset tp) (* (extra tp) *).
 
     Definition updLockSet tp (add:address) (lf:lock_info) : t :=
       mk (num_threads tp)
          (pool tp)
          (perm_maps tp)
          (AMap.add add lf (lockGuts tp))
-         (extra tp).
+         (* (extra tp) *).
 
     Definition remLockSet tp  (add:address) : t :=
       mk (num_threads tp)
          (pool tp)
          (perm_maps tp)
          (AMap.remove add (lockGuts tp))
-         (extra tp).
+         (* (extra tp) *).
 
     Definition updThreadC {tid tp} (cnt: containsThread tp tid) (c' : ctl) : t :=
       mk (num_threads tp)
          (fun n => if n == (Ordinal cnt) then c' else (pool tp)  n)
          (perm_maps tp)
          (lset tp)
-         (extra tp).
+         (* (extra tp) *).
 
     Definition updThreadR {tid tp} (cnt: containsThread tp tid)
                (pmap' : res) : t :=
@@ -701,7 +701,7 @@ Module OrdinalPool.
          (fun n =>
             if n == (Ordinal cnt) then pmap' else (perm_maps tp) n)
          (lset tp)
-         (extra tp).
+         (* (extra tp) *).
 
     Definition updThread {tid tp} (cnt: containsThread tp tid) (c' : ctl)
                (pmap : res) : t :=
@@ -711,14 +711,14 @@ Module OrdinalPool.
          (fun n =>
             if n == (Ordinal cnt) then pmap else (perm_maps tp) n)
          (lset tp)
-         (extra tp).
+         (* (extra tp) *).
 
-    Definition updExtraRes tp res : t :=
+(*     Definition updExtraRes tp res : t :=
       mk (num_threads tp)
          (pool tp)
          (perm_maps tp)
          (lset tp)
-         res.
+         res. *)
 
     (*TODO: see if typeclasses can automate these proofs, probably not thanks dep types*)
 
@@ -836,13 +836,13 @@ Module OrdinalPool.
                 simpl in *; by assumption.
     Qed.
 
-    Lemma cntUpdateExtra:
+(*     Lemma cntUpdateExtra:
              forall {j tp} res,
                containsThread tp j ->
                containsThread (updExtraRes tp res) j.
     Proof.
       intros. unfold containsThread in *; simpl in *; by assumption.
-    Qed.
+    Qed. *)
 
     Lemma cntAdd:
       forall {j tp} vf arg p,
@@ -1912,7 +1912,7 @@ Module OrdinalPool.
       rewrite gsoThreadLPool; apply H.
     Qed.
 
-    Lemma gssExtraRes : forall tp res, extraRes (updExtraRes tp res) = res.
+(*     Lemma gssExtraRes : forall tp res, extraRes (updExtraRes tp res) = res.
     Proof.
       reflexivity.
     Qed.
@@ -1975,7 +1975,7 @@ Module OrdinalPool.
                lockSet (updExtraRes tp res) = lockSet tp.
     Proof.
       reflexivity.
-    Qed.
+    Qed. *)
 
     Lemma contains_iff_num:
       forall tp tp'
@@ -2117,8 +2117,6 @@ Module OrdinalPool.
       map (@indexed_contains tp)
           (containsList tp).
 
-      
-
     Lemma resourceList_spec: forall i tp
             (cnti: containsThread tp i),
             List.nth_error (resourceList tp) i = Some (getThreadR cnti).
@@ -2148,14 +2146,14 @@ Module OrdinalPool.
                                     lockGuts
                                     lockSet
                                     (@lockRes)
-                                    extraRes
+                                    (* extraRes *)
                                     addThread
                                     (@updThreadC)
                                     (@updThreadR)
                                     (@updThread)
                                     updLockSet
                                     remLockSet
-                                    updExtraRes
+                                    (* updExtraRes *)
                                     latestThread
                                     lr_valid 
                                     (*Find the first thread i, that satisfies (filter i) *)
@@ -2177,7 +2175,7 @@ Module OrdinalPool.
                                     (@cntRemoveL)
                                     (@cntUpdateL')
                                     (@cntRemoveL')
-                                    (@cntUpdateExtra)
+                                    (* (@cntUpdateExtra) *)
                                     (@gsoThreadLock)
                                     (@gsoThreadCLock)
                                     (@gsoThreadRLock)
@@ -2210,7 +2208,7 @@ Module OrdinalPool.
                                     add_updateC_comm
                                     add_update_comm
                                     updThread_lr_valid
-                                    gssExtraRes
+(*                                     gssExtraRes
                                     gsoAddExtra
                                     (@gsoThreadCExtra)
                                     (@gsoThreadRExtra)
@@ -2220,7 +2218,7 @@ Module OrdinalPool.
                                     (@gExtraResCode)
                                     (@gExtraResRes)
                                     gsoExtraLPool
-                                    gsoExtraLock
+                                    gsoExtraLock *)
                                     lockSet_spec_2
                                     lockSet_spec_3
                                     gsslockSet_rem

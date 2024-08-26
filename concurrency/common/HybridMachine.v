@@ -596,12 +596,12 @@ Module DryHybridMachine.
     Qed.
 
 
-    Definition initial_machine pmap c := mkPool (Krun c) (pmap, empty_map) (empty_map, empty_map).
+    Definition initial_machine pmap c := mkPool (Krun c) (pmap, empty_map) (* (empty_map, empty_map) *).
 
     Definition init_mach (pmap : option res) (m: mem)
                (ms:thread_pool) (m' : mem) (v:val) (args:list val) : Prop :=
       exists c, semantics.initial_core semSem 0 m c m' v args /\
-           ms = mkPool (Krun c) (getCurPerm m', empty_map) (empty_map, empty_map).
+           ms = mkPool (Krun c) (getCurPerm m', empty_map) (* (empty_map, empty_map) *).
 
 
 
@@ -681,22 +681,11 @@ Module DryHybridMachine.
     #[export] Instance thread_compat_proper st i:
         Proper (Logic.eq ==> Max_equiv ==> iff) (@thread_compat st i).
       Proof.
-        setoid_help.proper_iff;
-               setoid_help.proper_intros; subst.
-(*
-        constructor.
-             - Check permMapLt_equiv.
-
-               eapply permMapLt_equiv.
-               reflexivity.
-               symmetry; apply H0.
-               eapply H1.
-             - eapply permMapLt_equiv.
-               reflexivity.
-               symmetry; apply H0.
-               eapply H1.
+        intros ?? <- ???.
+        split; intros [H0 H1]; constructor;
+          try (eapply permMapLt_equiv; last apply H0; done);
+          try (eapply permMapLt_equiv; last apply H1; done).
       Qed.
-*) Admitted.
     Lemma mem_compatible_thread_compat:
       forall (st1 : ThreadPool.t) (m1 : mem) (tid : nat)
         (cnt1 : containsThread st1 tid),

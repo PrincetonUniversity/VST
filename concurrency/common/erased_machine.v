@@ -263,7 +263,7 @@ Module BareMachine.
     
     Definition init_mach (_ : option unit) (m: mem)
                (tp:thread_pool)(m':mem)(v:val)(args:list val) : Prop :=
-      exists c, initial_core semSem 0 m c m' v args /\ tp = mkPool (Krun c) tt tt.
+      exists c, initial_core semSem 0 m c m' v args /\ tp = mkPool (Krun c) tt (* tt *).
 
     Definition install_perm tp m tid (Hcmpt: mem_compatible tp m) (Hcnt: containsThread tp tid) m' :=
       m = m'.

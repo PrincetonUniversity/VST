@@ -786,7 +786,7 @@ Module StepLemmas.
     (** The [lockRes] is preserved by [internal_execution]*)
     Lemma gsoLockPool_execution :
       forall (tp : t) (m : mem) (tp' : t)
-        (m' : mem) (i : nat) (xs : seq nat_eqType)
+        (m' : mem) (i : nat) (xs : seq nat)
         (Hexec: internal_execution [seq x <- xs | x == i] tp m tp' m')
         addr,
         lockRes tp addr = lockRes tp' addr.
