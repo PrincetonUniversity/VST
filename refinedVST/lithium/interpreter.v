@@ -502,6 +502,16 @@ Section coq_tactics.
       by apply bi.sep_mono_r.
   Qed.
 
+  Lemma tac_find_hyp_affine Δ i R (P : prop) :
+    envs_lookup i Δ = Some (true, P) →
+    envs_entails Δ R → envs_entails Δ (<affine> P ∗ R).
+  Proof.
+    rewrite envs_entails_unseal. intros ? HQ.
+      rewrite (envs_lookup_intuitionistic_sound _ _ _ H) HQ.
+      apply bi.sep_mono_l.
+      apply bi.intuitionistically_affinely.
+  Qed.
+
   Lemma tac_find_in_context {Δ} {fic} {T : _ → prop} key (F : FindInContext fic key) :
     envs_entails Δ (F T).(i2p_P) → envs_entails Δ (find_in_context fic T).
   Proof. rewrite envs_entails_unseal. etrans; [done|]. apply i2p_proof. Qed.
@@ -529,7 +539,8 @@ Ltac liFindHyp key :=
              different names.) TODO: investigate if constr_eq
              could help even more
              https://coq.inria.fr/distrib/current/refman/proof-engine/tactics.html#coq:tacn.constr-eq*)
-          unify Q P with typeclass_instances
+          first [unify Q P with typeclass_instances | 
+                 unify (bi_affinely Q) P with typeclass_instances (* for P of thes shape `<affine> _` *)]
       | _ =>
           notypeclasses refine (tac_find_hyp_equal key Q _ _ _ _ _); [solve [refine _]|];
           lazymatch goal with
@@ -537,7 +548,9 @@ Ltac liFindHyp key :=
               unify Q P' with typeclass_instances
           end
       end;
-      notypeclasses refine (tac_find_hyp _ id _ _ _ _ _); [li_pm_reflexivity | li_pm_reduce]
+      (first [notypeclasses refine (tac_find_hyp_affine _ id _ _ _ _); [li_pm_reflexivity | li_pm_reduce] |
+              notypeclasses refine (tac_find_hyp _ id _ _ _ _ _); [li_pm_reflexivity | li_pm_reduce] 
+              ])
       | go P Hs2 ]
     end in
   lazymatch goal with
