@@ -133,7 +133,38 @@ Definition int_eq v1 v2 :=
   | _, _ => false
   end.
 
+Global Instance repable_signed_dec i : Decision (repable_signed i).
+refine (repable_signed_dec _). Defined.
+
 Global Instance elem_of_type : ElemOf Z Ctypes.type := in_range.
+Global Instance elem_of_type_dec (i : Z) (t:Ctypes.type) : Decision (i ∈ t).
+Proof.
+  unfold elem_of, elem_of_type.
+  destruct t; try solve [
+    refine (right _ );  unfold not; intros; inv H].
+  all: destruct s.
+  -  destruct (repable_signed_dec i).
+      + refine (left _); constructor; auto.
+      + refine (right _);  intros H; by inv H.
+  - destruct (decide (0 <= i < Z.pow 2 (bitsize_intsize i0))).
+    + refine (left _); constructor; auto.
+    + refine (right _); intros H; by inv H.
+  - destruct (decide (Int64.min_signed <= i <= Int64.max_signed)).
+    + refine (left _); constructor; auto.
+    + refine (right _); intros H; by inv H.
+  - destruct (decide (0 <= i <= Int64.max_unsigned)).
+    + refine (left _); constructor; auto.
+    + refine (right _); intros H; by inv H.
+Qed.
+
+Global Instance elem_of_type_dec_2 (i : Z) (t:Ctypes.type) :
+  Decision (Int.signed (Int.repr i) ∈ t).
+Proof.  apply elem_of_type_dec. Qed.
+
+(* Global Instance int_elem_of_type : ElemOf Integers.int Ctypes.type :=
+  λ i t, Int.intval i ∈ t. *)
+
+
 
 Lemma i2v_to_Z : forall n t, in_range n t -> val_to_Z (i2v n t) t = Some n.
 Proof.
