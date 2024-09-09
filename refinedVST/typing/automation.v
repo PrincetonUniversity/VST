@@ -347,28 +347,9 @@ Section automation_tests.
   
   Opaque local locald_denote.
 
-  Goal forall Espec Delta (_x:ident) (x:val),
-  <affine> (local $ locald_denote $ temp _x x)
-  ⊢ typed_stmt Espec Delta (Sset _x (Ebinop Oadd (Econst_int (Int.repr 41) tint) (Econst_int (Int.repr 1) tint) tint)) 
-                           (λ v t, <affine> local (locald_denote (temp _x (Vint (Int.repr 42))))
-                                   ∗ ⎡ Vint (Int.repr 42) ◁ᵥ 42 @ int tint ⎤).
-  Proof.
-    iIntros.
-    repeat liRStep;
+   Set Ltac Backtrace.
 
-    
-    liShow; try done.
 
-    Unshelve. 2:{ unfold SHELVED_SIDECOND.
-    Set Nested Proofs Allowed.
-    Global Instance elem_of_type_dec_2 (i : Z) (t:Ctypes.type) :
-  Decision (Int.signed (Int.repr i) ∈ t).
-Proof.  apply elem_of_type_dec. Qed.
-Print Int.signed.
-constructor.
-done.
-apply (elem_of_type_dec_2).
-}  
   Ltac liUnfoldSyntax ::=
   lazymatch goal with
   | |- envs_entails _ (li.all _) => liFromSyntax
@@ -402,9 +383,6 @@ apply (elem_of_type_dec_2).
   end.
 
   
-  liUnfoldSyntax.
-
-  Set Nested Proofs Allowed.
   Lemma tac_do_embed_forall `{BiEmbed prop1 prop2} A Δ (P : A → prop1) :
     (∀ x, envs_entails Δ (⎡P x⎤)) → envs_entails Δ (⎡∀ x : A, P x⎤).
   Proof.
@@ -419,7 +397,7 @@ apply (elem_of_type_dec_2).
     by iApply (HP with "Henv HP").
   Qed.
 
-  Ltac liForall :=
+  Ltac liForall ::=
   (* n tells us how many quantifiers we should introduce with this name *)
   let rec do_intro n name :=
     lazymatch n with
@@ -471,10 +449,6 @@ apply (elem_of_type_dec_2).
       do_intro (S O) name
   | _ => fail "liForall: unknown goal"
   end.
-
-  
-  liForall.
-
 
   
   (* too slow and too aggressive, for instånce takes apart <affine> *)
@@ -567,14 +541,17 @@ apply (elem_of_type_dec_2).
       progress push_in_monPred |
       liRStep].
 
- (** NOTE make use of Objective environment *)
-  repeat liRStep'.
-  
-  done.
-  
-
-
-  Admitted.
+  Goal forall Espec Delta (_x:ident) (x:val),
+  <affine> (local $ locald_denote $ temp _x x)
+  ⊢ typed_stmt Espec Delta (Sset _x (Ebinop Oadd (Econst_int (Int.repr 41) tint) (Econst_int (Int.repr 1) tint) tint)) 
+                           (λ v t, <affine> local (locald_denote (temp _x (Vint (Int.repr 42))))
+                                   ∗ ⎡ Vint (Int.repr 42) ◁ᵥ 42 @ int tint ⎤).
+  Proof.
+    iIntros.
+    do 30 liRStep'.
+    liShow; try done.
+ (** TODO make use of Objective environment *)
+  Qed.
 
 
   Goal forall Espec Delta (_x:ident) (x: address),

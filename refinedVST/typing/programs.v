@@ -113,17 +113,19 @@ Definition i2v n t :=
   | _ => Vundef
   end.
 
-Inductive in_range n : Ctypes.type → Prop :=
-| in_range_int_s sz a : repable_signed n -> in_range n (Tint sz Signed a)
-| in_range_int_u sz a : 0 <= n < Z.pow 2 (bitsize_intsize sz) -> in_range n (Tint sz Unsigned a)
-| in_range_long_s a : Int64.min_signed <= n <= Int64.max_signed -> in_range n (Tlong Signed a)
-| in_range_long_u a : 0 <= n <= Int64.max_unsigned -> in_range n (Tlong Unsigned a).
+Definition in_range (n:Z) (t: Ctypes.type) : Prop :=
+  match t with
+  | Tint sz Signed _ => repable_signed n
+  | Tint sz Unsigned _ => 0 <= n < Z.pow 2 (bitsize_intsize sz)
+  | Tlong Signed _ => Int64.min_signed <= n <= Int64.max_signed
+  | Tlong Unsigned _ => 0 <= n <= Int64.max_unsigned
+  | _ => False
+  end.
 
 Lemma val_to_Z_in_range : forall v t n, val_to_Z v t = Some n -> in_range n t.
 Proof.
   intros; destruct v, t; try discriminate; destruct s; inv H; constructor; try rep_lia.
-  if_tac in H1; inv H1.
-  rep_lia.
+  all: if_tac in H1; inv H1; rep_lia.
 Qed.
 
 Definition int_eq v1 v2 :=
@@ -142,36 +144,18 @@ Proof.
   unfold elem_of, elem_of_type.
   destruct t; try solve [
     refine (right _ );  unfold not; intros; inv H].
-  all: destruct s.
-  -  destruct (repable_signed_dec i).
-      + refine (left _); constructor; auto.
-      + refine (right _);  intros H; by inv H.
-  - destruct (decide (0 <= i < Z.pow 2 (bitsize_intsize i0))).
-    + refine (left _); constructor; auto.
-    + refine (right _); intros H; by inv H.
-  - destruct (decide (Int64.min_signed <= i <= Int64.max_signed)).
-    + refine (left _); constructor; auto.
-    + refine (right _); intros H; by inv H.
-  - destruct (decide (0 <= i <= Int64.max_unsigned)).
-    + refine (left _); constructor; auto.
-    + refine (right _); intros H; by inv H.
+  all: destruct s;  unfold in_range;  apply _.
 Qed.
-
-Global Instance elem_of_type_dec_2 (i : Z) (t:Ctypes.type) :
-  Decision (Int.signed (Int.repr i) ∈ t).
-Proof.  apply elem_of_type_dec. Qed.
 
 (* Global Instance int_elem_of_type : ElemOf Integers.int Ctypes.type :=
   λ i t, Int.intval i ∈ t. *)
 
-
-
 Lemma i2v_to_Z : forall n t, in_range n t -> val_to_Z (i2v n t) t = Some n.
 Proof.
   intros.
-  inv H; rewrite /val_to_Z /i2v.
+  destruct t; try done; rewrite /val_to_Z /i2v; destruct s; simpl in H. 
   - rewrite Int.signed_repr //.
-  - rewrite Int.unsigned_repr; last by pose proof (bitsize_max sz); rep_lia.
+  - rewrite Int.unsigned_repr; last by pose proof (bitsize_max i); rep_lia.
     if_tac; [done | lia].
   - rewrite Int64.signed_repr //.
   - rewrite Int64.unsigned_repr //.
@@ -1571,17 +1555,17 @@ Section typing.
 
   Lemma type_set Espec Delta (id:ident) v e (T: val -> type -> assert):
     <affine> (local $ locald_denote $ temp id v) ∗
-    typed_val_expr e (λ v' ty, ⌜v' ≠ Vundef⌝ ∧ ⎡∀ rho, <affine> (local $ locald_denote $ temp id v') rho -∗ v' ◁ᵥ ty -∗ T Vundef tytrue rho⎤)%I
+    typed_val_expr e (λ v' ty, <affine> ⌜v' ≠ Vundef⌝ ∗ ⎡∀ rho, <affine> (local $ locald_denote $ temp id v') rho -∗ v' ◁ᵥ ty -∗ T Vundef tytrue rho⎤)%I
       ⊢ typed_stmt Espec Delta (Sset id e) T.
   Proof.
     iIntros "(#? & He)".
     iApply wp_set.
     iApply "He".
-    iIntros (??) "??".
+    iIntros (??) "? [% ?]".
     rewrite /typed_stmt_post_cond /RA_normal.
     iStopProof; split => rho; monPred.unseal.
     rewrite monPred_at_intuitionistically /= /lift1 /subst /=.
-    iIntros "(% & ? & % & HT)".
+    iIntros "(% & ? & HT)".
     super_unfold_lift.
     iExists tytrue; iSplit; first done.
     iApply ("HT" with "[%] [$]").
