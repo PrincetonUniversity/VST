@@ -53,6 +53,20 @@ Ltac liUnfoldSyntax :=
   | |- envs_entails _ (li.bind3 _ _) => liFromSyntax
   | |- envs_entails _ (li.bind4 _ _) => liFromSyntax
   | |- envs_entails _ (li.bind5 _ _) => liFromSyntax
+  | |- envs_entails _ (⎡li.all _⎤) => liFromSyntax
+  | |- envs_entails _ (⎡li.exist _⎤) => liFromSyntax
+  | |- envs_entails _ (⎡li.done⎤) => liFromSyntax
+  | |- envs_entails _ (⎡li.false⎤) => liFromSyntax
+  | |- envs_entails _ (⎡li.and _ _⎤) => liFromSyntax
+  | |- envs_entails _ (⎡li.and_map _ _⎤) => liFromSyntax
+  | |- envs_entails _ (⎡li.case_if _ _ _⎤) => liFromSyntax
+  | |- envs_entails _ (⎡li.ret⎤) => liFromSyntax
+  | |- envs_entails _ (⎡li.bind0 _ _⎤) => liFromSyntax
+  | |- envs_entails _ (⎡li.bind1 _ _⎤) => liFromSyntax
+  | |- envs_entails _ (⎡li.bind2 _ _⎤) => liFromSyntax
+  | |- envs_entails _ (⎡li.bind3 _ _⎤) => liFromSyntax
+  | |- envs_entails _ (⎡li.bind4 _ _⎤) => liFromSyntax
+  | |- envs_entails _ (⎡li.bind5 _ _⎤) => liFromSyntax
   end.
 
 Ltac liEnsureInvariant := try let_bind_envs; try liUnfoldSyntax.
@@ -1121,10 +1135,81 @@ Ltac liTrace :=
     liTrace_hook info
   end.
 
+(* too slow and too aggressive, for instance takes apart <affine> *)
+Ltac push_in_embed_hard :=
+  (rewrite ?embed_wand ?embed_wand_iff ?embed_forall ?embed_exist ?embed_and ?embed_or ?embed_impl
+                ?embed_iff ?embed_sep ?embed_pure ?embed_emp ?embed_affinely ?embed_persistently
+                ?embed_absorbingly -?embed_embed).
+
+From iris.bi Require Import monpred.
+Local Open Scope bi_scope.
+
+(* push_in_embed_hard test *)
+(* if head symbol of R is `embed _`, push the embed in.
+    do some ad hoc stuff with monPred_in as well *)
+Ltac push_in_embed R :=
+  lazymatch R with
+  | ⎡ ?R' ⎤ =>
+    lazymatch R' with
+    | bi_wand ?P ?Q => rewrite [R] (embed_wand P Q)
+    | bi_wand_iff ?P ?Q => rewrite [R] (embed_wand_iff P Q)
+    | bi_forall ?P => rewrite [R] (embed_forall _ P)
+    | bi_exist ?P => rewrite [R] (embed_exist _ P)
+    | bi_and ?P ?Q => rewrite [R] (embed_and P Q)
+    | bi_or ?P ?Q => rewrite [R] (embed_or P Q)
+    | bi_impl ?P ?Q => rewrite [R] (embed_impl P Q)
+    | bi_iff ?P ?Q => rewrite [R] (embed_iff P Q) 
+    | bi_sep ?P ?Q => rewrite [R] (embed_sep P Q)
+    | bi_pure ?P => rewrite [R] (embed_pure P)
+    | bi_emp => rewrite [R] (embed_emp)
+    | <affine> ?P => rewrite [R] (embed_affinely P)
+    | <pers> ?P => rewrite [R] (embed_persistently P)
+    | <absorb> ?P => rewrite [R] (embed_absorbingly P)
+    | ⎡ ?P ⎤ => rewrite - [R] (embed_embed P)
+    | |==> ?P => rewrite [R] (embed_bupd P)
+    | |={?E1,?E2}=> ?P => rewrite [R] (embed_fupd E1 E2 P)
+    | □ ?P => rewrite [R] (embed_intuitionistically P)
+    | ◇ ?P => rewrite [R] (embed_except_0 P)
+    | ▷ ?P => rewrite [R] (embed_later P)
+    | ▷^ ?n ?P => rewrite [R] (embed_laterN n P)
+    | ■ ?P => rewrite [R] (embed_plainly P)
+    | ■? ?p ?P => rewrite [R] (embed_plainly_if p P)
+    | <affine>? ?b ?P => rewrite [R] (embed_affinely_if P)
+    | <pers>? ?b ?P => rewrite [R] (embed_persistently_if P)
+    | <absorb>? ?b ?P => rewrite [R] (embed_absorbingly_if P)
+    | □? ?b ?P => rewrite [R] (embed_intuitionistically_if P)
+    | ?x ≡ ?y => rewrite [R] (embed_internal_eq x y)
+    (* not sure how to deal with other forms in `bi_embed $ monPred_at ...`, add them when in need *)
+    | monPred_at (?P ∗ ?Q ) _ => rewrite [R'] (monPred_at_sep _ P Q)
+    | monPred_at (<affine> ?P) _ => rewrite [R'] (monPred_at_affinely _ P)
+    end
+  end.
+
+(* TODO make sure rewrites happen in exactly the subterm R (like [R in (envs_entails _ (bi_wand R _))]) instead of any place matching R *)
+Ltac push_in_embed_for_head :=
+  lazymatch goal with
+  | |- envs_entails ?Δ ?P =>
+    lazymatch P with
+    | embed ?H => push_in_embed P
+    | bi_wand ?H _ => push_in_embed H
+    | bi_sep ?H _ => push_in_embed H
+    (* | ?un_op ?H => idtac "unop" un_op; push_in_embed H
+    | ?bin_op ?H _ => idtac "binop" bin_op; push_in_embed H *)
+    end
+  end.
+
+Ltac push_in_monPred :=
+  progress lazymatch goal with
+  | |- envs_entails ?Δ ?P =>
+    rewrite ?[in P]monPred_at_sep ?[in P]monPred_at_affinely ?[in P]monPred_at_embed
+  end.
+
 (** ** [liStep] *)
 Ltac liStep :=
   first [
-      liExtensible
+    push_in_embed_for_head
+    | push_in_monPred
+    | liExtensible
     | liSep
     | liAnd
     | liWand
@@ -1143,3 +1228,22 @@ Ltac liStep :=
     | liDoneEvar
     | liUnfoldLetGoal
     ].
+
+(* push_in_embed_for_head test *)
+Goal forall `{!BiEmbed prop1 prop2} (A B E: prop1) C D,
+  (⎡ A -∗ B ⎤ ⊢ ⎡ ∀ x:nat, C x -∗ D x -∗ E ⎤)%I.
+iIntros.
+liStep.
+liStep.
+liStep.
+
+(* liWand seems to require this tactic to put a copy of the envs into Coq context*)
+liEnsureInvariant.
+liStep.
+liStep.
+liEnsureInvariant.
+liStep.
+lazymatch goal with
+  | |- envs_entails _ (⎡E⎤) => idtac
+end.
+Abort.
