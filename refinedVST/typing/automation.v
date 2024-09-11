@@ -217,6 +217,8 @@ Ltac liRExpr :=
     | Ecast _ _ => notypeclasses refine (tac_fast_apply (type_Ecast_same_val _ _ _) _)
     | Econst_int _ _ => notypeclasses refine (tac_fast_apply (type_const_int _ _ _) _)
     | Ebinop _ _ _ _ => notypeclasses refine (tac_fast_apply (type_bin_op _ _ _ _ _) _)
+    | Etempvar _ _ => notypeclasses refine (tac_fast_apply (type_tempvar _ _ _ _) _)
+    | Evar _ _ => notypeclasses refine (tac_fast_apply (type_var_local _ _ _ _ _ _ _) _)
     | _ => fail "do_expr: unknown expr" e
     end
   end.
@@ -349,7 +351,7 @@ Section automation_tests.
 
    Set Ltac Backtrace.
 
-  Goal forall Espec Delta (_x:ident) (x:val),
+  (* Goal forall Espec Delta (_x:ident) (x:val),
   <affine> (local $ locald_denote $ temp _x x)
   ⊢ typed_stmt Espec Delta (Sset _x (Ebinop Oadd (Econst_int (Int.repr 41) tint) (Econst_int (Int.repr 1) tint) tint)) 
                            (λ v t, <affine> local (locald_denote (temp _x (Vint (Int.repr 42))))
@@ -359,13 +361,14 @@ Section automation_tests.
     do 30 liRStep.
     liShow; try done.
  (** TODO make use of Objective environment *)
-  Qed.
+  Qed. *)
 
-  Goal forall Espec Delta (_x:ident) (x: address),
-  (local $ locald_denote $ temp _x x) ∗
-  ⎡data_at_ Tsh tint x ⎤ ∗
-  ⎡ ty_own_val (0 @ int tint) (Vint (Int.repr 0))  ⎤
-  ⊢ typed_stmt Espec Delta (Sassign (Evar _x tint) (Econst_int (Int.repr 0) tint)) (λ v t, True).
+  Goal forall Espec Delta (_x:ident) (x: address) ty,
+  ⊢ <affine> (local $ locald_denote $ temp _x x) -∗
+    ⎡ ty_own ty Own x ⎤ -∗
+    ⎡ x↦{Tsh}|tint|_ ⎤ -∗
+    (* ⎡ Vint (Int.repr 0) ◁ᵥ 0 @ int tint ⎤ -∗ *)
+    typed_stmt Espec Delta (Sassign (Evar _x tint) (Econst_int (Int.repr 1) tint)) (λ v t, True).
   Proof.
   iIntros.
   (* usually Info level 0 is able to see the tactic applied *)
@@ -381,6 +384,16 @@ Section automation_tests.
   liRStep.
   liRStep.
   
-  (** Ke: TODO need typed_val_expr (Evar _x tint)  *)
+  (** `l ◁ₗ{β1} ty1` and  `lv ◁ᵥ ty1` seems weird; maybe fix type_write_simple? *)
+
+  liRStep.
+  liRStep.
+  liRStep.
+  liRStep.
+  liRStep.
+  liRStep.
+  liRStep.
+  liRStep.
+
   Abort.
 End automation_tests.

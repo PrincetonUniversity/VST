@@ -1869,6 +1869,68 @@ Section typing.
     by iApply ("Hop" with "Hv").
   Qed.
 
+  Lemma wp_tempvar_local : forall _x x c_ty T,
+    <affine> (local $ locald_denote $ temp _x x) ∗ T x 
+    ⊢ wp_expr (Etempvar _x c_ty) T.
+  Proof.
+    intros. rewrite /wp_expr /=.
+    iIntros "[H HT]" (?) "Hm".
+    iExists _; iFrame. iSplit;[|done]. 
+    rewrite bi.affinely_elim.
+    iStopProof; split => rho.
+    rewrite /local /lift1 /=.
+    iIntros "[% %]" (?????).
+    iPureIntro. econstructor.
+    unfold eval_id in H.
+    rewrite lift1_unfoldC in H. rewrite lift0_unfoldC in H0.
+    rewrite a3 in H. simpl in H.
+    unfold Map.get in H. unfold force_val in H.
+    unfold make_tenv in H.
+    destruct (a1 !! _x)%maps eqn:?; [|done]. subst. done.
+  Qed.
+
+  Lemma type_tempvar _x v c_ty T ty:
+    <affine> (local $ locald_denote $ temp _x v) ∗ ⎡ v ◁ᵥ ty ⎤ ∗ T v ty
+    ⊢ typed_val_expr (Etempvar _x c_ty) T.
+  Proof.
+    iIntros "(? & ? & ?)" (Φ) "HΦ".
+    iApply wp_tempvar_local. iFrame.
+    by iApply ("HΦ" with "[$]").
+  Qed.
+
+  Lemma wp_var_local : forall _x c_ty (v:val) (l:address) T,
+    <affine> (local $ locald_denote $ temp _x l) ∗
+    T v
+    ⊢ wp_expr (Evar _x c_ty) T.
+  Proof.
+    intros. subst. rewrite /wp_expr /=.
+    iIntros "[H HT]" (?) "Hm".
+    iExists _; iFrame. iSplit;[|done]. 
+    rewrite bi.affinely_elim.
+    iStopProof; split => rho.
+    rewrite /local /lift1 /=.
+    iIntros "[% %]" (?????).
+    iPureIntro.
+    unfold eval_id in H.
+    rewrite lift1_unfoldC in H. rewrite lift0_unfoldC in H0.
+    rewrite a3 in H. simpl in H.
+    unfold Map.get in H. unfold force_val in H.
+    unfold make_tenv in H.
+    destruct (a1 !! _x)%maps eqn:?; [|done].
+    econstructor. 
+    - econstructor. 
+      instantiate (1:=l.1).
+  Admitted.
+
+  Lemma type_var_local _x (l:address) ty (own:own_state) c_ty (T: val -> type -> assert) sh:
+    <affine> (local $ locald_denote $ temp _x l) ∗
+    ⎡ ty_own ty own l ⎤ ∗
+    ⎡ l ↦{sh}|c_ty| _ ⎤ ∗
+    T (addr_to_val l) ty
+    ⊢ typed_val_expr (Evar _x c_ty) T.
+  Proof.
+  Admitted.
+
 (*  Lemma type_call_syn T ef es:
     typed_val_expr (Call ef es) T :-
       vf, tyf ← {typed_val_expr ef};
