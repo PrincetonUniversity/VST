@@ -351,7 +351,7 @@ Section automation_tests.
 
    Set Ltac Backtrace.
 
-  (* Goal forall Espec Delta (_x:ident) (x:val),
+  Goal forall Espec Delta (_x:ident) (x:val),
   <affine> (local $ locald_denote $ temp _x x)
   ⊢ typed_stmt Espec Delta (Sset _x (Ebinop Oadd (Econst_int (Int.repr 41) tint) (Econst_int (Int.repr 1) tint) tint)) 
                            (λ v t, <affine> local (locald_denote (temp _x (Vint (Int.repr 42))))
@@ -361,7 +361,7 @@ Section automation_tests.
     do 30 liRStep.
     liShow; try done.
  (** TODO make use of Objective environment *)
-  Qed. *)
+  Qed.
 
   Goal forall Espec Delta (_x:ident) (x: address) ty,
   ⊢ <affine> (local $ locald_denote $ temp _x x) -∗
