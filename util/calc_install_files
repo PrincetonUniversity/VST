@@ -2,6 +2,10 @@
 #  The $1 argument of this script should be the desired make target
 
 MAKE=${MAKE:-make}
-${MAKE} depend >& /dev/null
-${MAKE} CLIGHTGEN="CLIGHTGEN" -Bn veric floyd $1 2>/dev/null | \
- awk '/^echo COQC /{print $NF}/^CLIGHTGEN/{print $NF}'
+LOG_DEPEND_FILE=${LOG_DEPEND_FILE:-.calc_install_files.depend.log}
+LOG_MAKE_FILE=${LOG_MAKE_FILE:-.calc_install_files.make.log}
+${MAKE} depend >& "${LOG_DEPEND_FILE}" || \
+    { printf "Error in %s: %s\n" "$0" "${MAKE} depend"; cat "${LOG_DEPEND_FILE}"; } >&2
+{ ${MAKE} CLIGHTGEN="CLIGHTGEN" -Bn veric floyd $1 2>"${LOG_MAKE_FILE}" || \
+      { printf "Error in %s: %s\n" "$0" "${MAKE} CLIGHTGEN=\"CLIGHTGEN\" -Bn veric floyd $1"; cat "${LOG_MAKE_FILE}"; } >&2; } | \
+    awk '/^echo COQC /{print $NF}/^CLIGHTGEN/{print $NF}'
