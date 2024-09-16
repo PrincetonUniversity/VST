@@ -9,6 +9,7 @@ Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.semax.
 Require Import VST.veric.semax_straight.
+Require Import VST.veric.semax_call.
 
 Global Instance local_absorbing `{!heapGS Σ} l : Absorbing (local l).
 Proof.
@@ -268,8 +269,6 @@ Definition wp_exprs es ts Φ : assert :=
             Clight.eval_exprlist ge ve te m es ts vs (*/\ typeof e = t /\ tc_val t v*)) ∧
          ⎡juicy_mem.mem_auth m⎤ ∗ Φ vs.
 
-Require Import VST.veric.semax_call.
-
 Lemma alloc_stackframe:
   forall m f te
       (COMPLETE: Forall (fun it => complete_type (genv_cenv ge) (snd it) = true) (fn_vars f))
@@ -444,7 +443,7 @@ Lemma wp_call: forall E f0 e es (R : assert),
                  /\ list_norepet (map fst f.(fn_params) ++ map fst f.(fn_temps))
                  /\ list_norepet (map fst f.(fn_vars)) /\ var_sizes_ok (genv_cenv ge) (f.(fn_vars))⌝ ∧
     wp_exprs es (type_of_params (fn_params f)) (λ vs, assert_of (λ rho,
-      ∀ rho', stackframe_of' (genv_cenv ge) f rho' -∗ wp E f f.(fn_body) (assert_of (λ rho'', stackframe_of' (genv_cenv ge) f rho'' ∗ R rho)) rho'))) ⊢
+      ∀ rho', stackframe_of' (genv_cenv ge) f rho' -∗ ▷ wp E f f.(fn_body) (assert_of (λ rho'', stackframe_of' (genv_cenv ge) f rho'' ∗ R rho)) rho'))) ⊢
   wp E f0 (Scall None e es) R.
 Proof.
   intros; split => rho; rewrite /wp.
@@ -472,7 +471,7 @@ Proof.
   { iPureIntro; econstructor; eauto. admit. }
   iFrame.
   iApply ("H" with "[$] [Hk]"); last done.
-  iIntros (?) "(? & HR)".
+  iIntros "!>" (?) "(? & HR)".
   iIntros (??? ->).
   iApply jsafe_step.
   rewrite /jstep_ex.

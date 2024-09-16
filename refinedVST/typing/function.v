@@ -132,7 +132,11 @@ Section function.
     destruct fs as [[]]; apply _.
   Qed.*)
 
-  Definition fntbl_entry f fn : iProp Σ := <affine> ⌜exists b, f = Vptr b Ptrofs.zero /\ Genv.find_funct_ptr ge b = Some (Internal fn)⌝.
+  Definition fntbl_entry f fn : iProp Σ := <affine> ⌜exists b, f = Vptr b Ptrofs.zero /\ Genv.find_funct_ptr ge b = Some (Internal fn) /\
+    (* function decl is wellformed *)
+    Forall (λ it : ident * Ctypes.type, complete_type ge it.2 = true) (fn_vars fn) /\
+    list_norepet (map fst (Clight.fn_params fn) ++ map fst (fn_temps fn)) /\
+    list_norepet (map fst (fn_vars fn)) /\ @var_sizes_ok (genv_cenv ge) (fn_vars fn)⌝.
 
   Program Definition function_ptr_type (fp : dtfr A → fn_params) (f : address) : type := {|
     ty_has_op_type ot mt := (∃ t, ot = tptr t)%type;
@@ -159,8 +163,22 @@ Section function.
     erewrite singleton.mapsto_tptr. iFrame. iModIntro. rewrite singleton.field_compatible_tptr. do 2 iSplit => //. by iIntros "_".
   Qed.
 
-  Lemma type_call_fnptr l e el tys fp T:
-    match typeof e with Tfunction tl _ _ =>
+  (* modified from lifting *)
+  Lemma wp_call: forall E e es (R : ret_assert),
+    wp_expr e (λ v, ∃ f, ⌜exists b, v = Vptr b Ptrofs.zero /\ Genv.find_funct_ptr ge b = Some (Internal f) /\
+      classify_fun (typeof e) =
+      fun_case_f (type_of_params (Clight.fn_params f)) (fn_return f) (fn_callconv f) /\
+      Forall (fun it => complete_type (genv_cenv ge) (snd it) = true) (fn_vars f)
+                   /\ list_norepet (map fst f.(Clight.fn_params) ++ map fst f.(fn_temps))
+                   /\ list_norepet (map fst f.(fn_vars)) /\ @var_sizes_ok (genv_cenv ge) (f.(fn_vars))⌝ ∧
+      wp_exprs es (type_of_params (Clight.fn_params f)) (λ vs, assert_of (λ rho,
+        ∀ rho', stackframe_of' (genv_cenv ge) f rho' -∗ ▷ wp_stmt Espec E Delta f.(fn_body) (normal_ret_assert (assert_of (λ rho'', stackframe_of' (genv_cenv ge) f rho'' ∗ RA_normal R rho))) rho'))) ⊢
+    wp_stmt Espec E Delta (Scall None e es) R.
+  Admitted.
+
+
+  Lemma type_call_fnptr l e el fp tys T:
+    match typeof e with Tfunction tl retty cc =>
     (typed_exprs el tl (λ vl tl, ⌜tl = tys⌝ ∧ ∃ x,
       ([∗ list] v;ty∈vl; (fp x).(fp_atys), ⎡v ◁ᵥ ty⎤) ∗
       ⎡(fp x).(fp_Pa)⎤ ∗ ∀ v x',
@@ -171,7 +189,34 @@ Section function.
   Proof.
     rewrite /typed_exprs /typed_call.
     destruct (typeof e) eqn: Hargty; try by iIntros "[]".
-    iIntros "HT He Hargs".
+    iIntros "HT He".
+    iApply wp_call.
+    iApply "He".
+    iIntros (??) "Hty Hfp".
+    iDestruct "Hfp" as (? -> (b & Hl & Hb & Hwf)) "Hfp".
+    assert (typeof e = Tfunction (type_of_params (Clight.fn_params fn)) (fn_return fn) (fn_callconv fn)) as Hsig.
+    { rewrite Hargty /=.
+      admit. (* Clight does a runtime check that the function is being called at its
+                  declared type, which is awkward in this framework. *) }
+    rewrite Hargty in Hsig; inv Hsig.
+    iExists fn; iSplit.
+    { iPureIntro.
+      exists b; split3; auto; split; auto.
+      rewrite Hargty //. }
+    iApply "HT".
+    iIntros (??) "Hvl (-> & Hpre)".
+    iDestruct "Hpre" as (x) "(Hargs & Hpre & Hret)".
+    iStopProof.
+    split => rho; monPred.unseal.
+    iIntros "(Hl & Hf & Htys & Hatys & HP & Hpost)" (?) "Hstack !>".
+    rewrite /typed_function.
+    iSpecialize ("Hf" $! x).
+    iDestruct "Hf" as (?) "Hf".
+    iDestruct ("Hf" with "[-]") as (??) "Hf".
+    { rewrite /Qinit.
+      admit. }
+Admitted.
+
 (*    
 
     iIntros "HT (%fn&->&He&Hfn) Htys" (Φ) "HΦ".

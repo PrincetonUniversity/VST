@@ -14,7 +14,7 @@ Section CompatRefinedC.
   Arguments has_layout_val : simpl never.
   Global Typeclasses Opaque has_layout_val.
 
-  
+
   (*  NOTE maybe change this with field_compatible? *)
   Definition has_layout_loc (l:address) (ot:Ctypes.type) : Prop :=
     (* field_compatible ot [] l. *)
@@ -483,7 +483,7 @@ Section judgements.
      conditions for a call to be safe. *)
   Definition typed_call Espec Delta (e : expr) (P : assert) (el : list expr) (tys : list type) (T : val → type → assert) : assert :=
     match typeof e with
-    | Tfunction ts _ _ => (P -∗ (typed_exprs el ts (λ _ tl, <affine> ⌜tl = tys⌝)) -∗ typed_stmt Espec Delta (Scall None e el) T)%I
+    | Tfunction ts _ _ => (P -∗ (*(typed_exprs el ts (λ _ tl, <affine> ⌜tl = tys⌝)) -∗*) typed_stmt Espec Delta (Scall None e el) T)%I
     | _ => False
     end.
   Class TypedCall Espec Delta (e : expr) (P : assert) (el : list expr) (tys : list type) : Type :=
