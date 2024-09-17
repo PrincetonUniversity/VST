@@ -121,7 +121,7 @@ jobs:
 
     steps:
       - name: 'Download archive'
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4
         id: download
         with:
           name: 'VST build artifacts ${{matrix.coq_version}} ${{matrix.bit_size}}'
