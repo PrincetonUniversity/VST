@@ -38,7 +38,7 @@ jobs:
           - coq_version: dev
             bit_size: 32
     steps:
-      - uses: actions/checkout@v4.1.7
+      - uses: actions/checkout@v4
         with:
           submodules: true
       - uses: coq-community/docker-coq-action@v1
@@ -78,7 +78,7 @@ jobs:
       - name: 'Create archive'
         run: tar -cpvzf archive.tgz * .depend
       - name: 'Upload archive'
-        uses: actions/upload-artifact@v4.1.7
+        uses: actions/upload-artifact@v4
         with:
           name: 'VST build artifacts ${{matrix.coq_version}} ${{matrix.bit_size}}'
           path: archive.tgz
