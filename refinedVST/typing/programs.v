@@ -7,90 +7,6 @@ From VST.floyd Require Import globals_lemmas.
 
 Open Scope Z.
 
-Section CompatRefinedC.
-  Context `{!typeG Σ} {cs : compspecs}.
-
-  Definition has_layout_val (v:val) (ot:Ctypes.type) : Prop := tc_val' ot v.
-  Arguments has_layout_val : simpl never.
-  Global Typeclasses Opaque has_layout_val.
-
-
-  (*  NOTE maybe change this with field_compatible? *)
-  Definition has_layout_loc (l:address) (ot:Ctypes.type) : Prop :=
-    (* field_compatible ot [] l. *)
-    match access_mode ot with
-    | By_value ch =>  (align_chunk ch | Ptrofs.unsigned (Ptrofs.repr l.2))
-    | _ => False
-    end.
-
-  Arguments has_layout_loc : simpl never.
-  Global Typeclasses Opaque has_layout_loc.
-
-  Definition mapsto (l : address) (q : Share.t) (ot : Ctypes.type) (v : val) : mpred := mapsto q ot l v. 
-  Definition mapsto_layout (l : address) (q : Share.t) (ot : Ctypes.type) : mpred :=
-    (∃ v,  <affine>⌜has_layout_val v ot⌝ ∗ <affine>⌜has_layout_loc l ot⌝ ∗ mapsto l q ot v).
-  Definition mapsto_layout_ (l : address) (q : Share.t) (ot : Ctypes.type) : mpred :=
-    (∃ v, mapsto l q ot v).
-  
-  Lemma maptso_layout_has_layout_val l q ot (v:val) :
-    mapsto l q ot v ⊢ ⌜has_layout_val v ot⌝.
-  Proof.
-    unfold mapsto, mapsto_memory_block.mapsto.
-    iIntros "H".
-    destruct (access_mode ot) eqn:Hot; try done.
-    destruct (type_is_volatile ot) eqn:Hotv; try done.
-    destruct l eqn:Hl; try done.
-    destruct (readable_share_dec q) eqn:Hq; unfold has_layout_val, tc_val'.
-    - rewrite bi.pure_impl.  iIntros "%". iDestruct "H" as "[[$ _]|[% _]]". done.
-    - iDestruct "H" as "[[$ _] _]".
-  Qed.
-
-  Lemma maptso_layout_has_layout_loc (l:address) q ot (v:val) :
-    mapsto l q ot v ⊢ ⌜has_layout_loc l ot⌝.
-  Proof.
-    unfold mapsto, mapsto_memory_block.mapsto, has_layout_loc.
-    iIntros "H".
-    destruct (access_mode ot) eqn:Hot; try done.
-    destruct (type_is_volatile ot) eqn:Hotv; try done.
-    destruct (addr_to_val l) eqn:Hl; try done.
-    destruct (readable_share_dec q) eqn:Hq.
-    - iDestruct "H" as "[[% H]|[% H]]".
-      + unfold address_mapsto.
-        inv Hl.
-        iDestruct "H" as (ms) "((% & % & $) & ?)".
-      + unfold address_mapsto.
-        inv Hl.
-        iDestruct "H" as (??) "((% & % & $) & ?)".  
-    -  iDestruct "H" as "[[_ %] _]"; iPureIntro.
-       inv Hl.
-       done.
-Qed.
-
-  Lemma mapsto_layout_equiv l q ot :
-    mapsto_layout l q ot ⊣⊢ mapsto_layout_ l q ot.
-  Proof.
-    rewrite /mapsto_layout /mapsto_layout_.
-    apply bi.equiv_entails_2; apply bi.exist_mono => v.
-    - iIntros "(? & ? & $)".
-    - iIntros "H".
-      iSplit. { rewrite maptso_layout_has_layout_val //. iDestruct "H" as "%". iPureIntro; done. }
-      iSplit. { rewrite maptso_layout_has_layout_loc //. iDestruct "H" as "%". iPureIntro; done. }
-      done.
-  Qed.
-
-  End CompatRefinedC.
-
-  Notation "v `has_layout_val` ot" := (has_layout_val v ot) (at level 50) : stdpp_scope.
-  Notation "l `has_layout_loc` ot" := (has_layout_loc l ot) (at level 50) : stdpp_scope.
-  Notation "l ↦{ sh '}' '|' ot '|' v" := (mapsto l sh ot v)
-    (at level 20, sh at level 50, format "l ↦{ sh '}' '|' ot '|' v") : bi_scope.
-  Notation "l ↦| ot | v" := (mapsto l Tsh ot v)
-    (at level 20, format "l  ↦| ot | v") : bi_scope.
-  Notation "l ↦{ sh '}' '|' ot '|' '_'" := (mapsto_layout l sh ot)
-    (at level 20, sh at level 50, format "l ↦{ sh '}' '|' ot '|' _") : bi_scope.
-  Notation "l ↦| ot '|' '-'" := (mapsto_layout l Tsh ot)
-    (at level 20, format "l ↦| ot '|' '-'") : bi_scope.
-
 (* int infrastructure *)
 Definition val_to_Z (v : val) (t : Ctypes.type) : option Z :=
   match v, t with
@@ -113,17 +29,19 @@ Definition i2v n t :=
   | _ => Vundef
   end.
 
-Inductive in_range n : Ctypes.type → Prop :=
-| in_range_int_s sz a : repable_signed n -> in_range n (Tint sz Signed a)
-| in_range_int_u sz a : 0 <= n < Z.pow 2 (bitsize_intsize sz) -> in_range n (Tint sz Unsigned a)
-| in_range_long_s a : Int64.min_signed <= n <= Int64.max_signed -> in_range n (Tlong Signed a)
-| in_range_long_u a : 0 <= n <= Int64.max_unsigned -> in_range n (Tlong Unsigned a).
+Definition in_range (n:Z) (t: Ctypes.type) : Prop :=
+  match t with
+  | Tint sz Signed _ => repable_signed n
+  | Tint sz Unsigned _ => 0 <= n < Z.pow 2 (bitsize_intsize sz)
+  | Tlong Signed _ => Int64.min_signed <= n <= Int64.max_signed
+  | Tlong Unsigned _ => 0 <= n <= Int64.max_unsigned
+  | _ => False
+  end.
 
 Lemma val_to_Z_in_range : forall v t n, val_to_Z v t = Some n -> in_range n t.
 Proof.
   intros; destruct v, t; try discriminate; destruct s; inv H; constructor; try rep_lia.
-  if_tac in H1; inv H1.
-  rep_lia.
+  all: if_tac in H1; inv H1; rep_lia.
 Qed.
 
 Definition int_eq v1 v2 :=
@@ -133,14 +51,27 @@ Definition int_eq v1 v2 :=
   | _, _ => false
   end.
 
+Global Instance repable_signed_dec i : Decision (repable_signed i).
+refine (repable_signed_dec _). Defined.
+
 Global Instance elem_of_type : ElemOf Z Ctypes.type := in_range.
+Global Instance elem_of_type_dec (i : Z) (t:Ctypes.type) : Decision (i ∈ t).
+Proof.
+  unfold elem_of, elem_of_type.
+  destruct t; try solve [
+    refine (right _ );  unfold not; intros; inv H].
+  all: destruct s;  unfold in_range;  apply _.
+Qed.
+
+(* Global Instance int_elem_of_type : ElemOf Integers.int Ctypes.type :=
+  λ i t, Int.intval i ∈ t. *)
 
 Lemma i2v_to_Z : forall n t, in_range n t -> val_to_Z (i2v n t) t = Some n.
 Proof.
   intros.
-  inv H; rewrite /val_to_Z /i2v.
+  destruct t; try done; rewrite /val_to_Z /i2v; destruct s; simpl in H. 
   - rewrite Int.signed_repr //.
-  - rewrite Int.unsigned_repr; last by pose proof (bitsize_max sz); rep_lia.
+  - rewrite Int.unsigned_repr; last by pose proof (bitsize_max i); rep_lia.
     if_tac; [done | lia].
   - rewrite Int64.signed_repr //.
   - rewrite Int64.unsigned_repr //.
@@ -193,7 +124,7 @@ Section judgements.
   make it as specific as we can before we do the duplication (e.g.
   destruct all existentials in it). *)
   Definition copy_as (l : address) (β : own_state) (ty : type) (T : type → iProp Σ) : iProp Σ :=
-    l ◁ₗ{β} ty -∗ ∃ ty', l ◁ₗ{β} ty' ∗ ⌜Copyable ty'⌝ ∗ T ty'.
+    l ◁ₗ{β} ty -∗ ∃ ty', l ◁ₗ{β} ty' ∗ <affine> ⌜Copyable ty'⌝ ∗ T ty'.
   Class CopyAs (l : address) (β : own_state) (ty : type) : Type :=
     copy_as_proof T : iProp_to_Prop (copy_as l β ty T).
 
@@ -392,16 +323,23 @@ Section judgements.
     (∀ Φ, (∀ v (ty : type), ⎡v ◁ᵥ ty⎤ -∗ T v ty -∗ Φ v) -∗ wp_expr e Φ).
   Global Arguments typed_val_expr _ _%_I.
 
-  Definition wp_lvalue e Φ : assert :=
+  Definition wp_lvalue e (Φ: address -> assert) : assert :=
   ∀ m, ⎡juicy_mem.mem_auth m⎤ -∗
          ∃ b o, local (λ rho, forall ge ve te,
             rho = construct_rho (filter_genv ge) ve te ->
             Clight.eval_lvalue ge ve te m e b o Full (*/\ typeof e = t /\ tc_val t v*)) ∧
-         ⎡juicy_mem.mem_auth m⎤ ∗ Φ (Vptr b o).
+         ⎡juicy_mem.mem_auth m⎤ ∗ Φ (b, Ptrofs.unsigned o).
 
-  Definition typed_lvalue e T : assert :=
-    (∀ Φ, (∀ v (ty : type), ⎡v ◁ᵥ ty⎤ -∗ T v ty -∗ Φ v) -∗ wp_lvalue e Φ).
+  (* FIXME sounds like typed_addr_of, although typed_addr_of is for typing `&e`; are they the same?  *)
+  Definition typed_lvalue β e T : assert :=
+    (∀ Φ:address->assert, 
+      (∀ (l:address) (ty : type),
+        ⎡l ◁ₗ{β} ty⎤ (* typed_write_end has this so maybe here needs it too? *) 
+        -∗ T l ty -∗ Φ l)
+      -∗ wp_lvalue e Φ).
   Global Arguments typed_lvalue _ _%_I.
+  Class TypedLvalue β (e : expr) : Type :=
+    typed_lvalue_proof T : iProp_to_Prop (typed_lvalue β e T).
 
   Definition typed_value (v : val) (T : type → assert) : assert :=
     (∃ (ty: type), ⎡v ◁ᵥ ty⎤ ∗ T ty).
@@ -523,13 +461,13 @@ Section judgements.
 
   Definition typed_write (atomic : bool) (e : expr) (ot : Ctypes.type) (v : val) (ty : type) (T : assert) : assert :=
     let E := if atomic then ∅ else ⊤ in
-    (∀ (Φ: val->assert),
+    (∀ (Φ: address->assert),
         (∀ (l:address), (⎡v ◁ᵥ ty⎤ ={⊤, E}=∗
                 <affine> ⌜v `has_layout_val` ot⌝ ∗ ⎡ l ↦|ot| - ⎤ ∗
                 (* Ke : maybe we need later afterall because write is only done a write statement after? *)
                 ▷(⎡ l ↦|ot| v ⎤ ={E, ⊤}=∗ T))
               -∗ Φ l) -∗
-       wp_expr e Φ)%I.
+       wp_lvalue e Φ)%I.
 
   (** [typed_read atomic e ot memcast] typechecks a read with op_type
   ot of the expression [e]. [atomic] says whether the read is an
@@ -1015,8 +953,8 @@ Ltac generate_i2p_instance_to_tc_hook arg c ::=
 (*  | typed_call ?x1 ?x2 ?x3 ?x4 => constr:(TypedCall x1 x2 x3 x4)
   | typed_copy_alloc_id ?x1 ?x2 ?x3 ?x4 ?x5 => constr:(TypedCopyAllocId x1 x2 x3 x4 x5)
   | typed_place ?x1 ?x2 ?x3 ?x4 => constr:(TypedPlace x1 x2 x3 x4)
-  | typed_read_end ?x1 ?x2 ?x3 ?x4 ?x5 ?x6 ?x7 => constr:(TypedReadEnd x1 x2 x3 x4 x5 x6 x7)
-  | typed_write_end ?x1 ?x2 ?x3 ?x4 ?x5 ?x6 ?x7 ?x8 => constr:(TypedWriteEnd x1 x2 x3 x4 x5 x6 x7 x8) *)
+  | typed_read_end ?x1 ?x2 ?x3 ?x4 ?x5 ?x6 ?x7 => constr:(TypedReadEnd x1 x2 x3 x4 x5 x6 x7) *)
+  | typed_write_end ?x1 ?x2 ?x3 ?x4 ?x5 ?x6 ?x7 ?x8 => constr:(TypedWriteEnd x1 x2 x3 x4 x5 x6 x7 x8) 
   | typed_addr_of_end ?x1 ?x2 ?x3 => constr:(TypedAddrOfEnd x1 x2 x3)
 (*   | typed_cas ?x1 ?x2 ?x3 ?x4 ?x5 ?x6 ?x7 => constr:(TypedCas x1 x2 x3 x4 x5 x6 x7) *)
   | typed_annot_expr ?x1 ?x2 ?x3 ?x4 => constr:(TypedAnnotExpr x1 x2 x3 x4)
@@ -1481,10 +1419,10 @@ Section typing.
 
   Lemma wp_store: forall ESpec E Delta e1 e2 R_ret,
     wp_expr (Ecast e2 (typeof e1)) (λ v2,
-        ⌜Cop2.tc_val' (typeof e1) v2⌝ ∧ wp_expr e1 (λ (v1: val),
+        ⌜Cop2.tc_val' (typeof e1) v2⌝ ∧ wp_lvalue e1 (λ l1,
         |={⊤}=> (* ? *)
-      ∃ sh,  <affine> ⌜writable0_share sh⌝ ∗ ⎡mapsto_ sh (typeof e1) v1⎤ ∗
-      (∃ l1, ⌜val2address v1 = Some l1⌝ ∧ ⎡mapsto l1 sh (typeof e1) v2⎤ ={E}=∗ (RA_normal R_ret))))
+      ∃ sh, <affine> ⌜writable0_share sh⌝ ∗ ⎡l1↦{sh}|typeof e1| _⎤ ∗
+      ▷(⎡l1↦{sh}|typeof e1| v2⎤ ={E}=∗ (RA_normal R_ret))))
     ⊢ wp_stmt ESpec E Delta (Sassign e1 e2) R_ret.
   Admitted.
 
@@ -1500,26 +1438,22 @@ Section typing.
   Proof.
     unfold typed_stmt.
     rewrite -wp_store.
-    unfold typed_val_expr.
     iIntros "H". iApply "H".
     iIntros (v ty) "H [% ty_write]".
     iSplit; [done|].
 
     iApply "ty_write".
     iIntros (l) "upd".
-    iMod ("upd" with "H") as "(%Hot & b & c)"; iModIntro.
+    iMod ("upd" with "H") as "(%Hot & ? & upd)"; iModIntro.
     iExists Tsh.
     iSplit; [auto|].
-    (* iSplitL "b". { unfold mapsto.
-    rewrite mapsto_mapsto_ //. }
-    iExists l.
-    iIntros "[%a b]".
-    iMod ("c" with "b").
-    iModIntro.
-    unfold typed_stmt_post_cond; simpl.
-    iExists tytrue.
-    iFrame. done. *)
-  Admitted.
+    iFrame.
+    iModIntro. iIntros "l↦".
+    iSpecialize ("upd" with "l↦").
+    iMod "upd". iModIntro.
+    rewrite /RA_normal /typed_stmt_post_cond.
+    iExists tytrue; iSplit; done.
+  Qed.
 
   Lemma wp_semax : forall Espec E Delta P s Q, (P ⊢ wp_stmt Espec E Delta s Q) → semax(OK_spec := Espec) E Delta P s Q.
   Proof.
@@ -1540,17 +1474,17 @@ Section typing.
 
   Lemma type_set Espec Delta (id:ident) v e (T: val -> type -> assert):
     <affine> (local $ locald_denote $ temp id v) ∗
-    typed_val_expr e (λ v' ty, ⌜v' ≠ Vundef⌝ ∧ ⎡∀ rho, <affine> (local $ locald_denote $ temp id v') rho -∗ v' ◁ᵥ ty -∗ T Vundef tytrue rho⎤)%I
+    typed_val_expr e (λ v' ty, <affine> ⌜v' ≠ Vundef⌝ ∗ ⎡∀ rho, <affine> (local $ locald_denote $ temp id v') rho -∗ v' ◁ᵥ ty -∗ T Vundef tytrue rho⎤)%I
       ⊢ typed_stmt Espec Delta (Sset id e) T.
   Proof.
     iIntros "(#? & He)".
     iApply wp_set.
     iApply "He".
-    iIntros (??) "??".
+    iIntros (??) "? [% ?]".
     rewrite /typed_stmt_post_cond /RA_normal.
     iStopProof; split => rho; monPred.unseal.
     rewrite monPred_at_intuitionistically /= /lift1 /subst /=.
-    iIntros "(% & ? & % & HT)".
+    iIntros "(% & ? & HT)".
     super_unfold_lift.
     iExists tytrue; iSplit; first done.
     iApply ("HT" with "[%] [$]").
@@ -1854,6 +1788,111 @@ Section typing.
     by iApply ("Hop" with "Hv").
   Qed.
 
+  Lemma wp_tempvar_local : forall _x x c_ty T,
+    <affine> (local $ locald_denote $ temp _x x) ∗ T x 
+    ⊢ wp_expr (Etempvar _x c_ty) T.
+  Proof.
+    intros. rewrite /wp_expr /=.
+    iIntros "[H HT]" (?) "Hm".
+    iExists _; iFrame. iSplit;[|done]. 
+    rewrite bi.affinely_elim.
+    iStopProof; split => rho.
+    rewrite /local /lift1 /=.
+    iIntros "[% %]" (?????).
+    iPureIntro. econstructor.
+    unfold eval_id in H.
+    rewrite lift1_unfoldC in H. rewrite lift0_unfoldC in H0.
+    rewrite a3 in H. simpl in H.
+    unfold Map.get in H. unfold force_val in H.
+    unfold make_tenv in H.
+    destruct (a1 !! _x)%maps eqn:?; [|done]. subst. done.
+  Qed.
+
+  Lemma type_tempvar _x v c_ty T ty:
+    <affine> (local $ locald_denote $ temp _x v) ∗ ⎡ v ◁ᵥ ty ⎤ ∗ T v ty
+    ⊢ typed_val_expr (Etempvar _x c_ty) T.
+  Proof.
+    iIntros "(? & ? & ?)" (Φ) "HΦ".
+    iApply wp_tempvar_local. iFrame.
+    by iApply ("HΦ" with "[$]").
+  Qed.
+  
+  (* Definition normalized_address (l:address) : address := 
+    (l.1,  l.2 mod ). *)
+
+  Lemma wp_var_local : forall _x c_ty (lv:val) (T:address->assert),
+    <affine> (local $ locald_denote $ lvar _x c_ty lv) ∗
+    (∃ l, <affine> ⌜Some l = val2address lv⌝ ∗
+    T l)
+    ⊢ wp_lvalue (Evar _x c_ty) T.
+  Proof.
+    intros. subst. rewrite /wp_lvalue  /=.
+    (* iIntros  "( %b & (-> & H & Hrho & HT))" (m) "Hm". *)
+    iIntros  "(Hl & [%l [% HT]])" (m) "Hm".
+    iStopProof. go_lowerx.
+    rewrite !monPred_at_affinely /=.
+    iIntros "(%Hvar & H & ?)".
+
+    unfold lvar_denote in Hvar.
+    destruct ( Map.get (ve_of rho) _x) eqn:Hve; [|done].
+    destruct p. destruct Hvar.
+    rewrite H1 in H. inversion H.
+    iExists _, _.
+    iSplit.
+    - iPureIntro. intros.
+      inversion H1.
+      apply eval_Evar_local. subst. apply Hve.
+    - iFrame. rewrite Ptrofs.unsigned_zero Ptrofs.signed_zero //.
+  Qed.
+
+  Lemma exploit_local (P:environ->Prop) (Q:Prop):
+    (forall rho, P rho->Q) ->
+    (⊢ local P) ->
+    Q.
+  Proof.
+    intros H1 H2.
+    assert (local P ⊢ ⌜Q⌝).
+    { go_lowerx. intros. iPureIntro. intros. apply (H1 _ H). }
+    rewrite H in H2.
+    eapply  ouPred.pure_soundness. 
+    destruct H2 as [H2].
+    pose proof environ_inhabited. inversion X as [x].
+    specialize (H2 x).
+    rewrite monPred_at_pure monPred_at_emp in H2.
+    done.
+  Qed.
+
+  Lemma tac_exploit_local (P:environ->Prop) (Q:Prop):
+    (forall rho, P rho->Q) ->
+    local P -∗ <absorb> ⌜Q⌝.
+  Proof.
+    intro H.
+    go_lowerx. iIntros "_" (??) "H".
+    rewrite monPred_at_absorbingly.
+    simpl.
+    iDestruct "H" as "%".
+    iPureIntro. eapply H. done.  
+  Qed.
+
+  
+
+  Lemma type_var_local _x (lv:val) β ty c_ty (T: address -> type -> assert) :
+    <affine> (local $ locald_denote $ lvar _x c_ty lv) ∗
+    (∃ l, <affine> ⌜Some l = val2address lv⌝ ∗
+    ⎡ l ◁ₗ{β} ty ⎤ ∗
+    T l ty)
+    ⊢ typed_lvalue β (Evar _x c_ty) T.
+  Proof.
+    iIntros "(Hlvar & (%l & %Hl & Hl_own & HT))" (Φ) "HΦ".
+    iApply (wp_var_local _ _ _).
+    (* iPoseProof (tac_exploit_local with "Hlvar") as "%H";[apply lvar_isptr|]. *)
+    iFrame.
+    destruct lv eqn:Heql; try done.
+    iExists _.
+    iSplit;[done|].
+    iApply ("HΦ" with "[$]"). done.
+  Qed.
+
 (*  Lemma type_call_syn T ef es:
     typed_val_expr (Call ef es) T :-
       vf, tyf ← {typed_val_expr ef};
@@ -2054,37 +2093,34 @@ Section typing.
 
   (* Ke: a simple version of type_write that treat typed_place as just typed_val_expr. 
          Not so sure about what's inside typed_val_expr outside of typed_write_end. *)
-  Lemma type_write_simple (a : bool) ty T e v ot:
-    (typed_val_expr e (λ lv ty1, ∃ l β1, <affine> ⌜addr_to_val l = lv⌝ ∗ ⎡l ◁ₗ{β1} ty1⎤ ∗
-      (⎡ lv ◁ᵥ ty1 ⎤ -∗
-      typed_write_end a ⊤ ot v ty l β1 ty1 (λ ty3:type, ⎡l ◁ₗ{β1} ty3⎤ -∗ T))))%I
+  Lemma type_write_simple β1 (a : bool) ty T e v ot:
+    (typed_lvalue β1 e (λ l ty1, ∀ β2,
+      typed_write_end a ⊤ ot v ty l β2 ty1 (λ ty3:type, ⎡l ◁ₗ{β1} ty3⎤ -∗ T)))%I
     ⊢ typed_write a e ot v ty T.
   Proof.
     iIntros "typed_e".
     iIntros (Φ) "HΦ".
-    iApply "typed_e". iIntros (lv ty1) "Hv".
-    iIntros "(%l & %β1 & %Hl & own_l & H)".
-    iEval (rewrite -Hl). iApply "HΦ".
+    unfold typed_lvalue.
+    iApply "typed_e". iIntros (l ty1) "Hv typed_write_end".
+    iApply "HΦ".
     iIntros "own_v".
-
     unfold typed_write_end.
-    iMod ("H" with "Hv own_l own_v") as "($ & $ & H)". iModIntro. iModIntro.
+    iMod ("typed_write_end" with "Hv own_v") as "($ & $ & H)". iModIntro. iModIntro.
     iIntros "l↦". iMod ("H" with "l↦") as (ty3) "[own_l T]".
     by iApply "T".
 Qed.
 
-  (*
-  (* TODO: this constraint on the layout is too strong, we only need
-  that the length is the same and the alignment is lower. Adapt when necessary. *)
-  Lemma type_write_own_copy a E ty l2 ty2 v ot T:
+Lemma type_write_own_copy a E ty l2 ty2 v ot (T:type->assert):
     typed_write_end a E ot v ty l2 Own ty2 T where
     `{!Copyable ty}
-    `{!TCDone (ty2.(ty_has_op_type) (UntypedOp (ot_layout ot)) MCNone)} :-
-      exhale ⌜ty.(ty_has_op_type) (UntypedOp (ot_layout ot)) MCNone⌝;
-      inhale v ◁ᵥ ty;
+    `{!TCDone (ty2.(ty_has_op_type) ot MCNone)} :-
+      exhale <affine> ⌜ty.(ty_has_op_type) ot MCNone⌝;
+      inhale ⎡v ◁ᵥ ty⎤;
+      ∀ v', inhale ⎡v' ◁ᵥ ty2⎤; (* FIXME this is probably not needed; can we not inhale this? *)
       return T ty.
   Proof.
-    unfold typed_write_end, TCDone => ??. iDestruct 1 as (?) "HT". iIntros "Hl #Hv".
+    unfold typed_write_end, TCDone => ??. iDestruct 1 as (?) "HT".
+    iIntros "Hl #Hv".
     iDestruct (ty_aligned with "Hl") as %?; [done|].
     iDestruct (ty_deref with "Hl") as (v') "[Hl Hv']"; [done|].
     iDestruct (ty_size_eq with "Hv'") as %?; [done|].
@@ -2092,11 +2128,14 @@ Qed.
     iApply fupd_mask_intro; [destruct a; solve_ndisj|]. iIntros "Hmask".
     iSplit; [done|]. iSplitL "Hl". { iExists _. by iFrame. }
     iIntros "!# Hl". iMod "Hmask". iModIntro.
-    iExists _. iDestruct ("HT" with "Hv") as "$".
-    by iApply (ty_ref with "[] Hl Hv").
+    iExists _.
+     iDestruct ("HT" with "Hv") as "HT".
+     iDestruct ("HT" $! v' with "Hv'") as "$".
+     by iApply (ty_ref with "[] Hl Hv").
   Qed.
   Definition type_write_own_copy_inst := [instance type_write_own_copy].
   Global Existing Instance type_write_own_copy_inst | 20.
+  (*
 
   (* Note that there is also [type_write_own] in singleton.v which applies if one can prove MCId. *)
   Lemma type_write_own_move a E ty l2 ty2 v ot T:
