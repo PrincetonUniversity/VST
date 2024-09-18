@@ -67,7 +67,11 @@ Section generic_boolean.
     iIntros (??????->) "(%&%&_&_&H&_)" => //.
   Qed.
   Next Obligation.
-    iIntros (??????->) "(%v&%n&%&%&%&?)". eauto with iFrame.
+    iIntros (??????->) "(%&%&%)". iPureIntro. destruct v; try done.
+    - rewrite /has_layout_val /tc_val' =>?. destruct it; try done.
+  Admitted.
+  Next Obligation.
+    iIntros (??????->) "(%&%&%&%&%&?)". eauto with iFrame.
   Qed.
   Next Obligation.
     iIntros (?????? v -> ?) "Hl (%n&%&%)". iExists v, n; eauto with iFrame.

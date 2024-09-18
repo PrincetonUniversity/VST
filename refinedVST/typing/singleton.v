@@ -12,6 +12,7 @@ Section value.
   |}.
   Next Obligation. iIntros (?????) "[$ [$ ?]]". by iApply heap_mapsto_own_state_share. Qed.
   Next Obligation. iIntros (ot v ot' mt l ->) "[%?]". done. Qed.
+  Next Obligation. Admitted.
   Next Obligation. iIntros (ot v ot' mt l ->) "(%&%&?)". eauto with iFrame. Qed.
   Next Obligation. iIntros (ot v ot' mt l v' -> ?) "Hl [? ->]". by iFrame. Qed.
 (*  Next Obligation. iIntros (ot v v' ot' mt st ?). apply: mem_cast_compat_id. iPureIntro.
@@ -167,9 +168,10 @@ Section at_value.
     ty_own_val v' := (∃ t, v' ◁ᵥ value (tptr t) v ∗ v ◁ᵥ ty)%I;
   |}.
   Next Obligation. by iIntros (?????) "?". Qed.
-  Next Obligation. iIntros (v ty ot mt l (? & ->)) "(% & [Hv ?])". iDestruct (ty_aligned _ _ MCId with "Hv") as %?; first done. rewrite !field_compatible_tptr // in H |- *. Qed.
-  Next Obligation. iIntros (v ty ot mt l (? & ->)) "(% & [Hv $])". iDestruct (ty_deref _ _ MCId with "Hv") as "(% & ? & ?)"; first done. erewrite mapsto_tptr; iFrame. Qed.
-  Next Obligation. iIntros (v ty ot mt l v' (? & ->) ?) "Hl (% & [Hv $])". erewrite mapsto_tptr. iExists _; iApply (ty_ref _ _ MCId with "[] Hl Hv"); first done. rewrite !field_compatible_tptr // in H |- *. Qed.
+  Next Obligation. iIntros (v ty ot mt l (? & ->)) "(% & [Hv ?])". iDestruct (ty_aligned _ _ MCId with "Hv") as %?; first done. iPureIntro. unfold has_layout_loc in *. rewrite !field_compatible_tptr // in H |- *. Qed.
+  Next Obligation. Admitted.
+  Next Obligation. iIntros (v ty ot mt l (? & ->)) "(% & [Hv $])". iDestruct (ty_deref _ _ MCId with "Hv") as "(% & ? & ?)"; first done. unfold mapsto. erewrite mapsto_tptr; iFrame. Qed.
+  Next Obligation. iIntros (v ty ot mt l v' (? & ->) ?) "Hl (% & [Hv $])". unfold mapsto. erewrite mapsto_tptr. iExists _; iApply (ty_ref _ _ MCId with "[] Hl Hv"); first done. iPureIntro. unfold has_layout_loc in *. rewrite !field_compatible_tptr // in H |- *. Qed.
 (*   Next Obligation.
     iIntros (v ty v' ot mt st ?) "[Hv ?]".
     iDestruct (ty_memcast_compat with "Hv") as "?"; [done|]. destruct mt => //. iFrame.

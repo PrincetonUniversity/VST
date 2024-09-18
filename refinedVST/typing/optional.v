@@ -58,6 +58,8 @@ Section optional.
     iIntros (ty?????[??]). by iDestruct 1 as "[[% Hv]|[% Hv]]";iDestruct (ty_size_eq with "Hv") as %?.
   Qed. *)
   Next Obligation.
+  Admitted.
+  Next Obligation.
     iIntros (ty optty ????[??]) "Hl".
     iDestruct "Hl" as "[[% Hl]|[% Hl]]"; iDestruct (ty_deref with "Hl") as (?) "[? ?]"; eauto with iFrame.
   Qed.
@@ -280,6 +282,8 @@ Section optionalO.
     iIntros (A ty? [x|] ???[??]) "Hv";iDestruct (ty_size_eq with "Hv") as %Ha => //.
   Qed. *)
   Next Obligation.
+  Admitted.
+  Next Obligation.
     iIntros (A ty optty [] ?? l[??]) "Hl"; rewrite /with_refinement/ty_own/=; iDestruct (ty_deref with "Hl") as (?) "[? ?]"; eauto with iFrame.
   Qed.
   Next Obligation.
@@ -466,6 +470,7 @@ Section optionalO.
   Global Existing Instance read_optionalO_case_inst | 1001.
 *)
   Global Program Instance optionalO_copyable A (ty : A → type) optty x `{!∀ x, Copyable (ty x)} `{!Copyable optty} : Copyable (x @ optionalO ty optty).
+  Next Obligation. Admitted.
   Next Obligation.
     iIntros (A ty optty x ? ? E ly l ? [Hty ?]). unfold optionalO; simpl_type. destruct x.
     all: iIntros "Hl".

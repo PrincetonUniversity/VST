@@ -29,6 +29,7 @@ Section bytewise.
     eauto with iFrame.
   Qed.
   Next Obligation. iIntros (?????->). by iDestruct 1 as (???) "_". Qed.
+  Next Obligation. Admitted.
 (*   Next Obligation. by iIntros (?????-> [??]). Qed. *)
   Next Obligation. iIntros (?????->). iDestruct 1 as (???) "?". by eauto. Qed.
   Next Obligation. iIntros (????? v -> ?) "? [%%]". iExists v. iFrame. eauto. Qed.

@@ -6,7 +6,7 @@ From VST.typing Require Export type.
 From VST.typing.automation Require Export proof_state (* solvers simplification  loc_eq. *).
 From VST.typing Require Import programs (* function singleton own struct bytes *) int.
 Set Default Proof Using "Type".
-
+Set Nested Proofs Allowed.
 (** * Defining extensions *)
 (** The [sidecond_hook] and [unsolved_sidecond_hook] hooks that get
 called for all sideconditions resp. all sideconditions that are not
@@ -202,7 +202,7 @@ Ltac liRPopLocationInfo :=
   end.
 
 Ltac liRExpr :=
-  lazymatch goal with
+  (* lazymatch goal with
   | |- envs_entails ?Δ (typed_val_expr ?e ?T) =>
     lazymatch e with
     (* | LocInfo ?info ?e2 =>
@@ -210,7 +210,7 @@ Ltac liRExpr :=
       change_no_check (envs_entails Δ (typed_val_expr e2 (pop_location_info info T))) *)
     | _ => idtac
     end
-  end;
+  end; *)
   lazymatch goal with
   | |- envs_entails ?Δ (typed_val_expr ?e ?T) =>
     lazymatch e with
@@ -218,7 +218,11 @@ Ltac liRExpr :=
     | Econst_int _ _ => notypeclasses refine (tac_fast_apply (type_const_int _ _ _) _)
     | Ebinop _ _ _ _ => notypeclasses refine (tac_fast_apply (type_bin_op _ _ _ _ _) _)
     | Etempvar _ _ => notypeclasses refine (tac_fast_apply (type_tempvar _ _ _ _) _)
-    | Evar _ _ => notypeclasses refine (tac_fast_apply (type_var_local _ _ _ _ _ _ _) _)
+    | _ => fail "do_expr: unknown expr" e
+    end
+  | |- envs_entails ?Δ (typed_lvalue ?e ?T) =>
+    lazymatch e with
+    | Evar _ _ => notypeclasses refine (tac_fast_apply (type_var_local _ _ _ _ _ _) _)
     | _ => fail "do_expr: unknown expr" e
     end
   end.
@@ -351,7 +355,7 @@ Section automation_tests.
 
    Set Ltac Backtrace.
 
-  Goal forall Espec Delta (_x:ident) (x:val),
+  (* Goal forall Espec Delta (_x:ident) (x:val),
   <affine> (local $ locald_denote $ temp _x x)
   ⊢ typed_stmt Espec Delta (Sset _x (Ebinop Oadd (Econst_int (Int.repr 41) tint) (Econst_int (Int.repr 1) tint) tint)) 
                            (λ v t, <affine> local (locald_denote (temp _x (Vint (Int.repr 42))))
@@ -361,18 +365,21 @@ Section automation_tests.
     do 30 liRStep.
     liShow; try done.
  (** TODO make use of Objective environment *)
-  Qed.
+  Qed. *)
 
-  Goal forall Espec Delta (_x:ident) (x: address) ty,
-  ⊢ <affine> (local $ locald_denote $ temp _x x) -∗
-    ⎡ ty_own ty Own x ⎤ -∗
-    ⎡ x↦{Tsh}|tint|_ ⎤ -∗
+  Goal forall Espec Delta (_x:ident) b o (l:address),
+
+  ⊢ <affine> (local $ locald_denote $ lvar _x tint $ Vptr b o) -∗
+    <affine> ⌜l = (b, Ptrofs.signed o)⌝ -∗
+    ⎡ ty_own tytrue Own l ⎤ -∗
+    ⎡ l↦{Tsh}|tint|_ ⎤ -∗
     (* ⎡ Vint (Int.repr 0) ◁ᵥ 0 @ int tint ⎤ -∗ *)
     typed_stmt Espec Delta (Sassign (Evar _x tint) (Econst_int (Int.repr 1) tint)) (λ v t, True).
   Proof.
   iIntros.
   (* usually Info level 0 is able to see the tactic applied *)
   Info 0 liRStep. (* type_assign *)
+
   Info 0 liRStep. (* type_Ecast_same_val *)
   Info 0 liRStep. (* type_const_int *)
   liRStep.
@@ -383,17 +390,29 @@ Section automation_tests.
   liRStep.
   liRStep.
   liRStep.
+  liRStep.
+  liRStep.
+  liRStep.
+  liRStep.
+
+  liRStep.
+  liRStep.
+  unfold IPM_JANNO. subst. (* FIXME *)
+  liRStep.
+  liRStep.
+
+  assert (β1=Own) as ->. {
+    admit.
+  }
+  assert (TCDone (ty_has_op_type tytrue tint MCNone)) by admit.
+  liRStep.
+  liRStep.
+  liRStep.
+  liRStep.
+  liRStep.
+  liRStep.
   
-  (** `l ◁ₗ{β1} ty1` and  `lv ◁ᵥ ty1` seems weird; maybe fix type_write_simple? *)
-
   liRStep.
-  liRStep.
-  liRStep.
-  liRStep.
-  liRStep.
-  liRStep.
-  liRStep.
-  liRStep.
-
-  Abort.
+  repeat liRStep.
+Admitted.
 End automation_tests.

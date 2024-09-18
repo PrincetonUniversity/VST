@@ -68,7 +68,7 @@ Section function.
   Definition typed_function (fn : function) (fp : @dtfr Σ A → fn_params) : iProp Σ :=
     (∀ x, <affine> ⌜Forall2 (λ (ty : type) '(_, p), ty.(ty_has_op_type) p MCNone) (fp x).(fp_atys) (Clight.fn_params fn)⌝ ∗
       □ ∀ (lsa : vec address (length (fp x).(fp_atys))) (lsv : vec address (length fn.(fn_vars))),
-          Qinit fn.(fn_vars) (fp x) lsa lsv -∗ ∃ le, ⌜bind_parameter_temps (Clight.fn_params fn) (map addr_to_val (lsa ++ lsv)) (create_undef_temps fn.(fn_vars)) = Some le⌝ ∧
+          Qinit fn.(fn_vars) (fp x) lsa lsv -∗ ∃ le, ⌜bind_parameter_temps (Clight.fn_params fn) (map adr2val (lsa ++ lsv)) (create_undef_temps fn.(fn_vars)) = Some le⌝ ∧
           typed_stmt Espec Delta (fn.(fn_body)) (fn_ret_prop (fp x).(fp_fr)) (construct_rho (filter_genv ge) empty_env le)
     )%I.
 
@@ -140,14 +140,15 @@ Section function.
 
   Program Definition function_ptr_type (fp : dtfr A → fn_params) (f : address) : type := {|
     ty_has_op_type ot mt := (∃ t, ot = tptr t)%type;
-    ty_own β l := (∃ fn, <affine> ⌜field_compatible (tptr tvoid) [] l⌝ ∗ l ↦_(tptr tvoid)[β] (addr_to_val f) ∗ fntbl_entry f fn ∗ ▷ typed_function fn fp)%I;
-    ty_own_val v := (∃ fn, <affine> ⌜v = addr_to_val f⌝ ∗ fntbl_entry f fn ∗ ▷ typed_function fn fp)%I;
+    ty_own β l := (∃ fn, <affine> ⌜field_compatible (tptr tvoid) [] l⌝ ∗ l ↦_(tptr tvoid)[β] (adr2val f) ∗ fntbl_entry f fn ∗ ▷ typed_function fn fp)%I;
+    ty_own_val v := (∃ fn, <affine> ⌜v = adr2val f⌝ ∗ fntbl_entry f fn ∗ ▷ typed_function fn fp)%I;
   |}.
   Next Obligation. iDestruct 1 as (fn) "[? [H [? ?]]]". iExists _. iFrame. by iApply heap_mapsto_own_state_share. Qed.
-  Next Obligation. iIntros (fp f ot mt l (? & ->)). rewrite singleton.field_compatible_tptr. by iDestruct 1 as (??) "?". Qed.
+  Next Obligation. iIntros (fp f ot mt l (? & ->)). rewrite /has_layout_loc singleton.field_compatible_tptr. by iDestruct 1 as (??) "?". Qed.
+  Next Obligation. Admitted.
 (*  Next Obligation. iIntros (fp f ot mt v ->%is_ptr_ot_layout). by iDestruct 1 as (? ->) "?". Qed. *)
-  Next Obligation. iIntros (fp f ot mt v (? & ->)). iDestruct 1 as (??) "(?&?)". erewrite singleton.mapsto_tptr. eauto with iFrame. Qed.
-  Next Obligation. iIntros (fp f ot mt v ? (? & ->) ?) "?". iDestruct 1 as (? ->) "?". rewrite singleton.field_compatible_tptr in H; erewrite singleton.mapsto_tptr; by iFrame. Qed.
+  Next Obligation. iIntros (fp f ot mt v (? & ->)). iDestruct 1 as (??) "(?&?)". unfold mapsto. erewrite singleton.mapsto_tptr. eauto with iFrame. Qed.
+  Next Obligation. iIntros (fp f ot mt v ? (? & ->) ?) "?". iDestruct 1 as (? ->) "?". rewrite /has_layout_loc singleton.field_compatible_tptr in H; unfold mapsto; erewrite singleton.mapsto_tptr; by iFrame. Qed.
 (*   Next Obligation.
     iIntros (fp f v ot mt st ?). apply mem_cast_compat_loc; [done|].
     iIntros "[%fn [-> ?]]". iPureIntro. naive_solver.
@@ -158,9 +159,11 @@ Section function.
 
   Global Program Instance copyable_function_ptr p fp : Copyable (p @ function_ptr fp).
   Next Obligation.
+  Admitted.
+  Next Obligation.
     iIntros (p fp E ly l ? (? & ->)). iDestruct 1 as (fn Hl) "(Hl&?&?)".
     iMod (heap_mapsto_own_state_to_mt with "Hl") as (q) "[_ Hl]" => //.
-    erewrite singleton.mapsto_tptr. iFrame. iModIntro. rewrite singleton.field_compatible_tptr. do 2 iSplit => //. by iIntros "_".
+    erewrite singleton.mapsto_tptr. iFrame. iModIntro. unfold has_layout_loc. rewrite singleton.field_compatible_tptr. do 2 iSplit => //. by iIntros "_".
   Qed.
 
   (* modified from lifting *)
@@ -266,7 +269,7 @@ Admitted.
       iDestruct ("HPr" with "Hv") as (?) "[Hty [HR _]]".
       iApply ("HΦ" with "Hty").
       by iApply ("Hr" with "HR").
-  Qed.*) Admitted.
+  Qed.*)
   Definition type_call_fnptr_inst := [instance type_call_fnptr].
 (*  Global Existing Instance type_call_fnptr_inst. *)
 
@@ -407,14 +410,15 @@ Section inline_function.
   Program Definition inline_function_ptr_type (fn : funspec) (f : address) : type := {|
     ty_has_op_type ot mt := (∃ t, ot = tptr t)%type;
     ty_own β l := (<affine> ⌜field_compatible (tptr tvoid) [] l⌝ ∗
-                              l ↦_(tptr tvoid)[β] (addr_to_val f) ∗ func_ptr fn f)%I;
-    ty_own_val v := (<affine> ⌜v = addr_to_val f⌝ ∗ func_ptr fn f)%I;
+                              l ↦_(tptr tvoid)[β] (adr2val f) ∗ func_ptr fn f)%I;
+    ty_own_val v := (<affine> ⌜v = adr2val f⌝ ∗ func_ptr fn f)%I;
   |}.
   Next Obligation. iDestruct 1 as "[% [H ?]]". iFrame.
                    iMod (heap_mapsto_own_state_share with "[$H]") as "H". iFrame "H". done. Qed.
   Next Obligation. iIntros (fn f ot mt l ?). destruct H as (t & ->).
-                   rewrite singleton.field_compatible_tptr.
+                   rewrite /has_layout_loc singleton.field_compatible_tptr.
                    by iDestruct 1 as "(% & ?)". Qed.
+  Next Obligation. Admitted.
   Next Obligation. iIntros (fn f ot mt v ?). destruct H as (t & ->).
                    iIntros "(% & (? & ?))".
                    iExists f.
@@ -432,7 +436,7 @@ Section inline_function.
   Next Obligation.
     iIntros (p fp E ly l ? (? & ->)). iDestruct 1 as "(%&Hl&?)".
     iMod (heap_mapsto_own_state_to_mt with "Hl") as (q) "[_ Hl]" => //.
-    erewrite singleton.mapsto_tptr. iFrame. iModIntro. rewrite singleton.field_compatible_tptr. do 2 iSplit => //. by iIntros "_".
+    erewrite singleton.mapsto_tptr. iFrame. iModIntro. rewrite /has_layout_loc singleton.field_compatible_tptr. do 2 iSplit => //. by iIntros "_".
   Qed.
 
 
