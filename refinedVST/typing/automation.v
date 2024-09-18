@@ -220,7 +220,7 @@ Ltac liRExpr :=
     | Etempvar _ _ => notypeclasses refine (tac_fast_apply (type_tempvar _ _ _ _) _)
     | _ => fail "do_expr: unknown expr" e
     end
-  | |- envs_entails ?Δ (typed_lvalue ?e ?T) =>
+  | |- envs_entails ?Δ (typed_lvalue ?β ?e ?T) =>
     lazymatch e with
     | Evar _ _ => notypeclasses refine (tac_fast_apply (type_var_local _ _ _ _ _ _) _)
     | _ => fail "do_expr: unknown expr" e
@@ -230,7 +230,7 @@ Ltac liRExpr :=
 Ltac liRJudgement :=
   lazymatch goal with
     | |- envs_entails _ (typed_write _ _ _ _ _ _) => 
-      notypeclasses refine (tac_fast_apply (type_write_simple _ _ _ _ _ _) _)
+      notypeclasses refine (tac_fast_apply (type_write_simple _ _ _ _ _ _ _) _)
     | |- envs_entails _ (typed_read _ _ _ _ _) =>
       fail "liRJudgement: type_read not implemented yet"
       (* notypeclasses refine (tac_fast_apply (type_read _ _ _ _ _ _ _) _); [ solve [refine _ ] |] *)
@@ -400,7 +400,7 @@ Section automation_tests.
   liRStep.
   liRStep.
 
-  assert (β1=Own) as ->. {
+  assert (β2=Own) as ->. {
     admit.
   }
   liRStep.
@@ -411,6 +411,7 @@ Section automation_tests.
   liRStep.
   
   liRStep.
-  repeat liRStep.
+  liRStep.
+  liRStep.
 Admitted.
 End automation_tests.

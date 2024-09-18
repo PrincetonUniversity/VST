@@ -331,15 +331,15 @@ Section judgements.
          ⎡juicy_mem.mem_auth m⎤ ∗ Φ (b, Ptrofs.unsigned o).
 
   (* FIXME sounds like typed_addr_of, although typed_addr_of is for typing `&e`; are they the same?  *)
-  Definition typed_lvalue e T : assert :=
+  Definition typed_lvalue β e T : assert :=
     (∀ Φ:address->assert, 
-      (∀ (l:address) β (ty : type),
+      (∀ (l:address) (ty : type),
         ⎡l ◁ₗ{β} ty⎤ (* typed_write_end has this so maybe here needs it too? *) 
         -∗ T l ty -∗ Φ l)
       -∗ wp_lvalue e Φ).
   Global Arguments typed_lvalue _ _%_I.
-  Class TypedLvalue (e : expr) : Type :=
-    typed_lvalue_proof T : iProp_to_Prop (typed_lvalue e T).
+  Class TypedLvalue β (e : expr) : Type :=
+    typed_lvalue_proof T : iProp_to_Prop (typed_lvalue β e T).
 
   Definition typed_value (v : val) (T : type → assert) : assert :=
     (∃ (ty: type), ⎡v ◁ᵥ ty⎤ ∗ T ty).
@@ -1881,7 +1881,7 @@ Section typing.
     (∃ l, <affine> ⌜Some l = val2address lv⌝ ∗
     ⎡ l ◁ₗ{β} ty ⎤ ∗
     T l ty)
-    ⊢ typed_lvalue (Evar _x c_ty) T.
+    ⊢ typed_lvalue β (Evar _x c_ty) T.
   Proof.
     iIntros "(Hlvar & (%l & %Hl & Hl_own & HT))" (Φ) "HΦ".
     iApply (wp_var_local _ _ _).
@@ -2093,19 +2093,19 @@ Section typing.
 
   (* Ke: a simple version of type_write that treat typed_place as just typed_val_expr. 
          Not so sure about what's inside typed_val_expr outside of typed_write_end. *)
-  Lemma type_write_simple (a : bool) ty T e v ot:
-    (typed_lvalue e (λ l ty1, ∀ β1,
-      typed_write_end a ⊤ ot v ty l β1 ty1 (λ ty3:type, ⎡l ◁ₗ{β1} ty3⎤ -∗ T)))%I
+  Lemma type_write_simple β1 (a : bool) ty T e v ot:
+    (typed_lvalue β1 e (λ l ty1, ∀ β2,
+      typed_write_end a ⊤ ot v ty l β2 ty1 (λ ty3:type, ⎡l ◁ₗ{β1} ty3⎤ -∗ T)))%I
     ⊢ typed_write a e ot v ty T.
   Proof.
     iIntros "typed_e".
     iIntros (Φ) "HΦ".
     unfold typed_lvalue.
-    iApply "typed_e". iIntros (l β ty1) "Hv typed_write_end".
+    iApply "typed_e". iIntros (l ty1) "Hv typed_write_end".
     iApply "HΦ".
     iIntros "own_v".
     unfold typed_write_end.
-    iMod ("typed_write_end" $! β with "Hv own_v") as "($ & $ & H)". iModIntro. iModIntro.
+    iMod ("typed_write_end" with "Hv own_v") as "($ & $ & H)". iModIntro. iModIntro.
     iIntros "l↦". iMod ("H" with "l↦") as (ty3) "[own_l T]".
     by iApply "T".
 Qed.
