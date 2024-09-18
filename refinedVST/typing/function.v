@@ -60,16 +60,13 @@ Section function.
 
   Context (Espec : ext_spec OK_ty) (Delta : tycontext) (ge : genv).
 
-  Definition Qinit (temps : list (ident * Ctypes.type)) fp lsa lsv := ([∗list] l;t∈lsa;fp.(fp_atys), l ◁ₗ t) ∗
-                       ([∗list] l;p∈lsv;temps, l ◁ₗ uninit (p.2)) ∗ fp.(fp_Pa).
-  (* compare temps to stackframe_of f *)
-
   (* using Delta here is suspect because it contains funspecs, but maybe we can just ignore them? *)
   Definition typed_function (fn : function) (fp : @dtfr Σ A → fn_params) : iProp Σ :=
     (∀ x, <affine> ⌜Forall2 (λ (ty : type) '(_, p), ty.(ty_has_op_type) p MCNone) (fp x).(fp_atys) (Clight.fn_params fn)⌝ ∗
-      □ ∀ (lsa : vec address (length (fp x).(fp_atys))) (lsv : vec address (length fn.(fn_vars))),
-          Qinit fn.(fn_vars) (fp x) lsa lsv -∗ ∃ le, ⌜bind_parameter_temps (Clight.fn_params fn) (map addr_to_val (lsa ++ lsv)) (create_undef_temps fn.(fn_vars)) = Some le⌝ ∧
-          typed_stmt Espec Delta (fn.(fn_body)) (fn_ret_prop (fp x).(fp_fr)) (construct_rho (filter_genv ge) empty_env le)
+      □ ∀ (lsa : vec val (length (fp x).(fp_atys))) rho,
+          ([∗ list] v;t∈lsa;(fp x).(fp_atys), v ◁ᵥ t) ∗
+          ([∗ list] '(i,_);v ∈ (Clight.fn_params fn);lsa, <affine> local (locald_denote (temp i v))) rho ∗ stackframe_of fn rho ∗ (fp x).(fp_Pa) -∗
+          typed_stmt Espec Delta (fn.(fn_body)) (fn_ret_prop (fp x).(fp_fr)) rho
     )%I.
 
   Global Instance typed_function_persistent fn fp : Persistent (typed_function fn fp) := _.
@@ -91,21 +88,21 @@ Section function.
     iIntros (x). iDestruct ("HT" $! x) as ([Hlen Hall]%Forall2_same_length_lookup) "#HT".
     have [Heq [Hatys [HPa Hret]]] := Hfn x.
     iSplit; [done|].
-    iIntros "!>" (lsa lsv) "[Hv Ha]". rewrite -HPa.
+    iIntros "!>" (??) "(Ha & Hparams & stack)". rewrite -HPa.
     have [|lsa' Hlsa]:= vec_cast _ lsa (length (fp_atys (fp1 x))). { by rewrite Hatys. }
-    iDestruct ("HT" with "[Hv Ha]") as (??) "HT'"; last first.
-    - rewrite Hlsa. iExists _; iSplit; first done.
-      iClear "#"; iStopProof; apply monPred_in_entails, typed_stmt_mono.
-      iIntros (??) "HR Hty". iDestruct ("HR" with "Hty") as (y) "[?[??]]".
-      have [-> ->]:= Hret y.
-      iExists (rew [λ x : Type, x] Heq in y). iFrame.
-    - rewrite Hlsa. iFrame. iClear "#". iStopProof.
+    iSpecialize ("HT" $! lsa' with "[-]").
+    { iFrame. rewrite Hlsa; iFrame.
+      iStopProof.
       apply bi.equiv_entails_1_1, big_sepL2_proper_2; [done..|].
       intros ??????? Hy. inv Hy.
       move: Hatys => /list_equiv_lookup Hatys.
       intros Haty2 Haty1.
-      have := Hatys k. rewrite Haty1 Haty2=> /(Some_equiv_eq _ _)[?[? [Heql ?]]].
-      rewrite -Heql. by simplify_eq.
+      have := Hatys k. rewrite Haty1 Haty2=> /(Some_equiv_eq _ _)[?[? [? Heqv]]] ?.
+      rewrite -Heqv. by simplify_eq. }
+    iApply (typed_stmt_mono with "HT"). iIntros (v ?) "HR Hty".
+    iDestruct ("HR" with "Hty") as (y) "[?[??]]".
+    have [-> ->]:= Hret y.
+    iExists (rew [λ x : Type, x] Heq in y). iFrame.
   Qed.
 
   (* The design of this in RefinedC is to associate a function pointer with actual function code,
@@ -176,6 +173,10 @@ Section function.
     wp_stmt Espec E Delta (Scall None e es) R.
   Admitted.
 
+  (* up *)
+  Lemma monPred_at_big_sepL2 {BI : bi} {I : biIndex} {B C} i (Φ : nat → B → C → monPred I BI) l m :
+    ([∗ list] k↦x;y ∈ l;m, Φ k x y) i ⊣⊢ [∗ list] k↦x;y ∈ l;m, Φ k x y i.
+  Proof. rewrite !big_sepL2_alt. monPred.unseal; rewrite monPred_at_big_sepL //. Qed.
 
   Lemma type_call_fnptr l e el fp tys T:
     match typeof e with Tfunction tl retty cc =>
@@ -208,14 +209,19 @@ Section function.
     iDestruct "Hpre" as (x) "(Hargs & Hpre & Hret)".
     iStopProof.
     split => rho; monPred.unseal.
+    rewrite !monPred_at_big_sepL2.
     iIntros "(Hl & Hf & Htys & Hatys & HP & Hpost)" (?) "Hstack !>".
     rewrite /typed_function.
     iSpecialize ("Hf" $! x).
     iDestruct "Hf" as (?) "Hf".
-    iDestruct ("Hf" with "[-]") as (??) "Hf".
-    { rewrite /Qinit.
-      admit. }
-Admitted.
+(*    iSpecialize ("Hf" $! (Vector.of_list vl) with "[-]").
+    { iFrame.
+      iSplitL "Hatys".
+      { 
+iPoseProof (monPred_at_big_sepL rho with "Hatys") as "?".
+
+rewrite /Qinit.
+      admit. }*)
 
 (*    
 
@@ -515,6 +521,6 @@ Section test.
   Local Definition test_fn2 := fn(∀ () : (); True) → ∃ () : (), void; True.
   Local Definition test_fn3 := fn(∀ (n1, n2, n3, n4, n5, n6, n7) : Z * Z * Z * Z * Z * Z * Z; uninit size_t, uninit size_t, uninit size_t, uninit size_t, uninit size_t, uninit size_t, uninit size_t, uninit size_t; True ∗ True ∗ True ∗ True ∗ True ∗ True ∗ True ∗ True ∗ True ∗ True ∗ True ∗ True ∗ True) → ∃ (n1, n2, n3, n4, n5, n6, n7) : Z * Z * Z * Z * Z * Z * Z, uninit size_t; True%I.
 
-  Goal ∀ Espec Delta ge (l : address) fn, l ◁ᵥ l @ function_ptr(A := ConstType _) Espec Delta ge test_fn2 -∗ typed_function(A := ConstType _) Espec Delta ge fn test_fn.
+  Goal ∀ Espec Delta ge (l : address) fn, l ◁ᵥ l @ function_ptr(A := ConstType _) Espec Delta ge test_fn2 -∗ typed_function(A := ConstType _) Espec Delta fn test_fn.
   Abort.
 End test.
