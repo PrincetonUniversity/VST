@@ -113,8 +113,23 @@ We will need an additional parameter
 
  *)
 
-Definition addr_to_val (l : address) := Vptr l.1 (Ptrofs.repr l.2).
-Coercion addr_to_val : address >-> val.
+Definition adr2val (l : address) := Vptr l.1 (Ptrofs.repr l.2).
+Coercion adr2val : address >-> val.
+
+(* overwrites res_predicates.val2address; unsgined seem to make more sense *)
+Definition val2adr (v: val) : option address := 
+  match v with Vptr b ofs => Some (b, Ptrofs.unsigned ofs) | _ => None end.
+  
+(* Ptrofs.intval Ptrofs.repr *)
+Definition norm_adr (l:address) : address := (l.1, (Ptrofs.unsigned $ Ptrofs.repr l.2)).
+
+Lemma val2adr2val_id l : val2adr $ adr2val (norm_adr l) = Some $ norm_adr l.
+Proof.
+  destruct l; try done.
+  rewrite  /norm_adr /= Ptrofs.unsigned_repr //.
+  rep_lia.
+Qed.
+
 
 Definition shrN : namespace := nroot.@"shrN".
 Definition mtN : namespace := nroot.@"mtN".
@@ -233,6 +248,93 @@ Inductive memcast_compat_type : Set :=
 | MCNone | MCCopy | MCId.
 
 
+Local Open Scope Z.
+Section CompatRefinedC.
+  Context `{!typeG Σ} {cs : compspecs}.
+
+  (* refinedC only checks if `v` fits in the size of ot *)
+  Definition has_layout_val (v:val) (ot:Ctypes.type) : Prop := tc_val' ot v.
+  Arguments has_layout_val : simpl never.
+
+  Global Typeclasses Opaque has_layout_val.
+    
+  (*  NOTE maybe change this with field_compatible? *)
+  Definition has_layout_loc (l:address) (ot:Ctypes.type) : Prop :=
+    field_compatible ot [] (adr2val l).
+
+  Arguments has_layout_loc : simpl never.
+  Global Typeclasses Opaque has_layout_loc.
+
+  Definition mapsto (l : address) (q : Share.t) (ot : Ctypes.type) (v : val) : mpred := mapsto q ot l v.
+
+  (* TODO maybe use `mapsto_` ?*)
+  Definition mapsto_layout (l : address) (q : Share.t) (ot : Ctypes.type) : mpred :=
+    (∃ v,  <affine>⌜has_layout_val v ot⌝ ∗ <affine>⌜has_layout_loc l ot⌝ ∗ mapsto l q ot v).
+  Definition mapsto_layout_ (l : address) (q : Share.t) (ot : Ctypes.type) : mpred :=
+    (∃ v, mapsto l q ot v).
+  
+  (* Ke: refinedC does not have this; is our maspto too strong? *)
+  Lemma maptso_has_layout_val l q ot (v:val) :
+    mapsto l q ot v ⊢ ⌜has_layout_val v ot⌝.
+  Proof.
+    unfold mapsto, mapsto_memory_block.mapsto.
+    iIntros "H".
+    destruct (access_mode ot) eqn:Hot; try done.
+    destruct (type_is_volatile ot) eqn:Hotv; try done.
+    destruct l eqn:Hl; try done.
+    destruct (readable_share_dec q) eqn:Hq; unfold has_layout_val, tc_val'.
+    - rewrite bi.pure_impl.  iIntros "%". iDestruct "H" as "[[$ _]|[% _]]". done.
+    - iDestruct "H" as "[[$ _] _]".
+  Qed.
+
+  (* Lemma maptso_layout_has_layout_loc (l:address) q ot (v:val) :
+    mapsto l q ot v ⊢ ⌜has_layout_loc l ot⌝.
+  Proof.
+    unfold mapsto, mapsto_memory_block.mapsto, has_layout_loc.
+    iIntros "H".
+    destruct (access_mode ot) eqn:Hot; try done.
+    destruct (type_is_volatile ot) eqn:Hotv; try done.
+    destruct (adr2val l) eqn:Hl; try done.
+    destruct (readable_share_dec q) eqn:Hq.
+    - iDestruct "H" as "[[% H]|[% H]]".
+      + Search field_compatible mapsto_memory_block.mapsto .
+         unfold address_mapsto.
+        inv Hl.
+        iDestruct "H" as (ms) "((% & % & %) & ?)".
+        unfold field_compatible.
+      + unfold address_mapsto.
+        inv Hl.
+        iDestruct "H" as (??) "((% & % & $) & ?)".  
+    -  iDestruct "H" as "[[_ %] _]"; iPureIntro.
+       inv Hl.
+       done.
+  Qed. *)
+
+  (* Lemma mapsto_layout_equiv l q ot :
+    mapsto_layout l q ot ⊣⊢ mapsto_layout_ l q ot.
+  Proof.
+    rewrite /mapsto_layout /mapsto_layout_.
+    apply bi.equiv_entails_2; apply bi.exist_mono => v.
+    - iIntros "(? & ? & $)".
+    - iIntros "H".
+      iSplit. { rewrite maptso_layout_has_layout_val //. iDestruct "H" as "%". iPureIntro; done. }
+      iSplit. { rewrite maptso_layout_has_layout_loc //. iDestruct "H" as "%". iPureIntro; done. }
+      done.
+  Qed. *)
+
+End CompatRefinedC.
+
+Notation "v `has_layout_val` ot" := (has_layout_val v ot) (at level 50) : stdpp_scope.
+Notation "l `has_layout_loc` ot" := (has_layout_loc l ot) (at level 50) : stdpp_scope.
+Notation "l ↦{ sh '}' '|' ot '|' v" := (mapsto l sh ot v)
+  (at level 20, sh at level 50, format "l ↦{ sh '}' '|' ot '|' v") : bi_scope.
+Notation "l ↦| ot | v" := (mapsto l Tsh ot v)
+  (at level 20, format "l  ↦| ot | v") : bi_scope.
+Notation "l ↦{ sh '}' '|' ot '|' '_'" := (mapsto_layout l sh ot)
+  (at level 20, sh at level 50, format "l ↦{ sh '}' '|' ot '|' _") : bi_scope.
+Notation "l ↦| ot '|' '-'" := (mapsto_layout l Tsh ot)
+  (at level 20, format "l ↦| ot '|' '-'") : bi_scope.
+
 (* In Caesium, all values are lists of bytes in memory, and structured data is just an
    assertion on top of that. What do we want the values that appear in our types to be? *)
 Record type `{!typeG Σ} {cs : compspecs} := {
@@ -259,16 +361,16 @@ Record type `{!typeG Σ} {cs : compspecs} := {
   ty_shr_pers l : Persistent (ty_own Shr l);
   (** [ty_aligned] states that from [l ◁ₗ{β} ty] follows that [l] is
   aligned according to [ty_has_op_type]. *)
-  ty_aligned ot mt l : ty_has_op_type ot mt → ty_own Own l -∗ ⌜field_compatible ot [] l⌝;
+  ty_aligned ot mt l : ty_has_op_type ot mt → ty_own Own l -∗ <absorb> ⌜l `has_layout_loc` ot⌝;
   (** [ty_size_eq] states that from [v ◁ᵥ ty] follows that [v] has a
   size according to [ty_has_op_type]. *)
-(*  ty_size_eq ot mt v : ty_has_op_type ot mt → ty_own_val v -∗ ⌜v sizeof ot⌝; *)
+  ty_size_eq ot mt v : ty_has_op_type ot mt → ty_own_val v -∗ <absorb> ⌜v `has_layout_val` ot⌝;
   (** [ty_deref] states that [l ◁ₗ ty] can be turned into [v ◁ᵥ ty] and a points-to
   according to [ty_has_op_type]. *)
-  ty_deref ot mt l : ty_has_op_type ot mt → ty_own Own l -∗ ∃ v, mapsto Tsh ot l v ∗ ty_own_val v;
+  ty_deref ot mt l : ty_has_op_type ot mt → ty_own Own l -∗ ∃ v, mapsto l Tsh ot v ∗ ty_own_val v;
   (** [ty_ref] states that [v ◁ₗ ty] and a points-to for a suitable location [l ◁ₗ ty]
   according to [ty_has_op_type]. *)
-  ty_ref ot mt (l : address) v : ty_has_op_type ot mt → <affine> ⌜field_compatible ot [] l⌝ -∗ mapsto Tsh ot l v -∗ ty_own_val v -∗ ty_own Own l;
+  ty_ref ot mt (l : address) v : ty_has_op_type ot mt → <affine> ⌜l `has_layout_loc` ot⌝ -∗ mapsto l Tsh ot v -∗ ty_own_val v -∗ ty_own Own l;
   (** [ty_memcast_compat] describes how a value of type [ty] is
   transformed by memcast. [MCNone] means there is no information about
   the new value, [MCCopy] means the value can change, but it still has
@@ -355,13 +457,15 @@ End memcast.*)
 
 Class Copyable `{!typeG Σ} {cs : compspecs} (ty : type) := {
   copy_own_persistent v : Persistent (ty.(ty_own_val) v);
+  copy_own_affine v : Affine (ty.(ty_own_val) v);
   copy_shr_acc E ot l :
     mtE ⊆ E → ty.(ty_has_op_type) ot MCCopy →
-    ty.(ty_own) Shr l ={E}=∗ ⌜field_compatible ot [] l⌝ ∗
+    ty.(ty_own) Shr l ={E}=∗ <affine> ⌜l `has_layout_loc` ot⌝ ∗
        (* TODO: the closing conjuct does not make much sense with True *)
-       ∃ q' vl, mapsto q' ot l vl ∗ ▷ ty.(ty_own_val) vl ∗ (▷mapsto q' ot l vl ={E}=∗ True)
+       ∃ q' vl, mapsto l q' ot vl ∗ ▷ ty.(ty_own_val) vl ∗ (▷mapsto l q' ot vl ={E}=∗ True)
 }.
 Global Existing Instance copy_own_persistent.
+Global Existing Instance copy_own_affine.
 
 (*Class LocInBounds `{!typeG Σ} (ty : type) (β : own_state) (n : nat) := {
   loc_in_bounds_in_bounds l : ty.(ty_own) β l -∗ loc_in_bounds l n
@@ -473,10 +577,10 @@ Next Obligation. iDestruct 1 as (?) "H". iExists _. by iMod (ty_share with "H") 
 Next Obligation.
   iIntros (Σ ?? A r β mt l Hly). iDestruct 1 as (x) "Hv". by iDestruct (ty_aligned with "Hv") as %Hv; [done|].
 Qed.
-(*Next Obligation.
+Next Obligation.
   iIntros (Σ ?? A r ot mt v Hly). iDestruct 1 as (x) "Hv". 
  by iDestruct (ty_size_eq with "Hv") as %Hv.
-Qed.*)
+Qed.
 Next Obligation.
   iIntros (Σ ?? A r ot mt l Hly). iDestruct 1 as (x) "Hl".
   iDestruct (ty_deref with "Hl") as (v) "[Hl Hv]"; [done|].
