@@ -367,14 +367,13 @@ Section automation_tests.
  (** TODO make use of Objective environment *)
   Qed. *)
 
-  Goal forall Espec Delta (_x:ident) b o (l:address),
-
+  Goal forall Espec Delta (_x:ident) b o (l:address) ty ,
+  TCDone (ty_has_op_type ty tint MCNone) ->
   ⊢ <affine> (local $ locald_denote $ lvar _x tint $ Vptr b o) -∗
     <affine> ⌜l = (b, Ptrofs.signed o)⌝ -∗
-    ⎡ ty_own tytrue Own l ⎤ -∗
-    ⎡ l↦{Tsh}|tint|_ ⎤ -∗
-    (* ⎡ Vint (Int.repr 0) ◁ᵥ 0 @ int tint ⎤ -∗ *)
-    typed_stmt Espec Delta (Sassign (Evar _x tint) (Econst_int (Int.repr 1) tint)) (λ v t, True).
+    ⎡ ty_own ty Own l ⎤ -∗
+    typed_stmt Espec Delta (Sassign (Evar _x tint) (Econst_int (Int.repr 1) tint))
+               (λ v t, ⎡ l ◁ₗ Int.signed (Int.repr 1) @ int tint ⎤ ∗ True).
   Proof.
   iIntros.
   (* usually Info level 0 is able to see the tactic applied *)
@@ -404,7 +403,6 @@ Section automation_tests.
   assert (β1=Own) as ->. {
     admit.
   }
-  assert (TCDone (ty_has_op_type tytrue tint MCNone)) by admit.
   liRStep.
   liRStep.
   liRStep.
