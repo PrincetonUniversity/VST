@@ -335,9 +335,9 @@ Section judgements.
     (∀ Φ:address->assert, 
       (∀ (l:address) (ty : type),
         ⎡l ◁ₗ{β} ty⎤ (* typed_write_end has this so maybe here needs it too? *) 
-        -∗ T l ty -∗ Φ l)
+        -∗ T l β ty -∗ Φ l)
       -∗ wp_lvalue e Φ).
-  Global Arguments typed_lvalue _ _%_I.
+  Global Arguments typed_lvalue _ _ _%_I.
   Class TypedLvalue β (e : expr) : Type :=
     typed_lvalue_proof T : iProp_to_Prop (typed_lvalue β e T).
 
@@ -1882,11 +1882,11 @@ Section typing.
 
   
 
-  Lemma type_var_local _x (lv:val) β ty c_ty (T: address -> type -> assert) :
+  Lemma type_var_local _x (lv:val) β ty c_ty (T: address -> own_state -> type -> assert) :
     <affine> (local $ locald_denote $ lvar _x c_ty lv) ∗
     (∃ l, <affine> ⌜Some l = val2address lv⌝ ∗
     ⎡ l ◁ₗ{β} ty ⎤ ∗
-    T l ty)
+    T l β ty)
     ⊢ typed_lvalue β (Evar _x c_ty) T.
   Proof.
     iIntros "(Hlvar & (%l & %Hl & Hl_own & HT))" (Φ) "HΦ".
@@ -2100,7 +2100,7 @@ Section typing.
   (* Ke: a simple version of type_write that treat typed_place as just typed_val_expr. 
          Not so sure about what's inside typed_val_expr outside of typed_write_end. *)
   Lemma type_write_simple β1 (a : bool) ty T e v ot:
-    (typed_lvalue β1 e (λ l ty1, ∀ β2,
+    (typed_lvalue β1 e (λ l β2 ty1,
       typed_write_end a ⊤ ot v ty l β2 ty1 (λ ty3:type, ⎡l ◁ₗ{β1} ty3⎤ -∗ T)))%I
     ⊢ typed_write a e ot v ty T.
   Proof.

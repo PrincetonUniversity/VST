@@ -355,7 +355,7 @@ Section automation_tests.
 
    Set Ltac Backtrace.
 
-  (* Goal forall Espec Delta (_x:ident) (x:val),
+  Goal forall Espec Delta (_x:ident) (x:val),
   <affine> (local $ locald_denote $ temp _x x)
   ⊢ typed_stmt Espec Delta (Sset _x (Ebinop Oadd (Econst_int (Int.repr 41) tint) (Econst_int (Int.repr 1) tint) tint)) 
                            (λ v t, <affine> local (locald_denote (temp _x (Vint (Int.repr 42))))
@@ -365,17 +365,19 @@ Section automation_tests.
     do 30 liRStep.
     liShow; try done.
  (** TODO make use of Objective environment *)
-  Qed. *)
+  Qed.
 
   Goal forall Espec Delta (_x:ident) b o (l:address) ty ,
   TCDone (ty_has_op_type ty tint MCNone) ->
   ⊢ <affine> (local $ locald_denote $ lvar _x tint $ Vptr b o) -∗
-    <affine> ⌜l = (b, Ptrofs.signed o)⌝ -∗
-    ⎡ ty_own ty Own l ⎤ -∗
+    ⎡ ty_own ty Own (b, Ptrofs.signed o) ⎤ -∗
     typed_stmt Espec Delta (Sassign (Evar _x tint) (Econst_int (Int.repr 1) tint))
-               (λ v t, ⎡ l ◁ₗ Int.signed (Int.repr 1) @ int tint ⎤ ∗ True).
+               (λ v t, ⎡ (b, Ptrofs.signed o) ◁ₗ Int.signed (Int.repr 1) @ int tint ⎤ ∗ True).
   Proof.
   iIntros.
+  liRStep.
+  liRStep.
+  liRStep.
   (* usually Info level 0 is able to see the tactic applied *)
   Info 0 liRStep. (* type_assign *)
 
@@ -396,22 +398,13 @@ Section automation_tests.
 
   liRStep.
   liRStep.
-  unfold IPM_JANNO. subst. (* FIXME *)
   liRStep.
   liRStep.
 
-  assert (β2=Own) as ->. {
-    admit.
-  }
   liRStep.
   liRStep.
   liRStep.
   liRStep.
   liRStep.
-  liRStep.
-  
-  liRStep.
-  liRStep.
-  liRStep.
-Admitted.
+Qed.
 End automation_tests.
