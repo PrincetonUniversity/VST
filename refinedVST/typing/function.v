@@ -63,9 +63,11 @@ Section function.
   (* using Delta here is suspect because it contains funspecs, but maybe we can just ignore them? *)
   Definition typed_function (fn : function) (fp : @dtfr Σ A → fn_params) : iProp Σ :=
     (∀ x, <affine> ⌜Forall2 (λ (ty : type) '(_, p), ty.(ty_has_op_type) p MCNone) (fp x).(fp_atys) (Clight.fn_params fn)⌝ ∗
-      □ ∀ (lsa : vec val (length (fp x).(fp_atys))) rho,
+      □ ∀ (lsa : vec val (length (fp x).(fp_atys))) (lsv : vec val (length (fn_vars fn))) rho,
           ([∗ list] v;t∈lsa;(fp x).(fp_atys), v ◁ᵥ t) ∗
-          ([∗ list] '(i,_);v ∈ (Clight.fn_params fn);lsa, <affine> local (locald_denote (temp i v))) rho ∗ stackframe_of fn rho ∗ (fp x).(fp_Pa) -∗
+          ([∗ list] '(i,_);v ∈ (Clight.fn_params fn ++ fn_temps fn);lsa, <affine> local (locald_denote (temp i v))) rho ∗
+          ([∗ list] '(i,t);v ∈ fn_vars fn;lsv, <affine> local (locald_denote (lvar i t v))) rho ∗
+          stackframe_of fn rho ∗ (fp x).(fp_Pa) -∗
           typed_stmt Espec Delta (fn.(fn_body)) (fn_ret_prop (fp x).(fp_fr)) rho
     )%I.
 
@@ -88,7 +90,7 @@ Section function.
     iIntros (x). iDestruct ("HT" $! x) as ([Hlen Hall]%Forall2_same_length_lookup) "#HT".
     have [Heq [Hatys [HPa Hret]]] := Hfn x.
     iSplit; [done|].
-    iIntros "!>" (??) "(Ha & Hparams & stack)". rewrite -HPa.
+    iIntros "!>" (???) "(Ha & Hparams & stack)". rewrite -HPa.
     have [|lsa' Hlsa]:= vec_cast _ lsa (length (fp_atys (fp1 x))). { by rewrite Hatys. }
     iSpecialize ("HT" $! lsa' with "[-]").
     { iFrame. rewrite Hlsa; iFrame.
