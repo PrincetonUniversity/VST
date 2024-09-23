@@ -4,7 +4,7 @@ From lithium Require Import hooks normalize.
 From VST.lithium Require Export all.
 From VST.typing Require Export type.
 From VST.typing.automation Require Export proof_state (* solvers simplification  loc_eq. *).
-From VST.typing Require Import programs (* function singleton own struct bytes *) int.
+From VST.typing Require Import programs  function singleton own (* struct *) bytes int.
 Set Default Proof Using "Type".
 Set Nested Proofs Allowed.
 (** * Defining extensions *)
@@ -299,7 +299,7 @@ in the number of blocks! *)
 Tactic Notation "start_function" constr(fnname) "(" simple_intropattern(x) ")" :=
   intros;
   repeat iIntros "#?";
-  (* rewrite /typed_function; *)
+  rewrite /typed_function;
   iIntros ( x );
   iSplit; [iPureIntro; simpl; by [repeat constructor] || fail "in" fnname "argument types don't match layout of arguments" |];
   let lsa := fresh "lsa" in let lsv := fresh "lsv" in
@@ -407,4 +407,54 @@ Section automation_tests.
   liRStep.
   liRStep.
 Qed.
+
+From VST.typing Require Import automation_test.
+
+Definition spec_f_ret_expr :=
+  fn(∀ () : (); <affine> True) → ∃ z : Z, int tint ; <absorb> ⌜z=42⌝.
+#[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+Definition Vprog : varspecs. mk_varspecs prog. Defined.
+Definition Delta := (func_tycontext f_f_ret_expr Vprog [] []).
+
+Goal forall Espec, ⊢ typed_function(A := ConstType _) Espec Delta f_f_ret_expr spec_f_ret_expr.
+Proof.
+  intros;
+  repeat iIntros "#?";
+  rewrite /typed_function.
+  iIntros ( x ). (* computes the ofe_car in x *) hnf in x. destruct x. simpl.
+  iSplit.
+  { iPureIntro; simpl. repeat constructor. }
+  let lsa := fresh "lsa" in let rho := fresh "rho" in
+  iIntros "!#" (lsa rho). inv_vec lsa.
+
+  (* TODO go_higher here? *)
+  simpl.
+
+  rewrite -?(@monPred_at_emp environ_index mpred rho)
+          -?(@monPred_at_pure environ_index mpred rho) 
+          -?(monPred_at_affinely) 
+          -?monPred_at_sep 
+          -?monPred_wand_force.
+
+  Lemma go_higher : forall (P: assert) rho,
+    @bi_emp_valid (assert) P -> ⊢ monPred_at P rho.
+  Proof. 
+    intros ???.
+    destruct H as [H].
+    by iApply (H rho).
+  Qed.
+
+  iApply go_higher.
+  iStartProof.
+
+  liRStep.
+  liRStep.
+  liRStep.
+  liRStep.
+  liRStep.
+  liRStep.
+  liRStep.
+  repeat liRStep.
+  (* do Sreturn here *)
+  Admitted.
 End automation_tests.

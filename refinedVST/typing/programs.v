@@ -2273,4 +2273,26 @@ Global Hint Extern 5 (Subsume (_ ◁ₗ{_} _) (λ _, _ ◁ₗ{_} _.1ₗ)%I) =>
 (*Global Typeclasses Opaque typed_block.
 *)
 *)
+
+(* | step_return_1: forall f a k e le m v v' m',
+      eval_expr e le m a v ->
+      sem_cast v (typeof a) f.(fn_return) m = Some v' ->
+      Mem.free_list m (blocks_of_env e) = Some m' ->
+      step (State f (Sreturn (Some a)) k e le m)
+        E0 (Returnstate v' (call_cont k) m')
+Í*)
+  Lemma wp_return_some Espec E Delta e Rret :
+    wp_expr e (λ v, (RA_return Rret (Some v)))
+    ⊢ wp_stmt Espec E Delta (Sreturn (Some e)) Rret.
+  Proof.
+    intros.
+    rewrite /wp_stmt.
+    iIntros "H !>".
+  Admitted.
+
+  Lemma type_return_some Espec Delta  (e : expr) (T : val → type -> assert) :
+    ⊢ typed_val_expr e T -∗
+    typed_stmt Espec Delta (Sreturn $ Some $ e) T.
+  Admitted.
+
 End typing.
