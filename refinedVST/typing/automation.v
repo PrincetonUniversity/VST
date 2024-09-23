@@ -424,8 +424,10 @@ Proof.
   iIntros ( x ). (* computes the ofe_car in x *) hnf in x. destruct x. simpl.
   iSplit.
   { iPureIntro; simpl. repeat constructor. }
-  let lsa := fresh "lsa" in let rho := fresh "rho" in
-  iIntros "!#" (lsa rho). inv_vec lsa.
+  let lsa := fresh "lsa" in
+  let lsb := fresh "lsb" in
+  let rho := fresh "rho" in
+  iIntros "!#" (lsa lsb rho). inv_vec lsb. inv_vec lsa.
 
   (* TODO go_higher here? *)
   simpl.

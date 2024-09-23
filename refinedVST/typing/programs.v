@@ -5,6 +5,10 @@ From VST.typing Require Export type.
 From VST.typing Require Import type_options.
 From VST.floyd Require Import globals_lemmas.
 
+Lemma assert_of_fun_monPred_at : forall `{!typeG Σ} (P : assert), assert_of (λ x, monPred_at P x) ⊣⊢ P.
+Proof. done. Qed.
+Set Nested Proofs Allowed.
+
 Open Scope Z.
 
 (* int infrastructure *)
@@ -1455,15 +1459,22 @@ Section typing.
     iExists tytrue; iSplit; done.
   Qed.
 
-  Lemma wp_semax : forall Espec E Delta P s Q, (P ⊢ wp_stmt Espec E Delta s Q) → semax(OK_spec := Espec) E Delta P s Q.
+  Lemma wp_semax : forall Espec E Delta P s Q, (P ⊢ wp_stmt Espec E Delta s Q) ↔ semax(OK_spec := Espec) E Delta P s Q.
   Proof.
-    intros.
+    intros. split; intros.
+    -
     rewrite /wp_stmt in H.
     eapply semax_pre_fupd.
     { rewrite bi.and_elim_r //. }
     apply semax_extract_exists; intros.
     rewrite comm.
     apply semax_extract_prop; done.
+    - rewrite /wp_stmt.
+    eapply semax_pre_fupd in H.
+    2: { rewrite bi.and_elim_r //. }
+    iIntros. iExists (|={E}=> P).
+    iModIntro.
+    iSplit; try done.
   Qed.
 
   (* see semax_set *)
@@ -2281,14 +2292,51 @@ Global Hint Extern 5 (Subsume (_ ◁ₗ{_} _) (λ _, _ ◁ₗ{_} _.1ₗ)%I) =>
       step (State f (Sreturn (Some a)) k e le m)
         E0 (Returnstate v' (call_cont k) m')
 Í*)
-  Lemma wp_return_some Espec E Delta e Rret :
+(* free_stackframe *)
+
+
+  Lemma wp_return_some Espec E Delta e Rret m:
+  ⎡ juicy_mem.mem_auth m⎤ ∗
+    <affine> tc_expr Delta (Ecast e (ret_type Delta)) ∗
     wp_expr e (λ v, (RA_return Rret (Some v)))
     ⊢ wp_stmt Espec E Delta (Sreturn (Some e)) Rret.
   Proof.
     intros.
-    rewrite /wp_stmt.
-    iIntros "H !>".
-  Admitted.
+    rewrite wp_semax.
+    eapply semax_pre.
+    2: { apply semax_return. }
+    iIntros "(Hm&?&?&?)".
+    iSplit; simpl.
+    - done.
+    -
+    unfold_lift. simpl.
+    iStopProof.
+    split => rho.
+
+  Lemma go_higher : forall (P: assert) rho,
+  @bi_emp_valid (assert) P -> ⊢ monPred_at P rho.
+  Proof. 
+  intros ???.
+  destruct H as [H].
+  by iApply (H rho).
+  Qed.
+
+  apply bi.wand_entails.
+  simpl.
+
+  rewrite -?(@monPred_at_emp environ_index mpred rho)
+  -?(@monPred_at_pure environ_index mpred rho) 
+  -?(monPred_at_affinely) 
+  -?monPred_at_sep 
+  -?monPred_wand_force.
+
+  apply go_higher.
+  iIntros "(a&Hm&b&wp_expr)".
+
+  unfold wp_expr.
+  (* maybe we just don't deal with the cases where it depends on the memory? *)
+  iDestruct ("wp_expr" $! m with "Hm") as (v) "(?&?&?)".
+Admitted.
 
   Lemma type_return_some Espec Delta  (e : expr) (T : val → type -> assert) :
     ⊢ typed_val_expr e T -∗
