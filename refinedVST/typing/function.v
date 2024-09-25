@@ -61,14 +61,25 @@ Section function.
   Context (Espec : ext_spec OK_ty) (Delta : tycontext) (ge : genv).
 
   (* using Delta here is suspect because it contains funspecs, but maybe we can just ignore them? *)
-  Definition typed_function (fn : function) (fp : @dtfr Σ A → fn_params) : iProp Σ :=
+(*   Definition typed_function (fn : function) (fp : @dtfr Σ A → fn_params) : iProp Σ :=
     (∀ x, <affine> ⌜Forall2 (λ (ty : type) '(_, p), ty.(ty_has_op_type) p MCNone) (fp x).(fp_atys) (Clight.fn_params fn)⌝ ∗
       □ ∀ (lsa : vec val (length (fp x).(fp_atys))) (lsv : vec val (length (fn_vars fn))) rho,
-          ([∗ list] v;t∈lsa;(fp x).(fp_atys), v ◁ᵥ t) ∗
+         (([∗ list] v;t∈lsa;(fp x).(fp_atys), v ◁ᵥ t) ∗
           ([∗ list] '(i,_);v ∈ (Clight.fn_params fn);lsa, <affine> local (locald_denote (temp i v))) rho ∗
           ([∗ list] '(i,t);v ∈ fn_vars fn;lsv, <affine> local (locald_denote (lvar i t v))) rho ∗
-          stackframe_of fn rho ∗ (fp x).(fp_Pa) -∗
+          stackframe_of fn rho ∗ (fp x).(fp_Pa)) -∗
           typed_stmt Espec Delta (fn.(fn_body)) (fn_ret_prop (fp x).(fp_fr)) rho
+    )%I.
+ *)
+
+  Definition typed_function (fn : function) (fp : @dtfr Σ A → fn_params) : iProp Σ :=
+    (∀ x, <affine> ⌜Forall2 (λ (ty : type) '(_, p), ty.(ty_has_op_type) p MCNone) (fp x).(fp_atys) (Clight.fn_params fn)⌝ ∗
+      <affine> ⌜∀ (lsa : vec val (length (fp x).(fp_atys))) (lsv : vec address (length (fn_vars fn))),
+          ⎡[∗ list] v;t∈lsa;(fp x).(fp_atys), v ◁ᵥ t⎤ ∗
+          ([∗ list] '(i,_);v ∈ (Clight.fn_params fn);lsa, <affine> local (locald_denote (temp i v))) ∗
+          ([∗ list] '(i,t);v ∈ fn_vars fn;lsv, (<affine> local (locald_denote (lvar i t (adr2val v)))) ∗ ⎡v ◁ₗ uninit t⎤) ∗
+          stackframe_of fn ∗ ⎡(fp x).(fp_Pa)⎤ ⊢
+          typed_stmt Espec Delta (fn.(fn_body)) (fn_ret_prop (fp x).(fp_fr))⌝
     )%I.
 
   Global Instance typed_function_persistent fn fp : Persistent (typed_function fn fp) := _.
@@ -87,24 +98,24 @@ Section function.
   Proof.
     iIntros (-> Hly Hfn) "HT".
     rewrite /typed_function.
-    iIntros (x). iDestruct ("HT" $! x) as ([Hlen Hall]%Forall2_same_length_lookup) "#HT".
+    iIntros (x). iDestruct ("HT" $! x) as ([Hlen Hall]%Forall2_same_length_lookup) "%HT".
     have [Heq [Hatys [HPa Hret]]] := Hfn x.
     iSplit; [done|].
-    iIntros "!>" (???) "(Ha & Hparams & stack)". rewrite -HPa.
+    iPureIntro; intros. iIntros "(Ha & Hparams & stack)". rewrite -HPa.
     have [|lsa' Hlsa]:= vec_cast _ lsa (length (fp_atys (fp1 x))). { by rewrite Hatys. }
-    iSpecialize ("HT" $! lsa' with "[-]").
-    { iFrame. rewrite Hlsa; iFrame.
-      iStopProof.
+    iApply typed_stmt_mono; last iApply (HT lsa').
+    - iIntros (v ?) "HR Hty".
+      iDestruct ("HR" with "Hty") as (y) "[?[??]]".
+      have [-> ->]:= Hret y.
+      iExists (rew [λ x : Type, x] Heq in y). iFrame.
+    - iFrame. rewrite Hlsa; iFrame.
+      iStopProof. split => rho; monPred.unseal.
       apply bi.equiv_entails_1_1, big_sepL2_proper_2; [done..|].
       intros ??????? Hy. inv Hy.
       move: Hatys => /list_equiv_lookup Hatys.
       intros Haty2 Haty1.
       have := Hatys k. rewrite Haty1 Haty2=> /(Some_equiv_eq _ _)[?[? [? Heqv]]] ?.
-      rewrite -Heqv. by simplify_eq. }
-    iApply (typed_stmt_mono with "HT"). iIntros (v ?) "HR Hty".
-    iDestruct ("HR" with "Hty") as (y) "[?[??]]".
-    have [-> ->]:= Hret y.
-    iExists (rew [λ x : Type, x] Heq in y). iFrame.
+      rewrite -Heqv. by simplify_eq.
   Qed.
 
   (* The design of this in RefinedC is to associate a function pointer with actual function code,
@@ -218,7 +229,7 @@ Section function.
     iIntros "(Hl & Hf & Htys & Hatys & HP & Hpost)" (?) "Hstack !>".
     rewrite /typed_function.
     iSpecialize ("Hf" $! x).
-    iDestruct "Hf" as (?) "Hf".
+    iDestruct "Hf" as %(? & Hf).
 (*    iSpecialize ("Hf" $! (Vector.of_list vl) with "[-]").
     { iFrame.
       iSplitL "Hatys".
