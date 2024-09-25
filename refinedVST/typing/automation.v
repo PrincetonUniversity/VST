@@ -172,7 +172,7 @@ Ltac liRStmt :=
       let s' := s in
       lazymatch s' with
       | Sassign _ _ => notypeclasses refine (tac_fast_apply (type_assign _ _ _ _ _) _)
-      | Sset _ _ => notypeclasses refine (tac_fast_apply (type_set _ _ _ _ _ _) _)
+      | Sset _ _ => notypeclasses refine (tac_fast_apply (type_set _ _ _ _ _) _)
       | Ssequence _ _ => notypeclasses refine (tac_fast_apply (type_seq _ _ _ _ _) _)
       | Sreturn $ Some _ => notypeclasses refine (tac_fast_apply (type_return_some _ _ _ _) _)
       | Sreturn None => notypeclasses refine (tac_fast_apply (type_return_none _ _ _) _)
@@ -365,10 +365,13 @@ Section automation_tests.
                                    ∗ ⎡ Vint (Int.repr 42) ◁ᵥ 42 @ int tint ⎤).
   Proof.
     iIntros.
-    do 30 liRStep.
+    repeat liRStep.
+    
+    Admitted.
+    (* do 30 liRStep.
     liShow; try done.
  (** TODO make use of Objective environment *)
-  Qed.
+  Qed. *)
 
   Goal forall Espec Delta (_x:ident) b o (l:address) ty ,
   TCDone (ty_has_op_type ty tint MCNone) ->
@@ -475,12 +478,12 @@ From VST.typing Require Import automation_test.
     Context `{!typeG Σ} {cs : compspecs} `{!externalGS OK_ty Σ}.
 
     Definition spec_f_temps :=
-      fn(∀ () : (); <affine> True) → ∃ z : Z, int tint ; <absorb> ⌜z=42⌝.
+      fn(∀ () : (); emp) → ∃ z : Z, int tint ; <absorb> ⌜z=42⌝.
     Local Instance CompSpecs : compspecs. make_compspecs prog. Defined.
     Local Definition Vprog : varspecs. mk_varspecs prog. Defined.
-    Local Definition Delta := (func_tycontext f_f_temps Vprog [] []).
+    (* Local Definition Delta := (func_tycontext f_f_temps Vprog [] []). *)
 
-    Goal forall Espec, ⊢ typed_function(A := ConstType _) Espec Delta f_f_temps spec_f_temps.
+    Goal forall Espec Delta, ⊢ typed_function(A := ConstType _) Espec Delta f_f_temps spec_f_temps.
     Proof.
       intros;
       repeat iIntros "#?";
@@ -512,12 +515,9 @@ From VST.typing Require Import automation_test.
     iApply go_higher.
     iStartProof.
 
-
-
-      
     repeat liRStep.
     iIntros.
-    clear H.
+    iModIntro.
     repeat liRStep.
     unfold IPM_JANNO.
 

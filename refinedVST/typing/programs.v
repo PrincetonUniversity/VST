@@ -7,7 +7,6 @@ From VST.floyd Require Import globals_lemmas.
 
 Lemma assert_of_fun_monPred_at : forall `{!typeG Σ} (P : assert), assert_of (λ x, monPred_at P x) ⊣⊢ P.
 Proof. done. Qed.
-Set Nested Proofs Allowed.
 
 Open Scope Z.
 
@@ -1512,6 +1511,58 @@ Section typing.
     iExists _; iSplit; last done; done.
   Qed.
 
+  Lemma wp_return_some Espec E Delta e Rret:
+    tc_expr Delta (Ecast e (ret_type Delta)) ∧
+    wp_expr e (λ v, (RA_return Rret (Some v)))
+    ⊢ wp_stmt Espec E Delta (Sreturn (Some e)) Rret.
+  Proof.
+    intros.
+    apply semax_wp.
+    eapply semax_pre.
+    2: { apply semax_return. }
+    iIntros "(#? & H)".
+    iSplit; simpl.
+    - iDestruct "H" as "[$ _]".
+    - unfold_lift.
+      iStopProof.
+      split => rho; monPred.unseal.
+      rewrite monPred_at_intuitionistically.
+  Admitted.
+
+  Lemma type_return_some Espec Delta e (T : val → type -> assert):
+    ⊢ tc_expr Delta (Ecast e (ret_type Delta)) ∧ typed_val_expr e T -∗
+    typed_stmt Espec Delta (Sreturn $ Some e) T.
+    unfold typed_stmt.
+    iIntros "H".
+    iApply wp_return_some. simpl.
+    iSplit.
+    - iDestruct "H" as "[$ _]".
+    - unfold typed_val_expr.
+      iApply "H". iIntros.
+      iExists ty. iFrame.
+  Qed.
+
+  Lemma wp_return_none Espec E Delta Rret:
+    RA_return Rret None
+    ⊢ wp_stmt Espec E Delta (Sreturn None) Rret.
+  Proof.
+    intros.
+    rewrite wp_semax.
+    eapply semax_pre.
+    2: { apply semax_return. }
+  Admitted.
+
+  Lemma type_return_none Espec Delta (T : val → type -> assert):
+    ⊢ T Vundef tytrue -∗
+    typed_stmt Espec Delta (Sreturn $ None) T.
+    unfold typed_stmt.
+    iIntros "H".
+    iApply wp_return_none. simpl.
+    iExists tytrue. iFrame.
+    done.
+  Qed.
+
+
 (* This should be able to reuse semax_ifthenelse, but it's not currently factored correctly. The right way
    might be to define a set of more primitive/direct rules with wp, and then build the VeriC semax rules on
    top of those. *)
@@ -2312,55 +2363,5 @@ Global Hint Extern 5 (Subsume (_ ◁ₗ{_} _) (λ _, _ ◁ₗ{_} _.1ₗ)%I) =>
     eapply semax_post; last refine H.
     - rewrite /typed_stmt_post_cond  /overridePost /=. iIntros "(_&?)".
   Admitted. 
-
-(* | step_return_1: forall f a k e le m v v' m',
-      eval_expr e le m a v ->
-      sem_cast v (typeof a) f.(fn_return) m = Some v' ->
-      Mem.free_list m (blocks_of_env e) = Some m' ->
-      step (State f (Sreturn (Some a)) k e le m)
-        E0 (Returnstate v' (call_cont k) m')
-Í*)
-(* free_stackframe *)
-
-
-  Lemma wp_return_some Espec E Delta e Rret:
-    wp_expr e (λ v, (RA_return Rret (Some v)))
-    ⊢ wp_stmt Espec E Delta (Sreturn (Some e)) Rret.
-  Proof.
-    intros.
-    rewrite wp_semax.
-    eapply semax_pre.
-    2: { apply semax_return. }
-  Admitted.
-
-  Lemma type_return_some Espec Delta  (e : expr) (T : val → type -> assert) :
-    ⊢ typed_val_expr e T -∗
-    typed_stmt Espec Delta (Sreturn $ Some $ e) T.
-    unfold typed_stmt.
-    iIntros "H".
-    iApply wp_return_some. iApply "H".
-    iIntros. simpl. 
-    iFrame.
-  Qed.
-
-  Lemma wp_return_none Espec E Delta Rret:
-    RA_return Rret None
-    ⊢ wp_stmt Espec E Delta (Sreturn None) Rret.
-  Proof.
-    intros.
-    rewrite wp_semax.
-    eapply semax_pre.
-    2: { apply semax_return. }
-  Admitted.
-
-  Lemma type_return_none Espec Delta (T : val → type -> assert) :
-    ⊢ T Vundef tytrue -∗
-    typed_stmt Espec Delta (Sreturn $ None) T.
-    unfold typed_stmt.
-    iIntros "H".
-    iApply wp_return_none. simpl.
-    iExists tytrue. iFrame.
-    done.
-  Qed.
 
 End typing.
