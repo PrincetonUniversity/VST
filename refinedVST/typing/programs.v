@@ -2284,6 +2284,34 @@ Global Hint Extern 5 (Subsume (_ ◁ₗ{_} _) (λ _, _ ◁ₗ{_} _.1ₗ)%I) =>
 (*Global Typeclasses Opaque typed_block.
 *)
 *)
+  Lemma wp_seq Espec E Delta s1 s2 Rret:
+    wp_stmt Espec E Delta (s1) (overridePost (wp_stmt Espec E Delta s2 Rret) Rret)
+    ⊢ wp_stmt Espec E Delta (Ssequence s1 s2) Rret.
+  Proof.
+    iIntros "H".
+    iMod "H". iModIntro.
+    iDestruct "H" as (P) "(P & %H)".
+    iExists P. iFrame. iPureIntro.
+    split; [done|].
+    eapply semax_seq.
+    - apply H.
+    - rewrite -wp_semax //.
+  Qed.
+    
+  Lemma type_seq Espec Delta s1 s2 T:
+    typed_stmt Espec Delta s1 (λ _ _,
+    typed_stmt Espec Delta s2 T)
+    ⊢ typed_stmt Espec Delta (Ssequence s1 s2) T.
+  Proof.
+    iIntros "H". unfold typed_stmt.
+    rewrite -wp_seq.
+    unfold wp_stmt.
+    iMod "H". iModIntro.
+    iDestruct "H" as (P) "(P & %H)".
+    iExists P. iFrame. iSplit;[done|]; iPureIntro.
+    eapply semax_post; last refine H.
+    - rewrite /typed_stmt_post_cond  /overridePost /=. iIntros "(_&?)".
+  Admitted. 
 
 (* | step_return_1: forall f a k e le m v v' m',
       eval_expr e le m a v ->
@@ -2295,9 +2323,7 @@ Global Hint Extern 5 (Subsume (_ ◁ₗ{_} _) (λ _, _ ◁ₗ{_} _.1ₗ)%I) =>
 (* free_stackframe *)
 
 
-  Lemma wp_return_some Espec E Delta e Rret m:
-  ⎡ juicy_mem.mem_auth m⎤ ∗
-    <affine> tc_expr Delta (Ecast e (ret_type Delta)) ∗
+  Lemma wp_return_some Espec E Delta e Rret:
     wp_expr e (λ v, (RA_return Rret (Some v)))
     ⊢ wp_stmt Espec E Delta (Sreturn (Some e)) Rret.
   Proof.
@@ -2305,42 +2331,36 @@ Global Hint Extern 5 (Subsume (_ ◁ₗ{_} _) (λ _, _ ◁ₗ{_} _.1ₗ)%I) =>
     rewrite wp_semax.
     eapply semax_pre.
     2: { apply semax_return. }
-    iIntros "(Hm&?&?&?)".
-    iSplit; simpl.
-    - done.
-    -
-    unfold_lift. simpl.
-    iStopProof.
-    split => rho.
-
-  Lemma go_higher : forall (P: assert) rho,
-  @bi_emp_valid (assert) P -> ⊢ monPred_at P rho.
-  Proof. 
-  intros ???.
-  destruct H as [H].
-  by iApply (H rho).
-  Qed.
-
-  apply bi.wand_entails.
-  simpl.
-
-  rewrite -?(@monPred_at_emp environ_index mpred rho)
-  -?(@monPred_at_pure environ_index mpred rho) 
-  -?(monPred_at_affinely) 
-  -?monPred_at_sep 
-  -?monPred_wand_force.
-
-  apply go_higher.
-  iIntros "(a&Hm&b&wp_expr)".
-
-  unfold wp_expr.
-  (* maybe we just don't deal with the cases where it depends on the memory? *)
-  iDestruct ("wp_expr" $! m with "Hm") as (v) "(?&?&?)".
-Admitted.
+  Admitted.
 
   Lemma type_return_some Espec Delta  (e : expr) (T : val → type -> assert) :
     ⊢ typed_val_expr e T -∗
     typed_stmt Espec Delta (Sreturn $ Some $ e) T.
+    unfold typed_stmt.
+    iIntros "H".
+    iApply wp_return_some. iApply "H".
+    iIntros. simpl. 
+    iFrame.
+  Qed.
+
+  Lemma wp_return_none Espec E Delta Rret:
+    RA_return Rret None
+    ⊢ wp_stmt Espec E Delta (Sreturn None) Rret.
+  Proof.
+    intros.
+    rewrite wp_semax.
+    eapply semax_pre.
+    2: { apply semax_return. }
   Admitted.
+
+  Lemma type_return_none Espec Delta (T : val → type -> assert) :
+    ⊢ T Vundef tytrue -∗
+    typed_stmt Espec Delta (Sreturn $ None) T.
+    unfold typed_stmt.
+    iIntros "H".
+    iApply wp_return_none. simpl.
+    iExists tytrue. iFrame.
+    done.
+  Qed.
 
 End typing.
