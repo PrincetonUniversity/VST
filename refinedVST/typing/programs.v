@@ -1501,25 +1501,6 @@ Section typing.
     iExists _; iSplit; last done; done.
   Qed.
 
-  Lemma wp_return_some Espec E Delta e Rret:
-    tc_expr Delta (Ecast e (ret_type Delta)) ∧
-    wp_expr e (λ v, (RA_return Rret (Some v)))
-    ⊢ wp_stmt Espec E Delta (Sreturn (Some e)) Rret.
-  Proof.
-    intros.
-    apply semax_wp.
-    eapply semax_pre.
-    2: { apply semax_return. }
-    iIntros "(#? & H)".
-    iSplit; simpl.
-    - iDestruct "H" as "[$ _]".
-    - unfold_lift.
-      iStopProof.
-      split => rho; monPred.unseal.
-      rewrite monPred_at_intuitionistically.
-      iIntros "(_ & _ & H)".
-      rewrite /wp_expr.
-
 (* This should be able to reuse semax_ifthenelse, but it's not currently factored correctly. The right way
    might be to define a set of more primitive/direct rules with wp, and then build the VeriC semax rules on
    top of those. *)
@@ -1844,9 +1825,6 @@ Section typing.
     iApply wp_tempvar_local. iFrame.
     by iApply ("HΦ" with "[$]").
   Qed.
-  
-  (* Definition normalized_address (l:address) : address := 
-    (l.1,  l.2 mod ). *)
 
   Lemma wp_var_local : forall _x c_ty (lv:val) (T:address->assert),
     <affine> (local $ locald_denote $ lvar _x c_ty lv) ∗
