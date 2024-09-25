@@ -78,7 +78,7 @@ Section function.
           ⎡[∗ list] v;t∈lsa;(fp x).(fp_atys), v ◁ᵥ t⎤ ∗
           ([∗ list] '(i,_);v ∈ (Clight.fn_params fn);lsa, <affine> local (locald_denote (temp i v))) ∗
           ([∗ list] '(i,t);v ∈ fn_vars fn;lsv, (<affine> local (locald_denote (lvar i t (adr2val v)))) ∗ ⎡v ◁ₗ uninit t⎤) ∗
-          stackframe_of fn ∗ ⎡(fp x).(fp_Pa)⎤ ⊢
+          ⎡(fp x).(fp_Pa)⎤ ⊢
           typed_stmt Espec Delta (fn.(fn_body)) (fn_ret_prop (fp x).(fp_fr))⌝
     )%I.
 
