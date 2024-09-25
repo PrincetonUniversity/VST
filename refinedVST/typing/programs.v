@@ -1472,25 +1472,53 @@ Section typing.
   Proof.
   Admitted.
 
-  Lemma type_set Espec Delta (id:ident) v e (T: val -> type -> assert):
-    <affine> (local $ locald_denote $ temp id v) ∗
-    typed_val_expr e (λ v' ty, <affine> ⌜v' ≠ Vundef⌝ ∗ ⎡∀ rho, <affine> (local $ locald_denote $ temp id v') rho -∗ v' ◁ᵥ ty -∗ T Vundef tytrue rho⎤)%I
+  Lemma type_set Espec Delta (id:ident) e (T: val -> type -> assert):
+    typed_val_expr e (λ v ty, <affine> ⌜v ≠ Vundef⌝ ∗ <obj> (<affine> (local $ locald_denote $ temp id v) -∗ ⎡v ◁ᵥ ty⎤ -∗ T Vundef tytrue))%I
       ⊢ typed_stmt Espec Delta (Sset id e) T.
   Proof.
-    iIntros "(#? & He)".
+    iIntros "He".
     iApply wp_set.
     iApply "He".
     iIntros (??) "? [% ?]".
     rewrite /typed_stmt_post_cond /RA_normal.
     iStopProof; split => rho; monPred.unseal.
-    rewrite monPred_at_intuitionistically /= /lift1 /subst /=.
-    iIntros "(% & ? & HT)".
-    super_unfold_lift.
+    rewrite /local /lift1 /subst.
+    iIntros "(? & HT)".
+    unfold_lift.
     iExists tytrue; iSplit; first done.
-    iApply ("HT" with "[%] [$]").
+    iApply "HT"; try done.
+    rewrite monPred_at_affinely.
+    iPureIntro.
     split; auto.
     symmetry; apply eval_id_same.
   Qed.
+
+  Lemma semax_wp : forall Espec E Delta P s Q, semax(OK_spec := Espec) E Delta P s Q → (P ⊢ wp_stmt Espec E Delta s Q).
+  Proof.
+    intros.
+    rewrite /wp_stmt.
+    iIntros "? !>".
+    iExists _; iSplit; last done; done.
+  Qed.
+
+  Lemma wp_return_some Espec E Delta e Rret:
+    tc_expr Delta (Ecast e (ret_type Delta)) ∧
+    wp_expr e (λ v, (RA_return Rret (Some v)))
+    ⊢ wp_stmt Espec E Delta (Sreturn (Some e)) Rret.
+  Proof.
+    intros.
+    apply semax_wp.
+    eapply semax_pre.
+    2: { apply semax_return. }
+    iIntros "(#? & H)".
+    iSplit; simpl.
+    - iDestruct "H" as "[$ _]".
+    - unfold_lift.
+      iStopProof.
+      split => rho; monPred.unseal.
+      rewrite monPred_at_intuitionistically.
+      iIntros "(_ & _ & H)".
+      rewrite /wp_expr.
 
 (* This should be able to reuse semax_ifthenelse, but it's not currently factored correctly. The right way
    might be to define a set of more primitive/direct rules with wp, and then build the VeriC semax rules on
