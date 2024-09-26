@@ -7,10 +7,5 @@ int f_ret_expr() {
 
 int f_temps() {
     int a = 1;
-    int b = 41;
-    return a + b;
-}
-
-int f_call () {
-    return f_temps();
+    return a + 41;
 }

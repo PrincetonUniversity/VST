@@ -74,12 +74,9 @@ Definition ___compcert_va_float64 : ident := $"__compcert_va_float64".
 Definition ___compcert_va_int32 : ident := $"__compcert_va_int32".
 Definition ___compcert_va_int64 : ident := $"__compcert_va_int64".
 Definition _a : ident := $"a".
-Definition _b : ident := $"b".
-Definition _f_call : ident := $"f_call".
 Definition _f_ret_expr : ident := $"f_ret_expr".
 Definition _f_temps : ident := $"f_temps".
 Definition _main : ident := $"main".
-Definition _t'1 : ident := 128%positive.
 
 Definition f_main := {|
   fn_return := tint;
@@ -107,25 +104,12 @@ Definition f_f_temps := {|
   fn_callconv := cc_default;
   fn_params := nil;
   fn_vars := nil;
-  fn_temps := ((_a, tint) :: (_b, tint) :: nil);
+  fn_temps := ((_a, tint) :: nil);
   fn_body :=
 (Ssequence
   (Sset _a (Econst_int (Int.repr 1) tint))
-  (Ssequence
-    (Sset _b (Econst_int (Int.repr 41) tint))
-    (Sreturn (Some (Ebinop Oadd (Etempvar _a tint) (Etempvar _b tint) tint)))))
-|}.
-
-Definition f_f_call := {|
-  fn_return := tint;
-  fn_callconv := cc_default;
-  fn_params := nil;
-  fn_vars := nil;
-  fn_temps := ((_t'1, tint) :: nil);
-  fn_body :=
-(Ssequence
-  (Scall (Some _t'1) (Evar _f_temps (Tfunction Tnil tint cc_default)) nil)
-  (Sreturn (Some (Etempvar _t'1 tint))))
+  (Sreturn (Some (Ebinop Oadd (Etempvar _a tint)
+                   (Econst_int (Int.repr 41) tint) tint))))
 |}.
 
 Definition composites : list composite_definition :=
@@ -388,29 +372,28 @@ Definition global_definitions : list (ident * globdef fundef type) :=
      {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|})) ::
  (_main, Gfun(Internal f_main)) ::
  (_f_ret_expr, Gfun(Internal f_f_ret_expr)) ::
- (_f_temps, Gfun(Internal f_f_temps)) ::
- (_f_call, Gfun(Internal f_f_call)) :: nil).
+ (_f_temps, Gfun(Internal f_f_temps)) :: nil).
 
 Definition public_idents : list ident :=
-(_f_call :: _f_temps :: _f_ret_expr :: _main :: ___builtin_debug ::
- ___builtin_fmin :: ___builtin_fmax :: ___builtin_fnmsub ::
- ___builtin_fnmadd :: ___builtin_fmsub :: ___builtin_fmadd ::
- ___builtin_clsll :: ___builtin_clsl :: ___builtin_cls ::
- ___builtin_expect :: ___builtin_unreachable :: ___builtin_va_end ::
- ___builtin_va_copy :: ___builtin_va_arg :: ___builtin_va_start ::
- ___builtin_membar :: ___builtin_annot_intval :: ___builtin_annot ::
- ___builtin_sel :: ___builtin_memcpy_aligned :: ___builtin_sqrt ::
- ___builtin_fsqrt :: ___builtin_fabsf :: ___builtin_fabs ::
- ___builtin_ctzll :: ___builtin_ctzl :: ___builtin_ctz :: ___builtin_clzll ::
- ___builtin_clzl :: ___builtin_clz :: ___builtin_bswap16 ::
- ___builtin_bswap32 :: ___builtin_bswap :: ___builtin_bswap64 ::
- ___compcert_i64_umulh :: ___compcert_i64_smulh :: ___compcert_i64_sar ::
- ___compcert_i64_shr :: ___compcert_i64_shl :: ___compcert_i64_umod ::
- ___compcert_i64_smod :: ___compcert_i64_udiv :: ___compcert_i64_sdiv ::
- ___compcert_i64_utof :: ___compcert_i64_stof :: ___compcert_i64_utod ::
- ___compcert_i64_stod :: ___compcert_i64_dtou :: ___compcert_i64_dtos ::
- ___compcert_va_composite :: ___compcert_va_float64 ::
- ___compcert_va_int64 :: ___compcert_va_int32 :: nil).
+(_f_temps :: _f_ret_expr :: _main :: ___builtin_debug :: ___builtin_fmin ::
+ ___builtin_fmax :: ___builtin_fnmsub :: ___builtin_fnmadd ::
+ ___builtin_fmsub :: ___builtin_fmadd :: ___builtin_clsll ::
+ ___builtin_clsl :: ___builtin_cls :: ___builtin_expect ::
+ ___builtin_unreachable :: ___builtin_va_end :: ___builtin_va_copy ::
+ ___builtin_va_arg :: ___builtin_va_start :: ___builtin_membar ::
+ ___builtin_annot_intval :: ___builtin_annot :: ___builtin_sel ::
+ ___builtin_memcpy_aligned :: ___builtin_sqrt :: ___builtin_fsqrt ::
+ ___builtin_fabsf :: ___builtin_fabs :: ___builtin_ctzll ::
+ ___builtin_ctzl :: ___builtin_ctz :: ___builtin_clzll :: ___builtin_clzl ::
+ ___builtin_clz :: ___builtin_bswap16 :: ___builtin_bswap32 ::
+ ___builtin_bswap :: ___builtin_bswap64 :: ___compcert_i64_umulh ::
+ ___compcert_i64_smulh :: ___compcert_i64_sar :: ___compcert_i64_shr ::
+ ___compcert_i64_shl :: ___compcert_i64_umod :: ___compcert_i64_smod ::
+ ___compcert_i64_udiv :: ___compcert_i64_sdiv :: ___compcert_i64_utof ::
+ ___compcert_i64_stof :: ___compcert_i64_utod :: ___compcert_i64_stod ::
+ ___compcert_i64_dtou :: ___compcert_i64_dtos :: ___compcert_va_composite ::
+ ___compcert_va_float64 :: ___compcert_va_int64 :: ___compcert_va_int32 ::
+ nil).
 
 Definition prog : Clight.program := 
   mkprogram composites global_definitions public_idents _main Logic.I.

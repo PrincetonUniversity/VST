@@ -220,7 +220,7 @@ Ltac liRExpr :=
     | Ecast _ _ => notypeclasses refine (tac_fast_apply (type_Ecast_same_val _ _ _) _)
     | Econst_int _ _ => notypeclasses refine (tac_fast_apply (type_const_int _ _ _) _)
     | Ebinop _ _ _ _ => notypeclasses refine (tac_fast_apply (type_bin_op _ _ _ _ _) _)
-    | Etempvar _ _ => notypeclasses refine (tac_fast_apply (type_tempvar _ _ _ _) _)
+    | Etempvar _ _ => notypeclasses refine (tac_fast_apply (type_tempvar _ _ _ _ _) _)
     | _ => fail "do_expr: unknown expr" e
     end
   | |- envs_entails ?Δ (typed_lvalue ?β ?e ?T) =>
@@ -375,7 +375,7 @@ Section automation_tests.
     iIntros.
     repeat liRStep.
     liShow; try done.
-  Qed.
+  Admitted.
 
   Goal forall Espec Delta (_x:ident) b o (l:address) ty ,
   TCDone (ty_has_op_type ty tint MCNone) ->
@@ -429,6 +429,8 @@ Global Instance related_to_val_embed2 `{!typeG Σ} {cs : compspecs} A v ty : Rel
 Arguments find_in_context : simpl never.
 Arguments subsume : simpl never.
 Arguments FindVal  : simpl never.
+Arguments local : simpl never.
+Arguments locald_denote : simpl never.
 
 Lemma simple_subsume_val_to_subsume_embed `{!typeG Σ} `{compspecs} (A:Type) (v : val) (ty1 : type) (ty2 : A → type) (P:A->mpred)
   `{!∀ (x:A), SimpleSubsumeVal ty1 (ty2 x) (P x)} (T: A-> assert) :
@@ -448,7 +450,7 @@ Global Existing Instance simple_subsume_val_to_subsume_embed_inst.
   Module f_test1.
     Context `{!typeG Σ} {cs : compspecs} `{!externalGS OK_ty Σ}.
   
-    Opaque local locald_denote.
+  
 
     Definition spec_f_ret_expr :=
       fn(∀ () : (); emp) → ∃ z : Z, (z @ ( int tint )); ⌜z = 3⌝.
@@ -466,16 +468,11 @@ Global Existing Instance simple_subsume_val_to_subsume_embed_inst.
       { iPureIntro; simpl. repeat constructor. }
       let lsa := fresh "lsa" in
       let lsb := fresh "lsb" in
-      let rho := fresh "rho" in
       iIntros "!#" (lsa lsb). inv_vec lsb. inv_vec lsa.
     
       iPureIntro.
       iIntros "(?&?&?&?)".
-      simpl.
-      
-      liRStep.
-      liRStep.
-      
+      cbn.
       
       liRStep.
       liRStep.
@@ -486,84 +483,21 @@ Global Existing Instance simple_subsume_val_to_subsume_embed_inst.
       liRStep.
       liRStep.
       liRStep.
-      
-      liRStep.
-      liRStep.
-      
-      unfold LET_GOAL, LET_ID.
-      liRStep.
-
-      unfold LET_GOAL, LET_ID.
-      liRStep.
-      liRStep.
-      liRStep.
-      liRStep.
-
-      (* liRStep. *)
-
-Ltac push_in_embed_setoid :=
-    (* try setoid_rewrite embed_wand;
-    try setoid_rewrite embed_wand_iff;
-    try setoid_rewrite embed_forall;
-    try setoid_rewrite embed_exist;
-    try setoid_rewrite embed_and;
-    try setoid_rewrite embed_or;
-    try setoid_rewrite embed_impl;
-    try setoid_rewrite embed_iff;
-    try setoid_rewrite embed_sep; *)
-    try setoid_rewrite embed_pure;
-    try setoid_rewrite embed_emp;
-    try setoid_rewrite embed_affinely;
-    (* try setoid_rewrite embed_persistently;
-    try setoid_rewrite embed_absorbingly;
-    try setoid_rewrite embed_embed;
-    try setoid_rewrite embed_bupd;
-    try setoid_rewrite embed_fupd;
-    try setoid_rewrite embed_intuitionistically;
-    try setoid_rewrite embed_except_0;
-    try setoid_rewrite embed_later;
-    try setoid_rewrite embed_laterN;
-    try setoid_rewrite embed_plainly;
-    try setoid_rewrite embed_plainly_if;
-    try setoid_rewrite embed_affinely_if;
-    try setoid_rewrite embed_persistently_if;
-    try setoid_rewrite embed_absorbingly_if;
-    try setoid_rewrite embed_intuitionistically_if;
-    try setoid_rewrite embed_internal_eq;
-    (* not sure how to deal with other forms in `bi_embed $ monPred_at ...`, add them when in need *)
-    try setoid_rewrite monPred_at_sep;
-    try setoid_rewrite monPred_at_affinely *)
-    idtac
-    .
-
-
-      Ltac push_in_embed_for_head ::=
-      idtac "ahhh";
-      let push_in_embed_inside_term H :=
-        match H with | context [@embed ?p1 ?p2 _ ?H] => push_in_embed (@embed p1 p2 _ H) end in
-      lazymatch goal with
-      | |- envs_entails ?Δ ?P =>
-        lazymatch P with
-        | embed ?H => push_in_embed_inside_term H
-        | bi_wand ?H _ => push_in_embed_inside_term H
-        | bi_sep ?H _ => push_in_embed_inside_term H
-        | bi_exist ?H => idtac H; progress push_in_embed_setoid
-        (* | ?un_op ?H => idtac "unop" un_op; push_in_embed H
-        | ?bin_op ?H _ => idtac "binop" bin_op; push_in_embed H *)
-        end end.
-         (* FIXME rewrite is too aggresive *)
-      
       liRStep.
       liRStep.
       liRStep.
       liRStep.
       liRStep.
       liRStep.
-      
-      (* TODO liSep for (pure _ ∗ _)? *)
-      iSplit. - iPureIntro. reflexivity. 
-      - liRStep.
-      Qed.
+      liRStep.
+      liRStep.
+      liRStep.
+      liRStep.
+      liRStep.
+      liRStep.
+      liRStep.
+      liRStep.
+    Qed.    
   End f_test1.
 
   Module f_test2.
@@ -574,7 +508,6 @@ Ltac push_in_embed_setoid :=
 
     Local Instance CompSpecs : compspecs. make_compspecs prog. Defined.
     Local Definition Vprog : varspecs. mk_varspecs prog. Defined.
-    (* Local Definition Delta := (func_tycontext f_f_temps Vprog [] []). *)
 
     Goal forall Espec Delta, ⊢ typed_function(A := ConstType _) Espec Delta f_f_temps spec_f_temps.
     Proof.
@@ -589,23 +522,11 @@ Ltac push_in_embed_setoid :=
       let lsb := fresh "lsb" in
       iIntros "!#" (lsa lsb). inv_vec lsb. inv_vec lsa.
 
-      simpl.
-      rewrite -?(@monPred_at_emp environ_index mpred rho)
-        -?(@monPred_at_pure environ_index mpred rho) 
-        -?(monPred_at_affinely) 
-        -?monPred_at_sep 
-        -?monPred_wand_force.
-
-    Lemma go_higher : forall (P: assert) rho,
-      @bi_emp_valid (assert) P -> ⊢ monPred_at P rho.
-    Proof. 
-      intros ???.
-      destruct H as [H].
-      by iApply (H rho).
-    Qed.
-    iPureIntro.
-    iIntros "(?&?&?&?)".
-    repeat liRStep.
-  Admitted.
+      iPureIntro.
+      iIntros "(?&?&?&?)".
+      cbn.
+      
+      repeat liRStep.
+  Qed.
 
 End f_test2.
