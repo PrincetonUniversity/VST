@@ -5,9 +5,6 @@ From VST.typing Require Export type.
 From VST.typing Require Import type_options.
 From VST.floyd Require Import globals_lemmas.
 
-Lemma assert_of_fun_monPred_at : forall `{!typeG Σ} (P : assert), assert_of (λ x, monPred_at P x) ⊣⊢ P.
-Proof. done. Qed.
-
 Open Scope Z.
 
 (* int infrastructure *)
@@ -1530,17 +1527,17 @@ Section typing.
   Admitted.
 
   Lemma type_return_some Espec Delta e (T : val → type -> assert):
-    ⊢ tc_expr Delta (Ecast e (ret_type Delta)) ∧ typed_val_expr e T -∗
-    typed_stmt Espec Delta (Sreturn $ Some e) T.
+   typed_val_expr e T
+   ⊢ typed_stmt Espec Delta (Sreturn $ Some e) T.
     unfold typed_stmt.
     iIntros "H".
     iApply wp_return_some. simpl.
     iSplit.
-    - iDestruct "H" as "[$ _]".
+    - admit.
     - unfold typed_val_expr.
       iApply "H". iIntros.
       iExists ty. iFrame.
-  Qed.
+  Admitted.
 
   Lemma wp_return_none Espec E Delta Rret:
     RA_return Rret None
@@ -1553,8 +1550,8 @@ Section typing.
   Admitted.
 
   Lemma type_return_none Espec Delta (T : val → type -> assert):
-    ⊢ T Vundef tytrue -∗
-    typed_stmt Espec Delta (Sreturn $ None) T.
+    T Vundef tytrue
+    ⊢ typed_stmt Espec Delta (Sreturn $ None) T.
     unfold typed_stmt.
     iIntros "H".
     iApply wp_return_none. simpl.
