@@ -32,3 +32,8 @@ However the best way to use the frontend is to use the script [RefinedVST.sh](Re
 ./RefinedVST.sh
 ```
  The script checks [./refinedVST/typing/frontend_stuff/examples/test_f_temps.c](./refinedVST/typing/frontend_stuff/examples/test_f_temps.c) and generates proofs in [./refinedVST/typing/frontend_stuff/examples/proofs](./refinedVST/typing/frontend_stuff/examples/proofs).
+
+To delete generated files:
+```
+make clean-refinedVST-frontend
+```

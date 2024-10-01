@@ -922,6 +922,10 @@ clean-concur:
 clean-linking:
 	rm -f $(LINKING_FILES:%.v=linking/%.vo) $(LINKING_FILES:%.v=linking/%.glob)
 
+clean-refinedVST-frontend:
+	rm -fr refinedVST/typing/frontend_stuff/_build
+	rm -fr refinedVST/typing/frontend_stuff/examples/proofs
+
 count:
 	wc $(FILES)
 
