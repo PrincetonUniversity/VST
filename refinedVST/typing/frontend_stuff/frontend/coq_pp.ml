@@ -1664,7 +1664,8 @@ let pp_proof : Coq_path.t -> func_def -> import list -> string list
 
   (* Printing some header. *)
   pp "@[<v 0>From VST.typing Require Import typing.@;";
-  pp "From %a Require Import generated_code_vst.@;" Coq_path.pp coq_path;
+  (* FIXME should use the refinedC to Clight AST convertor *)
+  pp "From %a Require Import generated_code_vst_clight.@;" Coq_path.pp coq_path;
   pp "From %a Require Import generated_spec_vst.@;" Coq_path.pp coq_path;
   List.iter (pp_import ff) imports;
   pp "Set Default Proof Using \"Type\".@;@;";
@@ -1706,14 +1707,15 @@ let pp_proof : Coq_path.t -> func_def -> import list -> string list
     | [] -> ()
     | _  -> fprintf ff " (%a : loc)" (pp_sep " " pp_str) xs
   in
-  pp "@[<v 2>Lemma type_%s%a :@;" def.func_name pp_args deps;
+  pp "@[<v 2>Lemma type_%s%a Espec Delta :@;" def.func_name pp_args deps;
   begin
     let prefix = if used_functions = [] then "⊢ " else "" in
     let pp_impl ff def =
       let (used_globals, used_functions) = def.func_deps in
       let wrap = used_globals <> [] || used_functions <> [] in
       if wrap then fprintf ff "(";
-      fprintf ff "impl_%s" def.func_name;
+      (* FIXME this is the clight name; change it back to impl_%s when AST convertor is fixed *)
+      fprintf ff "f_%s" def.func_name;
       List.iter (fprintf ff " global_%s") used_globals;
       List.iter (fprintf ff " global_%s") used_functions;
       if wrap then fprintf ff ")"
@@ -1749,7 +1751,7 @@ let pp_proof : Coq_path.t -> func_def -> import list -> string list
       pp " -∗@;"
     in
     List.iter pp_dep used_functions;
-    pp "%styped_function(A := ConstType _) Espec Delta (rc_func_to_cl_func %a) type_of_%s.@]@;" prefix pp_impl def def.func_name
+    pp "%styped_function(A := ConstType _) Espec Delta %a type_of_%s.@]@;" prefix pp_impl def def.func_name
   end;
 
   (* We have a manual proof. *)
@@ -1760,7 +1762,7 @@ let pp_proof : Coq_path.t -> func_def -> import list -> string list
   | _                     ->
 
   (* We output a normal proof. *)
-  let pp_intros ff xs =
+  let _pp_intros ff xs =
     let pp_intro ff (x,_) = pp_str ff x in
     match xs with
     | []      -> fprintf ff "[]"
@@ -1771,14 +1773,16 @@ let pp_proof : Coq_path.t -> func_def -> import list -> string list
   in
   pp "@[<v 2>Proof.@;";
   pp "Local Open Scope printing_sugar.@;";
-  pp "start_function \"%s\" (%a)" def.func_name
-    pp_intros func_annot.fa_parameters;
-  if def.func_vars <> [] || def.func_args <> [] then
+  (* FIXME the intro pattern in type function is currently just x, the entire argument array *)
+  pp "type_function \"%s\" ( x )" def.func_name
+    (*pp_intros func_annot.fa_parameters *);
+  (* FIXME same as above *)
+  (* if def.func_vars <> [] || def.func_args <> [] then
     begin
       pp " =>";
       List.iter (fun (x,_) -> pp " arg_%s" x) def.func_args;
       List.iter (fun (x,_) -> pp " local_%s" x) def.func_vars
-    end;
+    end; *)
   pp ".@;";
   if func_annot.fa_parameters <> [] then
     begin
@@ -1872,14 +1876,14 @@ let pp_proof : Coq_path.t -> func_def -> import list -> string list
           List.iter (pp "%a@;%a" pp_sep () pp_constr) cs
     end;
   in
-  let pp_inv (id, annot) =
+  let _pp_inv (id, annot) =
     (* Opening a box and printing the existentials. *)
     pp "@;  @[<v 2><[ \"%s\" :=" id;
     pp_state_descr true true annot;
     (* Closing the box. *)
     pp "@]@;]> $"
   in
-  let pp_hint hint =
+  let _pp_hint hint =
     (* Opening a box. *)
     pp "@;  @[<v 2>IPROP_HINT ";
     begin match hint.ht_kind with
@@ -1897,12 +1901,14 @@ let pp_proof : Coq_path.t -> func_def -> import list -> string list
     (* Closing the box. *)
     pp "@;)%%I ::@]"
   in
+  
   let invs = collect_invs def in
-  pp "split_blocks ((";
+  (* No basic blocks to split in VST it seems *)
+  (* pp "split_blocks ((";
   List.iter pp_inv invs;
   pp "@;  ∅@;)%%I : gmap label (iProp Σ)) (";
   List.iter pp_hint def.func_hints;
-  pp "@;  @nil Prop@;).";
+  pp "@;  @nil Prop@;)."; *)
   let pp_do_step id =
     pp "@;- repeat liRStep; liShow.";
     pp "@;  all: print_typesystem_goal \"%s\" \"%s\"." def.func_name id

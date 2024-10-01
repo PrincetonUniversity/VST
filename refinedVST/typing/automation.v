@@ -307,14 +307,21 @@ End coq_tactics.
 (Q) is part of the goal, because simpl seems to take exponential time
 in the number of blocks! *)
 (* TODO: don't use i... tactics here *)
-Tactic Notation "start_function" constr(fnname) "(" simple_intropattern(x) ")" :=
+(* FIXME for now the intropattern is just x for the entire array of arguments. *)
+(* was start_function in refinedc; name conflict with the floyd tactic *)
+Tactic Notation "type_function" constr(fnname) "(" simple_intropattern(x) ")" :=
   intros;
   repeat iIntros "#?";
   rewrite /typed_function;
   iIntros ( x );
+  (* computes the ofe_car in introduced arguments *)
+  match goal with | H: ofe_car _ |- _ => hnf in H; destruct H end;
   iSplit; [iPureIntro; simpl; by [repeat constructor] || fail "in" fnname "argument types don't match layout of arguments" |];
-  let lsa := fresh "lsa" in let lsv := fresh "lsv" in
-  iIntros "!#" (lsa lsv); inv_vec lsv; inv_vec lsa.
+  let lsa := fresh "lsa" in let lsb := fresh "lsb" in
+  iIntros "!#" (lsa lsb); inv_vec lsb; inv_vec lsa;
+  iPureIntro;
+  iIntros "(?&?&?&?)";
+  cbn.
 
 Tactic Notation "prepare_parameters" "(" ident_list(i) ")" :=
   revert i; repeat liForall.
@@ -456,47 +463,11 @@ Global Existing Instance simple_subsume_val_to_subsume_embed_inst.
       fn(∀ () : (); emp) → ∃ z : Z, (z @ ( int tint )); ⌜z = 3⌝.
     Instance CompSpecs : compspecs. make_compspecs prog. Defined.
     Definition Vprog : varspecs. mk_varspecs prog. Defined.
-    Local Definition Delta := (func_tycontext f_f_ret_expr Vprog [] []).
 
-    Goal forall Espec, ⊢ typed_function(A := ConstType _) Espec Delta f_f_ret_expr spec_f_ret_expr.
+    Goal forall Espec Delta, ⊢ typed_function(A := ConstType _) Espec Delta f_f_ret_expr spec_f_ret_expr.
     Proof.
-      intros;
-      repeat iIntros "#?";
-      rewrite /typed_function.
-      iIntros ( x ). (* computes the ofe_car in x *) hnf in x. destruct x.
-      iSplit.
-      { iPureIntro; simpl. repeat constructor. }
-      let lsa := fresh "lsa" in
-      let lsb := fresh "lsb" in
-      iIntros "!#" (lsa lsb). inv_vec lsb. inv_vec lsa.
-    
-      iPureIntro.
-      iIntros "(?&?&?&?)".
-      cbn.
-      
-      liRStep.
-      liRStep.
-      liRStep.
-      liRStep.
-      liRStep.
-      liRStep.
-      liRStep.
-      liRStep.
-      liRStep.
-      liRStep.
-      liRStep.
-      liRStep.
-      liRStep.
-      liRStep.
-      liRStep.
-      liRStep.
-      liRStep.
-      liRStep.
-      liRStep.
-      liRStep.
-      liRStep.
-      liRStep.
-      liRStep.
+      type_function "f_ret_expr" ( x ).
+      repeat liRStep.
     Qed.    
   End f_test1.
 
@@ -511,21 +482,7 @@ Global Existing Instance simple_subsume_val_to_subsume_embed_inst.
 
     Goal forall Espec Delta, ⊢ typed_function(A := ConstType _) Espec Delta f_f_temps spec_f_temps.
     Proof.
-      intros;
-      repeat iIntros "#?";
-      rewrite /typed_function.
-      iIntros ( x ). (* computes the ofe_car in x *) hnf in x. destruct x.
-       (* simpl. *)
-      iSplit.
-      { iPureIntro; simpl. repeat constructor. }
-      let lsa := fresh "lsa" in
-      let lsb := fresh "lsb" in
-      iIntros "!#" (lsa lsb). inv_vec lsb. inv_vec lsa.
-
-      iPureIntro.
-      iIntros "(?&?&?&?)".
-      cbn.
-      
+      type_function "f_ret_expr" ( x ).
       repeat liRStep.
   Qed.
 

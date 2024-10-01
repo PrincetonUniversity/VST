@@ -21,7 +21,7 @@ COQLIB=$(shell $(COQC) -where | tr -d '\r' | tr '\\' '/')
 
 # Check Coq version
 
-COQVERSION= 8.17.0 or-else 8.17.1 or-else 8.18.0 or-else 8.19.1
+COQVERSION= 8.17.0 or-else 8.17.1 or-else 8.18.0 or-else 8.19.0 or-else or-else 8.19.1
 
 COQV=$(shell $(COQC) -v)
 ifneq ($(IGNORECOQVERSION),true)
@@ -333,6 +333,8 @@ endif
 
 # ##### refinedVST Flags #####
 EXTFLAGS:=$(EXTFLAGS) -Q refinedVST/lithium VST.lithium -Q refinedVST/typing VST.typing
+
+EXTFLAGS:=$(EXTFLAGS) $(REFINEDVSTFLAGS)
 
 # ##### Flag summary #####
 
