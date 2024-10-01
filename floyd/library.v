@@ -86,6 +86,12 @@ Parameter malloc_token_change_composite: forall {cs_from cs_to} {CCE : change_co
   cs_preserve_type cs_from cs_to (coeq cs_from cs_to) t = true ->
   @malloc_token cs_from sh t v ⊣⊢ @malloc_token cs_to sh t v.
 
+Parameter malloc_token_share_join: forall {cs: compspecs} sh1 sh2 sh t p,
+  sepalg.join sh1 sh2 sh -> malloc_token sh1 t p ∗ malloc_token sh2 t p ⊣⊢ malloc_token sh t p.
+
+Parameter malloc_token_conflict: forall {cs: compspecs} sh t p, sh <> Share.bot ->
+  0 < sizeof t -> malloc_token sh t p ∗ malloc_token sh t p ⊢ False.
+
 (*
 Parameter malloc_token_precise:
   forall {cs: compspecs} sh t p, predicates_sl.precise (malloc_token sh t p).
