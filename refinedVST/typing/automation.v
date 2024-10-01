@@ -4,7 +4,7 @@ From lithium Require Import hooks normalize.
 From VST.lithium Require Export all.
 From VST.typing Require Export type.
 From VST.typing.automation Require Export proof_state (* solvers simplification  loc_eq. *).
-From VST.typing Require Import programs  function singleton own (* struct *) bytes int.
+From VST.typing Require Import programs function singleton own (* struct *) bytes int.
 Set Default Proof Using "Type".
 Set Nested Proofs Allowed.
 (** * Defining extensions *)
