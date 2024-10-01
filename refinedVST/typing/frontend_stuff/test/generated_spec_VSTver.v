@@ -1,8 +1,8 @@
 (* The VST spec would look like this *)
 From VST.typing Require Import automation.
-From (* some path, maybe start with putting the files in progs64/ *) Require Import generated_code.
+From VST.typing Require Import automation_test.
 Set Default Proof Using "Type".
-
+From VST.typing Require Import function.
 (* Generated from [tutorial/test.c]. *)
 Section spec.
   Context `{!typeG Σ} `{!globalG Σ}.

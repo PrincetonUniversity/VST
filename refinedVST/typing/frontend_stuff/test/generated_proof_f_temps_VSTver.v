@@ -1,7 +1,5 @@
 (* The VST proof would look like this *)
 From VST.typing Require Import automation.
-From (* some path, maybe start with putting the files in progs64/ *) Require Import generated_code.
-From (* some path, maybe start with putting the files in progs64/ *) Require Import generated_spec.
 Set Default Proof Using "Type".
 
 (* Generated from [tutorial/test.c]. *)
