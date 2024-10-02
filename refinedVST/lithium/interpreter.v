@@ -424,6 +424,13 @@ Ltac liImpl :=
 Section coq_tactics.
   Context {prop : bi}.
   Lemma tac_sep_pure Δ (P : Prop) (Q : prop) :
+    P → envs_entails Δ Q → envs_entails Δ (⌜P⌝ ∗ Q).
+  Proof.
+    rewrite envs_entails_unseal => [HP HΔ].
+    iIntros "HΔ". iSplit => //. by iApply HΔ.
+  Qed.
+
+  Lemma tac_sep_affine_pure Δ (P : Prop) (Q : prop) :
     P → envs_entails Δ Q → envs_entails Δ (<affine> ⌜P⌝ ∗ Q).
   Proof.
     rewrite envs_entails_unseal => [HP HΔ].
@@ -431,17 +438,35 @@ Section coq_tactics.
   Qed.
 
   Lemma tac_sep_pure_and {A B} Δ (P1 P2 : _ → Prop) (Q : (A *ₗ B) → prop) :
+    envs_entails Δ (∃ₗ x, ⌜P1 x⌝ ∗ ⌜P2 x⌝ ∗ Q x) → envs_entails Δ (∃ₗ x, ⌜P1 x ∧ P2 x⌝ ∗ Q x).
+  Proof. apply tac_fast_apply. iIntros "[% [? [? ?]]]". iExists _. iFrame. iSplit; done. Qed.
+  Lemma tac_sep_affine_pure_and {A B} Δ (P1 P2 : _ → Prop) (Q : (A *ₗ B) → prop) :
     envs_entails Δ (∃ₗ x, <affine> ⌜P1 x⌝ ∗ <affine> ⌜P2 x⌝ ∗ Q x) → envs_entails Δ (∃ₗ x, <affine> ⌜P1 x ∧ P2 x⌝ ∗ Q x).
   Proof. apply tac_fast_apply. iIntros "[% [% [% ?]]]". iExists _. by iFrame. Qed.
   Lemma tac_sep_pure_exist {A B} {C} Δ (P : _ → C → Prop) (Q : (A *ₗ B) → prop) :
+    envs_entails Δ (∃ₗ x, ∃ y, ⌜P x y⌝ ∗ Q x) → envs_entails Δ (∃ₗ x, ⌜∃ y, P x y⌝ ∗ Q x).
+  Proof. apply tac_fast_apply. iIntros "[% [% [? ?]]]". iExists _. iFrame. iExists _. done. Qed.
+  Lemma tac_sep_affine_pure_exist {A B} {C} Δ (P : _ → C → Prop) (Q : (A *ₗ B) → prop) :
     envs_entails Δ (∃ₗ x, ∃ y, <affine> ⌜P x y⌝ ∗ Q x) → envs_entails Δ (∃ₗ x, <affine> ⌜∃ y, P x y⌝ ∗ Q x).
   Proof. apply tac_fast_apply. iIntros "[%a [% [% ?]]]". iExists _. iFrame. naive_solver. Qed.
 
   Lemma tac_normalize_goal_and_liex {A B} Δ (P1 P2 : _ → Prop) (Q : (A *ₗ B) → prop):
+    (∀ x, P1 x = P2 x) → envs_entails Δ (∃ₗ x, ⌜P2 x⌝ ∗ Q x) → envs_entails Δ (∃ₗ x, ⌜P1 x⌝ ∗ Q x).
+  Proof. move => HP. apply tac_fast_apply. iIntros "[%a ?]". rewrite -HP. iExists _. iFrame. Qed.
+
+  Lemma tac_normalize_goal_and_liex_affine {A B} Δ (P1 P2 : _ → Prop) (Q : (A *ₗ B) → prop):
     (∀ x, P1 x = P2 x) → envs_entails Δ (∃ₗ x, <affine> ⌜P2 x⌝ ∗ Q x) → envs_entails Δ (∃ₗ x, <affine> ⌜P1 x⌝ ∗ Q x).
   Proof. move => HP. apply tac_fast_apply. iIntros "[%a ?]". rewrite -HP. iExists _. iFrame. Qed.
 
   Lemma tac_simpl_and_unsafe_envs {A B} Δ P1 P2 (Q : (A *ₗ B) → prop)
+    `{!∀ x, SimplAndUnsafe (P1 x) (P2 x)}:
+    envs_entails Δ (∃ₗ x, <affine> ⌜P2 x⌝ ∗ Q x) → envs_entails Δ (∃ₗ x, <affine> ⌜P1 x⌝ ∗ Q x).
+  Proof.
+    apply tac_fast_apply. unfold SimplAndUnsafe in *.
+    iIntros "[% [% ?]]". iExists _. iFrame. naive_solver.
+  Qed.
+
+  Lemma tac_simpl_and_unsafe_envs_affine {A B} Δ P1 P2 (Q : (A *ₗ B) → prop)
     `{!∀ x, SimplAndUnsafe (P1 x) (P2 x)}:
     envs_entails Δ (∃ₗ x, <affine> ⌜P2 x⌝ ∗ Q x) → envs_entails Δ (∃ₗ x, <affine> ⌜P1 x⌝ ∗ Q x).
   Proof.
@@ -454,22 +479,38 @@ End coq_tactics.
 Ltac liSideCond :=
   try liEnsureSepHead;
   lazymatch goal with
-  | |- envs_entails ?Δ (bi_sep (<affine> ⌜?P⌝) ?Q) =>
-      (* We use done instead of fast_done here because solving more
-         sideconditions here is a bigger performance win than the overhead
-         of done. *)
+
+  
+  | |- envs_entails ?Δ (bi_sep (⌜?P⌝) ?Q) =>
+  (* We use done instead of fast_done here because solving more
+     sideconditions here is a bigger performance win than the overhead
+     of done. *)
       notypeclasses refine (tac_sep_pure _ _ _ _ _); [ first [ done | shelve_sidecond ] | ]
+  | |- envs_entails ?Δ (bi_sep (<affine> ⌜?P⌝) ?Q) =>
+      notypeclasses refine (tac_sep_affine_pure _ _ _ _ _); [ first [ done | shelve_sidecond ] | ]
+  | |- envs_entails ?Δ (∃ₗ x, bi_sep (⌜@?P x⌝) _) =>
+    (* TODO: Can we get something like the old shelve_hint? *)
+    (* TODO: figure out best order here *)
+    match P with
+    | _ => progress (notypeclasses refine (tac_normalize_goal_and_liex _ _ _ _ _ _);
+                      (* cbv beta is important to correctly detect progress *)
+                      [intros ?; normalize_hook|cbv beta])
+    | _ => liExInst
+    | (λ _, _ ∧ _)%type => notypeclasses refine (tac_sep_pure_and _ _ _ _ _)
+    | (λ _, ∃ _, _)%type => notypeclasses refine (tac_sep_pure_exist _ _ _ _)
+    | _ => notypeclasses refine (tac_simpl_and_unsafe_envs _ _ _ _ _); [solve [refine _] |]
+  end
   | |- envs_entails ?Δ (∃ₗ x, bi_sep (<affine> ⌜@?P x⌝) _) =>
       (* TODO: Can we get something like the old shelve_hint? *)
       (* TODO: figure out best order here *)
       match P with
-      | _ => progress (notypeclasses refine (tac_normalize_goal_and_liex _ _ _ _ _ _);
+      | _ => progress (notypeclasses refine (tac_normalize_goal_and_liex_affine _ _ _ _ _ _);
                        (* cbv beta is important to correctly detect progress *)
                        [intros ?; normalize_hook|cbv beta])
       | _ => liExInst
-      | (λ _, _ ∧ _)%type => notypeclasses refine (tac_sep_pure_and _ _ _ _ _)
-      | (λ _, ∃ _, _)%type => notypeclasses refine (tac_sep_pure_exist _ _ _ _)
-      | _ => notypeclasses refine (tac_simpl_and_unsafe_envs _ _ _ _ _); [solve [refine _] |]
+      | (λ _, _ ∧ _)%type => notypeclasses refine (tac_sep_affine_pure_and _ _ _ _ _)
+      | (λ _, ∃ _, _)%type => notypeclasses refine (tac_sep_affine_pure_exist _ _ _ _)
+      | _ => notypeclasses refine (tac_simpl_and_unsafe_envs_affine _ _ _ _ _); [solve [refine _] |]
       end
   end.
 
@@ -1144,6 +1185,43 @@ Ltac push_in_embed_hard :=
 From iris.bi Require Import monpred.
 Local Open Scope bi_scope.
 
+      (* FIXME this tactic is for rewriting under binders i.e. bi_exist.
+         rewrite is too aggresive; would be nice if we can pattern match under binder setoid_rewrite [lem] **)
+Ltac push_in_embed_setoid :=
+    (* try setoid_rewrite embed_wand;
+    try setoid_rewrite embed_wand_iff;
+    try setoid_rewrite embed_forall;
+    try setoid_rewrite embed_exist;
+    try setoid_rewrite embed_and;
+    try setoid_rewrite embed_or;
+    try setoid_rewrite embed_impl;
+    try setoid_rewrite embed_iff;
+    try setoid_rewrite embed_sep; *)
+    try setoid_rewrite embed_pure;
+    try setoid_rewrite embed_emp;
+    try setoid_rewrite embed_affinely;
+    (* try setoid_rewrite embed_persistently;
+    try setoid_rewrite embed_absorbingly;
+    try setoid_rewrite embed_embed;
+    try setoid_rewrite embed_bupd;
+    try setoid_rewrite embed_fupd;
+    try setoid_rewrite embed_intuitionistically;
+    try setoid_rewrite embed_except_0;
+    try setoid_rewrite embed_later;
+    try setoid_rewrite embed_laterN;
+    try setoid_rewrite embed_plainly;
+    try setoid_rewrite embed_plainly_if;
+    try setoid_rewrite embed_affinely_if;
+    try setoid_rewrite embed_persistently_if;
+    try setoid_rewrite embed_absorbingly_if;
+    try setoid_rewrite embed_intuitionistically_if;
+    try setoid_rewrite embed_internal_eq;
+    (* not sure how to deal with other forms in `bi_embed $ monPred_at ...`, add them when in need *)
+    try setoid_rewrite monPred_at_sep;
+    try setoid_rewrite monPred_at_affinely *)
+    idtac
+    .
+
 (* push_in_embed_hard test *)
 (* if head symbol of R is `embed _`, push the embed in.
     do some ad hoc stuff with monPred_in as well *)
@@ -1185,18 +1263,21 @@ Ltac push_in_embed R :=
     end
   end.
 
-(* TODO make sure rewrites happen in exactly the subterm R (like [R in (envs_entails _ (bi_wand R _))]) instead of any place matching R *)
+(* TODO make sure rewrites happen in exactly the subterm R (like [R in (envs_entails _ (bi_wand R _))])
+   instead of any place matching R *)
 Ltac push_in_embed_for_head :=
+  let push_in_embed_inside_term H :=
+    match H with | context [@embed ?p1 ?p2 _ ?H] => push_in_embed (@embed p1 p2 _ H) end in
   lazymatch goal with
   | |- envs_entails ?Δ ?P =>
     lazymatch P with
-    | embed ?H => push_in_embed P
-    | bi_wand ?H _ => push_in_embed H
-    | bi_sep ?H _ => push_in_embed H
+    | embed ?H => push_in_embed (embed H)
+    | bi_wand ?H _ => push_in_embed_inside_term H
+    | bi_sep ?H _ => push_in_embed_inside_term H
+    | bi_exist ?H => idtac H; progress push_in_embed_setoid
     (* | ?un_op ?H => idtac "unop" un_op; push_in_embed H
     | ?bin_op ?H _ => idtac "binop" bin_op; push_in_embed H *)
-    end
-  end.
+    end end.
 
 Ltac push_in_monPred :=
   progress lazymatch goal with

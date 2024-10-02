@@ -335,9 +335,9 @@ Section judgements.
     (∀ Φ:address->assert, 
       (∀ (l:address) (ty : type),
         ⎡l ◁ₗ{β} ty⎤ (* typed_write_end has this so maybe here needs it too? *) 
-        -∗ T l ty -∗ Φ l)
+        -∗ T l β ty -∗ Φ l)
       -∗ wp_lvalue e Φ).
-  Global Arguments typed_lvalue _ _%_I.
+  Global Arguments typed_lvalue _ _ _%_I.
   Class TypedLvalue β (e : expr) : Type :=
     typed_lvalue_proof T : iProp_to_Prop (typed_lvalue β e T).
 
@@ -1455,15 +1455,22 @@ Section typing.
     iExists tytrue; iSplit; done.
   Qed.
 
-  Lemma wp_semax : forall Espec E Delta P s Q, (P ⊢ wp_stmt Espec E Delta s Q) → semax(OK_spec := Espec) E Delta P s Q.
+  Lemma wp_semax : forall Espec E Delta P s Q, (P ⊢ wp_stmt Espec E Delta s Q) ↔ semax(OK_spec := Espec) E Delta P s Q.
   Proof.
-    intros.
+    intros. split; intros.
+    -
     rewrite /wp_stmt in H.
     eapply semax_pre_fupd.
     { rewrite bi.and_elim_r //. }
     apply semax_extract_exists; intros.
     rewrite comm.
     apply semax_extract_prop; done.
+    - rewrite /wp_stmt.
+    eapply semax_pre_fupd in H.
+    2: { rewrite bi.and_elim_r //. }
+    iIntros. iExists (|={E}=> P).
+    iModIntro.
+    iSplit; try done.
   Qed.
 
   (* see semax_set *)
@@ -1500,6 +1507,58 @@ Section typing.
     iIntros "? !>".
     iExists _; iSplit; last done; done.
   Qed.
+
+  Lemma wp_return_some Espec E Delta e Rret:
+    tc_expr Delta (Ecast e (ret_type Delta)) ∧
+    wp_expr e (λ v, (RA_return Rret (Some v)))
+    ⊢ wp_stmt Espec E Delta (Sreturn (Some e)) Rret.
+  Proof.
+    intros.
+    apply semax_wp.
+    eapply semax_pre.
+    2: { apply semax_return. }
+    iIntros "(#? & H)".
+    iSplit; simpl.
+    - iDestruct "H" as "[$ _]".
+    - unfold_lift.
+      iStopProof.
+      split => rho; monPred.unseal.
+      rewrite monPred_at_intuitionistically.
+  Admitted.
+
+  Lemma type_return_some Espec Delta e (T : val → type -> assert):
+   typed_val_expr e T
+   ⊢ typed_stmt Espec Delta (Sreturn $ Some e) T.
+    unfold typed_stmt.
+    iIntros "H".
+    iApply wp_return_some. simpl.
+    iSplit.
+    - admit.
+    - unfold typed_val_expr.
+      iApply "H". iIntros.
+      iExists ty. iFrame.
+  Admitted.
+
+  Lemma wp_return_none Espec E Delta Rret:
+    RA_return Rret None
+    ⊢ wp_stmt Espec E Delta (Sreturn None) Rret.
+  Proof.
+    intros.
+    rewrite wp_semax.
+    eapply semax_pre.
+    2: { apply semax_return. }
+  Admitted.
+
+  Lemma type_return_none Espec Delta (T : val → type -> assert):
+    T Vundef tytrue
+    ⊢ typed_stmt Espec Delta (Sreturn $ None) T.
+    unfold typed_stmt.
+    iIntros "H".
+    iApply wp_return_none. simpl.
+    iExists tytrue. iFrame.
+    done.
+  Qed.
+
 
 (* This should be able to reuse semax_ifthenelse, but it's not currently factored correctly. The right way
    might be to define a set of more primitive/direct rules with wp, and then build the VeriC semax rules on
@@ -1882,11 +1941,11 @@ Section typing.
 
   
 
-  Lemma type_var_local _x (lv:val) β ty c_ty (T: address -> type -> assert) :
+  Lemma type_var_local _x (lv:val) β ty c_ty (T: address -> own_state -> type -> assert) :
     <affine> (local $ locald_denote $ lvar _x c_ty lv) ∗
     (∃ l, <affine> ⌜Some l = val2address lv⌝ ∗
     ⎡ l ◁ₗ{β} ty ⎤ ∗
-    T l ty)
+    T l β ty)
     ⊢ typed_lvalue β (Evar _x c_ty) T.
   Proof.
     iIntros "(Hlvar & (%l & %Hl & Hl_own & HT))" (Φ) "HΦ".
@@ -2100,7 +2159,7 @@ Section typing.
   (* Ke: a simple version of type_write that treat typed_place as just typed_val_expr. 
          Not so sure about what's inside typed_val_expr outside of typed_write_end. *)
   Lemma type_write_simple β1 (a : bool) ty T e v ot:
-    (typed_lvalue β1 e (λ l ty1, ∀ β2,
+    (typed_lvalue β1 e (λ l β2 ty1,
       typed_write_end a ⊤ ot v ty l β2 ty1 (λ ty3:type, ⎡l ◁ₗ{β1} ty3⎤ -∗ T)))%I
     ⊢ typed_write a e ot v ty T.
   Proof.
@@ -2273,4 +2332,33 @@ Global Hint Extern 5 (Subsume (_ ◁ₗ{_} _) (λ _, _ ◁ₗ{_} _.1ₗ)%I) =>
 (*Global Typeclasses Opaque typed_block.
 *)
 *)
+  Lemma wp_seq Espec E Delta s1 s2 Rret:
+    wp_stmt Espec E Delta (s1) (overridePost (wp_stmt Espec E Delta s2 Rret) Rret)
+    ⊢ wp_stmt Espec E Delta (Ssequence s1 s2) Rret.
+  Proof.
+    iIntros "H".
+    iMod "H". iModIntro.
+    iDestruct "H" as (P) "(P & %H)".
+    iExists P. iFrame. iPureIntro.
+    split; [done|].
+    eapply semax_seq.
+    - apply H.
+    - rewrite -wp_semax //.
+  Qed.
+    
+  Lemma type_seq Espec Delta s1 s2 T:
+    typed_stmt Espec Delta s1 (λ _ _,
+    typed_stmt Espec Delta s2 T)
+    ⊢ typed_stmt Espec Delta (Ssequence s1 s2) T.
+  Proof.
+    iIntros "H". unfold typed_stmt.
+    rewrite -wp_seq.
+    unfold wp_stmt.
+    iMod "H". iModIntro.
+    iDestruct "H" as (P) "(P & %H)".
+    iExists P. iFrame. iSplit;[done|]; iPureIntro.
+    eapply semax_post; last refine H.
+    - rewrite /typed_stmt_post_cond  /overridePost /=. iIntros "(_&?)".
+  Admitted. 
+
 End typing.
