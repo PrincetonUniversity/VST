@@ -323,27 +323,22 @@ Section Safety.
     - iLeft; done.
     - iRight; iLeft.
       iMod "H" as (???) "(S & Hsafe)".
-      assert (exists m2', corestep (cl_core_sem ge) c (restrPermMap Hlt) c' m2' /\ mem_equiv.mem_equiv m2' m') as (m2' & ? & Heq') by admit.
+      unshelve erewrite restrPermMap_ext in H0; try done.
       iIntros "!>"; iExists _, _; iSplit; first done.
       iSplitL "S".
       + iDestruct "S" as (??) "S".
-        assert (permMapLt p' (getMaxPerm m2')) as Hlt2'.
-        { eapply mem_equiv.permMapLt_equiv; [done | by apply mem_equiv.max_eqv | done]. }
-        iExists _, Hlt2'.
-        (* Do I need to add a mem_equiv to jsafe_perm? Can the init step change the shape of the memory? *)
-        admit.
+        iFrame.
       + iApply ("IH" with "[%] Hsafe").
         by apply mem_equiv.cur_eqv.
     - iRight; iRight.
       iDestruct "H" as (????) "H".
-(*      
-      iExists _, _, _; iSplit; first done.
-      iNext; iIntros (?????).
-      iMod ("H" with "[%] [%]") as (??) "(? & ?)"; [done..|].
-      iIntros "!>"; iExists _; iSplit; first done; iFrame.
-      by iApply "IH".
-  Qed.*)
-  Admitted.
+      iExists _, _, _; iSplit.
+      + pose proof (restrPermMap_ext Hlt1 Hlt H) as <-; try done.
+      + iNext; iIntros (?????).
+        iMod ("H" with "[%] [%]") as (??) "(? & ?)"; [done..|].
+        iIntros "!>". iExists _. iFrame.
+        iPureIntro. done.
+  Qed.
 
   Lemma jsafe_jsafe_perm : forall `{!VSTGS unit Σ} max E z c p, p = max ->
     jsafe(genv_symb := genv_symb_injective) (cl_core_sem ge) (concurrent_ext_spec CS ext_link) ge E z c ⊢ jsafe_perm max E z c p.
