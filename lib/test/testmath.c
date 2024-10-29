@@ -1,3 +1,6 @@
+#ifdef COMPCERT
+typedef float _Float16;  /* _Float16 is a MacOS thing that CompCert doesn't support */
+#endif
 #include <math.h>
 
 double f(double t) {
