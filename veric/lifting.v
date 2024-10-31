@@ -65,8 +65,8 @@ Definition assert_safe
        | Cont _ => |={E}=> False
        | Ret None ctl' =>
                 jsafeN OK_spec ge E ora (State f (Sreturn None) ctl' ve te)
-       | Ret (Some v) ctl' => ∀ e, wp_expr (Ecast e (fn_return f)) (λ v',
-           ⎡⌜v' = v⌝ → jsafeN OK_spec ge E ora (State f (Sreturn (Some e)) ctl' ve te)⎤) rho
+       | Ret (Some v) ctl' => ∀ e, (∀ m, juicy_mem.mem_auth m -∗ ⌜∃ v', Clight.eval_expr ge ve te m e v' ∧ Cop.sem_cast v' (typeof e) (fn_return f) m = Some v⌝) →
+           jsafeN OK_spec ge E ora (State f (Sreturn (Some e)) ctl' ve te)
        end.
 
 Lemma assert_safe_mono E1 E2 f ctl rho: E1 ⊆ E2 ->
@@ -79,39 +79,40 @@ Proof.
   - destruct c; try by iApply jsafe_mask_mono.
     iMod (fupd_mask_subseteq E1); first done; iMod "H" as "[]".
   - destruct o; last by iApply jsafe_mask_mono.
-    iIntros (e); iSpecialize ("H" $! e).
-    iStopProof; apply wp_expr_mono.
-    intros; do 2 f_equiv.
-    by apply jsafe_mask_mono.
+    iStopProof; do 3 f_equiv.
+    by iApply jsafe_mask_mono.
 Qed.
 
-Definition guarded E f k Q rho :=
+Definition guarded E f k Q := ∀ rho,
   (RA_normal Q rho -∗ assert_safe E f (Cont k) rho) ∧
   (RA_break Q rho -∗ assert_safe E f (break_cont k) rho) ∧
   (RA_continue Q rho -∗ assert_safe E f (continue_cont k) rho) ∧
   (RA_return Q None rho -∗ assert_safe E f (Ret None (call_cont k)) rho) ∧
-  (∀ e, wp_expr e (λ v, RA_return Q (Some v) -∗
-    assert_of (λ rho, ∀ ora ve te, ⌜rho = construct_rho (filter_genv ge) ve te⌝ →
-    jsafeN OK_spec ge E ora (State f (Sreturn (Some e)) (call_cont k) ve te))) rho).
+  (∀ e, wp_expr e (λ v, RA_return Q (Some v)) rho -∗
+    ∀ ora ve te, ⌜rho = construct_rho (filter_genv ge) ve te⌝ →
+    jsafeN OK_spec ge E ora (State f (Sreturn (Some e)) (call_cont k) ve te)).
+
+Lemma guarded_normal : forall E f k P,
+  guarded E f k (normal_ret_assert P) ⊣⊢ (∀ rho, P rho -∗ assert_safe E f (Cont k) rho).
+Proof.
+  intros.
+  iSplit.
+  { iIntros "H" (rho); iDestruct ("H" $! rho) as "[$ _]". }
+  iIntros "H" (?); iSplit; first done.
+  simpl; monPred.unseal.
+  repeat (iSplit; first by iIntros "[]").
+  iIntros (?) "He".
+  rewrite /wp_expr; monPred.unseal.
+  iIntros (????).
+  iApply jsafe_step; rewrite /jstep_ex.
+  iIntros (?) "(Hm & Ho)".
+  iDestruct ("He" with "[%] Hm") as (??) "(? & [])"; done.
+Qed.
 
 Definition wp E f s (Q : ret_assert) : assert := assert_of (λ rho,
-    ∀ k, ((* ▷ *) (∀ ek v rho, proj_ret_assert Q ek v rho -∗ assert_safe E f (exit_cont ek v k) rho)) -∗ assert_safe E f (Cont (Kseq s k)) rho).
+    ∀ k, (* ▷ *) guarded E f k Q -∗ assert_safe E f (Cont (Kseq s k)) rho).
 (* ▷ would make sense here, but removing Kseq isn't always a step: for instance, Sskip Kstop is a synonym
    for (Sreturn None) Kstop rather than stepping to it. *)
-
-Lemma proj_normal : forall P ek v,
-  proj_ret_assert (normal_ret_assert P) ek v ⊣⊢ ⌜ek = EK_normal ∧ v = None⌝ ∧ P.
-Proof.
-  intros; rewrite /proj_ret_assert.
-  destruct ek; simpl.
-  - rewrite bi.pure_and (bi.pure_True (EK_normal = EK_normal)) // bi.True_and //.
-  - rewrite bi.and_False bi.pure_False; last by intuition congruence.
-    rewrite bi.False_and //.
-  - rewrite bi.and_False bi.pure_False; last by intuition congruence.
-    rewrite bi.False_and //.
-  - rewrite bi.pure_False; last by intuition congruence.
-    rewrite bi.False_and //.
-Qed.
 
 Lemma wp_seq : forall E f s1 s2 Q, wp E f s1 (normal_ret_assert (wp E f s2 Q)) ⊢ wp E f (Ssequence s1 s2) Q.
 Proof.
@@ -120,9 +121,8 @@ Proof.
   iApply jsafe_local_step.
   { intros; constructor. }
   iApply ("H" with "[Hk]"); last done.
-  iIntros (???) "H". rewrite proj_normal.
-  monPred.unseal; iDestruct "H" as ((-> & ->)) "H".
-  by iApply "H".
+  rewrite guarded_normal; simpl.
+  by iIntros (?) "H"; iApply "H".
 Qed.
 
 Definition valid_val v :=
@@ -199,9 +199,8 @@ Lemma wp_skip: forall E f R, RA_normal R ⊢ wp E f Sskip R.
 Proof.
   intros; split => rho; rewrite /wp.
   iIntros "H % Hk" (??? ->).
-  iSpecialize ("Hk" $! EK_normal with "[H]").
-  { simpl; monPred.unseal; by iFrame. }
-  by iApply safe_skip.
+  iDestruct ("Hk" $! _) as "[Hk _]".
+  by iApply safe_skip; iApply "Hk".
 Qed.
 
 Lemma wp_set: forall E f i e R,
@@ -218,10 +217,9 @@ Proof.
   iExists _, _; iSplit.
   { iPureIntro; constructor; eauto. }
   iFrame.
-  iNext.
+  iNext; simpl.
+  iDestruct ("Hk" $! _) as "[Hk _]".
   iApply safe_skip; iApply "Hk".
-  rewrite /proj_ret_assert /=; monPred.unseal.
-  iSplit; first done.
   rewrite /subst /env_set /construct_rho /= expr_lemmas.map_ptree_rel //.
 Qed.
 
@@ -252,8 +250,7 @@ Proof.
     econstructor; eauto. }
   iFrame.
   iNext.
-  iApply safe_skip; iApply "Hk".
-  rewrite /proj_ret_assert /=; monPred.unseal; by iFrame.
+  by iApply safe_skip; iApply "Hk".
   { inv H5. }
 Qed.
 
@@ -267,18 +264,15 @@ Proof.
   { intros; constructor. }
   iNext.
   iApply ("H" with "[Hk]"); last done.
-  iIntros (???) "H".
-  rewrite proj_normal; monPred.unseal.
-  iDestruct "H" as ((-> & ->)) "H".
+  rewrite guarded_normal.
+  iIntros (?) "H"; simpl.
   iIntros (??? ->).
-  simpl.
   iApply jsafe_local_step.
   { intros; constructor; auto. }
   iNext.
   iApply ("H" with "[Hk]"); last done.
-  iIntros (???) "H".
-  rewrite proj_normal; monPred.unseal.
-  iDestruct "H" as ((-> & ->)) "H".
+  rewrite guarded_normal.
+  iIntros (?) "H"; simpl.
   by iApply ("H" with "Hk").
 Qed.
 
@@ -287,8 +281,8 @@ Lemma wp_continue: forall E f R,
 Proof.
   intros; split => rho; rewrite /wp /=.
   iIntros "H % Hk".
-  iSpecialize ("Hk" $! EK_continue None with "[H]").
-  { simpl; monPred.unseal; by iFrame. }
+  iDestruct ("Hk" $! _) as "(_ & _ & Hk & _)".
+  iSpecialize ("Hk" with "H").
   simpl exit_cont; iIntros (??? ->); iSpecialize ("Hk" with "[%]"); first done.
   destruct (continue_cont k) eqn:Hcont.
   - iMod "Hk" as "[]".
@@ -316,8 +310,8 @@ Lemma wp_break: forall E f R,
 Proof.
   intros; split => rho; rewrite /wp /=.
   iIntros "H % Hk".
-  iSpecialize ("Hk" $! EK_break None with "[H]").
-  { simpl; monPred.unseal; by iFrame. }
+  iDestruct ("Hk" $! _) as "(_ & Hk & _)".
+  iSpecialize ("Hk" with "H").
   simpl exit_cont; iIntros (??? ->); iSpecialize ("Hk" with "[%]"); first done.
   destruct (break_cont k) eqn: Hcont.
   { iMod "Hk" as "[]". }
@@ -665,9 +659,10 @@ Proof.
   iApply (convergent_controls_jsafe _ _ _ (State f (Sreturn (Some e)) (call_cont k) ve te)); try done.
   { inversion 1; subst; try match goal with H : _ \/ _ |- _ => destruct H; done end.
     rewrite call_cont_idem; econstructor; eauto. }
-  iSpecialize ("Hk" $! EK_return with "H").
-  { simpl; done. }
-Abort.
+  iDestruct ("Hk" $! _) as "(_ & _ & _ & _ & Hk)".
+  iSpecialize ("Hk" with "H").
+  by iApply "Hk".
+Qed.
 
 End mpred.
 
