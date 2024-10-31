@@ -77,7 +77,7 @@ Axiom create_mem_mgr: forall gv, emp ⊢ mem_mgr gv.
 
 Parameter malloc_token : forall {cs: compspecs}, share -> type -> val -> mpred.
 Parameter malloc_token_valid_pointer:
-  forall {cs: compspecs} sh t p, sizeof t <= 0 -> malloc_token sh t p ⊢ valid_pointer p.
+  forall {cs: compspecs} sh t p, 0 < sizeof t -> malloc_token sh t p ⊢ valid_pointer p.
 
 Parameter malloc_token_local_facts:
   forall {cs: compspecs} sh t p, malloc_token sh t p ⊢ ⌜malloc_compatible (sizeof t) p⌝.

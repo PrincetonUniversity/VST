@@ -25,6 +25,27 @@ Section mpred.
 
 Context `{!VSTGS OK_ty Σ} (OK_spec : ext_spec OK_ty) (ge : genv).
 
+Definition wp_expr e Φ : assert :=
+  ∀ m, ⎡juicy_mem.mem_auth m⎤ -∗
+         ∃ v, local (λ rho, forall ge ve te,
+            rho = construct_rho (filter_genv ge) ve te ->
+            Clight.eval_expr ge ve te m e v (*/\ typeof e = t /\ tc_val t v*)) ∧
+         ⎡juicy_mem.mem_auth m⎤ ∗ Φ v.
+
+Definition wp_lvalue e Φ : assert :=
+  ∀ m, ⎡juicy_mem.mem_auth m⎤ -∗
+         ∃ b o, local (λ rho, forall ge ve te,
+            rho = construct_rho (filter_genv ge) ve te ->
+            Clight.eval_lvalue ge ve te m e b o Full (*/\ typeof e = t /\ tc_val t v*)) ∧
+         ⎡juicy_mem.mem_auth m⎤ ∗ Φ (Vptr b o).
+
+
+Lemma wp_expr_mono : forall e P1 P2, (∀ v, P1 v ⊢ P2 v) → wp_expr e P1 ⊢ wp_expr e P2.
+Proof.
+  intros; rewrite /wp_expr.
+  by repeat f_equiv.
+Qed.
+
 Definition assert_safe
      (E: coPset) (f: function) (ctl: contx) rho : iProp Σ :=
        ∀ ora ve te,
@@ -44,11 +65,8 @@ Definition assert_safe
        | Cont _ => |={E}=> False
        | Ret None ctl' =>
                 jsafeN OK_spec ge E ora (State f (Sreturn None) ctl' ve te)
-       | Ret (Some v) ctl' => ∀ e, (∀ m, juicy_mem.mem_auth m -∗ ⌜∃ v', Clight.eval_expr ge ve te m e v' ∧ Cop.sem_cast v' (typeof e) (fn_return f) m = Some v⌝) →
-              (* Could we replace these with eval_expr and lose the memory dependence?
-                 Right now, the only difference is that e must only access pointers that are valid in the current rmap.
-                 But typechecking will also guarantee that. *)
-              jsafeN OK_spec ge E ora (State f (Sreturn (Some e)) ctl' ve te)
+       | Ret (Some v) ctl' => ∀ e, wp_expr (Ecast e (fn_return f)) (λ v',
+           ⎡⌜v' = v⌝ → jsafeN OK_spec ge E ora (State f (Sreturn (Some e)) ctl' ve te)⎤) rho
        end.
 
 Lemma assert_safe_mono E1 E2 f ctl rho: E1 ⊆ E2 ->
@@ -62,39 +80,49 @@ Proof.
     iMod (fupd_mask_subseteq E1); first done; iMod "H" as "[]".
   - destruct o; last by iApply jsafe_mask_mono.
     iIntros (e); iSpecialize ("H" $! e).
-    iApply (bi.impl_intro_r with "H").
-    iIntros "H".
-    iPoseProof (bi.impl_elim_l with "H") as "?".
-    by iApply jsafe_mask_mono.
+    iStopProof; apply wp_expr_mono.
+    intros; do 2 f_equiv.
+    by apply jsafe_mask_mono.
 Qed.
 
-Definition wp E f s (Q : assert) : assert := assert_of (λ rho,
-    ∀ k, ((* ▷ *) (∀ rho, Q rho -∗ assert_safe E f (Cont k) rho)) -∗ assert_safe E f (Cont (Kseq s k)) rho).
+Definition guarded E f k Q rho :=
+  (RA_normal Q rho -∗ assert_safe E f (Cont k) rho) ∧
+  (RA_break Q rho -∗ assert_safe E f (break_cont k) rho) ∧
+  (RA_continue Q rho -∗ assert_safe E f (continue_cont k) rho) ∧
+  (RA_return Q None rho -∗ assert_safe E f (Ret None (call_cont k)) rho) ∧
+  (∀ e, wp_expr e (λ v, RA_return Q (Some v) -∗
+    assert_of (λ rho, ∀ ora ve te, ⌜rho = construct_rho (filter_genv ge) ve te⌝ →
+    jsafeN OK_spec ge E ora (State f (Sreturn (Some e)) (call_cont k) ve te))) rho).
+
+Definition wp E f s (Q : ret_assert) : assert := assert_of (λ rho,
+    ∀ k, ((* ▷ *) (∀ ek v rho, proj_ret_assert Q ek v rho -∗ assert_safe E f (exit_cont ek v k) rho)) -∗ assert_safe E f (Cont (Kseq s k)) rho).
 (* ▷ would make sense here, but removing Kseq isn't always a step: for instance, Sskip Kstop is a synonym
    for (Sreturn None) Kstop rather than stepping to it. *)
 
-Definition wp_expr e Φ : assert :=
-  ∀ m, ⎡juicy_mem.mem_auth m⎤ -∗
-         ∃ v, local (λ rho, forall ge ve te,
-            rho = construct_rho (filter_genv ge) ve te ->
-            Clight.eval_expr ge ve te m e v (*/\ typeof e = t /\ tc_val t v*)) ∧
-         ⎡juicy_mem.mem_auth m⎤ ∗ Φ v.
+Lemma proj_normal : forall P ek v,
+  proj_ret_assert (normal_ret_assert P) ek v ⊣⊢ ⌜ek = EK_normal ∧ v = None⌝ ∧ P.
+Proof.
+  intros; rewrite /proj_ret_assert.
+  destruct ek; simpl.
+  - rewrite bi.pure_and (bi.pure_True (EK_normal = EK_normal)) // bi.True_and //.
+  - rewrite bi.and_False bi.pure_False; last by intuition congruence.
+    rewrite bi.False_and //.
+  - rewrite bi.and_False bi.pure_False; last by intuition congruence.
+    rewrite bi.False_and //.
+  - rewrite bi.pure_False; last by intuition congruence.
+    rewrite bi.False_and //.
+Qed.
 
-Definition wp_lvalue e Φ : assert :=
-  ∀ m, ⎡juicy_mem.mem_auth m⎤ -∗
-         ∃ b o, local (λ rho, forall ge ve te,
-            rho = construct_rho (filter_genv ge) ve te ->
-            Clight.eval_lvalue ge ve te m e b o Full (*/\ typeof e = t /\ tc_val t v*)) ∧
-         ⎡juicy_mem.mem_auth m⎤ ∗ Φ (Vptr b o).
-
-Lemma wp_seq : forall E f s1 s2 Q, wp E f s1 (wp E f s2 Q) ⊢ wp E f (Ssequence s1 s2) Q.
+Lemma wp_seq : forall E f s1 s2 Q, wp E f s1 (normal_ret_assert (wp E f s2 Q)) ⊢ wp E f (Ssequence s1 s2) Q.
 Proof.
   intros; rewrite /wp; split => rho.
   iIntros "H % Hk" (??? ->).
   iApply jsafe_local_step.
   { intros; constructor. }
   iApply ("H" with "[Hk]"); last done.
-  by iIntros "% H"; iApply "H".
+  iIntros (???) "H". rewrite proj_normal.
+  monPred.unseal; iDestruct "H" as ((-> & ->)) "H".
+  by iApply "H".
 Qed.
 
 Definition valid_val v :=
@@ -167,16 +195,17 @@ Proof.
     by inversion 1; constructor.
 Qed.
 
-Lemma wp_skip: forall E f R, R ⊢ wp E f Sskip R.
+Lemma wp_skip: forall E f R, RA_normal R ⊢ wp E f Sskip R.
 Proof.
   intros; split => rho; rewrite /wp.
   iIntros "H % Hk" (??? ->).
-  iSpecialize ("Hk" with "H").
+  iSpecialize ("Hk" $! EK_normal with "[H]").
+  { simpl; monPred.unseal; by iFrame. }
   by iApply safe_skip.
 Qed.
 
-Lemma wp_set: forall E f i e (R : assert),
-  wp_expr e (λ v, assert_of (subst i (liftx v) R)) ⊢ wp E f (Sset i e) R.
+Lemma wp_set: forall E f i e R,
+  wp_expr e (λ v, assert_of (subst i (liftx v) (RA_normal R))) ⊢ wp E f (Sset i e) R.
 Proof.
   intros; split => rho; rewrite /wp.
   iIntros "H % Hk" (??? ->).
@@ -191,6 +220,8 @@ Proof.
   iFrame.
   iNext.
   iApply safe_skip; iApply "Hk".
+  rewrite /proj_ret_assert /=; monPred.unseal.
+  iSplit; first done.
   rewrite /subst /env_set /construct_rho /= expr_lemmas.map_ptree_rel //.
 Qed.
 
@@ -198,7 +229,7 @@ Lemma wp_store: forall E f e1 e2 R,
   wp_expr (Ecast e2 (typeof e1)) (λ v2,
       ⌜Cop2.tc_val' (typeof e1) v2⌝ ∧ wp_lvalue e1 (λ v1,
     ∃ sh, ⌜writable0_share sh⌝ ∧ ⎡mapsto_ sh (typeof e1) v1⎤ ∗
-    (⎡mapsto sh (typeof e1) v1 v2⎤ ={E}=∗ R)))
+    (⎡mapsto sh (typeof e1) v1 v2⎤ ={E}=∗ RA_normal R)))
   ⊢ wp E f (Sassign e1 e2) R.
 Proof.
   intros; split => rho; rewrite /wp.
@@ -221,12 +252,13 @@ Proof.
     econstructor; eauto. }
   iFrame.
   iNext.
-  iApply safe_skip; iApply "Hk"; done.
+  iApply safe_skip; iApply "Hk".
+  rewrite /proj_ret_assert /=; monPred.unseal; by iFrame.
   { inv H5. }
 Qed.
 
 Lemma wp_loop: forall E f s1 s2 R,
-  ▷ wp E f s1 (▷ wp E f s2 (wp E f (Sloop s1 s2) R)) ⊢ wp E f (Sloop s1 s2) R.
+  ▷ wp E f s1 (normal_ret_assert (▷ wp E f s2 (normal_ret_assert (wp E f (Sloop s1 s2) R)))) ⊢ wp E f (Sloop s1 s2) R.
 Proof.
   intros; split => rho; rewrite /wp /=.
   monPred.unseal.
@@ -235,31 +267,160 @@ Proof.
   { intros; constructor. }
   iNext.
   iApply ("H" with "[Hk]"); last done.
-  iIntros "% H" (??? ->).
+  iIntros (???) "H".
+  rewrite proj_normal; monPred.unseal.
+  iDestruct "H" as ((-> & ->)) "H".
+  iIntros (??? ->).
+  simpl.
   iApply jsafe_local_step.
   { intros; constructor; auto. }
   iNext.
   iApply ("H" with "[Hk]"); last done.
-  iIntros "% H" (??? ->).
+  iIntros (???) "H".
+  rewrite proj_normal; monPred.unseal.
+  iDestruct "H" as ((-> & ->)) "H".
   by iApply ("H" with "Hk").
 Qed.
 
-(*val_to_loc vf = Some f →
-  Forall2 has_layout_val vl (f_args fn).*2 →
-  fntbl_entry f fn -∗ ▷(∀ lsa lsv, ⌜Forall2 has_layout_loc lsa (f_args fn).*2⌝ -∗
-     ([∗ list] l; v ∈ lsa; vl, l↦v) -∗ ([∗ list] l; v ∈ lsv; fn.(f_local_vars), l↦|v.2|) -∗ ∃ Ψ',
-          WPs Goto fn.(f_init) {{ (subst_stmt (zip (fn.(f_args).*1 ++ fn.(f_local_vars).*1)
-                            (val_of_loc <$> (lsa ++ lsv)))) <$> fn.(f_code), Ψ' }} ∗
-         (∀ v, Ψ' v -∗
-                  ([∗ list] l; v ∈ lsa; fn.(f_args), l↦|v.2|) ∗
-                  ([∗ list] l; v ∈ lsv; fn.(f_local_vars), l↦|v.2|) ∗
-                  Φ v)
-   ) -∗
-   WP (Call (Val vf) (Val <$> vl)) {{ Φ }}.*)
-(* To state it this way, we'd need something like fntbl_entry, where functions rather than specs
-   are stored in memory. *)
-(* Actually, functions are all stored in the global environment! So we never need funspecs
-   in the first place. *)
+Lemma wp_continue: forall E f R,
+  RA_continue R ⊢ wp E f Scontinue R.
+Proof.
+  intros; split => rho; rewrite /wp /=.
+  iIntros "H % Hk".
+  iSpecialize ("Hk" $! EK_continue None with "[H]").
+  { simpl; monPred.unseal; by iFrame. }
+  simpl exit_cont; iIntros (??? ->); iSpecialize ("Hk" with "[%]"); first done.
+  destruct (continue_cont k) eqn:Hcont.
+  - iMod "Hk" as "[]".
+  - rename c into k'.
+    assert (exists s c, k' = Kseq s c) as (? & ? & Hcase).
+    { induction k; inv Hcont; eauto. }
+    rewrite Hcase.
+    iInduction k as [| | | | |] "IHk" forall (k' Hcont Hcase); try discriminate.
+    + iApply jsafe_local_step.
+      { constructor. }
+      iApply ("IHk" with "[%] [%] Hk"); eauto.
+    + inv Hcont.
+      iApply jsafe_local_step.
+      { intros; apply step_skip_or_continue_loop1; auto. }
+      iApply "Hk".
+    + iApply jsafe_local_step.
+      { apply step_continue_switch. }
+      iApply ("IHk" with "[%] [%] Hk"); eauto.
+  - exfalso; clear - Hcont.
+    revert c o Hcont; induction k; simpl; intros; try discriminate; eauto.
+Qed.
+
+Lemma wp_break: forall E f R,
+  RA_break R ⊢ wp E f Sbreak R.
+Proof.
+  intros; split => rho; rewrite /wp /=.
+  iIntros "H % Hk".
+  iSpecialize ("Hk" $! EK_break None with "[H]").
+  { simpl; monPred.unseal; by iFrame. }
+  simpl exit_cont; iIntros (??? ->); iSpecialize ("Hk" with "[%]"); first done.
+  destruct (break_cont k) eqn: Hcont.
+  { iMod "Hk" as "[]". }
+  2: { exfalso; clear - Hcont. revert k c Hcont; induction k; simpl; intros; try discriminate. eauto. }
+  destruct c; try iMod "Hk" as "[]".
+  - iInduction k as [| | | | |] "IHk"; try discriminate.
+    + iApply jsafe_local_step; last by iApply ("IHk" with "[%] Hk"). constructor.
+    + inv Hcont.
+      iApply jsafe_local_step.
+      { apply step_break_loop1. }
+      iNext.
+      iApply (convergent_controls_jsafe with "Hk"); simpl; try congruence.
+      by inversion 1; constructor.
+    + inv Hcont.
+      iApply jsafe_local_step.
+      { apply step_break_loop2. }
+      iNext.
+      iApply (convergent_controls_jsafe with "Hk"); simpl; try congruence.
+      by inversion 1; constructor.
+    + inv Hcont.
+      iApply jsafe_local_step.
+      { constructor; auto. }
+      iNext.
+      iApply (convergent_controls_jsafe with "Hk"); simpl; try congruence.
+      by inversion 1; constructor.
+  - rename c into k'.
+    iInduction k as [| s' | s1 s2 | s1 s2 | |] "IHk" forall (s k' Hcont); try discriminate.
+    + iApply jsafe_local_step.
+      { constructor. }
+      by iApply ("IHk" with "[%] Hk").
+    + inv Hcont.
+      iApply jsafe_local_step.
+      { apply step_break_loop1. }
+      iApply jsafe_local_step.
+      { apply step_skip_seq. }
+      iApply "Hk".
+    + inv Hcont.
+      iApply jsafe_local_step.
+      { apply step_break_loop2. }
+      iApply jsafe_local_step.
+      { apply step_skip_seq. }
+      iApply "Hk".
+    + inv Hcont.
+      iApply jsafe_local_step.
+      { intros; apply step_skip_break_switch; auto. }
+      iApply jsafe_local_step.
+      { apply step_skip_seq. }
+      iApply "Hk".
+  - iInduction k as [| | | | |] "IHk"; try discriminate.
+    + iApply jsafe_local_step; last by iApply ("IHk" with "[%] Hk"). constructor.
+    + inv Hcont.
+      iApply jsafe_local_step.
+      { apply step_break_loop1. }
+      iApply "Hk".
+    + inv Hcont.
+      iApply jsafe_local_step.
+      { apply step_break_loop2. }
+      iApply "Hk".
+    + inv Hcont.
+      iApply jsafe_local_step.
+      { constructor; auto. }
+      iApply "Hk".
+  - iInduction k as [| | | | |] "IHk"; try discriminate.
+    + iApply jsafe_local_step; last by iApply ("IHk" with "[%] Hk"). constructor.
+    + inv Hcont.
+      iApply jsafe_local_step.
+      { apply step_break_loop1. }
+      iApply jsafe_local_step.
+      { apply step_skip_loop2. }
+      iApply "Hk".
+    + inv Hcont.
+      iApply jsafe_local_step.
+      { apply step_break_loop2. }
+      iApply jsafe_local_step.
+      { apply step_skip_loop2. }
+      iApply "Hk".
+    + inv Hcont.
+      iApply jsafe_local_step.
+      { constructor; auto. }
+      iApply jsafe_local_step.
+      { apply step_skip_loop2. }
+      iApply "Hk".
+  - iInduction k as [| | | | |] "IHk"; try discriminate.
+    + iApply jsafe_local_step; last by iApply ("IHk" with "[%] Hk"). constructor.
+    + inv Hcont.
+      iApply jsafe_local_step.
+      { apply step_break_loop1. }
+      iNext.
+      iApply (convergent_controls_jsafe with "Hk"); simpl; try congruence.
+      by inversion 1; constructor.
+    + inv Hcont.
+      iApply jsafe_local_step.
+      { apply step_break_loop2. }
+      iNext.
+      iApply (convergent_controls_jsafe with "Hk"); simpl; try congruence.
+      by inversion 1; constructor.
+    + inv Hcont.
+      iApply jsafe_local_step.
+      { constructor; auto. }
+      iNext.
+      iApply (convergent_controls_jsafe with "Hk"); simpl; try congruence.
+      by inversion 1; constructor.
+Qed.
 
 (* It would be nice to decompose this into repeated wp_expr, but it includes typecasts. *)
 Definition wp_exprs es ts Φ : assert :=
@@ -435,7 +596,7 @@ Proof.
   iApply ("IHel" with "Hm stack").
 Qed.
 
-Lemma wp_call: forall E f0 e es (R : assert),
+(*Lemma wp_call: forall E f0 e es R,
   wp_expr e (λ v, ∃ f, ⌜exists b, v = Vptr b Ptrofs.zero /\ Genv.find_funct_ptr ge b = Some (Internal f) /\
     classify_fun (typeof e) =
     fun_case_f (type_of_params (fn_params f)) (fn_return f) (fn_callconv f) /\
@@ -443,7 +604,7 @@ Lemma wp_call: forall E f0 e es (R : assert),
                  /\ list_norepet (map fst f.(fn_params) ++ map fst f.(fn_temps))
                  /\ list_norepet (map fst f.(fn_vars)) /\ var_sizes_ok (genv_cenv ge) (f.(fn_vars))⌝ ∧
     wp_exprs es (type_of_params (fn_params f)) (λ vs, assert_of (λ rho,
-      ∀ rho', stackframe_of' (genv_cenv ge) f rho' -∗ ▷ wp E f f.(fn_body) (assert_of (λ rho'', stackframe_of' (genv_cenv ge) f rho'' ∗ R rho)) rho'))) ⊢
+      ∀ rho', stackframe_of' (genv_cenv ge) f rho' -∗ ▷ wp E f f.(fn_body) (normal_ret_assert (assert_of (λ rho'', stackframe_of' (genv_cenv ge) f rho'' ∗ RA_normal rho))) rho'))) ⊢
   wp E f0 (Scall None e es) R.
 Proof.
   intros; split => rho; rewrite /wp.
@@ -465,10 +626,15 @@ Proof.
   iApply jsafe_step.
   rewrite /jstep_ex.
   iIntros (?) "(Hm & Ho)".
-  iMod (alloc_stackframe with "Hm") as (m' ve' ?) "(Hm & Hstack)"; [done..|].
+  destruct (build_call_temp_env f vs) as (le & ?).
+  { admit. }
+  iMod (alloc_stackframe with "Hm") as (m' ve' (? & ?)) "(Hm & Hstack)"; [done..|].
   iIntros "!>".
   iExists _, _; iSplit.
-  { iPureIntro; econstructor; eauto. admit. }
+  { iPureIntro; econstructor; eauto.
+    econstructor; eauto.
+    admit.
+    admit. }
   iFrame.
   iApply ("H" with "[$] [Hk]"); last done.
   iIntros "!>" (?) "(? & HR)".
@@ -489,50 +655,19 @@ Proof.
   iNext.
   simpl.
   iApply safe_skip; iApply "Hk"; done.
-Admitted.
+Admitted. *)
 
-(*(* evaluating arguments is annoying -- we want to say something like "if es evaluates to args,
-  then the following wp holds". *)
-Definition believe_spec A E P Q v : assert :=
-  ∀ e es ret,
-  ∀ m, ⎡juicy_mem.mem_auth m⎤ -∗
-         ∀ vs, local (λ rho, forall ge ve te,
-            rho = construct_rho (filter_genv ge) ve te ->
-            Clight.eval_expr ge ve te m e v /\ Forall2 (Clight.eval_expr ge ve te m) es vs) -∗
-         ⎡juicy_mem.mem_auth m⎤ ∗
-    ∀ x : @dtfr Σ A, assert_of (λ rho, P x (ge_of rho, vs)) -∗ ∀ f, wp (E x) f (Scall ret e es) (assert_of (Q x)).
-
-Definition true_func_ptr sig cc A E P Q v := ⎡func_ptr_si (mk_funspec sig cc A E P Q) v⎤ ∗
-  believe_spec A E P Q v.
-
-Lemma wp_call: forall E f e es sig cc A Es P Q (R : assert),
-  wp_exprs es (λ args,
-  wp_expr e (λ v, true_func_ptr sig cc A Es P Q v ∗
-    ∃ x : dtfr A, ⌜E ⊆ Es x⌝ ∧ assert_of (λ rho, P x (ge_of rho, args)) ∗ ⎡∀ rho, Q x rho -∗ R rho⎤)) ⊢
-  wp E f (Scall None e es) R.
+Lemma wp_return_some: forall E f e R,
+  wp_expr e (λ v, RA_return R (Some v)) ⊢ wp E f (Sreturn (Some e)) R.
 Proof.
   intros; split => rho; rewrite /wp /=.
-  iIntros "H % Hk" (???? ->).
-  rewrite /jsafeN jsafe_unfold /jsafe_pre.
-  iIntros "!>" (m) "(Hm & ?)".
-  rewrite /wp_exprs /wp_expr /true_func_ptr /believe_spec; monPred.unseal.
-  iDestruct ("H" with "[%] Hm") as (vs Hvs) "(Hm & H)"; first done.
-  iDestruct ("H" with "[%] Hm") as (v Hv) "(Hm & Hf & Hprepost)"; first done.
-  iDestruct "Hprepost" as (x HE) "(Hpre & Hpost)".
-  iDestruct "Hf" as "(#Hf & Hspec)".
-  iDestruct ("Hspec" with "[%] Hm") as "Hspec"; first done.
-  iDestruct ("Hspec" with "[%] [%]") as "(Hm & Hspec)"; first done.
-  { split; [apply Hv | apply Hvs]; done. }
-  iDestruct ("Hspec" with "[%] Hpre") as "Hsafe"; first done.
-  iSpecialize ("Hsafe" with "[Hk Hpost] [%]").
-  { iIntros (?) "?".
-    iApply assert_safe_mono; first done.
-    iApply "Hk"; iApply "Hpost"; done. }
-  { reflexivity. }
-  rewrite /jsafeN jsafe_unfold /jsafe_pre.
-  (* updates in the wrong place *)
-  Fail iApply "Hsafe".
-Admitted.*)
+  iIntros "H % Hk" (??? ->).
+  iApply (convergent_controls_jsafe _ _ _ (State f (Sreturn (Some e)) (call_cont k) ve te)); try done.
+  { inversion 1; subst; try match goal with H : _ \/ _ |- _ => destruct H; done end.
+    rewrite call_cont_idem; econstructor; eauto. }
+  iSpecialize ("Hk" $! EK_return with "H").
+  { simpl; done. }
+Abort.
 
 End mpred.
 
