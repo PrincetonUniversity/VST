@@ -60,18 +60,6 @@ Section function.
 
   Context (Espec : ext_spec OK_ty) (Delta : tycontext) (ge : genv).
 
-  (* using Delta here is suspect because it contains funspecs, but maybe we can just ignore them? *)
-(*   Definition typed_function (fn : function) (fp : @dtfr Σ A → fn_params) : iProp Σ :=
-    (∀ x, <affine> ⌜Forall2 (λ (ty : type) '(_, p), ty.(ty_has_op_type) p MCNone) (fp x).(fp_atys) (Clight.fn_params fn)⌝ ∗
-      □ ∀ (lsa : vec val (length (fp x).(fp_atys))) (lsv : vec val (length (fn_vars fn))) rho,
-         (([∗ list] v;t∈lsa;(fp x).(fp_atys), v ◁ᵥ t) ∗
-          ([∗ list] '(i,_);v ∈ (Clight.fn_params fn);lsa, <affine> local (locald_denote (temp i v))) rho ∗
-          ([∗ list] '(i,t);v ∈ fn_vars fn;lsv, <affine> local (locald_denote (lvar i t v))) rho ∗
-          stackframe_of fn rho ∗ (fp x).(fp_Pa)) -∗
-          typed_stmt Espec Delta (fn.(fn_body)) (fn_ret_prop (fp x).(fp_fr)) rho
-    )%I.
- *)
-
   Definition typed_function (fn : function) (fp : @dtfr Σ A → fn_params) : iProp Σ :=
     (∀ x, <affine> ⌜Forall2 (λ (ty : type) '(_, p), ty.(ty_has_op_type) p MCNone) (fp x).(fp_atys) (Clight.fn_params fn)⌝ ∗
       <affine> ⌜∀ (lsa : vec val (length (fp x).(fp_atys))) (lsv : vec address (length (fn_vars fn))),

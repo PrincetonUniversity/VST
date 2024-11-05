@@ -11,18 +11,9 @@ Require Import VST.sepcomp.extspec.
 Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.external_state.
 Require Import VST.veric.tycontext.
+Require Import VST.veric.lifting_expr.
 
 Open Scope maps.
-
-Global Instance local_absorbing `{!heapGS Σ} l : Absorbing (local l).
-Proof.
-  rewrite /local; apply monPred_absorbing, _.
-Qed.
-
-Global Instance local_persistent `{!heapGS Σ} l : Persistent (local l).
-Proof.
-  rewrite /local; apply monPred_persistent, _.
-Qed.
 
 Definition genv_symb_injective {F V} (ge: Genv.t F V) : extspec.injective_PTree Values.block.
 Proof.
@@ -38,39 +29,6 @@ Class VSTGS OK_ty Σ :=
 Section mpred.
 
 Context `{!VSTGS OK_ty Σ} (OK_spec : ext_spec OK_ty) (ge : genv).
-
-Definition wp_expr E e Φ : assert :=
-  |={E}=> ∀ m, ⎡mem_auth m⎤ ={E}=∗
-         ∃ v, local (λ rho, forall ge ve te,
-            rho = construct_rho (filter_genv ge) ve te ->
-            Clight.eval_expr ge ve te m e v (*/\ typeof e = t /\ tc_val t v*)) ∧
-         ⎡mem_auth m⎤ ∗ Φ v.
-
-Definition wp_lvalue E e Φ : assert :=
-  |={E}=> ∀ m, ⎡mem_auth m⎤ ={E}=∗
-         ∃ b o, local (λ rho, forall ge ve te,
-            rho = construct_rho (filter_genv ge) ve te ->
-            Clight.eval_lvalue ge ve te m e b o Full (*/\ typeof e = t /\ tc_val t v*)) ∧
-         ⎡mem_auth m⎤ ∗ Φ (Vptr b o).
-
-Lemma fupd_wp_expr : forall E e P, (|={E}=> wp_expr E e P) ⊢ wp_expr E e P.
-Proof. intros; apply fupd_trans. Qed.
-
-Global Instance elim_modal_fupd_wp_expr p P E e Q :
-  ElimModal Logic.True p false (|={E}=> P) P (wp_expr E e Q) (wp_expr E e Q).
-Proof.
-  by rewrite /ElimModal bi.intuitionistically_if_elim
-    fupd_frame_r bi.wand_elim_r fupd_wp_expr.
-Qed.
-
-Lemma wp_expr_mono : forall E e P1 P2, (∀ v, P1 v ⊢ |={E}=> P2 v) → wp_expr E e P1 ⊢ wp_expr E e P2.
-Proof.
-  intros; rewrite /wp_expr.
-  iIntros ">H !>" (?) "Hm".
-  iMod ("H" with "Hm") as (?) "(? & ? & H)".
-  rewrite H; iMod "H".
-  iIntros "!>"; iExists _; iFrame.
-Qed.
 
 Lemma make_tycontext_v_lookup : forall tys id t,
   make_tycontext_v tys !! id = Some t -> In (id, t) tys.
@@ -463,15 +421,16 @@ Proof.
   by iApply "H".
 Qed.
 
-Lemma wp_seq : forall E f s1 s2 Q, wp E f s1 (normal_ret_assert (wp E f s2 Q)) ⊢ wp E f (Ssequence s1 s2) Q.
+Lemma wp_seq : forall E f s1 s2 Q, wp E f s1 (overridePost (wp E f s2 Q) Q) ⊢ wp E f (Ssequence s1 s2) Q.
 Proof.
   intros; rewrite /wp; split => rho.
   iIntros "H % Hk" (??? -> ?).
   iApply jsafe_local_step.
   { intros; constructor. }
   iApply ("H" with "[Hk]"); [|done..].
-  rewrite guarded_normal; simpl.
-  by iIntros (?) "H"; iApply "H".
+  iIntros (rho).
+  destruct Q; simpl; iSplit; last by iDestruct ("Hk" $! rho) as "[_ $]".
+  iIntros "H"; iApply "H"; auto.
 Qed.
 
 Definition valid_val v :=
@@ -597,9 +556,9 @@ Qed.
 
 Lemma wp_store: forall E f e1 e2 R,
   wp_expr E (Ecast e2 (typeof e1)) (λ v2,
-      ⌜Cop2.tc_val' (typeof e1) v2⌝ ∧ wp_lvalue E e1 (λ v1,
+      ⌜Cop2.tc_val' (typeof e1) v2⌝ ∧ wp_lvalue E e1 (λ '(b, o), let v1 := Vptr b (Ptrofs.repr o) in
     ∃ sh, ⌜writable0_share sh⌝ ∧ ⎡mapsto_ sh (typeof e1) v1⎤ ∗
-    (⎡mapsto sh (typeof e1) v1 v2⎤ ={E}=∗ RA_normal R)))
+    ▷ (⎡mapsto sh (typeof e1) v1 v2⎤ ={E}=∗ RA_normal R)))
   ⊢ wp E f (Sassign e1 e2) R.
 Proof.
   intros; split => rho; rewrite /wp.
@@ -611,10 +570,10 @@ Proof.
   iMod ("H" with "[%] Hm") as ">(% & %He2 & Hm & % & H)"; first done.
   iMod ("H" with "[%] Hm") as ">(%b & %o & % & Hm & H)"; first done.
   iDestruct "H" as (sh ?) "(Hp & H)".
+  rewrite Ptrofs.repr_unsigned.
   iDestruct (mapsto_pure_facts with "Hp") as %((? & ?) & ?).
-  iDestruct (mapsto_can_store with "[$Hm Hp]") as %(? & ?); [done.. |].
+  iDestruct (mapsto_can_store with "[$Hm Hp]") as %(? & Hstore); [done.. |].
   iMod (mapsto_store with "[$Hm $Hp]") as "(Hm & Hp)"; [done.. |].
-  iMod ("H" with "[%] Hp"); first done.
   iIntros "!>".
   specialize (He2 _ _ _ eq_refl); inv He2.
   iExists _, _; iSplit.
@@ -622,8 +581,9 @@ Proof.
     econstructor; eauto. }
   iFrame.
   iNext.
+  iMod ("H" with "[%] Hp"); first done.
   by iApply safe_skip; last iApply "Hk".
-  { inv H6. }
+  { inv H5. }
 Qed.
 
 Lemma wp_loop: forall E f s1 s2 R,

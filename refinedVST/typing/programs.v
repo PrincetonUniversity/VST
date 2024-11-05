@@ -1,4 +1,5 @@
 From compcert.cfrontend Require Import Clight.
+From VST.veric Require Import lifting.
 From VST.lithium Require Export proof_state.
 From lithium Require Import hooks.
 From VST.typing Require Export type.
@@ -96,7 +97,7 @@ Proof.
 Qed.
 
 Section judgements.
-  Context `{!typeG Σ} {cs : compspecs}.
+  Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
   Class Learnable (P : iProp Σ) := {
     learnable_data : iProp Σ;
@@ -147,132 +148,27 @@ Section judgements.
     typed_if_proof T1 T2 : iProp_to_Prop (typed_if ot v P T1 T2).
 
   (*** statements *)
-  (* replace this with semax? *)
 (*  Definition typed_stmt_post_cond (fn : function) (ls : list address) (R : val → type → iProp Σ) (v : val) : iProp Σ :=
-    (∃ ty, v ◁ᵥ ty ∗ ([∗ list] l;v ∈ ls;(fn.(f_args) ++ fn.(f_local_vars)), l ↦|v.2|) ∗ R v ty)%I.
-  Definition typed_stmt (s : stmt) (fn : function) (ls : list address) (R : val → type → iProp Σ) (Q : gmap label stmt) : iProp Σ :=
-    (⌜length ls = length (fn.(f_args) ++ fn.(f_local_vars))⌝ -∗ WPs s {{Q, typed_stmt_post_cond fn ls R}})%I.
+    (∃ ty, v ◁ᵥ ty ∗ ([∗ list] l;v ∈ ls;(fn.(f_args) ++ fn.(f_local_vars)), l ↦|v.2|) ∗ R v ty)%I. *)
+  Context (OK_spec : ext_spec OK_ty) (ge : genv).
 
-  Maybe: *)
-  Context `{!externalGS OK_ty Σ}.
-  #[export] Instance VSTGS0 : VSTGS OK_ty Σ := Build_VSTGS _ _ _ _.
+  (* Possibly we will want break-types, continue-types, etc. For now, using option to distinguish between
+     fallthrough (normal) type and return type. *)
+  Definition typed_stmt_post_cond (R : option val → type → assert) : ret_assert :=
+    {| RA_normal := R None tytrue;
+       RA_break := False;
+       RA_continue := False;
+       RA_return ret := let v := force_val ret in ∃ ty, ⎡v ◁ᵥ ty⎤ ∗ R (Some v) ty |}.
+  Definition typed_stmt s f (R : option val → type → assert) : assert :=
+    wp OK_spec ge ⊤ f s (typed_stmt_post_cond R)%I.
+  Global Arguments typed_stmt _ _ _%_I.
 
-  Definition wp_stmt Espec E Delta s R := |={E}=> ∃ P, P ∧ ⌜semax(OK_spec := Espec) E Delta P s R⌝.
-
-  Definition ret_assert_entails R1 R2 : Prop :=
-    (RA_normal R1 ⊢ RA_normal R2) ∧
-    (RA_break R1 ⊢ RA_break R2) ∧
-    (RA_continue R1 ⊢ RA_continue R2) ∧
-    (∀ v, RA_return R1 v ⊢ RA_return R2 v).
-
-  Lemma wp_stmt_mono Espec E Delta s R1 R2 : ret_assert_entails R1 R2 →
-    wp_stmt Espec E Delta s R1 ⊢ wp_stmt Espec E Delta s R2.
+  Lemma typed_stmt_mono s f R1 R2 : (∀ v t, R1 v t ⊢ R2 v t) →
+    typed_stmt s f R1 ⊢ typed_stmt s f R2.
   Proof.
-    intros (? & ? & ? & ?).
-    iIntros ">(% & H & %Hs) !>".
-    iExists P; iFrame.
-    iPureIntro; split; first done.
-    eapply semax_post, Hs; intros; rewrite bi.and_elim_r //.
+    intros; apply wp_conseq; intros; simpl; rewrite ?H; auto.
+    iIntros "(% & ? & ?)"; rewrite H; eauto with iFrame.
   Qed.
-
-  Global Instance elim_modal_bupd_wp_stmt p Espec E Delta s R P :
-    ElimModal True%type p false (|==> P) P (wp_stmt Espec E Delta s R) (wp_stmt Espec E Delta s R).
-  Proof.
-    rewrite /ElimModal bi.intuitionistically_if_elim (bupd_fupd E) fupd_frame_r bi.wand_elim_r.
-    iIntros "_ Hs".
-    by iMod "Hs".
-  Qed.
-
-  Global Instance elim_modal_fupd_wp_stmt p Espec E Delta s R P :
-    ElimModal True%type p false (|={E}=> P) P (wp_stmt Espec E Delta s R) (wp_stmt Espec E Delta s R).
-  Proof.
-    rewrite /ElimModal bi.intuitionistically_if_elim fupd_frame_r bi.wand_elim_r.
-    iIntros "_ Hs".
-    by iMod "Hs".
-  Qed.
-
-  Definition typed_stmt_post_cond (R : val → type → assert) : ret_assert :=
-    {| RA_normal := ∃ ty, ⎡Vundef ◁ᵥ ty⎤ ∗ R Vundef ty;
-       RA_break := ∃ ty, ⎡Vundef ◁ᵥ ty⎤ ∗ R Vundef ty;
-       RA_continue := ∃ ty, ⎡Vundef ◁ᵥ ty⎤ ∗ R Vundef ty;
-       RA_return ret := let v := match ret with Some v => v | None => Vundef end in
-         ∃ ty, ⎡v ◁ᵥ ty⎤ ∗ R v ty |}.
-  Definition typed_stmt Espec Delta s (R : val → type → assert) : assert :=
-    wp_stmt Espec ⊤ Delta s (typed_stmt_post_cond R)%I.
-  Global Arguments typed_stmt _ _ _ _%_I.
-
-  Lemma typed_stmt_mono Espec Delta s R1 R2 : (∀ v t, R1 v t ⊢ R2 v t) →
-    typed_stmt Espec Delta s R1 ⊢ typed_stmt Espec Delta s R2.
-  Proof.
-    intros; apply wp_stmt_mono; split3; last split; intros; simpl; iIntros "(% & ? & ?)"; rewrite H; eauto with iFrame.
-  Qed.
-
-(*  alternative that strips out some of the pieces around semax instead of putting |={E}=> on top
-  Context `{!externalGS OK_ty Σ}.
-  #[export] Instance VSTGS0 : VSTGS OK_ty Σ := Build_VSTGS _ _ _ _.
-
-  (* modified from the definition of semax' *)
-  Definition wp_stmt Espec E Delta s R : assert :=
-    ∀ gx: genv, ∀ vx tx, ∀ Delta': tycontext,∀ CS':compspecs,
-       local (λ rho, rho = construct_rho (filter_genv gx) vx tx) →
-       ⌜(tycontext_sub Delta Delta'
-           /\ cenv_sub (@cenv_cs cs) (@cenv_cs CS')
-           /\ cenv_sub (@cenv_cs CS') (genv_cenv gx))⌝ →
-       ⎡believe(CS := CS') Espec Delta' gx Delta'⎤ →
-     ∀ k: cont, ∀ F: assert, ∀ f: function, ∀ E': coPset,
-        (⌜(closed_wrt_modvars s F) /\ E ⊆ E'⌝ ∧
-         ∀ ek vl, (local (guard_environ Delta' f) ∧ (proj_ret_assert (frame_ret_assert R F) ek vl) ∗ funassert Delta' -∗
-       assert_safe Espec gx E' f vx tx (exit_cont ek vl k))) -∗
-        local (guard_environ Delta' f) ∧ F ∗ funassert Delta' -∗
-       assert_safe Espec gx E' f vx tx (Cont (Kseq s k)).
-
-  (* up *)
-  Lemma assert_safe_fupd Espec : ∀ (ge : genv) (E : coPset) (f : function) (ve : env) (te : temp_env) 
-         (c : contx),
-         match c with
-         | Ret _ _ => False
-         | _ => True
-         end → (|={E}=> assert_safe Espec ge E f ve te c) ⊢ assert_safe Espec ge E f ve te c.
-  Proof.
-    intros; split => rho; rewrite monPred_at_fupd.
-    change (type_heapG) with (VST_heapGS); apply semax_lemmas.assert_safe_fupd; done.
-  Qed.
-
-  Global Instance elim_modal_bupd_wp_stmt p Espec E Delta s R P :
-    ElimModal True%type p false (|==> P) P (wp_stmt Espec E Delta s R) (wp_stmt Espec E Delta s R).
-  Proof.
-    rewrite /ElimModal bi.intuitionistically_if_elim (bupd_fupd E) fupd_frame_r bi.wand_elim_r.
-    iIntros "_ Hs".
-    rewrite /wp_stmt.
-    iIntros (?????) "#?"; iIntros (?) "#?"; iIntros (????) "([% %] & A) B".
-    iApply assert_safe_fupd; first done.
-    iMod fupd_mask_subseteq as "Hmask"; first done.
-    iMod "Hs"; iMod "Hmask" as "_".
-    iApply ("Hs" with "[] [] [] [A] [B]"); auto.
-  Qed.
-
-  Global Instance elim_modal_fupd_wp_stmt p Espec E Delta s R P :
-    ElimModal True%type p false (|={E}=> P) P (wp_stmt Espec E Delta s R) (wp_stmt Espec E Delta s R).
-  Proof.
-    rewrite /ElimModal bi.intuitionistically_if_elim fupd_frame_r bi.wand_elim_r.
-    iIntros "_ Hs".
-    rewrite /wp_stmt.
-    iIntros (?????) "#?"; iIntros (?) "#?"; iIntros (????) "([% %] & A) B".
-    iApply assert_safe_fupd; first done.
-    iMod fupd_mask_subseteq as "Hmask"; first done.
-    iMod "Hs"; iMod "Hmask" as "_".
-    iApply ("Hs" with "[] [] [] [A] [B]"); auto.
-  Qed.
-
-  Definition typed_stmt_post_cond (R : val → type → assert) : ret_assert :=
-    {| RA_normal := ∃ ty, ⎡Vundef ◁ᵥ ty⎤ ∗ R Vundef ty;
-       RA_break := ∃ ty, ⎡Vundef ◁ᵥ ty⎤ ∗ R Vundef ty;
-       RA_continue := ∃ ty, ⎡Vundef ◁ᵥ ty⎤ ∗ R Vundef ty;
-       RA_return ret := let v := match ret with Some v => v | None => Vundef end in
-         ∃ ty, ⎡v ◁ᵥ ty⎤ ∗ R v ty |}.
-
-  Definition typed_stmt Espec Delta (s : statement) (R : val → type → assert) :=
-    wp_stmt Espec ⊤ Delta s (typed_stmt_post_cond R)%I.*)
 
 (*  Definition typed_block (P : iProp Σ) (b : label) (fn : function) (ls : list address) (R : val → type → iProp Σ) (Q : gmap label stmt) : iProp Σ :=
     (wps_block P b Q (typed_stmt_post_cond fn ls R)).
@@ -299,36 +195,18 @@ Section judgements.
 
   (*** expressions *)
 
-  (* worked out with Arnaud Daby-Seesaram; not used, but inspiration for wp_expr *)
+  (* worked out with Arnaud Daby-Seesaram; not used, but inspiration for wp_expr
   Definition eval_rel (*(t : type)*) (e : expr) (v : val) (rho : environ)
     : iProp Σ :=
     ∀ m, juicy_mem.mem_auth m -∗
            ⌜forall ge ve te,
               cenv_sub cenv_cs (genv_cenv ge) ->
               rho = construct_rho (filter_genv ge) ve te ->
-              Clight.eval_expr ge ve te m e v (*/\ typeof e = t /\ tc_val t v*)⌝.
-
-  (* the position of the ∧ makes this annoying
-  Definition wp_expr e Φ : assert := ∃ v, assert_of (fun rho => eval_rel e v rho) ∧ Φ v. *)
-
-  Definition wp_expr e Φ : assert :=
-    ∀ m, ⎡juicy_mem.mem_auth m⎤ -∗
-           ∃ v, local (λ rho, forall ge ve te,
-              cenv_sub cenv_cs (genv_cenv ge) ->
-              rho = construct_rho (filter_genv ge) ve te ->
-              Clight.eval_expr ge ve te m e v (*/\ typeof e = t /\ tc_val t v*)) ∧
-           ⎡juicy_mem.mem_auth m⎤ ∗ Φ v.
+              Clight.eval_expr ge ve te m e v (*/\ typeof e = t /\ tc_val t v*)⌝.*)
 
   Definition typed_val_expr (e : expr) (T : val → type → assert) : assert :=
-    (∀ Φ, (∀ v (ty : type), ⎡v ◁ᵥ ty⎤ -∗ T v ty -∗ Φ v) -∗ wp_expr e Φ).
+    (∀ Φ, (∀ v (ty : type), ⎡v ◁ᵥ ty⎤ -∗ T v ty -∗ Φ v) -∗ wp_expr ⊤ e Φ).
   Global Arguments typed_val_expr _ _%_I.
-
-  Definition wp_lvalue e (Φ: address -> assert) : assert :=
-  ∀ m, ⎡juicy_mem.mem_auth m⎤ -∗
-         ∃ b o, local (λ rho, forall ge ve te,
-            rho = construct_rho (filter_genv ge) ve te ->
-            Clight.eval_lvalue ge ve te m e b o Full (*/\ typeof e = t /\ tc_val t v*)) ∧
-         ⎡juicy_mem.mem_auth m⎤ ∗ Φ (b, Ptrofs.unsigned o).
 
   (* FIXME sounds like typed_addr_of, although typed_addr_of is for typing `&e`; are they the same?  *)
   Definition typed_lvalue β e T : assert :=
@@ -336,7 +214,7 @@ Section judgements.
       (∀ (l:address) (ty : type),
         ⎡l ◁ₗ{β} ty⎤ (* typed_write_end has this so maybe here needs it too? *) 
         -∗ T l β ty -∗ Φ l)
-      -∗ wp_lvalue e Φ).
+      -∗ wp_lvalue ⊤ e Φ).
   Global Arguments typed_lvalue _ _ _%_I.
   Class TypedLvalue β (e : expr) : Type :=
     typed_lvalue_proof T : iProp_to_Prop (typed_lvalue β e T).
@@ -346,29 +224,8 @@ Section judgements.
   Class TypedValue (v : val) : Type :=
     typed_value_proof T : iProp_to_Prop (typed_value v T).
 
-  (* Caesium uses a small-step semantics for exprs, so the wp/typing for an operation can be broken up into
-     evaluating the arguments and then the op. Clight uses big-step and can't in general inject vals
-     into expr, so for now, hacking in a different wp judgment for ops. *)
-(*   Definition eval_binop_rel op t1 v1 t2 v2 v rho (* could we just pass ge instead? or use cenv_cs directly? *)
-    : iProp Σ :=
-    ∀ m, juicy_mem.mem_auth m -∗
-           ⌜forall ge ve te,
-              cenv_sub cenv_cs (genv_cenv ge) ->
-              rho = construct_rho (filter_genv ge) ve te ->
-              sem_binary_operation (genv_cenv ge) op v1 t1 v2 t2 m = Some v (*/\ typeof e = t /\ tc_val t v*)⌝. *)
-
-(*   Definition wp_binop op t1 v1 t2 v2 Φ : assert := ∃ v, assert_of (eval_binop_rel op t1 v1 t2 v2 v) ∗ Φ v. *)
-
-  Definition wp_binop op t1 v1 t2 v2 Φ : assert :=
-    ∀ m, ⎡juicy_mem.mem_auth m⎤ -∗
-           ∃ v, local (λ rho, forall ge ve te,
-              cenv_sub cenv_cs (genv_cenv ge) ->
-              rho = construct_rho (filter_genv ge) ve te ->
-              sem_binary_operation (genv_cenv ge) op v1 t1 v2 t2 m = Some v (*/\ typeof e = t /\ tc_val t v*)) ∧
-           ⎡juicy_mem.mem_auth m⎤ ∗ Φ v.
-
   Definition typed_val_binop op t1 v1 t2 v2 (T : val → type → assert) : assert :=
-    (∀ Φ, (∀ v (ty : type), ⎡v ◁ᵥ ty⎤ -∗ T v ty -∗ Φ v) -∗ wp_binop op t1 v1 t2 v2 Φ).
+    (∀ Φ, (∀ v (ty : type), ⎡v ◁ᵥ ty⎤ -∗ T v ty -∗ Φ v) -∗ wp_binop ⊤ op t1 v1 t2 v2 Φ).
   Global Arguments typed_val_binop _ _ _ _ _ _%_I.
 
   Definition typed_bin_op (v1 : val) (P1 : assert) (v2 : val) (P2 : assert) (o : Cop.binary_operation) (t1 t2 : Ctypes.type) (T : val → type → assert) : assert :=
@@ -377,21 +234,8 @@ Section judgements.
   Class TypedBinOp (v1 : val) (P1 : assert) (v2 : val) (P2 : assert) (o : Cop.binary_operation) (ot1 ot2 : Ctypes.type) : Type :=
     typed_bin_op_proof T : iProp_to_Prop (typed_bin_op v1 P1 v2 P2 o ot1 ot2 T).
 
-(*   (* Clight unops don't depend on environ. *)
-  Definition eval_unop_rel op t1 v1 v (rho : environ)
-    : iProp Σ :=
-    ∀ m, juicy_mem.mem_auth m -∗
-           ⌜Cop.sem_unary_operation op v1 t1 m = Some v⌝.
-
-  Definition wp_unop op t1 v1 Φ : assert := ∃ v, assert_of (eval_unop_rel op t1 v1 v) ∗ Φ v. *)
-
-  Definition wp_unop op t1 v1 Φ : assert :=
-    ∀ m, ⎡juicy_mem.mem_auth m⎤ -∗
-           ∃ v, ⌜Cop.sem_unary_operation op v1 t1 m = Some v⌝ ∧
-           ⎡juicy_mem.mem_auth m⎤ ∗ Φ v.
-
   Definition typed_val_unop op t v (T : val → type → assert) : assert :=
-    (∀ Φ, (∀ v (ty : type), ⎡v ◁ᵥ ty⎤ -∗ T v ty -∗ Φ v) -∗ wp_unop op t v Φ).
+    (∀ Φ, (∀ v (ty : type), ⎡v ◁ᵥ ty⎤ -∗ T v ty -∗ Φ v) -∗ wp_unop ⊤ op t v Φ).
   Global Arguments typed_val_unop _ _ _ _%_I.
 
   Definition typed_un_op (v : val) (P : assert) (o : Cop.unary_operation) (ot : Ctypes.type) (T : val → type → assert) : assert :=
@@ -400,32 +244,19 @@ Section judgements.
   Class TypedUnOp (v : val) (P : assert) (o : Cop.unary_operation) (ot : Ctypes.type) : Type :=
     typed_un_op_proof T : iProp_to_Prop (typed_un_op v P o ot T).
 
-(*  Fixpoint typed_exprs (el : list expr) (T : list val → list type → assert) : assert :=
-    match el with
-    | [] => T [] []
-    | e :: rest => typed_val_expr e (λ v t, typed_exprs rest (λ vl tl, T (v :: vl) (t :: tl)))
-    end. *)
-  Definition wp_exprs e t Φ : assert :=
-    ∀ m, ⎡juicy_mem.mem_auth m⎤ -∗
-           ∃ v, local (λ rho, forall ge ve te,
-              cenv_sub cenv_cs (genv_cenv ge) ->
-              rho = construct_rho (filter_genv ge) ve te ->
-              Clight.eval_exprlist ge ve te m e t v (*/\ typeof e = t /\ tc_val t v*)) ∧
-           ⎡juicy_mem.mem_auth m⎤ ∗ Φ v.
-
   Definition typed_exprs (el : list expr) (tl : typelist) (T : list val → list type → assert) : assert :=
     (∀ Φ, (∀ vl (tys : list type), ([∗ list] v;ty∈vl;tys, ⎡v ◁ᵥ ty⎤) -∗ T vl tys -∗ Φ vl) -∗ wp_exprs el tl Φ).
   Global Arguments typed_exprs _ _ _%_I.
 
   (* can we rewrite this to take vals directly after all? We'd have to replace typed_stmt with sufficient
      conditions for a call to be safe. *)
-  Definition typed_call Espec Delta (e : expr) (P : assert) (el : list expr) (tys : list type) (T : val → type → assert) : assert :=
+  Definition typed_call (e : expr) (P : assert) (el : list expr) (tys : list type) (T : option val → type → assert) : assert :=
     match typeof e with
-    | Tfunction ts _ _ => (P -∗ (*(typed_exprs el ts (λ _ tl, <affine> ⌜tl = tys⌝)) -∗*) typed_stmt Espec Delta (Scall None e el) T)%I
+    | Tfunction ts _ _ => (∀ f, P -∗ (*(typed_exprs el ts (λ _ tl, <affine> ⌜tl = tys⌝)) -∗*) typed_stmt (Scall None e el) f T)%I
     | _ => False
     end.
-  Class TypedCall Espec Delta (e : expr) (P : assert) (el : list expr) (tys : list type) : Type :=
-    typed_call_proof T : iProp_to_Prop (typed_call Espec Delta e P el tys T).
+  Class TypedCall (e : expr) (P : assert) (el : list expr) (tys : list type) : Type :=
+    typed_call_proof T : iProp_to_Prop (typed_call e P el tys T).
 
 (* There does not seem to be a copy stmt in Clight, just Sassign 
   Definition typed_copy_alloc_id (v1 : val) (P1 : iProp Σ) (v2 : val) (P2 : iProp Σ) (ot : op_type) (T : val → type → iProp Σ) : iProp Σ :=
@@ -467,7 +298,7 @@ Section judgements.
                 (* Ke : maybe we need later afterall because write is only done a write statement after? *)
                 ▷(⎡ l ↦|ot| v ⎤ ={E, ⊤}=∗ T))
               -∗ Φ l) -∗
-       wp_lvalue e Φ)%I.
+       wp_lvalue ⊤ e Φ)%I.
 
   (** [typed_read atomic e ot memcast] typechecks a read with op_type
   ot of the expression [e]. [atomic] says whether the read is an
@@ -487,14 +318,14 @@ Definition typed_read (atomic : bool) (e : expr) (ot : Ctypes.type) (memcast : b
                           ⎡v' ◁ᵥ ty'⎤ ∗
                           T v' ty')) 
         -∗ Φ l) -∗
-     wp_expr e Φ)%I.
+     wp_expr ⊤ e Φ)%I.
 
   (** [typed_addr_of e] typechecks an address of operation on the expression [e].
   The typing rule for [typed_addr_of] typechecks [e] and then dispatches to [typed_addr_of_end]*)
   Definition typed_addr_of (e : expr) (T : address → own_state → type → assert) : assert :=
     ∀ (Φ: val->assert),
        (∀ (l : address) β ty, ⎡l ◁ₗ{β} ty⎤ -∗ T l β ty -∗ Φ l) -∗
-       wp_expr e Φ.
+       wp_expr ⊤ e Φ.
 
   (** [typed_read_end atomic E l β ty ot memcast] typechecks a read with op_type
   ot of the location [l] with type [l ◁ₗ{β} ty]. [atomic] says whether the read is an
@@ -672,22 +503,22 @@ Global Hint Extern 0 (IntoPlaceCtx _ _) => solve_into_place_ctx : typeclass_inst
 
 Global Hint Mode Learnable + + : typeclass_instances.
 (*Global Hint Mode LearnAlignment + + + + - : typeclass_instances.*)
-Global Hint Mode CopyAs + + + + + + : typeclass_instances.
-Global Hint Mode SimpleSubsumePlace + + + + ! - : typeclass_instances.
-Global Hint Mode SimpleSubsumeVal + + + ! ! - : typeclass_instances.
+Global Hint Mode CopyAs + + + + + + + : typeclass_instances.
+Global Hint Mode SimpleSubsumePlace + + + + + ! - : typeclass_instances.
+Global Hint Mode SimpleSubsumeVal + + + + ! ! - : typeclass_instances.
 Global Hint Mode TypedIf + + + + : typeclass_instances.
 (* Global Hint Mode TypedAssert + + + + + + : typeclass_instances. *)
-Global Hint Mode TypedValue + + + + : typeclass_instances.
-(*Global Hint Mode TypedBinOp + + + + + + + + + : typeclass_instances.
-Global Hint Mode TypedUnOp + + + + + + : typeclass_instances.
-Global Hint Mode TypedCall + + + + + + : typeclass_instances.
-Global Hint Mode TypedCopyAllocId + + + + + + + : typeclass_instances. *)
-Global Hint Mode TypedReadEnd + + + + + + + + + + + : typeclass_instances.
-Global Hint Mode TypedWriteEnd + + + + + + + + + + + : typeclass_instances.
-Global Hint Mode TypedAddrOfEnd + + + + + + : typeclass_instances.
+Global Hint Mode TypedValue + + + + + : typeclass_instances.
+Global Hint Mode TypedBinOp + + + + + + + + + + + : typeclass_instances.
+Global Hint Mode TypedUnOp + + + + + + + + : typeclass_instances.
+Global Hint Mode TypedCall + + + + + + + + + + : typeclass_instances.
+(*Global Hint Mode TypedCopyAllocId + + + + + + + : typeclass_instances. *)
+Global Hint Mode TypedReadEnd + + + + + + + + + + + + : typeclass_instances.
+Global Hint Mode TypedWriteEnd + + + + + + + + + + + + : typeclass_instances.
+Global Hint Mode TypedAddrOfEnd + + + + + + + : typeclass_instances.
 (* Global Hint Mode TypedPlace + + + + + + : typeclass_instances. *)
-Global Hint Mode TypedAnnotExpr + + + + + + + : typeclass_instances.
-Global Hint Mode TypedAnnotStmt + + + + + + : typeclass_instances.
+Global Hint Mode TypedAnnotExpr + + + + + + + + : typeclass_instances.
+Global Hint Mode TypedAnnotStmt + + + + + + + : typeclass_instances.
 (* Global Hint Mode TypedMacroExpr + + + + : typeclass_instances. *)
 Arguments typed_annot_expr : simpl never.
 Arguments typed_annot_stmt : simpl never.
@@ -696,7 +527,7 @@ Arguments learnable_data {_ _} _.
 (*Arguments learnalign_learn {_ _ _ _ _} _.*)
 
 Section proper.
-  Context `{!typeG Σ} {cs : compspecs}.
+  Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
   Lemma simplify_hyp_place_eq ty1 ty2 (Heq : ty1 ≡@{type} ty2) l β T:
     (l ◁ₗ{β} ty2 -∗ T) ⊢ simplify_hyp (l◁ₗ{β} ty1) T.
@@ -930,9 +761,9 @@ End proper.
 (*Global Typeclasses Opaque typed_read_end.
 Global Typeclasses Opaque typed_write_end.*)
 
-Definition FindLoc `{!typeG Σ} {cs : compspecs} (l : address) :=
+Definition FindLoc `{!typeG OK_ty Σ} {cs : compspecs} (l : address) :=
   {| fic_A := own_state * type; fic_Prop '(β, ty):= (l ◁ₗ{β} ty)%I; |}.
-Definition FindVal `{!typeG Σ} `{!heapGS Σ} {cs : compspecs} (v : val) : @find_in_context_info assert :=
+Definition FindVal `{!typeG OK_ty Σ} {cs : compspecs} (v : val) : @find_in_context_info assert :=
   {| fic_A := type; fic_Prop ty := ⎡v ◁ᵥ ty⎤%I; |}.
 Definition FindValP {B : bi} (v : val) :=
   {| fic_A := B; fic_Prop P := P; |}.
@@ -968,7 +799,7 @@ Ltac generate_i2p_instance_to_tc_hook arg c ::=
   end.
 
 Section typing.
-  Context `{!typeG Σ} {cs : compspecs}.
+  Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
   Lemma find_in_context_type_loc_id l T:
     (∃ β ty, l ◁ₗ{β} ty ∗ T (β, ty))
@@ -1381,17 +1212,16 @@ Section typing.
   Global Existing Instance typed_assert_simplify_inst | 1000. *)
 
   (*** statements *)
-  Context `{!externalGS OK_ty Σ}.
 
-  Global Instance elim_modal_bupd_typed_stmt p Espec Delta s R P :
-    ElimModal True%type p false (|==> P) P (typed_stmt Espec Delta s R) (typed_stmt Espec Delta s R).
+  Global Instance elim_modal_bupd_typed_stmt p Espec ge s f R P :
+    ElimModal True%type p false (|==> P) P (typed_stmt Espec ge s f R) (typed_stmt Espec ge s f R).
   Proof.
     rewrite /ElimModal bi.intuitionistically_if_elim (bupd_fupd ⊤) fupd_frame_r bi.wand_elim_r.
     iIntros "_ Hs". iMod "Hs". by iApply "Hs".
   Qed.
 
-  Global Instance elim_modal_fupd_typed_stmt p Espec Delta s R P :
-    ElimModal True%type p false (|={⊤}=> P) P (typed_stmt Espec Delta s R) (typed_stmt Espec Delta s R).
+  Global Instance elim_modal_fupd_typed_stmt p Espec ge s f R P :
+    ElimModal True%type p false (|={⊤}=> P) P (typed_stmt Espec ge s f R) (typed_stmt Espec ge s f R).
   Proof.
     rewrite /ElimModal bi.intuitionistically_if_elim fupd_frame_r bi.wand_elim_r.
     iIntros "_ Hs". iMod "Hs". by iApply "Hs".
@@ -1416,72 +1246,39 @@ Section typing.
 
 *)
 
-
-  Lemma wp_store: forall ESpec E Delta e1 e2 R_ret,
-    wp_expr (Ecast e2 (typeof e1)) (λ v2,
-        ⌜Cop2.tc_val' (typeof e1) v2⌝ ∧ wp_lvalue e1 (λ l1,
-        |={⊤}=> (* ? *)
-      ∃ sh, <affine> ⌜writable0_share sh⌝ ∗ ⎡l1↦{sh}|typeof e1| _⎤ ∗
-      ▷(⎡l1↦{sh}|typeof e1| v2⎤ ={E}=∗ (RA_normal R_ret))))
-    ⊢ wp_stmt ESpec E Delta (Sassign e1 e2) R_ret.
-  Admitted.
-
   (* Ke: possible way to handle cast: dispatch type checking rules to 
      type_Ecast, and only cover cases where it doesn't need memory.
      similar to lithium.theories.typing.int, have one rule for each 
      concrete (t1, t2) in (Ecast t1 t2) *)
-  Lemma type_assign Espec Delta e1 e2 (T: val -> type -> assert):
+  Lemma type_assign Espec ge f e1 e2 (T: option val -> type -> assert):
     typed_val_expr (Ecast e2 (typeof e1)) (λ v ty,
       <affine> ⌜v `has_layout_val` typeof e1⌝ ∗
-       typed_write false e1 (typeof e1) v ty (T Vundef tytrue))
-    ⊢ typed_stmt Espec Delta (Sassign e1 e2) T.
+       typed_write false e1 (typeof e1) v ty (T None tytrue))
+    ⊢ typed_stmt Espec ge (Sassign e1 e2) f T.
   Proof.
     unfold typed_stmt.
     rewrite -wp_store.
     iIntros "H". iApply "H".
     iIntros (v ty) "H [% ty_write]".
     iSplit; [done|].
-
+    iApply wp_lvalue_mono.
+    { intros; apply derives_refl. }
     iApply "ty_write".
-    iIntros (l) "upd".
-    iMod ("upd" with "H") as "(%Hot & ? & upd)"; iModIntro.
+    iIntros ((b, o)) "upd".
+    iMod ("upd" with "H") as "(%Hot & Hl & upd)"; iModIntro.
     iExists Tsh.
     iSplit; [auto|].
-    iFrame.
-    iModIntro. iIntros "l↦".
-    iSpecialize ("upd" with "l↦").
-    iMod "upd". iModIntro.
-    rewrite /RA_normal /typed_stmt_post_cond.
-    iExists tytrue; iSplit; done.
+    iSplitR "upd".
+    - rewrite /mapsto_layout /mapsto.
+      iDestruct "Hl" as (???) "Hl".
+      rewrite mapsto_mapsto_ //.
+    - iIntros "!> l↦".
+      iMod ("upd" with "[l↦]"); done.
   Qed.
 
-  Lemma wp_semax : forall Espec E Delta P s Q, (P ⊢ wp_stmt Espec E Delta s Q) ↔ semax(OK_spec := Espec) E Delta P s Q.
-  Proof.
-    intros. split; intros.
-    -
-    rewrite /wp_stmt in H.
-    eapply semax_pre_fupd.
-    { rewrite bi.and_elim_r //. }
-    apply semax_extract_exists; intros.
-    rewrite comm.
-    apply semax_extract_prop; done.
-    - rewrite /wp_stmt.
-    eapply semax_pre_fupd in H.
-    2: { rewrite bi.and_elim_r //. }
-    iIntros. iExists (|={E}=> P).
-    iModIntro.
-    iSplit; try done.
-  Qed.
-
-  (* see semax_set *)
-  Lemma wp_set: forall Espec E Delta i e R,
-    wp_expr e (λ v, assert_of (subst i (liftx v) (RA_normal R))) ⊢ wp_stmt Espec E Delta (Sset i e) R.
-  Proof.
-  Admitted.
-
-  Lemma type_set Espec Delta (id:ident) e (T: val -> type -> assert):
-    typed_val_expr e (λ v ty, <affine> ⌜v ≠ Vundef⌝ ∗ <obj> (<affine> (local $ locald_denote $ temp id v) -∗ ⎡v ◁ᵥ ty⎤ -∗ T Vundef tytrue))%I
-      ⊢ typed_stmt Espec Delta (Sset id e) T.
+  Lemma type_set Espec ge f (id:ident) e (T: option val -> type -> assert):
+    typed_val_expr e (λ v ty, <affine> ⌜v ≠ Vundef⌝ ∗ <obj> (<affine> (local $ locald_denote $ temp id v) -∗ ⎡v ◁ᵥ ty⎤ -∗ T None tytrue))%I
+      ⊢ typed_stmt Espec ge (Sset id e) f T.
   Proof.
     iIntros "He".
     iApply wp_set.
@@ -1492,7 +1289,6 @@ Section typing.
     rewrite /local /lift1 /subst.
     iIntros "(? & HT)".
     unfold_lift.
-    iExists tytrue; iSplit; first done.
     iApply "HT"; try done.
     rewrite monPred_at_affinely.
     iPureIntro.
@@ -1500,132 +1296,67 @@ Section typing.
     symmetry; apply eval_id_same.
   Qed.
 
-  Lemma semax_wp : forall Espec E Delta P s Q, semax(OK_spec := Espec) E Delta P s Q → (P ⊢ wp_stmt Espec E Delta s Q).
-  Proof.
-    intros.
-    rewrite /wp_stmt.
-    iIntros "? !>".
-    iExists _; iSplit; last done; done.
-  Qed.
-
-  Lemma wp_return_some Espec E Delta e Rret:
-    tc_expr Delta (Ecast e (ret_type Delta)) ∧
-    wp_expr e (λ v, (RA_return Rret (Some v)))
-    ⊢ wp_stmt Espec E Delta (Sreturn (Some e)) Rret.
-  Proof.
-    intros.
-    apply semax_wp.
-    eapply semax_pre.
-    2: { apply semax_return. }
-    iIntros "(#? & H)".
-    iSplit; simpl.
-    - iDestruct "H" as "[$ _]".
-    - unfold_lift.
-      iStopProof.
-      split => rho; monPred.unseal.
-      rewrite monPred_at_intuitionistically.
-  Admitted.
-
-  Lemma type_return_some Espec Delta e (T : val → type -> assert):
+  Lemma type_return_some Espec ge f e (T : val → type -> assert):
    typed_val_expr e T
-   ⊢ typed_stmt Espec Delta (Sreturn $ Some e) T.
-    unfold typed_stmt.
-    iIntros "H".
-    iApply wp_return_some. simpl.
-    iSplit.
-    - admit.
-    - unfold typed_val_expr.
-      iApply "H". iIntros.
-      iExists ty. iFrame.
-  Admitted.
-
-  Lemma wp_return_none Espec E Delta Rret:
-    RA_return Rret None
-    ⊢ wp_stmt Espec E Delta (Sreturn None) Rret.
+   ⊢ typed_stmt Espec ge (Sreturn $ Some e) f (λ v, T (force_val v)).
   Proof.
-    intros.
-    rewrite wp_semax.
-    eapply semax_pre.
-    2: { apply semax_return. }
-  Admitted.
-
-  Lemma type_return_none Espec Delta (T : val → type -> assert):
-    T Vundef tytrue
-    ⊢ typed_stmt Espec Delta (Sreturn $ None) T.
     unfold typed_stmt.
     iIntros "H".
-    iApply wp_return_none. simpl.
-    iExists tytrue. iFrame.
-    done.
+    iApply wp_return_Some. iApply "H".
+    iIntros; iFrame.
   Qed.
 
-
-(* This should be able to reuse semax_ifthenelse, but it's not currently factored correctly. The right way
-   might be to define a set of more primitive/direct rules with wp, and then build the VeriC semax rules on
-   top of those. *)
-  Lemma wp_if: forall Espec E Delta e s1 s2 R, bool_type (typeof e) = true →
-    ▷(tc_expr Delta (Eunop Cop.Onotbool e (Tint I32 Signed noattr)) ∧ wp_expr e (λ v, (⌜typed_true (typeof e) v⌝ → wp_stmt Espec E Delta s1 R) ∧
-                    (⌜typed_false (typeof e) v⌝ → wp_stmt Espec E Delta s2 R)))
-    ⊢ wp_stmt Espec E Delta (Sifthenelse e s1 s2) R.
+  Lemma type_return_none Espec ge f (T : val → type -> assert) ty:
+    ⎡Vundef ◁ᵥ ty⎤ ∗ T Vundef ty
+    ⊢ typed_stmt Espec ge (Sreturn $ None) f (λ v, T (force_val v)).
   Proof.
-    intros.
-    rewrite /wp_stmt.
-    iIntros "H !>"; iExists (▷ _); iFrame "H".
-    iPureIntro; split; first done.
-    apply semax_ifthenelse; first done.
-    - apply wp_semax.
-      iIntros "(H & #?)".
-      (* different eval_expr *)
-  Admitted.
+    unfold typed_stmt.
+    iIntros "H".
+    iApply wp_return_None. iExists ty; iFrame.
+  Qed.
 
-  Lemma type_if Espec Delta e s1 s2 R:
+  Lemma type_if Espec ge f e s1 s2 R:
     typed_val_expr e (λ v ty, typed_if (typeof e) v ⎡v ◁ᵥ ty⎤
-          (typed_stmt Espec Delta s1 R) (typed_stmt Espec Delta s2 R))
-    ⊢ typed_stmt Espec Delta (Sifthenelse e s1 s2) R.
+          (typed_stmt Espec ge s1 f R) (typed_stmt Espec ge s2 f R))
+    ⊢ typed_stmt Espec ge (Sifthenelse e s1 s2) f R.
   Proof.
     iIntros "He".
     iApply wp_if.
-    { admit. }
-    iNext; iSplit.
-    { admit. }
     iApply "He". iIntros (v ty) "Hv Hs".
     iDestruct ("Hs" with "Hv") as "Hs". destruct (typeof e) eqn: Ht; iDestruct "Hs" as (b Hv) "Hs"; try done.
-    - rewrite /typed_true /typed_false /strict_bool_val.
-      iSplit; iIntros (Hb); destruct v; try done; case_bool_decide; try done; exfalso; inv Hv.
-      + assert (i0 = Int.zero) as ->; [|rewrite Int.eq_true // in Hb].
-        destruct s; [|if_tac in H1]; inv H1.
-        * apply signed_inj; rewrite Int.signed_zero //.
-        * apply unsigned_eq_eq; rewrite Int.unsigned_zero //.
-      + apply negb_false_iff, int_eq_e in Hb as ->.
-        destruct s; [|if_tac in H1]; inv H1.
-    - rewrite /typed_true /typed_false /strict_bool_val.
-      iSplit; iIntros (Hb); destruct v; try done; case_bool_decide; try done; exfalso; inv Hv.
-      + assert (i = Int64.zero) as ->; [|rewrite Int64.eq_true // in Hb].
-        destruct s; inv H1.
-        * apply signed_inj_64; rewrite Int64.signed_zero //.
-        * apply unsigned_inj_64; rewrite Int64.unsigned_zero //.
-      + apply negb_false_iff, int64_eq_e in Hb as ->.
-        destruct s; inv H1.
-    - rewrite /typed_true /typed_false /strict_bool_val.
-      rewrite /sem_cast /= in Hv.
-      destruct f; iSplit; iIntros (Hb); destruct v; try done; if_tac; try done; exfalso; inv Hv;
-        rewrite ?negb_true_iff ?negb_false_iff in Hb; rewrite -> Hb in *; done.
-    - rewrite /typed_true /typed_false /strict_bool_val.
-      rewrite /sem_cast /= in Hv.
-      revert Hv; simple_if_tac; first done; intros.
-      iSplit; iIntros (Hb); destruct v; try done; if_tac; try done; exfalso; inv Hv.
+    - destruct v; try done.
+      iSplit; first done; iFrame.
+      simpl in *.
+      destruct (Int.eq i0 Int.zero) eqn: Heq.
+      + apply Int.same_if_eq in Heq as ->.
+        destruct s; [|if_tac in Hv]; inv Hv; done.
+      + case_bool_decide; try done.
+        subst; destruct s; [|if_tac in Hv]; inv Hv.
+        * apply (val_lemmas.signed_inj _ Int.zero) in H0 as ->.
+          rewrite Int.eq_true // in Heq.
+        * apply (client_lemmas.unsigned_eq_eq _ Int.zero) in H1 as ->.
+          rewrite Int.eq_true // in Heq.
+    - destruct v; try done.
+      iSplit; first done; iFrame.
+      simpl in *.
+      destruct (Int64.eq i Int64.zero) eqn: Heq.
+      + apply Int64.same_if_eq in Heq as ->.
+        destruct s; inv Hv; done.
+      + case_bool_decide; try done.
+        subst; destruct s; inv Hv.
+        * apply (signed_inj_64 _ Int64.zero) in H0 as ->.
+          rewrite Int64.eq_true // in Heq.
+        * apply (unsigned_inj_64 _ Int64.zero) in H0 as ->.
+          rewrite Int64.eq_true // in Heq.
+    - rewrite /sem_cast /= in Hv.
+      destruct f0, v; try done; inv Hv; (iSplit; first done); iExists _; (iSplit; first done); simpl;
+        [destruct Float32.cmp | destruct Float.cmp]; done.
+    - rewrite /sem_cast /sem_cast_l2bool /sem_cast_i2bool /= in Hv; rewrite /bool_val /bool_val_p /=.
+      revert Hv; simple_if_tac; first done; destruct Archi.ptr64 eqn: ?; try done; intros.
+      destruct v; inv Hv; simpl; (iSplit; [try done | iExists _; iSplit; try done]).
       + destruct (Int64.eq _ _); done.
-      + destruct (Int64.eq _ _); done.
-    - rewrite /typed_true /typed_false /strict_bool_val.
-      rewrite /sem_cast /= in Hv.
-      iSplit; iIntros (Hb); destruct v; try done; if_tac; try done; exfalso; inv Hv.
-      + destruct (Int64.eq _ _); done.
-      + destruct (Int64.eq _ _); done.
-    - rewrite /typed_true /typed_false /strict_bool_val.
-      rewrite /sem_cast /= in Hv.
-      iSplit; iIntros (Hb); destruct v; try done; if_tac; try done; exfalso; inv Hv.
-      + destruct (Int64.eq _ _); done.
-      + destruct (Int64.eq _ _); done.
+      + (* only valid pointers can be cast to true; should change typed_if *) admit.
+    - rewrite /sem_cast /sem_cast_l2bool /sem_cast_i2bool /= in Hv; rewrite /bool_val /bool_val_p /=.
   Admitted.
 
 (*  Lemma type_switch Q it e m ss def fn ls R:
@@ -1729,10 +1460,7 @@ Section typing.
   Proof.
     iIntros "HP" (Φ) "HΦ".
     iDestruct "HP" as (ty) "[Hv HT]".
-    iIntros (?) "Hm"; iExists (Vint i); iSplit.
-    - iStopProof; split => rho; monPred.unseal.
-      apply bi.pure_intro; intros; constructor.
-    - iFrame. iApply ("HΦ" with "Hv HT").
+    by iApply wp_const_int; iApply ("HΦ" with "[$]").
   Qed.
 
   Lemma type_const_long i t T:
@@ -1741,10 +1469,7 @@ Section typing.
   Proof.
     iIntros "HP" (Φ) "HΦ".
     iDestruct "HP" as (ty) "[Hv HT]".
-    iIntros (?) "Hm"; iExists (Vlong i); iSplit.
-    - iStopProof; split => rho; monPred.unseal.
-      apply bi.pure_intro; intros; constructor.
-    - iFrame. iApply ("HΦ" with "Hv HT").
+    by iApply wp_const_long; iApply ("HΦ" with "[$]").
   Qed.
 
   Lemma type_const_float i t T:
@@ -1753,10 +1478,7 @@ Section typing.
   Proof.
     iIntros "HP" (Φ) "HΦ".
     iDestruct "HP" as (ty) "[Hv HT]".
-    iIntros (?) "Hm"; iExists (Vfloat i); iSplit.
-    - iStopProof; split => rho; monPred.unseal.
-      apply bi.pure_intro; intros; constructor.
-    - iFrame. iApply ("HΦ" with "Hv HT").
+    by iApply wp_const_float; iApply ("HΦ" with "[$]").
   Qed.
 
   Lemma type_const_single i t T:
@@ -1765,45 +1487,7 @@ Section typing.
   Proof.
     iIntros "HP" (Φ) "HΦ".
     iDestruct "HP" as (ty) "[Hv HT]".
-    iIntros (?) "Hm"; iExists (Vsingle i); iSplit.
-    - iStopProof; split => rho; monPred.unseal.
-      apply bi.pure_intro; intros; constructor.
-    - iFrame. iApply ("HΦ" with "Hv HT").
-  Qed.
-
-(*   (* up *)
-  Lemma eval_rel_binop : forall rho e1 e2 v1 v2 o t v, eval_rel e1 v1 rho -∗ eval_rel e2 v2 rho -∗ eval_binop_rel o (typeof e1) v1 (typeof e2) v2 v rho -∗
-    eval_rel (Ebinop o e1 e2 t) v rho.
-  Proof.
-    intros.
-    rewrite /eval_rel /eval_binop_rel.
-    iIntros "H1 H2 H" (?) "Hm".
-    iAssert ⌜∀ (ge : genv) (ve : env) (te : temp_env),
-            cenv_sub cenv_cs (genv_cenv ge)
-            → rho = construct_rho (filter_genv ge) ve te → Clight.eval_expr ge ve te m e1 v1⌝%I as %H1.
-    { iApply ("H1" with "Hm"). }
-    iAssert ⌜∀ (ge : genv) (ve : env) (te : temp_env),
-            cenv_sub cenv_cs (genv_cenv ge)
-            → rho = construct_rho (filter_genv ge) ve te → Clight.eval_expr ge ve te m e2 v2⌝%I as %H2.
-    { iApply ("H2" with "Hm"). }
-    iDestruct ("H" with "Hm") as %H.
-    iPureIntro; intros; econstructor; eauto.
-  Qed. *)
-
-  Lemma wp_binop_rule : forall e1 e2 Φ o t, wp_expr e1 (λ v1, wp_expr e2 (λ v2, wp_binop o (typeof e1) v1 (typeof e2) v2 Φ))
-    ⊢ wp_expr (Ebinop o e1 e2 t) Φ.
-  Proof.
-    intros.
-    rewrite /wp_expr /wp_binop.
-    iIntros "H" (?) "Hm".
-    iDestruct ("H" with "Hm") as "(%v1 & H1 & Hm & H)".
-    iDestruct ("H" with "Hm") as "(%v2 & H2 & Hm & H)".
-    iDestruct ("H" with "Hm") as "(%v & H & Hm & ?)".
-    iExists _; iFrame.
-    iStopProof; split => rho; monPred.unseal.
-    rewrite !monPred_at_affinely /local /lift1 /=.
-    iIntros "(%H1 & %H2 & %H)"; iPureIntro.
-    split; auto; intros; econstructor; eauto.
+    by iApply wp_const_single; iApply ("HΦ" with "[$]").
   Qed.
 
   Lemma type_bin_op o e1 e2 ot T:
@@ -1816,36 +1500,6 @@ Section typing.
     by iApply ("Hop" with "Hv1 Hv2").
   Qed.
 
-(*   (* up *)
-  Lemma eval_rel_unop : forall rho e1 v1 o t v, eval_rel e1 v1 rho -∗ eval_unop_rel o (typeof e1) v1 v rho -∗
-    eval_rel (Eunop o e1 t) v rho.
-  Proof.
-    intros.
-    rewrite /eval_rel /eval_unop_rel.
-    iIntros "H1 H" (?) "Hm".
-    iAssert ⌜∀ (ge : genv) (ve : env) (te : temp_env),
-            cenv_sub cenv_cs (genv_cenv ge)
-            → rho = construct_rho (filter_genv ge) ve te → Clight.eval_expr ge ve te m e1 v1⌝%I as %H1.
-    { iApply ("H1" with "Hm"). }
-    iDestruct ("H" with "Hm") as %H.
-    iPureIntro; intros; econstructor; eauto.
-  Qed. *)
-
-  Lemma wp_unop_rule : forall e Φ o t, wp_expr e (λ v, wp_unop o (typeof e) v Φ)
-    ⊢ wp_expr (Eunop o e t) Φ.
-  Proof.
-    intros.
-    rewrite /wp_expr /wp_binop.
-    iIntros "H" (?) "Hm".
-    iDestruct ("H" with "Hm") as "(%v1 & H1 & Hm & H)".
-    iDestruct ("H" with "Hm") as "(%v & H & Hm & ?)".
-    iExists _; iFrame.
-    iStopProof; split => rho; monPred.unseal.
-    rewrite !monPred_at_affinely /local /lift1 /=.
-    iIntros "(%H1 & %H)"; iPureIntro.
-    split; auto; intros; econstructor; eauto.
-  Qed.
-
   Lemma type_un_op o e ot T:
     typed_val_expr e (λ v ty, typed_un_op v ⎡v ◁ᵥ ty⎤ o (typeof e) T)
     ⊢ typed_val_expr (Eunop o e ot) T.
@@ -1856,26 +1510,6 @@ Section typing.
     by iApply ("Hop" with "Hv").
   Qed.
 
-  Lemma wp_tempvar_local : forall _x x c_ty T,
-    <affine> (local $ locald_denote $ temp _x x) ∗ T x 
-    ⊢ wp_expr (Etempvar _x c_ty) T.
-  Proof.
-    intros. rewrite /wp_expr /=.
-    iIntros "[H HT]" (?) "Hm".
-    iExists _; iFrame. iSplit;[|done]. 
-    rewrite bi.affinely_elim.
-    iStopProof; split => rho.
-    rewrite /local /lift1 /=.
-    iIntros "[% %]" (?????).
-    iPureIntro. econstructor.
-    unfold eval_id in H.
-    rewrite lift1_unfoldC in H. rewrite lift0_unfoldC in H0.
-    rewrite a3 in H. simpl in H.
-    unfold Map.get in H. unfold force_val in H.
-    unfold make_tenv in H.
-    destruct (a1 !! _x)%maps eqn:?; [|done]. subst. done.
-  Qed.
-
   Lemma type_tempvar _x v c_ty T ty:
     <affine> (local $ locald_denote $ temp _x v) ∗ ⎡ v ◁ᵥ ty ⎤ ∗ T v ty
     ⊢ typed_val_expr (Etempvar _x c_ty) T.
@@ -1883,31 +1517,6 @@ Section typing.
     iIntros "(? & ? & ?)" (Φ) "HΦ".
     iApply wp_tempvar_local. iFrame.
     by iApply ("HΦ" with "[$]").
-  Qed.
-
-  Lemma wp_var_local : forall _x c_ty (lv:val) (T:address->assert),
-    <affine> (local $ locald_denote $ lvar _x c_ty lv) ∗
-    (∃ l, <affine> ⌜Some l = val2address lv⌝ ∗
-    T l)
-    ⊢ wp_lvalue (Evar _x c_ty) T.
-  Proof.
-    intros. subst. rewrite /wp_lvalue  /=.
-    (* iIntros  "( %b & (-> & H & Hrho & HT))" (m) "Hm". *)
-    iIntros  "(Hl & [%l [% HT]])" (m) "Hm".
-    iStopProof. go_lowerx.
-    rewrite !monPred_at_affinely /=.
-    iIntros "(%Hvar & H & ?)".
-
-    unfold lvar_denote in Hvar.
-    destruct ( Map.get (ve_of rho) _x) eqn:Hve; [|done].
-    destruct p. destruct Hvar.
-    rewrite H1 in H. inversion H.
-    iExists _, _.
-    iSplit.
-    - iPureIntro. intros.
-      inversion H1.
-      apply eval_Evar_local. subst. apply Hve.
-    - iFrame. rewrite Ptrofs.unsigned_zero Ptrofs.signed_zero //.
   Qed.
 
   Lemma exploit_local (P:environ->Prop) (Q:Prop):
@@ -1939,7 +1548,6 @@ Section typing.
     iPureIntro. eapply H. done.  
   Qed.
 
-  
 
   Lemma type_var_local _x (lv:val) β ty c_ty (T: address -> own_state -> type -> assert) :
     <affine> (local $ locald_denote $ lvar _x c_ty lv) ∗
@@ -2173,9 +1781,9 @@ Section typing.
     iMod ("typed_write_end" with "Hv own_v") as "($ & $ & H)". iModIntro. iModIntro.
     iIntros "l↦". iMod ("H" with "l↦") as (ty3) "[own_l T]".
     by iApply "T".
-Qed.
+  Qed.
 
-Lemma type_write_own_copy a E ty l2 ty2 v ot (T:type->assert):
+  Lemma type_write_own_copy a E ty l2 ty2 v ot (T:type->assert):
     typed_write_end a E ot v ty l2 Own ty2 T where
     `{!Copyable ty}
     `{!TCDone (ty2.(ty_has_op_type) ot MCNone)} :-
@@ -2332,33 +1940,15 @@ Global Hint Extern 5 (Subsume (_ ◁ₗ{_} _) (λ _, _ ◁ₗ{_} _.1ₗ)%I) =>
 (*Global Typeclasses Opaque typed_block.
 *)
 *)
-  Lemma wp_seq Espec E Delta s1 s2 Rret:
-    wp_stmt Espec E Delta (s1) (overridePost (wp_stmt Espec E Delta s2 Rret) Rret)
-    ⊢ wp_stmt Espec E Delta (Ssequence s1 s2) Rret.
-  Proof.
-    iIntros "H".
-    iMod "H". iModIntro.
-    iDestruct "H" as (P) "(P & %H)".
-    iExists P. iFrame. iPureIntro.
-    split; [done|].
-    eapply semax_seq.
-    - apply H.
-    - rewrite -wp_semax //.
-  Qed.
-    
-  Lemma type_seq Espec Delta s1 s2 T:
-    typed_stmt Espec Delta s1 (λ _ _,
-    typed_stmt Espec Delta s2 T)
-    ⊢ typed_stmt Espec Delta (Ssequence s1 s2) T.
+
+  Lemma type_seq Espec ge f s1 s2 T:
+    typed_stmt Espec ge s1 f (λ v ty, match v with None => typed_stmt Espec ge s2 f T
+                                       | _ => T v ty end)
+    ⊢ typed_stmt Espec ge (Ssequence s1 s2) f T.
   Proof.
     iIntros "H". unfold typed_stmt.
-    rewrite -wp_seq.
-    unfold wp_stmt.
-    iMod "H". iModIntro.
-    iDestruct "H" as (P) "(P & %H)".
-    iExists P. iFrame. iSplit;[done|]; iPureIntro.
-    eapply semax_post; last refine H.
-    - rewrite /typed_stmt_post_cond  /overridePost /=. iIntros "(_&?)".
-  Admitted. 
+    rewrite -wp_seq /=.
+    iApply (wp_conseq with "H"); auto.
+  Qed.
 
 End typing.

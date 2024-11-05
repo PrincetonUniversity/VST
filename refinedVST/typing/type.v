@@ -2,8 +2,8 @@ From lithium Require Import simpl_classes.
 From VST.typing Require Export base annotations.
 Set Default Proof Using "Type".
 
-Class typeG Σ := TypeG {
-  type_heapG :: heapGS Σ;
+Class typeG OK_ty Σ := TypeG {
+  type_heapG :: VSTGS OK_ty Σ;
 }.
 
 (*** type *)
@@ -127,9 +127,8 @@ Lemma val2adr2val_id l : val2adr $ adr2val (norm_adr l) = Some $ norm_adr l.
 Proof.
   destruct l; try done.
   rewrite  /norm_adr /= Ptrofs.unsigned_repr //.
-  rep_lia.
+  apply Ptrofs.unsigned_range_2.
 Qed.
-
 
 Definition shrN : namespace := nroot.@"shrN".
 Definition mtN : namespace := nroot.@"mtN".
@@ -142,20 +141,20 @@ Definition own_state_min (β1 β2 : own_state) : own_state :=
   | _ => Shr
   end.
 (* Should this be lower (e.g., no type and memval, and a single ↦ instead of mapsto)? *)
-Definition heap_mapsto_own_state `{!typeG Σ} (t : type) (l : address) (β : own_state) (v : val) : iProp Σ :=
+Definition heap_mapsto_own_state `{!typeG OK_ty Σ} (t : type) (l : address) (β : own_state) (v : val) : iProp Σ :=
   match β with
   | Own => mapsto Tsh t l v
   | Shr => inv mtN (∃ q, mapsto q t l v)
   end.
 Notation "l ↦_ t [ β ] v" := (heap_mapsto_own_state t l β v)
   (at level 20, t at level 0, β at level 50, format "l  ↦_ t [ β ]  v") : bi_scope.
-Definition heap_mapsto_own_state_type `{!typeG Σ} (t : type) (l : address) (β : own_state) : iProp Σ :=
+Definition heap_mapsto_own_state_type `{!typeG OK_ty Σ} (t : type) (l : address) (β : own_state) : iProp Σ :=
   (∃ v, l ↦_t[β] v).
 Notation "l ↦[ β ]| t |" := (heap_mapsto_own_state_type t l β)
   (at level 20, β at level 50, format "l  ↦[ β ]| t |") : bi_scope.
 
 Section own_state.
-  Context `{!typeG Σ}.
+  Context `{!typeG OK_ty Σ}.
   Global Instance own_state_min_left_id : LeftId (=) Own own_state_min.
   Proof. by move => []. Qed.
   Global Instance own_state_min_right_id : RightId (=) Own own_state_min.
@@ -250,7 +249,7 @@ Inductive memcast_compat_type : Set :=
 
 Local Open Scope Z.
 Section CompatRefinedC.
-  Context `{!typeG Σ} {cs : compspecs}.
+  Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
   (* refinedC only checks if `v` fits in the size of ot *)
   Definition has_layout_val (v:val) (ot:Ctypes.type) : Prop := tc_val' ot v.
@@ -337,7 +336,7 @@ Notation "l ↦| ot '|' '-'" := (mapsto_layout l Tsh ot)
 
 (* In Caesium, all values are lists of bytes in memory, and structured data is just an
    assertion on top of that. What do we want the values that appear in our types to be? *)
-Record type `{!typeG Σ} {cs : compspecs} := {
+Record type `{!typeG OK_ty Σ} {cs : compspecs} := {
   (** [ty_has_op_type ot mt] describes in which cases [l ◁ₗ ty] can be
       turned into [∃ v. l ↦ v ∗ v ◁ᵥ ty]. The op_type [ot] gives the
       requested layout for the location and [mt] describes how the
@@ -387,8 +386,8 @@ Record type `{!typeG Σ} {cs : compspecs} := {
     end;*)
 }.
 Arguments ty_own : simpl never.
-Arguments ty_has_op_type {_ _ _} _.
-Arguments ty_own_val {_ _ _} _ : simpl never.
+Arguments ty_has_op_type {_ _ _ _} _.
+Arguments ty_own_val {_ _ _ _} _ : simpl never.
 Global Existing Instance ty_shr_pers.
 
 (*Section memcast.
@@ -455,7 +454,7 @@ Global Existing Instance ty_shr_pers.
   Qed.
 End memcast.*)
 
-Class Copyable `{!typeG Σ} {cs : compspecs} (ty : type) := {
+Class Copyable `{!typeG OK_ty Σ} {cs : compspecs} (ty : type) := {
   copy_own_persistent v : Persistent (ty.(ty_own_val) v);
   copy_own_affine v : Affine (ty.(ty_own_val) v);
   copy_shr_acc E ot l :
@@ -539,7 +538,7 @@ Notation "v ∶ ty" := (ty_own_val ty v) (at level 200, only printing) : printin
 
 (*** tytrue *)
 Section true.
-  Context `{!typeG Σ} {cs : compspecs}.
+  Context `{!typeG OK_ty Σ} {cs : compspecs}.
   (** tytrue is a dummy type that all values and locations have. *)
   Program Definition tytrue : type := {|
     ty_own _ _ := True%I;
@@ -549,26 +548,26 @@ Section true.
   Solve Obligations with try done.
   Next Obligation. iIntros (???) "?". done. Qed.
 End true.
-Global Instance inhabited_type `{!typeG Σ} {cs : compspecs} : Inhabited type := populate tytrue.
+Global Instance inhabited_type `{!typeG OK_ty Σ} {cs : compspecs} : Inhabited type := populate tytrue.
 (* tytrue is not opaque because we don't have typing rules for it. *)
 (* Global Typeclasses Opaque tytrue. *)
 
 (*** refinement types *)
-Record rtype `{!typeG Σ} {cs : compspecs} (A : Type) := RType {
+Record rtype `{!typeG OK_ty Σ} {cs : compspecs} (A : Type) := RType {
   rty : A → type;
 }.
-Arguments RType {_ _ _ _} _.
-Arguments rty {_ _ _ _} _.
+Arguments RType {_ _ _ _ _} _.
+Arguments rty {_ _ _ _ _} _.
 Add Printing Constructor rtype.
 
 Bind Scope bi_scope with type.
 Bind Scope bi_scope with rtype.
 
-Definition with_refinement `{!typeG Σ} {cs : compspecs} {A} (r : rtype A) (x : A) : type := r.(rty) x.
+Definition with_refinement `{!typeG OK_ty Σ} {cs : compspecs} {A} (r : rtype A) (x : A) : type := r.(rty) x.
 Notation "x @ r" := (with_refinement r x) (at level 14) : bi_scope.
 Arguments with_refinement : simpl never.
 
-Program Definition ty_of_rty `{!typeG Σ} {cs : compspecs} {A} (r : rtype A) : type := {|
+Program Definition ty_of_rty `{!typeG OK_ty Σ} {cs : compspecs} {A} (r : rtype A) : type := {|
   ty_own q l := (∃ x, (x @ r).(ty_own) q l)%I;
   ty_has_op_type ot mt := forall x, (x @ r).(ty_has_op_type) ot mt;
   ty_own_val v := (∃ x, (x @ r).(ty_own_val) v)%I;
@@ -587,7 +586,7 @@ Next Obligation.
   eauto with iFrame.
 Qed.
 Next Obligation.
-  iIntros (Σ ?? A r ot mt l v Hly ?) "Hl". iDestruct 1 as (x) "Hv".
+  iIntros (? Σ ?? A r ot mt l v Hly ?) "Hl". iDestruct 1 as (x) "Hv".
   iDestruct (ty_ref with "[] Hl Hv") as "Hl"; [done..|].
   iExists _. iFrame.
 Qed.
@@ -615,7 +614,7 @@ Coercion ty_of_rty : rtype >-> type.
 (* Coercion rty_of_refined : refined >-> rtype. *)
 
 Section rmovable.
-  Context `{!typeG Σ} {cs : compspecs}.
+  Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
   Global Program Instance copyable_ty_of_rty A r `{!∀ x : A, Copyable (x @ r)} : Copyable r.
   Next Obligation.
@@ -631,7 +630,7 @@ Global Hint Extern 1 (AssumeInj (=) (=) (with_refinement _)) => exact: I : typec
 
 (*** Monotonicity *)
 Section mono.
-  Context `{!typeG Σ} {cs : compspecs}.
+  Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
   Inductive type_le' (ty1 ty2 : type) : Prop :=
     Type_le :
@@ -693,7 +692,7 @@ Section mono.
   Proof. intros ?? EQ ??-> ??->. apply EQ. Qed.
   Global Instance ty_own_proper : Proper ((≡) ==> eq ==> eq ==> (≡)) ty_own.
   Proof. intros ?? EQ ??-> ??->. apply EQ. Qed.
-  Lemma ty_own_entails `{!typeG Σ} ty1 ty2 β l:
+  Lemma ty_own_entails `{!typeG OK_ty Σ} ty1 ty2 β l:
     ty1 ≡@{type} ty2 →
     ty_own ty1 β l ⊢ ty_own ty2 β l.
   Proof. by move => [-> ?]. Qed.
@@ -795,7 +794,7 @@ Ltac solve_type_proper :=
 
 (*** Tests *)
 Section tests.
-  Context `{!typeG Σ} {cs : compspecs}.
+  Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
   Example binding l (r : Z → rtype N) v x T : True -∗ l ◁ₗ x @ r v ∗ T. Abort.
 

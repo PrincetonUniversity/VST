@@ -657,16 +657,6 @@ Proof.
   apply Nat2Z.inj; auto.
 Qed.
 
-Lemma mapsto_can_store : forall sh t ch b o v v' m (Hwrite : writable0_share sh) (Hch : access_mode t = By_value ch),
-  mem_auth m ∗ mapsto sh t (Vptr b o) v ⊢ ⌜∃ m', Mem.store ch m b (Ptrofs.unsigned o) v' = Some m'⌝.
-Proof.
-  intros; rewrite /mapsto Hch.
-  iIntros "[Hm H]".
-  destruct (type_is_volatile t); try done.
-  rewrite -> if_true by auto.
-  iDestruct "H" as "[(% & ?) | (% & % & ?)]"; by iApply (mapsto_can_store with "[$]").
-Qed.
-
 Lemma mapsto_store': forall t t' m ch ch' v v' sh b o m' (Hsh : writable0_share sh)
   (Hch : access_mode t = By_value ch) (Hch' : access_mode t' = By_value ch')
   (Hdec : decode_encode_val_ok ch ch') (Ht' : type_is_volatile t' = false)
@@ -683,19 +673,6 @@ Proof.
   { intros ? Hv''; eapply decode_encode_val_fun in Hv''; last apply decode_encode_val_general; subst; auto. }
   iDestruct "H" as "[(% & ?) | (% & % & ?)]"; (iMod (mapsto_store' _ _ _ _ v' with "[$]") as "[$ (% & %Hv'' & H)]"; [done..|]; iIntros "!>";
     iExists _; iSplit; first done; destruct (eq_dec v'' Vundef); [iRight | specialize (Htc' _ Hv'' n); iLeft]; eauto).
-Qed.
-
-Lemma mapsto_store: forall t m ch v v' sh b o m' (Hsh : writable0_share sh)
-  (Htc : tc_val' t v') (Hch : access_mode t = By_value ch),
-  Mem.store ch m b (Ptrofs.unsigned o) v' = Some m' ->
-  mem_auth m ∗ mapsto sh t (Vptr b o) v ⊢ |==> mem_auth m' ∗ mapsto sh t (Vptr b o) v'.
-Proof.
-  intros; rewrite /mapsto Hch.
-  iIntros "[Hm H]".
-  destruct (type_is_volatile t); try done.
-  rewrite -> !if_true by auto.
-  iDestruct "H" as "[(% & ?) | (% & % & ?)]"; (iMod (mapsto_store _ _ _ v' with "[$]") as "[$ H]"; [done..|];
-    destruct (eq_dec v' Vundef); [iRight | specialize (Htc n); iLeft]; eauto).
 Qed.
 
 Ltac dec_enc :=

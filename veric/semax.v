@@ -15,22 +15,12 @@ Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
 Require Import VST.veric.expr_lemmas.
+Require Export VST.veric.lifting.
 
 Import Ctypes Clight_core.
 
 Local Open Scope nat_scope.
 Open Scope maps.
-
-Definition genv_symb_injective {F V} (ge: Genv.t F V) : extspec.injective_PTree Values.block.
-Proof.
-exists (Genv.genv_symb ge).
-hnf; intros.
-eapply Genv.genv_vars_inj; eauto.
-Defined.
-
-Class VSTGS OK_ty Σ :=
-  { VST_heapGS :: heapGS Σ;
-    VST_extGS :: externalGS OK_ty Σ }.
 
 Section mpred.
 

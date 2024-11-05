@@ -1,32 +1,10 @@
 Require Export Coq.Sorting.Permutation.
 Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.veric.seplog.
+Require Export VST.veric.lifting_expr.
 Require Import VST.floyd.base2.
 Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Import LiftNotation.
-
-Inductive localdef : Type :=
- | temp: ident -> val -> localdef
- | lvar: ident -> type -> val -> localdef   (* local variable *)
- | gvars: globals -> localdef.              (* global variables *)
-
-Arguments temp i%_positive v.
-
-Definition lvar_denote (i: ident) (t: type) (v: val) rho :=
-     match Map.get (ve_of rho) i with
-         | Some (b, ty') => t=ty' /\ v = Vptr b Ptrofs.zero
-         | None => False%type
-         end.
-
-Definition gvars_denote (gv: globals) rho :=
-   gv = (fun i => match Map.get (ge_of rho) i with Some b => Vptr b Ptrofs.zero | None => Vundef end).
-
-Definition locald_denote (d: localdef) : environ -> Prop :=
- match d with
- | temp i v => `and (`(eq v) (eval_id i)) `(v <> Vundef)
- | lvar i t v => lvar_denote i t v
- | gvars gv => gvars_denote gv
- end.
 
 Fixpoint fold_right_andp rho (l: list (environ -> Prop)) : Prop :=
  match l with
