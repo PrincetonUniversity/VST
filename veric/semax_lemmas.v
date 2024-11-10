@@ -111,19 +111,27 @@ split; [ | split].
  specialize (H2 id). hnf in H2. rewrite H in H2. eauto.
 Qed.
 
+Lemma typecheck_environ_sub': forall Delta Delta', tycontext_sub Delta Delta' ->
+  local (typecheck_environ Delta') ⊢ local (typecheck_environ Delta).
+Proof.
+  split => rho. apply bi.pure_mono, typecheck_environ_sub; auto.
+Qed.
+
 Lemma semax_unfold {CS: compspecs} E Delta P c R :
   semax OK_spec E Delta P c R ↔ forall (psi: Clight.genv) Delta' CS'
           (TS: tycontext_sub Delta Delta')
           (HGG: cenv_sub (@cenv_cs CS) (@cenv_cs CS') /\ cenv_sub (@cenv_cs CS') (genv_cenv psi)),
-    ⊢ believe(CS := CS') OK_spec Delta' psi Delta' → ∀ (k: cont) (F: assert) f E',
-        ⌜closed_wrt_modvars c F /\ E ⊆ E'⌝ ∧ rguard OK_spec psi E' Delta' f (frame_ret_assert R F) k →
-       guard' OK_spec psi E' Delta' f (F ∗ P) (Kseq c k).
+    ⊢ <affine> local (typecheck_environ Delta') -∗ funassert Delta' -∗ <affine> believe(CS := CS') OK_spec Delta' psi -∗
+      ∀ f, P -∗ wp OK_spec psi E f c (frame_ret_assert R (<affine> local (typecheck_environ Delta') ∗ funassert Delta')).
 Proof.
-unfold semax. rewrite semax_fold_unfold.
+rewrite /semax /semax'.
 split; intros.
-+ iIntros "?"; iApply H; eauto.
-+ iIntros (??? [??]); iApply H; done.
++ iIntros "TY F B"; iApply (H with "[%] TY F B"); auto.
++ iIntros (??? (? & ?)) "TY F B"; iApply (H with "TY F B"); auto.
 Qed.
+
+Lemma frame_normal : forall R P, RA_normal (frame_ret_assert R P) = (RA_normal R ∗ P).
+Proof. by destruct R. Qed.
 
 Lemma derives_skip:
   forall {CS: compspecs} p E Delta (R: ret_assert),
@@ -133,24 +141,10 @@ Proof.
 intros.
 rewrite semax_unfold.
 intros psi Delta' CS' ??.
-clear dependent Delta. rename Delta' into Delta.
-iIntros "believe" (????) "[% #H]".
-iSpecialize ("H" $! EK_normal None).
-rewrite /guard' /_guard.
-iIntros (??) "!> Fp".
-iSpecialize ("H" with "[Fp]").
-{ rewrite H proj_frame //. }
-rewrite /assert_safe.
-iIntros (z ?); iSpecialize ("H" with "[%]"); first done.
-destruct k as [ | s ctl' | | | |]; try done; try solve [iApply (jsafe_local_step with "H"); constructor].
--
-iApply (convergent_controls_jsafe with "H"); simpl; try congruence.
-by inversion 1; constructor.
--
-iMod "H" as "[]".
--
-iApply (convergent_controls_jsafe with "H"); simpl; try congruence.
-by inversion 1; constructor.
+iIntros "#? ? #?" (?) "P".
+iApply wp_skip.
+rewrite H frame_normal.
+iDestruct "P" as (?) "$"; auto.
 Qed.
 
 Fixpoint list_drop (A: Type) (n: nat) (l: list A) {struct n} : list A :=
@@ -169,52 +163,13 @@ destruct H13; inv H; auto.
 destruct H13; inv H; auto.
 Qed.
 
-Lemma assert_safe_fupd : forall ge E f ve te c rho,
-  (match c with Ret _ _ => False | _ => True end) -> (* can we work around this now? *)
-  (|={E}=> assert_safe OK_spec ge E f ve te c rho) ⊢ assert_safe OK_spec ge E f ve te c rho.
-Proof.
-  intros.
-  rewrite /assert_safe /jsafeN; iIntros "H" (??).
-  iSpecialize ("H" with "[%]"); first done.
-  destruct c; try contradiction.
-  - by iMod "H".
-  - destruct c; by iMod "H".
-(*  - destruct o; last by iMod "H".
-    iIntros (?); iApply (bi.impl_intro_l with "H"); iIntros "H".
-    There could be something here about how a fupd can't make pointers invalid.*)
-Qed.
-
-Global Instance assert_safe_except_0 : forall ge E f ve te c rho,
-  IsExcept0 (assert_safe OK_spec ge E f ve te c rho).
-Proof.
-  intros.
-  rewrite /IsExcept0 /assert_safe /jsafeN; iIntros "H" (??).
-  destruct c; simpl.
-  - by iMod "H"; iApply ("H" $! ora).
-  - destruct c; by iMod "H"; iApply ("H" $! ora).
-  - destruct o; try by iMod "H"; iApply "H".
-    iIntros (?).
-    iApply (bi.impl_intro_r with "H").
-    iIntros "H".
-    rewrite (bi.except_0_intro (∀_, _ -∗ _)) -bi.except_0_and; iMod "H".
-    iApply (bi.impl_elim_l' with "H"); iIntros "H".
-    iSpecialize ("H" with "[%]"); done.
-Qed.
-
-Global Instance believe_external_plain gx v fsig cc A E P Q : Plain (believe_external OK_spec gx v fsig cc A E P Q).
-Proof.
-  rewrite /Plain /believe_external.
-  destruct (Genv.find_funct gx v); last iApply plain.
-  destruct f; iApply plain.
-Qed.
-
 Global Instance believe_external_absorbing gx v fsig cc A E P Q : Absorbing (believe_external OK_spec gx v fsig cc A E P Q).
-  rewrite /Absorbing /believe_external.
-  destruct (Genv.find_funct gx v); last iApply absorbing.
-  destruct f; iApply absorbing.
+Proof.
+  rewrite /believe_external.
+  destruct (Genv.find_funct _ _) as [[|]|]; apply _.
 Qed.
 
-Lemma fixpoint_plain {A} (F : (A -d> iPropO Σ) -> A -d> iPropO Σ) `{Contractive F}:
+(* Lemma fixpoint_plain {A} (F : (A -d> iPropO Σ) -> A -d> iPropO Σ) `{Contractive F}:
     (∀ Φ, (∀ x, Plain (Φ x)) → (∀ x, Plain (F Φ x))) →
     ∀ x, Plain (fixpoint F x).
 Proof.
@@ -259,38 +214,31 @@ Proof.
     apply bi.limit_preserving_entails.
     + intros ????. by apply bi.absorbingly_ne.
     + intros ??; auto.
-Qed.
+Qed. *)
 
-Lemma semax'_plain_absorbing CS E Delta P c R : Plain (semax'(CS := CS) OK_spec E Delta P c R) ∧ Absorbing (semax' OK_spec E Delta P c R).
+(* Lemma semax'_plain_absorbing CS E Delta P c R : Plain (semax'(CS := CS) OK_spec E Delta P c R) ∧ Absorbing (semax' OK_spec E Delta P c R).
 Proof.
   apply fixpoint_plain_absorbing; intros; rewrite /semax_; destruct x; apply _.
-Qed.
+Qed. *)
 
-Global Instance semax'_plain CS E Delta P c R : Plain (semax'(CS := CS) OK_spec E Delta P c R).
+(* Should these be true? Are they useful: *)
+(* Global Instance semax'_plain CS E Delta P c R : Plain (semax'(CS := CS) OK_spec E Delta P c R).
 Proof. apply semax'_plain_absorbing. Qed.
 
 Global Instance semax'_absorbing CS E Delta P c R : Absorbing (semax'(CS := CS) OK_spec E Delta P c R).
-Proof. apply semax'_plain_absorbing. Qed.
+Proof. apply semax'_plain_absorbing. Qed. *)
 
 Lemma extract_exists_pre_later {CS: compspecs}:
-  forall  (A : Type) (Q: assert) (P : A -> assert) c E Delta (R: ret_assert),
+  forall (A : Type) (Q: assert) (P : A -> assert) c E Delta (R: ret_assert),
   (forall x, semax OK_spec E Delta (Q ∧ ▷ P x) c R) ->
    semax OK_spec E Delta (Q ∧ ▷ ∃ x, P x) c R.
 Proof.
 intros.
 rewrite semax_unfold; intros.
-iIntros "#believe" (????) "[% #rguard]".
-iIntros (??) "!> H".
-rewrite bi.later_exist_except_0.
-iAssert (◇ ∃ a : A, (⌜guard_environ Delta' f (construct_rho (filter_genv psi) vx tx)⌝
-      ∧ (F ∗ Q ∧ ▷ P a) (construct_rho (filter_genv psi) vx tx) ∗
-      funassert Delta' (construct_rho (filter_genv psi) vx tx))) with "[H]" as ">H".
-{ iDestruct "H" as "($ & H & $)".
-  monPred.unseal.
-  iDestruct "H" as "($ & H)".
-  rewrite monPred_at_except_0 {1}(bi.except_0_intro (Q _)) -bi.except_0_and bi.and_exist_l //. }
-iDestruct "H" as (a) "H".
-specialize (H a); rewrite semax_unfold in H; iApply H; auto; done.
+iIntros "#? ? #believe" (?) "Pre".
+rewrite bi.later_exist_except_0 (bi.except_0_intro Q) -bi.except_0_and bi.and_exist_l.
+iMod "Pre" as (x) "Pre"; specialize (H x).
+rewrite semax_unfold in H; iApply (H with "[$] [$]"); eauto.
 Qed.
 
 Lemma extract_exists_pre {CS: compspecs}:
@@ -300,10 +248,8 @@ Lemma extract_exists_pre {CS: compspecs}:
 Proof.
 intros.
 rewrite semax_unfold; intros.
-iIntros "#believe" (????) "[% #rguard]".
-iIntros (??) "!> H".
-rewrite bi.sep_exist_l monPred_at_exist bi.sep_exist_r bi.and_exist_l; iDestruct "H" as (a) "H".
-specialize (H a); rewrite semax_unfold in H; iApply H; auto; done.
+iIntros "#? ? #believe" (?) "(%x & Pre)"; specialize (H x).
+rewrite semax_unfold in H; iApply (H with "[$] [$] "); eauto.
 Qed.
 
 Definition G0: funspecs(Σ := Σ) := nil.
@@ -313,7 +259,7 @@ Definition empty_genv prog_pub cenv: Clight.genv :=
 
 Lemma empty_program_ok {CS: compspecs}: forall Delta ge,
     glob_specs Delta = Maps.PTree.empty _ ->
-    ⊢ believe OK_spec Delta ge Delta.
+    ⊢ believe OK_spec Delta ge.
 Proof.
 intros Delta ge H.
 rewrite /believe.
@@ -322,8 +268,8 @@ rewrite H in Hge; setoid_rewrite Maps.PTree.gempty in Hge; discriminate.
 Qed.
 
 Definition all_assertions_computable  :=
-  forall psi E f tx vx (Q: assert),
-     exists k,  assert_safe OK_spec psi E f tx vx k = Q.
+  forall psi E f (Q: assert),
+     exists k,  assert_safe OK_spec psi E f k = Q.
 (* This is not generally true, but could be made true by adding an "assert" operator
   to the programming language
  *)
@@ -428,33 +374,20 @@ split; auto.
 split; auto.
 Qed.*)
 
-Lemma semax_frame {CS: compspecs} :  forall E Delta P s R F,
-   closed_wrt_modvars s F ->
-  semax OK_spec E Delta P s R ->
-  semax OK_spec E Delta (P ∗ F) s (frame_ret_assert R F).
+Lemma frame_ret_comm : forall R P Q,
+  frame_ret_assert (frame_ret_assert R P) Q ≡ frame_ret_assert (frame_ret_assert R Q) P.
 Proof.
-intros until F. intros CL H.
-rewrite semax_unfold.
-rewrite semax_unfold in H.
-intros.
-iIntros "H" (????) "[(% & %) guard]".
-pose (F0F := F0 ∗ F).
-iPoseProof (H with "H") as "H"; [done..|].
-iSpecialize ("H" $! _ F0F with "[-]").
-{ rewrite /bi_affinely; iSplit; first done.
-  iSplit.
-  * iPureIntro.
-    split; last done.
-    unfold F0F.
-    hnf in *; intros; simpl in *.
-    monPred.unseal. rewrite <- CL. rewrite <- H0. auto.
-    tauto. tauto.
-  * iIntros (??).
-    rewrite bi.and_elim_r.
-    iApply (_guard_mono with "guard"); try done.
-    by intros; rewrite !proj_frame /F0F assoc. }
-iApply (guard_mono with "H"); try done.
-by intros; rewrite /F0F; monPred.unseal; rewrite (bi.sep_comm (P _)) assoc.
+  split; [|split3]; destruct R; simpl; intros; rewrite -!assoc (bi.sep_comm P Q) //.
+Qed.
+
+Lemma semax_frame {CS: compspecs} :  forall E Delta P s R F,
+  semax OK_spec E Delta P s R ->
+  semax OK_spec E Delta (P ∗ ⎡F⎤) s (frame_ret_assert R ⎡F⎤).
+Proof.
+  intros until F; rewrite !semax_unfold; intros.
+  iIntros "???" (?) "(? & ?)".
+  rewrite frame_ret_comm; iApply wp_frame; iFrame.
+  by iApply (H with "[$] [$] [$]").
 Qed.
 
 Fixpoint filter_seq (k: cont) : cont :=
@@ -683,7 +616,7 @@ clear find_label_ls_None; induction s; simpl; intros; try congruence;
  rewrite (find_label_None _ _ _ H). eauto.
 Qed.
 
-Lemma guard_safe_adj':
+(* Lemma guard_safe_adj':
  forall
    psi E Delta f P c1 k1 c2 k2,
   (forall E ora ve te,
@@ -697,20 +630,20 @@ iIntros "#H" (??) "!> P".
 iSpecialize ("H" with "P").
 rewrite /assert_safe.
 iIntros (??); rewrite -H; iApply "H"; auto.
-Qed.
+Qed. *)
 
 Lemma assert_safe_adj:
-  forall ge E f ve te k k' rho,
+  forall ge E f k k' rho,
      control_as_safe ge k k' ->
-     assert_safe OK_spec ge E f ve te (Cont k) rho ⊢
-     assert_safe OK_spec ge E f ve te (Cont k') rho.
+     assert_safe OK_spec ge E f (Some k) rho ⊢
+     assert_safe OK_spec ge E f (Some k') rho.
 Proof.
   intros.
   rewrite /assert_safe.
-  iIntros "H" (??).
+  iIntros "H" (?????); simpl.
   destruct k as [ | s ctl' | | | |] eqn:Hk; try contradiction;
   destruct k' as [ | s2 ctl2' | | | |] eqn:Hk'; try contradiction;
-  try discriminate; rewrite -?H; iApply ("H" $! ora); auto.
+  try discriminate; rewrite /= -?H; iApply ("H" $! ora _ _ H0 H1); auto.
 Qed.
 
 Lemma semax_Delta_subsumption {CS: compspecs}:
@@ -1011,31 +944,31 @@ rewrite semax_fold_unfold.
 apply prop_ext; intuition.
 Qed.*)
 
-Lemma semax_Slabel {cs:compspecs}
+(* Lemma semax_Slabel {cs:compspecs}
        E (Gamma:tycontext) (P:assert) (c:statement) (Q:ret_assert) l:
 semax(CS := cs) OK_spec E Gamma P c Q -> semax(CS := cs) OK_spec E Gamma P (Slabel l c) Q.
 Proof.
 rewrite !semax_unfold; intros.
-iIntros "H" (????) "guard".
+iIntros "H" (?) "guard".
 iApply guard_safe_adj'; last iApply (H with "H guard"); [|done..].
 intros; iIntros "H"; iApply jsafe_local_step; last done.
 constructor.
-Qed.
+Qed. *)
 
-Lemma assert_safe_jsafe: forall ge E f ve te c k ora,
-  assert_safe OK_spec ge E f ve te (Cont (Kseq c k)) (construct_rho (filter_genv ge) ve te) ⊢
+Lemma assert_safe_jsafe: forall ge E f ve te c k ora, typecheck_var_environ (make_venv ve) (make_tycontext_v (fn_vars f)) ->
+  assert_safe OK_spec ge E f (Some (Kseq c k)) (construct_rho (filter_genv ge) ve te) ⊢
   jsafeN OK_spec ge E ora (State f c k ve te).
 Proof.
   intros; rewrite /assert_safe.
   iIntros "H"; iApply "H"; auto.
 Qed.
 
-Lemma assert_safe_jsafe': forall ge E f ve te k ora,
-  assert_safe OK_spec ge E f ve te (Cont k) (construct_rho (filter_genv ge) ve te) ⊢
+Lemma assert_safe_jsafe': forall ge E f ve te k ora, typecheck_var_environ (make_venv ve) (make_tycontext_v (fn_vars f)) ->
+  assert_safe OK_spec ge E f (Some k) (construct_rho (filter_genv ge) ve te) ⊢
   jsafeN OK_spec ge E ora (State f Sskip k ve te).
 Proof.
   intros; rewrite /assert_safe.
-  iIntros "H"; iSpecialize ("H" with "[%]"); first done.
+  iIntros "H"; iSpecialize ("H" with "[%] [%]"); [done..|].
   destruct k; try iMod "H" as "[]"; try done.
   - iApply (convergent_controls_jsafe with "H"); simpl; try congruence.
     by inversion 1; constructor.

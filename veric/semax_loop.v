@@ -14,6 +14,7 @@ Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
 Require Import VST.veric.expr_lemmas.
+Require Import VST.veric.lifting_expr.
 Require Import VST.veric.semax.
 Require Import VST.veric.semax_lemmas.
 Require Import VST.veric.semax_conseq.
@@ -56,57 +57,22 @@ Lemma semax_ifthenelse:
 Proof.
   intros.
   rewrite !semax_unfold in H0, H1 |- *.
-  intros.
-  iIntros "#Prog_OK" (????) "[(%Hclosed & %) #rguard]".
-  iPoseProof (H0 with "Prog_OK [rguard]") as "H0"; [done..| |].
-  { iIntros "!>"; iFrame "rguard"; iPureIntro.
-    split; last done; split; last done.
-    unfold closed_wrt_modvars, closed_wrt_vars in *; intros ?? Hi; apply Hclosed.
-    intros i; specialize (Hi i); rewrite modifiedvars_Sifthenelse; tauto. }
-  iPoseProof (H1 with "Prog_OK [rguard]") as "H1"; [done..| |].
-  { iIntros "!>"; iFrame "rguard"; iPureIntro.
-    split; last done; split; last done.
-    unfold closed_wrt_modvars, closed_wrt_vars in *; intros ?? Hi; apply Hclosed.
-    intros i; specialize (Hi i); rewrite modifiedvars_Sifthenelse; tauto. }
-  iIntros (tx vx) "!> H".
-  iIntros (??).
-  iApply jsafe_step.
-  iIntros (m) "[Hm ?]".
-  monPred.unseal.
-  iDestruct "H" as "(%TC & (F & P) & fun)".
-  unfold expr_true, expr_false, Cnot, lift1 in *.
-  set (rho := construct_rho _ _ _) in *.
-  assert (typecheck_environ Delta rho) as TYCON_ENV
-    by (destruct TC as [TC' TC'']; eapply typecheck_environ_sub; eauto).
-  rewrite (add_and (▷ _) (▷ _)); last by iIntros "[H _]"; iApply (typecheck_expr_sound with "H").
-  iDestruct "P" as "[P >%HTCb]".
-  assert (cenv_sub (@cenv_cs CS) psi) by (eapply cenv_sub_trans; destruct HGG; auto).
-  iCombine "Hm P" as "H"; rewrite (add_and (mem_auth m ∗ _) (▷_)); last by iIntros "H"; iNext; iDestruct "H" as "(Hm & H & _)"; iApply (eval_expr_relate(CS := CS) with "[$Hm $H]").
-  iDestruct "H" as "(H & >%Heval)".
-  rewrite /tc_expr /typecheck_expr /= denote_tc_assert_andp; fold (typecheck_expr(CS := CS)).
-  rewrite -assoc (bi.and_elim_r (denote_tc_assert _ _)).
-  rewrite (add_and (mem_auth m ∗ _) (▷_)); last by iIntros "H"; iNext; iDestruct "H" as "(Hm & H & _)"; iApply (eval_expr_relate(CS := CS) with "[$Hm $H]").
-  iDestruct "H" as "(H & >%Hb)".
-  inv Heval.
-  eapply eval_expr_fun in Hb; last done; subst.
-  rewrite typecheck_expr_sound; last done.
-  rewrite bi.later_and.
-  iDestruct "H" as "(Hm & >%TC2 & P)"; simpl in HTCb.
-  unfold liftx, lift, eval_unop in HTCb; simpl in HTCb.
-  destruct (bool_val (typeof b) (eval_expr b _)) as [b'|] eqn: Hb; [|contradiction].
-  iAssert (▷assert_safe OK_spec psi E' f vx tx (Cont (Kseq (if b' then c else d) k)) _) with "[F P fun]" as "Hsafe".
-  { iNext; destruct b'; [iApply "H0" | iApply "H1"]; (iSplit; first done); iFrame; iPureIntro; split; auto;
-      apply bool_val_strict; auto. }
-  simpl in *; unfold Cop.sem_notbool in *.
-  destruct (Cop.bool_val _ _ _) eqn: Hbool_val; inv H10.
-  super_unfold_lift.
-  iIntros "!>"; iExists _, _; iSplit.
-  - iPureIntro; eapply step_ifthenelse; eauto.
-  - iFrame; iNext.
-    eapply bool_val_Cop in Hbool_val; eauto; subst.
-    by iApply assert_safe_jsafe.
-  - inv H5.
-Qed.
+  intros; iIntros "#? ? #?" (?) "P".
+  destruct HGG.
+  iApply wp_if.
+  iApply wp_tc_expr; first done.
+  iSplit; first done. iSplit.
+  { admit. }
+  iIntros (bv Ht) "#Hb"; iSplit.
+  { admit. }
+(*   rewrite (add_and (▷ _) (▷ _)); last by iIntros "[H _]"; iApply (typecheck_expr_sound with "H"). *)
+  destruct (bool_val (typeof b) bv) as [b'|] eqn: Hb.
+  iExists b'; iSplit; first done.
+  rewrite bi.and_elim_r.
+  destruct b'; [iApply (H0 with "[] [$]") | iApply (H1 with "[] [$]")]; eauto; iNext; (iSplit; first done);
+    iStopProof; split => rho; monPred.unseal; rewrite !monPred_at_intuitionistically;
+    iIntros "(#(_ & _ & ->) & _)"; iPureIntro; apply bool_val_strict; try done.
+Admitted.
 
 (*Ltac inv_safe H :=
   inv H;
@@ -128,31 +94,13 @@ Proof.
   intros.
   rewrite !semax_unfold in H,H0|-*.
   intros.
-  iIntros "#Prog_OK" (????) "[(%Hclosed & %) #rguard]".
-  iPoseProof (H with "Prog_OK") as "H"; [done..|].
-  iPoseProof (H0 with "Prog_OK [rguard]") as "H0"; [done..| |].
-  { iIntros "!>"; iFrame "rguard"; iPureIntro.
-    split; last done; split; last done.
-    unfold closed_wrt_modvars, closed_wrt_vars in *; intros ?? Hi; apply Hclosed.
-    intros i; specialize (Hi i); rewrite modifiedvars_Ssequence; tauto. }
-  iSpecialize ("H" $! (Kseq t k) F with "[H0]"); last by iApply (guard_safe_adj' with "H");
-    intros; iIntros "H"; iApply (jsafe_local_step with "H"); constructor.
-  iIntros "!>"; iSplit.
-  { iPureIntro; split; last done.
-    unfold closed_wrt_modvars, closed_wrt_vars in *; intros ?? Hi; apply Hclosed.
-    intros i; specialize (Hi i); rewrite modifiedvars_Ssequence; tauto. }
-  iIntros (????) "!> H".
-  rewrite proj_frame.
-  destruct (eq_dec ek EK_normal).
-  - subst; rewrite /proj_ret_assert.
-    monPred.unseal; iDestruct "H" as "(% & (? & [% ?]) & ?)"; subst; destruct R; simpl.
-    iApply "H0"; by iFrame.
-  - replace (exit_cont ek vl (Kseq t k)) with (exit_cont ek vl k)
-      by (destruct ek; simpl; congruence).
-    iApply "rguard".
-    monPred.unseal; rewrite (bi.sep_comm (F _)).
-    destruct R, ek; simpl; monPred.unseal; rewrite ?pure_and_sep_assoc //.
-Qed.
+  iIntros "#? ? #?" (?) "P".
+  iApply wp_seq.
+  Check wp_frame. (* frame in believe? *)
+  iApply wp_conseq; last (by iApply (H with "[] [$]")); destruct R; simpl; auto.
+  iIntros "(Q & #? & ?) !>"; iApply (H0 with "[] [$]"); eauto.
+  admit.
+Admitted.
 
 Lemma semax_loop:
 forall E Delta Q Q' incr body R,

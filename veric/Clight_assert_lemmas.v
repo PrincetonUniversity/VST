@@ -104,6 +104,13 @@ Proof.
   apply bi.affinely_mono, allp_fun_id_sub; trivial.
 Qed.
 
+Lemma funassert_allp_fun_id_sub': forall Delta Delta',
+  tycontext_sub Delta Delta' ->
+  funassert Delta' ⊢ <affine> allp_fun_id Delta ∗ funassert Delta'.
+Proof.
+  split => rho; rewrite monPred_at_sep monPred_at_affinely; by apply funassert_allp_fun_id_sub.
+Qed.
+
 Lemma funassert_allp_fun_id_sigcc Delta rho:
   funassert Delta rho ⊢ <affine> allp_fun_id_sigcc Delta rho ∗ funassert Delta rho.
 Proof.
@@ -200,9 +207,17 @@ Lemma tc_expr_sub:
     forall e rho, typecheck_environ Delta rho -> tc_expr Delta e rho ⊢ tc_expr Delta' e rho.
 Proof. intros. apply tc_expr_lvalue_sub; auto. Qed.
 
+Lemma tc_expr_sub':
+  forall e, local (typecheck_environ Delta) ∗ tc_expr Delta e ⊢ tc_expr Delta' e.
+Proof. split => rho; monPred.unseal; iIntros "(% & ?)"; by iApply tc_expr_sub. Qed.
+
 Lemma tc_lvalue_sub:
     forall e rho, typecheck_environ Delta rho -> tc_lvalue Delta e rho ⊢ tc_lvalue Delta' e rho.
 Proof. intros. apply tc_expr_lvalue_sub; auto. Qed.
+
+Lemma tc_lvalue_sub':
+  forall e, local (typecheck_environ Delta) ∗ tc_lvalue Delta e ⊢ tc_lvalue Delta' e.
+Proof. split => rho; monPred.unseal; iIntros "(% & ?)"; by iApply tc_lvalue_sub. Qed.
 
 Lemma tc_temp_id_sub:
     forall id t e rho,

@@ -15,6 +15,7 @@ Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
 Require Import VST.veric.expr_lemmas.
 Require Import VST.veric.expr_lemmas4.
+Require Import VST.veric.lifting_expr.
 Require Import VST.veric.semax.
 Require Import VST.veric.semax_lemmas.
 Require Import VST.veric.mapsto_memory_block.
@@ -31,64 +32,12 @@ Transparent intsize_eq.
 Section extensions.
   Context `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {CS: compspecs}.
 
-Lemma semax_straight_simple:
- forall E Delta (B P: assert) c (Q: assert)
-  (EB : Absorbing B)
-  (Hc : forall m Delta' ge ve te rho k F f,
-              tycontext_sub Delta Delta' ->
-              guard_environ Delta' f rho ->
-              closed_wrt_modvars c F ->
-              rho = construct_rho (filter_genv ge) ve te  ->
-              cenv_sub cenv_cs (genv_cenv ge) ->
-              mem_auth m ∗ (B rho ∧ (F rho ∗ ▷P rho)) ⊢
-                ◇ ∃m' te' rho', ⌜rho' = mkEnviron (ge_of rho) (ve_of rho) (make_tenv te') ∧
-                  guard_environ Delta' f rho' ∧ cl_step ge (State f c k ve te) m
-                                 (State f Sskip k ve te') m'⌝ ∧
-               |={E}=> (mem_auth m' ∗ ▷ (F rho' ∗ Q rho'))),
-  semax OK_spec E Delta (B ∧ ▷ P) c (normal_ret_assert Q).
-Proof.
-intros until Q; intros EB Hc.
-rewrite semax_unfold.
-intros psi Delta' CS' TS [CSUB HGG'].
-iIntros "#believe" (????) "[(% & %) #Hsafe]".
-iIntros (te ve) "!> (% & P & fun)".
-specialize (cenv_sub_trans CSUB HGG'); intros HGG.
-iIntros (ora _).
-monPred.unseal.
-iApply jsafe_step.
-rewrite /jstep_ex.
-iIntros (m) "[Hm ?]".
-iMod (fupd_mask_subseteq E) as "Hmask"; first done.
-iMod (Hc with "[P $Hm]") as (??? Hstep) ">Hc"; [done..| |].
-{ rewrite bi.sep_and_l; iFrame.
-  iSplit; last iDestruct "P" as "[_ $]".
-  iDestruct "P" as "[(_ & $) _]". }
-iMod "Hmask" as "_"; iIntros "!>".
-destruct Hstep as (? & ? & ?); iExists _, m'; iSplit; first by iPureIntro; eauto.
-iDestruct "Hc" as "(? & Q)"; iFrame.
-iNext.
-iSpecialize ("Hsafe" $! EK_normal None te' ve).
-iPoseProof ("Hsafe" with "[Q $fun]") as "Hsafe'".
-{ simpl; subst; iSplit; try done.
-  monPred.unseal; by iDestruct "Q" as "[$ $]". }
-rewrite assert_safe_jsafe'; iFrame; by iPureIntro.
-Qed.
-
 Definition force_valid_pointers m v1 v2 :=
 match v1, v2 with
 | Vptr b1 ofs1, Vptr b2 ofs2 =>
     (Mem.valid_pointer m b1 (Ptrofs.unsigned ofs1) &&
     Mem.valid_pointer m b2 (Ptrofs.unsigned ofs2))%bool
 | _, _ => false
-end.
-
-Definition blocks_match op v1 v2 :=
-match op with Cop.Olt | Cop.Ogt | Cop.Ole | Cop.Oge =>
-  match v1, v2 with
-    Vptr b _, Vptr b2 _ => b=b2
-    | _, _ => False%type
-  end
-| _ => True%type
 end.
 
 Lemma mapsto_valid_pointer : forall b o sh t m,
@@ -118,59 +67,6 @@ destruct (access_mode t); try iIntros "[]";
 destruct (type_is_volatile t); try iIntros "[]".
 destruct v; try iIntros "[]".
 iIntros; iPureIntro; eauto.
-Qed.
-
-Lemma pointer_cmp_eval:
-  forall (Delta : tycontext) ve te (cmp : Cop.binary_operation) (e1 e2 : expr) ty sh1 sh2 ge
-         (GE: cenv_sub cenv_cs (genv_cenv ge)),
-   is_comparison cmp = true ->
-   forall m (rho : environ) (Hrho : rho = construct_rho (filter_genv ge) ve te),
-   typecheck_environ Delta rho ->
-   eqb_type (typeof e1) int_or_ptr_type = false ->
-   eqb_type (typeof e2) int_or_ptr_type = false ->
-   sh1 <> Share.bot -> sh2 <> Share.bot ->
-   mem_auth m ∗ tc_expr Delta e1 rho ∧ tc_expr Delta e2 rho ∧
-   ⌜blocks_match cmp (eval_expr e1 rho) (eval_expr e2 rho)⌝ ∧
-   <absorb> mapsto_ sh1 (typeof e1) (eval_expr e1 rho) ∧
-   <absorb> mapsto_ sh2 (typeof e2) (eval_expr e2 rho) ⊢
-   ⌜Clight.eval_expr ge ve te m (Ebinop cmp e1 e2 ty) (eval_expr (Ebinop cmp e1 e2 ty) rho)⌝.
-Proof.
-intros until rho. intros ?? NE1 NE2 ??.
-iIntros "[Hm H]".
-iDestruct (eval_expr_relate with "[$Hm H]") as %He1; [done..| |].
-{ iDestruct "H" as "[$ _]". }
-iDestruct (eval_expr_relate with "[$Hm H]") as %He2; [done..| |].
-{ iDestruct "H" as "(_ & $ & _)". }
-rewrite /tc_expr /= !typecheck_expr_sound; [| done..].
-iDestruct "H" as (???) "H".
-iAssert ⌜∃ ch b o, access_mode (typeof e1) = By_value ch ∧ eval_expr e1 rho = Vptr b o ∧ Mem.valid_pointer m b (Ptrofs.unsigned o) = true⌝ with "[-]" as %(ch1 & b1 & o1 & ? & Hv1 & MT_1).
-{ iDestruct "H" as "(>H & _)".
-  iDestruct (mapsto_pure_facts with "H") as %((? & ?) & ?).
-  destruct (eval_expr e1 rho); try contradiction.
-  iDestruct (mapsto_valid_pointer with "[$]") as %?; eauto 7. }
-iAssert ⌜∃ ch b o, access_mode (typeof e2) = By_value ch ∧ eval_expr e2 rho = Vptr b o ∧ Mem.valid_pointer m b (Ptrofs.unsigned o) = true⌝ with "[-]" as %(ch2 & b2 & o2 & ? & Hv2 & MT_2).
-{ iDestruct "H" as "(_ & >H)".
-  iDestruct (mapsto_pure_facts with "H") as %((? & ?) & ?).
-  destruct (eval_expr e2 rho); try contradiction.
-  iDestruct (mapsto_valid_pointer with "[$]") as %?; eauto 7. }
-iPureIntro.
-econstructor; eauto.
-simpl; unfold_lift.
-rewrite -> Hv1, Hv2 in *.
-forget (typeof e1) as t1.
-forget (typeof e2) as t2.
-clear e1 e2 He1 He2 Hv1 Hv2.
-rewrite /sem_binary_operation /sem_binary_operation' /sem_cmp /Cop.sem_cmp /cmp_ptr /sem_cmp_pp /Val.cmpu_bool /Val.cmplu_bool.
-rewrite MT_1 MT_2.
-simpl.
-clear MT_1 MT_2.
-rewrite bool2val_eq.
-destruct t1; try solve [simpl in *; try destruct f; try tauto; congruence].
-destruct t2; try solve [simpl in *; try destruct f; try tauto; congruence].
-rewrite NE1 NE2 /=.
-destruct cmp; try discriminate; subst; simpl; destruct Archi.ptr64  eqn:Hp;
-try rewrite -> if_true by auto;
-try solve [if_tac; subst; eauto]; rewrite ?peq_true; eauto.
 Qed.
 
 Lemma is_int_of_bool:
@@ -273,6 +169,51 @@ forall E (Delta: tycontext) (P: assert) id cmp e1 e2 ty sh1 sh2,
                             assert_of (subst id (liftx old) P))).
 Proof.
   intros until sh2. intros ?? CMP NE1 NE2 TCid.
+  rewrite semax_unfold; intros. destruct HGG.
+  iIntros "#? ? #?" (?) "Pre".
+  iApply wp_set. iApply wp_binop_rule.
+  assert (cenv_sub (@cenv_cs CS) psi) by (eapply cenv_sub_trans; eauto).
+  iApply wp_tc_expr; first done.
+  iSplit; first done.
+  iPoseProof (typecheck_environ_sub' with "[$]") as "#?"; first done.
+  iSplit.
+  { iApply tc_expr_sub'; first done.
+    iSplit; first done.
+    rewrite bi.later_and bi.and_elim_l //. }
+  iIntros (v1 Ht1) "Hv1".
+  iApply wp_tc_expr; first done.
+  iSplit; first done. iSplit.
+  { rewrite bi.later_and bi.and_elim_r bi.and_elim_l //. }
+  iIntros (v2 Ht2) "Hv2".
+  rewrite bi.and_elim_r bi.and_elim_r.
+  iCombine "Hv1 Hv2 Pre" as "Pre".
+  iPoseProof (add_and _ (▷ ⌜blocks_match cmp v1 v2⌝) with "Pre") as "(Pre & >%)".
+  { rewrite bi.and_elim_l; split => rho; monPred.unseal; rewrite !monPred_at_affinely.
+    by iIntros "(-> & -> & ?)". }
+  iDestruct "Pre" as "(#Hv1 & #Hv2 & Pre)".
+  rewrite bi.and_elim_r.
+  iApply (wp_pointer_cmp _ _ _ _ _ _ _ sh1 sh2); [done..|].
+  iSplit.
+  { iNext; rewrite bi.and_assoc bi.and_elim_l.
+    iStopProof; split => rho; monPred.unseal.
+    rewrite monPred_at_intuitionistically !monPred_at_absorbingly /=; unfold_lift.
+    iIntros "(#(_ & _ & _ & -> & ->) & _ & $)". }
+  iIntros (v Hv) "!>".
+  iStopProof; split => rho; monPred.unseal.
+  rewrite !monPred_at_intuitionistically; monPred.unseal.
+  rewrite {1}/subst /lift1 !(bi.and_elim_r _ (P rho)).
+  iIntros "(#(% & _ & % & % & %) & $ & ?)"; iSplit.
+  - unfold_lift.
+    iExists (eval_id id rho); iSplit.
+    + admit.
+    + admit.
+  - rewrite monPred_at_affinely; iPureIntro.
+    admit.
+  
+  iIntros "H".
+rewrite bi.later_and bi.and_elim_l; iFrame.
+Search wp_expr Ebinop.
+  Search 
   apply semax_pre with (
       ((▷ tc_expr Delta e1 ∧
         ▷ tc_expr Delta e2 ∧

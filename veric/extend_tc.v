@@ -349,8 +349,14 @@ Qed.
 Lemma tc_expr_cenv_sub a rho Delta : tc_expr(CS := CS) Delta a rho ⊢ tc_expr(CS := CS') Delta a rho.
 Proof. apply tc_expr_lvalue_cenv_sub. Qed.
 
+Lemma tc_expr_cenv_sub' a Delta : tc_expr(CS := CS) Delta a ⊢ tc_expr(CS := CS') Delta a.
+Proof. split => rho; apply tc_expr_cenv_sub. Qed.
+
 Lemma tc_lvalue_cenv_sub a rho Delta : tc_lvalue(CS := CS) Delta a rho ⊢ tc_lvalue(CS := CS') Delta a rho.
 Proof. apply tc_expr_lvalue_cenv_sub. Qed.
+
+Lemma tc_lvalue_cenv_sub' a Delta : tc_lvalue(CS := CS) Delta a ⊢ tc_lvalue(CS := CS') Delta a.
+Proof. split => rho; apply tc_lvalue_cenv_sub. Qed.
 
 Lemma tc_exprlist_cenv_sub Delta rho:
   forall types bl, @tc_exprlist CS Delta types bl rho ⊢

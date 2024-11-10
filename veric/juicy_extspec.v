@@ -139,6 +139,24 @@ Section proofmode_classes.
     AddModal (|={E}=> P) P (jsafe E z c).
   Proof. by rewrite /AddModal fupd_frame_r bi.wand_elim_r fupd_jsafe. Qed.
 
+  Lemma fixpoint_absorbing_3 {PROP : bi} {A1 A2 A3} (F : (A1 -d> A2 -d> A3 -d> PROP) → A1 -d> A2 -d> A3 -d> PROP) `{!Contractive F}:
+    (∀ Φ, (∀ x y z, Absorbing (Φ x y z)) → (∀ x y z, Absorbing (F Φ x y z))) →
+    ∀ x y z, Absorbing (fixpoint F x y z).
+  Proof.
+    intros ?. apply fixpoint_ind.
+    - intros Φ1 Φ2 HΦ ????. by rewrite -(HΦ _ _ _).
+    - exists (λ _ _ _, True%I); apply _.
+    - done.
+    - repeat apply limit_preserving_forall=> ?.
+      apply bi.limit_preserving_entails; intros ??? Hx; rewrite (Hx _ _ _) //.
+  Qed.
+
+  Global Instance absorbing_jsafe E z c : Absorbing (jsafe E z c).
+  Proof.
+    rewrite jsafe_unseal /jsafe_def.
+    apply (@fixpoint_absorbing_3 (iPropI Σ)), _.
+  Qed.
+
 End proofmode_classes.
 
 Lemma jsafe_local_step:

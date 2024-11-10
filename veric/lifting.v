@@ -90,6 +90,15 @@ Definition assert_safe (E: coPset) (f: function) (ctl: option cont) rho : iProp 
        | None => |={E}=> False
        end.
 
+Global Instance assert_safe_absorbing E f ctl rho : Absorbing (assert_safe E f ctl rho).
+Proof.
+  rewrite /assert_safe.
+  repeat (apply bi.forall_absorbing; intros).
+  apply bi.impl_absorbing; try apply _.
+  apply bi.impl_absorbing; try apply _.
+  destruct (option_bind _ _ _ _); apply _.
+Qed.
+
 Lemma assert_safe_mono E1 E2 f ctl rho: E1 ⊆ E2 ->
   assert_safe E1 f ctl rho ⊢ assert_safe E2 f ctl rho.
 Proof.
@@ -137,7 +146,7 @@ Definition guarded E f k Q := ∀ rho,
   (RA_break Q rho -∗ assert_safe E f (break_cont k) rho) ∧
   (RA_continue Q rho -∗ assert_safe E f (continue_cont k) rho) ∧
   (RA_return Q None rho -∗ assert_safe E f (Some (Kseq (Sreturn None) (call_cont k))) rho) ∧
-  (∀ e, wp_expr E e (λ v, RA_return Q (Some v)) rho -∗
+  (∀ e, wp_expr ge E e (λ v, RA_return Q (Some v)) rho -∗
           assert_safe E f (Some (Kseq (Sreturn (Some e)) (call_cont k))) rho).
 
 Lemma fupd_guarded : forall E f k Q, (|={E}=> guarded E f k Q) ⊢ guarded E f k Q.
@@ -158,6 +167,35 @@ Proof.
     fupd_frame_r bi.wand_elim_r fupd_guarded.
 Qed.
 
+Lemma guarded_conseq_frame : forall E f k P Q Q'
+  (Hnormal : ⎡P⎤ ∗ RA_normal Q ⊢ |={E}=> RA_normal Q')
+  (Hbreak : ⎡P⎤ ∗ RA_break Q ⊢ |={E}=> RA_break Q')
+  (Hcontinue : ⎡P⎤ ∗ RA_continue Q ⊢ |={E}=> RA_continue Q')
+  (Hreturn : ∀ v, ⎡P⎤ ∗ RA_return Q v ⊢ |={E}=> RA_return Q' v),
+  P ∗ guarded E f k Q' ⊢ guarded E f k Q.
+Proof.
+  intros.
+  iIntros "(P & H)" (rho); iSpecialize ("H" $! rho).
+  repeat iSplit.
+  - generalize (monPred_in_entails _ _ Hnormal rho); monPred.unseal.
+    iIntros (H) "?"; iMod (H with "[$]").
+    iDestruct "H" as "(H & _)"; by iApply "H".
+  - generalize (monPred_in_entails _ _ Hbreak rho); monPred.unseal.
+    iIntros (H) "?"; iMod (H with "[$]").
+    iDestruct "H" as "(_ & H & _)"; by iApply "H".
+  - generalize (monPred_in_entails _ _ Hcontinue rho); monPred.unseal.
+    iIntros (H) "?"; iMod (H with "[$]").
+    iDestruct "H" as "(_ & _ & H & _)"; by iApply "H".
+  - generalize (monPred_in_entails _ _ (Hreturn None) rho); monPred.unseal.
+    iIntros (H) "?"; iMod (H with "[$]").
+    iDestruct "H" as "(_ & _ & _ & H & _)"; by iApply "H".
+  - iIntros "% He"; iApply "H".
+    generalize (monPred_in_entails _ _ (wp_expr_frame ge E e ⎡P⎤ (λ v, RA_return Q (Some v))) rho); rewrite monPred_at_sep.
+    intros H; iPoseProof (H with "[-]") as "H".
+    { monPred.unseal; iFrame. }
+    rewrite wp_expr_mono //.
+Qed.
+
 Lemma guarded_conseq : forall E f k Q Q'
   (Hnormal : RA_normal Q ⊢ |={E}=> RA_normal Q')
   (Hbreak : RA_break Q ⊢ |={E}=> RA_break Q')
@@ -165,19 +203,15 @@ Lemma guarded_conseq : forall E f k Q Q'
   (Hreturn : ∀ v, RA_return Q v ⊢ |={E}=> RA_return Q' v),
   guarded E f k Q' ⊢ guarded E f k Q.
 Proof.
-  intros.
-  iIntros "H" (rho); iSpecialize ("H" $! rho); repeat iSplit.
-  - iIntros "HQ"; rewrite Hnormal; monPred.unseal.
-    iMod "HQ"; iDestruct "H" as "(H & _)"; by iApply "H".
-  - iIntros "HQ"; rewrite Hbreak; monPred.unseal.
-    iMod "HQ"; iDestruct "H" as "(_ & H & _)"; by iApply "H".
-  - iIntros "HQ"; rewrite Hcontinue; monPred.unseal.
-    iMod "HQ"; iDestruct "H" as "(_ & _ & H & _)"; by iApply "H".
-  - iIntros "HQ"; rewrite Hreturn; monPred.unseal.
-    iMod "HQ"; iDestruct "H" as "(_ & _ & _ & H & _)"; by iApply "H".
-  - iIntros "% He"; iApply "H".
-    rewrite wp_expr_mono; last by intros; apply Hreturn.
-    done.
+  intros; etrans; last apply (guarded_conseq_frame _ _ _ emp); intros; rewrite ?embed_emp bi.emp_sep //.
+Qed.
+
+Global Instance guarded_proper : forall E f k, Proper (equiv ==> equiv) (guarded E f k).
+Proof.
+  intros ????? (? & ? & ? & ?); rewrite /guarded.
+  do 2 f_equiv.
+  repeat (f_equiv; first by do 2 f_equiv).
+  do 6 f_equiv; done.
 Qed.
 
 Lemma guarded_normal : forall E f k P,
@@ -389,15 +423,20 @@ Proof.
       iMod ("He" with "[%] Hm") as ">(% & ? & ? & [] & ?)"; done.
 Qed.
 
-Definition wp E f s (Q : ret_assert) : assert := assert_of (λ rho,
-    ∀ k, (* ▷ *) guarded E f k Q -∗ assert_safe E f (Some (Kseq s k)) rho).
+Definition wp E f s (Q : ret_assert) : assert :=
+    assert_of (λ rho, ∀ E' k, ⌜E ⊆ E'⌝ → (* ▷ *) guarded E' f k Q -∗ assert_safe E' f (Some (Kseq s k)) rho).
 (* ▷ would make sense here, but removing Kseq isn't always a step: for instance, Sskip Kstop is a synonym
    for (Sreturn None) Kstop rather than stepping to it. *)
 
+Global Instance wp_absorbing E f s Q : Absorbing (wp E f s Q).
+Proof. apply monPred_absorbing, _. Qed.
+
 Lemma fupd_wp E f s Q : (|={E}=> wp E f s Q) ⊢ wp E f s Q.
 Proof.
-  split => rho; rewrite /wp /=; monPred.unseal.
-  by iIntros ">H".
+  split => rho; rewrite /wp; monPred.unseal.
+  iIntros "H" (???) "?".
+  iApply fupd_assert_safe. iMod (fupd_mask_subseteq E) as "Hclose"; first done.
+  by iMod "H"; iMod "Hclose"; iApply "H".
 Qed.
 
 Global Instance elim_modal_fupd_wp p P E f k Q :
@@ -406,6 +445,46 @@ Proof.
   by rewrite /ElimModal bi.intuitionistically_if_elim
     fupd_frame_r bi.wand_elim_r fupd_wp.
 Qed.
+
+Global Instance is_except_0_wp E f s Q : IsExcept0 (wp E f s Q).
+Proof. by rewrite /IsExcept0 -{2}fupd_wp -except_0_fupd -fupd_intro. Qed.
+
+Lemma wp_mask_mono : forall E E' f s Q (HE : E ⊆ E'),
+  wp E f s Q ⊢ wp E' f s Q.
+Proof.
+  split => rho; rewrite /wp /=.
+  iIntros "H" (???); iApply "H".
+  iPureIntro; set_solver.
+Qed.
+
+(* We need R to be objective because we don't know whether s changes the environment
+   in a way that affects R. We could probably fix this with env-as-resource. *)
+(* Use closed_wrt_modvars instead? Probably not worth the trouble to build it
+   if we're just going to tear it down later. *)
+Lemma wp_frame : forall E f s Q R, ⎡R⎤ ∗ wp E f s Q ⊢ wp E f s (frame_ret_assert Q ⎡R⎤).
+Proof.
+  split => rho; rewrite /wp monPred_at_sep.
+  iIntros "(R & H)" (???) "G".
+  iApply "H"; first done.
+  iApply (guarded_conseq_frame _ _ _ R); last (iFrame; monPred.unseal; iFrame);
+    destruct Q; simpl; intros; iIntros "($ & $)"; done.
+Qed.
+
+(*Definition closed_wrt_modvars c (F: assert) : Prop :=
+    closed_wrt_vars (modifiedvars c) F.
+
+Lemma wp_frame' : forall E f s Q R, closed_wrt_modvars s R →
+  R ∗ wp E f s Q ⊢ wp E f s (frame_ret_assert Q R).
+Proof.
+  split => rho; rewrite /wp; monPred.unseal.
+  iIntros "(R & H)" (???) "G".
+  iApply "H"; first done.
+Search modifiedvars.
+  iApply (guarded_conseq_frame _ _ _ R); last (iFrame; monPred.unseal; iFrame);
+    destruct Q; simpl; intros; iIntros "($ & $)"; done.
+Qed.
+
+*)
 
 Lemma wp_conseq : forall E f s Q Q'
   (Hnormal : RA_normal Q ⊢ |={E}=> RA_normal Q')
@@ -416,18 +495,27 @@ Lemma wp_conseq : forall E f s Q Q'
 Proof.
   intros.
   split => rho; rewrite /wp /=.
-  iIntros "H" (?) "HG".
-  rewrite guarded_conseq //.
-  by iApply "H".
+  iIntros "H" (???) "HG".
+  rewrite guarded_conseq; first by iApply "H".
+  - rewrite Hnormal; by apply fupd_mask_mono.
+  - rewrite Hbreak; by apply fupd_mask_mono.
+  - rewrite Hcontinue; by apply fupd_mask_mono.
+  - intros; rewrite Hreturn; by apply fupd_mask_mono.
+Qed.
+
+Global Instance wp_proper E f s : Proper (equiv ==> equiv) (wp E f s).
+Proof.
+  split => rho; rewrite /wp /=.
+  solve_proper.
 Qed.
 
 Lemma wp_seq : forall E f s1 s2 Q, wp E f s1 (overridePost (wp E f s2 Q) Q) ⊢ wp E f (Ssequence s1 s2) Q.
 Proof.
-  intros; rewrite /wp; split => rho.
-  iIntros "H % Hk" (??? -> ?).
+  intros; split => rho; rewrite /wp /=.
+  iIntros "H %%% Hk" (??? -> ?).
   iApply jsafe_local_step.
   { intros; constructor. }
-  iApply ("H" with "[Hk]"); [|done..].
+  iApply ("H" with "[%] [Hk]"); [done | | done..].
   iIntros (rho).
   destruct Q; simpl; iSplit; last by iDestruct ("Hk" $! rho) as "[_ $]".
   iIntros "H"; iApply "H"; auto.
@@ -465,16 +553,18 @@ Proof.
 Qed.
 
 Lemma wp_if: forall E f e s1 s2 R,
-  wp_expr E e (λ v, ⎡valid_val v⎤ ∧ ∃ b, ⌜Cop2.bool_val (typeof e) v = Some b⌝ ∧ if b then wp E f s1 R else wp E f s2 R)
+  wp_expr ge E e (λ v, ⎡valid_val v⎤ ∧ ∃ b, ⌜Cop2.bool_val (typeof e) v = Some b⌝ ∧ ▷ if b then wp E f s1 R else wp E f s2 R)
   ⊢ wp E f (Sifthenelse e s1 s2) R.
 Proof.
   intros; split => rho; rewrite /wp /=.
-  iIntros "H % Hk" (??? -> ?).
+  iIntros "H %%% Hk" (??? -> ?).
   iApply jsafe_step.
   rewrite /jstep_ex /wp_expr.
   iIntros (?) "(Hm & Ho)".
   monPred.unseal.
+  iMod (fupd_mask_subseteq E) as "Hclose"; first done.
   iMod ("H" with "[%] Hm") as ">(% & % & Hm & H)"; first done.
+  iMod "Hclose" as "_".
   iDestruct (valid_val_mem with "[Hm H]") as %?.
   { rewrite bi.and_elim_l; iFrame. }
   rewrite bi.and_elim_r; iDestruct "H" as (b ?) "H".
@@ -484,7 +574,7 @@ Proof.
     econstructor; eauto.
     apply bool_val_valid; eauto. }
   iFrame.
-  destruct b; simpl; iNext; iApply ("H" with "[-]"); done.
+  destruct b; simpl; iNext; iApply ("H" with "[%] [-]"); done.
 Qed.
 
 (* see also semax_lemmas.derives_skip *)
@@ -505,23 +595,24 @@ Qed.
 
 Lemma wp_skip: forall E f R, RA_normal R ⊢ wp E f Sskip R.
 Proof.
-  intros; split => rho; rewrite /wp.
-  iIntros "H % Hk" (??? -> ?).
+  intros; split => rho; rewrite /wp /=.
+  iIntros "H %%% Hk" (??? -> ?).
   iDestruct ("Hk" $! _) as "[Hk _]".
   by iApply safe_skip; last iApply "Hk".
 Qed.
 
 Lemma wp_set: forall E f i e R,
-  wp_expr E e (λ v, assert_of (subst i (liftx v) (RA_normal R))) ⊢ wp E f (Sset i e) R.
+  wp_expr ge E e (λ v, ▷ assert_of (subst i (liftx v) (RA_normal R))) ⊢ wp E f (Sset i e) R.
 Proof.
-  intros; split => rho; rewrite /wp.
-  iIntros "H % Hk" (??? -> ?).
+  intros; split => rho; rewrite /wp /=.
+  iIntros "H %%% Hk" (??? -> ?).
   iApply jsafe_step.
   rewrite /jstep_ex /wp_expr.
   iIntros (?) "(Hm & Ho)".
   monPred.unseal.
+  iMod (fupd_mask_subseteq E) as "Hclose"; first done.
   iMod ("H" with "[%] Hm") as ">(% & % & Hm & H)"; first done.
-  iIntros "!>".
+  iMod "Hclose" as "_"; iIntros "!>".
   iExists _, _; iSplit.
   { iPureIntro; constructor; eauto. }
   iFrame.
@@ -555,18 +646,19 @@ Proof.
 Qed.
 
 Lemma wp_store: forall E f e1 e2 R,
-  wp_expr E (Ecast e2 (typeof e1)) (λ v2,
-      ⌜Cop2.tc_val' (typeof e1) v2⌝ ∧ wp_lvalue E e1 (λ '(b, o), let v1 := Vptr b (Ptrofs.repr o) in
+  wp_expr ge E (Ecast e2 (typeof e1)) (λ v2,
+      ⌜Cop2.tc_val' (typeof e1) v2⌝ ∧ wp_lvalue ge E e1 (λ '(b, o), let v1 := Vptr b (Ptrofs.repr o) in
     ∃ sh, ⌜writable0_share sh⌝ ∧ ⎡mapsto_ sh (typeof e1) v1⎤ ∗
     ▷ (⎡mapsto sh (typeof e1) v1 v2⎤ ={E}=∗ RA_normal R)))
   ⊢ wp E f (Sassign e1 e2) R.
 Proof.
   intros; split => rho; rewrite /wp.
-  iIntros "H % Hk" (??? -> ?).
+  iIntros "H %%% Hk" (??? -> ?).
   iApply jsafe_step.
   rewrite /jstep_ex /wp_lvalue /wp_expr.
   iIntros (?) "(Hm & Ho)".
   monPred.unseal.
+  iMod (fupd_mask_subseteq E) as "Hclose"; first done.
   iMod ("H" with "[%] Hm") as ">(% & %He2 & Hm & % & H)"; first done.
   iMod ("H" with "[%] Hm") as ">(%b & %o & % & Hm & H)"; first done.
   iDestruct "H" as (sh ?) "(Hp & H)".
@@ -574,16 +666,18 @@ Proof.
   iDestruct (mapsto_pure_facts with "Hp") as %((? & ?) & ?).
   iDestruct (mapsto_can_store with "[$Hm Hp]") as %(? & Hstore); [done.. |].
   iMod (mapsto_store with "[$Hm $Hp]") as "(Hm & Hp)"; [done.. |].
-  iIntros "!>".
-  specialize (He2 _ _ _ eq_refl); inv He2.
+  iMod "Hclose" as "_"; iIntros "!>".
+  specialize (He2 _ _ eq_refl); inv He2.
   iExists _, _; iSplit.
   { iPureIntro; econstructor; eauto.
     econstructor; eauto. }
   iFrame.
   iNext.
+  iApply fupd_jsafe; iMod (fupd_mask_subseteq E) as "Hclose"; first done.
   iMod ("H" with "[%] Hp"); first done.
+  iMod "Hclose" as "_".
   by iApply safe_skip; last iApply "Hk".
-  { inv H5. }
+  { inv H6. }
 Qed.
 
 Lemma wp_loop: forall E f s1 s2 R,
@@ -591,28 +685,28 @@ Lemma wp_loop: forall E f s1 s2 R,
 Proof.
   intros; split => rho; rewrite /wp /=.
   monPred.unseal.
-  iIntros "H % Hk" (??? -> ?).
+  iIntros "H %%% Hk" (??? -> ?).
   iApply jsafe_local_step.
   { intros; constructor. }
   iNext.
-  iApply ("H" with "[Hk]"); [|done..].
+  iApply ("H" with "[%] [Hk]"); [done | | done..].
   rewrite guarded_normal.
   iIntros (?) "H"; simpl.
   iIntros (??? -> ?).
   iApply jsafe_local_step.
   { intros; constructor; auto. }
   iNext.
-  iApply ("H" with "[Hk]"); [|done..].
+  iApply ("H" with "[%] [Hk]"); [done | | done..].
   rewrite guarded_normal.
   iIntros (?) "H"; simpl.
-  by iApply ("H" with "Hk").
+  by iApply ("H" with "[%] Hk").
 Qed.
 
 Lemma wp_continue: forall E f R,
   RA_continue R ⊢ wp E f Scontinue R.
 Proof.
   intros; split => rho; rewrite /wp /=.
-  iIntros "H % Hk".
+  iIntros "H %%% Hk".
   iDestruct ("Hk" $! _) as "(_ & _ & Hk & _)".
   iSpecialize ("Hk" with "H").
   iIntros (??? -> ?); iSpecialize ("Hk" with "[%] [%]"); [done..|].
@@ -638,7 +732,7 @@ Lemma wp_break: forall E f R,
   RA_break R ⊢ wp E f Sbreak R.
 Proof.
   intros; split => rho; rewrite /wp /=.
-  iIntros "H % Hk".
+  iIntros "H %%% Hk".
   iDestruct ("Hk" $! _) as "(_ & Hk & _)".
   iSpecialize ("Hk" with "H").
   iIntros (??? -> ?); iSpecialize ("Hk" with "[%] [%]"); [done..|].
@@ -918,7 +1012,7 @@ Proof.
 Qed.
 
 Lemma wp_call: forall E f0 e es R,
-  wp_expr E e (λ v, ∃ f, ⌜exists b, v = Vptr b Ptrofs.zero /\ Genv.find_funct_ptr ge b = Some (Internal f) /\
+  wp_expr ge E e (λ v, ∃ f, ⌜exists b, v = Vptr b Ptrofs.zero /\ Genv.find_funct_ptr ge b = Some (Internal f) /\
     classify_fun (typeof e) =
     fun_case_f (type_of_params (fn_params f)) (fn_return f) (fn_callconv f) /\
     Forall (fun it => complete_type (genv_cenv ge) (snd it) = true) (fn_vars f)
@@ -929,16 +1023,17 @@ Lemma wp_call: forall E f0 e es R,
   wp E f0 (Scall None e es) R.
 Proof.
   intros; split => rho; rewrite /wp.
-  iIntros "H % Hk" (??? -> ?).
+  iIntros "H %%% Hk" (??? -> ?).
   iApply jsafe_step.
   rewrite /jstep_ex /wp_expr /wp_exprs.
   iIntros (?) "(Hm & Ho)".
   monPred.unseal.
+  iMod (fupd_mask_subseteq E) as "Hclose"; first done.
   iMod ("H" with "[%] Hm") as ">(% & %He & Hm & %f & %Hb & H)"; first done.
   destruct Hb as (b & -> & Hb & ? & ? & ? & ? & ?).
   iDestruct ("H" with "[%] Hm") as (vs Hes) "(Hm & % & H)"; first done.
-  iIntros "!>".
-  specialize (He _ _ _ eq_refl).
+  iMod "Hclose" as "_"; iIntros "!>".
+  specialize (He _ _ eq_refl).
   specialize (Hes _ _ _ eq_refl).
   iExists _, _; iSplit.
   { iPureIntro; econstructor; eauto. }
@@ -956,7 +1051,7 @@ Proof.
     * eapply list_norepet_append_left; eauto.
     * apply list_norepet_append_inv; auto. }
   iFrame.
-  iApply ("H" with "[$] [Hk]"); [|done..].
+  iApply ("H" with "[$] [%] [Hk]"); [done | | done..].
   rewrite guarded_normal.
   iIntros "!>" (?) "(? & HR)".
   iIntros (??? -> ?).
@@ -982,14 +1077,15 @@ induction k; intros; simpl; auto.
 Qed.
 
 Lemma wp_return_Some: forall E f e R,
-  wp_expr E e (λ v, RA_return R (Some v)) ⊢ wp E f (Sreturn (Some e)) R.
+  wp_expr ge E e (λ v, RA_return R (Some v)) ⊢ wp E f (Sreturn (Some e)) R.
 Proof.
   intros; split => rho; rewrite /wp /=.
-  iIntros "H % Hk" (??? -> ?).
+  iIntros "H %%% Hk" (??? -> ?).
   iApply (convergent_controls_jsafe _ _ _ (State f (Sreturn (Some e)) (call_cont k) ve te)); try done.
   { inversion 1; subst; try match goal with H : _ \/ _ |- _ => destruct H; done end.
     rewrite call_cont_idem; econstructor; eauto. }
   iDestruct ("Hk" $! _) as "(_ & _ & _ & _ & Hk)".
+  rewrite wp_expr_mask_mono //.
   iSpecialize ("Hk" with "H").
   by iApply "Hk".
 Qed.
@@ -998,7 +1094,7 @@ Lemma wp_return_None: forall E f R,
   RA_return R None ⊢ wp E f (Sreturn None) R.
 Proof.
   intros; split => rho; rewrite /wp /=.
-  iIntros "H % Hk" (??? -> ?).
+  iIntros "H %%% Hk" (??? -> ?).
   iApply (convergent_controls_jsafe _ _ _ (State f (Sreturn None) (call_cont k) ve te)); try done.
   { inversion 1; subst; try match goal with H : _ \/ _ |- _ => destruct H; done end.
     rewrite call_cont_idem; econstructor; eauto. }
@@ -1147,7 +1243,7 @@ Proof.
   { apply bi.pure_mono, (ext_spec_entails_safe _ (Espec HH)); auto. }
   iApply (adequacy(VSTGS0 := HH)(OK_spec := Espec HH)).
   iFrame.
-  iApply "H"; [|done..].
+  iApply "H"; [done | | done..].
   iApply guarded_stop; auto.
   iApply EXIT.
 Qed.
