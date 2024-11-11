@@ -167,6 +167,23 @@ Proof.
     fupd_frame_r bi.wand_elim_r fupd_guarded.
 Qed.
 
+Lemma guarded_strong_mono : forall E f k Q Q',
+   (∀ rho, (RA_normal Q rho ={E}=∗ RA_normal Q' rho) ∧
+           (RA_break Q rho ={E}=∗ RA_break Q' rho) ∧
+           (RA_continue Q rho ={E}=∗ RA_continue Q' rho) ∧
+           (∀ v, RA_return Q v rho ={E}=∗ RA_return Q' v rho)) ∗
+  guarded E f k Q' ⊢ guarded E f k Q.
+Proof.
+  intros.
+  iIntros "(Hconseq & H)" (rho); iSpecialize ("H" $! rho); iSpecialize ("Hconseq" $! rho).
+  repeat iSplit; try by iIntros "Q"; iMod ("Hconseq" with "Q"); iApply "H".
+  iIntros (e) "He".
+  iPoseProof (monPred_in_entails with "[Hconseq He]") as "He"; first apply wp_expr_strong_mono.
+  { monPred.unseal; iFrame.
+    iIntros (v j H); hnf in H; subst j; iDestruct "Hconseq" as "(_ & _ & _ & H)"; iApply "H". }
+  by iApply "H".
+Qed.
+
 Lemma guarded_conseq_frame : forall E f k P Q Q'
   (Hnormal : ⎡P⎤ ∗ RA_normal Q ⊢ |={E}=> RA_normal Q')
   (Hbreak : ⎡P⎤ ∗ RA_break Q ⊢ |={E}=> RA_break Q')
@@ -175,25 +192,16 @@ Lemma guarded_conseq_frame : forall E f k P Q Q'
   P ∗ guarded E f k Q' ⊢ guarded E f k Q.
 Proof.
   intros.
-  iIntros "(P & H)" (rho); iSpecialize ("H" $! rho).
-  repeat iSplit.
+  iIntros "(P & ?)"; iApply guarded_strong_mono; iFrame.
+  iIntros (?); repeat iSplit.
   - generalize (monPred_in_entails _ _ Hnormal rho); monPred.unseal.
-    iIntros (H) "?"; iMod (H with "[$]").
-    iDestruct "H" as "(H & _)"; by iApply "H".
+    iIntros (H) "?"; iApply H; iFrame.
   - generalize (monPred_in_entails _ _ Hbreak rho); monPred.unseal.
-    iIntros (H) "?"; iMod (H with "[$]").
-    iDestruct "H" as "(_ & H & _)"; by iApply "H".
+    iIntros (H) "?"; iApply H; iFrame.
   - generalize (monPred_in_entails _ _ Hcontinue rho); monPred.unseal.
-    iIntros (H) "?"; iMod (H with "[$]").
-    iDestruct "H" as "(_ & _ & H & _)"; by iApply "H".
-  - generalize (monPred_in_entails _ _ (Hreturn None) rho); monPred.unseal.
-    iIntros (H) "?"; iMod (H with "[$]").
-    iDestruct "H" as "(_ & _ & _ & H & _)"; by iApply "H".
-  - iIntros "% He"; iApply "H".
-    generalize (monPred_in_entails _ _ (wp_expr_frame ge E e ⎡P⎤ (λ v, RA_return Q (Some v))) rho); rewrite monPred_at_sep.
-    intros H; iPoseProof (H with "[-]") as "H".
-    { monPred.unseal; iFrame. }
-    rewrite wp_expr_mono //.
+    iIntros (H) "?"; iApply H; iFrame.
+  - iIntros (v); generalize (monPred_in_entails _ _ (Hreturn v) rho); monPred.unseal.
+    iIntros (H) "?"; iApply H; iFrame.
 Qed.
 
 Lemma guarded_conseq : forall E f k Q Q'
@@ -457,6 +465,32 @@ Proof.
   iPureIntro; set_solver.
 Qed.
 
+Lemma wp_strong_mono : forall E f s Q Q',
+  <obj> ((RA_normal Q ={E}=∗ RA_normal Q') ∧
+         (RA_break Q ={E}=∗ RA_break Q') ∧
+         (RA_continue Q ={E}=∗ RA_continue Q') ∧
+         (∀ v, RA_return Q v ={E}=∗ RA_return Q' v)) ∗
+  wp E f s Q ⊢ wp E f s Q'.
+Proof.
+  intros.
+  split => rho; rewrite /wp; monPred.unseal.
+  iIntros "(Hconseq & H)" (???) "HG"; iApply "H"; first done.
+  iApply guarded_strong_mono; iFrame.
+  iIntros (rho'); iSpecialize ("Hconseq" $! rho'); repeat iSplit.
+  - iIntros "?"; iMod (fupd_mask_subseteq E) as "Hclose"; first done.
+    iDestruct "Hconseq" as "(H & _)"; iMod ("H" with "[%] [$]"); first done.
+    by iMod "Hclose".
+  - iIntros "?"; iMod (fupd_mask_subseteq E) as "Hclose"; first done.
+    iDestruct "Hconseq" as "(_ & H & _)"; iMod ("H" with "[%] [$]"); first done.
+    by iMod "Hclose".
+  - iIntros "?"; iMod (fupd_mask_subseteq E) as "Hclose"; first done.
+    iDestruct "Hconseq" as "(_ & _ & H & _)"; iMod ("H" with "[%] [$]"); first done.
+    by iMod "Hclose".
+  - iIntros (?) "?"; iMod (fupd_mask_subseteq E) as "Hclose"; first done.
+    iDestruct "Hconseq" as "(_ & _ & _ & H)"; iMod ("H" with "[%] [$]"); first done.
+    by iMod "Hclose".
+Qed.
+
 (* We need R to be objective because we don't know whether s changes the environment
    in a way that affects R. We could probably fix this with env-as-resource. *)
 (* Use closed_wrt_modvars instead? Probably not worth the trouble to build it
@@ -516,8 +550,8 @@ Proof.
   iApply jsafe_local_step.
   { intros; constructor. }
   iApply ("H" with "[%] [Hk]"); [done | | done..].
-  iIntros (rho).
-  destruct Q; simpl; iSplit; last by iDestruct ("Hk" $! rho) as "[_ $]".
+  iIntros (rho); simpl.
+  iSplit; last by iDestruct ("Hk" $! rho) as "[_ $]".
   iIntros "H"; iApply "H"; auto.
 Qed.
 
@@ -680,26 +714,113 @@ Proof.
   { inv H6. }
 Qed.
 
-Lemma wp_loop: forall E f s1 s2 R,
-  ▷ wp E f s1 (normal_ret_assert (▷ wp E f s2 (normal_ret_assert (wp E f (Sloop s1 s2) R)))) ⊢ wp E f (Sloop s1 s2) R.
+Definition control_as_safex c1 k1 c2 k2 :=
+    forall E (ora : OK_ty) f (ve : env) (te : temp_env),
+        jsafeN E ora (State f c1 k1 ve te) ⊢
+          jsafeN E ora (State f c2 k2 ve te).
+
+Definition control_as_safe ctl1 ctl2 :=
+ match ctl1, ctl2 with
+ | Kseq c1 k1, Kseq c2 k2 =>
+                   control_as_safex c1 k1 c2 k2
+ | Kseq c1 k1, Kloop1 _ _ _ =>
+                   control_as_safex c1 k1 Sskip ctl2
+ | Kseq c1 k1, Kloop2 body incr k2 =>
+                   control_as_safex c1 k1 (Sloop body incr) k2
+ | Kseq c1 k1, Kstop =>
+                   control_as_safex c1 k1 (Sreturn None) Kstop
+ | Kseq c1 k1, Kcall _ _ _ _ _ =>
+                   control_as_safex c1 k1 (Sreturn None) ctl2
+ | Kseq _ _, _ =>
+                   False%type
+ | Kloop1 _ _ _, Kseq c2 k2 =>
+                   control_as_safex Sskip ctl1 c2 k2
+ | Kloop1 _ _ _, Kloop1 _ _ _ =>
+                   control_as_safex Sskip ctl1 Sskip ctl2
+ | Kloop1 _ _ _, Kloop2 body incr k2 =>
+                   control_as_safex Sskip ctl1 (Sloop body incr) k2
+ | Kloop1 _ _ _, _ =>
+                   False%type
+ | Kloop2 b1 i1 k1, Kseq c2 k2 =>
+                   control_as_safex (Sloop b1 i1) k1 c2 k2
+ | Kloop2 b1 i1 k1, Kloop1 _ _ _ =>
+                   control_as_safex (Sloop b1 i1) k1 Sskip ctl2
+ | Kloop2 b1 i1 k1, Kloop2 b2 i2 k2 =>
+                   control_as_safex (Sloop b1 i1) k1 (Sloop b2 i2) k2
+ | Kloop2 _ _ _, _ =>
+                   False%type
+ | Kstop, Kseq c2 k2 =>
+                   control_as_safex (Sreturn None) Kstop c2 k2
+ | Kcall _ _ _ _ _, Kseq c2 k2 =>
+                   control_as_safex (Sreturn None) ctl1 c2 k2
+
+  | _, _ => ctl1 = ctl2
+   end.
+
+Lemma assert_safe_adj:
+  forall E f k k' rho,
+     control_as_safe k k' ->
+     assert_safe E f (Some k) rho ⊢
+     assert_safe E f (Some k') rho.
 Proof.
-  intros; split => rho; rewrite /wp /=.
+  intros.
+  rewrite /assert_safe.
+  iIntros "H" (?????); simpl.
+  destruct k as [ | s ctl' | | | |] eqn:Hk; try contradiction;
+  destruct k' as [ | s2 ctl2' | | | |] eqn:Hk'; try contradiction;
+  try discriminate; rewrite /= -?H; iApply ("H" $! ora _ _ H0 H1); auto.
+Qed.
+
+Lemma wp_loop: forall E f s1 s2 R,
+  ▷ wp E f s1 (loop1_ret_assert (wp E f s2 (loop2_ret_assert (wp E f (Sloop s1 s2) R) R)) R) ⊢ wp E f (Sloop s1 s2) R.
+Proof.
+  intros; split => rho; rewrite {1}/wp /=.
   monPred.unseal.
   iIntros "H %%% Hk" (??? -> ?).
   iApply jsafe_local_step.
   { intros; constructor. }
   iNext.
   iApply ("H" with "[%] [Hk]"); [done | | done..].
-  rewrite guarded_normal.
-  iIntros (?) "H"; simpl.
-  iIntros (??? -> ?).
-  iApply jsafe_local_step.
-  { intros; constructor; auto. }
-  iNext.
-  iApply ("H" with "[%] [Hk]"); [done | | done..].
-  rewrite guarded_normal.
-  iIntros (?) "H"; simpl.
-  by iApply ("H" with "[%] Hk").
+  iAssert (guarded E' f k R -∗
+    guarded E' f (Kloop2 s1 s2 k) (loop2_ret_assert (wp E f (Sloop s1 s2) R) R))%I as "H2".
+  { iIntros "Hk" (rho2); simpl; iSplit; [|iSplit; [|iSplit]].
+    + by iIntros "H"; iApply "H".
+    + iDestruct ("Hk" $! rho2) as "[$ _]".
+    + monPred.unseal; iIntros "[]".
+    + iDestruct ("Hk" $! rho2) as "(_ & _ & _ & $)". }
+  iIntros (rho); simpl; iSplit; [|iSplit; [|iSplit]].
+  - iIntros "H"; iApply assert_safe_adj; last by iApply "H"; first done; iApply "H2".
+    rewrite /control_as_safe /control_as_safex; intros.
+    iIntros "H"; iApply (jsafe_local_step with "H"); constructor; auto.
+  - iDestruct ("Hk" $! rho) as "[$ _]".
+  - iIntros "H"; iApply "H"; first done.
+    by iApply "H2".
+  - iDestruct ("Hk" $! rho) as "(_ & _ & _ & $)".
+Qed.
+
+Lemma wp_switch: forall E f e ls R,
+  wp_expr ge E e (λ v, ∃ i, ⌜sem_switch_arg v (typeof e) = Some i⌝ ∧
+    wp E f (seq_of_labeled_statement (select_switch i ls)) (switch_ret_assert R)) ⊢
+  wp E f (Sswitch e ls) R.
+Proof.
+  intros; split => rho; rewrite /wp /=.
+  iIntros "H %%% Hk" (??? -> ?).
+  iApply jsafe_step.
+  rewrite /jstep_ex /wp_expr.
+  iIntros (?) "(Hm & Ho)".
+  monPred.unseal.
+  iMod (fupd_mask_subseteq E) as "Hclose"; first done.
+  iMod ("H" with "[%] Hm") as ">(% & % & Hm & % & % & H)"; first done.
+  iMod "Hclose" as "_"; iIntros "!>".
+  iExists _, _; iSplit.
+  { iPureIntro; econstructor; eauto. }
+  iFrame; iNext.
+  iApply ("H" with "[%] [Hk]"); try done.
+  iIntros (rho); simpl; iSplit; [|iSplit; [|iSplit]].
+  - monPred.unseal; iIntros "[]".
+  - iDestruct ("Hk" $! rho) as "[$ _]".
+  - iDestruct ("Hk" $! rho) as "(_ & _ & $ & _)".
+  - iDestruct ("Hk" $! rho) as "(_ & _ & _ & $)".
 Qed.
 
 Lemma wp_continue: forall E f R,

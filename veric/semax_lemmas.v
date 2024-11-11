@@ -485,49 +485,6 @@ Qed.
 
 Local Open Scope nat_scope.
 
-Definition control_as_safex ge c1 k1 c2 k2 :=
-    forall E (ora : OK_ty) f (ve : env) (te : temp_env),
-        jsafeN OK_spec ge E ora (State f c1 k1 ve te) ⊢
-          jsafeN OK_spec ge E ora (State f c2 k2 ve te).
-
-Definition control_as_safe ge ctl1 ctl2 :=
- match ctl1, ctl2 with
- | Kseq c1 k1, Kseq c2 k2 =>
-                   control_as_safex ge c1 k1 c2 k2
- | Kseq c1 k1, Kloop1 _ _ _ =>
-                   control_as_safex ge c1 k1 Sskip ctl2
- | Kseq c1 k1, Kloop2 body incr k2 =>
-                   control_as_safex ge c1 k1 (Sloop body incr) k2
- | Kseq c1 k1, Kstop =>
-                   control_as_safex ge c1 k1 (Sreturn None) Kstop
- | Kseq c1 k1, Kcall _ _ _ _ _ =>
-                   control_as_safex ge c1 k1 (Sreturn None) ctl2
- | Kseq _ _, _ =>
-                   False%type
- | Kloop1 _ _ _, Kseq c2 k2 =>
-                   control_as_safex ge Sskip ctl1 c2 k2
- | Kloop1 _ _ _, Kloop1 _ _ _ =>
-                   control_as_safex ge Sskip ctl1 Sskip ctl2
- | Kloop1 _ _ _, Kloop2 body incr k2 =>
-                   control_as_safex ge Sskip ctl1 (Sloop body incr) k2
- | Kloop1 _ _ _, _ =>
-                   False%type
- | Kloop2 b1 i1 k1, Kseq c2 k2 =>
-                   control_as_safex ge (Sloop b1 i1) k1 c2 k2
- | Kloop2 b1 i1 k1, Kloop1 _ _ _ =>
-                   control_as_safex ge (Sloop b1 i1) k1 Sskip ctl2
- | Kloop2 b1 i1 k1, Kloop2 b2 i2 k2 =>
-                   control_as_safex ge (Sloop b1 i1) k1 (Sloop b2 i2) k2
- | Kloop2 _ _ _, _ =>
-                   False%type
- | Kstop, Kseq c2 k2 =>
-                   control_as_safex ge (Sreturn None) Kstop c2 k2
- | Kcall _ _ _ _ _, Kseq c2 k2=>
-                   control_as_safex ge (Sreturn None) ctl1 c2 k2
-
-  | _, _ => ctl1 = ctl2
-   end.
-
 Fixpoint prebreak_cont (k: cont) : cont :=
   match k with
   | Kloop1 s e3 k' => k
@@ -631,20 +588,6 @@ iSpecialize ("H" with "P").
 rewrite /assert_safe.
 iIntros (??); rewrite -H; iApply "H"; auto.
 Qed. *)
-
-Lemma assert_safe_adj:
-  forall ge E f k k' rho,
-     control_as_safe ge k k' ->
-     assert_safe OK_spec ge E f (Some k) rho ⊢
-     assert_safe OK_spec ge E f (Some k') rho.
-Proof.
-  intros.
-  rewrite /assert_safe.
-  iIntros "H" (?????); simpl.
-  destruct k as [ | s ctl' | | | |] eqn:Hk; try contradiction;
-  destruct k' as [ | s2 ctl2' | | | |] eqn:Hk'; try contradiction;
-  try discriminate; rewrite /= -?H; iApply ("H" $! ora _ _ H0 H1); auto.
-Qed.
 
 Lemma semax_Delta_subsumption {CS: compspecs}:
   forall E Delta Delta' P c R,

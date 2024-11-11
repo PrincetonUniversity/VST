@@ -96,7 +96,7 @@ Proof.
   intros.
   iIntros "#? ? #?" (?) "P".
   iApply wp_seq.
-  Check wp_frame. (* frame in believe? *)
+  Check wp_frame. (* frame in believe? use strong_mono, if it was objective? *)
   iApply wp_conseq; last (by iApply (H with "[] [$]")); destruct R; simpl; auto.
   iIntros "(Q & #? & ?) !>"; iApply (H0 with "[] [$]"); eauto.
   admit.
@@ -111,171 +111,34 @@ Proof.
   intros ?????? POST H H0.
   rewrite semax_unfold.
   intros ?????.
-  iLöb as "IH".
-  iIntros "#Prog_OK" (????) "[(%Hclosed & %) #rguard]".
-  iIntros (??) "!> H".
-  iIntros (??).
-  set (rho := construct_rho _ _ _).
-  iApply jsafe_step; rewrite /jstep_ex.
-  iIntros (?) "? !>".
-  iExists (State f body (Kloop1 body incr k) vx tx), _; iSplit; first by iPureIntro; constructor.
-  iFrame; iNext.
-  iApply assert_safe_jsafe.
-  rewrite semax_unfold in H.
-  iApply (H with "Prog_OK"); [done..| |done].
-  iIntros "!>"; iSplit.
-  { iPureIntro; split; last done.
-    unfold closed_wrt_modvars, closed_wrt_vars in *; intros ?? Hi; apply Hclosed.
-    intros i; specialize (Hi i); rewrite modifiedvars_Sloop; tauto. }
-  iIntros (??).
-  rewrite semax_unfold in H0.
-  iPoseProof (H0 with "Prog_OK") as "H0"; [done..|].
-  iSpecialize ("IH" with "Prog_OK").
-  assert (closed_wrt_modvars incr F).
-  { unfold closed_wrt_modvars, closed_wrt_vars in *; intros ?? Hi; apply Hclosed.
-    intros i; specialize (Hi i); rewrite modifiedvars_Sloop; tauto. }
-  iAssert (guard' OK_spec psi E' Delta' f (F ∗ Q') (Kseq incr (Kloop2 body incr k))) as "#Hincr".
-  { iApply "H0".
-    iIntros "!>"; iSplit; first done.
-    iIntros (ek2 vl2 tx2 vx2) "!>"; rewrite /loop2_ret_assert proj_frame.
-    destruct ek2; simpl proj_ret_assert; simpl exit_cont; monPred.unseal.
-    * iIntros "(% & (? & % & ?) & ?)"; subst.
-      iApply ("IH" $! _ F); last by destruct POST; iFrame.
-      iIntros "!>"; iSplit; done.
-    * iIntros "(% & (? & % & ?) & ?)"; subst.
-      destruct POST; iApply ("rguard" $! EK_normal None); simpl; monPred.unseal; by iFrame.
-    * destruct POST; simpl.
-      iIntros "(% & (? & % & []) & ?)".
-    * destruct POST; simpl.
-      iIntros "(% & (? & ?) & ?)".
-      iApply ("rguard" $! EK_return); simpl; monPred.unseal; by iFrame. }
-  iIntros (??) "!>".
-  destruct ek.
-  + rewrite proj_frame; simpl proj_ret_assert; monPred.unseal; iIntros "(% & (? & % & ?) & ?)"; subst.
-    iApply (assert_safe_adj _ _ _ _ _ (Kseq incr (Kloop2 body incr k)) (Kseq _ _)); last by iApply "Hincr"; destruct POST; iFrame.
-    intros ?????; iIntros "H"; iApply (jsafe_local_step with "H"); constructor; auto.
-  + simpl proj_ret_assert; monPred.unseal; iIntros "(% & (% & ?) & ?)"; rewrite /loop1_ret_assert.
-    destruct POST; iApply ("rguard" $! EK_normal None); simpl; monPred.unseal; by iFrame.
-  + simpl exit_cont; simpl proj_ret_assert; monPred.unseal.
-    iIntros "(% & (% & H) & ?)".
-    iApply "Hincr".
-    by destruct POST; simpl frame_ret_assert; monPred.unseal; iDestruct "H" as "[$ $]"; iFrame.
-  + destruct POST; iApply ("rguard" $! EK_return); by iFrame.
-Qed.
+  iLöb as "IH". (* we might in theory want to iLob objectively *)
+  iIntros "#? ? #?" (?) "Q".
+  iApply wp_loop.
+  (* this should also be <obj>? *)
+  iAssert (Q' ∗ <affine> local (typecheck_environ Delta') ∗ funassert Delta'
+    -∗ |={E}=>
+    wp OK_spec psi E f incr
+      (loop2_ret_assert
+         (wp OK_spec psi E f (Sloop body incr)
+            (frame_ret_assert POST
+               (<affine> local (typecheck_environ Delta') ∗ funassert Delta')))
+         (frame_ret_assert POST
+            (<affine> local (typecheck_environ Delta') ∗ funassert Delta'))))%I as "H".
+  { iIntros "(? & _ & ?) !>"; iApply wp_conseq; last (by iApply (H0 with "[%] [$] [$]")); simpl; auto.
+    - (* lost IH; probably need strong_mono *) admit.
+    - iIntros "([] & _ & _)". }
+  iNext; iApply wp_conseq; last (by iApply (H with "[%] [$] [$]")); simpl; auto.
+  - admit.
+  - admit.
+Admitted.
 
 Lemma semax_break:
    forall E Delta Q,        semax OK_spec E Delta (RA_break Q) Sbreak Q.
 Proof.
   intros.
   rewrite semax_unfold; intros.
-  iIntros "#Prog_OK" (????) "[(%Hclosed & %HE) #rguard]".
-  iIntros (??) "!> H".
-  iSpecialize ("rguard" $! EK_break None tx vx with "[H]").
-  { simpl.
-    rewrite (bi.pure_True (None = None)) // bi.True_and; destruct Q; simpl.
-    monPred.unseal; by rewrite (bi.sep_comm (RA_break _)). }
-  iIntros (? H); iSpecialize ("rguard" $! _ H).
-  simpl exit_cont; destruct (break_cont k) eqn: Hcont.
-  { iMod "rguard" as "[]". }
-  2: { exfalso; clear - Hcont. revert k c Hcont; induction k; simpl; intros; try discriminate. eauto. }
-  destruct c; try iMod "rguard" as "[]".
-  - iInduction k as [| | | | |] "IHk"; try discriminate.
-    + iApply jsafe_local_step; last by iApply ("IHk" with "[%] rguard"). constructor.
-    + inv Hcont.
-      iApply jsafe_local_step.
-      { apply step_break_loop1. }
-      iNext.
-      iApply (convergent_controls_jsafe with "rguard"); simpl; try congruence.
-      by inversion 1; constructor.
-    + inv Hcont.
-      iApply jsafe_local_step.
-      { apply step_break_loop2. }
-      iNext.
-      iApply (convergent_controls_jsafe with "rguard"); simpl; try congruence.
-      by inversion 1; constructor.
-    + inv Hcont.
-      iApply jsafe_local_step.
-      { constructor; auto. }
-      iNext.
-      iApply (convergent_controls_jsafe with "rguard"); simpl; try congruence.
-      by inversion 1; constructor.
-  - rename c into k'.
-    iInduction k as [| s' | s1 s2 | s1 s2 | |] "IHk" forall (s k' Hcont); try discriminate.
-    + iApply jsafe_local_step.
-      { constructor. }
-      by iApply ("IHk" with "[%] rguard").
-    + inv Hcont.
-      iApply jsafe_local_step.
-      { apply step_break_loop1. }
-      iApply jsafe_local_step.
-      { apply step_skip_seq. }
-      iApply "rguard".
-    + inv Hcont.
-      iApply jsafe_local_step.
-      { apply step_break_loop2. }
-      iApply jsafe_local_step.
-      { apply step_skip_seq. }
-      iApply "rguard".
-    + inv Hcont.
-      iApply jsafe_local_step.
-      { intros; apply step_skip_break_switch; auto. }
-      iApply jsafe_local_step.
-      { apply step_skip_seq. }
-      iApply "rguard".
-  - iInduction k as [| | | | |] "IHk"; try discriminate.
-    + iApply jsafe_local_step; last by iApply ("IHk" with "[%] rguard"). constructor.
-    + inv Hcont.
-      iApply jsafe_local_step.
-      { apply step_break_loop1. }
-      iApply "rguard".
-    + inv Hcont.
-      iApply jsafe_local_step.
-      { apply step_break_loop2. }
-      iApply "rguard".
-    + inv Hcont.
-      iApply jsafe_local_step.
-      { constructor; auto. }
-      iApply "rguard".
-  - iInduction k as [| | | | |] "IHk"; try discriminate.
-    + iApply jsafe_local_step; last by iApply ("IHk" with "[%] rguard"). constructor.
-    + inv Hcont.
-      iApply jsafe_local_step.
-      { apply step_break_loop1. }
-      iApply jsafe_local_step.
-      { apply step_skip_loop2. }
-      iApply "rguard".
-    + inv Hcont.
-      iApply jsafe_local_step.
-      { apply step_break_loop2. }
-      iApply jsafe_local_step.
-      { apply step_skip_loop2. }
-      iApply "rguard".
-    + inv Hcont.
-      iApply jsafe_local_step.
-      { constructor; auto. }
-      iApply jsafe_local_step.
-      { apply step_skip_loop2. }
-      iApply "rguard".
-  - iInduction k as [| | | | |] "IHk"; try discriminate.
-    + iApply jsafe_local_step; last by iApply ("IHk" with "[%] rguard"). constructor.
-    + inv Hcont.
-      iApply jsafe_local_step.
-      { apply step_break_loop1. }
-      iNext.
-      iApply (convergent_controls_jsafe with "rguard"); simpl; try congruence.
-      by inversion 1; constructor.
-    + inv Hcont.
-      iApply jsafe_local_step.
-      { apply step_break_loop2. }
-      iNext.
-      iApply (convergent_controls_jsafe with "rguard"); simpl; try congruence.
-      by inversion 1; constructor.
-    + inv Hcont.
-      iApply jsafe_local_step.
-      { constructor; auto. }
-      iNext.
-      iApply (convergent_controls_jsafe with "rguard"); simpl; try congruence.
-      by inversion 1; constructor.
+  iIntros "???" (?) "?".
+  iApply wp_break; by iFrame.
 Qed.
 
 Lemma semax_continue:
@@ -283,30 +146,8 @@ Lemma semax_continue:
 Proof.
   intros.
   rewrite semax_unfold; intros.
-  iIntros "#Prog_OK" (????) "[(%Hclosed & %) #rguard]".
-  iSpecialize ("rguard" $! EK_continue None); simpl.
-  iIntros (??) "!>".
-  monPred.unseal; iIntros "(% & (? & ?) & ?)"; iSpecialize ("rguard" with "[-]").
-  { destruct Q; simpl; monPred.unseal; by iFrame. }
-  iIntros (? Heq); iSpecialize ("rguard" $! _ Heq).
-  destruct (continue_cont k) eqn:Hcont; try iMod "rguard" as "[]".
-  - rename c into k'.
-    assert (exists s c, k' = Kseq s c) as (? & ? & Hcase).
-    { induction k; inv Hcont; eauto. }
-    rewrite Hcase.
-    iInduction k as [| | | | |] "IHk" forall (k' Hcont Hcase); try discriminate.
-    + iApply jsafe_local_step.
-      { constructor. }
-      iApply ("IHk" with "[%] [%] rguard"); eauto.
-    + inv Hcont.
-      iApply jsafe_local_step.
-      { intros; apply step_skip_or_continue_loop1; auto. }
-      iApply "rguard".
-    + iApply jsafe_local_step.
-      { apply step_continue_switch. }
-      iApply ("IHk" with "[%] [%] rguard"); eauto.
-  - exfalso; clear - Hcont.
-    revert c o Hcont; induction k; simpl; intros; try discriminate; eauto.
+  iIntros "???" (?) "?".
+  iApply wp_continue; by iFrame.
 Qed.
 
 End extensions.

@@ -104,40 +104,6 @@ Qed.
 
 Context {CS : compspecs}.
 
-(*Lemma assert_safe_step_nostore:
-  forall  psi f vx vx2 tx tx2 c1 k1 c2 k2 Delta e rho,
-  (forall jm jm', age1 jm = Some jm' ->
-    app_pred (tc_expr Delta e rho) (m_phi jm) ->
-     cl_step psi (State f c1 k1 vx tx)
-      (m_dry jm) (State f c2 k2 vx2 tx2) (m_dry jm)) ->
-  assert_safe OK_spec psi f vx2 tx2 (Cont (Kseq c2 k2)) (construct_rho (filter_genv psi) vx2 tx2)
- && tc_expr Delta e rho
-⊢ assert_safe OK_spec psi f vx tx (Cont (Kseq c1 k1)) (construct_rho (filter_genv psi) vx tx).
-Proof.
-intros. intros ? [Hw Hw'] ?? Hora ???; subst.
-apply jm_fupd_intro'.
-destruct (level (m_phi jm)) eqn:?; try lia. clear LW.
-destruct (levelS_age1 _ _ Heqn) as [phi' Hage].
-destruct (can_age1_juicy_mem _ _ Hage) as [jm' Hage'].
-clear phi' Hage.
-simpl.
-econstructor 2 with (m' := jm').
-econstructor.
-rewrite <- (age_jm_dry Hage').
-apply (H _ _ Hage'); auto.
-split.
-apply age1_resource_decay; assumption.
-split; [apply age_level; assumption|].
-apply age1_ghost_of, age_jm_phi; auto.
-pose  proof (age_level _ _ Hage').
-rewrite <- level_juice_level_phi in Heqn.
-rewrite Heqn in H1.
-inv H1. clear Heqn.
-eapply pred_hereditary in Hw;
-  [ | instantiate (1:= (m_phi jm')); apply age_jm_phi; auto].
-apply assert_safe_jsafe; auto.
-Qed.*)
-
 Lemma semax_switch: 
   forall E Delta (Q: assert) a sl R
      (Ht : is_int_type (typeof a) = true)

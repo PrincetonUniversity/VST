@@ -49,13 +49,19 @@ Proof.
     fupd_frame_r bi.wand_elim_r fupd_wp_expr.
 Qed.
 
-Lemma wp_expr_mono : forall E e P1 P2, (∀ v, P1 v ⊢ |={E}=> P2 v) → wp_expr E e P1 ⊢ wp_expr E e P2.
+Lemma wp_expr_strong_mono : forall E e P1 P2, (∀ v, P1 v ={E}=∗ P2 v) ∗ wp_expr E e P1 ⊢ wp_expr E e P2.
 Proof.
   intros; rewrite /wp_expr.
-  iIntros ">H !>" (?) "Hm".
+  iIntros "(HP & >H) !>" (?) "Hm".
   iMod ("H" with "Hm") as (?) "(? & ? & H)".
-  rewrite H; iMod "H".
+  iMod ("HP" with "H").
   iIntros "!>"; iExists _; iFrame.
+Qed.
+
+Lemma wp_expr_mono : forall E e P1 P2, (∀ v, P1 v ⊢ |={E}=> P2 v) → wp_expr E e P1 ⊢ wp_expr E e P2.
+Proof.
+  intros; iIntros; iApply wp_expr_strong_mono; iFrame.
+  by iIntros (?) "?"; iApply H.
 Qed.
 
 Global Instance wp_expr_proper E e : Proper (pointwise_relation _ base.equiv ==> base.equiv) (wp_expr E e).
@@ -88,13 +94,19 @@ Proof.
     fupd_frame_r bi.wand_elim_r fupd_wp_lvalue.
 Qed.
 
-Lemma wp_lvalue_mono : forall E e P1 P2, (∀ v, P1 v ⊢ |={E}=> P2 v) → wp_lvalue E e P1 ⊢ wp_lvalue E e P2.
+Lemma wp_lvalue_strong_mono : forall E e P1 P2, (∀ v, P1 v ={E}=∗ P2 v) ∗ wp_lvalue E e P1 ⊢ wp_lvalue E e P2.
 Proof.
   intros; rewrite /wp_lvalue.
-  iIntros ">H !>" (?) "Hm".
+  iIntros "(HP & >H) !>" (?) "Hm".
   iMod ("H" with "Hm") as (??) "(? & ? & H)".
-  rewrite H; iMod "H".
+  iMod ("HP" with "H").
   iIntros "!>"; iExists _; iFrame.
+Qed.
+
+Lemma wp_lvalue_mono : forall E e P1 P2, (∀ v, P1 v ⊢ |={E}=> P2 v) → wp_lvalue E e P1 ⊢ wp_lvalue E e P2.
+Proof.
+  intros; iIntros; iApply wp_lvalue_strong_mono; iFrame.
+  by iIntros (?) "?"; iApply H.
 Qed.
 
 Global Instance wp_lvalue_proper E e : Proper (pointwise_relation _ base.equiv ==> base.equiv) (wp_lvalue E e).
@@ -259,7 +271,7 @@ Lemma wp_pointer_cmp: forall {CS : compspecs} E (cmp : Cop.binary_operation) ty1
   sh1 <> Share.bot -> sh2 <> Share.bot ->
   blocks_match cmp v1 v2 ->
   ▷ ⎡<absorb> mapsto_ sh1 ty1 v1 ∧ <absorb> mapsto_ sh2 ty2 v2⎤ ∧
-  (∀ v, <affine> ⌜sem_cmp_pp (op_to_cmp cmp) v1 v2 = Some v⌝ -∗ P v) ⊢
+  (∀ v, <affine> ⌜classify_cmp ty1 ty2 = cmp_case_pp ∧ sem_cmp_pp (op_to_cmp cmp) v1 v2 = Some v⌝ -∗ P v) ⊢
   wp_binop E cmp ty1 v1 ty2 v2 P.
 Proof.
   intros; rewrite /wp_binop.

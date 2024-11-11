@@ -78,43 +78,6 @@ compute; try split; congruence.
 Opaque Int.repr.
 Qed.
 
-Lemma pointer_cmp_no_mem_bool_type:
-   forall (Delta : tycontext) cmp (e1 e2 : expr) b1 o1 b2 o2 i3 s3 a,
-   is_comparison cmp = true->
-   eqb_type (typeof e1) int_or_ptr_type = false ->
-   eqb_type (typeof e2) int_or_ptr_type = false ->
-   forall (rho : environ),
-   eval_expr e1 rho = Vptr b1 o1 ->
-   eval_expr e2 rho = Vptr b2 o2 ->
-   blocks_match cmp (eval_expr e1 rho) (eval_expr e2 rho) ->
-   tc_val (typeof e1) (eval_expr e1 rho) ->
-   tc_val (typeof e2) (eval_expr e2 rho) ->
-   typecheck_environ Delta rho ->
-    tc_val' (Tint i3 s3 a)
-     (force_val
-        (sem_binary_operation' cmp (typeof e1) (typeof e2)
-           (eval_expr e1 rho)
-           (eval_expr e2 rho))).
-Proof.
-intros until 1. intros NE1 NE2; intros.
-rewrite -> H0, H1 in *.
-unfold sem_binary_operation'.
-forget (typeof e1) as t1.
-forget (typeof e2) as t2.
-clear e1 e2 H0 H1.
-unfold sem_cmp, sem_cmp_pp, cmp_ptr, Val.cmpu_bool, Val.cmplu_bool.
-rewrite NE1 NE2.
-destruct Archi.ptr64 eqn:Hp;
-destruct cmp; inv H; destruct (classify_cmp t1 t2) eqn: Hclass;
-simpl; unfold sem_cmp_pp;
-rewrite /= ?Hp /=; auto; try if_tac; auto;
-try apply tc_val_tc_val', binop_lemmas2.tc_bool2val;
-subst;
-try match goal with |- context [Z.b2z ?A] => destruct A end; try by intros ?.
-all: rewrite /sem_binarith /both_int /both_long /both_float /both_single; destruct (classify_binarith t1 t2); simpl;
-  repeat match goal with |-context[match ?A with _ => _ end] => destruct A end; try apply tc_val_tc_val', binop_lemmas2.tc_bool2val; try by intros ?.
-Qed.
-
 Definition weak_mapsto_ sh e rho :=
 match (eval_expr e rho) with
 | Vptr b o => (mapsto_ sh (typeof e) (Vptr b o)) ∨
@@ -136,14 +99,11 @@ Proof.
   - rewrite -map_ptree_rel Map.gso; subst; auto.
 Qed.
 
-Lemma subst_set : forall {A} id v (P : environ -> A) v' ge ve te rho
-  (Hge : rho = construct_rho (filter_genv ge) ve te)
+Lemma subst_set : forall {A} id v (P : environ -> A) v' rho
   (Hid : Map.get (te_of rho) id = Some v),
-  subst id (λ _ : environ, eval_id id rho) P
-       (mkEnviron (ge_of rho) (ve_of rho)
-          (make_tenv (Maps.PTree.set id v' te))) = P rho.
+  subst id (λ _ : environ, eval_id id rho) P (env_set rho id v') = P rho.
 Proof.
-  intros; subst rho; rewrite /subst /env_set /construct_rho -map_ptree_rel /=; unfold_lift.
+  intros; destruct rho; rewrite /subst /env_set /construct_rho /=; unfold_lift.
   rewrite Map.override Map.override_same; auto.
   by rewrite /eval_id Hid.
 Qed.
@@ -198,62 +158,30 @@ Proof.
     iStopProof; split => rho; monPred.unseal.
     rewrite monPred_at_intuitionistically !monPred_at_absorbingly /=; unfold_lift.
     iIntros "(#(_ & _ & _ & -> & ->) & _ & $)". }
-  iIntros (v Hv) "!>".
+  iIntros (v (Hcase & Hv)) "!>".
   iStopProof; split => rho; monPred.unseal.
   rewrite !monPred_at_intuitionistically; monPred.unseal.
   rewrite {1}/subst /lift1 !(bi.and_elim_r _ (P rho)).
-  iIntros "(#(% & _ & % & % & %) & $ & ?)"; iSplit.
+  assert (v = force_val2 (sem_cmp (op_to_cmp cmp) (typeof e1) (typeof e2)) v1 v2) as Hv'.
+  { rewrite /sem_cmp NE1 NE2 Hcase; simpl orb.
+    cbv match; rewrite /force_val2 Hv //. }
+  iIntros "(#(%TC' & _ & %TC & % & %) & $ & ?)"; iSplit.
   - unfold_lift.
-    iExists (eval_id id rho); iSplit.
-    + admit.
-    + admit.
+    rewrite /typecheck_tid_ptr_compare in TCid.
+    destruct (temp_types Delta !! id) eqn: Ht; last done.
+    apply TC in Ht as (? & ? & ?).
+    iExists (eval_id id rho); erewrite !subst_set by done.
+    iSplit; last done; iPureIntro.
+    rewrite eval_id_same /sem_binary_operation'.
+    subst; destruct cmp; done.
   - rewrite monPred_at_affinely; iPureIntro.
-    admit.
-  
-  iIntros "H".
-rewrite bi.later_and bi.and_elim_l; iFrame.
-Search wp_expr Ebinop.
-  Search 
-  apply semax_pre with (
-      ((▷ tc_expr Delta e1 ∧
-        ▷ tc_expr Delta e2 ∧
-        ▷ local (fun rho => blocks_match cmp (eval_expr e1 rho) (eval_expr e2 rho)) ∧
-        ▷ <absorb> assert_of (`(mapsto_ sh1 (typeof e1)) (eval_expr e1)) ∧
-        ▷ <absorb> assert_of (`(mapsto_ sh2 (typeof e2)) (eval_expr e2))) ∧
-        ▷ P)), semax_straight_simple.
-  { intros. rewrite bi.and_elim_r !bi.later_and !assoc //. }
-  { apply _. }
-  intros until f; intros TS TC Hcl Hge HGG.
-  assert (typecheck_environ Delta rho) as TYCON_ENV
-    by (destruct TC as [TC' TC'']; eapply typecheck_environ_sub; eauto).
-  eapply typecheck_tid_ptr_compare_sub in TCid; last done.
-  iIntros "H"; iExists m, (Maps.PTree.set id (eval_expr (Ebinop cmp e1 e2 ty) rho) te), _.
-  monPred.unseal; rewrite !monPred_at_absorbingly; unfold_lift; simpl.
-  iSplit; [iSplit; first done; iSplit|].
-  + rewrite !mapsto_is_pointer /tc_expr /= !typecheck_expr_sound; [| done..].
-    iDestruct "H" as "(? & (>%TC1 & >%TC2 & >% & >%Hv1 & >%Hv2) & _)".
-    destruct Hv1 as (? & ? & ?), Hv2 as (? & ? & ?).
-    simpl. rewrite <- map_ptree_rel.
-    iPureIntro; apply guard_environ_put_te'; [subst; auto|].
-    intros ? Ht.
-    rewrite /typecheck_tid_ptr_compare Ht in TCid; destruct t; try discriminate.
-    eapply pointer_cmp_no_mem_bool_type; eauto.
-  + iAssert (▷ ⌜Clight.eval_expr ge ve te m (Ebinop cmp e1 e2 ty) (eval_expr (Ebinop cmp e1 e2 ty) rho)⌝) with "[H]" as ">%";
-      last by iPureIntro; constructor.
-    iNext.
-    iDestruct "H" as "(Hm & [H _])"; iCombine "Hm H" as "H".
-    by iApply (pointer_cmp_eval with "H").
-  + iIntros "!> !>".
-    iDestruct "H" as "($ & [_ (F & P)])".
-    erewrite (closed_wrt_modvars_set F) by eauto; iFrame.
-    iExists (eval_id id rho).
-    destruct TC as [[TC _] _].
-    unfold typecheck_tid_ptr_compare, typecheck_temp_environ in *.
-    destruct (temp_types Delta' !! id) eqn: Hid; try discriminate.
-    destruct (TC _ _ Hid) as (? & ? & ?).
-    unfold lift1; erewrite !subst_set by eauto; iFrame.
-    super_unfold_lift.
-    rewrite /eval_id /force_val -map_ptree_rel Map.gss //.
+    destruct TC' as (? & ? & ?); split3; auto; simpl.
+    intros i ? Ht; destruct (eq_dec i id).
+    + subst i; rewrite Map.gss; exists v; split; eauto.
+      eapply typecheck_tid_ptr_compare_sub in TCid; eauto.
+      rewrite /typecheck_tid_ptr_compare Ht in TCid.
+      subst; apply tc_val'_sem_cmp; auto.
+    + rewrite Map.gso; auto.
 Qed.
 
 Lemma semax_set_forward:
@@ -267,43 +195,36 @@ forall E (Delta: tycontext) (P: assert) id e,
                             assert_of (subst id (`old) P))).
 Proof.
   intros.
-  apply semax_pre with (
-     (▷ tc_expr Delta e ∧
-      ▷ tc_temp_id id (typeof e) Delta e) ∧
-      ▷ P), semax_straight_simple.
-  { intros. rewrite bi.and_elim_r !bi.later_and !assoc //. }
-  { apply _. }
-  intros until f; intros TS TC Hcl Hge HGG.
-  assert (typecheck_environ Delta rho) as TYCON_ENV
-    by (destruct TC as [TC' TC'']; eapply typecheck_environ_sub; eauto).
-  iIntros "(Hm & H)".
-  iExists m, (Maps.PTree.set id (eval_expr e rho) te), _.
-  monPred.unseal. setoid_rewrite tc_temp_id_sub; last done. rewrite /tc_temp_id /typecheck_temp_id /=.
-  destruct (temp_types Delta' !! id) eqn: Hid.
-  iSplit; [iSplit; first done; iSplit|].
-  + rewrite !denote_tc_assert_andp tc_bool_e.
-    iAssert (▷ ⌜tc_val t (eval_expr e rho)⌝) with "[H]" as ">%".
-    { iNext.
-      rewrite (bi.and_elim_l (_ ∧ _)) (bi.and_elim_l (bi_pure _)).
-      iDestruct "H" as "[H %]".
-      by iApply neutral_cast_tc_val. }
-    iPureIntro.
-    simpl in *. simpl. rewrite <- map_ptree_rel.
-    apply guard_environ_put_te'; [subst; auto|].
-    intros ? Hid'; rewrite Hid' in Hid; inv Hid.
-    by apply tc_val_tc_val'.
-  + iAssert (▷ ⌜Clight.eval_expr ge ve te m e (eval_expr e rho)⌝) with "[-]" as ">%"; last by iPureIntro; constructor.
-    iNext; iApply eval_expr_relate; [done..|].
-    iDestruct "H" as "(($ & _) & _)"; iFrame.
-  + iIntros "!> !>".
-    iDestruct "H" as "(_ & F & P)"; iFrame.
-    erewrite (closed_wrt_modvars_set F) by eauto; iFrame.
-    iNext; iExists (eval_id id rho).
-    destruct TC as [[TC _] _].
-    destruct (TC _ _ Hid) as (? & ? & ?).
-    super_unfold_lift; erewrite !subst_set by eauto; iFrame.
-    rewrite /eval_id /force_val -map_ptree_rel Map.gss //.
-  + iDestruct "H" as "((_ & >[]) & _)".
+  rewrite semax_unfold; intros. destruct HGG.
+  iIntros "#? ? #?" (?) "Pre".
+  iApply wp_set.
+  assert (cenv_sub (@cenv_cs CS) psi) by (eapply cenv_sub_trans; eauto).
+  iApply wp_tc_expr; first done.
+  iPoseProof (typecheck_environ_sub' with "[$]") as "#?"; first done.
+  iSplit; first done.
+  iSplit; first by rewrite bi.and_elim_l.
+  iIntros (v ?) "#Hv !>".
+  iStopProof; split => rho; monPred.unseal.
+  rewrite !monPred_at_intuitionistically; monPred.unseal.
+  rewrite {1}/subst /lift1; iIntros "((%TC' & _ & %TC & %) & $ & Pre)".
+  rewrite /tc_temp_id /typecheck_temp_id.
+  destruct (temp_types Delta !! id) eqn: Ht; last by iDestruct "Pre" as "(_ & [] & _)".
+  iSplit.
+  - apply TC in Ht as (? & ? & ?).
+    unfold_lift.
+    iExists (eval_id id rho); erewrite !subst_set by done.
+    rewrite !bi.and_elim_r eval_id_same; auto.
+  - rewrite !denote_tc_assert_andp tc_bool_e.
+    iAssert ⌜is_neutral_cast (implicit_deref (typeof e)) t = true⌝ with "[Pre]" as %?.
+    { iDestruct "Pre" as "(_ & ($ & _) & _)". }
+    rewrite bi.and_elim_l; iDestruct (neutral_cast_tc_val with "Pre") as %?; [done..|].
+    rewrite monPred_at_affinely; iPureIntro.
+    destruct TC' as (? & ? & ?); split3; auto; simpl.
+    intros i t' Ht'; destruct (eq_dec i id).
+    + subst i; destruct TS as (TS & _); specialize (TS id); rewrite Ht Ht' in TS; subst t'.
+      rewrite Map.gss; exists v; subst; split; auto.
+      by apply tc_val_tc_val'.
+    + rewrite Map.gso; auto.
 Qed.
 
 Lemma semax_set_forward':

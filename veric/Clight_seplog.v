@@ -149,10 +149,7 @@ Definition proj_ret_assert (Q: ret_assert) (ek: exitkind) (vl: option val) : ass
  end.
 
 Definition overridePost  (Q: assert)  (R: ret_assert) :=
- match R with 
-  {| RA_normal := _; RA_break := b; RA_continue := c; RA_return := r |} =>
-  {| RA_normal := Q; RA_break := b; RA_continue := c; RA_return := r |}
- end.
+  {| RA_normal := Q; RA_break := RA_break R; RA_continue := RA_continue R; RA_return := RA_return R |}.
 
 Definition existential_ret_assert {A: Type} (R: A -> ret_assert) :=
   {| RA_normal := ∃ x:A, (R x).(RA_normal);
@@ -165,31 +162,22 @@ Definition normal_ret_assert (Q: assert) : ret_assert :=
   {| RA_normal := Q; RA_break := False; RA_continue := False; RA_return := fun _ => False |}.
 
 Definition frame_ret_assert (R: ret_assert) (F: assert) : ret_assert :=
- match R with 
-  {| RA_normal := n; RA_break := b; RA_continue := c; RA_return := r |} =>
-  {| RA_normal := n ∗ F;
-     RA_break := b ∗ F;
-     RA_continue := c ∗ F;
-     RA_return := fun vl => r vl ∗ F |}
- end.
+  {| RA_normal := RA_normal R ∗ F;
+     RA_break := RA_break R ∗ F;
+     RA_continue := RA_continue R ∗ F;
+     RA_return := fun vl => RA_return R vl ∗ F |}.
 
 Definition conj_ret_assert (R: ret_assert) (F: assert) : ret_assert :=
- match R with 
-  {| RA_normal := n; RA_break := b; RA_continue := c; RA_return := r |} =>
-  {| RA_normal := n ∧ F;
-     RA_break := b ∧ F;
-     RA_continue := c ∧ F;
-     RA_return := fun vl => r vl ∧ F |}
- end.
+  {| RA_normal := RA_normal R ∧ F;
+     RA_break := RA_break R ∧ F;
+     RA_continue := RA_continue R ∧ F;
+     RA_return := fun vl => RA_return R vl ∧ F |}.
 
 Definition switch_ret_assert (R: ret_assert) : ret_assert :=
- match R with 
-  {| RA_normal := n; RA_break := b; RA_continue := c; RA_return := r |} =>
   {| RA_normal := False; 
-     RA_break := n; 
-     RA_continue := c;
-     RA_return := r |}
- end.
+     RA_break := RA_normal R;
+     RA_continue := RA_continue R;
+     RA_return := RA_return R |}.
 
 Lemma normal_ret_assert_derives:
  forall P Q,
@@ -209,7 +197,6 @@ intros.
 destruct ek; simpl; auto; by rewrite bi.and_False.
 Qed.
 
-(* Do we care about the kind of equivalence? Should this be an assert? *)
 Global Instance ret_assert_equiv : Equiv (ret_assert) := fun a b =>
   (RA_normal a ⊣⊢ RA_normal b) /\ (RA_break a ⊣⊢ RA_break b) /\
   (RA_continue a ⊣⊢ RA_continue b) /\ (forall v, RA_return a v ⊣⊢ RA_return b v).
@@ -242,7 +229,7 @@ Lemma proj_frame:
 Proof.
   intros.
   rewrite bi.sep_comm.
-  destruct ek; simpl; destruct P; rewrite ?pure_and_sep_assoc //.
+  destruct ek; simpl; rewrite ?pure_and_sep_assoc //.
 Qed.
 
 Lemma proj_conj:
@@ -251,34 +238,27 @@ Lemma proj_conj:
 Proof.
   intros.
   rewrite bi.and_comm.
-  destruct ek; simpl; destruct P; rewrite /= ?assoc //.
+  destruct ek; simpl; rewrite /= ?assoc //.
 Qed.
 
 Definition loop1_ret_assert (Inv: assert) (R: ret_assert) : ret_assert :=
- match R with 
-  {| RA_normal := n; RA_break := b; RA_continue := c; RA_return := r |} =>
   {| RA_normal := Inv;
-     RA_break := n; 
+     RA_break := RA_normal R;
      RA_continue := Inv;
-     RA_return := r |}
- end.
+     RA_return := RA_return R |}.
 
 Definition loop2_ret_assert (Inv: assert) (R: ret_assert) : ret_assert :=
- match R with 
-  {| RA_normal := n; RA_break := b; RA_continue := c; RA_return := r |} =>
   {| RA_normal := Inv;
-     RA_break := n;
+     RA_break := RA_normal R;
      RA_continue := False;
-     RA_return := r |}
- end.
+     RA_return := RA_return R |}.
 
 Lemma frame_for1:
   forall Q R F,
    (frame_ret_assert (loop1_ret_assert Q R) F =
     loop1_ret_assert (Q ∗ F) (frame_ret_assert R F))%stdpp.
 Proof.
-intros.
-destruct R; reflexivity.
+intros. reflexivity.
 Qed.
 
 Lemma frame_loop1:
@@ -286,15 +266,14 @@ Lemma frame_loop1:
    (frame_ret_assert (loop2_ret_assert Q R) F ≡
     loop2_ret_assert (Q ∗ F) (frame_ret_assert R F))%stdpp.
 Proof.
-destruct R; split3; last split; try done; simpl.
+split3; last split; try done; simpl.
 apply bi.sep_False.
 Qed.
 
 Lemma overridePost_normal:
   forall P Q, overridePost P (normal_ret_assert Q) = normal_ret_assert P.
 Proof.
-intros; unfold overridePost, normal_ret_assert.
-f_equal.
+intros; reflexivity.
 Qed.
 
 Definition function_body_ret_assert (ret: type) (Q: assert) : ret_assert :=
