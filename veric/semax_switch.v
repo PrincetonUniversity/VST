@@ -11,6 +11,7 @@ Require Import VST.veric.Clight_core.
 Require Import VST.sepcomp.extspec.
 Require Import VST.sepcomp.step_lemmas.
 Require Import VST.veric.juicy_extspec.
+Require Import VST.veric.lifting_expr.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
 Require Import VST.veric.expr_lemmas.
@@ -67,44 +68,9 @@ Proof.
   intros; eapply typecheck_expr_sound; eauto.
 Qed.
 
-Lemma switch_rguard:
- forall E
-  (R : ret_assert)
-  (psi : genv)
-  (F : assert)
-  (f: function)
-  (Delta' : tycontext)
-  (k : cont),
- rguard OK_spec psi E Delta' f
-        (frame_ret_assert R F) k ⊢
-(rguard OK_spec psi E Delta' f
-   (frame_ret_assert (switch_ret_assert R) F) 
-   (Kswitch k)).
-Proof.
-  intros.
-  unfold rguard.
-  iIntros "#H" (????) "!>".
-  pose (ek' := match ek with 
-                    | EK_normal => EK_normal
-                    | EK_break => EK_normal
-                    | EK_continue => EK_continue
-                    | EK_return => EK_return
-                    end).
-  pose (vl' := match ek with 
-                    | EK_normal => None
-                    | EK_break => None
-                    | EK_continue => None
-                    | EK_return => vl
-                    end).
-  iSpecialize ("H" $! ek' vl' tx vx).
-  rewrite !proj_frame.
-  monPred.unseal; iIntros "(? & (? & P) & ?)".
-  destruct R, ek; subst ek' vl'; simpl proj_ret_assert; last (by iApply "H"; iFrame); monPred.unseal; iDestruct "P" as "(-> & ?)"; try done; try by (iApply "H"; iFrame).
-Qed.
-
 Context {CS : compspecs}.
 
-Lemma semax_switch: 
+Lemma semax_switch:
   forall E Delta (Q: assert) a sl R
      (Ht : is_int_type (typeof a) = true)
      (Htc : Q ⊢ tc_expr Delta a)
@@ -116,34 +82,17 @@ Lemma semax_switch:
 Proof.
   intros.
   rewrite semax_unfold.
-  iIntros (?????) "#Prog_OK".
-  iIntros (????) "((%Hclosed & %) & #rguard)".
-  iIntros (??) "!>".
-  monPred.unseal; iIntros "((% & %) & (F & Q) & ?)".
-  set (rho := construct_rho _ _ _).
-  assert (typecheck_environ Delta rho) by (eapply typecheck_environ_sub; done).
-  iAssert ⌜tc_val (typeof a) (eval_expr(CS := CS) a rho)⌝ as %?.
-  { rewrite Htc tc_expr_sound //. }
-  destruct (typeof a) eqn: Hta; try discriminate.
-  destruct (eval_expr a rho) as [ | n | | | |] eqn:?; try contradiction.
-  specialize (Hcase n); rewrite semax_unfold in Hcase.
-  iPoseProof (Hcase with "Prog_OK []") as "Hcase"; [done | done | ..].
-  { iIntros "!>"; iSplit; last by iApply switch_rguard.
-    iPureIntro; split; last done.
-    eapply closed_wrt_modvars_switch with (n:= Int.unsigned n); eauto. }
-  rewrite /guard' /_guard /assert_safe.
-  iIntros (? _).
-  iApply jsafe_step; rewrite /jstep_ex.
-  iIntros (?) "(Hm & ?) !>".
-  destruct HGG as [CSUB ?]; iDestruct (eval_expr_relate with "[$Hm Q]") as %?; [done.. | |].
-  { inversion Htc as [->]; rewrite tc_expr_cenv_sub //. }
-  iExists _, _; iSplit.
-  { iPureIntro; econstructor; try done.
-    erewrite (eval_expr_cenv_sub_Vint CSUB) by done.
-    rewrite Hta //. }
-  iFrame.
-  iApply ("Hcase" with "[-]"); last by iPureIntro.
-  monPred.unseal; iFrame; auto.
-Qed.
+  intros; iIntros "???" (?) "?".
+  destruct HGG. assert (cenv_sub (@cenv_cs CS) psi) by (eapply cenv_sub_trans; eauto).
+  iApply wp_switch. iApply wp_tc_expr; first done.
+  iPoseProof (typecheck_environ_sub' with "[$]") as "#?"; first done.
+  iSplit; first done; iSplit; first by rewrite Htc.
+  iIntros (v ?) "#?".
+  destruct (typeof a) eqn: Hty; try discriminate; rewrite /sem_switch_arg /=.
+  destruct v; try contradiction.
+  iExists _; iSplit; first done.
+  (* frame in funassert; note that funassert only really needs ge *) admit.
+  (* iApply Hcase. *)
+Admitted.
 
 End mpred.

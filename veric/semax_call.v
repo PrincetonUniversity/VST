@@ -185,7 +185,7 @@ eapply bind_exists_te; eauto.
 Qed.
 
 Lemma smaller_temps_exists : forall l l1 te id i t,
-bind_parameter_temps l l1 (Maps.PTree.set id Vundef t)=  Some te ->
+bind_parameter_temps l l1 (Maps.PTree.set id Vundef t) = Some te ->
 i <> id -> 
 exists te', (bind_parameter_temps l l1 t = Some te' /\ te' !! i = te !! i).
 Proof.
@@ -194,79 +194,35 @@ exists x. split. auto.
 eapply smaller_temps_exists'; eauto.
 Qed.
 
+Definition tc_fn_return (Delta: tycontext) (ret: option ident) (t: type) :=
+ match ret with
+ | None => True%type
+ | Some i => match (temp_types Delta) !! i with Some t' => t=t' | _ => False%type end
+ end.
 
-Lemma alloc_vars_lookup :
-forall ge id m1 l ve m2 e ,
-list_norepet (map fst l) ->
-(forall i, In i (map fst l) -> e !! i = None) ->
-Clight.alloc_variables ge (e) m1 l ve m2 ->
-(exists v, e !! id = Some v) ->
-ve !! id = e !! id.
-Proof.
-intros.
-generalize dependent e.
-revert ve m1 m2.
-
-induction l; intros.
-inv H1. auto.
-
-inv H1. simpl in *. inv H.
-destruct H2.
-assert (id <> id0).
-intro. subst.  specialize (H0 id0). spec H0. auto. rewrite H // in H0.
-eapply IHl in H10.
-rewrite Maps.PTree.gso in H10; auto.
-auto. intros. rewrite Maps.PTree.gsspec. if_tac. subst. tauto.
-apply H0. auto.
-rewrite Maps.PTree.gso; auto. eauto.
-Qed.
-
-Lemma alloc_vars_lemma : forall ge id ty l m1 m2 ve ve'
-(SD : forall i, In i (map fst l) -> ve !! i = None),
-list_norepet (map fst l) ->
-Clight.alloc_variables ge ve m1 l ve' m2 ->
-(In (id, ty) l ->
-exists v, ve' !! id = Some (v, ty)).
+(* compare https://gitlab.mpi-sws.org/iris/refinedc/-/blob/master/theories/caesium/lifting.v#L1042 *)
+Lemma semax_call_si:
+  forall E Delta (A: TypeTree) (Ef : dtfr (MaskTT A))
+   (P : dtfr (ArgsTT A))
+   (Q : dtfr (AssertTT A))
+   (x : dtfr A)
+   F ret argsig retsig cc a bl
+   (Hsub : Ef x ⊆ E) 
+   (TCF : Cop.classify_fun (typeof a) = Cop.fun_case_f (typelist_of_type_list argsig) retsig cc)
+   (TC5 : retsig = Tvoid -> ret = None)
+   (TC7 : tc_fn_return Delta ret retsig),
+  semax OK_spec E Delta
+       (▷(tc_expr Delta a ∧ tc_exprlist Delta argsig bl) ∧
+           (assert_of (fun rho => func_ptr_si (mk_funspec (argsig,retsig) cc A Ef P Q) (eval_expr a rho)) ∗
+          (▷(F ∗ assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho))))))
+         (Scall ret a bl)
+         (normal_ret_assert
+          (∃ old:val, assert_of (substopt ret (`old) F) ∗ maybe_retval (assert_of (Q x)) retsig ret)).
 Proof.
   intros.
-  generalize dependent ve.
-  revert m1 m2.
-  induction l; intros; first done.
-  destruct a; simpl in *.
-  destruct H1 as [[=] | H1].
-  - subst. inv H0. inv H. apply alloc_vars_lookup with (id := id) in H9; auto.
-    rewrite H9. rewrite Maps.PTree.gss. eauto.
-    { intros. destruct (peq i id); first by subst; tauto. rewrite Maps.PTree.gso; eauto. }
-    { rewrite Maps.PTree.gss; eauto. }
-  - inv H0. inv H. apply IHl in H10; auto.
-    intros. rewrite Maps.PTree.gsspec. if_tac; last eauto. subst; done.
-Qed.
-
-Lemma alloc_vars_match_venv_gen: forall ge ve m l0 l ve' m',
-  match_venv (make_venv ve) l0 ->
-  Clight.alloc_variables ge ve m l ve' m' ->
-  match_venv (make_venv ve') (l0 ++ l).
-Proof.
-  intros.
-  generalize dependent l0; induction H0; intros.
-  { rewrite app_nil_r //. }
-  specialize (IHalloc_variables (l0 ++ [(id, ty)])).
-  rewrite -assoc in IHalloc_variables; apply IHalloc_variables.
-  rewrite /match_venv /make_venv in H1 |- *; intros i; specialize (H1 i).
-  destruct (eq_dec i id).
-  - subst; rewrite Maps.PTree.gss in_app; simpl; auto.
-  - rewrite Maps.PTree.gso //.
-    destruct (Maps.PTree.get i e) as [(?, ?)|]; first rewrite in_app; simpl; auto.
-Qed.
-
-Lemma alloc_vars_match_venv: forall ge m l ve' m',
-  Clight.alloc_variables ge empty_env m l ve' m' ->
-  match_venv (make_venv ve') l.
-Proof.
-  intros; eapply (alloc_vars_match_venv_gen _ _ _ []) in H; auto.
-  rewrite /match_venv /make_venv; intros.
-  rewrite Maps.PTree.gempty //.
-Qed.
+  rewrite semax_unfold; intros.
+  iIntros "???" (?) "Pre".
+  iApply wp_call.
 
 Lemma semax_call_typecheck_environ:
   forall (Delta : tycontext) (args: list val) (psi : genv)
@@ -450,16 +406,6 @@ Proof.
  destruct H7; auto. inv H6; congruence.
 Qed.
 
-Definition maybe_retval (Q: assert) retty ret :=
- assert_of (match ret with
- | Some id => fun rho => ⌜tc_val' retty (eval_id id rho)⌝ ∧ Q (get_result1 id rho)
- | None =>
-    match retty with
-    | Tvoid => (fun rho => Q (globals_only rho))
-    | _ => fun rho => ∃ v: val, ⌜tc_val' retty v⌝ ∧ Q (make_args (ret_temp::nil) (v::nil) rho)
-    end
- end).
-
 Lemma Forall_filter: forall {A} P (l: list A) f, Forall P l -> Forall P (List.filter f l).
 Proof.
   intros.
@@ -496,12 +442,6 @@ Proof.
   iMod (VALspec_range_free with "[$Hm $H]") as "Hm"; first done.
   iApply ("IHel" with "Hm stack").
 Qed.
-
-Definition tc_fn_return (Delta: tycontext) (ret: option ident) (t: type) :=
- match ret with
- | None => True%type
- | Some i => match (temp_types Delta) !! i with Some t' => t=t' | _ => False%type end
- end.
 
 Lemma same_glob_funassert':
   forall Delta1 Delta2 rho rho',

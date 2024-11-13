@@ -63,7 +63,7 @@ Program Definition jsafe_pre
     (jsafe : coPset -d> Z -d> C -d> iPropO Σ) : coPset -d> Z -d> C -d> iPropO Σ := λ E z c,
   |={E}=> ∀ m, state_interp m z -∗
       (∃ i, ⌜halted Hcore c i ∧ ext_spec_exit Hspec (Some (Vint i)) z m⌝) ∨
-      (|={E}=> ∃ c' m', ⌜corestep Hcore c m c' m'⌝ ∧ state_interp m' z ∗ ▷ jsafe E z c') ∨
+      (|={E}=> ∃ c' m', ⌜corestep Hcore c m c' m'⌝ ∧ ▷ |={E}=> (state_interp m' z ∗ jsafe E z c')) ∨
       (∃ e args x, ⌜at_external Hcore c m = Some (e, args) ∧ ext_spec_pre Hspec e x (genv_symb ge) (sig_args (ef_sig e)) args z m⌝ ∧
          ▷ (∀ ret m' z', ⌜Val.has_type_list args (sig_args (ef_sig e)) ∧ Builtins0.val_opt_has_rettype ret (sig_res (ef_sig e))⌝ →
           ⌜ext_spec_post Hspec e x (genv_symb ge) (sig_res (ef_sig e)) ret z' m'⌝ → |={E}=>
@@ -72,9 +72,9 @@ Program Definition jsafe_pre
 Local Instance jsafe_pre_contractive : Contractive jsafe_pre.
 Proof.
   rewrite /jsafe_pre => n jsafe jsafe' Hsafe E z c.
-  do 13 f_equiv.
+  do 12 f_equiv.
   - f_contractive; repeat f_equiv. apply Hsafe.
-  - f_contractive; repeat f_equiv. apply Hsafe.
+  - f_equiv; f_contractive; repeat f_equiv. apply Hsafe.
 Qed.
 
 Local Definition jsafe_def : coPset -> Z -> C -> iProp Σ := fixpoint jsafe_pre.
@@ -101,9 +101,10 @@ Proof.
   - by iLeft.
   - iRight; iLeft.
     iMod (fupd_mask_subseteq E1) as "Hclose"; first done; iMod "H"; iMod "Hclose" as "_".
-    iDestruct "H" as (???) "[??]"; iIntros "!>".
+    iDestruct "H" as (???) "H"; iIntros "!>".
     iExists _, _; iSplit; first done.
-    iFrame; by iApply "IH".
+    iNext; iMod (fupd_mask_subseteq E1) as "Hclose"; first done; iMod "H" as "($ & ?)"; iMod "Hclose" as "_".
+    by iApply "IH".
   - iRight; iRight.
     iDestruct "H" as (????) "H".
     iExists _, _, _; iSplit; first done.
@@ -174,9 +175,9 @@ Proof.
   by iFrame.
 Qed.
 
-Definition jstep E z c c' := ∀ m, state_interp m z ={E}=∗ ∃ m', ⌜corestep Hcore c m c' m'⌝ ∧ state_interp m' z ∗ ▷ jsafe E z c'.
+Definition jstep E z c c' := ∀ m, state_interp m z ={E}=∗ ∃ m', ⌜corestep Hcore c m c' m'⌝ ∧ ▷ |={E}=> (state_interp m' z ∗ jsafe E z c').
 
-Definition jstep_ex E z c := ∀ m, state_interp m z ={E}=∗ ∃ c' m', ⌜corestep Hcore c m c' m'⌝ ∧ state_interp m' z ∗ ▷ jsafe E z c'.
+Definition jstep_ex E z c := ∀ m, state_interp m z ={E}=∗ ∃ c' m', ⌜corestep Hcore c m c' m'⌝ ∧ ▷ |={E}=> (state_interp m' z ∗ jsafe E z c').
 
 Lemma jstep_exists : forall E z c c', jstep E z c c' ⊢ jstep_ex E z c.
 Proof.
@@ -200,9 +201,8 @@ Proof.
   intros; iIntros "H".
   rewrite jsafe_unfold /jsafe_pre /jstep_ex.
   iIntros "!>" (m) "?"; iRight; iLeft.
-  iMod ("H" with "[$]") as (???) "[??]".
-  iIntros "!>"; iExists _, _; iSplit; first done.
-  by iFrame.
+  iMod ("H" with "[$]") as (???) "H".
+  iIntros "!>"; iExists _, _; iSplit; done.
 Qed.
 
 Lemma jsafe_step_forward_ex:

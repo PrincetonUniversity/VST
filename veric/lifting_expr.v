@@ -1,6 +1,7 @@
 Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.veric.juicy_base.
 Require Import VST.veric.juicy_mem.
+Require Import VST.veric.juicy_mem_lemmas.
 Require Import VST.veric.Clight_base.
 Require Import VST.veric.Cop2.
 Require Import VST.veric.Clight_seplog.
@@ -340,6 +341,17 @@ Proof.
   split; auto; intros; econstructor; eauto.
 Qed.
 
+Lemma wp_cast : forall E e ty P, expr_lemmas4.cast_pointer_to_bool (typeof e) ty = false ->
+  wp_expr E e (λ v, ⌜tc_val (typeof e) v⌝ ∧ ∃ v', ⌜sem_cast (typeof e) ty v = Some v'⌝ ∧ P v') ⊢ wp_expr E (Ecast e ty) P.
+Proof.
+  intros; rewrite /wp_expr.
+  do 5 f_equiv; iIntros "(% & ? & Hm & % & %v' & %Hcast & P)".
+  iExists v'; iFrame; iSplit; last done.
+  iStopProof; split => rho; rewrite bi.affinely_elim; apply bi.pure_mono.
+  intros; econstructor; eauto.
+  by apply expr_lemmas4.sem_cast_e1.
+Qed.
+
 (* vars *)
 Definition globals := ident -> val.
 
@@ -404,6 +416,53 @@ Proof.
   apply eval_Evar_local. apply Hve.
 Qed.
 
+Lemma wp_deref : forall E e ty P,
+  wp_expr E e (λ v, ∃ b o, ⌜v = Vptr b o⌝ ∧ P (b, Ptrofs.unsigned o)) ⊢ wp_lvalue E (Ederef e ty) P.
+Proof.
+  intros; rewrite /wp_lvalue /wp_expr.
+  do 5 f_equiv.
+  iIntros "(% & ? & ? & %b & %o & % & ?)"; iExists b, o; iFrame.
+  iSplit; last done; iStopProof; split => rho.
+  rewrite bi.affinely_elim; apply bi.pure_mono.
+  subst; intros; econstructor; eauto.
+Qed.
+
+Lemma wp_expr_byref : forall E e P, access_mode (typeof e) = By_reference →
+  wp_lvalue E e (λ '(b, o), P (Vptr b (Ptrofs.repr o))) ⊢ wp_expr E e P.
+Proof.
+  intros; rewrite /wp_lvalue /wp_expr.
+  do 5 f_equiv.
+  iIntros "(% & % & ? & $)".
+  iSplit; last done; iStopProof; split => rho.
+  rewrite bi.affinely_elim Ptrofs.repr_unsigned; apply bi.pure_mono.
+  intros; econstructor; eauto.
+  constructor; auto.
+Qed.
+
+Lemma wp_expr_mapsto : forall E e P,
+  wp_lvalue E e (λ '(b, o), ∃ sh v, ⌜readable_share sh ∧ v ≠ Vundef⌝ ∧
+    (▷ ⎡<absorb> mapsto sh (typeof e) (Vptr b (Ptrofs.repr o)) v⎤) ∧ P v) ⊢
+  wp_expr E e P.
+Proof.
+  intros; rewrite /wp_lvalue /wp_expr.
+  f_equiv. iIntros "H" (m) "Hm".
+  iDestruct ("H" with "Hm") as ">(% & % & ? & Hm & % & % & (% & %) & H)".
+  rewrite Ptrofs.repr_unsigned embed_absorbingly bi.later_absorbingly.
+  iCombine "H Hm" as "H".
+  iDestruct (add_and _ (▷ ⌜∃ ch, access_mode (typeof e) = By_value ch⌝) with "H") as "(H & >(%ch & %Hch))".
+  { iIntros "((>H & _) & Hm) !>".
+    by iDestruct (mapsto_pure_facts with "H") as %(? & _). }
+  iDestruct (add_and _ (▷ ⌜load ch m b (Ptrofs.unsigned o) = Some v⌝) with "H") as "((H & Hm) & >%Hload)".
+  { iIntros "((>H & _) & Hm) !>"; iDestruct (core_load_load' with "[$Hm H]") as %?; last done.
+    rewrite mapsto_core_load //. }
+  rewrite bi.and_elim_r.
+  iModIntro; iExists v; iFrame; iSplit; last done.
+  iStopProof; split => rho.
+  rewrite bi.affinely_elim; apply bi.pure_mono.
+  intros; econstructor; eauto.
+  econstructor; eauto.
+Qed.
+
 (* connect to VeriC's tc_expr/eval_expr *)
 Lemma wp_tc_expr : forall {CS : compspecs} E Delta e P,
   cenv_sub (@cenv_cs CS) ge ->
@@ -421,6 +480,29 @@ Proof.
   iIntros "!>"; iExists (eval_expr e rho); iFrame.
   iSplit; first done.
   iApply "H"; auto; rewrite monPred_at_affinely //.
+Qed.
+
+Lemma wp_tc_lvalue : forall {CS : compspecs} E Delta e P,
+  cenv_sub (@cenv_cs CS) ge ->
+  local (typecheck_environ Delta) ∧ ▷ tc_lvalue Delta e ∧
+  (∀ b o, <affine> local (λ rho, eval_lvalue e rho = Vptr b (Ptrofs.repr o)) -∗ P (b, o)) ⊢
+  wp_lvalue E e P.
+Proof.
+  split => rho; rewrite /tc_lvalue /wp_lvalue; monPred.unseal; rewrite /lift1.
+  iIntros "(% & TC) !>" (m ? <-) "Hm".
+  iDestruct (add_and _ (▷ ⌜isptr (eval_lvalue e rho)⌝) with "TC") as "(TC & >%)".
+  { iIntros "(? & _) !>"; edestruct expr_lemmas4.typecheck_both_sound as (_ & Htc); first done.
+    by iApply (Htc (Tstruct 1%positive noattr)). }
+  iCombine "TC Hm" as "H"; iDestruct (add_and _ (▷ ⌜∀ ve te, rho = construct_rho (filter_genv ge) ve te →
+    ∃ b o, Clight.eval_lvalue ge ve te m e b o Full ∧ eval_lvalue e rho = Vptr b o⌝) with "H") as "((H & ?) & >%Heval)".
+  { iIntros "((H & _) & Hm) !>" (???).
+    iApply expr_lemmas4.eval_lvalue_relate; eauto; iFrame. }
+  rewrite bi.and_elim_r; iIntros "!>".
+  destruct (eval_lvalue e rho) eqn: He; try contradiction.
+  iExists _, _; iSplit.
+  - iIntros (???); edestruct Heval as (? & ? & ? & [=]); by subst.
+  - iFrame; iApply "H"; auto; rewrite monPred_at_affinely.
+    rewrite Ptrofs.repr_unsigned //.
 Qed.
 
 End mpred.
