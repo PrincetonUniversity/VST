@@ -54,11 +54,14 @@ Section juicy_safety.
 (* The closest match to the Iris approach would be for auth_heap to hold the true full CompCert mem,
    and to run the underlying semantics without any permissions. But that's a poor fit for VST's approach
    to soundness. Instead, our "authoritative" state is still just the current thread's view of the state. *)
-
+(* Note that this doesn't say anything about the environment, because the environment is present in the
+   CompCert state (not the memory). We can build another layer on top of this that connects environment
+   predicates to the environment in the state. *)
 Definition state_interp m z := mem_auth m ∗ ext_auth z.
 
 (* We could bring this more in line with weakestpre, but weakestpre doesn't give us control over the
    masks, so we can't restrict updates around steps. *)
+
 Program Definition jsafe_pre
     (jsafe : coPset -d> Z -d> C -d> iPropO Σ) : coPset -d> Z -d> C -d> iPropO Σ := λ E z c,
   |={E}=> ∀ m, state_interp m z -∗

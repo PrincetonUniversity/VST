@@ -111,15 +111,16 @@ destruct sz, sgn; auto; try lia.
 - destruct H; subst; by compute.
 Qed.
 
-Definition writable_block (id: ident) (n: Z): environ -> mpred :=
-   fun rho => 
-        ∃ b: block,  ∃ sh: Share.t,
-          ⌜writable_share sh /\ ge_of rho id = Some b⌝ ∧ VALspec_range n sh (b, 0).
+Context `{!envGS Σ}.
 
-Fixpoint writable_blocks (bl : list (ident*Z)) : environ -> mpred :=
+Definition writable_block (id: ident) (n: Z): mpred :=
+  ∃ b: block, ∃ sh: Share.t, ⌜writable_share sh⌝ ∧
+    seplog.gvar id b ∗ VALspec_range n sh (b, 0).
+
+Fixpoint writable_blocks (bl : list (ident*Z)) : mpred :=
  match bl with
-  | nil =>  fun rho => emp
-  | (b,n)::bl' =>  fun rho => writable_block b n rho ∗ writable_blocks bl' rho
+  | nil => emp
+  | (b,n)::bl' => writable_block b n ∗ writable_blocks bl'
  end.
 
 Fixpoint address_mapsto_zeros (sh: share) (n: nat) (adr: address) : mpred :=

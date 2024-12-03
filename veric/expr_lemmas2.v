@@ -20,10 +20,9 @@ Section mpred.
 
 Context `{!heapGS Σ}.
 
-Lemma eval_lvalue_ptr : forall {CS: compspecs} rho e (Delta: tycontext) te ve ge,
-mkEnviron ge ve te = rho ->
-typecheck_var_environ ve (var_types Delta) ->
-typecheck_glob_environ ge (glob_types Delta) ->
+Lemma eval_lvalue_ptr : forall {CS: compspecs} rho e (Delta: tycontext),
+typecheck_var_environ (ve_of rho) (var_types Delta) ->
+typecheck_glob_environ (ge_of rho) (glob_types Delta) ->
 denote_tc_assert (typecheck_lvalue Delta e) rho ⊢
 ⌜exists base, exists ofs, eval_lvalue e rho = Vptr base ofs⌝.
 Proof.
@@ -32,12 +31,11 @@ induction e; eauto; simpl.
 (*try now inversion H2.*)
 * unfold typecheck_lvalue.
 rewrite /get_var_type.
-subst rho; simpl ve_of; simpl ge_of.
 destruct_var_types i eqn:H4&?H; rewrite H4;
  [| destruct_glob_types i eqn:H6&?H; rewrite H6 ].
 + rewrite tc_bool_e; iPureIntro.
   exists b, Ptrofs.zero.
-  simpl. by rewrite /eval_var H2 H.
+  by rewrite /eval_var H2 H1.
 + rewrite tc_bool_e; iPureIntro.
   exists b, Ptrofs.zero.
   simpl. by rewrite /eval_var H3 H2.
@@ -92,7 +90,6 @@ simpl. unfold eval_var.
 
 unfold typecheck_environ in H.
 intuition.
-destruct rho.
 unfold get_var_type in *.
 
 destruct_var_types i; rewrite -> ?Heqo, ?Heqo0 in *; try rewrite -> eqb_type_eq in *; simpl in *; intuition.
@@ -144,7 +141,6 @@ iIntros "H".
 iAssert (⌜access_mode t = By_reference⌝)%I with "[H]" as %MODE. by (destruct (access_mode t); auto; hnf in H0; try contradiction).
 rewrite MODE.
 destruct IHe as [IHe IHl].
-destruct rho.
 rewrite denote_tc_assert_andp.
 unfold typecheck_environ in H.
 destruct H as [_ [Hve Hge]].
@@ -157,13 +153,13 @@ destruct PTR as (? & ? & H); simpl in H.
 destruct (typeof e); try iDestruct "H" as "[]".
 + destruct (cenv_cs !! i0) as [co |]; try iDestruct "H" as "[]".
   destruct (field_offset cenv_cs i (co_members co)) as [ [ ? [|]] |  ]; try iDestruct "H" as "[]".
-  destruct (eval_lvalue e (mkEnviron ge ve te)); try now inv H.
+  destruct (eval_lvalue e rho); try now inv H.
   destruct t; auto; inv H.
   destruct f; inv He.
 + destruct (cenv_cs !! i0) as [co |]; try iDestruct "H" as "[]".
   destruct (union_field_offset cenv_cs i (co_members co)) as [ [ ? [|]] |  ]; try iDestruct "H" as "[]";
   destruct z; try iDestruct "H" as "[]".
-  destruct (eval_lvalue e (mkEnviron ge ve te)); try now inv H.
+  destruct (eval_lvalue e rho); try now inv H.
   rewrite ptrofs_add_repr_0; auto.
 Qed.
 
@@ -186,14 +182,13 @@ rewrite denote_tc_assert_andp.
 super_unfold_lift.
 destruct IHe as [IHe IHl].
  unfold eval_field,offset_val in *; intuition.
-destruct rho.
 unfold typecheck_environ in *. intuition.
 iIntros "H".
 iDestruct (eval_lvalue_ptr with "[H]") as %PTR; [try done..|].
 { by rewrite bi.and_elim_l. }
 rewrite (IHl pt); last done.
 iDestruct "H" as (Hpt) "H".
-remember (eval_lvalue e (mkEnviron ge ve te)). unfold isptr in *.
+remember (eval_lvalue e rho). unfold isptr in *.
 subst v.
 destruct PTR as [b [ofs ?]].
 destruct (typeof e); try iDestruct "H" as "[]".
@@ -226,7 +221,6 @@ rewrite MODE.
 simpl.
 
 unfold typecheck_environ in H. intuition.
-destruct rho.
 unfold get_var_type in *.
 
 unfold eval_var.
@@ -356,7 +350,7 @@ Lemma typecheck_temp_sound:
   ⌜tc_val (typeof (Etempvar i t)) (eval_expr (Etempvar i t) rho)⌝.
 Proof.
 intros.
-simpl. unfold typecheck_expr. destruct rho.
+simpl. unfold typecheck_expr.
 destruct H as [H1 _].
 unfold typecheck_temp_environ in *.
 unfold eval_id, force_val in *.

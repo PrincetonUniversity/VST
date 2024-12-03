@@ -46,6 +46,7 @@ Definition type_is_by_reference t : bool :=
   end.
 
 (** GENERAL KV-Maps **)
+(* deprecate? *)
 
 Set Implicit Arguments.
 
@@ -124,26 +125,26 @@ Qed.
 (** Environment Definitions **)
 Section FUNSPEC.
 
-Definition genviron := Map.t block.
+Definition genviron := gmap ident block.
 
-Definition venviron := Map.t (block * type).
+Definition venviron := gmap ident (block * type).
 
-Definition tenviron := Map.t val.
+Definition tenviron := gmap ident val.
 
-Inductive environ : Type :=
- mkEnviron: forall (ge: genviron) (ve: venviron) (te: tenviron), environ.
+Definition environ : Type := (genviron * venviron * tenviron).
 
 Definition ge_of (rho: environ) : genviron :=
-  match rho with mkEnviron ge ve te => ge end.
+  match rho with (ge, ve, te) => ge end.
 
 Definition ve_of (rho: environ) : venviron :=
-  match rho with mkEnviron ge ve te => ve end.
+  match rho with (ge, ve, te) => ve end.
 
 Definition te_of (rho: environ) : tenviron :=
-  match rho with mkEnviron ge ve te => te end.
+  match rho with (ge, ve, te) => te end.
 
-Definition any_environ : environ :=
-  mkEnviron (fun _ => None)  (Map.empty _) (Map.empty _).
+Definition mkEnviron a b c : environ := (a, b, c).
+
+Definition any_environ : environ := (empty, empty, empty).
 
 Definition argsEnviron:Type := genviron * (list val).
 
@@ -195,8 +196,8 @@ Fixpoint dependent_type_functor_rec (T : TypeTree) : oFunctor :=
   | ListType t => listOF (dependent_type_functor_rec t)
   end.
 
-Definition ArgsTT A := ArrowType A (DiscreteFunType argsEnviron Mpred).
-Definition AssertTT A := ArrowType A (DiscreteFunType environ Mpred).
+Definition ArgsTT A := ArrowType A (DiscreteFunType (list val) (DiscreteFunType nat Mpred)).
+Definition AssertTT A := ArrowType A (DiscreteFunType nat Mpred).
 Definition MaskTT A := ArrowType A (ConstType coPset).
 
 Section ofe.
@@ -390,63 +391,56 @@ Class heapGS Σ := HeapGS {
   heapGS_funspecGS :: funspecGS Σ
 }.
 
+(* Because Clight uses environment semantics, it's natural for us to treat
+   the environment as part of the state and use separation logic on it (e.g., use
+   ∗ to ensure that unrelated assertions aren't affected by an assignment).
+   But from this perspective, entering a new stackframe is a non-frame-preserving
+   operation. We address this by treating the entire stack of variable names as a
+   resource, so that entering a new frame is simply moving up the stack rather
+   than clearing existing resources. *)
+
+(* Using inclR of the CMRA here instead of the ORA gmap_viewR allows us to leak variable ownership
+   (unlike memory ownership). *)
+Notation fixed_fracR A := (prodR (iris.algebra.agree.agreeR (leibnizO frac))
+  (prodR fracR A)).
+
+Notation frameR := (prodR ((iris.algebra.gmap.gmapR ident (iris.algebra.excl.exclR (leibnizO (block * type)))))
+  ((iris.algebra.gmap.gmapR ident (iris.algebra.excl.exclR (leibnizO val))))).
+
+Class envGS Σ := EnvGS {
+  envGS_inG :: inG Σ (ora.prodR
+    (ext_order.inclR (gmap_view.gmap_viewR ident (agree.agreeR (leibnizO block))))
+    (ext_order.inclR (iris.algebra.auth.authR (iris.algebra.gmap.gmapR nat (fixed_fracR frameR)))));
+(* need:
+   master: a list of stackframes, each of which has a list of idents
+   fragment: one or more idents in a single stackframe, but must not allow 0 idents in a named stackframe
+   Either the inner algebra needs not to have unit, or the outer algebra needs not to own units.
+   Possible solution: split each stackframe into fractions
+   - makes lvar hard to define, because we only know the fraction when we have the full list
+   Possible solution: 
+ *)
+  env_name : gname
+}.
+
 Definition mpred `{heapGS Σ} := iProp Σ.
+
+(* assertions are monPreds on stack level *)
+Definition stack_index : biIndex := {| bi_index_type := nat; bi_index_rel := eq |}.
+
+Definition assert `{!envGS Σ} := monPred stack_index (iPropI Σ).
+
+Program Definition assert_of `{!envGS Σ} (P : nat -> iProp Σ) : assert := {| monPred_at := P |}.
 
 Section heap.
 
-Context `{!heapGS Σ}.
+Context `{!heapGS Σ} `{!envGS Σ}.
 
-(* assertions (environ -> mpred as pred) *)
-Global Instance environ_inhabited : Inhabited environ := {| inhabitant := any_environ |}.
-
-Definition environ_index : biIndex := {| bi_index_type := environ |}.
-
-Definition assert' := environ -> mpred.
-Definition assert `{!heapGS Σ} := monPred environ_index (iPropI Σ).
-
-Program Definition assert_of (P : assert') : assert := {| monPred_at := P |}.
-
-Fail Example assert_of_test : forall (P: assert'), ∃ Q:assert, (@eq assert P Q).
-Global Coercion assert_of : assert' >-> assert.
-Example assert_of_test : forall (P: assert'), ∃ Q:assert, (@eq assert P Q).
-Proof. intros.  exists (assert_of P). reflexivity. Qed.
-
-Fail Example bi_of_assert'_test : forall (P Q : assert'), P ∗ Q ⊢ Q ∗ P.
-Program Definition bi_assert (P : assert) : bi_car assert := {| monPred_at := P |}.
-Set Warnings "-uniform-inheritance".
-Global Coercion bi_assert : assert >-> bi_car.
-Set Warnings "uniform-inheritance".
-(* "Print Coercion Paths assert' bi_car" prints "[assert_of; bi_assert]" *)
-Example test : forall (P Q : assert'), P ∗ Q ⊢ Q ∗ P. 
-Proof. intros. rewrite bi.sep_comm. done. Qed.
-
-Global Instance argsEnviron_inhabited : Inhabited argsEnviron := {| inhabitant := (Map.empty _, nil) |}.
-
-Definition argsEnviron_index : biIndex := {| bi_index_type := argsEnviron |}.
-
-Definition argsassert' := argsEnviron -> mpred.
-Definition argsassert `{!heapGS Σ} := monPred argsEnviron_index (iPropI Σ).
-
-Program Definition argsassert_of (P : argsassert') : argsassert := {| monPred_at := P |}.
-
-Coercion argsassert_of : argsassert' >-> argsassert.
-
-Lemma assert_of_at : forall (P : assert), assert_of (monPred_at P) ⊣⊢ P.
-Proof. done. Qed.
-
-Lemma argsassert_of_at : forall (P : argsassert), argsassert_of (monPred_at P) ⊣⊢ P.
-Proof. done. Qed.
-
-Lemma assert_of_embed P: assert_of (fun _ => P) ⊣⊢ ⎡P⎤.
-Proof.
-  intros.
-  split => rho //; monPred.unseal; done.
-Qed.
+Definition argsassert := list val -> assert.
 
 (* funspecs on mpreds *)
 Definition funspec := funspec_ mpred mpred.
 Definition NDmk_funspec (sig : typesig) (cc : calling_convention) A (P : A -> argsassert) (Q : A -> assert) : funspec :=
-  mk_funspec sig cc (ConstType A) (λne a, ⊤) (λne (a : leibnizO A), (P a) : _ -d> mpred) (λne (a : leibnizO A), (Q a) : _ -d> mpred).
+  mk_funspec sig cc (ConstType A) (λne a, ⊤) (λne (a : leibnizO A), (P a) : _ -d> _ -d> mpred) (λne (a : leibnizO A), (Q a) : _ -d> mpred).
 
 Definition funspec_unfold (f : funspec) : laterO funspec := Next f.
 
@@ -458,8 +452,8 @@ Definition funspecs := list (ident * funspec_ (iProp Σ) (iProp Σ)).
 (*plays role of type_of_params *)
 Fixpoint typelist_of_type_list (params : list type) : typelist :=
   match params with
-  | nil => Tnil
-  | ty :: rem => Tcons ty (typelist_of_type_list rem)
+  | nil => Ctypes.Tnil
+  | ty :: rem => Ctypes.Tcons ty (typelist_of_type_list rem)
   end.
 
 Definition type_of_funspec (fs: funspec) : type :=
@@ -531,19 +525,19 @@ Definition idset1 (id: ident) : idset := Maps.PTree.set id tt idset0.
 Definition insert_idset (id: ident) (S: idset) : idset :=
   Maps.PTree.set id tt S.
 
-Definition eval_id (id: ident) (rho: environ) := force_val (Map.get (te_of rho) id).
+Definition eval_id (id: ident) (rho: environ) := force_val (lookup id (te_of rho)).
 
 Definition env_set (rho: environ) (x: ident) (v: val) : environ :=
-  mkEnviron (ge_of rho) (ve_of rho) (Map.set x v (te_of rho)).
+  (ge_of rho, ve_of rho, <[x := v]>(te_of rho)).
 
 Lemma eval_id_same: forall rho id v, eval_id id (env_set rho id v) = v.
-Proof. unfold eval_id; intros; simpl. unfold force_val. rewrite Map.gss. auto.
+Proof. unfold eval_id; intros; simpl. unfold force_val. rewrite lookup_insert. auto.
 Qed.
 
 Lemma eval_id_other: forall rho id id' v,
    id<>id' -> eval_id id' (env_set rho id v) = eval_id id' rho.
 Proof.
- unfold eval_id, force_val; intros. simpl. rewrite Map.gso; auto.
+ unfold eval_id, force_val; intros. simpl. rewrite lookup_insert_ne; auto.
 Qed.
 
 #[export] Hint Rewrite eval_id_same : normalize norm.

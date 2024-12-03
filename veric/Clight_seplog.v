@@ -18,7 +18,7 @@ Require Export VST.veric.Clight_mapsto_memory_block.
 
 Definition mkEnv g ids vals : environ := 
       let n := Nat.min (length ids) (length vals) in
-      make_args (firstn n ids) (firstn n vals) (mkEnviron g (Map.empty (block * type)) (Map.empty val)).
+      make_args (firstn n ids) (firstn n vals) (mkEnviron g empty empty).
 
 Lemma ge_of_mkEnv {g v vals}: ge_of (mkEnv g v vals) = g.
 Proof. apply ge_of_make_args. Qed.
@@ -29,43 +29,49 @@ Definition expr_true {CS: compspecs} e := lift1 (typed_true (typeof e)) (eval_ex
 Definition expr_false {CS: compspecs} e := lift1 (typed_false (typeof e)) (eval_expr e).
 
 Definition eval_lvar (id: ident) (ty: type) (rho: environ) :=
- match Map.get (ve_of rho) id with
+ match lookup id (ve_of rho) with
 | Some (b, ty') => if eqb_type ty ty' then Vptr b Ptrofs.zero else Vundef
 | None => Vundef
 end.
 
 Section mpred.
 
-Context `{!heapGS Σ}.
+Context `{!heapGS Σ} `{!envGS Σ}.
 
 Local Notation assert := (@assert Σ).
 
+Definition stack_frag n q0 q ve te := own(inG0 := envGS_inG) env_name (ε, ◯ {[n := (to_agree q0, (q, (excl.Excl <$> ve, excl.Excl <$> te)))]}).
+
+Definition lvar (id : ident) (t : type) (b : block) : assert :=
+  assert_of (λ n, ∃ q, stack_frag n q q {[id := (b, t)]} ∅).
+Definition temp (id : ident) (v : val) :=
+  assert_of (λ n, ∃ q, stack_frag n q q ∅ {[id := v]}).
+
 Definition var_block (sh: Share.t) {cs: compspecs} (idt: ident * type): assert :=
   ⌜sizeof (snd idt) <= Ptrofs.max_unsigned⌝ ∧
-  assert_of (fun rho => (memory_block sh (sizeof (snd idt))) (eval_lvar (fst idt) (snd idt) rho)).
+  ∃ b, lvar (fst idt) (snd idt) b ∗ ⎡memory_block sh (sizeof (snd idt)) (Vptr b Ptrofs.zero)⎤.
 
 Definition stackframe_of {cs: compspecs} (f: Clight.function) : assert :=
   fold_right bi_sep emp (map (fun idt => var_block Share.top idt) (Clight.fn_vars f)).
 
-Lemma subst_derives:
+(*Lemma subst_derives:
  forall a v (P Q : assert), (P ⊢ Q) -> assert_of (subst a v P) ⊢ assert_of (subst a v Q).
 Proof.
   exact subst_extens.
-Qed.
+Qed.*)
 
-Definition tc_formals (formals: list (ident * type)) : environ -> Prop :=
-     fun rho => tc_vals (map (@snd _ _) formals) (map (fun xt => (eval_id (fst xt) rho)) formals).
+Definition tc_formals (formals: list (ident * type)) : assert :=
+  ∃ vals, ([∗ list] i;v ∈ map fst formals;vals, temp i v) ∧
+    ⌜tc_vals (map snd formals) vals⌝.
 
 (*This definition, and some lemmas below, could be moved to general_seplog*)
 
 Definition close_precondition (bodyparams: list ident) 
     (P: argsassert) : assert :=
- assert_of (fun rho => ∃ vals,
-   ⌜map (Map.get (te_of rho)) bodyparams = map Some vals /\
-      Forall (fun v : val => v <> Vundef) vals⌝ ∧
-   P (ge_of rho, vals)).
+ ∃ vals, ⌜Forall (fun v : val => v <> Vundef) vals⌝ ∧
+   ([∗ list] i;v ∈ bodyparams;vals, temp i v) ∗ P vals.
 
-Definition precondition_closed (fs: list (ident*type)) {A}
+(*Definition precondition_closed (fs: list (ident*type)) {A}
   (P: A -> assert) : Prop :=
  forall x,
   closed_wrt_vars (not_a_param fs) (P x) /\
@@ -78,26 +84,23 @@ Lemma close_precondition_e':
      ⌜map (Map.get (te_of rho)) al = map Some vals /\
         Forall (fun v : val => v <> Vundef) vals⌝ ∧
    P (ge_of rho, vals).
-Proof. trivial. Qed.
+Proof. trivial. Qed. *)
 
-Global Instance close_precondition_proper p : Proper (base.equiv ==> base.equiv) (close_precondition p).
-Proof.
-  intros ?? H.
-  split => rho; solve_proper.
-Qed.
+Global Instance close_precondition_proper p : Proper (pointwise_relation _ base.equiv ==> base.equiv) (close_precondition p).
+Proof. solve_proper. Qed.
 
 Lemma Forall_eval_id_get: forall {vals: list val} (V:Forall (fun v : val => v = Vundef -> False) vals), 
-  forall ids rho, map (Map.get (te_of rho)) ids = map Some vals <-> map (fun i : ident => eval_id i rho) ids = vals.
+  forall ids rho, map (fun i => lookup i (te_of rho)) ids = map Some vals <-> map (fun i : ident => eval_id i rho) ids = vals.
 Proof.
 induction vals; simpl; intros; split; intros; destruct ids; inv H; simpl in *; trivial.
 + inv V. destruct (IHvals H4 ids rho) as [X _]. rewrite (X H2); clear X H2. f_equal.
   unfold eval_id; rewrite H1; simpl; trivial.
 + inv V. destruct (IHvals H2 ids rho) as [_ X]. rewrite X; clear X; trivial. f_equal.
   clear - H1. unfold eval_id, force_val in *.
-  destruct (Map.get (te_of rho) p); trivial. elim H1; trivial.
+  destruct (lookup i (te_of rho)); trivial. elim H1; trivial.
 Qed.
 
-Lemma close_precondition_eval_id ids P rho:
+(*Lemma close_precondition_eval_id ids P rho:
    close_precondition ids P rho ⊣⊢
    ∃ vals:_,
      ⌜map (fun i => eval_id i rho) ids = vals /\
@@ -107,10 +110,10 @@ Proof.
 unfold close_precondition.
 apply bi.exist_proper; intros vals; apply bi.and_proper; last done; apply bi.pure_proper; intuition;
   apply (Forall_eval_id_get); trivial.
-Qed.
+Qed.*)
 
 Definition bind_args (bodyparams: list (ident * type)) (P: argsassert) : assert :=
-  local (tc_formals bodyparams)
+  tc_formals bodyparams
      ∧ close_precondition (map fst bodyparams) P.
 
 Definition ret_temp : ident := 1%positive.
@@ -124,15 +127,16 @@ Definition get_result (ret: option ident) : environ -> environ :=
  | Some x => get_result1 x
  end.
 
+(* What should we do to replace this sort of explicit environment manipulation?
+   Or should we just assume that postconditions don't refer to local variables? *)
 Definition bind_ret (vl: option val) (t: type) (Q: assert) : assert :=
      match vl, t with
-     | None, Tvoid => assert_of (fun rho => Q (make_args nil nil rho))
-     | Some v, _ => ⌜tc_val t v⌝ ∧
-                               assert_of (fun rho => Q (make_args (ret_temp::nil) (v::nil) rho))
+     | None, Tvoid => Q (*(make_args nil nil rho)*)
+     | Some v, _ => ⌜tc_val t v⌝ ∧ (temp ret_temp v -∗ Q)
      | _, _ => False
      end.
 
-Definition funassert (Delta: tycontext): assert := funspecs_assert (glob_specs Delta).
+Definition funassert (Delta: tycontext): mpred := funspecs_assert (glob_specs Delta).
 
 (* Unfortunately, we need core_load in the interface as well as address_mapsto,
   because the converse of 'mapsto_core_load' lemma is not true.  The reason is
@@ -286,21 +290,15 @@ Lemma same_glob_funassert:
   forall Delta1 Delta2,
      (forall id, (glob_specs Delta1) !! id = (glob_specs Delta2) !! id) ->
               funassert Delta1 ⊣⊢ funassert Delta2.
-Proof. intros; apply @same_FS_funspecs_assert; trivial. Qed.
+Proof. intros; iSplit; iApply same_FS_funspecs_assert; auto. Qed.
 
 Global Instance bind_ret_proper vl t : Proper (base.equiv ==> base.equiv) (bind_ret vl t).
-Proof.
-  intros ???; destruct vl; simpl.
-  - split => rho; monPred.unseal; rewrite /= H //.
-  - destruct t; try done.
-    split => rho; rewrite /= H //.
-Qed.
+Proof. solve_proper. Qed.
 
 Global Instance function_body_ret_assert_proper ret : Proper (base.equiv ==> base.equiv) (function_body_ret_assert ret).
 Proof.
   intros ???; split3; last split; simpl; try done.
-  - destruct ret; try done.
-    split => rho; rewrite /= H //.
+  - destruct ret; done.
   - intros; rewrite H //.
 Qed.
 

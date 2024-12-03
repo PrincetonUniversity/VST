@@ -10,6 +10,7 @@ Require Import VST.veric.binop_lemmas4.
 Require Import VST.veric.expr_lemmas.
 
 Require Import VST.veric.seplog. (*For definition of tycontext*)
+Require Import VST.veric.lifting_expr.
 Import LiftNotation.
 
 Section mpred.
@@ -375,5 +376,47 @@ Proof.
 Qed.
 
 End CENV_SUB.
+
+(* We can always use tc_expr to satisfy wp_expr. *)
+Lemma wp_tc_expr : forall {CS : compspecs} E Delta e P,
+  cenv_sub (@cenv_cs CS) ge ->
+  local (typecheck_environ Delta) ∧ ▷ tc_expr Delta e ∧ (∀ v, <affine> ⌜tc_val (typeof e) v⌝ -∗ <affine> local (λ rho, v = eval_expr e rho) -∗ P v) ⊢ wp_expr E e P.
+Proof.
+  split => rho; rewrite /tc_expr /wp_expr; monPred.unseal; rewrite /lift1.
+  iIntros "(% & TC) !>" (m ? <-) "Hm".
+  iDestruct (add_and _ (▷ ⌜tc_val (typeof e) (eval_expr e rho)⌝) with "TC") as "(TC & >%)".
+  { iIntros "(? & _) !>"; by iApply expr_lemmas4.typecheck_expr_sound. }
+  iCombine "TC Hm" as "H"; iDestruct (add_and _ (▷ ⌜∀ ve te, rho = construct_rho (filter_genv ge) ve te →
+    Clight.eval_expr ge ve te m e (eval_expr e rho)⌝) with "H") as "((H & ?) & >%)".
+  { iIntros "((H & _) & Hm) !>" (???).
+    iApply expr_lemmas4.eval_expr_relate; eauto; iFrame. }
+  rewrite bi.and_elim_r.
+  iIntros "!>"; iExists (eval_expr e rho); iFrame.
+  iSplit; first done.
+  iApply "H"; auto; rewrite monPred_at_affinely //.
+Qed.
+
+Lemma wp_tc_lvalue : forall {CS : compspecs} E Delta e P,
+  cenv_sub (@cenv_cs CS) ge ->
+  local (typecheck_environ Delta) ∧ ▷ tc_lvalue Delta e ∧
+  (∀ b o, <affine> local (λ rho, eval_lvalue e rho = Vptr b (Ptrofs.repr o)) -∗ P (b, o)) ⊢
+  wp_lvalue E e P.
+Proof.
+  split => rho; rewrite /tc_lvalue /wp_lvalue; monPred.unseal; rewrite /lift1.
+  iIntros "(% & TC) !>" (m ? <-) "Hm".
+  iDestruct (add_and _ (▷ ⌜isptr (eval_lvalue e rho)⌝) with "TC") as "(TC & >%)".
+  { iIntros "(? & _) !>"; edestruct expr_lemmas4.typecheck_both_sound as (_ & Htc); first done.
+    by iApply (Htc (Tstruct 1%positive noattr)). }
+  iCombine "TC Hm" as "H"; iDestruct (add_and _ (▷ ⌜∀ ve te, rho = construct_rho (filter_genv ge) ve te →
+    ∃ b o, Clight.eval_lvalue ge ve te m e b o Full ∧ eval_lvalue e rho = Vptr b o⌝) with "H") as "((H & ?) & >%Heval)".
+  { iIntros "((H & _) & Hm) !>" (???).
+    iApply expr_lemmas4.eval_lvalue_relate; eauto; iFrame. }
+  rewrite bi.and_elim_r; iIntros "!>".
+  destruct (eval_lvalue e rho) eqn: He; try contradiction.
+  iExists _, _; iSplit.
+  - iIntros (???); edestruct Heval as (? & ? & ? & [=]); by subst.
+  - iFrame; iApply "H"; auto; rewrite monPred_at_affinely.
+    rewrite Ptrofs.repr_unsigned //.
+Qed.
 
 End mpred.

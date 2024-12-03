@@ -140,10 +140,15 @@ Qed.
 Ltac unfold_cop2_sem_cmp :=
 unfold Clight_Cop2.sem_cmp, Clight_Cop2.sem_cmp_pl, Clight_Cop2.sem_cmp_lp, Clight_Cop2.sem_cmp_pp.
 
+Definition env_matches (rho : environ) (ge : genv) (ve : env) (te : temp_env) :=
+  (forall i, Genv.find_symbol ge i = lookup i (ge_of rho)) /\
+  (forall i, ve !! i = lookup i (ve_of rho)) /\
+  (forall i, te !! i = lookup i (te_of rho)).
+
 Lemma eval_binop_relate:
  forall {CS: compspecs} Delta (ge: genv) te ve rho b e1 e2 t m
         (Hcenv: cenv_sub (@cenv_cs CS) (genv_cenv ge)),
-    rho = construct_rho (filter_genv ge) ve te ->
+    (* Do we actually need this? *)
     typecheck_environ Delta rho ->
     (mem_auth m ∗ denote_tc_assert (typecheck_expr Delta e1) rho ⊢
       ⌜Clight.eval_expr ge ve te m e1 (eval_expr e1 rho)⌝) ->
@@ -158,9 +163,9 @@ unfold typecheck_expr; fold typecheck_expr.
 simpl in *. super_unfold_lift.
 rewrite !denote_tc_assert_andp.
 iIntros "[Hm H]".
-iDestruct (H1 with "[$Hm H]") as %?.
+iDestruct (H0 with "[$Hm H]") as %?.
 { iDestruct "H" as "((_ & $) & _)". }
-iDestruct (H2 with "[$Hm H]") as %?.
+iDestruct (H1 with "[$Hm H]") as %?.
 { iDestruct "H" as "(_ & $)". }
 rewrite !typecheck_expr_sound; try assumption.
 iDestruct "H" as "[[H %] %]".
@@ -211,7 +216,7 @@ forall {CS: compspecs} (Delta : tycontext) (rho : environ) (b : binary_operation
   (e1 e2 : expr) (t : type) m,
 typecheck_environ  Delta rho ->
 forall (ge : genv) te ve,
-rho = construct_rho (filter_genv ge) ve te ->
+(*rho = construct_rho (filter_genv ge) ve te ->*)
 denote_tc_assert (typecheck_expr Delta e2) rho ∧
 denote_tc_assert (isBinOpResultType b e1 e2 t) rho ∧
 denote_tc_assert (typecheck_expr Delta e1) rho ⊢
@@ -500,7 +505,7 @@ Qed.
 Lemma eval_unop_relate:
  forall {CS: compspecs} Delta (ge: genv) te ve rho u e t m
  (Hcenv: cenv_sub (@cenv_cs CS) (genv_cenv ge))
- (H : rho = construct_rho (filter_genv ge) ve te)
+(* (H : matches_env rho ge ve te) *)
  (H0 : typecheck_environ Delta rho)
  (H1 : mem_auth m ∗ denote_tc_assert (typecheck_expr Delta e) rho ⊢
      ⌜Clight.eval_expr ge ve te m e (eval_expr e rho)⌝)
@@ -532,7 +537,7 @@ destruct u; simpl; destruct (typeof e) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | 
   unfold bool_val, bool_val_p in *;
   destruct (eval_expr e rho) eqn:He'; inversion Heqo; auto;
   try (iDestruct "H" as "[%Hptr H]"; rewrite -> Hptr in *; try contradiction).
-- by destruct Archi.ptr64; inv H4.
+- by destruct Archi.ptr64; inv H3.
 - rewrite denote_tc_assert_test_eq' /=; unfold_lift; rewrite /denote_tc_test_eq He'.
   destruct Archi.ptr64 eqn: Hp; try discriminate; simpl.
   iDestruct "H" as "(% & _ & H)".
@@ -566,7 +571,7 @@ Qed.
 Lemma eval_both_relate:
   forall {CS: compspecs} Delta ge te ve rho e m
            (Hcenv : cenv_sub (@cenv_cs CS) (genv_cenv ge)),
-           rho = construct_rho (filter_genv ge) ve te ->
+           env_matches rho ge ve te ->
            typecheck_environ Delta rho ->
            (mem_auth m ∗ denote_tc_assert (typecheck_expr Delta e) rho ⊢
              ⌜Clight.eval_expr ge ve te m e (eval_expr e rho)⌝)
@@ -584,7 +589,7 @@ simpl in *.
 unfold typecheck_expr.
 destruct (access_mode t) eqn:MODE; try iDestruct "H" as "[]".
 unfold get_var_type, eval_var in *.
-remember (Map.get (ve_of rho) i) as o; destruct o as [(?, ?)|];
+remember (lookup i (ve_of rho)) as o; destruct o as [(?, ?)|];
 try rewrite eqb_type_eq in *; simpl in *.
 rewrite eqb_type_eq in TC |- *; destruct (type_eq t t0); [|apply tc_val_Vundef in TC; contradiction].
 subst t0.
@@ -592,9 +597,7 @@ iPureIntro.
 apply Clight.eval_Elvalue with b Ptrofs.zero Full;
   [ | constructor; simpl; rewrite MODE; auto].
 apply eval_Evar_local.
-subst rho.
-simpl in Heqo. symmetry in Heqo; apply Heqo.
-subst rho.
+destruct H as (_ & -> & _). symmetry in Heqo; apply Heqo.
 unfold typecheck_environ in *.
 destruct H0 as [? [Hve Hge]].
 hnf in Hve,Hge.
@@ -606,12 +609,13 @@ destruct (Hge _ _ Hg) as [b Hfind]; rewrite Hfind.
 iPureIntro.
 apply Clight.eval_Elvalue with b Ptrofs.zero Full; [  | econstructor 2; apply MODE].
 apply Clight.eval_Evar_global; auto.
+{ by destruct H as (_ & -> & _). }
+{ by destruct H as (-> & _). }
 
 * (* eval_lvalue Evar *)
  unfold typecheck_lvalue.
  unfold get_var_type.
- subst rho; simpl in *.
- unfold eval_var.
+ unfold eval_lvalue, eval_var.
  destruct_var_types i eqn:HH1&HH2; rewrite -> ?HH1, ?HH2 in *;
   [| destruct_glob_types i eqn:HH3&HH4; rewrite -> ?HH3, ?HH4 in *; [| iDestruct "H" as "[]"]].
  +
@@ -620,18 +624,22 @@ apply Clight.eval_Evar_global; auto.
  apply eqb_type_true in Heqb0; subst t0.
  exists b; exists Ptrofs.zero; split; auto.
  constructor; auto.
+ by destruct H as (_ & -> & _).
  +
  iPureIntro.
  exists b; exists Ptrofs.zero; split; auto.
  constructor 2; auto.
+ { by destruct H as (_ & -> & _). }
+ { by destruct H as (-> & _ & _). }
 
 * (*temp*)
 iDestruct (typecheck_expr_sound with "H") as %TC; first done.
 simpl in *.
 iPureIntro.
-constructor. unfold eval_id in *. remember (Map.get (te_of rho) i);
+constructor. unfold eval_id in *. remember (lookup i (te_of rho));
 destruct o; subst; auto.
-apply tc_val_Vundef in TC; contradiction.
+{ by destruct H as (_ & _ & ->). }
+{ apply tc_val_Vundef in TC; contradiction. }
 
 * (*deref*)
 unfold typecheck_expr; fold typecheck_expr.
@@ -790,7 +798,7 @@ Qed.
 Lemma eval_expr_relate:
   forall {CS: compspecs} Delta ge te ve rho e m,
            cenv_sub (@cenv_cs CS) (genv_cenv ge) ->
-           rho = construct_rho (filter_genv ge) ve te ->
+           env_matches rho ge ve te ->
            typecheck_environ Delta rho ->
            mem_auth m ∗ denote_tc_assert (typecheck_expr Delta e) rho ⊢
              ⌜Clight.eval_expr ge ve te m e (eval_expr e rho)⌝.
@@ -802,7 +810,7 @@ Qed.
 Lemma eval_lvalue_relate:
   forall {CS: compspecs} Delta ge te ve rho e m,
            cenv_sub (@cenv_cs CS) (genv_cenv ge) ->
-           rho = construct_rho (filter_genv ge) ve te->
+           env_matches rho ge ve te ->
            typecheck_environ Delta rho ->
            mem_auth m ∗ denote_tc_assert (typecheck_lvalue Delta e) rho ⊢
              ⌜exists b, exists ofs,

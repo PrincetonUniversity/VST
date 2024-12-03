@@ -89,25 +89,24 @@ Lemma typecheck_environ_put_te : forall ge te ve Delta id v ,
   typecheck_environ Delta (mkEnviron ge ve te) ->
   (forall t , ((temp_types Delta) !! id = Some t ->
      tc_val' t v)) ->
-  typecheck_environ Delta (mkEnviron ge ve (Map.set id v te)).
+  typecheck_environ Delta (mkEnviron ge ve (<[id := v]>te)).
 Proof.
   intros. unfold typecheck_environ in *. simpl in *.
   intuition. clear H H3.
   destruct Delta. unfold temp_types in *; simpl in *.
   unfold typecheck_temp_environ.
-  intros. rewrite Map.gsspec.
-  if_tac.
-  + subst. exists v; intuition.
-  + simpl in *. specialize (H1 id0 _ H). auto.
+  intros. destruct (eq_dec id0 id).
+  + subst; rewrite lookup_insert. exists v; intuition.
+  + rewrite lookup_insert_ne //. specialize (H1 id0 _ H). auto.
 Qed.
 
 Lemma typecheck_environ_put_te' : forall ge te ve Delta id v ,
  typecheck_environ  Delta (mkEnviron ge ve te) ->
 (forall t , ((temp_types Delta) !! id = Some t -> tc_val' t v)) ->
-typecheck_environ Delta (mkEnviron ge ve (Map.set id v te)).
+typecheck_environ Delta (mkEnviron ge ve (<[id := v]>te)).
 Proof.
 intros.
-assert (typecheck_environ Delta (mkEnviron ge ve (Map.set id v te))).
+assert (typecheck_environ Delta (mkEnviron ge ve (<[id := v]> te))).
 apply typecheck_environ_put_te; auto.
 
 unfold typecheck_environ in *. simpl in *.

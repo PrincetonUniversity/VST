@@ -63,9 +63,9 @@ Proof.
   try solve [revert H0; repeat simple_if_tac; intros; congruence].
 Qed.
 
-Lemma map_ptree_rel : forall id v te, Map.set id v (make_tenv te) = make_tenv (Maps.PTree.set id v te).
+(*Lemma map_ptree_rel : forall id v te, Map.set id v (make_tenv te) = make_tenv (Maps.PTree.set id v te).
 intros. unfold Map.set. unfold make_tenv. extensionality. rewrite Maps.PTree.gsspec; auto.
-Qed.
+Qed.*)
 
 Section mpred.
 

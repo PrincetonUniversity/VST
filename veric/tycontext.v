@@ -84,7 +84,7 @@ Definition type_of_global (ge: Clight.genv) (b: block) : option type :=
       end
   end.
 
-Definition filter_genv (ge: Clight.genv) : genviron :=
+(*Definition filter_genv (ge: Clight.genv) : genviron :=
     Genv.find_symbol ge.
 
 Definition make_tenv (te : Clight.temp_env) : tenviron := fun id => Maps.PTree.get id te.
@@ -93,7 +93,7 @@ Definition make_venv (te : Clight.env) : venviron := fun id => Maps.PTree.get id
 
 Definition construct_rho ge ve te:= mkEnviron ge (make_venv ve) (make_tenv te) .
 
-Definition empty_environ (ge: Clight.genv) := mkEnviron (filter_genv ge) (Map.empty _) (Map.empty _).
+Definition empty_environ (ge: Clight.genv) := mkEnviron (filter_genv ge) (Map.empty _) (Map.empty _).*)
 
 (** Definitions related to function specifications and return assertions **)
 Inductive exitkind : Type := EK_normal | EK_break | EK_continue | EK_return.
@@ -355,6 +355,8 @@ Proof.
 intros.
 destruct H as [? [? [? [? [? ?]]]]]; repeat split; auto.
 Qed.
+
+Context `{!envGS Σ}.
 
 Record ret_assert : Type := {
  RA_normal: assert;

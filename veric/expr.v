@@ -68,12 +68,12 @@ Definition eval_field {CS: compspecs} (ty: type) (fld: ident) : val -> val :=
           end.
 
 Definition eval_var (id:ident) (ty: type) (rho: environ) : val :=
-                         match Map.get (ve_of rho) id with
+                         match lookup id (ve_of rho) with
                          | Some (b,ty') => if eqb_type ty ty'
                                                     then Vptr b Ptrofs.zero
                                                     else Vundef
                          | None =>
-                            match Map.get (ge_of rho) id with
+                            match lookup id (ge_of rho) with
                             | Some b => Vptr b Ptrofs.zero
                             | None => Vundef
                             end
@@ -863,12 +863,12 @@ Qed.
 
 Definition expr_closed_wrt_vars {CS: compspecs}(S: ident -> Prop) (e: expr) : Prop :=
   forall rho te',
-     (forall i, S i \/ Map.get (te_of rho) i = Map.get te' i) ->
+     (forall i, S i \/ lookup i (te_of rho) = lookup i te') ->
      eval_expr e rho = eval_expr e (mkEnviron (ge_of rho) (ve_of rho) te').
 
 Definition lvalue_closed_wrt_vars {CS: compspecs}(S: ident -> Prop) (e: expr) : Prop :=
   forall rho te',
-     (forall i, S i \/ Map.get (te_of rho) i = Map.get te' i) ->
+     (forall i, S i \/ lookup i (te_of rho) = lookup i te') ->
      eval_lvalue e rho = eval_lvalue e (mkEnviron (ge_of rho) (ve_of rho) te').
 
 
@@ -1059,13 +1059,12 @@ Global Arguments typecheck_lvalue {_ _ _} _ !e / : simpl nomatch.
 
 Lemma typecheck_var_environ_None: forall ve vt,
   typecheck_var_environ ve vt ->
-  forall i,
-  vt !! i = None <-> Map.get ve i = None.
+  forall (i : ident),
+  vt !! i = None <-> lookup i ve = None.
 Proof.
   intros.
-  destruct (vt !! i) eqn:?H, (Map.get ve i) eqn:?H; try (split; congruence).
-  + apply H in H0.
-    destruct H0; congruence.
+  destruct (vt !! i) eqn:?H, (ve !! i)%stdpp eqn:?H; try (split; congruence).
+  + apply H in H0 as (? & ?); congruence.
   + destruct p.
     assert (vt !! i = Some t) by (apply H; eauto).
     congruence.
@@ -1075,8 +1074,8 @@ Qed.
 Lemma WARNING___________you_should_use_tactic___destruct_var_types___instead:
   forall (ve : venviron) (vt : Maps.PTree.t type), typecheck_var_environ ve vt -> forall i : ident,
      match vt !! i with
-     | Some t => exists b, Map.get ve i = Some (b, t)
-     | None => Map.get ve i = None
+     | Some t => exists b, lookup i ve = Some (b, t)
+     | None => lookup i ve = None
      end.
 Proof.
   intros.
@@ -1093,7 +1092,7 @@ Qed.
 Lemma WARNING___________you_should_use_tactic___destruct_glob_types___instead:
   forall (ge : genviron) (gt : Maps.PTree.t type), typecheck_glob_environ ge gt -> forall i : ident,
      match gt !! i with
-     | Some t => exists b, Map.get ge i = Some b
+     | Some t => exists b, lookup i ge = Some b
      | None => True
      end.
 Proof.

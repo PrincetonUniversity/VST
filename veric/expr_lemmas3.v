@@ -27,8 +27,8 @@ Qed.
 Definition empty_genv cenv := Build_genv (Globalenvs.Genv.empty_genv fundef type nil) cenv.
 Definition empty_tenv := Maps.PTree.empty val.
 
-Definition empty_environ cenv : environ :=
-mkEnviron (filter_genv (empty_genv cenv)) (Map.empty _) (Map.empty _).
+(*Definition empty_environ cenv : environ :=
+mkEnviron (filter_genv (empty_genv cenv)) (Map.empty _) (Map.empty _).*)
 
 Lemma Zle_bool_rev: forall x y, Zle_bool x y = Zge_bool y x.
 Proof.

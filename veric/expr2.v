@@ -258,7 +258,7 @@ Definition denote_tc_nosignedover (op: Z->Z->Z) (s: signedness) v1 v2 : mpred :=
  end.
 
 Definition denote_tc_initialized id ty rho : mpred :=
-    ⌜exists v, Map.get (te_of rho) id = Some v
+    ⌜exists v, lookup id (te_of rho) = Some v
                /\ tc_val ty v⌝.
 
 Definition denote_tc_isptr v : mpred :=
@@ -310,6 +310,7 @@ Definition denote_tc_test_order v1 v2 : mpred :=
 
 Definition typecheck_error (e: tc_error) : Prop := False.
 
+(* The only place we use the environ here is in tc_initialized. *)
 Fixpoint denote_tc_assert {CS: compspecs}(a: tc_assert) : environ -> mpred :=
   match a with
   | tc_FF msg => `(⌜typecheck_error msg⌝)

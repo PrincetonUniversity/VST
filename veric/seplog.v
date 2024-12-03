@@ -18,7 +18,7 @@ Tactic Notation "intuition" :=
 
 Section mpred.
 
-Context `{!heapGS Σ}.
+Context `{!heapGS Σ} `{!envGS Σ}.
 Local Notation mpred := (@mpred Σ).
 Local Notation funspec := (@funspec Σ).
 Local Notation assert := (@assert Σ).
@@ -95,24 +95,23 @@ Definition make_tycontext (params: list (ident*type)) (temps: list (ident*type))
 
 Definition typecheck_temp_environ
 (te: tenviron) (tc: Maps.PTree.t type) :=
-forall (id : ident) ty , tc !! id = Some ty  -> exists v, Map.get te id = Some v /\ tc_val' ty v.
+forall (id : ident) ty , tc !! id = Some ty -> exists v, lookup id te = Some v /\ tc_val' ty v.
 
 Definition typecheck_var_environ
 (ve: venviron) (tc: Maps.PTree.t type) :=
-forall (id : ident) ty, tc !! id = Some ty <-> exists v, Map.get ve id = Some(v,ty).
+forall (id : ident) ty, tc !! id = Some ty <-> exists v, lookup id ve = Some (v,ty).
 
 Definition typecheck_glob_environ
 (ge: genviron) (tc: Maps.PTree.t type) :=
 forall (id : ident) t, tc !! id = Some t ->
-(exists b, Map.get ge id = Some b).
+(exists b, lookup id ge = Some b).
 
 Definition typecheck_environ (Delta: tycontext) (rho : environ) :=
 typecheck_temp_environ (te_of rho) (temp_types Delta) /\
 typecheck_var_environ  (ve_of rho) (var_types Delta) /\
 typecheck_glob_environ (ge_of rho) (glob_types Delta).
 
-Definition local: (environ -> Prop) -> assert := fun l => assert_of (lift1 bi_pure l).
-
+(* should this be a predicate? *)
 Definition tc_environ (Delta: tycontext) : environ -> Prop :=
    fun rho => typecheck_environ Delta rho.
 
@@ -148,7 +147,7 @@ unfold typecheck_glob_environ. apply Axioms.prop_ext; split; intros. apply H.
 split; trivial. intros. rewrite Maps.PTree.gempty // in H0.
 Qed.
 
-Lemma fssub_prop2: forall rt rho, (local (tc_environ (rettype_tycontext rt)) rho) ⊣⊢ ⌜ve_of rho = Map.empty (block * type)⌝.
+(*Lemma fssub_prop2: forall rt rho, (local (tc_environ (rettype_tycontext rt)) rho) ⊣⊢ ⌜ve_of rho = Map.empty (block * type)⌝.
 intros. unfold local, tc_environ, lift1.
 unfold rettype_tycontext, typecheck_environ, typecheck_temp_environ,
 typecheck_var_environ, typecheck_glob_environ.
@@ -165,7 +164,7 @@ reflexivity.
  split; intros. rewrite Maps.PTree.gempty in H; congruence.
  destruct H. inv H.
  rewrite Maps.PTree.gempty in H. congruence.
-Qed.
+Qed.*)
 
 Open Scope bi_scope.
 
@@ -260,12 +259,11 @@ match f1 with
     match f2 with
     | mk_funspec tpsig2 cc2 A2 E2 P2 Q2 =>
         ⌜tpsig1=tpsig2 /\ cc1=cc2⌝ ∧
-       ▷ ■ ∀ (x2:dtfr A2) (gargs:genviron * list val),
-        ((⌜argsHaveTyps (snd gargs) (fst tpsig1)⌝ ∧ P2 x2 gargs)
+       ▷ ■ ∀ (x2: dtfr A2) (args: list val) n,
+        ((⌜argsHaveTyps ((*snd*) args) (fst tpsig1)⌝ ∧ P2 x2 args n)
          ={E2 x2}=∗ (∃ x1 F, ⌜E1 x1 ⊆ E2 x2⌝ ∧
-            (F ∗ (P1 x1 gargs)) ∧
-            ∀ rho', (■(((⌜ve_of rho' = Map.empty (block * type)⌝ ∧ (F ∗ (Q1 x1 rho')))
-                         -∗ (Q2 x2 rho'))))))
+            (F ∗ (P1 x1 args n)) ∧
+            ∀ n', (■((F ∗ (Q1 x1 n')) -∗ Q2 x2 n'))))
     end
 end.
 
@@ -275,14 +273,11 @@ match f1 with
     match f2 with
     | mk_funspec tpsig2 cc2 A2 E2 P2 Q2 =>
         (tpsig1=tpsig2 /\ cc1=cc2) /\
-        forall (x2:dtfr A2) (gargs:argsEnviron),
-        (⌜argsHaveTyps(snd gargs)(fst tpsig1)⌝ ∧ P2 x2 gargs)
+        forall (x2:dtfr A2) (gargs:list val) n,
+        (⌜argsHaveTyps(gargs)(fst tpsig1)⌝ ∧ P2 x2 gargs n)
          ⊢ |={E2 x2}=> (∃ (x1:dtfr A1) (F:_), ⌜E1 x1 ⊆ E2 x2⌝ ∧
-                           (F ∗ (P1 x1 gargs)) ∧
-                               (⌜forall rho',
-                                           (⌜ve_of rho' = Map.empty (block * type)⌝ ∧
-                                                 (F ∗ (Q1 x1 rho')))
-                                         ⊢ (Q2 x2 rho')⌝))
+                           (F ∗ (P1 x1 gargs n)) ∧
+                               (⌜∀ n', (F ∗ (Q1 x1 n')) ⊢ Q2 x2 n'⌝))
     end
 end.
 
@@ -297,11 +292,11 @@ Proof.
   intros. destruct f1; destruct f2; simpl in *.
   destruct H as [[? ?] H']; subst.
   iSplit; first done.
-  iIntros "!> !>" (x2 gargs) "H".
+  iIntros "!> !>" (x2 gargs n) "H".
   iMod (H' with "H") as (x1 F HE) "[H' %]".
   iIntros "!>"; iExists x1, F; iFrame.
   iSplit; auto; iSplit; auto.
-  iIntros (rho') "!> H".
+  iIntros (?) "!> H".
   by iApply H.
 Qed.
 
@@ -311,32 +306,20 @@ Proof.
   destruct f1; destruct f2; simpl in *.
   destruct H as [[? ?] H']; subst.
   iIntros "?"; iSplit; first done.
-  iIntros "!> !>" (x2 gargs) "H".
+  iIntros "!> !>" (x2 gargs n) "H".
   iMod (H' with "H") as (x1 F HE) "[H' %]".
   iIntros "!>"; iExists x1, F; iFrame.
   iSplit; auto; iSplit; auto.
-  iIntros (rho') "!> H".
+  iIntros (?) "!> H".
   by iApply H.
 Qed.
 
-(*
-Lemma funspec_sub_early_sub_si f1 f2: funspec_sub_early f1 f2 ⊢ funspec_sub_si f1 f2.
-Proof. intros p P. destruct f1; destruct f2; simpl in *.
-destruct P as [[? ?] H']; subst. split; [split; trivial |].
-intros ts2 x2 rho y WY k YK K c J.
-destruct (H' ts2 x2 rho) as [ts1 [x1 [F HF]]]; clear H'.
-destruct (HF _ WY _ YK K) as [(? & J' & m' & Hl & ? & ? & HF1) HF2]; eauto; subst.
-eexists; split; eauto; exists m'; repeat (split; auto).
-exists ts1, x1, F. rewrite Hl; auto.
-Qed.
-*)
-
 Lemma funspec_sub_refl f: funspec_sub f f.
 Proof.
-  destruct f; split; [ split3; trivial | intros x2 rho].
+  destruct f; split; [ split3; trivial | intros x2 rho n].
   iIntros "[_ P] !>".
   iExists x2, emp%I; iFrame; iPureIntro.
-  split3; auto; intros; iIntros "(_ & _ & $)".
+  split3; auto; intros; iIntros "(_ & $)".
 Qed.
 
 (* allows to unify A1 A2 first, as P, Q may depend on A *)
@@ -358,7 +341,7 @@ Proof.
   destruct f1 as [cc1 sig1 A1 E1 P1 Q1]; destruct f2 as [cc2 sig2 A2 E2 P2 Q2]; destruct f3 as [cc3 sig3 A3 E3 P3 Q3].
   intros [(? & ?) H12]; subst sig1 cc1.
   intros [(? & ?) H23]; subst sig2 cc2.
-  split; [split3; trivial | intros x rho].
+  split; [split3; trivial | intros x rho n].
   iIntros "[% H]".
   iMod (H23 with "[$H]") as (x2 F2 HE2) "[[F2 H] %H32]"; first done.
   iMod (fupd_mask_subseteq (E2 x2)) as "Hmask"; first done.
@@ -368,8 +351,8 @@ Proof.
   iFrame; iPureIntro.
   split3; auto; intros.
   { by etrans. }
-  iIntros "(% & [F2 F1] & H)".
-  by iApply H32; iFrame "% F2"; iApply H21; iFrame.
+  iIntros "([F2 F1] & H)".
+  by iApply H32; iFrame "F2"; iApply H21; iFrame.
 Qed.
 
 Lemma funspec_sub_si_refl f: ⊢ funspec_sub_si f f.
@@ -385,31 +368,31 @@ Proof.
   iIntros "[[(-> & ->) #H12] [(-> & ->) #H23]]".
   iSplit.
   { iPureIntro; split3; trivial; by etrans. }
-  iIntros "!> !>" (x gargs) "[% H]".
+  iIntros "!> !>" (x gargs n) "[% H]".
   iMod ("H23" with "[$H]") as (x2 F2 HE2) "H"; first done.
-  rewrite -plainly_forall; iDestruct "H" as "[[F2 H] #H32]".
+  iDestruct "H" as "[[F2 H] #H32]".
   iMod (fupd_mask_subseteq (E2 x2)) as "Hmask"; first done.
   iMod ("H12" with "[$H]") as (x1 F1 HE1) "H"; first done.
-  rewrite -plainly_forall; iDestruct "H" as "[[F1 H] #H21]".
+  iDestruct "H" as "[[F1 H] #H21]".
   iMod "Hmask" as "_".
   iIntros "!>"; iExists x1, (F2 ∗ F1)%I.
   iFrame; iSplit.
   { iPureIntro; by etrans. }
   iSplit; first done.
-  iIntros (rho') "!> (% & [F2 F1] & H)".
-  by iApply "H32"; iFrame "% F2"; iApply "H21"; iFrame.
+  iIntros (?) "!> ([F2 F1] & H)".
+  by iApply "H32"; iFrame "F2"; iApply "H21"; iFrame.
 Qed.
 
 Global Instance funspec_sub_si_nonexpansive : NonExpansive2 (funspec_sub_si).
 Proof.
   intros ? [?????] [?????] (? & ? & ? & HE1 & HP1 & HQ1) [?????] [?????] (? & ? & ? & HE2 & HP2 & HQ2); subst; simpl in *.
-  do 8 f_equiv.
-  { rewrite (HP2 _ _) //. }
+  do 10 f_equiv.
+  { rewrite (HP2 _ _ _) //. }
   rewrite HE2.
   do 6 f_equiv.
   { rewrite HE1 //. }
   f_equiv.
-  { rewrite (HP1 _ _) //. }
+  { rewrite (HP1 _ _ _) //. }
   do 4 f_equiv.
   { rewrite (HQ1 _ _) //. }
   { rewrite (HQ2 _ _) //. }
@@ -569,27 +552,29 @@ Proof.
   rewrite !bi.later_and.
   iDestruct "H" as "(>(-> & ->) & #(HP & HQ))".
   iSplit; first done.
-  iIntros (x gargs).
+  iIntros (x gargs n).
   iIntros "!> !> !>".
   rewrite !ofe_morO_equivI.
   iSpecialize ("HP" $! x); iSpecialize ("HQ" $! x).
   rewrite !discrete_fun_equivI.
   iSpecialize ("HP" $! gargs).
+  rewrite !discrete_fun_equivI.
+  iSpecialize ("HP" $! n).
   iRewrite -"HP"; iIntros "(% & H) !>".
   iExists x, emp; iFrame.
   iSplit; first done; iSplit; first done.
-  iIntros (rho) "!> (_ & _ & H)".
-  iSpecialize ("HQ" $! rho); iRewrite -"HQ"; done.
+  iIntros (n') "!> (_ & H)".
+  iRewrite -("HQ" $! n'); done.
 Qed.
 
 Program Definition closed_wrt_vars `{Equiv B} (S: ident -> Prop) (F: environ -> B) : Prop :=
   forall rho te',
-     (forall i, S i \/ Map.get (te_of rho) i = Map.get te' i) ->
+     (forall i, S i \/ lookup i (te_of rho) = lookup i te') ->
      (F rho ≡ F (mkEnviron (ge_of rho) (ve_of rho) te'))%stdpp.
 
 Definition closed_wrt_lvars `{Equiv B} (S: ident -> Prop) (F: environ -> B) : Prop :=
   forall rho ve',
-     (forall i, S i \/ Map.get (ve_of rho) i = Map.get ve' i) ->
+     (forall i, S i \/ lookup i (ve_of rho) = lookup i ve') ->
      (F rho ≡ F (mkEnviron (ge_of rho) ve' (te_of rho)))%stdpp.
 
 Definition not_a_param (params: list (ident * type)) (i : ident) : Prop :=
@@ -618,22 +603,24 @@ Proof.
   destruct spec. by iIntros "H"; iDestruct "H" as (b ->) "_".
 Qed.
 
-Lemma subst_extens:
-  forall a v (P Q : assert), (P ⊢ Q) -> assert_of (subst a v P) ⊢ assert_of (subst a v Q).
+(*Lemma subst_extens:
+  forall a v (P Q : assert), (P ⊢ Q) -> subst a v P ⊢ subst a v Q.
 Proof.
   unfold subst; constructor; intros; simpl.
   apply H.
-Qed.
+Qed.*)
 
-Definition funspecs_assert (FunSpecs: Maps.PTree.t funspec): assert :=
- assert_of (fun rho =>
-   (□ (∀ id: ident, ∀ fs:funspec,  ⌜Maps.PTree.get id FunSpecs = Some fs⌝ →
-            ∃ b:block,⌜Map.get (ge_of rho) id = Some b⌝ ∧ func_at fs (b,0)) ∗
-   (∀ b fsig cc, sigcc_at fsig cc (b, 0) -∗
-           ⌜∃ id, Map.get (ge_of rho) id = Some b ∧ ∃ fs, Maps.PTree.get id FunSpecs = Some fs⌝))).
+
+Definition gvar (id : ident) (b : block) : mpred := own(inG0 := envGS_inG) env_name (gmap_view.gmap_view_frag id dfrac.DfracDiscarded (to_agree b), ε).
+
+Definition funspecs_assert (FunSpecs: Maps.PTree.t funspec): mpred :=
+   (□ (∀ id: ident, ∀ fs:funspec, ⌜Maps.PTree.get id FunSpecs = Some fs⌝ →
+            ∃ b:block, gvar id b ∗ func_at fs (b,0)) ∗
+   (∀ b fsig cc, sigcc_at fsig cc (b, 0) -∗ ∃ id, gvar id b ∗
+           ⌜∃ fs, Maps.PTree.get id FunSpecs = Some fs⌝)).
 (* We can substantiate this using the authoritative funspecs. *)
 
-Definition globals_only (rho: environ) : environ := (mkEnviron (ge_of rho) (Map.empty _) (Map.empty _)).
+Definition globals_only (rho: environ) : environ := (mkEnviron (ge_of rho) empty empty).
 
 Fixpoint make_args (il: list ident) (vl: list val) (rho: environ)  :=
   match il, vl with
@@ -652,7 +639,7 @@ induction s; intros.
 Qed.
 
 Lemma ve_of_make_args:
-    forall s a rho, length s = length a -> ve_of (make_args s a rho) = (Map.empty (block * type)).
+    forall s a rho, length s = length a -> ve_of (make_args s a rho) = empty.
 Proof.
 induction s; intros.
  destruct a; inv H; auto.
@@ -663,21 +650,17 @@ Qed.
 Lemma same_FS_funspecs_assert:
   forall FS1 FS2,
      (forall id, FS1 !! id = FS2 !! id) ->
-              funspecs_assert FS1 ⊣⊢ funspecs_assert FS2.
+              funspecs_assert FS1 ⊢ funspecs_assert FS2.
 Proof.
-assert (forall FS FS' rho,
-             (forall id, FS !! id = FS' !! id) ->
-             funspecs_assert FS rho ⊢ funspecs_assert FS' rho).
-{ intros. rewrite /funspecs_assert.
+  intros. rewrite /funspecs_assert.
   iIntros "(#H1 & H2)"; iSplitL "".
   - iIntros "!>" (??); rewrite -H //.
-  - setoid_rewrite <- H; done. }
-split=> rho; iSplit; iApply H; auto.
+  - setoid_rewrite <- H; done.
 Qed.
 
-Lemma funspecs_assert_rho:
+(*Lemma funspecs_assert_rho:
   forall G rho rho', ge_of rho = ge_of rho' -> funspecs_assert G rho ⊢ funspecs_assert G rho'.
-Proof. rewrite /funspecs_assert /=; intros. rewrite H; auto. Qed.
+Proof. rewrite /funspecs_assert /=; intros. rewrite H; auto. Qed.*)
 
 Definition callingconvention_of_funspec (phi:funspec): calling_convention :=
   match phi with
@@ -938,7 +921,7 @@ Proof.
     iSplit; first done.
     iSplit; first done.
     iPureIntro; simpl.
-    intros; iIntros "(% & _ & $)".
+    intros; iIntros "(_ & $)".
   + split; [split3; trivial | intros].
     iIntros "(% & P) !>".
     iExists (existT false x2), emp.
@@ -946,7 +929,7 @@ Proof.
     iSplit; first done.
     iSplit; first done.
     iPureIntro; simpl.
-    intros; iIntros "(% & _ & $)".
+    intros; iIntros "(_ & $)".
 Qed.
 
 Lemma BINARY_intersection_sub3 phi psi omega:
@@ -1113,9 +1096,9 @@ Proof.
     simpl in *; inv Heqzz.
     apply inj_pair2 in H5; subst; trivial.
   + iPureIntro; intros; rewrite bi.emp_sep. unfold intersectionPOST.
-    iIntros "(% & ?)". destruct (phi i).
+    iIntros "?". destruct (phi i).
     simpl in *; inv Heqzz.
-    apply inj_pair2 in H7; subst; trivial.
+    apply inj_pair2 in H6; subst; trivial.
 Qed.
 
 Lemma generalintersection_sub3  {I sig cc}
@@ -1159,7 +1142,7 @@ Lemma tc_temp_environ_elim: forall {params temps trho},
       list_norepet (map fst params ++ map fst temps) ->
       typecheck_temp_environ trho (make_tycontext_t params temps) ->
       forall i ty, In (i,ty) params -> 
-      exists v : val, Map.get trho i = Some v /\ tc_val' ty v.
+      exists v : val, lookup i trho = Some v /\ tc_val' ty v.
 Proof.
   induction params.
   + intros. inv H1.
