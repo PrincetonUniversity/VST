@@ -409,7 +409,7 @@ Notation frameR := (prodR ((iris.algebra.gmap.gmapR ident (iris.algebra.excl.exc
 
 Notation envR := (ora.prodR
     (ext_order.inclR (gmap_view.gmap_viewR ident (agree.agreeR (leibnizO block))))
-    (ext_order.inclR (iris.algebra.auth.authR (iris.algebra.gmap.gmapR nat (fixed_fracR frameR))))).
+    (ext_order.inclR (iris.algebra.auth.authR (iris.algebra.gmap.gmapUR nat (fixed_fracR frameR))))).
 
 Class envGS Σ := EnvGS {
   envGS_inG :: inG Σ envR;

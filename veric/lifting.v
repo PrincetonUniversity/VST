@@ -1363,12 +1363,6 @@ Qed.*)
 Definition up1 (P : assert) : assert := assert_of (λ n, P (S n)).
 Definition down1 (P : assert) : assert := assert_of (λ n, match n with | S n' => P n' | O => False end).
 
-Lemma ge_of_env : forall ρ n, ge_of (env_to_environ ρ n) = ρ.1.
-Proof.
-  intros; rewrite /env_to_environ.
-  destruct (ρ.2 !! n)%stdpp as [(?, ?)|]; done.
-Qed.
-
 Lemma env_to_environ_alloc' : forall ρ ve te n n', n' ≠ n → env_to_environ (alloc_vars ve te n ρ) n' = env_to_environ ρ n'.
 Proof.
   intros; rewrite /env_to_environ /alloc_vars lookup_insert_ne //.
@@ -1444,8 +1438,8 @@ Proof.
   destruct Hb as (b & -> & Hb & ? & ? & ? & ? & ?).
   iMod ("H" with "Hm Hr") as (vs) "(Hes & Hm & Hr & % & H)"; [done..|].
   iMod "Hclose" as "_"; rewrite embed_fupd; iIntros "!>".
-  iStopProof; split => n; monPred.unseal; rewrite !monPred_at_affinely.
-  iIntros "(-> & Hk & ? & %He & %Hes & ? & Hr & H)".
+  iStopProof; split => n; rewrite /stack_level; monPred.unseal; rewrite !monPred_at_affinely.
+  iIntros "(%Hn & Hk & ? & %He & %Hes & ? & Hr & H)"; inv Hn.
   specialize (He _ _ Hmatch).
   specialize (Hes _ _ Hmatch).
   iExists _, _; iSplit.
@@ -1494,6 +1488,12 @@ Proof.
 induction k; intros; simpl; auto.
 Qed.
 
+Lemma stack_matches_call : forall ρ ve te k, stack_matches' ρ ve te (Some k) →
+  stack_matches' ρ ve te (Some (call_cont k)).
+Proof.
+  induction k; simpl; auto.
+Qed.
+
 Lemma wp_return_Some: forall E e R,
   wp_expr ge E e (λ v, RA_return R (Some v)) ⊢ wp E (Sreturn (Some e)) R.
 Proof.
@@ -1504,21 +1504,26 @@ Proof.
     rewrite call_cont_idem; econstructor; eauto. }
   iDestruct "Hk" as "(_ & _ & _ & _ & Hk)".
   rewrite wp_expr_mask_mono //.
-  iSpecialize ("Hk" with "H").
-  by iApply "Hk".
+  iStopProof; split => ?; rewrite /stack_level; monPred.unseal; rewrite !monPred_at_affinely.
+  iIntros "(H & %Hn & Hk & ?)"; inv Hn.
+  iApply ("Hk" with "[$] [$]"); try done.
+  { iPureIntro; by apply stack_matches_call. }
 Qed.
 
-Lemma wp_return_None: forall E f R,
-  RA_return R None ⊢ wp E f (Sreturn None) R.
+Lemma wp_return_None: forall E R,
+  RA_return R None ⊢ wp E (Sreturn None) R.
 Proof.
-  intros; split => rho; rewrite /wp /=.
-  iIntros "H %%% Hk" (??? -> ?).
+  intros; rewrite /wp.
+  iIntros "H %%%% ? Hk" (????) "?%%".
   iApply (convergent_controls_jsafe _ _ _ (State f (Sreturn None) (call_cont k) ve te)); try done.
   { inversion 1; subst; try match goal with H : _ \/ _ |- _ => destruct H; done end.
     rewrite call_cont_idem; econstructor; eauto. }
-  iDestruct ("Hk" $! _) as "(_ & _ & _ & Hk & _)".
-  by iApply ("Hk" with "H").
-Qed.*)
+  iDestruct "Hk" as "(_ & _ & _ & Hk & _)".
+  iStopProof; split => ?; rewrite /stack_level; monPred.unseal; rewrite !monPred_at_affinely.
+  iIntros "(H & %Hn & Hk & ?)"; inv Hn.
+  iApply ("Hk" with "H [$]"); try done.
+  { iPureIntro; by apply stack_matches_call. }
+Qed.
 
 Lemma safe_return : forall E f rho ora ve te (Hmatch : match_venv (make_env ve) f.(fn_vars)),
   f.(fn_vars) = [] → env_auth rho ∗ (∀ m, state_interp m ora -∗ ⌜∃ i, ext_spec_exit OK_spec (Some (Vint i)) ora m⌝) ⊢ jsafeN E ora (State f (Sreturn None) Kstop ve te).
@@ -1707,7 +1712,7 @@ Lemma wp_adequacy: forall `{!VSTGpreS OK_ty Σ} {Espec : forall `{VSTGS OK_ty Σ
   (EXIT: forall `{!VSTGS OK_ty Σ}, ⊢ (R O -∗ ∀ m z, state_interp m z -∗ ⌜∃ i, ext_spec_exit Espec (Some (Vint i)) z m⌝)),
   (∀ `{HH : invGS_gen HasNoLc Σ}, ⊢ |={⊤}=> ∃ _ : gen_heapGS share address resource Σ, ∃ _ : funspecGS Σ, ∃ _ : envGS Σ, ∃ _ : externalGS OK_ty Σ,
     let H : VSTGS OK_ty Σ := Build_VSTGS _ _ (HeapGS _ _ _ _) _ _ in
-    <affine> monPred_in(I := stack_index) 0 ∗ ⎡state_interp m z⎤ ∗ ⌜typecheck_var_environ (make_env ve) (make_tycontext_v (fn_vars f))⌝ ∧ ⎡env_auth (init_stack ge ve te)⎤ ∗ wp Espec ge ⊤ s (function_body_ret_assert Tvoid R)) →
+    stack_level 0 ∗ ⎡state_interp m z⎤ ∗ ⌜typecheck_var_environ (make_env ve) (make_tycontext_v (fn_vars f))⌝ ∧ ⎡env_auth (init_stack ge ve te)⎤ ∗ wp Espec ge ⊤ s (function_body_ret_assert Tvoid R)) →
        (forall n,
         @dry_safeN _ _ _ OK_ty (genv_symb_injective) (cl_core_sem ge) dryspec
             ge n z (State f s Kstop ve te) m (*∧ φ*)) (* note that this includes ext_spec_exit if the program halts *).
@@ -1721,7 +1726,7 @@ Proof.
   iMod (H Hinv) as (????) "?".
   iStopProof.
   rewrite /wp; split => l; monPred.unseal.
-  iIntros "(I & S & % & E & H)".
+  iIntros "(L & S & % & E & H)".
   iApply step_fupd_intro; first done.
   iNext.
   set (HH := Build_VSTGS _ _ _ _ _).
@@ -1729,8 +1734,8 @@ Proof.
   { apply bi.pure_mono, (ext_spec_entails_safe _ (Espec HH)); auto. }
   iApply (adequacy(VSTGS0 := HH)(OK_spec := Espec HH)).
   iFrame.
-  iApply ("H" with "[//] [//] [//] [I] [//] [] E").
-  { rewrite !monPred_at_affinely; iDestruct "I" as %?; done. }
+  iApply ("H" with "[//] [//] [//] [L] [//] [] E").
+  { done. }
   iApply guarded_stop; auto.
   iApply EXIT.
   { iPureIntro; apply init_stack_matches. }

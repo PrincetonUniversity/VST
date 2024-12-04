@@ -364,6 +364,12 @@ Proof.
   by constructor.
 Qed.
 
+Lemma ge_of_env : forall ρ n, ge_of (env_to_environ ρ n) = ρ.1.
+Proof.
+  intros; rewrite /env_to_environ.
+  destruct (ρ.2 !! n)%stdpp as [(?, ?)|]; done.
+Qed.
+
 Lemma wp_var_global : forall E _x c_ty b (P:address->assert),
   ⎡gvar _x b⎤ ∗ (⎡gvar _x b⎤ -∗ P (b, 0))
   ⊢ wp_lvalue E (Evar _x c_ty) P.
@@ -374,9 +380,11 @@ Proof.
   iSpecialize ("HP" with "[%] H"); first done.
   change 0 with (Ptrofs.unsigned Ptrofs.zero).
   iExists _, _; iFrame. rewrite monPred_at_affinely; iPureIntro.
-  intros ?? (Hge & ? & ?); rewrite -Hge in H.
-  by constructor.
-Qed.
+  intros ?? (Hge & ? & ?).
+  rewrite ge_of_env in Hge; rewrite -Hge in H.
+  apply eval_Evar_global; auto.
+  admit. (* What if we have a local whose name conflicts with a global? *)
+Admitted.
 
 Lemma wp_deref : forall E e ty P,
   wp_expr E e (λ v, ∃ b o, ⌜v = Vptr b o⌝ ∧ P (b, Ptrofs.unsigned o)) ⊢ wp_lvalue E (Ederef e ty) P.
