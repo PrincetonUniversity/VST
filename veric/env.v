@@ -69,6 +69,14 @@ Proof.
   apply (map_fmap_equiv_inj Excl), leibniz_equiv in Ht as ->; last apply Excl_inj; done.
 Qed.
 
+Lemma gvar_e : forall `{!heapGS Σ} id v rho, gvar id v ∗ env_auth rho ⊢ ⌜rho.1 !! id = Some v⌝.
+Proof.
+  intros; rewrite /gvar /env_auth.
+  iIntros "(H1 & H2)"; iDestruct (own_valid_2 with "H2 H1") as %((? & _ & _ & Hid & _ & Hincl)%gmap_view.gmap_view_both_dfrac_valid_discrete_total & _).
+  rewrite lookup_fmap in Hid; destruct (lookup _ _); inv Hid.
+  apply to_agree_included_L in Hincl as ->; done.
+Qed.
+
 Lemma temp_e : forall id v rho n, temp id v n ∗ env_auth rho ⊢ ⌜te_of (env_to_environ rho n) !! id = Some v⌝.
 Proof.
   intros; rewrite /temp /=.

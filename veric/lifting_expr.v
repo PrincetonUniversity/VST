@@ -18,6 +18,7 @@ Section mpred.
 Context `{!heapGS Σ} `{!envGS Σ} (ge : genv).
 
 (* evaluate locals according to the current stack level *)
+(* It would be neater to turn env_matches into an assert. *)
 Definition wp_expr E e Φ : assert :=
   |={E}=> ∀ m rho, ⎡mem_auth m⎤ -∗ ⎡env_auth rho⎤ ={E}=∗
          ∃ v, <affine> assert_of (λ n, ⌜forall ve te,
@@ -360,6 +361,20 @@ Proof.
   change 0 with (Ptrofs.unsigned Ptrofs.zero).
   iExists _, _; iFrame. rewrite monPred_at_affinely; iPureIntro.
   intros ?? (? & Hve & ?); rewrite -Hve in H.
+  by constructor.
+Qed.
+
+Lemma wp_var_global : forall E _x c_ty b (P:address->assert),
+  ⎡gvar _x b⎤ ∗ (⎡gvar _x b⎤ -∗ P (b, 0))
+  ⊢ wp_lvalue E (Evar _x c_ty) P.
+Proof.
+  split => n; rewrite /wp_lvalue; monPred.unseal.
+  iIntros "[H HP] !>" (??? <-). iIntros "Hm" (? <-) "Hr !>".
+  iDestruct (gvar_e with "[$H $Hr]") as %H.
+  iSpecialize ("HP" with "[%] H"); first done.
+  change 0 with (Ptrofs.unsigned Ptrofs.zero).
+  iExists _, _; iFrame. rewrite monPred_at_affinely; iPureIntro.
+  intros ?? (Hge & ? & ?); rewrite -Hge in H.
   by constructor.
 Qed.
 

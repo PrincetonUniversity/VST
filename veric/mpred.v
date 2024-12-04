@@ -407,18 +407,12 @@ Notation fixed_fracR A := (prodR (iris.algebra.agree.agreeR (leibnizO frac))
 Notation frameR := (prodR ((iris.algebra.gmap.gmapR ident (iris.algebra.excl.exclR (leibnizO (block * type)))))
   ((iris.algebra.gmap.gmapR ident (iris.algebra.excl.exclR (leibnizO val))))).
 
-Class envGS Σ := EnvGS {
-  envGS_inG :: inG Σ (ora.prodR
+Notation envR := (ora.prodR
     (ext_order.inclR (gmap_view.gmap_viewR ident (agree.agreeR (leibnizO block))))
-    (ext_order.inclR (iris.algebra.auth.authR (iris.algebra.gmap.gmapR nat (fixed_fracR frameR)))));
-(* need:
-   master: a list of stackframes, each of which has a list of idents
-   fragment: one or more idents in a single stackframe, but must not allow 0 idents in a named stackframe
-   Either the inner algebra needs not to have unit, or the outer algebra needs not to own units.
-   Possible solution: split each stackframe into fractions
-   - makes lvar hard to define, because we only know the fraction when we have the full list
-   Possible solution: 
- *)
+    (ext_order.inclR (iris.algebra.auth.authR (iris.algebra.gmap.gmapR nat (fixed_fracR frameR))))).
+
+Class envGS Σ := EnvGS {
+  envGS_inG :: inG Σ envR;
   env_name : gname
 }.
 
