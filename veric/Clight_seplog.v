@@ -127,14 +127,10 @@ Definition get_result (ret: option ident) : environ -> environ :=
  | Some x => get_result1 x
  end.
 
-(* What should we do to replace this sort of explicit environment manipulation?
-   Or should we just assume that postconditions don't refer to local variables? *)
-Definition bind_ret (vl: option val) (t: type) (Q: assert) : assert :=
-     match vl, t with
-     | None, Tvoid => Q (*(make_args nil nil rho)*)
-     | Some v, _ => ⌜tc_val t v⌝ ∧ (temp ret_temp v -∗ Q)
-     | _, _ => False
-     end.
+(* Instead of making a fake ret_temp, let's just have the postcondition take the
+   return value as an argument. *)
+Definition bind_ret (vl: option val) (t: type) (Q: option val → assert) : assert :=
+  ⌜match vl with None => t = Tvoid | Some v => tc_val t v end⌝ ∧ Q vl.
 
 Definition funassert (Delta: tycontext): mpred := funspecs_assert (glob_specs Delta).
 
@@ -280,7 +276,7 @@ Proof.
 intros; reflexivity.
 Qed.
 
-Definition function_body_ret_assert (ret: type) (Q: assert) : ret_assert :=
+Definition function_body_ret_assert (ret: type) (Q: option val → assert) : ret_assert :=
  {| RA_normal := bind_ret None ret Q;
     RA_break := False; 
     RA_continue := False;
@@ -292,14 +288,12 @@ Lemma same_glob_funassert:
               funassert Delta1 ⊣⊢ funassert Delta2.
 Proof. intros; iSplit; iApply same_FS_funspecs_assert; auto. Qed.
 
-Global Instance bind_ret_proper vl t : Proper (base.equiv ==> base.equiv) (bind_ret vl t).
+Global Instance bind_ret_proper vl t : Proper (pointwise_relation _ base.equiv ==> base.equiv) (bind_ret vl t).
 Proof. solve_proper. Qed.
 
-Global Instance function_body_ret_assert_proper ret : Proper (base.equiv ==> base.equiv) (function_body_ret_assert ret).
+Global Instance function_body_ret_assert_proper ret : Proper (pointwise_relation _ base.equiv ==> base.equiv) (function_body_ret_assert ret).
 Proof.
-  intros ???; split3; last split; simpl; try done.
-  - destruct ret; done.
-  - intros; rewrite H //.
+  intros ???; split3; last split; simpl; solve_proper.
 Qed.
 
 Global Instance normal_ret_assert_proper : Proper (base.equiv ==> base.equiv) normal_ret_assert.

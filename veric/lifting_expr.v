@@ -17,33 +17,109 @@ Section mpred.
 
 Context `{!heapGS Σ} `{!envGS Σ} (ge : genv).
 
+Lemma make_tycontext_v_lookup : forall tys id t,
+  make_tycontext_v tys !! id = Some t -> In (id, t) tys.
+Proof.
+  intros ???; induction tys; simpl.
+  - rewrite PTree.gempty //.
+  - destruct a as (i, ?).
+    destruct (eq_dec id i).
+    + subst; rewrite PTree.gss.
+      inversion 1; auto.
+    + rewrite PTree.gso //; auto.
+Qed.
+
+Lemma make_tycontext_v_sound : forall tys id t, list_norepet (map fst tys) ->
+  make_tycontext_v tys !! id = Some t <-> In (id, t) tys.
+Proof.
+  intros; split; first apply make_tycontext_v_lookup.
+  induction tys; simpl; first done.
+  intros [-> | ?].
+  - apply PTree.gss.
+  - destruct a; inv H.
+    rewrite PTree.gso; auto.
+    intros ->.
+    contradiction H3; rewrite in_map_iff; eexists (_, _); eauto.
+Qed.
+
+Definition match_venv (ve: venviron) (vars: list (ident * type)) :=
+ forall id, match lookup id ve with Some (b,t) => In (id,t) vars | _ => True end.
+
+Lemma typecheck_var_match_venv : forall ve tys,
+  typecheck_var_environ ve (make_tycontext_v tys) → match_venv ve tys.
+Proof.
+  unfold typecheck_var_environ, match_venv; intros.
+  destruct (lookup id ve) as [(?, ty)|] eqn: Hid; last done.
+  destruct (H id ty) as [_ Hty].
+  apply make_tycontext_v_lookup, Hty; eauto.
+Qed.
+
+Definition make_env {A} (ve : PTree.t A) : gmap ident A :=
+  PTree.fold (fun e i v => <[i := v]>e) ve ∅.
+
+Lemma make_env_spec : forall {A} (ve : PTree.t A) i, lookup i (make_env ve) = PTree.get i ve.
+Proof.
+  intros; unfold make_env.
+  eapply PTree_Properties.fold_ind.
+  - intros; rewrite H //.
+  - intros ?????? Hrem.
+    destruct (eq_dec i k).
+    + subst; rewrite lookup_insert //.
+    + rewrite lookup_insert_ne //.
+      rewrite PTree.gro // in Hrem.
+Qed.
+
+Definition stack_level (n : nat) : assert := <affine> monPred_in(I := stack_index) n.
+
+Definition env_match rho ge ve te := assert_of (λ n, ⌜env_matches (env_to_environ rho n) ge ve te⌝).
+
+Global Instance env_match_persistent rho ge0 ve te : Persistent (env_match rho ge0 ve te).
+Proof. apply monPred_persistent, _. Qed.
+
+Lemma env_match_in : forall n rho ge ve te, ⊢ stack_level n -∗ env_match rho ge ve te -∗
+  ⌜env_matches (env_to_environ rho n) ge ve te⌝.
+Proof.
+  intros; split => ?; rewrite /stack_level; monPred.unseal.
+  iIntros "_" (? [=]).
+  rewrite monPred_at_affinely; iIntros ([=] ? [=]); subst; auto.
+Qed.
+
+Lemma env_match_intro : forall n rho ge ve te, env_matches (env_to_environ rho n) ge ve te ->
+  stack_level n ⊢ env_match rho ge ve te.
+Proof.
+  intros; split => ?; rewrite /stack_level; monPred.unseal; rewrite monPred_at_affinely.
+  iIntros ([=]); subst; auto.
+Qed.
+
 (* evaluate locals according to the current stack level *)
 (* It would be neater to turn env_matches into an assert. *)
-Definition wp_expr E e Φ : assert :=
+(* f is used for only one purpose: to check whether function local variables
+   shadow the names of global variables. *)
+Definition wp_expr E f e Φ : assert :=
   |={E}=> ∀ m rho, ⎡mem_auth m⎤ -∗ ⎡env_auth rho⎤ ={E}=∗
-         ∃ v, <affine> assert_of (λ n, ⌜forall ve te,
-            env_matches (env_to_environ rho n) ge ve te ->
-            Clight.eval_expr ge ve te m e v (*/\ typeof e = t /\ tc_val t v*)⌝) ∗
+         ∃ v, <affine> (∀ ve te, env_match rho ge ve te -∗
+            ⌜match_venv (make_env ve) (fn_vars f) →
+             Clight.eval_expr ge ve te m e v (*/\ typeof e = t /\ tc_val t v*)⌝) ∗
          ⎡mem_auth m⎤ ∗ ⎡env_auth rho⎤ ∗ Φ v.
 
-Definition wp_lvalue E e (Φ : address → assert) : assert :=
+Definition wp_lvalue E f e (Φ : address → assert) : assert :=
   |={E}=> ∀ m rho, ⎡mem_auth m⎤ -∗ ⎡env_auth rho⎤ ={E}=∗
-         ∃ b o, <affine> assert_of (λ n, ⌜forall ve te,
-            env_matches (env_to_environ rho n) ge ve te ->
+         ∃ b o, <affine> (∀ ve te, env_match rho ge ve te -∗
+            ⌜match_venv (make_env ve) (fn_vars f) →
             Clight.eval_lvalue ge ve te m e b o Full (*/\ typeof e = t /\ tc_val t v*)⌝) ∗
          ⎡mem_auth m⎤ ∗ ⎡env_auth rho⎤ ∗ Φ (b, Ptrofs.unsigned o).
 
-Lemma fupd_wp_expr : forall E e P, (|={E}=> wp_expr E e P) ⊢ wp_expr E e P.
+Lemma fupd_wp_expr : forall E f e P, (|={E}=> wp_expr E f e P) ⊢ wp_expr E f e P.
 Proof. intros; apply fupd_trans. Qed.
 
-Global Instance elim_modal_fupd_wp_expr p P E e Q :
-  ElimModal Logic.True p false (|={E}=> P) P (wp_expr E e Q) (wp_expr E e Q).
+Global Instance elim_modal_fupd_wp_expr p P E f e Q :
+  ElimModal Logic.True p false (|={E}=> P) P (wp_expr E f e Q) (wp_expr E f e Q).
 Proof.
   by rewrite /ElimModal bi.intuitionistically_if_elim
     fupd_frame_r bi.wand_elim_r fupd_wp_expr.
 Qed.
 
-Lemma wp_expr_strong_mono : forall E e P1 P2, (∀ v, P1 v ={E}=∗ P2 v) ∗ wp_expr E e P1 ⊢ wp_expr E e P2.
+Lemma wp_expr_strong_mono : forall E f e P1 P2, (∀ v, P1 v ={E}=∗ P2 v) ∗ wp_expr E f e P1 ⊢ wp_expr E f e P2.
 Proof.
   intros; rewrite /wp_expr.
   iIntros "(HP & >H) !>" (??) "??".
@@ -52,16 +128,16 @@ Proof.
   iIntros "!>"; iExists _; iFrame.
 Qed.
 
-Lemma wp_expr_mono : forall E e P1 P2, (∀ v, P1 v ⊢ |={E}=> P2 v) → wp_expr E e P1 ⊢ wp_expr E e P2.
+Lemma wp_expr_mono : forall E e f P1 P2, (∀ v, P1 v ⊢ |={E}=> P2 v) → wp_expr E f e P1 ⊢ wp_expr E f e P2.
 Proof.
   intros; iIntros; iApply wp_expr_strong_mono; iFrame.
   by iIntros (?) "?"; iApply H.
 Qed.
 
-Global Instance wp_expr_proper E e : Proper (pointwise_relation _ base.equiv ==> base.equiv) (wp_expr E e).
+Global Instance wp_expr_proper E f e : Proper (pointwise_relation _ base.equiv ==> base.equiv) (wp_expr E f e).
 Proof. solve_proper. Qed.
 
-Lemma wp_expr_mask_mono : forall E E' e P, E ⊆ E' → wp_expr E e P ⊢ wp_expr E' e P.
+Lemma wp_expr_mask_mono : forall E E' f e P, E ⊆ E' → wp_expr E f e P ⊢ wp_expr E' f e P.
 Proof.
   intros; rewrite /wp_expr.
   iIntros "H"; iMod (fupd_mask_subseteq E) as "Hclose"; first done.
@@ -72,23 +148,23 @@ Proof.
   iApply "H".
 Qed.
 
-Lemma wp_expr_frame : forall E e P Q, P ∗ wp_expr E e Q ⊢ wp_expr E e (λ v, P ∗ Q v).
+Lemma wp_expr_frame : forall E f e P Q, P ∗ wp_expr E f e Q ⊢ wp_expr E f e (λ v, P ∗ Q v).
 Proof.
   intros; rewrite /wp_expr.
   iIntros "($ & $)".
 Qed.
 
-Lemma fupd_wp_lvalue : forall E e P, (|={E}=> wp_lvalue E e P) ⊢ wp_lvalue E e P.
+Lemma fupd_wp_lvalue : forall E f e P, (|={E}=> wp_lvalue E f e P) ⊢ wp_lvalue E f e P.
 Proof. intros; apply fupd_trans. Qed.
 
-Global Instance elim_modal_fupd_wp_lvalue p P E e Q :
-  ElimModal Logic.True p false (|={E}=> P) P (wp_lvalue E e Q) (wp_lvalue E e Q).
+Global Instance elim_modal_fupd_wp_lvalue p P E f e Q :
+  ElimModal Logic.True p false (|={E}=> P) P (wp_lvalue E f e Q) (wp_lvalue E f e Q).
 Proof.
   by rewrite /ElimModal bi.intuitionistically_if_elim
     fupd_frame_r bi.wand_elim_r fupd_wp_lvalue.
 Qed.
 
-Lemma wp_lvalue_strong_mono : forall E e P1 P2, (∀ v, P1 v ={E}=∗ P2 v) ∗ wp_lvalue E e P1 ⊢ wp_lvalue E e P2.
+Lemma wp_lvalue_strong_mono : forall E f e P1 P2, (∀ v, P1 v ={E}=∗ P2 v) ∗ wp_lvalue E f e P1 ⊢ wp_lvalue E f e P2.
 Proof.
   intros; rewrite /wp_lvalue.
   iIntros "(HP & >H) !>" (??) "??".
@@ -97,16 +173,16 @@ Proof.
   iIntros "!>"; iExists _; iFrame.
 Qed.
 
-Lemma wp_lvalue_mono : forall E e P1 P2, (∀ v, P1 v ⊢ |={E}=> P2 v) → wp_lvalue E e P1 ⊢ wp_lvalue E e P2.
+Lemma wp_lvalue_mono : forall E f e P1 P2, (∀ v, P1 v ⊢ |={E}=> P2 v) → wp_lvalue E f e P1 ⊢ wp_lvalue E f e P2.
 Proof.
   intros; iIntros; iApply wp_lvalue_strong_mono; iFrame.
   by iIntros (?) "?"; iApply H.
 Qed.
 
-Global Instance wp_lvalue_proper E e : Proper (pointwise_relation _ base.equiv ==> base.equiv) (wp_lvalue E e).
+Global Instance wp_lvalue_proper E f e : Proper (pointwise_relation _ base.equiv ==> base.equiv) (wp_lvalue E f e).
 Proof. solve_proper. Qed.
 
-Lemma wp_lvalue_mask_mono : forall E E' e P, E ⊆ E' → wp_lvalue E e P ⊢ wp_lvalue E' e P.
+Lemma wp_lvalue_mask_mono : forall E E' f e P, E ⊆ E' → wp_lvalue E f e P ⊢ wp_lvalue E' f e P.
 Proof.
   intros; rewrite /wp_lvalue.
   iIntros "H"; iMod (fupd_mask_subseteq E) as "Hclose"; first done.
@@ -117,54 +193,50 @@ Proof.
   iApply "H".
 Qed.
 
-Lemma wp_lvalue_frame : forall E e P Q, P ∗ wp_lvalue E e Q ⊢ wp_lvalue E e (λ v, P ∗ Q v).
+Lemma wp_lvalue_frame : forall E e f P Q, P ∗ wp_lvalue E f e Q ⊢ wp_lvalue E f e (λ v, P ∗ Q v).
 Proof.
   intros; rewrite /wp_lvalue.
   iIntros "($ & $)".
 Qed.
 
 (* rules *)
-Lemma wp_const_int E i t P:
-  P (Vint i) ⊢ wp_expr E (Econst_int i t) P.
+Lemma wp_const_int E f i t P:
+  P (Vint i) ⊢ wp_expr E f (Econst_int i t) P.
 Proof.
   rewrite /wp_expr.
   iIntros "? !> %% ?? !>".
   iFrame.
-  iIntros "!>"; iStopProof; split => ?; monPred.unseal; apply bi.pure_intro.
-  intros; constructor.
+  iIntros "!>" (??) "?"; iPureIntro; intros; constructor.
 Qed.
 
-Lemma wp_const_long E i t P:
+Lemma wp_const_long E f i t P:
   P (Vlong i)
-  ⊢ wp_expr E (Econst_long i t) P.
+  ⊢ wp_expr E f (Econst_long i t) P.
 Proof.
   rewrite /wp_expr.
   iIntros "? !> %% ?? !>".
   iFrame.
-  iIntros "!>"; iStopProof; split => ?; monPred.unseal; apply bi.pure_intro.
-  intros; constructor.
+  iIntros "!>" (??) "?"; iPureIntro; intros; constructor.
 Qed.
 
-Lemma wp_const_float E i t P:
+Lemma wp_const_float E f i t P:
   P (Vfloat i)
-  ⊢ wp_expr E (Econst_float i t) P.
+  ⊢ wp_expr E f (Econst_float i t) P.
 Proof.
   rewrite /wp_expr.
   iIntros "? !> %% ?? !>".
   iFrame.
-  iIntros "!>"; iStopProof; split => ?; monPred.unseal; apply bi.pure_intro.
-  intros; constructor.
+  iIntros "!>" (??) "?"; iPureIntro; intros; constructor.
 Qed.
 
-Lemma wp_const_single E i t P:
+Lemma wp_const_single E f i t P:
   P (Vsingle i)
-  ⊢ wp_expr E (Econst_single i t) P.
+  ⊢ wp_expr E f (Econst_single i t) P.
 Proof.
   rewrite /wp_expr.
   iIntros "? !> %% ?? !>".
   iFrame.
-  iIntros "!>"; iStopProof; split => ?; monPred.unseal; apply bi.pure_intro.
-  intros; constructor.
+  iIntros "!>" (??) "?"; iPureIntro; intros; constructor.
 Qed.
 
 (* Caesium uses a small-step semantics for exprs, so the wp/typing for an operation can be broken up into
@@ -185,8 +257,8 @@ Proof.
     fupd_frame_r bi.wand_elim_r fupd_wp_binop.
 Qed.
 
-Lemma wp_binop_rule : forall E e1 e2 Φ o t, wp_expr E e1 (λ v1, wp_expr E e2 (λ v2, wp_binop E o (typeof e1) v1 (typeof e2) v2 Φ))
-  ⊢ wp_expr E (Ebinop o e1 e2 t) Φ.
+Lemma wp_binop_rule : forall E f e1 e2 Φ o t, wp_expr E f e1 (λ v1, wp_expr E f e2 (λ v2, wp_binop E o (typeof e1) v1 (typeof e2) v2 Φ))
+  ⊢ wp_expr E f (Ebinop o e1 e2 t) Φ.
 Proof.
   intros.
   rewrite /wp_expr /wp_binop.
@@ -195,8 +267,9 @@ Proof.
   iMod ("H" with "Hm [$]") as "(%v2 & H2 & Hm & ? & >H)".
   iMod ("H" with "Hm") as "(%v & %H & Hm & ?)".
   iIntros "!>"; iExists _; iFrame.
-  iStopProof; split => ?; monPred.unseal; rewrite !monPred_at_affinely.
-  iIntros "(% & %)"; iPureIntro; intros; econstructor; eauto.
+  iIntros "!>" (??) "#?"; rewrite !bi.affinely_elim.
+  iDestruct ("H1" with "[$]") as %?; iDestruct ("H2" with "[$]") as %?; iPureIntro.
+  intros; econstructor; eauto.
 Qed.
 
 Definition blocks_match op v1 v2 :=
@@ -313,8 +386,8 @@ Proof.
     fupd_frame_r bi.wand_elim_r fupd_wp_unop.
 Qed.
 
-Lemma wp_unop_rule : forall E e Φ o t, wp_expr E e (λ v, wp_unop E o (typeof e) v Φ)
-  ⊢ wp_expr E (Eunop o e t) Φ.
+Lemma wp_unop_rule : forall E f e Φ o t, wp_expr E f e (λ v, wp_unop E o (typeof e) v Φ)
+  ⊢ wp_expr E f (Eunop o e t) Φ.
 Proof.
   intros.
   rewrite /wp_expr /wp_binop.
@@ -322,45 +395,45 @@ Proof.
   iMod ("H" with "Hm [$]") as "(%v1 & H1 & Hm & ? & >H)".
   iMod ("H" with "Hm") as "(%v & %H & Hm & ?)".
   iIntros "!>"; iExists _; iFrame.
-  iStopProof; split => ?; rewrite !monPred_at_affinely; iIntros (?).
-  iPureIntro; intros; econstructor; eauto.
+  iStopProof; do 7 f_equiv.
+  intros ??; econstructor; eauto.
 Qed.
 
-Lemma wp_cast : forall E e ty P, expr_lemmas4.cast_pointer_to_bool (typeof e) ty = false ->
-  wp_expr E e (λ v, ⌜tc_val (typeof e) v⌝ ∧ ∃ v', ⌜sem_cast (typeof e) ty v = Some v'⌝ ∧ P v') ⊢ wp_expr E (Ecast e ty) P.
+Lemma wp_cast : forall E f e ty P, expr_lemmas4.cast_pointer_to_bool (typeof e) ty = false ->
+  wp_expr E f e (λ v, ⌜tc_val (typeof e) v⌝ ∧ ∃ v', ⌜sem_cast (typeof e) ty v = Some v'⌝ ∧ P v') ⊢ wp_expr E f (Ecast e ty) P.
 Proof.
   intros; rewrite /wp_expr.
   do 8 f_equiv. iIntros "(% & ? & Hm & ? & % & %v' & %Hcast & P)".
   iExists v'; iFrame.
-  iStopProof; split => ?; rewrite !monPred_at_affinely; iIntros (?).
-  iPureIntro; intros; econstructor; eauto.
+  iStopProof; do 7 f_equiv.
+  intros ??; econstructor; eauto.
   by apply expr_lemmas4.sem_cast_e1.
 Qed.
 
-Lemma wp_tempvar_local : forall E _x x c_ty P,
+Lemma wp_tempvar_local : forall E f _x x c_ty P,
   temp _x x ∗ (temp _x x -∗ P x)
-  ⊢ wp_expr E (Etempvar _x c_ty) P.
+  ⊢ wp_expr E f (Etempvar _x c_ty) P.
 Proof.
   split => n; rewrite /wp_expr; monPred.unseal.
   iIntros "[H HP] !>" (??? <-). iIntros "Hm" (? <-) "Hr !>".
   iDestruct (temp_e with "[$H $Hr]") as %H.
   iSpecialize ("HP" with "[%] H"); first done.
-  iExists _; iFrame. rewrite monPred_at_affinely; iPureIntro.
-  intros ?? (? & ? & Hte); rewrite -Hte in H.
+  iExists _; iFrame. rewrite monPred_at_affinely; iPureIntro; simpl.
+  intros ??? <- (? & ? & Hte); rewrite -Hte in H.
   by constructor.
 Qed.
 
-Lemma wp_var_local : forall E _x c_ty b (P:address->assert),
+Lemma wp_var_local : forall E f _x c_ty b (P:address->assert),
   lvar _x c_ty b ∗ (lvar _x c_ty b -∗ P (b, 0))
-  ⊢ wp_lvalue E (Evar _x c_ty) P.
+  ⊢ wp_lvalue f E (Evar _x c_ty) P.
 Proof.
   split => n; rewrite /wp_lvalue; monPred.unseal.
   iIntros "[H HP] !>" (??? <-). iIntros "Hm" (? <-) "Hr !>".
   iDestruct (lvar_e with "[$H $Hr]") as %H.
   iSpecialize ("HP" with "[%] H"); first done.
   change 0 with (Ptrofs.unsigned Ptrofs.zero).
-  iExists _, _; iFrame. rewrite monPred_at_affinely; iPureIntro.
-  intros ?? (? & Hve & ?); rewrite -Hve in H.
+  iExists _, _; iFrame. rewrite monPred_at_affinely; iPureIntro; simpl.
+  intros ??? <- (? & Hve & ?); rewrite -Hve in H.
   by constructor.
 Qed.
 
@@ -370,47 +443,51 @@ Proof.
   destruct (ρ.2 !! n)%stdpp as [(?, ?)|]; done.
 Qed.
 
-Lemma wp_var_global : forall E _x c_ty b (P:address->assert),
+Lemma wp_var_global : forall E f _x c_ty b (P:address->assert),
+  ~In _x (map fst (fn_vars f)) →
   ⎡gvar _x b⎤ ∗ (⎡gvar _x b⎤ -∗ P (b, 0))
-  ⊢ wp_lvalue E (Evar _x c_ty) P.
+  ⊢ wp_lvalue E f (Evar _x c_ty) P.
 Proof.
   split => n; rewrite /wp_lvalue; monPred.unseal.
   iIntros "[H HP] !>" (??? <-). iIntros "Hm" (? <-) "Hr !>".
-  iDestruct (gvar_e with "[$H $Hr]") as %H.
+  iDestruct (gvar_e with "[$H $Hr]") as %Hx.
   iSpecialize ("HP" with "[%] H"); first done.
   change 0 with (Ptrofs.unsigned Ptrofs.zero).
-  iExists _, _; iFrame. rewrite monPred_at_affinely; iPureIntro.
-  intros ?? (Hge & ? & ?).
-  rewrite ge_of_env in Hge; rewrite -Hge in H.
+  iExists _, _; iFrame. rewrite monPred_at_affinely; iPureIntro; simpl.
+  intros ??? <- (Hge & ? & ?) Hmatch.
+  rewrite ge_of_env in Hge; rewrite -Hge in Hx.
   apply eval_Evar_global; auto.
-  admit. (* What if we have a local whose name conflicts with a global? *)
-Admitted.
+  rewrite /match_venv in Hmatch.
+  specialize (Hmatch _x); rewrite make_env_spec in Hmatch.
+  destruct (_ !! _) as [(?, ?)|]; auto.
+  contradiction H; rewrite in_map_iff; eexists; split; eauto; done.
+Qed.
 
-Lemma wp_deref : forall E e ty P,
-  wp_expr E e (λ v, ∃ b o, ⌜v = Vptr b o⌝ ∧ P (b, Ptrofs.unsigned o)) ⊢ wp_lvalue E (Ederef e ty) P.
+Lemma wp_deref : forall E f e ty P,
+  wp_expr E f e (λ v, ∃ b o, ⌜v = Vptr b o⌝ ∧ P (b, Ptrofs.unsigned o)) ⊢ wp_lvalue E f (Ederef e ty) P.
 Proof.
   intros; rewrite /wp_lvalue /wp_expr.
   do 8 f_equiv.
   iIntros "(% & ? & ? & ? & %b & %o & % & ?)"; iExists b, o; iFrame.
-  iStopProof; split => ?; rewrite !monPred_at_affinely; iIntros (?).
-  iPureIntro; intros; subst; econstructor; eauto.
+  iStopProof; do 7 f_equiv.
+  intros ??; subst; econstructor; eauto.
 Qed.
 
-Lemma wp_expr_byref : forall E e P, access_mode (typeof e) = By_reference →
-  wp_lvalue E e (λ '(b, o), P (Vptr b (Ptrofs.repr o))) ⊢ wp_expr E e P.
+Lemma wp_expr_byref : forall E f e P, access_mode (typeof e) = By_reference →
+  wp_lvalue E f e (λ '(b, o), P (Vptr b (Ptrofs.repr o))) ⊢ wp_expr E f e P.
 Proof.
   intros; rewrite /wp_lvalue /wp_expr.
   do 8 f_equiv.
   iIntros "(% & % & ? & $)".
-  iStopProof; split => ?; rewrite !monPred_at_affinely; iIntros (?).
-  iPureIntro; intros; econstructor; eauto.
+  iStopProof; do 7 f_equiv.
+  intros ??; econstructor; eauto.
   rewrite Ptrofs.repr_unsigned; constructor; auto.
 Qed.
 
-Lemma wp_expr_mapsto : forall E e P,
-  wp_lvalue E e (λ '(b, o), ∃ sh v, ⌜readable_share sh ∧ v ≠ Vundef⌝ ∧
+Lemma wp_expr_mapsto : forall E f e P,
+  wp_lvalue E f e (λ '(b, o), ∃ sh v, ⌜readable_share sh ∧ v ≠ Vundef⌝ ∧
     ⎡▷ <absorb> mapsto sh (typeof e) (Vptr b (Ptrofs.repr o)) v⎤ ∧ P v) ⊢
-  wp_expr E e P.
+  wp_expr E f e P.
 Proof.
   intros; rewrite /wp_lvalue /wp_expr.
   f_equiv. iIntros "H" (m ?) "Hm ?".
@@ -425,8 +502,8 @@ Proof.
     rewrite mapsto_core_load //. }
   rewrite bi.and_elim_r.
   iModIntro; iExists v; iFrame.
-  iStopProof; split => ?; rewrite !monPred_at_affinely; iIntros (?).
-  iPureIntro; intros; econstructor; eauto.
+  iStopProof; do 7 f_equiv.
+  intros ??; econstructor; eauto.
   econstructor; eauto.
 Qed.
 
