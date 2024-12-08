@@ -148,8 +148,8 @@ Record semaxArg :Type := SemaxArg {
  sa_R: ret_assert
 }.
 
-Definition make_ext_rval  (gx: genviron) (tret: rettype) (v: option val):=
-  match tret with AST.Tvoid => mkEnviron gx (Map.empty _) (Map.empty _) 
+Definition make_ext_rval  (gx: genviron) (tret: xtype) (v: option val):=
+  match tret with Xvoid => mkEnviron gx (Map.empty _) (Map.empty _) 
  | _ => 
   match v with
   | Some v' =>  mkEnviron gx (Map.empty _)
@@ -167,11 +167,11 @@ Definition semax_external
  ∀ x: dtfr A,
    ▷ ∀ F (ts: list typ),
    ∀ args: list val,
-   ■ (⌜Val.has_type_list args (sig_args (ef_sig ef))⌝ ∧
+   ■ (⌜Val.has_type_list args (map proj_xtype (sig_args (ef_sig ef)))⌝ ∧
      (P x (filter_genv gx, args) ∗ F) ={E x}=∗
    ∀ m z, state_interp m z -∗ ∃ x': ext_spec_type OK_spec ef,
     ⌜ext_spec_pre OK_spec ef x' (genv_symb_injective gx) ts args z m⌝ ∧
-     (*□*) ∀ tret: rettype, ∀ ret: option val, ∀ m': mem, ∀ z': OK_ty,
+     (*□*) ∀ tret: xtype, ∀ ret: option val, ∀ m': mem, ∀ z': OK_ty,
       ⌜ext_spec_post OK_spec ef x' (genv_symb_injective gx) tret ret z' m'⌝ → |={E x}=>
           state_interp m' z' ∗ Q x (make_ext_rval (filter_genv gx) tret ret) ∗ F).
 
@@ -186,13 +186,27 @@ Proof.
   inv H. apply IHvals in H5. split; trivial.
 Qed.
 
+Lemma proj_xtype_argtype: 
+  forall a, proj_xtype (argtype_of_type a) = typ_of_type a.
+Proof.
+destruct a; simpl; auto. destruct i,s; auto. destruct f; auto.
+Qed.
+
+Lemma map_proj_xtype_argtype: 
+  forall a, map proj_xtype (map argtype_of_type a) = map typ_of_type a.
+Proof.
+induction a; auto.
+simpl; f_equal; auto.
+apply proj_xtype_argtype.
+Qed.
+
 Lemma semax_external_funspec_sub
   {argtypes rtype cc ef A1 E1 P1 Q1 A E P Q}
   (Hsub: funspec_sub (mk_funspec (argtypes, rtype) cc A1 E1 P1 Q1)
                      (mk_funspec (argtypes, rtype) cc A E P Q))
   (HSIG: ef_sig ef =
          mksignature
-                     (map typ_of_type argtypes)
+                     (map argtype_of_type argtypes)
                      (rettype_of_type rtype) cc):
   semax_external ef A1 E1 P1 Q1 ⊢ semax_external ef A E P Q.
 Proof.
@@ -201,7 +215,7 @@ Proof.
   destruct Hsub as [(? & ?) Hsub]; subst.
   iMod (Hsub with "[$P]") as (x1 F1 HE1) "((F1 & P1) & %HQ)".
   { iPureIntro; split; auto.
-    rewrite HSIG in HT; apply has_type_list_Forall2 in HT.
+    rewrite HSIG map_proj_xtype_argtype in HT; apply has_type_list_Forall2 in HT.
     eapply Forall2_implication; [ | apply HT]; auto. }
   iMod (fupd_mask_subseteq (E1 x1)) as "Hmask"; first done.
   iMod ("H" $! _ (F ∗ F1) with "[$P1 $F $F1]") as "H1"; first done.
@@ -223,12 +237,6 @@ Definition tc_option_val (sig: type) (ret: option val) :=
     | _, _ => False%type
   end.
 
-Fixpoint zip_with_tl {A : Type} (l1 : list A) (l2 : typelist) : list (A*type) :=
-  match l1, l2 with
-    | a::l1', Tcons b l2' => (a,b)::zip_with_tl l1' l2'
-    | _, _ => nil
-  end.
-
 Notation dtfr := (@dtfr Σ).
 
 Definition withtype_empty (A: TypeTree) : Prop := forall (x : dtfr A), False.
@@ -239,9 +247,9 @@ Definition believe_external (gx: genv) (v: val) (fsig: typesig) cc
   (Q: dtfr (AssertTT A)) :=
   match Genv.find_funct gx v with
   | Some (External ef sigargs sigret cc') =>
-        ⌜fsig = (typelist2list sigargs, sigret) /\ cc'=cc
+        ⌜fsig = (sigargs, sigret) /\ cc'=cc
            /\ ef_sig ef = mksignature
-                           (typlist_of_typelist (typelist_of_type_list (fst fsig)))
+                           (map argtype_of_type (fst fsig))
                            (rettype_of_type (snd fsig)) cc
            /\ (ef_inline ef = false \/ withtype_empty A)⌝
         ∧ semax_external ef A E P Q
@@ -262,7 +270,6 @@ Proof.
   destruct (Genv.find_funct gx v); trivial.
   destruct f; trivial. destruct sig as [argtypes rtype].
   iIntros "((% & % & %He & %) & H & #Htc)".
-  rewrite TTL2 in He |- *.
   rewrite semax_external_funspec_sub; [iFrame | eauto..].
   iSplit.
   - iPureIntro; repeat split; auto; tauto.

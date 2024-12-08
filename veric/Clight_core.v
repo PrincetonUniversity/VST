@@ -112,16 +112,10 @@ Fixpoint params_of_types (i: positive) (l : list type) : list (ident * type) :=
   | t :: l => (i, t) :: params_of_types (i+1)%positive l
   end.
 
-Fixpoint typelist2list (tl: typelist) : list type :=
-  match tl with
-  | Tcons t r => t::typelist2list r
-  | Tnil => nil
-  end.
-
 Definition params_of_fundef (f: fundef) : list type :=
   match f with
   | Internal {| fn_params := fn_params |} => map snd fn_params
-  | External _ t _ _ => typelist2list t
+  | External _ t _ _ => t
   end.
 
 Definition cl_initial_core (ge: genv) (v: val) (args: list val) : option CC_core :=
@@ -136,7 +130,7 @@ Definition cl_initial_core (ge: genv) (v: val) (args: list val) : option CC_core
   | _ => None
   end.
 
-Definition stuck_signature : signature := mksignature nil AST.Tvoid cc_default.
+Definition stuck_signature : signature := mksignature nil Xvoid cc_default.
 
 (*
 Definition ef_no_event (ef: external_function) : bool :=

@@ -6,7 +6,7 @@ Local Open Scope string_scope.
 Local Open Scope clight_scope.
 
 Module Info.
-  Definition version := "3.14".
+  Definition version := "3.13".
   Definition build_number := "".
   Definition build_tag := "".
   Definition build_branch := "".
@@ -1027,12 +1027,12 @@ Definition global_definitions : list (ident * globdef fundef type) :=
                      {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|}))
      (Tcons tint Tnil) tvoid
      {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|})) ::
+ (_malloc,
+   Gfun(External EF_malloc (Tcons tulong Tnil) (tptr tvoid) cc_default)) ::
  (_exit,
    Gfun(External (EF_external "exit"
                    (mksignature (AST.Tint :: nil) AST.Tvoid cc_default))
      (Tcons tint Tnil) tvoid cc_default)) ::
- (_malloc,
-   Gfun(External EF_malloc (Tcons tulong Tnil) (tptr tvoid) cc_default)) ::
  (_make_atomic,
    Gfun(External (EF_external "make_atomic"
                    (mksignature (AST.Tint :: nil) AST.Tlong cc_default))
@@ -1070,7 +1070,7 @@ Definition public_idents : list ident :=
  _initialize_writer :: _last_given :: _writing :: _last_taken ::
  _finish_read :: _start_read :: _initialize_reader :: _initialize_channels ::
  _last_read :: _reading :: _comm :: _bufs :: _memset :: _surely_malloc ::
- _spawn :: _atom_exchange :: _make_atomic :: _malloc :: _exit ::
+ _spawn :: _atom_exchange :: _make_atomic :: _exit :: _malloc ::
  ___builtin_debug :: ___builtin_write32_reversed ::
  ___builtin_write16_reversed :: ___builtin_read32_reversed ::
  ___builtin_read16_reversed :: ___builtin_fnmsub :: ___builtin_fnmadd ::

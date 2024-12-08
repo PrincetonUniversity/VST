@@ -1171,7 +1171,7 @@ Axiom semax_call_forward: forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {
     forall A (Ef : dtfr (MaskTT A)) P Q x (F: assert) ret argsig retsig cc a bl,
            Ef x ⊆ E ->
            Cop.classify_fun (typeof a) =
-           Cop.fun_case_f (typelist_of_type_list argsig) retsig cc ->
+           Cop.fun_case_f argsig retsig cc ->
            (retsig = Ctypes.Tvoid -> ret = None) ->
           tc_fn_return Delta ret retsig ->
   semax E Delta
@@ -1196,7 +1196,7 @@ Axiom semax_call_backward: forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} 
          (∃ argsig: _, ∃ retsig: _, ∃ cc: _,
           ∃ A: _, ∃ Ef : dtfr (MaskTT A), ∃ P: _, ∃ Q: _, ∃ x: _,
          ⌜Ef x ⊆ E /\ Cop.classify_fun (typeof a) =
-             Cop.fun_case_f (typelist_of_type_list argsig) retsig cc /\
+             Cop.fun_case_f argsig retsig cc /\
              (retsig = Ctypes.Tvoid -> ret = None) /\
              tc_fn_return Delta ret retsig⌝ ∧
           ((*▷*)((tc_expr Delta a) ∧ (tc_exprlist Delta argsig bl)))  ∧
@@ -1238,7 +1238,7 @@ Theorem semax_call_backward: forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty
          (∃ argsig: _, ∃ retsig: _, ∃ cc: _,
           ∃ A: _, ∃ Ef : dtfr (MaskTT A), ∃ P: _, ∃ Q: _, ∃ x: _,
          ⌜Ef x ⊆ E /\ Cop.classify_fun (typeof a) =
-             Cop.fun_case_f (typelist_of_type_list argsig) retsig cc /\
+             Cop.fun_case_f argsig retsig cc /\
              (retsig = Ctypes.Tvoid -> ret = None) /\
              tc_fn_return Delta ret retsig⌝ ∧
           ((*▷*)((tc_expr Delta a) ∧ (tc_exprlist Delta argsig bl)))  ∧
@@ -1330,7 +1330,7 @@ Theorem semax_call_forward: forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty}
     forall A (Ef : dtfr (MaskTT A)) P Q x (F: assert) ret argsig retsig cc a bl,
            Ef x ⊆ E ->
            Cop.classify_fun (typeof a) =
-           Cop.fun_case_f (typelist_of_type_list argsig) retsig cc ->
+           Cop.fun_case_f argsig retsig cc ->
            (retsig = Ctypes.Tvoid -> ret = None) ->
           tc_fn_return Delta ret retsig ->
   semax E Delta

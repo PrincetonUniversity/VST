@@ -165,7 +165,7 @@ Lemma semax_call_subsume:
     funspec_sub fs1 (mk_funspec  (argsig,retsig) cc A E P Q)  ->
   forall Delta x F ret a bl,
            Cop.classify_fun (typeof a) =
-           Cop.fun_case_f (typelist_of_type_list argsig) retsig cc  ->
+           Cop.fun_case_f argsig retsig cc  ->
            (retsig = Tvoid -> ret = None) ->
           tc_fn_return Delta ret retsig ->
   semax (E x) Delta
@@ -188,7 +188,7 @@ Lemma semax_call_subsume_si:
   forall (fs1: funspec) A (E : dtfr (MaskTT A)) P Q argsig retsig cc,
    forall Delta  x F ret a bl,
            Cop.classify_fun (typeof a) =
-           Cop.fun_case_f (typelist_of_type_list argsig) retsig cc  ->
+           Cop.fun_case_f argsig retsig cc  ->
            (retsig = Tvoid -> ret = None) ->
           tc_fn_return Delta ret retsig ->
   semax (E x) Delta
@@ -214,7 +214,7 @@ Lemma semax_call_NDsubsume :
         (NDmk_funspec  (argsig,retsig) cc A P Q)  ->
     forall  Delta  x F ret a bl,
            Cop.classify_fun (typeof a) =
-           Cop.fun_case_f (typelist_of_type_list argsig) retsig cc ->
+           Cop.fun_case_f argsig retsig cc ->
            (retsig = Tvoid -> ret = None) ->
           tc_fn_return Delta ret retsig ->
   semax ⊤ Delta

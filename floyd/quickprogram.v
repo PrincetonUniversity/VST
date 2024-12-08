@@ -56,17 +56,17 @@ Import ListNotations.
 
 Definition signature_of_fundef (fd: Ctypes.fundef Clight.function):signature :=
 match fd with
-    Internal f => {| sig_args := map typ_of_type (map snd (Clight.fn_params f));
+    Internal f => {| sig_args := map argtype_of_type (map snd (Clight.fn_params f));
                      sig_res := rettype_of_type (Clight.fn_return f);
                      sig_cc := Clight.fn_callconv f |}
   | External ef tys rt cc => signature_of_type tys rt cc
  end.
 
-Lemma eqb_typelist_prop: forall t1 t2, eqb_typelist t1 t2 = true -> t1=t2.
+Lemma eqb_typelist_prop: forall t1 t2, eqb_list eqb_type t1 t2 = true -> t1=t2.
 Proof.
 clear.
 induction t1; destruct t2; simpl; intros; auto; try discriminate.
-destruct (eqb_type t t0) eqn:?H; try discriminate.
+destruct (eqb_type a t) eqn:?H; try discriminate.
 apply eqb_type_true in H0.
 f_equal; auto.
 Qed.
@@ -92,40 +92,44 @@ Proof.
 destruct s1, s2; simpl; intros; inv H; auto.
 Qed.
 
-Lemma eqb_typelist_refl: forall c, eqb_typelist c c = true.
+Lemma eqb_typelist_refl: forall c, eqb_list eqb_type c c = true.
 Proof.
 induction c; simpl; auto.
 rewrite eqb_type_refl, IHc; auto.
 Qed.
 
-Definition eqb_rettype (t1 t2 : rettype) : bool := 
+Definition eqb_xtype (t1 t2 : xtype) : bool := 
  match t1, t2 with 
- | AST.Tret a1, AST.Tret a2 => eqb_typ a1 a2
- | AST.Tint8signed, AST.Tint8signed => true
- | AST.Tint8unsigned, AST.Tint8unsigned => true
- | AST.Tint16signed, AST.Tint16signed => true
- | AST.Tint16unsigned, AST.Tint16unsigned => true
- | AST.Tvoid, AST.Tvoid => true
+ | Xbool, Xbool => true
+ | Xint8signed, Xint8signed => true
+ | Xint8unsigned, Xint8unsigned => true
+ | Xint16signed, Xint16signed => true
+ | Xint16unsigned, Xint16unsigned => true
+ | Xint, Xint => true
+ | Xfloat, Xfloat => true
+ | Xlong, Xlong => true
+ | Xsingle, Xsingle => true
+ | Xptr, Xptr => true
+ | Xany32, Xany32 => true
+ | Xany64, Xany64 => true
+ | Xvoid, Xvoid => true
  | _, _ => false
  end.
 
-Lemma eqb_rettype_refl: forall c, eqb_rettype c c = true.
+Lemma eqb_xtype_refl: forall c, eqb_xtype c c = true.
 Proof.
 destruct c; simpl; try reflexivity.
-apply eqb_typ_refl.
 Qed.
 
-Lemma eqb_rettype_prop: forall s1 s2, eqb_rettype s1 s2 = true -> s1=s2.
+Lemma eqb_xtype_prop: forall s1 s2, eqb_xtype s1 s2 = true -> s1=s2.
 Proof.
 destruct s1, s2; simpl; intros; inv H; auto.
-f_equal.
-apply eqb_typ_prop in H1; auto.
 Qed.
 
 Definition eqb_signature (s1 s2: signature) : bool :=
  match s1, s2 with
  |  mksignature args1 res1 cc1, mksignature args2 res2 cc2 =>
-      eqb_list eqb_typ args1 args2 && eqb_rettype res1 res2 && eqb_calling_convention cc1 cc2
+      eqb_list eqb_xtype args1 args2 && eqb_xtype res1 res2 && eqb_calling_convention cc1 cc2
  end.
 
 Lemma eqb_list_refl: forall {A} (f: A -> A -> bool),
@@ -149,10 +153,10 @@ Lemma eqb_signature_refl: forall c, eqb_signature c c = true.
 Proof.
 destruct c; simpl; try reflexivity.
 rewrite eqb_list_refl.
-rewrite eqb_rettype_refl.
+rewrite eqb_xtype_refl.
 rewrite eqb_calling_convention_refl.
 auto.
-apply eqb_typ_refl.
+apply eqb_xtype_refl.
 Qed.
 
 Lemma eqb_signature_prop: forall s1 s2, eqb_signature s1 s2 = true -> s1=s2.
@@ -160,15 +164,14 @@ Proof.
 intros.
 destruct s1, s2; simpl in *.
 rewrite !andb_true_iff in H; destruct H as [[? ?] ?].
-assert (sig_res = sig_res0). { 
+assert (sig_res = sig_res0). {
  destruct sig_res, sig_res0; inv H0; auto.
- destruct t,t0; inv H3; auto.
 }
 assert (sig_args = sig_args0). {
  clear - H.
  revert sig_args0 H; induction sig_args; destruct sig_args0; simpl; intros; inv H; auto.
   rewrite andb_true_iff in H1; destruct H1; f_equal; auto.
-  destruct a,t; inv H; auto.
+  destruct a,x; inv H; auto.
 }
 apply eqb_calling_convention_prop in H1.
 subst; auto.
@@ -176,6 +179,7 @@ Qed.
 
 Definition eqb_memory_chunk (c1 c2: memory_chunk) : bool :=
  match c1, c2 with
+ | Mbool, Mbool => true
  | Mint8signed, Mint8signed => true
  | Mint8unsigned, Mint8unsigned => true
  | Mint16signed, Mint16signed => true
@@ -330,7 +334,7 @@ destruct u,u0; inv H; auto.
 destruct b,b0; inv H; auto.
 Qed.
 
-Fixpoint eqb_statement (s1 s2: statement ) : bool :=
+Fixpoint eqb_statement (s1 s2: statement) : bool :=
 match s1, s2 with
 | Sskip, Sskip => true
 | Sassign a1 b1, Sassign a2 b2 => 
@@ -343,7 +347,7 @@ match s1, s2 with
 | Sbuiltin i1 f1 t1 b1, Sbuiltin i2 f2 t2 b2 =>
   andb (eqb_option eqb_ident i1 i2)
    (andb (eqb_external_function f1 f2) 
-    (andb (eqb_typelist t1 t2) (eqb_list eqb_expr b1 b2)))
+    (andb (eqb_list eqb_type t1 t2) (eqb_list eqb_expr b1 b2)))
 | Ssequence a1 b1, Ssequence a2 b2 =>
     andb (eqb_statement a1 a2) (eqb_statement b1 b2)
 | Sifthenelse e1 a1 b1, Sifthenelse e2 a2 b2 =>
@@ -422,11 +426,11 @@ Proof.
 induction s; simpl; auto;
 rewrite ?Int.eq_true, ?Int64.eq_true, ?eqb_type_refl, ?eqb_ident_refl,
   ?eqb_expr_refl,  ?andb_true_r; auto;
- rewrite ?eqb_list_refl by apply eqb_expr_refl;
+ rewrite ?eqb_list_refl by (try apply eqb_expr_refl; try apply eqb_type_refl);
  rewrite ?eqb_external_function_refl, ?eqb_typelist_refl,
  ?IHs, ?IHs1, ?IHs2; auto.
  destruct o; auto; simpl; rewrite eqb_ident_refl; auto.
- destruct o; auto; simpl; rewrite eqb_ident_refl; auto.
+ destruct o; auto; simpl; rewrite ?eqb_ident_refl; auto.
  destruct o; auto; simpl; rewrite eqb_expr_refl; auto.
  simpl; auto.
 - clear eqb_labeled_statements_refl.
@@ -465,7 +469,7 @@ match fd1, fd2 with
 | Internal f1, Internal f2 => function_eq f1 f2
 | External ef1 params1 res1 cc1, External ef2 params2 res2 cc2 => 
         eqb_external_function ef1 ef2 &&
-        eqb_typelist params1 params2 &&
+        eqb_list eqb_type params1 params2 &&
         eqb_type res1 res2 &&
         eqb_calling_convention cc1 cc2
  | _, _ => false
@@ -551,7 +555,7 @@ Definition merge_globdef (g1 g2: globdef (fundef Clight.function) type) :=
 Definition eqb_QPbuiltin (a b: QP.builtin) : bool :=
  match a, b with
  | QP.mk_builtin ef1 params1 ty1 cc1, QP.mk_builtin ef2 params2 ty2 cc2 =>
-     extspec.extfunct_eqdec ef1 ef2 && eqb_typelist params1 params2 && eqb_type ty1 ty2 
+     extspec.extfunct_eqdec ef1 ef2 && eqb_list eqb_type params1 params2 && eqb_type ty1 ty2 
        && eqb_calling_convention cc1 cc2
  end.
 
@@ -912,7 +916,7 @@ simpl in *.
 destruct f; auto.
 destruct e; auto; destruct H3; auto; inv H; auto.
 unfold not_builtin in H2.
-fold (@is_builtin function (i, Gfun (External e t t0 c))) in H3.
+fold (@is_builtin function (i, Gfun (External e l0 t c))) in H3.
 revert H2; destruct (is_builtin _) eqn:?H; intro H2; inv H2.
 apply H5.
 clear - H3.

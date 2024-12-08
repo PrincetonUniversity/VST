@@ -20,7 +20,7 @@ eapply semax_pre; [ |  apply sequential; apply semax_skip].
 destruct R; apply ENTAIL_refl.
 Qed.
 
-Lemma typelist2list_arglist: forall l i, map snd (arglist i l) = typelist2list l.
+Lemma typelist2list_arglist: forall l i, map snd (arglist i l) = l.
 Proof. induction l. simpl; intros; trivial.
 intros. simpl. f_equal. apply IHl.
 Qed. 
@@ -29,12 +29,12 @@ Lemma semax_func_cons_ext_vacuous:
      forall `{!VSTGS OK_ty Σ} {OK_spec: ext_spec OK_ty}
          (V : varspecs) (G : funspecs) (C : compspecs) ge
          (fs : list (ident * Clight.fundef)) (id : ident) (ef : external_function)
-         (argsig : typelist) (retsig : type)
+         (argsig : list type) (retsig : type)
          (G' : funspecs) cc b,
        (id_in_list id (map fst fs)) = false ->
        ef_sig ef =
        {|
-         sig_args := typlist_of_typelist argsig;
+         sig_args := map argtype_of_type argsig;
          sig_res := rettype_of_type retsig;
          sig_cc := cc_of_fundef (External ef argsig retsig cc) |} ->
        Genv.find_symbol ge id = Some b ->
@@ -49,8 +49,9 @@ specialize (semax_func_cons_ext V G ge fs id ef argsig retsig
   (ConstType Impossible) 
 ).
 simpl.
-intros HH; eapply HH; clear HH; try assumption; trivial.
-* rewrite <-(typelist2list_arglist _ 1). reflexivity.
+intros HH.
+rewrite /vacuous_funspec /= /typesig_of_funsig /= typelist2list_arglist.
+ eapply HH; clear HH; try assumption; trivial.
 * right. clear. hnf. intros x. inv x.
 * intros. unfold monPred_at. done. 
 * eassumption.
@@ -109,7 +110,7 @@ Proof.
 apply id_in_list_false in ID. destruct Sfunc as [Hyp1 [Hyp2 Hyp3]].
 split3.
 { constructor. 2: apply Hyp1. simpl. destruct ifunc; simpl.
-  unfold type_of_function. simpl. rewrite TTL1; trivial. }
+  unfold type_of_function. simpl. trivial. }
 { clear Hyp3. red; intros j fd J. destruct J; [ inv H | auto].
   exists b; split; trivial. }
 intros. specialize (Hyp3 _ Gfs Gffp).

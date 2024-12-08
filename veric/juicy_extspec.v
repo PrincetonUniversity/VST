@@ -64,8 +64,8 @@ Program Definition jsafe_pre
   |={E}=> ∀ m, state_interp m z -∗
       (∃ i, ⌜halted Hcore c i ∧ ext_spec_exit Hspec (Some (Vint i)) z m⌝) ∨
       (|={E}=> ∃ c' m', ⌜corestep Hcore c m c' m'⌝ ∧ state_interp m' z ∗ ▷ jsafe E z c') ∨
-      (∃ e args x, ⌜at_external Hcore c m = Some (e, args) ∧ ext_spec_pre Hspec e x (genv_symb ge) (sig_args (ef_sig e)) args z m⌝ ∧
-         ▷ (∀ ret m' z', ⌜Val.has_type_list args (sig_args (ef_sig e)) ∧ Builtins0.val_opt_has_rettype ret (sig_res (ef_sig e))⌝ →
+      (∃ e args x, ⌜at_external Hcore c m = Some (e, args) ∧ ext_spec_pre Hspec e x (genv_symb ge) (map proj_xtype (sig_args (ef_sig e))) args z m⌝ ∧
+         ▷ (∀ ret m' z', ⌜Val.has_type_list args (map proj_xtype (sig_args (ef_sig e))) ∧ Builtins0.val_opt_has_rettype ret (sig_res (ef_sig e))⌝ →
           ⌜ext_spec_post Hspec e x (genv_symb ge) (sig_res (ef_sig e)) ret z' m'⌝ → |={E}=>
           ∃ c', ⌜after_external Hcore ret c m' = Some c'⌝ ∧ state_interp m' z' ∗ jsafe E z' c')).
 

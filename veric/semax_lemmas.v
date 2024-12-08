@@ -736,7 +736,7 @@ Section statement_rect.
   Variable f0 : forall e e0 : expr, P (Sassign e e0).
   Variable f1 : forall (i : ident) (e : expr), P (Sset i e).
   Variable f2 : forall (o : option ident) (e : expr) (l : list expr), P (Scall o e l).
-  Variable f3 : forall (o : option ident) (e : external_function) (t : typelist) (l : list expr), P (Sbuiltin o e t l).
+  Variable f3 : forall (o : option ident) (e : external_function) (t : list type) (l : list expr), P (Sbuiltin o e t l).
   Variable f4 : forall s : statement, P s -> forall s0 : statement, P s0 -> P (Ssequence s s0).
   Variable f5 : forall (e : expr) (s : statement), P s -> forall s0 : statement, P s0 -> P (Sifthenelse e s s0).
   Variable f6 : forall s : statement, P s -> forall s0 : statement, P s0 -> P (Sloop s s0).
@@ -793,7 +793,6 @@ Section eq_dec.
   Lemma eq_dec_external_function : EqDec external_function. repeat t. Defined.
   Let eq_dec_option_ident := Coqlib.option_eq (ident_eq).
   Let eq_dec_option_Z : EqDec (option Z). repeat t. Defined.
-  Let eq_dec_typelist : EqDec typelist. repeat t. Defined.
 
   Lemma eq_dec_expr : EqDec expr.
   Proof. repeat t. Defined.

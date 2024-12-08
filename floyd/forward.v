@@ -547,7 +547,7 @@ intros.
  destruct H0.
 apply bi.pure_intro.
 unfold make_ext_rval in H0.
-destruct (rettype_eq t AST.Tvoid).
+destruct (xtype_eq t Xvoid).
 subst t.
 unfold eval_id in H0; simpl in H0. contradiction.
 destruct t; try contradiction;
@@ -832,7 +832,7 @@ Ltac give_EX_warning :=
              end.
 
 Ltac check_parameter_types :=
-   match goal with |- _ = fun_case_f (typelist_of_type_list ?argsig) ?retty ?cc =>
+   match goal with |- _ = fun_case_f ?argsig ?retty ?cc =>
      check_callconv cc; 
      let al := eval compute in argsig in 
     check_struct_params al
@@ -4213,11 +4213,11 @@ end.
 
 Ltac type_lists_compatible al bl :=
  match al with
- | Ctypes.Tcons ?a ?al' => match bl with Ctypes.Tcons ?b ?bl' => 
+ | ?a :: ?al' => match bl with ?b :: ?bl' => 
                  first [unify a b | unify (classify_cast a b) cast_case_pointer];
                  type_lists_compatible al' bl'
                 end
- | Ctypes.Tnil => match bl with Ctypes.Tnil => idtac end
+ | [] => match bl with [] => idtac end
  end.
 
 Ltac function_types_compatible t1 t2 :=

@@ -20,7 +20,7 @@ Record composite : Type := {
 
 Definition composite_env : Type := Maps.PTree.t composite.
 
-Inductive builtin := mk_builtin: external_function -> typelist -> type -> calling_convention -> builtin.
+Inductive builtin := mk_builtin: external_function -> list type -> type -> calling_convention -> builtin.
 
 Record program (F: Type) : Type := {
   prog_builtins: list (ident * builtin);

@@ -101,10 +101,9 @@ Definition make_ext_rval := veric.semax.make_ext_rval.
 Definition tc_option_val := veric.semax.tc_option_val.
 
 Lemma semax_func_cons_ext: forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} (V: varspecs) (G: funspecs)
-     {C: compspecs} ge fs id ef argsig retsig A E P (Q: dtfr (AssertTT A)) argsig'
+     {C: compspecs} ge fs id ef argsig retsig A E P (Q: dtfr (AssertTT A))
       (G': funspecs) cc b,
-  argsig' = typelist2list argsig ->
-  ef_sig ef = mksignature (typlist_of_typelist argsig) (rettype_of_type retsig) cc ->
+  ef_sig ef = mksignature (map argtype_of_type argsig) (rettype_of_type retsig) cc ->
   id_in_list id (map (@fst _ _) fs) = false ->
   (ef_inline ef = false \/ @withtype_empty Σ A) ->
   (forall gx x (ret : option val),
@@ -116,7 +115,7 @@ Lemma semax_func_cons_ext: forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} 
   (⊢ CSHL_Def.semax_external _ _ _ OK_spec ef A E P Q) ->
   CSHL_Def.semax_func _ _ _ OK_spec V G C ge fs G' ->
   CSHL_Def.semax_func _ _ _ OK_spec V G C ge ((id, Ctypes.External ef argsig retsig cc)::fs)
-             ((id, mk_funspec (argsig', retsig) cc A E P Q)  :: G').
+             ((id, mk_funspec (argsig, retsig) cc A E P Q)  :: G').
 Proof. intros. eapply semax_func_cons_ext; eauto. Qed.
 
 Definition semax_Delta_subsumption := @semax_lemmas.semax_Delta_subsumption.
@@ -128,7 +127,7 @@ Lemma semax_external_funspec_sub: forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec 
   (Hsub: funspec_sub (mk_funspec (argtypes, rtype) cc A1 E1 P1 Q1)
                    (mk_funspec (argtypes, rtype) cc A E P Q))
   (HSIG: ef_sig ef =
-         mksignature (map typ_of_type argtypes)
+         mksignature (map argtype_of_type argtypes)
                      (rettype_of_type rtype) cc),
   CSHL_Def.semax_external _ _ _ OK_spec ef A1 E1 P1 Q1 ⊢
   CSHL_Def.semax_external _ _ _ OK_spec ef A E P Q.
@@ -191,7 +190,7 @@ Lemma semax_call `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {CS : compspecs}:
    F ret argsig retsig cc a bl,
            Ef x ⊆ E ->
            Cop.classify_fun (typeof a) =
-           Cop.fun_case_f (typelist_of_type_list argsig) retsig cc ->
+           Cop.fun_case_f argsig retsig cc ->
             (retsig = Ctypes.Tvoid -> ret = None) ->
           tc_fn_return Delta ret retsig ->
   semax OK_spec E Delta

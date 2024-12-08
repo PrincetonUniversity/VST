@@ -151,6 +151,7 @@ Qed.
 
 Definition decode_encode_val_ok (chunk1 chunk2: memory_chunk) : Prop :=
   match chunk1, chunk2 with
+  | Mbool, Mbool => True
   | Mint8signed, Mint8signed => True
   | Mint8unsigned, Mint8signed => True
   | Mint8signed, Mint8unsigned => True

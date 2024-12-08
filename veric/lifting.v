@@ -1068,7 +1068,7 @@ Proof.
     iPureIntro. eapply safeN_step; eauto.
   - iDestruct "Hsafe_ext" as (ef args w (at_external & Hpre)) "Hpost".
     iAssert (|={⊤}[∅]▷=>^(S n) ⌜(∀ (ret : option val) m' z' n',
-      Val.has_type_list args (sig_args (ef_sig ef))
+      Val.has_type_list args (map proj_xtype (sig_args (ef_sig ef)))
       → Builtins0.val_opt_has_rettype ret (sig_res (ef_sig ef))
         → n' ≤ n
             → ext_spec_post OK_spec ef w

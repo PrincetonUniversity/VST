@@ -928,10 +928,10 @@ Proof.
   auto.
 Qed.
 
-Fixpoint iota_formals (i: ident) (tl: typelist) :=
+Fixpoint iota_formals (i: ident) (tl: list type) :=
  match tl with
- | Tcons t tl' => (i,t) :: iota_formals (i+1)%positive tl'
- | Tnil => nil
+ | t :: tl' => (i,t) :: iota_formals (i+1)%positive tl'
+ | nil => nil
  end.
 
 Lemma isptr_force_ptr'' : forall p Q,

@@ -27,14 +27,14 @@ Require Import VST.veric.SequentialClight.
 Lemma NullExtension_whole_program_sequential_safety:
    forall {CS: compspecs} `{!VSTGpreS unit Σ}
      (prog: Clight.program) V G m,
-     (forall {HH : semax.VSTGS unit Σ}, semax_prog extspec prog tt V G) ->
+     (forall {HH : lifting.VSTGS unit Σ}, semax_prog extspec prog tt V G) ->
      Genv.init_mem prog = Some m ->
      exists b, exists q, exists m',
        Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some b /\
        semantics.initial_core  (Clight_core.cl_core_sem (Clight.globalenv prog))
            0 m q m' (Vptr b Ptrofs.zero) nil /\
        forall n,
-        @dry_safeN _ _ _ unit (semax.genv_symb_injective)
+        @dry_safeN _ _ _ unit (lifting.genv_symb_injective)
           (Clight_core.cl_core_sem (Clight.globalenv prog)) extspec
            (Clight.genv_genv 
             (Clight.Build_genv (Genv.globalenv prog) (Ctypes.prog_comp_env prog)) )

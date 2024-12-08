@@ -19,10 +19,10 @@ Require Import compcert.cfrontend.Clight.
 Require Import compcert.export.Clightdefs.
 
 Definition funsig2signature (s : funsig) cc : signature :=
-  mksignature (map typ_of_type (map snd (fst s))) (rettype_of_type (snd s)) cc.
+  mksignature (map argtype_of_type (map snd (fst s))) (rettype_of_type (snd s)) cc.
 
 Definition typesig2signature (s : typesig) cc : signature :=
-  mksignature (map typ_of_type (fst s)) (rettype_of_type (snd s)) cc.
+  mksignature (map argtype_of_type (fst s)) (rettype_of_type (snd s)) cc.
 
 (* NOTE.   ext_link: Strings.String.string -> ident
    represents the mapping from the _name_ of an external function
@@ -105,7 +105,7 @@ Definition funspec2pre (ext_link: Strings.String.string -> ident) (A : TypeTree)
   match oi_eq_dec (Some (id, sig)) (ef_id_sig ext_link ef) as s
   return ((if s then (nat * iResUR Σ * ofe_car (dtfr A))%type else ext_spec_type Espec ef) -> Prop)
   with
-    | left _ => fun x => funspec2pre' A P x ge_s (sig_args (ef_sig ef)) args z m
+    | left _ => fun x => funspec2pre' A P x ge_s (map proj_xtype (sig_args (ef_sig ef))) args z m
     | right n => fun x' => ext_spec_pre Espec ef x' ge_s tys args z m
   end x.
 
@@ -114,7 +114,7 @@ Definition funspec2post' (A : TypeTree) (Q: dtfr (AssertTT A)) (x : (nat * iResU
 
 Definition funspec2post (ext_link: Strings.String.string -> ident) (A : TypeTree)
   (Q: dtfr (AssertTT A))
-  id sig ef x ge_s (tret : rettype) ret (z : Z) m : Prop :=
+  id sig ef x ge_s (tret : xtype) ret (z : Z) m : Prop :=
   match oi_eq_dec (Some (id, sig)) (ef_id_sig ext_link ef) as s
   return ((if s then (nat * iResUR Σ * ofe_car (dtfr A))%type else ext_spec_type Espec ef) -> Prop)
   with
@@ -173,17 +173,6 @@ Fixpoint add_funspecs_rec (ext_link: Strings.String.string -> ident) (Espec : ex
     | cons (i,f) fs' => funspec2jspec (add_funspecs_rec ext_link Espec fs') ext_link (i,f)
   end.
 
-(*Program Definition has_witness {A B} (x : A) (x' : B) : mpred := {| ouPred_holds := λ n phi, exists n' phi',
-  n ≤ n' /\ phi' ≼ₒ{n} phi /\ JMeq (n', phi', x) x' |}.
-Next Obligation.
-Proof.
-  intros ???????? (n' & phi' & ? & ? & ?) ??; simpl.
-  exists n', phi'; split3; last done.
-  - by etrans.
-  - eapply ora_orderN_le; last done.
-    by etrans.
-Qed.*)
-
 Lemma add_funspecs_pre (ext_link: Strings.String.string -> ident)
               {fs id sig cc A E P Q}
               Espec tys ge_s {x} {args} m z :
@@ -191,7 +180,7 @@ Lemma add_funspecs_pre (ext_link: Strings.String.string -> ident)
   funspecs_norepeat fs ->
   In (ext_link id, (mk_funspec sig cc A E P Q)) fs -> ∃ H : ext_spec_type (add_funspecs_rec ext_link Espec fs) ef = (nat * iResUR Σ * dtfr A)%type,
   ext_spec_pre (add_funspecs_rec ext_link Espec fs) ef x ge_s tys args z m =
-  funspec2pre' A P (eq_rect _ Datatypes.id x _ H) ge_s (sig_args (ef_sig ef)) args z m.
+  funspec2pre' A P (eq_rect _ Datatypes.id x _ H) ge_s (map proj_xtype (sig_args (ef_sig ef))) args z m.
 Proof.
   induction fs; [intros; exfalso; auto|]; intros ?? [-> | H1]; simpl in *.
   - clear IHfs H; unfold funspec2jspec; simpl.
@@ -236,11 +225,11 @@ Lemma add_funspecs_prepost (ext_link: Strings.String.string -> ident)
   let ef := EF_external id (typesig2signature sig cc) in
   funspecs_norepeat fs ->
   In (ext_link id, (mk_funspec sig cc A E P Q)) fs ->
-  forall md z, ⌜Val.has_type_list args (sig_args (ef_sig ef))⌝ ∧
+  forall md z, ⌜Val.has_type_list args (map proj_xtype (sig_args (ef_sig ef)))⌝ ∧
         state_interp md z ∗ P x (filter_genv (symb2genv ge_s), args) ⊢
   ∃ x' : ext_spec_type (add_funspecs_rec ext_link Espec fs) ef,
     ⌜ext_spec_pre (add_funspecs_rec ext_link Espec fs) ef x' ge_s tys args z md⌝ ∧
-    (∀ (tret : rettype) (ret : option val) (m' : Memory.mem) z',
+    (∀ (tret : xtype) (ret : option val) (m' : Memory.mem) z',
        ⌜ext_spec_post (add_funspecs_rec ext_link Espec fs) ef x' ge_s tret ret z' m'⌝
        → |==> state_interp m' z' ∗ ofe_mor_car _ _ Q x (make_ext_rval (filter_genv (symb2genv ge_s)) tret ret)).
 Proof.
@@ -283,14 +272,14 @@ Lemma add_funspecs_prepost_void  (ext_link: Strings.String.string -> ident)
               {fs id sig cc A E P Q}
               {x: dtfr A}
               {args} Espec tys ge_s :
-  let ef := EF_external id (mksignature (map typ_of_type sig) Tvoid cc) in
+  let ef := EF_external id (mksignature (map argtype_of_type sig) Xvoid cc) in
   funspecs_norepeat fs ->
   In (ext_link id, (mk_funspec (sig, tvoid) cc A E P Q)) fs ->
-  forall md z, ⌜Val.has_type_list args (sig_args (ef_sig ef))⌝ ∧
+  forall md z, ⌜Val.has_type_list args (map proj_xtype (sig_args (ef_sig ef)))⌝ ∧
         state_interp md z ∗ P x (filter_genv (symb2genv ge_s), args) ⊢
   ∃ x' : ext_spec_type (add_funspecs_rec ext_link Espec fs) ef,
     ⌜ext_spec_pre (add_funspecs_rec ext_link Espec fs) ef x' ge_s tys args z md⌝ ∧
-    (∀ (tret : rettype) (ret : option val) (m' : Memory.mem) z',
+    (∀ (tret : xtype) (ret : option val) (m' : Memory.mem) z',
        ⌜ext_spec_post (add_funspecs_rec ext_link Espec fs) ef x' ge_s tret ret z' m'⌝
        → |==> state_interp m' z' ∗ ofe_mor_car _ _ Q x (make_ext_rval (filter_genv (symb2genv ge_s)) tret ret)).
 Proof.

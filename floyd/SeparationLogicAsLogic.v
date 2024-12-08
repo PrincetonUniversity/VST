@@ -185,7 +185,7 @@ Inductive semax `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {CS: compspecs} (E
          (∃ argsig: _, ∃ retsig: _, ∃ cc: _,
           ∃ A: _, ∃ Ef : dtfr (MaskTT A), ∃ P: _, ∃ Q: _, ∃ x: _,
          ⌜Ef x ⊆ E /\ Cop.classify_fun (typeof a) =
-             Cop.fun_case_f (typelist_of_type_list argsig) retsig cc /\
+             Cop.fun_case_f argsig retsig cc /\
              (retsig = Tvoid -> ret = None) /\
              tc_fn_return Delta ret retsig⌝ ∧
           (((tc_expr Delta a) ∧ (tc_exprlist Delta argsig bl)))  ∧
@@ -305,10 +305,8 @@ Inductive semax_func `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} : forall (V: 
                  ((id, mk_funspec fsig cc A E P Q)  :: G')
 | semax_func_cons_ext:
    forall (V: varspecs) (G: funspecs) {C: compspecs} ge fs id ef argsig retsig A E P (Q : dtfr (AssertTT A))
-          argsig'
           (G': funspecs) cc b,
-  argsig' = typelist2list argsig ->
-  ef_sig ef = mksignature (typlist_of_typelist argsig) (rettype_of_type retsig) cc ->
+  ef_sig ef = mksignature (map argtype_of_type argsig) (rettype_of_type retsig) cc ->
   id_in_list id (map (@fst _ _) fs) = false ->
   (ef_inline ef = false \/ @withtype_empty Σ A) ->
   (forall gx x (ret : option val),
@@ -319,7 +317,7 @@ Inductive semax_func `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} : forall (V: 
   (⊢ semax_external ef A E P Q) ->
   semax_func(C := C) V G ge fs G' ->
   semax_func V G ge ((id, External ef argsig retsig cc)::fs)
-       ((id, mk_funspec (argsig', retsig) cc A E P Q)  :: G')
+       ((id, mk_funspec (argsig, retsig) cc A E P Q)  :: G')
 | semax_func_mono: forall  {CS CS'} (CSUB: cspecs_sub CS CS') ge ge'
   (Gfs: forall i,  sub_option (Genv.find_symbol ge i) (Genv.find_symbol ge' i))
   (Gffp: forall b, sub_option (Genv.find_funct_ptr ge b) (Genv.find_funct_ptr ge' b))
@@ -653,7 +651,7 @@ Lemma semax_call_inv: forall E Delta ret a bl Pre Post,
          (∃ argsig: _, ∃ retsig: _, ∃ cc: _,
           ∃ A: _, ∃ Ef : dtfr (MaskTT A), ∃ P: _, ∃ Q: _, ∃ x: _,
          ⌜Ef x ⊆ E /\ Cop.classify_fun (typeof a) =
-             Cop.fun_case_f (typelist_of_type_list argsig) retsig cc /\
+             Cop.fun_case_f argsig retsig cc /\
              (retsig = Tvoid -> ret = None) /\
              tc_fn_return Delta ret retsig⌝ ∧
           ((*▷*)((tc_expr Delta a) ∧ (tc_exprlist Delta argsig bl)))  ∧
@@ -1786,7 +1784,7 @@ Definition CALLpre (CS: compspecs) E Delta ret a bl R :=
      ∃ P : dtfr (ArgsTT A),
      ∃ Q : dtfr (AssertTT A),
      ∃ x : dtfr A,
-     ⌜Ef x ⊆ E /\ Cop.classify_fun (typeof a) = Cop.fun_case_f (typelist_of_type_list argsig) retsig cc /\
+     ⌜Ef x ⊆ E /\ Cop.classify_fun (typeof a) = Cop.fun_case_f argsig retsig cc /\
          (retsig = Tvoid -> ret = @None ident) /\ tc_fn_return Delta ret retsig⌝ ∧
      (tc_expr Delta a ∧ tc_exprlist Delta argsig bl) ∧
      assert_of ((` (func_ptr (mk_funspec (argsig, retsig) cc A Ef P Q))) (@eval_expr CS a)) ∧
