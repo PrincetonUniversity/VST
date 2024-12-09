@@ -6,7 +6,7 @@ Local Open Scope string_scope.
 Local Open Scope clight_scope.
 
 Module Info.
-  Definition version := "3.10".
+  Definition version := "3.15".
   Definition build_number := "".
   Definition build_tag := "".
   Definition build_branch := "".
@@ -16,128 +16,106 @@ Module Info.
   Definition bitsize := 32.
   Definition big_endian := false.
   Definition source_file := "sha/hmac.c".
-  Definition normalized := false.
+  Definition normalized := true.
 End Info.
 
-Definition _HMAC : ident := 117%positive.
-Definition _HMAC2 : ident := 119%positive.
-Definition _HMAC_Final : ident := 113%positive.
-Definition _HMAC_Init : ident := 110%positive.
-Definition _HMAC_Update : ident := 111%positive.
-Definition _HMAC_cleanup : ident := 114%positive.
-Definition _K256 : ident := 45%positive.
-Definition _Ki : ident := 62%positive.
-Definition _Nh : ident := 3%positive.
-Definition _Nl : ident := 2%positive.
-Definition _SHA256 : ident := 79%positive.
-Definition _SHA256_Final : ident := 78%positive.
-Definition _SHA256_Init : ident := 65%positive.
-Definition _SHA256_Update : ident := 74%positive.
-Definition _SHA256_addlength : ident := 69%positive.
-Definition _SHA256state_st : ident := 6%positive.
-Definition _T1 : ident := 57%positive.
-Definition _T2 : ident := 58%positive.
-Definition _X : ident := 60%positive.
-Definition ___builtin_annot : ident := 23%positive.
-Definition ___builtin_annot_intval : ident := 24%positive.
-Definition ___builtin_bswap : ident := 8%positive.
-Definition ___builtin_bswap16 : ident := 10%positive.
-Definition ___builtin_bswap32 : ident := 9%positive.
-Definition ___builtin_bswap64 : ident := 7%positive.
-Definition ___builtin_clz : ident := 11%positive.
-Definition ___builtin_clzl : ident := 12%positive.
-Definition ___builtin_clzll : ident := 13%positive.
-Definition ___builtin_ctz : ident := 14%positive.
-Definition ___builtin_ctzl : ident := 15%positive.
-Definition ___builtin_ctzll : ident := 16%positive.
-Definition ___builtin_debug : ident := 40%positive.
-Definition ___builtin_expect : ident := 31%positive.
-Definition ___builtin_fabs : ident := 17%positive.
-Definition ___builtin_fabsf : ident := 18%positive.
-Definition ___builtin_fmadd : ident := 34%positive.
-Definition ___builtin_fmax : ident := 32%positive.
-Definition ___builtin_fmin : ident := 33%positive.
-Definition ___builtin_fmsub : ident := 35%positive.
-Definition ___builtin_fnmadd : ident := 36%positive.
-Definition ___builtin_fnmsub : ident := 37%positive.
-Definition ___builtin_fsqrt : ident := 19%positive.
-Definition ___builtin_membar : ident := 25%positive.
-Definition ___builtin_memcpy_aligned : ident := 21%positive.
-Definition ___builtin_read16_reversed : ident := 38%positive.
-Definition ___builtin_read32_reversed : ident := 41%positive.
-Definition ___builtin_sel : ident := 22%positive.
-Definition ___builtin_sqrt : ident := 20%positive.
-Definition ___builtin_unreachable : ident := 30%positive.
-Definition ___builtin_va_arg : ident := 27%positive.
-Definition ___builtin_va_copy : ident := 28%positive.
-Definition ___builtin_va_end : ident := 29%positive.
-Definition ___builtin_va_start : ident := 26%positive.
-Definition ___builtin_write16_reversed : ident := 39%positive.
-Definition ___builtin_write32_reversed : ident := 42%positive.
-Definition ___compcert_i64_dtos : ident := 84%positive.
-Definition ___compcert_i64_dtou : ident := 85%positive.
-Definition ___compcert_i64_sar : ident := 96%positive.
-Definition ___compcert_i64_sdiv : ident := 90%positive.
-Definition ___compcert_i64_shl : ident := 94%positive.
-Definition ___compcert_i64_shr : ident := 95%positive.
-Definition ___compcert_i64_smod : ident := 92%positive.
-Definition ___compcert_i64_smulh : ident := 97%positive.
-Definition ___compcert_i64_stod : ident := 86%positive.
-Definition ___compcert_i64_stof : ident := 88%positive.
-Definition ___compcert_i64_udiv : ident := 91%positive.
-Definition ___compcert_i64_umod : ident := 93%positive.
-Definition ___compcert_i64_umulh : ident := 98%positive.
-Definition ___compcert_i64_utod : ident := 87%positive.
-Definition ___compcert_i64_utof : ident := 89%positive.
-Definition ___compcert_va_composite : ident := 83%positive.
-Definition ___compcert_va_float64 : ident := 82%positive.
-Definition ___compcert_va_int32 : ident := 80%positive.
-Definition ___compcert_va_int64 : ident := 81%positive.
-Definition _a : ident := 48%positive.
-Definition _aux : ident := 108%positive.
-Definition _b : ident := 49%positive.
-Definition _buf : ident := 112%positive.
-Definition _c : ident := 50%positive.
-Definition _cNh : ident := 68%positive.
-Definition _cNl : ident := 67%positive.
-Definition _ctx : ident := 46%positive.
-Definition _ctx_key : ident := 109%positive.
-Definition _d : ident := 51%positive.
-Definition _data : ident := 4%positive.
-Definition _data_ : ident := 70%positive.
-Definition _e : ident := 52%positive.
-Definition _f : ident := 53%positive.
-Definition _fragment : ident := 73%positive.
-Definition _g : ident := 54%positive.
-Definition _h : ident := 1%positive.
-Definition _hmac_ctx_st : ident := 103%positive.
-Definition _i : ident := 63%positive.
-Definition _i_ctx : ident := 101%positive.
-Definition _in : ident := 47%positive.
-Definition _j : ident := 105%positive.
-Definition _key : ident := 104%positive.
-Definition _key_len : ident := 116%positive.
-Definition _l : ident := 61%positive.
-Definition _len : ident := 66%positive.
-Definition _ll : ident := 76%positive.
-Definition _m : ident := 115%positive.
-Definition _m__1 : ident := 118%positive.
-Definition _main : ident := 99%positive.
-Definition _md : ident := 75%positive.
-Definition _md_ctx : ident := 100%positive.
-Definition _memcpy : ident := 43%positive.
-Definition _memset : ident := 44%positive.
-Definition _n : ident := 72%positive.
-Definition _num : ident := 5%positive.
-Definition _o_ctx : ident := 102%positive.
-Definition _p : ident := 71%positive.
-Definition _pad : ident := 107%positive.
-Definition _reset : ident := 106%positive.
-Definition _s0 : ident := 55%positive.
-Definition _s1 : ident := 56%positive.
-Definition _sha256_block_data_order : ident := 64%positive.
-Definition _t : ident := 59%positive.
-Definition _xn : ident := 77%positive.
+Definition _HMAC : ident := $"HMAC".
+Definition _HMAC2 : ident := $"HMAC2".
+Definition _HMAC_Final : ident := $"HMAC_Final".
+Definition _HMAC_Init : ident := $"HMAC_Init".
+Definition _HMAC_Update : ident := $"HMAC_Update".
+Definition _HMAC_cleanup : ident := $"HMAC_cleanup".
+Definition _Nh : ident := $"Nh".
+Definition _Nl : ident := $"Nl".
+Definition _SHA256_Final : ident := $"SHA256_Final".
+Definition _SHA256_Init : ident := $"SHA256_Init".
+Definition _SHA256_Update : ident := $"SHA256_Update".
+Definition _SHA256state_st : ident := $"SHA256state_st".
+Definition ___builtin_ais_annot : ident := $"__builtin_ais_annot".
+Definition ___builtin_annot : ident := $"__builtin_annot".
+Definition ___builtin_annot_intval : ident := $"__builtin_annot_intval".
+Definition ___builtin_bswap : ident := $"__builtin_bswap".
+Definition ___builtin_bswap16 : ident := $"__builtin_bswap16".
+Definition ___builtin_bswap32 : ident := $"__builtin_bswap32".
+Definition ___builtin_bswap64 : ident := $"__builtin_bswap64".
+Definition ___builtin_clz : ident := $"__builtin_clz".
+Definition ___builtin_clzl : ident := $"__builtin_clzl".
+Definition ___builtin_clzll : ident := $"__builtin_clzll".
+Definition ___builtin_ctz : ident := $"__builtin_ctz".
+Definition ___builtin_ctzl : ident := $"__builtin_ctzl".
+Definition ___builtin_ctzll : ident := $"__builtin_ctzll".
+Definition ___builtin_debug : ident := $"__builtin_debug".
+Definition ___builtin_expect : ident := $"__builtin_expect".
+Definition ___builtin_fabs : ident := $"__builtin_fabs".
+Definition ___builtin_fabsf : ident := $"__builtin_fabsf".
+Definition ___builtin_fmadd : ident := $"__builtin_fmadd".
+Definition ___builtin_fmax : ident := $"__builtin_fmax".
+Definition ___builtin_fmin : ident := $"__builtin_fmin".
+Definition ___builtin_fmsub : ident := $"__builtin_fmsub".
+Definition ___builtin_fnmadd : ident := $"__builtin_fnmadd".
+Definition ___builtin_fnmsub : ident := $"__builtin_fnmsub".
+Definition ___builtin_fsqrt : ident := $"__builtin_fsqrt".
+Definition ___builtin_membar : ident := $"__builtin_membar".
+Definition ___builtin_memcpy_aligned : ident := $"__builtin_memcpy_aligned".
+Definition ___builtin_read16_reversed : ident := $"__builtin_read16_reversed".
+Definition ___builtin_read32_reversed : ident := $"__builtin_read32_reversed".
+Definition ___builtin_sel : ident := $"__builtin_sel".
+Definition ___builtin_sqrt : ident := $"__builtin_sqrt".
+Definition ___builtin_unreachable : ident := $"__builtin_unreachable".
+Definition ___builtin_va_arg : ident := $"__builtin_va_arg".
+Definition ___builtin_va_copy : ident := $"__builtin_va_copy".
+Definition ___builtin_va_end : ident := $"__builtin_va_end".
+Definition ___builtin_va_start : ident := $"__builtin_va_start".
+Definition ___builtin_write16_reversed : ident := $"__builtin_write16_reversed".
+Definition ___builtin_write32_reversed : ident := $"__builtin_write32_reversed".
+Definition ___compcert_i64_dtos : ident := $"__compcert_i64_dtos".
+Definition ___compcert_i64_dtou : ident := $"__compcert_i64_dtou".
+Definition ___compcert_i64_sar : ident := $"__compcert_i64_sar".
+Definition ___compcert_i64_sdiv : ident := $"__compcert_i64_sdiv".
+Definition ___compcert_i64_shl : ident := $"__compcert_i64_shl".
+Definition ___compcert_i64_shr : ident := $"__compcert_i64_shr".
+Definition ___compcert_i64_smod : ident := $"__compcert_i64_smod".
+Definition ___compcert_i64_smulh : ident := $"__compcert_i64_smulh".
+Definition ___compcert_i64_stod : ident := $"__compcert_i64_stod".
+Definition ___compcert_i64_stof : ident := $"__compcert_i64_stof".
+Definition ___compcert_i64_udiv : ident := $"__compcert_i64_udiv".
+Definition ___compcert_i64_umod : ident := $"__compcert_i64_umod".
+Definition ___compcert_i64_umulh : ident := $"__compcert_i64_umulh".
+Definition ___compcert_i64_utod : ident := $"__compcert_i64_utod".
+Definition ___compcert_i64_utof : ident := $"__compcert_i64_utof".
+Definition ___compcert_va_composite : ident := $"__compcert_va_composite".
+Definition ___compcert_va_float64 : ident := $"__compcert_va_float64".
+Definition ___compcert_va_int32 : ident := $"__compcert_va_int32".
+Definition ___compcert_va_int64 : ident := $"__compcert_va_int64".
+Definition _aux : ident := $"aux".
+Definition _buf : ident := $"buf".
+Definition _c : ident := $"c".
+Definition _ctx : ident := $"ctx".
+Definition _ctx_key : ident := $"ctx_key".
+Definition _d : ident := $"d".
+Definition _data : ident := $"data".
+Definition _h : ident := $"h".
+Definition _hmac_ctx_st : ident := $"hmac_ctx_st".
+Definition _i : ident := $"i".
+Definition _i_ctx : ident := $"i_ctx".
+Definition _j : ident := $"j".
+Definition _key : ident := $"key".
+Definition _key_len : ident := $"key_len".
+Definition _len : ident := $"len".
+Definition _m : ident := $"m".
+Definition _m__1 : ident := $"m__1".
+Definition _main : ident := $"main".
+Definition _md : ident := $"md".
+Definition _md_ctx : ident := $"md_ctx".
+Definition _memcpy : ident := $"memcpy".
+Definition _memset : ident := $"memset".
+Definition _n : ident := $"n".
+Definition _num : ident := $"num".
+Definition _o_ctx : ident := $"o_ctx".
+Definition _pad : ident := $"pad".
+Definition _reset : ident := $"reset".
+Definition _t'1 : ident := 128%positive.
+Definition _t'2 : ident := 129%positive.
 
 Definition f_HMAC_Init := {|
   fn_return := tvoid;
@@ -147,7 +125,7 @@ Definition f_HMAC_Init := {|
   fn_vars := ((_pad, (tarray tuchar 64)) :: (_ctx_key, (tarray tuchar 64)) ::
               nil);
   fn_temps := ((_i, tint) :: (_j, tint) :: (_reset, tint) ::
-               (_aux, tuchar) :: nil);
+               (_aux, tuchar) :: (_t'2, tuchar) :: (_t'1, tuchar) :: nil);
   fn_body :=
 (Ssequence
   (Sset _reset (Econst_int (Int.repr 0) tint))
@@ -163,9 +141,8 @@ Definition f_HMAC_Init := {|
             (Ssequence
               (Scall None
                 (Evar _SHA256_Init (Tfunction
-                                     (Tcons
-                                       (tptr (Tstruct _SHA256state_st noattr))
-                                       Tnil) tvoid cc_default))
+                                     ((tptr (Tstruct _SHA256state_st noattr)) ::
+                                      nil) tvoid cc_default))
                 ((Eaddrof
                    (Efield
                      (Ederef
@@ -176,10 +153,8 @@ Definition f_HMAC_Init := {|
               (Ssequence
                 (Scall None
                   (Evar _SHA256_Update (Tfunction
-                                         (Tcons
-                                           (tptr (Tstruct _SHA256state_st noattr))
-                                           (Tcons (tptr tvoid)
-                                             (Tcons tuint Tnil))) tvoid
+                                         ((tptr (Tstruct _SHA256state_st noattr)) ::
+                                          (tptr tvoid) :: tuint :: nil) tvoid
                                          cc_default))
                   ((Eaddrof
                      (Efield
@@ -193,10 +168,9 @@ Definition f_HMAC_Init := {|
                 (Ssequence
                   (Scall None
                     (Evar _SHA256_Final (Tfunction
-                                          (Tcons (tptr tuchar)
-                                            (Tcons
-                                              (tptr (Tstruct _SHA256state_st noattr))
-                                              Tnil)) tvoid cc_default))
+                                          ((tptr tuchar) ::
+                                           (tptr (Tstruct _SHA256state_st noattr)) ::
+                                           nil) tvoid cc_default))
                     ((Evar _ctx_key (tarray tuchar 64)) ::
                      (Eaddrof
                        (Efield
@@ -207,8 +181,7 @@ Definition f_HMAC_Init := {|
                        (tptr (Tstruct _SHA256state_st noattr))) :: nil))
                   (Scall None
                     (Evar _memset (Tfunction
-                                    (Tcons (tptr tvoid)
-                                      (Tcons tint (Tcons tuint Tnil)))
+                                    ((tptr tvoid) :: tint :: tuint :: nil)
                                     (tptr tvoid) cc_default))
                     ((Ebinop Oadd (Evar _ctx_key (tarray tuchar 64))
                        (Econst_int (Int.repr 32) tint) (tptr tuchar)) ::
@@ -217,16 +190,14 @@ Definition f_HMAC_Init := {|
             (Ssequence
               (Scall None
                 (Evar _memcpy (Tfunction
-                                (Tcons (tptr tvoid)
-                                  (Tcons (tptr tvoid) (Tcons tuint Tnil)))
-                                (tptr tvoid) cc_default))
+                                ((tptr tvoid) :: (tptr tvoid) :: tuint ::
+                                 nil) (tptr tvoid) cc_default))
                 ((Evar _ctx_key (tarray tuchar 64)) ::
                  (Etempvar _key (tptr tuchar)) :: (Etempvar _len tint) ::
                  nil))
               (Scall None
                 (Evar _memset (Tfunction
-                                (Tcons (tptr tvoid)
-                                  (Tcons tint (Tcons tuint Tnil)))
+                                ((tptr tvoid) :: tint :: tuint :: nil)
                                 (tptr tvoid) cc_default))
                 ((Ebinop Oadd (Evar _ctx_key (tarray tuchar 64))
                    (Etempvar _len tint) (tptr tuchar)) ::
@@ -246,11 +217,12 @@ Definition f_HMAC_Init := {|
                   Sskip
                   Sbreak)
                 (Ssequence
-                  (Sset _aux
-                    (Ecast
+                  (Ssequence
+                    (Sset _t'2
                       (Ederef
                         (Ebinop Oadd (Evar _ctx_key (tarray tuchar 64))
-                          (Etempvar _i tint) (tptr tuchar)) tuchar) tuchar))
+                          (Etempvar _i tint) (tptr tuchar)) tuchar))
+                    (Sset _aux (Ecast (Etempvar _t'2 tuchar) tuchar)))
                   (Ssequence
                     (Sset _aux
                       (Ecast
@@ -267,9 +239,8 @@ Definition f_HMAC_Init := {|
           (Ssequence
             (Scall None
               (Evar _SHA256_Init (Tfunction
-                                   (Tcons
-                                     (tptr (Tstruct _SHA256state_st noattr))
-                                     Tnil) tvoid cc_default))
+                                   ((tptr (Tstruct _SHA256state_st noattr)) ::
+                                    nil) tvoid cc_default))
               ((Eaddrof
                  (Efield
                    (Ederef
@@ -280,10 +251,8 @@ Definition f_HMAC_Init := {|
             (Ssequence
               (Scall None
                 (Evar _SHA256_Update (Tfunction
-                                       (Tcons
-                                         (tptr (Tstruct _SHA256state_st noattr))
-                                         (Tcons (tptr tvoid)
-                                           (Tcons tuint Tnil))) tvoid
+                                       ((tptr (Tstruct _SHA256state_st noattr)) ::
+                                        (tptr tvoid) :: tuint :: nil) tvoid
                                        cc_default))
                 ((Eaddrof
                    (Efield
@@ -304,12 +273,12 @@ Definition f_HMAC_Init := {|
                         Sskip
                         Sbreak)
                       (Ssequence
-                        (Sset _aux
-                          (Ecast
+                        (Ssequence
+                          (Sset _t'1
                             (Ederef
                               (Ebinop Oadd (Evar _ctx_key (tarray tuchar 64))
-                                (Etempvar _i tint) (tptr tuchar)) tuchar)
-                            tuchar))
+                                (Etempvar _i tint) (tptr tuchar)) tuchar))
+                          (Sset _aux (Ecast (Etempvar _t'1 tuchar) tuchar)))
                         (Sassign
                           (Ederef
                             (Ebinop Oadd (Evar _pad (tarray tuchar 64))
@@ -322,9 +291,8 @@ Definition f_HMAC_Init := {|
                 (Ssequence
                   (Scall None
                     (Evar _SHA256_Init (Tfunction
-                                         (Tcons
-                                           (tptr (Tstruct _SHA256state_st noattr))
-                                           Tnil) tvoid cc_default))
+                                         ((tptr (Tstruct _SHA256state_st noattr)) ::
+                                          nil) tvoid cc_default))
                     ((Eaddrof
                        (Efield
                          (Ederef
@@ -334,11 +302,9 @@ Definition f_HMAC_Init := {|
                        (tptr (Tstruct _SHA256state_st noattr))) :: nil))
                   (Scall None
                     (Evar _SHA256_Update (Tfunction
-                                           (Tcons
-                                             (tptr (Tstruct _SHA256state_st noattr))
-                                             (Tcons (tptr tvoid)
-                                               (Tcons tuint Tnil))) tvoid
-                                           cc_default))
+                                           ((tptr (Tstruct _SHA256state_st noattr)) ::
+                                            (tptr tvoid) :: tuint :: nil)
+                                           tvoid cc_default))
                     ((Eaddrof
                        (Efield
                          (Ederef
@@ -351,8 +317,7 @@ Definition f_HMAC_Init := {|
         Sskip)
       (Scall None
         (Evar _memcpy (Tfunction
-                        (Tcons (tptr tvoid)
-                          (Tcons (tptr tvoid) (Tcons tuint Tnil)))
+                        ((tptr tvoid) :: (tptr tvoid) :: tuint :: nil)
                         (tptr tvoid) cc_default))
         ((Eaddrof
            (Efield
@@ -379,9 +344,8 @@ Definition f_HMAC_Update := {|
   fn_body :=
 (Scall None
   (Evar _SHA256_Update (Tfunction
-                         (Tcons (tptr (Tstruct _SHA256state_st noattr))
-                           (Tcons (tptr tvoid) (Tcons tuint Tnil))) tvoid
-                         cc_default))
+                         ((tptr (Tstruct _SHA256state_st noattr)) ::
+                          (tptr tvoid) :: tuint :: nil) tvoid cc_default))
   ((Eaddrof
      (Efield
        (Ederef (Etempvar _ctx (tptr (Tstruct _hmac_ctx_st noattr)))
@@ -402,9 +366,9 @@ Definition f_HMAC_Final := {|
 (Ssequence
   (Scall None
     (Evar _SHA256_Final (Tfunction
-                          (Tcons (tptr tuchar)
-                            (Tcons (tptr (Tstruct _SHA256state_st noattr))
-                              Tnil)) tvoid cc_default))
+                          ((tptr tuchar) ::
+                           (tptr (Tstruct _SHA256state_st noattr)) :: nil)
+                          tvoid cc_default))
     ((Evar _buf (tarray tuchar 32)) ::
      (Eaddrof
        (Efield
@@ -414,10 +378,8 @@ Definition f_HMAC_Final := {|
        (tptr (Tstruct _SHA256state_st noattr))) :: nil))
   (Ssequence
     (Scall None
-      (Evar _memcpy (Tfunction
-                      (Tcons (tptr tvoid)
-                        (Tcons (tptr tvoid) (Tcons tuint Tnil))) (tptr tvoid)
-                      cc_default))
+      (Evar _memcpy (Tfunction ((tptr tvoid) :: (tptr tvoid) :: tuint :: nil)
+                      (tptr tvoid) cc_default))
       ((Eaddrof
          (Efield
            (Ederef (Etempvar _ctx (tptr (Tstruct _hmac_ctx_st noattr)))
@@ -434,9 +396,9 @@ Definition f_HMAC_Final := {|
     (Ssequence
       (Scall None
         (Evar _SHA256_Update (Tfunction
-                               (Tcons (tptr (Tstruct _SHA256state_st noattr))
-                                 (Tcons (tptr tvoid) (Tcons tuint Tnil)))
-                               tvoid cc_default))
+                               ((tptr (Tstruct _SHA256state_st noattr)) ::
+                                (tptr tvoid) :: tuint :: nil) tvoid
+                               cc_default))
         ((Eaddrof
            (Efield
              (Ederef (Etempvar _ctx (tptr (Tstruct _hmac_ctx_st noattr)))
@@ -447,10 +409,9 @@ Definition f_HMAC_Final := {|
          nil))
       (Scall None
         (Evar _SHA256_Final (Tfunction
-                              (Tcons (tptr tuchar)
-                                (Tcons
-                                  (tptr (Tstruct _SHA256state_st noattr))
-                                  Tnil)) tvoid cc_default))
+                              ((tptr tuchar) ::
+                               (tptr (Tstruct _SHA256state_st noattr)) ::
+                               nil) tvoid cc_default))
         ((Etempvar _md (tptr tuchar)) ::
          (Eaddrof
            (Efield
@@ -468,8 +429,7 @@ Definition f_HMAC_cleanup := {|
   fn_temps := nil;
   fn_body :=
 (Scall None
-  (Evar _memset (Tfunction
-                  (Tcons (tptr tvoid) (Tcons tint (Tcons tuint Tnil)))
+  (Evar _memset (Tfunction ((tptr tvoid) :: tint :: tuint :: nil)
                   (tptr tvoid) cc_default))
   ((Etempvar _ctx (tptr (Tstruct _hmac_ctx_st noattr))) ::
    (Econst_int (Int.repr 0) tint) ::
@@ -500,34 +460,32 @@ Definition f_HMAC := {|
   (Ssequence
     (Scall None
       (Evar _HMAC_Init (Tfunction
-                         (Tcons (tptr (Tstruct _hmac_ctx_st noattr))
-                           (Tcons (tptr tuchar) (Tcons tint Tnil))) tvoid
-                         cc_default))
+                         ((tptr (Tstruct _hmac_ctx_st noattr)) ::
+                          (tptr tuchar) :: tint :: nil) tvoid cc_default))
       ((Eaddrof (Evar _c (Tstruct _hmac_ctx_st noattr))
          (tptr (Tstruct _hmac_ctx_st noattr))) ::
        (Etempvar _key (tptr tuchar)) :: (Etempvar _key_len tint) :: nil))
     (Ssequence
       (Scall None
         (Evar _HMAC_Update (Tfunction
-                             (Tcons (tptr (Tstruct _hmac_ctx_st noattr))
-                               (Tcons (tptr tvoid) (Tcons tuint Tnil))) tvoid
-                             cc_default))
+                             ((tptr (Tstruct _hmac_ctx_st noattr)) ::
+                              (tptr tvoid) :: tuint :: nil) tvoid cc_default))
         ((Eaddrof (Evar _c (Tstruct _hmac_ctx_st noattr))
            (tptr (Tstruct _hmac_ctx_st noattr))) ::
          (Etempvar _d (tptr tuchar)) :: (Etempvar _n tint) :: nil))
       (Ssequence
         (Scall None
           (Evar _HMAC_Final (Tfunction
-                              (Tcons (tptr (Tstruct _hmac_ctx_st noattr))
-                                (Tcons (tptr tuchar) Tnil)) tvoid cc_default))
+                              ((tptr (Tstruct _hmac_ctx_st noattr)) ::
+                               (tptr tuchar) :: nil) tvoid cc_default))
           ((Eaddrof (Evar _c (Tstruct _hmac_ctx_st noattr))
              (tptr (Tstruct _hmac_ctx_st noattr))) ::
            (Etempvar _md (tptr tuchar)) :: nil))
         (Ssequence
           (Scall None
             (Evar _HMAC_cleanup (Tfunction
-                                  (Tcons (tptr (Tstruct _hmac_ctx_st noattr))
-                                    Tnil) tvoid cc_default))
+                                  ((tptr (Tstruct _hmac_ctx_st noattr)) ::
+                                   nil) tvoid cc_default))
             ((Eaddrof (Evar _c (Tstruct _hmac_ctx_st noattr))
                (tptr (Tstruct _hmac_ctx_st noattr))) :: nil))
           (Sreturn (Some (Etempvar _md (tptr tuchar)))))))))
@@ -557,35 +515,33 @@ Definition f_HMAC2 := {|
   (Ssequence
     (Scall None
       (Evar _HMAC_Init (Tfunction
-                         (Tcons (tptr (Tstruct _hmac_ctx_st noattr))
-                           (Tcons (tptr tuchar) (Tcons tint Tnil))) tvoid
-                         cc_default))
+                         ((tptr (Tstruct _hmac_ctx_st noattr)) ::
+                          (tptr tuchar) :: tint :: nil) tvoid cc_default))
       ((Eaddrof (Evar _c (Tstruct _hmac_ctx_st noattr))
          (tptr (Tstruct _hmac_ctx_st noattr))) ::
        (Etempvar _key (tptr tuchar)) :: (Etempvar _key_len tint) :: nil))
     (Ssequence
       (Scall None
         (Evar _HMAC_Update (Tfunction
-                             (Tcons (tptr (Tstruct _hmac_ctx_st noattr))
-                               (Tcons (tptr tvoid) (Tcons tuint Tnil))) tvoid
-                             cc_default))
+                             ((tptr (Tstruct _hmac_ctx_st noattr)) ::
+                              (tptr tvoid) :: tuint :: nil) tvoid cc_default))
         ((Eaddrof (Evar _c (Tstruct _hmac_ctx_st noattr))
            (tptr (Tstruct _hmac_ctx_st noattr))) ::
          (Etempvar _d (tptr tuchar)) :: (Etempvar _n tint) :: nil))
       (Ssequence
         (Scall None
           (Evar _HMAC_Final (Tfunction
-                              (Tcons (tptr (Tstruct _hmac_ctx_st noattr))
-                                (Tcons (tptr tuchar) Tnil)) tvoid cc_default))
+                              ((tptr (Tstruct _hmac_ctx_st noattr)) ::
+                               (tptr tuchar) :: nil) tvoid cc_default))
           ((Eaddrof (Evar _c (Tstruct _hmac_ctx_st noattr))
              (tptr (Tstruct _hmac_ctx_st noattr))) ::
            (Etempvar _md (tptr tuchar)) :: nil))
         (Ssequence
           (Scall None
             (Evar _HMAC_Init (Tfunction
-                               (Tcons (tptr (Tstruct _hmac_ctx_st noattr))
-                                 (Tcons (tptr tuchar) (Tcons tint Tnil)))
-                               tvoid cc_default))
+                               ((tptr (Tstruct _hmac_ctx_st noattr)) ::
+                                (tptr tuchar) :: tint :: nil) tvoid
+                               cc_default))
             ((Eaddrof (Evar _c (Tstruct _hmac_ctx_st noattr))
                (tptr (Tstruct _hmac_ctx_st noattr))) ::
              (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) ::
@@ -593,20 +549,17 @@ Definition f_HMAC2 := {|
           (Ssequence
             (Scall None
               (Evar _HMAC_Update (Tfunction
-                                   (Tcons
-                                     (tptr (Tstruct _hmac_ctx_st noattr))
-                                     (Tcons (tptr tvoid) (Tcons tuint Tnil)))
-                                   tvoid cc_default))
+                                   ((tptr (Tstruct _hmac_ctx_st noattr)) ::
+                                    (tptr tvoid) :: tuint :: nil) tvoid
+                                   cc_default))
               ((Eaddrof (Evar _c (Tstruct _hmac_ctx_st noattr))
                  (tptr (Tstruct _hmac_ctx_st noattr))) ::
                (Etempvar _d (tptr tuchar)) :: (Etempvar _n tint) :: nil))
             (Ssequence
               (Scall None
                 (Evar _HMAC_Final (Tfunction
-                                    (Tcons
-                                      (tptr (Tstruct _hmac_ctx_st noattr))
-                                      (Tcons (tptr tuchar) Tnil)) tvoid
-                                    cc_default))
+                                    ((tptr (Tstruct _hmac_ctx_st noattr)) ::
+                                     (tptr tuchar) :: nil) tvoid cc_default))
                 ((Eaddrof (Evar _c (Tstruct _hmac_ctx_st noattr))
                    (tptr (Tstruct _hmac_ctx_st noattr))) ::
                  (Ebinop Oadd (Etempvar _md (tptr tuchar))
@@ -614,9 +567,8 @@ Definition f_HMAC2 := {|
               (Ssequence
                 (Scall None
                   (Evar _HMAC_cleanup (Tfunction
-                                        (Tcons
-                                          (tptr (Tstruct _hmac_ctx_st noattr))
-                                          Tnil) tvoid cc_default))
+                                        ((tptr (Tstruct _hmac_ctx_st noattr)) ::
+                                         nil) tvoid cc_default))
                   ((Eaddrof (Evar _c (Tstruct _hmac_ctx_st noattr))
                      (tptr (Tstruct _hmac_ctx_st noattr))) :: nil))
                 (Sreturn (Some (Etempvar _md (tptr tuchar))))))))))))
@@ -637,293 +589,285 @@ Definition composites : list composite_definition :=
 Definition global_definitions : list (ident * globdef fundef type) :=
 ((___compcert_va_int32,
    Gfun(External (EF_runtime "__compcert_va_int32"
-                   (mksignature (AST.Tint :: nil) AST.Tint cc_default))
-     (Tcons (tptr tvoid) Tnil) tuint cc_default)) ::
+                   (mksignature (AST.Xptr :: nil) AST.Xint cc_default))
+     ((tptr tvoid) :: nil) tuint cc_default)) ::
  (___compcert_va_int64,
    Gfun(External (EF_runtime "__compcert_va_int64"
-                   (mksignature (AST.Tint :: nil) AST.Tlong cc_default))
-     (Tcons (tptr tvoid) Tnil) tulong cc_default)) ::
+                   (mksignature (AST.Xptr :: nil) AST.Xlong cc_default))
+     ((tptr tvoid) :: nil) tulong cc_default)) ::
  (___compcert_va_float64,
    Gfun(External (EF_runtime "__compcert_va_float64"
-                   (mksignature (AST.Tint :: nil) AST.Tfloat cc_default))
-     (Tcons (tptr tvoid) Tnil) tdouble cc_default)) ::
+                   (mksignature (AST.Xptr :: nil) AST.Xfloat cc_default))
+     ((tptr tvoid) :: nil) tdouble cc_default)) ::
  (___compcert_va_composite,
    Gfun(External (EF_runtime "__compcert_va_composite"
-                   (mksignature (AST.Tint :: AST.Tint :: nil) AST.Tint
-                     cc_default)) (Tcons (tptr tvoid) (Tcons tuint Tnil))
-     (tptr tvoid) cc_default)) ::
+                   (mksignature (AST.Xptr :: AST.Xint :: nil) AST.Xptr
+                     cc_default)) ((tptr tvoid) :: tuint :: nil) (tptr tvoid)
+     cc_default)) ::
  (___compcert_i64_dtos,
    Gfun(External (EF_runtime "__compcert_i64_dtos"
-                   (mksignature (AST.Tfloat :: nil) AST.Tlong cc_default))
-     (Tcons tdouble Tnil) tlong cc_default)) ::
+                   (mksignature (AST.Xfloat :: nil) AST.Xlong cc_default))
+     (tdouble :: nil) tlong cc_default)) ::
  (___compcert_i64_dtou,
    Gfun(External (EF_runtime "__compcert_i64_dtou"
-                   (mksignature (AST.Tfloat :: nil) AST.Tlong cc_default))
-     (Tcons tdouble Tnil) tulong cc_default)) ::
+                   (mksignature (AST.Xfloat :: nil) AST.Xlong cc_default))
+     (tdouble :: nil) tulong cc_default)) ::
  (___compcert_i64_stod,
    Gfun(External (EF_runtime "__compcert_i64_stod"
-                   (mksignature (AST.Tlong :: nil) AST.Tfloat cc_default))
-     (Tcons tlong Tnil) tdouble cc_default)) ::
+                   (mksignature (AST.Xlong :: nil) AST.Xfloat cc_default))
+     (tlong :: nil) tdouble cc_default)) ::
  (___compcert_i64_utod,
    Gfun(External (EF_runtime "__compcert_i64_utod"
-                   (mksignature (AST.Tlong :: nil) AST.Tfloat cc_default))
-     (Tcons tulong Tnil) tdouble cc_default)) ::
+                   (mksignature (AST.Xlong :: nil) AST.Xfloat cc_default))
+     (tulong :: nil) tdouble cc_default)) ::
  (___compcert_i64_stof,
    Gfun(External (EF_runtime "__compcert_i64_stof"
-                   (mksignature (AST.Tlong :: nil) AST.Tsingle cc_default))
-     (Tcons tlong Tnil) tfloat cc_default)) ::
+                   (mksignature (AST.Xlong :: nil) AST.Xsingle cc_default))
+     (tlong :: nil) tfloat cc_default)) ::
  (___compcert_i64_utof,
    Gfun(External (EF_runtime "__compcert_i64_utof"
-                   (mksignature (AST.Tlong :: nil) AST.Tsingle cc_default))
-     (Tcons tulong Tnil) tfloat cc_default)) ::
+                   (mksignature (AST.Xlong :: nil) AST.Xsingle cc_default))
+     (tulong :: nil) tfloat cc_default)) ::
  (___compcert_i64_sdiv,
    Gfun(External (EF_runtime "__compcert_i64_sdiv"
-                   (mksignature (AST.Tlong :: AST.Tlong :: nil) AST.Tlong
-                     cc_default)) (Tcons tlong (Tcons tlong Tnil)) tlong
-     cc_default)) ::
+                   (mksignature (AST.Xlong :: AST.Xlong :: nil) AST.Xlong
+                     cc_default)) (tlong :: tlong :: nil) tlong cc_default)) ::
  (___compcert_i64_udiv,
    Gfun(External (EF_runtime "__compcert_i64_udiv"
-                   (mksignature (AST.Tlong :: AST.Tlong :: nil) AST.Tlong
-                     cc_default)) (Tcons tulong (Tcons tulong Tnil)) tulong
+                   (mksignature (AST.Xlong :: AST.Xlong :: nil) AST.Xlong
+                     cc_default)) (tulong :: tulong :: nil) tulong
      cc_default)) ::
  (___compcert_i64_smod,
    Gfun(External (EF_runtime "__compcert_i64_smod"
-                   (mksignature (AST.Tlong :: AST.Tlong :: nil) AST.Tlong
-                     cc_default)) (Tcons tlong (Tcons tlong Tnil)) tlong
-     cc_default)) ::
+                   (mksignature (AST.Xlong :: AST.Xlong :: nil) AST.Xlong
+                     cc_default)) (tlong :: tlong :: nil) tlong cc_default)) ::
  (___compcert_i64_umod,
    Gfun(External (EF_runtime "__compcert_i64_umod"
-                   (mksignature (AST.Tlong :: AST.Tlong :: nil) AST.Tlong
-                     cc_default)) (Tcons tulong (Tcons tulong Tnil)) tulong
+                   (mksignature (AST.Xlong :: AST.Xlong :: nil) AST.Xlong
+                     cc_default)) (tulong :: tulong :: nil) tulong
      cc_default)) ::
  (___compcert_i64_shl,
    Gfun(External (EF_runtime "__compcert_i64_shl"
-                   (mksignature (AST.Tlong :: AST.Tint :: nil) AST.Tlong
-                     cc_default)) (Tcons tlong (Tcons tint Tnil)) tlong
-     cc_default)) ::
+                   (mksignature (AST.Xlong :: AST.Xint :: nil) AST.Xlong
+                     cc_default)) (tlong :: tint :: nil) tlong cc_default)) ::
  (___compcert_i64_shr,
    Gfun(External (EF_runtime "__compcert_i64_shr"
-                   (mksignature (AST.Tlong :: AST.Tint :: nil) AST.Tlong
-                     cc_default)) (Tcons tulong (Tcons tint Tnil)) tulong
-     cc_default)) ::
+                   (mksignature (AST.Xlong :: AST.Xint :: nil) AST.Xlong
+                     cc_default)) (tulong :: tint :: nil) tulong cc_default)) ::
  (___compcert_i64_sar,
    Gfun(External (EF_runtime "__compcert_i64_sar"
-                   (mksignature (AST.Tlong :: AST.Tint :: nil) AST.Tlong
-                     cc_default)) (Tcons tlong (Tcons tint Tnil)) tlong
-     cc_default)) ::
+                   (mksignature (AST.Xlong :: AST.Xint :: nil) AST.Xlong
+                     cc_default)) (tlong :: tint :: nil) tlong cc_default)) ::
  (___compcert_i64_smulh,
    Gfun(External (EF_runtime "__compcert_i64_smulh"
-                   (mksignature (AST.Tlong :: AST.Tlong :: nil) AST.Tlong
-                     cc_default)) (Tcons tlong (Tcons tlong Tnil)) tlong
-     cc_default)) ::
+                   (mksignature (AST.Xlong :: AST.Xlong :: nil) AST.Xlong
+                     cc_default)) (tlong :: tlong :: nil) tlong cc_default)) ::
  (___compcert_i64_umulh,
    Gfun(External (EF_runtime "__compcert_i64_umulh"
-                   (mksignature (AST.Tlong :: AST.Tlong :: nil) AST.Tlong
-                     cc_default)) (Tcons tulong (Tcons tulong Tnil)) tulong
+                   (mksignature (AST.Xlong :: AST.Xlong :: nil) AST.Xlong
+                     cc_default)) (tulong :: tulong :: nil) tulong
      cc_default)) ::
+ (___builtin_ais_annot,
+   Gfun(External (EF_builtin "__builtin_ais_annot"
+                   (mksignature (AST.Xptr :: nil) AST.Xvoid
+                     {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|}))
+     ((tptr tschar) :: nil) tvoid
+     {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|})) ::
  (___builtin_bswap64,
    Gfun(External (EF_builtin "__builtin_bswap64"
-                   (mksignature (AST.Tlong :: nil) AST.Tlong cc_default))
-     (Tcons tulong Tnil) tulong cc_default)) ::
+                   (mksignature (AST.Xlong :: nil) AST.Xlong cc_default))
+     (tulong :: nil) tulong cc_default)) ::
  (___builtin_bswap,
    Gfun(External (EF_builtin "__builtin_bswap"
-                   (mksignature (AST.Tint :: nil) AST.Tint cc_default))
-     (Tcons tuint Tnil) tuint cc_default)) ::
+                   (mksignature (AST.Xint :: nil) AST.Xint cc_default))
+     (tuint :: nil) tuint cc_default)) ::
  (___builtin_bswap32,
    Gfun(External (EF_builtin "__builtin_bswap32"
-                   (mksignature (AST.Tint :: nil) AST.Tint cc_default))
-     (Tcons tuint Tnil) tuint cc_default)) ::
+                   (mksignature (AST.Xint :: nil) AST.Xint cc_default))
+     (tuint :: nil) tuint cc_default)) ::
  (___builtin_bswap16,
    Gfun(External (EF_builtin "__builtin_bswap16"
-                   (mksignature (AST.Tint :: nil) AST.Tint16unsigned
-                     cc_default)) (Tcons tushort Tnil) tushort cc_default)) ::
+                   (mksignature (AST.Xint16unsigned :: nil)
+                     AST.Xint16unsigned cc_default)) (tushort :: nil) tushort
+     cc_default)) ::
  (___builtin_clz,
    Gfun(External (EF_builtin "__builtin_clz"
-                   (mksignature (AST.Tint :: nil) AST.Tint cc_default))
-     (Tcons tuint Tnil) tint cc_default)) ::
+                   (mksignature (AST.Xint :: nil) AST.Xint cc_default))
+     (tuint :: nil) tint cc_default)) ::
  (___builtin_clzl,
    Gfun(External (EF_builtin "__builtin_clzl"
-                   (mksignature (AST.Tint :: nil) AST.Tint cc_default))
-     (Tcons tuint Tnil) tint cc_default)) ::
+                   (mksignature (AST.Xint :: nil) AST.Xint cc_default))
+     (tuint :: nil) tint cc_default)) ::
  (___builtin_clzll,
    Gfun(External (EF_builtin "__builtin_clzll"
-                   (mksignature (AST.Tlong :: nil) AST.Tint cc_default))
-     (Tcons tulong Tnil) tint cc_default)) ::
+                   (mksignature (AST.Xlong :: nil) AST.Xint cc_default))
+     (tulong :: nil) tint cc_default)) ::
  (___builtin_ctz,
    Gfun(External (EF_builtin "__builtin_ctz"
-                   (mksignature (AST.Tint :: nil) AST.Tint cc_default))
-     (Tcons tuint Tnil) tint cc_default)) ::
+                   (mksignature (AST.Xint :: nil) AST.Xint cc_default))
+     (tuint :: nil) tint cc_default)) ::
  (___builtin_ctzl,
    Gfun(External (EF_builtin "__builtin_ctzl"
-                   (mksignature (AST.Tint :: nil) AST.Tint cc_default))
-     (Tcons tuint Tnil) tint cc_default)) ::
+                   (mksignature (AST.Xint :: nil) AST.Xint cc_default))
+     (tuint :: nil) tint cc_default)) ::
  (___builtin_ctzll,
    Gfun(External (EF_builtin "__builtin_ctzll"
-                   (mksignature (AST.Tlong :: nil) AST.Tint cc_default))
-     (Tcons tulong Tnil) tint cc_default)) ::
+                   (mksignature (AST.Xlong :: nil) AST.Xint cc_default))
+     (tulong :: nil) tint cc_default)) ::
  (___builtin_fabs,
    Gfun(External (EF_builtin "__builtin_fabs"
-                   (mksignature (AST.Tfloat :: nil) AST.Tfloat cc_default))
-     (Tcons tdouble Tnil) tdouble cc_default)) ::
+                   (mksignature (AST.Xfloat :: nil) AST.Xfloat cc_default))
+     (tdouble :: nil) tdouble cc_default)) ::
  (___builtin_fabsf,
    Gfun(External (EF_builtin "__builtin_fabsf"
-                   (mksignature (AST.Tsingle :: nil) AST.Tsingle cc_default))
-     (Tcons tfloat Tnil) tfloat cc_default)) ::
+                   (mksignature (AST.Xsingle :: nil) AST.Xsingle cc_default))
+     (tfloat :: nil) tfloat cc_default)) ::
  (___builtin_fsqrt,
    Gfun(External (EF_builtin "__builtin_fsqrt"
-                   (mksignature (AST.Tfloat :: nil) AST.Tfloat cc_default))
-     (Tcons tdouble Tnil) tdouble cc_default)) ::
+                   (mksignature (AST.Xfloat :: nil) AST.Xfloat cc_default))
+     (tdouble :: nil) tdouble cc_default)) ::
  (___builtin_sqrt,
    Gfun(External (EF_builtin "__builtin_sqrt"
-                   (mksignature (AST.Tfloat :: nil) AST.Tfloat cc_default))
-     (Tcons tdouble Tnil) tdouble cc_default)) ::
+                   (mksignature (AST.Xfloat :: nil) AST.Xfloat cc_default))
+     (tdouble :: nil) tdouble cc_default)) ::
  (___builtin_memcpy_aligned,
    Gfun(External (EF_builtin "__builtin_memcpy_aligned"
                    (mksignature
-                     (AST.Tint :: AST.Tint :: AST.Tint :: AST.Tint :: nil)
-                     AST.Tvoid cc_default))
-     (Tcons (tptr tvoid)
-       (Tcons (tptr tvoid) (Tcons tuint (Tcons tuint Tnil)))) tvoid
+                     (AST.Xptr :: AST.Xptr :: AST.Xint :: AST.Xint :: nil)
+                     AST.Xvoid cc_default))
+     ((tptr tvoid) :: (tptr tvoid) :: tuint :: tuint :: nil) tvoid
      cc_default)) ::
  (___builtin_sel,
    Gfun(External (EF_builtin "__builtin_sel"
-                   (mksignature (AST.Tint :: nil) AST.Tvoid
+                   (mksignature (AST.Xbool :: nil) AST.Xvoid
                      {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|}))
-     (Tcons tbool Tnil) tvoid
+     (tbool :: nil) tvoid
      {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|})) ::
  (___builtin_annot,
    Gfun(External (EF_builtin "__builtin_annot"
-                   (mksignature (AST.Tint :: nil) AST.Tvoid
+                   (mksignature (AST.Xptr :: nil) AST.Xvoid
                      {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|}))
-     (Tcons (tptr tschar) Tnil) tvoid
+     ((tptr tschar) :: nil) tvoid
      {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|})) ::
  (___builtin_annot_intval,
    Gfun(External (EF_builtin "__builtin_annot_intval"
-                   (mksignature (AST.Tint :: AST.Tint :: nil) AST.Tint
-                     cc_default)) (Tcons (tptr tschar) (Tcons tint Tnil))
-     tint cc_default)) ::
+                   (mksignature (AST.Xptr :: AST.Xint :: nil) AST.Xint
+                     cc_default)) ((tptr tschar) :: tint :: nil) tint
+     cc_default)) ::
  (___builtin_membar,
    Gfun(External (EF_builtin "__builtin_membar"
-                   (mksignature nil AST.Tvoid cc_default)) Tnil tvoid
+                   (mksignature nil AST.Xvoid cc_default)) nil tvoid
      cc_default)) ::
  (___builtin_va_start,
    Gfun(External (EF_builtin "__builtin_va_start"
-                   (mksignature (AST.Tint :: nil) AST.Tvoid cc_default))
-     (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
+                   (mksignature (AST.Xptr :: nil) AST.Xvoid cc_default))
+     ((tptr tvoid) :: nil) tvoid cc_default)) ::
  (___builtin_va_arg,
    Gfun(External (EF_builtin "__builtin_va_arg"
-                   (mksignature (AST.Tint :: AST.Tint :: nil) AST.Tvoid
-                     cc_default)) (Tcons (tptr tvoid) (Tcons tuint Tnil))
-     tvoid cc_default)) ::
+                   (mksignature (AST.Xptr :: AST.Xint :: nil) AST.Xvoid
+                     cc_default)) ((tptr tvoid) :: tuint :: nil) tvoid
+     cc_default)) ::
  (___builtin_va_copy,
    Gfun(External (EF_builtin "__builtin_va_copy"
-                   (mksignature (AST.Tint :: AST.Tint :: nil) AST.Tvoid
-                     cc_default))
-     (Tcons (tptr tvoid) (Tcons (tptr tvoid) Tnil)) tvoid cc_default)) ::
+                   (mksignature (AST.Xptr :: AST.Xptr :: nil) AST.Xvoid
+                     cc_default)) ((tptr tvoid) :: (tptr tvoid) :: nil) tvoid
+     cc_default)) ::
  (___builtin_va_end,
    Gfun(External (EF_builtin "__builtin_va_end"
-                   (mksignature (AST.Tint :: nil) AST.Tvoid cc_default))
-     (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
+                   (mksignature (AST.Xptr :: nil) AST.Xvoid cc_default))
+     ((tptr tvoid) :: nil) tvoid cc_default)) ::
  (___builtin_unreachable,
    Gfun(External (EF_builtin "__builtin_unreachable"
-                   (mksignature nil AST.Tvoid cc_default)) Tnil tvoid
+                   (mksignature nil AST.Xvoid cc_default)) nil tvoid
      cc_default)) ::
  (___builtin_expect,
    Gfun(External (EF_builtin "__builtin_expect"
-                   (mksignature (AST.Tint :: AST.Tint :: nil) AST.Tint
-                     cc_default)) (Tcons tint (Tcons tint Tnil)) tint
-     cc_default)) ::
+                   (mksignature (AST.Xint :: AST.Xint :: nil) AST.Xint
+                     cc_default)) (tint :: tint :: nil) tint cc_default)) ::
  (___builtin_fmax,
    Gfun(External (EF_builtin "__builtin_fmax"
-                   (mksignature (AST.Tfloat :: AST.Tfloat :: nil) AST.Tfloat
-                     cc_default)) (Tcons tdouble (Tcons tdouble Tnil))
-     tdouble cc_default)) ::
+                   (mksignature (AST.Xfloat :: AST.Xfloat :: nil) AST.Xfloat
+                     cc_default)) (tdouble :: tdouble :: nil) tdouble
+     cc_default)) ::
  (___builtin_fmin,
    Gfun(External (EF_builtin "__builtin_fmin"
-                   (mksignature (AST.Tfloat :: AST.Tfloat :: nil) AST.Tfloat
-                     cc_default)) (Tcons tdouble (Tcons tdouble Tnil))
-     tdouble cc_default)) ::
+                   (mksignature (AST.Xfloat :: AST.Xfloat :: nil) AST.Xfloat
+                     cc_default)) (tdouble :: tdouble :: nil) tdouble
+     cc_default)) ::
  (___builtin_fmadd,
    Gfun(External (EF_builtin "__builtin_fmadd"
                    (mksignature
-                     (AST.Tfloat :: AST.Tfloat :: AST.Tfloat :: nil)
-                     AST.Tfloat cc_default))
-     (Tcons tdouble (Tcons tdouble (Tcons tdouble Tnil))) tdouble
-     cc_default)) ::
+                     (AST.Xfloat :: AST.Xfloat :: AST.Xfloat :: nil)
+                     AST.Xfloat cc_default))
+     (tdouble :: tdouble :: tdouble :: nil) tdouble cc_default)) ::
  (___builtin_fmsub,
    Gfun(External (EF_builtin "__builtin_fmsub"
                    (mksignature
-                     (AST.Tfloat :: AST.Tfloat :: AST.Tfloat :: nil)
-                     AST.Tfloat cc_default))
-     (Tcons tdouble (Tcons tdouble (Tcons tdouble Tnil))) tdouble
-     cc_default)) ::
+                     (AST.Xfloat :: AST.Xfloat :: AST.Xfloat :: nil)
+                     AST.Xfloat cc_default))
+     (tdouble :: tdouble :: tdouble :: nil) tdouble cc_default)) ::
  (___builtin_fnmadd,
    Gfun(External (EF_builtin "__builtin_fnmadd"
                    (mksignature
-                     (AST.Tfloat :: AST.Tfloat :: AST.Tfloat :: nil)
-                     AST.Tfloat cc_default))
-     (Tcons tdouble (Tcons tdouble (Tcons tdouble Tnil))) tdouble
-     cc_default)) ::
+                     (AST.Xfloat :: AST.Xfloat :: AST.Xfloat :: nil)
+                     AST.Xfloat cc_default))
+     (tdouble :: tdouble :: tdouble :: nil) tdouble cc_default)) ::
  (___builtin_fnmsub,
    Gfun(External (EF_builtin "__builtin_fnmsub"
                    (mksignature
-                     (AST.Tfloat :: AST.Tfloat :: AST.Tfloat :: nil)
-                     AST.Tfloat cc_default))
-     (Tcons tdouble (Tcons tdouble (Tcons tdouble Tnil))) tdouble
-     cc_default)) ::
+                     (AST.Xfloat :: AST.Xfloat :: AST.Xfloat :: nil)
+                     AST.Xfloat cc_default))
+     (tdouble :: tdouble :: tdouble :: nil) tdouble cc_default)) ::
  (___builtin_read16_reversed,
    Gfun(External (EF_builtin "__builtin_read16_reversed"
-                   (mksignature (AST.Tint :: nil) AST.Tint16unsigned
-                     cc_default)) (Tcons (tptr tushort) Tnil) tushort
+                   (mksignature (AST.Xptr :: nil) AST.Xint16unsigned
+                     cc_default)) ((tptr tushort) :: nil) tushort
      cc_default)) ::
  (___builtin_read32_reversed,
    Gfun(External (EF_builtin "__builtin_read32_reversed"
-                   (mksignature (AST.Tint :: nil) AST.Tint cc_default))
-     (Tcons (tptr tuint) Tnil) tuint cc_default)) ::
+                   (mksignature (AST.Xptr :: nil) AST.Xint cc_default))
+     ((tptr tuint) :: nil) tuint cc_default)) ::
  (___builtin_write16_reversed,
    Gfun(External (EF_builtin "__builtin_write16_reversed"
-                   (mksignature (AST.Tint :: AST.Tint :: nil) AST.Tvoid
-                     cc_default)) (Tcons (tptr tushort) (Tcons tushort Tnil))
-     tvoid cc_default)) ::
+                   (mksignature (AST.Xptr :: AST.Xint16unsigned :: nil)
+                     AST.Xvoid cc_default))
+     ((tptr tushort) :: tushort :: nil) tvoid cc_default)) ::
  (___builtin_write32_reversed,
    Gfun(External (EF_builtin "__builtin_write32_reversed"
-                   (mksignature (AST.Tint :: AST.Tint :: nil) AST.Tvoid
-                     cc_default)) (Tcons (tptr tuint) (Tcons tuint Tnil))
-     tvoid cc_default)) ::
+                   (mksignature (AST.Xptr :: AST.Xint :: nil) AST.Xvoid
+                     cc_default)) ((tptr tuint) :: tuint :: nil) tvoid
+     cc_default)) ::
  (___builtin_debug,
    Gfun(External (EF_external "__builtin_debug"
-                   (mksignature (AST.Tint :: nil) AST.Tvoid
+                   (mksignature (AST.Xint :: nil) AST.Xvoid
                      {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|}))
-     (Tcons tint Tnil) tvoid
+     (tint :: nil) tvoid
      {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|})) ::
  (_memcpy,
    Gfun(External (EF_external "memcpy"
-                   (mksignature (AST.Tint :: AST.Tint :: AST.Tint :: nil)
-                     AST.Tint cc_default))
-     (Tcons (tptr tvoid) (Tcons (tptr tvoid) (Tcons tuint Tnil)))
-     (tptr tvoid) cc_default)) ::
+                   (mksignature (AST.Xptr :: AST.Xptr :: AST.Xint :: nil)
+                     AST.Xptr cc_default))
+     ((tptr tvoid) :: (tptr tvoid) :: tuint :: nil) (tptr tvoid) cc_default)) ::
  (_memset,
    Gfun(External (EF_external "memset"
-                   (mksignature (AST.Tint :: AST.Tint :: AST.Tint :: nil)
-                     AST.Tint cc_default))
-     (Tcons (tptr tvoid) (Tcons tint (Tcons tuint Tnil))) (tptr tvoid)
-     cc_default)) ::
+                   (mksignature (AST.Xptr :: AST.Xint :: AST.Xint :: nil)
+                     AST.Xptr cc_default))
+     ((tptr tvoid) :: tint :: tuint :: nil) (tptr tvoid) cc_default)) ::
  (_SHA256_Init,
    Gfun(External (EF_external "SHA256_Init"
-                   (mksignature (AST.Tint :: nil) AST.Tvoid cc_default))
-     (Tcons (tptr (Tstruct _SHA256state_st noattr)) Tnil) tvoid cc_default)) ::
+                   (mksignature (AST.Xptr :: nil) AST.Xvoid cc_default))
+     ((tptr (Tstruct _SHA256state_st noattr)) :: nil) tvoid cc_default)) ::
  (_SHA256_Update,
    Gfun(External (EF_external "SHA256_Update"
-                   (mksignature (AST.Tint :: AST.Tint :: AST.Tint :: nil)
-                     AST.Tvoid cc_default))
-     (Tcons (tptr (Tstruct _SHA256state_st noattr))
-       (Tcons (tptr tvoid) (Tcons tuint Tnil))) tvoid cc_default)) ::
+                   (mksignature (AST.Xptr :: AST.Xptr :: AST.Xint :: nil)
+                     AST.Xvoid cc_default))
+     ((tptr (Tstruct _SHA256state_st noattr)) :: (tptr tvoid) :: tuint ::
+      nil) tvoid cc_default)) ::
  (_SHA256_Final,
    Gfun(External (EF_external "SHA256_Final"
-                   (mksignature (AST.Tint :: AST.Tint :: nil) AST.Tvoid
+                   (mksignature (AST.Xptr :: AST.Xptr :: nil) AST.Xvoid
                      cc_default))
-     (Tcons (tptr tuchar)
-       (Tcons (tptr (Tstruct _SHA256state_st noattr)) Tnil)) tvoid
+     ((tptr tuchar) :: (tptr (Tstruct _SHA256state_st noattr)) :: nil) tvoid
      cc_default)) :: (_HMAC_Init, Gfun(Internal f_HMAC_Init)) ::
  (_HMAC_Update, Gfun(Internal f_HMAC_Update)) ::
  (_HMAC_Final, Gfun(Internal f_HMAC_Final)) ::
@@ -946,12 +890,12 @@ Definition public_idents : list ident :=
  ___builtin_fabs :: ___builtin_ctzll :: ___builtin_ctzl :: ___builtin_ctz ::
  ___builtin_clzll :: ___builtin_clzl :: ___builtin_clz ::
  ___builtin_bswap16 :: ___builtin_bswap32 :: ___builtin_bswap ::
- ___builtin_bswap64 :: ___compcert_i64_umulh :: ___compcert_i64_smulh ::
- ___compcert_i64_sar :: ___compcert_i64_shr :: ___compcert_i64_shl ::
- ___compcert_i64_umod :: ___compcert_i64_smod :: ___compcert_i64_udiv ::
- ___compcert_i64_sdiv :: ___compcert_i64_utof :: ___compcert_i64_stof ::
- ___compcert_i64_utod :: ___compcert_i64_stod :: ___compcert_i64_dtou ::
- ___compcert_i64_dtos :: ___compcert_va_composite ::
+ ___builtin_bswap64 :: ___builtin_ais_annot :: ___compcert_i64_umulh ::
+ ___compcert_i64_smulh :: ___compcert_i64_sar :: ___compcert_i64_shr ::
+ ___compcert_i64_shl :: ___compcert_i64_umod :: ___compcert_i64_smod ::
+ ___compcert_i64_udiv :: ___compcert_i64_sdiv :: ___compcert_i64_utof ::
+ ___compcert_i64_stof :: ___compcert_i64_utod :: ___compcert_i64_stod ::
+ ___compcert_i64_dtou :: ___compcert_i64_dtos :: ___compcert_va_composite ::
  ___compcert_va_float64 :: ___compcert_va_int64 :: ___compcert_va_int32 ::
  nil).
 

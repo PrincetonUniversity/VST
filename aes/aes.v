@@ -6,67 +6,68 @@ Local Open Scope string_scope.
 Local Open Scope clight_scope.
 
 Module Info.
-  Definition version := "3.9".
+  Definition version := "3.15".
   Definition build_number := "".
   Definition build_tag := "".
   Definition build_branch := "".
-  Definition arch := "x86".
-  Definition model := "32sse2".
-  Definition abi := "standard".
-  Definition bitsize := 32.
+  Definition arch := "aarch64".
+  Definition model := "default".
+  Definition abi := "apple".
+  Definition bitsize := 64.
   Definition big_endian := false.
   Definition source_file := "aes/mbedtls/library/aes.c".
   Definition normalized := false.
 End Info.
 
-Definition _FSb : ident := 5%positive.
-Definition _FT0 : ident := 6%positive.
-Definition _FT1 : ident := 7%positive.
-Definition _FT2 : ident := 8%positive.
-Definition _FT3 : ident := 9%positive.
-Definition _RCON : ident := 15%positive.
-Definition _RK : ident := 93%positive.
-Definition _RSb : ident := 10%positive.
-Definition _RT0 : ident := 11%positive.
-Definition _RT1 : ident := 12%positive.
-Definition _RT2 : ident := 13%positive.
-Definition _RT3 : ident := 14%positive.
-Definition _SK : ident := 110%positive.
-Definition _X0 : ident := 116%positive.
-Definition _X1 : ident := 117%positive.
-Definition _X2 : ident := 118%positive.
-Definition _X3 : ident := 119%positive.
-Definition _Y0 : ident := 120%positive.
-Definition _Y1 : ident := 121%positive.
-Definition _Y2 : ident := 122%positive.
-Definition _Y3 : ident := 123%positive.
+Definition _FSb : ident := 6%positive.
+Definition _FT0 : ident := 7%positive.
+Definition _FT1 : ident := 8%positive.
+Definition _FT2 : ident := 9%positive.
+Definition _FT3 : ident := 10%positive.
+Definition _RCON : ident := 16%positive.
+Definition _RK : ident := 92%positive.
+Definition _RSb : ident := 11%positive.
+Definition _RT0 : ident := 12%positive.
+Definition _RT1 : ident := 13%positive.
+Definition _RT2 : ident := 14%positive.
+Definition _RT3 : ident := 15%positive.
+Definition _SK : ident := 109%positive.
+Definition _X0 : ident := 115%positive.
+Definition _X1 : ident := 116%positive.
+Definition _X2 : ident := 117%positive.
+Definition _X3 : ident := 118%positive.
+Definition _Y0 : ident := 119%positive.
+Definition _Y1 : ident := 120%positive.
+Definition _Y2 : ident := 121%positive.
+Definition _Y3 : ident := 122%positive.
 Definition ___builtin_annot : ident := 33%positive.
 Definition ___builtin_annot_intval : ident := 34%positive.
 Definition ___builtin_bswap : ident := 18%positive.
 Definition ___builtin_bswap16 : ident := 20%positive.
 Definition ___builtin_bswap32 : ident := 19%positive.
 Definition ___builtin_bswap64 : ident := 17%positive.
+Definition ___builtin_cls : ident := 42%positive.
+Definition ___builtin_clsl : ident := 43%positive.
+Definition ___builtin_clsll : ident := 44%positive.
 Definition ___builtin_clz : ident := 21%positive.
 Definition ___builtin_clzl : ident := 22%positive.
 Definition ___builtin_clzll : ident := 23%positive.
 Definition ___builtin_ctz : ident := 24%positive.
 Definition ___builtin_ctzl : ident := 25%positive.
 Definition ___builtin_ctzll : ident := 26%positive.
-Definition ___builtin_debug : ident := 52%positive.
+Definition ___builtin_debug : ident := 51%positive.
 Definition ___builtin_expect : ident := 41%positive.
 Definition ___builtin_fabs : ident := 27%positive.
 Definition ___builtin_fabsf : ident := 28%positive.
-Definition ___builtin_fmadd : ident := 44%positive.
-Definition ___builtin_fmax : ident := 42%positive.
-Definition ___builtin_fmin : ident := 43%positive.
-Definition ___builtin_fmsub : ident := 45%positive.
-Definition ___builtin_fnmadd : ident := 46%positive.
-Definition ___builtin_fnmsub : ident := 47%positive.
+Definition ___builtin_fmadd : ident := 45%positive.
+Definition ___builtin_fmax : ident := 49%positive.
+Definition ___builtin_fmin : ident := 50%positive.
+Definition ___builtin_fmsub : ident := 46%positive.
+Definition ___builtin_fnmadd : ident := 47%positive.
+Definition ___builtin_fnmsub : ident := 48%positive.
 Definition ___builtin_fsqrt : ident := 29%positive.
 Definition ___builtin_membar : ident := 35%positive.
 Definition ___builtin_memcpy_aligned : ident := 31%positive.
-Definition ___builtin_read16_reversed : ident := 48%positive.
-Definition ___builtin_read32_reversed : ident := 49%positive.
 Definition ___builtin_sel : ident := 32%positive.
 Definition ___builtin_sqrt : ident := 30%positive.
 Definition ___builtin_unreachable : ident := 40%positive.
@@ -74,157 +75,155 @@ Definition ___builtin_va_arg : ident := 37%positive.
 Definition ___builtin_va_copy : ident := 38%positive.
 Definition ___builtin_va_end : ident := 39%positive.
 Definition ___builtin_va_start : ident := 36%positive.
-Definition ___builtin_write16_reversed : ident := 50%positive.
-Definition ___builtin_write32_reversed : ident := 51%positive.
-Definition ___compcert_i64_dtos : ident := 171%positive.
-Definition ___compcert_i64_dtou : ident := 172%positive.
-Definition ___compcert_i64_sar : ident := 183%positive.
-Definition ___compcert_i64_sdiv : ident := 177%positive.
-Definition ___compcert_i64_shl : ident := 181%positive.
-Definition ___compcert_i64_shr : ident := 182%positive.
-Definition ___compcert_i64_smod : ident := 179%positive.
-Definition ___compcert_i64_smulh : ident := 184%positive.
-Definition ___compcert_i64_stod : ident := 173%positive.
-Definition ___compcert_i64_stof : ident := 175%positive.
-Definition ___compcert_i64_udiv : ident := 178%positive.
-Definition ___compcert_i64_umod : ident := 180%positive.
-Definition ___compcert_i64_umulh : ident := 185%positive.
-Definition ___compcert_i64_utod : ident := 174%positive.
-Definition ___compcert_i64_utof : ident := 176%positive.
-Definition ___compcert_va_composite : ident := 170%positive.
-Definition ___compcert_va_float64 : ident := 169%positive.
-Definition ___compcert_va_int32 : ident := 167%positive.
-Definition ___compcert_va_int64 : ident := 168%positive.
-Definition ___stringlit_1 : ident := 160%positive.
-Definition ___stringlit_2 : ident := 161%positive.
-Definition ___stringlit_3 : ident := 162%positive.
-Definition ___stringlit_4 : ident := 163%positive.
-Definition ___stringlit_5 : ident := 164%positive.
-Definition ___stringlit_6 : ident := 165%positive.
-Definition _aes_gen_tables : ident := 86%positive.
-Definition _aes_init_done : ident := 61%positive.
-Definition _aes_tables_struct : ident := 16%positive.
-Definition _aes_test_ecb_dec : ident := 155%positive.
-Definition _aes_test_ecb_enc : ident := 156%positive.
-Definition _b0 : ident := 95%positive.
-Definition _b0__1 : ident := 102%positive.
-Definition _b0__2 : ident := 124%positive.
-Definition _b0__3 : ident := 128%positive.
-Definition _b0__4 : ident := 132%positive.
-Definition _b0__5 : ident := 137%positive.
-Definition _b0__6 : ident := 142%positive.
-Definition _b0__7 : ident := 147%positive.
-Definition _b1 : ident := 96%positive.
-Definition _b1__1 : ident := 103%positive.
-Definition _b1__2 : ident := 125%positive.
-Definition _b1__3 : ident := 129%positive.
-Definition _b1__4 : ident := 133%positive.
-Definition _b1__5 : ident := 138%positive.
-Definition _b1__6 : ident := 143%positive.
-Definition _b1__7 : ident := 148%positive.
-Definition _b2 : ident := 97%positive.
-Definition _b2__1 : ident := 104%positive.
-Definition _b2__2 : ident := 126%positive.
-Definition _b2__3 : ident := 130%positive.
-Definition _b2__4 : ident := 134%positive.
-Definition _b2__5 : ident := 139%positive.
-Definition _b2__6 : ident := 144%positive.
-Definition _b2__7 : ident := 149%positive.
-Definition _b3 : ident := 98%positive.
-Definition _b3__1 : ident := 105%positive.
-Definition _b3__2 : ident := 127%positive.
-Definition _b3__3 : ident := 131%positive.
-Definition _b3__4 : ident := 135%positive.
-Definition _b3__5 : ident := 140%positive.
-Definition _b3__6 : ident := 145%positive.
-Definition _b3__7 : ident := 150%positive.
-Definition _buf : ident := 3%positive.
-Definition _ctx : ident := 87%positive.
-Definition _cty : ident := 109%positive.
-Definition _exit : ident := 112%positive.
-Definition _i : ident := 62%positive.
-Definition _input : ident := 114%positive.
-Definition _iv : ident := 159%positive.
-Definition _j : ident := 107%positive.
-Definition _key : ident := 90%positive.
-Definition _key_word : ident := 92%positive.
-Definition _keybits : ident := 91%positive.
-Definition _log : ident := 67%positive.
-Definition _logi : ident := 69%positive.
-Definition _logx : ident := 74%positive.
-Definition _logx__1 : ident := 77%positive.
-Definition _logx__2 : ident := 80%positive.
-Definition _logx__3 : ident := 83%positive.
-Definition _logy : ident := 75%positive.
-Definition _logy__1 : ident := 78%positive.
-Definition _logy__2 : ident := 81%positive.
-Definition _logy__3 : ident := 84%positive.
-Definition _m : ident := 76%positive.
-Definition _m__1 : ident := 79%positive.
-Definition _m__2 : ident := 82%positive.
-Definition _m__3 : ident := 85%positive.
-Definition _main : ident := 186%positive.
-Definition _mbedtls_aes_context_struct : ident := 4%positive.
-Definition _mbedtls_aes_crypt_ecb : ident := 154%positive.
-Definition _mbedtls_aes_decrypt : ident := 152%positive.
-Definition _mbedtls_aes_encrypt : ident := 151%positive.
-Definition _mbedtls_aes_free : ident := 89%positive.
-Definition _mbedtls_aes_init : ident := 88%positive.
-Definition _mbedtls_aes_self_test : ident := 166%positive.
-Definition _mbedtls_aes_setkey_dec : ident := 113%positive.
-Definition _mbedtls_aes_setkey_enc : ident := 106%positive.
-Definition _mbedtls_zeroize : ident := 59%positive.
-Definition _memcmp : ident := 53%positive.
-Definition _memset : ident := 54%positive.
-Definition _mode : ident := 153%positive.
-Definition _n : ident := 57%positive.
-Definition _nr : ident := 1%positive.
-Definition _output : ident := 115%positive.
-Definition _p : ident := 58%positive.
-Definition _pow : ident := 66%positive.
-Definition _printf : ident := 55%positive.
-Definition _prod1 : ident := 70%positive.
-Definition _prod2 : ident := 71%positive.
-Definition _prod3 : ident := 72%positive.
-Definition _prod4 : ident := 73%positive.
-Definition _rcon : ident := 101%positive.
-Definition _ret : ident := 108%positive.
-Definition _rk : ident := 2%positive.
-Definition _rk0 : ident := 99%positive.
-Definition _rk7 : ident := 100%positive.
-Definition _rk__1 : ident := 136%positive.
-Definition _rk__2 : ident := 141%positive.
-Definition _rk__3 : ident := 146%positive.
-Definition _rot : ident := 68%positive.
-Definition _sk : ident := 111%positive.
-Definition _tables : ident := 60%positive.
-Definition _tmp : ident := 94%positive.
-Definition _u : ident := 158%positive.
-Definition _v : ident := 56%positive.
-Definition _verbose : ident := 157%positive.
-Definition _x : ident := 63%positive.
-Definition _y : ident := 64%positive.
-Definition _z : ident := 65%positive.
-Definition _t'1 : ident := 187%positive.
-Definition _t'10 : ident := 196%positive.
-Definition _t'11 : ident := 197%positive.
-Definition _t'12 : ident := 198%positive.
-Definition _t'13 : ident := 199%positive.
-Definition _t'14 : ident := 200%positive.
-Definition _t'15 : ident := 201%positive.
-Definition _t'16 : ident := 202%positive.
-Definition _t'17 : ident := 203%positive.
-Definition _t'18 : ident := 204%positive.
-Definition _t'19 : ident := 205%positive.
-Definition _t'2 : ident := 188%positive.
-Definition _t'20 : ident := 206%positive.
-Definition _t'3 : ident := 189%positive.
-Definition _t'4 : ident := 190%positive.
-Definition _t'5 : ident := 191%positive.
-Definition _t'6 : ident := 192%positive.
-Definition _t'7 : ident := 193%positive.
-Definition _t'8 : ident := 194%positive.
-Definition _t'9 : ident := 195%positive.
+Definition ___compcert_i64_dtos : ident := 170%positive.
+Definition ___compcert_i64_dtou : ident := 171%positive.
+Definition ___compcert_i64_sar : ident := 182%positive.
+Definition ___compcert_i64_sdiv : ident := 176%positive.
+Definition ___compcert_i64_shl : ident := 180%positive.
+Definition ___compcert_i64_shr : ident := 181%positive.
+Definition ___compcert_i64_smod : ident := 178%positive.
+Definition ___compcert_i64_smulh : ident := 183%positive.
+Definition ___compcert_i64_stod : ident := 172%positive.
+Definition ___compcert_i64_stof : ident := 174%positive.
+Definition ___compcert_i64_udiv : ident := 177%positive.
+Definition ___compcert_i64_umod : ident := 179%positive.
+Definition ___compcert_i64_umulh : ident := 184%positive.
+Definition ___compcert_i64_utod : ident := 173%positive.
+Definition ___compcert_i64_utof : ident := 175%positive.
+Definition ___compcert_va_composite : ident := 169%positive.
+Definition ___compcert_va_float64 : ident := 168%positive.
+Definition ___compcert_va_int32 : ident := 166%positive.
+Definition ___compcert_va_int64 : ident := 167%positive.
+Definition ___stringlit_1 : ident := 159%positive.
+Definition ___stringlit_2 : ident := 160%positive.
+Definition ___stringlit_3 : ident := 161%positive.
+Definition ___stringlit_4 : ident := 162%positive.
+Definition ___stringlit_5 : ident := 163%positive.
+Definition ___stringlit_6 : ident := 164%positive.
+Definition _aes_gen_tables : ident := 85%positive.
+Definition _aes_init_done : ident := 60%positive.
+Definition _aes_tables_struct : ident := 5%positive.
+Definition _aes_test_ecb_dec : ident := 154%positive.
+Definition _aes_test_ecb_enc : ident := 155%positive.
+Definition _b0 : ident := 94%positive.
+Definition _b0__1 : ident := 101%positive.
+Definition _b0__2 : ident := 123%positive.
+Definition _b0__3 : ident := 127%positive.
+Definition _b0__4 : ident := 131%positive.
+Definition _b0__5 : ident := 136%positive.
+Definition _b0__6 : ident := 141%positive.
+Definition _b0__7 : ident := 146%positive.
+Definition _b1 : ident := 95%positive.
+Definition _b1__1 : ident := 102%positive.
+Definition _b1__2 : ident := 124%positive.
+Definition _b1__3 : ident := 128%positive.
+Definition _b1__4 : ident := 132%positive.
+Definition _b1__5 : ident := 137%positive.
+Definition _b1__6 : ident := 142%positive.
+Definition _b1__7 : ident := 147%positive.
+Definition _b2 : ident := 96%positive.
+Definition _b2__1 : ident := 103%positive.
+Definition _b2__2 : ident := 125%positive.
+Definition _b2__3 : ident := 129%positive.
+Definition _b2__4 : ident := 133%positive.
+Definition _b2__5 : ident := 138%positive.
+Definition _b2__6 : ident := 143%positive.
+Definition _b2__7 : ident := 148%positive.
+Definition _b3 : ident := 97%positive.
+Definition _b3__1 : ident := 104%positive.
+Definition _b3__2 : ident := 126%positive.
+Definition _b3__3 : ident := 130%positive.
+Definition _b3__4 : ident := 134%positive.
+Definition _b3__5 : ident := 139%positive.
+Definition _b3__6 : ident := 144%positive.
+Definition _b3__7 : ident := 149%positive.
+Definition _buf : ident := 4%positive.
+Definition _ctx : ident := 86%positive.
+Definition _cty : ident := 108%positive.
+Definition _exit : ident := 111%positive.
+Definition _i : ident := 61%positive.
+Definition _input : ident := 113%positive.
+Definition _iv : ident := 158%positive.
+Definition _j : ident := 106%positive.
+Definition _key : ident := 89%positive.
+Definition _key_word : ident := 91%positive.
+Definition _keybits : ident := 90%positive.
+Definition _log : ident := 66%positive.
+Definition _logi : ident := 68%positive.
+Definition _logx : ident := 73%positive.
+Definition _logx__1 : ident := 76%positive.
+Definition _logx__2 : ident := 79%positive.
+Definition _logx__3 : ident := 82%positive.
+Definition _logy : ident := 74%positive.
+Definition _logy__1 : ident := 77%positive.
+Definition _logy__2 : ident := 80%positive.
+Definition _logy__3 : ident := 83%positive.
+Definition _m : ident := 75%positive.
+Definition _m__1 : ident := 78%positive.
+Definition _m__2 : ident := 81%positive.
+Definition _m__3 : ident := 84%positive.
+Definition _main : ident := 185%positive.
+Definition _mbedtls_aes_context_struct : ident := 1%positive.
+Definition _mbedtls_aes_crypt_ecb : ident := 153%positive.
+Definition _mbedtls_aes_decrypt : ident := 151%positive.
+Definition _mbedtls_aes_encrypt : ident := 150%positive.
+Definition _mbedtls_aes_free : ident := 88%positive.
+Definition _mbedtls_aes_init : ident := 87%positive.
+Definition _mbedtls_aes_self_test : ident := 165%positive.
+Definition _mbedtls_aes_setkey_dec : ident := 112%positive.
+Definition _mbedtls_aes_setkey_enc : ident := 105%positive.
+Definition _mbedtls_zeroize : ident := 58%positive.
+Definition _memcmp : ident := 52%positive.
+Definition _memset : ident := 53%positive.
+Definition _mode : ident := 152%positive.
+Definition _n : ident := 56%positive.
+Definition _nr : ident := 2%positive.
+Definition _output : ident := 114%positive.
+Definition _p : ident := 57%positive.
+Definition _pow : ident := 65%positive.
+Definition _printf : ident := 54%positive.
+Definition _prod1 : ident := 69%positive.
+Definition _prod2 : ident := 70%positive.
+Definition _prod3 : ident := 71%positive.
+Definition _prod4 : ident := 72%positive.
+Definition _rcon : ident := 100%positive.
+Definition _ret : ident := 107%positive.
+Definition _rk : ident := 3%positive.
+Definition _rk0 : ident := 98%positive.
+Definition _rk7 : ident := 99%positive.
+Definition _rk__1 : ident := 135%positive.
+Definition _rk__2 : ident := 140%positive.
+Definition _rk__3 : ident := 145%positive.
+Definition _rot : ident := 67%positive.
+Definition _sk : ident := 110%positive.
+Definition _tables : ident := 59%positive.
+Definition _tmp : ident := 93%positive.
+Definition _u : ident := 157%positive.
+Definition _v : ident := 55%positive.
+Definition _verbose : ident := 156%positive.
+Definition _x : ident := 62%positive.
+Definition _y : ident := 63%positive.
+Definition _z : ident := 64%positive.
+Definition _t'1 : ident := 186%positive.
+Definition _t'10 : ident := 195%positive.
+Definition _t'11 : ident := 196%positive.
+Definition _t'12 : ident := 197%positive.
+Definition _t'13 : ident := 198%positive.
+Definition _t'14 : ident := 199%positive.
+Definition _t'15 : ident := 200%positive.
+Definition _t'16 : ident := 201%positive.
+Definition _t'17 : ident := 202%positive.
+Definition _t'18 : ident := 203%positive.
+Definition _t'19 : ident := 204%positive.
+Definition _t'2 : ident := 187%positive.
+Definition _t'20 : ident := 205%positive.
+Definition _t'3 : ident := 188%positive.
+Definition _t'4 : ident := 189%positive.
+Definition _t'5 : ident := 190%positive.
+Definition _t'6 : ident := 191%positive.
+Definition _t'7 : ident := 192%positive.
+Definition _t'8 : ident := 193%positive.
+Definition _t'9 : ident := 194%positive.
 
 Definition v___stringlit_3 := {|
   gvar_info := (tarray tschar 21);
@@ -289,10 +288,10 @@ Definition v___stringlit_4 := {|
 Definition f_mbedtls_zeroize := {|
   fn_return := tvoid;
   fn_callconv := cc_default;
-  fn_params := ((_v, (tptr tvoid)) :: (_n, tuint) :: nil);
+  fn_params := ((_v, (tptr tvoid)) :: (_n, tulong) :: nil);
   fn_vars := nil;
   fn_temps := ((_p, (tptr tuchar)) :: (_t'2, (tptr tuchar)) ::
-               (_t'1, tuint) :: nil);
+               (_t'1, tulong) :: nil);
   fn_body :=
 (Ssequence
   (Sset _p (Etempvar _v (tptr tvoid)))
@@ -300,11 +299,11 @@ Definition f_mbedtls_zeroize := {|
     (Ssequence
       (Ssequence
         (Ssequence
-          (Sset _t'1 (Etempvar _n tuint))
+          (Sset _t'1 (Etempvar _n tulong))
           (Sset _n
-            (Ebinop Osub (Etempvar _t'1 tuint) (Econst_int (Int.repr 1) tint)
-              tuint)))
-        (Sifthenelse (Etempvar _t'1 tuint) Sskip Sbreak))
+            (Ebinop Osub (Etempvar _t'1 tulong)
+              (Econst_int (Int.repr 1) tint) tulong)))
+        (Sifthenelse (Etempvar _t'1 tulong) Sskip Sbreak))
       (Ssequence
         (Ssequence
           (Sset _t'2 (Etempvar _p (tptr tuchar)))
@@ -970,12 +969,11 @@ Definition f_mbedtls_aes_init := {|
   fn_temps := nil;
   fn_body :=
 (Scall None
-  (Evar _memset (Tfunction
-                  (Tcons (tptr tvoid) (Tcons tint (Tcons tuint Tnil)))
+  (Evar _memset (Tfunction ((tptr tvoid) :: tint :: tulong :: nil)
                   (tptr tvoid) cc_default))
   ((Etempvar _ctx (tptr (Tstruct _mbedtls_aes_context_struct noattr))) ::
    (Econst_int (Int.repr 0) tint) ::
-   (Esizeof (Tstruct _mbedtls_aes_context_struct noattr) tuint) :: nil))
+   (Esizeof (Tstruct _mbedtls_aes_context_struct noattr) tulong) :: nil))
 |}.
 
 Definition f_mbedtls_aes_free := {|
@@ -993,10 +991,10 @@ Definition f_mbedtls_aes_free := {|
     (Sreturn None)
     Sskip)
   (Scall None
-    (Evar _mbedtls_zeroize (Tfunction (Tcons (tptr tvoid) (Tcons tuint Tnil))
-                             tvoid cc_default))
+    (Evar _mbedtls_zeroize (Tfunction ((tptr tvoid) :: tulong :: nil) tvoid
+                             cc_default))
     ((Etempvar _ctx (tptr (Tstruct _mbedtls_aes_context_struct noattr))) ::
-     (Esizeof (Tstruct _mbedtls_aes_context_struct noattr) tuint) :: nil)))
+     (Esizeof (Tstruct _mbedtls_aes_context_struct noattr) tulong) :: nil)))
 |}.
 
 Definition f_mbedtls_aes_setkey_enc := {|
@@ -1018,7 +1016,7 @@ Definition f_mbedtls_aes_setkey_enc := {|
     (Sifthenelse (Ebinop Oeq (Etempvar _tmp tint)
                    (Econst_int (Int.repr 0) tint) tint)
       (Ssequence
-        (Scall None (Evar _aes_gen_tables (Tfunction Tnil tvoid cc_default))
+        (Scall None (Evar _aes_gen_tables (Tfunction nil tvoid cc_default))
           nil)
         (Sassign (Evar _aes_init_done tint) (Econst_int (Int.repr 1) tint)))
       Sskip)
@@ -1533,9 +1531,8 @@ Definition f_mbedtls_aes_setkey_dec := {|
 (Ssequence
   (Scall None
     (Evar _mbedtls_aes_init (Tfunction
-                              (Tcons
-                                (tptr (Tstruct _mbedtls_aes_context_struct noattr))
-                                Tnil) tvoid cc_default))
+                              ((tptr (Tstruct _mbedtls_aes_context_struct noattr)) ::
+                               nil) tvoid cc_default))
     ((Eaddrof (Evar _cty (Tstruct _mbedtls_aes_context_struct noattr))
        (tptr (Tstruct _mbedtls_aes_context_struct noattr))) :: nil))
   (Ssequence
@@ -1561,11 +1558,9 @@ Definition f_mbedtls_aes_setkey_dec := {|
           (Ssequence
             (Scall (Some _t'2)
               (Evar _mbedtls_aes_setkey_enc (Tfunction
-                                              (Tcons
-                                                (tptr (Tstruct _mbedtls_aes_context_struct noattr))
-                                                (Tcons (tptr tuchar)
-                                                  (Tcons tuint Tnil))) tint
-                                              cc_default))
+                                              ((tptr (Tstruct _mbedtls_aes_context_struct noattr)) ::
+                                               (tptr tuchar) :: tuint :: nil)
+                                              tint cc_default))
               ((Eaddrof
                  (Evar _cty (Tstruct _mbedtls_aes_context_struct noattr))
                  (tptr (Tstruct _mbedtls_aes_context_struct noattr))) ::
@@ -1965,9 +1960,8 @@ Definition f_mbedtls_aes_setkey_dec := {|
                                                 (Scall None
                                                   (Evar _mbedtls_aes_free 
                                                   (Tfunction
-                                                    (Tcons
-                                                      (tptr (Tstruct _mbedtls_aes_context_struct noattr))
-                                                      Tnil) tvoid cc_default))
+                                                    ((tptr (Tstruct _mbedtls_aes_context_struct noattr)) ::
+                                                     nil) tvoid cc_default))
                                                   ((Eaddrof
                                                      (Evar _cty (Tstruct _mbedtls_aes_context_struct noattr))
                                                      (tptr (Tstruct _mbedtls_aes_context_struct noattr))) ::
@@ -6075,21 +6069,17 @@ Definition f_mbedtls_aes_crypt_ecb := {|
                  (Econst_int (Int.repr 1) tint) tint)
     (Scall None
       (Evar _mbedtls_aes_encrypt (Tfunction
-                                   (Tcons
-                                     (tptr (Tstruct _mbedtls_aes_context_struct noattr))
-                                     (Tcons (tptr tuchar)
-                                       (Tcons (tptr tuchar) Tnil))) tvoid
-                                   cc_default))
+                                   ((tptr (Tstruct _mbedtls_aes_context_struct noattr)) ::
+                                    (tptr tuchar) :: (tptr tuchar) :: nil)
+                                   tvoid cc_default))
       ((Etempvar _ctx (tptr (Tstruct _mbedtls_aes_context_struct noattr))) ::
        (Etempvar _input (tptr tuchar)) :: (Etempvar _output (tptr tuchar)) ::
        nil))
     (Scall None
       (Evar _mbedtls_aes_decrypt (Tfunction
-                                   (Tcons
-                                     (tptr (Tstruct _mbedtls_aes_context_struct noattr))
-                                     (Tcons (tptr tuchar)
-                                       (Tcons (tptr tuchar) Tnil))) tvoid
-                                   cc_default))
+                                   ((tptr (Tstruct _mbedtls_aes_context_struct noattr)) ::
+                                    (tptr tuchar) :: (tptr tuchar) :: nil)
+                                   tvoid cc_default))
       ((Etempvar _ctx (tptr (Tstruct _mbedtls_aes_context_struct noattr))) ::
        (Etempvar _input (tptr tuchar)) :: (Etempvar _output (tptr tuchar)) ::
        nil)))
@@ -6171,17 +6161,15 @@ Definition f_mbedtls_aes_self_test := {|
   (Sset _ret (Econst_int (Int.repr 0) tint))
   (Ssequence
     (Scall None
-      (Evar _memset (Tfunction
-                      (Tcons (tptr tvoid) (Tcons tint (Tcons tuint Tnil)))
+      (Evar _memset (Tfunction ((tptr tvoid) :: tint :: tulong :: nil)
                       (tptr tvoid) cc_default))
       ((Evar _key (tarray tuchar 32)) :: (Econst_int (Int.repr 0) tint) ::
        (Econst_int (Int.repr 32) tint) :: nil))
     (Ssequence
       (Scall None
         (Evar _mbedtls_aes_init (Tfunction
-                                  (Tcons
-                                    (tptr (Tstruct _mbedtls_aes_context_struct noattr))
-                                    Tnil) tvoid cc_default))
+                                  ((tptr (Tstruct _mbedtls_aes_context_struct noattr)) ::
+                                   nil) tvoid cc_default))
         ((Eaddrof (Evar _ctx (Tstruct _mbedtls_aes_context_struct noattr))
            (tptr (Tstruct _mbedtls_aes_context_struct noattr))) :: nil))
       (Ssequence
@@ -6214,7 +6202,7 @@ Definition f_mbedtls_aes_self_test := {|
                             (Ecast (Evar ___stringlit_1 (tarray tschar 4))
                               (tptr tschar))))
                         (Scall None
-                          (Evar _printf (Tfunction (Tcons (tptr tschar) Tnil)
+                          (Evar _printf (Tfunction ((tptr tschar) :: nil)
                                           tint
                                           {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|}))
                           ((Evar ___stringlit_3 (tarray tschar 21)) ::
@@ -6226,9 +6214,8 @@ Definition f_mbedtls_aes_self_test := {|
                     (Ssequence
                       (Scall None
                         (Evar _memset (Tfunction
-                                        (Tcons (tptr tvoid)
-                                          (Tcons tint (Tcons tuint Tnil)))
-                                        (tptr tvoid) cc_default))
+                                        ((tptr tvoid) :: tint :: tulong ::
+                                         nil) (tptr tvoid) cc_default))
                         ((Evar _buf (tarray tuchar 64)) ::
                          (Econst_int (Int.repr 0) tint) ::
                          (Econst_int (Int.repr 16) tint) :: nil))
@@ -6238,13 +6225,9 @@ Definition f_mbedtls_aes_self_test := {|
                           (Ssequence
                             (Scall None
                               (Evar _mbedtls_aes_setkey_dec (Tfunction
-                                                              (Tcons
-                                                                (tptr (Tstruct _mbedtls_aes_context_struct noattr))
-                                                                (Tcons
-                                                                  (tptr tuchar)
-                                                                  (Tcons
-                                                                    tuint
-                                                                    Tnil)))
+                                                              ((tptr (Tstruct _mbedtls_aes_context_struct noattr)) ::
+                                                               (tptr tuchar) ::
+                                                               tuint :: nil)
                                                               tint
                                                               cc_default))
                               ((Eaddrof
@@ -6268,16 +6251,11 @@ Definition f_mbedtls_aes_self_test := {|
                                       Sbreak)
                                     (Scall None
                                       (Evar _mbedtls_aes_crypt_ecb (Tfunction
-                                                                    (Tcons
-                                                                    (tptr (Tstruct _mbedtls_aes_context_struct noattr))
-                                                                    (Tcons
-                                                                    tint
-                                                                    (Tcons
-                                                                    (tptr tuchar)
-                                                                    (Tcons
-                                                                    (tptr tuchar)
-                                                                    Tnil))))
-                                                                    tint
+                                                                    ((tptr (Tstruct _mbedtls_aes_context_struct noattr)) ::
+                                                                    tint ::
+                                                                    (tptr tuchar) ::
+                                                                    (tptr tuchar) ::
+                                                                    nil) tint
                                                                     cc_default))
                                       ((Eaddrof
                                          (Evar _ctx (Tstruct _mbedtls_aes_context_struct noattr))
@@ -6291,10 +6269,9 @@ Definition f_mbedtls_aes_self_test := {|
                               (Ssequence
                                 (Scall (Some _t'2)
                                   (Evar _memcmp (Tfunction
-                                                  (Tcons (tptr tvoid)
-                                                    (Tcons (tptr tvoid)
-                                                      (Tcons tuint Tnil)))
-                                                  tint cc_default))
+                                                  ((tptr tvoid) ::
+                                                   (tptr tvoid) :: tulong ::
+                                                   nil) tint cc_default))
                                   ((Evar _buf (tarray tuchar 64)) ::
                                    (Ederef
                                      (Ebinop Oadd
@@ -6313,8 +6290,8 @@ Definition f_mbedtls_aes_self_test := {|
                                                    tint)
                                       (Scall None
                                         (Evar _printf (Tfunction
-                                                        (Tcons (tptr tschar)
-                                                          Tnil) tint
+                                                        ((tptr tschar) ::
+                                                         nil) tint
                                                         {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|}))
                                         ((Evar ___stringlit_4 (tarray tschar 8)) ::
                                          nil))
@@ -6327,13 +6304,9 @@ Definition f_mbedtls_aes_self_test := {|
                           (Ssequence
                             (Scall None
                               (Evar _mbedtls_aes_setkey_enc (Tfunction
-                                                              (Tcons
-                                                                (tptr (Tstruct _mbedtls_aes_context_struct noattr))
-                                                                (Tcons
-                                                                  (tptr tuchar)
-                                                                  (Tcons
-                                                                    tuint
-                                                                    Tnil)))
+                                                              ((tptr (Tstruct _mbedtls_aes_context_struct noattr)) ::
+                                                               (tptr tuchar) ::
+                                                               tuint :: nil)
                                                               tint
                                                               cc_default))
                               ((Eaddrof
@@ -6357,16 +6330,11 @@ Definition f_mbedtls_aes_self_test := {|
                                       Sbreak)
                                     (Scall None
                                       (Evar _mbedtls_aes_crypt_ecb (Tfunction
-                                                                    (Tcons
-                                                                    (tptr (Tstruct _mbedtls_aes_context_struct noattr))
-                                                                    (Tcons
-                                                                    tint
-                                                                    (Tcons
-                                                                    (tptr tuchar)
-                                                                    (Tcons
-                                                                    (tptr tuchar)
-                                                                    Tnil))))
-                                                                    tint
+                                                                    ((tptr (Tstruct _mbedtls_aes_context_struct noattr)) ::
+                                                                    tint ::
+                                                                    (tptr tuchar) ::
+                                                                    (tptr tuchar) ::
+                                                                    nil) tint
                                                                     cc_default))
                                       ((Eaddrof
                                          (Evar _ctx (Tstruct _mbedtls_aes_context_struct noattr))
@@ -6380,10 +6348,9 @@ Definition f_mbedtls_aes_self_test := {|
                               (Ssequence
                                 (Scall (Some _t'3)
                                   (Evar _memcmp (Tfunction
-                                                  (Tcons (tptr tvoid)
-                                                    (Tcons (tptr tvoid)
-                                                      (Tcons tuint Tnil)))
-                                                  tint cc_default))
+                                                  ((tptr tvoid) ::
+                                                   (tptr tvoid) :: tulong ::
+                                                   nil) tint cc_default))
                                   ((Evar _buf (tarray tuchar 64)) ::
                                    (Ederef
                                      (Ebinop Oadd
@@ -6402,8 +6369,8 @@ Definition f_mbedtls_aes_self_test := {|
                                                    tint)
                                       (Scall None
                                         (Evar _printf (Tfunction
-                                                        (Tcons (tptr tschar)
-                                                          Tnil) tint
+                                                        ((tptr tschar) ::
+                                                         nil) tint
                                                         {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|}))
                                         ((Evar ___stringlit_4 (tarray tschar 8)) ::
                                          nil))
@@ -6416,8 +6383,8 @@ Definition f_mbedtls_aes_self_test := {|
                         (Sifthenelse (Ebinop One (Etempvar _verbose tint)
                                        (Econst_int (Int.repr 0) tint) tint)
                           (Scall None
-                            (Evar _printf (Tfunction
-                                            (Tcons (tptr tschar) Tnil) tint
+                            (Evar _printf (Tfunction ((tptr tschar) :: nil)
+                                            tint
                                             {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|}))
                             ((Evar ___stringlit_5 (tarray tschar 8)) :: nil))
                           Sskip)))))))
@@ -6428,7 +6395,7 @@ Definition f_mbedtls_aes_self_test := {|
           (Sifthenelse (Ebinop One (Etempvar _verbose tint)
                          (Econst_int (Int.repr 0) tint) tint)
             (Scall None
-              (Evar _printf (Tfunction (Tcons (tptr tschar) Tnil) tint
+              (Evar _printf (Tfunction ((tptr tschar) :: nil) tint
                               {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|}))
               ((Evar ___stringlit_6 (tarray tschar 2)) :: nil))
             Sskip)
@@ -6438,9 +6405,8 @@ Definition f_mbedtls_aes_self_test := {|
               (Slabel _exit
                 (Scall None
                   (Evar _mbedtls_aes_free (Tfunction
-                                            (Tcons
-                                              (tptr (Tstruct _mbedtls_aes_context_struct noattr))
-                                              Tnil) tvoid cc_default))
+                                            ((tptr (Tstruct _mbedtls_aes_context_struct noattr)) ::
+                                             nil) tvoid cc_default))
                   ((Eaddrof
                      (Evar _ctx (Tstruct _mbedtls_aes_context_struct noattr))
                      (tptr (Tstruct _mbedtls_aes_context_struct noattr))) ::
@@ -6470,89 +6436,83 @@ Definition composites : list composite_definition :=
 Definition global_definitions : list (ident * globdef fundef type) :=
 ((___compcert_va_int32,
    Gfun(External (EF_runtime "__compcert_va_int32"
-                   (mksignature (AST.Tint :: nil) AST.Tint cc_default))
-     (Tcons (tptr tvoid) Tnil) tuint cc_default)) ::
+                   (mksignature (AST.Xptr :: nil) AST.Xint cc_default))
+     ((tptr tvoid) :: nil) tuint cc_default)) ::
  (___compcert_va_int64,
    Gfun(External (EF_runtime "__compcert_va_int64"
-                   (mksignature (AST.Tint :: nil) AST.Tlong cc_default))
-     (Tcons (tptr tvoid) Tnil) tulong cc_default)) ::
+                   (mksignature (AST.Xptr :: nil) AST.Xlong cc_default))
+     ((tptr tvoid) :: nil) tulong cc_default)) ::
  (___compcert_va_float64,
    Gfun(External (EF_runtime "__compcert_va_float64"
-                   (mksignature (AST.Tint :: nil) AST.Tfloat cc_default))
-     (Tcons (tptr tvoid) Tnil) tdouble cc_default)) ::
+                   (mksignature (AST.Xptr :: nil) AST.Xfloat cc_default))
+     ((tptr tvoid) :: nil) tdouble cc_default)) ::
  (___compcert_va_composite,
    Gfun(External (EF_runtime "__compcert_va_composite"
-                   (mksignature (AST.Tint :: AST.Tint :: nil) AST.Tint
-                     cc_default)) (Tcons (tptr tvoid) (Tcons tuint Tnil))
+                   (mksignature (AST.Xptr :: AST.Xlong :: nil) AST.Xptr
+                     cc_default)) ((tptr tvoid) :: tulong :: nil)
      (tptr tvoid) cc_default)) ::
  (___compcert_i64_dtos,
    Gfun(External (EF_runtime "__compcert_i64_dtos"
-                   (mksignature (AST.Tfloat :: nil) AST.Tlong cc_default))
-     (Tcons tdouble Tnil) tlong cc_default)) ::
+                   (mksignature (AST.Xfloat :: nil) AST.Xlong cc_default))
+     (tdouble :: nil) tlong cc_default)) ::
  (___compcert_i64_dtou,
    Gfun(External (EF_runtime "__compcert_i64_dtou"
-                   (mksignature (AST.Tfloat :: nil) AST.Tlong cc_default))
-     (Tcons tdouble Tnil) tulong cc_default)) ::
+                   (mksignature (AST.Xfloat :: nil) AST.Xlong cc_default))
+     (tdouble :: nil) tulong cc_default)) ::
  (___compcert_i64_stod,
    Gfun(External (EF_runtime "__compcert_i64_stod"
-                   (mksignature (AST.Tlong :: nil) AST.Tfloat cc_default))
-     (Tcons tlong Tnil) tdouble cc_default)) ::
+                   (mksignature (AST.Xlong :: nil) AST.Xfloat cc_default))
+     (tlong :: nil) tdouble cc_default)) ::
  (___compcert_i64_utod,
    Gfun(External (EF_runtime "__compcert_i64_utod"
-                   (mksignature (AST.Tlong :: nil) AST.Tfloat cc_default))
-     (Tcons tulong Tnil) tdouble cc_default)) ::
+                   (mksignature (AST.Xlong :: nil) AST.Xfloat cc_default))
+     (tulong :: nil) tdouble cc_default)) ::
  (___compcert_i64_stof,
    Gfun(External (EF_runtime "__compcert_i64_stof"
-                   (mksignature (AST.Tlong :: nil) AST.Tsingle cc_default))
-     (Tcons tlong Tnil) tfloat cc_default)) ::
+                   (mksignature (AST.Xlong :: nil) AST.Xsingle cc_default))
+     (tlong :: nil) tfloat cc_default)) ::
  (___compcert_i64_utof,
    Gfun(External (EF_runtime "__compcert_i64_utof"
-                   (mksignature (AST.Tlong :: nil) AST.Tsingle cc_default))
-     (Tcons tulong Tnil) tfloat cc_default)) ::
+                   (mksignature (AST.Xlong :: nil) AST.Xsingle cc_default))
+     (tulong :: nil) tfloat cc_default)) ::
  (___compcert_i64_sdiv,
    Gfun(External (EF_runtime "__compcert_i64_sdiv"
-                   (mksignature (AST.Tlong :: AST.Tlong :: nil) AST.Tlong
-                     cc_default)) (Tcons tlong (Tcons tlong Tnil)) tlong
-     cc_default)) ::
+                   (mksignature (AST.Xlong :: AST.Xlong :: nil) AST.Xlong
+                     cc_default)) (tlong :: tlong :: nil) tlong cc_default)) ::
  (___compcert_i64_udiv,
    Gfun(External (EF_runtime "__compcert_i64_udiv"
-                   (mksignature (AST.Tlong :: AST.Tlong :: nil) AST.Tlong
-                     cc_default)) (Tcons tulong (Tcons tulong Tnil)) tulong
+                   (mksignature (AST.Xlong :: AST.Xlong :: nil) AST.Xlong
+                     cc_default)) (tulong :: tulong :: nil) tulong
      cc_default)) ::
  (___compcert_i64_smod,
    Gfun(External (EF_runtime "__compcert_i64_smod"
-                   (mksignature (AST.Tlong :: AST.Tlong :: nil) AST.Tlong
-                     cc_default)) (Tcons tlong (Tcons tlong Tnil)) tlong
-     cc_default)) ::
+                   (mksignature (AST.Xlong :: AST.Xlong :: nil) AST.Xlong
+                     cc_default)) (tlong :: tlong :: nil) tlong cc_default)) ::
  (___compcert_i64_umod,
    Gfun(External (EF_runtime "__compcert_i64_umod"
-                   (mksignature (AST.Tlong :: AST.Tlong :: nil) AST.Tlong
-                     cc_default)) (Tcons tulong (Tcons tulong Tnil)) tulong
+                   (mksignature (AST.Xlong :: AST.Xlong :: nil) AST.Xlong
+                     cc_default)) (tulong :: tulong :: nil) tulong
      cc_default)) ::
  (___compcert_i64_shl,
    Gfun(External (EF_runtime "__compcert_i64_shl"
-                   (mksignature (AST.Tlong :: AST.Tint :: nil) AST.Tlong
-                     cc_default)) (Tcons tlong (Tcons tint Tnil)) tlong
-     cc_default)) ::
+                   (mksignature (AST.Xlong :: AST.Xint :: nil) AST.Xlong
+                     cc_default)) (tlong :: tint :: nil) tlong cc_default)) ::
  (___compcert_i64_shr,
    Gfun(External (EF_runtime "__compcert_i64_shr"
-                   (mksignature (AST.Tlong :: AST.Tint :: nil) AST.Tlong
-                     cc_default)) (Tcons tulong (Tcons tint Tnil)) tulong
-     cc_default)) ::
+                   (mksignature (AST.Xlong :: AST.Xint :: nil) AST.Xlong
+                     cc_default)) (tulong :: tint :: nil) tulong cc_default)) ::
  (___compcert_i64_sar,
    Gfun(External (EF_runtime "__compcert_i64_sar"
-                   (mksignature (AST.Tlong :: AST.Tint :: nil) AST.Tlong
-                     cc_default)) (Tcons tlong (Tcons tint Tnil)) tlong
-     cc_default)) ::
+                   (mksignature (AST.Xlong :: AST.Xint :: nil) AST.Xlong
+                     cc_default)) (tlong :: tint :: nil) tlong cc_default)) ::
  (___compcert_i64_smulh,
    Gfun(External (EF_runtime "__compcert_i64_smulh"
-                   (mksignature (AST.Tlong :: AST.Tlong :: nil) AST.Tlong
-                     cc_default)) (Tcons tlong (Tcons tlong Tnil)) tlong
-     cc_default)) ::
+                   (mksignature (AST.Xlong :: AST.Xlong :: nil) AST.Xlong
+                     cc_default)) (tlong :: tlong :: nil) tlong cc_default)) ::
  (___compcert_i64_umulh,
    Gfun(External (EF_runtime "__compcert_i64_umulh"
-                   (mksignature (AST.Tlong :: AST.Tlong :: nil) AST.Tlong
-                     cc_default)) (Tcons tulong (Tcons tulong Tnil)) tulong
+                   (mksignature (AST.Xlong :: AST.Xlong :: nil) AST.Xlong
+                     cc_default)) (tulong :: tulong :: nil) tulong
      cc_default)) :: (___stringlit_3, Gvar v___stringlit_3) ::
  (___stringlit_1, Gvar v___stringlit_1) ::
  (___stringlit_5, Gvar v___stringlit_5) ::
@@ -6561,196 +6521,182 @@ Definition global_definitions : list (ident * globdef fundef type) :=
  (___stringlit_4, Gvar v___stringlit_4) ::
  (___builtin_bswap64,
    Gfun(External (EF_builtin "__builtin_bswap64"
-                   (mksignature (AST.Tlong :: nil) AST.Tlong cc_default))
-     (Tcons tulong Tnil) tulong cc_default)) ::
+                   (mksignature (AST.Xlong :: nil) AST.Xlong cc_default))
+     (tulong :: nil) tulong cc_default)) ::
  (___builtin_bswap,
    Gfun(External (EF_builtin "__builtin_bswap"
-                   (mksignature (AST.Tint :: nil) AST.Tint cc_default))
-     (Tcons tuint Tnil) tuint cc_default)) ::
+                   (mksignature (AST.Xint :: nil) AST.Xint cc_default))
+     (tuint :: nil) tuint cc_default)) ::
  (___builtin_bswap32,
    Gfun(External (EF_builtin "__builtin_bswap32"
-                   (mksignature (AST.Tint :: nil) AST.Tint cc_default))
-     (Tcons tuint Tnil) tuint cc_default)) ::
+                   (mksignature (AST.Xint :: nil) AST.Xint cc_default))
+     (tuint :: nil) tuint cc_default)) ::
  (___builtin_bswap16,
    Gfun(External (EF_builtin "__builtin_bswap16"
-                   (mksignature (AST.Tint :: nil) AST.Tint16unsigned
-                     cc_default)) (Tcons tushort Tnil) tushort cc_default)) ::
+                   (mksignature (AST.Xint16unsigned :: nil)
+                     AST.Xint16unsigned cc_default)) (tushort :: nil) tushort
+     cc_default)) ::
  (___builtin_clz,
    Gfun(External (EF_builtin "__builtin_clz"
-                   (mksignature (AST.Tint :: nil) AST.Tint cc_default))
-     (Tcons tuint Tnil) tint cc_default)) ::
+                   (mksignature (AST.Xint :: nil) AST.Xint cc_default))
+     (tuint :: nil) tint cc_default)) ::
  (___builtin_clzl,
    Gfun(External (EF_builtin "__builtin_clzl"
-                   (mksignature (AST.Tint :: nil) AST.Tint cc_default))
-     (Tcons tuint Tnil) tint cc_default)) ::
+                   (mksignature (AST.Xlong :: nil) AST.Xint cc_default))
+     (tulong :: nil) tint cc_default)) ::
  (___builtin_clzll,
    Gfun(External (EF_builtin "__builtin_clzll"
-                   (mksignature (AST.Tlong :: nil) AST.Tint cc_default))
-     (Tcons tulong Tnil) tint cc_default)) ::
+                   (mksignature (AST.Xlong :: nil) AST.Xint cc_default))
+     (tulong :: nil) tint cc_default)) ::
  (___builtin_ctz,
    Gfun(External (EF_builtin "__builtin_ctz"
-                   (mksignature (AST.Tint :: nil) AST.Tint cc_default))
-     (Tcons tuint Tnil) tint cc_default)) ::
+                   (mksignature (AST.Xint :: nil) AST.Xint cc_default))
+     (tuint :: nil) tint cc_default)) ::
  (___builtin_ctzl,
    Gfun(External (EF_builtin "__builtin_ctzl"
-                   (mksignature (AST.Tint :: nil) AST.Tint cc_default))
-     (Tcons tuint Tnil) tint cc_default)) ::
+                   (mksignature (AST.Xlong :: nil) AST.Xint cc_default))
+     (tulong :: nil) tint cc_default)) ::
  (___builtin_ctzll,
    Gfun(External (EF_builtin "__builtin_ctzll"
-                   (mksignature (AST.Tlong :: nil) AST.Tint cc_default))
-     (Tcons tulong Tnil) tint cc_default)) ::
+                   (mksignature (AST.Xlong :: nil) AST.Xint cc_default))
+     (tulong :: nil) tint cc_default)) ::
  (___builtin_fabs,
    Gfun(External (EF_builtin "__builtin_fabs"
-                   (mksignature (AST.Tfloat :: nil) AST.Tfloat cc_default))
-     (Tcons tdouble Tnil) tdouble cc_default)) ::
+                   (mksignature (AST.Xfloat :: nil) AST.Xfloat cc_default))
+     (tdouble :: nil) tdouble cc_default)) ::
  (___builtin_fabsf,
    Gfun(External (EF_builtin "__builtin_fabsf"
-                   (mksignature (AST.Tsingle :: nil) AST.Tsingle cc_default))
-     (Tcons tfloat Tnil) tfloat cc_default)) ::
+                   (mksignature (AST.Xsingle :: nil) AST.Xsingle cc_default))
+     (tfloat :: nil) tfloat cc_default)) ::
  (___builtin_fsqrt,
    Gfun(External (EF_builtin "__builtin_fsqrt"
-                   (mksignature (AST.Tfloat :: nil) AST.Tfloat cc_default))
-     (Tcons tdouble Tnil) tdouble cc_default)) ::
+                   (mksignature (AST.Xfloat :: nil) AST.Xfloat cc_default))
+     (tdouble :: nil) tdouble cc_default)) ::
  (___builtin_sqrt,
    Gfun(External (EF_builtin "__builtin_sqrt"
-                   (mksignature (AST.Tfloat :: nil) AST.Tfloat cc_default))
-     (Tcons tdouble Tnil) tdouble cc_default)) ::
+                   (mksignature (AST.Xfloat :: nil) AST.Xfloat cc_default))
+     (tdouble :: nil) tdouble cc_default)) ::
  (___builtin_memcpy_aligned,
    Gfun(External (EF_builtin "__builtin_memcpy_aligned"
                    (mksignature
-                     (AST.Tint :: AST.Tint :: AST.Tint :: AST.Tint :: nil)
-                     AST.Tvoid cc_default))
-     (Tcons (tptr tvoid)
-       (Tcons (tptr tvoid) (Tcons tuint (Tcons tuint Tnil)))) tvoid
+                     (AST.Xptr :: AST.Xptr :: AST.Xlong :: AST.Xlong :: nil)
+                     AST.Xvoid cc_default))
+     ((tptr tvoid) :: (tptr tvoid) :: tulong :: tulong :: nil) tvoid
      cc_default)) ::
  (___builtin_sel,
    Gfun(External (EF_builtin "__builtin_sel"
-                   (mksignature (AST.Tint :: nil) AST.Tvoid
+                   (mksignature (AST.Xbool :: nil) AST.Xvoid
                      {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|}))
-     (Tcons tbool Tnil) tvoid
+     (tbool :: nil) tvoid
      {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|})) ::
  (___builtin_annot,
    Gfun(External (EF_builtin "__builtin_annot"
-                   (mksignature (AST.Tint :: nil) AST.Tvoid
+                   (mksignature (AST.Xptr :: nil) AST.Xvoid
                      {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|}))
-     (Tcons (tptr tschar) Tnil) tvoid
+     ((tptr tschar) :: nil) tvoid
      {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|})) ::
  (___builtin_annot_intval,
    Gfun(External (EF_builtin "__builtin_annot_intval"
-                   (mksignature (AST.Tint :: AST.Tint :: nil) AST.Tint
-                     cc_default)) (Tcons (tptr tschar) (Tcons tint Tnil))
-     tint cc_default)) ::
+                   (mksignature (AST.Xptr :: AST.Xint :: nil) AST.Xint
+                     cc_default)) ((tptr tschar) :: tint :: nil) tint
+     cc_default)) ::
  (___builtin_membar,
    Gfun(External (EF_builtin "__builtin_membar"
-                   (mksignature nil AST.Tvoid cc_default)) Tnil tvoid
+                   (mksignature nil AST.Xvoid cc_default)) nil tvoid
      cc_default)) ::
  (___builtin_va_start,
    Gfun(External (EF_builtin "__builtin_va_start"
-                   (mksignature (AST.Tint :: nil) AST.Tvoid cc_default))
-     (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
+                   (mksignature (AST.Xptr :: nil) AST.Xvoid cc_default))
+     ((tptr tvoid) :: nil) tvoid cc_default)) ::
  (___builtin_va_arg,
    Gfun(External (EF_builtin "__builtin_va_arg"
-                   (mksignature (AST.Tint :: AST.Tint :: nil) AST.Tvoid
-                     cc_default)) (Tcons (tptr tvoid) (Tcons tuint Tnil))
-     tvoid cc_default)) ::
+                   (mksignature (AST.Xptr :: AST.Xint :: nil) AST.Xvoid
+                     cc_default)) ((tptr tvoid) :: tuint :: nil) tvoid
+     cc_default)) ::
  (___builtin_va_copy,
    Gfun(External (EF_builtin "__builtin_va_copy"
-                   (mksignature (AST.Tint :: AST.Tint :: nil) AST.Tvoid
-                     cc_default))
-     (Tcons (tptr tvoid) (Tcons (tptr tvoid) Tnil)) tvoid cc_default)) ::
+                   (mksignature (AST.Xptr :: AST.Xptr :: nil) AST.Xvoid
+                     cc_default)) ((tptr tvoid) :: (tptr tvoid) :: nil) tvoid
+     cc_default)) ::
  (___builtin_va_end,
    Gfun(External (EF_builtin "__builtin_va_end"
-                   (mksignature (AST.Tint :: nil) AST.Tvoid cc_default))
-     (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
+                   (mksignature (AST.Xptr :: nil) AST.Xvoid cc_default))
+     ((tptr tvoid) :: nil) tvoid cc_default)) ::
  (___builtin_unreachable,
    Gfun(External (EF_builtin "__builtin_unreachable"
-                   (mksignature nil AST.Tvoid cc_default)) Tnil tvoid
+                   (mksignature nil AST.Xvoid cc_default)) nil tvoid
      cc_default)) ::
  (___builtin_expect,
    Gfun(External (EF_builtin "__builtin_expect"
-                   (mksignature (AST.Tint :: AST.Tint :: nil) AST.Tint
-                     cc_default)) (Tcons tint (Tcons tint Tnil)) tint
-     cc_default)) ::
- (___builtin_fmax,
-   Gfun(External (EF_builtin "__builtin_fmax"
-                   (mksignature (AST.Tfloat :: AST.Tfloat :: nil) AST.Tfloat
-                     cc_default)) (Tcons tdouble (Tcons tdouble Tnil))
-     tdouble cc_default)) ::
- (___builtin_fmin,
-   Gfun(External (EF_builtin "__builtin_fmin"
-                   (mksignature (AST.Tfloat :: AST.Tfloat :: nil) AST.Tfloat
-                     cc_default)) (Tcons tdouble (Tcons tdouble Tnil))
-     tdouble cc_default)) ::
+                   (mksignature (AST.Xlong :: AST.Xlong :: nil) AST.Xlong
+                     cc_default)) (tlong :: tlong :: nil) tlong cc_default)) ::
+ (___builtin_cls,
+   Gfun(External (EF_builtin "__builtin_cls"
+                   (mksignature (AST.Xint :: nil) AST.Xint cc_default))
+     (tint :: nil) tint cc_default)) ::
+ (___builtin_clsl,
+   Gfun(External (EF_builtin "__builtin_clsl"
+                   (mksignature (AST.Xlong :: nil) AST.Xint cc_default))
+     (tlong :: nil) tint cc_default)) ::
+ (___builtin_clsll,
+   Gfun(External (EF_builtin "__builtin_clsll"
+                   (mksignature (AST.Xlong :: nil) AST.Xint cc_default))
+     (tlong :: nil) tint cc_default)) ::
  (___builtin_fmadd,
    Gfun(External (EF_builtin "__builtin_fmadd"
                    (mksignature
-                     (AST.Tfloat :: AST.Tfloat :: AST.Tfloat :: nil)
-                     AST.Tfloat cc_default))
-     (Tcons tdouble (Tcons tdouble (Tcons tdouble Tnil))) tdouble
-     cc_default)) ::
+                     (AST.Xfloat :: AST.Xfloat :: AST.Xfloat :: nil)
+                     AST.Xfloat cc_default))
+     (tdouble :: tdouble :: tdouble :: nil) tdouble cc_default)) ::
  (___builtin_fmsub,
    Gfun(External (EF_builtin "__builtin_fmsub"
                    (mksignature
-                     (AST.Tfloat :: AST.Tfloat :: AST.Tfloat :: nil)
-                     AST.Tfloat cc_default))
-     (Tcons tdouble (Tcons tdouble (Tcons tdouble Tnil))) tdouble
-     cc_default)) ::
+                     (AST.Xfloat :: AST.Xfloat :: AST.Xfloat :: nil)
+                     AST.Xfloat cc_default))
+     (tdouble :: tdouble :: tdouble :: nil) tdouble cc_default)) ::
  (___builtin_fnmadd,
    Gfun(External (EF_builtin "__builtin_fnmadd"
                    (mksignature
-                     (AST.Tfloat :: AST.Tfloat :: AST.Tfloat :: nil)
-                     AST.Tfloat cc_default))
-     (Tcons tdouble (Tcons tdouble (Tcons tdouble Tnil))) tdouble
-     cc_default)) ::
+                     (AST.Xfloat :: AST.Xfloat :: AST.Xfloat :: nil)
+                     AST.Xfloat cc_default))
+     (tdouble :: tdouble :: tdouble :: nil) tdouble cc_default)) ::
  (___builtin_fnmsub,
    Gfun(External (EF_builtin "__builtin_fnmsub"
                    (mksignature
-                     (AST.Tfloat :: AST.Tfloat :: AST.Tfloat :: nil)
-                     AST.Tfloat cc_default))
-     (Tcons tdouble (Tcons tdouble (Tcons tdouble Tnil))) tdouble
+                     (AST.Xfloat :: AST.Xfloat :: AST.Xfloat :: nil)
+                     AST.Xfloat cc_default))
+     (tdouble :: tdouble :: tdouble :: nil) tdouble cc_default)) ::
+ (___builtin_fmax,
+   Gfun(External (EF_builtin "__builtin_fmax"
+                   (mksignature (AST.Xfloat :: AST.Xfloat :: nil) AST.Xfloat
+                     cc_default)) (tdouble :: tdouble :: nil) tdouble
      cc_default)) ::
- (___builtin_read16_reversed,
-   Gfun(External (EF_builtin "__builtin_read16_reversed"
-                   (mksignature (AST.Tint :: nil) AST.Tint16unsigned
-                     cc_default)) (Tcons (tptr tushort) Tnil) tushort
+ (___builtin_fmin,
+   Gfun(External (EF_builtin "__builtin_fmin"
+                   (mksignature (AST.Xfloat :: AST.Xfloat :: nil) AST.Xfloat
+                     cc_default)) (tdouble :: tdouble :: nil) tdouble
      cc_default)) ::
- (___builtin_read32_reversed,
-   Gfun(External (EF_builtin "__builtin_read32_reversed"
-                   (mksignature (AST.Tint :: nil) AST.Tint cc_default))
-     (Tcons (tptr tuint) Tnil) tuint cc_default)) ::
- (___builtin_write16_reversed,
-   Gfun(External (EF_builtin "__builtin_write16_reversed"
-                   (mksignature (AST.Tint :: AST.Tint :: nil) AST.Tvoid
-                     cc_default)) (Tcons (tptr tushort) (Tcons tushort Tnil))
-     tvoid cc_default)) ::
- (___builtin_write32_reversed,
-   Gfun(External (EF_builtin "__builtin_write32_reversed"
-                   (mksignature (AST.Tint :: AST.Tint :: nil) AST.Tvoid
-                     cc_default)) (Tcons (tptr tuint) (Tcons tuint Tnil))
-     tvoid cc_default)) ::
  (___builtin_debug,
    Gfun(External (EF_external "__builtin_debug"
-                   (mksignature (AST.Tint :: nil) AST.Tvoid
+                   (mksignature (AST.Xint :: nil) AST.Xvoid
                      {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|}))
-     (Tcons tint Tnil) tvoid
+     (tint :: nil) tvoid
      {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|})) ::
  (_memcmp,
    Gfun(External (EF_external "memcmp"
-                   (mksignature (AST.Tint :: AST.Tint :: AST.Tint :: nil)
-                     AST.Tint cc_default))
-     (Tcons (tptr tvoid) (Tcons (tptr tvoid) (Tcons tuint Tnil))) tint
-     cc_default)) ::
+                   (mksignature (AST.Xptr :: AST.Xptr :: AST.Xlong :: nil)
+                     AST.Xint cc_default))
+     ((tptr tvoid) :: (tptr tvoid) :: tulong :: nil) tint cc_default)) ::
  (_memset,
    Gfun(External (EF_external "memset"
-                   (mksignature (AST.Tint :: AST.Tint :: AST.Tint :: nil)
-                     AST.Tint cc_default))
-     (Tcons (tptr tvoid) (Tcons tint (Tcons tuint Tnil))) (tptr tvoid)
-     cc_default)) ::
+                   (mksignature (AST.Xptr :: AST.Xint :: AST.Xlong :: nil)
+                     AST.Xptr cc_default))
+     ((tptr tvoid) :: tint :: tulong :: nil) (tptr tvoid) cc_default)) ::
  (_printf,
    Gfun(External (EF_external "printf"
-                   (mksignature (AST.Tint :: nil) AST.Tint
+                   (mksignature (AST.Xptr :: nil) AST.Xint
                      {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|}))
-     (Tcons (tptr tschar) Tnil) tint
+     ((tptr tschar) :: nil) tint
      {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|})) ::
  (_mbedtls_zeroize, Gfun(Internal f_mbedtls_zeroize)) ::
  (_tables, Gvar v_tables) :: (_aes_init_done, Gvar v_aes_init_done) ::
@@ -6770,26 +6716,25 @@ Definition public_idents : list ident :=
 (_mbedtls_aes_self_test :: _mbedtls_aes_crypt_ecb :: _mbedtls_aes_decrypt ::
  _mbedtls_aes_encrypt :: _mbedtls_aes_setkey_dec ::
  _mbedtls_aes_setkey_enc :: _mbedtls_aes_free :: _mbedtls_aes_init ::
- _printf :: _memset :: _memcmp :: ___builtin_debug ::
- ___builtin_write32_reversed :: ___builtin_write16_reversed ::
- ___builtin_read32_reversed :: ___builtin_read16_reversed ::
- ___builtin_fnmsub :: ___builtin_fnmadd :: ___builtin_fmsub ::
- ___builtin_fmadd :: ___builtin_fmin :: ___builtin_fmax ::
- ___builtin_expect :: ___builtin_unreachable :: ___builtin_va_end ::
- ___builtin_va_copy :: ___builtin_va_arg :: ___builtin_va_start ::
- ___builtin_membar :: ___builtin_annot_intval :: ___builtin_annot ::
- ___builtin_sel :: ___builtin_memcpy_aligned :: ___builtin_sqrt ::
- ___builtin_fsqrt :: ___builtin_fabsf :: ___builtin_fabs ::
- ___builtin_ctzll :: ___builtin_ctzl :: ___builtin_ctz :: ___builtin_clzll ::
- ___builtin_clzl :: ___builtin_clz :: ___builtin_bswap16 ::
- ___builtin_bswap32 :: ___builtin_bswap :: ___builtin_bswap64 ::
- ___compcert_i64_umulh :: ___compcert_i64_smulh :: ___compcert_i64_sar ::
- ___compcert_i64_shr :: ___compcert_i64_shl :: ___compcert_i64_umod ::
- ___compcert_i64_smod :: ___compcert_i64_udiv :: ___compcert_i64_sdiv ::
- ___compcert_i64_utof :: ___compcert_i64_stof :: ___compcert_i64_utod ::
- ___compcert_i64_stod :: ___compcert_i64_dtou :: ___compcert_i64_dtos ::
- ___compcert_va_composite :: ___compcert_va_float64 ::
- ___compcert_va_int64 :: ___compcert_va_int32 :: nil).
+ _printf :: _memset :: _memcmp :: ___builtin_debug :: ___builtin_fmin ::
+ ___builtin_fmax :: ___builtin_fnmsub :: ___builtin_fnmadd ::
+ ___builtin_fmsub :: ___builtin_fmadd :: ___builtin_clsll ::
+ ___builtin_clsl :: ___builtin_cls :: ___builtin_expect ::
+ ___builtin_unreachable :: ___builtin_va_end :: ___builtin_va_copy ::
+ ___builtin_va_arg :: ___builtin_va_start :: ___builtin_membar ::
+ ___builtin_annot_intval :: ___builtin_annot :: ___builtin_sel ::
+ ___builtin_memcpy_aligned :: ___builtin_sqrt :: ___builtin_fsqrt ::
+ ___builtin_fabsf :: ___builtin_fabs :: ___builtin_ctzll ::
+ ___builtin_ctzl :: ___builtin_ctz :: ___builtin_clzll :: ___builtin_clzl ::
+ ___builtin_clz :: ___builtin_bswap16 :: ___builtin_bswap32 ::
+ ___builtin_bswap :: ___builtin_bswap64 :: ___compcert_i64_umulh ::
+ ___compcert_i64_smulh :: ___compcert_i64_sar :: ___compcert_i64_shr ::
+ ___compcert_i64_shl :: ___compcert_i64_umod :: ___compcert_i64_smod ::
+ ___compcert_i64_udiv :: ___compcert_i64_sdiv :: ___compcert_i64_utof ::
+ ___compcert_i64_stof :: ___compcert_i64_utod :: ___compcert_i64_stod ::
+ ___compcert_i64_dtou :: ___compcert_i64_dtos :: ___compcert_va_composite ::
+ ___compcert_va_float64 :: ___compcert_va_int64 :: ___compcert_va_int32 ::
+ nil).
 
 Definition prog : Clight.program := 
   mkprogram composites global_definitions public_idents _main Logic.I.

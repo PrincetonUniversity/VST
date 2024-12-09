@@ -11,9 +11,9 @@ Module Info.
   Definition build_tag := "".
   Definition build_branch := "".
   Definition arch := "x86".
-  Definition model := "64".
+  Definition model := "32sse2".
   Definition abi := "standard".
-  Definition bitsize := 64.
+  Definition bitsize := 32.
   Definition big_endian := false.
   Definition source_file := "progs/bst.c".
   Definition normalized := true.
@@ -80,20 +80,13 @@ Definition ___stringlit_2 : ident := $"__stringlit_2".
 Definition ___stringlit_3 : ident := $"__stringlit_3".
 Definition ___stringlit_4 : ident := $"__stringlit_4".
 Definition __l : ident := $"_l".
-Definition _a : ident := $"a".
-Definition _append : ident := $"append".
 Definition _b : ident := $"b".
 Definition _delete : ident := $"delete".
-Definition _four : ident := $"four".
 Definition _freeN : ident := $"freeN".
-Definition _head : ident := $"head".
-Definition _hi : ident := $"hi".
 Definition _insert : ident := $"insert".
 Definition _key : ident := $"key".
 Definition _l : ident := $"l".
 Definition _left : ident := $"left".
-Definition _list : ident := $"list".
-Definition _lo : ident := $"lo".
 Definition _lookup : ident := $"lookup".
 Definition _main : ident := $"main".
 Definition _mallocN : ident := $"mallocN".
@@ -105,19 +98,13 @@ Definition _pushdown_left : ident := $"pushdown_left".
 Definition _q : ident := $"q".
 Definition _r : ident := $"r".
 Definition _right : ident := $"right".
-Definition _s : ident := $"s".
-Definition _search : ident := $"search".
 Definition _t : ident := $"t".
-Definition _tail : ident := $"tail".
-Definition _tgt : ident := $"tgt".
 Definition _tree : ident := $"tree".
 Definition _tree_free : ident := $"tree_free".
 Definition _treebox_free : ident := $"treebox_free".
 Definition _treebox_new : ident := $"treebox_new".
 Definition _turn_left : ident := $"turn_left".
-Definition _u : ident := $"u".
 Definition _v : ident := $"v".
-Definition _val : ident := $"val".
 Definition _value : ident := $"value".
 Definition _x : ident := $"x".
 Definition _y : ident := $"y".
@@ -169,7 +156,7 @@ Definition f_treebox_new := {|
   (Ssequence
     (Scall (Some _t'1)
       (Evar _mallocN (Tfunction (tint :: nil) (tptr tvoid) cc_default))
-      ((Esizeof (tptr (Tstruct _tree noattr)) tulong) :: nil))
+      ((Esizeof (tptr (Tstruct _tree noattr)) tuint) :: nil))
     (Sset _p
       (Ecast (Etempvar _t'1 (tptr tvoid))
         (tptr (tptr (Tstruct _tree noattr))))))
@@ -206,7 +193,7 @@ Definition f_tree_free := {|
           (Evar _freeN (Tfunction ((tptr tvoid) :: tint :: nil) tvoid
                          cc_default))
           ((Etempvar _p (tptr (Tstruct _tree noattr))) ::
-           (Esizeof (Tstruct _tree noattr) tulong) :: nil))
+           (Esizeof (Tstruct _tree noattr) tuint) :: nil))
         (Ssequence
           (Scall None
             (Evar _tree_free (Tfunction
@@ -240,7 +227,7 @@ Definition f_treebox_free := {|
     (Scall None
       (Evar _freeN (Tfunction ((tptr tvoid) :: tint :: nil) tvoid cc_default))
       ((Etempvar _b (tptr (tptr (Tstruct _tree noattr)))) ::
-       (Esizeof (tptr (Tstruct _tree noattr)) tulong) :: nil))))
+       (Esizeof (tptr (Tstruct _tree noattr)) tuint) :: nil))))
 |}.
 
 Definition f_insert := {|
@@ -267,7 +254,7 @@ Definition f_insert := {|
             (Scall (Some _t'1)
               (Evar _mallocN (Tfunction (tint :: nil) (tptr tvoid)
                                cc_default))
-              ((Esizeof (Tstruct _tree noattr) tulong) :: nil))
+              ((Esizeof (Tstruct _tree noattr) tuint) :: nil))
             (Sset _p
               (Ecast (Etempvar _t'1 (tptr tvoid))
                 (tptr (Tstruct _tree noattr)))))
@@ -407,7 +394,7 @@ Definition f_pushdown_left := {|
                   (Evar _freeN (Tfunction ((tptr tvoid) :: tint :: nil) tvoid
                                  cc_default))
                   ((Etempvar _p (tptr (Tstruct _tree noattr))) ::
-                   (Esizeof (Tstruct _tree noattr) tulong) :: nil))
+                   (Esizeof (Tstruct _tree noattr) tuint) :: nil))
                 (Sreturn None))))
           (Ssequence
             (Scall None
@@ -604,9 +591,9 @@ Definition global_definitions : list (ident * globdef fundef type) :=
      ((tptr tvoid) :: nil) tdouble cc_default)) ::
  (___compcert_va_composite,
    Gfun(External (EF_runtime "__compcert_va_composite"
-                   (mksignature (AST.Xptr :: AST.Xlong :: nil) AST.Xptr
-                     cc_default)) ((tptr tvoid) :: tulong :: nil)
-     (tptr tvoid) cc_default)) ::
+                   (mksignature (AST.Xptr :: AST.Xint :: nil) AST.Xptr
+                     cc_default)) ((tptr tvoid) :: tuint :: nil) (tptr tvoid)
+     cc_default)) ::
  (___compcert_i64_dtos,
    Gfun(External (EF_runtime "__compcert_i64_dtos"
                    (mksignature (AST.Xfloat :: nil) AST.Xlong cc_default))
@@ -702,8 +689,8 @@ Definition global_definitions : list (ident * globdef fundef type) :=
      (tuint :: nil) tint cc_default)) ::
  (___builtin_clzl,
    Gfun(External (EF_builtin "__builtin_clzl"
-                   (mksignature (AST.Xlong :: nil) AST.Xint cc_default))
-     (tulong :: nil) tint cc_default)) ::
+                   (mksignature (AST.Xint :: nil) AST.Xint cc_default))
+     (tuint :: nil) tint cc_default)) ::
  (___builtin_clzll,
    Gfun(External (EF_builtin "__builtin_clzll"
                    (mksignature (AST.Xlong :: nil) AST.Xint cc_default))
@@ -714,8 +701,8 @@ Definition global_definitions : list (ident * globdef fundef type) :=
      (tuint :: nil) tint cc_default)) ::
  (___builtin_ctzl,
    Gfun(External (EF_builtin "__builtin_ctzl"
-                   (mksignature (AST.Xlong :: nil) AST.Xint cc_default))
-     (tulong :: nil) tint cc_default)) ::
+                   (mksignature (AST.Xint :: nil) AST.Xint cc_default))
+     (tuint :: nil) tint cc_default)) ::
  (___builtin_ctzll,
    Gfun(External (EF_builtin "__builtin_ctzll"
                    (mksignature (AST.Xlong :: nil) AST.Xint cc_default))
@@ -739,9 +726,9 @@ Definition global_definitions : list (ident * globdef fundef type) :=
  (___builtin_memcpy_aligned,
    Gfun(External (EF_builtin "__builtin_memcpy_aligned"
                    (mksignature
-                     (AST.Xptr :: AST.Xptr :: AST.Xlong :: AST.Xlong :: nil)
+                     (AST.Xptr :: AST.Xptr :: AST.Xint :: AST.Xint :: nil)
                      AST.Xvoid cc_default))
-     ((tptr tvoid) :: (tptr tvoid) :: tulong :: tulong :: nil) tvoid
+     ((tptr tvoid) :: (tptr tvoid) :: tuint :: tuint :: nil) tvoid
      cc_default)) ::
  (___builtin_sel,
    Gfun(External (EF_builtin "__builtin_sel"
@@ -788,8 +775,8 @@ Definition global_definitions : list (ident * globdef fundef type) :=
      cc_default)) ::
  (___builtin_expect,
    Gfun(External (EF_builtin "__builtin_expect"
-                   (mksignature (AST.Xlong :: AST.Xlong :: nil) AST.Xlong
-                     cc_default)) (tlong :: tlong :: nil) tlong cc_default)) ::
+                   (mksignature (AST.Xint :: AST.Xint :: nil) AST.Xint
+                     cc_default)) (tint :: tint :: nil) tint cc_default)) ::
  (___builtin_fmax,
    Gfun(External (EF_builtin "__builtin_fmax"
                    (mksignature (AST.Xfloat :: AST.Xfloat :: nil) AST.Xfloat
