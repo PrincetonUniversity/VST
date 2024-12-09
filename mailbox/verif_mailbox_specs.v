@@ -46,7 +46,7 @@ Definition spawn_spec := DECLARE _spawn spawn_spec.
 Lemma list_insert_upd : forall {A} i (a : A) l, 0 <= i < Zlength l ->
   <[Z.to_nat i := a]>l = upd_Znth i l a.
 Proof.
-  intros; revert dependent i; induction l; simpl; intros.
+  intros; generalize dependent i; induction l; simpl; intros.
   - rewrite Zlength_nil in H; lia.
   - rewrite Zlength_cons in H.
     destruct (Z.to_nat i) eqn: Hi; simpl.

@@ -2021,7 +2021,7 @@ Definition unspecified_info (ge: Genv.t (fundef function) type)
           Genv.find_symbol ge id = Some b /\
           Genv.find_funct_ptr ge b = Some g /\
           ef_sig ef =   {|
-             sig_args := typlist_of_typelist argsig;
+             sig_args := map argtype_of_type argsig;
              sig_res := rettype_of_type retsig;
              sig_cc := cc_of_fundef (External ef argsig retsig cc) |}
  end. 
@@ -2078,7 +2078,7 @@ Definition builtin_unspecified_OK (ge : Genv.t (fundef function) type)
      | External ef argsig retsig cc =>
             eqb_signature (ef_sig ef)
               {|
-             sig_args := typlist_of_typelist argsig;
+             sig_args := map argtype_of_type argsig;
              sig_res := rettype_of_type retsig;
              sig_cc := cc |}
       end
@@ -2098,7 +2098,7 @@ Definition funct_unspecified_OK (ge : Genv.t (fundef function) type)
            andb (fundef_eq g g')
             (eqb_signature (ef_sig ef) 
               {|
-             sig_args := typlist_of_typelist argsig;
+             sig_args := map argtype_of_type argsig;
              sig_res := rettype_of_type retsig;
              sig_cc := cc |} )
       end
@@ -3398,7 +3398,7 @@ Ltac start_function2 ::=
 
 Ltac InitGPred_tac :=
 intros ? ?;
-eapply InitGPred_process_globvars; auto;
+eapply InitGPred_process_globvars; [auto | | auto];
 let Delta := fresh "Delta" in let Delta' := fresh "Delta'" in 
 set (Delta' := vardefs_tycontext _);
 set (Delta := @abbreviate tycontext Delta');

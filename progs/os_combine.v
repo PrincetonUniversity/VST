@@ -70,7 +70,7 @@ Section ext_trace.
       forall n t traces z c m e args,
       cl_at_external c = Some (e,args) ->
       (forall s s' ret m' t' n'
-         (Hargsty : Val.has_type_list args (sig_args (ef_sig e)))
+         (Hargsty : Val.has_type_list args (map proj_xtype (sig_args (ef_sig e))))
          (Hretty : Builtins0.val_opt_has_rettype ret (sig_res (ef_sig e))),
          inj_mem e args m t s ->
          ext_sem e args s = Some (s', ret, t') ->
@@ -81,7 +81,7 @@ Section ext_trace.
            ext_safeN_trace n' (app_trace t t') traces' z' c' m' /\
            (forall t'', In traces' t'' -> In traces (app_trace t' t''))) ->
       (forall t1, In traces t1 ->
-        exists s s' ret m' t' n', Val.has_type_list args (sig_args (ef_sig e)) /\
+        exists s s' ret m' t' n', Val.has_type_list args (map proj_xtype (sig_args (ef_sig e))) /\
          Builtins0.val_opt_has_rettype ret (sig_res (ef_sig e)) /\
          inj_mem e args m t s /\ ext_sem e args s = Some (s', ret, t') /\ m' = extr_mem e args m s' /\
          (n' <= n)%nat /\ OS_valid s' /\ exists traces' z' c', consume_trace z z' t' /\
@@ -101,7 +101,7 @@ Section ext_trace.
 
 
   Lemma dry_safe_ext_trace_safe : forall n t z q m,
-    step_lemmas.dry_safeN(genv_symb := semax.genv_symb_injective)
+    step_lemmas.dry_safeN(genv_symb := lifting.genv_symb_injective)
      (cl_core_sem (globalenv prog)) dryspec
      (Build_genv (Genv.globalenv prog) (prog_comp_env prog)) n z q m ->
     exists traces, ext_safeN_trace n t traces z q m.
@@ -109,7 +109,7 @@ Section ext_trace.
     induction n as [n IHn] using lt_wf_ind; intros; inversion H; subst.
     - eexists; constructor.
     - edestruct IHn as [traces ?]; eauto; exists traces; econstructor; eauto.
-    - exists (fun t1 => exists s s' ret m' t' n', Val.has_type_list args (sig_args (ef_sig e)) /\
+    - exists (fun t1 => exists s s' ret m' t' n', Val.has_type_list args (map proj_xtype (sig_args (ef_sig e))) /\
          Builtins0.val_opt_has_rettype ret (sig_res (ef_sig e)) /\
          inj_mem e args m t s /\ ext_sem e args s = Some (s', ret, t') /\ m' = extr_mem e args m s' /\
          (n' <= n0)%nat /\ OS_valid s' /\ exists traces' z' c', consume_trace z z' t' /\

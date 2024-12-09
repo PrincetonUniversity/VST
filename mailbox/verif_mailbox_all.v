@@ -27,18 +27,18 @@ Lemma all_funcs_correct:
   semax_prog prog tt Vprog Gprog.
 Proof.
 prove_semax_prog.
-semax_func_cons body_exit.
 semax_func_cons body_malloc.
 { destruct x; apply semax_func_cons_malloc_aux. }
+semax_func_cons body_exit.
 semax_func_cons_ext.
 { simpl; monPred.unseal; Intro p.
-  assert_PROP (isptr p); last by apply typecheck_return_value with (t := Tint16signed); auto.
+  assert_PROP (isptr p); last by apply typecheck_return_value with (t := Xint16signed); auto.
   rewrite /PROPx /LOCALx /SEPx; monPred.unseal.
   rewrite !bi.and_elim_r.
   rewrite bi.sep_emp; apply atomic_int_isptr. }
 semax_func_cons_ext.
 { simpl; destruct x as ((((?, ?), ?), ?), ?); monPred.unseal; Intro i.
-  apply typecheck_return_value with (t := Tint16signed); auto. }
+  apply typecheck_return_value with (t := Xint16signed); auto. }
 semax_func_cons_ext.
 semax_func_cons body_surely_malloc.
 semax_func_cons body_memset.

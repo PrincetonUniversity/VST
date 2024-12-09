@@ -19,7 +19,7 @@ Parameter body_free:
 
 Parameter body_exit:
   VST.floyd.library.body_lemma_of_funspec
-    (EF_external "exit" (mksignature (AST.Tint :: nil) AST.Tvoid cc_default))
+    (EF_external "exit" (mksignature (Xint :: nil) Xvoid cc_default))
     (snd (exit_spec)).
 
 Definition placeholder_spec :=

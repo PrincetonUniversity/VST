@@ -352,11 +352,11 @@ Proof.
 prove_semax_prog.
 semax_func_cons_ext.
 { simpl; monPred.unseal; Intro i.
-  apply typecheck_return_value with (t := Tint16signed); auto. }
+  apply typecheck_return_value with (t := Xint16signed); auto. }
 semax_func_cons_ext.
 { destruct x as (c, k).
   simpl; monPred.unseal; Intro i'.
-  apply typecheck_return_value with (t := Tint16signed); auto. }
+  apply typecheck_return_value with (t := Xint16signed); auto. }
 semax_func_cons body_getchar_blocking.
 semax_func_cons body_putchar_blocking.
 semax_func_cons body_print_intr.
@@ -380,11 +380,16 @@ Ltac alloc_block m n := match n with
     destruct (dry_mem_lemmas.drop_alloc m) as [m' Hm']; alloc_block m' n'
   end.
 try first [
-  (* This version works in Coq 8.15, CompCert 3.10 *)
+  (* This version works in Coq 8.19, CompCert 3.15 *)
+  alloc_block Mem.empty 63%nat;
+  eexists; repeat match goal with H : ?a = _ |- match ?a with Some m' => _ | None => None end = _ => rewrite H end;
+  reflexivity
+ |
+  (* This version worked in Coq 8.15, CompCert 3.10 *)
   alloc_block Mem.empty 62%nat;
   eexists; repeat match goal with H : ?a = _ |- match ?a with Some m' => _ | None => None end = _ => rewrite H end;
   reflexivity
- | 
+ |
   (* This version worked in Coq 8.13, CompCert 3.9 *)
   alloc_block Mem.empty 60%nat;
   eexists; repeat match goal with H : ?a = _ |- match ?a with Some m' => _ | None => None end = _ => rewrite H end;
@@ -415,7 +420,7 @@ Proof.
   edestruct (IO_OS_ext prog) with (V := Vprog) as (b & q & Hb & Hq & Hsafe).
   - intros ?? [<- | [<- | ?]]; last done;
       rewrite /ext_link /ext_link_prog /prog /=; repeat (if_tac; first done); done.
-  - apply SequentialClight.subG_VSTGpreS, subG_refl.
+  - apply lifting.subG_VSTGpreS, subG_refl.
   - intros; simple apply (@prog_correct _ VSTGS0).
   - apply (proj2_sig init_mem_exists).
   - exists q.

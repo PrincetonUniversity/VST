@@ -245,7 +245,7 @@ Proof.
   { unfold data_at, field_at; iDestruct "H" as "($ & _)". }
   erewrite <- mapsto_data_at' by done.
   inv Hty.
-  iMod (mapsto_store with "[$Hm $H]") as "(Hm & H)"; [eauto..|].
+  iMod (lifting.mapsto_store with "[$Hm $H]") as "(Hm & H)"; [eauto..|].
   rewrite encode_val_length /= in Hstore2.
   rewrite /Ptrofs.add Ptrofs.unsigned_repr //.
   rewrite -> Zlength_cons in *.

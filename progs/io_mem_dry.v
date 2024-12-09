@@ -47,8 +47,8 @@ Definition putchars_post (m0 m : mem) r (witness : share * val * list byte * Z *
 
 Existing Instance semax_lemmas.eq_dec_external_function.
 
-Definition getchars_sig := {| sig_args := [Tptr; AST.Tint]; sig_res := Tret AST.Tint; sig_cc := cc_default |}.
-Definition putchars_sig := {| sig_args := [Tptr; AST.Tint]; sig_res := Tret AST.Tint; sig_cc := cc_default |}.
+Definition getchars_sig := {| sig_args := [Xptr; Xint]; sig_res := Xint; sig_cc := cc_default |}.
+Definition putchars_sig := {| sig_args := [Xptr; Xint]; sig_res := Xint; sig_cc := cc_default |}.
 
 Program Definition io_dry_spec : external_specification mem external_function IO_itree.
 Proof.
@@ -65,8 +65,8 @@ Proof.
     + exact ((let '(_, buf, len, _) := w in X1 = [buf; Vint (Int.repr len)]) /\ m = X3 /\ getchars_pre X3 w X2).
   - simpl; intros ??? ot ???.
     if_tac in X; [|if_tac in X; last contradiction]; destruct X as (m0 & w).
-    + exact (exists r, X1 = Some (Vint r) /\ ot <> AST.Tvoid /\ putchars_post m0 X3 r w X2).
-    + exact (exists r, X1 = Some (Vint r) /\ ot <> AST.Tvoid /\ getchars_post m0 X3 r w X2).
+    + exact (exists r, X1 = Some (Vint r) /\ ot <> Xvoid /\ putchars_post m0 X3 r w X2).
+    + exact (exists r, X1 = Some (Vint r) /\ ot <> Xvoid /\ getchars_post m0 X3 r w X2).
   - intros; exact True%type.
 Defined.
 

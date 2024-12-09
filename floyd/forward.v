@@ -41,7 +41,7 @@ Import LiftNotation.
 Import -(notations) compcert.lib.Maps.
 
 Global Opaque denote_tc_test_eq.
-Global Transparent intsize_eq signedness_eq attr_eq type_eq typelist_eq.
+Global Transparent intsize_eq signedness_eq attr_eq floatsize_eq type_eq typelist_eq calling_convention_eq.
 Global Transparent composite_def_eq.
 Arguments Z.div _ _ / .
 
@@ -512,7 +512,7 @@ Ltac semax_func_cons L :=
            | try solve [apply L]; apply_semax_body L
            | ]
         | eapply semax_func_cons_ext;
-             [reflexivity | reflexivity | reflexivity
+             [reflexivity | reflexivity
              | left; reflexivity
              | semax_func_cons_ext_tc | LookupID | LookupB | apply L |
              ]
@@ -558,7 +558,7 @@ Qed.
 Ltac semax_func_cons_ext :=
  repeat (eapply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | LookupID | LookupB | ]);
   eapply semax_func_cons_ext;
-    [ reflexivity | reflexivity |  reflexivity 
+    [ reflexivity | reflexivity
     | left; reflexivity
     | semax_func_cons_ext_tc;
       try solve [apply typecheck_return_value; auto]

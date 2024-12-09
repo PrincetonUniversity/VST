@@ -9,6 +9,7 @@ Require Import VST.veric.mpred.
 Set Warnings "-hiding-delimiting-key,-notation-overridden".
 Require Import VST.veric.external_state.
 Set Warnings "hiding-delimiting-key,notation-overridden".
+Require Import VST.veric.lifting.
 Require Import VST.veric.compspecs.
 Require Import VST.veric.semax_prog.
 Require Import VST.veric.SequentialClight.
