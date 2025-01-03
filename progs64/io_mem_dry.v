@@ -20,7 +20,7 @@ Proof.
   intros.
   rewrite !Zlength_correct; f_equal.
   unfold bytes_to_memvals.
-  rewrite <- map_map, encode_vals_length, map_length; auto.
+  rewrite <- map_map, encode_vals_length, length_map; auto.
 Qed.
 
 Context {E : Type -> Type} {IO_E : @IO_event nat -< E}.

@@ -251,7 +251,7 @@ rewrite <- Heql in *; clear i l Heql.
 rewrite firstn_same by lia.
 replace (skipn LBLOCK c) with (@nil int).
 rewrite hash_blocks_equation'; reflexivity.
-pose proof (skipn_length c LBLOCK).
+pose proof (length_skipn c LBLOCK).
 rewrite H1 in H0.
 destruct (skipn LBLOCK c); try reflexivity; inv H0.
 replace (S n * LBLOCK)%nat with (n * LBLOCK + LBLOCK)%nat  in H0 by
@@ -275,9 +275,9 @@ Psatz.nia.
 apply skipn_app1.
 Psatz.nia.
 apply length_hash_block; auto. (* fixme *) change 16%nat with LBLOCK.
-rewrite firstn_length. apply min_l.
+rewrite length_firstn. apply min_l.
 Psatz.nia.
-rewrite skipn_length.
+rewrite length_skipn.
 lia.
 Qed.
 
@@ -304,8 +304,8 @@ rewrite hash_blocks_equation'; auto.
 forget (i::blocks) as bb.
 apply IHn0; auto.
 apply length_hash_block; auto. (* fixme *) change 16%nat with LBLOCK.
-rewrite firstn_length. nia. 
-rewrite skipn_length. nia.
+rewrite length_firstn. nia. 
+rewrite length_skipn. nia.
 Qed.
 
 Theorem Zmod_mod_mult :

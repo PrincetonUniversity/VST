@@ -1857,7 +1857,7 @@ as [te' H21]; auto.
     destruct f; simpl in *.
     assert (Datatypes.length (map snd fn_params) =
                 Datatypes.length params). assert (params = map snd fn_params) by apply H10. subst; trivial.
-   rewrite !map_length in H. rewrite H.
+   rewrite !length_map in H. rewrite H.
    clear - arg_p. apply tc_vals_length; trivial.
 }
 

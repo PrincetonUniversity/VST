@@ -23,7 +23,7 @@ to make a post-hoc adjustment to the precedence and associativity levels of
 some operators.
 *)
 
-Global Set Warnings "-notation-overridden,-parsing".
+Global Set Warnings "-notation-incompatible-prefix,-notation-overridden,-parsing".
 
 Require Import compcert.export.Clightdefs.
 From Coq Require Import String List ZArith.

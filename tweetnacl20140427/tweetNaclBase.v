@@ -18,11 +18,11 @@ Lemma isptrD v: isptr v -> exists b ofs, v = Vptr b ofs.
 Proof. intros. destruct v; try contradiction. exists b, i; trivial. Qed.
 
 Lemma firstn_Zlength {A} (l:list A) n: (n <= length l)%nat -> Zlength (firstn n l) = Z.of_nat n.
-Proof. intros. rewrite Zlength_correct, firstn_length, Nat.min_l; trivial. Qed.
+Proof. intros. rewrite Zlength_correct, length_firstn, Nat.min_l; trivial. Qed.
 
 Lemma skipn_Zlength {A} (l:list A) n: (n <= length l)%nat -> Zlength (skipn n l) = Zlength l - (Z.of_nat n).
 Proof. intros.
-       rewrite Zlength_correct, skipn_length.
+       rewrite Zlength_correct, length_skipn.
        rewrite Zlength_correct, Nat2Z.inj_sub; trivial.
 Qed.
 

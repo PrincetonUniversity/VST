@@ -15,7 +15,7 @@ Definition concat {A : Type} (l : list (list A)) : list A :=
 
 Lemma concat_length {A}: forall L (l:list A), In l L -> (length (concat L) >= length l)%nat.
 Proof.  unfold concat. induction L; simpl; intros. contradiction.
-  rewrite app_length.
+  rewrite length_app.
   destruct H; subst. unfold id. lia.
   specialize (IHL _ H). lia.
 Qed.
@@ -62,7 +62,7 @@ Proof.
     subst. reflexivity.
   - destruct l1; destruct l2; inversion len1; inversion len2.
     simpl.
-    rewrite -> map_length.
+    rewrite -> length_map.
     rewrite -> combine_length.
     rewrite H0. rewrite H1. simpl.
     f_equal.
@@ -109,13 +109,13 @@ Function hash_blocks_bits (b:nat) (B:(0<b)%nat) (hash_block_bit : Blist -> Blist
 Proof. intros.
  destruct (lt_dec (length msg) b).
  rewrite skipn_short. simpl; lia. rewrite <- teq; lia.
- rewrite skipn_length; rewrite <- teq; lia.
+ rewrite length_skipn; rewrite <- teq; lia.
 Defined.
 
 Lemma add_blocksize_length l n: 0<=n ->
       BinInt.Z.add n (Zcomplements.Zlength l) = Zcomplements.Zlength ((repeat true (Z.to_nat n)) ++ l).
 Proof. intros. do 2 rewrite Zlength_correct.
-  rewrite app_length, repeat_length, Nat2Z.inj_add, Z2Nat.id; trivial.
+  rewrite length_app, repeat_length, Nat2Z.inj_add, Z2Nat.id; trivial.
 Qed.
 
 Lemma hash_blocks_bits_len c b (B:(0<b)%nat) h

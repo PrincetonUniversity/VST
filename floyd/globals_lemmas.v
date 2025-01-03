@@ -442,7 +442,7 @@ Lemma id2pred_star_ZnthV_Tint  {cs: compspecs} :
 Proof.
   intros. subst n mdata.
   replace (Zlength (map  (inttype2init_data sz) data)) with (Zlength data)
-    by (repeat rewrite Zlength_correct; rewrite map_length; auto).
+    by (repeat rewrite Zlength_correct; rewrite length_map; auto).
   go_lowerx.
   match goal with |- ?F _ _ _ _ _ _ |-- _ => change F with @id2pred_star end.
   change (offset_strict_in_range (sizeof (Tint sz sign noattr) * Zlength data) v) in H1.
@@ -694,7 +694,7 @@ Lemma id2pred_star_ZnthV_tfloat  {cs: compspecs}:
 Proof. intros.
   subst n mdata.
   replace (Zlength (map  (floattype2init_data sz) data)) with (Zlength data)
-    by (repeat rewrite Zlength_correct; rewrite map_length; auto).
+    by (repeat rewrite Zlength_correct; rewrite length_map; auto).
   go_lowerx.
   match goal with |- ?F _ _ _ _ _ _ |-- _ => change F with @id2pred_star end.
   change (offset_strict_in_range (sizeof (Tfloat sz noattr) * Zlength data) v) in H1.

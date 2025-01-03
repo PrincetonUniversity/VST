@@ -17,7 +17,9 @@ Fixpoint delete_id {A: Type} i (al: list (ident*A)) : option (A * list (ident*A)
   | nil => None
  end.
 
+Unset Automatic Proposition Inductives.
 Inductive Impossible : Type := .
+Set Automatic Proposition Inductives.
 
 Definition cc_of_fundef (fd: Clight.fundef) : calling_convention :=
  match fd with
