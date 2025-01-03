@@ -48,7 +48,7 @@ Proof.
  intros. rewrite <- (rev_involutive i). rewrite <- (rev_involutive j).
  f_equal.
  assert (length (rev i) = length (rev j)).
- repeat rewrite rev_length; auto.
+ repeat rewrite length_rev; auto.
  eapply int_of_bytes_uniq; eauto.
  apply int_of_bytes_uniq.
 Qed.

@@ -30,7 +30,7 @@ Qed.
 Lemma Zlength_mkArgZ k pad: Zlength (HMAC_SHA256.mkArg k pad) = Z.of_nat (min (length k) 64).
 Proof. intros. repeat rewrite Zlength_correct.
    unfold HMAC_SHA256.mkArg, HMAC_SHA256.sixtyfour.
-   repeat rewrite map_length.
+   repeat rewrite length_map.
    rewrite combine_length, repeat_length. trivial.
 Qed.
 
@@ -78,7 +78,7 @@ Qed.
 
 Lemma zeroPad_BlockSize: forall k, (length k <= SHA256.BlockSize)%nat ->
   length (HMAC_SHA256.zeroPad k) = SHA256.BlockSize%nat.
-Proof. unfold HMAC_SHA256.zeroPad. intros. rewrite app_length, (*length_Nlist*) repeat_length. lia.
+Proof. unfold HMAC_SHA256.zeroPad. intros. rewrite length_app, (*length_Nlist*) repeat_length. lia.
 Qed.
 
 Lemma length_SHA256': forall l,

@@ -180,11 +180,11 @@ forward_if (EX shaStates:_ ,
     remember (map Vubyte (HMAC_SHA256.mkArg (HMAC_SHA256.mkKey key) Opad)) as OPADcont.
     assert (ZLI: Zlength (HMAC_SHA256.mkArg (HMAC_SHA256.mkKey key) Ipad) = 64).
             rewrite Zlength_mkArgZ.
-            repeat rewrite map_length. rewrite mkKey_length.
+            repeat rewrite length_map. rewrite mkKey_length.
             unfold SHA256.BlockSize; simpl. trivial.
     assert (ZLO: Zlength (HMAC_SHA256.mkArg (HMAC_SHA256.mkKey key) Opad) = 64).
             rewrite Zlength_mkArgZ.
-            repeat rewrite map_length. rewrite mkKey_length.
+            repeat rewrite length_map. rewrite mkKey_length.
             unfold SHA256.BlockSize; simpl. trivial.
     unfold data_at_, tarray.
     Time assert_PROP (isptr pad) as Ppad by entailer!. (*1*)

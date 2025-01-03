@@ -1253,7 +1253,9 @@ Ltac clear_MORE_POST :=
         clear MORE_COMMANDS
       end.
 
+Unset Automatic Proposition Inductives.
 Inductive Ridiculous: Type := .
+Set Automatic Proposition Inductives.
 
 Ltac check_witness_type ts A witness :=
   (unify A (rmaps.ConstType Ridiculous); (* because [is_evar A] doesn't seem to work *)

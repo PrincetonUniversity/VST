@@ -11,7 +11,7 @@ Inductive localdef : Type :=
  | lvar: ident -> type -> val -> localdef   (* local variable *)
  | gvars: globals -> localdef.              (* global variables *)
 
-Arguments temp i%positive v.
+Arguments temp i%_positive v.
 
 Definition lvar_denote (i: ident) (t: type) (v: val) rho :=
      match Map.get (ve_of rho) i with
@@ -502,7 +502,7 @@ Notation "'EX' x .. y , P " :=
 Notation " 'ENTAIL' d ',' P '|--' Q " :=
   (@derives (environ->mpred) _ (andp (local (tc_environ d)) P%assert) Q%assert) (at level 99, P at level 79, Q at level 79).
 
-Arguments semax {CS} {Espec} Delta Pre%assert cmd Post%assert.
+Arguments semax {CS} {Espec} Delta Pre%_assert cmd Post%_assert.
 
 Lemma insert_prop : forall (P: Prop) PP QR, prop P && (PROPx PP QR) = PROPx (P::PP) QR.
 Proof.

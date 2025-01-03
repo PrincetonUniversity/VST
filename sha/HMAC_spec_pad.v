@@ -263,8 +263,8 @@ Proof.
         { rewrite -> H0 in inputs_eq.
           rewrite -> H2 in inputs_eq.
           apply (front_equiv DB32 back0 back front0 front H1 H inputs_eq). }
-     + rewrite -> H0. rewrite -> app_length. rewrite -> H. lia.
-     + rewrite -> H2. rewrite -> app_length. rewrite -> H1. lia.
+     + rewrite -> H0. rewrite -> length_app. rewrite -> H. lia.
+     + rewrite -> H2. rewrite -> length_app. rewrite -> H1. lia.
 Qed.
 
 Lemma equiv_pad shaiv shasplitandpad c p (B: (0< b c p)%nat) (DB32: (I.d*32 =b c p)%nat)

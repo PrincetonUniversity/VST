@@ -12,6 +12,8 @@ Require Import VST.floyd.deadvars.
 Require Import VST.floyd.step.
 Require Import VST.floyd.fastforward.
 
+Local Set Warnings "-ltac2-unused-variable".
+
 (* Things that we always want to simpl *)
 
 Ltac2 mutable simpl_safe_list () : constr list := [

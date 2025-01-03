@@ -105,8 +105,9 @@ Proof.
   rewrite <- derives_eq; auto.
 Qed.
  *)
-
+Unset Automatic Proposition Inductives.
 Inductive empty_type : Type := .
+Set Automatic Proposition Inductives.
 
 Definition withtype_of_NDfunspec fs := match fs with
   mk_funspec _ _ (rmaps.ConstType A) _ _ _ _ => A | _ => empty_type end.

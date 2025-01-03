@@ -271,7 +271,7 @@ rewrite <- (IHi _ _ H1).
 reflexivity.
 rewrite H1.
 clear H1.
-pose proof (firstn_length i b).
+pose proof (length_firstn i b).
 rewrite min_l in H1.
 2:{
 clear - H0; revert b H0; induction i; destruct b; simpl; intros; inv H0; try lia.
@@ -557,7 +557,7 @@ pose proof (roundup_ge (Zlength msg + 9) 64).
  spec H; [ lia | ].
 assert (Zlength msg >= 0) by (rewrite Zlength_correct; lia).
 exists (Z.to_nat (roundup (Zlength msg+9) 64 / 4 - 2)).
-repeat rewrite app_length.
+repeat rewrite length_app.
 rewrite repeat_length.
 simpl length.
 symmetry.
@@ -633,7 +633,7 @@ rewrite Z2Nat.id by lia.
 change (Z.of_nat 4) with 4.
 rewrite Z.mul_comm in H2.
 assert (length (skipn (Z.to_nat (Zlength msg / 4) * 4) msg) < 4)%nat.
-rewrite skipn_length.
+rewrite length_skipn.
 apply Nat2Z.inj_lt.
 rewrite Nat2Z.inj_sub. rewrite <- Zlength_correct.
 rewrite Nat2Z.inj_mul. change (Z.of_nat 4) with 4.
@@ -661,7 +661,7 @@ assert (- (Zlength msg + 9) mod 64 =
            (3 - Zlength ccc) + 4* ((Zlength msg+8)/64 * 16 + 15 - (Zlength msg + 8) / 4)). {
 assert (LL: length ccc = length (skipn (Z.to_nat (Zlength msg / 4) * 4) msg))
  by congruence.
-rewrite skipn_length in LL.
+rewrite length_skipn in LL.
 assert (LL': Zlength msg = Zlength ccc + (Zlength msg/4)*4).
 rewrite Zlength_correct at 1.
 rewrite Zlength_correct at 1.
@@ -706,7 +706,7 @@ replace (Zlength msg / 4 * 4) with (Zlength msg - Zlength ccc).
 2:{
 rewrite Heqccc.
 rewrite (Zlength_correct (skipn _ _)).
-rewrite skipn_length by lia.
+rewrite length_skipn by lia.
 rewrite Nat2Z.inj_sub by lia.
 rewrite <- Zlength_correct.
 rewrite Nat2Z.inj_mul. change (Z.of_nat 4) with 4.
@@ -790,9 +790,9 @@ lia.
 }
 rewrite skipn_app1 by lia.
 rewrite firstn_app1
- by (rewrite skipn_length by lia; lia).
+ by (rewrite length_skipn by lia; lia).
 assert (length (firstn 4 (skipn (Q - 4) msg)) = 4)%nat.
-rewrite firstn_length. rewrite skipn_length by lia.
+rewrite length_firstn. rewrite length_skipn by lia.
 apply min_l. lia.
 destruct (firstn 4 (skipn (Q - 4) msg))
  as [ | z0 [| z1 [| z2 [|z3 [|]]]]];inv H3.
@@ -886,7 +886,7 @@ extensionality d.
 rewrite <- (nth_firstn_low _ _ 16).
 rewrite (generate_word_lemma1 b n H).
 auto.
-rewrite rev_length, length_generate_word, rev_length, H.
+rewrite length_rev, length_generate_word, length_rev, H.
 lia.
 Qed.
 
@@ -917,7 +917,7 @@ Lemma nth_rev_generate_word:
 Proof.
 intros.
 unfold nthB.
-rewrite <- rev_length in H.
+rewrite <- length_rev in H.
 forget (rev b) as b'.
 clear b.
 assert (length (generate_word b' 48) = 64)%nat
@@ -1076,7 +1076,7 @@ unfold process_block.
 unfold hash_block.
 f_equal.
 rewrite <- (firstn_same _ 64 (rev (generate_word _ _)))
- by (rewrite rev_length, length_generate_word, rev_length; lia).
+ by (rewrite length_rev, length_generate_word, length_rev; lia).
 change 64%nat with (48+16)%nat.
 change 63%Z with (Z.of_nat (48+16)-1).
 assert (48 <= 48)%nat by lia.
@@ -1110,7 +1110,7 @@ rewrite (rnd_64_S _ _ _
 2:{
 unfold nthi; rewrite Nat2Z.id.
 rewrite (@coqlib4.nth_error_nth _ _ Int.zero n).
-2: rewrite rev_length, length_generate_word, rev_length, H0;
+2: rewrite length_rev, length_generate_word, length_rev, H0;
   change c48 with 48%nat; lia.
 f_equal.
 rewrite generate_word_small by lia.
@@ -1134,7 +1134,7 @@ rewrite (rnd_64_S _ _ _
 2:{
 unfold nthi; rewrite Nat2Z.id.
 apply (@coqlib4.nth_error_nth _ _ Int.zero (n+16)).
-rewrite rev_length, length_generate_word, rev_length, H0;
+rewrite length_rev, length_generate_word, length_rev, H0;
   change c48 with 48%nat; lia.
 }
 rewrite Round_equation.
@@ -1176,7 +1176,7 @@ destruct blocks; inv H.
 rewrite process_msg_equation, hash_blocks_equation.
 reflexivity.
 assert (length (firstn 16 blocks) = 16)%nat
- by (rewrite firstn_length, H; simpl; lia).
+ by (rewrite length_firstn, H; simpl; lia).
 rewrite hash_blocks_equation.
 destruct blocks; [ inv H | ].
 forget (i::blocks) as bb.
@@ -1185,7 +1185,7 @@ rewrite <- (firstn_skipn 16 blocks) at 1.
 rewrite process_msg_eq2 by auto.
 rewrite process_block_hash_block; auto.
 apply IHn0.
-rewrite skipn_length; lia.
+rewrite length_skipn; lia.
 apply length_hash_block; auto.
 Qed.
 

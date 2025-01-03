@@ -290,7 +290,7 @@ Proof. intros. abbreviate_semax.
                    = Vubyte qb). (* (Int.zero_ext 8 q)).*)
           { unfold Znth. destruct (Z_lt_dec i 0). lia.
             rewrite nth_indep with (d':=Vubyte Byte.zero).
-            2:{ repeat rewrite map_length. rewrite mkKey_length. unfold SHA256.BlockSize; simpl. apply (Z2Nat.inj_lt _ 64); lia. }
+            2:{ repeat rewrite length_map. rewrite mkKey_length. unfold SHA256.BlockSize; simpl. apply (Z2Nat.inj_lt _ 64); lia. }
             repeat rewrite map_nth. rewrite Qb. trivial.
           }
 
@@ -427,7 +427,7 @@ freeze FR1 := - (data_at _ _ _ (Vptr ckb _)) (data_block _ _ _).
                    = Vubyte qb). (* (Int.zero_ext 8 q)).*)
           { unfold Znth. destruct (Z_lt_dec i 0). lia.
             rewrite nth_indep with (d':=Vubyte Byte.zero).
-              2:{ repeat rewrite map_length. rewrite mkKey_length. unfold SHA256.BlockSize; simpl. apply (Z2Nat.inj_lt _ 64); lia. }
+              2:{ repeat rewrite length_map. rewrite mkKey_length. unfold SHA256.BlockSize; simpl. apply (Z2Nat.inj_lt _ 64); lia. }
             repeat rewrite map_nth. rewrite Qb. trivial.
           }
         freeze FR2 := - (data_at _ _ _ (Vptr ckb _)).

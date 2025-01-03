@@ -2790,7 +2790,7 @@ Proof.
     destruct (build_call_temp_env f args) as [te' H21]; auto.
     { clear - H16' Hargs.
       simpl in H16'. unfold type_of_function in H16'. inv H16'. rewrite <- Hargs.
-      unfold type_of_params. rewrite map_length. auto. }
+      unfold type_of_params. rewrite length_map. auto. }
     pose proof (age_twin' _ _ _ H20' H13) as [jm''' [_ H20x]].
     apply @jsafeN_step with (c' := State f (f.(fn_body)) ctl ve' te')
                            (m' := jm'''); auto.

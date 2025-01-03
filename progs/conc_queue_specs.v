@@ -480,7 +480,7 @@ Proof.
     - split; [rewrite Zlength_correct; lia|]; transitivity MAX; try lia; unfold MAX; computable.
     - split; [rewrite Zlength_correct; lia|]; transitivity MAX; try lia; unfold MAX; computable. }
   assert (map fst vals1 = map fst vals2) as Heq.
-  { eapply complete_inj; [|rewrite !map_length; auto].
+  { eapply complete_inj; [|rewrite !length_map; auto].
     eapply rotate_inj; eauto; try lia.
     repeat rewrite length_complete; try rewrite Zlength_map; auto.
     rewrite Zlength_complete; try rewrite Zlength_map; lia. }

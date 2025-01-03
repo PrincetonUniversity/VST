@@ -45,6 +45,7 @@ Require Export VST.floyd.diagnosis.
 Require Export VST.floyd.freezer.
 Require Export VST.floyd.deadvars.
 Require Export VST.floyd.hints.
+#[export] Set Warnings "-notation-incompatible-prefix".
 Require Export VST.floyd.Clightnotations.
 Require Export VST.floyd.data_at_list_solver.
 Require Export VST.floyd.data_at_lemmas.
@@ -58,7 +59,7 @@ Require VST.floyd.linking.
   "Require Import Require Import VST.floyd.Funspec_old_Notation."
   Global Close Scope funspec_scope.*)
 
-Arguments semax {CS} {Espec} Delta Pre%assert cmd%C Post%assert.
+Arguments semax {CS} {Espec} Delta Pre%_assert cmd%_C Post%_assert.
 Export ListNotations.
 Export Clight_Cop2.
  
