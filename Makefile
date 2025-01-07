@@ -21,7 +21,7 @@ COQLIB=$(shell $(COQC) -where | tr -d '\r' | tr '\\' '/')
 
 # Check Coq version
 
-COQVERSION= 8.17.0 or-else 8.17.1 or-else 8.18.0 or-else 8.19.1
+COQVERSION= 8.19.1 or-else 8.19.2 or-else 8.20.0
 
 COQV=$(shell $(COQC) -v)
 ifneq ($(IGNORECOQVERSION),true)
@@ -333,6 +333,11 @@ COQFLAGS=$(foreach d, $(VSTDIRS), $(if $(wildcard $(d)), -Q $(d) VST.$(d))) $(fo
 DEPFLAGS:=$(COQFLAGS)
 
 COQFLAGS+=$(COQEXTRAFLAGS)
+
+# The following extra flags can probably be removed with Coq 8.21,
+# after Coq pulls https://github.com/coq/coq/pull/19653
+# and/or https://github.com/coq/coq/pull/19981  are merged.
+COQFLAGS+= -w "-notation-incompatible-prefix,-automatic-prop-lowering"
 
 PROFILING?=
 

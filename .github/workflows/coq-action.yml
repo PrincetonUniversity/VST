@@ -21,9 +21,8 @@ jobs:
         # except for the "make_target" field and make_target related excludes
         coq_version:
           # See https://github.com/coq-community/docker-coq/wiki for supported images
-#          - '8.17'
-          - '8.18'
           - '8.19'
+          - '8.20'
           - 'dev'
         bit_size:
           - 32
@@ -31,9 +30,7 @@ jobs:
         make_target:
           - vst
         exclude:   
-#         - coq_version: 8.17
-#            bit_size: 32
-          - coq_version: 8.18
+          - coq_version: 8.19
             bit_size: 32
           - coq_version: dev
             bit_size: 32
@@ -91,9 +88,8 @@ jobs:
       fail-fast: false
       matrix:
         coq_version:
-#          - '8.17'
-          - '8.18'
           - '8.19'
+          - '8.20'
           - 'dev' 
         make_target:
           - assumptions.txt
@@ -106,9 +102,7 @@ jobs:
           - 32
           - 64
         exclude:
-#          - coq_version: 8.17
-#            bit_size: 32
-          - coq_version: 8.18
+          - coq_version: 8.19
             bit_size: 32
           - coq_version: dev
             bit_size: 32
