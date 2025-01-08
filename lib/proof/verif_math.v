@@ -63,7 +63,7 @@ assert (match ret with
        | None => False
        end); [ | destruct t; try contradiction; auto].
 assert (match rettype_of_type t with
-               | AST.Tvoid =>
+               | Xvoid =>
                    mkEnviron gx (Map.empty (block * type))
                      (Map.empty val)
                | _ =>

@@ -115,7 +115,7 @@ Proof.
   destruct x as [[[]] pre]; auto.
 Qed.
 
-Definition spawned_funtype := Tfunction (Tcons (tptr tvoid) Tnil) tint cc_default.
+Definition spawned_funtype := Tfunction (tptr tvoid :: nil) tint cc_default.
 
 Definition spawn_spec := mk_funspec
   ((tptr spawned_funtype) :: (tptr tvoid) :: nil, tvoid)

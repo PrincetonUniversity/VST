@@ -80,7 +80,7 @@ Definition SpawnASI_without_exit :=
 
 Definition incrImports := LockASI ++ SpawnASI_without_exit.
 Definition incrInternals := [incr_spec; read_spec; thread_func_spec; compute2_spec].
-Definition Gprog : funspecs :=   incrInternals ++ incrImports.
+Definition Gprog : funspecs :=   incrImports ++ incrInternals.
 
 Lemma ctr_inv_exclusive : forall g1 g2 p,
   exclusive_mpred (cptr_lock_inv g1 g2 p).

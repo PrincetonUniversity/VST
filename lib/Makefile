@@ -23,14 +23,14 @@ endif
 ##                      Your targets here                         ##
 ####################################################################
 
-run-clightgen: proof/math_extern.v proof/malloc_extern.v proof/SC_atomics_extern.v
+run-clightgen: proof/math_extern.v proof/malloc_extern.v proof/SC_atomics_extern.v proof/threads.v
 
 include CoqMakefile.local
 
 clean:
 	rm -f CoqMakefile CoqMakefile.conf
 	rm -f proof/{*.vo,*.vos,*.vok,*.glob} 
-	rm -f proof/{math_extern.v,malloc_extern.v,SC_atomics_extern.v}
+	rm -f proof/{math_extern.v,malloc_extern.v,SC_atomics_extern.v,threads.v}
 	rm -f test/{*.vo,*.vos,*.vok,*.glob} 
 	rm -f test/{incr.v,incr_main.v,testmath.v}
 

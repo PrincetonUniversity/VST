@@ -1,3 +1,13 @@
+How to generate a release:
+
+1. cd .../vst; git tag -a vX.Y -m "VST release X.Y"; git push origin vX.Y
+2. In a fork of the opam-coq-archive,
+      https://github.com/coq/opam
+   within directory released/packages/coq-vst
+
+
+
+---------THE FOLLOWING INSTRUCTIONS ARE OBSOLETE, from before opam--------
 ***** reminder about how to generate a release
 
 1. in some other directory, run .../vst/util/PACKAGE

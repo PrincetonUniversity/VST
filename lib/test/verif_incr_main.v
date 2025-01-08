@@ -47,7 +47,7 @@ Definition main_spec :=
   PRE  [] main_pre whole_prog tt gv
   POST [ tint ] PROP() RETURN (Vint (Int.repr 2)) SEP (TT).
 
-Definition Gprog :=  [main_spec] ++ Main_imports.
+Definition Gprog :=  Main_imports ++ [main_spec].
 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
