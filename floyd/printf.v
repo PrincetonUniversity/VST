@@ -140,6 +140,8 @@ Proof.
   eapply Z.lt_le_trans, Z_mult_div_ge with (b := 10); lia.
 Defined.
 
+Import Wf.
+
 Lemma chars_of_Z_eq : forall n, chars_of_Z n =
   match n <? 0 with true => charminus :: chars_of_Z (Z.abs n) | false =>
   let n' := n / 10 in
@@ -147,7 +149,7 @@ Lemma chars_of_Z_eq : forall n, chars_of_Z n =
 Proof.
   intros.
   unfold chars_of_Z at 1.
-  rewrite Wf.WfExtensionality.fix_sub_eq_ext; simpl; fold chars_of_Z.
+  rewrite WfExtensionality.fix_sub_eq_ext; simpl; fold chars_of_Z.
   destruct (_ <? _); auto.
   destruct (_ <=? _); auto.
 Qed.
