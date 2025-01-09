@@ -140,7 +140,7 @@ Proof.
   eapply Z.lt_le_trans, Z_mult_div_ge with (b := 10); lia.
 Defined.
 
-Import Wf. 
+Import Program.Wf. 
   Program Lemma fix_sub_eq_ext :
    (* need to copy this from Coq standard library because it moved from
     one location to another between Coq 8.20 and Coq 8.21 *)
