@@ -1,4 +1,4 @@
-#include <stdlib.h>
+#include <stddef.h>
 #include "pile.h"
 
 int Triang_nth(int n) {

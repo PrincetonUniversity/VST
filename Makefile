@@ -334,11 +334,6 @@ DEPFLAGS:=$(COQFLAGS)
 
 COQFLAGS+=$(COQEXTRAFLAGS)
 
-# The following extra flags can probably be removed with Coq 8.21,
-# after Coq pulls https://github.com/coq/coq/pull/19653
-# and/or https://github.com/coq/coq/pull/19981  are merged.
-COQFLAGS+= -w "-notation-incompatible-prefix,-automatic-prop-lowering"
-
 PROFILING?=
 
 ifneq (,$(PROFILING))

@@ -6,12 +6,8 @@ Require Import spec_stdlib.
 
 Require VST.veric.version. From Coq Require Import String.
 Lemma version_test: False.
- assert ((VST.veric.version.compcert_version = "3.11"%string \/
-          VST.veric.version.compcert_version = "3.12"%string \/ 
-          VST.veric.version.compcert_version = "3.13"%string) /\
-         (stdlib.Info.version = "3.11"%string \/
-          stdlib.Info.version = "3.12"%string \/
-          stdlib.Info.version = "3.13"%string))
+ assert (VST.veric.version.compcert_version = "3.15"%string /\
+         stdlib.Info.version = "3.15"%string)
        by (compute; auto;
             match goal with |- ?G => fail 100 "Version mismatch; cannot prove" G end).
  assert (VST.veric.version.bitsize = stdlib.Info.bitsize) by
@@ -35,7 +31,7 @@ Parameter body_free:
 Parameter body_exit:
  forall {Espec: OracleKind},
   VST.floyd.library.body_lemma_of_funspec
-    (EF_external "exit" (mksignature (AST.Tint :: nil) AST.Tvoid cc_default))
+    (EF_external "exit" (mksignature (Xint :: nil) Xvoid cc_default))
     (snd (exit_spec)).
 
 Definition placeholder_spec :=

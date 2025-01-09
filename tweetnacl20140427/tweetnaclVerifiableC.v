@@ -6,7 +6,7 @@ Local Open Scope string_scope.
 Local Open Scope clight_scope.
 
 Module Info.
-  Definition version := "3.9".
+  Definition version := "3.15".
   Definition build_number := "".
   Definition build_tag := "".
   Definition build_branch := "".
@@ -19,214 +19,215 @@ Module Info.
   Definition normalized := true.
 End Info.
 
-Definition _A : ident := 101%positive.
-Definition _Ch : ident := 118%positive.
-Definition _D : ident := 43%positive.
-Definition _D2 : ident := 44%positive.
-Definition _I : ident := 47%positive.
-Definition _K : ident := 124%positive.
-Definition _L : ident := 139%positive.
-Definition _L32 : ident := 50%positive.
-Definition _M : ident := 103%positive.
-Definition _Maj : ident := 119%positive.
-Definition _R : ident := 117%positive.
-Definition _S : ident := 104%positive.
-Definition _Sigma0 : ident := 120%positive.
-Definition _Sigma1 : ident := 121%positive.
-Definition _X : ident := 45%positive.
-Definition _Y : ident := 46%positive.
-Definition _Z : ident := 102%positive.
-Definition __0 : ident := 38%positive.
-Definition __121665 : ident := 42%positive.
-Definition __9 : ident := 39%positive.
-Definition ___builtin_annot : ident := 17%positive.
-Definition ___builtin_annot_intval : ident := 18%positive.
-Definition ___builtin_bswap : ident := 2%positive.
-Definition ___builtin_bswap16 : ident := 4%positive.
-Definition ___builtin_bswap32 : ident := 3%positive.
-Definition ___builtin_bswap64 : ident := 1%positive.
-Definition ___builtin_clz : ident := 5%positive.
-Definition ___builtin_clzl : ident := 6%positive.
-Definition ___builtin_clzll : ident := 7%positive.
-Definition ___builtin_ctz : ident := 8%positive.
-Definition ___builtin_ctzl : ident := 9%positive.
-Definition ___builtin_ctzll : ident := 10%positive.
-Definition ___builtin_debug : ident := 36%positive.
-Definition ___builtin_expect : ident := 25%positive.
-Definition ___builtin_fabs : ident := 11%positive.
-Definition ___builtin_fabsf : ident := 12%positive.
-Definition ___builtin_fmadd : ident := 28%positive.
-Definition ___builtin_fmax : ident := 26%positive.
-Definition ___builtin_fmin : ident := 27%positive.
-Definition ___builtin_fmsub : ident := 29%positive.
-Definition ___builtin_fnmadd : ident := 30%positive.
-Definition ___builtin_fnmsub : ident := 31%positive.
-Definition ___builtin_fsqrt : ident := 13%positive.
-Definition ___builtin_membar : ident := 19%positive.
-Definition ___builtin_memcpy_aligned : ident := 15%positive.
-Definition ___builtin_read16_reversed : ident := 32%positive.
-Definition ___builtin_read32_reversed : ident := 33%positive.
-Definition ___builtin_sel : ident := 16%positive.
-Definition ___builtin_sqrt : ident := 14%positive.
-Definition ___builtin_unreachable : ident := 24%positive.
-Definition ___builtin_va_arg : ident := 21%positive.
-Definition ___builtin_va_copy : ident := 22%positive.
-Definition ___builtin_va_end : ident := 23%positive.
-Definition ___builtin_va_start : ident := 20%positive.
-Definition ___builtin_write16_reversed : ident := 34%positive.
-Definition ___builtin_write32_reversed : ident := 35%positive.
-Definition ___compcert_i64_dtos : ident := 159%positive.
-Definition ___compcert_i64_dtou : ident := 160%positive.
-Definition ___compcert_i64_sar : ident := 171%positive.
-Definition ___compcert_i64_sdiv : ident := 165%positive.
-Definition ___compcert_i64_shl : ident := 169%positive.
-Definition ___compcert_i64_shr : ident := 170%positive.
-Definition ___compcert_i64_smod : ident := 167%positive.
-Definition ___compcert_i64_smulh : ident := 172%positive.
-Definition ___compcert_i64_stod : ident := 161%positive.
-Definition ___compcert_i64_stof : ident := 163%positive.
-Definition ___compcert_i64_udiv : ident := 166%positive.
-Definition ___compcert_i64_umod : ident := 168%positive.
-Definition ___compcert_i64_umulh : ident := 173%positive.
-Definition ___compcert_i64_utod : ident := 162%positive.
-Definition ___compcert_i64_utof : ident := 164%positive.
-Definition ___compcert_va_composite : ident := 158%positive.
-Definition ___compcert_va_float64 : ident := 157%positive.
-Definition ___compcert_va_int32 : ident := 155%positive.
-Definition ___compcert_va_int64 : ident := 156%positive.
-Definition _a : ident := 90%positive.
-Definition _add : ident := 128%positive.
-Definition _add1305 : ident := 82%positive.
-Definition _b : ident := 75%positive.
-Definition _c : ident := 49%positive.
-Definition _car25519 : ident := 93%positive.
-Definition _carry : ident := 140%positive.
-Definition _chk : ident := 146%positive.
-Definition _core : ident := 71%positive.
-Definition _crypto_box_curve25519xsalsa20poly1305_tweet : ident := 115%positive.
-Definition _crypto_box_curve25519xsalsa20poly1305_tweet_afternm : ident := 113%positive.
-Definition _crypto_box_curve25519xsalsa20poly1305_tweet_beforenm : ident := 112%positive.
-Definition _crypto_box_curve25519xsalsa20poly1305_tweet_keypair : ident := 111%positive.
-Definition _crypto_box_curve25519xsalsa20poly1305_tweet_open : ident := 116%positive.
-Definition _crypto_box_curve25519xsalsa20poly1305_tweet_open_afternm : ident := 114%positive.
-Definition _crypto_core_hsalsa20_tweet : ident := 73%positive.
-Definition _crypto_core_salsa20_tweet : ident := 72%positive.
-Definition _crypto_hash_sha512_tweet : ident := 127%positive.
-Definition _crypto_hashblocks_sha512_tweet : ident := 125%positive.
-Definition _crypto_onetimeauth_poly1305_tweet : ident := 86%positive.
-Definition _crypto_onetimeauth_poly1305_tweet_verify : ident := 87%positive.
-Definition _crypto_scalarmult_curve25519_tweet : ident := 109%positive.
-Definition _crypto_scalarmult_curve25519_tweet_base : ident := 110%positive.
-Definition _crypto_secretbox_xsalsa20poly1305_tweet : ident := 88%positive.
-Definition _crypto_secretbox_xsalsa20poly1305_tweet_open : ident := 89%positive.
-Definition _crypto_sign_ed25519_tweet : ident := 145%positive.
-Definition _crypto_sign_ed25519_tweet_keypair : ident := 138%positive.
-Definition _crypto_sign_ed25519_tweet_open : ident := 154%positive.
-Definition _crypto_stream_salsa20_tweet : ident := 78%positive.
-Definition _crypto_stream_salsa20_tweet_xor : ident := 77%positive.
-Definition _crypto_stream_xsalsa20_tweet : ident := 80%positive.
-Definition _crypto_stream_xsalsa20_tweet_xor : ident := 81%positive.
-Definition _crypto_verify_16_tweet : ident := 61%positive.
-Definition _crypto_verify_32_tweet : ident := 62%positive.
-Definition _cswap : ident := 129%positive.
-Definition _d : ident := 59%positive.
-Definition _den : ident := 148%positive.
-Definition _den2 : ident := 149%positive.
-Definition _den4 : ident := 150%positive.
-Definition _den6 : ident := 151%positive.
-Definition _dl64 : ident := 54%positive.
-Definition _e : ident := 107%positive.
-Definition _f : ident := 108%positive.
-Definition _g : ident := 85%positive.
-Definition _gf0 : ident := 40%positive.
-Definition _gf1 : ident := 41%positive.
-Definition _h : ident := 66%positive.
-Definition _i : ident := 53%positive.
-Definition _in : ident := 64%positive.
-Definition _inv25519 : ident := 105%positive.
-Definition _iv : ident := 126%positive.
-Definition _j : ident := 69%positive.
-Definition _k : ident := 65%positive.
-Definition _ld32 : ident := 52%positive.
-Definition _m : ident := 70%positive.
-Definition _main : ident := 174%positive.
-Definition _minusp : ident := 83%positive.
-Definition _mlen : ident := 153%positive.
-Definition _modL : ident := 141%positive.
-Definition _n : ident := 58%positive.
-Definition _neq25519 : ident := 98%positive.
-Definition _num : ident := 147%positive.
-Definition _o : ident := 92%positive.
-Definition _out : ident := 63%positive.
-Definition _p : ident := 94%positive.
-Definition _pack : ident := 133%positive.
-Definition _pack25519 : ident := 97%positive.
-Definition _par25519 : ident := 99%positive.
-Definition _pk : ident := 136%positive.
-Definition _pow2523 : ident := 106%positive.
-Definition _q : ident := 95%positive.
-Definition _r : ident := 84%positive.
-Definition _randombytes : ident := 37%positive.
-Definition _reduce : ident := 142%positive.
-Definition _s : ident := 79%positive.
-Definition _scalarbase : ident := 135%positive.
-Definition _scalarmult : ident := 134%positive.
-Definition _sel25519 : ident := 96%positive.
-Definition _set25519 : ident := 91%positive.
-Definition _sigma : ident := 74%positive.
-Definition _sigma0 : ident := 122%positive.
-Definition _sigma1 : ident := 123%positive.
-Definition _sk : ident := 137%positive.
-Definition _sm : ident := 143%positive.
-Definition _smlen : ident := 144%positive.
-Definition _st32 : ident := 55%positive.
-Definition _t : ident := 68%positive.
-Definition _ts64 : ident := 56%positive.
-Definition _tx : ident := 130%positive.
-Definition _ty : ident := 131%positive.
-Definition _u : ident := 51%positive.
-Definition _unpack25519 : ident := 100%positive.
-Definition _unpackneg : ident := 152%positive.
-Definition _vn : ident := 60%positive.
-Definition _w : ident := 67%positive.
-Definition _x : ident := 48%positive.
-Definition _y : ident := 57%positive.
-Definition _z : ident := 76%positive.
-Definition _zi : ident := 132%positive.
-Definition _t'1 : ident := 175%positive.
-Definition _t'10 : ident := 184%positive.
-Definition _t'11 : ident := 185%positive.
-Definition _t'12 : ident := 186%positive.
-Definition _t'13 : ident := 187%positive.
-Definition _t'14 : ident := 188%positive.
-Definition _t'15 : ident := 189%positive.
-Definition _t'16 : ident := 190%positive.
-Definition _t'17 : ident := 191%positive.
-Definition _t'18 : ident := 192%positive.
-Definition _t'19 : ident := 193%positive.
-Definition _t'2 : ident := 176%positive.
-Definition _t'20 : ident := 194%positive.
-Definition _t'21 : ident := 195%positive.
-Definition _t'22 : ident := 196%positive.
-Definition _t'23 : ident := 197%positive.
-Definition _t'24 : ident := 198%positive.
-Definition _t'25 : ident := 199%positive.
-Definition _t'26 : ident := 200%positive.
-Definition _t'27 : ident := 201%positive.
-Definition _t'28 : ident := 202%positive.
-Definition _t'29 : ident := 203%positive.
-Definition _t'3 : ident := 177%positive.
-Definition _t'30 : ident := 204%positive.
-Definition _t'31 : ident := 205%positive.
-Definition _t'32 : ident := 206%positive.
-Definition _t'33 : ident := 207%positive.
-Definition _t'34 : ident := 208%positive.
-Definition _t'4 : ident := 178%positive.
-Definition _t'5 : ident := 179%positive.
-Definition _t'6 : ident := 180%positive.
-Definition _t'7 : ident := 181%positive.
-Definition _t'8 : ident := 182%positive.
-Definition _t'9 : ident := 183%positive.
+Definition _A : ident := 102%positive.
+Definition _Ch : ident := 119%positive.
+Definition _D : ident := 44%positive.
+Definition _D2 : ident := 45%positive.
+Definition _I : ident := 48%positive.
+Definition _K : ident := 125%positive.
+Definition _L : ident := 140%positive.
+Definition _L32 : ident := 51%positive.
+Definition _M : ident := 104%positive.
+Definition _Maj : ident := 120%positive.
+Definition _R : ident := 118%positive.
+Definition _S : ident := 105%positive.
+Definition _Sigma0 : ident := 121%positive.
+Definition _Sigma1 : ident := 122%positive.
+Definition _X : ident := 46%positive.
+Definition _Y : ident := 47%positive.
+Definition _Z : ident := 103%positive.
+Definition __0 : ident := 39%positive.
+Definition __121665 : ident := 43%positive.
+Definition __9 : ident := 40%positive.
+Definition ___builtin_ais_annot : ident := 1%positive.
+Definition ___builtin_annot : ident := 18%positive.
+Definition ___builtin_annot_intval : ident := 19%positive.
+Definition ___builtin_bswap : ident := 3%positive.
+Definition ___builtin_bswap16 : ident := 5%positive.
+Definition ___builtin_bswap32 : ident := 4%positive.
+Definition ___builtin_bswap64 : ident := 2%positive.
+Definition ___builtin_clz : ident := 6%positive.
+Definition ___builtin_clzl : ident := 7%positive.
+Definition ___builtin_clzll : ident := 8%positive.
+Definition ___builtin_ctz : ident := 9%positive.
+Definition ___builtin_ctzl : ident := 10%positive.
+Definition ___builtin_ctzll : ident := 11%positive.
+Definition ___builtin_debug : ident := 37%positive.
+Definition ___builtin_expect : ident := 26%positive.
+Definition ___builtin_fabs : ident := 12%positive.
+Definition ___builtin_fabsf : ident := 13%positive.
+Definition ___builtin_fmadd : ident := 29%positive.
+Definition ___builtin_fmax : ident := 27%positive.
+Definition ___builtin_fmin : ident := 28%positive.
+Definition ___builtin_fmsub : ident := 30%positive.
+Definition ___builtin_fnmadd : ident := 31%positive.
+Definition ___builtin_fnmsub : ident := 32%positive.
+Definition ___builtin_fsqrt : ident := 14%positive.
+Definition ___builtin_membar : ident := 20%positive.
+Definition ___builtin_memcpy_aligned : ident := 16%positive.
+Definition ___builtin_read16_reversed : ident := 33%positive.
+Definition ___builtin_read32_reversed : ident := 34%positive.
+Definition ___builtin_sel : ident := 17%positive.
+Definition ___builtin_sqrt : ident := 15%positive.
+Definition ___builtin_unreachable : ident := 25%positive.
+Definition ___builtin_va_arg : ident := 22%positive.
+Definition ___builtin_va_copy : ident := 23%positive.
+Definition ___builtin_va_end : ident := 24%positive.
+Definition ___builtin_va_start : ident := 21%positive.
+Definition ___builtin_write16_reversed : ident := 35%positive.
+Definition ___builtin_write32_reversed : ident := 36%positive.
+Definition ___compcert_i64_dtos : ident := 160%positive.
+Definition ___compcert_i64_dtou : ident := 161%positive.
+Definition ___compcert_i64_sar : ident := 172%positive.
+Definition ___compcert_i64_sdiv : ident := 166%positive.
+Definition ___compcert_i64_shl : ident := 170%positive.
+Definition ___compcert_i64_shr : ident := 171%positive.
+Definition ___compcert_i64_smod : ident := 168%positive.
+Definition ___compcert_i64_smulh : ident := 173%positive.
+Definition ___compcert_i64_stod : ident := 162%positive.
+Definition ___compcert_i64_stof : ident := 164%positive.
+Definition ___compcert_i64_udiv : ident := 167%positive.
+Definition ___compcert_i64_umod : ident := 169%positive.
+Definition ___compcert_i64_umulh : ident := 174%positive.
+Definition ___compcert_i64_utod : ident := 163%positive.
+Definition ___compcert_i64_utof : ident := 165%positive.
+Definition ___compcert_va_composite : ident := 159%positive.
+Definition ___compcert_va_float64 : ident := 158%positive.
+Definition ___compcert_va_int32 : ident := 156%positive.
+Definition ___compcert_va_int64 : ident := 157%positive.
+Definition _a : ident := 91%positive.
+Definition _add : ident := 129%positive.
+Definition _add1305 : ident := 83%positive.
+Definition _b : ident := 76%positive.
+Definition _c : ident := 50%positive.
+Definition _car25519 : ident := 94%positive.
+Definition _carry : ident := 141%positive.
+Definition _chk : ident := 147%positive.
+Definition _core : ident := 72%positive.
+Definition _crypto_box_curve25519xsalsa20poly1305_tweet : ident := 116%positive.
+Definition _crypto_box_curve25519xsalsa20poly1305_tweet_afternm : ident := 114%positive.
+Definition _crypto_box_curve25519xsalsa20poly1305_tweet_beforenm : ident := 113%positive.
+Definition _crypto_box_curve25519xsalsa20poly1305_tweet_keypair : ident := 112%positive.
+Definition _crypto_box_curve25519xsalsa20poly1305_tweet_open : ident := 117%positive.
+Definition _crypto_box_curve25519xsalsa20poly1305_tweet_open_afternm : ident := 115%positive.
+Definition _crypto_core_hsalsa20_tweet : ident := 74%positive.
+Definition _crypto_core_salsa20_tweet : ident := 73%positive.
+Definition _crypto_hash_sha512_tweet : ident := 128%positive.
+Definition _crypto_hashblocks_sha512_tweet : ident := 126%positive.
+Definition _crypto_onetimeauth_poly1305_tweet : ident := 87%positive.
+Definition _crypto_onetimeauth_poly1305_tweet_verify : ident := 88%positive.
+Definition _crypto_scalarmult_curve25519_tweet : ident := 110%positive.
+Definition _crypto_scalarmult_curve25519_tweet_base : ident := 111%positive.
+Definition _crypto_secretbox_xsalsa20poly1305_tweet : ident := 89%positive.
+Definition _crypto_secretbox_xsalsa20poly1305_tweet_open : ident := 90%positive.
+Definition _crypto_sign_ed25519_tweet : ident := 146%positive.
+Definition _crypto_sign_ed25519_tweet_keypair : ident := 139%positive.
+Definition _crypto_sign_ed25519_tweet_open : ident := 155%positive.
+Definition _crypto_stream_salsa20_tweet : ident := 79%positive.
+Definition _crypto_stream_salsa20_tweet_xor : ident := 78%positive.
+Definition _crypto_stream_xsalsa20_tweet : ident := 81%positive.
+Definition _crypto_stream_xsalsa20_tweet_xor : ident := 82%positive.
+Definition _crypto_verify_16_tweet : ident := 62%positive.
+Definition _crypto_verify_32_tweet : ident := 63%positive.
+Definition _cswap : ident := 130%positive.
+Definition _d : ident := 60%positive.
+Definition _den : ident := 149%positive.
+Definition _den2 : ident := 150%positive.
+Definition _den4 : ident := 151%positive.
+Definition _den6 : ident := 152%positive.
+Definition _dl64 : ident := 55%positive.
+Definition _e : ident := 108%positive.
+Definition _f : ident := 109%positive.
+Definition _g : ident := 86%positive.
+Definition _gf0 : ident := 41%positive.
+Definition _gf1 : ident := 42%positive.
+Definition _h : ident := 67%positive.
+Definition _i : ident := 54%positive.
+Definition _in : ident := 65%positive.
+Definition _inv25519 : ident := 106%positive.
+Definition _iv : ident := 127%positive.
+Definition _j : ident := 70%positive.
+Definition _k : ident := 66%positive.
+Definition _ld32 : ident := 53%positive.
+Definition _m : ident := 71%positive.
+Definition _main : ident := 175%positive.
+Definition _minusp : ident := 84%positive.
+Definition _mlen : ident := 154%positive.
+Definition _modL : ident := 142%positive.
+Definition _n : ident := 59%positive.
+Definition _neq25519 : ident := 99%positive.
+Definition _num : ident := 148%positive.
+Definition _o : ident := 93%positive.
+Definition _out : ident := 64%positive.
+Definition _p : ident := 95%positive.
+Definition _pack : ident := 134%positive.
+Definition _pack25519 : ident := 98%positive.
+Definition _par25519 : ident := 100%positive.
+Definition _pk : ident := 137%positive.
+Definition _pow2523 : ident := 107%positive.
+Definition _q : ident := 96%positive.
+Definition _r : ident := 85%positive.
+Definition _randombytes : ident := 38%positive.
+Definition _reduce : ident := 143%positive.
+Definition _s : ident := 80%positive.
+Definition _scalarbase : ident := 136%positive.
+Definition _scalarmult : ident := 135%positive.
+Definition _sel25519 : ident := 97%positive.
+Definition _set25519 : ident := 92%positive.
+Definition _sigma : ident := 75%positive.
+Definition _sigma0 : ident := 123%positive.
+Definition _sigma1 : ident := 124%positive.
+Definition _sk : ident := 138%positive.
+Definition _sm : ident := 144%positive.
+Definition _smlen : ident := 145%positive.
+Definition _st32 : ident := 56%positive.
+Definition _t : ident := 69%positive.
+Definition _ts64 : ident := 57%positive.
+Definition _tx : ident := 131%positive.
+Definition _ty : ident := 132%positive.
+Definition _u : ident := 52%positive.
+Definition _unpack25519 : ident := 101%positive.
+Definition _unpackneg : ident := 153%positive.
+Definition _vn : ident := 61%positive.
+Definition _w : ident := 68%positive.
+Definition _x : ident := 49%positive.
+Definition _y : ident := 58%positive.
+Definition _z : ident := 77%positive.
+Definition _zi : ident := 133%positive.
+Definition _t'1 : ident := 176%positive.
+Definition _t'10 : ident := 185%positive.
+Definition _t'11 : ident := 186%positive.
+Definition _t'12 : ident := 187%positive.
+Definition _t'13 : ident := 188%positive.
+Definition _t'14 : ident := 189%positive.
+Definition _t'15 : ident := 190%positive.
+Definition _t'16 : ident := 191%positive.
+Definition _t'17 : ident := 192%positive.
+Definition _t'18 : ident := 193%positive.
+Definition _t'19 : ident := 194%positive.
+Definition _t'2 : ident := 177%positive.
+Definition _t'20 : ident := 195%positive.
+Definition _t'21 : ident := 196%positive.
+Definition _t'22 : ident := 197%positive.
+Definition _t'23 : ident := 198%positive.
+Definition _t'24 : ident := 199%positive.
+Definition _t'25 : ident := 200%positive.
+Definition _t'26 : ident := 201%positive.
+Definition _t'27 : ident := 202%positive.
+Definition _t'28 : ident := 203%positive.
+Definition _t'29 : ident := 204%positive.
+Definition _t'3 : ident := 178%positive.
+Definition _t'30 : ident := 205%positive.
+Definition _t'31 : ident := 206%positive.
+Definition _t'32 : ident := 207%positive.
+Definition _t'33 : ident := 208%positive.
+Definition _t'34 : ident := 209%positive.
+Definition _t'4 : ident := 179%positive.
+Definition _t'5 : ident := 180%positive.
+Definition _t'6 : ident := 181%positive.
+Definition _t'7 : ident := 182%positive.
+Definition _t'8 : ident := 183%positive.
+Definition _t'9 : ident := 184%positive.
 
 Definition v__0 := {|
   gvar_info := (tarray tuchar 16);
@@ -577,9 +578,8 @@ Definition f_crypto_verify_16_tweet := {|
   fn_body :=
 (Ssequence
   (Scall (Some _t'1)
-    (Evar _vn (Tfunction
-                (Tcons (tptr tuchar) (Tcons (tptr tuchar) (Tcons tint Tnil)))
-                tint cc_default))
+    (Evar _vn (Tfunction ((tptr tuchar) :: (tptr tuchar) :: tint :: nil) tint
+                cc_default))
     ((Etempvar _x (tptr tuchar)) :: (Etempvar _y (tptr tuchar)) ::
      (Econst_int (Int.repr 16) tint) :: nil))
   (Sreturn (Some (Etempvar _t'1 tint))))
@@ -594,9 +594,8 @@ Definition f_crypto_verify_32_tweet := {|
   fn_body :=
 (Ssequence
   (Scall (Some _t'1)
-    (Evar _vn (Tfunction
-                (Tcons (tptr tuchar) (Tcons (tptr tuchar) (Tcons tint Tnil)))
-                tint cc_default))
+    (Evar _vn (Tfunction ((tptr tuchar) :: (tptr tuchar) :: tint :: nil) tint
+                cc_default))
     ((Etempvar _x (tptr tuchar)) :: (Etempvar _y (tptr tuchar)) ::
      (Econst_int (Int.repr 32) tint) :: nil))
   (Sreturn (Some (Etempvar _t'1 tint))))
@@ -635,8 +634,7 @@ Definition f_core := {|
         (Ssequence
           (Ssequence
             (Scall (Some _t'1)
-              (Evar _ld32 (Tfunction (Tcons (tptr tuchar) Tnil) tuint
-                            cc_default))
+              (Evar _ld32 (Tfunction ((tptr tuchar) :: nil) tuint cc_default))
               ((Ebinop Oadd (Etempvar _c (tptr tuchar))
                  (Ebinop Omul (Econst_int (Int.repr 4) tint)
                    (Etempvar _i tint) tint) (tptr tuchar)) :: nil))
@@ -649,7 +647,7 @@ Definition f_core := {|
           (Ssequence
             (Ssequence
               (Scall (Some _t'2)
-                (Evar _ld32 (Tfunction (Tcons (tptr tuchar) Tnil) tuint
+                (Evar _ld32 (Tfunction ((tptr tuchar) :: nil) tuint
                               cc_default))
                 ((Ebinop Oadd (Etempvar _k (tptr tuchar))
                    (Ebinop Omul (Econst_int (Int.repr 4) tint)
@@ -663,7 +661,7 @@ Definition f_core := {|
             (Ssequence
               (Ssequence
                 (Scall (Some _t'3)
-                  (Evar _ld32 (Tfunction (Tcons (tptr tuchar) Tnil) tuint
+                  (Evar _ld32 (Tfunction ((tptr tuchar) :: nil) tuint
                                 cc_default))
                   ((Ebinop Oadd (Etempvar _in (tptr tuchar))
                      (Ebinop Omul (Econst_int (Int.repr 4) tint)
@@ -676,7 +674,7 @@ Definition f_core := {|
                   (Etempvar _t'3 tuint)))
               (Ssequence
                 (Scall (Some _t'4)
-                  (Evar _ld32 (Tfunction (Tcons (tptr tuchar) Tnil) tuint
+                  (Evar _ld32 (Tfunction ((tptr tuchar) :: nil) tuint
                                 cc_default))
                   ((Ebinop Oadd
                      (Ebinop Oadd (Etempvar _k (tptr tuchar))
@@ -777,8 +775,7 @@ Definition f_core := {|
                                     (Econst_int (Int.repr 3) tint)
                                     (tptr tuint)) tuint))
                               (Scall (Some _t'5)
-                                (Evar _L32 (Tfunction
-                                             (Tcons tuint (Tcons tint Tnil))
+                                (Evar _L32 (Tfunction (tuint :: tint :: nil)
                                              tuint cc_default))
                                 ((Ebinop Oadd (Etempvar _t'31 tuint)
                                    (Etempvar _t'32 tuint) tuint) ::
@@ -812,8 +809,7 @@ Definition f_core := {|
                                       (tptr tuint)) tuint))
                                 (Scall (Some _t'6)
                                   (Evar _L32 (Tfunction
-                                               (Tcons tuint
-                                                 (Tcons tint Tnil)) tuint
+                                               (tuint :: tint :: nil) tuint
                                                cc_default))
                                   ((Ebinop Oadd (Etempvar _t'28 tuint)
                                      (Etempvar _t'29 tuint) tuint) ::
@@ -847,8 +843,7 @@ Definition f_core := {|
                                         (tptr tuint)) tuint))
                                   (Scall (Some _t'7)
                                     (Evar _L32 (Tfunction
-                                                 (Tcons tuint
-                                                   (Tcons tint Tnil)) tuint
+                                                 (tuint :: tint :: nil) tuint
                                                  cc_default))
                                     ((Ebinop Oadd (Etempvar _t'25 tuint)
                                        (Etempvar _t'26 tuint) tuint) ::
@@ -883,9 +878,8 @@ Definition f_core := {|
                                           (tptr tuint)) tuint))
                                     (Scall (Some _t'8)
                                       (Evar _L32 (Tfunction
-                                                   (Tcons tuint
-                                                     (Tcons tint Tnil)) tuint
-                                                   cc_default))
+                                                   (tuint :: tint :: nil)
+                                                   tuint cc_default))
                                       ((Ebinop Oadd (Etempvar _t'22 tuint)
                                          (Etempvar _t'23 tuint) tuint) ::
                                        (Econst_int (Int.repr 18) tint) ::
@@ -1006,8 +1000,8 @@ Definition f_core := {|
                   (Ssequence
                     (Ssequence
                       (Scall (Some _t'9)
-                        (Evar _ld32 (Tfunction (Tcons (tptr tuchar) Tnil)
-                                      tuint cc_default))
+                        (Evar _ld32 (Tfunction ((tptr tuchar) :: nil) tuint
+                                      cc_default))
                         ((Ebinop Oadd (Etempvar _c (tptr tuchar))
                            (Ebinop Omul (Econst_int (Int.repr 4) tint)
                              (Etempvar _i tint) tint) (tptr tuchar)) :: nil))
@@ -1026,8 +1020,8 @@ Definition f_core := {|
                             (Etempvar _t'9 tuint) tuint))))
                     (Ssequence
                       (Scall (Some _t'10)
-                        (Evar _ld32 (Tfunction (Tcons (tptr tuchar) Tnil)
-                                      tuint cc_default))
+                        (Evar _ld32 (Tfunction ((tptr tuchar) :: nil) tuint
+                                      cc_default))
                         ((Ebinop Oadd (Etempvar _in (tptr tuchar))
                            (Ebinop Omul (Econst_int (Int.repr 4) tint)
                              (Etempvar _i tint) tint) (tptr tuchar)) :: nil))
@@ -1064,8 +1058,8 @@ Definition f_core := {|
                               (Etempvar _i tint) tint) (tptr tuint)) tuint))
                       (Scall None
                         (Evar _st32 (Tfunction
-                                      (Tcons (tptr tuchar)
-                                        (Tcons tuint Tnil)) tvoid cc_default))
+                                      ((tptr tuchar) :: tuint :: nil) tvoid
+                                      cc_default))
                         ((Ebinop Oadd (Etempvar _out (tptr tuchar))
                            (Ebinop Omul (Econst_int (Int.repr 4) tint)
                              (Etempvar _i tint) tint) (tptr tuchar)) ::
@@ -1078,8 +1072,8 @@ Definition f_core := {|
                               (Etempvar _i tint) tint) (tptr tuint)) tuint))
                       (Scall None
                         (Evar _st32 (Tfunction
-                                      (Tcons (tptr tuchar)
-                                        (Tcons tuint Tnil)) tvoid cc_default))
+                                      ((tptr tuchar) :: tuint :: nil) tvoid
+                                      cc_default))
                         ((Ebinop Oadd
                            (Ebinop Oadd (Etempvar _out (tptr tuchar))
                              (Econst_int (Int.repr 16) tint) (tptr tuchar))
@@ -1108,8 +1102,7 @@ Definition f_core := {|
                       (Ebinop Oadd (Evar _y (tarray tuint 16))
                         (Etempvar _i tint) (tptr tuint)) tuint))
                   (Scall None
-                    (Evar _st32 (Tfunction
-                                  (Tcons (tptr tuchar) (Tcons tuint Tnil))
+                    (Evar _st32 (Tfunction ((tptr tuchar) :: tuint :: nil)
                                   tvoid cc_default))
                     ((Ebinop Oadd (Etempvar _out (tptr tuchar))
                        (Ebinop Omul (Econst_int (Int.repr 4) tint)
@@ -1132,11 +1125,8 @@ Definition f_crypto_core_salsa20_tweet := {|
 (Ssequence
   (Scall None
     (Evar _core (Tfunction
-                  (Tcons (tptr tuchar)
-                    (Tcons (tptr tuchar)
-                      (Tcons (tptr tuchar)
-                        (Tcons (tptr tuchar) (Tcons tint Tnil))))) tvoid
-                  cc_default))
+                  ((tptr tuchar) :: (tptr tuchar) :: (tptr tuchar) ::
+                   (tptr tuchar) :: tint :: nil) tvoid cc_default))
     ((Etempvar _out (tptr tuchar)) :: (Etempvar _in (tptr tuchar)) ::
      (Etempvar _k (tptr tuchar)) :: (Etempvar _c (tptr tuchar)) ::
      (Econst_int (Int.repr 0) tint) :: nil))
@@ -1154,11 +1144,8 @@ Definition f_crypto_core_hsalsa20_tweet := {|
 (Ssequence
   (Scall None
     (Evar _core (Tfunction
-                  (Tcons (tptr tuchar)
-                    (Tcons (tptr tuchar)
-                      (Tcons (tptr tuchar)
-                        (Tcons (tptr tuchar) (Tcons tint Tnil))))) tvoid
-                  cc_default))
+                  ((tptr tuchar) :: (tptr tuchar) :: (tptr tuchar) ::
+                   (tptr tuchar) :: tint :: nil) tvoid cc_default))
     ((Etempvar _out (tptr tuchar)) :: (Etempvar _in (tptr tuchar)) ::
      (Etempvar _k (tptr tuchar)) :: (Etempvar _c (tptr tuchar)) ::
      (Econst_int (Int.repr 1) tint) :: nil))
@@ -1238,11 +1225,10 @@ Definition f_crypto_stream_salsa20_tweet_xor := {|
           (Ssequence
             (Scall None
               (Evar _crypto_core_salsa20_tweet (Tfunction
-                                                 (Tcons (tptr tuchar)
-                                                   (Tcons (tptr tuchar)
-                                                     (Tcons (tptr tuchar)
-                                                       (Tcons (tptr tuchar)
-                                                         Tnil)))) tint
+                                                 ((tptr tuchar) ::
+                                                  (tptr tuchar) ::
+                                                  (tptr tuchar) ::
+                                                  (tptr tuchar) :: nil) tint
                                                  cc_default))
               ((Evar _x (tarray tuchar 64)) ::
                (Evar _z (tarray tuchar 16)) :: (Etempvar _k (tptr tuchar)) ::
@@ -1330,12 +1316,11 @@ Definition f_crypto_stream_salsa20_tweet_xor := {|
             (Ssequence
               (Scall None
                 (Evar _crypto_core_salsa20_tweet (Tfunction
-                                                   (Tcons (tptr tuchar)
-                                                     (Tcons (tptr tuchar)
-                                                       (Tcons (tptr tuchar)
-                                                         (Tcons (tptr tuchar)
-                                                           Tnil)))) tint
-                                                   cc_default))
+                                                   ((tptr tuchar) ::
+                                                    (tptr tuchar) ::
+                                                    (tptr tuchar) ::
+                                                    (tptr tuchar) :: nil)
+                                                   tint cc_default))
                 ((Evar _x (tarray tuchar 64)) ::
                  (Evar _z (tarray tuchar 16)) ::
                  (Etempvar _k (tptr tuchar)) ::
@@ -1387,12 +1372,10 @@ Definition f_crypto_stream_salsa20_tweet := {|
 (Ssequence
   (Scall (Some _t'1)
     (Evar _crypto_stream_salsa20_tweet_xor (Tfunction
-                                             (Tcons (tptr tuchar)
-                                               (Tcons (tptr tuchar)
-                                                 (Tcons tulong
-                                                   (Tcons (tptr tuchar)
-                                                     (Tcons (tptr tuchar)
-                                                       Tnil))))) tint
+                                             ((tptr tuchar) ::
+                                              (tptr tuchar) :: tulong ::
+                                              (tptr tuchar) ::
+                                              (tptr tuchar) :: nil) tint
                                              cc_default))
     ((Etempvar _c (tptr tuchar)) :: (Econst_int (Int.repr 0) tint) ::
      (Etempvar _d tulong) :: (Etempvar _n (tptr tuchar)) ::
@@ -1411,21 +1394,17 @@ Definition f_crypto_stream_xsalsa20_tweet := {|
 (Ssequence
   (Scall None
     (Evar _crypto_core_hsalsa20_tweet (Tfunction
-                                        (Tcons (tptr tuchar)
-                                          (Tcons (tptr tuchar)
-                                            (Tcons (tptr tuchar)
-                                              (Tcons (tptr tuchar) Tnil))))
-                                        tint cc_default))
+                                        ((tptr tuchar) :: (tptr tuchar) ::
+                                         (tptr tuchar) :: (tptr tuchar) ::
+                                         nil) tint cc_default))
     ((Evar _s (tarray tuchar 32)) :: (Etempvar _n (tptr tuchar)) ::
      (Etempvar _k (tptr tuchar)) :: (Evar _sigma (tarray tuchar 16)) :: nil))
   (Ssequence
     (Scall (Some _t'1)
       (Evar _crypto_stream_salsa20_tweet (Tfunction
-                                           (Tcons (tptr tuchar)
-                                             (Tcons tulong
-                                               (Tcons (tptr tuchar)
-                                                 (Tcons (tptr tuchar) Tnil))))
-                                           tint cc_default))
+                                           ((tptr tuchar) :: tulong ::
+                                            (tptr tuchar) :: (tptr tuchar) ::
+                                            nil) tint cc_default))
       ((Etempvar _c (tptr tuchar)) :: (Etempvar _d tulong) ::
        (Ebinop Oadd (Etempvar _n (tptr tuchar))
          (Econst_int (Int.repr 16) tint) (tptr tuchar)) ::
@@ -1444,22 +1423,18 @@ Definition f_crypto_stream_xsalsa20_tweet_xor := {|
 (Ssequence
   (Scall None
     (Evar _crypto_core_hsalsa20_tweet (Tfunction
-                                        (Tcons (tptr tuchar)
-                                          (Tcons (tptr tuchar)
-                                            (Tcons (tptr tuchar)
-                                              (Tcons (tptr tuchar) Tnil))))
-                                        tint cc_default))
+                                        ((tptr tuchar) :: (tptr tuchar) ::
+                                         (tptr tuchar) :: (tptr tuchar) ::
+                                         nil) tint cc_default))
     ((Evar _s (tarray tuchar 32)) :: (Etempvar _n (tptr tuchar)) ::
      (Etempvar _k (tptr tuchar)) :: (Evar _sigma (tarray tuchar 16)) :: nil))
   (Ssequence
     (Scall (Some _t'1)
       (Evar _crypto_stream_salsa20_tweet_xor (Tfunction
-                                               (Tcons (tptr tuchar)
-                                                 (Tcons (tptr tuchar)
-                                                   (Tcons tulong
-                                                     (Tcons (tptr tuchar)
-                                                       (Tcons (tptr tuchar)
-                                                         Tnil))))) tint
+                                               ((tptr tuchar) ::
+                                                (tptr tuchar) :: tulong ::
+                                                (tptr tuchar) ::
+                                                (tptr tuchar) :: nil) tint
                                                cc_default))
       ((Etempvar _c (tptr tuchar)) :: (Etempvar _m (tptr tuchar)) ::
        (Etempvar _d tulong) ::
@@ -1756,10 +1731,9 @@ Definition f_crypto_onetimeauth_poly1305_tweet := {|
                                 (Ssequence
                                   (Scall None
                                     (Evar _add1305 (Tfunction
-                                                     (Tcons (tptr tuint)
-                                                       (Tcons (tptr tuint)
-                                                         Tnil)) tvoid
-                                                     cc_default))
+                                                     ((tptr tuint) ::
+                                                      (tptr tuint) :: nil)
+                                                     tvoid cc_default))
                                     ((Evar _h (tarray tuint 17)) ::
                                      (Evar _c (tarray tuint 17)) :: nil))
                                   (Ssequence
@@ -2081,9 +2055,8 @@ Definition f_crypto_onetimeauth_poly1305_tweet := {|
                       (Ssequence
                         (Scall None
                           (Evar _add1305 (Tfunction
-                                           (Tcons (tptr tuint)
-                                             (Tcons (tptr tuint) Tnil)) tvoid
-                                           cc_default))
+                                           ((tptr tuint) :: (tptr tuint) ::
+                                            nil) tvoid cc_default))
                           ((Evar _h (tarray tuint 17)) ::
                            (Evar _minusp (tarray tuint 17)) :: nil))
                         (Ssequence
@@ -2183,10 +2156,9 @@ Definition f_crypto_onetimeauth_poly1305_tweet := {|
                                 (Ssequence
                                   (Scall None
                                     (Evar _add1305 (Tfunction
-                                                     (Tcons (tptr tuint)
-                                                       (Tcons (tptr tuint)
-                                                         Tnil)) tvoid
-                                                     cc_default))
+                                                     ((tptr tuint) ::
+                                                      (tptr tuint) :: nil)
+                                                     tvoid cc_default))
                                     ((Evar _h (tarray tuint 17)) ::
                                      (Evar _c (tarray tuint 17)) :: nil))
                                   (Ssequence
@@ -2233,20 +2205,17 @@ Definition f_crypto_onetimeauth_poly1305_tweet_verify := {|
 (Ssequence
   (Scall None
     (Evar _crypto_onetimeauth_poly1305_tweet (Tfunction
-                                               (Tcons (tptr tuchar)
-                                                 (Tcons (tptr tuchar)
-                                                   (Tcons tulong
-                                                     (Tcons (tptr tuchar)
-                                                       Tnil)))) tint
+                                               ((tptr tuchar) ::
+                                                (tptr tuchar) :: tulong ::
+                                                (tptr tuchar) :: nil) tint
                                                cc_default))
     ((Evar _x (tarray tuchar 16)) :: (Etempvar _m (tptr tuchar)) ::
      (Etempvar _n tulong) :: (Etempvar _k (tptr tuchar)) :: nil))
   (Ssequence
     (Scall (Some _t'1)
       (Evar _crypto_verify_16_tweet (Tfunction
-                                      (Tcons (tptr tuchar)
-                                        (Tcons (tptr tuchar) Tnil)) tint
-                                      cc_default))
+                                      ((tptr tuchar) :: (tptr tuchar) :: nil)
+                                      tint cc_default))
       ((Etempvar _h (tptr tuchar)) :: (Evar _x (tarray tuchar 16)) :: nil))
     (Sreturn (Some (Etempvar _t'1 tint)))))
 |}.
@@ -2267,12 +2236,10 @@ Definition f_crypto_secretbox_xsalsa20poly1305_tweet := {|
   (Ssequence
     (Scall None
       (Evar _crypto_stream_xsalsa20_tweet_xor (Tfunction
-                                                (Tcons (tptr tuchar)
-                                                  (Tcons (tptr tuchar)
-                                                    (Tcons tulong
-                                                      (Tcons (tptr tuchar)
-                                                        (Tcons (tptr tuchar)
-                                                          Tnil))))) tint
+                                                ((tptr tuchar) ::
+                                                 (tptr tuchar) :: tulong ::
+                                                 (tptr tuchar) ::
+                                                 (tptr tuchar) :: nil) tint
                                                 cc_default))
       ((Etempvar _c (tptr tuchar)) :: (Etempvar _m (tptr tuchar)) ::
        (Etempvar _d tulong) :: (Etempvar _n (tptr tuchar)) ::
@@ -2280,12 +2247,11 @@ Definition f_crypto_secretbox_xsalsa20poly1305_tweet := {|
     (Ssequence
       (Scall None
         (Evar _crypto_onetimeauth_poly1305_tweet (Tfunction
-                                                   (Tcons (tptr tuchar)
-                                                     (Tcons (tptr tuchar)
-                                                       (Tcons tulong
-                                                         (Tcons (tptr tuchar)
-                                                           Tnil)))) tint
-                                                   cc_default))
+                                                   ((tptr tuchar) ::
+                                                    (tptr tuchar) ::
+                                                    tulong ::
+                                                    (tptr tuchar) :: nil)
+                                                   tint cc_default))
         ((Ebinop Oadd (Etempvar _c (tptr tuchar))
            (Econst_int (Int.repr 16) tint) (tptr tuchar)) ::
          (Ebinop Oadd (Etempvar _c (tptr tuchar))
@@ -2327,26 +2293,22 @@ Definition f_crypto_secretbox_xsalsa20poly1305_tweet_open := {|
   (Ssequence
     (Scall None
       (Evar _crypto_stream_xsalsa20_tweet (Tfunction
-                                            (Tcons (tptr tuchar)
-                                              (Tcons tulong
-                                                (Tcons (tptr tuchar)
-                                                  (Tcons (tptr tuchar) Tnil))))
-                                            tint cc_default))
+                                            ((tptr tuchar) :: tulong ::
+                                             (tptr tuchar) ::
+                                             (tptr tuchar) :: nil) tint
+                                            cc_default))
       ((Evar _x (tarray tuchar 32)) :: (Econst_int (Int.repr 32) tint) ::
        (Etempvar _n (tptr tuchar)) :: (Etempvar _k (tptr tuchar)) :: nil))
     (Ssequence
       (Ssequence
         (Scall (Some _t'1)
           (Evar _crypto_onetimeauth_poly1305_tweet_verify (Tfunction
-                                                            (Tcons
-                                                              (tptr tuchar)
-                                                              (Tcons
-                                                                (tptr tuchar)
-                                                                (Tcons tulong
-                                                                  (Tcons
-                                                                    (tptr tuchar)
-                                                                    Tnil))))
-                                                            tint cc_default))
+                                                            ((tptr tuchar) ::
+                                                             (tptr tuchar) ::
+                                                             tulong ::
+                                                             (tptr tuchar) ::
+                                                             nil) tint
+                                                            cc_default))
           ((Ebinop Oadd (Etempvar _c (tptr tuchar))
              (Econst_int (Int.repr 16) tint) (tptr tuchar)) ::
            (Ebinop Oadd (Etempvar _c (tptr tuchar))
@@ -2360,15 +2322,12 @@ Definition f_crypto_secretbox_xsalsa20poly1305_tweet_open := {|
       (Ssequence
         (Scall None
           (Evar _crypto_stream_xsalsa20_tweet_xor (Tfunction
-                                                    (Tcons (tptr tuchar)
-                                                      (Tcons (tptr tuchar)
-                                                        (Tcons tulong
-                                                          (Tcons
-                                                            (tptr tuchar)
-                                                            (Tcons
-                                                              (tptr tuchar)
-                                                              Tnil))))) tint
-                                                    cc_default))
+                                                    ((tptr tuchar) ::
+                                                     (tptr tuchar) ::
+                                                     tulong ::
+                                                     (tptr tuchar) ::
+                                                     (tptr tuchar) :: nil)
+                                                    tint cc_default))
           ((Etempvar _m (tptr tuchar)) :: (Etempvar _c (tptr tuchar)) ::
            (Etempvar _d tulong) :: (Etempvar _n (tptr tuchar)) ::
            (Etempvar _k (tptr tuchar)) :: nil))
@@ -2602,16 +2561,15 @@ Definition f_pack25519 := {|
         (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint) tint))))
   (Ssequence
     (Scall None
-      (Evar _car25519 (Tfunction (Tcons (tptr tlong) Tnil) tvoid cc_default))
+      (Evar _car25519 (Tfunction ((tptr tlong) :: nil) tvoid cc_default))
       ((Evar _t (tarray tlong 16)) :: nil))
     (Ssequence
       (Scall None
-        (Evar _car25519 (Tfunction (Tcons (tptr tlong) Tnil) tvoid
-                          cc_default)) ((Evar _t (tarray tlong 16)) :: nil))
+        (Evar _car25519 (Tfunction ((tptr tlong) :: nil) tvoid cc_default))
+        ((Evar _t (tarray tlong 16)) :: nil))
       (Ssequence
         (Scall None
-          (Evar _car25519 (Tfunction (Tcons (tptr tlong) Tnil) tvoid
-                            cc_default))
+          (Evar _car25519 (Tfunction ((tptr tlong) :: nil) tvoid cc_default))
           ((Evar _t (tarray tlong 16)) :: nil))
         (Ssequence
           (Ssequence
@@ -2742,10 +2700,9 @@ Definition f_pack25519 := {|
                                 (Econst_int (Int.repr 65535) tint) tlong)))
                           (Scall None
                             (Evar _sel25519 (Tfunction
-                                              (Tcons (tptr tlong)
-                                                (Tcons (tptr tlong)
-                                                  (Tcons tint Tnil))) tvoid
-                                              cc_default))
+                                              ((tptr tlong) ::
+                                               (tptr tlong) :: tint :: nil)
+                                              tvoid cc_default))
                             ((Evar _t (tarray tlong 16)) ::
                              (Evar _m (tarray tlong 16)) ::
                              (Ebinop Osub (Econst_int (Int.repr 1) tint)
@@ -2803,22 +2760,19 @@ Definition f_neq25519 := {|
   fn_body :=
 (Ssequence
   (Scall None
-    (Evar _pack25519 (Tfunction
-                       (Tcons (tptr tuchar) (Tcons (tptr tlong) Tnil)) tvoid
+    (Evar _pack25519 (Tfunction ((tptr tuchar) :: (tptr tlong) :: nil) tvoid
                        cc_default))
     ((Evar _c (tarray tuchar 32)) :: (Etempvar _a (tptr tlong)) :: nil))
   (Ssequence
     (Scall None
-      (Evar _pack25519 (Tfunction
-                         (Tcons (tptr tuchar) (Tcons (tptr tlong) Tnil))
+      (Evar _pack25519 (Tfunction ((tptr tuchar) :: (tptr tlong) :: nil)
                          tvoid cc_default))
       ((Evar _d (tarray tuchar 32)) :: (Etempvar _b (tptr tlong)) :: nil))
     (Ssequence
       (Scall (Some _t'1)
         (Evar _crypto_verify_32_tweet (Tfunction
-                                        (Tcons (tptr tuchar)
-                                          (Tcons (tptr tuchar) Tnil)) tint
-                                        cc_default))
+                                        ((tptr tuchar) :: (tptr tuchar) ::
+                                         nil) tint cc_default))
         ((Evar _c (tarray tuchar 32)) :: (Evar _d (tarray tuchar 32)) :: nil))
       (Sreturn (Some (Etempvar _t'1 tint))))))
 |}.
@@ -2832,8 +2786,7 @@ Definition f_par25519 := {|
   fn_body :=
 (Ssequence
   (Scall None
-    (Evar _pack25519 (Tfunction
-                       (Tcons (tptr tuchar) (Tcons (tptr tlong) Tnil)) tvoid
+    (Evar _pack25519 (Tfunction ((tptr tuchar) :: (tptr tlong) :: nil) tvoid
                        cc_default))
     ((Evar _d (tarray tuchar 32)) :: (Etempvar _a (tptr tlong)) :: nil))
   (Ssequence
@@ -3096,11 +3049,11 @@ Definition f_M := {|
                 tlong))))
         (Ssequence
           (Scall None
-            (Evar _car25519 (Tfunction (Tcons (tptr tlong) Tnil) tvoid
+            (Evar _car25519 (Tfunction ((tptr tlong) :: nil) tvoid
                               cc_default))
             ((Etempvar _o (tptr tlong)) :: nil))
           (Scall None
-            (Evar _car25519 (Tfunction (Tcons (tptr tlong) Tnil) tvoid
+            (Evar _car25519 (Tfunction ((tptr tlong) :: nil) tvoid
                               cc_default))
             ((Etempvar _o (tptr tlong)) :: nil)))))))
 |}.
@@ -3113,10 +3066,8 @@ Definition f_S := {|
   fn_temps := nil;
   fn_body :=
 (Scall None
-  (Evar _M (Tfunction
-             (Tcons (tptr tlong)
-               (Tcons (tptr tlong) (Tcons (tptr tlong) Tnil))) tvoid
-             cc_default))
+  (Evar _M (Tfunction ((tptr tlong) :: (tptr tlong) :: (tptr tlong) :: nil)
+             tvoid cc_default))
   ((Etempvar _o (tptr tlong)) :: (Etempvar _a (tptr tlong)) ::
    (Etempvar _a (tptr tlong)) :: nil))
 |}.
@@ -3160,8 +3111,7 @@ Definition f_inv25519 := {|
             Sbreak)
           (Ssequence
             (Scall None
-              (Evar _S (Tfunction
-                         (Tcons (tptr tlong) (Tcons (tptr tlong) Tnil)) tvoid
+              (Evar _S (Tfunction ((tptr tlong) :: (tptr tlong) :: nil) tvoid
                          cc_default))
               ((Evar _c (tarray tlong 16)) :: (Evar _c (tarray tlong 16)) ::
                nil))
@@ -3176,9 +3126,8 @@ Definition f_inv25519 := {|
               (Sifthenelse (Etempvar _t'1 tint)
                 (Scall None
                   (Evar _M (Tfunction
-                             (Tcons (tptr tlong)
-                               (Tcons (tptr tlong) (Tcons (tptr tlong) Tnil)))
-                             tvoid cc_default))
+                             ((tptr tlong) :: (tptr tlong) :: (tptr tlong) ::
+                              nil) tvoid cc_default))
                   ((Evar _c (tarray tlong 16)) ::
                    (Evar _c (tarray tlong 16)) ::
                    (Etempvar _i (tptr tlong)) :: nil))
@@ -3246,8 +3195,7 @@ Definition f_pow2523 := {|
             Sbreak)
           (Ssequence
             (Scall None
-              (Evar _S (Tfunction
-                         (Tcons (tptr tlong) (Tcons (tptr tlong) Tnil)) tvoid
+              (Evar _S (Tfunction ((tptr tlong) :: (tptr tlong) :: nil) tvoid
                          cc_default))
               ((Evar _c (tarray tlong 16)) :: (Evar _c (tarray tlong 16)) ::
                nil))
@@ -3255,9 +3203,8 @@ Definition f_pow2523 := {|
                            (Econst_int (Int.repr 1) tint) tint)
               (Scall None
                 (Evar _M (Tfunction
-                           (Tcons (tptr tlong)
-                             (Tcons (tptr tlong) (Tcons (tptr tlong) Tnil)))
-                           tvoid cc_default))
+                           ((tptr tlong) :: (tptr tlong) :: (tptr tlong) ::
+                            nil) tvoid cc_default))
                 ((Evar _c (tarray tlong 16)) ::
                  (Evar _c (tarray tlong 16)) :: (Etempvar _i (tptr tlong)) ::
                  nil))
@@ -3352,8 +3299,7 @@ Definition f_crypto_scalarmult_curve25519_tweet := {|
       (Ssequence
         (Scall None
           (Evar _unpack25519 (Tfunction
-                               (Tcons (tptr tlong)
-                                 (Tcons (tptr tuchar) Tnil)) tvoid
+                               ((tptr tlong) :: (tptr tuchar) :: nil) tvoid
                                cc_default))
           ((Evar _x (tarray tlong 80)) :: (Etempvar _p (tptr tuchar)) :: nil))
         (Ssequence
@@ -3442,88 +3388,80 @@ Definition f_crypto_scalarmult_curve25519_tweet := {|
                       (Ssequence
                         (Scall None
                           (Evar _sel25519 (Tfunction
-                                            (Tcons (tptr tlong)
-                                              (Tcons (tptr tlong)
-                                                (Tcons tint Tnil))) tvoid
-                                            cc_default))
+                                            ((tptr tlong) :: (tptr tlong) ::
+                                             tint :: nil) tvoid cc_default))
                           ((Evar _a (tarray tlong 16)) ::
                            (Evar _b (tarray tlong 16)) ::
                            (Etempvar _r tlong) :: nil))
                         (Ssequence
                           (Scall None
                             (Evar _sel25519 (Tfunction
-                                              (Tcons (tptr tlong)
-                                                (Tcons (tptr tlong)
-                                                  (Tcons tint Tnil))) tvoid
-                                              cc_default))
+                                              ((tptr tlong) ::
+                                               (tptr tlong) :: tint :: nil)
+                                              tvoid cc_default))
                             ((Evar _c (tarray tlong 16)) ::
                              (Evar _d (tarray tlong 16)) ::
                              (Etempvar _r tlong) :: nil))
                           (Ssequence
                             (Scall None
                               (Evar _A (Tfunction
-                                         (Tcons (tptr tlong)
-                                           (Tcons (tptr tlong)
-                                             (Tcons (tptr tlong) Tnil)))
-                                         tvoid cc_default))
+                                         ((tptr tlong) :: (tptr tlong) ::
+                                          (tptr tlong) :: nil) tvoid
+                                         cc_default))
                               ((Evar _e (tarray tlong 16)) ::
                                (Evar _a (tarray tlong 16)) ::
                                (Evar _c (tarray tlong 16)) :: nil))
                             (Ssequence
                               (Scall None
                                 (Evar _Z (Tfunction
-                                           (Tcons (tptr tlong)
-                                             (Tcons (tptr tlong)
-                                               (Tcons (tptr tlong) Tnil)))
-                                           tvoid cc_default))
+                                           ((tptr tlong) :: (tptr tlong) ::
+                                            (tptr tlong) :: nil) tvoid
+                                           cc_default))
                                 ((Evar _a (tarray tlong 16)) ::
                                  (Evar _a (tarray tlong 16)) ::
                                  (Evar _c (tarray tlong 16)) :: nil))
                               (Ssequence
                                 (Scall None
                                   (Evar _A (Tfunction
-                                             (Tcons (tptr tlong)
-                                               (Tcons (tptr tlong)
-                                                 (Tcons (tptr tlong) Tnil)))
-                                             tvoid cc_default))
+                                             ((tptr tlong) :: (tptr tlong) ::
+                                              (tptr tlong) :: nil) tvoid
+                                             cc_default))
                                   ((Evar _c (tarray tlong 16)) ::
                                    (Evar _b (tarray tlong 16)) ::
                                    (Evar _d (tarray tlong 16)) :: nil))
                                 (Ssequence
                                   (Scall None
                                     (Evar _Z (Tfunction
-                                               (Tcons (tptr tlong)
-                                                 (Tcons (tptr tlong)
-                                                   (Tcons (tptr tlong) Tnil)))
-                                               tvoid cc_default))
+                                               ((tptr tlong) ::
+                                                (tptr tlong) ::
+                                                (tptr tlong) :: nil) tvoid
+                                               cc_default))
                                     ((Evar _b (tarray tlong 16)) ::
                                      (Evar _b (tarray tlong 16)) ::
                                      (Evar _d (tarray tlong 16)) :: nil))
                                   (Ssequence
                                     (Scall None
                                       (Evar _S (Tfunction
-                                                 (Tcons (tptr tlong)
-                                                   (Tcons (tptr tlong) Tnil))
-                                                 tvoid cc_default))
+                                                 ((tptr tlong) ::
+                                                  (tptr tlong) :: nil) tvoid
+                                                 cc_default))
                                       ((Evar _d (tarray tlong 16)) ::
                                        (Evar _e (tarray tlong 16)) :: nil))
                                     (Ssequence
                                       (Scall None
                                         (Evar _S (Tfunction
-                                                   (Tcons (tptr tlong)
-                                                     (Tcons (tptr tlong)
-                                                       Tnil)) tvoid
-                                                   cc_default))
+                                                   ((tptr tlong) ::
+                                                    (tptr tlong) :: nil)
+                                                   tvoid cc_default))
                                         ((Evar _f (tarray tlong 16)) ::
                                          (Evar _a (tarray tlong 16)) :: nil))
                                       (Ssequence
                                         (Scall None
                                           (Evar _M (Tfunction
-                                                     (Tcons (tptr tlong)
-                                                       (Tcons (tptr tlong)
-                                                         (Tcons (tptr tlong)
-                                                           Tnil))) tvoid
-                                                     cc_default))
+                                                     ((tptr tlong) ::
+                                                      (tptr tlong) ::
+                                                      (tptr tlong) :: nil)
+                                                     tvoid cc_default))
                                           ((Evar _a (tarray tlong 16)) ::
                                            (Evar _c (tarray tlong 16)) ::
                                            (Evar _a (tarray tlong 16)) ::
@@ -3531,12 +3469,10 @@ Definition f_crypto_scalarmult_curve25519_tweet := {|
                                         (Ssequence
                                           (Scall None
                                             (Evar _M (Tfunction
-                                                       (Tcons (tptr tlong)
-                                                         (Tcons (tptr tlong)
-                                                           (Tcons
-                                                             (tptr tlong)
-                                                             Tnil))) tvoid
-                                                       cc_default))
+                                                       ((tptr tlong) ::
+                                                        (tptr tlong) ::
+                                                        (tptr tlong) :: nil)
+                                                       tvoid cc_default))
                                             ((Evar _c (tarray tlong 16)) ::
                                              (Evar _b (tarray tlong 16)) ::
                                              (Evar _e (tarray tlong 16)) ::
@@ -3544,12 +3480,10 @@ Definition f_crypto_scalarmult_curve25519_tweet := {|
                                           (Ssequence
                                             (Scall None
                                               (Evar _A (Tfunction
-                                                         (Tcons (tptr tlong)
-                                                           (Tcons
-                                                             (tptr tlong)
-                                                             (Tcons
-                                                               (tptr tlong)
-                                                               Tnil))) tvoid
+                                                         ((tptr tlong) ::
+                                                          (tptr tlong) ::
+                                                          (tptr tlong) ::
+                                                          nil) tvoid
                                                          cc_default))
                                               ((Evar _e (tarray tlong 16)) ::
                                                (Evar _a (tarray tlong 16)) ::
@@ -3558,14 +3492,11 @@ Definition f_crypto_scalarmult_curve25519_tweet := {|
                                             (Ssequence
                                               (Scall None
                                                 (Evar _Z (Tfunction
-                                                           (Tcons
-                                                             (tptr tlong)
-                                                             (Tcons
-                                                               (tptr tlong)
-                                                               (Tcons
-                                                                 (tptr tlong)
-                                                                 Tnil)))
-                                                           tvoid cc_default))
+                                                           ((tptr tlong) ::
+                                                            (tptr tlong) ::
+                                                            (tptr tlong) ::
+                                                            nil) tvoid
+                                                           cc_default))
                                                 ((Evar _a (tarray tlong 16)) ::
                                                  (Evar _a (tarray tlong 16)) ::
                                                  (Evar _c (tarray tlong 16)) ::
@@ -3573,11 +3504,9 @@ Definition f_crypto_scalarmult_curve25519_tweet := {|
                                               (Ssequence
                                                 (Scall None
                                                   (Evar _S (Tfunction
-                                                             (Tcons
-                                                               (tptr tlong)
-                                                               (Tcons
-                                                                 (tptr tlong)
-                                                                 Tnil)) tvoid
+                                                             ((tptr tlong) ::
+                                                              (tptr tlong) ::
+                                                              nil) tvoid
                                                              cc_default))
                                                   ((Evar _b (tarray tlong 16)) ::
                                                    (Evar _a (tarray tlong 16)) ::
@@ -3585,14 +3514,10 @@ Definition f_crypto_scalarmult_curve25519_tweet := {|
                                                 (Ssequence
                                                   (Scall None
                                                     (Evar _Z (Tfunction
-                                                               (Tcons
-                                                                 (tptr tlong)
-                                                                 (Tcons
-                                                                   (tptr tlong)
-                                                                   (Tcons
-                                                                    (tptr tlong)
-                                                                    Tnil)))
-                                                               tvoid
+                                                               ((tptr tlong) ::
+                                                                (tptr tlong) ::
+                                                                (tptr tlong) ::
+                                                                nil) tvoid
                                                                cc_default))
                                                     ((Evar _c (tarray tlong 16)) ::
                                                      (Evar _d (tarray tlong 16)) ::
@@ -3601,14 +3526,10 @@ Definition f_crypto_scalarmult_curve25519_tweet := {|
                                                   (Ssequence
                                                     (Scall None
                                                       (Evar _M (Tfunction
-                                                                 (Tcons
-                                                                   (tptr tlong)
-                                                                   (Tcons
-                                                                    (tptr tlong)
-                                                                    (Tcons
-                                                                    (tptr tlong)
-                                                                    Tnil)))
-                                                                 tvoid
+                                                                 ((tptr tlong) ::
+                                                                  (tptr tlong) ::
+                                                                  (tptr tlong) ::
+                                                                  nil) tvoid
                                                                  cc_default))
                                                       ((Evar _a (tarray tlong 16)) ::
                                                        (Evar _c (tarray tlong 16)) ::
@@ -3617,13 +3538,10 @@ Definition f_crypto_scalarmult_curve25519_tweet := {|
                                                     (Ssequence
                                                       (Scall None
                                                         (Evar _A (Tfunction
-                                                                   (Tcons
-                                                                    (tptr tlong)
-                                                                    (Tcons
-                                                                    (tptr tlong)
-                                                                    (Tcons
-                                                                    (tptr tlong)
-                                                                    Tnil)))
+                                                                   ((tptr tlong) ::
+                                                                    (tptr tlong) ::
+                                                                    (tptr tlong) ::
+                                                                    nil)
                                                                    tvoid
                                                                    cc_default))
                                                         ((Evar _a (tarray tlong 16)) ::
@@ -3633,13 +3551,10 @@ Definition f_crypto_scalarmult_curve25519_tweet := {|
                                                       (Ssequence
                                                         (Scall None
                                                           (Evar _M (Tfunction
-                                                                    (Tcons
-                                                                    (tptr tlong)
-                                                                    (Tcons
-                                                                    (tptr tlong)
-                                                                    (Tcons
-                                                                    (tptr tlong)
-                                                                    Tnil)))
+                                                                    ((tptr tlong) ::
+                                                                    (tptr tlong) ::
+                                                                    (tptr tlong) ::
+                                                                    nil)
                                                                     tvoid
                                                                     cc_default))
                                                           ((Evar _c (tarray tlong 16)) ::
@@ -3650,14 +3565,10 @@ Definition f_crypto_scalarmult_curve25519_tweet := {|
                                                           (Scall None
                                                             (Evar _M 
                                                             (Tfunction
-                                                              (Tcons
-                                                                (tptr tlong)
-                                                                (Tcons
-                                                                  (tptr tlong)
-                                                                  (Tcons
-                                                                    (tptr tlong)
-                                                                    Tnil)))
-                                                              tvoid
+                                                              ((tptr tlong) ::
+                                                               (tptr tlong) ::
+                                                               (tptr tlong) ::
+                                                               nil) tvoid
                                                               cc_default))
                                                             ((Evar _a (tarray tlong 16)) ::
                                                              (Evar _d (tarray tlong 16)) ::
@@ -3667,14 +3578,10 @@ Definition f_crypto_scalarmult_curve25519_tweet := {|
                                                             (Scall None
                                                               (Evar _M 
                                                               (Tfunction
-                                                                (Tcons
-                                                                  (tptr tlong)
-                                                                  (Tcons
-                                                                    (tptr tlong)
-                                                                    (Tcons
-                                                                    (tptr tlong)
-                                                                    Tnil)))
-                                                                tvoid
+                                                                ((tptr tlong) ::
+                                                                 (tptr tlong) ::
+                                                                 (tptr tlong) ::
+                                                                 nil) tvoid
                                                                 cc_default))
                                                               ((Evar _d (tarray tlong 16)) ::
                                                                (Evar _b (tarray tlong 16)) ::
@@ -3684,12 +3591,9 @@ Definition f_crypto_scalarmult_curve25519_tweet := {|
                                                               (Scall None
                                                                 (Evar _S 
                                                                 (Tfunction
-                                                                  (Tcons
-                                                                    (tptr tlong)
-                                                                    (Tcons
-                                                                    (tptr tlong)
-                                                                    Tnil))
-                                                                  tvoid
+                                                                  ((tptr tlong) ::
+                                                                   (tptr tlong) ::
+                                                                   nil) tvoid
                                                                   cc_default))
                                                                 ((Evar _b (tarray tlong 16)) ::
                                                                  (Evar _e (tarray tlong 16)) ::
@@ -3698,13 +3602,10 @@ Definition f_crypto_scalarmult_curve25519_tweet := {|
                                                                 (Scall None
                                                                   (Evar _sel25519 
                                                                   (Tfunction
-                                                                    (Tcons
-                                                                    (tptr tlong)
-                                                                    (Tcons
-                                                                    (tptr tlong)
-                                                                    (Tcons
-                                                                    tint
-                                                                    Tnil)))
+                                                                    ((tptr tlong) ::
+                                                                    (tptr tlong) ::
+                                                                    tint ::
+                                                                    nil)
                                                                     tvoid
                                                                     cc_default))
                                                                   ((Evar _a (tarray tlong 16)) ::
@@ -3714,13 +3615,10 @@ Definition f_crypto_scalarmult_curve25519_tweet := {|
                                                                 (Scall None
                                                                   (Evar _sel25519 
                                                                   (Tfunction
-                                                                    (Tcons
-                                                                    (tptr tlong)
-                                                                    (Tcons
-                                                                    (tptr tlong)
-                                                                    (Tcons
-                                                                    tint
-                                                                    Tnil)))
+                                                                    ((tptr tlong) ::
+                                                                    (tptr tlong) ::
+                                                                    tint ::
+                                                                    nil)
                                                                     tvoid
                                                                     cc_default))
                                                                   ((Evar _c (tarray tlong 16)) ::
@@ -3794,9 +3692,8 @@ Definition f_crypto_scalarmult_curve25519_tweet := {|
                 (Ssequence
                   (Scall None
                     (Evar _inv25519 (Tfunction
-                                      (Tcons (tptr tlong)
-                                        (Tcons (tptr tlong) Tnil)) tvoid
-                                      cc_default))
+                                      ((tptr tlong) :: (tptr tlong) :: nil)
+                                      tvoid cc_default))
                     ((Ebinop Oadd (Evar _x (tarray tlong 80))
                        (Econst_int (Int.repr 32) tint) (tptr tlong)) ::
                      (Ebinop Oadd (Evar _x (tarray tlong 80))
@@ -3804,10 +3701,8 @@ Definition f_crypto_scalarmult_curve25519_tweet := {|
                   (Ssequence
                     (Scall None
                       (Evar _M (Tfunction
-                                 (Tcons (tptr tlong)
-                                   (Tcons (tptr tlong)
-                                     (Tcons (tptr tlong) Tnil))) tvoid
-                                 cc_default))
+                                 ((tptr tlong) :: (tptr tlong) ::
+                                  (tptr tlong) :: nil) tvoid cc_default))
                       ((Ebinop Oadd (Evar _x (tarray tlong 80))
                          (Econst_int (Int.repr 16) tint) (tptr tlong)) ::
                        (Ebinop Oadd (Evar _x (tarray tlong 80))
@@ -3818,9 +3713,8 @@ Definition f_crypto_scalarmult_curve25519_tweet := {|
                     (Ssequence
                       (Scall None
                         (Evar _pack25519 (Tfunction
-                                           (Tcons (tptr tuchar)
-                                             (Tcons (tptr tlong) Tnil)) tvoid
-                                           cc_default))
+                                           ((tptr tuchar) :: (tptr tlong) ::
+                                            nil) tvoid cc_default))
                         ((Etempvar _q (tptr tuchar)) ::
                          (Ebinop Oadd (Evar _x (tarray tlong 80))
                            (Econst_int (Int.repr 16) tint) (tptr tlong)) ::
@@ -3838,10 +3732,9 @@ Definition f_crypto_scalarmult_curve25519_tweet_base := {|
 (Ssequence
   (Scall (Some _t'1)
     (Evar _crypto_scalarmult_curve25519_tweet (Tfunction
-                                                (Tcons (tptr tuchar)
-                                                  (Tcons (tptr tuchar)
-                                                    (Tcons (tptr tuchar)
-                                                      Tnil))) tint
+                                                ((tptr tuchar) ::
+                                                 (tptr tuchar) ::
+                                                 (tptr tuchar) :: nil) tint
                                                 cc_default))
     ((Etempvar _q (tptr tuchar)) :: (Etempvar _n (tptr tuchar)) ::
      (Evar __9 (tarray tuchar 32)) :: nil))
@@ -3857,16 +3750,15 @@ Definition f_crypto_box_curve25519xsalsa20poly1305_tweet_keypair := {|
   fn_body :=
 (Ssequence
   (Scall None
-    (Evar _randombytes (Tfunction (Tcons (tptr tuchar) (Tcons tulong Tnil))
-                         tvoid cc_default))
+    (Evar _randombytes (Tfunction ((tptr tuchar) :: tulong :: nil) tvoid
+                         cc_default))
     ((Etempvar _x (tptr tuchar)) :: (Econst_int (Int.repr 32) tint) :: nil))
   (Ssequence
     (Scall (Some _t'1)
       (Evar _crypto_scalarmult_curve25519_tweet_base (Tfunction
-                                                       (Tcons (tptr tuchar)
-                                                         (Tcons (tptr tuchar)
-                                                           Tnil)) tint
-                                                       cc_default))
+                                                       ((tptr tuchar) ::
+                                                        (tptr tuchar) :: nil)
+                                                       tint cc_default))
       ((Etempvar _y (tptr tuchar)) :: (Etempvar _x (tptr tuchar)) :: nil))
     (Sreturn (Some (Etempvar _t'1 tint)))))
 |}.
@@ -3882,21 +3774,18 @@ Definition f_crypto_box_curve25519xsalsa20poly1305_tweet_beforenm := {|
 (Ssequence
   (Scall None
     (Evar _crypto_scalarmult_curve25519_tweet (Tfunction
-                                                (Tcons (tptr tuchar)
-                                                  (Tcons (tptr tuchar)
-                                                    (Tcons (tptr tuchar)
-                                                      Tnil))) tint
+                                                ((tptr tuchar) ::
+                                                 (tptr tuchar) ::
+                                                 (tptr tuchar) :: nil) tint
                                                 cc_default))
     ((Evar _s (tarray tuchar 32)) :: (Etempvar _x (tptr tuchar)) ::
      (Etempvar _y (tptr tuchar)) :: nil))
   (Ssequence
     (Scall (Some _t'1)
       (Evar _crypto_core_hsalsa20_tweet (Tfunction
-                                          (Tcons (tptr tuchar)
-                                            (Tcons (tptr tuchar)
-                                              (Tcons (tptr tuchar)
-                                                (Tcons (tptr tuchar) Tnil))))
-                                          tint cc_default))
+                                          ((tptr tuchar) :: (tptr tuchar) ::
+                                           (tptr tuchar) :: (tptr tuchar) ::
+                                           nil) tint cc_default))
       ((Etempvar _k (tptr tuchar)) :: (Evar __0 (tarray tuchar 16)) ::
        (Evar _s (tarray tuchar 32)) :: (Evar _sigma (tarray tuchar 16)) ::
        nil))
@@ -3914,15 +3803,12 @@ Definition f_crypto_box_curve25519xsalsa20poly1305_tweet_afternm := {|
 (Ssequence
   (Scall (Some _t'1)
     (Evar _crypto_secretbox_xsalsa20poly1305_tweet (Tfunction
-                                                     (Tcons (tptr tuchar)
-                                                       (Tcons (tptr tuchar)
-                                                         (Tcons tulong
-                                                           (Tcons
-                                                             (tptr tuchar)
-                                                             (Tcons
-                                                               (tptr tuchar)
-                                                               Tnil))))) tint
-                                                     cc_default))
+                                                     ((tptr tuchar) ::
+                                                      (tptr tuchar) ::
+                                                      tulong ::
+                                                      (tptr tuchar) ::
+                                                      (tptr tuchar) :: nil)
+                                                     tint cc_default))
     ((Etempvar _c (tptr tuchar)) :: (Etempvar _m (tptr tuchar)) ::
      (Etempvar _d tulong) :: (Etempvar _n (tptr tuchar)) ::
      (Etempvar _k (tptr tuchar)) :: nil))
@@ -3940,17 +3826,13 @@ Definition f_crypto_box_curve25519xsalsa20poly1305_tweet_open_afternm := {|
 (Ssequence
   (Scall (Some _t'1)
     (Evar _crypto_secretbox_xsalsa20poly1305_tweet_open (Tfunction
-                                                          (Tcons
-                                                            (tptr tuchar)
-                                                            (Tcons
-                                                              (tptr tuchar)
-                                                              (Tcons tulong
-                                                                (Tcons
-                                                                  (tptr tuchar)
-                                                                  (Tcons
-                                                                    (tptr tuchar)
-                                                                    Tnil)))))
-                                                          tint cc_default))
+                                                          ((tptr tuchar) ::
+                                                           (tptr tuchar) ::
+                                                           tulong ::
+                                                           (tptr tuchar) ::
+                                                           (tptr tuchar) ::
+                                                           nil) tint
+                                                          cc_default))
     ((Etempvar _m (tptr tuchar)) :: (Etempvar _c (tptr tuchar)) ::
      (Etempvar _d tulong) :: (Etempvar _n (tptr tuchar)) ::
      (Etempvar _k (tptr tuchar)) :: nil))
@@ -3969,32 +3851,22 @@ Definition f_crypto_box_curve25519xsalsa20poly1305_tweet := {|
 (Ssequence
   (Scall None
     (Evar _crypto_box_curve25519xsalsa20poly1305_tweet_beforenm (Tfunction
-                                                                  (Tcons
-                                                                    (tptr tuchar)
-                                                                    (Tcons
-                                                                    (tptr tuchar)
-                                                                    (Tcons
-                                                                    (tptr tuchar)
-                                                                    Tnil)))
-                                                                  tint
+                                                                  ((tptr tuchar) ::
+                                                                   (tptr tuchar) ::
+                                                                   (tptr tuchar) ::
+                                                                   nil) tint
                                                                   cc_default))
     ((Evar _k (tarray tuchar 32)) :: (Etempvar _y (tptr tuchar)) ::
      (Etempvar _x (tptr tuchar)) :: nil))
   (Ssequence
     (Scall (Some _t'1)
       (Evar _crypto_box_curve25519xsalsa20poly1305_tweet_afternm (Tfunction
-                                                                   (Tcons
-                                                                    (tptr tuchar)
-                                                                    (Tcons
-                                                                    (tptr tuchar)
-                                                                    (Tcons
-                                                                    tulong
-                                                                    (Tcons
-                                                                    (tptr tuchar)
-                                                                    (Tcons
-                                                                    (tptr tuchar)
-                                                                    Tnil)))))
-                                                                   tint
+                                                                   ((tptr tuchar) ::
+                                                                    (tptr tuchar) ::
+                                                                    tulong ::
+                                                                    (tptr tuchar) ::
+                                                                    (tptr tuchar) ::
+                                                                    nil) tint
                                                                    cc_default))
       ((Etempvar _c (tptr tuchar)) :: (Etempvar _m (tptr tuchar)) ::
        (Etempvar _d tulong) :: (Etempvar _n (tptr tuchar)) ::
@@ -4014,14 +3886,10 @@ Definition f_crypto_box_curve25519xsalsa20poly1305_tweet_open := {|
 (Ssequence
   (Scall None
     (Evar _crypto_box_curve25519xsalsa20poly1305_tweet_beforenm (Tfunction
-                                                                  (Tcons
-                                                                    (tptr tuchar)
-                                                                    (Tcons
-                                                                    (tptr tuchar)
-                                                                    (Tcons
-                                                                    (tptr tuchar)
-                                                                    Tnil)))
-                                                                  tint
+                                                                  ((tptr tuchar) ::
+                                                                   (tptr tuchar) ::
+                                                                   (tptr tuchar) ::
+                                                                   nil) tint
                                                                   cc_default))
     ((Evar _k (tarray tuchar 32)) :: (Etempvar _y (tptr tuchar)) ::
      (Etempvar _x (tptr tuchar)) :: nil))
@@ -4029,10 +3897,8 @@ Definition f_crypto_box_curve25519xsalsa20poly1305_tweet_open := {|
     (Scall (Some _t'1)
       (Evar _crypto_box_curve25519xsalsa20poly1305_tweet_open_afternm 
       (Tfunction
-        (Tcons (tptr tuchar)
-          (Tcons (tptr tuchar)
-            (Tcons tulong (Tcons (tptr tuchar) (Tcons (tptr tuchar) Tnil)))))
-        tint cc_default))
+        ((tptr tuchar) :: (tptr tuchar) :: tulong :: (tptr tuchar) ::
+         (tptr tuchar) :: nil) tint cc_default))
       ((Etempvar _m (tptr tuchar)) :: (Etempvar _c (tptr tuchar)) ::
        (Etempvar _d tulong) :: (Etempvar _n (tptr tuchar)) ::
        (Evar _k (tarray tuchar 32)) :: nil))
@@ -4095,15 +3961,13 @@ Definition f_Sigma0 := {|
   (Ssequence
     (Ssequence
       (Scall (Some _t'1)
-        (Evar _R (Tfunction (Tcons tulong (Tcons tint Tnil)) tulong
-                   cc_default))
+        (Evar _R (Tfunction (tulong :: tint :: nil) tulong cc_default))
         ((Etempvar _x tulong) :: (Econst_int (Int.repr 28) tint) :: nil))
       (Scall (Some _t'2)
-        (Evar _R (Tfunction (Tcons tulong (Tcons tint Tnil)) tulong
-                   cc_default))
+        (Evar _R (Tfunction (tulong :: tint :: nil) tulong cc_default))
         ((Etempvar _x tulong) :: (Econst_int (Int.repr 34) tint) :: nil)))
     (Scall (Some _t'3)
-      (Evar _R (Tfunction (Tcons tulong (Tcons tint Tnil)) tulong cc_default))
+      (Evar _R (Tfunction (tulong :: tint :: nil) tulong cc_default))
       ((Etempvar _x tulong) :: (Econst_int (Int.repr 39) tint) :: nil)))
   (Sreturn (Some (Ebinop Oxor
                    (Ebinop Oxor (Etempvar _t'1 tulong) (Etempvar _t'2 tulong)
@@ -4121,15 +3985,13 @@ Definition f_Sigma1 := {|
   (Ssequence
     (Ssequence
       (Scall (Some _t'1)
-        (Evar _R (Tfunction (Tcons tulong (Tcons tint Tnil)) tulong
-                   cc_default))
+        (Evar _R (Tfunction (tulong :: tint :: nil) tulong cc_default))
         ((Etempvar _x tulong) :: (Econst_int (Int.repr 14) tint) :: nil))
       (Scall (Some _t'2)
-        (Evar _R (Tfunction (Tcons tulong (Tcons tint Tnil)) tulong
-                   cc_default))
+        (Evar _R (Tfunction (tulong :: tint :: nil) tulong cc_default))
         ((Etempvar _x tulong) :: (Econst_int (Int.repr 18) tint) :: nil)))
     (Scall (Some _t'3)
-      (Evar _R (Tfunction (Tcons tulong (Tcons tint Tnil)) tulong cc_default))
+      (Evar _R (Tfunction (tulong :: tint :: nil) tulong cc_default))
       ((Etempvar _x tulong) :: (Econst_int (Int.repr 41) tint) :: nil)))
   (Sreturn (Some (Ebinop Oxor
                    (Ebinop Oxor (Etempvar _t'1 tulong) (Etempvar _t'2 tulong)
@@ -4146,10 +4008,10 @@ Definition f_sigma0 := {|
 (Ssequence
   (Ssequence
     (Scall (Some _t'1)
-      (Evar _R (Tfunction (Tcons tulong (Tcons tint Tnil)) tulong cc_default))
+      (Evar _R (Tfunction (tulong :: tint :: nil) tulong cc_default))
       ((Etempvar _x tulong) :: (Econst_int (Int.repr 1) tint) :: nil))
     (Scall (Some _t'2)
-      (Evar _R (Tfunction (Tcons tulong (Tcons tint Tnil)) tulong cc_default))
+      (Evar _R (Tfunction (tulong :: tint :: nil) tulong cc_default))
       ((Etempvar _x tulong) :: (Econst_int (Int.repr 8) tint) :: nil)))
   (Sreturn (Some (Ebinop Oxor
                    (Ebinop Oxor (Etempvar _t'1 tulong) (Etempvar _t'2 tulong)
@@ -4168,10 +4030,10 @@ Definition f_sigma1 := {|
 (Ssequence
   (Ssequence
     (Scall (Some _t'1)
-      (Evar _R (Tfunction (Tcons tulong (Tcons tint Tnil)) tulong cc_default))
+      (Evar _R (Tfunction (tulong :: tint :: nil) tulong cc_default))
       ((Etempvar _x tulong) :: (Econst_int (Int.repr 19) tint) :: nil))
     (Scall (Some _t'2)
-      (Evar _R (Tfunction (Tcons tulong (Tcons tint Tnil)) tulong cc_default))
+      (Evar _R (Tfunction (tulong :: tint :: nil) tulong cc_default))
       ((Etempvar _x tulong) :: (Econst_int (Int.repr 61) tint) :: nil)))
   (Sreturn (Some (Ebinop Oxor
                    (Ebinop Oxor (Etempvar _t'1 tulong) (Etempvar _t'2 tulong)
@@ -4298,7 +4160,7 @@ Definition f_crypto_hashblocks_sha512_tweet := {|
           (Ssequence
             (Ssequence
               (Scall (Some _t'1)
-                (Evar _dl64 (Tfunction (Tcons (tptr tuchar) Tnil) tulong
+                (Evar _dl64 (Tfunction ((tptr tuchar) :: nil) tulong
                               cc_default))
                 ((Ebinop Oadd (Etempvar _x (tptr tuchar))
                    (Ebinop Omul (Econst_int (Int.repr 8) tint)
@@ -4328,7 +4190,7 @@ Definition f_crypto_hashblocks_sha512_tweet := {|
                 Sbreak)
               (Ssequence
                 (Scall (Some _t'3)
-                  (Evar _dl64 (Tfunction (Tcons (tptr tuchar) Tnil) tulong
+                  (Evar _dl64 (Tfunction ((tptr tuchar) :: nil) tulong
                                 cc_default))
                   ((Ebinop Oadd (Etempvar _m (tptr tuchar))
                      (Ebinop Omul (Econst_int (Int.repr 8) tint)
@@ -4382,8 +4244,8 @@ Definition f_crypto_hashblocks_sha512_tweet := {|
                                 (Econst_int (Int.repr 4) tint) (tptr tulong))
                               tulong))
                           (Scall (Some _t'4)
-                            (Evar _Sigma1 (Tfunction (Tcons tulong Tnil)
-                                            tulong cc_default))
+                            (Evar _Sigma1 (Tfunction (tulong :: nil) tulong
+                                            cc_default))
                             ((Etempvar _t'30 tulong) :: nil)))
                         (Ssequence
                           (Sset _t'27
@@ -4405,10 +4267,8 @@ Definition f_crypto_hashblocks_sha512_tweet := {|
                                     (tptr tulong)) tulong))
                               (Scall (Some _t'5)
                                 (Evar _Ch (Tfunction
-                                            (Tcons tulong
-                                              (Tcons tulong
-                                                (Tcons tulong Tnil))) tulong
-                                            cc_default))
+                                            (tulong :: tulong :: tulong ::
+                                             nil) tulong cc_default))
                                 ((Etempvar _t'27 tulong) ::
                                  (Etempvar _t'28 tulong) ::
                                  (Etempvar _t'29 tulong) :: nil))))))
@@ -4449,8 +4309,8 @@ Definition f_crypto_hashblocks_sha512_tweet := {|
                                   (Econst_int (Int.repr 0) tint)
                                   (tptr tulong)) tulong))
                             (Scall (Some _t'6)
-                              (Evar _Sigma0 (Tfunction (Tcons tulong Tnil)
-                                              tulong cc_default))
+                              (Evar _Sigma0 (Tfunction (tulong :: nil) tulong
+                                              cc_default))
                               ((Etempvar _t'23 tulong) :: nil)))
                           (Ssequence
                             (Sset _t'20
@@ -4472,10 +4332,8 @@ Definition f_crypto_hashblocks_sha512_tweet := {|
                                       (tptr tulong)) tulong))
                                 (Scall (Some _t'7)
                                   (Evar _Maj (Tfunction
-                                               (Tcons tulong
-                                                 (Tcons tulong
-                                                   (Tcons tulong Tnil)))
-                                               tulong cc_default))
+                                               (tulong :: tulong :: tulong ::
+                                                nil) tulong cc_default))
                                   ((Etempvar _t'20 tulong) ::
                                    (Etempvar _t'21 tulong) ::
                                    (Etempvar _t'22 tulong) :: nil))))))
@@ -4564,7 +4422,7 @@ Definition f_crypto_hashblocks_sha512_tweet := {|
                                                 tint) (tptr tulong)) tulong))
                                         (Scall (Some _t'8)
                                           (Evar _sigma0 (Tfunction
-                                                          (Tcons tulong Tnil)
+                                                          (tulong :: nil)
                                                           tulong cc_default))
                                           ((Etempvar _t'17 tulong) :: nil)))
                                       (Ssequence
@@ -4581,7 +4439,7 @@ Definition f_crypto_hashblocks_sha512_tweet := {|
                                                 tint) (tptr tulong)) tulong))
                                         (Scall (Some _t'9)
                                           (Evar _sigma1 (Tfunction
-                                                          (Tcons tulong Tnil)
+                                                          (tulong :: nil)
                                                           tulong cc_default))
                                           ((Etempvar _t'16 tulong) :: nil))))
                                     (Ssequence
@@ -4686,8 +4544,7 @@ Definition f_crypto_hashblocks_sha512_tweet := {|
                   (Ebinop Oadd (Evar _z (tarray tulong 8)) (Etempvar _i tint)
                     (tptr tulong)) tulong))
               (Scall None
-                (Evar _ts64 (Tfunction
-                              (Tcons (tptr tuchar) (Tcons tulong Tnil)) tvoid
+                (Evar _ts64 (Tfunction ((tptr tuchar) :: tulong :: nil) tvoid
                               cc_default))
                 ((Ebinop Oadd (Etempvar _x (tptr tuchar))
                    (Ebinop Omul (Econst_int (Int.repr 8) tint)
@@ -4773,10 +4630,9 @@ Definition f_crypto_hash_sha512_tweet := {|
     (Ssequence
       (Scall None
         (Evar _crypto_hashblocks_sha512_tweet (Tfunction
-                                                (Tcons (tptr tuchar)
-                                                  (Tcons (tptr tuchar)
-                                                    (Tcons tulong Tnil)))
-                                                tint cc_default))
+                                                ((tptr tuchar) ::
+                                                 (tptr tuchar) :: tulong ::
+                                                 nil) tint cc_default))
         ((Evar _h (tarray tuchar 64)) :: (Etempvar _m (tptr tuchar)) ::
          (Etempvar _n tulong) :: nil))
       (Ssequence
@@ -4856,9 +4712,8 @@ Definition f_crypto_hash_sha512_tweet := {|
                       (Ssequence
                         (Scall None
                           (Evar _ts64 (Tfunction
-                                        (Tcons (tptr tuchar)
-                                          (Tcons tulong Tnil)) tvoid
-                                        cc_default))
+                                        ((tptr tuchar) :: tulong :: nil)
+                                        tvoid cc_default))
                           ((Ebinop Osub
                              (Ebinop Oadd (Evar _x (tarray tuchar 256))
                                (Etempvar _n tulong) (tptr tuchar))
@@ -4868,14 +4723,10 @@ Definition f_crypto_hash_sha512_tweet := {|
                         (Ssequence
                           (Scall None
                             (Evar _crypto_hashblocks_sha512_tweet (Tfunction
-                                                                    (Tcons
-                                                                    (tptr tuchar)
-                                                                    (Tcons
-                                                                    (tptr tuchar)
-                                                                    (Tcons
-                                                                    tulong
-                                                                    Tnil)))
-                                                                    tint
+                                                                    ((tptr tuchar) ::
+                                                                    (tptr tuchar) ::
+                                                                    tulong ::
+                                                                    nil) tint
                                                                     cc_default))
                             ((Evar _h (tarray tuchar 64)) ::
                              (Evar _x (tarray tuchar 256)) ::
@@ -4925,10 +4776,8 @@ Definition f_add := {|
   fn_body :=
 (Ssequence
   (Scall None
-    (Evar _Z (Tfunction
-               (Tcons (tptr tlong)
-                 (Tcons (tptr tlong) (Tcons (tptr tlong) Tnil))) tvoid
-               cc_default))
+    (Evar _Z (Tfunction ((tptr tlong) :: (tptr tlong) :: (tptr tlong) :: nil)
+               tvoid cc_default))
     ((Evar _a (tarray tlong 16)) ::
      (Ederef
        (Ebinop Oadd (Etempvar _p (tptr (tarray tlong 16)))
@@ -4941,8 +4790,7 @@ Definition f_add := {|
   (Ssequence
     (Scall None
       (Evar _Z (Tfunction
-                 (Tcons (tptr tlong)
-                   (Tcons (tptr tlong) (Tcons (tptr tlong) Tnil))) tvoid
+                 ((tptr tlong) :: (tptr tlong) :: (tptr tlong) :: nil) tvoid
                  cc_default))
       ((Evar _t (tarray tlong 16)) ::
        (Ederef
@@ -4956,17 +4804,15 @@ Definition f_add := {|
     (Ssequence
       (Scall None
         (Evar _M (Tfunction
-                   (Tcons (tptr tlong)
-                     (Tcons (tptr tlong) (Tcons (tptr tlong) Tnil))) tvoid
-                   cc_default))
+                   ((tptr tlong) :: (tptr tlong) :: (tptr tlong) :: nil)
+                   tvoid cc_default))
         ((Evar _a (tarray tlong 16)) :: (Evar _a (tarray tlong 16)) ::
          (Evar _t (tarray tlong 16)) :: nil))
       (Ssequence
         (Scall None
           (Evar _A (Tfunction
-                     (Tcons (tptr tlong)
-                       (Tcons (tptr tlong) (Tcons (tptr tlong) Tnil))) tvoid
-                     cc_default))
+                     ((tptr tlong) :: (tptr tlong) :: (tptr tlong) :: nil)
+                     tvoid cc_default))
           ((Evar _b (tarray tlong 16)) ::
            (Ederef
              (Ebinop Oadd (Etempvar _p (tptr (tarray tlong 16)))
@@ -4979,8 +4825,7 @@ Definition f_add := {|
         (Ssequence
           (Scall None
             (Evar _A (Tfunction
-                       (Tcons (tptr tlong)
-                         (Tcons (tptr tlong) (Tcons (tptr tlong) Tnil)))
+                       ((tptr tlong) :: (tptr tlong) :: (tptr tlong) :: nil)
                        tvoid cc_default))
             ((Evar _t (tarray tlong 16)) ::
              (Ederef
@@ -4994,17 +4839,15 @@ Definition f_add := {|
           (Ssequence
             (Scall None
               (Evar _M (Tfunction
-                         (Tcons (tptr tlong)
-                           (Tcons (tptr tlong) (Tcons (tptr tlong) Tnil)))
-                         tvoid cc_default))
+                         ((tptr tlong) :: (tptr tlong) :: (tptr tlong) ::
+                          nil) tvoid cc_default))
               ((Evar _b (tarray tlong 16)) :: (Evar _b (tarray tlong 16)) ::
                (Evar _t (tarray tlong 16)) :: nil))
             (Ssequence
               (Scall None
                 (Evar _M (Tfunction
-                           (Tcons (tptr tlong)
-                             (Tcons (tptr tlong) (Tcons (tptr tlong) Tnil)))
-                           tvoid cc_default))
+                           ((tptr tlong) :: (tptr tlong) :: (tptr tlong) ::
+                            nil) tvoid cc_default))
                 ((Evar _c (tarray tlong 16)) ::
                  (Ederef
                    (Ebinop Oadd (Etempvar _p (tptr (tarray tlong 16)))
@@ -5017,19 +4860,16 @@ Definition f_add := {|
               (Ssequence
                 (Scall None
                   (Evar _M (Tfunction
-                             (Tcons (tptr tlong)
-                               (Tcons (tptr tlong) (Tcons (tptr tlong) Tnil)))
-                             tvoid cc_default))
+                             ((tptr tlong) :: (tptr tlong) :: (tptr tlong) ::
+                              nil) tvoid cc_default))
                   ((Evar _c (tarray tlong 16)) ::
                    (Evar _c (tarray tlong 16)) ::
                    (Evar _D2 (tarray tlong 16)) :: nil))
                 (Ssequence
                   (Scall None
                     (Evar _M (Tfunction
-                               (Tcons (tptr tlong)
-                                 (Tcons (tptr tlong)
-                                   (Tcons (tptr tlong) Tnil))) tvoid
-                               cc_default))
+                               ((tptr tlong) :: (tptr tlong) ::
+                                (tptr tlong) :: nil) tvoid cc_default))
                     ((Evar _d (tarray tlong 16)) ::
                      (Ederef
                        (Ebinop Oadd (Etempvar _p (tptr (tarray tlong 16)))
@@ -5042,39 +4882,32 @@ Definition f_add := {|
                   (Ssequence
                     (Scall None
                       (Evar _A (Tfunction
-                                 (Tcons (tptr tlong)
-                                   (Tcons (tptr tlong)
-                                     (Tcons (tptr tlong) Tnil))) tvoid
-                                 cc_default))
+                                 ((tptr tlong) :: (tptr tlong) ::
+                                  (tptr tlong) :: nil) tvoid cc_default))
                       ((Evar _d (tarray tlong 16)) ::
                        (Evar _d (tarray tlong 16)) ::
                        (Evar _d (tarray tlong 16)) :: nil))
                     (Ssequence
                       (Scall None
                         (Evar _Z (Tfunction
-                                   (Tcons (tptr tlong)
-                                     (Tcons (tptr tlong)
-                                       (Tcons (tptr tlong) Tnil))) tvoid
-                                   cc_default))
+                                   ((tptr tlong) :: (tptr tlong) ::
+                                    (tptr tlong) :: nil) tvoid cc_default))
                         ((Evar _e (tarray tlong 16)) ::
                          (Evar _b (tarray tlong 16)) ::
                          (Evar _a (tarray tlong 16)) :: nil))
                       (Ssequence
                         (Scall None
                           (Evar _Z (Tfunction
-                                     (Tcons (tptr tlong)
-                                       (Tcons (tptr tlong)
-                                         (Tcons (tptr tlong) Tnil))) tvoid
-                                     cc_default))
+                                     ((tptr tlong) :: (tptr tlong) ::
+                                      (tptr tlong) :: nil) tvoid cc_default))
                           ((Evar _f (tarray tlong 16)) ::
                            (Evar _d (tarray tlong 16)) ::
                            (Evar _c (tarray tlong 16)) :: nil))
                         (Ssequence
                           (Scall None
                             (Evar _A (Tfunction
-                                       (Tcons (tptr tlong)
-                                         (Tcons (tptr tlong)
-                                           (Tcons (tptr tlong) Tnil))) tvoid
+                                       ((tptr tlong) :: (tptr tlong) ::
+                                        (tptr tlong) :: nil) tvoid
                                        cc_default))
                             ((Evar _g (tarray tlong 16)) ::
                              (Evar _d (tarray tlong 16)) ::
@@ -5082,20 +4915,18 @@ Definition f_add := {|
                           (Ssequence
                             (Scall None
                               (Evar _A (Tfunction
-                                         (Tcons (tptr tlong)
-                                           (Tcons (tptr tlong)
-                                             (Tcons (tptr tlong) Tnil)))
-                                         tvoid cc_default))
+                                         ((tptr tlong) :: (tptr tlong) ::
+                                          (tptr tlong) :: nil) tvoid
+                                         cc_default))
                               ((Evar _h (tarray tlong 16)) ::
                                (Evar _b (tarray tlong 16)) ::
                                (Evar _a (tarray tlong 16)) :: nil))
                             (Ssequence
                               (Scall None
                                 (Evar _M (Tfunction
-                                           (Tcons (tptr tlong)
-                                             (Tcons (tptr tlong)
-                                               (Tcons (tptr tlong) Tnil)))
-                                           tvoid cc_default))
+                                           ((tptr tlong) :: (tptr tlong) ::
+                                            (tptr tlong) :: nil) tvoid
+                                           cc_default))
                                 ((Ederef
                                    (Ebinop Oadd
                                      (Etempvar _p (tptr (tarray tlong 16)))
@@ -5107,10 +4938,9 @@ Definition f_add := {|
                               (Ssequence
                                 (Scall None
                                   (Evar _M (Tfunction
-                                             (Tcons (tptr tlong)
-                                               (Tcons (tptr tlong)
-                                                 (Tcons (tptr tlong) Tnil)))
-                                             tvoid cc_default))
+                                             ((tptr tlong) :: (tptr tlong) ::
+                                              (tptr tlong) :: nil) tvoid
+                                             cc_default))
                                   ((Ederef
                                      (Ebinop Oadd
                                        (Etempvar _p (tptr (tarray tlong 16)))
@@ -5122,10 +4952,10 @@ Definition f_add := {|
                                 (Ssequence
                                   (Scall None
                                     (Evar _M (Tfunction
-                                               (Tcons (tptr tlong)
-                                                 (Tcons (tptr tlong)
-                                                   (Tcons (tptr tlong) Tnil)))
-                                               tvoid cc_default))
+                                               ((tptr tlong) ::
+                                                (tptr tlong) ::
+                                                (tptr tlong) :: nil) tvoid
+                                               cc_default))
                                     ((Ederef
                                        (Ebinop Oadd
                                          (Etempvar _p (tptr (tarray tlong 16)))
@@ -5136,10 +4966,10 @@ Definition f_add := {|
                                      (Evar _f (tarray tlong 16)) :: nil))
                                   (Scall None
                                     (Evar _M (Tfunction
-                                               (Tcons (tptr tlong)
-                                                 (Tcons (tptr tlong)
-                                                   (Tcons (tptr tlong) Tnil)))
-                                               tvoid cc_default))
+                                               ((tptr tlong) ::
+                                                (tptr tlong) ::
+                                                (tptr tlong) :: nil) tvoid
+                                               cc_default))
                                     ((Ederef
                                        (Ebinop Oadd
                                          (Etempvar _p (tptr (tarray tlong 16)))
@@ -5168,8 +4998,7 @@ Definition f_cswap := {|
         Sbreak)
       (Scall None
         (Evar _sel25519 (Tfunction
-                          (Tcons (tptr tlong)
-                            (Tcons (tptr tlong) (Tcons tint Tnil))) tvoid
+                          ((tptr tlong) :: (tptr tlong) :: tint :: nil) tvoid
                           cc_default))
         ((Ederef
            (Ebinop Oadd (Etempvar _p (tptr (tarray tlong 16)))
@@ -5192,8 +5021,8 @@ Definition f_pack := {|
   fn_body :=
 (Ssequence
   (Scall None
-    (Evar _inv25519 (Tfunction (Tcons (tptr tlong) (Tcons (tptr tlong) Tnil))
-                      tvoid cc_default))
+    (Evar _inv25519 (Tfunction ((tptr tlong) :: (tptr tlong) :: nil) tvoid
+                      cc_default))
     ((Evar _zi (tarray tlong 16)) ::
      (Ederef
        (Ebinop Oadd (Etempvar _p (tptr (tarray tlong 16)))
@@ -5202,8 +5031,7 @@ Definition f_pack := {|
   (Ssequence
     (Scall None
       (Evar _M (Tfunction
-                 (Tcons (tptr tlong)
-                   (Tcons (tptr tlong) (Tcons (tptr tlong) Tnil))) tvoid
+                 ((tptr tlong) :: (tptr tlong) :: (tptr tlong) :: nil) tvoid
                  cc_default))
       ((Evar _tx (tarray tlong 16)) ::
        (Ederef
@@ -5213,9 +5041,8 @@ Definition f_pack := {|
     (Ssequence
       (Scall None
         (Evar _M (Tfunction
-                   (Tcons (tptr tlong)
-                     (Tcons (tptr tlong) (Tcons (tptr tlong) Tnil))) tvoid
-                   cc_default))
+                   ((tptr tlong) :: (tptr tlong) :: (tptr tlong) :: nil)
+                   tvoid cc_default))
         ((Evar _ty (tarray tlong 16)) ::
          (Ederef
            (Ebinop Oadd (Etempvar _p (tptr (tarray tlong 16)))
@@ -5223,14 +5050,13 @@ Definition f_pack := {|
            (tarray tlong 16)) :: (Evar _zi (tarray tlong 16)) :: nil))
       (Ssequence
         (Scall None
-          (Evar _pack25519 (Tfunction
-                             (Tcons (tptr tuchar) (Tcons (tptr tlong) Tnil))
+          (Evar _pack25519 (Tfunction ((tptr tuchar) :: (tptr tlong) :: nil)
                              tvoid cc_default))
           ((Etempvar _r (tptr tuchar)) :: (Evar _ty (tarray tlong 16)) ::
            nil))
         (Ssequence
           (Scall (Some _t'1)
-            (Evar _par25519 (Tfunction (Tcons (tptr tlong) Tnil) tuchar
+            (Evar _par25519 (Tfunction ((tptr tlong) :: nil) tuchar
                               cc_default))
             ((Evar _tx (tarray tlong 16)) :: nil))
           (Ssequence
@@ -5257,16 +5083,15 @@ Definition f_scalarmult := {|
   fn_body :=
 (Ssequence
   (Scall None
-    (Evar _set25519 (Tfunction (Tcons (tptr tlong) (Tcons (tptr tlong) Tnil))
-                      tvoid cc_default))
+    (Evar _set25519 (Tfunction ((tptr tlong) :: (tptr tlong) :: nil) tvoid
+                      cc_default))
     ((Ederef
        (Ebinop Oadd (Etempvar _p (tptr (tarray tlong 16)))
          (Econst_int (Int.repr 0) tint) (tptr (tarray tlong 16)))
        (tarray tlong 16)) :: (Evar _gf0 (tarray tlong 16)) :: nil))
   (Ssequence
     (Scall None
-      (Evar _set25519 (Tfunction
-                        (Tcons (tptr tlong) (Tcons (tptr tlong) Tnil)) tvoid
+      (Evar _set25519 (Tfunction ((tptr tlong) :: (tptr tlong) :: nil) tvoid
                         cc_default))
       ((Ederef
          (Ebinop Oadd (Etempvar _p (tptr (tarray tlong 16)))
@@ -5274,8 +5099,7 @@ Definition f_scalarmult := {|
          (tarray tlong 16)) :: (Evar _gf1 (tarray tlong 16)) :: nil))
     (Ssequence
       (Scall None
-        (Evar _set25519 (Tfunction
-                          (Tcons (tptr tlong) (Tcons (tptr tlong) Tnil))
+        (Evar _set25519 (Tfunction ((tptr tlong) :: (tptr tlong) :: nil)
                           tvoid cc_default))
         ((Ederef
            (Ebinop Oadd (Etempvar _p (tptr (tarray tlong 16)))
@@ -5283,8 +5107,7 @@ Definition f_scalarmult := {|
            (tarray tlong 16)) :: (Evar _gf1 (tarray tlong 16)) :: nil))
       (Ssequence
         (Scall None
-          (Evar _set25519 (Tfunction
-                            (Tcons (tptr tlong) (Tcons (tptr tlong) Tnil))
+          (Evar _set25519 (Tfunction ((tptr tlong) :: (tptr tlong) :: nil)
                             tvoid cc_default))
           ((Ederef
              (Ebinop Oadd (Etempvar _p (tptr (tarray tlong 16)))
@@ -5316,35 +5139,33 @@ Definition f_scalarmult := {|
                 (Ssequence
                   (Scall None
                     (Evar _cswap (Tfunction
-                                   (Tcons (tptr (tarray tlong 16))
-                                     (Tcons (tptr (tarray tlong 16))
-                                       (Tcons tuchar Tnil))) tvoid
-                                   cc_default))
+                                   ((tptr (tarray tlong 16)) ::
+                                    (tptr (tarray tlong 16)) :: tuchar ::
+                                    nil) tvoid cc_default))
                     ((Etempvar _p (tptr (tarray tlong 16))) ::
                      (Etempvar _q (tptr (tarray tlong 16))) ::
                      (Etempvar _b tuchar) :: nil))
                   (Ssequence
                     (Scall None
                       (Evar _add (Tfunction
-                                   (Tcons (tptr (tarray tlong 16))
-                                     (Tcons (tptr (tarray tlong 16)) Tnil))
-                                   tvoid cc_default))
+                                   ((tptr (tarray tlong 16)) ::
+                                    (tptr (tarray tlong 16)) :: nil) tvoid
+                                   cc_default))
                       ((Etempvar _q (tptr (tarray tlong 16))) ::
                        (Etempvar _p (tptr (tarray tlong 16))) :: nil))
                     (Ssequence
                       (Scall None
                         (Evar _add (Tfunction
-                                     (Tcons (tptr (tarray tlong 16))
-                                       (Tcons (tptr (tarray tlong 16)) Tnil))
-                                     tvoid cc_default))
+                                     ((tptr (tarray tlong 16)) ::
+                                      (tptr (tarray tlong 16)) :: nil) tvoid
+                                     cc_default))
                         ((Etempvar _p (tptr (tarray tlong 16))) ::
                          (Etempvar _p (tptr (tarray tlong 16))) :: nil))
                       (Scall None
                         (Evar _cswap (Tfunction
-                                       (Tcons (tptr (tarray tlong 16))
-                                         (Tcons (tptr (tarray tlong 16))
-                                           (Tcons tuchar Tnil))) tvoid
-                                       cc_default))
+                                       ((tptr (tarray tlong 16)) ::
+                                        (tptr (tarray tlong 16)) :: tuchar ::
+                                        nil) tvoid cc_default))
                         ((Etempvar _p (tptr (tarray tlong 16))) ::
                          (Etempvar _q (tptr (tarray tlong 16))) ::
                          (Etempvar _b tuchar) :: nil)))))))
@@ -5362,16 +5183,15 @@ Definition f_scalarbase := {|
   fn_body :=
 (Ssequence
   (Scall None
-    (Evar _set25519 (Tfunction (Tcons (tptr tlong) (Tcons (tptr tlong) Tnil))
-                      tvoid cc_default))
+    (Evar _set25519 (Tfunction ((tptr tlong) :: (tptr tlong) :: nil) tvoid
+                      cc_default))
     ((Ederef
        (Ebinop Oadd (Evar _q (tarray (tarray tlong 16) 4))
          (Econst_int (Int.repr 0) tint) (tptr (tarray tlong 16)))
        (tarray tlong 16)) :: (Evar _X (tarray tlong 16)) :: nil))
   (Ssequence
     (Scall None
-      (Evar _set25519 (Tfunction
-                        (Tcons (tptr tlong) (Tcons (tptr tlong) Tnil)) tvoid
+      (Evar _set25519 (Tfunction ((tptr tlong) :: (tptr tlong) :: nil) tvoid
                         cc_default))
       ((Ederef
          (Ebinop Oadd (Evar _q (tarray (tarray tlong 16) 4))
@@ -5379,8 +5199,7 @@ Definition f_scalarbase := {|
          (tarray tlong 16)) :: (Evar _Y (tarray tlong 16)) :: nil))
     (Ssequence
       (Scall None
-        (Evar _set25519 (Tfunction
-                          (Tcons (tptr tlong) (Tcons (tptr tlong) Tnil))
+        (Evar _set25519 (Tfunction ((tptr tlong) :: (tptr tlong) :: nil)
                           tvoid cc_default))
         ((Ederef
            (Ebinop Oadd (Evar _q (tarray (tarray tlong 16) 4))
@@ -5389,9 +5208,8 @@ Definition f_scalarbase := {|
       (Ssequence
         (Scall None
           (Evar _M (Tfunction
-                     (Tcons (tptr tlong)
-                       (Tcons (tptr tlong) (Tcons (tptr tlong) Tnil))) tvoid
-                     cc_default))
+                     ((tptr tlong) :: (tptr tlong) :: (tptr tlong) :: nil)
+                     tvoid cc_default))
           ((Ederef
              (Ebinop Oadd (Evar _q (tarray (tarray tlong 16) 4))
                (Econst_int (Int.repr 3) tint) (tptr (tarray tlong 16)))
@@ -5399,10 +5217,9 @@ Definition f_scalarbase := {|
            (Evar _Y (tarray tlong 16)) :: nil))
         (Scall None
           (Evar _scalarmult (Tfunction
-                              (Tcons (tptr (tarray tlong 16))
-                                (Tcons (tptr (tarray tlong 16))
-                                  (Tcons (tptr tuchar) Tnil))) tvoid
-                              cc_default))
+                              ((tptr (tarray tlong 16)) ::
+                               (tptr (tarray tlong 16)) :: (tptr tuchar) ::
+                               nil) tvoid cc_default))
           ((Etempvar _p (tptr (tarray tlong 16))) ::
            (Evar _q (tarray (tarray tlong 16) 4)) ::
            (Etempvar _s (tptr tuchar)) :: nil))))))
@@ -5419,16 +5236,14 @@ Definition f_crypto_sign_ed25519_tweet_keypair := {|
   fn_body :=
 (Ssequence
   (Scall None
-    (Evar _randombytes (Tfunction (Tcons (tptr tuchar) (Tcons tulong Tnil))
-                         tvoid cc_default))
+    (Evar _randombytes (Tfunction ((tptr tuchar) :: tulong :: nil) tvoid
+                         cc_default))
     ((Etempvar _sk (tptr tuchar)) :: (Econst_int (Int.repr 32) tint) :: nil))
   (Ssequence
     (Scall None
       (Evar _crypto_hash_sha512_tweet (Tfunction
-                                        (Tcons (tptr tuchar)
-                                          (Tcons (tptr tuchar)
-                                            (Tcons tulong Tnil))) tint
-                                        cc_default))
+                                        ((tptr tuchar) :: (tptr tuchar) ::
+                                         tulong :: nil) tint cc_default))
       ((Evar _d (tarray tuchar 64)) :: (Etempvar _sk (tptr tuchar)) ::
        (Econst_int (Int.repr 32) tint) :: nil))
     (Ssequence
@@ -5470,17 +5285,15 @@ Definition f_crypto_sign_ed25519_tweet_keypair := {|
           (Ssequence
             (Scall None
               (Evar _scalarbase (Tfunction
-                                  (Tcons (tptr (tarray tlong 16))
-                                    (Tcons (tptr tuchar) Tnil)) tvoid
-                                  cc_default))
+                                  ((tptr (tarray tlong 16)) ::
+                                   (tptr tuchar) :: nil) tvoid cc_default))
               ((Evar _p (tarray (tarray tlong 16) 4)) ::
                (Evar _d (tarray tuchar 64)) :: nil))
             (Ssequence
               (Scall None
                 (Evar _pack (Tfunction
-                              (Tcons (tptr tuchar)
-                                (Tcons (tptr (tarray tlong 16)) Tnil)) tvoid
-                              cc_default))
+                              ((tptr tuchar) :: (tptr (tarray tlong 16)) ::
+                               nil) tvoid cc_default))
                 ((Etempvar _pk (tptr tuchar)) ::
                  (Evar _p (tarray (tarray tlong 16) 4)) :: nil))
               (Ssequence
@@ -5825,8 +5638,8 @@ Definition f_reduce := {|
           (Ebinop Oadd (Etempvar _i tlong) (Econst_int (Int.repr 1) tint)
             tlong))))
     (Scall None
-      (Evar _modL (Tfunction (Tcons (tptr tuchar) (Tcons (tptr tlong) Tnil))
-                    tvoid cc_default))
+      (Evar _modL (Tfunction ((tptr tuchar) :: (tptr tlong) :: nil) tvoid
+                    cc_default))
       ((Etempvar _r (tptr tuchar)) :: (Evar _x (tarray tlong 64)) :: nil))))
 |}.
 
@@ -5847,10 +5660,8 @@ Definition f_crypto_sign_ed25519_tweet := {|
 (Ssequence
   (Scall None
     (Evar _crypto_hash_sha512_tweet (Tfunction
-                                      (Tcons (tptr tuchar)
-                                        (Tcons (tptr tuchar)
-                                          (Tcons tulong Tnil))) tint
-                                      cc_default))
+                                      ((tptr tuchar) :: (tptr tuchar) ::
+                                       tulong :: nil) tint cc_default))
     ((Evar _d (tarray tuchar 64)) :: (Etempvar _sk (tptr tuchar)) ::
      (Econst_int (Int.repr 32) tint) :: nil))
   (Ssequence
@@ -5944,10 +5755,10 @@ Definition f_crypto_sign_ed25519_tweet := {|
               (Ssequence
                 (Scall None
                   (Evar _crypto_hash_sha512_tweet (Tfunction
-                                                    (Tcons (tptr tuchar)
-                                                      (Tcons (tptr tuchar)
-                                                        (Tcons tulong Tnil)))
-                                                    tint cc_default))
+                                                    ((tptr tuchar) ::
+                                                     (tptr tuchar) ::
+                                                     tulong :: nil) tint
+                                                    cc_default))
                   ((Evar _r (tarray tuchar 64)) ::
                    (Ebinop Oadd (Etempvar _sm (tptr tuchar))
                      (Econst_int (Int.repr 32) tint) (tptr tuchar)) ::
@@ -5955,23 +5766,23 @@ Definition f_crypto_sign_ed25519_tweet := {|
                      (Econst_int (Int.repr 32) tint) tulong) :: nil))
                 (Ssequence
                   (Scall None
-                    (Evar _reduce (Tfunction (Tcons (tptr tuchar) Tnil) tvoid
+                    (Evar _reduce (Tfunction ((tptr tuchar) :: nil) tvoid
                                     cc_default))
                     ((Evar _r (tarray tuchar 64)) :: nil))
                   (Ssequence
                     (Scall None
                       (Evar _scalarbase (Tfunction
-                                          (Tcons (tptr (tarray tlong 16))
-                                            (Tcons (tptr tuchar) Tnil)) tvoid
+                                          ((tptr (tarray tlong 16)) ::
+                                           (tptr tuchar) :: nil) tvoid
                                           cc_default))
                       ((Evar _p (tarray (tarray tlong 16) 4)) ::
                        (Evar _r (tarray tuchar 64)) :: nil))
                     (Ssequence
                       (Scall None
                         (Evar _pack (Tfunction
-                                      (Tcons (tptr tuchar)
-                                        (Tcons (tptr (tarray tlong 16)) Tnil))
-                                      tvoid cc_default))
+                                      ((tptr tuchar) ::
+                                       (tptr (tarray tlong 16)) :: nil) tvoid
+                                      cc_default))
                         ((Etempvar _sm (tptr tuchar)) ::
                          (Evar _p (tarray (tarray tlong 16) 4)) :: nil))
                       (Ssequence
@@ -6005,13 +5816,9 @@ Definition f_crypto_sign_ed25519_tweet := {|
                         (Ssequence
                           (Scall None
                             (Evar _crypto_hash_sha512_tweet (Tfunction
-                                                              (Tcons
-                                                                (tptr tuchar)
-                                                                (Tcons
-                                                                  (tptr tuchar)
-                                                                  (Tcons
-                                                                    tulong
-                                                                    Tnil)))
+                                                              ((tptr tuchar) ::
+                                                               (tptr tuchar) ::
+                                                               tulong :: nil)
                                                               tint
                                                               cc_default))
                             ((Evar _h (tarray tuchar 64)) ::
@@ -6021,8 +5828,7 @@ Definition f_crypto_sign_ed25519_tweet := {|
                              nil))
                           (Ssequence
                             (Scall None
-                              (Evar _reduce (Tfunction
-                                              (Tcons (tptr tuchar) Tnil)
+                              (Evar _reduce (Tfunction ((tptr tuchar) :: nil)
                                               tvoid cc_default))
                               ((Evar _h (tarray tuchar 64)) :: nil))
                             (Ssequence
@@ -6161,10 +5967,9 @@ Definition f_crypto_sign_ed25519_tweet := {|
                                   (Ssequence
                                     (Scall None
                                       (Evar _modL (Tfunction
-                                                    (Tcons (tptr tuchar)
-                                                      (Tcons (tptr tlong)
-                                                        Tnil)) tvoid
-                                                    cc_default))
+                                                    ((tptr tuchar) ::
+                                                     (tptr tlong) :: nil)
+                                                    tvoid cc_default))
                                       ((Ebinop Oadd
                                          (Etempvar _sm (tptr tuchar))
                                          (Econst_int (Int.repr 32) tint)
@@ -6186,16 +5991,15 @@ Definition f_unpackneg := {|
   fn_body :=
 (Ssequence
   (Scall None
-    (Evar _set25519 (Tfunction (Tcons (tptr tlong) (Tcons (tptr tlong) Tnil))
-                      tvoid cc_default))
+    (Evar _set25519 (Tfunction ((tptr tlong) :: (tptr tlong) :: nil) tvoid
+                      cc_default))
     ((Ederef
        (Ebinop Oadd (Etempvar _r (tptr (tarray tlong 16)))
          (Econst_int (Int.repr 2) tint) (tptr (tarray tlong 16)))
        (tarray tlong 16)) :: (Evar _gf1 (tarray tlong 16)) :: nil))
   (Ssequence
     (Scall None
-      (Evar _unpack25519 (Tfunction
-                           (Tcons (tptr tlong) (Tcons (tptr tuchar) Tnil))
+      (Evar _unpack25519 (Tfunction ((tptr tlong) :: (tptr tuchar) :: nil)
                            tvoid cc_default))
       ((Ederef
          (Ebinop Oadd (Etempvar _r (tptr (tarray tlong 16)))
@@ -6203,8 +6007,8 @@ Definition f_unpackneg := {|
          (tarray tlong 16)) :: (Etempvar _p (tptr tuchar)) :: nil))
     (Ssequence
       (Scall None
-        (Evar _S (Tfunction (Tcons (tptr tlong) (Tcons (tptr tlong) Tnil))
-                   tvoid cc_default))
+        (Evar _S (Tfunction ((tptr tlong) :: (tptr tlong) :: nil) tvoid
+                   cc_default))
         ((Evar _num (tarray tlong 16)) ::
          (Ederef
            (Ebinop Oadd (Etempvar _r (tptr (tarray tlong 16)))
@@ -6213,16 +6017,14 @@ Definition f_unpackneg := {|
       (Ssequence
         (Scall None
           (Evar _M (Tfunction
-                     (Tcons (tptr tlong)
-                       (Tcons (tptr tlong) (Tcons (tptr tlong) Tnil))) tvoid
-                     cc_default))
+                     ((tptr tlong) :: (tptr tlong) :: (tptr tlong) :: nil)
+                     tvoid cc_default))
           ((Evar _den (tarray tlong 16)) :: (Evar _num (tarray tlong 16)) ::
            (Evar _D (tarray tlong 16)) :: nil))
         (Ssequence
           (Scall None
             (Evar _Z (Tfunction
-                       (Tcons (tptr tlong)
-                         (Tcons (tptr tlong) (Tcons (tptr tlong) Tnil)))
+                       ((tptr tlong) :: (tptr tlong) :: (tptr tlong) :: nil)
                        tvoid cc_default))
             ((Evar _num (tarray tlong 16)) ::
              (Evar _num (tarray tlong 16)) ::
@@ -6233,9 +6035,8 @@ Definition f_unpackneg := {|
           (Ssequence
             (Scall None
               (Evar _A (Tfunction
-                         (Tcons (tptr tlong)
-                           (Tcons (tptr tlong) (Tcons (tptr tlong) Tnil)))
-                         tvoid cc_default))
+                         ((tptr tlong) :: (tptr tlong) :: (tptr tlong) ::
+                          nil) tvoid cc_default))
               ((Evar _den (tarray tlong 16)) ::
                (Ederef
                  (Ebinop Oadd (Etempvar _r (tptr (tarray tlong 16)))
@@ -6243,62 +6044,52 @@ Definition f_unpackneg := {|
                  (tarray tlong 16)) :: (Evar _den (tarray tlong 16)) :: nil))
             (Ssequence
               (Scall None
-                (Evar _S (Tfunction
-                           (Tcons (tptr tlong) (Tcons (tptr tlong) Tnil))
+                (Evar _S (Tfunction ((tptr tlong) :: (tptr tlong) :: nil)
                            tvoid cc_default))
                 ((Evar _den2 (tarray tlong 16)) ::
                  (Evar _den (tarray tlong 16)) :: nil))
               (Ssequence
                 (Scall None
-                  (Evar _S (Tfunction
-                             (Tcons (tptr tlong) (Tcons (tptr tlong) Tnil))
+                  (Evar _S (Tfunction ((tptr tlong) :: (tptr tlong) :: nil)
                              tvoid cc_default))
                   ((Evar _den4 (tarray tlong 16)) ::
                    (Evar _den2 (tarray tlong 16)) :: nil))
                 (Ssequence
                   (Scall None
                     (Evar _M (Tfunction
-                               (Tcons (tptr tlong)
-                                 (Tcons (tptr tlong)
-                                   (Tcons (tptr tlong) Tnil))) tvoid
-                               cc_default))
+                               ((tptr tlong) :: (tptr tlong) ::
+                                (tptr tlong) :: nil) tvoid cc_default))
                     ((Evar _den6 (tarray tlong 16)) ::
                      (Evar _den4 (tarray tlong 16)) ::
                      (Evar _den2 (tarray tlong 16)) :: nil))
                   (Ssequence
                     (Scall None
                       (Evar _M (Tfunction
-                                 (Tcons (tptr tlong)
-                                   (Tcons (tptr tlong)
-                                     (Tcons (tptr tlong) Tnil))) tvoid
-                                 cc_default))
+                                 ((tptr tlong) :: (tptr tlong) ::
+                                  (tptr tlong) :: nil) tvoid cc_default))
                       ((Evar _t (tarray tlong 16)) ::
                        (Evar _den6 (tarray tlong 16)) ::
                        (Evar _num (tarray tlong 16)) :: nil))
                     (Ssequence
                       (Scall None
                         (Evar _M (Tfunction
-                                   (Tcons (tptr tlong)
-                                     (Tcons (tptr tlong)
-                                       (Tcons (tptr tlong) Tnil))) tvoid
-                                   cc_default))
+                                   ((tptr tlong) :: (tptr tlong) ::
+                                    (tptr tlong) :: nil) tvoid cc_default))
                         ((Evar _t (tarray tlong 16)) ::
                          (Evar _t (tarray tlong 16)) ::
                          (Evar _den (tarray tlong 16)) :: nil))
                       (Ssequence
                         (Scall None
                           (Evar _pow2523 (Tfunction
-                                           (Tcons (tptr tlong)
-                                             (Tcons (tptr tlong) Tnil)) tvoid
-                                           cc_default))
+                                           ((tptr tlong) :: (tptr tlong) ::
+                                            nil) tvoid cc_default))
                           ((Evar _t (tarray tlong 16)) ::
                            (Evar _t (tarray tlong 16)) :: nil))
                         (Ssequence
                           (Scall None
                             (Evar _M (Tfunction
-                                       (Tcons (tptr tlong)
-                                         (Tcons (tptr tlong)
-                                           (Tcons (tptr tlong) Tnil))) tvoid
+                                       ((tptr tlong) :: (tptr tlong) ::
+                                        (tptr tlong) :: nil) tvoid
                                        cc_default))
                             ((Evar _t (tarray tlong 16)) ::
                              (Evar _t (tarray tlong 16)) ::
@@ -6306,30 +6097,27 @@ Definition f_unpackneg := {|
                           (Ssequence
                             (Scall None
                               (Evar _M (Tfunction
-                                         (Tcons (tptr tlong)
-                                           (Tcons (tptr tlong)
-                                             (Tcons (tptr tlong) Tnil)))
-                                         tvoid cc_default))
+                                         ((tptr tlong) :: (tptr tlong) ::
+                                          (tptr tlong) :: nil) tvoid
+                                         cc_default))
                               ((Evar _t (tarray tlong 16)) ::
                                (Evar _t (tarray tlong 16)) ::
                                (Evar _den (tarray tlong 16)) :: nil))
                             (Ssequence
                               (Scall None
                                 (Evar _M (Tfunction
-                                           (Tcons (tptr tlong)
-                                             (Tcons (tptr tlong)
-                                               (Tcons (tptr tlong) Tnil)))
-                                           tvoid cc_default))
+                                           ((tptr tlong) :: (tptr tlong) ::
+                                            (tptr tlong) :: nil) tvoid
+                                           cc_default))
                                 ((Evar _t (tarray tlong 16)) ::
                                  (Evar _t (tarray tlong 16)) ::
                                  (Evar _den (tarray tlong 16)) :: nil))
                               (Ssequence
                                 (Scall None
                                   (Evar _M (Tfunction
-                                             (Tcons (tptr tlong)
-                                               (Tcons (tptr tlong)
-                                                 (Tcons (tptr tlong) Tnil)))
-                                             tvoid cc_default))
+                                             ((tptr tlong) :: (tptr tlong) ::
+                                              (tptr tlong) :: nil) tvoid
+                                             cc_default))
                                   ((Ederef
                                      (Ebinop Oadd
                                        (Etempvar _r (tptr (tarray tlong 16)))
@@ -6341,9 +6129,9 @@ Definition f_unpackneg := {|
                                 (Ssequence
                                   (Scall None
                                     (Evar _S (Tfunction
-                                               (Tcons (tptr tlong)
-                                                 (Tcons (tptr tlong) Tnil))
-                                               tvoid cc_default))
+                                               ((tptr tlong) ::
+                                                (tptr tlong) :: nil) tvoid
+                                               cc_default))
                                     ((Evar _chk (tarray tlong 16)) ::
                                      (Ederef
                                        (Ebinop Oadd
@@ -6354,10 +6142,9 @@ Definition f_unpackneg := {|
                                   (Ssequence
                                     (Scall None
                                       (Evar _M (Tfunction
-                                                 (Tcons (tptr tlong)
-                                                   (Tcons (tptr tlong)
-                                                     (Tcons (tptr tlong)
-                                                       Tnil))) tvoid
+                                                 ((tptr tlong) ::
+                                                  (tptr tlong) ::
+                                                  (tptr tlong) :: nil) tvoid
                                                  cc_default))
                                       ((Evar _chk (tarray tlong 16)) ::
                                        (Evar _chk (tarray tlong 16)) ::
@@ -6366,11 +6153,9 @@ Definition f_unpackneg := {|
                                       (Ssequence
                                         (Scall (Some _t'1)
                                           (Evar _neq25519 (Tfunction
-                                                            (Tcons
-                                                              (tptr tlong)
-                                                              (Tcons
-                                                                (tptr tlong)
-                                                                Tnil)) tint
+                                                            ((tptr tlong) ::
+                                                             (tptr tlong) ::
+                                                             nil) tint
                                                             cc_default))
                                           ((Evar _chk (tarray tlong 16)) ::
                                            (Evar _num (tarray tlong 16)) ::
@@ -6378,12 +6163,10 @@ Definition f_unpackneg := {|
                                         (Sifthenelse (Etempvar _t'1 tint)
                                           (Scall None
                                             (Evar _M (Tfunction
-                                                       (Tcons (tptr tlong)
-                                                         (Tcons (tptr tlong)
-                                                           (Tcons
-                                                             (tptr tlong)
-                                                             Tnil))) tvoid
-                                                       cc_default))
+                                                       ((tptr tlong) ::
+                                                        (tptr tlong) ::
+                                                        (tptr tlong) :: nil)
+                                                       tvoid cc_default))
                                             ((Ederef
                                                (Ebinop Oadd
                                                  (Etempvar _r (tptr (tarray tlong 16)))
@@ -6402,10 +6185,9 @@ Definition f_unpackneg := {|
                                       (Ssequence
                                         (Scall None
                                           (Evar _S (Tfunction
-                                                     (Tcons (tptr tlong)
-                                                       (Tcons (tptr tlong)
-                                                         Tnil)) tvoid
-                                                     cc_default))
+                                                     ((tptr tlong) ::
+                                                      (tptr tlong) :: nil)
+                                                     tvoid cc_default))
                                           ((Evar _chk (tarray tlong 16)) ::
                                            (Ederef
                                              (Ebinop Oadd
@@ -6416,12 +6198,10 @@ Definition f_unpackneg := {|
                                         (Ssequence
                                           (Scall None
                                             (Evar _M (Tfunction
-                                                       (Tcons (tptr tlong)
-                                                         (Tcons (tptr tlong)
-                                                           (Tcons
-                                                             (tptr tlong)
-                                                             Tnil))) tvoid
-                                                       cc_default))
+                                                       ((tptr tlong) ::
+                                                        (tptr tlong) ::
+                                                        (tptr tlong) :: nil)
+                                                       tvoid cc_default))
                                             ((Evar _chk (tarray tlong 16)) ::
                                              (Evar _chk (tarray tlong 16)) ::
                                              (Evar _den (tarray tlong 16)) ::
@@ -6430,12 +6210,9 @@ Definition f_unpackneg := {|
                                             (Ssequence
                                               (Scall (Some _t'2)
                                                 (Evar _neq25519 (Tfunction
-                                                                  (Tcons
-                                                                    (tptr tlong)
-                                                                    (Tcons
-                                                                    (tptr tlong)
-                                                                    Tnil))
-                                                                  tint
+                                                                  ((tptr tlong) ::
+                                                                   (tptr tlong) ::
+                                                                   nil) tint
                                                                   cc_default))
                                                 ((Evar _chk (tarray tlong 16)) ::
                                                  (Evar _num (tarray tlong 16)) ::
@@ -6449,9 +6226,8 @@ Definition f_unpackneg := {|
                                               (Ssequence
                                                 (Scall (Some _t'3)
                                                   (Evar _par25519 (Tfunction
-                                                                    (Tcons
-                                                                    (tptr tlong)
-                                                                    Tnil)
+                                                                    ((tptr tlong) ::
+                                                                    nil)
                                                                     tuchar
                                                                     cc_default))
                                                   ((Ederef
@@ -6478,14 +6254,10 @@ Definition f_unpackneg := {|
                                                                  tint)
                                                     (Scall None
                                                       (Evar _Z (Tfunction
-                                                                 (Tcons
-                                                                   (tptr tlong)
-                                                                   (Tcons
-                                                                    (tptr tlong)
-                                                                    (Tcons
-                                                                    (tptr tlong)
-                                                                    Tnil)))
-                                                                 tvoid
+                                                                 ((tptr tlong) ::
+                                                                  (tptr tlong) ::
+                                                                  (tptr tlong) ::
+                                                                  nil) tvoid
                                                                  cc_default))
                                                       ((Ederef
                                                          (Ebinop Oadd
@@ -6505,14 +6277,10 @@ Definition f_unpackneg := {|
                                               (Ssequence
                                                 (Scall None
                                                   (Evar _M (Tfunction
-                                                             (Tcons
-                                                               (tptr tlong)
-                                                               (Tcons
-                                                                 (tptr tlong)
-                                                                 (Tcons
-                                                                   (tptr tlong)
-                                                                   Tnil)))
-                                                             tvoid
+                                                             ((tptr tlong) ::
+                                                              (tptr tlong) ::
+                                                              (tptr tlong) ::
+                                                              nil) tvoid
                                                              cc_default))
                                                   ((Ederef
                                                      (Ebinop Oadd
@@ -6560,8 +6328,8 @@ Definition f_crypto_sign_ed25519_tweet_open := {|
       (Ssequence
         (Scall (Some _t'1)
           (Evar _unpackneg (Tfunction
-                             (Tcons (tptr (tarray tlong 16))
-                               (Tcons (tptr tuchar) Tnil)) tint cc_default))
+                             ((tptr (tarray tlong 16)) :: (tptr tuchar) ::
+                              nil) tint cc_default))
           ((Evar _q (tarray (tarray tlong 16) 4)) ::
            (Etempvar _pk (tptr tuchar)) :: nil))
         (Sifthenelse (Etempvar _t'1 tint)
@@ -6615,23 +6383,22 @@ Definition f_crypto_sign_ed25519_tweet_open := {|
           (Ssequence
             (Scall None
               (Evar _crypto_hash_sha512_tweet (Tfunction
-                                                (Tcons (tptr tuchar)
-                                                  (Tcons (tptr tuchar)
-                                                    (Tcons tulong Tnil)))
-                                                tint cc_default))
+                                                ((tptr tuchar) ::
+                                                 (tptr tuchar) :: tulong ::
+                                                 nil) tint cc_default))
               ((Evar _h (tarray tuchar 64)) :: (Etempvar _m (tptr tuchar)) ::
                (Etempvar _n tulong) :: nil))
             (Ssequence
               (Scall None
-                (Evar _reduce (Tfunction (Tcons (tptr tuchar) Tnil) tvoid
+                (Evar _reduce (Tfunction ((tptr tuchar) :: nil) tvoid
                                 cc_default))
                 ((Evar _h (tarray tuchar 64)) :: nil))
               (Ssequence
                 (Scall None
                   (Evar _scalarmult (Tfunction
-                                      (Tcons (tptr (tarray tlong 16))
-                                        (Tcons (tptr (tarray tlong 16))
-                                          (Tcons (tptr tuchar) Tnil))) tvoid
+                                      ((tptr (tarray tlong 16)) ::
+                                       (tptr (tarray tlong 16)) ::
+                                       (tptr tuchar) :: nil) tvoid
                                       cc_default))
                   ((Evar _p (tarray (tarray tlong 16) 4)) ::
                    (Evar _q (tarray (tarray tlong 16) 4)) ::
@@ -6639,8 +6406,8 @@ Definition f_crypto_sign_ed25519_tweet_open := {|
                 (Ssequence
                   (Scall None
                     (Evar _scalarbase (Tfunction
-                                        (Tcons (tptr (tarray tlong 16))
-                                          (Tcons (tptr tuchar) Tnil)) tvoid
+                                        ((tptr (tarray tlong 16)) ::
+                                         (tptr tuchar) :: nil) tvoid
                                         cc_default))
                     ((Evar _q (tarray (tarray tlong 16) 4)) ::
                      (Ebinop Oadd (Etempvar _sm (tptr tuchar))
@@ -6648,17 +6415,17 @@ Definition f_crypto_sign_ed25519_tweet_open := {|
                   (Ssequence
                     (Scall None
                       (Evar _add (Tfunction
-                                   (Tcons (tptr (tarray tlong 16))
-                                     (Tcons (tptr (tarray tlong 16)) Tnil))
-                                   tvoid cc_default))
+                                   ((tptr (tarray tlong 16)) ::
+                                    (tptr (tarray tlong 16)) :: nil) tvoid
+                                   cc_default))
                       ((Evar _p (tarray (tarray tlong 16) 4)) ::
                        (Evar _q (tarray (tarray tlong 16) 4)) :: nil))
                     (Ssequence
                       (Scall None
                         (Evar _pack (Tfunction
-                                      (Tcons (tptr tuchar)
-                                        (Tcons (tptr (tarray tlong 16)) Tnil))
-                                      tvoid cc_default))
+                                      ((tptr tuchar) ::
+                                       (tptr (tarray tlong 16)) :: nil) tvoid
+                                      cc_default))
                         ((Evar _t (tarray tuchar 32)) ::
                          (Evar _p (tarray (tarray tlong 16) 4)) :: nil))
                       (Ssequence
@@ -6669,11 +6436,9 @@ Definition f_crypto_sign_ed25519_tweet_open := {|
                           (Ssequence
                             (Scall (Some _t'2)
                               (Evar _crypto_verify_32_tweet (Tfunction
-                                                              (Tcons
-                                                                (tptr tuchar)
-                                                                (Tcons
-                                                                  (tptr tuchar)
-                                                                  Tnil)) tint
+                                                              ((tptr tuchar) ::
+                                                               (tptr tuchar) ::
+                                                               nil) tint
                                                               cc_default))
                               ((Etempvar _sm (tptr tuchar)) ::
                                (Evar _t (tarray tuchar 32)) :: nil))
@@ -6742,270 +6507,265 @@ nil.
 Definition global_definitions : list (ident * globdef fundef type) :=
 ((___compcert_va_int32,
    Gfun(External (EF_runtime "__compcert_va_int32"
-                   (mksignature (AST.Tint :: nil) AST.Tint cc_default))
-     (Tcons (tptr tvoid) Tnil) tuint cc_default)) ::
+                   (mksignature (AST.Xptr :: nil) AST.Xint cc_default))
+     ((tptr tvoid) :: nil) tuint cc_default)) ::
  (___compcert_va_int64,
    Gfun(External (EF_runtime "__compcert_va_int64"
-                   (mksignature (AST.Tint :: nil) AST.Tlong cc_default))
-     (Tcons (tptr tvoid) Tnil) tulong cc_default)) ::
+                   (mksignature (AST.Xptr :: nil) AST.Xlong cc_default))
+     ((tptr tvoid) :: nil) tulong cc_default)) ::
  (___compcert_va_float64,
    Gfun(External (EF_runtime "__compcert_va_float64"
-                   (mksignature (AST.Tint :: nil) AST.Tfloat cc_default))
-     (Tcons (tptr tvoid) Tnil) tdouble cc_default)) ::
+                   (mksignature (AST.Xptr :: nil) AST.Xfloat cc_default))
+     ((tptr tvoid) :: nil) tdouble cc_default)) ::
  (___compcert_va_composite,
    Gfun(External (EF_runtime "__compcert_va_composite"
-                   (mksignature (AST.Tint :: AST.Tint :: nil) AST.Tint
-                     cc_default)) (Tcons (tptr tvoid) (Tcons tuint Tnil))
-     (tptr tvoid) cc_default)) ::
+                   (mksignature (AST.Xptr :: AST.Xint :: nil) AST.Xptr
+                     cc_default)) ((tptr tvoid) :: tuint :: nil) (tptr tvoid)
+     cc_default)) ::
  (___compcert_i64_dtos,
    Gfun(External (EF_runtime "__compcert_i64_dtos"
-                   (mksignature (AST.Tfloat :: nil) AST.Tlong cc_default))
-     (Tcons tdouble Tnil) tlong cc_default)) ::
+                   (mksignature (AST.Xfloat :: nil) AST.Xlong cc_default))
+     (tdouble :: nil) tlong cc_default)) ::
  (___compcert_i64_dtou,
    Gfun(External (EF_runtime "__compcert_i64_dtou"
-                   (mksignature (AST.Tfloat :: nil) AST.Tlong cc_default))
-     (Tcons tdouble Tnil) tulong cc_default)) ::
+                   (mksignature (AST.Xfloat :: nil) AST.Xlong cc_default))
+     (tdouble :: nil) tulong cc_default)) ::
  (___compcert_i64_stod,
    Gfun(External (EF_runtime "__compcert_i64_stod"
-                   (mksignature (AST.Tlong :: nil) AST.Tfloat cc_default))
-     (Tcons tlong Tnil) tdouble cc_default)) ::
+                   (mksignature (AST.Xlong :: nil) AST.Xfloat cc_default))
+     (tlong :: nil) tdouble cc_default)) ::
  (___compcert_i64_utod,
    Gfun(External (EF_runtime "__compcert_i64_utod"
-                   (mksignature (AST.Tlong :: nil) AST.Tfloat cc_default))
-     (Tcons tulong Tnil) tdouble cc_default)) ::
+                   (mksignature (AST.Xlong :: nil) AST.Xfloat cc_default))
+     (tulong :: nil) tdouble cc_default)) ::
  (___compcert_i64_stof,
    Gfun(External (EF_runtime "__compcert_i64_stof"
-                   (mksignature (AST.Tlong :: nil) AST.Tsingle cc_default))
-     (Tcons tlong Tnil) tfloat cc_default)) ::
+                   (mksignature (AST.Xlong :: nil) AST.Xsingle cc_default))
+     (tlong :: nil) tfloat cc_default)) ::
  (___compcert_i64_utof,
    Gfun(External (EF_runtime "__compcert_i64_utof"
-                   (mksignature (AST.Tlong :: nil) AST.Tsingle cc_default))
-     (Tcons tulong Tnil) tfloat cc_default)) ::
+                   (mksignature (AST.Xlong :: nil) AST.Xsingle cc_default))
+     (tulong :: nil) tfloat cc_default)) ::
  (___compcert_i64_sdiv,
    Gfun(External (EF_runtime "__compcert_i64_sdiv"
-                   (mksignature (AST.Tlong :: AST.Tlong :: nil) AST.Tlong
-                     cc_default)) (Tcons tlong (Tcons tlong Tnil)) tlong
-     cc_default)) ::
+                   (mksignature (AST.Xlong :: AST.Xlong :: nil) AST.Xlong
+                     cc_default)) (tlong :: tlong :: nil) tlong cc_default)) ::
  (___compcert_i64_udiv,
    Gfun(External (EF_runtime "__compcert_i64_udiv"
-                   (mksignature (AST.Tlong :: AST.Tlong :: nil) AST.Tlong
-                     cc_default)) (Tcons tulong (Tcons tulong Tnil)) tulong
+                   (mksignature (AST.Xlong :: AST.Xlong :: nil) AST.Xlong
+                     cc_default)) (tulong :: tulong :: nil) tulong
      cc_default)) ::
  (___compcert_i64_smod,
    Gfun(External (EF_runtime "__compcert_i64_smod"
-                   (mksignature (AST.Tlong :: AST.Tlong :: nil) AST.Tlong
-                     cc_default)) (Tcons tlong (Tcons tlong Tnil)) tlong
-     cc_default)) ::
+                   (mksignature (AST.Xlong :: AST.Xlong :: nil) AST.Xlong
+                     cc_default)) (tlong :: tlong :: nil) tlong cc_default)) ::
  (___compcert_i64_umod,
    Gfun(External (EF_runtime "__compcert_i64_umod"
-                   (mksignature (AST.Tlong :: AST.Tlong :: nil) AST.Tlong
-                     cc_default)) (Tcons tulong (Tcons tulong Tnil)) tulong
+                   (mksignature (AST.Xlong :: AST.Xlong :: nil) AST.Xlong
+                     cc_default)) (tulong :: tulong :: nil) tulong
      cc_default)) ::
  (___compcert_i64_shl,
    Gfun(External (EF_runtime "__compcert_i64_shl"
-                   (mksignature (AST.Tlong :: AST.Tint :: nil) AST.Tlong
-                     cc_default)) (Tcons tlong (Tcons tint Tnil)) tlong
-     cc_default)) ::
+                   (mksignature (AST.Xlong :: AST.Xint :: nil) AST.Xlong
+                     cc_default)) (tlong :: tint :: nil) tlong cc_default)) ::
  (___compcert_i64_shr,
    Gfun(External (EF_runtime "__compcert_i64_shr"
-                   (mksignature (AST.Tlong :: AST.Tint :: nil) AST.Tlong
-                     cc_default)) (Tcons tulong (Tcons tint Tnil)) tulong
-     cc_default)) ::
+                   (mksignature (AST.Xlong :: AST.Xint :: nil) AST.Xlong
+                     cc_default)) (tulong :: tint :: nil) tulong cc_default)) ::
  (___compcert_i64_sar,
    Gfun(External (EF_runtime "__compcert_i64_sar"
-                   (mksignature (AST.Tlong :: AST.Tint :: nil) AST.Tlong
-                     cc_default)) (Tcons tlong (Tcons tint Tnil)) tlong
-     cc_default)) ::
+                   (mksignature (AST.Xlong :: AST.Xint :: nil) AST.Xlong
+                     cc_default)) (tlong :: tint :: nil) tlong cc_default)) ::
  (___compcert_i64_smulh,
    Gfun(External (EF_runtime "__compcert_i64_smulh"
-                   (mksignature (AST.Tlong :: AST.Tlong :: nil) AST.Tlong
-                     cc_default)) (Tcons tlong (Tcons tlong Tnil)) tlong
-     cc_default)) ::
+                   (mksignature (AST.Xlong :: AST.Xlong :: nil) AST.Xlong
+                     cc_default)) (tlong :: tlong :: nil) tlong cc_default)) ::
  (___compcert_i64_umulh,
    Gfun(External (EF_runtime "__compcert_i64_umulh"
-                   (mksignature (AST.Tlong :: AST.Tlong :: nil) AST.Tlong
-                     cc_default)) (Tcons tulong (Tcons tulong Tnil)) tulong
+                   (mksignature (AST.Xlong :: AST.Xlong :: nil) AST.Xlong
+                     cc_default)) (tulong :: tulong :: nil) tulong
      cc_default)) ::
+ (___builtin_ais_annot,
+   Gfun(External (EF_builtin "__builtin_ais_annot"
+                   (mksignature (AST.Xptr :: nil) AST.Xvoid
+                     {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|}))
+     ((tptr tschar) :: nil) tvoid
+     {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|})) ::
  (___builtin_bswap64,
    Gfun(External (EF_builtin "__builtin_bswap64"
-                   (mksignature (AST.Tlong :: nil) AST.Tlong cc_default))
-     (Tcons tulong Tnil) tulong cc_default)) ::
+                   (mksignature (AST.Xlong :: nil) AST.Xlong cc_default))
+     (tulong :: nil) tulong cc_default)) ::
  (___builtin_bswap,
    Gfun(External (EF_builtin "__builtin_bswap"
-                   (mksignature (AST.Tint :: nil) AST.Tint cc_default))
-     (Tcons tuint Tnil) tuint cc_default)) ::
+                   (mksignature (AST.Xint :: nil) AST.Xint cc_default))
+     (tuint :: nil) tuint cc_default)) ::
  (___builtin_bswap32,
    Gfun(External (EF_builtin "__builtin_bswap32"
-                   (mksignature (AST.Tint :: nil) AST.Tint cc_default))
-     (Tcons tuint Tnil) tuint cc_default)) ::
+                   (mksignature (AST.Xint :: nil) AST.Xint cc_default))
+     (tuint :: nil) tuint cc_default)) ::
  (___builtin_bswap16,
    Gfun(External (EF_builtin "__builtin_bswap16"
-                   (mksignature (AST.Tint :: nil) AST.Tint16unsigned
-                     cc_default)) (Tcons tushort Tnil) tushort cc_default)) ::
+                   (mksignature (AST.Xint16unsigned :: nil)
+                     AST.Xint16unsigned cc_default)) (tushort :: nil) tushort
+     cc_default)) ::
  (___builtin_clz,
    Gfun(External (EF_builtin "__builtin_clz"
-                   (mksignature (AST.Tint :: nil) AST.Tint cc_default))
-     (Tcons tuint Tnil) tint cc_default)) ::
+                   (mksignature (AST.Xint :: nil) AST.Xint cc_default))
+     (tuint :: nil) tint cc_default)) ::
  (___builtin_clzl,
    Gfun(External (EF_builtin "__builtin_clzl"
-                   (mksignature (AST.Tint :: nil) AST.Tint cc_default))
-     (Tcons tuint Tnil) tint cc_default)) ::
+                   (mksignature (AST.Xint :: nil) AST.Xint cc_default))
+     (tuint :: nil) tint cc_default)) ::
  (___builtin_clzll,
    Gfun(External (EF_builtin "__builtin_clzll"
-                   (mksignature (AST.Tlong :: nil) AST.Tint cc_default))
-     (Tcons tulong Tnil) tint cc_default)) ::
+                   (mksignature (AST.Xlong :: nil) AST.Xint cc_default))
+     (tulong :: nil) tint cc_default)) ::
  (___builtin_ctz,
    Gfun(External (EF_builtin "__builtin_ctz"
-                   (mksignature (AST.Tint :: nil) AST.Tint cc_default))
-     (Tcons tuint Tnil) tint cc_default)) ::
+                   (mksignature (AST.Xint :: nil) AST.Xint cc_default))
+     (tuint :: nil) tint cc_default)) ::
  (___builtin_ctzl,
    Gfun(External (EF_builtin "__builtin_ctzl"
-                   (mksignature (AST.Tint :: nil) AST.Tint cc_default))
-     (Tcons tuint Tnil) tint cc_default)) ::
+                   (mksignature (AST.Xint :: nil) AST.Xint cc_default))
+     (tuint :: nil) tint cc_default)) ::
  (___builtin_ctzll,
    Gfun(External (EF_builtin "__builtin_ctzll"
-                   (mksignature (AST.Tlong :: nil) AST.Tint cc_default))
-     (Tcons tulong Tnil) tint cc_default)) ::
+                   (mksignature (AST.Xlong :: nil) AST.Xint cc_default))
+     (tulong :: nil) tint cc_default)) ::
  (___builtin_fabs,
    Gfun(External (EF_builtin "__builtin_fabs"
-                   (mksignature (AST.Tfloat :: nil) AST.Tfloat cc_default))
-     (Tcons tdouble Tnil) tdouble cc_default)) ::
+                   (mksignature (AST.Xfloat :: nil) AST.Xfloat cc_default))
+     (tdouble :: nil) tdouble cc_default)) ::
  (___builtin_fabsf,
    Gfun(External (EF_builtin "__builtin_fabsf"
-                   (mksignature (AST.Tsingle :: nil) AST.Tsingle cc_default))
-     (Tcons tfloat Tnil) tfloat cc_default)) ::
+                   (mksignature (AST.Xsingle :: nil) AST.Xsingle cc_default))
+     (tfloat :: nil) tfloat cc_default)) ::
  (___builtin_fsqrt,
    Gfun(External (EF_builtin "__builtin_fsqrt"
-                   (mksignature (AST.Tfloat :: nil) AST.Tfloat cc_default))
-     (Tcons tdouble Tnil) tdouble cc_default)) ::
+                   (mksignature (AST.Xfloat :: nil) AST.Xfloat cc_default))
+     (tdouble :: nil) tdouble cc_default)) ::
  (___builtin_sqrt,
    Gfun(External (EF_builtin "__builtin_sqrt"
-                   (mksignature (AST.Tfloat :: nil) AST.Tfloat cc_default))
-     (Tcons tdouble Tnil) tdouble cc_default)) ::
+                   (mksignature (AST.Xfloat :: nil) AST.Xfloat cc_default))
+     (tdouble :: nil) tdouble cc_default)) ::
  (___builtin_memcpy_aligned,
    Gfun(External (EF_builtin "__builtin_memcpy_aligned"
                    (mksignature
-                     (AST.Tint :: AST.Tint :: AST.Tint :: AST.Tint :: nil)
-                     AST.Tvoid cc_default))
-     (Tcons (tptr tvoid)
-       (Tcons (tptr tvoid) (Tcons tuint (Tcons tuint Tnil)))) tvoid
+                     (AST.Xptr :: AST.Xptr :: AST.Xint :: AST.Xint :: nil)
+                     AST.Xvoid cc_default))
+     ((tptr tvoid) :: (tptr tvoid) :: tuint :: tuint :: nil) tvoid
      cc_default)) ::
  (___builtin_sel,
    Gfun(External (EF_builtin "__builtin_sel"
-                   (mksignature (AST.Tint :: nil) AST.Tvoid
+                   (mksignature (AST.Xbool :: nil) AST.Xvoid
                      {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|}))
-     (Tcons tbool Tnil) tvoid
+     (tbool :: nil) tvoid
      {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|})) ::
  (___builtin_annot,
    Gfun(External (EF_builtin "__builtin_annot"
-                   (mksignature (AST.Tint :: nil) AST.Tvoid
+                   (mksignature (AST.Xptr :: nil) AST.Xvoid
                      {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|}))
-     (Tcons (tptr tschar) Tnil) tvoid
+     ((tptr tschar) :: nil) tvoid
      {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|})) ::
  (___builtin_annot_intval,
    Gfun(External (EF_builtin "__builtin_annot_intval"
-                   (mksignature (AST.Tint :: AST.Tint :: nil) AST.Tint
-                     cc_default)) (Tcons (tptr tschar) (Tcons tint Tnil))
-     tint cc_default)) ::
+                   (mksignature (AST.Xptr :: AST.Xint :: nil) AST.Xint
+                     cc_default)) ((tptr tschar) :: tint :: nil) tint
+     cc_default)) ::
  (___builtin_membar,
    Gfun(External (EF_builtin "__builtin_membar"
-                   (mksignature nil AST.Tvoid cc_default)) Tnil tvoid
+                   (mksignature nil AST.Xvoid cc_default)) nil tvoid
      cc_default)) ::
  (___builtin_va_start,
    Gfun(External (EF_builtin "__builtin_va_start"
-                   (mksignature (AST.Tint :: nil) AST.Tvoid cc_default))
-     (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
+                   (mksignature (AST.Xptr :: nil) AST.Xvoid cc_default))
+     ((tptr tvoid) :: nil) tvoid cc_default)) ::
  (___builtin_va_arg,
    Gfun(External (EF_builtin "__builtin_va_arg"
-                   (mksignature (AST.Tint :: AST.Tint :: nil) AST.Tvoid
-                     cc_default)) (Tcons (tptr tvoid) (Tcons tuint Tnil))
-     tvoid cc_default)) ::
+                   (mksignature (AST.Xptr :: AST.Xint :: nil) AST.Xvoid
+                     cc_default)) ((tptr tvoid) :: tuint :: nil) tvoid
+     cc_default)) ::
  (___builtin_va_copy,
    Gfun(External (EF_builtin "__builtin_va_copy"
-                   (mksignature (AST.Tint :: AST.Tint :: nil) AST.Tvoid
-                     cc_default))
-     (Tcons (tptr tvoid) (Tcons (tptr tvoid) Tnil)) tvoid cc_default)) ::
+                   (mksignature (AST.Xptr :: AST.Xptr :: nil) AST.Xvoid
+                     cc_default)) ((tptr tvoid) :: (tptr tvoid) :: nil) tvoid
+     cc_default)) ::
  (___builtin_va_end,
    Gfun(External (EF_builtin "__builtin_va_end"
-                   (mksignature (AST.Tint :: nil) AST.Tvoid cc_default))
-     (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
+                   (mksignature (AST.Xptr :: nil) AST.Xvoid cc_default))
+     ((tptr tvoid) :: nil) tvoid cc_default)) ::
  (___builtin_unreachable,
    Gfun(External (EF_builtin "__builtin_unreachable"
-                   (mksignature nil AST.Tvoid cc_default)) Tnil tvoid
+                   (mksignature nil AST.Xvoid cc_default)) nil tvoid
      cc_default)) ::
  (___builtin_expect,
    Gfun(External (EF_builtin "__builtin_expect"
-                   (mksignature (AST.Tint :: AST.Tint :: nil) AST.Tint
-                     cc_default)) (Tcons tint (Tcons tint Tnil)) tint
-     cc_default)) ::
+                   (mksignature (AST.Xint :: AST.Xint :: nil) AST.Xint
+                     cc_default)) (tint :: tint :: nil) tint cc_default)) ::
  (___builtin_fmax,
    Gfun(External (EF_builtin "__builtin_fmax"
-                   (mksignature (AST.Tfloat :: AST.Tfloat :: nil) AST.Tfloat
-                     cc_default)) (Tcons tdouble (Tcons tdouble Tnil))
-     tdouble cc_default)) ::
+                   (mksignature (AST.Xfloat :: AST.Xfloat :: nil) AST.Xfloat
+                     cc_default)) (tdouble :: tdouble :: nil) tdouble
+     cc_default)) ::
  (___builtin_fmin,
    Gfun(External (EF_builtin "__builtin_fmin"
-                   (mksignature (AST.Tfloat :: AST.Tfloat :: nil) AST.Tfloat
-                     cc_default)) (Tcons tdouble (Tcons tdouble Tnil))
-     tdouble cc_default)) ::
+                   (mksignature (AST.Xfloat :: AST.Xfloat :: nil) AST.Xfloat
+                     cc_default)) (tdouble :: tdouble :: nil) tdouble
+     cc_default)) ::
  (___builtin_fmadd,
    Gfun(External (EF_builtin "__builtin_fmadd"
                    (mksignature
-                     (AST.Tfloat :: AST.Tfloat :: AST.Tfloat :: nil)
-                     AST.Tfloat cc_default))
-     (Tcons tdouble (Tcons tdouble (Tcons tdouble Tnil))) tdouble
-     cc_default)) ::
+                     (AST.Xfloat :: AST.Xfloat :: AST.Xfloat :: nil)
+                     AST.Xfloat cc_default))
+     (tdouble :: tdouble :: tdouble :: nil) tdouble cc_default)) ::
  (___builtin_fmsub,
    Gfun(External (EF_builtin "__builtin_fmsub"
                    (mksignature
-                     (AST.Tfloat :: AST.Tfloat :: AST.Tfloat :: nil)
-                     AST.Tfloat cc_default))
-     (Tcons tdouble (Tcons tdouble (Tcons tdouble Tnil))) tdouble
-     cc_default)) ::
+                     (AST.Xfloat :: AST.Xfloat :: AST.Xfloat :: nil)
+                     AST.Xfloat cc_default))
+     (tdouble :: tdouble :: tdouble :: nil) tdouble cc_default)) ::
  (___builtin_fnmadd,
    Gfun(External (EF_builtin "__builtin_fnmadd"
                    (mksignature
-                     (AST.Tfloat :: AST.Tfloat :: AST.Tfloat :: nil)
-                     AST.Tfloat cc_default))
-     (Tcons tdouble (Tcons tdouble (Tcons tdouble Tnil))) tdouble
-     cc_default)) ::
+                     (AST.Xfloat :: AST.Xfloat :: AST.Xfloat :: nil)
+                     AST.Xfloat cc_default))
+     (tdouble :: tdouble :: tdouble :: nil) tdouble cc_default)) ::
  (___builtin_fnmsub,
    Gfun(External (EF_builtin "__builtin_fnmsub"
                    (mksignature
-                     (AST.Tfloat :: AST.Tfloat :: AST.Tfloat :: nil)
-                     AST.Tfloat cc_default))
-     (Tcons tdouble (Tcons tdouble (Tcons tdouble Tnil))) tdouble
-     cc_default)) ::
+                     (AST.Xfloat :: AST.Xfloat :: AST.Xfloat :: nil)
+                     AST.Xfloat cc_default))
+     (tdouble :: tdouble :: tdouble :: nil) tdouble cc_default)) ::
  (___builtin_read16_reversed,
    Gfun(External (EF_builtin "__builtin_read16_reversed"
-                   (mksignature (AST.Tint :: nil) AST.Tint16unsigned
-                     cc_default)) (Tcons (tptr tushort) Tnil) tushort
+                   (mksignature (AST.Xptr :: nil) AST.Xint16unsigned
+                     cc_default)) ((tptr tushort) :: nil) tushort
      cc_default)) ::
  (___builtin_read32_reversed,
    Gfun(External (EF_builtin "__builtin_read32_reversed"
-                   (mksignature (AST.Tint :: nil) AST.Tint cc_default))
-     (Tcons (tptr tuint) Tnil) tuint cc_default)) ::
+                   (mksignature (AST.Xptr :: nil) AST.Xint cc_default))
+     ((tptr tuint) :: nil) tuint cc_default)) ::
  (___builtin_write16_reversed,
    Gfun(External (EF_builtin "__builtin_write16_reversed"
-                   (mksignature (AST.Tint :: AST.Tint :: nil) AST.Tvoid
-                     cc_default)) (Tcons (tptr tushort) (Tcons tushort Tnil))
-     tvoid cc_default)) ::
+                   (mksignature (AST.Xptr :: AST.Xint16unsigned :: nil)
+                     AST.Xvoid cc_default))
+     ((tptr tushort) :: tushort :: nil) tvoid cc_default)) ::
  (___builtin_write32_reversed,
    Gfun(External (EF_builtin "__builtin_write32_reversed"
-                   (mksignature (AST.Tint :: AST.Tint :: nil) AST.Tvoid
-                     cc_default)) (Tcons (tptr tuint) (Tcons tuint Tnil))
-     tvoid cc_default)) ::
+                   (mksignature (AST.Xptr :: AST.Xint :: nil) AST.Xvoid
+                     cc_default)) ((tptr tuint) :: tuint :: nil) tvoid
+     cc_default)) ::
  (___builtin_debug,
    Gfun(External (EF_external "__builtin_debug"
-                   (mksignature (AST.Tint :: nil) AST.Tvoid
+                   (mksignature (AST.Xint :: nil) AST.Xvoid
                      {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|}))
-     (Tcons tint Tnil) tvoid
+     (tint :: nil) tvoid
      {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|})) ::
  (_randombytes,
    Gfun(External (EF_external "randombytes"
-                   (mksignature (AST.Tint :: AST.Tlong :: nil) AST.Tvoid
-                     cc_default)) (Tcons (tptr tuchar) (Tcons tulong Tnil))
-     tvoid cc_default)) :: (__0, Gvar v__0) :: (__9, Gvar v__9) ::
+                   (mksignature (AST.Xptr :: AST.Xlong :: nil) AST.Xvoid
+                     cc_default)) ((tptr tuchar) :: tulong :: nil) tvoid
+     cc_default)) :: (__0, Gvar v__0) :: (__9, Gvar v__9) ::
  (_gf0, Gvar v_gf0) :: (_gf1, Gvar v_gf1) :: (__121665, Gvar v__121665) ::
  (_D, Gvar v_D) :: (_D2, Gvar v_D2) :: (_X, Gvar v_X) :: (_Y, Gvar v_Y) ::
  (_I, Gvar v_I) :: (_L32, Gfun(Internal f_L32)) ::
@@ -7096,13 +6856,14 @@ Definition public_idents : list ident :=
  ___builtin_ctzll :: ___builtin_ctzl :: ___builtin_ctz :: ___builtin_clzll ::
  ___builtin_clzl :: ___builtin_clz :: ___builtin_bswap16 ::
  ___builtin_bswap32 :: ___builtin_bswap :: ___builtin_bswap64 ::
- ___compcert_i64_umulh :: ___compcert_i64_smulh :: ___compcert_i64_sar ::
- ___compcert_i64_shr :: ___compcert_i64_shl :: ___compcert_i64_umod ::
- ___compcert_i64_smod :: ___compcert_i64_udiv :: ___compcert_i64_sdiv ::
- ___compcert_i64_utof :: ___compcert_i64_stof :: ___compcert_i64_utod ::
- ___compcert_i64_stod :: ___compcert_i64_dtou :: ___compcert_i64_dtos ::
- ___compcert_va_composite :: ___compcert_va_float64 ::
- ___compcert_va_int64 :: ___compcert_va_int32 :: nil).
+ ___builtin_ais_annot :: ___compcert_i64_umulh :: ___compcert_i64_smulh ::
+ ___compcert_i64_sar :: ___compcert_i64_shr :: ___compcert_i64_shl ::
+ ___compcert_i64_umod :: ___compcert_i64_smod :: ___compcert_i64_udiv ::
+ ___compcert_i64_sdiv :: ___compcert_i64_utof :: ___compcert_i64_stof ::
+ ___compcert_i64_utod :: ___compcert_i64_stod :: ___compcert_i64_dtou ::
+ ___compcert_i64_dtos :: ___compcert_va_composite ::
+ ___compcert_va_float64 :: ___compcert_va_int64 :: ___compcert_va_int32 ::
+ nil).
 
 Definition prog : Clight.program := 
   mkprogram composites global_definitions public_idents _main Logic.I.

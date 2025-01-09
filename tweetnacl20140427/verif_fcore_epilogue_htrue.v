@@ -155,7 +155,7 @@ Sfor (Sset _i (Econst_int (Int.repr 0) tint))
         (Ssequence
            (Scall (Some _t'9)
               (Evar _ld32
-                 (Tfunction (Tcons (tptr tuchar) Tnil) tuint cc_default))
+                 (Tfunction [tptr tuchar] tuint cc_default))
               [Ebinop Oadd (Etempvar _c (tptr tuchar))
                  (Ebinop Omul (Econst_int (Int.repr 4) tint)
                     (Etempvar _i tint) tint) (tptr tuchar)])
@@ -175,7 +175,7 @@ Sfor (Sset _i (Econst_int (Int.repr 0) tint))
         (Ssequence
            (Scall (Some _t'10)
               (Evar _ld32
-                 (Tfunction (Tcons (tptr tuchar) Tnil) tuint cc_default))
+                 (Tfunction [tptr tuchar] tuint cc_default))
               [Ebinop Oadd (Etempvar _in (tptr tuchar))
                  (Ebinop Omul (Econst_int (Int.repr 4) tint)
                     (Etempvar _i tint) tint) (tptr tuchar)])
@@ -473,7 +473,7 @@ Sfor (Sset _i (Econst_int (Int.repr 0) tint))
                        (Etempvar _i tint) tint) (tptr tuint)) tuint))
            (Scall None
               (Evar _st32
-                 (Tfunction (Tcons (tptr tuchar) (Tcons tuint Tnil)) tvoid
+                 (Tfunction [tptr tuchar; tuint] tvoid
                     cc_default))
               [Ebinop Oadd (Etempvar _out (tptr tuchar))
                  (Ebinop Omul (Econst_int (Int.repr 4) tint)
@@ -487,7 +487,7 @@ Sfor (Sset _i (Econst_int (Int.repr 0) tint))
                        (Etempvar _i tint) tint) (tptr tuint)) tuint))
            (Scall None
               (Evar _st32
-                 (Tfunction (Tcons (tptr tuchar) (Tcons tuint Tnil)) tvoid
+                 (Tfunction [tptr tuchar; tuint] tvoid
                     cc_default))
               [Ebinop Oadd
                  (Ebinop Oadd (Etempvar _out (tptr tuchar))
@@ -688,7 +688,7 @@ Definition epilogue_htrue_statement:=
               (Ssequence
                  (Scall (Some _t'9)
                     (Evar _ld32
-                       (Tfunction (Tcons (tptr tuchar) Tnil) tuint cc_default))
+                       (Tfunction [tptr tuchar] tuint cc_default))
                     [Ebinop Oadd (Etempvar _c (tptr tuchar))
                        (Ebinop Omul (Econst_int (Int.repr 4) tint)
                           (Etempvar _i tint) tint) (tptr tuchar)])
@@ -708,7 +708,7 @@ Definition epilogue_htrue_statement:=
               (Ssequence
                  (Scall (Some _t'10)
                     (Evar _ld32
-                       (Tfunction (Tcons (tptr tuchar) Tnil) tuint cc_default))
+                       (Tfunction [tptr tuchar] tuint cc_default))
                     [Ebinop Oadd (Etempvar _in (tptr tuchar))
                        (Ebinop Omul (Econst_int (Int.repr 4) tint)
                           (Etempvar _i tint) tint) (tptr tuchar)])
@@ -739,7 +739,7 @@ Definition epilogue_htrue_statement:=
                              (Etempvar _i tint) tint) (tptr tuint)) tuint))
                  (Scall None
                     (Evar _st32
-                       (Tfunction (Tcons (tptr tuchar) (Tcons tuint Tnil))
+                       (Tfunction [tptr tuchar; tuint]
                           tvoid cc_default))
                     [Ebinop Oadd (Etempvar _out (tptr tuchar))
                        (Ebinop Omul (Econst_int (Int.repr 4) tint)
@@ -753,7 +753,7 @@ Definition epilogue_htrue_statement:=
                              (Etempvar _i tint) tint) (tptr tuint)) tuint))
                  (Scall None
                     (Evar _st32
-                       (Tfunction (Tcons (tptr tuchar) (Tcons tuint Tnil))
+                       (Tfunction [tptr tuchar; tuint]
                           tvoid cc_default))
                     [Ebinop Oadd
                        (Ebinop Oadd (Etempvar _out (tptr tuchar))
