@@ -43,6 +43,9 @@
 #include <stddef.h>
 #include "../sha/hmac.c"
 
+void *malloc(size_t);
+void free(void *);
+
 struct mbedtls_md_info_t {
 	int dummy;
 };

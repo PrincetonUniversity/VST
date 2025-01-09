@@ -1129,8 +1129,7 @@ Lemma loopbody_explicit (StreamAdd:list mpred) : forall (Espec : OracleKind)
      (Ssequence
         (Scall None
            (Evar _mbedtls_md_hmac_reset
-              (Tfunction
-                 (Tcons (tptr (Tstruct _mbedtls_md_context_t noattr)) Tnil)
+              (Tfunction [tptr (Tstruct _mbedtls_md_context_t noattr)]
                  tint cc_default))
            [Eaddrof
               (Efield
@@ -1143,9 +1142,8 @@ Lemma loopbody_explicit (StreamAdd:list mpred) : forall (Espec : OracleKind)
         (Ssequence
            (Scall None
               (Evar _mbedtls_md_hmac_update
-                 (Tfunction
-                    (Tcons (tptr (Tstruct _mbedtls_md_context_t noattr))
-                       (Tcons (tptr tuchar) (Tcons tuint Tnil))) tint
+                 (Tfunction [tptr (Tstruct _mbedtls_md_context_t noattr);
+                             tptr tuchar; tuint] tint
                     cc_default))
               [Eaddrof
                  (Efield
@@ -1164,9 +1162,8 @@ Lemma loopbody_explicit (StreamAdd:list mpred) : forall (Espec : OracleKind)
            (Ssequence
               (Scall None
                  (Evar _mbedtls_md_hmac_finish
-                    (Tfunction
-                       (Tcons (tptr (Tstruct _mbedtls_md_context_t noattr))
-                          (Tcons (tptr tuchar) Tnil)) tint cc_default))
+                    (Tfunction [tptr (Tstruct _mbedtls_md_context_t noattr);
+                                 tptr tuchar] tint cc_default))
                  [Eaddrof
                     (Efield
                        (Ederef
@@ -1185,10 +1182,7 @@ Lemma loopbody_explicit (StreamAdd:list mpred) : forall (Espec : OracleKind)
               (Ssequence
                  (Scall None
                     (Evar _memcpy
-                       (Tfunction
-                          (Tcons (tptr tvoid)
-                             (Tcons (tptr tvoid) (Tcons tuint Tnil)))
-                          (tptr tvoid) cc_default))
+                       (Tfunction [tptr tvoid; tptr tvoid; tuint] (tptr tvoid) cc_default))
                     [Etempvar _out (tptr tuchar);
                     Efield
                       (Ederef
@@ -1779,8 +1773,7 @@ Lemma generate_loopbody: forall (StreamAdd: list mpred)
      (Ssequence
         (Scall None
            (Evar _mbedtls_md_hmac_reset
-              (Tfunction
-                 (Tcons (tptr (Tstruct _mbedtls_md_context_t noattr)) Tnil)
+              (Tfunction [tptr (Tstruct _mbedtls_md_context_t noattr)]
                  tint cc_default))
            [Eaddrof
               (Efield
@@ -1793,9 +1786,8 @@ Lemma generate_loopbody: forall (StreamAdd: list mpred)
         (Ssequence
            (Scall None
               (Evar _mbedtls_md_hmac_update
-                 (Tfunction
-                    (Tcons (tptr (Tstruct _mbedtls_md_context_t noattr))
-                       (Tcons (tptr tuchar) (Tcons tuint Tnil))) tint
+                 (Tfunction [tptr (Tstruct _mbedtls_md_context_t noattr);
+                             tptr tuchar; tuint] tint
                     cc_default))
               [Eaddrof
                  (Efield
@@ -1814,9 +1806,8 @@ Lemma generate_loopbody: forall (StreamAdd: list mpred)
            (Ssequence
               (Scall None
                  (Evar _mbedtls_md_hmac_finish
-                    (Tfunction
-                       (Tcons (tptr (Tstruct _mbedtls_md_context_t noattr))
-                          (Tcons (tptr tuchar) Tnil)) tint cc_default))
+                    (Tfunction [tptr (Tstruct _mbedtls_md_context_t noattr);
+                                tptr tuchar] tint cc_default))
                  [Eaddrof
                     (Efield
                        (Ederef
@@ -1835,9 +1826,7 @@ Lemma generate_loopbody: forall (StreamAdd: list mpred)
               (Ssequence
                  (Scall None
                     (Evar _memcpy
-                       (Tfunction
-                          (Tcons (tptr tvoid)
-                             (Tcons (tptr tvoid) (Tcons tuint Tnil)))
+                       (Tfunction[tptr tvoid; tptr tvoid; tuint]
                           (tptr tvoid) cc_default))
                     [Etempvar _out (tptr tuchar);
                     Efield

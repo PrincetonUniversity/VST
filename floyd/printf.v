@@ -140,6 +140,25 @@ Proof.
   eapply Z.lt_le_trans, Z_mult_div_ge with (b := 10); lia.
 Defined.
 
+Import Program.Wf. 
+  Program Lemma fix_sub_eq_ext :
+   (* need to copy this from Coq standard library because it moved from
+    one location to another between Coq 8.20 and Coq 8.21 *)
+    forall (A : Type) (R : A -> A -> Prop) (Rwf : well_founded R)
+      (P : A -> Type)
+      (F_sub : forall x : A, (forall y:{y : A | R y x}, P (proj1_sig y)) -> P x),
+      forall x : A,
+        Fix_sub A R Rwf P F_sub x =
+          F_sub x (fun y:{y : A | R y x} => Fix_sub A R Rwf P F_sub (proj1_sig y)).
+  Proof.
+    intros A R Rwf P F_sub x; apply Fix_eq ; auto.
+    intros ? f g H.
+    assert(f = g) as H0.
+    - extensionality y ; apply H.
+    - rewrite H0 ; auto.
+  Qed.
+
+
 Lemma chars_of_Z_eq : forall n, chars_of_Z n =
   match n <? 0 with true => charminus :: chars_of_Z (Z.abs n) | false =>
   let n' := n / 10 in
@@ -147,7 +166,7 @@ Lemma chars_of_Z_eq : forall n, chars_of_Z n =
 Proof.
   intros.
   unfold chars_of_Z at 1.
-  rewrite Wf.WfExtensionality.fix_sub_eq_ext; simpl; fold chars_of_Z.
+  rewrite fix_sub_eq_ext; simpl; fold chars_of_Z.
   destruct (_ <? _); auto.
   destruct (_ <=? _); auto.
 Qed.

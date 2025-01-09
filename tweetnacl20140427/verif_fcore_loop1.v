@@ -67,7 +67,7 @@ Lemma f_core_loop1 (Espec : OracleKind) FR c k h nonce out w x y t
         (Ssequence
            (Scall (Some _t'1)
               (Evar _ld32
-                 (Tfunction (Tcons (tptr tuchar) Tnil) tuint cc_default))
+                 (Tfunction [tptr tuchar] tuint cc_default))
               [Ebinop Oadd (Etempvar _c (tptr tuchar))
                  (Ebinop Omul (Econst_int (Int.repr 4) tint)
                     (Etempvar _i tint) tint) (tptr tuchar)])
@@ -81,7 +81,7 @@ Lemma f_core_loop1 (Espec : OracleKind) FR c k h nonce out w x y t
            (Ssequence
               (Scall (Some _t'2)
                  (Evar _ld32
-                    (Tfunction (Tcons (tptr tuchar) Tnil) tuint cc_default))
+                    (Tfunction [tptr tuchar] tuint cc_default))
                  [Ebinop Oadd (Etempvar _k (tptr tuchar))
                     (Ebinop Omul (Econst_int (Int.repr 4) tint)
                        (Etempvar _i tint) tint) (tptr tuchar)])
@@ -95,7 +95,7 @@ Lemma f_core_loop1 (Espec : OracleKind) FR c k h nonce out w x y t
               (Ssequence
                  (Scall (Some _t'3)
                     (Evar _ld32
-                       (Tfunction (Tcons (tptr tuchar) Tnil) tuint cc_default))
+                       (Tfunction [tptr tuchar] tuint cc_default))
                     [Ebinop Oadd (Etempvar _in (tptr tuchar))
                        (Ebinop Omul (Econst_int (Int.repr 4) tint)
                           (Etempvar _i tint) tint) (tptr tuchar)])
@@ -108,7 +108,7 @@ Lemma f_core_loop1 (Espec : OracleKind) FR c k h nonce out w x y t
               (Ssequence
                  (Scall (Some _t'4)
                     (Evar _ld32
-                       (Tfunction (Tcons (tptr tuchar) Tnil) tuint cc_default))
+                       (Tfunction [tptr tuchar] tuint cc_default))
                     [Ebinop Oadd
                        (Ebinop Oadd (Etempvar _k (tptr tuchar))
                           (Econst_int (Int.repr 16) tint) (tptr tuchar))

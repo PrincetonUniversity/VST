@@ -16,7 +16,7 @@ Module Info.
   Definition bitsize := 32.
   Definition big_endian := false.
   Definition source_file := "sha/sha.c".
-  Definition normalized := true.
+  Definition normalized := false.
 End Info.
 
 Definition _K256 : ident := 46%positive.

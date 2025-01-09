@@ -16,7 +16,7 @@ Module Info.
   Definition bitsize := 32.
   Definition big_endian := false.
   Definition source_file := "sha/hmac.c".
-  Definition normalized := true.
+  Definition normalized := false.
 End Info.
 
 Definition _HMAC : ident := 118%positive.
@@ -139,8 +139,6 @@ Definition _s1 : ident := 57%positive.
 Definition _sha256_block_data_order : ident := 65%positive.
 Definition _t : ident := 60%positive.
 Definition _xn : ident := 78%positive.
-Definition _t'1 : ident := 121%positive.
-Definition _t'2 : ident := 122%positive.
 
 Definition f_HMAC_Init := {|
   fn_return := tvoid;
@@ -150,7 +148,7 @@ Definition f_HMAC_Init := {|
   fn_vars := ((_pad, (tarray tuchar 64)) :: (_ctx_key, (tarray tuchar 64)) ::
               nil);
   fn_temps := ((_i, tint) :: (_j, tint) :: (_reset, tint) ::
-               (_aux, tuchar) :: (_t'2, tuchar) :: (_t'1, tuchar) :: nil);
+               (_aux, tuchar) :: nil);
   fn_body :=
 (Ssequence
   (Sset _reset (Econst_int (Int.repr 0) tint))
@@ -242,12 +240,11 @@ Definition f_HMAC_Init := {|
                   Sskip
                   Sbreak)
                 (Ssequence
-                  (Ssequence
-                    (Sset _t'2
+                  (Sset _aux
+                    (Ecast
                       (Ederef
                         (Ebinop Oadd (Evar _ctx_key (tarray tuchar 64))
-                          (Etempvar _i tint) (tptr tuchar)) tuchar))
-                    (Sset _aux (Ecast (Etempvar _t'2 tuchar) tuchar)))
+                          (Etempvar _i tint) (tptr tuchar)) tuchar) tuchar))
                   (Ssequence
                     (Sset _aux
                       (Ecast
@@ -298,12 +295,12 @@ Definition f_HMAC_Init := {|
                         Sskip
                         Sbreak)
                       (Ssequence
-                        (Ssequence
-                          (Sset _t'1
+                        (Sset _aux
+                          (Ecast
                             (Ederef
                               (Ebinop Oadd (Evar _ctx_key (tarray tuchar 64))
-                                (Etempvar _i tint) (tptr tuchar)) tuchar))
-                          (Sset _aux (Ecast (Etempvar _t'1 tuchar) tuchar)))
+                                (Etempvar _i tint) (tptr tuchar)) tuchar)
+                            tuchar))
                         (Sassign
                           (Ederef
                             (Ebinop Oadd (Evar _pad (tarray tuchar 64))

@@ -16,7 +16,7 @@ Module Info.
   Definition bitsize := 32.
   Definition big_endian := false.
   Definition source_file := "hmacdrbg/hmac_drbg.c".
-  Definition normalized := true.
+  Definition normalized := false.
 End Info.
 
 Definition _HMAC : ident := 118%positive.
@@ -117,24 +117,24 @@ Definition _e : ident := 53%positive.
 Definition _entropy_len : ident := 128%positive.
 Definition _f : ident := 54%positive.
 Definition _fragment : ident := 74%positive.
-Definition _free : ident := 153%positive.
+Definition _free : ident := 133%positive.
 Definition _g : ident := 55%positive.
 Definition _get_entropy : ident := 155%positive.
 Definition _h : ident := 2%positive.
-Definition _hmac : ident := 142%positive.
+Definition _hmac : ident := 143%positive.
 Definition _hmac_ctx : ident := 124%positive.
 Definition _hmac_ctx_st : ident := 101%positive.
 Definition _i : ident := 64%positive.
 Definition _i_ctx : ident := 103%positive.
-Definition _ilen : ident := 149%positive.
+Definition _ilen : ident := 150%positive.
 Definition _in : ident := 48%positive.
-Definition _info : ident := 138%positive.
-Definition _input : ident := 148%positive.
+Definition _info : ident := 140%positive.
+Definition _input : ident := 149%positive.
 Definition _interval : ident := 178%positive.
 Definition _j : ident := 106%positive.
 Definition _key : ident := 105%positive.
 Definition _key_len : ident := 117%positive.
-Definition _keylen : ident := 145%positive.
+Definition _keylen : ident := 146%positive.
 Definition _l : ident := 62%positive.
 Definition _left : ident := 182%positive.
 Definition _len : ident := 67%positive.
@@ -142,7 +142,7 @@ Definition _ll : ident := 77%positive.
 Definition _m : ident := 116%positive.
 Definition _m__1 : ident := 119%positive.
 Definition _main : ident := 100%positive.
-Definition _malloc : ident := 141%positive.
+Definition _malloc : ident := 132%positive.
 Definition _mbedtls_hmac_drbg_context : ident := 125%positive.
 Definition _mbedtls_hmac_drbg_free : ident := 187%positive.
 Definition _mbedtls_hmac_drbg_init : ident := 158%positive.
@@ -157,32 +157,32 @@ Definition _mbedtls_hmac_drbg_set_reseed_interval : ident := 179%positive.
 Definition _mbedtls_hmac_drbg_update : ident := 166%positive.
 Definition _mbedtls_md_context_t : ident := 121%positive.
 Definition _mbedtls_md_free : ident := 154%positive.
-Definition _mbedtls_md_get_size : ident := 137%positive.
-Definition _mbedtls_md_hmac_finish : ident := 152%positive.
-Definition _mbedtls_md_hmac_reset : ident := 147%positive.
-Definition _mbedtls_md_hmac_starts : ident := 146%positive.
-Definition _mbedtls_md_hmac_update : ident := 150%positive.
-Definition _mbedtls_md_info_from_string : ident := 134%positive.
-Definition _mbedtls_md_info_from_type : ident := 136%positive.
+Definition _mbedtls_md_get_size : ident := 139%positive.
+Definition _mbedtls_md_hmac_finish : ident := 153%positive.
+Definition _mbedtls_md_hmac_reset : ident := 148%positive.
+Definition _mbedtls_md_hmac_starts : ident := 147%positive.
+Definition _mbedtls_md_hmac_update : ident := 151%positive.
+Definition _mbedtls_md_info_from_string : ident := 136%positive.
+Definition _mbedtls_md_info_from_type : ident := 138%positive.
 Definition _mbedtls_md_info_t : ident := 123%positive.
-Definition _mbedtls_md_setup : ident := 144%positive.
+Definition _mbedtls_md_setup : ident := 145%positive.
 Definition _mbedtls_zeroize : ident := 157%positive.
 Definition _md : ident := 76%positive.
 Definition _md_ctx : ident := 102%positive.
 Definition _md_info : ident := 122%positive.
 Definition _md_len : ident := 161%positive.
-Definition _md_name : ident := 133%positive.
+Definition _md_name : ident := 135%positive.
 Definition _md_size : ident := 173%positive.
-Definition _md_type : ident := 135%positive.
+Definition _md_type : ident := 137%positive.
 Definition _memcpy : ident := 44%positive.
 Definition _memset : ident := 45%positive.
-Definition _mocked_sha256_info : ident := 132%positive.
+Definition _mocked_sha256_info : ident := 134%positive.
 Definition _n : ident := 73%positive.
 Definition _num : ident := 6%positive.
 Definition _o_ctx : ident := 104%positive.
 Definition _out : ident := 183%positive.
 Definition _out_len : ident := 181%positive.
-Definition _output : ident := 151%positive.
+Definition _output : ident := 152%positive.
 Definition _p : ident := 72%positive.
 Definition _p_rng : ident := 180%positive.
 Definition _pad : ident := 108%positive.
@@ -191,7 +191,7 @@ Definition _reseed_counter : ident := 127%positive.
 Definition _reseed_interval : ident := 130%positive.
 Definition _reset : ident := 107%positive.
 Definition _resistance : ident := 175%positive.
-Definition _ret : ident := 139%positive.
+Definition _ret : ident := 141%positive.
 Definition _rounds : ident := 162%positive.
 Definition _s0 : ident := 56%positive.
 Definition _s1 : ident := 57%positive.
@@ -200,9 +200,9 @@ Definition _seedlen : ident := 170%positive.
 Definition _sep : ident := 163%positive.
 Definition _sep_value : ident := 165%positive.
 Definition _sha256_block_data_order : ident := 65%positive.
-Definition _sha_ctx : ident := 143%positive.
+Definition _sha_ctx : ident := 144%positive.
 Definition _t : ident := 60%positive.
-Definition _test_md_get_size : ident := 140%positive.
+Definition _test_md_get_size : ident := 142%positive.
 Definition _use_len : ident := 184%positive.
 Definition _v : ident := 156%positive.
 Definition _xn : ident := 78%positive.
@@ -221,7 +221,7 @@ Definition f_HMAC_Init := {|
   fn_vars := ((_pad, (tarray tuchar 64)) :: (_ctx_key, (tarray tuchar 64)) ::
               nil);
   fn_temps := ((_i, tint) :: (_j, tint) :: (_reset, tint) ::
-               (_aux, tuchar) :: (_t'2, tuchar) :: (_t'1, tuchar) :: nil);
+               (_aux, tuchar) :: nil);
   fn_body :=
 (Ssequence
   (Sset _reset (Econst_int (Int.repr 0) tint))
@@ -313,12 +313,11 @@ Definition f_HMAC_Init := {|
                   Sskip
                   Sbreak)
                 (Ssequence
-                  (Ssequence
-                    (Sset _t'2
+                  (Sset _aux
+                    (Ecast
                       (Ederef
                         (Ebinop Oadd (Evar _ctx_key (tarray tuchar 64))
-                          (Etempvar _i tint) (tptr tuchar)) tuchar))
-                    (Sset _aux (Ecast (Etempvar _t'2 tuchar) tuchar)))
+                          (Etempvar _i tint) (tptr tuchar)) tuchar) tuchar))
                   (Ssequence
                     (Sset _aux
                       (Ecast
@@ -369,12 +368,12 @@ Definition f_HMAC_Init := {|
                         Sskip
                         Sbreak)
                       (Ssequence
-                        (Ssequence
-                          (Sset _t'1
+                        (Sset _aux
+                          (Ecast
                             (Ederef
                               (Ebinop Oadd (Evar _ctx_key (tarray tuchar 64))
-                                (Etempvar _i tint) (tptr tuchar)) tuchar))
-                          (Sset _aux (Ecast (Etempvar _t'1 tuchar) tuchar)))
+                                (Etempvar _i tint) (tptr tuchar)) tuchar)
+                            tuchar))
                         (Sassign
                           (Ederef
                             (Ebinop Oadd (Evar _pad (tarray tuchar 64))
@@ -737,16 +736,16 @@ Definition f_mbedtls_md_setup := {|
                 (_hmac, tint) :: nil);
   fn_vars := nil;
   fn_temps := ((_sha_ctx, (tptr (Tstruct _hmac_ctx_st noattr))) ::
-               (_t'1, tint) :: nil);
+               (_t'1, (tptr tvoid)) :: nil);
   fn_body :=
 (Ssequence
   (Ssequence
     (Scall (Some _t'1)
-      (Evar _malloc (Tfunction nil tint
-                      {|cc_vararg:=None; cc_unproto:=true; cc_structret:=false|}))
+      (Evar _malloc (Tfunction (tuint :: nil) (tptr tvoid) cc_default))
       ((Esizeof (Tstruct _hmac_ctx_st noattr) tuint) :: nil))
     (Sset _sha_ctx
-      (Ecast (Etempvar _t'1 tint) (tptr (Tstruct _hmac_ctx_st noattr)))))
+      (Ecast (Etempvar _t'1 (tptr tvoid))
+        (tptr (Tstruct _hmac_ctx_st noattr)))))
   (Ssequence
     (Sifthenelse (Ebinop Oeq
                    (Etempvar _sha_ctx (tptr (Tstruct _hmac_ctx_st noattr)))
@@ -877,9 +876,7 @@ Definition f_mbedtls_md_free := {|
     (Efield
       (Ederef (Etempvar _ctx (tptr (Tstruct _mbedtls_md_context_t noattr)))
         (Tstruct _mbedtls_md_context_t noattr)) _hmac_ctx (tptr tvoid)))
-  (Scall None
-    (Evar _free (Tfunction nil tint
-                  {|cc_vararg:=None; cc_unproto:=true; cc_structret:=false|}))
+  (Scall None (Evar _free (Tfunction ((tptr tvoid) :: nil) tvoid cc_default))
     ((Etempvar _hmac_ctx (tptr (Tstruct _hmac_ctx_st noattr))) :: nil)))
 |}.
 
@@ -2142,22 +2139,18 @@ Definition global_definitions : list (ident * globdef fundef type) :=
  (_HMAC_cleanup, Gfun(Internal f_HMAC_cleanup)) :: (_m, Gvar v_m) ::
  (_HMAC, Gfun(Internal f_HMAC)) :: (_m__1, Gvar v_m__1) ::
  (_HMAC2, Gfun(Internal f_HMAC2)) ::
+ (_malloc, Gfun(External EF_malloc (tuint :: nil) (tptr tvoid) cc_default)) ::
+ (_free, Gfun(External EF_free ((tptr tvoid) :: nil) tvoid cc_default)) ::
  (_mocked_sha256_info, Gvar v_mocked_sha256_info) ::
  (_mbedtls_md_info_from_string, Gfun(Internal f_mbedtls_md_info_from_string)) ::
  (_mbedtls_md_info_from_type, Gfun(Internal f_mbedtls_md_info_from_type)) ::
  (_mbedtls_md_get_size, Gfun(Internal f_mbedtls_md_get_size)) ::
  (_test_md_get_size, Gfun(Internal f_test_md_get_size)) ::
- (_malloc,
-   Gfun(External EF_malloc nil tint
-     {|cc_vararg:=None; cc_unproto:=true; cc_structret:=false|})) ::
  (_mbedtls_md_setup, Gfun(Internal f_mbedtls_md_setup)) ::
  (_mbedtls_md_hmac_starts, Gfun(Internal f_mbedtls_md_hmac_starts)) ::
  (_mbedtls_md_hmac_reset, Gfun(Internal f_mbedtls_md_hmac_reset)) ::
  (_mbedtls_md_hmac_update, Gfun(Internal f_mbedtls_md_hmac_update)) ::
  (_mbedtls_md_hmac_finish, Gfun(Internal f_mbedtls_md_hmac_finish)) ::
- (_free,
-   Gfun(External EF_free nil tint
-     {|cc_vararg:=None; cc_unproto:=true; cc_structret:=false|})) ::
  (_mbedtls_md_free, Gfun(Internal f_mbedtls_md_free)) ::
  (_get_entropy,
    Gfun(External (EF_external "get_entropy"
@@ -2185,31 +2178,30 @@ Definition public_idents : list ident :=
  _mbedtls_hmac_drbg_set_prediction_resistance :: _mbedtls_hmac_drbg_seed ::
  _mbedtls_hmac_drbg_reseed :: _mbedtls_hmac_drbg_seed_buf ::
  _mbedtls_hmac_drbg_update :: _mbedtls_hmac_drbg_init :: _get_entropy ::
- _mbedtls_md_free :: _free :: _mbedtls_md_hmac_finish ::
- _mbedtls_md_hmac_update :: _mbedtls_md_hmac_reset ::
- _mbedtls_md_hmac_starts :: _mbedtls_md_setup :: _malloc ::
+ _mbedtls_md_free :: _mbedtls_md_hmac_finish :: _mbedtls_md_hmac_update ::
+ _mbedtls_md_hmac_reset :: _mbedtls_md_hmac_starts :: _mbedtls_md_setup ::
  _test_md_get_size :: _mbedtls_md_get_size :: _mbedtls_md_info_from_type ::
- _mbedtls_md_info_from_string :: _HMAC2 :: _HMAC :: _HMAC_cleanup ::
- _HMAC_Final :: _HMAC_Update :: _HMAC_Init :: _SHA256_Final ::
- _SHA256_Update :: _SHA256_Init :: _memset :: _memcpy :: ___builtin_debug ::
- ___builtin_write32_reversed :: ___builtin_write16_reversed ::
- ___builtin_read32_reversed :: ___builtin_read16_reversed ::
- ___builtin_fnmsub :: ___builtin_fnmadd :: ___builtin_fmsub ::
- ___builtin_fmadd :: ___builtin_fmin :: ___builtin_fmax ::
- ___builtin_expect :: ___builtin_unreachable :: ___builtin_va_end ::
- ___builtin_va_copy :: ___builtin_va_arg :: ___builtin_va_start ::
- ___builtin_membar :: ___builtin_annot_intval :: ___builtin_annot ::
- ___builtin_sel :: ___builtin_memcpy_aligned :: ___builtin_sqrt ::
- ___builtin_fsqrt :: ___builtin_fabsf :: ___builtin_fabs ::
- ___builtin_ctzll :: ___builtin_ctzl :: ___builtin_ctz :: ___builtin_clzll ::
- ___builtin_clzl :: ___builtin_clz :: ___builtin_bswap16 ::
- ___builtin_bswap32 :: ___builtin_bswap :: ___builtin_bswap64 ::
- ___builtin_ais_annot :: ___compcert_i64_umulh :: ___compcert_i64_smulh ::
- ___compcert_i64_sar :: ___compcert_i64_shr :: ___compcert_i64_shl ::
- ___compcert_i64_umod :: ___compcert_i64_smod :: ___compcert_i64_udiv ::
- ___compcert_i64_sdiv :: ___compcert_i64_utof :: ___compcert_i64_stof ::
- ___compcert_i64_utod :: ___compcert_i64_stod :: ___compcert_i64_dtou ::
- ___compcert_i64_dtos :: ___compcert_va_composite ::
+ _mbedtls_md_info_from_string :: _free :: _malloc :: _HMAC2 :: _HMAC ::
+ _HMAC_cleanup :: _HMAC_Final :: _HMAC_Update :: _HMAC_Init ::
+ _SHA256_Final :: _SHA256_Update :: _SHA256_Init :: _memset :: _memcpy ::
+ ___builtin_debug :: ___builtin_write32_reversed ::
+ ___builtin_write16_reversed :: ___builtin_read32_reversed ::
+ ___builtin_read16_reversed :: ___builtin_fnmsub :: ___builtin_fnmadd ::
+ ___builtin_fmsub :: ___builtin_fmadd :: ___builtin_fmin ::
+ ___builtin_fmax :: ___builtin_expect :: ___builtin_unreachable ::
+ ___builtin_va_end :: ___builtin_va_copy :: ___builtin_va_arg ::
+ ___builtin_va_start :: ___builtin_membar :: ___builtin_annot_intval ::
+ ___builtin_annot :: ___builtin_sel :: ___builtin_memcpy_aligned ::
+ ___builtin_sqrt :: ___builtin_fsqrt :: ___builtin_fabsf ::
+ ___builtin_fabs :: ___builtin_ctzll :: ___builtin_ctzl :: ___builtin_ctz ::
+ ___builtin_clzll :: ___builtin_clzl :: ___builtin_clz ::
+ ___builtin_bswap16 :: ___builtin_bswap32 :: ___builtin_bswap ::
+ ___builtin_bswap64 :: ___builtin_ais_annot :: ___compcert_i64_umulh ::
+ ___compcert_i64_smulh :: ___compcert_i64_sar :: ___compcert_i64_shr ::
+ ___compcert_i64_shl :: ___compcert_i64_umod :: ___compcert_i64_smod ::
+ ___compcert_i64_udiv :: ___compcert_i64_sdiv :: ___compcert_i64_utof ::
+ ___compcert_i64_stof :: ___compcert_i64_utod :: ___compcert_i64_stod ::
+ ___compcert_i64_dtou :: ___compcert_i64_dtos :: ___compcert_va_composite ::
  ___compcert_va_float64 :: ___compcert_va_int64 :: ___compcert_va_int32 ::
  nil).
 
