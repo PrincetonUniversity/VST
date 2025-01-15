@@ -210,6 +210,11 @@ Opaque inv_for_lock.
     - Intros r. if_tac; forward_if; try discriminate; try contradiction.
       + forward. simpl spec_locks.lock_inv; entailer!.
       + forward. simpl spec_locks.lock_inv; entailer!.
+Unshelve. (* This part is for compatibility with VST < 2.15 *)
+all: apply Build_change_composite_env with (coeq := Maps.PTree.empty bool);
+ [intros; inv H1 |
+  intros; unfold cenv_cs; simpl; rewrite !Maps.PTree.gempty;
+   split; intros [? ?]; discriminate].
 Qed.
 
 #[global] Opaque M.
