@@ -10,6 +10,3 @@
 [submodule "fcf"]
 	path = fcf
 	url = https://github.com/adampetcher/fcf.git
-[submodule "refinedVST/typing/frontend_stuff/rc_convertor"]
-	path = refinedVST/typing/frontend_stuff/rc_convertor
-	url = git@github.com:sleepycoke/rc_convertor.git
