@@ -212,7 +212,8 @@ simpl in H.
 rewrite andb_true_iff in H.
 destruct H as [H H'].
 unfold BSQRT, UNOP .
-destruct (Binary.Bsqrt_correct (fprec t) (femax t)  (fprec_gt_0 t) (fprec_lt_femax t) (sqrt_nan t)
+destruct (Binary.Bsqrt_correct (fprec t) (femax t)  (fprec_gt_0 t) (fprec_lt_femax t) 
+           (sqrt_nan (fprec t) (femax t) (fprec_gt_one t))
                       BinarySingleNaN.mode_NE (float_of_ftype x)) as [? [??]].
 
 (*rewrite <- FT2R_ftype_of_float in H0.*)
@@ -311,7 +312,8 @@ split3; [ tauto | intro Hx; inv Hx |  ].
    rewrite ?FT2R_ftype_of_float in *.
    rewrite ?float_of_ftype_of_float in *.  
    set (y := float_of_ftype x) in *. clearbody y. clear x.
-   pose proof (Binary.B2R_Babs (fprec t) (femax t)  (FPCore.abs_nan t)
+   pose proof (Binary.B2R_Babs (fprec t) (femax t) 
+                (FPCore.abs_nan (fprec t) (femax t) (fprec_gt_one t))
                        y).
    rewrite H1; clear H1.
    exists 0%R, 0%R.
@@ -464,7 +466,8 @@ Lemma fma_ff_aux1:
    (fun x y z : ftype' t =>
     ftype_of_float
      (Binary.Bfma (fprec t) (femax t) (fprec_gt_0 t) (fprec_lt_femax t) 
-        (fma_nan t) BinarySingleNaN.mode_NE (float_of_ftype x) 
+        (fma_nan (fprec t) (femax t) (fprec_gt_one t)) 
+        BinarySingleNaN.mode_NE (float_of_ftype x) 
         (float_of_ftype y) (float_of_ftype z))).
 Proof.
 intros.
@@ -477,7 +480,8 @@ intros FIN.
 simpl.
 apply finite_bnds_e in H,H0,H1.
 rewrite is_finite_Binary in *.
-pose proof (Binary.Bfma_correct  (fprec t) (femax t)  (fprec_gt_0 t) (fprec_lt_femax t) (fma_nan t)
+pose proof (Binary.Bfma_correct  (fprec t) (femax t)  (fprec_gt_0 t) (fprec_lt_femax t) 
+                (fma_nan (fprec t) (femax t) (fprec_gt_one t))
                       BinarySingleNaN.mode_NE (float_of_ftype x) (float_of_ftype y) (float_of_ftype z) H H0 H1).
 cbv zeta in H2.
 pose proof (
@@ -493,7 +497,8 @@ pose proof (
 destruct H3.
 +
 destruct H2 as [? [? ?]].
-change (FMA_NAN.fma_nan_pl t) with (fma_nan t).
+change (FMA_NAN.fma_nan_pl (fprec t) (femax t) (fprec_gt_one t)) with
+   (fma_nan (fprec t) (femax t) (fprec_gt_one t)).
 rewrite H2.
 rewrite !Rmult_1_l.
 split; auto.
@@ -514,7 +519,7 @@ Lemma fma_ff_aux2:
   (fun x y z : ftype' t =>
     ftype_of_float
      (Binary.Bfma (fprec t) (femax t) (fprec_gt_0 t) (fprec_lt_femax t)
-        (@fma_nan nans t STD) BinarySingleNaN.mode_NE (@float_of_ftype t STD x)
+        (@fma_nan _ (fprec t) (femax t) (fprec_gt_one t)) BinarySingleNaN.mode_NE (@float_of_ftype t STD x)
         (@float_of_ftype t STD y) (@float_of_ftype t STD z))).
 Proof.
 intros; hnf; intros.
@@ -544,7 +549,7 @@ Qed.
 Definition fma_ff (t: type) `{STD: is_standard t}  : floatfunc  [ t;t;t ] t (fma_bnds t) (fun x y z => x*y+z)%R.
 apply (Build_floatfunc [t;t;t] t _ _ 
          (fun x y z => ftype_of_float (Binary.Bfma (fprec t) (femax t) (fprec_gt_0 t) (fprec_lt_femax t) 
-               (fma_nan t) BinarySingleNaN.mode_NE
+               (fma_nan (fprec t) (femax t) (fprec_gt_one t)) BinarySingleNaN.mode_NE
               (float_of_ftype x) (float_of_ftype y) (float_of_ftype z)))
            1%N 1%N).
 apply fma_ff_aux1.
@@ -583,7 +588,8 @@ Definition frexp_spec' (t: type) `{STD: is_standard t} :=
 
 Definition bogus_nan t `(STD: is_standard t) := 
    (* This is probably not the right NaN to use, wherever you see it used *)
-   FMA_NAN.quiet_nan t (FMA_NAN.default_nan t). 
+   FMA_NAN.quiet_nan  (fprec t) (femax t) (fprec_gt_one t) 
+   (FMA_NAN.default_nan  (fprec t)). 
 
 Definition nextafter (t: type) `{STD: is_standard t} (x y: ftype t) : ftype t := 
  match Binary.Bcompare (fprec t) (femax t) (float_of_ftype x) (float_of_ftype y) with
@@ -835,7 +841,7 @@ assert (H0: Binary.is_finite _ _ (ff_func (sqrt_ff Tdouble) x) = true). {
  - unfold BSQRT, UNOP; simpl.
   destruct (Binary.Bsqrt_correct (fprec Tdouble) 1024 (fprec_gt_0 Tdouble)
      (fprec_lt_femax Tdouble)  (fun _ : Binary.binary_float (fprec Tdouble) 1024 =>
-      any_nan Tdouble) BinarySingleNaN.mode_NE
+      any_nan (fprec Tdouble) (femax Tdouble) (fprec_gt_one Tdouble)) BinarySingleNaN.mode_NE
   (Binary.B754_finite (fprec Tdouble) 1024 false m e e0)).
  apply H1.
 }  
