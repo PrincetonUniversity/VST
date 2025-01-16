@@ -137,6 +137,24 @@ Qed.
 
 Opaque Nat.div Nat.modulo.
 
+Import Program.Wf. 
+  Program Lemma fix_sub_eq_ext :
+   (* need to copy this from Coq standard library because it moved from
+    one location to another between Coq 8.20 and Coq 8.21 *)
+    forall (A : Type) (R : A -> A -> Prop) (Rwf : well_founded R)
+      (P : A -> Type)
+      (F_sub : forall x : A, (forall y:{y : A | R y x}, P (proj1_sig y)) -> P x),
+      forall x : A,
+        Fix_sub A R Rwf P F_sub x =
+          F_sub x (fun y:{y : A | R y x} => Fix_sub A R Rwf P F_sub (proj1_sig y)).
+  Proof.
+    intros A R Rwf P F_sub x; apply Fix_eq ; auto.
+    intros ? f g H.
+    assert(f = g) as H0.
+    - extensionality y ; apply H.
+    - rewrite H0 ; auto.
+  Qed.
+
 Lemma intr_eq : forall n, intr n =
   match n <=? 0 with
   | true => []
@@ -145,7 +163,7 @@ Lemma intr_eq : forall n, intr n =
 Proof.
   intros.
   unfold intr at 1.
-  rewrite Wf.WfExtensionality.fix_sub_eq_ext; simpl; fold intr.
+  rewrite fix_sub_eq_ext; simpl; fold intr.
   destruct n; reflexivity.
 Qed.
 
@@ -231,7 +249,7 @@ Lemma chars_of_Z_eq : forall n, chars_of_Z n =
 Proof.
   intros.
   unfold chars_of_Z at 1.
-  rewrite Wf.WfExtensionality.fix_sub_eq_ext; simpl; fold chars_of_Z.
+  rewrite fix_sub_eq_ext; simpl; fold chars_of_Z.
   destruct (_ <=? _); reflexivity.
 Qed.
 
@@ -373,6 +391,11 @@ Require Import VST.progs.io_combine.
 Require Import VST.progs.io_os_specs.
 Require Import VST.progs.io_os_connection.
 
+Definition countfuns (prog: Clight.program) : nat :=
+ length
+  (filter (fun d => match snd d with Gfun _ => true | _ => false end)
+   (AST.prog_defs prog)).
+
 Lemma init_mem_exists : { m | Genv.init_mem prog = Some m }.
 Proof.
   unfold Genv.init_mem; simpl.
@@ -381,6 +404,7 @@ Ltac alloc_block m n := match n with
   | S ?n' => let m' := fresh "m" in let Hm' := fresh "Hm" in
     destruct (dry_mem_lemmas.drop_alloc m) as [m' Hm']; alloc_block m' n'
   end.
+<<<<<<< HEAD
 try first [
   (* This version works in Coq 8.19, CompCert 3.15 *)
   alloc_block Mem.empty 63%nat;
@@ -397,6 +421,15 @@ try first [
   eexists; repeat match goal with H : ?a = _ |- match ?a with Some m' => _ | None => None end = _ => rewrite H end;
   reflexivity
 ].
+=======
+ let n := constr:(countfuns prog) in let n := eval compute in n in
+ alloc_block Mem.empty n.
+ eexists;
+ repeat  match goal with
+          | H : ?a = _ |- match ?a with Some m' => _ | None => None end = _ =>
+            rewrite H; clear H end;
+  reflexivity.
+>>>>>>> origin
 Qed.
 
 Definition init_mem := proj1_sig init_mem_exists.

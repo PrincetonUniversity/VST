@@ -793,6 +793,7 @@ Section eq_dec.
   Lemma eq_dec_external_function : EqDec external_function. repeat t. Defined.
   Let eq_dec_option_ident := Coqlib.option_eq (ident_eq).
   Let eq_dec_option_Z : EqDec (option Z). repeat t. Defined.
+  Let eq_dec_typelist : EqDec (list type). repeat t. Defined.
 
   Lemma eq_dec_expr : EqDec expr.
   Proof. repeat t. Defined.

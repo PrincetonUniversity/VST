@@ -16,106 +16,129 @@ Module Info.
   Definition bitsize := 32.
   Definition big_endian := false.
   Definition source_file := "sha/hmac.c".
-  Definition normalized := true.
+  Definition normalized := false.
 End Info.
 
-Definition _HMAC : ident := $"HMAC".
-Definition _HMAC2 : ident := $"HMAC2".
-Definition _HMAC_Final : ident := $"HMAC_Final".
-Definition _HMAC_Init : ident := $"HMAC_Init".
-Definition _HMAC_Update : ident := $"HMAC_Update".
-Definition _HMAC_cleanup : ident := $"HMAC_cleanup".
-Definition _Nh : ident := $"Nh".
-Definition _Nl : ident := $"Nl".
-Definition _SHA256_Final : ident := $"SHA256_Final".
-Definition _SHA256_Init : ident := $"SHA256_Init".
-Definition _SHA256_Update : ident := $"SHA256_Update".
-Definition _SHA256state_st : ident := $"SHA256state_st".
-Definition ___builtin_ais_annot : ident := $"__builtin_ais_annot".
-Definition ___builtin_annot : ident := $"__builtin_annot".
-Definition ___builtin_annot_intval : ident := $"__builtin_annot_intval".
-Definition ___builtin_bswap : ident := $"__builtin_bswap".
-Definition ___builtin_bswap16 : ident := $"__builtin_bswap16".
-Definition ___builtin_bswap32 : ident := $"__builtin_bswap32".
-Definition ___builtin_bswap64 : ident := $"__builtin_bswap64".
-Definition ___builtin_clz : ident := $"__builtin_clz".
-Definition ___builtin_clzl : ident := $"__builtin_clzl".
-Definition ___builtin_clzll : ident := $"__builtin_clzll".
-Definition ___builtin_ctz : ident := $"__builtin_ctz".
-Definition ___builtin_ctzl : ident := $"__builtin_ctzl".
-Definition ___builtin_ctzll : ident := $"__builtin_ctzll".
-Definition ___builtin_debug : ident := $"__builtin_debug".
-Definition ___builtin_expect : ident := $"__builtin_expect".
-Definition ___builtin_fabs : ident := $"__builtin_fabs".
-Definition ___builtin_fabsf : ident := $"__builtin_fabsf".
-Definition ___builtin_fmadd : ident := $"__builtin_fmadd".
-Definition ___builtin_fmax : ident := $"__builtin_fmax".
-Definition ___builtin_fmin : ident := $"__builtin_fmin".
-Definition ___builtin_fmsub : ident := $"__builtin_fmsub".
-Definition ___builtin_fnmadd : ident := $"__builtin_fnmadd".
-Definition ___builtin_fnmsub : ident := $"__builtin_fnmsub".
-Definition ___builtin_fsqrt : ident := $"__builtin_fsqrt".
-Definition ___builtin_membar : ident := $"__builtin_membar".
-Definition ___builtin_memcpy_aligned : ident := $"__builtin_memcpy_aligned".
-Definition ___builtin_read16_reversed : ident := $"__builtin_read16_reversed".
-Definition ___builtin_read32_reversed : ident := $"__builtin_read32_reversed".
-Definition ___builtin_sel : ident := $"__builtin_sel".
-Definition ___builtin_sqrt : ident := $"__builtin_sqrt".
-Definition ___builtin_unreachable : ident := $"__builtin_unreachable".
-Definition ___builtin_va_arg : ident := $"__builtin_va_arg".
-Definition ___builtin_va_copy : ident := $"__builtin_va_copy".
-Definition ___builtin_va_end : ident := $"__builtin_va_end".
-Definition ___builtin_va_start : ident := $"__builtin_va_start".
-Definition ___builtin_write16_reversed : ident := $"__builtin_write16_reversed".
-Definition ___builtin_write32_reversed : ident := $"__builtin_write32_reversed".
-Definition ___compcert_i64_dtos : ident := $"__compcert_i64_dtos".
-Definition ___compcert_i64_dtou : ident := $"__compcert_i64_dtou".
-Definition ___compcert_i64_sar : ident := $"__compcert_i64_sar".
-Definition ___compcert_i64_sdiv : ident := $"__compcert_i64_sdiv".
-Definition ___compcert_i64_shl : ident := $"__compcert_i64_shl".
-Definition ___compcert_i64_shr : ident := $"__compcert_i64_shr".
-Definition ___compcert_i64_smod : ident := $"__compcert_i64_smod".
-Definition ___compcert_i64_smulh : ident := $"__compcert_i64_smulh".
-Definition ___compcert_i64_stod : ident := $"__compcert_i64_stod".
-Definition ___compcert_i64_stof : ident := $"__compcert_i64_stof".
-Definition ___compcert_i64_udiv : ident := $"__compcert_i64_udiv".
-Definition ___compcert_i64_umod : ident := $"__compcert_i64_umod".
-Definition ___compcert_i64_umulh : ident := $"__compcert_i64_umulh".
-Definition ___compcert_i64_utod : ident := $"__compcert_i64_utod".
-Definition ___compcert_i64_utof : ident := $"__compcert_i64_utof".
-Definition ___compcert_va_composite : ident := $"__compcert_va_composite".
-Definition ___compcert_va_float64 : ident := $"__compcert_va_float64".
-Definition ___compcert_va_int32 : ident := $"__compcert_va_int32".
-Definition ___compcert_va_int64 : ident := $"__compcert_va_int64".
-Definition _aux : ident := $"aux".
-Definition _buf : ident := $"buf".
-Definition _c : ident := $"c".
-Definition _ctx : ident := $"ctx".
-Definition _ctx_key : ident := $"ctx_key".
-Definition _d : ident := $"d".
-Definition _data : ident := $"data".
-Definition _h : ident := $"h".
-Definition _hmac_ctx_st : ident := $"hmac_ctx_st".
-Definition _i : ident := $"i".
-Definition _i_ctx : ident := $"i_ctx".
-Definition _j : ident := $"j".
-Definition _key : ident := $"key".
-Definition _key_len : ident := $"key_len".
-Definition _len : ident := $"len".
-Definition _m : ident := $"m".
-Definition _m__1 : ident := $"m__1".
-Definition _main : ident := $"main".
-Definition _md : ident := $"md".
-Definition _md_ctx : ident := $"md_ctx".
-Definition _memcpy : ident := $"memcpy".
-Definition _memset : ident := $"memset".
-Definition _n : ident := $"n".
-Definition _num : ident := $"num".
-Definition _o_ctx : ident := $"o_ctx".
-Definition _pad : ident := $"pad".
-Definition _reset : ident := $"reset".
-Definition _t'1 : ident := 128%positive.
-Definition _t'2 : ident := 129%positive.
+Definition _HMAC : ident := 118%positive.
+Definition _HMAC2 : ident := 120%positive.
+Definition _HMAC_Final : ident := 114%positive.
+Definition _HMAC_Init : ident := 111%positive.
+Definition _HMAC_Update : ident := 112%positive.
+Definition _HMAC_cleanup : ident := 115%positive.
+Definition _K256 : ident := 46%positive.
+Definition _Ki : ident := 63%positive.
+Definition _Nh : ident := 4%positive.
+Definition _Nl : ident := 3%positive.
+Definition _SHA256 : ident := 80%positive.
+Definition _SHA256_Final : ident := 79%positive.
+Definition _SHA256_Init : ident := 66%positive.
+Definition _SHA256_Update : ident := 75%positive.
+Definition _SHA256_addlength : ident := 70%positive.
+Definition _SHA256state_st : ident := 1%positive.
+Definition _T1 : ident := 58%positive.
+Definition _T2 : ident := 59%positive.
+Definition _X : ident := 61%positive.
+Definition ___builtin_ais_annot : ident := 7%positive.
+Definition ___builtin_annot : ident := 24%positive.
+Definition ___builtin_annot_intval : ident := 25%positive.
+Definition ___builtin_bswap : ident := 9%positive.
+Definition ___builtin_bswap16 : ident := 11%positive.
+Definition ___builtin_bswap32 : ident := 10%positive.
+Definition ___builtin_bswap64 : ident := 8%positive.
+Definition ___builtin_clz : ident := 12%positive.
+Definition ___builtin_clzl : ident := 13%positive.
+Definition ___builtin_clzll : ident := 14%positive.
+Definition ___builtin_ctz : ident := 15%positive.
+Definition ___builtin_ctzl : ident := 16%positive.
+Definition ___builtin_ctzll : ident := 17%positive.
+Definition ___builtin_debug : ident := 41%positive.
+Definition ___builtin_expect : ident := 32%positive.
+Definition ___builtin_fabs : ident := 18%positive.
+Definition ___builtin_fabsf : ident := 19%positive.
+Definition ___builtin_fmadd : ident := 35%positive.
+Definition ___builtin_fmax : ident := 33%positive.
+Definition ___builtin_fmin : ident := 34%positive.
+Definition ___builtin_fmsub : ident := 36%positive.
+Definition ___builtin_fnmadd : ident := 37%positive.
+Definition ___builtin_fnmsub : ident := 38%positive.
+Definition ___builtin_fsqrt : ident := 20%positive.
+Definition ___builtin_membar : ident := 26%positive.
+Definition ___builtin_memcpy_aligned : ident := 22%positive.
+Definition ___builtin_read16_reversed : ident := 39%positive.
+Definition ___builtin_read32_reversed : ident := 42%positive.
+Definition ___builtin_sel : ident := 23%positive.
+Definition ___builtin_sqrt : ident := 21%positive.
+Definition ___builtin_unreachable : ident := 31%positive.
+Definition ___builtin_va_arg : ident := 28%positive.
+Definition ___builtin_va_copy : ident := 29%positive.
+Definition ___builtin_va_end : ident := 30%positive.
+Definition ___builtin_va_start : ident := 27%positive.
+Definition ___builtin_write16_reversed : ident := 40%positive.
+Definition ___builtin_write32_reversed : ident := 43%positive.
+Definition ___compcert_i64_dtos : ident := 85%positive.
+Definition ___compcert_i64_dtou : ident := 86%positive.
+Definition ___compcert_i64_sar : ident := 97%positive.
+Definition ___compcert_i64_sdiv : ident := 91%positive.
+Definition ___compcert_i64_shl : ident := 95%positive.
+Definition ___compcert_i64_shr : ident := 96%positive.
+Definition ___compcert_i64_smod : ident := 93%positive.
+Definition ___compcert_i64_smulh : ident := 98%positive.
+Definition ___compcert_i64_stod : ident := 87%positive.
+Definition ___compcert_i64_stof : ident := 89%positive.
+Definition ___compcert_i64_udiv : ident := 92%positive.
+Definition ___compcert_i64_umod : ident := 94%positive.
+Definition ___compcert_i64_umulh : ident := 99%positive.
+Definition ___compcert_i64_utod : ident := 88%positive.
+Definition ___compcert_i64_utof : ident := 90%positive.
+Definition ___compcert_va_composite : ident := 84%positive.
+Definition ___compcert_va_float64 : ident := 83%positive.
+Definition ___compcert_va_int32 : ident := 81%positive.
+Definition ___compcert_va_int64 : ident := 82%positive.
+Definition _a : ident := 49%positive.
+Definition _aux : ident := 109%positive.
+Definition _b : ident := 50%positive.
+Definition _buf : ident := 113%positive.
+Definition _c : ident := 51%positive.
+Definition _cNh : ident := 69%positive.
+Definition _cNl : ident := 68%positive.
+Definition _ctx : ident := 47%positive.
+Definition _ctx_key : ident := 110%positive.
+Definition _d : ident := 52%positive.
+Definition _data : ident := 5%positive.
+Definition _data_ : ident := 71%positive.
+Definition _e : ident := 53%positive.
+Definition _f : ident := 54%positive.
+Definition _fragment : ident := 74%positive.
+Definition _g : ident := 55%positive.
+Definition _h : ident := 2%positive.
+Definition _hmac_ctx_st : ident := 101%positive.
+Definition _i : ident := 64%positive.
+Definition _i_ctx : ident := 103%positive.
+Definition _in : ident := 48%positive.
+Definition _j : ident := 106%positive.
+Definition _key : ident := 105%positive.
+Definition _key_len : ident := 117%positive.
+Definition _l : ident := 62%positive.
+Definition _len : ident := 67%positive.
+Definition _ll : ident := 77%positive.
+Definition _m : ident := 116%positive.
+Definition _m__1 : ident := 119%positive.
+Definition _main : ident := 100%positive.
+Definition _md : ident := 76%positive.
+Definition _md_ctx : ident := 102%positive.
+Definition _memcpy : ident := 44%positive.
+Definition _memset : ident := 45%positive.
+Definition _n : ident := 73%positive.
+Definition _num : ident := 6%positive.
+Definition _o_ctx : ident := 104%positive.
+Definition _p : ident := 72%positive.
+Definition _pad : ident := 108%positive.
+Definition _reset : ident := 107%positive.
+Definition _s0 : ident := 56%positive.
+Definition _s1 : ident := 57%positive.
+Definition _sha256_block_data_order : ident := 65%positive.
+Definition _t : ident := 60%positive.
+Definition _xn : ident := 78%positive.
 
 Definition f_HMAC_Init := {|
   fn_return := tvoid;
@@ -125,7 +148,7 @@ Definition f_HMAC_Init := {|
   fn_vars := ((_pad, (tarray tuchar 64)) :: (_ctx_key, (tarray tuchar 64)) ::
               nil);
   fn_temps := ((_i, tint) :: (_j, tint) :: (_reset, tint) ::
-               (_aux, tuchar) :: (_t'2, tuchar) :: (_t'1, tuchar) :: nil);
+               (_aux, tuchar) :: nil);
   fn_body :=
 (Ssequence
   (Sset _reset (Econst_int (Int.repr 0) tint))
@@ -217,12 +240,11 @@ Definition f_HMAC_Init := {|
                   Sskip
                   Sbreak)
                 (Ssequence
-                  (Ssequence
-                    (Sset _t'2
+                  (Sset _aux
+                    (Ecast
                       (Ederef
                         (Ebinop Oadd (Evar _ctx_key (tarray tuchar 64))
-                          (Etempvar _i tint) (tptr tuchar)) tuchar))
-                    (Sset _aux (Ecast (Etempvar _t'2 tuchar) tuchar)))
+                          (Etempvar _i tint) (tptr tuchar)) tuchar) tuchar))
                   (Ssequence
                     (Sset _aux
                       (Ecast
@@ -273,12 +295,12 @@ Definition f_HMAC_Init := {|
                         Sskip
                         Sbreak)
                       (Ssequence
-                        (Ssequence
-                          (Sset _t'1
+                        (Sset _aux
+                          (Ecast
                             (Ederef
                               (Ebinop Oadd (Evar _ctx_key (tarray tuchar 64))
-                                (Etempvar _i tint) (tptr tuchar)) tuchar))
-                          (Sset _aux (Ecast (Etempvar _t'1 tuchar) tuchar)))
+                                (Etempvar _i tint) (tptr tuchar)) tuchar)
+                            tuchar))
                         (Sassign
                           (Ederef
                             (Ebinop Oadd (Evar _pad (tarray tuchar 64))

@@ -141,6 +141,7 @@ rewrite Z.sub_add.
 rewrite nth_skipn.
 replace (Z.to_nat (hi-lo) + Z.to_nat lo)%nat with (Z.to_nat hi).
 f_equal.
+lia.
 apply firstn_same.
 rewrite <- ZtoNat_Zlength.
 apply Z_to_nat_monotone; auto.

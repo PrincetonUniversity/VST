@@ -115,7 +115,7 @@ Lemma semax_func_cons_ext: forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} 
   (⊢ CSHL_Def.semax_external _ _ _ OK_spec ef A E P Q) ->
   CSHL_Def.semax_func _ _ _ OK_spec V G C ge fs G' ->
   CSHL_Def.semax_func _ _ _ OK_spec V G C ge ((id, Ctypes.External ef argsig retsig cc)::fs)
-             ((id, mk_funspec (argsig, retsig) cc A E P Q)  :: G').
+             ((id, mk_funspec (argsig, retsig) cc A E P Q) :: G').
 Proof. intros. eapply semax_func_cons_ext; eauto. Qed.
 
 Definition semax_Delta_subsumption := @semax_lemmas.semax_Delta_subsumption.

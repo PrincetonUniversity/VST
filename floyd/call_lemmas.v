@@ -160,12 +160,11 @@ Proof.
   rewrite bi.and_elim_r; iFrame.
 Qed.
 
-Lemma eqb_typelist_refl: forall tl, eqb_list eqb_type tl tl = true.
+Lemma eqb_typelist_refl: forall c, eqb_list eqb_type c c = true.
 Proof.
-induction tl; simpl; auto.
-apply andb_true_iff.
-split; auto.
-apply eqb_type_refl.
+intros.
+apply eqb_list_spec; auto.
+exact eqb_type_spec.
 Qed.
 
 Lemma semax_call_id0:

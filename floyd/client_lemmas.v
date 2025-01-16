@@ -445,9 +445,6 @@ Lemma sem_cast_pointer2:
 Proof.
 intros.
 subst.
-hnf in H1.
-simpl in H1. rewrite andb_false_r in H1.
-unfold sem_cast, classify_cast; simpl.
 reflexivity.
 Qed.
 
@@ -1111,6 +1108,7 @@ Qed.
 End VST.
 
 #[export] Hint Resolve func_ptr_isptr: saturate_local.
+#[export] Hint Resolve SeparationLogic.func_ptr_valid_pointer: valid_pointer.
 #[export] Hint Rewrite @lift0_unfold @lift1_unfold @lift2_unfold @lift3_unfold @lift4_unfold : norm2.
 #[export] Hint Rewrite @lift0_unfoldC @lift1_unfoldC @lift2_unfoldC @lift3_unfoldC @lift4_unfoldC : norm2.
 #[export] Hint Rewrite @alift0_unfold @alift1_unfold @alift2_unfold @alift3_unfold @alift4_unfold : norm2.

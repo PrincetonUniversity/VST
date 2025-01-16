@@ -208,7 +208,7 @@ Definition Gprog : funspecs :=
 Fixpoint do_builtins (n: nat) (defs : list (ident * globdef Clight.fundef type)) : funspecs :=
  match n, defs with
   | S n', (id, Gfun (External (EF_builtin _ sig) argtys resty cc_default))::defs' =>
-     (id, NDmk_funspec ((*iota_formals 1%positive*) typelist2list argtys, resty) cc_default unit (fun _ => FF) (fun _ => FF))
+     (id, NDmk_funspec ((*iota_formals 1%positive*) argtys, resty) cc_default unit (fun _ => FF) (fun _ => FF))
       :: do_builtins n' defs'
   | _, _ => nil
  end.

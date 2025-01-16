@@ -16,121 +16,110 @@ Module Info.
   Definition bitsize := 32.
   Definition big_endian := false.
   Definition source_file := "sha/sha.c".
-  Definition normalized := true.
+  Definition normalized := false.
 End Info.
 
-Definition _K256 : ident := $"K256".
-Definition _Ki : ident := $"Ki".
-Definition _Nh : ident := $"Nh".
-Definition _Nl : ident := $"Nl".
-Definition _SHA256 : ident := $"SHA256".
-Definition _SHA256_Final : ident := $"SHA256_Final".
-Definition _SHA256_Init : ident := $"SHA256_Init".
-Definition _SHA256_Update : ident := $"SHA256_Update".
-Definition _SHA256_addlength : ident := $"SHA256_addlength".
-Definition _SHA256state_st : ident := $"SHA256state_st".
-Definition _T1 : ident := $"T1".
-Definition _T2 : ident := $"T2".
-Definition _X : ident := $"X".
-Definition ___builtin_ais_annot : ident := $"__builtin_ais_annot".
-Definition ___builtin_annot : ident := $"__builtin_annot".
-Definition ___builtin_annot_intval : ident := $"__builtin_annot_intval".
-Definition ___builtin_bswap : ident := $"__builtin_bswap".
-Definition ___builtin_bswap16 : ident := $"__builtin_bswap16".
-Definition ___builtin_bswap32 : ident := $"__builtin_bswap32".
-Definition ___builtin_bswap64 : ident := $"__builtin_bswap64".
-Definition ___builtin_clz : ident := $"__builtin_clz".
-Definition ___builtin_clzl : ident := $"__builtin_clzl".
-Definition ___builtin_clzll : ident := $"__builtin_clzll".
-Definition ___builtin_ctz : ident := $"__builtin_ctz".
-Definition ___builtin_ctzl : ident := $"__builtin_ctzl".
-Definition ___builtin_ctzll : ident := $"__builtin_ctzll".
-Definition ___builtin_debug : ident := $"__builtin_debug".
-Definition ___builtin_expect : ident := $"__builtin_expect".
-Definition ___builtin_fabs : ident := $"__builtin_fabs".
-Definition ___builtin_fabsf : ident := $"__builtin_fabsf".
-Definition ___builtin_fmadd : ident := $"__builtin_fmadd".
-Definition ___builtin_fmax : ident := $"__builtin_fmax".
-Definition ___builtin_fmin : ident := $"__builtin_fmin".
-Definition ___builtin_fmsub : ident := $"__builtin_fmsub".
-Definition ___builtin_fnmadd : ident := $"__builtin_fnmadd".
-Definition ___builtin_fnmsub : ident := $"__builtin_fnmsub".
-Definition ___builtin_fsqrt : ident := $"__builtin_fsqrt".
-Definition ___builtin_membar : ident := $"__builtin_membar".
-Definition ___builtin_memcpy_aligned : ident := $"__builtin_memcpy_aligned".
-Definition ___builtin_read16_reversed : ident := $"__builtin_read16_reversed".
-Definition ___builtin_read32_reversed : ident := $"__builtin_read32_reversed".
-Definition ___builtin_sel : ident := $"__builtin_sel".
-Definition ___builtin_sqrt : ident := $"__builtin_sqrt".
-Definition ___builtin_unreachable : ident := $"__builtin_unreachable".
-Definition ___builtin_va_arg : ident := $"__builtin_va_arg".
-Definition ___builtin_va_copy : ident := $"__builtin_va_copy".
-Definition ___builtin_va_end : ident := $"__builtin_va_end".
-Definition ___builtin_va_start : ident := $"__builtin_va_start".
-Definition ___builtin_write16_reversed : ident := $"__builtin_write16_reversed".
-Definition ___builtin_write32_reversed : ident := $"__builtin_write32_reversed".
-Definition ___compcert_i64_dtos : ident := $"__compcert_i64_dtos".
-Definition ___compcert_i64_dtou : ident := $"__compcert_i64_dtou".
-Definition ___compcert_i64_sar : ident := $"__compcert_i64_sar".
-Definition ___compcert_i64_sdiv : ident := $"__compcert_i64_sdiv".
-Definition ___compcert_i64_shl : ident := $"__compcert_i64_shl".
-Definition ___compcert_i64_shr : ident := $"__compcert_i64_shr".
-Definition ___compcert_i64_smod : ident := $"__compcert_i64_smod".
-Definition ___compcert_i64_smulh : ident := $"__compcert_i64_smulh".
-Definition ___compcert_i64_stod : ident := $"__compcert_i64_stod".
-Definition ___compcert_i64_stof : ident := $"__compcert_i64_stof".
-Definition ___compcert_i64_udiv : ident := $"__compcert_i64_udiv".
-Definition ___compcert_i64_umod : ident := $"__compcert_i64_umod".
-Definition ___compcert_i64_umulh : ident := $"__compcert_i64_umulh".
-Definition ___compcert_i64_utod : ident := $"__compcert_i64_utod".
-Definition ___compcert_i64_utof : ident := $"__compcert_i64_utof".
-Definition ___compcert_va_composite : ident := $"__compcert_va_composite".
-Definition ___compcert_va_float64 : ident := $"__compcert_va_float64".
-Definition ___compcert_va_int32 : ident := $"__compcert_va_int32".
-Definition ___compcert_va_int64 : ident := $"__compcert_va_int64".
-Definition _a : ident := $"a".
-Definition _b : ident := $"b".
-Definition _c : ident := $"c".
-Definition _cNh : ident := $"cNh".
-Definition _cNl : ident := $"cNl".
-Definition _ctx : ident := $"ctx".
-Definition _d : ident := $"d".
-Definition _data : ident := $"data".
-Definition _data_ : ident := $"data_".
-Definition _e : ident := $"e".
-Definition _f : ident := $"f".
-Definition _fragment : ident := $"fragment".
-Definition _g : ident := $"g".
-Definition _h : ident := $"h".
-Definition _i : ident := $"i".
-Definition _in : ident := $"in".
-Definition _l : ident := $"l".
-Definition _len : ident := $"len".
-Definition _ll : ident := $"ll".
-Definition _main : ident := $"main".
-Definition _md : ident := $"md".
-Definition _memcpy : ident := $"memcpy".
-Definition _memset : ident := $"memset".
-Definition _n : ident := $"n".
-Definition _num : ident := $"num".
-Definition _p : ident := $"p".
-Definition _s0 : ident := $"s0".
-Definition _s1 : ident := $"s1".
-Definition _sha256_block_data_order : ident := $"sha256_block_data_order".
-Definition _t : ident := $"t".
-Definition _xn : ident := $"xn".
-Definition _t'1 : ident := 128%positive.
-Definition _t'10 : ident := 137%positive.
-Definition _t'11 : ident := 138%positive.
-Definition _t'12 : ident := 139%positive.
-Definition _t'2 : ident := 129%positive.
-Definition _t'3 : ident := 130%positive.
-Definition _t'4 : ident := 131%positive.
-Definition _t'5 : ident := 132%positive.
-Definition _t'6 : ident := 133%positive.
-Definition _t'7 : ident := 134%positive.
-Definition _t'8 : ident := 135%positive.
-Definition _t'9 : ident := 136%positive.
+Definition _K256 : ident := 46%positive.
+Definition _Ki : ident := 63%positive.
+Definition _Nh : ident := 4%positive.
+Definition _Nl : ident := 3%positive.
+Definition _SHA256 : ident := 80%positive.
+Definition _SHA256_Final : ident := 79%positive.
+Definition _SHA256_Init : ident := 66%positive.
+Definition _SHA256_Update : ident := 75%positive.
+Definition _SHA256_addlength : ident := 70%positive.
+Definition _SHA256state_st : ident := 1%positive.
+Definition _T1 : ident := 58%positive.
+Definition _T2 : ident := 59%positive.
+Definition _X : ident := 61%positive.
+Definition ___builtin_ais_annot : ident := 7%positive.
+Definition ___builtin_annot : ident := 24%positive.
+Definition ___builtin_annot_intval : ident := 25%positive.
+Definition ___builtin_bswap : ident := 9%positive.
+Definition ___builtin_bswap16 : ident := 11%positive.
+Definition ___builtin_bswap32 : ident := 10%positive.
+Definition ___builtin_bswap64 : ident := 8%positive.
+Definition ___builtin_clz : ident := 12%positive.
+Definition ___builtin_clzl : ident := 13%positive.
+Definition ___builtin_clzll : ident := 14%positive.
+Definition ___builtin_ctz : ident := 15%positive.
+Definition ___builtin_ctzl : ident := 16%positive.
+Definition ___builtin_ctzll : ident := 17%positive.
+Definition ___builtin_debug : ident := 41%positive.
+Definition ___builtin_expect : ident := 32%positive.
+Definition ___builtin_fabs : ident := 18%positive.
+Definition ___builtin_fabsf : ident := 19%positive.
+Definition ___builtin_fmadd : ident := 35%positive.
+Definition ___builtin_fmax : ident := 33%positive.
+Definition ___builtin_fmin : ident := 34%positive.
+Definition ___builtin_fmsub : ident := 36%positive.
+Definition ___builtin_fnmadd : ident := 37%positive.
+Definition ___builtin_fnmsub : ident := 38%positive.
+Definition ___builtin_fsqrt : ident := 20%positive.
+Definition ___builtin_membar : ident := 26%positive.
+Definition ___builtin_memcpy_aligned : ident := 22%positive.
+Definition ___builtin_read16_reversed : ident := 39%positive.
+Definition ___builtin_read32_reversed : ident := 42%positive.
+Definition ___builtin_sel : ident := 23%positive.
+Definition ___builtin_sqrt : ident := 21%positive.
+Definition ___builtin_unreachable : ident := 31%positive.
+Definition ___builtin_va_arg : ident := 28%positive.
+Definition ___builtin_va_copy : ident := 29%positive.
+Definition ___builtin_va_end : ident := 30%positive.
+Definition ___builtin_va_start : ident := 27%positive.
+Definition ___builtin_write16_reversed : ident := 40%positive.
+Definition ___builtin_write32_reversed : ident := 43%positive.
+Definition ___compcert_i64_dtos : ident := 85%positive.
+Definition ___compcert_i64_dtou : ident := 86%positive.
+Definition ___compcert_i64_sar : ident := 97%positive.
+Definition ___compcert_i64_sdiv : ident := 91%positive.
+Definition ___compcert_i64_shl : ident := 95%positive.
+Definition ___compcert_i64_shr : ident := 96%positive.
+Definition ___compcert_i64_smod : ident := 93%positive.
+Definition ___compcert_i64_smulh : ident := 98%positive.
+Definition ___compcert_i64_stod : ident := 87%positive.
+Definition ___compcert_i64_stof : ident := 89%positive.
+Definition ___compcert_i64_udiv : ident := 92%positive.
+Definition ___compcert_i64_umod : ident := 94%positive.
+Definition ___compcert_i64_umulh : ident := 99%positive.
+Definition ___compcert_i64_utod : ident := 88%positive.
+Definition ___compcert_i64_utof : ident := 90%positive.
+Definition ___compcert_va_composite : ident := 84%positive.
+Definition ___compcert_va_float64 : ident := 83%positive.
+Definition ___compcert_va_int32 : ident := 81%positive.
+Definition ___compcert_va_int64 : ident := 82%positive.
+Definition _a : ident := 49%positive.
+Definition _b : ident := 50%positive.
+Definition _c : ident := 51%positive.
+Definition _cNh : ident := 69%positive.
+Definition _cNl : ident := 68%positive.
+Definition _ctx : ident := 47%positive.
+Definition _d : ident := 52%positive.
+Definition _data : ident := 5%positive.
+Definition _data_ : ident := 71%positive.
+Definition _e : ident := 53%positive.
+Definition _f : ident := 54%positive.
+Definition _fragment : ident := 74%positive.
+Definition _g : ident := 55%positive.
+Definition _h : ident := 2%positive.
+Definition _i : ident := 64%positive.
+Definition _in : ident := 48%positive.
+Definition _l : ident := 62%positive.
+Definition _len : ident := 67%positive.
+Definition _ll : ident := 77%positive.
+Definition _main : ident := 100%positive.
+Definition _md : ident := 76%positive.
+Definition _memcpy : ident := 44%positive.
+Definition _memset : ident := 45%positive.
+Definition _n : ident := 73%positive.
+Definition _num : ident := 6%positive.
+Definition _p : ident := 72%positive.
+Definition _s0 : ident := 56%positive.
+Definition _s1 : ident := 57%positive.
+Definition _sha256_block_data_order : ident := 65%positive.
+Definition _t : ident := 60%positive.
+Definition _xn : ident := 78%positive.
+Definition _t'1 : ident := 101%positive.
 
 Definition v_K256 := {|
   gvar_info := (tarray tuint 64);
@@ -212,11 +201,7 @@ Definition f_sha256_block_data_order := {|
                (_e, tuint) :: (_f, tuint) :: (_g, tuint) :: (_h, tuint) ::
                (_s0, tuint) :: (_s1, tuint) :: (_T1, tuint) ::
                (_T2, tuint) :: (_t, tuint) :: (_l, tuint) :: (_Ki, tuint) ::
-               (_i, tint) :: (_data, (tptr tuchar)) ::
-               (_t'4, (tptr tuchar)) :: (_t'3, (tptr tuchar)) ::
-               (_t'2, (tptr tuchar)) :: (_t'1, (tptr tuchar)) ::
-               (_t'8, tuchar) :: (_t'7, tuchar) :: (_t'6, tuchar) ::
-               (_t'5, tuchar) :: nil);
+               (_i, tint) :: (_data, (tptr tuchar)) :: (_t'1, tuint) :: nil);
   fn_body :=
 (Ssequence
   (Sset _data (Etempvar _in (tptr tvoid)))
@@ -306,85 +291,19 @@ Definition f_sha256_block_data_order := {|
                           (Ssequence
                             (Ssequence
                               (Ssequence
-                                (Ssequence
-                                  (Ssequence
-                                    (Ssequence
-                                      (Ssequence
-                                        (Ssequence
-                                          (Ssequence
-                                            (Ssequence
-                                              (Ssequence
-                                                (Ssequence
-                                                  (Sset _t'1
-                                                    (Etempvar _data (tptr tuchar)))
-                                                  (Sset _data
-                                                    (Ebinop Oadd
-                                                      (Etempvar _t'1 (tptr tuchar))
-                                                      (Econst_int (Int.repr 1) tint)
-                                                      (tptr tuchar))))
-                                                (Ssequence
-                                                  (Sset _t'8
-                                                    (Ederef
-                                                      (Etempvar _t'1 (tptr tuchar))
-                                                      tuchar))
-                                                  (Sset _l
-                                                    (Ebinop Oshl
-                                                      (Ecast
-                                                        (Etempvar _t'8 tuchar)
-                                                        tuint)
-                                                      (Econst_int (Int.repr 24) tint)
-                                                      tuint))))
-                                              (Sset _t'2
-                                                (Etempvar _data (tptr tuchar))))
-                                            (Sset _data
-                                              (Ebinop Oadd
-                                                (Etempvar _t'2 (tptr tuchar))
-                                                (Econst_int (Int.repr 1) tint)
-                                                (tptr tuchar))))
-                                          (Ssequence
-                                            (Sset _t'7
-                                              (Ederef
-                                                (Etempvar _t'2 (tptr tuchar))
-                                                tuchar))
-                                            (Sset _l
-                                              (Ebinop Oor (Etempvar _l tuint)
-                                                (Ebinop Oshl
-                                                  (Ecast
-                                                    (Etempvar _t'7 tuchar)
-                                                    tuint)
-                                                  (Econst_int (Int.repr 16) tint)
-                                                  tuint) tuint))))
-                                        (Sset _t'3
-                                          (Etempvar _data (tptr tuchar))))
-                                      (Sset _data
-                                        (Ebinop Oadd
-                                          (Etempvar _t'3 (tptr tuchar))
-                                          (Econst_int (Int.repr 1) tint)
-                                          (tptr tuchar))))
-                                    (Ssequence
-                                      (Sset _t'6
-                                        (Ederef (Etempvar _t'3 (tptr tuchar))
-                                          tuchar))
-                                      (Sset _l
-                                        (Ebinop Oor (Etempvar _l tuint)
-                                          (Ebinop Oshl
-                                            (Ecast (Etempvar _t'6 tuchar)
-                                              tuint)
-                                            (Econst_int (Int.repr 8) tint)
-                                            tuint) tuint))))
-                                  (Sset _t'4 (Etempvar _data (tptr tuchar))))
-                                (Sset _data
-                                  (Ebinop Oadd (Etempvar _t'4 (tptr tuchar))
-                                    (Econst_int (Int.repr 1) tint)
-                                    (tptr tuchar))))
-                              (Ssequence
-                                (Sset _t'5
-                                  (Ederef (Etempvar _t'4 (tptr tuchar))
-                                    tuchar))
-                                (Sset _l
-                                  (Ebinop Oor (Etempvar _l tuint)
-                                    (Ecast (Etempvar _t'5 tuchar) tuint)
-                                    tuint))))
+                                (Scall (Some _t'1)
+                                  (Evar ___builtin_read32_reversed (Tfunction
+                                                                    ((tptr tuint) ::
+                                                                    nil)
+                                                                    tuint
+                                                                    cc_default))
+                                  ((Ecast (Etempvar _data (tptr tuchar))
+                                     (tptr tuint)) :: nil))
+                                (Sset _l (Ecast (Etempvar _t'1 tuint) tuint)))
+                              (Sset _data
+                                (Ebinop Oadd (Etempvar _data (tptr tuchar))
+                                  (Econst_int (Int.repr 4) tint)
+                                  (tptr tuchar))))
                             (Ssequence
                               (Sassign
                                 (Ederef
@@ -1344,13 +1263,7 @@ Definition f_SHA256_Final := {|
                 (_c, (tptr (Tstruct _SHA256state_st noattr))) :: nil);
   fn_vars := nil;
   fn_temps := ((_p, (tptr tuchar)) :: (_n, tuint) :: (_cNl, tuint) ::
-               (_cNh, tuint) :: (_ll, tuint) :: (_xn, tuint) ::
-               (_t'12, (tptr tuchar)) :: (_t'11, (tptr tuchar)) ::
-               (_t'10, (tptr tuchar)) :: (_t'9, (tptr tuchar)) ::
-               (_t'8, (tptr tuchar)) :: (_t'7, (tptr tuchar)) ::
-               (_t'6, (tptr tuchar)) :: (_t'5, (tptr tuchar)) ::
-               (_t'4, (tptr tuchar)) :: (_t'3, (tptr tuchar)) ::
-               (_t'2, (tptr tuchar)) :: (_t'1, (tptr tuchar)) :: nil);
+               (_cNh, tuint) :: (_ll, tuint) :: (_xn, tuint) :: nil);
   fn_body :=
 (Ssequence
   (Sset _p
@@ -1425,70 +1338,16 @@ Definition f_SHA256_Final := {|
                       (Tstruct _SHA256state_st noattr)) _Nh tuint))
                 (Ssequence
                   (Ssequence
-                    (Ssequence
-                      (Ssequence
-                        (Ssequence
-                          (Ssequence
-                            (Ssequence
-                              (Ssequence
-                                (Ssequence
-                                  (Ssequence
-                                    (Ssequence
-                                      (Ssequence
-                                        (Sset _t'1
-                                          (Etempvar _p (tptr tuchar)))
-                                        (Sset _p
-                                          (Ebinop Oadd
-                                            (Etempvar _t'1 (tptr tuchar))
-                                            (Econst_int (Int.repr 1) tint)
-                                            (tptr tuchar))))
-                                      (Sassign
-                                        (Ederef (Etempvar _t'1 (tptr tuchar))
-                                          tuchar)
-                                        (Ecast
-                                          (Ebinop Oand
-                                            (Ebinop Oshr
-                                              (Etempvar _cNh tuint)
-                                              (Econst_int (Int.repr 24) tint)
-                                              tuint)
-                                            (Econst_int (Int.repr 255) tint)
-                                            tuint) tuchar)))
-                                    (Sset _t'2 (Etempvar _p (tptr tuchar))))
-                                  (Sset _p
-                                    (Ebinop Oadd
-                                      (Etempvar _t'2 (tptr tuchar))
-                                      (Econst_int (Int.repr 1) tint)
-                                      (tptr tuchar))))
-                                (Sassign
-                                  (Ederef (Etempvar _t'2 (tptr tuchar))
-                                    tuchar)
-                                  (Ecast
-                                    (Ebinop Oand
-                                      (Ebinop Oshr (Etempvar _cNh tuint)
-                                        (Econst_int (Int.repr 16) tint)
-                                        tuint)
-                                      (Econst_int (Int.repr 255) tint) tuint)
-                                    tuchar)))
-                              (Sset _t'3 (Etempvar _p (tptr tuchar))))
-                            (Sset _p
-                              (Ebinop Oadd (Etempvar _t'3 (tptr tuchar))
-                                (Econst_int (Int.repr 1) tint) (tptr tuchar))))
-                          (Sassign
-                            (Ederef (Etempvar _t'3 (tptr tuchar)) tuchar)
-                            (Ecast
-                              (Ebinop Oand
-                                (Ebinop Oshr (Etempvar _cNh tuint)
-                                  (Econst_int (Int.repr 8) tint) tuint)
-                                (Econst_int (Int.repr 255) tint) tuint)
-                              tuchar)))
-                        (Sset _t'4 (Etempvar _p (tptr tuchar))))
-                      (Sset _p
-                        (Ebinop Oadd (Etempvar _t'4 (tptr tuchar))
-                          (Econst_int (Int.repr 1) tint) (tptr tuchar))))
-                    (Sassign (Ederef (Etempvar _t'4 (tptr tuchar)) tuchar)
-                      (Ecast
-                        (Ebinop Oand (Etempvar _cNh tuint)
-                          (Econst_int (Int.repr 255) tint) tuint) tuchar)))
+                    (Scall None
+                      (Evar ___builtin_write32_reversed (Tfunction
+                                                          ((tptr tuint) ::
+                                                           tuint :: nil)
+                                                          tvoid cc_default))
+                      ((Ecast (Etempvar _p (tptr tuchar)) (tptr tuint)) ::
+                       (Etempvar _cNh tuint) :: nil))
+                    (Sset _p
+                      (Ebinop Oadd (Etempvar _p (tptr tuchar))
+                        (Econst_int (Int.repr 4) tint) (tptr tuchar))))
                   (Ssequence
                     (Sset _cNl
                       (Efield
@@ -1497,74 +1356,17 @@ Definition f_SHA256_Final := {|
                           (Tstruct _SHA256state_st noattr)) _Nl tuint))
                     (Ssequence
                       (Ssequence
-                        (Ssequence
-                          (Ssequence
-                            (Ssequence
-                              (Ssequence
-                                (Ssequence
-                                  (Ssequence
-                                    (Ssequence
-                                      (Ssequence
-                                        (Ssequence
-                                          (Ssequence
-                                            (Sset _t'5
-                                              (Etempvar _p (tptr tuchar)))
-                                            (Sset _p
-                                              (Ebinop Oadd
-                                                (Etempvar _t'5 (tptr tuchar))
-                                                (Econst_int (Int.repr 1) tint)
-                                                (tptr tuchar))))
-                                          (Sassign
-                                            (Ederef
-                                              (Etempvar _t'5 (tptr tuchar))
-                                              tuchar)
-                                            (Ecast
-                                              (Ebinop Oand
-                                                (Ebinop Oshr
-                                                  (Etempvar _cNl tuint)
-                                                  (Econst_int (Int.repr 24) tint)
-                                                  tuint)
-                                                (Econst_int (Int.repr 255) tint)
-                                                tuint) tuchar)))
-                                        (Sset _t'6
-                                          (Etempvar _p (tptr tuchar))))
-                                      (Sset _p
-                                        (Ebinop Oadd
-                                          (Etempvar _t'6 (tptr tuchar))
-                                          (Econst_int (Int.repr 1) tint)
-                                          (tptr tuchar))))
-                                    (Sassign
-                                      (Ederef (Etempvar _t'6 (tptr tuchar))
-                                        tuchar)
-                                      (Ecast
-                                        (Ebinop Oand
-                                          (Ebinop Oshr (Etempvar _cNl tuint)
-                                            (Econst_int (Int.repr 16) tint)
-                                            tuint)
-                                          (Econst_int (Int.repr 255) tint)
-                                          tuint) tuchar)))
-                                  (Sset _t'7 (Etempvar _p (tptr tuchar))))
-                                (Sset _p
-                                  (Ebinop Oadd (Etempvar _t'7 (tptr tuchar))
-                                    (Econst_int (Int.repr 1) tint)
-                                    (tptr tuchar))))
-                              (Sassign
-                                (Ederef (Etempvar _t'7 (tptr tuchar)) tuchar)
-                                (Ecast
-                                  (Ebinop Oand
-                                    (Ebinop Oshr (Etempvar _cNl tuint)
-                                      (Econst_int (Int.repr 8) tint) tuint)
-                                    (Econst_int (Int.repr 255) tint) tuint)
-                                  tuchar)))
-                            (Sset _t'8 (Etempvar _p (tptr tuchar))))
-                          (Sset _p
-                            (Ebinop Oadd (Etempvar _t'8 (tptr tuchar))
-                              (Econst_int (Int.repr 1) tint) (tptr tuchar))))
-                        (Sassign
-                          (Ederef (Etempvar _t'8 (tptr tuchar)) tuchar)
-                          (Ecast
-                            (Ebinop Oand (Etempvar _cNl tuint)
-                              (Econst_int (Int.repr 255) tint) tuint) tuchar)))
+                        (Scall None
+                          (Evar ___builtin_write32_reversed (Tfunction
+                                                              ((tptr tuint) ::
+                                                               tuint :: nil)
+                                                              tvoid
+                                                              cc_default))
+                          ((Ecast (Etempvar _p (tptr tuchar)) (tptr tuint)) ::
+                           (Etempvar _cNl tuint) :: nil))
+                        (Sset _p
+                          (Ebinop Oadd (Etempvar _p (tptr tuchar))
+                            (Econst_int (Int.repr 4) tint) (tptr tuchar))))
                       (Ssequence
                         (Sset _p
                           (Ebinop Osub (Etempvar _p (tptr tuchar))
@@ -1623,90 +1425,20 @@ Definition f_SHA256_Final := {|
                                               (Etempvar _xn tuint)
                                               (tptr tuint)) tuint))
                                         (Ssequence
-                                          (Ssequence
-                                            (Ssequence
-                                              (Ssequence
-                                                (Ssequence
-                                                  (Ssequence
-                                                    (Ssequence
-                                                      (Ssequence
-                                                        (Ssequence
-                                                          (Ssequence
-                                                            (Ssequence
-                                                              (Sset _t'9
-                                                                (Etempvar _md (tptr tuchar)))
-                                                              (Sset _md
-                                                                (Ebinop Oadd
-                                                                  (Etempvar _t'9 (tptr tuchar))
-                                                                  (Econst_int (Int.repr 1) tint)
-                                                                  (tptr tuchar))))
-                                                            (Sassign
-                                                              (Ederef
-                                                                (Etempvar _t'9 (tptr tuchar))
-                                                                tuchar)
-                                                              (Ecast
-                                                                (Ebinop Oand
-                                                                  (Ebinop Oshr
-                                                                    (Etempvar _ll tuint)
-                                                                    (Econst_int (Int.repr 24) tint)
-                                                                    tuint)
-                                                                  (Econst_int (Int.repr 255) tint)
-                                                                  tuint)
-                                                                tuchar)))
-                                                          (Sset _t'10
-                                                            (Etempvar _md (tptr tuchar))))
-                                                        (Sset _md
-                                                          (Ebinop Oadd
-                                                            (Etempvar _t'10 (tptr tuchar))
-                                                            (Econst_int (Int.repr 1) tint)
-                                                            (tptr tuchar))))
-                                                      (Sassign
-                                                        (Ederef
-                                                          (Etempvar _t'10 (tptr tuchar))
-                                                          tuchar)
-                                                        (Ecast
-                                                          (Ebinop Oand
-                                                            (Ebinop Oshr
-                                                              (Etempvar _ll tuint)
-                                                              (Econst_int (Int.repr 16) tint)
-                                                              tuint)
-                                                            (Econst_int (Int.repr 255) tint)
-                                                            tuint) tuchar)))
-                                                    (Sset _t'11
-                                                      (Etempvar _md (tptr tuchar))))
-                                                  (Sset _md
-                                                    (Ebinop Oadd
-                                                      (Etempvar _t'11 (tptr tuchar))
-                                                      (Econst_int (Int.repr 1) tint)
-                                                      (tptr tuchar))))
-                                                (Sassign
-                                                  (Ederef
-                                                    (Etempvar _t'11 (tptr tuchar))
-                                                    tuchar)
-                                                  (Ecast
-                                                    (Ebinop Oand
-                                                      (Ebinop Oshr
-                                                        (Etempvar _ll tuint)
-                                                        (Econst_int (Int.repr 8) tint)
-                                                        tuint)
-                                                      (Econst_int (Int.repr 255) tint)
-                                                      tuint) tuchar)))
-                                              (Sset _t'12
-                                                (Etempvar _md (tptr tuchar))))
-                                            (Sset _md
-                                              (Ebinop Oadd
-                                                (Etempvar _t'12 (tptr tuchar))
-                                                (Econst_int (Int.repr 1) tint)
-                                                (tptr tuchar))))
-                                          (Sassign
-                                            (Ederef
-                                              (Etempvar _t'12 (tptr tuchar))
-                                              tuchar)
-                                            (Ecast
-                                              (Ebinop Oand
-                                                (Etempvar _ll tuint)
-                                                (Econst_int (Int.repr 255) tint)
-                                                tuint) tuchar)))))
+                                          (Scall None
+                                            (Evar ___builtin_write32_reversed 
+                                            (Tfunction
+                                              ((tptr tuint) :: tuint :: nil)
+                                              tvoid cc_default))
+                                            ((Ecast
+                                               (Etempvar _md (tptr tuchar))
+                                               (tptr tuint)) ::
+                                             (Etempvar _ll tuint) :: nil))
+                                          (Sset _md
+                                            (Ebinop Oadd
+                                              (Etempvar _md (tptr tuchar))
+                                              (Econst_int (Int.repr 4) tint)
+                                              (tptr tuchar))))))
                                     (Sset _xn
                                       (Ebinop Oadd (Etempvar _xn tuint)
                                         (Econst_int (Int.repr 1) tint) tuint))))
@@ -1990,26 +1722,26 @@ Definition global_definitions : list (ident * globdef fundef type) :=
                    (mksignature (AST.Xptr :: nil) AST.Xint16unsigned
                      cc_default)) ((tptr tushort) :: nil) tushort
      cc_default)) ::
- (___builtin_read32_reversed,
-   Gfun(External (EF_builtin "__builtin_read32_reversed"
-                   (mksignature (AST.Xptr :: nil) AST.Xint cc_default))
-     ((tptr tuint) :: nil) tuint cc_default)) ::
  (___builtin_write16_reversed,
    Gfun(External (EF_builtin "__builtin_write16_reversed"
                    (mksignature (AST.Xptr :: AST.Xint16unsigned :: nil)
                      AST.Xvoid cc_default))
      ((tptr tushort) :: tushort :: nil) tvoid cc_default)) ::
- (___builtin_write32_reversed,
-   Gfun(External (EF_builtin "__builtin_write32_reversed"
-                   (mksignature (AST.Xptr :: AST.Xint :: nil) AST.Xvoid
-                     cc_default)) ((tptr tuint) :: tuint :: nil) tvoid
-     cc_default)) ::
  (___builtin_debug,
    Gfun(External (EF_external "__builtin_debug"
                    (mksignature (AST.Xint :: nil) AST.Xvoid
                      {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|}))
      (tint :: nil) tvoid
      {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|})) ::
+ (___builtin_read32_reversed,
+   Gfun(External (EF_builtin "__builtin_read32_reversed"
+                   (mksignature (AST.Xptr :: nil) AST.Xint cc_default))
+     ((tptr tuint) :: nil) tuint cc_default)) ::
+ (___builtin_write32_reversed,
+   Gfun(External (EF_builtin "__builtin_write32_reversed"
+                   (mksignature (AST.Xptr :: AST.Xint :: nil) AST.Xvoid
+                     cc_default)) ((tptr tuint) :: tuint :: nil) tvoid
+     cc_default)) ::
  (_memcpy,
    Gfun(External (EF_external "memcpy"
                    (mksignature (AST.Xptr :: AST.Xptr :: AST.Xint :: nil)
@@ -2031,8 +1763,8 @@ Definition global_definitions : list (ident * globdef fundef type) :=
 Definition public_idents : list ident :=
 (_SHA256 :: _SHA256_Final :: _SHA256_Update :: _SHA256_addlength ::
  _SHA256_Init :: _sha256_block_data_order :: _memset :: _memcpy ::
- ___builtin_debug :: ___builtin_write32_reversed ::
- ___builtin_write16_reversed :: ___builtin_read32_reversed ::
+ ___builtin_write32_reversed :: ___builtin_read32_reversed ::
+ ___builtin_debug :: ___builtin_write16_reversed ::
  ___builtin_read16_reversed :: ___builtin_fnmsub :: ___builtin_fnmadd ::
  ___builtin_fmsub :: ___builtin_fmadd :: ___builtin_fmin ::
  ___builtin_fmax :: ___builtin_expect :: ___builtin_unreachable ::

@@ -924,14 +924,40 @@ Definition valid_pointer (p: val) : mpred :=
 Definition weak_valid_pointer (p: val) : mpred :=
  (valid_pointer' p 0) ∨ (valid_pointer' p (-1)).
 
+Lemma func_at_valid_pointer {phi b z} (Hz: 0 <= z <= Ptrofs.max_unsigned):
+      func_at phi (b,z) ⊢ valid_pointer (Vptr b (Ptrofs.repr z)).
+Proof. unfold func_at, valid_pointer, valid_pointer'.
+  iIntros "(? & _)"; iLeft.
+  rewrite Z.add_0_r Ptrofs.unsigned_repr //.
+  iFrame.
+Qed.
+
+Lemma func_at'_valid_pointer {phi b z} (Hz: 0 <= z <= Ptrofs.max_unsigned):
+      func_at' phi (b,z) ⊢ valid_pointer (Vptr b (Ptrofs.repr z)).
+Proof. unfold func_at'; destruct phi.
+  iIntros "(% & % & % & % & ?)"; iApply func_at_valid_pointer; done.
+Qed.
+
+Lemma func_ptr_si_valid_pointer {phi v}: func_ptr_si phi v ⊢ valid_pointer v.
+Proof.
+  unfold func_ptr_si.
+  iIntros "(% & -> & % & _ & ?)"; iApply func_at_valid_pointer; done.
+Qed.
+
+Lemma func_ptr_valid_pointer {phi v}: func_ptr phi v ⊢ valid_pointer v.
+Proof.
+  unfold func_ptr_si.
+  iIntros "(% & -> & % & _ & ?)"; iApply func_at_valid_pointer; done.
+Qed.
+
 (********************SUBSUME****************)
 
 Definition funsig_of_function (f: function) : funsig :=
   (fn_params f, fn_return f).
 
-(*Lemma binary_intersection_retty {phi1 phi2 phi} (BI : binary_intersection phi1 phi2 = Some phi):
-      rettype_of_funspec phi1 = rettype_of_funspec phi.
-Proof. unfold rettype_of_funspec. rewrite (binary_intersection_typesig BI); trivial. Qed.*)
+Lemma binary_intersection_retty {phi1 phi2 phi} (BI : binary_intersection phi1 phi2 = Some phi):
+      xtype_of_funspec phi1 = xtype_of_funspec phi.
+Proof. unfold xtype_of_funspec. rewrite (binary_intersection_typesig BI); trivial. Qed.
 
 (* If we were to require that a non-void-returning function must,
    at a function call, have its result assigned to a temp,

@@ -229,7 +229,7 @@ Sfor (Sset _i (Econst_int (Int.repr 0) tint))
                                    (tptr tuint)) tuint))
                           (Scall (Some _t'5)
                              (Evar _L32
-                                (Tfunction (Tcons tuint (Tcons tint Tnil))
+                                (Tfunction [tuint; tint]
                                    tuint cc_default))
                              [Ebinop Oadd (Etempvar _t'31 tuint)
                                 (Etempvar _t'32 tuint) tuint;
@@ -263,7 +263,7 @@ Sfor (Sset _i (Econst_int (Int.repr 0) tint))
                                       (tptr tuint)) tuint))
                              (Scall (Some _t'6)
                                 (Evar _L32
-                                   (Tfunction (Tcons tuint (Tcons tint Tnil))
+                                   (Tfunction [tuint; tint]
                                       tuint cc_default))
                                 [Ebinop Oadd (Etempvar _t'28 tuint)
                                    (Etempvar _t'29 tuint) tuint;
@@ -298,7 +298,7 @@ Sfor (Sset _i (Econst_int (Int.repr 0) tint))
                                 (Scall (Some _t'7)
                                    (Evar _L32
                                       (Tfunction
-                                         (Tcons tuint (Tcons tint Tnil))
+                                         [tuint; tint]
                                          tuint cc_default))
                                    [Ebinop Oadd (Etempvar _t'25 tuint)
                                       (Etempvar _t'26 tuint) tuint;
@@ -334,7 +334,7 @@ Sfor (Sset _i (Econst_int (Int.repr 0) tint))
                                    (Scall (Some _t'8)
                                       (Evar _L32
                                          (Tfunction
-                                            (Tcons tuint (Tcons tint Tnil))
+                                            [tuint; tint]
                                             tuint cc_default))
                                       [Ebinop Oadd (Etempvar _t'22 tuint)
                                          (Etempvar _t'23 tuint) tuint;

@@ -288,15 +288,15 @@ Definition main_post_dry (m0 m : mem) (prog : Clight.program) (ora : OK_ty)
          (m_phi m) (*phi0 /\
        necR (fst x') phi1*) /\ joins (ghost_of (m_phi m)) [Some (ext_ref z, NoneP)]).
 
-Definition rettype_of_option_typ (t: option typ) : rettype :=
-match t with Some t => AST.Tret t | None => AST.Tvoid end.
+Definition xtype_of_option_typ (t: option typ) : xtype :=
+match t with Some t => inj_type t | None => Xvoid end.
 
 Definition main_post_juicy {Z} prog (ora : Z) gv (x' : rmap * {ts : list Type & unit})
   (ge_s: extspec.injective_PTree block) (tret : option typ) ret (z : Z) (m : juicy_mem) :=
   (*exists phi0 phi1 : rmap,
        join phi0 phi1 (m_phi m) /\*)
        (app_pred (main_post prog gv
-          (semax.make_ext_rval (filter_genv (semax_ext.symb2genv ge_s)) (rettype_of_option_typ tret) ret))
+          (semax.make_ext_rval (filter_genv (semax_ext.symb2genv ge_s)) (xtype_of_option_typ tret) ret))
          (m_phi m)(*phi0 /\
        necR (fst x') phi1*) /\ joins (ghost_of (m_phi m)) [Some (ext_ref z, NoneP)]).
 

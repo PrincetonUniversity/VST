@@ -317,7 +317,7 @@ Inductive semax_func `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} : forall (V: 
   (⊢ semax_external ef A E P Q) ->
   semax_func(C := C) V G ge fs G' ->
   semax_func V G ge ((id, External ef argsig retsig cc)::fs)
-       ((id, mk_funspec (argsig, retsig) cc A E P Q)  :: G')
+       ((id, mk_funspec (argsig, retsig) cc A E P Q) :: G')
 | semax_func_mono: forall  {CS CS'} (CSUB: cspecs_sub CS CS') ge ge'
   (Gfs: forall i,  sub_option (Genv.find_symbol ge i) (Genv.find_symbol ge' i))
   (Gffp: forall b, sub_option (Genv.find_funct_ptr ge b) (Genv.find_funct_ptr ge' b))
@@ -2215,14 +2215,14 @@ Proof.
   iPureIntro; split3; last split3; auto; intros; rewrite bi.sep_emp bi.and_elim_r bi.affinely_elim_emp bi.emp_sep //.
 Qed.
 
-Lemma typecheck_environ_globals_only t rho: typecheck_environ (rettype_tycontext t) (globals_only rho).
+Lemma typecheck_environ_globals_only t rho: typecheck_environ (xtype_tycontext t) (globals_only rho).
 Proof.
   split3; red; simpl; intros. setoid_rewrite Maps.PTree.gempty in H. congruence.
   split; intros. setoid_rewrite Maps.PTree.gempty in H. congruence. destruct H; inv H.
   setoid_rewrite Maps.PTree.gempty in H. congruence.
 Qed. 
 
-Lemma typecheck_environ_env_setglobals_only t rho x v: typecheck_environ (rettype_tycontext t) (env_set (globals_only rho) x v).
+Lemma typecheck_environ_env_setglobals_only t rho x v: typecheck_environ (xtype_tycontext t) (env_set (globals_only rho) x v).
 Proof.
   split3; red; simpl; intros. setoid_rewrite Maps.PTree.gempty in H. congruence.
   split; intros. setoid_rewrite Maps.PTree.gempty in H. congruence. destruct H; inv H.
@@ -2251,7 +2251,7 @@ apply semax_adapt
     ∃ x1 : dtfr A,
     ∃ FR: _,
     ⌜E x1 ⊆ E' x /\ forall rho' : environ,
-              ⌜tc_environ (rettype_tycontext (snd sig)) rho'⌝ ∧ (FR ∗ Q x1 rho') ⊢ (Q' x rho')⌝ ∧
+              ⌜tc_environ (xtype_tycontext (snd sig)) rho'⌝ ∧ (FR ∗ Q x1 rho') ⊢ (Q' x rho')⌝ ∧
       ((stackframe_of f ∗ ⎡FR⎤ ∗ assert_of (fun tau => P x1 (ge_of tau, vals))) ∧
             local (fun tau => map (Map.get (te_of tau)) (map fst (fn_params f)) = map Some vals /\ tc_vals (map snd (fn_params f)) vals))).
  - split => rho. monPred.unseal; rewrite /bind_ret monPred_at_affinely.
@@ -2321,15 +2321,15 @@ apply semax_adapt
       * split => rho; rewrite /bind_ret; monPred.unseal; destruct (fn_return f); try iIntros "(_ & ([] & _) & _)".
         rewrite /= -QPOST; iIntros "(? & (? & ?) & ?)"; iFrame.
         iPureIntro; split; last done.
-        apply tc_environ_rettype.
+        apply tc_environ_xtype.
       * split => rho; rewrite /bind_ret; monPred.unseal; iIntros "(% & (Q & $) & ?)".
         destruct vl; simpl.
         -- rewrite -QPOST.
            iDestruct "Q" as "($ & $)"; iFrame; iPureIntro; split; last done.
-           apply tc_environ_rettype_env_set.
+           apply tc_environ_xtype_env_set.
         -- destruct (fn_return f); try iDestruct "Q" as "[]".
            rewrite /= -QPOST; iFrame; iPureIntro; split; last done.
-           apply tc_environ_rettype.
+           apply tc_environ_xtype.
     + do 2 red; intros; monPred.unseal; trivial.
 Qed.
 

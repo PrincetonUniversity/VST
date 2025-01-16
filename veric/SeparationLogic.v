@@ -103,6 +103,9 @@ Proof. apply funspec_sub_implies_func_prt_si_mono; done. Qed.
 Lemma func_ptr_isptr: forall spec f, func_ptr spec f ⊢ ⌜isptr f⌝.
 Proof. apply seplog.func_ptr_si_isptr. Qed.
 
+Lemma func_ptr_valid_pointer fs v : func_ptr fs v ⊢ valid_pointer v.
+Proof. apply func_ptr_si_valid_pointer; done. Qed.
+
 Definition type_of_funsig (fsig: funsig) :=
    Tfunction (type_of_params (fst fsig)) (snd fsig) cc_default.
 

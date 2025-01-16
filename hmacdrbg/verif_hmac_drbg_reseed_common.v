@@ -102,8 +102,7 @@ semax(C := hmac_drbg_compspecs.CompSpecs)(OK_spec := Espec) ⊤
               (Ssequence
                  (Scall None
                     (Evar _memcpy
-                       (Tfunction
-                          (Tcons (tptr tvoid) (Tcons (tptr tvoid) (Tcons tuint Tnil)))
+                       (Tfunction [tptr tvoid; tptr tvoid; tuint]
                           (tptr tvoid) cc_default))
                     [Ebinop Oadd (Evar _seed (tarray tuchar 384))
                        (Etempvar _seedlen tuint) (tptr tuchar);
@@ -114,9 +113,8 @@ semax(C := hmac_drbg_compspecs.CompSpecs)(OK_spec := Espec) ⊤
         (Ssequence
            (Scall None
               (Evar _mbedtls_hmac_drbg_update
-                 (Tfunction
-                    (Tcons (tptr (Tstruct _mbedtls_hmac_drbg_context noattr))
-                       (Tcons (tptr tuchar) (Tcons tuint Tnil))) tvoid cc_default))
+                 (Tfunction [tptr (Tstruct _mbedtls_hmac_drbg_context noattr);
+                             tptr tuchar; tuint] tvoid cc_default))
               [Etempvar _ctx (tptr (Tstruct _mbedtls_hmac_drbg_context noattr));
               Evar _seed (tarray tuchar 384); Etempvar _seedlen tuint])
            (Ssequence
@@ -444,15 +442,26 @@ Proof.
   remember (HMAC_DRBG_update HMAC256_functional_prog.HMAC256
               (entropy_bytes ++ contents_with_add additional (Zlength contents) contents) key V) as q.
   destruct q. normalize.
-  thaw FR12. thaw FR10. cancel. simpl. rewrite <- Heqp.
-  unfold  hmac256drbgabs_common_mpreds. cancel.
-  unfold get_entropy; rewrite <- Heqentropy_result. simpl. normalize. entailer!.
-  { simpl in *. unfold HMAC_DRBG_update in Heqq.
-    destruct (entropy_bytes ++
-         contents_with_add additional (Zlength contents) contents); inv Heqq.
-    + apply hmac_common_lemmas.HMAC_Zlength.
-    + apply hmac_common_lemmas.HMAC_Zlength.
+  thaw FR12. thaw FR10.
+  simpl. rewrite <- Heqp.
+  unfold  hmac256drbgabs_common_mpreds.
+  unfold get_entropy; rewrite <- Heqentropy_result. simpl.
+  assert (l2 = l0). {
+    unfold HMAC256_DRBG_functional_prog.HMAC256_DRBG_update in Heqp.
+    destruct seed; simpl in Pseed; try contradiction.
+    unfold contents_with_add in Heqp at 1. simpl in Heqp.
+    destruct (EqDec_Z (Zlength entropy_bytes +
+                 Zlength (contents_with_add additional (Zlength contents) contents)) 0); simpl in Heqp.
+    specialize (Zlength_nonneg (contents_with_add additional (Zlength contents) contents)).
+    intros; lia.
+    rewrite <- Heqp in *. inv Heqq; auto.
   }
+  subst l2. 
+  set (sd := _ ++ _ ++ _).
+  (* THE NEXT LINE (sep_apply) should not be necessary!  But without it,
+     the "cancel" part of entailer!! blows up.  *)
+  sep_apply (data_at_data_at_ Tsh (tarray tuchar 384) sd seed).
+  entailer!!.
   unfold HMAC256_DRBG_functional_prog.HMAC256_DRBG_update in Heqp.
   destruct seed; simpl in Pseed; try contradiction.
   unfold contents_with_add in Heqp at 1. simpl in Heqp.
@@ -461,7 +470,7 @@ Proof.
   specialize (Zlength_nonneg (contents_with_add additional (Zlength contents) contents)).
   intros; lia.
   rewrite <- Heqp in *. inv Heqq. 
-idtac "Timing the Qed of REST (goal: 25secs)". 
+  idtac "Timing the Qed of REST (goal: 25secs)". 
   cancel.
 Time Qed. (*Coq 8.10.1: 3s;
           Coq8.6 May23rd: 23s

@@ -279,7 +279,7 @@ Lemma semaxfunc_cons_ext_vacuous:
        ef_sig ef =
        {|
          sig_args := typlist_of_list type argsig;
-         sig_res := rettype_of_type retsig;
+         sig_res := xtype_of_type retsig;
          sig_cc := cc_of_fundef (External ef argsig retsig cc) |} ->
        Genv.find_symbol ge id = Some b ->
        Genv.find_funct_ptr ge b = Some (External ef argsig retsig cc) ->
@@ -1299,7 +1299,7 @@ Variable MainE_vacuous: forall i phi, find_id i MainE = Some phi -> find_id i co
            phi = vacuous_funspec (External ef argsig retsig cc) /\ 
            find_id i (QPprog_funct p) = Some (External ef argsig retsig cc) /\
            ef_sig ef = {| sig_args := typlist_of_list type argsig;
-                          sig_res := rettype_of_type retsig;
+                          sig_res := xtype_of_type retsig;
                           sig_cc := cc_of_fundef (External ef argsig retsig cc) |}.
 
 Lemma add_main:

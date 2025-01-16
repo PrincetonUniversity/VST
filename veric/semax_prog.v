@@ -1650,7 +1650,7 @@ Proof.
     ∃ x1 : dtfr A,
     ∃ FR: mpred,
     ⌜E x1 ⊆ E' x /\ forall rho' : environ,
-              ⌜tc_environ (rettype_tycontext (snd sig)) rho'⌝ ∧ (FR ∗ Q x1 rho') ⊢ (Q' x rho')⌝ ∧
+              ⌜tc_environ (xtype_tycontext (snd sig)) rho'⌝ ∧ (FR ∗ Q x1 rho') ⊢ (Q' x rho')⌝ ∧
       ((stackframe_of f ∗ ⎡FR⎤ ∗ assert_of (fun tau => P x1 (ge_of tau, vals))) ∧
             local (fun tau => map (Map.get (te_of tau)) (map fst (fn_params f)) = map Some vals /\ tc_vals (map snd (fn_params f)) vals))).
  - split => rho. monPred.unseal; rewrite /bind_ret monPred_at_affinely.
@@ -1718,15 +1718,15 @@ Proof.
       * split => rho; rewrite /bind_ret; monPred.unseal; destruct (fn_return f); try iIntros "(_ & ([] & _) & _)".
         rewrite /= -QPOST; iIntros "(? & (? & ?) & ?)"; iFrame.
         iPureIntro; split; last done.
-        apply tc_environ_rettype.
+        apply tc_environ_xtype.
       * split => rho; rewrite /bind_ret; monPred.unseal; iIntros "(% & (Q & $) & ?)".
         destruct vl; simpl.
         -- rewrite -QPOST.
            iDestruct "Q" as "($ & $)"; iFrame; iPureIntro; split; last done.
-           apply tc_environ_rettype_env_set.
+           apply tc_environ_xtype_env_set.
         -- destruct (fn_return f); try iDestruct "Q" as "[]".
            rewrite /= -QPOST; iFrame; iPureIntro; split; last done.
-           apply tc_environ_rettype.
+           apply tc_environ_xtype.
     + do 2 red; intros; monPred.unseal; trivial.
 Qed.
 

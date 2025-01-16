@@ -64,11 +64,9 @@ match fd with
 
 Lemma eqb_typelist_prop: forall t1 t2, eqb_list eqb_type t1 t2 = true -> t1=t2.
 Proof.
-clear.
-induction t1; destruct t2; simpl; intros; auto; try discriminate.
-destruct (eqb_type a t) eqn:?H; try discriminate.
-apply eqb_type_true in H0.
-f_equal; auto.
+intros.
+apply eqb_list_spec in H; auto.
+exact eqb_type_spec.
 Qed.
 
 Definition eqb_typ (t1 t2 : typ) : bool := 
@@ -94,8 +92,9 @@ Qed.
 
 Lemma eqb_typelist_refl: forall c, eqb_list eqb_type c c = true.
 Proof.
-induction c; simpl; auto.
-rewrite eqb_type_refl, IHc; auto.
+intros.
+apply eqb_list_spec; auto.
+exact eqb_type_spec.
 Qed.
 
 Definition eqb_xtype (t1 t2 : xtype) : bool := 
@@ -427,7 +426,7 @@ induction s; simpl; auto;
 rewrite ?Int.eq_true, ?Int64.eq_true, ?eqb_type_refl, ?eqb_ident_refl,
   ?eqb_expr_refl,  ?andb_true_r; auto;
  rewrite ?eqb_list_refl by (try apply eqb_expr_refl; try apply eqb_type_refl);
- rewrite ?eqb_external_function_refl, ?eqb_typelist_refl,
+ rewrite ?eqb_external_function_refl,
  ?IHs, ?IHs1, ?IHs2; auto.
  destruct o; auto; simpl; rewrite eqb_ident_refl; auto.
  destruct o; auto; simpl; rewrite ?eqb_ident_refl; auto.

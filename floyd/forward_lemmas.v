@@ -44,21 +44,21 @@ Lemma semax_func_cons_ext_vacuous:
          ((id, vacuous_funspec (External ef argsig retsig cc)) :: G').
 Proof.
 intros.
-
 specialize (semax_func_cons_ext V G ge fs id ef argsig retsig
-  (ConstType Impossible) 
-).
+  (ConstType Impossible)).
 simpl.
 intros HH.
 rewrite /vacuous_funspec /= /typesig_of_funsig /= typelist2list_arglist.
  eapply HH; clear HH; try assumption; trivial.
 * right. clear. hnf. intros x. inv x.
-* intros. unfold monPred_at. done. 
+* intros. unfold monPred_at. done.
 * eassumption.
 * assumption.
-* pose proof (semax_external_FF ef (ConstType Impossible) (λne _, ⊤)) as Hvac.
-  simpl in Hvac. match goal with H : ?f |- ?g => assert (f = g) as <-; last done end.
-  repeat f_equal; apply proof_irr.
+* erewrite (@OfeMor_eq (leibnizO Impossible) (discrete_funO (fun _ : argsEnviron_index => ouPredO (iResUR Σ))) (λ _, monPred_at False)
+    (λ _, monPred_at False)) by done.
+  erewrite (@OfeMor_eq (leibnizO Impossible) (discrete_funO (fun _ : environ_index => ouPredO (iResUR Σ))) (λ _, monPred_at False)
+    (λ _, monPred_at False)) by done.
+  apply semax_external_FF.
 Qed.
 
 Lemma semax_func_cons_int_vacuous

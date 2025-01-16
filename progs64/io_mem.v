@@ -10,170 +10,90 @@ Module Info.
   Definition build_number := "".
   Definition build_tag := "".
   Definition build_branch := "".
-  Definition arch := "x86".
-  Definition model := "64".
-  Definition abi := "standard".
+  Definition arch := "aarch64".
+  Definition model := "default".
+  Definition abi := "apple".
   Definition bitsize := 64.
   Definition big_endian := false.
   Definition source_file := "progs64/io_mem.c".
   Definition normalized := true.
 End Info.
 
-Definition ___builtin_ais_annot : ident := $"__builtin_ais_annot".
-Definition ___builtin_annot : ident := $"__builtin_annot".
-Definition ___builtin_annot_intval : ident := $"__builtin_annot_intval".
-Definition ___builtin_bswap : ident := $"__builtin_bswap".
-Definition ___builtin_bswap16 : ident := $"__builtin_bswap16".
-Definition ___builtin_bswap32 : ident := $"__builtin_bswap32".
-Definition ___builtin_bswap64 : ident := $"__builtin_bswap64".
-Definition ___builtin_clz : ident := $"__builtin_clz".
-Definition ___builtin_clzl : ident := $"__builtin_clzl".
-Definition ___builtin_clzll : ident := $"__builtin_clzll".
-Definition ___builtin_ctz : ident := $"__builtin_ctz".
-Definition ___builtin_ctzl : ident := $"__builtin_ctzl".
-Definition ___builtin_ctzll : ident := $"__builtin_ctzll".
-Definition ___builtin_debug : ident := $"__builtin_debug".
-Definition ___builtin_expect : ident := $"__builtin_expect".
-Definition ___builtin_fabs : ident := $"__builtin_fabs".
-Definition ___builtin_fabsf : ident := $"__builtin_fabsf".
-Definition ___builtin_fmadd : ident := $"__builtin_fmadd".
-Definition ___builtin_fmax : ident := $"__builtin_fmax".
-Definition ___builtin_fmin : ident := $"__builtin_fmin".
-Definition ___builtin_fmsub : ident := $"__builtin_fmsub".
-Definition ___builtin_fnmadd : ident := $"__builtin_fnmadd".
-Definition ___builtin_fnmsub : ident := $"__builtin_fnmsub".
-Definition ___builtin_fsqrt : ident := $"__builtin_fsqrt".
-Definition ___builtin_membar : ident := $"__builtin_membar".
-Definition ___builtin_memcpy_aligned : ident := $"__builtin_memcpy_aligned".
-Definition ___builtin_read16_reversed : ident := $"__builtin_read16_reversed".
-Definition ___builtin_read32_reversed : ident := $"__builtin_read32_reversed".
-Definition ___builtin_sel : ident := $"__builtin_sel".
-Definition ___builtin_sqrt : ident := $"__builtin_sqrt".
-Definition ___builtin_unreachable : ident := $"__builtin_unreachable".
-Definition ___builtin_va_arg : ident := $"__builtin_va_arg".
-Definition ___builtin_va_copy : ident := $"__builtin_va_copy".
-Definition ___builtin_va_end : ident := $"__builtin_va_end".
-Definition ___builtin_va_start : ident := $"__builtin_va_start".
-Definition ___builtin_write16_reversed : ident := $"__builtin_write16_reversed".
-Definition ___builtin_write32_reversed : ident := $"__builtin_write32_reversed".
-Definition ___compcert_i64_dtos : ident := $"__compcert_i64_dtos".
-Definition ___compcert_i64_dtou : ident := $"__compcert_i64_dtou".
-Definition ___compcert_i64_sar : ident := $"__compcert_i64_sar".
-Definition ___compcert_i64_sdiv : ident := $"__compcert_i64_sdiv".
-Definition ___compcert_i64_shl : ident := $"__compcert_i64_shl".
-Definition ___compcert_i64_shr : ident := $"__compcert_i64_shr".
-Definition ___compcert_i64_smod : ident := $"__compcert_i64_smod".
-Definition ___compcert_i64_smulh : ident := $"__compcert_i64_smulh".
-Definition ___compcert_i64_stod : ident := $"__compcert_i64_stod".
-Definition ___compcert_i64_stof : ident := $"__compcert_i64_stof".
-Definition ___compcert_i64_udiv : ident := $"__compcert_i64_udiv".
-Definition ___compcert_i64_umod : ident := $"__compcert_i64_umod".
-Definition ___compcert_i64_umulh : ident := $"__compcert_i64_umulh".
-Definition ___compcert_i64_utod : ident := $"__compcert_i64_utod".
-Definition ___compcert_i64_utof : ident := $"__compcert_i64_utof".
-Definition ___compcert_va_composite : ident := $"__compcert_va_composite".
-Definition ___compcert_va_float64 : ident := $"__compcert_va_float64".
-Definition ___compcert_va_int32 : ident := $"__compcert_va_int32".
-Definition ___compcert_va_int64 : ident := $"__compcert_va_int64".
-Definition ___stringlit_1 : ident := $"__stringlit_1".
-Definition ___stringlit_2 : ident := $"__stringlit_2".
-Definition ___stringlit_3 : ident := $"__stringlit_3".
-Definition ___stringlit_4 : ident := $"__stringlit_4".
-Definition __l : ident := $"_l".
-Definition _a : ident := $"a".
-Definition _acquire : ident := $"acquire".
-Definition _append : ident := $"append".
-Definition _args : ident := $"args".
-Definition _atom_int : ident := $"atom_int".
-Definition _b : ident := $"b".
-Definition _buf : ident := $"buf".
-Definition _c : ident := $"c".
-Definition _compute2 : ident := $"compute2".
-Definition _counter : ident := $"counter".
-Definition _ctr : ident := $"ctr".
-Definition _d : ident := $"d".
-Definition _delete : ident := $"delete".
-Definition _dest_ctr : ident := $"dest_ctr".
-Definition _e : ident := $"e".
-Definition _exit : ident := $"exit".
-Definition _f : ident := $"f".
-Definition _foo : ident := $"foo".
-Definition _four : ident := $"four".
-Definition _free : ident := $"free".
-Definition _freeN : ident := $"freeN".
-Definition _freelock : ident := $"freelock".
-Definition _g : ident := $"g".
-Definition _getchar : ident := $"getchar".
-Definition _getchar_blocking : ident := $"getchar_blocking".
-Definition _getchars : ident := $"getchars".
-Definition _h : ident := $"h".
-Definition _head : ident := $"head".
-Definition _hi : ident := $"hi".
-Definition _i : ident := $"i".
-Definition _i__1 : ident := $"i__1".
-Definition _incr : ident := $"incr".
-Definition _init_ctr : ident := $"init_ctr".
-Definition _insert : ident := $"insert".
-Definition _j : ident := $"j".
-Definition _k : ident := $"k".
-Definition _key : ident := $"key".
-Definition _l : ident := $"l".
-Definition _left : ident := $"left".
-Definition _list : ident := $"list".
-Definition _lo : ident := $"lo".
-Definition _lock : ident := $"lock".
-Definition _lookup : ident := $"lookup".
-Definition _main : ident := $"main".
-Definition _makelock : ident := $"makelock".
-Definition _malloc : ident := $"malloc".
-Definition _mallocN : ident := $"mallocN".
-Definition _mid : ident := $"mid".
-Definition _n : ident := $"n".
-Definition _p : ident := $"p".
-Definition _pa : ident := $"pa".
-Definition _pb : ident := $"pb".
-Definition _print_int : ident := $"print_int".
-Definition _print_intr : ident := $"print_intr".
-Definition _pushdown_left : ident := $"pushdown_left".
-Definition _putchar : ident := $"putchar".
-Definition _putchar_blocking : ident := $"putchar_blocking".
-Definition _putchars : ident := $"putchars".
-Definition _q : ident := $"q".
-Definition _r : ident := $"r".
-Definition _read : ident := $"read".
-Definition _release : ident := $"release".
-Definition _right : ident := $"right".
-Definition _s : ident := $"s".
-Definition _search : ident := $"search".
-Definition _spawn : ident := $"spawn".
-Definition _sub1 : ident := $"sub1".
-Definition _sub2 : ident := $"sub2".
-Definition _sub3 : ident := $"sub3".
-Definition _t : ident := $"t".
-Definition _tail : ident := $"tail".
-Definition _tgt : ident := $"tgt".
-Definition _thread_func : ident := $"thread_func".
-Definition _thread_lock : ident := $"thread_lock".
-Definition _tree : ident := $"tree".
-Definition _tree_free : ident := $"tree_free".
-Definition _treebox_free : ident := $"treebox_free".
-Definition _treebox_new : ident := $"treebox_new".
-Definition _turn_left : ident := $"turn_left".
-Definition _u : ident := $"u".
-Definition _v : ident := $"v".
-Definition _val : ident := $"val".
-Definition _value : ident := $"value".
-Definition _x : ident := $"x".
-Definition _x1 : ident := $"x1".
-Definition _x2 : ident := $"x2".
-Definition _y : ident := $"y".
-Definition _y1 : ident := $"y1".
-Definition _y2 : ident := $"y2".
-Definition _z : ident := $"z".
-Definition _t'1 : ident := 128%positive.
-Definition _t'2 : ident := 129%positive.
-Definition _t'3 : ident := 130%positive.
-Definition _t'4 : ident := 131%positive.
+Definition ___builtin_annot : ident := 17%positive.
+Definition ___builtin_annot_intval : ident := 18%positive.
+Definition ___builtin_bswap : ident := 2%positive.
+Definition ___builtin_bswap16 : ident := 4%positive.
+Definition ___builtin_bswap32 : ident := 3%positive.
+Definition ___builtin_bswap64 : ident := 1%positive.
+Definition ___builtin_cls : ident := 26%positive.
+Definition ___builtin_clsl : ident := 27%positive.
+Definition ___builtin_clsll : ident := 28%positive.
+Definition ___builtin_clz : ident := 5%positive.
+Definition ___builtin_clzl : ident := 6%positive.
+Definition ___builtin_clzll : ident := 7%positive.
+Definition ___builtin_ctz : ident := 8%positive.
+Definition ___builtin_ctzl : ident := 9%positive.
+Definition ___builtin_ctzll : ident := 10%positive.
+Definition ___builtin_debug : ident := 35%positive.
+Definition ___builtin_expect : ident := 25%positive.
+Definition ___builtin_fabs : ident := 11%positive.
+Definition ___builtin_fabsf : ident := 12%positive.
+Definition ___builtin_fmadd : ident := 29%positive.
+Definition ___builtin_fmax : ident := 33%positive.
+Definition ___builtin_fmin : ident := 34%positive.
+Definition ___builtin_fmsub : ident := 30%positive.
+Definition ___builtin_fnmadd : ident := 31%positive.
+Definition ___builtin_fnmsub : ident := 32%positive.
+Definition ___builtin_fsqrt : ident := 13%positive.
+Definition ___builtin_membar : ident := 19%positive.
+Definition ___builtin_memcpy_aligned : ident := 15%positive.
+Definition ___builtin_sel : ident := 16%positive.
+Definition ___builtin_sqrt : ident := 14%positive.
+Definition ___builtin_unreachable : ident := 24%positive.
+Definition ___builtin_va_arg : ident := 21%positive.
+Definition ___builtin_va_copy : ident := 22%positive.
+Definition ___builtin_va_end : ident := 23%positive.
+Definition ___builtin_va_start : ident := 20%positive.
+Definition ___compcert_i64_dtos : ident := 57%positive.
+Definition ___compcert_i64_dtou : ident := 58%positive.
+Definition ___compcert_i64_sar : ident := 69%positive.
+Definition ___compcert_i64_sdiv : ident := 63%positive.
+Definition ___compcert_i64_shl : ident := 67%positive.
+Definition ___compcert_i64_shr : ident := 68%positive.
+Definition ___compcert_i64_smod : ident := 65%positive.
+Definition ___compcert_i64_smulh : ident := 70%positive.
+Definition ___compcert_i64_stod : ident := 59%positive.
+Definition ___compcert_i64_stof : ident := 61%positive.
+Definition ___compcert_i64_udiv : ident := 64%positive.
+Definition ___compcert_i64_umod : ident := 66%positive.
+Definition ___compcert_i64_umulh : ident := 71%positive.
+Definition ___compcert_i64_utod : ident := 60%positive.
+Definition ___compcert_i64_utof : ident := 62%positive.
+Definition ___compcert_va_composite : ident := 56%positive.
+Definition ___compcert_va_float64 : ident := 55%positive.
+Definition ___compcert_va_int32 : ident := 53%positive.
+Definition ___compcert_va_int64 : ident := 54%positive.
+Definition _buf : ident := 42%positive.
+Definition _c : ident := 50%positive.
+Definition _d : ident := 49%positive.
+Definition _exit : ident := 38%positive.
+Definition _free : ident := 37%positive.
+Definition _getchars : ident := 39%positive.
+Definition _i : ident := 41%positive.
+Definition _j : ident := 51%positive.
+Definition _k : ident := 45%positive.
+Definition _main : ident := 52%positive.
+Definition _malloc : ident := 36%positive.
+Definition _n : ident := 48%positive.
+Definition _print_int : ident := 47%positive.
+Definition _print_intr : ident := 46%positive.
+Definition _putchars : ident := 40%positive.
+Definition _q : ident := 43%positive.
+Definition _r : ident := 44%positive.
+Definition _t'1 : ident := 72%positive.
+Definition _t'2 : ident := 73%positive.
+Definition _t'3 : ident := 74%positive.
+Definition _t'4 : ident := 75%positive.
 
 Definition f_print_intr := {|
   fn_return := tint;
@@ -455,12 +375,6 @@ Definition global_definitions : list (ident * globdef fundef type) :=
                    (mksignature (AST.Xlong :: AST.Xlong :: nil) AST.Xlong
                      cc_default)) (tulong :: tulong :: nil) tulong
      cc_default)) ::
- (___builtin_ais_annot,
-   Gfun(External (EF_builtin "__builtin_ais_annot"
-                   (mksignature (AST.Xptr :: nil) AST.Xvoid
-                     {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|}))
-     ((tptr tschar) :: nil) tvoid
-     {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|})) ::
  (___builtin_bswap64,
    Gfun(External (EF_builtin "__builtin_bswap64"
                    (mksignature (AST.Xlong :: nil) AST.Xlong cc_default))
@@ -572,16 +486,18 @@ Definition global_definitions : list (ident * globdef fundef type) :=
    Gfun(External (EF_builtin "__builtin_expect"
                    (mksignature (AST.Xlong :: AST.Xlong :: nil) AST.Xlong
                      cc_default)) (tlong :: tlong :: nil) tlong cc_default)) ::
- (___builtin_fmax,
-   Gfun(External (EF_builtin "__builtin_fmax"
-                   (mksignature (AST.Xfloat :: AST.Xfloat :: nil) AST.Xfloat
-                     cc_default)) (tdouble :: tdouble :: nil) tdouble
-     cc_default)) ::
- (___builtin_fmin,
-   Gfun(External (EF_builtin "__builtin_fmin"
-                   (mksignature (AST.Xfloat :: AST.Xfloat :: nil) AST.Xfloat
-                     cc_default)) (tdouble :: tdouble :: nil) tdouble
-     cc_default)) ::
+ (___builtin_cls,
+   Gfun(External (EF_builtin "__builtin_cls"
+                   (mksignature (AST.Xint :: nil) AST.Xint cc_default))
+     (tint :: nil) tint cc_default)) ::
+ (___builtin_clsl,
+   Gfun(External (EF_builtin "__builtin_clsl"
+                   (mksignature (AST.Xlong :: nil) AST.Xint cc_default))
+     (tlong :: nil) tint cc_default)) ::
+ (___builtin_clsll,
+   Gfun(External (EF_builtin "__builtin_clsll"
+                   (mksignature (AST.Xlong :: nil) AST.Xint cc_default))
+     (tlong :: nil) tint cc_default)) ::
  (___builtin_fmadd,
    Gfun(External (EF_builtin "__builtin_fmadd"
                    (mksignature
@@ -606,24 +522,15 @@ Definition global_definitions : list (ident * globdef fundef type) :=
                      (AST.Xfloat :: AST.Xfloat :: AST.Xfloat :: nil)
                      AST.Xfloat cc_default))
      (tdouble :: tdouble :: tdouble :: nil) tdouble cc_default)) ::
- (___builtin_read16_reversed,
-   Gfun(External (EF_builtin "__builtin_read16_reversed"
-                   (mksignature (AST.Xptr :: nil) AST.Xint16unsigned
-                     cc_default)) ((tptr tushort) :: nil) tushort
+ (___builtin_fmax,
+   Gfun(External (EF_builtin "__builtin_fmax"
+                   (mksignature (AST.Xfloat :: AST.Xfloat :: nil) AST.Xfloat
+                     cc_default)) (tdouble :: tdouble :: nil) tdouble
      cc_default)) ::
- (___builtin_read32_reversed,
-   Gfun(External (EF_builtin "__builtin_read32_reversed"
-                   (mksignature (AST.Xptr :: nil) AST.Xint cc_default))
-     ((tptr tuint) :: nil) tuint cc_default)) ::
- (___builtin_write16_reversed,
-   Gfun(External (EF_builtin "__builtin_write16_reversed"
-                   (mksignature (AST.Xptr :: AST.Xint16unsigned :: nil)
-                     AST.Xvoid cc_default))
-     ((tptr tushort) :: tushort :: nil) tvoid cc_default)) ::
- (___builtin_write32_reversed,
-   Gfun(External (EF_builtin "__builtin_write32_reversed"
-                   (mksignature (AST.Xptr :: AST.Xint :: nil) AST.Xvoid
-                     cc_default)) ((tptr tuint) :: tuint :: nil) tvoid
+ (___builtin_fmin,
+   Gfun(External (EF_builtin "__builtin_fmin"
+                   (mksignature (AST.Xfloat :: AST.Xfloat :: nil) AST.Xfloat
+                     cc_default)) (tdouble :: tdouble :: nil) tdouble
      cc_default)) ::
  (___builtin_debug,
    Gfun(External (EF_external "__builtin_debug"
@@ -652,19 +559,18 @@ Definition global_definitions : list (ident * globdef fundef type) :=
 
 Definition public_idents : list ident :=
 (_main :: _print_int :: _print_intr :: _putchars :: _getchars :: _exit ::
- _free :: _malloc :: ___builtin_debug :: ___builtin_write32_reversed ::
- ___builtin_write16_reversed :: ___builtin_read32_reversed ::
- ___builtin_read16_reversed :: ___builtin_fnmsub :: ___builtin_fnmadd ::
- ___builtin_fmsub :: ___builtin_fmadd :: ___builtin_fmin ::
- ___builtin_fmax :: ___builtin_expect :: ___builtin_unreachable ::
- ___builtin_va_end :: ___builtin_va_copy :: ___builtin_va_arg ::
- ___builtin_va_start :: ___builtin_membar :: ___builtin_annot_intval ::
- ___builtin_annot :: ___builtin_sel :: ___builtin_memcpy_aligned ::
- ___builtin_sqrt :: ___builtin_fsqrt :: ___builtin_fabsf ::
- ___builtin_fabs :: ___builtin_ctzll :: ___builtin_ctzl :: ___builtin_ctz ::
- ___builtin_clzll :: ___builtin_clzl :: ___builtin_clz ::
- ___builtin_bswap16 :: ___builtin_bswap32 :: ___builtin_bswap ::
- ___builtin_bswap64 :: ___builtin_ais_annot :: ___compcert_i64_umulh ::
+ _free :: _malloc :: ___builtin_debug :: ___builtin_fmin ::
+ ___builtin_fmax :: ___builtin_fnmsub :: ___builtin_fnmadd ::
+ ___builtin_fmsub :: ___builtin_fmadd :: ___builtin_clsll ::
+ ___builtin_clsl :: ___builtin_cls :: ___builtin_expect ::
+ ___builtin_unreachable :: ___builtin_va_end :: ___builtin_va_copy ::
+ ___builtin_va_arg :: ___builtin_va_start :: ___builtin_membar ::
+ ___builtin_annot_intval :: ___builtin_annot :: ___builtin_sel ::
+ ___builtin_memcpy_aligned :: ___builtin_sqrt :: ___builtin_fsqrt ::
+ ___builtin_fabsf :: ___builtin_fabs :: ___builtin_ctzll ::
+ ___builtin_ctzl :: ___builtin_ctz :: ___builtin_clzll :: ___builtin_clzl ::
+ ___builtin_clz :: ___builtin_bswap16 :: ___builtin_bswap32 ::
+ ___builtin_bswap :: ___builtin_bswap64 :: ___compcert_i64_umulh ::
  ___compcert_i64_smulh :: ___compcert_i64_sar :: ___compcert_i64_shr ::
  ___compcert_i64_shl :: ___compcert_i64_umod :: ___compcert_i64_smod ::
  ___compcert_i64_udiv :: ___compcert_i64_sdiv :: ___compcert_i64_utof ::

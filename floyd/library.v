@@ -69,7 +69,7 @@ Definition exit_spec := try_spec "exit" exit_spec'.
 Parameter body_exit:
   body_lemma_of_funspec
     (EF_external "exit"
-       {| sig_args := Xint :: nil; sig_res := Xvoid; sig_cc := cc_default |} )
+       {| sig_args := Xint :: nil; sig_res := Xvoid; sig_cc := cc_default |})
    exit_spec'.
 
 Parameter mem_mgr: globals -> mpred.

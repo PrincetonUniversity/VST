@@ -58,7 +58,7 @@ Proof.
 Qed.
 
 
-Definition spawned_funtype := Tfunction (Tcons (tptr tvoid) Tnil) tint cc_default.
+Definition spawned_funtype := Tfunction (tptr tvoid :: nil) tint cc_default.
 
 Definition spawn_spec := mk_funspec ([tptr spawned_funtype; tptr tvoid], tvoid) cc_default
   spawn_arg_type (λne _, ⊤) spawn_pre spawn_post.
