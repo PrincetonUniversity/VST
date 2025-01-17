@@ -13,62 +13,78 @@ Context `{VOK: !VSTGS OK_ty Σ}.
 
 #[export] Declare Instance M: AtomicsAPD.
 
+Local Fixpoint get_def [T] (al: list (ident * T)) (i: ident) : option T :=
+ match al with 
+ | nil => None
+ | (j,x)::r => if ident_eq i j then Some x else get_def r i
+ end.
+
+Local Definition get_extfun (i: ident) : external_function :=
+  match get_def SC_atomics_extern.global_definitions i with
+  | Some (Gfun (External x _ _ _)) => x
+  | _ => EF_annot 1%positive "error: extfun not found" nil
+  end.
+
+
 Parameter body_make_atomic: 
  forall {Espec: ext_spec OK_ty} ,
-   VST.floyd.library.body_lemma_of_funspec 
-        (EF_external "make_atomic" (mksignature (Xint :: nil) Xptr cc_default))
+   VST.floyd.library.body_lemma_of_funspec (get_extfun _make_atomic)
+(*        (EF_external "make_atomic" (mksignature (Xint :: nil) Xptr cc_default))*)
        make_atomic_spec. 
 
 Parameter body_make_atomic_ptr:
  forall {Espec: ext_spec OK_ty}  ,
-   VST.floyd.library.body_lemma_of_funspec 
-       (EF_external "make_atomic_ptr"
-                   (mksignature (Xptr :: nil) Xptr cc_default))
+   VST.floyd.library.body_lemma_of_funspec (get_extfun _make_atomic_ptr)
+(*       (EF_external "make_atomic_ptr"
+                   (mksignature (Xptr :: nil) Xptr cc_default))*)
        make_atomic_ptr_spec.
 
 Parameter body_free_atomic: 
  forall {Espec: ext_spec OK_ty}  ,
-   VST.floyd.library.body_lemma_of_funspec 
-        (EF_external "free_atomic"
-                   (mksignature (Xptr :: nil) Xvoid cc_default))
+   VST.floyd.library.body_lemma_of_funspec (get_extfun _free_atomic)
+(*        (EF_external "free_atomic"
+                   (mksignature (Xptr :: nil) Xvoid cc_default))*)
        free_atomic_int_spec.
 
 Parameter body_free_atomic_ptr: 
  forall {Espec: ext_spec OK_ty}  ,
-   VST.floyd.library.body_lemma_of_funspec 
-        (EF_external "free_atomic_ptr"
-                   (mksignature (Xptr :: nil) Xvoid cc_default))
+   VST.floyd.library.body_lemma_of_funspec (get_extfun _free_atomic_ptr)
+(*        (EF_external "free_atomic_ptr"
+                   (mksignature (Xptr :: nil) Xvoid cc_default))*)
        free_atomic_ptr_spec.
 
 Parameter body_atom_load: 
  forall {Espec: ext_spec OK_ty}  ,
-   VST.floyd.library.body_lemma_of_funspec 
-        (EF_external "atom_load"
-                   (mksignature (Xptr :: nil) Xint cc_default))
+   VST.floyd.library.body_lemma_of_funspec (get_extfun _atom_load)
+(*        (EF_external "atom_load"
+                   (mksignature (Xptr :: nil) Xint cc_default))*)
        atomic_load_spec.
 
 Parameter body_atom_store: 
  forall {Espec: ext_spec OK_ty}  ,
-   VST.floyd.library.body_lemma_of_funspec 
-        (EF_external "atom_store"
+   VST.floyd.library.body_lemma_of_funspec (get_extfun _atom_store)
+(*        (EF_external "atom_store"
                    (mksignature (Xptr :: Xint :: nil) Xvoid cc_default))
+*)
        atomic_store_spec.
 
 Parameter body_atom_CAS: 
  forall {Espec: ext_spec OK_ty}  ,
-   VST.floyd.library.body_lemma_of_funspec 
-        (EF_external "atom_CAS"
+   VST.floyd.library.body_lemma_of_funspec (get_extfun _atom_CAS)
+(*        (EF_external "atom_CAS"
                    (mksignature (Xptr :: Xptr :: Xint :: nil)
                      Xint cc_default))
+*)
        atomic_CAS_spec.
 
 
 Parameter body_atom_exchange: 
  forall {Espec: ext_spec OK_ty}  ,
-   VST.floyd.library.body_lemma_of_funspec 
-        (EF_external "atom_exchange"
+   VST.floyd.library.body_lemma_of_funspec (get_extfun _atom_exchange)
+(*        (EF_external "atom_exchange"
                    (mksignature (Xptr :: Xint :: nil) Xint
                      cc_default))
+*)
        atomic_exchange_spec.
 
 Definition SC_atomics_placeholder_spec : ident * @funspec Σ :=

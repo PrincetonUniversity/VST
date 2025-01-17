@@ -745,8 +745,8 @@ Qed.
 
 Lemma repr_inj_signed64:
   forall i j,
-    Int64.min_signed <= i <= Int.max_signed ->
-    Int64.min_signed <= j <= Int.max_signed ->
+    Int64.min_signed <= i <= Int64.max_signed ->
+    Int64.min_signed <= j <= Int64.max_signed ->
     Int64.repr i = Int64.repr j -> i=j.
 Proof.
 intros.
