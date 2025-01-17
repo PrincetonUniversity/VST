@@ -450,7 +450,7 @@ Proof.
     unfold HMAC256_DRBG_functional_prog.HMAC256_DRBG_update in Heqp.
     destruct seed; simpl in Pseed; try contradiction.
     unfold contents_with_add in Heqp at 1. simpl in Heqp.
-    destruct (EqDec_Z (Zlength entropy_bytes +
+    destruct (eq_dec (Zlength entropy_bytes +
                  Zlength (contents_with_add additional (Zlength contents) contents)) 0); simpl in Heqp.
     specialize (Zlength_nonneg (contents_with_add additional (Zlength contents) contents)).
     intros; lia.

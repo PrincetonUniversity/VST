@@ -240,7 +240,6 @@ Proof.
     entailer!.
   - forward.
     entailer!.
-  - entailer!.
 Qed.
 
 Lemma chars_of_Z_eq : forall n, chars_of_Z n =
@@ -287,7 +286,6 @@ Proof.
   - forward_call (i, tr).
     { rewrite -> chars_of_Z_intr by lia; cancel. }
     entailer!.
-  - entailer!.
 Qed.
 
 Lemma read_sum_eq : forall n d, read_sum n d ≈
@@ -404,24 +402,6 @@ Ltac alloc_block m n := match n with
   | S ?n' => let m' := fresh "m" in let Hm' := fresh "Hm" in
     destruct (dry_mem_lemmas.drop_alloc m) as [m' Hm']; alloc_block m' n'
   end.
-<<<<<<< HEAD
-try first [
-  (* This version works in Coq 8.19, CompCert 3.15 *)
-  alloc_block Mem.empty 63%nat;
-  eexists; repeat match goal with H : ?a = _ |- match ?a with Some m' => _ | None => None end = _ => rewrite H end;
-  reflexivity
- |
-  (* This version works in Coq 8.15, CompCert 3.10 *)
-  alloc_block Mem.empty 62%nat;
-  eexists; repeat match goal with H : ?a = _ |- match ?a with Some m' => _ | None => None end = _ => rewrite H end;
-  reflexivity
- |
-  (* This version worked in Coq 8.13, CompCert 3.9 *)
-  alloc_block Mem.empty 60%nat;
-  eexists; repeat match goal with H : ?a = _ |- match ?a with Some m' => _ | None => None end = _ => rewrite H end;
-  reflexivity
-].
-=======
  let n := constr:(countfuns prog) in let n := eval compute in n in
  alloc_block Mem.empty n.
  eexists;
@@ -429,7 +409,6 @@ try first [
           | H : ?a = _ |- match ?a with Some m' => _ | None => None end = _ =>
             rewrite H; clear H end;
   reflexivity.
->>>>>>> origin
 Qed.
 
 Definition init_mem := proj1_sig init_mem_exists.

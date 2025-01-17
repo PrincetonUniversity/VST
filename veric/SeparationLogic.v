@@ -84,8 +84,6 @@ Fixpoint ext_link_prog' (dl: list (ident * globdef fundef type)) (s: String.stri
 Definition ext_link_prog (p: program) (s: String.string) : ident :=
   match ext_link_prog' (prog_defs p) s with Some id => id | None => 1%positive end.
 
-Definition globals := ident -> val.
-
 (* TODO: merge size_compatible and align_compatible *)
 Definition align_compatible {C: compspecs} t p :=
   match p with

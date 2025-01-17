@@ -548,10 +548,10 @@ Lemma prog_correct:
   semax_prog prog main_itree Vprog Gprog.
 Proof.
 prove_semax_prog.
+semax_func_cons body_exit.
+semax_func_cons body_free.
 semax_func_cons body_malloc.
 { destruct x; apply semax_func_cons_malloc_aux. }
-semax_func_cons body_free.
-semax_func_cons body_exit.
 semax_func_cons_ext.
 { simpl; destruct x as (((?, ?), ?), ?); monPred.unseal; Intro msg.
   apply typecheck_return_value with (t := Xint16signed); auto. }

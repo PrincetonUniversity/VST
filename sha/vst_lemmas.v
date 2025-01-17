@@ -1,7 +1,7 @@
 (* Additional lemmas / proof rules about VST stack *)
 
 Require Import VST.floyd.proofauto.
-Require Export VST.floyd.compat. Import NoOracle.
+Require Export VST.floyd.compat. Export NoOracle.
 Require Export sha.general_lemmas.
 
 Definition data_block {cs: compspecs} (sh: share) (contents: list byte) :=

@@ -1,5 +1,5 @@
 Require Import VST.floyd.proofauto.
-Require Import VST.floyd.compat.
+Require Import VST.floyd.compat. Import NoOracle.
 Require Import VST.veric.initial_world.
 Require Import VST.floyd.VSU.
 
