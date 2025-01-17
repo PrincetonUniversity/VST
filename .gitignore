@@ -76,6 +76,7 @@ compcert/test/
 version.v
 coqide
 *.cache
+*.timing
 *~
 *#
 .#*
@@ -84,6 +85,7 @@ doc/html/
 /_CoqProject
 .loadpath-export
 _CoqProject-export
+progs/VSUpile/_CoqProject
 wand_demo/vfa/*.ml
 wand_demo/vfa/*.mli
 wand/vfa/*.ml
@@ -103,3 +105,5 @@ lib/proof/SC_atomics_extern.v
 zlist/.Makefile.coq.d
 zlist/Makefile.coq
 zlist/Makefile.coq.conf
+
+_build/

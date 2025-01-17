@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat. Import NoOracle.
 Require Import VST.progs.fib.
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
@@ -95,7 +96,7 @@ Proof.
     (EX i: Z,
     (PROP ()
      LOCAL (temp _a1 (Vint (Int.repr (fib_of_Z (i + 1)))); temp _a0 (Vint (Int.repr (fib_of_Z i))); temp _n (Vint (Int.repr n)))
-     SEP ()))%assert.
+     SEP ())).
   { (* Prove that loop invariant implies typechecking of loop condition *)
     entailer!!.
   }
@@ -152,11 +153,11 @@ Proof.
      LOCAL (temp _a1 (Vint (Int.repr (fib_of_Z (i + 1))));
             temp _a0 (Vint (Int.repr (fib_of_Z i)));
             temp _n (Vint (Int.repr (n - i))))
-     SEP ()))%assert
+     SEP ()))
   break:
     (PROP ()
      LOCAL (temp _a0 (Vint (Int.repr (fib_of_Z n))))
-     SEP ())%assert.
+     SEP ()).
   { (* Prove that the precon implies the loop invariant *)
     Exists 0.
     entailer!.

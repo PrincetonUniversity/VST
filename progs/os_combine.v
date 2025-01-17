@@ -2,38 +2,36 @@ Require Import VST.floyd.proofauto.
 Require Import VST.sepcomp.extspec.
 Require Import VST.veric.semax_ext.
 Require Import VST.veric.juicy_mem.
-Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.initial_world.
-Require Import VST.veric.ghost_PCM.
 Require Import VST.veric.SequentialClight.
 Require Import VST.veric.Clight_core.
 Require Import VST.concurrency.conclib.
 Require Import VST.sepcomp.semantics.
 Require Import ITree.ITree.
-(* Import ITreeNotations. *) (* one piece conflicts with subp notation *)
 Notation "t1 >>= k2" := (ITree.bind t1 k2)
   (at level 50, left associativity) : itree_scope.
 Notation "x <- t1 ;; t2" := (ITree.bind t1 (fun x => t2))
   (at level 100, t1 at next level, right associativity) : itree_scope.
 Notation "t1 ;; t2" := (ITree.bind t1 (fun _ => t2))
-  (at level 100, right associativity) : itree_scope.
+  (at level 100, t2 at level 200, right associativity) : itree_scope.
 Notation "' p <- t1 ;; t2" :=
   (ITree.bind t1 (fun x_ => match x_ with p => t2 end))
 (at level 100, t1 at next level, p pattern, right associativity) : itree_scope.
 Require Import ITree.Interp.Traces.
 Require Import Ensembles.
 
+Arguments In {_} _ _.
+
 Section ext_trace.
 
-  Context {event : Type -> Type} {J : juicy_ext_spec (itree event unit)} {OS_state : Type}.
+  Context {event : Type -> Type} {OS_state : Type}.
   Variable prog : Clight.program.
   Variable ext_sem : external_function -> list val -> OS_state -> option (OS_state * option val * @trace event unit).
   Variable inj_mem : external_function -> list val -> mem -> @trace event unit -> OS_state -> Prop.
   Variable extr_mem : external_function -> list val -> mem -> OS_state -> mem.
   Variable OS_valid : OS_state -> Prop.
   Notation ge := (globalenv prog).
-
-  Instance Espec : OracleKind := Build_OracleKind (itree event unit) J.
+  Notation OK_ty := (itree event unit).
 
   (* For any trace that the new itree (z) allows, that trace prefixed with the
      OS-generated trace (t) is allowed by the old itree (z0). *)
@@ -59,8 +57,10 @@ Section ext_trace.
     rewrite app_trace_assoc; auto.
   Qed.
 
-  Inductive ext_safeN_trace : nat -> @trace event unit -> Ensemble (@trace event unit) -> OK_ty -> CC_core -> mem -> Prop :=
-  | ext_safeN_trace_0: forall z t c m, ext_safeN_trace O t (Singleton TEnd) z c m
+  
+
+  Inductive ext_safeN_trace : nat -> @trace event unit -> Ensemble (@trace event unit) -> itree event unit -> CC_core -> mem -> Prop :=
+  | ext_safeN_trace_0: forall z t c m, ext_safeN_trace O t (Singleton _ TEnd) z c m
   | ext_safeN_trace_step:
       forall n t traces z c m c' m',
       cl_step ge c m c' m' ->
@@ -90,9 +90,9 @@ Section ext_trace.
       ext_safeN_trace (S n) t traces z c m
   | ext_safeN_trace_halted: forall n z t c m i,
       halted (cl_core_sem ge) c i ->
-      ext_safeN_trace n t (Singleton TEnd) z c m.
+      ext_safeN_trace n t (Singleton _ TEnd) z c m.
 
-  Variable dryspec : ext_spec OK_ty.
+  Variable dryspec : ext_spec (itree event unit).
   Hypothesis extcalls_correct : forall e w b tl args z m t s, ext_spec_pre dryspec e w b tl args z m ->
     inj_mem e args m t s ->
     forall s' ret t', Some (s', ret, t') = ext_sem e args s ->
@@ -101,7 +101,7 @@ Section ext_trace.
 
 
   Lemma dry_safe_ext_trace_safe : forall n t z q m,
-    step_lemmas.dry_safeN(genv_symb := semax.genv_symb_injective)
+    step_lemmas.dry_safeN(genv_symb := lifting.genv_symb_injective)
      (cl_core_sem (globalenv prog)) dryspec
      (Build_genv (Genv.globalenv prog) (prog_comp_env prog)) n z q m ->
     exists traces, ext_safeN_trace n t traces z q m.
@@ -125,32 +125,24 @@ Section ext_trace.
     - eexists; econstructor; eauto.
   Qed.
 
+  Variable Espec : forall `{!VSTGS OK_ty Σ}, ext_spec (itree event unit).
+  Hypothesis Hdry : forall `{!VSTGS OK_ty Σ}, ext_spec_entails Espec dryspec.
+
   Lemma safety_trace:
-   forall {CS: compspecs} (initial_oracle: OK_ty)
-     (EXIT: semax_prog.postcondition_allows_exit Espec tint)
-     (Jsub: forall ef se lv m t v m' (EFI : ef_inline ef = true) m1
-       (EFC : Events.external_call ef se lv m t v m'), mem_sub m m1 ->
-       exists m1' (EFC1 : Events.external_call ef se lv m1 t v m1'),
-         mem_sub m' m1' /\ proj1_sig (inline_external_call_mem_events _ _ _ _ _ _ _ EFI EFC1) =
-         proj1_sig (inline_external_call_mem_events _ _ _ _ _ _ _ EFI EFC))
-     (Jframe: extspec_frame OK_spec)
-     (dessicate : forall (ef : external_function) jm,
-               ext_spec_type OK_spec ef ->
-               ext_spec_type dryspec ef)
-     (JDE: juicy_dry_ext_spec _ (@JE_spec OK_ty OK_spec) dryspec dessicate)
-     (DME: ext_spec_mem_evolve _ dryspec)
-     (Esub: forall v z m m', ext_spec_exit dryspec v z m -> mem_sub m m' -> ext_spec_exit dryspec v z m')
-     V G m,
-     @semax_prog Espec CS prog initial_oracle V G ->
+    forall Σ {CS: compspecs} `{!VSTGpreS OK_ty Σ} (initial_oracle: OK_ty)
+     (EXIT: forall `{!VSTGS OK_ty Σ}, semax_prog.postcondition_allows_exit Espec tint)
+     V (G : forall `{!VSTGS OK_ty Σ}, funspecs) m,
+     (forall {HH : VSTGS OK_ty Σ}, semax_prog(OK_spec := Espec) prog initial_oracle V G) ->
      Genv.init_mem prog = Some m ->
      exists b, exists q,
        Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some b /\
-       initial_core  (cl_core_sem (globalenv prog))
+       semantics.initial_core (cl_core_sem (globalenv prog))
            0 m q m (Vptr b Ptrofs.zero) nil /\
        forall n, exists traces, ext_safeN_trace n TEnd traces initial_oracle q m.
   Proof.
     intros.
-    eapply CSHL_Sound.semax_prog_sound, whole_program_sequential_safety_ext in H as (b & q & ? & ? & Hsafe); eauto.
+    eapply whole_program_sequential_safety_ext in EXIT as (b & q & ? & ? & Hsafe); eauto.
+    2: { intros; eexists; apply CSHL_Sound.semax_prog_sound, H. }
     do 3 eexists; eauto; split; eauto; intros n.
     eapply dry_safe_ext_trace_safe; eauto.
   Qed.
@@ -173,26 +165,14 @@ Section ext_trace.
   Qed.
 
   Theorem OS_soundness:
-   forall {CS: compspecs} (initial_oracle: OK_ty)
-     (EXIT: semax_prog.postcondition_allows_exit Espec tint)
-     (Jsub: forall ef se lv m t v m' (EFI : ef_inline ef = true) m1
-       (EFC : Events.external_call ef se lv m t v m'), mem_sub m m1 ->
-       exists m1' (EFC1 : Events.external_call ef se lv m1 t v m1'),
-         mem_sub m' m1' /\ proj1_sig (inline_external_call_mem_events _ _ _ _ _ _ _ EFI EFC1) =
-         proj1_sig (inline_external_call_mem_events _ _ _ _ _ _ _ EFI EFC))
-     (Jframe: extspec_frame OK_spec)
-     (dessicate : forall (ef : external_function) jm,
-               ext_spec_type OK_spec ef ->
-               ext_spec_type dryspec ef)
-     (JDE: juicy_dry_ext_spec _ (@JE_spec OK_ty OK_spec) dryspec dessicate)
-     (DME: ext_spec_mem_evolve _ dryspec)
-     (Esub: forall v z m m', ext_spec_exit dryspec v z m -> mem_sub m m' -> ext_spec_exit dryspec v z m')
-     V G m,
-     @semax_prog Espec CS prog initial_oracle V G ->
+    forall Σ {CS: compspecs} `{!VSTGpreS OK_ty Σ} (initial_oracle: OK_ty)
+     (EXIT: forall `{!VSTGS OK_ty Σ}, semax_prog.postcondition_allows_exit Espec tint)
+     V (G : forall `{!VSTGS OK_ty Σ}, funspecs) m,
+     (forall {HH : VSTGS OK_ty Σ}, semax_prog(OK_spec := Espec) prog initial_oracle V G) ->
      Genv.init_mem prog = Some m ->
      exists b, exists q,
        Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some b /\
-       initial_core  (cl_core_sem (globalenv prog))
+       semantics.initial_core (cl_core_sem (globalenv prog))
            0 m q m (Vptr b Ptrofs.zero) nil /\
        forall n, exists traces, ext_safeN_trace n TEnd traces initial_oracle q m /\
          forall t, In traces t -> exists z', consume_trace initial_oracle z' t.

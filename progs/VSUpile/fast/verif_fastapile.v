@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat. Import NoOracle.
 Require Import VST.floyd.VSU.
 Require Import fastapile.
 Require Import spec_stdlib.
@@ -40,8 +41,8 @@ apply derives_refl.
 Qed.
 
 Lemma apile_Init: VSU_initializer prog (apile nil).
-  Proof. 
-    InitGPred_tac.  rewrite sepcon_emp.
+  Proof.
+    InitGPred_tac.  rewrite sep_emp.
     apply make_apile; auto.
 Qed.
 
@@ -74,14 +75,13 @@ forward_call (gv _a_pile, sigma).
 forward.
 Qed.
 
-Definition ApileVSU: @VSU NullExtension.Espec 
+Definition ApileVSU: VSU
       nil apile_imported_specs ltac:(QPprog prog) Apile_ASI (apile nil).
-  Proof. 
-    mkVSU prog apile_internal_specs.
-    + solve_SF_internal body_Apile_add.
-    + solve_SF_internal body_Apile_count.
-    + apply apile_Init.
-  Qed.
+Proof.
+  mkVSU prog apile_internal_specs.
+  + solve_SF_internal body_Apile_add.
+  + solve_SF_internal body_Apile_count.
+  + apply apile_Init.
+Qed.
 
 End Apile_VSU.
-

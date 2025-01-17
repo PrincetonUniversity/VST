@@ -1,12 +1,11 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat. Import NoOracle.
 Require Import VST.progs.dotprod.
 
 #[export] Instance CompSpecs : compspecs.
 Proof. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
-
-Local Open Scope logic.
 
 Fixpoint map2 {A B C: Type} (f: A -> B -> C) (al: list A) (bl: list B) : list C :=
  match al, bl with

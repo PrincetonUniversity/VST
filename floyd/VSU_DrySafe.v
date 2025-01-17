@@ -5,7 +5,6 @@ Require Export VST.floyd.PTops.
 Require Export VST.floyd.QPcomposite.
 Require Export VST.floyd.quickprogram.
 Require Export VST.floyd.Component.
-Import compcert.lib.Maps.
 
 Require Import VST.floyd.SeparationLogicAsLogic. (*Soundness.*)
 Require Import VST.floyd.SeparationLogicAsLogicSoundness.
@@ -15,10 +14,16 @@ Require Import VST.veric.juicy_mem. (*for mem_sub*)
 Require Import VST.sepcomp.event_semantics. (*for mem_event*)
 Require Import VST.veric.Clight_core. (*for inline_external_call_mem_events*)
 Require Import VST.sepcomp.extspec. (*for ext_spec_type.*) 
-Require Import VST.veric.SequentialClight2. (*for extspec_frame *)
+Require Import VST.veric.SequentialClight. (*for extspec_frame *)
+
+Local Unset SsrRewrite.
+
+Section VST.
+
+Context `{!VSTGS OK_ty Σ}.
 
 Lemma prog_of_component_irr {Espec Externs p Exports GP G}
-      c X Y: @prog_of_component Espec Externs p Exports GP G c X = @prog_of_component Espec Externs p Exports GP G c Y.
+      c X Y: @prog_of_component _ _ _ Espec Externs p Exports GP G c X = @prog_of_component _ _ _ Espec Externs p Exports GP G c Y.
 Proof. unfold prog_of_component. destruct c. simpl. f_equal. f_equal. apply proof_irr. Qed.
 
 Lemma wholeprog_of_QPprog_irr p ok X Y: wholeprog_of_QPprog p ok X = wholeprog_of_QPprog p ok Y.
@@ -30,12 +35,6 @@ assert (ok = ok').
 { destruct ok; destruct ok'. f_equal; apply proof_irr. }
 subst ok'. apply wholeprog_of_QPprog_irr.
 Qed.
-
-Lemma prog_funct'_eq: @SeparationLogic.prog_funct' = @initial_world.prog_funct'.
-Proof. reflexivity. Qed.
-
-Lemma prog_funct_eq (p:Clight.program): @SeparationLogic.prog_funct p = Clight_initial_world.prog_funct p.
-Proof. reflexivity. Qed.
 
 Lemma prog_funct'_app {F V}: forall l1 l2,
       @prog_funct' F V (l1 ++ l2) = @prog_funct' F V l1 ++ @prog_funct' F V l2.
@@ -54,7 +53,7 @@ destruct (ident_eq i j); subst.
    subst. exists (S k); simpl; trivial.
 Qed.
 
-Lemma delete_id_Some_In_inv: forall (G:funspecs)
+Lemma delete_id_Some_In_inv: forall (G:@funspecs Σ)
       (HG : list_norepet (map fst G))
       i j (IJ: i <> j) phi GG,
       delete_id i G = Some (phi, GG) -> In j (map fst GG) -> In j (map fst G).
@@ -67,7 +66,7 @@ Proof. induction G; simpl in *; intros. inv H.
     - right. eauto.
 Qed.
 
-Lemma delete_id_Some_find_id_other_inv: forall (G:funspecs)
+Lemma delete_id_Some_find_id_other_inv: forall (G:@funspecs Σ)
       (HG: list_norepet (map fst G)) i phi GG 
       (Hi : delete_id i G = Some (phi, GG)) j
       (Hij : i <> j) psi
@@ -75,7 +74,7 @@ Lemma delete_id_Some_find_id_other_inv: forall (G:funspecs)
       find_id j G = Some psi.
 Proof. induction G; simpl; intros. inv Hi.
   destruct a. inv HG. specialize (IHG H2). 
-  destruct (Memory.EqDec_ident j i0).
+  if_tac.
 + subst i0. rewrite if_false in Hi by trivial.
   remember (delete_id i G) as d; symmetry in Heqd; destruct d; [ destruct p |]; inv Hi.
   simpl in J; rewrite if_true in J by trivial. inv J; trivial.
@@ -134,7 +133,7 @@ Lemma augment_funspecs_find_id_None i: forall p G,
       find_id i (prog_funct p) = None ->
       find_id i (augment_funspecs p G) = None.
 Proof.
-  intros p. unfold augment_funspecs; rewrite prog_funct_eq. forget (Clight_initial_world.prog_funct p) as l. clear p.
+  intros p. unfold augment_funspecs. forget (prog_funct p) as l. clear p.
   induction l; simpl; intros G.
 + intros. destruct G; simpl; intros; trivial.
 + destruct a as [j phi]; if_tac; subst; intros; try discriminate.
@@ -165,7 +164,7 @@ simpl in H1; subst i0.
 rewrite if_true by auto.
 specialize (IHfds G H2).
 destruct (augment_funspecs' fds G) as [G' | ] eqn:?H.
-2:{ destruct G; inv IHfds. destruct fds; inv H2. inv H. }
+2:{ destruct G; inv IHfds. destruct fds; inv H2. }
 subst; trivial.
 Qed.
 
@@ -185,7 +184,7 @@ simpl in H1; subst i0.
 rewrite if_true by auto.
 specialize (IHfds G H2).
 destruct (augment_funspecs' fds G) as [G' | ] eqn:?H.
-2:{ destruct G; inv IHfds. destruct fds; inv H2. inv H. }
+2:{ destruct G; inv IHfds. destruct fds; inv H2. }
 constructor.
 split; auto.
 simpl.
@@ -195,16 +194,19 @@ Qed.
 
 Axiom semaxfunc_AX:
       forall Espec V G cs ge fdecls GG,
-           @MainTheorem.CSHL_MinimumLogic.CSHL_Def.semax_func Espec V G cs ge fdecls GG ->
-           @SeparationLogicSoundness.VericMinimumSeparationLogic.CSHL_Def.semax_func Espec V G cs ge fdecls GG.
+           MainTheorem.CSHL_MinimumLogic.CSHL_Def.semax_func (OK_spec := Espec) V G (C := cs) ge fdecls GG ->
+           SeparationLogicSoundness.VericMinimumSeparationLogic.CSHL_Def.semax_func _ _ _ Espec V G cs ge fdecls GG.
+
+End VST.
 
 Lemma WholeComponent_DrySafe:
- forall {Espec Externs p Exports GP mainspec} G 
-  (NOMAIN: find_id (QP.prog_main p) G = None)
-   (c: @Component Espec (QPvarspecs p) Externs nil p Exports GP (G_merge
+ forall Σ `{!VSTGpreS OK_ty Σ} {Espec : forall `{VSTGS OK_ty Σ}, ext_spec OK_ty} {dryspec : ext_spec OK_ty} {Externs p Exports}
+  {GP : forall `{VSTGS OK_ty Σ}, globals -> mpred} (mainspec : forall `{VSTGS OK_ty Σ}, funspec) (G : forall `{VSTGS OK_ty Σ}, funspecs)
+  (NOMAIN: forall `{VSTGS OK_ty Σ}, find_id (QP.prog_main p) G = None)
+   (c: forall {HH : VSTGS OK_ty Σ}, Component (Espec := Espec) (QPvarspecs p) Externs nil p Exports GP (G_merge
                  [(QP.prog_main p, mainspec)] G))
   (z: OK_ty)
-  (MAIN: exists post, mainspec = QPmain_spec_ext' p z post)
+  (MAIN: forall {HH : VSTGS OK_ty Σ}, exists post, mainspec = QPmain_spec_ext' p z post)
   (MAIN': isSome (PTree.get (QP.prog_main p) (QP.prog_defs p)))
   (EXT_OK: all_unspecified_OK p)
   (ALIGNED: QPall_initializers_aligned p = true) (* should be part of QPprogram_OK *)
@@ -215,67 +217,43 @@ Lemma WholeComponent_DrySafe:
            (sort_rank (PTree.elements (QP.prog_comp_env p)) []))
          (composite_env_of_QPcomposite_env (QP.prog_comp_env p) H) 
            = Errors.OK tt)
+  (EXIT: forall {HH : VSTGS OK_ty Σ}, semax_prog.postcondition_allows_exit Espec tint)
+  (Hdry : forall {HH : VSTGS OK_ty Σ}, ext_spec_entails Espec dryspec)
 
-  (dryspec : extspec.ext_spec OK_ty)
-  (dessicate : forall ef : external_function,
-            juicy_mem ->
-            @ext_spec_type juicy_mem external_function
-              (@OK_ty Espec) (@OK_spec Espec) ef ->
-            @ext_spec_type mem external_function
-              (@OK_ty Espec) dryspec ef)
-  (Jsub: forall (ef : external_function) (se : Senv.t) (lv : list val) (m : mem) (t : Events.trace) 
-                (v : val) (m' : mem) (EFI : ef_inline ef = true) 
-                (m1 : Mem.mem') (EFC : Events.external_call ef se lv m t v m'),
-         mem_sub m m1 ->
-         exists (m1' : mem) (EFC1 : Events.external_call ef se lv m1 t v m1'),
-            mem_sub m' m1' /\
-           @proj1_sig (list mem_event) (fun trace : list mem_event => ev_elim m1 trace m1')
-                      (inline_external_call_mem_events ef se lv m1 t v m1' EFI EFC1) =
-           @proj1_sig (list mem_event) (fun trace : list mem_event => ev_elim m trace m')
-                      (inline_external_call_mem_events ef se lv m t v m' EFI EFC))
-  (Jframe : @extspec_frame (@OK_ty Espec) (@OK_spec Espec))
-  (JDE : juicy_dry_ext_spec (@OK_ty Espec) (@OK_spec Espec) dryspec dessicate)
-  (DME : ext_spec_mem_evolve (@OK_ty Espec) dryspec)
-  (PAE : semax_prog.postcondition_allows_exit Espec tint)
-  (Esub : forall (v : option val) (z : @OK_ty Espec)
-         (m : mem) (m' : Mem.mem'),
-       @ext_spec_exit mem external_function
-         (@OK_ty Espec) dryspec v z m ->
-       mem_sub m m' ->
-       @ext_spec_exit mem external_function
-         (@OK_ty Espec) dryspec v z m')
-  wholeprog X
-  (Hprog: wholeprog = wholeprog_of_QPprog p (Comp_prog_OK c) X)
+  wholeprog (X : forall {HH : VSTGS OK_ty Σ}, _)
+  (Hprog: forall {HH : VSTGS OK_ty Σ}, wholeprog = wholeprog_of_QPprog p (Comp_prog_OK c) X)
   m (Hm: Genv.init_mem wholeprog = Some m),
-exists (b : block) (q : CC_core) (m' : mem),
+exists (b : block) (q : CC_core),
    @Genv.find_symbol (Ctypes.fundef function) type
      (@Genv.globalenv (Ctypes.fundef function) type wholeprog)
-     (@prog_main (Ctypes.fundef function) type wholeprog) = @Some block b /\
-   @semantics.initial_core CC_core mem (cl_core_sem (globalenv wholeprog)) 0 m q m'
+     (prog_main wholeprog) = @Some block b /\
+   @semantics.initial_core CC_core mem (cl_core_sem (globalenv wholeprog)) 0 m q m
      (Vptr b Ptrofs.zero) [] /\
-   (forall n : nat, @step_lemmas.dry_safeN (Genv.t Clight.fundef type) CC_core mem 
-      (@OK_ty Espec) (@semax.genv_symb_injective Clight.fundef type)
+   (forall n : nat, @step_lemmas.dry_safeN (Genv.t Clight.fundef type) CC_core mem
+      (OK_ty) (@semax.genv_symb_injective Clight.fundef type)
       (cl_core_sem (globalenv wholeprog)) dryspec
       {| genv_genv := @Genv.globalenv (Ctypes.fundef function) type wholeprog;
-        genv_cenv := @prog_comp_env function wholeprog |} n z q m').
+        genv_cenv := @prog_comp_env function wholeprog |} n z q m).
 Proof.
   intros.
-  eapply (whole_program_sequential_safety z dryspec); trivial. eassumption.
-  instantiate (1:= augment_funspecs wholeprog (G_merge [(QP.prog_main p, mainspec)] G)).
+  eapply whole_program_sequential_safety_ext; trivial.
+  instantiate (1:= fun (HH : VSTGS OK_ty Σ) => augment_funspecs wholeprog (G_merge [(QP.prog_main p, mainspec HH)] (G HH))).
   instantiate (1:= (QPvarspecs p)).
-  assert (SP:=WholeComponent_semax_progConstructive _ _ _ _ _ _ _ c NOMAIN _ MAIN MAIN' EXT_OK ALIGNED DEFS_NOT_BUILTIN CBC).
-  clear - NOMAIN MAIN' SP.
+  intros.
+  assert (SP:=WholeComponent_semax_progConstructive _ _ _ _ _ _ _ (c HH) (NOMAIN HH) _ (MAIN HH) MAIN' EXT_OK ALIGNED DEFS_NOT_BUILTIN CBC).
+  clear - NOMAIN MAIN' SP Hprog.
+  specialize (Hprog HH).
   destruct SP as [Hnames [Halign [Hcenv [Hsemaxfunc [Hglobvars Hmainspec]]]]].
-  remember (wholeprog_of_QPprog p (Comp_prog_OK c)
+  remember (wholeprog_of_QPprog p (Comp_prog_OK (c HH))
                      (cenv_built_correctly_e
                         (map compdef_of_compenv_element
                            (sort_rank (PTree.elements (QP.prog_comp_env p)) []))
                         (composite_env_of_QPcomposite_env (QP.prog_comp_env p)
-                           (projT1 (proj2 (Comp_prog_OK c))))
-                        (CBC (projT1 (proj2 (Comp_prog_OK c)))))) as w.
+                           (projT1 (proj2 (Comp_prog_OK (c HH)))))
+                        (CBC (projT1 (proj2 (Comp_prog_OK (c HH))))))) as w.
   assert (WP: w = wholeprog) by (subst; apply wholeprog_of_QPprog_irr).
   clear Heqw; subst w.
-  red. intuition.
+  eexists. red. intuition.
   1: apply Hcenv.
   1: eapply semaxfunc_AX; apply Hsemaxfunc.
 Qed.

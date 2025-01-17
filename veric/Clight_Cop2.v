@@ -19,7 +19,9 @@
 
 Require Export VST.veric.Cop2.
 Require Import VST.veric.Clight_base.
+Set Warnings "-custom-entry-overridden".
 Require Import VST.veric.tycontext.
+Set Warnings "custom-entry-overridden".
 
 (** * Type classification and semantics of operators. *)
 

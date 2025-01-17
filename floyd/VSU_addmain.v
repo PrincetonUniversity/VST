@@ -278,7 +278,7 @@ Lemma semaxfunc_cons_ext_vacuous:
        (id_in_list id (map fst fs)) = false ->
        ef_sig ef =
        {|
-         sig_args := typlist_of_typelist argsig;
+         sig_args := typlist_of_list type argsig;
          sig_res := xtype_of_type retsig;
          sig_cc := cc_of_fundef (External ef argsig retsig cc) |} ->
        Genv.find_symbol ge id = Some b ->
@@ -290,7 +290,7 @@ Proof.
 intros.
 eapply (@semaxfunc_cons_ext Espec cs V G ge fs id ef argsig retsig); trivial.
 repeat split; trivial.
-* rewrite <-(typelist2list_arglist _ 1). reflexivity.
+* rewrite <-(list type2list_arglist _ 1). reflexivity.
 * right. clear. hnf. intros. simpl in X; inv X.
 * intros. simpl. apply andp_left1, FF_left.
 * apply semax_external_FF.
@@ -1298,7 +1298,7 @@ Variable MainE_vacuous: forall i phi, find_id i MainE = Some phi -> find_id i co
          exists ef argsig retsig cc, 
            phi = vacuous_funspec (External ef argsig retsig cc) /\ 
            find_id i (QPprog_funct p) = Some (External ef argsig retsig cc) /\
-           ef_sig ef = {| sig_args := typlist_of_typelist argsig;
+           ef_sig ef = {| sig_args := typlist_of_list type argsig;
                           sig_res := xtype_of_type retsig;
                           sig_cc := cc_of_fundef (External ef argsig retsig cc) |}.
 
@@ -1401,7 +1401,7 @@ simpl in H.
       destruct (MainE_vacuous _ _ H0 coreE_i) as [ef [tys [rt [cc [PHI [FDp EFsig]]]]]]; clear MainE_vacuous JUST.  rewrite FDp in H; inv H.
       apply find_id_In_map_fst in H0. clear HypME1.
       split3; trivial.
-      split3; [ apply typelist2list_arglist
+      split3; [ apply list type2list_arglist
               | apply EFsig |].
       split3; [ right; red; simpl; intros h H; inv H
               | simpl; intros gx l H; inv H |].

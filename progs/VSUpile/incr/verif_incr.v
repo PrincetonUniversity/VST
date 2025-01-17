@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat. Import NoOracle.
 Require Import incr.
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
@@ -32,6 +33,7 @@ Lemma sub_incr12:
   funspec_sub (snd incr2_spec)  (snd incr1_spec).
 Proof.
 do_funspec_sub. destruct w as [[[i a] sh] data]. clear H.
+rewrite <- fupd_intro.
 Exists (i,a) (data_at sh (tarray tuint 10) data a). simpl; entailer!.
 intros tau ? ?. Exists data.
 entailer!.
@@ -66,6 +68,7 @@ Lemma sub_incr34:
   funspec_sub (snd incr4_spec)  (snd incr3_spec).
 Proof.
 do_funspec_sub. destruct w as [[[i gv] sh] data]. clear H.
+rewrite <- fupd_intro.
 Exists i (data_at sh (tarray tuint 10) data (gv _global_auxdata)).
 simpl; entailer!.
 intros tau ? ?. Exists data.

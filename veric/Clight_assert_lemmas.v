@@ -1,167 +1,124 @@
 Require Export VST.veric.base.
-Require Import VST.veric.compcert_rmaps.
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
+Require Export VST.veric.res_predicates.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Import VST.veric.Clight_seplog.
 Require Export VST.veric.assert_lemmas.
 
 Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
 Require Import VST.veric.extend_tc.
-Import compcert.lib.Maps.
 
-Local Open Scope pred.
+Section mpred.
 
-Lemma corable_funassert:
-  forall G rho, corable (funassert G rho).
+Context `{!heapGS Σ}.
+
+Definition allp_fun_id (Delta : tycontext) : assert :=
+assert_of (fun rho =>
+ ∀ id : ident, ∀ fs : funspec,
+  ⌜Maps.PTree.get id (glob_specs Delta) = Some fs⌝ →
+  (∃ b : block, ⌜Map.get (ge_of rho) id = Some b⌝ ∧ func_ptr_si fs (Vptr b Ptrofs.zero))).
+
+Global Instance allp_fun_id_persistent Delta : Persistent (allp_fun_id Delta).
 Proof.
-  intros. eapply corable_funspecs_assert.
+  apply monPred_persistent, _.
 Qed.
 
-#[export] Hint Resolve corable_funassert : core.
-
-Section invs.
-
-Context {inv_names : invariants.invG}.
-
-Definition allp_fun_id (Delta : tycontext) (rho : environ): pred rmap :=
- ALL id : ident , ALL fs : funspec ,
-  !! ((glob_specs Delta) ! id = Some fs) -->
-  (EX b : block, !! (Map.get (ge_of rho) id = Some b) && func_ptr_si fs (Vptr b Ptrofs.zero)).
-
-Definition allp_fun_id_sigcc (Delta : tycontext) (rho : environ): pred rmap :=
-(ALL id : ident ,
- (ALL fs : funspec ,
-  !! ((glob_specs Delta) ! id = Some fs) -->
-  (EX b : block, !! (Map.get (ge_of rho) id = Some b) && 
+Definition allp_fun_id_sigcc (Delta : tycontext) : assert :=
+assert_of (fun rho =>
+(∀ id : ident ,
+ (∀ fs : funspec ,
+  ⌜Maps.PTree.get id (glob_specs Delta) = Some fs⌝ →
+  (∃ b : block, ⌜Map.get (ge_of rho) id = Some b⌝ ∧ 
     match fs with
-    mk_funspec sig cc _ _ _ _ _ => sigcc_at sig cc (b, 0)
-    end))).
+    mk_funspec sig cc _ _ _ _ => sigcc_at sig cc (b, 0)
+    end)))).
 
-Lemma allp_fun_id_ex_implies_allp_fun_sigcc Delta rho: 
-  allp_fun_id Delta rho |--  allp_fun_id_sigcc Delta rho.
+Lemma allp_fun_id_ex_implies_allp_fun_sigcc Delta rho:
+  allp_fun_id Delta rho ⊢ allp_fun_id_sigcc Delta rho.
 Proof.
-  apply allp_derives; intros id.
-  apply allp_derives; intros fs.
-  apply imp_derives; trivial.
-  apply exp_derives; intros b.
-  apply andp_derives; trivial.
-  unfold func_ptr. intros w [bb [H [gs [GS F]]]].
-  simpl in H; inv H. destruct gs; destruct fs; destruct GS as [[? ?] ?]; subst.
-  simpl. eexists; rewrite F; clear F. reflexivity.
-Qed.
-
-Lemma corable_allp_fun_id: forall Delta rho,
-  corable (allp_fun_id Delta rho).
-Proof.
-  intros.
-  apply corable_allp; intros id.
-  apply corable_allp; intros fs.
-  apply corable_imp; [apply corable_prop |].
-  apply corable_exp; intros b.
-  apply corable_andp; [apply corable_prop |].
-  apply corable_func_ptr_si.
-Qed.
-
-Lemma corable_allp_fun_id_sigcc: forall Delta rho,
-  corable (allp_fun_id_sigcc Delta rho).
-Proof.
-  intros.
-  apply corable_allp; intros id.
-  apply corable_allp; intros fs.
-  apply corable_imp; [apply corable_prop |].
-  apply corable_exp; intros b.
-  apply corable_andp; [apply corable_prop |].
-  destruct fs. apply corable_exp; intros cc. apply corable_pureat.
+  rewrite /allp_fun_id /allp_fun_id_sigcc.
+  apply bi.forall_mono; intros id.
+  apply bi.forall_mono; intros fs.
+  apply bi.impl_mono; first done.
+  apply bi.exist_mono; intros b.
+  apply bi.and_mono; first done.
+  rewrite /func_ptr_si.
+  iIntros "H"; iDestruct "H" as (? Heq ?) "[#H1 H2]"; inv Heq.
+  rewrite /func_at /sigcc_at /funspec_sub_si.
+  destruct fs, gs; iDestruct "H1" as "[(-> & ->) _]"; eauto.
 Qed.
 
 Lemma allp_fun_id_sigcc_sub: forall Delta Delta' rho,
   tycontext_sub Delta Delta' ->
-  allp_fun_id_sigcc Delta' rho |-- allp_fun_id_sigcc Delta rho.
+  allp_fun_id_sigcc Delta' rho ⊢ allp_fun_id_sigcc Delta rho.
 Proof.
   intros.
-  apply allp_derives; intros id.
-  intros w W fs u ? WU EU FS.
-  destruct H as [_ [_ [_ [_ [? _]]]]].
-  specialize (H id).
-  hnf in H.
-  rewrite FS in H. destruct H as [gs [GSA GSB]]. specialize (GSB u I).
-  destruct (W gs u _ WU EU GSA) as [b [B1 B2]].
-  exists b; split; [trivial | destruct fs; destruct gs].
-  destruct GSB as [[GSBa GCBb] _]. subst c0 t0. trivial.
+  apply bi.forall_mono; intros id.
+  iIntros "H" (fs Hid).
+  destruct H as (_ & _ & _ & _ & Hg & _).
+  specialize (Hg id); rewrite Hid /= in Hg.
+  destruct Hg as (gs & Hid' & Hsub).
+  iDestruct ("H" with "[%]") as (??) "H"; first done.
+  iExists b; iFrame "%".
+  iPoseProof Hsub as "Hsub".
+  rewrite /funspec_sub_si.
+  by destruct fs, gs; iDestruct "Hsub" as "[(-> & ->) _]".
 Qed.
 
 Lemma allp_fun_id_sub: forall Delta Delta' rho,
   tycontext_sub Delta Delta' ->
-  allp_fun_id Delta' rho |-- allp_fun_id Delta rho.
+  allp_fun_id Delta' rho ⊢ allp_fun_id Delta rho.
 Proof.
   intros.
-  apply allp_derives; intros id.
-  intros w W fs u ? WU EU FS.
-  destruct H as [_ [_ [_ [_ [? _]]]]].
-  specialize (H id).
-  hnf in H.
-  rewrite FS in H. destruct H as [gs [GSA GSB]]. specialize (GSB u I).
-  destruct (W gs u _ WU EU GSA) as [b [B1 [bb [X [hs [HS B2]]]]]]; clear W.
-  simpl in X; inv X.
-  exists bb; split; [trivial | ]. exists bb; split; [ reflexivity |].
-  exists hs; split; trivial. eapply funspec_sub_si_trans; split. apply HS. eapply pred_upclosed, GSB; auto.
+  apply bi.forall_mono; intros id.
+  iIntros "H" (fs Hid).
+  destruct H as (_ & _ & _ & _ & Hg & _).
+  specialize (Hg id); rewrite Hid /= in Hg.
+  destruct Hg as (gs & Hid' & Hsub).
+  iDestruct ("H" with "[%]") as (??) "H"; first done.
+  iExists b; iFrame "%".
+  rewrite /func_ptr_si.
+  iDestruct "H" as (???) "[#? ?]"; iExists _; iSplit; first auto; iExists _; iSplit; last done.
+  iApply funspec_sub_si_trans; eauto.
 Qed.
 
-Lemma funassert_allp_fun_id Delta rho: funassert Delta rho |-- allp_fun_id Delta rho.
-Proof. apply andp_left1.
-  apply allp_derives; intros id.
-  apply allp_derives; intros fs.
-  apply imp_derives; trivial.
-  apply exp_derives; intros b.
-  apply andp_derives; trivial.
-  eapply exp_right with (x:=b).
-  apply prop_andp_right; trivial.
-  eapply exp_right with (x:=fs).
-  apply andp_right; trivial.
-  eapply derives_trans. 2: apply funspec_sub_si_refl. trivial.
+Lemma funassert_allp_fun_id Delta rho: funassert Delta rho ⊢ <affine> allp_fun_id Delta rho ∗ funassert Delta rho.
+Proof.
+  iIntros "H"; iSplit; last done.
+  iDestruct "H" as "[H _]".
+  iIntros "!> !>" (???).
+  iDestruct ("H" with "[%]") as (??) "H"; first done.
+  iExists b; iSplit; first auto.
+  iExists b; iSplit; first auto.
+  iExists fs; iFrame.
+  iPoseProof (funspec_sub_si_refl) as "?"; auto.
 Qed.
 
 Lemma funassert_allp_fun_id_sub: forall Delta Delta' rho,
   tycontext_sub Delta Delta' ->
-  funassert Delta' rho |-- allp_fun_id Delta rho.
+  funassert Delta' rho ⊢ <affine> allp_fun_id Delta rho ∗ funassert Delta' rho.
 Proof.
-  intros. eapply derives_trans. apply funassert_allp_fun_id.
-  apply allp_fun_id_sub; trivial.
+  intros. rewrite {1}funassert_allp_fun_id.
+  apply bi.sep_mono; last done.
+  apply bi.affinely_mono, allp_fun_id_sub; trivial.
 Qed.
 
 Lemma funassert_allp_fun_id_sigcc Delta rho:
-  funassert Delta rho |-- allp_fun_id_sigcc Delta rho.
+  funassert Delta rho ⊢ <affine> allp_fun_id_sigcc Delta rho ∗ funassert Delta rho.
 Proof.
-eapply derives_trans. apply funassert_allp_fun_id.
-apply allp_fun_id_ex_implies_allp_fun_sigcc.
+  intros. rewrite {1}(funassert_allp_fun_id ⊤).
+  apply bi.sep_mono; last done.
+  apply bi.affinely_mono, allp_fun_id_ex_implies_allp_fun_sigcc.
 Qed.
 
 Lemma funassert_allp_fun_id_sigcc_sub: forall Delta Delta' rho,
   tycontext_sub Delta Delta' ->
-  funassert Delta' rho |-- allp_fun_id_sigcc Delta rho.
+  funassert Delta' rho ⊢ <affine> allp_fun_id_sigcc Delta rho ∗ funassert Delta' rho.
 Proof.
-  intros. eapply derives_trans. apply funassert_allp_fun_id_sigcc.
-  apply allp_fun_id_sigcc_sub; trivial.
-Qed.
-
-(*
-Lemma corable_jam: forall {B} {S': B -> Prop} (S: forall l, {S' l}+{~ S' l}) (P Q: B -> pred rmap),
-    (forall loc, corable (P loc)) ->
-    (forall loc, corable (Q loc)) ->
-    forall b, corable (jam S P Q b).
-Proof.
-intros.
-intro.
-unfold jam.
-simpl.
-if_tac.
-apply H.
-apply H0.
-Qed.
-*)
-Lemma prop_derives {A}{H: ageable A}{EO: Ext_ord A}:
- forall (P Q: Prop), (P -> Q) -> prop P |-- prop Q.
-Proof.
-intros. intros w ?; apply H0; auto.
+  intros. rewrite {1}funassert_allp_fun_id_sigcc.
+  apply bi.sep_mono; last done.
+  eapply bi.affinely_mono, allp_fun_id_sigcc_sub; eauto.
 Qed.
 
 Section STABILITY.
@@ -169,161 +126,117 @@ Variable CS: compspecs.
 Variables Delta Delta': tycontext.
 Hypothesis extends: tycontext_sub Delta Delta'.
 
-Lemma tc_bool_e_sub: forall b b' err rho phi,
+Lemma tc_bool_e_sub: forall b b' err rho,
   (b = true -> b' = true) ->
-  denote_tc_assert (tc_bool b err) rho phi ->
-  denote_tc_assert (tc_bool b' err) rho phi.
+  denote_tc_assert (tc_bool b err) rho ⊢
+  denote_tc_assert (tc_bool b' err) rho.
 Proof.
   intros.
   destruct b.
-  + specialize (H eq_refl); subst.
-    simpl; exact I.
-  + inversion H0.
-Qed.
-
-Lemma tc_bool_e_i:
-  forall b c rho phi,
-   b = true ->
-  app_pred (denote_tc_assert (tc_bool b c) rho) phi.
-Proof.
-intros.
-subst. apply I.
+  + rewrite H; auto.
+  + iIntros "[]".
 Qed.
 
 Lemma tc_expr_lvalue_sub: forall rho,
   typecheck_environ Delta rho ->
   forall e,
-    (tc_expr Delta e rho |-- tc_expr Delta' e rho) /\
-    (tc_lvalue Delta e rho |-- tc_lvalue Delta' e rho).
+    (tc_expr Delta e rho ⊢ tc_expr Delta' e rho) ∧
+    (tc_lvalue Delta e rho ⊢ tc_lvalue Delta' e rho).
 Proof.
-  rename extends into H.
   intros rho HHH.
-  induction e; unfold tc_expr, tc_lvalue; split; intro w; unfold prop;
-  simpl; auto;
-  try solve [destruct t as [  | [| | |] |  | [|] | | | | |]; auto].
-* destruct (access_mode t) eqn:?; auto.
-  destruct (get_var_type Delta i) eqn:?; [ | contradiction].
-  destruct H as [_ [? [_ [? _]]]].
-  assert (H8: get_var_type Delta' i = Some t0); [ | rewrite H8; unfold tc_bool; simple_if_tac; auto].
-  unfold get_var_type in *. rewrite <- H.
-  destruct ((var_types Delta)!i); auto.
-  destruct ((glob_types Delta) ! i) eqn:?; inv Heqo.
-  specialize (H0 i). hnf in H0. rewrite Heqo0 in H0. rewrite H0.
-  auto.
-* destruct (get_var_type Delta i) eqn:?; [ | contradiction].
-  destruct H as [_ [? [_ [? _]]]].
-  assert (H8: get_var_type Delta' i = Some t0); [ | rewrite H8; unfold tc_bool; simple_if_tac; auto].
-  unfold get_var_type in *. rewrite <- H.
-  destruct ((var_types Delta)!i); auto.
-  destruct ((glob_types Delta) ! i) eqn:?; inv Heqo.
-  specialize (H0 i). hnf in H0. rewrite Heqo0 in H0. rewrite H0.
-  auto.
-* destruct ((temp_types Delta)!i) as [? |] eqn:H1; [ | contradiction].
-  destruct H as [H _]. specialize (H i); hnf in H. rewrite H1 in H.
-  destruct ((temp_types Delta')!i) as [? |] eqn:H2; [ | contradiction].
-  simpl @fst; simpl @snd. subst t1; auto.
-* destruct (access_mode t) eqn:?H; intro HH; try inversion HH.
-  rewrite !denote_tc_assert_andp in HH |- *.
-  destruct HH as [[? ?] ?].
-  destruct IHe as [? _].
-  repeat split.
-  + unfold tc_expr in H1.
-    apply (H4 w).
-    simpl.
-    tauto.
-  + unfold tc_bool in H2 |- *; simple_if_tac; tauto.
-  + pose proof (H4 w H1).
-    simpl in H3 |- *.
-    unfold_lift in H3; unfold_lift.
-    exact H3.
-* destruct IHe.
-  repeat rewrite denote_tc_assert_andp.
-  intros [[? ?] ?].
-  repeat split.
-  + unfold tc_expr in H0.
-    apply (H0 w); unfold prop; auto.
-  + unfold tc_bool in *; simple_if_tac; tauto.
-  + pose proof (H0 w H2).
-    simpl in H4 |- *.
-    unfold_lift in H4; unfold_lift.
-    exact H4.
-* repeat rewrite denote_tc_assert_andp; intros [? ?]; repeat split.
-  + destruct IHe. apply (H3 w); auto.
-  + unfold tc_bool in *; simple_if_tac; tauto.
-* repeat rewrite denote_tc_assert_andp; intros [? ?]; repeat split; auto.
-  destruct IHe. apply (H2 w); auto.
-* repeat rewrite denote_tc_assert_andp; intros [[? ?] ?]; repeat split; auto.
-  + destruct IHe1 as [H8 _]; apply (H8 w); auto.
-  + destruct IHe2 as [H8 _]; apply (H8 w); auto.
-* repeat rewrite denote_tc_assert_andp; intros [? ?]; repeat split; auto.
-  + destruct IHe as [H8 _]; apply (H8 w); auto.
-* destruct (access_mode t) eqn:?; try solve [intro HH; inv HH].
-  repeat rewrite denote_tc_assert_andp. intros [? ?]; repeat split; auto.
-  + destruct IHe. apply (H3 w); auto.
-* repeat rewrite denote_tc_assert_andp; intros [? ?]; repeat split; auto.
-  + destruct IHe as [_ H8]; apply (H8 w); auto.
+  induction e; unfold tc_expr, tc_lvalue; split; auto; simpl in *.
+* unfold typecheck_expr.
+  destruct (access_mode t); try iIntros "[]".
+  destruct (get_var_type Delta i) eqn:?; [ | iIntros "[]"].
+  destruct extends as (_ & Hv & _ & Hg & _).
+  assert (get_var_type Delta' i = Some t0) as ->; auto.
+  unfold get_var_type in *. rewrite <- Hv.
+  destruct ((var_types Delta) !! i) eqn: Hi; rewrite ?Hi in Heqo |- *; auto.
+  specialize (Hg i).
+  destruct ((glob_types Delta) !! i) eqn: Hi'; rewrite ?Hi' in Hg Heqo |- *; inv Heqo.
+  by rewrite Hg.
+* unfold typecheck_lvalue.
+  destruct (get_var_type Delta i) eqn:?; [ | iIntros "[]"].
+  destruct extends as (_ & Hv & _ & Hg & _).
+  assert (get_var_type Delta' i = Some t0) as ->; auto.
+  unfold get_var_type in *. rewrite <- Hv.
+  destruct ((var_types Delta) !! i) eqn: Hi; rewrite ?Hi in Heqo |- *; auto.
+  specialize (Hg i).
+  destruct ((glob_types Delta) !! i) eqn: Hi'; rewrite ?Hi' in Hg Heqo |- *; inv Heqo.
+  by rewrite Hg.
+* unfold typecheck_expr.
+  destruct ((temp_types Delta) !! i) as [? |] eqn:H1; [ | iIntros "[]"].
+  destruct extends as [H _]. specialize (H i); hnf in H. rewrite H1 in H.
+  destruct ((temp_types Delta') !! i) as [? |] eqn:H2; subst; done.
+* unfold typecheck_expr; fold typecheck_expr.
+  destruct (access_mode t) eqn:?H; try iIntros "[]".
+  rewrite !denote_tc_assert_andp.
+  by destruct IHe as [-> _].
+* unfold typecheck_lvalue; fold typecheck_expr.
+  rewrite !denote_tc_assert_andp.
+  by destruct IHe as [-> _].
+* unfold typecheck_expr; fold typecheck_lvalue.
+  rewrite !denote_tc_assert_andp.
+  by destruct IHe as [_ ->].
+* unfold typecheck_expr; fold typecheck_expr.
+  rewrite !denote_tc_assert_andp.
+  by destruct IHe as [-> _].
+* unfold typecheck_expr; fold typecheck_expr.
+  rewrite !denote_tc_assert_andp.
+  by destruct IHe1 as [-> _], IHe2 as [-> _].
+* unfold typecheck_expr; fold typecheck_expr.
+  rewrite !denote_tc_assert_andp.
+  by destruct IHe as [-> _].
+* unfold typecheck_expr; fold typecheck_lvalue.
+  destruct (access_mode t) eqn:?H; try iIntros "[]".
+  rewrite !denote_tc_assert_andp.
+  by destruct IHe as [_ ->].
+* unfold typecheck_lvalue; fold typecheck_lvalue.
+  rewrite !denote_tc_assert_andp.
+  by destruct IHe as [_ ->].
 Qed.
 
 Lemma tc_expr_sub:
-    forall e rho, typecheck_environ Delta rho -> tc_expr Delta e rho |-- tc_expr Delta' e rho.
+    forall e rho, typecheck_environ Delta rho -> tc_expr Delta e rho ⊢ tc_expr Delta' e rho.
 Proof. intros. apply tc_expr_lvalue_sub; auto. Qed.
 
 Lemma tc_lvalue_sub:
-    forall e rho, typecheck_environ Delta rho -> tc_lvalue Delta e rho |-- tc_lvalue Delta' e rho.
+    forall e rho, typecheck_environ Delta rho -> tc_lvalue Delta e rho ⊢ tc_lvalue Delta' e rho.
 Proof. intros. apply tc_expr_lvalue_sub; auto. Qed.
 
 Lemma tc_temp_id_sub:
     forall id t e rho,
-   tc_temp_id id t Delta e rho |-- tc_temp_id id t Delta' e rho.
+   tc_temp_id id t Delta e rho ⊢ tc_temp_id id t Delta' e rho.
 Proof.
-rename extends into H.
 unfold tc_temp_id; intros.
 unfold typecheck_temp_id.
-intros w ?.  hnf in H0|-*.
-destruct H as [? _]. specialize (H id).
-destruct ((temp_types Delta)! id); try contradiction.
-destruct ((temp_types Delta')! id); try contradiction.
-destruct H; subst.
-rewrite !denote_tc_assert_andp in H0 |- *.
-split.
-+ eapply tc_bool_e_sub; [| exact (proj1 H0)].
-  exact (fun x => x).
-+ destruct H0 as [? _].
-  apply tc_bool_e in H.
-  eapply neutral_isCastResultType.
-  exact H.
+destruct extends as (? & _); specialize (H id).
+destruct (_ !! _); try iIntros "[]".
+destruct (_ !! _); subst; done.
 Qed.
 
 Lemma tc_temp_id_load_sub:
    forall id t v rho,
-   tc_temp_id_load id t Delta v rho |--    tc_temp_id_load id t Delta' v rho.
+   tc_temp_id_load id t Delta v rho ⊢ tc_temp_id_load id t Delta' v rho.
 Proof.
-rename extends into H.
-unfold tc_temp_id_load; simpl; intros.
-intros w [tto [? ?]]; exists tto.
-destruct H as [H _].
-specialize (H id); hnf in H.
-rewrite H0 in H.
-destruct ((temp_types Delta')! id); try contradiction.
-destruct H; subst; auto.
+unfold tc_temp_id_load; intros.
+apply bi.pure_mono; intros (? & Hid & ?).
+destruct extends as (He & _); specialize (He id); rewrite Hid in He.
+clear Hid; destruct (_ !! _); [subst; eauto | contradiction].
 Qed.
 
 Lemma tc_exprlist_sub:
-  forall e t rho, typecheck_environ Delta rho -> tc_exprlist Delta e t rho |-- tc_exprlist Delta' e t rho.
+  forall e t rho, typecheck_environ Delta rho -> tc_exprlist Delta e t rho ⊢ tc_exprlist Delta' e t rho.
 Proof.
   intros.
-  revert t; induction e; destruct t;  simpl; auto.
-  specialize (IHe t).
-  unfold tc_exprlist.
-  intro w; unfold prop.
-  simpl.
-  repeat rewrite denote_tc_assert_andp.
-  intros [[? ?] ?]; repeat split; auto.
-  + apply (tc_expr_sub _ _ H w H0); auto.
+  revert t; induction e; destruct t; auto.
+  unfold tc_exprlist, typecheck_exprlist; fold typecheck_exprlist.
+  setoid_rewrite denote_tc_assert_andp.
+  by setoid_rewrite IHe; setoid_rewrite tc_expr_sub.
 Qed.
 
 Definition typeof_temp (Delta: tycontext) (id: ident) : option type :=
- match (temp_types Delta) ! id with
+ match (temp_types Delta) !! id with
  | Some t => Some t
  | None => None
  end.
@@ -337,11 +250,10 @@ intros.
 destruct extends as [? _].
 specialize (H0 i).
 unfold typeof_temp in *.
-destruct ((temp_types Delta) ! i); inv H.
-destruct ((temp_types Delta') ! i); try contradiction.
-destruct H0; subst; auto.
+destruct (_ !! _); inv H.
+destruct (_ !! _); subst; done.
 Qed.
 
 End STABILITY.
 
-End invs.
+End mpred.

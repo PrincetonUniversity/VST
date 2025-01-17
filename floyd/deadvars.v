@@ -1,4 +1,6 @@
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.floyd.base2.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Import VST.floyd.client_lemmas.
 Require Import VST.floyd.semax_tactics.
 Import ListNotations.
@@ -215,16 +217,16 @@ Ltac locals_of_assert P :=
  lazymatch P with
  | (PROPx _ (LOCALx ?Q _)) => constr:(temps_of_localdefs Q)
  | emp => constr:(@nil ident)
- | andp ?A ?B => let a := locals_of_assert A in
+ | bi_and ?A ?B => let a := locals_of_assert A in
                   let b := locals_of_assert B in
                   constr:(a++b)
- | sepcon ?A ?B => let a := locals_of_assert A in
+ | bi_sep ?A ?B => let a := locals_of_assert A in
                   let b := locals_of_assert B in
                   constr:(a++b)
- | @stackframe_of _ _ => constr:(@nil ident)
+ | @stackframe_of _ _ _ _ => constr:(@nil ident)
  | local (liftx (eq _) (eval_expr ?E)) =>
             let vl := constr:(expr_temps E nil) in vl
- | @exp _ _ ?T ?F =>
+ | @bi_exist _ ?T ?F =>
     let x := inhabited_value T in
      let d := constr:(F x) in
       let d := eval cbv beta in d in        let d := locals_of_assert d in
@@ -265,7 +267,7 @@ Ltac find_dead_vars P c Q :=
 Ltac deadvars :=
  lazymatch goal with
  | X := @abbreviate ret_assert ?Q |-
-    semax _ ?P ?c ?Y =>
+    semax _ _ ?P ?c ?Y =>
     check_POSTCONDITION;
     tryif constr_eq X Y then idtac else fail 99 "@abbreviate ret_assert above the line does not match postcondition";
     match find_dead_vars P c Q with
@@ -275,25 +277,25 @@ Ltac deadvars :=
  | |- semax _ _ _ _ => 
        check_POSTCONDITION;
        fail "deadvars: Postcondition must be an abbreviated local definition (POSTCONDITION); try abbreviate_semax first"
- | |- _ |-- _ => idtac
+ | |- _ ⊢ _ => idtac
  | |- _ => fail "deadvars: the proof goal should be a semax"
  end.
 
 Tactic Notation "deadvars" "!" :=
   lazymatch goal with
-  | |- semax _ _ _ _ => idtac
+  | |- semax _ _ _ _ _ => idtac
   | |- _ => fail "deadvars!: the proof goal should be a semax"
   end;
  lazymatch goal with
  | X := @abbreviate ret_assert ?Q |-
-    semax _ ?P ?c ?Y =>
+    semax _ _ ?P ?c ?Y =>
+   check_POSTCONDITION;
     tryif constr_eq X Y then idtac
     else fail "deadvars!: Postcondition must be an abbreviated local definition (POSTCONDITION); try abbreviate_semax first";
     lazymatch find_dead_vars P c Q with
     | nil => fail "deadvars!: Did not find any dead variables"
     | ?d =>  drop_LOCALs d
      end
- | |- semax _ _ _ _ => 
-       fail "deadvars!: Postcondition must be an abbreviated local definition (POSTCONDITION); try abbreviate_semax first"
+ | |- semax _ _ _ _ _ => 
+       fail 1 "deadvars!: Postcondition must be an abbreviated local definition (POSTCONDITION); try abbreviate_semax first"
  end.
-

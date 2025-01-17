@@ -1,5 +1,7 @@
 Require Import VST.veric.base.
+Set Warnings "-custom-entry-overridden".
 Require Import VST.veric.initial_world.
+Set Warnings "custom-entry-overridden".
 
 Lemma filter_filter {A f1 f2}: forall {l:list A}, 
       filter f1 (filter f2 l) = filter (fun x => andb (f1 x) (f2 x)) l.

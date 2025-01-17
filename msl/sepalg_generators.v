@@ -829,6 +829,3 @@ End SepAlgBijection.
 #[global] Existing Instance Join_bij.
 #[global] Existing Instance Perm_bij.
 #[global] Existing Instance Sep_bij.
-#[global] Existing Instance Sing_bij.
-#[global] Existing Instance Canc_bij.
-#[global] Existing Instance Disj_bij.

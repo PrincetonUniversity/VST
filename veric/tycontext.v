@@ -1,11 +1,10 @@
-Require Import VST.msl.msl_standard.
 Require Import VST.veric.Clight_base.
-Require Import VST.veric.rmaps.
-Require Import VST.veric.compcert_rmaps.
-Import compcert.lib.Maps.
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
+Require Import VST.veric.res_predicates.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 
 (*Clight-specific Imports*)
-Require Import VST.veric.Clight_lemmas. 
+Require Import VST.veric.Clight_lemmas.
 Require Import VST.veric.align_mem.
 
 Require Export VST.veric.lift.
@@ -37,43 +36,43 @@ Definition isOK {A} (P: Errors.res A) := match P with Errors.OK _ => true | _ =>
 
 Lemma modifiedvars'_union:
  forall id c S,
-  isSome ((modifiedvars' c S) ! id) <->
-  (isSome ((modifiedvars' c idset0) ! id ) \/ isSome (S ! id))
+  isSome ((modifiedvars' c S) !! id) <->
+  (isSome ((modifiedvars' c idset0) !! id ) \/ isSome (S !! id))
 with modifiedvars_ls_union:
  forall id c S,
-  isSome ((modifiedvars_ls c S) ! id) <->
-  (isSome ((modifiedvars_ls c idset0) ! id ) \/ isSome (S ! id)).
+  isSome ((modifiedvars_ls c S) !! id) <->
+  (isSome ((modifiedvars_ls c idset0) !! id ) \/ isSome (S !! id)).
 Proof.
 -
 clear modifiedvars'_union.
 intro id.
- assert (IS0: ~ isSome (idset0 ! id)). unfold idset0, isSome.
- rewrite PTree.gempty; auto.
+ assert (IS0: ~ isSome (idset0 !! id)). unfold idset0, isSome.
+ rewrite Maps.PTree.gempty; auto.
  unfold modifiedvars', idset0, insert_idset.
  induction c; try destruct o; simpl; intros;
  try solve [split; [auto | intros [?|?]; auto; contradiction ]];
  try solve [unfold insert_idset; destruct (eq_dec i id);
-   [subst; repeat rewrite PTree.gss; simpl; clear; split; auto
-   |  repeat rewrite PTree.gso by auto; simpl; 
+   [subst; rewrite !Maps.PTree.gss; auto; simpl; clear; split; auto
+   | rewrite !Maps.PTree.gso; auto; simpl;
           clear - IS0; split; [auto | intros [?|?]; auto; contradiction ]]];
- try solve [rewrite IHc1; rewrite IHc1 with (S := modifiedvars' c2 idset0);
+ try solve [rewrite IHc1; rewrite -> IHc1 with (S := modifiedvars' c2 idset0);
                 rewrite IHc2; clear; tauto].
  apply modifiedvars_ls_union.
  apply IHc.
 -
 clear modifiedvars_ls_union.
 intro id.
- assert (IS0: ~ isSome (idset0 ! id)). unfold idset0, isSome.
- rewrite PTree.gempty; auto.
+ assert (IS0: ~ isSome (idset0 !! id)). unfold idset0, isSome.
+ rewrite Maps.PTree.gempty; auto.
  induction c; simpl; intros.
  clear - IS0; tauto.
  rewrite modifiedvars'_union.
- rewrite modifiedvars'_union with (S := modifiedvars_ls _ _).
+ rewrite -> modifiedvars'_union with (S := modifiedvars_ls _ _).
  rewrite IHc. clear; tauto.
 Qed.
 
 Definition modifiedvars (c: statement) (id: ident) :=
-   isSome ((modifiedvars' c idset0) ! id).
+   isSome ((modifiedvars' c idset0) !! id).
 
 Definition type_of_global (ge: Clight.genv) (b: block) : option type :=
   match Genv.find_var_info ge b with
@@ -88,9 +87,9 @@ Definition type_of_global (ge: Clight.genv) (b: block) : option type :=
 Definition filter_genv (ge: Clight.genv) : genviron :=
     Genv.find_symbol ge.
 
-Definition make_tenv (te : Clight.temp_env) : tenviron := fun id => PTree.get id te.
+Definition make_tenv (te : Clight.temp_env) : tenviron := fun id => Maps.PTree.get id te.
 
-Definition make_venv (te : Clight.env) : venviron := fun id => PTree.get id te.
+Definition make_venv (te : Clight.env) : venviron := fun id => Maps.PTree.get id te.
 
 Definition construct_rho ge ve te:= mkEnviron ge (make_venv ve) (make_tenv te) .
 
@@ -104,6 +103,10 @@ Proof.
 hnf. intros.
 decide equality.
 Defined.
+
+Section mpred.
+
+Context `{!heapGS Σ}.
 
 Definition func_tycontext' (func: function) (Delta: tycontext) : tycontext :=
  mk_tycontext
@@ -151,7 +154,7 @@ auto.
 Qed.
 
 Definition sub_option {A} (x y: option A) :=
- match x with Some x' => y = Some x' | None => True end.
+ match x with Some x' => y = Some x' | None => True%type end.
 
 Lemma sub_option_eqv: forall {A} (x y: option A),
   x = y <-> sub_option x y /\ sub_option y x.
@@ -194,13 +197,13 @@ Proof.
   + exact I.
 Qed.
 
-Lemma sub_option_spec: forall {A} (T1 T2: PTree.t A),
-  (forall id, sub_option (T1 ! id) (T2 ! id)) ->
-  forall id co, T1 ! id = Some co -> T2 ! id = Some co.
+Lemma sub_option_spec: forall {A} (T1 T2: Maps.PTree.t A),
+  (forall id, sub_option (T1 !! id) (T2 !! id)) ->
+  forall id co, T1 !! id = Some co -> T2 !! id = Some co.
 Proof.
   intros.
   specialize (H id).
-  destruct (T1 ! id), (T2 ! id); inversion H; inversion H0.
+  destruct (T1 !! id), (T2 !! id); inversion H; inversion H0.
   reflexivity.
 Qed.
 
@@ -236,12 +239,12 @@ destruct a; destruct a0; subst; trivial. inv H0; trivial.
 Qed.
 
 Definition tycontext_eqv (Delta Delta' : tycontext) : Prop :=
- (forall id, (temp_types Delta) ! id = (temp_types Delta') ! id)
- /\ (forall id, (var_types Delta) ! id = (var_types Delta') ! id)
+ (forall id, (temp_types Delta) !! id = (temp_types Delta') !! id)
+ /\ (forall id, (var_types Delta) !! id = (var_types Delta') !! id)
  /\ ret_type Delta = ret_type Delta'
- /\ (forall id, (glob_types Delta) ! id = (glob_types Delta') ! id)
- /\ (forall id, (glob_specs Delta) ! id = (glob_specs Delta') ! id)
- /\ (forall id, (annotations Delta) ! id = (annotations Delta') ! id).
+ /\ (forall id, (glob_types Delta) !! id = (glob_types Delta') !! id)
+ /\ (forall id, (glob_specs Delta) !! id = (glob_specs Delta') !! id)
+ /\ (forall id, (annotations Delta) !! id = (annotations Delta') !! id).
 
 Definition binop_stable cenv op a1 a2 : bool :=
 match op with
@@ -264,7 +267,7 @@ match op with
 Section STABILITY.
 
 Variables env env': composite_env.
-Hypothesis extends: forall id co, env!id = Some co -> env'!id = Some co.
+Hypothesis extends: forall id co, env!!id = Some co -> env'!!id = Some co.
 
 Lemma binop_stable_stable: forall b e1 e2,
   binop_stable env b e1 e2 = true ->
@@ -317,7 +320,7 @@ Qed.
 
 Lemma field_offset_stable: forall i id co ofs,
   composite_env_consistent env ->
-  env ! i = Some co ->
+  env !! i = Some co ->
   field_offset env id (co_members co) = Errors.OK ofs ->
   field_offset env' id (co_members co) = Errors.OK ofs.
 Proof.
@@ -336,12 +339,12 @@ Proof.
     simpl in HH.
     rewrite andb_true_iff in HH.
     if_tac.
-    - rewrite layout_field_stable with (env:=env) by tauto. assumption.
-    - rewrite next_field_stable with (env := env) by tauto. apply IHm; try tauto.
+    - rewrite -> layout_field_stable with (env:=env) by tauto. assumption.
+    - rewrite -> next_field_stable with (env := env) by tauto. apply IHm; try tauto.
    *
     if_tac.
-    - rewrite layout_field_stable with (env:=env) by tauto. assumption.
-    - rewrite next_field_stable with (env := env) by tauto. apply IHm; try tauto.
+    - rewrite -> layout_field_stable with (env:=env) by tauto. assumption.
+    - rewrite -> next_field_stable with (env := env) by tauto. apply IHm; try tauto.
 Qed.
 
 End STABILITY.
@@ -354,11 +357,13 @@ destruct H as [? [? [? [? [? ?]]]]]; repeat split; auto.
 Qed.
 
 Record ret_assert : Type := {
- RA_normal: environ->mpred;
- RA_break: environ->mpred;
- RA_continue: environ->mpred;
- RA_return: option val -> environ->mpred
+ RA_normal: assert;
+ RA_break: assert;
+ RA_continue: assert;
+ RA_return: option val -> assert
 }.
+
+End mpred.
 
 Lemma modifiedvars_Slabel l c: modifiedvars (Slabel l c) = modifiedvars c.
 Proof. reflexivity. Qed.
@@ -369,12 +374,12 @@ Lemma modifiedvars_computable: forall c (te1 te2: Map.t val), exists te,
 Proof.
   intros.
   unfold modifiedvars.
-  exists (fun i => match (modifiedvars' c idset0) ! i with Some _ => Map.get te1 i | None => Map.get te2 i end).
+  exists (fun i => match (modifiedvars' c idset0) !! i with Some _ => Map.get te1 i | None => Map.get te2 i end).
   split; intros.
   + unfold Map.get.
-    destruct ((modifiedvars' c idset0) ! i); simpl; [auto | inv H].
+    destruct (_ !! _); simpl; [auto | inv H].
   + unfold Map.get.
-    destruct ((modifiedvars' c idset0) ! i); simpl; [left; apply I | auto].
+    destruct (_ !! _); simpl; [left; apply I | auto].
 Qed.
 
 Lemma modifiedvars_Sifthenelse b c1 c2 id: modifiedvars (Sifthenelse b c1 c2) id <-> modifiedvars c1 id \/ modifiedvars c2 id.
@@ -407,7 +412,7 @@ Proof.
   induction sl; auto.
   destruct o; simpl;
   rewrite IHsl; auto.
-Qed.  
+Qed.
 
 Lemma modifiedvars_Sswitch e sl n id: modifiedvars (seq_of_labeled_statement (select_switch (Int.unsigned n) sl)) id -> modifiedvars (Sswitch e sl) id.
 Proof.

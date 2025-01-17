@@ -1,10 +1,9 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat. Import NoOracle.
 Require Import VST.progs.nest2.
 
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
-
-Local Open Scope logic.
 
 Definition t_struct_b := Tstruct _b noattr.
 
@@ -75,4 +74,3 @@ unfold_repinj.
 Time forward. (* 1.23 sec *)
 entailer!!.
 Time Qed.  (*  28 sec -> 3.45 sec *)
-

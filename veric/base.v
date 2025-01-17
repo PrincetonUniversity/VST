@@ -13,7 +13,7 @@ Require Export compcert.common.Memory.
 Require Export compcert.common.Globalenvs.
 
 
-Require Export VST.msl.Coqlib2. 
+Require Export VST.msl.Coqlib2.
 Require Export VST.veric.coqlib4.
 
 (* Lemmas about ident lists *)

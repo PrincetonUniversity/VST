@@ -1,10 +1,14 @@
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.floyd.base2.
 Require Import VST.floyd.assert_lemmas.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Import VST.floyd.type_induction.
 Require Import VST.floyd.jmeq_lemmas.
 Require Export VST.floyd.fieldlist.
 Require Export VST.floyd.compact_prod_sum.
 Require Export VST.zlist.sublist.
+
+Local Unset SsrRewrite.
 
 Definition proj_struct (i : ident) (m : members) {A: member -> Type} (v: compact_prod (map A m)) 
     (d: A (get_member i m)): A (get_member i m) :=

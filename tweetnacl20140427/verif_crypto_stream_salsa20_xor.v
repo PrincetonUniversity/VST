@@ -1,11 +1,9 @@
 Require Import VST.floyd.proofauto.
-Local Open Scope logic.
 Require Import Coq.Lists.List. Import ListNotations.
 Require Import sha.general_lemmas.
 
 Require Import tweetnacl20140427.split_array_lemmas.
 Require Import ZArith.
-Local Open Scope Z. 
 From tweetnacl20140427
  Require Import tweetNaclBase Salsa20 verif_salsa_base 
       tweetnaclVerifiableC Snuffle spec_salsa 
@@ -65,7 +63,7 @@ forward_for_simple_bound 16 (EX i:Z,
   (PROP  ()
    LOCAL  (lvar _x (tarray tuchar 64) v_x; lvar _z (tarray tuchar 16) v_z;
    temp _c c; temp _m m; temp _b (Vlong b); temp _n nonce; temp _k k; gvars gv)
-   SEP  (FRZL FR1; EX l:_, !!(Zlength l + i = 16) && data_at Tsh (tarray tuchar 16) 
+   SEP  (FRZL FR1; EX l:_, !!(Zlength l + i = 16)%Z && data_at Tsh (tarray tuchar 16) 
           ((Zrepeat (Vint Int.zero) i) ++ l) v_z))).
 {Exists  (default_val (tarray tuchar 16)). simpl app. entailer!!. }
 { rename H into I. Intros l. rename H into LI16.
@@ -186,8 +184,8 @@ assert(INT64SUB: Int64.sub bInit (Int64.repr (r64 + 64)) =
 } 
 
 rewrite SNR.
-forward_seq. 
-apply (loop1 Espec (FRZL FR3) v_x v_z c mInit (Vlong (Int64.sub bInit (Int64.repr r64))) k m sr_bytes mCont).
+forward_seq.
+apply (loop1 Espec _ (FRZL FR3) v_x v_z c mInit (Vlong (Int64.sub bInit (Int64.repr r64))) k m sr_bytes mCont).
     eassumption.
     clear - SRL R64next R64old HRE Heqr64 MLEN; lia. lia.
 
@@ -201,7 +199,7 @@ thaw FR3. unfold CoreInSEP. repeat flatten_sepcon_in_SEP.
 freeze [1;2;3;4;5;6;7] FR4.
 unfold SByte. 
 forward_seq. rewrite D.
-  apply (For_i_8_16_loop Espec (FRZL FR4) v_x v_z c m 
+  apply (For_i_8_16_loop Espec _ (FRZL FR4) v_x v_z c m 
            (Vlong (Int64.sub bInit (Int64.repr r64))) k zbytesR gv).
 freeze [0;1] FR5.
 forward.
@@ -231,10 +229,10 @@ forward_if (EX m:_,
             (Vptr b (Ptrofs.add i (Ptrofs.repr (Z.of_nat rounds * 64))))). {
         unfold message_at. eapply derives_trans. apply data_at_memory_block.
         eapply derives_trans. apply memory_block_valid_pointer. simpl.
-        3: apply derives_refl'. 3: reflexivity. rep_lia.
-        apply top_share_nonidentity.
+        3: f_equiv. 3: reflexivity. rep_lia.
+        auto.
    }
-  auto 50 with valid_pointer.
+  auto 50 with nocore valid_pointer.
 }
 { forward.
   Exists (force_val (sem_add_ptr_int tuchar Signed m (Vint (Int.repr 64)))).
@@ -245,8 +243,8 @@ forward_if (EX m:_,
 { forward. Exists m. entailer!!. destruct mInit; simpl in M; try contradiction.
   simpl. apply M. inv M. }
 intros.
-thaw FR5. thaw FR4.
 Intros x.
+thaw FR5. thaw FR4.
 destruct cInit; try solve [destruct FC as [? _]; contradiction].
 Exists (S rounds, x, snd (ZZ (ZCont rounds zbytes) 8), srbytes ++ xorlist).
 unfold fst, snd.
@@ -256,8 +254,6 @@ assert_PROP (field_compatible0
       (SUB 64) (Vptr b (Ptrofs.add i (Ptrofs.repr r64))))
    as FC2 by (entailer!; auto with field_compatible).
 entailer!!.
-rewrite INT64SUB.
-split; auto.
 specialize (CONTCONT _ _ _ _ _ _ _ _ CONT); intros; subst zbytesR.
  assert (Hx := CONT_succ SIGMA K mInit mCont zbytes rounds _ _ CONT _ D
     _ _ _ Snuff SNR XOR).
@@ -332,7 +328,7 @@ forward_if (IfPost v_z v_x bInit (N0, N1, N2, N3) K mCont (Int64.unsigned bInit)
      rep_lia. 
   rewrite SNR, <- RR.
   eapply semax_post_flipped'.
-  eapply (loop2 Espec (FRZL FR1) v_x v_z c mInit); try eassumption; try lia.
+  eapply (loop2 Espec _ (FRZL FR1) v_x v_z c mInit); try eassumption; try lia.
   unfold IfPost.
   Intros l.
  (* unfold typed_true in BR. inversion BR; clear BR.*)

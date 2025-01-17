@@ -1,8 +1,9 @@
 Require Import Coq.Reals.Rdefinitions.
-Require Import VST.msl.msl_standard.
 Require Import VST.veric.Clight_base.
-Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.Clight_lemmas.
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
+Require Import VST.veric.res_predicates.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Import VST.veric.mpred.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
@@ -15,17 +16,16 @@ Require Import VST.veric.seplog. (*For definition of typecheck_environ*)
 Import Cop.
 Import Cop2.
 Import Clight_Cop2.
-Import compcert.lib.Maps.
 Import Ctypes.
 Import Clight.
 
-Lemma type_eq_true : forall a b, proj_sumbool  (type_eq a b) =true  -> a = b.
+Lemma type_eq_true : forall a b, proj_sumbool (type_eq a b) = true -> a = b.
 Proof. intros. destruct (type_eq a b). auto. simpl in H. inv H.
 Qed.
 
 (** Definitions of some environments **)
 Definition empty_genv cenv := Build_genv (Globalenvs.Genv.empty_genv fundef type nil) cenv.
-Definition empty_tenv := PTree.empty val.
+Definition empty_tenv := Maps.PTree.empty val.
 
 Definition empty_environ cenv : environ :=
 mkEnviron (filter_genv (empty_genv cenv)) (Map.empty _) (Map.empty _).
@@ -44,6 +44,9 @@ Transparent Float.to_intu.
 Transparent Float32.to_int.
 Transparent Float32.to_intu.
 
+Section mpred.
+
+Context `{!heapGS Σ}.
 
 Lemma isCastR: forall {CS: compspecs} tfrom tto a,
   denote_tc_assert (isCastResultType tfrom tto a) =
@@ -114,7 +117,7 @@ induction (Z.to_nat e).
 simpl.
 apply RIneq.Rlt_0_1.
 rewrite inj_S.
-rewrite Z.pow_succ_r by lia.
+rewrite -> Z.pow_succ_r by lia.
 rewrite RIneq.mult_IZR.
 apply RIneq.Rmult_lt_0_compat; auto.
 simpl.
@@ -187,9 +190,9 @@ destruct f; inv H.
 { (* zero case *)
 rewrite IEEE754_extra.ZofB_range_correct. simpl.
 unfold Raux.Ztrunc.
-rewrite Raux.Rlt_bool_false by apply RIneq.Rle_refl.
+rewrite -> Raux.Rlt_bool_false by apply RIneq.Rle_refl.
 replace (Raux.Zfloor 0) with 0.
-rewrite H0,H1. reflexivity.
+rewrite H0 H1. reflexivity.
 unfold Raux.Zfloor.
 replace (Rdefinitions.up 0) with 1; [reflexivity |].
 apply R_Ifp.tech_up; simpl.
@@ -214,7 +217,7 @@ replace
    (Raux.Ztrunc
       (Binary.B2R prec emax (Binary.B754_finite prec emax b m e e0)))
   with (Zaux.cond_Zopp b (Z.pos m) * 2^e).
-rewrite H0,H1; clear H0 H1.
+rewrite H0 H1; clear H0 H1.
 rewrite (IEEE754_extra.is_finite_strict_finite prec emax).
 reflexivity.
 reflexivity.
@@ -280,7 +283,7 @@ f_equal.
 rewrite RIneq.plus_IZR.
 rewrite Raxioms.Rplus_comm.
 rewrite <- RIneq.Rplus_0_r at 1.
-rewrite Raxioms.Rplus_comm at 1.
+rewrite -> Raxioms.Rplus_comm at 1.
 apply RIneq.Rplus_lt_le_compat.
 apply RIneq.Rlt_0_1.
 apply RIneq.Req_le. auto.
@@ -303,7 +306,7 @@ lia.
 rename s into b.
 assert (z = Zaux.cond_Zopp b (Z.pos m / Z.pow 2 (- e))). {
   destruct e; inv H3.
-  lia. pose proof (Zgt_pos_0 p); lia. clear g.
+  clear g.
   rewrite Zpower_pos_nat. rewrite Zpower_nat_Z.
   rewrite positive_nat_Z; auto.
 }
@@ -313,7 +316,7 @@ replace
    (Raux.Ztrunc
       (Binary.B2R prec emax (Binary.B754_finite prec emax b m e e0)))
   with (Zaux.cond_Zopp b (Z.pos m / 2^(-e))).
-rewrite H0,H1; clear H0 H1.
+rewrite H0 H1; clear H0 H1.
 rewrite (IEEE754_extra.is_finite_strict_finite prec emax).
 reflexivity.
 reflexivity.
@@ -460,31 +463,31 @@ reflexivity.
 Qed.
 
 Lemma typecheck_cast_sound:
- forall {CS: compspecs} Delta rho m e t,
+ forall {CS: compspecs} Delta rho e t,
  typecheck_environ Delta rho ->
- (denote_tc_assert (typecheck_expr Delta e) rho m ->
-   tc_val (typeof e) (expr.eval_expr e rho))  ->
-denote_tc_assert (typecheck_expr Delta (Ecast e t)) rho m ->
-tc_val (typeof (Ecast e t)) (expr.eval_expr (Ecast e t) rho).
+ (denote_tc_assert (typecheck_expr Delta e) rho ⊢
+  ⌜tc_val (typeof e) (expr.eval_expr e rho)⌝)  ->
+denote_tc_assert (typecheck_expr Delta (Ecast e t)) rho ⊢
+⌜tc_val (typeof (Ecast e t)) (expr.eval_expr (Ecast e t) rho)⌝.
 Proof.
-intros until t; intros H H1 H0.
+intros until t; intros H IH.
+unfold typecheck_expr; fold typecheck_expr.
 simpl in *. unfold_lift.
-rewrite denote_tc_assert_andp in H0.
-destruct H0.
-specialize (H1 H0); clear H0.
-unfold  sem_cast, force_val1.
-rewrite isCastR in H2.
+rewrite denote_tc_assert_andp.
+rewrite IH; iIntros "[%H1 H]".
+unfold sem_cast, force_val1.
+rewrite isCastR.
 destruct (classify_cast (typeof e) t)
      as [ | | | | | | | | sz [ | ] | sz [ | ] | | | | | | [ | ] | [ | ] | | | | | | | |  ]
    eqn:H3;
-   try contradiction;
+   try iIntros "[]";
  destruct t as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
-    try discriminate H3; try contradiction;
+    try discriminate H3; try iIntros "[]";
  destruct (typeof e) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
-    try discriminate H3; try contradiction;
+    try discriminate H3; try iIntros "[]";
   unfold classify_cast in H3;
-  try replace (if Archi.ptr64 then false else false) with false in H2 by (destruct Archi.ptr64; auto);
-  repeat (progress unfold_lift in H2; simpl in H2);  (* needed ? *)
+  try replace (if Archi.ptr64 then false else false) with false by (destruct Archi.ptr64; auto);
+(*  repeat (progress unfold_lift; simpl);  (* needed ? *) *)
   unfold tc_val, is_pointer_type in *;
   repeat match goal with |- context [eqb_type ?A ?B] =>
               let J := fresh "J" in 
@@ -497,28 +500,19 @@ destruct (classify_cast (typeof e) t)
              [apply eqb_type_true in J | apply eqb_type_false in J]
     end;
    try discriminate;
-   rewrite ?if_true in H3 by auto; rewrite ?if_false in H3 by (clear; congruence);
+   rewrite -> ?if_true in H3 by auto; rewrite -> ?if_false in H3 by (clear; congruence);
    try (destruct Archi.ptr64 eqn:?Hp; try discriminate; [idtac]);
-  repeat match goal with
-       | H: app_pred (denote_tc_assert (tc_andp _ _) _) _ |- _ => 
-          rewrite denote_tc_assert_andp in H; destruct H
-       | H: app_pred (denote_tc_assert (if ?A then _ else _) _) _ |- _ =>
-           first [change A with false in H | change A with true in H]; cbv iota in H
-       | H: app_pred (denote_tc_assert (tc_iszero _) _) _ |- _ =>
-                   rewrite denote_tc_assert_iszero in H
-       | H: app_pred (denote_tc_assert (tc_bool _ _) _) _ |- _ => apply tc_bool_e in H
-       | H: app_pred (denote_tc_assert _ _) _ |- _ =>
-             unfold denote_tc_assert, denote_tc_Zle, denote_tc_Zge in H;
-             unfold_lift in H
-       end;
+   rewrite /= ?denote_tc_assert_andp ?denote_tc_assert_iszero ?tc_bool_e /denote_tc_assert /denote_tc_Zle /denote_tc_Zge; unfold_lift;
    destruct (expr.eval_expr e rho); try solve [contradiction H1];
+   try ((destruct (Zoffloat f) eqn: Hf || destruct (Zofsingle f) eqn: Hf); try iDestruct "H" as "[[] []]");
+   try iDestruct "H" as %?; iPureIntro;
    try apply I;
-   try solve [contradiction];
+   try contradiction;
    unfold sem_cast_pointer, sem_cast_i2i, sem_cast_f2f, sem_cast_s2s,
    sem_cast_f2i, sem_cast_s2i, cast_float_int, is_pointer_or_null, force_val in *;
-   repeat rewrite Hp in *;
+   rewrite -> ?Hp in *;
    repeat match goal with
-        | H: app_pred (prop _) _ |- _ => apply is_true_e in H; 
+        | H: is_true _ |- _ => apply is_true_e in H; 
                                       try (apply int_eq_e in H; subst);
                                       try (apply int64_eq_e in H; subst)
        end;
@@ -531,17 +525,17 @@ destruct (classify_cast (typeof e) t)
       | |- context[Int.zero_ext ?n ?x] =>
       apply (zero_ext_range' n x); compute; try split; congruence
      end);
-   simpl; 
+   simpl;
     try match goal with |- (if ?A then _ else _) = _ \/ (if ?A then _ else _) = _ =>
       destruct A; solve [auto]
      end;
   repeat  match goal with
-    | H: app_pred match ?A with Some _ => _ | None => _ end _ |- _ =>
+    | H: match ?A with Some _ => _ | None => _ end |- _ =>
          destruct A eqn:?; [  | contradiction H]
-    | H: app_pred (prop _) _ |- _ => apply is_true_e in H;
-           rewrite ?Z.leb_le, ?Z.geb_le in H
+    | H: is_true _ |- _ => apply is_true_e in H;
+           rewrite ?Z.leb_le ?Z.geb_le in H
           end.
-all: try (simpl in H0,H2;
+all: try (simpl in *;
           first [ erewrite float_to_int_ok | erewrite float_to_intu_ok
           | erewrite single_to_int_ok | erewrite single_to_intu_ok];
           [ | eassumption | split; lia]).
@@ -553,5 +547,6 @@ all:   try match goal with
    end.
 all: try apply I.
 all: rewrite ?Hp; hnf; auto.
-all: inv J0; congruence.
 Qed.
+
+End mpred.

@@ -16,6 +16,8 @@ Require Import VST.zlist.sublist.
 Require Import VST.progs.os_combine.
 Import ExtLib.Structures.Monad.
 
+Opaque eq_dec.eq_dec.
+
 Local Ltac inj :=
   repeat match goal with
   | H: _ = _ |- _ => assert_succeeds (injection H); Coqlib.inv H
@@ -729,9 +731,10 @@ Section Invariants.
       end) evs)).
   Proof.
     induction evs as [| ev evs]; cbn -[Zlength]; intros * Hall Hmax Hlen.
-    { cbn in *.
+    { rewrite app_nil_r.
+      cbn in *.
       replace (Zlength (compute_console' tr)) with CONS_BUFFER_MAX_CHARS by lia.
-      cbn; auto using app_nil_r.
+      cbn; auto.
     }
     rewrite Zlength_cons in Hlen.
     edestruct Hall as (? & ? & ? & ?); eauto; subst.
@@ -1913,7 +1916,7 @@ Import functional_base.
       split; auto; cbn in *.
       rewrite Int.signed_repr by (cbn; lia).
       destruct (Coqlib.zeq z1 (-1)); subst; auto.
-      if_tac; try easy.
+      destruct (eq_dec.eq_dec _ _); try easy.
       rewrite Zle_imp_le_bool by lia.
       destruct Hput as (? & [(? & ?) | (? & ?)]); subst; auto; try lia.
       rewrite Zmod_small; auto; functional_base.rep_lia.
@@ -1985,6 +1988,6 @@ Import functional_base.
       admit.
     - (* trace_itree_match *)
       admit.
-  Admitted.
+  Abort.
 
 End SpecsCorrect.
