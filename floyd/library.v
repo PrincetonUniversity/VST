@@ -35,7 +35,6 @@ Require Import VST.floyd.globals_lemmas.
 Require Import VST.floyd.diagnosis.
 Require Import VST.floyd.freezer.
 Import ListNotations.
-Import String.
 
 Section semax.
 
