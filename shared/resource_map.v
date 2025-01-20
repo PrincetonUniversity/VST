@@ -600,7 +600,7 @@ Section lemmas.
     revert m1; induction m0 as [|k v m' ? IH] using map_ind; intros ? Hdom.
     { rewrite dom_empty_L in Hdom.
       symmetry in Hdom; apply dom_empty_inv_L in Hdom as ->.
-      rewrite !big_opM_empty !left_id; auto. }
+      rewrite !big_opM_empty map_imap_empty !left_id; auto. }
     rewrite dom_insert_L in Hdom.
     rewrite big_sepM_insert //.
     iIntros "Hm (Hk & Hrest)"; iMod (IH (delete k m1) with "Hm Hrest") as "(Hm & Hrest)".
