@@ -22,7 +22,7 @@ Inductive BLOCK_PRECOND_HINT := | BLOCK_PRECOND (bid : label).
 Inductive ASSERT_COND_HINT := | ASSERT_COND (id : string).
 
 (* The `{!typeG Σ} is necessary to infer Σ if P is True. *)
-Definition IPROP_HINT `{!typeG Σ} {A B} (a : A) (P : B → iProp Σ) : Prop := True.
+Definition IPROP_HINT `{!typeG OK_ty Σ} {A B} (a : A) (P : B → iProp Σ) : Prop := True.
 Arguments IPROP_HINT : simpl never.
 
 Notation "'block' bid : P" := (IPROP_HINT (BLOCK_PRECOND bid) (λ _ : unit, P)) (at level 200, only printing).
@@ -34,7 +34,7 @@ Arguments CODE_MARKER : simpl never.
 Ltac unfold_code_marker_and_compute_map_lookup :=
   unfold CODE_MARKER in *; solvers.compute_map_lookup.
 
-Definition RETURN_MARKER `{!typeG Σ} {cs:compspecs} (R : val → type → iProp Σ) : val → type → iProp Σ := R.
+Definition RETURN_MARKER `{!typeG OK_ty Σ} {cs:compspecs} (R : val → type → iProp Σ) : val → type → iProp Σ := R.
 Notation "'HIDDEN'" := (RETURN_MARKER _) (only printing).
 
 
@@ -162,7 +162,7 @@ Ltac print_coq_hyps :=
     lazymatch X with
     | IPROP_HINT _ _ => fail
     | gFunctors => fail
-    | typeG _ => fail
+    | typeG _ _ => fail
     | globalG _ => fail
     | _ => idtac H ":" X; fail
     end

@@ -12,13 +12,18 @@ Open Scope Z.
 Definition val_to_Z (v : val) (t : Ctypes.type) : option Z :=
   match v, t with
   | Vint i, Tint _ Signed _ => Some (Int.signed i)
-  | Vint i, Tint sz Unsigned _ => if zlt (Int.unsigned i) (Z.pow 2 (bitsize_intsize sz)) then Some (Int.unsigned i) else None
+  | Vint i, Tint sz Unsigned _ => Some (Int.unsigned i)
   | Vlong i, Tlong Signed _ => Some (Int64.signed i)
   | Vlong i, Tlong Unsigned _ => Some (Int64.unsigned i)
   | _, _ => None
   end.
 
 Lemma bitsize_max : forall sz, Z.pow 2 (bitsize_intsize sz) ≤ Int.modulus.
+Proof.
+  destruct sz; simpl; rep_lia.
+Qed.
+
+Lemma bitsize_half_max : forall sz, Z.pow 2 (bitsize_intsize sz - 1) ≤ Int.half_modulus.
 Proof.
   destruct sz; simpl; rep_lia.
 Qed.
@@ -32,17 +37,26 @@ Definition i2v n t :=
 
 Definition in_range (n:Z) (t: Ctypes.type) : Prop :=
   match t with
-  | Tint sz Signed _ => repable_signed n
+  | Tint IBool _ _ => 0 <= n < 2
+  | Tint sz Signed _ => - Z.pow 2 (bitsize_intsize sz - 1) <= n < Z.pow 2 (bitsize_intsize sz - 1)
   | Tint sz Unsigned _ => 0 <= n < Z.pow 2 (bitsize_intsize sz)
   | Tlong Signed _ => Int64.min_signed <= n <= Int64.max_signed
   | Tlong Unsigned _ => 0 <= n <= Int64.max_unsigned
   | _ => False
   end.
 
-Lemma val_to_Z_in_range : forall v t n, val_to_Z v t = Some n -> in_range n t.
+Lemma in_range_i2v : forall n t, in_range n t -> tc_val t (i2v n t).
 Proof.
-  intros; destruct v, t; try discriminate; destruct s; inv H; constructor; try rep_lia.
-  all: if_tac in H1; inv H1; rep_lia.
+  intros; destruct t; try done; simpl in *.
+  destruct i; simpl in *; try done.
+  - destruct s.
+    + rewrite Int.signed_repr; rep_lia.
+    + rewrite Int.unsigned_repr; rep_lia.
+  - destruct s.
+    + rewrite two_power_pos_equiv Int.signed_repr; rep_lia.
+    + rewrite Int.unsigned_repr; rep_lia.
+  - destruct (decide (n = 0)); subst; auto.
+    assert (n = 1) as -> by lia; auto.
 Qed.
 
 Definition int_eq v1 v2 :=
@@ -61,7 +75,8 @@ Proof.
   unfold elem_of, elem_of_type.
   destruct t; try solve [
     refine (right _ );  unfold not; intros; inv H].
-  all: destruct s;  unfold in_range;  apply _.
+  - destruct i0; (apply _ || destruct s; apply _).
+  - destruct s; apply _.
 Qed.
 
 (* Global Instance int_elem_of_type : ElemOf Integers.int Ctypes.type :=
@@ -72,10 +87,25 @@ Proof.
   intros.
   destruct t; try done; rewrite /val_to_Z /i2v; destruct s; simpl in H. 
   - rewrite Int.signed_repr //.
-  - rewrite Int.unsigned_repr; last by pose proof (bitsize_max i); rep_lia.
-    if_tac; [done | lia].
+    pose proof (bitsize_half_max i).
+    destruct i; rep_lia.
+  - rewrite Int.unsigned_repr //.
+    pose proof (bitsize_max i); destruct i; rep_lia.
   - rewrite Int64.signed_repr //.
   - rewrite Int64.unsigned_repr //.
+Qed.
+
+Lemma val_to_Z_in_range : forall t v n, val_to_Z v t = Some n -> tc_val t v -> n ∈ t.
+Proof.
+  destruct v; try done; destruct t; try done; simpl; intros.
+  - destruct i0; [destruct s; inv H; hnf; simpl; try rep_lia..|].
+    + rewrite two_power_pos_equiv in H0; lia.
+    + destruct H0, s; inv H; hnf.
+      * by rewrite Int.signed_zero.
+      * by rewrite Int.unsigned_zero.
+      * by rewrite Int.signed_one.
+      * by rewrite Int.unsigned_one.
+  - destruct s; inv H; hnf; rep_lia.
 Qed.
 
 Lemma signed_inj_64 : forall i1 i2, Int64.signed i1 = Int64.signed i2 -> i1 = i2.
@@ -244,7 +274,7 @@ Section judgements.
   Class TypedUnOp (v : val) (P : assert) (o : Cop.unary_operation) (ot : Ctypes.type) : Type :=
     typed_un_op_proof T : iProp_to_Prop (typed_un_op v P o ot T).
 
-  Definition typed_exprs (el : list expr) (tl : typelist) (T : list val → list type → assert) : assert :=
+  Definition typed_exprs (el : list expr) (tl : list Ctypes.type) (T : list val → list type → assert) : assert :=
     (∀ Φ, (∀ vl (tys : list type), ([∗ list] v;ty∈vl;tys, ⎡v ◁ᵥ ty⎤) -∗ T vl tys -∗ Φ vl) -∗ wp_exprs el tl Φ).
   Global Arguments typed_exprs _ _ _%_I.
 
@@ -1329,12 +1359,12 @@ Section typing.
       simpl in *.
       destruct (Int.eq i0 Int.zero) eqn: Heq.
       + apply Int.same_if_eq in Heq as ->.
-        destruct s; [|if_tac in Hv]; inv Hv; done.
+        destruct s; inv Hv; done.
       + case_bool_decide; try done.
-        subst; destruct s; [|if_tac in Hv]; inv Hv.
+        subst; destruct s; inv Hv.
         * apply (val_lemmas.signed_inj _ Int.zero) in H0 as ->.
           rewrite Int.eq_true // in Heq.
-        * apply (client_lemmas.unsigned_eq_eq _ Int.zero) in H1 as ->.
+        * apply (client_lemmas.unsigned_eq_eq _ Int.zero) in H0 as ->.
           rewrite Int.eq_true // in Heq.
     - destruct v; try done.
       iSplit; first done; iFrame.

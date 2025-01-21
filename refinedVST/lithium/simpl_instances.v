@@ -350,7 +350,7 @@ Proof.
   clear IsEx0. unfold SimplAndUnsafe in *. elim: ig l1 l2.
   - move => ??/=. move => ?. naive_solver.
   - move => i ig IH l1 l2/= [x /IH Hi ] i'.
-    move: (Hi i') => [<- Hlookup]. rewrite insert_length. split => //.
+    move: (Hi i') => [<- Hlookup]. rewrite length_insert. split => //.
     move => Hi'. rewrite -Hlookup ?list_lookup_insert_ne; set_solver.
 Qed.
 
@@ -367,10 +367,10 @@ Global Instance simpl_fmap_app_and {A B} (l : list A) l1 l2 (f : A → B):
 Proof.
   split.
   - move => [Hl1 Hl2]; subst.
-    rewrite -Hl1 -fmap_app fmap_length take_length_le ?take_drop //.
-    rewrite -Hl1 fmap_length take_length. lia.
+    rewrite -Hl1 -fmap_app length_fmap length_take_le ?take_drop //.
+    rewrite -Hl1 length_fmap length_take. lia.
   - move => /fmap_app_inv [? [? [? [? Hfmap]]]]; subst.
-    by rewrite fmap_length take_app_length drop_app_length.
+    by rewrite length_fmap take_app_length drop_app_length.
 Qed.
 Global Instance simpl_fmap_assume_inj_Unsafe {A B} (l1 l2 : list A) (f : A → B) `{!AssumeInj (=) (=) f}:
   SimplAndUnsafe (f <$> l1 = f <$> l2) (l1 = l2).
@@ -383,11 +383,11 @@ Proof.
   - move => [n'[?[??]]]; subst.
     have ->: (n = n' + (n - n'))%nat by lia. rewrite replicate_add. do 2 f_equal. lia.
   - move => Hr.
-    have Hn: (n = length l1 + length l2)%nat by rewrite -(replicate_length n x) -app_length Hr.
-    move: Hr. rewrite Hn replicate_add => /app_inj_1[|<- <-]. 1: by rewrite replicate_length.
+    have Hn: (n = length l1 + length l2)%nat by rewrite -(length_replicate n x) -app_length Hr.
+    move: Hr. rewrite Hn replicate_add => /app_inj_1[|<- <-]. 1: by rewrite length_replicate.
     exists (length l1). repeat split => //.
-    + rewrite !replicate_length. f_equal. lia.
-    + rewrite !replicate_length. lia.
+    + rewrite !length_replicate. f_equal. lia.
+    + rewrite !length_replicate. lia.
 Qed.
 
 Global Instance simpl_replicate_eq_nil {A} (x : A) n :
