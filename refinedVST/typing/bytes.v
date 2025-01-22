@@ -6,7 +6,7 @@ From VST.typing Require Import type_options.
 and the [bytewise] abstraction could be encoded on top of it. *)
 
 Section bytewise.
-  Context `{!typeG Σ} {cs : compspecs}.
+  Context `{!typeG OK_ty Σ} {cs : compspecs}.
   Implicit Types P : memval → Prop.
 
   (* Because ty_own_val is at the val level, for now this is defined only for bytewise representations
@@ -29,8 +29,7 @@ Section bytewise.
     eauto with iFrame.
   Qed.
   Next Obligation. iIntros (?????->). by iDestruct 1 as (???) "_". Qed.
-  Next Obligation. Admitted.
-(*   Next Obligation. by iIntros (?????-> [??]). Qed. *)
+  Next Obligation. iIntros (?????->). Admitted.
   Next Obligation. iIntros (?????->). iDestruct 1 as (???) "?". by eauto. Qed.
   Next Obligation. iIntros (????? v -> ?) "? [%%]". iExists v. iFrame. eauto. Qed.
 (*   Next Obligation. iIntros (ly P v ot mt st ?). apply mem_cast_compat_Untyped. destruct ot; naive_solver. Qed. *)
@@ -183,7 +182,7 @@ Global Typeclasses Opaque bytewise.
 Notation uninit := (bytewise (λ _, True%type)).
 
 Section uninit.
-  Context `{!typeG Σ} {cs : compspecs}.
+  Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
 (*   Context `{!externalGS OK_ty Σ}.
   #[export] Instance VSTGS0 : VSTGS OK_ty Σ := Build_VSTGS _ _ _ _.
@@ -264,7 +263,7 @@ Global Hint Extern 5 (Subsume (_ ◁ₗ ?ty) (λ _, _ ◁ₗ (uninit _))%I) =>
   : typeclass_instances. *)
 
 Section void.
-  Context `{!typeG Σ} {cs : compspecs}.
+  Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
   Definition void : type := uninit Tvoid.
 
@@ -278,7 +277,7 @@ End void.
 Notation zeroed := (bytewise (λ b, b = Byte Byte.zero)).
 
 Section zeroed.
-  Context `{!typeG Σ} {cs : compspecs}.
+  Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
 (*  Lemma subsume_uninit_zeroed A p ly1 ly2 T:
     ⌜ly_align ly1 = ly_align ly2⌝ ∗ ⌜ly_size ly2 = 0%nat⌝ ∗ (p ◁ₗ uninit ly1 -∗ ∃ x, T x)

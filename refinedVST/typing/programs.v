@@ -9,6 +9,9 @@ From VST.floyd Require Import globals_lemmas.
 Open Scope Z.
 
 (* int infrastructure *)
+Global Instance intsize_eq_dec : EqDecision intsize.
+Proof. rewrite /RelDecision /Decision. decide equality. Qed.
+
 Definition val_to_Z (v : val) (t : Ctypes.type) : option Z :=
   match v, t with
   | Vint i, Tint _ Signed _ => Some (Int.signed i)

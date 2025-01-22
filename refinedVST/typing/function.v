@@ -27,7 +27,7 @@ Section introduce_typed_stmt.
 End introduce_typed_stmt. *)
 
 Section function.
-  Context `{!typeG Σ} {cs : compspecs} `{!externalGS OK_ty Σ} {A : TypeTree}. (* should we fix this to ConstType? *)
+  Context `{!typeG OK_ty Σ} {cs : compspecs} {A : TypeTree}. (* should we fix this to ConstType? *)
   Record fn_ret := FR {
     (* return type (rc::returns) *)
     fr_rty : type;
@@ -52,13 +52,19 @@ Section function.
     fp_fr: fp_rtype → fn_ret;
   }.
 
-  Definition fn_ret_prop {B} (fr : B → fn_ret) : val → type → assert :=
-    (λ v ty, ⎡v ◁ᵥ ty⎤ -∗ ∃ x, ⎡v ◁ᵥ (fr x).(fr_rty)⎤ ∗ ⎡(fr x).(fr_R)⎤ ∗ True)%I.
+  Definition opt_ty_own_val t o :=
+    match o with Some v => v ◁ᵥ t | None => emp end.
+
+  Global Instance opt_ty_own_val_proper : Proper (equiv ==> eq ==> equiv) opt_ty_own_val.
+  Proof. intros ??? [|] ??; subst; simpl; by rewrite ?H. Qed.
+
+  Definition fn_ret_prop {B} (fr : B → fn_ret) : option val → type → assert :=
+    (λ v ty, ⎡opt_ty_own_val ty v⎤ -∗ ∃ x, ⎡opt_ty_own_val (fr x).(fr_rty) v⎤ ∗ ⎡(fr x).(fr_R)⎤ ∗ True)%I.
 
   Definition FP_wf {B} (atys : list type) Pa (fr : B → fn_ret)  :=
     FP atys Pa B fr.
 
-  Context (Espec : ext_spec OK_ty) (Delta : tycontext) (ge : genv).
+  Context (Espec : ext_spec OK_ty) (ge : genv).
 
   Definition typed_function (fn : function) (fp : @dtfr Σ A → fn_params) : iProp Σ :=
     (∀ x, <affine> ⌜Forall2 (λ (ty : type) '(_, p), ty.(ty_has_op_type) p MCNone) (fp x).(fp_atys) (Clight.fn_params fn)⌝ ∗
@@ -67,10 +73,13 @@ Section function.
           ([∗ list] '(i,_);v ∈ (Clight.fn_params fn);lsa, <affine> local (locald_denote (temp i v))) ∗
           ([∗ list] '(i,t);v ∈ fn_vars fn;lsv, (<affine> local (locald_denote (lvar i t (adr2val v)))) ∗ ⎡v ◁ₗ uninit t⎤) ∗
           ⎡(fp x).(fp_Pa)⎤ ⊢
-          typed_stmt Espec Delta (fn.(fn_body)) (fn_ret_prop (fp x).(fp_fr))⌝
+          typed_stmt Espec ge (fn.(fn_body)) fn (fn_ret_prop (fp x).(fp_fr))⌝
     )%I.
 
   Global Instance typed_function_persistent fn fp : Persistent (typed_function fn fp) := _.
+
+  (* up? *)
+  Global Instance leibniz_val : Equiv val := equivL.
 
   Import EqNotations.
   Lemma typed_function_equiv fn1 fn2 (fp1 fp2 : @dtfr Σ A → _) :
@@ -143,8 +152,7 @@ Section function.
   |}.
   Next Obligation. iDestruct 1 as (fn) "[? [H [? ?]]]". iExists _. iFrame. by iApply heap_mapsto_own_state_share. Qed.
   Next Obligation. iIntros (fp f ot mt l (? & ->)). rewrite /has_layout_loc singleton.field_compatible_tptr. by iDestruct 1 as (??) "?". Qed.
-  Next Obligation. Admitted.
-(*  Next Obligation. iIntros (fp f ot mt v ->%is_ptr_ot_layout). by iDestruct 1 as (? ->) "?". Qed. *)
+  Next Obligation. iIntros (fp f ot mt l (? & ->)). iDestruct 1 as (? ->) "_"; iPureIntro. intros ?; hnf; simple_if_tac; done. Qed.
   Next Obligation. iIntros (fp f ot mt v (? & ->)). iDestruct 1 as (??) "(?&?)". unfold mapsto. erewrite singleton.mapsto_tptr. eauto with iFrame. Qed.
   Next Obligation. iIntros (fp f ot mt v ? (? & ->) ?) "?". iDestruct 1 as (? ->) "?". rewrite /has_layout_loc singleton.field_compatible_tptr in H; unfold mapsto; erewrite singleton.mapsto_tptr; by iFrame. Qed.
 (*   Next Obligation.
@@ -164,19 +172,6 @@ Section function.
     erewrite singleton.mapsto_tptr. iFrame. iModIntro. unfold has_layout_loc. rewrite singleton.field_compatible_tptr. do 2 iSplit => //. by iIntros "_".
   Qed.
 
-  (* modified from lifting *)
-  Lemma wp_call: forall E e es (R : ret_assert),
-    wp_expr e (λ v, ∃ f, ⌜exists b, v = Vptr b Ptrofs.zero /\ Genv.find_funct_ptr ge b = Some (Internal f) /\
-      classify_fun (typeof e) =
-      fun_case_f (type_of_params (Clight.fn_params f)) (fn_return f) (fn_callconv f) /\
-      Forall (fun it => complete_type (genv_cenv ge) (snd it) = true) (fn_vars f)
-                   /\ list_norepet (map fst f.(Clight.fn_params) ++ map fst f.(fn_temps))
-                   /\ list_norepet (map fst f.(fn_vars)) /\ @var_sizes_ok (genv_cenv ge) (f.(fn_vars))⌝ ∧
-      wp_exprs es (type_of_params (Clight.fn_params f)) (λ vs, assert_of (λ rho,
-        ∀ rho', stackframe_of' (genv_cenv ge) f rho' -∗ ▷ wp_stmt Espec E Delta f.(fn_body) (normal_ret_assert (assert_of (λ rho'', stackframe_of' (genv_cenv ge) f rho'' ∗ RA_normal R rho))) rho'))) ⊢
-    wp_stmt Espec E Delta (Scall None e es) R.
-  Admitted.
-
   (* up *)
   Lemma monPred_at_big_sepL2 {BI : bi} {I : biIndex} {B C} i (Φ : nat → B → C → monPred I BI) l m :
     ([∗ list] k↦x;y ∈ l;m, Φ k x y) i ⊣⊢ [∗ list] k↦x;y ∈ l;m, Φ k x y i.
@@ -190,11 +185,11 @@ Section function.
       ⎡((fp x).(fp_fr) x').(fr_R)⎤ -∗
       T v ((fp x).(fp_fr) x').(fr_rty)))
     | _ => False end
-    ⊢ typed_call Espec Delta e (typed_val_expr e (λ v _, ⎡v ◁ᵥ l @ function_ptr fp⎤)) el tys T.
+    ⊢ typed_call Espec ge e (typed_val_expr e (λ v _, ⎡v ◁ᵥ l @ function_ptr fp⎤)) el tys T.
   Proof.
     rewrite /typed_exprs /typed_call.
     destruct (typeof e) eqn: Hargty; try by iIntros "[]".
-    iIntros "HT He".
+    iIntros "HT" (f) "He".
     iApply wp_call.
     iApply "He".
     iIntros (??) "Hty Hfp".
@@ -214,7 +209,9 @@ Section function.
     iStopProof.
     split => rho; monPred.unseal.
     rewrite !monPred_at_big_sepL2.
-    iIntros "(Hl & Hf & Htys & Hatys & HP & Hpost)" (?) "Hstack !>".
+    iIntros "(Hl & Hf & Htys & Hatys & HP & Hpost)".
+    iSplit. { admit. }
+    iIntros "!>" (?) "Hstack !>".
     rewrite /typed_function.
     iSpecialize ("Hf" $! x).
     iDestruct "Hf" as %(? & Hf).
@@ -307,7 +304,7 @@ Arguments fn_ret_prop _ _ _ /.
 
 (* We need start a new section since the following rules use multiple different A. *)
 Section function_extra.
-  Context `{!typeG Σ}.
+  Context `{!typeG OK_ty Σ}.
  
   (*
   Lemma subsume_fnptr_no_ex A A1 A2 v l1 l2 (fnty1 : { A1 : TypeTree & (dtfr A1 → fn_params)%type}) (fnty2 : { A2 : TypeTree & (dtfr A2 → fn_params)%type})
@@ -410,9 +407,7 @@ Global Typeclasses Opaque function_ptr_type function_ptr.
 *)
 
 Section inline_function.
-  Context `{!typeG Σ} {cs : compspecs}. 
-
-  Context `{!externalGS OK_ty Σ}.
+  Context `{!typeG OK_ty Σ} {cs : compspecs}. 
 
   Program Definition inline_function_ptr_type (fn : funspec) (f : address) : type := {|
     ty_has_op_type ot mt := (∃ t, ot = tptr t)%type;
@@ -425,7 +420,8 @@ Section inline_function.
   Next Obligation. iIntros (fn f ot mt l ?). destruct H as (t & ->).
                    rewrite /has_layout_loc singleton.field_compatible_tptr.
                    by iDestruct 1 as "(% & ?)". Qed.
-  Next Obligation. Admitted.
+  Next Obligation. iIntros (fn f ot mt l ?). destruct H as (t & ->).
+                   iDestruct 1 as "(-> & _)". iPureIntro; intros ?; hnf; simple_if_tac; done. Qed.
   Next Obligation. iIntros (fn f ot mt v ?). destruct H as (t & ->).
                    iIntros "(% & (? & ?))".
                    iExists f.
@@ -520,12 +516,12 @@ Global Typeclasses Opaque inline_function_ptr_type inline_function_ptr.
 
 (*** Tests *)
 Section test.
-  Context  `{!typeG Σ} {cs : compspecs} `{!externalGS OK_ty Σ}.
+  Context  `{!typeG OK_ty Σ} {cs : compspecs}.
 
   Local Definition test_fn := fn(∀ () : (); (uninit size_t); True) → ∃ () : (), void; True.
   Local Definition test_fn2 := fn(∀ () : (); True) → ∃ () : (), void; True.
   Local Definition test_fn3 := fn(∀ (n1, n2, n3, n4, n5, n6, n7) : Z * Z * Z * Z * Z * Z * Z; uninit size_t, uninit size_t, uninit size_t, uninit size_t, uninit size_t, uninit size_t, uninit size_t, uninit size_t; True ∗ True ∗ True ∗ True ∗ True ∗ True ∗ True ∗ True ∗ True ∗ True ∗ True ∗ True ∗ True) → ∃ (n1, n2, n3, n4, n5, n6, n7) : Z * Z * Z * Z * Z * Z * Z, uninit size_t; True%I.
 
-  Goal ∀ Espec Delta ge (l : address) fn, l ◁ᵥ l @ function_ptr(A := ConstType _) Espec Delta ge test_fn2 -∗ typed_function(A := ConstType _) Espec Delta fn test_fn.
+  Goal ∀ Espec ge (l : address) fn, l ◁ᵥ l @ function_ptr(A := ConstType _) Espec ge test_fn2 -∗ typed_function(A := ConstType _) Espec ge fn test_fn.
   Abort.
 End test.
