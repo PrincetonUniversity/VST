@@ -1329,9 +1329,9 @@ Section typing.
     symmetry; apply eval_id_same.
   Qed.
 
-  Lemma type_return_some Espec ge f e (T : val → type -> assert):
-   typed_val_expr e T
-   ⊢ typed_stmt Espec ge (Sreturn $ Some e) f (λ v, T (force_val v)).
+  Lemma type_return_some Espec ge f e (T : option val → type -> assert):
+   typed_val_expr e (λ v, T (Some v))
+   ⊢ typed_stmt Espec ge (Sreturn $ Some e) f T.
   Proof.
     unfold typed_stmt.
     iIntros "H".
@@ -1339,9 +1339,9 @@ Section typing.
     iIntros; iFrame.
   Qed.
 
-  Lemma type_return_none Espec ge f (T : val → type -> assert) ty:
-    ⎡Vundef ◁ᵥ ty⎤ ∗ T Vundef ty
-    ⊢ typed_stmt Espec ge (Sreturn $ None) f (λ v, T (force_val v)).
+  Lemma type_return_none Espec ge f (T : option val → type -> assert) ty:
+    ⎡Vundef ◁ᵥ ty⎤ ∗ T (Some Vundef) ty
+    ⊢ typed_stmt Espec ge (Sreturn $ None) f T.
   Proof.
     unfold typed_stmt.
     iIntros "H".

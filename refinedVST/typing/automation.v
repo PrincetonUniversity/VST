@@ -1,6 +1,7 @@
 (* refinedC/typing/automation.v *)
 From iris.proofmode Require Import coq_tactics reduction.
 From lithium Require Import hooks normalize.
+From VST.floyd Require Import forward.
 From VST.lithium Require Export all.
 From VST.typing Require Export type.
 From VST.typing.automation Require Export proof_state (* solvers simplification  loc_eq. *).
@@ -153,7 +154,7 @@ Ltac liRIntroduceLetInGoal :=
 
 Ltac liRStmt :=
   lazymatch goal with
-  | |- envs_entails ?Δ (typed_stmt ?Espec ?Delta ?s ?T) =>
+  | |- envs_entails ?Δ (typed_stmt ?Espec ?ge ?s ?f ?T) =>
     lazymatch s with
     (* | LocInfo ?info ?s2 =>
       update_loc_info (Some info);
@@ -162,7 +163,7 @@ Ltac liRStmt :=
     end
   end;
   lazymatch goal with
-  | |- envs_entails ?Δ (typed_stmt ?Espec ?Delta ?s ?T) =>
+  | |- envs_entails ?Δ (typed_stmt ?Espec ?ge ?s ?f ?T) =>
     lazymatch s with
     (* | subst_stmt ?xs ?s =>
       let s' := W.of_stmt s in
@@ -171,11 +172,11 @@ Ltac liRStmt :=
     | _ =>
       let s' := s in
       lazymatch s' with
-      | Sassign _ _ => notypeclasses refine (tac_fast_apply (type_assign _ _ _ _ _) _)
-      | Sset _ _ => notypeclasses refine (tac_fast_apply (type_set _ _ _ _ _) _)
-      | Ssequence _ _ => notypeclasses refine (tac_fast_apply (type_seq _ _ _ _ _) _)
-      | Sreturn $ Some _ => notypeclasses refine (tac_fast_apply (type_return_some _ _ _ _) _)
-      | Sreturn None => notypeclasses refine (tac_fast_apply (type_return_none _ _ _) _)
+      | Sassign _ _ => notypeclasses refine (tac_fast_apply (type_assign _ _ _ _ _ _) _)
+      | Sset _ _ => notypeclasses refine (tac_fast_apply (type_set _ _ _ _ _ _) _)
+      | Ssequence _ _ => notypeclasses refine (tac_fast_apply (type_seq _ _ _ _ _ _) _)
+      | Sreturn $ Some _ => notypeclasses refine (tac_fast_apply (type_return_some _ _ _ _ _) _)
+      | Sreturn None => notypeclasses refine (tac_fast_apply (type_return_none _ _ _ _ _) _)
       | _ => fail "do_stmt: unknown stmt" s
       end
     end
@@ -365,10 +366,10 @@ Ltac split_blocks Pfull Ps :=
   repeat (iApply tac_split_big_sepM; [reflexivity|]; iIntros "?"); iIntros "_".
 *)
 
- 
+
 Section automation_tests.
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
-  
+
   Opaque local locald_denote.
 
    Set Ltac Backtrace.
@@ -382,7 +383,7 @@ Section automation_tests.
     iIntros.
     repeat liRStep.
     liShow; try done.
-  Admitted.
+  Qed.
 
   Goal forall Espec ge f (_x:ident) b o (l:address) ty,
   TCDone (ty_has_op_type ty tint MCNone) ->
@@ -420,9 +421,6 @@ Section automation_tests.
 
   liRStep.
   liRStep.
-  liRStep.
-  liRStep.
-  liRStep.
 Qed.
 End automation_tests.
 
@@ -456,8 +454,6 @@ Global Existing Instance simple_subsume_val_to_subsume_embed_inst.
 
   Module f_test1.
     Context `{!typeG OK_ty Σ} {cs : compspecs}.
-  
-  
 
     Definition spec_f_ret_expr :=
       fn(∀ () : (); emp) → ∃ z : Z, (z @ ( int tint )); ⌜z = 3⌝.
@@ -468,7 +464,7 @@ Global Existing Instance simple_subsume_val_to_subsume_embed_inst.
     Proof.
       type_function "f_ret_expr" ( x ).
       repeat liRStep.
-    Qed.    
+    Qed.
   End f_test1.
 
   Module f_test2.
