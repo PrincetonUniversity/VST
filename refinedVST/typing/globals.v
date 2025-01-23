@@ -2,20 +2,20 @@ From VST.typing Require Export type.
 From VST.typing Require Import programs.
 From VST.typing Require Import type_options.
 
-Record global_type `{!typeG Σ} {cs : compspecs} := GT {
+Record global_type `{!typeG OK_ty Σ} {cs : compspecs} := GT {
   gt_A : Type;
   gt_type : gt_A → type;
 }.
 Arguments GT {_ _ _} _ _.
 
-Class globalG `{!typeG Σ} {cs : compspecs} := {
+Class globalG `{!typeG OK_ty Σ} {cs : compspecs} := {
   global_locs : gmap string address;
   global_initialized_types : gmap string global_type;
 }.
-Arguments globalG _ {_ _}.
+Arguments globalG _ _ {_ _}.
 
 Section globals.
-  Context `{!typeG Σ} {cs : compspecs} `{!globalG Σ}.
+  Context `{!typeG OK_ty Σ} {cs : compspecs} `{!globalG OK_ty Σ}.
   Import EqNotations.
 
   Definition global_with_type (name : string) (β : own_state) (ty : type) : iProp Σ :=

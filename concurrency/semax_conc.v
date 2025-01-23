@@ -11,7 +11,7 @@ Import Clightdefs.
 Import String.
 Open Scope funspec_scope.
 
-Definition spawned_funtype := Tfunction (Tcons (tptr tvoid) Tnil) tint cc_default.
+Definition spawned_funtype := Tfunction (tptr tvoid :: nil) tint cc_default.
 
 Section mpred.
 

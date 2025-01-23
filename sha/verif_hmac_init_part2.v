@@ -225,6 +225,13 @@ semax(OK_spec := Espec)(C := CompSpecs) E
   (Sfor (Sset _i (Econst_int (Int.repr 0) tint))
      (Ebinop Olt (Etempvar _i tint) (Econst_int (Int.repr 64) tint) tint)
      (Ssequence
+(*         (Ssequence
+                    (Sset _t'2
+                      (Ederef
+                        (Ebinop Oadd (Evar _ctx_key (tarray tuchar 64))
+                          (Etempvar _i tint) (tptr tuchar)) tuchar))
+                    (Sset _aux (Ecast (Etempvar _t'2 tuchar) tuchar)))
+*)
         (Sset _aux
            (Ecast
               (Ederef
@@ -288,16 +295,24 @@ Proof. intros. abbreviate_semax.
           }
 
         Time freeze FR1 := - (data_at(cs := CompSpecs) _ _ _ (Vptr ckb _)).
-        Time forward; (*6.7 versus 9*)
-        change Inhabitant_val with Vundef in X;
-         rewrite X.
-        { entailer!. apply isbyte_zeroExt8'. }
-        Time forward. (*1.9 versus 3.4*)
+(*
+        Time forward; [ | forward]; (*6.7 versus 9*)
+*)
+        forward.
+         { change Inhabitant_val with Vundef in X; rewrite X.
+           entailer!!. apply isbyte_zeroExt8'.
+         }
+        change Inhabitant_val with Vundef in X; rewrite X. 
+        rewrite expr2.neutral_cast_lemma; try auto.
+        2: simpl; rewrite Int.unsigned_repr; rep_lia.
+        forward.
+(*        Time forward. (*1.9 versus 3.4*) *)
         unfold Int.xor.
         rewrite Int.unsigned_repr. 2: rewrite int_max_unsigned_eq; lia.
-        cbv [cast_int_int].
-        rewrite <- (isbyte_zeroExt8 (Byte.unsigned qb)) by rep_lia.
         rewrite Int.unsigned_repr by rep_lia.
+(*        cbv [cast_int_int].*)
+(*        rewrite <- (isbyte_zeroExt8 (Byte.unsigned qb)) by rep_lia.*)
+(*        rewrite Int.unsigned_repr by rep_lia. *)
         assert (H54: 0 <= Z.lxor 54 (Byte.unsigned qb) <= Byte.max_unsigned). {rewrite (xor_inrange 54 (Byte.unsigned qb)).
            pose proof (Z.mod_pos_bound (Z.lxor 54 (Byte.unsigned qb)) Byte.modulus).
            spec H; [rep_lia|]. rep_lia. reflexivity.
@@ -316,8 +331,8 @@ Proof. intros. abbreviate_semax.
 
         freeze FR2 := - (data_at _ _ _ (Vptr pb _)).
         Time forward. (*5.4 versus 5*) (*FIXME NOW takes 20secs; this is the forward the ran out of 2GB memory in the previous version of floyd*)
-        Time entailer!. (*5.7 versus 9.6*)
-         thaw FR2; simpl.
+        Time entailer!!. (*5.7 versus 9.6*)
+        thaw FR2; simpl.
         rewrite <- isbyte_zeroExt8 by rep_lia.
         change (Vint (Int.repr (Byte.unsigned ?A))) with (Vubyte A).
         Time (rewrite (*HeqIPADcont,*) UPD_IPAD; simpl; trivial; cancel). (*0.6*)
@@ -359,6 +374,11 @@ semax(OK_spec := Espec)(C := CompSpecs) E
   (Sfor (Sset _i (Econst_int (Int.repr 0) tint))
      (Ebinop Olt (Etempvar _i tint) (Econst_int (Int.repr 64) tint) tint)
      (Ssequence
+(*       (Ssequence
+        (Sset _t'1 (Ederef (Ebinop Oadd (Evar _ctx_key (tarray tuchar 64))
+                                (Etempvar _i tint) (tptr tuchar)) tuchar))
+           (Sset _aux (Ecast (Etempvar _t'1 tuchar) tuchar)))
+*)
         (Sset _aux
            (Ecast
               (Ederef
@@ -420,12 +440,14 @@ freeze FR1 := - (data_at _ _ _ (Vptr ckb _)) (data_block _ _ _).
             repeat rewrite map_nth. rewrite Qb. trivial.
           }
         freeze FR2 := - (data_at _ _ _ (Vptr ckb _)).
-        Time forward;
+        Time forward. (*; [ | forward]; *)
         change Inhabitant_val with Vundef in X;
         rewrite X.  (*5.3 versus 7.8, and we've eliminated some floyds preceding the call*)
-        { Time entailer!. (*1.8 versus 2.9*)
-          apply isbyte_zeroExt8'.
+        { Time entailer!!.  apply isbyte_zeroExt8'. 
         }
+        change Inhabitant_val with Vundef in X; rewrite X.
+        rewrite expr2.neutral_cast_lemma; try auto.
+        2: simpl; rewrite Int.unsigned_repr; rep_lia.
         thaw FR2.
        (*doing freeze [0; 2] FR3. here lets the entailer! 2 lines below take 11 secs instead of 5,
            with a residual subgoal thats more complex to discharge*)
@@ -433,7 +455,7 @@ freeze FR1 := - (data_at _ _ _ (Vptr ckb _)) (data_block _ _ _).
         Time entailer!. (*4.2 versus 5.6*)
         f_equiv.
         set (y := nth (Z.to_nat i) (HMAC_SHA256.mkKey key) Byte.zero).
-        rewrite <- (isbyte_zeroExt8 (Byte.unsigned _)) by rep_lia.
+(*        rewrite <- (isbyte_zeroExt8 (Byte.unsigned _)) by rep_lia.*)
         unfold Int.xor. rewrite !Int.unsigned_repr by rep_lia.
         rewrite xor_inrange. 2: reflexivity.
         2:{  clear; symmetry; apply Z.mod_small.

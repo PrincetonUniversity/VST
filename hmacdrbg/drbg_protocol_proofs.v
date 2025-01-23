@@ -437,8 +437,7 @@ Proof.
   }
  unfold hmac256drbgstate_md_info_pointer; entailer!! .
   1,2,3: subst POSTCONDITION; unfold abbreviate; simpl_ret_assert; normalize.
-  { monPred.unseal. normalize. }
- 
+
   intros.
   unfold POSTCONDITION, abbreviate.  simpl_ret_assert. unfold bind_ret; go_lowerx.
   unfold reseedPOST; destruct vl; trivial; try apply derives_refl. simpl. Intros.

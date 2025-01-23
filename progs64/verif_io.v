@@ -137,6 +137,24 @@ Qed.
 
 Opaque Nat.div Nat.modulo.
 
+Import Program.Wf. 
+  Program Lemma fix_sub_eq_ext :
+   (* need to copy this from Coq standard library because it moved from
+    one location to another between Coq 8.20 and Coq 8.21 *)
+    forall (A : Type) (R : A -> A -> Prop) (Rwf : well_founded R)
+      (P : A -> Type)
+      (F_sub : forall x : A, (forall y:{y : A | R y x}, P (proj1_sig y)) -> P x),
+      forall x : A,
+        Fix_sub A R Rwf P F_sub x =
+          F_sub x (fun y:{y : A | R y x} => Fix_sub A R Rwf P F_sub (proj1_sig y)).
+  Proof.
+    intros A R Rwf P F_sub x; apply Fix_eq ; auto.
+    intros ? f g H.
+    assert(f = g) as H0.
+    - extensionality y ; apply H.
+    - rewrite H0 ; auto.
+  Qed.
+
 Lemma intr_eq : forall n, intr n =
   match n <=? 0 with
   | true => []
@@ -145,7 +163,7 @@ Lemma intr_eq : forall n, intr n =
 Proof.
   intros.
   unfold intr at 1.
-  rewrite Wf.WfExtensionality.fix_sub_eq_ext; simpl; fold intr.
+  rewrite fix_sub_eq_ext; simpl; fold intr.
   destruct n; reflexivity.
 Qed.
 
@@ -230,7 +248,7 @@ Lemma chars_of_Z_eq : forall n, chars_of_Z n =
 Proof.
   intros.
   unfold chars_of_Z at 1.
-  rewrite Wf.WfExtensionality.fix_sub_eq_ext; simpl; fold chars_of_Z.
+  rewrite fix_sub_eq_ext; simpl; fold chars_of_Z.
   destruct (_ <=? _); reflexivity.
 Qed.
 
@@ -350,13 +368,14 @@ Lemma prog_correct:
   semax_prog prog main_itree Vprog Gprog.
 Proof.
 prove_semax_prog.
+Import extcall_lemmas.
 semax_func_cons_ext.
 { simpl; monPred.unseal; Intro i.
-  apply typecheck_return_value with (t := Tint16signed); auto. }
+  apply typecheck_return_value with (t := Xint16signed); auto. }
 semax_func_cons_ext.
 { destruct x as (c, k).
   simpl; monPred.unseal; Intro i'.
-  apply typecheck_return_value with (t := Tint16signed); auto. }
+  apply typecheck_return_value with (t := Xint16signed); auto. }
 semax_func_cons body_getchar_blocking.
 semax_func_cons body_putchar_blocking.
 semax_func_cons body_print_intr.
@@ -380,11 +399,16 @@ Ltac alloc_block m n := match n with
     destruct (dry_mem_lemmas.drop_alloc m) as [m' Hm']; alloc_block m' n'
   end.
 try first [
-  (* This version works in Coq 8.15, CompCert 3.10 *)
+  (* This version works in Coq 8.19, CompCert 3.15 *)
+  alloc_block Mem.empty 63%nat;
+  eexists; repeat match goal with H : ?a = _ |- match ?a with Some m' => _ | None => None end = _ => rewrite H end;
+  reflexivity
+ |
+  (* This version worked in Coq 8.15, CompCert 3.10 *)
   alloc_block Mem.empty 62%nat;
   eexists; repeat match goal with H : ?a = _ |- match ?a with Some m' => _ | None => None end = _ => rewrite H end;
   reflexivity
- | 
+ |
   (* This version worked in Coq 8.13, CompCert 3.9 *)
   alloc_block Mem.empty 60%nat;
   eexists; repeat match goal with H : ?a = _ |- match ?a with Some m' => _ | None => None end = _ => rewrite H end;
@@ -415,7 +439,7 @@ Proof.
   edestruct (IO_OS_ext prog) with (V := Vprog) as (b & q & Hb & Hq & Hsafe).
   - intros ?? [<- | [<- | ?]]; last done;
       rewrite /ext_link /ext_link_prog /prog /=; repeat (if_tac; first done); done.
-  - apply SequentialClight.subG_VSTGpreS, subG_refl.
+  - apply lifting.subG_VSTGpreS, subG_refl.
   - intros; simple apply (@prog_correct _ VSTGS0).
   - apply (proj2_sig init_mem_exists).
   - exists q.

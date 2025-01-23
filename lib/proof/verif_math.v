@@ -71,20 +71,8 @@ assert (match ret with
        | Some v => tc_val t v
        | None => False
        end); [ | destruct t; try contradiction; auto].
-assert (match rettype_of_type t with
-               | AST.Tvoid =>
-                   mkEnviron gx (Map.empty (block * type))
-                     (Map.empty val)
-               | _ =>
-                   match ret with
-                   | Some v' =>
-                       mkEnviron gx (Map.empty (block * type))
-                         (Map.set 1 v' (Map.empty val))
-                   | None =>
-                       mkEnviron gx (Map.empty (block * type))
-                         (Map.empty val)
-                   end
-               end = match ret with
+match type of H with context [te_of ?A] => 
+   assert (A = match ret with
                    | Some v' =>
                        mkEnviron gx (Map.empty (block * type))
                          (Map.set 1 v' (Map.empty val))
@@ -92,7 +80,8 @@ assert (match rettype_of_type t with
                        mkEnviron gx (Map.empty (block * type))
                          (Map.empty val)
                    end)
-  by (destruct (rettype_of_type t); auto; discriminate H).
+  by (destruct (rettype_of_type t); auto; discriminate H)
+ end.
 rewrite H1 in *; clear H1.
 destruct ret; [ | discriminate H].
 simpl in H.

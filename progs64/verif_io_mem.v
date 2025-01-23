@@ -120,6 +120,24 @@ Proof.
   rewrite !Int.unsigned_repr; auto.
 Qed.
 
+Import Program.Wf.
+  Program Lemma fix_sub_eq_ext :
+   (* need to copy this from Coq standard library because it moved from
+    one location to another between Coq 8.20 and Coq 8.21 *)
+    forall (A : Type) (R : A -> A -> Prop) (Rwf : well_founded R)
+      (P : A -> Type)
+      (F_sub : forall x : A, (forall y:{y : A | R y x}, P (proj1_sig y)) -> P x),
+      forall x : A,
+        Fix_sub A R Rwf P F_sub x =
+          F_sub x (fun y:{y : A | R y x} => Fix_sub A R Rwf P F_sub (proj1_sig y)).
+  Proof.
+    intros A R Rwf P F_sub x; apply Fix_eq ; auto.
+    intros ? f g H.
+    assert(f = g) as H0.
+    - extensionality y ; apply H.
+    - rewrite H0 ; auto.
+  Qed.
+
 Lemma intr_eq : forall n, intr n =
   match n <=? 0 with
   | true => []
@@ -128,7 +146,7 @@ Lemma intr_eq : forall n, intr n =
 Proof.
   intros.
   unfold intr at 1.
-  rewrite Wf.WfExtensionality.fix_sub_eq_ext; simpl; fold intr.
+  rewrite fix_sub_eq_ext; simpl; fold intr.
   destruct n; reflexivity.
 Qed.
 
@@ -230,7 +248,7 @@ Lemma chars_of_Z_eq : forall n, chars_of_Z n =
 Proof.
   intros.
   unfold chars_of_Z at 1.
-  rewrite Wf.WfExtensionality.fix_sub_eq_ext; simpl; fold chars_of_Z.
+  rewrite fix_sub_eq_ext; simpl; fold chars_of_Z.
   destruct (_ <=? _); reflexivity.
 Qed.
 
@@ -530,16 +548,16 @@ Lemma prog_correct:
   semax_prog prog main_itree Vprog Gprog.
 Proof.
 prove_semax_prog.
-semax_func_cons body_exit.
-semax_func_cons body_free.
 semax_func_cons body_malloc.
 { destruct x; apply semax_func_cons_malloc_aux. }
+semax_func_cons body_free.
+semax_func_cons body_exit.
 semax_func_cons_ext.
 { simpl; destruct x as (((?, ?), ?), ?); monPred.unseal; Intro msg.
-  apply typecheck_return_value with (t := Tint16signed); auto. }
+  apply typecheck_return_value with (t := Xint16signed); auto. }
 semax_func_cons_ext.
 { simpl; destruct x as (((((?, ?), ?), ?), ?), ?).
-  apply typecheck_return_value with (t := Tint16signed); auto. }
+  apply typecheck_return_value with (t := Xint16signed); auto. }
 semax_func_cons body_print_intr.
 semax_func_cons body_print_int.
 semax_func_cons body_main.
@@ -559,11 +577,16 @@ Ltac alloc_block m n := match n with
     destruct (dry_mem_lemmas.drop_alloc m) as [m' Hm']; alloc_block m' n'
   end.
 try first [
-  (* This version works in Coq 8.15, CompCert 3.10 *)
+  (* This version works in Coq 8.19, CompCert 3.15 *)
+  alloc_block Mem.empty 64%nat;
+  eexists; repeat match goal with H : ?a = _ |- match ?a with Some m' => _ | None => None end = _ => rewrite H end;
+  reflexivity
+ |
+  (* This version worked in Coq 8.15, CompCert 3.10 *)
   alloc_block Mem.empty 63%nat;
   eexists; repeat match goal with H : ?a = _ |- match ?a with Some m' => _ | None => None end = _ => rewrite H end;
   reflexivity
- | 
+ |
   (* This version worked in Coq 8.13, CompCert 3.9 *)
   alloc_block Mem.empty 61%nat;
   eexists; repeat match goal with H : ?a = _ |- match ?a with Some m' => _ | None => None end = _ => rewrite H end;
@@ -583,12 +606,12 @@ Definition main_block := proj1_sig main_block_exists.
 
 Theorem prog_toplevel : exists q,
   semantics.initial_core (Clight_core.cl_core_sem (globalenv prog)) 0 init_mem q init_mem (Vptr main_block Ptrofs.zero) [] /\
-  forall n, @step_lemmas.dry_safeN _ _ _ _ semax.genv_symb_injective (Clight_core.cl_core_sem (globalenv prog))
+  forall n, @step_lemmas.dry_safeN _ _ _ _ lifting.genv_symb_injective (Clight_core.cl_core_sem (globalenv prog))
              io_dry_spec {| genv_genv := Genv.globalenv prog; genv_cenv := prog_comp_env prog |} n
             main_itree q init_mem.
 Proof.
   edestruct whole_program_sequential_safety_ext with (Espec := @IO_ext_spec (VSTΣ (@IO_itree (@IO_event nat))))(V := Vprog) as (b & q & Hb & Hq & Hsafe).
-  - apply SequentialClight.subG_VSTGpreS, subG_refl.
+  - apply lifting.subG_VSTGpreS, subG_refl.
   - repeat intro; apply I.
   - apply io_spec_sound.
     intros ?? [<- | [<- | ?]]; last done;

@@ -106,7 +106,7 @@ Lemma subsume_sep_list_insert_in_ig {prop:bi} {B} A id ig i x (l1 : list A) (l2 
   return subsume (sep_list id A ig l1 f) (λ x : B, sep_list id A ig (l2 x) f) T.
 Proof.
   unfold CanSolve, sep_list => ?. iIntros "Hsub [<- Hl]".
-  rewrite insert_length. iApply "Hsub". iSplit; [done|].
+  rewrite length_insert. iApply "Hsub". iSplit; [done|].
   destruct (decide (i < length l1)%nat). 2: { by rewrite list_insert_ge; [|lia]. }
   iDestruct (big_sepL_insert_acc with "Hl") as "[? Hl]". { by apply: list_lookup_insert. }
   have [//|y ?]:= lookup_lt_is_Some_2 l1 i.
@@ -126,7 +126,7 @@ Lemma subsume_sep_list_insert_not_in_ig {prop:bi} A B id ig i x (l1 : list A) l2
       exhale <affine> f i x2;
       return T y.
 Proof.
-  unfold CanSolve, sep_list. iIntros (?) "[% Hsub] [<- Hl]". rewrite big_sepL_insert // insert_length.
+  unfold CanSolve, sep_list. iIntros (?) "[% Hsub] [<- Hl]". rewrite big_sepL_insert // length_insert.
   iDestruct "Hl" as "[Hx Hl]". case_bool_decide => //.
   iDestruct ("Hsub" with "Hx [Hl]") as "[% [[%Heq Hl] [% [% [? HT]]]]]". {
     iSplit; [done|]. iApply (big_sepL_impl with "Hl"). iIntros "!>" (???) "?".

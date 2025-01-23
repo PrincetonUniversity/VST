@@ -1,3 +1,33 @@
+How to generate a release:
+
+1. Before tagging a new release of VST, it is suggested (but not required) to make sure that VSTlib  is up to date. To do that:
+   1.1  in vst directory, "make install"
+   1.2  make and install vcfloat
+   1.3  cd vst/lib, "make"  (which depends on vst and vcfloat being installed)
+   1.4  fix anything that needs fixing, and commit changes to the vst repo.
+
+2. in the vst repo:
+   2.1   git tag -a vX.Y -m "VST release X.Y"; git push origin vX.Y
+   2.2   in github, click the button to turn this tag into a release
+   2.3   download https://github.com/PrincetonUniversity/VST/archive/refs/tags/vX.Y.tar.gz
+   2.3   shasum -a 256 vX.Y.tar.gz
+
+3. In a fork of the opam-coq-archive,
+      https://github.com/coq/opam
+   3.1 create   released/packages/coq-vst/coq-vst.X.Y/opam  
+   3.2  edit the opam file, using the result of the shasum command above
+   3.3 create   released/packages/coq-vst/coq-vst-lib.X.Y/opam  
+   3.4  edit the opam file, using the result of the shasum command above
+       [note: "src" and "checksum" of VST and VSTlib are the same]
+   3.5a If the vst/zlist files have NOT been modified, then just
+         edit the last coq-vst-zlist/coq-vst-zlist.A.B/opam
+	to indicate compatibility with the current Coq version
+   3.5b If the vst/zlist files have been modified, then create
+         a new release of coq-vst-zlist; like coq-vst-lib it shares
+	 a "src" and "checksum" with VST.
+   3.6  "git add" the new opam files and commit to the fork
+
+---------THE FOLLOWING INSTRUCTIONS ARE OBSOLETE, from before opam--------
 ***** reminder about how to generate a release
 
 1. in some other directory, run .../vst/util/PACKAGE

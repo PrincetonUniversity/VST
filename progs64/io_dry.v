@@ -29,8 +29,8 @@ Definition putchar_post (m0 m : mem) (r : int) (witness : byte * IO_itree) (z : 
 
 Existing Instance semax_lemmas.eq_dec_external_function.
 
-Definition getchar_sig := {| sig_args := []; sig_res := Tret AST.Tint; sig_cc := cc_default |}.
-Definition putchar_sig := {| sig_args := [AST.Tint]; sig_res := Tret AST.Tint; sig_cc := cc_default |}.
+Definition getchar_sig := {| sig_args := []; sig_res := Xint; sig_cc := cc_default |}.
+Definition putchar_sig := {| sig_args := [Xint]; sig_res := Xint; sig_cc := cc_default |}.
 
 Program Definition io_dry_spec : external_specification mem external_function IO_itree.
 Proof.
@@ -47,8 +47,8 @@ Proof.
     + exact (X1 = [] /\ m = X3 /\ getchar_pre X3 w X2).
   - simpl; intros ??? ot ???.
     if_tac in X; [|if_tac in X; last contradiction]; destruct X as (m0 & w).
-    + exact (exists r, X1 = Some (Vint r) /\ ot <> AST.Tvoid /\ putchar_post m0 X3 r w X2).
-    + exact (exists r, X1 = Some (Vint r) /\ ot <> AST.Tvoid /\ getchar_post m0 X3 r w X2).
+    + exact (exists r, X1 = Some (Vint r) /\ ot <> Xvoid /\ putchar_post m0 X3 r w X2).
+    + exact (exists r, X1 = Some (Vint r) /\ ot <> Xvoid /\ getchar_post m0 X3 r w X2).
   - intros; exact True%type.
 Defined.
 

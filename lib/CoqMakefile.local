@@ -4,7 +4,7 @@ CFLAGS=-I$(INCLUDE)
 CC=gcc
 
 proof/math_extern.v: $(SRC)/math_extern.c
-	clightgen -flongdouble -normalize $< -o $@ 
+	clightgen -flongdouble -normalize -DCOMPCERT $< -o $@ 
 
 proof/malloc_extern.v: $(SRC)/malloc_extern.c
 	clightgen -normalize $< -o $@ 
@@ -23,7 +23,7 @@ test/incr.v: test/incr.c
 test/incr_main.v: test/incr_main.c
 	clightgen -I$(INCLUDE) -normalize $<
 test/testmath.v: test/testmath.c
-	clightgen -I$(INCLUDE) -normalize $<
+	clightgen -I$(INCLUDE) -normalize  -DCOMPCERT $<
 
 tests: test/incr
 

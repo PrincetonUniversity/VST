@@ -407,8 +407,7 @@ Lemma semax_body_type_of_function {V G cs f i phi} (SB : @semax_body V G cs f (i
 type_of_function f = type_of_funspec phi.
 Proof.
   destruct phi as [[? ?] ? ? ? ?]. destruct SB as [? [? _]].
-  unfold type_of_function; simpl in *. subst.
-  rewrite <- TTL1; trivial.
+  unfold type_of_function; simpl in *. subst. trivial.
 Qed.
 
 Lemma semax_func_cons {C: compspecs}
@@ -538,15 +537,10 @@ Proof.
   iIntros "(_ & [] & _)".
 Qed.
 
-Lemma TTL6 {l}: typelist_of_type_list (typelist2list l) = l.
-Proof. induction l; simpl; intros; trivial. rewrite IHl; trivial. Qed.
-
 Lemma semax_func_cons_ext:
 forall (V: varspecs) (G: funspecs) {C: compspecs} ge fs id ef argsig retsig A E P (Q : dtfr (AssertTT A))
-      argsig'
       (G': funspecs) cc b,
-  argsig' = typelist2list argsig ->
-  ef_sig ef = mksignature (typlist_of_typelist argsig) (rettype_of_type retsig) cc ->
+  ef_sig ef = mksignature (map argtype_of_type argsig) (rettype_of_type retsig) cc ->
   id_in_list id (map (@fst _ _) fs) = false ->
   (ef_inline ef = false \/ @withtype_empty Σ A) ->
   (forall gx x (ret : option val),
@@ -557,16 +551,14 @@ forall (V: varspecs) (G: funspecs) {C: compspecs} ge fs id ef argsig retsig A E 
   (⊢ semax_external OK_spec ef A E P Q) ->
   semax_func V G ge fs G' ->
   semax_func V G ge ((id, External ef argsig retsig cc)::fs)
-       ((id, mk_funspec (argsig', retsig) cc A E P Q) :: G').
+       ((id, mk_funspec (argsig, retsig) cc A E P Q) :: G').
 Proof.
 intros until b.
-intros Hargsig' Hef Hni Hinline Hretty B1 B2 H [Hf' [GC Hf]].
-subst argsig'.
+intros Hef Hni Hinline Hretty B1 B2 H [Hf' [GC Hf]].
 apply id_in_list_false in Hni.
 split.
 { hnf; simpl; f_equal; auto.
-  constructor 2; trivial.
-  simpl; rewrite TTL6; trivial. }
+  constructor 2; trivial. }
 split; [ clear - B1 B2 GC; red; intros; destruct H; [ symmetry in H; inv H; exists b; auto | apply GC; trivial] |].
 intros ge' GE1 GE2.
 specialize (Hf ge' GE1 GE2).
@@ -585,7 +577,7 @@ apply JMeq_eq in H4c.
 subst P' Q'.
 unfold believe_external; simpl. destruct (Ptrofs.eq_dec _ _); last contradiction.
 unfold fundef in GE2; unfold fundef; simpl; rewrite GE2.
-simpl map. rewrite TTL6.
+simpl map.
 iSplit. { iPureIntro; split; trivial. split3; eauto. }
 iSplit; first done.
 iIntros "!>" (??) "?"; iApply Hretty; done.
@@ -662,7 +654,7 @@ right; auto.  right; auto.
 Qed.
 
 Definition Delta1 V G {C: compspecs}: tycontext :=
-make_tycontext ((1%positive,(Tfunction Tnil Tvoid cc_default))::nil) nil nil Tvoid V G nil.
+make_tycontext ((1%positive,(Tfunction nil Tvoid cc_default))::nil) nil nil Tvoid V G nil.
 
 Lemma match_globvars_in':
 forall i t vl vs,
@@ -1658,7 +1650,7 @@ Proof.
     ∃ x1 : dtfr A,
     ∃ FR: mpred,
     ⌜E x1 ⊆ E' x /\ forall rho' : environ,
-              ⌜tc_environ (rettype_tycontext (snd sig)) rho'⌝ ∧ (FR ∗ Q x1 rho') ⊢ (Q' x rho')⌝ ∧
+              ⌜tc_environ (xtype_tycontext (snd sig)) rho'⌝ ∧ (FR ∗ Q x1 rho') ⊢ (Q' x rho')⌝ ∧
       ((stackframe_of f ∗ ⎡FR⎤ ∗ assert_of (fun tau => P x1 (ge_of tau, vals))) ∧
             local (fun tau => map (Map.get (te_of tau)) (map fst (fn_params f)) = map Some vals /\ tc_vals (map snd (fn_params f)) vals))).
  - split => rho. monPred.unseal; rewrite /bind_ret monPred_at_affinely.
@@ -1726,15 +1718,15 @@ Proof.
       * split => rho; rewrite /bind_ret; monPred.unseal; destruct (fn_return f); try iIntros "(_ & ([] & _) & _)".
         rewrite /= -QPOST; iIntros "(? & (? & ?) & ?)"; iFrame.
         iPureIntro; split; last done.
-        apply tc_environ_rettype.
+        apply tc_environ_xtype.
       * split => rho; rewrite /bind_ret; monPred.unseal; iIntros "(% & (Q & $) & ?)".
         destruct vl; simpl.
         -- rewrite -QPOST.
            iDestruct "Q" as "($ & $)"; iFrame; iPureIntro; split; last done.
-           apply tc_environ_rettype_env_set.
+           apply tc_environ_xtype_env_set.
         -- destruct (fn_return f); try iDestruct "Q" as "[]".
            rewrite /= -QPOST; iFrame; iPureIntro; split; last done.
-           apply tc_environ_rettype.
+           apply tc_environ_xtype.
     + do 2 red; intros; monPred.unseal; trivial.
 Qed.
 

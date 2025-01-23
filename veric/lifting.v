@@ -393,14 +393,15 @@ Qed.
 Lemma bool_val_valid : forall m v t b, valid_val0 m v -> Cop2.bool_val t v = Some b -> Cop.bool_val v t m = Some b.
 Proof.
   rewrite /Cop2.bool_val /Cop.bool_val.
-  intros; destruct t; try done; simpl.
-  - destruct i; done.
-  - destruct v; try done.
+  intros; destruct t; [done | | | | | done..].
+  - replace (classify_bool _) with bool_case_i; first by destruct v.
+    by destruct i.
+  - destruct v; [done..|].
     simpl in *.
     simple_if_tac; try done.
     rewrite /weak_valid_pointer H //.
   - destruct f; done.
-  - destruct (Cop2.eqb_type _ _); try done.
+  - simpl; destruct (Cop2.eqb_type _ _); try done.
     rewrite /Cop2.bool_val_p in H0.
     simple_if_tac.
     + destruct v; try done.
@@ -1679,7 +1680,7 @@ Proof.
     iPureIntro. eapply safeN_step; eauto.
   - iDestruct "Hsafe_ext" as (ef args w (at_external & Hpre)) "Hpost".
     iAssert (|={⊤}[∅]▷=>^(S n) ⌜(∀ (ret : option val) m' z' n',
-      Val.has_type_list args (sig_args (ef_sig ef))
+      Val.has_type_list args (map proj_xtype (sig_args (ef_sig ef)))
       → Builtins0.val_opt_has_rettype ret (sig_res (ef_sig ef))
         → n' ≤ n
             → ext_spec_post OK_spec ef w

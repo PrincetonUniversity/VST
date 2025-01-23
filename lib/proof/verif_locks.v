@@ -159,8 +159,8 @@ Definition Gprog := lockImports ++ LockASI.
       + iMod ("Hclose" with "[p]"); last by iFrame; auto.
         iExists true; iFrame; auto.
     - Intros r. if_tac; forward_if; try discriminate; try contradiction.
-      + forward. simpl lock_inv; entailer!.
-      + forward. simpl lock_inv; entailer!.
+      + forward. simpl spec_locks.lock_inv; entailer!.
+      + forward. simpl spec_locks.lock_inv; entailer!.
   Qed.
 
 Opaque inv_for_lock.

@@ -35,7 +35,6 @@ Require Import VST.floyd.globals_lemmas.
 Require Import VST.floyd.diagnosis.
 Require Import VST.floyd.freezer.
 Import ListNotations.
-Import String.
 
 Section semax.
 
@@ -69,7 +68,7 @@ Definition exit_spec := try_spec "exit" exit_spec'.
 Parameter body_exit:
   body_lemma_of_funspec
     (EF_external "exit"
-       {| sig_args := AST.Tint :: nil; sig_res := AST.Tvoid; sig_cc := cc_default |} )
+       {| sig_args := Xint :: nil; sig_res := Xvoid; sig_cc := cc_default |})
    exit_spec'.
 
 Parameter mem_mgr: globals -> mpred.
@@ -77,7 +76,7 @@ Axiom create_mem_mgr: forall gv, emp ⊢ mem_mgr gv.
 
 Parameter malloc_token : forall {cs: compspecs}, share -> type -> val -> mpred.
 Parameter malloc_token_valid_pointer:
-  forall {cs: compspecs} sh t p, 0 < sizeof t -> malloc_token sh t p ⊢ valid_pointer p.
+  forall {cs: compspecs} sh t p, malloc_token sh t p ⊢ valid_pointer p.
 
 Parameter malloc_token_local_facts:
   forall {cs: compspecs} sh t p, malloc_token sh t p ⊢ ⌜malloc_compatible (sizeof t) p⌝.
@@ -190,9 +189,9 @@ Qed.
 End semax.
 
 #[export] Hint Extern 1 (malloc_token _ _ _ ⊢ valid_pointer _) =>
-  (simple apply malloc_token_valid_pointer; data_at_valid_aux) : valid_pointer.
+  (simple apply malloc_token_valid_pointer(*; data_at_valid_aux*)) : valid_pointer.
 
-Ltac malloc_token_data_at_valid_pointer :=
+(*Ltac malloc_token_data_at_valid_pointer :=
   (* If the size of t is unknown, can still prove valid pointer
       from (malloc_token sh t p * ... * data_at[_] sh t p)  *)
   match goal with |- ?A ⊢ valid_pointer ?p =>
@@ -205,7 +204,7 @@ Ltac malloc_token_data_at_valid_pointer :=
    end
  end.
 
-#[export] Hint Extern 4 (_ ⊢ valid_pointer _) => malloc_token_data_at_valid_pointer : valid_pointer.
+#[export] Hint Extern 4 (_ ⊢ valid_pointer _) => malloc_token_data_at_valid_pointer : valid_pointer.*)
 
 #[export] Hint Resolve malloc_token_local_facts : saturate_local.
 

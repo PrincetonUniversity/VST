@@ -302,7 +302,8 @@ Lemma classify_cast_eq:
   classify_cast t1 t2 = Cop.classify_cast t1 t2.
 Proof.
 intros.
-destruct t1,t2; try reflexivity;
+destruct t1 as [| [| | |] | | [|] | | | | |], t2 as [| [| | |] | | [|] | | | | |]; 
+ try reflexivity;
 unfold classify_cast;
 try rewrite (proj2 (eqb_type_false _ _) H0);
 try rewrite (proj2 (eqb_type_false _ _) H);

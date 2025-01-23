@@ -84,8 +84,6 @@ Fixpoint ext_link_prog' (dl: list (ident * globdef fundef type)) (s: String.stri
 Definition ext_link_prog (p: program) (s: String.string) : ident :=
   match ext_link_prog' (prog_defs p) s with Some id => id | None => 1%positive end.
 
-Definition globals := ident -> val.
-
 (* TODO: merge size_compatible and align_compatible *)
 Definition align_compatible {C: compspecs} t p :=
   match p with
@@ -103,16 +101,19 @@ Proof. apply funspec_sub_implies_func_prt_si_mono; done. Qed.
 Lemma func_ptr_isptr: forall spec f, func_ptr spec f ⊢ ⌜isptr f⌝.
 Proof. apply seplog.func_ptr_si_isptr. Qed.
 
+Lemma func_ptr_valid_pointer fs v : func_ptr fs v ⊢ valid_pointer v.
+Proof. apply func_ptr_si_valid_pointer; done. Qed.
+
 Definition type_of_funsig (fsig: funsig) :=
    Tfunction (type_of_params (fst fsig)) (snd fsig) cc_default.
 
 Definition with_ge (ge: genviron) (G: environ->mpred) : mpred :=
      G (mkEnviron ge (Map.empty _) (Map.empty _)).
 
-Fixpoint arglist (n: positive) (tl: typelist) : list (ident*type) :=
+Fixpoint arglist (n: positive) (tl: list type) : list (ident*type) :=
  match tl with
-  | Tnil => nil
-  | Tcons t tl' => (n,t):: arglist (n+1)%positive tl'
+  | nil => nil
+  | t :: tl' => (n,t):: arglist (n+1)%positive tl'
  end.
 
 Definition loop_nocontinue_ret_assert := loop2_ret_assert.
@@ -301,10 +302,9 @@ Axiom semax_func_cons:
        ((id, mk_funspec fsig cc E A P Q)  :: G').
 
 Axiom semax_func_cons_ext: forall (V: varspecs) (G: funspecs) 
-     {C: compspecs} ge fs id ef argsig retsig A E (P: dtfr (ArgsTT A)) (Q: dtfr (AssertTT A)) argsig'
+     {C: compspecs} ge fs id ef argsig retsig A E (P: dtfr (ArgsTT A)) (Q: dtfr (AssertTT A))
       (G': funspecs) cc b,
-  argsig' = typelist2list argsig ->
-  ef_sig ef = mksignature (typlist_of_typelist argsig) (rettype_of_type retsig) cc ->
+  ef_sig ef = mksignature (map argtype_of_type argsig) (rettype_of_type retsig) cc ->
   id_in_list id (map (@fst _ _) fs) = false ->
   (ef_inline ef = false \/ @withtype_empty Σ A) ->
   (forall gx x (ret : option val),
@@ -315,7 +315,7 @@ Axiom semax_func_cons_ext: forall (V: varspecs) (G: funspecs)
   (⊢semax_external ef A E P Q) ->
   semax_func V G ge fs G' ->
   semax_func V G ge ((id, External ef argsig retsig cc)::fs)
-       ((id, mk_funspec (argsig', retsig) cc A E P Q)  :: G').
+       ((id, mk_funspec (argsig, retsig) cc A E P Q)  :: G').
 
 Axiom semax_func_mono: forall {CS'} (CSUB: cspecs_sub CS CS') ge ge'
   (Gfs: forall i,  sub_option (Genv.find_symbol ge i) (Genv.find_symbol ge' i))
@@ -411,7 +411,7 @@ Axiom semax_call:
    F ret argsig retsig cc a bl,
            Ef x ⊆ E ->
            Cop.classify_fun (typeof a) =
-           Cop.fun_case_f (typelist_of_type_list argsig) retsig cc ->
+           Cop.fun_case_f argsig retsig cc ->
             (retsig = Tvoid -> ret = None) ->
           tc_fn_return Delta ret retsig ->
   semax E Delta
@@ -571,7 +571,7 @@ Axiom semax_external_funspec_sub: forall
   (Hsub: funspec_sub (mk_funspec (argtypes, rtype) cc A1 E1 P1 Q1)
                    (mk_funspec (argtypes, rtype) cc A E P Q))
   (HSIG: ef_sig ef = 
-         mksignature (map typ_of_type argtypes)
+         mksignature (map argtype_of_type argtypes)
                      (rettype_of_type rtype) cc),
   semax_external ef A1 E1 P1 Q1 ⊢ semax_external ef A E P Q.
 

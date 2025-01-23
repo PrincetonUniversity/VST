@@ -58,6 +58,32 @@ Proof.
 Qed.
 
 
+(* The following hack is to achieve compatibility between CompCert <= 3.14 and CompCert >= 3.15 *)
+
+Local Fixpoint get_def [T] (al: list (ident * T)) (i: ident) : option T :=
+ match al with 
+ | nil => None
+ | (j,x)::r => if ident_eq i j then Some x else get_def r i
+ end.
+Local Definition get_extfun (i: ident) :=
+  match get_def global_definitions i with
+  | Some (Gfun (External _ t _ _)) => Some t
+  | _ => None
+  end.
+
+Local Definition Tcons := 
+  ltac:(let x := constr:(get_extfun _pthread_exit) in 
+        let x := eval compute in x in
+        match x with Some (?y _ ?z) => exact y end).
+
+
+Local Definition Tnil := 
+  ltac:(let x := constr:(get_extfun _pthread_exit) in 
+        let x := eval compute in x in
+        match x with Some (?y _ ?z) => exact z end).
+
+(* END of hack *)
+
 Definition spawned_funtype := Tfunction (Tcons (tptr tvoid) Tnil) tint cc_default.
 
 Definition spawn_spec := mk_funspec ([tptr spawned_funtype; tptr tvoid], tvoid) cc_default

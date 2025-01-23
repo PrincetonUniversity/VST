@@ -116,7 +116,7 @@ Proof.
   rewrite -(big_opL_fmap VAL (fun i v => mapsto (adr_add (b, ofs) i) (DfracOwn (Share sh)) v)).
   iDestruct (mapsto_lookup_big with "Hm H") as %Hcoh; iPureIntro.
   rewrite -H; intros; specialize (Hcoh i).
-  rewrite fmap_length list_lookup_fmap in Hcoh.
+  rewrite length_fmap list_lookup_fmap in Hcoh.
   destruct (lookup_lt_is_Some_2 bl i) as [? Hi]; first lia.
   rewrite Hi in Hcoh; rewrite /nthbyte Nat2Z.id (nth_lookup_Some _ _ _ _ Hi).
   apply Hcoh; lia.
@@ -151,6 +151,7 @@ Qed.
 
 Definition decode_encode_val_ok (chunk1 chunk2: memory_chunk) : Prop :=
   match chunk1, chunk2 with
+  | Mbool, Mbool => True
   | Mint8signed, Mint8signed => True
   | Mint8unsigned, Mint8signed => True
   | Mint8signed, Mint8unsigned => True
@@ -361,7 +362,7 @@ Proof.
   iIntros "Hm"; iMod (mapsto_alloc with "Hm") as "[$ H]"; first done.
   rewrite /address_mapsto.
   iExists (replicate (Z.to_nat (hi - lo)) Undef).
-  rewrite (big_sepL_seq (replicate _ _)) replicate_length; setoid_rewrite nth_replicate; iFrame.
+  rewrite (big_sepL_seq (replicate _ _)) length_replicate; setoid_rewrite nth_replicate; iFrame.
   iPureIntro; split; last done.
   split; first by rewrite -Hch.
   split; last done.
@@ -446,7 +447,7 @@ Proof.
   iDestruct "H" as (? Hlen) "H".
   rewrite -(big_sepL_fmap _ (fun i b0 => adr_add (b, lo) i ↦ b0)).
   iApply (mapsto_free with "Hm H"); first done.
-  rewrite fmap_length Hlen //.
+  rewrite length_fmap Hlen //.
 Qed.
 
 Lemma mapsto_free: forall m ch b lo hi m' v (Hch : size_chunk ch = hi - lo),

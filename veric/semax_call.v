@@ -24,9 +24,6 @@ Require Import VST.veric.Clight_lemmas.
 Require Import VST.veric.semax_conseq.
 Import LiftNotation.
 
-Lemma TTL3 l: typelist_of_type_list (Clight_core.typelist2list l) = l.
-Proof. induction l; simpl; trivial. f_equal; trivial . Qed.
-
 Section mpred.
 
 Context `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {CS: compspecs}.
@@ -529,17 +526,17 @@ rewrite /believe_external H16.
 iIntros "#ext".
 destruct ff; first done.
 iDestruct "ext" as "((-> & -> & %Eef & %Hinline) & He & Htc)".
-rename t into tys.
+rename l into tys.
 iIntros "!> rguard fun F0 HR".
 iMod "HR" as (???) "((F1 & P) & #HR)".
 iApply fupd_jsafe.
 iMod (fupd_mask_subseteq (nE x1)) as "Hmask"; first done.
-iMod ("He" $! psi x1 (F0 rho ∗ F1 rho) (typlist_of_typelist tys) args with "[F0 F1 P]") as "He1".
+iMod ("He" $! psi x1 (F0 rho ∗ F1 rho) (map typ_of_type tys) args with "[F0 F1 P]") as "He1".
 { subst rho; iFrame; iPureIntro; split; auto.
   (* typechecking arguments *)
-  rewrite Eef; simpl.
-  clear - TC8. rewrite TTL2.
-  revert args TC8; induction (Clight_core.typelist2list tys); destruct args; intros; try discriminate; auto.
+  rewrite Eef map_proj_xtype_argtype; simpl.
+  clear - TC8.
+  revert args TC8; induction tys; destruct args; intros; try discriminate; auto.
   inv TC8.
   split; auto.
   apply tc_val_has_type; auto. }
@@ -550,7 +547,7 @@ iIntros "!> !>" (?) "s"; iDestruct ("He1" with "s") as (x') "(%pre & post)".
 destruct Hinline as [Hinline | ?]; last done.
 iRight; iRight; iExists e, _, _; iSplit.
 { iPureIntro; simpl.
-  rewrite Hinline Eef TTL3 //. }
+  rewrite Hinline Eef map_proj_xtype_argtype //. }
 rewrite Eef.
 iDestruct "rguard" as "#rguard".
 iNext.
@@ -575,7 +572,7 @@ iPoseProof ("HR" $! rho' with "[Q F]") as "R".
        | None => Vundef
        end; subst rho' tx'; unfold_lift; destruct ret; simpl.
   * destruct ret0.
-    2: { clear - TC5 Htc; destruct t0; try contradiction; by spec TC5. }
+    2: { clear - TC5 Htc; destruct t; try contradiction; by spec TC5. }
     destruct TC3 as [TC3 _].
     hnf in TC3; simpl in TC3.
     hnf in TCret.
@@ -587,19 +584,19 @@ iPoseProof ("HR" $! rho' with "[Q F]") as "R".
     rewrite /make_ext_rval.
     destruct ti; try destruct i0, s; try destruct f; try (specialize (TC5 eq_refl)); iFrame; first done; destruct v; contradiction.
   * subst rho; iFrame.
-    destruct (eq_dec t0 Tvoid); first by subst.
-    destruct ret0; last by destruct t0; contradiction.
-    iAssert (∃ v0 : val, ⌜tc_val' t0 v0⌝ ∧ Q x1 (env_set (globals_only (construct_rho (filter_genv psi) vx tx)) ret_temp v0)) with "[Q]" as "?"; last by destruct t0; iFrame.
-    iExists v; iSplit; first by iPureIntro; apply tc_val_tc_val'; destruct t0.
+    destruct (eq_dec t Tvoid); first by subst.
+    destruct ret0; last by destruct t; contradiction.
+    iAssert (∃ v0 : val, ⌜tc_val' t v0⌝ ∧ Q x1 (env_set (globals_only (construct_rho (filter_genv psi) vx tx)) ret_temp v0)) with "[Q]" as "?"; last by destruct t; iFrame.
+    iExists v; iSplit; first by iPureIntro; apply tc_val_tc_val'; destruct t.
     rewrite /make_ext_rval /env_set /=.
-    destruct t0; try destruct i, s; try destruct f; try (specialize (TC5 eq_refl)); iFrame; first done; destruct v; contradiction. }
+    destruct t; try destruct i, s; try destruct f; try (specialize (TC5 eq_refl)); iFrame; first done; destruct v; contradiction. }
 iIntros "!>"; iExists _; iSplit; first done; iFrame.
 assert (tx' = set_opttemp ret (force_val ret0) tx) as Htx'.
 { subst tx'.
   clear - Htc TCret TC5. hnf in Htc, TCret.
   destruct ret0, ret; simpl; auto.
   destruct ((temp_types Delta) !! i); try contradiction.
-  destruct t0; try contradiction. spec TC5; auto. inv TC5. }
+  destruct t; try contradiction. spec TC5; auto. inv TC5. }
 iSpecialize ("rguard" with "[-]").
 { rewrite proj_frame /=; monPred.unseal; iFrame.
   iSplit; [|iSplitR "fun"].
@@ -608,7 +605,7 @@ iSpecialize ("rguard" with "[-]").
     rewrite /construct_rho -map_ptree_rel.
     apply guard_environ_put_te'; try done.
     simpl in TCret; intros ? Hi; rewrite Hi in TCret; subst.
-    apply tc_val_tc_val'; destruct t; try (specialize (TC5 eq_refl)); done.
+    apply tc_val_tc_val'; destruct t0; try (specialize (TC5 eq_refl)); done.
   * iSplit; last done.
     rewrite (H _ (make_tenv tx')); first by subst.
     subst rho tx'; rewrite /= /Map.get /make_tenv.
@@ -928,16 +925,16 @@ destruct H; auto.
 Qed.
 
 Lemma eval_exprlist_relate:
-  forall CS' (Delta : tycontext) (tys: typelist)
+  forall CS' (Delta : tycontext) (tys: list type)
      (bl : list expr) (psi : genv) (vx : env) (tx : temp_env)
      (rho : environ) m,
    typecheck_environ Delta rho ->
    cenv_sub (@cenv_cs CS') (genv_cenv psi) ->
    rho = construct_rho (filter_genv psi) vx tx ->
-   mem_auth m ∗ denote_tc_assert (typecheck_exprlist(CS := CS') Delta (typelist2list tys) bl) rho ⊢
+   mem_auth m ∗ denote_tc_assert (typecheck_exprlist(CS := CS') Delta tys bl) rho ⊢
    ⌜Clight.eval_exprlist psi vx tx m bl
      tys
-     (@eval_exprlist CS' (typelist2list tys) bl rho)⌝.
+     (@eval_exprlist CS' tys bl rho)⌝.
 Proof.
   intros.
   revert bl; induction tys; destruct bl; simpl; intros; iIntros "[Hm H]"; try iDestruct "H" as "[]".
@@ -986,14 +983,12 @@ Proof.
     if_tac; last done.
     rewrite Eb.
     destruct f as [ | ef sigargs sigret c'']; first done.
-    iDestruct "BE" as ((Es & -> & ASD & _)) "(#? & _)"; inv Es.
-    rewrite TTL3 //.
+    iDestruct "BE" as ((Es & -> & ASD & _)) "(#? & _)"; inv Es; done.
   - iDestruct "BI" as (b' fu (? & ? & ? & ? & ? & ? & ? & ? & ?)) "_"; iPureIntro.
     unfold fn_funsig in *. simpl fst in *; simpl snd in *.
     assert (b' = b) by congruence. subst b'.
     assert (f = Internal fu) by congruence; subst; simpl.
-    unfold type_of_function; destruct fsig; simpl in *; subst.
-    rewrite TTL1 //.
+    unfold type_of_function; destruct fsig; simpl in *; subst; done.
 Qed.
 
 Lemma believe_exists_fundef:
@@ -1019,29 +1014,13 @@ Proof.
     destruct (Genv.find_funct_ptr psi b) eqn: Hf; last done.
     iExists _; iSplit; first done.
     destruct f as [ | ef sigargs sigret c'']; first done.
-    iDestruct "BE" as ((Es & -> & ASD & _)) "(#? & _)"; inv Es.
-    rewrite TTL3 //.
+    iDestruct "BE" as ((Es & -> & ASD & _)) "(#? & _)"; inv Es; done.
   - iDestruct "BI" as (b' fu (? & WOB & ? & ? & ? & ? & wob & ? & ?)) "_"; iPureIntro.
     unfold fn_funsig in *. simpl fst in *; simpl snd in *.
     assert (b' = b) by congruence. subst b'.
     eexists; split; first done; simpl.
-    unfold type_of_function; subst.
-    rewrite TTL1 //.
+    unfold type_of_function; subst; done.
 Qed.
-
-Lemma eval_exprlist_relate':
-  forall CS' (Delta : tycontext) (tys: typelist)
-     (bl : list expr) (psi : genv) (vx : env) (tx : temp_env)
-     (rho : environ) m tys',
-   typecheck_environ Delta rho ->
-   cenv_sub (@cenv_cs CS') (genv_cenv psi) ->
-   rho = construct_rho (filter_genv psi) vx tx ->
-   tys' = typelist2list tys ->
-   mem_auth m ∗ denote_tc_assert (typecheck_exprlist(CS := CS') Delta (typelist2list tys) bl) rho ⊢
-   ⌜Clight.eval_exprlist psi vx tx m bl
-     tys
-     (@eval_exprlist CS' tys' bl rho)⌝.
-Proof. intros. subst tys'. eapply eval_exprlist_relate; eassumption. Qed.
 
 Lemma tc_vals_Vundef {args ids} (TC:tc_vals ids args): Forall (fun v : val => v <> Vundef) args.
 Proof.
@@ -1166,7 +1145,7 @@ Lemma semax_call_aux {CS'}
   (Spec: (glob_specs Delta)!!id = Some (mk_funspec (clientparams, retty) cc A nE deltaP deltaQ))
   (FindSymb: Genv.find_symbol psi id = Some b)
 
-  (Classify: Cop.classify_fun (typeof a) = Cop.fun_case_f (typelist_of_type_list clientparams) retty cc)
+  (Classify: Cop.classify_fun (typeof a) = Cop.fun_case_f clientparams retty cc)
   (TCRet: tc_fn_return Delta ret retty)
   (Argsdef: args = @eval_exprlist CS' clientparams bl rho)
   (Hlen : length clientparams = length args)
@@ -1202,9 +1181,9 @@ Proof.
   iCombine "Hm H" as "H".
   rewrite (add_and (mem_auth m ∗ _) (▷_)); last by iIntros "H"; iNext; iDestruct "H" as "(Hm & (H & _) & _)"; destruct GuardEnv; iApply (eval_expr_relate with "[$Hm $H]").
   iDestruct "H" as "[H >%EvalA']".
-  rewrite -(@TTL5 clientparams); rewrite (add_and (mem_auth m ∗ _) (▷_)); last by iIntros "H"; iNext; iDestruct "H" as "(Hm & (_ & H) & _)"; destruct GuardEnv; iApply (eval_exprlist_relate' with "[$Hm $H]").
+  rewrite (add_and (mem_auth m ∗ _) (▷_)); last by iIntros "H"; iNext; iDestruct "H" as "(Hm & (_ & H) & _)"; destruct GuardEnv; iApply (eval_exprlist_relate with "[$Hm $H]").
   iDestruct "H" as "[H >%Hargs]".
-  rewrite TTL5 in Hargs |- *; iDestruct "H" as "(Hm & H)".
+  iDestruct "H" as "(Hm & H)".
   iIntros "!>"; iExists _, _; iSplit.
   { iPureIntro; eapply step_call with (vargs:=args); subst; eauto.
     rewrite EvalA //. }
@@ -1231,7 +1210,7 @@ Lemma semax_call_si:
    (x : dtfr A)
    F ret argsig retsig cc a bl
    (Hsub : Ef x ⊆ E) 
-   (TCF : Cop.classify_fun (typeof a) = Cop.fun_case_f (typelist_of_type_list argsig) retsig cc)
+   (TCF : Cop.classify_fun (typeof a) = Cop.fun_case_f argsig retsig cc)
    (TC5 : retsig = Tvoid -> ret = None)
    (TC7 : tc_fn_return Delta ret retsig),
   semax OK_spec E Delta
@@ -1354,7 +1333,7 @@ Lemma semax_call:
   (x : dtfr A)
   F ret argsig retsig cc a bl
   (Hsub : Ef x ⊆ E)
-  (TCF : Cop.classify_fun (typeof a) = Cop.fun_case_f (typelist_of_type_list argsig) retsig cc)
+  (TCF : Cop.classify_fun (typeof a) = Cop.fun_case_f argsig retsig cc)
   (TC5 : retsig = Tvoid -> ret = None)
   (TC7 : tc_fn_return Delta ret retsig),
   semax OK_spec E Delta

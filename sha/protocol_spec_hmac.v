@@ -414,7 +414,6 @@ eapply semax_pre_post.
 6: eapply (hmacbodycryptoproof Espec (Vptr b i) KEY msg MSG gv shk shm shmd md c); auto; eassumption.
 entailer!.
 simpl_ret_assert; normalize.
-monPred.unseal; normalize.
 simpl_ret_assert; normalize.
 simpl_ret_assert; normalize.
 subst POSTCONDITION; unfold abbreviate; simpl_ret_assert.

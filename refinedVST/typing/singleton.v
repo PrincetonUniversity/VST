@@ -3,7 +3,7 @@ From VST.typing Require Import programs.
 From VST.typing Require Import type_options.
 
 Section value.
-  Context `{!typeG Σ} {cs : compspecs}.
+  Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
   Program Definition value (ot : Ctypes.type) (v : val) : type := {|
     ty_has_op_type ot' mt := ot' = ot;
@@ -12,7 +12,7 @@ Section value.
   |}.
   Next Obligation. iIntros (?????) "[$ [$ ?]]". by iApply heap_mapsto_own_state_share. Qed.
   Next Obligation. iIntros (ot v ot' mt l ->) "[%?]". done. Qed.
-  Next Obligation. Admitted.
+  Next Obligation. iIntros (ot v ot' mt l ->) "[% ->]". done. Qed.
   Next Obligation. iIntros (ot v ot' mt l ->) "(%&%&?)". eauto with iFrame. Qed.
   Next Obligation. iIntros (ot v ot' mt l v' -> ?) "Hl [? ->]". by iFrame. Qed.
 (*  Next Obligation. iIntros (ot v v' ot' mt st ?). apply: mem_cast_compat_id. iPureIntro.
@@ -124,7 +124,7 @@ Global Typeclasses Opaque value.
 Notation "value< ot , v >" := (value ot v) (only printing, format "'value<' ot ',' v '>'") : printing_sugar.
 
 Section at_value.
-  Context `{!typeG Σ} {cs : compspecs}.
+  Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
   (* up *)
   Lemma field_compatible_tptr : forall p a b, field_compatible (Tpointer a b) [] p ↔ field_compatible (tptr tvoid) [] p.
@@ -169,7 +169,11 @@ Section at_value.
   |}.
   Next Obligation. by iIntros (?????) "?". Qed.
   Next Obligation. iIntros (v ty ot mt l (? & ->)) "(% & [Hv ?])". iDestruct (ty_aligned _ _ MCId with "Hv") as %?; first done. iPureIntro. unfold has_layout_loc in *. rewrite !field_compatible_tptr // in H |- *. Qed.
-  Next Obligation. Admitted.
+  Next Obligation. iIntros (v ty ot mt l (? & ->)) "(% & [Hv ?])".
+    iPoseProof (ty_size_eq _ _ mt with "Hv") as "%Hl"; first done.
+    unfold has_layout_val, tc_val' in *; simpl in *.
+    by rewrite !andb_false_r in Hl |- *.
+  Qed.
   Next Obligation. iIntros (v ty ot mt l (? & ->)) "(% & [Hv $])". iDestruct (ty_deref _ _ MCId with "Hv") as "(% & ? & ?)"; first done. unfold mapsto. erewrite mapsto_tptr; iFrame. Qed.
   Next Obligation. iIntros (v ty ot mt l v' (? & ->) ?) "Hl (% & [Hv $])". unfold mapsto. erewrite mapsto_tptr. iExists _; iApply (ty_ref _ _ MCId with "[] Hl Hv"); first done. iPureIntro. unfold has_layout_loc in *. rewrite !field_compatible_tptr // in H |- *. Qed.
 (*   Next Obligation.
@@ -211,7 +215,7 @@ Global Typeclasses Opaque at_value.
 Notation "at_value< v , ty >" := (at_value v ty) (only printing, format "'at_value<' v ',' ty '>'") : printing_sugar.
 
 Section place.
-  Context `{!typeG Σ} {cs : compspecs}.
+  Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
   Program Definition place (l : address) : type := {|
     ty_own β l' := (<affine> ⌜l = l'⌝)%I;

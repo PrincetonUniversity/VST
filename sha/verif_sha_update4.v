@@ -21,23 +21,23 @@ assert (Zlength (intlist_to_bytelist blocks) =
 Qed.
 
 Definition sha_update_loop_body :=
-  (Ssequence
-     (Scall None
-        (Evar _sha256_block_data_order
-           (Tfunction
-              (Tcons (tptr t_struct_SHA256state_st) (Tcons (tptr tvoid) Tnil))
-              tvoid cc_default))
-        [Etempvar _c (tptr t_struct_SHA256state_st);
-        Etempvar _data (tptr tuchar)])
-     (Ssequence
-        (Sset _data
-           (Ebinop Oadd (Etempvar _data (tptr tuchar))
-              (Ebinop Omul (Econst_int (Int.repr 16) tint)
-                 (Econst_int (Int.repr 4) tint) tint) (tptr tuchar)))
-        (Sset _len
-           (Ebinop Osub (Etempvar _len tuint)
-              (Ebinop Omul (Econst_int (Int.repr 16) tint)
-                 (Econst_int (Int.repr 4) tint) tint) tuint)))).
+              (Ssequence
+                (Scall None
+                  (Evar _sha256_block_data_order (Tfunction
+                                                   ((tptr (Tstruct _SHA256state_st noattr)) ::
+                                                    (tptr tvoid) :: nil)
+                                                   tvoid cc_default))
+                  ((Etempvar _c (tptr (Tstruct _SHA256state_st noattr))) ::
+                   (Etempvar _data (tptr tuchar)) :: nil))
+                (Ssequence
+                  (Sset _data
+                    (Ebinop Oadd (Etempvar _data (tptr tuchar))
+                      (Ebinop Omul (Econst_int (Int.repr 16) tint)
+                        (Econst_int (Int.repr 4) tint) tint) (tptr tuchar)))
+                  (Sset _len
+                    (Ebinop Osub (Etempvar _len tuint)
+                      (Ebinop Omul (Econst_int (Int.repr 16) tint)
+                        (Econst_int (Int.repr 4) tint) tint) tuint)))).
 
 Definition update_outer_if :=
      Sifthenelse

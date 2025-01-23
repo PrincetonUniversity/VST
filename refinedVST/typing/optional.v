@@ -7,19 +7,19 @@ uses the same instances as Optionable.
   TODO: findout if there is a better way, maybe using Canonical Structures?
  *)
 
-Class Optionable `{!typeG Σ} {cs : compspecs} (ty : type) (optty : type) (ot1 ot2 : Ctypes.type) := {
+Class Optionable `{!typeG OK_ty Σ} {cs : compspecs} (ty : type) (optty : type) (ot1 ot2 : Ctypes.type) := {
   opt_pre : val → val → iProp Σ;
   opt_bin_op (bty beq : bool) v1 v2 σ v :
     (⊢ opt_pre v1 v2 -∗ (if bty then v1 ◁ᵥ ty else v1 ◁ᵥ optty) -∗ v2 ◁ᵥ optty -∗ juicy_mem.mem_auth σ -∗
-      ⌜sem_binary_operation _ (if beq then Oeq else One) v1 ot1 v2 ot2 σ = Some v ↔ Vint (Int.repr (bool_to_Z (xorb bty beq))) = v⌝);
+      ⌜sem_binary_operation _ (if beq then Cop.Oeq else Cop.One) v1 ot1 v2 ot2 σ = Some v ↔ Vint (Int.repr (bool_to_Z (xorb bty beq))) = v⌝);
 }.
-Arguments opt_pre {_ _ _} _ {_ _ _ _} _ _.
+Arguments opt_pre {_ _ _ _} _ {_ _ _ _} _ _.
 
-Class OptionableAgree `{!typeG Σ} {cs : compspecs} (ty1 ty2 : type) : Prop :=
+Class OptionableAgree `{!typeG OK_ty Σ} {cs : compspecs} (ty1 ty2 : type) : Prop :=
   optionable_dist : True.
 
 Section optional.
-  Context `{!typeG Σ} {cs : compspecs}.
+  Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
   Global Program Instance optionable_ty_of_rty A (r : rtype A) `{!Inhabited A} optty ot1 ot2
     `{!∀ x, Optionable (x @ r) optty ot1 ot2}: Optionable r optty ot1 ot2 := {|
@@ -54,11 +54,9 @@ Section optional.
   Next Obligation.
     iIntros (ty?????[??]). by iDestruct 1 as "[[% Hv]|[% Hv]]";iDestruct (ty_aligned with "Hv") as %?.
   Qed.
-(*   Next Obligation.
-    iIntros (ty?????[??]). by iDestruct 1 as "[[% Hv]|[% Hv]]";iDestruct (ty_size_eq with "Hv") as %?.
-  Qed. *)
   Next Obligation.
-  Admitted.
+    iIntros (ty?????[??]). by iDestruct 1 as "[[% Hv]|[% Hv]]";iDestruct (ty_size_eq with "Hv") as %?.
+  Qed.
   Next Obligation.
     iIntros (ty optty ????[??]) "Hl".
     iDestruct "Hl" as "[[% Hl]|[% Hl]]"; iDestruct (ty_deref with "Hl") as (?) "[? ?]"; eauto with iFrame.
@@ -167,7 +165,7 @@ Section optional.
   Proof.
     iIntros "HT Hv1 Hv2" (Φ) "HΦ".
     iDestruct "Hv1" as "[[% Hv1]|[% Hv1]]".
-    - iIntros (?) "Hctx".
+    - iIntros "!>" (?) "Hctx !>".
       iExists (i2v (bool_to_Z false) tint).
       iSplit. {
         iStopProof; split => rho; monPred.unseal.
@@ -178,7 +176,7 @@ Section optional.
       iDestruct "HT" as "[_ [HT _]]". iFrame.
       iDestruct ("HT" with "[//] Hv1") as "HT".
       iApply ("HΦ" with "[] HT"). by iExists _.
-    - iIntros (?) "Hctx".
+    - iIntros "!>" (?) "Hctx !>".
       iExists (i2v (bool_to_Z true) tint).
       iSplit. {
         iStopProof; split => rho; monPred.unseal.
@@ -198,7 +196,7 @@ Section optional.
     ⊢ typed_bin_op v1 ⎡v1 ◁ᵥ ty⎤ v2 ⎡v2 ◁ᵥ optty⎤ Oeq ot1 ot2 T.
   Proof.
     iIntros "HT Hv1 Hv2". iIntros (Φ) "HΦ".
-    iIntros (?) "Hctx".
+    iIntros "!>" (?) "Hctx !>".
     iExists (i2v (bool_to_Z false) tint).
     iSplit. {
         iStopProof; split => rho; monPred.unseal.
@@ -217,11 +215,11 @@ Section optional.
     case_if b
       (li_trace (TraceOptionalNe b) (⎡v1 ◁ᵥ ty⎤ -∗ T (i2v (bool_to_Z true) tint) (true @ boolean tint)))
       (li_trace (TraceOptionalNe (¬ b)) (⎡v1 ◁ᵥ optty⎤ -∗ T (i2v (bool_to_Z false) tint) (false @ boolean tint)))
-    ⊢ typed_bin_op v1 ⎡v1 ◁ᵥ b @ (optional ty optty)⎤ v2 ⎡v2 ◁ᵥ optty⎤ One ot1 ot2 T.
+    ⊢ typed_bin_op v1 ⎡v1 ◁ᵥ b @ (optional ty optty)⎤ v2 ⎡v2 ◁ᵥ optty⎤ Cop.One ot1 ot2 T.
   Proof.
     unfold li_trace. iIntros "HT Hv1 Hv2" (Φ) "HΦ".
     iDestruct "Hv1" as "[[% Hv1]|[% Hv1]]".
-    - iIntros (?) "Hctx".
+    - iIntros "!>" (?) "Hctx !>".
       iExists (i2v (bool_to_Z true) tint).
       iSplit. {
         iStopProof; split => rho; monPred.unseal.
@@ -232,7 +230,7 @@ Section optional.
       iDestruct "HT" as "[_ [HT _]]". iFrame.
       iDestruct ("HT" with "[//] Hv1") as "HT".
       iApply ("HΦ" with "[] HT"). by iExists _.
-    - iIntros (?) "Hctx".
+    - iIntros "!>" (?) "Hctx !>".
       iExists (i2v (bool_to_Z false) tint).
       iSplit. {
         iStopProof; split => rho; monPred.unseal.
@@ -265,7 +263,7 @@ Notation "'optional' == ... : P" := (TraceOptionalEq P) (at level 100, only prin
 Notation "'optional' != ... : P" := (TraceOptionalNe P) (at level 100, only printing).
 
 Section optionalO.
-  Context `{!typeG Σ} {cs : compspecs}.
+  Context `{!typeG OK_ty Σ} {cs : compspecs}.
     (* Separate definition such that we can make it typeclasses opaque later. *)
   Program Definition optionalO_type {A : Type} (ty : A → type) (optty : type) (b : option A) : type := {|
       ty_has_op_type ot mt := ((∀ x, (ty x).(ty_has_op_type) ot mt) ∧ optty.(ty_has_op_type) ot mt)%type;
@@ -278,11 +276,9 @@ Section optionalO.
   Next Obligation.
     iIntros (A ty? [x|] ???[Hty ?]) "Hv";iDestruct (ty_aligned with "Hv") as %Ha => //.
   Qed.
-(*   Next Obligation.
-    iIntros (A ty? [x|] ???[??]) "Hv";iDestruct (ty_size_eq with "Hv") as %Ha => //.
-  Qed. *)
   Next Obligation.
-  Admitted.
+    iIntros (A ty? [x|] ???[??]) "Hv";iDestruct (ty_size_eq with "Hv") as %Ha => //.
+  Qed.
   Next Obligation.
     iIntros (A ty optty [] ?? l[??]) "Hl"; rewrite /with_refinement/ty_own/=; iDestruct (ty_deref with "Hl") as (?) "[? ?]"; eauto with iFrame.
   Qed.
@@ -397,7 +393,7 @@ Section optionalO.
   Proof.
     unfold li_trace. iIntros "HT Hv1 Hv2". iIntros (Φ) "HΦ".
     destruct b.
-    - iIntros (?) "Hctx".
+    - iIntros "!>" (?) "Hctx !>".
       iExists (i2v (bool_to_Z false) tint).
       iSplit. {
         iStopProof; split => rho; monPred.unseal.
@@ -408,7 +404,7 @@ Section optionalO.
       iDestruct "HT" as "[_ [% HT]]".
       iDestruct ("HT" with "Hv1") as "HT". iFrame.
       iApply "HΦ" => //. iExists _. iSplit; iPureIntro; done.
-    - iIntros (?) "Hctx".
+    - iIntros "!>" (?) "Hctx !>".
       iExists (i2v (bool_to_Z true) tint).
       iSplit. {
         iStopProof; split => rho; monPred.unseal.
@@ -428,11 +424,11 @@ Section optionalO.
     ⎡opt_pre (ty (default inhabitant b)) v1 v2⎤ ∧
     case_destruct b (λ b _,
       li_trace (TraceOptionalO, b) (∀ v, ⎡if b is Some x then v1 ◁ᵥ ty x else v1 ◁ᵥ optty⎤ -∗ T v ((if b is Some x then true else false) @ boolean tint)))
-    ⊢ typed_bin_op v1 ⎡v1 ◁ᵥ b @ optionalO ty optty⎤ v2 ⎡v2 ◁ᵥ optty⎤ One ot1 ot2 T.
+    ⊢ typed_bin_op v1 ⎡v1 ◁ᵥ b @ optionalO ty optty⎤ v2 ⎡v2 ◁ᵥ optty⎤ Cop.One ot1 ot2 T.
   Proof.
     unfold li_trace. iIntros "HT Hv1 Hv2". iIntros (Φ) "HΦ".
     destruct b.
-    - iIntros (?) "Hctx".
+    - iIntros "!>" (?) "Hctx !>".
       iExists (i2v (bool_to_Z true) tint).
       iSplit. {
         iStopProof; split => rho; monPred.unseal.
@@ -443,7 +439,7 @@ Section optionalO.
       iDestruct "HT" as "[_ [% HT]]".
       iDestruct ("HT" with "Hv1") as "HT". iFrame.
       iApply "HΦ" => //. iExists _. iSplit; iPureIntro; done.
-    - iIntros (?) "Hctx".
+    - iIntros "!>" (?) "Hctx !>".
       iExists (i2v (bool_to_Z false) tint).
       iSplit. {
         iStopProof; split => rho; monPred.unseal.

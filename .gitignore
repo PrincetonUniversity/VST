@@ -66,6 +66,9 @@ compcert/test/
 *.vos
 *.vok
 *.glob
+*.timing
+*.prof.json
+*.prof.json.gz
 *.v.d
 .depend
 .loadpath

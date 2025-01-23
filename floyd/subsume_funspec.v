@@ -11,7 +11,7 @@ Import -(notations) compcert.lib.Maps.
 
 (*
 Definition NDfunspec_sub (f1 f2 : funspec) :=
-let Delta2 := rettype_tycontext (snd (typesig_of_funspec f2)) in
+let Delta2 := xtype_tycontext (snd (typesig_of_funspec f2)) in
 match f1 with
 | mk_funspec tpsig1 cc1 (ConstType A1) P1 Q1 _ _ =>
     match f2 with
@@ -22,7 +22,7 @@ match f1 with
          ⊢ (∃ x1:_, ∃ F:_, 
                            (F ∗ (P1 nil x1 rho)) ∧
                                (!! (forall rho',
-                                           ((!! (tc_environ (rettype_tycontext (snd tpsig1)) rho') ∧
+                                           ((!! (tc_environ (xtype_tycontext (snd tpsig1)) rho') ∧
                                                  (F ∗ (Q1 nil x1 rho')))
                                          ⊢ (Q2 nil x2 rho')))))
  | _ => False end
@@ -33,7 +33,7 @@ Section mpred.
 Context `{!VSTGS OK_ty Σ}.
 
 Definition NDfunspec_sub (f1 f2 : funspec) :=
-let Delta2 := rettype_tycontext (snd (typesig_of_funspec f2)) in
+let Delta2 := xtype_tycontext (snd (typesig_of_funspec f2)) in
 match f1 with
 | mk_funspec tpsig1 cc1 (ConstType A1) E1 P1 Q1 =>
     match f2 with
@@ -71,7 +71,7 @@ Qed.
 
 (*
 Definition funspec_sub' (f1 f2 : funspec):Prop :=
-let Delta := rettype_tycontext (snd (typesig_of_funspec f1)) in
+let Delta := xtype_tycontext (snd (typesig_of_funspec f1)) in
 match f1 with
 | mk_funspec fsig1 cc1 A1 P1 Q1 _ _ =>
     match f2 with
@@ -165,7 +165,7 @@ Lemma semax_call_subsume:
     funspec_sub fs1 (mk_funspec  (argsig,retsig) cc A E P Q)  ->
   forall Delta x F ret a bl,
            Cop.classify_fun (typeof a) =
-           Cop.fun_case_f (typelist_of_type_list argsig) retsig cc  ->
+           Cop.fun_case_f argsig retsig cc ->
            (retsig = Tvoid -> ret = None) ->
           tc_fn_return Delta ret retsig ->
   semax (E x) Delta
@@ -188,7 +188,7 @@ Lemma semax_call_subsume_si:
   forall (fs1: funspec) A (E : dtfr (MaskTT A)) P Q argsig retsig cc,
    forall Delta  x F ret a bl,
            Cop.classify_fun (typeof a) =
-           Cop.fun_case_f (typelist_of_type_list argsig) retsig cc  ->
+           Cop.fun_case_f argsig retsig cc  ->
            (retsig = Tvoid -> ret = None) ->
           tc_fn_return Delta ret retsig ->
   semax (E x) Delta
@@ -214,7 +214,7 @@ Lemma semax_call_NDsubsume :
         (NDmk_funspec  (argsig,retsig) cc A P Q)  ->
     forall  Delta  x F ret a bl,
            Cop.classify_fun (typeof a) =
-           Cop.fun_case_f (typelist_of_type_list argsig) retsig cc ->
+           Cop.fun_case_f argsig retsig cc ->
            (retsig = Tvoid -> ret = None) ->
           tc_fn_return Delta ret retsig ->
   semax ⊤ Delta

@@ -128,7 +128,7 @@ Proof.
 
   assert (X1: forall i, In i (map fst Imp) ->
       exists
-        (f : external_function) (ts : typelist) (t : type) (cc : calling_convention),
+        (f : external_function) (ts : list type) (t : type) (cc : calling_convention),
         PTree.get i (QP.prog_defs p) = Some (Gfun (External f ts t cc))) by apply C.
 
   assert (X3: list_norepet (map fst V ++ map fst (GG ++ Imp))). {
@@ -220,7 +220,7 @@ Inductive semaxfunc {Espec} {cs : compspecs} (V : varspecs) (G : funspecs) (ge :
   @semaxfunc Espec cs V G ge ((id, Internal f) :: fs) ((id, phi) :: G')
 
 | semaxfunc_cons_ext: forall (fs : list (ident * Clight.fundef)) (id : ident) 
-    (ef : external_function) (argsig : typelist) (retsig : type) (G' : funspecs) (cc : calling_convention)
+    (ef : external_function) (argsig : list type) (retsig : type) (G' : funspecs) (cc : calling_convention)
     phi,
    semaxfunc_ExternalInfo Espec ge id ef argsig retsig cc phi ->
    id_in_list id (map fst fs) = false ->
@@ -273,13 +273,13 @@ Qed.
 Lemma semaxfunc_cons_ext_vacuous:
      forall {Espec: OracleKind} (V : varspecs) (G : funspecs) (cs : compspecs) ge
          (fs : list (ident * Clight.fundef)) (id : ident) (ef : external_function)
-         (argsig : typelist) (retsig : type)
+         (argsig : list type) (retsig : type)
          (G' : funspecs) cc b,
        (id_in_list id (map fst fs)) = false ->
        ef_sig ef =
        {|
-         sig_args := typlist_of_typelist argsig;
-         sig_res := rettype_of_type retsig;
+         sig_args := typlist_of_list type argsig;
+         sig_res := xtype_of_type retsig;
          sig_cc := cc_of_fundef (External ef argsig retsig cc) |} ->
        Genv.find_symbol ge id = Some b ->
        Genv.find_funct_ptr ge b = Some (External ef argsig retsig cc) ->
@@ -290,7 +290,7 @@ Proof.
 intros.
 eapply (@semaxfunc_cons_ext Espec cs V G ge fs id ef argsig retsig); trivial.
 repeat split; trivial.
-* rewrite <-(typelist2list_arglist _ 1). reflexivity.
+* rewrite <-(list type2list_arglist _ 1). reflexivity.
 * right. clear. hnf. intros. simpl in X; inv X.
 * intros. simpl. apply andp_left1, FF_left.
 * apply semax_external_FF.
@@ -1298,8 +1298,8 @@ Variable MainE_vacuous: forall i phi, find_id i MainE = Some phi -> find_id i co
          exists ef argsig retsig cc, 
            phi = vacuous_funspec (External ef argsig retsig cc) /\ 
            find_id i (QPprog_funct p) = Some (External ef argsig retsig cc) /\
-           ef_sig ef = {| sig_args := typlist_of_typelist argsig;
-                          sig_res := rettype_of_type retsig;
+           ef_sig ef = {| sig_args := typlist_of_list type argsig;
+                          sig_res := xtype_of_type retsig;
                           sig_cc := cc_of_fundef (External ef argsig retsig cc) |}.
 
 Lemma add_main:
@@ -1401,7 +1401,7 @@ simpl in H.
       destruct (MainE_vacuous _ _ H0 coreE_i) as [ef [tys [rt [cc [PHI [FDp EFsig]]]]]]; clear MainE_vacuous JUST.  rewrite FDp in H; inv H.
       apply find_id_In_map_fst in H0. clear HypME1.
       split3; trivial.
-      split3; [ apply typelist2list_arglist
+      split3; [ apply list type2list_arglist
               | apply EFsig |].
       split3; [ right; red; simpl; intros h H; inv H
               | simpl; intros gx l H; inv H |].

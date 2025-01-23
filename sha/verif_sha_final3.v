@@ -23,7 +23,7 @@ Definition final_loop :=
                              (Scall None
                                 (Evar ___builtin_write32_reversed
                                    (Tfunction
-                                      (Tcons (tptr tuint) (Tcons tuint Tnil))
+                                      (cons (tptr tuint) (cons tuint nil))
                                       tvoid cc_default))
                                 [Ecast (Etempvar _md (tptr tuchar))
                                    (tptr tuint); Etempvar _ll tuint])
@@ -39,8 +39,8 @@ Definition sha_final_epilog :=
               (Ssequence
                           (Scall None
                             (Evar _sha256_block_data_order (Tfunction
-                                 (Tcons(tptr t_struct_SHA256state_st)
-                                   (Tcons (tptr tvoid) Tnil))
+                                 (cons(tptr t_struct_SHA256state_st)
+                                   (cons (tptr tvoid) nil))
                                  tvoid cc_default))
                             ((Etempvar _c (tptr t_struct_SHA256state_st)) ::
                              (Etempvar _p (tptr tuchar)) :: nil))
@@ -54,9 +54,9 @@ Definition sha_final_epilog :=
                             (Ssequence
                               (Scall None
                                 (Evar _memset (Tfunction
-                                                (Tcons (tptr tvoid)
-                                                  (Tcons tint
-                                                    (Tcons tuint Tnil)))
+                                                (cons (tptr tvoid)
+                                                  (cons tint
+                                                    (cons tuint nil)))
                                                 (tptr tvoid) cc_default))
                                 ((Etempvar _p (tptr tuchar)) ::
                                  (Econst_int (Int.repr 0) tint) ::
@@ -75,7 +75,7 @@ Definition sha_final_part2 :=
         (Ssequence
            (Scall None
               (Evar ___builtin_write32_reversed
-                 (Tfunction (Tcons (tptr tuint) (Tcons tuint Tnil)) tvoid cc_default))
+                 (Tfunction (cons (tptr tuint) (cons tuint nil)) tvoid cc_default))
               [Ecast (Etempvar _p (tptr tuchar)) (tptr tuint);
               Etempvar _cNh tuint])
            (Sset _p
@@ -90,7 +90,7 @@ Definition sha_final_part2 :=
               (Ssequence
                  (Scall None
                     (Evar ___builtin_write32_reversed
-                       (Tfunction (Tcons (tptr tuint) (Tcons tuint Tnil))
+                       (Tfunction (cons (tptr tuint) (cons tuint nil))
                           tvoid cc_default))
                     [Ecast (Etempvar _p (tptr tuchar)) (tptr tuint);
                     Etempvar _cNl tuint])

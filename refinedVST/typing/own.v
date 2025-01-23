@@ -3,7 +3,7 @@ From VST.typing Require Import programs optional boolean int singleton.
 From VST.typing Require Import type_options.
 
 Section own.
-  Context `{!typeG Σ} {cs : compspecs}.
+  Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
   Local Typeclasses Transparent place.
 
@@ -19,7 +19,8 @@ Section own.
     destruct β => //=. by iApply ty_share.
   Qed.
   Next Obligation. iIntros (β ty l ot mt l' (? & ->)). unfold has_layout_loc. rewrite !field_compatible_tptr. by iDestruct 1 as (?) "_". Qed.
-  Next Obligation. Admitted.
+  Next Obligation. iIntros (β ty l ot mt l' (? & ->)).
+    iIntros "(-> & ?)"; iPureIntro. intros ?; hnf. simple_if_tac; done. Qed.
   Next Obligation. iIntros (β ty l ot mt l' (? & ->)) "(%&Hl&Hl')". rewrite left_id. unfold heap_mapsto_own_state. erewrite mapsto_tptr. eauto with iFrame. Qed.
   Next Obligation. iIntros (β ty l ot mt l' v (? & ->) ?) "Hl [-> Hl']". unfold has_layout_loc in *. rewrite field_compatible_tptr in H. unfold heap_mapsto_own_state. erewrite mapsto_tptr. by iFrame. Qed.
 (*   Next Obligation.
@@ -250,12 +251,12 @@ Section own.
            end = Some b) T:
     (⎡l1 ◁ₗ{β1} ty1⎤ -∗ ⎡l2 ◁ₗ{β2} ty2⎤ -∗ <affine> ⌜l1.1 = l2.1⌝ ∗ (
       ⌜0 ≤ l1.2 ≤ Ptrofs.max_unsigned ∧ 0 ≤ l2.2 ≤ Ptrofs.max_unsigned⌝ ∧
-      ⎡weak_valid_pointer l1⎤ ∧ ⎡weak_valid_pointer l2⎤ ∧
+      ⎡expr.weak_valid_pointer l1⎤ ∧ ⎡expr.weak_valid_pointer l2⎤ ∧
       T (i2v (bool_to_Z b) tint) (b @ boolean tint)))
     ⊢ typed_bin_op l1 ⎡l1 ◁ₗ{β1} ty1⎤ l2 ⎡l2 ◁ₗ{β2} ty2⎤ op (tptr t1) (tptr t2) T.
   Proof.
     iIntros "HT Hl1 Hl2". iIntros (Φ) "HΦ". iDestruct ("HT" with "Hl1 Hl2") as (Heq (? & ?)) "HT".
-    iIntros (?) "Hm".
+    iIntros "!>" (?) "Hm !>".
     iDestruct (binop_lemmas4.weak_valid_pointer_dry with "[$Hm HT]") as %H1.
     { iDestruct "HT" as "($ & _)". }
     iDestruct (binop_lemmas4.weak_valid_pointer_dry with "[$Hm HT]") as %H2.
@@ -266,12 +267,12 @@ Section own.
       assert (classify_cmp (tptr t1) (tptr t2) = cmp_case_pp) as Hclass by done.
       rewrite -val_of_bool_eq.
       destruct op => //; simplify_eq; simpl; rewrite /Cop.sem_cmp Hclass /cmp_ptr /= if_true // H1 H2 /=.
-      + rewrite ltuptrofs_repr_zlt //.
-      + rewrite ltuptrofs_repr_zlt //.
+      + rewrite /Ptrofs.ltu !Ptrofs.unsigned_repr //.
+      + rewrite /Ptrofs.ltu !Ptrofs.unsigned_repr //.
         case_bool_decide; destruct (zlt _ _); (done || lia).
-      + rewrite ltuptrofs_repr_zlt //.
+      + rewrite /Ptrofs.ltu !Ptrofs.unsigned_repr //.
         case_bool_decide; destruct (zlt _ _); (done || lia).
-      + rewrite ltuptrofs_repr_zlt //.
+      + rewrite /Ptrofs.ltu !Ptrofs.unsigned_repr //.
         case_bool_decide; destruct (zlt _ _); (done || lia).
     - iDestruct "HT" as "(_ & _ & HT)".
       iApply ("HΦ" with "[] HT") => //.
@@ -385,7 +386,7 @@ Notation "&own< ty >" := (frac_ptr Own ty) (only printing, format "'&own<' ty '>
 Notation "&shr< ty >" := (frac_ptr Shr ty) (only printing, format "'&shr<' ty '>'") : printing_sugar.
 
 Section ptr.
-  Context `{!typeG Σ} {cs : compspecs}.
+  Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
   (* Should loc_in_bounds be replaced with valid_pointer'? But that would take a piece of ownership of l'. *)
   Program Definition ptr_type (n : nat) (l' : address) : type := {|
@@ -395,8 +396,7 @@ Section ptr.
   |}.
   Next Obligation. iIntros (????). iDestruct 1 as "[$ ?]". by iApply heap_mapsto_own_state_share. Qed.
   Next Obligation. iIntros (n l ot mt l' (? & ->)). iDestruct 1 as (?) "_". rewrite /has_layout_loc field_compatible_tptr //. Qed.
-  Next Obligation. Admitted.
-(*   Next Obligation. iIntros (n l ot mt v (? & ->)) "[Hv _]". by iDestruct "Hv" as %->. Qed. *)
+  Next Obligation. iIntros (n l ot mt l' (? & ->) ->). iPureIntro. intros ?; hnf. simple_if_tac; done. Qed.
   Next Obligation. iIntros (n l ot mt v (? & ->)) "[? Hl]". unfold heap_mapsto_own_state. erewrite mapsto_tptr. eauto with iFrame. Qed.
   Next Obligation. iIntros (n l ot mt l' v (? & ->) ?) "Hl ->". rewrite /has_layout_loc field_compatible_tptr in H; unfold heap_mapsto_own_state; erewrite mapsto_tptr; by iFrame. Qed.
 (*   Next Obligation.
@@ -466,7 +466,7 @@ Section ptr.
 End ptr.
 
 Section null.
-  Context `{!typeG Σ} {cs : compspecs}.
+  Context `{!typeG OK_ty Σ} {cs : compspecs}.
   Program Definition null : type := {|
     ty_has_op_type ot mt := (∃ t, ot = tptr t)%type;
     ty_own β l := (<affine> ⌜field_compatible (tptr tvoid) [] l⌝ ∗ l ↦_(tptr tvoid)[β] nullval)%I;
@@ -474,8 +474,7 @@ Section null.
   |}.
   Next Obligation. iIntros (???). iDestruct 1 as "[$ ?]". by iApply heap_mapsto_own_state_share. Qed.
   Next Obligation. iIntros (???(? & ->)) "[% _]". rewrite /has_layout_loc field_compatible_tptr //. Qed.
-  Next Obligation. Admitted.
-(*   Next Obligation. by iIntros (???(? & ->)->). Qed. *)
+  Next Obligation. iIntros (???(? & ->) ->). iPureIntro; intros ?; hnf. simple_if_tac; done. Qed.
   Next Obligation. iIntros (???(? & ->)) "[% ?]". iExists _. unfold mapsto. erewrite mapsto_tptr. by iFrame. Qed.
   Next Obligation. iIntros (????(? & ->)?) "? ->". rewrite /has_layout_loc field_compatible_tptr in H; unfold mapsto; erewrite mapsto_tptr. by iFrame. Qed.
 (*   Next Obligation. iIntros (v ot mt st ?). apply mem_cast_compat_loc; [done|]. iPureIntro. naive_solver. Qed. *)
@@ -508,25 +507,25 @@ Section null.
     else Val.cmpu_bool (Mem.valid_pointer m) Ceq l1 l2.
 
   Lemma eval_bin_op_ptr_cmp ce l1 l2 t1 t2 op h v b:
-    match op with | Oeq | One => True | _ =>  False end →
+    match op with | Cop.Oeq | Cop.One => True | _ =>  False end →
     heap_loc_eq l1 l2 h = Some b →
     sem_binary_operation ce op l1 (tptr t1) l2 (tptr t2) h = Some v
-     ↔ Val.of_bool (if op is Oeq then b else negb b) = v.
+     ↔ Val.of_bool (if op is Cop.Oeq then b else negb b) = v.
   Proof.
     rewrite /heap_loc_eq /=. move => ? Heq.
     rewrite /sem_binary_operation; destruct op => //; rewrite /Cop.sem_cmp /= /cmp_ptr /=.
     - rewrite Heq /=; split; congruence.
-    - rewrite /Val.cmpu_bool /Val.cmplu_bool in Heq |- *; destruct l1 => //; destruct l2 => //; simpl in *;
-          first [inv Heq; split; congruence | try if_tac in Heq; destruct (_ && _); inv Heq; simpl; split; congruence].
+    - rewrite /Val.cmpu_bool /Val.cmplu_bool in Heq |- *; destruct l1 => //; destruct l2 => //; simpl in *; simple_if_tac; simpl;
+        first [inv Heq; split; congruence | try if_tac in Heq; destruct (_ && _); inv Heq; simpl; split; congruence].
   Qed.
 
   Lemma type_binop_null_null v1 v2 t1 t2 op T:
-    (<affine> ⌜match op with | Oeq | One => True | _ => False end⌝ ∗ ∀ v,
-          T v ((if op is Oeq then true else false) @ boolean tint))
+    (<affine> ⌜match op with | Cop.Oeq | Cop.One => True | _ => False end⌝ ∗ ∀ v,
+          T v ((if op is Cop.Oeq then true else false) @ boolean tint))
     ⊢ typed_bin_op v1 ⎡v1 ◁ᵥ null⎤ v2 ⎡v2 ◁ᵥ null⎤ op (tptr t1) (tptr t2) T.
   Proof.
     iIntros "[% HT]" (-> -> Φ) "HΦ".
-    iIntros (?) "$".
+    iIntros "!>" (?) "$ !>".
     iExists (Val.of_bool (if op is Oeq then true else false)); iSplit.
     - iStopProof; split => rho; monPred.unseal.
       apply bi.pure_intro.
@@ -624,18 +623,18 @@ Section null.
 End null.
 
 Section optionable.
-  Context `{!typeG Σ} {cs : compspecs}.
+  Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
   Global Program Instance frac_ptr_optional p ty β t1 t2: Optionable (p @ frac_ptr β ty) null (tptr t1) (tptr t2) := {|
-    opt_pre v1 v2 := (p ◁ₗ{β} ty -∗ valid_pointer p)%I
+    opt_pre v1 v2 := (p ◁ₗ{β} ty -∗ expr.valid_pointer p)%I
   |}.
   Next Obligation.
     intros.
     iIntros "Hpre H1 -> Hctx".
     destruct bty; [ iDestruct "H1" as (->) "Hty" | iDestruct "H1" as %-> ].
     - iDestruct ("Hpre" with "Hty") as "Hlib".
-      iDestruct (valid_pointer_dry0 with "[$Hctx $Hlib]") as %Hvalid; iPureIntro.
-      destruct beq => /=; rewrite /Cop.sem_cmp /= /cmp_ptr /= Hvalid /= /Vtrue /Vfalse /Int.zero /Int.one; split; congruence.
+      iDestruct (expr_lemmas4.valid_pointer_dry0 with "[$Hctx $Hlib]") as %Hvalid; iPureIntro.
+      destruct beq => /=; rewrite /Cop.sem_cmp /= /cmp_ptr /nullval /=; change Archi.ptr64 with true; rewrite /= Hvalid /= /Vtrue /Vfalse /Int.zero /Int.one; split; congruence.
     - rewrite eval_bin_op_ptr_cmp // /= ?Int.eq_true ?Int64.eq_true; destruct beq => //.
   Qed.
   Global Program Instance frac_ptr_optional_agree ty1 ty2 β : OptionableAgree (frac_ptr β ty1) (frac_ptr β ty2).
@@ -709,7 +708,7 @@ Global Typeclasses Opaque frac_ptr_type frac_ptr.
 Global Typeclasses Opaque null.
 
 Section optional_null.
-  Context `{!typeG Σ} {cs : compspecs}.
+  Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
   Local Typeclasses Transparent optional_type optional.
 

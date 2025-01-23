@@ -43,7 +43,7 @@ Sfor (Sset _i (Econst_int (Int.repr 0) tint))
                     (tptr tuint)) tuint))
            (Scall None
               (Evar _st32
-                 (Tfunction (Tcons (tptr tuchar) (Tcons tuint Tnil)) tvoid
+                 (Tfunction [tptr tuchar; tuint] tvoid
                     cc_default))
               [Ebinop Oadd (Etempvar _out (tptr tuchar))
                  (Ebinop Omul (Econst_int (Int.repr 4) tint)

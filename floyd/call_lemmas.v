@@ -39,7 +39,7 @@ Definition removeopt_localdef (ret: option ident) (l: list localdef) : list loca
    end.
 
 Lemma semax_call': forall Delta fs A E Pre Post x ret argsig retsig cc a bl P Q R,
-   Cop.classify_fun (typeof a) = Cop.fun_case_f (typelist_of_type_list argsig) retsig cc ->
+   Cop.classify_fun (typeof a) = Cop.fun_case_f argsig retsig cc ->
    match retsig, ret with
    | Tvoid, None => True
    | Tvoid, Some _ => False
@@ -85,7 +85,7 @@ Qed.
 
 Lemma semax_call1: forall Delta fs A E Pre Post x id argsig retsig cc a bl P Q R
    (Hsub: funspec_sub fs (mk_funspec (argsig,retsig) cc A E Pre Post)),
-   Cop.classify_fun (typeof a) = Cop.fun_case_f (typelist_of_type_list argsig) retsig cc  ->
+   Cop.classify_fun (typeof a) = Cop.fun_case_f argsig retsig cc  ->
    match retsig with
    | Tvoid => False
    | _ => True
@@ -111,7 +111,7 @@ Definition ifvoid {T} t (A B: T) :=
 Lemma semax_call0: forall Delta fs A E Pre Post x
       argsig retty cc a bl P Q R
    (Hsub: funspec_sub fs (mk_funspec (argsig,retty) cc A E Pre Post)),
-   Cop.classify_fun (typeof a) = Cop.fun_case_f (typelist_of_type_list argsig) retty cc->
+   Cop.classify_fun (typeof a) = Cop.fun_case_f argsig retty cc->
   semax (E x) Delta
          ((*▷*)(tc_expr Delta a ∧ tc_exprlist Delta argsig bl)
            ∧ (▷assert_of (fun rho => Pre x (ge_of rho, eval_exprlist argsig bl rho))
@@ -160,12 +160,11 @@ Proof.
   rewrite bi.and_elim_r; iFrame.
 Qed.
 
-Lemma eqb_typelist_refl: forall tl, eqb_typelist tl tl = true.
+Lemma eqb_typelist_refl: forall c, eqb_list eqb_type c c = true.
 Proof.
-induction tl; simpl; auto.
-apply andb_true_iff.
-split; auto.
-apply eqb_type_refl.
+intros.
+apply eqb_list_spec; auto.
+exact eqb_type_spec.
 Qed.
 
 Lemma semax_call_id0:
@@ -177,7 +176,7 @@ Lemma semax_call_id0:
   semax (E x) Delta ((*▷*) (tc_exprlist Delta argsig bl
                   ∧ ▷ (assert_of (fun rho => Pre x (ge_of rho, eval_exprlist argsig bl rho))
                          ∗ PROPx P (LOCALx Q (SEPx R)))))
-    (Scall None (Evar id (Tfunction (typelist_of_type_list argsig) retty cc)) bl)
+    (Scall None (Evar id (Tfunction argsig retty cc)) bl)
     (normal_ret_assert
        ((ifvoid retty (assert_of (`(Post x: environ -> mpred) (make_args nil nil)))
                                                    (∃ v:val, assert_of (`(Post x: environ -> mpred) (make_args (ret_temp::nil) (v::nil)))))
@@ -211,7 +210,7 @@ Lemma semax_call_id1:
                 ▷(assert_of (fun rho => Pre x (ge_of rho, eval_exprlist argsig bl rho))
                   ∗ PROPx P (LOCALx Q (SEPx R)))))
     (Scall (Some ret)
-             (Evar id (Tfunction (typelist_of_type_list argsig) retty cc))
+             (Evar id (Tfunction argsig retty cc))
              bl)
     (normal_ret_assert
        ((assert_of (`(Post x: environ -> mpred) (get_result1 ret))
@@ -407,7 +406,7 @@ Definition OLDcall_setup1
   can_assume_funcptr E Delta P Q R' a fs /\
   (PROPx P (LOCALx Q (SEPx R')) ⊢ ▷ PROPx P (LOCALx Q (SEPx R))) /\
 
-  Cop.classify_fun (typeof a) = Cop.fun_case_f (typelist_of_type_list argsig) retty cc /\
+  Cop.classify_fun (typeof a) = Cop.fun_case_f argsig retty cc /\
   (ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
          ⊢ (tc_expr Delta a))  /\
   (ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
@@ -426,7 +425,7 @@ Definition call_setup1
 
   can_assume_funcptr E Delta P Q R a fs /\
 
-  Cop.classify_fun (typeof a) = Cop.fun_case_f (typelist_of_type_list argsig) retty cc /\
+  Cop.classify_fun (typeof a) = Cop.fun_case_f argsig retty cc /\
   (ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
          ⊢ (tc_expr Delta a) ) /\
   (ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
@@ -449,7 +448,7 @@ Lemma OLDcall_setup1_i:
 
   (fold_right_sepcon R' ⊢ ▷ fold_right_sepcon R) ->
 
-  Cop.classify_fun (typeof a) = Cop.fun_case_f (typelist_of_type_list argsig) retty cc ->
+  Cop.classify_fun (typeof a) = Cop.fun_case_f argsig retty cc ->
   ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
          ⊢ (tc_expr Delta a)  ->
   ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
@@ -490,7 +489,7 @@ Lemma call_setup1_i:
 
   funspec_sub fs (mk_funspec (argsig,retty) cc A Ef Pre Post) ->
 
-  Cop.classify_fun (typeof a) = Cop.fun_case_f (typelist_of_type_list argsig) retty cc ->
+  Cop.classify_fun (typeof a) = Cop.fun_case_f argsig retty cc ->
   ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
          ⊢ (tc_expr Delta a)  ->
   ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
@@ -531,7 +530,7 @@ Lemma OLDcall_setup1_i2:
 
   (PROPx P (LOCALx Q (SEPx R')) ⊢ ▷ PROPx P (LOCALx Q (SEPx R))) ->
 
-  Cop.classify_fun ty = Cop.fun_case_f (typelist_of_type_list argsig) retty cc ->
+  Cop.classify_fun ty = Cop.fun_case_f argsig retty cc ->
   ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
          ⊢ (tc_expr Delta (Evar id ty))  ->
   ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
@@ -556,7 +555,7 @@ Lemma call_setup1_i2:
 
   funspec_sub fs (mk_funspec (argsig,retty) cc A Ef Pre Post) ->
 
-  Cop.classify_fun ty = Cop.fun_case_f (typelist_of_type_list argsig) retty cc ->
+  Cop.classify_fun ty = Cop.fun_case_f argsig retty cc ->
   ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
          ⊢ (tc_expr Delta (Evar id ty))  ->
   ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))

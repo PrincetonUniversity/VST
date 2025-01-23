@@ -1162,11 +1162,11 @@ Section mpred.
       { rewrite fst_zip.
         apply NoDup_fmap_2, NoDup_seq.
         intros ??; inversion 1; lia.
-        { rewrite fmap_length seq_length //. } }
+        { rewrite length_fmap seq_length //. } }
     * if_tac; last done.
       destruct k as (?, z), l as (?, ofs), H; subst.
       apply not_elem_of_list_to_map_2 in Hl; contradiction Hl.
-      rewrite fst_zip; last rewrite fmap_length seq_length //.
+      rewrite fst_zip; last rewrite length_fmap seq_length //.
       rewrite elem_of_list_fmap /adr_add /=.
       exists (Z.to_nat (ofs - z)).
       split; first by f_equal; lia.
@@ -1192,14 +1192,14 @@ Section mpred.
   Proof.
     iIntros "(% & % & Hm)".
     rewrite -(big_sepL_fmap (λ i, adr_add (b, lo) (Z.of_nat i)) (λ _ i, i ↦ VAL Undef)).
-    rewrite -(big_sepL2_replicate_r _ _ (λ _ i v, i ↦ v)); last by rewrite fmap_length seq_length.
-    rewrite big_sepL2_alt fmap_length seq_length replicate_length bi.pure_True // bi.True_and.
+    rewrite -(big_sepL2_replicate_r _ _ (λ _ i v, i ↦ v)); last by rewrite length_fmap seq_length.
+    rewrite big_sepL2_alt length_fmap seq_length length_replicate bi.pure_True // bi.True_and.
     assert (NoDup (zip ((λ i : nat, adr_add (b, lo) (Z.of_nat i)) <$> seq 0 (Z.to_nat (hi - lo)))
      (replicate (Z.to_nat (hi - lo)) (VAL Undef))).*1).
     { rewrite fst_zip.
       apply NoDup_fmap_2, NoDup_seq.
       intros ??; inversion 1; lia.
-      { rewrite fmap_length seq_length replicate_length //. } }
+      { rewrite length_fmap seq_length length_replicate //. } }
     rewrite -(big_sepM_list_to_map (λ x y, x ↦ y)) //.
     pose proof (alloc_result _ _ _ _ _ Halloc) as ->.
     iMod (mapsto_insert_big with "Hm") as "(Hm & $)".
@@ -1209,7 +1209,7 @@ Section mpred.
       rewrite elem_of_dom Hnext.
       * intros (? & ?); done.
       * rewrite /adr_add /=; lia.
-      * rewrite fmap_length seq_length replicate_length //. }
+      * rewrite length_fmap seq_length length_replicate //. }
     iExists _; iFrame; iPureIntro.
     split; last done.
     intros l; specialize (H l); destruct H as (Hnext & Hcontents & Haccess).
@@ -1219,7 +1219,7 @@ Section mpred.
           (replicate (Z.to_nat (hi - lo)) (VAL Undef)))) ∪ σ) !! l =
       if eq_dec l.1 (nextblock m) then if adr_range_dec (nextblock m, lo) (hi - lo) l then
       Some (YES (V := leibnizO resource) (DfracOwn (Share Tsh)) readable_top (to_agree (VAL Undef))) else None else σ !! l) as Hlookup.
-    { rewrite -{1}(replicate_length (Z.to_nat (hi - lo)) (VAL Undef)) update_map_lookup replicate_length nth_replicate.
+    { rewrite -{1}(length_replicate (Z.to_nat (hi - lo)) (VAL Undef)) update_map_lookup length_replicate nth_replicate.
       if_tac.
       * destruct l, H as [-> ?]; rewrite /= eq_dec_refl if_true //; lia.
       * if_tac; last done.
@@ -1248,14 +1248,14 @@ Section mpred.
   Proof.
     iIntros "(% & % & Hm)".
     rewrite -(big_sepL_fmap (λ i, adr_add (b, lo) (Z.of_nat i)) (λ _ i, i ↦□ VAL Undef)).
-    rewrite -(big_sepL2_replicate_r _ _ (λ _ i v, i ↦□ v)); last by rewrite fmap_length seq_length.
-    rewrite big_sepL2_alt fmap_length seq_length replicate_length bi.pure_True // bi.True_and.
+    rewrite -(big_sepL2_replicate_r _ _ (λ _ i v, i ↦□ v)); last by rewrite length_fmap seq_length.
+    rewrite big_sepL2_alt length_fmap seq_length length_replicate bi.pure_True // bi.True_and.
     assert (NoDup (zip ((λ i : nat, adr_add (b, lo) (Z.of_nat i)) <$> seq 0 (Z.to_nat (hi - lo)))
      (replicate (Z.to_nat (hi - lo)) (VAL Undef))).*1).
     { rewrite fst_zip.
       apply NoDup_fmap_2, NoDup_seq.
       intros ??; inversion 1; lia.
-      { rewrite fmap_length seq_length replicate_length //. } }
+      { rewrite length_fmap seq_length length_replicate //. } }
     rewrite -(big_sepM_list_to_map (λ x y, x ↦□ y)) //.
     pose proof (alloc_result _ _ _ _ _ Halloc) as ->.
     iMod (mapsto_insert_persist_big with "Hm") as "(Hm & $)".
@@ -1265,7 +1265,7 @@ Section mpred.
       rewrite elem_of_dom Hnext.
       * intros (? & ?); done.
       * rewrite /adr_add /=; lia.
-      * rewrite fmap_length seq_length replicate_length //. }
+      * rewrite length_fmap seq_length length_replicate //. }
     iExists _; iFrame; iPureIntro.
     split; last done.
     intros l; specialize (H l); destruct H as (Hnext & Hcontents & Haccess).
@@ -1275,7 +1275,7 @@ Section mpred.
           (replicate (Z.to_nat (hi - lo)) (VAL Undef)))) ∪ σ) !! l =
       if eq_dec l.1 (nextblock m) then if adr_range_dec (nextblock m, lo) (hi - lo) l then
       Some (YES (V := leibnizO resource) DfracDiscarded I (to_agree (VAL Undef))) else None else σ !! l) as Hlookup.
-    { rewrite -{1}(replicate_length (Z.to_nat (hi - lo)) (VAL Undef)) update_map_lookup replicate_length nth_replicate.
+    { rewrite -{1}(length_replicate (Z.to_nat (hi - lo)) (VAL Undef)) update_map_lookup length_replicate nth_replicate.
       if_tac.
       * destruct l, H as [-> ?]; rewrite /= eq_dec_refl if_true //; lia.
       * if_tac; last done.
@@ -1308,7 +1308,7 @@ Section mpred.
     { rewrite fst_zip.
       apply NoDup_fmap_2, NoDup_seq.
       intros ??; inversion 1; lia.
-      { rewrite fmap_length seq_length //. } }
+      { rewrite length_fmap seq_length //. } }
     rewrite big_sepL2_alt -(big_sepM_list_to_map (λ x y, x ↦ y)) //.
     iDestruct "H" as "(_ & H)".
     iMod (mapsto_delete_big with "Hm H").
@@ -1389,7 +1389,7 @@ Section mpred.
     { rewrite fst_zip.
       apply NoDup_fmap_2, NoDup_seq.
       intros ??; inversion 1; lia.
-      { rewrite fmap_length seq_length //. } }
+      { rewrite length_fmap seq_length //. } }
     rewrite big_sepL2_alt -(big_sepM_list_to_map (λ x y, x ↦{dq} y)) //.
     iIntros "(_ & H)".
     iDestruct (mapsto_lookup_big with "Hm H") as %Hall; iPureIntro.
@@ -1428,12 +1428,12 @@ Section mpred.
 (*    iDestruct (mapsto_lookup_big with "Hm H") as %Hold.*)
     iDestruct "Hm" as "(% & % & Hm)".
     rewrite big_sepL_seq2 -(big_sepL2_fmap_l (λ i, adr_add k (Z.of_nat i)) (λ _ i y, i ↦{#sh} y)).
-    rewrite fmap_length.
+    rewrite length_fmap.
     assert (NoDup (zip ((λ i : nat, adr_add k (Z.of_nat i)) <$> seq 0 (length vl)) (VAL <$> vl)).*1).
     { rewrite fst_zip.
       apply NoDup_fmap_2, NoDup_seq.
       intros ??; inversion 1; lia.
-      { rewrite !fmap_length seq_length //. } }
+      { rewrite !length_fmap seq_length //. } }
     rewrite big_sepL2_alt -(big_sepM_list_to_map (λ x y, x ↦{#sh} y)) //.
     iDestruct "H" as "(_ & H)".
     iDestruct (gen_heap.mapsto_lookup_big with "Hm H") as %Hall.
@@ -1443,19 +1443,19 @@ Section mpred.
     { rewrite fst_zip.
       apply NoDup_fmap_2, NoDup_seq.
       intros ??; inversion 1; lia.
-      { rewrite !fmap_length seq_length //. } }
+      { rewrite !length_fmap seq_length //. } }
     rewrite big_sepL2_alt -(big_sepM_list_to_map (λ x y, x ↦{#sh} y)) //.
     iDestruct (resource_map_auth_valid with "Hm") as %(_ & Hvalid).
-    rewrite !fmap_length seq_length bi.pure_True // bi.True_and.
+    rewrite !length_fmap seq_length bi.pure_True // bi.True_and.
     iMod (mapsto_update_big with "Hm H") as "(Hm & $)"; first done.
-    { rewrite Hlen !dom_list_to_map_L !fst_zip //; rewrite !fmap_length seq_length //; lia. }
+    { rewrite Hlen !dom_list_to_map_L !fst_zip //; rewrite !length_fmap seq_length //; lia. }
     iDestruct (resource_map_auth_valid with "Hm") as %(_ & Hvalid').
     iExists _; iFrame; iPureIntro; split; last done.
     unfold coherent, resource_at in *; intros l.
     destruct (H l) as (Hnext & Hcontents & Haccess); clear H.
     pose proof (storebytes_range_perm _ _ _ _ _ Hstore) as Hperm.
     specialize (Hvalid l); specialize (Hvalid' l).
-    rewrite lookup_union map_lookup_imap -(fmap_length VAL bl) list_to_map_lookup fmap_length in Hvalid' |- *.
+    rewrite lookup_union map_lookup_imap -(length_fmap VAL bl) list_to_map_lookup length_fmap in Hvalid' |- *.
     split3.
     - erewrite nextblock_storebytes by done.
       if_tac; last rewrite left_id //.
@@ -1476,7 +1476,7 @@ Section mpred.
     - unfold access_cohere in *.
       erewrite <- Memory.storebytes_access by done.
       if_tac; simpl in *; last rewrite left_id //.
-      specialize (Hall l). rewrite -(fmap_length VAL vl) list_to_map_lookup fmap_length Hlen if_true // in Hall.
+      specialize (Hall l). rewrite -(length_fmap VAL vl) list_to_map_lookup length_fmap Hlen if_true // in Hall.
       specialize (Hall _ eq_refl); destruct Hall as (? & ? & ? & ? & Heq).
       erewrite resR_to_resource_eq in Haccess by done.
       inversion Heq as [?? Hc Heq'|]; subst; rewrite -Heq'.

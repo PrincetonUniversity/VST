@@ -189,7 +189,7 @@ Lemma semax_call_id0_alt:
    (GLBL: (var_types Delta) !! id = None),
        (glob_specs Delta) !! id = Some (NDmk_funspec (argsig, retty) cc A Pre Post) ->
        (glob_types Delta) !! id = Some (type_of_funspec (NDmk_funspec (argsig, retty) cc A Pre Post)) ->
-   (*tfun = type_of_params argsig ->*)tfun =typelist_of_type_list argsig ->
+   (*tfun = type_of_params argsig ->*)tfun = argsig ->
   semax(OK_spec := Espec)(C := cs) ⊤ Delta (tc_exprlist Delta argsig bl
                   && |>(assert_of (fun rho : environ =>
                Pre x (ge_of rho, eval_exprlist argsig bl rho)) *
@@ -247,7 +247,7 @@ Lemma call_memcpy_tuchar:  (* Uses CompSpecs from sha. *)
     (Scall None
              (Evar _memcpy
                (Tfunction
-                (Tcons (tptr tvoid) (Tcons (tptr tvoid) (Tcons tuint Tnil)))
+                (cons (tptr tvoid) (cons (tptr tvoid) (cons tuint nil)))
                   (tptr tvoid) cc_default))
               [e_p; e_q; e_n])
     (normal_ret_assert (PROPx P (LOCALx Q
@@ -474,7 +474,7 @@ Lemma call_memset_tuchar:
     (Scall None
              (Evar _memset
                (Tfunction
-                (Tcons (tptr tvoid) (Tcons tint (Tcons tuint Tnil)))
+                (cons (tptr tvoid) (cons tint (cons tuint nil)))
                   (tptr tvoid) cc_default))
               [e_p; e_c; e_n])
     (normal_ret_assert (PROPx P (LOCALx Q

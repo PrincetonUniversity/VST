@@ -21,8 +21,8 @@ jobs:
         # except for the "make_target" field and make_target related excludes
         coq_version:
           # See https://github.com/coq-community/docker-coq/wiki for supported images
-#          - '8.18'
           - '8.19'
+          - '8.20'
           - 'dev'
         bit_size:
           - 32
@@ -30,12 +30,12 @@ jobs:
         make_target:
           - vst
         exclude:   
-#          - coq_version: 8.18
-#            bit_size: 32
+          - coq_version: 8.19
+            bit_size: 32
           - coq_version: dev
             bit_size: 32
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           submodules: true
       - uses: coq-community/docker-coq-action@v1
@@ -53,7 +53,7 @@ jobs:
               opam install -y ${{ matrix.coq_version == 'dev' && 'coq-flocq' || matrix.bit_size == 32 && 'coq-compcert-32.3.13.1' || 'coq-compcert.3.13.1' }}
               # Required by test2
               opam install -y coq-ext-lib
-              opam install -y coq-iris.4.2.0
+              opam install -y coq-iris.4.3.0
             endGroup
           # See https://github.com/coq-community/docker-coq-action/tree/v1#permissions
           before_script: |
@@ -62,7 +62,9 @@ jobs:
             endGroup
           script: |
             startGroup "Build & Install"
-              make ${{matrix.make_target}} BITSIZE=${{matrix.bit_size}} COMPCERT=${{ matrix.coq_version=='dev' && 'bundled' || 'platform' }} IGNORECOQVERSION=true IGNORECOMPCERTVERSION=true
+              # put the first version back once CompCert 3.15 is in the Coq Platform
+              # make ${{matrix.make_target}} BITSIZE=${{matrix.bit_size}} COMPCERT=${{ matrix.coq_version=='dev' && 'bundled' || 'platform' }} IGNORECOQVERSION=true IGNORECOMPCERTVERSION=true
+              make ${{matrix.make_target}} BITSIZE=${{matrix.bit_size}} COMPCERT=bundled IGNORECOQVERSION=true IGNORECOMPCERTVERSION=true
             endGroup
           after_script: |
             startGroup 'Copy Opam coq/user-contrib and coq-variant'
@@ -74,7 +76,7 @@ jobs:
       - name: 'Create archive'
         run: tar -cpvzf archive.tgz * .depend
       - name: 'Upload archive'
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: 'VST build artifacts ${{matrix.coq_version}} ${{matrix.bit_size}}'
           path: archive.tgz
@@ -87,8 +89,8 @@ jobs:
       fail-fast: false
       matrix:
         coq_version:
-#          - '8.18'
           - '8.19'
+          - '8.20'
           - 'dev' 
         make_target:
           - assumptions.txt
@@ -101,15 +103,15 @@ jobs:
           - 32
           - 64
         exclude:
-#          - coq_version: 8.18
-#            bit_size: 32
+          - coq_version: 8.19
+            bit_size: 32
           - coq_version: dev
             bit_size: 32
           - bit_size: 64
             make_target: test3
           - bit_size: 32
             make_target: test4
-          - bit_size: 64
+          - bit_size: 32
             make_target: test5
           # avoid Coq issue https://github.com/coq/coq/issues/18126
 #          - coq_version: 8.18
@@ -119,7 +121,7 @@ jobs:
 
     steps:
       - name: 'Download archive'
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4
         id: download
         with:
           name: 'VST build artifacts ${{matrix.coq_version}} ${{matrix.bit_size}}'
@@ -141,6 +143,8 @@ jobs:
           script: |
             startGroup "Build & Install"
               make -f util/make-touch  IGNORECOQVERSION=true IGNORECOMPCERTVERSION=true
-              make ${{matrix.make_target}} BITSIZE=${{matrix.bit_size}} COMPCERT=${{ matrix.coq_version=='dev' && 'bundled' || 'platform' }}  IGNORECOQVERSION=true IGNORECOMPCERTVERSION=true
+              # put the first version back once CompCert 3.15 is in the Coq Platform
+              # make ${{matrix.make_target}} BITSIZE=${{matrix.bit_size}} COMPCERT=${{ matrix.coq_version=='dev' && 'bundled' || 'platform' }}  IGNORECOQVERSION=true IGNORECOMPCERTVERSION=true
+              make ${{matrix.make_target}} BITSIZE=${{matrix.bit_size}} COMPCERT=bundled IGNORECOQVERSION=true IGNORECOMPCERTVERSION=true
             endGroup
           uninstall:

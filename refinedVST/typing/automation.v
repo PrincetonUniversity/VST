@@ -1,6 +1,7 @@
 (* refinedC/typing/automation.v *)
 From iris.proofmode Require Import coq_tactics reduction.
 From lithium Require Import hooks normalize.
+From VST.floyd Require Import forward.
 From VST.lithium Require Export all.
 From VST.typing Require Export type.
 From VST.typing.automation Require Export proof_state (* solvers simplification  loc_eq. *).
@@ -153,7 +154,7 @@ Ltac liRIntroduceLetInGoal :=
 
 Ltac liRStmt :=
   lazymatch goal with
-  | |- envs_entails ?Δ (typed_stmt ?Espec ?Delta ?s ?T) =>
+  | |- envs_entails ?Δ (typed_stmt ?Espec ?ge ?s ?f ?T) =>
     lazymatch s with
     (* | LocInfo ?info ?s2 =>
       update_loc_info (Some info);
@@ -162,7 +163,7 @@ Ltac liRStmt :=
     end
   end;
   lazymatch goal with
-  | |- envs_entails ?Δ (typed_stmt ?Espec ?Delta ?s ?T) =>
+  | |- envs_entails ?Δ (typed_stmt ?Espec ?ge ?s ?f ?T) =>
     lazymatch s with
     (* | subst_stmt ?xs ?s =>
       let s' := W.of_stmt s in
@@ -171,11 +172,11 @@ Ltac liRStmt :=
     | _ =>
       let s' := s in
       lazymatch s' with
-      | Sassign _ _ => notypeclasses refine (tac_fast_apply (type_assign _ _ _ _ _) _)
-      | Sset _ _ => notypeclasses refine (tac_fast_apply (type_set _ _ _ _ _) _)
-      | Ssequence _ _ => notypeclasses refine (tac_fast_apply (type_seq _ _ _ _ _) _)
-      | Sreturn $ Some _ => notypeclasses refine (tac_fast_apply (type_return_some _ _ _ _) _)
-      | Sreturn None => notypeclasses refine (tac_fast_apply (type_return_none _ _ _) _)
+      | Sassign _ _ => notypeclasses refine (tac_fast_apply (type_assign _ _ _ _ _ _) _)
+      | Sset _ _ => notypeclasses refine (tac_fast_apply (type_set _ _ _ _ _ _) _)
+      | Ssequence _ _ => notypeclasses refine (tac_fast_apply (type_seq _ _ _ _ _ _) _)
+      | Sreturn $ Some _ => notypeclasses refine (tac_fast_apply (type_return_some _ _ _ _ _) _)
+      | Sreturn None => notypeclasses refine (tac_fast_apply (type_return_none _ _ _ _ _) _)
       | _ => fail "do_stmt: unknown stmt" s
       end
     end
@@ -365,30 +366,30 @@ Ltac split_blocks Pfull Ps :=
   repeat (iApply tac_split_big_sepM; [reflexivity|]; iIntros "?"); iIntros "_".
 *)
 
- 
+
 Section automation_tests.
-  Context `{!typeG Σ} {cs : compspecs} `{!externalGS OK_ty Σ}.
-  
+  Context `{!typeG OK_ty Σ} {cs : compspecs}.
+
   Opaque local locald_denote.
 
    Set Ltac Backtrace.
 
-  Goal forall Espec Delta (_x:ident) (x:val),
+  Goal forall Espec ge f (_x:ident) (x:val),
   <affine> (local $ locald_denote $ temp _x x)
-  ⊢ typed_stmt Espec Delta (Sset _x (Ebinop Oadd (Econst_int (Int.repr 41) tint) (Econst_int (Int.repr 1) tint) tint)) 
+  ⊢ typed_stmt Espec ge (Sset _x (Ebinop Oadd (Econst_int (Int.repr 41) tint) (Econst_int (Int.repr 1) tint) tint)) f
                            (λ v t, <affine> local (locald_denote (temp _x (Vint (Int.repr 42))))
                                    ∗ ⎡ Vint (Int.repr 42) ◁ᵥ 42 @ int tint ⎤).
   Proof.
     iIntros.
     repeat liRStep.
     liShow; try done.
-  Admitted.
+  Qed.
 
-  Goal forall Espec Delta (_x:ident) b o (l:address) ty ,
+  Goal forall Espec ge f (_x:ident) b o (l:address) ty,
   TCDone (ty_has_op_type ty tint MCNone) ->
   ⊢ <affine> (local $ locald_denote $ lvar _x tint $ Vptr b o) -∗
     ⎡ ty_own ty Own (b, Ptrofs.signed o) ⎤ -∗
-    typed_stmt Espec Delta (Sassign (Evar _x tint) (Econst_int (Int.repr 1) tint))
+    typed_stmt Espec ge (Sassign (Evar _x tint) (Econst_int (Int.repr 1) tint)) f
                (λ v t, ⎡ (b, Ptrofs.signed o) ◁ₗ Int.signed (Int.repr 1) @ int tint ⎤ ∗ True).
   Proof.
   iIntros.
@@ -420,17 +421,14 @@ Section automation_tests.
 
   liRStep.
   liRStep.
-  liRStep.
-  liRStep.
-  liRStep.
 Qed.
 End automation_tests.
 
 From VST.typing Require Import automation_test.
 
-Global Instance related_to_val_embed `{!typeG Σ} {cs : compspecs} A v ty : RelatedTo (λ x : A, (⎡v ◁ᵥ ty x⎤:(monPredI environ_index (ouPredI (iResUR Σ)))))%I | 100
+Global Instance related_to_val_embed `{!typeG OK_ty Σ} {cs : compspecs} A v ty : RelatedTo (λ x : A, (⎡v ◁ᵥ ty x⎤:(monPredI environ_index (ouPredI (iResUR Σ)))))%I | 100
 := {| rt_fic := FindVal v |}.
-Global Instance related_to_val_embed2 `{!typeG Σ} {cs : compspecs} A v ty : RelatedTo (λ x : A, (⎡v ◁ᵥ ty⎤:(monPredI environ_index (ouPredI (iResUR Σ)))))%I | 100
+Global Instance related_to_val_embed2 `{!typeG OK_ty Σ} {cs : compspecs} A v ty : RelatedTo (λ x : A, (⎡v ◁ᵥ ty⎤:(monPredI environ_index (ouPredI (iResUR Σ)))))%I | 100
 := {| rt_fic := FindVal v |}.
 
 Arguments find_in_context : simpl never.
@@ -439,7 +437,7 @@ Arguments FindVal  : simpl never.
 Arguments local : simpl never.
 Arguments locald_denote : simpl never.
 
-Lemma simple_subsume_val_to_subsume_embed `{!typeG Σ} `{compspecs} (A:Type) (v : val) (ty1 : type) (ty2 : A → type) (P:A->mpred)
+Lemma simple_subsume_val_to_subsume_embed `{!typeG OK_ty Σ} `{compspecs} (A:Type) (v : val) (ty1 : type) (ty2 : A → type) (P:A->mpred)
   `{!∀ (x:A), SimpleSubsumeVal ty1 (ty2 x) (P x)} (T: A-> assert) :
    (∃ x, (@embed mpred assert _ $ P x) ∗ T x) ⊢@{assert} subsume (⎡v ◁ᵥ ty1⎤) (λ x : A, ⎡v ◁ᵥ ty2 x⎤) T.
 Proof.
@@ -451,28 +449,26 @@ Proof.
   iApply (@simple_subsume_val with "HP Hv").
 Qed.
 
-Definition simple_subsume_val_to_subsume_embed_inst `{!typeG Σ} `{compspecs} := [instance simple_subsume_val_to_subsume_embed].
+Definition simple_subsume_val_to_subsume_embed_inst `{!typeG OK_ty Σ} `{compspecs} := [instance simple_subsume_val_to_subsume_embed].
 Global Existing Instance simple_subsume_val_to_subsume_embed_inst.
 
   Module f_test1.
-    Context `{!typeG Σ} {cs : compspecs} `{!externalGS OK_ty Σ}.
-  
-  
+    Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
     Definition spec_f_ret_expr :=
       fn(∀ () : (); emp) → ∃ z : Z, (z @ ( int tint )); ⌜z = 3⌝.
     Instance CompSpecs : compspecs. make_compspecs prog. Defined.
     Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
-    Goal forall Espec Delta, ⊢ typed_function(A := ConstType _) Espec Delta f_f_ret_expr spec_f_ret_expr.
+    Goal forall Espec ge, ⊢ typed_function(A := ConstType _) Espec ge f_f_ret_expr spec_f_ret_expr.
     Proof.
       type_function "f_ret_expr" ( x ).
       repeat liRStep.
-    Qed.    
+    Qed.
   End f_test1.
 
   Module f_test2.
-    Context `{!typeG Σ} {cs : compspecs} `{!externalGS OK_ty Σ}.
+    Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
     Definition spec_f_temps :=
       fn(∀ () : (); emp) → ∃ z : Z, (z @ (int tint)) ; ⌜z=42⌝.
@@ -480,7 +476,7 @@ Global Existing Instance simple_subsume_val_to_subsume_embed_inst.
     Local Instance CompSpecs : compspecs. make_compspecs prog. Defined.
     Local Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
-    Goal forall Espec Delta, ⊢ typed_function(A := ConstType _) Espec Delta f_f_temps spec_f_temps.
+    Goal forall Espec ge, ⊢ typed_function(A := ConstType _) Espec ge f_f_temps spec_f_temps.
     Proof.
       type_function "f_ret_expr" ( x ).
       repeat liRStep.

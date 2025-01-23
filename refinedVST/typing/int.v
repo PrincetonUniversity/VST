@@ -11,13 +11,14 @@ Qed.
 
 Definition is_signed t :=
   match t with
+  | Tint IBool _ _ => false (* no such thing as signed boolean *)
   | Tint _ Signed _ | Tlong Signed _ => true
   | _ => false
   end.
 
 Definition min_int t :=
   match t with
-  | Tint _ Signed _ => Int.min_signed
+  | Tint sz Signed _ => - Z.pow 2 (bitsize_intsize sz - 1)
   | Tlong Signed _ => Int64.min_signed
   | _ => 0
   end.
@@ -115,23 +116,23 @@ Proof.
 Qed.
 
 Section int.
-  Context `{!typeG Σ} {cs : compspecs}.
+  Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
   (* Separate definition such that we can make it typeclasses opaque
   later. We cannot call it int_type since that already exists.  *)
   Program Definition int_inner_type (it : Ctypes.type) (n : Z) : type := {|
     ty_has_op_type ot mt := (*is_bool_ot ot it stn*) ot = it;
-    ty_own β l := ∃ v, <affine> ⌜val_to_Z v it = Some n⌝ ∗ <affine> ⌜l `has_layout_loc` it⌝ ∗ l ↦_it[β] v;
-    ty_own_val v := <affine> ⌜val_to_Z v it = Some n⌝;
+    ty_own β l := ∃ v, <affine> ⌜tc_val it v⌝ ∗ <affine> ⌜val_to_Z v it = Some n⌝ ∗ <affine> ⌜l `has_layout_loc` it⌝ ∗ l ↦_it[β] v;
+    ty_own_val v := <affine> ⌜tc_val it v ∧ val_to_Z v it = Some n⌝;
   |}%I.
   Next Obligation.
-    iIntros (it n l ??) "(%v&%Hv&%Hl&H)". iExists v.
+    iIntros (it n l ??) "(%v&%&%Hv&%Hl&H)". iExists v.
     by iMod (heap_mapsto_own_state_share with "H") as "$".
   Qed.
-  Next Obligation. iIntros (????? ->) "(%&%&$&_)". Qed.
-  Next Obligation. Admitted.
-  Next Obligation. iIntros (????? ->) "(%v&%&%&Hl)". eauto with iFrame. Qed.
-  Next Obligation. iIntros (????? v -> ?) "Hl %". iExists v. eauto with iFrame. Qed.
+  Next Obligation. iIntros (????? ->) "(%&%&%&$&_)". Qed.
+  Next Obligation. iIntros (????? -> (? & ?)). rewrite /has_layout_val /tc_val'; done. Qed.
+  Next Obligation. iIntros (????? ->) "(%v&%&%&%&Hl)". eauto with iFrame. Qed.
+  Next Obligation. iIntros (????? v -> ?) "Hl (% & %)". iExists v. eauto with iFrame. Qed.
 (*   Next Obligation. iIntros (???????). apply: mem_cast_compat_int; [naive_solver|]. iPureIntro. naive_solver. Qed. *)
 
   Definition int (it : Ctypes.type) : rtype _ := RType (int_inner_type it).
@@ -163,9 +164,9 @@ Section int.
   Lemma ty_own_int_in_range l β n it : l ◁ₗ{β} n @ int it -∗ ⌜n ∈ it⌝.
   Proof.
     iIntros "Hl". destruct β.
-    - iDestruct (ty_deref _ _ MCNone with "Hl") as (?) "[_ %]"; [done|].
+    - iDestruct (ty_deref _ _ MCNone with "Hl") as (?) "[_ (% & %)]"; [done|].
       iPureIntro. by eapply val_to_Z_in_range.
-    - iDestruct "Hl" as (?) "[% _]".
+    - iDestruct "Hl" as (?) "(% & % & _)".
       iPureIntro. by eapply val_to_Z_in_range.
   Qed.
 
@@ -173,7 +174,7 @@ Section int.
   have to reprove this everytime? *)
   Global Program Instance int_copyable x it : Copyable (x @ int it).
   Next Obligation.
-    iIntros (???????) "(%v&%Hv&%Hl&Hl)".
+    iIntros (???????) "(%v&%Hv&%&%Hl&Hl)".
     simpl in *; subst.
     iMod (heap_mapsto_own_state_to_mt with "Hl") as (q) "[_ Hl]" => //.
     iSplitR => //. iExists q, v. iFrame. iModIntro. eauto with iFrame.
@@ -202,7 +203,7 @@ Definition int_lt it v1 v2 :=
   end.
 
 Section programs.
-  Context `{!typeG Σ} {cs : compspecs}.
+  Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
   (*** int *)
   Lemma type_val_int n it T :
@@ -212,7 +213,7 @@ Section programs.
   Proof.
     iIntros "[%Hn HT]".
     iExists _. iFrame. iPureIntro.
-    by apply i2v_to_Z.
+    split; [by apply in_range_i2v | by apply i2v_to_Z].
   Qed.
   Definition type_val_int_inst := [instance type_val_int].
   Global Existing Instance type_val_int_inst.
@@ -254,22 +255,22 @@ Section programs.
   it does not yet exist (using check_hyp_not_exists)?! *)
   Lemma type_relop_int_int n1 n2 op b it v1 v2 T :
     match op with
-    | Oeq => Some (bool_decide (n1 = n2))
-    | One => Some (bool_decide (n1 ≠ n2))
-    | Olt => Some (bool_decide (n1 < n2))
-    | Ogt => Some (bool_decide (n1 > n2))
-    | Ole => Some (bool_decide (n1 <= n2))
-    | Oge => Some (bool_decide (n1 >= n2))
+    | Cop.Oeq => Some (bool_decide (n1 = n2))
+    | Cop.One => Some (bool_decide (n1 ≠ n2))
+    | Cop.Olt => Some (bool_decide (n1 < n2))
+    | Cop.Ogt => Some (bool_decide (n1 > n2))
+    | Cop.Ole => Some (bool_decide (n1 <= n2))
+    | Cop.Oge => Some (bool_decide (n1 >= n2))
     | _ => None
     end = Some b →
     (⌜n1 ∈ it⌝ -∗ ⌜n2 ∈ it⌝ -∗ T (i2v (bool_to_Z b) tint) (b @ boolean tint))
     ⊢ typed_bin_op v1 ⎡v1 ◁ᵥ n1 @ int it⎤ v2 ⎡v2 ◁ᵥ n2 @ int it⎤ op it it T.
   Proof.
-    iIntros "%Hop HT %Hv1 %Hv2 %Φ HΦ".
+    iIntros "%Hop HT (% & %Hv1) (% & %Hv2) %Φ HΦ".
     iDestruct ("HT" with "[] []" ) as "HT".
     1-2: iPureIntro; by apply: val_to_Z_in_range.
     rewrite /wp_binop.
-    iIntros (?) "$".
+    iIntros "!>" (?) "$ !>".
     iExists (i2v (bool_to_Z b) tint); iSplit.
     - iStopProof; split => rho; monPred.unseal.
       apply bi.pure_intro.
@@ -285,9 +286,7 @@ Section programs.
             -- subst; destruct s; inv Hv1; case_bool_decide; simpl in *; congruence.
             -- destruct s; inv Hv1; case_bool_decide; try done.
                ++ exploit (signed_inj i0 i1); congruence.
-               ++ if_tac in H0; inv H0.
-                if_tac in Hv2; inv Hv2.
-                exploit (unsigned_eq_eq i0 i1); congruence.
+               ++ exploit (unsigned_eq_eq i0 i1); congruence.
           * pose proof (Int64.eq_spec i i0) as Heq.
             destruct (Int64.eq i i0).
             -- subst; destruct s; inv Hv1; case_bool_decide; simpl in *; congruence.
@@ -303,9 +302,7 @@ Section programs.
             -- subst; destruct s; inv Hv1; case_bool_decide; simpl in *; congruence.
             -- destruct s; inv Hv1; case_bool_decide; try done.
                ++ exploit (signed_inj i0 i1); congruence.
-               ++ if_tac in H0; inv H0.
-                if_tac in Hv2; inv Hv2.
-                exploit (unsigned_eq_eq i0 i1); congruence.
+               ++ exploit (unsigned_eq_eq i0 i1); congruence.
           * pose proof (Int64.eq_spec i i0) as Heq.
             destruct (Int64.eq i i0).
             -- subst; destruct s; inv Hv1; case_bool_decide; simpl in *; congruence.
@@ -318,15 +315,13 @@ Section programs.
         { destruct it, v1; try done; destruct v2; try done; simpl in *.
           * destruct (unsigned_op i s) eqn: Hs.
             -- destruct i; try done; destruct s; inv Hv1.
-               if_tac in H0; inv H0.
-               if_tac in Hv2; inv Hv2.
                rewrite /Int.ltu; if_tac; case_bool_decide; done.
             -- trans (Int.lt i0 i1); last by destruct i, s.
                destruct s; inv Hv1; rewrite /Int.lt; try by if_tac; case_bool_decide.
-               if_tac in H0; inv H0.
-               if_tac in Hv2; inv Hv2.
                lapply (bitsize_small i); last by intros ->.
-               intros; rewrite !Int.signed_eq_unsigned; [if_tac; case_bool_decide; done | rep_lia..].
+               intros; rewrite !Int.signed_eq_unsigned; [if_tac; case_bool_decide; done | destruct i; try done; try rep_lia..].
+               { destruct H0; subst; [rewrite Int.unsigned_zero | rewrite Int.unsigned_one]; rep_lia. }
+               { destruct H; subst; [rewrite Int.unsigned_zero | rewrite Int.unsigned_one]; rep_lia. }
           * destruct s; inv Hv1.
             -- rewrite /Int64.lt; if_tac; case_bool_decide; done.
             -- rewrite /Int64.ltu; if_tac; case_bool_decide; done. }
@@ -337,15 +332,13 @@ Section programs.
         { destruct it, v1; try done; destruct v2; try done; simpl in *.
           * destruct (unsigned_op i s) eqn: Hs.
             -- destruct i; try done; destruct s; inv Hv1.
-               if_tac in H0; inv H0.
-               if_tac in Hv2; inv Hv2.
                rewrite /Int.ltu; if_tac; case_bool_decide; lia.
             -- trans (Int.lt i1 i0); last by destruct i, s.
                destruct s; inv Hv1; rewrite /Int.lt; try by if_tac; case_bool_decide; lia.
-               if_tac in H0; inv H0.
-               if_tac in Hv2; inv Hv2.
                lapply (bitsize_small i); last by intros ->.
-               intros; rewrite !Int.signed_eq_unsigned; [if_tac; case_bool_decide; lia | rep_lia..].
+               intros; rewrite !Int.signed_eq_unsigned; [if_tac; case_bool_decide; lia | destruct i; try done; try rep_lia..].
+               { destruct H; subst; [rewrite Int.unsigned_zero | rewrite Int.unsigned_one]; rep_lia. }
+               { destruct H0; subst; [rewrite Int.unsigned_zero | rewrite Int.unsigned_one]; rep_lia. }
           * destruct s; inv Hv1.
             -- rewrite /Int64.lt; if_tac; case_bool_decide; lia.
             -- rewrite /Int64.ltu; if_tac; case_bool_decide; lia. }
@@ -356,15 +349,13 @@ Section programs.
         { destruct it, v1; try done; destruct v2; try done; simpl in *.
           * destruct (unsigned_op i s) eqn: Hs.
             -- destruct i; try done; destruct s; inv Hv1.
-               if_tac in H0; inv H0.
-               if_tac in Hv2; inv Hv2.
                rewrite /Int.ltu; if_tac; case_bool_decide; lia.
             -- trans (negb (Int.lt i1 i0)); last by destruct i, s.
                destruct s; inv Hv1; rewrite /Int.lt; try by if_tac; case_bool_decide; lia.
-               if_tac in H0; inv H0.
-               if_tac in Hv2; inv Hv2.
                lapply (bitsize_small i); last by intros ->.
-               intros; rewrite !Int.signed_eq_unsigned; [if_tac; case_bool_decide; lia | rep_lia..].
+               intros; rewrite !Int.signed_eq_unsigned; [if_tac; case_bool_decide; lia | destruct i; try done; try rep_lia..].
+               { destruct H; subst; [rewrite Int.unsigned_zero | rewrite Int.unsigned_one]; rep_lia. }
+               { destruct H0; subst; [rewrite Int.unsigned_zero | rewrite Int.unsigned_one]; rep_lia. }
           * destruct s; inv Hv1.
             -- rewrite /Int64.lt; if_tac; case_bool_decide; lia.
             -- rewrite /Int64.ltu; if_tac; case_bool_decide; lia. }
@@ -375,15 +366,13 @@ Section programs.
         { destruct it, v1; try done; destruct v2; try done; simpl in *.
           * destruct (unsigned_op i s) eqn: Hs.
             -- destruct i; try done; destruct s; inv Hv1.
-               if_tac in H0; inv H0.
-               if_tac in Hv2; inv Hv2.
                rewrite /Int.ltu; if_tac; case_bool_decide; lia.
             -- trans (negb (Int.lt i0 i1)); last by destruct i, s.
                destruct s; inv Hv1; rewrite /Int.lt; try by if_tac; case_bool_decide; lia.
-               if_tac in H0; inv H0.
-               if_tac in Hv2; inv Hv2.
                lapply (bitsize_small i); last by intros ->.
-               intros; rewrite !Int.signed_eq_unsigned; [if_tac; case_bool_decide; lia | rep_lia..].
+               intros; rewrite !Int.signed_eq_unsigned; [if_tac; case_bool_decide; lia | destruct i; try done; try rep_lia..].
+               { destruct H0; subst; [rewrite Int.unsigned_zero | rewrite Int.unsigned_one]; rep_lia. }
+               { destruct H; subst; [rewrite Int.unsigned_zero | rewrite Int.unsigned_one]; rep_lia. }
           * destruct s; inv Hv1.
             -- rewrite /Int64.lt; if_tac; case_bool_decide; lia.
             -- rewrite /Int64.ltu; if_tac; case_bool_decide; lia. }
@@ -395,22 +384,22 @@ Section programs.
   Qed.
 
   Definition type_eq_int_int_inst n1 n2 :=
-    [instance type_relop_int_int n1 n2 Oeq (bool_decide (n1 = n2))].
+    [instance type_relop_int_int n1 n2 Cop.Oeq (bool_decide (n1 = n2))].
   Global Existing Instance type_eq_int_int_inst.
   Definition type_ne_int_int_inst n1 n2 :=
-    [instance type_relop_int_int n1 n2 One (bool_decide (n1 ≠ n2))].
+    [instance type_relop_int_int n1 n2 Cop.One (bool_decide (n1 ≠ n2))].
   Global Existing Instance type_ne_int_int_inst.
   Definition type_lt_int_int_inst n1 n2 :=
-    [instance type_relop_int_int n1 n2 Olt (bool_decide (n1 < n2))].
+    [instance type_relop_int_int n1 n2 Cop.Olt (bool_decide (n1 < n2))].
   Global Existing Instance type_lt_int_int_inst.
   Definition type_gt_int_int_inst n1 n2 :=
-    [instance type_relop_int_int n1 n2 Ogt (bool_decide (n1 > n2))].
+    [instance type_relop_int_int n1 n2 Cop.Ogt (bool_decide (n1 > n2))].
   Global Existing Instance type_gt_int_int_inst.
   Definition type_le_int_int_inst n1 n2 :=
-    [instance type_relop_int_int n1 n2 Ole (bool_decide (n1 ≤ n2))].
+    [instance type_relop_int_int n1 n2 Cop.Ole (bool_decide (n1 ≤ n2))].
   Global Existing Instance type_le_int_int_inst.
   Definition type_ge_int_int_inst n1 n2 :=
-    [instance type_relop_int_int n1 n2 Oge (bool_decide (n1 >= n2))].
+    [instance type_relop_int_int n1 n2 Cop.Oge (bool_decide (n1 >= n2))].
   Global Existing Instance type_ge_int_int_inst.
 
   Lemma type_arithop_int_int n1 n2 n op it v1 v2
@@ -430,11 +419,11 @@ Section programs.
     (<affine> ⌜n1 ∈ it⌝ -∗ <affine> ⌜n2 ∈ it⌝ -∗ <affine> ⌜in_range n it ∧ int_arithop_sidecond it n1 n2 n op⌝ ∗ T (i2v n it) (n @ int it))
     ⊢ typed_bin_op v1 ⎡v1 ◁ᵥ n1 @ int it⎤ v2 ⎡v2 ◁ᵥ n2 @ int it⎤ op it it T.
   Proof.
-    iIntros "HT %Hv1 %Hv2 %Φ HΦ".
+    iIntros "HT (% & %Hv1) (% & %Hv2) %Φ HΦ".
     iDestruct ("HT" with "[] []" ) as ((Hin & Hsc)) "HT".
     1-2: iPureIntro; by apply: val_to_Z_in_range.
     rewrite /wp_binop.
-    iIntros (?) "$".
+    iIntros "!>" (?) "$ !>".
     iExists (i2v n it); iSplit.
     - iStopProof; split => rho; monPred.unseal.
       apply bi.pure_intro.
@@ -444,167 +433,195 @@ Section programs.
         rewrite /Cop.sem_binarith; destruct it, v1; try done; destruct v2; try done.
         * destruct (unsigned_op i s) eqn: Hs.
           -- destruct i; try done; destruct s; try done; simpl in *.
-             if_tac in Hv1; inv Hv1; if_tac in Hv2; inv Hv2; done.
+             by inv Hv1.
           -- replace (classify_binarith _ _) with (bin_case_i Signed) by (destruct i, s; done); simpl in *.
+             change Archi.ptr64 with true.
              destruct s.
              ++ inv Hv1.
                 rewrite Int.add_signed //.
-             ++ if_tac in Hv1; inv Hv1; if_tac in Hv2; inv Hv2; done.
+             ++ by inv Hv1.
         * rewrite /Cop.sem_cast /=.
           destruct s; simpl in *; inv Hv1.
-          -- rewrite Int64.add_signed //.
+          -- change Archi.ptr64 with true.
+             rewrite /= Int64.add_signed //.
           -- done.
       + rewrite /Cop.sem_sub.
         replace (classify_sub it it) with sub_default by (destruct it, v1; try done; destruct i; done).
         rewrite /Cop.sem_binarith; destruct it, v1; try done; destruct v2; try done.
         * destruct (unsigned_op i s) eqn: Hs.
           -- destruct i; try done; destruct s; try done; simpl in *.
-             if_tac in Hv1; inv Hv1; if_tac in Hv2; inv Hv2; done.
+             by inv Hv1.
           -- replace (classify_binarith _ _) with (bin_case_i Signed) by (destruct i, s; done); simpl in *.
              destruct s.
              ++ inv Hv1.
-                rewrite Int.sub_signed //.
-             ++ if_tac in Hv1; inv Hv1; if_tac in Hv2; inv Hv2; done.
+                change Archi.ptr64 with true.
+                rewrite /= Int.sub_signed //.
+             ++ by inv Hv1.
         * rewrite /Cop.sem_cast /=.
           destruct s; simpl in *; inv Hv1.
-          -- rewrite Int64.sub_signed //.
+          -- change Archi.ptr64 with true.
+             rewrite /= Int64.sub_signed //.
           -- done.
       + rewrite /Cop.sem_mul /Cop.sem_binarith; destruct it, v1; try done; destruct v2; try done.
         * destruct (unsigned_op i s) eqn: Hs.
           -- destruct i; try done; destruct s; try done; simpl in *.
-             if_tac in Hv1; inv Hv1; if_tac in Hv2; inv Hv2; done.
+             by inv Hv1.
           -- replace (classify_binarith _ _) with (bin_case_i Signed) by (destruct i, s; done); simpl in *.
              destruct s.
              ++ inv Hv1.
-                rewrite Int.mul_signed //.
-             ++ if_tac in Hv1; inv Hv1; if_tac in Hv2; inv Hv2; done.
+                change Archi.ptr64 with true.
+                rewrite /= Int.mul_signed //.
+             ++ by inv Hv1.
         * rewrite /Cop.sem_cast /=.
           destruct s; simpl in *; inv Hv1.
-          -- rewrite Int64.mul_signed //.
+          -- change Archi.ptr64 with true.
+             rewrite /= Int64.mul_signed //.
           -- done.
       + rewrite /Cop.sem_div /Cop.sem_binarith; destruct it, v1; try done; destruct v2; try done.
         * destruct (unsigned_op i s) eqn: Hs.
           -- destruct i; try done; destruct s; try done; simpl in *.
-             if_tac in Hv1; inv Hv1; if_tac in Hv2; inv Hv2.
+             inv Hv1.
+             change Archi.ptr64 with true.
              rewrite /Int.eq; if_tac.
              { rewrite Int.unsigned_zero in H1; tauto. }
              rewrite /Int.divu Zquot.Zquot_Zdiv_pos //; rep_lia.
           -- replace (classify_binarith _ _) with (bin_case_i Signed) by (destruct i, s; done); simpl in *.
-             rewrite /Int.eq; if_tac; simpl.
-             { apply unsigned_eq_eq in H; subst; rewrite Int.signed_zero Int.unsigned_zero in Hv2.
-               destruct s; [|if_tac in Hv2]; inv Hv2; tauto. }
+             change Archi.ptr64 with true.
+             rewrite /= /Int.eq; if_tac; simpl.
+             { apply unsigned_eq_eq in H1; subst; rewrite Int.signed_zero Int.unsigned_zero in Hv2.
+               destruct s; inv Hv2; tauto. }
              destruct (_ && _) eqn: Hm.
              { repeat (if_tac in Hm; try done).
-               apply unsigned_eq_eq in H1; apply unsigned_eq_eq in H0; subst.
+               apply unsigned_eq_eq in H2; apply unsigned_eq_eq in H3; subst.
                destruct s.
-               ** inv Hv1. contradict Hin. rewrite Int.signed_mone Int.signed_repr; rep_lia.
-               ** rewrite Int.unsigned_mone in Hv2; if_tac in Hv2; inv Hv2.
-                lapply (bitsize_small i); last by intros ->. intros; rep_lia.
+               ** inv Hv1. contradict Hin. rewrite Int.signed_mone Int.signed_repr; pose proof (bitsize_half_max i); destruct i; rep_lia.
+               ** rewrite Int.unsigned_mone in Hv2; inv Hv2.
+                lapply (bitsize_small i); last by intros ->. intros; destruct i; try done.
+                destruct H0; done.
                 }
              destruct s.
              ++ inv Hv1; done.
-             ++ if_tac in Hv1; inv Hv1; if_tac in Hv2; inv Hv2.
+             ++ inv Hv1.
                 rewrite /Int.divs.
                 lapply (bitsize_small i); last by intros ->. intros.
-                rewrite !Int.signed_eq_unsigned //; rep_lia.
+                rewrite !Int.signed_eq_unsigned //; destruct i; try done; try rep_lia.
+                { destruct H0; subst; computable. }
+                { destruct H; subst; computable. }
         * rewrite /Cop.sem_cast /=.
-          destruct s; simpl in *; inv Hv1.
+          destruct s; simpl in *; inv Hv1; change Archi.ptr64 with true; simpl.
           -- rewrite /Int64.eq; if_tac.
-             { apply unsigned_inj_64 in H; subst; rewrite Int64.signed_zero in Hsc; tauto. }
+             { apply unsigned_inj_64 in H1; subst; rewrite Int64.signed_zero in Hsc; tauto. }
              destruct (_ && _) eqn: Hm.
              { repeat (if_tac in Hm; try done).
-               apply unsigned_inj_64 in H1; apply unsigned_inj_64 in H0; subst.
+               apply unsigned_inj_64 in H3; apply unsigned_inj_64 in H2; subst.
                inv Hin. }
              done.
           -- rewrite /Int64.eq; if_tac.
-             { apply unsigned_inj_64 in H; subst; rewrite Int64.unsigned_zero in Hsc; tauto. }
+             { apply unsigned_inj_64 in H1; subst; rewrite Int64.unsigned_zero in Hsc; tauto. }
              rewrite /Int.divu Zquot.Zquot_Zdiv_pos //; rep_lia.
       + rewrite /Cop.sem_mod /Cop.sem_binarith; destruct it, v1; try done; destruct v2; try done.
         * destruct (unsigned_op i s) eqn: Hs.
           -- destruct i; try done; destruct s; try done; simpl in *.
-             if_tac in Hv1; inv Hv1; if_tac in Hv2; inv Hv2.
-             rewrite /Int.eq; if_tac.
+             inv Hv1.
+             change Archi.ptr64 with true.
+             rewrite /= /Int.eq; if_tac.
              { rewrite Int.unsigned_zero in H1; tauto. }
              rewrite /Int.modu Zquot.Zrem_Zmod_pos //; rep_lia.
           -- replace (classify_binarith _ _) with (bin_case_i Signed) by (destruct i, s; done); simpl in *.
-             rewrite /Int.eq; if_tac; simpl.
-             { apply unsigned_eq_eq in H; subst; rewrite Int.signed_zero Int.unsigned_zero in Hv2.
-               destruct s; [|if_tac in Hv2]; inv Hv2; tauto. }
+             change Archi.ptr64 with true.
+             rewrite /= /Int.eq; if_tac; simpl.
+             { apply unsigned_eq_eq in H1; subst; rewrite Int.signed_zero Int.unsigned_zero in Hv2.
+               destruct s; inv Hv2; tauto. }
              destruct (_ && _) eqn: Hm.
              { repeat (if_tac in Hm; try done).
-               apply unsigned_eq_eq in H1; apply unsigned_eq_eq in H0; subst.
+               apply unsigned_eq_eq in H3; apply unsigned_eq_eq in H2; subst.
                destruct s.
-               ** inv Hv1. rewrite Int.signed_mone Int.signed_repr in Hsc; rep_lia.
-               ** rewrite Int.unsigned_mone in Hv2; if_tac in Hv2; inv Hv2.
-                  lapply (bitsize_small i); last by intros ->. intros; rep_lia. }
+               ** inv Hv1. rewrite Int.signed_mone Int.signed_repr // in Hsc.
+                  rewrite Int.signed_repr // in H.
+                  destruct i.
+                  { rep_lia. }
+                  { rewrite two_power_pos_equiv in H; rep_lia. }
+                  { tauto. }
+                  { by destruct H. }
+               ** rewrite Int.unsigned_mone in Hv2; inv Hv2.
+                  lapply (bitsize_small i); last by intros ->. intros; destruct i; try done; try rep_lia.
+                  destruct H0; done. }
              destruct s.
              ++ inv Hv1; done.
-             ++ if_tac in Hv1; inv Hv1; if_tac in Hv2; inv Hv2.
+             ++ inv Hv1.
                 rewrite /Int.mods.
                 lapply (bitsize_small i); last by intros ->. intros.
-                rewrite !Int.signed_eq_unsigned //; rep_lia.
+                rewrite !Int.signed_eq_unsigned //; destruct i; try done; try rep_lia.
+                { destruct H0; subst; computable. }
+                { destruct H; subst; computable. }
         * rewrite /Cop.sem_cast /=.
-          destruct s; simpl in *; inv Hv1.
+          destruct s; simpl in *; inv Hv1; change Archi.ptr64 with true; simpl.
           -- rewrite /Int64.eq; if_tac.
-             { apply unsigned_inj_64 in H; subst; rewrite Int64.signed_zero in Hsc; tauto. }
+             { apply unsigned_inj_64 in H1; subst; rewrite Int64.signed_zero in Hsc; tauto. }
              destruct (_ && _) eqn: Hm.
              { repeat (if_tac in Hm; try done).
-               apply unsigned_inj_64 in H1; apply unsigned_inj_64 in H0; subst.
+               apply unsigned_inj_64 in H3; apply unsigned_inj_64 in H2; subst.
                rewrite Int64.signed_mone Int64.signed_repr in Hsc; rep_lia. }
              done.
           -- rewrite /Int64.eq; if_tac.
-             { apply unsigned_inj_64 in H; subst; rewrite Int64.unsigned_zero in Hsc; tauto. }
+             { apply unsigned_inj_64 in H1; subst; rewrite Int64.unsigned_zero in Hsc; tauto. }
              rewrite /Int.modu Zquot.Zrem_Zmod_pos //; rep_lia.
       + rewrite /Cop.sem_and /Cop.sem_binarith; destruct it, v1; try done; destruct v2; try done.
         * destruct (unsigned_op i s) eqn: Hs.
           -- destruct i; try done; destruct s; try done; simpl in *.
-             if_tac in Hv1; inv Hv1; if_tac in Hv2; inv Hv2; done.
+             by inv Hv1.
           -- replace (classify_binarith _ _) with (bin_case_i Signed) by (destruct i, s; done); simpl in *.
              destruct s.
              ++ inv Hv1.
-                rewrite and_signed //.
-             ++ if_tac in Hv1; inv Hv1; if_tac in Hv2; inv Hv2; done.
+                change Archi.ptr64 with true.
+                rewrite /= and_signed //.
+             ++ by inv Hv1.
         * rewrite /Cop.sem_cast /=.
           destruct s; simpl in *; inv Hv1.
-          -- rewrite and_signed_64 //.
+          -- change Archi.ptr64 with true.
+             rewrite /= and_signed_64 //.
           -- done.
       + rewrite /Cop.sem_or /Cop.sem_binarith; destruct it, v1; try done; destruct v2; try done.
         * destruct (unsigned_op i s) eqn: Hs.
           -- destruct i; try done; destruct s; try done; simpl in *.
-             if_tac in Hv1; inv Hv1; if_tac in Hv2; inv Hv2; done.
+             by inv Hv1.
           -- replace (classify_binarith _ _) with (bin_case_i Signed) by (destruct i, s; done); simpl in *.
              destruct s.
              ++ inv Hv1.
-                rewrite or_signed //.
-             ++ if_tac in Hv1; inv Hv1; if_tac in Hv2; inv Hv2; done.
+                change Archi.ptr64 with true.
+                rewrite /= or_signed //.
+             ++ by inv Hv1.
         * rewrite /Cop.sem_cast /=.
           destruct s; simpl in *; inv Hv1.
-          -- rewrite or_signed_64 //.
+          -- change Archi.ptr64 with true.
+             rewrite /= or_signed_64 //.
           -- done.
       + rewrite /Cop.sem_xor /Cop.sem_binarith; destruct it, v1; try done; destruct v2; try done.
         * destruct (unsigned_op i s) eqn: Hs.
           -- destruct i; try done; destruct s; try done; simpl in *.
-             if_tac in Hv1; inv Hv1; if_tac in Hv2; inv Hv2; done.
+             by inv Hv1.
           -- replace (classify_binarith _ _) with (bin_case_i Signed) by (destruct i, s; done); simpl in *.
              destruct s.
              ++ inv Hv1.
-                rewrite xor_signed //.
-             ++ if_tac in Hv1; inv Hv1; if_tac in Hv2; inv Hv2; done.
+                change Archi.ptr64 with true.
+                rewrite /= xor_signed //.
+             ++ by inv Hv1.
         * rewrite /Cop.sem_cast /=.
           destruct s; simpl in *; inv Hv1.
-          -- rewrite xor_signed_64 //.
+          -- change Archi.ptr64 with true.
+             rewrite /= xor_signed_64 //.
           -- done.
       + rewrite /Cop.sem_shl /Cop.sem_shift; destruct it, v1; try done; destruct v2; try done.
         * assert (n1 = Int.unsigned i0) as ->.
           { destruct s; simpl in *.
             ** inv Hv1. apply Int.signed_eq_unsigned, Int.signed_positive; lia.
-            ** if_tac in Hv1; inv Hv1; done. }
+            ** inv Hv1; done. }
           assert (n2 = Int.unsigned i1) as ->.
           { destruct s; simpl in *.
             ** inv Hv2. apply Int.signed_eq_unsigned, Int.signed_positive; lia.
-            ** if_tac in Hv2; inv Hv2; done. }
+            ** inv Hv2; done. }
           rewrite /Int.ltu; if_tac.
-          2: { rewrite Int.unsigned_repr_wordsize in H; simpl in *.
+          2: { rewrite Int.unsigned_repr_wordsize in H1; simpl in *.
                pose proof (bitsize_wordsize i); rep_lia. }
           destruct i, s; done.
         * simpl in *.
@@ -615,35 +632,36 @@ Section programs.
           { destruct s; inv Hv2; try done.
             apply Int64.signed_eq_unsigned, Int64.signed_positive; lia. }
           rewrite /Int64.ltu; if_tac.
-          2: { rewrite Int64.unsigned_repr_wordsize in H; simpl in *; rep_lia. }
+          2: { rewrite Int64.unsigned_repr_wordsize in H1; simpl in *; rep_lia. }
           destruct i, s; done.
       + rewrite /Cop.sem_shr /Cop.sem_shift; destruct it, v1; try done; destruct v2; try done.
         * assert (n2 = Int.unsigned i1) as Heq.
           { destruct s; simpl in *.
             ** inv Hv2. apply Int.signed_eq_unsigned, Int.signed_positive; lia.
-            ** if_tac in Hv2; inv Hv2; done. }
+            ** inv Hv2; done. }
           rewrite /Int.ltu; if_tac.
-          2: { rewrite Int.unsigned_repr_wordsize in H; simpl in *.
+          2: { rewrite Int.unsigned_repr_wordsize in H1; simpl in *.
                pose proof (bitsize_wordsize i); rep_lia. }
           destruct (unsigned_op i s) eqn: Hs.
           -- destruct i; try done; destruct s; try done; simpl in *.
-             if_tac in Hv1; inv Hv1; if_tac in Hv2; inv Hv2; done.
+             by inv Hv1.
           -- replace (classify_shift _ _) with (shift_case_ii Signed) by (destruct i, s; done); simpl in *.
              destruct s.
              ++ inv Hv1; done.
-             ++ if_tac in Hv1; inv Hv1; if_tac in Hv2; inv Hv2.
+             ++ inv Hv1.
                 rewrite /Int.shr Int.signed_eq_unsigned //.
                 { lapply (bitsize_small i); last by intros ->; intros.
-                  rep_lia. }
+                  destruct i; try done; try rep_lia.
+                  intros; destruct H; subst; computable. }
         * simpl in *.
           assert (n2 = Int64.unsigned i0) as Heq.
           { destruct s; inv Hv2; try done.
             apply Int64.signed_eq_unsigned, Int64.signed_positive; lia. }
           rewrite /Int64.ltu; if_tac.
-          2: { rewrite Int64.unsigned_repr_wordsize in H; simpl in *; rep_lia. }
+          2: { rewrite Int64.unsigned_repr_wordsize in H1; simpl in *; rep_lia. }
           destruct s; inv Hv1; done.
     - iApply ("HΦ" with "[] HT").
-      iPureIntro. by apply i2v_to_Z.
+      iPureIntro. split; [by apply in_range_i2v | by apply i2v_to_Z].
   Qed.
   Definition type_add_int_int_inst n1 n2 := [instance type_arithop_int_int n1 n2 (n1 + n2) Oadd].
   Global Existing Instance type_add_int_int_inst.
@@ -675,7 +693,7 @@ Section programs.
       (li_trace (TraceIfInt n, false) T2)
     ⊢ typed_if it v (v ◁ᵥ n @ int it) T1 T2.
   Proof.
-    iIntros "Hs %Hb".
+    iIntros "Hs (% & %Hb)".
     destruct it, v; try discriminate; iExists n; iSplit; auto;
       simpl; (case_bool_decide;
         [iDestruct "Hs" as "[Hs _]"; by iApply "Hs" | iDestruct "Hs" as "[_ Hs]"; iApply "Hs"; naive_solver]).
@@ -718,10 +736,10 @@ Section programs.
     (⌜n ∈ it⌝ -∗ <affine> ⌜is_signed it⌝ ∗ <affine> ⌜n ≠ min_int it⌝ ∗ T (i2v (-n) it) ((-n) @ int it))
     ⊢ typed_un_op v ⎡v ◁ᵥ n @ int it⎤%I Oneg it T.
   Proof.
-    iIntros "HT %Hv %Φ HΦ". move: (Hv) => /val_to_Z_in_range Hin.
+    iIntros "HT (% & %Hv) %Φ HΦ". pose proof (val_to_Z_in_range _ _ _ Hv H) as Hin.
     iDestruct ("HT" with "[//]") as (Hs Hn) "HT".
     rewrite /wp_unop.
-    iIntros (?) "$".
+    iIntros "!>" (?) "$ !>".
     iExists (i2v (- n) it); iSplit.
     - iStopProof; split => rho; monPred.unseal.
       apply bi.pure_intro.
@@ -730,24 +748,30 @@ Section programs.
         replace (classify_neg _) with (neg_case_i Signed) by (destruct i; done).
         destruct v; inv Hv.
         rewrite -Int.neg_repr Int.repr_signed //.
+      + destruct i; done.
       + rewrite /Cop.sem_neg /=.
         destruct v; inv Hv.
         rewrite -Int64.neg_repr Int64.repr_signed //.
-    - iApply "HΦ"; last done. iPureIntro. rewrite i2v_to_Z //.
-      destruct it; try done; destruct s; simpl in *; try rep_lia.
+    - iApply "HΦ"; last done. iPureIntro.
+      assert (in_range (- n) it).
+      { hnf in Hin; destruct it; try done.
+        * destruct i; try done; destruct s; simpl in *; rep_lia.
+        * destruct s; simpl in *; rep_lia. }
+      split; [by apply in_range_i2v | by apply i2v_to_Z].
   Qed.
   Definition type_neg_int_inst := [instance type_neg_int].
   Global Existing Instance type_neg_int_inst.
 
-  Lemma wp_Ecast : forall e Φ ct, wp_expr e (λ v, ∃ v', ∀ m, <affine>⌜Some v' = Cop.sem_cast v (typeof e) ct m ⌝ ∗ Φ v')
-    ⊢ wp_expr (Ecast e ct) Φ.
+  (* up *)
+  Lemma wp_Ecast : forall E e Φ ct, wp_expr E e (λ v, ∃ v', ∀ m, <affine> ⌜Some v' = Cop.sem_cast v (typeof e) ct m⌝ ∗ Φ v')
+    ⊢ wp_expr E (Ecast e ct) Φ.
   Proof.
   intros.
   rewrite /wp_expr.
-  iIntros "H" (?) "Hm".
-  iDestruct ("H" with "Hm") as "(%v & H1 & Hm & %v' & H)".
+  iIntros ">H !>" (?) "Hm".
+  iMod ("H" with "Hm") as "(%v & H1 & Hm & %v' & H)".
   iDestruct ("H" $! m) as "[%Hcast HΦ]".
-  iExists _; iFrame.
+  iExists _; iFrame; iModIntro.
   iStopProof; split => rho; monPred.unseal.
   rewrite !monPred_at_affinely /local /lift1 /=.
   iIntros "%H1"; iPureIntro.
@@ -785,33 +809,37 @@ Section programs.
   Definition type_cast_int_inst := [instance type_cast_int].
   Global Existing Instance type_cast_int_inst. *)
 
-  Lemma type_not_int n1 it v1 T:
+(*  Lemma type_not_int n1 it v1 T:
     let n := if is_signed it then Z.lnot n1 else Z_lunot (int_size it) n1 in
     (⌜n1 ∈ it⌝ -∗ T (i2v n it) (n @ int it))
     ⊢ typed_un_op v1 ⎡v1 ◁ᵥ n1 @ int it⎤%I Onotint it T.
   Proof.
-(*    iIntros "%n HT %Hv1 %Φ HΦ".
-    move: (Hv1) => /val_to_Z_in_range Hn1.
-    have : n ∈ it.
-    { move: Hn1.
-      rewrite /n /elem_of /int_elem_of_it /min_int /max_int.
-      destruct (it_signed it).
-      - rewrite /int_half_modulus /Z.lnot. lia.
-      - rewrite /int_modulus => ?.
-        have -> : ∀ a b, a ≤ b - 1 ↔ a < b by lia.
-        have ? := bits_per_int_gt_0 it.
-        apply Z_lunot_range; lia. }
-    rewrite /n => /(val_of_Z_is_Some None) [v Hv]. rewrite /i2v Hv /=.
-    iApply (wp_unop_det_pure v). {
-      split.
-      + by inversion 1; simplify_eq.
-      + move => ->. by econstructor.
-    }
-    iIntros "!>". iApply ("HΦ" with "[] (HT [//])").
-    iPureIntro. by apply: val_to_of_Z.
+    iIntros "%n HT (% & %Hv1) %Φ HΦ". pose proof (val_to_Z_in_range _ _ _ Hv1 H) as Hin.
+    assert (n ∈ it).
+    { admit. }
+    rewrite /wp_unop.
+    iIntros "!>" (?) "$ !>".
+    iExists (i2v n it); iSplit.
+    - iStopProof; split => rho; monPred.unseal.
+      apply bi.pure_intro.
+      destruct it; try done; destruct s; try done; simpl in *.
+      + rewrite /Cop.sem_neg.
+        replace (classify_neg _) with (neg_case_i Signed) by (destruct i; done).
+        destruct v; inv Hv.
+        rewrite -Int.neg_repr Int.repr_signed //.
+      + destruct i; done.
+      + rewrite /Cop.sem_neg /=.
+        destruct v; inv Hv.
+        rewrite -Int64.neg_repr Int64.repr_signed //.
+    - iApply "HΦ"; last done. iPureIntro.
+      assert (in_range (- n) it).
+      { hnf in Hin; destruct it; try done.
+        * destruct i; try done; destruct s; simpl in *; rep_lia.
+        * destruct s; simpl in *; rep_lia. }
+      split; [by apply in_range_i2v | by apply i2v_to_Z].
   Qed.
   Definition type_not_int_inst := [instance type_not_int].
-  Global Existing Instance type_not_int_inst. *) Abort.
+  Global Existing Instance type_not_int_inst.  Abort.*)
 
 (*  (* TODO: replace this with a typed_cas once it is refactored to take E as an argument. *)
   Lemma wp_cas_suc_int it z1 z2 zd l1 l2 vd Φ E:
@@ -849,7 +877,7 @@ Section programs.
     (∃ x, <affine> ⌜n = bool_to_Z (b x)⌝ ∗ T x)
     ⊢ subsume (l ◁ₗ{β} n @ int it) (λ x : A, l ◁ₗ{β} (b x) @ boolean it) T.
   Proof.
-    iIntros "[% [-> ?]] Hint". iExists _. iFrame. iDestruct "Hint" as (???) "?".
+    iIntros "[% [-> ?]] Hint". iExists _. iFrame. iDestruct "Hint" as (????) "?".
     iExists _, _. iFrame. iSplit; first done. iSplit; last done. by destruct b.
   Qed.
   Definition subsume_int_boolean_place_inst := [instance subsume_int_boolean_place].
@@ -869,7 +897,7 @@ Section programs.
     ⊢ typed_bin_op v1 ⎡v1 ◁ᵥ b1 @ boolean it1⎤ v2 ⎡v2 ◁ᵥ n2 @ int it2⎤ op it3 it4 T.
   Proof.
     iIntros "HT H1 H2". iApply ("HT" with "[H1] H2"). unfold boolean; simpl_type.
-    iDestruct "H1" as "(%&%H1&%H2)". iPureIntro.
+    iDestruct "H1" as "(%&(%&%H1)&%H2)". iPureIntro.
     move: H1 H2 => /= -> ->. done.
   Qed.
   Definition type_binop_boolean_int_inst := [instance type_binop_boolean_int].
@@ -880,7 +908,7 @@ Section programs.
     ⊢ typed_bin_op v1 ⎡v1 ◁ᵥ n2 @ int it2⎤ v2 ⎡v2 ◁ᵥ b1 @ boolean it1⎤ op it3 it4 T.
   Proof.
     iIntros "HT H1 H2". iApply ("HT" with "H1 [H2]"). unfold boolean; simpl_type.
-    iDestruct "H2" as "(%&%H1&%H2)". iPureIntro.
+    iDestruct "H2" as "(%&(%&%H1)&%H2)". iPureIntro.
     move: H1 H2 => /= -> ->. done.
   Qed.
   Definition type_binop_int_boolean_inst := [instance type_binop_int_boolean].
@@ -915,19 +943,19 @@ Notation "'if' p ≠ 0 " := (TraceIfInt p) (at level 100, only printing).
 Notation "'default'" := (TraceSwitchIntDefault) (at level 100, only printing). *)
 
 Section offsetof.
-  Context `{!typeG Σ} {cs : compspecs}.
+  Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
   (*** OffsetOf *)
   Program Definition offsetof (s : members) (m : ident) : type := {|
     ty_has_op_type ot mt := ot = size_t;
-    ty_own β l := ∃ n, <affine> ⌜in_members m s /\ field_offset _ m s = n⌝ ∗ l ◁ₗ{β} n @ int size_t;
-    ty_own_val v := ∃ n, <affine> ⌜in_members m s /\ field_offset _ m s = n⌝ ∗ v ◁ᵥ n @ int size_t;
+    ty_own β l := ∃ n, <affine> ⌜fieldlist.in_members m s /\ fieldlist.field_offset _ m s = n⌝ ∗ l ◁ₗ{β} n @ int size_t;
+    ty_own_val v := ∃ n, <affine> ⌜fieldlist.in_members m s /\ fieldlist.field_offset _ m s = n⌝ ∗ v ◁ᵥ n @ int size_t;
   |}%I.
   Next Obligation.
     iIntros (s m l E ?). iDestruct 1 as (n Hn) "H". iExists _. iSplitR => //. by iApply ty_share.
   Qed.
-  Next Obligation. iIntros (s m ot mt l ?). iDestruct 1 as (??)"Hn". by iDestruct (ty_aligned with "Hn") as "$". Qed.
-  Next Obligation. iIntros (s m ot mt l ?). iDestruct 1 as (??)"Hn". Admitted.
+  Next Obligation. iIntros (s m ot mt l ?). iDestruct 1 as (??) "Hn". by iDestruct (ty_aligned with "Hn") as "$". Qed.
+  Next Obligation. iIntros (s m ot mt l ->). iDestruct 1 as (??) "Hn". by iApply (ty_size_eq _ _ mt with "Hn"). Qed.
   Next Obligation.
     iIntros (s m ot mt l ?). iDestruct 1 as (??)"Hn".
     iDestruct (ty_deref with "Hn") as (v) "[Hl Hi]"; [done|]. iExists _. iFrame.
@@ -960,7 +988,7 @@ Global Typeclasses Opaque offsetof.
 
 (*** Tests *)
 Section tests.
-  Context `{!typeG Σ} {cs : compspecs}.
+  Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
   Definition Econst_size_t z := if Archi.ptr64 then Econst_long (Int64.repr z) size_t else Econst_int (Int.repr z) size_t .
   Definition Vsize_t z := if Archi.ptr64 then Vlong (Int64.repr z) else Vint (Int.repr z).
