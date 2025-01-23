@@ -3,10 +3,14 @@ Require Import compcert.cfrontend.Cop.
 Require Import compcert.cfrontend.Clight.
 Require Import VST.msl.base.
 Require Import VST.veric.base.
+Set Warnings "-custom-entry-overridden".
 Require Import VST.veric.juicy_mem.
+Set Warnings "custom-entry-overridden".
 Require Import VST.veric.mem_lessdef.
 
 Transparent intsize_eq.
+
+Global Instance EqDec_type: EqDec type := type_eq.
 
 Lemma mem_lessdef_sem_cast:
   forall m1 m2, mem_lessdef m1 m2 ->

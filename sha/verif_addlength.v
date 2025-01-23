@@ -4,8 +4,6 @@ Require Import sha.SHA256.
 Require Import sha.sha_lemmas.
 Require Import sha.spec_sha.
 
-Local Open Scope logic.
-
 Lemma int_unsigned_mod:
  forall i, Int.unsigned i mod Int.modulus = Int.unsigned i.
 Proof.
@@ -211,14 +209,14 @@ forward_if (temp _cNh (Vint (Int.repr (Int.unsigned (hi_part n) + carry)))).
  entailer!. (* return; *)
  subst carry.
  clear - MN BOUND H Hn.
- apply derives_refl'; f_equal.
- + f_equal. f_equal.
+ f_equiv.
+ + f_equiv. f_equal.
     unfold lo_part.
     apply Int.eqm_samerepr.
     apply Int.eqm_add.
     apply Int.eqm_sym; apply Int.eqm_unsigned_repr.
     apply Int.eqm_refl.
- + f_equal. f_equal.
+ + f_equiv. f_equal.
      unfold hi_part.
   rename Hn into Hn';
     assert (Hn: 0 <= n < two_p 64) by lia;

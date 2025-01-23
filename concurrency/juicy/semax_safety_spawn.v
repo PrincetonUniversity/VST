@@ -10,18 +10,12 @@ Require Import compcert.common.Values.
 
 Require Import VST.msl.Coqlib2.
 Require Import VST.msl.eq_dec.
-Require Import VST.msl.seplog.
-Require Import VST.msl.age_to.
-Require Import VST.veric.aging_lemmas.
-Require Import VST.veric.initial_world.
 Require Import VST.veric.juicy_mem.
 Require Import VST.veric.juicy_mem_lemmas.
 Require Import VST.veric.semax_prog.
-Require Import VST.veric.compcert_rmaps.
-Require Import VST.veric.Clight_new.
-Require Import VST.veric.Clightnew_coop.
+Require Import VST.veric.Clight_core.
+Require Import VST.veric.Clightcore_coop.
 Require Import VST.veric.semax.
-Require Import VST.veric.semax_ext.
 Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.juicy_safety.
 Require Import VST.veric.initial_world.
@@ -30,7 +24,6 @@ Require Import VST.veric.tycontext.
 Require Import VST.veric.semax_ext.
 Require Import VST.veric.res_predicates.
 Require Import VST.veric.mem_lessdef.
-Require Import VST.veric.age_to_resource_at.
 Require Import VST.veric.seplog.
 Require Import VST.floyd.coqlib3.
 Require Import VST.sepcomp.step_lemmas.
@@ -45,11 +38,7 @@ Require Import VST.concurrency.common.addressFiniteMap.
 Require Import VST.concurrency.common.permissions.
 Require Import VST.concurrency.juicy.JuicyMachineModule.
 Require Import VST.concurrency.juicy.sync_preds_defs.
-Require Import VST.concurrency.juicy.sync_preds.
 Require Import VST.concurrency.juicy.join_lemmas.
-(*Require Import VST.concurrency.cl_step_lemmas.
-Require Import VST.concurrency.resource_decay_lemmas.
-Require Import VST.concurrency.resource_decay_join.*)
 Require Import VST.concurrency.juicy.semax_invariant.
 Require Import VST.concurrency.juicy.semax_simlemmas.
 Require Import VST.concurrency.juicy.sync_preds.
@@ -75,7 +64,7 @@ Definition Jspec'_juicy_mem_equiv_def CS ext_link :=
 Definition Jspec'_hered_def CS ext_link :=
    ext_spec_stable age (JE_spec _ ( @OK_spec (Concurrent_Espec unit CS ext_link))).
 
-Lemma shape_of_args2 (F V : Type) (args : list val) v (ge : Genv.t F V) :
+(*Lemma shape_of_args2 (F V : Type) (args : list val) v (ge : Genv.t F V) :
   Val.has_type_list args (sig_args (ef_sig CREATE)) ->
   v <> Vundef ->
   v =
@@ -119,7 +108,7 @@ Proof.
   + simpl in E. inversion E. eauto.
   + inversion E. f_equal.
     inversion L.
-Qed.
+Qed.*)
 
 Lemma lock_coherence_age_to ge n m (tp : jstate ge) Phi :
   lock_coherence (lset tp) Phi m ->
@@ -137,8 +126,8 @@ Proof.
       unfold age_to in *.
       rewrite age_by_age_by.
       apply age_by_age_by_pred.
-      omega.
-    * cut (level (age_to n Phi) <= 0)%nat. omega.
+      lia.
+    * cut (level (age_to n Phi) <= 0)%nat. lia.
       rewrite <-E. apply level_age_to_le.
   - destruct C as (A&B&C&R&D).
     repeat split; auto.
@@ -153,8 +142,8 @@ Proof.
   destruct fs; auto.
 Qed.
 
-Lemma cond_approx_eq_app n A P1 P2 phi :
-  cond_approx_eq n A P1 P2 ->
+Lemma args_cond_approx_eq_app n A P1 P2 phi :
+  args_cond_approx_eq n A P1 P2 ->
   (level phi < n)%nat ->
   forall ts y z,
     app_pred (P1 ts (fmap (rmaps.dependent_type_functor_rec ts A) (approx n) (approx n) y) z) phi ->
@@ -168,9 +157,19 @@ Proof.
   apply E.
 Qed.
 
-Lemma prop_app_pred {A} `{_ : ageable A} (P : Prop) (phi : A) : P -> app_pred (!! P) phi.
+Lemma prop_app_pred {A} `{_ : ageable A} {EO : Ext_ord A} (P : Prop) (phi : A) : P -> app_pred (!! P) phi.
 Proof.
   intro p. apply p.
+Qed.
+
+Lemma set_ghost_join : forall a c w1 w2 w (J : join w1 w2 w) H1 H,
+  join a (ghost_of w2) c ->
+  join (set_ghost w1 a H1) w2 (set_ghost w c H).
+Proof.
+  intros.
+  destruct (join_level _ _ _ J).
+  apply resource_at_join2; unfold set_ghost; intros; rewrite ?level_make_rmap, ?resource_at_make_rmap, ?ghost_of_make_rmap; auto.
+  apply resource_at_join; auto.
 Qed.
 
 Lemma safety_induction_spawn ge Gamma n state
@@ -194,7 +193,7 @@ Lemma safety_induction_spawn ge Gamma n state
      state_invariant Jspec' Gamma (S n) state').
 Proof.
   intros isspawn I.
-  inversion I as [m tr sch_ tp Phi En envcoh mwellformed compat extcompat sparse lock_coh safety wellformed unique E]. rewrite <-E in *.
+  inversion I as [m tr sch_ tp Phi En envcoh (*mwellformed*) compat extcompat sparse lock_coh safety wellformed unique E]. rewrite <-E in *.
   unfold blocked_at_external in *.
   destruct isspawn as (i & cnti & sch & ci & args & -> & Eci & atex).
   pose proof (safety i cnti tt) as safei.
@@ -202,38 +201,39 @@ Proof.
   rewrite Eci in safei.
 
   fixsafe safei.
+  destruct ci as [| ?? k |]; try discriminate.
   inversion safei
-    as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ].
+    as [ | ????? bad | z c m0 e args0 x at_ex Pre SafePost | ???? bad ]; last contradiction.
+  { rewrite level_jm_ in H; setoid_rewrite H in En; discriminate. }
   apply (corestep_not_at_external (juicy_core_sem _)) in bad. exfalso; subst; clear - bad atex.
    simpl in bad. unfold cl_at_external in *; simpl in *. rewrite atex in bad; inv bad.
-  2: inversion bad.
   subst.
   simpl in at_ex.
   unfold cl_at_external in atex, at_ex.
   assert (args0 = args) by congruence; subst args0.
   assert (e = CREATE) by congruence; subst e.
+  destruct f; [discriminate|].
+  destruct (ef_inline e); inv atex; clear at_ex.
   hnf in x.
   revert x Pre SafePost.
 
-  assert (H_spawn : Some (ext_link "spawn", ef_sig CREATE) = ef_id_sig ext_link CREATE). reflexivity.
+  assert (H_spawn : Some (ext_link "spawn", ef_sig CREATE) = ef_id_sig ext_link CREATE) by reflexivity.
 
   (* dependent destruction *)
-  funspec_destruct "acquire".
+(*  funspec_destruct "acquire".
   funspec_destruct "release".
   funspec_destruct "makelock".
-  funspec_destruct "freelock".
+  funspec_destruct "freelock".*)
   funspec_destruct "spawn".
   intros (phix, (ts, ((((f,b), globals), f_with_x) , f_with_Pre)))  (Hargsty, Pre) Post.
 (*  intros (phix, (ts, ((((xf, xarg), globals), f_with_x), f_with_Pre))) (Hargsty, Pre). *)
   simpl (and _) in Post.
   destruct Pre as (phi0 & phi1 & jphi & A). simpl in A.
-  destruct A as (((PreA & PreA') & (([PreB1 _] & [PreB2 _] & PreB3) & [phi00 [phi01 [jphi0 [[_y [Func Hphi00]] fPRE]]]])) & necr).
-  change Logic.True in PreA'. clear PreA'.
-(*destruct A as ((PreA & (PreB1 & PreB2 & PreB3) & phi00 & phi01 & jphi0 & (_y & Func) & fPRE) & necr).*)
-  simpl in fPRE.
-  rewrite seplog.sepcon_emp in fPRE.
-  hnf in PreB1,  PreB2.
-  clear Heq_name Heq_name0 Heq_name1 Heq_name2 Heq_name3.
+  destruct A as (((PreA & _) & (PreB1 & PreB2 & A)) & necr).
+  unfold SeparationLogic.argsassert2assert, canon.SEPx, client_lemmas.func_ptr' in A; simpl in A.
+  rewrite seplog.corable_andp_sepcon1, log_normalize.emp_sepcon, seplog.sepcon_emp in A by apply SeparationLogic.corable_func_ptr.
+  destruct A as [Func fPre].
+  clear Heq_name.
 
 
   assert (li : level (getThreadR i tp cnti) = S n).
@@ -242,36 +242,25 @@ Proof.
   { rewrite <-li. apply join_sub_level. eexists; eauto. }
   assert (l0 : level phi0 = S n).
   { rewrite <-li. apply join_sub_level. eexists; eauto. }
-  assert (l00 : level phi00 = S n).
-  { rewrite <-l0. apply join_sub_level. eexists; eauto. }
-  assert (l01 : level phi01 = S n).
-  { rewrite <-l0. apply join_sub_level. eexists; eauto. }
-Print Module SeparationLogicSoundness.VericSound.
-  Import SeparationLogic Clight_initial_world Clightdefs. 
+  Import SeparationLogic Clight_initial_world Clightdefs.
 (*  Import VericMinimumSeparationLogic.CSHL_Defs *)
 (*   Import SeparationLogicSoundness.VericSound.CSHL_Defs. *)
-  assert (phi01 = phi0). {
+(*  assert (phi01 = phi0). {
     eapply join_unit1_e; eauto.
     assumption.
-  }
-  pose proof func_ptr_isptr _ _ _ Func as isp.
+  }*)
+  epose proof func_ptr_isptr _ _ as [isp]; specialize (isp _ Func).
   unfold val_lemmas.isptr in *.
   destruct f as [ | | | | | f_b f_ofs]; try contradiction.
-(*  destruct b as [ | | | | | b_b b_ofs]; try contradiction. *)
   clear isp.
   destruct args as [ | args1 args]; [contradiction Hargsty | ].
   destruct args as [ | args2 args]; [destruct Hargsty; contradiction | ].
   destruct args as [ | args]; [ | destruct Hargsty as [_ [_ Hargsty]]; contradiction ].
 
-  apply shape_of_args3 in PreB1; auto. 2: congruence.
-  apply shape_of_args2 in PreB2; auto.
-   2: clear - PreA; hnf in PreA; destruct b; try contradiction; congruence.
-
-  destruct PreB1 as (arg1, Eargs). symmetry in Eargs; inv Eargs.
-  destruct PreB2 as [arg1 PreB2]. inv PreB2.
+  inv PreB1.
 
   destruct ((fun x => x) envcoh) as (gam, SP).
-  destruct SP as (prog & CS_ & V & semaxprog & Ege & FA).
+  destruct SP as (prog & ora & CS_ & V & semaxprog & Ege & FA).
 
   unfold SeparationLogic.NDmk_funspec in Func.
   match type of Func with
@@ -281,58 +270,36 @@ Print Module SeparationLogicSoundness.VericSound.
       set (NEP := NEP_); set (NEQ := NEQ_)
   end.
 
-  assert (gam0 : matchfunspecs ge Gamma phi00). {
+  assert (gam0 : matchfunspecs ge Gamma phi0). {
     revert gam. apply pures_same_matchfunspecs.
     join_level_tac.
     apply pures_same_sym, join_sub_pures_same.
-    apply join_sub_trans with phi0. eexists; eassumption.
     apply join_sub_trans with (getThreadR i tp cnti). exists phi1. auto.
     join_sub_tac.
   }
 
-  specialize (gam0 f_b ((_y, Tpointer Tvoid noattr) :: nil, tptr Tvoid) cc_default).
+  specialize (gam0 f_b).
 
   destruct Func as (b' & E' & FAT). injection E' as <- ->.
-
-  unfold SeparationLogic.NDmk_funspec in *.
-  (* before merge, FAT had the following type.
-     We will use that in the mean time.
-   *)
-  assert (FAT': (func_at
-           (mk_funspec ((_y, tptr tvoid) :: nil, tptr tvoid) cc_default
-              (rmaps.ConstType (val * nth 0 ts unit))
-              (fun (_ : list Type) (x0 : val * nth 0 ts unit) =>
-               let (y, x) := x0 in
-               canon.PROPx nil
-                 (canon.LOCALx (canon.temp _y y :: canon.gvars (globals x) :: nil)
-                    (canon.SEPx (f_with_Pre x y :: nil))))
-              (fun (_ : list Type) (x0 : val * nth 0 ts unit) =>
-               let (_, _) := x0 in canon.PROPx nil (canon.LOCALx nil (canon.SEPx nil)))
-              (const_super_non_expansive (val * nth 0 ts unit)
-                 (fun (_ : list Type) (x0 : val * nth 0 ts unit) =>
-                  let (y, x) := x0 in
-                  canon.PROPx nil
-                    (canon.LOCALx (canon.temp _y y :: canon.gvars (globals x) :: nil)
-                       (canon.SEPx (f_with_Pre x y :: nil)))))
-              (const_super_non_expansive (val * nth 0 ts unit)
-                 (fun (_ : list Type) (x0 : val * nth 0 ts unit) =>
-                  let (_, _) := x0 in canon.PROPx nil (canon.LOCALx nil (canon.SEPx nil))))) 
-           (f_b, 0)) phi00) by admit.
-  specialize (gam0 _ _ _ FAT').
-  destruct gam0 as (id_fun & P' & Q' & NEP' & NEQ' & Eb & Eid & Heq_P & Heq_Q).
-  unfold filter_genv in *.
+  destruct FAT as (gs & Hsub & FAT').
+  specialize (gam0 _ _ _ (necR_refl _) (ext_refl _) FAT').
+  destruct gam0 as (id_fun & fs0 & [? Eid] & Hsub0).
+  pose proof (funspec_sub_si_trans fs0 gs (mk_funspec fsig cc A P Q NEP NEQ) phi0) as Hsub1.
+  spec Hsub1. { split; auto. }
+  clear Hsub Hsub0.
+  destruct fs0 as [sig' cc' A' P' Q' NEP' NEQ'].
+  assert (sig' = fsig /\ cc' = cc) as []; subst.
+  { destruct gs; simpl in *.
+    destruct Hsub1 as [[] _]; subst; auto. }
 
   pose proof semax_prog_entry_point (Concurrent_Espec unit CS ext_link) V Gamma prog f_b
-       id_fun _y b A P' Q' NEP' NEQ' 0 semaxprog as HEP.
+       id_fun (tptr tvoid :: nil) (b :: nil) A' P' Q' NEP' NEQ' 0 ora (allows_exit ext_link) semaxprog as HEP.
 
-  subst ge.
   rewrite <-make_tycontext_s_find_id in HEP.
   spec HEP. auto.
 
   spec HEP. {
-    unfold A.
-    rewrite <-Eid.
-    apply make_tycontext_s_find_id.
+    rewrite make_tycontext_s_find_id; auto.
   }
 
   (*
@@ -347,7 +314,7 @@ Print Module SeparationLogicSoundness.VericSound.
     intros ts0 a rho phi ff. hnf.
     apply cond_approx_eq_sym in Heq_Q.
     pose proof @cond_approx_eq_app _ (rmaps.ConstType (val * nth 0 ts unit)) _ _ (age_to n phi) Heq_Q as HQ.
-    spec HQ. eapply le_lt_trans with n. 2:omega.
+    spec HQ. eapply le_lt_trans with n. 2:lia.
     { apply level_age_to_le'. }
     spec HQ ts0 a rho.
     spec HQ. now apply age_to_pred, ff.
@@ -361,35 +328,37 @@ Print Module SeparationLogicSoundness.VericSound.
   }
   *)
 
-  specialize (HEP PreA).
+  spec HEP.
+  { split; simpl; auto. }
   destruct HEP as (q_new & Initcore & Safety).
 (*  specialize (Initcore (jm_ cnti compat)). 
 clear - Initcore.
   change (initial_core (juicy_core_sem cl_core_sem) _) with cl_initial_core in Initcore.
 *)
 
-  apply join_comm in jphi0.
+(*  apply join_comm in jphi0.
   destruct (join_assoc jphi0 jphi) as (phi1' & jphi1' & jphi').
   assert (phi1 = phi1'). {
     eapply join_unit1_e; eauto.
     eassumption.
   }
-  subst phi1'.
+  subst phi1'.*)
 
-  assert (val_inject (Mem.flat_inj (Mem.nextblock m)) b b) as Hinj.
-  { destruct fPRE as [Hvalid _].
-    destruct b; try constructor; simpl in Hvalid.
+(*  assert (val_inject (Mem.flat_inj (Mem.nextblock m)) b b) as Hinj.
+  { (*destruct fPRE as [Hvalid _].*)
+    destruct b; try constructor.
     destruct (compatible_threadRes_cohere cnti (mem_compatible_forget compat)).
     destruct (plt b (Mem.nextblock m)).
     econstructor; [|symmetry; apply Ptrofs.add_zero].
     unfold Mem.flat_inj; rewrite if_true; auto.
-    { specialize (all_coh0 (b, Ptrofs.unsigned i0)); spec all_coh0; auto.
+    { Search b.
+specialize (all_coh0 (b, Ptrofs.unsigned i0)); spec all_coh0; auto.
       rewrite m_phi_jm_ in jphi.
       apply (resource_at_join _ _ _ (b, Ptrofs.unsigned i0)) in jphi.
       rewrite all_coh0 in jphi.
       rewrite Z.add_0_r in Hvalid; destruct (phi0 @ _) eqn: Hb; inv jphi.
       apply join_to_bot_l in RJ; subst.
-      contradiction Hvalid; apply bot_identity. } }
+      contradiction Hvalid; apply bot_identity. } }*)
   eexists.
   split.
   {
@@ -404,7 +373,6 @@ clear - Initcore.
     { reflexivity. }
 
     eapply step_create with
-      (Hcompatible := mem_compatible_forget compat)
       (phi' := phi1)
       (d_phi := phi0); try reflexivity; try eassumption; simpl; auto.
   }
@@ -414,33 +382,33 @@ clear - Initcore.
   of the spawner, but also for the safety of the spawned thread,
   because the precondition is stored in the current rmap *)
 
+  set (ci := Clight_core.Callstate _ _ _).
   assert (compat' :
             mem_compatible_with
               (addThread (updThread i tp cnti (Kresume ci Vundef) phi1)
                          (Vptr f_b Ptrofs.zero) b phi0) m Phi).
   {
     split; try apply compat.
-    clear -jphi compat. destruct compat as [jj jj']. simpl in jphi.
-    rewrite join_all_joinlist in *.
-    rewrite maps_addthread.
-    rewrite maps_updthread.
-    rewrite (maps_getthread _ _ cnti) in jj.
-    rewrite joinlist_merge; eauto.
+    * clear -jphi compat extcompat. destruct compat as [jj jj']. simpl in jphi.
+      rewrite join_all_joinlist in *.
+      rewrite maps_addthread.
+      rewrite maps_updthread.
+      rewrite (maps_getthread _ _ cnti) in jj.
+      rewrite joinlist_merge; eauto.
   }
 
   apply (@mem_compatible_with_age _ n) in compat'.
   replace (level _) with (S n) by (simpl; join_level_tac).
-  replace (S n - 1)%nat with n by omega.
+  replace (S n - 1)%nat with n by lia.
 
   apply state_invariant_c with (mcompat := compat').
 
   - (* level *)
-    apply level_age_to. cleanup. omega.
+    apply level_age_to. cleanup. lia.
 
   - (* env_coherence *)
     apply env_coherence_age_to; auto.
-  - auto.
-  - rewrite age_to_ghost_of.
+  - unfold ext_compat; rewrite age_to_ghost_of.
     destruct extcompat as [? J]; eapply ghost_fmap_join in J; eexists; eauto.
 
   - (* lock sparsity *)
@@ -460,189 +428,98 @@ clear - Initcore.
        - new thread #n+1 (spawned),
        - thread #i (after spawning),
        - other threads *)
-    intros j lj ora.
+    intros j lj [].
     destruct (eq_dec j tp.(num_threads).(pos.n)); [ | destruct (eq_dec i j)].
     + (* safety of new thread *)
       subst j.
       REWR.
-      rewrite gssAddCode. 2:reflexivity.
-      split; auto.
+      rewrite gssAddCode by reflexivity.
       exists q_new.
       split.
-{
-      destruct (Initcore (jm_ cnti compat)) as [? [? [? ?]]]; auto.
-      clear Initcore Post lj ora Safety FAT' Heq_P Heq_Q Eid Eb NEP' NEQ' P' Q' NEQ NEP P Q FA semaxprog.
-      clear jphi' jphi1' q_new id_fun A cc fsig CS_ V gam.
-      clear l1 l0 l00 l01 necr li fPRE FAT PreA PreB3.
-      clear Hargsty f_with_Pre f_with_x Hphi00 _y globals ts H_spawn unique wellformed at_ex En.
-      clear atex safei safety lock_coh.
-      simpl Mem.nextblock.
-      destruct mwellformed. split; auto.
-      clear - H.
-      change (Mem.nextblock m)
-       with (Mem.nextblock (m_dry (@jm_ (globalenv prog) tp m Phi i cnti compat))).
-      apply  maxedmem_neutral.
-      assert (mem_equiv.mem_equiv (maxedmem (m_dry (@jm_ (globalenv prog) tp m Phi i cnti compat)))
-                  (maxedmem m)). {
-         clear. simpl.
-         unfold maxedmem, juicyRestrict.
-     set (j := (juice2Perm
-           (@OrdinalPool.getThreadR LocksAndResources
-              (@JSem (globalenv prog)) i tp cnti) m)).
-     set (k := (@juice2Perm_cohere
-           (@OrdinalPool.getThreadR LocksAndResources
-              (@JSem (globalenv prog)) i tp cnti))).
-     set (q := (@acc_coh m
-              (@OrdinalPool.getThreadR LocksAndResources
-                 (@JSem (globalenv prog)) i tp cnti)
-              (@thread_mem_compatible (@JSem (globalenv prog)) tp m
-                 (@mem_compatible_forget (globalenv prog) tp m Phi
-                    compat) i cnti))).
-   clearbody q. clearbody k.
-   admit.  (* for Santiago to do. *)
-  }
-  red. simpl Mem.nextblock. rewrite H0. auto.
-}
-      intros jm. REWR. rewrite gssAddRes. 2:reflexivity.
-      specialize (Safety jm ts).
+      { destruct (Initcore (jm_ cnti compat)) as [? Hinit]; apply Hinit. }
+
+      intros jm. REWR. rewrite gssAddRes by reflexivity.
+(*      specialize (Safety jm ts). *)
       intros Ejm.
-      replace (level jm) with n in Safety; swap 1 2.
-      { rewrite <-level_m_phi, Ejm. symmetry. apply level_age_to.
-        cut (level phi0 = level Phi). cleanup. intros ->. omega.
-        apply join_sub_level.
-        apply join_sub_trans with (getThreadR _ _ cnti). exists phi1. auto.
-        apply compatible_threadRes_sub. apply compat. }
-
-      eapply Safety.
-      * rewrite Ejm.
-        eapply cond_approx_eq_app with (A := rmaps.ConstType (val * nth 0 ts unit)) (y := (b, f_with_x)).
-
-        (* cond_approx_eq *)
-        eauto.
-
-        (* level *)
-        rewrite level_age_to. omega. cleanup. omega.
-
-        (* PROP / LOCAL / SEP *)
-        simpl.
-        apply age_to_pred.
-        split.
-
-        (* nothing in PROP *)
-        now constructor.
-
-        split.
-        unfold SeparationLogic.local, lift1.
-
-        split.
-
-        -- (* LOCAL 1 : value of xarg *)
-        split.
-        simpl.
-        unfold liftx, lift. simpl.
-        unfold eval_id in *.
-        unfold val_lemmas.force_val in *.
-        unfold te_of in *.
-        unfold construct_rho in *.
-        unfold make_tenv in *.
-        unfold Map.get in *.
-        rewrite PTree.gss.
-        reflexivity.
-       do 8 red. intro Hx; subst; contradiction PreA.
-      
-
-       --  (* LOCAL 2 : locald_denote of global variables *)
-        split3. hnf.
-        clear - PreB3. destruct PreB3 as [PreB3 _].
-        hnf in PreB3. rewrite PreB3; clear PreB3.
-        unfold Map.get, make_ext_args. unfold env_set. 
-        unfold ge_of.
-        unfold filter_genv.
-        extensionality i. unfold Genv.find_symbol. simpl. auto.
-       
-
-        -- (* SEP: only precondition of spawned condition *)
-        unfold canon.SEPx in *.
-        simpl.
-        rewrite seplog.sepcon_emp.
-        destruct fPRE; assumption.
-      * (* funnassert *)
-        rewrite Ejm.
-        apply funassert_pures_eq with Phi.
-        { rewrite level_age_to. omega. cleanup. omega. }
-        { apply pures_same_eq_l with phi0. 2: now apply pures_eq_age_to; omega.
+      (* do a fupd to satisfy the spawned function's precondition *)
+      apply (semax_lemmas.assert_safe1_fupd (globalenv prog) _ q_new).
+      destruct Hsub1 as [_ Hsub1].
+      specialize (Hsub1 (age_to n phi0)); spec Hsub1.
+      { destruct (nec_refl_or_later _ _ (age_to_necR n phi0)) as [Heq | ]; auto.
+        apply (f_equal level) in Heq; rewrite level_age_to, l0 in Heq; lia. }
+      specialize (Hsub1 ts (b, f_with_x) (filter_genv (symb2genv (genv_symb_injective (globalenv prog))), b :: nil) _ (le_refl _) _ _ (necR_refl _) (ext_refl _)).
+      spec Hsub1.
+      { split.
+        * repeat constructor; simpl.
+          destruct b; try contradiction; simpl; auto.
+        * eapply pred_nec_hereditary; [apply age_to_necR|].
+          unfold P; rewrite sepcon_emp; split3; constructor; auto. }
+      assert (app_pred (fungassert (nofunc_tycontext V Gamma) (filter_genv (globalenv prog), b :: nil)) (age_to n phi0)) as Hfung.
+      { apply fungassert_pures_eq with Phi.
+        { rewrite level_age_to. lia. cleanup. lia. }
+        { apply pures_same_eq_l with phi0, pures_eq_age_to; [|lia].
           apply join_sub_pures_same. subst.
           apply join_sub_trans with (getThreadR i tp cnti). exists phi1; auto.
           apply compatible_threadRes_sub, compat. }
-        apply FA.
-      * rewrite Ejm; simpl.
-         rewrite age_to_ghost_of.
-         destruct ora.
-         eapply join_sub_joins_trans, ext_join_approx, extcompat.
-         destruct (compatible_threadRes_sub cnti (juice_join compat)).
-         eapply join_sub_trans.
-         -- eexists; apply ghost_fmap_join, ghost_of_join; eauto.
-         -- eexists; apply ghost_fmap_join, ghost_of_join; eauto.
+        apply FA. }
+      pose proof (conj Hfung Hsub1) as Hpre; eapply fupd.fupd_andp_corable in Hpre; [|apply corable_fungassert].
+      rewrite Ejm; eapply fupd.fupd_mono, Hpre.
+      intros ? (? & ? & ? & F & HP & _) [] ? Hext ??; subst.
+      rewrite predicates_sl.sepcon_comm in HP.
+      destruct ora; eapply jm_fupd_intro', Safety; auto.
+      eapply predicates_sl.sepcon_derives, HP; eauto.
 
     + (* safety of spawning thread *)
       subst j.
       REWR. unshelve erewrite (@gsoAddCode _ _ _ _ _ _ _ i); auto. REWR. REWR.
       unshelve erewrite (@gsoAddRes _ _ _ _ _ _ _ i); auto. REWR.
       intros c' afterex jm Ejm.
-      specialize (Post None jm ora n Hargsty Logic.I (le_refl _)).
+      specialize (Post None jm ora Hargsty Logic.I).
 
       spec Post. (* Hrel *)
-      { split. rewrite <-level_m_phi, Ejm. symmetry. apply level_age_to. cleanup; omega.
-        rewrite <-!level_m_phi. rewrite m_phi_jm_, Ejm. split.
-        rewrite level_age_to. cleanup; omega. cleanup; omega.
+      { unfold Hrel. rewrite <-!level_m_phi. rewrite m_phi_jm_, Ejm. split.
+        rewrite level_age_to. cleanup; lia. cleanup; lia.
         apply pures_same_eq_l with phi1. apply join_sub_pures_same. exists phi0. auto.
-        apply pures_eq_age_to. omega. }
+        apply pures_eq_age_to. lia. }
 
       spec Post. (* Postcondition *)
-      { exists (age_to n phi00), (age_to n phi1); split; [ | split3].
-        - rewrite Ejm. apply age_to_join. auto.
-        - split; auto. split; auto. split.
-          apply prop_app_pred; auto.
-          unfold canon.SEPx in *. simpl.
-          apply age_to_pred. auto.
+      { exists (core (age_to n phi1)), (age_to n phi1); split3.
+        - rewrite Ejm. apply core_unit.
+        - split; auto. split; auto. split; [constructor|].
+          setoid_rewrite emp_no; intros ?; apply resource_at_core_identity.
         - simpl.
           apply necR_trans with phi1; [ |apply age_to_necR].
           destruct necr; auto.
-        - destruct necr as [? JOINS].
-           rewrite Ejm, age_to_ghost_of.
-           destruct ora.
-           eapply join_sub_joins_trans; [|apply ext_join_approx, JOINS].
-           eexists; apply ghost_fmap_join, ghost_of_join; eauto.
       }
 
       destruct Post as (c'_ & afterex_ & safe').
       assert (c'_ = c').
       { cut (Some c'_ = Some c'). congruence. rewrite <-afterex, <-afterex_. reflexivity. }
       subst c'_.
-      apply safe'.
+      destruct ora; apply safe'.
 
     + assert (cntj : containsThread tp j).
       { apply cnt_age, cntAdd' in lj.
         destruct lj as [[lj ?] | lj ]. apply lj. simpl in lj. tauto. }
       specialize (safety j cntj ora).
+      destruct ora.
       REWR. REWR. REWR. REWR.
       destruct (getThreadC j tp cntj) eqn:Ej.
       -- edestruct (unique_Krun_neq(ge := globalenv prog) i j); eauto.
-      -- apply jsafe_phi_age_to; auto. apply jsafe_phi_downward.
+      -- apply jsafe_phi_age_to; auto.
          unshelve erewrite gsoAddRes; auto. REWR.
       -- intros c' Ec'; specialize (safety c' Ec').
-         apply jsafe_phi_bupd_age_to; auto. apply jsafe_phi_bupd_downward.
+         apply jsafe_phi_fupd_age_to; auto.
          unshelve erewrite gsoAddRes; auto. REWR.
-      -- destruct safety as (? & c_new & Einit & safety).
-         split; auto.
+      -- destruct safety as (c_new & Einit & safety).
          exists c_new; split; auto.
          unshelve erewrite gsoAddRes; auto. REWR.
-         apply jsafe_phi_age_to; auto. apply jsafe_phi_downward, safety.
+         apply jsafe_phi_fupd_age_to; auto.
 
   - (* wellformed *)
     intros j cntj.
     destruct (eq_dec j tp.(num_threads).(pos.n)); [ | destruct (eq_dec i j)].
-    + subst j. REWR. rewrite gssAddCode. 2:reflexivity. constructor.
+    + subst j. REWR. rewrite gssAddCode by reflexivity. constructor.
     + subst j. REWR. REWR. REWR.
        unfold cl_at_external; simpl. split; congruence.
     + assert (cntj' : containsThread tp j).
@@ -654,7 +531,7 @@ clear - Initcore.
     (* rewrite no_Krun_age_tp_to. *)
     intros j cntj q.
     destruct (eq_dec j tp.(num_threads).(pos.n)); [ | destruct (eq_dec i j)].
-    + subst j. REWR. rewrite gssAddCode. 2:reflexivity. clear; congruence.
+    + subst j. REWR. rewrite gssAddCode by reflexivity. clear; congruence.
     + subst j. REWR. REWR. REWR. clear; congruence.
     + assert (cntj' : containsThread tp j).
       { apply cnt_age, cntAdd' in cntj. destruct cntj as [[lj ?] | lj ]. apply lj. simpl in lj. tauto. }
@@ -662,4 +539,4 @@ clear - Initcore.
       eapply unique_Krun_no_Krun. eassumption.
       instantiate (1 := cnti). rewr (getThreadC i tp cnti).
       congruence.
-Admitted. (* safety_induction_spawn *)
+Qed. (* safety_induction_spawn *)

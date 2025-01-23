@@ -106,7 +106,7 @@ inv H5.
 auto.
 Qed.
 
-Definition age1_list {A} `{ageable A} := list_forall2 age.
+(*Definition age1_list {A} `{ageable A} := list_forall2 age.
 
 Lemma age1_list_join {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
   forall l (phi phi' phi2: A),
@@ -140,7 +140,7 @@ destruct (IHl phi1 phi2 phi2' H H6) as [l' [phi1' [? [? ?]]]].
 destruct (age1_join2 _ H4 H0) as [phi' [a' [? [? ?]]]].
 exists (a'::l'). exists phi'.
 repeat split; auto; econstructor 2; eauto.
-Qed.
+Qed.*)
 
 Lemma list_join_split_nth {A}{JA: Join A}{PA: Perm_alg A}:
  forall n (l: list A) phin phi phia phib phi2,
@@ -326,7 +326,7 @@ Proof.
 intros; subst; apply comparable_refl.
 Qed.
 
-Lemma ageN_join {A}  {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
+(*Lemma ageN_join {A}  {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
   forall n (w1 w2 w3 w1': A),
    join w1 w2 w3 ->
       ageN n w1 = Some w1' ->
@@ -414,7 +414,7 @@ inv H. exists phi2'; exists phi3'; split; auto.
   exists phi4; exists phi5. split; auto.
  split; unfold ageN; simpl. rewrite H6; auto. rewrite H7; auto.
  inv H1.
-Qed.
+Qed.*)
 
 
 #[export] Hint Resolve join_comparable join_comparable'  join_comparable'' join_comparable'''
@@ -453,7 +453,7 @@ Ltac Comp1 phi1 phi2 :=
                           [eauto 3 with comparable  typeclass_instances | clear H; Comp1 phib phi2]
                    | clear H; Comp1 phi1 phi2].
 
-Ltac Comp := match goal with
+(*Ltac Comp := match goal with
                 | |- comparable ?phi1 ?phi2 => Comp1 phi1 phi2
                 | |-  level ?phi1 = level ?phi2 => apply comparable_fashionR; Comp1 phi1 phi2
 (*                | |- level _ = level _ => rewrite comparable_level; Comp *)
@@ -543,4 +543,4 @@ destruct (IHclos_refl_trans1 _ _ H0) as [x0 [y0 [? [? ?]]]].
 exists x0; exists y0.
 split; auto.
 split; econstructor 3; eauto.
-Qed.
+Qed.*)

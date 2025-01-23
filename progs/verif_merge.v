@@ -1,8 +1,7 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat. Import NoOracle.
 Require Import VST.progs.merge.
 Require Import VST.progs.list_dt. Import LsegSpecial.
-
-Open Scope logic.
 
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
@@ -123,12 +122,12 @@ Lemma list_cell_field_at sh (v : val) p :
 Proof.
   unfold list_cell, withspacer, field_at; simpl.
   f_equal.
-  apply ND_prop_ext.
+  f_equal. apply prop_ext.
   unfold field_compatible, legal_nested_field, legal_field in *; simpl.
   intuition. repeat constructor.
 Qed.
 
-Lemma entail_rewrite A B : (A |-- B) -> A = A && B.
+Lemma entail_rewrite (A B : mpred) : (A |-- B) -> A ⊣⊢ A && B.
 Proof.
   intros I.
   apply pred_ext.
@@ -144,11 +143,7 @@ Lemma list_append_null (cs : compspecs)
   |-- lseg ls sh (ct1 ++ ct2) hd nullval.
 Proof.
   intros.
-  assert (AP : forall P Q, (P * emp |-- Q * emp) -> P |-- Q).
-    intros.
-    eapply derives_trans; [ eapply derives_trans; [ | eassumption] | ]; cancel.
-  apply AP; clear AP.
-  apply (@list_append _ _ _ _ sh ls _ _ _ _ _ (fun _ => emp)).
+  iIntros "H"; iDestruct (list_append _ _ _ _ _ (fun _ => emp) with "[$H]") as "($ & _)".
   intros; unfold lseg_cell.
   rewrite (entail_rewrite _ _ (field_at_ptr_neq_null _ _ _ _ _)).
   rewrite field_at_isptr.
@@ -294,19 +289,15 @@ Time entailer!.  (* 42.3 sec -> 13.9 sec -> 11.4 sec *)
 rewrite butlast_snoc. rewrite last_snoc.
 rewrite (snoc merged) at 3 by auto.
 rewrite map_app. simpl map.
-unfold_data_at (data_at _ _ _ c_). 
-unfold_data_at (data_at _ _ _ a_).
-match goal with |- ?B * ?C * ?D * ?E * ?F * ?G * (?H * ?A) |-- _ =>
- apply derives_trans with ((H * A * G * C) * (B * D * E * F));
-  [cancel | ]
-end.
-eapply derives_trans; [apply sepcon_derives; [ | apply derives_refl] | ].
-assert (LCR := lseg_cons_right_neq LS sh (map Vint (butlast merged)) begin (Vint (last merged)) c_ a_' a_);
-simpl in LCR. rewrite list_cell_field_at, emp_sepcon in LCR. apply LCR; auto.
-rewrite @lseg_cons_eq.
+iIntros "(? & Ha_tail & ? & ? & ? & lc & Hc)".
+iPoseProof (lseg_cons_right_neq LS sh (map Vint (butlast merged)) begin (Vint (last merged)) c_ a_' a_ with "[$Ha_tail Hc $lc]") as "($ & ?)"; first auto.
+{ rewrite list_cell_field_at.
+  unfold_data_at (data_at _ _ _ c_); iDestruct "Hc" as "($ & $)". }
+iStopProof.
+rewrite lseg_cons_eq.
 Exists b_'.
 rewrite list_cell_field_at.
-entailer!.
+unfold_data_at (data_at _ _ _ a_); entailer!.
 
 (* other branch of the if: contradiction *)
 rewrite H2 in HeqB; inversion HeqB.
@@ -390,17 +381,13 @@ Exists a_'.
 Time entailer!. (* 14.3 sec *)
 pattern merged at 3; rewrite snoc by auto.
 rewrite map_app. simpl map.
-assert (LCR := lseg_cons_right_neq LS sh (map Vint (butlast merged)) begin (Vint (last merged)) c_ b_' b_).
-simpl in LCR. rewrite emp_sepcon, list_cell_field_at in LCR.
-unfold_data_at (data_at _ _ _ c_).
-unfold_data_at (data_at _ _ _ b_).
-match goal with |- ?B * ?C * ?D * ?E * (?F * ?A) |-- _ =>
- apply derives_trans with ((F * A * E * D) * (B * C)); [cancel | ]
-end.
-eapply derives_trans; [apply sepcon_derives; [ | apply derives_refl] | ].
-apply LCR; auto.
+iIntros "(? & ? & Hb_tail & lc & Hc)".
+iPoseProof (lseg_cons_right_neq LS sh (map Vint (butlast merged)) begin (Vint (last merged)) c_ b_' b_ with "[$Hb_tail Hc $lc]") as "($ & ?)"; first auto.
+{ rewrite list_cell_field_at.
+  unfold_data_at (data_at _ _ _ c_); iDestruct "Hc" as "($ & $)". }
+iStopProof.
 rewrite list_cell_field_at.
-cancel.
+unfold_data_at (data_at _ _ _ b_); entailer!.
 
 (* After the if, putting boolean value into "cond" *)
 clear -SH.
@@ -486,7 +473,7 @@ remember (hmerge :: tmerge) as merged.
     destruct a; [ apply prop_right; reflexivity | ].
     simpl map; rewrite lseg_unfold.
     subst a_; entailer!.
-    elim H6; clear; intuition auto with *.
+    elim H6; clear; simpl; auto.
   }
  subst a.
 
@@ -521,7 +508,7 @@ remember (hmerge :: tmerge) as merged.
  (* when merged = [] *)
  assert (begin = c_) by intuition. subst c_.
  Exists ab_; entailer!.
- rewrite H; auto. apply derives_refl.
+ rewrite H; auto.
 
  (* when merged <> [] *)
  remember (hmerge :: tmerge) as merged.
@@ -529,31 +516,22 @@ remember (hmerge :: tmerge) as merged.
  clear hmerge tmerge Heqmerged.
  Exists begin; entailer.
 
- (* to match the specification from the invariant, we split it into three parts: *)
-
-  assert (AP : forall M1 R1 M2 M3 M13 M R, R1 |-- R -> M1 * M3 |-- M13
-            -> M2 * M13 |-- M -> M1 * R1 * M2 * M3 |-- M * R). {
-   clear; intros.
-   apply derives_trans with (M * R1); cancel; auto.
-   now apply derives_trans with (M2 * M13); cancel; auto.
-  }
- apply AP with (lseg LS sh (Vint (last merged) :: map Vint (merge a b)) c_ nullval); clear AP.
  cancel.
+ iIntros "(ab & c & abc)".
+ iAssert (lseg LS sh (Vint (last merged) :: map Vint (merge a b)) c_ nullval) with "[ab abc]" as "?".
+ { rewrite (lseg_unfold LS _ _ c_).
+   iStopProof.
+   Exists ab_; entailer!.
+   rewrite list_cell_field_at.
+   unfold_data_at (data_at _ _ _ _).
+   simpl. cancel. }
 
- (* part 2 : we join the middle element and the right part of the list *)
- idtac.
- rewrite (lseg_unfold LS _ _ c_).
- Exists ab_; entailer!.
- rewrite list_cell_field_at.
- unfold_data_at (data_at _ _ _ _).
- simpl. cancel.
-
- (* part 3 : left part of the list *)
+ (* finally: left part of the list *)
  rewrite H.
  replace (merged ++ merge a b)
  with (butlast merged ++ (last merged :: merge a b)).
  rewrite map_app.
- apply list_append_null.
+ iApply (list_append_null with "[-]"); first by iFrame.
  clear -Hm.
  change (butlast merged ++ ([last merged] ++ merge a b) = merged ++ merge a b).
  rewrite app_assoc.

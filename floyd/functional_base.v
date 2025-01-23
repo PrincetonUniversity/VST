@@ -252,6 +252,19 @@ Definition ptr_eq (v1 v2: val) : Prop :=
 
 Definition ptr_neq (v1 v2: val) := ~ ptr_eq v1 v2.
 
+Lemma ptr_eq_dec: forall v1 v2, {ptr_eq v1 v2} + {~ptr_eq v1 v2}.
+Proof.
+  intros; destruct v1, v2; simpl; auto.
+  - destruct Archi.ptr64; [intuition discriminate|].
+    destruct (Int.eq i i0) eqn: Heq; [|intuition discriminate].
+    destruct (Int.eq i (Int.repr 0)); intuition discriminate.
+  - destruct Archi.ptr64; [|intuition discriminate].
+    destruct (Int64.eq i i0) eqn: Heq; [|intuition discriminate].
+    destruct (Int64.eq i (Int64.repr 0)); intuition discriminate.
+  - destruct (eq_block b b0); [|intuition discriminate].
+    destruct (Ptrofs.eq i i0) eqn: Heq; intuition discriminate.
+Qed.
+
 Lemma ptr_eq_e: forall v1 v2, ptr_eq v1 v2 -> v1=v2.
 Proof.
 intros. destruct v1; destruct v2; simpl in H; try contradiction.

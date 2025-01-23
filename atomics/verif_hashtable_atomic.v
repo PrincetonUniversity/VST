@@ -1,4 +1,3 @@
-Require Import VST.veric.rmaps.
 Require Import VST.concurrency.conclib.
 Require Import VST.atomics.SC_atomics.
 Require Import VST.atomics.verif_lock_atomic.
@@ -9,6 +8,12 @@ Import List.
 
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
+
+Section mpred.
+
+(* box up concurrentGS? *)
+Context `{!VSTGS unit Σ, !cinvG Σ, !inG Σ (excl_authR natO), !atomic_int_impl (Tstruct _atom_int noattr)}.
+#[local] Instance concurrent_ext_spec : ext_spec unit := concurrent_ext_spec _ (ext_link_prog prog).
 
 Definition spawn_spec := DECLARE _spawn spawn_spec.
 Definition atom_load_spec := DECLARE _atom_load atomic_load_spec.
@@ -24,10 +29,10 @@ Definition surely_malloc_spec :=
                 natural_aligned natural_alignment t = true)
        PARAMS (Vptrofs (Ptrofs.repr (sizeof t))) GLOBALS (gv)
        SEP (mem_mgr gv)
-    POST [ tptr tvoid ] EX p:_,
+    POST [ tptr tvoid ] ∃ p:_,
        PROP ()
        RETURN (p)
-       SEP (mem_mgr gv; malloc_token Ews t p * data_at_ Ews t p).
+       SEP (mem_mgr gv; malloc_token Ews t p ∗ data_at_ Ews t p).
 
 Definition integer_hash_spec :=
  DECLARE _integer_hash
@@ -131,7 +136,7 @@ Definition hashtable_entry T lg entries i :=
 
 Definition wf_table (T : list (Z * Z)) := forall k i, k <> 0 -> fst (Znth i T) = k -> lookup T k = Some i.
 
-Definition hashtable H g lg entries := EX T : list (Z * Z),
+Definition hashtable H g lg entries := ∃ T : list (Z * Z),
   !!(Zlength T = size /\ wf_table T /\ forall k v, H k = Some v <-> In (k, v) T /\ v <> 0) &&
   excl g H * iter_sepcon (hashtable_entry T lg entries) (upto (Z.to_nat size)).
 
@@ -159,7 +164,7 @@ Program Definition get_item_spec := DECLARE _get_item
     PARAMS (vint k) GLOBALS (gv)
     SEP (data_at sh (tarray tentry size) entries (gv _m_entries)) | (hashtable H g lg entries)
   POST [ tint ]
-   EX v : Z,
+   ∃ v : Z,
     PROP ()
     LOCAL (temp ret_temp (vint v))
     SEP (data_at sh (tarray tentry size) entries (gv _m_entries)) | (!!(if eq_dec v 0 then H k = None else H k = Some v) && hashtable H g lg entries).
@@ -173,7 +178,7 @@ Program Definition add_item_spec := DECLARE _add_item
     PARAMS (vint k; vint v) GLOBALS (gv)
     SEP (data_at sh (tarray tentry size) entries (gv _m_entries)) | (hashtable H g lg entries)
   POST [ tint ]
-   EX b : bool,
+   ∃ b : bool,
     PROP ()
     LOCAL (temp ret_temp (Val.of_bool b))
     SEP (data_at sh (tarray tentry size) entries (gv _m_entries)) |
@@ -187,7 +192,7 @@ Definition init_table_spec :=
    PARAMS () GLOBALS (gv)
    SEP (mem_mgr gv; data_at_ Ews (tarray tentry size) (gv _m_entries))
   POST [ tvoid ]
-   EX entries : list (val * val), EX g : gname, EX lg : list gname,
+   ∃ entries : list (val * val), ∃ g : gname, ∃ lg : list gname,
    PROP (Forall (fun '(pk, pv) => isptr pk /\ isptr pv) entries; Zlength lg = size)
    LOCAL ()
    SEP (mem_mgr gv; data_at Ews (tarray tentry size) entries (gv _m_entries);
@@ -208,11 +213,11 @@ Fixpoint apply_hist H h :=
                         | Some _ => if r then None else apply_hist H h' end
   end.
 
-Definition hashtable_inv gh g lg entries := EX H : _, hashtable H g lg entries *
-  EX hr : _, !!(apply_hist empty_map hr = Some H) && ghost_ref hr gh.
+Definition hashtable_inv gh g lg entries := ∃ H : _, hashtable H g lg entries *
+  ∃ hr : _, !!(apply_hist empty_map hr = Some H) && ghost_ref hr gh.
 
 Definition f_lock_inv sh gsh entries gh p t locksp lockt resultsp res gv :=
-  EX b1 : bool, EX b2 : bool, EX b3 : bool, EX h : _,
+  ∃ b1 : bool, ∃ b2 : bool, ∃ b3 : bool, ∃ h : _,
     !!(add_events empty_map [HAdd 1 1 b1; HAdd 2 1 b2; HAdd 3 1 b3] h) && ghost_hist gsh h gh *
     data_at sh (tarray tentry size) entries p *
     data_at sh (tarray (tptr t_lock) 3) (upd_Znth t (repeat Vundef 3) lockt) locksp *
@@ -390,14 +395,14 @@ Proof.
   set (AS := atomic_shift _ _ _ _ _).
   forward_call k.
   pose proof size_pos as Hsize; pose proof size_signed as Hsigned.
-  forward_loop (EX i : Z, EX i1 : Z, EX keys : list Z,
+  forward_loop (∃ i : Z, ∃ i1 : Z, ∃ keys : list Z,
     PROP (i1 mod size = (i + hash k) mod size; 0 <= i < size; Zlength keys = size;
           Forall (fun z => z <> 0 /\ z <> k) (sublist 0 i (rebase keys (hash k))))
     LOCAL (temp _idx (vint i1); lvar _ref tint v_ref; temp _key (vint k); temp _value (vint v); gvars gv)
     SEP (AS; data_at_ Tsh tint v_ref; @data_at CompSpecs sh (tarray tentry size) entries (gv _m_entries);
          iter_sepcon (fun i => ghost_snap (Znth ((i + hash k) mod size) keys)
            (Znth ((i + hash k) mod size) lg)) (upto (Z.to_nat i))))%assert
-    continue: (EX i : Z, EX i1 : Z, EX keys : list Z,
+    continue: (∃ i : Z, ∃ i1 : Z, ∃ keys : list Z,
     PROP (Int.min_signed <= Int.signed (Int.repr i1) < Int.max_signed; i1 mod size = (i + hash k) mod size;
           0 <= i < size; Zlength keys = size;
           Forall (fun z => z <> 0 /\ z <> k) (sublist 0 (i + 1) (rebase keys (hash k))))
@@ -655,14 +660,14 @@ Proof.
   set (AS := atomic_shift _ _ _ _ _).
   forward_call k.
   pose proof size_pos as Hsize; pose proof size_signed as Hsigned.
-  forward_loop (EX i : Z, EX i1 : Z, EX keys : list Z,
+  forward_loop (∃ i : Z, ∃ i1 : Z, ∃ keys : list Z,
     PROP (i1 mod size = (i + hash k) mod size; 0 <= i < size; Zlength keys = size;
           Forall (fun z => z <> 0 /\ z <> k) (sublist 0 i (rebase keys (hash k))))
     LOCAL (temp _idx (vint i1); temp _key (vint k); gvars gv)
     SEP (AS; @data_at CompSpecs sh (tarray tentry size) entries (gv _m_entries);
          iter_sepcon (fun i => ghost_snap (Znth ((i + hash k) mod size) keys)
            (Znth ((i + hash k) mod size) lg)) (upto (Z.to_nat i))))%assert
-    continue: (EX i : Z, EX i1 : Z, EX keys : list Z,
+    continue: (∃ i : Z, ∃ i1 : Z, ∃ keys : list Z,
     PROP (Int.min_signed <= Int.signed (Int.repr i1) < Int.max_signed;
           i1 mod size = (i + hash k) mod size; 0 <= i < size; Zlength keys = size;
           Forall (fun z => z <> 0 /\ z <> k) (sublist 0 (i + 1) (rebase keys (hash k))))
@@ -853,14 +858,14 @@ Proof.
   set (AS := atomic_shift _ _ _ _ _).
   forward_call k.
   pose proof size_pos as Hsize; pose proof size_signed as Hsigned.
-  forward_loop (EX i : Z, EX i1 : Z, EX keys : list Z,
+  forward_loop (∃ i : Z, ∃ i1 : Z, ∃ keys : list Z,
     PROP (i1 mod size = (i + hash k) mod size; 0 <= i < size; Zlength keys = size;
           Forall (fun z => z <> 0 /\ z <> k) (sublist 0 i (rebase keys (hash k))))
     LOCAL (temp _idx (vint i1); lvar _ref tint v_ref; temp _key (vint k); temp _value (vint v); gvars gv)
     SEP (AS; data_at_ Tsh tint v_ref; @data_at CompSpecs sh (tarray tentry size) entries (gv _m_entries);
          iter_sepcon (fun i => ghost_snap (Znth ((i + hash k) mod size) keys)
            (Znth ((i + hash k) mod size) lg)) (upto (Z.to_nat i))))%assert
-    continue: (EX i : Z, EX i1 : Z, EX keys : list Z,
+    continue: (∃ i : Z, ∃ i1 : Z, ∃ keys : list Z,
     PROP (Int.min_signed <= Int.signed (Int.repr i1) < Int.max_signed;
           i1 mod size = (i + hash k) mod size; 0 <= i < size; Zlength keys = size;
           Forall (fun z => z <> 0 /\ z <> k) (sublist 0 (i + 1) (rebase keys (hash k))))
@@ -1138,11 +1143,11 @@ Proof.
   start_function.
   ghost_alloc (fun g => excl g (@empty_map Z Z)).
   Intro g.
-  forward_for_simple_bound size (EX i : Z, EX entries : list (val * val),
+  forward_for_simple_bound size (∃ i : Z, ∃ entries : list (val * val),
     PROP (Forall (fun '(pk, pv) => isptr pk /\ isptr pv) entries; Zlength entries = i)
     LOCAL (gvars gv)
     SEP (excl g (@empty_map Z Z); mem_mgr gv; @data_at CompSpecs Ews (tarray tentry size) (entries ++ repeat (Vundef, Vundef) (Z.to_nat (size - i))) (gv _m_entries);
-         EX lg : list gname, !!(Zlength lg = i) && iter_sepcon (fun j =>
+         ∃ lg : list gname, !!(Zlength lg = i) && iter_sepcon (fun j =>
            hashtable_entry (repeat (0, 0) (Z.to_nat size)) lg entries j) (upto (Z.to_nat i)))).
   { setoid_rewrite (proj2_sig has_size); reflexivity. }
   { pose proof size_pos; lia. }
@@ -1249,7 +1254,7 @@ Proof.
   { rewrite if_false.
     cancel.
     { destruct tid; auto; discriminate. } }
-  forward_for_simple_bound 3 (EX j : Z, EX ls : list bool, EX h : _,
+  forward_for_simple_bound 3 (∃ j : Z, ∃ ls : list bool, ∃ h : _,
     PROP (Zlength ls = j; add_events empty_map (map (fun j => HAdd (j + 1) 1 (Znth j ls)) (upto (Z.to_nat j))) h)
     LOCAL (temp _total (vint (Zlength (List.filter id ls))); temp _res res; temp _l (ptr_of lockt); temp _t (vint t);
            temp _arg tid; gvars gv)
@@ -1265,7 +1270,7 @@ Proof.
   - rewrite invariant_dup; Intros.
     gather_SEP (inv _ _) (ghost_hist _ _ _).
     forward_call (i0 + 1, 1, gv, sh, entries, g, lg,
-      fun b => EX h' : _, !!(add_events h [HAdd (i0 + 1) 1 b] h') && ghost_hist gsh h' gh).
+      fun b => ∃ h' : _, !!(add_events h [HAdd (i0 + 1) 1 b] h') && ghost_hist gsh h' gh).
     { rewrite -> 5sepcon_assoc; apply sepcon_derives; [|cancel].
       iIntros "[#inv hist]"; unfold atomic_shift; iAuIntro.
       rewrite /atomic_acc /=.
@@ -1613,7 +1618,7 @@ Proof.
   set (f_lock j l r := f_lock_pred gsh2 (Znth j shs) (Znth j shs') entries gh (gv _m_entries)
                                          j (gv _thread_locks) l (gv _results) r gv).
   set (Nt := nroot .@ "t").
-  forward_for_simple_bound 3 (EX i : Z, EX res : list val, EX locks : list lock_handle,
+  forward_for_simple_bound 3 (∃ i : Z, ∃ res : list val, ∃ locks : list lock_handle,
     PROP (Zlength res = i; Zlength locks = i)
     LOCAL (temp _total (vint 0); gvars gv)
     SEP (mem_mgr gv; @data_at CompSpecs Ews (tarray tentry size) entries (gv _m_entries);
@@ -1665,7 +1670,7 @@ Proof.
   rewrite <- seq_assoc.
   assert (forall i, 0 <= i < 3 -> Znth i (map ptr_of locks) = ptr_of (Znth i locks)) as Hi.
   { intros; apply Znth_map; lia. }
-  forward_for_simple_bound 3 (EX i : Z, EX sh : share, EX sh' : share,
+  forward_for_simple_bound 3 (∃ i : Z, ∃ sh : share, ∃ sh' : share,
     PROP (sepalg_list.list_join sh0 (sublist i 3 shs) sh; sepalg_list.list_join sh0' (sublist i 3 shs') sh')
     LOCAL (temp _total (vint 0); gvars gv)
     SEP (mem_mgr gv; @data_at CompSpecs sh (tarray tentry size) entries (gv _m_entries);
@@ -1747,7 +1752,7 @@ Proof.
   rewrite sublist_nil.
   repeat match goal with H : sepalg_list.list_join _ (sublist 3 3 _) _ |- _ =>
     rewrite sublist_nil in H; inv H end.
-  forward_for_simple_bound 3 (EX i : Z, EX x : (share * (list (hist * list bool))), EX sh' : share,
+  forward_for_simple_bound 3 (∃ i : Z, ∃ x : (share * (list (hist * list bool))), ∃ sh' : share,
     PROP (readable_share (fst x); sepalg_list.list_join (fst x) (sublist i 3 shs) Ews; Zlength (snd x) = i;
           Forall (fun p => let '(h, ls) := p in add_events empty_map
             [HAdd 1 1 (Znth 0 ls); HAdd 2 1 (Znth 1 ls); HAdd 3 1 (Znth 2 ls)] h) (snd x);
@@ -1868,3 +1873,5 @@ Proof.
   Intros. (* We have the pure fact that 3 adds succeeded! *)
   forward.
 Qed.
+
+End mpred.

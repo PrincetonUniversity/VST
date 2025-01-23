@@ -1,13 +1,12 @@
 Require Import VST.floyd.proofauto.
 Import ListNotations.
-Local Open Scope logic.
 
 Require Import hmacdrbg.hmac_drbg.
 Require Import hmacdrbg.HMAC256_DRBG_functional_prog.
 Require Import hmacdrbg.DRBG_functions.
 Require Import hmacdrbg.HMAC_DRBG_algorithms.
 Require Import hmacdrbg.entropy.
-Require Import sha.protocol_spec_hmac. 
+Require Import sha.protocol_spec_hmac.
 Require Import sha.vst_lemmas.
 Require Import sha.HMAC256_functional_prog.
 
@@ -20,8 +19,8 @@ Require Export hmacdrbg.hmac_drbg_compspecs.
 (*Require Import VST.floyd.Funspec_old_Notation.*)
 
 Ltac fix_hmacdrbg_compspecs :=
-  rewrite (@data_at__change_composite spec_hmac.CompSpecs hmac_drbg_compspecs.CompSpecs
-            hmac_drbg_compspecs.CompSpecs_Preserve) by reflexivity.
+  rewrite (data_at__change_composite(cs_from := spec_hmac.CompSpecs)(cs_to := hmac_drbg_compspecs.CompSpecs)
+            (CCE := hmac_drbg_compspecs.CompSpecs_Preserve)) by reflexivity.
 
 Declare Module UNDER_SPEC : HMAC_ABSTRACT_SPEC.
 Definition mdstate: Type := (val * (val * val))%type.
@@ -53,13 +52,13 @@ intros. unfold md_full, md_empty. cancel. apply UNDER_SPEC.FULL_EMPTY.
 Qed.
 
 Lemma md_empty_unfold: forall (r: mdstate), 
-       md_empty r = 
+       md_empty r ⊣⊢
        malloc_token Ews (Tstruct _hmac_ctx_st noattr) (snd (snd r)) *
        data_at_ Ews (Tstruct _hmac_ctx_st noattr) (snd (snd r)).
 Proof.
 intros.
 unfold md_empty.
-f_equal.
+f_equiv.
 symmetry.
 apply pred_ext.
 eapply derives_trans; [ | apply UNDER_SPEC.mkEmpty].
@@ -130,7 +129,7 @@ Definition drbg_memset_spec := (_memset, snd spec_sha.memset_spec).
 Definition drbg_memcpy_spec := (_memcpy, snd spec_sha.memcpy_spec). 
 *)
 
-Definition md_get_size_spec :=
+Definition md_get_size_spec : ident * funspec :=
   DECLARE _mbedtls_md_get_size
    WITH (*u:unit*)v:val
    PRE [ (*_md_info OF*) tptr (Tstruct _mbedtls_md_info_t noattr)]
@@ -899,8 +898,8 @@ Definition hmac_drbg_free_spec :=
 
 Definition HmacDrbgVarSpecs : varspecs := (sha._K256, tarray tuint 64)::nil.
 
-Definition ndfs_merge fA cA A PA QA FSA (HFSA: FSA = NDmk_funspec fA cA A PA QA) 
-                    fB cB B PB QB FSB (HFSB: FSB = NDmk_funspec fB cB B PB QB): option funspec.
+Definition ndfs_merge fA cA A PA QA (FSA : funspec) (HFSA: FSA = NDmk_funspec fA cA A PA QA)
+                    fB cB B PB QB (FSB : funspec) (HFSB: FSB = NDmk_funspec fB cB B PB QB): option funspec.
 destruct (eq_dec fA fB); subst.
 + destruct (eq_dec cA cB); subst.
   - apply Some. eapply (NDmk_funspec fB cB (A+B) 
@@ -964,35 +963,31 @@ Definition hmac_init_funspec:=
                   end).
 
 Lemma hmac_init_merge: 
-      ndfs_merge _ _ _ _ _ (snd UNDER_SPEC.hmac_reset_spec) (eq_refl _)
-                 _ _ _ _ _ (snd UNDER_SPEC.hmac_starts_spec) (eq_refl _)
-      = Some hmac_init_funspec.
+      equiv (ndfs_merge _ _ _ _ _ (snd UNDER_SPEC.hmac_reset_spec) (eq_refl _)
+                 _ _ _ _ _ (snd UNDER_SPEC.hmac_starts_spec) (eq_refl _))
+      (Some hmac_init_funspec).
 Proof. unfold ndfs_merge. simpl. rewrite if_true by trivial.
-f_equal. unfold hmac_init_funspec. simpl. 
-  apply semax_prog.funspec_eq; simpl.
-  + extensionality ts x.
+f_equiv. unfold hmac_init_funspec. simpl. unfold NDmk_funspec; f_equiv.
+  + intros x.
     destruct x as [[[[[c sh] l] key] gv] | [[[[[[[c sh] l] key] b] i] shk] gv]].
-    - unfold convertPre. simpl. unfold PROPx, LAMBDAx, GLOBALSx, LOCALx, SEPx.
+    - unfold convertPre, convertPre'. simpl. unfold PROPx, LAMBDAx, GLOBALSx, LOCALx, SEPx.
+      intros rho; monPred.unseal.
       apply pred_ext; simpl; intros.
-      * unfold argsassert2assert, local, lift1, liftx, lift; simpl. destruct x as [g args]. simpl.
-        normalize. destruct args; [ inv H |]. destruct args; [ inv H |]. destruct args; [ inv H |].
-        destruct args; [ | inv H]. 
-        unfold env_set, eval_id in *.  simpl in *. subst. entailer!.
-      * unfold argsassert2assert, local, lift1, liftx, lift; simpl. destruct x as [g args]. simpl.
-        normalize. entailer!.  discriminate. 
-    - unfold convertPre. simpl. unfold PROPx, LAMBDAx, GLOBALSx, LOCALx, SEPx.
-      change_compspecs CompSpecs.
-      apply pred_ext; simpl; intros.
-      * unfold argsassert2assert, local, lift1, liftx, lift; simpl. destruct x as [g args]. simpl.
-        normalize. destruct args; [ inv H |]. destruct args; [ inv H |]. destruct args; [ inv H |].
-        destruct args; [ | inv H]. 
-        unfold env_set, eval_id in *.  simpl in *. subst. entailer!.
-      * unfold argsassert2assert, local, lift1, liftx, lift; simpl. destruct x as [g args]. simpl.
+      * unfold argsassert2assert, local, lift1, liftx, lift; simpl. destruct rho as [g args]. simpl.
+        normalize. entailer!!.
+      * unfold argsassert2assert, local, lift1, liftx, lift; simpl. destruct rho as [g args]. simpl.
         normalize. entailer!.
-  + extensionality ts x.
+    - unfold convertPre, convertPre'. simpl. unfold PROPx, LAMBDAx, GLOBALSx, LOCALx, SEPx.
+      intros rho; monPred.unseal. change_compspecs CompSpecs.
+      apply pred_ext; simpl; intros.
+      * unfold argsassert2assert, local, lift1, liftx, lift; simpl. destruct rho as [g args]. simpl.
+        normalize. entailer!!.
+      * unfold argsassert2assert, local, lift1, liftx, lift; simpl. destruct rho as [g args]. simpl.
+        normalize. entailer!.
+  + intros x.
     destruct x as [[[[[c sh] l] key] gv] | [[[[[[[c sh] l] key] b] i] shk] gv]].
     - auto.
-    - change_compspecs CompSpecs.
+    - intros rho; simpl. change_compspecs CompSpecs.
       auto.
 Qed.
 
@@ -1079,7 +1074,7 @@ Definition HmacDrbgFunSpecs : funspecs :=  ltac:(with_library prog (
   drbg_memcpy_spec:: drbg_memset_spec::
   sha.spec_hmac.sha256init_spec::sha.spec_hmac.sha256update_spec::sha.spec_hmac.sha256final_spec::nil)).
 
-Lemma datablock_NoVundef sh bytes v: data_block sh  bytes v |-- !!(v <> Vundef).
+Lemma datablock_NoVundef sh bytes v: data_block sh bytes v |-- !!(v <> Vundef).
 Proof. unfold data_block. entailer!. Qed.
 
 #[export] Hint Resolve datablock_NoVundef : saturate_local.

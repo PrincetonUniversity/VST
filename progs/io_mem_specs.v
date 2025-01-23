@@ -16,7 +16,7 @@ Notation "' p <- t1 ;; t2" :=
 
 Section specs.
 
-Context {E : Type -> Type} `{IO_event(file_id := nat) -< E}.
+Context {E : Type -> Type} `{IO_event(file_id := nat) -< E} `{!VSTGS (@IO_itree E) Σ}.
 
 Fixpoint read_list_aux f n d : itree E (list byte) :=
   match n with
@@ -49,18 +49,16 @@ Definition getchars_spec {CS : compspecs} :=
     PARAMS (buf; Vint (Int.repr len)) GLOBALS ()
     SEP (ITREE (r <- read_list stdin (Z.to_nat len) ;; k r); data_at_ sh (tarray tuchar len) buf)
   POST [ tint ]
-   EX msg : list byte,
+   ∃ msg : list byte,
     PROP ()
     LOCAL (temp ret_temp (Vint (Int.repr len)))
     SEP (ITREE (k msg); data_at sh (tarray tuchar len) (map Vubyte msg) buf).
 
 (* Build the external specification. *)
-Definition IO_void_Espec : OracleKind := ok_void_spec (@IO_itree E).
-
 Definition IO_specs {CS : compspecs} (ext_link : string -> ident) :=
   [(ext_link "putchars"%string, putchars_spec); (ext_link "getchars"%string, getchars_spec)].
 
-Definition IO_Espec {CS : compspecs} (ext_link : string -> ident) : OracleKind :=
-  add_funspecs IO_void_Espec ext_link (IO_specs ext_link).
+#[export] Instance IO_ext_spec {CS : compspecs} (ext_link : string -> ident) : ext_spec IO_itree :=
+  add_funspecs_rec IO_itree ext_link (void_spec IO_itree) (IO_specs ext_link).
 
 End specs.

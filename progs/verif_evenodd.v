@@ -1,6 +1,6 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat. Import NoOracle.
 Require Import VST.progs.evenodd.
-Local Open Scope logic.
 
 Inductive repr : Z -> val -> Prop :=
 | mk_repr : forall z, z >= 0 -> repr z (Vint (Int.repr z)).

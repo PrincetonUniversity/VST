@@ -1,5 +1,7 @@
 (* TODO: remove this file *)
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.floyd.base2.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Import VST.floyd.client_lemmas.
 Require Import VST.floyd.nested_field_lemmas.
 Require Import VST.floyd.mapsto_memory_block.
@@ -13,16 +15,14 @@ Require Import Coq.Classes.RelationClasses.
 Require Import Coq.Classes.Morphisms.
 Require Import VST.zlist.sublist.
 
-Local Open Scope logic.
-
 Section STRONGER.
 
-Context {cs: compspecs}.
+Context `{!VSTGS OK_ty Σ} {cs: compspecs}.
 
 Definition stronger {t: type} (v v': reptype t) : Prop :=
-  forall sh, data_at sh t v |-- data_at sh t v'.
+  forall sh p, data_at sh t v p ⊢ data_at sh t v' p.
 
-Definition data_equal {t} v1 v2 := forall sh, data_at sh t v1 = data_at sh t v2.
+Definition data_equal {t} v1 v2 := forall sh p, data_at sh t v1 p ⊣⊢ data_at sh t v2 p.
 
 Notation "X '>>>' Y" := (stronger X Y) (at level 60, no associativity).
 Notation "X '===' Y" := (data_equal X Y) (at level 60, no associativity).
@@ -63,7 +63,7 @@ Lemma stronger_data_at_rec_derives: forall sh t v0 v1 pos p,
   (alignof t | pos) ->
   v0 >>> v1 ->
   field_compatible t nil (offset_val (Int.repr pos) p) ->
-  data_at_rec sh type_id_env.empty_ti t pos v0 p |--
+  data_at_rec sh type_id_env.empty_ti t pos v0 p ⊢
     data_at_rec sh type_id_env.empty_ti t pos v1 p.
 Proof.
   intros.
@@ -86,7 +86,7 @@ Lemma stronger_data_at_rec_nested_field_derives: forall sh t gfs t0 v0 v1 p,
   v0 >>> v1 ->
   size_compatible t p ->
   align_compatible t p ->
-  data_at_rec sh type_id_env.empty_ti t0 (nested_field_offset2 t gfs) v0 p |--
+  data_at_rec sh type_id_env.empty_ti t0 (nested_field_offset2 t gfs) v0 p ⊢
     data_at_rec sh type_id_env.empty_ti t0 (nested_field_offset2 t gfs) v1 p.
 Proof.
   intros.
@@ -106,22 +106,17 @@ Lemma stronger_trans: forall t (v0 v1 v2: reptype t),
   v0 >>> v1 -> v1 >>> v2 -> v0 >>> v2.
 Proof.
   intros.
-  intro sh.
-  eapply derives_trans.
-  apply H.
-  apply H0.
+  intros sh p.
+  rewrite H H0 //.
 Qed.
 
-Lemma field_at_stronger: forall sh t gfs v0 v1,
+Lemma field_at_stronger: forall sh t gfs v0 v1 p,
   v0 >>> v1 ->
-  field_at sh t gfs v0 |-- field_at sh t gfs v1.
+  field_at sh t gfs v0 p ⊢ field_at sh t gfs v1 p.
 Proof.
   intros.
-  intros p.
-  rewrite !field_at_data_at by exact H.
-  simpl.
+  rewrite -> !field_at_data_at by exact H.
   normalize.
-  apply H.
 Qed.
 
 Lemma stronger_array_ext: forall t0 n a (v0 v1: reptype (Tarray t0 n a)),
@@ -135,38 +130,36 @@ Proof.
 *
   unfold field_at.
   entailer.
-  apply derives_refl'.
-  f_equal.
+  apply bi.equiv_entails_1_2.
+  rewrite /at_offset.
   unfold nested_field_type; simpl.
   rewrite !data_at_rec_eq.
-  rewrite Z.max_l by lia.
+  rewrite -> Z.max_l by lia.
   unfold aggregate_pred.aggregate_pred.array_pred.
   unfold aggregate_pred.array_pred.
   simpl.
-  extensionality Vundef.
-  f_equal. f_equal.
   change (unfold_reptype v0) with v0.
   change (unfold_reptype v1) with v1.
-  rewrite H. auto.
+  rewrite H //.
 *
   assert_PROP (Zlength (unfold_reptype v0) = n). {
-     entailer!. destruct H2 as [? _]. rewrite Z.max_r in H2 by lia. auto.
+     entailer!. destruct H2 as [? _]. rewrite -> Z.max_r in H2 by lia. auto.
   }
   rewrite H1 in H. symmetry in H.
   unfold field_at.
   normalize.
   unfold at_offset.
-  unfold nested_field_offset, nested_field_type;   simpl.
+  unfold nested_field_offset, nested_field_type; simpl.
   rewrite !data_at_rec_eq.
   unfold aggregate_pred.aggregate_pred.array_pred.
   unfold aggregate_pred.array_pred.
-  rewrite Z.max_r by lia. rewrite Z.sub_0_r.
+  rewrite -> Z.max_r by lia. rewrite Z.sub_0_r.
   normalize.
   apply aggregate_pred.rangespec_ext_derives.
   intros.
   unfold at_offset.
   rewrite Z.sub_0_r.
-  rewrite Z2Nat.id in H3 by lia. rewrite Z.add_0_l in H3.
+  rewrite -> Z2Nat.id in H3 by lia. rewrite Z.add_0_l in H3.
   specialize (H0 _ H3 sh).
   unfold data_at, field_at in H0.
   simpl in H0.
@@ -184,7 +177,7 @@ Proof.
     rewrite H4 in H1. rewrite Z.mul_0_l in H1.
     rewrite Ptrofs.add_zero. lia.
    red in H2|-*. apply align_compatible_rec_Tarray_inv with (i:=i) in H2; auto.
-    fold (sizeof t0) in H2. rewrite H4 in H2. rewrite Z.mul_0_l, Z.add_0_r in H2. simpl.
+    fold (sizeof t0) in H2. rewrite H4 in H2. rewrite Z.mul_0_l Z.add_0_r in H2. simpl.
     rewrite Ptrofs.add_zero. auto.
    -
     clear - H2 H3 g0.
@@ -197,16 +190,16 @@ Proof.
       apply Zmult_lt_compat_l; lia.
     }
     hnf in H1. destruct p; try contradiction.
-    unfold sizeof in H1; simpl in H1. rewrite Z.max_r in H1 by lia.
+    unfold sizeof in H1; simpl in H1. rewrite -> Z.max_r in H1 by lia.
     fold (sizeof t0) in *.
     split3; [ | | split3]; auto.
    +
     red. simpl.
     rewrite Ptrofs.add_unsigned.
     pose proof (Ptrofs.unsigned_range i0).
-    rewrite (Ptrofs.unsigned_repr (_*_))
+    rewrite -> (Ptrofs.unsigned_repr (_*_))
       by (change (Ptrofs.max_unsigned) with (Ptrofs.modulus - 1); lia).
-    rewrite (Ptrofs.unsigned_repr)
+    rewrite -> (Ptrofs.unsigned_repr)
       by (change (Ptrofs.max_unsigned) with (Ptrofs.modulus - 1); lia).
     assert (sizeof t0 * i + sizeof t0 <= sizeof t0 * n). {
        rewrite <- (Z.mul_1_r (sizeof t0)) at 2.
@@ -216,17 +209,17 @@ Proof.
     lia.
     +
      red in H2. apply align_compatible_rec_Tarray_inv with (i:=i) in H2; auto.
-     unfold offset_val. 
+     unfold offset_val.
      red.
      rewrite Ptrofs.add_unsigned.
     pose proof (Ptrofs.unsigned_range i0).
-    rewrite (Ptrofs.unsigned_repr (_*_))
+    rewrite -> (Ptrofs.unsigned_repr (_*_))
       by (change (Ptrofs.max_unsigned) with (Ptrofs.modulus - 1); lia).
-    rewrite (Ptrofs.unsigned_repr)
+    rewrite -> (Ptrofs.unsigned_repr)
       by (change (Ptrofs.max_unsigned) with (Ptrofs.modulus - 1); lia).
     auto.
   }
-  rewrite !prop_true_andp in H0 by auto.
+  rewrite -> !prop_true_andp in H0 by auto.
   unfold at_offset in H0.
   unfold nested_field_offset, nested_field_type in H0;   simpl in H0.
   rewrite !offset_offset_val in H0.
@@ -251,7 +244,6 @@ split; intros.
 hnf; intros.
 specialize (H sh).
 unfold data_at in *.
-intro p.
 unfold field_at in *.
 normalize.
 unfold at_offset.
@@ -266,9 +258,9 @@ Lemma data_equal_stronger: forall {t} (v1 v2: reptype t), (v1 === v2) <-> (v1 >>
 Proof.
   intros.
   split; intro.
-  + split; intro sh; rewrite H; auto.
+  + split; intros sh p; rewrite H; auto.
   + destruct H.
-    intro sh; apply pred_ext; [apply H | apply H0].
+    intros sh p; iSplit; [iApply H | iApply H0].
 Qed.
 
 Lemma data_equal_JMeq:
@@ -304,7 +296,7 @@ Proof.
   + intro; intros.
     rewrite H; reflexivity.
   + intro; intros.
-    rewrite H, H0; reflexivity.
+    rewrite H H0; reflexivity.
 Defined.
 
 Lemma data_equal_refl': forall t (v v': reptype t), v = v' -> v === v'.
@@ -312,21 +304,21 @@ Proof.
   intros. subst. reflexivity.
 Qed.
 
-Lemma field_at_data_equal: forall sh t gfs v0 v1,
+Lemma field_at_data_equal: forall sh t gfs v0 v1 p,
   v0 === v1 ->
-  field_at sh t gfs v0 = field_at sh t gfs v1.
+  field_at sh t gfs v0 p ⊣⊢ field_at sh t gfs v1 p.
 Proof.
   intros.
   destruct (data_equal_stronger v0 v1) as [? _].
   spec H0; [auto |].
-  apply pred_ext; apply field_at_stronger; tauto.
+  iSplit; iApply field_at_stronger; tauto.
 Qed.
 
 #[export] Instance Proper_field_at: forall sh t gfs,
-  Proper ((@data_equal _) ==> eq) (field_at sh t gfs).
+  Proper ((@data_equal _) ==> eq ==> equiv) (field_at sh t gfs).
 Proof.
   intros.
-  intro; intros.
+  intros ????? ->.
   apply field_at_data_equal; auto.
 Defined.
 

@@ -6,7 +6,7 @@ Require Import VST.veric.aging_lemmas.
 Require Import VST.veric.juicy_mem.
 Require Import VST.veric.juicy_mem_lemmas.
 Require Import VST.veric.compcert_rmaps.
-Require Import VST.veric.Clight_new.
+Require Import VST.veric.Clight_core.
 Require Import VST.veric.semax.
 Require Import VST.veric.semax_ext.
 Require Import VST.veric.juicy_extspec.
@@ -16,6 +16,8 @@ Require Import VST.veric.coqlib4.
 Require Import VST.veric.age_to_resource_at.
 Require Import VST.concurrency.common.permjoin.
 Require Import VST.concurrency.juicy.sync_preds_defs.
+
+Set Bullet Behavior "Strict Subproofs".
 
 Lemma NO_ext: forall sh1 sh2 p1 p2, sh1=sh2 -> NO sh1 p1 = NO sh2 p2.
 Proof.
@@ -56,7 +58,7 @@ Lemma resource_decay_aux_spec b phi1 phi2 :
   resource_decay b phi1 phi2 -> resource_decay_aux b phi1 phi2.
 Proof.
   intros [lev rd]; split; [ apply lev | clear lev]; intros loc; specialize (rd loc).
-  assert (D: {(fst loc >= b)%positive} + {(fst loc < b)%positive}) by (pose proof zlt; zify; eauto).
+  assert (D: {(fst loc >= b)%positive} + {(fst loc < b)%positive}) by (pose proof plt; eauto).
   split. apply rd. destruct rd as [nn rd].
   remember (phi1 @ loc) as r1.
   remember (phi2 @ loc) as r2.
@@ -238,7 +240,7 @@ Proof.
   {
     intros loc.
     specialize (rd loc).
-    assert (D: {(fst loc >= b)%positive} + {(fst loc < b)%positive}) by (pose proof zlt; zify; eauto).
+    assert (D: {(fst loc >= b)%positive} + {(fst loc < b)%positive}) by (pose proof plt; eauto).
     apply resource_at_join with (loc := loc) in J.
 
     unfold phi2'; clear phi2'; rewrite age_to_resource_at.

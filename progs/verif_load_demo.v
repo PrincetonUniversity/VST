@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat. Import NoOracle.
 Require Import VST.progs.load_demo.
 
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
@@ -160,7 +161,7 @@ forward_for_simple_bound (Int.unsigned (Int.shru (Int.repr tag) (Int.repr 10))) 
   forward.
   entailer!.
   rewrite Znth_pos_cons by lia.
-  autorewrite with sublist. simpl.  
+  autorewrite with sublist. simpl.
   f_equal. rewrite Int.add_assoc. f_equal.
   rewrite (sublist_split 0 i (i+1)) by lia.
   rewrite sublist_len_1 by lia.

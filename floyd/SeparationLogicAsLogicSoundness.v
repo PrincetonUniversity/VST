@@ -1,12 +1,13 @@
 From compcert Require Export Clightdefs.
 Require Import VST.sepcomp.semantics.
-
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.veric.juicy_base.
-Require Import VST.veric.juicy_mem VST.veric.juicy_mem_lemmas VST.veric.juicy_mem_ops.
+Require Import VST.veric.juicy_mem VST.veric.juicy_mem_lemmas.
 Require Import VST.veric.res_predicates.
 Require Import VST.veric.extend_tc.
 Require Import VST.veric.Clight_seplog.
 Require Import VST.veric.Clight_assert_lemmas.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Import VST.sepcomp.extspec.
 Require Import VST.sepcomp.step_lemmas.
 Require Import VST.veric.juicy_extspec.
@@ -23,12 +24,12 @@ Require Import VST.veric.semax_loop.
 Require Import VST.veric.semax_switch.
 Require Import VST.veric.semax_prog.
 Require Import VST.veric.semax_ext.
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.veric.SeparationLogic.
 Require Import VST.floyd.SeparationLogicFacts.
 Require Import VST.floyd.SeparationLogicAsLogic.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Import VST.veric.SeparationLogicSoundness.
-Local Open Scope logic.
-Require Import VST.veric.ghost_PCM.
 
 Import Clight.
 
@@ -46,7 +47,7 @@ Module CSHL_Def := DeepEmbedded.DeepEmbeddedDef.
 
 Module CSHL_Defs := DeepEmbedded.DeepEmbeddedDefs.
 
-Arguments CSHL_Def.semax {_} {_} _ _ _ _.
+Arguments CSHL_Def.semax {_} {_} {_} {_} {_} _.
 
 Module Conseq := GenConseq (Def) (MinimumLogic).
 
@@ -130,9 +131,21 @@ Module Sset := ToSset (Def) (Conseq) (Extr) (SetB) (PtrCmpB) (LoadB) (CastLoadB)
 
 Module Sassign := ToSassign (Def) (Conseq) (Extr) (StoreB) (StoreUnionHackB).
 
-Theorem semax_sound: forall Espec CS Delta P c Q,
-  @DeepEmbedded.DeepEmbeddedDef.semax Espec CS Delta P c Q ->
-  @Def.semax Espec CS Delta P c Q.
+Section mpred.
+
+Context `{!VSTGS OK_ty Σ}.
+
+Lemma semax_FF: forall {OK_spec: ext_spec OK_ty} {CS : compspecs} E Delta c Q, Def.semax E Delta False c Q.
+Proof.
+  intros.
+  apply ConseqFacts.semax_pre_simple with (False ∧ False).
+  { apply bi.False_elim. }
+  apply semax_extract_prop; contradiction.
+Qed.
+
+Theorem semax_sound: forall {OK_spec: ext_spec OK_ty} {CS : compspecs} E Delta P c Q,
+  DeepEmbedded.DeepEmbeddedDef.semax E Delta P c Q ->
+  Def.semax E Delta P c Q.
 Proof.
   intros.
   induction H.
@@ -151,21 +164,16 @@ Proof.
   + apply Sset.semax_set_ptr_compare_load_cast_load_backward.
   + apply Sassign.semax_store_store_union_hack_backward.
   + apply MinimumLogic.semax_skip.
-  + rewrite <- (log_normalize.andp_dup seplog.FF).
-    unfold seplog.FF at 1.
-    apply semax_extract_prop.
-    tauto.
+  + apply semax_FF.
   + apply MinimumLogic.semax_Slabel; auto.
-  + rewrite <- (log_normalize.andp_dup seplog.FF).
-    unfold seplog.FF at 1.
-    apply semax_extract_prop.
-    tauto.
+  + apply semax_FF.
   + eapply MinimumLogic.semax_conseq; eauto.
+  + eapply MinimumLogic.semax_mask_mono; eauto.
 Qed.
 
-Theorem semax_body_sound: forall Vspec Gspec CS f id,
-  @DeepEmbedded.DeepEmbeddedDefs.semax_body Vspec Gspec CS f id ->
-  @MinimumLogic.CSHL_Defs.semax_body Vspec Gspec CS f id.
+Theorem semax_body_sound: forall {CS : compspecs} Vspec Gspec f id,
+  DeepEmbedded.DeepEmbeddedDefs.semax_body Vspec Gspec f id ->
+  MinimumLogic.CSHL_Defs.semax_body Vspec Gspec f id.
 Proof.
   intros.
   unfold MinimumLogic.CSHL_Defs.semax_body, CSHL_Defs.semax_body in H |- *.
@@ -176,9 +184,9 @@ Proof.
   apply H.
 Qed.
 
-Theorem semax_func_sound: forall Espec Vspec Gspec CS ge ids fs,
-  @DeepEmbedded.DeepEmbeddedDef.semax_func Espec Vspec Gspec CS ge ids fs ->
-  @Def.semax_func Espec Vspec Gspec CS ge ids fs.
+Theorem semax_func_sound: forall {OK_spec: ext_spec OK_ty} {CS : compspecs} Vspec Gspec ge ids fs,
+  DeepEmbedded.DeepEmbeddedDef.semax_func _ _ _ _ Vspec Gspec CS ge ids fs ->
+  Def.semax_func(C := CS) Vspec Gspec ge ids fs.
 Proof.
   intros.
   induction H.
@@ -186,7 +194,7 @@ Proof.
   + eapply MinimumLogic.semax_func_cons; eauto.
     apply semax_body_sound; auto.
   + eapply MinimumLogic.semax_func_cons_ext; eauto.
-  + apply (@MinimumLogic.semax_func_mono Espec _ _ CSUB ge ge' Gfs Gffp); auto.
+  + apply (MinimumLogic.semax_func_mono CSUB ge ge' Gfs Gffp); auto.
   + apply MinimumLogic.semax_func_app; auto.
   + eapply MinimumLogic.semax_func_subsumption; eauto.
   + eapply MinimumLogic.semax_func_join; eauto.
@@ -194,49 +202,43 @@ Proof.
   + eapply MinimumLogic.semax_func_skipn; eauto.
 Qed.
 
-Theorem semax_prog_sound': forall Espec CS prog z Vspec Gspec,
-  @DeepEmbedded.DeepEmbeddedDefs.semax_prog Espec CS prog z Vspec Gspec ->
-  @MinimumLogic.CSHL_Defs.semax_prog Espec CS prog z Vspec Gspec.
+Theorem semax_prog_sound': forall {OK_spec: ext_spec OK_ty} {CS : compspecs} prog z Vspec Gspec,
+  DeepEmbedded.DeepEmbeddedDefs.semax_prog prog z Vspec Gspec ->
+  MinimumLogic.CSHL_Defs.semax_prog prog z Vspec Gspec.
 Proof.
   intros.
   hnf in H |- *.
-  pose proof semax_func_sound Espec Vspec Gspec CS (Genv.globalenv prog) (prog_funct prog) Gspec.
+  pose proof semax_func_sound Vspec Gspec (Genv.globalenv prog) (prog_funct prog) Gspec.
   tauto.
 Qed.
 
-Theorem semax_prog_sound: forall Espec CS prog z Vspec Gspec,
-  @DeepEmbedded.DeepEmbeddedDefs.semax_prog Espec CS prog z Vspec Gspec ->
-  @semax_prog.semax_prog Espec CS prog z Vspec Gspec.
+Theorem semax_prog_sound: forall {OK_spec: ext_spec OK_ty} {CS : compspecs} prog z Vspec Gspec,
+  DeepEmbedded.DeepEmbeddedDefs.semax_prog prog z Vspec Gspec ->
+  semax_prog.semax_prog OK_spec prog z Vspec Gspec.
 Proof.
   intros.
   apply Sound.semax_prog_sound, semax_prog_sound'; auto.
 Qed.
 
 Theorem semax_prog_rule :
-  forall {Espec: OracleKind}{CS: compspecs},
-  forall V G prog m h z,
-  postcondition_allows_exit Espec tint ->
-     @DeepEmbedded.DeepEmbeddedDefs.semax_prog Espec CS prog z V G ->
+  forall {OK_spec: ext_spec OK_ty} {CS : compspecs} V G prog m h z,
+     postcondition_allows_exit OK_spec tint ->
+     DeepEmbedded.DeepEmbeddedDefs.semax_prog prog z V G ->
      Genv.init_mem prog = Some m ->
-     { b : block & { q : Clight_core.state &
+     { b : Values.block & { q : CC_core &
        (Genv.find_symbol (globalenv prog) (prog_main prog) = Some b) *
-       (forall jm, m_dry jm = m -> exists jm', semantics.initial_core (juicy_core_sem (cl_core_sem (globalenv prog))) h
-                    jm q jm' (Vptr b Ptrofs.zero) nil) *
-       forall n,
-         { jm |
-           m_dry jm = m /\ level jm = n /\
-           nth_error (ghost_of (m_phi jm)) 0 = Some (Some (ext_ghost z, NoneP)) /\
-           (exists z, join (m_phi jm) (wsat_rmap (m_phi jm)) (m_phi z) /\ ext_order jm z) /\
-           jsafeN (@OK_spec Espec) (globalenv prog) z q jm /\
-           no_locks (m_phi jm) /\
-           matchfunspecs (globalenv prog) G (m_phi jm) /\
-           app_pred (funassert (nofunc_tycontext V G) (empty_environ (globalenv prog))) (m_phi jm)
-     } } }%type.
+       (exists m', semantics.initial_core (cl_core_sem (globalenv prog)) h
+                       m q m' (Vptr b Ptrofs.zero) nil) *
+       (state_interp Mem.empty z ∗ funspec_auth ∅ ∗ has_ext z ⊢ |==> state_interp m z ∗ jsafeN OK_spec (globalenv prog) ⊤ z q ∧
+           (*no_locks ∧*) matchfunspecs (globalenv prog) G (*∗ funassert (nofunc_tycontext V G) (empty_environ (globalenv prog))*))
+     } }%type.
 Proof.
   intros.
-  apply Sound.semax_prog_rule; eauto.
+  eapply Sound.semax_prog_rule; eauto.
   eapply semax_prog_sound'; eauto.
 Qed.
+
+End mpred.
 
 End DeepEmbeddedSoundness.
 

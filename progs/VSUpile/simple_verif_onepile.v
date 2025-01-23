@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat. Import NoOracle.
 Require Import VST.floyd.VSU.
 Require Import onepile.
 Require Import simple_spec_stdlib.
@@ -54,7 +55,7 @@ Lemma onepile_Init: VSU_initializer prog (onepile None).
 Proof. InitGPred_tac. normalize. apply data_at_data_at_. Qed.
 
 
-Definition OnepileVSU: @VSU NullExtension.Espec
+Definition OnepileVSU: VSU
       nil onepile_imported_specs ltac:(QPprog prog) OnepileASI (onepile None).
   Proof.
     mkVSU prog onepile_internal_specs. 

@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat. Import NoOracle.
 Require Import pile.
 Instance PileCompSpecs : compspecs. make_compspecs prog. Defined.
 Require Import simple_spec_stdlib.

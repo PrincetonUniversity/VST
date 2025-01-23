@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat. Import NoOracle.
 Require Import VST.progs.int_or_ptr.
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
@@ -22,7 +23,7 @@ Definition valid_int_or_ptr (x: val) :=
  | Vint i => Int.testbit i 0 = true
               \/ Int.unsigned i < POINTER_BOUNDARY
  | Vptr b z => Ptrofs.testbit z 0 = false
- | _ => False
+ | _ => False%type
  end.
 
 Lemma valid_int_or_ptr_ii1:
@@ -185,9 +186,8 @@ Proof.
  forward_call (Vint (Int.repr (i+i+1))).
  forward_if.
  - (* then clause *)
-   forward. simpl.
-   Exists (Vint (Int.repr(i+i+1))).
-   entailer!!.
+   forward.
+   EExists; unfold treerep; entailer!.
  - (* else clause *)
   inv H0.
 * (* NODE *) 
@@ -229,8 +229,6 @@ Proof.
   }
   forward_call r.
   forward. simpl.
-  Exists r p q p1 p2.
+  Exists r p1 p2 p q.
   entailer!!.
 Qed.
-
-

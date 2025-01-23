@@ -1,6 +1,6 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat. Import NoOracle.
 Import ListNotations.
-Local Open Scope logic.
 
 Require Import hmacdrbg.hmac_drbg.
 Require Import hmacdrbg.spec_hmac_drbg.
@@ -15,25 +15,25 @@ Qed.
 
 Lemma da_emp_isptrornull sh t v p :
    da_emp sh t v p = (!!is_pointer_or_null p) &&  da_emp sh t v p.
- Proof. unfold da_emp; apply pred_ext.
-  + apply orp_left.
-    - apply derives_extract_prop; intros; subst; simpl. entailer. apply orp_right1. auto.
-    - rewrite (data_at_isptr _ _ _ p) at 1. normalize.
-      destruct p; simpl in *; try contradiction. entailer. apply orp_right2. entailer.
-  + entailer.
+Proof.
+  unfold da_emp.
+  destruct (is_pointer_or_null_dec p).
+  + rewrite (prop_true_andp _ _ i); reflexivity.
+  + rewrite prop_false_andp by (intros ->; auto).
+    rewrite log_normalize.or_False.
+    unfold data_at, field_at; normalize.
+    f_equal; f_equal; apply prop_ext; intuition auto.
 Qed.
 
 Lemma da_emp_null sh t v p: p=nullval -> da_emp sh t v p = emp.
 Proof. intros; subst. unfold da_emp. rewrite data_at_isptr. unfold isptr. simpl.
-  apply pred_ext.
-  + normalize. apply orp_left. auto. normalize.
-  + simpl. apply orp_right1. entailer.
+  rewrite log_normalize.False_and, log_normalize.and_False, log_normalize.False_or.
+  rewrite prop_true_andp; auto.
 Qed.
 Lemma da_emp_ptr sh t v b i: da_emp sh t v (Vptr b i) = !! (sizeof t > 0) && data_at sh t v (Vptr b i).
 Proof. intros; unfold da_emp, nullval; simpl.
-  apply pred_ext.
-  + apply orp_left; normalize. inv H.
-  + apply orp_right2. auto.
+  rewrite prop_false_andp by discriminate.
+  rewrite log_normalize.or_False; reflexivity.
 Qed.
 
 Lemma false_zgt z a: false = (z >? a) -> z<=a. 
@@ -90,7 +90,7 @@ Lemma data_at_weak_valid_ptr: forall (sh : Share.t) (t : type) (v : reptype t) (
        sepalg.nonidentity sh ->
        (*sizeof cenv_cs t >= 0 -> *) sizeof t > 0 -> data_at sh t v p |-- weak_valid_pointer p.
 Proof. intros.
-eapply derives_trans. 2: apply valid_pointer_weak. apply data_at_valid_ptr; trivial. Qed.
+eapply derives_trans. 2: apply valid_pointer_weak. apply data_at_valid_ptr; auto. Qed.
 
 Lemma sublist_app_exact1:
   forall X (A B: list X), sublist 0 (Zlength A) (A ++ B) = A.

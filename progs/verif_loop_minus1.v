@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat. Import NoOracle.
 Require Import VST.progs.loop_minus1.
 
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.

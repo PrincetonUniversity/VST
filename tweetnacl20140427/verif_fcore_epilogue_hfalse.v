@@ -1,8 +1,6 @@
 Require Import VST.floyd.proofauto.
-Local Open Scope logic.
 Require Import List. Import ListNotations.
 Require Import ZArith.
-Local Open Scope Z.
 Require Import tweetnacl20140427.tweetNaclBase.
 Require Import tweetnacl20140427.Salsa20.
 Require Import tweetnacl20140427.verif_salsa_base.
@@ -30,7 +28,7 @@ PROP  ()
  EX  l : list val,
    !!HFalse_inv l 16 xs ys && data_at Tsh (tarray tuchar 64) l out).
 
-Definition epilogue_hfalse_statement:=
+Definition epilogue_hfalse_statement :=
 Sfor (Sset _i (Econst_int (Int.repr 0) tint))
      (Ebinop Olt (Etempvar _i tint) (Econst_int (Int.repr 16) tint) tint)
      (Ssequence
@@ -55,7 +53,7 @@ Sfor (Sset _i (Econst_int (Int.repr 0) tint))
         (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint) tint)).
 
 Lemma verif_fcore_epilogue_hfalse Espec FR t y x w nonce out c k h OUT xs ys:
-@semax CompSpecs Espec
+semax(C := CompSpecs)(OK_spec := Espec) ⊤
   (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil)
   (PROP  ()
    LOCAL  (lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
@@ -75,9 +73,9 @@ Proof. intros. abbreviate_semax.
    lvar _w (tarray tuint 16) w; temp _out out; temp _in nonce; temp _k k; temp _c c;
    temp _h (Vint (Int.repr h)))
    SEP
-   (FR; @data_at CompSpecs Tsh (tarray tuint 16) (map Vint xs) x;
-   @data_at CompSpecs Tsh (tarray tuint 16) (map Vint ys) y;
-   EX l:_, !!HFalse_inv l i xs ys && @data_at CompSpecs Tsh (tarray tuchar 64) l out))).
+   (FR; data_at(cs := CompSpecs) Tsh (tarray tuint 16) (map Vint xs) x;
+   data_at(cs := CompSpecs) Tsh (tarray tuint 16) (map Vint ys) y;
+   EX l:_, !!HFalse_inv l i xs ys && data_at(cs := CompSpecs) Tsh (tarray tuchar 64) l out))).
   (*1.9*)
  * Exists OUT. Time entailer!. (*4.2*)
     split; trivial; intros. lia.
@@ -104,7 +102,7 @@ Proof. intros. abbreviate_semax.
     repeat flatten_sepcon_in_SEP.
 
     freeze [0;1;3] FR4.
-    rewrite Znth_map in Xi, Yi; try lia. 
+    rewrite Znth_map in Xi, Yi; try lia.
     inv Xi; inv Yi.
     Time forward_call (Vptr b (Ptrofs.add z (Ptrofs.repr (1 * (4 * i)))), Int.add (Znth i xs) (Znth i ys)). (*3.6*)
     { replace (4 + 4 * i - 4 * i) with 4 by lia. cancel. }

@@ -1,4 +1,6 @@
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.floyd.base2.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Import VST.floyd.client_lemmas.
 Require Import VST.floyd.nested_field_lemmas.
 Require Import VST.floyd.efield_lemmas.
@@ -14,31 +16,32 @@ Require Import VST.floyd.replace_refill_reptype_lemmas.
 Require Import VST.floyd.loadstore_field_at.
 Require Import VST.floyd.nested_loadstore.
 
-Local Open Scope logic.
+Section mpred.
+
+Context `{!VSTGS OK_ty Σ}.
 
 Definition array_with_hole {cs: compspecs} sh (t: type) lo hi n (al': list (reptype t)) p :=
-!! field_compatible (tarray t n) nil p &&
-(ALL cl: list (reptype t),
+⌜field_compatible (tarray t n) nil p⌝ ∧
+(∀ cl: list (reptype t),
 (data_at sh (tarray t (hi-lo)) cl (field_address0 (tarray t n) (ArraySubsc lo :: nil) p)
--* data_at sh (tarray t n) (sublist 0 lo al' ++ cl ++ sublist hi n al') p)).
+-∗ data_at sh (tarray t n) (sublist 0 lo al' ++ cl ++ sublist hi n al') p)).
 
 Lemma array_with_hole_local_facts {cs: compspecs}: forall sh t lo hi n (al': list (reptype t)) p,
-array_with_hole sh t lo hi n al' p |-- 
-!! (field_compatible (tarray t n) nil p).
+array_with_hole sh t lo hi n al' p ⊢
+⌜field_compatible (tarray t n) nil p⌝.
 Proof.
 intros.
 unfold array_with_hole. entailer!.
 Qed.
-#[export] Hint Resolve array_with_hole_local_facts : saturate_local.
 
 Lemma wand_slice_array:
 forall {cs: compspecs} lo hi n sh t (al: list (reptype t)) p,
 0 <= lo <= hi ->
 hi <= n ->
 Zlength al = n ->
-data_at sh (tarray t n) al p =
-!! (field_compatible (tarray t n) nil p) &&
-data_at sh (tarray t (hi-lo)) (sublist lo hi al) (field_address0 (tarray t n) (ArraySubsc lo :: nil) p) *
+data_at sh (tarray t n) al p ⊣⊢
+⌜field_compatible (tarray t n) nil p⌝ ∧
+data_at sh (tarray t (hi-lo)) (sublist lo hi al) (field_address0 (tarray t n) (ArraySubsc lo :: nil) p) ∗
 array_with_hole sh t lo hi n al p.
 Proof.
   intros until p.
@@ -50,91 +53,51 @@ Proof.
     rewrite reptype_eq.
     auto.
   }
-  apply pred_ext.
-  + rewrite (add_andp _ _ (field_at_local_facts _ _ _ _ _)).
-    normalize.
-    rename H3 into H7, H4 into H8.
-    erewrite field_at_Tarray.
-      2: constructor.
-      2: reflexivity.
-      2: lia.
-      2: apply JMeq_refl.
+  iSplit.
+  + iIntros "H".
+    iDestruct (field_at_local_facts with "H") as %(H7 & H8).
+    rewrite -!prop_and_same_derives' //.
+    erewrite field_at_Tarray by (try done; lia).
+    rewrite (split3seg_array_at' _ _ _ 0 lo hi n); try lia. iDestruct "H" as "(? & ? & ?)".
+    2: { rewrite H1; lia. }
+    rewrite !Z.sub_0_r /data_at; iFrame.
+    iIntros (v) "H".
+    unfold data_at.
+    iDestruct (field_at_local_facts with "H") as %(? & H4).
+    rewrite value_fits_eq in H4; simpl in H4.
+    destruct H4.
+    rewrite -> Z.max_r in H4 by lia.
+    change (@Zlength (reptype t) v = hi - lo) in H4.
+    erewrite (field_at_Tarray _ (tarray t n)) by (try done; lia).
     erewrite (split3seg_array_at' _ _ _ 0 lo hi n); try lia.
-      2:etransitivity; [exact H1 | lia].
-    unfold data_at.
-    rewrite (sepcon_comm (array_at _ _ _ _ _ _ _)), sepcon_assoc.
-    apply sepcon_derives.
-    - apply derives_refl'.
-      f_equal.
-      rewrite !Z.sub_0_r.
-      auto.
-    - apply allp_right; intros v. change (list (reptype t)) in v.
-      * apply -> wand_sepcon_adjoint.
-        rewrite (add_andp _ _ (field_at_local_facts _ _ _ _ _)).
-        normalize.
-        rewrite value_fits_eq in H4; simpl in H4.
-        destruct H4.
-        rewrite Z.max_r in H4 by lia.
-        change (@Zlength (reptype t) v = hi - lo) in H4.
-        erewrite (field_at_Tarray _ (tarray t n)).
-          2: constructor.
-          2: reflexivity.
-          2: lia.
-          2: apply JMeq_refl.
-        erewrite (split3seg_array_at' _ _ _ 0 lo hi n); try lia.
-        2:{
-          change (Zlength (sublist 0 lo al ++ v ++ sublist hi n al) = n - 0).
-          autorewrite with sublist.
-          lia.
-        }
-        autorewrite with norm.
-        change (array_at sh (tarray t n) nil 0 lo (sublist 0 lo al) p *
-                array_at sh (tarray t n) nil hi n (sublist hi n al) p *
-                field_at sh (tarray t (hi - lo)) nil v (field_address0 (tarray t n) (SUB lo) p)
-                |-- array_at sh (tarray t n) nil 0 lo
-                      (sublist 0 lo (sublist 0 lo al ++ v ++ sublist hi n al)) p *
-                    data_at sh (nested_field_array_type (tarray t n) nil lo hi)
-                      (sublist lo hi (sublist 0 lo al ++ v ++ sublist hi n al))
-                      (field_address0 (tarray t n) (SUB lo) p) *
-                    array_at sh (tarray t n) nil hi n
-                      (sublist hi n (sublist 0 lo al ++ v ++ sublist hi n al)) p).
-        unfold tarray; autorewrite with sublist.
-        rewrite H4.
-        replace (hi - lo - (hi - lo) + hi) with hi by lia.
-        replace (n - lo - (hi - lo) + hi) with n by lia.
-        rewrite !sepcon_assoc.
-        apply sepcon_derives; [apply derives_refl |].
-        rewrite sepcon_comm.
-        apply sepcon_derives; [| apply derives_refl].
-        autorewrite with sublist.
-        apply derives_refl.
-  + normalize.
-    clear H2.
-    rewrite sepcon_comm.
-    apply wand_sepcon_adjoint.
-    apply (allp_left _ (sublist lo hi al)); intros.
-    apply wand_derives; [apply derives_refl |].
-    unfold data_at.
-    apply derives_refl'.
-    f_equal.
+    2:{ autorewrite with sublist. lia. }
+    autorewrite with norm.
+    unfold tarray; autorewrite with sublist.
+    rewrite H4.
+    replace (hi - lo - (hi - lo) + hi) with hi by lia.
+    replace (n - lo - (hi - lo) + hi) with n by lia.
+    rewrite /data_at; iFrame.
+    autorewrite with sublist; iFrame.
+  + iIntros "(% & ? & _ & H)".
+    rewrite /data_at; iSpecialize ("H" with "[$]").
     autorewrite with sublist.
     auto.
 Qed.
 
-Module SingletonHole.
+Section SingletonHole.
 
-Definition array_with_hole {cs: compspecs} sh (t: type) i n (al': list (reptype t)) p :=
-ALL v:reptype t,
- (data_at sh t v (field_address (tarray t n) (ArraySubsc i :: nil) p) -* data_at sh (tarray t n) (upd_Znth i al' v) p).
+Definition array_with_singleton_hole {cs: compspecs} sh (t: type) i n (al': list (reptype t)) p :=
+∀ v:reptype t,
+ (data_at sh t v (field_address (tarray t n) (ArraySubsc i :: nil) p) -∗ data_at sh (tarray t n) (upd_Znth i al' v) p).
 
-Lemma array_with_hole_intro {cs: compspecs} sh: forall t i n (al: list (reptype t)) p,
+Lemma array_with_singleton_hole_intro {cs: compspecs} sh: forall t i n (al: list (reptype t)) p,
   0 <= i < n ->
-  data_at sh (tarray t n) al p |--
-    data_at sh t (Znth i al) (field_address (tarray t n) (ArraySubsc i :: nil) p) *
-      array_with_hole sh t i n al p.
+  data_at sh (tarray t n) al p ⊢
+    data_at sh t (Znth i al) (field_address (tarray t n) (ArraySubsc i :: nil) p) ∗
+      array_with_singleton_hole sh t i n al p.
 Proof.
   intros.
-  unfold data_at, array_with_hole.
+  unfold data_at, array_with_singleton_hole.
   assert (forall n, reptype (tarray t n) = list (reptype t)).
   {
     intros.
@@ -145,7 +108,7 @@ Proof.
   assert (Zlength al = n).
   {
     destruct H2 as [? _].
-    rewrite Z.max_r in H2 by lia.
+    rewrite -> Z.max_r in H2 by lia.
     rewrite <- H2.
     reflexivity.
   }
@@ -165,9 +128,7 @@ Proof.
   rewrite field_at_data_at.
   change ((nested_field_type (tarray t n) (ArraySubsc i :: nil))) with t.
   cancel.
-  apply allp_right; intros v.
-  apply -> wand_sepcon_adjoint.
-  
+  iIntros.
   unfold data_at at 2.
   erewrite field_at_Tarray.
       2: constructor.
@@ -189,19 +150,16 @@ Proof.
       2: change (nested_field_type (tarray t n) (ArraySubsc 0 :: nil)) with t; lia.
   rewrite sublist_upd_Znth_r; try lia.
       2: change (nested_field_type (tarray t n) (ArraySubsc 0 :: nil)) with t; lia.
-  cancel.
+  iFrame.
 Qed.
 
-Lemma array_with_hole_elim {cs: compspecs} sh: forall t i n (a: reptype t) (al: list (reptype t)) p,
-  data_at sh t a (field_address (tarray t n) (ArraySubsc i :: nil) p) *
-    array_with_hole sh t i n al p |--
+Lemma array_with_singleton_hole_elim {cs: compspecs} sh: forall t i n (a: reptype t) (al: list (reptype t)) p,
+  data_at sh t a (field_address (tarray t n) (ArraySubsc i :: nil) p) ∗
+    array_with_singleton_hole sh t i n al p ⊢
       data_at sh (tarray t n) (upd_Znth i al a) p.
 Proof.
   intros.
-  rewrite sepcon_comm.
-  apply wand_sepcon_adjoint.
-  apply (allp_left _ a).
-  auto.
+  iIntros "(? & H)"; iApply "H"; done.
 Qed.
 
 End SingletonHole.
@@ -211,21 +169,21 @@ Definition splice_into_list {A} (lo hi: Z) (source target : list A) : list A :=
    ++ source 
    ++ sublist hi (Zlength target) target.
 
-Module SegmentHole.
+Section SegmentHole.
 
-Definition array_with_hole {cs: compspecs} sh (t: type) lo hi n (al': list (reptype t)) p :=
-ALL v: list (reptype t),
- (data_at sh (tarray t (hi - lo)) v (field_address0 (tarray t n) (ArraySubsc lo :: nil) p) -* data_at sh (tarray t n) (splice_into_list lo hi v al') p).
+Definition array_with_segment_hole {cs: compspecs} sh (t: type) lo hi n (al': list (reptype t)) p :=
+∀ v: list (reptype t),
+ (data_at sh (tarray t (hi - lo)) v (field_address0 (tarray t n) (ArraySubsc lo :: nil) p) -∗ data_at sh (tarray t n) (splice_into_list lo hi v al') p).
 
-Lemma array_with_hole_intro {cs: compspecs} sh: forall t lo hi n (al: list (reptype t)) p,
+Lemma array_with_segment_hole_intro {cs: compspecs} sh: forall t lo hi n (al: list (reptype t)) p,
   0 <= lo <= hi ->
   hi <= n ->
-  data_at sh (tarray t n) al p |--
-    data_at sh (tarray t (hi - lo)) (sublist lo hi al) (field_address0 (tarray t n) (ArraySubsc lo :: nil) p) *
-      array_with_hole sh t lo hi n al p.
+  data_at sh (tarray t n) al p ⊢
+    data_at sh (tarray t (hi - lo)) (sublist lo hi al) (field_address0 (tarray t n) (ArraySubsc lo :: nil) p) ∗
+      array_with_segment_hole sh t lo hi n al p.
 Proof.
   intros.
-  unfold data_at at 1, array_with_hole.
+  unfold data_at at 1, array_with_segment_hole.
   assert (forall n, reptype (tarray t n) = list (reptype t)).
   {
     intros.
@@ -236,7 +194,7 @@ Proof.
   assert (Zlength al = n).
   {
     destruct H3 as [? _].
-    rewrite Z.max_r in H3 by lia.
+    rewrite -> Z.max_r in H3 by lia.
     rewrite <- H3.
     reflexivity.
   }
@@ -252,17 +210,15 @@ Proof.
   change (tarray t (hi - lo)) with (nested_field_array_type (tarray t n) nil lo hi).
   erewrite <- array_at_data_at''' by first [reflexivity | lia].
   cancel.
-  apply allp_right; intros v.
-  apply -> wand_sepcon_adjoint.
-  
+  iIntros "(? & ?)" (?) "?".
   unfold data_at at 2.
-  assert_PROP (Zlength v = hi - lo).
+  iAssert ⌜Zlength v = hi - lo⌝ as %?.
   {
-    saturate_local.
+    iStopProof; saturate_local.
     destruct H13.
     clear - H H13.
-    apply prop_right.
-    rewrite Z.max_r in H13 by lia.
+    apply bi.pure_intro.
+    rewrite -> Z.max_r in H13 by lia.
     exact H13.
   }
   erewrite field_at_Tarray.
@@ -273,26 +229,26 @@ Proof.
   erewrite (split3seg_array_at _ _ _ 0 lo hi n); try lia.
       2: unfold splice_into_list; autorewrite with sublist; change (nested_field_type (tarray t n) (ArraySubsc 0 :: nil)) with t; lia.
   erewrite <- array_at_data_at''' by first [reflexivity | lia].
-  cancel.
   unfold splice_into_list.
   autorewrite with sublist.
   replace (hi - lo - Zlength v + hi) with hi by lia.
   replace (n - lo - Zlength v + hi) with n by lia.
-  cancel.
+  iFrame.
   autorewrite with sublist.
-  cancel.
+  iFrame.
 Qed.
 
-Lemma array_with_hole_elim {cs: compspecs} sh: forall t lo hi n (a: list (reptype t)) (al: list (reptype t)) p,
-  data_at sh (tarray t (hi - lo)) a (field_address0 (tarray t n) (ArraySubsc lo :: nil) p) *
-    array_with_hole sh t lo hi n al p |--
+Lemma array_with_segment_hole_elim {cs: compspecs} sh: forall t lo hi n (a: list (reptype t)) (al: list (reptype t)) p,
+  data_at sh (tarray t (hi - lo)) a (field_address0 (tarray t n) (ArraySubsc lo :: nil) p) ∗
+    array_with_segment_hole sh t lo hi n al p ⊢
       data_at sh (tarray t n) (splice_into_list lo hi a al) p.
 Proof.
   intros.
-  rewrite sepcon_comm.
-  apply wand_sepcon_adjoint.
-  apply (allp_left _ a).
-  auto.
+  iIntros "(? & H)"; iApply "H"; done.
 Qed.
 
 End SegmentHole.
+
+End mpred.
+
+#[export] Hint Resolve array_with_hole_local_facts : saturate_local.

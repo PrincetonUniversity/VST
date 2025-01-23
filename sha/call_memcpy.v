@@ -4,9 +4,7 @@ Require Import sha.SHA256.
 Require Import sha.spec_sha.
 Require Import sha.sha_lemmas.
 Local Open Scope nat.
-Local Open Scope logic.
 Import LiftNotation.
-Import compcert.lib.Maps.
 
 Lemma Zlength_repeat:
   forall {A} n (x:A), Zlength (repeat x (Z.to_nat n)) = Z.max 0 n.
@@ -20,8 +18,6 @@ rewrite Z2Nat.id by lia.
 rewrite Z.max_r by lia.
 auto.
 Qed.
-
-Import field_at_wand.SegmentHole.
 
 Lemma splice_into_list_simplify0:
   forall {A} n (src dst: list A),
@@ -129,7 +125,7 @@ intros. subst tb. apply JMeq_eq in H0. subst lb. auto.
 Qed.
 
  Definition fsig_of_funspec (fs: funspec)  :=
-  match fs with mk_funspec fsig _ _ _ _ _ _=> fsig end.
+  match fs with mk_funspec fsig _ _ _ _ _=> fsig end.
 
 Lemma part1_splice_into_list:
   forall {A} lo hi (al bl: list A),
@@ -190,25 +186,26 @@ Local Arguments nested_field_type cs t gfs : simpl never.
 
 Lemma semax_call_id0_alt:
  forall Espec {cs: compspecs} Delta P Q R id bl argsig tfun retty cc A x Pre Post
-   (GLBL: (var_types Delta) ! id = None),
-       (glob_specs Delta) ! id = Some (NDmk_funspec (argsig, retty) cc A Pre Post) ->
-       (glob_types Delta) ! id = Some (type_of_funspec (NDmk_funspec (argsig, retty) cc A Pre Post)) ->
+   (GLBL: (var_types Delta) !! id = None),
+       (glob_specs Delta) !! id = Some (NDmk_funspec (argsig, retty) cc A Pre Post) ->
+       (glob_types Delta) !! id = Some (type_of_funspec (NDmk_funspec (argsig, retty) cc A Pre Post)) ->
    (*tfun = type_of_params argsig ->*)tfun = argsig ->
-  @semax cs Espec Delta (tc_exprlist Delta argsig bl
-                  && |>((fun rho : environ =>
+  semax(OK_spec := Espec)(C := cs) ⊤ Delta (tc_exprlist Delta argsig bl
+                  && |>(assert_of (fun rho : environ =>
                Pre x (ge_of rho, eval_exprlist argsig bl rho)) *
               PROPx P (LOCALx Q (SEPx R))))
     (Scall None (Evar id (Tfunction tfun retty cc)) bl)
     (normal_ret_assert
-       ((ifvoid retty (`(Post x) (make_args nil nil))
-           (EX v:val, `(Post x) (make_args (ret_temp::nil) (v::nil))))
-         * PROPx P (LOCALx Q (SEPx R)))).
+       ((ifvoid retty (assert_of (`(Post x : environ -> mpred) (make_args nil nil)))
+           (EX v:val, (assert_of (`(Post x : environ -> mpred) (make_args (ret_temp::nil) (v::nil))))))
+         ∗ PROPx P (LOCALx Q (SEPx R)))).
 Proof.
 intros.
 subst tfun.
-eapply (@semax_call_id0 Espec cs Delta P Q R id bl (NDmk_funspec (argsig, retty) cc A Pre Post)
-           argsig retty cc (rmaps.ConstType A) nil x
-                  (fun _ => Pre) (fun _ => Post)); eauto. 
+eapply (semax_call_id0 Delta P Q R id bl (NDmk_funspec (argsig, retty) cc A Pre Post)
+           argsig retty cc (ConstType A) (λne _, ⊤)
+           (λne a : leibnizO A, monPred_at (Pre a) : argsEnviron -d> mpred)
+           (λne a : leibnizO A, monPred_at (Post a) : environ -d> mpred) x); eauto.
 apply funspec_sub_refl.
 Qed.
 
@@ -225,9 +222,9 @@ Lemma call_memcpy_tuchar:  (* Uses CompSpecs from sha. *)
       typeof e_p = tptr tuchar ->
       typeof e_q = tptr tuchar ->
       typeof e_n = tuint ->
-      (var_types Delta) ! _memcpy = None ->
-     (glob_specs Delta) ! _memcpy = Some (snd memcpy_spec) ->
-     (glob_types Delta) ! _memcpy = Some (type_of_funspec (snd memcpy_spec)) ->
+      (var_types Delta) !! _memcpy = None ->
+     (glob_specs Delta) !! _memcpy = Some (snd memcpy_spec) ->
+     (glob_types Delta) !! _memcpy = Some (type_of_funspec (snd memcpy_spec)) ->
      writable_share shp ->  readable_share shq ->
      nested_field_type tp pathp = tarray tuchar np ->
      nested_field_type tq pathq = tarray tuchar nq ->
@@ -245,7 +242,7 @@ Lemma call_memcpy_tuchar:  (* Uses CompSpecs from sha. *)
          local (`(eq (Vint (Int.repr len))) (eval_expr e_n)) &&
          PROP () (LOCALx Q (SEPx (field_at shp tp pathp vp p ::
                                                  field_at shq tq pathq vq q :: R'))) ->
-   @semax _ Espec Delta
+   semax(OK_spec := Espec) ⊤ Delta
     (PROPx P (LOCALx Q (SEPx R)))
     (Scall None
              (Evar _memcpy
@@ -259,7 +256,7 @@ Lemma call_memcpy_tuchar:  (* Uses CompSpecs from sha. *)
 Proof.
 intros until R.
 intros TCp TCq TCn Hvar Hspec Hglob ? SHq ? ? Hlop Hlen Hnp Hloq Hnq; intros.
-assert_PROP (fold_right and True P); [ go_lowerx; entailer! | ].
+assert_PROP (fold_right and True%type P); [ go_lowerx; entailer! | ].
 apply semax_post' with
    (PROPx nil   (LOCALx Q
            (SEPx
@@ -303,89 +300,83 @@ pose (witness := ((shq,shp),
                               field_address0 tq (ArraySubsc loq :: pathq) q,
                               len,  sublist loq (loq+len) contents)).
 pose (Frame :=
-        array_with_hole shq tuchar loq (loq + len) nq (map Vint contents) (field_address tq pathq q)
-          :: array_with_hole shp tuchar lop (lop + len) np vp' (field_address tp pathp p) :: R').
+        array_with_segment_hole shq tuchar loq (loq + len) nq (map Vint contents) (field_address tq pathq q)
+          :: array_with_segment_hole shp tuchar lop (lop + len) np vp' (field_address tp pathp p) :: R').
 eapply semax_pre_post';
   [ | | eapply semax_call_id0_alt with (x:=witness)(P:=nil)(Q:=Q);
        try eassumption;
        try (rewrite ?Hspec, ?Hglob; reflexivity)].
 
 * unfold convertPre. simpl fst; simpl snd.
- rewrite <- (andp_dup (local (tc_environ _))), andp_assoc.
- eapply derives_trans; [ apply andp_derives; [apply derives_refl | apply Hpre] | ].
- rewrite !andp_assoc.
- apply andp_right; [apply andp_left2, andp_left1, derives_refl |].
- eapply derives_trans; [ | apply now_later].
- assert_PROP (field_address0 tp (pathp SUB lop) p <> Vundef) as DEFp.
- {
+  iIntros "(#TC & H)".
+  iPoseProof (Hpre with "[$]") as "H".
+  iSplit; first by rewrite !bi.and_elim_l.
+  iNext.
+  iAssert ⌜field_address0 tp (pathp SUB lop) p <> Vundef⌝ as %DEFp.
+  {
    unfold tc_exprlist.
    simpl typecheck_exprlist.
    rewrite !denote_tc_assert_andp.
-   apply derives_trans with (local (tc_environ Delta) && denote_tc_assert (typecheck_expr Delta e_p) && local ((` (eq (field_address0 tp (pathp SUB lop) p))) (eval_expr e_p))); [solve_andp |].
-   go_lowerx.
+   iAssert (denote_tc_assert (typecheck_expr Delta e_p) && local ((` (eq (field_address0 tp (pathp SUB lop) p))) (eval_expr e_p))) with "[H]" as "H".
+   { iClear "TC"; iStopProof; solve_andp. }
+   iDestruct "TC" as "-#TC".
+   iCombine "TC" "H" as "?".
+   rewrite <- bi.persistent_and_affinely_sep_l by apply _.
+   iStopProof.
+   go_lowerx; simpl.
    eapply derives_trans; [apply typecheck_expr_sound; auto |].
-   apply prop_derives; intros.
+   apply bi.pure_mono; intros.
    rewrite <- H7 in H8.
    intro.
    rewrite H9 in H8.
    revert H8; apply tc_val_Vundef.
  }
- assert_PROP (field_address0 tq (pathq SUB loq) q <> Vundef) as DEFq.
+ iAssert ⌜field_address0 tq (pathq SUB loq) q <> Vundef⌝ as %DEFq.
  {
    unfold tc_exprlist.
    simpl typecheck_exprlist.
    rewrite !denote_tc_assert_andp.
-   apply derives_trans with (local (tc_environ Delta) && denote_tc_assert (typecheck_expr Delta e_q) && local ((` (eq (field_address0 tq (pathq SUB loq) q))) (eval_expr e_q))); [solve_andp |].
+   iAssert (denote_tc_assert (typecheck_expr Delta e_q) && local ((` (eq (field_address0 tq (pathq SUB loq) q))) (eval_expr e_q))) with "[H]" as "H".
+   { iClear "TC"; iStopProof; solve_andp. }
+   iDestruct "TC" as "-#TC".
+   iCombine "TC" "H" as "?".
+   rewrite <- bi.persistent_and_affinely_sep_l by apply _.
+   iStopProof.
    go_lowerx.
    eapply derives_trans; [apply typecheck_expr_sound; auto |].
-   apply prop_derives; intros.
+   apply bi.pure_mono; intros.
    rewrite <- H7 in H8.
    intro.
    rewrite H9 in H8.
    revert H8; apply tc_val_Vundef.
  }
- apply andp_left2, andp_left2.
  subst witness. cbv beta iota. simpl @fst; simpl @snd.
  clear Hpre.
- autorewrite with norm1 norm2. 
- instantiate (1:=Frame). simpl. unfold env_set, local, lift1, liftx, lift. simpl. intros tau. entailer!. 
-
-(* rewrite PROP_combine.*)
-(* unfold app at 1.*)
-(* instantiate (1:=Frame).
- unfold app at 2.
- go_lowerx.
- apply andp_right.
- apply prop_right.
- unfold make_args'. simpl.
- unfold eval_id, env_set.*)
+ instantiate (1:=Frame).
+ iDestruct "TC" as "-#TC".
+ iCombine "TC" "H" as "?".
+ rewrite <- bi.persistent_and_affinely_sep_l by apply _.
+ iStopProof.
+ unfold env_set, PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx; split => tau; monPred.unseal; unfold lift1; unfold_lift.
  rewrite TCp, TCq, TCn.  simpl.
- unfold_lift; simpl.
- (*rewrite <- H6, <- H7, <- H8.*)
- normalize. unfold PROPx, LOCALx, SEPx, local, liftx, lift1, lift. simpl. unfold liftx, lift. simpl. normalize.
  
  try rewrite sem_cast_i2i_correct_range by (rewrite <- H8; auto).
-(* split3; try (repeat split; auto; congruence).*)
- apply andp_right.
- { apply prop_right; split3; auto. repeat split; trivial.  congruence.  }
- subst Frame.
+ entailer!!.
+ rewrite bi.and_elim_r.
  cancel.
  rewrite !field_at_data_at.
  rewrite (data_at_type_changable _ _ _ _ _ H0 H3).
  rewrite (data_at_type_changable _ _ _ _ _ H1 H2).
- sep_apply (array_with_hole_intro shp tuchar lop (lop + len) (*np*)(Zlength vp') vp' (field_address tp pathp p)); [lia | ].
- sep_apply (array_with_hole_intro shq tuchar loq (loq + len) (*nq*)(Zlength contents)  (map Vint contents) (field_address tq pathq q)); [lia | ].
+ sep_apply (array_with_segment_hole_intro shp tuchar lop (lop + len) (*np*)(Zlength vp') vp' (field_address tp pathp p)); [lia | ].
+ sep_apply (array_with_segment_hole_intro shq tuchar loq (loq + len) (*nq*)(Zlength contents)  (map Vint contents) (field_address tq pathq q)); [lia | ].
  cancel.
  apply sepcon_derives.
- - apply derives_refl'.
-   rewrite <- H1.
+ - rewrite <- H1.
    rewrite <- field_address0_app by congruence.
    simpl app.
-   apply equal_f.
-   apply data_at_type_changable.
-   + f_equal; clear; lia.
-   + rewrite <- sublist_map.
-     apply JMeq_sublist; auto.
+   replace (loq + len - loq)%Z with len by lia.
+   rewrite sublist_map.
+   auto.
  - replace (memory_block shp len) with
      (memory_block shp (sizeof (nested_field_array_type tp pathp lop (lop + len)))).
    2: {
@@ -401,7 +392,7 @@ eapply semax_pre_post';
    rewrite nested_field_type_ind, H0.
    apply data_at_data_at_.
  *
- intros. apply andp_left2.
+ intros. rewrite bi.and_elim_r.
  go_lowerx. unfold_lift.
  simpl.
  Intros x. rewrite prop_true_andp by auto.
@@ -410,7 +401,7 @@ eapply semax_pre_post';
  normalize in H7.
  subst x.
  simpl.
- clear Hpre H6 P Q rho .
+ clear Hpre H6 P Q rho.
 assert (exists (vpy : list (reptype (nested_field_type tp (ArraySubsc 0 :: pathp)))),
                   JMeq vp'' vpy)
   by (rewrite H99; eauto).
@@ -436,24 +427,20 @@ erewrite (data_at_type_changable shq _ (tarray tuchar (loq + len - loq)));
 [| f_equal; lia | apply JMeq_refl].
 erewrite (data_at_type_changable shp _ (tarray tuchar (lop + len - lop)));
 [| f_equal; lia | apply JMeq_refl].
-sep_apply (array_with_hole_elim shp tuchar lop (lop + len) np (sublist loq (loq + len) (map Vint contents)) vp' (field_address tp pathp p)).
-sep_apply (array_with_hole_elim shq tuchar loq (loq + len) nq (sublist loq (loq + len) (map Vint contents)) (map Vint contents) (field_address tq pathq q)).
+sep_apply (array_with_segment_hole_elim shp tuchar lop (lop + len) np (sublist loq (loq + len) (map Vint contents)) vp' (field_address tp pathp p)).
+sep_apply (array_with_segment_hole_elim shq tuchar loq (loq + len) nq (sublist loq (loq + len) (map Vint contents)) (map Vint contents) (field_address tq pathq q)).
 rewrite !field_at_data_at.
-rewrite sepcon_comm.
+rewrite <- sepcon_comm.
 apply sepcon_derives.
-- apply derives_refl'.
-  apply equal_f.
-  apply data_at_type_changable; auto.
-- apply derives_refl'.
-  apply equal_f.
-  apply data_at_type_changable; auto.
+- erewrite data_at_type_changable; auto.
+- erewrite data_at_type_changable; auto.
   eapply JMeq_trans; [| apply JMeq_sym, H2].
   apply eq_JMeq.
   apply splice_into_list_self.
   { lia. }
   { autorewrite with sublist. lia. }
 Qed.
-     
+
 Lemma call_memset_tuchar:
   forall (shp : share) (tp: type) (pathp: list gfield) (lop: Z) (vp': list val) (p: val)
            (c: int) (len : Z)
@@ -465,9 +452,9 @@ Lemma call_memset_tuchar:
    (TCp : typeof e_p = tptr tuchar)
    (TCc : typeof e_c = tint)
    (TCn : typeof e_n = Tint I32 s noattr)
-   (Hvar : (var_types Delta) ! _memset = None)
-   (Hspec : (glob_specs Delta) ! _memset = Some (snd memset_spec))
-   (Hglob : (glob_types Delta) ! _memset =
+   (Hvar : (var_types Delta) !! _memset = None)
+   (Hspec : (glob_specs Delta) !! _memset = Some (snd memset_spec))
+   (Hglob : (glob_types Delta) !! _memset =
         Some (type_of_funspec (snd memset_spec)))
    (H:  writable_share shp)
    (Hlop : (0 <= lop)%Z)
@@ -482,7 +469,7 @@ Lemma call_memset_tuchar:
          local (`(eq (Vint c)) (eval_expr e_c)) &&
          local (`(eq (Vint (Int.repr len))) (eval_expr e_n)) &&
          PROP () (LOCALx Q (SEPx (field_at shp tp pathp vp p :: R')))),
-   @semax _ Espec Delta
+   semax(OK_spec := Espec) ⊤ Delta
     (PROPx P (LOCALx Q (SEPx R)))
     (Scall None
              (Evar _memset
@@ -494,7 +481,7 @@ Lemma call_memset_tuchar:
      (SEPx (field_at shp tp pathp vp'' p :: R'))))).
 Proof.
 intros.
-assert_PROP (fold_right and True P)
+assert_PROP (fold_right and True%type P)
   by (go_lowerx; entailer!).
 apply semax_post' with
    (PROPx nil   (LOCALx Q
@@ -557,51 +544,41 @@ eapply semax_pre_post';
        try eassumption;
        try (rewrite ?Hspec, ?Hglob; reflexivity)].
 * unfold convertPre. simpl fst; simpl snd.
- rewrite <- (andp_dup (local (tc_environ _))), andp_assoc.
- eapply derives_trans; [ apply andp_derives; [apply derives_refl | apply Hpre] | ].
- rewrite !andp_assoc.
- apply andp_right; [apply andp_left2, andp_left1, derives_refl |].
- eapply derives_trans; [ | apply now_later].
- assert_PROP (field_address0 tp (pathp SUB lop) p <> Vundef) as DEFp.
+ iIntros "(#TC & ?)".
+ iPoseProof (Hpre with "[$]") as "H".
+ iSplit; first by rewrite !bi.and_elim_l.
+ iNext.
+ iAssert ⌜field_address0 tp (pathp SUB lop) p <> Vundef⌝ as %DEFp.
  {
    unfold tc_exprlist.
    simpl typecheck_exprlist.
    rewrite !denote_tc_assert_andp.
+   iDestruct "TC" as "-#TC".
+   iStopProof; rewrite <- bi.persistent_and_affinely_sep_r by apply _.
    apply derives_trans with (local (tc_environ Delta) && denote_tc_assert (typecheck_expr Delta e_p) && local ((` (eq (field_address0 tp (pathp SUB lop) p))) (eval_expr e_p))); [solve_andp |].
    go_lowerx.
    eapply derives_trans; [apply typecheck_expr_sound; auto |].
-   apply prop_derives; intros.
-   rewrite <- H2 in H6.
+   apply bi.pure_mono; intros.
+   rewrite <- H1 in H6.
    intro.
    rewrite H7 in H6.
    revert H6; apply tc_val_Vundef.
  }
- apply andp_left2, andp_left2.
+ iDestruct "TC" as "-#TC".
+ iStopProof; rewrite <- bi.persistent_and_affinely_sep_r by apply _.
  subst witness. cbv beta iota. simpl @fst; simpl @snd.
  clear Hpre.
  autorewrite with norm1 norm2.
 
- instantiate (1:=Frame). simpl. unfold env_set, local, lift1, liftx, lift. simpl. intros tau. entailer!.
-
-(* rewrite PROP_combine.*)
-(* unfold app at 1.*)
-(* instantiate (1:=Frame).
- unfold app at 2.
- go_lowerx.
- apply andp_right.
- apply prop_right.
- unfold make_args'. simpl.
- unfold eval_id, env_set.*)
+ instantiate (1:=Frame). simpl.
+ unfold env_set, PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx; split => tau; monPred.unseal; unfold lift1; unfold_lift.
  rewrite TCp, TCc, TCn.  simpl.
- (*rewrite <- H6, <- H7, <- H8.*)
- unfold PROPx, LOCALx, SEPx, local, liftx, lift1, lift. simpl. unfold liftx, lift. simpl. normalize.
  
 (* split3; try (repeat split; auto; congruence).*)
  try rewrite sem_cast_i2i_correct_range by (rewrite <- H2; auto).
  try rewrite sem_cast_i2i_correct_range by (rewrite <- H6; auto).
- apply andp_right.
- { apply prop_right; split3; auto. repeat split; trivial; congruence. }
- subst Frame.
+ entailer!!.
+ rewrite bi.and_elim_r.
  cancel. (*
  rewrite !field_at_data_at.
  rewrite (data_at_type_changable _ _ _ _ _ H0 H3).
@@ -627,7 +604,7 @@ eapply semax_pre_post';
  rewrite array_at_data_at' by  (try solve [clear - FC; intuition]; lia).
  eapply derives_trans; [apply data_at_data_at_ | ].
  eapply derives_trans; [apply data_at__memory_block_cancel | ].
- apply derives_refl'; f_equal.
+ f_equiv.
   unfold nested_field_array_type.
    rewrite nested_field_type_ind, H0. simpl.
   rewrite Z.max_r by lia. lia.
@@ -637,12 +614,8 @@ eapply semax_pre_post';
  Intros v. subst witness. cbv beta zeta iota.
  clear Hpre.
  autorewrite with norm1 norm2.
- rewrite PROP_combine.
- unfold app at 1.
  subst Frame.
- simpl map.
- go_lowerx. normalize.
- cancel.
+ go_lowerx. entailer!!.
  clear H1 H2.
  assert (H2: exists (vpy : list (reptype (nested_field_type tp (ArraySubsc 0 :: pathp)))),
                   JMeq vp'' vpy).
@@ -652,6 +625,7 @@ erewrite field_at_Tarray; try eassumption; auto; try lia.
 apply (JMeq_trans (JMeq_sym H4)) in H8.
 clear dependent vp''. clear dependent e_c. clear dependent e_p. clear dependent e_n.
 clear dependent Delta.
+remember (Zlength vp') as np eqn: Hvp'.
 assert (Zlength vpy = np). {
 clear - H0 H8 Hvp' Hnp Hlop Hlen.
 generalize dependent vpy.
@@ -689,8 +663,7 @@ rewrite Zlength_repeat. rewrite Z.max_r by lia. lia.
 } 
 cancel.
  rewrite array_at_data_at' by  (try solve [clear - FC; intuition]; lia).
-   apply derives_refl'.
-   apply equal_f. apply data_at_type_changable.
+   erewrite data_at_type_changable; eauto.
    unfold nested_field_array_type.
    rewrite nested_field_type_ind, H0.
    unfold tarray; f_equal. clear; lia.
@@ -700,4 +673,3 @@ cancel.
    unfold splice_into_list.
    autorewrite with sublist. auto.
 Qed.
-

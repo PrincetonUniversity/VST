@@ -3,7 +3,6 @@ Require Import VST.floyd.proofauto.
 Import ListNotations.
 Require sha.sha.
 Require sha.SHA256.
-Local Open Scope logic.
 
 Require Import sha.spec_sha.
 Require Import sha.sha_lemmas.
@@ -24,7 +23,7 @@ Qed.
 Lemma finalbodyproof Espec c md wsh shmd gv buf (h1 : hmacabs)
       (Hwsh: writable_share wsh)
       (SH : writable_share shmd):
-@semax CompSpecs Espec (func_tycontext f_HMAC_Final HmacVarSpecs HmacFunSpecs nil)
+semax(OK_spec := Espec)(C := CompSpecs) ⊤ (func_tycontext f_HMAC_Final HmacVarSpecs HmacFunSpecs nil)
   (PROP  ()
    LOCAL  (lvar _buf (tarray tuchar 32) buf; gvars gv; temp _ctx c; temp _md md
 (*lvar _buf (tarray tuchar 32) buf; temp _md md;
@@ -79,16 +78,12 @@ Time forward_call (ctx, buf, Vptr b i, wsh, Tsh, gv). (*3.6 versus 9.5*)
    cancel.
   }
 
-(*VST Issue: calls to forward-call with type-incorrect WITH-list instantiations simply succeed immediately,
-  without doing anything. Instead, they should fail with a meaningful error message.*)
-
 (*Coq (8.4?) Issue: type equality between
     @reptype CompSpecs t_struct_SHA256state_st * (s256state * s256state)
 and @reptype CompSpecs t_struct_hmac_ctx_st
   is not corrrectly identified here: instead of the pose l:=...; assert (exists l':..., ...);
    use l' in data_at c, we'd really like to simply write
   data_at Tsh t_struct_hmac_ctx_st (default_val t_struct_SHA256state_st, (iCTX, oCTX)) c.*)
-
 pose  (l:=(default_val t_struct_SHA256state_st, (iCTX, oCTX))).
 assert (exists l':@reptype CompSpecs t_struct_hmac_ctx_st, l'=l).
   exists l. trivial.
@@ -102,7 +97,7 @@ apply semax_pre with (P':=
      data_block Tsh (SHA256.SHA_256 ctx) buf;
      memory_block shmd 32 md))).
 { Time entailer!. (*5.2versus 11.7*)
-      unfold_data_at (@data_at CompSpecs _ t_struct_hmac_ctx_st _ _). thaw FR1.
+      unfold_data_at (data_at(cs := CompSpecs) _ t_struct_hmac_ctx_st _ _). thaw FR1.
       rewrite (field_at_data_at wsh t_struct_hmac_ctx_st [StructField _md_ctx]).
       rewrite field_address_offset by auto with field_compatible.
       simpl. rewrite Ptrofs.add_zero.
@@ -112,8 +107,8 @@ apply semax_pre with (P':=
       Time cancel. (*0.9*)
 }
 subst l'. clear FR1.
-freeze FR2 := - (@data_at CompSpecs _ _ _ (Vptr b i)).
-unfold_data_at (@data_at CompSpecs _ _ _ (Vptr b i)).
+freeze FR2 := - (data_at(cs := CompSpecs) _ _ _ (Vptr b i)).
+unfold_data_at (data_at(cs := CompSpecs) _ _ _ (Vptr b i)).
 rewrite (field_at_data_at _ _ [StructField _o_ctx]).
 rewrite (field_at_data_at _ _ [StructField _md_ctx]).
 rewrite field_address_offset by auto with field_compatible.
@@ -125,7 +120,7 @@ replace_SEP 1 (memory_block wsh 108 (Vptr b i)).
     eapply derives_trans. apply data_at_data_at_.
     rewrite <- (memory_block_data_at_ wsh _ _ H). apply derives_refl.
   }
-freeze FR3 := - (memory_block _ _ (Vptr b i)) (@data_at CompSpecs _ _ _ (Vptr b (Ptrofs.add i (Ptrofs.repr 216)))).
+freeze FR3 := - (memory_block _ _ (Vptr b i)) (data_at(cs := CompSpecs) _ _ _ (Vptr b (Ptrofs.add i (Ptrofs.repr 216)))).
 Time forward_call (wsh, wsh, Vptr b i, Vptr b (Ptrofs.add i (Ptrofs.repr 216)),
               mkTrep t_struct_SHA256state_st oCTX, 108). (*5 versus 8.7*)
 (* Time solve [simpl; cancel]. (*0.1 versus 1*) *)
@@ -146,7 +141,7 @@ Time forward_call (oSha, SHA256.SHA_256 ctx, Vptr b i, wsh, buf, Tsh, Z.of_nat S
 *)
      Time cancel. (*0.2 versus 1.6*) }
   { unfold SHA256.DigestLength.
-    rewrite oShaLen. simpl; intuition auto with *. }
+    rewrite oShaLen. simpl. unfold two_power_pos; simpl; lia. }
 simpl.
 rewrite sublist_same; try lia.
 unfold sha256state_. Intros updShaST.
@@ -164,15 +159,14 @@ Time forward_call (updSha, md, Vptr b i, wsh, shmd, gv). (*4.2 versus 21 SLOW*)
 (*    change (@data_block spec_sha.CompSpecs shmd (SHA256.SHA_256 updShaST) md)
      with (@data_block CompSpecs shmd (SHA256.SHA_256 updShaST) md).
      Time cancel. (*0.5*)*)
-(*change_compspecs CompSpecs.*)
-unfold data_block. simpl. rewrite SFL. intros tau.
-unfold PROPx, LOCALx, SEPx, local, liftx, lift1, lift; simpl; unfold liftx, lift. simpl.
+change_compspecs CompSpecs.
+unfold data_block. simpl. rewrite SFL.
+unfold PROPx, LOCALx, SEPx, local, liftx, lift1, lift; simpl; split => tau; monPred.unseal.
 
-Time (normalize; cancel). (*5.5*)
-unfold stackframe_of. simpl. cancel.
-eapply derives_trans. 
-2:{  apply sepcon_derives.  apply derives_refl. 
-     apply (var_block_lvar0 _ _ Delta); trivial. apply H0. }
+entailer!.
+unfold stackframe_of. simpl.
+rewrite bi.sep_emp.
+rewrite <- (var_block_lvar0 _ _ Delta) by (trivial; apply H0).
 cancel.
 
 unfold hmacstate_PostFinal, hmac_relate_PostFinal.
@@ -181,9 +175,7 @@ Exists (updShaST, (iCTX, oCTX)). rewrite prop_true_andp by (split3; auto).
 match goal with |- _ |-- data_at _ _ ?A _ =>
 change A with (default_val t_struct_SHA256state_st, (iCTX, oCTX))
 end.
-subst c.
-change_compspecs CompSpecs.
-Time unfold_data_at (@data_at CompSpecs _ _ _ (Vptr b i)).
+Time unfold_data_at (data_at(cs := CompSpecs) _ _ _ (Vptr b i)).
 Time assert_PROP (field_compatible t_struct_SHA256state_st [] (Vptr b i)) as FC by entailer!. (*1.2*)
 Time cancel. (*0.7*)
 unfold data_at_, field_at_.
@@ -194,7 +186,7 @@ rewrite field_address_offset by auto with field_compatible.
 simpl snd. simpl fst.
 rewrite field_at_data_at.
 rewrite field_address_offset by auto with field_compatible. subst; simpl.  apply derives_refl.
-Time Qed. (*VST 2.0: 6s*) 
+Time Qed. (*VST 2.0: 6s*)
 
 Lemma body_hmac_final: semax_body HmacVarSpecs HmacFunSpecs
        f_HMAC_Final HMAC_Final_spec.

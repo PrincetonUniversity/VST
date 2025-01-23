@@ -4,7 +4,6 @@ Require Import sha.SHA256.
 Require Import sha.spec_sha.
 Require Import sha.sha_lemmas.
 Require Import sha.call_memcpy.
-Local Open Scope logic.
 
 Definition update_inner_if_then :=
  (Ssequence
@@ -71,7 +70,7 @@ Definition inv_at_inner_if wsh sh hashed len c d dd data gv :=
  (PROP ()
   (LOCAL (temp _fragment (Vint (Int.repr (64 - Zlength dd)));
    temp _p (field_address t_struct_SHA256state_st [StructField _data] c);
-   temp _n (Vint (Int.repr (Zlength dd))); temp _data d; gvars gv; temp _c c; temp _data_ d;
+   temp _n (Vint (Int.repr (Zlength dd))); temp _data d; gvars gv; temp _c c; temp data_ d;
    temp _len (Vint (Int.repr len)))
    SEP  (data_at wsh t_struct_SHA256state_st
                  (map Vint (hash_blocks init_registers hashed),
@@ -84,9 +83,8 @@ Definition inv_at_inner_if wsh sh hashed len c d dd data gv :=
      data_block sh data d))).
 
 Definition sha_update_inv wsh sh hashed len c d (dd: list byte) (data: list byte) gv (done: bool)
-    : environ -> mpred :=
-   (*EX blocks:list int,*)  (* this line doesn't work; bug in Coq 8.4pl3 thru 8.4pl6?  *)
-   @exp (environ->mpred) _ _  (fun blocks:list int =>
+    : assert :=
+   EX blocks:list int,
    PROP  ((len >= Zlength blocks*4 - Zlength dd)%Z;
               (LBLOCKz | Zlength blocks);
               intlist_to_bytelist blocks = dd ++ sublist 0  (Zlength blocks * 4 - Zlength dd) data;
@@ -99,27 +97,26 @@ Definition sha_update_inv wsh sh hashed len c d (dd: list byte) (data: list byte
                 temp _len (Vint (Int.repr (len- (Zlength blocks*4 - Zlength dd))));
                 gvars gv)
    SEP  (K_vector gv;
-           @data_at CompSpecs wsh t_struct_SHA256state_st
+           data_at(cs := CompSpecs) wsh t_struct_SHA256state_st
                  ((map Vint (hash_blocks init_registers (hashed++blocks)),
                   (Vint (lo_part (bitlength hashed dd + len*8)),
                    (Vint (hi_part (bitlength hashed dd + len*8)),
                     (repeat Vundef (Z.to_nat CBLOCKz), Vundef)))) : reptype t_struct_SHA256state_st)
                c;
-            data_block sh data d)).
+            data_block sh data d).
 
 Lemma data_block_data_field:
  forall sh dd dd' c,
   (Zlength dd = CBLOCKz)%Z ->
   JMeq (map Vubyte dd) dd' ->
-  data_block sh dd (field_address t_struct_SHA256state_st [StructField _data] c) =
+  data_block sh dd (field_address t_struct_SHA256state_st [StructField _data] c) ⊣⊢
   field_at sh t_struct_SHA256state_st [StructField _data] dd' c.
 Proof.
 intros.
 unfold data_block.
 erewrite field_at_data_at by reflexivity.
 repeat rewrite prop_true_andp by auto.
-apply equal_f.
-apply data_at_type_changable; auto.
+erewrite data_at_type_changable; auto.
 rewrite H; reflexivity.
 Qed.
 
@@ -209,7 +206,7 @@ rewrite !map_map. f_equal.
 Qed.
 
 Lemma update_inner_if_proof:
- forall (Espec: OracleKind) (hashed: list int) (dd data: list byte)
+ forall Espec (hashed: list int) (dd data: list byte)
             (c d: val) (wsh sh: share) (len: Z) gv
  (H: (0 <= len <= Zlength data)%Z)
  (Hwsh: writable_share wsh)
@@ -218,7 +215,7 @@ Lemma update_inner_if_proof:
  (H3 : (Zlength dd < CBLOCKz)%Z)
  (H4 : (LBLOCKz | Zlength hashed))
  (Hlen : (len <= Int.max_unsigned)%Z),
-semax (func_tycontext f_SHA256_Update Vprog Gtot nil)
+semax(OK_spec := Espec) ⊤ (func_tycontext f_SHA256_Update Vprog Gtot nil)
   (inv_at_inner_if wsh sh hashed len c d dd data gv)
   update_inner_if
   (overridePost (sha_update_inv wsh sh hashed len c d dd data gv false)
@@ -245,6 +242,9 @@ forward_if.
  unfold k.
  clear - H H1 H3 H4 Hlen Hwsh Hsh H0 H2.
  unfold update_inner_if_then.
+ unfold_data_at (data_at _ _ _ c).
+ freeze FR1 := - (field_at(cs := CompSpecs) wsh t_struct_SHA256state_st (DOT _data)
+            (map Vubyte dd ++ repeat Vundef (Z.to_nat _)) c) (data_at sh (tarray tuchar (Zlength data)) _ d).
  eapply semax_seq'.
   *
    assert_PROP (field_address (tarray tuchar (Zlength data)) [ArraySubsc 0] d = d). {
@@ -253,7 +253,6 @@ forward_if.
      normalize.
    }
   rename H5 into Hd.
-  evar (Frame: list mpred).
   eapply(call_memcpy_tuchar
    (*dst*) wsh t_struct_SHA256state_st [StructField _data] (Zlength dd)
               (map Vubyte dd
@@ -261,15 +260,15 @@ forward_if.
                c
    (*src*) sh (tarray tuchar (Zlength data)) [ ] 0 (map Int.repr (map Byte.unsigned data))  d
    (*len*) k
-        Frame);
+        [FRZL FR1]);
   try reflexivity; auto; try lia.
-  unfold_data_at (data_at _ _ _ c).
+  thaw' FR1.
   entailer!.
   rewrite field_address_offset by auto.
   rewrite !field_address0_offset by (subst k; auto with field_compatible).
   simpl.
-  normalize. rewrite map_Vubyte_eq'; cancel.
-  *
+  rewrite map_Vubyte_eq'; entailer!!.
+  * thaw' FR1; simpl; Intros.
   replace (Zlength dd + k)%Z with 64%Z by Omega1.
   subst k.
   unfold splice_into_list; autorewrite with sublist.
@@ -298,14 +297,15 @@ forward_if.
  forward. (* data  += fragment; *)
  forward. (* len -= fragment; *)
  normalize_postcondition.
+ freeze FR1 := - (data_block wsh (intlist_to_bytelist (bytelist_to_intlist (dd ++ sublist 0 k data)))
+     (field_address t_struct_SHA256state_st (DOT _data) c)).
  eapply semax_post_flipped3.
- evar (Frame: list mpred).
  eapply(call_memset_tuchar
    (*dst*) wsh t_struct_SHA256state_st [StructField _data] 0
                 (map Vubyte (dd ++ sublist 0 k data)) c
    (*src*) Int.zero
    (*len*) 64
-        Frame); try reflexivity; auto.
+        [FRZL FR1]); try reflexivity; auto.
   rewrite <- (data_block_data_field _ (dd ++ sublist 0 k data));
    [
    | rewrite Zlength_app; rewrite Zlength_sublist; MyOmega
@@ -315,6 +315,7 @@ forward_if.
    [ | exists LBLOCKz; rewrite H5; reflexivity
    ].
   entailer!.
+  thaw' FR1; simpl fold_right_sepcon; Intros.
   Exists (bytelist_to_intlist (dd ++ sublist 0 k data)).
   erewrite Zlength_bytelist_to_intlist
      by (instantiate (1:=LBLOCKz); assumption).
@@ -331,7 +332,7 @@ forward_if.
   entailer!.
   rewrite field_address0_offset
     by (pose proof LBLOCKz_eq; subst k; auto with field_compatible).
-  f_equal. f_equal. unfold k. simpl. Omega1.
+  f_equal. unfold k. simpl. Omega1.
   unfold data_block.
   unfold_data_at (data_at _ _ _ c).
   rewrite map_Vubyte_eq'; cancel.
@@ -347,22 +348,25 @@ forward_if.
      rewrite field_address0_offset by auto with field_compatible.
      normalize.
    }
+  unfold_data_at (data_at _ _ _ c).
+  freeze FR1 := - (field_at(cs := CompSpecs) wsh t_struct_SHA256state_st (DOT _data)
+            (map Vubyte dd ++ repeat Vundef (Z.to_nat _)) c) (data_at sh (tarray tuchar (Zlength data)) _ d).
   eapply semax_seq'.
-  evar (Frame: list mpred).
   eapply(call_memcpy_tuchar
    (*dst*) wsh t_struct_SHA256state_st [StructField _data] (Zlength dd)
                      (map Vubyte dd ++
          repeat Vundef (Z.to_nat (CBLOCKz - Zlength dd))) c
    (*src*) sh (tarray tuchar (Zlength data)) [ ] 0 (map Int.repr (map Byte.unsigned data))  d
    (*len*) (len)
-        Frame);
+        [FRZL FR1]);
     try reflexivity; auto; try lia.
   entailer!.
   rewrite field_address_offset by auto with field_compatible.
   rewrite field_address0_offset by
    (subst k; auto with field_compatible).
   rewrite offset_offset_val; simpl. rewrite Z.mul_1_l; auto.
-  unfold_data_at (data_at _ _ _ c). rewrite map_Vubyte_eq'. cancel.
+  rewrite map_Vubyte_eq'. cancel.
+  thaw' FR1; simpl; Intros.
   abbreviate_semax.
   autorewrite with sublist.
   unfold splice_into_list.
@@ -385,8 +389,7 @@ forward_if.
   subst k.
   rewrite (prop_true_andp);
      [ | apply update_inner_if_update_abs; auto; lia ].
- rewrite (sepcon_comm (K_vector gv)).
- apply sepcon_derives; [ | auto].
- rewrite map_Vubyte_eq'. 
- simple eapply update_inner_if_sha256_state_; eauto.
+ cancel.
+ rewrite map_Vubyte_eq'.
+ rewrite <- update_inner_if_sha256_state_; eauto; cancel.
 Qed.

@@ -1,6 +1,6 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat. Import NoOracle.
 Import ListNotations.
-Local Open Scope logic.
 
 Require Import sha.spec_sha.
 Require Import hmacdrbg.hmac_drbg.
@@ -12,7 +12,7 @@ Require Import hmacdrbg.HMAC_DRBG_common_lemmas.
 Require Import hmacdrbg.verif_hmac_drbg_update_common.
 
 Lemma BDY_update: forall
-(Espec : OracleKind)
+Espec
 (contents : list byte)
 (additional : val) (sha: share)
 (add_len : Z)
@@ -27,7 +27,7 @@ Lemma BDY_update: forall
 (H1 : add_len = Zlength contents \/ add_len = 0)
 (Hsha: readable_share sha)
 (Hshc: writable_share shc),
-@semax hmac_drbg_compspecs.CompSpecs Espec
+semax(C := hmac_drbg_compspecs.CompSpecs)(OK_spec := Espec) ⊤
  (func_tycontext f_mbedtls_hmac_drbg_update HmacDrbgVarSpecs
         HmacDrbgFunSpecs nil)
   (PROP ( )
@@ -38,9 +38,9 @@ Lemma BDY_update: forall
    data_at_ Tsh (tarray tuchar 1) sep;
    da_emp sha (tarray tuchar (Zlength contents))
      (map Vubyte contents) additional;
-   data_at shc t_struct_hmac256drbg_context_st initial_state ctx;
+   data_at(cs := hmac_drbg_compspecs.CompSpecs) shc t_struct_hmac256drbg_context_st initial_state ctx;
    hmac256drbg_relate initial_state_abs initial_state;
-   data_at shc t_struct_mbedtls_md_info info_contents
+   data_at(cs := hmac_drbg_compspecs.CompSpecs) shc t_struct_mbedtls_md_info info_contents
      (hmac256drbgstate_md_info_pointer initial_state); K_vector gv))
   (fn_body f_mbedtls_hmac_drbg_update)
   (normal_ret_assert
@@ -99,7 +99,7 @@ Proof. intros. do 2 pose proof I.
     { entailer!.
       destruct additional; simpl in PNadditional; try contradiction.
       subst i; simpl; trivial.
-      simpl. destruct (EqDec_Z add_len 0); trivial; lia.
+      simpl. destruct (eq_dec add_len 0); trivial; lia.
     }
   }
 
@@ -339,7 +339,7 @@ Proof. intros. do 2 pose proof I.
                        HMAC256 (V ++ [Byte.repr i] ++ (if na then contents else [])) key, sk, ik, Tsh, gv). 
     {
       (* prove the function parameters match up *)
-      apply prop_right. 
+      apply prop_right.
       rewrite hmac_common_lemmas.HMAC_Zlength, FA_ctx_MDCTX; simpl.
       rewrite offset_val_force_ptr, isptr_force_ptr; trivial.
     }
