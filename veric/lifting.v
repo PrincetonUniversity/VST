@@ -87,16 +87,6 @@ Definition assert_safe (E: coPset) (f: function) (ctl: option cont) : mpred :=
        | None => |={E}=> False
        end.
 
-Global Instance assert_safe_absorbing E f ctl : Absorbing (assert_safe E f ctl).
-Proof.
-  rewrite /assert_safe.
-  repeat (apply bi.forall_absorbing; intros).
-  apply bi.wand_absorbing_r.
-  apply bi.impl_absorbing; try apply _.
-  apply bi.impl_absorbing; try apply _.
-  destruct (option_bind _ _ _ _); apply _.
-Qed.
-
 Lemma assert_safe_mono E1 E2 f ctl: E1 ⊆ E2 ->
   assert_safe E1 f ctl ⊢ assert_safe E2 f ctl.
 Proof.
@@ -931,8 +921,8 @@ Definition wp_exprs E f es ts Φ : assert :=
 
 Lemma wp_exprs_intro : forall E f es ts Φ,
   match es, ts with
-  | [], Tnil => Φ []
-  | e :: es', Tcons t ts' => wp_expr ge E f (Ecast e t) (λ v,
+  | [], [] => Φ []
+  | e :: es', t :: ts' => wp_expr ge E f (Ecast e t) (λ v,
       wp_exprs E f es' ts' (λ lv, Φ (v :: lv)))
   | _, _ => False
   end ⊢ wp_exprs E f es ts Φ.
@@ -1101,7 +1091,7 @@ Proof.
   setoid_rewrite temps_equiv.
   4: { intros ? (?, ?) ?; simpl; done. }
   assert (length (map fst (fn_vars f)) = length (zip lb (map snd (fn_vars f)))) as Heq1.
-  { rewrite zip_with_length_l_eq map_length //. }
+  { rewrite length_zip_with_l_eq map_length //. }
   assert (length (map fst (fn_params f) ++ map fst (fn_temps f)) =
     length (lv ++ repeat Vundef (length (fn_temps f)))) as Heq2.
   { rewrite !app_length repeat_length !map_length H1 //. }
@@ -1115,22 +1105,22 @@ Proof.
   - destruct (fn_vars f); last done; simpl.
     rewrite fmap_app bi.emp_sep -bi.exist_intro; f_equiv; last done.
     rewrite map_size_empty map_size_list_to_map //.
-    by rewrite zip_with_length_l_eq // Qp.mul_inv_r.
+    by rewrite length_zip_with_l_eq // Qp.mul_inv_r.
   - rewrite -map_app; destruct (fn_params f ++ fn_temps f); last done; simpl.
     rewrite bi.sep_emp; rewrite -bi.exist_intro; f_equiv.
     rewrite map_size_empty Nat.add_0_r map_size_list_to_map //.
-    by rewrite zip_with_length_l_eq // map_length Qp.mul_inv_r.
+    by rewrite length_zip_with_l_eq // map_length Qp.mul_inv_r.
   - iIntros "H"; rewrite bi.sep_exist_l; iExists _; rewrite bi.sep_exist_r; iExists _.
     iApply stack_frag_split.
     { apply map_disjoint_empty_r. }
     { apply map_disjoint_empty_l. }
     rewrite right_id left_id fmap_app; iStopProof; f_equiv; last done.
     rewrite frac_op -Qp.mul_add_distr_r !map_size_list_to_map //.
-    rewrite !zip_with_length_l_eq // map_length //.
+    rewrite !length_zip_with_l_eq // map_length //.
     rewrite pos_to_Qp_add Nat2Pos.inj_add //.
     by rewrite Qp.mul_inv_r.
     { by rewrite -map_app. }
-  - rewrite fmap_app !app_length !fmap_length repeat_length H1 //.
+  - rewrite fmap_app !app_length !length_fmap repeat_length H1 //.
   - rewrite fmap_app //.
 Qed.
 
@@ -1260,7 +1250,7 @@ Proof.
       apply not_elem_of_list_to_map_1.
       rewrite fst_zip.
       rewrite elem_of_list_In //.
-      { rewrite zip_with_length_l_eq; rewrite map_length; lia. }
+      { rewrite length_zip_with_l_eq; rewrite map_length; lia. }
     + intros i; specialize (Hsub i).
       destruct (eq_dec i id); last by rewrite Maps.PTree.gso in Hsub.
       subst; rewrite Hout //; simpl; auto.
@@ -1304,7 +1294,7 @@ Proof.
       apply not_elem_of_list_to_map_1.
       rewrite fst_zip.
       rewrite elem_of_list_In //.
-      { rewrite zip_with_length_l_eq; rewrite map_length; lia. }
+      { rewrite length_zip_with_l_eq; rewrite map_length; lia. }
     + rewrite PTree.gro // -make_env_spec -Heq lookup_insert_ne //.
 Qed.
 
