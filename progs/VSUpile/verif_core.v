@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat. Import NoOracle.
 Require Import VST.floyd.VSU.
 
 Require Import VST.floyd.linking.
@@ -22,13 +23,13 @@ Definition PrivPILE: spec_pile_private.PilePrivateAPD M := PILEPRIV M.
 Definition PILE: spec_pile.PileAPD := spec_pile_private.pilepreds PrivPILE. 
 
 Definition Onepile_Pile_VSU :=
-  ltac:(linkVSUs (PilePrivateVSU M) (OnepileVSU M PILE) ). 
+  ltac:(linkVSUs (PilePrivateVSU M) (OnepileVSU M PILE) ).
 
 (* Eval simpl in map fst (VSU_Exports Onepile_Pile_VSU).  *)
  (* Pile_new, Pile_add, Pile_count, Pile_free, Onepile_init, Onepile_add, Onepile_count *)
 
 Definition Apile_Onepile_Pile_VSU :=
-  ltac:(linkVSUs Onepile_Pile_VSU (ApileVSU M PrivPILE)). 
+  ltac:(linkVSUs Onepile_Pile_VSU (ApileVSU M PrivPILE)).
 
 Definition Triang_Apile_Onepile_Pile_VSU :=
   ltac:(linkVSUs Apile_Onepile_Pile_VSU (TriangVSU M PILE)).

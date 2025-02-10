@@ -1,0 +1,22 @@
+opam-version: "2.0"
+name: "coq-caesium-config-no-align"
+synopsis: "Configuration package to configure Caesium to not use alignment"
+description: """
+Installing this package instructs the refinedc package to disable alignment in the Caesium C semantics.
+"""
+license: "BSD-3-Clause"
+
+maintainer: ["Michael Sammler <msammler@mpi-sws.org>"]
+authors: ["Michael Sammler" "Rodolphe Lepigre" "Kayvan Memarian"]
+
+homepage: "https://plv.mpi-sws.org/refinedc"
+bug-reports: "https://gitlab.mpi-sws.org/iris/refinedc/issues"
+dev-repo: "git+https://gitlab.mpi-sws.org/iris/refinedc.git"
+
+conflict-class: [ "coq-caesium-config" ]
+
+depends: [
+]
+
+build: [
+]

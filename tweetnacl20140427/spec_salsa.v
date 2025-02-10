@@ -1,10 +1,8 @@
 Require Import Recdef.
 Require Import VST.floyd.proofauto.
-Local Open Scope logic.
 Require Import List. Import ListNotations.
 Require Import sha.general_lemmas.
 Require Import ZArith.
-Local Open Scope Z.
 Require Import tweetnacl20140427.Salsa20.
 Require Import tweetnacl20140427.tweetNaclBase.
 Require Export tweetnacl20140427.verif_salsa_base.
@@ -19,7 +17,7 @@ Definition CoreInSEP (data : SixteenByte * SixteenByte * (SixteenByte * SixteenB
                      (v: val * val * val) : mpred :=
   match data with (Nonce, C, K) =>
   match v with (n, c, k) =>
-   ((SByte Nonce n) * (SByte C c) * (ThirtyTwoByte K k))%logic
+   ((SByte Nonce n) * (SByte C c) * (ThirtyTwoByte K k))
   end end.
 
 Definition prepare_data
@@ -64,7 +62,7 @@ Proof. unfold Snuffle20, bind; intros. remember (Snuffle 20 s).
       apply (Snuffle_length _ _ _ Heqo H0). inv H.
 Qed.
 
-Definition fcore_result h data l :=
+Definition fcore_result h data l : Prop :=
   match Snuffle20 (prepare_data data)
   with None => False
      | Some x =>
@@ -88,7 +86,7 @@ Definition OutLen h := if Int.eq (Int.repr h) Int.zero then 64 else 32.
 
 Definition fcorePOST_SEP h data d l out :=
   (CoreInSEP data d *
-  data_at Tsh (tarray tuchar (OutLen h)) l out)%logic.
+  data_at Tsh (tarray tuchar (OutLen h)) l out).
 
 Definition f_core_POST d out h (data: SixteenByte * SixteenByte * (SixteenByte * SixteenByte) ) :=
 EX l:_,
@@ -132,7 +130,7 @@ Definition st32_spec :=
      LOCAL ()
      SEP (QByte (littleendian_invert u) x).
 
-Definition L32_spec :=
+Definition L32_spec : ident * funspec :=
   DECLARE _L32
    WITH x : int, c: int
    PRE [ tuint, tint ]
@@ -535,7 +533,7 @@ Definition crypto_stream_xor_postsep b (Nonce:SixteenByte) K mCont cLen nonce c 
                 /\  ContSpec b SIGMA K m mCont zbytes COUT end)
            && data_at Tsh (Tarray tuchar cLen noattr) (Bl2VL COUT) c))
                     * SByte Nonce nonce
-                    * message_at mCont m)%logic.
+                    * message_at mCont m).
 
 (*Precondition length mCont = Int64.unsigned b comes from textual spec in
   https://download.libsodium.org/doc/advanced/salsa20.html

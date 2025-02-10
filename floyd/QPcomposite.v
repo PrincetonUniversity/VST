@@ -1,6 +1,9 @@
+Set Warnings "-hiding-delimiting-key,-custom-entry-overridden,-notation-overridden".
 Require Import VST.floyd.base.
+Set Warnings "hiding-delimiting-key,custom-entry-overridden,notation-overridden".
 Require Import VST.floyd.PTops.
-Import compcert.lib.Maps.
+
+Local Unset SsrRewrite.
 
 Module QP.
 
@@ -15,13 +18,13 @@ Record composite : Type := {
   co_la: legal_alignas_obs
 }.
 
-Definition composite_env : Type := PTree.t composite.
+Definition composite_env : Type := Maps.PTree.t composite.
 
 Inductive builtin := mk_builtin: external_function -> list type -> type -> calling_convention -> builtin.
 
 Record program (F: Type) : Type := {
   prog_builtins: list (ident * builtin);
-  prog_defs: PTree.t (globdef (fundef F) type);
+  prog_defs: Maps.PTree.t (globdef (fundef F) type);
   prog_public: list ident;
   prog_main: ident;
   prog_comp_env: composite_env
@@ -67,7 +70,7 @@ Definition QPcomposite_bogus: QP.composite :=
  QP.Build_composite Struct nil noattr 0 0 0 0 true.
 
 Definition QPcomposite_env_of_composite_env :
-     composite_env -> PTree.t Z -> PTree.t legal_alignas_obs-> QP.composite_env :=
+     composite_env -> Maps.PTree.t Z -> Maps.PTree.t legal_alignas_obs-> QP.composite_env :=
  PTree_map3 QPcomposite_of_composite QPcomposite_bogus.
 
 Definition QPcomposite_env_OK: QP.composite_env -> Prop :=
@@ -94,8 +97,8 @@ red.
 rewrite <- PTree_Forall_get_eq.
 intro i.
 unfold QPcomposite_env_of_composite_env.
-rewrite PTree_gmap3 by auto.
-destruct ( ce ! i) eqn:?H; simpl; auto.
+rewrite -> PTree_gmap3 by auto.
+destruct (Maps.PTree.get i ce) eqn:?H; simpl; auto.
 +
   destruct (proj1 (PTree_domain_eq_e H _) (ex_intro _ _ H1)).
   rewrite H2.
@@ -103,8 +106,8 @@ destruct ( ce ! i) eqn:?H; simpl; auto.
   rewrite H3.
   apply QPcomposite_of_composite_OK.
 +
- destruct (ha_env ! i); auto.
- destruct (la_env ! i); auto. 
+ destruct (Maps.PTree.get i ha_env); auto.
+ destruct (Maps.PTree.get i la_env); auto.
 Qed.
 
 Fixpoint QP_list_helper 
@@ -137,20 +140,20 @@ Qed.
 Definition composite_env_of_QPcomposite_env'
    (ce: QP.composite_env)
    (H: QPcomposite_env_OK ce) : composite_env :=
- PTree_Properties.of_list
+ Maps.PTree_Properties.of_list
    (QP_list_helper _ (proj1 (PTree_Forall_elements _ _ _) H)).
 
 Fixpoint ce_of_QPce'
-   (ce: PTree.tree' QP.composite) :
-   PTree_Forall' QPcomposite_OK ce -> PTree.tree' composite := 
-match ce as t return (PTree_Forall' QPcomposite_OK t -> PTree.tree' composite) with
-| PTree.Node001 r => fun H => PTree.Node001 (ce_of_QPce' r H)
-| PTree.Node010 x => fun H => PTree.Node010 (composite_of_QPcomposite x H)
-| PTree.Node011 x r => fun H => PTree.Node011 (composite_of_QPcomposite x (proj1 H)) (ce_of_QPce' r (proj2 H))
-| PTree.Node100 l => fun H => PTree.Node100 (ce_of_QPce' l H)
-| PTree.Node101 l r => fun H => PTree.Node101 (ce_of_QPce' l (proj1 H)) (ce_of_QPce' r (proj2 H))
-| PTree.Node110 l x => fun H => PTree.Node110 (ce_of_QPce' l (proj1 H)) (composite_of_QPcomposite x (proj2 H))
-| PTree.Node111 l x r => fun H => PTree.Node111
+   (ce: Maps.PTree.tree' QP.composite) :
+   PTree_Forall' QPcomposite_OK ce -> Maps.PTree.tree' composite := 
+match ce as t return (PTree_Forall' QPcomposite_OK t -> Maps.PTree.tree' composite) with
+| Maps.PTree.Node001 r => fun H => Maps.PTree.Node001 (ce_of_QPce' r H)
+| Maps.PTree.Node010 x => fun H => Maps.PTree.Node010 (composite_of_QPcomposite x H)
+| Maps.PTree.Node011 x r => fun H => Maps.PTree.Node011 (composite_of_QPcomposite x (proj1 H)) (ce_of_QPce' r (proj2 H))
+| Maps.PTree.Node100 l => fun H => Maps.PTree.Node100 (ce_of_QPce' l H)
+| Maps.PTree.Node101 l r => fun H => Maps.PTree.Node101 (ce_of_QPce' l (proj1 H)) (ce_of_QPce' r (proj2 H))
+| Maps.PTree.Node110 l x => fun H => Maps.PTree.Node110 (ce_of_QPce' l (proj1 H)) (composite_of_QPcomposite x (proj2 H))
+| Maps.PTree.Node111 l x r => fun H => Maps.PTree.Node111
      (ce_of_QPce' l (proj1 H)) (composite_of_QPcomposite x (proj1 (proj2 H)))
             (ce_of_QPce' r (proj2 (proj2 H)))
 end.
@@ -162,35 +165,35 @@ match
   ce as t
   return
     (match t with
-     | PTree.Empty => True
-     | PTree.Nodes m' => PTree_Forall' QPcomposite_OK m'
+     | Maps.PTree.Empty => True
+     | Maps.PTree.Nodes m' => PTree_Forall' QPcomposite_OK m'
      end -> composite_env)
 with
-| PTree.Empty => fun _ : True => PTree.Empty
-| PTree.Nodes m =>
+| Maps.PTree.Empty => fun _ : True => Maps.PTree.Empty
+| Maps.PTree.Nodes m =>
     fun H0 : PTree_Forall' QPcomposite_OK m =>
-    PTree.Nodes (ce_of_QPce' m H0)
+    Maps.PTree.Nodes (ce_of_QPce' m H0)
 end H.
 
 Lemma composite_env_of_QPcomposite_env'_eq:
  forall ce H i,
-  PTree.get i (composite_env_of_QPcomposite_env' ce H) = 
-  PTree.get i (composite_env_of_QPcomposite_env ce H).
+  Maps.PTree.get i (composite_env_of_QPcomposite_env' ce H) = 
+  Maps.PTree.get i (composite_env_of_QPcomposite_env ce H).
 Proof.
 intros.
 unfold composite_env_of_QPcomposite_env'.
-destruct ((PTree_Properties.of_list
-   (QP_list_helper (PTree.elements ce)
+destruct (Maps.PTree.get i (Maps.PTree_Properties.of_list
+   (QP_list_helper (Maps.PTree.elements ce)
       (proj1 (PTree_Forall_elements QP.composite QPcomposite_OK ce)
-         H))) ! i) eqn:?H.
+         H)))) eqn:?H.
 -
-apply PTree_Properties.in_of_list in H0.
+apply  Maps.PTree_Properties.in_of_list in H0.
 assert (exists c' H', 
-  In (i,c') (PTree.elements ce) /\ c = composite_of_QPcomposite c' H'). {
- pose proof (PTree.elements_keys_norepet ce).
+  In (i,c') (Maps.PTree.elements ce) /\ c = composite_of_QPcomposite c' H'). {
+ pose proof (Maps.PTree.elements_keys_norepet ce).
  set (H2 := proj1 _ _) in H0.
  clearbody H2.
- revert H0 H1; induction (PTree.elements ce) as [|[??]]; intros.
+ revert H0 H1; induction (Maps.PTree.elements ce) as [|[??]]; intros.
  inv H0.
  specialize (IHl (Forall_inv_tail H2)).
  simpl in *.
@@ -207,10 +210,10 @@ set (H2 := proj1 _ _) in H0. clearbody H2.
 destruct H1 as [c' [? [? ?]]].
 subst.
 rename x into Hc'.
-pose proof (PTree.elements_complete _ _ _ H1).
+pose proof (Maps.PTree.elements_complete _ _ _ H1).
 clear - c' H3.
 destruct ce as [|ce]. inv H3.
-unfold PTree.get in *.
+unfold Maps.PTree.get in *.
 revert i H3; induction ce; destruct i; simpl; intros; try discriminate;
 try (apply IHce; auto);
 try (apply IHce2; auto);
@@ -220,23 +223,23 @@ try (inv H3; f_equal; f_equal; apply proof_irr).
 symmetry.
 set (H2 := proj1 _ _) in H0.
 clearbody H2.
-assert (ce ! i = None).
-destruct (ce ! i) eqn:?H; auto.
+assert (Maps.PTree.get i ce = None).
+destruct (Maps.PTree.get i ce) eqn:?H; auto.
 exfalso.
-apply PTree.elements_correct in H1.
-assert (In i (map fst  (QP_list_helper (PTree.elements ce) H2))). {
- clear - H1; induction (PTree.elements ce) as [|[??]].
+apply Maps.PTree.elements_correct in H1.
+assert (In i (map fst  (QP_list_helper (Maps.PTree.elements ce) H2))). {
+ clear - H1; induction (Maps.PTree.elements ce) as [|[??]].
  inv H1.
  specialize (IHl (Forall_inv_tail H2)).
  destruct H1. inv H. left; reflexivity.
  right; auto.
 }
-apply PTree_Properties.of_list_dom in H3.
+apply  Maps.PTree_Properties.of_list_dom in H3.
 destruct H3. congruence.
 clear - H1.
 hnf in H.
 destruct ce as [|ce]; simpl; auto.
-unfold PTree.get in *.
+unfold Maps.PTree.get in *.
 revert i H H1; induction ce; destruct i; simpl; intros; auto;
 try discriminate.
 Qed.
@@ -293,8 +296,8 @@ Lemma QPcomposite_env_of_composite_env_of_QPcomposite_env:
    (H : QPcomposite_env_OK ce),
    (QPcomposite_env_of_composite_env
     (composite_env_of_QPcomposite_env ce H)
-    (PTree.map1 QP.co_ha ce)
-    (PTree.map1 QP.co_la ce)) =
+    (Maps.PTree.map1 QP.co_ha ce)
+    (Maps.PTree.map1 QP.co_la ce)) =
   ce.
 Proof.
 destruct ce as [|ce]; simpl; intros; auto.
@@ -319,7 +322,7 @@ Proof. intros. inv H; auto. Qed.
 Lemma samedom_ha_composite_env_of_QPcomposite_env:
  forall ce OK, 
   PTree_samedom (composite_env_of_QPcomposite_env ce OK)
-     (PTree.map1 QP.co_ha ce).
+     (Maps.PTree.map1 QP.co_ha ce).
 Proof.
 intros.
 destruct ce as [|ce]. apply I.
@@ -331,7 +334,7 @@ Qed.
 Lemma samedom_la_composite_env_of_QPcomposite_env:
  forall ce OK, 
   PTree_samedom (composite_env_of_QPcomposite_env ce OK)
-     (PTree.map1 QP.co_la ce).
+     (Maps.PTree.map1 QP.co_la ce).
 Proof.
 intros.
 destruct ce as [|ce]. apply I.
@@ -342,32 +345,32 @@ Qed.
 
 Lemma get_composite_env_of_QPcomposite_env:
  forall ce OK i co,
-  (composite_env_of_QPcomposite_env ce OK) ! i = Some co 
-<-> exists ha, exists la, 
-  ce ! i = Some (QPcomposite_of_composite co ha la). 
+  Maps.PTree.get i (composite_env_of_QPcomposite_env ce OK) = Some co
+<-> exists ha, exists la,
+  Maps.PTree.get i ce = Some (QPcomposite_of_composite co ha la).
 Proof.
  intros.
  rewrite <- composite_env_of_QPcomposite_env'_eq.
  split; intro.
 -
- assert (H3: ce ! i <> None). {
+ assert (H3: Maps.PTree.get i ce <> None). {
  intro. unfold composite_env_of_QPcomposite_env' in H.
  set (H1 := proj1 _) in H. set (H2 := H1 OK) in H. clearbody H2; clear H1.
- apply PTree_Properties.in_of_list in H.
- assert (In i (map fst (PTree.elements ce))).
- revert H2 H; clear; induction (PTree.elements ce) as [|[??]]; simpl; intros; auto.
+ apply  Maps.PTree_Properties.in_of_list in H.
+ assert (In i (map fst (Maps.PTree.elements ce))).
+ revert H2 H; clear; induction (Maps.PTree.elements ce) as [|[??]]; simpl; intros; auto.
  destruct H. inv H. auto. right. apply (IHl (Forall_inv_tail H2)); auto.
  apply list_in_map_inv in H1. destruct H1 as [[??] [??]]; subst.
- simpl in H0. apply PTree.elements_complete in H3. congruence.
+ simpl in H0. apply Maps.PTree.elements_complete in H3. congruence.
  }
  pose proof (QPcomposite_env_of_composite_env_of_QPcomposite_env _ OK).
  rewrite <- H0.
- destruct (ce ! i) eqn:?H; try congruence; clear H3. clear H0.
+ destruct (Maps.PTree.get i ce) eqn:?H; try congruence; clear H3. clear H0.
  unfold QPcomposite_env_of_composite_env.
  rewrite PTree_gmap3.
- rewrite <- composite_env_of_QPcomposite_env'_eq. 
- rewrite H.  rewrite !PTree.gmap1. unfold option_map; rewrite H1.
- eauto. 
+ rewrite <- composite_env_of_QPcomposite_env'_eq.
+ rewrite H.  rewrite !Maps.PTree.gmap1. unfold option_map; rewrite H1.
+ eauto.
  apply samedom_ha_composite_env_of_QPcomposite_env.
  apply samedom_la_composite_env_of_QPcomposite_env.
 -
@@ -375,14 +378,14 @@ Proof.
  pose proof (QPcomposite_env_of_composite_env_of_QPcomposite_env _ OK).
  rewrite <- H0 in H; clear H0.
  unfold QPcomposite_env_of_composite_env in H.
- rewrite PTree_gmap3 in H; unfold option_map in H.
+ rewrite PTree_gmap3 in H.
  rewrite <- composite_env_of_QPcomposite_env'_eq in H.
- destruct ( (composite_env_of_QPcomposite_env' ce OK) ! i); try discriminate.
- destruct ((PTree.map1 QP.co_ha ce) ! i); try discriminate.
- destruct ((PTree.map1 QP.co_la ce) ! i); try discriminate.
+ destruct (Maps.PTree.get i (composite_env_of_QPcomposite_env' ce OK)); try discriminate.
+ destruct (Maps.PTree.get i (Maps.PTree.map1 QP.co_ha ce)); try discriminate.
+ destruct (Maps.PTree.get i(Maps.PTree.map1 QP.co_la ce)); try discriminate.
  apply Some_inj in H; apply QPcomposite_of_composite_inj in H; f_equal; tauto.
- destruct ((PTree.map1 QP.co_ha ce) ! i); try discriminate.
- destruct ((PTree.map1 QP.co_la ce) ! i); try discriminate.
+ destruct (Maps.PTree.get i(Maps.PTree.map1 QP.co_ha ce)); try discriminate.
+ destruct (Maps.PTree.get i(Maps.PTree.map1 QP.co_la ce)); try discriminate.
  apply samedom_ha_composite_env_of_QPcomposite_env.
  apply samedom_la_composite_env_of_QPcomposite_env.
 Qed.
@@ -390,8 +393,8 @@ Qed.
 Definition QPcompspecs_OK (ce: QP.composite_env) :=
   {H: QPcomposite_env_OK ce &
        let ce' := composite_env_of_QPcomposite_env ce H in
-       let ha' := (PTree.map1 QP.co_ha ce) in
-       let la' := (PTree.map1 QP.co_la ce) in
+       let ha' := (Maps.PTree.map1 QP.co_ha ce) in
+       let la' := (Maps.PTree.map1 QP.co_la ce) in
        composite_env_consistent ce' /\
        composite_env_legal_fieldlist ce' /\
        composite_env_complete_legal_cosu_type ce' /\
@@ -402,42 +405,42 @@ Definition QPcompspecs_OK (ce: QP.composite_env) :=
 
 Lemma hardware_alignof_env_completeQP:
  forall ce H, hardware_alignof_env_complete 
-                    (composite_env_of_QPcomposite_env ce H) (PTree.map1 QP.co_ha ce).
+                    (composite_env_of_QPcomposite_env ce H) (Maps.PTree.map1 QP.co_ha ce).
 Proof.
 intros.
 hnf; intros; split; intros [? ?].
 rewrite get_composite_env_of_QPcomposite_env in H0.
 destruct H0 as [? [? ?]].
-rewrite PTree.gmap1, H0. simpl. eauto.
-rewrite PTree.gmap1 in H0; unfold option_map in H0.
-destruct (ce ! i) eqn:?H; inv H0.
+rewrite Maps.PTree.gmap1, H0. simpl. eauto.
+rewrite Maps.PTree.gmap1 in H0; unfold option_map in H0.
+destruct (Maps.PTree.get i ce) eqn:?H; inv H0.
 pose proof H. red in H0. rewrite <- PTree_Forall_get_eq in H0.
 specialize (H0 i). rewrite H1 in H0.
 exists (composite_of_QPcomposite _ H0).
 rewrite get_composite_env_of_QPcomposite_env.
 do 2 eexists.
-rewrite QPcomposite_of_composite_of_QPcomposite.
+setoid_rewrite QPcomposite_of_composite_of_QPcomposite.
 assumption.
 Qed.
 
 
 Lemma legal_alignas_env_completeQP:
  forall ce H, legal_alignas_env_complete 
-                    (composite_env_of_QPcomposite_env ce H) (PTree.map1 QP.co_la ce).
+                    (composite_env_of_QPcomposite_env ce H) (Maps.PTree.map1 QP.co_la ce).
 Proof.
 intros.
 hnf; intros; split; intros [? ?].
 rewrite get_composite_env_of_QPcomposite_env in H0.
 destruct H0 as [? [? ?]].
-rewrite PTree.gmap1, H0. simpl. eauto.
-rewrite PTree.gmap1 in H0; unfold option_map in H0.
-destruct (ce ! i) eqn:?H; inv H0.
+rewrite Maps.PTree.gmap1, H0. simpl. eauto.
+rewrite Maps.PTree.gmap1 in H0; unfold option_map in H0.
+destruct (Maps.PTree.get i ce) eqn:?H; inv H0.
 pose proof H. red in H0. rewrite <- PTree_Forall_get_eq in H0.
 specialize (H0 i). rewrite H1 in H0.
 exists (composite_of_QPcomposite _ H0).
 rewrite get_composite_env_of_QPcomposite_env.
 do 2 eexists.
-rewrite QPcomposite_of_composite_of_QPcomposite.
+setoid_rewrite QPcomposite_of_composite_of_QPcomposite.
 assumption.
 Qed.
 
@@ -446,8 +449,8 @@ Definition compspecs_of_QPcomposite_env ce (H: QPcompspecs_OK ce) : compspecs
 match H with
 |  existT H0 (conj H1 (conj H3 (conj H5 (conj H7 (conj H9 H10))))) =>
     let ce' := composite_env_of_QPcomposite_env ce H0 in
-    let ha' := PTree.map1 QP.co_ha ce in
-    let la' := PTree.map1 QP.co_la ce in
+    let ha' := Maps.PTree.map1 QP.co_ha ce in
+    let la' := Maps.PTree.map1 QP.co_la ce in
     {|
     cenv_cs := ce';
     cenv_consistent := H1;
@@ -492,7 +495,7 @@ Qed.
 Lemma complete_legal_cosu_stable:
     forall env env' : composite_env,
        (forall (id : positive) (co : composite),
-        env ! id = Some co -> env' ! id = Some co) ->
+        Maps.PTree.get id env = Some co -> Maps.PTree.get id env' = Some co) ->
   forall m, composite_complete_legal_cosu_type env m = true ->
           composite_complete_legal_cosu_type env' m = true.
 Proof.
@@ -502,48 +505,48 @@ Proof.
   apply IHm in H2; clear IHm.
   rewrite andb_true_iff; split; auto.
   induction (type_member a); simpl in H1|-*; auto.
-  destruct (env ! i) eqn:?H; try discriminate; rewrite (H _ _ H0); auto.
-  destruct (env ! i) eqn:?H; try discriminate; rewrite (H _ _ H0); auto.
+  destruct (Maps.PTree.get i env) eqn:?H; try discriminate; rewrite (H _ _ H0); auto.
+  destruct (Maps.PTree.get i env) eqn:?H; try discriminate; rewrite (H _ _ H0); auto.
 Qed.
 
 Lemma sizeof_type_stable':
   forall env1 env t,
-     (forall id co,   env1 ! id = Some co -> env ! id = Some co) ->
+     (forall id co,   Maps.PTree.get id env1 = Some co -> Maps.PTree.get id env = Some co) ->
     @complete_legal_cosu_type env1 t = true ->
     @Ctypes.sizeof env1 t = @Ctypes.sizeof env t.
 Proof.
 induction t; simpl; intros; auto.
 f_equal; auto.
-destruct (env1 ! i) eqn:?H; try discriminate.
+destruct (Maps.PTree.get i env1) eqn:?H; try discriminate.
 rewrite (H _ _ H1). auto.
-destruct (env1 ! i) eqn:?H; try discriminate.
+destruct (Maps.PTree.get i env1) eqn:?H; try discriminate.
 rewrite (H _ _ H1). auto.
 Qed.
 
 Lemma hardware_alignof_type_stable': 
   forall  (env' env : composite_env)
-     (H:  forall id co,   env' ! id = Some co -> env ! id = Some co)
-     (ha_env ha_env' : PTree.t Z)
-     (H0: forall id  ofs,   ha_env' ! id = Some ofs -> ha_env ! id = Some ofs)
+     (H:  forall id co,   Maps.PTree.get id env' = Some co -> Maps.PTree.get id env = Some co)
+     (ha_env ha_env' : Maps.PTree.t Z)
+     (H0: forall id  ofs,   Maps.PTree.get id ha_env' = Some ofs -> Maps.PTree.get id ha_env = Some ofs)
      (H0: PTree_samedom env' ha_env'),
      forall t, complete_type env' t = true ->
        hardware_alignof ha_env' t = hardware_alignof ha_env t.
 Proof.
 induction t; simpl; intros; auto.
-destruct (env' ! i) eqn:?H; try discriminate.
+destruct (Maps.PTree.get i env') eqn:?H; try discriminate.
 destruct (proj1 (PTree_domain_eq_e H1 i)); eauto.
 rewrite H4. rewrite (H0 _ _ H4). auto.
-destruct (env' ! i) eqn:?H; try discriminate.
+destruct (Maps.PTree.get i env') eqn:?H; try discriminate.
 destruct (proj1 (PTree_domain_eq_e H1 i)); eauto.
 rewrite H4. rewrite (H0 _ _ H4). auto.
 Qed.
 
 Lemma field_offset_stable'':
-    forall (env1 env : PTree.t composite),
+    forall (env1 env : Maps.PTree.t composite),
        composite_env_consistent env1 ->
-       (forall id co, env1 ! id = Some co -> env ! id = Some co) ->
+       (forall id co, env1 !! id = Some co -> Maps.PTree.get id env = Some co) ->
        forall i co,
-       env1 ! i = Some co ->
+       env1 !! i = Some co ->
        forall j,
        field_offset env1 j (co_members co) = 
        field_offset env j (co_members co).
@@ -557,7 +560,7 @@ Lemma align_compatible_rec_stable':
  forall (env1 env: composite_env)
     (CONS: composite_env_consistent env1)
     (COSU: composite_env_complete_legal_cosu_type env1)
-    (S: forall id co, env1 ! id = Some co -> env ! id = Some co)
+    (S: forall id co, env1 !! id = Some co -> Maps.PTree.get id env = Some co)
    t ofs
    (H9a: @complete_legal_cosu_type env1 t = true) 
    (H: align_compatible_rec env1 t ofs),
@@ -618,17 +621,17 @@ Lemma hardware_alignof_composite_stable:
             (composite_env_of_QPcomposite_env ce1 OKce1))
     (HAce1 : hardware_alignof_env_consistent
           (composite_env_of_QPcomposite_env ce1 OKce1)
-          (PTree.map1 QP.co_ha ce1))
-    (ce : PTree.t QP.composite)
+          (Maps.PTree.map1 QP.co_ha ce1))
+    (ce : Maps.PTree.t QP.composite)
     (OKce : QPcomposite_env_OK ce)
     (HA1 : forall (i : positive) (ha : Z),
-      (PTree.map1 QP.co_ha ce1) ! i = Some ha ->
-      (PTree.map1 QP.co_ha ce) ! i = Some ha)
+      Maps.PTree.get i (Maps.PTree.map1 QP.co_ha ce1) = Some ha ->
+      Maps.PTree.get i (Maps.PTree.map1 QP.co_ha ce) = Some ha)
     i c
-  (H : (composite_env_of_QPcomposite_env ce OKce) ! i = Some c)
-  (H0 : (composite_env_of_QPcomposite_env ce1 OKce1) ! i = Some c),
-hardware_alignof_composite (PTree.map1 QP.co_ha ce1) (co_members c) =
-hardware_alignof_composite (PTree.map1 QP.co_ha ce) (co_members c).
+  (H : Maps.PTree.get i (composite_env_of_QPcomposite_env ce OKce) = Some c)
+  (H0 : Maps.PTree.get i (composite_env_of_QPcomposite_env ce1 OKce1) = Some c),
+hardware_alignof_composite (Maps.PTree.map1 QP.co_ha ce1) (co_members c) =
+hardware_alignof_composite (Maps.PTree.map1 QP.co_ha ce) (co_members c).
 Proof.
 intros.
   pose proof (co_consistent_complete _ _  (CONSce1 _ _ H0)).
@@ -640,59 +643,59 @@ intros.
   forget (type_member a) as t.
   type_induction.type_induction t (composite_env_of_QPcomposite_env ce1 OKce1) CONSce1; simpl; intros; auto.
   clear IH.
-  destruct ((composite_env_of_QPcomposite_env ce1 OKce1) ! id) eqn:?H; inv H1.
+  destruct (Maps.PTree.get id (composite_env_of_QPcomposite_env ce1 OKce1)) eqn:?H; inv H1.
   rewrite get_composite_env_of_QPcomposite_env in H. destruct H as [ha [la ?]].
   specialize (HA1 id ha).
-  rewrite !PTree.gmap1 in HA1|-*. unfold option_map in HA1|-*. rewrite H in *.
+  rewrite !Maps.PTree.gmap1 in HA1|-*. unfold option_map in HA1|-*. rewrite -> H in *.
   specialize (HA1 (eq_refl _)).
-  destruct (ce ! id) eqn:?H; inv HA1. reflexivity.
+  destruct (Maps.PTree.get id ce) eqn:?H; inv HA1. reflexivity.
   clear IH.
-  destruct ((composite_env_of_QPcomposite_env ce1 OKce1) ! id) eqn:?H; inv H1.
+  destruct (Maps.PTree.get id (composite_env_of_QPcomposite_env ce1 OKce1)) eqn:?H; inv H1.
   rewrite get_composite_env_of_QPcomposite_env in H. destruct H as [ha [la ?]].
   specialize (HA1 id ha).
-  rewrite !PTree.gmap1 in HA1|-*. unfold option_map in HA1|-*. rewrite H in *.
+  rewrite !Maps.PTree.gmap1 in HA1|-*. unfold option_map in HA1|-*. rewrite -> H in *.
   specialize (HA1 (eq_refl _)).
-  destruct (ce ! id) eqn:?H; inv HA1. reflexivity.
+  destruct (Maps.PTree.get id ce) eqn:?H; inv HA1. reflexivity.
 Qed.
 
 Lemma legal_alignas_type_stable:
  forall (ce1 : QP.composite_env)
     (OKce1 : QPcomposite_env_OK ce1)
    (CONSce1 : composite_env_consistent (composite_env_of_QPcomposite_env ce1 OKce1))
-   (ce : PTree.t QP.composite)
+   (ce : Maps.PTree.t QP.composite)
    (OKce : QPcomposite_env_OK ce)
    (SUB1 : forall (i : positive) (c : composite),
-       (composite_env_of_QPcomposite_env ce1 OKce1) ! i = Some c ->
-       (composite_env_of_QPcomposite_env ce OKce) ! i = Some c)
+       Maps.PTree.get i (composite_env_of_QPcomposite_env ce1 OKce1) = Some c ->
+       Maps.PTree.get i (composite_env_of_QPcomposite_env ce OKce) = Some c)
    (LA1 : forall (i : positive) (la : legal_alignas_obs),
-      (PTree.map1 QP.co_la ce1) ! i = Some la ->
-      (PTree.map1 QP.co_la ce) ! i = Some la)
+      Maps.PTree.get i (Maps.PTree.map1 QP.co_la ce1) = Some la ->
+      Maps.PTree.get i (Maps.PTree.map1 QP.co_la ce) = Some la)
    (t : type)
    (H1 : complete_type (composite_env_of_QPcomposite_env ce1 OKce1) t = true)
    (H4 : forall t : type,
      complete_type (composite_env_of_QPcomposite_env ce1 OKce1) t = true ->
-     hardware_alignof (PTree.map1 QP.co_ha ce1) t =
-     hardware_alignof (PTree.map1 QP.co_ha ce) t),
+     hardware_alignof (Maps.PTree.map1 QP.co_ha ce1) t =
+     hardware_alignof (Maps.PTree.map1 QP.co_ha ce) t),
 legal_alignas_type (composite_env_of_QPcomposite_env ce1 OKce1)
-  (PTree.map1 QP.co_ha ce1) (PTree.map1 QP.co_la ce1) t =
+  (Maps.PTree.map1 QP.co_ha ce1) (Maps.PTree.map1 QP.co_la ce1) t =
 legal_alignas_type (composite_env_of_QPcomposite_env ce OKce)
-  (PTree.map1 QP.co_ha ce) (PTree.map1 QP.co_la ce) t.
+  (Maps.PTree.map1 QP.co_ha ce) (Maps.PTree.map1 QP.co_la ce) t.
 Proof.
 intros.
  revert H1;
  type_induction.type_induction t (composite_env_of_QPcomposite_env ce1 OKce1) CONSce1; simpl; intros; auto.
- rewrite H4 by auto.
- rewrite IH by auto.
+ rewrite -> H4 by auto.
+ rewrite -> IH by auto.
   rewrite (sizeof_stable _ _ SUB1 _ H1).
  auto.
  clear IH.
  pose proof (proj1 (PTree_domain_eq_e (samedom_la_composite_env_of_QPcomposite_env ce1 OKce1) id)).
- destruct ((composite_env_of_QPcomposite_env ce1 OKce1) ! id) eqn:?H; inv H1.
+ destruct (Maps.PTree.get id (composite_env_of_QPcomposite_env ce1 OKce1)) eqn:?H; inv H1.
   spec H; [eauto |]. destruct H.
  unfold legal_alignas_obs in *;  rewrite H.
  rewrite (LA1 _ _ H). auto.
  pose proof (proj1 (PTree_domain_eq_e (samedom_la_composite_env_of_QPcomposite_env ce1 OKce1) id)).
- destruct ((composite_env_of_QPcomposite_env ce1 OKce1) ! id) eqn:?H; inv H1.
+ destruct (Maps.PTree.get id (composite_env_of_QPcomposite_env ce1 OKce1)) eqn:?H; inv H1.
  spec H; [eauto |]. destruct H.
  unfold legal_alignas_obs in *;  rewrite H.
  rewrite (LA1 _ _ H). auto.
@@ -706,25 +709,25 @@ Lemma legal_alignas_composite_stable:
             (composite_env_of_QPcomposite_env ce1 OKce1))
   (HAce1 : hardware_alignof_env_consistent
           (composite_env_of_QPcomposite_env ce1 OKce1)
-          (PTree.map1 QP.co_ha ce1))
-  (ce : PTree.t QP.composite)
+          (Maps.PTree.map1 QP.co_ha ce1))
+  (ce : Maps.PTree.t QP.composite)
   (OKce : QPcomposite_env_OK ce) 
   (SUB1 : forall (i : positive) (c : composite),
-       (composite_env_of_QPcomposite_env ce1 OKce1) ! i = Some c ->
-       (composite_env_of_QPcomposite_env ce OKce) ! i = Some c)
+       Maps.PTree.get i (composite_env_of_QPcomposite_env ce1 OKce1) = Some c ->
+       Maps.PTree.get i (composite_env_of_QPcomposite_env ce OKce) = Some c)
   (HA1 : forall (i : positive) (ha : Z),
-      (PTree.map1 QP.co_ha ce1) ! i = Some ha ->
-      (PTree.map1 QP.co_ha ce) ! i = Some ha)
+      Maps.PTree.get i (Maps.PTree.map1 QP.co_ha ce1) = Some ha ->
+      Maps.PTree.get i (Maps.PTree.map1 QP.co_ha ce) = Some ha)
   (LA1 : forall (i : positive) (la : legal_alignas_obs),
-      (PTree.map1 QP.co_la ce1) ! i = Some la ->
-      (PTree.map1 QP.co_la ce) ! i = Some la)
+      Maps.PTree.get i (Maps.PTree.map1 QP.co_la ce1) = Some la ->
+      Maps.PTree.get i (Maps.PTree.map1 QP.co_la ce) = Some la)
   i c
-  (H : (composite_env_of_QPcomposite_env ce OKce) ! i = Some c)
-  (H0 : (composite_env_of_QPcomposite_env ce1 OKce1) ! i = Some c),
+  (H : Maps.PTree.get i (composite_env_of_QPcomposite_env ce OKce) = Some c)
+  (H0 : Maps.PTree.get i (composite_env_of_QPcomposite_env ce1 OKce1) = Some c),
 legal_alignas_composite (composite_env_of_QPcomposite_env ce1 OKce1)
-  (PTree.map1 QP.co_ha ce1) (PTree.map1 QP.co_la ce1) c =
+  (Maps.PTree.map1 QP.co_ha ce1) (Maps.PTree.map1 QP.co_la ce1) c =
 legal_alignas_composite (composite_env_of_QPcomposite_env ce OKce)
-  (PTree.map1 QP.co_ha ce) (PTree.map1 QP.co_la ce) c.
+  (Maps.PTree.map1 QP.co_ha ce) (Maps.PTree.map1 QP.co_la ce) c.
 Proof.
 intros.
    unfold legal_alignas_composite.
@@ -736,12 +739,12 @@ intros.
   simpl in H1; rewrite andb_true_iff in H1; destruct H1.
   unfold legal_alignas_struct_members_rec.
   fold (legal_alignas_struct_members_rec (composite_env_of_QPcomposite_env ce1 OKce1)
-    (@PTree.map1 QP.composite Z QP.co_ha ce1)
-    (@PTree.map1 QP.composite legal_alignas_obs QP.co_la ce1)  m).
+    (@Maps.PTree.map1 QP.composite Z QP.co_ha ce1)
+    (@Maps.PTree.map1 QP.composite legal_alignas_obs QP.co_la ce1)  m).
  fold (legal_alignas_struct_members_rec (composite_env_of_QPcomposite_env _ OKce)
-    (@PTree.map1 QP.composite Z QP.co_ha ce)
-    (@PTree.map1 QP.composite legal_alignas_obs QP.co_la ce)  m).
-  rewrite IHm by auto; clear IHm.
+    (@Maps.PTree.map1 QP.composite Z QP.co_ha ce)
+    (@Maps.PTree.map1 QP.composite legal_alignas_obs QP.co_la ce)  m).
+  rewrite -> IHm by auto; clear IHm.
   pose proof (hardware_alignof_type_stable' _ _ SUB1 _ _ HA1).
   spec H4; [apply samedom_ha_composite_env_of_QPcomposite_env | ].
   rewrite !(next_field_stable _ _ SUB1 ofs _ H1).
@@ -749,18 +752,18 @@ intros.
    2:   eapply legal_alignas_type_stable; eauto.
   unfold legal_alignas_member.
   destruct a; auto.
-   rewrite !H4 by auto. f_equal. f_equal. unfold bitalignof. 
-  rewrite (alignof_stable _ _ SUB1) by auto. auto.
+   rewrite -> !H4 by auto. f_equal. f_equal. unfold bitalignof.
+  rewrite -> (alignof_stable _ _ SUB1) by auto. auto.
  *
   induction (co_members c); intros; auto.
   simpl in H1; rewrite andb_true_iff in H1; destruct H1.
   unfold legal_alignas_union_members_rec.
   fold (legal_alignas_union_members_rec (composite_env_of_QPcomposite_env ce1 OKce1)
-    (@PTree.map1 QP.composite Z QP.co_ha ce1)
-    (@PTree.map1 QP.composite legal_alignas_obs QP.co_la ce1)  m).
+    (@Maps.PTree.map1 QP.composite Z QP.co_ha ce1)
+    (@Maps.PTree.map1 QP.composite legal_alignas_obs QP.co_la ce1)  m).
  fold (legal_alignas_union_members_rec (composite_env_of_QPcomposite_env _ OKce)
-    (@PTree.map1 QP.composite Z QP.co_ha ce)
-    (@PTree.map1 QP.composite legal_alignas_obs QP.co_la ce)  m).
+    (@Maps.PTree.map1 QP.composite Z QP.co_ha ce)
+    (@Maps.PTree.map1 QP.composite legal_alignas_obs QP.co_la ce)  m).
  f_equal.
   eapply legal_alignas_type_stable; eauto.
   eapply hardware_alignof_type_stable'; eauto.
@@ -784,8 +787,8 @@ intros.
    unfold QPcomposite_env_OK in *; rewrite <- PTree_Forall_get_eq in *.
    intro i; apply (merge_PTrees_e i) in MERGE.
    specialize (OKce1 i). specialize (OKce2 i).
-   destruct (ce1 ! i) eqn:?H; auto;
-   destruct (ce2 ! i) eqn:?H; auto.
+   destruct (Maps.PTree.get i ce1) eqn:?H; auto;
+   destruct (Maps.PTree.get i ce2) eqn:?H; auto.
    destruct MERGE as [? [? ?]]. rewrite H2.
    destruct (QPcomposite_eq c c0) eqn:?H; inv H1; auto.
    rewrite MERGE; auto. 
@@ -794,67 +797,67 @@ intros.
  }
  red.
  exists OKce.
- assert (SUB1: forall i c, (composite_env_of_QPcomposite_env ce1 OKce1) ! i = Some c ->
-                      (composite_env_of_QPcomposite_env ce OKce) ! i = Some c). {
+ assert (SUB1: forall i c, Maps.PTree.get i (composite_env_of_QPcomposite_env ce1 OKce1) = Some c ->
+                      Maps.PTree.get i (composite_env_of_QPcomposite_env ce OKce) = Some c). {
  clear - MERGE. intros.
  apply (merge_PTrees_e i) in MERGE.
- rewrite get_composite_env_of_QPcomposite_env in H |- *.
+ rewrite !get_composite_env_of_QPcomposite_env in H |- *.
  destruct H as [? [? ?]]. rewrite H in MERGE.
- destruct (ce2 ! i) eqn:?H.
+ destruct (Maps.PTree.get i ce2) eqn:?H.
  destruct MERGE as [c' [? ?]].
  destruct (QPcomposite_eq _ _) eqn:?H in H1; inv H1. apply QPcomposite_eq_e in H3; subst. eauto.
  eauto.
 }
- assert (SUB2: forall i c, (composite_env_of_QPcomposite_env ce2 OKce2) ! i = Some c ->
-                      (composite_env_of_QPcomposite_env ce OKce) ! i = Some c). {
+ assert (SUB2: forall i c, Maps.PTree.get i (composite_env_of_QPcomposite_env ce2 OKce2) = Some c ->
+                      Maps.PTree.get i (composite_env_of_QPcomposite_env ce OKce) = Some c). {
  clear - MERGE. intros.
  apply (merge_PTrees_e i) in MERGE.
- rewrite get_composite_env_of_QPcomposite_env in H |- *.
+ rewrite !get_composite_env_of_QPcomposite_env in H |- *.
  destruct H as [? [? ?]]. rewrite H in MERGE.
- destruct (ce1 ! i) eqn:?H.
+ destruct (Maps.PTree.get i ce1) eqn:?H.
  destruct MERGE as [c' [? ?]].
  destruct (QPcomposite_eq _ _) eqn:?H in H1; inv H1. apply QPcomposite_eq_e in H3; subst. eauto.
  eauto.
 }
- assert (HA1: forall i ha, (PTree.map1 QP.co_ha ce1) ! i = Some ha ->
-                      (PTree.map1 QP.co_ha ce) ! i = Some ha). {
+ assert (HA1: forall i ha, Maps.PTree.get i (Maps.PTree.map1 QP.co_ha ce1) = Some ha ->
+                      Maps.PTree.get i (Maps.PTree.map1 QP.co_ha ce) = Some ha). {
  clear - MERGE. intros.
  apply (merge_PTrees_e i) in MERGE.
- rewrite PTree.gmap1 in H |- *; unfold option_map in *.
- destruct (ce1 ! i) eqn:?H; inv H.
- destruct (ce2 ! i) eqn:?H.
+ rewrite !Maps.PTree.gmap1 in H |- *; unfold option_map in *.
+ destruct (Maps.PTree.get i ce1) eqn:?H; inv H.
+ destruct (Maps.PTree.get i ce2) eqn:?H.
  destruct MERGE as [? [? ?]].
  destruct (QPcomposite_eq _ _) eqn:?H in H1; inv H1. rewrite H2; auto. rewrite MERGE; auto.
 }
- assert (HA2: forall i ha, (PTree.map1 QP.co_ha ce2) ! i = Some ha ->
-                      (PTree.map1 QP.co_ha ce) ! i = Some ha). {
+ assert (HA2: forall i ha, Maps.PTree.get i (Maps.PTree.map1 QP.co_ha ce2) = Some ha ->
+                      Maps.PTree.get i (Maps.PTree.map1 QP.co_ha ce) = Some ha). {
  clear - MERGE. intros.
  apply (merge_PTrees_e i) in MERGE.
- rewrite PTree.gmap1 in H |- *; unfold option_map in *.
- destruct (ce2 ! i) eqn:?H; inv H.
- destruct (ce1 ! i) eqn:?H.
+ rewrite !Maps.PTree.gmap1 in H |- *; unfold option_map in *.
+ destruct (Maps.PTree.get i ce2) eqn:?H; inv H.
+ destruct (Maps.PTree.get i ce1) eqn:?H.
  destruct MERGE as [? [? ?]].
  destruct (QPcomposite_eq c0 c) eqn:?H; inv H1.
  apply QPcomposite_eq_e in H3; subst. rewrite H2; auto.
   rewrite MERGE; auto.
 }
- assert (LA1: forall i la, (PTree.map1 QP.co_la ce1) ! i = Some la ->
-                      (PTree.map1 QP.co_la ce) ! i = Some la). {
+ assert (LA1: forall i la, Maps.PTree.get i (Maps.PTree.map1 QP.co_la ce1) = Some la ->
+                      Maps.PTree.get i (Maps.PTree.map1 QP.co_la ce) = Some la). {
  clear - MERGE. intros.
  apply (merge_PTrees_e i) in MERGE.
- rewrite PTree.gmap1 in H |- *; unfold option_map in *.
- destruct (ce1 ! i) eqn:?H; inv H.
- destruct (ce2 ! i) eqn:?H.
+ rewrite !Maps.PTree.gmap1 in H |- *; unfold option_map in *.
+ destruct (Maps.PTree.get i ce1) eqn:?H; inv H.
+ destruct (Maps.PTree.get i ce2) eqn:?H.
  destruct MERGE as [? [? ?]].
  destruct (QPcomposite_eq _ _) eqn:?H in H1; inv H1. rewrite H2; auto. rewrite MERGE; auto.
 }
- assert (LA2: forall i la, (PTree.map1 QP.co_la ce2) ! i = Some la ->
-                      (PTree.map1 QP.co_la ce) ! i = Some la). {
+ assert (LA2: forall i la, Maps.PTree.get i (Maps.PTree.map1 QP.co_la ce2) = Some la ->
+                      Maps.PTree.get i (Maps.PTree.map1 QP.co_la ce) = Some la). {
  clear - MERGE. intros.
  apply (merge_PTrees_e i) in MERGE.
- rewrite PTree.gmap1 in H |- *; unfold option_map in *.
- destruct (ce2 ! i) eqn:?H; inv H.
- destruct (ce1 ! i) eqn:?H.
+ rewrite !Maps.PTree.gmap1 in H |- *; unfold option_map in *.
+ destruct (Maps.PTree.get i ce2) eqn:?H; inv H.
+ destruct (Maps.PTree.get i ce1) eqn:?H.
  destruct MERGE as [? [? ?]].
  destruct (QPcomposite_eq c0 c) eqn:?H; inv H1.
  apply QPcomposite_eq_e in H3; subst. rewrite H2; auto.
@@ -869,9 +872,9 @@ intros.
  rewrite get_composite_env_of_QPcomposite_env in H1, H2.
  destruct H as [? [? ?]].
  rewrite H in MERGE.
- destruct (ce1 ! i) eqn:?H; destruct (ce2 ! i) eqn:?H.
+ destruct (Maps.PTree.get i ce1) eqn:?H; destruct (Maps.PTree.get i ce2) eqn:?H.
  destruct MERGE as [c' [? ?]].
- destruct (QPcomposite_eq c0 c1) eqn:?H in H4; inv H4. apply QPcomposite_eq_e in H6; subst c'. inv H5.
+ destruct (QPcomposite_eq c0 c1) eqn:?H in H4; inv H4. apply QPcomposite_eq_e in H6.
  eapply composite_consistent_stable. apply SUB1. apply H1; eauto.
  eapply composite_consistent_stable. apply SUB1. apply H1; eauto.
  eapply composite_consistent_stable. apply SUB2. apply H2; eauto.
@@ -884,9 +887,9 @@ intros.
  rewrite get_composite_env_of_QPcomposite_env in H1, H2.
  destruct H as [? [? ?]].
  rewrite H in MERGE.
- destruct (ce1 ! i) eqn:?H; destruct (ce2 ! i) eqn:?H.
+ destruct (Maps.PTree.get i ce1) eqn:?H; destruct (Maps.PTree.get i ce2) eqn:?H.
  destruct MERGE as [c' [? ?]].
- destruct (QPcomposite_eq c0 c1) eqn:?H in H4; inv H4. apply QPcomposite_eq_e in H6; subst c'. inv H5.
+ destruct (QPcomposite_eq c0 c1) eqn:?H in H4; inv H4. apply QPcomposite_eq_e in H6.
  eauto.
  eauto.
  eauto.
@@ -899,9 +902,9 @@ intros.
  rewrite get_composite_env_of_QPcomposite_env in H1, H2.
  destruct H as [? [? ?]].
  rewrite H in MERGE.
- destruct (ce1 ! i) eqn:?H; destruct (ce2 ! i) eqn:?H.
+ destruct (ce1 !! i) eqn:?H; destruct (ce2 !! i) eqn:?H.
  destruct MERGE as [c' [? ?]].
- destruct (QPcomposite_eq c0 c1) eqn:?H in H4; inv H4. apply QPcomposite_eq_e in H6; subst c'. inv H5.
+ destruct (QPcomposite_eq c0 c1) eqn:?H in H4; inv H4. apply QPcomposite_eq_e in H6.
  eapply complete_legal_cosu_stable. apply SUB1. apply H1; eauto.
  eapply complete_legal_cosu_stable. apply SUB1. apply H1; eauto.
  eapply complete_legal_cosu_stable. apply SUB2. apply H2; eauto.
@@ -910,20 +913,20 @@ intros.
  clear - HAce1 HAce2 MERGE HA1 HA2 SUB1 SUB2 CONSce1 CONSce2.
  intros i c ha ? H8; assert  (H1 := HAce1 i c ha); assert (H2 := HAce2 i c ha).
 (*   pose proof (co_consistent_complete _ _ CONSce1).*)
- assert ( (composite_env_of_QPcomposite_env _ OKce1) ! i = Some c /\ 
-              (PTree.map1 QP.co_ha ce1) ! i = Some ha 
-   \/ (composite_env_of_QPcomposite_env _ OKce2) ! i = Some c /\ 
-              (PTree.map1 QP.co_ha ce2) ! i = Some ha ). {
+ assert ( (composite_env_of_QPcomposite_env _ OKce1) !! i = Some c /\ 
+              Maps.PTree.get i (Maps.PTree.map1 QP.co_ha ce1) = Some ha 
+   \/ (composite_env_of_QPcomposite_env _ OKce2) !! i = Some c /\ 
+              Maps.PTree.get i (Maps.PTree.map1 QP.co_ha ce2) = Some ha ). {
    clear - MERGE H H8.
-   rewrite !PTree.gmap1 in *. unfold option_map in *.
+   rewrite !Maps.PTree.gmap1 in *. unfold option_map in *.
    apply (merge_PTrees_e i) in MERGE.
    rewrite get_composite_env_of_QPcomposite_env in H.
    rewrite !get_composite_env_of_QPcomposite_env.
    destruct H as [? [? ?]].
    rewrite H in MERGE.
-   assert (ce1 ! i = ce ! i \/ ce2 ! i = ce ! i). {
+   assert (ce1 !! i = ce !! i \/ ce2 !! i = ce !! i). {
      clear - MERGE H. 
-     destruct (ce1 ! i) eqn:?H; destruct (ce2 ! i) eqn:?H.
+     destruct (ce1 !! i) eqn:?H; destruct (ce2 !! i) eqn:?H.
      destruct MERGE as [c' [? ?]].
      destruct (QPcomposite_eq _ _) eqn:?H in H2; inv H2. apply QPcomposite_eq_e in H4; subst.
      left; congruence. left; congruence. right; congruence. inv MERGE.
@@ -942,20 +945,20 @@ intros.
 - (* legal_alignas_env_consistent *)
 (* clear - HAce1 HAce2 MERGE HA1 HA2 LA1 LA2 SUB1 SUB2 CONSce1 CONSce2. *)
   intros i c la ? H8.
- assert ( (composite_env_of_QPcomposite_env _ OKce1) ! i = Some c /\ 
-              (PTree.map1 QP.co_la ce1) ! i = Some la 
-   \/ (composite_env_of_QPcomposite_env _ OKce2) ! i = Some c /\ 
-              (PTree.map1 QP.co_la ce2) ! i = Some la ). {
+ assert ( (composite_env_of_QPcomposite_env _ OKce1) !! i = Some c /\ 
+              Maps.PTree.get i (Maps.PTree.map1 QP.co_la ce1) = Some la 
+   \/ (composite_env_of_QPcomposite_env _ OKce2) !! i = Some c /\ 
+              (Maps.PTree.map1 QP.co_la ce2) !! i = Some la ). {
    clear - MERGE H H8.
-   rewrite !PTree.gmap1 in *. unfold option_map in *.
+   rewrite !Maps.PTree.gmap1 in *. unfold option_map in *.
    apply (merge_PTrees_e i) in MERGE.
    rewrite get_composite_env_of_QPcomposite_env in H.
    rewrite !get_composite_env_of_QPcomposite_env.
    destruct H as [? [? ?]].
    rewrite H in MERGE.
-   assert (ce1 ! i = ce ! i \/ ce2 ! i = ce ! i). {
+   assert (ce1 !! i = ce !! i \/ ce2 !! i = ce !! i). {
      clear - MERGE H. 
-     destruct (ce1 ! i) eqn:?H; destruct (ce2 ! i) eqn:?H.
+     destruct (ce1 !! i) eqn:?H; destruct (ce2 !! i) eqn:?H.
      destruct MERGE as [c' [? ?]].
      destruct (QPcomposite_eq _ _) eqn:?H in H2; inv H2. apply QPcomposite_eq_e in H4; subst.
      left; congruence. left; congruence. right; congruence. inv MERGE.
@@ -975,13 +978,13 @@ intros.
  assert (H9:
   forall t ofs, 
   @complete_legal_cosu_type (composite_env_of_QPcomposite_env _ OKce) t = true -> 
-   is_aligned (composite_env_of_QPcomposite_env _ OKce) (PTree.map1 QP.co_ha ce) (PTree.map1 QP.co_la ce)
+   is_aligned (composite_env_of_QPcomposite_env _ OKce) (Maps.PTree.map1 QP.co_ha ce) (Maps.PTree.map1 QP.co_la ce)
       t ofs = true ->
   @complete_legal_cosu_type (composite_env_of_QPcomposite_env _ OKce1) t = true /\
-  is_aligned (composite_env_of_QPcomposite_env _ OKce1) (PTree.map1 QP.co_ha ce1) (PTree.map1 QP.co_la ce1) t ofs = true
+  is_aligned (composite_env_of_QPcomposite_env _ OKce1) (Maps.PTree.map1 QP.co_ha ce1) (Maps.PTree.map1 QP.co_la ce1) t ofs = true
  \/ 
 @complete_legal_cosu_type (composite_env_of_QPcomposite_env _ OKce2) t = true /\
-  is_aligned (composite_env_of_QPcomposite_env _ OKce2) (PTree.map1 QP.co_ha ce2) (PTree.map1 QP.co_la ce2) t ofs = true). {
+  is_aligned (composite_env_of_QPcomposite_env _ OKce2) (Maps.PTree.map1 QP.co_ha ce2) (Maps.PTree.map1 QP.co_la ce2) t ofs = true). {
  induction t; simpl; intros; auto.
  - 
     specialize (IHt ofs H).
@@ -1003,20 +1006,20 @@ intros.
     apply samedom_ha_composite_env_of_QPcomposite_env.
     apply complete_legal_cosu_type_complete_type; auto.
  -
-   destruct ((composite_env_of_QPcomposite_env ce OKce) ! i) eqn:?H; try discriminate H.
+   destruct (Maps.PTree.get i (composite_env_of_QPcomposite_env ce OKce)) eqn:?H; try discriminate H.
    destruct (co_su c) eqn:?H; try discriminate H.
    rename H into PLAIN.
- assert ( (composite_env_of_QPcomposite_env _ OKce1) ! i = Some c
-   \/ (composite_env_of_QPcomposite_env _ OKce2) ! i = Some c ). {
+ assert ( (composite_env_of_QPcomposite_env _ OKce1) !! i = Some c
+   \/ (composite_env_of_QPcomposite_env _ OKce2) !! i = Some c ). {
    clear - MERGE H1.
    apply (merge_PTrees_e i) in MERGE.
    rewrite get_composite_env_of_QPcomposite_env in H1.
    rewrite !get_composite_env_of_QPcomposite_env.
    destruct H1 as [? [? ?]].
    rewrite H in MERGE.
-   assert (ce1 ! i = ce ! i \/ ce2 ! i = ce ! i). {
+   assert (ce1 !! i = ce !! i \/ ce2 !! i = ce !! i). {
      clear - MERGE H. 
-     destruct (ce1 ! i) eqn:?H; destruct (ce2 ! i) eqn:?H.
+     destruct (ce1 !! i) eqn:?H; destruct (ce2 !! i) eqn:?H.
      destruct MERGE as [c' [? ?]].
      destruct (QPcomposite_eq _ _) eqn:?H in H2; inv H2. apply QPcomposite_eq_e in H4; subst.
      left; congruence. left; congruence. right; congruence. inv MERGE.
@@ -1030,43 +1033,43 @@ intros.
    rewrite get_composite_env_of_QPcomposite_env in *.
    destruct H1 as [ha [la ?]]. destruct H as [ha' [la' ?]].
    pose proof (HA1 i ha'). pose proof (LA1 i la').
-   rewrite !PTree.gmap1 in H0. 
-   rewrite !PTree.gmap1 in H3. 
-   rewrite !PTree.gmap1 in H4. 
-   rewrite !PTree.gmap1.
+   rewrite !Maps.PTree.gmap1 in H0. 
+   rewrite !Maps.PTree.gmap1 in H3. 
+   rewrite !Maps.PTree.gmap1 in H4. 
+   rewrite !Maps.PTree.gmap1.
    unfold option_map in *. rewrite H in *.  
    specialize (H3 (eq_refl _)).
    specialize (H4 (eq_refl _)).   
     simpl QP.co_ha in *; simpl QP.co_la  in *.
-   destruct  (ce ! i) eqn:?H; inv H3. inv H4. inv H1. simpl in H.  auto.
+   destruct  (Maps.PTree.get i ce) eqn:?H; inv H3. simpl in H. auto.
  +
    unfold is_aligned in *; simpl in *; unfold is_aligned_aux in *.
    rewrite get_composite_env_of_QPcomposite_env in *.
    destruct H1 as [ha [la ?]]. destruct H as [ha' [la' ?]].
    pose proof (HA2 i ha'). pose proof (LA2 i la').
-   rewrite !PTree.gmap1 in H0. 
-   rewrite !PTree.gmap1 in H3. 
-   rewrite !PTree.gmap1 in H4. 
-   rewrite !PTree.gmap1.
+   rewrite !Maps.PTree.gmap1 in H0. 
+   rewrite !Maps.PTree.gmap1 in H3. 
+   rewrite !Maps.PTree.gmap1 in H4. 
+   rewrite !Maps.PTree.gmap1.
    unfold option_map in *. rewrite H in *.  
    specialize (H3 (eq_refl _)).
    specialize (H4 (eq_refl _)).
     simpl.
-   destruct  (ce ! i) eqn:?H; inv H3. inv H4. inv H1. simpl in H.  auto.
+   destruct  (Maps.PTree.get i ce) eqn:?H; inv H3. simpl in H.  auto.
  -
- destruct ((composite_env_of_QPcomposite_env ce OKce) ! i) eqn:?H; inv H.
+ destruct (Maps.PTree.get i (composite_env_of_QPcomposite_env ce OKce)) eqn:?H; inv H.
  destruct (co_su c) eqn:?H; try discriminate.
- assert ( (composite_env_of_QPcomposite_env _ OKce1) ! i = Some c
-   \/ (composite_env_of_QPcomposite_env _ OKce2) ! i = Some c ). {
+ assert ( (composite_env_of_QPcomposite_env _ OKce1) !! i = Some c
+   \/ (composite_env_of_QPcomposite_env _ OKce2) !! i = Some c ). {
    clear - MERGE H1.
    apply (merge_PTrees_e i) in MERGE.
    rewrite get_composite_env_of_QPcomposite_env in H1.
    rewrite !get_composite_env_of_QPcomposite_env.
    destruct H1 as [? [? ?]].
    rewrite H in MERGE.
-   assert (ce1 ! i = ce ! i \/ ce2 ! i = ce ! i). {
+   assert (ce1 !! i = ce !! i \/ ce2 !! i = ce !! i). {
      clear - MERGE H. 
-     destruct (ce1 ! i) eqn:?H; destruct (ce2 ! i) eqn:?H.
+     destruct (ce1 !! i) eqn:?H; destruct (ce2 !! i) eqn:?H.
      destruct MERGE as [c' [? ?]].
      destruct (QPcomposite_eq _ _) eqn:?H in H2; inv H2. apply QPcomposite_eq_e in H4; subst.
      left; congruence. left; congruence. right; congruence. inv MERGE.
@@ -1080,27 +1083,27 @@ intros.
    rewrite get_composite_env_of_QPcomposite_env in *.
    destruct H1 as [ha [la ?]]. destruct H2 as [ha' [la' ?]].
    pose proof (HA1 i ha'). pose proof (LA1 i la').
-   rewrite !PTree.gmap1 in H0. 
-   rewrite !PTree.gmap1 in H4. 
-   rewrite !PTree.gmap1 in H5. 
-   rewrite !PTree.gmap1.
+   rewrite !Maps.PTree.gmap1 in H0. 
+   rewrite !Maps.PTree.gmap1 in H4. 
+   rewrite !Maps.PTree.gmap1 in H5. 
+   rewrite !Maps.PTree.gmap1.
    unfold option_map in *. rewrite H1,H2 in *.
    specialize (H4 (eq_refl _)).
    specialize (H5 (eq_refl _)).
-    simpl. inv H4; inv H5. simpl in H0. rewrite H3. auto.
+    simpl. inv H4. simpl in H0. rewrite H3. auto.
  +
    unfold is_aligned in *; simpl in *; unfold is_aligned_aux in *.
    rewrite get_composite_env_of_QPcomposite_env in *.
    destruct H1 as [ha [la ?]]. destruct H2 as [ha' [la' ?]].
    pose proof (HA2 i ha'). pose proof (LA2 i la').
-   rewrite !PTree.gmap1 in H0. 
-   rewrite !PTree.gmap1 in H4. 
-   rewrite !PTree.gmap1 in H5. 
-   rewrite !PTree.gmap1.
+   rewrite !Maps.PTree.gmap1 in H0. 
+   rewrite !Maps.PTree.gmap1 in H4. 
+   rewrite !Maps.PTree.gmap1 in H5. 
+   rewrite !Maps.PTree.gmap1.
    unfold option_map in *. rewrite H1,H2 in *.
    specialize (H4 (eq_refl _)).
    specialize (H5 (eq_refl _)).
-    simpl. inv H4; inv H5. simpl in H0. rewrite H3; auto.
+    simpl. inv H4. simpl in H0. rewrite H3; auto.
  }
   hnf; intros.
   destruct (H9 _ _ H H0) as [[??]|[??]]; clear H9.
@@ -1113,20 +1116,20 @@ intros.
 Qed.
 
 Lemma tree'_not_empty':
-  forall {A} (m: PTree.tree' A),
-   exists i, isSome (PTree.get' i m) = True.
+  forall {A} (m: Maps.PTree.tree' A),
+   exists i, isSome (Maps.PTree.get' i m) = True%type.
 Proof.
 intros.
-destruct (PTree.tree'_not_empty m) as [i ?].
+destruct (Maps.PTree.tree'_not_empty m) as [i ?].
 exists i.
-destruct (PTree.get' i m). reflexivity. congruence.
+destruct (Maps.PTree.get' i m). reflexivity. congruence.
 Qed. 
 
-Lemma PTree_samedom_i {A} {B} (m1: PTree.t A) (m2: PTree.t B):
- (forall i, isSome (m1 ! i) = isSome (m2 ! i)) ->
+Lemma PTree_samedom_i {A} {B} (m1: Maps.PTree.t A) (m2: Maps.PTree.t B):
+ (forall i, isSome (m1 !! i) = isSome (m2 !! i)) ->
  PTree_samedom m1 m2.
 Proof.
-destruct m1 as [|m1], m2 as [|m2]; simpl; intros; auto; unfold PTree.get in H.
+destruct m1 as [|m1], m2 as [|m2]; simpl; intros; auto; unfold Maps.PTree.get in H.
 destruct (tree'_not_empty' m2) as [i ?]. specialize (H i). rewrite H, H0; auto.
 destruct (tree'_not_empty' m1) as [i ?]. specialize (H i). rewrite <- H, H0; auto.
 revert m2 H; induction m1; destruct m2; simpl; intros;
@@ -1201,7 +1204,7 @@ Proof.
   intro cs.
   apply PTree_samedom_i. intro i.
   pose proof (@ha_env_cs_complete cs i).
-  destruct (cenv_cs ! i), (ha_env_cs ! i); auto.
+  destruct (cenv_cs !! i), (ha_env_cs !! i); auto.
   destruct H as [[? ?] _]; eauto. inv H.
   destruct H as [_ [? ?]]; eauto. inv H.
 Qed.
@@ -1211,7 +1214,7 @@ Proof.
   intro cs.
   apply PTree_samedom_i. intro i.
   pose proof (@la_env_cs_complete cs i).
-  destruct (cenv_cs ! i), (la_env_cs ! i); auto.
+  destruct (cenv_cs !! i), (la_env_cs !! i); auto.
   destruct H as [[? ?] _]; eauto. inv H.
   destruct H as [_ [? ?]]; eauto. inv H.
 Qed.
@@ -1257,15 +1260,15 @@ Lemma QPcompspecs_OK_e:
   (H: QPcompspecs_OK ce),
  let cs := compspecs_of_QPcomposite_env _ H in
     @cenv_cs cs = (composite_env_of_QPcomposite_env ce (projT1 H))
-  /\ @ha_env_cs cs = PTree.map1 QP.co_ha ce 
-  /\ @la_env_cs cs = PTree.map1 QP.co_la ce.
+  /\ @ha_env_cs cs = Maps.PTree.map1 QP.co_ha ce 
+  /\ @la_env_cs cs = Maps.PTree.map1 QP.co_la ce.
 Proof.
 intros.
 destruct H.
 simpl.
 set (ce' := composite_env_of_QPcomposite_env ce x) in *.
-set (ha' :=  PTree.map1 QP.co_ha ce) in *.
-set (la' := PTree.map1 QP.co_la ce) in *.
+set (ha' :=  Maps.PTree.map1 QP.co_ha ce) in *.
+set (la' := Maps.PTree.map1 QP.co_la ce) in *.
 destruct a as [? [? [? [? [? ?]]]]].
 pose proof (hardware_alignof_env_completeQP _ x).
 pose proof (legal_alignas_env_completeQP _ x).
@@ -1285,18 +1288,18 @@ destruct (QPcompspecs_OK_e _ OK2) as [?H [?H ?H]].
 simpl in *.
 split3; intros ?; specialize (H i); unfold sub_option, tycontext.sub_option in *.
 rewrite H0, H3.
-destruct ( (composite_env_of_QPcomposite_env ce1 (projT1 OK1)) ! i) eqn:?H; auto.
+destruct (Maps.PTree.get i  (composite_env_of_QPcomposite_env ce1 (projT1 OK1))) eqn:?H; auto.
 rewrite get_composite_env_of_QPcomposite_env in H6|-*.
 destruct H6 as [ha [la ?]]; exists ha, la.
 rewrite H6 in H. auto.
 rewrite H1, H4.
-rewrite !PTree.gmap1.
+rewrite !Maps.PTree.gmap1.
 unfold option_map.
-destruct (ce1 ! i) eqn:?H; auto. rewrite H; auto.
+destruct (Maps.PTree.get i ce1) eqn:?H; auto. rewrite H; auto.
 rewrite H2, H5.
-rewrite !PTree.gmap1.
+rewrite !Maps.PTree.gmap1.
 unfold option_map.
-destruct (ce1 ! i) eqn:?H; auto. rewrite H; auto.
+destruct (Maps.PTree.get i ce1) eqn:?H; auto. rewrite H; auto.
 Qed.
 
 Fixpoint put_at_nth (i: nat) (c: ident * QP.composite) (rl: list (list (ident * QP.composite))) : list (list (ident * QP.composite)) :=
@@ -1322,11 +1325,11 @@ Definition cenv_built_correctly_each
      (cd: composite_definition) (tr: Errors.res composite_env)  :=
                 Errors.bind tr (fun ce' => 
                 match cd with Composite i su mems att =>
-                 match PTree.get i ce' with 
+                 match Maps.PTree.get i ce' with 
                  | None => Errors.Error [Errors.MSG "Composite identifier duplicate or not found in composite_env:";
                                                        Errors.POS i]
                  | Some c =>
-                             let d := PTree.remove i ce' in
+                             let d := Maps.PTree.remove i ce' in
                              let m := c.(co_members) in 
                              if (eqb_su su c.(co_su)
                              && eqb_list eqb_member mems m
@@ -1336,13 +1339,13 @@ Definition cenv_built_correctly_each
                              && Z.eqb (align_attr att (alignof_composite d m)) c.(co_alignof)
                              && Nat.eqb (rank_members d m) c.(co_rank)
                               )%bool
-                              then Errors.OK (PTree.remove i ce')
+                              then Errors.OK (Maps.PTree.remove i ce')
                               else Errors.Error [Errors.MSG "Composite definition does not match:";
                                                           Errors.POS i]
                 end end).
 
 Definition cenv_built_correctly_finish (ce': composite_env) :=
-   let leftovers := PTree.elements ce' in
+   let leftovers := Maps.PTree.elements ce' in
    if Nat.eqb (List.length leftovers) O
    then Errors.OK tt
    else Errors.Error (Errors.MSG "Composite_env contains extra identifiers:" ::
@@ -1366,26 +1369,26 @@ unfold cenv_built_correctly in H.
 unfold Errors.bind in H.
 destruct (fold_right cenv_built_correctly_each (Errors.OK ce) comps) eqn:?H; [ | discriminate].
 unfold cenv_built_correctly_finish in H.
-destruct (PTree.elements c) eqn:?H; [ | inv H].
+destruct (Maps.PTree.elements c) eqn:?H; [ | inv H].
 clear H.
-assert (c = PTree.empty _). {
- apply PTree.extensionality.
- intro i. destruct (c ! i) eqn:?H; auto.
-  apply PTree.elements_correct in H. rewrite H1 in H; inv H.
+assert (c = Maps.PTree.empty _). {
+ apply Maps.PTree.extensionality.
+ intro i. destruct (Maps.PTree.get i c) eqn:?H; auto.
+  apply Maps.PTree.elements_correct in H. rewrite H1 in H; inv H.
 }
 subst c. clear H1.
-forget (PTree.empty composite) as d.
+forget (Maps.PTree.empty composite) as d.
 rename H0 into H.
 rename d into c.
 revert ce c H.
-forget (PTree.empty composite) as d.
+forget (Maps.PTree.empty composite) as d.
 induction comps; simpl; intros.
 auto.
 destruct a.
 destruct (fold_right cenv_built_correctly_each (Errors.OK ce) comps) eqn:?H;
   try discriminate.
 simpl in H.
-destruct (c0 ! id) eqn:?H; try discriminate.
+destruct (c0 !! id) eqn:?H; try discriminate.
 match type of H with ((if ?A then _ else _) = _) =>
   destruct A eqn:?H;  [ | discriminate H]
 end.
@@ -1401,12 +1404,12 @@ inv H.
 unfold Errors.bind.
 clear d. rename c0 into d.
 rewrite composite_of_def_eq; auto.
-replace  (PTree.set id c1 (PTree.remove id d)) with d.
+replace  (Maps.PTree.set id c1 (Maps.PTree.remove id d)) with d.
 auto.
-apply PTree.extensionality.
-intro i. destruct (ident_eq i id). subst. rewrite PTree.gss. auto. rewrite PTree.gso by auto. rewrite PTree.gro by auto; auto.
+apply Maps.PTree.extensionality.
+intro i. destruct (ident_eq i id). subst. rewrite Maps.PTree.gss. auto. rewrite Maps.PTree.gso by auto. rewrite Maps.PTree.gro by auto; auto.
 constructor; auto.
-rewrite PTree.grs.
+rewrite Maps.PTree.grs.
 auto.
 Qed.
 
@@ -1416,25 +1419,3 @@ Proof.
 destruct ce as [|ce]; simpl; auto. 
 induction ce; simpl; intros; auto.
 Qed.
-
-(*
-Lemma rebuild_composite_env:
-  forall (ce: QP.composite_env) (OK: QPcomposite_env_OK ce),
- build_composite_env
-    (map compdef_of_compenv_element (sort_rank (PTree.elements ce) nil)) =
-  Errors.OK (composite_env_of_QPcomposite_env ce OK).
-Proof.
-intros.
-apply cenv_built_correctly_e.
-
-apply test_PTree_canonical_e in CAN.
-unfold build_composite_env.
-assert (CAN' := @PTree_canonical_empty composite).
-pose proof (proj1 (PTree_Forall_elements _ _ _) OK).
-
-
-
-Admitted.  (* Probably true *)
-*)
-
-

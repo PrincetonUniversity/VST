@@ -1,4 +1,6 @@
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.floyd.base2.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Import VST.floyd.client_lemmas.
 Require Import VST.floyd.nested_field_lemmas.
 Require Import VST.floyd.type_induction.
@@ -7,9 +9,8 @@ Require Import VST.floyd.reptype_lemmas.
 Require Import VST.floyd.proj_reptype_lemmas.
 Require Import Coq.Classes.RelationClasses.
 Require Import VST.zlist.sublist.
-Require Import VST.floyd.stronger.
+(* Require Import VST.floyd.stronger. *)
 
-Require Import VST.floyd.stronger.
 Section SINGLE_HOLE.
 
 Context {cs: compspecs}.
@@ -79,7 +80,7 @@ Fixpoint upd_reptype (t: type) (gfs: list gfield) (v: reptype t) (v0: reptype (n
   | gf :: gfs0 => fun v0 => upd_reptype t gfs0 v (upd_gfield_reptype _ gf (proj_reptype t gfs0 v) v0)
   end (eq_rect_r reptype v0 (eq_sym (nested_field_type_ind t gfs))).
 
-Lemma upd_reptype_data_equal: forall t gfs v v0 v1, data_equal v0 v1 -> data_equal (upd_reptype t gfs v v0) (upd_reptype t gfs v v1).
+(* Lemma upd_reptype_data_equal: forall t gfs v v0 v1, data_equal v0 v1 -> data_equal (upd_reptype t gfs v v0) (upd_reptype t gfs v v1).
 Proof.
   intros.
   induction gfs as [| gf gfs].
@@ -100,14 +101,14 @@ Proof.
     clear - H0.
     revert V0 V1 H0 V.
     destruct (nested_field_type t gfs), gf; unfold upd_gfield_reptype; intros; try reflexivity.
-Abort.
+Abort. *)
 End SINGLE_HOLE.
 
 Module zlist_hint_db.
 
 Lemma Znth_sub_0_r: forall A {d: Inhabitant A} i (l: list A), Znth (i - 0) l = Znth i l.
   intros.
-  rewrite Z.sub_0_r by lia.
+  rewrite ->Z.sub_0_r by lia.
   auto.
 Qed.
 
@@ -255,7 +256,8 @@ Ltac pose_proj_reptype CS t gfs v H :=
      end
   end.
 
-Ltac pose_upd_reptype_1 CS t gf v v0 H :=
+(* FIXME these look like they are obsolete? *)
+(* Ltac pose_upd_reptype_1 CS t gf v v0 H :=
   let t' := eval compute in t in
   assert (data_equal (@upd_gfield_reptype CS t gf v v0) (@upd_gfield_reptype CS t' gf v v0)) as H
     by reflexivity;
@@ -275,7 +277,7 @@ Ltac pose_upd_reptype_1 CS t gf v v0 H :=
     pose proof (JMeq_eq (fold_reptype_JMeq t' v_res)) as H0;
     rewrite H0 in H;
     clear H0
-  end.
+  end. *)
 (*
 Ltac pose_upd_reptype CS t gfs v v0 H :=
   match gfs with

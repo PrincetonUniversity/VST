@@ -1841,8 +1841,8 @@ Lemma Znth_combine : forall {A B} {a: Inhabitant A} {b: Inhabitant B} i (l1: lis
 Proof.
   intros; unfold Znth.
   destruct (Z_lt_dec i 0); auto.
-  apply combine_nth.
-  rewrite !Zlength_correct in *; lia.
+  rewrite !Zlength_correct in H; apply Nat2Z.inj in H.
+  exact (combine_nth _ _ _ _ _ H).
 Qed.
 
 Lemma Zlength_combine : forall {A B} (l : list A) (l' : list B),

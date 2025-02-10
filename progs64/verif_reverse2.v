@@ -27,14 +27,18 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
 (** A convenience definition *)
 Definition t_struct_list := Tstruct _list noattr.
 
+Section mpred.
+
+Context `{!default_VSTGS Σ}.
+
 (** Inductive definition of linked lists *)
 Fixpoint listrep (sigma: list val) (x: val) : mpred :=
  match sigma with
  | h::hs => 
-    EX y:val, 
-      data_at Tsh t_struct_list (h,y) x  *  listrep hs y
+    ∃ y:val,
+      data_at Tsh t_struct_list (h,y) x ∗ listrep hs y
  | nil => 
-    !! (x = nullval) && emp
+    ⌜x = nullval⌝ ∧ emp
  end.
 
 Arguments listrep sigma x : simpl never.
@@ -49,8 +53,8 @@ Arguments listrep sigma x : simpl never.
 
 Lemma listrep_local_facts:
   forall sigma p,
-   listrep sigma p |--
-   !! (is_pointer_or_null p /\ (p=nullval <-> sigma=nil)).
+   listrep sigma p ⊢
+   ⌜is_pointer_or_null p /\ (p=nullval <-> sigma=nil)⌝.
 Proof.
 intros.
 revert p; induction sigma; 
@@ -59,21 +63,21 @@ Intros y. entailer!.
 split; intro. subst p. destruct H; contradiction. inv H2.
 Qed.
 
-#[export] Hint Resolve listrep_local_facts : saturate_local.
+#[local] Hint Resolve listrep_local_facts : saturate_local.
 
 Lemma listrep_valid_pointer:
   forall sigma p,
-   listrep sigma p |-- valid_pointer p.
+   listrep sigma p ⊢ valid_pointer p.
 Proof.
  destruct sigma; unfold listrep; fold listrep; intros; Intros; subst.
  auto with valid_pointer.
  Intros y.
  apply sepcon_valid_pointer1.
  apply data_at_valid_ptr; auto.
- simpl;  computable.
+ simpl; computable.
 Qed.
 
-#[export] Hint Resolve listrep_valid_pointer : valid_pointer.
+#[local] Hint Resolve listrep_valid_pointer : valid_pointer.
 
 (** Specification of the [reverse] function.  It characterizes
  ** the precondition required for calling the function,
@@ -87,7 +91,7 @@ Definition reverse_spec :=
      PARAMS (p)
      SEP (listrep sigma p)
   POST [ (tptr t_struct_list) ]
-    EX q:val,
+    ∃ q:val,
      PROP () RETURN (q)
      SEP (listrep(rev sigma) q).
 
@@ -113,10 +117,10 @@ start_function.
 forward.  (* w = NULL; *)
 forward.  (* v = p; *)
 (** To prove a while-loop, you must supply a loop invariant,
- ** in this case (EX s1  PROP(...)LOCAL(...)(SEP(...)).  *)
+ ** in this case (∃ s1  PROP(...)LOCAL(...)(SEP(...)).  *)
 forward_while
-   (EX s1: list val, EX s2 : list val, 
-    EX w: val, EX v: val,
+   (∃ s1: list val, ∃ s2 : list val, 
+    ∃ w: val, ∃ v: val,
      PROP (sigma = rev s1 ++ s2)
      LOCAL (temp _w w; temp _v v)
      SEP (listrep s1 w; listrep s2 v)).
@@ -131,7 +135,7 @@ entailer!.
 entailer!.
 * (* Prove that loop body preserves invariant *)
 destruct s2 as [ | h r].
- - unfold listrep at 2. 
+ - unfold listrep at 2.
    Intros. subst. contradiction.
  - unfold listrep at 2; fold listrep.
    Intros y.
@@ -149,17 +153,11 @@ destruct s2 as [ | h r].
 * (* after the loop *)
 forward.  (* return w; *)
 Exists w; entailer!.
-rewrite (proj1 H1) by auto.
+rewrite -> (proj1 H1) by auto.
 unfold listrep at 2; fold listrep.
 entailer!.
-rewrite app_nil_r, rev_involutive.
+rewrite app_nil_r rev_involutive.
 auto.
 Qed.
 
-(** See the file [progs/verif_reverse.v] for an alternate
- ** proof of this function, using a general theory of
- ** list segments.  That file also has proofs of the
- ** sumlist function, the main function, and the
- ** [semax_func] theorem that ties all the functions together
- **)
-
+End mpred.

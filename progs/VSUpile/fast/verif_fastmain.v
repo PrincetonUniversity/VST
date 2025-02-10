@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat. Import NoOracle.
 Require Import VST.veric.initial_world.
 Require Import VST.floyd.VSU.
 
@@ -50,7 +51,7 @@ forward_call (10,gv).
 forward.
 Qed.
 
-Definition MainComp:  MainCompType nil main_QPprog Core_VSU whole_prog (snd (main_spec whole_prog))  emp.
+Definition MainComp:  MainCompType nil main_QPprog Core_VSU whole_prog (snd (main_spec whole_prog)) (fun _ => emp).
 Proof.
 mkComponent prog.
 solve_SF_internal body_main.

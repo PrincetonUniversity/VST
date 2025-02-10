@@ -5,7 +5,6 @@ Require Import sha.spec_sha.
 Require Import sha.sha_lemmas.
 Require Import sha.call_memcpy.
 Local Open Scope Z.
-Local Open Scope logic.
 
 Lemma cancel_field_at_array_partial_undef:
  forall {cs: compspecs} sh t t1 n gfs p (al bl: list (reptype t)) blen v1 v2,
@@ -59,8 +58,7 @@ rewrite (split2_array_at _ _ _ 0 (Zlength al) (Zlength (al++bl))).
 apply (JMeq_trans (JMeq_sym H3)) in H1.
 apply (JMeq_trans (JMeq_sym H4)) in H2.
 apply sepcon_derives.
-apply derives_refl'.
-f_equal.
+f_equiv.
 rewrite Z.sub_0_r.
 clear - H1 H2 H5 H.
 revert v1' v2' H1 H2.
@@ -73,8 +71,7 @@ rewrite <- H1. rewrite <- H2.
 autorewrite with sublist. auto.
 eapply derives_trans; [apply array_at_array_at_ | ].
 unfold array_at_.
-apply derives_refl'.
-f_equal.
+f_equiv.
 rewrite Z.sub_0_r.
 clear - H2 H5 H.
 revert v2' H2.
@@ -116,11 +113,11 @@ reflexivity.
 Qed.
 
 Lemma final_if1:
-forall (Espec : OracleKind)  (a : s256abs) (md c : val) (wsh shmd : share) (gv : globals) (r_data : list val)
+forall Espec (a : s256abs) (md c : val) (wsh shmd : share) (gv : globals) (r_data : list val)
  (Hwsh: writable_share wsh),
 sublist 0 (Zlength (s256a_data a)) r_data = map Vubyte (s256a_data a) ->
 Zlength r_data = CBLOCKz ->
-semax (func_tycontext f_SHA256_Final Vprog Gtot nil)
+semax(OK_spec := Espec) ⊤ (func_tycontext f_SHA256_Final Vprog Gtot nil)
   (PROP ( )
    LOCAL (temp _n (Vint (Int.repr (Zlength (s256a_data a) + 1)));
    temp _p (field_address t_struct_SHA256state_st [StructField _data] c); 
@@ -142,9 +139,7 @@ semax (func_tycontext f_SHA256_Final Vprog Gtot nil)
            (Ebinop Omul (Econst_int (Int.repr 16) tint) (Econst_int (Int.repr 4) tint) tint)
            (Econst_int (Int.repr 8) tint) tint) tint) Body_final_if1 Sskip)
   (normal_ret_assert (
-   @exp (environ -> mpred) _ _ (fun hashed': list int =>
-   @exp (environ -> mpred) _ _ (fun dd': list byte =>
-   @exp (environ -> mpred) _ _ (fun pad: Z =>
+   EX hashed': list int, EX dd': list byte, EX pad: Z,
    PROP  (pad=0%Z \/ dd'=nil;
               Zlength dd' + 8 <= CBLOCKz;
               0 <= pad < 8;
@@ -166,7 +161,7 @@ semax (func_tycontext f_SHA256_Final Vprog Gtot nil)
                Vundef))))
            c;
            K_vector gv;
-           memory_block shmd 32 md)))))).
+           memory_block shmd 32 md))).
 Proof.
 intros.
 assert (H3 := s256a_data_Zlength_less a).
@@ -220,23 +215,22 @@ set (fill_len := (64 - (ddlen + 1))).
  unfold Body_final_if1; abbreviate_semax.
 change CBLOCKz with 64 in Hddlen.
 unfold_data_at (data_at _ _ _ _).
+freeze FR1 := -(field_at wsh t_struct_SHA256state_st (DOT _data) _ c).
 eapply semax_seq'.
-evar (Frame: list mpred).
-evar (V: list val).
   eapply (call_memset_tuchar wsh
    (*dst*) t_struct_SHA256state_st [StructField _data] (ddlen+1)
-                V c
+                _ c
    (*src*) Int.zero
    (*len*) (CBLOCKz - (ddlen+1))
-        Frame); try reflexivity; try lia; auto.
+   [FRZL FR1]); try reflexivity; try lia; auto.
  split; try lia. change CBLOCKz with 64; rep_lia.
  change CBLOCKz with 64; lia.
- subst V.
  entailer!. {
  rewrite field_address0_offset by auto with field_compatible.
  rewrite field_address_offset by auto with field_compatible.
  simpl. normalize.
 }
+thaw' FR1; simpl; Intros.
  abbreviate_semax.
 replace (ddlen + 1 + (CBLOCKz - (ddlen + 1))) with CBLOCKz by (clear; lia).
 change 64 with CBLOCKz.
@@ -255,7 +249,7 @@ replace (splice_into_list (ddlen + 1) CBLOCKz
  unfold splice_into_list.
  change CBLOCKz with 64 in *.
  autorewrite with sublist. reflexivity. 
-} 
+}
 pose (ddzw := bytelist_to_intlist ddz).
 assert (H0': Zlength ddz = CBLOCKz). {
   clear - Hddlen H3. subst ddz ddlen.
@@ -281,19 +275,11 @@ forward_call (* sha256_block_data_order (c,p); *)
     field_address t_struct_SHA256state_st [StructField _data] c,
     wsh, gv).
 {
-  repeat rewrite sepcon_assoc; apply sepcon_derives; [ | cancel].
+  apply sepcon_derives; [ | cancel].
   unfold data_block.
   autorewrite with sublist.
   rewrite H1', <- HU. change (LBLOCKz*4)%Z with 64.
-  apply derives_refl'. clear Frame. f_equal.
-  subst ddz fill_len ddlen.
-  change CBLOCKz with 64.
-  rewrite !map_app.
-  unfold splice_into_list.
-  autorewrite with sublist.
-  rewrite (app_assoc (map Vubyte dd)).
-  autorewrite with sublist.
-  reflexivity.
+  cancel.
 }
  rewrite hash_blocks_last by auto.
  set (pad := (CBLOCKz - (ddlen+1))%Z) in *.
@@ -301,7 +287,7 @@ forward_call (* sha256_block_data_order (c,p); *)
  entailer!.
 *
 split.
- + rewrite initial_world.Zlength_app.
+ + rewrite Zlength_app.
   apply Z.divide_add_r; auto. rewrite H1'.
   apply Z.divide_refl.
  +

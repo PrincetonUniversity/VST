@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat. Import NoOracle.
 Require Import triang.
 Require Import simple_spec_stdlib.
 Require Import PileModel.

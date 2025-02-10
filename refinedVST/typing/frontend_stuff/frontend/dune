@@ -1,0 +1,16 @@
+(executable
+ (name main)
+ (public_name refinedc)
+ (package refinedc)
+ (preprocess (per_module ((action (run pa_ocaml %{input-file})) rc_annot)))
+ (flags (:standard -w -27))
+ (foreign_stubs (language c) (names stubs))
+ (libraries cmdliner str unix toml ubase earley.core cerberus-lib.frontend
+  cerberus-lib.backend_common cerberus-lib.mem.concrete cerberus-lib.util))
+
+(rule
+ (targets version.ml)
+ (action
+  (with-stdout-to version.ml
+    (run ocaml unix.cma %{dep:tools/gen_version.ml})))
+ (mode fallback))

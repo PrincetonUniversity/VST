@@ -1,4 +1,6 @@
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.floyd.base2.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Import VST.floyd.functional_base.
 Require Import VST.floyd.client_lemmas.
 Require Import VST.floyd.go_lower.
@@ -36,8 +38,8 @@ Ltac EExists_unify :=
   evar (T:Type); evar (x:T); subst T; 
   Exists x;
   match goal with
-  | |- _ |-- !! ?P && _ => EExists_unify1 x P
-  | |- _ |-- !! ?P => EExists_unify1 x P
+  | |- _ ⊢ ⌜?P⌝ ∧ _ => EExists_unify1 x P
+  | |- _ ⊢ ⌜?P⌝ => EExists_unify1 x P
   end.
 
 Ltac simpl_implicit :=
@@ -54,11 +56,11 @@ Ltac step :=
   | forward_if
   | forward_call
   | rep_lia | cstring' | Zlength_solve
-  | match goal with |- ENTAIL _, _ |-- _ =>  go_lower end
+  | match goal with |- ENTAIL _, _ ⊢ _ =>  go_lower end
   | EExists_unify
   | cstring1
   | deadvars!
-  | solve [match goal with |- @derives mpred _ _ _ => cancel end]
+  | solve [match goal with |- @bi_entails (iPropI _) _ _ => cancel end]
   | solve [entailer!; try cstring']
   | list_solve
   ].

@@ -6,6 +6,7 @@
  ** includes the VeriC program logic and the MSL theory of separation logic
  **)
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat. Import NoOracle.
 
 (** Import the theory of list segments.  This is not, strictly speaking,
  ** part of the Floyd system.  In principle, any user of Floyd can build
@@ -24,8 +25,6 @@ Require Import VST.progs.list_dt. Import LsegSpecial.
  ** of the C program in the reverse.c file.
  **)
 Require Import VST.progs.reverse.
-
-Open Scope logic.
 
 (* The C programming language has a special namespace for struct
 ** and union identifiers, e.g., "struct foo {...}".  Some type-based operators
@@ -96,7 +95,7 @@ Definition Gprog : funspecs :=   ltac:(with_library prog [
 Lemma list_cell_eq: forall sh i p ,
    sepalg.nonidentity sh ->
    field_compatible t_struct_list [] p ->
-   list_cell LS sh (Vint i) p =
+   list_cell LS sh (Vint i) p ⊣⊢
    field_at sh t_struct_list (DOT _head) (Vint i) p.
 Proof.
   intros.
@@ -200,7 +199,7 @@ Exists (h::cts1,r,v,y).
 entailer!.  (* smt_test verif_reverse_example2 *)
  - rewrite <- app_assoc. auto.
  - rewrite (lseg_unroll _ sh (h::cts1)).
-    apply orp_right2.
+    rewrite <- bi.or_intro_r.
    unfold lseg_cons.
    apply andp_right.
    + apply prop_right.
@@ -220,8 +219,6 @@ Qed.
  ** The proof is not very beautiful at present; it would be helpful
  ** to have a nicer proof theory for reasoning about this kind of thing.
  **)
-
-Import compcert.lib.Maps.
 
 Lemma setup_globals:
  forall Delta gv,
@@ -249,20 +246,31 @@ Proof.
   assert_PROP (size_compatible tuint (gv _three) /\ align_compatible tuint (gv _three)) by (entailer!; clear - H5; hnf in H5; intuition).
   rewrite <- mapsto_data_at with (v := Vint(Int.repr 1)); try intuition. 
   clear H0.
-  rewrite <- (sepcon_emp (mapsto _ _ (offset_val 20 _) _)).
   assert (FC: field_compatible (tarray t_struct_list 3) [] (gv _three))
     by auto with field_compatible.
   match goal with |- ?A |-- _ => set (a:=A) end.
   replace (gv _three) with (offset_val 0 (gv _three)) by (autorewrite with norm; auto).
   subst a.
 
-  rewrite (sepcon_comm (has_ext tt)).
-  rewrite <- !sepcon_assoc. apply sepcon_derives; auto.
-  rewrite !sepcon_assoc.
-  rewrite (sepcon_emp (lseg _ _ _ _ _)).
-  rewrite sepcon_emp.
-
- repeat
+  cancel.
+  repeat match goal with |- _ * (mapsto _ _ _ ?q * _) |-- lseg _ _ _ (offset_val ?n _) _ =>
+    assert (FC': field_compatible t_struct_list [] (offset_val n (gv _three)));
+      [apply (@field_compatible_nested_field CompSpecs (tarray t_struct_list 3)
+         [ArraySubsc (n/8)] (gv _three));
+       simpl;
+       unfold field_compatible in FC |- *; simpl in FC |- *;
+       assert (0 <= n/8 < 3) by (cbv [Z.div]; simpl; lia);
+       tauto
+      |];
+    apply @lseg_unroll_nonempty1 with q;
+      [destruct (gv _three); try contradiction; intro Hx; inv Hx | auto; try reflexivity | ];
+    rewrite list_cell_eq by auto;
+    do 2 (apply sepcon_derives;
+      [ unfold field_at; rewrite prop_true_andp by auto with field_compatible;
+        unfold data_at_rec, at_offset; simpl; normalize; try apply derives_refl | ]);
+    clear FC'
+    end.
+  rewrite <- bi.sep_emp, <- bi.sep_assoc.
   match goal with |- _ * (mapsto _ _ _ ?q * _) |-- lseg _ _ _ (offset_val ?n _) _ =>
     assert (FC': field_compatible t_struct_list [] (offset_val n (gv _three)));
       [apply (@field_compatible_nested_field CompSpecs (tarray t_struct_list 3)
@@ -273,14 +281,14 @@ Proof.
        tauto
       |];
     apply @lseg_unroll_nonempty1 with q;
-      [destruct (gv _three); try contradiction; intro Hx; inv Hx | normalize; try reflexivity | ];
+      [destruct (gv _three); try contradiction; intro Hx; inv Hx | auto; try reflexivity | ];
     rewrite list_cell_eq by auto;
     do 2 (apply sepcon_derives;
       [ unfold field_at; rewrite prop_true_andp by auto with field_compatible;
         unfold data_at_rec, at_offset; simpl; normalize; try apply derives_refl | ]);
     clear FC'
     end.
-  rewrite mapsto_tuint_tptr_nullval; auto. apply derives_refl.
+  rewrite mapsto_tuint_tptr_nullval; auto.
   rewrite @lseg_nil_eq.
   entailer!.
 Qed.
@@ -303,8 +311,6 @@ forward_call  (* s = sumlist(r); *)
 forward.  (* return s; *)
 Qed.
 
-#[export] Existing Instance NullExtension.Espec.
-
 Lemma prog_correct:
   semax_prog prog tt Vprog Gprog.
 Proof.
@@ -313,5 +319,3 @@ semax_func_cons body_sumlist.
 semax_func_cons body_reverse.
 semax_func_cons body_main.
 Qed.
-
-

@@ -8,7 +8,7 @@ Local Open Scope logic.
 
 Definition t_struct_foo := Tstruct _foo noattr.
 
-Definition f_spec : ident * funspec :=
+Definition f_spec :=
  DECLARE _f
   WITH u: unit
   PRE [ ]
@@ -20,7 +20,7 @@ Definition f_spec : ident * funspec :=
         PROP () LOCAL()
            SEP ().
 
-Definition g_spec : ident * funspec :=
+Definition g_spec :=
  DECLARE _g
   WITH ij: val
   PRE [ Tstruct _foo noattr ]

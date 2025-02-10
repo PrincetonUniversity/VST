@@ -1,0 +1,42 @@
+opam-version: "2.0"
+name: "refinedc"
+synopsis: "RefinedC verification framework"
+description: """
+RefinedC is a framework for verifying idiomatic, low-level C code using a
+combination of refinement types and ownership types.
+"""
+license: "BSD-3-Clause"
+
+maintainer: ["Michael Sammler <msammler@mpi-sws.org>"
+             "Rodolphe Lepigre <lepigre@mpi-sws.org>"]
+authors: ["Michael Sammler" "Rodolphe Lepigre" "Kayvan Memarian"]
+
+homepage: "https://plv.mpi-sws.org/refinedc"
+bug-reports: "https://gitlab.mpi-sws.org/iris/refinedc/issues"
+dev-repo: "git+https://gitlab.mpi-sws.org/iris/refinedc.git"
+
+depends: [
+  "cerberus" {= "~dev"}
+  "cmdliner" {>= "1.1.0"}
+  "sexplib0" {>= "v0.14.0"}
+  "earley" {= "3.0.0"}
+  "toml" {>= "6.0.0"}
+  "ubase" {>= "0.04"}
+]
+
+depopts: [
+  "coq-caesium-config-no-align"
+]
+
+build: [
+  [make "prepare-install-refinedc"]
+  [make "config"] {!coq-caesium-config-no-align:installed}
+  [make "config-no-align"] {coq-caesium-config-no-align:installed}
+  ["dune" "subst"] {pinned}
+  ["dune" "build" "-p" name "-j" jobs]
+]
+
+messages: [
+  "with default configuration" {!coq-caesium-config-no-align:installed}
+  "with no-align configuration" {coq-caesium-config-no-align:installed}
+]

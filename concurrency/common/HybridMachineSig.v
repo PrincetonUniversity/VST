@@ -32,6 +32,7 @@
 
 Require Import Strings.String.
 Require Import Coq.ZArith.ZArith.
+Require Import Lia.
 
 From mathcomp.ssreflect Require Import ssreflect seq ssrbool.
 Require Import compcert.common.Memory.
@@ -41,7 +42,7 @@ Require Import compcert.common.Values. (*for val*)
 Require Import compcert.common.Globalenvs.
 Require Import compcert.lib.Integers.
 
-Require Import VST.concurrency.common.core_semantics.
+(*Require Import VST.concurrency.common.core_semantics.*)
 Require Import VST.sepcomp.event_semantics.
 Require Export VST.concurrency.common.semantics.
 Require Import VST.concurrency.common.threadPool.
@@ -55,17 +56,21 @@ Require Import Coq.Program.Program.
 (*Require Import VST.concurrency.safety.
 Require Import VST.concurrency.coinductive_safety.*)
 
+Import Address.
+
+Set Bullet Behavior "Strict Subproofs".
+
 Notation EXIT :=
-  (EF_external "EXIT" (mksignature (AST.Tint::nil) None)).
-Notation CREATE_SIG := (mksignature (AST.Tint::AST.Tint::nil) None cc_default).
+  (EF_external "EXIT" (mksignature (AST.Tint::nil) Tvoid)).
+Notation CREATE_SIG := (mksignature (AST.Tptr::AST.Tptr::nil) Tvoid cc_default).
 Notation CREATE := (EF_external "spawn" CREATE_SIG).
 Notation MKLOCK :=
-  (EF_external "makelock" (mksignature (AST.Tptr::nil) None cc_default)).
+  (EF_external "makelock" (mksignature (AST.Tptr::nil) Tvoid cc_default)).
 Notation FREE_LOCK :=
-  (EF_external "freelock" (mksignature (AST.Tptr::nil) None cc_default)).
-Notation LOCK_SIG := (mksignature (AST.Tptr::nil) None cc_default).
+  (EF_external "freelock" (mksignature (AST.Tptr::nil) Tvoid cc_default)).
+Notation LOCK_SIG := (mksignature (AST.Tptr::nil) Tvoid cc_default).
 Notation LOCK := (EF_external "acquire" LOCK_SIG).
-Notation UNLOCK_SIG := (mksignature (AST.Tptr::nil) None cc_default).
+Notation UNLOCK_SIG := (mksignature (AST.Tptr::nil) Tvoid cc_default).
 Notation UNLOCK := (EF_external "release" UNLOCK_SIG).
 
 Module Events.
@@ -309,6 +314,17 @@ Module HybridMachineSig.
   Definition suspend_thread: forall (m: mem) {tid0 ms},
       containsThread ms tid0 -> machine_state -> Prop:=
     @suspend_thread'.
+
+  Inductive halted_thread': forall {tid0} {ms:machine_state},
+      containsThread ms tid0 -> int -> Prop:=
+  | HaltedThread: forall tid0 ms c i (ctn: containsThread ms tid0)
+                     (Hcode: getThreadC ctn = Krun c)
+                     (Hhalt: halted semSem c i),
+      halted_thread' ctn i.
+  Definition halted_thread: forall {tid0 ms},
+      containsThread ms tid0 -> int -> Prop:=
+    @halted_thread'.
+
     (** Provides control over scheduling. For example,
         for FineMach this is schedSkip, for CoarseMach this is just id *)
   Class Scheduler :=
@@ -354,6 +370,15 @@ Module HybridMachineSig.
           (Hcmpt: mem_compatible ms m)
           (Htstep: syncStep isCoarse Htid Hcmpt ms' m' ev),
           machine_step U tr ms m U' (tr ++ [:: external tid ev]) ms' m'
+    | halted_step:
+        forall tid U U' ms m tr i
+          (HschedN: schedPeek U = Some tid)
+          (Htid: containsThread ms tid)
+          (Hhalt: halted_thread Htid i)
+          (Hinv: invariant ms)
+          (Hcmpt: mem_compatible ms m)
+          (HschedS: schedSkip U = U'),        (*Schedule Forward*)
+          machine_step U tr ms m U' tr ms m
     | schedfail :
         forall tid U U' ms m tr
           (HschedN: schedPeek U = Some tid)
@@ -403,13 +428,13 @@ Module HybridMachineSig.
     intros. inversion H; subst; rewrite HschedN; intro Hcontra; discriminate.
     Defined.
 
-    Definition make_init_machine c r:= 
-        mkPool (Krun c) r.
+    Definition make_init_machine c r (* ex *) :=
+        mkPool (Krun c) r (* ex *).
     Definition init_machine' (the_ge : semG) m
-               c m' (f : val) (args : list val) 
+               c m' (f : val) (args : list val) (* ex *)
       : option res -> Prop := fun op_r =>
-                            if op_r is Some r then 
-                              init_mach op_r m (make_init_machine c r) m' f args
+                            if op_r is Some r then
+                              init_mach op_r m (make_init_machine c r (* ex *)) m' f args
                             else False.
     Definition init_machine'' (op_m: option mem)(op_r : option res)(m: mem)
                (tp : thread_pool) (m': mem) (f : val) (args : list val)
@@ -418,7 +443,7 @@ Module HybridMachineSig.
       if op_r is Some r then 
         init_mach op_r m tp m' f args
       else False.
-    
+
     Definition unique_Krun tp i :=
       forall j cnti q, 
         @getThreadC _ _ _ j tp cnti = Krun q ->
@@ -473,6 +498,15 @@ Module HybridMachineSig.
             (Hcmpt: mem_compatible ms m)
             (Htstep: syncStep isCoarse Htid Hcmpt ms' m' ev),
             external_step U tr ms m  U' (tr ++ [:: external tid ev]) ms' m'
+      | halted_step':
+          forall tid U U' ms m tr i
+            (HschedN: schedPeek U = Some tid)
+            (Htid: containsThread ms tid)
+            (Hhalt: halted_thread Htid i)
+            (Hinv: invariant ms)
+            (Hcmpt: mem_compatible ms m)
+            (HschedS: schedSkip U = U'),        (*Schedule Forward*)
+            external_step U tr ms m U' tr ms m
       | schedfail':
           forall tid U U' ms m tr
             (HschedN: schedPeek U = Some tid)
@@ -513,10 +547,10 @@ Module HybridMachineSig.
                  solve[econstructor 2 ; eauto]|
                  solve[econstructor 4 ; eauto]|
                  solve[econstructor 5 ; eauto]|
-                 solve[econstructor 6 ; eauto]].
+                 solve[econstructor 6 ; eauto]|
+                 solve[econstructor 7 ; eauto]].
       Qed.
 
-      Set Printing Implicit.
       Program Definition new_MachineSemantics (op_m:option Mem.mem):
         @ConcurSemantics G nat schedule event_trace machine_state mem res (*@semC Sem*).
       apply (@Build_ConcurSemantics _ nat schedule event_trace machine_state _ _ (*_*)
@@ -562,12 +596,9 @@ Module HybridMachineSig.
               {ThreadPool : ThreadPool.ThreadPool}
               {machineSig: MachineSig}.
 
-      Instance DilMem : DiluteMem :=
+      Program Instance DilMem : DiluteMem :=
         {| diluteMem := fun x => x |}.
-      intros.
-      split; auto.
-      Defined.
-      
+
       Instance scheduler : Scheduler :=
         {| isCoarse := true;
            yield := fun x => x |}.
@@ -628,14 +659,14 @@ Module HybridMachineSig.
       Proof.
         intros until 1; revert m.
         induction H; intros.
-        - assert (m0 = 0) by omega; subst; constructor.
+        - assert (m0 = 0) by lia; subst; constructor.
         - apply HaltedSafe; auto.
         - destruct m0; [constructor|].
           eapply CoreSafe; eauto.
-          apply IHcsafe; omega.
+          apply IHcsafe; lia.
         - destruct m0; [constructor|].
           eapply AngelSafe; eauto.
-          intro; apply H; omega.
+          intro; apply H; lia.
       Qed.
 
       Lemma schedSkip_id: forall U, schedSkip U = U -> U = nil.
@@ -676,13 +707,17 @@ Module HybridMachineSig.
         - subst.
           eapply AngelSafe; [|intro; eapply IHn0; eauto].
           erewrite cats0.
+          eapply halted_step; eauto.
+        - subst.
+          eapply AngelSafe; [|intro; eapply IHn0; eauto].
+          erewrite cats0.
           eapply schedfail; eauto.
       Qed.
 
       Lemma csafe_concur_safe: forall U tr tp m n, csafe (U, tr, tp) m n -> concur_safe U tp m n.
       Proof.
         intros.
-        remember (U, tr, tp) as st; revert dependent tp; revert U tr.
+        remember (U, tr, tp) as st; generalize dependent tp; revert U tr.
         induction H; intros; subst; simpl in *.
         - constructor.
         - constructor; auto.
@@ -721,6 +756,8 @@ Module HybridMachineSig.
           + setoid_rewrite List.app_nil_r.
             eapply suspend_step; eauto.
           + eapply sync_step; eauto.
+          + setoid_rewrite List.app_nil_r.
+            eapply halted_step; eauto.
           + setoid_rewrite List.app_nil_r.
             eapply schedfail; eauto.
       Qed.

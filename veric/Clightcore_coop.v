@@ -13,12 +13,13 @@ Proof. intros.
     eapply semantics.mem_step_alloc; eassumption. eassumption.
 Qed.
 
-Lemma assign_loc_mem_step g t m b z v m' (A:assign_loc g t m b z v m'):
+Lemma assign_loc_mem_step g t m b z f v m' (A:assign_loc g t m b z f v m'):
     mem_step m m'.
 Proof.
   inv A.
   { simpl in H0. eapply mem_step_storebytes. eapply Mem.store_storebytes; eauto. }
   { eapply mem_step_storebytes; eauto. }
+  { inv H. eapply mem_step_storebytes. eapply Mem.store_storebytes; eauto. }
 Qed.
 
 Lemma bind_parameters_mem_step: forall cenv e m pars vargs m'
@@ -41,23 +42,34 @@ Lemma extcall_sem_mem_step: forall name sg g vargs m t vres m' (E:Events.externa
   mem_step m m'.
 Admitted. (*Maybe include mem_step in Events.extcall_properties.?*)
 
+Lemma known_builtin_mem_step: forall name sg vargs m t vres m' (E:Events.known_builtin_sem name sg vargs m t vres m'),
+  mem_step m m'.
+Admitted. (*Maybe include mem_step in Events.extcall_properties.?*)
+
+Lemma extcall_builtin_mem_step: forall name sg g vargs m t vres m' (E:Events.builtin_or_external_sem name sg g vargs m t vres m'),
+  mem_step m m'.
+Proof.
+  unfold Events.builtin_or_external_sem; intros.
+  destruct (Builtins.lookup_builtin_function); [eapply known_builtin_mem_step | eapply extcall_sem_mem_step]; eauto.
+Qed.
+
 Lemma extcall_mem_step g: forall ef vargs m t vres m' (E:Events.external_call ef g vargs m t vres m'),
   mem_step m m'.
 Proof.
   destruct ef; simpl; intros; try solve [inv E; apply mem_step_refl].
   { eapply extcall_sem_mem_step; eassumption. }
-  { eapply extcall_sem_mem_step; eassumption. }
-  { eapply extcall_sem_mem_step; eassumption. }
+  { eapply extcall_builtin_mem_step; eassumption. }
+  { eapply extcall_builtin_mem_step; eassumption. }
   { inv E. inv H. eapply mem_step_refl.
     apply Mem.store_storebytes in H1. eapply mem_step_storebytes. eassumption. }
   { inv E. apply Mem.store_storebytes in H0.
     eapply mem_step_trans. eapply mem_step_alloc; eassumption.
     eapply mem_step_storebytes; eassumption. }
-  { inv E. eapply mem_step_free; eassumption. }
+  { inv E. eapply mem_step_free; eassumption. apply mem_step_refl. }
   { inv E. eapply mem_step_storebytes. eassumption. }
   { eapply inline_assembly_memstep; eassumption. }
 Qed.
-  
+
 Lemma CLC_corestep_mem:
   forall (g : genv) c (m : mem) c'  (m' : mem),
     semantics.corestep (cl_core_sem g) c m c' m' ->
@@ -65,6 +77,7 @@ Lemma CLC_corestep_mem:
 Proof. simpl; intros. inv H; simpl in *;
   try apply mem_step_refl.
    eapply assign_loc_mem_step; eauto.
+   eapply extcall_mem_step; eauto.
    eapply mem_step_freelist; eauto.
    eapply mem_step_freelist; eauto.
    eapply mem_step_freelist; eauto.

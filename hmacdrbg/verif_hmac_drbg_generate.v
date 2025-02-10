@@ -1,6 +1,6 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat. Import NoOracle.
 Import ListNotations.
-Local Open Scope logic.
 Require Import VST.zlist.sublist.
 
 Require Import sha.HMAC256_functional_prog.
@@ -982,12 +982,12 @@ Proof.
   }
   { forward. entailer!. subst after_reseed_add_len na.
     destruct should_reseed; simpl; trivial. rewrite andb_false_r. reflexivity.
-    destruct (EqDec_Z (Zlength contents)  0); simpl. 
+    destruct (eq_dec (Zlength contents)  0); simpl.
     + rewrite e. simpl. rewrite andb_false_r. reflexivity.
     + unfold bool2val; f_equal.
         rewrite (Int.eq_false (Int.repr (Zlength contents))); simpl.
-      destruct (EqDec_val additional nullval); try reflexivity. contradiction.
-      contradict n. apply repr_inj_unsigned in n; auto. rep_lia. 
+      destruct (eq_dec additional nullval); try reflexivity. contradiction.
+      contradict n. apply repr_inj_unsigned in n; auto. rep_lia.
   }
   { forward. rewrite H in *. entailer!. }
 
@@ -1010,14 +1010,14 @@ Proof.
     md_full key2 (mc1, (mc2, mc3))))).
    { change (na = true) in H. subst na.
      destruct should_reseed; simpl in PRS, H. rewrite andb_false_r in H; discriminate.
-     destruct (EqDec_Z (Zlength contents) 0); simpl in H.
+     destruct (eq_dec (Zlength contents) 0); simpl in H.
      { rewrite andb_false_r in H; discriminate. }
      rewrite andb_true_r in H.
      destruct additional; simpl in PNadditional; try contradiction.
      { subst i0; discriminate. }
-     destruct PRS as [? [? ?]]; subst key1 stream1 ctx1. clear H. 
+     destruct PRS as [? [? ?]]; subst key1 stream1 ctx1. clear H.
      
-       forward_call (contents, Vptr b0 i0, sha, after_reseed_add_len, 
+       forward_call (contents, Vptr b0 i0, sha, after_reseed_add_len,
                     (*ctx*)Vptr b i, shc, initial_state,I, Info, gv).
        { assert (FR: Frame = [data_at_ sho (tarray tuchar out_len) output * Stream s]).
          { subst Frame; reflexivity. }
@@ -1026,23 +1026,23 @@ Proof.
          thaw FR3. (*subst (*initial_state*) IC.*)
          unfold hmac256drbg_relate, hmac256drbgstate_md_info_pointer; simpl. cancel. entailer!. 
        }
-       { (*subst na.*)subst after_reseed_add_len. 
-         entailer. simpl.  progress entailer. unfold hmac256drbgabs_common_mpreds.
-         remember ( HMAC256_DRBG_update
+       { (*subst na.*)subst after_reseed_add_len.
+         entailer. simpl. unfold hmac256drbgabs_common_mpreds.
+         remember (HMAC256_DRBG_update
              (contents_with_add (Vptr b0 i0) (Zlength contents) contents) key
-             V) as UPD. destruct UPD as [KK VV]. simpl. 
+             V) as UPD. destruct UPD as [KK VV]. simpl.
          Exists (mc1, (mc2, mc3),
             (map Vubyte VV,
             (Vint (Int.repr reseed_counter),
             (Vint (Int.repr entropy_len),
             (bool2val prediction_resistance,
             Vint (Int.repr reseed_interval)))))) KK.
-         normalize.  
+         normalize.
          apply andp_right; [ apply prop_right | thaw FR3; cancel].
          split; [| repeat split; trivial].
-         exists b0, i0, VV. repeat split; trivial. }  
+         exists b0, i0, VV. repeat split; trivial. }
      }
-     { clear - H.  change (na=false) in H. forward. rewrite H in *. 
+     { clear - H.  change (na=false) in H. forward. rewrite H in *.
        Exists ctx1 key1. entailer!. simpl; auto. }
   Intros ctx2 key2. rename H into PUPD.
 
@@ -1054,7 +1054,7 @@ set (after_reseed_state_abs := if should_reseed
 
 assert (ZLength_ARSA_val: Zlength (hmac256drbgabs_value after_reseed_state_abs) = 32).
 { subst after_reseed_state_abs.
-  destruct should_reseed; trivial. 
+  destruct should_reseed; trivial.
   apply Zlength_hmac256drbgabs_reseed_value; trivial. }
 
 assert (RC_x: 0 <= hmac256drbgabs_reseed_counter after_reseed_state_abs < Int.max_signed).
@@ -1078,7 +1078,7 @@ set (after_update_state_abs := (if na then hmac256drbgabs_hmac_drbg_update I con
 
 assert (ZLength_AUSA_val: Zlength (hmac256drbgabs_value after_update_state_abs) = 32).
 { subst after_update_state_abs.
-  destruct na; trivial. apply Zlength_hmac256drbgabs_update_value. } 
+  destruct na; trivial. apply Zlength_hmac256drbgabs_update_value. }
 
 assert (RC_y: 0 <= hmac256drbgabs_reseed_counter after_update_state_abs < Int.max_signed).
 { subst after_update_state_abs.
@@ -1092,12 +1092,12 @@ apply semax_pre with (P':=
    LOCAL (temp _md_len (Vint (Int.repr 32)); temp _info mc1;
    temp _reseed_interval (Vint (Int.repr reseed_interval));
    temp _reseed_counter (Vint (Int.repr reseed_counter));
-   temp _prediction_resistance (bool2val prediction_resistance); 
-   temp _out output; temp _left (Vint (Int.repr out_len)); 
+   temp _prediction_resistance (bool2val prediction_resistance);
+   temp _out output; temp _left (Vint (Int.repr out_len));
    temp _ctx (Vptr b i); temp _p_rng (Vptr b i); temp _output output;
    temp _out_len (Vint (Int.repr out_len)); temp _additional additional;
    temp _add_len (Vint (Int.repr after_reseed_add_len)); gvars gv)
-   SEP (data_at_ sho (tarray tuchar out_len) output; Stream stream1; 
+   SEP (data_at_ sho (tarray tuchar out_len) output; Stream stream1;
      K_vector gv;
      da_emp sha (tarray tuchar (Zlength contents)) (map Vubyte contents) additional;
      after_update_Mpred ))).
@@ -1118,11 +1118,11 @@ apply semax_pre with (P':=
     destruct PRS as [VV [KK [aa [zz [cc [ss [HM [? [? ?]]]]]]]]]. subst ss KK ctx1; rewrite HM in *.
     remember (HMAC256_DRBG_update contents key V) as UPD; destruct UPD as [KKK VVV].
     subst M after_reseed_state_abs. subst h; simpl in *.
-    destruct PUPD; subst key2 ctx2. entailer!. 
+    destruct PUPD; subst key2 ctx2. entailer!.
   + destruct PRS as [? [? ?]]; subst stream1 key1 ctx1 after_reseed_state_abs.
-    destruct (EqDec_val additional nullval); simpl in *.
+    destruct (eq_dec additional nullval); simpl in *.
     - destruct PUPD; subst ctx2 key2 na h; simpl in *. entailer!.
-    - remember (EqDec_Z (Zlength contents) 0) as q; destruct q; simpl in *. 
+    - remember (eq_dec (Zlength contents) 0) as q; destruct q; simpl in *. 
       * destruct PUPD; subst ctx2 key2 na h; simpl in *. entailer!. 
       * destruct PUPD as [bb [ii [UVAL [ADD [HUPD CTX2 ]]]]]. 
         unfold contents_with_add in HUPD. simpl in HUPD; rewrite <- Heqq in HUPD; simpl in HUPD.  
@@ -1318,8 +1318,8 @@ Opaque hmac256drbgabs_reseed.
        (contents_with_add additional (Zlength contents) contents)).
 Transparent hmac256drbgabs_generate. 
     unfold hmac256drbgabs_generate.
-Opaque hmac256drbgabs_generate. rewrite <- Heqr. 
-    rewrite !sepcon_assoc.
+Opaque hmac256drbgabs_generate. rewrite <- Heqr.
+    rewrite <- !sepcon_assoc.
     apply sepcon_derives. apply derives_refl.
     remember ( (hmac256drbgabs_generate
         (HMAC256DRBGabs key V reseed_counter entropy_len
@@ -1327,6 +1327,6 @@ Opaque hmac256drbgabs_generate. rewrite <- Heqr.
         (contents_with_add additional (Zlength contents) contents))). destruct h. simpl.
     destruct a as [? [? [? [? [? ?]]]]]. normalize.
     destruct r.
-    - destruct p as [? [? ?]]. destruct p as [[[? ?] ?] ?]. simpl. entailer!. 
+    - destruct p as [? [? ?]]. destruct p as [[[? ?] ?] ?]. simpl. entailer!.
     - simpl. entailer!.
 Time Qed. (*Coq 8.10.1: 26s; was: Desktop:83ss*) 

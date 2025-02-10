@@ -15,18 +15,18 @@ Require Import VST.concurrency.common.permissions.
 
 Require Import VST.sepcomp.semantics_lemmas.
 Require Import compcert.lib.Coqlib.
-Require Import VST.veric.Clight_new.
-Require Import VST.veric.Clightnew_coop.
+Require Import VST.veric.Clight_core.
+Require Import VST.veric.Clightcore_coop.
 
 Require Import Coq.Logic.FunctionalExtensionality.
 
-Lemma CLight_Deterministic: forall ge c m c1 m1 c2 m2,
-    veric.Clight_new.cl_step ge c m c2 m2 ->
-    veric.Clight_new.cl_step ge c m c1 m1 ->
+(* Lemma CLight_Deterministic: forall ge c m c1 m1 c2 m2,
+    cl_step ge c m c2 m2 ->
+    cl_step ge c m c1 m1 ->
     c1 = c2 /\ m1 = m2.
 Proof. intros.
        specialize (cl_corestep_fun _ _ _ _ _ _ _ H H0); intros X; inversion X; subst. split; trivial.
-Qed.
+Qed.*)
 
 Definition bnd_from_init m := bounded_maps.bounded_map (snd (getMaxPerm m)) /\ (Mem.mem_access m).1 = fun z k => None.
 
@@ -62,8 +62,8 @@ Proof.
     destruct (peq p (Mem.nextblock m)); subst.
     { inversion H1; clear H1; subst. clear H0 H. red.
       exists hi, lo; split; intros.
-      { destruct (zle lo p); destruct (zlt p hi); simpl; trivial; omega. }
-      { destruct (zle lo p); destruct (zlt p hi); simpl; trivial; omega. } }
+      { destruct (zle lo p); destruct (zlt p hi); simpl; trivial; lia. }
+      { destruct (zle lo p); destruct (zlt p hi); simpl; trivial; lia. } }
     { apply (H p); clear H0. rewrite PTree.gmap1. apply H1. } }
 Qed.
 
@@ -93,7 +93,7 @@ Proof.
       { destruct (zle lo p); destruct (zlt p hi); simpl; trivial; eauto. } }
     { clear H. unfold getMaxPerm in Heqg.
       destruct (zlt lo hi).
-      { assert (A: lo <= lo < hi) by omega. specialize (r _ A).
+      { assert (A: lo <= lo < hi) by lia. specialize (r _ A).
         apply Mem.perm_max in r. unfold Mem.perm, PMap.get in r.
         rewrite PTree.gmap1 in Heqg. unfold option_map in Heqg.
         remember (((Mem.mem_access m).2) ! b) as q. destruct q; simpl in *. discriminate.
@@ -137,22 +137,22 @@ Proof.
       exists  (Z.max HI hi), (Z.min LO lo); split; intros.
       { destruct (zle lo p); destruct (zlt p hi); simpl; trivial; eauto.
         - move : H=> /Z.gt_lt_iff /Z.max_lub_lt_iff [] ? ?.
-          xomega.
+          lia.
         - move : H=> /Z.gt_lt_iff /Z.max_lub_lt_iff [] /Z.gt_lt_iff /HHi //.
         - move : H=> /Z.gt_lt_iff /Z.max_lub_lt_iff [] /Z.gt_lt_iff /HHi //.
         - move : H=> /Z.gt_lt_iff /Z.max_lub_lt_iff [] /Z.gt_lt_iff /HHi //.
       }
       { destruct (zle lo p); destruct (zlt p hi); simpl; trivial; eauto.
         - move : H=> /Z.min_glb_lt_iff [] ? ?.
-          xomega.
+          lia.
         - move : H=> /Z.min_glb_lt_iff [] ? ?.
-          omega.
+          lia.
         - move : H=> /Z.min_glb_lt_iff [] /HLo //.
         - move : H=> /Z.min_glb_lt_iff [] /HLo //.
       } }
     { clear H. unfold getMaxPerm in Heqg.
       destruct (zlt lo hi).
-      { assert (A: lo <= lo < hi) by omega. specialize (r _ A).
+      { assert (A: lo <= lo < hi) by lia. specialize (r _ A).
         apply Mem.perm_max in r. unfold Mem.perm, PMap.get in r.
         rewrite PTree.gmap1 in Heqg. unfold option_map in Heqg.
         remember (((Mem.mem_access m).2) ! b) as q. destruct q; simpl in *. discriminate.
@@ -161,8 +161,8 @@ Proof.
         remember (((Mem.mem_access m).2) ! b) as w. destruct w; try discriminate. clear Heqg.
         rewrite INI.
         exists lo, lo; split; intros.
-        { destruct (zle lo p); destruct (zlt p hi); simpl; trivial. xomega. }
-        { destruct (zle lo p); destruct (zlt p hi); simpl; trivial. xomega.  } } } }
+        { destruct (zle lo p); destruct (zlt p hi); simpl; trivial. lia. }
+        { destruct (zle lo p); destruct (zlt p hi); simpl; trivial. lia.  } } } }
   { apply (H p). unfold getMaxPerm in *; simpl in *.
     rewrite PTree.gmap1 in F. rewrite PTree.gmap1. unfold option_map in *.
     rewrite PTree.gso in F; trivial. }
@@ -196,31 +196,10 @@ Proof.
 Qed.
 
 Lemma CLight_step_mem_bound' ge c m c' m':
-  veric.Clight_new.cl_step ge c m c' m' -> bnd_from_init m -> bnd_from_init m'.
+  cl_step ge c m c' m' -> bnd_from_init m -> bnd_from_init m'.
 Proof.
   intros.
-  apply (memsem_preserves (CLN_memsem ge) _ preserve_bnd _ _ _ _ H H0).
-Qed.
-
-(*This proof is already in juicy_machine.
- * move it to a more general position.*)
-Lemma Mem_canonical_useful: forall m loc k,
-    fst (Mem.mem_access m) loc k = None.
-Proof. intros. destruct m; simpl in *.
-       unfold PMap.get in nextblock_noaccess.
-       pose (b:= Pos.max (TreeMaxIndex (snd mem_access) + 1 )  nextblock).
-       assert (H1:  ~ Plt b nextblock).
-       { intros H. assert (HH:= Pos.le_max_r (TreeMaxIndex (snd mem_access) + 1) nextblock).
-         clear - H HH. unfold Pos.le in HH. unfold Plt in H.
-         apply HH. eapply Pos.compare_gt_iff.
-         auto. }
-       assert (H2 :( b > (TreeMaxIndex (snd mem_access)))%positive ).
-       { assert (HH:= Pos.le_max_l (TreeMaxIndex (snd mem_access) + 1) nextblock).
-         apply Pos.lt_gt. eapply Pos.lt_le_trans; eauto.
-         xomega. }
-       specialize (nextblock_noaccess b loc k H1).
-       apply max_works in H2. rewrite H2 in nextblock_noaccess.
-       assumption.
+  apply (memsem_preserves (CLC_memsem ge) _ preserve_bnd _ _ _ _ H H0).
 Qed.
 
 Lemma mem_bound_init_mem_bound:
@@ -236,7 +215,7 @@ Proof.
 Qed.
 
 Lemma CLight_step_mem_bound ge c m c' m':
-  veric.Clight_new.cl_step ge c m c' m' ->
+  cl_step ge c m c' m' ->
   bounded_maps.bounded_map (snd (getMaxPerm m)) ->
   bounded_maps.bounded_map (snd (getMaxPerm m')).
 Proof.
@@ -344,7 +323,7 @@ Proof.
     rewrite AA in H0; inversion H0; subst; auto.
   - assert (exists n, Z.of_nat n = a).
     { exists (Z.to_nat a).
-      apply Z2Nat.id. omega. }
+      apply Z2Nat.id. lia. }
     destruct H1 as [n H1].
     subst a.
     clear g AA.
@@ -353,7 +332,7 @@ Proof.
     + intros.
       rewrite Globalenvs.store_zeros_equation in H0.
       rewrite Nat2Z.inj_0 in H0.
-      destruct (zle 0 0); try omega.
+      destruct (zle 0 0); try lia.
       inversion H0; subst; assumption.
     + intros.
       rewrite Globalenvs.store_zeros_equation in H0.
@@ -361,11 +340,11 @@ Proof.
       { rewrite Nat2Z.inj_succ in l.
         assert (HH:=coqlib4.Z_of_nat_ge_O n).
         clear - l HH.
-        xomega.
+        lia.
       }
       destruct ( Mem.store AST.Mint8unsigned m b ofs Values.Vzero) eqn:STORE';
         try solve[inversion H0].
-      replace (Z.of_nat n.+1 - 1) with (Z.of_nat n) in H0 by xomega.
+      replace (Z.of_nat n.+1 - 1) with (Z.of_nat n) in H0 by lia.
       eapply IHn; try eapply H0.
       eapply store_bounded; eauto.
 Qed.

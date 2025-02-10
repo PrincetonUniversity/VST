@@ -1,6 +1,5 @@
 Require Import VST.floyd.proofauto.
 Import ListNotations.
-Local Open Scope logic.
 
 Require Import sha.spec_sha.
 Require Import hmacdrbg.entropy.
@@ -20,13 +19,12 @@ Proof.
   destruct ctx; try contradiction.
   - (*ctx==null*)
     simpl in PNctx; subst i. rewrite da_emp_null; trivial.
-    forward_if (liftx FF).
-    + forward. apply tt.
+    forward_if.
+    + forward.
     + contradiction H; reflexivity.
-    + apply semax_ff.
   - (*isptr ctx*)
     rewrite if_false; try discriminate.
-    rewrite da_emp_ptr.  Intros. 
+    rewrite da_emp_ptr.  Intros.
     assert_PROP (field_compatible t_struct_hmac256drbg_context_st
                    [StructField _md_ctx] (Vptr b i)) as FC_mdctx.
         entailer!.
@@ -38,7 +36,6 @@ Proof.
       assert_PROP (field_compatible t_struct_hmac256drbg_context_st [] (Vptr b i)) as FC by entailer!.
       unfold_data_at 1%nat.
       freeze [1;2;3;4;5] FR. unfold hmac256drbg_relate. destruct ABS. normalize.
-      2: apply tt.
       destruct C1 as [? [? ?]]. rewrite field_at_data_at.
       unfold field_address. rewrite if_true by trivial. 
       simpl offset_val. rewrite Ptrofs.add_zero.
@@ -67,7 +64,7 @@ Proof.
                   destruct (Ptrofs.unsigned_range i). lia. }
               thaw FR.
                destruct (Ptrofs.unsigned_range i).  eapply derives_trans.
-               rewrite ?sepcon_assoc.
+               rewrite <- ?sepcon_assoc.
                eapply sepcon_derives. apply field_at_field_at_.
                eapply sepcon_derives. apply field_at_field_at_.
                eapply sepcon_derives. apply field_at_field_at_.
@@ -93,7 +90,7 @@ Proof.
             }
       clear FR1. clear FR.
       forward_call (sizeof (Tstruct _mbedtls_hmac_drbg_context noattr), Vptr b i, shc).
-      simpl Z.to_nat. entailer!.
+      simpl Z.to_nat. Exists tt. entailer!.
 Qed.
 
 Lemma body_hmac_drbg_random: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
@@ -107,7 +104,6 @@ Proof.
   forward_call (@nil byte, nullval, Tsh, Z0, output, sho, out_len, ctx, shc, initial_state,
                I, info_contents, s, gv).
   { rewrite da_emp_null; trivial. cancel. }
-  { lia. }
   Intros v. forward. simpl. Exists (Vint v). entailer!.
 Qed.
 
@@ -172,7 +168,6 @@ Proof.
   forward_call (@nil byte, nullval, Tsh, Z0, output, Ews, n, ctx, Ews, i,
                 I, info, s, gv).
   { rewrite da_emp_null; trivial. cancel. }
-  { rep_lia. }
   Intros v. forward. unfold hmac256drbgabs_common_mpreds.
   unfold generatePOST, contents_with_add; simpl. 
   apply Zgt_is_gt_bool_f in ASS7. rewrite ASS7 in *.
@@ -468,4 +463,3 @@ Proof.
   unfold_data_at 1%nat. forward. entailer!. simpl; entailer!.
   unfold_data_at 1%nat. cancel.
 Qed.
-

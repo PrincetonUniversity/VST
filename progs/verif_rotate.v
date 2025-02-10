@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat. Import NoOracle.
 Require Import VST.floyd.library.
 Require Import VST.progs.rotate.
 
@@ -95,7 +96,7 @@ Proof.
       data_at sh (tarray tint n) (map Vint (map Int.repr (sublist 0 i (sublist k n s ++ sublist 0 k s) ++ sublist i n s))) a
     )
   ).
-  { entailer!!. apply sepcon_derives; list_solve. }
+  { entailer!!. apply bi.sep_mono; list_solve. }
   { forward.
     forward.
     entailer!!.

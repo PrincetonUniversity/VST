@@ -1,6 +1,5 @@
 Require Import VST.floyd.proofauto.
 Import ListNotations.
-Local Open Scope logic.
 Require Import VST.zlist.sublist.
 
 Require Import hmacdrbg.hmac_drbg.
@@ -45,7 +44,7 @@ Proof.
   unfold data_block. simpl. cancel.
 Qed.
 
-#[export] Hint Extern 2 (@data_at ?cs1 ?sh _ _ ?p |-- @data_at ?cs2 ?sh _ _ ?p) =>
+#[export] Hint Extern 2 (data_at(cs := ?cs1) ?sh _ _ ?p |-- data_at(cs := ?cs2) ?sh _ _ ?p) =>
     (tryif constr_eq cs1 cs2 then fail
      else simple apply change_compspecs_data_at_cancel; 
        [ reflexivity | reflexivity | apply JMeq_refl]) : cancel.
@@ -71,7 +70,6 @@ Proof.
   assert_PROP (isptr d) by entailer!.
   (* HMAC_Update(hmac_ctx, input, ilen); *)
   destruct d; try contradiction.
-
   forward_call (key, internal_r, Ews, Vptr b i, sh, data, data1, gv).
   { unfold data_block.
     entailer!.
@@ -141,7 +139,7 @@ Proof.
   Intros vret.
 
   forward_if.
-  { simpl. destruct (EqDec_val vret nullval).
+  { simpl. destruct (eq_dec vret nullval).
     + subst vret; entailer!.
     + entailer!.
   }

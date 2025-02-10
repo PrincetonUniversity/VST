@@ -38,8 +38,8 @@ OFILES = $(patsubst %.c,%.o,$(CFILES))
 VOFILES = $(patsubst %.v,%.vo,$(CVFILES) $(VFILES))
 
 
-VST_DIRS= msl sepcomp veric zlist floyd
-VSTFLAGS= -R $(VST_LOC)/compcert compcert $(foreach d, $(VST_DIRS), -Q $(VST_LOC)/$(d) VST.$(d)) -R . pile
+VST_DIRS= msl shared sepcomp veric zlist floyd
+VSTFLAGS= -R $(VST_LOC)/compcert compcert -Q $(VST_LOC)/ora/theories iris_ora $(foreach d, $(VST_DIRS), -Q $(VST_LOC)/$(d) VST.$(d)) -R . pile
 
 
 target: _CoqProject verif_main.vo simple_verif_main.vo fast/verif_fastmain.vo

@@ -1,5 +1,6 @@
 Require Import VST.floyd.proofauto.
-Require Import VSTlibtest.testmath.
+Require Import VST.floyd.compat.
+Require Import VSTlibtest.testmath. Import NoOracle.
 Require Import VSTlib.spec_math.
 Require Import vcfloat.FPCompCert.
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
@@ -15,7 +16,7 @@ Definition f_model (t: ftype Tdouble) : ftype Tdouble :=
   let y := sin t in
   (x*x+y*y)%F64.
 
-Definition f_spec :=
+Definition f_spec : ident * funspec :=
  DECLARE _f
   WITH t: float
   PRE [ tdouble ]
@@ -163,8 +164,8 @@ Lemma f_model_accurate': forall t,
 Proof.
 intros.
 rename t into x.
-pose_valmap_of_list vmap [(_x, existT ftype Tdouble (ftype_of_float x))].
-pose proof prove_roundoff_bound_x vmap.
+pose_valmap_of_list vmap1 [(_x, existT Tdouble (ftype_of_float x))].
+pose proof prove_roundoff_bound_x vmap1.
 red in H0.
 spec H0. {
   apply boundsmap_denote_i; simpl; auto.
@@ -175,10 +176,10 @@ red in H0.
 destruct H0.
 split; auto.
 unfold f_model.
-change (FT2R _) with (FT2R (fval (env_ vmap) F')).
-forget (FT2R (fval (env_ vmap) F')) as g.
+change (FT2R _) with (FT2R (fval (env_ vmap1) F')).
+forget (FT2R (fval (env_ vmap1) F')) as g.
 simpl in H1.
-change (env_ vmap Tdouble _ _x) with x in H1.
+change (env_ vmap1 Tdouble _ _x) with x in H1.
 clear - H1.
 rewrite  Rplus_comm in H1.
 change (sin ?t * sin ?t + cos ?t * cos ?t) with ((sin t)² + (cos t)²) in H1.

@@ -1,0 +1,11 @@
+# Custom RefinedC project file for the examples in the repository.
+
+coq_root = "refinedc"
+no_build = true
+
+[cpp]
+include = [ "include", "examples/include"]
+use_rc_include = false
+
+[coq]
+extra_theories = []

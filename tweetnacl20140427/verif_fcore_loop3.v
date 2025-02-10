@@ -1,8 +1,6 @@
 Require Import VST.floyd.proofauto.
-Local Open Scope logic.
 Require Import List. Import ListNotations.
 Require Import ZArith.
-Local Open Scope Z.
 Require Import tweetnacl20140427.tweetNaclBase.
 Require Import tweetnacl20140427.Salsa20.
 Require Import tweetnacl20140427.verif_salsa_base.
@@ -126,7 +124,7 @@ Lemma array_copy3 Espec:
 forall FR c k h nonce out
        i w x y t (xlist wlist:list val)
        (WZ: forall m, 0<=m<16 -> exists mval, Znth m wlist =Vint mval),
-@semax CompSpecs Espec
+semax(C := CompSpecs)(OK_spec := Espec) ⊤
   (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil)
   (PROP  ()
    LOCAL  (temp _j (Vint (Int.repr 4)); temp _i (Vint (Int.repr i)); lvar _t (tarray tuint 4) t;
@@ -178,9 +176,9 @@ Time forward_for_simple_bound 16 (EX m:Z,
 { Time entailer!. (*1.8 versus 4.3*)
   Intros mlist.
   assert_PROP (Zlength mlist = 16) as ML by entailer.
-  apply derives_refl'. f_equal.
-  eapply Znth_extensional. lia.
-  intros kk K. apply H2. lia. }
+  f_equiv.
+  eapply Znth_extensional. simpl in *; lia.
+  intros kk K. apply H2. simpl in *; lia. }
 Time Qed. (*June 4th, 2017 (laptop): 1s*)
 
 Definition f_core_loop3_statement :=
@@ -403,9 +401,9 @@ Sfor (Sset _i (Econst_int (Int.repr 0) tint))
      (Sset _i
         (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint) tint)).
 
-Lemma f_core_loop3: forall (Espec : OracleKind) FR
+Lemma f_core_loop3: forall Espec FR
 c k h nonce out w x y t (xI:list int),
-@semax CompSpecs Espec
+semax(C := CompSpecs)(OK_spec := Espec) ⊤
   (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil)
   (PROP  ()
    LOCAL  (temp _i (Vint (Int.repr 16)); lvar _t (tarray tuint 4) t;

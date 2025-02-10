@@ -1,6 +1,6 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat. Import NoOracle.
 Import ListNotations.
-Local Open Scope logic.
 Require Import VST.zlist.sublist.
 
 Require Import sha.HMAC256_functional_prog.
@@ -24,7 +24,7 @@ Require Import hmacdrbg.verif_hmac_drbg_seed_common.
 Opaque mbedtls_HMAC256_DRBG_reseed_function.
 Opaque initial_key. Opaque initial_value.
 Opaque mbedtls_HMAC256_DRBG_reseed_function.
-Opaque repeat. 
+Opaque repeat.
 
 Lemma body_hmac_drbg_seed_256: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
       f_mbedtls_hmac_drbg_seed hmac_drbg_seed_inst256_spec.
@@ -126,12 +126,11 @@ Proof.
          data_at shc t_struct_hmac256drbg_context_st ST (Vptr b i) *
          hmac256drbg_relate myABS ST).
   { simpl liftx. entailer!. thaw INI. clear - FC_V. (*KVStreamInfoDataFreeBlk.*) thaw FR_CTX.
-    apply andp_right. apply prop_right. repeat split; trivial.
-    unfold_data_at 2%nat. 
-    cancel. unfold md_full; simpl.
+    unfold_data_at 2%nat.
+    cancel. simpl. unfold md_full; simpl.
     rewrite field_at_data_at; simpl.
     unfold field_address. rewrite if_true; simpl; trivial.
-    cancel.
+    entailer!.
     apply UNDER_SPEC.REP_FULL.
   }
 
@@ -142,7 +141,7 @@ Proof.
     subst ST; simpl. cancel.
   }
   { split; auto. compute; congruence. subst myABS; simpl. rewrite <- initialize.max_unsigned_modulus in *; rewrite hmac_pure_lemmas.ptrofs_max_unsigned_eq.
-    split. lia. 
+    split. lia.
        unfold contents_with_add. simple_if_tac. lia. rewrite Zlength_nil; lia.
   }
 
@@ -178,11 +177,11 @@ Proof.
         subst myABS. rewrite <- instantiate256_reseed in HeqMRS; trivial.
         rewrite RES in HeqMRS. inv HeqMRS. 
   }
-  { rename H into Hv. forward. entailer!. 
+  { rename H into Hv. forward. entailer!.
     apply negb_false_iff in Hv.
     symmetry in Hv; apply binop_lemmas2.int_eq_true in Hv; subst v. trivial.
   }
-  deadvars!. Intros. subst v. unfold reseedPOST. 
+  deadvars!. Intros. subst v. unfold reseedPOST.
 
   remember ((zlt 256 (Zlength Data)
           || zlt 384 (hmac256drbgabs_entropy_len myABS + Zlength Data))%bool) as d.
@@ -196,13 +195,13 @@ Proof.
   destruct handle as [[[[newV newK] newRC] dd] newPR].
   unfold hmac256drbgabs_common_mpreds.
   simpl. subst ST. unfold hmac256drbgstate_md_info_pointer. simpl.
-  unfold_data_at 1%nat. 
+  unfold_data_at 1%nat.
   freeze [0;1;2;4;5;6;7;8;9;10;11;12] ALLSEP.
   forward. forward.
  
   Exists Int.zero. simpl.
-  apply andp_right. apply prop_right; split; trivial. 
-  Exists p. 
+  apply andp_right. apply prop_right; split; trivial.
+  Exists p.
   thaw ALLSEP. thaw OLD_MD. rewrite <- instantiate256_reseed, RES; trivial. simpl. 
   cancel; entailer!.
   unfold_data_at 1%nat. cancel.
