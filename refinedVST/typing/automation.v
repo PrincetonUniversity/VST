@@ -453,12 +453,13 @@ Definition simple_subsume_val_to_subsume_embed_inst `{!typeG OK_ty Σ} `{compspe
 Global Existing Instance simple_subsume_val_to_subsume_embed_inst.
 
   Module f_test1.
+  Section f_test1.
     Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
     Definition spec_f_ret_expr :=
       fn(∀ () : (); emp) → ∃ z : Z, (z @ ( int tint )); ⌜z = 3⌝.
-    Instance CompSpecs : compspecs. make_compspecs prog. Defined.
-    Definition Vprog : varspecs. mk_varspecs prog. Defined.
+    Local Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+    Local Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
     Goal forall Espec ge, ⊢ typed_function(A := ConstType _) Espec ge f_f_ret_expr spec_f_ret_expr.
     Proof.
@@ -466,8 +467,10 @@ Global Existing Instance simple_subsume_val_to_subsume_embed_inst.
       repeat liRStep.
     Qed.
   End f_test1.
+  End f_test1.
 
   Module f_test2.
+  Section f_test2.
     Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
     Definition spec_f_temps :=
@@ -482,4 +485,5 @@ Global Existing Instance simple_subsume_val_to_subsume_embed_inst.
       repeat liRStep.
   Qed.
 
-End f_test2.
+  End f_test2.
+  End f_test2.
