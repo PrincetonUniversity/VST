@@ -1,10 +1,10 @@
 # RefinedVST
-The refinedVST project is adapted from [RefinedC](https://gitlab.mpi-sws.org/iris/refinedc/-/commits/ea6be6de7f27855a79c9ca18e6a54ba3bd5ed883).
+The refinedVST project is adapted from [RefinedC](https://gitlab.mpi-sws.org/iris/refinedc).
 
 This is still work in progress.
 
 ## Build Instruction
-We will need VST, RefinedC (and for now, compcert (3.13 or 3.14) to generate the frontend). We assume the dependency of VST is installed and an opam switch is set up.
+We will need VST, Cerberus, and CompCert 3.15 to generate the frontend. We assume the dependency of VST is installed and an opam switch is set up.
 
 TODO fix VST build instruction
 
@@ -14,14 +14,11 @@ The interface of the backend of RefinedVST is refinedVST/typing/typing.v:
 make refinedVST/typing/typing.vo -j <jobs>
 ```
 
-### RefinedC
-RefinedC: VST is pinned to a slightly older version of Iris (dev.2024-03-12.0.c1e15cdc), and consequently a slightly older version of [RefinedC dev.2024-07-23.0.ea6be6de](https://gitlab.mpi-sws.org/iris/refinedc/-/tree/ea6be6de7f27855a79c9ca18e6a54ba3bd5ed883).
-I failed to pin RefinedC's gitlab repository, but installing it from source works:
+### Cerberus
+You can either install Cerberus by installing [RefinedC](https://gitlab.mpi-sws.org/iris/refinedc), or by following the Cerberus-specific lines of RefinedC's installation instructions, namely:
 ```
-git clone https://gitlab.mpi-sws.org/iris/refinedc.git refinedc
-cd refinedc
-git branch pin_refinedc ea6be6de
-opam pin add refinedc . -y
+opam pin add -n -y cerberus-lib "git+https://github.com/rems-project/cerberus.git#57c0e80af140651aad72e3514133229425aeb102"
+opam pin add -n -y cerberus "git+https://github.com/rems-project/cerberus.git#57c0e80af140651aad72e3514133229425aeb102"
 ```
 
 ## Running the frontend
