@@ -427,23 +427,6 @@ intros ? ? ? [? ?]; rewrite andb_true_iff; split;
  apply Z.leb_le; auto.
 Qed.
 
-Lemma sign_ext_range':
-    forall n x, 0 < n < Int.zwordsize ->
-      - two_p (n - 1) <= Int.signed (Int.sign_ext n x) <= two_p (n - 1) -1.
-Proof.
-intros.
-pose proof (Int.sign_ext_range n x H).
-lia.
-Qed.
-
-Lemma zero_ext_range':
-  forall n x, 0 <= n < Int.zwordsize ->
-     0 <= Int.unsigned (Int.zero_ext n x) <= two_p n - 1.
-Proof.
-intros.
- pose proof (Int.zero_ext_range n x H); lia.
-Qed.
-
 Lemma int64_eq_e: forall i, Int64.eq i Int64.zero = true -> i=Int64.zero.
 Proof.
 intros.

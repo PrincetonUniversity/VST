@@ -5,6 +5,7 @@ Require Import VST.veric.res_predicates.
 Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Import VST.veric.mpred.
 Require Import VST.veric.tycontext.
+Require Import VST.veric.valid_pointer.
 Require Import VST.veric.expr2.
 Require Export VST.veric.environ_lemmas.
 Require Import VST.veric.binop_lemmas2.
@@ -140,11 +141,6 @@ Qed.
 Ltac unfold_cop2_sem_cmp :=
 unfold Clight_Cop2.sem_cmp, Clight_Cop2.sem_cmp_pl, Clight_Cop2.sem_cmp_lp, Clight_Cop2.sem_cmp_pp.
 
-Definition env_matches (rho : environ) (ge : genv) (ve : env) (te : temp_env) :=
-  (forall i, Genv.find_symbol ge i = lookup i (ge_of rho)) /\
-  (forall i, ve !! i = lookup i (ve_of rho)) /\
-  (forall i, te !! i = lookup i (te_of rho)).
-
 Lemma eval_binop_relate:
  forall {CS: compspecs} Delta (ge: genv) te ve rho b e1 e2 t m
         (Hcenv: cenv_sub (@cenv_cs CS) (genv_cenv ge)),
@@ -171,16 +167,6 @@ rewrite !typecheck_expr_sound; try assumption.
 iDestruct "H" as "[[H %] %]".
 by iApply (eval_binop_relate' with "[$]").
 Qed.
-
-Lemma valid_pointer_dry0:
-  forall m b ofs, mem_auth m ∗ valid_pointer (Vptr b ofs) ⊢
-           ⌜Mem.valid_pointer m b (Ptrofs.unsigned ofs) = true⌝.
-Proof.
-intros.
-rewrite <- (Z.add_0_r (Ptrofs.unsigned ofs)).
-apply valid_pointer_dry; auto.
-Qed.
-
 
 
 Definition some_pt_type := Tpointer Tvoid noattr.
@@ -308,113 +294,6 @@ unfold classify_cast;
 try rewrite (proj2 (eqb_type_false _ _) H0);
 try rewrite (proj2 (eqb_type_false _ _) H);
 reflexivity.
-Qed.
-
-Definition cast_pointer_to_bool t1 t2 :=
- match t1 with (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _) => 
-           match t2 with Tint IBool _ _ => true | _ => false end
- | _ => false
-end.
-
-Lemma sem_cast_e1:
- forall t t1 v1 v m,
-   sem_cast t t1 v = Some v1 ->
-   cast_pointer_to_bool t t1 = false ->
-   tc_val t v ->
-   Cop.sem_cast v t t1 m = Some v1.
-Proof.
-intros.
-destruct (eqb_type t int_or_ptr_type) eqn:J;
- [apply eqb_type_true in J; subst t
- | apply eqb_type_false in J];
-(destruct (eqb_type t1 int_or_ptr_type) eqn:J0;
- [apply eqb_type_true in J0; subst t1
- | apply eqb_type_false in J0]).
-* unfold sem_cast, sem_cast_pointer in H; simpl in *.
-  rewrite -> N.eqb_refl in *.
-  simpl in H.
-  inv H.
-  destruct v1; auto; inv H1.
-*
-unfold sem_cast, classify_cast in H.
-destruct t1; [auto | | | auto ..].
-+
-destruct i,s; auto; try solve [destruct v; inv H]; try solve [inv H0];
-simpl in H;
-simpl;
-destruct Archi.ptr64; auto;
-destruct v; inv H1; inv H; auto.
-+ rewrite <- H; clear H.
-  unfold tc_val in H1.
-  rewrite eqb_type_refl in H1.
-  simpl in H1.
-  simpl in *.
-  solve [auto | destruct Archi.ptr64 eqn:?Hp; auto; destruct v; inv H1; auto].
-+
-destruct f; inv H.
-+
-clear H0.
-unfold int_or_ptr_type at 1 in H.
-inv H.
-simpl.
-destruct v1; inv H1; auto.
-*
-unfold sem_cast in H.
-destruct t; try solve [inv H].
-{
-  simpl in H.
-  rewrite N.eqb_refl in H.
-  simpl in H1.
-  destruct v; try inv H1.
-  simpl.
-  destruct Archi.ptr64 eqn:Hp; auto; inv Hp.
-}
-{
-unfold classify_cast in H.
-unfold int_or_ptr_type at 1 in H.
-inv H.
-simpl.
-unfold tc_val in H1.
-rewrite <- eqb_type_spec in J.
-destruct (eqb_type (Tpointer t a) int_or_ptr_type); [congruence |].
-hnf in H1.
-destruct v1; tauto.
-}
-{
-unfold classify_cast in H.
-unfold int_or_ptr_type at 1 in H.
-inv H.
-simpl.
-unfold tc_val in H1.
-hnf in H1.
-destruct v1; tauto.
-}
-{
-unfold classify_cast in H.
-unfold int_or_ptr_type at 1 in H.
-inv H.
-simpl.
-unfold tc_val in H1.
-hnf in H1.
-destruct v1; tauto.
-}
-*
-revert H.
-clear - J J0 H0 H1.
-unfold Cop.sem_cast, sem_cast.
-unfold Cop.classify_cast, classify_cast, sem_cast_pointer, 
- sem_cast_l2bool, sem_cast_i2bool.
-rewrite ?(proj2 (eqb_type_false _ _) J);
-rewrite ?(proj2 (eqb_type_false _ _) J0).
-destruct t1   as [ | [ | | | ] [ | ] | | [ | ] | | | | | ]; auto;
-destruct t   as [ | [ | | | ] [ | ] | | [ | ] | | | | | ]; auto; try discriminate H0;
- auto;
- destruct Archi.ptr64 eqn:Hp; auto;
- destruct v; auto; try contradiction;
- try solve [simpl in H1; rewrite Hp in H1; inv H1];
- try solve [simpl in H1; revert H1; simple_if_tac; intros []].
- 
- simpl in H1; revert H1; simple_if_tac; simpl; rewrite Hp; intros [].
 Qed.
 
 Lemma cop2_sem_cast' :

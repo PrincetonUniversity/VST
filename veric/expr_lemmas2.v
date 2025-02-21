@@ -144,6 +144,7 @@ destruct IHe as [IHe IHl].
 rewrite denote_tc_assert_andp.
 unfold typecheck_environ in H.
 destruct H as [_ [Hve Hge]].
+unfold_lift.
 iDestruct (eval_lvalue_ptr with "[H]") as %PTR; [try done..|].
 { by rewrite bi.and_elim_l. }
 rewrite (IHl t).
@@ -293,15 +294,14 @@ intros.
 unfold typecheck_expr; fold typecheck_expr.
 rewrite denote_tc_assert_andp /=.
 destruct IHe as [IHe _].
-rewrite IHe. iIntros "[H %H2]".
-unfold_lift.
+unfold_lift; rewrite IHe. iIntros "[H %H2]".
 clear IHe.
 unfold eval_unop, sem_unary_operation, force_val1.
 Local Opaque eqb_type.
 destruct u; unfold tc_val in H2; simpl;
 unfold sem_notbool, sem_notint, sem_neg, sem_absfloat, bool_val;
 destruct (typeof e) as [ | [ | | | ] [ | ] | | [ | ] | | | | | ];
- try done; rewrite ?denote_tc_assert_andp /= ?tc_bool_e; unfold_lift;
+ try done; rewrite ?denote_tc_assert_andp /= ?tc_bool_e;
 (iDestruct "H" as "%" || (rewrite ?assoc; iDestruct "H" as "[% _]")); iPureIntro;
     repeat match goal with
     | H: _ /\ _ |- _ => destruct H
