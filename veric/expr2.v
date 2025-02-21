@@ -6,6 +6,8 @@ Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key"
 Require Import VST.veric.Clight_lemmas.
 Require Export VST.veric.expr.
 Require Import VST.veric.mpred.
+Require Export VST.veric.env.
+Require Export VST.veric.lifting_expr.
 Import LiftNotation.
 
 Transparent intsize_eq.
@@ -146,9 +148,7 @@ Qed.
 
 Section mpred.
 
-Context `{!heapGS Σ}.
-
-Open Scope bi_scope.
+Context `{!heapGS Σ} `{!envGS Σ}.
 
 (** Denotation functions for each of the assertions that can be produced by the typechecker **)
 
@@ -257,9 +257,8 @@ Definition denote_tc_nosignedover (op: Z->Z->Z) (s: signedness) v1 v2 : mpred :=
  | _, _ => False
  end.
 
-Definition denote_tc_initialized id ty rho : mpred :=
-    ⌜exists v, lookup id (te_of rho) = Some v
-               /\ tc_val ty v⌝.
+Definition denote_tc_initialized id ty : assert :=
+  ∃ v, temp id v ∧ ⌜tc_val ty v⌝.
 
 Definition denote_tc_isptr v : mpred :=
   ⌜isptr v⌝.
@@ -310,32 +309,34 @@ Definition denote_tc_test_order v1 v2 : mpred :=
 
 Definition typecheck_error (e: tc_error) : Prop := False.
 
-(* The only place we use the environ here is in tc_initialized. *)
-Fixpoint denote_tc_assert {CS: compspecs}(a: tc_assert) : environ -> mpred :=
+(* The only place we use the environ here is in tc_initialized.
+   Not quite true: a bunch of them use eval_expr, which needs the environment.
+   Should we switch them to wps? *)
+Fixpoint denote_tc_assert {CS: compspecs} f (a: tc_assert) : assert :=
   match a with
-  | tc_FF msg => `(⌜typecheck_error msg⌝)
-  | tc_TT => `True
-  | tc_andp' b c => `bi_and (denote_tc_assert b) (denote_tc_assert c)
-  | tc_orp' b c => `bi_or (denote_tc_assert b) (denote_tc_assert c)
-  | tc_nonzero' e => `denote_tc_nonzero (eval_expr e)
-  | tc_isptr e => `denote_tc_isptr (eval_expr e)
-  | tc_isint e => `denote_tc_isint (eval_expr e)
-  | tc_islong e => `denote_tc_islong (eval_expr e)
-  | tc_test_eq' e1 e2 => `denote_tc_test_eq (eval_expr e1) (eval_expr e2)
-  | tc_test_order' e1 e2 => `denote_tc_test_order (eval_expr e1) (eval_expr e2)
-  | tc_ilt' e i => `(denote_tc_igt i) (eval_expr e)
-  | tc_llt' e l => `(denote_tc_lgt l) (eval_expr e)
-  | tc_Zle e z => `(denote_tc_Zge z) (eval_expr e)
-  | tc_Zge e z => `(denote_tc_Zle z) (eval_expr e)
-  | tc_samebase e1 e2 => `denote_tc_samebase (eval_expr e1) (eval_expr e2)
-  | tc_nodivover' v1 v2 => `denote_tc_nodivover (eval_expr v1) (eval_expr v2)
+  | tc_FF msg => ⌜typecheck_error msg⌝
+  | tc_TT => True
+  | tc_andp' b c => bi_and (denote_tc_assert f b) (denote_tc_assert f c)
+  | tc_orp' b c => bi_or (denote_tc_assert f b) (denote_tc_assert f c)
+  | tc_nonzero' e => wp_expr cenv_cs ∅ f e (λ v, ⎡denote_tc_nonzero v⎤)
+  | tc_isptr e => wp_expr cenv_cs ∅ f e (λ v, ⎡denote_tc_isptr v⎤)
+  | tc_isint e => wp_expr cenv_cs ∅ f e (λ v, ⎡denote_tc_isint v⎤)
+  | tc_islong e => wp_expr cenv_cs ∅ f e (λ v, ⎡denote_tc_islong v⎤)
+  | tc_test_eq' e1 e2 => wp_expr cenv_cs ∅ f e1 (λ v1, wp_expr cenv_cs ∅ f e2 (λ v2, ⎡denote_tc_test_eq v1 v2⎤))
+  | tc_test_order' e1 e2 => wp_expr cenv_cs ∅ f e1 (λ v1, wp_expr cenv_cs ∅ f e2 (λ v2, ⎡denote_tc_test_order v1 v2⎤))
+  | tc_ilt' e i => wp_expr cenv_cs ∅ f e (λ v, ⎡denote_tc_igt i v⎤)
+  | tc_llt' e l => wp_expr cenv_cs ∅ f e (λ v, ⎡denote_tc_lgt l v⎤)
+  | tc_Zle e z => wp_expr cenv_cs ∅ f e (λ v, ⎡denote_tc_Zge z v⎤)
+  | tc_Zge e z => wp_expr cenv_cs ∅ f e (λ v, ⎡denote_tc_Zle z v⎤)
+  | tc_samebase e1 e2 => wp_expr cenv_cs ∅ f e1 (λ v1, wp_expr cenv_cs ∅ f e2 (λ v2, ⎡denote_tc_samebase v1 v2⎤))
+  | tc_nodivover' e1 e2 => wp_expr cenv_cs ∅ f e1 (λ v1, wp_expr cenv_cs ∅ f e2 (λ v2, ⎡denote_tc_nodivover v1 v2⎤))
   | tc_initialized id ty => denote_tc_initialized id ty
-  | tc_iszero' e => `denote_tc_iszero (eval_expr e)
+  | tc_iszero' e => wp_expr cenv_cs ∅ f e (λ v, ⎡denote_tc_iszero v⎤)
   | tc_nosignedover op e1 e2 => 
      match typeof e1, typeof e2 with
-     | Tlong _ _, Tint _ Unsigned _ => `(denote_tc_nosignedover op Unsigned) (eval_expr e1) (eval_expr e2)
-     | Tint _ Unsigned _, Tlong _ _ => `(denote_tc_nosignedover op Unsigned) (eval_expr e1) (eval_expr e2)
-     | _, _ =>  `(denote_tc_nosignedover op Signed) (eval_expr e1) (eval_expr e2)
+     | Tlong _ _, Tint _ Unsigned _ => wp_expr cenv_cs ∅ f e1 (λ v1, wp_expr cenv_cs ∅ f e2 (λ v2, ⎡denote_tc_nosignedover op Unsigned v1 v2⎤))
+     | Tint _ Unsigned _, Tlong _ _ => wp_expr cenv_cs ∅ f e1 (λ v1, wp_expr cenv_cs ∅ f e2 (λ v2, ⎡denote_tc_nosignedover op Unsigned v1 v2⎤))
+     | _, _ =>  wp_expr cenv_cs ∅ f e1 (λ v1, wp_expr cenv_cs ∅ f e2 (λ v2, ⎡denote_tc_nosignedover op Signed v1 v2⎤))
      end
  end.
 
@@ -359,9 +360,9 @@ Proof.
 intros; apply Axioms.prop_ext; intuition.
 Qed.
 
-Lemma tc_andp_sound : forall {CS: compspecs} a1 a2 rho,
-    denote_tc_assert  (tc_andp a1 a2) rho ⊣⊢
-    denote_tc_assert  (tc_andp' a1 a2) rho.
+Lemma tc_andp_sound : forall {CS: compspecs} f a1 a2,
+    denote_tc_assert f (tc_andp a1 a2) ⊣⊢
+    denote_tc_assert f (tc_andp' a1 a2).
 Proof.
 intros.
  unfold tc_andp.
@@ -376,14 +377,14 @@ intros.
 Qed.
 
 Lemma denote_tc_assert_andp:
-  forall {CS: compspecs} a b rho, denote_tc_assert (tc_andp a b) rho ⊣⊢
-             bi_and (denote_tc_assert a rho) (denote_tc_assert b rho).
+  forall {CS: compspecs} f a b, denote_tc_assert f (tc_andp a b) ⊣⊢
+             bi_and (denote_tc_assert f a) (denote_tc_assert f b).
 Proof. intros; apply tc_andp_sound. Qed.
 
 Lemma neutral_isCastResultType:
-  forall {CS: compspecs} P t t' v rho,
+  forall {CS: compspecs} f P t t' v,
    is_neutral_cast t' t = true ->
-   P ⊢ denote_tc_assert (isCastResultType t' t v) rho.
+   P ⊢ denote_tc_assert f (isCastResultType t' t v).
 Proof.
 intros.
   unfold isCastResultType.
@@ -417,8 +418,8 @@ Lemma is_true_e: forall b, is_true b -> b=true.
 Proof. intros. destruct b; try contradiction; auto.
 Qed.
 
-Lemma tc_bool_e: forall {CS: compspecs} b a rho,
-  denote_tc_assert (tc_bool b a) rho ⊢
+Lemma tc_bool_e: forall {CS: compspecs} f b a,
+  denote_tc_assert f (tc_bool b a) ⊢
   ⌜b = true⌝.
 Proof.
 intros.

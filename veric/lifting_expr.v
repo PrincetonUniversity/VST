@@ -4,18 +4,16 @@ Require Import VST.veric.juicy_mem.
 Require Import VST.veric.juicy_mem_lemmas.
 Require Import VST.veric.Clight_base.
 Require Import VST.veric.Cop2.
-Require Import VST.veric.Clight_seplog.
+Require Import VST.veric.mapsto_memory_block.
+Require Import VST.veric.seplog.
 Require Import VST.veric.tycontext.
-Require Import VST.veric.expr.
-Require Import VST.veric.binop_lemmas4.
-Require Import VST.veric.expr_lemmas4.
 Require Import VST.veric.valid_pointer.
+Require Import VST.veric.expr.
 Require Import VST.veric.env.
-Import LiftNotation.
 
 Section mpred.
 
-Context `{!heapGS Σ} `{!envGS Σ} (ge : genv).
+Context `{!heapGS Σ} `{!envGS Σ} (CE : composite_env).
 
 Lemma make_tycontext_v_lookup : forall tys id t,
   make_tycontext_v tys !! id = Some t -> In (id, t) tys.
@@ -71,6 +69,11 @@ Qed.
 
 Definition stack_level (n : nat) : assert := <affine> monPred_in(I := stack_index) n.
 
+Definition env_matches (rho : environ) (ge : genv) (ve : env) (te : temp_env) :=
+  (forall i, Genv.find_symbol ge i = lookup i (ge_of rho)) /\
+  (forall i, ve !! i = lookup i (ve_of rho)) /\
+  (forall i, te !! i = lookup i (te_of rho)).
+
 Definition env_match rho ge ve te := assert_of (λ n, ⌜env_matches (env_to_environ rho n) ge ve te⌝).
 
 Global Instance env_match_persistent rho ge0 ve te : Persistent (env_match rho ge0 ve te).
@@ -92,20 +95,19 @@ Proof.
 Qed.
 
 (* evaluate locals according to the current stack level *)
-(* It would be neater to turn env_matches into an assert. *)
 (* f is used for only one purpose: to check whether function local variables
    shadow the names of global variables. *)
 Definition wp_expr E f e Φ : assert :=
   |={E}=> ∀ m rho, ⎡mem_auth m⎤ -∗ ⎡env_auth rho⎤ ={E}=∗
-         ∃ v, <affine> (∀ ve te, env_match rho ge ve te -∗
-            ⌜match_venv (make_env ve) (fn_vars f) →
+         ∃ v, <affine> (∀ ge ve te, env_match rho ge ve te -∗
+            ⌜cenv_sub CE (genv_cenv ge) → match_venv (make_env ve) (fn_vars f) →
              Clight.eval_expr ge ve te m e v (*/\ typeof e = t /\ tc_val t v*)⌝) ∗
          ⎡mem_auth m⎤ ∗ ⎡env_auth rho⎤ ∗ Φ v.
 
 Definition wp_lvalue E f e (Φ : address → assert) : assert :=
   |={E}=> ∀ m rho, ⎡mem_auth m⎤ -∗ ⎡env_auth rho⎤ ={E}=∗
-         ∃ b o, <affine> (∀ ve te, env_match rho ge ve te -∗
-            ⌜match_venv (make_env ve) (fn_vars f) →
+         ∃ b o, <affine> (∀ ge ve te, env_match rho ge ve te -∗
+            ⌜cenv_sub CE (genv_cenv ge) → match_venv (make_env ve) (fn_vars f) →
             Clight.eval_lvalue ge ve te m e b o Full (*/\ typeof e = t /\ tc_val t v*)⌝) ∗
          ⎡mem_auth m⎤ ∗ ⎡env_auth rho⎤ ∗ Φ (b, Ptrofs.unsigned o).
 
@@ -206,7 +208,7 @@ Proof.
   rewrite /wp_expr.
   iIntros "? !> %% ?? !>".
   iFrame.
-  iIntros "!>" (??) "?"; iPureIntro; intros; constructor.
+  iIntros "!>" (???) "?"; iPureIntro; intros; constructor.
 Qed.
 
 Lemma wp_const_long E f i t P:
@@ -216,7 +218,7 @@ Proof.
   rewrite /wp_expr.
   iIntros "? !> %% ?? !>".
   iFrame.
-  iIntros "!>" (??) "?"; iPureIntro; intros; constructor.
+  iIntros "!>" (???) "?"; iPureIntro; intros; constructor.
 Qed.
 
 Lemma wp_const_float E f i t P:
@@ -226,7 +228,7 @@ Proof.
   rewrite /wp_expr.
   iIntros "? !> %% ?? !>".
   iFrame.
-  iIntros "!>" (??) "?"; iPureIntro; intros; constructor.
+  iIntros "!>" (???) "?"; iPureIntro; intros; constructor.
 Qed.
 
 Lemma wp_const_single E f i t P:
@@ -236,7 +238,7 @@ Proof.
   rewrite /wp_expr.
   iIntros "? !> %% ?? !>".
   iFrame.
-  iIntros "!>" (??) "?"; iPureIntro; intros; constructor.
+  iIntros "!>" (???) "?"; iPureIntro; intros; constructor.
 Qed.
 
 (* Caesium uses a small-step semantics for exprs, so the wp/typing for an operation can be broken up into
@@ -244,7 +246,7 @@ Qed.
    into expr, so for now, hacking in a different wp judgment for ops. *)
 Definition wp_binop E op t1 v1 t2 v2 Φ : assert :=
   |={E}=> ∀ m, ⎡mem_auth m⎤ ={E}=∗
-         ∃ v, ⌜sem_binary_operation (genv_cenv ge) op v1 t1 v2 t2 m = Some v (*/\ typeof e = t /\ tc_val t v*)⌝ ∧
+         ∃ v, ⌜∀ ce, cenv_sub CE ce → sem_binary_operation ce op v1 t1 v2 t2 m = Some v (*/\ typeof e = t /\ tc_val t v*)⌝ ∧
          ⎡mem_auth m⎤ ∗ Φ v.
 
 Lemma fupd_wp_binop : forall E op t1 v1 t2 v2 P, (|={E}=> wp_binop E op t1 v1 t2 v2 P) ⊢ wp_binop E op t1 v1 t2 v2 P.
@@ -267,7 +269,7 @@ Proof.
   iMod ("H" with "Hm [$]") as "(%v2 & H2 & Hm & ? & >H)".
   iMod ("H" with "Hm") as "(%v & %H & Hm & ?)".
   iIntros "!>"; iExists _; iFrame.
-  iIntros "!>" (??) "#?"; rewrite !bi.affinely_elim.
+  iIntros "!>" (???) "#?"; rewrite !bi.affinely_elim.
   iDestruct ("H1" with "[$]") as %?; iDestruct ("H2" with "[$]") as %?; iPureIntro.
   intros; econstructor; eauto.
 Qed.
@@ -324,7 +326,7 @@ Proof.
   destruct a; inversion 1; eauto.
 Qed.
 
-Lemma wp_pointer_cmp: forall {CS : compspecs} E (cmp : Cop.binary_operation) ty1 ty2 v1 v2 sh1 sh2 P,
+Lemma wp_pointer_cmp: forall {CS: compspecs} E (cmp : Cop.binary_operation) ty1 ty2 v1 v2 sh1 sh2 P,
   expr.is_comparison cmp = true ->
   tc_val ty1 v1 -> tc_val ty2 v2 ->
   eqb_type ty1 int_or_ptr_type = false ->
@@ -356,7 +358,7 @@ Proof.
   assert (classify_cmp ty1 ty2 = cmp_case_pp) as Hcase.
   { subst; destruct ty1; try solve [simpl in *; try destruct f; try tauto; congruence].
     destruct ty2; try solve [simpl in *; try destruct f; try tauto; congruence]. }
-  assert (exists v, sem_binary_operation ge cmp v1 ty1 v2 ty2 m = Some v) as (v & Hv).
+  assert (exists v, forall ce, cenv_sub CE ce -> sem_binary_operation ce cmp v1 ty1 v2 ty2 m = Some v) as (v & Hv).
   { rewrite /sem_binary_operation /Cop.sem_cmp Hcase.
     rewrite /cmp_ptr /Val.cmpu_bool /Val.cmplu_bool Hv1 Hv2 MT_1 MT_2 /=.
     rewrite bool2val_eq.
@@ -367,6 +369,7 @@ Proof.
   iIntros "!>"; iSplit; first done.
   iApply "H"; iPureIntro.
   rewrite /sem_binary_operation /Cop.sem_cmp Hcase /cmp_ptr in Hv; rewrite /sem_cmp_pp -bool2val_eq.
+  specialize (Hv _ cenv_sub_refl).
   destruct cmp; try done; simple_if_tac; apply option_map_Some in Hv as (? & Hv & <-); simpl;
     first [by apply cmplu_bool_true in Hv as -> | by apply cmpu_bool_true in Hv as ->].
 Qed.
@@ -395,19 +398,126 @@ Proof.
   iMod ("H" with "Hm [$]") as "(%v1 & H1 & Hm & ? & >H)".
   iMod ("H" with "Hm") as "(%v & %H & Hm & ?)".
   iIntros "!>"; iExists _; iFrame.
-  iStopProof; do 7 f_equiv.
+  iStopProof; do 9 f_equiv.
   intros ??; econstructor; eauto.
 Qed.
 
-Lemma wp_cast : forall E f e ty P, expr_lemmas4.cast_pointer_to_bool (typeof e) ty = false ->
+Definition cast_pointer_to_bool t1 t2 :=
+ match t1 with (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _) => 
+           match t2 with Tint IBool _ _ => true | _ => false end
+ | _ => false
+end.
+
+Lemma sem_cast_e1:
+ forall t t1 v1 v m,
+   sem_cast t t1 v = Some v1 ->
+   cast_pointer_to_bool t t1 = false ->
+   tc_val t v ->
+   Cop.sem_cast v t t1 m = Some v1.
+Proof.
+intros.
+destruct (eqb_type t int_or_ptr_type) eqn:J;
+ [apply eqb_type_true in J; subst t
+ | apply eqb_type_false in J];
+(destruct (eqb_type t1 int_or_ptr_type) eqn:J0;
+ [apply eqb_type_true in J0; subst t1
+ | apply eqb_type_false in J0]).
+* unfold sem_cast, sem_cast_pointer in H; simpl in *.
+  rewrite -> N.eqb_refl in *.
+  simpl in H.
+  inv H.
+  destruct v1; auto; inv H1.
+*
+unfold sem_cast, classify_cast in H.
+destruct t1; [auto | | | auto ..].
++
+destruct i,s; auto; try solve [destruct v; inv H]; try solve [inv H0];
+simpl in H;
+simpl;
+destruct Archi.ptr64; auto;
+destruct v; inv H1; inv H; auto.
++ rewrite <- H; clear H.
+  unfold tc_val in H1.
+  rewrite eqb_type_refl in H1.
+  simpl in H1.
+  simpl in *.
+  solve [auto | destruct Archi.ptr64 eqn:?Hp; auto; destruct v; inv H1; auto].
++
+destruct f; inv H.
++
+clear H0.
+unfold int_or_ptr_type at 1 in H.
+inv H.
+simpl.
+destruct v1; inv H1; auto.
+*
+unfold sem_cast in H.
+destruct t; try solve [inv H].
+{
+  simpl in H.
+  rewrite N.eqb_refl in H.
+  simpl in H1.
+  destruct v; try inv H1.
+  simpl.
+  destruct Archi.ptr64 eqn:Hp; auto; inv Hp.
+}
+{
+unfold classify_cast in H.
+unfold int_or_ptr_type at 1 in H.
+inv H.
+simpl.
+unfold tc_val in H1.
+rewrite <- eqb_type_spec in J.
+destruct (eqb_type (Tpointer t a) int_or_ptr_type); [congruence |].
+hnf in H1.
+destruct v1; tauto.
+}
+{
+unfold classify_cast in H.
+unfold int_or_ptr_type at 1 in H.
+inv H.
+simpl.
+unfold tc_val in H1.
+hnf in H1.
+destruct v1; tauto.
+}
+{
+unfold classify_cast in H.
+unfold int_or_ptr_type at 1 in H.
+inv H.
+simpl.
+unfold tc_val in H1.
+hnf in H1.
+destruct v1; tauto.
+}
+*
+revert H.
+clear - J J0 H0 H1.
+unfold Cop.sem_cast, sem_cast.
+unfold Cop.classify_cast, classify_cast, sem_cast_pointer, 
+ sem_cast_l2bool, sem_cast_i2bool.
+rewrite ?(proj2 (eqb_type_false _ _) J);
+rewrite ?(proj2 (eqb_type_false _ _) J0).
+destruct t1   as [ | [ | | | ] [ | ] | | [ | ] | | | | | ]; auto;
+destruct t   as [ | [ | | | ] [ | ] | | [ | ] | | | | | ]; auto; try discriminate H0;
+ auto;
+ destruct Archi.ptr64 eqn:Hp; auto;
+ destruct v; auto; try contradiction;
+ try solve [simpl in H1; rewrite Hp in H1; inv H1];
+ try solve [simpl in H1; revert H1; simple_if_tac; intros []].
+ 
+ simpl in H1; revert H1; simple_if_tac; simpl; rewrite Hp; intros [].
+Qed.
+
+Lemma wp_cast : forall E f e ty P, cast_pointer_to_bool (typeof e) ty = false ->
   wp_expr E f e (λ v, ⌜tc_val (typeof e) v⌝ ∧ ∃ v', ⌜sem_cast (typeof e) ty v = Some v'⌝ ∧ P v') ⊢ wp_expr E f (Ecast e ty) P.
 Proof.
   intros; rewrite /wp_expr.
   do 8 f_equiv. iIntros "(% & ? & Hm & ? & % & %v' & %Hcast & P)".
   iExists v'; iFrame.
-  iStopProof; do 7 f_equiv.
+  iStopProof; do 9 f_equiv.
   intros ??; econstructor; eauto.
-  by apply expr_lemmas4.sem_cast_e1.
+  by apply sem_cast_e1.
 Qed.
 
 Lemma wp_tempvar_local : forall E f _x x c_ty P,
@@ -419,7 +529,7 @@ Proof.
   iDestruct (temp_e with "[$H $Hr]") as %H.
   iSpecialize ("HP" with "[%] H"); first done.
   iExists _; iFrame. rewrite monPred_at_affinely; iPureIntro; simpl.
-  intros ??? <- (? & ? & Hte); rewrite -Hte in H.
+  intros ???? <- (? & ? & Hte); rewrite -Hte in H.
   by constructor.
 Qed.
 
@@ -433,7 +543,7 @@ Proof.
   iSpecialize ("HP" with "[%] H"); first done.
   change 0 with (Ptrofs.unsigned Ptrofs.zero).
   iExists _, _; iFrame. rewrite monPred_at_affinely; iPureIntro; simpl.
-  intros ??? <- (? & Hve & ?); rewrite -Hve in H.
+  intros ???? <- (? & Hve & ?); rewrite -Hve in H.
   by constructor.
 Qed.
 
@@ -454,7 +564,7 @@ Proof.
   iSpecialize ("HP" with "[%] H"); first done.
   change 0 with (Ptrofs.unsigned Ptrofs.zero).
   iExists _, _; iFrame. rewrite monPred_at_affinely; iPureIntro; simpl.
-  intros ??? <- (Hge & ? & ?) Hmatch.
+  intros ???? <- (Hge & ? & ?) ? Hmatch.
   rewrite ge_of_env in Hge; rewrite -Hge in Hx.
   apply eval_Evar_global; auto.
   rewrite /match_venv in Hmatch.
@@ -469,7 +579,7 @@ Proof.
   intros; rewrite /wp_lvalue /wp_expr.
   do 8 f_equiv.
   iIntros "(% & ? & ? & ? & %b & %o & % & ?)"; iExists b, o; iFrame.
-  iStopProof; do 7 f_equiv.
+  iStopProof; do 9 f_equiv.
   intros ??; subst; econstructor; eauto.
 Qed.
 
@@ -479,7 +589,7 @@ Proof.
   intros; rewrite /wp_lvalue /wp_expr.
   do 8 f_equiv.
   iIntros "(% & % & ? & $)".
-  iStopProof; do 7 f_equiv.
+  iStopProof; do 9 f_equiv.
   intros ??; econstructor; eauto.
   rewrite Ptrofs.repr_unsigned; constructor; auto.
 Qed.
@@ -502,7 +612,7 @@ Proof.
     rewrite mapsto_core_load //. }
   rewrite bi.and_elim_r.
   iModIntro; iExists v; iFrame.
-  iStopProof; do 7 f_equiv.
+  iStopProof; do 9 f_equiv.
   intros ??; econstructor; eauto.
   econstructor; eauto.
 Qed.

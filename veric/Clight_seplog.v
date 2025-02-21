@@ -12,8 +12,8 @@ Require Export VST.veric.mapsto_memory_block.
 
 Require Import compcert.cfrontend.Clight.
 Require Import VST.veric.tycontext.
+Require Import VST.veric.lifting_expr.
 Require Import VST.veric.expr2.
-Require Import VST.veric.binop_lemmas2.
 Require Export VST.veric.Clight_mapsto_memory_block.
 
 Definition mkEnv g ids vals : environ := 
@@ -39,13 +39,6 @@ Section mpred.
 Context `{!heapGS Σ} `{!envGS Σ}.
 
 Local Notation assert := (@assert Σ).
-
-Definition stack_frag n q0 q ve te := own(inG0 := envGS_inG) env_name (ε, ◯ {[n := (to_agree q0, (q, (excl.Excl <$> ve, excl.Excl <$> te)))]}).
-
-Definition lvar (id : ident) (t : type) (b : block) : assert :=
-  assert_of (λ n, ∃ q, stack_frag n q q {[id := (b, t)]} ∅).
-Definition temp (id : ident) (v : val) :=
-  assert_of (λ n, ∃ q, stack_frag n q q ∅ {[id := v]}).
 
 Definition var_block (sh: Share.t) {cs: compspecs} (idt: ident * type): assert :=
   ⌜sizeof (snd idt) <= Ptrofs.max_unsigned⌝ ∧
@@ -195,19 +188,6 @@ Lemma normal_ret_assert_False:
 Proof.
 intros.
 destruct ek; simpl; auto; by rewrite bi.and_False.
-Qed.
-
-Global Instance ret_assert_equiv : Equiv (ret_assert) := fun a b =>
-  (RA_normal a ⊣⊢ RA_normal b) /\ (RA_break a ⊣⊢ RA_break b) /\
-  (RA_continue a ⊣⊢ RA_continue b) /\ (forall v, RA_return a v ⊣⊢ RA_return b v).
-
-Global Instance ret_assert_equivalence : Equivalence (@base.equiv ret_assert _).
-Proof.
-  split.
-  - intros ?; hnf; auto.
-  - intros ?? (? & ? & ? & ?); split3; last split; intros; auto.
-    rewrite -H2 //.
-  - intros ??? (? & ? & ? & ?) (? & ? & ? & ?); split3; last split; intros; etrans; eauto.
 Qed.
 
 Lemma frame_normal:

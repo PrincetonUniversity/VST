@@ -365,6 +365,19 @@ Record ret_assert : Type := {
  RA_return: option val -> assert
 }.
 
+Global Instance ret_assert_equiv : Equiv (ret_assert) := fun a b =>
+  (RA_normal a ⊣⊢ RA_normal b) /\ (RA_break a ⊣⊢ RA_break b) /\
+  (RA_continue a ⊣⊢ RA_continue b) /\ (forall v, RA_return a v ⊣⊢ RA_return b v).
+
+Global Instance ret_assert_equivalence : Equivalence (@base.equiv ret_assert _).
+Proof.
+  split.
+  - intros ?; hnf; auto.
+  - intros ?? (? & ? & ? & ?); split3; last split; intros; auto.
+    rewrite -H2 //.
+  - intros ??? (? & ? & ? & ?) (? & ? & ? & ?); split3; last split; intros; etrans; eauto.
+Qed.
+
 End mpred.
 
 Lemma modifiedvars_Slabel l c: modifiedvars (Slabel l c) = modifiedvars c.

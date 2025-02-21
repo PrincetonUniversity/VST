@@ -3,7 +3,7 @@ Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-k
 Require Import iris.algebra.excl.
 Require Import VST.veric.mpred.
 Require Import VST.veric.res_predicates.
-Require Import VST.veric.Clight_seplog.
+Require Import VST.veric.seplog.
 
 Definition env_state := (genviron * gmap nat (venviron * tenviron))%type.
 
@@ -32,6 +32,13 @@ Proof.
   destruct y; inv Heq.
   by apply Excl_included in H as ->.
 Qed.
+
+Definition stack_frag n q0 q ve te := own(inG0 := envGS_inG) env_name (ε, ◯ {[n := (to_agree q0, (q, (excl.Excl <$> ve, excl.Excl <$> te)))]}).
+
+Definition lvar (id : ident) (t : type) (b : block) : assert :=
+  assert_of (λ n, ∃ q, stack_frag n q q {[id := (b, t)]} ∅).
+Definition temp (id : ident) (v : val) :=
+  assert_of (λ n, ∃ q, stack_frag n q q ∅ {[id := v]}).
 
 Lemma stack_frag_e : forall ρ n q0 q ve te, env_auth ρ ∗ stack_frag n q0 q ve te ⊢
   ⌜let rho := env_to_environ ρ n in ve ⊆ ve_of rho ∧ te ⊆ te_of rho⌝.

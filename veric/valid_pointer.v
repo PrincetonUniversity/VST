@@ -2,11 +2,10 @@ Require Import VST.veric.base.
 Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.veric.res_predicates.
 Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
-Require Import VST.veric.Clight_seplog. (*need Clight_seplog rather than general seplog to ensure availability of 
-                                          mapsto and memory_block -maybe move the lemmas using them elsewhere?*)
+Require Import VST.veric.juicy_mem.
 Require Import VST.veric.tycontext.
-Require Import VST.veric.expr2.
-Require Import VST.veric.expr_lemmas.
+Require Import VST.veric.expr.
+Require Import VST.veric.mapsto_memory_block.
 
 Definition size_compatible {C: compspecs} t p :=
   match p with
@@ -17,6 +16,54 @@ Definition size_compatible {C: compspecs} t p :=
 Section mpred.
 
 Context `{!heapGS Σ}.
+
+Lemma valid_pointer_dry:
+  forall b ofs d m, mem_auth m ∗ valid_pointer' (Vptr b ofs) d ⊢
+         ⌜Mem.valid_pointer m b (Ptrofs.unsigned ofs + d) = true⌝.
+Proof.
+intros.
+iIntros "[Hm >H]".
+iAssert ⌜∃ dq r, ✓ dq ∧ dq ≠ ε ∧ coherent_loc m (b, Ptrofs.unsigned ofs + d)%Z (dq, r)⌝ with "[-]" as %(dq & r & Hdq & ? & H).
+{ iDestruct "H" as "[(% & % & H) | (% & % & H)]"; [iDestruct (mapsto_lookup with "Hm H") as %(? & ? & ? & ?) |
+    iDestruct (mapsto_no_lookup with "Hm H") as %(? & ? & ?)]; iPureIntro.
+  - eexists _, _; split; first done; split; last done.
+    intros ->; contradiction bot_unreadable.
+  - eexists (DfracOwn (Share sh)), _; split; first done; split; last done.
+    intros [=]; done. }
+iPureIntro.
+rewrite Mem.valid_pointer_nonempty_perm /Mem.perm.
+destruct H as (_ & H).
+rewrite /access_cohere /access_at in H.
+destruct (Maps.PMap.get _ _ _ _); try constructor.
+destruct (perm_of_res_cases dq r) as [(? & -> & Hperm) | (? & Hperm)]; setoid_rewrite Hperm in H; clear Hperm.
+- destruct (perm_of_dfrac dq) eqn: Hp; first done.
+  apply perm_of_dfrac_None in Hp as [-> | ->]; done.
+- rewrite !if_false // in H.
+  intros ->; done.
+Qed.
+
+Lemma valid_pointer_dry0:
+  forall m b ofs, mem_auth m ∗ valid_pointer (Vptr b ofs) ⊢
+           ⌜Mem.valid_pointer m b (Ptrofs.unsigned ofs) = true⌝.
+Proof.
+intros.
+rewrite <- (Z.add_0_r (Ptrofs.unsigned ofs)).
+apply valid_pointer_dry; auto.
+Qed.
+
+Lemma weak_valid_pointer_dry:
+  forall b ofs m, mem_auth m ∗ weak_valid_pointer (Vptr b ofs) ⊢
+           ⌜(Mem.valid_pointer m b (Ptrofs.unsigned ofs)
+            || Mem.valid_pointer m b (Ptrofs.unsigned ofs - 1))%bool = true⌝.
+Proof.
+intros.
+rewrite orb_true_iff /weak_valid_pointer.
+iIntros "[Hm [H | H]]".
+- iLeft; rewrite <- (Z.add_0_r (Ptrofs.unsigned ofs)).
+  iApply valid_pointer_dry; iFrame.
+- iRight; rewrite <- Z.add_opp_r.
+  iApply valid_pointer_dry; iFrame.
+Qed.
 
 Lemma nonlock_permission_bytes_valid_pointer1: forall sh b ofs n i,
   0 <= ofs /\ ofs + i < Ptrofs.modulus ->

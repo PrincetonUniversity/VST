@@ -4,9 +4,6 @@ Require Import VST.veric.res_predicates.
 Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Import VST.veric.Clight_lemmas.
 Require Import VST.veric.tycontext.
-Require Import VST.veric.expr2.
-Require Import VST.veric.expr_lemmas3.
-Require Import VST.veric.binop_lemmas2.
 
 Require Import VST.veric.address_conflict.
 Require Import VST.veric.shares.
@@ -70,19 +67,19 @@ Proof.
   if_tac; auto.
   - apply bi.or_proper; [apply bi.and_proper|].
     + apply bi.pure_proper; destruct sz; try done; rewrite /Cop.cast_int_int; destruct sign1, sign2; try done; split; intros;
-        first [ apply (expr_lemmas3.sign_ext_range' 8 i); compute; split; congruence
-          | apply (expr_lemmas3.sign_ext_range' 16 i); compute; split; congruence
-          | apply (expr_lemmas3.zero_ext_range' 8 i); compute; split; congruence
-          | apply (expr_lemmas3.zero_ext_range' 16 i); compute; split; congruence
+        first [ apply (sign_ext_range' 8 i); compute; split; congruence
+          | apply (sign_ext_range' 16 i); compute; split; congruence
+          | apply (zero_ext_range' 8 i); compute; split; congruence
+          | apply (zero_ext_range' 16 i); compute; split; congruence
           ].
     + apply address_mapsto_unsigned_signed; auto.
     + rewrite -> !(bi.pure_False (Vint _ = Vundef)) by discriminate; by rewrite !bi.False_and.
   - apply bi.and_proper.
     + apply bi.pure_proper; rewrite Halign; destruct sz; try done; rewrite /Cop.cast_int_int; destruct sign1, sign2; try reflexivity; split; intros [TC ?]; (split; [|assumption]); intros _; specialize (TC ltac:(discriminate));
-        first [ apply (expr_lemmas3.sign_ext_range' 8 i); compute; split; congruence
-          | apply (expr_lemmas3.sign_ext_range' 16 i); compute; split; congruence
-          | apply (expr_lemmas3.zero_ext_range' 8 i); compute; split; congruence
-          | apply (expr_lemmas3.zero_ext_range' 16 i); compute; split; congruence
+        first [ apply (sign_ext_range' 8 i); compute; split; congruence
+          | apply (sign_ext_range' 16 i); compute; split; congruence
+          | apply (zero_ext_range' 8 i); compute; split; congruence
+          | apply (zero_ext_range' 16 i); compute; split; congruence
           ].
     + by rewrite !size_chunk_conv Hsize.
 Qed.

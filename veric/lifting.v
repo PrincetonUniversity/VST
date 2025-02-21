@@ -1,6 +1,5 @@
 (* A core wp-based separation logic for Clight, in the Iris style. Maybe VeriC can be built on top of this? *)
 Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
-Require Import VST.veric.expr_lemmas4.
 Require Import VST.veric.juicy_base.
 Require Import VST.veric.juicy_mem.
 Require Import VST.veric.juicy_mem_lemmas.
@@ -12,7 +11,9 @@ Require Import VST.sepcomp.extspec.
 Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.external_state.
 Require Import VST.veric.tycontext.
+Require Import VST.veric.valid_pointer.
 Require Import VST.veric.env.
+Require Import VST.veric.expr.
 Require Import VST.veric.lifting_expr.
 
 Open Scope maps.
@@ -173,7 +174,7 @@ Proof.
   iIntros "(Hconseq & H)".
   repeat iSplit; [by iIntros "Q"; iMod ("Hconseq" with "Q") as "Q"; iApply ("H" with "Q")..|].
   iIntros ([|]) "Q"; simpl.
-  - iPoseProof (monPred_in_entails with "[Hconseq Q]") as "He"; first apply wp_expr_strong_mono.
+  - iPoseProof (monPred_in_entails with "[Hconseq Q]") as "He"; first apply (wp_expr_strong_mono ge).
     { monPred.unseal; iFrame.
       iIntros (? n [=]); subst; iDestruct "Hconseq" as "(_ & _ & _ & H)"; iApply "H". }
     by iApply "H".
@@ -372,12 +373,12 @@ Definition valid_val v :=
   match v with Vptr _ _ => expr.valid_pointer v | _ => True end.
 
 Definition valid_val0 m v : Prop :=
-  match v with Vptr b o => valid_pointer m b (Ptrofs.intval o) = true | _ => True end.
+  match v with Vptr b o => Mem.valid_pointer m b (Ptrofs.intval o) = true | _ => True end.
 
 Lemma valid_val_mem : forall m v, mem_auth m ∗ valid_val v ⊢ ⌜valid_val0 m v⌝.
 Proof.
   iIntros (??) "(Hm & Hv)"; destruct v; try done.
-  iApply expr_lemmas4.valid_pointer_dry0; iFrame.
+  iApply valid_pointer_dry0; iFrame.
 Qed.
 
 Lemma bool_val_valid : forall m v t b, valid_val0 m v -> Cop2.bool_val t v = Some b -> Cop.bool_val v t m = Some b.
@@ -389,15 +390,15 @@ Proof.
   - destruct v; [done..|].
     simpl in *.
     simple_if_tac; try done.
-    rewrite /weak_valid_pointer H //.
+    rewrite /Mem.weak_valid_pointer H //.
   - destruct f; done.
   - simpl; destruct (Cop2.eqb_type _ _); try done.
     rewrite /Cop2.bool_val_p in H0.
     simple_if_tac.
     + destruct v; try done.
-      rewrite /weak_valid_pointer H //.
+      rewrite /Mem.weak_valid_pointer H //.
     + destruct v; try done.
-      rewrite /weak_valid_pointer H //.
+      rewrite /Mem.weak_valid_pointer H //.
 Qed.
 
 Lemma wp_if: forall E f e s1 s2 R,
@@ -417,7 +418,8 @@ Proof.
   rewrite bi.and_elim_r; iDestruct "H" as (b ?) "H".
   rewrite embed_fupd; iIntros "!>"; iExists _, m.
   iPoseProof (env_match_intro with "Hd") as "#?"; first done.
-  iDestruct ("He" with "[$]") as %?.
+  iDestruct ("He" with "[$]") as %He.
+  specialize (He cenv_sub_refl).
   pose proof (typecheck_var_match_venv _ _ Hty).
   iSplit.
   { iPureIntro.
@@ -526,7 +528,8 @@ Proof.
   iIntros "(%Hi & Hk & Ho & % & Hm & Hr & H)"; inv Hi.
   pose proof (typecheck_var_match_venv _ _ Hty).
   iExists _, _; iSplit.
-  { iPureIntro; constructor; eauto. }
+  { pose proof (@cenv_sub_refl ge).
+    iPureIntro; constructor; eauto. }
   iFrame "Hm Ho"; iNext.
   iDestruct "H" as "((% & Ht) & H)".
   iDestruct (temp_e with "[$Hr $Ht]") as %Hi.
@@ -591,8 +594,8 @@ Proof.
         try apply I;
         rewrite /decode_val ?proj_inj_bytes;
         match goal with
-        | |- context [Int.sign_ext ?n] => apply (expr_lemmas3.sign_ext_range' n); compute; split; congruence
-        | |- context [Int.zero_ext ?n] => apply (expr_lemmas3.zero_ext_range' n); compute; split; congruence
+        | |- context [Int.sign_ext ?n] => apply (sign_ext_range' n); compute; split; congruence
+        | |- context [Int.zero_ext ?n] => apply (zero_ext_range' n); compute; split; congruence
         | |- _ => idtac
         end; done.
 Qed.
@@ -631,10 +634,11 @@ Proof.
   iPoseProof (env_match_intro with "Hd") as "#?"; first done.
   iDestruct ("He1" with "[$]") as %He1; iDestruct ("He2" with "[$]") as %He2.
   pose proof (typecheck_var_match_venv _ _ Hty) as Hmatch.
-  specialize (He2 Hmatch); inv He2.
+  specialize (He2 cenv_sub_refl Hmatch); inv He2.
   2: { inv H6. }
   iExists _, _; iSplit.
-  { iPureIntro; econstructor; eauto.
+  { pose proof (@cenv_sub_refl ge).
+    iPureIntro; econstructor; eauto.
     econstructor; eauto. }
   iNext; rewrite bi.and_elim_l; iMod (mapsto_store' _ t2 with "[$]") as "(? & Hp)"; [try done..|].
   { eapply decode_encode_tc; eauto. }
@@ -686,10 +690,11 @@ Proof.
   iPoseProof (env_match_intro with "Hd") as "#?"; first done.
   iDestruct ("He1" with "[$]") as %He1; iDestruct ("He2" with "[$]") as %He2.
   pose proof (typecheck_var_match_venv _ _ Hty) as Hmatch.
-  specialize (He2 Hmatch); inv He2.
+  specialize (He2 cenv_sub_refl Hmatch); inv He2.
   2: { inv H4. }
   iExists _, _; iSplit.
-  { iPureIntro; econstructor; eauto.
+  { pose proof (@cenv_sub_refl ge).
+    iPureIntro; econstructor; eauto.
     econstructor; eauto. }
   iNext; iMod (mapsto_store with "[$]") as "(? & Hp)"; [done..|].
   iMod (fupd_mask_subseteq E) as "Hclose"; first done.
@@ -747,7 +752,8 @@ Proof.
   iDestruct ("He" with "[$]") as %?.
   pose proof (typecheck_var_match_venv _ _ Hty).
   iExists _, _; iSplit.
-  { iPureIntro; econstructor; eauto. }
+  { pose proof (@cenv_sub_refl ge).
+    iPureIntro; econstructor; eauto. }
   iFrame; iNext.
   rewrite embed_fupd; iModIntro.
   iApply ("H" with "[//] [Hd] [Hk] [$]"); try done.
@@ -935,7 +941,7 @@ Proof.
     iDestruct ("H" with "[$] [$]") as ">(% & Hes & $ & $ & $)".
     iIntros "!> !>" (??) "#?".
     iDestruct ("He" with "[$]") as %He; iDestruct ("Hes" with "[$]") as %Hes; iPureIntro.
-    intros Hmatch; specialize (He Hmatch); inv He.
+    intros Hmatch; specialize (He cenv_sub_refl Hmatch); inv He.
     econstructor; eauto.
     { inv H. }
 Qed.
@@ -1048,11 +1054,11 @@ Proof.
 Qed.
 
 Definition var_sizes_ok (cenv: composite_env) (vars: list (ident*type)) :=
-   Forall (fun var : ident * type => @sizeof cenv (snd var) <= Ptrofs.max_unsigned)%Z vars.
+   Forall (fun var : ident * type => @Ctypes.sizeof cenv (snd var) <= Ptrofs.max_unsigned)%Z vars.
 
 Definition var_block' (sh: Share.t) (cenv: composite_env) (idt: ident * type): assert :=
-  ⌜(sizeof (snd idt) <= Ptrofs.max_unsigned)%Z⌝ ∧
-  ∃ b, lvar (fst idt) (snd idt) b ∗ ⎡memory_block sh (sizeof (snd idt)) (Vptr b Ptrofs.zero)⎤.
+  ⌜(Ctypes.sizeof (snd idt) <= Ptrofs.max_unsigned)%Z⌝ ∧
+  ∃ b, lvar (fst idt) (snd idt) b ∗ ⎡memory_block sh (Ctypes.sizeof (snd idt)) (Vptr b Ptrofs.zero)⎤.
 
 Definition stackframe_of' (cenv: composite_env) (f: Clight.function) (args: list val) : assert :=
   ([∗ list] idt ∈ fn_vars f, var_block' Share.top cenv idt) ∗
@@ -1062,7 +1068,7 @@ Definition stackframe_of1 f lb lv : assert := ⌜length lb = length (fn_vars f)�
   let ve := list_to_map (zip (map fst (fn_vars f)) (zip lb (map snd (fn_vars f)))) in
   let te := list_to_map (zip (map fst (fn_params f) ++ map fst (fn_temps f)) (lv ++ repeat Vundef (length (fn_temps f)))) in
   stack_frag n (/ pos_to_Qp (Pos.of_nat (size ve + size te)))%Qp 1%Qp ve te) ∗
-  ([∗ list] idt;b ∈ fn_vars f;lb, ⎡memory_block Share.top (@sizeof (genv_cenv ge) (snd idt)) (Vptr b Ptrofs.zero)⎤).
+  ([∗ list] idt;b ∈ fn_vars f;lb, ⎡memory_block Share.top (@Ctypes.sizeof (genv_cenv ge) (snd idt)) (Vptr b Ptrofs.zero)⎤).
 
 Lemma monPred_at_big_sepL2 : forall {I : biIndex} {PROP : bi} {A B} (Φ : A → B → monPred I PROP) (l1 : list A) (l2 : list B) n,
   (([∗ list] a1;a2 ∈ l1;l2, Φ a1 a2) n) ⊣⊢ ([∗ list] a1;a2 ∈ l1;l2, Φ a1 a2 n).
@@ -1080,7 +1086,7 @@ Lemma stackframe_of_eq1 : forall f lb lv,
   stackframe_of1 f lb lv ⊢
   ([∗ list] '(i,t);b ∈ fn_vars f;lb, lvar i t b) ∗
   ([∗ list] idt;v ∈ (fn_params f ++ fn_temps f);(lv ++ repeat Vundef (length (fn_temps f))), temp (fst idt) v) ∗
-  ([∗ list] idt;b ∈ fn_vars f;lb, ⎡memory_block Share.top (@sizeof (genv_cenv ge) (snd idt)) (Vptr b Ptrofs.zero)⎤).
+  ([∗ list] idt;b ∈ fn_vars f;lb, ⎡memory_block Share.top (@Ctypes.sizeof (genv_cenv ge) (snd idt)) (Vptr b Ptrofs.zero)⎤).
 Proof.
   intros.
   iIntros "(% & ? & $)".
@@ -1216,7 +1222,7 @@ Proof.
     eapply alloc_vars_typecheck_environ; eauto. }
   cut (mem_auth m ⊢ |==> ∃ (m' : Memory.mem) ve (lb : list Values.block),
     ⌜length (fn_vars f) = length lb ∧ make_env ve = list_to_map (zip (map fst (fn_vars f)) (zip lb (map snd (fn_vars f)))) ∪ make_env empty_env ∧ (∀i, sub_option (empty_env !! i)%maps (ve !! i)%maps) ∧ alloc_variables ge empty_env m (fn_vars f) ve m'⌝
-    ∧ mem_auth m' ∗ [∗ list] idt;b∈fn_vars f;lb, memory_block Share.top (@sizeof (genv_cenv ge) (snd idt)) (Vptr b Ptrofs.zero)).
+    ∧ mem_auth m' ∗ [∗ list] idt;b∈fn_vars f;lb, memory_block Share.top (@Ctypes.sizeof (genv_cenv ge) (snd idt)) (Vptr b Ptrofs.zero)).
   { intros ->; iIntros "(>(% & % & % & (%Hlen & %Hve & % & %) & ? & Hblocks) & Hr)".
     rewrite right_id in Hve.
     iExists m', ve, lb; iFrame.
@@ -1237,7 +1243,7 @@ Proof.
     + intros; apply sub_option_refl.
     + constructor.
   - destruct a as (id, ty).
-    destruct (Mem.alloc m 0 (@sizeof (genv_cenv ge) ty)) as (m', b) eqn: Halloc.
+    destruct (Mem.alloc m 0 (@Ctypes.sizeof (genv_cenv ge) ty)) as (m', b) eqn: Halloc.
     inv COMPLETE; inv Hsize; inv H.
     iMod (alloc_block with "Hm") as "(Hm & block)"; first done.
     { pose proof @sizeof_pos (genv_cenv ge) ty; unfold sizeof, Ptrofs.max_unsigned in *; simpl in *; lia. }
@@ -1260,8 +1266,8 @@ Qed.
 Lemma stackframe_blocks_freeable : forall lv lb ve,
   length lv = length lb -> list_norepet (map fst lv) ->
   list_to_map (zip (map fst lv) (zip lb (map snd lv))) = make_env ve ->
-  ([∗ list] idt;b ∈ lv;lb, ⌜Ptrofs.unsigned Ptrofs.zero + @sizeof (genv_cenv ge) idt.2 < Ptrofs.modulus⌝
-     ∧ memory_block' Share.top (Z.to_nat (@sizeof (genv_cenv ge) idt.2)) b (Ptrofs.unsigned Ptrofs.zero)) ⊢
+  ([∗ list] idt;b ∈ lv;lb, ⌜Ptrofs.unsigned Ptrofs.zero + @Ctypes.sizeof (genv_cenv ge) idt.2 < Ptrofs.modulus⌝
+     ∧ memory_block' Share.top (Z.to_nat (@Ctypes.sizeof (genv_cenv ge) idt.2)) b (Ptrofs.unsigned Ptrofs.zero)) ⊢
   freeable_blocks (blocks_of_env ge ve).
 Proof.
   induction lv as [|(i, t)]; destruct lb; inversion 1; clear H; simpl; intros Hno Heq; inv Hno.
@@ -1436,7 +1442,8 @@ Proof.
   iDestruct ("He" with "[$]") as %He; iDestruct ("Hes" with "[$]") as %Hes.
   pose proof (typecheck_var_match_venv _ _ Hty).
   iExists _, _; iSplit.
-  { iPureIntro; econstructor; eauto. }
+  { pose proof (@cenv_sub_refl ge).
+    iPureIntro; econstructor; eauto. }
   iFrame.
   iNext.
   iApply jsafe_step.
@@ -1470,7 +1477,7 @@ Proof.
     iMod (free_stackframe with "[$]") as (m'' ?) "(Hm & ?)"; [done..|].
     rewrite monPred_at_affinely; iDestruct "Hret" as %Hret.
     pose proof (typecheck_var_match_venv _ _ Hty') as Hmatch'.
-    specialize (Hret _ _ _ eq_refl Henv' Hmatch'); inv Hret.
+    specialize (Hret _ _ _ _ eq_refl Henv' cenv_sub_refl Hmatch'); inv Hret.
     2: { inv H12. }
     iIntros "!>".
     iExists _, _; iSplit.
