@@ -197,7 +197,7 @@ Fixpoint dependent_type_functor_rec (T : TypeTree) : oFunctor :=
   end.
 
 Definition ArgsTT A := ArrowType A (DiscreteFunType (list val) (DiscreteFunType nat Mpred)).
-Definition AssertTT A := ArrowType A (DiscreteFunType nat Mpred).
+Definition AssertTT A := ArrowType A (DiscreteFunType (option val) (DiscreteFunType nat Mpred)).
 Definition MaskTT A := ArrowType A (ConstType coPset).
 
 Section ofe.
@@ -388,7 +388,7 @@ Class funspecGS Σ := FunspecG {
 Class heapGS Σ := HeapGS {
   heapGS_invGS :: invGS_gen HasNoLc Σ;
   heapGS_gen_heapGS :: gen_heapGS share address resource Σ;
-  heapGS_funspecGS :: funspecGS Σ
+  heapGS_funspecGS :: funspecGS Σ (* can actually do without this in the core logic *)
 }.
 
 (* Because Clight uses environment semantics, it's natural for us to treat
@@ -433,8 +433,8 @@ Definition argsassert := list val -> assert.
 
 (* funspecs on mpreds *)
 Definition funspec := funspec_ mpred mpred.
-Definition NDmk_funspec (sig : typesig) (cc : calling_convention) A (P : A -> argsassert) (Q : A -> assert) : funspec :=
-  mk_funspec sig cc (ConstType A) (λne a, ⊤) (λne (a : leibnizO A), (P a) : _ -d> _ -d> mpred) (λne (a : leibnizO A), (Q a) : _ -d> mpred).
+Definition NDmk_funspec (sig : typesig) (cc : calling_convention) A (P : A -> argsassert) (Q : A -> option val -> assert) : funspec :=
+  mk_funspec sig cc (ConstType A) (λne a, ⊤) (λne (a : leibnizO A), (P a) : _ -d> _ -d> mpred) (λne (a : leibnizO A), (Q a) : _ -d> _ -d> mpred).
 
 Definition funspec_unfold (f : funspec) : laterO funspec := Next f.
 

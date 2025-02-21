@@ -270,7 +270,7 @@ match f1 with
         ((⌜argsHaveTyps ((*snd*) args) (fst tpsig1)⌝ ∧ P2 x2 args n)
          ={E2 x2}=∗ (∃ x1 F, ⌜E1 x1 ⊆ E2 x2⌝ ∧
             (F ∗ (P1 x1 args n)) ∧
-            ∀ n', (■((F ∗ (Q1 x1 n')) -∗ Q2 x2 n'))))
+            ∀ ret n', (■((F ∗ (Q1 x1 ret n')) -∗ Q2 x2 ret n'))))
     end
 end.
 
@@ -284,7 +284,7 @@ match f1 with
         (⌜argsHaveTyps(gargs)(fst tpsig1)⌝ ∧ P2 x2 gargs n)
          ⊢ |={E2 x2}=> (∃ (x1:dtfr A1) (F:_), ⌜E1 x1 ⊆ E2 x2⌝ ∧
                            (F ∗ (P1 x1 gargs n)) ∧
-                               (⌜∀ n', (F ∗ (Q1 x1 n')) ⊢ Q2 x2 n'⌝))
+                               (⌜∀ ret n', (F ∗ (Q1 x1 ret n')) ⊢ Q2 x2 ret n'⌝))
     end
 end.
 
@@ -303,7 +303,7 @@ Proof.
   iMod (H' with "H") as (x1 F HE) "[H' %]".
   iIntros "!>"; iExists x1, F; iFrame.
   iSplit; auto; iSplit; auto.
-  iIntros (?) "!> H".
+  iIntros (??) "!> H".
   by iApply H.
 Qed.
 
@@ -317,7 +317,7 @@ Proof.
   iMod (H' with "H") as (x1 F HE) "[H' %]".
   iIntros "!>"; iExists x1, F; iFrame.
   iSplit; auto; iSplit; auto.
-  iIntros (?) "!> H".
+  iIntros (??) "!> H".
   by iApply H.
 Qed.
 
@@ -386,7 +386,7 @@ Proof.
   iFrame; iSplit.
   { iPureIntro; by etrans. }
   iSplit; first done.
-  iIntros (?) "!> ([F2 F1] & H)".
+  iIntros (??) "!> ([F2 F1] & H)".
   by iApply "H32"; iFrame "F2"; iApply "H21"; iFrame.
 Qed.
 
@@ -400,9 +400,9 @@ Proof.
   { rewrite HE1 //. }
   f_equiv.
   { rewrite (HP1 _ _ _) //. }
-  do 4 f_equiv.
-  { rewrite (HQ1 _ _) //. }
-  { rewrite (HQ2 _ _) //. }
+  do 6 f_equiv.
+  { rewrite (HQ1 _ _ _) //. }
+  { rewrite (HQ2 _ _ _) //. }
 Qed.
 
 (*******************end of material moved here from expr.v *******************)
@@ -570,7 +570,9 @@ Proof.
   iRewrite -"HP"; iIntros "(% & H) !>".
   iExists x, emp; iFrame.
   iSplit; first done; iSplit; first done.
-  iIntros (n') "!> (_ & H)".
+  iIntros (ret n') "!> (_ & H)".
+  iSpecialize ("HQ" $! ret).
+  rewrite discrete_fun_equivI.
   iRewrite -("HQ" $! n'); done.
 Qed.
 
@@ -619,6 +621,13 @@ Qed.*)
 
 
 Definition gvar (id : ident) (b : block) : mpred := own(inG0 := envGS_inG) env_name (gmap_view.gmap_view_frag id dfrac.DfracDiscarded (to_agree b), ε).
+
+Global Instance gvar_persistent id b : Persistent (gvar id b).
+Proof.
+  apply own_core_persistent, @ora.pair_core_id.
+  - apply (gmap_view.gmap_view_frag_core_id id dfrac.DfracDiscarded); apply _.
+  - apply ucmra_unit_core_id.
+Qed.
 
 Definition funspecs_assert (FunSpecs: Maps.PTree.t funspec): mpred :=
    (□ (∀ id: ident, ∀ fs:funspec, ⌜Maps.PTree.get id FunSpecs = Some fs⌝ →

@@ -25,95 +25,8 @@ Section mpred.
 
 Context `{!VSTGS OK_ty Σ} (OK_spec : ext_spec OK_ty).
 
-Definition closed_wrt_modvars c (F: assert) : Prop :=
+Definition closed_wrt_modvars c (F: environ -> mpred) : Prop :=
     closed_wrt_vars (modifiedvars c) F.
-
-(*Inductive contx :=
-| Stuck
-| Cont: cont -> contx
-| Ret: option val -> cont -> contx.
-
-Definition assert_safe
-     (ge: genv) (E: coPset) (f: function) (ve: env) (te: temp_env) (ctl: contx) : assert :=
-      assert_of (fun rho =>
-       ∀ ora, (* ext_compat ora -> *)
-       ⌜rho = construct_rho (filter_genv ge) ve te⌝ →
-       match ctl with
-       | Stuck => |={E}=> False
-       | Cont (Kseq s ctl') => 
-             jsafeN OK_spec ge E ora (State f s ctl' ve te)
-       | Cont (Kloop1 body incr ctl') =>
-             jsafeN OK_spec ge E ora (State f Sskip (Kloop1 body incr ctl') ve te)
-       | Cont (Kloop2 body incr ctl') =>
-             jsafeN OK_spec ge E ora (State f (Sloop body incr) ctl' ve te)
-       | Cont (Kcall id' f' ve' te' k') => 
-             jsafeN OK_spec ge E ora (State f (Sreturn None) (Kcall id' f' ve' te' k') ve te)
-       | Cont Kstop =>
-             jsafeN OK_spec ge E ora (State f (Sreturn None) Kstop ve te)
-       | Cont _ => |={E}=> False
-       | Ret None ctl' =>
-                jsafeN OK_spec ge E ora (State f (Sreturn None) ctl' ve te)
-       | Ret (Some v) ctl' => ∀ e, (∀ m, mem_auth m -∗ ⌜∃ v', Clight.eval_expr ge ve te m e v' ∧ Cop.sem_cast v' (typeof e) (fn_return f) m = Some v⌝) →
-              (* Could we replace these with eval_expr and lose the memory dependence?
-                 Right now, the only difference is that e must only access pointers that are valid in the current rmap.
-                 But typechecking will also guarantee that. *)
-              jsafeN OK_spec ge E ora (State f (Sreturn (Some e)) ctl' ve te)
-       end).
-
-Lemma assert_safe_mono ge E1 E2 f ve te ctl: E1 ⊆ E2 ->
-  assert_safe ge E1 f ve te ctl ⊢ assert_safe ge E2 f ve te ctl.
-Proof.
-  rewrite /assert_safe; split => ? /=.
-  iIntros "H" (? ->); iSpecialize ("H" $! _ eq_refl).
-  destruct ctl.
-  - iMod (fupd_mask_subseteq E1); first done; iMod "H" as "[]".
-  - destruct c; try by iApply jsafe_mask_mono.
-    iMod (fupd_mask_subseteq E1); first done; iMod "H" as "[]".
-  - destruct o; last by iApply jsafe_mask_mono.
-    iIntros (e); iSpecialize ("H" $! e).
-    iApply (bi.impl_intro_r with "H").
-    iIntros "H".
-    iPoseProof (bi.impl_elim_l with "H") as "?".
-    by iApply jsafe_mask_mono.
-Qed.*)
-
-Definition list2opt {T: Type} (vl: list T) : option T :=
- match vl with nil => None | x::_ => Some x end.
-
-Definition guard_environ (Delta: tycontext) (f: function) (rho: environ) : Prop :=
-   typecheck_environ Delta rho /\
-    match_venv (ve_of rho) (fn_vars f)
-   /\ ret_type Delta = fn_return f.
-
-Lemma guard_environ_e1:
-   forall Delta f rho, guard_environ Delta f rho ->
-     typecheck_environ Delta rho.
-Proof. intros. destruct H; auto. Qed.
-
-(* Definition _guard
-    (gx: genv) E (Delta: tycontext) (f: function) (P : assert) (ctl: contx) : mpred :=
-     ∀ tx : Clight.temp_env, ∀ vx : env,
-          let rho := construct_rho (filter_genv gx) vx tx in
-          ■ (⌜guard_environ Delta f rho⌝
-                  ∧ P rho ∗ funassert Delta rho
-             -∗ assert_safe gx E f vx tx ctl rho).
-
-Definition guard'
-    (gx: genv) E (Delta: tycontext) f P  (ctl: cont) :=
-  _guard gx E Delta f P (Cont ctl).
-
-Definition exit_cont (ek: exitkind) (vl: option val) (k: cont) : contx :=
-  match ek with
-  | EK_normal => match vl with None => Cont k | Some _ => Stuck end
-  | EK_break => break_cont k
-  | EK_continue => continue_cont k
-  | EK_return => Ret vl (call_cont k)
-  end.
-
-Definition rguard
-    (gx: genv) E (Delta: tycontext) (f: function) (R : ret_assert) (ctl: cont) : mpred :=
-  ∀ ek: exitkind, ∀ vl: option val,
-    _guard gx E Delta f (proj_ret_assert R ek vl) (exit_cont ek vl ctl). *)
 
 Record semaxArg :Type := SemaxArg {
  sa_cs: compspecs;
@@ -123,15 +36,6 @@ Record semaxArg :Type := SemaxArg {
  sa_c: statement;
  sa_R: ret_assert
 }.
-
-Definition make_ext_rval  (gx: genviron) (tret: xtype) (v: option val):=
-  match tret with Xvoid => mkEnviron gx (Map.empty _) (Map.empty _) 
- | _ => 
-  match v with
-  | Some v' =>  mkEnviron gx (Map.empty _)
-                              (Map.set 1%positive v' (Map.empty _))
-  | None => mkEnviron gx (Map.empty _) (Map.empty _)
-  end end.
 
 Definition semax_external
   ef
@@ -144,12 +48,12 @@ Definition semax_external
    ▷ ∀ F (ts: list typ),
    ∀ args: list val,
    ■ (⌜Val.has_type_list args (map proj_xtype (sig_args (ef_sig ef)))⌝ ∧
-     (P x (filter_genv gx, args) ∗ F) ={E x}=∗
-   ∀ m z, state_interp m z -∗ ∃ x': ext_spec_type OK_spec ef,
+     (assert_of (P x args) ∗ F) ={E x}=∗
+   ∀ m z, ⎡state_interp m z⎤ -∗ ∃ x': ext_spec_type OK_spec ef,
     ⌜ext_spec_pre OK_spec ef x' (genv_symb_injective gx) ts args z m⌝ ∧
      (*□*) ∀ tret: xtype, ∀ ret: option val, ∀ m': mem, ∀ z': OK_ty,
       ⌜ext_spec_post OK_spec ef x' (genv_symb_injective gx) tret ret z' m'⌝ → |={E x}=>
-          state_interp m' z' ∗ Q x (make_ext_rval (filter_genv gx) tret ret) ∗ F).
+          ⎡state_interp m' z'⎤ ∗ assert_of (Q x ret) ∗ F).
 
 Lemma Forall2_implication {A B} (P Q:A -> B -> Prop) (PQ:forall a b, P a b -> Q a b):
   forall l t, Forall2 P l t -> Forall2 Q l t.
@@ -189,12 +93,17 @@ Proof.
   apply bi.forall_mono; intros g.
   iIntros "#H" (x). iIntros "!>" (F ts args) "!> (%HT & P & F)".
   destruct Hsub as [(? & ?) Hsub]; subst.
-  iMod (Hsub with "[$P]") as (x1 F1 HE1) "((F1 & P1) & %HQ)".
-  { iPureIntro; split; auto.
+  iPoseProof (monPred_in_intro emp with "[//]") as "(%n & Hl)".
+  rewrite monPred_at_emp embed_emp (bi.and_comm _ emp).
+  iMod (Hsub with "[P]") as (x1 F1 HE1) "((F1 & P1) & %HQ)".
+  { iPoseProof (stack_level_embed with "Hl P") as "$".
+    iPureIntro; split; auto.
     rewrite HSIG map_proj_xtype_argtype in HT; apply has_type_list_Forall2 in HT.
     eapply Forall2_implication; [ | apply HT]; auto. }
   iMod (fupd_mask_subseteq (E1 x1)) as "Hmask"; first done.
-  iMod ("H" $! _ (F ∗ F1) with "[$P1 $F $F1]") as "H1"; first done.
+  iMod ("H" $! _ (F ∗ ⎡F1⎤) with "[P1 $F $F1]") as "H1".
+  { iSplit; first done.
+    by iApply stack_level_elim. }
   iMod "Hmask" as "_".
   iIntros "!>" (??) "s".
   iDestruct ("H1" with "s") as (x') "[? H']".
@@ -202,8 +111,9 @@ Proof.
   iMod (fupd_mask_subseteq (E1 x1)) as "Hmask"; first done.
   iMod ("H'" with "Hpost") as "($ & Q1 & $ & F1)".
   iMod "Hmask" as "_".
-  iApply (HQ with "[$F1 $Q1]"); iPureIntro; split; auto.
-  destruct tret, ret; auto.
+  iIntros "!>".
+  iApply (stack_level_elim with "[//]"); iApply HQ; iFrame.
+  iApply (stack_level_embed with "[//] Q1").
 Qed.
 
 Definition tc_option_val (sig: type) (ret: option val) :=
@@ -231,7 +141,7 @@ Definition believe_external (gx: genv) (v: val) (fsig: typesig) cc
         ∧ semax_external ef A E P Q
         ∧ ■ (∀ x: dtfr A,
               ∀ ret:option val,
-                Q x (make_ext_rval (filter_genv gx) (rettype_of_type (snd fsig)) ret)
+                assert_of (Q x ret)
                   ∧ ⌜Builtins0.val_opt_has_rettype ret (rettype_of_type (snd fsig))⌝
                   -∗ ⌜tc_option_val sigret ret⌝)
   | _ => False
@@ -258,16 +168,11 @@ Abort.
 
 Definition fn_typesig (f: function) : typesig := (map snd (fn_params f), fn_return f).
 
-Definition var_sizes_ok (cenv: composite_env) (vars: list (ident*type)) :=
-   Forall (fun var : ident * type => @sizeof cenv (snd var) <= Ptrofs.max_unsigned)%Z vars.
-
-Definition var_block' (sh: Share.t) (cenv: composite_env) (idt: ident * type): assert :=
-  ⌜(sizeof (snd idt) <= Ptrofs.max_unsigned)%Z⌝ ∧
-  assert_of (fun rho => (memory_block sh (sizeof (snd idt))) (eval_lvar (fst idt) (snd idt) rho)).
-
+(* the version of this in lifting includes the args, while this believe_internal
+   uses close_precondition for the args instead *)
 Definition stackframe_of' (cenv: composite_env) (f: Clight.function) : assert :=
-  fold_right bi_sep emp
-     (map (fun idt => var_block' Share.top cenv idt) (Clight.fn_vars f)).
+  ([∗ list] idt ∈ fn_vars f, var_block' Share.top cenv idt) ∗
+  ([∗ list] idt;v ∈ (fn_temps f);(repeat Vundef (length (fn_temps f))), temp (fst idt) v).
 
 Definition claims (ge: genv) (Delta: tycontext) v fsig cc A E P Q : Prop :=
   exists id, (glob_specs Delta) !! id = Some (mk_funspec fsig cc A E P Q) /\
@@ -288,9 +193,9 @@ Definition believe_internal {CS}
                  /\ fn_typesig f = fsig
                  /\ f.(fn_callconv) = cc⌝
   ∧ ∀ CS', ⌜cenv_sub (@cenv_cs CS) (@cenv_cs CS')⌝ →
-■ ∀ x : dtfr A, ▷ ((bind_args f.(fn_params) (argsassert_of (P x)) ∗ stackframe_of' (@cenv_cs CS') f) -∗
+■ ∀ x : dtfr A, ▷ ((bind_args f.(fn_params) (λ lv, assert_of (P x lv)) ∗ stackframe_of' (@cenv_cs CS') f) -∗
          wp OK_spec gx (E x) f f.(fn_body)
-           (frame_ret_assert (function_body_ret_assert f.(fn_return) (assert_of (Q x))) (stackframe_of' (@cenv_cs CS') f)))).
+           (frame_ret_assert (function_body_ret_assert f.(fn_return) (λ ret, assert_of (Q x ret))) (stackframe_of' (@cenv_cs CS') f)))).
 (* might need the recursive construction after all, so that we can use believe in
    proving all the funspecs *)
 
@@ -302,7 +207,7 @@ Definition believe {CS}
   ∀ P: dtfr (ArgsTT A),
   ∀ Q: dtfr (AssertTT A),
        ⌜claims gx Delta v fsig cc A E P Q⌝ →
-      (⎡believe_external gx v fsig cc A E P Q⎤
+      (believe_external gx v fsig cc A E P Q
         ∨ @believe_internal CS gx v fsig cc A E P Q).
 
 Global Instance believe_external_plain gx v fsig cc A E P Q : Plain (believe_external gx v fsig cc A E P Q).
@@ -316,10 +221,10 @@ Definition semax' {CS} E Delta P c R :=
       cenv_sub (@cenv_cs CS) (@cenv_cs CS') ∧
       cenv_sub (@cenv_cs CS') (genv_cenv ge)⌝ →
   <affine> local (typecheck_environ Delta') -∗
-  funassert Delta' -∗
+  ⎡funassert Delta'⎤ -∗
   <affine> @believe CS' Delta' ge -∗
   ∀ f, P -∗ wp OK_spec ge E f c
-    (frame_ret_assert R (<affine> local (typecheck_environ Delta') ∗ funassert Delta')).
+    (frame_ret_assert R (<affine> local (typecheck_environ Delta') ∗ ⎡funassert Delta'⎤)).
 
 Lemma semax'_cenv_sub {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) E Delta P c R:
       @semax' CS E Delta P c R ⊢ @semax' CS' E Delta P c R.

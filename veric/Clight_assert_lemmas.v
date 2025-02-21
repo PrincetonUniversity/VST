@@ -11,47 +11,38 @@ Require Import VST.veric.extend_tc.
 
 Section mpred.
 
-Context `{!heapGS Σ}.
+Context `{!heapGS Σ} `{!envGS Σ}.
 
-Definition allp_fun_id (Delta : tycontext) : assert :=
-assert_of (fun rho =>
+Definition allp_fun_id (Delta : tycontext) : mpred :=
  ∀ id : ident, ∀ fs : funspec,
   ⌜Maps.PTree.get id (glob_specs Delta) = Some fs⌝ →
-  (∃ b : block, ⌜Map.get (ge_of rho) id = Some b⌝ ∧ func_ptr_si fs (Vptr b Ptrofs.zero))).
+  (∃ b : block, gvar id b ∗ func_ptr_si fs (Vptr b Ptrofs.zero)).
 
-Global Instance allp_fun_id_persistent Delta : Persistent (allp_fun_id Delta).
-Proof.
-  apply monPred_persistent, _.
-Qed.
-
-Definition allp_fun_id_sigcc (Delta : tycontext) : assert :=
-assert_of (fun rho =>
-(∀ id : ident ,
- (∀ fs : funspec ,
+Definition allp_fun_id_sigcc (Delta : tycontext) : mpred :=
+  ∀ id : ident, ∀ fs : funspec,
   ⌜Maps.PTree.get id (glob_specs Delta) = Some fs⌝ →
-  (∃ b : block, ⌜Map.get (ge_of rho) id = Some b⌝ ∧ 
+  (∃ b : block, gvar id b ∗
     match fs with
     mk_funspec sig cc _ _ _ _ => sigcc_at sig cc (b, 0)
-    end)))).
+    end).
 
-Lemma allp_fun_id_ex_implies_allp_fun_sigcc Delta rho:
-  allp_fun_id Delta rho ⊢ allp_fun_id_sigcc Delta rho.
+Lemma allp_fun_id_ex_implies_allp_fun_sigcc Delta:
+  allp_fun_id Delta ⊢ allp_fun_id_sigcc Delta.
 Proof.
   rewrite /allp_fun_id /allp_fun_id_sigcc.
   apply bi.forall_mono; intros id.
   apply bi.forall_mono; intros fs.
-  apply bi.impl_mono; first done.
-  apply bi.exist_mono; intros b.
-  apply bi.and_mono; first done.
+  repeat f_equiv.
+  destruct fs.
   rewrite /func_ptr_si.
   iIntros "H"; iDestruct "H" as (? Heq ?) "[#H1 H2]"; inv Heq.
-  rewrite /func_at /sigcc_at /funspec_sub_si.
-  destruct fs, gs; iDestruct "H1" as "[(-> & ->) _]"; eauto.
+  rewrite /sigcc_at /funspec_sub_si.
+  destruct gs; iDestruct "H1" as "[(-> & ->) _]"; eauto.
 Qed.
 
-Lemma allp_fun_id_sigcc_sub: forall Delta Delta' rho,
+Lemma allp_fun_id_sigcc_sub: forall Delta Delta',
   tycontext_sub Delta Delta' ->
-  allp_fun_id_sigcc Delta' rho ⊢ allp_fun_id_sigcc Delta rho.
+  allp_fun_id_sigcc Delta' ⊢ allp_fun_id_sigcc Delta.
 Proof.
   intros.
   apply bi.forall_mono; intros id.
@@ -59,16 +50,16 @@ Proof.
   destruct H as (_ & _ & _ & _ & Hg & _).
   specialize (Hg id); rewrite Hid /= in Hg.
   destruct Hg as (gs & Hid' & Hsub).
-  iDestruct ("H" with "[%]") as (??) "H"; first done.
-  iExists b; iFrame "%".
+  iDestruct ("H" with "[//]") as (?) "(? & H)".
+  iExists b; iFrame.
   iPoseProof Hsub as "Hsub".
   rewrite /funspec_sub_si.
   by destruct fs, gs; iDestruct "Hsub" as "[(-> & ->) _]".
 Qed.
 
-Lemma allp_fun_id_sub: forall Delta Delta' rho,
+Lemma allp_fun_id_sub: forall Delta Delta',
   tycontext_sub Delta Delta' ->
-  allp_fun_id Delta' rho ⊢ allp_fun_id Delta rho.
+  allp_fun_id Delta' ⊢ allp_fun_id Delta.
 Proof.
   intros.
   apply bi.forall_mono; intros id.
@@ -76,52 +67,45 @@ Proof.
   destruct H as (_ & _ & _ & _ & Hg & _).
   specialize (Hg id); rewrite Hid /= in Hg.
   destruct Hg as (gs & Hid' & Hsub).
-  iDestruct ("H" with "[%]") as (??) "H"; first done.
-  iExists b; iFrame "%".
+  iDestruct ("H" with "[//]") as (?) "(? & H)".
+  iExists b; iFrame.
   rewrite /func_ptr_si.
   iDestruct "H" as (???) "[#? ?]"; iExists _; iSplit; first auto; iExists _; iSplit; last done.
   iApply funspec_sub_si_trans; eauto.
 Qed.
 
-Lemma funassert_allp_fun_id Delta rho: funassert Delta rho ⊢ <affine> allp_fun_id Delta rho ∗ funassert Delta rho.
+Lemma funassert_allp_fun_id Delta: funassert Delta ⊢ <affine> allp_fun_id Delta ∗ funassert Delta.
 Proof.
   iIntros "H"; iSplit; last done.
   iDestruct "H" as "[H _]".
   iIntros "!> !>" (???).
-  iDestruct ("H" with "[%]") as (??) "H"; first done.
+  iDestruct ("H" with "[//]") as (?) "(? & H)".
   iExists b; iSplit; first auto.
   iExists b; iSplit; first auto.
   iExists fs; iFrame.
   iPoseProof (funspec_sub_si_refl) as "?"; auto.
 Qed.
 
-Lemma funassert_allp_fun_id_sub: forall Delta Delta' rho,
+Lemma funassert_allp_fun_id_sub: forall Delta Delta',
   tycontext_sub Delta Delta' ->
-  funassert Delta' rho ⊢ <affine> allp_fun_id Delta rho ∗ funassert Delta' rho.
+  funassert Delta' ⊢ <affine> allp_fun_id Delta ∗ funassert Delta'.
 Proof.
   intros. rewrite {1}funassert_allp_fun_id.
   apply bi.sep_mono; last done.
   apply bi.affinely_mono, allp_fun_id_sub; trivial.
 Qed.
 
-Lemma funassert_allp_fun_id_sub': forall Delta Delta',
-  tycontext_sub Delta Delta' ->
-  funassert Delta' ⊢ <affine> allp_fun_id Delta ∗ funassert Delta'.
-Proof.
-  split => rho; rewrite monPred_at_sep monPred_at_affinely; by apply funassert_allp_fun_id_sub.
-Qed.
-
-Lemma funassert_allp_fun_id_sigcc Delta rho:
-  funassert Delta rho ⊢ <affine> allp_fun_id_sigcc Delta rho ∗ funassert Delta rho.
+Lemma funassert_allp_fun_id_sigcc Delta:
+  funassert Delta ⊢ <affine> allp_fun_id_sigcc Delta ∗ funassert Delta.
 Proof.
   intros. rewrite {1}(funassert_allp_fun_id ⊤).
   apply bi.sep_mono; last done.
   apply bi.affinely_mono, allp_fun_id_ex_implies_allp_fun_sigcc.
 Qed.
 
-Lemma funassert_allp_fun_id_sigcc_sub: forall Delta Delta' rho,
+Lemma funassert_allp_fun_id_sigcc_sub: forall Delta Delta',
   tycontext_sub Delta Delta' ->
-  funassert Delta' rho ⊢ <affine> allp_fun_id_sigcc Delta rho ∗ funassert Delta' rho.
+  funassert Delta' ⊢ <affine> allp_fun_id_sigcc Delta ∗ funassert Delta'.
 Proof.
   intros. rewrite {1}funassert_allp_fun_id_sigcc.
   apply bi.sep_mono; last done.
@@ -207,17 +191,17 @@ Lemma tc_expr_sub:
     forall e rho, typecheck_environ Delta rho -> tc_expr Delta e rho ⊢ tc_expr Delta' e rho.
 Proof. intros. apply tc_expr_lvalue_sub; auto. Qed.
 
-Lemma tc_expr_sub':
+(*Lemma tc_expr_sub':
   forall e, local (typecheck_environ Delta) ∗ tc_expr Delta e ⊢ tc_expr Delta' e.
-Proof. split => rho; monPred.unseal; iIntros "(% & ?)"; by iApply tc_expr_sub. Qed.
+Proof. split => rho; monPred.unseal; iIntros "(% & ?)"; by iApply tc_expr_sub. Qed.*)
 
 Lemma tc_lvalue_sub:
     forall e rho, typecheck_environ Delta rho -> tc_lvalue Delta e rho ⊢ tc_lvalue Delta' e rho.
 Proof. intros. apply tc_expr_lvalue_sub; auto. Qed.
 
-Lemma tc_lvalue_sub':
+(*Lemma tc_lvalue_sub':
   forall e, local (typecheck_environ Delta) ∗ tc_lvalue Delta e ⊢ tc_lvalue Delta' e.
-Proof. split => rho; monPred.unseal; iIntros "(% & ?)"; by iApply tc_lvalue_sub. Qed.
+Proof. split => rho; monPred.unseal; iIntros "(% & ?)"; by iApply tc_lvalue_sub. Qed.*)
 
 Lemma tc_temp_id_sub:
     forall id t e rho,
