@@ -1,41 +1,30 @@
-# Notes on VST-on-Iris 
-(beware: these instructions are now out of date)
+# Building VST-on-Iris (VST 3.x)
 
-## Building
+## Option 1: Use OPAM
 
-Install opam:
+VST-on-Iris releases are now available on OPAM as part of the `coq-released` repo, and can be installed automatically -- look for versions numbered 3.x. It may take a few months for new versions to appear on OPAM.
 
-```(bash)
-opam switch create vst_on_iris ocaml-variants.4.14.1+options ocaml-option-flambda
-```
+## Option 2: Build from Source
 
-Install dependencies:
+You can either clone the current master branch, or download a release from the [Releases](https://github.com/PrincetonUniversity/VST/releases) page. Each release lists the major Iris version and CompCert version it has been tested with (CompCert is only necessary if you want to `clightgen` your own C files), and master will usually work with the same versions as the latest release. The code may also work with dev Iris versions, but probably not those any earlier than the listed version. You will also need to install `coq-flocq`, probably via OPAM.
 
-```(bash)
-opam repo add coq-released https://coq.inria.fr/opam/released
-opam repo add iris-dev https://gitlab.mpi-sws.org/iris/opam.git
-opam pin add https://github.com/mansky1/ora.git
-opam pin add builddep/
-```
+Once the dependencies are installed and you have the code, run `make -j` to build VST. If you clone the repo, you may first need to do `git submodule update --init ora` to initialize the ORA submodule.
 
-At this point, we use [`Makefile`](./Makefile)
-Compile the [proof for the list reverse function](./progs64/verif_reverse2.v):
+## Running Examples
+
+Run `make *.vo` to compile any example proof. For instance, to compile the [proof for the list reverse function](./progs64/verif_reverse2.v):
 
 ```(bash)
 make progs64/verif_reverse2.vo -j
 ```
 
-Addtionally, to generate `_CoqProject`:
+To generate a `_CoqProject` file for external use:
 
 ```(bash)
 make _CoqProject
 ```
 
-## For now we use a slightly old version of `Iris` to avoid dealing with changed notations.
-
-Iris pinned to: 8f1ed633
-
-## `VST` and `VST_on_Iris` name conversion
+## For legacy VST users: `VST` and `VST_on_Iris` name conversion
 
 | VST                       | vst_on_iris                         | syntax                                      |
 | ------------------------- | ---------------------------- | ------------------------------------------- |
