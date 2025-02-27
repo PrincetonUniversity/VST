@@ -212,7 +212,7 @@ Definition Annotation_sub (A1 A2: option Annotation):Prop :=
     _, None => True
   | Some (StrongAnnotation _), Some (WeakAnnotation _) => True
   | Some (StrongAnnotation X), Some (StrongAnnotation Y) => X=Y (*maybe have entailment here?*)
-  | X, Y => X=Y 
+  | X, Y => X=Y
   end.
 
 Lemma Annotation_sub_trans a1 a2 a3: Annotation_sub a1 a2 -> 
@@ -229,7 +229,7 @@ Proof. unfold Annotation_sub.
 + trivial.
 Qed.
 
-Lemma Annotation_sub_refl a: Annotation_sub a a. 
+Lemma Annotation_sub_refl a: Annotation_sub a a.
 Proof. unfold Annotation_sub. destruct a; trivial. destruct a; trivial. Qed.
 
 Lemma Annotation_sub_antisymm a b: Annotation_sub a b -> Annotation_sub b a -> a=b.
@@ -383,18 +383,19 @@ End mpred.
 Lemma modifiedvars_Slabel l c: modifiedvars (Slabel l c) = modifiedvars c.
 Proof. reflexivity. Qed.
 
-Lemma modifiedvars_computable: forall c (te1 te2: Map.t val), exists te,
-  (forall i, modifiedvars c i -> Map.get te1 i = Map.get te i) /\
-  (forall i, modifiedvars c i \/ Map.get te2 i = Map.get te i).
+Lemma modifiedvars_computable: forall c (te1 te2: gmap ident val), exists te : gmap ident val,
+  (forall i, modifiedvars c i -> lookup i te1 = lookup i te) /\
+  (forall i, modifiedvars c i \/ lookup i te2 = lookup i te).
 Proof.
   intros.
   unfold modifiedvars.
-  exists (fun i => match (modifiedvars' c idset0) !! i with Some _ => Map.get te1 i | None => Map.get te2 i end).
-  split; intros.
-  + unfold Map.get.
-    destruct (_ !! _); simpl; [auto | inv H].
-  + unfold Map.get.
-    destruct (_ !! _); simpl; [left; apply I | auto].
+  exists (map_imap (fun i a => match (modifiedvars' c idset0 !! i) with
+    Some _ => lookup i te1 | None => lookup i te2 end) (union_with (fun a b => Some a) te1 te2)).
+  split; intros; rewrite map_lookup_imap lookup_union_with.
+  + destruct (_ !! _); simpl; [| inv H].
+    destruct (te1 !! i)%stdpp eqn: Hi; rewrite Hi /union_with /=; destruct (te2 !! i)%stdpp; reflexivity.
+  + destruct (_ !! _); simpl; [left; apply I | right].
+    destruct (te1 !! i)%stdpp; rewrite /union_with /=; destruct (te2 !! i)%stdpp eqn: Hi; rewrite Hi; reflexivity.
 Qed.
 
 Lemma modifiedvars_Sifthenelse b c1 c2 id: modifiedvars (Sifthenelse b c1 c2) id <-> modifiedvars c1 id \/ modifiedvars c2 id.

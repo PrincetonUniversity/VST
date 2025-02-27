@@ -293,18 +293,21 @@ Proof.
     eapply list_norepet_In_In in Hnth; eauto; subst; done.
 Qed.
 
+Context `{!envGS Σ}.
+
 Lemma initial_core_funassert :
-  forall (prog: program) V G m ve te
+  forall (prog: program) V G m (*ve te*)
       (Hnorepet : list_norepet (prog_defs_names prog))
       (Hmatch : match_fdecs (prog_funct prog) G)
       (Hm : Genv.init_mem prog = Some m),
-  initial_core m (globalenv prog) G ∗ matchfunspecs (globalenv prog) G ⊢ funassert (nofunc_tycontext V G) (mkEnviron (filter_genv (globalenv prog)) ve te).
+  initial_gvars (globalenv prog) ∗ initial_core m (globalenv prog) G ∗ matchfunspecs (globalenv prog) G ⊢ funassert (nofunc_tycontext V G).
 Proof.
-  intros; iIntros "(#H & match)"; iSplitL ""; rewrite /initial_world.initial_core /Map.get /filter_genv /=.
+  intros; iIntros "(#gv & #H & match)"; iSplitL ""; rewrite /initial_world.initial_core /Map.get /=.
   - iIntros "!>" (?? Hid); simpl in *.
     rewrite make_tycontext_s_find_id in Hid.
     edestruct match_fdecs_exists_Gfun as (? & Hid' & ?); [done.. |].
-    apply (Genv.find_symbol_exists (program_of_program _)) in Hid' as (b & Hfind); rewrite Hfind.
+    apply (Genv.find_symbol_exists (program_of_program _)) in Hid' as (b & Hfind).
+    iDestruct (initial_gvars_lookup with "gv") as "#?"; first done.
     iExists _; iSplit; first done.
     unshelve erewrite (big_sepL_lookup _ _ (Pos.to_nat b - 1)); last (apply lookup_seq; split; first done).
     replace (Pos.of_nat _) with b by lia.
@@ -318,6 +321,8 @@ Proof.
     rewrite /sigcc_at.
     iDestruct "Hsig" as (????) "Hfun".
     iDestruct ("match" with "Hfun") as (?? (? & ?)) "Hfun".
+    iDestruct (initial_gvars_lookup with "gv") as "#?"; first done.
+    iExists _; iSplit; first done.
     iPureIntro; setoid_rewrite make_tycontext_s_find_id; eauto.
 Qed.
 

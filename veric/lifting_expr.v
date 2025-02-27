@@ -618,3 +618,21 @@ Proof.
 Qed.
 
 End mpred.
+
+Lemma wp_expr_cenv_sub : forall `{!heapGS Σ} `{!envGS Σ} CE CE' E f e P, cenv_sub CE CE' ->
+  wp_expr CE E f e P ⊢ wp_expr CE' E f e P.
+Proof.
+  intros; rewrite /wp_expr.
+  repeat f_equiv.
+  intros ? Hsub.
+  eapply (cenv_sub_trans H) in Hsub; auto.
+Qed.
+
+Lemma wp_lvalue_cenv_sub : forall `{!heapGS Σ} `{!envGS Σ} CE CE' E f e P, cenv_sub CE CE' ->
+  wp_lvalue CE E f e P ⊢ wp_lvalue CE' E f e P.
+Proof.
+  intros; rewrite /wp_lvalue.
+  repeat f_equiv.
+  intros ? Hsub.
+  eapply (cenv_sub_trans H) in Hsub; auto.
+Qed.

@@ -217,19 +217,6 @@ Definition inflate_initial_mem : mpred :=
   let b := Pos.of_nat n in let '(lo, z) := block_bounds b in
   [∗ list] o ∈ seq 0 (z + 1), let loc := (b, lo + Z.of_nat o)%Z in inflate_loc loc.
 
-(* What do we actually need this for?
-Definition all_VALs := ∀ l dq r, <absorb> l ↦{dq} r → ⌜∃ v, r = VAL v⌝.
-
-Lemma inflate_initial_mem_all_VALs: inflate_initial_mem ⊢ all_VALs.
-Proof.
-  rewrite /inflate_initial_mem /all_VALs.
-  iIntros "H" (???); iApply (bi.impl_intro_r with "H"); iIntros "H".
-  forget (Pos.to_nat (nextblock m) - 1) as n; iInduction n as [|] "IH".
-  { simpl. Search bi_affinely bi_absorbingly.
-Search emp.
-Abort.
-*)
-
 Definition initial_core : mpred :=
   [∗ list] n ∈ seq 1 (Pos.to_nat (Mem.nextblock m) - 1),
   let b := Pos.of_nat n in
@@ -237,12 +224,6 @@ Definition initial_core : mpred :=
   | Some f => func_at f (b, 0)
   | None => mapsto_no (b, 0) Share.bot
   end.
-
-Global Instance initial_core_affine : Affine initial_core.
-Proof.
-  apply big_sepL_affine; intros ??.
-  destruct (funspec_of_loc _); apply _.
-Qed.
 
 End inflate.
 
@@ -847,10 +828,6 @@ Fixpoint prog_vars' {F V} (l: list (ident * globdef F V)) : list (ident * globva
 
 Definition prog_vars {F} (p: program F) := prog_vars' (prog_defs p).
 
-(* What do we actually need this for?
-Definition no_locks : mpred := ∀ addr dq z z' R, ¬ addr ↦{dq} (LK z z' R).
-*)
-
 Lemma make_tycontext_s_find_id i G : (make_tycontext_s(Σ := Σ) G) !! i = find_id i G.
 Proof.
   induction G as [| (j, fs) f IHf]. destruct i; reflexivity.
@@ -1337,6 +1314,46 @@ Proof.
   iCombine "Hf Hr" as "Hr"; iMod (rmap_inflate_equiv with "Hr") as "$"; try done.
   - apply rmap_of_mem_nextblock.
   - intros; by apply rmap_of_mem_coherent.
+Qed.
+
+Context `{!envGS Σ}.
+
+Definition initial_gvars {F} (ge : Genv.t F type) :=
+  PTree.fold (fun P i v => P ∗ gvar i v) (Genv.genv_symb ge) emp.
+
+#[global] Instance initial_gvars_persistent {F} (ge : Genv.t F type) : Persistent (initial_gvars ge).
+Proof.
+  unfold initial_gvars.
+  set (P := emp).
+  assert (Persistent P) by apply _.
+  clearbody P.
+  apply PTree_Properties.fold_ind; apply _.
+Qed.
+
+#[global] Instance initial_gvars_affine {F} (ge : Genv.t F type) : Affine (initial_gvars ge).
+Proof.
+  unfold initial_gvars.
+  set (P := emp).
+  assert (Affine P) by apply _.
+  clearbody P.
+  apply PTree_Properties.fold_ind; apply _.
+Qed.
+
+Lemma initial_gvars_lookup : forall {F} (ge : Genv.t F type) id b,
+  Genv.find_symbol ge id = Some b ->
+  initial_gvars ge ⊢ <absorb> gvar id b.
+Proof.
+  intros until b; rewrite /initial_gvars /Genv.find_symbol.
+  set (P := emp).
+  clearbody P.
+  apply PTree_Properties.fold_ind.
+  - intros ? Hnone; rewrite Hnone; discriminate.
+  - intros ????.
+    destruct (eq_dec k id).
+    + subst; intros H1 _ _ H2; rewrite H1 in H2; inv H2.
+      iIntros "(_ & $)".
+    + rewrite PTree.gro //; intros ?? H ?.
+      rewrite H //; iIntros "($ & _)".
 Qed.
 
 End mpred.

@@ -382,21 +382,47 @@ End CENV_SUB.
 
 Context `{!envGS Σ}.
 
-Definition envp_to_assert (P : environ -> mpred) : assert :=
-  ∀ ρ, ⎡env_auth ρ⎤ -∗ ⎡env_auth ρ⎤ ∗ assert_of (λ n, P (env_to_environ ρ n)).
+(* use this throughout? *)
+Definition assert_of' (P : nat -> mpred) := ∀ n, stack_level n -∗ ⎡P n⎤.
 
-Definition local (P : environ -> Prop) : assert :=
-  ∀ ρ, ⎡env_auth ρ⎤ -∗ ⎡env_auth ρ⎤ ∗ assert_of (λ n, ⌜P (env_to_environ ρ n)⌝).
+Lemma assert_of_eq : forall P, assert_of P ⊣⊢ assert_of' P.
+Proof.
+  split => n.
+  rewrite /assert_of' /stack_level.
+  monPred.unseal.
+  setoid_rewrite monPred_at_affinely; simpl.
+  iSplit.
+  - iIntros "H" (?? [=] [=]); subst; done.
+  - iIntros "H"; iApply "H"; done.
+Qed.
+
+#[global] Instance assert_of'_mono : Proper (pointwise_relation _ bi_entails ==> bi_entails) assert_of'.
+Proof. solve_proper. Qed.
+
+#[global] Instance assert_of'_proper : Proper (pointwise_relation _ base.equiv ==> base.equiv) assert_of'.
+Proof. solve_proper. Qed.
+
+Definition envp_to_assert (P : environ -> mpred) : assert :=
+  ∀ ρ, ⎡env_auth ρ⎤ -∗ ⎡env_auth ρ⎤ ∗ assert_of' (λ n, P (env_to_environ ρ n)).
+
+Definition local (P : environ -> Prop) : assert := envp_to_assert (λ n, ⌜P n⌝).
 
 Definition envassert_to_assert (P : environ -> assert) : assert :=
-  ∀ ρ, ⎡env_auth ρ⎤ -∗ ⎡env_auth ρ⎤ ∗ assert_of (λ n, P (env_to_environ ρ n) n).
+  ∀ ρ, ⎡env_auth ρ⎤ -∗ ⎡env_auth ρ⎤ ∗ assert_of' (λ n, P (env_to_environ ρ n) n).
+
+#[global] Instance envp_to_assert_mono : Proper (pointwise_relation _ bi_entails ==> bi_entails) envp_to_assert.
+Proof. solve_proper. Qed.
+
+#[global] Instance envp_to_assert_proper : Proper (pointwise_relation _ base.equiv ==> base.equiv) envp_to_assert.
+Proof. solve_proper. Qed.
 
 Lemma wp_tc_expr : forall {CS : compspecs} E f Delta e P,
   local (typecheck_environ Delta) ∧ ▷ envp_to_assert (tc_expr Delta e) ∧
   envassert_to_assert (λ rho, ⌜tc_val (typeof e) (eval_expr e rho)⌝ → P (eval_expr e rho)) ⊢
   wp_expr cenv_cs E f e P.
 Proof.
-  split => n; rewrite /tc_expr /envp_to_assert /local /envassert_to_assert /wp_expr; monPred.unseal; rewrite /lift1.
+  split => n; rewrite /tc_expr /local /envp_to_assert /envassert_to_assert /wp_expr; monPred.unseal; rewrite /lift1.
+  setoid_rewrite <- assert_of_eq.
   iIntros "H !>" (m ρ ? <-) "Hm".
   iIntros (? <-) "Hρ".
   set (rho := env_to_environ ρ n).
@@ -430,7 +456,8 @@ Lemma wp_tc_lvalue : forall {CS : compspecs} E f Delta e P,
   envassert_to_assert (λ rho, ∀ b o, ⌜eval_lvalue e rho = Vptr b (Ptrofs.repr o)⌝ → P (b, o)) ⊢
   wp_lvalue cenv_cs E f e P.
 Proof.
-  split => n; rewrite /tc_expr /envp_to_assert /local /envassert_to_assert /wp_lvalue; monPred.unseal; rewrite /lift1.
+  split => n; rewrite /tc_expr /local /envp_to_assert /envassert_to_assert /wp_lvalue; monPred.unseal; rewrite /lift1.
+  setoid_rewrite <- assert_of_eq.
   iIntros "H !>" (m ρ ? <-) "Hm".
   iIntros (? <-) "Hρ".
   set (rho := env_to_environ ρ n).

@@ -76,7 +76,7 @@ Definition readonly2share (rdonly: bool) : share :=
   if rdonly then Ers else Ews.
 
 Definition globals_of_env (rho: environ) (i: ident) : val := 
-  match Map.get (ge_of rho) i with Some b => Vptr b Ptrofs.zero | None => Vundef end.
+  match lookup i (ge_of rho) with Some b => Vptr b Ptrofs.zero | None => Vundef end.
 
 Definition globvar2pred (gv: ident->val) (idv: ident * globvar type) : mpred :=
    if (gvar_volatile (snd idv))
@@ -585,8 +585,8 @@ Proof.
   apply snd_split_fullshare_not_bot in H. auto.
 Qed.
 
-Definition genviron2globals (g: genviron) (i: ident) : val :=
-  match Map.get g i with Some b => Vptr b Ptrofs.zero | None => Vundef end.
+Definition genviron2globals (g: genv) (i: ident) : val :=
+  match Genv.find_symbol g i with Some b => Vptr b Ptrofs.zero | None => Vundef end.
 
 Lemma getN_seq : forall n z c, getN n z c = map (fun i => Maps.ZMap.get (z + Z.of_nat i) c) (seq 0 n).
 Proof.
@@ -605,7 +605,7 @@ forall (ge: genv) (v : globvar type) (b : block)
     (AL: initializer_aligned z a = true)
     (LO: 0 <= z) (HI: z + init_data_size a < Ptrofs.modulus),
 ([∗ list] y ∈ seq (Z.to_nat z) (Z.to_nat (init_data_size a)), inflate_loc m3 ge G (b, 0 + Z.of_nat y)) ⊢
-init_data2pred (genviron2globals (filter_genv ge)) a (readonly2share (gvar_readonly v))
+init_data2pred (genviron2globals ge) a (readonly2share (gvar_readonly v))
   (Vptr b (Ptrofs.repr z)).
 Proof.
   intros.
@@ -661,7 +661,7 @@ Opaque load.
   f_equal; apply zero_ext_inj; congruence.
 * (* symbol case *)
   injection H as H.
-  rewrite /genviron2globals /filter_genv /Map.get.
+  rewrite /genviron2globals.
   assert (align_chunk Mptr | z).
   { simpl in AL. apply Zmod_divide. intro Hx; inv Hx. apply Zeq_bool_eq; auto. }
   destruct (Genv.find_symbol (genv_genv ge) i) eqn: Hi.
@@ -763,7 +763,7 @@ forall (ge: genv) G (v : globvar type) (b : block)
      (AL: initializers_aligned (init_data_list_size dl0) a = true)
      (HI: init_data_list_size dl0 + init_data_list_size a < Ptrofs.modulus),
 ([∗ list] o ∈ seq (Z.to_nat (init_data_list_size dl0)) (Z.to_nat (init_data_list_size a)), inflate_loc m ge G (b, 0 + Z.of_nat o)) ⊢
-init_data_list2pred (genviron2globals (filter_genv ge)) a (readonly2share (gvar_readonly v))
+init_data_list2pred (genviron2globals ge) a (readonly2share (gvar_readonly v))
   (Vptr b (Ptrofs.repr (init_data_list_size dl0))).
 Proof.
   induction a as [|a la]; simpl; intros; first done.
@@ -806,7 +806,7 @@ Lemma init_data_list_lem:
    (AL: initializers_aligned 0 (gvar_init v) = true)
    (Hgl: nextblock m0 = Z.to_pos (Z.succ (Zlength gl))),
      inflate_initial_mem m4 (globals_bounds 1 (gl ++ [(i, Gvar v)])) ge G ⊢ inflate_initial_mem m0 (globals_bounds 1 gl) ge G ∗
-     if gvar_volatile v then True else init_data_list2pred (genviron2globals (filter_genv ge)) (gvar_init v) (readonly2share (gvar_readonly v)) (Vptr b Ptrofs.zero).
+     if gvar_volatile v then True else init_data_list2pred (genviron2globals ge) (gvar_init v) (readonly2share (gvar_readonly v)) (Vptr b Ptrofs.zero).
 Proof.
   intros.
   rewrite /inflate_initial_mem.
@@ -1019,7 +1019,7 @@ destruct l. inv H. right; auto.
 Qed.
 
 Definition prog_var_block (rho: environ) (il: list ident) (b: block) : Prop :=
-  Exists (fun id => match ge_of rho id with Some b' => b'=b | _ => False%type end) il.
+  Exists (fun id => match lookup id (ge_of rho) with Some b' => b'=b | _ => False%type end) il.
 
 Lemma match_fdecs_in:
   forall i vl G,
@@ -1164,7 +1164,7 @@ Lemma global_initializers:
      (SAME_IDS : match_fdecs (prog_funct prog) G)
      (Hinit : Genv.init_mem prog = Some m),
     inflate_initial_mem m (block_bounds prog) (globalenv prog) G ⊢
-    globvars2pred (genviron2globals (filter_genv (globalenv prog))) (prog_vars prog).
+    globvars2pred (genviron2globals (globalenv prog)) (prog_vars prog).
 Proof.
   intros.
   set (gp := globalenv prog).
@@ -1320,13 +1320,13 @@ Proof.
   rewrite /= !andb_true_iff in AL; destruct AL as ((? & ?%Z.ltb_lt) & ?).
   rewrite (init_data_list_lem gp) //.
   rewrite IHvl; iIntros "($ & ?)".
-  rewrite /genviron2globals /Map.get /filter_genv FS.
+  rewrite /genviron2globals FS.
   apply alloc_result in Halloc as ->; done.
   { rewrite Zlength_rev; eapply alloc_globals_rev_nextblock; eauto. }
 Qed.
 
-Definition globals_of_genv (g : genviron) (i : ident):=
-  match Map.get g i with
+Definition globals_of_genv (g : genviron) (i : ident) :=
+  match lookup i g with
 | Some b => Vptr b Ptrofs.zero
 | None => Vundef
 end.

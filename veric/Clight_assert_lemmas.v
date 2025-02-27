@@ -112,6 +112,12 @@ Proof.
   eapply bi.affinely_mono, allp_fun_id_sigcc_sub; eauto.
 Qed.
 
+Lemma stack_level_eq : forall a b, ⊢ stack_level a -∗ stack_level b -∗ ⌜a = b⌝.
+Proof.
+  split => n; rewrite /stack_level; monPred.unseal; setoid_rewrite monPred_at_affinely; simpl.
+  iIntros; iPureIntro; congruence.
+Qed.
+
 Section STABILITY.
 Variable CS: compspecs.
 Variables Delta Delta': tycontext.
@@ -191,17 +197,31 @@ Lemma tc_expr_sub:
     forall e rho, typecheck_environ Delta rho -> tc_expr Delta e rho ⊢ tc_expr Delta' e rho.
 Proof. intros. apply tc_expr_lvalue_sub; auto. Qed.
 
-(*Lemma tc_expr_sub':
-  forall e, local (typecheck_environ Delta) ∗ tc_expr Delta e ⊢ tc_expr Delta' e.
-Proof. split => rho; monPred.unseal; iIntros "(% & ?)"; by iApply tc_expr_sub. Qed.*)
+Lemma tc_expr_sub':
+  forall e, local (typecheck_environ Delta) ∗ envp_to_assert (tc_expr Delta e) ⊢ envp_to_assert (tc_expr Delta' e).
+Proof.
+  intros; rewrite /local /envp_to_assert /assert_of'.
+  iIntros "(HDelta & Htc)" (?) "Hρ".
+  iDestruct ("HDelta" with "Hρ") as "(Hρ & HDelta)".
+  iDestruct ("Htc" with "Hρ") as "($ & Htc)".
+  iIntros; iDestruct ("HDelta" with "[//]") as %?.
+  by rewrite -tc_expr_sub //; iApply "Htc".
+Qed.
 
 Lemma tc_lvalue_sub:
     forall e rho, typecheck_environ Delta rho -> tc_lvalue Delta e rho ⊢ tc_lvalue Delta' e rho.
 Proof. intros. apply tc_expr_lvalue_sub; auto. Qed.
 
-(*Lemma tc_lvalue_sub':
-  forall e, local (typecheck_environ Delta) ∗ tc_lvalue Delta e ⊢ tc_lvalue Delta' e.
-Proof. split => rho; monPred.unseal; iIntros "(% & ?)"; by iApply tc_lvalue_sub. Qed.*)
+Lemma tc_lvalue_sub':
+  forall e, local (typecheck_environ Delta) ∗ envp_to_assert (tc_lvalue Delta e) ⊢ envp_to_assert (tc_lvalue Delta' e).
+Proof.
+  intros; rewrite /local /envp_to_assert /assert_of'.
+  iIntros "(HDelta & Htc)" (?) "Hρ".
+  iDestruct ("HDelta" with "Hρ") as "(Hρ & HDelta)".
+  iDestruct ("Htc" with "Hρ") as "($ & Htc)".
+  iIntros; iDestruct ("HDelta" with "[//]") as %?.
+  by rewrite -tc_lvalue_sub //; iApply "Htc".
+Qed.
 
 Lemma tc_temp_id_sub:
     forall id t e rho,

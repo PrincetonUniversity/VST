@@ -220,11 +220,11 @@ Definition semax' {CS} E Delta P c R :=
   ∀ ge Delta' CS', ⌜tycontext_sub Delta Delta' ∧
       cenv_sub (@cenv_cs CS) (@cenv_cs CS') ∧
       cenv_sub (@cenv_cs CS') (genv_cenv ge)⌝ →
-  <affine> local (typecheck_environ Delta') -∗
+  □ local (typecheck_environ Delta') -∗
   ⎡funassert Delta'⎤ -∗
   <affine> @believe CS' Delta' ge -∗
   ∀ f, P -∗ wp OK_spec ge E f c
-    (frame_ret_assert R (<affine> local (typecheck_environ Delta') ∗ ⎡funassert Delta'⎤)).
+    (frame_ret_assert R (□ local (typecheck_environ Delta') ∗ ⎡funassert Delta'⎤)).
 
 Lemma semax'_cenv_sub {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) E Delta P c R:
       @semax' CS E Delta P c R ⊢ @semax' CS' E Delta P c R.
