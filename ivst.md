@@ -24,7 +24,13 @@ To generate a `_CoqProject` file for external use:
 make _CoqProject
 ```
 
-## For legacy VST users: `VST` and `VST_on_Iris` name conversion
+## For legacy VST users
+
+VST 3.x is mostly backwards-compatible. `Require Import VST.floyd.compat` to use VST 2.x notation, structure, lemma names, etc. If anything doesn't behave as expected, please contact mansky1@uic.edu.
+
+If you want to use the new features, the following information may be useful:
+
+## `VST` to `VST_on_Iris` name conversion
 
 | VST                       | vst_on_iris                         | syntax                                      |
 | ------------------------- | ---------------------------- | ------------------------------------------- |
