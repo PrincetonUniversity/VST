@@ -399,8 +399,6 @@ Class heapGS Σ := HeapGS {
    resource, so that entering a new frame is simply moving up the stack rather
    than clearing existing resources. *)
 
-(* Using inclR of the CMRA here instead of the ORA gmap_viewR allows us to leak variable ownership
-   (unlike memory ownership). *)
 Notation fixed_fracR A := (prodR (iris.algebra.agree.agreeR (leibnizO frac))
   (prodR fracR A)).
 

@@ -419,7 +419,6 @@ Proof.
   rewrite embed_fupd; iIntros "!>"; iExists _, m.
   iPoseProof (env_match_intro with "Hd") as "#?"; first done.
   iDestruct ("He" with "[$]") as %He.
-  specialize (He cenv_sub_refl).
   pose proof (typecheck_var_match_venv _ _ Hty).
   iSplit.
   { iPureIntro.
@@ -634,7 +633,7 @@ Proof.
   iPoseProof (env_match_intro with "Hd") as "#?"; first done.
   iDestruct ("He1" with "[$]") as %He1; iDestruct ("He2" with "[$]") as %He2.
   pose proof (typecheck_var_match_venv _ _ Hty) as Hmatch.
-  specialize (He2 cenv_sub_refl Hmatch); inv He2.
+  specialize (He2 Hmatch); inv He2.
   2: { inv H6. }
   iExists _, _; iSplit.
   { pose proof (@cenv_sub_refl ge).
@@ -690,7 +689,7 @@ Proof.
   iPoseProof (env_match_intro with "Hd") as "#?"; first done.
   iDestruct ("He1" with "[$]") as %He1; iDestruct ("He2" with "[$]") as %He2.
   pose proof (typecheck_var_match_venv _ _ Hty) as Hmatch.
-  specialize (He2 cenv_sub_refl Hmatch); inv He2.
+  specialize (He2 Hmatch); inv He2.
   2: { inv H4. }
   iExists _, _; iSplit.
   { pose proof (@cenv_sub_refl ge).
@@ -941,7 +940,7 @@ Proof.
     iDestruct ("H" with "[$] [$]") as ">(% & Hes & $ & $ & $)".
     iIntros "!> !>" (??) "#?".
     iDestruct ("He" with "[$]") as %He; iDestruct ("Hes" with "[$]") as %Hes; iPureIntro.
-    intros Hmatch; specialize (He cenv_sub_refl Hmatch); inv He.
+    intros Hmatch; specialize (He Hmatch); inv He.
     econstructor; eauto.
     { inv H. }
 Qed.
@@ -1477,7 +1476,7 @@ Proof.
     iMod (free_stackframe with "[$]") as (m'' ?) "(Hm & ?)"; [done..|].
     rewrite monPred_at_affinely; iDestruct "Hret" as %Hret.
     pose proof (typecheck_var_match_venv _ _ Hty') as Hmatch'.
-    specialize (Hret _ _ _ _ eq_refl Henv' cenv_sub_refl Hmatch'); inv Hret.
+    specialize (Hret _ _ _ eq_refl Henv' Hmatch'); inv Hret.
     2: { inv H12. }
     iIntros "!>".
     iExists _, _; iSplit.

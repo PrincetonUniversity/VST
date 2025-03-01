@@ -378,8 +378,6 @@ Qed.
 
 End CENV_SUB.
 
-(* We can always use tc_expr to satisfy wp_expr. *)
-
 Context `{!envGS Σ}.
 
 (* use this throughout? *)
@@ -402,89 +400,100 @@ Proof. solve_proper. Qed.
 #[global] Instance assert_of'_proper : Proper (pointwise_relation _ base.equiv ==> base.equiv) assert_of'.
 Proof. solve_proper. Qed.
 
-Definition envp_to_assert (P : environ -> mpred) : assert :=
-  ∀ ρ, ⎡env_auth ρ⎤ -∗ ⎡env_auth ρ⎤ ∗ assert_of' (λ n, P (env_to_environ ρ n)).
+(* We can always use tc_expr+eval_expr to satisfy wp_expr. However, wp_expr takes a
+   small-footprint approach to the environment, while tc_expr and eval_expr freely
+   call on the full environment rho. So to do this, we need to first fix the entire
+   environment. *)
+Definition curr_env (ge : genv) (rho : environ) : assert := <affine> ⌜∀ i, ge_of rho !! i = Genv.find_symbol ge i⌝ ∗ ([∗ map] i↦b ∈ ge_of rho, ⎡gvar i b⎤) ∗
+  assert_of' (λ n, ∃ q0, stack_frag n q0 1%Qp (ve_of rho) (te_of rho)).
 
-Definition local (P : environ -> Prop) : assert := envp_to_assert (λ n, ⌜P n⌝).
+Definition genv_sub (ge1 ge2 : genv) := forall i v, Genv.find_symbol ge1 i = Some v -> Genv.find_symbol ge2 i = Some v.
 
-Definition envassert_to_assert (P : environ -> assert) : assert :=
-  ∀ ρ, ⎡env_auth ρ⎤ -∗ ⎡env_auth ρ⎤ ∗ assert_of' (λ n, P (env_to_environ ρ n) n).
-
-#[global] Instance envp_to_assert_mono : Proper (pointwise_relation _ bi_entails ==> bi_entails) envp_to_assert.
-Proof. solve_proper. Qed.
-
-#[global] Instance envp_to_assert_proper : Proper (pointwise_relation _ base.equiv ==> base.equiv) envp_to_assert.
-Proof. solve_proper. Qed.
-
-Lemma wp_tc_expr : forall {CS : compspecs} E f Delta e P,
-  local (typecheck_environ Delta) ∧ ▷ envp_to_assert (tc_expr Delta e) ∧
-  envassert_to_assert (λ rho, ⌜tc_val (typeof e) (eval_expr e rho)⌝ → P (eval_expr e rho)) ⊢
-  wp_expr cenv_cs E f e P.
+Lemma curr_env_e : forall ρ ge0 rho, ⊢ ⎡env_auth ρ⎤ -∗ curr_env ge0 rho -∗
+  □ ∀ ge ve te, env_match ρ ge ve te -∗ ⌜genv_sub ge0 ge /\ env_matches rho ge0 ve te⌝.
 Proof.
-  split => n; rewrite /tc_expr /local /envp_to_assert /envassert_to_assert /wp_expr; monPred.unseal; rewrite /lift1.
-  setoid_rewrite <- assert_of_eq.
-  iIntros "H !>" (m ρ ? <-) "Hm".
-  iIntros (? <-) "Hρ".
-  set (rho := env_to_environ ρ n).
-  iAssert ⌜typecheck_environ Delta rho⌝ as %?.
-  { iDestruct "H" as "(H & _)".
-    iDestruct ("H" with "[//] Hρ") as "(? & $)". }
-  iDestruct "H" as "(_ & H)".
+  split => n; rewrite /curr_env; monPred.unseal.
+  iIntros "_ %% Hρ %% H".
+  rewrite monPred_at_embed !monPred_at_sep monPred_at_affinely monPred_at_intuitionistically monPred_at_big_sepM; monPred.unseal.
+  iDestruct "H" as "(%Hge0 & Hge & Hs)".
+  rewrite -assert_of_eq /=.
+  iDestruct "Hs" as (?) "Hs"; iDestruct (stack_frag_e_1 with "[$Hρ $Hs]") as %(Hve & Hte).
+  iAssert ⌜ge_of rho ⊆ ge_of (env_to_environ ρ n)⌝ as %Hsub.
+  { iIntros (i).
+    destruct (ge_of rho !! i)%stdpp eqn: Hi; rewrite Hi /=.
+    - rewrite big_sepM_lookup //.
+      iDestruct (gvar_e with "[$Hρ $Hge]") as %Hi'.
+      by rewrite ge_of_env Hi'.
+    - by destruct (ge_of (env_to_environ ρ n) !! i)%stdpp eqn: Hi'; rewrite Hi'. }
+  iPureIntro; simpl; intros ????? Hmatch.
+  unfold sqsubseteq in *; subst.
+  destruct Hmatch as (Hge & ? & ?).
+  split.
+  - intros ?? Hi.
+    rewrite Hge; rewrite -Hge0 in Hi.
+    by eapply lookup_weaken.
+  - split3; rewrite ?Hve ?Hte; done.
+Qed.
+
+Lemma wp_tc_expr : forall {CS : compspecs} E f Delta e P (ge : genv) rho,
+  cenv_sub cenv_cs ge ->
+  typecheck_environ Delta rho ->
+  ⊢ curr_env ge rho -∗
+    ▷ ⎡tc_expr Delta e rho⎤ ∧
+    (curr_env ge rho -∗ ⌜tc_val (typeof e) (eval_expr e rho)⌝ → P (eval_expr e rho)) -∗
+  wp_expr ge E f e P.
+Proof.
+  intros; rewrite /wp_expr.
+  iIntros "Hrho H !>" (??) "Hm Hρ".
+  iDestruct (curr_env_e with "Hρ Hrho") as "#Hsub".
   iCombine "H Hρ" as "TC".
   iDestruct (add_and _ (▷ ⌜tc_val (typeof e) (eval_expr e rho)⌝) with "TC") as "(TC & >%)".
-  { iIntros "((H & _) & ?) !>". iApply expr_lemmas4.typecheck_expr_sound; first done.
-    iDestruct ("H" with "[//] [$]") as "(? & $)". }
+  { iIntros "((H & _) & ?) !>". rewrite -embed_pure. by iApply expr_lemmas4.typecheck_expr_sound. }
   iCombine "TC Hm" as "H"; iDestruct (add_and _ (▷ ⌜∀ ge ve te,
     env_matches rho ge ve te → cenv_sub cenv_cs ge
       → match_venv (make_env ve) (fn_vars f)
-        → Clight.eval_expr ge ve te m e (eval_expr e rho)⌝) with "H") as "(((H & ?) & ?) & >%)".
+        → Clight.eval_expr ge ve te m e (eval_expr e rho)⌝) with "H") as "(((H & ?) & ?) & >%He)".
   { iIntros "(((H & _) & ?) & Hm) !>" (??????).
-    iDestruct ("H" with "[//] [$]") as "(? & ?)".
-    iApply expr_lemmas4.eval_expr_relate; eauto; iFrame. }
+    rewrite -embed_pure. iApply expr_lemmas4.eval_expr_relate; eauto; iFrame. }
   rewrite bi.and_elim_r.
-  iDestruct ("H" with "[//] [$]") as "(? & H)".
-  iIntros "!>"; iExists (eval_expr e rho).
-  rewrite monPred_at_affinely /=; iFrame.
-  iSplit.
-  { iPureIntro; simpl.
-    intros ???? <-; auto. }
-  iApply "H"; auto; rewrite monPred_at_affinely //.
+  iSpecialize ("H" with "Hrho [//]").
+  iIntros "!>"; iExists (eval_expr e rho); iFrame.
+  iIntros "!>" (??) "Hmatch".
+  iDestruct ("Hsub" with "Hmatch") as %(? & Hmatch).
+  iPureIntro; auto.
 Qed.
 
-Lemma wp_tc_lvalue : forall {CS : compspecs} E f Delta e P,
-  local (typecheck_environ Delta) ∧ ▷ envp_to_assert (tc_lvalue Delta e) ∧
-  envassert_to_assert (λ rho, ∀ b o, ⌜eval_lvalue e rho = Vptr b (Ptrofs.repr o)⌝ → P (b, o)) ⊢
-  wp_lvalue cenv_cs E f e P.
+Lemma wp_tc_lvalue : forall {CS : compspecs} E f Delta e P (ge : genv) rho,
+  cenv_sub cenv_cs ge ->
+  typecheck_environ Delta rho ->
+  ⊢ curr_env ge rho -∗
+    ▷ ⎡tc_lvalue Delta e rho⎤ ∧
+    (curr_env ge rho -∗ ∀ b o, ⌜eval_lvalue e rho = Vptr b (Ptrofs.repr o)⌝ → P (b, o)) -∗
+  wp_lvalue ge E f e P.
 Proof.
-  split => n; rewrite /tc_expr /local /envp_to_assert /envassert_to_assert /wp_lvalue; monPred.unseal; rewrite /lift1.
-  setoid_rewrite <- assert_of_eq.
-  iIntros "H !>" (m ρ ? <-) "Hm".
-  iIntros (? <-) "Hρ".
-  set (rho := env_to_environ ρ n).
-  iAssert ⌜typecheck_environ Delta rho⌝ as %?.
-  { iDestruct "H" as "(H & _)".
-    iDestruct ("H" with "[//] Hρ") as "(? & $)". }
-  iDestruct "H" as "(_ & H)".
+  intros; rewrite /wp_lvalue.
+  iIntros "Hrho H !>" (??) "Hm Hρ".
+  iDestruct (curr_env_e with "Hρ Hrho") as "#Hsub".
   iCombine "H Hρ" as "TC".
   iDestruct (add_and _ (▷ ⌜isptr (eval_lvalue e rho)⌝) with "TC") as "(TC & >%)".
   { iIntros "((H & _) & ?) !>". edestruct expr_lemmas4.typecheck_both_sound as (_ & Htc); first done.
-    iDestruct ("H" with "[//] [$]") as "(? & ?)"; by iApply (Htc (Tstruct 1%positive noattr)). }
+    rewrite -embed_pure. by iApply (Htc (Tstruct 1%positive noattr)). }
   iCombine "TC Hm" as "H"; iDestruct (add_and _ (▷ ⌜∀ ge ve te,
     env_matches rho ge ve te → cenv_sub cenv_cs ge
       → match_venv (make_env ve) (fn_vars f)
-        → ∃ b o, Clight.eval_lvalue ge ve te m e b o Full ∧ eval_lvalue e rho = Vptr b o⌝) with "H") as "(((H & ?) & ?) & >%Heval)".
+        → ∃ b o, Clight.eval_lvalue ge ve te m e b o Full ∧ eval_lvalue e rho = Vptr b o⌝) with "H") as "(((H & ?) & ?) & >%He)".
   { iIntros "(((H & _) & ?) & Hm) !>" (??????).
-    iDestruct ("H" with "[//] [$]") as "(? & ?)".
-    iApply expr_lemmas4.eval_lvalue_relate; eauto; iFrame. }
+    rewrite -embed_pure. iApply expr_lemmas4.eval_lvalue_relate; eauto; iFrame. }
   rewrite bi.and_elim_r.
-  iDestruct ("H" with "[//] [$]") as "(? & H)".
-  destruct (eval_lvalue e rho) eqn: He; try contradiction.
-  iIntros "!>"; iExists _, _; rewrite monPred_at_affinely /=; iFrame.
-  iSplit.
-  - iPureIntro; simpl.
-    intros ???? <- ???. edestruct Heval as (? & ? & ? & [=]); by subst.
-  - iFrame; iApply "H"; auto.
-    rewrite Ptrofs.repr_unsigned //.
+  destruct (eval_lvalue e rho) eqn: Heval; try contradiction.
+  iIntros "!>"; iExists _, _; iFrame.
+  iSplitL "".
+  - iIntros "!>" (??) "Hmatch %".
+    iDestruct ("Hsub" with "Hmatch") as %(? & Hmatch).
+    iPureIntro; simpl.
+    edestruct He as (? & ? & ? & [=]); by subst.
+  - iApply ("H" with "Hrho").
+    by rewrite Ptrofs.repr_unsigned.
 Qed.
 
 End mpred.

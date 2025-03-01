@@ -13,7 +13,9 @@ Require Import VST.veric.env.
 
 Section mpred.
 
-Context `{!heapGS Σ} `{!envGS Σ} (CE : composite_env).
+Context `{!heapGS Σ} `{!envGS Σ} (ge : genv).
+(* We could provide only a composite_env here, which would theoretically allow
+   us to allocate new global variables during a proof, but Clight doesn't allow that. *)
 
 Lemma make_tycontext_v_lookup : forall tys id t,
   make_tycontext_v tys !! id = Some t -> In (id, t) tys.
@@ -99,15 +101,15 @@ Qed.
    shadow the names of global variables. *)
 Definition wp_expr E f e Φ : assert :=
   |={E}=> ∀ m rho, ⎡mem_auth m⎤ -∗ ⎡env_auth rho⎤ ={E}=∗
-         ∃ v, <affine> (∀ ge ve te, env_match rho ge ve te -∗
-            ⌜cenv_sub CE (genv_cenv ge) → match_venv (make_env ve) (fn_vars f) →
+         ∃ v, <affine> (∀ ve te, env_match rho ge ve te -∗
+            ⌜match_venv (make_env ve) (fn_vars f) →
              Clight.eval_expr ge ve te m e v (*/\ typeof e = t /\ tc_val t v*)⌝) ∗
          ⎡mem_auth m⎤ ∗ ⎡env_auth rho⎤ ∗ Φ v.
 
 Definition wp_lvalue E f e (Φ : address → assert) : assert :=
   |={E}=> ∀ m rho, ⎡mem_auth m⎤ -∗ ⎡env_auth rho⎤ ={E}=∗
-         ∃ b o, <affine> (∀ ge ve te, env_match rho ge ve te -∗
-            ⌜cenv_sub CE (genv_cenv ge) → match_venv (make_env ve) (fn_vars f) →
+         ∃ b o, <affine> (∀ ve te, env_match rho ge ve te -∗
+            ⌜match_venv (make_env ve) (fn_vars f) →
             Clight.eval_lvalue ge ve te m e b o Full (*/\ typeof e = t /\ tc_val t v*)⌝) ∗
          ⎡mem_auth m⎤ ∗ ⎡env_auth rho⎤ ∗ Φ (b, Ptrofs.unsigned o).
 
@@ -208,7 +210,7 @@ Proof.
   rewrite /wp_expr.
   iIntros "? !> %% ?? !>".
   iFrame.
-  iIntros "!>" (???) "?"; iPureIntro; intros; constructor.
+  iIntros "!>" (??) "?"; iPureIntro; intros; constructor.
 Qed.
 
 Lemma wp_const_long E f i t P:
@@ -218,7 +220,7 @@ Proof.
   rewrite /wp_expr.
   iIntros "? !> %% ?? !>".
   iFrame.
-  iIntros "!>" (???) "?"; iPureIntro; intros; constructor.
+  iIntros "!>" (??) "?"; iPureIntro; intros; constructor.
 Qed.
 
 Lemma wp_const_float E f i t P:
@@ -228,7 +230,7 @@ Proof.
   rewrite /wp_expr.
   iIntros "? !> %% ?? !>".
   iFrame.
-  iIntros "!>" (???) "?"; iPureIntro; intros; constructor.
+  iIntros "!>" (??) "?"; iPureIntro; intros; constructor.
 Qed.
 
 Lemma wp_const_single E f i t P:
@@ -238,7 +240,7 @@ Proof.
   rewrite /wp_expr.
   iIntros "? !> %% ?? !>".
   iFrame.
-  iIntros "!>" (???) "?"; iPureIntro; intros; constructor.
+  iIntros "!>" (??) "?"; iPureIntro; intros; constructor.
 Qed.
 
 (* Caesium uses a small-step semantics for exprs, so the wp/typing for an operation can be broken up into
@@ -246,7 +248,7 @@ Qed.
    into expr, so for now, hacking in a different wp judgment for ops. *)
 Definition wp_binop E op t1 v1 t2 v2 Φ : assert :=
   |={E}=> ∀ m, ⎡mem_auth m⎤ ={E}=∗
-         ∃ v, ⌜∀ ce, cenv_sub CE ce → sem_binary_operation ce op v1 t1 v2 t2 m = Some v (*/\ typeof e = t /\ tc_val t v*)⌝ ∧
+         ∃ v, ⌜sem_binary_operation ge op v1 t1 v2 t2 m = Some v (*/\ typeof e = t /\ tc_val t v*)⌝ ∧
          ⎡mem_auth m⎤ ∗ Φ v.
 
 Lemma fupd_wp_binop : forall E op t1 v1 t2 v2 P, (|={E}=> wp_binop E op t1 v1 t2 v2 P) ⊢ wp_binop E op t1 v1 t2 v2 P.
@@ -269,7 +271,7 @@ Proof.
   iMod ("H" with "Hm [$]") as "(%v2 & H2 & Hm & ? & >H)".
   iMod ("H" with "Hm") as "(%v & %H & Hm & ?)".
   iIntros "!>"; iExists _; iFrame.
-  iIntros "!>" (???) "#?"; rewrite !bi.affinely_elim.
+  iIntros "!>" (??) "#?"; rewrite !bi.affinely_elim.
   iDestruct ("H1" with "[$]") as %?; iDestruct ("H2" with "[$]") as %?; iPureIntro.
   intros; econstructor; eauto.
 Qed.
@@ -358,7 +360,7 @@ Proof.
   assert (classify_cmp ty1 ty2 = cmp_case_pp) as Hcase.
   { subst; destruct ty1; try solve [simpl in *; try destruct f; try tauto; congruence].
     destruct ty2; try solve [simpl in *; try destruct f; try tauto; congruence]. }
-  assert (exists v, forall ce, cenv_sub CE ce -> sem_binary_operation ce cmp v1 ty1 v2 ty2 m = Some v) as (v & Hv).
+  assert (exists v, sem_binary_operation ge cmp v1 ty1 v2 ty2 m = Some v) as (v & Hv).
   { rewrite /sem_binary_operation /Cop.sem_cmp Hcase.
     rewrite /cmp_ptr /Val.cmpu_bool /Val.cmplu_bool Hv1 Hv2 MT_1 MT_2 /=.
     rewrite bool2val_eq.
@@ -369,7 +371,6 @@ Proof.
   iIntros "!>"; iSplit; first done.
   iApply "H"; iPureIntro.
   rewrite /sem_binary_operation /Cop.sem_cmp Hcase /cmp_ptr in Hv; rewrite /sem_cmp_pp -bool2val_eq.
-  specialize (Hv _ cenv_sub_refl).
   destruct cmp; try done; simple_if_tac; apply option_map_Some in Hv as (? & Hv & <-); simpl;
     first [by apply cmplu_bool_true in Hv as -> | by apply cmpu_bool_true in Hv as ->].
 Qed.
@@ -398,7 +399,7 @@ Proof.
   iMod ("H" with "Hm [$]") as "(%v1 & H1 & Hm & ? & >H)".
   iMod ("H" with "Hm") as "(%v & %H & Hm & ?)".
   iIntros "!>"; iExists _; iFrame.
-  iStopProof; do 9 f_equiv.
+  iStopProof; do 7 f_equiv.
   intros ??; econstructor; eauto.
 Qed.
 
@@ -515,7 +516,7 @@ Proof.
   intros; rewrite /wp_expr.
   do 8 f_equiv. iIntros "(% & ? & Hm & ? & % & %v' & %Hcast & P)".
   iExists v'; iFrame.
-  iStopProof; do 9 f_equiv.
+  iStopProof; do 7 f_equiv.
   intros ??; econstructor; eauto.
   by apply sem_cast_e1.
 Qed.
@@ -529,7 +530,7 @@ Proof.
   iDestruct (temp_e with "[$H $Hr]") as %H.
   iSpecialize ("HP" with "[%] H"); first done.
   iExists _; iFrame. rewrite monPred_at_affinely; iPureIntro; simpl.
-  intros ???? <- (? & ? & Hte); rewrite -Hte in H.
+  intros ??? <- (? & ? & Hte); rewrite -Hte in H.
   by constructor.
 Qed.
 
@@ -543,7 +544,7 @@ Proof.
   iSpecialize ("HP" with "[%] H"); first done.
   change 0 with (Ptrofs.unsigned Ptrofs.zero).
   iExists _, _; iFrame. rewrite monPred_at_affinely; iPureIntro; simpl.
-  intros ???? <- (? & Hve & ?); rewrite -Hve in H.
+  intros ??? <- (? & Hve & ?); rewrite -Hve in H.
   by constructor.
 Qed.
 
@@ -564,7 +565,7 @@ Proof.
   iSpecialize ("HP" with "[%] H"); first done.
   change 0 with (Ptrofs.unsigned Ptrofs.zero).
   iExists _, _; iFrame. rewrite monPred_at_affinely; iPureIntro; simpl.
-  intros ???? <- (Hge & ? & ?) ? Hmatch.
+  intros ??? <- (Hge & ? & ?) Hmatch.
   rewrite ge_of_env in Hge; rewrite -Hge in Hx.
   apply eval_Evar_global; auto.
   rewrite /match_venv in Hmatch.
@@ -579,7 +580,7 @@ Proof.
   intros; rewrite /wp_lvalue /wp_expr.
   do 8 f_equiv.
   iIntros "(% & ? & ? & ? & %b & %o & % & ?)"; iExists b, o; iFrame.
-  iStopProof; do 9 f_equiv.
+  iStopProof; do 7 f_equiv.
   intros ??; subst; econstructor; eauto.
 Qed.
 
@@ -589,7 +590,7 @@ Proof.
   intros; rewrite /wp_lvalue /wp_expr.
   do 8 f_equiv.
   iIntros "(% & % & ? & $)".
-  iStopProof; do 9 f_equiv.
+  iStopProof; do 7 f_equiv.
   intros ??; econstructor; eauto.
   rewrite Ptrofs.repr_unsigned; constructor; auto.
 Qed.
@@ -612,14 +613,14 @@ Proof.
     rewrite mapsto_core_load //. }
   rewrite bi.and_elim_r.
   iModIntro; iExists v; iFrame.
-  iStopProof; do 9 f_equiv.
+  iStopProof; do 7 f_equiv.
   intros ??; econstructor; eauto.
   econstructor; eauto.
 Qed.
 
 End mpred.
 
-Lemma wp_expr_cenv_sub : forall `{!heapGS Σ} `{!envGS Σ} CE CE' E f e P, cenv_sub CE CE' ->
+(* Lemma wp_expr_cenv_sub : forall `{!heapGS Σ} `{!envGS Σ} CE CE' E f e P, cenv_sub CE CE' ->
   wp_expr CE E f e P ⊢ wp_expr CE' E f e P.
 Proof.
   intros; rewrite /wp_expr.
@@ -635,4 +636,4 @@ Proof.
   repeat f_equiv.
   intros ? Hsub.
   eapply (cenv_sub_trans H) in Hsub; auto.
-Qed.
+Qed. *)

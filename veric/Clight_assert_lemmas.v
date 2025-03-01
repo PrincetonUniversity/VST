@@ -197,31 +197,9 @@ Lemma tc_expr_sub:
     forall e rho, typecheck_environ Delta rho -> tc_expr Delta e rho ⊢ tc_expr Delta' e rho.
 Proof. intros. apply tc_expr_lvalue_sub; auto. Qed.
 
-Lemma tc_expr_sub':
-  forall e, local (typecheck_environ Delta) ∗ envp_to_assert (tc_expr Delta e) ⊢ envp_to_assert (tc_expr Delta' e).
-Proof.
-  intros; rewrite /local /envp_to_assert /assert_of'.
-  iIntros "(HDelta & Htc)" (?) "Hρ".
-  iDestruct ("HDelta" with "Hρ") as "(Hρ & HDelta)".
-  iDestruct ("Htc" with "Hρ") as "($ & Htc)".
-  iIntros; iDestruct ("HDelta" with "[//]") as %?.
-  by rewrite -tc_expr_sub //; iApply "Htc".
-Qed.
-
 Lemma tc_lvalue_sub:
     forall e rho, typecheck_environ Delta rho -> tc_lvalue Delta e rho ⊢ tc_lvalue Delta' e rho.
 Proof. intros. apply tc_expr_lvalue_sub; auto. Qed.
-
-Lemma tc_lvalue_sub':
-  forall e, local (typecheck_environ Delta) ∗ envp_to_assert (tc_lvalue Delta e) ⊢ envp_to_assert (tc_lvalue Delta' e).
-Proof.
-  intros; rewrite /local /envp_to_assert /assert_of'.
-  iIntros "(HDelta & Htc)" (?) "Hρ".
-  iDestruct ("HDelta" with "Hρ") as "(Hρ & HDelta)".
-  iDestruct ("Htc" with "Hρ") as "($ & Htc)".
-  iIntros; iDestruct ("HDelta" with "[//]") as %?.
-  by rewrite -tc_lvalue_sub //; iApply "Htc".
-Qed.
 
 Lemma tc_temp_id_sub:
     forall id t e rho,
