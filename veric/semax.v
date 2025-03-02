@@ -15,6 +15,7 @@ Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
 Require Import VST.veric.expr_lemmas.
 Require Export VST.veric.lifting.
+Require Export VST.veric.env_pred.
 
 Import Ctypes Clight_core.
 
@@ -28,14 +29,14 @@ Context `{!VSTGS OK_ty Σ} (OK_spec : ext_spec OK_ty).
 Definition closed_wrt_modvars c (F: environ -> mpred) : Prop :=
     closed_wrt_vars (modifiedvars c) F.
 
-Record semaxArg :Type := SemaxArg {
+(*Record semaxArg :Type := SemaxArg {
  sa_cs: compspecs;
  sa_E: coPset;
  sa_Delta: tycontext;
  sa_P: assert;
  sa_c: statement;
  sa_R: ret_assert
-}.
+}.*)
 
 Definition semax_external
   ef
@@ -48,12 +49,12 @@ Definition semax_external
    ▷ ∀ F (ts: list typ),
    ∀ args: list val,
    ■ (⌜Val.has_type_list args (map proj_xtype (sig_args (ef_sig ef)))⌝ ∧
-     (assert_of (P x args) ∗ F) ={E x}=∗
+     (mpred.assert_of (P x args) ∗ F) ={E x}=∗
    ∀ m z, ⎡state_interp m z⎤ -∗ ∃ x': ext_spec_type OK_spec ef,
     ⌜ext_spec_pre OK_spec ef x' (genv_symb_injective gx) ts args z m⌝ ∧
      (*□*) ∀ tret: xtype, ∀ ret: option val, ∀ m': mem, ∀ z': OK_ty,
       ⌜ext_spec_post OK_spec ef x' (genv_symb_injective gx) tret ret z' m'⌝ → |={E x}=>
-          ⎡state_interp m' z'⎤ ∗ assert_of (Q x ret) ∗ F).
+          ⎡state_interp m' z'⎤ ∗ mpred.assert_of (Q x ret) ∗ F).
 
 Lemma Forall2_implication {A B} (P Q:A -> B -> Prop) (PQ:forall a b, P a b -> Q a b):
   forall l t, Forall2 P l t -> Forall2 Q l t.
@@ -141,7 +142,7 @@ Definition believe_external (gx: genv) (v: val) (fsig: typesig) cc
         ∧ semax_external ef A E P Q
         ∧ ■ (∀ x: dtfr A,
               ∀ ret:option val,
-                assert_of (Q x ret)
+                mpred.assert_of (Q x ret)
                   ∧ ⌜Builtins0.val_opt_has_rettype ret (rettype_of_type (snd fsig))⌝
                   -∗ ⌜tc_option_val sigret ret⌝)
   | _ => False
@@ -170,7 +171,7 @@ Definition fn_typesig (f: function) : typesig := (map snd (fn_params f), fn_retu
 
 (* the version of this in lifting includes the args, while this believe_internal
    uses close_precondition for the args instead *)
-Definition stackframe_of' (cenv: composite_env) (f: Clight.function) : assert :=
+Definition stackframe_of' (cenv: composite_env) (f: Clight.function) : mpred.assert :=
   ([∗ list] idt ∈ fn_vars f, var_block' Share.top cenv idt) ∗
   ([∗ list] idt;v ∈ (fn_temps f);(repeat Vundef (length (fn_temps f))), temp (fst idt) v).
 
@@ -182,7 +183,7 @@ Definition believe_internal {CS}
   (gx: genv) v (fsig: typesig) cc (A: TypeTree)
   (E: dtfr (MaskTT A))
   (P: dtfr (ArgsTT A))
-  (Q: dtfr (AssertTT A)) : assert :=
+  (Q: dtfr (AssertTT A)) : mpred.assert :=
   let ce := (@cenv_cs CS) in
   (∃ b: Values.block, ∃ f: function,
    let fparams := fn_params f in
@@ -193,9 +194,9 @@ Definition believe_internal {CS}
                  /\ fn_typesig f = fsig
                  /\ f.(fn_callconv) = cc⌝
   ∧ ∀ CS', ⌜cenv_sub (@cenv_cs CS) (@cenv_cs CS')⌝ →
-■ ∀ x : dtfr A, ▷ ((bind_args f.(fn_params) (λ lv, assert_of (P x lv)) ∗ stackframe_of' (@cenv_cs CS') f) -∗
+■ ∀ x : dtfr A, ▷ ((bind_args f.(fn_params) (λ lv, mpred.assert_of (P x lv)) ∗ stackframe_of' (@cenv_cs CS') f) -∗
          wp OK_spec gx (E x) f f.(fn_body)
-           (frame_ret_assert (function_body_ret_assert f.(fn_return) (λ ret, assert_of (Q x ret))) (stackframe_of' (@cenv_cs CS') f)))).
+           (Clight_seplog.frame_ret_assert (Clight_seplog.function_body_ret_assert f.(fn_return) (λ ret, mpred.assert_of (Q x ret))) (stackframe_of' (@cenv_cs CS') f)))).
 (* might need the recursive construction after all, so that we can use believe in
    proving all the funspecs *)
 
@@ -216,15 +217,24 @@ Proof.
   destruct (Genv.find_funct _ _) as [[|]|]; apply _.
 Qed.
 
-Definition semax' {CS} E Delta P c R :=
+Definition env_ret_assert Delta ge (R : ret_assert) : tycontext.ret_assert :=
+  Clight_seplog.existential_ret_assert (λ rho, Clight_seplog.frame_ret_assert
+    {| tycontext.RA_normal := ⎡RA_normal R rho⎤;
+       tycontext.RA_break := ⎡RA_break R rho⎤;
+       tycontext.RA_continue := ⎡RA_continue R rho⎤;
+       tycontext.RA_return := λ vl, ⎡RA_return R vl rho⎤
+    |} (<affine> ⌜typecheck_environ Delta rho⌝ ∗ curr_env ge rho)).
+
+Definition semax' {CS} E Delta (P : assert) c (R : ret_assert) :=
   ∀ ge Delta' CS', ⌜tycontext_sub Delta Delta' ∧
       cenv_sub (@cenv_cs CS) (@cenv_cs CS') ∧
       cenv_sub (@cenv_cs CS') (genv_cenv ge)⌝ →
-  □ local (typecheck_environ Delta') -∗
+  ∀ rho, curr_env ge rho -∗
+  ⌜typecheck_environ Delta' rho⌝ →
   ⎡funassert Delta'⎤ -∗
   <affine> @believe CS' Delta' ge -∗
-  ∀ f, P -∗ wp OK_spec ge E f c
-    (frame_ret_assert R (□ local (typecheck_environ Delta') ∗ ⎡funassert Delta'⎤)).
+  ∀ f, ⎡P rho⎤ -∗ wp OK_spec ge E f c
+    (Clight_seplog.frame_ret_assert (env_ret_assert Delta' ge R) ⎡funassert Delta'⎤).
 
 Lemma semax'_cenv_sub {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) E Delta P c R:
       @semax' CS E Delta P c R ⊢ @semax' CS' E Delta P c R.
@@ -378,7 +388,7 @@ Lemma semax_mask_mono {CS} E E' Delta P Q
   @semax' CS E' Delta P c Q.
 Proof.
   rewrite /semax'.
-  do 13 f_equiv.
+  do 16 f_equiv.
   by apply wp_mask_mono.
 Qed.
 

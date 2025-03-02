@@ -106,31 +106,17 @@ split; [ | split].
  specialize (H2 id). hnf in H2. rewrite H in H2. eauto.
 Qed.
 
-#[global] Instance local_absorbing P: Absorbing (local P).
-Proof.
-  rewrite /local.
-  apply bi.forall_absorbing; intros.
-  apply bi.wand_absorbing_r, bi.sep_absorbing_r, monPred_absorbing, _.
-Qed.
-
-Lemma typecheck_environ_sub': forall Delta Delta', tycontext_sub Delta Delta' ->
-  local (typecheck_environ Delta') ⊢ local (typecheck_environ Delta).
-Proof.
-  intros; rewrite /local; do 3 f_equiv.
-  rewrite /impl; apply typecheck_environ_sub; auto.
-Qed.
-
 Lemma semax_unfold {CS: compspecs} E Delta P c R :
   semax OK_spec E Delta P c R ↔ forall (psi: Clight.genv) Delta' CS'
           (TS: tycontext_sub Delta Delta')
-          (HGG: cenv_sub (@cenv_cs CS) (@cenv_cs CS') /\ cenv_sub (@cenv_cs CS') (genv_cenv psi)),
-    ⊢ □ local (typecheck_environ Delta') -∗ ⎡funassert Delta'⎤ -∗ <affine> believe(CS := CS') OK_spec Delta' psi -∗
-      ∀ f, P -∗ wp OK_spec psi E f c (frame_ret_assert R (□ local (typecheck_environ Delta') ∗ ⎡funassert Delta'⎤)).
+          (HGG: cenv_sub (@cenv_cs CS) (@cenv_cs CS') /\ cenv_sub (@cenv_cs CS') (genv_cenv psi)) rho,
+    ⊢ curr_env psi rho -∗ ⌜typecheck_environ Delta' rho⌝ -∗ ⎡funassert Delta'⎤ -∗ <affine> believe(CS := CS') OK_spec Delta' psi -∗
+      ∀ f, ⎡P rho⎤ -∗ wp OK_spec psi E f c (Clight_seplog.frame_ret_assert (env_ret_assert Delta' psi R) ⎡funassert Delta'⎤).
 Proof.
 rewrite /semax /semax'.
 split; intros.
-+ iIntros "TY F B"; iApply (H with "[%] TY F B"); auto.
-+ iIntros (??? (? & ?)) "TY F B"; iApply (H with "TY F B"); auto.
++ iIntros "E % F B"; iApply (H with "[%] E [//] F B"); auto.
++ iIntros (??? (? & ?) ?) "E TY F B"; iApply (H with "E TY F B"); auto.
 Qed.
 
 Lemma frame_normal : forall R P, RA_normal (frame_ret_assert R P) = (RA_normal R ∗ P).
@@ -144,10 +130,10 @@ Proof.
 intros.
 rewrite semax_unfold.
 intros psi Delta' CS' ??.
-iIntros "#? ? #?" (?) "P".
-iApply wp_skip.
-rewrite H frame_normal.
-iDestruct "P" as (?) "$"; auto.
+iIntros (?) "? % ? #? % P".
+iApply wp_skip; simpl; iFrame.
+rewrite H /=.
+rewrite monPred_at_and bi.and_elim_r; auto.
 Qed.
 
 Fixpoint list_drop (A: Type) (n: nat) (l: list A) {struct n} : list A :=
@@ -238,10 +224,12 @@ Lemma extract_exists_pre_later {CS: compspecs}:
 Proof.
 intros.
 rewrite semax_unfold; intros.
-iIntros "#? ? #believe" (?) "Pre".
-rewrite bi.later_exist_except_0 (bi.except_0_intro Q) -bi.except_0_and bi.and_exist_l.
+iIntros "? #? ? #believe" (?) "Pre".
+rewrite monPred_at_and monPred_at_later monPred_at_exist.
+rewrite bi.later_exist_except_0 (bi.except_0_intro Q) monPred_at_except_0 -bi.except_0_and bi.and_exist_l.
 iMod "Pre" as (x) "Pre"; specialize (H x).
-rewrite semax_unfold in H; iApply (H with "[$] [$]"); eauto.
+rewrite semax_unfold in H; iApply (H with "[$] [//] [$]"); eauto.
+by rewrite monPred_at_and monPred_at_later.
 Qed.
 
 Lemma extract_exists_pre {CS: compspecs}:
@@ -251,8 +239,9 @@ Lemma extract_exists_pre {CS: compspecs}:
 Proof.
 intros.
 rewrite semax_unfold; intros.
-iIntros "#? ? #believe" (?) "(%x & Pre)"; specialize (H x).
-rewrite semax_unfold in H; iApply (H with "[$] [$] "); eauto.
+iIntros "? #? ? #believe" (?) "Pre".
+rewrite monPred_at_exist; iDestruct "Pre" as (x) "Pre"; specialize (H x).
+rewrite semax_unfold in H; iApply (H with "[$] [//] [$]"); eauto.
 Qed.
 
 Definition G0: funspecs(Σ := Σ) := nil.
@@ -299,6 +288,13 @@ Lemma proj_frame_ret_assert:
   (proj_ret_assert R ek vl ∗ F).
 Proof.
   intros; rewrite proj_frame comm //.
+Qed.
+
+Lemma env_ret_assert_proper Delta ge : Proper (equiv ==> equiv) (env_ret_assert Delta ge).
+Proof.
+  intros ???; rewrite /env_ret_assert.
+  do 3 f_equiv.
+  split3; last split; simpl; intros; f_equiv; apply H.
 Qed.
 
 (*Lemma semax_extensionality0 {CS: compspecs} {OK_spec: OracleKind}:
@@ -378,9 +374,29 @@ split; auto.
 Qed.*)
 
 Lemma frame_ret_comm : forall R P Q,
-  frame_ret_assert (frame_ret_assert R P) Q ≡ frame_ret_assert (frame_ret_assert R Q) P.
+  Clight_seplog.frame_ret_assert (Clight_seplog.frame_ret_assert R P) Q ≡
+  Clight_seplog.frame_ret_assert (Clight_seplog.frame_ret_assert R Q) P.
 Proof.
   split; [|split3]; destruct R; simpl; intros; rewrite -!assoc (bi.sep_comm P Q) //.
+Qed.
+
+Lemma env_ret_frame : forall Delta ge R F,
+  env_ret_assert Delta ge (frame_ret_assert R ⎡F⎤) ≡ Clight_seplog.frame_ret_assert (env_ret_assert Delta ge R) ⎡F⎤.
+Proof.
+  intros; destruct R; rewrite /frame_ret_assert /env_ret_assert /Clight_seplog.frame_ret_assert /Clight_seplog.existential_ret_assert /=.
+  split3; last split; simpl.
+  - rewrite bi.sep_exist_r; do 2 f_equiv.
+    rewrite monPred_at_sep monPred_at_embed.
+    iSplit; iIntros "(($ & $) & $)".
+  - rewrite bi.sep_exist_r; do 2 f_equiv.
+    rewrite monPred_at_sep monPred_at_embed.
+    iSplit; iIntros "(($ & $) & $)".
+  - rewrite bi.sep_exist_r; do 2 f_equiv.
+    rewrite monPred_at_sep monPred_at_embed.
+    iSplit; iIntros "(($ & $) & $)".
+  - intros; rewrite bi.sep_exist_r; do 2 f_equiv.
+    rewrite monPred_at_sep monPred_at_embed.
+    iSplit; iIntros "(($ & $) & $)".
 Qed.
 
 Lemma semax_frame {CS: compspecs} :  forall E Delta P s R F,
@@ -388,10 +404,21 @@ Lemma semax_frame {CS: compspecs} :  forall E Delta P s R F,
   semax OK_spec E Delta (P ∗ ⎡F⎤) s (frame_ret_assert R ⎡F⎤).
 Proof.
   intros until F; rewrite !semax_unfold; intros.
-  iIntros "???" (?) "(? & ?)".
-  rewrite frame_ret_comm; iApply wp_frame; iFrame.
-  by iApply (H with "[$] [$] [$]").
+  iIntros "?%??" (?) "Pre".
+  rewrite monPred_at_sep; iDestruct "Pre" as "(? & ?)".
+  rewrite env_ret_frame.
+  rewrite frame_ret_comm; iApply wp_frame.
+  rewrite monPred_at_embed; iFrame.
+  by iApply (H with "[$] [//] [$] [$]").
 Qed.
+
+Definition local (P : environ -> Prop) : assert := assert_of (λ rho, ⌜P rho⌝).
+
+#[global] Instance local_absorbing P : Absorbing (local P).
+Proof. apply monPred_absorbing, _. Qed.
+
+#[global] Instance local_persistent P : Persistent (local P).
+Proof. apply monPred_persistent, _. Qed.
 
 Fixpoint filter_seq (k: cont) : cont :=
  match k with
@@ -869,26 +896,6 @@ Proof.
   left.
   eapply modifiedvars_Sswitch; eauto.
 Qed.
-
-(*Lemma semax_eq:
- forall {CS: compspecs} {OK_spec: OracleKind} Delta P c R,
-  semax OK_spec Delta P c R =
-  (True ⊢ (ALL psi : genv,
-         ALL Delta' : tycontext, ALL CS':compspecs,
-         !! (tycontext_sub E Delta Delta' /\ cenv_sub (@cenv_cs CS) (@cenv_cs CS') /\
-                                          cenv_sub (@cenv_cs CS') (genv_cenv psi)) -->
-         @believe CS' OK_spec Delta' psi Delta' -->
-         ALL k : cont ,
-         ALL F : assert , ALL f: function,
-         !! closed_wrt_modvars c F &&
-         rguard OK_spec psi Delta' f (frame_ret_assert R F) k -->
-         guard OK_spec psi Delta' f (fun rho : environ => F rho * P rho) (Kseq c k))).
-Proof.
-intros.
-extensionality w.
-rewrite semax_fold_unfold.
-apply prop_ext; intuition.
-Qed.*)
 
 (* Lemma semax_Slabel {cs:compspecs}
        E (Gamma:tycontext) (P:assert) (c:statement) (Q:ret_assert) l:

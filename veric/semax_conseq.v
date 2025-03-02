@@ -132,10 +132,19 @@ Proof.
   repeat intro; subst.
   rewrite !semax_unfold.
   split; intros.
-  - iIntros "TY F B" (?) "H".
-    rewrite -H -H1; iApply (H0 with "TY F B"); eauto.
-  - iIntros "TY F B" (?) "H".
-    rewrite H H1; iApply (H0 with "TY F B"); eauto.
+  - iIntros "E TY F B" (?) "H".
+    rewrite -H.
+    (* rewrite -H1. should work, given the following *)
+    iApply wp_proper; last by iApply (H0 with "E TY F B").
+    apply Clight_seplog.frame_ret_assert_proper; last done.
+    apply env_ret_assert_proper.
+    symmetry in H1; apply H1.
+  - iIntros "E TY F B" (?) "H".
+    rewrite H.
+    iApply wp_proper; last by iApply (H0 with "E TY F B").
+    apply Clight_seplog.frame_ret_assert_proper; last done.
+    apply env_ret_assert_proper.
+    apply H1.
 Qed.
 
 Lemma semax'_conseq {CS: compspecs}:
@@ -154,29 +163,44 @@ Lemma semax'_conseq {CS: compspecs}:
 Proof.
   intros.
   rewrite /semax'.
-  iIntros "H" (??? [??]).
-  iIntros "#TY F #B" (?) "P".
+  iIntros "H" (??? [??] ?).
+  iIntros "E %TY F #B" (?) "P".
   iDestruct (funassert_allp_fun_id_sub with "F") as "(#? & F)"; first done.
-  iDestruct (typecheck_environ_sub' with "TY") as "?"; first done.
-  iMod (H with "[P]"); first by auto.
-  rewrite -wp_conseq; first by iApply ("H" with "[%] [] [$] [] [$]").
+  assert (typecheck_environ Delta rho) by (by eapply typecheck_environ_sub).
+  eapply monPred_in_entails in H; rewrite monPred_at_fupd in H.
+  iMod (H with "[P]").
+  { rewrite !monPred_at_sep monPred_at_affinely monPred_at_intuitionistically monPred_at_embed /=; iFrame.
+    iSplit; iIntros "!>"; auto. }
+  rewrite -wp_conseq; first by iApply ("H" with "[%] [$] [] [$] [] [$]").
   all: destruct R, R'; simpl in *.
-  - iIntros "(R & #TY & F)".
+  - iIntros "((%rho' & R & % & $) & F)".
+    assert (typecheck_environ Delta rho') by (by eapply typecheck_environ_sub).
     iDestruct (funassert_allp_fun_id_sub with "F") as "(#? & F)"; first done.
-    iDestruct (typecheck_environ_sub' with "TY") as "?"; first done.
+    eapply monPred_in_entails in H0; rewrite monPred_at_fupd in H0.
     iMod (H0 with "[R]") as "$"; auto.
-  - iIntros "(R & #TY & F)".
+    rewrite !monPred_at_sep monPred_at_affinely monPred_at_intuitionistically monPred_at_embed /=; iFrame.
+    iSplit; iIntros "!>"; auto.
+  - iIntros "((%rho' & R & % & $) & F)".
+    assert (typecheck_environ Delta rho') by (by eapply typecheck_environ_sub).
     iDestruct (funassert_allp_fun_id_sub with "F") as "(#? & F)"; first done.
-    iDestruct (typecheck_environ_sub' with "TY") as "?"; first done.
+    eapply monPred_in_entails in H1; rewrite monPred_at_fupd in H1.
     iMod (H1 with "[R]") as "$"; auto.
-  - iIntros "(R & #TY & F)".
+    rewrite !monPred_at_sep monPred_at_affinely monPred_at_intuitionistically monPred_at_embed /=; iFrame.
+    iSplit; iIntros "!>"; auto.
+  - iIntros "((%rho' & R & % & $) & F)".
+    assert (typecheck_environ Delta rho') by (by eapply typecheck_environ_sub).
     iDestruct (funassert_allp_fun_id_sub with "F") as "(#? & F)"; first done.
-    iDestruct (typecheck_environ_sub' with "TY") as "?"; first done.
+    eapply monPred_in_entails in H2; rewrite monPred_at_fupd in H2.
     iMod (H2 with "[R]") as "$"; auto.
-  - intros; iIntros "(R & #TY & F)".
+    rewrite !monPred_at_sep monPred_at_affinely monPred_at_intuitionistically monPred_at_embed /=; iFrame.
+    iSplit; iIntros "!>"; auto.
+  - intros; iIntros "((%rho' & R & % & $) & F)".
+    assert (typecheck_environ Delta rho') by (by eapply typecheck_environ_sub).
     iDestruct (funassert_allp_fun_id_sub with "F") as "(#? & F)"; first done.
-    iDestruct (typecheck_environ_sub' with "TY") as "?"; first done.
+    eapply monPred_in_entails in H3; rewrite monPred_at_fupd in H3.
     iMod (H3 with "[R]") as "$"; auto.
+    rewrite !monPred_at_sep monPred_at_affinely monPred_at_intuitionistically monPred_at_embed /=; iFrame.
+    iSplit; iIntros "!>"; auto.
 Qed.
 
 Lemma semax_conseq {CS: compspecs}:
@@ -288,7 +312,7 @@ Lemma semax_post'_fupd {CS: compspecs}:
 Proof.
 unfold semax.
 intros.
-rewrite -semax'_post_fupd; auto.
+iApply semax'_post_fupd; auto.
 Qed.
 
 Lemma semax_post_fupd {CS: compspecs}:
@@ -319,7 +343,7 @@ Lemma semax_post' {CS: compspecs}:
 Proof.
 unfold semax.
 intros.
-rewrite -semax'_post; auto.
+iApply semax'_post; auto.
 Qed.
 
 Lemma semax_post {CS: compspecs}:
@@ -336,7 +360,7 @@ Lemma semax_post {CS: compspecs}:
 Proof.
 unfold semax.
 intros.
-rewrite -semax'_post; auto.
+iApply semax'_post; auto.
 destruct ek; simpl; auto; intros;
   iIntros "(? & -> & ?)"; rewrite -> bi.pure_True by done; rewrite bi.True_and; [rewrite -H | rewrite -H0 | rewrite -H1]; auto.
 Qed.
@@ -348,7 +372,7 @@ Lemma semax_pre_fupd {CS: compspecs} :
 Proof.
 unfold semax.
 intros.
-rewrite -semax'_pre_fupd; auto.
+by iApply semax'_pre_fupd.
 Qed.
 
 Lemma semax_pre {CS: compspecs} :
@@ -358,7 +382,7 @@ Lemma semax_pre {CS: compspecs} :
 Proof.
 unfold semax.
 intros.
-rewrite -semax'_pre; auto.
+by iApply semax'_pre.
 Qed.
 
 Lemma semax_pre_post_fupd {CS: compspecs}:
@@ -393,7 +417,7 @@ Lemma semax_pre_post {CS: compspecs}:
    semax OK_spec E Delta P' c R' ->  semax OK_spec E Delta P c R.
 Proof.
 intros.
-eapply semax_pre; eauto.
+eapply semax_pre; first done.
 eapply semax_post; eauto.
 Qed.
 

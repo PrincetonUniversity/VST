@@ -281,6 +281,16 @@ Proof.
   intros ???; split3; last split; simpl; try done.
 Qed.
 
+Global Instance frame_ret_assert_proper : Proper (base.equiv ==> base.equiv ==> base.equiv) frame_ret_assert.
+Proof.
+  intros ?? H ?? H'; split3; last split; simpl; intros; rewrite H'; f_equiv; apply H.
+Qed.
+
+Global Instance existential_ret_assert_proper {A} : Proper (pointwise_relation A base.equiv ==> base.equiv) existential_ret_assert.
+Proof.
+  intros ???; split3; last split; simpl; intros; do 2 f_equiv; apply H.
+Qed.
+
 End mpred.
 
 #[export] Hint Resolve normal_ret_assert_derives : core.
