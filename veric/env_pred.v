@@ -18,6 +18,14 @@ Section assert.
 
 Context `{!heapGS Σ}.
 
+Definition local (P : environ -> Prop) : assert := assert_of (λ rho, ⌜P rho⌝).
+
+#[global] Instance local_absorbing P : Absorbing (local P).
+Proof. apply monPred_absorbing, _. Qed.
+
+#[global] Instance local_persistent P : Persistent (local P).
+Proof. apply monPred_persistent, _. Qed.
+
 Record ret_assert : Type := {
  RA_normal: assert;
  RA_break: assert;

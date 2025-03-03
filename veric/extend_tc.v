@@ -11,33 +11,34 @@ Require Import VST.veric.expr_lemmas.
 
 Require Import VST.veric.seplog. (*For definition of tycontext*)
 Require Import VST.veric.lifting_expr.
+Require Import VST.veric.env_pred.
 Import LiftNotation.
 
 Section mpred.
 
 Context `{!heapGS Σ}.
 
-Definition tc_expr {CS: compspecs} (Delta: tycontext) (e: expr) : environ -> mpred :=
-  denote_tc_assert (typecheck_expr Delta e).
+Definition tc_expr {CS: compspecs} (Delta: tycontext) (e: expr) : assert :=
+  assert_of (denote_tc_assert (typecheck_expr Delta e)).
 
-Definition tc_exprlist {CS: compspecs} (Delta: tycontext) (t : list type) (e: list expr) : environ -> mpred :=
-  denote_tc_assert (typecheck_exprlist Delta t e).
+Definition tc_exprlist {CS: compspecs} (Delta: tycontext) (t : list type) (e: list expr) : assert :=
+  assert_of (denote_tc_assert (typecheck_exprlist Delta t e)).
 
-Definition tc_lvalue {CS: compspecs} (Delta: tycontext) (e: expr) : environ -> mpred :=
-  denote_tc_assert (typecheck_lvalue Delta e).
+Definition tc_lvalue {CS: compspecs} (Delta: tycontext) (e: expr) : assert :=
+  assert_of (denote_tc_assert (typecheck_lvalue Delta e)).
 
 Definition tc_temp_id {CS: compspecs} (id : positive) (ty : type)
-  (Delta : tycontext) (e : expr) : environ -> mpred :=
-  denote_tc_assert (typecheck_temp_id id ty Delta e).
+  (Delta : tycontext) (e : expr) : assert :=
+  assert_of (denote_tc_assert (typecheck_temp_id id ty Delta e)).
 
-Definition tc_expropt {CS: compspecs} Delta (e: option expr) (t: type) : environ -> mpred :=
-  match e with None => `⌜t=Ctypes.Tvoid⌝
+Definition tc_expropt {CS: compspecs} Delta (e: option expr) (t: type) : assert :=
+  match e with None => ⌜t=Ctypes.Tvoid⌝
                      | Some e' => (tc_expr Delta (Ecast e' t))
   end.
 
-Definition tc_temp_id_load id tfrom Delta v : environ -> mpred :=
-  fun rho => ⌜exists tto, PTree.get id (temp_types Delta) = Some tto
-                      /\ tc_val tto (eval_cast tfrom tto (v rho))⌝.
+Definition tc_temp_id_load id tfrom Delta v : assert :=
+local (fun rho => exists tto, (temp_types Delta) !! id = Some tto
+                      /\ tc_val tto (eval_cast tfrom tto (v rho))).
 
 Ltac extend_tc_prover :=
   match goal with
@@ -53,19 +54,19 @@ Proof.
     /denote_tc_igt /denote_tc_lgt /denote_tc_Zle  /denote_tc_Zge /denote_tc_nodivover /denote_tc_nosignedover /test_eq_ptrs /test_order_ptrs; repeat extend_tc_prover.
 Qed.
 
-(*Global Instance tc_expr_absorbing : forall {CS: compspecs} Delta a, Absorbing (tc_expr Delta a).
+Global Instance tc_expr_absorbing : forall {CS: compspecs} Delta a, Absorbing (tc_expr Delta a).
 Proof.
-  intros; apply envp_absorbing, _.
+  intros; apply monPred_absorbing, _.
 Qed.
 
 Global Instance tc_exprlist_absorbing : forall {CS: compspecs} Delta t a, Absorbing (tc_exprlist Delta t a).
 Proof.
-  intros; apply envp_absorbing, _.
+  intros; apply monPred_absorbing, _.
 Qed.
 
 Global Instance tc_lvalue_absorbing : forall {CS: compspecs} Delta a, Absorbing (tc_lvalue Delta a).
 Proof.
-  intros; apply envp_absorbing, _.
+  intros; apply monPred_absorbing, _.
 Qed.
 
 Global Instance tc_expropt_absorbing: forall {CS: compspecs} Delta e t, Absorbing (tc_expropt Delta e t).
@@ -76,8 +77,8 @@ Qed.
 
 Global Instance tc_temp_id_absorbing : forall {CS: compspecs} id ty Delta a, Absorbing (tc_temp_id id ty Delta a).
 Proof.
-  intros; apply envp_absorbing, _.
-Qed.*)
+  intros; apply monPred_absorbing, _.
+Qed.
 
 Lemma tc_bool_i:
  forall {cs: compspecs} b e rho,
@@ -383,7 +384,7 @@ Context `{!envGS Σ}.
 (* use this throughout? *)
 Definition assert_of' (P : nat -> mpred) := ∀ n, stack_level n -∗ ⎡P n⎤.
 
-Lemma assert_of_eq : forall P, assert_of P ⊣⊢ assert_of' P.
+Lemma assert_of_eq : forall P, mpred.assert_of P ⊣⊢ assert_of' P.
 Proof.
   split => n.
   rewrite /assert_of' /stack_level.
@@ -404,8 +405,8 @@ Proof. solve_proper. Qed.
    small-footprint approach to the environment, while tc_expr and eval_expr freely
    call on the full environment rho. So to do this, we need to first fix the entire
    environment. *)
-Definition curr_env (ge : genv) (rho : environ) : assert := <affine> ⌜∀ i, ge_of rho !! i = Genv.find_symbol ge i⌝ ∗ ([∗ map] i↦b ∈ ge_of rho, ⎡gvar i b⎤) ∗
-  assert_of' (λ n, ∃ q0, stack_frag n q0 1%Qp (ve_of rho) (te_of rho)).
+Definition curr_env (ge : genv) (rho : environ) : mpred.assert := <affine> ⌜∀ i, ge_of rho !! i = Genv.find_symbol ge i⌝ ∗ ([∗ map] i↦b ∈ ge_of rho, ⎡gvar i b⎤) ∗
+  assert_of' (λ n, ∃ q0, <affine> ⌜q0 < 1⌝%Qp ∗ stack_frag n q0 1%Qp (ve_of rho) (te_of rho)).
 
 Definition genv_sub (ge1 ge2 : genv) := forall i v, Genv.find_symbol ge1 i = Some v -> Genv.find_symbol ge2 i = Some v.
 
@@ -417,7 +418,7 @@ Proof.
   rewrite monPred_at_embed !monPred_at_sep monPred_at_affinely monPred_at_intuitionistically monPred_at_big_sepM; monPred.unseal.
   iDestruct "H" as "(%Hge0 & Hge & Hs)".
   rewrite -assert_of_eq /=.
-  iDestruct "Hs" as (?) "Hs"; iDestruct (stack_frag_e_1 with "[$Hρ $Hs]") as %(Hve & Hte).
+  iDestruct "Hs" as (??) "Hs"; iDestruct (stack_frag_e_1 with "[$Hρ $Hs]") as %(Hve & Hte).
   iAssert ⌜ge_of rho ⊆ ge_of (env_to_environ ρ n)⌝ as %Hsub.
   { iIntros (i).
     destruct (ge_of rho !! i)%stdpp eqn: Hi; rewrite Hi /=.
@@ -433,6 +434,41 @@ Proof.
     rewrite Hge; rewrite -Hge0 in Hi.
     by eapply lookup_weaken.
   - split3; rewrite ?Hve ?Hte; done.
+Qed.
+
+Lemma curr_env_set_temp : forall Delta ge rho i t
+  (Hi : temp_types Delta !! i = Some t) (Htc : typecheck_environ Delta rho),
+  curr_env ge rho ⊢ (∃ v, temp i v) ∗ (∀ v, temp i v -∗ curr_env ge (env_set rho i v)).
+Proof.
+  intros.
+  destruct Htc as (Htc & _).
+  apply Htc in Hi as (v0 & ? & ?).
+  iIntros "(% & ? & Hs)".
+  iDestruct stack_level_intro as (?) "#l".
+  iDestruct ("Hs" with "[$]") as (q0 Hq0) "Hs".
+  replace (ve_of rho) with (ve_of rho ∪ ∅) at 1 by (rewrite right_id //).
+  replace (te_of rho) with (delete i (te_of rho) ∪ {[i := v0]}) at 1.
+  assert (exists q1, 1 = q1 + q0)%Qp as (q1 & Heq).
+  { apply Qp.lt_sum in Hq0 as (? & Hq0); rewrite Qp.add_comm in Hq0; eauto. }
+  rewrite Heq stack_frag_split.
+  iDestruct "Hs" as "(Hs & Hi)".
+  iSplitL "Hi".
+  { iExists v0. iApply (stack_level_elim with "[$]"). iFrame. }
+  iIntros (?) "Hi".
+  iPoseProof (stack_level_embed with "[$] Hi") as "Hi"; simpl.
+  iDestruct "Hi" as (?) "Hi".
+  iCombine "Hs Hi" as "Hs"; rewrite stack_frag_join.
+  iDestruct "Hs" as ((<- & _ & _)) "Hs".
+  rewrite right_id -insert_union_singleton_r.
+  rewrite insert_delete_insert.
+  iSplit; first done; iFrame.
+  iIntros (?) "#l'"; iDestruct (stack_level_eq with "l l'") as %->.
+  rewrite -Heq /=; by iFrame.
+  * apply lookup_delete.
+  * apply map_disjoint_empty_r.
+  * apply map_disjoint_singleton_r_2, lookup_delete.
+  * rewrite -insert_union_singleton_r; last apply lookup_delete.
+    by apply insert_delete.
 Qed.
 
 Lemma wp_tc_expr : forall {CS : compspecs} E f Delta e P (ge : genv) rho,

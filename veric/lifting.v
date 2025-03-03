@@ -349,13 +349,6 @@ Proof.
   solve_proper.
 Qed.
 
-Lemma stack_level_elim : forall (P : assert) i, stack_level i -∗ ⎡P i⎤ -∗ P.
-Proof.
-  intros; iIntros "#? H".
-  iApply bi.impl_elim_r; iSplit; first iApply "H".
-  by iApply monPred_in_elim.
-Qed.
-
 Lemma wp_seq : forall E f s1 s2 Q, wp E f s1 (overridePost (wp E f s2 Q) Q) ⊢ wp E f (Ssequence s1 s2) Q.
 Proof.
   intros; rewrite /wp.
@@ -443,13 +436,6 @@ Proof.
   - iMod "H" as "[]".
   - iApply (convergent_controls_jsafe with "H"); simpl; try congruence.
     by inversion 1; constructor.
-Qed.
-
-Lemma stack_level_embed : forall n (P : assert), stack_level n -∗ P -∗ ⎡P n⎤.
-Proof.
-  split => ?; rewrite /stack_level; monPred.unseal.
-  iIntros "_" (? [=]); rewrite monPred_at_affinely /=.
-  iIntros ([=] ? [=]); subst; auto.
 Qed.
 
 Lemma wp_skip: forall E f R, RA_normal R ⊢ wp E f Sskip R.

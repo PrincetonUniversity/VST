@@ -112,12 +112,6 @@ Proof.
   eapply bi.affinely_mono, allp_fun_id_sigcc_sub; eauto.
 Qed.
 
-Lemma stack_level_eq : forall a b, ⊢ stack_level a -∗ stack_level b -∗ ⌜a = b⌝.
-Proof.
-  split => n; rewrite /stack_level; monPred.unseal; setoid_rewrite monPred_at_affinely; simpl.
-  iIntros; iPureIntro; congruence.
-Qed.
-
 Section STABILITY.
 Variable CS: compspecs.
 Variables Delta Delta': tycontext.

@@ -412,14 +412,6 @@ Proof.
   by iApply (H with "[$] [//] [$] [$]").
 Qed.
 
-Definition local (P : environ -> Prop) : assert := assert_of (λ rho, ⌜P rho⌝).
-
-#[global] Instance local_absorbing P : Absorbing (local P).
-Proof. apply monPred_absorbing, _. Qed.
-
-#[global] Instance local_persistent P : Persistent (local P).
-Proof. apply monPred_persistent, _. Qed.
-
 Fixpoint filter_seq (k: cont) : cont :=
  match k with
   | Kseq s  k1 => filter_seq k1

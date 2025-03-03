@@ -32,26 +32,24 @@ Transparent intsize_eq.
 Section extensions.
   Context `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {CS: compspecs}.
 
-Lemma closed_wrt_modvars_set : forall F id e v ge ve te rho
-  (Hclosed : closed_wrt_modvars(Σ:=Σ) (Sset id e) F)
-  (Hge : rho = construct_rho (filter_genv ge) ve te),
-  F rho ⊣⊢ F (mkEnviron (ge_of rho) (ve_of rho)
-       (make_tenv (Maps.PTree.set id v te))).
+Lemma closed_wrt_modvars_set : forall F id e v rho
+  (Hclosed : closed_wrt_modvars(Σ:=Σ) (Sset id e) F),
+  F rho ⊣⊢ F (mkEnviron (ge_of rho) (ve_of rho) (<[id := v]> (te_of rho))).
 Proof.
   intros.
   apply Hclosed; intros.
   destruct (eq_dec i id).
   - rewrite /modifiedvars /modifiedvars' /insert_idset.
     subst; rewrite Maps.PTree.gss /=; auto.
-  - rewrite -map_ptree_rel Map.gso; subst; auto.
+  - rewrite lookup_insert_ne //; auto.
 Qed.
 
 Lemma subst_set : forall {A} id v (P : environ -> A) v' rho
-  (Hid : Map.get (te_of rho) id = Some v),
+  (Hid : (te_of rho !! id)%stdpp = Some v),
   subst id (λ _ : environ, eval_id id rho) P (env_set rho id v') = P rho.
 Proof.
-  intros; destruct rho; rewrite /subst /env_set /construct_rho /=; unfold_lift.
-  rewrite Map.override Map.override_same; auto.
+  intros; destruct rho as ((?, ?), ?); rewrite /subst /env_set /=; unfold_lift.
+  rewrite insert_insert insert_id //.
   by rewrite /eval_id Hid.
 Qed.
 
@@ -77,58 +75,48 @@ forall E (Delta: tycontext) (P: assert) id cmp e1 e2 ty sh1 sh2,
 Proof.
   intros until sh2. intros ?? CMP NE1 NE2 TCid.
   rewrite semax_unfold; intros. destruct HGG.
-  iIntros "#? ? #?" (?) "Pre".
+  iIntros "E %TC' F #?" (?) "Pre".
+  rewrite monPred_at_later !monPred_at_and.
   iApply wp_set. iApply wp_binop_rule.
   assert (cenv_sub (@cenv_cs CS) psi) by (eapply cenv_sub_trans; eauto).
-  iApply wp_tc_expr; first done.
-  iSplit; first done.
-  iPoseProof (typecheck_environ_sub' with "[$]") as "#?"; first done.
+  pose proof (typecheck_environ_sub _ _ TS _ TC') as TC.
+  iApply (wp_tc_expr(CS := CS) with "E"); [done..|].
   iSplit.
-  { iApply tc_expr_sub'; first done.
-    iSplit; first done.
-    rewrite bi.later_and bi.and_elim_l //. }
-  iIntros (v1 Ht1) "Hv1".
-  iApply wp_tc_expr; first done.
-  iSplit; first done. iSplit.
-  { rewrite bi.later_and bi.and_elim_r bi.and_elim_l //. }
-  iIntros (v2 Ht2) "Hv2".
-  rewrite bi.and_elim_r bi.and_elim_r.
-  iCombine "Hv1 Hv2 Pre" as "Pre".
-  iPoseProof (add_and _ (▷ ⌜blocks_match cmp v1 v2⌝) with "Pre") as "(Pre & >%)".
-  { rewrite bi.and_elim_l; split => rho; monPred.unseal; rewrite !monPred_at_affinely.
-    by iIntros "(-> & -> & ?)". }
-  iDestruct "Pre" as "(#Hv1 & #Hv2 & Pre)".
-  rewrite bi.and_elim_r.
+  { iDestruct "Pre" as "(? & _)"; auto. }
+  iIntros "E %".
+  iApply (wp_tc_expr(CS := CS) with "E"); [done..|].
+  iSplit.
+  { iDestruct "Pre" as "(_ & ? & _)"; auto. }
+  iIntros "E %".
+  rewrite bi.and_elim_r bi.and_elim_r embed_later embed_and bi.later_and /= embed_pure.
+  iDestruct "Pre" as "(>% & Pre)".
+  rewrite !monPred_at_absorbingly /=.
   iApply (wp_pointer_cmp _ _ _ _ _ _ _ sh1 sh2); [done..|].
   iSplit.
-  { iNext; rewrite bi.and_assoc bi.and_elim_l.
-    iStopProof; split => rho; monPred.unseal.
-    rewrite monPred_at_intuitionistically !monPred_at_absorbingly /=; unfold_lift.
-    iIntros "(#(_ & _ & _ & -> & ->) & _ & $)". }
-  iIntros (v (Hcase & Hv)) "!>".
-  iStopProof; split => rho; monPred.unseal.
-  rewrite !monPred_at_intuitionistically; monPred.unseal.
-  rewrite {1}/subst /lift1 !(bi.and_elim_r _ (P rho)).
-  assert (v = force_val2 (sem_cmp (op_to_cmp cmp) (typeof e1) (typeof e2)) v1 v2) as Hv'.
-  { rewrite /sem_cmp NE1 NE2 Hcase; simpl orb.
-    cbv match; rewrite /force_val2 Hv //. }
-  iIntros "(#(%TC' & _ & %TC & % & %) & $ & ?)"; iSplit.
-  - unfold_lift.
-    rewrite /typecheck_tid_ptr_compare in TCid.
-    destruct (temp_types Delta !! id) eqn: Ht; last done.
-    apply TC in Ht as (? & ? & ?).
-    iExists (eval_id id rho); erewrite !subst_set by done.
+  { rewrite bi.and_assoc bi.and_elim_l //. }
+  iIntros (v (Hcase & Hv)).
+  rewrite /typecheck_tid_ptr_compare in TCid; destruct (temp_types Delta !! id) eqn: Hi; last done.
+  iDestruct (curr_env_set_temp with "E") as "($ & E)"; [done..|].
+  iSplit; first done.
+  iIntros "!> Hid"; iSpecialize ("E" with "Hid"); iFrame.
+  rewrite !bi.and_elim_r.
+  assert (v = force_val2 (sem_cmp (op_to_cmp cmp) (typeof e1) (typeof e2)) (eval_expr(CS := CS) e1 rho) (eval_expr(CS := CS) e2 rho)) as Hv'.
+  { rewrite /sem_cmp NE1 NE2 Hcase /= Hv //. }
+  iSplit.
+  - iClear "#"; iStopProof; split => n; monPred.unseal.
+    unfold_lift.
+    apply TC in Hi as (? & ? & ?).
+    iIntros "?"; iExists (eval_id id rho); erewrite !subst_set by done.
     iSplit; last done; iPureIntro.
     rewrite eval_id_same /sem_binary_operation'.
     subst; destruct cmp; done.
-  - rewrite monPred_at_affinely; iPureIntro.
+  - iPureIntro.
     destruct TC' as (? & ? & ?); split3; auto; simpl.
     intros i ? Ht; destruct (eq_dec i id).
-    + subst i; rewrite Map.gss; exists v; split; eauto.
-      eapply typecheck_tid_ptr_compare_sub in TCid; eauto.
-      rewrite /typecheck_tid_ptr_compare Ht in TCid.
+    + subst i; rewrite lookup_insert; exists v; split; eauto.
+      destruct TS as (TS & _); specialize (TS id). rewrite Hi Ht in TS.
       subst; apply tc_val'_sem_cmp; auto.
-    + rewrite Map.gso; auto.
+    + rewrite lookup_insert_ne; auto.
 Qed.
 
 Lemma semax_set_forward:
