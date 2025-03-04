@@ -95,10 +95,10 @@ Proof.
   iSplit.
   { rewrite bi.and_assoc bi.and_elim_l //. }
   iIntros (v (Hcase & Hv)).
+  iNext.
   rewrite /typecheck_tid_ptr_compare in TCid; destruct (temp_types Delta !! id) eqn: Hi; last done.
   iDestruct (curr_env_set_temp with "E") as "($ & E)"; [done..|].
-  iSplit; first done.
-  iIntros "!> Hid"; iSpecialize ("E" with "Hid"); iFrame.
+  iIntros "Hid"; iSpecialize ("E" with "Hid"); iFrame.
   rewrite !bi.and_elim_r.
   assert (v = force_val2 (sem_cmp (op_to_cmp cmp) (typeof e1) (typeof e2)) (eval_expr(CS := CS) e1 rho) (eval_expr(CS := CS) e2 rho)) as Hv'.
   { rewrite /sem_cmp NE1 NE2 Hcase /= Hv //. }
@@ -131,35 +131,36 @@ forall E (Delta: tycontext) (P: assert) id e,
 Proof.
   intros.
   rewrite semax_unfold; intros. destruct HGG.
-  iIntros "#? ? #?" (?) "Pre".
+  iIntros "E %TC' ? #?" (?) "Pre".
+  rewrite monPred_at_later !monPred_at_and.
   iApply wp_set.
   assert (cenv_sub (@cenv_cs CS) psi) by (eapply cenv_sub_trans; eauto).
-  iApply wp_tc_expr; first done.
-  iPoseProof (typecheck_environ_sub' with "[$]") as "#?"; first done.
-  iSplit; first done.
-  iSplit; first by rewrite bi.and_elim_l.
-  iIntros (v ?) "#Hv !>".
-  iStopProof; split => rho; monPred.unseal.
-  rewrite !monPred_at_intuitionistically; monPred.unseal.
-  rewrite {1}/subst /lift1; iIntros "((%TC' & _ & %TC & %) & $ & Pre)".
-  rewrite /tc_temp_id /typecheck_temp_id.
-  destruct (temp_types Delta !! id) eqn: Ht; last by iDestruct "Pre" as "(_ & [] & _)".
+  pose proof (typecheck_environ_sub _ _ TS _ TC') as TC.
+  iApply (wp_tc_expr(CS := CS) with "E"); [done..|].
   iSplit.
-  - apply TC in Ht as (? & ? & ?).
+  { iDestruct "Pre" as "(? & _)"; auto. }
+  iIntros "E % !>".
+  rewrite /tc_temp_id /typecheck_temp_id /=.
+  destruct (temp_types Delta !! id) eqn: Ht; last by iDestruct "Pre" as "(_ & % & _)".
+  iDestruct (curr_env_set_temp with "E") as "($ & E)"; [done..|].
+  iIntros "Hid"; iSpecialize ("E" with "Hid"); iFrame.
+  iSplit.
+  - iClear "#"; iStopProof; split => n; monPred.unseal.
+    apply TC in Ht as (? & ? & ?).
     unfold_lift.
-    iExists (eval_id id rho); erewrite !subst_set by done.
+    iIntros "?"; iExists (eval_id id rho); erewrite !subst_set by done.
     rewrite !bi.and_elim_r eval_id_same; auto.
   - rewrite !denote_tc_assert_andp tc_bool_e.
     iAssert ⌜is_neutral_cast (implicit_deref (typeof e)) t = true⌝ with "[Pre]" as %?.
-    { iDestruct "Pre" as "(_ & ($ & _) & _)". }
+    { iDestruct "Pre" as "(_ & (? & _) & _)"; by rewrite embed_pure. }
     rewrite bi.and_elim_l; iDestruct (neutral_cast_tc_val with "Pre") as %?; [done..|].
-    rewrite monPred_at_affinely; iPureIntro.
+    iPureIntro.
     destruct TC' as (? & ? & ?); split3; auto; simpl.
     intros i t' Ht'; destruct (eq_dec i id).
     + subst i; destruct TS as (TS & _); specialize (TS id); rewrite Ht Ht' in TS; subst t'.
-      rewrite Map.gss; exists v; subst; split; auto.
+      rewrite lookup_insert; eexists; subst; split; auto.
       by apply tc_val_tc_val'.
-    + rewrite Map.gso; auto.
+    + rewrite lookup_insert_ne; auto.
 Qed.
 
 Lemma semax_set_forward':
@@ -202,32 +203,33 @@ forall E (Delta: tycontext) (P: assert) id e t
 Proof.
   intros.
   rewrite semax_unfold; intros. destruct HGG.
-  iIntros "#? ? #?" (?) "Pre".
+  iIntros "E %TC' ? #?" (?) "Pre".
+  rewrite monPred_at_later !monPred_at_and.
   iApply wp_set.
   assert (cenv_sub (@cenv_cs CS) psi) by (eapply cenv_sub_trans; eauto).
-  iApply wp_tc_expr; first done.
-  iPoseProof (typecheck_environ_sub' with "[$]") as "#?"; first done.
-  iSplit; first done.
-  iSplit; first by rewrite bi.and_elim_l.
-  iIntros (v ?) "#Hv !>".
-  iStopProof; split => rho; monPred.unseal.
-  rewrite !monPred_at_intuitionistically; monPred.unseal.
-  rewrite {1}/subst /lift1; iIntros "((%TC' & _ & %TC & %) & $ & Pre)".
-  rewrite /typeof_temp in H99; destruct (temp_types Delta !! id) as [t'|] eqn: Ht; inversion H99; subst t'; clear H99.
+  pose proof (typecheck_environ_sub _ _ TS _ TC') as TC.
+  iApply (wp_tc_expr(CS := CS) with "E"); [done..|].
   iSplit.
-  - apply TC in Ht as (? & ? & ?).
+  { iDestruct "Pre" as "(? & _)"; auto. }
+  iIntros "E % !>".
+  rewrite /typeof_temp in H99; destruct (temp_types Delta !! id) as [t'|] eqn: Ht; inversion H99; subst t'; clear H99.
+  iDestruct (curr_env_set_temp with "E") as "($ & E)"; [done..|].
+  iIntros "Hid"; iSpecialize ("E" with "Hid"); iFrame.
+  iSplit.
+  - iClear "#"; iStopProof; split => n; monPred.unseal.
+    apply TC in Ht as (? & ? & ?).
     unfold_lift.
-    iExists (eval_id id rho); erewrite !subst_set by done.
+    rewrite -(bi.exist_intro (eval_id id rho)); erewrite !subst_set by done.
     rewrite !bi.and_elim_r eval_id_same; auto.
-  - rewrite typecheck_cast_sound //.
+  - rewrite /tc_expr /= typecheck_cast_sound //.
     iDestruct "Pre" as "(% & _)".
-    rewrite monPred_at_affinely; iPureIntro.
+    iPureIntro.
     destruct TC' as (? & ? & ?); split3; auto; simpl.
     intros i t' Ht'; destruct (eq_dec i id).
     + subst i; destruct TS as (TS & _); specialize (TS id); rewrite Ht Ht' in TS; subst t'.
-      rewrite Map.gss; exists v; subst; split; auto.
+      rewrite lookup_insert; eexists; subst; split; auto.
       by apply tc_val_tc_val'.
-    + rewrite Map.gso; auto.
+    + rewrite lookup_insert_ne; auto.
     + by apply typecheck_expr_sound.
 Qed.
 
@@ -261,37 +263,40 @@ forall E (Delta: tycontext) sh id (P: assert) e1 t2 (v2: val),
 Proof.
   intros until v2.
   intros Hid0 TC1 H_READABLE H99.
-  rewrite semax_unfold; intros; iIntros "#? F #?" (?) "Pre"; destruct HGG.
+  rewrite semax_unfold; intros; iIntros "E %TC' F #?" (?) "Pre"; destruct HGG.
+  rewrite monPred_at_later !monPred_at_and monPred_at_pure.
   iApply wp_set.
   assert (cenv_sub (@cenv_cs CS) psi) by (eapply cenv_sub_trans; eauto).
+  pose proof (typecheck_environ_sub _ _ TS _ TC') as TC.
   rewrite bi.and_comm -assoc bi.later_and; iDestruct "Pre" as "(>%Htc2 & Pre)".
-  iApply wp_expr_mapsto; iApply wp_tc_lvalue; first done.
-  iPoseProof (typecheck_environ_sub' with "[$]") as "#?"; first done.
-  iSplit; first done; iSplit; first by rewrite bi.and_elim_r.
-  iIntros (b o) "#Hbo".
+  iApply wp_expr_mapsto; iApply (wp_tc_lvalue(CS := CS) with "E"); [done..|].
+  iSplit; first by rewrite bi.and_elim_r; auto.
+  iIntros "E" (b o Hbo).
   iExists sh, v2; iSplit.
   { iPureIntro; split; first done. intros ->; eapply tc_val_Vundef; eauto. }
   iSplit.
-  { iNext; iPoseProof (H99 with "[Pre]") as "H".
-    { rewrite bi.and_elim_l; auto. }
-    iStopProof; split => rho; monPred.unseal; rewrite monPred_at_intuitionistically !monPred_at_absorbingly /=; unfold_lift.
-    iIntros "((_ & _ & _ & %Hbo) & _ & H)"; rewrite Hbo //. }
-  iNext; iStopProof; split => rho; monPred.unseal.
-  rewrite !monPred_at_intuitionistically; monPred.unseal.
-  rewrite {1}/subst /lift1; iIntros "((%TC' & _ & %TC & %) & $ & Pre)".
+  { eapply monPred_in_entails in H99.
+    iNext; iPoseProof (H99 with "[Pre]") as "H".
+    { rewrite bi.and_elim_l monPred_at_and; iFrame; auto. }
+    rewrite monPred_at_absorbingly /=; unfold_lift.
+    by rewrite Hbo. }
+  iNext.
   rewrite /typeof_temp in Hid0; destruct (temp_types Delta !! id) as [t'|] eqn: Ht; inversion Hid0; subst t'; clear Hid0.
-  iSplit.
-  - apply TC in Ht as (? & ? & ?).
+  iDestruct (curr_env_set_temp with "E") as "($ & E)"; [done..|].
+  iIntros "Hid"; iSpecialize ("E" with "Hid"); iFrame.
+  simpl; iSplit.
+  - iClear "#"; iStopProof; split => n; monPred.unseal.
+    apply TC in Ht as (? & ? & ?).
     unfold_lift.
-    iExists (eval_id id rho); erewrite !subst_set by done.
+    rewrite -(bi.exist_intro (eval_id id rho)); erewrite !subst_set by done.
     rewrite eval_id_same bi.and_elim_l; auto.
-  - rewrite monPred_at_affinely; iPureIntro.
+  - iPureIntro.
     destruct TC' as (? & ? & ?); split3; auto; simpl.
     intros i t' Ht'; destruct (eq_dec i id).
     + subst i; destruct TS as (TS & _); specialize (TS id); rewrite Ht Ht' in TS; subst t'.
-      rewrite Map.gss; exists v2; subst; split; auto.
+      rewrite lookup_insert; eexists; subst; split; auto.
       eapply tc_val_tc_val', neutral_cast_subsumption; eauto.
-    + rewrite Map.gso; auto.
+    + rewrite lookup_insert_ne; auto.
 Qed.
 
 Lemma mapsto_tc' : forall sh t p v, mapsto sh t p v ⊢ ⌜tc_val' t v⌝.
@@ -330,7 +335,8 @@ forall E (Delta: tycontext) sh id (P: assert) e1 t1 (v2: val),
 Proof.
   intros until v2.
   intros Hid0 HCAST H_READABLE H99.
-  rewrite semax_unfold; intros; iIntros "#? F #?" (?) "Pre"; destruct HGG.
+  rewrite semax_unfold; intros; iIntros "E %TC' F #?" (?) "Pre"; destruct HGG.
+  rewrite monPred_at_later !monPred_at_and.
   iApply wp_set; iApply wp_cast; first done.
   iApply wp_expr_mono; first by intros; iIntros "H"; iApply "H".
   iApply wp_expr_mapsto.
@@ -338,41 +344,43 @@ Proof.
   destruct (eq_dec v2 Vundef).
   { subst; iAssert (▷ False) with "[Pre]" as ">[]".
     iNext; rewrite bi.and_elim_r bi.and_elim_l eval_cast_Vundef.
-    iClear "#"; iStopProof; split => rho; monPred.unseal; apply bi.pure_mono, tc_val_Vundef. }
-  iPoseProof (typecheck_environ_sub' with "[$]") as "#?"; first done.
-  iPoseProof (add_and (local (typecheck_environ Delta) ∧ ▷ _) (▷ ⌜tc_val (typeof e1) v2⌝) with "[Pre]") as "((_ & Pre) & >%)";
-    [| iSplit; [done | iApply "Pre"] |].
-  { iIntros "(#? & _ & _ & H) !>"; iPoseProof (H99 with "[H]") as ">H"; auto.
-    iClear "#"; iStopProof; split => rho; monPred.unseal; by apply mapsto_tc. }
-  iApply wp_tc_lvalue; first done.
-  iSplit; first done; iSplit; first by rewrite !bi.and_elim_l.
-  iIntros (b o) "#Hbo".
+    iDestruct "Pre" as %[]%tc_val_Vundef. }
+  pose proof (typecheck_environ_sub _ _ TS _ TC') as TC.
+  eapply monPred_in_entails in H99.
+  iDestruct (add_and _ (▷ ⌜tc_val (typeof e1) v2⌝) with "Pre") as "(Pre & >%)".
+  { iIntros "(_ & _ & H) !>"; iPoseProof (H99 with "[H]") as "H"; auto.
+    { rewrite monPred_at_and; iFrame; auto. }
+    rewrite monPred_at_absorbingly embed_absorbingly; iMod "H".
+    by iDestruct (mapsto_tc with "H") as %?. }
+  iApply (wp_tc_lvalue(CS := CS) with "E"); [done..|].
+  iSplit; first by rewrite !bi.and_elim_l; auto.
+  iIntros "E" (b o Hbo).
   iExists sh, v2; iSplit; first done.
   iSplit.
   { iNext; iPoseProof (H99 with "[Pre]") as "H".
-    { rewrite !bi.and_elim_r; auto. }
-    iStopProof; split => rho; monPred.unseal; rewrite monPred_at_intuitionistically !monPred_at_absorbingly /=; unfold_lift.
-    iIntros "((_ & _ & _ & %Hbo) & _ & H)"; rewrite Hbo //. }
-  iStopProof; split => rho; monPred.unseal.
-  rewrite !monPred_at_intuitionistically; monPred.unseal.
-  rewrite {1}/subst /lift1; unfold_lift; iIntros "((%TC' & _ & %TC & %) & $ & Pre)".
+    { rewrite !bi.and_elim_r monPred_at_and; iFrame; auto. }
+    rewrite monPred_at_absorbingly /=; unfold_lift; by rewrite Hbo. }
   rewrite bi.and_comm -assoc bi.later_and; iDestruct "Pre" as "(>%Htc & Pre)".
   iIntros "!>"; iSplit; first done.
+  unfold eval_cast, force_val1 in Htc.
   destruct (sem_cast (typeof e1) t1 v2) as [v|] eqn: Hcast; last by apply tc_val_Vundef in Htc.
   iExists v; iSplit; first done; iNext.
   rewrite /typeof_temp in Hid0; destruct (temp_types Delta !! id) as [t'|] eqn: Ht; inversion Hid0; subst t'; clear Hid0.
-  iSplit.
-  - apply TC in Ht as (? & ? & ?).
+  iDestruct (curr_env_set_temp with "E") as "($ & E)"; [done..|].
+  iIntros "Hid"; iSpecialize ("E" with "Hid"); iFrame.
+  simpl; iSplit.
+  - iClear "#"; iStopProof; split => ?; monPred.unseal.
+    apply TC in Ht as (? & ? & ?).
     unfold_lift.
-    iExists (eval_id id rho); erewrite !subst_set by done.
-    rewrite eval_id_same bi.and_elim_l; auto.
-  - rewrite monPred_at_affinely; iPureIntro.
+    rewrite -(bi.exist_intro (eval_id id rho)); erewrite !subst_set by done.
+    rewrite eval_id_same bi.and_elim_l Hcast; auto.
+  - iPureIntro.
     destruct TC' as (? & ? & ?); split3; auto; simpl.
     intros i t' Ht'; destruct (eq_dec i id).
     + subst i; destruct TS as (TS & _); specialize (TS id); rewrite Ht Ht' in TS; subst t'.
-      rewrite Map.gss; exists v; subst; split; auto.
+      rewrite lookup_insert; exists v; subst; split; auto.
       by apply tc_val_tc_val'.
-    + rewrite Map.gso; auto.
+    + rewrite lookup_insert_ne; auto.
 Qed.
 
 Lemma writable0_lub_retainer_Rsh:
@@ -422,25 +430,26 @@ Lemma semax_store:
           (normal_ret_assert (assert_of (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`force_val (`(sem_cast (typeof e2) (typeof e1)) (eval_expr e2)))) ∗ P)).
 Proof.
   intros.
-  rewrite semax_unfold; intros; iIntros "#? ? #?" (?) "Pre"; destruct HGG.
+  rewrite semax_unfold; intros; iIntros "E %TC' ? #?" (?) "Pre"; destruct HGG.
+  rewrite monPred_at_later !monPred_at_and.
   iApply wp_store.
   assert (cenv_sub (@cenv_cs CS) psi) by (eapply cenv_sub_trans; eauto).
-  iApply wp_tc_expr; first done.
-  iPoseProof (typecheck_environ_sub' with "[$]") as "#?"; first done.
-  iSplit; first done; iSplit; first by rewrite bi.and_elim_l bi.and_elim_r.
-  iIntros (v ?) "#?".
+  pose proof (typecheck_environ_sub _ _ TS _ TC') as TC.
+  iApply (wp_tc_expr(CS := CS) with "E"); [done..|].
+  iSplit; first by rewrite bi.and_elim_l bi.and_elim_r; auto.
+  iIntros "E" (?).
   iSplit; first by iPureIntro; apply tc_val_tc_val'.
-  iApply wp_tc_lvalue; first done.
-  iSplit; first done; iSplit; first by rewrite !bi.and_elim_l.
-  iIntros (??) "#?".
+  iApply (wp_tc_lvalue(CS := CS) with "E"); [done..|].
+  iSplit; first by rewrite !bi.and_elim_l; auto.
+  iIntros "E" (?? Hbo).
   iExists _; iSplit; first done.
+  rewrite !monPred_at_sep.
   iDestruct "Pre" as "(_ & He1 & P)"; iSplitL "He1".
-  { iStopProof; split => rho; monPred.unseal; rewrite monPred_at_intuitionistically.
-    unfold_lift; by iIntros "((_ & _ & _ & _ & ->) & ?)". }
+  { simpl; unfold_lift; rewrite Hbo; auto. }
   iNext; iIntros "He1 !>"; simpl; iFrame.
   iSplit; last done.
-  iStopProof; split => rho; monPred.unseal; rewrite monPred_at_intuitionistically.
-  unfold_lift; by iIntros "((_ & _ & _ & % & ->) & ?)"; subst.
+  rewrite monPred_at_sep /=; iFrame; unfold_lift.
+  rewrite Hbo; done.
 Qed.
 
 Lemma semax_store_union_hack:
@@ -465,25 +474,26 @@ Lemma semax_store_union_hack:
 Proof.
   intros until P. intros NT AM0 AM' OK WS.
   assert (SZ := decode_encode_val_size _ _ OK).
-  rewrite semax_unfold; intros; iIntros "#? ? #?" (?) "Pre"; destruct HGG.
+  rewrite semax_unfold; intros; iIntros "E %TC' ? #?" (?) "Pre"; destruct HGG.
+  rewrite monPred_at_later !monPred_at_and.
   iApply wp_store'; [done..|].
   assert (cenv_sub (@cenv_cs CS) psi) by (eapply cenv_sub_trans; eauto).
-  iApply wp_tc_expr; first done.
-  iPoseProof (typecheck_environ_sub' with "[$]") as "#?"; first done.
-  iSplit; first done; iSplit; first by rewrite bi.and_elim_l bi.and_elim_r.
-  iIntros (v ?) "#?".
+  pose proof (typecheck_environ_sub _ _ TS _ TC') as TC.
+  iApply (wp_tc_expr(CS := CS) with "E"); [done..|].
+  iSplit; first by rewrite bi.and_elim_l bi.and_elim_r; auto.
+  iIntros "E" (?).
   iSplit; first by iPureIntro; apply tc_val_tc_val'.
-  iApply wp_tc_lvalue; first done.
-  iSplit; first done; iSplit; first by rewrite !bi.and_elim_l.
-  iIntros (??) "#?".
+  iApply (wp_tc_lvalue(CS := CS) with "E"); [done..|].
+  iSplit; first by rewrite !bi.and_elim_l; auto.
+  iIntros "E" (?? Hbo).
   iExists _; iSplit; first by iPureIntro; apply writable_writable0.
+  rewrite !monPred_at_sep !monPred_at_and.
   iDestruct "Pre" as "(_ & He1 & P)"; iSplitL "He1".
-  { iStopProof; split => rho; monPred.unseal; rewrite monPred_at_intuitionistically.
-    unfold_lift; by iIntros "((_ & _ & _ & _ & ->) & ?)". }
+  { simpl; unfold_lift; rewrite Hbo; auto. }
   iNext; iIntros "(% & % & He1) !>"; simpl; iFrame.
-  iSplit; last done; iExists v'.
-  iStopProof; split => rho; monPred.unseal; rewrite monPred_at_intuitionistically.
-  unfold_lift; iIntros "((_ & _ & _ & % & ->) & ?)"; subst; auto.
+  iSplit; last done.
+  rewrite monPred_at_exist; iExists v'.
+  rewrite -Hbo monPred_at_and monPred_at_sep; iFrame; auto.
 Qed.
 
 End extensions.

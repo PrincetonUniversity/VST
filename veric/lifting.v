@@ -499,7 +499,7 @@ Qed.
    the variable we're setting. On entering a function, we can initialize all
    its temps to Vundef. *)
 Lemma wp_set: forall E f i e R,
-  wp_expr ge E f e (λ v, ▷ (∃ v0, temp i v0) ∗ ▷ (temp i v -∗ RA_normal R)) ⊢ wp E f (Sset i e) R.
+  wp_expr ge E f e (λ v, ▷ ((∃ v0, temp i v0) ∗ (temp i v -∗ RA_normal R))) ⊢ wp E f (Sset i e) R.
 Proof.
   intros; rewrite /wp.
   iIntros "H %%% ? Hk" (????) "Hr (%Henv & %Hstack) %Hty".
@@ -593,8 +593,8 @@ Lemma wp_store': forall E f e1 e2 t2 ch1 ch2 R
   decode_encode_val_ok ch1 ch2 →
   wp_expr ge E f (Ecast e2 (typeof e1)) (λ v2,
       ⌜Cop2.tc_val' (typeof e1) v2⌝ ∧ wp_lvalue ge E f e1 (λ '(b, o), let v1 := Vptr b (Ptrofs.repr o) in
-    ∃ sh, ⌜writable0_share sh⌝ ∧ ▷ ⎡mapsto_ sh (typeof e1) v1 ∧ mapsto_ sh t2 v1⎤ ∗
-    ▷ ((∃ v', ⌜decode_encode_val v2 ch1 ch2 v'⌝ ∧ ⎡mapsto sh t2 v1 v'⎤) ={E}=∗ RA_normal R)))
+    ∃ sh, ⌜writable0_share sh⌝ ∧ ▷ (⎡mapsto_ sh (typeof e1) v1 ∧ mapsto_ sh t2 v1⎤ ∗
+    ((∃ v', ⌜decode_encode_val v2 ch1 ch2 v'⌝ ∧ ⎡mapsto sh t2 v1 v'⎤) ={E}=∗ RA_normal R))))
   ⊢ wp E f (Sassign e1 e2) R.
 Proof.
   intros; rewrite /wp.
@@ -653,8 +653,8 @@ Qed.
 Lemma wp_store: forall E f e1 e2 R,
   wp_expr ge E f (Ecast e2 (typeof e1)) (λ v2,
       ⌜Cop2.tc_val' (typeof e1) v2⌝ ∧ wp_lvalue ge E f e1 (λ '(b, o), let v1 := Vptr b (Ptrofs.repr o) in
-    ∃ sh, ⌜writable0_share sh⌝ ∧ ▷ ⎡mapsto_ sh (typeof e1) v1⎤ ∗
-    ▷ (⎡mapsto sh (typeof e1) v1 v2⎤ ={E}=∗ RA_normal R)))
+    ∃ sh, ⌜writable0_share sh⌝ ∧ ▷ (⎡mapsto_ sh (typeof e1) v1⎤ ∗
+    (⎡mapsto sh (typeof e1) v1 v2⎤ ={E}=∗ RA_normal R))))
   ⊢ wp E f (Sassign e1 e2) R.
 Proof.
   intros; rewrite /wp.
