@@ -25,8 +25,6 @@ Local Open Scope nat_scope.
 Section extensions.
 Context `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {CS: compspecs}.
 
-Local Arguments typecheck_expr : simpl never.
-
 Lemma tc_test_eq1:
   forall b i v m,
   mem_auth m ∗ denote_tc_test_eq (Vptr b i) v ⊢
@@ -35,13 +33,13 @@ Proof.
 intros; iIntros "[Hm H]".
 destruct v; try done; simpl.
 - iDestruct "H" as "[% H]".
-  iApply (binop_lemmas4.weak_valid_pointer_dry with "[$Hm $H]").
+  iApply (valid_pointer.weak_valid_pointer_dry with "[$Hm $H]").
 - unfold test_eq_ptrs.
   destruct (sameblock (Vptr b i) (Vptr b0 i0)).
   + iDestruct "H" as "[H _]".
-    iApply (binop_lemmas4.weak_valid_pointer_dry with "[$Hm $H]").
+    iApply (valid_pointer.weak_valid_pointer_dry with "[$Hm $H]").
   + iDestruct "H" as "[H _]".
-    iDestruct (binop_lemmas4.valid_pointer_dry with "[$Hm $H]") as %?; iPureIntro.
+    iDestruct (valid_pointer.valid_pointer_dry with "[$Hm $H]") as %?; iPureIntro.
     apply valid_pointer_implies.
     rewrite Z.add_0_r // in H.
 Qed.
@@ -57,33 +55,36 @@ Lemma semax_ifthenelse:
 Proof.
   intros.
   rewrite !semax_unfold in H0, H1 |- *.
-  intros; iIntros "#? ? #?" (?) "P".
+  intros; iIntros "E %TC' ? #?" (?) "P".
+  rewrite monPred_at_later monPred_at_and.
   destruct HGG.
   iApply wp_if.
-  iApply wp_tc_expr; first done.
-  iSplit; first done. iSplit.
-  { admit. }
-  iIntros (bv Ht) "#Hb"; iSplit.
-  { admit. }
-(*   rewrite (add_and (▷ _) (▷ _)); last by iIntros "[H _]"; iApply (typecheck_expr_sound with "H"). *)
-  destruct (bool_val (typeof b) bv) as [b'|] eqn: Hb.
+  assert (cenv_sub (@cenv_cs CS) psi) by (eapply cenv_sub_trans; eauto).
+  pose proof (typecheck_environ_sub _ _ TS _ TC') as TC.
+  iDestruct (add_and _ (▷ ⌜_⌝) with "P") as "(P & >%HTCb)".
+  { iIntros "(H & _) !>". iPoseProof (typecheck_expr_sound with "H") as "%"; done. }
+  iApply (wp_tc_expr(CS := CS) with "E"); [done..|].
+  iSplit.
+  { rewrite /= denote_tc_assert_andp bi.and_elim_l bi.and_elim_r; auto. }
+  iIntros "E" (?) "!>"; iSplit.
+  { simpl.
+    destruct (eval_expr b rho) eqn: Hb; try done.
+    rewrite denote_tc_assert_andp /= !bi.and_elim_l.
+    destruct (typeof b); try done.
+    * by destruct f0.
+    * rewrite denote_tc_assert_andp binop_lemmas2.denote_tc_assert_test_eq' /= bi.and_elim_r.
+      unfold_lift; rewrite Hb /=.
+      simple_if_tac; last by rewrite embed_pure; iDestruct "P" as "[]".
+      by iDestruct "P" as "(_ & ?)".
+    * rewrite embed_pure; iDestruct "P" as "[]".
+    * rewrite embed_pure; iDestruct "P" as "[]". }
+  simpl in HTCb; super_unfold_lift; rewrite /eval_unop /= in HTCb.
+  destruct (bool_val (typeof b) (eval_expr b rho)) as [b'|] eqn: Hb; last done.
   iExists b'; iSplit; first done.
   rewrite bi.and_elim_r.
-  destruct b'; [iApply (H0 with "[] [$]") | iApply (H1 with "[] [$]")]; eauto; iNext; (iSplit; first done);
-    iStopProof; split => rho; monPred.unseal; rewrite !monPred_at_intuitionistically;
-    iIntros "(#(_ & _ & ->) & _)"; iPureIntro; apply bool_val_strict; try done.
-Admitted.
-
-(*Ltac inv_safe H :=
-  inv H;
-  try solve[match goal with
-    | H : semantics.at_external _ _ _ = _ |- _ =>
-      simpl in H; congruence
-    | H : j_at_external _ _ _ = _ |- _ =>
-      simpl in H; congruence
-    | H : semantics.halted _ _ _ |- _ =>
-      simpl in H; unfold cl_halted in H; contradiction
-  end].*)
+  destruct b'; [iApply (H0 _ Delta' with "E [//] [$]") | iApply (H1 _ Delta' with "E [//] [$]")]; eauto;
+    rewrite monPred_at_and; (iSplit; first done); iPureIntro; by apply bool_val_strict.
+Qed.
 
 Lemma semax_seq:
   forall E Delta (R: ret_assert) P Q h t,
@@ -94,13 +95,15 @@ Proof.
   intros.
   rewrite !semax_unfold in H,H0|-*.
   intros.
-  iIntros "#? ? #?" (?) "P".
+  iIntros "E %TC' ? #B" (?) "P".
   iApply wp_seq.
-  Check wp_frame. (* frame in believe? use strong_mono, if it was objective? *)
-  iApply wp_conseq; last (by iApply (H with "[] [$]")); destruct R; simpl; auto.
-  iIntros "(Q & #? & ?) !>"; iApply (H0 with "[] [$]"); eauto.
-  admit.
-Admitted.
+  iApply wp_conseq.
+  5: { iApply (wp_frame _ _ _ _ _ _ (believe OK_spec Delta' psi)); iFrame "B".
+       by iApply (H with "E [//] [$]"). }
+  all: destruct R; simpl; try by intros; iIntros "($ & _)".
+  iIntros "(((% & ? & % & E) & ?) & #?)".
+  by iApply (H0 with "E [//] [$]").
+Qed.
 
 Lemma semax_loop:
 forall E Delta Q Q' incr body R,
@@ -109,35 +112,43 @@ forall E Delta Q Q' incr body R,
      semax OK_spec E Delta Q (Sloop body incr) R.
 Proof.
   intros ?????? POST H H0.
-  rewrite semax_unfold.
+  rewrite !semax_unfold in H H0 |- *.
   intros ?????.
-  iLöb as "IH". (* we might in theory want to iLob objectively *)
-  iIntros "#? ? #?" (?) "Q".
+  iLöb as "IH".
+  iIntros "% E %TC' ? #B" (?) "Q".
   iApply wp_loop.
-  (* this should also be <obj>? *)
-  iAssert (Q' ∗ <affine> local (typecheck_environ Delta') ∗ funassert Delta'
-    -∗ |={E}=>
-    wp OK_spec psi E f incr
-      (loop2_ret_assert
+  iNext.
+  set (IH := ∀ _, _).
+  assert (((∃ x : environ, ⎡ Q' x ⎤ ∗ <affine> ⌜typecheck_environ Delta' x⌝ ∗
+   curr_env psi x) ∗ ⎡ funassert Delta' ⎤) ∗ believe OK_spec Delta' psi ∗ IH
+   ⊢ |={E}=> wp OK_spec psi E f incr
+      (Clight_seplog.loop2_ret_assert
          (wp OK_spec psi E f (Sloop body incr)
-            (frame_ret_assert POST
-               (<affine> local (typecheck_environ Delta') ∗ funassert Delta')))
-         (frame_ret_assert POST
-            (<affine> local (typecheck_environ Delta') ∗ funassert Delta'))))%I as "H".
-  { iIntros "(? & _ & ?) !>"; iApply wp_conseq; last (by iApply (H0 with "[%] [$] [$]")); simpl; auto.
-    - (* lost IH; probably need strong_mono *) admit.
-    - iIntros "([] & _ & _)". }
-  iNext; iApply wp_conseq; last (by iApply (H with "[%] [$] [$]")); simpl; auto.
-  - admit.
-  - admit.
-Admitted.
+            (Clight_seplog.frame_ret_assert (env_ret_assert Delta' psi POST)
+               ⎡ funassert Delta' ⎤))
+         (Clight_seplog.frame_ret_assert (env_ret_assert Delta' psi POST)
+            ⎡ funassert Delta' ⎤))).
+  { iIntros "(((% & ? & % & E) & ?) & #B & IH) !>".
+    iApply wp_conseq.
+    5: { iApply (wp_frame _ _ _ _ _ _ (believe OK_spec Delta' psi ∗ IH)); iFrame "B IH".
+       by iApply (H0 with "E [//] [$]"). }
+    all: simpl; try (by intros; iIntros "($ & _)").
+    iIntros "(((% & ? & % & E) & ?) & #B & IH) !>".
+    by iApply ("IH" with "E [//] [$]").
+    { iIntros "(((% & F & ?) & ?) & _)".
+      rewrite monPred_at_pure embed_pure; iDestruct "F" as "[]". } }
+  iApply wp_conseq.
+  5: { iApply (wp_frame _ _ _ _ _ _ (believe OK_spec Delta' psi ∗ IH)); iFrame "B IH".
+       by iApply (H with "E [//] [$]"). }
+  all: simpl; try (by intros; iIntros "($ & _)"); auto.
+Qed.
 
 Lemma semax_break:
    forall E Delta Q,        semax OK_spec E Delta (RA_break Q) Sbreak Q.
 Proof.
   intros.
   rewrite semax_unfold; intros.
-  iIntros "???" (?) "?".
+  iIntros "?%??" (?) "?".
   iApply wp_break; by iFrame.
 Qed.
 
@@ -146,7 +157,7 @@ Lemma semax_continue:
 Proof.
   intros.
   rewrite semax_unfold; intros.
-  iIntros "???" (?) "?".
+  iIntros "?%??" (?) "?".
   iApply wp_continue; by iFrame.
 Qed.
 

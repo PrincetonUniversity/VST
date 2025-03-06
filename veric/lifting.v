@@ -363,15 +363,15 @@ Proof.
 Qed.
 
 Definition valid_val v :=
-  match v with Vptr _ _ => expr.valid_pointer v | _ => True end.
+  match v with Vptr _ _ => expr.weak_valid_pointer v | _ => True end.
 
 Definition valid_val0 m v : Prop :=
-  match v with Vptr b o => Mem.valid_pointer m b (Ptrofs.intval o) = true | _ => True end.
+  match v with Vptr b o => Mem.weak_valid_pointer m b (Ptrofs.intval o) = true | _ => True end.
 
 Lemma valid_val_mem : forall m v, mem_auth m ∗ valid_val v ⊢ ⌜valid_val0 m v⌝.
 Proof.
   iIntros (??) "(Hm & Hv)"; destruct v; try done.
-  iApply valid_pointer_dry0; iFrame.
+  iApply weak_valid_pointer_dry; iFrame.
 Qed.
 
 Lemma bool_val_valid : forall m v t b, valid_val0 m v -> Cop2.bool_val t v = Some b -> Cop.bool_val v t m = Some b.
@@ -383,19 +383,19 @@ Proof.
   - destruct v; [done..|].
     simpl in *.
     simple_if_tac; try done.
-    rewrite /Mem.weak_valid_pointer H //.
+    rewrite H //.
   - destruct f; done.
   - simpl; destruct (Cop2.eqb_type _ _); try done.
     rewrite /Cop2.bool_val_p in H0.
     simple_if_tac.
     + destruct v; try done.
-      rewrite /Mem.weak_valid_pointer H //.
+      rewrite H //.
     + destruct v; try done.
-      rewrite /Mem.weak_valid_pointer H //.
+      rewrite H //.
 Qed.
 
 Lemma wp_if: forall E f e s1 s2 R,
-  wp_expr ge E f e (λ v, ⎡valid_val v⎤ ∧ ∃ b, ⌜Cop2.bool_val (typeof e) v = Some b⌝ ∧ ▷ if b then wp E f s1 R else wp E f s2 R)
+  wp_expr ge E f e (λ v, ▷ (⎡valid_val v⎤ ∧ ∃ b, ⌜Cop2.bool_val (typeof e) v = Some b⌝ ∧ if b then wp E f s1 R else wp E f s2 R))
   ⊢ wp E f (Sifthenelse e s1 s2) R.
 Proof.
   intros; rewrite /wp.
@@ -406,9 +406,11 @@ Proof.
   iMod (fupd_mask_subseteq E) as "Hclose"; first done.
   iMod ("H" with "Hm [$]") as ">(% & He & Hm & Hr & H)".
   iMod "Hclose" as "_".
-  iDestruct (valid_val_mem with "[Hm H]") as %?.
-  { rewrite bi.and_elim_l; iFrame. }
-  rewrite bi.and_elim_r; iDestruct "H" as (b ?) "H".
+  iCombine "Hm H" as "H".
+  iDestruct (add_and _ (▷ ⌜valid_val0 m v⌝) with "H") as "((Hm & H) & >%)".
+  { iIntros "(? & ? & _) !>"; iPoseProof (valid_val_mem with "[$]") as "%"; done. }
+  rewrite bi.and_elim_r; iDestruct "H" as (b) "H".
+  rewrite bi.later_and; iDestruct "H" as "(>% & H)".
   rewrite embed_fupd; iIntros "!>"; iExists _, m.
   iPoseProof (env_match_intro with "Hd") as "#?"; first done.
   iDestruct ("He" with "[$]") as %He.
