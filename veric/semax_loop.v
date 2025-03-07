@@ -17,7 +17,6 @@ Require Import VST.veric.expr_lemmas.
 Require Import VST.veric.lifting_expr.
 Require Import VST.veric.semax.
 Require Import VST.veric.semax_lemmas.
-Require Import VST.veric.semax_conseq.
 Require Import VST.veric.Clight_lemmas.
 
 Local Open Scope nat_scope.
@@ -97,11 +96,11 @@ Proof.
   intros.
   iIntros "E %TC' ? #B" (?) "P".
   iApply wp_seq.
-  iApply wp_conseq.
-  5: { iApply (wp_frame _ _ _ _ _ _ (believe OK_spec Delta' psi)); iFrame "B".
-       by iApply (H with "E [//] [$]"). }
-  all: destruct R; simpl; try by intros; iIntros "($ & _)".
-  iIntros "(((% & ? & % & E) & ?) & #?)".
+  iApply wp_strong_mono.
+  iSplitL ""; last by iApply (H with "E [//] [$]").
+  simpl.
+  iSplit; last by auto.
+  iIntros "((% & ? & % & E) & ?)".
   by iApply (H0 with "E [//] [$]").
 Qed.
 
@@ -118,29 +117,29 @@ Proof.
   iIntros "% E %TC' ? #B" (?) "Q".
   iApply wp_loop.
   iNext.
-  set (IH := ∀ _, _).
-  assert (((∃ x : environ, ⎡ Q' x ⎤ ∗ <affine> ⌜typecheck_environ Delta' x⌝ ∗
-   curr_env psi x) ∗ ⎡ funassert Delta' ⎤) ∗ believe OK_spec Delta' psi ∗ IH
-   ⊢ |={E}=> wp OK_spec psi E f incr
-      (Clight_seplog.loop2_ret_assert
-         (wp OK_spec psi E f (Sloop body incr)
-            (Clight_seplog.frame_ret_assert (env_ret_assert Delta' psi POST)
-               ⎡ funassert Delta' ⎤))
+  iApply wp_strong_mono.
+  iSplitL ""; last by iApply (H with "E [//] [$]").
+  simpl.
+  iAssert ((∃ x0 : environ, ⎡ Q' x0 ⎤ ∗ <affine> ⌜typecheck_environ Delta' x0⌝ ∗
+    curr_env psi x0) ∗ ⎡ funassert Delta' ⎤ ={E}=∗
+   wp OK_spec psi E f incr
+   (Clight_seplog.loop2_ret_assert
+      (wp OK_spec psi E f (Sloop body incr)
          (Clight_seplog.frame_ret_assert (env_ret_assert Delta' psi POST)
-            ⎡ funassert Delta' ⎤))).
-  { iIntros "(((% & ? & % & E) & ?) & #B & IH) !>".
-    iApply wp_conseq.
-    5: { iApply (wp_frame _ _ _ _ _ _ (believe OK_spec Delta' psi ∗ IH)); iFrame "B IH".
-       by iApply (H0 with "E [//] [$]"). }
-    all: simpl; try (by intros; iIntros "($ & _)").
-    iIntros "(((% & ? & % & E) & ?) & #B & IH) !>".
-    by iApply ("IH" with "E [//] [$]").
-    { iIntros "(((% & F & ?) & ?) & _)".
-      rewrite monPred_at_pure embed_pure; iDestruct "F" as "[]". } }
-  iApply wp_conseq.
-  5: { iApply (wp_frame _ _ _ _ _ _ (believe OK_spec Delta' psi ∗ IH)); iFrame "B IH".
-       by iApply (H with "E [//] [$]"). }
-  all: simpl; try (by intros; iIntros "($ & _)"); auto.
+            ⎡ funassert Delta' ⎤))
+      (Clight_seplog.frame_ret_assert (env_ret_assert Delta' psi POST)
+         ⎡ funassert Delta' ⎤)))%I as "?".
+  { iIntros "((% & ? & % & E) & ?) !>".
+    iApply wp_strong_mono.
+    iSplitL ""; last by iApply (H0 with "E [//] [$]").
+    simpl; iSplit.
+    - iIntros "((% & ? & % & E) & ?) !>".
+      by iApply ("IH" with "E [//] [$]").
+    - iSplit; first auto.
+      iSplit; last auto.
+      iIntros "((% & F & ?) & ?)".
+      rewrite monPred_at_pure embed_pure; iDestruct "F" as "[]". }
+  auto.
 Qed.
 
 Lemma semax_break:

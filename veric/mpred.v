@@ -166,6 +166,7 @@ Inductive funspec :=
     funspec.
  *)
 
+(* TODO: This isn't part of the core logic; move it to VeriC eventually. *)
 Section funspec.
 
 (* funspecs are effectively dependent pairs of an algebra and a pair of assertions on that algebra.
@@ -196,8 +197,10 @@ Fixpoint dependent_type_functor_rec (T : TypeTree) : oFunctor :=
   | ListType t => listOF (dependent_type_functor_rec t)
   end.
 
-Definition ArgsTT A := ArrowType A (DiscreteFunType (list val) (DiscreteFunType nat Mpred)).
-Definition AssertTT A := ArrowType A (DiscreteFunType (option val) (DiscreteFunType nat Mpred)).
+(* Current theory: funspecs can only mention args/retval and should otherwise
+   not say anything about the environment. *)
+Definition ArgsTT A := ArrowType A (DiscreteFunType (list val) ((*DiscreteFunType nat*) Mpred)).
+Definition AssertTT A := ArrowType A (DiscreteFunType (option val) ((*DiscreteFunType nat*) Mpred)).
 Definition MaskTT A := ArrowType A (ConstType coPset).
 
 Section ofe.
@@ -431,8 +434,8 @@ Definition argsassert := list val -> assert.
 
 (* funspecs on mpreds *)
 Definition funspec := funspec_ mpred mpred.
-Definition NDmk_funspec (sig : typesig) (cc : calling_convention) A (P : A -> argsassert) (Q : A -> option val -> assert) : funspec :=
-  mk_funspec sig cc (ConstType A) (λne a, ⊤) (λne (a : leibnizO A), (P a) : _ -d> _ -d> mpred) (λne (a : leibnizO A), (Q a) : _ -d> _ -d> mpred).
+Definition NDmk_funspec (sig : typesig) (cc : calling_convention) A (P : A -> list val -> mpred) (Q : A -> option val -> mpred) : funspec :=
+  mk_funspec sig cc (ConstType A) (λne a, ⊤) (λne (a : leibnizO A), (P a) : _ -d> mpred) (λne (a : leibnizO A), (Q a) : _ -d> mpred).
 
 Definition funspec_unfold (f : funspec) : laterO funspec := Next f.
 

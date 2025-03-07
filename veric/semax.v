@@ -49,12 +49,12 @@ Definition semax_external
    ▷ ∀ F (ts: list typ),
    ∀ args: list val,
    ■ (⌜Val.has_type_list args (map proj_xtype (sig_args (ef_sig ef)))⌝ ∧
-     (mpred.assert_of (P x args) ∗ F) ={E x}=∗
-   ∀ m z, ⎡state_interp m z⎤ -∗ ∃ x': ext_spec_type OK_spec ef,
+     (P x args ∗ F) ={E x}=∗
+   ∀ m z, state_interp m z -∗ ∃ x': ext_spec_type OK_spec ef,
     ⌜ext_spec_pre OK_spec ef x' (genv_symb_injective gx) ts args z m⌝ ∧
      (*□*) ∀ tret: xtype, ∀ ret: option val, ∀ m': mem, ∀ z': OK_ty,
       ⌜ext_spec_post OK_spec ef x' (genv_symb_injective gx) tret ret z' m'⌝ → |={E x}=>
-          ⎡state_interp m' z'⎤ ∗ mpred.assert_of (Q x ret) ∗ F).
+          state_interp m' z' ∗ Q x ret ∗ F).
 
 Lemma Forall2_implication {A B} (P Q:A -> B -> Prop) (PQ:forall a b, P a b -> Q a b):
   forall l t, Forall2 P l t -> Forall2 Q l t.
@@ -94,17 +94,12 @@ Proof.
   apply bi.forall_mono; intros g.
   iIntros "#H" (x). iIntros "!>" (F ts args) "!> (%HT & P & F)".
   destruct Hsub as [(? & ?) Hsub]; subst.
-  iPoseProof (monPred_in_intro emp with "[//]") as "(%n & Hl)".
-  rewrite monPred_at_emp embed_emp (bi.and_comm _ emp).
-  iMod (Hsub with "[P]") as (x1 F1 HE1) "((F1 & P1) & %HQ)".
-  { iPoseProof (stack_level_embed with "Hl P") as "$".
-    iPureIntro; split; auto.
+  iMod (Hsub with "[$P]") as (x1 F1 HE1) "((F1 & P1) & %HQ)".
+  { iPureIntro; split; auto.
     rewrite HSIG map_proj_xtype_argtype in HT; apply has_type_list_Forall2 in HT.
     eapply Forall2_implication; [ | apply HT]; auto. }
   iMod (fupd_mask_subseteq (E1 x1)) as "Hmask"; first done.
-  iMod ("H" $! _ (F ∗ ⎡F1⎤) with "[P1 $F $F1]") as "H1".
-  { iSplit; first done.
-    by iApply stack_level_elim. }
+  iMod ("H" $! _ (F ∗ F1) with "[$P1 $F $F1]") as "H1"; first done.
   iMod "Hmask" as "_".
   iIntros "!>" (??) "s".
   iDestruct ("H1" with "s") as (x') "[? H']".
@@ -113,8 +108,7 @@ Proof.
   iMod ("H'" with "Hpost") as "($ & Q1 & $ & F1)".
   iMod "Hmask" as "_".
   iIntros "!>".
-  iApply (stack_level_elim with "[//]"); iApply HQ; iFrame.
-  iApply (stack_level_embed with "[//] Q1").
+  iApply HQ; iFrame.
 Qed.
 
 Definition tc_option_val (sig: type) (ret: option val) :=
@@ -142,7 +136,7 @@ Definition believe_external (gx: genv) (v: val) (fsig: typesig) cc
         ∧ semax_external ef A E P Q
         ∧ ■ (∀ x: dtfr A,
               ∀ ret:option val,
-                mpred.assert_of (Q x ret)
+                Q x ret
                   ∧ ⌜Builtins0.val_opt_has_rettype ret (rettype_of_type (snd fsig))⌝
                   -∗ ⌜tc_option_val sigret ret⌝)
   | _ => False
@@ -175,9 +169,9 @@ Definition stackframe_of' (cenv: composite_env) (f: Clight.function) : mpred.ass
   ([∗ list] idt ∈ fn_vars f, var_block' Share.top cenv idt) ∗
   ([∗ list] idt;v ∈ (fn_temps f);(repeat Vundef (length (fn_temps f))), temp (fst idt) v).
 
-Definition claims (ge: genv) (Delta: tycontext) v fsig cc A E P Q : Prop :=
-  exists id, (glob_specs Delta) !! id = Some (mk_funspec fsig cc A E P Q) /\
-    exists b, Genv.find_symbol ge id = Some b /\ v = Vptr b Ptrofs.zero.
+Definition claims (ge: genv) (Delta: tycontext) v fsig cc A E P Q : mpred :=
+  ∃ id, <affine> ⌜PTree.get id (glob_specs Delta) = Some (mk_funspec fsig cc A E P Q)⌝ ∗
+    ∃ b, gvar id b ∗ <affine> ⌜v = Vptr b Ptrofs.zero⌝.
 
 Definition believe_internal {CS}
   (gx: genv) v (fsig: typesig) cc (A: TypeTree)
@@ -194,9 +188,9 @@ Definition believe_internal {CS}
                  /\ fn_typesig f = fsig
                  /\ f.(fn_callconv) = cc⌝
   ∧ ∀ CS', ⌜cenv_sub (@cenv_cs CS) (@cenv_cs CS')⌝ →
-■ ∀ x : dtfr A, ▷ ((bind_args f.(fn_params) (λ lv, mpred.assert_of (P x lv)) ∗ stackframe_of' (@cenv_cs CS') f) -∗
+■ ∀ x : dtfr A, ▷ ((bind_args f.(fn_params) (λ lv, P x lv) ∗ stackframe_of' (@cenv_cs CS') f) -∗
          wp OK_spec gx (E x) f f.(fn_body)
-           (Clight_seplog.frame_ret_assert (Clight_seplog.function_body_ret_assert f.(fn_return) (λ ret, mpred.assert_of (Q x ret))) (stackframe_of' (@cenv_cs CS') f)))).
+           (Clight_seplog.frame_ret_assert (Clight_seplog.function_body_ret_assert f.(fn_return) (λ ret, ⎡Q x ret⎤)) (stackframe_of' (@cenv_cs CS') f)))).
 (* might need the recursive construction after all, so that we can use believe in
    proving all the funspecs *)
 
@@ -207,9 +201,9 @@ Definition believe {CS}
   ∀ E: dtfr (MaskTT A),
   ∀ P: dtfr (ArgsTT A),
   ∀ Q: dtfr (AssertTT A),
-       ⌜claims gx Delta v fsig cc A E P Q⌝ →
-      (believe_external gx v fsig cc A E P Q
-        ∨ @believe_internal CS gx v fsig cc A E P Q).
+     □ (⎡claims gx Delta v fsig cc A E P Q⎤ →
+        (⎡believe_external gx v fsig cc A E P Q⎤
+         ∨ @believe_internal CS gx v fsig cc A E P Q)).
 
 Global Instance believe_external_plain gx v fsig cc A E P Q : Plain (believe_external gx v fsig cc A E P Q).
 Proof.
@@ -259,16 +253,20 @@ Context {CS: compspecs}.
 
 Lemma claims_antimono gx Gamma v sig cc E A P Q Gamma' 
   (SUB: forall id spec, (glob_specs Gamma') !! id = Some spec ->
-                        (glob_specs Gamma) !! id = Some spec)
-  (CL: claims gx Gamma' v sig cc E A P Q):
+                        (glob_specs Gamma) !! id = Some spec):
+  claims gx Gamma' v sig cc E A P Q ⊢
   claims gx Gamma v sig cc E A P Q.
-Proof. destruct CL as [id [Hid X]]; exists id; split; auto. Qed.
+Proof.
+  rewrite /claims.
+  do 5 f_equiv.
+  intros ?; auto.
+Qed.
 
  Lemma believe_antimonoR gx Gamma Gamma'
   (DG1: forall id spec, (glob_specs Gamma') !! id = Some spec ->
                         (glob_specs Gamma) !! id = Some spec):
   @believe CS Gamma gx ⊢ @believe CS Gamma' gx.
-Proof. rewrite /believe. iIntros "H" (????????); iApply "H". iPureIntro; eapply claims_antimono; eauto. Qed.
+Proof. rewrite /believe. iIntros "H" (???????). rewrite claims_antimono //. Qed.
 
 Lemma cenv_sub_complete_legal_cosu_type cenv1 cenv2 (CSUB: cenv_sub cenv1 cenv2): forall t,
     @composite_compute.complete_legal_cosu_type cenv1 t = true ->

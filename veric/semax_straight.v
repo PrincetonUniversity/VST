@@ -18,8 +18,8 @@ Require Import VST.veric.expr_lemmas4.
 Require Import VST.veric.lifting_expr.
 Require Import VST.veric.semax.
 Require Import VST.veric.semax_lemmas.
-Require Import VST.veric.mapsto_memory_block.
 Require Import VST.veric.semax_conseq.
+Require Import VST.veric.mapsto_memory_block.
 Require Import VST.veric.Clight_lemmas.
 Require Import VST.veric.binop_lemmas.
 Require Import VST.veric.binop_lemmas2.

@@ -1392,16 +1392,6 @@ Proof.
     done.
 Qed.
 
-(* Definition maybe_retval (Q: assert) vl ret :=
- match vl with
- | Some id => fun rho => ⌜tc_val' retty (eval_id id rho)⌝ ∧ Q (get_result1 id rho)
- | None =>
-    match retty with
-    | Tvoid => (fun rho => Q (globals_only rho))
-    | _ => fun rho => ∃ v: val, ⌜tc_val' retty v⌝ ∧ Q (make_args (ret_temp::nil) (v::nil) rho)
-    end
- end). *)
-
 Lemma wp_call: forall E f0 i e es R,
   wp_expr ge E f0 e (λ v, ∃ f, ⌜exists b, v = Vptr b Ptrofs.zero /\ Genv.find_funct_ptr ge b = Some (Internal f) /\
     classify_fun (typeof e) =
@@ -1429,8 +1419,7 @@ Proof.
   iDestruct ("He" with "[$]") as %He; iDestruct ("Hes" with "[$]") as %Hes.
   pose proof (typecheck_var_match_venv _ _ Hty).
   iExists _, _; iSplit.
-  { pose proof (@cenv_sub_refl ge).
-    iPureIntro; econstructor; eauto. }
+  { iPureIntro; econstructor; eauto. }
   iFrame.
   iNext.
   iApply jsafe_step.
@@ -1511,6 +1500,71 @@ Proof.
     + iApply safe_skip; last by (iFrame; iDestruct "Hk" as "(Hk & _)"; iApply "Hk").
       * done.
       * eapply stack_matches'_dealloc with (i := None)(f := f); split; eauto.
+Qed.
+
+(* We probably won't want to use this rule directly, but rather prove that each
+   extcall has a small-footprint effect. *)
+Lemma wp_extcall: forall E f0 i e es R,
+  wp_expr ge E f0 e (λ v, ∃ f tys retty cc, ⌜exists b, v = Vptr b Ptrofs.zero /\ Genv.find_funct_ptr ge b = Some (External f tys retty cc) /\
+    classify_fun (typeof e) =
+    fun_case_f tys retty cc /\ ef_inline f && ef_deterministic f = true (*/\
+    Forall (fun it => complete_type (genv_cenv ge) (snd it) = true) (fn_vars f)
+                 /\ list_norepet (map fst f.(fn_params) ++ map fst f.(fn_temps))
+                 /\ list_norepet (map fst f.(fn_vars)) /\ var_sizes_ok (genv_cenv ge) (f.(fn_vars))*)⌝ ∧
+    wp_exprs E f0 es tys (λ vs,
+       ∀ m, ⎡mem_auth m⎤ ={E}=∗ ∃ t ret m', ⌜Events.external_call f ge vs m t ret m'⌝ ∧
+         ▷ |={E}=> ⎡mem_auth m'⎤ ∗ match i with Some id => (∃ v0, temp id v0) ∗ (temp id ret -∗ RA_normal R) | _ => RA_normal R end)) ⊢
+  wp E f0 (Scall i e es) R.
+Proof.
+  intros; rewrite /wp.
+  iIntros "H %%% #Hd Hk" (????) "Hr (%Hmatch & %Hstack & %Htop) %Hty".
+  iApply jsafe_step.
+  rewrite /jstep_ex /wp_expr /wp_exprs /=.
+  iIntros (?) "(Hm & Ho)".
+  iMod (fupd_mask_subseteq E) as "Hclose"; first done.
+  iMod ("H" with "Hm Hr") as ">(% & He & Hm & Hr & %f & %tys & %retty & %cc & %Hb & H)"; [done..|].
+  destruct Hb as (b & -> & Hb & ? & ?).
+  iMod ("H" with "Hm Hr") as (vs) "(Hes & Hm & Hr & H)"; [done..|].
+  iMod "Hclose" as "_"; rewrite embed_fupd; iIntros "!>".
+  iPoseProof (env_match_intro with "Hd") as "#?"; first done.
+  iDestruct ("He" with "[$]") as %He; iDestruct ("Hes" with "[$]") as %Hes.
+  pose proof (typecheck_var_match_venv _ _ Hty).
+  iExists _, _; iSplit.
+  { iPureIntro; econstructor; eauto. }
+  iFrame.
+  iNext.
+  iApply jsafe_step.
+  rewrite /jstep_ex.
+  rewrite embed_fupd; iIntros "!>" (?) "(Hm & Ho)".
+  iMod (fupd_mask_subseteq E) as "Hclose"; first done.
+  iMod ("H" with "Hm") as (????) "H".
+  iMod "Hclose" as "_"; rewrite embed_fupd; iIntros "!>".
+  iExists _, _; iSplit.
+  { iPureIntro; econstructor; eauto. }
+  iNext.
+  iMod (fupd_mask_subseteq E) as "Hclose"; first done.
+  iMod "H" as "($ & H)"; iFrame.
+  iMod "Hclose" as "_"; rewrite embed_fupd; iIntros "!>".
+  iApply jsafe_local_step.
+  { intros; constructor. }
+  iNext.
+  destruct i; simpl.
+  + iDestruct "H" as "((% & Hi) & H)".
+    iPoseProof (stack_level_embed with "Hd Hi") as "Hi".
+    iDestruct (temp_e with "[$]") as %Hi.
+    rewrite -fupd_jsafe.
+    iMod (temp_update with "[$]") as "(? & ?)".
+    iPoseProof (stack_level_elim with "Hd [$]") as "Hi".
+    iSpecialize ("H" with "Hi").
+    iPoseProof (stack_level_embed with "Hd H") as "H".
+    iModIntro.
+    iApply safe_skip; last by (iFrame; iDestruct "Hk" as "(Hk & _)"; iApply "Hk").
+      * done.
+      * apply (stack_matches'_set _ _ _ (Some k)); first by split.
+        rewrite /env_to_environ in Hi; simpl in *.
+        destruct (ρ.2 !! _)%stdpp; done.
+    + iPoseProof (stack_level_embed with "Hd H") as "H".
+      by iApply safe_skip; last by (iFrame; iDestruct "Hk" as "(Hk & _)"; iApply "Hk").
 Qed.
 
 Lemma call_cont_idem: forall k, call_cont (call_cont k) = call_cont k.

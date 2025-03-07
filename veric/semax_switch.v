@@ -61,13 +61,6 @@ assert (isSome (modifiedvars' (seq_of_labeled_statement sl) s !! i)). {
  destruct H;[left|right]; auto.
 Qed.
 
-Lemma tc_expr_sound {CS: compspecs}:
- forall Delta e rho, typecheck_environ Delta rho -> 
-     tc_expr Delta e rho ⊢ ⌜tc_val (typeof e) (eval_expr e rho)⌝.
-Proof.
-  intros; eapply typecheck_expr_sound; eauto.
-Qed.
-
 Context {CS : compspecs}.
 
 Lemma semax_switch:
@@ -82,17 +75,21 @@ Lemma semax_switch:
 Proof.
   intros.
   rewrite semax_unfold.
-  intros; iIntros "???" (?) "?".
+  intros; iIntros "E %TC' ? #?" (?) "?".
   destruct HGG. assert (cenv_sub (@cenv_cs CS) psi) by (eapply cenv_sub_trans; eauto).
-  iApply wp_switch. iApply wp_tc_expr; first done.
-  iPoseProof (typecheck_environ_sub' with "[$]") as "#?"; first done.
-  iSplit; first done; iSplit; first by rewrite Htc.
-  iIntros (v ?) "#?".
+  iApply wp_switch.
+  pose proof (typecheck_environ_sub _ _ TS _ TC') as TC.
+  iApply (wp_tc_expr(CS := CS) with "E"); [done..|].
+  iSplit; first by rewrite Htc.
+  iIntros "E" (He).
   destruct (typeof a) eqn: Hty; try discriminate; rewrite /sem_switch_arg /=.
-  destruct v; try contradiction.
+  destruct (eval_expr a rho) eqn: Ha; try contradiction.
   iExists _; iSplit; first done.
-  (* frame in funassert; note that funassert only really needs ge *) admit.
-  (* iApply Hcase. *)
-Admitted.
+  specialize (Hcase i0); rewrite semax_unfold in Hcase.
+  iApply wp_conseq; last (by iApply (Hcase _ Delta' with "E [//] [$]"); try done;
+    rewrite monPred_at_and /=; iFrame; auto); simpl; auto.
+  iIntros "((% & F & ?) & ?)".
+  rewrite monPred_at_pure embed_pure; iDestruct "F" as "[]".
+Qed.
 
 End mpred.

@@ -60,9 +60,9 @@ Definition tc_formals (formals: list (ident * type)) : assert :=
 (*This definition, and some lemmas below, could be moved to general_seplog*)
 
 Definition close_precondition (bodyparams: list ident) 
-    (P: argsassert) : assert :=
+    (P: list val -> mpred) : assert :=
  ∃ vals, ⌜Forall (fun v : val => v <> Vundef) vals⌝ ∧
-   ([∗ list] i;v ∈ bodyparams;vals, temp i v) ∗ P vals.
+   ([∗ list] i;v ∈ bodyparams;vals, temp i v) ∗ ⎡P vals⎤.
 
 (*Definition precondition_closed (fs: list (ident*type)) {A}
   (P: A -> assert) : Prop :=
@@ -105,8 +105,8 @@ apply bi.exist_proper; intros vals; apply bi.and_proper; last done; apply bi.pur
   apply (Forall_eval_id_get); trivial.
 Qed.*)
 
-Definition bind_args (bodyparams: list (ident * type)) (P: argsassert) : assert :=
-  tc_formals bodyparams
+Definition bind_args (bodyparams: list (ident * type)) (P: list val -> mpred) : assert :=
+  <absorb> tc_formals bodyparams
      ∧ close_precondition (map fst bodyparams) P.
 
 Definition ret_temp : ident := 1%positive.

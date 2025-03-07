@@ -28,14 +28,6 @@ Section mpred.
 
 Context `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {CS: compspecs}.
 
-Lemma typecheck_expr_sound' :
-  forall {CS'} Delta rho e,
-    typecheck_environ Delta rho ->
-    tc_expr(CS := CS') Delta e rho ⊢ ⌜tc_val (typeof e) (eval_expr e rho)⌝.
-Proof.
-  intros; apply typecheck_expr_sound; done.
-Qed.
-
 Lemma tc_environ_make_args':
  forall argsig retsig bl rho Delta
    (Htc : tc_environ Delta rho),
@@ -68,27 +60,13 @@ Proof.
     destruct (ident_eq i id).
     - subst.
       rewrite Maps.PTree.gss in Hset; inv Hset.
-      rewrite Map.gss; eauto.
-    - rewrite Map.gso //.
+      rewrite lookup_insert; eauto.
+    - rewrite lookup_insert_ne //.
       apply (Ht id ty).
       rewrite Maps.PTree.gso // in Hset.
 Qed.
 
 (* Scall *)
-
-Lemma build_call_temp_env:
-  forall f vl,
-     length (fn_params f) = length vl ->
-  exists te,  bind_parameter_temps (fn_params f) vl
-                     (create_undef_temps (fn_temps f)) = Some te.
-Proof.
- intros.
- forget (create_undef_temps (fn_temps f)) as rho.
- revert rho vl H; induction (fn_params f); destruct vl; intros; inv H; try congruence.
- exists rho; reflexivity.
- destruct a; simpl.
- apply IHl. auto.
-Qed.
 
 Definition substopt {A} (ret: option ident) (v: environ -> val) (P: environ -> A)  : environ -> A :=
    match ret with
@@ -128,11 +106,10 @@ Lemma pass_params_ni :
      (te' : temp_env) (id : positive) te l,
    bind_parameter_temps l2 l (te) = Some te' ->
    (In id (map fst l2) -> False) ->
-   Map.get (make_tenv te') id = te !! id.
+   lookup id (make_env te') = te !! id.
 Proof.
-intros. eapply bind_parameter_temps_excludes in H.
-unfold make_tenv, Map.get.
-apply H. intuition.
+intros. eapply bind_parameter_temps_excludes in H; eauto.
+by rewrite make_env_spec.
 Qed.
 
 Lemma bind_exists_te : forall l1 l2 t1 t2 te,
@@ -197,7 +174,68 @@ Definition tc_fn_return (Delta: tycontext) (ret: option ident) (t: type) :=
  | Some i => match (temp_types Delta) !! i with Some t' => t=t' | _ => False%type end
  end.
 
-(* compare https://gitlab.mpi-sws.org/iris/refinedc/-/blob/master/theories/caesium/lifting.v#L1042 *)
+Definition maybe_retval (Q: option val -> mpred) retty ret :=
+ assert_of (match ret with
+ | Some id => fun rho => ⌜tc_val' retty (eval_id id rho)⌝ ∧ Q (Some (eval_id id rho))
+ | None =>
+    match retty with
+    | Tvoid => (fun rho => Q None)
+    | _ => fun rho => ∃ v: val, ⌜tc_val' retty v⌝ ∧ Q (Some v)
+    end
+ end).
+
+Lemma believe_exists_fundef:
+  forall {CS}
+    {b : block} {id_fun : ident} {psi : genv} {Delta : tycontext}
+    {fspec: funspec}
+  (H3: (glob_specs Delta) !! id_fun = Some fspec),
+  believe(CS := CS) OK_spec Delta psi ∗ ⎡gvar id_fun b⎤ ⊢
+  ⌜∃ f : Clight.fundef,
+   Genv.find_funct_ptr (genv_genv psi) b = Some f /\
+   type_of_fundef f = type_of_funspec fspec⌝.
+Proof.
+  intros.
+  destruct fspec as [[params retty] cc A E P Q].
+  simpl.
+  iIntros "(Believe & g)".
+  iSpecialize ("Believe" with "[g]").
+  { iIntros "!>"; iExists id_fun; iFrame; eauto. }
+  iDestruct "Believe" as "[BE|BI]".
+  - iStopProof. rewrite -embed_pure; apply embed_mono.
+    rewrite /believe_external /=.
+    if_tac; last done.
+    iIntros "BE".
+    destruct (Genv.find_funct_ptr psi b) eqn: Hf; last done.
+    iExists _; iSplit; first done.
+    destruct f as [ | ef sigargs sigret c'']; first done.
+    iDestruct "BE" as ((Es & -> & ASD & _)) "(#? & _)"; inv Es; done.
+  - iDestruct "BI" as (b' fu (? & WOB & ? & ? & ? & ? & [=] & ?)) "_"; iPureIntro.
+    assert (b' = b) by congruence. subst b'.
+    eexists; split; first done; simpl.
+    unfold type_of_function; subst; done.
+Qed.
+
+(* up to seplog *)
+Lemma gvar_agree : forall i b1 b2, ⊢ gvar i b1 -∗ gvar i b2 -∗ ⌜b1 = b2⌝.
+Proof.
+  intros; iIntros "H1 H2".
+  by iDestruct (own_valid_2 with "H1 H2") as %((_ & ?%to_agree_op_inv)%lib.gmap_view.gmap_view_frag_op_valid & _).
+Qed.
+
+Lemma tc_vals_length: forall tys vs, tc_vals tys vs -> length tys = length vs.
+Proof.
+induction tys; destruct vs; simpl; intros; auto; try contradiction.
+destruct H; auto.
+Qed.
+
+Lemma tc_vals_HaveTyps : forall tys vs, tc_vals tys vs -> argsHaveTyps vs tys.
+Proof.
+  intros ??; revert tys; induction vs; destruct tys; simpl; try done.
+  - constructor.
+  - intros (? & ?); constructor; last by apply IHvs.
+    intros; by apply tc_val_has_type.
+Qed.
+
 Lemma semax_call_si:
   forall E Delta (A: TypeTree) (Ef : dtfr (MaskTT A))
    (P : dtfr (ArgsTT A))
@@ -205,21 +243,162 @@ Lemma semax_call_si:
    (x : dtfr A)
    F ret argsig retsig cc a bl
    (Hsub : Ef x ⊆ E) 
-   (TCF : Cop.classify_fun (typeof a) = Cop.fun_case_f (typelist_of_type_list argsig) retsig cc)
+   (TCF : Cop.classify_fun (typeof a) = Cop.fun_case_f argsig retsig cc)
    (TC5 : retsig = Tvoid -> ret = None)
    (TC7 : tc_fn_return Delta ret retsig),
   semax OK_spec E Delta
        (▷(tc_expr Delta a ∧ tc_exprlist Delta argsig bl) ∧
            (assert_of (fun rho => func_ptr_si (mk_funspec (argsig,retsig) cc A Ef P Q) (eval_expr a rho)) ∗
-          (▷(F ∗ assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho))))))
+          (▷(F ∗ assert_of (fun rho => P x (eval_exprlist argsig bl rho))))))
          (Scall ret a bl)
          (normal_ret_assert
-          (∃ old:val, assert_of (substopt ret (`old) F) ∗ maybe_retval (assert_of (Q x)) retsig ret)).
+          (∃ old:val, assert_of (substopt ret (`old) F) ∗ maybe_retval (Q x) retsig ret)).
 Proof.
   intros.
   rewrite semax_unfold; intros.
-  iIntros "???" (?) "Pre".
-  iApply wp_call.
+  destruct HGG.
+  iIntros "E %TC' F #B" (f0) "Pre".
+  rewrite monPred_at_and monPred_at_sep !monPred_at_later monPred_at_and monPred_at_sep /=.
+  iAssert ⎡func_ptr_si (mk_funspec (argsig, retsig) cc A Ef P Q) (eval_expr(CS := CS) a rho)⎤ as "#fp".
+  { iDestruct "Pre" as "(_ & $ & _)". }
+  iDestruct "fp" as (? Ha ?) "(sub & func)".
+  iCombine "sub func F" as "F".
+  iDestruct (add_and _ (∃ id, ⎡gvar id b⎤ ∗ ▷ ∃ fA fE fP fQ gP gQ, ⌜(gs = mk_funspec (argsig, retsig) cc fA fE gP gQ) /\ (glob_specs Delta' !! id)%maps = Some (mk_funspec (argsig, retsig) cc fA fE fP fQ)⌝ ∗
+    fP ≡ gP ∗ fQ ≡ gQ) with "F") as "(F & % & #g & (% & % & % & % & % & % & >%Hid & #HP & #HQ))".
+  { iIntros "(sub & #func & F)".
+    destruct gs; iDestruct "F" as "(A & D)"; iDestruct ("D" with "[func]") as (?) "(g & % & %Hfs)".
+    { by iExists _, _, _, _. }
+    iDestruct ("A" with "[//]") as (?) "(#g' & #f')".
+    iDestruct (gvar_agree with "g g'") as %<-.
+    iDestruct (func_at_agree with "func f'") as (????????) "H".
+    iFrame; iNext.
+    iDestruct "H" as (([=] & ->)) "H"; subst.
+    iDestruct "sub" as ((-> & ->)) "sub".
+    repeat match goal with H : existT _ _ = existT _ _ |- _ => apply inj_pair2 in H end; subst.
+    iExists _, _, _, _, _, _; iSplit; first done.
+    iDestruct "H" as "(HP & HQ)".
+    iRewrite "HP"; iRewrite "HQ"; done. }
+  destruct Hid as (-> & Hid).
+  iDestruct "F" as "(_ & _ & F)".
+  iDestruct "sub" as "(_ & sub)".
+  iSpecialize ("B" with "[g]").
+  { iIntros "!>"; iExists id; iFrame "g"; eauto. }
+  assert (cenv_sub (@cenv_cs CS) psi) by (eapply cenv_sub_trans; eauto).
+  pose proof (typecheck_environ_sub _ _ TS _ TC') as TC.
+  iDestruct "B" as "[BE|BI]".
+  - rewrite /believe_external Ha Genv.find_funct_find_funct_ptr.
+    destruct (Genv.find_funct_ptr psi b) as [[|]|] eqn: Hb; try by rewrite embed_pure.
+    iDestruct "BE" as (([=] & -> & ? & ?)) "(BE & Post)"; subst.
+    rewrite /semax_external /wp.
+    iIntros (???) "#l Hk".
+    iIntros (????) "Hρ %%"; simpl.
+    admit.
+  - iApply wp_call.
+    iApply (wp_tc_expr(CS := CS) with "E"); [done..|].
+    iSplit; first by rewrite !bi.and_elim_l; auto.
+    iIntros "E" (?).
+    iDestruct "BI" as (?? (Ha' & ? & Hcomplete & ? & ? & Hvars & [=] & <-)) "BI".
+    rewrite Ha' in Ha; inv Ha.
+    iExists f; iSplit.
+    { iPureIntro; exists b; split3; auto; split3; auto.
+      { eapply Forall_impl; first apply Hcomplete.
+        intros; by apply complete_type_cenv_sub. }
+      split3; auto.
+      { rewrite /var_sizes_ok !Forall_forall in Hcomplete Hvars |- *.
+        intros; rewrite cenv_sub_sizeof //; auto. } }
+    iApply (wp_tc_exprlist(CS := CS) with "E"); [done..|].
+    iSplit; first by rewrite bi.and_elim_l bi.and_elim_r; auto.
+    iIntros "E" (TCargs).
+    exploit tc_vals_length; first done; intros Hlen; rewrite -Hlen map_length; iSplit; first done.
+    iSpecialize ("BI" with "[%]"); first apply cenv_sub_refl.
+    iNext.
+    iStopProof; split => n; simpl.
+    rewrite !monPred_at_sep monPred_at_forall -assert_of_eq
+      monPred_at_big_sepM monPred_at_intuitionistically monPred_at_affinely !monPred_at_and
+      !monPred_at_embed monPred_at_pure !monPred_at_internal_eq.
+    iIntros "(#(sub & func & g & HP & HQ & BI) & Pre & F & E)".
+    iIntros (lb); rewrite monPred_at_wand; iIntros (? [=]) "stack".
+    rewrite monPred_at_later; iNext.
+    rewrite monPred_at_plainly.
+    iSpecialize ("BI" $! j); rewrite monPred_at_forall.
+    iDestruct "Pre" as "(_ & _ & Frame & Pre)".
+    rewrite -fupd_wp monPred_at_fupd.
+    iMod (fupd_mask_subseteq (Ef x)) as "Hclose"; first done.
+    iMod ("sub" with "[$Pre]") as (fx F0 ?) "((F0 & Pre) & #Post)".
+    { iPureIntro. by split; first apply tc_vals_HaveTyps. }
+    iSpecialize ("BI" $! fx).
+    rewrite monPred_at_wand.
+    iSpecialize ("BI" with "[//] [stack Pre]").
+    { rewrite /bind_args /close_precondition monPred_at_sep monPred_at_and monPred_at_exist.
+      destruct (decide (length (fn_vars f) + length (fn_params f) + length (fn_temps f) = 0)).
+      { rewrite /stackframe_of1 /tc_formals /stackframe_of'.
+        destruct (fn_vars f); simpl in *; last lia.
+        destruct (fn_temps f); simpl in *; last lia.
+        destruct (fn_params f); simpl in *; last lia.
+        monPred.unseal.
+        rewrite monPred_at_big_sepL2.
+        iSplit; last done.
+        iSplit; iExists []; rewrite monPred_at_big_sepL2 /=; auto.
+        { admit. }
+        iSplit; first done; iSplit; first done.
+        rewrite ofe_morO_equivI; iSpecialize ("HP" $! fx).
+        rewrite discrete_fun_equivI; iSpecialize ("HP" $! []).
+        iRewrite "HP"; iFrame. admit. }
+      rewrite map_length in Hlen.
+      rewrite stackframe_of_eq1 // ?monPred_at_sep.
+      iDestruct "stack" as "(lvars & temps & vars)".
+      rewrite big_sepL2_app_inv; last by auto.
+      rewrite monPred_at_sep; iDestruct "temps" as "(params & temps)".
+      rewrite monPred_at_big_sepL !monPred_at_big_sepL2; subst; iFrame "temps".
+      iSplitL "params Pre".
+      + admit.
+      + admit. }
+    iMod "Hclose" as "_"; iModIntro.
+    subst.
+    iApply (monPred_in_entails with "[-]"); first apply wp_mask_mono.
+    { by etrans. }
+    iApply (monPred_in_entails with "[-]"); first apply wp_strong_mono.
+    rewrite monPred_at_sep; iFrame "BI".
+    iClear "HP sub"; rewrite /= /Clight_seplog.bind_ret; monPred.unseal.
+    iSplit.
+    + iIntros (? [=]) "((%Hvoid & Q) & stack)".
+      rewrite ofe_morO_equivI; iSpecialize ("HQ" $! fx).
+      rewrite discrete_fun_equivI; iSpecialize ("HQ" $! None).
+      iRewrite "HQ" in "Q".
+      iPoseProof ("Post" with "[$F0 $Q]") as "Q".
+      iIntros "!>".
+      iSplitR "stack".
+      * iSplit; first done.
+        destruct ret; subst; simpl.
+        -- (* extract the temp from curr_env *) admit.
+        -- iFrame.
+           iSplitL "Q".
+           ++ iExists Vundef; by rewrite Hvoid.
+           ++ rewrite monPred_at_affinely /=; iSplit; first done.
+              rewrite /curr_env /= !monPred_at_sep monPred_at_affinely monPred_at_big_sepM monPred_at_pure -assert_of_eq /=.
+              setoid_rewrite monPred_at_embed; done.
+      * admit.
+    + do 2 (iSplit; first iIntros (??) "([] & ?)").
+      iIntros (r ? [=]) "((%Hr & Q) & stack)".
+      rewrite ofe_morO_equivI; iSpecialize ("HQ" $! fx).
+      rewrite discrete_fun_equivI; iSpecialize ("HQ" $! r).
+      iRewrite "HQ" in "Q".
+      iPoseProof ("Post" with "[$F0 $Q]") as "Q".
+      iIntros "!>".
+      iSplitR "stack".
+      * iSplit; first done.
+        destruct ret; subst; simpl.
+        -- (* extract the temp from curr_env *) admit.
+        -- iFrame.
+           iSplitL "Q".
+           ++ iExists Vundef; destruct r.
+              ** destruct (fn_return f); try done; iFrame; iPureIntro; by split; first apply tc_val_tc_val'.
+              ** by rewrite Hr.
+           ++ rewrite monPred_at_affinely /=; iSplit; first done.
+              rewrite /curr_env /= !monPred_at_sep monPred_at_affinely monPred_at_big_sepM monPred_at_pure -assert_of_eq /=.
+              setoid_rewrite monPred_at_embed; done.
+      * admit.
+Qed.
 
 Lemma semax_call_typecheck_environ:
   forall (Delta : tycontext) (args: list val) (psi : genv)
@@ -903,52 +1082,6 @@ Proof.
     iMod (free_stackframe with "[$Hm $stack]") as (??) "Hm"; [done..|].
     iIntros "!>"; iExists _, _; iSplit; last iFrame.
     iPureIntro; rewrite {1}Hcont; econstructor; done.
-Qed.
-
-Lemma tc_eval_exprlist:
-  forall {CS'} Delta tys bl rho,
-    typecheck_environ Delta rho ->
-    tc_exprlist(CS := CS') Delta tys bl rho ⊢
-    ⌜tc_vals tys (eval_exprlist tys bl rho)⌝.
-Proof.
-induction tys; destruct bl; simpl in *; intros; auto.
-unfold tc_exprlist in *; simpl.
-unfold typecheck_expr; fold typecheck_expr.
-rewrite !denote_tc_assert_andp IHtys // tc_val_sem_cast //.
-unfold_lift; auto.
-Qed.
-
-Lemma tc_vals_length: forall tys vs, tc_vals tys vs -> length tys = length vs.
-Proof.
-induction tys; destruct vs; simpl; intros; auto; try contradiction.
-destruct H; auto.
-Qed.
-
-Lemma eval_exprlist_relate:
-  forall CS' (Delta : tycontext) (tys: list type)
-     (bl : list expr) (psi : genv) (vx : env) (tx : temp_env)
-     (rho : environ) m,
-   typecheck_environ Delta rho ->
-   cenv_sub (@cenv_cs CS') (genv_cenv psi) ->
-   rho = construct_rho (filter_genv psi) vx tx ->
-   mem_auth m ∗ denote_tc_assert (typecheck_exprlist(CS := CS') Delta tys bl) rho ⊢
-   ⌜Clight.eval_exprlist psi vx tx m bl
-     tys
-     (@eval_exprlist CS' tys bl rho)⌝.
-Proof.
-  intros.
-  revert bl; induction tys; destruct bl; simpl; intros; iIntros "[Hm H]"; try iDestruct "H" as "[]".
-  { iPureIntro; constructor. }
-  unfold typecheck_expr; fold typecheck_expr.
-  rewrite !denote_tc_assert_andp.
-  iDestruct (IHtys with "[$Hm H]") as %?; first by iDestruct "H" as "[_ $]".
-  rewrite bi.and_elim_l.
-  iDestruct (eval_expr_relate with "[$Hm H]") as %?; [done..| |]; first by iDestruct "H" as "[$ _]".
-  iDestruct (cast_exists with "H") as %?; first done.
-  rewrite typecheck_expr_sound //; iDestruct "H" as (?) "H".
-  iDestruct (cop2_sem_cast' with "[$Hm $H]") as %?; first done; iPureIntro.
-  econstructor; eauto.
-  unfold_lift; congruence.
 Qed.
 
 Lemma believe_exists_fundef':

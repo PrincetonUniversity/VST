@@ -12,6 +12,7 @@ Require Import VST.veric.expr_lemmas.
 Require Import VST.veric.seplog. (*For definition of tycontext*)
 Require Import VST.veric.lifting_expr.
 Require Import VST.veric.env_pred.
+Require Import VST.veric.lifting.
 Import LiftNotation.
 
 Section mpred.
@@ -484,13 +485,13 @@ Proof.
   iDestruct (curr_env_e with "Hρ Hrho") as "#Hsub".
   iCombine "H Hρ" as "TC".
   iDestruct (add_and _ (▷ ⌜tc_val (typeof e) (eval_expr e rho)⌝) with "TC") as "(TC & >%)".
-  { iIntros "((H & _) & ?) !>". rewrite -embed_pure. by iApply expr_lemmas4.typecheck_expr_sound. }
+  { iIntros "((H & _) & ?) !>". rewrite -embed_pure. by iApply typecheck_expr_sound. }
   iCombine "TC Hm" as "H"; iDestruct (add_and _ (▷ ⌜∀ ge ve te,
     env_matches rho ge ve te → cenv_sub cenv_cs ge
       → match_venv (make_env ve) (fn_vars f)
         → Clight.eval_expr ge ve te m e (eval_expr e rho)⌝) with "H") as "(((H & ?) & ?) & >%He)".
   { iIntros "(((H & _) & ?) & Hm) !>" (??????).
-    rewrite -embed_pure. iApply expr_lemmas4.eval_expr_relate; eauto; iFrame. }
+    rewrite -embed_pure. iApply eval_expr_relate; eauto; iFrame. }
   rewrite bi.and_elim_r.
   iSpecialize ("H" with "Hrho [//]").
   iIntros "!>"; iExists (eval_expr e rho); iFrame.
@@ -512,14 +513,14 @@ Proof.
   iDestruct (curr_env_e with "Hρ Hrho") as "#Hsub".
   iCombine "H Hρ" as "TC".
   iDestruct (add_and _ (▷ ⌜isptr (eval_lvalue e rho)⌝) with "TC") as "(TC & >%)".
-  { iIntros "((H & _) & ?) !>". edestruct expr_lemmas4.typecheck_both_sound as (_ & Htc); first done.
+  { iIntros "((H & _) & ?) !>". edestruct typecheck_both_sound as (_ & Htc); first done.
     rewrite -embed_pure. by iApply (Htc (Tstruct 1%positive noattr)). }
   iCombine "TC Hm" as "H"; iDestruct (add_and _ (▷ ⌜∀ ge ve te,
     env_matches rho ge ve te → cenv_sub cenv_cs ge
       → match_venv (make_env ve) (fn_vars f)
         → ∃ b o, Clight.eval_lvalue ge ve te m e b o Full ∧ eval_lvalue e rho = Vptr b o⌝) with "H") as "(((H & ?) & ?) & >%He)".
   { iIntros "(((H & _) & ?) & Hm) !>" (??????).
-    rewrite -embed_pure. iApply expr_lemmas4.eval_lvalue_relate; eauto; iFrame. }
+    rewrite -embed_pure. iApply eval_lvalue_relate; eauto; iFrame. }
   rewrite bi.and_elim_r.
   destruct (eval_lvalue e rho) eqn: Heval; try contradiction.
   iIntros "!>"; iExists _, _; iFrame.
@@ -532,4 +533,66 @@ Proof.
     by rewrite Ptrofs.repr_unsigned.
 Qed.
 
+Lemma typecheck_exprlist_sound : forall {CS : compspecs} Delta tys es rho,
+  typecheck_environ Delta rho ->
+  denote_tc_assert (typecheck_exprlist Delta tys es) rho ⊢ ⌜tc_vals tys (eval_exprlist tys es rho)⌝.
+Proof.
+  induction tys; simpl; intros.
+  - destruct es; simpl; auto.
+  - destruct es; simpl; auto.
+    rewrite denote_tc_assert_andp IHtys //.
+    iIntros "(? & %)".
+    iSplit; last done.
+    by iApply (typecheck_expr_sound _ _ (Ecast e a)).
+Qed.
+
+Lemma eval_exprlist_relate : forall {CS : compspecs} Delta (ge : genv) te ve rho tys es m,
+  cenv_sub cenv_cs ge -> env_matches rho ge ve te -> typecheck_environ Delta rho ->
+  juicy_mem.mem_auth m ∗ denote_tc_assert (typecheck_exprlist Delta tys es) rho ⊢
+  ⌜Clight.eval_exprlist ge ve te m es tys (eval_exprlist tys es rho)⌝.
+Proof.
+  induction tys; simpl; intros.
+  - destruct es; simpl.
+    + apply bi.pure_intro; constructor.
+    + iIntros "(? & [])".
+  - destruct es; simpl.
+    { iIntros "(? & [])". }
+    rewrite denote_tc_assert_andp.
+    iIntros "(Hm & H)"; iDestruct (IHtys with "[$Hm H]") as %?; [done.. | by rewrite bi.and_elim_r |].
+    rewrite bi.and_elim_l.
+    iDestruct (eval_expr_relate _ _ _ _ _ (Ecast e a) with "[$Hm $H]") as %He; [done..|].
+    iPureIntro.
+    inv He.
+    econstructor; eauto.
+    { inv H3. }
+Qed.
+
 End mpred.
+
+Lemma wp_tc_exprlist : forall `{!VSTGS OK_ty Σ} {CS : compspecs} E f Delta tys es P (ge : genv) rho,
+  cenv_sub cenv_cs ge ->
+  typecheck_environ Delta rho ->
+  ⊢ curr_env ge rho -∗
+    ▷ ⎡tc_exprlist Delta tys es rho⎤ ∧
+    (curr_env ge rho -∗ ⌜tc_vals tys (eval_exprlist tys es rho)⌝ → P (eval_exprlist tys es rho)) -∗
+  wp_exprs ge E f es tys P.
+Proof.
+  intros; rewrite /wp_exprs.
+  iIntros "Hrho H" (??) "Hm Hρ".
+  iDestruct (curr_env_e with "Hρ Hrho") as "#Hsub".
+  iCombine "H Hρ" as "TC".
+  iDestruct (add_and _ (▷ ⌜tc_vals tys (eval_exprlist tys es rho)⌝) with "TC") as "(TC & >%)".
+  { iIntros "((H & _) & ?) !>". rewrite -embed_pure. by iApply typecheck_exprlist_sound. }
+  iCombine "TC Hm" as "H"; iDestruct (add_and _ (▷ ⌜∀ ge ve te,
+    env_matches rho ge ve te → cenv_sub cenv_cs ge
+      → match_venv (make_env ve) (fn_vars f)
+        → Clight.eval_exprlist ge ve te m es tys (eval_exprlist tys es rho)⌝) with "H") as "(((H & ?) & ?) & >%Hes)".
+  { iIntros "(((H & _) & ?) & Hm) !>" (??????).
+    rewrite -embed_pure. iApply eval_exprlist_relate; eauto; iFrame. }
+  rewrite bi.and_elim_r.
+  iSpecialize ("H" with "Hrho [//]").
+  iIntros "!>"; iExists (eval_exprlist tys es rho); iFrame.
+  iIntros "!>" (??) "Hmatch".
+  iDestruct ("Hsub" with "Hmatch") as %(? & Hmatch).
+  iPureIntro; auto.
+Qed.

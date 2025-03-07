@@ -255,7 +255,7 @@ Lemma empty_program_ok {CS: compspecs}: forall Delta ge,
 Proof.
 intros Delta ge H.
 rewrite /believe.
-iIntros (??????? (? & Hge & ?)).
+iIntros (???????) "!> (% & %Hge & H)".
 rewrite H in Hge; setoid_rewrite Maps.PTree.gempty in Hge; discriminate.
 Qed.
 

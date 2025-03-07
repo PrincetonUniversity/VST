@@ -260,17 +260,18 @@ Qed.*)
 Definition argsHaveTyps (vals:list val) (types: list type): Prop:=
   Forall2 (fun v t => v<>Vundef -> Val.has_type v t) vals (map typ_of_type types).
 
+(* TODO: move all this to VeriC *)
 Definition funspec_sub_si (f1 f2 : funspec) : mpred :=
 match f1 with
 | mk_funspec tpsig1 cc1 A1 E1 P1 Q1 =>
     match f2 with
     | mk_funspec tpsig2 cc2 A2 E2 P2 Q2 =>
         ⌜tpsig1=tpsig2 /\ cc1=cc2⌝ ∧
-       ▷ ■ ∀ (x2: dtfr A2) (args: list val) n,
-        ((⌜argsHaveTyps ((*snd*) args) (fst tpsig1)⌝ ∧ P2 x2 args n)
+       ▷ ■ ∀ (x2: dtfr A2) (args: list val),
+        ((⌜argsHaveTyps ((*snd*) args) (fst tpsig1)⌝ ∧ P2 x2 args)
          ={E2 x2}=∗ (∃ x1 F, ⌜E1 x1 ⊆ E2 x2⌝ ∧
-            (F ∗ (P1 x1 args n)) ∧
-            ∀ ret n', (■((F ∗ (Q1 x1 ret n')) -∗ Q2 x2 ret n'))))
+            (F ∗ (P1 x1 args)) ∧
+            ∀ ret, (■((F ∗ (Q1 x1 ret)) -∗ Q2 x2 ret))))
     end
 end.
 
@@ -280,11 +281,11 @@ match f1 with
     match f2 with
     | mk_funspec tpsig2 cc2 A2 E2 P2 Q2 =>
         (tpsig1=tpsig2 /\ cc1=cc2) /\
-        forall (x2:dtfr A2) (gargs:list val) n,
-        (⌜argsHaveTyps(gargs)(fst tpsig1)⌝ ∧ P2 x2 gargs n)
+        forall (x2:dtfr A2) (gargs:list val),
+        (⌜argsHaveTyps(gargs)(fst tpsig1)⌝ ∧ P2 x2 gargs)
          ⊢ |={E2 x2}=> (∃ (x1:dtfr A1) (F:_), ⌜E1 x1 ⊆ E2 x2⌝ ∧
-                           (F ∗ (P1 x1 gargs n)) ∧
-                               (⌜∀ ret n', (F ∗ (Q1 x1 ret n')) ⊢ Q2 x2 ret n'⌝))
+                           (F ∗ (P1 x1 gargs)) ∧
+                               (⌜∀ ret, (F ∗ (Q1 x1 ret)) ⊢ Q2 x2 ret⌝))
     end
 end.
 
@@ -299,11 +300,11 @@ Proof.
   intros. destruct f1; destruct f2; simpl in *.
   destruct H as [[? ?] H']; subst.
   iSplit; first done.
-  iIntros "!> !>" (x2 gargs n) "H".
+  iIntros "!> !>" (x2 gargs) "H".
   iMod (H' with "H") as (x1 F HE) "[H' %]".
   iIntros "!>"; iExists x1, F; iFrame.
   iSplit; auto; iSplit; auto.
-  iIntros (??) "!> H".
+  iIntros (?) "!> H".
   by iApply H.
 Qed.
 
@@ -313,17 +314,17 @@ Proof.
   destruct f1; destruct f2; simpl in *.
   destruct H as [[? ?] H']; subst.
   iIntros "?"; iSplit; first done.
-  iIntros "!> !>" (x2 gargs n) "H".
+  iIntros "!> !>" (x2 gargs) "H".
   iMod (H' with "H") as (x1 F HE) "[H' %]".
   iIntros "!>"; iExists x1, F; iFrame.
   iSplit; auto; iSplit; auto.
-  iIntros (??) "!> H".
+  iIntros (?) "!> H".
   by iApply H.
 Qed.
 
 Lemma funspec_sub_refl f: funspec_sub f f.
 Proof.
-  destruct f; split; [ split3; trivial | intros x2 rho n].
+  destruct f; split; [ split3; trivial | intros x2 rho].
   iIntros "[_ P] !>".
   iExists x2, emp%I; iFrame; iPureIntro.
   split3; auto; intros; iIntros "(_ & $)".
@@ -348,7 +349,7 @@ Proof.
   destruct f1 as [cc1 sig1 A1 E1 P1 Q1]; destruct f2 as [cc2 sig2 A2 E2 P2 Q2]; destruct f3 as [cc3 sig3 A3 E3 P3 Q3].
   intros [(? & ?) H12]; subst sig1 cc1.
   intros [(? & ?) H23]; subst sig2 cc2.
-  split; [split3; trivial | intros x rho n].
+  split; [split3; trivial | intros x rho].
   iIntros "[% H]".
   iMod (H23 with "[$H]") as (x2 F2 HE2) "[[F2 H] %H32]"; first done.
   iMod (fupd_mask_subseteq (E2 x2)) as "Hmask"; first done.
@@ -375,7 +376,7 @@ Proof.
   iIntros "[[(-> & ->) #H12] [(-> & ->) #H23]]".
   iSplit.
   { iPureIntro; split3; trivial; by etrans. }
-  iIntros "!> !>" (x gargs n) "[% H]".
+  iIntros "!> !>" (x gargs) "[% H]".
   iMod ("H23" with "[$H]") as (x2 F2 HE2) "H"; first done.
   iDestruct "H" as "[[F2 H] #H32]".
   iMod (fupd_mask_subseteq (E2 x2)) as "Hmask"; first done.
@@ -386,23 +387,23 @@ Proof.
   iFrame; iSplit.
   { iPureIntro; by etrans. }
   iSplit; first done.
-  iIntros (??) "!> ([F2 F1] & H)".
+  iIntros (?) "!> ([F2 F1] & H)".
   by iApply "H32"; iFrame "F2"; iApply "H21"; iFrame.
 Qed.
 
 Global Instance funspec_sub_si_nonexpansive : NonExpansive2 (funspec_sub_si).
 Proof.
   intros ? [?????] [?????] (? & ? & ? & HE1 & HP1 & HQ1) [?????] [?????] (? & ? & ? & HE2 & HP2 & HQ2); subst; simpl in *.
-  do 10 f_equiv.
-  { rewrite (HP2 _ _ _) //. }
+  do 8 f_equiv.
+  { rewrite (HP2 _ _) //. }
   rewrite HE2.
   do 6 f_equiv.
   { rewrite HE1 //. }
   f_equiv.
-  { rewrite (HP1 _ _ _) //. }
-  do 6 f_equiv.
-  { rewrite (HQ1 _ _ _) //. }
-  { rewrite (HQ2 _ _ _) //. }
+  { rewrite (HP1 _ _) //. }
+  do 4 f_equiv.
+  { rewrite (HQ1 _ _) //. }
+  { rewrite (HQ2 _ _) //. }
 Qed.
 
 (*******************end of material moved here from expr.v *******************)
@@ -559,21 +560,17 @@ Proof.
   rewrite !bi.later_and.
   iDestruct "H" as "(>(-> & ->) & #(HP & HQ))".
   iSplit; first done.
-  iIntros (x gargs n).
+  iIntros (x gargs).
   iIntros "!> !> !>".
   rewrite !ofe_morO_equivI.
   iSpecialize ("HP" $! x); iSpecialize ("HQ" $! x).
   rewrite !discrete_fun_equivI.
   iSpecialize ("HP" $! gargs).
-  rewrite !discrete_fun_equivI.
-  iSpecialize ("HP" $! n).
   iRewrite -"HP"; iIntros "(% & H) !>".
   iExists x, emp; iFrame.
   iSplit; first done; iSplit; first done.
-  iIntros (ret n') "!> (_ & H)".
-  iSpecialize ("HQ" $! ret).
-  rewrite discrete_fun_equivI.
-  iRewrite -("HQ" $! n'); done.
+  iIntros (ret) "!> (_ & H)".
+  iRewrite -("HQ" $! ret); done.
 Qed.
 
 Program Definition closed_wrt_vars `{Equiv B} (S: ident -> Prop) (F: environ -> B) : Prop :=
