@@ -14,7 +14,8 @@ Context `{!envGS Σ}.
 Definition env_auth (rho : env_state) := own(inG0 := envGS_inG) env_name
  (lib.gmap_view.gmap_view_auth (dfrac.DfracOwn 1) (to_agree <$> fst rho),
   ●{dfrac.DfracOwn 1} ((λ '(ve, te),
-    let q := Qp.inv (pos_to_Qp (Pos.of_nat (size ve + size te))) in
+  (* use one extra share to remember the fraction *)
+    let q := Qp.inv (pos_to_Qp (Pos.of_nat (1 + size ve + size te))) in
     (to_agree q, (1%Qp, (Excl <$> ve : gmap _ (excl _), Excl <$> te : gmap _ (excl _))))) <$> snd rho)).
 
 Definition env_to_environ (ρ : env_state) n : environ :=
@@ -40,17 +41,19 @@ Definition lvar (id : ident) (t : type) (b : block) : assert :=
 Definition temp (id : ident) (v : val) :=
   assert_of (λ n, ∃ q, stack_frag n q q ∅ {[id := v]}).
 
-Lemma stack_frag_e : forall ρ n q0 q ve te, env_auth ρ ∗ stack_frag n q0 q ve te ⊢
-  ⌜let rho := env_to_environ ρ n in ve ⊆ ve_of rho ∧ te ⊆ te_of rho⌝.
+Lemma stack_frag_e' : forall ρ n q0 q ve te, env_auth ρ ∗ stack_frag n q0 q ve te ⊢
+  ⌜let rho := env_to_environ ρ n in q0 = Qp.inv (pos_to_Qp (Pos.of_nat (1 + size (ve_of rho) + size (te_of rho)))) ∧ ve ⊆ ve_of rho ∧ te ⊆ te_of rho⌝.
 Proof.
   intros; rewrite /env_auth /stack_frag.
   iIntros "(H1 & H2)"; iDestruct (own_valid_2 with "H1 H2") as %(_ & ((? & Heq & H)%gmap.singleton_included_l & _)%auth_both_valid_discrete); iPureIntro.
   rewrite lookup_fmap in Heq; rewrite /env_to_environ. destruct (snd ρ !! n)%stdpp as [(?, ?)|] eqn: Hn; rewrite !Hn in Heq |- *; inversion Heq as [?? HA |]; subst.
   rewrite -HA in H; clear Heq.
   apply Some_included in H as [(? & ? & Hv & Ht) | ?]; simpl in *.
-  - apply (map_fmap_equiv_inj Excl), leibniz_equiv in Hv as ->; last apply Excl_inj.
+  - apply to_agree_inj in H.
+    apply (map_fmap_equiv_inj Excl), leibniz_equiv in Hv as ->; last apply Excl_inj.
     apply (map_fmap_equiv_inj Excl), leibniz_equiv in Ht as ->; last apply Excl_inj; done.
-  - do 2 apply prod_included in H as (_ & H); apply prod_included in H as (Hv & Ht); simpl in *.
+  - apply prod_included in H as (Hq & H); apply prod_included in H as (_ & H); apply prod_included in H as (Hv & Ht); simpl in *.
+    apply to_agree_included_L in Hq; split; first done.
     rewrite !gmap.lookup_included in Hv Ht; split; intros i.
     + specialize (Hv i); rewrite !lookup_fmap in Hv.
       apply (Excl_fmap_incl(A := leibnizO _)) in Hv.
@@ -62,6 +65,12 @@ Proof.
       destruct (te !! i)%stdpp.
       * apply leibniz_equiv in Ht; rewrite -Ht //.
       * simpl; clear; destruct (_ !! _)%stdpp; done.
+Qed.
+
+Lemma stack_frag_e : forall ρ n q0 q ve te, env_auth ρ ∗ stack_frag n q0 q ve te ⊢
+  ⌜let rho := env_to_environ ρ n in ve ⊆ ve_of rho ∧ te ⊆ te_of rho⌝.
+Proof.
+  intros; rewrite stack_frag_e'; apply bi.pure_mono; tauto.
 Qed.
 
 Lemma stack_frag_e_1 : forall ρ n q0 ve te, env_auth ρ ∗ stack_frag n q0 1%Qp ve te ⊢
@@ -236,7 +245,7 @@ Proof.
 Qed.
 
 Lemma env_alloc : forall ρ n ve te, (snd ρ !! n)%stdpp = None →
-  env_auth ρ ⊢ |==> env_auth (ρ.1, <[n := (ve, te)]> ρ.2) ∗ stack_frag n (/ pos_to_Qp (Pos.of_nat (size ve + size te)))%Qp 1%Qp ve te.
+  env_auth ρ ⊢ |==> env_auth (ρ.1, <[n := (ve, te)]> ρ.2) ∗ stack_frag n (/ pos_to_Qp (Pos.of_nat (1 + size ve + size te)))%Qp 1%Qp ve te.
 Proof.
   intros.
   rewrite /env_auth /stack_frag -own_op; apply own_update.

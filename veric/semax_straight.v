@@ -44,15 +44,6 @@ Proof.
   - rewrite lookup_insert_ne //; auto.
 Qed.
 
-Lemma subst_set : forall {A} id v (P : environ -> A) v' rho
-  (Hid : (te_of rho !! id)%stdpp = Some v),
-  subst id (λ _ : environ, eval_id id rho) P (env_set rho id v') = P rho.
-Proof.
-  intros; destruct rho as ((?, ?), ?); rewrite /subst /env_set /=; unfold_lift.
-  rewrite insert_insert insert_id //.
-  by rewrite /eval_id Hid.
-Qed.
-
 Lemma semax_ptr_compare:
 forall E (Delta: tycontext) (P: assert) id cmp e1 e2 ty sh1 sh2,
     sh1 <> Share.bot -> sh2 <> Share.bot ->
@@ -111,12 +102,10 @@ Proof.
     rewrite eval_id_same /sem_binary_operation'.
     subst; destruct cmp; done.
   - iPureIntro.
-    destruct TC' as (? & ? & ?); split3; auto; simpl.
-    intros i ? Ht; destruct (eq_dec i id).
-    + subst i; rewrite lookup_insert; exists v; split; eauto.
-      destruct TS as (TS & _); specialize (TS id). rewrite Hi Ht in TS.
-      subst; apply tc_val'_sem_cmp; auto.
-    + rewrite lookup_insert_ne; auto.
+    destruct TS as (TS & _); specialize (TS id). rewrite Hi in TS.
+    destruct (temp_types Delta' !! id) eqn: ?; inv TS.
+    eapply typecheck_environ_set; eauto.
+    apply tc_val'_sem_cmp; auto.
 Qed.
 
 Lemma semax_set_forward:
@@ -155,12 +144,10 @@ Proof.
     { iDestruct "Pre" as "(_ & (? & _) & _)"; by rewrite embed_pure. }
     rewrite bi.and_elim_l; iDestruct (neutral_cast_tc_val with "Pre") as %?; [done..|].
     iPureIntro.
-    destruct TC' as (? & ? & ?); split3; auto; simpl.
-    intros i t' Ht'; destruct (eq_dec i id).
-    + subst i; destruct TS as (TS & _); specialize (TS id); rewrite Ht Ht' in TS; subst t'.
-      rewrite lookup_insert; eexists; subst; split; auto.
-      by apply tc_val_tc_val'.
-    + rewrite lookup_insert_ne; auto.
+    destruct TS as (TS & _); specialize (TS id). rewrite Ht in TS.
+    destruct (temp_types Delta' !! id) eqn: ?; inv TS.
+    eapply typecheck_environ_set; eauto.
+    by apply tc_val_tc_val'.
 Qed.
 
 Lemma semax_set_forward':
@@ -224,13 +211,11 @@ Proof.
   - rewrite /tc_expr /= typecheck_cast_sound //.
     iDestruct "Pre" as "(% & _)".
     iPureIntro.
-    destruct TC' as (? & ? & ?); split3; auto; simpl.
-    intros i t' Ht'; destruct (eq_dec i id).
-    + subst i; destruct TS as (TS & _); specialize (TS id); rewrite Ht Ht' in TS; subst t'.
-      rewrite lookup_insert; eexists; subst; split; auto.
-      by apply tc_val_tc_val'.
-    + rewrite lookup_insert_ne; auto.
-    + by apply typecheck_expr_sound.
+    destruct TS as (TS & _); specialize (TS id). rewrite Ht in TS.
+    destruct (temp_types Delta' !! id) eqn: ?; inv TS.
+    eapply typecheck_environ_set; eauto.
+    by apply tc_val_tc_val'.
+    { by apply typecheck_expr_sound. }
 Qed.
 
 Lemma eval_cast_Vundef:
@@ -291,12 +276,10 @@ Proof.
     rewrite -(bi.exist_intro (eval_id id rho)); erewrite !subst_set by done.
     rewrite eval_id_same bi.and_elim_l; auto.
   - iPureIntro.
-    destruct TC' as (? & ? & ?); split3; auto; simpl.
-    intros i t' Ht'; destruct (eq_dec i id).
-    + subst i; destruct TS as (TS & _); specialize (TS id); rewrite Ht Ht' in TS; subst t'.
-      rewrite lookup_insert; eexists; subst; split; auto.
-      eapply tc_val_tc_val', neutral_cast_subsumption; eauto.
-    + rewrite lookup_insert_ne; auto.
+    destruct TS as (TS & _); specialize (TS id). rewrite Ht in TS.
+    destruct (temp_types Delta' !! id) eqn: ?; inv TS.
+    eapply typecheck_environ_set; eauto.
+    eapply tc_val_tc_val', neutral_cast_subsumption; eauto.
 Qed.
 
 Lemma mapsto_tc' : forall sh t p v, mapsto sh t p v ⊢ ⌜tc_val' t v⌝.
@@ -375,12 +358,10 @@ Proof.
     rewrite -(bi.exist_intro (eval_id id rho)); erewrite !subst_set by done.
     rewrite eval_id_same bi.and_elim_l Hcast; auto.
   - iPureIntro.
-    destruct TC' as (? & ? & ?); split3; auto; simpl.
-    intros i t' Ht'; destruct (eq_dec i id).
-    + subst i; destruct TS as (TS & _); specialize (TS id); rewrite Ht Ht' in TS; subst t'.
-      rewrite lookup_insert; exists v; subst; split; auto.
-      by apply tc_val_tc_val'.
-    + rewrite lookup_insert_ne; auto.
+    destruct TS as (TS & _); specialize (TS id). rewrite Ht in TS.
+    destruct (temp_types Delta' !! id) eqn: ?; inv TS.
+    eapply typecheck_environ_set; eauto.
+    by apply tc_val_tc_val'.
 Qed.
 
 Lemma writable0_lub_retainer_Rsh:

@@ -65,6 +65,15 @@ Proof.
   destruct (zlt 0 (z-b)); lia.
 Qed.
 
+Lemma subst_set : forall {A} id v (P : environ -> A) v' rho
+  (Hid : (te_of rho !! id)%stdpp = Some v),
+  subst id (λ _ : environ, eval_id id rho) P (env_set rho id v') = P rho.
+Proof.
+  intros; destruct rho as ((?, ?), ?); rewrite /subst /env_set /=; unfold_lift.
+  rewrite insert_insert insert_id //.
+  by rewrite /eval_id Hid.
+Qed.
+
 Section SemaxContext.
 
 Context `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty}.
@@ -104,6 +113,17 @@ split; [ | split].
 * clear - H2 H5.
  hnf; intros. eapply H5.
  specialize (H2 id). hnf in H2. rewrite H in H2. eauto.
+Qed.
+
+Lemma typecheck_environ_set : forall Delta rho id t v, typecheck_environ Delta rho ->
+  temp_types Delta !! id = Some t -> tc_val' t v ->
+  typecheck_environ Delta (env_set rho id v).
+Proof.
+  intros ????? (? & ? & ?) ??; split3; auto.
+  intros i ? Ht; destruct (eq_dec i id).
+  + subst i; rewrite lookup_insert; exists v; split; eauto.
+    assert (ty = t) by congruence; subst; auto.
+  + rewrite lookup_insert_ne; auto.
 Qed.
 
 Lemma semax_unfold {CS: compspecs} E Delta P c R :

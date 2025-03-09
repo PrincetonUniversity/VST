@@ -165,9 +165,11 @@ Definition fn_typesig (f: function) : typesig := (map snd (fn_params f), fn_retu
 
 (* the version of this in lifting includes the args, while this believe_internal
    uses close_precondition for the args instead *)
-Definition stackframe_of' (cenv: composite_env) (f: Clight.function) : mpred.assert :=
+(*Definition stackframe_of' (cenv: composite_env) (f: Clight.function) : mpred.assert :=
   ([∗ list] idt ∈ fn_vars f, var_block' Share.top cenv idt) ∗
-  ([∗ list] idt;v ∈ (fn_temps f);(repeat Vundef (length (fn_temps f))), temp (fst idt) v).
+  ([∗ list] idt;v ∈ (fn_temps f);(repeat Vundef (length (fn_temps f))), temp (fst idt) v).*)
+(* But if we do it this way, then we somehow need to reclaim the param temps in the
+   postcondition as well, so maybe we should just use lifting.stackframe_of' instead. *)
 
 Definition claims (ge: genv) (Delta: tycontext) v fsig cc A E P Q : mpred :=
   ∃ id, <affine> ⌜PTree.get id (glob_specs Delta) = Some (mk_funspec fsig cc A E P Q)⌝ ∗
@@ -187,10 +189,10 @@ Definition believe_internal {CS}
                  /\ list_norepet (map fst f.(fn_vars)) /\ var_sizes_ok ce (f.(fn_vars))
                  /\ fn_typesig f = fsig
                  /\ f.(fn_callconv) = cc⌝
-  ∧ ∀ CS', ⌜cenv_sub (@cenv_cs CS) (@cenv_cs CS')⌝ →
-■ ∀ x : dtfr A, ▷ ((bind_args f.(fn_params) (λ lv, P x lv) ∗ stackframe_of' (@cenv_cs CS') f) -∗
+  ∧ ∀ CE', ⌜cenv_sub (@cenv_cs CS) CE'⌝ →
+■ ∀ x : dtfr A, ▷ ((<absorb> tc_formals f.(fn_params) ∧ ∃ lv, ⌜Forall (λ v : val, v ≠ Vundef) lv⌝ ∧ ⎡P x lv⎤ ∗ stackframe_of' CE' f lv) -∗
          wp OK_spec gx (E x) f f.(fn_body)
-           (Clight_seplog.frame_ret_assert (Clight_seplog.function_body_ret_assert f.(fn_return) (λ ret, ⎡Q x ret⎤)) (stackframe_of' (@cenv_cs CS') f)))).
+           (Clight_seplog.frame_ret_assert (Clight_seplog.function_body_ret_assert f.(fn_return) (λ ret, ⎡Q x ret⎤)) (∃ lv', stackframe_of' CE' f lv')))).
 (* might need the recursive construction after all, so that we can use believe in
    proving all the funspecs *)
 

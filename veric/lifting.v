@@ -933,6 +933,33 @@ Proof.
     { inv H. }
 Qed.
 
+Lemma wp_exprs_strong_mono : forall E f es ts P1 P2, (∀ v, P1 v ={E}=∗ P2 v) ∗ wp_exprs E f es ts P1 ⊢ wp_exprs E f es ts P2.
+Proof.
+  intros; rewrite /wp_exprs.
+  iIntros "(HP & H)" (??) "??".
+  iMod ("H" with "[$] [$]") as (?) "(? & ? & ? & H)".
+  iMod ("HP" with "H").
+  iIntros "!>"; iExists _; iFrame.
+Qed.
+
+Lemma wp_exprs_mono : forall E es ts f P1 P2, (∀ v, P1 v ⊢ |={E}=> P2 v) → wp_exprs E f es ts P1 ⊢ wp_exprs E f es ts P2.
+Proof.
+  intros; iIntros; iApply wp_exprs_strong_mono; iFrame.
+  by iIntros (?) "?"; iApply H.
+Qed.
+
+Global Instance wp_exprs_proper E f es ts : Proper (pointwise_relation _ base.equiv ==> base.equiv) (wp_exprs E f es ts).
+Proof. solve_proper. Qed.
+
+Lemma wp_exprs_mask_mono : forall E E' f es ts P, E ⊆ E' → wp_exprs E f es ts P ⊢ wp_exprs E' f es ts P.
+Proof.
+  intros; rewrite /wp_exprs.
+  iIntros "H" (??) "??".
+  iMod (fupd_mask_subseteq E) as "Hclose"; first done.
+  iMod ("H" with "[$] [$]") as "H"; iMod "Hclose".
+  iApply "H".
+Qed.
+
 Lemma alloc_vars_lookup :
 forall ge id m1 l ve m2 e ,
 list_norepet (map fst l) ->
@@ -1054,8 +1081,14 @@ Definition stackframe_of' (cenv: composite_env) (f: Clight.function) (args: list
 Definition stackframe_of1 f lb lv : assert := ⌜length lb = length (fn_vars f)⌝ ∧ assert_of (λ n,
   let ve := list_to_map (zip (map fst (fn_vars f)) (zip lb (map snd (fn_vars f)))) in
   let te := list_to_map (zip (map fst (fn_params f) ++ map fst (fn_temps f)) (lv ++ repeat Vundef (length (fn_temps f)))) in
-  stack_frag n (/ pos_to_Qp (Pos.of_nat (size ve + size te)))%Qp 1%Qp ve te) ∗
+  stack_frag n (/ pos_to_Qp (Pos.of_nat (1 + size ve + size te)))%Qp 1%Qp ve te) ∗
   ([∗ list] idt;b ∈ fn_vars f;lb, ⎡memory_block Share.top (@Ctypes.sizeof (genv_cenv ge) (snd idt)) (Vptr b Ptrofs.zero)⎤).
+
+Definition stack_size f := (length (fn_vars f) + length (fn_params f) + length (fn_temps f))%nat.
+
+Definition stack_frac f := (/ pos_to_Qp (Pos.of_nat (1 + stack_size f)))%Qp.
+
+Definition stack_retainer f := assert_of (λ n, stack_frag n (stack_frac f) (stack_frac f) ∅ ∅).
 
 Lemma monPred_at_big_sepL2 : forall {I : biIndex} {PROP : bi} {A B} (Φ : A → B → monPred I PROP) (l1 : list A) (l2 : list B) n,
   (([∗ list] a1;a2 ∈ l1;l2, Φ a1 a2) n) ⊣⊢ ([∗ list] a1;a2 ∈ l1;l2, Φ a1 a2 n).
@@ -1064,13 +1097,19 @@ Proof.
   rewrite IHl1 //.
 Qed.
 
-(* We need env_auth to take this the other way, since otherwise lvars/temps might
-   have the wrong fraction. *)
+Lemma pure_equiv : forall {PROP : bi} (P Q : PROP) R, (P ⊢ ⌜R⌝) → (Q ⊢ ⌜R⌝) → (R → (P ⊣⊢ Q)) → (P ⊣⊢ Q).
+Proof.
+  intros; iSplit; iIntros "H"; iAssert ⌜R⌝ as %?.
+  - by iApply H.
+  - by rewrite H1.
+  - by iApply H0.
+  - by rewrite -H1.
+Qed.
+
 Lemma stackframe_of_eq1 : forall f lb lv,
-  length (fn_vars f) + length (fn_params f) + length (fn_temps f) ≠ 0 →
   list_norepet (map fst (fn_vars f)) →
   length (fn_params f) = length lv → list_norepet (map fst (fn_params f) ++ map fst (fn_temps f)) →
-  stackframe_of1 f lb lv ⊢
+  stackframe_of1 f lb lv ⊢ stack_retainer f ∗
   ([∗ list] '(i,t);b ∈ fn_vars f;lb, lvar i t b) ∗
   ([∗ list] idt;v ∈ (fn_params f ++ fn_temps f);(lv ++ repeat Vundef (length (fn_temps f))), temp (fst idt) v) ∗
   ([∗ list] idt;b ∈ fn_vars f;lb, ⎡memory_block Share.top (@Ctypes.sizeof (genv_cenv ge) (snd idt)) (Vptr b Ptrofs.zero)⎤).
@@ -1087,41 +1126,134 @@ Proof.
   { rewrite length_zip_with_l_eq map_length //. }
   assert (length (map fst (fn_params f) ++ map fst (fn_temps f)) =
     length (lv ++ repeat Vundef (length (fn_temps f)))) as Heq2.
-  { rewrite !app_length repeat_length !map_length H1 //. }
+  { rewrite !app_length repeat_length !map_length H0 //. }
   assert (NoDup (zip (map fst (fn_params f) ++ map fst (fn_temps f))
      (lv ++ repeat Vundef (length (fn_temps f)))).*1).
   { rewrite -norepet_NoDup fst_zip //. by rewrite Heq2. }
   assert (NoDup (zip (map fst (fn_vars f)) (zip lb (map snd (fn_vars f)))).*1).
   { rewrite -norepet_NoDup fst_zip //. by rewrite Heq1. }
-  destruct (decide _), (decide _).
-  - rewrite map_length app_length in e0; lia.
-  - destruct (fn_vars f); last done; simpl.
-    rewrite fmap_app bi.emp_sep -bi.exist_intro; f_equiv; last done.
-    rewrite map_size_empty map_size_list_to_map //.
-    by rewrite length_zip_with_l_eq // Qp.mul_inv_r.
-  - rewrite -map_app; destruct (fn_params f ++ fn_temps f); last done; simpl.
-    rewrite bi.sep_emp; rewrite -bi.exist_intro; f_equiv.
-    rewrite map_size_empty Nat.add_0_r map_size_list_to_map //.
-    by rewrite length_zip_with_l_eq // map_length Qp.mul_inv_r.
-  - iIntros "H"; rewrite bi.sep_exist_l; iExists _; rewrite bi.sep_exist_r; iExists _.
-    iApply stack_frag_split.
-    { apply map_disjoint_empty_r. }
-    { apply map_disjoint_empty_l. }
-    rewrite right_id left_id fmap_app; iStopProof; f_equiv; last done.
-    rewrite frac_op -Qp.mul_add_distr_r !map_size_list_to_map //.
-    rewrite !length_zip_with_l_eq // map_length //.
-    rewrite pos_to_Qp_add Nat2Pos.inj_add //.
-    by rewrite Qp.mul_inv_r.
-    { by rewrite -map_app. }
-  - rewrite fmap_app !app_length !length_fmap repeat_length H1 //.
+  rewrite !map_size_list_to_map //.
+  rewrite !length_zip_with_l_eq // map_length // app_length !map_length.
+  rewrite Nat.add_assoc; change (Qp.inv _) with (stack_frac f).
+  destruct (decide (stack_size f = 0%nat)).
+  - unfold stack_frac, stack_size in *.
+    if_tac; last by lia.
+    rewrite app_length; if_tac; last by lia.
+    destruct (fn_vars f); simpl in *; last done.
+    destruct (fn_params f); simpl in *; last done.
+    destruct (fn_temps f); simpl in *; last done.
+    rewrite Qp.inv_1 !bi.sep_emp; done.
+  - rewrite /stack_frac Nat2Pos.inj_succ // Pplus_one_succ_l -pos_to_Qp_add.
+    set (q := (1 + _)%Qp).
+    rewrite -(Qp.mul_inv_r q).
+    destruct (q - 1)%Qp eqn: Hq.
+    apply Qp.sub_Some in Hq; rewrite {2} Hq Qp.mul_add_distr_r -frac_op.
+    rewrite -{1}(map_empty_union (list_to_map _)) -{1}(map_empty_union (list_to_map (zip (_ ++ _) _))) stack_frag_split.
+    rewrite Qp.mul_1_l; f_equiv.
+    unfold q in Hq; apply Qp.add_inj_r in Hq; subst.
+    if_tac; if_tac.
+    + rewrite /stack_size in n0; rewrite -> app_length in *; lia.
+    + destruct (fn_vars f) eqn: Hvars; last done.
+      rewrite fmap_app bi.emp_sep -(bi.exist_intro _) /=; f_equiv; last done.
+      rewrite /stack_size Hvars app_length; done.
+    + rewrite -> app_length in *.
+      destruct (fn_params f) eqn: Hparams; last done.
+      destruct (fn_temps f) eqn: Htemps; last done.
+      rewrite bi.sep_emp -(bi.exist_intro _) /=; f_equiv.
+      rewrite /stack_size Hparams Htemps /= !Nat.add_0_r; done.
+    + rewrite -> app_length in *.
+      rewrite /stack_size -Nat.add_assoc Nat2Pos.inj_add // -pos_to_Qp_add Qp.mul_add_distr_r -frac_op.
+      iIntros "H"; rewrite bi.sep_exist_l; iExists _; rewrite bi.sep_exist_r; iExists _.
+      iApply stack_frag_split.
+      { apply map_disjoint_empty_r. }
+      { apply map_disjoint_empty_l. }
+      rewrite right_id left_id fmap_app //.
+    + apply map_disjoint_empty_l.
+    + apply map_disjoint_empty_l.
+    + apply Qp.sub_None, Qp.not_add_le_l in Hq; done.
+  - rewrite fmap_app !app_length !length_fmap repeat_length H0 //.
   - rewrite fmap_app //.
 Qed.
 
-(*Lemma stackframe_of_eq' : forall f lv
-  (Hsize: Forall (fun var => @Ctypes.sizeof ge (snd var) <= Ptrofs.max_unsigned) (fn_vars f)),
-  length (fn_vars f) + length (fn_params f) + length (fn_temps f) ≠ 0 →
-  (∃ lb, stackframe_of1 f lb lv) ⊣⊢ stackframe_of' (genv_cenv ge) f lv.
-Proof.*)
+Lemma var_blocks_eq: forall lv,
+  ([∗ list] idt ∈ lv, var_block' Share.top ge idt) ⊣⊢
+  ∃ lb, ([∗ list] '(i, t);b ∈ lv;lb, lvar i t b) ∗
+        ([∗ list] idt;b ∈ lv;lb, ⎡ memory_block Share.top (@Ctypes.sizeof ge idt.2) (Vptr b Ptrofs.zero) ⎤).
+Proof.
+  induction lv as [|(i, t) lv IH]; simpl.
+  - iSplit.
+    + iIntros "_"; iExists []; simpl; auto.
+    + iIntros "(% & ?)"; destruct lb; simpl; auto.
+  - rewrite IH /var_block'; iSplit.
+    + iIntros "((% & % & ? & ?) & % & ? & ?)"; iExists (b :: lb); simpl; iFrame.
+    + iIntros "(% & H)"; destruct lb; simpl; first iDestruct "H" as "([] & ?)".
+      iDestruct "H" as "(($ & $) & (% & $) & $)".
+      iPureIntro; rewrite !Ptrofs.unsigned_zero !Z.add_0_l in H |- *.
+      split3; auto; rewrite /Ptrofs.max_unsigned; lia.
+Qed.
+
+Lemma stackframe_of_eq1' : forall f lb lv,
+  list_norepet (map fst (fn_vars f)) →
+  length (fn_params f) = length lv → list_norepet (map fst (fn_params f) ++ map fst (fn_temps f)) →
+  stackframe_of1 f lb lv ⊢
+  stack_retainer f ∗ stackframe_of' (genv_cenv ge) f lv.
+Proof.
+  intros; rewrite stackframe_of_eq1 //; iIntros "($ & Hvars & $ & Hblocks)".
+  rewrite var_blocks_eq; iExists lb; iFrame.
+Qed.
+
+Lemma stackframe_of_eq' : forall f lv, list_norepet (map fst (fn_vars f)) →
+  list_norepet (map fst (fn_params f) ++ map fst (fn_temps f)) →
+  stack_retainer f ∗ stackframe_of' (genv_cenv ge) f lv ⊢
+  ∃ lb, stackframe_of1 f lb lv.
+Proof.
+  intros; rewrite /stackframe_of' /stackframe_of1 var_blocks_eq.
+  iIntros "(Hret & (% & Hvars & Hblocks) & Htemps)"; iExists lb; iFrame "Hblocks".
+  iDestruct (big_sepL2_length with "Hvars") as %?; iSplit; first done.
+  iDestruct (big_sepL2_length with "Htemps") as %Hparams.
+  iStopProof; split => n; simpl; monPred.unseal; rewrite !monPred_at_big_sepL2.
+  erewrite big_sepL2_proper'; [|try done..]. setoid_rewrite lvars_equiv; [|done..].
+  2: { by intros ? (?, ?) ?. }
+  erewrite big_sepL2_proper'; [|try done..]. setoid_rewrite <-(big_sepL2_fmap_l fst).
+  setoid_rewrite temps_equiv.
+  4: { intros ? (?, ?) ?; simpl; done. }
+  assert (length (map fst (fn_vars f)) = length (zip lb (map snd (fn_vars f)))) as Heq1.
+  { rewrite length_zip_with_l_eq map_length //. }
+  rewrite app_length in Hparams.
+  assert (length (map fst (fn_params f) ++ map fst (fn_temps f)) =
+    length (lv ++ repeat Vundef (length (fn_temps f)))) as Heq2.
+  { rewrite app_length !map_length Hparams //. }
+  assert (NoDup (zip (map fst (fn_params f) ++ map fst (fn_temps f))
+     (lv ++ repeat Vundef (length (fn_temps f)))).*1).
+  { rewrite -norepet_NoDup fst_zip //. by rewrite Heq2. }
+  assert (NoDup (zip (map fst (fn_vars f)) (zip lb (map snd (fn_vars f)))).*1).
+  { rewrite -norepet_NoDup fst_zip //. by rewrite Heq1. }
+  iIntros "(Hret & Hvars & Htemps)"; iAssert (stack_frag n (stack_frac f) (pos_to_Qp (Pos.of_nat (1 + length (fn_vars f))%nat) * stack_frac f)%Qp (list_to_map (zip (map fst (fn_vars f)) (zip lb (map snd (fn_vars f))))) ∅)
+    with "[Hret Hvars]" as "Hvars".
+  - destruct (decide _).
+    { rewrite e.
+      destruct (fn_vars f); last done.
+      rewrite Qp.mul_1_l; iFrame. }
+    iDestruct "Hvars" as (q) "Hvars".
+    iDestruct (stack_frag_join with "[$Hret $Hvars]") as ((<- & _)) "Hvars".
+    rewrite !left_id Nat2Pos.inj_succ // Pplus_one_succ_l -pos_to_Qp_add Qp.mul_add_distr_r Qp.mul_1_l; done.
+  - rewrite !map_size_list_to_map //.
+    rewrite !length_zip_with_l_eq // map_length // app_length !map_length.
+    rewrite Nat.add_assoc; change (Qp.inv _) with (stack_frac f).
+    destruct (decide _).
+    { rewrite app_length in e.
+      rewrite {2}/stack_frac /stack_size.
+      destruct (fn_params f); last done.
+      destruct (fn_temps f); last done; simpl.
+      rewrite !Nat.add_0_r Qp.mul_inv_r; iFrame. }
+    iDestruct "Htemps" as (q) "Htemps".
+    iDestruct (stack_frag_join with "[$Hvars $Htemps]") as ((<- & _)) "Hvars".
+    rewrite -> app_length in *.
+    rewrite left_id right_id -Qp.mul_add_distr_r pos_to_Qp_add -Nat2Pos.inj_add // -Nat.add_assoc (Nat.add_assoc (length _)) Qp.mul_inv_r.
+    rewrite fmap_app; done.
+  - rewrite length_fmap //.
+  - rewrite fmap_app //.
+Qed.
 
 Definition freeable_blocks: list (Values.block * BinInt.Z * BinInt.Z) -> mpred :=
   fold_right (fun bb a =>
@@ -1400,9 +1532,9 @@ Lemma wp_call: forall E f0 i e es R,
                  /\ list_norepet (map fst f.(fn_params) ++ map fst f.(fn_temps))
                  /\ list_norepet (map fst f.(fn_vars)) /\ var_sizes_ok (genv_cenv ge) (f.(fn_vars))⌝ ∧
     wp_exprs E f0 es (type_of_params (fn_params f)) (λ vs, ⌜length vs = length f.(fn_params)⌝ ∧
-       ▷ up1 (∀ lb, stackframe_of1 f lb vs -∗ ▷ wp E f f.(fn_body) (frame_ret_assert
+       ▷ up1 (stackframe_of' ge f vs -∗ ▷ wp E f f.(fn_body) (frame_ret_assert
       (function_body_ret_assert f.(fn_return) (λ vl, match i with Some id => down1 ((∃ v0, temp id v0) ∗ (temp id (val_lemmas.force_val vl) -∗ RA_normal R)) | _ => down1 (RA_normal R) end))
-      (∃ vs, stackframe_of1 f lb vs))))) ⊢
+      (∃ vs, stackframe_of' ge f vs))))) ⊢
   wp E f0 (Scall i e es) R.
 Proof.
   intros; rewrite /wp.
@@ -1437,8 +1569,10 @@ Proof.
   iFrame.
   iDestruct "Hd" as "-#?"; iClear "#".
   iStopProof; split => ?; rewrite /stack_level; monPred.unseal; rewrite !monPred_at_affinely.
-  iIntros "(Hk & H & Hr & ? & %Hn)"; inv Hn.
-  iApply ("H" with "[//] [$] [//] [//] [//] [] [//] [Hk] [$Hr //] [%]").
+  iIntros "(Hk & H & Hr & Hstack & %Hn)"; inv Hn.
+  iPoseProof (monPred_in_entails with "Hstack") as "Hstack"; first by apply stackframe_of_eq1'.
+  rewrite monPred_at_sep; iDestruct "Hstack" as "(Hstack & ?)".
+  iApply ("H" with "[//] [$] [//] [//] [//] [] [//] [Hk Hstack] [$Hr //] [%]").
   { rewrite monPred_at_affinely; done. }
   2: { by apply stack_matches'_alloc. }
   2: { done. }
@@ -1449,7 +1583,10 @@ Proof.
   iIntros (?) "(Hm & Ho)".
   destruct ret; simpl.
   - rewrite /wp_expr; monPred.unseal.
-    iMod ("Hret" with "[//] [$] [//] [$]") as ">(% & Hret & ? & ? & (% & H) & (% & ?))".
+    iMod ("Hret" with "[//] [$] [//] [$]") as ">(% & Hret & ? & ? & (% & H) & (%vs' & Hstack'))".
+    iPoseProof (monPred_in_entails with "[Hstack Hstack']") as "Hstack"; first by apply (stackframe_of_eq' f vs').
+    { rewrite monPred_at_sep; iFrame. }
+    rewrite monPred_at_exist; iDestruct "Hstack" as (?) "Hstack".
     iMod (free_stackframe with "[$]") as (m'' ?) "(Hm & ?)"; [done..|].
     rewrite monPred_at_affinely; iDestruct "Hret" as %Hret.
     pose proof (typecheck_var_match_venv _ _ Hty') as Hmatch'.
@@ -1477,7 +1614,10 @@ Proof.
       * done.
       * eapply stack_matches'_dealloc with (i := None)(f := f); split; eauto.
   - monPred.unseal.
-    iDestruct "Hret" as "((%Hvoid & H) & (% & ?))".
+    iDestruct "Hret" as "((%Hvoid & H) & (%vs' & Hstack'))".
+    iPoseProof (monPred_in_entails with "[Hstack Hstack']") as "Hstack"; first by apply (stackframe_of_eq' f vs').
+    { rewrite monPred_at_sep; iFrame. }
+    rewrite monPred_at_exist; iDestruct "Hstack" as (?) "Hstack".
     iMod (free_stackframe with "[$]") as (m'' ?) "(Hm & ?)"; [done..|].
     iIntros "!>".
     iExists _, _; iSplit.
@@ -1502,15 +1642,75 @@ Proof.
       * eapply stack_matches'_dealloc with (i := None)(f := f); split; eauto.
 Qed.
 
-(* We probably won't want to use this rule directly, but rather prove that each
-   extcall has a small-footprint effect. *)
+(* This rule usually won't be used directly by the caller, but rather to prove a
+   separation logic spec for each specific external function. *)
 Lemma wp_extcall: forall E f0 i e es R,
   wp_expr ge E f0 e (λ v, ∃ f tys retty cc, ⌜exists b, v = Vptr b Ptrofs.zero /\ Genv.find_funct_ptr ge b = Some (External f tys retty cc) /\
-    classify_fun (typeof e) =
-    fun_case_f tys retty cc /\ ef_inline f && ef_deterministic f = true (*/\
-    Forall (fun it => complete_type (genv_cenv ge) (snd it) = true) (fn_vars f)
-                 /\ list_norepet (map fst f.(fn_params) ++ map fst f.(fn_temps))
-                 /\ list_norepet (map fst f.(fn_vars)) /\ var_sizes_ok (genv_cenv ge) (f.(fn_vars))*)⌝ ∧
+    classify_fun (typeof e) = fun_case_f tys retty cc /\ ef_inline f = false⌝ ∧
+    wp_exprs E f0 es tys (λ vs,
+       ∀ m z, ⎡state_interp m z⎤ -∗ ∃ x, ⌜ext_spec_pre OK_spec f x (genv_symb_injective ge)
+                 (map proj_xtype (sig_args (ef_sig f))) vs z m⌝ ∧ ▷ ∀ ret m' z',
+              ⌜Val.has_type_list vs (map proj_xtype (sig_args (ef_sig f)))
+                   ∧ Builtins0.val_opt_has_rettype ret (sig_res (ef_sig f))⌝
+                  → ⌜ext_spec_post OK_spec f x (genv_symb_injective ge) (sig_res (ef_sig f)) ret z' m'⌝ →
+              |={E}=> ⎡state_interp m' z'⎤ ∗ match i with Some id => (∃ v0, temp id v0) ∗ (temp id (force_val ret) -∗ RA_normal R) | _ => RA_normal R end)) ⊢
+  wp E f0 (Scall i e es) R.
+Proof.
+  intros; rewrite /wp.
+  iIntros "H %%% #Hd Hk" (????) "Hr (%Hmatch & %Hstack & %Htop) %Hty".
+  iApply jsafe_step.
+  rewrite /jstep_ex /wp_expr /wp_exprs /=.
+  iIntros (?) "(Hm & Ho)".
+  iMod (fupd_mask_subseteq E) as "Hclose"; first done.
+  iMod ("H" with "Hm Hr") as ">(% & He & Hm & Hr & %f & %tys & %retty & %cc & %Hb & H)"; [done..|].
+  destruct Hb as (b & -> & Hb & ? & Hinline).
+  iMod ("H" with "Hm Hr") as (vs) "(Hes & Hm & Hr & H)"; [done..|].
+  iMod "Hclose" as "_"; rewrite embed_fupd; iIntros "!>".
+  iPoseProof (env_match_intro with "Hd") as "#?"; first done.
+  iDestruct ("He" with "[$]") as %He; iDestruct ("Hes" with "[$]") as %Hes.
+  pose proof (typecheck_var_match_venv _ _ Hty).
+  iExists _, _; iSplit.
+  { iPureIntro; econstructor; eauto. }
+  iFrame.
+  iNext.
+  rewrite jsafe_unfold /jsafe_pre.
+  rewrite !embed_fupd; iIntros "!> !>" (?) "Hm".
+  iDestruct ("H" with "Hm") as (??) "H".
+  iRight; iRight.
+  iExists _, _, _; iSplit.
+  { iPureIntro; rewrite /= Hinline; eauto. }
+  iNext; iIntros (?????).
+  rewrite embed_fupd.
+  iMod (fupd_mask_subseteq E) as "Hclose"; first done.
+  iMod ("H" with "[//] [//]") as "($ & H)".
+  iMod "Hclose" as "_"; iIntros "!>".
+  iExists _; iSplit; first done.
+  iApply jsafe_local_step.
+  { intros; constructor. }
+  iNext.
+  destruct i; simpl.
+  + iDestruct "H" as "((% & Hi) & H)".
+    iPoseProof (stack_level_embed with "Hd Hi") as "Hi".
+    iDestruct (temp_e with "[$]") as %Hi.
+    rewrite -fupd_jsafe.
+    iMod (temp_update with "[$]") as "(? & ?)".
+    iPoseProof (stack_level_elim with "Hd [$]") as "Hi".
+    iSpecialize ("H" with "Hi").
+    iPoseProof (stack_level_embed with "Hd H") as "H".
+    iModIntro.
+    iApply safe_skip; last by (iFrame; iDestruct "Hk" as "(Hk & _)"; iApply "Hk").
+    * done.
+    * apply (stack_matches'_set _ _ _ (Some k)); first by split.
+      rewrite /env_to_environ in Hi; simpl in *.
+      destruct (ρ.2 !! _)%stdpp; done.
+  + iPoseProof (stack_level_embed with "Hd H") as "H".
+    by iApply safe_skip; last by (iFrame; iDestruct "Hk" as "(Hk & _)"; iApply "Hk").
+Qed.
+
+(* not sure we'll ever use this *)
+Lemma wp_extcall_inline: forall E f0 i e es R,
+  wp_expr ge E f0 e (λ v, ∃ f tys retty cc, ⌜exists b, v = Vptr b Ptrofs.zero /\ Genv.find_funct_ptr ge b = Some (External f tys retty cc) /\
+    classify_fun (typeof e) = fun_case_f tys retty cc /\ ef_inline f && ef_deterministic f = true⌝ ∧
     wp_exprs E f0 es tys (λ vs,
        ∀ m, ⎡mem_auth m⎤ ={E}=∗ ∃ t ret m', ⌜Events.external_call f ge vs m t ret m'⌝ ∧
          ▷ |={E}=> ⎡mem_auth m'⎤ ∗ match i with Some id => (∃ v0, temp id v0) ∗ (temp id ret -∗ RA_normal R) | _ => RA_normal R end)) ⊢
