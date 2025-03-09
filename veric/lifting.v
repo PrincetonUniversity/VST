@@ -1646,9 +1646,9 @@ Qed.
    separation logic spec for each specific external function. *)
 Lemma wp_extcall: forall E f0 i e es R,
   wp_expr ge E f0 e (λ v, ∃ f tys retty cc, ⌜exists b, v = Vptr b Ptrofs.zero /\ Genv.find_funct_ptr ge b = Some (External f tys retty cc) /\
-    classify_fun (typeof e) = fun_case_f tys retty cc /\ ef_inline f = false⌝ ∧
+    classify_fun (typeof e) = fun_case_f tys retty cc⌝ ∧
     wp_exprs E f0 es tys (λ vs,
-       ∀ m z, ⎡state_interp m z⎤ -∗ ∃ x, ⌜ext_spec_pre OK_spec f x (genv_symb_injective ge)
+       ▷ |={E}=> ∀ m z, ⎡state_interp m z⎤ -∗ ∃ x, ⌜ef_inline f = false ∧ ext_spec_pre OK_spec f x (genv_symb_injective ge)
                  (map proj_xtype (sig_args (ef_sig f))) vs z m⌝ ∧ ▷ ∀ ret m' z',
               ⌜Val.has_type_list vs (map proj_xtype (sig_args (ef_sig f)))
                    ∧ Builtins0.val_opt_has_rettype ret (sig_res (ef_sig f))⌝
@@ -1663,7 +1663,7 @@ Proof.
   iIntros (?) "(Hm & Ho)".
   iMod (fupd_mask_subseteq E) as "Hclose"; first done.
   iMod ("H" with "Hm Hr") as ">(% & He & Hm & Hr & %f & %tys & %retty & %cc & %Hb & H)"; [done..|].
-  destruct Hb as (b & -> & Hb & ? & Hinline).
+  destruct Hb as (b & -> & Hb & ?).
   iMod ("H" with "Hm Hr") as (vs) "(Hes & Hm & Hr & H)"; [done..|].
   iMod "Hclose" as "_"; rewrite embed_fupd; iIntros "!>".
   iPoseProof (env_match_intro with "Hd") as "#?"; first done.
@@ -1673,9 +1673,12 @@ Proof.
   { iPureIntro; econstructor; eauto. }
   iFrame.
   iNext.
+  iMod (fupd_mask_subseteq E) as "Hclose"; first done.
+  iMod "H".
+  iMod "Hclose" as "_".
   rewrite jsafe_unfold /jsafe_pre.
   rewrite !embed_fupd; iIntros "!> !>" (?) "Hm".
-  iDestruct ("H" with "Hm") as (??) "H".
+  iDestruct ("H" with "Hm") as (? (Hinline & ?)) "H".
   iRight; iRight.
   iExists _, _, _; iSplit.
   { iPureIntro; rewrite /= Hinline; eauto. }

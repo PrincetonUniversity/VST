@@ -38,6 +38,8 @@ Definition closed_wrt_modvars c (F: environ -> mpred) : Prop :=
  sa_R: ret_assert
 }.*)
 
+Definition make_ext_rval t (v : option val) := match t with Xvoid => None | _ => v end.
+
 Definition semax_external
   ef
   (A: TypeTree)
@@ -54,7 +56,7 @@ Definition semax_external
     ⌜ext_spec_pre OK_spec ef x' (genv_symb_injective gx) ts args z m⌝ ∧
      (*□*) ∀ tret: xtype, ∀ ret: option val, ∀ m': mem, ∀ z': OK_ty,
       ⌜ext_spec_post OK_spec ef x' (genv_symb_injective gx) tret ret z' m'⌝ → |={E x}=>
-          state_interp m' z' ∗ Q x ret ∗ F).
+          state_interp m' z' ∗ Q x (make_ext_rval tret ret) ∗ F).
 
 Lemma Forall2_implication {A B} (P Q:A -> B -> Prop) (PQ:forall a b, P a b -> Q a b):
   forall l t, Forall2 P l t -> Forall2 Q l t.
@@ -136,7 +138,7 @@ Definition believe_external (gx: genv) (v: val) (fsig: typesig) cc
         ∧ semax_external ef A E P Q
         ∧ ■ (∀ x: dtfr A,
               ∀ ret:option val,
-                Q x ret
+                Q x (make_ext_rval (rettype_of_type (snd fsig)) ret)
                   ∧ ⌜Builtins0.val_opt_has_rettype ret (rettype_of_type (snd fsig))⌝
                   -∗ ⌜tc_option_val sigret ret⌝)
   | _ => False

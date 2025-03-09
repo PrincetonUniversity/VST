@@ -299,18 +299,76 @@ Proof.
     iIntros "E" (?).
     rewrite /believe_external Ha Genv.find_funct_find_funct_ptr.
     destruct (Genv.find_funct_ptr psi b) as [[|]|] eqn: Hb; try by rewrite embed_pure.
-    iDestruct "BE" as (([=] & -> & ? & [?|Hfalse])) "(BE & Post)"; subst.
+    iDestruct "BE" as (([=] & -> & Hsig & Hinline)) "(BE & TCPost)"; subst.
     iExists _, _, _, _; iSplit; first by iPureIntro; eauto.
-    iApply wp_exprs_mono; first done.
     iApply (wp_tc_exprlist(CS := CS) with "E"); [done..|].
     iSplit; first by rewrite bi.and_elim_l bi.and_elim_r; auto.
-    iIntros "E" (TCargs).
     rewrite /semax_external.
+    iIntros "E" (TCargs) "!>".
     iDestruct "Pre" as "(_ & _ & Frame & Pre)".
+    iMod (fupd_mask_subseteq (Ef x)) as "Hclose"; first done.
     iMod ("sub" with "[$Pre]") as (fx F0 ?) "((F0 & Pre) & #Post)".
     { iPureIntro. by split; first apply tc_vals_HaveTyps. }
-    
-    admit.
+    iMod (fupd_mask_subseteq (fE fx)) as "Hclose'"; first done.
+    iMod ("BE" $! _ _ emp with "[Pre]") as "Hext".
+    { iStopProof; split => ?; monPred.unseal.
+      rewrite monPred_at_intuitionistically /=; iIntros "(#(_ & _ & _ & HP & _) & Pre)".
+      rewrite bi.sep_emp.
+      rewrite ofe_morO_equivI; iSpecialize ("HP" $! fx).
+      rewrite discrete_fun_equivI; iSpecialize ("HP" $! (eval_exprlist l bl rho)).
+      iSplit; last by iApply (internal_eq_app with "[] Pre"); iApply (internal_eq_sym with "HP").
+      iPureIntro.
+      rewrite Hsig /= map_proj_xtype_argtype.
+      forget (eval_exprlist(CS := CS) l bl rho) as args.
+      clear - TCargs.
+      generalize dependent l; induction args; destruct l; simpl; auto.
+      intros (? & ?); split; auto.
+      by apply tc_val_has_type. }
+    iMod "Hclose'" as "_"; iMod "Hclose" as "_"; iIntros "!>" (??) "Hm".
+    iDestruct ("Hext" with "Hm") as (??) "Hext".
+    destruct Hinline; last done.
+    iExists _; iSplit; first done.
+    rewrite Hsig; iIntros "!>" (??? (? & Hretty) ?).
+    iMod (fupd_mask_subseteq (fE fx)) as "Hclose"; first by set_solver.
+    iMod ("Hext" with "[//]") as "($ & Q & _)".
+    iMod "Hclose" as "_"; iIntros "!>".
+    simpl in *.
+    iDestruct ("TCPost" with "[$Q]") as %TCret.
+    { iPureIntro; destruct (rettype_of_type t); done. }
+    iClear "HP".
+    rewrite ofe_morO_equivI; iSpecialize ("HQ" $! fx).
+    rewrite discrete_fun_equivI; iSpecialize ("HQ" $! (make_ext_rval (rettype_of_type t) ret0)).
+    iRewrite "HQ" in "Q".
+    iPoseProof ("Post" with "[$F0 $Q]") as "Q".
+    rewrite /tc_fn_return in TC7; destruct ret; simpl.
+    + destruct (temp_types Delta !! i) eqn: Hi; inv TC7.
+      iDestruct (curr_env_set_temp with "E") as "($ & E)"; [done..|].
+      iIntros "Hi"; iSpecialize ("E" with "Hi"); iFrame.
+      assert (exists ret', ret0 = Some ret' /\ tc_val t0 ret') as (v & -> & ?).
+      { destruct t0; simpl in TCret; first (by specialize (TC5 eq_refl)); destruct ret0; try done; eauto. }
+      iSplit.
+      * rewrite monPred_at_exist /maybe_retval.
+        apply TC in Hi as (? & ? & ?).
+        iExists (eval_id i rho).
+        rewrite monPred_at_sep /=. setoid_rewrite subst_set; last done.
+        rewrite eval_id_same.
+        replace (make_ext_rval _ _) with (Some v).
+        2: { destruct t0; try destruct i0, s; try destruct f; try (specialize (TC5 eq_refl)); first done; destruct v; done. }
+        iFrame; iPureIntro; by split; first apply tc_val_tc_val'.
+      * iPureIntro.
+        destruct TS as (TS & _); specialize (TS i). rewrite Hi in TS.
+        destruct (temp_types Delta' !! i) eqn: ?; inv TS.
+        eapply typecheck_environ_set; eauto.
+        apply tc_val_tc_val'; auto.
+    + iFrame.
+      iSplit; last done.
+      rewrite monPred_at_exist; iExists Vundef; rewrite monPred_at_sep /=; iFrame.
+      destruct (eq_dec t Tvoid); subst; first done.
+      iAssert (⎡∃ v : val, ⌜tc_val' t v⌝ ∧ Q x (Some v)⎤) with "[Q]" as "?"; last by destruct t; iFrame.
+      destruct ret0; try by destruct t.
+      iExists v; iSplit; first by iPureIntro; apply tc_val_tc_val'; destruct t.
+      rewrite /make_ext_rval.
+      destruct t; try destruct i, s; try destruct f; try (specialize (TC5 eq_refl)); iFrame; first done; destruct v; contradiction.
   - iApply wp_call.
     iApply (wp_tc_expr(CS := CS) with "E"); [done..|].
     iSplit; first by rewrite !bi.and_elim_l; auto.
@@ -427,6 +485,31 @@ Proof.
         ++ rewrite monPred_at_affinely /=; iSplit; first done.
            rewrite /curr_env /= !monPred_at_sep monPred_at_affinely monPred_at_big_sepM monPred_at_pure -assert_of_eq /=.
            setoid_rewrite monPred_at_embed; done.
+Qed.
+
+(* We need the explicit frame because it might contain typechecking information. *)
+Lemma semax_call:
+  forall E Delta (A: TypeTree) (Ef : dtfr (MaskTT A))
+  (P : dtfr (ArgsTT A))
+  (Q : dtfr (AssertTT A))
+  (x : dtfr A)
+  F ret argsig retsig cc a bl
+  (Hsub : Ef x ⊆ E)
+  (TCF : Cop.classify_fun (typeof a) = Cop.fun_case_f argsig retsig cc)
+  (TC5 : retsig = Tvoid -> ret = None)
+  (TC7 : tc_fn_return Delta ret retsig),
+  semax OK_spec E Delta
+       ((▷(tc_expr Delta a ∧ tc_exprlist Delta argsig bl))  ∧
+           (assert_of (fun rho => func_ptr (mk_funspec (argsig,retsig) cc A Ef P Q) (eval_expr a rho)) ∗
+          (▷(F ∗ assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho))))))
+         (Scall ret a bl)
+         (normal_ret_assert
+          (∃ old:val, assert_of (substopt ret (`old) F) ∗ maybe_retval (assert_of (Q x)) retsig ret)).
+Proof.
+  intros.
+  eapply semax_pre, semax_call_si; [|done..].
+  split => rho.
+  monPred.unseal; rewrite bi.and_elim_r func_ptr_fun_ptr_si //.
 Qed.
 
 Definition cast_expropt {CS} (e: option expr) t : environ -> option val :=
