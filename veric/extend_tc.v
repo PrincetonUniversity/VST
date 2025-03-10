@@ -596,3 +596,18 @@ Proof.
   iDestruct ("Hsub" with "Hmatch") as %(? & Hmatch).
   iPureIntro; auto.
 Qed.
+
+Lemma wp_tc_expropt : forall `{!VSTGS OK_ty Σ} {CS : compspecs} E f Delta e t P (ge : genv) rho,
+  cenv_sub cenv_cs ge ->
+  typecheck_environ Delta rho ->
+  ⊢ curr_env ge rho -∗
+    ▷ ⎡tc_expropt Delta e t rho⎤ ∧
+    (curr_env ge rho -∗ ⌜match eval_expropt (option_map (λ e, Ecast e t) e) rho with Some v => tc_val t v | _ => True end⌝ → P (eval_expropt (option_map (λ e, Ecast e t) e) rho)) -∗
+  wp_expr_opt ge E f (option_map (λ e, Ecast e t) e) P.
+Proof.
+  intros; destruct e; simpl.
+  - iIntros "E H"; iApply (wp_tc_expr with "E"); [done..|].
+    iSplit; first by rewrite bi.and_elim_l.
+    iIntros "E" (?); rewrite bi.and_elim_r; by iApply ("H" with "E").
+  - iIntros "E H"; by iApply ("H" with "E").
+Qed.

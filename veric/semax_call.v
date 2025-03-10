@@ -264,7 +264,7 @@ Proof.
   intros.
   rewrite semax_unfold; intros.
   destruct HGG.
-  iIntros "E %TC' F #B" (f0) "Pre".
+  iIntros "E F #B" (f0 (TC' & ?)) "Pre".
   rewrite monPred_at_and monPred_at_sep !monPred_at_later monPred_at_and monPred_at_sep /=.
   iAssert ⎡func_ptr_si (mk_funspec (argsig, retsig) cc A Ef P Q) (eval_expr(CS := CS) a rho)⎤ as "#fp".
   { iDestruct "Pre" as "(_ & $ & _)". }
@@ -501,15 +501,15 @@ Lemma semax_call:
   semax OK_spec E Delta
        ((▷(tc_expr Delta a ∧ tc_exprlist Delta argsig bl))  ∧
            (assert_of (fun rho => func_ptr (mk_funspec (argsig,retsig) cc A Ef P Q) (eval_expr a rho)) ∗
-          (▷(F ∗ assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho))))))
+          (▷(F ∗ assert_of (fun rho => P x (eval_exprlist argsig bl rho))))))
          (Scall ret a bl)
          (normal_ret_assert
-          (∃ old:val, assert_of (substopt ret (`old) F) ∗ maybe_retval (assert_of (Q x)) retsig ret)).
+          (∃ old:val, assert_of (substopt ret (`old) F) ∗ maybe_retval (Q x) retsig ret)).
 Proof.
   intros.
   eapply semax_pre, semax_call_si; [|done..].
-  split => rho.
-  monPred.unseal; rewrite bi.and_elim_r func_ptr_fun_ptr_si //.
+  iIntros "(_ & ?)"; iStopProof; do 2 f_equiv; last done.
+  split => n; apply func_ptr_fun_ptr_si.
 Qed.
 
 Definition cast_expropt {CS} (e: option expr) t : environ -> option val :=
@@ -567,44 +567,17 @@ Proof.
   destruct HGG as [CSUB HGG].
   replace (ret_type Delta) with (ret_type Delta')
     by (destruct TS as [_ [_ [? _]]]; auto).
-  iIntros "#Prog_OK" (????) "[(%Hclosed & %HE) #rguard]".
-  iIntros (??) "!> (% & H & fun)".
-  monPred.unseal.
-  set (rho := construct_rho _ _ _).
-  iSpecialize ("rguard" $! EK_return (@cast_expropt CS' ret (ret_type Delta') rho) tx vx).
-  destruct H as (H & ? & Hret).
-  assert (TCD: typecheck_environ Delta rho) by (eapply typecheck_environ_sub; eauto); clear TS.
-  iAssert (tc_expropt Delta ret (ret_type Delta') rho ∧
-    assert_safe OK_spec psi E' f vx tx
-                (exit_cont EK_return (@cast_expropt CS' ret (ret_type Delta') rho) k)
-                (construct_rho (filter_genv psi) vx tx)) with "[-]" as "H".
-  { iSplit.
-    + rewrite tc_expropt_cenv_sub //.
-      iDestruct "fun" as "_".
-      iDestruct "H" as "(_ & $ & _)".
-    + iApply "rguard".
-      rewrite proj_frame /=; subst rho.
-      rewrite RA_return_castexpropt_cenv_sub //.
-      monPred.unseal; unfold_lift. iDestruct "H" as "($ & -> & ?)"; iFrame. iPureIntro; done. }
-  iIntros (? _).
-  rewrite /assert_safe /=.
-  iApply (convergent_controls_jsafe _ _ _ (State f (Sreturn ret) (call_cont k) vx tx)); try done.
-  { inversion 1; subst; try match goal with H : _ \/ _ |- _ => destruct H; done end.
-    + rewrite call_cont_idem; constructor; auto.
-    + rewrite call_cont_idem; econstructor; eauto. }
-  destruct ret; simpl.
-  - (* If we did a view-shift here, we could lose the typechecking (by giving up mem that makes pointers in e valid). *)
-    iApply bi.impl_elim_r; iSplit; last by iDestruct "H" as "[_ H]"; iApply ("H" with "[%]").
-    iIntros (?) "Hm"; iDestruct "H" as "[H _]".
-    rewrite /tc_expr /typecheck_expr; fold typecheck_expr.
-    rewrite denote_tc_assert_andp.
-    subst rho; iDestruct (eval_expr_relate(CS := CS') with "[$Hm H]") as %?; try done; [iDestruct "H" as "[$ _]" |].
-    iDestruct (typecheck_expr_sound' with "[H]") as %Htc; first done; first iDestruct "H" as "($ & _)".
-    iDestruct (cop2_sem_cast' with "[$Hm H]") as %?; first done; first iDestruct "H" as "[_ $]".
-    rewrite cast_exists //; iDestruct "H" as %Hcast.
-    iPureIntro; unfold_lift; rewrite /force_val1 -Hret.
-    rewrite -> Hcast in *; eauto.
-  - iDestruct "H" as "[_ H]"; iApply "H"; done.
+  iIntros "E F #?" (? (TC' & Hret)) "H".
+  iApply wp_return.
+  rewrite -Hret.
+  assert (cenv_sub (@cenv_cs CS) psi) by (eapply cenv_sub_trans; eauto).
+  pose proof (typecheck_environ_sub _ _ TS _ TC') as TC.
+  iApply (wp_tc_expropt(CS := CS) with "E"); [done..|].
+  iSplit; first by rewrite bi.and_elim_l.
+  iIntros "E" (?).
+  rewrite bi.and_elim_r /=; unfold_lift.
+  iFrame; iSplit; last done.
+  destruct ret; auto.
 Qed.
 
 End mpred.

@@ -130,13 +130,13 @@ Lemma semax_unfold {CS: compspecs} E Delta P c R :
   semax OK_spec E Delta P c R ↔ forall (psi: Clight.genv) Delta' CS'
           (TS: tycontext_sub Delta Delta')
           (HGG: cenv_sub (@cenv_cs CS) (@cenv_cs CS') /\ cenv_sub (@cenv_cs CS') (genv_cenv psi)) rho,
-    ⊢ curr_env psi rho -∗ ⌜typecheck_environ Delta' rho⌝ -∗ ⎡funassert Delta'⎤ -∗ <affine> believe(CS := CS') OK_spec Delta' psi -∗
-      ∀ f, ⎡P rho⎤ -∗ wp OK_spec psi E f c (Clight_seplog.frame_ret_assert (env_ret_assert Delta' psi R) ⎡funassert Delta'⎤).
+    ⊢ curr_env psi rho -∗ ⎡funassert Delta'⎤ -∗ <affine> believe(CS := CS') OK_spec Delta' psi -∗
+      ∀ f, <affine> ⌜guard_environ Delta' f rho⌝ -∗ ⎡P rho⎤ -∗ wp OK_spec psi E f c (Clight_seplog.frame_ret_assert (env_ret_assert Delta' psi R) ⎡funassert Delta'⎤).
 Proof.
 rewrite /semax /semax'.
 split; intros.
-+ iIntros "E % F B"; iApply (H with "[%] E [//] F B"); auto.
-+ iIntros (??? (? & ?) ?) "E TY F B"; iApply (H with "E TY F B"); auto.
++ iIntros "E F B"; iApply (H with "[%] E F B"); auto.
++ iIntros (??? (? & ?) ?) "E F B"; iApply (H with "E F B"); auto.
 Qed.
 
 Lemma frame_normal : forall R P, RA_normal (frame_ret_assert R P) = (RA_normal R ∗ P).
@@ -150,7 +150,7 @@ Proof.
 intros.
 rewrite semax_unfold.
 intros psi Delta' CS' ??.
-iIntros (?) "? % ? #? % P".
+iIntros (?) "? ? #? % (% & %) P".
 iApply wp_skip; simpl; iFrame.
 rewrite H /=.
 rewrite monPred_at_and bi.and_elim_r; auto.
@@ -244,11 +244,11 @@ Lemma extract_exists_pre_later {CS: compspecs}:
 Proof.
 intros.
 rewrite semax_unfold; intros.
-iIntros "? #? ? #believe" (?) "Pre".
+iIntros "?? #believe" (??) "Pre".
 rewrite monPred_at_and monPred_at_later monPred_at_exist.
 rewrite bi.later_exist_except_0 (bi.except_0_intro Q) monPred_at_except_0 -bi.except_0_and bi.and_exist_l.
 iMod "Pre" as (x) "Pre"; specialize (H x).
-rewrite semax_unfold in H; iApply (H with "[$] [//] [$]"); eauto.
+rewrite semax_unfold in H; iApply (H with "[$] [$]"); eauto.
 by rewrite monPred_at_and monPred_at_later.
 Qed.
 
@@ -259,9 +259,9 @@ Lemma extract_exists_pre {CS: compspecs}:
 Proof.
 intros.
 rewrite semax_unfold; intros.
-iIntros "? #? ? #believe" (?) "Pre".
+iIntros "?? #believe" (??) "Pre".
 rewrite monPred_at_exist; iDestruct "Pre" as (x) "Pre"; specialize (H x).
-rewrite semax_unfold in H; iApply (H with "[$] [//] [$]"); eauto.
+rewrite semax_unfold in H; iApply (H with "[$] [$]"); eauto.
 Qed.
 
 Definition G0: funspecs(Σ := Σ) := nil.
@@ -424,12 +424,12 @@ Lemma semax_frame {CS: compspecs} :  forall E Delta P s R F,
   semax OK_spec E Delta (P ∗ ⎡F⎤) s (frame_ret_assert R ⎡F⎤).
 Proof.
   intros until F; rewrite !semax_unfold; intros.
-  iIntros "?%??" (?) "Pre".
+  iIntros "???" (??) "Pre".
   rewrite monPred_at_sep; iDestruct "Pre" as "(? & ?)".
   rewrite env_ret_frame.
   rewrite frame_ret_comm; iApply wp_frame.
   rewrite monPred_at_embed; iFrame.
-  by iApply (H with "[$] [//] [$] [$]").
+  by iApply (H with "[$] [$] [$]").
 Qed.
 
 Fixpoint filter_seq (k: cont) : cont :=

@@ -223,15 +223,17 @@ Definition env_ret_assert Delta ge (R : ret_assert) : tycontext.ret_assert :=
        tycontext.RA_return := λ vl, ⎡RA_return R vl rho⎤
     |} (<affine> ⌜typecheck_environ Delta rho⌝ ∗ curr_env ge rho)).
 
+Definition guard_environ (Delta: tycontext) (f: function) (rho: environ) : Prop :=
+   typecheck_environ Delta rho /\ ret_type Delta = fn_return f.
+
 Definition semax' {CS} E Delta (P : assert) c (R : ret_assert) :=
   ∀ ge Delta' CS', ⌜tycontext_sub Delta Delta' ∧
       cenv_sub (@cenv_cs CS) (@cenv_cs CS') ∧
       cenv_sub (@cenv_cs CS') (genv_cenv ge)⌝ →
   ∀ rho, curr_env ge rho -∗
-  ⌜typecheck_environ Delta' rho⌝ →
   ⎡funassert Delta'⎤ -∗
   <affine> @believe CS' Delta' ge -∗
-  ∀ f, ⎡P rho⎤ -∗ wp OK_spec ge E f c
+  ∀ f, <affine> ⌜guard_environ Delta' f rho⌝ -∗ ⎡P rho⎤ -∗ wp OK_spec ge E f c
     (Clight_seplog.frame_ret_assert (env_ret_assert Delta' ge R) ⎡funassert Delta'⎤).
 
 Lemma semax'_cenv_sub {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) E Delta P c R:

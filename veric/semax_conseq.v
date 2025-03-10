@@ -83,41 +83,6 @@ Proof.
   - by iIntros ">[$ $]".
 Qed.
 
-(*Lemma proj_fupd_ret_assert_frame: forall E F Q ek vl,
-  (|={E}=> (F ∗ proj_ret_assert (fupd_ret_assert E Q) ek vl)) ⊣⊢ |={E}=> (F ∗ proj_ret_assert Q ek vl).
-Proof.
-  intros.
-  destruct ek; simpl; auto;
-    rewrite -fupd_fupd_frame_l fupd_fupd_andp_prop fupd_fupd_frame_l; auto.
-Qed.
-
-Global Instance guard_proper ge E Delta f : Proper (equiv ==> eq ==> equiv) (_guard OK_spec ge E Delta f).
-Proof.
-  intros ????? ->; rewrite /_guard.
-  do 7 f_equiv.
-  by rewrite H.
-Qed.
-
-Global Instance guard'_proper ge E Delta f : Proper (equiv ==> eq ==> equiv) (guard' OK_spec ge E Delta f).
-Proof.
-  solve_proper.
-Qed.
-
-Global Instance rguard_proper ge E Delta f : Proper (equiv ==> eq ==> equiv) (rguard OK_spec ge E Delta f).
-Proof.
-  intros ????? ->; rewrite /rguard.
-  do 3 f_equiv; intros ?.
-  apply guard_proper; last done.
-  destruct H as (? & ? & ? & ?).
-  destruct a; simpl; last done; f_equiv; done.
-Qed.
-
-Global Instance frame_ret_assert_proper : Proper (equiv ==> equiv ==> equiv) frame_ret_assert.
-Proof.
-  intros [????] [????] (? & ? & ? & ?); repeat intro; simpl in *.
-  split3; last split; simpl; intros; f_equiv; done.
-Qed. *)
-
 Global Instance frame_ret_assert_proper : Proper (equiv ==> equiv ==> equiv) frame_ret_assert.
 Proof.
   intros [] [] (H1 & H2 & H3 & H4) ?? HP; split; [|split3]; simpl in *; intros; rewrite HP.
@@ -132,16 +97,16 @@ Proof.
   repeat intro; subst.
   rewrite !semax_unfold.
   split; intros.
-  - iIntros "E TY F B" (?) "H".
+  - iIntros "E F B" (??) "H".
     rewrite -H.
     (* rewrite -H1. should work, given the following *)
-    iApply wp_proper; last by iApply (H0 with "E TY F B").
+    iApply wp_proper; last by iApply (H0 with "E F B").
     apply Clight_seplog.frame_ret_assert_proper; last done.
     apply env_ret_assert_proper.
     symmetry in H1; apply H1.
-  - iIntros "E TY F B" (?) "H".
+  - iIntros "E F B" (??) "H".
     rewrite H.
-    iApply wp_proper; last by iApply (H0 with "E TY F B").
+    iApply wp_proper; last by iApply (H0 with "E F B").
     apply Clight_seplog.frame_ret_assert_proper; last done.
     apply env_ret_assert_proper.
     apply H1.
@@ -164,14 +129,14 @@ Proof.
   intros.
   rewrite /semax'.
   iIntros "H" (??? [??] ?).
-  iIntros "E %TY F #B" (?) "P".
+  iIntros "E F #B" (? (? & ?)) "P".
   iDestruct (funassert_allp_fun_id_sub with "F") as "(#? & F)"; first done.
   assert (typecheck_environ Delta rho) by (by eapply typecheck_environ_sub).
   eapply monPred_in_entails in H; rewrite monPred_at_fupd in H.
   iMod (H with "[P]").
   { rewrite !monPred_at_sep monPred_at_affinely monPred_at_intuitionistically monPred_at_embed /=; iFrame.
     iSplit; iIntros "!>"; auto. }
-  rewrite -wp_conseq; first by iApply ("H" with "[%] [$] [] [$] [] [$]").
+  rewrite -wp_conseq; first by iApply ("H" with "[%] [$] [$] [] [%] [$]").
   all: destruct R, R'; simpl in *.
   - iIntros "((%rho' & R & % & $) & F)".
     assert (typecheck_environ Delta rho') by (by eapply typecheck_environ_sub).
@@ -399,7 +364,7 @@ Lemma semax_pre_post_fupd {CS: compspecs}:
    semax OK_spec E Delta P' c R' ->  semax OK_spec E Delta P c R.
 Proof.
 intros.
-eapply semax_pre_fupd; eauto.
+eapply semax_pre_fupd; first done.
 eapply semax_post_fupd; eauto.
 Qed.
 

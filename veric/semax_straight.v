@@ -66,7 +66,7 @@ forall E (Delta: tycontext) (P: assert) id cmp e1 e2 ty sh1 sh2,
 Proof.
   intros until sh2. intros ?? CMP NE1 NE2 TCid.
   rewrite semax_unfold; intros. destruct HGG.
-  iIntros "E %TC' F #?" (?) "Pre".
+  iIntros "E F #?" (? (TC' & ?)) "Pre".
   rewrite monPred_at_later !monPred_at_and.
   iApply wp_set. iApply wp_binop_rule.
   assert (cenv_sub (@cenv_cs CS) psi) by (eapply cenv_sub_trans; eauto).
@@ -120,7 +120,7 @@ forall E (Delta: tycontext) (P: assert) id e,
 Proof.
   intros.
   rewrite semax_unfold; intros. destruct HGG.
-  iIntros "E %TC' ? #?" (?) "Pre".
+  iIntros "E ? #?" (? (TC' & ?)) "Pre".
   rewrite monPred_at_later !monPred_at_and.
   iApply wp_set.
   assert (cenv_sub (@cenv_cs CS) psi) by (eapply cenv_sub_trans; eauto).
@@ -190,7 +190,7 @@ forall E (Delta: tycontext) (P: assert) id e t
 Proof.
   intros.
   rewrite semax_unfold; intros. destruct HGG.
-  iIntros "E %TC' ? #?" (?) "Pre".
+  iIntros "E ? #?" (? (TC' & ?)) "Pre".
   rewrite monPred_at_later !monPred_at_and.
   iApply wp_set.
   assert (cenv_sub (@cenv_cs CS) psi) by (eapply cenv_sub_trans; eauto).
@@ -248,7 +248,7 @@ forall E (Delta: tycontext) sh id (P: assert) e1 t2 (v2: val),
 Proof.
   intros until v2.
   intros Hid0 TC1 H_READABLE H99.
-  rewrite semax_unfold; intros; iIntros "E %TC' F #?" (?) "Pre"; destruct HGG.
+  rewrite semax_unfold; intros; iIntros "E F #?" (? (TC' & ?)) "Pre"; destruct HGG.
   rewrite monPred_at_later !monPred_at_and monPred_at_pure.
   iApply wp_set.
   assert (cenv_sub (@cenv_cs CS) psi) by (eapply cenv_sub_trans; eauto).
@@ -318,7 +318,7 @@ forall E (Delta: tycontext) sh id (P: assert) e1 t1 (v2: val),
 Proof.
   intros until v2.
   intros Hid0 HCAST H_READABLE H99.
-  rewrite semax_unfold; intros; iIntros "E %TC' F #?" (?) "Pre"; destruct HGG.
+  rewrite semax_unfold; intros; iIntros "E F #?" (? (TC' & ?)) "Pre"; destruct HGG.
   rewrite monPred_at_later !monPred_at_and.
   iApply wp_set; iApply wp_cast; first done.
   iApply wp_expr_mono; first by intros; iIntros "H"; iApply "H".
@@ -411,7 +411,7 @@ Lemma semax_store:
           (normal_ret_assert (assert_of (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`force_val (`(sem_cast (typeof e2) (typeof e1)) (eval_expr e2)))) ∗ P)).
 Proof.
   intros.
-  rewrite semax_unfold; intros; iIntros "E %TC' ? #?" (?) "Pre"; destruct HGG.
+  rewrite semax_unfold; intros; iIntros "E ? #?" (? (TC' & ?)) "Pre"; destruct HGG.
   rewrite monPred_at_later !monPred_at_and.
   iApply wp_store.
   assert (cenv_sub (@cenv_cs CS) psi) by (eapply cenv_sub_trans; eauto).
@@ -455,7 +455,7 @@ Lemma semax_store_union_hack:
 Proof.
   intros until P. intros NT AM0 AM' OK WS.
   assert (SZ := decode_encode_val_size _ _ OK).
-  rewrite semax_unfold; intros; iIntros "E %TC' ? #?" (?) "Pre"; destruct HGG.
+  rewrite semax_unfold; intros; iIntros "E ? #?" (? (TC' & ?)) "Pre"; destruct HGG.
   rewrite monPred_at_later !monPred_at_and.
   iApply wp_store'; [done..|].
   assert (cenv_sub (@cenv_cs CS) psi) by (eapply cenv_sub_trans; eauto).

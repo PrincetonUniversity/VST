@@ -75,7 +75,7 @@ Lemma semax_switch:
 Proof.
   intros.
   rewrite semax_unfold.
-  intros; iIntros "E %TC' ? #?" (?) "?".
+  intros; iIntros "E ? #?" (? (TC' & ?)) "?".
   destruct HGG. assert (cenv_sub (@cenv_cs CS) psi) by (eapply cenv_sub_trans; eauto).
   iApply wp_switch.
   pose proof (typecheck_environ_sub _ _ TS _ TC') as TC.
@@ -86,7 +86,7 @@ Proof.
   destruct (eval_expr a rho) eqn: Ha; try contradiction.
   iExists _; iSplit; first done.
   specialize (Hcase i0); rewrite semax_unfold in Hcase.
-  iApply wp_conseq; last (by iApply (Hcase _ Delta' with "E [//] [$]"); try done;
+  iApply wp_conseq; last (by iApply (Hcase _ Delta' with "E [$]"); try done;
     rewrite monPred_at_and /=; iFrame; auto); simpl; auto.
   iIntros "((% & F & ?) & ?)".
   rewrite monPred_at_pure embed_pure; iDestruct "F" as "[]".
