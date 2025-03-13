@@ -406,51 +406,62 @@ Proof. solve_proper. Qed.
    small-footprint approach to the environment, while tc_expr and eval_expr freely
    call on the full environment rho. So to do this, we need to first fix the entire
    environment. *)
-Definition curr_env (ge : genv) (rho : environ) : mpred.assert := <affine> ⌜∀ i, ge_of rho !! i = Genv.find_symbol ge i⌝ ∗ ([∗ map] i↦b ∈ ge_of rho, ⎡gvar i b⎤) ∗
-  assert_of' (λ n, ∃ q0, <affine> ⌜q0 < 1⌝%Qp ∗ stack_frag n q0 1%Qp (ve_of rho) (te_of rho)).
+Definition curr_env (ge : genv) f (rho : environ) : mpred.assert := <affine> ⌜(stack_size f = O -> te_of rho = ∅) ∧ ∀ i, ge_of rho !! i = Genv.find_symbol ge i⌝ ∗
+  ⎡own(inG0 := envGS_inG) env_name (lib.gmap_view.gmap_view_auth dfrac.DfracDiscarded (to_agree <$> ge_of rho), ε)⎤ ∗
+  assert_of' (λ n, stack_frag n (stack_frac f) 1%Qp (ve_of rho) (te_of rho)).
 
-Definition genv_sub (ge1 ge2 : genv) := forall i v, Genv.find_symbol ge1 i = Some v -> Genv.find_symbol ge2 i = Some v.
-
-Lemma curr_env_e : forall ρ ge0 rho, ⊢ ⎡env_auth ρ⎤ -∗ curr_env ge0 rho -∗
-  □ ∀ ge ve te, env_match ρ ge ve te -∗ ⌜genv_sub ge0 ge /\ env_matches rho ge0 ve te⌝.
+Lemma curr_env_e : forall ρ ge0 f rho, ⊢ ⎡env_auth ρ⎤ -∗ curr_env ge0 f rho -∗
+  □ ∀ ge ve te, env_match ρ ge ve te -∗ ⌜Genv.find_symbol ge0 = Genv.find_symbol ge /\ env_matches rho ge0 ve te⌝.
 Proof.
   split => n; rewrite /curr_env; monPred.unseal.
   iIntros "_ %% Hρ %% H".
-  rewrite monPred_at_embed !monPred_at_sep monPred_at_affinely monPred_at_intuitionistically monPred_at_big_sepM; monPred.unseal.
-  iDestruct "H" as "(%Hge0 & Hge & Hs)".
+  rewrite monPred_at_affinely monPred_at_intuitionistically /=.
+  iDestruct "H" as "((% & %Hge0) & Hge & Hs)".
   rewrite -assert_of_eq /=.
-  iDestruct "Hs" as (??) "Hs"; iDestruct (stack_frag_e_1 with "[$Hρ $Hs]") as %(Hve & Hte).
-  iAssert ⌜ge_of rho ⊆ ge_of (env_to_environ ρ n)⌝ as %Hsub.
-  { iIntros (i).
-    destruct (ge_of rho !! i)%stdpp eqn: Hi; rewrite Hi /=.
-    - rewrite big_sepM_lookup //.
-      iDestruct (gvar_e with "[$Hρ $Hge]") as %Hi'.
-      by rewrite ge_of_env Hi'.
-    - by destruct (ge_of (env_to_environ ρ n) !! i)%stdpp eqn: Hi'; rewrite Hi'. }
+  iDestruct (stack_frag_e_1 with "[$Hρ $Hs]") as %(Hve & Hte).
+  rewrite /env_auth pair_split own_op.
+  iDestruct "Hρ" as "(Hge0 & _)".
+  iDestruct (own_valid_2 with "Hge0 Hge") as %(Hge%lib.gmap_view.gmap_view_auth_dfrac_op_inv & _).
+  apply map_fmap_equiv_inj in Hge; last apply _.
+  apply leibniz_equiv in Hge.
   iPureIntro; simpl; intros ????? Hmatch.
   unfold sqsubseteq in *; subst.
-  destruct Hmatch as (Hge & ? & ?).
+  destruct Hmatch as (? & ? & ?).
   split.
-  - intros ?? Hi.
-    rewrite Hge; rewrite -Hge0 in Hi.
-    by eapply lookup_weaken.
+  - extensionality i.
+    rewrite H ge_of_env Hge //.
   - split3; rewrite ?Hve ?Hte; done.
 Qed.
 
-Lemma curr_env_set_temp : forall Delta ge rho i t
+Lemma curr_env_gvar_e : forall ge f rho i b, curr_env ge f rho ∗ ⎡gvar i b⎤ ⊢ ⌜Genv.find_symbol ge i = Some b⌝.
+Proof.
+  intros; rewrite /gvar /curr_env.
+  iIntros "(((_ & %H) & H1 & _) & H2)"; iDestruct (own_valid_2 with "H1 H2") as %((? & _ & _ & Hid & _ & Hincl)%gmap_view.gmap_view_both_dfrac_valid_discrete_total & _).
+  rewrite lookup_fmap in Hid; specialize (H i); destruct (lookup _ _); inv Hid.
+  by apply to_agree_included_L in Hincl as ->.
+Qed.
+
+Lemma curr_env_set_temp : forall Delta ge f rho i t
   (Hi : temp_types Delta !! i = Some t) (Htc : typecheck_environ Delta rho),
-  curr_env ge rho ⊢ (∃ v, temp i v) ∗ (∀ v, temp i v -∗ curr_env ge (env_set rho i v)).
+  curr_env ge f rho ⊢ (∃ v, temp i v) ∗ (∀ v, temp i v -∗ curr_env ge f (env_set rho i v)).
 Proof.
   intros.
   destruct Htc as (Htc & _).
   apply Htc in Hi as (v0 & ? & ?).
-  iIntros "(% & ? & Hs)".
+  iIntros "((%Hte & %) & ? & Hs)".
   iDestruct stack_level_intro as (?) "#l".
-  iDestruct ("Hs" with "[$]") as (q0 Hq0) "Hs".
+  iDestruct ("Hs" with "[$]") as "Hs".
   replace (ve_of rho) with (ve_of rho ∪ ∅) at 1 by (rewrite right_id //).
   replace (te_of rho) with (delete i (te_of rho) ∪ {[i := v0]}) at 1.
-  assert (exists q1, 1 = q1 + q0)%Qp as (q1 & Heq).
-  { apply Qp.lt_sum in Hq0 as (? & Hq0); rewrite Qp.add_comm in Hq0; eauto. }
+  assert (exists q1, 1 = q1 + stack_frac f)%Qp as (q1 & Heq).
+  { assert (stack_frac f < 1)%Qp as Hq0.
+    { rewrite /stack_frac.
+      rewrite -Qp.inv_1 -Qp.inv_lt_mono.
+      rewrite Nat2Pos.inj_succ.
+      rewrite Pplus_one_succ_l -pos_to_Qp_add.
+      apply Qp.lt_add_l.
+      { intros X; rewrite Hte in H; done. } }
+    apply Qp.lt_sum in Hq0 as (? & Hq0); rewrite Qp.add_comm in Hq0; eauto. }
   rewrite Heq stack_frag_split.
   iDestruct "Hs" as "(Hs & Hi)".
   iSplitL "Hi".
@@ -462,7 +473,9 @@ Proof.
   iDestruct "Hs" as ((<- & _ & _)) "Hs".
   rewrite right_id -insert_union_singleton_r.
   rewrite insert_delete_insert.
-  iSplit; first done; iFrame.
+  iSplit; last iFrame.
+  { iPureIntro; split; auto.
+    intros; by rewrite Hte in H. }
   iIntros (?) "#l'"; iDestruct (stack_level_eq with "l l'") as %->.
   rewrite -Heq /=; by iFrame.
   * apply lookup_delete.
@@ -475,9 +488,9 @@ Qed.
 Lemma wp_tc_expr : forall {CS : compspecs} E f Delta e P (ge : genv) rho,
   cenv_sub cenv_cs ge ->
   typecheck_environ Delta rho ->
-  ⊢ curr_env ge rho -∗
+  ⊢ curr_env ge f rho -∗
     ▷ ⎡tc_expr Delta e rho⎤ ∧
-    (curr_env ge rho -∗ ⌜tc_val (typeof e) (eval_expr e rho)⌝ → P (eval_expr e rho)) -∗
+    (curr_env ge f rho -∗ ⌜tc_val (typeof e) (eval_expr e rho)⌝ → P (eval_expr e rho)) -∗
   wp_expr ge E f e P.
 Proof.
   intros; rewrite /wp_expr.
@@ -503,9 +516,9 @@ Qed.
 Lemma wp_tc_lvalue : forall {CS : compspecs} E f Delta e P (ge : genv) rho,
   cenv_sub cenv_cs ge ->
   typecheck_environ Delta rho ->
-  ⊢ curr_env ge rho -∗
+  ⊢ curr_env ge f rho -∗
     ▷ ⎡tc_lvalue Delta e rho⎤ ∧
-    (curr_env ge rho -∗ ∀ b o, ⌜eval_lvalue e rho = Vptr b (Ptrofs.repr o)⌝ → P (b, o)) -∗
+    (curr_env ge f rho -∗ ∀ b o, ⌜eval_lvalue e rho = Vptr b (Ptrofs.repr o)⌝ → P (b, o)) -∗
   wp_lvalue ge E f e P.
 Proof.
   intros; rewrite /wp_lvalue.
@@ -572,9 +585,9 @@ End mpred.
 Lemma wp_tc_exprlist : forall `{!VSTGS OK_ty Σ} {CS : compspecs} E f Delta tys es P (ge : genv) rho,
   cenv_sub cenv_cs ge ->
   typecheck_environ Delta rho ->
-  ⊢ curr_env ge rho -∗
+  ⊢ curr_env ge f rho -∗
     ▷ ⎡tc_exprlist Delta tys es rho⎤ ∧
-    (curr_env ge rho -∗ ⌜tc_vals tys (eval_exprlist tys es rho)⌝ → P (eval_exprlist tys es rho)) -∗
+    (curr_env ge f rho -∗ ⌜tc_vals tys (eval_exprlist tys es rho)⌝ → P (eval_exprlist tys es rho)) -∗
   wp_exprs ge E f es tys P.
 Proof.
   intros; rewrite /wp_exprs.
@@ -600,9 +613,9 @@ Qed.
 Lemma wp_tc_expropt : forall `{!VSTGS OK_ty Σ} {CS : compspecs} E f Delta e t P (ge : genv) rho,
   cenv_sub cenv_cs ge ->
   typecheck_environ Delta rho ->
-  ⊢ curr_env ge rho -∗
+  ⊢ curr_env ge f rho -∗
     ▷ ⎡tc_expropt Delta e t rho⎤ ∧
-    (curr_env ge rho -∗ ⌜match eval_expropt (option_map (λ e, Ecast e t) e) rho with Some v => tc_val t v | _ => True end⌝ → P (eval_expropt (option_map (λ e, Ecast e t) e) rho)) -∗
+    (curr_env ge f rho -∗ ⌜match eval_expropt (option_map (λ e, Ecast e t) e) rho with Some v => tc_val t v | _ => True end⌝ → P (eval_expropt (option_map (λ e, Ecast e t) e) rho)) -∗
   wp_expr_opt ge E f (option_map (λ e, Ecast e t) e) P.
 Proof.
   intros; destruct e; simpl.

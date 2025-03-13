@@ -1,3 +1,4 @@
+(*Require Import iris.bi.lib.fixpoint_banach.*)
 Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.veric.juicy_base.
 Require Import VST.veric.juicy_mem.
@@ -78,18 +79,19 @@ Section SemaxContext.
 
 Context `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty}.
 
-(*Lemma guard_environ_put_te':
- forall ge te ve Delta id v k,
- guard_environ Delta k (mkEnviron ge ve te)  ->
-    (forall t,
-        (temp_types Delta) !! id = Some t -> tc_val' t v) ->
- guard_environ Delta k (mkEnviron ge ve (Map.set id v te)).
+Lemma guard_environ_put_te':
+ forall Delta f rho id v t,
+ guard_environ Delta f rho  ->
+ (temp_types Delta) !! id = Some t -> tc_val' t v ->
+ guard_environ Delta f (env_set rho id v).
 Proof.
- intros.
- destruct H; split.
- apply typecheck_environ_put_te; auto.
- destruct k; auto.
-Qed.*)
+  intros.
+  destruct H as (? & ? & ?); split3; auto.
+  - apply typecheck_environ_put_te; auto.
+    intros ? Hid; rewrite Hid in H0; inv H0; done.
+  - intros ??; destruct (eq_dec i id); subst; eauto.
+    rewrite /= lookup_insert_ne //; eauto.
+Qed.
 
 Lemma typecheck_environ_sub:
   forall Delta Delta', tycontext_sub Delta Delta' ->
@@ -129,14 +131,14 @@ Qed.
 Lemma semax_unfold {CS: compspecs} E Delta P c R :
   semax OK_spec E Delta P c R ↔ forall (psi: Clight.genv) Delta' CS'
           (TS: tycontext_sub Delta Delta')
-          (HGG: cenv_sub (@cenv_cs CS) (@cenv_cs CS') /\ cenv_sub (@cenv_cs CS') (genv_cenv psi)) rho,
-    ⊢ curr_env psi rho -∗ ⎡funassert Delta'⎤ -∗ <affine> believe(CS := CS') OK_spec Delta' psi -∗
-      ∀ f, <affine> ⌜guard_environ Delta' f rho⌝ -∗ ⎡P rho⎤ -∗ wp OK_spec psi E f c (Clight_seplog.frame_ret_assert (env_ret_assert Delta' psi R) ⎡funassert Delta'⎤).
+          (HGG: cenv_sub (@cenv_cs CS) (@cenv_cs CS') /\ cenv_sub (@cenv_cs CS') (genv_cenv psi)),
+    ⊢ ⎡funassert Delta'⎤ -∗ believe(CS := CS') OK_spec Delta' psi Delta' -∗ ∀ f rho, <affine> ⌜guard_environ Delta' f rho⌝ -∗
+      curr_env psi f rho -∗ ⎡P rho⎤ -∗ wp OK_spec psi E f c (Clight_seplog.frame_ret_assert (env_ret_assert Delta' psi f R) ⎡funassert Delta'⎤).
 Proof.
-rewrite /semax /semax'.
+rewrite /semax semax_fold_unfold.
 split; intros.
-+ iIntros "E F B"; iApply (H with "[%] E F B"); auto.
-+ iIntros (??? (? & ?) ?) "E F B"; iApply (H with "E F B"); auto.
++ iIntros "F B"; iApply (H with "[%] F B"); auto.
++ iIntros (??? (? & ?)) "!> F B"; iApply (H with "F B"); auto.
 Qed.
 
 Lemma frame_normal : forall R P, RA_normal (frame_ret_assert R P) = (RA_normal R ∗ P).
@@ -150,7 +152,7 @@ Proof.
 intros.
 rewrite semax_unfold.
 intros psi Delta' CS' ??.
-iIntros (?) "? ? #? % (% & %) P".
+iIntros "? _" (?? (? & ?)) "??".
 iApply wp_skip; simpl; iFrame.
 rewrite H /=.
 rewrite monPred_at_and bi.and_elim_r; auto.
@@ -178,64 +180,56 @@ Proof.
   destruct (Genv.find_funct _ _) as [[|]|]; apply _.
 Qed.
 
-(* Lemma fixpoint_plain {A} (F : (A -d> iPropO Σ) -> A -d> iPropO Σ) `{Contractive F}:
+  (* will be in fixpoint_banach once we bump Iris *)
+  Lemma fixpoint_plain `{!BiPlainly PROP} {A}
+      (F : (A -d> PROP) → A -d> PROP) `{!Contractive F} :
     (∀ Φ, (∀ x, Plain (Φ x)) → (∀ x, Plain (F Φ x))) →
     ∀ x, Plain (fixpoint F x).
-Proof.
-  intros ?.
-  apply fixpoint_ind.
-  - intros ?? Heq ??. by rewrite -(Heq _).
-  - exists (fun _ => emp); intros; apply emp_plain.
-  - auto.
-  - apply limit_preserving_forall; intros; apply limit_preserving_Plain.
-    intros ??; auto.
-Qed.
+  Proof.
+    intros ?. apply fixpoint_ind.
+    - intros Φ1 Φ2 HΦ ??. by rewrite -(HΦ _).
+    - exists (λ _, emp%I); apply _.
+    - done.
+    - apply limit_preserving_forall=> x.
+      apply limit_preserving_Plain; solve_proper.
+  Qed.
 
-Lemma fixpoint_absorbing {A} (F : (A -d> iPropO Σ) -> A -d> iPropO Σ) `{Contractive F}:
+  Lemma fixpoint_absorbing {PROP : bi} {A} (F : (A -d> PROP) → A -d> PROP) `{!Contractive F} :
     (∀ Φ, (∀ x, Absorbing (Φ x)) → (∀ x, Absorbing (F Φ x))) →
     ∀ x, Absorbing (fixpoint F x).
+  Proof.
+    intros ?. apply fixpoint_ind.
+    - intros Φ1 Φ2 HΦ ??. by rewrite -(HΦ _).
+    - exists (λ _, True%I); apply _.
+    - done.
+    - apply limit_preserving_forall=> x.
+      apply bi.limit_preserving_entails; solve_proper.
+  Qed.
+
+  Lemma fixpoint_plain_absorbing `{!BiPlainly PROP} {A}
+      (F : (A -d> PROP) → A -d> PROP) `{!Contractive F} :
+    (∀ Φ, (∀ x, Plain (Φ x)) → (∀ x, Absorbing (Φ x)) →
+          (∀ x, Plain (F Φ x) ∧ Absorbing (F Φ x))) →
+    ∀ x, Plain (fixpoint F x) ∧ Absorbing (fixpoint F x).
+  Proof.
+    intros ?. apply fixpoint_ind.
+    - intros Φ1 Φ2 HΦ ??. by rewrite -(HΦ _).
+    - exists (λ _, True%I); split; apply _.
+    - naive_solver.
+    - apply limit_preserving_forall=> x.
+      apply limit_preserving_and; apply bi.limit_preserving_entails; solve_proper.
+  Qed.
+
+Lemma semax'_plain_absorbing CS E Delta P c R : Plain (semax'(CS := CS) OK_spec E Delta P c R) ∧ Absorbing (semax' OK_spec E Delta P c R).
 Proof.
-  intros ?.
-  apply fixpoint_ind.
-  - intros ?? Heq ??. by rewrite -(Heq _).
-  - exists (fun _ => True); intros; apply bi.pure_absorbing.
-  - auto.
-  - apply limit_preserving_forall; intros ?.
-    apply bi.limit_preserving_entails.
-    + intros ????. by apply bi.absorbingly_ne.
-    + intros ??; auto.
+  apply fixpoint_plain_absorbing; intros; rewrite /semax_; destruct x; split; apply _.
 Qed.
 
-Lemma fixpoint_plain_absorbing {A} (F : (A -d> iPropO Σ) -> A -d> iPropO Σ) `{Contractive F}:
-    (∀ Φ, (∀ x, Plain (Φ x)) → (∀ x, Absorbing (Φ x)) → (∀ x, Plain (F Φ x))) →
-    (∀ Φ, (∀ x, Plain (Φ x)) → (∀ x, Absorbing (Φ x)) → (∀ x, Absorbing (F Φ x))) →
-    ∀ x, Plain (fixpoint F x) ∧ Absorbing (fixpoint F x).
-Proof.
-  intros ??.
-  apply fixpoint_ind.
-  - intros ?? Heq ??. by rewrite -(Heq _).
-  - exists (fun _ => True); intros; split; [apply pure_plain | apply bi.pure_absorbing].
-  - intros ? Hpa y.
-    assert ((∀y, Plain (x y)) ∧ (∀y, Absorbing (x y))) as [??] by (split; intros; eapply Hpa; eauto).
-    eauto.
-  - apply limit_preserving_forall; intros.
-    apply limit_preserving_and; [apply limit_preserving_Plain; intros ??; auto|].
-    apply bi.limit_preserving_entails.
-    + intros ????. by apply bi.absorbingly_ne.
-    + intros ??; auto.
-Qed. *)
-
-(* Lemma semax'_plain_absorbing CS E Delta P c R : Plain (semax'(CS := CS) OK_spec E Delta P c R) ∧ Absorbing (semax' OK_spec E Delta P c R).
-Proof.
-  apply fixpoint_plain_absorbing; intros; rewrite /semax_; destruct x; apply _.
-Qed. *)
-
-(* Should these be true? Are they useful: *)
-(* Global Instance semax'_plain CS E Delta P c R : Plain (semax'(CS := CS) OK_spec E Delta P c R).
+Global Instance semax'_plain CS E Delta P c R : Plain (semax'(CS := CS) OK_spec E Delta P c R).
 Proof. apply semax'_plain_absorbing. Qed.
 
 Global Instance semax'_absorbing CS E Delta P c R : Absorbing (semax'(CS := CS) OK_spec E Delta P c R).
-Proof. apply semax'_plain_absorbing. Qed. *)
+Proof. apply semax'_plain_absorbing. Qed.
 
 Lemma extract_exists_pre_later {CS: compspecs}:
   forall (A : Type) (Q: assert) (P : A -> assert) c E Delta (R: ret_assert),
@@ -244,11 +238,11 @@ Lemma extract_exists_pre_later {CS: compspecs}:
 Proof.
 intros.
 rewrite semax_unfold; intros.
-iIntros "?? #believe" (??) "Pre".
+iIntros "??" (???) "? Pre".
 rewrite monPred_at_and monPred_at_later monPred_at_exist.
 rewrite bi.later_exist_except_0 (bi.except_0_intro Q) monPred_at_except_0 -bi.except_0_and bi.and_exist_l.
 iMod "Pre" as (x) "Pre"; specialize (H x).
-rewrite semax_unfold in H; iApply (H with "[$] [$]"); eauto.
+rewrite semax_unfold in H; iApply (H with "[$] [$] [//] [$]"); eauto.
 by rewrite monPred_at_and monPred_at_later.
 Qed.
 
@@ -259,9 +253,9 @@ Lemma extract_exists_pre {CS: compspecs}:
 Proof.
 intros.
 rewrite semax_unfold; intros.
-iIntros "?? #believe" (??) "Pre".
+iIntros "??" (???) "? Pre".
 rewrite monPred_at_exist; iDestruct "Pre" as (x) "Pre"; specialize (H x).
-rewrite semax_unfold in H; iApply (H with "[$] [$]"); eauto.
+rewrite semax_unfold in H; iApply (H with "[$] [$] [//] [$]"); eauto.
 Qed.
 
 Definition G0: funspecs(Σ := Σ) := nil.
@@ -271,11 +265,11 @@ Definition empty_genv prog_pub cenv: Clight.genv :=
 
 Lemma empty_program_ok {CS: compspecs}: forall Delta ge,
     glob_specs Delta = Maps.PTree.empty _ ->
-    ⊢ believe OK_spec Delta ge.
+    ⊢ believe OK_spec Delta ge Delta.
 Proof.
 intros Delta ge H.
 rewrite /believe.
-iIntros (???????) "!> (% & %Hge & H)".
+iIntros (??????? (? & Hge & ?)).
 rewrite H in Hge; setoid_rewrite Maps.PTree.gempty in Hge; discriminate.
 Qed.
 
@@ -310,7 +304,7 @@ Proof.
   intros; rewrite proj_frame comm //.
 Qed.
 
-Lemma env_ret_assert_proper Delta ge : Proper (equiv ==> equiv) (env_ret_assert Delta ge).
+Lemma env_ret_assert_proper Delta ge f : Proper (equiv ==> equiv) (env_ret_assert Delta ge f).
 Proof.
   intros ???; rewrite /env_ret_assert.
   do 3 f_equiv.
@@ -400,8 +394,8 @@ Proof.
   split; [|split3]; destruct R; simpl; intros; rewrite -!assoc (bi.sep_comm P Q) //.
 Qed.
 
-Lemma env_ret_frame : forall Delta ge R F,
-  env_ret_assert Delta ge (frame_ret_assert R ⎡F⎤) ≡ Clight_seplog.frame_ret_assert (env_ret_assert Delta ge R) ⎡F⎤.
+Lemma env_ret_frame : forall Delta ge f R F,
+  env_ret_assert Delta ge f (frame_ret_assert R ⎡F⎤) ≡ Clight_seplog.frame_ret_assert (env_ret_assert Delta ge f R) ⎡F⎤.
 Proof.
   intros; destruct R; rewrite /frame_ret_assert /env_ret_assert /Clight_seplog.frame_ret_assert /Clight_seplog.existential_ret_assert /=.
   split3; last split; simpl.
@@ -424,12 +418,12 @@ Lemma semax_frame {CS: compspecs} :  forall E Delta P s R F,
   semax OK_spec E Delta (P ∗ ⎡F⎤) s (frame_ret_assert R ⎡F⎤).
 Proof.
   intros until F; rewrite !semax_unfold; intros.
-  iIntros "???" (??) "Pre".
+  iIntros "??" (???) "? Pre".
   rewrite monPred_at_sep; iDestruct "Pre" as "(? & ?)".
   rewrite env_ret_frame.
   rewrite frame_ret_comm; iApply wp_frame.
   rewrite monPred_at_embed; iFrame.
-  by iApply (H with "[$] [$] [$]").
+  by iApply (H with "[$] [$] [//] [$]").
 Qed.
 
 Fixpoint filter_seq (k: cont) : cont :=

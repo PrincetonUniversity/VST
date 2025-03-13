@@ -11,12 +11,22 @@ Section env.
 
 Context `{!envGS Σ}.
 
+(* env_auth has a discarded frac of the global environment, so everyone can hold
+   it persistently *)
 Definition env_auth (rho : env_state) := own(inG0 := envGS_inG) env_name
- (lib.gmap_view.gmap_view_auth (dfrac.DfracOwn 1) (to_agree <$> fst rho),
+ (lib.gmap_view.gmap_view_auth dfrac.DfracDiscarded (to_agree <$> fst rho),
   ●{dfrac.DfracOwn 1} ((λ '(ve, te),
   (* use one extra share to remember the fraction *)
     let q := Qp.inv (pos_to_Qp (Pos.of_nat (1 + size ve + size te))) in
     (to_agree q, (1%Qp, (Excl <$> ve : gmap _ (excl _), Excl <$> te : gmap _ (excl _))))) <$> snd rho)).
+
+Global Instance genv_persistent g : Persistent (own(inG0 := envGS_inG) env_name
+      (lib.gmap_view.gmap_view_auth dfrac.DfracDiscarded g, ε)).
+Proof.
+  apply own_core_persistent, @ora.pair_core_id.
+  - apply view_auth_core_id.
+  - apply ucmra_unit_core_id.
+Qed.
 
 Definition env_to_environ (ρ : env_state) n : environ :=
   match (snd ρ !! n)%stdpp with Some (ve, te) => (fst ρ, ve, te)

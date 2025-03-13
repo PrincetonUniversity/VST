@@ -5,6 +5,8 @@ Require Import VST.veric.mpred.
 Require Import VST.veric.seplog.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.Cop2.
+Require Import VST.veric.mapsto_memory_block.
+Require Import VST.veric.Clight_seplog.
 
 (* VeriC's assertions are functions environ -> mpred. *)
 
@@ -18,6 +20,13 @@ Section assert.
 
 Context `{!heapGS Σ}.
 
+Lemma subst_derives:
+  forall a v (P Q : assert), (P ⊢ Q) -> assert_of (subst a v P) ⊢ assert_of (subst a v Q).
+Proof.
+  unfold subst; constructor; intros; simpl.
+  apply H.
+Qed.
+
 Definition local (P : environ -> Prop) : assert := assert_of (λ rho, ⌜P rho⌝).
 
 #[global] Instance local_absorbing P : Absorbing (local P).
@@ -25,6 +34,33 @@ Proof. apply monPred_absorbing, _. Qed.
 
 #[global] Instance local_persistent P : Persistent (local P).
 Proof. apply monPred_persistent, _. Qed.
+
+Definition var_block (sh: Share.t) {cs: compspecs} (idt: ident * type): assert :=
+  ⌜sizeof (snd idt) <= Ptrofs.max_unsigned⌝ ∧
+  assert_of (fun rho => (memory_block sh (sizeof (snd idt))) (eval_lvar (fst idt) (snd idt) rho)).
+
+Definition stackframe_of {cs: compspecs} (f: Clight.function) : assert :=
+  [∗ list] idt ∈ Clight.fn_vars f, var_block Share.top idt.
+
+Definition tc_formals (formals: list (ident * type)) : environ -> Prop :=
+     fun rho => tc_vals (map (@snd _ _) formals) (map (fun xt => (eval_id (fst xt) rho)) formals).
+
+Definition close_precondition (bodyparams: list ident) 
+    (P: list val -> mpred) : assert :=
+ assert_of (fun rho => ∃ vals,
+   ⌜map (λ i, lookup i (te_of rho)) bodyparams = map Some vals /\
+      Forall (fun v : val => v <> Vundef) vals⌝ ∧
+   P vals).
+
+Global Instance close_precondition_proper p : Proper (pointwise_relation _ base.equiv ==> base.equiv) (close_precondition p).
+Proof.
+  intros ?? H.
+  split => rho; solve_proper.
+Qed.
+
+Definition bind_args (bodyparams: list (ident * type)) (P: list val -> mpred) : assert :=
+  local (tc_formals bodyparams)
+     ∧ close_precondition (map fst bodyparams) P.
 
 Record ret_assert : Type := {
  RA_normal: assert;
@@ -169,33 +205,27 @@ Proof.
 intros; reflexivity.
 Qed.
 
-Definition bind_ret (vl: option val) (t: type) (Q: assert) : assert :=
+Definition bind_ret (vl: option val) (t: type) (Q: option val -> mpred) : assert :=
      match vl, t with
-     | None, Tvoid => assert_of (fun rho => Q (make_args nil nil rho))
-     | Some v, _ => ⌜tc_val t v⌝ ∧
-                               assert_of (fun rho => Q (make_args (1%positive::nil) (v::nil) rho))
+     | None, Tvoid => ⎡Q None⎤
+     | Some v, _ => ⌜tc_val t v⌝ ∧ ⎡Q (Some v)⎤
      | _, _ => False
      end.
 
-Definition function_body_ret_assert (ret: type) (Q: assert) : ret_assert :=
+Definition function_body_ret_assert (ret: type) (Q: option val -> mpred) : ret_assert :=
  {| RA_normal := bind_ret None ret Q;
-    RA_break := False; 
+    RA_break := False;
     RA_continue := False;
     RA_return := fun vl => bind_ret vl ret Q |}.
 
-Global Instance bind_ret_proper vl t : Proper (base.equiv ==> base.equiv) (bind_ret vl t).
-Proof.
-  intros ???; destruct vl; simpl.
-  - split => rho; monPred.unseal; rewrite /= H //.
-  - destruct t; try done.
-    split => rho; rewrite /= H //.
-Qed.
+Global Instance bind_ret_proper vl t : Proper (pointwise_relation _ base.equiv ==> base.equiv) (bind_ret vl t).
+Proof. solve_proper. Qed.
 
-Global Instance function_body_ret_assert_proper ret : Proper (base.equiv ==> base.equiv) (function_body_ret_assert ret).
+Global Instance function_body_ret_assert_proper ret : Proper (pointwise_relation _ base.equiv ==> base.equiv) (function_body_ret_assert ret).
 Proof.
   intros ???; split3; last split; simpl; try done.
   - destruct ret; try done.
-    split => rho; rewrite /= H //.
+    f_equiv; apply H.
   - intros; rewrite H //.
 Qed.
 

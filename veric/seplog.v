@@ -95,7 +95,7 @@ Definition make_tycontext (params: list (ident*type)) (temps: list (ident*type))
 
 Definition typecheck_temp_environ
 (te: tenviron) (tc: Maps.PTree.t type) :=
-forall (id : ident) ty , tc !! id = Some ty -> exists v, lookup id te = Some v /\ tc_val' ty v.
+forall (id : ident) ty, tc !! id = Some ty -> exists v, lookup id te = Some v /\ tc_val' ty v.
 
 Definition typecheck_var_environ
 (ve: venviron) (tc: Maps.PTree.t type) :=
@@ -609,13 +609,6 @@ Proof.
   destruct spec. by iIntros "H"; iDestruct "H" as (b ->) "_".
 Qed.
 
-(*Lemma subst_extens:
-  forall a v (P Q : assert), (P ⊢ Q) -> subst a v P ⊢ subst a v Q.
-Proof.
-  unfold subst; constructor; intros; simpl.
-  apply H.
-Qed.*)
-
 
 Definition gvar (id : ident) (b : block) : mpred := own(inG0 := envGS_inG) env_name (gmap_view.gmap_view_frag id dfrac.DfracDiscarded (to_agree b), ε).
 
@@ -624,6 +617,12 @@ Proof.
   apply own_core_persistent, @ora.pair_core_id.
   - apply (gmap_view.gmap_view_frag_core_id id dfrac.DfracDiscarded); apply _.
   - apply ucmra_unit_core_id.
+Qed.
+
+Lemma gvar_agree : forall i b1 b2, ⊢ gvar i b1 -∗ gvar i b2 -∗ ⌜b1 = b2⌝.
+Proof.
+  intros; iIntros "H1 H2".
+  by iDestruct (own_valid_2 with "H1 H2") as %((_ & ?%to_agree_op_inv)%lib.gmap_view.gmap_view_frag_op_valid & _).
 Qed.
 
 Definition funspecs_assert (FunSpecs: Maps.PTree.t funspec): mpred :=
@@ -1138,17 +1137,25 @@ Proof.
   apply (H1 Hi gargs).
 Qed.
 
-Lemma make_context_t_get: forall {params temps i ty} 
+Lemma make_context_t_get': forall {params temps i ty} 
       (T: (make_tycontext_t params temps) !! i = Some ty),
-      In i (map fst params ++ map fst temps).
+      In (i, ty) (params ++ temps).
 Proof.
   induction params; simpl; intros.
 * induction temps; simpl in *. rewrite Maps.PTree.gempty in T; discriminate. 
   destruct a; simpl in *. rewrite Maps.PTree.gsspec in T.
-  destruct (peq i i0); subst. left; trivial. right; auto.
+  destruct (peq i i0); subst. inv T; left; trivial. right; auto.
 * destruct a; simpl in *. rewrite Maps.PTree.gsspec in T.
-  destruct (peq i i0); subst. left; trivial.
+  destruct (peq i i0); subst. inv T; left; trivial.
   right. eapply IHparams. apply T.
+Qed.
+
+Lemma make_context_t_get: forall {params temps i ty} 
+      (T: (make_tycontext_t params temps) !! i = Some ty),
+      In i (map fst params ++ map fst temps).
+Proof.
+  intros; rewrite -map_app in_map_iff.
+  eexists; by split; last eapply make_context_t_get'.
 Qed.
 
 Lemma tc_temp_environ_elim: forall {params temps trho},
@@ -1157,22 +1164,23 @@ Lemma tc_temp_environ_elim: forall {params temps trho},
       forall i ty, In (i,ty) params -> 
       exists v : val, lookup i trho = Some v /\ tc_val' ty v.
 Proof.
+  intros ???? Htc ?; specialize (Htc i).
   induction params.
-  + intros. inv H1.
-  + simpl. intros. destruct H1.
-    - subst a. simpl in *. apply (H0 i ty). rewrite Maps.PTree.gss; trivial.
-    - inv H. apply (IHparams temps); trivial.
-      red; intros j ? ?. apply H0. rewrite Maps.PTree.gso; trivial. clear - H4 H.
-      intros J; subst. destruct a; simpl in *. apply H4; clear - H.
+  + intros. inv H0.
+  + simpl. intros. destruct H0.
+    - subst a. simpl in *. apply Htc. rewrite Maps.PTree.gss; trivial.
+    - inv H. apply IHparams; trivial.
+      intros ??. apply Htc. rewrite Maps.PTree.gso; trivial. clear - H3 H.
+      intros J; subst. destruct a; simpl in *. apply H3; clear - H.
       apply (make_context_t_get H).
 Qed.
 
 Lemma tc_environ_xtype t rho: tc_environ (xtype_tycontext t) (globals_only rho).
 Proof.
   unfold xtype_tycontext; simpl. split3; intros; simpl.
-  red; intros. rewrite Maps.PTree.gempty in H; congruence.
-  split; intros. rewrite Maps.PTree.gempty in H; congruence. destruct H; inv H.
-  red; intros. rewrite Maps.PTree.gempty in H; congruence.
+  - intros ?; by rewrite Maps.PTree.gempty.
+  - split; intros. rewrite Maps.PTree.gempty in H; congruence. destruct H; inv H.
+  - red; intros. rewrite Maps.PTree.gempty in H; congruence.
 Qed.
 
 Lemma tc_environ_xtype_env_set t rho i v:
@@ -1180,9 +1188,9 @@ tc_environ (xtype_tycontext t)
          (env_set (globals_only rho) i v).
 Proof.
   unfold xtype_tycontext; simpl. split3; intros; simpl.
-  red; intros. rewrite Maps.PTree.gempty in H; congruence.
-  split; intros. rewrite Maps.PTree.gempty in H; congruence. destruct H; inv H.
-  red; intros. rewrite Maps.PTree.gempty in H; congruence.
+  - intros ?; by rewrite Maps.PTree.gempty.
+  - split; intros. rewrite Maps.PTree.gempty in H; congruence. destruct H; inv H.
+  - red; intros. rewrite Maps.PTree.gempty in H; congruence.
 Qed.
 
 Lemma funspec_sub_cc phi psi: funspec_sub phi psi ->

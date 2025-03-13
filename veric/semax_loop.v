@@ -54,7 +54,7 @@ Lemma semax_ifthenelse:
 Proof.
   intros.
   rewrite !semax_unfold in H0, H1 |- *.
-  intros; iIntros "E ? #?" (? (TC' & ?)) "P".
+  intros; iIntros "? #?" (?? (TC' & ?)) "E P".
   rewrite monPred_at_later monPred_at_and.
   destruct HGG.
   iApply wp_if.
@@ -81,7 +81,7 @@ Proof.
   destruct (bool_val (typeof b) (eval_expr b rho)) as [b'|] eqn: Hb; last done.
   iExists b'; iSplit; first done.
   rewrite bi.and_elim_r.
-  destruct b'; [iApply (H0 _ Delta' with "E [$]") | iApply (H1 _ Delta' with "E [$]")]; eauto;
+  destruct b'; [iApply (H0 _ Delta' with "[$] [$] [//] E") | iApply (H1 _ Delta' with "[$] [$] [//] E")]; eauto;
     rewrite monPred_at_and; (iSplit; first done); iPureIntro; by apply bool_val_strict.
 Qed.
 
@@ -94,14 +94,14 @@ Proof.
   intros.
   rewrite !semax_unfold in H,H0|-*.
   intros.
-  iIntros "E ? #B" (? (TC' & ?)) "P".
+  iIntros "? #B" (?? (TC' & ?)) "E P".
   iApply wp_seq.
   iApply wp_strong_mono.
-  iSplitL ""; last by iApply (H with "E [$]").
+  iSplitL ""; last by iApply (H with "[$] [$] [//] E").
   simpl.
   iSplit; last by auto.
   iIntros "((% & ? & % & E) & ?)".
-  by iApply (H0 with "E [$]").
+  by iApply (H0 with "[$] [$] [//] E").
 Qed.
 
 Lemma semax_loop:
@@ -114,27 +114,27 @@ Proof.
   rewrite !semax_unfold in H H0 |- *.
   intros ?????.
   iLöb as "IH".
-  iIntros "% E ? #B" (? (TC' & ?)) "Q".
+  iIntros "? #B" (?? (TC' & ?)) "E Q".
   iApply wp_loop.
   iNext.
   iApply wp_strong_mono.
-  iSplitL ""; last by iApply (H with "E [$]").
+  iSplitL ""; last by iApply (H with "[$] [$] [//] E").
   simpl.
-  iAssert ((∃ x0 : environ, ⎡ Q' x0 ⎤ ∗ <affine> ⌜typecheck_environ Delta' x0⌝ ∗
-    curr_env psi x0) ∗ ⎡ funassert Delta' ⎤ ={E}=∗
+  iAssert ((∃ x0 : environ, ⎡ Q' x0 ⎤ ∗ <affine> ⌜guard_environ Delta' f x0⌝ ∗
+    curr_env psi f x0) ∗ ⎡ funassert Delta' ⎤ ={E}=∗
    wp OK_spec psi E f incr
    (Clight_seplog.loop2_ret_assert
       (wp OK_spec psi E f (Sloop body incr)
-         (Clight_seplog.frame_ret_assert (env_ret_assert Delta' psi POST)
+         (Clight_seplog.frame_ret_assert (env_ret_assert Delta' psi f POST)
             ⎡ funassert Delta' ⎤))
-      (Clight_seplog.frame_ret_assert (env_ret_assert Delta' psi POST)
+      (Clight_seplog.frame_ret_assert (env_ret_assert Delta' psi f POST)
          ⎡ funassert Delta' ⎤)))%I as "?"; last auto.
   iIntros "((% & ? & % & E) & ?) !>".
   iApply wp_strong_mono.
-  iSplitL ""; last by iApply (H0 with "E [$]").
+  iSplitL ""; last by iApply (H0 with "[$] [$] [//] E").
   simpl; iSplit.
   - iIntros "((% & ? & % & E) & ?) !>".
-    by iApply ("IH" with "E [$]").
+    by iApply ("IH" with "[$] [$] [//] E").
   - iSplit; first auto.
     iSplit; last auto.
     iIntros "((% & F & ?) & ?)".
@@ -146,7 +146,7 @@ Lemma semax_break:
 Proof.
   intros.
   rewrite semax_unfold; intros.
-  iIntros "???" (? (? & ?)) "?".
+  iIntros "? #?" (?? (? & ?)) "??".
   iApply wp_break; by iFrame.
 Qed.
 
@@ -155,7 +155,7 @@ Lemma semax_continue:
 Proof.
   intros.
   rewrite semax_unfold; intros.
-  iIntros "???" (? (? & ?)) "?".
+  iIntros "? #?" (?? (? & ?)) "??".
   iApply wp_continue; by iFrame.
 Qed.
 

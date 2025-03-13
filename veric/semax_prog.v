@@ -43,145 +43,6 @@ Fixpoint match_globvars (gvs: list (ident * globvar type)) (V: varspecs) : bool 
                       end
   end.
 
-Lemma typecheck_temp_environ_i:
- forall (V : varspecs) (G : funspecs)
-   (args : list val) (retty: type)
-   (params temps vars : list (ident * type))
-   (te' : temp_env),
- tc_vals (map snd params) args ->
- list_norepet (map fst params ++ map fst temps) ->
- bind_parameter_temps params args (create_undef_temps temps) = Some te' ->
- typecheck_temp_environ (make_tenv te')
-   (temp_types (make_tycontext params temps vars retty V G nil)).
-Proof.
-intros.
-apply list_norepet_app in H0.
-destruct H0 as [? [? ?]].
-intros id t ?.
-unfold make_tycontext, temp_types in H4.
-unfold make_tycontext_t in H4.
-set (f1 := fun param : ident * type => Maps.PTree.set (fst param) (snd param)) in *.
-set (f2 := fun (temp : ident * type) (tenv : Maps.PTree.tree type) =>
-            let (id, ty) := temp in Maps.PTree.set id ty tenv) in *.
-unfold Map.get, make_tenv.
-(***)
-set (t0 := Maps.PTree.empty type) in *.
-set (v0 := Maps.PTree.empty val) in *.
-assert (Maps.PTree.get id t0 = Some t ->
-   exists v : val, Maps.PTree.get id v0 = Some v /\ tc_val' t v). {
-  subst t0 v0.
-  intros. rewrite Maps.PTree.gempty in H5; inv H5.
-}
-set (t1 := fold_right f2 t0 temps) in *.
-set (v1 := create_undef_temps temps) in *.
-unfold create_undef_temps in v1.
-fold v0 in v1.
-clearbody t0. clearbody v0.
-assert (Maps.PTree.get id t1 = Some t ->
-   exists v : val, Maps.PTree.get id v1 = Some v /\ tc_val' t v). {
-  subst t1 v1.
-  clear - H5.
-  revert t0 v0 H5.
-  induction temps as [|[??]]; simpl; intros.
-  destruct (H5 H) as [v [? ?]].
-  eauto.
-  destruct (ident_eq i id). subst.
-  rewrite Maps.PTree.gss. eexists; split; eauto.
-  intro Hx; contradiction Hx; auto.
-  rewrite -> Maps.PTree.gso by auto.
-  eapply IHtemps; eauto.
-  rewrite Maps.PTree.gso in H; auto.
-}
-clearbody v1. clearbody t1.
-clear H5 t0 v0.
-clear f2.
-clear temps H3 H2.
-revert t1 v1 H4 H6 H1.
-revert args H; induction params as [|[??]]; destruct args; simpl; intros; try contradiction.
-inv H1.
-auto.
-unfold f1 in H4. simpl in H4.
-destruct (ident_eq i id).
-subst i. setoid_rewrite Maps.PTree.gss in H4.
-inv H4.
-exists v.
-destruct H.
-split; [| intro; auto].
-inv H0.
-assert (Maps.PTree.get id (Maps.PTree.set id v v1) = Some v).
-apply Maps.PTree.gss.
-forget (Maps.PTree.set id v v1) as e1.
-clear - H H5 H2 H0 H1.
-revert e1 H args H0 H1 H2; induction params as [|[??]]; destruct args; simpl; intros; try contradiction.
-inv H1. auto.
-destruct H2.
-simpl in H5.
-apply Decidable.not_or in H5.
-destruct H5.
-eapply IHparams; try apply H1; auto.
-rewrite -> Maps.PTree.gso by auto; auto.
-destruct H.
-setoid_rewrite -> Maps.PTree.gso in H4; auto.
-inv H0.
-eapply IHparams; try apply H1; auto.
-eassumption.
-rewrite Maps.PTree.gso; auto.
-Qed.
-
-Lemma typecheck_var_environ_i:
- forall ge (vars : list (ident * type))
-    (ve' : env)
-    (m1 m2 : Memory.mem),
-  list_norepet (map fst vars) ->
- alloc_variables ge empty_env m1 vars ve' m2 ->
- typecheck_var_environ (make_venv ve') (make_tycontext_v vars).
-Proof.
-intros.
-hnf; intros.
-unfold make_tycontext_v, make_venv, Map.get.
-set (f := fun (var : ident * type) (venv : Maps.PTree.tree type) =>
-    let (id0, ty0) := var in Maps.PTree.set id0 ty0 venv).
-transitivity (option_map snd (Maps.PTree.get id ve') = Some ty).
-2:{ destruct (Maps.PTree.get id ve') as [[??]|]; simpl; split; intro.
-     inv H1; exists b; eauto. destruct H1; inv H1; auto.
-     inv H1. destruct H1; inv H1.
-}
-assert ((fold_right f (Maps.PTree.empty type) vars) !! id =
-           option_map snd (ve' !! id)).
-2: rewrite H1; split; auto.
-set (s := Maps.PTree.empty type).
-set (r := empty_env) in *.
-assert (s !! id = option_map snd (r !! id)).
-subst s r.
-unfold empty_env.
-setoid_rewrite (Maps.PTree.gempty _ id).
-reflexivity.
-assert (In id (map fst vars) -> s !! id = None)
-   by (intros; apply Maps.PTree.gempty).
-clearbody r.
-clearbody s.
-induction H0.
-simpl. auto.
-inv H.
-destruct (ident_eq id0 id); simpl in *.
-subst.
-spec H2; auto.
-rewrite -> H2 in *.
-setoid_rewrite -> Maps.PTree.gss.
-clear - H3 H6.
-set (e1 := Maps.PTree.set id (b1, ty0) e) in *.
-transitivity (option_map snd (e1 !! id)).
-subst e1. setoid_rewrite Maps.PTree.gss; reflexivity.
-induction H3. auto.
-simpl in H6.
-apply Decidable.not_or in H6.
-destruct H6.
-setoid_rewrite Maps.PTree.gso in IHalloc_variables; auto.
-setoid_rewrite Maps.PTree.gso; auto.
-apply IHalloc_variables; auto.
-setoid_rewrite Maps.PTree.gso; auto.
-Qed.
-
 Section semax_prog.
 Context (OK_spec : ext_spec OK_ty).
 
@@ -201,18 +62,16 @@ andb
     (compute_list_norepet (map (@fst _ _) (fn_params f) ++ map (@fst _ _) (fn_temps f)))
     (compute_list_norepet (map (@fst _ _) (fn_vars f))).
 
-(* Do we want semax_prog to be defined in the logic (with a fixed heapGS), or outside the logic
-   (universally quantifying over heapGS)? *)
 Definition semax_body
    (V: varspecs) (G: funspecs) {C: compspecs} (f: function) (spec: ident * funspec): Prop :=
 match spec with (_, mk_funspec fsig cc A E P Q) =>
-  fst fsig = map snd (fst (fn_funsig f)) /\
-  snd fsig = snd (fn_funsig f) /\
+  fst fsig = map snd (fn_params f) /\
+  snd fsig = fn_return f /\
 forall OK_spec (x:dtfr A),
   semax OK_spec (E x) (func_tycontext f V G nil)
-      (close_precondition (map fst f.(fn_params)) (argsassert_of (P x)) ∗ stackframe_of f)
+      (close_precondition (map fst f.(fn_params)) (P x) ∗ stackframe_of f)
        f.(fn_body)
-      (frame_ret_assert (function_body_ret_assert (fn_return f) (assert_of (Q x))) (stackframe_of f))
+      (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) (stackframe_of f))
 end.
 
 Definition genv_contains (ge: Genv.t Clight.fundef type) (fdecs : list (ident * Clight.fundef)) : Prop :=
@@ -221,6 +80,8 @@ Definition genv_contains (ge: Genv.t Clight.fundef type) (fdecs : list (ident * 
 
 Lemma genv_prog_contains (ge:genv) fdecs: prog_contains ge fdecs = genv_contains ge fdecs.
 Proof. reflexivity. Qed.
+
+Local Notation funspecs := (@funspecs Σ).
 
 Definition semax_func (V: varspecs) (G: funspecs) {C: compspecs} (ge: Genv.t Clight.fundef type)
        (fdecs: list (ident * Clight.fundef)) (G1: funspecs) : Prop :=
@@ -255,23 +116,23 @@ Proof.
   eapply (semax_func_cenv_sub _ _ CSUB); eassumption.
 Qed.
 
-Definition main_pre (prog: program) (ora: OK_ty) (gv: ident->val) : argsassert :=
-argsassert_of (fun gvals => ⌜gv = genviron2globals (fst gvals) /\ snd gvals=nil⌝
-       ∧ globvars2pred gv (prog_vars prog) ∗ has_ext ora).
+Definition main_pre (prog: program) (ora: OK_ty) (gv: ident->val) : list val -> mpred :=
+fun gvals => <affine> ⌜gvals=nil⌝ ∗ (∀ i b, ⌜gv i = Vptr b Ptrofs.zero⌝ → gvar i b) ∗
+       globvars2pred gv (prog_vars prog) ∗ has_ext ora.
 
-Lemma main_pre_vals_nil {prog ora gv g vals}:
-      main_pre prog ora gv (g, vals) ⊢ ⌜vals=nil⌝.
+Lemma main_pre_vals_nil {prog ora gv vals}:
+      main_pre prog ora gv vals ⊢ ⌜vals=nil⌝.
 Proof.
-  unfold main_pre; simpl. by iIntros "((_ & ->) & _)".
+  unfold main_pre; simpl. by iIntros "(-> & _)".
 Qed.
 
 Definition Tint32s := Tint I32 Signed noattr.
 
-Definition main_post (prog: program) : (ident->val) -> assert :=
-(fun _ => True).
+Definition main_post (prog: program) : (ident->val) -> option val -> mpred :=
+(fun _ _ => True).
 
 Definition main_spec_ext' (prog: program) (ora: OK_ty)
-(post: (ident->val) -> assert): funspec :=
+(post: (ident->val) -> option val -> mpred): funspec :=
 NDmk_funspec (nil, tint) cc_default (ident->val) (main_pre prog ora) post.
 
 Definition main_spec_ext (prog: program) (ora: OK_ty): funspec :=
@@ -314,9 +175,7 @@ forall {C: compspecs}
  V G ge, semax_func(C := C) V G ge nil nil.
 Proof.
 intros; split. constructor. split; [hnf; intros; inv H | intros].
-iIntros (??????? Hclaims).
-destruct Hclaims as (? & Hlookup & ?).
-rewrite Maps.PTree.gempty in Hlookup. discriminate.
+iIntros (??????? (? & Hlookup & _)); done.
 Qed.
 
 Lemma semax_func_cons_aux:
@@ -364,13 +223,20 @@ Proof.
 unfold var_block'. rewrite (cenv_sub_sizeof CSUB); trivial.
 Qed.
 
-Lemma stackframe_of'_cenv_sub {CS CS'} (CSUB: cenv_sub CS CS') f
-  (COMPLETE : Forall (fun it : ident * type => complete_type CS (snd it) = true) (fn_vars f)):
-stackframe_of' CS f = stackframe_of' CS' f .
+Lemma var_block_cenv_sub {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) sh a
+(CT: complete_type (@cenv_cs CS) (@snd ident type a) = true):
+var_block sh (cs := CS) a = var_block sh (cs := CS') a.
 Proof.
-unfold stackframe_of'. forget (fn_vars f) as vars.
+unfold var_block. rewrite (cenv_sub_sizeof CSUB); trivial.
+Qed.
+
+Lemma stackframe_of_cenv_sub {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) f
+  (COMPLETE : Forall (fun it : ident * type => complete_type (@cenv_cs CS) (snd it) = true) (fn_vars f)):
+stackframe_of(cs := CS) f = stackframe_of(cs := CS') f.
+Proof.
+unfold stackframe_of. forget (fn_vars f) as vars.
 induction vars; simpl; trivial.
-inv COMPLETE. rewrite (var_block'_cenv_sub CSUB _ _ H1) IHvars; clear IHvars; trivial.
+inv COMPLETE. rewrite (var_block_cenv_sub CSUB _ _ H1) IHvars; clear IHvars; trivial.
 Qed.
 
 Lemma var_block_cspecs_sub {CS CS'} (CSUB: cspecs_sub CS CS') sh a
@@ -396,7 +262,7 @@ semax_body(C := CS) V G f spec -> semax_body(C := CS') V G f spec.
 Proof.
 destruct spec.
 destruct f0.
-intros [H' [H'' H]]; split3; auto. clear H' H''.
+intros [H' [H'' H]]; split3; [auto..|]. clear H' H''.
 intros.
   specialize (H OK_spec0 x).
 rewrite <- (stackframe_of_cspecs_sub CSUB); [apply (semax_cssub _ CSUB); apply H | trivial].
@@ -469,8 +335,7 @@ destruct H1 as [id' [? [b' [FS' Hbb']]]].
 symmetry in Hbb'; inv Hbb'.
 destruct (eq_dec id id').
  - subst. simpl in H1. setoid_rewrite Maps.PTree.gss in H1.
-   symmetry in H1; inv H1. apply inj_pair2 in H7. apply inj_pair2 in H8. subst Q0 P0. simpl in *.
-   destruct SB. apply list_norepet_app in H. tauto.
+   symmetry in H1; inv H1. destruct fsig; simpl in *. destruct SB as (? & ? & _). subst; tauto.
  - specialize (H0 id); unfold fundef in H0. simpl in H0.  rewrite Hb1 in H0; simpl in H0.
    simpl in FS'.
    elim (Genv.global_addresses_distinct ge' n H0 FS'); trivial.
@@ -483,21 +348,18 @@ apply JMeq_eq in H4a.
 apply JMeq_eq in H4b.
 apply JMeq_eq in H4c.
 subst E0 P0 Q0.
-destruct SB as [X [Y SB]]. specialize (SB OK_spec x). simpl fst in X. simpl snd in Y.
-rewrite <- (stackframe_of'_cenv_sub CSUB); trivial.
+destruct SB as [X [Y SB]]. specialize (SB OK_spec x). destruct fsig. simpl fst in X. simpl snd in Y; subst.
+rewrite <- (stackframe_of_cenv_sub CSUB); trivial.
 iApply (semax'_cenv_sub _ CSUB).
-clear - SB HDelta' X.
-rewrite semax_unfold in SB; rewrite semax_fold_unfold. iIntros (? DD ? [SUB GX]) "BEL".
+clear - SB HDelta'.
+rewrite semax_unfold in SB; rewrite semax_fold_unfold. iIntros (? DD ? [SUB GX]) "!> F BEL".
 assert (HDD: tycontext_sub (func_tycontext f V G nil) DD).
 { unfold func_tycontext, func_tycontext'. simpl.
 eapply tycontext_sub_trans; eauto. }
-iPoseProof (SB with "BEL") as "#SB"; [done..|].
-iIntros (kk F curf ?) "H"; iPoseProof ("SB" with "H") as "#guard".
-rewrite /guard' /_guard.
-iIntros (??) "!>".
-iIntros "H"; iApply "guard".
-rewrite /bind_args; monPred.unseal.
-iDestruct "H" as "($ & ($ & (_ & $) & $) & $)".
+iPoseProof (SB with "F BEL") as "SB"; [done..|].
+iIntros (??) "H E P"; iApply ("SB" with "H E").
+iStopProof; split => ?; rewrite /bind_args; monPred.unseal.
+iIntros "((_ & $) & $)".
 * (***   Vptr b Ptrofs.zero <> v'  ********)
 iApply HG; iPureIntro.
 destruct H1 as [id' [? B]].
@@ -529,11 +391,10 @@ Qed.
 
 Lemma semax_external_FF:
 forall ef A E,
-⊢ semax_external OK_spec ef A E (λne _, monPred_at(I := argsEnviron_index) False : _ -d> _) (λne _, monPred_at(I := environ_index) False : _ -d> _).
+⊢ semax_external OK_spec ef A E (λne _, (λ _, False) : _ -d> _) (λne _, (λ _, False) : _ -d> _).
 Proof.
   intros.
   iIntros (?????) "!> !>"; simpl.
-  monPred.unseal.
   iIntros "(_ & [] & _)".
 Qed.
 
@@ -543,8 +404,8 @@ forall (V: varspecs) (G: funspecs) {C: compspecs} ge fs id ef argsig retsig A E 
   ef_sig ef = mksignature (map argtype_of_type argsig) (rettype_of_type retsig) cc ->
   id_in_list id (map (@fst _ _) fs) = false ->
   (ef_inline ef = false \/ @withtype_empty Σ A) ->
-  (forall gx x (ret : option val),
-     (Q x (make_ext_rval gx (rettype_of_type retsig) ret)
+  (forall x (ret : option val),
+     (Q x (make_ext_rval (rettype_of_type retsig) ret)
         ∧ ⌜Builtins0.val_opt_has_rettype ret (rettype_of_type retsig)⌝
         ⊢ ⌜tc_option_val retsig ret⌝)) ->
   Genv.find_symbol ge id = Some b -> Genv.find_funct_ptr ge b = Some (External ef argsig retsig cc) ->
@@ -579,8 +440,8 @@ unfold believe_external; simpl. destruct (Ptrofs.eq_dec _ _); last contradiction
 unfold fundef in GE2; unfold fundef; simpl; rewrite GE2.
 simpl map.
 iSplit. { iPureIntro; split; trivial. split3; eauto. }
-iSplit; first done.
-iIntros "!>" (??) "?"; iApply Hretty; done.
+iSplit; first iApply H.
+iIntros "!> !>" (??) "?"; iApply Hretty; done.
 +
 (* **   Vptr b Ptrofs.zero <> v'  ********)
 iApply Hf; iPureIntro.
@@ -829,6 +690,8 @@ exists f; eauto.
 right; eauto.
 Qed.
 
+Definition filter_genv (ge : genv) := make_env (Genv.genv_symb ge).
+
 Lemma tc_ge_denote_initial:
 forall vs G (prog: program),
 list_norepet (prog_defs_names prog) ->
@@ -858,7 +721,7 @@ clear - H2. induction l; simpl; auto.
 destruct a. destruct g; simpl in *. destruct H2; auto. right; auto.
 apply IHl; auto.
 destruct (find_funct_ptr_exists prog id fd) as [b [? ?]]; auto.
-exists b; auto.
+exists b; rewrite make_env_spec //.
 *
 unfold filter_genv.
 destruct (match_globvars_in' _ _ _ _ H0 H2) as [g [? ?]].
@@ -866,44 +729,7 @@ apply in_prog_vars_in_prog_defs in H3.
 pose proof (prog_defmap_norepet _ _ _ H H3).
 destruct (proj1 (Genv.find_def_symbol _ _ _) H5)
 as [b [? ?]].
-exists b; auto.
-Qed.
-
-Lemma semax_prog_typecheck_aux:
-forall vs G {C: compspecs} (prog: program) b,
-list_norepet (prog_defs_names prog) ->
-match_globvars (prog_vars prog) vs = true ->
-match_fdecs (prog_funct prog) G ->
-typecheck_environ
-  (Delta1 vs G) (construct_rho (filter_genv (globalenv prog)) empty_env
-    (Maps.PTree.set 1 (Vptr b Ptrofs.zero) (Maps.PTree.empty val))) .
-Proof.
-unfold Delta1; intros.
-unfold construct_rho.
-unfold make_tycontext.
-unfold typecheck_environ.
-unfold ve_of, ge_of, te_of.
-split3.
-*
-unfold temp_types. unfold fst.
-unfold make_tycontext_t.
-unfold fold_right. unfold snd, fst.
-unfold typecheck_temp_environ.
-unfold make_tenv.
-unfold Map.get.
-intros.
-setoid_rewrite Maps.PTree.gsspec in H2; rewrite Maps.PTree.gsspec. if_tac. inv H2.
-+ exists (Vptr b Ptrofs.zero); split; auto. apply tc_val_tc_val'. simpl; auto.
-+ rewrite Maps.PTree.gempty in H2. congruence.
-*
-unfold var_types.
-unfold typecheck_var_environ. intros.
-unfold make_tycontext_v. simpl.
-setoid_rewrite Maps.PTree.gempty.
-intuition. inv H2. destruct H2; inv H2.
-*
-unfold glob_types. unfold make_tycontext_t, snd.
-eapply tc_ge_denote_initial; eauto.
+exists b; rewrite make_env_spec //.
 Qed.
 
 Lemma in_map_sig {A B} (E:forall b b' : B, {b=b'}+{b<>b'} ) y (f : A -> B) l : In y (map f l) -> {x : A | f x = y /\ In x l }.
@@ -947,10 +773,15 @@ induction G as [|(i,t) G]; simpl.
   do 2 if_tac; done.
 Qed.
 
-(**************Adaptation of seplog.funspecs_assert, plus lemmas ********)
+(*(**************Adaptation of seplog.funspecs_assert, plus lemmas ********)
 (*Maybe this definition can replace seplog.funassert globally?. In fact it
   really needs a genviron as parameter, not a genviron * list val*)
 Definition funspecs_gassert (FunSpecs: Maps.PTree.t funspec): argsassert :=
+   (□ (∀ id: ident, ∀ fs:funspec, ⌜Maps.PTree.get id FunSpecs = Some fs⌝ →
+            ∃ b:block, gvar id b ∗ func_at fs (b,0)) ∗
+   (∀ b fsig cc, sigcc_at fsig cc (b, 0) -∗ ∃ id, gvar id b ∗
+           ⌜∃ fs, Maps.PTree.get id FunSpecs = Some fs⌝)).
+
  argsassert_of (fun gargs => let g := fst gargs in
    □ (∀ id: ident, ∀ fs:funspec,  ⌜(FunSpecs!!id = Some fs)%maps⌝ →
             ∃ b:block,⌜Map.get g id = Some b⌝ ∧ func_at fs (b,0)) ∗
@@ -958,7 +789,7 @@ Definition funspecs_gassert (FunSpecs: Maps.PTree.t funspec): argsassert :=
            ⌜∃ id, Map.get g id = Some b ∧ ∃ fs, (FunSpecs!!id)%maps = Some fs⌝)).
 
 (*Maybe this definition can replace Clight_seplog.funassert globally?*)
-Definition fungassert (Delta: tycontext): argsassert := funspecs_gassert (glob_specs Delta).
+Definition fungassert (Delta: tycontext): argsassert := funspecs_gassert (glob_specs Delta).*)
 
 Lemma believe_cs_ext:
  forall CS Delta ge1 ge2 Delta',
@@ -986,6 +817,41 @@ Proof.
   iPureIntro; by apply H.
 Qed.
 
+Lemma believe_exists_fundef':
+  forall {CS}
+    {b : block} {id_fun : ident} {psi : genv} {Delta : tycontext}
+    {fspec: funspec}
+  (Findb : Genv.find_symbol (genv_genv psi) id_fun = Some b)
+  (H3: (glob_specs Delta) !! id_fun = Some fspec),
+  (⊢ believe(CS := CS) OK_spec Delta psi Delta) ->
+  {f : Clight.fundef | Genv.find_funct_ptr (genv_genv psi) b = Some f /\
+   type_of_fundef f = type_of_funspec fspec}.
+Proof.
+  intros.
+  destruct fspec as [fsig cc A E P Q].
+  simpl.
+  destruct (Genv.find_funct_ptr psi b) as [f|] eqn:Eb; swap 1 2.
+  { assert (⊢ False : mpred) as HF; last by apply ouPred.consistency in HF.
+    iIntros.
+    pose proof (monPred_in_entails _ _ H O) as Bel.
+    rewrite monPred_at_emp in Bel; iPoseProof (Bel with "[//]") as "H".
+    rewrite /believe; monPred.unseal.
+    iDestruct ("H" with "[//] [%]") as "[BE | BI]".
+    { exists id_fun; eauto. }
+    + unfold believe_external.
+      unfold Genv.find_funct in *. rewrite -> if_true by trivial.
+      rewrite Eb //.
+    + unfold believe_internal; monPred.unseal.
+      iDestruct "BI" as (b' fu (? & ? & ? & ? & ? & ? & ? & ?)) "_"; congruence. }
+  exists f; split; auto.
+  eapply believe_exists_fundef in H3; last done.
+  rewrite -H in H3.
+  pose proof (monPred_in_entails _ _ H3 O) as H'; rewrite monPred_at_emp monPred_at_pure in H'.
+  apply (ouPred.soundness _ O) in H' as (? & Hb & Hty).
+  rewrite Hb in Eb; inv Eb.
+  rewrite Hty; destruct fsig; done.
+Qed.
+
 Lemma semax_prog_entry_point {CS: compspecs} V G prog b id_fun params args A
    (E: dtfr (MaskTT A))
    (P: dtfr (ArgsTT A))
@@ -998,7 +864,6 @@ Lemma semax_prog_entry_point {CS: compspecs} V G prog b id_fun params args A
   find_id id_fun G =
      Some (mk_funspec (params, retty) cc_default A E P Q) ->
   tc_vals params args ->
-  let gargs := (filter_genv (globalenv prog), args) in
   { q : CC_core |
    (forall m,
 (*     Forall (fun v => Val.inject (Mem.flat_inj (nextblock m)) v v)  args->*)
@@ -1008,7 +873,7 @@ Lemma semax_prog_entry_point {CS: compspecs} V G prog b id_fun params args A
     m q m' (Vptr b Ptrofs.zero) args) /\
 
   forall (a: dtfr A),
-    <absorb> P a gargs ∗ fungassert (nofunc_tycontext V G) gargs ⊢
+    <absorb> P a args ∗ funassert (nofunc_tycontext V G) ⊢
     jsafeN OK_spec (globalenv prog) (E a) z q }.
 Proof.
 intro retty.
@@ -1057,7 +922,7 @@ assert (HGG: cenv_sub (@cenv_cs CS) (globalenv prog)).
    apply Maps.PTree.elements_complete. congruence.
  }
 
-assert (⊢ ▷ (<absorb> P a (filter_genv psi, args) ∗ fungassert Delta (filter_genv psi, args) -∗
+assert (⊢ ▷ (<absorb> P a args ∗ funassert Delta -∗
   jsafeN OK_spec psi (E a) z (Clight_core.Callstate f args Kstop))) as Hsafe; last by apply bi.wand_entails, ouPred.later_soundness.
 iIntros.
 iPoseProof Prog_OK as "#Prog_OK".

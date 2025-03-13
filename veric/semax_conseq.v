@@ -18,10 +18,10 @@ Require Import VST.veric.semax.
 Require Import VST.veric.semax_lemmas.
 Require Import VST.veric.Clight_lemmas.
 
-(* This file contains two parts:
+(* This file contains three parts:
    1. Proof of semax_conseq.
    2. Deriving simpler and older version of consequence rules from semax_conseq.
-   3. semax_extract_pre, and proof of semax_adapt_frame rules from semax_conseq, and 2 specializations of semax_adapt_frame. *)
+   3. proof of semax_adapt_frame rules from semax_conseq, and 2 specializations of semax_adapt_frame. *)
 
 (* Part 1: Proof of semax_conseq *)
 
@@ -38,43 +38,6 @@ Qed.
 
 (* After deep embedded hoare logic (SL_as_Logic) is ported, maybe the frame does not need to be
    quantified in the semantic definition of semax. *)
-
-(*Lemma assert_safe_fupd':
-  forall gx vx tx E (P: assert) Delta f k rho,
-    match k with Ret _ _ => False | _ => True end ->
-    let PP1 := ⌜guard_environ Delta f rho⌝ in
-    let PP2 := funassert Delta rho in
-    (PP1 ∧ P rho ∗ PP2 -∗ assert_safe OK_spec gx E f vx tx k rho) ⊣⊢
-    (PP1 ∧ (|={E}=> P rho) ∗ PP2 -∗ assert_safe OK_spec gx E f vx tx k rho).
-Proof.
-  intros.
-  iSplit.
-  * iIntros "H (% & P & ?)".
-    iApply assert_safe_fupd; first done; iMod "P"; iApply "H"; auto.
-    by iFrame.
-  * iIntros "H (% & P & ?)"; iApply "H"; auto.
-    by iFrame.
-Qed.
-
-Lemma assert_safe_fupd:
-  forall gx vx tx rho E (F P: assert) Delta f k,
-    match k with Ret _ _ => False | _ => True end ->
-    let PP1 := ⌜guard_environ Delta f rho⌝ in
-    let PP2 := funassert Delta rho in
-    (PP1 ∧ (F ∗ P) rho ∗ PP2 -∗
-    assert_safe OK_spec gx E f vx tx k rho) ⊣⊢
-    (PP1 ∧ (F ∗ |={E}=> P) rho ∗ PP2 -∗
-    assert_safe OK_spec gx E f vx tx k rho).
-Proof.
-  intros.
-  iSplit.
-  * iIntros "H (% & P & ?)".
-    rewrite (assert_safe_fupd' _ _ _ _ (F ∗ P)); last done.
-    iApply "H"; iFrame "%"; iFrame.
-    monPred.unseal; by iDestruct "P" as "($ & >$)".
-  * iIntros "H (% & P & ?)"; iApply "H"; iFrame.
-    iFrame "%"; monPred.unseal; by iDestruct "P" as "($ & $)".
-Qed. *)
 
 Lemma fupd_fupd_frame_l : forall E (P Q : assert), (|={E}=> (P ∗ |={E}=> Q)) ⊣⊢ |={E}=> (P ∗ Q).
 Proof.
@@ -97,16 +60,16 @@ Proof.
   repeat intro; subst.
   rewrite !semax_unfold.
   split; intros.
-  - iIntros "E F B" (??) "H".
+  - iIntros "F B" (???) "E H".
     rewrite -H.
-    (* rewrite -H1. should work, given the following *)
-    iApply wp_proper; last by iApply (H0 with "E F B").
+    Fail rewrite -H1.
+    iApply wp_proper; last by iApply (H0 with "F B [//] E").
     apply Clight_seplog.frame_ret_assert_proper; last done.
     apply env_ret_assert_proper.
     symmetry in H1; apply H1.
-  - iIntros "E F B" (??) "H".
+  - iIntros "F B" (???) "E H".
     rewrite H.
-    iApply wp_proper; last by iApply (H0 with "E F B").
+    iApply wp_proper; last by iApply (H0 with "F B [//] E").
     apply Clight_seplog.frame_ret_assert_proper; last done.
     apply env_ret_assert_proper.
     apply H1.
@@ -127,39 +90,39 @@ Lemma semax'_conseq {CS: compspecs}:
    semax' OK_spec E Delta P' c R' ⊢ semax' OK_spec E Delta P c R.
 Proof.
   intros.
-  rewrite /semax'.
-  iIntros "H" (??? [??] ?).
-  iIntros "E F #B" (? (? & ?)) "P".
+  rewrite !semax_fold_unfold.
+  iIntros "#H" (??? [??]).
+  iIntros "!> F #B" (?? (? & ?)) "E P".
   iDestruct (funassert_allp_fun_id_sub with "F") as "(#? & F)"; first done.
   assert (typecheck_environ Delta rho) by (by eapply typecheck_environ_sub).
   eapply monPred_in_entails in H; rewrite monPred_at_fupd in H.
   iMod (H with "[P]").
   { rewrite !monPred_at_sep monPred_at_affinely monPred_at_intuitionistically monPred_at_embed /=; iFrame.
     iSplit; iIntros "!>"; auto. }
-  rewrite -wp_conseq; first by iApply ("H" with "[%] [$] [$] [] [%] [$]").
+  rewrite -wp_conseq; first by iApply ("H" with "[%] [$] [$] [//] [$] [$]").
   all: destruct R, R'; simpl in *.
-  - iIntros "((%rho' & R & % & $) & F)".
+  - iIntros "((%rho' & R & (% & %) & $) & F)".
     assert (typecheck_environ Delta rho') by (by eapply typecheck_environ_sub).
     iDestruct (funassert_allp_fun_id_sub with "F") as "(#? & F)"; first done.
     eapply monPred_in_entails in H0; rewrite monPred_at_fupd in H0.
     iMod (H0 with "[R]") as "$"; auto.
     rewrite !monPred_at_sep monPred_at_affinely monPred_at_intuitionistically monPred_at_embed /=; iFrame.
     iSplit; iIntros "!>"; auto.
-  - iIntros "((%rho' & R & % & $) & F)".
+  - iIntros "((%rho' & R & (% & %) & $) & F)".
     assert (typecheck_environ Delta rho') by (by eapply typecheck_environ_sub).
     iDestruct (funassert_allp_fun_id_sub with "F") as "(#? & F)"; first done.
     eapply monPred_in_entails in H1; rewrite monPred_at_fupd in H1.
     iMod (H1 with "[R]") as "$"; auto.
     rewrite !monPred_at_sep monPred_at_affinely monPred_at_intuitionistically monPred_at_embed /=; iFrame.
     iSplit; iIntros "!>"; auto.
-  - iIntros "((%rho' & R & % & $) & F)".
+  - iIntros "((%rho' & R & (% & %) & $) & F)".
     assert (typecheck_environ Delta rho') by (by eapply typecheck_environ_sub).
     iDestruct (funassert_allp_fun_id_sub with "F") as "(#? & F)"; first done.
     eapply monPred_in_entails in H2; rewrite monPred_at_fupd in H2.
     iMod (H2 with "[R]") as "$"; auto.
     rewrite !monPred_at_sep monPred_at_affinely monPred_at_intuitionistically monPred_at_embed /=; iFrame.
     iSplit; iIntros "!>"; auto.
-  - intros; iIntros "((%rho' & R & % & $) & F)".
+  - intros; iIntros "((%rho' & R & (% & %) & $) & F)".
     assert (typecheck_environ Delta rho') by (by eapply typecheck_environ_sub).
     iDestruct (funassert_allp_fun_id_sub with "F") as "(#? & F)"; first done.
     eapply monPred_in_entails in H3; rewrite monPred_at_fupd in H3.

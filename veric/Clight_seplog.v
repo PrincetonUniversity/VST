@@ -40,29 +40,11 @@ Context `{!heapGS Σ} `{!envGS Σ}.
 
 Local Notation assert := (@assert Σ).
 
-Definition var_block (sh: Share.t) {cs: compspecs} (idt: ident * type): assert :=
-  ⌜sizeof (snd idt) <= Ptrofs.max_unsigned⌝ ∧
-  ∃ b, lvar (fst idt) (snd idt) b ∗ ⎡memory_block sh (sizeof (snd idt)) (Vptr b Ptrofs.zero)⎤.
-
-Definition stackframe_of {cs: compspecs} (f: Clight.function) : assert :=
-  fold_right bi_sep emp (map (fun idt => var_block Share.top idt) (Clight.fn_vars f)).
-
-(*Lemma subst_derives:
- forall a v (P Q : assert), (P ⊢ Q) -> assert_of (subst a v P) ⊢ assert_of (subst a v Q).
-Proof.
-  exact subst_extens.
-Qed.*)
-
 Definition tc_formals (formals: list (ident * type)) : assert :=
   ∃ vals, ([∗ list] i;v ∈ map fst formals;vals, temp i v) ∧
     ⌜tc_vals (map snd formals) vals⌝.
 
 (*This definition, and some lemmas below, could be moved to general_seplog*)
-
-Definition close_precondition (bodyparams: list ident) 
-    (P: list val -> mpred) : assert :=
- ∃ vals, ⌜Forall (fun v : val => v <> Vundef) vals⌝ ∧
-   ([∗ list] i;v ∈ bodyparams;vals, temp i v) ∗ ⎡P vals⎤.
 
 (*Definition precondition_closed (fs: list (ident*type)) {A}
   (P: A -> assert) : Prop :=
@@ -78,9 +60,6 @@ Lemma close_precondition_e':
         Forall (fun v : val => v <> Vundef) vals⌝ ∧
    P (ge_of rho, vals).
 Proof. trivial. Qed. *)
-
-Global Instance close_precondition_proper p : Proper (pointwise_relation _ base.equiv ==> base.equiv) (close_precondition p).
-Proof. solve_proper. Qed.
 
 Lemma Forall_eval_id_get: forall {vals: list val} (V:Forall (fun v : val => v = Vundef -> False) vals), 
   forall ids rho, map (fun i => lookup i (te_of rho)) ids = map Some vals <-> map (fun i : ident => eval_id i rho) ids = vals.
@@ -104,10 +83,6 @@ unfold close_precondition.
 apply bi.exist_proper; intros vals; apply bi.and_proper; last done; apply bi.pure_proper; intuition;
   apply (Forall_eval_id_get); trivial.
 Qed.*)
-
-Definition bind_args (bodyparams: list (ident * type)) (P: list val -> mpred) : assert :=
-  <absorb> tc_formals bodyparams
-     ∧ close_precondition (map fst bodyparams) P.
 
 Definition ret_temp : ident := 1%positive.
 
