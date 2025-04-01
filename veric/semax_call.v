@@ -511,6 +511,41 @@ Proof.
     rewrite bi.pure_True // bi.affinely_True_emp bi.emp_sep //.
 Qed.
 
+(*Lemma semax_call_aux0 {CS'}
+  E (Delta : tycontext) (psi : genv) (ora : OK_ty) (b : block) (id : ident) cc
+  A0 P (x : dtfr A0) A nE deltaP deltaQ retty clientparams
+  (F0 : assert) F (ret : option ident) (curf: function) args
+  (R : ret_assert) (vx:env) (tx:Clight.temp_env) (k : cont) (rho : environ)
+
+  (Spec: (glob_specs Delta)!!id = Some (mk_funspec (clientparams, retty) cc A nE deltaP deltaQ))
+  (FindSymb: Genv.find_symbol psi id = Some b)
+  (TCRet: tc_fn_return Delta ret retty)
+  (GuardEnv: guard_environ Delta curf rho)
+  (Hretty: retty=Tvoid -> ret=None)
+  (Closed: closed_wrt_vars (thisvar ret) F0)
+  (CSUB: cenv_sub (@cenv_cs CS') (genv_cenv psi))
+  (Hrho: rho = construct_rho (filter_genv psi) vx tx)
+  (ff : Clight.fundef) (H16 : Genv.find_funct psi (Vptr b Ptrofs.zero) = Some ff)
+  (H16' : type_of_fundef ff = type_of_funspec (mk_funspec (clientparams, retty) cc A nE deltaP deltaQ))
+  (TC8 : tc_vals clientparams args)
+  ctl (Hcont : call_cont ctl = ctl)
+  (Hctl : ∀ ret0 z', assert_safe OK_spec psi E curf vx (set_opttemp ret (force_val ret0) tx)
+             (exit_cont EK_normal None k)  (construct_rho (filter_genv psi) vx (set_opttemp ret (force_val ret0) tx)) ⊢
+    jsafeN OK_spec psi E z' (Returnstate (force_val ret0) ctl)):
+  □ believe OK_spec Delta psi Delta -∗
+  ▷ (F0 rho ∗ F rho ∗ P x (ge_of rho, args) -∗
+     funassert Delta rho -∗
+     □ ■ (F rho ∗ P x (ge_of rho, args) ={E}=∗
+                          ∃ (x1 : dtfr A) (F1 : assert),
+                            ⌜nE x1 ⊆ E⌝ ∧ (F1 rho ∗ deltaP x1 (ge_of rho, args))
+                            ∧ (∀ rho' : environ,
+                                 ■ ((∃ old:val, substopt ret (`old) F1 rho' ∗ maybe_retval (assert_of (deltaQ x1)) retty ret rho') -∗
+                                    RA_normal R rho'))) -∗
+  <affine> rguard OK_spec psi E Delta curf (frame_ret_assert R F0) k -∗
+  jsafeN OK_spec psi E ora (Callstate ff args ctl)).
+Proof.
+Qed.*)
+
 Lemma semax_call_si:
   forall E Delta (A: TypeTree) (Ef : dtfr (MaskTT A))
    (P : dtfr (ArgsTT A))
@@ -561,19 +596,22 @@ Proof.
   { exists id; eauto. }
   assert (cenv_sub (@cenv_cs CS) psi) by (eapply cenv_sub_trans; eauto).
   pose proof (typecheck_environ_sub _ _ TS _ TC') as TC.
+  iApply wp_call.
+  iApply (wp_tc_expr(CS := CS) with "E"); [done..|].
+  iSplit; first by rewrite !bi.and_elim_l; auto.
+  iIntros "E" (?).
+  iExists _, _, _; iSplit; first done.
+  iApply (wp_tc_exprlist(CS := CS) with "E"); [done..|].
+  iSplit; first by rewrite bi.and_elim_l bi.and_elim_r; auto.
+  iIntros "E" (TCargs Hlen).
   iDestruct "B'" as "[BE|BI]".
-  - iApply wp_extcall.
-    iApply (wp_tc_expr(CS := CS) with "E"); [done..|].
-    iSplit; first by rewrite !bi.and_elim_l; auto.
-    iIntros "E" (?).
-    rewrite /believe_external Ha Genv.find_funct_find_funct_ptr.
+  - rewrite /believe_external Ha Genv.find_funct_find_funct_ptr.
     destruct (Genv.find_funct_ptr psi b) as [[|]|] eqn: Hb; try by rewrite embed_pure.
     iDestruct "BE" as (([=] & -> & Hsig & Hinline)) "(BE & TCPost)"; subst.
-    iExists _, _, _, _; iSplit; first by iPureIntro; eauto.
-    iApply (wp_tc_exprlist(CS := CS) with "E"); [done..|].
-    iSplit; first by rewrite bi.and_elim_l bi.and_elim_r; auto.
-    rewrite /semax_external.
-    iIntros "E" (TCargs) "!>".
+    iExists _; iSplit; first iPureIntro.
+    { eexists; split; first done; split3; eauto; done. }
+    rewrite /= /semax_external /external_call_assert.
+    iNext.
     iDestruct "Pre" as "(_ & _ & Frame & Pre)".
     iMod (fupd_mask_subseteq (Ef x)) as "Hclose"; first done.
     iMod ("sub" with "[$Pre]") as (fx F0 ?) "((F0 & Pre) & #Post)".
@@ -638,27 +676,21 @@ Proof.
       iExists v; iSplit; first by iPureIntro; apply tc_val_tc_val'; destruct t.
       rewrite /make_ext_rval.
       destruct t; try destruct i, s; try destruct f; try (specialize (TC5 eq_refl)); iFrame; first done; destruct v; contradiction.
-  - iApply wp_call.
-    iApply (wp_tc_expr(CS := CS) with "E"); [done..|].
-    iSplit; first by rewrite !bi.and_elim_l; auto.
-    iIntros "E" (?).
-    iDestruct "BI" as (?? (Ha' & ? & Hcomplete & ? & ? & Hvars & [=] & <-)) "BI".
+  - iDestruct "BI" as (?? (Ha' & ? & Hcomplete & ? & ? & Hvars & [=] & <-)) "BI".
     rewrite Ha' in Ha; inv Ha.
-    iExists f; iSplit.
-    { iPureIntro; exists b; split3; auto; split3; auto.
+    iExists _; iSplit.
+    { iPureIntro; exists b; split3; eauto; split3; auto.
       { eapply Forall_impl; first apply Hcomplete.
         intros; by apply complete_type_cenv_sub. }
-      split3; auto.
+      split3; auto; split.
       { rewrite /var_sizes_ok !Forall_forall in Hcomplete Hvars |- *.
-        intros; rewrite cenv_sub_sizeof //; auto. } }
-    iApply (wp_tc_exprlist(CS := CS) with "E"); [done..|].
-    iSplit; first by rewrite bi.and_elim_l bi.and_elim_r; auto.
-    iIntros "E" (TCargs).
-    exploit tc_vals_length; first done; intros Hlen; rewrite -Hlen map_length; iSplit; first done.
+        intros; rewrite cenv_sub_sizeof //; auto. }
+      { rewrite Hlen map_length //. } }
     iSpecialize ("BI" with "[%] [%]").
     { intros; apply tycontext_sub_refl. }
     { apply cenv_sub_refl. }
     iNext.
+    rewrite /= /internal_call_assert.
     iStopProof; split => n; simpl.
     rewrite !monPred_at_sep -assert_of_eq
       monPred_at_intuitionistically monPred_at_affinely !monPred_at_and
@@ -691,7 +723,7 @@ Proof.
           lookup i (te_of rho0) = Some v) as Hte.
     { intros ??? Hn.
       pose proof (lookup_lt_Some _ _ _ Hn) as Hlt.
-      rewrite map_length in Hlen; rewrite Hlen in Hlt.
+      rewrite map_length in Hlen; rewrite -Hlen in Hlt.
       apply lookup_lt_is_Some_2 in Hlt as (? & ?).
       eexists; split; first done.
       destruct Hrho as (_ & _ & ->).
@@ -715,7 +747,7 @@ Proof.
           rewrite Hte0; apply elem_of_list_to_map; first done.
           apply elem_of_zip_gen.
           exists (length (fn_params f) + i)%nat.
-          rewrite !lookup_app_r; rewrite -?Hlen ?map_length; try lia.
+          rewrite !lookup_app_r; rewrite ?Hlen ?map_length; try lia.
           rewrite !Nat.add_sub' list_lookup_fmap Hi; split; first done.
           rewrite repeat_lookup if_true //.
       + intros ??; rewrite make_tycontext_v_sound //.
@@ -750,11 +782,11 @@ Proof.
         rewrite /tc_formals.
         match goal with H: tc_vals _ ?A |- tc_vals _ ?B => replace B with A; auto end.
         eapply list_eq_same_length; eauto.
-        { rewrite -Hlen !map_length //. }
+        { rewrite Hlen !map_length //. }
         intros ?????.
         rewrite list_lookup_fmap; destruct (lookup i (fn_params f)) as [(?, ?)|] eqn: Hi; inversion 1; subst.
         rewrite /eval_id.
-        apply Hte in Hi as (? & ? & ->); simpl; congruence.
+        apply Hte in Hi as (? & ? & ->); unfold type_of_params in *; simpl; congruence.
       + rewrite ofe_morO_equivI; iSpecialize ("HP" $! fx).
         rewrite discrete_fun_equivI; iSpecialize ("HP" $! (eval_exprlist (map snd (fn_params f)) bl rho)).
         Fail iRewrite -"HP" in "Pre".
@@ -763,7 +795,7 @@ Proof.
         iFrame; iPureIntro.
         split; last done; split.
         * rewrite map_map; eapply list_eq_same_length; eauto.
-          { rewrite !map_length -Hlen map_length //. }
+          { rewrite !map_length Hlen map_length //. }
           intros ????.
           rewrite !list_lookup_fmap; destruct (lookup i (fn_params f)) as [(?, ?)|] eqn: Hi; inversion 1; subst.
           apply Hte in Hi as (? & He & ->).

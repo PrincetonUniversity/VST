@@ -1326,16 +1326,16 @@ Lemma alloc_stackframe:
       list_norepet (map fst (fn_params f) ++ map fst (fn_temps f)) ->
       bind_parameter_temps (fn_params f) args
                      (create_undef_temps (fn_temps f)) = Some te ->
-      (snd ρ !! (S n) = None)%stdpp ->
+      (snd ρ !! n = None)%stdpp ->
       mem_auth m ∗ env_auth ρ ⊢ |==> ∃ m' ve lb, ⌜Clight.alloc_variables ge empty_env m (fn_vars f) ve m' ∧
         typecheck_var_environ (make_env ve) (make_tycontext_v (fn_vars f))⌝ ∧
-        mem_auth m' ∗ env_auth (alloc_vars (make_env ve) (make_env te) (S n) ρ) ∗
-        stackframe_of1 f lb (args ++ repeat Vundef (length (fn_temps f))) (S n).
+        mem_auth m' ∗ env_auth (alloc_vars (make_env ve) (make_env te) n ρ) ∗
+        stackframe_of1 f lb (args ++ repeat Vundef (length (fn_temps f))) n.
 Proof.
   intros.
   cut (mem_auth m ∗ env_auth ρ ⊢ |==> ∃ (m' : Memory.mem) (ve : env) lb,
     ⌜(∀i, sub_option (empty_env !! i)%maps (ve !! i)%maps) ∧ alloc_variables ge empty_env m (fn_vars f) ve m'⌝
-    ∧ mem_auth m' ∗ env_auth (alloc_vars (make_env ve) (make_env te) (S n) ρ) ∗ stackframe_of1 f lb (args ++ repeat Vundef (length (fn_temps f))) (S n)).
+    ∧ mem_auth m' ∗ env_auth (alloc_vars (make_env ve) (make_env te) n ρ) ∗ stackframe_of1 f lb (args ++ repeat Vundef (length (fn_temps f))) n).
   { intros Hgen; rewrite Hgen; iIntros ">(% & % & % & (% & %) & ?) !>".
     iExists _, _; iFrame; iPureIntro; split3; split; eauto.
     eapply alloc_vars_typecheck_environ; eauto. }
@@ -1540,175 +1540,193 @@ Proof.
       apply Htop; simpl; lia.
 Qed.
 
+Lemma guarded_frame_ret0 : forall E f k ty (Q : option val → assert) R
+  (Hret : ∀ ve te, cont_to_state f ve te k = Some (State f (Sreturn None) k ve te))
+  (Hk : call_cont k = k),
+  (∀ ret, wp_expr_opt E f (option_map (λ e, Ecast e f.(fn_return)) ret) (λ vl, (⌜match vl with Some v => tc_val ty v | None => ty = Tvoid end⌝ ∧ Q vl) ∗ R) (stack_depth k) -∗
+        assert_safe E f (Some (Kseq (Sreturn ret) k))) -∗
+  guarded E f k (frame_ret_assert (function_body_ret_assert ty Q) R).
+Proof.
+  intros.
+  iIntros "H"; rewrite /guarded /= /bind_ret; monPred.unseal.
+  iSplit.
+  - iSpecialize ("H" $! None); iStopProof; f_equiv.
+    rewrite /assert_safe; do 10 f_equiv.
+    rewrite /option_bind Hret //.
+  - repeat (iSplit; first by iIntros "([] & ?)").
+    rewrite Hk //.
+Qed.
+
 Lemma guarded_frame_ret : forall E f i f0 ve te k ty (Q : option val → assert) R,
   (∀ ret, wp_expr_opt E f (option_map (λ e, Ecast e f.(fn_return)) ret) (λ vl, (⌜match vl with Some v => tc_val ty v | None => ty = Tvoid end⌝ ∧ Q vl) ∗ R) (S (stack_depth k)) -∗
         assert_safe E f (Some (Kseq (Sreturn ret) (Kcall i f0 ve te k)))) -∗
   guarded E f (Kcall i f0 ve te k) (frame_ret_assert (function_body_ret_assert ty Q) R).
 Proof.
-  intros.
-  iIntros "H"; rewrite /guarded /= /bind_ret; monPred.unseal.
-  iSplit.
-  - iApply ("H" $! None).
-  - repeat (iSplit; first by iIntros "([] & ?)").
-    done.
+  intros; by apply (guarded_frame_ret0 _ _ (Kcall _ _ _ _ _)).
+Qed.
+
+Lemma eval_exprlist_length : forall ge ve te m es ts vs,
+  Clight.eval_exprlist ge ve te m es ts vs -> length es = length ts /\ length vs = length ts.
+Proof.
+  induction 1; auto; simpl.
+  by destruct IHeval_exprlist as [-> ->].
 Qed.
 
 (* Under most circumstances stack_retainer can be framed out, but we might need it
    to do whole-stackframe reasoning. *)
-Lemma wp_call: forall E f0 i e es R,
-  wp_expr ge E f0 e (λ v, ∃ f, ⌜exists b, v = Vptr b Ptrofs.zero /\ Genv.find_funct_ptr ge b = Some (Internal f) /\
-    classify_fun (typeof e) =
-    fun_case_f (type_of_params (fn_params f)) (fn_return f) (fn_callconv f) /\
-    Forall (fun it => complete_type (genv_cenv ge) (snd it) = true) (fn_vars f)
-                 /\ list_norepet (map fst f.(fn_params) ++ map fst f.(fn_temps))
-                 /\ list_norepet (map fst f.(fn_vars)) /\ var_sizes_ok (genv_cenv ge) (f.(fn_vars))⌝ ∧
-    wp_exprs E f0 es (type_of_params (fn_params f)) (λ vs, ⌜length vs = length f.(fn_params)⌝ ∧
-       ▷ up1 (stack_retainer f -∗ stackframe_of' ge f (vs ++ repeat Vundef (length f.(fn_temps))) -∗
-         ▷ wp E f f.(fn_body) (frame_ret_assert
-      (function_body_ret_assert f.(fn_return) (λ vl, match i with Some id => down1 ((∃ v0, temp id v0) ∗ (temp id (val_lemmas.force_val vl) -∗ RA_normal R)) | _ => down1 (RA_normal R) end))
-      (stack_retainer f ∗ ∃ vs, stackframe_of' ge f vs))))) ⊢
-  wp E f0 (Scall i e es) R.
+Definition internal_call_assert E f args ret R := up1 (stack_retainer f -∗ stackframe_of' ge f (args  ++ repeat Vundef (length f.(fn_temps))) -∗
+  ▷ wp E f f.(fn_body) (frame_ret_assert (function_body_ret_assert f.(fn_return)
+      (λ vl, match ret with Some id => down1 ((∃ v0, temp id v0) ∗ (temp id (val_lemmas.force_val vl) -∗ RA_normal R)) | _ => down1 (RA_normal R) end))
+      (stack_retainer f ∗ ∃ vs, stackframe_of' ge f vs)))%I.
+
+Lemma internal_call_assert_mask_mono : forall E1 E2 f args ret R, E1 ⊆ E2 →
+  internal_call_assert E1 f args ret R ⊢ internal_call_assert E2 f args ret R.
 Proof.
-  intros; rewrite /wp.
-  iIntros "H %%% #Hd Hk" (????) "Hr (%Hmatch & %Hstack & %Htop) %Hty".
-  iApply jsafe_step.
-  rewrite /jstep_ex /wp_expr /wp_exprs /=.
-  iIntros (?) "(Hm & Ho)".
-  iMod (fupd_mask_subseteq E) as "Hclose"; first done.
-  iMod ("H" with "Hm Hr") as ">(% & He & Hm & Hr & %f & %Hb & H)"; [done..|].
-  destruct Hb as (b & -> & Hb & ? & ? & ? & ? & ?).
-  iMod ("H" with "Hm Hr") as (vs) "(Hes & Hm & Hr & % & H)"; [done..|].
-  iMod "Hclose" as "_"; rewrite embed_fupd; iIntros "!>".
-  iPoseProof (env_match_intro with "Hd") as "#?"; first done.
-  iDestruct ("He" with "[$]") as %He; iDestruct ("Hes" with "[$]") as %Hes.
-  pose proof (typecheck_var_match_venv _ _ Hty).
-  iExists _, _; iSplit.
-  { iPureIntro; econstructor; eauto. }
-  iFrame.
-  iNext.
-  iApply jsafe_step.
-  rewrite /jstep_ex.
-  rewrite embed_fupd; iIntros "!>" (?) "(Hm & Ho)".
-  destruct (build_call_temp_env f vs) as (le & ?); first done.
-  iMod (alloc_stackframe _ _ (stack_depth k) with "[$Hm $Hr]") as (m' ve' lb (? & ?)) "(Hm & Hr & Hstack)"; [try done..|].
-  { auto. }
-  rewrite embed_fupd; iIntros "!>".
-  iExists _, _; iSplit.
-  { iPureIntro; econstructor; eauto.
-    econstructor; eauto.
-    * eapply list_norepet_append_left; eauto.
-    * apply list_norepet_append_inv; auto. }
-  iFrame.
-  iDestruct "Hd" as "-#?"; iClear "#".
-  iStopProof; split => ?; rewrite /stack_level; monPred.unseal; rewrite !monPred_at_affinely.
-  iIntros "(Hk & H & Hr & Hstack & %Hn)"; inv Hn.
-  iPoseProof (monPred_in_entails with "Hstack") as "Hstack"; first by apply stackframe_of_eq1'.
-  rewrite monPred_at_sep; iDestruct "Hstack" as "(? & ?)".
-  iApply ("H" with "[//] [$] [//] [$] [//] [//] [//] [] [//] [Hk] [$Hr //] [%]").
-  { rewrite monPred_at_affinely; done. }
-  2: { by apply stack_matches'_alloc. }
-  2: { done. }
-  iApply guarded_frame_ret; simpl.
-  iIntros "!>" (?) "Hret".
-  iIntros (????) "Hr (%Henv' & %Hstack') %Hty'".
-  iApply jsafe_step; rewrite /jstep_ex.
-  iIntros (?) "(Hm & Ho)".
-  destruct ret; simpl.
-  - rewrite /wp_expr; monPred.unseal.
-    iMod ("Hret" with "[//] [$] [//] [$]") as ">(% & Hret & ? & ? & (% & H) & (Hstack & %vs' & Hstack'))".
-    iPoseProof (monPred_in_entails with "[Hstack Hstack']") as "Hstack"; first by apply (stackframe_of_eq' f vs').
-    { rewrite monPred_at_sep; iFrame. }
-    rewrite monPred_at_exist; iDestruct "Hstack" as (?) "Hstack".
-    iMod (free_stackframe with "[$]") as (m'' ?) "(Hm & ?)"; [done..|].
-    rewrite monPred_at_affinely; iDestruct "Hret" as %Hret.
-    pose proof (typecheck_var_match_venv _ _ Hty') as Hmatch'.
-    specialize (Hret _ _ _ eq_refl Henv' Hmatch'); inv Hret.
-    2: { inv H12. }
-    iIntros "!>".
-    iExists _, _; iSplit.
-    { iPureIntro; econstructor; eauto. }
-    iFrame.
-    iNext.
-    iApply jsafe_local_step.
-    { intros; constructor. }
-    iIntros "!> !>"; simpl.
-    destruct i; simpl.
-    + iDestruct "H" as "((% & Hi) & H)".
-      iDestruct (temp_e with "[$]") as %Hi.
-      iMod (temp_update with "[$]") as "(? & ?)".
-      iDestruct ("H" with "[//] [$]") as "H".
-      iApply safe_skip; last by (iFrame; iDestruct "Hk" as "(Hk & _)"; iApply "Hk").
-      * done.
-      * apply (stack_matches'_set _ _ _ (Some k)); first by eapply stack_matches'_dealloc with (i := Some i)(f := f); split; eauto.
-        rewrite /env_to_environ in Hi; simpl in *.
-        destruct (delete _ _ !! _)%stdpp; done.
-    + iApply safe_skip; last by (iFrame; iDestruct "Hk" as "(Hk & _)"; iApply "Hk").
-      * done.
-      * eapply stack_matches'_dealloc with (i := None)(f := f); split; eauto.
-  - monPred.unseal.
-    iDestruct "Hret" as "((%Hvoid & H) & (Hstack & %vs' & Hstack'))".
-    iPoseProof (monPred_in_entails with "[Hstack Hstack']") as "Hstack"; first by apply (stackframe_of_eq' f vs').
-    { rewrite monPred_at_sep; iFrame. }
-    rewrite monPred_at_exist; iDestruct "Hstack" as (?) "Hstack".
-    iMod (free_stackframe with "[$]") as (m'' ?) "(Hm & ?)"; [done..|].
-    iIntros "!>".
-    iExists _, _; iSplit.
-    { iPureIntro; econstructor; eauto. }
-    iFrame.
-    iNext.
-    iApply jsafe_local_step.
-    { intros; constructor. }
-    iIntros "!> !>"; simpl.
-    destruct i; simpl.
-    + iDestruct "H" as "((% & Hi) & H)".
-      iDestruct (temp_e with "[$]") as %Hi.
-      iMod (temp_update with "[$]") as "(? & ?)".
-      iDestruct ("H" with "[//] [$]") as "H".
-      iApply safe_skip; last by (iFrame; iDestruct "Hk" as "(Hk & _)"; iApply "Hk").
-      * done.
-      * apply (stack_matches'_set _ _ _ (Some k)); first by eapply stack_matches'_dealloc with (i := Some i)(f := f); split; eauto.
-        rewrite /env_to_environ in Hi; simpl in *.
-        destruct (delete _ _ !! _)%stdpp; done.
-    + iApply safe_skip; last by (iFrame; iDestruct "Hk" as "(Hk & _)"; iApply "Hk").
-      * done.
-      * eapply stack_matches'_dealloc with (i := None)(f := f); split; eauto.
+  unfold internal_call_assert; intros; apply up1_mono.
+  do 3 f_equiv.
+  by apply wp_mask_mono.
 Qed.
 
-(* This rule usually won't be used directly by the caller, but rather to prove a
-   separation logic spec for each specific external function. *)
-Lemma wp_extcall: forall E f0 i e es R,
-  wp_expr ge E f0 e (λ v, ∃ f tys retty cc, ⌜exists b, v = Vptr b Ptrofs.zero /\ Genv.find_funct_ptr ge b = Some (External f tys retty cc) /\
-    classify_fun (typeof e) = fun_case_f tys retty cc⌝ ∧
-    wp_exprs E f0 es tys (λ vs,
-       ▷ |={E}=> ∀ m z, ⎡state_interp m z⎤ -∗ ∃ x, ⌜ef_inline f = false ∧ ext_spec_pre OK_spec f x (genv_symb_injective ge)
-                 (map proj_xtype (sig_args (ef_sig f))) vs z m⌝ ∧ ▷ ∀ ret m' z',
-              ⌜Val.has_type_list vs (map proj_xtype (sig_args (ef_sig f)))
+(* This property usually won't be proven directly by the caller, but rather to
+   prove a separation logic spec for each specific external function. *)
+Definition external_call_assert E f vs i R :=
+  |={E}=> ∀ m z, ⎡state_interp m z⎤ -∗ ∃ x, ⌜ef_inline f = false ∧
+      ext_spec_pre OK_spec f x (genv_symb_injective ge) (map proj_xtype (sig_args (ef_sig f))) vs z m⌝ ∧
+      ▷ ∀ ret m' z', ⌜Val.has_type_list vs (map proj_xtype (sig_args (ef_sig f)))
                    ∧ Builtins0.val_opt_has_rettype ret (sig_res (ef_sig f))⌝
                   → ⌜ext_spec_post OK_spec f x (genv_symb_injective ge) (sig_res (ef_sig f)) ret z' m'⌝ →
-              |={E}=> ⎡state_interp m' z'⎤ ∗ match i with Some id => (∃ v0, temp id v0) ∗ (temp id (force_val ret) -∗ RA_normal R) | _ => RA_normal R end)) ⊢
-  wp E f0 (Scall i e es) R.
+              |={E}=> ⎡state_interp m' z'⎤ ∗ match i with Some id => (∃ v0, temp id v0) ∗ (temp id (force_val ret) -∗ RA_normal R) | _ => RA_normal R end.
+
+Lemma external_call_assert_mask_mono : forall E1 E2 f args ret R, E1 ⊆ E2 →
+  external_call_assert E1 f args ret R ⊢ external_call_assert E2 f args ret R.
 Proof.
-  intros; rewrite /wp.
-  iIntros "H %%% #Hd Hk" (????) "Hr (%Hmatch & %Hstack & %Htop) %Hty".
-  iApply jsafe_step.
-  rewrite /jstep_ex /wp_expr /wp_exprs /=.
-  iIntros (?) "(Hm & Ho)".
-  iMod (fupd_mask_subseteq E) as "Hclose"; first done.
-  iMod ("H" with "Hm Hr") as ">(% & He & Hm & Hr & %f & %tys & %retty & %cc & %Hb & H)"; [done..|].
-  destruct Hb as (b & -> & Hb & ?).
-  iMod ("H" with "Hm Hr") as (vs) "(Hes & Hm & Hr & H)"; [done..|].
-  iMod "Hclose" as "_"; rewrite embed_fupd; iIntros "!>".
-  iPoseProof (env_match_intro with "Hd") as "#?"; first done.
-  iDestruct ("He" with "[$]") as %He; iDestruct ("Hes" with "[$]") as %Hes.
-  pose proof (typecheck_var_match_venv _ _ Hty).
-  iExists _, _; iSplit.
-  { iPureIntro; econstructor; eauto. }
-  iFrame.
-  iNext.
-  iMod (fupd_mask_subseteq E) as "Hclose"; first done.
+  unfold external_call_assert; intros.
+  rewrite -(fupd_mask_mono _ _ _ H); do 18 f_equiv.
+  by apply fupd_mask_mono.
+Qed.
+
+Definition call_assert E f args ret R :=
+  match f with
+  | Internal f => internal_call_assert E f args ret R
+  | External f tys retty cc => external_call_assert E f args ret R
+  end.
+
+Lemma call_assert_mask_mono : forall E1 E2 f args ret R, E1 ⊆ E2 →
+  call_assert E1 f args ret R ⊢ call_assert E2 f args ret R.
+Proof.
+  unfold call_assert; intros.
+  destruct f; [apply internal_call_assert_mask_mono | apply external_call_assert_mask_mono]; done.
+Qed.
+
+Definition fundef_wf f (vs : list val) : Prop := match f with
+  | Internal f => Forall (λ it : ident * type, complete_type ge it.2 = true) (fn_vars f) /\
+      list_norepet (map fst (fn_params f) ++ map fst (fn_temps f)) /\
+      list_norepet (map fst (fn_vars f)) /\
+      var_sizes_ok ge (fn_vars f) /\ length vs = length (fn_params f)
+  | _ => True end.
+
+Lemma call_safe : forall E f0 k ve te ρ ora f vs i R
+  (Hstack : stack_matches' ρ ve te (Some k))
+  (Htc : typecheck_var_environ (make_env ve) (make_tycontext_v (fn_vars f0)))
+  (Hf : fundef_wf f vs),
+⊢ stack_level (stack_depth k) -∗ ⎡ guarded E f0 k R ⎤ -∗ ⎡ env_auth ρ ⎤ -∗
+  call_assert E f vs i R -∗
+  ⎡ |={E}=> jsafeN E ora (Callstate f vs (Kcall i f0 ve te k)) ⎤.
+Proof.
+  intros; iIntros "#Hd Hk Hr H".
+  destruct f; simpl.
+  - (* internal *)
+    iApply jsafe_step.
+    rewrite /jstep_ex.
+    rewrite embed_fupd; iIntros "!>" (?) "(Hm & Ho)".
+    destruct Hf as (? & ? & ? & ? & ?).
+    destruct (build_call_temp_env f vs) as (le & ?); first done.
+    destruct Hstack as (Hmatch & Hstack & Htop).
+    iMod (alloc_stackframe _ _ (S (stack_depth k)) with "[$Hm $Hr]") as (m' ve' lb (? & ?)) "(Hm & Hr & Hstack)"; [try done..|].
+    { auto. }
+    rewrite embed_fupd; iIntros "!>".
+    iExists _, _; iSplit.
+    { iPureIntro; econstructor; eauto.
+      econstructor; eauto.
+      * eapply list_norepet_append_left; eauto.
+      * apply list_norepet_append_inv; auto. }
+    iFrame.
+    iDestruct "Hd" as "-#?"; iClear "#".
+    iStopProof; split => ?; rewrite /internal_call_assert /wp /stack_level; monPred.unseal; rewrite !monPred_at_affinely.
+    iIntros "(Hk & H & Hr & Hstack & %Hn)"; inv Hn.
+    iPoseProof (monPred_in_entails with "Hstack") as "Hstack"; first by apply stackframe_of_eq1'.
+    rewrite monPred_at_sep; iDestruct "Hstack" as "(? & ?)".
+    iApply ("H" with "[//] [$] [//] [$] [//] [//] [//] [] [//] [Hk] [$Hr //] [%]").
+    { rewrite monPred_at_affinely; done. }
+    2: { by apply stack_matches'_alloc. }
+    2: { done. }
+    iApply guarded_frame_ret; simpl.
+    iIntros "!>" (?) "Hret".
+    iIntros (????) "Hr (%Henv' & %Hstack') %Hty'".
+    iApply jsafe_step; rewrite /jstep_ex.
+    iIntros (?) "(Hm & Ho)".
+    destruct ret; simpl.
+    + rewrite /wp_expr; monPred.unseal.
+      iMod ("Hret" with "[//] [$] [//] [$]") as ">(% & Hret & ? & ? & (% & H) & (Hstack & %vs' & Hstack'))".
+      iPoseProof (monPred_in_entails with "[Hstack Hstack']") as "Hstack"; first by apply (stackframe_of_eq' f vs').
+      { rewrite monPred_at_sep; iFrame. }
+      rewrite monPred_at_exist; iDestruct "Hstack" as (?) "Hstack".
+      iMod (free_stackframe with "[$]") as (m'' ?) "(Hm & ?)"; [done..|].
+      rewrite monPred_at_affinely; iDestruct "Hret" as %Hret.
+      pose proof (typecheck_var_match_venv _ _ Hty') as Hmatch'.
+      specialize (Hret _ _ _ eq_refl Henv' Hmatch'); inv Hret.
+      2: { inv H9. }
+      iIntros "!>".
+      iExists _, _; iSplit.
+      { iPureIntro; econstructor; eauto. }
+      iFrame.
+      iNext.
+      iApply jsafe_local_step.
+      { intros; constructor. }
+      iIntros "!> !>"; simpl.
+      destruct i; simpl.
+      * iDestruct "H" as "((% & Hi) & H)".
+        iDestruct (temp_e with "[$]") as %Hi.
+        iMod (temp_update with "[$]") as "(? & ?)".
+        iDestruct ("H" with "[//] [$]") as "H".
+        iApply safe_skip; last by (iFrame; iDestruct "Hk" as "(Hk & _)"; iApply "Hk").
+        { done. }
+        apply (stack_matches'_set _ _ _ (Some k)); first by eapply stack_matches'_dealloc with (i := Some i)(f := f); split; eauto.
+        rewrite /env_to_environ in Hi; simpl in *.
+        destruct (delete _ _ !! _)%stdpp; done.
+      * iApply safe_skip; last by (iFrame; iDestruct "Hk" as "(Hk & _)"; iApply "Hk").
+        { done. }
+        eapply stack_matches'_dealloc with (i := None)(f := f); split; eauto.
+    + monPred.unseal.
+      iDestruct "Hret" as "((%Hvoid & H) & (Hstack & %vs' & Hstack'))".
+      iPoseProof (monPred_in_entails with "[Hstack Hstack']") as "Hstack"; first by apply (stackframe_of_eq' f vs').
+      { rewrite monPred_at_sep; iFrame. }
+      rewrite monPred_at_exist; iDestruct "Hstack" as (?) "Hstack".
+      iMod (free_stackframe with "[$]") as (m'' ?) "(Hm & ?)"; [done..|].
+      iIntros "!>".
+      iExists _, _; iSplit.
+      { iPureIntro; econstructor; eauto. }
+      iFrame.
+      iNext.
+      iApply jsafe_local_step.
+      { intros; constructor. }
+      iIntros "!> !>"; simpl.
+      destruct i; simpl.
+      * iDestruct "H" as "((% & Hi) & H)".
+        iDestruct (temp_e with "[$]") as %Hi.
+        iMod (temp_update with "[$]") as "(? & ?)".
+        iDestruct ("H" with "[//] [$]") as "H".
+        iApply safe_skip; last by (iFrame; iDestruct "Hk" as "(Hk & _)"; iApply "Hk").
+        { done. }
+        apply (stack_matches'_set _ _ _ (Some k)); first by eapply stack_matches'_dealloc with (i := Some i)(f := f); split; eauto.
+        rewrite /env_to_environ in Hi; simpl in *.
+        destruct (delete _ _ !! _)%stdpp; done.
+      * iApply safe_skip; last by (iFrame; iDestruct "Hk" as "(Hk & _)"; iApply "Hk").
+        { done. }
+        eapply stack_matches'_dealloc with (i := None)(f := f); split; eauto.
+  - (* external *)
   iMod "H".
-  iMod "Hclose" as "_".
-  rewrite jsafe_unfold /jsafe_pre.
+  rewrite /jsafeN jsafe_unfold /jsafe_pre.
   rewrite !embed_fupd; iIntros "!> !>" (?) "Hm".
   iDestruct ("H" with "Hm") as (? (Hinline & ?)) "H".
   iRight; iRight.
@@ -1735,11 +1753,43 @@ Proof.
     iModIntro.
     iApply safe_skip; last by (iFrame; iDestruct "Hk" as "(Hk & _)"; iApply "Hk").
     * done.
-    * apply (stack_matches'_set _ _ _ (Some k)); first by split.
+    * apply (stack_matches'_set _ _ _ (Some k)); first done.
       rewrite /env_to_environ in Hi; simpl in *.
       destruct (ρ.2 !! _)%stdpp; done.
   + iPoseProof (stack_level_embed with "Hd H") as "H".
     by iApply safe_skip; last by (iFrame; iDestruct "Hk" as "(Hk & _)"; iApply "Hk").
+Qed.
+
+Lemma wp_call: forall E f0 i e es R,
+  wp_expr ge E f0 e (λ v, ∃ tys retty cc, <affine> ⌜classify_fun (typeof e) = fun_case_f tys retty cc⌝ ∗
+    wp_exprs E f0 es tys
+    (λ vs, <affine> ⌜length vs = length tys⌝ -∗
+     ∃ f, <affine> ⌜exists b, v = Vptr b Ptrofs.zero /\ Genv.find_funct_ptr ge b = Some f /\
+       type_of_fundef f = Tfunction tys retty cc /\ fundef_wf f vs⌝ ∗
+       ▷ call_assert E f vs i R)) ⊢
+  wp E f0 (Scall i e es) R.
+Proof.
+  intros; rewrite /wp.
+  iIntros "H %%% #Hd Hk" (????) "Hr (%Hmatch & %Hstack & %Htop) %Hty".
+  iApply jsafe_step.
+  rewrite /jstep_ex /wp_expr /wp_exprs /=.
+  iIntros (?) "(Hm & Ho)".
+  iMod (fupd_mask_subseteq E) as "Hclose"; first done.
+  iMod ("H" with "Hm Hr") as ">(% & He & Hm & Hr & % & % & % & % & H)"; [done..|].
+  iMod ("H" with "Hm Hr") as (vs) "(Hes & Hm & Hr & H)"; [done..|].
+  iMod "Hclose" as "_"; rewrite embed_fupd; iIntros "!>".
+  iPoseProof (env_match_intro with "Hd") as "#?"; first done.
+  iDestruct ("He" with "[$]") as %He; iDestruct ("Hes" with "[$]") as %Hes.
+  pose proof (typecheck_var_match_venv _ _ Hty).
+  assert (length vs = length tys).
+  { apply eval_exprlist_length in Hes as (_ & Hlen); done. }
+  iDestruct ("H" with "[//]") as (? (? & -> & ? & ? & ?)) "H".
+  iExists _, _; iSplit.
+  { iPureIntro; econstructor; eauto. }
+  iFrame.
+  iNext.
+  iApply (call_safe with "Hd Hk Hr [H]"); [done..|].
+  by iApply call_assert_mask_mono.
 Qed.
 
 (* not sure we'll ever use this *)
@@ -1800,6 +1850,118 @@ Proof.
         destruct (ρ.2 !! _)%stdpp; done.
     + iPoseProof (stack_level_embed with "Hd H") as "H".
       by iApply safe_skip; last by (iFrame; iDestruct "Hk" as "(Hk & _)"; iApply "Hk").
+Qed.
+
+(* should be unifiable with the regular call, but the handling of the initial
+   stack is a bit different *)
+Definition initial_internal_call_assert E f args R : assert := (stack_retainer f -∗ stackframe_of' ge f (args  ++ repeat Vundef (length f.(fn_temps))) -∗
+  ▷ wp E f f.(fn_body) (frame_ret_assert (function_body_ret_assert f.(fn_return)
+      (λ vl, RA_normal R))
+      (stack_retainer f ∗ ∃ vs, stackframe_of' ge f vs)))%I.
+
+Definition initial_call_assert E f args R :=
+  match f with
+  | Internal f => initial_internal_call_assert E f args R
+  | External f tys retty cc => external_call_assert E f args None R
+  end.
+
+Lemma call_safe_stop : forall E ρ ora f vs R
+  (Hge : ∀ i : ident, Genv.find_symbol ge i = (ρ.1 !! i)%stdpp)
+  (Hstack : ∀ i : nat, (ρ.2 !! i)%stdpp = None)
+  (Hexit : ∀ m ora, state_interp m ora -∗ RA_normal R O -∗ ⌜∃ i, ext_spec_exit OK_spec (Some (Vint i)) ora m⌝)
+  (Hf : fundef_wf f vs),
+⊢ stack_level O -∗ ⎡ env_auth ρ ⎤ -∗
+  initial_call_assert E f vs R -∗
+  ⎡ jsafeN E ora (Callstate f vs Kstop) ⎤.
+Proof.
+  intros; iIntros "#Hd Hr H".
+  destruct f; simpl.
+  - (* internal *)
+    iApply jsafe_step.
+    rewrite /jstep_ex.
+    iIntros (?) "(Hm & Ho)".
+    destruct Hf as (? & ? & ? & ? & ?).
+    destruct (build_call_temp_env f vs) as (le & ?); first done.
+    iMod (alloc_stackframe _ _ O with "[$Hm $Hr]") as (m' ve' lb (? & ?)) "(Hm & Hr & Hstack)"; [try done..|].
+    rewrite embed_fupd; iIntros "!>".
+    iExists _, _; iSplit.
+    { iPureIntro; econstructor; eauto.
+      econstructor; eauto.
+      * eapply list_norepet_append_left; eauto.
+      * apply list_norepet_append_inv; auto. }
+    iFrame.
+    iDestruct "Hd" as "-#?"; iClear "#".
+    iStopProof; split => ?; rewrite /initial_internal_call_assert /wp /stack_level; monPred.unseal; rewrite !monPred_at_affinely.
+    iIntros "(H & Hr & Hstack & %Hi)"; inv Hi.
+    iPoseProof (monPred_in_entails with "Hstack") as "Hstack"; first by apply stackframe_of_eq1'.
+    rewrite monPred_at_sep; iDestruct "Hstack" as "(? & ?)".
+    iApply ("H" with "[//] [$] [//] [$] [//] [//] [//] [] [//] [] [$Hr //] [%]").
+    { rewrite monPred_at_affinely; done. }
+    2: { simpl; split3; auto.
+         * rewrite env_to_environ_alloc; split; auto.
+           split; intros; rewrite make_env_spec //.
+         * intros; rewrite lookup_insert_ne; last lia; done. }
+    2: { done. }
+    iApply guarded_frame_ret0; [done..|]; simpl.
+    iIntros "!>" (?) "Hret".
+    iIntros (????) "Hr (%Henv' & %Hstack') %Hty'".
+    iApply jsafe_step; rewrite /jstep_ex.
+    iIntros (?) "(Hm & Ho)".
+    destruct ret; simpl.
+    + rewrite /wp_expr; monPred.unseal.
+      iMod ("Hret" with "[//] [$] [//] [$]") as ">(% & Hret & ? & ? & (% & H) & (Hstack & %vs' & Hstack'))".
+      iPoseProof (monPred_in_entails with "[Hstack Hstack']") as "Hstack"; first by apply (stackframe_of_eq' f vs').
+      { rewrite monPred_at_sep; iFrame. }
+      rewrite monPred_at_exist; iDestruct "Hstack" as (?) "Hstack".
+      iMod (free_stackframe with "[$]") as (m'' ?) "(Hm & ?)"; [done..|].
+      rewrite monPred_at_affinely; iDestruct "Hret" as %Hret.
+      pose proof (typecheck_var_match_venv _ _ Hty') as Hmatch'.
+      specialize (Hret _ _ _ eq_refl Henv' Hmatch'); inv Hret.
+      2: { inv H9. }
+      iIntros "!>".
+      iExists _, _; iSplit.
+      { iPureIntro; econstructor; eauto. }
+      iFrame.
+      iNext.
+      rewrite jsafe_unfold /jsafe_pre.
+      iIntros "!> !>" (?) "?"; iLeft.
+      iDestruct (Hexit with "[$] [$]") as %(? & ?).
+      by iExists _.
+    + monPred.unseal.
+      iDestruct "Hret" as "((%Hvoid & H) & (Hstack & %vs' & Hstack'))".
+      iPoseProof (monPred_in_entails with "[Hstack Hstack']") as "Hstack"; first by apply (stackframe_of_eq' f vs').
+      { rewrite monPred_at_sep; iFrame. }
+      rewrite monPred_at_exist; iDestruct "Hstack" as (?) "Hstack".
+      iMod (free_stackframe with "[$]") as (m'' ?) "(Hm & ?)"; [done..|].
+      iIntros "!>".
+      iExists _, _; iSplit.
+      { iPureIntro; econstructor; eauto. }
+      iFrame.
+      iNext.
+      rewrite jsafe_unfold /jsafe_pre.
+      iIntros "!> !>" (?) "?"; iLeft.
+      iDestruct (Hexit with "[$] [$]") as %(? & ?).
+      by iExists _.
+  - (* external *)
+    iApply fupd_jsafe.
+    iMod "H".
+    rewrite /jsafeN jsafe_unfold /jsafe_pre.
+    rewrite !embed_fupd; iIntros "!> !>" (?) "Hm".
+    iDestruct ("H" with "Hm") as (? (Hinline & ?)) "H".
+    iRight; iRight.
+    iExists _, _, _; iSplit.
+    { iPureIntro; rewrite /= Hinline; eauto. }
+    iNext; iIntros (?????).
+    rewrite embed_fupd.
+    iMod (fupd_mask_subseteq E) as "Hclose"; first done.
+    iMod ("H" with "[//] [//]") as "($ & H)".
+    iMod "Hclose" as "_"; iIntros "!>".
+    iExists _; iSplit; first done.
+    iPoseProof (stack_level_embed with "Hd H") as "H".
+    rewrite jsafe_unfold /jsafe_pre.
+    iIntros "!> !>" (?) "?"; iLeft.
+    iDestruct (Hexit with "[$] [$]") as %(? & ?).
+    by iExists _.
 Qed.
 
 Lemma call_cont_idem: forall k, call_cont (call_cont k) = call_cont k.
@@ -2015,6 +2177,7 @@ Proof.
   - intros; rewrite lookup_insert_ne //; lia.
 Qed.
 
+(* This is a "whole-program" adequacy theorem; we may also want a per-function one. *)
 Lemma wp_adequacy: forall `{!VSTGpreS OK_ty Σ} {Espec : forall `{VSTGS OK_ty Σ}, ext_spec OK_ty} {dryspec : ext_spec OK_ty}
   (Hdry : forall `{!VSTGS OK_ty Σ}, ext_spec_entails Espec dryspec)
   ge m z f s (R : forall `{!VSTGS OK_ty Σ}, assert) ve te (Hf : f.(fn_vars) = [])

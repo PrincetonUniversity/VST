@@ -873,7 +873,7 @@ Lemma semax_prog_entry_point {CS: compspecs} V G prog b id_fun params args A
     m q m' (Vptr b Ptrofs.zero) args) /\
 
   forall (a: dtfr A),
-    <absorb> P a args ∗ funassert (nofunc_tycontext V G) ⊢
+    <absorb> P a args ∗ funassert (nofunc_tycontext V G) ∗ env_auth (make_env (Genv.genv_symb (globalenv prog)), ∅) ⊢
     jsafeN OK_spec (globalenv prog) (E a) z q }.
 Proof.
 intro retty.
@@ -922,51 +922,54 @@ assert (HGG: cenv_sub (@cenv_cs CS) (globalenv prog)).
    apply Maps.PTree.elements_complete. congruence.
  }
 
-assert (⊢ ▷ (<absorb> P a args ∗ funassert Delta -∗
+assert (⊢ ▷ (<absorb> P a args ∗ funassert Delta ∗ env_auth (make_env (Genv.genv_symb (globalenv prog)), ∅) -∗
   jsafeN OK_spec psi (E a) z (Clight_core.Callstate f args Kstop))) as Hsafe; last by apply bi.wand_entails, ouPred.later_soundness.
+assert (⊢ ▷ ((<absorb> P a args ∗ funassert Delta) -∗
+  <absorb> initial_call_assert OK_spec (globalenv prog) (E a) f args (Clight_seplog.function_body_ret_assert retty (λ v, ⎡Q a v⎤)) O)) as Hpre.
+2: { rewrite /bi_emp_valid Hpre; f_equiv.
+     iIntros "H (P & F & E)"; iMod ("H" with "[$P $F]") as "H".
+     exploit call_safe_stop; last (monPred.unseal; intros H; apply monPred_in_entails with (i := O) in H; simpl in H; iApply (H with "[] [//] [] [//] E [//] H")).
+  { intros; rewrite make_env_spec //. }
+  { done. }
+  { iIntros; iPureIntro; exists Int.zero; by apply EXIT. }
+  { admit. }
+  { by monPred.unseal. }
+  { unfold stack_level; monPred.unseal; rewrite monPred_at_affinely //. } }
 iIntros.
-iPoseProof Prog_OK as "#Prog_OK".
-set (f0 := mkfunction Tvoid cc_default nil nil nil Sskip).
-iAssert (rguard OK_spec psi (E a) Delta f0 (frame_ret_assert (normal_ret_assert (maybe_retval (assert_of (Q a)) retty None)) True) Kstop) as "#rguard".
-{ iIntros (????) "!>".
-  rewrite proj_frame; monPred.unseal; iIntros "(% & (? & Q) & ?)".
-  destruct ek; simpl proj_ret_assert; monPred.unseal; try iDestruct "Q" as (->) "Q"; try iDestruct "Q" as "[]".
-  iIntros (??); simpl.
-  iApply jsafe_step; rewrite /jstep_ex.
-  iIntros (?) "(Hm & ?)".
-  iMod (free_stackframe _ f0  _ _ vx tx with "[$Hm]") as (??) "?"; try eassumption; try solve [constructor].
-  { destruct H as (? & Hmatch & ?); split3; auto.
-    split3; simpl; eauto.
-    * intros ??; setoid_rewrite Maps.PTree.gempty; done.
-    * intros ??. setoid_rewrite Maps.PTree.gempty. simpl in *.
-      split; first done.
-      rewrite /Map.get; intros (? & Hid).
-      specialize (Hmatch id); rewrite Hid // in Hmatch. }
-  { rewrite /stackframe_of /f0 /=.
-    by monPred.unseal. }
-  iIntros "!>"; iExists _, _; iSplit.
-  { iPureIntro; econstructor; eauto. }
-  iFrame.
-  by iApply return_stop_safe; try iPureIntro. }
-iPoseProof (semax_call_aux0 _ _ _ _ _ _ _ _ P _ _ _ _ _ _ _ True (fun _ => emp) _ _ _ _ (Maps.PTree.empty _) (Maps.PTree.empty _) with "Prog_OK") as "Himp"; try done;
-  last (iNext; iIntros "(P & fun)"; iApply ("Himp" with "[P] [fun] [] rguard")); try done.
-* split3; first split3; simpl; auto.
-  + intros ??; setoid_rewrite Maps.PTree.gempty; done.
-  + intros ??; rewrite /make_venv /Map.get.
-    setoid_rewrite Maps.PTree.gempty; split; first done.
-    intros (? & ?); done.
-  + intros ?; done.
-* by monPred.unseal.
-* intros; iIntros "?".
-  by iApply return_stop_safe; try iPureIntro.
-* iMod "P" as "$". by monPred.unseal.
-* iClear "Himp"; iIntros "!> !> (_ & P) !>".
-  iExists a, emp; iFrame.
-  iSplit; first done.
-  iSplit; first by monPred.unseal.
-  iIntros (?) "!> H".
-  iDestruct "H" as (?) "(_ & $)".
-Qed.
+pose proof (monPred_in_entails _ _ Prog_OK O) as Bel.
+iPoseProof (Bel with "[]") as "#Prog_OK"; first by monPred.unseal.
+unfold believe; monPred.unseal.
+iDestruct ("Prog_OK" with "[//] [%]") as "[BE | BI]".
+{ eexists; eauto. }
+- rewrite {2}/believe_external /initial_call_assert.
+  rewrite Genv.find_funct_find_funct_ptr Eb.
+  destruct f; first done.
+  iDestruct "BE" as (([=] & -> & Hsig & ?)) "(Hf & _)"; subst.
+  rewrite /semax_external /external_call_assert; monPred.unseal.
+  iNext.
+  admit.
+- rewrite {2}/believe_internal /initial_call_assert.
+  monPred.unseal.
+  iDestruct "BI" as (?? ([=] & Eb' & ? & ? & ? & ? & ? & ?)) "BI"; subst.
+  rewrite Eb' in Eb; inv Eb.
+  iSpecialize ("BI" with "[//] [%] [//] [%]").
+  { intros; apply tycontext_sub_refl. }
+  { apply cenv_sub_refl. }
+  iSpecialize ("BI" $! a).
+  iNext.
+  rewrite semax_fold_unfold; monPred.unseal.
+  iIntros "(P & F)".
+  iSpecialize ("BI" $! _ (func_tycontext' _ Delta) with "[//] [%] [//] F [//] [Prog_OK] [//] [] [//]").
+  { split3; [apply tycontext_sub_refl | apply cenv_sub_refl | done]. }
+  { rewrite /believe; monPred.unseal; done. }
+  { rewrite monPred_at_affinely; iPureIntro.
+Search guard_environ. admit. }
+  iMod "P".
+  rewrite /initial_internal_call_assert; monPred.unseal.
+  iIntros "!>" (? [=]) "Hret"; iIntros (? [=]) "Hstack"; subst.
+Search stackframe_of'. (* need reverse of stackframe_of_eq *)
+  admit.
+Admitted.
 
 Lemma semax_prog_rule {CS: compspecs} :
   forall V G prog m h z,
@@ -1112,7 +1115,7 @@ Lemma genv_contains_app ge funs1 funs2 (G1:genv_contains ge funs1) (G2: genv_con
 genv_contains ge (funs1 ++ funs2).
 Proof. red; intros. apply in_app_or in H; destruct H; [apply G1 | apply G2]; trivial. Qed.
 
-Lemma find_id_app i fs: forall (G1 G2: funspecs(Σ := Σ)) (G: find_id i (G1 ++ G2) = Some fs),
+Lemma find_id_app i fs: forall (G1 G2: funspecs) (G: find_id i (G1 ++ G2) = Some fs),
 find_id i G1 = Some fs \/ find_id i G2 = Some fs.
 Proof. induction G1; simpl; intros. right; trivial.
 destruct a. destruct (eq_dec i i0); [ left; trivial | eauto].
