@@ -2066,24 +2066,45 @@ Definition VSTΣ Z : gFunctors :=
 Global Instance subG_VSTGpreS {Z Σ} : subG (VSTΣ Z) Σ → VSTGpreS Z Σ.
 Proof. solve_inG. Qed.
 
+Lemma own_gvars : forall `{!heapGS Σ} `{!envGS Σ} ge, own(inG0 := envGS_inG) env_name ([^ op map] i↦b ∈ ge, lib.gmap_view.gmap_view_frag i DfracDiscarded (to_agree b), ε) ⊢
+  [∗ map] i↦b∈ge, gvar i b.
+Proof.
+  induction ge as [|i x m ? IH] using map_ind.
+  - rewrite !big_opM_empty.
+    apply own_increasing_affine, _.
+  - rewrite !big_opM_insert // pair_op_1 own_op IH //.
+Qed.
+
 Lemma init_VST: forall Z `{!VSTGpreS Z Σ} (z : Z) ge,
   ⊢ |==> ∀ _ : invGS_gen HasNoLc Σ, ∃ _ : gen_heapGS share address resource Σ, ∃ _ : funspecGS Σ, ∃ _ : envGS Σ, ∃ _ : externalGS Z Σ,
     let H : VSTGS Z Σ := Build_VSTGS _ _ (HeapGS _ _ _ _) _ _ in
-    (state_interp Mem.empty z ∗ funspec_auth ∅ ∗ env_auth (ge, ∅) ∗ has_ext z) ∗ ghost_map.ghost_map_auth(H0 := gen_heapGpreS_meta) (gen_meta_name _) 1 ∅.
+    (state_interp Mem.empty z ∗ funspec_auth ∅ ∗ env_auth (ge, ∅) ∗ ([∗ map] i↦b∈ge, gvar i b) ∗ has_ext z) ∗
+    ghost_map.ghost_map_auth(H0 := gen_heapGpreS_meta) (gen_meta_name _) 1 ∅.
 Proof.
   intros; iIntros.
   iMod gen_heap_init_names_empty as (??) "(? & ?)".
   iMod (own_alloc(A := gmap_view.gmap_viewR address (@funspecO' Σ)) (gmap_view.gmap_view_auth (DfracOwn 1) ∅)) as (γf) "?".
   { apply gmap_view.gmap_view_auth_valid. }
-  iMod (own_alloc(A := ora.prodR (ext_order.inclR (lib.gmap_view.gmap_viewR ident (agree.agreeR (leibnizO Values.block))))
-    (ext_order.inclR (iris.algebra.auth.authR (iris.algebra.gmap.gmapUR nat (fixed_fracR frameR)))))
-    (lib.gmap_view.gmap_view_auth DfracDiscarded (to_agree <$> ge), ● ∅)) as (γe) "?".
+  iMod (own_alloc(A := envR) ((lib.gmap_view.gmap_view_auth DfracDiscarded (to_agree <$> ge), ● ∅) ⋅
+    (([^op map] i↦b∈ge, lib.gmap_view.gmap_view_frag i DfracDiscarded (to_agree b)), ε))) as (γe) "He".
   { apply pair_valid; split.
-    * by apply lib.gmap_view.gmap_view_auth_dfrac_valid.
-    * by apply auth_auth_valid. }
+    * rewrite -big_opM_view_frag; apply view_both_dfrac_valid.
+      split; first done; intros ????.
+      assert (((λ x, (DfracDiscarded, to_agree x)) <$> ge) !! i ≡ Some x) as Hi.
+      { rewrite -(gmap.big_opM_singletons (_ <$> _)) big_opM_fmap H //. }
+      rewrite lookup_fmap in Hi.
+      destruct x, (ge !! i) eqn: Hgei; rewrite Hgei in Hi; inv Hi.
+      destruct H2 as ([=] & Hc); simpl in *; subst.
+      eexists _, DfracDiscarded.
+      rewrite lookup_fmap Hgei; split; first done; split; first done.
+      apply @Some_includedN_mono, pair_includedN; split.
+      { by exists DfracDiscarded. }
+      { by rewrite Hc. }
+    * rewrite /= right_id; by apply auth_auth_valid. }
+  rewrite own_op; iDestruct "He" as "(? & Hg)".
   iMod (ext_alloc z) as (?) "(? & ?)".
   iIntros "!>" (?); iExists (GenHeapGS _ _ _ _ γh γm), (FunspecG _ _ γf), (EnvGS _ _ γe), _.
-  rewrite /state_interp /mem_auth /funspec_auth /env_auth fmap_empty /=; iFrame.
+  rewrite /state_interp /mem_auth /funspec_auth /env_auth fmap_empty /= -own_gvars; iFrame.
   iSplit; [|done]. iPureIntro. apply juicy_mem.empty_coherent.
 Qed.
 

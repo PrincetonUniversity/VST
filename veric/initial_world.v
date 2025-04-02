@@ -12,6 +12,8 @@ Require Import VST.veric.seplog.
 Require Import VST.veric.shares.
 Require Import VST.shared.dshare.
 Require Import VST.veric.mpred.
+Require Import VST.veric.env.
+Require Import VST.veric.lifting_expr.
 Require Import VST.veric.mapsto_memory_block.
 Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Import Values.
@@ -1318,42 +1320,15 @@ Qed.
 
 Context `{!envGS Σ}.
 
-Definition initial_gvars {F} (ge : Genv.t F type) :=
-  PTree.fold (fun P i v => P ∗ gvar i v) (Genv.genv_symb ge) emp.
-
-#[global] Instance initial_gvars_persistent {F} (ge : Genv.t F type) : Persistent (initial_gvars ge).
-Proof.
-  unfold initial_gvars.
-  set (P := emp).
-  assert (Persistent P) by apply _.
-  clearbody P.
-  apply PTree_Properties.fold_ind; apply _.
-Qed.
-
-#[global] Instance initial_gvars_affine {F} (ge : Genv.t F type) : Affine (initial_gvars ge).
-Proof.
-  unfold initial_gvars.
-  set (P := emp).
-  assert (Affine P) by apply _.
-  clearbody P.
-  apply PTree_Properties.fold_ind; apply _.
-Qed.
+Definition initial_gvars {F} (ge : Genv.t F type) := [∗ map] i↦v ∈ make_env (Genv.genv_symb ge), gvar i v.
 
 Lemma initial_gvars_lookup : forall {F} (ge : Genv.t F type) id b,
   Genv.find_symbol ge id = Some b ->
-  initial_gvars ge ⊢ <absorb> gvar id b.
+  initial_gvars ge ⊢ gvar id b.
 Proof.
-  intros until b; rewrite /initial_gvars /Genv.find_symbol.
-  set (P := emp).
-  clearbody P.
-  apply PTree_Properties.fold_ind.
-  - intros ? Hnone; rewrite Hnone; discriminate.
-  - intros ????.
-    destruct (eq_dec k id).
-    + subst; intros H1 _ _ H2; rewrite H1 in H2; inv H2.
-      iIntros "(_ & $)".
-    + rewrite PTree.gro //; intros ?? H ?.
-      rewrite H //; iIntros "($ & _)".
+  intros; apply big_sepM_lookup.
+  - apply _.
+  - rewrite make_env_spec //.
 Qed.
 
 End mpred.

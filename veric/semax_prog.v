@@ -980,7 +980,7 @@ Lemma semax_prog_rule {CS: compspecs} :
        (Genv.find_symbol (globalenv prog) (prog_main prog) = Some b) *
        (exists m', semantics.initial_core (cl_core_sem (globalenv prog)) h
                        m q m' (Vptr b Ptrofs.zero) nil) *
-       (state_interp Mem.empty z ∗ funspec_auth ∅ ∗ has_ext z ⊢ |==> state_interp m z ∗ jsafeN OK_spec (globalenv prog) ⊤ z q ∧
+       (state_interp Mem.empty z ∗ env_auth (make_env (Genv.genv_symb (globalenv prog)), ∅) ∗ initial_gvars (globalenv prog) ∗ funspec_auth ∅ ∗ has_ext z ⊢ |==> state_interp m z ∗ jsafeN OK_spec (globalenv prog) ⊤ z q ∧
            (*no_locks ∧*) matchfunspecs (globalenv prog) G (*∗ funassert (nofunc_tycontext V G) (empty_environ (globalenv prog))*))
      } }%type.
 Proof.
@@ -1031,7 +1031,7 @@ Proof.
   split; [split |]; auto.
   clear Hinit.
 
-  iIntros "((Hm & $) & Hf & Hz)".
+  iIntros "((Hm & $) & He & #Hge & Hf & Hz)".
   iMod (initialize_mem' with "[$Hm $Hf]") as "($ & Hm & Hcore & Hmatch)"; [done..|].
   iIntros "!>"; iSplit; last done.
   destruct H4 as [post [H4 H4']].
@@ -1039,11 +1039,13 @@ Proof.
   injection H4' as -> HP HQ.
   apply inj_pair2 in HP as ->.
   apply inj_pair2 in HQ as ->.
-  iApply (Hsafe (globals_of_genv (filter_genv (globalenv prog)))).
-  iCombine "Hcore Hmatch" as "Hcore"; rewrite (initial_core_funassert _ V _ _ (Map.empty _) (Map.empty _)) //; iFrame.
+  iApply (Hsafe (genviron2globals (globalenv prog))).
+  iCombine "Hge Hcore Hmatch" as "Hcore"; rewrite (initial_core_funassert) //; iFrame.
   iIntros "!>".
   iSplit; first done.
-  by iApply global_initializers.
+  iSplitR "Hm"; last by iApply global_initializers.
+  rewrite /genviron2globals; iIntros (j ? Hj); iApply (initial_gvars_lookup with "Hge").
+  destruct (Genv.find_symbol (globalenv prog) j); inv Hj; done.
 Qed.
 
 Local Notation match_fdecs := (match_fdecs(Σ := Σ)).
@@ -1461,12 +1463,12 @@ Proof. destruct HI. split3.
   { specialize (H X). specialize (H1 X); subst. destruct (phi X). simpl. apply H. }
   intros. destruct x as [i Hi].
   specialize (H i).
-  assert (fst sig = map snd (fst (fn_funsig f)) /\
-        snd sig = snd (fn_funsig f) /\
+  assert (fst sig = map snd (fn_params f) /\
+        snd sig = fn_return f /\
         (forall OK_spec (x : dtfr ((WithType_of_funspec (phi i)))),
          semax OK_spec (mask_of_funspec (phi i) x) (func_tycontext f V G nil)
-           (close_precondition (map fst (fn_params f)) (argsassert_of ((Pre_of_funspec (phi i)) x)) ∗ stackframe_of f) 
-           (fn_body f) (frame_ret_assert (function_body_ret_assert (fn_return f) (assert_of ((Post_of_funspec (phi i)) x))) (stackframe_of f)))) as HH.
+           (close_precondition (map fst (fn_params f)) ((Pre_of_funspec (phi i)) x) ∗ stackframe_of f) 
+           (fn_body f) (frame_ret_assert (function_body_ret_assert (fn_return f) ((Post_of_funspec (phi i)) x)) (stackframe_of f)))) as HH.
   { intros. specialize (H1 i); specialize (H2 i). subst. unfold semax_body in H.
     destruct (phi i); subst. destruct H as [? [? ?]]. split3; auto. }
   clear H H1 H2. destruct HH as [HH1 [HH2 HH3]].
@@ -1476,7 +1478,7 @@ Qed.
 Lemma typecheck_temp_environ_eval_id {f lia}
           (LNR: list_norepet (map fst (fn_params f) ++ map fst (fn_temps f)))
           (TC : typecheck_temp_environ (te_of lia) (make_tycontext_t (fn_params f) (fn_temps f))):
-      map (Map.get (te_of lia)) (map fst (fn_params f)) =
+      map (λ i, lookup i (te_of lia)) (map fst (fn_params f)) =
       map Some (map (fun i : ident => eval_id i lia) (map fst (fn_params f))).
 Proof.
   specialize (tc_temp_environ_elim LNR TC).
@@ -1490,7 +1492,7 @@ Qed.
 
 Lemma typecheck_environ_eval_id {f V G lia} (LNR: list_norepet (map fst (fn_params f) ++ map fst (fn_temps f)))
                                 (TC : typecheck_environ (func_tycontext f V G nil) lia):
-      map (Map.get (te_of lia)) (map fst (fn_params f)) =
+      map (λ i, lookup i (te_of lia)) (map fst (fn_params f)) =
       map Some (map (fun i : ident => eval_id i lia) (map fst (fn_params f))).
 Proof. apply typecheck_temp_environ_eval_id; trivial. apply TC. Qed.
 
@@ -1511,23 +1513,23 @@ Proof.
  specialize (Sub x).
  eapply @semax_adapt
  with
-  (Q':= frame_ret_assert (function_body_ret_assert (fn_return f) (assert_of (Q' x)))
+  (Q':= frame_ret_assert (function_body_ret_assert (fn_return f) (Q' x))
            (stackframe_of f))
   (P' :=
     ∃ vals:list val,
     ∃ x1 : dtfr A,
     ∃ FR: mpred,
-    ⌜E x1 ⊆ E' x /\ forall rho' : environ,
-              ⌜tc_environ (xtype_tycontext (snd sig)) rho'⌝ ∧ (FR ∗ Q x1 rho') ⊢ (Q' x rho')⌝ ∧
-      ((stackframe_of f ∗ ⎡FR⎤ ∗ assert_of (fun tau => P x1 (ge_of tau, vals))) ∧
-            local (fun tau => map (Map.get (te_of tau)) (map fst (fn_params f)) = map Some vals /\ tc_vals (map snd (fn_params f)) vals))).
- - split => rho. monPred.unseal; rewrite /bind_ret monPred_at_affinely.
+    ⌜E x1 ⊆ E' x /\ forall ret,
+              (FR ∗ Q x1 ret) ⊢ (Q' x ret)⌝ ∧
+      ((stackframe_of f ∗ ⎡FR⎤ ∗ assert_of (fun tau => P x1 vals)) ∧
+            local (fun tau => map (λ i, lookup i (te_of tau)) (map fst (fn_params f)) = map Some vals /\ tc_vals (map snd (fn_params f)) vals))).
+ - split => rho. unfold local; monPred.unseal; rewrite /bind_ret monPred_at_intuitionistically monPred_at_affinely /=.
    iIntros "(%TC & #OM & (%vals & (%MAP & %VUNDEF) & HP') & M2)".
-   specialize (Sub (ge_of rho, vals)). iMod (Sub with "[$HP']") as "Sub". {
+   specialize (Sub vals). iMod (Sub with "[$HP']") as "Sub". {
      iPureIntro; split; trivial.
      simpl.
      rewrite SB1. simpl in TC. destruct TC as [TC1 [TC2 TC3]].
-     unfold fn_funsig. simpl. clear - TC1 MAP LNR VUNDEF.
+     clear - TC1 MAP LNR VUNDEF.
      specialize (@tc_temp_environ_elim (fn_params f) (fn_temps f) _ LNR TC1). simpl in TC1.  red in TC1. clear - MAP; intros TE.
      forget (fn_params f) as params. generalize dependent vals.
      induction params; simpl; intros.
@@ -1543,23 +1545,14 @@ Proof.
    clear Sub.
    iDestruct "Sub" as (x1 FR1 HE1) "(A1 & %RetQ)".
    iExists vals, x1, FR1.
-   iSplit; last iSplit.
-    + iPureIntro; split; auto; intros. rewrite -RetQ.
-      iIntros "(% & $)"; iPureIntro; split; last trivial.
-      simpl in H. clear - H. destruct H as [_ [Hve _]].
-      simpl in *. red in Hve. destruct rho'; simpl in *.
-      apply Map.ext; intros x. specialize (Hve x).
-      destruct (Map.get ve x); simpl.
-      * destruct p; simpl in *. destruct (Hve t) as [_ H]; clear Hve.
-        exploit H. exists b; trivial. rewrite Maps.PTree.gempty //.
-      * reflexivity.
+   iSplit; first done; iSplit.
     + iFrame.
     + iPureIntro; split; trivial. destruct TC as [TC1 _]. simpl in TC1. red in TC1.
       clear - MAP VUNDEF TC1 LNR. forget (fn_params f) as params. forget (fn_temps f) as temps. forget (te_of rho) as tau.
       clear f rho. generalize dependent vals. induction params; simpl; intros; destruct vals; inv MAP; trivial.
       inv VUNDEF. inv LNR. destruct a; simpl in *.
       assert (X: forall id ty, (make_tycontext_t params temps) !! id = Some ty ->
-                 exists v : val, Map.get tau id = Some v /\ tc_val' ty v).
+                 exists v : val, lookup id tau = Some v /\ tc_val' ty v).
       { intros. apply TC1. simpl. setoid_rewrite Maps.PTree.gso; trivial.
         apply make_context_t_get in H. intros ?; subst id. contradiction. }
       split; [ clear IHparams | apply (IHparams H6 X _ H1 H4)].
@@ -1570,32 +1563,26 @@ Proof.
    apply extract_exists_pre; intros x1.
    apply extract_exists_pre; intros FRM.
    apply semax_extract_prop; intros (HE & QPOST).
-   unfold fn_funsig in *. simpl in SB2; rewrite -> SB2 in *.
    apply (semax_frame(OK_spec := OK_spec0) (E x1) (func_tycontext f V G nil)
-      (close_precondition (map fst (fn_params f)) (argsassert_of (P x1)) ∗
+      (close_precondition (map fst (fn_params f)) (P x1) ∗
          stackframe_of f)
       (fn_body f)
-      (frame_ret_assert (function_body_ret_assert (fn_return f) (assert_of (Q x1))) (stackframe_of f))
-      ⎡FRM⎤) in SB3.
+      (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x1)) (stackframe_of f))
+      FRM) in SB3.
     + eapply semax_pre_post_fupd.
       6: rewrite /semax -semax_mask_mono //; apply SB3.
       all: clear SB3; intros; simpl; try iIntros "(_ & ([] & ?) & _)".
-      * split => rho; monPred.unseal; iIntros "(%TC & (N1 & (? & N2)) & (%VALS & %TCVals)) !>"; iFrame.
+      * split => rho; unfold local; monPred.unseal; rewrite monPred_at_intuitionistically; iIntros "(%TC & (N1 & (? & N2)) & (%VALS & %TCVals)) !>"; iFrame.
         iPureIntro; repeat (split; trivial).
         apply (tc_vals_Vundef TCVals).
       * split => rho; rewrite /bind_ret; monPred.unseal; destruct (fn_return f); try iIntros "(_ & ([] & _) & _)".
-        rewrite /= -QPOST; iIntros "(? & (? & ?) & ?)"; iFrame.
-        iPureIntro; split; last done.
-        apply tc_environ_xtype.
-      * split => rho; rewrite /bind_ret; monPred.unseal; iIntros "(% & (Q & $) & ?)".
+        rewrite /= -QPOST; iIntros "(? & (? & ?) & ?)"; iFrame; done.
+      * split => rho; rewrite /local /bind_ret; monPred.unseal; rewrite monPred_at_intuitionistically; iIntros "(% & (Q & $) & ?)".
         destruct vl; simpl.
         -- rewrite -QPOST.
-           iDestruct "Q" as "($ & $)"; iFrame; iPureIntro; split; last done.
-           apply tc_environ_xtype_env_set.
+           iDestruct "Q" as "($ & $)"; iFrame; done.
         -- destruct (fn_return f); try iDestruct "Q" as "[]".
-           rewrite /= -QPOST; iFrame; iPureIntro; split; last done.
-           apply tc_environ_xtype.
-    + do 2 red; intros; monPred.unseal; trivial.
+           rewrite /= -QPOST; iFrame; done.
 Qed.
 
 Lemma make_tycontext_s_distinct : forall a l (Ha : In a l) (Hdistinct : List.NoDup (map fst l)),
