@@ -209,12 +209,13 @@ Lemma believe_exists_fundef:
   forall {CS}
     {b : block} {id_fun : ident} {psi : genv} {Delta : tycontext}
     {fspec: funspec}
+  (Hsub : cenv_sub (@cenv_cs CS) psi)
   (Findb : Genv.find_symbol (genv_genv psi) id_fun = Some b)
   (H3: (glob_specs Delta) !! id_fun = Some fspec),
   believe(CS := CS) OK_spec Delta psi Delta ⊢
   ⌜∃ f : Clight.fundef,
    Genv.find_funct_ptr (genv_genv psi) b = Some f /\
-   type_of_fundef f = type_of_funspec fspec⌝.
+   type_of_fundef f = type_of_funspec fspec /\ forall vals, length vals = length (fst (typesig_of_funspec fspec)) -> fundef_wf psi f vals⌝.
 Proof.
   intros.
   destruct fspec as [[params retty] cc A E P Q].
@@ -232,7 +233,12 @@ Proof.
   - iDestruct "BI" as (b' fu (? & WOB & ? & ? & ? & ? & [=] & ?)) "_"; iPureIntro.
     assert (b' = b) by congruence. subst b'.
     eexists; split; first done; simpl.
-    unfold type_of_function; subst; done.
+    unfold type_of_function; subst; split; first done.
+    rewrite map_length; intros; intuition.
+    + by eapply Forall_impl; last by intros ?; apply complete_type_cenv_sub.
+    + pose proof (proj2 (Forall_and _ _) (conj H0 H4)) as Hall.
+      eapply Forall_impl; first apply Hall.
+      intros ? (? & ?); rewrite cenv_sub_sizeof //.
 Qed.
 
 Lemma tc_vals_length: forall tys vs, tc_vals tys vs -> length tys = length vs.
@@ -275,9 +281,11 @@ induction bodyparams; simpl; intros; destruct args; inv BP; simpl; auto.
   rewrite (pass_params_ni _ _ _ _ _ H0 H2) Maps.PTree.gss //.
 Qed.*)
 
+(* up to extend_tc? *)
+Definition globals_auth ge := own(inG0 := envGS_inG) env_name (lib.gmap_view.gmap_view_auth dfrac.DfracDiscarded (to_agree <$> ge), ε).
+
 Lemma curr_env_ge : forall ge f rho, curr_env ge f rho ⊢ curr_env ge f rho ∗
-   <affine> ⌜∀ i : ident, ge_of rho !! i = Genv.find_symbol ge i⌝ ∗
-   ⎡own(inG0 := envGS_inG) env_name (lib.gmap_view.gmap_view_auth dfrac.DfracDiscarded (to_agree <$> ge_of rho), ε)⎤.
+   <affine> ⌜∀ i : ident, ge_of rho !! i = Genv.find_symbol ge i⌝ ∗ ⎡globals_auth (ge_of rho)⎤.
 Proof.
   intros; iIntros "((% & %) & #$ & $)"; auto.
 Qed.
@@ -475,6 +483,63 @@ Proof.
   - iIntros "(% & % & H)".
     iDestruct (monPred_in_entails with "H") as "H"; first by apply stackframe_of_eq1'.
     rewrite monPred_at_sep; iDestruct "H" as "($ & $)".
+Qed.
+
+Lemma stackframe_of'_curr_env : forall {CS : compspecs} (ge : genv) f lv n
+  (Hcomplete : Forall (λ it : ident * type, complete_type cenv_cs it.2 = true) (fn_vars f))
+  (Hsub : cenv_sub cenv_cs ge),
+  list_norepet (map fst (fn_vars f)) ->
+  list_norepet (map fst (fn_params f) ++ map fst (fn_temps f)) ->
+  globals_auth (make_env (Genv.genv_symb ge)) ∗
+  stack_retainer f n ∗ stackframe_of' ge f lv n ⊢ ∃ lb,
+  let rho := (make_env (Genv.genv_symb ge), list_to_map (zip (map fst (fn_vars f)) (zip lb (map snd (fn_vars f)))),
+    list_to_map (zip (map fst (fn_params f) ++ map fst (fn_temps f)) lv)) in curr_env ge f rho n ∗ stackframe_of f rho.
+Proof.
+  intros; trans (globals_auth (make_env (Genv.genv_symb ge)) ∗ ∃ lb, stackframe_of1 ge f lb lv n).
+  - iIntros "($ & H)".
+    iDestruct (monPred_in_entails with "[H]") as "H"; first by apply lifting.stackframe_of_eq'.
+    { rewrite monPred_at_sep; iFrame. }
+    by monPred.unseal.
+  - iIntros "(Hge & % & H)"; iExists lb.
+    rewrite /curr_env /stackframe_of /stackframe_of1 -assert_of_eq /=; monPred.unseal.
+    rewrite monPred_at_embed; iFrame "Hge".
+    rewrite monPred_at_affinely; iDestruct "H" as "((% & stack) & H)".
+    rewrite monPred_at_big_sepL2; iDestruct (big_sepL2_length with "H") as %Hlen.
+    assert (length (map fst (fn_vars f)) = length (zip lb (map snd (fn_vars f)))) as Heq1.
+    { rewrite length_zip_with_l_eq !map_length //. }
+    assert (length (map fst (fn_params f) ++ map fst (fn_temps f)) = length lv) as Heq2.
+    { rewrite !app_length !map_length //. }
+    assert (NoDup (zip (map fst (fn_params f) ++ map fst (fn_temps f)) lv).*1).
+    { rewrite -norepet_NoDup fst_zip //. by rewrite Heq2. }
+    assert (NoDup (zip (map fst (fn_vars f)) (zip lb (map snd (fn_vars f)))).*1).
+    { rewrite -norepet_NoDup fst_zip //. by rewrite Heq1. }
+    iSplitL "stack".
+    + iSplit.
+      { iPureIntro; split; last by intros; rewrite make_env_spec.
+        unfold stack_size.
+        destruct (fn_params f); simpl; last lia.
+        destruct (fn_temps f); simpl; last lia; done. }
+      iStopProof; f_equiv; try done.
+      rewrite !map_size_list_to_map //.
+      rewrite !length_zip_with_l_eq // !map_length // app_length !map_length.
+      rewrite Nat.add_assoc //.
+    + rewrite monPred_at_big_sepL var_blocks_eq // /eval_lvar /=.
+      iExists lb; setoid_rewrite monPred_at_embed; iFrame.
+      iPureIntro.
+      * intros ???? Hn Hb; setoid_rewrite elem_of_list_to_map_1; [|try done..].
+        2: { rewrite elem_of_zip_gen /=.
+            exists n0; rewrite list_lookup_fmap Hn; split; auto.
+            rewrite lookup_zip_with Hb /= list_lookup_fmap Hn //. }
+        rewrite /= eqb_type_refl //.
+      * intros ??? Hn.
+        pose proof (lookup_lt_Some _ _ _ Hn) as Hlt'.
+        rewrite Hlen in Hlt'.
+        apply lookup_lt_is_Some_2 in Hlt' as (? & Hb).
+        setoid_rewrite elem_of_list_to_map_1; [|try done..].
+        2: { rewrite elem_of_zip_gen /=.
+             exists n0; rewrite list_lookup_fmap Hn; split; auto.
+             rewrite lookup_zip_with Hb /= list_lookup_fmap Hn //. }
+        eexists; rewrite /= eqb_type_refl //.
 Qed.
 
 Lemma tc_vals_Vundef {args ids} (TC:tc_vals ids args): Forall (fun v : val => v <> Vundef) args.
