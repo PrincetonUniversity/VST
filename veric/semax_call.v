@@ -491,7 +491,7 @@ Lemma stackframe_of'_curr_env : forall {CS : compspecs} (ge : genv) f lv n
   list_norepet (map fst (fn_vars f)) ->
   list_norepet (map fst (fn_params f) ++ map fst (fn_temps f)) ->
   globals_auth (make_env (Genv.genv_symb ge)) ∗
-  stack_retainer f n ∗ stackframe_of' ge f lv n ⊢ ∃ lb,
+  stack_retainer f n ∗ stackframe_of' ge f lv n ⊢ ∃ lb, <affine> ⌜length lb = length (fn_vars f)⌝ ∗
   let rho := (make_env (Genv.genv_symb ge), list_to_map (zip (map fst (fn_vars f)) (zip lb (map snd (fn_vars f)))),
     list_to_map (zip (map fst (fn_params f) ++ map fst (fn_temps f)) lv)) in curr_env ge f rho n ∗ stackframe_of f rho.
 Proof.
@@ -504,7 +504,7 @@ Proof.
     rewrite /curr_env /stackframe_of /stackframe_of1 -assert_of_eq /=; monPred.unseal.
     rewrite monPred_at_embed; iFrame "Hge".
     rewrite monPred_at_affinely; iDestruct "H" as "((% & stack) & H)".
-    rewrite monPred_at_big_sepL2; iDestruct (big_sepL2_length with "H") as %Hlen.
+    rewrite monPred_at_big_sepL2; iDestruct (big_sepL2_length with "H") as %Hlen; iSplit; first done.
     assert (length (map fst (fn_vars f)) = length (zip lb (map snd (fn_vars f)))) as Heq1.
     { rewrite length_zip_with_l_eq !map_length //. }
     assert (length (map fst (fn_params f) ++ map fst (fn_temps f)) = length lv) as Heq2.
@@ -610,6 +610,117 @@ Qed.
   jsafeN OK_spec psi E ora (Callstate ff args ctl)).
 Proof.
 Qed.*)
+
+Lemma make_te_lookup : forall (params : list (ident * type)) l args lv (te : tenviron)
+  (Hnodup : NoDup (zip (map fst params ++ l) (args ++ lv)).*1)
+  (Hlen : length params = length args)
+  (Hte : te = list_to_map (zip (map fst params ++ l) (args ++ lv)))
+  n i t (Hn : lookup n params = Some (i, t)),
+  exists v, lookup n args = Some v /\ lookup i te = Some v.
+Proof.
+  intros.
+  pose proof (lookup_lt_Some _ _ _ Hn) as Hlt.
+  rewrite Hlen in Hlt.
+  apply lookup_lt_is_Some_2 in Hlt as (? & ?).
+  eexists; split; first done.
+  rewrite Hte.
+  apply elem_of_list_to_map; first done.
+  apply elem_of_zip_gen.
+  exists n; erewrite !lookup_app_l_Some; try done.
+  rewrite list_lookup_fmap Hn //.
+Qed.
+
+Lemma make_env_guard_environ : forall Delta f args lb rho
+  (Hparams : list_norepet (map fst (fn_params f) ++ map fst (fn_temps f)))
+  (Hvars : list_norepet (map fst (fn_vars f)))
+  (Hlb : length lb = length (fn_vars f))
+  (Htc : tc_vals (map snd (fn_params f)) args)
+  (Hge : typecheck_glob_environ (ge_of rho) (glob_types Delta))
+  (Hve : ve_of rho = list_to_map (zip (map fst (fn_vars f)) (zip lb (map snd (fn_vars f)))))
+  (Hte : te_of rho = list_to_map (zip (map fst (fn_params f) ++ map fst (fn_temps f))
+            (args ++ repeat Vundef (length (fn_temps f))))),
+  guard_environ (func_tycontext' f Delta) f rho.
+Proof.
+  intros; pose proof (tc_vals_length _ _ Htc) as Hlen; rewrite map_length in Hlen.
+  assert (NoDup (zip (map fst (fn_params f) ++ map fst (fn_temps f))
+    (args ++ repeat Vundef (length (fn_temps f)))).*1).
+  { rewrite -norepet_NoDup fst_zip //.
+    rewrite !app_length !map_length Hlen repeat_length //. }
+  split3; last done.
+  split3; try done.
+  + intros ?? Hi%make_context_t_get'.
+    apply in_app_iff in Hi as [Hi | Hi].
+    * apply elem_of_list_In, elem_of_list_lookup_1 in Hi as (? & Hi).
+      edestruct make_te_lookup as (? & ? & ->); [done..|].
+      eexists; split; first done.
+      eapply tc_val_tc_val', tc_vals_lookup; eauto.
+      rewrite list_lookup_fmap Hi //.
+    * apply elem_of_list_In, elem_of_list_lookup_1 in Hi as (i & Hi).
+      pose proof (lookup_lt_Some _ _ _ Hi) as Hlt.
+      exists Vundef; split; last by intros ?.
+      rewrite Hte; apply elem_of_list_to_map; first done.
+      apply elem_of_zip_gen.
+      exists (length (fn_params f) + i)%nat.
+      rewrite !lookup_app_r; rewrite -?Hlen ?map_length; try lia.
+      rewrite !Nat.add_sub' list_lookup_fmap Hi; split; first done.
+      rewrite repeat_lookup if_true //.
+  + intros ??; rewrite make_tycontext_v_sound //.
+    assert (NoDup (zip (map fst (fn_vars f)) (zip lb (map snd (fn_vars f)))).*1).
+    { rewrite -norepet_NoDup fst_zip // length_zip_with_l_eq map_length //; lia. }
+    rewrite Hve; split.
+    * intros Hi.
+      apply elem_of_list_In, elem_of_list_lookup_1 in Hi as (i & Hi).
+      pose proof (lookup_lt_Some _ _ _ Hi) as Hb.
+      rewrite -Hlb in Hb; apply lookup_lt_is_Some_2 in Hb as (? & Hb).
+      eexists; apply elem_of_list_to_map; first done.
+      apply elem_of_zip_gen.
+      exists i; rewrite lookup_zip_with Hb /= !list_lookup_fmap Hi //.
+    * intros (? & Hi%elem_of_list_to_map); last done.
+      apply elem_of_zip_gen in Hi as (i & Hi & Hb).
+      rewrite lookup_zip_with in Hb; apply bind_Some in Hb as (? & ? & Hb).
+      rewrite !list_lookup_fmap in Hi Hb.
+      apply bind_Some in Hb as (? & Hb & [=]); subst.
+      apply elem_of_list_In, (elem_of_list_lookup_2 _ i).
+      destruct (lookup i (fn_vars f)) as [(?, ?)|] eqn: Hl; inv Hi; inv Hb; done.
+  + rewrite Hte /=.
+    setoid_rewrite make_tycontext_t_sound; last done.
+    intros ?? Hi%elem_of_list_to_map; last done.
+    apply elem_of_zip_gen in Hi as (? & Hi%elem_of_list_lookup_2%elem_of_list_In & _).
+    rewrite -map_app in Hi; apply in_map_iff in Hi as ((?, ?) & [=] & ?); subst; eauto.
+Qed.
+
+Lemma make_te_lookup_args : forall (params : list (ident * type)) l args lv (te : tenviron)
+  (Hnodup : NoDup (zip (map fst params ++ l) (args ++ lv)).*1)
+  (Hlen : length params = length args)
+  (Hte : te = list_to_map (zip (map fst params ++ l) (args ++ lv))),
+  map (λ i : ident, (te !! i)%stdpp) (map fst params) =
+  map Some args.
+Proof.
+  intros; rewrite map_map; eapply list_eq_same_length; eauto.
+  { rewrite !map_length //. }
+  intros ????.
+  rewrite !list_lookup_fmap; destruct (lookup i params) as [(?, ?)|] eqn: Hi; inversion 1; subst.
+  eapply make_te_lookup in Hi as (? & He & ->); [|done..].
+  rewrite He; inversion 1; done.
+Qed.
+
+Lemma tc_formals_args : forall params l lv args rho
+  (Hnodup : NoDup (zip (map fst params ++ l) (args ++ lv)).*1)
+  (H : tc_vals (map snd params) args)
+  (Hrho : te_of rho = list_to_map (zip (map fst params ++ l) (args ++ lv))),
+  tc_formals params rho.
+Proof.
+  intros; rewrite /tc_formals.
+  match goal with H: tc_vals _ ?A |- tc_vals _ ?B => replace B with A; auto end.
+  assert (length params = length args).
+  { apply tc_vals_length in H; rewrite map_length // in H. }
+  eapply list_eq_same_length; eauto.
+  { rewrite map_length //. }
+  intros ?????.
+  rewrite list_lookup_fmap; destruct (lookup i params) as [(?, ?)|] eqn: Hi; inversion 1; subst.
+  rewrite /eval_id.
+  eapply make_te_lookup in Hi as (? & ? & ->); [|done..]; simpl; congruence.
+Qed.
 
 Lemma semax_call_si:
   forall E Delta (A: TypeTree) (Ef : dtfr (MaskTT A))
@@ -786,72 +897,17 @@ Proof.
     assert (forall n i t, lookup n (fn_params f) = Some (i, t) ->
         exists v, lookup n (eval_exprlist(CS := CS) (type_of_params (fn_params f)) bl rho) = Some v /\
           lookup i (te_of rho0) = Some v) as Hte.
-    { intros ??? Hn.
-      pose proof (lookup_lt_Some _ _ _ Hn) as Hlt.
-      rewrite map_length in Hlen; rewrite -Hlen in Hlt.
-      apply lookup_lt_is_Some_2 in Hlt as (? & ?).
-      eexists; split; first done.
-      destruct Hrho as (_ & _ & ->).
-      apply elem_of_list_to_map; first done.
-      apply elem_of_zip_gen.
-      exists n0; rewrite -map_app list_lookup_fmap; erewrite !lookup_app_l_Some by done; done. }
+    { destruct Hrho as (_ & _ & ?); eapply make_te_lookup; eauto.
+      rewrite map_length // in Hlen. }
     iSpecialize ("BI" with "[] [//] E'").
     { destruct Hrho as (Hge0 & (lb & Hlb & Hve0) & Hte0).
-      rewrite monPred_at_affinely; iPureIntro; split3; last done.
-      split3.
-      + intros ?? Hi%make_context_t_get'.
-        apply in_app_iff in Hi as [Hi | Hi].
-        * apply elem_of_list_In, elem_of_list_lookup_1 in Hi as (? & Hi).
-          edestruct Hte as (? & ? & ->); first done.
-          eexists; split; first done.
-          eapply tc_val_tc_val', tc_vals_lookup; eauto.
-          rewrite list_lookup_fmap Hi //.
-        * apply elem_of_list_In, elem_of_list_lookup_1 in Hi as (i & Hi).
-          pose proof (lookup_lt_Some _ _ _ Hi) as Hlt.
-          exists Vundef; split; last by intros ?.
-          rewrite Hte0; apply elem_of_list_to_map; first done.
-          apply elem_of_zip_gen.
-          exists (length (fn_params f) + i)%nat.
-          rewrite !lookup_app_r; rewrite ?Hlen ?map_length; try lia.
-          rewrite !Nat.add_sub' list_lookup_fmap Hi; split; first done.
-          rewrite repeat_lookup if_true //.
-      + intros ??; rewrite make_tycontext_v_sound //.
-        assert (NoDup (zip (map fst (fn_vars f)) (zip lb (map snd (fn_vars f)))).*1).
-        { rewrite -norepet_NoDup fst_zip // length_zip_with_l_eq map_length //; lia. }
-        rewrite Hve0; split.
-        * intros Hi.
-          apply elem_of_list_In, elem_of_list_lookup_1 in Hi as (i & Hi).
-          pose proof (lookup_lt_Some _ _ _ Hi) as Hb.
-          rewrite -Hlb in Hb; apply lookup_lt_is_Some_2 in Hb as (? & Hb).
-          eexists; apply elem_of_list_to_map; first done.
-          apply elem_of_zip_gen.
-          exists i; rewrite lookup_zip_with Hb /= !list_lookup_fmap Hi //.
-        * intros (? & Hi%elem_of_list_to_map); last done.
-          apply elem_of_zip_gen in Hi as (i & Hi & Hb).
-          rewrite lookup_zip_with in Hb; apply bind_Some in Hb as (? & ? & Hb).
-          rewrite !list_lookup_fmap in Hi Hb.
-          apply bind_Some in Hb as (? & Hb & [=]); subst.
-          apply elem_of_list_In, (elem_of_list_lookup_2 _ i).
-          destruct (lookup i (fn_vars f)) as [(?, ?)|] eqn: Hl; inv Hi; inv Hb; done.
-      + rewrite Hge0; apply TC'.
-      + simpl.
-        rewrite Hte0.
-        setoid_rewrite make_tycontext_t_sound; last done.
-        intros ?? Hi%elem_of_list_to_map; last done.
-        apply elem_of_zip_gen in Hi as (? & Hi%elem_of_list_lookup_2%elem_of_list_In & _).
-        rewrite -map_app in Hi; apply in_map_iff in Hi as ((?, ?) & [=] & ?); subst; eauto. }
+      rewrite monPred_at_affinely; iPureIntro; eapply make_env_guard_environ; eauto.
+      rewrite Hge0; apply TC'. }
     iSpecialize ("BI" with "[//] [stack Pre]").
     { iFrame.
       rewrite /bind_args monPred_at_and /=; iSplit.
       + iPureIntro.
-        rewrite /tc_formals.
-        match goal with H: tc_vals _ ?A |- tc_vals _ ?B => replace B with A; auto end.
-        eapply list_eq_same_length; eauto.
-        { rewrite Hlen !map_length //. }
-        intros ?????.
-        rewrite list_lookup_fmap; destruct (lookup i (fn_params f)) as [(?, ?)|] eqn: Hi; inversion 1; subst.
-        rewrite /eval_id.
-        apply Hte in Hi as (? & ? & ->); unfold type_of_params in *; simpl; congruence.
+        eapply tc_formals_args; eauto; apply Hrho.
       + rewrite ofe_morO_equivI; iSpecialize ("HP" $! fx).
         rewrite discrete_fun_equivI; iSpecialize ("HP" $! (eval_exprlist (map snd (fn_params f)) bl rho)).
         Fail iRewrite -"HP" in "Pre".
@@ -859,12 +915,8 @@ Proof.
         { by iApply (internal_eq_sym with "HP"). }
         iFrame; iPureIntro.
         split; last done; split.
-        * rewrite map_map; eapply list_eq_same_length; eauto.
-          { rewrite !map_length Hlen map_length //. }
-          intros ????.
-          rewrite !list_lookup_fmap; destruct (lookup i (fn_params f)) as [(?, ?)|] eqn: Hi; inversion 1; subst.
-          apply Hte in Hi as (? & He & ->).
-          rewrite He; inversion 1; done.
+        * eapply make_te_lookup_args; eauto; last apply Hrho.
+          rewrite map_length // in Hlen.
         * by eapply tc_vals_Vundef. }
     iMod "Hclose" as "_"; iModIntro.
     subst.

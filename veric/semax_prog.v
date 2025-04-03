@@ -970,7 +970,7 @@ iDestruct ("Prog_OK" with "[//] [%]") as "[BE | BI]".
   iIntros "!>" (????? (? & Hret) ??) "Post"; iMod ("H" with "Post") as "($ & $ & _)"; by iFrame.
 - rewrite {2}/believe_internal /initial_call_assert.
   monPred.unseal.
-  iDestruct "BI" as (?? ([=] & Eb' & ? & ? & ? & ? & ? & ?)) "BI"; subst.
+  iDestruct "BI" as (? fi ([=] & Eb' & ? & ? & ? & ? & ? & ?)) "BI"; subst.
   rewrite Eb' in Eb; inv Eb.
   iSpecialize ("BI" with "[//] [%] [//] [%]").
   { intros; apply tycontext_sub_refl. }
@@ -981,26 +981,33 @@ iDestruct ("Prog_OK" with "[//] [%]") as "[BE | BI]".
   iIntros "(G & >P & F)".
   rewrite /initial_internal_call_assert; monPred.unseal.
   iIntros "!>" (? [=]) "Hret"; iIntros (? [=]) "Hstack"; subst.
-  iDestruct (stackframe_of'_curr_env with "[G $Hret Hstack]") as "(% & Hcurr & Hstack)"; [try done..|].
+  iDestruct (stackframe_of'_curr_env with "[G $Hret Hstack]") as "(% & % & Hcurr & Hstack)"; [try done..|].
   { iFrame. }
-  iSpecialize ("BI" $! _ (func_tycontext' _ Delta) with "[//] [%] [//] F [//] [Prog_OK] [//] [] [//]").
+  inv Ef.
+  iSpecialize ("BI" $! _ (func_tycontext' _ Delta) with "[//] [%] [%] F [%] [Prog_OK] [%] [] [%]"); try apply (@eq_refl _ O).
   { split3; [apply tycontext_sub_refl | apply cenv_sub_refl | done]. }
   { rewrite /believe; monPred.unseal; done. }
   { rewrite monPred_at_affinely; iPureIntro.
-Search guard_environ. admit. }
+    eapply (make_env_guard_environ _ _ _ _ (_, _, _)); eauto. }
   iSpecialize ("BI" with "Hcurr [//] [P $Hstack]").
   { rewrite /bind_args /local; monPred.unseal; iFrame; iPureIntro.
+    pose proof (tc_vals_length _ _ arg_p) as Hlen.
+    assert (NoDup (zip (map fst (fn_params fi) ++ map fst (fn_temps fi))
+        (args ++ repeat Vundef (length (fn_temps fi)))).*1).
+    { rewrite -norepet_NoDup fst_zip //.
+      rewrite map_length in Hlen; rewrite !app_length !map_length Hlen repeat_length //. }
     split3; last done.
-    * admit.
-    * admit. }
+    * by eapply tc_formals_args.
+    * split; last by eapply tc_vals_Vundef.
+      eapply make_te_lookup_args; eauto.
+      apply tc_vals_length in arg_p; rewrite map_length // in arg_p. }
   iApply (monPred_in_entails with "BI"); apply wp_conseq; simpl.
   + iIntros "((% & Q & % & E) & ?) !>".
     iDestruct stack_level_intro as (?) "#Hl".
     rewrite /Clight_seplog.bind_ret monPred_at_sep.
     destruct (fn_return _); [|by rewrite monPred_at_pure embed_sep embed_pure; iDestruct "Q" as "([] & ?)"..].
     rewrite monPred_at_embed; iDestruct "Q" as "(Q & Hstack)".
-    iDestruct (stackframe_of_eq' with "[$Hstack E]") as "(? & % & ?)"; [try done..|].
-    { by iApply stack_level_embed. }
+    iDestruct (stackframe_of_eq' _ _ _ _ n with "[$Hstack E]") as "(? & % & ?)"; [try done..|].
     iStopProof; split => ?; monPred.unseal; rewrite monPred_at_intuitionistically.
     iIntros "(%Hn & ? & ? & ? & ?)"; inv Hn; by iFrame.
   + iIntros "((% & Q & ?) & ?) !>".
@@ -1018,7 +1025,7 @@ Search guard_environ. admit. }
     destruct v; simpl.
     * iDestruct "Q" as "($ & $)".
     * destruct (fn_return _); simpl; [by iFrame | done..].
-Admitted.
+Qed.
 
 Lemma semax_prog_rule {CS: compspecs} :
   forall V G prog m h z,
