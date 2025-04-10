@@ -903,16 +903,13 @@ Proof.
   eapply modifiedvars_Sswitch; eauto.
 Qed.
 
-(* Lemma semax_Slabel {cs:compspecs}
+Lemma semax_Slabel {cs:compspecs}
        E (Gamma:tycontext) (P:assert) (c:statement) (Q:ret_assert) l:
 semax(CS := cs) OK_spec E Gamma P c Q -> semax(CS := cs) OK_spec E Gamma P (Slabel l c) Q.
 Proof.
 rewrite !semax_unfold; intros.
-iIntros "H" (?) "guard".
-iApply guard_safe_adj'; last iApply (H with "H guard"); [|done..].
-intros; iIntros "H"; iApply jsafe_local_step; last done.
-constructor.
-Qed. *)
+iIntros "F B" (???) "E P"; iApply wp_label; by iApply (H with "F B [//] E P").
+Qed.
 
 Lemma assert_safe_jsafe: forall ge E f ve te c k ora ρ, typecheck_var_environ (make_env ve) (make_tycontext_v (fn_vars f)) ->
    stack_matches' ge ρ ve te (Some (Kseq c k)) ->

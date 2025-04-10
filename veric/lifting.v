@@ -349,6 +349,16 @@ Proof.
   solve_proper.
 Qed.
 
+Lemma wp_label : forall E f l s Q, wp E f s Q ⊢ wp E f (Slabel l s) Q.
+Proof.
+  intros; rewrite /wp.
+  iIntros "H %%% #Hn Hk" (????) "?%%".
+  iApply jsafe_local_step.
+  { intros; constructor. }
+  iNext.
+  iApply ("H" with "[//] [] [Hk] [$] [%] [%]"); done.
+Qed.
+
 Lemma wp_seq : forall E f s1 s2 Q, wp E f s1 (overridePost (wp E f s2 Q) Q) ⊢ wp E f (Ssequence s1 s2) Q.
 Proof.
   intros; rewrite /wp.
