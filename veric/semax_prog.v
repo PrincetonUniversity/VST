@@ -65,8 +65,7 @@ andb
 Definition semax_body
    (V: varspecs) (G: funspecs) {C: compspecs} (f: function) (spec: ident * funspec): Prop :=
 match spec with (_, mk_funspec fsig cc A E P Q) =>
-  fst fsig = map snd (fn_params f) /\
-  snd fsig = fn_return f /\
+  fsig =  (fn_typesig f) ∧
 forall OK_spec (x:dtfr A),
   semax OK_spec (E x) (func_tycontext f V G nil)
       (close_precondition (map fst f.(fn_params)) (P x) ∗ stackframe_of f)
@@ -262,7 +261,7 @@ semax_body(C := CS) V G f spec -> semax_body(C := CS') V G f spec.
 Proof.
 destruct spec.
 destruct f0.
-intros [H' [H'' H]]; split3; [auto..|]. clear H' H''.
+intros [H' H]; split3; [auto..|]. clear H'.
 intros.
   specialize (H OK_spec0 x).
 rewrite <- (stackframe_of_cspecs_sub CSUB); [apply (semax_cssub _ CSUB); apply H | trivial].
@@ -272,7 +271,8 @@ Lemma semax_body_type_of_function {V G cs f i phi} (SB : @semax_body V G cs f (i
       (CC: fn_callconv f = callingconvention_of_funspec phi):
 type_of_function f = type_of_funspec phi.
 Proof.
-  destruct phi as [[? ?] ? ? ? ?]. destruct SB as [? [? _]].
+  destruct phi as [[? ?] ? ? ? ?]. destruct SB as [? ?].
+  injection H; intros.
   unfold type_of_function; simpl in *. subst. trivial.
 Qed.
 
@@ -335,7 +335,7 @@ destruct H1 as [id' [? [b' [FS' Hbb']]]].
 symmetry in Hbb'; inv Hbb'.
 destruct (eq_dec id id').
  - subst. simpl in H1. setoid_rewrite Maps.PTree.gss in H1.
-   symmetry in H1; inv H1. destruct fsig; simpl in *. destruct SB as (? & ? & _). subst; tauto.
+   symmetry in H1; inv H1. destruct fsig; simpl in *. destruct SB as (? & ?). injection H1; intros. subst; tauto.
  - specialize (H0 id); unfold fundef in H0. simpl in H0.  rewrite Hb1 in H0; simpl in H0.
    simpl in FS'.
    elim (Genv.global_addresses_distinct ge' n H0 FS'); trivial.
@@ -348,7 +348,7 @@ apply JMeq_eq in H4a.
 apply JMeq_eq in H4b.
 apply JMeq_eq in H4c.
 subst E0 P0 Q0.
-destruct SB as [X [Y SB]]. specialize (SB OK_spec x). destruct fsig. simpl fst in X. simpl snd in Y; subst.
+destruct SB as [X SB]. specialize (SB OK_spec x).
 rewrite <- (stackframe_of_cenv_sub CSUB); trivial.
 iApply (semax'_cenv_sub _ CSUB).
 clear - SB HDelta'.
@@ -1469,7 +1469,7 @@ Lemma semax_body_subsumption cs V V' F F' f spec
   @semax_body V' F' cs f spec.
 Proof.
   destruct spec. destruct f0.
-  destruct SF as [? [HH SF]]; split3; auto. clear H.
+  destruct SF as [? SF]; split3; auto. clear H.
   intros.
   rewrite /semax -semax_mono //.
   apply (SF _ x).
@@ -1503,8 +1503,8 @@ Proof.
   if_tac in BI; [inv H | discriminate]. if_tac in BI; [| discriminate].
   apply Some_inj, mk_funspec_inj in BI as ([=] & ? & ? & ? & ? & ?); subst.
   clear - SB1 SB2.
-  destruct SB1 as [X [X1 SB1]]; destruct SB2 as [_ [X2 SB2]].
-  split3; [ apply X | trivial | simpl in X; intros ].
+  destruct SB1 as [X SB1]; destruct SB2 as [_ SB2].
+  split3; try done.
   destruct x as [[|] ?]; [ apply SB1 | apply SB2].
 Qed.
 
@@ -1514,21 +1514,19 @@ Lemma semax_body_generalintersection {V G cs f iden I sig cc} {phi : I -> funspe
         (HI: inhabited I)
   (H: forall i, @semax_body V G cs f (iden, phi i)):
   @semax_body V G cs f (iden, general_intersection phi H1 H2).
-Proof. destruct HI. split3.
-  { specialize (H X). specialize (H1 X); subst. destruct (phi X). simpl. apply H. }
+Proof. destruct HI. split.
   { specialize (H X). specialize (H1 X); subst. destruct (phi X). simpl. apply H. }
   intros. destruct x as [i Hi].
   specialize (H i).
-  assert (fst sig = map snd (fn_params f) /\
-        snd sig = fn_return f /\
+  assert (sig = (fn_typesig f) ∧
         (forall OK_spec (x : dtfr ((WithType_of_funspec (phi i)))),
          semax OK_spec (mask_of_funspec (phi i) x) (func_tycontext f V G nil)
            (close_precondition (map fst (fn_params f)) ((Pre_of_funspec (phi i)) x) ∗ stackframe_of f) 
            (fn_body f) (frame_ret_assert (function_body_ret_assert (fn_return f) ((Post_of_funspec (phi i)) x)) (stackframe_of f)))) as HH.
   { intros. specialize (H1 i); specialize (H2 i). subst. unfold semax_body in H.
-    destruct (phi i); subst. destruct H as [? [? ?]]. split3; auto. }
-  clear H H1 H2. destruct HH as [HH1 [HH2 HH3]].
-  apply (HH3 _ Hi).
+    destruct (phi i); subst. destruct H as [? ?]. split; auto. }
+  clear H H1 H2. destruct HH as [HH1 HH2].
+  apply (HH2 _ Hi).
 Qed.
 
 Lemma typecheck_temp_environ_eval_id {f lia}
@@ -1563,8 +1561,9 @@ Proof.
  destruct phi as [sig cc A E P Q].
  destruct phi' as [sig' cc' A' E' P' Q'].
  destruct Sub as [(Tsigs & CC) Sub]. subst cc'. simpl in Sub.
- destruct SB as [SB1 [SB2 SB3]].
+ destruct SB as [SB1 SB2].
  subst sig'.
+ unfold fn_typesig in SB1; inv SB1.
  split3; trivial. intros.
  specialize (Sub x).
  eapply @semax_adapt
@@ -1584,7 +1583,7 @@ Proof.
    specialize (Sub vals). iMod (Sub with "[$HP']") as "Sub". {
      iPureIntro; split; trivial.
      simpl.
-     rewrite SB1. simpl in TC. destruct TC as [TC1 [TC2 TC3]].
+     destruct TC as [TC1 [TC2 TC3]].
      clear - TC1 MAP LNR VUNDEF.
      specialize (@tc_temp_environ_elim (fn_params f) (fn_temps f) _ LNR TC1). simpl in TC1.  red in TC1. clear - MAP; intros TE.
      forget (fn_params f) as params. generalize dependent vals.
@@ -1624,10 +1623,10 @@ Proof.
          stackframe_of f)
       (fn_body f)
       (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x1)) (stackframe_of f))
-      FRM) in SB3.
+      FRM) in SB2.
     + eapply semax_pre_post_fupd.
       6: rewrite /semax -semax_mask_mono //; apply SB3.
-      all: clear SB3; intros; simpl; try iIntros "(_ & ([] & ?) & _)".
+      all: clear SB2; intros; simpl; try iIntros "(_ & ([] & ?) & _)".
       * split => rho; unfold local; monPred.unseal; rewrite monPred_at_intuitionistically; iIntros "(%TC & (N1 & (? & N2)) & (%VALS & %TCVals)) !>"; iFrame.
         iPureIntro; repeat (split; trivial).
         apply (tc_vals_Vundef TCVals).
@@ -1729,7 +1728,7 @@ Lemma semax_body_mono : forall V G {cs : compspecs} f s V2 G2
 Proof.
   unfold semax_body; intros.
   destruct s, f0.
-  destruct H as [H' [H'' H]]; split3; auto.
+  destruct H as [H' H]; split3; auto.
   intros; eapply semax_Delta_subsumption, H.
   apply func_tycontext_sub; auto.
 Qed.

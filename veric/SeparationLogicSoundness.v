@@ -106,8 +106,8 @@ Lemma semax_func_cons_ext: forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} 
   ef_sig ef = mksignature (map argtype_of_type argsig) (rettype_of_type retsig) cc ->
   id_in_list id (map (@fst _ _) fs) = false ->
   (ef_inline ef = false \/ @withtype_empty Σ A) ->
-  (forall gx x (ret : option val),
-      Q x (make_ext_rval gx (rettype_of_type retsig) ret) ∧
+  (forall x (ret : option val),
+      Q x (make_ext_rval (rettype_of_type retsig) ret) ∧
       ⌜Builtins0.val_opt_has_rettype ret (rettype_of_type retsig)⌝ ⊢
       ⌜tc_option_val retsig ret⌝) ->
   Genv.find_symbol ge id = Some b ->
@@ -196,12 +196,12 @@ Lemma semax_call `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {CS : compspecs}:
   semax OK_spec E Delta
        ((tc_expr Delta a ∧ tc_exprlist Delta argsig bl) ∧
          (assert_of (fun rho => func_ptr (mk_funspec (argsig,retsig) cc A Ef P Q) (eval_expr a rho)) ∗
-          (▷(F ∗ assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho))))))
+          (▷(F ∗ assert_of (fun rho => P x (eval_exprlist argsig bl rho))))))
          (Scall ret a bl)
-         (normal_ret_assert (∃ old:val, assert_of (substopt ret (`old) F) ∗ maybe_retval (assert_of (Q x)) retsig ret)).
+         (normal_ret_assert (∃ old:val, assert_of (substopt ret (`old) F) ∗ maybe_retval (Q x) retsig ret)).
 Proof.
-  intros. eapply semax_pre_post, semax_call_si; try done; [| by intros; rewrite bi.and_elim_r..].
-  intros; rewrite bi.and_elim_r; apply bi.and_mono; [apply bi.later_intro | done].
+  intros. eapply semax_pre_post, semax_call_si; try done; [| by iIntros "(_ & ?)"..|intros; by iIntros "(_ & ?)"].
+  iIntros "(_ & ?)". iStopProof. apply bi.and_mono; [apply bi.later_intro | done].
 Qed.
 
 Lemma semax_store: forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {CS : compspecs}
@@ -227,7 +227,7 @@ Definition semax_ptr_compare := @semax_ptr_compare.
 Definition semax_external_FF := @semax_external_FF.
 
 Definition semax_ext := @semax_ext.
-
+Lemma emm: @CSHL_Defs.semax_body=@semax_prog.semax_body. unfold CSHL_Defs.semax_body. unfold semax_prog.semax_body. reflexivity. Qed.
 End VericMinimumSeparationLogic.
 
 Module VericSound : SEPARATION_HOARE_LOGIC_SOUNDNESS with Module CSHL_Def := VericDef.
