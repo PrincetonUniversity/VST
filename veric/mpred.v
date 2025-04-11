@@ -412,6 +412,8 @@ Notation envR := (ora.prodR
     (ext_order.inclR (gmap_view.gmap_viewR ident (agree.agreeR (leibnizO block))))
     (ext_order.inclR (iris.algebra.auth.authR (iris.algebra.gmap.gmapUR nat (fixed_fracR frameR))))).
 
+(*Definition envUR := Uora' envR (ofe_mixin envR) (cmra_mixin envR) (ora_mixin envR) (ucmra_mixin envR).*)
+
 Class envGS Σ := EnvGS {
   envGS_inG :: inG Σ envR;
   env_name : gname
