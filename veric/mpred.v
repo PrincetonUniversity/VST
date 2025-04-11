@@ -553,9 +553,7 @@ Ltac super_unfold_lift :=
   cbv delta [liftx LiftEnviron LiftAEnviron Tarrow Tend lift_S lift_T lift_prod
   lift_last lifted lift_uncurry_open lift_curry lift lift0 lift1 lift2 lift3 alift0 alift1 alift2 alift3] beta iota in *.
 
-(* switch from an entailment on asserts to mpreds; mostly the same as monPred.unseal *)
-Ltac raise_rho :=
-  try (constructor; intro rho); 
+Ltac raise_rho' :=
   repeat (rewrite monPred_at_and ||
           rewrite monPred_at_sep ||
           rewrite monPred_at_or ||
@@ -590,3 +588,8 @@ Ltac raise_rho :=
           rewrite monPred_at_big_sepMS ||
           rewrite monPred_at_big_sepM ||
           simpl).
+
+(* switch from an entailment on asserts to mpreds; mostly the same as monPred.unseal *)
+Ltac raise_rho :=
+  try (constructor; intro rho); 
+  raise_rho'.
