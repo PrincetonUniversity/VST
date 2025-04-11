@@ -2088,7 +2088,7 @@ Qed.
 Lemma init_VST: forall Z `{!VSTGpreS Z Σ} (z : Z) ge,
   ⊢ |==> ∀ _ : invGS_gen HasNoLc Σ, ∃ _ : gen_heapGS share address resource Σ, ∃ _ : funspecGS Σ, ∃ _ : envGS Σ, ∃ _ : externalGS Z Σ,
     let H : VSTGS Z Σ := Build_VSTGS _ _ (HeapGS _ _ _ _) _ _ in
-    (state_interp Mem.empty z ∗ funspec_auth ∅ ∗ env_auth (ge, ∅) ∗ ([∗ map] i↦b∈ge, gvar i b) ∗ has_ext z) ∗
+    (state_interp Mem.empty z ∗ env_auth (ge, ∅) ∗ ([∗ map] i↦b∈ge, gvar i b) ∗ funspec_auth ∅ ∗ has_ext z) ∗
     ghost_map.ghost_map_auth(H0 := gen_heapGpreS_meta) (gen_meta_name _) 1 ∅.
 Proof.
   intros; iIntros.

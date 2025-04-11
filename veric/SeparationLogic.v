@@ -526,12 +526,13 @@ Axiom semax_skip:
 
 Axiom semax_conseq:
   forall E Delta (P' : assert) (R': ret_assert) (P:assert) c (R: ret_assert),
-    (local (tc_environ Delta) ∧ (<affine> ⎡allp_fun_id Delta⎤ ∗ P) ⊢ (|={E}=> P')) ->
-    (local (tc_environ Delta) ∧ (<affine> ⎡allp_fun_id Delta⎤ ∗ RA_normal R') ⊢ (|={E}=> RA_normal R)) ->
-    (local (tc_environ Delta) ∧ (<affine> ⎡allp_fun_id Delta⎤ ∗ RA_break R') ⊢ (|={E}=> RA_break R)) ->
-    (local (tc_environ Delta) ∧ (<affine> ⎡allp_fun_id Delta⎤ ∗ RA_continue R') ⊢ (|={E}=> RA_continue R)) ->
-    (forall vl, local (tc_environ Delta) ∧ (<affine> ⎡allp_fun_id Delta⎤ ∗ RA_return R' vl) ⊢ (RA_return R vl)) ->
-   semax E Delta P' c R' -> semax E Delta P c R.
+  (local (tc_environ Delta) ∧ (<affine> ⎡allp_fun_id Delta⎤ ∗ P) ⊢ (|={E}=> P')) ->
+  (local (tc_environ Delta) ∧ (<affine> ⎡allp_fun_id Delta⎤ ∗ RA_normal R') ⊢ (|={E}=> RA_normal R)) ->
+  (local (tc_environ Delta) ∧ (<affine> ⎡allp_fun_id Delta⎤ ∗ RA_break R') ⊢ (|={E}=> RA_break R)) ->
+  (local (tc_environ Delta) ∧ (<affine> ⎡allp_fun_id Delta⎤ ∗ RA_continue R') ⊢ (|={E}=> RA_continue R)) ->
+  (forall vl, local (tc_environ Delta) ∧ (<affine> ⎡allp_fun_id Delta⎤ ∗ RA_return R' vl) ⊢ (|={E}=> RA_return R vl)) ->
+  semax E Delta P' c R' -> semax E Delta P c R.
+
 
 Axiom semax_Slabel:
      forall E Delta (P:assert) (c:statement) (Q:ret_assert) l,
