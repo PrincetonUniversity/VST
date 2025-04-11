@@ -198,9 +198,19 @@ End monPred.
      using (solve [auto with typeclass_instances])
         : norm.
 
+(* for goals with pattern ```<[i:=_]> m = m``` *)
+Ltac map_ext_eq_tac :=
+  let j:= fresh in
+  apply map_eq; intro j;
+  match goal with
+  | |- context[ (<[?i := _]>)%stdpp ] =>
+    destruct (eq_dec i j); subst;
+    rewrite ?lookup_insert ?lookup_insert_ne //
+  end.
+
 Section mpred.
 
-Context `{!heapGS Σ}.
+Context `{!heapGS Σ} `{!envGS Σ}.
 
 Local Notation assert := (@assert Σ).
 
@@ -237,7 +247,7 @@ Lemma frame_normal:
    frame_ret_assert (normal_ret_assert P) F = normal_ret_assert (P ∗ F).
 Proof.
 intros.
-unfold normal_ret_assert; simpl.
+unfold normal_ret_assert, frame_ret_assert; simpl.
 f_equal; last extensionality; apply sep_False'.
 Qed.
 
@@ -256,7 +266,7 @@ Lemma frame_loop1:
    loop2_ret_assert (Q ∗ F) (frame_ret_assert R F).
 Proof.
 intros.
-destruct R; simpl; f_equal.
+destruct R; rewrite /frame_ret_assert /loop2_ret_assert /=; f_equal.
 apply sep_False'.
 Qed.
 
@@ -380,12 +390,9 @@ Qed.
 Lemma env_set_env_set: forall id v1 v2 rho, env_set (env_set rho id v1) id v2 = env_set rho id v2.
 Proof.
   intros.
-  unfold env_set.
+  unfold env_set. simpl.
   f_equal.
-  apply Map.ext. intro j.
-  destruct (eq_dec id j). subst. repeat rewrite Map.gss. f_equal.
-  simpl.
-  repeat rewrite -> Map.gso by auto. auto.
+  map_ext_eq_tac.
 Qed.
 
 Lemma env_set_eval_id: forall id rho Delta t,
@@ -399,14 +406,9 @@ Proof.
   destruct H as [? [? ?]].
   unfold eval_id, env_set, force_val.
   destruct rho; simpl in *.
-  f_equal.
-  rewrite H.
-  apply Map.ext.
-  intros.
-  destruct (Pos.eq_dec id x0).
-  - subst.
-    rewrite Map.gss; auto.
-  - rewrite Map.gso; auto.
+  f_equal; first by destruct p.
+  rewrite H. destruct p.
+  map_ext_eq_tac.
 Qed.
 
 Lemma resubst: forall {A} i (v v1: val) (e: environ -> A), subst i (`v1) (subst i `(v) e) = subst i `(v) e.
@@ -415,10 +417,7 @@ Proof.
  f_equal.
  unfold env_set.
  f_equal.
- apply Map.ext. intro j.
- destruct (eq_dec i j). subst. repeat rewrite Map.gss. f_equal.
- simpl.
- repeat rewrite -> Map.gso by auto. auto.
+ map_ext_eq_tac.
 Qed.
 
 Lemma resubst_full: forall {A} i (v: environ -> val) v1 (e: environ -> A), subst i v1 (subst i v e) = subst i (subst i v1 v) e.
@@ -428,10 +427,7 @@ Proof.
  f_equal.
  unfold env_set.
  f_equal.
- apply Map.ext. intro j.
- destruct (eq_dec i j). subst. repeat rewrite Map.gss. f_equal.
- simpl.
- repeat rewrite -> Map.gso by auto. auto.
+ map_ext_eq_tac.
 Qed.
 
 (*Lemma subst_ewand: forall i v (P Q: environ->mpred),
@@ -475,7 +471,7 @@ Lemma eval_lvalue_Ederef:
   forall {cs: compspecs}  e t, eval_lvalue (Ederef e t) = eval_expr e.
 Proof. reflexivity. Qed.
 
-Lemma local_lift0_True:     local (`True%type) = True.
+Lemma local_lift0_True: local (`True%type) = True.
 Proof.
   rewrite /local; apply assert_ext; intros; monPred.unseal; done.
 Qed.
@@ -488,7 +484,7 @@ Qed.
 
 Lemma frame_ret_assert_emp:
   forall (P : ret_assert), frame_ret_assert P emp = P.
-Proof. intros.
+Proof. intros. unfold frame_ret_assert.
   destruct P; simpl; f_equal; last extensionality; apply sep_emp'.
 Qed.
 
@@ -499,24 +495,24 @@ Proof.
 Qed.
 
 Lemma function_body_ret_assert_EK_return:
-  forall t P vl, RA_return (function_body_ret_assert t P) vl = bind_ret vl t P.
+  forall t (P:option val -> mpred) vl, RA_return (function_body_ret_assert t P) vl = bind_ret vl t P.
 Proof. reflexivity. Qed.
 
 Lemma bind_ret0_unfold:
-  forall Q, bind_ret None tvoid Q = (assert_of (fun rho => Q (globals_only rho))).
+  forall (Q:option val -> mpred), bind_ret None tvoid Q = ⎡ Q (@None val) ⎤.
 Proof.
   intros; rewrite /bind_ret; apply assert_ext; intros; monPred.unseal; done.
 Qed.
 
 Lemma bind_ret1_unfold:
-  forall v t Q, bind_ret (Some v) t Q = (⌜tc_val t v⌝ ∧ assert_of (fun rho => Q (make_args (ret_temp :: nil)(v::nil) rho))).
+  forall v t (Q:option val -> mpred), bind_ret (Some v) t Q = (⌜tc_val t v⌝ ∧ ⎡ Q (@Some val v) ⎤).
 Proof.
   intros; rewrite /bind_ret; apply assert_ext; intros; monPred.unseal; done.
 Qed.
 
 Lemma bind_ret1_unfold':
-  forall v t Q rho,
-  bind_ret (Some v) t Q rho = (⌜tc_val t v⌝ ∧ Q (make_args (ret_temp::nil)(v::nil) rho)).
+  forall v t (Q:option val -> mpred) rho,
+  bind_ret (Some v) t Q rho = (⌜tc_val t v⌝ ∧ Q (@Some val v)).
 Proof.
  intros. rewrite /bind_ret; monPred.unseal. reflexivity.
 Qed.
@@ -581,8 +577,7 @@ unfold_lift.
 simpl.
 unfold eval_id.
 simpl.
-rewrite Map.gss.
-simpl.
+rewrite lookup_insert.
 unfold_lift.
 reflexivity.
 Qed.
@@ -599,7 +594,7 @@ unfold_lift.
 simpl.
 unfold eval_id.
 simpl.
-rewrite Map.gso; auto.
+rewrite lookup_insert_ne //.
 Qed.
 
 Infix "oo" := Basics.compose (at level 54, right associativity).
@@ -668,7 +663,7 @@ Lemma globvar_eval_var:
      (var_types Delta) !! id = None ->
      (glob_types Delta) !! id = Some  t ->
      exists b,  eval_var id t rho = Vptr b Ptrofs.zero
-            /\ Map.get (ge_of rho) id = Some b.
+            /\ ((ge_of rho) !! id)%stdpp = Some b.
 Proof.
 intros.
 unfold eval_var; simpl.
@@ -735,14 +730,14 @@ Lemma derives_fupd_refl: forall TC E P,
   local TC ∧ P ⊢ |={E}=> P.
 Proof. intros; by iIntros "(_ & $)". Qed.
 
-Lemma derives_full_refl: forall Delta E P,
-  local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ P) ⊢ |={E}=> P.
+Lemma derives_full_refl: forall Delta E (P:assert),
+  local (tc_environ Delta) ∧ (<affine> ⎡allp_fun_id Delta⎤ ∗ P) ⊢ |={E}=> P.
 Proof. intros; by iIntros "(_ & _ & $)". Qed.
 
 Lemma derives_full_trans: forall Delta E P Q R,
-  (local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ P) ⊢ (|={E}=> (Q))) ->
-  (local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ Q) ⊢ (|={E}=> (R))) ->
-  local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ P) ⊢ (|={E}=> (R)).
+  (local (tc_environ Delta) ∧ (<affine> ⎡allp_fun_id Delta⎤ ∗ P) ⊢ (|={E}=> (Q))) ->
+  (local (tc_environ Delta) ∧ (<affine> ⎡allp_fun_id Delta⎤ ∗ Q) ⊢ (|={E}=> (R))) ->
+  local (tc_environ Delta) ∧ (<affine> ⎡allp_fun_id Delta⎤ ∗ P) ⊢ (|={E}=> (R)).
 Proof.
   intros.
   eapply derives_fupd_trans, H0.
@@ -762,7 +757,7 @@ Proof. intros. rewrite H; apply fupd_intro. Qed.
 
 Lemma derives_fupd_derives_full: forall Delta E P Q,
   (local (tc_environ Delta) ∧ P ⊢ (|={E}=> Q)) ->
-  local (tc_environ Delta) ∧ (allp_fun_id Delta ∧ P) ⊢ (|={E}=> Q).
+  local (tc_environ Delta) ∧ (⎡allp_fun_id Delta⎤ ∧ P) ⊢ (|={E}=> Q).
 Proof.
   intros. rewrite -H. iIntros "(? & _ & $)"; auto.
 Qed.
@@ -832,27 +827,27 @@ Proof.
 Qed.
 
 Lemma andp_ENTAILL: forall Delta P P' Q Q',
-  (local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ P) ⊢ P') ->
-  (local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ Q) ⊢ Q') ->
-  local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ (P ∧ Q)) ⊢ P' ∧ Q'.
+  (local (tc_environ Delta) ∧ (<affine> ⎡allp_fun_id Delta⎤ ∗ P) ⊢ P') ->
+  (local (tc_environ Delta) ∧ (<affine> ⎡allp_fun_id Delta⎤ ∗ Q) ⊢ Q') ->
+  local (tc_environ Delta) ∧ (<affine> ⎡allp_fun_id Delta⎤ ∗ (P ∧ Q)) ⊢ P' ∧ Q'.
 Proof.
   intros ????? <- <-.
   iIntros "(? & ? & ?)"; iSplit; [rewrite bi.and_elim_l | rewrite bi.and_elim_r]; auto.
 Qed.
 
 Lemma orp_ENTAILL: forall Delta P P' Q Q',
-  (local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ P) ⊢ P') ->
-  (local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ Q) ⊢ Q') ->
-  local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ (P ∨ Q)) ⊢ P' ∨ Q'.
+  (local (tc_environ Delta) ∧ (<affine> ⎡allp_fun_id Delta⎤ ∗ P) ⊢ P') ->
+  (local (tc_environ Delta) ∧ (<affine> ⎡allp_fun_id Delta⎤ ∗ Q) ⊢ Q') ->
+  local (tc_environ Delta) ∧ (<affine> ⎡allp_fun_id Delta⎤ ∗ (P ∨ Q)) ⊢ P' ∨ Q'.
 Proof.
   intros ????? <- <-.
   iIntros "(? & ? & [? | ?])"; auto.
 Qed.
 
 Lemma imp_ENTAILL: forall Delta P P' Q Q',
-  (local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ P') ⊢ P) ->
-  (local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ Q) ⊢ Q') ->
-  local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ (P → Q)) ⊢ P' → Q'.
+  (local (tc_environ Delta) ∧ (<affine> ⎡allp_fun_id Delta⎤ ∗ P') ⊢ P) ->
+  (local (tc_environ Delta) ∧ (<affine> ⎡allp_fun_id Delta⎤ ∗ Q) ⊢ Q') ->
+  local (tc_environ Delta) ∧ (<affine> ⎡allp_fun_id Delta⎤ ∗ (P → Q)) ⊢ P' → Q'.
 Proof.
   intros ????? <- <-.
   iIntros "H"; iApply bi.impl_intro_r; last iApply "H".
@@ -860,25 +855,25 @@ Proof.
   iSplit; first by iDestruct "H" as "((_ & $ & _) & _)".
   iApply (bi.impl_elim with "H").
   - iIntros "((_ & _ & $) & _)".
-  - rewrite -bi.and_assoc {1}(persistent (allp_fun_id _)).
+  - rewrite -bi.and_assoc {1}(persistent (⎡ allp_fun_id _⎤)).
     rewrite -bi.persistently_and_intuitionistically_sep_l -bi.and_assoc.
     iIntros "(? & ? & _ & $)"; iFrame.
     by iApply bi.intuitionistically_affinely.
 Qed.
 
 Lemma sepcon_ENTAILL: forall Delta P P' Q Q',
-  (local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ P) ⊢ P') ->
-  (local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ Q) ⊢ Q') ->
-  local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ (P ∗ Q)) ⊢ P' ∗ Q'.
+  (local (tc_environ Delta) ∧ (<affine> ⎡allp_fun_id Delta⎤ ∗ P) ⊢ P') ->
+  (local (tc_environ Delta) ∧ (<affine> ⎡allp_fun_id Delta⎤ ∗ Q) ⊢ Q') ->
+  local (tc_environ Delta) ∧ (<affine> ⎡allp_fun_id Delta⎤ ∗ (P ∗ Q)) ⊢ P' ∗ Q'.
 Proof.
   intros ????? <- <-.
   iIntros "(#? & #? & $ & $)"; auto.
 Qed.
 
 Lemma wand_ENTAILL: forall Delta P P' Q Q',
-  (local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ P') ⊢ P) ->
-  (local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ Q) ⊢ Q') ->
-  local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ (P -∗ Q)) ⊢ P' -∗ Q'.
+  (local (tc_environ Delta) ∧ (<affine> ⎡allp_fun_id Delta⎤ ∗ P') ⊢ P) ->
+  (local (tc_environ Delta) ∧ (<affine> ⎡allp_fun_id Delta⎤ ∗ Q) ⊢ Q') ->
+  local (tc_environ Delta) ∧ (<affine> ⎡allp_fun_id Delta⎤ ∗ (P -∗ Q)) ⊢ P' -∗ Q'.
 Proof.
   intros ????? <- <-.
   iIntros "(? & ? & H) ?"; iSplit; first done; iSplit; first done.
@@ -886,8 +881,8 @@ Proof.
 Qed.
 
 Lemma exp_ENTAILL: forall Delta B (P Q: B -> assert),
-  (forall x: B, local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ P x) ⊢ Q x) ->
-  local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ ∃ y, P y) ⊢ ∃ y, Q y.
+  (forall x: B, local (tc_environ Delta) ∧ (<affine> ⎡allp_fun_id Delta⎤ ∗ P x) ⊢ Q x) ->
+  local (tc_environ Delta) ∧ (<affine> ⎡allp_fun_id Delta⎤ ∗ ∃ y, P y) ⊢ ∃ y, Q y.
 Proof.
   intros.
   iIntros "(? & ? & %y & P)".
@@ -895,8 +890,8 @@ Proof.
 Qed.
 
 Lemma allp_ENTAILL: forall Delta B (P Q: B -> assert),
-  (forall x: B, local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ P x) ⊢ Q x) ->
-  local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ ∀ y, P y) ⊢ ∀ y, Q y.
+  (forall x: B, local (tc_environ Delta) ∧ (<affine> ⎡allp_fun_id Delta⎤ ∗ P x) ⊢ Q x) ->
+  local (tc_environ Delta) ∧ (<affine> ⎡allp_fun_id Delta⎤ ∗ ∀ y, P y) ⊢ ∀ y, Q y.
 Proof.
   intros.
   iIntros "H" (?); rewrite -H.
@@ -905,8 +900,8 @@ Proof.
 Qed.
 
 Lemma later_ENTAILL: forall Delta P Q,
-  (local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ P) ⊢ Q) ->
-  local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ ▷ P) ⊢ ▷ Q.
+  (local (tc_environ Delta) ∧ (<affine> ⎡allp_fun_id Delta⎤ ∗ P) ⊢ Q) ->
+  local (tc_environ Delta) ∧ (<affine> ⎡allp_fun_id Delta⎤ ∗ ▷ P) ⊢ ▷ Q.
 Proof.
   intros ??? <-.
   by iIntros "? !>".
@@ -914,17 +909,17 @@ Qed.
 
 Lemma andp_subst_ENTAILL: forall Delta P P' Q Q' i v t,
   (temp_types Delta) !! i = Some t ->
-  (local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ P') ⊢ local (`(tc_val' t) v)) ->
-  (local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ P') ⊢ Q') ->
-  (local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ P) ⊢ Q) ->
-  local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ (P' ∧ assert_of (subst i v P))) ⊢ Q' ∧ assert_of (subst i v Q).
+  (local (tc_environ Delta) ∧ (<affine> ⎡allp_fun_id Delta⎤ ∗ P') ⊢ local (`(tc_val' t) v)) ->
+  (local (tc_environ Delta) ∧ (<affine> ⎡allp_fun_id Delta⎤ ∗ P') ⊢ Q') ->
+  (local (tc_environ Delta) ∧ (<affine> ⎡allp_fun_id Delta⎤ ∗ P) ⊢ Q) ->
+  local (tc_environ Delta) ∧ (<affine> ⎡allp_fun_id Delta⎤ ∗ (P' ∧ assert_of (subst i v P))) ⊢ Q' ∧ assert_of (subst i v Q).
 Proof.
   intros ?????????? <- ?.
   iIntros "H".
   iAssert (local (`(tc_val' t) v)) as "#Hty".
   { iDestruct "H" as "(? & ? & ? & _)".
     iApply (H0 with "[$]"). }
-  assert (local ((` (tc_val' t)) v) ∧ local (tc_environ Delta) ∧ <affine> allp_fun_id Delta ∗ assert_of (subst i v P) ⊢ assert_of (subst i v Q)) as <-.
+  assert (local ((` (tc_val' t)) v) ∧ local (tc_environ Delta) ∧ <affine> ⎡allp_fun_id Delta⎤ ∗ assert_of (subst i v P) ⊢ assert_of (subst i v Q)) as <-.
   2: { iDestruct "H" as "(? & ? & ?)"; iSplit; iSplit; auto.
        * rewrite bi.and_elim_l; iFrame.
        * rewrite bi.and_elim_r; iFrame. }
@@ -935,11 +930,11 @@ Proof.
   destruct TC as (TC & ? & ?); split3; auto; simpl.
   intros ?? Ht.
   destruct (eq_dec id i).
-  + subst; rewrite Map.gss.
+  + subst; rewrite lookup_insert.
     eexists; split; first done.
     assert (t = ty) as -> by congruence.
     apply TC in H as (? & ? & ?); eauto.
-  + rewrite Map.gso; eauto.
+  + rewrite lookup_insert_ne; eauto.
 Qed.
 
 Lemma derives_fupd_fupd_left: forall TC E P Q,
@@ -951,8 +946,8 @@ Proof.
 Qed.
 
 Lemma derives_full_fupd_left: forall Delta E P Q,
-  (local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ P) ⊢ (|={E}=> Q)) ->
-  local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ |={E}=> P) ⊢ |={E}=> Q.
+  (local (tc_environ Delta) ∧ (<affine> ⎡allp_fun_id Delta⎤ ∗ P) ⊢ (|={E}=> Q)) ->
+  local (tc_environ Delta) ∧ (<affine> ⎡allp_fun_id Delta⎤ ∗ |={E}=> P) ⊢ |={E}=> Q.
 Proof.
   intros.
   iIntros "(? & ? & >?)"; iApply H; iFrame.

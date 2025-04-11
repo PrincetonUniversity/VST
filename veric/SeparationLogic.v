@@ -56,8 +56,8 @@ Export expr.
 
 #[export] Hint Resolve any_environ : typeclass_instances.
 
-Definition argsassert2assert `{heapGS Σ} (ids: list ident) (M:argsassert):assert :=
-  assert_of (fun rho => M (ge_of rho, map (fun i => eval_id i rho) ids)).
+(* Definition argsassert2assert `{heapGS Σ} (ids: list ident) (M:argsassert):assert :=
+  assert_of (fun rho => M (ge_of rho, map (fun i => eval_id i rho) ids)). *)
 
 Section mpred.
 
@@ -108,7 +108,7 @@ Definition type_of_funsig (fsig: funsig) :=
    Tfunction (type_of_params (fst fsig)) (snd fsig) cc_default.
 
 Definition with_ge (ge: genviron) (G: environ->mpred) : mpred :=
-     G (mkEnviron ge (Map.empty _) (Map.empty _)).
+     G (mkEnviron ge ∅ ∅).
 
 Fixpoint arglist (n: positive) (tl: list type) : list (ident*type) :=
  match tl with
@@ -233,13 +233,12 @@ Module DerivedDefs (Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF).
 Definition semax_body `{!VSTGS OK_ty Σ}
    (V: varspecs) (G: funspecs) {C: compspecs} (f: function) (spec: ident * funspec): Prop :=
 match spec with (_, mk_funspec fsig cc A E P Q) =>
-  fst fsig = map snd (fst (fn_funsig f)) /\
-  snd fsig = snd (fn_funsig f) /\
+  fsig =  (fn_typesig f) ∧
 forall OK_spec (x:dtfr A),
   Def.semax(OK_spec := OK_spec) (E x) (func_tycontext f V G nil)
-      (close_precondition (map fst f.(fn_params)) (argsassert_of (P x)) ∗ stackframe_of f)
+      (close_precondition (map fst f.(fn_params)) (P x) ∗ stackframe_of f)
        f.(fn_body)
-      (frame_ret_assert (function_body_ret_assert (fn_return f) (assert_of (Q x))) (stackframe_of f))
+      (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) (stackframe_of f))
 end.
 
 Definition semax_prog `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {C: compspecs}
@@ -307,15 +306,15 @@ Axiom semax_func_cons_ext: forall (V: varspecs) (G: funspecs)
   ef_sig ef = mksignature (map argtype_of_type argsig) (rettype_of_type retsig) cc ->
   id_in_list id (map (@fst _ _) fs) = false ->
   (ef_inline ef = false \/ @withtype_empty Σ A) ->
-  (forall gx x (ret : option val),
-     (Q x (make_ext_rval gx (rettype_of_type retsig) ret)
+  (forall x (ret : option val),
+     (Q x (make_ext_rval (rettype_of_type retsig) ret)
         ∧ ⌜Builtins0.val_opt_has_rettype ret (rettype_of_type retsig)⌝
         ⊢ ⌜tc_option_val retsig ret⌝)) ->
   Genv.find_symbol ge id = Some b -> Genv.find_funct_ptr ge b = Some (External ef argsig retsig cc) ->
   (⊢semax_external ef A E P Q) ->
   semax_func V G ge fs G' ->
   semax_func V G ge ((id, External ef argsig retsig cc)::fs)
-       ((id, mk_funspec (argsig, retsig) cc A E P Q)  :: G').
+       ((id, mk_funspec (argsig, retsig) cc A E P Q) :: G').
 
 Axiom semax_func_mono: forall {CS'} (CSUB: cspecs_sub CS CS') ge ge'
   (Gfs: forall i,  sub_option (Genv.find_symbol ge i) (Genv.find_symbol ge' i))
@@ -417,10 +416,10 @@ Axiom semax_call:
   semax E Delta
           ((tc_expr Delta a ∧ tc_exprlist Delta argsig bl) ∧
          (assert_of (fun rho => func_ptr (mk_funspec (argsig,retsig) cc A Ef P Q) (eval_expr a rho)) ∗
-          (▷(F ∗ assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho))))))
+          (▷(F ∗ assert_of (fun rho => P x (eval_exprlist argsig bl rho))))))
          (Scall ret a bl)
          (normal_ret_assert
-          (∃ old:val, assert_of (substopt ret (`old) F) ∗ maybe_retval (assert_of (Q x)) retsig ret)).
+          (∃ old:val, assert_of (substopt ret (`old) F) ∗ maybe_retval (Q x) retsig ret)).
 
 Axiom  semax_return :
    forall E Delta (R: ret_assert) ret,
@@ -526,13 +525,18 @@ Axiom semax_skip:
    forall E Delta (P : assert), semax E Delta P Sskip (normal_ret_assert P).
 
 Axiom semax_conseq:
-  forall E Delta (P' : assert) (R': ret_assert) P c (R: ret_assert),
-    (local (tc_environ Delta) ∧ (<affine> (allp_fun_id Delta) ∗ P) ⊢ (|={E}=> P')) ->
-    (local (tc_environ Delta) ∧ (<affine> (allp_fun_id Delta) ∗ RA_normal R') ⊢ (|={E}=> RA_normal R)) ->
-    (local (tc_environ Delta) ∧ (<affine> (allp_fun_id Delta) ∗ RA_break R') ⊢ (|={E}=> RA_break R)) ->
-    (local (tc_environ Delta) ∧ (<affine> (allp_fun_id Delta) ∗ RA_continue R') ⊢ (|={E}=> RA_continue R)) ->
-    (forall vl, local (tc_environ Delta) ∧ (<affine> (allp_fun_id Delta) ∗ RA_return R' vl) ⊢ (RA_return R vl)) ->
-   semax E Delta P' c R' -> semax E Delta P c R.
+ forall E Delta P' (R': ret_assert) P c (R: ret_assert) ,
+   (□ local (typecheck_environ Delta) ∗ (<affine> ⎡allp_fun_id Delta⎤ ∗ P) ⊢
+                   (|={E}=> P') ) ->
+   (□ local (typecheck_environ Delta) ∗ (<affine> ⎡allp_fun_id Delta⎤ ∗ RA_normal R') ⊢
+                   (|={E}=> RA_normal R)) ->
+   (□ local (typecheck_environ Delta) ∗ (<affine> ⎡allp_fun_id Delta⎤ ∗ RA_break R') ⊢
+                   (|={E}=> RA_break R)) ->
+   (□ local (typecheck_environ Delta) ∗ (<affine> ⎡allp_fun_id Delta⎤ ∗ RA_continue R') ⊢
+                   (|={E}=> RA_continue R)) ->
+   (forall vl, □ local (typecheck_environ Delta) ∗ (<affine> ⎡allp_fun_id Delta⎤ ∗ RA_return R' vl) ⊢
+                   (|={E}=> RA_return R vl)) ->
+   semax E Delta P' c R' ->  semax E Delta P c R.
 
 Axiom semax_Slabel:
      forall E Delta (P:assert) (c:statement) (Q:ret_assert) l,
@@ -550,10 +554,10 @@ Axiom semax_ext:
   funspecs_norepeat fs ->
   sig' = semax_ext.typesig2signature sig cc ->
   ⊢ semax_external (OK_spec := add_funspecs_rec OK_ty ext_link ext_spec0 fs) (EF_external id sig') _ E P Q.
-
+  
 Axiom semax_external_FF:
- forall ef A E,
- ⊢ semax_external ef A E (λne _, monPred_at(I := argsEnviron_index) False : _ -d> _) (λne _, monPred_at(I := environ_index) False : _ -d> _).
+forall ef A E,
+⊢ semax_external ef A E (λne _, (λ _, False) : _ -d> _) (λne _, (λ _, False) : _ -d> _).
 
 Axiom semax_external_binaryintersection: 
 forall {ef A1 E1 P1 Q1 A2 E2 P2 Q2
@@ -710,17 +714,17 @@ Axiom semax_extract_later_prop:
            semax E Delta ((▷ ⌜PP⌝) ∧ P) c Q.
 
 Axiom semax_adapt_frame: forall E Delta c (P P': assert) (Q Q' : ret_assert)
-   (H: local (typecheck_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ P) ⊢
+   (H: local (typecheck_environ Delta) ∧ (⎡allp_fun_id Delta⎤ ∗ P) ⊢
                    ∃ F: assert, (⌜closed_wrt_modvars c F⌝ ∧ |={E}=> (P' ∗ F) ∧
-                         ⌜local (tc_environ Delta) ∧ <affine> allp_fun_id Delta ∗ RA_normal (frame_ret_assert Q' F) ⊢ |={E}=> RA_normal Q⌝ ∧
-                         ⌜local (tc_environ Delta) ∧ <affine> allp_fun_id Delta ∗ RA_break (frame_ret_assert Q' F) ⊢ |={E}=> RA_break Q⌝ ∧
-                         ⌜local (tc_environ Delta) ∧ <affine> allp_fun_id Delta ∗ RA_continue (frame_ret_assert Q' F) ⊢ |={E}=> RA_continue Q⌝ ∧
-                         ⌜forall vl, local (tc_environ Delta) ∧ <affine> allp_fun_id Delta ∗ RA_return (frame_ret_assert Q' F) vl ⊢ RA_return Q vl⌝))
+                         ⌜local (tc_environ Delta) ∧ ⎡allp_fun_id Delta⎤ ∗ RA_normal (frame_ret_assert Q' F) ⊢ |={E}=> RA_normal Q⌝ ∧
+                         ⌜local (tc_environ Delta) ∧ ⎡allp_fun_id Delta⎤ ∗ RA_break (frame_ret_assert Q' F) ⊢ |={E}=> RA_break Q⌝ ∧
+                         ⌜local (tc_environ Delta) ∧ ⎡allp_fun_id Delta⎤ ∗ RA_continue (frame_ret_assert Q' F) ⊢ |={E}=> RA_continue Q⌝ ∧
+                         ⌜forall vl, local (tc_environ Delta) ∧ ⎡allp_fun_id Delta⎤ ∗ RA_return (frame_ret_assert Q' F) vl ⊢ RA_return Q vl⌝))
    (SEM: semax E Delta P' c Q'),
    semax E Delta P c Q.
 
 Axiom semax_adapt: forall E Delta c (P P': assert) (Q Q' : ret_assert)
-   (H: local (typecheck_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ P) ⊢
+   (H: local (typecheck_environ Delta) ∧ (<affine> ⎡allp_fun_id Delta⎤ ∗ P) ⊢
                    (|={E}=> P' ∧
                         ⌜RA_normal Q' ⊢ |={E}=> RA_normal Q⌝ ∧
                         ⌜RA_break Q' ⊢ |={E}=> RA_break Q⌝ ∧
