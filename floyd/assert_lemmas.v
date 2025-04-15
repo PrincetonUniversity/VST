@@ -198,6 +198,16 @@ End monPred.
      using (solve [auto with typeclass_instances])
         : norm.
 
+(* for goals with pattern ```<[i:=_]> m = m``` *)
+Ltac map_ext_eq_tac :=
+  let j:= fresh in
+  apply map_eq; intro j;
+  match goal with
+  | |- context[ (<[?i := _]>)%stdpp ] =>
+    destruct (eq_dec i j); subst;
+    rewrite ?lookup_insert ?lookup_insert_ne //
+  end.
+
 Section mpred.
 
 Context `{!heapGS Σ} `{!envGS Σ}.
@@ -376,16 +386,6 @@ Lemma subst_exp:
 Proof.
   intros; rewrite /subst; apply assert_ext; intros; monPred.unseal; done.
 Qed.
-
-(* for goals with pattern ```<[i:=_]> m = m``` *)
-Ltac map_ext_eq_tac :=
-  let j:= fresh in
-  apply map_eq; intro j;
-  match goal with
-  | |- context[ (<[?i := _]>)%stdpp ] =>
-    destruct (eq_dec i j); subst;
-    rewrite ?lookup_insert ?lookup_insert_ne //
-  end.
 
 Lemma env_set_env_set: forall id v1 v2 rho, env_set (env_set rho id v1) id v2 = env_set rho id v2.
 Proof.

@@ -25,11 +25,11 @@ unfold subst, closed_wrt_vars in *.
 split => rho /=.
 symmetry.
 unfold env_set.
-rewrite (H _ ((Map.set id (e rho) (te_of rho)))) //.
+rewrite H //.
 intros.
 destruct (eq_dec id i); auto.
 right.
-rewrite Map.gso; auto.
+rewrite lookup_insert_ne //.
 Qed.
 
 (* End of copied from closed_lemmas.v. *)
@@ -47,15 +47,11 @@ Proof.
   unfold subst.
   f_equal.
   unfold env_set, eval_id in *; destruct rho; simpl in *.
-  f_equal.
+  f_equal; first by destruct p.
   rewrite H1 H0.
   simpl.
-  apply Map.ext; intros i.
-  destruct (Pos.eq_dec id i).
-  + subst.
-    rewrite Map.gss; symmetry; auto.
-  + rewrite -> Map.gso by auto.
-    auto.
+  destruct p.
+  map_ext_eq_tac.
 Qed.
 
 Notation assert := (@assert Σ).
@@ -83,14 +79,8 @@ Proof.
   f_equiv; intros ?.
   destruct ((temp_types Delta) !! id); auto.
   rewrite /monpred.monPred_defs.monPred_impl_def /=.
-  assert ((Map.set id a (te_of rho)) = Map.set id a te') as Hrho.
-  { apply Map.ext; intros j.
-    destruct (ident_eq id j).
-    + subst.
-      rewrite !Map.gss; auto.
-    + rewrite !Map.gso //.
-      destruct (H j); [congruence |].
-      auto. }
+  assert ((<[id:=a]> (te_of rho)) = <[id:=a]> te') as Hrho.
+  { map_ext_eq_tac. specialize (H H0). by destruct H. }
   iSplit; iIntros "H" (? <- ?); (iSpecialize ("H" with "[%] [%]"); [done.. |]);
     unfold_lift; rewrite /subst /env_set /= Hrho //.
 Qed.
@@ -105,13 +95,9 @@ Proof.
   destruct ((temp_types Delta) !! id); auto.
   simpl; f_equiv.
   rewrite /subst /env_set /=; f_equiv.
-  f_equiv; apply Map.ext; intros j.
-  destruct (ident_eq id j).
-  + subst.
-    rewrite !Map.gss; auto.
-  + rewrite !Map.gso //.
-    destruct (H j); [congruence |].
-    auto.
+  f_equiv; map_ext_eq_tac.
+  specialize (H H0); by destruct H.
+  
 Qed.
 
 Lemma subst_obox: forall Delta id v (P: assert), assert_of (subst id (`v) (obox Delta id P)) ⊣⊢ obox Delta id P.
@@ -160,6 +146,12 @@ Proof.
   iIntros "H" (????); rewrite -H; by iApply "H".
 Qed.
 
+Lemma override_same : forall {T:Type} (t:gmap ident T) id x, (t!!id = Some x -> <[ id:=x ]> t = t)%stdpp.
+Proof.
+intros.
+map_ext_eq_tac.
+Qed.
+
 Lemma obox_T: forall Delta i (P: assert),
   temp_guard Delta i ->
   local (tc_environ Delta) ∧ obox Delta i P ⊢ P.
@@ -171,7 +163,8 @@ Proof.
   specialize (TC i); destruct (temp_types Delta !! i); last done.
   edestruct TC as (? & ? & ?); first done.
   iSpecialize ("H" with "[%] [%]"); [done.. | simpl].
-  destruct rho; rewrite Map.override_same //.
+  destruct rho. destruct p.
+  rewrite override_same //.
 Qed.
 
 Lemma odia_D: forall Delta i (P: assert),
@@ -185,7 +178,7 @@ Proof.
   specialize (TC i); destruct (temp_types Delta !! i); last done.
   edestruct TC as (? & ? & ?); first done.
   iExists _; iSplit; first done; simpl.
-  destruct rho; rewrite Map.override_same //.
+  destruct rho; destruct p; rewrite override_same //.
 Qed.
 
 Lemma odia_derives_EX_subst: forall Delta i P,
@@ -200,16 +193,17 @@ Qed.
 
 Lemma tc_environ_set: forall Delta i t x rho (TC : tc_environ Delta rho),
   temp_types Delta !! i = Some t -> tc_val' t x ->
-  tc_environ Delta (mkEnviron (ge_of rho) (ve_of rho) (Map.set i ((` x) rho) (te_of rho))).
+  tc_environ Delta (mkEnviron (ge_of rho) (ve_of rho) (<[i:=(` x) rho]> (te_of rho))).
 Proof.
   intros.
   destruct rho, TC as (TC & ? & ?); split3; auto; simpl in *.
   intros j tj Hj; destruct (TC j tj Hj) as (v & ? & ?).
+  destruct p.
   destruct (ident_eq i j).
-  + subst; eexists; rewrite Map.gss.
+  + subst; eexists. rewrite lookup_insert.
     assert (tj = t) as -> by (rewrite Hj in H; inv H; done); eauto.
   + exists v.
-    rewrite Map.gso //.
+    rewrite lookup_insert_ne //.
 Qed.
 
 Lemma obox_left2: forall Delta i P Q,
@@ -228,8 +222,8 @@ Qed.
 
 Lemma obox_left2': forall Delta i P Q,
   temp_guard Delta i ->
-  (local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ P) ⊢ Q) ->
-  local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ obox Delta i P) ⊢ obox Delta i Q.
+  (local (tc_environ Delta) ∧ (<affine> ⎡allp_fun_id Delta⎤ ∗ P) ⊢ Q) ->
+  local (tc_environ Delta) ∧ (<affine> ⎡allp_fun_id Delta⎤ ∗ obox Delta i P) ⊢ obox Delta i Q.
 Proof.
   intros ????? [H].
   split => ?; revert H; rewrite /local /lift1 /obox /subst /env_set; monPred.unseal; intros.
@@ -356,8 +350,8 @@ Qed.
 
 Lemma oboxopt_left2': forall Delta i P Q,
   temp_guard_opt Delta i ->
-  (local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ P) ⊢ Q) ->  
-  local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ oboxopt Delta i P) ⊢ oboxopt Delta i Q.
+  (local (tc_environ Delta) ∧ (<affine> ⎡allp_fun_id Delta⎤ ∗ P) ⊢ Q) ->  
+  local (tc_environ Delta) ∧ (<affine> ⎡allp_fun_id Delta⎤ ∗ oboxopt Delta i P) ⊢ oboxopt Delta i Q.
 Proof.
   intros.
   destruct i; [apply obox_left2'; auto |].
@@ -383,11 +377,11 @@ Import CSHL_Def.
 Axiom semax_conseq:
   forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {CS: compspecs} E (Delta: tycontext),
   forall P' (R': ret_assert) P c (R: ret_assert),
-    (local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ P) ⊢ (|={E}=> P')) ->
-    (local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ RA_normal R') ⊢ (|={E}=> RA_normal R)) ->
-    (local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ RA_break R') ⊢ (|={E}=> RA_break R)) ->
-    (local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ RA_continue R') ⊢ (|={E}=> RA_continue R)) ->
-    (forall vl, local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ RA_return R' vl) ⊢ (RA_return R vl)) ->
+    (local (tc_environ Delta) ∧ (<affine> ⎡allp_fun_id Delta⎤ ∗ P) ⊢ (|={E}=> P')) ->
+    (local (tc_environ Delta) ∧ (<affine> ⎡allp_fun_id Delta⎤ ∗ RA_normal R') ⊢ (|={E}=> RA_normal R)) ->
+    (local (tc_environ Delta) ∧ (<affine> ⎡allp_fun_id Delta⎤ ∗ RA_break R') ⊢ (|={E}=> RA_break R)) ->
+    (local (tc_environ Delta) ∧ (<affine> ⎡allp_fun_id Delta⎤ ∗ RA_continue R') ⊢ (|={E}=> RA_continue R)) ->
+    (forall vl, local (tc_environ Delta) ∧ (<affine> ⎡allp_fun_id Delta⎤ ∗ RA_return R' vl) ⊢ (RA_return R vl)) ->
    semax E Delta P' c R' -> semax E Delta P c R.
 
 End CLIGHT_SEPARATION_HOARE_LOGIC_COMPLETE_CONSEQUENCE.
@@ -1177,10 +1171,10 @@ Axiom semax_call_forward: forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {
   semax E Delta
           (((*▷*)((tc_expr Delta a) ∧ (tc_exprlist Delta argsig bl)))  ∧
          (assert_of (`(func_ptr (mk_funspec (argsig,retsig) cc A Ef P Q)) (eval_expr a)) ∗
-          (▷ (F ∗ assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho))))))
+          (▷ (F ∗ assert_of (fun rho => P x (eval_exprlist argsig bl rho))))))
          (Scall ret a bl)
          (normal_ret_assert
-            (∃ old:val, assert_of (substopt ret (`old) F) ∗ maybe_retval (assert_of (Q x)) retsig ret)).
+            (∃ old:val, assert_of (substopt ret (`old) F) ∗ maybe_retval (Q x) retsig ret)).
 
 End CLIGHT_SEPARATION_HOARE_LOGIC_CALL_FORWARD.
 
@@ -1201,7 +1195,7 @@ Axiom semax_call_backward: forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} 
              tc_fn_return Delta ret retsig⌝ ∧
           ((*▷*)((tc_expr Delta a) ∧ (tc_exprlist Delta argsig bl)))  ∧
          assert_of (`(func_ptr (mk_funspec  (argsig,retsig) cc A Ef P Q)) (eval_expr a)) ∗
-          ▷(assert_of (fun rho => (P x (ge_of rho, eval_exprlist argsig bl rho))) ∗ oboxopt Delta ret (maybe_retval (assert_of (Q x)) retsig ret -∗ R)))
+          ▷(assert_of (fun rho => (P x (eval_exprlist argsig bl rho))) ∗ oboxopt Delta ret (maybe_retval (Q x) retsig ret -∗ R)))
          (Scall ret a bl)
          (normal_ret_assert R).
 
@@ -1243,7 +1237,7 @@ Theorem semax_call_backward: forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty
              tc_fn_return Delta ret retsig⌝ ∧
           ((*▷*)((tc_expr Delta a) ∧ (tc_exprlist Delta argsig bl)))  ∧
          assert_of (`(func_ptr (mk_funspec (argsig,retsig) cc A Ef P Q)) (eval_expr a)) ∗
-          ▷(assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho)) ∗ oboxopt Delta ret (maybe_retval (assert_of (Q x)) retsig ret -∗ R)))
+          ▷(assert_of (fun rho => P x (eval_exprlist argsig bl rho)) ∗ oboxopt Delta ret (maybe_retval (Q x) retsig ret -∗ R)))
          (Scall ret a bl)
          (normal_ret_assert R).
 Proof.
@@ -1336,10 +1330,10 @@ Theorem semax_call_forward: forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty}
   semax E Delta
           (((*▷*)((tc_expr Delta a) ∧ (tc_exprlist Delta argsig bl)))  ∧
          (assert_of (`(func_ptr (mk_funspec  (argsig,retsig) cc A Ef P Q)) (eval_expr a)) ∗
-          (▷ (F ∗ assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho))))))
+          (▷ (F ∗ assert_of (fun rho => P x (eval_exprlist argsig bl rho))))))
          (Scall ret a bl)
          (normal_ret_assert
-            (∃ old:val, assert_of (substopt ret (`old) F) ∗ maybe_retval (assert_of (Q x)) retsig ret)).
+            (∃ old:val, assert_of (substopt ret (`old) F) ∗ maybe_retval (Q x) retsig ret)).
 Proof.
   intros.
   eapply semax_pre; [| apply semax_call_backward].

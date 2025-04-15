@@ -27,9 +27,9 @@ Lemma juicy_dry_spec : forall `{!VSTGS OK_ty Σ} ext_link fs es
   (Hspecs : forall s f, In (ext_link s, f) fs -> match f with mk_funspec ts cc E A P Q =>
      let e := EF_external s (typesig2signature ts cc) in
      forall w p tys args m z, exists x,
-       state_interp m z ∗ P w (filter_genv (symb2genv p), args) ⊢ ⌜ext_spec_pre es e x p tys args z m⌝ ∧
+       state_interp m z ∗ P w args ⊢ ⌜ext_spec_pre es e x p tys args z m⌝ ∧
          ∀ ty ret z' m', ⌜ext_spec_post es e x p ty ret z' m'⌝ → |==>
-           state_interp m' z' ∗ Q w (make_ext_rval (filter_genv (symb2genv p)) ty ret)
+           state_interp m' z' ∗ Q w (make_ext_rval ty ret)
    end)
   (Hexit : forall v z m, ext_spec_exit es v z m),
   ext_spec_entails (add_funspecs_rec OK_ty ext_link (void_spec OK_ty) fs) es.
@@ -89,8 +89,8 @@ Proof.
   intros n; eapply ouPred.pure_soundness, (step_fupdN_soundness_no_lc' _ (S n) O); [apply _..|].
   simpl; intros; iIntros "_".
   iMod (@init_VST _ _ VSTGpreS0) as "H".
-  iDestruct ("H" $! Hinv) as (?? HE) "(H & ?)".
-  set (HH := Build_VSTGS _ _ (HeapGS _ _ _ _) HE).
+  iDestruct ("H" $! Hinv) as (??? HE) "(H & auth)".
+  set (HH := Build_VSTGS _ _ (HeapGS _ _ _ _) _ _).
   specialize (H HH); specialize (EXIT HH); destruct H.
   eapply (semax_prog_rule _ _ _ _ n) in H as (b & q & (? & ? & Hinit & ->) & Hsafe); [|done..].
   iMod (Hsafe with "H") as "Hsafe".
