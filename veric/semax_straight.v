@@ -74,10 +74,12 @@ Proof.
   iApply (wp_tc_expr(CS := CS) with "E"); [done..|].
   iSplit.
   { iDestruct "Pre" as "(? & _)"; auto. }
+  iModIntro.
   iIntros "E %".
   iApply (wp_tc_expr(CS := CS) with "E"); [done..|].
   iSplit.
   { iDestruct "Pre" as "(_ & ? & _)"; auto. }
+  iModIntro.
   iIntros "E %".
   rewrite bi.and_elim_r bi.and_elim_r embed_later embed_and bi.later_and /= embed_pure.
   iDestruct "Pre" as "(>% & Pre)".
@@ -128,6 +130,7 @@ Proof.
   iApply (wp_tc_expr(CS := CS) with "E"); [done..|].
   iSplit.
   { iDestruct "Pre" as "(? & _)"; auto. }
+  iModIntro.
   iIntros "E % !>".
   rewrite /tc_temp_id /typecheck_temp_id /=.
   destruct (temp_types Delta !! id) eqn: Ht; last by iDestruct "Pre" as "(_ & % & _)".
@@ -198,6 +201,7 @@ Proof.
   iApply (wp_tc_expr(CS := CS) with "E"); [done..|].
   iSplit.
   { iDestruct "Pre" as "(? & _)"; auto. }
+  iModIntro.
   iIntros "E % !>".
   rewrite /typeof_temp in H99; destruct (temp_types Delta !! id) as [t'|] eqn: Ht; inversion H99; subst t'; clear H99.
   iDestruct (curr_env_set_temp with "E") as "($ & E)"; [done..|].
@@ -418,6 +422,7 @@ Proof.
   pose proof (typecheck_environ_sub _ _ TS _ TC') as TC.
   iApply (wp_tc_expr(CS := CS) with "E"); [done..|].
   iSplit; first by rewrite bi.and_elim_l bi.and_elim_r; auto.
+  iModIntro.
   iIntros "E" (?).
   iSplit; first by iPureIntro; apply tc_val_tc_val'.
   iApply (wp_tc_lvalue(CS := CS) with "E"); [done..|].
@@ -462,6 +467,7 @@ Proof.
   pose proof (typecheck_environ_sub _ _ TS _ TC') as TC.
   iApply (wp_tc_expr(CS := CS) with "E"); [done..|].
   iSplit; first by rewrite bi.and_elim_l bi.and_elim_r; auto.
+  iModIntro.
   iIntros "E" (?).
   iSplit; first by iPureIntro; apply tc_val_tc_val'.
   iApply (wp_tc_lvalue(CS := CS) with "E"); [done..|].

@@ -81,6 +81,7 @@ Proof.
   pose proof (typecheck_environ_sub _ _ TS _ TC') as TC.
   iApply (wp_tc_expr(CS := CS) with "E"); [done..|].
   iSplit; first by rewrite Htc.
+  iModIntro.
   iIntros "E" (He).
   destruct (typeof a) eqn: Hty; try discriminate; rewrite /sem_switch_arg /=.
   destruct (eval_expr a rho) eqn: Ha; try contradiction.

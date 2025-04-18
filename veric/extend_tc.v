@@ -490,7 +490,7 @@ Lemma wp_tc_expr : forall {CS : compspecs} E f Delta e P (ge : genv) rho,
   typecheck_environ Delta rho ->
   ⊢ curr_env ge f rho -∗
     ▷ ⎡tc_expr Delta e rho⎤ ∧
-    (curr_env ge f rho -∗ ⌜tc_val (typeof e) (eval_expr e rho)⌝ → P (eval_expr e rho)) -∗
+    (|={E}=> (curr_env ge f rho -∗ ⌜tc_val (typeof e) (eval_expr e rho)⌝ → P (eval_expr e rho))) -∗
   wp_expr ge E f e P.
 Proof.
   intros; rewrite /wp_expr.
@@ -507,6 +507,7 @@ Proof.
     rewrite -embed_pure. iApply eval_expr_relate; eauto; iFrame. }
   rewrite bi.and_elim_r.
   iSpecialize ("H" with "Hrho [//]").
+  iMod "H".
   iIntros "!>"; iExists (eval_expr e rho); iFrame.
   iIntros "!>" (??) "Hmatch".
   iDestruct ("Hsub" with "Hmatch") as %(? & Hmatch).
@@ -587,7 +588,7 @@ Lemma wp_tc_exprlist : forall `{!VSTGS OK_ty Σ} {CS : compspecs} E f Delta tys 
   typecheck_environ Delta rho ->
   ⊢ curr_env ge f rho -∗
     ▷ ⎡tc_exprlist Delta tys es rho⎤ ∧
-    (curr_env ge f rho -∗ ⌜tc_vals tys (eval_exprlist tys es rho)⌝ → P (eval_exprlist tys es rho)) -∗
+    (|={E}=> (curr_env ge f rho -∗ ⌜tc_vals tys (eval_exprlist tys es rho)⌝ → P (eval_exprlist tys es rho))) -∗
   wp_exprs ge E f es tys P.
 Proof.
   intros; rewrite /wp_exprs.
@@ -604,6 +605,7 @@ Proof.
     rewrite -embed_pure. iApply eval_exprlist_relate; eauto; iFrame. }
   rewrite bi.and_elim_r.
   iSpecialize ("H" with "Hrho [//]").
+  iMod "H".
   iIntros "!>"; iExists (eval_exprlist tys es rho); iFrame.
   iIntros "!>" (??) "Hmatch".
   iDestruct ("Hsub" with "Hmatch") as %(? & Hmatch).
@@ -614,13 +616,16 @@ Lemma wp_tc_expropt : forall `{!VSTGS OK_ty Σ} {CS : compspecs} E f Delta e t P
   cenv_sub cenv_cs ge ->
   typecheck_environ Delta rho ->
   ⊢ curr_env ge f rho -∗
-    ▷ ⎡tc_expropt Delta e t rho⎤ ∧
-    (curr_env ge f rho -∗ ⌜match eval_expropt (option_map (λ e, Ecast e t) e) rho with Some v => tc_val t v | _ => True end⌝ → P (eval_expropt (option_map (λ e, Ecast e t) e) rho)) -∗
+  (
+     (▷ ⎡tc_expropt Delta e t rho⎤ ∧
+      ((λ x:mpred.assert, if e:option _ then |={E}=> x else x) (curr_env ge f rho -∗ ⌜match eval_expropt (option_map (λ e, Ecast e t) e) rho with Some v => tc_val t v | _ => True end⌝ → P (eval_expropt (option_map (λ e, Ecast e t) e) rho))))) -∗
   wp_expr_opt ge E f (option_map (λ e, Ecast e t) e) P.
 Proof.
   intros; destruct e; simpl.
-  - iIntros "E H"; iApply (wp_tc_expr with "E"); [done..|].
+  - iIntros "E H".
+    iApply (wp_tc_expr with "E"); [done..|].
     iSplit; first by rewrite bi.and_elim_l.
-    iIntros "E" (?); rewrite bi.and_elim_r; by iApply ("H" with "E").
-  - iIntros "E H"; by iApply ("H" with "E").
+    rewrite bi.and_elim_r. iMod "H". iModIntro.
+    iIntros "E" (?); by iApply ("H" with "E").
+  - rewrite bi.and_elim_r. iIntros "E H". by iApply ("H" with "E").
 Qed.

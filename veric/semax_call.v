@@ -775,10 +775,12 @@ Proof.
   iApply wp_call.
   iApply (wp_tc_expr(CS := CS) with "E"); [done..|].
   iSplit; first by rewrite !bi.and_elim_l; auto.
+  iModIntro.
   iIntros "E" (?).
   iExists _, _, _; iSplit; first done.
   iApply (wp_tc_exprlist(CS := CS) with "E"); [done..|].
   iSplit; first by rewrite bi.and_elim_l bi.and_elim_r; auto.
+  iModIntro.
   iIntros "E" (TCargs Hlen).
   iDestruct "B'" as "[BE|BI]".
   - rewrite /believe_external Ha Genv.find_funct_find_funct_ptr.
@@ -1048,7 +1050,9 @@ Lemma semax_return:
    forall E Delta R ret,
       semax OK_spec E Delta
                 (tc_expropt Delta ret (ret_type Delta) ∧
-                             assert_of (`(RA_return R : option val -> environ -> mpred) (cast_expropt ret (ret_type Delta)) (@id environ)))
+                   (
+                    (λ x:assert, if ret:option _ then |={E}=> x else  x)
+                    (assert_of (`(RA_return R : option val -> environ -> mpred) (cast_expropt ret (ret_type Delta)) (@id environ)))))
                 (Sreturn ret)
                 R.
 Proof.
@@ -1063,11 +1067,20 @@ Proof.
   assert (cenv_sub (@cenv_cs CS) psi) by (eapply cenv_sub_trans; eauto).
   pose proof (typecheck_environ_sub _ _ TS _ TC') as TC.
   iApply (wp_tc_expropt(CS := CS) with "E"); [done..|].
-  iSplit; first by rewrite bi.and_elim_l.
-  iIntros "E" (?).
-  rewrite bi.and_elim_r /=; unfold_lift.
-  iFrame; iSplit; last done.
-  destruct ret; auto.
+  destruct ret.
+  - 
+    iSplit; first by rewrite bi.and_elim_l.
+    rewrite bi.and_elim_r.
+    rewrite monPred_at_fupd embed_fupd.
+    iMod "H". iModIntro.
+    iIntros "E" (?).
+    rewrite  /=; unfold_lift.
+    iFrame; done.
+  -  iSplit; first by rewrite bi.and_elim_l.
+    rewrite bi.and_elim_r.
+    iIntros "E" (?).
+    rewrite  /=; unfold_lift.
+    iFrame; done.
 Qed.
 
 End mpred.

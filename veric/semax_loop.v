@@ -65,6 +65,7 @@ Proof.
   iApply (wp_tc_expr(CS := CS) with "E"); [done..|].
   iSplit.
   { rewrite /= denote_tc_assert_andp bi.and_elim_l bi.and_elim_r; auto. }
+  iModIntro.
   iIntros "E" (?) "!>"; iSplit.
   { simpl.
     destruct (eval_expr b rho) eqn: Hb; try done.

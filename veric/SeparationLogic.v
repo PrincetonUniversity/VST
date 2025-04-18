@@ -180,10 +180,10 @@ Proof.
   destruct CSUB; apply RA_return_castexpropt_cenv_sub; done.
 Qed.
 
-Lemma RA_return_cast_expropt_cspecs_sub: forall {CS CS'} (CSUB: cspecs_sub CS CS') Delta e t R rho,
+Lemma RA_return_cast_expropt_cspecs_sub: forall {CS CS'} (CSUB: cspecs_sub CS CS') Delta e t R rho E,
   tc_environ Delta rho ->
-  tc_expropt (CS := CS) Delta e t rho ∧ RA_return R (@cast_expropt CS e t rho) (id rho)
-  ⊢ RA_return R (@cast_expropt CS' e t rho) (id rho).
+  tc_expropt (CS := CS) Delta e t rho ∧ (|={E}=> (RA_return R (@cast_expropt CS e t rho) (id rho)))
+  ⊢ |={E}=> RA_return R (@cast_expropt CS' e t rho) (id rho).
 Proof.
   intros. rewrite castexpropt_cenv_sub //.
   iIntros "(-> & $)".
@@ -424,8 +424,8 @@ Axiom semax_call:
 Axiom  semax_return :
    forall E Delta (R: ret_assert) ret,
       semax E Delta
-                (tc_expropt Delta ret (ret_type Delta) ∧
-                (assert_of (`(RA_return R : option val -> environ -> mpred) (cast_expropt ret (ret_type Delta)) (@id environ))))
+                ( (tc_expropt Delta ret (ret_type Delta) ∧
+                  ((λ x:assert, if ret:option _ then |={E}=> x else x) (assert_of (`(RA_return R : option val -> environ -> mpred) (cast_expropt ret (ret_type Delta)) (@id environ))))))
                 (Sreturn ret)
                 R.
 

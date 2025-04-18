@@ -381,7 +381,7 @@ Axiom semax_conseq:
     (local (tc_environ Delta) ∧ (<affine> ⎡allp_fun_id Delta⎤ ∗ RA_normal R') ⊢ (|={E}=> RA_normal R)) ->
     (local (tc_environ Delta) ∧ (<affine> ⎡allp_fun_id Delta⎤ ∗ RA_break R') ⊢ (|={E}=> RA_break R)) ->
     (local (tc_environ Delta) ∧ (<affine> ⎡allp_fun_id Delta⎤ ∗ RA_continue R') ⊢ (|={E}=> RA_continue R)) ->
-    (forall vl, local (tc_environ Delta) ∧ (<affine> ⎡allp_fun_id Delta⎤ ∗ RA_return R' vl) ⊢ (RA_return R vl)) ->
+    (forall vl, local (tc_environ Delta) ∧ (<affine> ⎡allp_fun_id Delta⎤ ∗ RA_return R' vl) ⊢ (|={E}=> RA_return R vl)) ->
    semax E Delta P' c R' -> semax E Delta P c R.
 
 End CLIGHT_SEPARATION_HOARE_LOGIC_COMPLETE_CONSEQUENCE.
@@ -404,7 +404,7 @@ Lemma semax_pre_post_indexed_fupd:
     (local (tc_environ Delta) ∧ RA_normal R' ⊢ (|={E}=> RA_normal R)) ->
     (local (tc_environ Delta) ∧ RA_break R' ⊢ (|={E}=> RA_break R)) ->
     (local (tc_environ Delta) ∧ RA_continue R' ⊢ (|={E}=> RA_continue R)) ->
-    (forall vl, local (tc_environ Delta) ∧ RA_return R' vl ⊢ (RA_return R vl)) ->
+    (forall vl, local (tc_environ Delta) ∧ RA_return R' vl ⊢ (|={E}=> RA_return R vl)) ->
    semax E Delta P' c R' -> semax E Delta P c R.
 Proof.
   intros.
@@ -418,7 +418,7 @@ Lemma semax_pre_post_fupd:
     (local (tc_environ Delta) ∧ RA_normal R' ⊢ (|={E}=> RA_normal R)) ->
     (local (tc_environ Delta) ∧ RA_break R' ⊢ (|={E}=> RA_break R)) ->
     (local (tc_environ Delta) ∧ RA_continue R' ⊢ (|={E}=> RA_continue R)) ->
-    (forall vl, local (tc_environ Delta) ∧ RA_return R' vl ⊢ (RA_return R vl)) ->
+    (forall vl, local (tc_environ Delta) ∧ RA_return R' vl ⊢ (|={E}=> RA_return R vl)) ->
    semax E Delta P' c R' -> semax E Delta P c R.
 Proof.
   intros.
@@ -440,7 +440,7 @@ Lemma semax_post_indexed_fupd:
    (local (tc_environ Delta) ∧ RA_normal R' ⊢ (|={E}=> RA_normal R)) ->
    (local (tc_environ Delta) ∧ RA_break R' ⊢ (|={E}=> RA_break R)) ->
    (local (tc_environ Delta) ∧ RA_continue R' ⊢ (|={E}=> RA_continue R)) ->
-   (forall vl, local (tc_environ Delta) ∧ RA_return R' vl ⊢ (RA_return R vl)) ->
+   (forall vl, local (tc_environ Delta) ∧ RA_return R' vl ⊢ (|={E}=> RA_return R vl)) ->
    semax E Delta P c R' ->  semax E Delta P c R.
 Proof.
   intros; eapply semax_pre_post_indexed_fupd; try eassumption.
@@ -468,7 +468,7 @@ Lemma semax_post_fupd:
    (local (tc_environ Delta) ∧ RA_normal R' ⊢ (|={E}=> RA_normal R)) ->
    (local (tc_environ Delta) ∧ RA_break R' ⊢ (|={E}=> RA_break R)) ->
    (local (tc_environ Delta) ∧ RA_continue R' ⊢ (|={E}=> RA_continue R)) ->
-   (forall vl, local (tc_environ Delta) ∧ RA_return R' vl ⊢ (RA_return R vl)) ->
+   (forall vl, local (tc_environ Delta) ∧ RA_return R' vl ⊢ (|={E}=> RA_return R vl)) ->
    semax E Delta P c R' ->  semax E Delta P c R.
 Proof.
   intros; eapply semax_pre_post_fupd; try eassumption.
@@ -554,6 +554,7 @@ Lemma semax_pre_post : forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {CS:
    semax E Delta P' c R' -> semax E Delta P c R.
 Proof.
   intros; eapply semax_pre_post_fupd, H4; rewrite ?H ?H0 ?H1 ?H2; auto.
+  intros. rewrite H3. apply fupd_intro.
 Qed.
 
 End GenConseq.
@@ -741,7 +742,7 @@ Proof.
   + apply derives_fupd_refl.
   + apply derives_fupd_refl.
   + apply derives_fupd_refl.
-  + intros; rewrite bi.and_elim_r //.
+  + intros; apply derives_fupd_refl.
 Qed.
 
 End GenIExtrFacts.
