@@ -768,10 +768,10 @@ Ltac change_compspecs_warning A cs cs' :=
 
 Ltac change_compspecs' cs cs' :=
   lazymatch goal with
-  | |- context [data_at(cs := cs') ?sh ?t ?v1] => erewrite (data_at_change_composite(cs_from := cs')(cs_to := cs) sh t); [| apply JMeq_refl | prove_cs_preserve_type]
-  | |- context [field_at(cs := cs') ?sh ?t ?gfs ?v1] => erewrite (field_at_change_composite(cs_from := cs')(cs_to := cs) sh t gfs); [| apply JMeq_refl | prove_cs_preserve_type]
-  | |- context [data_at_(cs := cs') ?sh ?t] => erewrite (data_at__change_composite(cs_from := cs')(cs_to := cs) sh t); [| prove_cs_preserve_type]
-  | |- context [field_at_(cs := cs') ?sh ?t ?gfs] => erewrite (field_at__change_composite(cs_from := cs')(cs_to := cs) sh t gfs); [| prove_cs_preserve_type]
+  | |- context [data_at(cs := cs') ?sh ?t ?v1] => erewrite (data_at_change_composite(cs_from := cs')(cs_to := cs)(CCE := _) sh t); [| apply JMeq_refl | prove_cs_preserve_type]
+  | |- context [field_at(cs := cs') ?sh ?t ?gfs ?v1] => erewrite (field_at_change_composite(cs_from := cs')(cs_to := cs)(CCE := _) sh t gfs); [| apply JMeq_refl | prove_cs_preserve_type]
+  | |- context [data_at_(cs := cs') ?sh ?t] => erewrite (data_at__change_composite(cs_from := cs')(cs_to := cs)(CCE := _) sh t); [| prove_cs_preserve_type]
+  | |- context [field_at_(cs := cs') ?sh ?t ?gfs] => erewrite (field_at__change_composite(cs_from := cs')(cs_to := cs)(CCE := _) sh t gfs); [| prove_cs_preserve_type]
   | |- _ => 
     match goal with 
   | |- context [?A cs'] => 
