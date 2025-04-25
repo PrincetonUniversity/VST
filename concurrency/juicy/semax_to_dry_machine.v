@@ -259,7 +259,8 @@ Section Safety.
   (* Each thread needs to be safe given only its fragment (access_map) of the shared memory. We use
      the starting max permissions as an upper bound on the max permissions of the state_interp. *)
   Program Definition jsafe_perm_pre `{!VSTGS unit Σ} (max : access_map)
-    (jsafe : coPset -d> unit -d> CC_core -d> access_map -d> iPropO Σ) : coPset -d> unit -d> CC_core -d> access_map -d> iPropO Σ := λ E z c p,
+    (jsafe : coPset -d> unit -d> CC_core -d> access_map -d> iPropO Σ) :
+    coPset -d> unit -d> CC_core -d> access_map -d> iPropO Σ := λ E z c p,
     |={E}=> ∀ m (Hlt : permMapLt p (getMaxPerm m)), ⌜permMapLt (getMaxPerm m) max⌝ → state_interp(*'*) m z -∗
         (∃ i, ⌜halted (cl_core_sem ge) c i ∧ ext_spec_exit (concurrent_ext_spec CS ext_link) (Some (Vint i)) z m⌝) ∨
         (|={E}=> ∃ c' m', ⌜corestep (cl_core_sem ge) c (restrPermMap Hlt) c' m'⌝ ∧ (∃ p' (Hlt' : permMapLt p' (getMaxPerm m')), state_interp(*'*) (restrPermMap Hlt') z) (* ?? *) ∗ ▷ jsafe E z c' (getCurPerm m')) ∨
@@ -515,17 +516,21 @@ Section Safety.
     2: { iApply step_fupd_intro; first done; iNext.
          iAssert (|={⊤}[∅]▷=>^n ∀ U'', ⌜HybridMachineSig.HybridCoarseMachine.csafe (U'', tr, tp) m n⌝) with "[-]" as "H".
          { rewrite step_fupdN_plain_forall //.
-           iIntros; iApply ("IH" with "[%] [%] [%] [%] Hsafe locks S"); done. }
+           iIntros.
+           iApply ("IH" with "[%] [%] [%] [%] locks Hsafe S"); try done.
+         }
          iApply (step_fupdN_mono with "H"); iPureIntro.
          intros Hsafe.
-         eapply HybridMachineSig.HybridCoarseMachine.AngelSafe with (tr := []); simpl; rewrite seq.cats0; last apply Hsafe.
+         eapply HybridMachineSig.HybridCoarseMachine.AngelSafe
+           with (tr := []); simpl; rewrite seq.cats0; last apply Hsafe.
          eapply HybridMachineSig.schedfail; eauto.
          rewrite /containsThread /= /OrdinalPool.containsThread.
          intros ?.
-         pose proof (@ssrnat.leP (S i) (pos.n (OrdinalPool.num_threads tp))) as Hle; inv Hle; [lia | congruence]. }
+         pose proof (@ssrnat.leP (S i) (pos.n (OrdinalPool.num_threads tp))) as Hle; inv Hle;
+           [lia | congruence]. }
     rewrite {2}/threads_safe.
-    set (Espec := CEspec _ _).
-    rewrite big_sepL_lookup_acc_impl; last by apply lookup_seq; eauto.
+    iPoseProof (big_sepL_lookup_acc_impl with "[$Hsafe]") as "Hsafe".
+    apply lookup_seq; eauto.
     iDestruct "Hsafe" as "((% & Hsafei) & Hsafe)".
     destruct (getThreadC cnti) eqn: Hi.
     - (* Krun *)
@@ -541,7 +546,7 @@ Section Safety.
           * iExists cnti; rewrite Hi //. }
         iAssert (|={⊤}[∅]▷=>^n ∀ U'', ⌜HybridMachineSig.HybridCoarseMachine.csafe (U'', tr, tp) m n⌝) with "[-]" as "H".
         { rewrite step_fupdN_plain_forall //.
-          iIntros; iApply ("IH" with "[%] [%] [%] [%] Hsafe locks S"); done. }
+          iIntros; iApply ("IH" with "[%] [%] [%] [%] locks Hsafe S"); done. }
         iApply (step_fupdN_mono with "H"); iPureIntro.
         intros Hsafe.
         eapply HybridMachineSig.HybridCoarseMachine.AngelSafe with (tr := []); simpl; rewrite seq.cats0; last apply Hsafe.
@@ -552,7 +557,10 @@ Section Safety.
         iApply step_fupd_intro; first done; iNext.
         iAssert (|={⊤}[∅]▷=>^n ∀ U'', ⌜HybridMachineSig.HybridCoarseMachine.csafe (U'', tr, (updThreadC cnti (Kblocked s))) m n⌝) with "[-]" as "H".
         { rewrite step_fupdN_plain_forall //.
-          iIntros; iApply ("IH" with "[%] [%] [%] [%] [Hsafei Hsafe] locks S").
+          iIntros; iApply ("IH" with "[%] [%] [%] [%] locks [Hsafe Hsafei]").
+          (*
+          
+          iIntros; iApply ("IH" with "[%] [%] [%] [%] locks S [Hsafei Hsafe]"). *)
           + intros j cntj.
             destruct (eq_dec j i).
             * subst; rewrite gssThreadCC Hat_ext //.
@@ -565,7 +573,9 @@ Section Safety.
             * iIntros "!>" (?? (-> & ?)%lookup_seq ?) "(% & Hsafe)".
               iExists (cntUpdateC _ _ _); rewrite -gsoThreadCC // gThreadCR //.
             * iExists (cntUpdateC _ _ _); rewrite gssThreadCC gThreadCR.
-              by iApply "Hsafei". }
+              by iApply "Hsafei".
+          + iFrame.
+        }
         iApply (step_fupdN_mono with "H"); iPureIntro; intros Hsafe.
         eapply HybridMachineSig.HybridCoarseMachine.AngelSafe with (tr := []); simpl; rewrite seq.cats0; last apply Hsafe.
         eapply HybridMachineSig.suspend_step; eauto.
@@ -585,7 +595,7 @@ Section Safety.
         { by erewrite restrPermMap_irr. }
         iApply step_fupd_intro; first done; iNext.
         apply (ev_step_ax2 (Clight_evsem.CLC_evsem ge)) in Hstep' as (? & Hstep').
-        iSpecialize ("IH" $! _ _ (updThread cnti (Krun c') (getCurPerm m', (getThreadR cnti).2)) with "[%] [%] [%] [%] [Hsafe Hsafei] locks S").
+        iSpecialize ("IH" $! _ _ (updThread cnti (Krun c') (getCurPerm m', (getThreadR cnti).2)) with "[%] [%] [%] [%] locks [Hsafe Hsafei] ").
         * intros j cntj.
           destruct (eq_dec j i); first by subst; rewrite gssThreadCode.
           pose proof (cntUpdate' _ _ cnti cntj).
@@ -602,14 +612,30 @@ Section Safety.
              admit. (* need to know that any changes to getMaxPerm don't invalidate other threads! *)
           -- iExists (cntUpdate _ _ cnti cnti).
              rewrite gssThreadCode gssThreadRes.
+             simpl in *. 
              admit.
-        * iApply (step_fupdN_mono with "IH"); iPureIntro; intros Hsafe.
+        * (* Work from here *)
+          iApply (step_fupdN_mono with "[IH]").
+          iIntros "_".
+          iPureIntro;
+          eapply HybridMachineSig.HybridCoarseMachine.CoreSafe.
+          rewrite /HybridMachineSig.MachStep /=.
+          change (i :: sch) with (HybridMachineSig.yield (i :: sch)) at 2.
+          change m' with (HybridMachineSig.diluteMem m') at 3.
+          eapply HybridMachineSig.thread_step; first done.
+          eapply step_dry.
+          simpl. repeat try done. done. done.
+          simpl in *. eauto. done. simpl in *.
+
+          (*
+          
+          iPureIntro; intros Hsafe.
           eapply HybridMachineSig.HybridCoarseMachine.CoreSafe, Hsafe.
           rewrite /HybridMachineSig.MachStep /=.
           change (i :: sch) with (HybridMachineSig.yield (i :: sch)) at 2.
           change m' with (HybridMachineSig.diluteMem m') at 3.
           eapply HybridMachineSig.thread_step; first done.
-          by eapply step_dry.
+          by eapply step_dry. *) admit. admit.
     - (* Kblocked: HybridMachineSig.sync_step *)
       pose proof (Htp_wf _ cnti) as Hwfi; rewrite Hi in Hwfi.
       rewrite jsafe_perm_unfold /jsafe_perm_pre.
