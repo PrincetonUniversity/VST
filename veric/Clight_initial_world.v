@@ -1,51 +1,30 @@
+Require Import VST.zlist.sublist.
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.veric.juicy_base.
+Require Import VST.veric.external_state.
 Require Import VST.veric.juicy_mem.
 Require Import VST.veric.juicy_mem_lemmas.
-
 Require Import VST.veric.extend_tc.
 Require Import VST.veric.Clight_seplog.
 Require Import VST.veric.Clight_assert_lemmas.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
 Require Import VST.veric.expr_lemmas.
 
 Require Export VST.veric.initial_world.
-Import compcert.lib.Maps.
 
 Import Clight.
 
-Local Open Scope pred.
-
 #[local] Obligation Tactic := idtac.
 
-Notation initial_core' := (initial_core' function).
-
-(* This version starts with an empty ghost. 
-Program Definition initial_core (ge: Genv.t fundef type) (G: funspecs) (n: nat): rmap :=
-  proj1_sig (make_rmap (initial_core' ge G n) nil n _ eq_refl).
-Next Obligation.
-intros.
-extensionality loc; unfold compose, initial_core'.
-if_tac; [ | simpl; auto].
-destruct (Genv.invert_symbol ge (fst loc)); [ | simpl; auto].
-destruct (find_id i G); [ | simpl; auto].
-destruct f.
-unfold resource_fmap.
-f_equal.
-simpl.
-f_equal.
-change R.approx with approx.
-extensionality i0 ts b rho.
-rewrite fmap_app.
-pattern (approx n) at 7 8 9.
-rewrite <- approx_oo_approx.
-auto.
-Qed.*)
-Notation initial_core := (@initial_core function).
-
-Notation initial_core_ext := (@initial_core_ext  function).
-
+Notation initial_core m := (initial_core m (F := function)).
 Notation prog_funct := (@prog_funct function).
+Notation prog_vars := (@prog_vars function).
+
+Section mpred.
+
+Context `{!heapGS Σ}.
 
 Inductive match_fdecs: list  (ident * Clight.fundef) -> funspecs -> Prop :=
 | match_fdecs_nil: match_fdecs nil nil
@@ -72,7 +51,7 @@ revert G; induction dl; simpl; intros.
 inv H0. inv H.
 destruct a as [i' [?|?]].
 inv H0.
-simpl in H; if_tac in H. subst i'; inv H.
+simpl in H2; if_tac in H2. subst i'; inv H2.
 eauto.
 destruct (IHdl G0) as [fd [? ?]]; auto.
 exists fd; split; auto.
@@ -84,612 +63,282 @@ exists fd; split; auto.
 *)
 Qed.
 
-Lemma initial_core_ok: forall (prog: program) G n m,
-      list_norepet (prog_defs_names prog) ->
-      match_fdecs (prog_funct prog) G ->
-      Genv.init_mem prog = Some m ->
-     initial_rmap_ok m (initial_core (Genv.globalenv prog) G n).
+(*Lemma initial_jm_without_locks prog m:
+  Genv.init_mem prog = Some m ->
+  (* mem_auth m ∗ *) inflate_initial_mem m ⊢ no_locks.
 Proof.
-intros.
-rename H1 into Hm.
-intros [b z]. simpl.
-unfold initial_core; simpl.
-rewrite <- core_resource_at.
-rewrite resource_at_make_rmap.
-unfold initial_core'.
-simpl in *.
-change fcore with (@core _ _ (fsep_sep Sep_resource)).
-if_tac; [ | rewrite core_NO; auto].
-case_eq (@Genv.invert_symbol (Ctypes.fundef function) type
-       (@Genv.globalenv (Ctypes.fundef function) type prog) b);
-   intros;  try now (rewrite core_NO; auto).
-case_eq (find_id i G); intros; [ | rewrite core_NO; auto].
-apply Genv.invert_find_symbol in H2.
-pose proof (Genv.find_symbol_not_fresh _ _ Hm H2).
-unfold valid_block in H4.
-split; intros.
-contradiction.
-destruct (match_fdecs_exists_Gfun _ _ _ _ H3 H0) as [fd [? _]].
-destruct f.
-split; auto.
-subst z.
-destruct (find_symbol_globalenv _ _ _ H H2) as [RANGE [d ?]].
-assert (d = Gfun fd). {
-  clear - H H5 H1.
-  unfold prog_defs_names in H.
-  change (AST.prog_defs prog) with (prog_defs prog) in H.
-  forget (prog_defs prog) as dl. forget (Z.to_nat (Z.pos b-1)) as n.
-  revert dl H H5 H1; induction n; simpl; intros.
-  destruct dl; inv H1.
-  inv H. simpl in H5.
-  destruct H5. inv H; auto.
-  apply (in_map (@fst ident (globdef fundef type))) in H. simpl in H;  contradiction.
-  destruct dl; inv H1. inv H.
-  simpl in H5. destruct H5. subst.
-  clear - H2 H3. apply nth_error_in in H2.
-  apply (in_map (@fst ident (globdef fundef type))) in H2. simpl in *;  contradiction.
-  apply (IHn dl); auto.
-} (* end assert d = Gfun fd *)
-subst d.
-clear H5.
-clear - RANGE H2 H1 H Hm.
-unfold Genv.init_mem in Hm.
-forget (Genv.globalenv prog) as ge.
-change (AST.prog_defs prog) with (prog_defs prog) in Hm.
-forget (prog_defs prog) as dl.
-rewrite <- (rev_involutive dl) in H1,Hm.
-rewrite nth_error_rev in H1.
-2 : { rewrite rev_length. clear - RANGE.
-      destruct RANGE.
-      apply inj_lt_iff. rewrite Z2Nat.id by lia. lia. }
-rename H1 into H5.
-replace (length (rev dl) - Z.to_nat (Z.pos b - 1) - 1)%nat
- with (length (rev dl) - Z.to_nat (Z.pos b))%nat in H5.
-2 : { rewrite rev_length.
-      clear - RANGE.
-      replace (Z.to_nat (Z.pos b-1)) with (Z.to_nat (Z.pos b) - 1)%nat.
-      assert (Z.to_nat (Z.pos b) <= length dl)%nat.
-      destruct RANGE.
-      apply inj_le_iff. rewrite Z2Nat.id by lia. auto.
-      assert (Z.to_nat (Z.pos b) > 0)%nat. apply inj_gt_iff.
-      rewrite Z2Nat.id by lia.  simpl. lia.
-      lia. destruct RANGE as [? _].
-      apply nat_of_Z_lem1.
-      assert (Z.to_nat (Z.pos b) > 0)%nat. apply inj_gt_iff. simpl.
-      pose proof (Pos2Nat.is_pos b); lia.
-      lia. }
-assert (0 < Z.to_nat (Z.pos b) <= length dl)%nat.
-{ clear - RANGE. lia. }
-clear RANGE; rename H0 into RANGE.
-rewrite Z2Nat.inj_pos in *.
-rewrite <- rev_length in RANGE.
-forget (rev dl) as dl'; clear dl; rename dl' into dl.
-destruct RANGE.
-rewrite alloc_globals_rev_eq in Hm.
-revert m Hm H1 H5; induction dl; intros.
-inv H5.
-simpl in H1,Hm.
-invSome.
-specialize (IHdl _ Hm).
-destruct (eq_dec (Pos.to_nat b) (S (length dl))).
-+ rewrite e, Nat.sub_diag in H5. simpl in H5.
-  inversion H5; clear H5; subst a.
-  apply alloc_globals_rev_nextblock in Hm.
-  rewrite Zlength_correct in Hm.
-  rewrite <- inj_S in Hm. rewrite <- e in Hm.
-  rewrite positive_nat_Z in Hm.  rewrite Pos2Z.id in Hm.
-  subst b.
-  clear IHdl H1 H0. clear dl e.
-  unfold Genv.alloc_global in H6.
-  revert H6; case_eq (alloc m0 0 1); intros.
-  unfold drop_perm in H6.
-  destruct (range_perm_dec m1 b 0 1 Cur Freeable).
-  unfold max_access_at, access_at; inv H6.
-  simpl. apply alloc_result in H0. subst b.
-  rewrite PMap.gss.
-  simpl. auto.
-  inv H6.
-+ destruct IHdl.
-  lia.
-  replace (length (a::dl) - Pos.to_nat b)%nat with (S (length dl - Pos.to_nat b))%nat in H5.
-  apply H5.
-  simpl. destruct (Pos.to_nat b); lia.
-  assert (b < nextblock m0)%positive.
-  apply alloc_globals_rev_nextblock in Hm.
-  rewrite Zlength_correct in Hm. clear - Hm n H1.
-  rewrite Hm.
-  apply Pos2Nat.inj_lt.
-  pattern Pos.to_nat at 1; rewrite <- Z2Nat.inj_pos.
-  rewrite Z2Pos.id by lia.
-  rewrite Z2Nat.inj_succ by lia.
-  rewrite Nat2Z.id. lia.
-  destruct (alloc_global_old _ _ _ _ H6 (b,0)) as [? ?]; auto.
-  unfold max_access_at.
-  rewrite <- H8.
-  split; auto.
+  rewrite /initial_mem /no_locks.
+  iIntros "(%m & %Hinit & Hm)" (?????).
+  iApply (bi.impl_intro_r with "Hm"); iIntros "H".
+Abort.*)
+
+(* How to relate Gamma to funspecs in memory, once we are outside the
+   semax proofs?  We define 'matchfunspecs' which will be satisfied by
+   the initial memory, and preserved under steps. *)
+
+Definition matchfunspecs (ge : genv) (G : funspecs) : mpred :=
+  ∀ b:block, ∀ fs: funspec,
+  func_at fs (b,0%Z) -∗
+  ∃ id:ident, ∃ fs0: funspec, 
+   ⌜Genv.find_symbol ge id = Some b /\ find_id id G = Some fs0⌝ ∧
+     ◇ funspec_sub_si fs0 fs.
+
+Lemma init_funspecs_matchfunspecs prog m G:
+  funspec_auth (init_funspecs m (globalenv prog) G) ⊢ matchfunspecs (globalenv prog) G.
+Proof.
+  rewrite /matchfunspecs.
+  iIntros "H" (??) "f".
+  iPoseProof (func_at_auth with "H f") as "H".
+  rewrite option_equivI init_funspecs_lookup /funspec_of_loc /=.
+  destruct (Pos.ltb_spec0 b (nextblock m)); last done.
+  destruct (Genv.invert_symbol _ _) eqn: Hinv; last done.
+  apply Genv.invert_find_symbol in Hinv.
+  destruct (find_id _ _) eqn: Hfind; last done.
+  iExists _, _; iSplit; first done.
+  by iApply funspec_sub_si_ne.
 Qed.
 
-Definition initial_jm (prog: program) m (G: funspecs) (n: nat)
-        (H: Genv.init_mem prog = Some m)
-        (H1: list_norepet (prog_defs_names prog))
-        (H2: match_fdecs (prog_funct prog) G) : juicy_mem :=
-  initial_mem m (initial_core (Genv.globalenv prog) G n)
-           (initial_core_ok _ _ _ m H1 H2 H).
-
-Lemma initial_jm_age (prog: program) m (G: funspecs) (n : nat)
-        (H: Genv.init_mem prog = Some m)
-        (H1: list_norepet (prog_defs_names prog))
-        (H2: match_fdecs (prog_funct prog) G) :
-age
-    (initial_mem m (initial_core (Genv.globalenv prog) G (S n)) (initial_core_ok _ _ _ m H1 H2 H))
-    (initial_mem m (initial_core (Genv.globalenv prog) G    n ) (initial_core_ok _ _ _ m H1 H2 H)).
+Lemma prog_funct'_incl : forall {F V} (l : list (ident * globdef F V)), incl (map fst (prog_funct' l)) (map fst l).
 Proof.
-apply age1_juicy_mem_unpack''; [ | reflexivity].
-simpl.
-unfold inflate_initial_mem in *.
-match goal with |- context [ proj1_sig ?x ] => destruct x as (r & lev & bah & Hg1); simpl end.
-match goal with |- context [ proj1_sig ?x ] => destruct x as (r' & lev' & bah' & Hg2); simpl end.
-apply rmap_age_i.
-rewrite lev,lev'.
-unfold initial_core; simpl.
-rewrite !level_make_rmap. auto.
-intro loc.
-rewrite bah, bah'.
-unfold inflate_initial_mem'.
-destruct (access_at m loc Cur); [ | reflexivity].
-destruct p; unfold resource_fmap; f_equal; try apply preds_fmap_NoneP.
-unfold initial_core.
-rewrite !resource_at_make_rmap.
-unfold initial_core'.
-if_tac; auto.
-unfold fundef.
-destruct (Genv.invert_symbol (Genv.globalenv (program_of_program prog))
-        (fst loc)); auto.
-destruct (find_id i G); auto.
-destruct f; auto.
-f_equal.
-simpl.
-f_equal.
-rewrite lev'.
-unfold initial_core.
-rewrite level_make_rmap.
-extensionality ts x b rho.
-rewrite fmap_app.
-match goal with
-| |- ?A (?B ?C) = _ => change (A (B C)) with ((A oo B) C)
-end.
-rewrite approx_oo_approx' by lia.
-rewrite approx'_oo_approx by lia.
-auto.
-rewrite Hg1, Hg2.
-unfold initial_core; rewrite !ghost_of_make_rmap; auto.
+  induction l; simpl.
+  - apply incl_nil_l.
+  - destruct a, g; simpl.
+    + by apply incl_same_head.
+    + by apply incl_tl.
 Qed.
 
-Lemma initial_core_ext_ok: forall {Z} (ora : Z) (prog: program) G n m,
-      list_norepet (prog_defs_names prog) ->
-      match_fdecs (prog_funct prog) G ->
-      Genv.init_mem prog = Some m ->
-     initial_rmap_ok m (initial_core_ext ora (Genv.globalenv prog) G n).
+Lemma prog_funct_norepet : forall (prog : program), list_norepet (prog_defs_names prog) -> list_norepet (map fst (prog_funct prog)).
 Proof.
-intros.
-rename H1 into Hm.
-intros [b z]. simpl.
-unfold initial_core_ext; simpl.
-rewrite <- core_resource_at.
-rewrite resource_at_make_rmap.
-unfold initial_core'.
-simpl in *.
-change fcore with (@core _ _ (fsep_sep Sep_resource)).
-if_tac; [ | rewrite core_NO; auto].
-case_eq (@Genv.invert_symbol (Ctypes.fundef function) type (@Genv.globalenv (Ctypes.fundef function) type prog) b);
-   intros;  try now (rewrite core_NO; auto).
-case_eq (find_id i G); intros; [ | rewrite core_NO; auto].
-apply Genv.invert_find_symbol in H2.
-pose proof (Genv.find_symbol_not_fresh _ _ Hm H2).
-unfold valid_block in H4.
-split; intros.
-contradiction.
-destruct (match_fdecs_exists_Gfun _ _ _ _ H3 H0) as [fd [? _]].
-destruct f.
-split; auto.
-subst z.
-destruct (find_symbol_globalenv _ _ _ H H2) as [RANGE [d ?]].
-assert (d = Gfun fd).
-clear - H H5 H1.
-unfold prog_defs_names in H.
-change (AST.prog_defs prog) with (prog_defs prog) in H.
-forget (prog_defs prog) as dl. forget (Z.to_nat (Z.pos b-1)) as n.
-revert dl H H5 H1; induction n; simpl; intros.
-destruct dl; inv H1.
-inv H. simpl in H5.
-destruct H5. inv H; auto.
-apply (in_map (@fst ident (globdef fundef type))) in H. simpl in H;  contradiction.
-destruct dl; inv H1. inv H.
-simpl in H5. destruct H5. subst.
-clear - H2 H3. apply nth_error_in in H2.
-apply (in_map (@fst ident (globdef fundef type))) in H2. simpl in *;  contradiction.
-apply (IHn dl); auto.
-(* end assert d = Gfun fd *)
-subst d.
-clear H5.
-clear - RANGE H2 H1 H Hm.
-unfold Genv.init_mem in Hm.
-forget (Genv.globalenv prog) as ge.
-change (AST.prog_defs prog) with (prog_defs prog) in Hm.
-forget (prog_defs prog) as dl.
-rewrite <- (rev_involutive dl) in H1,Hm.
-rewrite nth_error_rev in H1.
-2 : {
-  rewrite rev_length. clear - RANGE.
-  destruct RANGE.
-  apply inj_lt_iff. rewrite Z2Nat.id by lia. lia. }
-rename H1 into H5.
-replace (length (rev dl) - Z.to_nat (Z.pos b - 1) - 1)%nat
-  with (length (rev dl) - Z.to_nat (Z.pos b))%nat in H5.
-2 : { rewrite rev_length.
-  clear - RANGE.
-  replace (Z.to_nat (Z.pos b-1)) with (Z.to_nat (Z.pos b) - 1)%nat.
-  assert (Z.to_nat (Z.pos b) <= length dl)%nat.
-  destruct RANGE.
-  apply inj_le_iff. rewrite Z2Nat.id by lia. auto.
-  assert (Z.to_nat (Z.pos b) > 0)%nat. apply inj_gt_iff.
-  rewrite Z2Nat.id by lia.  simpl. lia.
-  lia. destruct RANGE as [? _].
-  apply nat_of_Z_lem1.
-  assert (Z.to_nat (Z.pos b) > 0)%nat. apply inj_gt_iff. simpl.
-  pose proof (Pos2Nat.is_pos b); lia.
-  lia. }
-assert (0 < Z.to_nat (Z.pos b) <= length dl)%nat.
-{ clear - RANGE. lia. }
-clear RANGE; rename H0 into RANGE.
-rewrite Z2Nat.inj_pos in *.
-rewrite <- rev_length in RANGE.
-forget (rev dl) as dl'; clear dl; rename dl' into dl.
-destruct RANGE.
-rewrite alloc_globals_rev_eq in Hm.
-revert m Hm H1 H5; induction dl; intros.
-inv H5.
-simpl in H1,Hm.
-invSome.
-specialize (IHdl _ Hm).
-destruct (eq_dec (Pos.to_nat b) (S (length dl))).
-+ rewrite e, Nat.sub_diag in H5. simpl in H5.
-  inversion H5; clear H5; subst a.
-  apply alloc_globals_rev_nextblock in Hm.
-  rewrite Zlength_correct in Hm.
-  rewrite <- inj_S in Hm. rewrite <- e in Hm.
-  rewrite positive_nat_Z in Hm.  rewrite Pos2Z.id in Hm.
-  subst b.
-  clear IHdl H1 H0. clear dl e.
-  unfold Genv.alloc_global in H6.
-  revert H6; case_eq (alloc m0 0 1); intros.
-  unfold drop_perm in H6.
-  destruct (range_perm_dec m1 b 0 1 Cur Freeable).
-  unfold max_access_at, access_at; inv H6.
-  simpl. apply alloc_result in H0. subst b.
-  rewrite PMap.gss.
-  simpl. auto.
-  inv H6.
-+ destruct IHdl.
-  lia.
-  replace (length (a::dl) - Pos.to_nat b)%nat with (S (length dl - Pos.to_nat b))%nat in H5.
-  apply H5.
-  simpl. destruct (Pos.to_nat b); lia.
-  assert (b < nextblock m0)%positive.
-  { apply alloc_globals_rev_nextblock in Hm.
-    rewrite Zlength_correct in Hm. clear - Hm n H1.
-    rewrite Hm.
-    apply Pos2Nat.inj_lt.
-    pattern Pos.to_nat at 1; rewrite <- Z2Nat.inj_pos.
-    rewrite Z2Pos.id by lia.
-    rewrite Z2Nat.inj_succ by lia.
-    rewrite Nat2Z.id. lia. }
-  destruct (alloc_global_old _ _ _ _ H6 (b,0)) as [? ?]; auto.
-  unfold max_access_at.
-  rewrite <- H8.
-  split; auto.
+  destruct prog; rewrite /prog_funct /prog_defs_names /=.
+  clear; induction prog_defs; auto; simpl.
+  inversion 1; subst.
+  destruct a, g; auto; simpl.
+  constructor; auto.
+  intros ?%prog_funct'_incl; done.
 Qed.
 
-Definition initial_jm_ext {Z} (ora : Z) (prog: program) m (G: funspecs) (n: nat)
-        (H: Genv.init_mem prog = Some m)
-        (H1: list_norepet (prog_defs_names prog))
-        (H2: match_fdecs (prog_funct prog) G) : juicy_mem :=
-  initial_mem m (initial_core_ext ora (Genv.globalenv prog) G n)
-           (initial_core_ext_ok _ _ _ _ m H1 H2 H).
+Lemma match_ids : forall fs G i, match_fdecs fs G -> In i (map fst fs) ↔ In i (map fst G).
+Proof.
+  induction 1; simpl; first done.
+  rewrite IHmatch_fdecs //.
+Qed.
 
-Require Import VST.veric.ghost_PCM.
+Lemma match_fdecs_norepet : forall fs G, match_fdecs fs G -> list_norepet (map fst fs) ↔ list_norepet (map fst G).
+Proof.
+  induction 1; simpl; first done.
+  split; inversion 1; subst; constructor; try tauto; by [rewrite -match_ids | rewrite match_ids].
+Qed.
 
-Import Clight.
+(* compute the size of blocks allocated by Genv.alloc_globals *)
+Fixpoint globals_bounds {F V} b (gl : list (ident * globdef F V)) :=
+  match gl with
+  | [] => fun _ => (0, O)
+  | g :: gl' => let bounds' := globals_bounds (b + 1)%positive gl' in
+      fun c => if eq_dec c b then
+        match g.2 with
+        | Gfun _ => (0, 0%nat)
+        | Gvar v => let init := gvar_init v in
+                    let sz := init_data_list_size init in
+                    (0, Z.to_nat sz)
+        end else bounds' c
+  end.
 
-Lemma initial_jm_ext_eq : forall {Z} (ora : Z) (prog: program) m (G: funspecs) (n: nat)
-        (H: Genv.init_mem prog = Some m)
-        (H1: list_norepet (prog_defs_names prog))
-        (H2: match_fdecs (prog_funct prog) G),
-  join (m_phi (initial_jm prog m G n H H1 H2))
-       (set_ghost (core (m_phi (initial_jm prog m G n H H1 H2))) (Some (ext_ghost ora, NoneP) :: nil) eq_refl)
-       (m_phi (initial_jm_ext ora prog m G n H H1 H2)).
+Definition block_bounds {F V} (p : AST.program F V) := globals_bounds 1%positive (AST.prog_defs p).
+
+Lemma globals_bounds_min : forall {F V} b0 (gl : list (ident * globdef F V)) b, (b < b0)%positive ->
+  globals_bounds b0 gl b = (0, 0%nat).
+Proof.
+  intros until gl; revert b0; induction gl; simpl; intros; first done.
+  rewrite if_false; last lia.
+  apply IHgl; lia.
+Qed.
+
+Lemma globals_bounds_app1 : forall {F V} b0 (gl1 gl2 : list (ident * globdef F V)) b,
+  (Pos.to_nat b < Pos.to_nat b0 + length gl1)%nat -> globals_bounds b0 (gl1 ++ gl2) b = globals_bounds b0 gl1 b.
+Proof.
+  intros; generalize dependent b0; induction gl1; simpl; intros.
+  { apply globals_bounds_min; lia. }
+  if_tac; first done.
+  apply IHgl1; lia.
+Qed.
+
+Lemma globals_bounds_nth : forall {F V} b0 (gl : list (ident * globdef F V)) b i g (Hb0 : (b0 <= b)%positive),
+  nth_error gl (Pos.to_nat b - Pos.to_nat b0) = Some (i, g) ->
+  globals_bounds b0 gl b = match g with
+                           | Gfun _ => (0, 0%nat)
+                           | Gvar v => let init := gvar_init v in let sz := init_data_list_size init in (0, Z.to_nat sz)
+                           end.
+Proof.
+  intros; generalize dependent b0; induction gl; simpl; intros.
+  - rewrite nth_error_nil // in H.
+  - destruct (Pos.to_nat b - Pos.to_nat b0)%nat eqn: Hn; simpl in H.
+    + inv H.
+      rewrite if_true //; lia.
+    + rewrite if_false; last lia.
+      apply IHgl; try lia.
+      replace (_ - _)%nat with n by lia; done.
+Qed.
+
+Lemma block_bounds_nth : forall {F V} (prog : AST.program F V) b i g,
+  nth_error (AST.prog_defs prog) (Z.to_nat (Z.pos b - 1)) = Some (i, g) ->
+  block_bounds prog b = match g with
+                           | Gfun _ => (0, 0%nat)
+                           | Gvar v => let init := gvar_init v in let sz := init_data_list_size init in (0, Z.to_nat sz)
+                           end.
+Proof.
+  intros; eapply globals_bounds_nth; first lia.
+  by rewrite Z2Nat.inj_sub // Z2Nat.inj_pos in H.
+Qed.
+
+Lemma alloc_globals_block : forall {F} prog_pub (ge : Genv.t (Ctypes.fundef F) type) b gl l m m'
+  (Hl : list_norepet (map fst (gl ++ l)))
+  (Hge : ge = Genv.add_globals (Genv.empty_genv (Ctypes.fundef F) type prog_pub) (gl ++ l))
+  (Hlen : Pos.to_nat (nextblock m') - 1 = length gl), Genv.alloc_globals ge m gl = Some m' ->
+  (nextblock m <= b < nextblock m')%positive ->
+  exists id g, In (id, g) gl /\ Genv.find_symbol ge id = Some b.
+Proof.
+  induction gl as [| a] using rev_ind; simpl; intros.
+  { inv H; lia. }
+  apply alloc_globals_app in H as (m1 & ? & H).
+  simpl in H.
+  destruct (Genv.alloc_global _ _ _) eqn: Halloc; inv H.
+  pose proof (Genv.alloc_global_nextblock _ _ _ Halloc).
+  destruct (plt b (nextblock m1)).
+  - rewrite <- app_assoc in *.
+    edestruct IHgl as (? & ? & ? & ?); eauto.
+    { rewrite app_length /= in Hlen; lia. }
+    { unfold Plt in *; lia. }
+    eexists _, _; rewrite in_app_iff; eauto.
+  - assert (b = nextblock m1) as -> by (unfold Plt in *; lia).
+    destruct a; eexists _, _; rewrite in_app_iff; split; first by simpl; eauto.
+    set (gl' := ((_ ++ _) ++ _)).
+    assert (Pos.to_nat (nextblock m1) <= length gl').
+    { subst gl'; rewrite app_length; lia. }
+    rewrite (add_globals_hack (rev _)); [| | rewrite rev_involutive // |].
+    + rewrite nth_error_map nth_error_rev rev_length; last lia.
+      replace (_ - (_ - Pos.to_nat (nextblock m1)))%nat with (Pos.to_nat (nextblock m1)) by lia.
+      subst gl'; rewrite nth_error_app1; last lia.
+      rewrite app_length /= in Hlen; rewrite nth_error_app2; last lia.
+      replace (_ - _)%nat with O by lia; done.
+    + subst gl'.
+      rewrite map_rev list_norepet_rev //.
+    + rewrite Zlength_rev Zlength_correct; lia.
+Qed.
+
+Lemma init_mem_all : forall (prog: program) m b
+  (Hnorepet : list_norepet (prog_defs_names prog)), Genv.init_mem prog = Some m -> (b < nextblock m)%positive ->
+  exists id g, In (id, g) (AST.prog_defs prog) /\ Genv.find_symbol (globalenv prog) id = Some b.
+Proof.
+  intros; eapply alloc_globals_block; eauto.
+  - instantiate (1 := []); rewrite app_nil_r //.
+  - rewrite app_nil_r //.
+  - apply Genv.init_mem_genv_next in H as <-.
+    rewrite Genv.genv_next_add_globals /= advance_next_length; lia.
+  - simpl; lia.
+Qed.
+
+Lemma In_prog_funct : forall prog i f, In (i, Gfun f) (prog_defs prog) -> In (i, f) (prog_funct prog).
+Proof.
+  intros; rewrite /prog_funct; induction (prog_defs prog); simpl in *; first done.
+  destruct H as [-> | ?]; first by simpl; auto.
+  destruct a as (?, [|]); simpl; auto.
+Qed.
+
+Lemma initialize_mem' :
+  forall (prog: program) G m
+      (Hnorepet : list_norepet (prog_defs_names prog))
+      (Hmatch : match_fdecs (prog_funct prog) G)
+      (Hm : Genv.init_mem prog = Some m),
+  mem_auth Mem.empty ∗ funspec_auth ∅ ⊢
+  |==> mem_auth m ∗ inflate_initial_mem m (block_bounds prog) (globalenv prog) G ∗ initial_core m (globalenv prog) G ∗
+      matchfunspecs (globalenv prog) G.
 Proof.
   intros.
-  apply resource_at_join2.
-  - simpl.
-    rewrite !inflate_initial_mem_level.
-    unfold initial_core, initial_core_ext; rewrite !level_make_rmap; auto.
-  - unfold set_ghost; rewrite level_make_rmap.
-    rewrite level_core.
-    simpl.
-    rewrite !inflate_initial_mem_level.
-    unfold initial_core, initial_core_ext; rewrite !level_make_rmap; auto.
-  - intros.
-    unfold set_ghost; rewrite resource_at_make_rmap, <- core_resource_at.
-    simpl.
-    unfold initial_core, initial_core_ext, inflate_initial_mem.
-    rewrite !resource_at_make_rmap.
-    unfold inflate_initial_mem'.
-    rewrite !resource_at_make_rmap.
-    change fcore with (@core _ _ (fsep_sep Sep_resource)).
-    apply join_comm, core_unit.
-  - unfold set_ghost; rewrite ghost_of_make_rmap.
-    simpl.
-    unfold initial_core, initial_core_ext, inflate_initial_mem.
-    rewrite !ghost_of_make_rmap.
-    constructor.
+  assert (list_norepet (map fst G)).
+  { rewrite -match_fdecs_norepet //; by apply prog_funct_norepet. }
+  assert (∀ b, (b < nextblock m)%positive → match funspec_of_loc (globalenv prog) G (b, 0) with
+    | Some _ => access_at m (b, 0) Cur = Some Nonempty | None => True end).
+  { intros ? Hb.
+    eapply init_mem_all in Hb as (id & g & Hin & Hb); eauto.
+    pose proof (prog_defmap_norepet _ _ _ Hnorepet Hin) as Hdef.
+    apply Genv.find_def_symbol in Hdef as (b' & Hb' & Hdef); assert (b' = b) as -> by (rewrite Hb' in Hb; inv Hb; done).
+    apply Genv.init_mem_characterization_gen in Hm.
+    specialize (Hm b _ Hdef).
+    rewrite /funspec_of_loc /=.
+    erewrite Genv.find_invert_symbol by done.
+    destruct g.
+    + apply In_prog_funct in Hin.
+      assert (In id (map fst (prog_funct prog))) as Hin' by (rewrite in_map_iff; eexists (_, _); eauto).
+      rewrite match_ids // in_map_iff in Hin'; destruct Hin' as ((?, ?) & ? & ?); simpl in *; subst.
+      erewrite find_id_i by done.
+      destruct Hm as (Hperm & Hmax).
+      apply perm_mem_access in Hperm as (? & Hperm & Haccess).
+      destruct (Hmax _ _ _ (access_perm _ _ _ _ _ Haccess)); subst; done.
+    + destruct (find_id id G) eqn: Hfind; last done.
+      eapply match_fdecs_exists_Gfun in Hfind as (? & Hin' & ?); last done.
+      eapply list_norepet_In_In in Hin; eauto; done. }
+  rewrite initialize_mem; last done. rewrite initial_mem_initial_core //. rewrite -init_funspecs_matchfunspecs. by iIntros ">($ & $ & $)".
+  - intros ? Hb.
+    eapply init_mem_all in Hb as (id & g & Hin & Hb); eauto.
+    apply find_symbol_globalenv in Hb as (? & g' & ?); last done.
+    erewrite block_bounds_nth by done.
+    destruct g'; try done; simpl; lia.
+  - rewrite /funspec_of_loc /=.
+    intros ?? Hfind; destruct (Genv.invert_symbol _ _) eqn: Hb; try done.
+    apply Genv.invert_find_symbol in Hb.
+    apply find_symbol_globalenv in Hb as (? & g' & Hnth); last done.
+    erewrite block_bounds_nth by done.
+    apply nth_error_In in Hnth.
+    eapply match_fdecs_exists_Gfun in Hfind as (? & Hin & ?); last done.
+    eapply list_norepet_In_In in Hnth; eauto; subst; done.
 Qed.
 
-Lemma initial_jm_wsat : forall {Z} (ora : Z) (prog: program) m (G: funspecs) (n: nat)
-        (H: Genv.init_mem prog = Some m)
-        (H1: list_norepet (prog_defs_names prog))
-        (H2: match_fdecs (prog_funct prog) G),
-  exists z, join (m_phi (initial_jm_ext ora prog m G n H H1 H2)) (wsat_rmap (m_phi (initial_jm_ext ora prog m G n H H1 H2))) (m_phi z) /\
-    ext_order (initial_jm_ext ora prog m G n H H1 H2) z.
+Lemma initial_core_funassert :
+  forall (prog: program) V G m ve te
+      (Hnorepet : list_norepet (prog_defs_names prog))
+      (Hmatch : match_fdecs (prog_funct prog) G)
+      (Hm : Genv.init_mem prog = Some m),
+  initial_core m (globalenv prog) G ∗ matchfunspecs (globalenv prog) G ⊢ funassert (nofunc_tycontext V G) (mkEnviron (filter_genv (globalenv prog)) ve te).
 Proof.
-  intros.
-  destruct (make_rmap _ (Some (ext_ghost ora, NoneP) :: tl wsat_ghost) (level (initial_core_ext ora (Genv.globalenv prog) G n))
-    (inflate_initial_mem'_fmap m _)) as (z & Hl & Hr & Hg); auto.
-  destruct (juicy_mem_resource (initial_jm_ext ora prog m G n H H1 H2) z) as (jz & ? & ?); unfold initial_jm_ext; simpl; subst.
-  { rewrite Hr. unfold inflate_initial_mem; rewrite resource_at_make_rmap. auto. }
-  exists jz; split. apply resource_at_join2; rewrite ?inflate_initial_mem_level, ?Hl, ?Hr, ?Hg; auto.
-  - unfold wsat_rmap; rewrite level_make_rmap, inflate_initial_mem_level; auto.
-  - intros; unfold inflate_initial_mem, wsat_rmap; rewrite !resource_at_make_rmap.
-    rewrite <- core_resource_at, resource_at_make_rmap.
-    apply join_comm, core_unit.
-  - unfold inflate_initial_mem, wsat_rmap; rewrite !ghost_of_make_rmap.
-    unfold initial_core_ext; rewrite ghost_of_make_rmap.
-    repeat constructor.
-  - split; auto. apply rmap_order.
-    rewrite Hl, Hr, Hg.
-    unfold inflate_initial_mem; rewrite level_make_rmap, resource_at_make_rmap, ghost_of_make_rmap.
-    split; auto; split; auto.
-    unfold initial_core_ext; rewrite ghost_of_make_rmap.
-    eexists; repeat constructor.
+  intros; iIntros "(#H & match)"; iSplitL ""; rewrite /initial_world.initial_core /Map.get /filter_genv /=.
+  - iIntros "!>" (?? Hid); simpl in *.
+    rewrite make_tycontext_s_find_id in Hid.
+    edestruct match_fdecs_exists_Gfun as (? & Hid' & ?); [done.. |].
+    apply (Genv.find_symbol_exists (program_of_program _)) in Hid' as (b & Hfind); rewrite Hfind.
+    iExists _; iSplit; first done.
+    unshelve erewrite (big_sepL_lookup _ _ (Pos.to_nat b - 1)); last (apply lookup_seq; split; first done).
+    replace (Pos.of_nat _) with b by lia.
+    rewrite /funspec_of_loc /=.
+    erewrite Genv.find_invert_symbol by done.
+    rewrite Hid //.
+    { left; intros; destruct (funspec_of_loc _ _ _); apply _. }
+    { eapply Genv.find_symbol_not_fresh in Hfind; last done.
+      unfold valid_block, Plt in Hfind; lia. }
+  - iIntros (???) "Hsig".
+    rewrite /sigcc_at.
+    iDestruct "Hsig" as (????) "Hfun".
+    iDestruct ("match" with "Hfun") as (?? (? & ?)) "Hfun".
+    iPureIntro; setoid_rewrite make_tycontext_s_find_id; eauto.
 Qed.
 
-Notation prog_vars := (@prog_vars function).
+End mpred.
 
-Lemma initial_jm_without_locks prog m G n H H1 H2:
-  no_locks (m_phi (initial_jm prog m G n H H1 H2)).
+(*Require Import VST.veric.wsat.
+
+(* This is provable, but we probably don't want to use it: we should set up the proof infrastructure
+   (heapGS, etc.) first, and then allocate the initial memory in a later step. *)
+Lemma alloc_initial_state  `{!inG Σ (excl_authR (leibnizO Z))} `{!wsatGpreS Σ} `{!gen_heapGpreS (@resource' Σ) Σ} :
+  forall (prog: program) G z m
+      (Hnorepet : list_norepet (prog_defs_names prog))
+      (Hmatch : match_fdecs (prog_funct prog) G)
+      (Hm : Genv.init_mem prog = Some m),
+  ⊢ |==> ∃ _ : externalGS Z Σ, ∃ _ : heapGS Σ,
+    ext_auth z ∗ has_ext z ∗ wsat ∗ ownE ⊤ ∗ mem_auth m ∗ inflate_initial_mem m (block_bounds prog) (globalenv prog) G ∗ initial_core m (globalenv prog) G
+    ∗ ghost_map.ghost_map_auth(H0 := gen_heapGpreS_meta) (gen_meta_name _) 1 ∅.
 Proof.
-  simpl.
-  unfold inflate_initial_mem; simpl.
-  match goal with |- context [ proj1_sig ?a ] => destruct a as (phi & lev & E & ?) end; simpl.
-  unfold inflate_initial_mem' in E.
-  unfold resource_at in E.
-  unfold no_locks, "@"; intros.
-  rewrite E.
-  destruct (access_at m addr); [ |congruence].
-  destruct p; try congruence.
-  destruct (fst ((snd (unsquash (initial_core (Genv.globalenv prog) G n)))) addr);
-  congruence.
-Qed.
-
-Lemma initial_jm_ext_without_locks {Z} (ora : Z) prog m G n H H1 H2:
-  no_locks (m_phi (initial_jm_ext ora prog m G n H H1 H2)).
-Proof.
-  simpl.
-  unfold inflate_initial_mem; simpl.
-  match goal with |- context [ proj1_sig ?a ] => destruct a as (phi & lev & E & ?) end; simpl.
-  unfold inflate_initial_mem' in E.
-  unfold resource_at in E.
-  unfold no_locks, "@"; intros.
-  rewrite E.
-  destruct (access_at m addr); try congruence.
-  destruct p; try congruence.
-  destruct (fst ((snd (unsquash (initial_core_ext ora (Genv.globalenv prog) G n)))) addr);
-   congruence.
-Qed.
-
-Definition matchfunspecs (ge : genv) (G : funspecs) : pred rmap :=
-  ALL b:block, ALL fs: funspec,
-  func_at fs (b,0%Z) -->
-  EX id:ident, EX fs0: funspec, 
-   !! (Genv.find_symbol ge id = Some b /\ find_id id G = Some fs0) &&
-     funspec_sub_si fs0 fs.
-
-Lemma approx_min: forall i j, approx i oo approx j = approx (min i j).
-Proof.
-intros.
-extensionality a.
-unfold compose.
-apply pred_ext.
-intros ? [? [? ?]].
-split; auto.
-apply Nat.min_glb_lt; auto.
-intros ? [? ?].
-apply Nat.min_glb_lt_iff in H.
-destruct H.
-split; auto.
-split; auto.
-Qed.
-
-Lemma initial_jm_matchfunspecs prog m G n H H1 H2:
-  matchfunspecs (globalenv prog) G (m_phi (initial_jm prog m G n H H1 H2)).
-Proof.
-  intros b  [fsig cc A P Q ? ?].
-  simpl m_phi.
-  intros phi' ? H0 Hext FAT.
-  simpl in FAT.
-  apply rmap_order in Hext as (Hl & Hr & _).
-  rewrite <- Hr in FAT; clear Hr.
-  assert (H3 := proj2 (necR_PURE' _ _ (b,0) (FUN fsig cc) H0)).
-  spec H3. eauto.
-  destruct H3 as [pp H3].
-  unfold inflate_initial_mem at 1 in H3. rewrite resource_at_make_rmap in H3.
-  unfold inflate_initial_mem' in H3. 
-  destruct (access_at m (b,0) Cur) eqn:Haccess; [ | inv H3].
-  destruct p; try discriminate H3.
-  destruct (initial_core (Genv.globalenv prog) G n @ (b, 0)) eqn:?H; try discriminate H3.
-  inv H3.
-  assert (H3: inflate_initial_mem m (initial_core (Genv.globalenv prog) G n) @ (b,0) = PURE (FUN fsig cc) pp).
-  unfold inflate_initial_mem. rewrite resource_at_make_rmap.
-  unfold inflate_initial_mem'. rewrite H4. rewrite Haccess. auto.
-  unfold initial_core in H4. rewrite resource_at_make_rmap in H4.
-  unfold initial_world.initial_core' in H4. simpl in H4.
-  destruct (Genv.invert_symbol (Genv.globalenv prog) b) eqn:?H; try discriminate.
-  destruct (find_id i G) eqn:?H; try discriminate.
-  destruct f; inv H4.
-  assert (H8 := necR_PURE _ _ _ _ _ H0 H3). clear H0 H3.
-  rewrite FAT in H8.
-  injection H8; intro. subst A0.
-  apply PURE_inj in H8. destruct H8 as [_ H8].
-  simpl in H8.
-  do 2 eexists. split. split. 
-  apply Genv.invert_find_symbol; eauto. eauto.
-  split. split; auto.
-  clear H6 H5 i.
-  rewrite later_unfash.
-  do 3 red.
-  clear FAT. forget (level phi') as n'. rewrite <- Hl in *. clear phi'. clear dependent a''.
-  intros n1' Hn1'. apply laterR_nat in Hn1'.
-  intros ts ftor garg.
-  intros phi Hphi phi' phi'' Hphi' Hext'.
-  apply necR_level in Hphi'. apply ext_level in Hext'.
-  assert (n' > level phi'')%nat by lia.
-  clear n1' Hphi phi Hphi' Hn1' phi' Hext'.
-  rename phi'' into phi.
-  intros [_ ?].
-  assert (approx n' (P ts ftor garg) phi).
-  split; auto.
-  clear H3.
-  apply fupd.fupd_intro.
-  exists ts.
-  assert (H5 := equal_f_dep (equal_f_dep H8 ts) ftor). clear H8.
-  simpl in H5.
-  assert (HP := equal_f (equal_f_dep H5 true) garg).
-  assert (HQ := equal_f_dep H5 false).
-  clear H5.
-   simpl in HP, HQ.
-   rewrite P_ne in H4. rewrite HP in H4. clear HP.
-   change (approx _ (approx _ ?A) _) with ((approx n' oo approx n) A phi) in H4.
-   rewrite fmap_app in H4.
-   rewrite fmap_app in HQ.
-   change (approx _ (approx _ ?A)) with ((approx n' oo approx n) A) in HQ.
-   exists (fmap (dependent_type_functor_rec ts A) (approx n oo approx n')
-             (approx n' oo approx n) ftor).
-  rewrite (approx_min n' n) in *.
-  exists emp. rewrite !emp_sepcon.
-  destruct H4.
-  split. auto.
-  intro rho.
-  pose proof (equal_f HQ rho). simpl in H5.
-  intros phi' Hphi'.
-  rewrite emp_sepcon.
-  intros ? phi'' Hphi'' Hext''.
-  intros [_ ?].
-  rewrite (approx_min n n') in *.
-  rewrite (Nat.min_comm n n') in *.
-  assert (approx (min n' n) (Q0 ts
-       (fmap (dependent_type_functor_rec ts A) (approx (Init.Nat.min n' n))
-          (approx (Init.Nat.min n' n)) ftor) rho) phi'').
-  split; auto.
-  apply necR_level in Hphi''; apply ext_level in Hext''; lia.
-  rewrite <- H5 in H7; clear H5.
-  rewrite <- Q_ne in H7.
-  destruct H7.
-  auto.
-Qed.
-
-Lemma initial_jm_ext_matchfunspecs {Z} (ora : Z) prog m G n H H1 H2:
-  matchfunspecs (globalenv prog) G (m_phi (initial_jm_ext ora prog m G n H H1 H2)).
-Proof.
-  intros b  [fsig cc A P Q ? ?].
-  simpl m_phi.
-  intros ? phi' H0 Hext FAT.
-  simpl in FAT.
-  apply rmap_order in Hext as (Hl & Hr & _).
-  rewrite <- Hr in FAT; clear Hr.
-  assert (H3 := proj2 (necR_PURE' _ _ (b,0) (FUN fsig cc) H0)).
-  spec H3. eauto.
-  destruct H3 as [pp H3].
-  unfold inflate_initial_mem at 1 in H3. rewrite resource_at_make_rmap in H3.
-  unfold inflate_initial_mem' in H3. 
-  destruct (access_at m (b,0) Cur) eqn:Haccess; [ | inv H3].
-  destruct p; try discriminate H3.
-  destruct (initial_core_ext ora (Genv.globalenv prog) G n @ (b, 0)) eqn:?H; try discriminate H3.
-  inv H3.
-  assert (H3: inflate_initial_mem m (initial_core_ext ora (Genv.globalenv prog) G n) @ (b,0) = PURE (FUN fsig cc) pp).
-  unfold inflate_initial_mem. rewrite resource_at_make_rmap.
-  unfold inflate_initial_mem'. rewrite H4. rewrite Haccess. auto.
-  unfold initial_core_ext in H4. rewrite resource_at_make_rmap in H4.
-  unfold initial_world.initial_core' in H4. simpl in H4.
-  destruct (Genv.invert_symbol (Genv.globalenv prog) b) eqn:?H; try discriminate.
-  destruct (find_id i G) eqn:?H; try discriminate.
-  destruct f; inv H4.
-  assert (H8 := necR_PURE _ _ _ _ _ H0 H3). clear H0 H3.
-  rewrite FAT in H8.
-  injection H8; intro. subst A0.
-  apply PURE_inj in H8. destruct H8 as [_ H8].
-  simpl in H8.
-  do 2 eexists. split. split. 
-  apply Genv.invert_find_symbol; eauto. eauto.
-  split. split; auto.
-  clear H6 H5 i.
-  rewrite later_unfash.
-  do 3 red.
-  clear FAT. forget (level phi') as n'. clear phi'. rewrite Hl in *. clear dependent a'.
-  intros n1' Hn1'. apply laterR_nat in Hn1'.
-  intros ts ftor garg.
-  intros phi Hphi ? phi' Hphi' Hext'.
-  apply necR_level in Hphi'. apply ext_level in Hext'.
-  assert (n' > level phi')%nat by lia.
-  clear n1' Hphi phi Hphi' Hn1' a' Hext'.
-  rename phi' into phi.
-  intros [_ ?].
-  assert (approx n' (P ts ftor garg) phi).
-  split; auto.
-  clear H3.
-  apply fupd.fupd_intro.
-  exists ts.
-  assert (H5 := equal_f_dep (equal_f_dep H8 ts) ftor). clear H8.
-  simpl in H5.
-  assert (HP := equal_f (equal_f_dep H5 true) garg).
-  assert (HQ := equal_f_dep H5 false).
-  clear H5.
-   simpl in HP, HQ.
-   rewrite P_ne in H4. rewrite HP in H4. clear HP.
-   change (approx _ (approx _ ?A) _) with ((approx n' oo approx n) A phi) in H4.
-   rewrite fmap_app in H4.
-   rewrite fmap_app in HQ.
-   change (approx _ (approx _ ?A)) with ((approx n' oo approx n) A) in HQ.
-   exists (fmap (dependent_type_functor_rec ts A) (approx n oo approx n')
-             (approx n' oo approx n) ftor).
-  rewrite (approx_min n' n) in *.
-  exists emp. rewrite !emp_sepcon.
-  destruct H4.
-  split. auto.
-  intro rho.
-  pose proof (equal_f HQ rho). simpl in H5.
-  intros phi' Hphi'.
-  rewrite emp_sepcon.
-  intros ? phi'' Hphi'' Hext''.
-  intros [_ ?].
-  rewrite (approx_min n n') in *.
-  rewrite (Nat.min_comm n n') in *.
-  assert (approx (min n' n) (Q0 ts
-       (fmap (dependent_type_functor_rec ts A) (approx (Init.Nat.min n' n))
-          (approx (Init.Nat.min n' n)) ftor) rho) phi'').
-  split; auto.
-  apply necR_level in Hphi''; apply ext_level in Hext''; lia.
-  rewrite <- H5 in H7; clear H5.
-  rewrite <- Q_ne in H7.
-  destruct H7.
-  auto.
-Qed.
+  intros; iIntros.
+  iMod (ext_alloc z) as (?) "(? & ?)".
+  iMod (alloc_initial_mem Mem.empty (fun _ => (0%Z, O)) (globalenv prog) G) as (?) "(? & ? & Hm & _ & ?)".
+  iMod (initialize_mem' with "Hm") as "(? & ? & ?)".
+  iExists _, _; by iFrame.
+Qed.*)

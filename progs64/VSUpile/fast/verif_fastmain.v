@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat. Import NoOracle.
 Require Import VST.veric.initial_world.
 Require Import VST.floyd.VSU.
 
@@ -38,7 +39,7 @@ unfold APILE, M, ONEPILE.
 forward_call (i+1, decreasing(Z.to_nat i), gv).
 forward_call (i+1, decreasing(Z.to_nat i), gv).
 rewrite decreasing_inc by lia.
-entailer!.
+entailer!!.
 unfold APILE, M. simpl; cancel.
 -
 unfold APILE, M, ONEPILE.
@@ -50,7 +51,7 @@ forward_call (10,gv).
 forward.
 Qed.
 
-Definition MainComp:  MainCompType nil main_QPprog Core_VSU whole_prog (snd (main_spec whole_prog))  emp.
+Definition MainComp:  MainCompType nil main_QPprog Core_VSU whole_prog (snd (main_spec whole_prog)) (fun _ => emp).
 Proof.
 mkComponent prog.
 solve_SF_internal body_main.

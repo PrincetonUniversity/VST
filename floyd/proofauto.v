@@ -1,7 +1,9 @@
 From compcert Require Export common.AST cfrontend.Ctypes cfrontend.Clight.
 Export Cop.
 Require VST.veric.version.
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Export VST.floyd.base2.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Export VST.floyd.functional_base.
 Require Export VST.floyd.client_lemmas.
 Require Export VST.floyd.go_lower.
@@ -48,17 +50,96 @@ Require Export VST.floyd.hints.
 Require Export VST.floyd.Clightnotations.
 Require Export VST.floyd.data_at_list_solver.
 Require Export VST.floyd.data_at_lemmas.
-Require VST.msl.iter_sepcon.
-Require VST.msl.wand_frame.
-Require VST.msl.wandQ_frame.
 Require VST.floyd.linking.
 
+(* undo some "simpl never" settings from std++ 
+   https://gitlab.mpi-sws.org/iris/stdpp/-/blob/master/stdpp/numbers.v *)
+#[global] Arguments Pos.pred : simpl nomatch.
+#[global] Arguments Pos.succ : simpl nomatch.
+#[global] Arguments Pos.of_nat : simpl nomatch.
+#[global] Arguments Pos.to_nat !x /.
+#[global] Arguments Pos.mul : simpl nomatch.
+#[global] Arguments Pos.add : simpl nomatch.
+#[global] Arguments Pos.sub : simpl nomatch.
+#[global] Arguments Pos.pow : simpl nomatch.
+#[global] Arguments Pos.shiftl : simpl nomatch.
+#[global] Arguments Pos.shiftr : simpl nomatch.
+#[global] Arguments Pos.gcd : simpl nomatch.
+#[global] Arguments Pos.min : simpl nomatch.
+#[global] Arguments Pos.max : simpl nomatch.
+#[global] Arguments Pos.lor : simpl nomatch.
+#[global] Arguments Pos.land : simpl nomatch.
+#[global] Arguments Pos.lxor : simpl nomatch.
+#[global] Arguments Pos.square : simpl nomatch.
+
+#[global] Arguments N.pred : simpl nomatch.
+#[global] Arguments N.succ : simpl nomatch.
+#[global] Arguments N.of_nat : simpl nomatch.
+#[global] Arguments N.to_nat : simpl nomatch.
+#[global] Arguments N.mul : simpl nomatch.
+#[global] Arguments N.add : simpl nomatch.
+#[global] Arguments N.sub : simpl nomatch.
+#[global] Arguments N.pow : simpl nomatch.
+#[global] Arguments N.div : simpl nomatch.
+#[global] Arguments N.modulo : simpl nomatch.
+#[global] Arguments N.shiftl : simpl nomatch.
+#[global] Arguments N.shiftr : simpl nomatch.
+#[global] Arguments N.gcd : simpl nomatch.
+#[global] Arguments N.lcm : simpl nomatch.
+#[global] Arguments N.min : simpl nomatch.
+#[global] Arguments N.max : simpl nomatch.
+#[global] Arguments N.lor : simpl nomatch.
+#[global] Arguments N.land : simpl nomatch.
+#[global] Arguments N.lxor : simpl nomatch.
+#[global] Arguments N.lnot : simpl nomatch.
+#[global] Arguments N.square : simpl nomatch.
+
+#[global] Arguments Z.pred : simpl nomatch.
+#[global] Arguments Z.succ : simpl nomatch.
+#[global] Arguments Z.of_nat : simpl nomatch.
+#[global] Arguments Z.to_nat : simpl nomatch.
+#[global] Arguments Z.mul : simpl nomatch.
+#[global] Arguments Z.add : simpl nomatch.
+#[global] Arguments Z.sub : simpl nomatch.
+#[global] Arguments Z.opp : simpl nomatch.
+#[global] Arguments Z.pow : simpl nomatch.
+#[global] Arguments Z.div _ _ /.
+#[global] Arguments Z.modulo : simpl nomatch.
+#[global] Arguments Z.quot : simpl nomatch.
+#[global] Arguments Z.rem : simpl nomatch.
+#[global] Arguments Z.shiftl : simpl nomatch.
+#[global] Arguments Z.shiftr : simpl nomatch.
+#[global] Arguments Z.gcd : simpl nomatch.
+#[global] Arguments Z.lcm : simpl nomatch.
+#[global] Arguments Z.min : simpl nomatch.
+#[global] Arguments Z.max : simpl nomatch.
+#[global] Arguments Z.lor : simpl nomatch.
+#[global] Arguments Z.land : simpl nomatch.
+#[global] Arguments Z.lxor : simpl nomatch.
+#[global] Arguments Z.lnot : simpl nomatch.
+#[global] Arguments Z.square : simpl nomatch.
+#[global] Arguments Z.abs : simpl nomatch.
+
+Global Arguments Qreduction.Qred : simpl nomatch.
+Global Arguments pos_to_Qp : simpl nomatch.
+Global Arguments Qp.add : simpl nomatch.
+Global Arguments Qp.sub : simpl nomatch.
+Global Arguments Qp.mul : simpl nomatch.
+Global Arguments Qp.inv : simpl nomatch.
+Global Arguments Qp.div : simpl nomatch.
+
+Global Instance inhabitant_inhabited `{Inhabitant A} : Inhabited A := populate default.
+
 (*funspec scope is the default, so remains open.
-  User who wnt ot use old funspecs should 
+  Users who want to use old funspecs should 
   "Require Import Require Import VST.floyd.Funspec_old_Notation."
   Global Close Scope funspec_scope.*)
 
-Arguments semax {CS} {Espec} Delta Pre%assert cmd%C Post%assert.
+Notation default_VSTGS Σ := (VSTGS unit Σ).
+
+#[export] Instance NullEspec : ext_spec unit := void_spec unit.
+
+Arguments semax {_} {_} {_} {_} {_} E Delta Pre%_assert cmd%_C Post%_assert.
 Export ListNotations.
 Export Clight_Cop2.
  
@@ -93,7 +174,7 @@ Lemma modu_repr: forall x y,
    0 <= y <= Int.max_unsigned ->
   Int.modu (Int.repr x) (Int.repr y) = Int.repr (x mod y).
 Proof.
-intros. unfold Int.modu. rewrite !Int.unsigned_repr by auto. auto.
+intros. unfold Int.modu. rewrite ->!Int.unsigned_repr by auto. auto.
 Qed.
 #[export] Hint Rewrite modu_repr using rep_lia : entailer_rewrite norm.
 
@@ -109,7 +190,7 @@ Qed.
 #[export] Hint Extern 1 (@nil _ = default_val _) => reflexivity : cancel.
 #[export] Hint Extern 1 (default_val _ = @nil _) => reflexivity : cancel.
 
-#[export] Instance Inhabitant_mpred : Inhabitant mpred := @FF mpred Nveric.
+#[export] Instance Inhabitant_mpred `{!VSTGS OK_ty Σ} : Inhabitant mpred := False.
 #[export] Instance Inhabitant_share : Inhabitant share := Share.bot.
 
 Arguments deref_noload ty v / .
@@ -192,6 +273,8 @@ Ltac gather_prop ::=
 #[export] Hint Resolve Clight_mapsto_memory_block.tc_val_pointer_nullval : core.
 #[export] Hint Resolve mapsto_memory_block.tc_val_pointer_nullval : core.
 
+Global Instance val_inhabited : Inhabited val := populate Vundef.
+
 (*
 Ltac eapply_clean_LOCAL_right_spec'' R ::=
   lazymatch R with
@@ -211,5 +294,3 @@ Ltac eapply_clean_LOCAL_right_spec'' R ::=
 Ltac eapply_clean_LOCAL_right_spec'' R :=
    eapply_clean_LOCAL_right_spec' emptyCS.
 *)
-
-

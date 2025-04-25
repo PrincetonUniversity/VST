@@ -1,6 +1,8 @@
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.floyd.base2.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Import VST.floyd.client_lemmas.
-Import compcert.lib.Maps.
+Import -(notations) compcert.lib.Maps.
 
 (* Bug: abbreviate replaces _ALL_ instances, when sometimes
   we only want just one. *)
@@ -45,8 +47,8 @@ Ltac clear_abbrevs :=  repeat match goal with
                                     | H := @abbreviate ret_assert _ |- _ => clear H
                                     | H := @abbreviate tycontext _ |- _ => clear H
                                     end.
-
-Arguments var_types !Delta / .
+       
+Arguments var_types _ _  !Delta / .
 
 (*
 Fixpoint initialized_list ids D :=
@@ -129,15 +131,18 @@ Ltac simplify_func_tycontext' DD :=
 
 Ltac simplify_func_tycontext :=
 match goal with
- | |- semax ?DD _ _ _ => simplify_func_tycontext'  DD
- | |- ENTAIL ?DD, _ |-- _ => simplify_func_tycontext'  DD
+ | |- semax _ ?DD _ _ _ => simplify_func_tycontext'  DD
+ | |- ENTAIL ?DD, _ ⊢ _ => simplify_func_tycontext'  DD
 end.
 
+Section SEMAX_TACTICS.
+Context `{!VSTGS OK_ty Σ} {OK_spec: ext_spec OK_ty}.
 
 Definition with_Delta_specs (DS: PTree.t funspec) (Delta: tycontext) : tycontext :=
   match Delta with
     mk_tycontext a b c d _ ann => mk_tycontext a b c d DS ann
   end.
+End SEMAX_TACTICS.
 
 Ltac compute_in_Delta :=
  lazymatch goal with
@@ -186,42 +191,42 @@ Ltac simplify_Delta :=
 match goal with
  | Delta := @abbreviate tycontext _ |- _ => clear Delta; simplify_Delta
  | DS := @abbreviate (PTree.t funspec) _ |- _ => clear DS; simplify_Delta
- | D1 := @abbreviate tycontext _ |- semax ?D _ _ _ => 
+ | D1 := @abbreviate tycontext _ |- semax _ ?D _ _ _ => 
        constr_eq D1 D (* ONLY this case terminates! *)
 (*                 
- | |- semax ?D _ _ _ => unfold D; simplify_Delta
+ | |- semax _ ?D _ _ _ => unfold D; simplify_Delta
  | |- _ => simplify_func_tycontext; simplify_Delta
- | |- semax (mk_tycontext ?a ?b ?c ?d ?e) _ _ _ => (* delete this case? *)
+ | |- semax _ (mk_tycontext ?a ?b ?c ?d ?e) _ _ _ => (* delete this case? *)
      let DS := fresh "Delta_specs" in set (DS := e : PTree.t funspec);
      change e with (@abbreviate (PTree.t funspec) e) in DS;
      let D := fresh "Delta" in set (D := mk_tycontext a b c d DS);
      change (mk_tycontext a b c d DS) with (@abbreviate _ (mk_tycontext a b c d DS)) in D
 *)
- | D1 := @abbreviate tycontext _ |- ENTAIL ?D, _ |-- _ => 
+ | D1 := @abbreviate tycontext _ |- ENTAIL ?D, _ ⊢ _ => 
        constr_eq D1 D (* ONLY this case terminates! *)
- | |- semax ?D _ _ _ => unfold D; simplify_Delta
- | |- ENTAIL ?D, _ |-- _ => unfold D; simplify_Delta
+ | |- semax _ ?D _ _ _ => unfold D; simplify_Delta
+ | |- ENTAIL ?D, _ ⊢_ => unfold D; simplify_Delta
  | |- _ => simplify_func_tycontext; simplify_Delta
  | Delta := @abbreviate tycontext ?D 
-      |- semax ?DD _ _ _ => simplify_Delta' Delta D DD; simplify_Delta
+      |- semax _ ?DD _ _ _ => simplify_Delta' Delta D DD; simplify_Delta
  | Delta := @abbreviate tycontext ?D 
-      |- ENTAIL ?DD, _ |-- _ => simplify_Delta' Delta D DD; simplify_Delta
- | |- semax ?DD _ _ _ =>  simplify_Delta
- |  |- ENTAIL (ret_tycon ?DD), _ |-- _ => 
+      |- ENTAIL ?DD, _ ⊢ _ => simplify_Delta' Delta D DD; simplify_Delta
+ | |- semax _ ?DD _ _ _ =>  simplify_Delta
+ |  |- ENTAIL (ret_tycon ?DD), _ ⊢ _ => 
         let D := fresh "D" in 
           set (D := ret_tycon DD);
           hnf in D; simpl is_void_type in D;
           cbv beta iota in D;
           pose (Delta := @abbreviate tycontext D);
           change D with Delta; subst D; simplify_Delta
- |  |- ENTAIL (ret0_tycon ?DD), _ |-- _ => 
+ |  |- ENTAIL (ret0_tycon ?DD), _ ⊢ _ => 
         let D := fresh "D" in 
           set (D := ret0_tycon DD);
           hnf in D; simpl is_void_type in D;
           cbv beta iota in D;
           pose (Delta := @abbreviate tycontext D);
           change D with Delta; subst D; simplify_Delta
- | |- ENTAIL (ret_tycon ?DD), _ |-- _ => simplify_Delta
+ | |- ENTAIL (ret_tycon ?DD), _ ⊢ _ => simplify_Delta
  | |- _ => fail "simplify_Delta did not put Delta_specs and Delta into canonical form"
  end.
 
@@ -266,40 +271,40 @@ with is_sequential_ls co ls :=
 
 Ltac force_sequential  :=
 match goal with
-| P := @abbreviate ret_assert (normal_ret_assert _) |- semax _ _ _ ?P' =>
+| P := @abbreviate ret_assert (normal_ret_assert _) |- semax _ _ _ _ ?P' =>
     constr_eq P P'
-| P := @abbreviate ret_assert _ |- semax _ _ ?c ?P' =>
+| P := @abbreviate ret_assert _ |- semax _ _ _ ?c ?P' =>
     constr_eq P P'; 
     try (is_sequential false false c;
          unfold abbreviate in P; subst P;
          apply sequential; simpl_ret_assert)
 | P := @abbreviate ret_assert _ |- _ => unfold abbreviate in P; subst P;
       force_sequential
-| P := _ : ret_assert |- semax _ _ _ ?P' => 
+| P := _ |- semax _ _ _ _ ?P' => 
       constr_eq P P'; unfold abbreviate in P; subst P;
       force_sequential
-| |- semax _ _ _ (normal_ret_assert ?P) => 
+| |- semax _ _ _ _ (normal_ret_assert ?P) => 
        abbreviate (normal_ret_assert P) : ret_assert as POSTCONDITION
-| |- semax _ _ ?c ?P =>
+| |- semax _ _ _ ?c ?P =>
     tryif (is_sequential false false c)
     then (apply sequential; simpl_ret_assert;
-          match goal with |- semax _ _ _ ?Q =>
-             abbreviate Q : ret_assert as POSTCONDITION
+          match goal with |- semax _ _ _ _ ?Q =>
+             abbreviate Q as POSTCONDITION
           end)
-    else abbreviate P : ret_assert as POSTCONDITION
+    else abbreviate P as POSTCONDITION
 end.
 
 Ltac abbreviate_semax :=
  match goal with
- | |- semax _ FF _ _ => apply semax_ff
- | |- semax _ (PROPx (False::_) _) _ _ => Intros; contradiction
- | |- semax _ _ _ _ =>
+ | |- semax _ _ False _ _ => apply semax_ff
+ | |- semax _ _ (PROPx (False::_) _) _ _ => Intros; contradiction
+ | |- semax _ _ _ _ _ =>
   simplify_Delta;
   repeat match goal with
   | MC := @abbreviate statement _ |- _ => unfold abbreviate in MC; subst MC
   end;
   force_sequential;
-  match goal with |- semax _ _ ?C _ =>
+  match goal with |- semax _ _ _ ?C _ =>
             match C with
             | Ssequence ?C1 ?C2 =>
                (* use the next 3 lines instead of "abbreviate"
@@ -315,7 +320,7 @@ Ltac abbreviate_semax :=
             | _ => idtac
             end
   end
- | |- _ |-- _ => unfold_abbrev_ret
+ | |- _ ⊢ _ => unfold_abbrev_ret
  end;
  clear_abbrevs;
  simpl typeof.
@@ -325,19 +330,19 @@ match goal with
  | Delta := @abbreviate tycontext (mk_tycontext _ _ _ _ _) |- _ =>
     match goal with
     | |- _ => clear Delta; check_Delta
-    | |- semax Delta _ _ _ => idtac
+    | |- semax _ Delta _ _ _ => idtac
     end
  | _ => simplify_Delta;
-     match goal with |- semax ?D _ _ _ =>
+     match goal with |- semax _ ?D _ _ _ =>
             abbreviate D : tycontext as Delta
      end
 end.
 
 Ltac normalize_postcondition :=  (* produces a normal_ret_assert *)
  match goal with
- | P := _ |- semax _ _ _ ?P =>
+ | P := _ |- semax _ _ _ _ ?P =>
      unfold P, abbreviate; clear P; normalize_postcondition
- | |- semax _ _ _ (normal_ret_assert _) => idtac
+ | |- semax _ _ _ _ (normal_ret_assert _) => idtac
  | |- _ => apply sequential
   end;
  autorewrite with ret_assert.
@@ -402,7 +407,7 @@ Ltac mkConciseDelta V G F Ann Delta :=
 *)
 Ltac semax_subcommand V G F Ann :=
   abbreviate_semax;
-  match goal with |- semax ?Delta _ _ _ =>
+  match goal with |- semax _ ?Delta _ _ _ =>
 (*
       mkConciseDelta V G F Ann Delta;
 *)
@@ -437,11 +442,15 @@ Ltac check_POSTCONDITION' P :=
 
 Ltac check_POSTCONDITION :=
   match goal with
-  | P := ?P' |- semax _ _ _ ?P'' =>
+  | P := ?P' |- semax _ _ _ _ ?P'' =>
      constr_eq P P''; check_POSTCONDITION' P'
-  | |- semax _ _ _ ?P => check_POSTCONDITION' P
+  | |- semax _ _ _ _ ?P => check_POSTCONDITION' P
   | _ => fail 100 "Your POSTCONDITION is ill-formed in some way "
   end.
+
+Section SEMAX_TACTICS.
+
+Context `{!VSTGS OK_ty Σ} {OK_spec: ext_spec OK_ty}.
 
 Fixpoint find_expressions {A: Type} (f: expr -> A -> A) (c: statement) (x: A) : A :=
  match c with
@@ -483,11 +492,11 @@ Definition isNone {A} (x: option A) :=
  match x with None => true | _ => false end.
 
 Definition check_no_overlap
-    (V: varspecs) (G: funspecs) : bool :=
+     (V: varspecs) (G: (@funspecs Σ)) : bool :=
   let table :=  List.fold_left (fun t v => PTree.set (fst v) tt t) G (PTree.empty _)
-   in forallb (fun f => isNone (table ! (fst f))) V.
+   in forallb (fun f => isNone (table !! (fst f))) V.
 
-Lemma check_no_overlap_e:
+Lemma check_no_overlap_e  :
   forall V G, check_no_overlap V G = true ->
   forall i, In i (map fst V) -> ~ In i (map fst G).
 Proof.
@@ -495,14 +504,14 @@ intros *. intros H i H1 H0.
 unfold check_no_overlap in *.
 assert ((fun (f: positive * type)  =>
        isNone
-         (fold_left
+         ((fold_left
             (fun t v =>
-             PTree.set (fst v) tt t) G (PTree.empty unit)) ! (fst f))
+             PTree.set (fst v) tt t) G (PTree.empty unit)) !! (fst f)))
  =  (fun f =>
        isNone
-         (fold_right
+         ((fold_right
             (fun v t=>
-             PTree.set (fst v) tt t) (PTree.empty unit) G) ! (fst f))).
+             PTree.set (fst v) tt t) (PTree.empty unit) G) !! (fst f)))).
 {
 clear.
 extensionality idx.
@@ -512,11 +521,11 @@ unfold isNone.
 replace ((fold_right
      (fun v t
       => PTree.set (fst v) tt t)
-     (PTree.empty unit) G) ! j) with
+     (PTree.empty unit) G) !! j) with
     ((fold_left
      (fun t v
       => PTree.set (fst v) tt t) G
-     (PTree.empty unit)) ! j); auto.
+     (PTree.empty unit)) !! j); auto.
 rewrite <- fold_left_rev_right.
 forget (PTree.empty unit) as base.
 revert base.
@@ -546,7 +555,7 @@ subst.
 rewrite !PTree.gss; auto.
 rewrite !PTree.gso; auto.
 }
-rewrite H2 in *. clear H2.
+rewrite H2 in H. clear H2.
 induction V.
 inv H1.
 destruct H1.
@@ -572,18 +581,17 @@ clear H0 IHG.
 simpl in H.
 change positive with ident in *.
 destruct (ident_eq (fst a0) (fst a)).
-rewrite e in *.
+rewrite e in H.
 rewrite PTree.gss in H.
 inv H.
-rewrite PTree.gso in H by auto.
-auto.
+rewrite PTree.gso in H; auto.
 -
 simpl in H.
 rewrite andb_true_iff in H.
 destruct H.
 auto.
 Qed.
-
+ 
 Lemma leaf_function': 
  forall Vprog Gprog (CS: compspecs) f s,
  check_no_overlap Vprog Gprog = true ->
@@ -597,18 +605,18 @@ destruct fs.
 destruct H0 as [H0' [H0'' H0]]; split3; auto.
 clear H0'.
 intros.
-specialize (H0 Espec ts x).
+specialize (H0 _ x).
 eapply semax_Delta_subsumption; [ | apply H0].
 clear - H.
 split3; [ | | split3; [ | | split]]; auto.
 -
 intros; simpl; auto.
 destruct ((make_tycontext_t (fn_params f) (fn_temps f))
-  ! id); auto.
+  !! id); auto.
 -
 intros; hnf; intros.
 destruct ((glob_types (func_tycontext f Vprog nil nil))
-  ! id) eqn:?H; auto.
+  !! id) eqn:?H; auto.
 simpl in *.
 unfold make_tycontext_g.
 apply check_no_overlap_e with (i:=id) in H.
@@ -622,7 +630,7 @@ simpl in H.
 apply Decidable.not_or in H.
 destruct H.
 simpl.
-rewrite PTree.gso by auto.
+rewrite PTree.gso; [|by auto].
 auto.
 clear - H0.
 induction Vprog.
@@ -630,7 +638,7 @@ simpl in H0. rewrite PTree.gempty in H0. inv H0.
 simpl in *.
 destruct (ident_eq (fst a) id).
 auto.
-rewrite PTree.gso in H0 by auto.
+rewrite PTree.gso in H0; [|by auto].
 auto.
 -
 intros; hnf; intros.
@@ -645,11 +653,11 @@ Qed.
 
 Definition check_no_overlap'
     (V: varspecs) (Gtable: PTree.t unit) : bool :=
-  forallb (fun f => isNone (Gtable ! (fst f))) V.
+  forallb (fun f => isNone (Gtable !! (fst f))) V.
 
 Definition check_no_Gvars (Gtable: PTree.t unit) (s: statement) : bool :=
   find_expressions 
-    (find_vars (fun i b => match Gtable!i with Some _=> false | None => b end))
+    (find_vars (fun i b => match Gtable!!i with Some _=> false | None => b end))
     s true.
 
 Lemma leaf_function: 
@@ -668,45 +676,6 @@ eapply leaf_function'; try apply H2.
 subst Gtable.
 apply H0.
 Qed.
-
-Definition function_pointers := tt.
-Ltac function_pointers :=
- let x := fresh "there_are" in
- pose (x := function_pointers).
-
-Ltac leaf_function := 
- try lazymatch goal with
- | x := function_pointers |- _ => clear x
- | |- semax_body ?Vprog ?Gprog _ _ =>
- eapply leaf_function;
- [reflexivity 
- | reflexivity; fail "Error in leaf_function tactic: your" Vprog "and" Gprog "overlap!"
- | reflexivity; fail "Error in leaf_function tactic: your function body refers to an identifier in" Gprog
- | ]
-end.
-
-(*
-Definition any_gvars (ds: PTree.t funspec) (s: statement) : bool :=
-  find_expressions 
-    (find_vars (fun i b => match ds!i with Some _=> true | None => b end))
-    s false.
-
-Ltac suggest_leaf_function :=
- lazymatch goal with 
- | x := function_pointers |- _ => clear x
- | DS := @abbreviate (PTree.t funspec) ?ds,
-   D := @abbreviate tycontext (mk_tycontext _ _ _ _ ?DS' _) |-
-   semax ?D' _ ?c _ =>
-   constr_eq DS DS'; constr_eq D D';
-   let b := constr:(any_gvars ds c) in
-   let b := eval compute in b in
-   constr_eq b false;
-   idtac "This function appears to be a leaf function, that is, has no function calls.
-* If you will reason about function-pointers (using make_func_ptr) in this proof, apply the tactic [function_pointers] before doing [start_function].
-* If this semax_body proof does NOT involve function-pointers, use the tactic [leaf_function] before [start_function]; this is optional but will speed up the proof by clearing the body of Delta_specs."
-end.
-*)
-
 
 Fixpoint seq_stmt_size (c: statement) : nat :=
  match c with
@@ -785,7 +754,7 @@ Lemma unfold_seq_to_unfold_Ssequence: forall cs,
   unfold_Ssequence cs = flat_map unfold_Ssequence (unfold_seq cs).
 Proof.
   intro cs. induction cs; try reflexivity.
-  - simpl. rewrite IHcs1, IHcs2. rewrite flat_map_app.
+  - simpl. rewrite IHcs1 IHcs2. rewrite flat_map_app.
     destruct cs2; try reflexivity;
     try rewrite flat_map_unfold_Ssequence_idempotent; try reflexivity.
     destruct cs2_1; try reflexivity;
@@ -807,9 +776,9 @@ Proof.
     destruct cs2; reflexivity.
 Qed.
 
-Lemma semax_unfold_seq {Espec: OracleKind} {CS: compspecs} : forall c1 c2,
+Lemma semax_unfold_seq {CS: compspecs} : forall E c1 c2,
   unfold_seq c1 = unfold_seq c2 ->
-  forall P Q Delta, semax Delta P c1 Q -> semax Delta P c2 Q.
+  forall P Q Delta, semax Delta P E c1 Q -> semax Delta P E c2 Q.
 Proof.
   intros. eapply semax_unfold_Ssequence; [ | eassumption ].
   do 2 rewrite unfold_seq_to_unfold_Ssequence.
@@ -817,7 +786,7 @@ Proof.
 Qed.
 
 Ltac first_N_statements n :=
- lazymatch goal with |- semax _ _ ?c _ =>
+ lazymatch goal with |- semax _ _ _ ?c _ =>
  let c' := constr:(unfold_seqN n c) in
  let c' := eval cbv beta iota zeta delta
    [seq_stmt_size app unfold_seqN unfold_seqN' Init.Nat.add]
@@ -829,4 +798,42 @@ Ltac first_N_statements n :=
                          apply semax_unfold_seq with (Ssequence al' c''); 
                          [reflexivity | eapply semax_seq' ]
  end end.
+End SEMAX_TACTICS.
 
+Definition function_pointers := tt.
+Ltac function_pointers :=
+ let x := fresh "there_are" in
+ pose (x := function_pointers).
+
+Ltac leaf_function := 
+ try lazymatch goal with
+ | x := function_pointers |- _ => clear x
+ | |- semax_body ?Vprog ?Gprog _ _ =>
+ eapply leaf_function;
+ [reflexivity 
+ | reflexivity; fail "Error in leaf_function tactic: your" Vprog "and" Gprog "overlap!"
+ | reflexivity; fail "Error in leaf_function tactic: your function body refers to an identifier in" Gprog
+ | ]
+end.
+
+(*
+Definition any_gvars (ds: PTree.t funspec) (s: statement) : bool :=
+  find_expressions 
+    (find_vars (fun i b => match ds!i with Some _=> true | None => b end))
+    s false.
+
+Ltac suggest_leaf_function :=
+ lazymatch goal with 
+ | x := function_pointers |- _ => clear x
+ | DS := @abbreviate (PTree.t funspec) ?ds,
+   D := @abbreviate tycontext (mk_tycontext _ _ _ _ ?DS' _) |-
+   semax _ ?D' _ ?c _ =>
+   constr_eq DS DS'; constr_eq D D';
+   let b := constr:(any_gvars ds c) in
+   let b := eval compute in b in
+   constr_eq b false;
+   idtac "This function appears to be a leaf function, that is, has no function calls.
+   * If you will reason about function-pointers (using make_func_ptr) in this proof, apply the tactic [function_pointers] before doing [start_function].
+    * If this semax_body proof does NOT involve function-pointers, use the tactic [leaf_function] before [start_function]; this is optional but will speed up the proof by clearing the body of Delta_specs."
+    end.
+    *)

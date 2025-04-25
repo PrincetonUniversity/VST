@@ -1,7 +1,6 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat. Import NoOracle.
 Require Import VST.progs.bst_oo.
-
-Open Scope logic.
 
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
@@ -64,11 +63,11 @@ Fixpoint treebox_rep (t: tree val) (b: val) : mpred :=
   match t with
   | E => data_at Tsh (tptr t_struct_tree) nullval b
   | T l x p r =>
-      !! (Int.min_signed <= x <= Int.max_signed) &&
+      (!! (Int.min_signed <= x <= Int.max_signed) &&
       data_at Tsh (tptr t_struct_tree) p b *
       field_at Tsh t_struct_tree [StructField _key] (Vint (Int.repr x)) p *
       treebox_rep l (field_address t_struct_tree [StructField _left] p) *
-      treebox_rep r (field_address t_struct_tree [StructField _right] p)
+      treebox_rep r (field_address t_struct_tree [StructField _right] p))%I
   end.
 
 Fixpoint key_store (s: tree val) (x: key) (q: val): Prop :=
@@ -89,8 +88,8 @@ Definition value_at (t: tree val) (v: val) (x: Z): mpred :=
 
 (* TODO: maybe not useful *)
 Lemma treebox_rep_spec: forall (t: tree val) (b: val),
-  treebox_rep t b =
-  data_at Tsh (tptr t_struct_tree)
+  treebox_rep t b ⊣⊢
+  (data_at Tsh (tptr t_struct_tree)
     match t return val with
     | E => nullval
     | T _ _ p _ => p
@@ -102,7 +101,7 @@ Lemma treebox_rep_spec: forall (t: tree val) (b: val),
       field_at Tsh t_struct_tree [StructField _key] (Vint (Int.repr x)) p *
       treebox_rep l (field_address t_struct_tree [StructField _left] p) *
       treebox_rep r (field_address t_struct_tree [StructField _right] p)
-  end.
+  end)%I.
 Proof.
   intros.
   destruct t; simpl; apply pred_ext; entailer!.
@@ -291,41 +290,15 @@ Qed.
 #[export] Hint Resolve tree_rep_valid_pointer: valid_pointer.
 
 *)
-Lemma modus_ponens_wand' {A}{ND: NatDed A}{SL: SepLog A}:
-  forall P Q R: A, (P |-- Q) -> P * (Q -* R) |-- R.
-Proof.
-  intros.
-  eapply derives_trans; [| apply modus_ponens_wand].
-  apply sepcon_derives; [| apply derives_refl].
-  auto.
-Qed.
-
-Lemma RAMIF_Q2_trans' {X Y A : Type} {ND : NatDed A} {SL : SepLog A}:
+Lemma RAMIF_Q2_trans' {X Y} {A : bi}:
   forall (m l: A) (g' m' l' : X -> Y -> A),
-    (m |-- l * (ALL p: X, ALL q: Y, l' p q -* m' p q)) ->
-    m * (ALL p: X, ALL q: Y, m' p q -* g' p q) |-- l * (ALL p: X, ALL q: Y, l' p q -* g' p q).
+    (m |-- l * (ALL p: X, ALL q: Y, (l' p q -* m' p q))) ->
+    m * (ALL p: X, ALL q: Y, (m' p q -* g' p q)) |-- l * (ALL p: X, ALL q: Y, (l' p q -* g' p q)).
 Proof.
   intros.
-  eapply derives_trans; [apply sepcon_derives; [exact H | apply derives_refl] |].
-  clear H.
-  rewrite sepcon_assoc.
-  apply sepcon_derives; auto.
-  apply allp_right; intros p.
-  apply allp_right; intros q.
-  apply <- wand_sepcon_adjoint.
-  apply (allp_left _ p), (allp_left _ q).
-  apply -> wand_sepcon_adjoint.
-  rewrite sepcon_comm.
-  apply <- wand_sepcon_adjoint.
-  apply (allp_left _ p), (allp_left _ q).
-  apply -> wand_sepcon_adjoint.
-  rewrite sepcon_comm.
-  apply -> wand_sepcon_adjoint.
-  rewrite (sepcon_comm (_ * _) _), <- sepcon_assoc.
-  apply <- wand_sepcon_adjoint.
-  eapply derives_trans; [apply modus_ponens_wand |].
-  apply -> wand_sepcon_adjoint.
-  apply modus_ponens_wand.
+  rewrite H.
+  iIntros "(($ & Hl') & Hm')" (??) "l'".
+  iApply "Hm'"; iApply "Hl'"; done.
 Qed.
 
 Lemma if_trueb: forall {A: Type} b (a1 a2: A), b = true -> (if b then a1 else a2) = a1.
@@ -346,12 +319,12 @@ Definition subscr_post (b0: val) (t0: tree val) (x: Z) (p: val) (q: val) :=
   treebox_rep (insert x p t0) b0 *
   (if tree_inb x t0 then emp else data_at Tsh (tptr tvoid) nullval q).
 
-Definition subscr_inv (b0: val) (t0: tree val) (x: Z): environ -> mpred :=
+Definition subscr_inv (b0: val) (t0: tree val) (x: Z): assert :=
   EX b: val, EX t: tree val, 
   PROP() 
   LOCAL(temp _t b; temp _key (Vint (Int.repr x)))
   SEP(treebox_rep t b;
-      ALL p: val, ALL q: val, subscr_post b t x p q -* subscr_post b0 t0 x p q).
+      ALL p: val, ALL q: val, (subscr_post b t x p q -* subscr_post b0 t0 x p q)).
 
 Axiom tree_inb_true_iff: forall x (t: tree val), tree_inb x t = true <-> key_store_ t x.
 Axiom tree_inb_false_iff: forall x (t: tree val), tree_inb x t = false <-> ~ key_store_ t x.
@@ -369,19 +342,17 @@ Proof.
   Intros p q; Exists p q.
   unfold subscr_post.
   destruct (tree_inb x t) eqn:?.
-  apply tree_inb_true_iff in  Heqb0. entailer!.  apply orp_right1. auto.
-  apply tree_inb_false_iff in  Heqb0. entailer!. apply orp_right2. entailer!.
+  apply tree_inb_true_iff in  Heqb0. entailer!.  auto.
+  apply tree_inb_false_iff in  Heqb0. entailer!. rewrite <- bi.or_intro_r. entailer!.
  }
   rename H into Range_x.
   eapply semax_pre; [
-    | apply (semax_loop _ (subscr_inv b t x) (subscr_inv b t x))].
+    | apply (semax_loop _ _ (subscr_inv b t x) (subscr_inv b t x))].
   * (* Precondition *)
     unfold subscr_inv.
     Exists b t.
     entailer!.
-    apply allp_right; intros p.
-    apply allp_right; intros q.
-    apply wand_sepcon_adjoint; entailer!.
+    auto.
   * (* Loop body *)
     unfold subscr_inv.
     Intros b1 t1.
@@ -401,23 +372,20 @@ Proof.
       forward. (* *t = p; *)
       forward. (* return (&p->value); *)
       Exists p1 (offset_val 4 p1).
-      rewrite (sepcon_comm (_ * _)); apply wand_sepcon_adjoint.
-      apply (allp_left _ p1), (allp_left _ (offset_val 4 p1)).
-      apply wand_sepcon_adjoint; rewrite <- (sepcon_comm (_ * _)).
-      entailer!.
-      apply modus_ponens_wand'.
-      unfold subscr_post.
-      simpl.
+      apply bi.and_intro; auto.
+      iIntros "(? & ? & H)"; iApply "H".
+      unfold subscr_post; simpl.
+      simpl_compb. simpl_compb.
       replace (offset_val 4 p1)
         with (field_address t_struct_tree [StructField _value] p1)
         by (unfold field_address; simpl;
             rewrite if_true by auto with field_compatible; auto).
-      simpl_compb. simpl_compb.
+      iStopProof; entailer!.
       unfold_data_at (data_at _ _ _ p1).
       rewrite (field_at_data_at _ t_struct_tree [StructField _value]).
       rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
       rewrite (field_at_data_at _ t_struct_tree [StructField _right]).
-      entailer!.
+      cancel.
     + 
       Intros.
       forward. (* p = *t; *)
@@ -433,38 +401,32 @@ Proof.
         unfold subscr_inv.
         Exists (offset_val 8 v) t1_1.
         entailer!.
-        apply RAMIF_Q2_trans'.
-        (* TODO: SIMPLY THIS LINE *)
         replace (offset_val 8 v)
           with (field_address t_struct_tree [StructField _left] v)
           by (unfold field_address; simpl;
               rewrite if_true by auto with field_compatible; auto).
-        entailer!.
-        apply allp_right; intros p.
-        apply allp_right; intros q.
-        apply -> wand_sepcon_adjoint.
+        cancel.
+        iIntros "(? & ? & ? & H)" (??) "?".
+        iApply "H".
         unfold subscr_post.
         simpl.
         simpl_compb.
         simpl_compb.
         simpl.
         simpl_compb.
-        entailer!.
+        iStopProof; entailer!.
       - (* Inner if, second branch:  k<x *)
         forward. (* t=&p->right *)
         unfold subscr_inv.
         Exists (offset_val 12 v) t1_2.
         entailer!.
-        apply RAMIF_Q2_trans'.
         (* TODO: SIMPLY THIS LINE *)
         replace (offset_val 12 v)
           with (field_address t_struct_tree [StructField _right] v)
           by (unfold field_address; simpl;
               rewrite if_true by auto with field_compatible; auto).
-        entailer!.
-        apply allp_right; intros p.
-        apply allp_right; intros q.
-        apply -> wand_sepcon_adjoint.
+        iIntros "(? & ? & ? & $ & H)" (p q) "?".
+        iApply "H".
         unfold subscr_post.
         simpl.
         simpl_compb.
@@ -474,7 +436,7 @@ Proof.
         simpl_compb.
         simpl_compb.
         simpl_compb.
-        entailer!.
+        iStopProof; entailer!.
       - (* Inner if, third branch: x=k *)
         assert (x=k) by lia.
         subst x. clear H1 H2.
@@ -483,10 +445,8 @@ Proof.
 
         Exists v (offset_val 4 v).
         entailer!.
-        rewrite (sepcon_comm (_ * _ * _ * _)); apply wand_sepcon_adjoint.
-        apply (allp_left _ v), (allp_left _ (offset_val 4 v)).
-        apply wand_sepcon_adjoint; rewrite <- (sepcon_comm (_ * _ * _ * _)).
-        apply modus_ponens_wand'.
+        iIntros "(? & ? & ? & ? & H)".
+        iApply "H".
         unfold subscr_post.
         simpl.
         simpl_compb.
@@ -496,7 +456,7 @@ Proof.
         simpl.
         simpl_compb.
         simpl_compb.
-        entailer!.
+        iStopProof; entailer!.
         unfold field_address; simpl.
         rewrite if_true; auto.
         rewrite field_compatible_cons in H3 |- *.
@@ -506,7 +466,7 @@ Proof.
         tauto.
   * (* After the loop *)
     forward.
-    simpl loop2_ret_assert. apply andp_left2. auto.
+    simpl loop2_ret_assert. apply andp_left2; auto.
 all:fail.
 Admitted.
 (*

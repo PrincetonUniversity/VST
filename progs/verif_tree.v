@@ -1,10 +1,6 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat. Import NoOracle.
 Require Import VST.progs.tree.
-Require Import VST.msl.iter_sepcon.
-Require Import VST.msl.wand_frame.
-Require Import VST.msl.wandQ_frame.
-
-Open Scope logic.
 
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
@@ -41,9 +37,8 @@ Lemma list_rep_local_facts:
   forall l p, list_rep l p |-- !! (is_pointer_or_null p  /\ (p=nullval <-> l=nil)).
 Proof.
   intros.
-  destruct l; simpl; Intros; try Intros y; entailer!.
-  + split; auto.
-  + split; intros; subst; try congruence; try contradiction.
+  destruct l; simpl; Intros; try Intros y; entailer!. tauto.
+  split; intros; subst; try congruence; try contradiction.
 Qed.
 
 End LISTS.
@@ -82,10 +77,9 @@ Lemma tree_rep_local_facts:
   forall t p, tree_rep t p |-- !! (is_pointer_or_null p  /\ (p=nullval <-> t=E)).
 Proof.
   intros.
-  destruct t; simpl; Intros; try Intros x y; subst; entailer!.
-  + split; auto.
-  + split; intros; try congruence.
-    subst; inv Pp.
+  destruct t; simpl; Intros; try Intros x y; subst; entailer!. tauto.
+  split; intros; try congruence.
+  subst; inv Pp.
 Qed.
 
 End TREES.
@@ -104,12 +98,8 @@ Definition map_tree {V1 V2: Type} (f: V1 -> V2): tree V1 -> tree V2 :=
 
 Section IterTreeSepCon.
 
-  Context {A : Type}.
+  Context {A : bi}.
   Context {B : Type}.
-  Context {ND : NatDed A}.
-  Context {SL : SepLog A}.
-  Context {ClS: ClassicalSep A}.
-  Context {CoSL: CorableSepLog A}.
   Context (p : B -> A).
 
 Fixpoint iter_tree_sepcon (t1 : tree B) : A :=
@@ -122,15 +112,10 @@ End IterTreeSepCon.
 
 Section IterTreeSepCon2.
 
-  Context {A : Type}.
   Context {B1 B2 : Type}.
-  Context {ND : NatDed A}.
-  Context {SL : SepLog A}.
-  Context {ClS: ClassicalSep A}.
-  Context {CoSL: CorableSepLog A}.
-  Context (p : B1 -> B2 -> A).
+  Context (p : B1 -> B2 -> mpred).
 
-Fixpoint iter_tree_sepcon2 (t1 : tree B1) : tree B2 -> A :=
+Fixpoint iter_tree_sepcon2 (t1 : tree B1) : tree B2 -> mpred :=
     match t1 with
     | E => fun t2 =>
        match t2 with
@@ -145,7 +130,7 @@ Fixpoint iter_tree_sepcon2 (t1 : tree B1) : tree B2 -> A :=
   end.
 
 Lemma iter_tree_sepcon2_spec: forall tl1 tl2,
-  iter_tree_sepcon2 tl1 tl2 =
+  iter_tree_sepcon2 tl1 tl2 ⊣⊢
   EX tl: tree (B1 * B2),
   !! (tl1 = map_tree fst tl /\ tl2 = map_tree snd tl) &&
   iter_tree_sepcon (uncurry p) tl.
@@ -155,29 +140,25 @@ Proof.
   + revert tl2; induction tl1; intros; destruct tl2.
     - apply (exp_right E); simpl.
       apply andp_right; auto.
-      apply prop_right; auto.
     - simpl.
-      apply FF_left.
+      apply False_left.
     - simpl.
-      apply FF_left.
+      apply False_left.
     - simpl.
       specialize (IHtl1_1 tl2_1).
       specialize (IHtl1_2 tl2_2).
       eapply derives_trans; [apply sepcon_derives; [apply sepcon_derives |]; [apply derives_refl | apply IHtl1_1 | apply IHtl1_2] | clear IHtl1_1 IHtl1_2].
       Intros tl_2 tl_1; subst.
-      rewrite sepcon_andp_prop. apply derives_extract_prop; intros [? ?].
-      rewrite sepcon_andp_prop, sepcon_andp_prop'.
-      apply derives_extract_prop; intros [? ?].
       Exists (T tl_1 (v, b) tl_2).
       simpl.
       apply andp_right; [apply prop_right; subst; auto |].
       apply derives_refl.
-  + apply exp_left; intros tl. Intros; subst.
+  + Intros tl. subst.
     induction tl.
     - simpl. auto.
     - simpl.
       eapply derives_trans; [apply sepcon_derives; [apply sepcon_derives |]; [apply derives_refl | apply IHtl1 | apply IHtl2] | clear IHtl1 IHtl2].
-      apply derives_refl.
+      destruct v; simpl; cancel.
 Qed.
 
 End IterTreeSepCon2.
@@ -212,10 +193,9 @@ Lemma xtree_rep_local_facts:
   forall t p, xtree_rep t p |-- !! (is_pointer_or_null p /\ (p = nullval <-> t = XLeaf)).
 Proof.
 intros.
-destruct t; simpl; Intros; try Intros q;  entailer!.
-+ split; auto.
-+ split; intros; try congruence.
-  subst; destruct H as [? _]; inv H.
+destruct t; simpl; Intros; try Intros q; entailer!. tauto.
+split; intros; try congruence.
+subst; destruct H as [? _]; inv H.
 Qed.
 #[export] Hint Resolve xtree_rep_local_facts: saturate_local.
 
@@ -341,10 +321,9 @@ Lemma ytree_rep_local_facts:
   forall t p, ytree_rep t p |-- !! (is_pointer_or_null p /\ (p = nullval <-> t = YLeaf)).
 Proof.
 intros.
-destruct t; simpl; Intros; try Intros q; entailer!.
-+ split; auto.
-+ split; intros; try congruence.
-  subst; destruct H as [? _]; inv H.
+destruct t; simpl; Intros; try Intros q; entailer!. tauto.
+split; intros; try congruence.
+subst; destruct H as [? _]; inv H.
 Qed.
 #[export] Hint Resolve ytree_rep_local_facts: saturate_local.
 
@@ -565,16 +544,13 @@ Context {V: Type}.
 Variable listrep: list V -> val -> mpred.
 
 Definition lseg (contents: list V) (x z: val) : mpred :=
-  ALL tcontents: list V, listrep tcontents z -* listrep (contents ++ tcontents) x.
+  ALL tcontents: list V, (listrep tcontents z -* listrep (contents ++ tcontents) x).
 
 Lemma emp_lseg_nil: forall (x: val),
   emp |-- lseg nil x x.
 Proof.
-  intros.
-  apply allp_right; intros.
-  apply wand_sepcon_adjoint.
-  simpl.
-  entailer!.
+  unfold lseg.
+  auto.
 Qed.
 
 Lemma lseg_lseg: forall (s1 s2: list V) (x y z: val),
@@ -582,12 +558,8 @@ Lemma lseg_lseg: forall (s1 s2: list V) (x y z: val),
 Proof.
   intros.
   unfold lseg.
-  eapply derives_trans; [apply sepcon_derives; [apply derives_refl |] | apply wandQ_frame_ver].
-  eapply derives_trans; [apply (wandQ_frame_refine _ _ _ (app s2)) |].
-  apply derives_refl'.
-  f_equal; extensionality tcontents; simpl.
-  rewrite app_assoc.
-  auto.
+  iIntros "(H2 & H1)" (?) "H".
+  rewrite <- app_assoc; iApply "H1"; iApply "H2"; done.
 Qed.
 
 Lemma list_lseg: forall (s1 s2: list V) (x y: val),
@@ -595,13 +567,7 @@ Lemma list_lseg: forall (s1 s2: list V) (x y: val),
 Proof.
   intros.
   unfold lseg.
-  change (listrep s2 y) with ((fun s2 => listrep s2 y) s2).
-   change
-     (ALL tcontents : list V, listrep tcontents y -* listrep (s1 ++ tcontents) x)
-   with
-     (allp ((fun tcontents => listrep tcontents y) -* (fun tcontents => listrep (s1 ++ tcontents) x))).
-   change (listrep (s1 ++ s2) x) with ((fun s2 => listrep (s1 ++ s2) x) s2).
-   apply wandQ_frame_elim.
+  iIntros "(? & H)"; iApply "H"; done.
 Qed.
 
 End GeneralLseg.
@@ -614,8 +580,6 @@ Proof.
   {
     forward.
     entailer!.
-    simpl.
-    auto.
   }
   unfold Sfor.
   destruct t as [| tl v].
@@ -641,19 +605,19 @@ Proof.
       LOCAL (temp _q q)
       SEP (data_at Tsh t_struct_Xnode (q_root, Vint (Int.repr (v + 1))) p;
            GeneralLseg.lseg (list_rep (fun p n q : val => data_at Tsh t_struct_Xlist (p, n) q)) (map snd tl1) q_root q;
-           iter_sepcon (uncurry xtree_rep) tl1;
+           [∗ list] x ∈ tl1, uncurry xtree_rep x;
            list_rep (fun p n q : val => data_at Tsh t_struct_Xlist (p, n) q) (map snd tl2) q;
-           iter_sepcon (uncurry xtree_rep) tl2))%assert
+           [∗ list] x ∈ tl2, uncurry xtree_rep x))%assert
   break:
     ( PROP ()
       LOCAL ()
       SEP (data_at Tsh t_struct_Xnode (q_root, Vint (Int.repr (v + 1))) p;
            list_rep (fun p n q : val => data_at Tsh t_struct_Xlist (p, n) q) (map snd tl) q_root;
-           iter_sepcon (uncurry xtree_rep) (map (fun tp => (x_add1 (fst tp), snd tp)) tl)))%assert.
+           [∗ list] x ∈ (map (fun tp => (x_add1 (fst tp), snd tp)) tl), uncurry xtree_rep x))%assert.
   {
     Exists (@nil (XTree * val)) tl q_root.
     entailer!!.
-    apply GeneralLseg.emp_lseg_nil.
+    rewrite <- GeneralLseg.emp_lseg_nil; auto.
   }
   {
     Intros tl1 tl2 q.
@@ -666,7 +630,6 @@ Proof.
       simpl in H0; rewrite app_nil_r in H0.
       simpl map.
       sep_apply (GeneralLseg.list_lseg (list_rep (fun p0 n q : val => data_at Tsh t_struct_Xlist (p0, n) q)) (map snd tl1) nil q_root nullval).
-      sep_apply (eq_sym (iter_sepcon_app (uncurry xtree_rep) tl1 [])).
       rewrite !app_nil_r.
       rewrite <- H0, map_map.
       simpl. change (fun x : XTree * val => snd x) with (@snd XTree val).
@@ -678,7 +641,7 @@ Proof.
       Intros.
       contradiction.
     }
-    simpl list_rep; simpl iter_sepcon.
+    simpl list_rep; simpl big_opL.
     Intros q'.
     change (uncurry xtree_rep (t, p')) with (xtree_rep t p').
     forward.
@@ -688,16 +651,14 @@ Proof.
     entailer!!.
     + rewrite <- app_assoc; auto.
     + change (xtree_rep (x_add1 t) p') with (uncurry xtree_rep (x_add1 t, p')).
-      rewrite iter_sepcon_app; simpl.
+      rewrite big_sepL_app; simpl.
       cancel.
       eapply derives_trans; [| rewrite map_app; apply (GeneralLseg.lseg_lseg _ _ _ _ q)].
       cancel.
       clear.
       apply allp_right; intros.
-      apply wand_sepcon_adjoint.
-      simpl list_rep.
-      Exists q'.
-      cancel.
+      iIntros "??"; simpl.
+      iExists q'; iFrame.
   }
   entailer!!.
   Exists q_root. cancel.
@@ -705,7 +666,7 @@ Proof.
   cancel.
   rewrite iter_sepcon2_spec.
   Exists (map (fun tp : XTree * val => (x_add1 (fst tp), snd tp)) tl); cancel.
-  entailer!!.
+  entailer!!; auto.
   rewrite !map_map.
   split; f_equal.
 Qed.
@@ -820,14 +781,14 @@ Proof.
   replace_SEP 0 (lt_ytree_rep t' y).
   {
     unfold lt_ytree_rep.
-    entailer!!.
+    go_lower.
     Exists r; cancel.
   }
   forward_call (y, t').
   forward.
   clear.
   unfold lt_ytree_rep.
-  Intros r.
+  rewrite sep_exist_r; Intros r.
   Exists (v :: r).
   unfold y_list_rep; simpl.
   Exists y.
@@ -863,7 +824,7 @@ Proof.
   replace_SEP 0 (t_ytree_rep a pa).
   {
     unfold t_ytree_rep.
-    entailer!!.
+    go_lower.
     Exists s1; cancel.
   }
   forward_call (pa, a).
@@ -872,7 +833,7 @@ Proof.
   replace_SEP 0 (t_ytree_rep b pb).
   {
     unfold t_ytree_rep.
-    entailer!.
+    go_lower.
     Exists s2; cancel.
   }
   forward_call (pb, b).
@@ -892,8 +853,6 @@ Proof.
   forward.
 Qed.
 
-#[export] Existing Instance NullExtension.Espec.
-
 Lemma prog_correct:
   semax_prog prog tt Vprog Gprog.
 Proof.
@@ -905,5 +864,3 @@ semax_func_cons body_YTree_add.
 semax_func_cons body_Xfoo.
 semax_func_cons body_main.
 Qed.
-
-

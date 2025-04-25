@@ -12,7 +12,6 @@ Require Import VST.msl.Coqlib2.
 Require Import VST.concurrency.common.sepcomp. Import SepComp.
 Require Import VST.concurrency.common.permissions.
 Require Import VST.concurrency.common.lksize.
-Set Bullet Behavior "Strict Subproofs".
 
   Module MiniAddressOrdered <: MiniOrderedType.
 
@@ -35,7 +34,7 @@ Set Bullet Behavior "Strict Subproofs".
            destruct (peq b b0), (peq b0 b1), (peq b b1),
            (plt b b0), (plt b0 b1), (plt b b1),
            (zlt z0 z1), (zlt z1 z), (zlt z0 z); subst;
-             simpl; intros; auto; try omega; (*Solves most*)
+             simpl; intros; auto; try lia; (*Solves most*)
              exfalso;
            (* solves al Plt x y /\ Plt y x *)
            try match goal with
@@ -59,7 +58,7 @@ Set Bullet Behavior "Strict Subproofs".
            unfold not; intros.
            inversion H0; subst.
            rewrite peq_true in H.
-           assert (HH: z0 >= z0) by omega.
+           assert (HH: z0 >= z0) by lia.
            destruct zlt as [a|b]; auto.
     Qed.
    Lemma compare : forall x y : t, Compare lt eq x y.
@@ -71,13 +70,13 @@ Set Bullet Behavior "Strict Subproofs".
               unfold lt, lt'.
               rewrite H0; simpl.
               unfold is_true.
-              destruct (zlt x2 y2); auto; omega.
+              destruct (zlt x2 y2); auto; lia.
             + constructor 3.
               unfold lt, lt'.
               destruct (peq x1 y1); try solve[inversion H0]; subst.
               destruct (peq y1 y1); simpl. clear e e0 H0.
-              destruct (zlt y2 x2); auto; omega.
-              destruct (zlt x2 y2); auto; omega.
+              destruct (zlt y2 x2); auto; lia.
+              destruct (zlt x2 y2); auto; lia.
             + constructor 2.
               subst; reflexivity.
           - destruct (plt x1 y1).
@@ -414,8 +413,8 @@ Proof.
   intros; if_tac; simpl in H.
   - destruct H; subst; apply setPermBlock_same; auto.
   - destruct (peq b b'); [|apply setPermBlock_other_2; auto].
-    subst; destruct (zle o o'); [|apply setPermBlock_other_1; omega].
-    destruct (zlt o' (o + Z.of_nat n)); [tauto | apply setPermBlock_other_1; omega].
+    subst; destruct (zle o o'); [|apply setPermBlock_other_1; lia].
+    destruct (zlt o' (o + Z.of_nat n)); [tauto | apply setPermBlock_other_1; lia].
 Qed.
 
 Lemma A2P_congr A e e' a : PMap_eq e e' -> PMap_eq (A2P e a) (@A2P A e' a).

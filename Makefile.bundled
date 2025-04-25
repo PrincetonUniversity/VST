@@ -122,13 +122,13 @@ else
 endif
 COMPCERTDIRS=lib common $(ARCHDIRS) cfrontend export
 COMPCERT_FLAGS= $(foreach d, $(COMPCERTDIRS), -Q $(COMPCERT_INST_DIR)/$(d) compcert.$(d))
-VST_DIRS= msl sepcomp veric zlist floyd 
+VST_DIRS= msl shared sepcomp veric zlist floyd 
 else
 COMPCERTFLAGS=
 VST_DIRS=
 endif
 
-VSTFLAGS= $(COMPCERT_FLAGS) $(foreach d, $(VST_DIRS), -Q $(VST_LOC)/$(d) VST.$(d)) -R . pile
+VSTFLAGS= $(COMPCERT_FLAGS) -Q $(VST_LOC)/ora/theories iris_ora $(foreach d, $(VST_DIRS), -Q $(VST_LOC)/$(d) VST.$(d)) -R . pile
 
 ifdef CLIGHTGEN
 VERSION1= $(lastword $(shell $(CLIGHTGEN) --version))
@@ -143,5 +143,4 @@ all:  # need this so that _CoqProject does not become the default target
 _CoqProject: Makefile
 	@echo $(VSTFLAGS) > _CoqProject
 
-FLOYD= $(VST_LOC)/floyd/proofauto.vo $(VST_LOC)/floyd/VSU.vo
-
+FLOYD= $(VST_LOC)/floyd/proofauto.vo $(VST_LOC)/floyd/compat.vo $(VST_LOC)/floyd/VSU.vo

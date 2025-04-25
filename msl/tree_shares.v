@@ -1087,7 +1087,7 @@ Module Share <: SHARE_MODEL.
 
   (*** Begin Module Signature Definitions and lemmas ***)
 
-  (* Here we show that canonical share trees form a boolean algrbra.  These
+  (* Here we show that canonical share trees form a boolean algebra.  These
      proofs mainly involve showing that the results above commute in the proper
      ways with mkCanon. *)
   Module BA <: BOOLEAN_ALGEBRA.
@@ -6263,46 +6263,102 @@ Qed.
     apply proof_irr.
  Qed.
 
+ (* For some reason, the proof of decompose_rewrite adds extraneous universe constraints when the
+    lemmas below are inlined. *)
+  Lemma decompose_rewrite_case1' : forall x c c1 c2 b, match x as t' return (t' = x -> canonTree * canonTree) with
+  | Leaf b0 =>
+    fun Heq_t : Leaf b0 = x =>
+    (exist (fun t0 : ShareTree => canonicalTree t0) (Leaf b0) (tree_decompose_obligation_1 x c b0 Heq_t),
+     exist (fun t0 : ShareTree => canonicalTree t0) (Leaf b0) (tree_decompose_obligation_2 x c b0 Heq_t))
+  | Node t1 t2 =>
+    fun Heq_t : Node t1 t2 = x =>
+    (exist (fun t0 : ShareTree => canonicalTree t0) t1 (tree_decompose_obligation_3 x c t1 t2 Heq_t),
+     exist (fun t0 : ShareTree => canonicalTree t0) t2 (tree_decompose_obligation_4 x c t1 t2 Heq_t))
+  end eq_refl =
+  (exist (fun t0 : ShareTree => canonicalTree t0) (Leaf b) c1,
+ exist (fun t0 : ShareTree => canonicalTree t0) (Leaf b) c2) <-> x = Leaf b
+.
+  Proof.
+    intros.
+    split; [|intros ->; f_equal; now apply exist_ext].
+    destruct x; intros [=]; subst; auto.
+    destruct c as (? & ? & ? & ?); simpl in *.
+    destruct H, H0; congruence.
+  Qed.
+
+  Lemma decompose_rewrite_case1 : forall x c x1 c1 x2 c2 b (Hcanon : mkCanon
+           (Node (proj1_sig (exist (fun t : ShareTree => canonicalTree t) x1 c1))
+              (proj1_sig (exist (fun t : ShareTree => canonicalTree t) x2 c2))) = 
+         Leaf b), decompose (exist (fun t0 : ShareTree => canonicalTree t0) x c) =
+  (exist (fun t0 : ShareTree => canonicalTree t0) x1 c1,
+   exist (fun t0 : ShareTree => canonicalTree t0) x2 c2) <-> x = Leaf b.
+  Proof.
+    intros.
+    symmetry in Hcanon; apply mkCanon_Leaf_split in Hcanon as [H1 H2].
+    simpl in *.
+    rewrite (mkCanon_identity _ c1) in H1.
+    rewrite (mkCanon_identity _ c2) in H2.
+    subst; simpl.
+    apply decompose_rewrite_case1'.
+  Qed.
+
+  Lemma decompose_rewrite_case2' : forall x s1 s2 c c1 c2 (Hcanon : match mkCanon s1 with
+         | Leaf b1 =>
+             match mkCanon s2 with
+             | Leaf b2 => if bool_dec b1 b2 then Leaf b1 else Node (mkCanon s1) (mkCanon s2)
+             | Node _ _ => Node (mkCanon s1) (mkCanon s2)
+             end
+         | Node _ _ => Node (mkCanon s1) (mkCanon s2)
+         end = Node s1 s2),
+  match x as t' return (t' = x -> canonTree * canonTree) with
+  | Leaf b =>
+    fun Heq_t : Leaf b = x =>
+    (exist (fun t0 : ShareTree => canonicalTree t0) (Leaf b) (tree_decompose_obligation_1 x c b Heq_t),
+     exist (fun t0 : ShareTree => canonicalTree t0) (Leaf b) (tree_decompose_obligation_2 x c b Heq_t))
+  | Node t1 t2 =>
+    fun Heq_t : Node t1 t2 = x =>
+    (exist (fun t0 : ShareTree => canonicalTree t0) t1 (tree_decompose_obligation_3 x c t1 t2 Heq_t),
+     exist (fun t0 : ShareTree => canonicalTree t0) t2 (tree_decompose_obligation_4 x c t1 t2 Heq_t))
+  end eq_refl =
+  (exist (fun t0 : ShareTree => canonicalTree t0) s1 c1,
+   exist (fun t0 : ShareTree => canonicalTree t0) s2 c2) <-> x = Node s1 s2.
+  Proof.
+    intros.
+    split; [|intros ->; f_equal; now apply exist_ext].
+    destruct x; intros [=]; subst; auto; simpl in *.
+    destruct bool_dec; auto; contradiction.
+  Qed.
+
+  Lemma decompose_rewrite_case2 : forall x c x1 c1 x2 c2 s1 s2 (Hcanon : mkCanon
+           (Node (proj1_sig (exist (fun t : ShareTree => canonicalTree t) x1 c1))
+              (proj1_sig (exist (fun t : ShareTree => canonicalTree t) x2 c2))) = 
+         Node s1 s2),
+  decompose (exist (fun t0 : ShareTree => canonicalTree t0) x c) =
+  (exist (fun t0 : ShareTree => canonicalTree t0) x1 c1,
+   exist (fun t0 : ShareTree => canonicalTree t0) x2 c2) <-> x = Node s1 s2.
+  Proof.
+    intros.
+    destruct (mkCanon_split _ _ _ _ Hcanon) as [H1 H2].
+    simpl in *.
+    rewrite (mkCanon_identity _ c1) in H1.
+    rewrite (mkCanon_identity _ c2) in H2.
+    subst; simpl.
+    apply decompose_rewrite_case2'; auto.
+  Qed.
+
+  Lemma exist_ext' : forall A (P : A -> Prop) x y Hx Hy, exist P x Hx = exist P y Hy <-> x = y.
+  Proof.
+    split; [now inversion 1 | now apply exist_ext].
+  Qed.
 
  Lemma decompose_rewrite : forall t t1 t2, decompose t = (t1 ,t2)
        <-> t = exist (fun t => canonicalTree t)
               (mkCanon (Node (proj1_sig t1) (proj1_sig t2))) (mkCanon_correct _).
  Proof.
-  intros.
-  destruct t0 as [x c];
-  destruct t1 as [x1 c1];
-  destruct t2 as [x2 c2].
-  icase x.
-
-  simpl.
-  split;intros; inv H;
-  generalize (mkCanon_identity _ c1);intro;
-  generalize (mkCanon_identity _ c2);intro.
-  apply exist_ext.
-  rewrite H.
-  icase b.
-
-  f_equal;
-  apply exist_ext;
-  rewrite H in H1;rewrite H0 in H1;
-  icase x1;icase x2;
-  icase b0;icase b1.
-
-  split;intro;
-  try apply exist_ext;
-  simpl in H,c;
-  destruct c as [? [? [? ?]]];
-  inv H;
-  simpl;
-  generalize (mkCanon_identity _ c1);intro;
-  generalize (mkCanon_identity _ c2);intro.
-  rewrite H;rewrite H0.
-  icase x1;icase x2.
-  icase b;icase b0;
-  exfalso; firstorder with bool.
-  f_equal;apply exist_ext;
-  rewrite H in H1;rewrite H0 in H1;
-  icase x1;icase x2;try icase b;try icase b0;inv H1;auto.
+  intros [x c] ??; rewrite exist_ext'.
+  destruct (mkCanon _) eqn: Hcanon.
+  - destruct t1, t2; now apply decompose_rewrite_case1.
+  - destruct t1, t2; now apply decompose_rewrite_case2.
  Qed.
  (*L4*)
  Lemma decompose_height : forall n t1 t2 t3,
@@ -7471,13 +7527,18 @@ Proof.
  trivial.
 Qed.
 
+Lemma exist_pair_eq : forall t1 t2 c1 c2 c1' c2', (exist (fun t0 : ShareTree => canonicalTree t0) t1 c1,
+ exist (fun t0 : ShareTree => canonicalTree t0) t2 c2) =
+(exist (fun t0 : ShareTree => canonicalTree t0) t1 c1',
+ exist (fun t0 : ShareTree => canonicalTree t0) t2 c2').
+Proof.
+  intros; f_equal; apply exist_ext; auto.
+Qed.
+
 Lemma decompose_basic: forall b c c1 c2,
  decompose (exist _ (Leaf b) c) = (exist _ (Leaf b) c1,exist _ (Leaf b) c2).
 Proof.
- intros.
- unfold decompose,decompose_tree.
- simpl. f_equal. f_equal.
- f_equal.
+  intros; apply exist_pair_eq.
 Qed.
 
 Lemma decompose_top: decompose top = (top,top).
@@ -7493,12 +7554,7 @@ Qed.
 Lemma decompose_Node: forall t1 t2 c c1 c2,
  decompose (exist _ (Node t1 t2) c) = (exist _ t1 c1, exist _ t2 c2).
 Proof.
- intros.
- unfold decompose. unfold decompose_tree.
- unfold tree_decompose.
- destruct c as [? [? [? ?]]].
- f_equal. f_equal.
- f_equal.
+ intros; apply exist_pair_eq.
 Qed.
 
 Lemma identity_bot: forall s, identity s <-> s = bot.

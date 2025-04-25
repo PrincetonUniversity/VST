@@ -1,9 +1,7 @@
 (*Require Import Recdef.*)
 Require Import VST.floyd.proofauto.
-Local Open Scope logic.
 Require Import List. Import ListNotations.
 Require Import ZArith.
-Local Open Scope Z.
 Require Import tweetnacl20140427.tweetNaclBase.
 Require Import tweetnacl20140427.Salsa20.
 Require Import tweetnacl20140427.verif_salsa_base.
@@ -23,12 +21,12 @@ intros.
 induction n; simpl in *. contradiction. destruct H; auto.
 Qed.
 
-Lemma f_core_loop2: forall (Espec : OracleKind) FR c k h nonce out w x y t
+Lemma f_core_loop2: forall Espec E FR c k h nonce out w x y t
   (data : SixteenByte * SixteenByte * (SixteenByte * SixteenByte))
   (Delta := func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil)
   (xInit : list val)
   (XInit : xInit = upd_upto data 4 (repeat Vundef 16)),
-@semax CompSpecs Espec
+semax(C := CompSpecs)(OK_spec := Espec) E
 Delta
   (PROP  ()
    LOCAL  (temp _i (Vint (Int.repr 4)); lvar _t (tarray tuint 4) t;

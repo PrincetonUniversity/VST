@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat. Import NoOracle.
 Require Import VST.progs.global.
 
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
@@ -38,5 +39,3 @@ rewrite data_at_tuint_tint.
 forward_call gv.
 forward.
 Qed.
-
-

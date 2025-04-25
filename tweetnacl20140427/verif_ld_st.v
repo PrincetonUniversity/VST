@@ -1,8 +1,6 @@
 Require Import VST.floyd.proofauto.
-Local Open Scope logic.
 Require Import tweetnacl20140427.split_array_lemmas.
 Require Import ZArith.
-Local Open Scope Z.
 Require Import tweetnacl20140427.tweetNaclBase.
 Require Import tweetnacl20140427.Salsa20.
 Require Import tweetnacl20140427.tweetnaclVerifiableC.
@@ -18,8 +16,8 @@ Lemma L32_spec_ok: semax_body SalsaVarSpecs SalsaFunSpecs
        f_L32 L32_spec.
 Proof.
 start_function.
-Time forward. (*8.8*)   
-entailer!. 
+Time forward. (*8.8*)
+entailer!.
 - 
  change (Int.unsigned Int.iwordsize) with 32.
  split.
@@ -104,16 +102,12 @@ assert (RNG2:= Byte.unsigned_range_2 b2).
 assert (RNG1:= Byte.unsigned_range_2 b1).
 assert (RNG0:= Byte.unsigned_range_2 b0).
 Time forward. (*1.8*)
-Time entailer!; lia. (*1.1*)
 Time forward. (*2*)
-Time entailer!; lia. (*1.1*)
 Time forward. (*1.1*)
 Time forward. (*2.2*)
-Time entailer!; lia. (*1.3*)
 Time forward. (*1.5*)
 drop_LOCAL 1%nat.
 Time forward.
-Time entailer!; lia. (*1.3*)
 Time forward. (*5.2*)
 Time entailer!.
   assert (WS: Int.zwordsize = 32). reflexivity.
@@ -229,9 +223,7 @@ forward_for_simple_bound 8 (EX i:Z,
                  Byte.unsigned c0; Byte.unsigned c1; Byte.unsigned c2; Byte.unsigned c3] 
           = Byte.unsigned (Znth i [b0; b1; b2; b3; c0; c1; c2; c3])).
   solve [erewrite <- (Znth_map _ Byte.unsigned); [ reflexivity | apply I ] ].
-  forward. 
-  + entailer!. rewrite HH. 
-     apply Byte.unsigned_range_2.
+  forward.
   + simpl; rewrite HH. forward.
     entailer!. clear H1 H0 H. f_equal.
     rewrite <- (sublist_rejoin 0 i (i+1)) by Zlength_solve.
@@ -414,7 +406,7 @@ Proof. unfold iter64Shr8'.
    unfold Int64.max_unsigned; simpl; lia.
    unfold Int64.min_signed, Int64.max_signed; simpl; lia.
    unfold Int64.min_signed, Int64.max_signed; simpl; lia.
- - rewrite W. unfold Int64.ltu. rewrite if_true; trivial. normalize. computable.
+ - rewrite W. unfold Int64.ltu. rewrite if_true; trivial. normalize.
  - rewrite W. unfold Int64.ltu. rewrite Int64.mul_signed, Int64.add_signed, if_true; trivial.
    rewrite (Int64.signed_repr 8). 
    2: unfold Int64.min_signed, Int64.max_signed; simpl; lia.

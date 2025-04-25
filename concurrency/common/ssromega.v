@@ -1,9 +1,9 @@
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat eqtype seq.
 Require Import Coq.ZArith.ZArith.
-Require Import PreOmega.
+Require Import Lia.
 Set Implicit Arguments.
 
-(* tactics to support Omega for ssrnats*)
+(* tactics to support lia for ssrnats*)
 Ltac arith_hypo_ssrnat2coqnat :=
   match goal with
     | H : context [andb _ _] |- _ => let H0 := fresh in case/andP: H => H H0
@@ -28,4 +28,4 @@ Ltac arith_goal_ssrnat2coqnat :=
 Ltac ssromega :=
   repeat arith_hypo_ssrnat2coqnat;
   arith_goal_ssrnat2coqnat; simpl;
-  omega.
+  lia.

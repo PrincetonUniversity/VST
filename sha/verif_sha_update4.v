@@ -5,7 +5,6 @@ Require Import sha.spec_sha.
 Require Import sha.sha_lemmas.
 Require Import sha.verif_sha_update3.
 Local Open Scope Z.
-Local Open Scope logic.
 
 Lemma Hblocks_lem:
  forall {blocks: list int} {frag: list byte} {data},
@@ -52,7 +51,7 @@ Definition update_outer_if :=
         Sskip.
 
 Lemma update_outer_if_proof:
- forall  (Espec : OracleKind) (hashed : list int)
+ forall  Espec (hashed : list int)
            (dd data : list byte) (c d : val) (wsh sh : share) (len : Z) gv
    (H : 0 <= len <= Zlength data)
    (Hwsh: writable_share wsh)
@@ -61,12 +60,12 @@ Lemma update_outer_if_proof:
    (H3 : Zlength dd < CBLOCKz)
    (H4 : (LBLOCKz | Zlength hashed))
    (Hlen : len <= Int.max_unsigned),
-semax
+semax(OK_spec := Espec) ⊤
      (func_tycontext f_SHA256_Update Vprog Gtot nil)
   (PROP  ()
    LOCAL (temp _p (field_address t_struct_SHA256state_st [StructField _data] c);
    temp _n (Vint (Int.repr (Zlength dd))); temp _data d; gvars gv; temp _c c; 
-   temp _data_ d; temp _len (Vint (Int.repr len)))
+   temp data_ d; temp _len (Vint (Int.repr len)))
    (*LOCAL
    (temp _p (field_address t_struct_SHA256state_st [StructField _data] c);
     temp _n (Vint (Int.repr (Zlength dd)));
@@ -130,37 +129,11 @@ simpl. normalize.
   with automatic cancel...
 *)
 
-Tactic Notation "unfold_data_atx" uconstr(a) :=
- tryif (is_nat_uconstr a)
- then (
-    idtac "Warning: unfold_data_at with numeric argument is deprecated";
-     let x := constr:(a) in unfold_data_at_tac x
-   )
- else
- (let x := fresh "x" in set (x := a : mpred);
-  lazymatch goal with
-  | x := ?D : mpred |- _ =>
-    match D with
-     | (@data_at_ ?cs ?sh ?t ?p) =>
-            change D with (@field_at_mark cs sh t (@nil gfield) (@default_val cs (@nested_field_type cs t nil)) p) in x
-     | (@data_at ?cs ?sh ?t ?v ?p) =>
-            change D with (@field_at_mark cs sh t (@nil gfield) v p) in x
-     | (@field_at_ ?cs ?sh ?t ?gfs ?p) =>
-            change D with (@field_at_mark cs sh t gfs (@default_val cs (@nested_field_type cs t gfs)) p) in x
-     | (@field_at ?cs ?sh ?t ?gfs ?v ?p) =>
-            change D with (@field_at_mark cs sh t gfs v p) in x
-     end;
-        subst x;  unfold_field_at';
-idtac (*
-   repeat match goal with |- context [@field_at ?cs ?sh ?t ?gfs (@default_val ?cs' ?t') ?p] => 
-       change (@field_at cs sh t gfs (default_val cs' t') p) with (@field_at_ cs sh t gfs p)
-    end*)
-end).
  match goal with |- ?A |-- ?B => unfold_data_at A; unfold_data_at B; cancel end.
 Time Qed. (*5.4*)
 
 Lemma update_while_proof:
- forall (Espec : OracleKind) (hashed : list int) (dd data: list byte) gv
+ forall Espec (hashed : list int) (dd data: list byte) gv
     (c d : val) (wsh sh : share) (len : Z)
   (H : 0 <= len <= Zlength data)
    (Hwsh: writable_share wsh)
@@ -169,7 +142,7 @@ Lemma update_while_proof:
   (H3 : Zlength dd < CBLOCKz)
   (H4 : (LBLOCKz | Zlength hashed))
   (Hlen : len <= Int.max_unsigned),
- semax
+ semax(OK_spec := Espec) ⊤
        (func_tycontext f_SHA256_Update Vprog Gtot nil)
   (sha_update_inv wsh sh hashed len c d dd data gv false)
   (Swhile
@@ -237,9 +210,9 @@ assert (Zlength bl = LBLOCKz). {
        data_block sh (sublist lo (lo+CBLOCKz) data)
          (field_address0 (tarray tuchar (Zlength data)) [ArraySubsc lo] d) *
        data_block sh (sublist (lo+CBLOCKz) (Zlength data) data)
-         (field_address0 (tarray tuchar (Zlength data)) [ArraySubsc (lo+CBLOCKz)] d)).
+         (field_address0 (tarray tuchar (Zlength data)) [ArraySubsc (lo+CBLOCKz)] d))%I.
   { Time entailer!. (*2.5*)
-   rewrite (split3_data_block lo (lo+CBLOCKz) sh data); auto;
+   rewrite (split3_data_block lo (lo+CBLOCKz) sh data); first cancel; auto;
      subst lo; Omega1.
   }
  rewrite H6.

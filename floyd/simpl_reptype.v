@@ -1,4 +1,6 @@
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.floyd.base2.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Import VST.floyd.functional_base.
 Require Import VST.floyd.nested_field_lemmas.
 Require Import VST.floyd.reptype_lemmas.
@@ -7,6 +9,8 @@ Require Import VST.floyd.replace_refill_reptype_lemmas.
 Require Import VST.floyd.simple_reify.
 Require Import VST.floyd.aggregate_type.
 Require Import VST.zlist.Zlength_solver.
+
+Local Unset SsrRewrite.
 
 Definition int_signed_or_unsigned (t: type) : int -> Z :=
   match typeconv t with
@@ -191,7 +195,7 @@ Ltac canon_load_result := default_canon_load_result.
 Definition myfst {A}{B} (x: A*B) : A := match x with (y,z) => y end.
 Definition mysnd {A}{B} (x: A*B) : B := match x with (y,z) => z end.
 
-Definition proj_compact_prod' {A: Type} {F: A -> Type} (a: A) (l: list A) (v: compact_prod (map F l)) (default: F a) (H: forall a b: A, {a = b} + {a <> b}) : F a.
+Definition proj_compact_prod' {A: Type} {F: A -> Type} (a: A) (l: list A) (v: compact_prod (map F l)) (default: F a) (H: forall a b: A, {a = b} + {a <> b } ) : F a.
 Proof.
   destruct l; [exact default |].
   revert a0 v; induction l; intros.
@@ -205,7 +209,7 @@ Proof.
     - exact (IHl a0 (mysnd v)).
 Defined.
 
-Definition upd_compact_prod' {A} {F} (l: list A) (v: compact_prod (map F l)) (a: A) (v0: F a) (H: forall a b: A, {a = b} + {a <> b}) : compact_prod (map F l).
+Definition upd_compact_prod' {A} {F} (l: list A) (v: compact_prod (map F l)) (a: A) (v0: F a) (H: forall a b: A, {a = b} + {a <> b} ) : compact_prod (map F l).
 Proof.
   intros.
   destruct l; [exact v |].
@@ -316,9 +320,9 @@ Ltac solve_load_rule_evaluation :=
 Ltac simplify_casts := 
   cbv beta iota delta [ Cop.cast_int_int  Cop.cast_int_float Cop.cast_float_int  Cop.cast_int_single Cop.cast_single_int
                   Cop.cast_int_long Cop.cast_long_float Cop.cast_long_single Cop.cast_float_long Cop.cast_single_long ];
- rewrite ?sign_ext_inrange 
+ rewrite ->?sign_ext_inrange 
   by (let z := fresh "z" in set (z := two_p (Zpos _ - 1)); compute in z; subst z;
-          rewrite Int.signed_repr by rep_lia;  rep_lia).
+          rewrite ->Int.signed_repr by rep_lia;  rep_lia).
 
 Lemma cons_congr: forall {A} (a a': A) bl bl',
   a=a' -> bl=bl' -> a::bl = a'::bl'.

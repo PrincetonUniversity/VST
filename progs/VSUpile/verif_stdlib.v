@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat. Import NoOracle.
 Require Import VST.floyd.VSU.
 Require Import VST.floyd.library. (*for body_lemma_of_funspec *)
 Require Import stdlib.
@@ -21,15 +22,12 @@ Parameter M: MallocFreeAPD.
 Axiom mem_mgr_rep: forall gv, emp |-- mem_mgr M gv.
 
 Parameter body_malloc:
- forall {Espec: OracleKind} {cs: compspecs} ,
    VST.floyd.library.body_lemma_of_funspec EF_malloc (snd (malloc_spec' M)).
 
 Parameter body_free:
- forall {Espec: OracleKind} {cs: compspecs} ,
    VST.floyd.library.body_lemma_of_funspec EF_free (snd (free_spec' M)).
 
 Parameter body_exit:
- forall {Espec: OracleKind},
   VST.floyd.library.body_lemma_of_funspec
     (EF_external "exit" (mksignature (Xint :: nil) Xvoid cc_default))
     (snd (exit_spec)).
@@ -69,30 +67,31 @@ Lemma semax_func_cons_malloc_aux {cs: compspecs} (gv: globals) (gx : genviron) (
     (make_ext_rval gx (rettype_of_type (tptr tvoid)) ret) |-- !! is_pointer_or_null (force_val ret).
 Proof.
  intros.
- rewrite exp_unfold. Intros p.
+ monPred.unseal. Intros p.
  rewrite <- insert_local.
- rewrite lower_andp.
- apply derives_extract_prop; intro.
+ monPred.unseal.
+ apply bi.pure_elim_l; intro.
  destruct H; unfold_lift in H.
  unfold_lift in H0. destruct ret; try contradiction.
  unfold eval_id in H. simpl in H. subst p.
  if_tac. rewrite H; entailer!.
- renormalize. entailer!.
+ renormalize. monPred.unseal. entailer!.
 Qed.
 
 
 Definition MF_E : funspecs := MF_ASI.
 
-Definition MallocFreeVSU: @VSU NullExtension.Espec
+Definition MallocFreeVSU: VSU
          MF_E MF_imported_specs ltac:(QPprog prog) MF_ASI (mem_mgr M).
-  Proof. 
+  Proof.
     mkVSU prog MF_internal_specs.
     - solve_SF_internal body_placeholder.
-    - solve_SF_external (@body_malloc NullExtension.Espec CompSpecs). 
+    - solve_SF_external body_malloc.
+      destruct x; simpl.
       Intros. eapply derives_trans.
-      apply (semax_func_cons_malloc_aux gv gx ret n).
+      apply semax_func_cons_malloc_aux.
       destruct ret; simpl; trivial.
-    - solve_SF_external (@body_free NullExtension.Espec CompSpecs).
-    - solve_SF_external (@body_exit NullExtension.Espec).
+    - solve_SF_external body_free.
+    - solve_SF_external body_exit.
     - apply MF_Init.
 Qed.

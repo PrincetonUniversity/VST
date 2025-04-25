@@ -1,10 +1,9 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat. Import NoOracle.
 Require Import VST.progs.float.
 
 #[export] Instance CompSpecs : compspecs.
 Proof. make_compspecs prog. Defined.
-
-Local Open Scope logic.
 
 Definition main_spec :=
  DECLARE _main

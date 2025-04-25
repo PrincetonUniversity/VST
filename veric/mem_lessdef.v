@@ -8,15 +8,14 @@ Require Import compcert.common.Values.
 
 Require Import VST.msl.Coqlib2.
 Require Import VST.msl.eq_dec.
-Require Import VST.msl.seplog.
 Require Import VST.veric.Memory.
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.veric.juicy_mem.
-
 Require Import VST.veric.res_predicates.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 
 (*Lenb: Should Imports from sepcomp really be here?*)
 Require Import VST.sepcomp.extspec.
-Import compcert.lib.Maps.
 
 (*Require Import VST.sepcomp.event_semantics.
 Require Import VST.sepcomp.extspec.*)
@@ -60,8 +59,8 @@ Proof.
     { rewrite E; tauto. } clear E.
     specialize (S b ofs k). revert S.
     unfold access_at, Mem.perm. simpl.
-    set (o1 := (Mem.mem_access _) !! b ofs k).
-    set (o2 := (Mem.mem_access _) !! b ofs k). clearbody o1 o2. intros S.
+    set (o1 := (Maps.PMap.get b (Mem.mem_access _) ofs k)).
+    set (o2 := (Maps.PMap.get b (Mem.mem_access _) ofs k)). clearbody o1 o2. intros S.
     assert (S' : forall o, Mem.perm_order'' o1 o <-> Mem.perm_order'' o2 o).
     { intros [ o | ]. apply S. destruct o1 as [o1 | ], o2 as [o2 | ]; split; intro; constructor. }
     clear S.
@@ -88,7 +87,7 @@ Proof.
     unfold Mem.loadbytes in *.
     apply equal_f with (x := b) in E.
     apply equal_f with (x := ofs) in E.
-    apply equal_f with (x := 1) in E.
+    apply equal_f with (x := 1%Z) in E.
     unfold access_at in *.
     if_tac [p1|np1] in E; if_tac in E; try discriminate.
     + simpl in E.
@@ -193,7 +192,7 @@ Proof.
     f_equal; auto.
     apply memval_lessdef_antisym; auto.
   - repeat extensionality.
-    apply prop_ext; split; auto.
+    apply Axioms.prop_ext; split; auto.
   - zify.
     cut (Z.pos (Mem.nextblock m2) = Z.pos (Mem.nextblock m1)).
     congruence. lia.
@@ -291,7 +290,7 @@ Lemma mem_lessdef_weak_valid_pointer:
 Proof.
 intros.
 unfold Mem.weak_valid_pointer in *.
-rewrite orb_true_iff in *.
+rewrite -> orb_true_iff in *.
 destruct H0; [left|right]; eapply mem_lessdef_valid_pointer; eauto.
 Qed.
 
@@ -446,12 +445,13 @@ Proof.
   rewrite (valid_pointer_lessalloc M); trivial.
 Qed.
 
-
+(*
 Definition juicy_mem_equiv jm1 jm2 := mem_equiv (m_dry jm1) (m_dry jm2) /\ m_phi jm1 = m_phi jm2.
 
 Definition juicy_mem_lessdef jm1 jm2 := mem_lessdef (m_dry jm1) (m_dry jm2) /\ m_phi jm1 = m_phi jm2.
 
 Definition juicy_mem_lessalloc jm1 jm2 := mem_lessdef (m_dry jm1) (m_dry jm2) /\ m_phi jm1 = m_phi jm2.
+*)
 
 Ltac sync D :=
   first
@@ -595,6 +595,27 @@ Proof.
   destruct m1, m2; simpl in *.
   intros <- <- <- .
   f_equal; apply proof_irr.
+Qed.
+
+(* There are plenty of other orders on memories, but they're all either
+   way too general (Mem.extends, mem_lessdef) or way too restrictive (mem_lessalloc). *)
+Definition mem_sub m1 m2 := Mem.mem_contents m1 = Mem.mem_contents m2 /\ Mem.nextblock m1 = Mem.nextblock m2 /\
+  forall b ofs k p, Mem.perm m1 b ofs k p -> Mem.perm m2 b ofs k p.
+
+Lemma mem_sub_valid_pointer : forall m1 m2 b ofs, mem_sub m1 m2 -> Mem.valid_pointer m1 b ofs = true ->
+  Mem.valid_pointer m2 b ofs = true.
+Proof.
+  unfold mem_sub, Mem.valid_pointer; intros.
+  destruct H as (_ & _ & Hp).
+  destruct (Mem.perm_dec m1 _ _ _ _); inv H0.
+  destruct (Mem.perm_dec m2 _ _ _ _); auto.
+Qed.
+
+Lemma mem_sub_weak_valid_pointer : forall m1 m2 b ofs, mem_sub m1 m2 -> Mem.weak_valid_pointer m1 b ofs = true ->
+  Mem.weak_valid_pointer m2 b ofs = true.
+Proof.
+  unfold Mem.weak_valid_pointer; intros.
+  apply orb_true_iff in H0 as [Hp | Hp]; rewrite -> (mem_sub_valid_pointer _ _ _ _ H Hp), ?orb_true_r; auto.
 Qed.
 
 (* relationships between memory orders *)

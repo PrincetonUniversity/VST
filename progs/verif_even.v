@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat. Import NoOracle.
 Require Import VST.progs.even.
 Require Import VST.progs.verif_evenodd_spec.
 
@@ -29,7 +30,7 @@ forward.
 Qed.
 
 
-Definition Espec := add_funspecs NullExtension.Espec (ext_link_prog even.prog) Gprog.
+Definition Espec := add_funspecs_rec unit (ext_link_prog even.prog) (void_spec _) Gprog.
 #[export] Existing Instance Espec.
 (* The Espec for odd is different from the Espec for even;
   the former has only "even" as an external function, and vice versa. *)
@@ -38,6 +39,10 @@ Lemma prog_correct:
 Proof.
 prove_semax_prog.
 semax_func_cons_ext.
+{ destruct x; simpl.
+  unfold PROPx, LOCALx, SEPx, local, lift1; simpl; unfold liftx; simpl; unfold lift.
+  monPred.unseal; Intros.
+  destruct ret; unfold eval_id in H0; simpl in H0; subst; simpl; [auto | contradiction]. }
 semax_func_cons body_even.
 semax_func_cons body_main.
 Qed.

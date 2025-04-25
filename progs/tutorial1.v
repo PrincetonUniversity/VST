@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat. Import NoOracle.
 Require Import VST.progs.sumarray.
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
@@ -79,9 +80,9 @@ intros.
 simpl.
 (* It's not nice that [simpl] unfolded the list_repeat. *)
 entailer!.
-repeat rewrite Zlength_cons. rewrite Zlength_nil. 
+repeat rewrite Zlength_cons. rewrite Zlength_nil.
 rep_lia.
-Abort.
+Qed.
 
 (* To avoid unfolding of the list_repeat, let us make N opaque. *)
 

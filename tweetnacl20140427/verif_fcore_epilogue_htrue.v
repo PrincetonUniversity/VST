@@ -1,11 +1,9 @@
 Require Import VST.floyd.proofauto.
-Local Open Scope logic.
 Require Import List. Import ListNotations.
 Require Import sha.general_lemmas.
 
 Require Import tweetnacl20140427.split_array_lemmas.
 Require Import ZArith.
-Local Open Scope Z.
 Require Import tweetnacl20140427.tweetNaclBase.
 Require Import tweetnacl20140427.Salsa20.
 Require Import tweetnacl20140427.tweetnaclVerifiableC.
@@ -61,8 +59,8 @@ Proof.
   auto.
 Qed.
 
-Lemma HTrue_loop1 Espec (FR:mpred) t y x w nonce out c k h (xs ys: list int):
-@semax CompSpecs Espec
+Lemma HTrue_loop1 Espec E (FR:mpred) t y x w nonce out c k h (xs ys: list int):
+semax(C := CompSpecs)(OK_spec := Espec) E
   (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil)
   (PROP  ()
    LOCAL  (temp _i (Vint (Int.repr 20)); lvar _t (tarray tuint 4) t;
@@ -206,7 +204,7 @@ Fixpoint hPosLoop2 (n:nat) (sumlist: list int) (C Nonce: SixteenByte): list int 
        end.
 
 Lemma HTrue_loop2 Espec (FR:mpred) t y x w nonce out c k h intsums Nonce C K:
-@semax CompSpecs Espec
+semax(C := CompSpecs)(OK_spec := Espec) ⊤
   (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil)
   (PROP  ()
    LOCAL  (lvar _t (tarray tuint 4) t;
@@ -269,7 +267,7 @@ Proof. intros. abbreviate_semax.
        simpl. rewrite app_nil_r. simpl.
     flatten_sepcon_in_SEP.
     freeze [0;1;3] FR2.
-    freeze [0;2] FR3. 
+    freeze [0;2] FR3.
     Time forward_call ((Vptr cb (Ptrofs.add coff (Ptrofs.repr (4 * i)))),
                       Select16Q C i). (*2.4 versus 10.3*)
       assert (PL2length: forall n, (0<=n<4)%nat -> Zlength (hPosLoop2 n intsums C Nonce) = 16).
@@ -336,7 +334,7 @@ Proof. intros. abbreviate_semax.
 *)
      entailer!. simpl.
      (*rewrite Uj. simpl.*)
-     repeat rewrite <- sepcon_assoc.
+     repeat rewrite sepcon_assoc.
      apply sepcon_derives.
      + unfold SByte, QByte. (*subst c nonce.*)
        erewrite (Select_Unselect_Tarray_at 16); try reflexivity; try assumption.
@@ -345,7 +343,7 @@ Proof. intros. abbreviate_semax.
        2: rewrite SSS; reflexivity.
        unfold Select_at. repeat rewrite QuadChunk2ValList_ZLength. (*rewrite FL, FLN. *)
        rewrite Zmult_1_r. simpl.
-        repeat rewrite app_nil_r. rewrite FN; cancel.       
+        repeat rewrite app_nil_r. rewrite FN; cancel.
        rewrite <- SSS, <- C16; trivial.
        rewrite <- SSS, <- C16. cbv; trivial.
        rewrite <- NNN, <- N16; trivial.
@@ -499,7 +497,7 @@ Sfor (Sset _i (Econst_int (Int.repr 0) tint))
         (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint) tint)).
 
 Lemma HTrue_loop3 Espec (FR:mpred) t y x w nonce out c k h (OUT: list val) xs (*ys Nonce C K*):
-@semax CompSpecs Espec
+semax(C := CompSpecs)(OK_spec := Espec) ⊤
   (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil)
   (PROP  ()
    LOCAL  (lvar _t (tarray tuint 4) t;
@@ -553,7 +551,7 @@ Proof. intros. abbreviate_semax.
     unfold offset_val; simpl.
     repeat flatten_sepcon_in_SEP.
     freeze [0;1;3] FR3.
-    rewrite Znth_map in Xi; try lia. 
+    rewrite Znth_map in Xi; try lia.
     inversion Xi; clear Xi; subst xi.
     Time forward_call (offset_val (4 * i) (Vptr ob ooff), (Znth (5 * i) xs)).
     1: solve [autorewrite with sublist; entailer!]. 
@@ -586,7 +584,7 @@ deadvars!.
       rewrite sublist_app2; autorewrite with sublist; try lia.
       rewrite sublist_app2; try rewrite <- QuadByteValList_ZLength; try lia.
       autorewrite with sublist. rewrite Zplus_comm.
-      apply derives_refl'. f_equal. f_equal. lia. }
+      f_equiv. f_equal. lia. }
 
     destruct (Znth_mapVint xs (6+i)) as [zi Zi]. lia.
     freeze [0;1] FR4.
@@ -632,7 +630,7 @@ deadvars!.
       autorewrite with sublist. Time cancel. (*0.6*)
       rewrite sublist_app2; autorewrite with sublist; try lia.
       rewrite sublist_app2; try rewrite <- QuadByteValList_ZLength; try lia.
-      autorewrite with sublist. rewrite Zplus_comm. apply derives_refl'. f_equal. f_equal; lia. }
+      autorewrite with sublist. rewrite Zplus_comm. f_equiv. f_equal; lia. }
   Time entailer!. (*3.7 versus 12.8*) (*With temp _i (Vint (Int.repr 4)) in LOCAL of HTruePostCondL apply derives_refl.*)
 Time Qed. (*June 4th, 2017 (laptop): Finished transaction in 3.433 secs (2.936u,0.008s) (successful)*)
 
@@ -768,7 +766,7 @@ Definition epilogue_htrue_statement:=
 Opaque hPosLoop2. Opaque hPosLoop3.
 
 Lemma verif_fcore_epilogue_htrue Espec (FR:mpred) t y x w nonce out c k h (OUT: list val) xs ys data:
-@semax CompSpecs Espec
+semax(C := CompSpecs)(OK_spec := Espec) ⊤
   (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil)
   (PROP  ()
    LOCAL  (temp _i (Vint (Int.repr 20)); lvar _t (tarray tuint 4) t;

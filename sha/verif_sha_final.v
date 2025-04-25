@@ -5,7 +5,6 @@ Require Import sha.spec_sha.
 Require Import sha.sha_lemmas.
 Require Import sha.verif_sha_final2.
 Require Import sha.verif_sha_final3.
-Local Open Scope logic.
 
 
 Lemma upd_Znth_append:
@@ -137,13 +136,16 @@ autorewrite with sublist.
 cancel.
 rewrite array_at_data_at'; auto; try apply derives_refl; lia.
 +
-subst POSTCONDITION; unfold abbreviate; simpl_ret_assert; normalize.
+subst POSTCONDITION; unfold abbreviate; simpl_ret_assert.
 rewrite hashed_data_recombine by auto.
+go_lowerx; cancel.
 auto.
 +
-subst POSTCONDITION; unfold abbreviate; simpl_ret_assert; normalize.
+subst POSTCONDITION; unfold abbreviate; simpl_ret_assert.
+iIntros "(_ & [] & _)".
 +
-subst POSTCONDITION; unfold abbreviate; simpl_ret_assert; normalize.
+subst POSTCONDITION; unfold abbreviate; simpl_ret_assert.
+iIntros "(_ & [] & _)".
 +
 intros. subst POSTCONDITION; unfold abbreviate; simpl_ret_assert.
 rewrite hashed_data_recombine by auto.
@@ -154,4 +156,3 @@ unfold s256a_len.
 autorewrite with sublist.
 auto.
 Qed.  (*02/21/2020:2.6s versus 40.5 sec (14.375u) *)
-

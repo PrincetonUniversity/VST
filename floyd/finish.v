@@ -1,6 +1,8 @@
 From Ltac2 Require Import Ltac2.
 
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.floyd.base2.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Import VST.floyd.functional_base.
 Require Import VST.floyd.client_lemmas.
 Require Import VST.floyd.nested_field_lemmas.
@@ -15,7 +17,7 @@ Require Import VST.floyd.fastforward.
 (* Things that we always want to simpl *)
 
 Ltac2 mutable simpl_safe_list () : constr list := [
-  'projT1; 'andb; 'orb
+  '@projT1; 'andb; 'orb
 ].
 
 Ltac2 simpl_safe () :=
@@ -27,14 +29,13 @@ Ltac simpl_safe := ltac2:(simpl_safe ()).
 
 Ltac2 rec simpl_entailment_aux (part : constr) :=
   lazy_match! part with
-  | andp ?a ?b => simpl_entailment_aux a; simpl_entailment_aux b
-  | orp ?a ?b => simpl_entailment_aux a; simpl_entailment_aux b
-  | imp ?a ?b => simpl_entailment_aux a; simpl_entailment_aux b
-  | sepcon ?a ?b => simpl_entailment_aux a; simpl_entailment_aux b
-  | wand ?a ?b => simpl_entailment_aux a; simpl_entailment_aux b
-  | ewand ?a ?b => simpl_entailment_aux a; simpl_entailment_aux b
-  | exp _ => ()
-  | allp _ => ()
+  | bi_and ?a ?b => simpl_entailment_aux a; simpl_entailment_aux b
+  | bi_or ?a ?b => simpl_entailment_aux a; simpl_entailment_aux b
+  | bi_impl ?a ?b => simpl_entailment_aux a; simpl_entailment_aux b
+  | bi_sep ?a ?b => simpl_entailment_aux a; simpl_entailment_aux b
+  | bi_wand ?a ?b => simpl_entailment_aux a; simpl_entailment_aux b
+  | bi_exist _ => ()
+  | bi_forall _ => ()
   | _ =>
     let p := Fresh.in_goal @part in
     set (p := $part);
@@ -44,7 +45,7 @@ Ltac2 rec simpl_entailment_aux (part : constr) :=
 
 Ltac2 simpl_entailment () := Control.enter (fun () =>
   lazy_match! goal with
-  | [ |- ?pre |-- ?post ] =>
+  | [ |- ?pre ⊢ ?post ] =>
     simpl_entailment_aux pre;
     simpl_entailment_aux post
   end).
@@ -174,7 +175,7 @@ Ltac inst_EX :=
 
 Ltac2 simpl_entailer_goal () := Control.enter (fun () =>
   repeat (first
-  [ progress ltac1:(Intros *); fin_log "Intros *."
+  [ progress ltac1:(Intros * ); fin_log "Intros *."
   | progress (simpl_safe ()); fin_log "simpl_safe."
   | progress (subst_decisives ()); fin_log "subst_decisives."
   | progress ltac1:(finish_pre_solve_simpl)
@@ -203,13 +204,13 @@ Ltac2 norm_entailer () := Control.enter (fun () =>
 Ltac2 finish_entailer_aux (fin : unit -> unit) (fin_ent : (unit -> unit) -> unit) :=
   Control.enter (fun () =>
   match! goal with
-  | [ |- @derives mpred _ _ _ ] => solve [ltac1:(cancel)]; fin_log "solve [cancel]."
-  | [ |- _ |-- _ ] =>
+  | [ |- @bi_entails (iPropI _) _ _ ] => solve [ltac1:(cancel)]; fin_log "solve [cancel]."
+  | [ |- _ ⊢ _ ] =>
     first
     [ ltac1:(list_solve); fin_log "list_solve."
     | ltac1:(finish_entailer_solve)
     | lazy_match! goal with
-      | [ |- context [ _ |-- _ ] ] => progress (norm_entailer ()); fin_ent fin
+      | [ |- context [ _ ⊢ _ ] ] => progress (norm_entailer ()); fin_ent fin
       | [ |- _ ] => fin ()
       end
     ]
@@ -249,7 +250,7 @@ Ltac2 simpl_hyps () := Control.enter (fun () =>
     | [ h : orb _ _ = true |- _ ] => rewrite orb_true_iff in h; fin_log "rewrite orb_true_iff in H."
     | [ h : orb _ _ = false |- _ ] => rewrite orb_false_iff in h; fin_log "rewrite orb_false_iff in H."
     | [ h : context [ Is_true ] |- _ ] => rewrite Is_true_eq_true in h; fin_log "rewrite Is_true_eq_true in H."
-    | [ |- context [ _ |-- _ ] ] => progress ltac1:(autorewrite with sublist in * |-); fin_log "autorewrite with sublist in * |-."
+    | [ |- context [ _ ⊢ _ ] ] => progress ltac1:(autorewrite with sublist in * |-); fin_log "autorewrite with sublist in * |-."
     end
   )).
 
@@ -281,15 +282,15 @@ Ltac2 rec finish_specialize (fin : unit -> unit) (agro : bool):= Control.enter (
   | [ |- forall _, _ ] => intro; fin_log "intro."; fin ()
   | [ |- exists _, _ ] => ltac1:(inst_exists); fin_log "inst_exists."; fin ()
   | [ |- semax_body _ _ _ _ ] => ltac1:(start_function); fin_log "start_function."; fin ()
-  | [ |- semax _ _ _ _ ] => fastforward agro; fin ()
+  | [ |- semax _ _ _ _ _ ] => fastforward agro; fin ()
   | [ |- ?x = ?x ] => reflexivity; fin_log "reflexivity."
   (* | [ |- context [if _ then _ else _]] => ltac1:(if_tac); fin_log "if_tac."; fin () *) (* TODO: Breaks entailment matching?! Maybe checking nesting? *)
   (* | [ |- context [match ?expr _ with | _ => _ end]] => destruct expr > [ | ]; fin_log "destruct match."; fin () *)
-  | [ |- context [ _ |-- _ ] ] => 
+  | [ |- context [ _ ⊢ _ ] ] => 
     simpl_entailer_goal ();
     Control.enter (fun () =>
       lazy_match! goal with
-      | [ |- context [ _ |-- _ ] ] => finish_entailer_aux fin finish_entailer
+      | [ |- context [ _ ⊢ _ ] ] => finish_entailer_aux fin finish_entailer
       | [ |- _ ] => fin ()
       end
     )

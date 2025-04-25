@@ -1,6 +1,7 @@
 From Ltac2 Require Import Ltac2.
-
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.floyd.base2.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Import VST.floyd.functional_base.
 Require Import VST.floyd.client_lemmas.
 Require Import VST.floyd.go_lower.
@@ -24,9 +25,9 @@ Ltac fastforward_semax_post_simpl := idtac.
 (* Performs a "single-step" for fastforward *)
 Ltac2 fastforward_ss () :=
   first
-  [ progress ltac1:(Intros *); ff_log "Intros *."
+  [ progress ltac1:(Intros * ); ff_log "Intros *."
   | progress (ltac1:(simpl_implicit)); ff_log "simpl_implicit."
-  | progress ltac1:(fold_Vbyte); ff_log "fold_Vbyte"
+  | progress ltac1:(fold_Vbyte); ff_log "fold_Vbyte."
   | progress ltac1:(fastforward_semax_pre_simpl)
   | ltac1:(forward); ff_log "forward."
   | ltac1:(forward_if); ff_log "forward_if."
@@ -40,7 +41,7 @@ Ltac2 fastforward_ss () :=
 
 Ltac2 fastforward_ss' () :=
   first
-  [ progress ltac1:(Intros *); ff_log "Intros *."
+  [ progress ltac1:(Intros * ); ff_log "Intros *."
   | progress ltac1:(simpl_implicit); ff_log "simpl_implicit."
   | progress ltac1:(fold_Vbyte); ff_log "fold_Vbyte"
   | progress ltac1:(fastforward_semax_pre_simpl)
@@ -56,12 +57,12 @@ Ltac2 fastforward_ss' () :=
 
 Ltac2 simplstep (agro : bool) := Control.enter (fun () =>
   lazy_match! goal with
-  | [ |- semax _ _ ?cmds _ ] =>
+  | [ |- semax _ _ _ ?cmds _ ] =>
     (fun ss =>
       repeat (
         Control.enter (fun () =>
           lazy_match! goal with
-          | [ |- semax _ _ ?cmds' _ ] =>
+          | [ |- semax _ _ _ ?cmds' _ ] =>
             match Constr.equal cmds cmds' with
             | true => ()
             | false => fail
@@ -82,7 +83,7 @@ Ltac2 simplstep (agro : bool) := Control.enter (fun () =>
 Ltac2 fastforward (agro : bool) := 
   progress (repeat (Control.enter(fun () =>
     lazy_match! goal with
-    | [ |- semax _ _ _ _ ] => simplstep agro
+    | [ |- semax _ _ _ _ _ ] => simplstep agro
     | [ |- _ ] => ltac1:(clear_MORE_POST)
     end))).
 
@@ -90,14 +91,14 @@ Ltac2 rec fastforward_n (agro : bool) (n : int) :=
   match Int.equal n 0 with
   | true => Control.enter (fun () =>
     lazy_match! goal with
-    | [ |- semax _ _ _ _ ] => ()
+    | [ |- semax _ _ _ _ _ ] => ()
     | [ |- _ ] => ltac1:(clear_MORE_POST)
     end)
   | false =>
     let f := { contents := false } in
     Control.enter(fun () =>
       lazy_match! goal with
-      | [ |- semax _ _ _ _ ] => simplstep agro; f.(contents) := true
+      | [ |- semax _ _ _ _ _ ] => simplstep agro; f.(contents) := true
       | [ |- _ ] => ()
       end
     );
@@ -113,7 +114,7 @@ Tactic Notation "fastforward" integer(n) :=
     let f := { contents := false } in
     Control.enter(fun () =>
       lazy_match! goal with
-      | [ |- semax _ _ _ _ ] => simplstep false; f.(contents) := true
+      | [ |- semax _ _ _ _ _ ] => simplstep false; f.(contents) := true
       | [ |- _ ] => ()
       end
     );
@@ -124,7 +125,7 @@ Tactic Notation "fastforward" integer(n) :=
   ) in 
   do n step;
   lazymatch goal with
-  | |- semax _ _ _ _ => idtac
+  | |- semax _ _ _ _ _ => idtac
   | |- _ => clear_MORE_POST
   end.
 
@@ -134,7 +135,7 @@ Tactic Notation "fastforward!" integer(n) :=
     let f := { contents := false } in
     Control.enter(fun () =>
       lazy_match! goal with
-      | [ |- semax _ _ _ _ ] => simplstep true; f.(contents) := true
+      | [ |- semax _ _ _ _ _ ] => simplstep true; f.(contents) := true
       | [ |- _ ] => ()
       end
     );
@@ -145,6 +146,6 @@ Tactic Notation "fastforward!" integer(n) :=
   ) in 
   do n step;
   lazymatch goal with
-  | |- semax _ _ _ _ => idtac
+  | |- semax _ _ _ _ _ => idtac
   | |- _ => clear_MORE_POST
   end.

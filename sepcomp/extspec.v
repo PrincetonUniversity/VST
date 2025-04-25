@@ -12,20 +12,20 @@ Definition PTree_injective {A} (t: PTree.t A) : Prop :=
 
 Definition injective_PTree A := sig (@PTree_injective A).
 
-Structure external_specification (M E Z : Type) :=
+Class external_specification (M E Z : Type) :=
   { ext_spec_type : E -> Type
   ; ext_spec_pre: forall e: E,
     ext_spec_type e -> injective_PTree block -> list typ -> list val -> Z -> M -> Prop
   ; ext_spec_post: forall e: E,
     ext_spec_type e -> injective_PTree block -> xtype -> option val -> Z -> M ->  Prop
-  ; ext_spec_exit: option val -> Z -> M ->  Prop }.
+  ; ext_spec_exit: option val -> Z -> M -> Prop }.
 
 Arguments ext_spec_type {M E Z} _ _.
 Arguments ext_spec_pre {M E Z} _ _ _ _ _ _ _ _.
 Arguments ext_spec_post {M E Z} _ _ _ _ _ _ _ _.
 Arguments ext_spec_exit {M E Z} _ _ _ _.
 
-Definition ext_spec := external_specification mem external_function.
+Notation ext_spec := (external_specification mem external_function).
 
 Lemma extfunct_eqdec (ef1 ef2 : external_function) : {ef1=ef2} + {~ef1=ef2}.
 Proof.

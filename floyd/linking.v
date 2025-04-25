@@ -1,6 +1,7 @@
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.floyd.base2.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Import ListNotations.
-Import compcert.lib.Maps.
 
 Module PosOrder <: Orders.TotalLeBool.
   Definition t := positive.
@@ -50,8 +51,8 @@ Module SortGlobdef := Mergesort.Sort(GlobdefOrder).
 Definition isnil {A} (al: list A) := 
    match al with nil => true | _ => false end.
 
-Lemma prod_eq_dec {A B} (Ha: forall (a1 a2:A), {a1 = a2} + {a1<>a2})
-      (Hb: forall (b1 b2:B), {b1 = b2} + {b1<>b2}):
+Lemma prod_eq_dec {A B} (Ha: forall (a1 a2:A), {a1 = a2} + {a1<>a2} )
+      (Hb: forall (b1 b2:B), {b1 = b2} + {b1<>b2} ):
       forall (x y : A * B), {x=y} + {x<>y}.
 Proof. intros. destruct x as [a1 b1]. destruct y as [a2 b2].
 destruct (Ha a1 a2); [ subst | right; congruence].
@@ -230,7 +231,7 @@ Proof. intros. unfold prog_types. unfold Clightdefs.mkprogram.
 destruct (build_composite_env' c w ); trivial.
 Qed. 
 
-Module NEW_LINK_PROGS.  (* Everything in this Module should perhaps be moved to floyd/linking.v *)
+Module NEW_LINK_PROGS.
 
 (* All of this complexity is because the naturally computed proof whose type is
      build_composite_env t12 = Errors.OK e12
@@ -309,7 +310,7 @@ Ltac process_composite_definitions :=
  unfold build_composite_env; 
  unfold add_composite_definitions, composite_of_def; 
  simpl align; simpl align_attr; simpl rank_members;
- simpl PTree.set;
+ simpl Maps.PTree.set;
  repeat process_composite_definitions_step;
  reflexivity.
 

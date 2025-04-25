@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat. Import NoOracle.
 Require Import VST.floyd.VSU.
 Require Import triang.
 Require Import spec_stdlib.
@@ -31,10 +32,10 @@ forward_for_simple_bound n
 -
  entailer!.
 - forward_call (p, i+1, decreasing(Z.to_nat i), gv).
-entailer!.
+entailer!!.
 assert (Z.to_nat (i+1) = S (Z.to_nat i))
   by (rewrite <- Z2Nat.inj_succ by lia; f_equal).
-rewrite H2.
+rewrite H1.
 unfold decreasing; fold decreasing.
 rewrite inj_S.
 rewrite Z2Nat.id by lia.
@@ -44,7 +45,7 @@ forward_call (p, decreasing (Z.to_nat n)).
 apply sumlist_decreasing_bound; auto.
 forward_call (p, decreasing (Z.to_nat n), gv).
 forward.
-entailer!.
+entailer!!.
 f_equal; f_equal.
 clear.
 induction (Z.to_nat n).
@@ -53,8 +54,8 @@ simpl. congruence.
 Qed.
 
  
-Definition TriangVSU: @VSU NullExtension.Espec
-      nil triang_imported_specs ltac:(QPprog prog) (TriangASI M) emp.
+Definition TriangVSU: VSU
+      nil triang_imported_specs ltac:(QPprog prog) (TriangASI M) (fun _ => emp).
 Proof.
   mkVSU prog triang_internal_specs.
     + solve_SF_internal body_Triang_nth.

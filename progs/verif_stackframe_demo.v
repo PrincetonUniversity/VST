@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat. Import NoOracle.
 Require Import VST.progs.stackframe_demo.
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
@@ -40,4 +41,3 @@ Proof.
   (* Should it fail? Yes. Because the lvar clause are used in stackframe cancel.
      The error message? We'd Better improve it.  --- Qinxiang 2019.11.8 *)
 Abort.
-

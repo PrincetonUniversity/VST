@@ -1,6 +1,9 @@
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.floyd.base2.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Import VST.floyd.client_lemmas.
-Import compcert.lib.Maps.
+
+Local Unset SsrRewrite.
 
 Arguments align !n !amount / .
 Arguments Z.max !n !m / .
@@ -171,7 +174,7 @@ Lemma complete_legal_cosu_type_field_type: forall id
 Proof.
   unfold get_co.
   intros.
-  destruct (cenv_cs ! id) as [co |] eqn:CO.
+  destruct (cenv_cs !! id) as [co |] eqn:CO.
   + apply in_members_field_type in H; auto.
     pose proof cenv_legal_su _ _ CO.
     apply complete_legal_cosu_member with i (co_members co); eauto.
@@ -257,9 +260,9 @@ Lemma align_compatible_rec_Tstruct_inv': forall id a ofs,
 Proof.
   unfold get_co.
   intros.
-  destruct (cenv_cs ! id) as [co |] eqn:CO.
-  + inv H. inv H1.
-      inversion2 CO H3.
+  destruct (Maps.PTree.get id cenv_cs) as [co |] eqn:CO.
+  + inv H.
+      inversion CO.
       apply (H6 i (field_type i (co_members co)) (field_offset cenv_cs i (co_members co))); clear H6.
       clear - H0; unfold in_members in H0.
       induction (co_members co).
@@ -281,9 +284,9 @@ Proof.
   unfold get_co.
   intros.
   unfold in_members in *.
-  destruct (cenv_cs ! id) as [co |] eqn:CO.
-  + inv H. inv H1.
-      inversion2 CO H3.
+  destruct (Maps.PTree.get id cenv_cs) as [co |] eqn:CO.
+  + inv H.
+      inversion CO.
       apply (H6 i (field_type i (co_members co))); clear H6.
       clear - H0; unfold in_members in H0.
       induction (co_members co).
@@ -913,7 +916,7 @@ End COMPOSITE_ENV.
 
 Lemma members_spec_change_composite' {cs_from cs_to} {CCE: change_composite_env cs_from cs_to}: 
   forall id,
-  match (coeq cs_from cs_to) ! id with
+  match Maps.PTree.get id (coeq cs_from cs_to) with
   | Some b => test_aux cs_from cs_to b id
   | None => false
   end = true ->
@@ -921,29 +924,27 @@ Lemma members_spec_change_composite' {cs_from cs_to} {CCE: change_composite_env 
              (co_members (@get_co cs_to id)).
 Proof.
   intros.
-  destruct ((@cenv_cs cs_to) ! id) eqn:?H.
+  destruct (Maps.PTree.get id (@cenv_cs cs_to)) eqn:H0.
   + pose proof proj1 (coeq_complete _ _ id) (ex_intro _ c H0) as [b ?].
     rewrite H1 in H.
     apply (coeq_consistent _ _ id _ _ H0) in H1.
     unfold test_aux in H.
     destruct b; [| inv H].
     rewrite !H0 in H.
-    destruct ((@cenv_cs cs_from) ! id) eqn:?H; [| inv H].
+    destruct (Maps.PTree.get id (@cenv_cs cs_from)) eqn:?H; [| inv H].
     simpl in H.
     rewrite !andb_true_iff in H.
     unfold get_co in *.
-    rewrite H0 in *.
+    setoid_rewrite H0.
     clear - H1.
     symmetry in H1.
     induction (co_members c) as [|[|]]; intros.
     - constructor.
-    - 
-       simpl in H1; rewrite andb_true_iff in H1; destruct H1.
+    - simpl in H1; rewrite andb_true_iff in H1; destruct H1.
       constructor; auto.
-   - 
-       simpl in H1.
+    - simpl in H1.
       constructor; auto.
-  + destruct ((coeq cs_from cs_to) ! id) eqn:?H.
+  + destruct (Maps.PTree.get id (coeq cs_from cs_to)) eqn:?H.
     - pose proof proj2 (coeq_complete _ _ id) (ex_intro _ b H1) as [co ?].
       congruence.
     - inv H.
@@ -951,7 +952,7 @@ Qed.
 
 Lemma members_spec_change_composite'' {cs_from cs_to} {CCE: change_composite_env cs_from cs_to}:
   forall id,
-  match (coeq cs_from cs_to) ! id with
+  match (coeq cs_from cs_to) !! id with
   | Some b => test_aux cs_from cs_to b id
   | None => false
   end = true ->
@@ -968,7 +969,7 @@ Qed.
  
 Lemma members_spec_change_composite {cs_from cs_to} {CCE: change_composite_env cs_from cs_to}:
   forall id,
-  match (coeq cs_from cs_to) ! id with
+  match (coeq cs_from cs_to) !! id with
   | Some b => test_aux cs_from cs_to b id
   | None => false
   end = true ->
@@ -999,7 +1000,7 @@ Qed.
 (* TODO: we have already proved a related field_offset lemma in veric/change_compspecs.v. But it seems not clear how to use that in an elegant way. *)
 Lemma field_offset_change_composite {cs_from cs_to} {CCE: change_composite_env cs_from cs_to}: 
   forall id i,
-  match (coeq cs_from cs_to) ! id with
+  match (coeq cs_from cs_to) !! id with
   | Some b => test_aux cs_from cs_to b id
   | None => false
   end = true ->
@@ -1027,7 +1028,7 @@ Qed.
 
 Lemma field_offset_next_change_composite {cs_from cs_to} {CCE: change_composite_env cs_from cs_to}: 
   forall id i,
-  match (coeq cs_from cs_to) ! id with
+  match (coeq cs_from cs_to) !! id with
   | Some b => test_aux cs_from cs_to b id
   | None => false
   end = true ->

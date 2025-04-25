@@ -1,17 +1,16 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat. Import NoOracle.
 Require Import Recdef.
-#[export] Existing Instance NullExtension.Espec.
 Require Import VST.progs.switch.
-Require Export VST.floyd.Funspec_old_Notation.
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
-Definition twice_spec :=
+Definition twice_spec : ident * funspec :=
   DECLARE _twice
     WITH n : Z
-    PRE [ _n OF tint ]
+    PRE [ tint ]
       PROP  (Int.min_signed <= n+n <= Int.max_signed)
-      LOCAL (temp _n (Vint (Int.repr n)))
+      PARAMS (Vint (Int.repr n))
       SEP ()
     POST [ tint ]
       PROP ()
@@ -19,12 +18,12 @@ Definition twice_spec :=
       SEP ().
 
 
-Definition f_spec :=
+Definition f_spec : ident * funspec :=
   DECLARE _f
     WITH x : Z
-    PRE [ _x OF tuint ]
+    PRE [ tuint ]
       PROP  (0 <= x <= Int.max_unsigned)
-      LOCAL (temp _x (Vint (Int.repr x)))
+      PARAMS (Vint (Int.repr x))
       SEP ()
     POST [ tint ]
       PROP ()
@@ -37,7 +36,7 @@ Definition Gprog : funspecs :=   ltac:(with_library prog [twice_spec]).
 Lemma body_twice: semax_body Vprog Gprog f_twice twice_spec.
 Proof.
 start_function.
-forward_if (PROP() LOCAL(temp _n (Vint (Int.repr (n+n)))) SEP()).
+forward_if (temp _n (Vint (Int.repr (n+n)))).
 repeat forward; entailer!!.
 repeat forward; entailer!!.
 repeat forward; entailer!!.
@@ -49,12 +48,10 @@ Qed.
 Lemma body_f: semax_body Vprog Gprog f_f f_spec.
 Proof.
 start_function.
-forward_if (@FF (environ->mpred) _).
+forward_if (FF : assert).
 forward.
 forward.
 forward.
 forward.
 forward.
 Qed.
-
-

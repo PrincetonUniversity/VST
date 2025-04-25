@@ -24,12 +24,12 @@ lazymatch goal with
     remember_temp_Vints ((temp Id (Vint V0)) :: done)
   | _ => remember_temp_Vints (T :: done)
   end
-| |- semax _ (PROPx _ (LOCALx done (SEPx _))) _ _ => idtac
+| |- semax _ _ (PROPx _ (LOCALx done (SEPx _))) _ _ => idtac
 | _ => fail 100 "assertion failure: did not find" done
 end.
 
 Lemma encryption_after_loop_proof:
-forall (Espec : OracleKind) (ctx input output : val)
+forall Espec E (ctx input output : val)
   (ctx_sh in_sh out_sh : share) (plaintext (*exp_key*) : list Z) (gv: globals)
  (H: Zlength plaintext = 16)
  (SH: readable_share ctx_sh)
@@ -48,7 +48,7 @@ forall (Espec : OracleKind) (ctx input output : val)
   let S0 := mbed_tls_initial_add_round_key plaintext buf in
    forall (S12 : four_ints)
    (HeqS12: S12 = mbed_tls_enc_rounds 12 S0 buf 4),
-semax (func_tycontext f_mbedtls_aes_encrypt Vprog Gprog nil)
+semax(OK_spec := Espec) E (func_tycontext f_mbedtls_aes_encrypt Vprog Gprog nil)
   (PROP ( )
    LOCAL (temp _RK
             (field_address t_struct_aesctx [ArraySubsc 52; StructField _buf]
@@ -65,8 +65,7 @@ semax (func_tycontext f_mbedtls_aes_encrypt Vprog Gprog nil)
            ctx))
   encryption_after_loop
   (normal_ret_assert
-    (@sepcon (environ->mpred) _ _
-     (PROP ( )
+    (bi_sep (PROP ( )
       LOCAL ()
       SEP (data_at ctx_sh t_struct_aesctx
              (Vint (Int.repr spec_utils_LL.Nr),
@@ -77,7 +76,7 @@ semax (func_tycontext f_mbedtls_aes_encrypt Vprog Gprog nil)
         (map Vint (map Int.repr plaintext)) input;
       data_at out_sh (tarray tuchar 16)
         (map Vint (mbed_tls_aes_enc plaintext buf)) output;
-      tables_initialized (gv _tables))) 
+      tables_initialized (gv _tables)))
       (stackframe_of f_mbedtls_aes_encrypt))).
 Proof.
 intros.

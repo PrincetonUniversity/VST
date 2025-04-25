@@ -5,7 +5,7 @@ Require Import ITree.Eq.SimUpToTaus.
 Require Import ITree.Interp.Traces.
 (*Import ITreeNotations.*)
 Notation "t1 ;; t2" := (ITree.bind t1 (fun _ => t2))
-  (at level 100, right associativity) : itree_scope.
+  (at level 100, t2 at level 200, right associativity) : itree_scope.
 Require Import Morphisms.
 
 #[global] Hint Mode ReSum - - - - : typeclass_instances.
@@ -26,8 +26,10 @@ Definition write f (c : byte) : itree E unit := embed (EWrite f c).
 
 Definition IO_itree := itree E unit.
 
+Context `{!VSTGS IO_itree Σ}.
+
 (* We need a layer of inclusion to allow us to use the monad laws. *)
-Definition ITREE (tr : IO_itree) := EX tr' : _, !!(sutt eq tr tr') &&
+Definition ITREE (tr : IO_itree) := ∃ tr' : _, ⌜sutt eq tr tr'⌝ ∧
   has_ext tr'.
 
 (* this should be in ITrees *)
@@ -42,37 +44,37 @@ Proof.
   apply eqit_bind; [|intros []]; reflexivity.
 Qed.
 
-Lemma has_ext_ITREE : forall tr, has_ext tr |-- ITREE tr.
+Lemma has_ext_ITREE : forall tr, has_ext tr ⊢ ITREE tr.
 Proof.
   intro; unfold ITREE.
   Exists tr; entailer!.
 Qed.
 
 Lemma ITREE_impl' : forall tr tr', sutt eq tr' tr ->
-  ITREE tr |-- ITREE tr'.
+  ITREE tr ⊢ ITREE tr'.
 Proof.
   intros.
   unfold ITREE.
   Intros tr1; Exists tr1; entailer!.
-  rewrite trace_incl_iff_sutt in *; unfold trace_incl in *; auto.
+  rewrite -> trace_incl_iff_sutt in *; unfold trace_incl in *; auto.
 Qed.
 
 Lemma ITREE_impl : forall tr tr', eutt eq tr tr' ->
-  ITREE tr |-- ITREE tr'.
+  ITREE tr ⊢ ITREE tr'.
 Proof.
   intros; apply ITREE_impl'.
   apply eutt_sutt; symmetry; auto.
 Qed.
 
 Lemma ITREE_ext : forall tr tr', eutt eq tr tr' ->
-  ITREE tr = ITREE tr'.
+  ITREE tr ⊣⊢ ITREE tr'.
 Proof.
-  intros; apply pred_ext; apply ITREE_impl; auto.
-  symmetry; auto.
+  intros; iSplit; iApply ITREE_impl; auto.
+  by symmetry.
 Qed.
 
 Global Instance eutt_ITREE :
-  Proper (eutt eq ==> eq) ITREE.
+  Proper (eutt eq ==> equiv) ITREE.
 Proof. repeat intro. apply ITREE_ext; auto. Qed.
 
 Fixpoint write_list f l : IO_itree :=

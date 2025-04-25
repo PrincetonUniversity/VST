@@ -2,12 +2,7 @@ Require Import VST.progs64.io_mem_specs.
 Require Import VST.floyd.proofauto.
 Require Import VST.sepcomp.extspec.
 Require Import VST.veric.semax_ext.
-Require Import VST.veric.juicy_mem.
-Require Import VST.veric.compcert_rmaps.
-Require Import VST.veric.initial_world.
-Require Import VST.veric.ghost_PCM.
 Require Import VST.veric.SequentialClight.
-Require Import VST.concurrency.conclib.
 Require Import VST.progs64.dry_mem_lemmas.
 Require Import VST.veric.mem_lessdef.
 
@@ -25,13 +20,15 @@ Qed.
 
 Context {E : Type -> Type} {IO_E : @IO_event nat -< E}.
 
+Notation IO_itree := (@IO_itree E).
+
 Definition getchars_pre (m : mem) (witness : share * val * Z * (list byte -> IO_itree)) (z : IO_itree) :=
   let '(sh, buf, len, k) := witness in (sutt eq (r <- read_list stdin (Z.to_nat len);; k r) z) /\
     match buf with Vptr b ofs =>
       Mem.range_perm m b (Ptrofs.unsigned ofs) (Ptrofs.unsigned ofs + Z.max 0 len) Memtype.Cur Memtype.Writable
       | _ => False end.
 
-Definition getchars_post (m0 m : mem) r (witness : share * val * Z * (list byte -> IO_itree)) (z : @IO_itree E) :=
+Definition getchars_post (m0 m : mem) r (witness : share * val * Z * (list byte -> IO_itree)) (z : IO_itree) :=
   let '(sh, buf, len, k) := witness in r = Int.repr len /\
     exists msg, Zlength msg = len /\ z = k msg /\
     match buf with Vptr b ofs => exists m', Mem.storebytes m0 b (Ptrofs.unsigned ofs) (bytes_to_memvals msg) = Some m' /\
@@ -45,281 +42,107 @@ Definition putchars_pre (m : mem) (witness : share * val * list byte * Z * list 
       Some (bytes_to_memvals msg)
     | _ => False end.
 
-Definition putchars_post (m0 m : mem) r (witness : share * val * list byte * Z * list val * IO_itree) (z : @IO_itree E) :=
+Definition putchars_post (m0 m : mem) r (witness : share * val * list byte * Z * list val * IO_itree) (z : IO_itree) :=
   let '(sh, buf, msg, _, _, k) := witness in m0 = m /\ r = Int.repr (Zlength msg) /\ z = k.
 
-Context {CS : compspecs} (ext_link : String.string -> ident).
+Existing Instance semax_lemmas.eq_dec_external_function.
 
-Instance Espec : OracleKind := IO_Espec ext_link.
+Definition getchars_sig := {| sig_args := [Xptr; Xint]; sig_res := Xint; sig_cc := cc_default |}.
+Definition putchars_sig := {| sig_args := [Xptr; Xint]; sig_res := Xint; sig_cc := cc_default |}.
 
-Definition io_ext_spec := OK_spec.
-
-Program Definition io_dry_spec : external_specification mem external_function (@IO_itree E).
+Program Definition io_dry_spec : external_specification mem external_function IO_itree.
 Proof.
   unshelve econstructor.
   - intro e.
-    pose (ext_spec_type io_ext_spec e) as T; simpl in T.
-    destruct (oi_eq_dec _ _); [|destruct (oi_eq_dec _ _); [|exact False]];
-      match goal with T := (_ * ?A)%type |- _ => exact (mem * A)%type end.
+    destruct (eq_dec e (EF_external "putchars" putchars_sig)).
+    { exact (mem * (share * val * list byte * Z * list val * IO_itree))%type. }
+    destruct (eq_dec e (EF_external "getchars" getchars_sig)).
+    { exact (mem * (share * val * Z * (list byte -> IO_itree)))%type. }
+    exact False%type.
   - simpl; intros.
-    destruct (oi_eq_dec _ _); [|destruct (oi_eq_dec _ _); [|contradiction]].
-    + destruct X as (m0 & _ & w).
-      exact ((let '(_, buf, msg, _, _, _) := w in X1 = [buf; Vint (Int.repr (Zlength msg))]) /\ m0 = X3 /\ putchars_pre X3 w X2).
-    + destruct X as (m0 & _ & w).
-      exact ((let '(_, buf, len, _) := w in X1 = [buf; Vint (Int.repr len)]) /\ m0 = X3 /\ getchars_pre X3 w X2).
+    if_tac in X; [|if_tac in X; last contradiction]; destruct X as (m & w).
+    + exact ((let '(_, buf, msg, _, _, _) := w in X1 = [buf; Vint (Int.repr (Zlength msg))]) /\ m = X3 /\ putchars_pre X3 w X2).
+    + exact ((let '(_, buf, len, _) := w in X1 = [buf; Vint (Int.repr len)]) /\ m = X3 /\ getchars_pre X3 w X2).
   - simpl; intros ??? ot ???.
-    destruct (oi_eq_dec _ _); [|destruct (oi_eq_dec _ _); [|contradiction]].
-    + destruct X as (m0 & _ & w).
-      destruct X1; [|exact False].
-      destruct v; [exact False | | exact False | exact False | exact False | exact False].
-      exact (ot <> Xvoid /\ putchars_post m0 X3 i w X2).
-    + destruct X as (m0 & _ & w).
-      destruct X1; [|exact False].
-      destruct v; [exact False | | exact False | exact False | exact False | exact False].
-      exact (ot <> Xvoid /\ getchars_post m0 X3 i w X2).
-  - intros; exact True.
+    if_tac in X; [|if_tac in X; last contradiction]; destruct X as (m0 & w).
+    + exact (exists r, X1 = Some (Vint r) /\ ot <> Xvoid /\ putchars_post m0 X3 r w X2).
+    + exact (exists r, X1 = Some (Vint r) /\ ot <> Xvoid /\ getchars_post m0 X3 r w X2).
+  - intros; exact True%type.
 Defined.
 
-Definition dessicate : forall ef (jm : juicy_mem), ext_spec_type io_ext_spec ef -> ext_spec_type io_dry_spec ef.
-Proof.
-  simpl; intros.
-  destruct (oi_eq_dec _ _); [|destruct (oi_eq_dec _ _); [|assumption]].
-  - destruct X as [_ X]; exact (m_dry jm, X).
-  - destruct X as [_ X]; exact (m_dry jm, X).
-Defined.
+Context {CS : compspecs} (ext_link : string -> ident)
+  (ext_link_inj : forall s1 s2, In s1 ["getchars"; "putchars"] -> ext_link s1 = ext_link s2 -> s1 = s2).
 
-Theorem juicy_dry_specs : juicy_dry_ext_spec _ io_ext_spec io_dry_spec dessicate.
-Proof.
-  split; [|split]; try reflexivity; simpl.
-  - unfold funspec2pre, dessicate; simpl.
-    intros ?; if_tac.
-    + intros; subst.
-      destruct t as (? & ? & (((((sh, buf), msg), len), rest), k)); simpl in *.
-      destruct H1 as (? & phi0 & phi1 & J & Hpre & Hr & Hext).
-      destruct e; inv H; simpl in *.
-      destruct vl; try contradiction; simpl in *.
-      destruct H0, vl; try contradiction; simpl in *.
-      destruct H0, vl; try contradiction.
-      unfold SEPx in Hpre; simpl in Hpre.
-      rewrite seplog.sepcon_emp in Hpre.
-      destruct Hpre as [[Hreadable _] [Hargs [_ [? [? [? [Htrace Hbuf]]]]]]].
- (*     destruct Hpre as ([Hreadable _] & Hargs & ? & ? & J1 & (? & ? & Htrace) & Hbuf). *)
-(*      destruct Hargs as ([Harg1 _] & [Harg2 _] & _); hnf in Harg1, Harg2. *)
-      assert (Harg1: v = buf) by (inv Hargs; auto).
-      assert (Harg2: v0 = vint (Zlength msg)) by (inv Hargs; auto).
-      split; [rewrite Harg1, Harg2; auto|].
-      split; auto.
-     destruct Htrace as [? [J1 Htrace]].
-      eapply has_ext_compat in Htrace as [? Htrace]; eauto; [|eapply join_sub_trans; eexists; eauto]; subst.
-      split; auto.
-      assert (Z.max 0 len = Zlength msg + Zlength rest) as Hlen.
-      { apply data_array_at_local_facts in Hbuf as (_ & ? & _).
-        rewrite Zlength_app, Zlength_map in *; auto. }
-      destruct (zlt len 0).
-      { rewrite Z.max_l in Hlen by lia.
-        destruct msg; [|rewrite Zlength_cons in *; rep_lia].
-        destruct Hbuf as [[? _]]; destruct buf; try contradiction.
-        rewrite Zlength_nil; apply Mem.loadbytes_empty; auto; lia. }
-      rewrite Z.max_r in Hlen by lia; subst.
-      rewrite split2_data_at_Tarray_app with (mid := Zlength msg) in Hbuf.
-      destruct Hbuf as (? & ? & ? & Hbuf & _).
-      eapply data_at_bytes in Hbuf; eauto.
-      rewrite map_map in Hbuf; eauto.
-      { rewrite Zlength_map; auto. }
-      { eapply join_sub_trans; [|eexists; eauto].
-        eapply join_sub_trans; eexists; eauto. }
-      { apply Forall_map, Forall_forall; simpl; discriminate. }
-      { rewrite Zlength_map; auto. }
-      { rewrite Z.add_simpl_l; auto. }
-    + clear H.
-      unfold funspec2pre; simpl.
-      if_tac; [|contradiction].
-      intros; subst.
-      destruct t as (? & ? & (((sh, buf), len), k)); simpl in *.
-      destruct H1 as (? & phi0 & phi1 & J & Hpre & Hr & Hext).
-      destruct e; inv H; simpl in *.
-      destruct vl; try contradiction; simpl in *.
-      destruct H0, vl; try contradiction; simpl in *.
-      destruct H0, vl; try contradiction.
-      unfold SEPx in Hpre; simpl in Hpre.
-      rewrite seplog.sepcon_emp in Hpre.
-      destruct Hpre as [[Hwritable _] [Hargs [_ [? [? [? [[? [? Htrace]] Hbuf]]]]]]].
-      assert (Harg1: v = buf) by (inv Hargs; auto).
-      assert (Harg2: v0 = vint  len) by (inv Hargs; auto).
-      split; [rewrite Harg1, Harg2; auto|].
-      clear Harg1.
-      split; auto.
-      eapply has_ext_compat in Htrace as [? Htrace]; eauto; [|eapply join_sub_trans; eexists; eauto]; subst.
-      split; auto.
-      destruct (data_at__writable_perm _ _ _ _ jm Hwritable Hbuf) as (? & ? & ? & Hperm); subst; simpl.
-      { eapply sepalg.join_sub_trans; [|eexists; eauto].
-        eexists; eauto. }
-      simpl in Hperm.
-      rewrite Z.mul_1_l in Hperm; auto.
-  - unfold funspec2pre, funspec2post, dessicate; simpl.
-    intros ?; if_tac.
-    + intros; subst.
-      destruct H0 as (_ & vl & z0 & ? & _ & phi0 & phi1' & J & Hpre & ? & ?).
-      destruct t as (phi1 & t); subst; simpl in *.
-      destruct t as (? & (((((sh, buf), msg), len), rest), k)); simpl in *.
-      unfold SEPx in Hpre; simpl in Hpre.
-      rewrite seplog.sepcon_emp in Hpre.
-      destruct Hpre as [[Hwritable _] [_ [_ [phig [phir [J1 [[? [? Htrace]] Hbuf]]]]]]].
-      edestruct (has_ext_compat _ z0 _ phi0 Htrace) as (? & Hg & Hg0); eauto; [eexists; eauto | eapply ext_compat_sub; eauto; eexists; eauto|]; subst.
-      destruct v; try contradiction.
-      destruct v; try contradiction.
-      destruct H4 as (? & Hmem & ? & ?); subst.
-      rewrite <- Hmem in *.
-      rewrite rebuild_same in H2.
-      unshelve eexists (age_to.age_to (level jm) (set_ghost phi0 (Some (ext_ghost k, NoneP) :: tl (ghost_of phi0)) _)), (age_to.age_to (level jm) phi1'); auto.
-      { rewrite <- ghost_of_approx at 2; simpl.
-        destruct (ghost_of phi0); auto. }
-      destruct buf; try solve [destruct Hbuf as [[]]; contradiction].
-      destruct (join_level _ _ _ J).
-      split; [|split].
-      * eapply age_rejoin; eauto.
-        intro; rewrite H2; auto.
-      * split3; simpl.
-        { split; auto. }
-        { unfold_lift. split; auto. split; [|intro Hx; inv Hx].
-             unfold eval_id; simpl. unfold semax.make_ext_rval; simpl.
-             destruct ot; try contradiction; reflexivity. }
-        unfold SEPx; simpl.
-        rewrite seplog.sepcon_emp.
-        unshelve eexists (age_to.age_to _ (set_ghost phig (Some (ext_ghost k, NoneP) :: tl (ghost_of phig)) _)), (age_to.age_to _ phir);
-          try (split; [apply age_to.age_to_join_eq|]); try apply set_ghost_join; eauto.
-        { rewrite <- ghost_of_approx at 2.
-          destruct (ghost_of phig); auto. }
-        { apply ghost_of_join in J1.
-          rewrite Hg, Hg0 in J1; inv J1; constructor; auto.
-          apply ext_ghost_join in H13 as [[]|[]]; eauto; subst.
-          apply ghost_not_both in H10; contradiction. }
-        { unfold set_ghost; rewrite level_make_rmap; lia. }
-        split.
-        -- unfold ITREE; exists k; split; [apply eutt_sutt, Reflexive_eqit_eq|].
-             eapply age_to.age_to_pred, change_has_ext; eauto.
-        -- apply age_to.age_to_pred; auto.
-      * eapply necR_trans; eauto; apply age_to.age_to_necR.
-    + clear H.
-      unfold funspec2pre, funspec2post, dessicate; simpl.
-      if_tac; [|contradiction].
-      intros; subst.
-      destruct H0 as (_ & vl& z0 & ? & _ & phi0 & phi1' & J & Hpre & ? & ?).
-      destruct t as (phi1 & t); subst; simpl in *.
-      destruct t as (? & (((sh, buf), len), k)); simpl in *.
-      unfold SEPx in Hpre; simpl in Hpre.
-      rewrite seplog.sepcon_emp in Hpre.
-      destruct Hpre as [[Hwritable _] [_ [_ [phig [phir [J1 [[? [? Htrace]] Hbuf]]]]]]].
-      edestruct (has_ext_compat _ z0 _ phi0 Htrace) as (? & Hg & Hg0); eauto; [eexists; eauto | eapply ext_compat_sub; eauto; eexists; eauto|]; subst.
-      destruct v; try contradiction.
-      destruct v; try contradiction.
-      destruct H4 as (? & ? & msg & ? & ? & Hpost); subst.
-      destruct buf; try contradiction.
-      destruct Hpost as (m' & Hstore & Heq).
-      unshelve eexists (set_ghost (age_to.age_to (level jm) (inflate_store m' phi0)) (Some (ext_ghost (k msg), NoneP) :: own.ghost_approx (age_to.age_to (level jm) (inflate_store m' phi0)) (tl (ghost_of phi0))) _),
-        (age_to.age_to (level jm) phi1').
-      { simpl; rewrite ghost_fmap_fmap, approx_oo_approx; auto. }
-      destruct (join_level _ _ _ J).
-      assert (Ptrofs.unsigned i + Zlength msg <= Ptrofs.max_unsigned) as Hbound.
-      { destruct Hbuf as [(_ & _ & Hsize & _) _]; simpl in Hsize.
-        rewrite Z.max_r in Hsize; rep_lia. }
-      apply data_at__VALspec_range in Hbuf; auto.
-      assert (level (age_to.age_to (level (m_phi jm)) (inflate_store m' phi0)) = level (m_phi jm)) as Hl.
-      { apply age_to.level_age_to.
-        unfold inflate_store; rewrite level_make_rmap; lia. }
-      split.
-      * apply resource_at_join2; auto.
-        -- unfold set_ghost; rewrite level_make_rmap; auto.
-        -- rewrite age_to.level_age_to; auto.
-           rewrite level_juice_level_phi; lia.
-        -- intros.
-           unfold set_ghost; rewrite resource_at_make_rmap.
-           eapply rebuild_store; eauto.
-           intros (b', o') ???? Hr1 []; subst.
-           apply (resource_at_join _ _ _ (b', o')) in J; rewrite Hr1 in J.
-           apply VALspec_range_e with (loc := (b', o')) in Hbuf as [? Hr].
-           apply (resource_at_join _ _ _ (b', o')) in J1; rewrite Hr in J1.
-           inv J1; rewrite <- H15 in J; inv J; eapply join_writable_readable; eauto;
-             apply join_comm in RJ; eapply join_writable1; eauto.
-           { rewrite bytes_to_memvals_length in *; split; auto. }
-        -- unfold set_ghost; rewrite ghost_of_make_rmap, !age_to_resource_at.age_to_ghost_of.
-           rewrite H3.
-           apply ghost_of_join in J.
-           rewrite level_juice_level_phi, Hl.
-           rewrite Hg0 in J; inv J; constructor; auto.
-           destruct (ext_ghost_join _ _ _ _ H13) as [[]|[]]; eauto; subst.
-           inv H13; [constructor|].
-           destruct a0, H17 as (? & ? & ?); simpl in *; subst; eauto.
-           { unfold semax.ext_compat in H6; rewrite <- H12 in H6.
-             exfalso; destruct H6 as [? J]; inv J.
-             eapply no_two_ref; eauto. }
-           { apply ghost_fmap_join; auto. }
-      * split.
-        -- exists msg.
-           split3; simpl.
-           { split; auto. }
-           { unfold_lift. split; auto. split; [|intro Hx; inv Hx].
-             unfold eval_id; simpl. unfold semax.make_ext_rval; simpl.
-             destruct ot; try contradiction; reflexivity. }
-           unfold SEPx; simpl.
-           rewrite seplog.sepcon_emp.
-           unshelve eexists (set_ghost (age_to.age_to _ phig) (Some (ext_ghost (k msg), NoneP) :: own.ghost_approx (age_to.age_to (level jm) (inflate_store m' phi0)) (tl (ghost_of phig))) _), (age_to.age_to _ (inflate_store m' phir));
-             try (split3; [apply set_ghost_join; [apply age_to.age_to_join_eq | ..] | ..]).
-           ++ simpl; rewrite Hl, age_to.level_age_to, ghost_fmap_fmap, approx_oo_approx; auto.
-              apply join_level in J1 as []; lia.
-           ++ eapply inflate_store_join1; eauto.
-                 clear - Htrace. apply has_ext_noat in Htrace. auto.
-           ++ unfold inflate_store; rewrite level_make_rmap; lia.
-           ++ rewrite level_juice_level_phi, Hl.
-              rewrite age_to_resource_at.age_to_ghost_of.
-              unfold inflate_store; rewrite ghost_of_make_rmap.
-              apply ghost_of_join in J1; rewrite Hg, Hg0 in J1; inv J1; constructor; auto.
-              destruct (ext_ghost_join _ _ _ _ H13) as [[]|[]]; eauto; subst.
-              inv H13; [constructor|].
-              destruct a0, H17 as (? & ? & ?); simpl in *; subst; eauto.
-              apply ghost_not_both in H10; contradiction.
-              apply ghost_fmap_join; auto.
-           ++ unfold ITREE; exists (k msg); split; [apply eutt_sutt, Reflexive_eqit_eq|].
-              eapply change_has_ext, age_to.age_to_pred; eauto.
-           ++ apply age_to.age_to_pred.
-              rewrite <- (Zlength_map _ _ Vubyte).
-              eapply store_bytes_data_at; rewrite ?Zlength_map; auto.
-              { rewrite Forall_map, Forall_forall; simpl; intros.
-                exists (Int.repr (Byte.unsigned x)); split; auto.
-                rewrite Int.unsigned_repr; rep_lia. }
-              { rewrite map_map; eauto. }
-        -- eapply necR_trans; eauto; apply age_to.age_to_necR.
-Qed.
+Arguments eq_dec : simpl never.
 
-Instance mem_evolve_refl : Reflexive mem_evolve.
+Theorem io_spec_sound : forall `{!VSTGS IO_itree Σ}, ext_spec_entails (IO_ext_spec ext_link) io_dry_spec.
 Proof.
-  repeat intro.
-  destruct (access_at x loc Cur); auto.
-  destruct p; auto.
-Qed.
-
-Lemma dry_spec_mem : ext_spec_mem_evolve _ io_dry_spec.
-Proof.
-  intros ??????????? Hpre Hpost.
-  simpl in Hpre, Hpost.
-  simpl in *.
-  if_tac in Hpre.
-  - destruct w as (m0 & _ & (((((?, ?), ?), ?), ?), ?)).
-    destruct Hpre as (_ & ? & Hpre); subst.
-    destruct v; try contradiction.
-    destruct v; try contradiction.
-    destruct Hpost as (? & ? & ?); subst.
-    reflexivity.
-  - if_tac in Hpre; [|contradiction].
-    destruct w as (m0 & _ & (((?, ?), ?), ?)).
-    destruct Hpre as (_ & ? & Hpre); subst.
-    destruct v; try contradiction.
-    destruct v; try contradiction.
-    destruct Hpost as (? & ? & msg & ? & ? & Hpost); subst.
-    destruct v0; try contradiction.
-    destruct Hpost as (? & Hstore & ?).
-    eapply mem_evolve_equiv2; [|apply mem_equiv_sym; eauto].
-    eapply mem_evolve_access, storebytes_access; eauto.
+  intros; apply juicy_dry_spec; last done; intros.
+  destruct H as [H | [H | ?]]; last done; injection H as <-%ext_link_inj <-; simpl; auto.
+  - if_tac; last done; intros.
+    exists (m, w).
+    destruct w as (((((sh, buf), msg), len), rest), k).
+    iIntros "(Hz & (%Hsh & _) & %Hargs & H)".
+    rewrite /SEPx; monPred.unseal.
+    iDestruct "H" as "(_ & (% & % & Hext) & Hbuf & _)".
+    iDestruct (has_ext_state with "[$Hz $Hext]") as %<-.
+    iSplit.
+    + iDestruct (data_array_at_local_facts with "Hbuf") as %((? & ?) & Hlen & ?).
+      destruct (eq_dec msg []).
+      { destruct buf; try done.
+        iPureIntro; repeat (split; first done).
+        subst; simpl.
+        rewrite Mem.loadbytes_empty //. }
+      erewrite split2_data_at_Tarray_app; [| done |].
+      iDestruct "Hbuf" as "(Hmsg & _)".
+      iDestruct (data_at_bytes with "[$Hz $Hmsg]") as %Hmsg; [done.. | |].
+      { rewrite Forall_map Forall_forall //. }
+      iPureIntro; repeat (split; first done).
+      rewrite Zlength_map map_map // in Hmsg.
+      { rewrite -> Zlength_app, Z.max_r in Hlen.
+        subst. rewrite Z.add_simpl_l //.
+        { destruct msg; first done.
+          simpl in *; rewrite Zlength_cons in Hlen; rep_lia. } }
+    + iIntros (???? (r & -> & ? & -> & -> & <-)).
+      iMod (change_ext_state with "[$]") as "($ & ?)".
+      iIntros "!>".
+      iSplit; first done.
+      rewrite /local /= /lift1; unfold_lift.
+      iSplit.
+      { iPureIntro; destruct ty; done. }
+      iFrame; done.
+  - if_tac; last done; intros.
+    exists (m, w).
+    destruct w as (((sh, buf), len), k).
+    iIntros "(Hz & (%Hsh & _) & %Hargs & H)".
+    rewrite /SEPx; monPred.unseal.
+    iDestruct "H" as "(_ & (% & % & Hext) & Hbuf & _)".
+    iDestruct (has_ext_state with "[$Hz $Hext]") as %<-.
+    iSplit.
+    + iDestruct (data_at__writable_perm with "[$Hz $Hbuf]") as %(? & ? & -> & Hbuf); first done.
+      iPureIntro; repeat (split; first done).
+      simpl in *.
+      rewrite Z.mul_1_l // in Hbuf.
+    + iIntros (???? (r & -> & ? & -> & msg & <- & -> & Hstore)).
+      iDestruct "Hz" as "(Hm & Hz)".
+      rewrite /state_interp.
+      iMod (own_update_2 with "Hz Hext") as "($ & ?)".
+      { apply @excl_auth_update. }
+      destruct buf; try done.
+      destruct Hstore as (? & Hstore & Heq%mem_equiv_sym).
+      rewrite -(mem_auth_equiv _ m') //.
+      iMod (data_at__storebytes _ _ _ _ _ _ (map Vubyte msg) with "[$]") as "($ & ?)"; first done.
+      { rewrite Forall_map Forall_forall; intros byte ??; simpl.
+        rewrite Int.unsigned_repr; rep_lia. }
+      { rewrite map_map //. }
+      { rewrite Zlength_map //. }
+      iIntros "!>"; iExists msg.
+      iSplit; first done.
+      rewrite /local /= /lift1; unfold_lift.
+      iSplit.
+      { iPureIntro; destruct ty; done. }
+      iFrame.
+      iExists (k msg); iSplit; done.
 Qed.
 
 End IO_Dry.

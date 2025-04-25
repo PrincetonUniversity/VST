@@ -1,10 +1,14 @@
 Require Import mailbox.verif_atomic_exchange.
 Require Import VST.concurrency.conclib.
-Require Import VST.concurrency.ghosts.
 Require Import VST.floyd.library.
 Require Import VST.zlist.sublist.
 Require Import mailbox.mailbox.
 Require Import mailbox.verif_mailbox_specs.
+
+Section mpred.
+
+Context `{!VSTGS unit Σ, AEGS0 : !AEGS t_atom_int, !inG Σ (excl_authR (leibnizO val))}.
+Existing Instance concurrent_ext_spec.
 
 Lemma body_surely_malloc: semax_body Vprog Gprog f_surely_malloc surely_malloc_spec.
 Proof.
@@ -16,19 +20,16 @@ Proof.
   (PROP ( )
    LOCAL (temp _p p)
    SEP (mem_mgr gv; malloc_token Ews t p; data_at_ Ews t p)).
-*
-  if_tac.
+  * if_tac.
     subst p. entailer!.
     entailer!.
-*
-    forward_call 1.
+  * forward_call 1.
     contradiction.
-*
-    if_tac.
+  * if_tac.
     + forward. subst p. congruence.
     + Intros. forward. entailer!.
-*
-  forward. Exists p; entailer!.
+  * forward.
+    Exists p; entailer!!.
 Qed.
 
 Lemma body_memset : semax_body Vprog Gprog f_memset memset_spec.
@@ -45,17 +46,17 @@ Proof.
     pose proof Ptrofs.unsigned_range i.
     simpl. rep_lia.
   }
-  forward_for_simple_bound n (EX i : Z, PROP ()
+  forward_for_simple_bound n (∃ i : Z, PROP ()
     LOCAL (temp _p p; temp _s p; temp _c (vint c); temp _n (vptrofs (4 * n)))
     SEP (data_at sh (tarray tint n) (repeat (vint c) (Z.to_nat i) ++ repeat Vundef (Z.to_nat (n - i))) p)).
-  { rewrite Z.mul_comm, Z_div_mult by lia; auto. }
+  { rewrite -> Z.mul_comm, Z_div_mult by lia; auto. }
   { entailer!.
-    apply derives_trans with (Q := data_at_ sh (tarray tint n) p).
+    trans (data_at_ sh (tarray tint n) p).
     - rewrite !data_at__memory_block; simpl.
       assert ((4 * Z.max 0 n)%Z = sizeof t) as Hsize.
       { rewrite Z.max_r; auto; lia. }
-      setoid_rewrite Hsize; Intros; apply andp_right; [|simpl; apply derives_refl].
-      apply prop_right; match goal with H : field_compatible _ _ _ |- _ =>
+      setoid_rewrite Hsize; Intros; entailer!!.
+      match goal with H : field_compatible _ _ _ |- _ =>
         destruct H as (? & ? & ? & ? & ?) end; repeat split; simpl; auto.
       + unfold size_compatible in *; simpl.
         destruct p; try contradiction.
@@ -75,7 +76,7 @@ Proof.
     rewrite upd_init_const; [|lia].
     entailer!.
   - forward.
-    rewrite Zminus_diag, app_nil_r; apply derives_refl.
+    rewrite Zminus_diag app_nil_r; apply derives_refl.
 Qed.
 
 Opaque upto.
@@ -86,21 +87,21 @@ Proof.
 intros.
 hnf in H. destruct p; try contradiction; simpl; auto.
 Qed.
-#[export] Hint Resolve malloc_compatible_isptr : core.
+#[local] Hint Resolve malloc_compatible_isptr : core.
 
 Lemma body_initialize_channels : semax_body Vprog Gprog f_initialize_channels initialize_channels_spec.
 Proof.
   start_function.
   assert (N < Int.max_signed) as HN by computable.
   assert (B < Int.max_signed) as HB by computable.
-  forward_for_simple_bound B (EX i : Z, PROP ()
+  forward_for_simple_bound B (∃ i : Z, PROP ()
     LOCAL (gvars gv)
-    SEP (data_at_ Ews (tarray (tptr tint) N) (gv _comm); data_at_ Ews (tarray (tptr t_lock) N) (gv _lock);
+    SEP (data_at_ Ews (tarray (tptr t_atom_int) N) (gv _comm);
          data_at_ Ews (tarray (tptr tint) N) (gv _reading); data_at_ Ews (tarray (tptr tint) N) (gv _last_read);
-         EX bufs : list val, !!(Zlength bufs = i /\ Forall isptr bufs) &&
-           data_at Ews (tarray (tptr tbuffer) B) (bufs ++ repeat Vundef (Z.to_nat (B - i))) (gv _bufs) *
-           fold_right sepcon emp (map (@data_at CompSpecs Ews tbuffer (vint 0)) bufs) *
-           fold_right sepcon emp (map (malloc_token Ews tbuffer) bufs);
+         ∃ bufs : list val, ⌜Zlength bufs = i /\ Forall isptr bufs⌝ ∧
+           data_at Ews (tarray (tptr tbuffer) B) (bufs ++ repeat Vundef (Z.to_nat (B - i))) (gv _bufs) ∗
+           [∗] (map (data_at Ews tbuffer (vint 0)) bufs) ∗
+           [∗] (map (malloc_token Ews tbuffer) bufs);
           mem_mgr gv)).
   { unfold B, N; computable. }
   { entailer!.
@@ -114,15 +115,15 @@ Proof.
     forward.
     rewrite upd_init; auto; try lia.
     entailer!.
-    Exists (bufs ++ [b]); rewrite Zlength_app, <- app_assoc, !map_app, !sepcon_app, Forall_app; simpl; entailer!.
+    Exists (bufs ++ [b]); rewrite -> Zlength_app, <- app_assoc, !map_app, !big_sepL_app, Forall_app; simpl; entailer!.
     clear; unfold data_at, field_at, at_offset; Intros.
     rewrite !data_at_rec_eq; unfold withspacer; simpl.
     unfold array_pred, aggregate_pred.array_pred, unfold_reptype; simpl.
-    entailer!. clear H0.
+    rewrite Znth_0_cons; entailer!. clear H0.
     { destruct H as [? [? [? [? ?]]]].
       split; [| split; [| split; [| split]]]; auto.
       destruct b; inv H.
-      inv H2. inv H.
+      inv H2.
       specialize (H7 0 ltac:(lia)).
       simpl.
       eapply align_compatible_rec_Tstruct; [reflexivity.. |].
@@ -135,108 +136,100 @@ Proof.
       inv H7.
       inv H.
       rewrite Z.mul_0_r in H2.
-      auto. }
-      apply derives_refl. }
-  Intros bufs; rewrite Zminus_diag, app_nil_r.
-  forward_for_simple_bound N (EX i : Z, PROP ()
+      auto. } }
+  Intros bufs; rewrite Zminus_diag app_nil_r.
+  forward_for_simple_bound N (∃ i : Z, PROP ()
     LOCAL (gvars gv)
-    SEP (EX locks : list lock_handle, EX comms : list val, EX g : list gname, EX g0 : list gname, EX g1 : list gname,
-         EX g2 : list gname, !!(Zlength locks = i /\ Zlength comms = i /\ Forall isptr comms /\ Zlength g = i /\
-           Zlength g0 = i /\ Zlength g1 = i /\ Zlength g2 = i) &&
-          (data_at Ews (tarray (tptr t_lock) N) (map ptr_of locks ++ repeat Vundef (Z.to_nat (N - i))) (gv _lock) *
-           data_at Ews (tarray (tptr tint) N) (comms ++ repeat Vundef (Z.to_nat (N - i))) (gv _comm) *
-           fold_right sepcon emp (map (fun r => comm_loc Tsh (Znth r locks) (Znth r comms)
+    SEP (∃ comms : list val, ∃ g : list gname, ∃ g0 : list gname, ∃ g1 : list gname,
+         ∃ g2 : list gname, ⌜Zlength comms = i /\ (*Forall isptr comms /\*) Zlength g = i /\
+           Zlength g0 = i /\ Zlength g1 = i /\ Zlength g2 = i⌝ ∧
+          (data_at Ews (tarray (tptr t_atom_int) N) (comms ++ repeat Vundef (Z.to_nat (N - i))) (gv _comm) ∗
+           [∗] (map (fun r => comm_loc 1 (Znth r comms)
              (Znth r g) (Znth r g0) (Znth r g1) (Znth r g2) bufs
-             (Znth r shs) gsh2 empty_map) (upto (Z.to_nat i)))) *
-           fold_right sepcon emp (map (ghost_var gsh1 (vint 1)) g0) *
-           fold_right sepcon emp (map (ghost_var gsh1 (vint 0)) g1) *
-           fold_right sepcon emp (map (ghost_var gsh1 (vint 1)) g2) *
-           fold_right sepcon emp (map (malloc_token Ews tint) comms);
-         EX reads : list val, !!(Zlength reads = i) &&
-           data_at Ews (tarray (tptr tint) N) (reads ++ repeat Vundef (Z.to_nat (N - i))) (gv _reading) *
-           fold_right sepcon emp (map (data_at_ Ews tint) reads) *
-           fold_right sepcon emp (map (malloc_token Ews tint) reads);
-         EX lasts : list val, !!(Zlength lasts = i) &&
-           data_at Ews (tarray (tptr tint) N) (lasts ++ repeat Vundef (Z.to_nat (N - i))) (gv _last_read) *
-           fold_right sepcon emp (map (data_at_ Ews tint) lasts) *
-           fold_right sepcon emp (map (malloc_token Ews tint) lasts);
-         @data_at CompSpecs Ews (tarray (tptr tbuffer) B) bufs (gv _bufs);
-         EX sh : share, !!(sepalg_list.list_join sh1 (sublist i N shs) sh) &&
-           @data_at CompSpecs sh tbuffer (vint 0) (Znth 0 bufs);
-         fold_right sepcon emp (map (@data_at CompSpecs Ews tbuffer (vint 0)) (sublist 1 (Zlength bufs) bufs));
-         fold_right sepcon emp (map (malloc_token Ews tbuffer) bufs);
+             (Znth r shs) ∅) (upto (Z.to_nat i)))) ∗
+           [∗] (map (ghost_frag (vint 1)) g0) ∗
+           [∗] (map (ghost_frag (vint 0)) g1) ∗
+           [∗] (map (ghost_frag (vint 1)) g2);
+         ∃ reads : list val, ⌜Zlength reads = i⌝ ∧
+           data_at Ews (tarray (tptr tint) N) (reads ++ repeat Vundef (Z.to_nat (N - i))) (gv _reading) ∗
+           [∗] (map (data_at_ Ews tint) reads) ∗
+           [∗] (map (malloc_token Ews tint) reads);
+         ∃ lasts : list val, ⌜Zlength lasts = i⌝ ∧
+           data_at Ews (tarray (tptr tint) N) (lasts ++ repeat Vundef (Z.to_nat (N - i))) (gv _last_read) ∗
+           [∗] (map (data_at_ Ews tint) lasts) ∗
+           [∗] (map (malloc_token Ews tint) lasts);
+         data_at Ews (tarray (tptr tbuffer) B) bufs (gv _bufs);
+         ∃ sh : share, ⌜sepalg_list.list_join sh1 (sublist i N shs) sh⌝ ∧
+           data_at sh tbuffer (vint 0) (Znth 0 bufs);
+         [∗] (map (data_at Ews tbuffer (vint 0)) (sublist 1 (Zlength bufs) bufs));
+         [∗] (map (malloc_token Ews tbuffer) bufs);
          mem_mgr gv)).
-  { Exists ([] : list lock_handle) ([] : list val) ([] : list gname) ([] : list gname) ([] : list gname)
-      ([] : list gname) ([] : list val) ([] : list val) Ews; rewrite !data_at__eq; entailer!.
+  { Exists ([] : list val) ([] : list gname) ([] : list gname) ([] : list gname)
+      ([] : list gname) ([] : list val) ([] : list val) Ews. rewrite !data_at__eq. entailer!.
     - rewrite sublist_same; auto; lia.
-    - erewrite <- sublist_same with (al := bufs), sublist_next at 1; eauto; try (unfold B, N in *; lia).
-      simpl; cancel. }
-  { Intros locks comms g g0 g1 g2 reads lasts sh.
-    forward_call (tint, gv).  Intros c.
-    forward.
+    - erewrite <- sublist_same with (al := bufs), sublist_next at 1; eauto; try (unfold B, N in *; lia). }
+  { Intros comms g g0 g1 g2 reads lasts sh.
+    forward_call (vint 0). Intros c.
     forward.
     forward_call (tint, gv). Intros rr.
     forward.
-    forward_call (tint, gv).  Intros ll.
-    forward.
-    ghost_alloc (ghost_var Tsh (vint 1)).
-    ghost_alloc (ghost_var Tsh (vint 0)).
-    ghost_alloc (ghost_var Tsh (vint 1)).
-    ghost_alloc (ghost_hist_ref(hist_el := AE_hist_el) Tsh empty_map empty_map).
-    try apply ghost_hist_init. (* needed in Coq 8.16 and before *)
+    forward_call (tint, gv). Intros ll.
+    ghost_alloc (fun g => own g (●E (vint 1) ⋅ ◯E (vint 1) : excl_authR (leibnizO val))).
+    { apply excl_auth_valid. }
+    ghost_alloc (fun g => own g (●E (vint 0) ⋅ ◯E (vint 0) : excl_authR (leibnizO val))).
+    { apply excl_auth_valid. }
+    ghost_alloc (fun g => own g (●E (vint 1) ⋅ ◯E (vint 1) : excl_authR (leibnizO val))).
+    { apply excl_auth_valid. }
+    ghost_alloc (ghost_hist_ref 1 ∅ ∅).
     Intros g' g0' g1' g2'.
-    forward_call (gv, fun _ : lock_handle => AE_inv c g' (vint 0) (comm_R bufs (Znth i shs) gsh2 g0' g1' g2')).
-    Intros l.
-    rewrite <- hist_ref_join_nil by apply Share.nontrivial; Intros.
-    rewrite <- !(ghost_var_share_join gsh1 gsh2 Tsh) by auto.
+    rewrite !own_op -hist_ref_join_nil.
+    repeat match goal with |-context[own ?g (●E ?v)] => change (own g (●E v : excl_authR (leibnizO _))) with (ghost_auth v g) end.
+    repeat match goal with |-context[own ?g (◯E ?v)] => change (own g (◯E v : excl_authR (leibnizO _))) with (ghost_frag v g) end.
     match goal with H : sepalg_list.list_join sh1 (sublist i N shs) sh |- _ =>
       erewrite sublist_next in H; try lia; inversion H as [|????? Hj1 Hj2] end.
     apply sepalg.join_comm in Hj1; eapply sepalg_list.list_join_assoc1 in Hj2; eauto.
     destruct Hj2 as (sh' & ? & Hsh').
     rewrite <- (data_at_share_join (Znth i shs) sh' sh) by (apply Hsh').
     Intros.
+    gather_SEP (ghost_hist _ _ _) (ghost_ref _ _) (ghost_auth _ g0') (ghost_auth _ g1') (ghost_auth _ g2') (SC_atomics.atomic_int_at _ _ _)
+      (data_at (Znth i shs) _ _ _);
+      viewshift_SEP 0 (AE_loc 1 c g' (vint 0) (comm_R bufs (Znth i shs) g0' g1' g2') ∅).
+    { go_lowerx.
+      rewrite bi.sep_emp /AE_loc.
+      sep_apply atomic_int_isptr; Intros; rewrite bi.pure_True // bi.True_and.
+      iIntros "(? & $ & ? & ? & ? & ? & ?)"; iApply inv_alloc.
+      rewrite /AE_inv; iNext.
+      iExists [], (vint 0); iFrame.
+      iSplit; first done.
+      iExists 0, 1; simpl.
+      eauto with iFrame. }
     forward.
-    assert (0 <= i < Zlength (map ptr_of locks ++ repeat Vundef (Z.to_nat (N - i)))) as Hlen.
-    { subst; rewrite Zlength_app, Zlength_map, Zlength_repeat, Zplus_minus; auto; lia. }
-    forward.
-    { rewrite upd_Znth_same by auto; entailer!. }
-    rewrite upd_Znth_same by auto.
-    forward_call release_simple (Tsh, l, AE_inv c g' (vint 0) (comm_R bufs (Znth i shs) gsh2 g0' g1' g2')).
-    { lock_props.
-      cancel.
-      unfold AE_inv.
-      Exists (@nil AE_hist_el) (vint 0).
-      unfold comm_R at 1.
-      Exists 0 1 1; unfold last_two_reads, last_write, prev_taken; simpl.
-      rewrite !sepcon_andp_prop', !sepcon_andp_prop, !sepcon_andp_prop'; apply andp_right;
-        [apply prop_right; auto|].
-      apply andp_right; [apply prop_right; repeat (split; auto); computable|].
-      change_compspecs CompSpecs.
-      Exists 0; cancel. }
-    Exists (locks ++ [l]) (comms ++ [c]) (g ++ [g']) (g0 ++ [g0']) (g1 ++ [g1']) (g2 ++ [g2'])
-      (reads ++ [rr]) (lasts ++ [ll]) sh'; rewrite !upd_init by (rewrite ?Zlength_map in *; auto; lia).
-    rewrite !Zlength_app, !Zlength_cons, !Zlength_nil; rewrite !map_app, <- !app_assoc.
+    Exists (comms ++ [c]) (g ++ [g']) (g0 ++ [g0']) (g1 ++ [g1']) (g2 ++ [g2'])
+      (reads ++ [rr]) (lasts ++ [ll]) sh'; rewrite -> !upd_init by (rewrite -> ?Zlength_map in *; auto; lia).
+    rewrite -> !Zlength_app, !Zlength_cons, !Zlength_nil; rewrite -> !map_app, <- !app_assoc.
     go_lower.
-    apply andp_right; [apply prop_right; repeat split; auto|].
-    assert_PROP (isptr ll /\ isptr rr /\ isptr c /\ isptr (ptr_of l)) by (entailer!; eauto).
-    rewrite prop_true_andp
-      by  (rewrite ?Forall_app; repeat split; auto; try lia; repeat constructor; intuition).
-    rewrite !prop_true_andp
-      by  (rewrite ?Forall_app; repeat split; auto; try lia; repeat constructor; intuition).
-    rewrite Z2Nat.inj_add, upto_app, !map_app, !sepcon_app; try lia; simpl.
+    rewrite bi.pure_True // bi.True_and.
+    assert_PROP (isptr ll /\ isptr rr (*/\ isptr c*)) by (entailer!; eauto).
+    rewrite !bi.pure_True; [|rewrite ?Forall_app; repeat split; auto; try lia; repeat constructor; intuition..].
+    rewrite !bi.True_and.
+    rewrite -> Z2Nat.inj_add, upto_app, !map_app, !big_sepL_app; try lia; simpl.
     change (upto 1) with [0]; simpl.
-    rewrite Z2Nat.id, Z.add_0_r by lia.
-    rewrite !Znth_app1 by auto.
-    replace (Z.to_nat (N - (Zlength locks + 1))) with (Z.to_nat (N - (i + 1))) by (subst; clear; rep_lia).
-    subst; rewrite Zlength_correct, Nat2Z.id.
+    rewrite -> Z2Nat.id, Z.add_0_r by lia.
+    rewrite -> !Znth_app1 by auto.
+    subst; rewrite Zlength_correct Nat2Z.id.
     unfold comm_loc, AE_loc; cancel.
     erewrite map_ext_in; [apply derives_refl|].
-    intros; rewrite In_upto, <- Zlength_correct in *.
+    intros; rewrite -> In_upto, <- Zlength_correct in *.
     rewrite !app_Znth1; (lia || tauto). }
-  Intros locks comms g g0 g1 g2 reads lasts sh.
+  Intros comms g g0 g1 g2 reads lasts sh.
   match goal with H : sepalg_list.list_join sh1 (sublist N N shs) sh |- _ =>
     rewrite sublist_nil in H; inv H end.
   rewrite !app_nil_r.
-  Exists comms locks bufs reads lasts g g0 g1 g2.
+  Exists comms bufs reads lasts g g0 g1 g2.
+  (* cancel appears not to cancel enough because constr_eq is failing on identical
+     terms, which I don't know how to fix. *)
+  #[local] Ltac cancel_unify_tac ::= reflexivity.
   entailer!.
 Qed.
+
+End mpred.

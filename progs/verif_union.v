@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat. Import NoOracle.
 Require Import VST.progs.union.
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
@@ -105,7 +106,7 @@ revert k H; induction p; simpl; intros.
 rewrite Pos2Z.inj_succ in H.
 specialize (IHp (k-1)).
 spec IHp; [lia | ].
-replace (2^(k-1)) with (2^1 * 2^(k-1-1)).
+replace (2^(k-1)) with (2^1 * 2^(k-1-1))%Z.
 2:{ rewrite <- Z.pow_add_r by lia. f_equal. lia. }
 rewrite Pos2Z.inj_xI.
 lia.
@@ -113,12 +114,12 @@ lia.
 rewrite Pos2Z.inj_succ in H.
 specialize (IHp (k-1)).
 spec IHp; [lia | ].
-replace (2^(k-1)) with (2^1 * 2^(k-1-1)).
+replace (2^(k-1)) with (2^1 * 2^(k-1-1))%Z.
 2:{ rewrite <- Z.pow_add_r by lia. f_equal. lia. }
 rewrite Pos2Z.inj_xO.
 lia.
 -
-replace (2^(k-1)) with (2^1 * 2^(k-1-1)).
+replace (2^(k-1)) with (2^1 * 2^(k-1-1))%Z.
 2:{ rewrite <- Z.pow_add_r by lia. f_equal. lia. }
 change (2^1) with 2.
 assert (0 < 2 ^ (k-1-1)).
@@ -127,7 +128,7 @@ lia.
 Qed.
 
 
-Definition abs_nan (any_nan: {x : Bits.binary32 | Binary.is_nan 24 128 x = true}) (f: Binary.binary_float 24 128)   :=
+Definition abs_nan (any_nan: {x : Bits.binary32 | Binary.is_nan 24 128 x = true} ) (f: Binary.binary_float 24 128)   :=
 match f with
 | @Binary.B754_nan _ _ _ p H =>
     exist (fun x : Binary.binary_float 24 128 => Binary.is_nan 24 128 x = true)
@@ -161,7 +162,7 @@ Qed.
 
 Lemma binary32_abs_lemma:
  forall (x : Bits.binary32)
-      (any_nan : {x : Bits.binary32 | Binary.is_nan 24 128 x = true}),
+      (any_nan : {x : Bits.binary32 | Binary.is_nan 24 128 x = true} ),
   Bits.b32_of_bits (Bits.bits_of_b32 x mod 2 ^ 31) =
   Binary.Babs 24 128 (abs_nan any_nan) x.
 Proof.

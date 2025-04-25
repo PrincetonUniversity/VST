@@ -1,6 +1,7 @@
 
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 
+Require Import Lia.
 Require Import compcert.common.Memory.
 Require Import compcert.common.Values. (*for val*)
 Require Import VST.concurrency.common.scheduler.
@@ -15,6 +16,8 @@ Require Import Coq.ZArith.ZArith.
 Require Import VST.msl.Coqlib2.
 
 Require Import VST.concurrency.common.lksize.
+
+Import Address.
 
 Set Implicit Arguments.
 
@@ -40,10 +43,11 @@ Module ThreadPool.
     Local Notation ctl := (@ctl semC).
 
     Notation tid:= nat.
-    
+
+    (* !! TODO: remove extraRes? remove lockGuts, lockSet? *)
     Class ThreadPool :=
       { t : Type;
-        mkPool : ctl -> res -> t;
+        mkPool : ctl -> res -> (*res ->*) t;
         containsThread : t -> tid -> Prop;
         getThreadC : forall {tid tp}, containsThread tp tid -> ctl;
         getThreadR : forall {tid tp}, containsThread tp tid -> res;
@@ -51,16 +55,17 @@ Module ThreadPool.
         lockGuts : t -> AMap.t lock_info;  (* Gets the set of locks + their info    *)
         lockSet : t -> access_map;         (* Gets the permissions for the lock set *)
         lockRes : t -> address -> option lock_info;
+(*         extraRes : t -> res; (* extra resources not held by any thread or lock *) *)
         addThread : t -> val -> val -> res -> t;
         updThreadC : forall {tid tp}, containsThread tp tid -> ctl -> t;
         updThreadR : forall {tid tp}, containsThread tp tid -> res -> t;
         updThread : forall {tid tp}, containsThread tp tid -> ctl -> res -> t;
         updLockSet : t -> address -> lock_info -> t;
         remLockSet : t -> address -> t;
+(*         updExtraRes : t -> res -> t; *)
         latestThread : t -> tid;
         lr_valid : (address -> option lock_info) -> Prop;
-        (*Find the first thread i, that satisfiList
-es (filter i) *)
+        (*Find the first thread i that satisfies (filter i) *)
         find_thread_: t -> (ctl -> bool) -> option tid
         ; resourceList_spec: forall i tp
             (cnti: containsThread tp i),
@@ -139,6 +144,10 @@ es (filter i) *)
              forall {j tp} add,
                containsThread (remLockSet tp add) j ->
                containsThread tp j
+(*         ;  cntUpdateExtra:
+             forall {j tp} res,
+               containsThread tp j ->
+               containsThread (updExtraRes tp res) j *)
 
         (*;  gssLockPool:
     forall tp ls,
@@ -319,7 +328,37 @@ es (filter i) *)
                lr_valid (lockRes tp) ->
                lr_valid (lockRes (updThread cnti c' m'))
 
-        (*New Axioms, to avoid breaking the modularity *)
+(*        (* extraRes properties *)
+
+        ; gssExtraRes : forall tp res, extraRes (updExtraRes tp res) = res
+
+        ; gsoAddExtra : forall tp vf arg p, extraRes (addThread tp vf arg p) = extraRes tp
+
+        ; gsoThreadCExtra : forall {i tp} c (cnti: containsThread tp i), extraRes (updThreadC cnti c) = extraRes tp
+
+        ; gsoThreadRExtra : forall {i tp} r (cnti: containsThread tp i), extraRes (updThreadR cnti r) = extraRes tp
+
+        ; gsoThreadExtra : forall {i tp} c r (cnti: containsThread tp i), extraRes (updThread cnti c r) = extraRes tp
+
+        ; gsoLockSetExtra : forall tp addr res, extraRes (updLockSet tp addr res) = extraRes tp
+
+        ; gsoRemLockExtra : forall tp addr, extraRes (remLockSet tp addr) = extraRes tp
+
+        ; gExtraResCode : forall {i tp} res (cnti: containsThread tp i)
+               (cnti': containsThread (updExtraRes tp res) i),
+               getThreadC cnti' = getThreadC cnti
+
+        ; gExtraResRes : forall {i tp} res (cnti: containsThread tp i)
+               (cnti': containsThread (updExtraRes tp res) i),
+               getThreadR cnti' = getThreadR cnti
+
+        ; gsoExtraLPool : forall tp res addr,
+               lockRes (updExtraRes tp res) addr = lockRes tp addr
+
+        ; gsoExtraLock : forall tp res,
+               lockSet (updExtraRes tp res) = lockSet tp *)
+
+        (*New axioms, to avoid breaking the modularity *)
         ; lockSet_spec_2 :
             forall (js : t) (b : block) (ofs ofs' : Z),
               Intv.In ofs' (ofs, (ofs + Z.of_nat lksize.LKSIZE_nat)%Z) ->
@@ -444,21 +483,25 @@ Module OrdinalPool.
                     ; pool :> 'I_num_threads -> ctl
                     ; perm_maps : 'I_num_threads -> res
                     ; lset : AMap.t lock_info
+(*                     ; extra : res *)
                   }.
 
-    Definition one_pos : pos.pos := pos.mkPos NPeano.Nat.lt_0_1.
+    Definition one_pos : pos.pos := pos.mkPos Nat.lt_0_1.
     
-    Definition mkPool c res :=
+    Definition mkPool c res (* extra *) :=
       mk one_pos
         (fun _ =>  c)
-        (fun _ => res) (*initially there are no locks*)
-        empty_lset.
+        (fun _ => res)
+        empty_lset (* initially there are no locks *)
+        (* extra *). (* no obvious initial value for extra *)
     
     Definition lockGuts := lset.
     Definition lockSet (tp:t) := A2PMap (lset tp).
 
     Definition lockRes t : address -> option lock_info:=
       AMap.find (elt:=lock_info)^~ (lockGuts t).
+
+(*     Definition extraRes := extra. *)
 
     Definition lr_valid (lr: address -> option lock_info):=
       forall b ofs,
@@ -468,11 +511,11 @@ Module OrdinalPool.
         end.
 
     Lemma is_pos: forall n, (0 < S n)%coq_nat.
-    Proof. move=> n; omega. Qed.
+    Proof. move=> n; lia. Qed.
     Definition mk_pos_S (n:nat):= mkPos (is_pos n).
     Lemma lt_decr: forall n m: nat, S n < m -> n < m.
     Proof. move=> m n /ltP LE.
-           assert (m < n )%coq_nat by omega.
+           assert (m < n )%coq_nat by lia.
              by move: H => /ltP. Qed.
     Program Fixpoint find_thread' {st:t}{filter:ctl -> bool} n (P: n < num_threads st) {struct n}:=
       if filter (@pool st (@Ordinal (num_threads st) n P))
@@ -481,7 +524,6 @@ Module OrdinalPool.
            | S n' =>  find_thread' n' (lt_decr  n' _ P)
            | O => None
            end.
-    
     Next Obligation.
       intros; exact st.
     Defined.
@@ -492,7 +534,7 @@ Module OrdinalPool.
       intros. subst; reflexivity.
     Defined.
     Definition pos_pred (n:pos): nat.
-    Proof. destruct n. destruct n eqn:AA; [omega|].
+    Proof. destruct n. destruct n eqn:AA; [lia|].
            exact n0.
     Defined.
 
@@ -501,7 +543,7 @@ Module OrdinalPool.
     Next Obligation.
       rewrite /pos_pred /= => st filter.
       elim (num_threads st) => n N_pos /=.
-      destruct n; try omega; eauto.
+      destruct n; try lia; eauto.
     Qed.
 
     Import Coqlib.
@@ -565,7 +607,7 @@ Module OrdinalPool.
       intros.
       eapply lockSet_spec_2; eauto.
       unfold Intv.In.
-      simpl. pose proof LKSIZE_pos; rewrite Z2Nat.id; omega.
+      simpl. pose proof LKSIZE_pos; rewrite Z2Nat.id; lia.
     Qed.
 
     Open Scope nat_scope.
@@ -630,32 +672,36 @@ Module OrdinalPool.
             | None => pmap
             | Some n' => (perm_maps tp) n'
             end)
-         (lset tp).
+         (lset tp) (* (extra tp) *).
 
     Definition updLockSet tp (add:address) (lf:lock_info) : t :=
       mk (num_threads tp)
          (pool tp)
          (perm_maps tp)
-         (AMap.add add lf (lockGuts tp)).
+         (AMap.add add lf (lockGuts tp))
+         (* (extra tp) *).
 
     Definition remLockSet tp  (add:address) : t :=
       mk (num_threads tp)
          (pool tp)
          (perm_maps tp)
-         (AMap.remove add (lockGuts tp)).
+         (AMap.remove add (lockGuts tp))
+         (* (extra tp) *).
 
     Definition updThreadC {tid tp} (cnt: containsThread tp tid) (c' : ctl) : t :=
       mk (num_threads tp)
          (fun n => if n == (Ordinal cnt) then c' else (pool tp)  n)
          (perm_maps tp)
-         (lset tp).
+         (lset tp)
+         (* (extra tp) *).
 
     Definition updThreadR {tid tp} (cnt: containsThread tp tid)
                (pmap' : res) : t :=
       mk (num_threads tp) (pool tp)
          (fun n =>
             if n == (Ordinal cnt) then pmap' else (perm_maps tp) n)
-         (lset tp).
+         (lset tp)
+         (* (extra tp) *).
 
     Definition updThread {tid tp} (cnt: containsThread tp tid) (c' : ctl)
                (pmap : res) : t :=
@@ -664,7 +710,15 @@ Module OrdinalPool.
             if n == (Ordinal cnt) then c' else tp n)
          (fun n =>
             if n == (Ordinal cnt) then pmap else (perm_maps tp) n)
-         (lset tp).
+         (lset tp)
+         (* (extra tp) *).
+
+(*     Definition updExtraRes tp res : t :=
+      mk (num_threads tp)
+         (pool tp)
+         (perm_maps tp)
+         (lset tp)
+         res. *)
 
     (*TODO: see if typeclasses can automate these proofs, probably not thanks dep types*)
 
@@ -782,6 +836,14 @@ Module OrdinalPool.
                 simpl in *; by assumption.
     Qed.
 
+(*     Lemma cntUpdateExtra:
+             forall {j tp} res,
+               containsThread tp j ->
+               containsThread (updExtraRes tp res) j.
+    Proof.
+      intros. unfold containsThread in *; simpl in *; by assumption.
+    Qed. *)
+
     Lemma cntAdd:
       forall {j tp} vf arg p,
         containsThread tp j ->
@@ -814,14 +876,14 @@ Module OrdinalPool.
       destruct (j < (num_threads tp)) eqn:Hlt.
       left.
       split;
-        by [auto | ssromega].
+        by [auto | ssrlia].
       right.
       rewrite ltnS in H.
       rewrite leq_eqVlt in H.
       move/orP:H=> [H | H];
                     first by move/eqP:H.
       exfalso.
-        by ssromega.
+        by ssrlia.
     Qed.
 
     Lemma contains_add_latest: forall ds p a r,
@@ -829,7 +891,7 @@ Module OrdinalPool.
                        (latestThread ds).
     Proof. intros.
            simpl. unfold containsThread, latestThread.
-           simpl. ssromega.
+           simpl. ssrlia.
     Qed.
 
     Lemma updLock_updThread_comm:
@@ -866,9 +928,6 @@ Module OrdinalPool.
     (* TODO: most of these proofs are similar, automate them*)
     (** Getters and Setters Properties*)
 
-    Set Bullet Behavior "None".
-    Set Bullet Behavior "Strict Subproofs".
-
     Lemma gsslockResUpdLock: forall js a res,
         lockRes (updLockSet js a res) a =
         Some res.
@@ -879,11 +938,10 @@ Module OrdinalPool.
       forget (AMap.this (lockGuts js)) as el.
       unfold AMap.find; simpl.
       induction el.
-      *
-        simpl.
+      * simpl.
         destruct (@AMap.Raw.PX.MO.elim_compare_eq a a); auto. rewrite H. auto.
-      *
-        rewrite AMap.Raw.add_equation. destruct a0.
+      * simpl.
+        destruct a0.
         destruct (AddressOrdered.compare a a0).
         simpl.
         destruct (@AMap.Raw.PX.MO.elim_compare_eq a a); auto. rewrite H. auto.
@@ -974,23 +1032,8 @@ Module OrdinalPool.
         lockRes js a.
     Proof.
       intros.
-      unfold lockRes, remLockSet; simpl. unfold AMap.find, AMap.remove; simpl.
-      destruct js; simpl. destruct lset0; simpl.
-      rename this into el.
-      induction sorted; simpl; auto.
-      destruct a0 as [b ?].
-      destruct (AddressOrdered.compare loc b); simpl; address_ordered_auto;
-        destruct (AddressOrdered.compare a b); simpl; address_ordered_auto.
-      assert (forall (y: address * lock_info), SetoidList.InA (@AMap.Raw.PX.eqk _) y l -> AMap.Raw.PX.ltk (b,l0) y).
-      apply SetoidList.InfA_alt; auto with typeclass_instances.
-      specialize (H1 (a,l0)).
-      assert (~SetoidList.InA (AMap.Raw.PX.eqk (elt:=lock_info)) (a, l0) l ).
-      intro. specialize (H1 H2).
-      change (AddressOrdered.lt b a) in H1. address_ordered_auto.
-      clear - H2.
-      induction l as [| [b ?]]; simpl in *; auto.
-      destruct (AddressOrdered.compare a b); simpl; address_ordered_auto.
-      contradiction H2. left; auto.
+      unfold lockRes, remLockSet; simpl.
+      rewrite AMap_find_remove if_false; auto.
     Qed.
 
 
@@ -1041,20 +1084,20 @@ Module OrdinalPool.
         { (exists z, z <= ofs < z+LKSIZE /\ lockRes tp (b,z) )%Z  } + {(forall z, z <= ofs < z+LKSIZE -> lockRes tp (b,z) = None)%Z }.
     Proof.
       intros tp b ofs.
-      assert (H : (0 <= LKSIZE)%Z) by (pose proof LKSIZE_pos; omega).
+      assert (H : (0 <= LKSIZE)%Z) by (pose proof LKSIZE_pos; lia).
       destruct (@RiemannInt_SF.IZN_var _ H) as (n, ->).
       induction n.
-      - right. simpl. intros. omega.
+      - right. simpl. intros. lia.
       - destruct IHn as [IHn | IHn].
         + left; destruct IHn as (z & r & Hz).
-          exists z; split; auto. zify. omega.
+          exists z; split; auto. zify. lia.
         + destruct (lockRes tp (b, (ofs - Z.of_nat n)%Z)) eqn:Ez.
           * left. exists (ofs - Z.of_nat n)%Z; split. 2:rewrite Ez; auto.
-            zify; omega.
+            zify; lia.
           * right; intros z r.
             destruct (zeq ofs (z + Z.of_nat n)%Z).
-            -- subst; auto. rewrite <-Ez; do 2 f_equal. omega.
-            -- apply IHn. zify. omega.
+            -- subst; auto. rewrite <-Ez; do 2 f_equal. lia.
+            -- apply IHn. zify. lia.
     Qed.
 
     Lemma lockSet_spec_3:
@@ -1115,13 +1158,13 @@ Module OrdinalPool.
       * hnf in H.
         destruct (lockRes ds (b,z)) eqn:?; inv H1.
       + destruct (lockRes ds (b,ofs)) eqn:?; inv H4.
-        assert (z <= ofs < z+2 * size_chunk AST.Mptr \/ ofs <= z <= ofs+2 * size_chunk AST.Mptr)%Z by omega.
+        assert (z <= ofs < z+2 * size_chunk AST.Mptr \/ ofs <= z <= ofs+2 * size_chunk AST.Mptr)%Z by lia.
         destruct H1.
       - specialize (H b z). rewrite Heqo in H. unfold LKSIZE in H.
-        specialize (H ofs). spec H; [omega|]. congruence.
+        specialize (H ofs). spec H; [lia|]. congruence.
       - specialize (H b ofs). rewrite Heqo0 in H. specialize (H z).
         unfold LKSIZE in H.
-        spec H; [omega|]. congruence.
+        spec H; [lia|]. congruence.
         + unfold lockRes, remLockSet.  simpl.
           assert (H8 := @AMap.remove_3 _ (lockGuts ds) (b,ofs) (b,z)).
           destruct (AMap.find (b, z) (AMap.remove (b, ofs) (lockGuts ds))) eqn:?; auto.
@@ -1167,7 +1210,7 @@ Module OrdinalPool.
         assert (ofs <> z).
         { intros AA. inversion AA.
           apply H0. hnf.
-          simpl; omega. }
+          simpl; lia. }
         erewrite lockSet_spec_2.
         erewrite lockSet_spec_2; auto.
         + hnf; simpl; eauto.
@@ -1195,21 +1238,18 @@ Module OrdinalPool.
     Lemma eq_op_false: forall A i j, i <>j -> @eq_op A i j = false.
     Proof.
       intros.
-      unfold eq_op; simpl.
-      unfold Equality.op. destruct A eqn:?. simpl.
-      unfold Equality.sort in *.
-      destruct m; simpl in *.
-      generalize (a i j); intros. inv H0; auto. contradiction H;auto.
+      apply (@negbRL _ true).
+      eapply contraFneq; last done.
+      intros. easy.
     Qed.
-
+    
     Lemma gsoThreadCode:
       forall {i j tp} (Hneq: i <> j) (cnti: containsThread tp i)
         (cntj: containsThread tp j) c' p'
         (cntj': containsThread (updThread cnti c' p') j),
         getThreadC cntj' = getThreadC cntj.
     Proof.
-      intros.
-      simpl.
+      intros. simpl.
       unfold eq_op. simpl.
       rewrite eq_op_false; auto.
       unfold updThread in cntj'. unfold containsThread in *. simpl in *.
@@ -1354,7 +1394,7 @@ Module OrdinalPool.
       destruct o.
       simpl in *.
       subst. exfalso;
-               ssromega.
+               ssrlia.
       rewrite H. by reflexivity.
     Qed.
 
@@ -1380,7 +1420,7 @@ Module OrdinalPool.
                          != (Ordinal (n:=(num_threads tp).+1) (m:=j) cntj')).
       { apply/eqP. intros Hcontra.
         unfold ordinal_pos_incr in Hcontra.
-        inversion Hcontra; auto. subst. by ssromega.
+        inversion Hcontra; auto. subst. by ssrlia.
       }
       apply unlift_some in Hcontra. rewrite Hunlift in Hcontra.
       destruct Hcontra; by discriminate.
@@ -1401,7 +1441,7 @@ Module OrdinalPool.
       apply unlift_m_inv in H.
       destruct o. simpl in *.
       subst. exfalso;
-               ssromega.
+               ssrlia.
       rewrite H.
         by reflexivity.
     Qed.
@@ -1431,7 +1471,7 @@ Module OrdinalPool.
       { apply/eqP. intros Hcontra.
         unfold ordinal_pos_incr in Hcontra.
         inversion Hcontra; auto. subst.
-          by ssromega.
+          by ssrlia.
       }
       apply unlift_some in Hcontra. rewrite Hunlift in Hcontra.
       destruct Hcontra;
@@ -1480,7 +1520,7 @@ Module OrdinalPool.
             unfold containsThread in *; simpl in *.
             unfold ordinal_pos_incr in Hcontra.
             inversion Hcontra. subst.
-              by ssromega.
+              by ssrlia.
           }
           apply unlift_some in Hcontra. simpl in Hcontra.
           rewrite Hunlift in Hcontra.
@@ -1534,7 +1574,7 @@ Module OrdinalPool.
             unfold containsThread in *; simpl in *.
             unfold ordinal_pos_incr in Hcontra.
             inversion Hcontra. subst.
-              by ssromega.
+              by ssrlia.
           }
           apply unlift_some in Hcontra. simpl in Hcontra.
           rewrite Hunlift in Hcontra.
@@ -1839,7 +1879,7 @@ Module OrdinalPool.
         (Maps.PMap.get b (lockSet tp)) ofs'.
     Proof.
       intros.
-      apply gsoLockSet_12. intros [? ?]. unfold LKSIZE_nat in *; rewrite Z2Nat.id in Hofs; simpl in *; omega.
+      apply gsoLockSet_12. intros [? ?]. unfold LKSIZE_nat in *; rewrite Z2Nat.id in Hofs; simpl in *; lia.
     Qed.
 
     Lemma gsoLockSet_2 :
@@ -1872,6 +1912,71 @@ Module OrdinalPool.
       rewrite gsoThreadLPool; apply H.
     Qed.
 
+(*     Lemma gssExtraRes : forall tp res, extraRes (updExtraRes tp res) = res.
+    Proof.
+      reflexivity.
+    Qed.
+
+    Lemma gsoAddExtra : forall tp vf arg p, extraRes (addThread tp vf arg p) = extraRes tp.
+    Proof.
+      reflexivity.
+    Qed.
+
+    Lemma gsoThreadCExtra : forall {i tp} c (cnti: containsThread tp i), extraRes (updThreadC cnti c) = extraRes tp.
+    Proof.
+      reflexivity.
+    Qed.
+
+    Lemma gsoThreadRExtra : forall {i tp} r (cnti: containsThread tp i), extraRes (updThreadR cnti r) = extraRes tp.
+    Proof.
+      reflexivity.
+    Qed.
+
+    Lemma gsoThreadExtra : forall {i tp} c r (cnti: containsThread tp i), extraRes (updThread cnti c r) = extraRes tp.
+    Proof.
+      reflexivity.
+    Qed.
+
+    Lemma gsoLockSetExtra : forall tp addr res, extraRes (updLockSet tp addr res) = extraRes tp.
+    Proof.
+      reflexivity.
+    Qed.
+
+    Lemma gsoRemLockExtra : forall tp addr, extraRes (remLockSet tp addr) = extraRes tp.
+    Proof.
+      reflexivity.
+    Qed.
+
+    Lemma gExtraResCode : forall {i tp} res (cnti: containsThread tp i)
+               (cnti': containsThread (updExtraRes tp res) i),
+               getThreadC cnti' = getThreadC cnti.
+    Proof.
+      destruct tp; simpl.
+      intros; do 2 f_equal.
+      apply cnt_irr.
+    Qed.
+
+    Lemma gExtraResRes : forall {i tp} res (cnti: containsThread tp i)
+               (cnti': containsThread (updExtraRes tp res) i),
+               getThreadR cnti' = getThreadR cnti.
+    Proof.
+      destruct tp; simpl.
+      intros; do 2 f_equal.
+      apply cnt_irr.
+    Qed.
+
+    Lemma gsoExtraLPool : forall tp res addr,
+               lockRes (updExtraRes tp res) addr = lockRes tp addr.
+    Proof.
+      reflexivity.
+    Qed.
+
+    Lemma gsoExtraLock : forall tp res,
+               lockSet (updExtraRes tp res) = lockSet tp.
+    Proof.
+      reflexivity.
+    Qed. *)
+
     Lemma contains_iff_num:
       forall tp tp'
         (Hcnt: forall i, containsThread tp i <-> containsThread tp' i),
@@ -1889,83 +1994,85 @@ Module OrdinalPool.
       destruct n0; auto.
       destruct (Hcnt 0).
       exfalso.
-      specialize (H0 ltac:(ssromega));
-        by ssromega.
+      specialize (H0 ltac:(ssrlia));
+        by ssrlia.
       destruct n0.
       exfalso.
       destruct (Hcnt 0).
-      specialize (H ltac:(ssromega));
-        by ssromega.
+      specialize (H ltac:(ssrlia));
+        by ssrlia.
       erewrite IHn; eauto.
       intros; split; intro H.
-      assert (i.+1 < n.+1) by ssromega.
+      assert (i.+1 < n.+1) by ssrlia.
       specialize (fst (Hcnt (i.+1)) H0).
       intros.
       clear -H1;
-        by ssromega.
-      assert (i.+1 < n0.+1) by ssromega.
+        by ssrlia.
+      assert (i.+1 < n0.+1) by ssrlia.
       specialize (snd (Hcnt (i.+1)) H0).
       intros.
       clear -H1;
-        by ssromega.
+        by ssrlia.
       subst.
         by erewrite proof_irr with (a1 := N_pos) (a2 := N_pos0).
     Qed.
 
+    (* !! *)
+
     Lemma leq_stepdown:
       forall {m n},
         S n <= m -> n <= m.
-    Proof. intros; ssromega. Qed.
+    Proof. intros; ssrlia. Qed.
     
     Lemma lt_sub:
       forall {m n},
         S n <= m ->
         m - (S n) <  m.
-    Proof. intros; ssromega. Qed.
+    Proof. intros; ssrlia. Qed.
 
     
     Fixpoint containsList_upto_n (n m:nat): n <= m -> seq.seq (sigT (fun i => i < m)):=
       match n with
       | O => fun _ => nil
       | S n' => fun (H: S n' <= m) =>
-                 (existT (fun i => i < m) (m-(S n')) (lt_sub H)) ::
-                 (containsList_upto_n n' m) (leq_stepdown H)                                  
+                 (existT (P := fun i => i < m) (m-(S n')) (lt_sub H)) ::
+                 (containsList_upto_n n' m) (leq_stepdown H)
       end.
 
     Lemma containsList_upto_n_spec:
       forall m n (H: n <= m)
         i (cnti:  (fun i => i < m) (m - n + i)),
         i < n ->
-        nth_error (containsList_upto_n n m H) i = Some (existT _ (m - n + i) (cnti)). 
+        nth_error (containsList_upto_n n m H) i = Some (existT (m - n + i) (cnti)). 
     Proof.
       intros.
       remember (n - i) as k.
-      assert (HH: n = i + k) by ssromega.
+      assert (HH: n = i + k) by ssrlia.
       clear Heqk.
       revert m n H cnti H0 HH.
       induction i.
       intros.
-      - destruct n; try (exfalso; ssromega).
+      - destruct n; try (exfalso; ssrlia).
         simpl. f_equal.
         eapply ProofIrrelevance.ProofIrrelevanceTheory.subsetT_eq_compat.
-        ssromega.
+        ssrlia.
       - intros.
-        assert (n = (n - 1).+1) by ssromega.
+        assert (n = (n - 1).+1) by ssrlia.
         revert H cnti .
         dependent rewrite H1.
         intros H cnti.
         simpl.
         rewrite IHi.
-        + ssromega.
+        + ssrlia.
         + intros. f_equal.
           eapply ProofIrrelevance.ProofIrrelevanceTheory.subsetT_eq_compat.
           clear - H.
-          ssromega.
-        + ssromega.
-        + ssromega.
+          ssrlia.
+        + ssrlia.
+        + ssrlia.
     Qed.
       
-    Lemma leq_refl: forall n, n <= n. Proof. intros; ssromega. Qed.
+    Lemma leq_refl: forall n, n <= n. Proof. intros; ssrlia. Qed.
     
     Definition containsList' (n:nat): seq.seq (sigT (fun i => i < n)):=
       containsList_upto_n n n (leq_refl n).
@@ -1973,29 +2080,29 @@ Module OrdinalPool.
     Definition contains_from_ineq (tp:t):
         {i : tid & i < num_threads tp } -> {i : tid & containsThread tp i}:=
        fun (H : {i : tid & i < num_threads tp}) =>
-         let (x, i) := H in existT (containsThread tp) x i.
+         let (x, i) := H in existT x i.
 
     Definition containsList (tp:t): seq.seq (sigT (containsThread tp)):=
       map (contains_from_ineq tp) (containsList' (num_threads tp)).
 
     Lemma containsList'_spec: forall i n
             (cnti: (fun i => i < n) i),
-            List.nth_error (containsList' n) i = Some (existT _ i (cnti)).
+            List.nth_error (containsList' n) i = Some (existT i (cnti)).
     Proof.
       intros.
       unfold containsList'.
       - rewrite containsList_upto_n_spec.
-        + simpl in cnti; ssromega.
+        + simpl in cnti; ssrlia.
         + intros. f_equal.
           eapply ProofIrrelevance.ProofIrrelevanceTheory.subsetT_eq_compat.
-          simpl in cnti; ssromega.
+          simpl in cnti; ssrlia.
         + assumption.
     Qed.
 
       
     Lemma containsList_spec: forall i tp
             (cnti: containsThread tp i),
-            List.nth_error (containsList tp) i = Some (existT _ i cnti).
+            List.nth_error (containsList tp) i = Some (existT i cnti).
     Proof.
       intros.
       unfold containsList. 
@@ -2010,8 +2117,6 @@ Module OrdinalPool.
       map (@indexed_contains tp)
           (containsList tp).
 
-      
-
     Lemma resourceList_spec: forall i tp
             (cnti: containsThread tp i),
             List.nth_error (resourceList tp) i = Some (getThreadR cnti).
@@ -2023,7 +2128,7 @@ Module OrdinalPool.
       unfold getThreadR; simpl.
       simpl in *.
       induction n.
-      - exfalso. ssromega.
+      - exfalso. ssrlia.
       - unfold resourceList.
         rewrite list_map_nth.
         rewrite containsList_spec.
@@ -2035,19 +2140,21 @@ Module OrdinalPool.
                                     t
                                     mkPool
                                     containsThread
-                                    (@getThreadC) 
-                                    (@getThreadR) 
+                                    (@getThreadC)
+                                    (@getThreadR)
                                     resourceList
                                     lockGuts
                                     lockSet
-                                    (@lockRes) 
+                                    (@lockRes)
+                                    (* extraRes *)
                                     addThread
-                                    (@updThreadC) 
+                                    (@updThreadC)
                                     (@updThreadR)
-                                    (@updThread) 
-                                    updLockSet 
-                                    remLockSet 
-                                    latestThread 
+                                    (@updThread)
+                                    updLockSet
+                                    remLockSet
+                                    (* updExtraRes *)
+                                    latestThread
                                     lr_valid 
                                     (*Find the first thread i, that satisfies (filter i) *)
                                     find_thread
@@ -2068,6 +2175,7 @@ Module OrdinalPool.
                                     (@cntRemoveL)
                                     (@cntUpdateL')
                                     (@cntRemoveL')
+                                    (* (@cntUpdateExtra) *)
                                     (@gsoThreadLock)
                                     (@gsoThreadCLock)
                                     (@gsoThreadRLock)
@@ -2100,6 +2208,17 @@ Module OrdinalPool.
                                     add_updateC_comm
                                     add_update_comm
                                     updThread_lr_valid
+(*                                     gssExtraRes
+                                    gsoAddExtra
+                                    (@gsoThreadCExtra)
+                                    (@gsoThreadRExtra)
+                                    (@gsoThreadExtra)
+                                    gsoLockSetExtra
+                                    gsoRemLockExtra
+                                    (@gExtraResCode)
+                                    (@gExtraResRes)
+                                    gsoExtraLPool
+                                    gsoExtraLock *)
                                     lockSet_spec_2
                                     lockSet_spec_3
                                     gsslockSet_rem
@@ -2109,7 +2228,7 @@ Module OrdinalPool.
                                     gsolockResUpdLock
                                     gsslockResRemLock
                                     gsolockResRemLock
-                                    (@ gRemLockSetCode)
+                                    (@gRemLockSetCode)
                                     (@gRemLockSetRes)
                                     (@gsoAddCode)
                                     (@gssAddCode)

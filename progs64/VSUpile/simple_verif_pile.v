@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat. Import NoOracle.
 Require Import VST.floyd.VSU.
 Require Import pile.
 Require Import simple_spec_stdlib.
@@ -37,11 +38,12 @@ if_tac.
 { subst.
   forward_if False.
   - forward_call 1. contradiction.
-  - congruence. }
+  - congruence.
+  - Intros. contradiction. }
 forward_if True.
 + contradiction.
-+ forward. entailer!.
-+ forward. Exists p. entailer!.
++ forward. entailer!!.
++ forward. Exists p. entailer!!.
 Qed.
 
 Lemma body_Pile_new: semax_body PileVprog PileGprog f_Pile_new Pile_new_spec.
@@ -49,8 +51,6 @@ Proof.
 start_function.
 forward_call (tpile, gv).
 Intros p.
-repeat step!.
-unfold pilerep, listrep, pile_freeable.
 repeat step!.
 Qed.
 
@@ -69,7 +69,7 @@ unfold pilerep.
 Exists q.
 unfold listrep at 2; fold listrep.
 Exists head.
-entailer!; try apply derives_refl.
+entailer!!.
 Qed.
 
 Lemma body_Pile_count: semax_body PileVprog PileGprog f_Pile_count Pile_count_spec.
@@ -94,7 +94,7 @@ forward_loop (EX r:val, EX s2: list Z,
 -
 Exists head sigma.
 entailer!. rewrite Z.sub_diag. auto.
-apply wand_sepcon_adjoint. cancel.
+rewrite <- wand_sepcon_adjoint. cancel.
 -
 Intros r s2.
 forward_if (r<>nullval).
@@ -105,8 +105,8 @@ forward.
 entailer!.
 assert (s2=nil) by intuition; subst s2.
 simpl. rewrite Z.sub_0_r; auto.
-sep_apply (modus_ponens_wand (listrep s2 nullval)).
-cancel.
+rewrite sepcon_comm.
+apply modus_ponens_wand.
 Intros.
 destruct s2.
 assert_PROP False; [ | contradiction]. {
@@ -138,10 +138,11 @@ simpl in H0.
  }
  rep_lia.
  f_equal; f_equal; lia.
-apply -> wand_sepcon_adjoint.
-match goal with |- (_ * ?A * ?B * ?C)%logic |-- _ => 
- assert ((A * B * C)%logic |-- listrep (z::s2) r) end.
-unfold listrep at 2; fold listrep. Exists r'. entailer!.
+rewrite <- wand_sepcon_adjoint.
+rewrite <- !sepcon_assoc.
+match goal with |- (_ ∗ ?A ∗ ?B ∗ ?C) ⊢ _ => 
+ assert (A ∗ B ∗ C ⊢ listrep (z::s2) r) end.
+unfold listrep at 2; fold listrep. Exists r'. entailer!!.
 sep_apply H10.
 sep_apply modus_ponens_wand.
 auto.
@@ -188,8 +189,8 @@ unfold listrep.
 entailer!.
 Qed.
 
-Definition PileVSU: @VSU NullExtension.Espec 
-      nil pile_imported_specs ltac:(QPprog prog) PileASI emp.
+Definition PileVSU: VSU
+      nil pile_imported_specs ltac:(QPprog prog) PileASI (fun _ => emp).
   Proof. 
     mkVSU prog pile_internal_specs.
     + solve_SF_internal body_surely_malloc.

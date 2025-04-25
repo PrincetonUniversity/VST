@@ -1,5 +1,4 @@
 Require Import VST.floyd.proofauto.
-Local Open Scope logic.
 Require Import List. Import ListNotations.
 Require Import tweetnacl20140427.tweetnaclVerifiableC.
 Require Import tweetnacl20140427.spec_salsa.
@@ -31,9 +30,7 @@ forward_for_simple_bound n
 { Intros. rename H0 into I. rename H1 into B. rename d into b.
   rewrite 3 Zlength_map in LenX, LenY. 
   forward.
-  { entailer!. rep_lia. }
   forward.
-  { entailer!. rep_lia. }
   forward. entailer!. clear H3 H6 H4 H7.
   rewrite <- (sublist_rejoin 0 i (i+1) xcont), sublist_len_1; try lia.
   rewrite <- (sublist_rejoin 0 i (i+1) ycont), sublist_len_1; try lia.

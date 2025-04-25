@@ -1,7 +1,7 @@
 #include "../concurrency/threads.h"
 //#include <stdio.h>
 
-typedef struct counter { unsigned ctr; lock_t *lock; } counter;
+typedef struct counter { unsigned ctr; lock_t lock; } counter;
 counter c;
 
 void incr() {
@@ -21,16 +21,16 @@ int thread_func(void *thread_lock) {
   //Increment the counter
   incr();
   //Yield: 'ready to join'.
-  release((lock_t *)thread_lock);
+  release((lock_t)thread_lock);
   return 0;
 }
 
-int main(void)
+int compute2(void)
 {
   c.ctr = 0;
   c.lock = makelock();
   release(c.lock);
-  lock_t *thread_lock = makelock();
+  lock_t thread_lock = makelock();
   /* Spawn */
   spawn((void *)&thread_func, (void *)thread_lock);
 
@@ -48,4 +48,8 @@ int main(void)
   /*printf("I'm done with a final counter of: %d\n", t);*/
 
   return t;
+}
+
+int main(void) {
+ return compute2();
 }

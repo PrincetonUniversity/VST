@@ -2,7 +2,6 @@ Require Import VST.floyd.proofauto.
 Import ListNotations.
 Require sha.sha.
 Require Import sha.SHA256.
-Local Open Scope logic.
 
 Require Import sha.spec_sha.
 Require Import sha.sha_lemmas.
@@ -15,15 +14,15 @@ Require Import sha.hmac_pure_lemmas.
 Require Import sha.hmac_common_lemmas.
 Require Import sha.spec_hmac.
 
-Lemma change_compspecs_t_struct_SHA256state_st':
-  @data_at_ spec_sha.CompSpecs Ews t_struct_SHA256state_st =
-  @data_at_ CompSpecs Ews t_struct_SHA256state_st.
+Lemma change_compspecs_t_struct_SHA256state_st': forall v,
+  data_at_(cs := spec_sha.CompSpecs) Ews t_struct_SHA256state_st v ⊣⊢
+  data_at_(cs := CompSpecs) Ews t_struct_SHA256state_st v.
 Proof.
-  extensionality v.
-  change (@data_at_ spec_sha.CompSpecs Ews t_struct_SHA256state_st v) with
-      (@data_at spec_sha.CompSpecs Ews t_struct_SHA256state_st (default_val _) v).
-  change (@data_at_ CompSpecs Ews t_struct_SHA256state_st v) with
-      (@data_at CompSpecs Ews t_struct_SHA256state_st (default_val _) v).
+  intros.
+  change (data_at_(cs := spec_sha.CompSpecs) Ews t_struct_SHA256state_st v) with
+      (data_at(cs := spec_sha.CompSpecs) Ews t_struct_SHA256state_st (default_val _) v).
+  change (data_at_(cs := CompSpecs) Ews t_struct_SHA256state_st v) with
+      (data_at(cs :=  CompSpecs) Ews t_struct_SHA256state_st (default_val _) v).
   rewrite change_compspecs_t_struct_SHA256state_st.
   auto.
 Qed.
@@ -47,7 +46,7 @@ Definition initPostKeyNullConditional r (c:val) (k: val) h wsh sh key ctxkey: mp
   | _ => FF
   end.
 
-Definition PostKeyNull c k pad gv h1 l wsh sh key ckb ckoff: environ -> mpred :=
+Definition PostKeyNull c k pad gv h1 l wsh sh key ckb ckoff: assert :=
                  EX  cb : block,
                  (EX  cofs : ptrofs,
                   (EX  r : Z,
@@ -76,7 +75,7 @@ Lemma Init_part1_j_lt_len Espec (kb ckb cb: block) (kofs ckoff cofs: ptrofs)
               (Vptr cb cofs))
 (FC_cxtkey : field_compatible (Tarray tuchar 64 noattr) [] (Vptr ckb ckoff))
 (lt_64_l : 64 < l),
-@semax CompSpecs Espec
+semax(OK_spec := Espec)(C := CompSpecs) ⊤
        (func_tycontext f_HMAC_Init HmacVarSpecs HmacFunSpecs nil)
   (PROP  ()
    LOCAL  (temp _j (Vint (Int.repr 64)); temp _reset (Vint (Int.repr 1));
@@ -157,7 +156,7 @@ Proof. intros. abbreviate_semax.
       freeze FR1 := - (K_vector _) (data_at_ _ _ (Vptr cb _)).
       unfold data_at_ at 1. unfold field_at_ at 1.
       simpl.
-      Time unfold_data_at (@field_at CompSpecs _ _ _ _ _). (*7.7*)
+      Time unfold_data_at (field_at(cs := CompSpecs) _ _ _ _ _). (*7.7*)
       rewrite (field_at_data_at wsh t_struct_hmac_ctx_st [StructField _md_ctx]).
       rewrite field_address_offset by auto with field_compatible.
       simpl. rewrite Ptrofs.add_zero.
@@ -178,7 +177,7 @@ Proof. intros. abbreviate_semax.
       thaw FR1.
       freeze FR4 := - (sha256state_ _ _ _) (data_at _ _ _ (Vptr kb _)) (K_vector _).
       Time forward_call (@nil byte, key, Vptr cb cofs, wsh, Vptr kb kofs, sh, l, gv). (*4.5*)
-      change_compspecs CompSpecs. cancel.
+      { change_compspecs CompSpecs. cancel. }
      (*call Final*)
      thaw FR4. simpl.
      freeze FR5 := - (K_vector _) (sha256state_ _ _ _) (data_at_ _ _ (Vptr ckb _)).
@@ -252,7 +251,7 @@ Proof. intros. abbreviate_semax.
        Time entailer!. (*2.1*)
        thaw FR5.
        unfold data_at_, field_at_, tarray, data_block.
-       unfold_data_at (@data_at CompSpecs _ _ _ (Vptr cb cofs)). simpl. Time cancel. (*0.7*)
+       unfold_data_at (data_at(cs := CompSpecs) _ _ _ (Vptr cb cofs)). simpl. Time cancel. (*0.7*)
        Time (normalize; cancel). (*0.6*)
        rewrite field_at_data_at, field_address_offset by auto with field_compatible.
        rewrite field_at_data_at, field_address_offset by auto with field_compatible.
@@ -274,7 +273,7 @@ Lemma Init_part1_len_le_j Espec (kb ckb cb: block) (kofs ckoff cofs:ptrofs)
               (Vptr cb cofs))
 (FC_cxtkey : field_compatible (Tarray tuchar 64 noattr) [] (Vptr ckb ckoff))
 (ge_64_l : 64 >= l),
-@semax CompSpecs Espec
+semax(OK_spec := Espec)(C := CompSpecs) ⊤
        (func_tycontext f_HMAC_Init HmacVarSpecs HmacFunSpecs nil)
   (PROP  ()
    LOCAL  (temp _j (Vint (Int.repr 64)); temp _reset (Vint (Int.repr 1));
@@ -330,8 +329,8 @@ Proof. intros.
      { unfold tarray. unfold field_at_ at 1. rewrite field_at_data_at.
        rewrite field_address_offset by auto with field_compatible; simpl. rewrite Ptrofs.add_zero.
        rewrite (split2_data_at_Tarray_tuchar _ _ l); trivial. 2: lia.
-       rewrite sepcon_comm.
-       rewrite sepcon_assoc.
+       rewrite <- sepcon_comm.
+       rewrite <- sepcon_assoc.
        apply sepcon_derives. eapply derives_trans. apply data_at_memory_block.
            simpl. rewrite Z.max_r. rewrite Z.mul_1_l.  apply derives_refl. lia.
        Time cancel. (*0.1 versus 2.4*) }
@@ -341,11 +340,11 @@ Proof. intros.
      remember (map Vubyte key) as KCONT.
 
      (*call memset*)
-     freeze FR2 := - (@data_at CompSpecs _ _ _ (@field_address0 CompSpecs _ _ (Vptr ckb _))).
+     freeze FR2 := - (data_at(cs := CompSpecs) _ _ _ (field_address0(cs := CompSpecs) _ _ (Vptr ckb _))).
      Time forward_call (Tsh, Vptr ckb (Ptrofs.add ckoff (Ptrofs.repr (Zlength key))), l64, Int.zero). (*6.4 versus 10.4*)
      { entailer!. }
      { rewrite <- KL1.
-       rewrite sepcon_comm. Time apply sepcon_derives; [ | cancel]. (*0.1 versus 1.2*)
+       rewrite <- sepcon_comm. Time apply sepcon_derives; [ | cancel]. (*0.1 versus 1.2*)
        unfold at_offset. simpl.
          eapply derives_trans; try apply data_at_memory_block.
                rewrite sizeof_Tarray. trivial.

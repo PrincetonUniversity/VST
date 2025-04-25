@@ -18,11 +18,12 @@ Notice that the variable [a] is uninitialized until the middle of the first iter
 *)
 
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat. Import NoOracle.
 Require Import VST.progs.peel.
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
 
-Definition f_spec : ident * funspec :=
+Definition f_spec :=
  DECLARE _f
   WITH b: Z
   PRE [ tint ]
@@ -152,6 +153,5 @@ eapply semax_while_peel.
 abbreviate_semax.
 Intros a.
 forward.
-Exists a.
-entailer!!.
+Exists a; entailer!!.
 Qed.

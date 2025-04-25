@@ -5,7 +5,6 @@ Require Import VST.msl.pshares.
 Require Import VST.veric.coqlib4.
 Require Import VST.veric.shares.
 Require Import VST.veric.juicy_mem.
-Require Import VST.veric.juicy_mem_ops.
 Require Import VST.concurrency.common.permjoin_def.
 Require Import FunInd.
 Import Memtype.
@@ -157,7 +156,7 @@ unfold Share.Lsh, Share.Rsh, Tsh.
 destruct (Share.split Share.top) eqn:?. simpl.
 apply split_join; auto.
 Qed.
-Hint Resolve writable0_share_top.
+#[export] Hint Resolve writable0_share_top : core.
 
 Ltac common_contradictions:=
   match goal with
@@ -215,7 +214,7 @@ Ltac common_contradictions:=
       apply join_comm in H; join_share_contradictions_oneside
     end; try contradiction.
 
-Lemma join_permjoin r1 r2 r3 :
+(*Lemma join_permjoin r1 r2 r3 :
   join r1 r2 r3 ->
   permjoin (perm_of_res r1) (perm_of_res r2) (perm_of_res r3).
 Proof.
@@ -296,4 +295,4 @@ Proof.
   try contradiction (join_readable_unreadable RJ _x _x2).
   apply join_unit1_e in RJ; auto; subst; contradiction.
   contradiction (join_readable_unreadable (join_comm RJ) _x2 _x0).
-Qed.
+Qed.*)

@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat. Import NoOracle.
 Require Import VST.floyd.VSU.
 
 Require Import PileModel. (*needed for decreasing etc*)
@@ -17,13 +18,13 @@ Require Import simple_verif_apile.
 Require Import simple_verif_triang.
 
 Definition Onepile_Pile_VSU :=
-  ltac:(linkVSUs PileVSU OnepileVSU). 
+  ltac:(linkVSUs PileVSU OnepileVSU).
 
 Definition Apile_Onepile_Pile_VSU :=
-  ltac:(linkVSUs Onepile_Pile_VSU ApileVSU). 
+  ltac:(linkVSUs Onepile_Pile_VSU ApileVSU).
 
 Definition Triang_Apile_Onepile_Pile_VSU :=
-  ltac:(linkVSUs Apile_Onepile_Pile_VSU TriangVSU). 
+  ltac:(linkVSUs Apile_Onepile_Pile_VSU TriangVSU).
 
 Definition Core_VSU :=
   ltac:(linkVSUs MallocFreeVSU Triang_Apile_Onepile_Pile_VSU).
@@ -63,7 +64,7 @@ forward_call (10,gv).
 forward.
 Qed.
 
-Definition MainComp:  MainCompType nil main_QPprog Core_VSU whole_prog (snd (main_spec whole_prog))  emp.
+Definition MainComp:  MainCompType nil main_QPprog Core_VSU whole_prog (snd (main_spec whole_prog)) (fun _ => emp).
 Proof.
 mkComponent prog.
 solve_SF_internal body_main.
@@ -76,4 +77,3 @@ Lemma WholeProgSafe: WholeProgSafeType WholeComp tt.
 Proof. proveWholeProgSafe. Qed.
 
 Eval red in WholeProgSafeType WholeComp tt.
-

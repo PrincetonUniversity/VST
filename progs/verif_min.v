@@ -8,6 +8,7 @@
 *)
 
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat. Import NoOracle.
 Require Import VST.progs.min.
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
@@ -153,28 +154,13 @@ pose (Inv d (f: Z->Prop) (i: Z) :=
           temp _a a; temp _i (Vint (Int.repr i));
           temp _n (Vint (Int.repr n)))
     SEP(data_at Ews (tarray tint n) (map Vint (map Int.repr al)) a)).
-forward_for (Inv 0 (fun _ => True)) continue: (Inv 1 (Z.gt n)).
+forward_for (Inv 0 (fun _ => True%type)) continue: (Inv 1 (Z.gt n)).
 *
 forward.
 Exists 0. unfold Inv; entailer!!.
 *
 entailer!!.
 *
-match goal with
-| P := @abbreviate ret_assert _ |- _ => unfold abbreviate in P; subst P
-end.
-match goal with
-| |- semax _ _ ?c ?P =>
-    tryif (is_sequential false false c)
-    then (apply sequential; simpl_ret_assert;
-          match goal with |- semax _ _ _ ?Q =>
-             abbreviate Q : ret_assert as POSTCONDITION
-          end)
-    else abbreviate P : ret_assert as POSTCONDITION
-end.
-
-force_sequential.
-abbreviate_semax.
 rename a0 into i.
  forward. (* j = a[i]; *)
  assert (repable_signed (Znth i al))
@@ -197,37 +183,6 @@ rename a0 into i.
  forward. (* skip; *)
  entailer!!. rewrite Z.min_l; auto; lia.
  +
- intros.
- subst POSTCONDITION; unfold abbreviate. (* TODO: some of these lines should all be done by forward_if *)
- simpl_ret_assert.
-
-Ltac go_lower ::=
-clear_Delta_specs;
-intros;
-match goal with
- | |- local _ && PROPx _ (LOCALx _ (SEPx ?R)) |-- _ => check_mpreds R
- | |- ENTAIL _, PROPx _ (LOCALx _ (SEPx ?R)) |-- _ => check_mpreds R
- | |- ENTAIL _, _ |-- _ => fail 10 "The left-hand-side of your entailment is  not in PROP/LOCAL/SEP form"
- | _ => fail 10 "go_lower requires a proof goal in the form of (ENTAIL _ , _ |-- _)"
-end;
-clean_LOCAL_canon_mix;
-repeat (simple apply derives_extract_PROP; intro_PROP);
-let rho := fresh "rho" in
-intro rho;
-first
-[ simple apply quick_finish_lower
-|          
- (let TC := fresh "TC" in apply finish_lower; intros TC ||
- match goal with
- | |- (_ && PROPx nil _) _ |-- _ => fail 1 "LOCAL part of precondition is not a concrete list (or maybe Delta is not concrete)"
- | |- _ => fail 1 "PROP part of precondition is not a concrete list"
- end);
-unfold fold_right_sepcon; fold fold_right_sepcon; rewrite ?sepcon_emp; (* for the left side *)
-unfold_for_go_lower;
-simpl tc_val; simpl msubst_denote_tc_assert;
-try clear dependent rho;
-clear_Delta
-].
 Exists i. apply ENTAIL_refl.
 *
  rename a0 into i.
@@ -319,6 +274,5 @@ forward_if.
  Intros x.
  autorewrite with sublist in *.
  forward. (* return *)
- Exists x.
- entailer!!.
+ Exists x; entailer!.
 Qed.

@@ -1,7 +1,6 @@
 Require Import aes.api_specs.
 Require Import aes.spec_encryption_LL.
 Require Import aes.bitfiddling.
-Local Open Scope Z.
 
 Definition encryption_loop_body : statement :=
    ltac:(find_statement_in_body
@@ -17,7 +16,7 @@ Definition encryption_loop_body : statement :=
 
 Definition encryption_loop_body_proof_statement :=
  forall
-  (Espec : OracleKind)
+  Espec E
   (ctx input output : val)
   (ctx_sh in_sh out_sh : share)
   (plaintext exp_key : list Z)
@@ -43,7 +42,7 @@ Definition encryption_loop_body_proof_statement :=
   (HeqS12 : S12 = mbed_tls_enc_rounds 12 S0 buf 4)
   (i : Z)
   (H1 : 0 < i <= 6),
-semax (func_tycontext f_mbedtls_aes_encrypt Vprog Gprog nil)
+semax(OK_spec := Espec) E (func_tycontext f_mbedtls_aes_encrypt Vprog Gprog nil)
   (PROP ( )
    LOCAL (temp _i (Vint (Int.repr i));
    temp _RK

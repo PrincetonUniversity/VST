@@ -1,14 +1,16 @@
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.floyd.base2.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Import VST.floyd.semax_tactics.
 Import ListNotations.
 
 Ltac reassoc_seq_raw :=
   cbv [Sfor Swhile Sdowhile];
   match goal with
-  | |- semax _ _ ?cs _ =>
+  | |- semax _ _ _ ?cs _ =>
     let cs' := eval cbv [unfold_seq fold_seq app]
                in (fold_seq (unfold_seq cs)) in
-    apply (semax_unfold_seq cs' cs eq_refl)
+    apply (semax_unfold_seq _ cs' cs eq_refl)
   end.
 
 Ltac reassoc_seq := unfold_abbrev'; reassoc_seq_raw; abbreviate_semax.
@@ -36,7 +38,7 @@ Definition reassoc_into_chunks (cs: statement) (chunksize: Z) : statement :=
 Ltac reassoc_seq_chunks chunksize :=
   cbv [Sfor Swhile Sdowhile];
   match goal with
-  | |- semax _ _ ?cs _ => let cs' := eval cbv
+  | |- semax _ _ _ ?cs _ => let cs' := eval cbv
        [reassoc_into_chunks fold_seq map partition unfold_seq Zlength Zlength_aux Z.succ Z.add
         Pos.add Pos.succ Pos.add_carry app Z.eqb Pos.eqb Z.sub Z.opp Z.pos_sub
         Z.succ_double Z.pred_double Z.double Pos.pred_double]

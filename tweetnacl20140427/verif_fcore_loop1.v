@@ -1,11 +1,9 @@
 Require Import Recdef.
 Require Import VST.floyd.proofauto.
-Local Open Scope logic.
 Require Import List. Import ListNotations.
 
 Require Import tweetnacl20140427.split_array_lemmas.
 Require Import ZArith.
-Local Open Scope Z.
 Require Import tweetnacl20140427.tweetNaclBase.
 Require Import tweetnacl20140427.Salsa20.
 Require Import tweetnacl20140427.tweetnaclVerifiableC.
@@ -48,10 +46,10 @@ Qed.
   2. In the master-branch, we actually could write the lemma using Delta :=,
      so this is really an issue ith the new_compcert branch*)
 
-Lemma f_core_loop1 (Espec : OracleKind) FR c k h nonce out w x y t
+Lemma f_core_loop1 Espec FR c k h nonce out w x y t
 (data : SixteenByte * SixteenByte * (SixteenByte * SixteenByte))
 (*(Delta := func_tycontext f_core SalsaVarSpecs SalsaFunSpecs) *):
-@semax CompSpecs Espec
+semax(C := CompSpecs)(OK_spec := Espec) ⊤
   (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil) (*Delta*)
   (PROP  ()
    LOCAL  (lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
@@ -175,7 +173,6 @@ Time forward_for_simple_bound 4 (EX i:Z,
   rewrite (sublist0_app1 4), (sublist_same 0 4); try rewrite <- QuadByteValList_ZLength; try lia.
 
   (*Issue this is where the call fails if we use abbreviation Delta := ... in the statement of the lemma*)
-
 
   Time forward_call (offset_val (4 * i) (Vptr cb coff), Select16Q C i). (*3.4 versus 15.4*)
   (*{ goal automatically discharged versus 4.2 }*)

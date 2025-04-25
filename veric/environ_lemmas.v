@@ -1,11 +1,11 @@
-Require Import VST.msl.msl_standard.
 Require Import VST.veric.Clight_base.
-Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.Clight_lemmas.
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
+Require Import VST.veric.res_predicates.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Import VST.veric.mpred.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
-Import compcert.lib.Maps.
 
 Require Import VST.veric.seplog. (*For definition of tycontext*)
 
@@ -31,17 +31,21 @@ clear IHl. destruct (split l). simpl. auto. destruct (split l). destruct a. simp
 right. apply IHl. eauto.
 Qed.
 
+Section mpred.
+
+Context `{!heapGS Σ}.
+
 Definition tycontext_evolve (Delta Delta' : tycontext) :=
- (forall id, match (temp_types Delta) ! id, (temp_types Delta') ! id with
+ (forall id, match (temp_types Delta) !! id, (temp_types Delta') !! id with
                 | Some t, Some t' => t=t'
                 | None, None => True
                 | _, _ => False
                end)
- /\ (forall id, (var_types Delta) ! id = (var_types Delta') ! id)
+ /\ (forall id, (var_types Delta) !! id = (var_types Delta') !! id)
  /\ ret_type Delta = ret_type Delta'
- /\ (forall id, (glob_types Delta) ! id = (glob_types Delta') ! id)
- /\ (forall id, (glob_specs Delta) ! id = (glob_specs Delta') ! id)
- /\ (forall id, (annotations Delta) ! id = (annotations Delta') ! id).
+ /\ (forall id, (glob_types Delta) !! id = (glob_types Delta') !! id)
+ /\ (forall id, (glob_specs Delta) !! id = (glob_specs Delta') !! id)
+ /\ (forall id, (annotations Delta) !! id = (annotations Delta') !! id).
 
 Lemma tycontext_evolve_trans: forall Delta1 Delta2 Delta3,
    tycontext_evolve Delta1 Delta2 ->
@@ -55,15 +59,15 @@ intros [A B C D E] [A1 B1 C1 D1 E1] [A2 B2 C2 D2 E2]
  try congruence.
  clear - S1 T1.
  intro id; specialize (S1 id); specialize (T1 id).
- destruct (A!id) as [?|].
- destruct (A1!id) as [?|]; [ | contradiction]. subst t0.
- destruct (A2!id) as [?|]; [ | contradiction]. subst t0.
+ destruct (A!!id) as [?|].
+ destruct (A1!!id) as [?|]; [ | contradiction]. subst t0.
+ destruct (A2!!id) as [?|]; [ | contradiction]. subst t0.
  auto.
- destruct (A1!id) as [?|]; [ contradiction| ].
+ destruct (A1!!id) as [?|]; [ contradiction| ].
  auto.
 Qed.
 
-Lemma tc_val_ptr_lemma {CS: compspecs} :
+(*Lemma tc_val_ptr_lemma {CS: compspecs} :
    forall rho m Delta id t a,
    typecheck_environ Delta rho ->
    denote_tc_assert (typecheck_expr Delta (Etempvar id (Tpointer t a))) rho m ->
@@ -79,11 +83,11 @@ destruct (eval_id id rho); try congruence.
   destruct (Int64.eq i Int64.zero); try congruence.
 +
    simple_if_tac; simpl; auto.
-Qed.
+Qed.*)
 
 Lemma typecheck_environ_put_te : forall ge te ve Delta id v ,
   typecheck_environ Delta (mkEnviron ge ve te) ->
-  (forall t , ((temp_types Delta) ! id = Some t ->
+  (forall t , ((temp_types Delta) !! id = Some t ->
      tc_val' t v)) ->
   typecheck_environ Delta (mkEnviron ge ve (Map.set id v te)).
 Proof.
@@ -99,7 +103,7 @@ Qed.
 
 Lemma typecheck_environ_put_te' : forall ge te ve Delta id v ,
  typecheck_environ  Delta (mkEnviron ge ve te) ->
-(forall t , ((temp_types Delta) ! id = Some t -> tc_val' t v)) ->
+(forall t , ((temp_types Delta) !! id = Some t -> tc_val' t v)) ->
 typecheck_environ Delta (mkEnviron ge ve (Map.set id v te)).
 Proof.
 intros.
@@ -114,5 +118,7 @@ Lemma tycontext_evolve_refl : forall Delta, tycontext_evolve Delta Delta.
 Proof.
 intros.
 split; auto.
-intros. destruct ((temp_types Delta)!id); auto.
+intros. destruct ((temp_types Delta)!!id); auto.
 Qed.
+
+End mpred.

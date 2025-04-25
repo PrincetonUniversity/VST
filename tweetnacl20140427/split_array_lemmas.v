@@ -1,8 +1,7 @@
 Require Import VST.floyd.proofauto.
-Local Open Scope logic.
+Require Import VST.floyd.compat. Import NoOracle.
 Require Import List. Import ListNotations.
 Require Import ZArith.
-Local Open Scope Z.
 
 (*generalizes Lemma data_at_lemmas.memory_block_data_at__aux1*)
 Lemma unsigned_add: forall i pos, 0 <= pos -> Ptrofs.unsigned (Ptrofs.add i (Ptrofs.repr pos)) = (Ptrofs.unsigned i + pos) mod Ptrofs.modulus.
@@ -107,29 +106,29 @@ Lemma sizeof_Zlength_nonneg {A} {ge: compspecs} t (d:list A): 0 <= sizeof t * Zl
   apply Z.mul_nonneg_nonneg; lia.
 Qed.
 (*
-Lemma data_at_ext {cs} sh t v v' p: v=v' -> @data_at cs sh t v p |-- @data_at cs sh t v' p.
+Lemma data_at_ext {cs} sh t v v' p: v=v' -> data_at(cs := cs) sh t v p |-- data_at(cs := cs) sh t v' p.
 Proof. intros; subst. trivial. Qed.
 
-Lemma data_at_ext_derives {cs} sh t v v' p q: v=v' -> p=q -> @data_at cs sh t v p |-- @data_at cs sh t v' q.
+Lemma data_at_ext_derives {cs} sh t v v' p q: v=v' -> p=q -> data_at(cs := cs) sh t v p |-- data_at(cs := cs) sh t v' q.
 Proof. intros; subst. trivial. Qed.
 
-Lemma data_at_ext_eq {cs} sh t v v' p q: v=v' -> p=q -> @data_at cs sh t v p = @data_at cs sh t v' q.
+Lemma data_at_ext_eq {cs} sh t v v' p q: v=v' -> p=q -> data_at(cs := cs) sh t v p = data_at(cs := cs) sh t v' q.
 Proof. intros; subst. trivial. Qed.
 
 (*From sha_lemmas, but repeated here to avoid specialization to sha.CompSpecs*)
 Lemma data_at_type_changable {cs}: forall (sh: Share.t) (t1 t2: type) v1 v2,
   t1 = t2 ->
   JMeq v1 v2 ->
-  @data_at cs sh t1 v1 = data_at sh t2 v2.
+  data_at(cs := cs) sh t1 v1 = data_at sh t2 v2.
 Proof.
   intros.
   subst. apply JMeq_eq in H0. subst v2. reflexivity.
 Qed.
 
 Lemma split2_data_at_Tarray_at_tuchar_unfold {cs} sh n n1 v p: 0 <= n1 <= n ->
-  @data_at cs sh (Tarray tuchar n noattr) v p |--
-  (@data_at cs sh (Tarray tuchar n1 noattr) (sublist 0 n1 v) p *
-   at_offset (@data_at cs sh (Tarray tuchar (n - n1) noattr) (sublist n1 (Zlength v) v)) n1 p)%logic.
+  data_at(cs := cs) sh (Tarray tuchar n noattr) v p |--
+  (data_at(cs := cs) sh (Tarray tuchar n1 noattr) (sublist 0 n1 v) p *
+   at_offset (data_at(cs := cs) sh (Tarray tuchar (n - n1) noattr) (sublist n1 (Zlength v) v)) n1 p).
 Proof.
   rewrite data_at_isptr at 1.
   unfold data_at at 1. intros; simpl; normalize.
@@ -151,10 +150,10 @@ Proof.
   rewrite isptr_offset_val_zero, Zplus_0_l, Zmult_1_l; trivial.
 Qed.
 Lemma split2_data_at_Tarray_at_tuchar_unfold_with_fc {cs} sh n n1 v p: 0 <= n1 <= n ->
-  @data_at cs sh (Tarray tuchar n noattr) v p |--
+  data_at(cs := cs) sh (Tarray tuchar n noattr) v p |--
   !!(field_compatible (Tarray tuchar n noattr) [] p) &&
-  (@data_at cs sh (Tarray tuchar n1 noattr) (sublist 0 n1 v) p *
-   at_offset (@data_at cs sh (Tarray tuchar (n - n1) noattr) (sublist n1 (Zlength v) v)) n1 p)%logic.
+  (data_at(cs := cs) sh (Tarray tuchar n1 noattr) (sublist 0 n1 v) p *
+   at_offset (data_at(cs := cs) sh (Tarray tuchar (n - n1) noattr) (sublist n1 (Zlength v) v)) n1 p).
 Proof.
   intros. apply andp_right. entailer.
   apply split2_data_at_Tarray_at_tuchar_unfold; trivial.
@@ -164,7 +163,7 @@ Lemma array_at_data_at1 {cs} : forall sh t gfs lo hi v p,
    field_compatible0 t (gfs SUB lo) p ->
    field_compatible0 t (gfs SUB hi) p ->
   @array_at cs sh t gfs lo hi v p =
-  at_offset (@data_at cs sh (nested_field_array_type t gfs lo hi)
+  at_offset (data_at(cs := cs) sh (nested_field_array_type t gfs lo hi)
                 (@fold_reptype _ (nested_field_array_type t gfs lo hi)  v))
                (nested_field_offset2 t (ArraySubsc lo :: gfs)) p.
 Proof.
@@ -173,10 +172,10 @@ Qed.
 
 Lemma split2_data_at_Tarray_at_tuchar_fold {cs} sh n n1 v p: 0 <= n1 <= n -> n = Zlength v -> n < Int.modulus ->
    field_compatible (Tarray tuchar n noattr) [] p ->
-  (@data_at cs sh (Tarray tuchar n1 noattr) (sublist 0 n1 v) p *
-   at_offset (@data_at cs sh (Tarray tuchar (n - n1) noattr) (sublist n1 (Zlength v) v)) n1 p)%logic
+  (data_at(cs := cs) sh (Tarray tuchar n1 noattr) (sublist 0 n1 v) p *
+   at_offset (data_at(cs := cs) sh (Tarray tuchar (n - n1) noattr) (sublist n1 (Zlength v) v)) n1 p)
 |--
-  @data_at cs sh (Tarray tuchar n noattr) v p.
+  data_at(cs := cs) sh (Tarray tuchar n noattr) v p.
 Proof. intros.
   rewrite data_at_isptr at 1. unfold at_offset. intros; normalize.
   rewrite (data_at_isptr sh (Tarray tuchar (n - n1) noattr) (sublist n1 (Zlength v) v) (offset_val (Int.repr n1) p)).
@@ -218,9 +217,9 @@ Qed.
 
 Lemma split2_data_at_Tarray_at_tuchar {cs} sh n n1 v p: 0 <= n1 <= n -> n = Zlength v -> n < Int.modulus ->
    field_compatible (Tarray tuchar n noattr) [] p ->
-@data_at cs sh (Tarray tuchar n noattr) v p
-= (@data_at cs sh (Tarray tuchar n1 noattr) (sublist 0 n1 v) p *
-   at_offset (@data_at cs sh (Tarray tuchar (n - n1) noattr) (sublist n1 (Zlength v) v)) n1 p)%logic.
+data_at(cs := cs) sh (Tarray tuchar n noattr) v p
+= (data_at(cs := cs) sh (Tarray tuchar n1 noattr) (sublist 0 n1 v) p *
+   at_offset (data_at(cs := cs) sh (Tarray tuchar (n - n1) noattr) (sublist n1 (Zlength v) v)) n1 p).
 Proof. intros. apply pred_ext.
   apply (split2_data_at_Tarray_at_tuchar_unfold sh n n1); trivial.
   apply (split2_data_at_Tarray_at_tuchar_fold sh n n1); trivial.
@@ -229,9 +228,9 @@ Qed.
 Lemma append_split2_data_at_Tarray_at_tuchar {cs} sh n data1 data2 p: Zlength (data1++data2) < Int.modulus ->
    n = Zlength (data1++data2) ->
    field_compatible (Tarray tuchar n noattr) [] p ->
-@data_at cs sh (Tarray tuchar n noattr) (data1++data2) p
-= (@data_at cs sh (Tarray tuchar (Zlength data1) noattr) data1 p *
-   at_offset (@data_at cs sh (Tarray tuchar (Zlength data2) noattr) data2) (Zlength data1) p)%logic.
+data_at(cs := cs) sh (Tarray tuchar n noattr) (data1++data2) p
+= (data_at(cs := cs) sh (Tarray tuchar (Zlength data1) noattr) data1 p *
+   at_offset (data_at(cs := cs) sh (Tarray tuchar (Zlength data2) noattr) data2) (Zlength data1) p).
 Proof. intros. subst n.
   specialize (Zlength_nonneg data1).  specialize (Zlength_nonneg data2). intros.
   erewrite (split2_data_at_Tarray_at_tuchar sh _ (Zlength data1)); rewrite Zlength_app in *; try lia; trivial.
@@ -248,11 +247,11 @@ Lemma split_offset_Tarray_at cs:
   legal_alignas_type t = true ->
   (Z.of_nat n <= Zlength contents)%Z ->
   (Z.of_nat n <= len)%Z ->
-  @data_at cs sh (Tarray t len noattr) contents v =
+  data_at(cs := cs) sh (Tarray t len noattr) contents v =
   (!! (offset_in_range (sizeof t * 0) v) &&
    !! (offset_in_range (sizeof t * len) v) &&
   (data_at sh (Tarray t (Z.of_nat n) noattr) (firstn n contents) v *
-    data_at sh (Tarray t (len- Z.of_nat n) noattr) (skipn n contents) (offset_val (Int.repr (sizeof t * Z.of_nat n)) v)))%logic.
+    data_at sh (Tarray t (len- Z.of_nat n) noattr) (skipn n contents) (offset_val (Int.repr (sizeof t * Z.of_nat n)) v))).
 Proof. apply split_offset_array_at. Qed.
 *)
 (*
@@ -283,10 +282,10 @@ split3_array_at:
 
 Lemma split3_data_at_Tarray_at_tuchar_unfold {cs} sh n lo hi v p:
   0 <= lo <= hi -> hi <= n <= Zlength v ->
-  @data_at cs sh (Tarray tuchar n noattr) v p |--
-  (@data_at cs sh (Tarray tuchar lo noattr) (sublist 0 lo v) p *
-   at_offset (@data_at cs sh (Tarray tuchar (hi - lo) noattr) (sublist lo hi v)) lo p *
-   at_offset (@data_at cs sh (Tarray tuchar (n - hi) noattr) (sublist hi (Zlength v) v)) hi p)%logic.
+  data_at(cs := cs) sh (Tarray tuchar n noattr) v p |--
+  (data_at(cs := cs) sh (Tarray tuchar lo noattr) (sublist 0 lo v) p *
+   at_offset (data_at(cs := cs) sh (Tarray tuchar (hi - lo) noattr) (sublist lo hi v)) lo p *
+   at_offset (data_at(cs := cs) sh (Tarray tuchar (n - hi) noattr) (sublist hi (Zlength v) v)) hi p).
 Proof. intros.
   eapply derives_trans.
   apply (split2_data_at_Tarray_at_tuchar_unfold sh n hi); try lia.
@@ -299,10 +298,10 @@ Proof. intros.
 Qed.
 Lemma split3_data_at_Tarray_at_tuchar_unfold' {cs} sh n n1 n2 v p:
   n2 + n1 <= n <= Zlength v-> 0<= n1 -> 0<= n2 ->
-  @data_at cs sh (Tarray tuchar n noattr) v p |--
-  (@data_at cs sh (Tarray tuchar n1 noattr) (sublist 0 n1 v) p *
-   at_offset (@data_at cs sh (Tarray tuchar n2 noattr) (sublist n1 (n2 + n1) v)) n1 p *
-   at_offset (@data_at cs sh (Tarray tuchar (Zlength v - (n2 + n1)) noattr) (sublist (n2 + n1) (Zlength v) v)) (n2 + n1)  p)%logic.
+  data_at(cs := cs) sh (Tarray tuchar n noattr) v p |--
+  (data_at(cs := cs) sh (Tarray tuchar n1 noattr) (sublist 0 n1 v) p *
+   at_offset (data_at(cs := cs) sh (Tarray tuchar n2 noattr) (sublist n1 (n2 + n1) v)) n1 p *
+   at_offset (data_at(cs := cs) sh (Tarray tuchar (Zlength v - (n2 + n1)) noattr) (sublist (n2 + n1) (Zlength v) v)) (n2 + n1)  p).
 Proof. intros.
   assert_PROP (Zlength v = Z.max 0 n). entailer. rewrite Z.max_r in H2. 2: lia.
   eapply derives_trans.
@@ -313,11 +312,11 @@ Qed.
 Lemma split3_data_at_Tarray_at_tuchar_fold {cs} sh n lo hi v p:
   0 <= lo <= hi -> hi <= n -> n = Zlength v -> n < Int.modulus ->
   field_compatible (Tarray tuchar n noattr) [] p ->
-(@data_at cs sh (Tarray tuchar lo noattr) (sublist 0 lo v) p *
-   at_offset (@data_at cs sh (Tarray tuchar (hi - lo) noattr) (sublist lo hi v)) lo p *
-   at_offset (@data_at cs sh (Tarray tuchar (n - hi) noattr) (sublist hi (Zlength v) v)) hi p)%logic
+(data_at(cs := cs) sh (Tarray tuchar lo noattr) (sublist 0 lo v) p *
+   at_offset (data_at(cs := cs) sh (Tarray tuchar (hi - lo) noattr) (sublist lo hi v)) lo p *
+   at_offset (data_at(cs := cs) sh (Tarray tuchar (n - hi) noattr) (sublist hi (Zlength v) v)) hi p)
 |--
-  @data_at cs sh (Tarray tuchar n noattr) v p.
+  data_at(cs := cs) sh (Tarray tuchar n noattr) v p.
 Proof. intros. subst n.
   assert_PROP (isptr p). entailer. rename H1 into Pp.
   eapply derives_trans. Focus 2.
@@ -349,11 +348,11 @@ Lemma split3_data_at_Tarray_at_tuchar_fold' {cs} sh n n1 n2 v p:
   n2 + n1 <= n -> 0<= n1 -> 0<= n2 ->
   n=Zlength v -> n < Int.modulus ->
   field_compatible (Tarray tuchar n noattr) [] p ->
-(@data_at cs sh (Tarray tuchar n1 noattr) (sublist 0 n1 v) p *
-   at_offset (@data_at cs sh (Tarray tuchar n2 noattr) (sublist n1 (n2 + n1) v)) n1 p *
-   at_offset (@data_at cs sh (Tarray tuchar (Zlength v - (n2 + n1)) noattr) (sublist (n2+n1) (Zlength v) v)) (n2+n1) p)%logic
+(data_at(cs := cs) sh (Tarray tuchar n1 noattr) (sublist 0 n1 v) p *
+   at_offset (data_at(cs := cs) sh (Tarray tuchar n2 noattr) (sublist n1 (n2 + n1) v)) n1 p *
+   at_offset (data_at(cs := cs) sh (Tarray tuchar (Zlength v - (n2 + n1)) noattr) (sublist (n2+n1) (Zlength v) v)) (n2+n1) p)
 |--
-  @data_at cs sh (Tarray tuchar n noattr) v p.
+  data_at(cs := cs) sh (Tarray tuchar n noattr) v p.
 Proof. intros.
   eapply derives_trans.
   2: apply (split3_data_at_Tarray_at_tuchar_fold sh n n1 (n2+n1)); trivial; try lia.
@@ -364,10 +363,10 @@ Lemma split3_data_at_Tarray_at_tuchar {cs} sh n n1 n2 v p:
   n2 + n1 <= n -> 0<= n1 -> 0<= n2 ->
   n=Zlength v -> n < Int.modulus ->
   field_compatible (Tarray tuchar n noattr) [] p ->
-@data_at cs sh (Tarray tuchar n noattr) v p =
-(@data_at cs sh (Tarray tuchar n1 noattr) (sublist 0 n1 v) p *
-   at_offset (@data_at cs sh (Tarray tuchar n2 noattr) (sublist n1 (n2 + n1) v)) n1 p *
-   at_offset (@data_at cs sh (Tarray tuchar (Zlength v - (n2 + n1)) noattr) (sublist (n2+n1) (Zlength v) v)) (n2+n1) p)%logic.
+data_at(cs := cs) sh (Tarray tuchar n noattr) v p =
+(data_at(cs := cs) sh (Tarray tuchar n1 noattr) (sublist 0 n1 v) p *
+   at_offset (data_at(cs := cs) sh (Tarray tuchar n2 noattr) (sublist n1 (n2 + n1) v)) n1 p *
+   at_offset (data_at(cs := cs) sh (Tarray tuchar (Zlength v - (n2 + n1)) noattr) (sublist (n2+n1) (Zlength v) v)) (n2+n1) p).
 Proof. intros. apply pred_ext.
   apply (split3_data_at_Tarray_at_tuchar_unfold' sh n n1 n2); trivial. subst n; trivial. clear - H. lia.
   apply (split3_data_at_Tarray_at_tuchar_fold' sh n n1 n2); trivial.
@@ -377,10 +376,10 @@ Lemma append_split3_data_at_Tarray_at_tuchar {cs} sh n data1 data2 data3 p:
    n = Zlength (data1++data2++data3) ->
    n < Int.modulus ->
    field_compatible (Tarray tuchar n noattr) [] p ->
-@data_at cs sh (Tarray tuchar n noattr) (data1++data2++data3) p
-= (@data_at cs sh (Tarray tuchar (Zlength data1) noattr) data1 p *
-   at_offset (@data_at cs sh (Tarray tuchar (Zlength data2) noattr) data2) (Zlength data1) p *
-   at_offset (@data_at cs sh (Tarray tuchar (Zlength data3) noattr) data3) (Zlength data2 + Zlength data1) p)%logic.
+data_at(cs := cs) sh (Tarray tuchar n noattr) (data1++data2++data3) p
+= (data_at(cs := cs) sh (Tarray tuchar (Zlength data1) noattr) data1 p *
+   at_offset (data_at(cs := cs) sh (Tarray tuchar (Zlength data2) noattr) data2) (Zlength data1) p *
+   at_offset (data_at(cs := cs) sh (Tarray tuchar (Zlength data3) noattr) data3) (Zlength data2 + Zlength data1) p).
 Proof. intros.
   specialize (Zlength_nonneg data1). specialize (Zlength_nonneg data2). specialize (Zlength_nonneg data3). intros.
   rewrite (split3_data_at_Tarray_at_tuchar sh n (Zlength data1) (Zlength data2)); try lia; trivial.
@@ -405,10 +404,10 @@ Lemma append_split3_data_at_Tarray_at_tuchar' {cs} sh data data1 data2 data3 p:
    data = data1++data2++data3 ->
    Zlength data < Int.modulus ->
    field_compatible (Tarray tuchar (Zlength data) noattr) [] p ->
-@data_at cs sh (Tarray tuchar (Zlength data) noattr) data p
-= (@data_at cs sh (Tarray tuchar (Zlength data1) noattr) data1 p *
-   at_offset (@data_at cs sh (Tarray tuchar (Zlength data2) noattr) data2) (Zlength data1) p *
-   at_offset (@data_at cs sh (Tarray tuchar (Zlength data3) noattr) data3) (Zlength data2 + Zlength data1) p)%logic.
+data_at(cs := cs) sh (Tarray tuchar (Zlength data) noattr) data p
+= (data_at(cs := cs) sh (Tarray tuchar (Zlength data1) noattr) data1 p *
+   at_offset (data_at(cs := cs) sh (Tarray tuchar (Zlength data2) noattr) data2) (Zlength data1) p *
+   at_offset (data_at(cs := cs) sh (Tarray tuchar (Zlength data3) noattr) data3) (Zlength data2 + Zlength data1) p).
 Proof. intros. subst.
   apply append_split3_data_at_Tarray_at_tuchar; trivial.
 Qed.
@@ -423,7 +422,7 @@ Lemma split3_data_at_Tarray_at_tuchar:
   (data_at sh (tarray t (Z.of_nat lo)) (firstn lo data) d *
   data_at sh (tarray t (Z.of_nat n)) (firstn n (skipn lo data)) (offset_val (Int.repr (sizeof t * Z.of_nat lo)) d) *
   data_at sh (tarray t (Zlength data - Z.of_nat (lo+n)))
-             (skipn (lo+n) data)  (offset_val (Int.repr (sizeof t * Z.of_nat (lo+n))) d)))%logic.
+             (skipn (lo+n) data)  (offset_val (Int.repr (sizeof t * Z.of_nat (lo+n))) d))).
 Proof.
   fold reptype in *.
   assert (Arith1: Zlength (firstn (lo + n) data) = Z.of_nat (lo + n)).
@@ -433,7 +432,7 @@ Proof.
     (* by
     (rewrite firstn_length; rewrite Min.min_l by lia; lia).*)
   assert (!!offset_in_range (sizeof t * Zlength data) d |--
-    !! offset_in_range (sizeof t * Zlength (firstn (lo + n) data)) d)%logic.
+    !! offset_in_range (sizeof t * Zlength (firstn (lo + n) data)) d).
     remember (sizeof t) as ST; normalize; subst ST.
     apply offset_in_range_mid with (lo := 0%Z) (hi := Zlength data); try assumption.
     rewrite !Zlength_correct.
@@ -467,7 +466,7 @@ Lemma split3_offset_array_at
   (data_at sh (tarray t (Z.of_nat lo)) (firstn lo data) d *
   data_at sh (tarray t (Z.of_nat n)) (firstn n (skipn lo data)) (offset_val (Int.repr (sizeof t * Z.of_nat lo)) d) *
   data_at sh (tarray t (Zlength data - Z.of_nat (lo+n)))
-             (skipn (lo+n) data)  (offset_val (Int.repr (sizeof t * Z.of_nat (lo+n))) d)))%logic.
+             (skipn (lo+n) data)  (offset_val (Int.repr (sizeof t * Z.of_nat (lo+n))) d))).
 Proof.
   fold reptype in *.
   assert (Arith1: Zlength (firstn (lo + n) data) = Z.of_nat (lo + n)).
@@ -477,7 +476,7 @@ Proof.
     (* by
     (rewrite firstn_length; rewrite Min.min_l by lia; lia).*)
   assert (!!offset_in_range (sizeof t * Zlength data) d |--
-    !! offset_in_range (sizeof t * Zlength (firstn (lo + n) data)) d)%logic.
+    !! offset_in_range (sizeof t * Zlength (firstn (lo + n) data)) d).
     remember (sizeof t) as ST; normalize; subst ST.
     apply offset_in_range_mid with (lo := 0%Z) (hi := Zlength data); try assumption.
     rewrite !Zlength_correct.
@@ -511,7 +510,7 @@ Lemma split3_offset_Tarray_at
   (data_at sh (Tarray t (Z.of_nat lo) noattr) (firstn lo data) d *
   data_at sh (Tarray t (Z.of_nat n) noattr) (firstn n (skipn lo data)) (offset_val (Int.repr (sizeof t * Z.of_nat lo)) d) *
   data_at sh (Tarray t (Zlength data - Z.of_nat (lo+n)) noattr)
-             (skipn (lo+n) data)  (offset_val (Int.repr (sizeof t * Z.of_nat (lo+n))) d)))%logic.
+             (skipn (lo+n) data)  (offset_val (Int.repr (sizeof t * Z.of_nat (lo+n))) d))).
 Proof. apply split3_offset_array_at; trivial. Qed.
 *)(*
 Lemma append_split_Tarray_at:
@@ -523,7 +522,7 @@ Lemma append_split_Tarray_at:
    !! offset_in_range (sizeof t * (Zlength data)) d &&
   (data_at sh (Tarray t (Zlength data1) noattr) data1 d *
    data_at sh (Tarray t (Zlength data2) noattr) data2
-             (offset_val (Int.repr (sizeof t * Zlength data1)) d)))%logic.
+             (offset_val (Int.repr (sizeof t * Zlength data1)) d))).
 intros. subst.
 rewrite (split_offset_Tarray_at (length data1) sh t (Zlength (data1++data2))
          (data1 ++ data2) d H); repeat rewrite Zlength_correct.
@@ -544,7 +543,7 @@ Lemma append_split3_Tarray_at
    data_at sh (Tarray t (Zlength data2) noattr) data2
              (offset_val (Int.repr (sizeof t * Zlength data1)) d) *
    data_at sh (Tarray t (Zlength data3) noattr) data3
-             (offset_val (Int.repr (sizeof t * (Zlength data1 + Zlength data2))) d)))%logic.
+             (offset_val (Int.repr (sizeof t * (Zlength data1 + Zlength data2))) d))).
 Proof.
   subst.
   erewrite (split3_offset_Tarray_at t A (length data1) (length data2)).
@@ -565,21 +564,21 @@ Qed.
 *)
 
 Definition Select_at {cs} sh n (data2: list val) d :=
-   @data_at cs sh (Tarray tuchar (Zlength data2) noattr) data2
+   data_at(cs := cs) sh (Tarray tuchar (Zlength data2) noattr) data2
              (offset_val n d).
 
 Definition Unselect_at {cs} sh (data1 data2 data3: list val) d :=
-  (@data_at cs sh (Tarray tuchar (Zlength data1) noattr) data1 d *
-   @data_at cs sh (Tarray tuchar (Zlength data3) noattr) data3
-             (offset_val (Zlength data2 + Zlength data1) d))%logic.
+  (data_at(cs := cs) sh (Tarray tuchar (Zlength data1) noattr) data1 d *
+   data_at(cs := cs) sh (Tarray tuchar (Zlength data3) noattr) data3
+             (offset_val (Zlength data2 + Zlength data1) d)).
 
 Lemma Select_Unselect_Tarray_at {cs} l d sh (data1 data2 data3 data: list val)
   (DATA: (data1 ++ data2 ++ data3) = data)
   (L: l = Zlength data)
   (F: @field_compatible cs (Tarray tuchar (Zlength (data1 ++ data2 ++ data3)) noattr) [] d)
   (ZL: Zlength (data1 ++ data2 ++ data3) < Int.modulus):
-  @data_at cs sh (Tarray tuchar l noattr) data d =
-  (@Select_at cs sh (Zlength data1) data2 d * @Unselect_at cs sh data1 data2 data3 d)%logic.
+  data_at(cs := cs) sh (Tarray tuchar l noattr) data d =
+  (@Select_at cs sh (Zlength data1) data2 d * @Unselect_at cs sh data1 data2 data3 d).
 Proof.
   subst l. subst data.
   specialize (Zlength_nonneg data1). intros.
@@ -588,12 +587,14 @@ Proof.
   rewrite split3_data_at_Tarray_tuchar with (n1:=Zlength data1)(n2:=Zlength data2 +Zlength data1); try lia.
   autorewrite with sublist.
   unfold Select_at, Unselect_at. simpl.
-  unfold offset_val. red in F. destruct d; intuition auto with *.
+  unfold offset_val. red in F.
+  destruct d; try solve [unfold data_at, field_at; normalize; rewrite !prop_false_andp; auto;
+      intros ((Hptr & ?) & _); unfold field_address0 in Hptr; try if_tac in Hptr; done].
   rewrite field_address0_offset. simpl.
   rewrite field_address0_offset. simpl.
-  rewrite (sepcon_comm (data_at sh (Tarray tuchar (Zlength data2) noattr) data2
+  rewrite (sepcon_comm _ (data_at sh (Tarray tuchar (Zlength data2) noattr) data2
   (Vptr b (Ptrofs.add i (Ptrofs.repr (Zlength data1)))))).
-  repeat rewrite sepcon_assoc.
+  repeat rewrite <- sepcon_assoc.
   f_equal. repeat rewrite Z.mul_1_l. rewrite sepcon_comm. f_equal.
   repeat rewrite Zlength_app in *.
   red; simpl. intuition lia.

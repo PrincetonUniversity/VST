@@ -17,7 +17,6 @@ Require Import ProofIrrelevance.
 Require Import compcert.common.Memory.
 
 (* VST imports *)
-Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.juicy_mem.
 Require Import VST.veric.res_predicates.
 
@@ -40,11 +39,10 @@ Require Import VST.concurrency.juicy.erasure_signature.
 (*SSReflect*)
 From mathcomp.ssreflect Require Import ssreflect ssrfun ssrbool ssrnat eqtype seq.
 Require Import Coq.ZArith.ZArith.
-Require Import PreOmega.
+Require Import Lia.
 Require Import VST.concurrency.common.ssromega. (*omega in ssrnat *)
 From mathcomp.ssreflect Require Import ssreflect seq.
 
-Set Bullet Behavior "Strict Subproofs".
 Set Nested Proofs Allowed.
 
 Module Parching <: ErasureSig.

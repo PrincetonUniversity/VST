@@ -5,7 +5,6 @@
    Lennart Beringer, June 2015*)
 (*Processing time for this file: approx 13mins*)
 Require Import VST.floyd.proofauto.
-Local Open Scope logic.
 Require Import List. Import ListNotations.
 (*Require Import general_lemmas.
 
@@ -118,7 +117,7 @@ destruct intsums; simpl in H. lia. rename i into v13.
 destruct intsums; simpl in H. lia. rename i into v14.
 destruct intsums; simpl in H. lia. rename i into v15.
 destruct intsums; simpl in H. 2: lia. clear H. simpl.
-unfold Znth. simpl.
+unfold Znth. Time simpl.
 destruct OUT; simpl in H0. lia. rename v into u0.
 destruct OUT; simpl in H0. lia. rename v into u1.
 destruct OUT; simpl in H0. lia. rename v into u2.
@@ -231,13 +230,13 @@ LOCAL (lvar _t (tarray tuint 4) t;
                  (map Vint (hPosLoop2 4 intsums C Nonce)) x))
 end. 
 
-Opaque Snuffle. Opaque hPosLoop2. Opaque hPosLoop3. 
+Opaque Snuffle. Opaque hPosLoop2. Opaque hPosLoop3.
 
 Lemma HTruePOST F t y x w nonce out c k h snuffleRes l data OUT:
       Snuffle 20 l = Some snuffleRes ->
       Int.eq (Int.repr h) Int.zero = false ->
       l = prepare_data data ->
-      F |-- (data_at_ Tsh (tarray tuint 4) t * data_at_ Tsh (tarray tuint 16) w)%logic ->
+      (F |-- (data_at_ Tsh (tarray tuint 4) t * data_at_ Tsh (tarray tuint 16) w)%I) ->
       HTruePostCond F t y x w nonce out c k h snuffleRes l data OUT
 |-- fcore_EpiloguePOST t y x w nonce out c k h OUT data.
 Proof. intros.
@@ -245,7 +244,7 @@ unfold HTruePostCond, fcore_EpiloguePOST.
 destruct data as [[? ?] [? ?]].
 Exists snuffleRes l.
 rewrite H0, <- H1, H. clear - H2.
-Time normalize. (*1.4*)
+Intros intsums.
  Exists intsums.
  go_lowerx. (* must do this explicitly because it's not an ENTAIL *)
  Time entailer!; auto. (*6.8*)
@@ -255,8 +254,8 @@ Lemma HFalsePOST F t y x w nonce out c k h snuffleRes l data OUT:
       Snuffle 20 l = Some snuffleRes ->
       Int.eq (Int.repr h) Int.zero = true ->
       l = prepare_data data ->
-      F |-- ((CoreInSEP data (nonce, c,k) * data_at_ Tsh (tarray tuint 4) t *
-             data_at_ Tsh (tarray tuint 16) w))%logic ->
+      (F |-- ((CoreInSEP data (nonce, c,k) * data_at_ Tsh (tarray tuint 4) t *
+             data_at_ Tsh (tarray tuint 16) w))%I) ->
       HFalsePostCond F t y x w nonce out c k h snuffleRes l
      |-- fcore_EpiloguePOST t y x w nonce out c k h OUT data.
 Proof. intros.
@@ -264,9 +263,10 @@ unfold HFalsePostCond, fcore_EpiloguePOST.
 destruct data as [[? ?] [? ?]].
 Exists snuffleRes l.
 rewrite H0, <- H1, H. clear - H2.
+Opaque CoreInSEP.
 go_lowerx. (* must do this explicitly because it's not an ENTAIL *)
 Time entailer!. (*3.4*)
-Intros intsums. Exists intsums; entailer!. apply H2.
+Intros intsums. Exists intsums; entailer!. rewrite H2; cancel.
 Qed.
 
 Opaque HTruePostCond. Opaque HFalsePostCond.
@@ -292,7 +292,7 @@ Intros xInit. red in H. rename H into XInit.
 thaw FR2. freeze [0;2;3;5] FR3.
 subst MORE_COMMANDS; unfold abbreviate.
 eapply semax_seq.
-apply (f_core_loop2 _ (FRZL FR3) c k h nonce out w x y t data); trivial.
+apply (f_core_loop2 _ _ (FRZL FR3) c k h nonce out w x y t data); trivial.
     (* mkConciseDelta SalsaVarSpecs SalsaFunSpecs f_core Delta.*)
 
     Intros YS.
@@ -364,7 +364,7 @@ apply (f_core_loop2 _ (FRZL FR3) c k h nonce out w x y t data); trivial.
         destruct (HFalse_inv16_char _ _ _ H99) as [sums [SUMS1 SUMS2]].
           rewrite Zlength_correct, L; reflexivity. trivial.
         rewrite <- SUMS1, <- SUMS2. rewrite hh. auto.
-        unfold fcorePOST_SEP, OutLen.  
+        unfold fcorePOST_SEP, OutLen.
         rewrite hh. auto.
   +  Intros intsums.   unfold fcorePOST_SEP.
       Exists (hPosLoop3 4 (hPosLoop2 4 intsums C Nonce) OUT).

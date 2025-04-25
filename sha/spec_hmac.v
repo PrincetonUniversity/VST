@@ -1,6 +1,5 @@
 Require Import VST.floyd.proofauto.
 Import ListNotations.
-Local Open Scope logic.
 
 Require Import sha.spec_sha.
 Require Import sha.sha_lemmas.
@@ -359,9 +358,9 @@ Definition HmacFunSpecs : funspecs :=
 
 Definition HMS : hmacstate := default_val t_struct_hmac_ctx_st.
 
-Lemma change_compspecs_data_block: forall sh v,
-  @data_block spec_sha.CompSpecs sh v =
-  @data_block CompSpecs sh v.
+Lemma change_compspecs_data_block: forall sh v p,
+  @data_block spec_sha.CompSpecs sh v p ⊣⊢
+  @data_block CompSpecs sh v p.
 Proof.
   intros.
   unfold data_block.
@@ -371,10 +370,10 @@ Qed.
 Ltac change_compspecs' cs cs' ::=
   match goal with
   | |- context [@data_block cs'] => rewrite change_compspecs_data_block
-  | |- context [@data_at cs' ?sh ?t ?v1] => erewrite (@data_at_change_composite cs' cs _ sh t); [| apply JMeq_refl | reflexivity]
-  | |- context [@field_at cs' ?sh ?t ?gfs ?v1] => erewrite (@field_at_change_composite cs' cs _ sh t gfs); [| apply JMeq_refl | reflexivity]
-  | |- context [@data_at_ cs' ?sh ?t] => erewrite (@data_at__change_composite cs' cs _ sh t); [| reflexivity]
-  | |- context [@field_at_ cs' ?sh ?t ?gfs] => erewrite (@field_at__change_composite cs' cs _ sh t gfs); [| reflexivity]
+  | |- context [data_at(cs := cs') ?sh ?t ?v1] => erewrite (data_at_change_composite(cs_from := cs')(cs_to := cs) sh t); [| apply JMeq_refl | reflexivity]
+  | |- context [field_at(cs := cs') ?sh ?t ?gfs ?v1] => erewrite (field_at_change_composite(cs_from := cs')(cs_to := cs) sh t gfs); [| apply JMeq_refl | reflexivity]
+  | |- context [data_at_(cs := cs') ?sh ?t] => erewrite (data_at__change_composite(cs_from := cs')(cs_to := cs) sh t); [| reflexivity]
+  | |- context [field_at_(cs := cs') ?sh ?t ?gfs] => erewrite (field_at__change_composite (cs_from := cs')(cs_to := cs) sh t gfs); [| reflexivity]
   | |- context [?A cs'] => change (A cs') with (A cs)
   | |- context [?A cs' ?B] => change (A cs' B) with (A cs B)
   | |- context [?A cs' ?B ?C] => change (A cs' B C) with (A cs B C)
@@ -384,18 +383,17 @@ Ltac change_compspecs' cs cs' ::=
  end.
 
 (* TODO: maybe this lemma is not needed any more. *)
-Lemma change_compspecs_t_struct_SHA256state_st:
-  @data_at spec_sha.CompSpecs Ews t_struct_SHA256state_st =
-  @data_at CompSpecs Ews t_struct_SHA256state_st.
+Lemma change_compspecs_t_struct_SHA256state_st: forall v p,
+  data_at(cs := spec_sha.CompSpecs) Ews t_struct_SHA256state_st v p ⊣⊢
+  data_at(cs := CompSpecs) Ews t_struct_SHA256state_st v p.
 Proof.
-  extensionality gfs v.
   (* TODO: simplify this proof. *)
-  unfold data_at, field_at.
-  f_equal.
+  intros; unfold data_at, field_at.
+  f_equiv; last done.
   unfold field_compatible.
-  apply ND_prop_ext.
-  assert (@align_compatible spec_sha.CompSpecs t_struct_SHA256state_st v <-> @align_compatible CompSpecs t_struct_SHA256state_st v); [| tauto].
-  destruct v; unfold align_compatible; try tauto.
+  f_equiv.
+  assert (@align_compatible spec_sha.CompSpecs t_struct_SHA256state_st p <-> @align_compatible CompSpecs t_struct_SHA256state_st p); [| tauto].
+  destruct p; unfold align_compatible; try tauto.
   split; intros.
   + eapply align_compatible_rec_Tstruct; [reflexivity.. | simpl co_members].
     intros.
@@ -452,4 +450,3 @@ Proof.
 Qed.
 
 #[export] Hint Rewrite change_compspecs_t_struct_SHA256state_st : norm.
-

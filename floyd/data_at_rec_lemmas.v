@@ -1,4 +1,6 @@
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.floyd.base2.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Import VST.floyd.client_lemmas.
 Require Import VST.floyd.type_induction.
 Require Import VST.floyd.nested_pred_lemmas.
@@ -10,26 +12,37 @@ Require Import VST.floyd.jmeq_lemmas.
 Require Import VST.zlist.sublist.
 Require Export VST.floyd.fieldlist.
 Require Export VST.floyd.aggregate_type.
-Import compcert.lib.Maps.
+
+Local Unset SsrRewrite.
 
 Opaque alignof.
-
-Local Open Scope logic.
 
 Arguments align !n !amount / .
 Arguments Z.max !n !m / .
 
-Definition offset_in_range ofs p :=
+Definition offset_in_range ofs p : Prop :=
   match p with
   | Vptr b iofs => 0 <= Ptrofs.unsigned iofs + ofs <= Ptrofs.modulus
   | _ => True
   end.
 
-Definition offset_strict_in_range ofs p :=
+Definition offset_strict_in_range ofs p : Prop :=
   match p with
   | Vptr b iofs => 0 <= Ptrofs.unsigned iofs + ofs < Ptrofs.modulus
   | _ => True
   end.
+
+Ltac unknown_big_endian_hack :=
+  (* This is necessary on machines where Archi.big_endian is a Parameter 
+    rather than a Definition.  When Archi.big_endian is a constant true or false,
+   then it's much easier. *)
+ match goal with H1: (align_chunk _ | _) |- _ ⊢ res_predicates.address_mapsto ?ch ?v ?sh (?b, ?i) =>
+   replace v with (decode_val ch (repeat (Byte Byte.zero) (Z.to_nat (size_chunk ch))));
+   [ apply (mapsto_memory_block.address_mapsto_zeros'_address_mapsto sh ch b i H1) | ];
+    unfold decode_val, decode_int, rev_if_be;
+     destruct Archi.big_endian;
+     reflexivity
+ end.
 
 (************************************************
 
@@ -41,7 +54,7 @@ Always assume in arguments of data_at_rec has argument pos with alignment criter
 
 Section CENV.
 
-Context {cs: compspecs}.
+Context `{!heapGS Σ} {cs: compspecs}.
 
 Section WITH_SHARE.
 
@@ -61,7 +74,7 @@ Lemma data_at_rec_eq: forall t v,
   data_at_rec t v =
   match t return REPTYPE t -> val -> mpred with
   | Tvoid
-  | Tfunction _ _ _ => fun _ _ => FF
+  | Tfunction _ _ _ => fun _ _ => False
   | Tint _ _ _
   | Tfloat _ _
   | Tlong _ _
@@ -174,11 +187,11 @@ Lemma by_value_data_at_rec_default_val: forall sh t p,
   type_is_by_value t = true ->
   size_compatible t p ->
   align_compatible t p ->
-  data_at_rec sh t (default_val t) p = memory_block sh (sizeof t) p.
+  data_at_rec sh t (default_val t) p ⊣⊢ memory_block sh (sizeof t) p.
 Proof.
   intros.
   destruct (type_is_volatile t) eqn:?H.
-  + apply by_value_data_at_rec_volatile; auto.
+  + rewrite by_value_data_at_rec_volatile; auto.
   + rewrite data_at_rec_eq; destruct t; try solve [inversion H]; rewrite H2;
     symmetry;
     rewrite memory_block_mapsto_ by auto; unfold mapsto_;
@@ -221,32 +234,19 @@ intros.
     unfold eq_rect_r; rewrite <- eq_rect_eq; auto.
 Qed.
 
-Ltac unknown_big_endian_hack :=
-  (* This is necessary on machines where Archi.big_endian is a Parameter 
-    rather than a Definition.  When Archi.big_endian is a constant true or false,
-   then it's much easier. *)
- match goal with H1: (align_chunk _ | _) |- _ |-- res_predicates.address_mapsto ?ch ?v ?sh (?b, Ptrofs.unsigned ?i) =>
-   constructor;
-   replace v with (decode_val ch (repeat (Byte Byte.zero) (Z.to_nat (size_chunk ch))));
-   [ apply (mapsto_memory_block.address_mapsto_zeros'_address_mapsto sh ch b i H1) | ];
-    unfold decode_val, decode_int, rev_if_be;
-     destruct Archi.big_endian;
-     reflexivity
- end.
-
 Lemma by_value_data_at_rec_zero_val: forall sh t p,
   type_is_by_value t = true ->
   size_compatible t p ->
   align_compatible t p ->
   type_is_volatile t = false ->
-  mapsto_zeros (sizeof t) sh p |-- data_at_rec sh t (zero_val t) p.
+  mapsto_zeros (sizeof t) sh p ⊢ data_at_rec sh t (zero_val t) p.
 Proof.
   intros.
   rewrite data_at_rec_eq.
   pose proof (sizeof_pos t).
   destruct t; try destruct f; try solve [inversion H]; rewrite H2;
-  destruct p; try apply FF_left;
-  unfold mapsto_zeros; apply derives_extract_prop; intros [? ?];
+  destruct p; try apply False_left;
+  unfold mapsto_zeros; apply bi.pure_elim_l; intros [? ?];
   rewrite mapsto_memory_block.address_mapsto_zeros_eq;
   rewrite Z2Nat.id by lia;
   unfold mapsto; rewrite H2.
@@ -254,49 +254,46 @@ Proof.
    change (unfold_reptype ?A) with A.
     destruct i,s; simpl;
     (eapply align_compatible_rec_by_value_inv in H1; [ | reflexivity]);
-   rewrite prop_true_andp by (clear; compute; repeat split; try congruence; auto);
-   rewrite (prop_true_andp (_ /\ _)) 
-    by (split; auto; intros _; compute; repeat split; try congruence; auto);
-   (if_tac; [apply orp_right1 | ]).
-   all: try (constructor; apply mapsto_memory_block.address_mapsto_zeros'_nonlock_permission_bytes).
+   (if_tac; [rewrite prop_true_andp by (clear; compute; repeat split; try congruence; auto);
+      rewrite <- bi.or_intro_l |
+   rewrite (prop_true_andp (_ /\ _))
+    by (split; auto; intros _; compute; repeat split; try congruence; auto) ]).
+   all: try (apply mapsto_memory_block.address_mapsto_zeros'_nonlock_permission_bytes).
    all: try unknown_big_endian_hack.
 - rewrite zero_val_Tlong.
    change (unfold_reptype ?A) with A.
     destruct s; simpl;
     (eapply align_compatible_rec_by_value_inv in H1; [ | reflexivity]);
-   rewrite prop_true_andp by (clear; compute; repeat split; try congruence; auto);
-   rewrite (prop_true_andp (_ /\ _)) 
-    by (split; auto; intros _; compute; repeat split; try congruence; auto);
-   (if_tac; [apply orp_right1 | ]).
-   all: try (constructor; apply mapsto_memory_block.address_mapsto_zeros'_nonlock_permission_bytes; computable).
+   (if_tac; [rewrite prop_true_andp by (clear; compute; repeat split; try congruence; auto);
+      rewrite <- bi.or_intro_l |
+   rewrite (prop_true_andp (_ /\ _))
+    by (split; auto; intros _; compute; repeat split; try congruence; auto)]).
+   all: try (apply mapsto_memory_block.address_mapsto_zeros'_nonlock_permission_bytes; computable).
    all: try unknown_big_endian_hack.
 - rewrite zero_val_Tfloat32;
    change (unfold_reptype ?A) with A.
     (eapply align_compatible_rec_by_value_inv in H1; [ | reflexivity]).
-   simpl. rewrite prop_true_andp by auto.
-   rewrite (prop_true_andp (_ /\ _)) 
-    by (split; auto; intros _; compute; repeat split; try congruence; auto);
-   (if_tac; [apply orp_right1 | ]); constructor.
+   simpl. if_tac; [rewrite prop_true_andp by auto; rewrite <- bi.or_intro_l |
+   rewrite (prop_true_andp (_ /\ _))
+    by (split; auto; intros _; compute; repeat split; try congruence; auto)].
    all: try apply mapsto_memory_block.address_mapsto_zeros'_nonlock_permission_bytes.
    all: try apply (mapsto_memory_block.address_mapsto_zeros'_address_mapsto sh _ _ _ H1).
 - rewrite zero_val_Tfloat64;
    change (unfold_reptype ?A) with A.
     (eapply align_compatible_rec_by_value_inv in H1; [ | reflexivity]).
-   simpl. rewrite prop_true_andp by auto.
-   rewrite (prop_true_andp (_ /\ _)) 
-    by (split; auto; intros _; compute; repeat split; try congruence; auto);
-   (if_tac; [apply orp_right1 | ]).
+   simpl. if_tac; [rewrite prop_true_andp by auto; rewrite <- bi.or_intro_l |
+   rewrite (prop_true_andp (_ /\ _))
+    by (split; auto; intros _; compute; repeat split; try congruence; auto)].
    all: try (constructor; apply mapsto_memory_block.address_mapsto_zeros'_nonlock_permission_bytes).
    all: try unknown_big_endian_hack.
 - rewrite zero_val_Tpointer.
    change (unfold_reptype ?A) with A.
     (eapply align_compatible_rec_by_value_inv in H1; [ | reflexivity]).
    simpl access_mode; cbv beta iota.
-  rewrite prop_true_andp by apply mapsto_memory_block.tc_val_pointer_nullval'.
+  if_tac; [rewrite prop_true_andp by apply mapsto_memory_block.tc_val_pointer_nullval'; rewrite <- bi.or_intro_l |
    rewrite (prop_true_andp (_ /\ _))
-      by (split; auto; intro; apply mapsto_memory_block.tc_val_pointer_nullval'). 
-   (if_tac; [apply orp_right1 | ]).
-   all: try (constructor; apply mapsto_memory_block.address_mapsto_zeros'_nonlock_permission_bytes).
+      by (split; auto; intro; apply mapsto_memory_block.tc_val_pointer_nullval')].
+   all: try (apply mapsto_memory_block.address_mapsto_zeros'_nonlock_permission_bytes).
    all: try unknown_big_endian_hack.
 Qed.
 
@@ -306,11 +303,11 @@ Lemma by_value_data_at_rec_nonreachable: forall sh t p v,
   align_compatible t p ->
   ~ readable_share sh ->
   tc_val' t (repinject t v) ->
-  data_at_rec sh t v p = memory_block sh (sizeof t) p.
+  data_at_rec sh t v p ⊣⊢ memory_block sh (sizeof t) p.
 Proof.
   intros.
   destruct (type_is_volatile t) eqn:?H.
-  + apply by_value_data_at_rec_volatile; auto.
+  + rewrite by_value_data_at_rec_volatile; auto.
   + rewrite by_value_data_at_rec_nonvolatile by auto.
     symmetry;
     apply nonreadable_memory_block_mapsto; auto.
@@ -320,7 +317,7 @@ Lemma by_value_data_at_rec_default_val2: forall sh t b ofs,
   type_is_by_value t = true ->
   0 <= ofs /\ ofs + sizeof t < Ptrofs.modulus ->
   align_compatible_rec cenv_cs t ofs ->
-  data_at_rec sh t (default_val t) (Vptr b (Ptrofs.repr ofs)) =
+  data_at_rec sh t (default_val t) (Vptr b (Ptrofs.repr ofs)) ⊣⊢
   memory_block sh (sizeof t) (Vptr b (Ptrofs.repr ofs)).
 Proof.
   intros.
@@ -341,7 +338,7 @@ Lemma by_value_data_at_rec_zero_val2: forall sh t b ofs,
   0 <= ofs /\ ofs + sizeof t < Ptrofs.modulus ->
   align_compatible_rec cenv_cs t ofs ->
   type_is_volatile t = false ->
-  mapsto_zeros (sizeof t) sh (Vptr b (Ptrofs.repr ofs)) |-- 
+  mapsto_zeros (sizeof t) sh (Vptr b (Ptrofs.repr ofs)) ⊢ 
   data_at_rec sh t (zero_val t) (Vptr b (Ptrofs.repr ofs)).
 Proof.
   intros.
@@ -363,7 +360,7 @@ Lemma by_value_data_at_rec_nonreachable2: forall sh t b ofs v,
   align_compatible_rec cenv_cs t ofs ->
   ~ readable_share sh ->
   tc_val' t (repinject t v) ->
-  data_at_rec sh t v (Vptr b (Ptrofs.repr ofs)) = memory_block sh (sizeof t) (Vptr b (Ptrofs.repr ofs)).
+  data_at_rec sh t v (Vptr b (Ptrofs.repr ofs)) ⊣⊢ memory_block sh (sizeof t) (Vptr b (Ptrofs.repr ofs)).
 Proof.
   intros.
   apply by_value_data_at_rec_nonreachable; auto.
@@ -396,11 +393,6 @@ Transformation between data_at and data_at_rec. This is used in transformation
 between field_at and data_at.
 
 ************************************************)
-
-Lemma lower_sepcon_val':
-  forall (P Q: val->mpred) v,
-  ((P*Q) v) = (P v * Q v).
-Proof. reflexivity. Qed.
 
 (*
 Lemma unsigned_add: forall i pos, 0 <= pos -> Int.unsigned (Int.add i (Int.repr pos)) = (Int.unsigned i + pos) mod Int.modulus.
@@ -552,7 +544,7 @@ Lemma memory_block_data_at_rec_default_val: forall sh t b ofs
   (LEGAL_COSU: complete_legal_cosu_type t = true),
   0 <= ofs /\ ofs + sizeof t < Ptrofs.modulus ->
   align_compatible_rec cenv_cs t ofs ->
-  data_at_rec sh t (default_val t) (Vptr b (Ptrofs.repr ofs)) =
+  data_at_rec sh t (default_val t) (Vptr b (Ptrofs.repr ofs)) ⊣⊢
     memory_block sh (sizeof t) (Vptr b (Ptrofs.repr ofs)).
 Proof.
   intros sh t.
@@ -623,9 +615,10 @@ Proof.
       rewrite name_member_get in *.
       spec IH; [apply in_get_member; auto |].
       rewrite IH; clear IH.
-      * rewrite Z.add_assoc, sepcon_comm.
+      * rewrite Z.add_assoc.
+        etrans; first apply bi.sep_comm.
          rewrite <- memory_block_split by (auto; pose_field; lia).
-        f_equal; lia.
+        f_equiv; hnf; lia.
       * apply complete_legal_cosu_type_field_type.
          eapply complete_Tstruct_plain; eauto.
         auto.
@@ -668,9 +661,9 @@ Proof.
         rewrite name_member_get in *.
         spec IH; [apply in_get_member; auto |].
         rewrite IH.
-        { 
-          rewrite sepcon_comm, <- memory_block_split by (pose_field; lia).
-          f_equal; f_equal; lia.
+        {
+          etrans; first apply bi.sep_comm. rewrite <- memory_block_split by (pose_field; lia).
+          f_equiv; hnf; f_equal; lia.
         } {
           apply complete_legal_cosu_type_field_type.
          eapply complete_Tunion_plain; eauto.
@@ -688,11 +681,11 @@ Fixpoint fully_nonvolatile {cs: compspecs} (rank: nat) (t: type) : bool :=
  | S r => negb (type_is_volatile t) &&
                match t with
                | Tarray t' _ _ => fully_nonvolatile r t'
-               | Tstruct id _ => match cenv_cs ! id with 
+               | Tstruct id _ => match cenv_cs !! id with 
                                           | Some co => forallb (fully_nonvolatile r) (map type_member (co_members co))
                                           | None => false
                                           end
-               | Tunion id _ => match cenv_cs ! id with 
+               | Tunion id _ => match cenv_cs !! id with 
                                           | Some co => forallb (fully_nonvolatile r) (map type_member (co_members co))
                                           | None => false
                                           end
@@ -709,7 +702,7 @@ rewrite andb_true_iff in H0; destruct H0; auto.
 rewrite andb_true_iff in H0|-*; destruct H0; split; auto.
 destruct t; auto.
 apply IHr; auto; lia.
-all: destruct (cenv_cs ! i); auto;
+all: destruct (cenv_cs !! i); auto;
 rewrite forallb_forall in H1|-*; intros; apply H1 in H2; apply IHr; auto; lia.
 Qed.
 
@@ -722,7 +715,7 @@ Lemma mapsto_zeros_data_at_rec_zero_val: forall sh
   0 <= ofs /\ ofs + sizeof t < Ptrofs.modulus ->
   align_compatible_rec cenv_cs t ofs ->
   fully_nonvolatile (rank_type cenv_cs t) t = true ->
-  mapsto_zeros (sizeof t) sh (Vptr b (Ptrofs.repr ofs)) |--
+  mapsto_zeros (sizeof t) sh (Vptr b (Ptrofs.repr ofs)) ⊢
     data_at_rec sh t (zero_val t) (Vptr b (Ptrofs.repr ofs)).
 Proof.
   intros sh ? t.
@@ -736,15 +729,14 @@ Proof.
   rewrite data_at_rec_eq.
  + rewrite (zero_val_eq (Tarray t z a)).
      rewrite unfold_fold_reptype.
-    eapply derives_trans; [ | 
-    apply array_pred_ext_derives with
+   rewrite <- array_pred_ext_derives with
      (P0 := fun i _ p => mapsto_zeros (sizeof t) sh
                           (offset_val (sizeof t * i) p))
-     (v0 := Zrepeat (zero_val t) (Z.max 0 z))];
+     (v0 := Zrepeat (zero_val t) (Z.max 0 z));
      auto.
     apply mapsto_zeros_array_pred; auto.
     - apply Z.le_max_l.
-    - unfold Zrepeat. 
+    - unfold Zrepeat.
       rewrite Z2Nat_max0; auto.
     - intros.
       change (unfold_reptype ?A) with A.
@@ -760,17 +752,16 @@ Proof.
       apply range_max0; auto.
   + rewrite zero_val_eq.
      rewrite unfold_fold_reptype.
-    eapply derives_trans; [ |
-    apply struct_pred_ext_derives with
+    rewrite <- struct_pred_ext_derives with
      (P0 := fun it _ p =>
               mapsto_zeros
                (field_offset_next cenv_cs (name_member it) (co_members (get_co id)) (co_sizeof (get_co id)) -
                   field_offset cenv_cs (name_member it) (co_members (get_co id))) sh
                (offset_val (field_offset cenv_cs (name_member it) (co_members (get_co id))) p))
-     (v0 := (struct_zero_val (co_members (get_co id))))];
+     (v0 := (struct_zero_val (co_members (get_co id))));
     [| apply get_co_members_no_replicate |].
     - change (sizeof ?A) with (expr.sizeof A) in *.
-       eapply derives_trans; [apply mapsto_zeros_struct_pred with (m := co_members (get_co id)) | ];
+      rewrite mapsto_zeros_struct_pred with (m := co_members (get_co id));
          rewrite ?sizeof_Tstruct; auto.
       * apply get_co_members_nil_sizeof_0.
       * eapply complete_Tstruct_plain; eauto.
@@ -786,7 +777,6 @@ Proof.
         lia.
       * rewrite sizeof_Tstruct in H.
         lia.
-      * apply derives_refl.
     - intros.
       pose proof get_co_members_no_replicate id as NO_REPLI.
       rewrite withspacer_spacer.
@@ -801,13 +791,12 @@ Proof.
       specialize (IH (get_member i (co_members (get_co id)))).
       rewrite name_member_get in *.
       spec IH; [apply in_get_member; auto |].
-      eapply derives_trans; [ | apply sepcon_derives; [apply derives_refl | apply IH]]; clear IH.
-      *
-      eapply derives_trans; [ | apply sepcon_derives; [apply mapsto_zeros_memory_block; auto | apply derives_refl ]].
-      simpl fst. 
-       rewrite Z.add_assoc. rewrite sepcon_comm.
-       rewrite <- aggregate_pred.mapsto_zeros_split by (pose_field; lia).
-       apply derives_refl'; f_equal; lia.
+      rewrite <- IH.
+      * rewrite <- mapsto_zeros_memory_block.
+        simpl fst.
+        rewrite Z.add_assoc. rewrite <- bi.sep_comm.
+        rewrite <- aggregate_pred.mapsto_zeros_split by (pose_field; lia).
+        apply bi.equiv_entails_1_1; f_equiv; hnf; lia.
       * apply complete_legal_cosu_type_field_type.
          eapply complete_Tstruct_plain; eauto.
         auto.
@@ -815,7 +804,7 @@ Proof.
       * eapply align_compatible_rec_Tstruct_inv'; eauto.
       * clear - LEGAL_COSU Hvol.
          unfold get_co. simpl in *.
-         destruct (cenv_cs ! id) eqn:?H; try discriminate.
+         destruct (cenv_cs !! id) eqn:?H; try discriminate.
          simpl in Hvol. rewrite H in Hvol.
          destruct (Ctypes.field_type i (co_members c)) eqn:?H; auto.
          destruct (co_su c); try discriminate.
@@ -837,12 +826,12 @@ Proof.
       rewrite H1 in *;
       intros.
       simpl.
-      normalize. apply derives_refl.
+      normalize.
     - rewrite zero_val_eq.
       rewrite unfold_fold_reptype.
-      eapply derives_trans; [ | apply union_pred_ext_derives with
+      rewrite <- union_pred_ext_derives with
        (P0 := fun it _ => mapsto_zeros(co_sizeof (get_co id)) sh)
-       (v0 := (union_zero_val (co_members (get_co id))))];
+       (v0 := (union_zero_val (co_members (get_co id))));
       [| apply get_co_members_no_replicate | reflexivity |].
       * rewrite sizeof_Tunion.
          apply mapsto_zeros_union_pred. (apply get_co_members_nil_sizeof_0).
@@ -862,42 +851,38 @@ Proof.
         specialize (IH (get_member i (co_members (get_co id)))).
       rewrite name_member_get in *.
       spec IH; [apply in_get_member; auto |].
-        eapply derives_trans; [ | apply sepcon_derives; [ apply derives_refl | apply IH]]; clear IH.
-        -- rewrite sepcon_comm. simpl fst.
-             eapply derives_trans; [ | apply sepcon_derives; [apply derives_refl | apply mapsto_zeros_memory_block; auto ]].
-            rewrite <- aggregate_pred.mapsto_zeros_split by (pose_field; lia).
-          apply derives_refl'.
-          f_equal; f_equal; lia.
-       --
-          apply complete_legal_cosu_type_field_type.
-          eapply complete_Tunion_plain; eauto.
-          auto.
-        --
-          pose_field; lia.
-        --
-           eapply align_compatible_rec_Tunion_inv'; eauto.
-       --clear - LEGAL_COSU Hvol.
-         unfold get_co. simpl in *.
-         destruct (cenv_cs ! id) eqn:?H; try discriminate.
-         destruct (co_su c); try discriminate.
-         simpl in Hvol. rewrite H in Hvol.
-         destruct (Ctypes.field_type i (co_members c)) eqn:?H; auto.
-         assert (In (Member_plain i t) (co_members c)). {
+        rewrite <- IH.
+        -- rewrite <- bi.sep_comm. simpl fst.
+           rewrite <- mapsto_zeros_memory_block.
+           rewrite <- aggregate_pred.mapsto_zeros_split by (pose_field; lia).
+           apply bi.equiv_entails_1_1; f_equiv; hnf; lia.
+        -- apply complete_legal_cosu_type_field_type.
+           eapply complete_Tunion_plain; eauto.
+           auto.
+        -- pose_field; lia.
+        -- eapply align_compatible_rec_Tunion_inv'; eauto.
+        -- clear - LEGAL_COSU Hvol.
+           unfold get_co. simpl in *.
+           destruct (cenv_cs !! id) eqn:?H; try discriminate.
+           destruct (co_su c); try discriminate.
+           simpl in Hvol. rewrite H in Hvol.
+           destruct (Ctypes.field_type i (co_members c)) eqn:?H; auto.
+           assert (In (Member_plain i t) (co_members c)). {
              clear - LEGAL_COSU H0. induction (co_members c) as [|[??|]]; simpl; [ | | discriminate]. 
              inv H0. simpl in H0. if_tac in H0. subst. inv H0; auto. right; auto.
-         }
-         rewrite forallb_forall in Hvol. specialize (Hvol  _ (in_map type_member _ _ H1)).
-         pose proof (cenv_legal_su _ _ H). apply (complete_legal_cosu_member _ i t) in H2; auto.
-         eapply fully_nonvolatile_stable; try eassumption.
-         rewrite (co_consistent_rank cenv_cs c (cenv_consistent _ _ H)).        
-         apply (rank_type_members cenv_cs (Member_plain i t) (co_members c)); auto.
+           }
+           rewrite forallb_forall in Hvol. specialize (Hvol  _ (in_map type_member _ _ H1)).
+           pose proof (cenv_legal_su _ _ H). apply (complete_legal_cosu_member _ i t) in H2; auto.
+           eapply fully_nonvolatile_stable; try eassumption.
+           rewrite (co_consistent_rank cenv_cs c (cenv_consistent _ _ H)).        
+           apply (rank_type_members cenv_cs (Member_plain i t) (co_members c)); auto.
 Qed.
 
 Lemma data_at_rec_data_at_rec_ : forall sh t v b ofs
   (LEGAL_COSU: complete_legal_cosu_type t = true),
   0 <= ofs /\ ofs + sizeof t < Ptrofs.modulus ->
   align_compatible_rec cenv_cs t ofs ->
-  data_at_rec sh t v (Vptr b (Ptrofs.repr ofs)) |-- data_at_rec sh t (default_val t) (Vptr b (Ptrofs.repr ofs)).
+  data_at_rec sh t v (Vptr b (Ptrofs.repr ofs)) ⊢ data_at_rec sh t (default_val t) (Vptr b (Ptrofs.repr ofs)).
 Proof.
   intros sh t.
   type_induction t; intros;
@@ -919,15 +904,14 @@ Proof.
     intros.
     rewrite !at_offset_eq3.
     rewrite @default_val_eq with (t := (Tarray t z a)), unfold_fold_reptype.
-    eapply derives_trans.
-    apply IH; auto.
+    rewrite IH; auto.
+    - apply bi.equiv_entails_1_1. f_equiv. unfold Znth, Zrepeat. rewrite if_false by lia.
+      rewrite nth_repeat'; auto.
+      apply Nat2Z.inj_lt. rewrite Z2Nat.id, Z2Nat_id' by lia. lia.
     - pose_size_mult cs t (0 :: i :: i + 1 :: Z.max 0 z :: nil).
        unfold sizeof in H; simpl in H; fold (sizeof t) in H; lia.
     - eapply align_compatible_rec_Tarray_inv; eauto.
       apply range_max0; auto.
-    - apply derives_refl'. f_equal. unfold Znth, Zrepeat. rewrite if_false by lia.
-      rewrite nth_repeat'; auto.
-      apply Nat2Z.inj_lt. rewrite Z2Nat.id, Z2Nat_id' by lia. lia.
   + rewrite !data_at_rec_eq.
     rewrite default_val_eq, unfold_fold_reptype.
     assert (members_no_replicate (co_members (get_co id)) = true) as NO_REPLI
@@ -936,7 +920,7 @@ Proof.
     intros.
     rewrite !withspacer_spacer.
     simpl @fst.
-    apply sepcon_derives; [auto |].
+    apply bi.sep_mono; [auto |].
     rewrite !at_offset_eq3.
     rewrite Forall_forall in IH.
     specialize (IH (get_member i (co_members (get_co id)))).
@@ -957,7 +941,7 @@ Proof.
       apply derives_refl.
     - rewrite data_at_rec_eq.
       rewrite memory_block_data_at_rec_default_val by auto.
-      eapply derives_trans.
+      etrans.
       * assert (members_no_replicate (co_members (get_co id)) = true) as NO_REPLI
           by apply get_co_members_no_replicate.
         apply union_pred_ext_derives with
@@ -973,9 +957,9 @@ Proof.
         pattern (co_sizeof (get_co id)) at 2;
         replace (co_sizeof (get_co id)) with (sizeof (field_type i' (co_members (get_co id))) +
           (co_sizeof (get_co id) - sizeof (field_type i' (co_members (get_co id))))) by lia.
-        rewrite sepcon_comm.
+        rewrite <- bi.sep_comm.
         rewrite memory_block_split by (subst i'; rewrite name_member_get; pose_field; lia).
-        apply sepcon_derives; [| rewrite spacer_memory_block by (simpl; auto);
+        apply bi.sep_mono; [| rewrite spacer_memory_block by (simpl; auto);
                                  unfold offset_val; solve_mod_modulus; auto ].
 
         rewrite <- memory_block_data_at_rec_default_val; auto.
@@ -1000,8 +984,7 @@ Proof.
           eapply align_compatible_rec_Tunion_inv'; eauto.
           subst i'; rewrite name_member_get; auto.    
         }
-      * 
-        rewrite sizeof_Tunion.
+      * rewrite sizeof_Tunion.
         rewrite memory_block_union_pred by (apply get_co_members_nil_sizeof_0).
         auto.
 Qed.
@@ -1009,7 +992,7 @@ Qed.
 Definition value_fits: forall t, reptype t -> Prop :=
   type_func (fun t => reptype t -> Prop)
     (fun t v =>
-       if type_is_volatile t then True else tc_val' t (repinject t v))
+       if type_is_volatile t then True%type else tc_val' t (repinject t v))
     (fun t n a P v => Zlength (unfold_reptype v) =  Z.max 0 n /\ Forall P (unfold_reptype v))
     (fun id a P v => struct_value_fits_aux (co_members (get_co id)) (co_members (get_co id)) P (unfold_reptype v))
     (fun id a P v => union_value_fits_aux (co_members (get_co id)) (co_members (get_co id)) P (unfold_reptype v)).
@@ -1034,7 +1017,7 @@ Lemma value_fits_eq:
         value_fits (field_type (name_member it) (co_members (get_co i)))) (unfold_reptype v0)
   | t0 => fun v0: reptype t0 =>
              (if type_is_volatile t0
-              then True
+              then True%type
               else tc_val' t0 (repinject t0 v0))
   end v.
 Proof.
@@ -1086,7 +1069,7 @@ Proof.
 Qed.
 
 Lemma data_at_rec_value_fits: forall sh t v p,
-  data_at_rec sh t v p |-- !! value_fits t v.
+  data_at_rec sh t v p ⊢ ⌜value_fits t v⌝.
 Proof.
   intros until p.
   revert v p; type_induction t; intros;
@@ -1094,15 +1077,13 @@ Proof.
   try solve [normalize];
   try solve [cbv zeta; simple_if_tac; [normalize | apply mapsto_tc_val']].
   + (* Tarray *)
-    eapply derives_trans; [apply array_pred_local_facts |].
-    - intros.
-      unfold at_offset.
-      instantiate (1 := fun x => value_fits t x); simpl.
-      apply IH.
-    - apply prop_derives.
-      intros [? ?]; split; auto.
+    rewrite array_pred_local_facts.
+    - apply bi.pure_mono.
+      intros [? ?]; split; eauto.
       rewrite Zlength_correct in *.
       lia.
+    - intros. unfold at_offset.
+      apply IH.
   + (* Tstruct *)
     apply struct_pred_local_facts; [apply get_co_members_no_replicate |].
     intros.
@@ -1112,8 +1093,8 @@ Proof.
     rewrite Forall_forall in IH.
     specialize (IH (get_member i (co_members (get_co id)))).
     spec IH; [apply in_get_member; auto |].
-    eapply derives_trans; [apply sepcon_derives; [apply derives_refl | apply IH] |].
-    rewrite sepcon_comm; apply derives_left_sepcon_right_corable; auto.
+    rewrite IH.
+    iIntros "(_ & $)".
   + (* Tunion *)
     apply union_pred_local_facts; [apply get_co_members_no_replicate |].
     intros.
@@ -1123,129 +1104,33 @@ Proof.
     rewrite Forall_forall in IH.
     specialize (IH (get_member i (co_members (get_co id)))).
     spec IH; [apply in_get_member; auto |].
-    eapply derives_trans; [apply sepcon_derives; [apply derives_refl | apply IH] |].
-    rewrite sepcon_comm; apply derives_left_sepcon_right_corable; auto.
-Qed. 
+    rewrite IH.
+    iIntros "(_ & $)".
+Qed.
 
 Lemma mapsto_values_cohere:
   forall sh1 sh2 t (R:type_is_by_value t = true) b ofs,
     type_is_volatile t = false ->
     readable_share sh1 -> readable_share sh2 -> 
   forall (v1 v2:val) (V1: ~ JMeq v1 Vundef) (V2: ~ JMeq v2 Vundef),
-    mapsto sh1 t (Vptr b ofs) v1 * mapsto sh2 t (Vptr b ofs) v2 |-- !!(v1=v2).
+    mapsto sh1 t (Vptr b ofs) v1 ∗ mapsto sh2 t (Vptr b ofs) v2 ⊢ ⌜v1=v2⌝.
 Proof.
-intros; destruct t; try discriminate R; unfold mapsto; simpl; simpl in *.
- + destruct i; destruct s; simpl; rewrite ! if_true by trivial; rewrite H.
-    - eapply derives_trans.
-      { apply sepcon_derives.
-        + apply orp_left; [ apply derives_refl |].
-          apply andp_left1. apply prop_left. intros; subst. elim V1. apply JMeq_refl.
-        + apply orp_left; [ apply derives_refl |].
-          apply andp_left1. apply prop_left. intros; subst. elim V2. apply JMeq_refl. }
-      normalize. rewrite derives_eq.
-      apply res_predicates.address_mapsto_value_cohere.
-    - eapply derives_trans.
-      { apply sepcon_derives.
-        + apply orp_left; [ apply derives_refl |].
-          apply andp_left1. apply prop_left. intros; subst. elim V1. apply JMeq_refl.
-        + apply orp_left; [ apply derives_refl |].
-          apply andp_left1. apply prop_left. intros; subst. elim V2. apply JMeq_refl. }
-      normalize. rewrite derives_eq.
-      apply res_predicates.address_mapsto_value_cohere.
-    - eapply derives_trans.
-      { apply sepcon_derives.
-        + apply orp_left; [ apply derives_refl |].
-          apply andp_left1. apply prop_left. intros; subst. elim V1. apply JMeq_refl.
-        + apply orp_left; [ apply derives_refl |].
-          apply andp_left1. apply prop_left. intros; subst. elim V2. apply JMeq_refl. }
-      normalize. rewrite derives_eq.
-      apply res_predicates.address_mapsto_value_cohere.
-    - eapply derives_trans.
-      { apply sepcon_derives.
-        + apply orp_left; [ apply derives_refl |].
-          apply andp_left1. apply prop_left. intros; subst. elim V1. apply JMeq_refl.
-        + apply orp_left; [ apply derives_refl |].
-          apply andp_left1. apply prop_left. intros; subst. elim V2. apply JMeq_refl. }
-      normalize. rewrite derives_eq.
-      apply res_predicates.address_mapsto_value_cohere.
-    - eapply derives_trans.
-      { apply sepcon_derives.
-        + apply orp_left; [ apply derives_refl |].
-          apply andp_left1. apply prop_left. intros; subst. elim V1. apply JMeq_refl.
-        + apply orp_left; [ apply derives_refl |].
-          apply andp_left1. apply prop_left. intros; subst. elim V2. apply JMeq_refl. }
-      normalize. rewrite derives_eq.
-      apply res_predicates.address_mapsto_value_cohere.
-    - eapply derives_trans.
-      { apply sepcon_derives.
-        + apply orp_left; [ apply derives_refl |].
-          apply andp_left1. apply prop_left. intros; subst. elim V1. apply JMeq_refl.
-        + apply orp_left; [ apply derives_refl |].
-          apply andp_left1. apply prop_left. intros; subst. elim V2. apply JMeq_refl. }
-      normalize. rewrite derives_eq.
-      apply res_predicates.address_mapsto_value_cohere.
-    - eapply derives_trans.
-      { apply sepcon_derives.
-        + apply orp_left; [ apply derives_refl |].
-          apply andp_left1. apply prop_left. intros; subst. elim V1. apply JMeq_refl.
-        + apply orp_left; [ apply derives_refl |].
-          apply andp_left1. apply prop_left. intros; subst. elim V2. apply JMeq_refl. }
-      normalize. rewrite derives_eq.
-      apply res_predicates.address_mapsto_value_cohere.
-    - eapply derives_trans.
-      { apply sepcon_derives.
-        + apply orp_left; [ apply derives_refl |].
-          apply andp_left1. apply prop_left. intros; subst. elim V1. apply JMeq_refl.
-        + apply orp_left; [ apply derives_refl |].
-          apply andp_left1. apply prop_left. intros; subst. elim V2. apply JMeq_refl. }
-      normalize. rewrite derives_eq.
-      apply res_predicates.address_mapsto_value_cohere.
-  + rewrite H; clear R. rewrite ! if_true by trivial.
-    - eapply derives_trans.
-      { apply sepcon_derives.
-        + apply orp_left; [ apply derives_refl |].
-          apply andp_left1. apply prop_left. intros; subst. elim V1. apply JMeq_refl.
-        + apply orp_left; [ apply derives_refl |].
-          apply andp_left1. apply prop_left. intros; subst. elim V2. apply JMeq_refl. }
-      normalize. rewrite derives_eq.
-      apply res_predicates.address_mapsto_value_cohere.
-  + rewrite H; clear R. destruct f; rewrite ! if_true by trivial.
-    - eapply derives_trans.
-      { apply sepcon_derives.
-        + apply orp_left; [ apply derives_refl |].
-          apply andp_left1. apply prop_left. intros; subst. elim V1. apply JMeq_refl.
-        + apply orp_left; [ apply derives_refl |].
-          apply andp_left1. apply prop_left. intros; subst. elim V2. apply JMeq_refl. }
-      normalize. rewrite derives_eq.
-      apply res_predicates.address_mapsto_value_cohere.
-    - eapply derives_trans.
-      { apply sepcon_derives.
-        + apply orp_left; [ apply derives_refl |].
-          apply andp_left1. apply prop_left. intros; subst. elim V1. apply JMeq_refl.
-        + apply orp_left; [ apply derives_refl |].
-          apply andp_left1. apply prop_left. intros; subst. elim V2. apply JMeq_refl. }
-      normalize. rewrite derives_eq.
-      apply res_predicates.address_mapsto_value_cohere.
-  + rewrite H; clear R. rewrite ! if_true by trivial.
-    - eapply derives_trans.
-      { apply sepcon_derives.
-        + apply orp_left; [ apply derives_refl |].
-          apply andp_left1. apply prop_left. intros; subst. elim V1. apply JMeq_refl.
-        + apply orp_left; [ apply derives_refl |].
-          apply andp_left1. apply prop_left. intros; subst. elim V2. apply JMeq_refl. }
-      normalize. rewrite derives_eq.
-      apply res_predicates.address_mapsto_value_cohere.
+  intros; unfold mapsto.
+  apply access_mode_by_value in R as (? & ->).
+  rewrite H, !if_true by trivial.
+  iIntros "([(_ & H1) | (-> & % & H1)] & [(_ & H2) | (-> & % & H2)])"; try solve [exfalso; pose proof (JMeq_refl Vundef); done];
+    iApply res_predicates.address_mapsto_value_cohere; iFrame.
 Qed.
 
-Definition value_defined_byvalue t v :=
-if type_is_volatile t then False else tc_val t (repinject t v).
+Definition value_defined_byvalue t v : Prop :=
+if type_is_volatile t then False%type else tc_val t (repinject t v).
 
 Definition value_defined : forall t, reptype t -> Prop :=
   type_func (fun t => reptype t -> Prop)
     value_defined_byvalue
     (fun t n a P v => Zlength (unfold_reptype v) =  Z.max 0 n /\ Forall P (unfold_reptype v))
     (fun id a P v => struct_value_fits_aux (co_members (get_co id)) (co_members (get_co id)) P (unfold_reptype v))
-    (fun id a P v => False). (* don't permit unions, for now ; otherwise: 
+    (fun id a P v => False%type). (* don't permit unions, for now ; otherwise: 
                  union_value_fits_aux (co_members (get_co id)) (co_members (get_co id)) P (unfold_reptype v))
 *)
 
@@ -1264,7 +1149,7 @@ Lemma value_defined_eq:
         value_defined (field_type (name_member it) (co_members (get_co i)))) (unfold_reptype v0)
 | Tunion i a =>
     fun v0 : reptype (Tunion i a) =>
-     False (*
+     False%type (*
      union_Prop (co_members (get_co i))
        (fun it : member =>
         value_defined (field_type (name_member it) (co_members (get_co i)))) (unfold_reptype v0)
@@ -1315,9 +1200,9 @@ Local Definition field_cohere sh1 sh2
         data_at_rec sh1
           (field_type (name_member it) m) v1
           (Vptr b ofs)
-          * data_at_rec sh2
+          ∗ data_at_rec sh2
               (field_type (name_member it) m) v2
-              (Vptr b ofs) |-- !! (v1 = v2).
+              (Vptr b ofs) ⊢ ⌜v1 = v2⌝.
 
 Lemma data_at_rec_values_cohere:
        forall (sh1 sh2 : share) (t : type),
@@ -1328,8 +1213,8 @@ Lemma data_at_rec_values_cohere:
        value_defined t v1 ->
        value_defined t v2 ->
        data_at_rec sh1 t v1 (Vptr b ofs)
-         * data_at_rec sh2 t v2 (Vptr b ofs) 
-        |-- !! (v1 = v2).
+         ∗ data_at_rec sh2 t v2 (Vptr b ofs) 
+        ⊢ ⌜v1 = v2⌝.
 Proof.
   intros *. pose proof I. intros.
   clear H. pose proof (value_defined_not_volatile _ _ H2).
@@ -1354,7 +1239,7 @@ change (Forall (value_defined t) (unfold_reptype v2)) in H5.
 unfold array_pred.
 destruct (zle z 0).
 rewrite Z.max_l in * by lia.
-apply prop_right.
+apply bi.pure_intro.
 rewrite Zlength_length in H2,H3 by lia.
 destruct v1; inv H2. destruct v2; inv H3. auto.
 rewrite Z.max_r in * by lia.
@@ -1375,7 +1260,7 @@ assert (type_is_volatile t = false). {
 clear g.
 change (list (reptype t)) in v1,v2.
 revert v1 v2 H5 H3 H4 H2; induction n; intros.
-apply prop_right.
+apply bi.pure_intro.
 clear - H3 H2.
 rewrite Zlength_length in H2,H3 by lia.
 destruct v1; inv H2. destruct v2; inv H3. auto.
@@ -1385,23 +1270,12 @@ rewrite !Z.sub_0_r.
 rewrite !(sublist_one (Z.of_nat n)) by lia.
 unfold Z.succ.
 rewrite !array_pred_len_1.
-match goal with |- (?a*?b)*(?c*?d) |-- _ =>
-    apply derives_trans with ((a*c)*(b*d)); [ cancel | ] end.
-apply derives_trans 
-  with (!! (sublist 0 (Z.of_nat n) v1 = sublist 0 (Z.of_nat n) v2) 
-           * !! (Znth (Z.of_nat n) v1 = Znth (Z.of_nat n) v2)).
-apply sepcon_derives.
-apply IHn.
-apply Forall_sublist; auto.
-Zlength_solve.
-apply Forall_sublist; auto.
-Zlength_solve.
+match goal with |- (?a∗?b)∗(?c∗?d) ⊢ _ =>
+    trans ((a∗c)∗(b∗d)); [ cancel | ] end.
+rewrite IHn; [| apply Forall_sublist; auto | Zlength_solve | apply Forall_sublist; auto | Zlength_solve].
 unfold at_offset.
-apply IH; auto.
-apply Forall_Znth; auto; lia.
-apply Forall_Znth; auto; lia.
-rewrite sepcon_prop_prop.
-apply prop_derives; intros [? ?].
+setoid_rewrite IH; auto; [| apply Forall_Znth; auto; lia..].
+iIntros "(%H6 & %H7)"; iPureIntro.
 replace v1 with (sublist 0 (Z.of_nat n) v1 ++ (Znth (Z.of_nat n) v1 :: nil)).
 replace v2 with (sublist 0 (Z.of_nat n) v2 ++ (Znth (Z.of_nat n) v2 :: nil)).
 rewrite H6,H7; auto.
@@ -1414,21 +1288,20 @@ apply sublist_same; lia.
 -
 cbv zeta in IH.
 clear H.
-change (type_func _ _ _ _ _ ) with value_defined in *.
+change (type_func _ _ _ _ _) with value_defined in *.
 unfold aggregate_pred.struct_pred.
 rewrite value_defined_eq in H2, H3.
 cbv zeta in IH.
 fold (field_atx sh1 (co_members (get_co id)) (co_sizeof (get_co id))).
 fold (field_atx sh2 (co_members (get_co id)) (co_sizeof (get_co id))).
 fold (field_cohere sh1 sh2 (co_members (get_co id)) b) in IH.
-eapply derives_trans with (!! (unfold_reptype v1 = unfold_reptype v2)).
-2:{  clear. 
-       apply prop_derives; intro.
-       unfold reptype, unfold_reptype in *.
-       unfold eq_rect in *.
-        destruct (reptype_eq (Tstruct id a)).
-         auto.
-}
+trans (⌜unfold_reptype v1 = unfold_reptype v2⌝ : mpred).
+2:{ clear.
+    apply bi.pure_mono; intro.
+    unfold reptype, unfold_reptype in *.
+    unfold eq_rect in *.
+    destruct (reptype_eq (Tstruct id a)).
+    auto. }
 set (u1 := unfold_reptype v1) in *.
 set (u2 := unfold_reptype v2) in *.
 clearbody u1. clearbody u2.
@@ -1461,12 +1334,12 @@ forall sh1 sh2 b m0 m
           | Errors.Error _ => Tvoid
           end) u2),
 struct_pred m (field_atx sh1 m0 sz) u1 (Vptr b ofs)
-  * struct_pred m (field_atx sh2 m0 sz) u2 (Vptr b ofs) |-- !! (u1 = u2)).
+  ∗ struct_pred m (field_atx sh2 m0 sz) u2 (Vptr b ofs) ⊢ ⌜u1 = u2⌝).
 2: eauto.
 clear.
 intros.
 destruct m as [ | a0 m].
-apply prop_right; destruct u1,u2; auto.
+apply bi.pure_intro; destruct u1,u2; auto.
 revert a0 IH u1 u2 H2 H3.
 induction m as [ | a1 m]; intros.
 +
@@ -1486,12 +1359,11 @@ specialize  (H1 u1 u2 ofs'
 clear - H1.
 set (y1 := data_at_rec sh1 _ _ _) in *.
 set (y2 := data_at_rec sh2 _ _ _) in *.
-apply derives_trans with ((y1*y2)*(x1*x2)). cancel.
-eapply derives_trans. apply sepcon_derives. apply H1. apply TT_right.
-rewrite prop_sepcon. Intros. apply prop_right; auto.
+trans ((y1∗y2)∗(x1∗x2)). cancel.
+rewrite H1. iIntros "($ & _)".
 +
 repeat change (struct_pred (a0 :: a1 :: m) ?P ?u ?p)
-      with (P a0 (fst u) p * struct_pred (a1 :: m) P (snd u) p).
+      with (P a0 (fst u) p ∗ struct_pred (a1 :: m) P (snd u) p).
 inv IH.
 specialize (IHm _ H4).
 destruct u1 as [v1 u1], u2 as [v2 u2].
@@ -1499,11 +1371,11 @@ destruct H2 as [H2v H2], H3 as [H3v H3].
 specialize (IHm u1 u2 H2 H3).
 clear H2 H3.
 unfold snd. unfold fst.
-match goal with |- ?a * ?b * (?c * ?d) |-- _ => 
-   apply derives_trans with ((a*c)*(b*d)); [cancel | ]
+match goal with |- (?a ∗ ?b) ∗ (?c ∗ ?d) ⊢ _ =>
+   trans ((a∗c)∗(b∗d)); [cancel | ]
 end.
-apply derives_trans with (!!(v1=v2) * !!(u1=u2)).
-apply sepcon_derives; auto.
+trans (⌜v1=v2⌝ ∗ ⌜u1=u2⌝ : mpred); last by iIntros "(-> & ->)".
+apply bi.sep_mono; auto.
 unfold field_atx.
 rewrite !withspacer_spacer.
 rewrite !spacer_memory_block by (simpl; auto).
@@ -1511,24 +1383,18 @@ set (x1 := memory_block sh1 _ _).
 set (x2 := memory_block sh2 _ _).
 clearbody x1 x2.
 unfold at_offset, offset_val.
-set (ofs' := Ptrofs.add _ _). clearbody ofs'. 
+set (ofs' := Ptrofs.add _ _). clearbody ofs'.
 specialize (H1 v1 v2 ofs').
-match goal with |- ?a * ?b * (?c * ?d) |-- _ => 
-   apply derives_trans with ((a*c)*(b*d)); [cancel | ]
+match goal with |- (?a ∗ ?b) ∗ (?c ∗ ?d) ⊢ _ => 
+   trans ((a∗c)∗(b∗d)); [cancel | ]
 end.
-apply derives_trans with (TT * !!(v1=v2)).
-apply sepcon_derives; auto.
-apply H1; auto.
+rewrite H1; auto.
+iIntros "(_ & $)".
 eapply value_defined_not_volatile; eauto.
-rewrite (sepcon_comm TT), prop_sepcon.
-normalize.
-rewrite prop_sepcon.
-rewrite (sepcon_comm TT), prop_sepcon.
-normalize.
 -
 cbv zeta in IH.
 clear H.
-change (type_func _ _ _ _ _ ) with value_defined in *.
+change (type_func _ _ _ _ _) with value_defined in *.
 unfold aggregate_pred.union_pred.
 rewrite value_defined_eq in H2, H3.
 contradiction.
@@ -1537,15 +1403,14 @@ Qed.
 Lemma data_at_rec_share_join:
   forall sh1 sh2 sh t v b ofs,
     sepalg.join sh1 sh2 sh ->
-   data_at_rec sh1 t v (Vptr b ofs) * data_at_rec sh2 t v (Vptr b ofs) = data_at_rec sh t v (Vptr b ofs).
+   data_at_rec sh1 t v (Vptr b ofs) ∗ data_at_rec sh2 t v (Vptr b ofs) ⊣⊢ data_at_rec sh t v (Vptr b ofs).
 Proof.
   intros.
   revert v ofs; pattern t; type_induction t; intros;
   rewrite !data_at_rec_eq;
     try solve [simple_if_tac;
         [ apply memory_block_share_join; auto
-        | apply mapsto_share_join; auto]];
-    try solve [normalize].
+        | apply mapsto_share_join; auto]]; try apply bi.sep_False.
   + (* Tarray *)
     rewrite array_pred_sepcon.
     apply array_pred_ext; auto.
@@ -1561,22 +1426,22 @@ Opaque field_type field_offset.
 Transparent field_type field_offset.
     rewrite !withspacer_spacer.
     rewrite !spacer_memory_block by (simpl; auto).
-    rewrite !sepcon_assoc, (sepcon_comm (at_offset _ _ _)), <- !sepcon_assoc.
+    match goal with |- (?a∗?b)∗(?c∗?d) ⊣⊢ _ =>
+      trans ((a∗c)∗(b∗d)); [ apply bi.equiv_entails_2; cancel | ] end.
     erewrite memory_block_share_join by eassumption.
-    rewrite sepcon_assoc; f_equal.
+    apply bi.sep_proper; first done.
     unfold at_offset.
     cbv zeta in IH.
     rewrite Forall_forall in IH.
-    pose proof H0.
-    rewrite sepcon_comm.
     etransitivity.
-   apply (IH (get_member i (co_members (get_co id)))).
-   apply in_get_member; auto.
-    f_equal.
+    apply (IH (get_member i (co_members (get_co id)))).
+    apply in_get_member; auto.
+    f_equiv; last done.
     apply JMeq_eq.
     apply (@proj_compact_prod_JMeq _ _ _ (fun it => reptype (field_type (name_member it) (co_members (get_co id)))) (fun it => reptype (field_type (name_member it) (co_members (get_co id))))); auto.
     apply in_get_member; auto.
-  + rewrite union_pred_sepcon.
+  + (* Tunion *)
+    rewrite union_pred_sepcon.
     apply union_pred_ext; [apply get_co_members_no_replicate | reflexivity | ].
     intros.
 Opaque field_type field_offset.
@@ -1584,20 +1449,20 @@ Opaque field_type field_offset.
 Transparent field_type field_offset.
     rewrite !withspacer_spacer.
     rewrite !spacer_memory_block by (simpl; auto).
-    rewrite !sepcon_assoc, (sepcon_comm (data_at_rec _ _ _ _)), <- !sepcon_assoc.
+    match goal with |- (?a∗?b)∗(?c∗?d) ⊣⊢ _ =>
+      trans ((a∗c)∗(b∗d)); [ apply bi.equiv_entails_2; cancel | ] end.
     erewrite memory_block_share_join by eassumption.
-    rewrite sepcon_assoc; f_equal.
+    apply bi.sep_proper; first done.
     unfold at_offset.
     cbv zeta in IH.
     rewrite Forall_forall in IH.
     apply compact_sum_inj_in in H1.
-    rewrite sepcon_comm.
-    etransitivity.
-   apply (IH (get_member i (co_members (get_co id)))); auto.
-    f_equal.
+    rewrite IH; auto.
+    f_equiv.
     apply JMeq_eq.
     apply (@proj_compact_sum_JMeq _ _ _ (fun it => reptype (field_type (name_member it) (co_members (get_co id)))) (fun it => reptype (field_type (name_member it) (co_members (get_co id))))); auto.
 Qed.
+
 Lemma nonreadable_memory_block_data_at_rec:
   forall sh t v b ofs
   (LEGAL_COSU: complete_legal_cosu_type t = true),
@@ -1605,7 +1470,7 @@ Lemma nonreadable_memory_block_data_at_rec:
   align_compatible_rec cenv_cs t ofs ->
   ~ readable_share sh ->
   value_fits t v ->
-  memory_block sh (sizeof t) (Vptr b (Ptrofs.repr ofs)) = data_at_rec sh t v (Vptr b (Ptrofs.repr ofs)).
+  memory_block sh (sizeof t) (Vptr b (Ptrofs.repr ofs)) ⊣⊢ data_at_rec sh t v (Vptr b (Ptrofs.repr ofs)).
 Proof.
   intros.
   symmetry.
@@ -1616,7 +1481,7 @@ Proof.
     try match type of H2 with
         | context [type_is_volatile ?t] =>
             destruct (type_is_volatile t) eqn:?;
-             [apply by_value_data_at_rec_volatile | apply by_value_data_at_rec_nonreachable2]; auto
+             [rewrite by_value_data_at_rec_volatile | apply by_value_data_at_rec_nonreachable2]; auto
         end;
     rewrite !data_at_rec_eq.
   + simpl in H, H0.
@@ -1687,18 +1552,17 @@ Proof.
       spec IH; [apply in_get_member; auto |].
       apply struct_Prop_proj with (i := i) (d:= d0) in H2; auto.
       rewrite IH; auto.
-      * 
-      rewrite name_member_get in *.
-       rewrite Z.add_assoc, sepcon_comm.
-       rewrite <- memory_block_split by (pose_field; lia).
-        f_equal; lia.
       * rewrite name_member_get in *.
-         apply complete_legal_cosu_type_field_type; auto.
-          eapply complete_Tstruct_plain; apply LEGAL_COSU. 
-      * rewrite name_member_get in *; 
-         simpl fst. pose_field; lia.
-      * rewrite name_member_get in *; 
-         eapply align_compatible_rec_Tstruct_inv'; eauto.
+        rewrite Z.add_assoc, <- bi.sep_comm.
+        rewrite <- memory_block_split by (pose_field; lia).
+        f_equiv; hnf; lia.
+      * rewrite name_member_get in *.
+        apply complete_legal_cosu_type_field_type; auto.
+         eapply complete_Tstruct_plain; apply LEGAL_COSU.
+      * rewrite name_member_get in *;
+          simpl fst. pose_field; lia.
+      * rewrite name_member_get in *;
+          eapply align_compatible_rec_Tstruct_inv'; eauto.
   + assert (co_members (get_co id) = nil \/ co_members (get_co id) <> nil)
       by (clear; destruct (co_members (get_co id)); [left | right]; congruence).
        clear H4. pose proof I.
@@ -1734,8 +1598,8 @@ Proof.
         spec IH; [apply in_get_member; auto |].
         apply union_Prop_proj with (i := i) (d := d0) in H2; auto.
         rewrite IH; auto; rewrite ?name_member_get in *.
-        { rewrite sepcon_comm, <- memory_block_split by (pose_field; lia).
-          f_equal; f_equal; lia.
+        { rewrite <- bi.sep_comm, <- memory_block_split by (pose_field; lia).
+          f_equiv; hnf; f_equal; lia.
         } {
           apply complete_legal_cosu_type_field_type; auto.
           eapply complete_Tunion_plain; apply LEGAL_COSU. 
@@ -1748,10 +1612,10 @@ Qed.
 
 End CENV.
 
-Lemma data_at_rec_change_composite {cs_from cs_to} {CCE: change_composite_env cs_from cs_to}: forall (sh: Share.t) (t: type) v1 v2,
+Lemma data_at_rec_change_composite `{!heapGS Σ} {cs_from cs_to} {CCE: change_composite_env cs_from cs_to}: forall (sh: Share.t) (t: type) v1 v2 p,
   JMeq v1 v2 ->
   cs_preserve_type cs_from cs_to (coeq _ _) t = true ->
-  @data_at_rec cs_from sh t v1 = @data_at_rec cs_to sh t v2.
+  data_at_rec (cs := cs_from) sh t v1 p ⊣⊢ data_at_rec (cs := cs_to) sh t v2 p.
 Proof.
   intros sh t.
   type_induction t; intros.
@@ -1774,7 +1638,6 @@ Proof.
     subst; auto.
   + (* Tarray *)
     rewrite !data_at_rec_eq.
-    extensionality p.
     assert (JMeq (unfold_reptype v1) (unfold_reptype v2)).
     {
       eapply JMeq_trans; [| eapply JMeq_trans; [exact H |]].
@@ -1784,20 +1647,19 @@ Proof.
     apply array_pred_ext.
     - apply list_func_JMeq; [apply reptype_change_composite; auto | auto].
     - intros.
+      unfold at_offset.
       rewrite (IH (Znth (i - 0) (unfold_reptype v1)) (Znth (i - 0) (unfold_reptype v2))); auto.
-      * f_equal.
-        f_equal.
+      * do 3 f_equiv.
         apply sizeof_change_composite; auto.
-      *
-        pose (Znthx (A: Type) (i: Z) (al: list A) (d: A) := @Znth A d i al).
+      * pose (Znthx (A: Type) (i: Z) (al: list A) (d: A) := @Znth A d i al).
         change  (@Znth (@reptype cs_from t) (@Inhabitant_reptype cs_from t) (i - 0)
                                      (@unfold_reptype cs_from (Tarray t z a) v1))
-       with (Znthx (@reptype cs_from t) (i-0) (@unfold_reptype cs_from (Tarray t z a) v1)(@Inhabitant_reptype cs_from t)).
+          with (Znthx (@reptype cs_from t) (i-0) (@unfold_reptype cs_from (Tarray t z a) v1)(@Inhabitant_reptype cs_from t)).
         change  (@Znth (@reptype cs_to t) (@Inhabitant_reptype cs_to t) (i - 0)
                                      (@unfold_reptype cs_to (Tarray t z a) v2))
-       with (Znthx (@reptype cs_to t) (i-0) (@unfold_reptype cs_to (Tarray t z a) v2)(@Inhabitant_reptype cs_to t)).
-       change (@Znthx (@reptype cs_from t) (i - 0)) 
-     with ((fun X: Type => @Znthx X (i - 0)) (@reptype cs_from t)).
+          with (Znthx (@reptype cs_to t) (i-0) (@unfold_reptype cs_to (Tarray t z a) v2)(@Inhabitant_reptype cs_to t)).
+        change (@Znthx (@reptype cs_from t) (i - 0)) 
+          with ((fun X: Type => @Znthx X (i - 0)) (@reptype cs_from t)).
         change (@Znthx (@reptype cs_to t) (i - 0)) 
           with ((fun X: Type => @Znthx X (i - 0)) (@reptype cs_to t)).
       apply @list_func_JMeq'; auto.
@@ -1806,7 +1668,6 @@ Proof.
     auto.
   + (* Tstruct *)
     rewrite !data_at_rec_eq.
-    extensionality p.
     assert (JMeq (unfold_reptype v1) (unfold_reptype v2)).
     {
       eapply JMeq_trans; [| eapply JMeq_trans; [exact H |]].
@@ -1830,25 +1691,25 @@ Proof.
     forget (co_members (@get_co cs_to id)) as m.
     apply struct_pred_ext; [assumption |].
     intros.
-    f_equal; [f_equal | | f_equal ]; auto.
+    f_equiv; [f_equiv | |]; try by hnf.
     - apply sizeof_change_composite; auto.
       rewrite Forall_forall in H0.
       apply H0. apply in_get_member; auto.
-    - clear HH0 HH1.
+    - rewrite HH0; clear HH0 HH1.
       pose proof in_get_member _ _ H.
       rewrite Forall_forall in IH, H0.
       specialize (IH _ H2); pose proof (H0 _ H2).
+      unfold at_offset; intros ?.
       apply IH; auto.
       apply (@proj_struct_JMeq i m
           (fun it : member => @reptype cs_from (field_type (name_member it) m)) 
           (fun it : member => @reptype cs_to (field_type (name_member it) m))); auto.
-      intros. 
+      intros.
       rewrite reptype_change_composite; [reflexivity |].
       apply H0.
        apply in_get_member; auto.
   + (* Tunion *)
     rewrite !data_at_rec_eq.
-    extensionality p.
     assert (JMeq (unfold_reptype v1) (unfold_reptype v2)).
     {
       eapply JMeq_trans; [| eapply JMeq_trans; [exact H |]].
@@ -1879,19 +1740,19 @@ Proof.
       apply H0; auto.
     }
     intros.
-    f_equal.
+    f_equiv.
     - apply sizeof_change_composite; auto.
       rewrite Forall_forall in H0.
       apply H0.
       apply compact_sum_inj_in in H.
       auto.
-    - auto. 
+    - auto.
     - unfold reptype_unionlist.
       apply compact_sum_inj_in in H2.
       rewrite Forall_forall in IH, H0.
       specialize (IH _ H2); pose proof (H0 _ H2).
-      apply IH; auto.
-      apply (@proj_union_JMeq i _ 
+      intros ?; apply IH; auto.
+      apply (@proj_union_JMeq i _
           (fun it : member => @reptype cs_from (field_type (name_member it) m)) 
           (fun it : member => @reptype cs_to (field_type (name_member it) m))); auto.
       intros.
@@ -1907,7 +1768,7 @@ Lemma value_fits_Tstruct:
   t = Tstruct i a ->
   m = co_members (get_co i)  ->
   JMeq (@unfold_reptype cs t v) v2 ->
-  r =struct_Prop m
+  r = struct_Prop m
           (fun it => value_fits (field_type (name_member it) m))  v2 ->
   value_fits t v = r.
 Proof.
@@ -1939,7 +1800,7 @@ Lemma value_fits_by_value_defined:
    type_is_by_value t = true ->
    repinject t v <> Vundef  ->
    t = t' ->
-   (r = if type_is_volatile t' then True
+   (r = if type_is_volatile t' then True%type
        else tc_val t' (repinject t v)) ->
    value_fits t v = r.
 Proof.
@@ -1954,7 +1815,7 @@ Lemma value_fits_by_value_Vundef:
   forall {cs: compspecs} t v,
    type_is_by_value t = true ->
    repinject t v = Vundef  ->
-   value_fits t v = True.
+   value_fits t v = True%type.
 Proof.
 intros.
 rewrite value_fits_eq.
@@ -1967,7 +1828,7 @@ Lemma value_fits_by_value:
   forall {cs: compspecs} t t' v r,
    type_is_by_value t = true ->
    t = t' ->
-   (r = if type_is_volatile t then True
+   (r = if type_is_volatile t then True%type
        else tc_val' t' (repinject t v)) ->
    value_fits t v = r.
 Proof.
@@ -1985,7 +1846,7 @@ Lemma value_fits_Tarray:
   JMeq (unfold_reptype v) v' ->
   n >= 0 ->
   r = (Zlength v' = n /\ Forall (value_fits t') v') ->
-  value_fits t v =r.
+  value_fits t v = r.
 Proof.
 intros.
 subst. rewrite value_fits_eq.
@@ -2067,4 +1928,3 @@ split; auto.
 subst.
 unfold unfold_reptype. simpl. rep_lia.
 Qed.
-

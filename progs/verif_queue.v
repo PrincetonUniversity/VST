@@ -1,9 +1,8 @@
 Require Import VST.floyd.proofauto.
+Require Import VST.floyd.compat. Import NoOracle.
 Require Import VST.floyd.library.
 Require Import VST.progs.list_dt. Import Links.
 Require Import VST.progs.queue.
-
-Open Scope logic.
 
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
@@ -16,7 +15,7 @@ Definition t_struct_fifo := Tstruct _fifo noattr.
 Proof. eapply mk_listspec; reflexivity. Defined.
 
 Lemma isnil: forall {T: Type} (s: list T), {s=nil}+{s<>nil}.
-Proof. intros. destruct s; [left|right]; auto. intro Hx; inv Hx. Qed.
+Proof. intros. destruct s; [left|right]; auto. Qed.
 
 Definition Qsh : share := fst (Share.split extern_retainer).
 Definition Qsh' := Share.lub (snd (Share.split extern_retainer)) Share.Rsh.
@@ -48,7 +47,6 @@ unfold Share.Lsh in *.
 destruct (Share.split Share.top) eqn:?H.
 simpl in *; subst.
 apply Share.split_nontrivial in H; auto.
-apply Share.nontrivial; auto.
 *
 apply leq_join_sub.
 apply Share.lub_upper2.
@@ -174,16 +172,16 @@ Lemma field_at_list_cell_weak:
   field_at sh list_struct [StructField _a] i p *
   field_at sh list_struct [StructField _b] j p *
   field_at_ sh list_struct [StructField _next] p
-  = list_cell QS sh (i,j) p *
+  ⊣⊢ list_cell QS sh (i,j) p *
   field_at_ sh list_struct [StructField _next] p.
 Proof.
 intros.
 (* new version of proof, for constructive definition of list_cell *)
-f_equal.
+f_equiv.
 unfold field_at, list_cell.
 autorewrite with gather_prop.
-f_equal.
-apply ND_prop_ext.
+f_equiv; last done.
+f_equiv.
 rewrite field_compatible_cons; simpl.
 rewrite field_compatible_cons; simpl.
 intuition.
@@ -193,7 +191,7 @@ Qed.
 
 Lemma make_unmake:
  forall a b p,
- data_at Ews t_struct_elem (Vint a, (Vint b, Vundef)) p =
+ data_at Ews t_struct_elem (Vint a, (Vint b, Vundef)) p ⊣⊢
  field_at Qsh' t_struct_elem [StructField _a] (Vint a) p *
  field_at Qsh' t_struct_elem [StructField _b] (Vint b) p *
  list_cell QS Qsh (Vundef, Vundef) p *
@@ -201,34 +199,23 @@ Lemma make_unmake:
 Proof.
 intros.
 unfold_data_at (data_at _ _ _ _).
-rewrite <- !sepcon_assoc.
-match goal with |- ?A = _ => set (J := A) end.
+match goal with |- ?A ⊣⊢ _ => set (J := A) end.
 unfold field_at_.
 change (default_val (nested_field_type t_struct_elem [StructField _next])) with Vundef.
 rewrite <- (field_at_share_join _ _ _ _ _ _ _ Qsh_Qsh').
-rewrite <- !sepcon_assoc.
+pull_left (field_at Qsh' t_struct_elem [StructField _next] Vundef p).
+rewrite sep_assoc.
 pull_left (field_at Qsh' t_struct_elem [StructField _next] Vundef p).
 pull_left (field_at Qsh' t_struct_elem [StructField _b] (Vint b) p).
 pull_left (field_at Qsh' t_struct_elem [StructField _a] (Vint a) p).
-rewrite field_at_list_cell_weak  by apply readable_share_Qsh'.
-match goal with |- _ = _ * _ * _ * ?A => change A
-  with (field_at_ Qsh t_struct_elem [StructField _next] p)
-end.
+rewrite field_at_list_cell_weak by apply readable_share_Qsh'.
 pull_left (list_cell QS Qsh (Vundef, Vundef) p).
 rewrite join_cell_link with (psh:=Ews) by (auto; try apply Qsh_Qsh'; apply readable_share_Qsh').
-subst J.
-match goal with |- _ * _ * ?A = _ => change A
-  with (field_at_ Ews t_struct_elem [StructField _next] p)
-end.
-rewrite field_at_list_cell_weak by auto.
-rewrite sepcon_assoc.
-f_equal.
-unfold field_at_.
-change (default_val (nested_field_type t_struct_elem [StructField _next])) with Vundef.
-rewrite sepcon_comm.
-symmetry.
-apply (field_at_share_join _ _ _ t_struct_elem [StructField _next]
-   _ p Qsh_Qsh').
+rewrite <- sep_assoc.
+change (field_at _ _ _ _ _) with (field_at_ Qsh t_struct_elem (DOT _next) p).
+rewrite field_at__share_join by (apply sepalg.join_comm, Qsh_Qsh').
+rewrite <- field_at_list_cell_weak by auto.
+rewrite <- sep_assoc; reflexivity.
 Qed.
 
 Definition surely_malloc_spec :=
@@ -257,7 +244,7 @@ Definition fifo_body (contents: list val) (hd tl: val) :=
               !!(contents = prefix++tl::nil)
             &&  (lseg QS Qsh Ews prefix hd tl
                    * list_cell QS Qsh (Vundef,Vundef) tl
-                   * field_at Ews t_struct_elem [StructField _next] nullval tl)))%logic.
+                   * field_at Ews t_struct_elem [StructField _next] nullval tl))).
 
 Definition fifo (contents: list val) (p: val) : mpred :=
   (EX ht: (val*val), let (hd,tl) := ht in
@@ -314,7 +301,7 @@ Definition make_elem_spec :=
         PARAMS (Vint a; Vint b) GLOBALS (gv) 
         SEP(mem_mgr gv)
   POST [ (tptr t_struct_elem) ]
-      @exp (environ->mpred) _ _ (fun p:val =>  (* EX notation doesn't work for some reason *)
+      ∃ p:val,
        PROP()
        RETURN (p)
        SEP (mem_mgr gv;
@@ -322,7 +309,7 @@ Definition make_elem_spec :=
               field_at Qsh' list_struct [StructField _b] (Vint b) p;
               list_cell QS Qsh (Vundef, Vundef) p;
               field_at_ Ews t_struct_elem [StructField _next] p;
-              malloc_token Ews t_struct_elem p)).
+              malloc_token Ews t_struct_elem p).
 
 Definition main_spec :=
  DECLARE _main
@@ -359,7 +346,8 @@ Proof.
     + forward. subst p. congruence.
     + Intros. forward. entailer!.
 *
-  forward. Exists p; entailer!.
+  forward.
+  Exists p; entailer!!.
 Qed.
 
 Lemma fifo_isptr: forall al q, fifo al q |-- !! isptr q.
@@ -427,8 +415,7 @@ Intros.
 forward. (* p->next = NULL; *)
 forward. (*   h = Q->head; *)
 
-forward_if
-  (PROP() LOCAL () SEP (fifo (contents ++ p :: nil) q))%assert.
+forward_if.
 * unfold fifo_body.
    if_tac. entailer!. Intros prefix. entailer!.
 * (* then clause *)
@@ -467,15 +454,9 @@ forward_if
      rewrite if_false by (clear; destruct prefix; simpl; congruence).
      Exists  (prefix ++ tl :: nil).
      entailer. (* do this to avoid canceling *)
-     match goal with
-     | |- _ |-- _ * _ * ?AA => remember AA as A
-     end.     (* prevent it from canceling! *)
-     simpl sizeof.
-     cancel. subst A.
-     eapply derives_trans; [ |
-       apply (lseg_cons_right_neq _ _ _ _ _ ((Vundef,Vundef) : elemtype QS));
-        auto ].
-     cancel.
+     iIntros "($ & $ & ? & ? & ? & $ & ?)".
+     iApply (lseg_cons_right_neq with "[-]"); [auto..|].
+     iFrame.
 Qed.
 
 Lemma body_fifo_get: semax_body Vprog Gprog f_fifo_get fifo_get_spec.
@@ -524,7 +505,7 @@ forward_call (*  p = surely_malloc(sizeof ( *p));  *)
   Exists p.
   entailer!.
   rewrite make_unmake.
-  apply derives_refl.
+  cancel.
 Qed.
 
 #[export] Hint Resolve readable_share_Qsh' : core.
@@ -557,19 +538,17 @@ forward_call (*  free(p, sizeof( *p)); *)
    (t_struct_elem, p', gv).
 {
  assert_PROP (isptr p'); [entailer! | rewrite if_false by (intro; subst; contradiction) ].
- sep_apply (eq_sym (make_unmake (Int.repr 1) (Int.repr 10) p')).
+ sep_apply (bi.equiv_entails_1_2 _ _ (make_unmake (Int.repr 1) (Int.repr 10) p')).
  cancel.
 }
 forward. (* return i+j; *)
 Qed.
 
-#[export] Existing Instance NullExtension.Espec.
-
 Lemma prog_correct:
   semax_prog prog tt Vprog Gprog.
 Proof.
-prove_semax_prog. 
-semax_func_cons body_malloc. apply semax_func_cons_malloc_aux.
+prove_semax_prog.
+semax_func_cons body_malloc. destruct x; apply semax_func_cons_malloc_aux.
 semax_func_cons body_free.
 semax_func_cons body_exit.
 semax_func_cons body_surely_malloc.
@@ -580,5 +559,3 @@ semax_func_cons body_fifo_get.
 semax_func_cons body_make_elem.
 semax_func_cons body_main.
 Qed.
-
-

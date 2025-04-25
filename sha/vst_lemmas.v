@@ -1,15 +1,16 @@
 (* Additional lemmas / proof rules about VST stack *)
 
 Require Import VST.floyd.proofauto.
+Require Export VST.floyd.compat. Export NoOracle.
 Require Export sha.general_lemmas.
 
 Definition data_block {cs: compspecs} (sh: share) (contents: list byte) :=
-  @data_at cs sh (tarray tuchar (Zlength contents)) (map Vubyte contents).
+  data_at(cs := cs) sh (tarray tuchar (Zlength contents)) (map Vubyte contents).
 
 Lemma data_block_local_facts:
  forall {cs: compspecs} sh f data,
   data_block sh f data |--
-   prop (field_compatible (tarray tuchar (Zlength f)) [] data).
+   !! (field_compatible (tarray tuchar (Zlength f)) [] data).
 Proof.
 intros. unfold data_block, array_at.
 simpl.
@@ -28,10 +29,10 @@ Qed.
 Lemma split2_data_block:
   forall  {cs: compspecs}  n sh data d,
   (0 <= n <= Zlength data)%Z ->
-  data_block sh data d =
+  data_block sh data d ⊣⊢
   (data_block sh (sublist 0 n data) d *
    data_block sh (sublist n (Zlength data) data)
-   (field_address0 (tarray tuchar (Zlength data)) [ArraySubsc n] d))%logic.
+   (field_address0 (tarray tuchar (Zlength data)) [ArraySubsc n] d)).
 Proof.
   intros.
   unfold data_block. simpl. normalize.
@@ -46,12 +47,12 @@ Lemma split3_data_block:
   forall  {cs: compspecs} lo hi sh data d,
   0 <= lo <= hi ->
   hi <= Zlength data  ->
-  data_block sh data d =
+  data_block sh data d ⊣⊢
   (data_block sh (sublist 0 lo data) d *
    data_block sh (sublist lo hi data)
    (field_address0 (tarray tuchar (Zlength data)) [ArraySubsc lo] d) *
    data_block sh (sublist hi (Zlength data) data)
-   (field_address0 (tarray tuchar (Zlength data)) [ArraySubsc hi] d))%logic.
+   (field_address0 (tarray tuchar (Zlength data)) [ArraySubsc hi] d)).
 Proof.
   intros.
   unfold data_block. 
@@ -59,7 +60,7 @@ Proof.
   unfold tarray.
   rewrite split3_data_at_Tarray_tuchar with (n1:=lo)(n2:=hi) by (autorewrite with sublist; auto).
   autorewrite with sublist.
-  reflexivity.
+  rewrite assoc; auto; apply _.
 Qed.
 
 Lemma force_lengthn_long {A}: forall n (l:list A) d, (n <= length l)%nat -> force_lengthn n l d = firstn n l.
@@ -76,7 +77,7 @@ Lemma skipn_force_lengthn_app {A} n (l m:list A) a:
   rewrite force_lengthn_length_n; lia.
 Qed.
 
-Lemma data_at_triv {cs} sh t v v': v=v' -> @data_at cs sh t v |-- @data_at cs sh t v'.
+Lemma data_at_triv {cs} sh t v v' p: v=v' -> data_at(cs := cs) sh t v p |-- data_at sh t v' p.
 Proof. intros; subst. auto. Qed.
 
 Lemma sizeof_Tarray {cs: compspecs} k: Z.max 0 k = k -> sizeof (Tarray tuchar k noattr) = k.
@@ -118,7 +119,7 @@ Proof. intros. destruct v; try contradiction. exists b, i; trivial. Qed.
 Ltac myframe_SEP'' L :=  (* this should be generalized to permit framing on LOCAL part too *)
  grab_indexes_SEP L;
  match goal with
- | |- @semax _ _ (PROPx _ (LOCALx ?Q (SEPx ?R))) _ _ =>
+ | |- semax _ _ (PROPx _ (LOCALx ?Q (SEPx ?R))) _ _ =>
   rewrite <- (firstn_skipn (length L) R);
   rewrite <- (firstn_skipn (length Q) Q);
     simpl length; unfold firstn, skipn;

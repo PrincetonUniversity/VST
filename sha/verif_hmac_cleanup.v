@@ -2,7 +2,6 @@ Require Import VST.floyd.proofauto.
 Import ListNotations.
 Require sha.sha.
 Require Import sha.SHA256.
-Local Open Scope logic.
 
 Require Import sha.spec_sha.
 Require Import sha.sha_lemmas.
@@ -33,9 +32,9 @@ rewrite !map_repeat.
 Qed.
 
 (*Here's the proof for the alternative specification:*)
-Lemma cleanupbodyproof1 Espec wsh c h 
+Lemma cleanupbodyproof1 Espec wsh c h
   (Hwsh: writable_share wsh):
-@semax CompSpecs Espec (func_tycontext f_HMAC_cleanup HmacVarSpecs HmacFunSpecs nil)
+semax(OK_spec := Espec)(C := CompSpecs) ⊤ (func_tycontext f_HMAC_cleanup HmacVarSpecs HmacFunSpecs nil)
   (PROP  ()
    LOCAL  (temp _ctx c)
    SEP  (EX  key : list byte, hmacstate_PreInitNull wsh key h c))

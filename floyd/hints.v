@@ -1,4 +1,6 @@
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.floyd.base2.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Import VST.floyd.client_lemmas.
 Require Import VST.floyd.go_lower.
 Require Import VST.floyd.closed_lemmas.
@@ -27,7 +29,9 @@ Require Import VST.floyd.deadvars.
 Require Import VST.zlist.list_solver.
 Import Cop.
 Import Cop2.
-Import compcert.lib.Maps.
+Import -(notations) compcert.lib.Maps.
+
+Local Unset SsrRewrite.
 
 Ltac hint_loop := 
   idtac "Hint: try 'forward_for_simple_bound N (EX i:Z, PROP... LOCAL...SEP...)%assert', where N is the upper bound of the loop, i is the loop iteration value,  and the LOCAL clause does NOT contain a 'temp' binding for the loop iteration variable";
@@ -96,10 +100,10 @@ Ltac print_sumbool_hint Pre :=
 Ltac hint_allp_left A := 
 lazymatch A with
 | @cons mpred ?B ?C => hint_allp_left B; hint_allp_left C
-| @sepcon mpred _ _ ?B ?C => hint_allp_left B; hint_allp_left C
-| @andp mpred _ ?B ?C => hint_allp_left B; hint_allp_left C
-| @orp mpred _ ?B ?C => hint_allp_left B; hint_allp_left C
-| @allp mpred _ ?T _ => 
+| @bi_sep (iPropI _) ?B ?C => hint_allp_left B; hint_allp_left C
+| @bi_and (iPropI _) ?B ?C => hint_allp_left B; hint_allp_left C
+| @bi_or (iPropI _) ?B ?C => hint_allp_left B; hint_allp_left C
+| @bi_forall (iPropI _) ?T _ => 
    idtac "Hint: You can instantiate the universally quantified ";
    idtac "(ALL _:"T", _) in your precondition";
    idtac "using the tactic 'allp_left x',";
@@ -110,7 +114,7 @@ end.
 Ltac print_hint_semax D Pre c Post :=
  try (tryif (try (deadvars!; fail 1)) then fail
      else idtac "Hint: 'deadvars!' removes useless LOCAL definitions");
- try match Pre with exp _ => idtac "Hint: try 'Intros x' where x is the name you want to give the variable bound by EX'"  end;
+ try match Pre with bi_exist _ => idtac "Hint: try 'Intros x' where x is the name you want to give the variable bound by EX'"  end;
  try match Pre with PROPx (_::_) _ => idtac "Hint: use 'Intros' to move propositions above the line" end;
  try match Pre with PROPx nil (LOCALx _ (SEPx ?R)) =>
      try let x := fresh "x" in
@@ -138,11 +142,11 @@ Ltac print_sumbool_hint_hyp :=
                                     else idtac "Hint: 'rewrite if_true in"H"by auto'"
        end end.
 
-Ltac cancelable A := 
+Ltac cancelable A :=
 lazymatch A with
-| @sepcon mpred _ _ ?B ?C => cancelable B; cancelable C
-| @andp mpred _ _ _ => fail
-| @orp mpred _ _ _ => fail
+| @bi_sep (iPropI _) ?B ?C => cancelable B; cancelable C
+| @bi_and (iPropI _) _ _ => fail
+| @bi_or (iPropI _) _ _ => fail
 | _ => idtac
 end.
 
@@ -192,20 +196,20 @@ Ltac hint_solves :=
  | match goal with |- context [field_compatible] => idtac | |- context [field_compatible0] => idtac end;
        tryif (try (assert True; [ | solve [auto with field_compatible]]; fail 1)) then fail
        else  idtac "Hint:  'auto with field_compatible' solves the goal"
- | match goal with |- @derives mpred _ _ _ =>
+ | match goal with |- @bi_entails (iPropI _) _ _ =>
      tryif (try (assert True; [ | solve [cancel]]; fail 1)) then fail
      else  idtac "Hint:  'cancel' or 'entailer!' solves the goal"
    end
  | tryif (try (assert True; [ | solve [entailer!]]; fail 1)) then fail
      else  idtac "Hint:  'entailer!' solves the goal"
- | match goal with |- ?A |-- ?B => 
+ | match goal with |- ?A ⊢ ?B => 
          timeout 1 (unify A B);
          idtac "Hint: 'apply derives_refl' solves the goal.  You might wonder why 'auto' or 'cancel' does not solve this goal; the reason is that the left and right sides of the entailment are equal but not identical, and sometimes the attempt to unify terms like this would be far too slow to build into 'auto' or 'cancel'"
    end
  ].
 
 Ltac hint_exists :=
-  try match goal with |- _ |-- ?B => match B with context [@exp _ _ ?t ] =>
+  try match goal with |- _ ⊢ ?B => match B with context [@bi_exist _ ?t ] =>
        idtac "Hint: try 'Exists x', where x is a value of type " t " to instantiate the existential"
    end end.
 
@@ -239,16 +243,15 @@ Ltac hint_saturate_local' P :=
 
 Ltac hint_saturate_local P :=
 match P with
-| @sepcon mpred _ _ ?A ?B => hint_saturate_local A; hint_saturate_local B
-| @andp mpred _ ?A ?B => hint_saturate_local A; hint_saturate_local B
-| @wand mpred _ _ _ _ => idtac
-| @orp mpred _ _ _ => idtac
-| @emp mpred _ _ _ => idtac
-| @prop mpred _ _ => idtac
-| @allp _ _ _ _ => idtac
-| @exp _ _ _ _ => idtac
-| @emp _ _ _ => idtac
-| _ => tryif (try (let x := fresh "x" in evar (x: Prop); assert (P |-- prop x);
+| @bi_sep (iPropI _) ?A ?B => hint_saturate_local A; hint_saturate_local B
+| @bi_and (iPropI _) ?A ?B => hint_saturate_local A; hint_saturate_local B
+| @bi_wand (iPropI _) _ _ => idtac
+| @bi_or (iPropI _) _ _ => idtac
+| @bi_emp _ => idtac
+| @bi_pure (iPropI _) _ => idtac
+| @bi_forall (iPropI _) _ _ => idtac
+| @bi_exist (iPropI _) _ _ => idtac
+| _ => tryif (try (let x := fresh "x" in evar (x: Prop); assert (P ⊢ ⌜x⌝);
                     [subst x; solve [eauto with saturate_local] | fail 1]))
                then hint_saturate_local' P
                else idtac
@@ -256,11 +259,11 @@ end.
 
 Ltac cancel_frame_hint := 
 match goal with
-| |- @derives mpred _  _ ?A =>
+| |- @bi_entails (iPropI _) _ ?A =>
   match A with context [fold_right_sepcon ?Frame] =>
       match goal with F := ?G : list mpred |- _ => constr_eq F Frame; is_evar G end;
-      match A with context [@sepcon] => idtac end;
-      idtac "Hint: In order for the 'cancel' tactic to automatically instantiate the Frame, it must be able to cancel all the other right-hand-side conjuncts against some left-hand-side conjuncts.  Right now the r.h.s. conjuncts do not exactly match l.h.s. conjuncts; perhaps you can unfold or rewrite on both sides of the |-- so that they do cancel."
+      match A with context [@bi_sep] => idtac end;
+      idtac "Hint: In order for the 'cancel' tactic to automatically instantiate the Frame, it must be able to cancel all the other right-hand-side conjuncts against some left-hand-side conjuncts.  Right now the r.h.s. conjuncts do not exactly match l.h.s. conjuncts; perhaps you can unfold or rewrite on both sides of the ⊢ so that they do cancel."
   end
 end.
 
@@ -286,18 +289,18 @@ Ltac hint_progress any n :=
  | 8%nat => tryif (try (progress rewrite if_false by (auto; lia); fail 1)) then fail
      else  idtac "Hint:  try 'rewrite if_false by auto' or 'rewrite if_false by lia'"
  |9%nat => lazymatch goal with
-   | D := @abbreviate tycontext _, Po := @abbreviate ret_assert _ |- semax ?D' ?Pre ?c ?Post =>
+   | D := @abbreviate tycontext _, Po := @abbreviate ret_assert _ |- semax ?E ?D' ?Pre ?c ?Post =>
      tryif (constr_eq D D'; constr_eq Po Post) then print_hint_semax D Pre c Post
      else idtac "Hint: use abbreviate_semax to put your proof goal into a more standard form"
-   | |- semax _ _ _ _ => 
+   | |- semax _ _ _ _ _ => 
          idtac "Hint: use abbreviate_semax to put your proof goal into a more standard form"
-   | |- ENTAIL _, ?Pre |-- _ => 
+   | |- ENTAIL _, ?Pre ⊢ _ => 
               print_sumbool_hint Pre;
               idtac "Hint: try 'entailer!'";
               try match Pre with PROPx _ (LOCALx _ (SEPx ?R)) => hint_allp_left R end
-   | |- @derives mpred _ ?A ?B =>
+   | |- @bi_entails (iPropI _) ?A ?B =>
               cancelable A; cancelable B;
-              tryif (try (assert True; [ | rewrite ?sepcon_emp, ?emp_sepcon; progress cancel]; fail 1)) 
+              tryif (try (assert True; [ | rewrite ?bi.sep_emp, ?bi.emp_sep; progress cancel]; fail 1)) 
                 then cancel_frame_hint
                 else  idtac "Hint:  try 'cancel'" 
    end
@@ -319,15 +322,15 @@ Ltac try_redundant_lia H :=
  end.
 
 Ltac hint_whatever :=
- try match goal with  |- @derives mpred _ ?A ?B =>
+ try match goal with  |- @bi_entails (iPropI _) ?A ?B =>
             hint_saturate_local A;
             tryif (try (assert True; [ | progress_entailer]; fail 1)) then idtac
               else  idtac "Hint:  try 'entailer!'";
             try hint_allp_left A;
-            try print_sumbool_hint (A |-- B)
+            try print_sumbool_hint (A ⊢ B)
  end;
  try match goal with |- @eq mpred _ _ => 
-              idtac "Hint: try 'apply pred_ext'"
+              idtac "Hint: try 'iSplit'"
       end;
  try match goal with
  | H: ?A = ?B |- _ => unify A B; idtac "Hint: hypothesis" H "is a tautology, perhaps 'clear" H "'"
@@ -374,4 +377,3 @@ Ltac hint_special := idtac.
 
 Ltac hint :=
    first [hint_solves | hint_special; hint_exists; first [hint_progress false O | hint_whatever]].
-

@@ -2,7 +2,6 @@ Require Import VST.floyd.proofauto.
 Import ListNotations.
 Require sha.sha.
 Require Import sha.SHA256.
-Local Open Scope logic.
 
 Require Import sha.spec_sha.
 Require Import sha.sha_lemmas.
@@ -202,7 +201,7 @@ Definition initPostResetConditional r (c:val) (k: val) h wsh sh key iS oS: mpred
   | _ => FF
   end.
 
-Lemma ipad_loop Espec pb pofs cb cofs ckb ckoff kb kofs l key gv (FR:mpred): forall
+Lemma ipad_loop Espec E pb pofs cb cofs ckb ckoff kb kofs l key gv (FR:mpred): forall
 (IPADcont : list val)
 (HeqIPADcont : IPADcont =
               map Vubyte
@@ -210,7 +209,7 @@ Lemma ipad_loop Espec pb pofs cb cofs ckb ckoff kb kofs l key gv (FR:mpred): for
 (ZLI : Zlength
         (HMAC_SHA256.mkArg (HMAC_SHA256.mkKey key) Ipad) =
       64),
-@semax CompSpecs Espec
+semax(OK_spec := Espec)(C := CompSpecs) E
   (func_tycontext f_HMAC_Init HmacVarSpecs HmacFunSpecs nil)
   (PROP  ()
    LOCAL  (temp _reset (Vint (Int.repr 1));
@@ -295,7 +294,7 @@ Proof. intros. abbreviate_semax.
             repeat rewrite map_nth. rewrite Qb. trivial.
           }
 
-        Time freeze FR1 := - (@data_at CompSpecs _ _ _ (Vptr ckb _)).
+        Time freeze FR1 := - (data_at(cs := CompSpecs) _ _ _ (Vptr ckb _)).
 (*
         Time forward; [ | forward]; (*6.7 versus 9*)
 *)
@@ -344,7 +343,7 @@ drop_LOCAL 0%nat. apply derives_refl.
 subst IPADcont; rewrite Zlength_map. rewrite ZLI; trivial.
 Time Qed. (*VST 2.0: 0.4s*) (*11.1 versus 16.8*) (*FIXME NOW 39*)
 
-Lemma opadloop Espec pb pofs cb cofs ckb ckoff kb kofs l wsh key gv (FR:mpred): forall
+Lemma opadloop Espec E pb pofs cb cofs ckb ckoff kb kofs l wsh key gv (FR:mpred): forall
 (Hwsh: writable_share wsh)
 (IPADcont : list val)
 (HeqIPADcont : IPADcont =
@@ -358,7 +357,7 @@ Lemma opadloop Espec pb pofs cb cofs ckb ckoff kb kofs l wsh key gv (FR:mpred): 
 (ZLO : Zlength (HMAC_SHA256.mkArg (HMAC_SHA256.mkKey key) Opad) = 64)
 (*Delta := abbreviate : tycontext*)
 (ipadSHAabs : s256abs),
-@semax CompSpecs Espec
+semax(OK_spec := Espec)(C := CompSpecs) E
   (func_tycontext f_HMAC_Init HmacVarSpecs HmacFunSpecs nil)
   (PROP  ()
    LOCAL  (temp _reset (Vint (Int.repr 1));
@@ -454,7 +453,7 @@ freeze FR1 := - (data_at _ _ _ (Vptr ckb _)) (data_block _ _ _).
            with a residual subgoal thats more complex to discharge*)
         Time forward. (*5.8 versus 4.8*) (*FIXME NOW: 19 secs*)
         Time entailer!. (*4.2 versus 5.6*)
-        apply derives_refl'. f_equal.
+        f_equiv.
         set (y := nth (Z.to_nat i) (HMAC_SHA256.mkKey key) Byte.zero).
 (*        rewrite <- (isbyte_zeroExt8 (Byte.unsigned _)) by rep_lia.*)
         unfold Int.xor. rewrite !Int.unsigned_repr by rep_lia.

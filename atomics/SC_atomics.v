@@ -1,24 +1,32 @@
-Require Import stdpp.coPset.
-Require Import VST.veric.rmaps.
-Require Import VST.veric.compcert_rmaps.
-Require Import VST.concurrency.ghosts.
+(* Hoare rules for SC atomics *)
 Require Import VST.concurrency.conclib.
-Require Import VST.concurrency.fupd.
-Require Export VST.atomics.general_atomics.
-Require Import VST.atomics.SC_atomics_base.
 Require Import VST.floyd.library.
 Require Import VST.zlist.sublist.
-
-Opaque eq_dec.
 
 (* Warning: it is UNSOUND to use both this file and acq_rel_atomics.v in the same proof! There is
    not yet an operational model that can validate the use of both SC and RA atomics. *)
 
-(* At present, due to complexities in the specifications of the C11 atomics (generics, _Atomic types, etc.), these are specs for wrapper functions for common cases. *)
+(* At present, due to complexities in the specifications of the C11 atomics (generics, _Atomic types, etc.), these are specs for wrapper functions for common cases.
+   There's probably a more systematic approach possible. *)
 
 Section SC_atomics.
 
-Context {CS : compspecs}  {AI : atomic_int_impl} {AP : atomic_ptr_impl}.
+Context `{!VSTGS OK_ty Σ}.
+
+Class atomic_int_impl (atomic_int : type) := { atomic_int_at : share -> val -> val -> mpred;
+  atomic_int_at__ : forall sh v p, atomic_int_at sh v p ⊢ atomic_int_at sh Vundef p;
+  atomic_int_conflict : forall sh v v' p, sepalg.nonidentity sh -> atomic_int_at sh v p ∗ atomic_int_at sh v' p ⊢ False;
+  atomic_int_isptr : forall sh v p, atomic_int_at sh v p ⊢ ⌜isptr p⌝;
+  atomic_int_timeless sh v p :: Timeless (atomic_int_at sh v p)
+ }.
+
+Class atomic_ptr_impl := { atomic_ptr : type; atomic_ptr_at : share -> val -> val -> mpred;
+  atomic_ptr_conflict : forall sh v v' p, sepalg.nonidentity sh -> atomic_ptr_at sh v p ∗ atomic_ptr_at sh v' p ⊢ False;
+  atomic_ptr_isptr : forall sh v p, atomic_ptr_at sh v p ⊢ ⌜isptr p⌝;
+  atomic_ptr_timeless sh v p :: Timeless (atomic_ptr_at sh v p)
+ }.
+
+Context {CS : compspecs} `{AI : atomic_int_impl} {AP : atomic_ptr_impl}.
 
 Definition make_atomic_spec :=
   WITH v : val
@@ -27,7 +35,7 @@ Definition make_atomic_spec :=
     PARAMS (v)
     SEP ()
   POST [ tptr atomic_int ]
-   EX p : val,
+   ∃ p : val,
     PROP ()
     RETURN (p)
     SEP (atomic_int_at Ews v p).
@@ -39,7 +47,7 @@ Definition make_atomic_ptr_spec :=
     PARAMS (v)
     SEP ()
   POST [ tptr atomic_ptr ]
-   EX p : val,
+   ∃ p : val,
     PROP (is_pointer_or_null p)
     RETURN (p)
     SEP (atomic_ptr_at Ews v p).
@@ -49,7 +57,7 @@ Definition free_atomic_ptr_spec :=
   PRE [ tptr atomic_ptr ]
     PROP (is_pointer_or_null p)
     PARAMS (p)
-    SEP (EX v : val, atomic_ptr_at Ews v p)
+    SEP (∃ v : val, atomic_ptr_at Ews v p)
   POST[ tvoid ]
     PROP ()
     LOCAL ()
@@ -60,7 +68,7 @@ Definition free_atomic_int_spec :=
   PRE [ tptr atomic_int ]
     PROP (is_pointer_or_null p)
     PARAMS (p)
-    SEP (EX v : val, atomic_int_at Ews v p)
+    SEP (∃ v : val, atomic_int_at Ews v p)
   POST[ tvoid ]
     PROP ()
     LOCAL ()
@@ -68,37 +76,28 @@ Definition free_atomic_int_spec :=
 
 Definition AL_type := ProdType (ProdType (ProdType (ConstType val)
   (ConstType coPset)) (ConstType coPset))
-  (ArrowType (ConstType val) Mpred).
+  (DiscreteFunType val Mpred).
 
 Program Definition atomic_load_spec := TYPE AL_type
   WITH p : val, Eo : coPset, Ei : coPset, Q : val -> mpred
   PRE [ tptr atomic_int ]
    PROP (subseteq Ei Eo)
    PARAMS (p)
-   SEP (|={Eo,Ei}=> EX sh : share, EX v : val, !!(readable_share sh) &&
-              atomic_int_at sh v p * (atomic_int_at sh v p -* |={Ei,Eo}=> Q v))%I
+   SEP (|={Eo,Ei}=> ∃ sh : share, ∃ v : val, ⌜readable_share sh⌝ ∧
+              atomic_int_at sh v p ∗ (atomic_int_at sh v p -∗ |={Ei,Eo}=> Q v))
   POST [ tint ]
-   EX v : val,
+   ∃ v : val,
    PROP ()
    RETURN (v)
    SEP (Q v).
 Next Obligation.
 Proof.
-  repeat intro.
-  unfold PROPx, PARAMSx, SEPx; simpl; rewrite !approx_andp; f_equal;
-    f_equal; rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
-  setoid_rewrite fupd_nonexpansive; do 3 f_equal.
-  rewrite !approx_exp; apply f_equal; extensionality sh.
-  rewrite !approx_exp; apply f_equal; extensionality v.
-  rewrite !approx_sepcon; f_equal.
-  setoid_rewrite fview_shift_nonexpansive; rewrite approx_idem; auto.
+  intros ? (((?, ?), ?), ?) (((?, ?), ?), ?) ((([=] & [=]) & [=]) & HQ) ?; simpl in *; subst.
+  repeat f_equiv.
 Qed.
 Next Obligation.
-Proof.
-  repeat intro.
-  rewrite !approx_exp; apply f_equal; extensionality v.
-  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 apply f_equal;
-    rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem; auto.
+  intros ? (((?, ?), ?), ?) (((?, ?), ?), ?) ((([=] & [=]) & [=]) & HQ) ?; simpl in *; subst.
+  repeat f_equiv.
 Qed.
 
 Definition AS_type := ProdType (ProdType (ProdType (ConstType (val * val))
@@ -109,152 +108,117 @@ Program Definition atomic_store_spec := TYPE AS_type
   PRE [ tptr atomic_int, tint ]
    PROP (subseteq Ei Eo)
    PARAMS (p; v)
-   SEP (|={Eo,Ei}=> EX sh : share, !!(writable_share sh) && atomic_int_at sh Vundef p *
-      (atomic_int_at sh v p -* |={Ei,Eo}=> Q))%I
+   SEP (|={Eo,Ei}=> ∃ sh : share, ⌜writable_share sh⌝ ∧ atomic_int_at sh Vundef p ∗
+      (atomic_int_at sh v p -∗ |={Ei,Eo}=> Q))
   POST [ tvoid ]
    PROP ()
    LOCAL ()
    SEP (Q).
 Next Obligation.
 Proof.
-  repeat intro.
-  unfold PROPx, PARAMSx, SEPx; simpl; rewrite !approx_andp; f_equal;
-    f_equal; rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
-  setoid_rewrite fupd_nonexpansive; do 3 f_equal.
-  rewrite !approx_exp; apply f_equal; extensionality sh.
-  rewrite !approx_sepcon; f_equal.
-  setoid_rewrite fview_shift_nonexpansive; rewrite approx_idem; auto.
+  intros ? ((((?, ?), ?), ?), ?) ((((?, ?), ?), ?), ?) ((([=] & [=]) & [=]) & HQ) ?; simpl in *; subst.
+  by repeat f_equiv.
 Qed.
 Next Obligation.
-Proof.
-  repeat intro.
-  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 apply f_equal;
-    rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem; auto.
+  intros ? ((((?, ?), ?), ?), ?) ((((?, ?), ?), ?), ?) ((([=] & [=]) & [=]) & HQ) ?; simpl in *; subst.
+  by repeat f_equiv.
 Qed.
 
 Definition ACAS_type := ProdType (ProdType (ProdType (ConstType (val * share * val * val * val))
   (ConstType coPset)) (ConstType coPset))
-  (ArrowType (ConstType val) Mpred).
+  (DiscreteFunType val Mpred).
 
 Program Definition atomic_CAS_spec := TYPE ACAS_type
   WITH p : val, shc : share, pc : val, c : val, v : val, Eo : coPset, Ei : coPset, Q : val -> mpred
   PRE [ tptr atomic_int, tptr tint, tint ]
    PROP (readable_share shc; subseteq Ei Eo)
    PARAMS (p; pc; v)
-   SEP (data_at shc tint c pc; |={Eo,Ei}=> EX sh : share, EX v0 : val,
-      !!(writable_share sh) && atomic_int_at sh v0 p *
-           (atomic_int_at sh (if eq_dec v0 c then v else v0) p -* |={Ei,Eo}=> Q v0))%I
+   SEP (data_at shc tint c pc; |={Eo,Ei}=> ∃ sh : share, ∃ v0 : val,
+      ⌜writable_share sh⌝ ∧ atomic_int_at sh v0 p ∗
+           (atomic_int_at sh (if eq_dec v0 c then v else v0) p -∗ |={Ei,Eo}=> Q v0))
   POST [ tint ]
-   EX v' : val,
+   ∃ v' : val,
    PROP ()
    LOCAL (temp ret_temp (vint (if eq_dec v' c then 1 else 0)))
    SEP (data_at shc tint v' pc; Q v').
 Next Obligation.
 Proof.
-  repeat intro.
-  unfold PROPx, PARAMSx, SEPx; simpl; rewrite !approx_andp; f_equal;
-    f_equal; rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
-  unfold argsassert2assert; rewrite !approx_sepcon; do 2 f_equal.
-  setoid_rewrite fupd_nonexpansive; do 2 f_equal.
-  rewrite !approx_exp; apply f_equal; extensionality sh.
-  rewrite !approx_exp; apply f_equal; extensionality v2.
-  rewrite !approx_sepcon; f_equal.
-  setoid_rewrite fview_shift_nonexpansive; rewrite approx_idem; auto.
+  intros ? (((((((?, ?), ?), ?), ?), ?), ?), ?) ((((?, ?), ?), ?), ?) ((([=] & [=]) & [=]) & HQ) ?; simpl in *; subst.
+  by repeat f_equiv.
 Qed.
 Next Obligation.
-Proof.
-  repeat intro.
-  rewrite !approx_exp; apply f_equal; extensionality vr.
-  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 apply f_equal;
-    rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem; auto.
+  intros ? (((((((?, ?), ?), ?), ?), ?), ?), ?) ((((?, ?), ?), ?), ?) ((([=] & [=]) & [=]) & HQ) ?; simpl in *; subst.
+  by repeat f_equiv.
 Qed.
 
 Definition AEX_type := ProdType (ProdType (ProdType (ConstType (val * val))
   (ConstType coPset)) (ConstType coPset))
-  (ArrowType (ConstType val) Mpred).
+  (DiscreteFunType val Mpred).
 
 Program Definition atomic_exchange_spec := TYPE AEX_type
   WITH p : val, v : val, Eo : coPset, Ei : coPset, Q : val -> mpred
-  PRE [ tptr tint, tint ]
+  PRE [ tptr atomic_int, tint ]
    PROP (subseteq Ei Eo)
    PARAMS (p; v)
-   SEP (|={Eo,Ei}=> EX sh : share, EX v0 : val, !!(writable_share sh) &&
-              data_at sh tint v0 p *
-        (data_at sh tint v p -* |={Ei,Eo}=> Q v0))%I
+   SEP (|={Eo,Ei}=> ∃ sh : share, ∃ v0 : val, ⌜writable_share sh⌝ ∧
+              atomic_int_at sh v0 p ∗
+        (atomic_int_at sh v p -∗ |={Ei,Eo}=> Q v0))
   POST [ tint ]
-   EX v' : val,
+   ∃ v' : int,
    PROP ()
-   LOCAL (temp ret_temp v')
-   SEP (Q v').
+   LOCAL (temp ret_temp (Vint v'))
+   SEP (Q (Vint v')).
 Next Obligation.
 Proof.
-  repeat intro.
-  unfold PROPx, PARAMSx, SEPx; simpl; rewrite !approx_andp; f_equal;
-    f_equal; rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
-  unfold argsassert2assert; f_equal.
-  setoid_rewrite fupd_nonexpansive; do 2 f_equal.
-  rewrite !approx_exp; apply f_equal; extensionality sh.
-  rewrite !approx_exp; apply f_equal; extensionality v0.
-  rewrite !approx_sepcon; f_equal.
-  setoid_rewrite fview_shift_nonexpansive; rewrite approx_idem; auto.
+  intros ? ((((?, ?), ?), ?), ?) ((((?, ?), ?), ?), ?) ((([=] & [=]) & [=]) & HQ) ?; simpl in *; subst.
+  by repeat f_equiv.
 Qed.
 Next Obligation.
-Proof.
-  repeat intro.
-  rewrite !approx_exp; apply f_equal; extensionality vr.
-  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 apply f_equal;
-    rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem; auto.
+  intros ? ((((?, ?), ?), ?), ?) ((((?, ?), ?), ?), ?) ((([=] & [=]) & [=]) & HQ) ?; simpl in *; subst.
+  by repeat f_equiv.
 Qed.
 
 (* subspecs for integer operations *)
 Definition ALI_type := ProdType (ProdType (ProdType (ConstType val)
   (ConstType coPset)) (ConstType coPset))
-  (ArrowType (ConstType Z) Mpred).
+  (DiscreteFunType Z Mpred).
 
 Program Definition atomic_load_int_spec := TYPE ALI_type
   WITH p : val, Eo : coPset, Ei : coPset, Q : Z -> mpred
   PRE [ tptr atomic_int ]
    PROP (subseteq Ei Eo)
    PARAMS (p)
-   SEP (|={Eo,Ei}=> EX sh : share, EX v : Z, !!(readable_share sh /\ repable_signed v) &&
-              atomic_int_at sh (vint v) p * (atomic_int_at sh (vint v) p -* |={Ei,Eo}=> Q v))%I
+   SEP (|={Eo,Ei}=> ∃ sh : share, ∃ v : Z, ⌜readable_share sh /\ repable_signed v⌝ ∧
+              atomic_int_at sh (vint v) p ∗ (atomic_int_at sh (vint v) p -∗ |={Ei,Eo}=> Q v))
   POST [ tint ]
-   EX v : Z,
+   ∃ v : Z,
    PROP (repable_signed v)
    LOCAL (temp ret_temp (vint v))
    SEP (Q v).
 Next Obligation.
 Proof.
-  repeat intro.
-  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; f_equal;
-    f_equal; rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
-  setoid_rewrite fupd_nonexpansive; do 3 f_equal.
-  rewrite !approx_exp; apply f_equal; extensionality sh.
-  rewrite !approx_exp; apply f_equal; extensionality v.
-  rewrite !approx_sepcon; f_equal.
-  setoid_rewrite fview_shift_nonexpansive; rewrite approx_idem; auto.
+  intros ? (((?, ?), ?), ?) (((?, ?), ?), ?) ((([=] & [=]) & [=]) & HQ) ?; simpl in *; subst.
+  by repeat f_equiv.
 Qed.
 Next Obligation.
-Proof.
-  repeat intro.
-  rewrite !approx_exp; apply f_equal; extensionality v.
-  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 apply f_equal;
-    rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem; auto.
+  intros ? (((?, ?), ?), ?) (((?, ?), ?), ?) ((([=] & [=]) & [=]) & HQ) ?; simpl in *; subst.
+  by repeat f_equiv.
 Qed.
 
 Lemma atomic_load_int : funspec_sub atomic_load_spec atomic_load_int_spec.
 Proof.
-  apply prove_funspec_sub.
-  split; auto; intros; simpl in *.
+  split; first done; intros; simpl in *.
   destruct x2 as (((p, Eo), Ei), Q).
   intros; iIntros "[_ H] !>".
-  iExists nil, (p, Eo, Ei, fun v => match v with Vint i => Q (Int.signed i) | _ => FF end), emp.
-  rewrite emp_sepcon; iSplit.
-  - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl.
+  iExists (p, Eo, Ei, fun v => match v with Vint i => Q (Int.signed i) | _ => False end), emp.
+  iSplit; first done.
+  iSplit.
+  - iSplit; first done.
+    unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx, argsassert2assert; simpl.
+    monPred.unseal.
     iDestruct "H" as "($ & $ & $ & H & $)".
     iMod "H"; iModIntro.
-    iDestruct "H" as (sh v) "[[% H1] H2]".
-    destruct H.
+    iDestruct "H" as (sh v) "((% & %) & ? & ?)".
     iExists sh, (vint v); iFrame.
     rewrite Int.signed_repr; auto.
   - iPureIntro.
@@ -265,9 +229,8 @@ Proof.
     iExists (Int.signed i); iSplit; auto.
     { iPureIntro; split; auto.
       apply Int.signed_range. }
-    iSplit; [iSplit; auto|].
-    { rewrite Int.repr_signed; auto. }
-    rewrite sepcon_emp; auto.
+    iSplit; [iSplit|]; auto.
+    rewrite Int.repr_signed; auto.
 Qed.
 
 Definition ASI_type := ProdType (ProdType (ProdType (ConstType (val * Z))
@@ -278,38 +241,32 @@ Program Definition atomic_store_int_spec := TYPE ASI_type
   PRE [ tptr atomic_int, tint ]
    PROP (repable_signed v; subseteq Ei Eo)
    PARAMS (p; vint v)
-   SEP (|={Eo,Ei}=> EX sh : share, !!(writable_share sh) && atomic_int_at sh Vundef p *
-      (atomic_int_at sh (vint v) p -* |={Ei,Eo}=> Q))%I
+   SEP (|={Eo,Ei}=> ∃ sh : share, ⌜writable_share sh⌝ ∧ atomic_int_at sh Vundef p ∗
+      (atomic_int_at sh (vint v) p -∗ |={Ei,Eo}=> Q))
   POST [ tvoid ]
    PROP ()
    LOCAL ()
    SEP (Q).
 Next Obligation.
 Proof.
-  repeat intro.
-  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; f_equal;
-    f_equal; rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
-  setoid_rewrite fupd_nonexpansive; do 3 f_equal.
-  rewrite !approx_exp; apply f_equal; extensionality sh.
-  rewrite !approx_sepcon; f_equal.
-  setoid_rewrite fview_shift_nonexpansive; rewrite approx_idem; auto.
+  intros ? ((((?, ?), ?), ?), ?) ((((?, ?), ?), ?), ?) ((([=] & [=]) & [=]) & HQ) ?; simpl in *; subst.
+  by repeat f_equiv.
 Qed.
 Next Obligation.
-Proof.
-  repeat intro.
-  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 apply f_equal;
-    rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem; auto.
+  intros ? ((((?, ?), ?), ?), ?) ((((?, ?), ?), ?), ?) ((([=] & [=]) & [=]) & HQ) ?; simpl in *; subst.
+  by repeat f_equiv.
 Qed.
 
 Lemma atomic_store_int : funspec_sub atomic_store_spec atomic_store_int_spec.
 Proof.
-  apply prove_funspec_sub.
-  split; auto; intros; simpl in *.
+  split; first done; intros; simpl in *.
   destruct x2 as ((((p, v), Eo), Ei), Q).
   intros; iIntros "[_ H] !>".
-  iExists nil, (p, vint v, Eo, Ei, Q), emp.
-  rewrite emp_sepcon; iSplit.
+  iExists (p, vint v, Eo, Ei, Q), emp.
+  iSplit; first done.
+  iSplit.
   - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx; simpl.
+    monPred.unseal.
     iDestruct "H" as "(% & $ & $ & H & $)".
     destruct H; auto.
   - iPureIntro.
@@ -318,55 +275,44 @@ Qed.
 
 Definition ACASI_type := ProdType (ProdType (ProdType (ConstType (val * share * val * Z * Z))
   (ConstType coPset)) (ConstType coPset))
-  (ArrowType (ConstType Z) Mpred).
+  (DiscreteFunType Z Mpred).
 
 Program Definition atomic_CAS_int_spec := TYPE ACASI_type
   WITH p : val, shc : share, pc : val, c : Z, v : Z, Eo : coPset, Ei : coPset, Q : Z -> mpred
   PRE [ tptr atomic_int, tptr tint, tint ]
    PROP (repable_signed c; repable_signed v; readable_share shc; subseteq Ei Eo)
    PARAMS (p; pc; vint v)
-   SEP (data_at shc tint (vint c) pc; |={Eo,Ei}=> EX sh : share, EX v0 : Z,
-      !!(writable_share sh /\ repable_signed v0) && atomic_int_at sh (vint v0) p *
-           (atomic_int_at sh (vint (if eq_dec v0 c then v else v0)) p -* |={Ei,Eo}=> Q v0))%I
+   SEP (data_at shc tint (vint c) pc; |={Eo,Ei}=> ∃ sh : share, ∃ v0 : Z,
+      ⌜writable_share sh /\ repable_signed v0⌝ ∧ atomic_int_at sh (vint v0) p ∗
+           (atomic_int_at sh (vint (if eq_dec v0 c then v else v0)) p -∗ |={Ei,Eo}=> Q v0))
   POST [ tint ]
-   EX v' : Z,
+   ∃ v' : Z,
    PROP (repable_signed v')
    LOCAL (temp ret_temp (vint (if eq_dec v' c then 1 else 0)))
    SEP (data_at shc tint (vint v') pc; Q v').
 Next Obligation.
 Proof.
-  repeat intro.
-  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; f_equal;
-    f_equal; rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
-  unfold argsassert2assert; rewrite !approx_sepcon; do 2 f_equal.
-  setoid_rewrite fupd_nonexpansive; do 2 f_equal.
-  rewrite !approx_exp; apply f_equal; extensionality sh.
-  rewrite !approx_exp; apply f_equal; extensionality v2.
-  rewrite !approx_sepcon; f_equal.
-  setoid_rewrite fview_shift_nonexpansive; rewrite approx_idem; auto.
+  intros ? (((((((?, ?), ?), ?), ?), ?), ?), ?) ((((?, ?), ?), ?), ?) ((([=] & [=]) & [=]) & HQ) ?; simpl in *; subst.
+  by repeat f_equiv.
 Qed.
 Next Obligation.
-Proof.
-  repeat intro.
-  rewrite !approx_exp; apply f_equal; extensionality vr.
-  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 apply f_equal;
-    rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem; auto.
+  intros ? (((((((?, ?), ?), ?), ?), ?), ?), ?) ((((?, ?), ?), ?), ?) ((([=] & [=]) & [=]) & HQ) ?; simpl in *; subst.
+  by repeat f_equiv.
 Qed.
 
 Lemma atomic_CAS_int : funspec_sub atomic_CAS_spec atomic_CAS_int_spec.
 Proof.
-  apply prove_funspec_sub.
-  split; auto; intros; simpl in *.
+  split; first done; intros; simpl in *.
   destruct x2 as (((((((p, shc), pc), c), v), Eo), Ei), Q).
   intros; iIntros "[_ H] !>".
-  iExists nil, (p, shc, pc, vint c, vint v, Eo, Ei, fun v => match v with Vint i => Q (Int.signed i) | _ => FF end), emp.
-  rewrite emp_sepcon; iSplit.
-  - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx; simpl.
+  iExists (p, shc, pc, vint c, vint v, Eo, Ei, fun v => match v with Vint i => Q (Int.signed i) | _ => False end), emp.
+  iSplit; first done.
+  iSplit.
+  - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx; simpl; monPred.unseal.
     iDestruct "H" as "(% & $ & $ & $ & H & $)".
     destruct H as (? & ? & ?); iSplit; auto.
     iMod "H"; iModIntro.
-    iDestruct "H" as (sh v0) "[[% H1] H2]".
-    destruct H2.
+    iDestruct "H" as (sh v0) "((% & %) & ? & ?)".
     iExists sh, (vint v0); iFrame.
     rewrite -> Int.signed_repr by auto.
     iSplit; first done.
@@ -389,111 +335,92 @@ Proof.
       + rewrite Int.repr_signed in H2; contradiction.
       + apply Vint_inj in H2; subst.
         rewrite -> Int.signed_repr in H1 by auto; contradiction. }
-    rewrite Int.repr_signed sepcon_emp; iFrame.
+    rewrite Int.repr_signed; iFrame.
 Qed.
 
 Definition AEXI_type := ProdType (ProdType (ProdType (ConstType (val * Z))
   (ConstType coPset)) (ConstType coPset))
-  (ArrowType (ConstType Z) Mpred).
+  (DiscreteFunType Z Mpred).
 
 Program Definition atomic_exchange_int_spec := TYPE AEXI_type
   WITH p : val, v : Z, Eo : coPset, Ei : coPset, Q : Z -> mpred
-  PRE [ tptr tint, tint ]
+  PRE [ tptr atomic_int, tint ]
    PROP (repable_signed v; subseteq Ei Eo)
    PARAMS (p; vint v)
-   SEP (|={Eo,Ei}=> EX sh : share, EX v0 : Z, !!(writable_share sh /\ repable_signed v0) &&
-              data_at sh tint (vint v0) p *
-        (data_at sh tint (vint v) p -* |={Ei,Eo}=> Q v0))%I
+   SEP (|={Eo,Ei}=> ∃ sh : share, ∃ v0 : Z, ⌜writable_share sh /\ repable_signed v0⌝ ∧
+              atomic_int_at sh (vint v0) p ∗
+        (atomic_int_at sh (vint v) p -∗ |={Ei,Eo}=> Q v0))
   POST [ tint ]
-   EX v' : Z,
+   ∃ v' : Z,
    PROP (repable_signed v')
    LOCAL (temp ret_temp (vint v'))
    SEP (Q v').
 Next Obligation.
 Proof.
-  repeat intro.
-  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; f_equal;
-    f_equal; rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
-  setoid_rewrite fupd_nonexpansive; do 3 f_equal.
-  rewrite !approx_exp; apply f_equal; extensionality sh.
-  rewrite !approx_exp; apply f_equal; extensionality v0.
-  rewrite !approx_sepcon; f_equal.
-  setoid_rewrite fview_shift_nonexpansive; rewrite approx_idem; auto.
+  intros ? ((((?, ?), ?), ?), ?) ((((?, ?), ?), ?), ?) ((([=] & [=]) & [=]) & HQ) ?; simpl in *; subst.
+  by repeat f_equiv.
 Qed.
 Next Obligation.
-Proof.
-  repeat intro.
-  rewrite !approx_exp; apply f_equal; extensionality vr.
-  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 apply f_equal;
-    rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem; auto.
+  intros ? ((((?, ?), ?), ?), ?) ((((?, ?), ?), ?), ?) ((([=] & [=]) & [=]) & HQ) ?; simpl in *; subst.
+  by repeat f_equiv.
 Qed.
 
 Lemma atomic_exchange_int : funspec_sub atomic_exchange_spec atomic_exchange_int_spec.
 Proof.
-  apply prove_funspec_sub.
-  split; auto; intros; simpl in *.
+  split; first done; intros; simpl in *.
   destruct x2 as ((((p, v), Eo), Ei), Q).
   intros; iIntros "[_ H] !>".
-  iExists nil, (p, vint v, Eo, Ei, fun v => match v with Vint i => Q (Int.signed i) | _ => FF end), emp.
-  rewrite emp_sepcon; iSplit.
-  - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx; simpl.
+  iExists (p, vint v, Eo, Ei, fun v => match v with Vint i => Q (Int.signed i) | _ => False end), emp.
+  iSplit; first done.
+  iSplit.
+  - unfold PROPx, PARAMSx, GLOBALSx, LOCALx, SEPx; simpl; monPred.unseal.
     iDestruct "H" as "(% & $ & $ & H & $)".
     destruct H; iSplit; auto.
     iMod "H"; iModIntro.
-    iDestruct "H" as (sh v0) "[[% H1] H2]".
-    destruct H1.
+    iDestruct "H" as (sh v0) "((% & %) & ? & ?)".
     iExists sh, (vint v0); iFrame.
     rewrite -> Int.signed_repr; auto.
   - unfold PROPx, LOCALx, SEPx; simpl.
     iPureIntro.
     iIntros (?) "(_ & _ & H)".
     iDestruct "H" as (r) "(_ & % & Q & _)".
-    destruct H, r; try done.
-    iExists (Int.signed i); iSplit; auto.
+    destruct H; try done.
+    monPred.unseal.
+    iExists (Int.signed r); iSplit; auto.
     { iPureIntro; split; auto.
       apply Int.signed_range. }
     iSplit; [iSplit; auto|].
     { rewrite Int.repr_signed; auto. }
-    rewrite sepcon_emp; iFrame.
+    iFrame.
 Qed.
 
 (* specs for pointer operations *)
 
 Definition ALI_ptr_type := ProdType (ProdType (ProdType (ConstType val)
   (ConstType coPset)) (ConstType coPset))
-  (ArrowType (ConstType val) Mpred).
+  (DiscreteFunType val Mpred).
 
 Program Definition atomic_load_ptr_spec := TYPE ALI_ptr_type
   WITH p : val, Eo : coPset, Ei : coPset, Q : val -> mpred
   PRE [ tptr atomic_ptr ]
    PROP (subseteq Ei Eo)
    PARAMS (p)
-   SEP (|={Eo,Ei}=> EX sh : share, EX v : val, !!(readable_share sh ) &&
-              atomic_ptr_at sh v p * (atomic_ptr_at sh v p -* |={Ei,Eo}=> Q v))%I
+   SEP (|={Eo,Ei}=> ∃ sh : share, ∃ v : val, ⌜readable_share sh⌝ ∧
+              atomic_ptr_at sh v p ∗ (atomic_ptr_at sh v p -∗ |={Ei,Eo}=> Q v))
   POST [ tptr Tvoid ]
-   EX v : val,
+   ∃ v : val,
    PROP ()
    LOCAL (temp ret_temp v)
    SEP (Q v).
 Next Obligation.
 Proof.
-  repeat intro.
-  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; f_equal;
-    f_equal; rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
-  setoid_rewrite fupd_nonexpansive; do 3 f_equal.
-  rewrite !approx_exp; apply f_equal; extensionality sh.
-  rewrite !approx_exp; apply f_equal; extensionality v.
-  rewrite !approx_sepcon; f_equal.
-  setoid_rewrite fview_shift_nonexpansive; rewrite approx_idem; auto.
+  intros ? (((?, ?), ?), ?) (((?, ?), ?), ?) ((([=] & [=]) & [=]) & HQ) ?; simpl in *; subst.
+  by repeat f_equiv.
 Qed.
 Next Obligation.
-Proof.
-  repeat intro.
-  rewrite !approx_exp; apply f_equal; extensionality v.
-  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 apply f_equal;
-    rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem; auto.
+  intros ? (((?, ?), ?), ?) (((?, ?), ?), ?) ((([=] & [=]) & [=]) & HQ) ?; simpl in *; subst.
+  by repeat f_equiv.
 Qed.
-
 
 Definition ASI_ptr_type := ProdType (ProdType (ProdType (ConstType (val * val))
   (ConstType coPset)) (ConstType coPset)) Mpred.
@@ -503,102 +430,74 @@ Program Definition atomic_store_ptr_spec := TYPE ASI_ptr_type
   PRE [ tptr atomic_ptr, tptr Tvoid ]
    PROP (subseteq Ei Eo)
    PARAMS (p; v)
-   SEP (|={Eo,Ei}=> EX sh : share, !!(writable_share sh) && atomic_ptr_at sh Vundef p *
-      (atomic_ptr_at sh v p -* |={Ei,Eo}=> Q))%I
+   SEP (|={Eo,Ei}=> ∃ sh : share, ⌜writable_share sh⌝ ∧ atomic_ptr_at sh Vundef p ∗
+      (atomic_ptr_at sh v p -∗ |={Ei,Eo}=> Q))
   POST [ tvoid ]
    PROP ()
    LOCAL ()
    SEP (Q).
 Next Obligation.
 Proof.
-  repeat intro.
-  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; f_equal;
-    f_equal; rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
-  setoid_rewrite fupd_nonexpansive; do 3 f_equal.
-  rewrite !approx_exp; apply f_equal; extensionality sh.
-  rewrite !approx_sepcon; f_equal.
-  setoid_rewrite fview_shift_nonexpansive; rewrite approx_idem; auto.
+  intros ? ((((?, ?), ?), ?), ?) ((((?, ?), ?), ?), ?) ((([=] & [=]) & [=]) & HQ) ?; simpl in *; subst.
+  by repeat f_equiv.
 Qed.
 Next Obligation.
-Proof.
-  repeat intro.
-  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 apply f_equal;
-    rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem; auto.
+  intros ? ((((?, ?), ?), ?), ?) ((((?, ?), ?), ?), ?) ((([=] & [=]) & [=]) & HQ) ?; simpl in *; subst.
+  by repeat f_equiv.
 Qed.
-
 
 Definition ACASI_ptr_type := ProdType (ProdType (ProdType (ConstType (val * share * val * val * val))
   (ConstType coPset)) (ConstType coPset))
-  (ArrowType (ConstType val) Mpred).
+  (DiscreteFunType val Mpred).
 
 Program Definition atomic_CAS_ptr_spec := TYPE ACASI_ptr_type
   WITH p : val, shc : share, pc : val, c : val, v : val, Eo : coPset, Ei : coPset, Q : val -> mpred
   PRE [ tptr atomic_ptr, tptr (tptr Tvoid), tptr Tvoid ]
    PROP (readable_share shc; subseteq Ei Eo)
    PARAMS (p; pc; v)
-   SEP (data_at shc (tptr Tvoid) c pc; |={Eo,Ei}=> EX sh : share, EX v0 : val,
-      !!(writable_share sh ) && atomic_ptr_at sh v0 p *
-           (atomic_ptr_at sh (if eq_dec v0 c then v else v0) p -* |={Ei,Eo}=> Q v0))%I
+   SEP (data_at shc (tptr Tvoid) c pc; |={Eo,Ei}=> ∃ sh : share, ∃ v0 : val,
+      ⌜writable_share sh⌝ ∧ atomic_ptr_at sh v0 p ∗
+           (atomic_ptr_at sh (if eq_dec v0 c then v else v0) p -∗ |={Ei,Eo}=> Q v0))
   POST [ tint ]
-   EX v' : val,
+   ∃ v' : val,
    PROP ()
    LOCAL (temp ret_temp (vint (if eq_dec v' c then 1 else 0)))
    SEP (data_at shc (tptr Tvoid) c pc; Q v').
 Next Obligation.
 Proof.
-  repeat intro.
-  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; f_equal;
-    f_equal; rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
-  unfold argsassert2assert; rewrite !approx_sepcon; f_equal.
-  setoid_rewrite fupd_nonexpansive; do 3 f_equal.
-  rewrite !approx_exp; apply f_equal; extensionality sh.
-  rewrite !approx_exp; apply f_equal; extensionality v2.
-  rewrite !approx_sepcon; f_equal.
-  setoid_rewrite fview_shift_nonexpansive; rewrite approx_idem; auto.
+  intros ? (((((((?, ?), ?), ?), ?), ?), ?), ?) ((((?, ?), ?), ?), ?) ((([=] & [=]) & [=]) & HQ) ?; simpl in *; subst.
+  by repeat f_equiv.
 Qed.
 Next Obligation.
-Proof.
-  repeat intro.
-  rewrite !approx_exp; apply f_equal; extensionality vr.
-  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 apply f_equal;
-    rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem; auto.
+  intros ? (((((((?, ?), ?), ?), ?), ?), ?), ?) ((((?, ?), ?), ?), ?) ((([=] & [=]) & [=]) & HQ) ?; simpl in *; subst.
+  by repeat f_equiv.
 Qed.
-
 
 Definition AEXI_ptr_type := ProdType (ProdType (ProdType (ConstType (val * val))
   (ConstType coPset)) (ConstType coPset))
-  (ArrowType (ConstType val) Mpred).
+  (DiscreteFunType val Mpred).
 
 Program Definition atomic_exchange_ptr_spec := TYPE AEXI_ptr_type
   WITH p : val, v : val, Eo : coPset, Ei : coPset, Q : val -> mpred
   PRE [ tptr atomic_ptr, tptr Tvoid ]
    PROP (subseteq Ei Eo)
    PARAMS (p; v)
-   SEP (|={Eo,Ei}=> EX sh : share, EX v0 : val, !!(writable_share sh ) &&
-              atomic_ptr_at sh v0 p *
-        (atomic_ptr_at sh v p -* |={Ei,Eo}=> Q v0))%I
+   SEP (|={Eo,Ei}=> ∃ sh : share, ∃ v0 : val, ⌜writable_share sh⌝ ∧
+              atomic_ptr_at sh v0 p ∗
+        (atomic_ptr_at sh v p -∗ |={Ei,Eo}=> Q v0))
   POST [ tint ]
-   EX v' : val,
+   ∃ v' : val,
    PROP ()
    LOCAL (temp ret_temp v')
    SEP (Q v').
 Next Obligation.
 Proof.
-  repeat intro.
-  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; f_equal;
-    f_equal; rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
-  setoid_rewrite fupd_nonexpansive; do 3 f_equal.
-  rewrite !approx_exp; apply f_equal; extensionality sh.
-  rewrite !approx_exp; apply f_equal; extensionality v0.
-  rewrite !approx_sepcon; f_equal.
-  setoid_rewrite fview_shift_nonexpansive; rewrite approx_idem; auto.
+  intros ? ((((?, ?), ?), ?), ?) ((((?, ?), ?), ?), ?) ((([=] & [=]) & [=]) & HQ) ?; simpl in *; subst.
+  by repeat f_equiv.
 Qed.
 Next Obligation.
-Proof.
-  repeat intro.
-  rewrite !approx_exp; apply f_equal; extensionality vr.
-  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 apply f_equal;
-    rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem; auto.
+  intros ? ((((?, ?), ?), ?), ?) ((((?, ?), ?), ?), ?) ((([=] & [=]) & [=]) & HQ) ?; simpl in *; subst.
+  by repeat f_equiv.
 Qed.
 
 End SC_atomics.

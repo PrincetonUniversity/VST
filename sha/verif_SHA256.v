@@ -4,8 +4,6 @@ Require Import sha.SHA256.
 Require Import sha.spec_sha.
 Require Import sha.sha_lemmas.
 
-Local Open Scope logic.
-
 Lemma body_SHA256: semax_body Vprog Gtot f_SHA256 SHA256_spec.
 Proof.
 start_function.
