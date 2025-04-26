@@ -16,6 +16,7 @@ Require Import VST.veric.expr2.
 Require Import VST.veric.expr_lemmas.
 Require Export VST.veric.lifting.
 Require Export VST.veric.env_pred.
+Require Import VST.veric.Clight_assert_lemmas.
 
 Import Ctypes Clight_core.
 
@@ -230,12 +231,6 @@ Definition env_ret_assert Delta ge f (R : ret_assert) : tycontext.ret_assert :=
        tycontext.RA_return := λ vl, ⎡RA_return R vl rho⎤
     |} (<affine> ⌜guard_environ Delta f rho⌝ ∗ curr_env ge f rho)).
 
-Definition funassert Delta (ge : genv) :=
-  (□ (∀ id: ident, ∀ fs:funspec,  ⌜Maps.PTree.get id (glob_specs Delta) = Some fs⌝ →
-            ∃ b, ⌜Genv.find_symbol ge id = Some b⌝ ∧ func_at fs (b, 0%Z)) ∗
-   (∀ b fsig cc, sigcc_at fsig cc (b, 0%Z) -∗
-           ⌜∃ id, Genv.find_symbol ge id = Some b ∧ ∃ fs, Maps.PTree.get id (glob_specs Delta) = Some fs⌝)).
-
 (* semax must be plain (or at least persistent) so we can reuse believe for as many
    functions as we need. *)
 Definition semax_
@@ -380,7 +375,7 @@ Proof.
   iIntros "H"; iDestruct "H" as (b f Hv) "H".
   iExists b, f; iSplit.
   - iPureIntro; intuition.
-    + eapply Forall_impl. apply H0. simpl; intros.
+    + eapply Forall_impl, H0. simpl; intros.
       apply (complete_type_cenv_sub CSUB); auto.
     + rewrite /var_sizes_ok !Forall_forall in H0 H4 |- *; intros.
       rewrite (cenv_sub_sizeof CSUB); eauto.

@@ -304,7 +304,7 @@ Proof.
   intros; rewrite proj_frame comm //.
 Qed.
 
-Lemma env_ret_assert_proper Delta ge f : Proper (equiv ==> equiv) (env_ret_assert Delta ge f).
+Lemma env_ret_assert_proper Delta ge f : Proper (base.equiv ==> base.equiv) (env_ret_assert Delta ge f).
 Proof.
   intros ???; rewrite /env_ret_assert.
   do 3 f_equiv.
@@ -388,14 +388,14 @@ split; auto.
 Qed.*)
 
 Lemma frame_ret_comm : forall R P Q,
-  Clight_seplog.frame_ret_assert (Clight_seplog.frame_ret_assert R P) Q ≡
-  Clight_seplog.frame_ret_assert (Clight_seplog.frame_ret_assert R Q) P.
+  base.equiv (Clight_seplog.frame_ret_assert (Clight_seplog.frame_ret_assert R P) Q)
+  (Clight_seplog.frame_ret_assert (Clight_seplog.frame_ret_assert R Q) P).
 Proof.
   split; [|split3]; destruct R; simpl; intros; rewrite -!assoc (bi.sep_comm P Q) //.
 Qed.
 
 Lemma env_ret_frame : forall Delta ge f R F,
-  env_ret_assert Delta ge f (frame_ret_assert R ⎡F⎤) ≡ Clight_seplog.frame_ret_assert (env_ret_assert Delta ge f R) ⎡F⎤.
+  base.equiv (env_ret_assert Delta ge f (frame_ret_assert R ⎡F⎤)) (Clight_seplog.frame_ret_assert (env_ret_assert Delta ge f R) ⎡F⎤).
 Proof.
   intros; destruct R; rewrite /frame_ret_assert /env_ret_assert /Clight_seplog.frame_ret_assert /Clight_seplog.existential_ret_assert /=.
   split3; last split; simpl.

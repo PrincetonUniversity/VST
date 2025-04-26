@@ -625,12 +625,12 @@ Proof.
   by iDestruct (own_valid_2 with "H1 H2") as %((_ & ?%to_agree_op_inv)%lib.gmap_view.gmap_view_frag_op_valid & _).
 Qed.
 
-Definition funspecs_assert (FunSpecs: Maps.PTree.t funspec): mpred :=
+(*Definition funspecs_assert (FunSpecs: Maps.PTree.t funspec): mpred :=
    (□ (∀ id: ident, ∀ fs:funspec, ⌜Maps.PTree.get id FunSpecs = Some fs⌝ →
             ∃ b:block, gvar id b ∗ func_at fs (b,0)) ∗
    (∀ b fsig cc, sigcc_at fsig cc (b, 0) -∗ ∃ id, gvar id b ∗
            ⌜∃ fs, Maps.PTree.get id FunSpecs = Some fs⌝)).
-(* We can substantiate this using the authoritative funspecs. *)
+(* We can substantiate this using the authoritative funspecs. *)*)
 
 Definition globals_only (rho: environ) : environ := (mkEnviron (ge_of rho) empty empty).
 
@@ -659,7 +659,7 @@ induction s; intros.
  rewrite <- (IHs a0 rho); auto.
 Qed.
 
-Lemma same_FS_funspecs_assert:
+(*Lemma same_FS_funspecs_assert:
   forall FS1 FS2,
      (forall id, FS1 !! id = FS2 !! id) ->
               funspecs_assert FS1 ⊢ funspecs_assert FS2.
@@ -668,7 +668,7 @@ Proof.
   iIntros "(#H1 & H2)"; iSplitL "".
   - iIntros "!>" (??); rewrite -H //.
   - setoid_rewrite <- H; done.
-Qed.
+Qed.*)
 
 (*Lemma funspecs_assert_rho:
   forall G rho rho', ge_of rho = ge_of rho' -> funspecs_assert G rho ⊢ funspecs_assert G rho'.

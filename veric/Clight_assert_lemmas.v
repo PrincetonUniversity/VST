@@ -7,29 +7,42 @@ Require Export VST.veric.assert_lemmas.
 
 Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
+Require Import VST.veric.env_pred.
 Require Import VST.veric.extend_tc.
 
 Section mpred.
 
-Context `{!heapGS Σ} `{!envGS Σ}.
+Context `{!heapGS Σ}.
 
-Definition allp_fun_id (Delta : tycontext) : mpred :=
+Definition funassert Delta (ge : genv) :=
+  (□ (∀ id: ident, ∀ fs:funspec,  ⌜Maps.PTree.get id (glob_specs Delta) = Some fs⌝ →
+            ∃ b, ⌜Genv.find_symbol ge id = Some b⌝ ∧ func_at fs (b, 0%Z)) ∗
+   (∀ b fsig cc, sigcc_at fsig cc (b, 0%Z) -∗
+           ⌜∃ id, Genv.find_symbol ge id = Some b ∧ ∃ fs, Maps.PTree.get id (glob_specs Delta) = Some fs⌝)).
+
+Definition allp_fun_id (Delta : tycontext) : assert := assert_of (λ rho,
  ∀ id : ident, ∀ fs : funspec,
   ⌜Maps.PTree.get id (glob_specs Delta) = Some fs⌝ →
-  (∃ b : block, gvar id b ∗ func_ptr_si fs (Vptr b Ptrofs.zero)).
+  (∃ b : block, ⌜ge_of rho !! id = Some b⌝ ∧ func_ptr_si fs (Vptr b Ptrofs.zero))).
 
-Definition allp_fun_id_sigcc (Delta : tycontext) : mpred :=
+Definition allp_fun_id_sigcc (Delta : tycontext) : assert := assert_of (λ rho,
   ∀ id : ident, ∀ fs : funspec,
   ⌜Maps.PTree.get id (glob_specs Delta) = Some fs⌝ →
-  (∃ b : block, gvar id b ∗
+  (∃ b : block, ⌜ge_of rho !! id = Some b⌝ ∧
     match fs with
     mk_funspec sig cc _ _ _ _ => sigcc_at sig cc (b, 0)
-    end).
+    end)).
+
+Global Instance assert_of_mono : Proper (pointwise_relation _ bi_entails ==> bi_entails) assert_of.
+Proof.
+  split => rho; apply H.
+Qed.
 
 Lemma allp_fun_id_ex_implies_allp_fun_sigcc Delta:
   allp_fun_id Delta ⊢ allp_fun_id_sigcc Delta.
 Proof.
   rewrite /allp_fun_id /allp_fun_id_sigcc.
+  do 2 f_equiv.
   apply bi.forall_mono; intros id.
   apply bi.forall_mono; intros fs.
   repeat f_equiv.
@@ -45,6 +58,8 @@ Lemma allp_fun_id_sigcc_sub: forall Delta Delta',
   allp_fun_id_sigcc Delta' ⊢ allp_fun_id_sigcc Delta.
 Proof.
   intros.
+  rewrite /allp_fun_id_sigcc.
+  do 2 f_equiv.
   apply bi.forall_mono; intros id.
   iIntros "H" (fs Hid).
   destruct H as (_ & _ & _ & _ & Hg & _).
@@ -62,6 +77,8 @@ Lemma allp_fun_id_sub: forall Delta Delta',
   allp_fun_id Delta' ⊢ allp_fun_id Delta.
 Proof.
   intros.
+  rewrite /allp_fun_id.
+  do 2 f_equiv.
   apply bi.forall_mono; intros id.
   iIntros "H" (fs Hid).
   destruct H as (_ & _ & _ & _ & Hg & _).
@@ -74,40 +91,43 @@ Proof.
   iApply funspec_sub_si_trans; eauto.
 Qed.
 
-Lemma funassert_allp_fun_id Delta: funassert Delta ⊢ <affine> allp_fun_id Delta ∗ funassert Delta.
+Lemma funassert_allp_fun_id Delta (ge : genv) rho: ge_of rho = make_env (Genv.genv_symb ge) ->
+  funassert Delta ge ⊢ <affine> allp_fun_id Delta rho ∗ funassert Delta ge.
 Proof.
-  iIntros "H"; iSplit; last done.
+  intros; iIntros "H"; iSplit; last done.
   iDestruct "H" as "[H _]".
   iIntros "!> !>" (???).
-  iDestruct ("H" with "[//]") as (?) "(? & H)".
-  iExists b; iSplit; first auto.
+  iDestruct ("H" with "[//]") as (??) "H".
+  iExists b; iSplit; first by rewrite H make_env_spec.
   iExists b; iSplit; first auto.
   iExists fs; iFrame.
   iPoseProof (funspec_sub_si_refl) as "?"; auto.
 Qed.
 
-Lemma funassert_allp_fun_id_sub: forall Delta Delta',
+Lemma funassert_allp_fun_id_sub: forall Delta Delta' (ge : genv) rho,
   tycontext_sub Delta Delta' ->
-  funassert Delta' ⊢ <affine> allp_fun_id Delta ∗ funassert Delta'.
+  ge_of rho = make_env (Genv.genv_symb ge) ->
+  funassert Delta' ge ⊢ <affine> allp_fun_id Delta rho ∗ funassert Delta' ge.
 Proof.
-  intros. rewrite {1}funassert_allp_fun_id.
+  intros. rewrite {1}funassert_allp_fun_id //.
   apply bi.sep_mono; last done.
   apply bi.affinely_mono, allp_fun_id_sub; trivial.
 Qed.
 
-Lemma funassert_allp_fun_id_sigcc Delta:
-  funassert Delta ⊢ <affine> allp_fun_id_sigcc Delta ∗ funassert Delta.
+Lemma funassert_allp_fun_id_sigcc Delta (ge : genv) rho: ge_of rho = make_env (Genv.genv_symb ge) ->
+  funassert Delta ge ⊢ <affine> allp_fun_id_sigcc Delta rho ∗ funassert Delta ge.
 Proof.
-  intros. rewrite {1}(funassert_allp_fun_id ⊤).
+  intros. rewrite {1}(funassert_allp_fun_id ⊤) //.
   apply bi.sep_mono; last done.
   apply bi.affinely_mono, allp_fun_id_ex_implies_allp_fun_sigcc.
 Qed.
 
-Lemma funassert_allp_fun_id_sigcc_sub: forall Delta Delta',
+Lemma funassert_allp_fun_id_sigcc_sub: forall Delta Delta' (ge : genv) rho,
   tycontext_sub Delta Delta' ->
-  funassert Delta' ⊢ <affine> allp_fun_id_sigcc Delta ∗ funassert Delta'.
+  ge_of rho = make_env (Genv.genv_symb ge) ->
+  funassert Delta' ge ⊢ <affine> allp_fun_id_sigcc Delta rho ∗ funassert Delta' ge.
 Proof.
-  intros. rewrite {1}funassert_allp_fun_id_sigcc.
+  intros. rewrite {1}funassert_allp_fun_id_sigcc //.
   apply bi.sep_mono; last done.
   eapply bi.affinely_mono, allp_fun_id_sigcc_sub; eauto.
 Qed.

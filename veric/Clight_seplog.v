@@ -100,8 +100,6 @@ Definition get_result (ret: option ident) : environ -> environ :=
 Definition bind_ret (vl: option val) (t: type) (Q: option val → assert) : assert :=
   ⌜match vl with None => t = Tvoid | Some v => tc_val t v end⌝ ∧ Q vl.
 
-Definition funassert (Delta: tycontext): mpred := funspecs_assert (glob_specs Delta).
-
 (* Unfortunately, we need core_load in the interface as well as address_mapsto,
   because the converse of 'mapsto_core_load' lemma is not true.  The reason is
   that core_load could imply partial ownership of the four bytes of the word
@@ -237,11 +235,11 @@ Definition function_body_ret_assert (ret: type) (Q: option val → assert) : ret
     RA_continue := False;
     RA_return := fun vl => bind_ret vl ret Q |}.
 
-Lemma same_glob_funassert:
+(*Lemma same_glob_funassert:
   forall Delta1 Delta2,
      (forall id, (glob_specs Delta1) !! id = (glob_specs Delta2) !! id) ->
               funassert Delta1 ⊣⊢ funassert Delta2.
-Proof. intros; iSplit; iApply same_FS_funspecs_assert; auto. Qed.
+Proof. intros; iSplit; iApply same_FS_funspecs_assert; auto. Qed.*)
 
 Global Instance bind_ret_proper vl t : Proper (pointwise_relation _ base.equiv ==> base.equiv) (bind_ret vl t).
 Proof. solve_proper. Qed.
