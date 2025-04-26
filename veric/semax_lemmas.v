@@ -132,8 +132,8 @@ Lemma semax_unfold {CS: compspecs} E Delta P c R :
   semax OK_spec E Delta P c R ↔ forall (psi: Clight.genv) Delta' CS'
           (TS: tycontext_sub Delta Delta')
           (HGG: cenv_sub (@cenv_cs CS) (@cenv_cs CS') /\ cenv_sub (@cenv_cs CS') (genv_cenv psi)),
-    ⊢ ⎡funassert Delta'⎤ -∗ believe(CS := CS') OK_spec Delta' psi Delta' -∗ ∀ f rho, <affine> ⌜guard_environ Delta' f rho⌝ -∗
-      curr_env psi f rho -∗ ⎡P rho⎤ -∗ wp OK_spec psi E f c (Clight_seplog.frame_ret_assert (env_ret_assert Delta' psi f R) ⎡funassert Delta'⎤).
+    ⊢ ⎡funassert Delta' psi⎤ -∗ believe(CS := CS') OK_spec Delta' psi Delta' -∗ ∀ f rho, <affine> ⌜guard_environ Delta' f rho⌝ -∗
+      curr_env psi f rho -∗ ⎡P rho⎤ -∗ wp OK_spec psi E f c (Clight_seplog.frame_ret_assert (env_ret_assert Delta' psi f R) ⎡funassert Delta' psi⎤).
 Proof.
 rewrite /semax semax_fold_unfold.
 split; intros.

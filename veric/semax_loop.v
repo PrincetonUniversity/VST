@@ -121,14 +121,14 @@ Proof.
   iSplitL ""; last by iApply (H with "[$] [$] [//] E").
   simpl.
   iAssert ((∃ x0 : environ, ⎡ Q' x0 ⎤ ∗ <affine> ⌜guard_environ Delta' f x0⌝ ∗
-    curr_env psi f x0) ∗ ⎡ funassert Delta' ⎤ ={E}=∗
+    curr_env psi f x0) ∗ ⎡ funassert Delta' psi ⎤ ={E}=∗
    wp OK_spec psi E f incr
    (Clight_seplog.loop2_ret_assert
       (wp OK_spec psi E f (Sloop body incr)
          (Clight_seplog.frame_ret_assert (env_ret_assert Delta' psi f POST)
-            ⎡ funassert Delta' ⎤))
+            ⎡ funassert Delta' psi ⎤))
       (Clight_seplog.frame_ret_assert (env_ret_assert Delta' psi f POST)
-         ⎡ funassert Delta' ⎤)))%I as "?"; last auto.
+         ⎡ funassert Delta' psi ⎤)))%I as "?"; last auto.
   iIntros "((% & ? & % & E) & ?) !>".
   iApply wp_strong_mono.
   iSplitL ""; last by iApply (H0 with "[$] [$] [//] E").

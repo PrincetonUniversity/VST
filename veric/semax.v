@@ -230,11 +230,11 @@ Definition env_ret_assert Delta ge f (R : ret_assert) : tycontext.ret_assert :=
        tycontext.RA_return := λ vl, ⎡RA_return R vl rho⎤
     |} (<affine> ⌜guard_environ Delta f rho⌝ ∗ curr_env ge f rho)).
 
-Definition funassert Delta : assert := assert_of (fun rho =>
-   (□ (∀ id: ident, ∀ fs:funspec,  ⌜Maps.PTree.get id (glob_specs Delta) = Some fs⌝ →
-            ∃ b, ⌜(ge_of rho) !! id = Some b⌝ ∧ func_at fs (b, 0%Z)) ∗
+Definition funassert Delta (ge : genv) :=
+  (□ (∀ id: ident, ∀ fs:funspec,  ⌜Maps.PTree.get id (glob_specs Delta) = Some fs⌝ →
+            ∃ b, ⌜Genv.find_symbol ge id = Some b⌝ ∧ func_at fs (b, 0%Z)) ∗
    (∀ b fsig cc, sigcc_at fsig cc (b, 0%Z) -∗
-           ⌜∃ id, (ge_of rho) !! id = Some b ∧ ∃ fs, Maps.PTree.get id (glob_specs Delta) = Some fs⌝))).
+           ⌜∃ id, Genv.find_symbol ge id = Some b ∧ ∃ fs, Maps.PTree.get id (glob_specs Delta) = Some fs⌝)).
 
 (* semax must be plain (or at least persistent) so we can reuse believe for as many
    functions as we need. *)
@@ -244,17 +244,17 @@ Definition semax_
   ∀ ge Delta' CS', ⌜tycontext_sub Delta Delta' ∧
       cenv_sub (@cenv_cs CS) (@cenv_cs CS') ∧
       cenv_sub (@cenv_cs CS') (genv_cenv ge)⌝ →
-    ■ (@believepred CS' semax Delta' ge Delta' -∗
+    ■ (⎡funassert Delta' ge⎤ -∗
+       @believepred CS' semax Delta' ge Delta' -∗
        ∀ f rho, <affine> ⌜guard_environ Delta' f rho⌝ -∗ curr_env ge f rho -∗
-       ⎡funassert Delta' rho⎤ -∗
        ⎡P rho⎤ -∗ wp OK_spec ge E f c
-    (env_ret_assert Delta' ge f (frame_ret_assert R (funassert Delta'))))
+    (Clight_seplog.frame_ret_assert (env_ret_assert Delta' ge f R) ⎡funassert Delta' ge⎤))
  end.
 
 Local Instance semax_contractive : Contractive semax_.
 Proof.
   rewrite /semax_ => n semax semax' Hsemax [??????].
-  do 9 f_equiv.
+  do 10 f_equiv.
   rewrite /believepred.
   do 15 f_equiv.
   rewrite /believe_internal_.
@@ -306,11 +306,11 @@ Lemma semax_fold_unfold : forall {CS: compspecs} E Delta P c R,
   ∀ ge Delta' CS', ⌜tycontext_sub Delta Delta' ∧
       cenv_sub (@cenv_cs CS) (@cenv_cs CS') ∧
       cenv_sub (@cenv_cs CS') (genv_cenv ge)⌝ →
-  ■ (@believe CS' Delta' ge Delta' -∗
+  ■ (⎡funassert Delta' ge⎤ -∗
+    @believe CS' Delta' ge Delta' -∗
     ∀ f rho, <affine> ⌜guard_environ Delta' f rho⌝ -∗ curr_env ge f rho -∗
-      ⎡funassert Delta' rho⎤ -∗
       ⎡P rho⎤ -∗ wp OK_spec ge E f c
-    (env_ret_assert Delta' ge f (frame_ret_assert R (funassert Delta')))).
+    (Clight_seplog.frame_ret_assert (env_ret_assert Delta' ge f R) ⎡funassert Delta' ge⎤)).
 Proof.
 intros.
 unfold semax'.
