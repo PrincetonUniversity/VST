@@ -887,7 +887,7 @@ Lemma semax_prog_entry_point {CS: compspecs} V G prog b id_fun params args A
     m q m' (Vptr b Ptrofs.zero) args) /\
 
   forall (a: dtfr A),
-    <absorb> P a args ∗ funassert (nofunc_tycontext V G) ∗ env_auth (make_env (Genv.genv_symb (globalenv prog)), ∅) ⊢
+    <absorb> P a args ∗ funassert (nofunc_tycontext V G) (globalenv prog) ∗ env_auth (make_env (Genv.genv_symb (globalenv prog)), ∅) ⊢
     jsafeN OK_spec (globalenv prog) (E a) z q }.
 Proof.
 intro retty.
@@ -936,10 +936,10 @@ assert  (TC5: typecheck_glob_environ (filter_genv psi) (glob_types Delta)). {
      apply compute_list_norepet_e; auto.
 }
 
-assert (⊢ ▷ (<absorb> P a args ∗ funassert Delta ∗ env_auth (make_env (Genv.genv_symb (globalenv prog)), ∅) -∗
+assert (⊢ ▷ (<absorb> P a args ∗ funassert Delta psi ∗ env_auth (make_env (Genv.genv_symb (globalenv prog)), ∅) -∗
   jsafeN OK_spec psi (E a) z (Clight_core.Callstate f args Kstop))) as Hsafe; last by apply bi.wand_entails, ouPred.later_soundness.
-assert (⊢ ▷ ((globals_auth (make_env (Genv.genv_symb psi)) ∗ <absorb> P a args ∗ funassert Delta) -∗
-  <absorb> initial_call_assert OK_spec (globalenv prog) (E a) f args (Clight_seplog.normal_ret_assert ⎡(∃ v, Q a v) ∗ funassert Delta⎤) O)) as Hpre.
+assert (⊢ ▷ ((globals_auth (make_env (Genv.genv_symb psi)) ∗ <absorb> P a args ∗ funassert Delta psi) -∗
+  <absorb> initial_call_assert OK_spec (globalenv prog) (E a) f args (Clight_seplog.normal_ret_assert ⎡(∃ v, Q a v) ∗ funassert Delta psi⎤) O)) as Hpre.
 2: { rewrite /bi_emp_valid Hpre; f_equiv.
      iIntros "H (P & F & E)"; iDestruct (env_auth_globals with "E") as "(E & G)".
      iMod ("H" with "[$G $P $F]") as "H".
@@ -1096,7 +1096,7 @@ Proof.
   apply inj_pair2 in HP as ->.
   apply inj_pair2 in HQ as ->.
   iApply (Hsafe (genviron2globals (globalenv prog))).
-  iCombine "Hge Hcore Hmatch" as "Hcore"; rewrite (initial_core_funassert) //; iFrame.
+  iCombine "Hcore Hmatch" as "Hcore"; rewrite (initial_core_funassert) //; iFrame.
   iIntros "!>".
   iSplit; first done.
   iSplitR "Hm"; last by iApply global_initializers.

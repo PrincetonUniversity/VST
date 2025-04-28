@@ -526,15 +526,15 @@ Axiom semax_skip:
 
 Axiom semax_conseq:
  forall E Delta P' (R': ret_assert) P c (R: ret_assert) ,
-   (□ local (typecheck_environ Delta) ∗ (<affine> ⎡allp_fun_id Delta⎤ ∗ P) ⊢
+   (□ local (typecheck_environ Delta) ∗ (<affine> allp_fun_id Delta ∗ P) ⊢
                    (|={E}=> P') ) ->
-   (□ local (typecheck_environ Delta) ∗ (<affine> ⎡allp_fun_id Delta⎤ ∗ RA_normal R') ⊢
+   (□ local (typecheck_environ Delta) ∗ (<affine> allp_fun_id Delta ∗ RA_normal R') ⊢
                    (|={E}=> RA_normal R)) ->
-   (□ local (typecheck_environ Delta) ∗ (<affine> ⎡allp_fun_id Delta⎤ ∗ RA_break R') ⊢
+   (□ local (typecheck_environ Delta) ∗ (<affine> allp_fun_id Delta ∗ RA_break R') ⊢
                    (|={E}=> RA_break R)) ->
-   (□ local (typecheck_environ Delta) ∗ (<affine> ⎡allp_fun_id Delta⎤ ∗ RA_continue R') ⊢
+   (□ local (typecheck_environ Delta) ∗ (<affine> allp_fun_id Delta ∗ RA_continue R') ⊢
                    (|={E}=> RA_continue R)) ->
-   (forall vl, □ local (typecheck_environ Delta) ∗ (<affine> ⎡allp_fun_id Delta⎤ ∗ RA_return R' vl) ⊢
+   (forall vl, □ local (typecheck_environ Delta) ∗ (<affine> allp_fun_id Delta ∗ RA_return R' vl) ⊢
                    (|={E}=> RA_return R vl)) ->
    semax E Delta P' c R' ->  semax E Delta P c R.
 
@@ -714,17 +714,17 @@ Axiom semax_extract_later_prop:
            semax E Delta ((▷ ⌜PP⌝) ∧ P) c Q.
 
 Axiom semax_adapt_frame: forall E Delta c (P P': assert) (Q Q' : ret_assert)
-   (H: local (typecheck_environ Delta) ∧ (⎡allp_fun_id Delta⎤ ∗ P) ⊢
+   (H: local (typecheck_environ Delta) ∧ (allp_fun_id Delta ∗ P) ⊢
                    ∃ F: assert, (⌜closed_wrt_modvars c F⌝ ∧ |={E}=> (P' ∗ F) ∧
-                         ⌜local (tc_environ Delta) ∧ ⎡allp_fun_id Delta⎤ ∗ RA_normal (frame_ret_assert Q' F) ⊢ |={E}=> RA_normal Q⌝ ∧
-                         ⌜local (tc_environ Delta) ∧ ⎡allp_fun_id Delta⎤ ∗ RA_break (frame_ret_assert Q' F) ⊢ |={E}=> RA_break Q⌝ ∧
-                         ⌜local (tc_environ Delta) ∧ ⎡allp_fun_id Delta⎤ ∗ RA_continue (frame_ret_assert Q' F) ⊢ |={E}=> RA_continue Q⌝ ∧
-                         ⌜forall vl, local (tc_environ Delta) ∧ ⎡allp_fun_id Delta⎤ ∗ RA_return (frame_ret_assert Q' F) vl ⊢ RA_return Q vl⌝))
+                         ⌜local (tc_environ Delta) ∧ allp_fun_id Delta ∗ RA_normal (frame_ret_assert Q' F) ⊢ |={E}=> RA_normal Q⌝ ∧
+                         ⌜local (tc_environ Delta) ∧ allp_fun_id Delta ∗ RA_break (frame_ret_assert Q' F) ⊢ |={E}=> RA_break Q⌝ ∧
+                         ⌜local (tc_environ Delta) ∧ allp_fun_id Delta ∗ RA_continue (frame_ret_assert Q' F) ⊢ |={E}=> RA_continue Q⌝ ∧
+                         ⌜forall vl, local (tc_environ Delta) ∧ allp_fun_id Delta ∗ RA_return (frame_ret_assert Q' F) vl ⊢ RA_return Q vl⌝))
    (SEM: semax E Delta P' c Q'),
    semax E Delta P c Q.
 
 Axiom semax_adapt: forall E Delta c (P P': assert) (Q Q' : ret_assert)
-   (H: local (typecheck_environ Delta) ∧ (<affine> ⎡allp_fun_id Delta⎤ ∗ P) ⊢
+   (H: local (typecheck_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ P) ⊢
                    (|={E}=> P' ∧
                         ⌜RA_normal Q' ⊢ |={E}=> RA_normal Q⌝ ∧
                         ⌜RA_break Q' ⊢ |={E}=> RA_break Q⌝ ∧

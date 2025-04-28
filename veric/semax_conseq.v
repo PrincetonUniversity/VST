@@ -75,9 +75,23 @@ Proof.
     apply H1.
 Qed.
 
+Lemma funassert_allp_fun_id_sub' : forall Delta Delta' ge f rho,
+  tycontext_sub Delta Delta' →
+  ⊢ curr_env ge f rho -∗ ⎡funassert Delta' ge⎤ -∗
+  (<affine> ⎡allp_fun_id Delta rho⎤ ∗ curr_env ge f rho ∗ ⎡funassert Delta' ge⎤).
+Proof.
+  intros; iIntros "E F".
+  iAssert ⌜ge_of rho = make_env (Genv.genv_symb ge)⌝ as %Hge.
+  { iDestruct "E" as ((_ & Hge)) "E"; iPureIntro.
+    apply map_eq; intros.
+    by rewrite make_env_spec. }
+  iDestruct (funassert_allp_fun_id_sub with "F") as "F"; [done..|].
+  rewrite embed_sep embed_affinely; iDestruct "F" as "($ & $)"; done.
+Qed.
+
 Lemma semax'_conseq {CS: compspecs}:
  forall E Delta P' (R': ret_assert) (P: assert) c (R: ret_assert),
-   (□ local (typecheck_environ Delta) ∗ (allp_fun_id Delta ∗ P) ⊢
+   (□ local (typecheck_environ Delta) ∗ (<affine> allp_fun_id Delta ∗ P) ⊢
                    (|={E}=> P')) ->
    (□ local (typecheck_environ Delta) ∗ (<affine> allp_fun_id Delta ∗ RA_normal R') ⊢
                    (|={E}=> RA_normal R)) ->
@@ -93,41 +107,41 @@ Proof.
   rewrite !semax_fold_unfold.
   iIntros "#H" (??? [??]).
   iIntros "!> F #B" (?? (? & ?)) "E P".
-  iDestruct (funassert_allp_fun_id_sub with "F") as "(#? & F)"; first done.
+  iDestruct (funassert_allp_fun_id_sub' with "E F") as "(#? & ? & ?)"; [done..|].
   assert (typecheck_environ Delta rho) by (by eapply typecheck_environ_sub).
   eapply monPred_in_entails in H; rewrite monPred_at_fupd in H.
   iMod (H with "[P]").
-  { rewrite !monPred_at_sep monPred_at_affinely monPred_at_intuitionistically monPred_at_embed /=; iFrame.
+  { rewrite !monPred_at_sep monPred_at_affinely monPred_at_intuitionistically /=; iFrame "P".
     iSplit; iIntros "!>"; auto. }
   rewrite -wp_conseq; first by iApply ("H" with "[%] [$] [$] [//] [$] [$]").
   all: destruct R, R'; simpl in *.
-  - iIntros "((%rho' & R & (% & %) & $) & F)".
+  - iIntros "((%rho' & R & (% & %) & E) & F)".
     assert (typecheck_environ Delta rho') by (by eapply typecheck_environ_sub).
-    iDestruct (funassert_allp_fun_id_sub with "F") as "(#? & F)"; first done.
+    iDestruct (funassert_allp_fun_id_sub' with "E F") as "(#? & ? & ?)"; [done..|].
     eapply monPred_in_entails in H0; rewrite monPred_at_fupd in H0.
-    iMod (H0 with "[R]") as "$"; auto.
-    rewrite !monPred_at_sep monPred_at_affinely monPred_at_intuitionistically monPred_at_embed /=; iFrame.
+    iMod (H0 with "[R]") as "$"; last by iFrame.
+    rewrite !monPred_at_sep monPred_at_affinely monPred_at_intuitionistically /=; iFrame.
     iSplit; iIntros "!>"; auto.
-  - iIntros "((%rho' & R & (% & %) & $) & F)".
+  - iIntros "((%rho' & R & (% & %) & E) & F)".
     assert (typecheck_environ Delta rho') by (by eapply typecheck_environ_sub).
-    iDestruct (funassert_allp_fun_id_sub with "F") as "(#? & F)"; first done.
+    iDestruct (funassert_allp_fun_id_sub' with "E F") as "(#? & ? & ?)"; [done..|].
     eapply monPred_in_entails in H1; rewrite monPred_at_fupd in H1.
-    iMod (H1 with "[R]") as "$"; auto.
-    rewrite !monPred_at_sep monPred_at_affinely monPred_at_intuitionistically monPred_at_embed /=; iFrame.
+    iMod (H1 with "[R]") as "$"; last by iFrame.
+    rewrite !monPred_at_sep monPred_at_affinely monPred_at_intuitionistically /=; iFrame.
     iSplit; iIntros "!>"; auto.
-  - iIntros "((%rho' & R & (% & %) & $) & F)".
+  - iIntros "((%rho' & R & (% & %) & E) & F)".
     assert (typecheck_environ Delta rho') by (by eapply typecheck_environ_sub).
-    iDestruct (funassert_allp_fun_id_sub with "F") as "(#? & F)"; first done.
+    iDestruct (funassert_allp_fun_id_sub' with "E F") as "(#? & ? & ?)"; [done..|].
     eapply monPred_in_entails in H2; rewrite monPred_at_fupd in H2.
-    iMod (H2 with "[R]") as "$"; auto.
-    rewrite !monPred_at_sep monPred_at_affinely monPred_at_intuitionistically monPred_at_embed /=; iFrame.
+    iMod (H2 with "[R]") as "$"; last by iFrame.
+    rewrite !monPred_at_sep monPred_at_affinely monPred_at_intuitionistically /=; iFrame.
     iSplit; iIntros "!>"; auto.
-  - intros; iIntros "((%rho' & R & (% & %) & $) & F)".
+  - intros; iIntros "((%rho' & R & (% & %) & E) & F)".
     assert (typecheck_environ Delta rho') by (by eapply typecheck_environ_sub).
-    iDestruct (funassert_allp_fun_id_sub with "F") as "(#? & F)"; first done.
+    iDestruct (funassert_allp_fun_id_sub' with "E F") as "(#? & ? & ?)"; [done..|].
     eapply monPred_in_entails in H3; rewrite monPred_at_fupd in H3.
-    iMod (H3 with "[R]") as "$"; auto.
-    rewrite !monPred_at_sep monPred_at_affinely monPred_at_intuitionistically monPred_at_embed /=; iFrame.
+    iMod (H3 with "[R]") as "$"; last by iFrame.
+    rewrite !monPred_at_sep monPred_at_affinely monPred_at_intuitionistically /=; iFrame.
     iSplit; iIntros "!>"; auto.
 Qed.
 

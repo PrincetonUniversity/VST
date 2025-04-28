@@ -749,15 +749,15 @@ Proof.
   { iDestruct "Pre" as "(_ & $ & _)". }
   iDestruct "fp" as (? Ha ?) "(sub & func)".
   iCombine "sub func F" as "F".
-  iDestruct (add_and _ (∃ id, ⎡gvar id b⎤ ∗ ▷ ∃ fA fE fP fQ gP gQ, ⌜(gs = mk_funspec (argsig, retsig) cc fA fE gP gQ) /\ (glob_specs Delta' !! id)%maps = Some (mk_funspec (argsig, retsig) cc fA fE fP fQ)⌝ ∗
-    fP ≡ gP ∗ fQ ≡ gQ) with "F") as "(F & % & #g & (% & % & % & % & % & % & >%Hid & #HP & #HQ))".
+  iDestruct (add_and _ (∃ id, <affine> ⌜Genv.find_symbol psi id = Some b⌝ ∗ ▷ ∃ fA fE fP fQ gP gQ, ⌜(gs = mk_funspec (argsig, retsig) cc fA fE gP gQ) /\ (glob_specs Delta' !! id)%maps = Some (mk_funspec (argsig, retsig) cc fA fE fP fQ)⌝ ∗
+    fP ≡ gP ∗ fQ ≡ gQ) with "F") as "(F & % & %g & (% & % & % & % & % & % & >%Hid & #HP & #HQ))".
   { iIntros "(sub & #func & F)".
-    destruct gs; iDestruct "F" as "(A & D)"; iDestruct ("D" with "[func]") as (?) "(g & % & %Hfs)".
+    destruct gs; iDestruct "F" as "(A & D)"; iDestruct ("D" with "[func]") as (?) "(%g & % & %Hfs)".
     { by iExists _, _, _, _. }
-    iDestruct ("A" with "[//]") as (?) "(#g' & #f')".
-    iDestruct (gvar_agree with "g g'") as %<-.
+    iDestruct ("A" with "[//]") as (?) "(%g' & #f')".
+    rewrite g' in g; inv g.
     iDestruct (func_at_agree with "func f'") as (????????) "H".
-    iFrame; iNext.
+    iExists _; iSplit; first done; iNext.
     iDestruct "H" as (([=] & ->)) "H"; subst.
     iDestruct "sub" as ((-> & ->)) "sub".
     repeat match goal with H : existT _ _ = existT _ _ |- _ => apply inj_pair2 in H end; subst.
@@ -767,7 +767,6 @@ Proof.
   destruct Hid as (-> & Hid).
   iDestruct "F" as "(_ & _ & F)".
   iDestruct "sub" as "(_ & sub)".
-  iDestruct (curr_env_gvar_e with "[$E $g]") as %Hsymb.
   iPoseProof ("B" with "[%]") as "B'".
   { exists id; eauto. }
   assert (cenv_sub (@cenv_cs CS) psi) by (eapply cenv_sub_trans; eauto).
@@ -795,7 +794,7 @@ Proof.
     iMod (fupd_mask_subseteq (fE fx)) as "Hclose'"; first done.
     iMod ("BE" $! _ _ emp with "[Pre]") as "Hext".
     { iStopProof; split => ?; monPred.unseal.
-      rewrite monPred_at_intuitionistically /=; iIntros "(#(_ & _ & _ & _ & HP & _) & Pre)".
+      rewrite monPred_at_intuitionistically /=; iIntros "(#(_ & _ & _ & HP & _) & Pre)".
       rewrite bi.sep_emp.
       rewrite ofe_morO_equivI; iSpecialize ("HP" $! fx).
       rewrite discrete_fun_equivI; iSpecialize ("HP" $! (eval_exprlist l bl rho)).
@@ -871,7 +870,7 @@ Proof.
     rewrite !monPred_at_sep -assert_of_eq
       monPred_at_intuitionistically monPred_at_affinely !monPred_at_and
       !monPred_at_embed monPred_at_pure !monPred_at_internal_eq monPred_at_wand monPred_at_forall.
-    iIntros "(#(B & sub & func & g & HP & HQ & BI) & Pre & F & E)" (? [=]) "stack0".
+    iIntros "(#(B & sub & func & HP & HQ & BI) & Pre & F & E)" (? [=]) "stack0".
     rewrite monPred_at_wand.
     iIntros (? [=]) "stack".
     rewrite monPred_at_later; iNext.

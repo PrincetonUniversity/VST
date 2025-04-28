@@ -33,6 +33,9 @@ Definition allp_fun_id_sigcc (Delta : tycontext) : assert := assert_of (λ rho,
     mk_funspec sig cc _ _ _ _ => sigcc_at sig cc (b, 0)
     end)).
 
+Global Instance allp_fun_id_persistent Delta : Persistent (allp_fun_id Delta).
+Proof. apply monPred_persistent, _. Qed.
+
 Global Instance assert_of_mono : Proper (pointwise_relation _ bi_entails ==> bi_entails) assert_of.
 Proof.
   split => rho; apply H.
