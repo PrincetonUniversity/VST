@@ -199,7 +199,7 @@ Fixpoint dependent_type_functor_rec (T : TypeTree) : oFunctor :=
 
 (* Current theory: funspecs can only mention args/retval and should otherwise
    not say anything about the environment. *)
-Definition ArgsTT A := ArrowType A (DiscreteFunType (list val) ((*DiscreteFunType nat*) Mpred)).
+Definition ArgsTT A := ArrowType A (DiscreteFunType (genviron * list val) ((*DiscreteFunType nat*) Mpred)).
 Definition AssertTT A := ArrowType A (DiscreteFunType (option val) ((*DiscreteFunType nat*) Mpred)).
 Definition MaskTT A := ArrowType A (ConstType coPset).
 
@@ -432,11 +432,11 @@ Section heap.
 
 Context `{!heapGS Σ} `{!envGS Σ}.
 
-Definition argsassert := list val -> assert.
+Definition argsassert := (genviron * list val) -> assert.
 
 (* funspecs on mpreds *)
 Definition funspec := funspec_ mpred mpred.
-Definition NDmk_funspec (sig : typesig) (cc : calling_convention) A (P : A -> list val -> mpred) (Q : A -> option val -> mpred) : funspec :=
+Definition NDmk_funspec (sig : typesig) (cc : calling_convention) A (P : A -> (genviron * list val) -> mpred) (Q : A -> option val -> mpred) : funspec :=
   mk_funspec sig cc (ConstType A) (λne a, ⊤) (λne (a : leibnizO A), (P a) : _ -d> mpred) (λne (a : leibnizO A), (Q a) : _ -d> mpred).
 
 Definition funspec_unfold (f : funspec) : laterO funspec := Next f.

@@ -115,14 +115,20 @@ Proof.
   eapply (semax_func_cenv_sub _ _ CSUB); eassumption.
 Qed.
 
-Definition main_pre (prog: program) (ora: OK_ty) (gv: ident->val) : list val -> mpred :=
-fun gvals => <affine> ⌜gvals=nil⌝ ∗ (∀ i b, ⌜gv i = Vptr b Ptrofs.zero⌝ → gvar i b) ∗
+Definition ge2globals (ge : genviron) i :=
+  match lookup i ge with
+  | Some b => Vptr b Ptrofs.zero
+  | None => Vundef
+  end.
+
+Definition main_pre (prog: program) (ora: OK_ty) (gv: ident->val) : (genviron * list val) -> mpred :=
+fun gvals => <affine> ⌜gv = ge2globals (fst gvals) /\ snd gvals=nil⌝ ∗
        globvars2pred gv (prog_vars prog) ∗ has_ext ora.
 
-Lemma main_pre_vals_nil {prog ora gv vals}:
-      main_pre prog ora gv vals ⊢ ⌜vals=nil⌝.
+Lemma main_pre_vals_nil {prog ora gv g vals}:
+      main_pre prog ora gv (g, vals) ⊢ ⌜vals=nil⌝.
 Proof.
-  unfold main_pre; simpl. by iIntros "(-> & _)".
+  unfold main_pre; simpl. by iIntros "((_ & ->) & _)".
 Qed.
 
 Definition Tint32s := Tint I32 Signed noattr.
@@ -887,7 +893,7 @@ Lemma semax_prog_entry_point {CS: compspecs} V G prog b id_fun params args A
     m q m' (Vptr b Ptrofs.zero) args) /\
 
   forall (a: dtfr A),
-    <absorb> P a args ∗ funassert (nofunc_tycontext V G) (globalenv prog) ∗ env_auth (make_env (Genv.genv_symb (globalenv prog)), ∅) ⊢
+    <absorb> P a (make_env (Genv.genv_symb (globalenv prog)), args) ∗ funassert (nofunc_tycontext V G) (globalenv prog) ∗ env_auth (make_env (Genv.genv_symb (globalenv prog)), ∅) ⊢
     jsafeN OK_spec (globalenv prog) (E a) z q }.
 Proof.
 intro retty.
@@ -936,9 +942,9 @@ assert  (TC5: typecheck_glob_environ (filter_genv psi) (glob_types Delta)). {
      apply compute_list_norepet_e; auto.
 }
 
-assert (⊢ ▷ (<absorb> P a args ∗ funassert Delta psi ∗ env_auth (make_env (Genv.genv_symb (globalenv prog)), ∅) -∗
+assert (⊢ ▷ (<absorb> P a (make_env (Genv.genv_symb psi), args) ∗ funassert Delta psi ∗ env_auth (make_env (Genv.genv_symb (globalenv prog)), ∅) -∗
   jsafeN OK_spec psi (E a) z (Clight_core.Callstate f args Kstop))) as Hsafe; last by apply bi.wand_entails, ouPred.later_soundness.
-assert (⊢ ▷ ((globals_auth (make_env (Genv.genv_symb psi)) ∗ <absorb> P a args ∗ funassert Delta psi) -∗
+assert (⊢ ▷ ((globals_auth (make_env (Genv.genv_symb psi)) ∗ <absorb> P a (make_env (Genv.genv_symb psi), args) ∗ funassert Delta psi) -∗
   <absorb> initial_call_assert OK_spec (globalenv prog) (E a) f args (Clight_seplog.normal_ret_assert ⎡(∃ v, Q a v) ∗ funassert Delta psi⎤) O)) as Hpre.
 2: { rewrite /bi_emp_valid Hpre; f_equiv.
      iIntros "H (P & F & E)"; iDestruct (env_auth_globals with "E") as "(E & G)".
@@ -1027,6 +1033,12 @@ iDestruct ("Prog_OK" with "[//] [%]") as "[BE | BI]".
     * destruct (fn_return _); simpl; [by iFrame | done..].
 Qed.
 
+Lemma ge2globals_eq : forall (psi : genv), ge2globals (make_env (Genv.genv_symb psi)) = genviron2globals psi.
+Proof.
+  intros; extensionality.
+  rewrite /ge2globals /genviron2globals make_env_spec //.
+Qed.
+
 Lemma semax_prog_rule {CS: compspecs} :
   forall V G prog m h z,
      postcondition_allows_exit tint ->
@@ -1036,7 +1048,7 @@ Lemma semax_prog_rule {CS: compspecs} :
        (Genv.find_symbol (globalenv prog) (prog_main prog) = Some b) *
        (exists m', semantics.initial_core (cl_core_sem (globalenv prog)) h
                        m q m' (Vptr b Ptrofs.zero) nil) *
-       (state_interp Mem.empty z ∗ env_auth (make_env (Genv.genv_symb (globalenv prog)), ∅) ∗ initial_gvars (globalenv prog) ∗ funspec_auth ∅ ∗ has_ext z ⊢ |==> state_interp m z ∗ jsafeN OK_spec (globalenv prog) ⊤ z q ∧
+       (state_interp Mem.empty z ∗ env_auth (make_env (Genv.genv_symb (globalenv prog)), ∅) ∗ funspec_auth ∅ ∗ has_ext z ⊢ |==> state_interp m z ∗ jsafeN OK_spec (globalenv prog) ⊤ z q ∧
            (*no_locks ∧*) matchfunspecs (globalenv prog) G (*∗ funassert (nofunc_tycontext V G) (empty_environ (globalenv prog))*))
      } }%type.
 Proof.
@@ -1087,7 +1099,7 @@ Proof.
   split; [split |]; auto.
   clear Hinit.
 
-  iIntros "((Hm & $) & He & #Hge & Hf & Hz)".
+  iIntros "((Hm & $) & He & Hf & Hz)".
   iMod (initialize_mem' with "[$Hm $Hf]") as "($ & Hm & Hcore & Hmatch)"; [done..|].
   iIntros "!>"; iSplit; last done.
   destruct H4 as [post [H4 H4']].
@@ -1098,10 +1110,8 @@ Proof.
   iApply (Hsafe (genviron2globals (globalenv prog))).
   iCombine "Hcore Hmatch" as "Hcore"; rewrite (initial_core_funassert) //; iFrame.
   iIntros "!>".
-  iSplit; first done.
-  iSplitR "Hm"; last by iApply global_initializers.
-  rewrite /genviron2globals; iIntros (j ? Hj); iApply (initial_gvars_lookup with "Hge").
-  destruct (Genv.find_symbol (globalenv prog) j); inv Hj; done.
+  iSplit; first by rewrite ge2globals_eq.
+  by iApply global_initializers.
 Qed.
 
 Local Notation match_fdecs := (match_fdecs(Σ := Σ)).
@@ -1576,11 +1586,11 @@ Proof.
     ∃ FR: mpred,
     ⌜E x1 ⊆ E' x /\ forall ret,
               (FR ∗ Q x1 ret) ⊢ (Q' x ret)⌝ ∧
-      ((stackframe_of f ∗ ⎡FR⎤ ∗ assert_of (fun tau => P x1 vals)) ∧
+      ((stackframe_of f ∗ ⎡FR⎤ ∗ assert_of (fun tau => P x1 (ge_of tau, vals))) ∧
             local (fun tau => map (λ i, lookup i (te_of tau)) (map fst (fn_params f)) = map Some vals /\ tc_vals (map snd (fn_params f)) vals))).
  - split => rho. unfold local; monPred.unseal; rewrite /bind_ret monPred_at_intuitionistically monPred_at_affinely /=.
    iIntros "(%TC & #OM & (%vals & (%MAP & %VUNDEF) & HP') & M2)".
-   specialize (Sub vals). iMod (Sub with "[$HP']") as "Sub". {
+   specialize (Sub (ge_of rho, vals)). iMod (Sub with "[$HP']") as "Sub". {
      iPureIntro; split; trivial.
      simpl.
      destruct TC as [TC1 [TC2 TC3]].

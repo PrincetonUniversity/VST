@@ -735,7 +735,7 @@ Lemma semax_call_si:
   semax OK_spec E Delta
        (▷(tc_expr Delta a ∧ tc_exprlist Delta argsig bl) ∧
            (assert_of (fun rho => func_ptr_si (mk_funspec (argsig,retsig) cc A Ef P Q) (eval_expr a rho)) ∗
-          (▷(F ∗ assert_of (fun rho => P x (eval_exprlist argsig bl rho))))))
+          (▷(F ∗ assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho))))))
          (Scall ret a bl)
          (normal_ret_assert
           (∃ old:val, assert_of (substopt ret (`old) F) ∗ maybe_retval (Q x) retsig ret)).
@@ -792,12 +792,13 @@ Proof.
     iMod ("sub" with "[$Pre]") as (fx F0 ?) "((F0 & Pre) & #Post)".
     { iPureIntro. by split; first apply tc_vals_HaveTyps. }
     iMod (fupd_mask_subseteq (fE fx)) as "Hclose'"; first done.
-    iMod ("BE" $! _ _ emp with "[Pre]") as "Hext".
+    iDestruct (curr_env_ge_eq with "E") as %Hpsi.
+    iMod ("BE" $! psi _ emp with "[Pre]") as "Hext".
     { iStopProof; split => ?; monPred.unseal.
       rewrite monPred_at_intuitionistically /=; iIntros "(#(_ & _ & _ & HP & _) & Pre)".
-      rewrite bi.sep_emp.
+      rewrite bi.sep_emp -Hpsi.
       rewrite ofe_morO_equivI; iSpecialize ("HP" $! fx).
-      rewrite discrete_fun_equivI; iSpecialize ("HP" $! (eval_exprlist l bl rho)).
+      rewrite discrete_fun_equivI; iSpecialize ("HP" $! (ge_of rho, eval_exprlist l bl rho)).
       iSplit; last by iApply (internal_eq_app with "[] Pre"); iApply (internal_eq_sym with "HP").
       iPureIntro.
       rewrite Hsig /= map_proj_xtype_argtype.
@@ -908,10 +909,11 @@ Proof.
       + iPureIntro.
         eapply tc_formals_args; eauto; apply Hrho.
       + rewrite ofe_morO_equivI; iSpecialize ("HP" $! fx).
-        rewrite discrete_fun_equivI; iSpecialize ("HP" $! (eval_exprlist (map snd (fn_params f)) bl rho)).
+        rewrite discrete_fun_equivI; iSpecialize ("HP" $! (ge_of rho, eval_exprlist (map snd (fn_params f)) bl rho)).
         Fail iRewrite -"HP" in "Pre".
         iPoseProof (internal_eq_app with "[HP] Pre") as "Pre".
         { by iApply (internal_eq_sym with "HP"). }
+        replace (ge_of rho) with (ge_of rho0) by apply Hrho.
         iFrame; iPureIntro.
         split; last done; split.
         * eapply make_te_lookup_args; eauto; last apply Hrho.
@@ -990,7 +992,7 @@ Lemma semax_call:
   semax OK_spec E Delta
        ((▷(tc_expr Delta a ∧ tc_exprlist Delta argsig bl))  ∧
            (assert_of (fun rho => func_ptr (mk_funspec (argsig,retsig) cc A Ef P Q) (eval_expr a rho)) ∗
-          (▷(F ∗ assert_of (fun rho => P x (eval_exprlist argsig bl rho))))))
+          (▷(F ∗ assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho))))))
          (Scall ret a bl)
          (normal_ret_assert
           (∃ old:val, assert_of (substopt ret (`old) F) ∗ maybe_retval (Q x) retsig ret)).

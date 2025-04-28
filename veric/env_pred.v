@@ -46,11 +46,11 @@ Definition tc_formals (formals: list (ident * type)) : environ -> Prop :=
      fun rho => tc_vals (map (@snd _ _) formals) (map (fun xt => (eval_id (fst xt) rho)) formals).
 
 Definition close_precondition (bodyparams: list ident) 
-    (P: list val -> mpred) : assert :=
+    (P: (genviron * list val) -> mpred) : assert :=
  assert_of (fun rho => ∃ vals,
    ⌜map (λ i, lookup i (te_of rho)) bodyparams = map Some vals /\
       Forall (fun v : val => v <> Vundef) vals⌝ ∧
-   P vals).
+   P (ge_of rho, vals)).
 
 Global Instance close_precondition_proper p : Proper (pointwise_relation _ base.equiv ==> base.equiv) (close_precondition p).
 Proof.
@@ -58,7 +58,7 @@ Proof.
   split => rho; solve_proper.
 Qed.
 
-Definition bind_args (bodyparams: list (ident * type)) (P: list val -> mpred) : assert :=
+Definition bind_args (bodyparams: list (ident * type)) (P: (genviron * list val) -> mpred) : assert :=
   local (tc_formals bodyparams)
      ∧ close_precondition (map fst bodyparams) P.
 

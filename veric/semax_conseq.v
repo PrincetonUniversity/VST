@@ -75,16 +75,21 @@ Proof.
     apply H1.
 Qed.
 
+Lemma curr_env_ge_eq : forall ge f rho, curr_env ge f rho ⊢ ⌜ge_of rho = make_env (Genv.genv_symb ge)⌝.
+Proof.
+  intros.
+  iIntros "E"; iDestruct "E" as ((_ & Hge)) "E"; iPureIntro.
+  apply map_eq; intros.
+  by rewrite make_env_spec.
+Qed.
+
 Lemma funassert_allp_fun_id_sub' : forall Delta Delta' ge f rho,
   tycontext_sub Delta Delta' →
   ⊢ curr_env ge f rho -∗ ⎡funassert Delta' ge⎤ -∗
   (<affine> ⎡allp_fun_id Delta rho⎤ ∗ curr_env ge f rho ∗ ⎡funassert Delta' ge⎤).
 Proof.
   intros; iIntros "E F".
-  iAssert ⌜ge_of rho = make_env (Genv.genv_symb ge)⌝ as %Hge.
-  { iDestruct "E" as ((_ & Hge)) "E"; iPureIntro.
-    apply map_eq; intros.
-    by rewrite make_env_spec. }
+  iDestruct (curr_env_ge_eq with "E") as %?.
   iDestruct (funassert_allp_fun_id_sub with "F") as "F"; [done..|].
   rewrite embed_sep embed_affinely; iDestruct "F" as "($ & $)"; done.
 Qed.

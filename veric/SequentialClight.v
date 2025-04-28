@@ -27,7 +27,7 @@ Lemma juicy_dry_spec : forall `{!VSTGS OK_ty Σ} ext_link fs es
   (Hspecs : forall s f, In (ext_link s, f) fs -> match f with mk_funspec ts cc E A P Q =>
      let e := EF_external s (typesig2signature ts cc) in
      forall w p tys args m z, exists x,
-       state_interp m z ∗ P w args ⊢ ⌜ext_spec_pre es e x p tys args z m⌝ ∧
+       state_interp m z ∗ P w (make_env (proj1_sig p), args) ⊢ ⌜ext_spec_pre es e x p tys args z m⌝ ∧
          ∀ ty ret z' m', ⌜ext_spec_post es e x p ty ret z' m'⌝ → |==>
            state_interp m' z' ∗ Q w (make_ext_rval ty ret)
    end)
@@ -93,7 +93,8 @@ Proof.
   set (HH := Build_VSTGS _ _ (HeapGS _ _ _ _) _ _).
   specialize (H HH); specialize (EXIT HH); destruct H.
   eapply (semax_prog_rule _ _ _ _ n) in H as (b & q & (? & ? & Hinit & ->) & Hsafe); [|done..].
-  iMod (Hsafe with "H") as "Hsafe".
+  iMod (Hsafe with "[H]") as "Hsafe".
+  { iDestruct "H" as "($ & $ & _ & $ & $)". }
   rewrite bi.and_elim_l.
   iPoseProof (adequacy with "Hsafe") as "Hsafe".
   iApply step_fupd_intro; first done; iNext.

@@ -741,7 +741,7 @@ Lemma derives_full_trans: forall Delta E P Q R,
 Proof.
   intros.
   eapply derives_fupd_trans, H0.
-  iIntros "(? & #? & ?)".
+  iIntros "(? & #$ & ?)".
   by iApply H; iFrame.
 Qed.
 
@@ -855,7 +855,7 @@ Proof.
   iSplit; first by iDestruct "H" as "((_ & $ & _) & _)".
   iApply (bi.impl_elim with "H").
   - iIntros "((_ & _ & $) & _)".
-  - rewrite -bi.and_assoc {1}(persistent (⎡ allp_fun_id _⎤)).
+  - rewrite -bi.and_assoc {1}(persistent (allp_fun_id _)).
     rewrite -bi.persistently_and_intuitionistically_sep_l -bi.and_assoc.
     iIntros "(? & ? & _ & $)"; iFrame.
     by iApply bi.intuitionistically_affinely.
@@ -1056,7 +1056,7 @@ Ltac derives_fupd_L2R H :=
 
 Ltac derives_full_L2R H :=
   match type of H with
-  | (local (tc_environ ?Delta) ∧ (<affine> ⎡ allp_fun_id ?Delta ⎤ ∗ _)) ⊢ (|={_,_}=> _) =>
+  | (local (tc_environ ?Delta) ∧ (<affine> allp_fun_id ?Delta ∗ _)) ⊢ (|={_,_}=> _) =>
       eapply derives_full_trans; [apply H |]
   | (local (tc_environ _) ∧ _) ⊢ (|={_,_}=> _) =>
       eapply derives_full_trans; [apply derives_fupd_derives_full, H |]
@@ -1068,7 +1068,7 @@ Ltac derives_full_L2R H :=
 
 Tactic Notation "derives_rewrite" "->" constr(H) :=
   match goal with
-  | |- (local (tc_environ ?Delta) ∧ (<affine> ⎡ allp_fun_id ?Delta ⎤ ∗ _)) ⊢ (|={_,_}=> _) =>
+  | |- (local (tc_environ ?Delta) ∧ (<affine> allp_fun_id ?Delta ∗ _)) ⊢ (|={_,_}=> _) =>
          derives_full_L2R H
   | |- (local (tc_environ _) ∧ _) ⊢ (|={_,_}=> _) =>
          derives_fupd_L2R H
@@ -1101,7 +1101,7 @@ Ltac derives_fupd_R2L H :=
 
 Ltac derives_full_R2L H :=
   match type of H with
-  | (local (tc_environ ?Delta) ∧ (<affine> ⎡ allp_fun_id ?Delta ⎤ ∗ _)) ⊢ (|={_,_}=> _) =>
+  | (local (tc_environ ?Delta) ∧ (<affine> allp_fun_id ?Delta ∗ _)) ⊢ (|={_,_}=> _) =>
       eapply derives_fupd_trans; [| apply H]
   | (local (tc_environ _) ∧ _) ⊢ (|={_,_}=> _) =>
       eapply derives_fupd_trans; [| apply derives_fupd_derives_full, H]
@@ -1148,13 +1148,13 @@ Ltac reduceR :=
 
 Ltac reduceLL :=
   match goal with
-  | |- local (tc_environ ?Delta) ∧ (<affine> ⎡ allp_fun_id ?Delta ⎤ ∗ _) ⊢ _ => apply aux_reduceL
+  | |- local (tc_environ ?Delta) ∧ (<affine> allp_fun_id ?Delta ∗ _) ⊢ _ => apply aux_reduceL
   | _ => idtac
   end.
 
 Ltac reduceL :=
   match goal with
-  | |- local (tc_environ ?Delta) ∧ (<affine> ⎡ allp_fun_id ?Delta ⎤ ∗ _) ⊢ _ => apply aux_reduceL
+  | |- local (tc_environ ?Delta) ∧ (<affine> allp_fun_id ?Delta ∗ _) ⊢ _ => apply aux_reduceL
   | _ => idtac
   end;
   match goal with

@@ -267,10 +267,10 @@ match f1 with
     match f2 with
     | mk_funspec tpsig2 cc2 A2 E2 P2 Q2 =>
         ⌜tpsig1=tpsig2 /\ cc1=cc2⌝ ∧
-       ▷ ■ ∀ (x2: dtfr A2) (args: list val),
-        ((⌜argsHaveTyps ((*snd*) args) (fst tpsig1)⌝ ∧ P2 x2 args)
+       ▷ ■ ∀ (x2: dtfr A2) (gargs: genviron * list val),
+        ((⌜argsHaveTyps (snd gargs) (fst tpsig1)⌝ ∧ P2 x2 gargs)
          ={E2 x2}=∗ (∃ x1 F, ⌜E1 x1 ⊆ E2 x2⌝ ∧
-            (F ∗ (P1 x1 args)) ∧
+            (F ∗ (P1 x1 gargs)) ∧
             ∀ ret, (■((F ∗ (Q1 x1 ret)) -∗ Q2 x2 ret))))
     end
 end.
@@ -281,8 +281,8 @@ match f1 with
     match f2 with
     | mk_funspec tpsig2 cc2 A2 E2 P2 Q2 =>
         (tpsig1=tpsig2 /\ cc1=cc2) /\
-        forall (x2:dtfr A2) (gargs:list val),
-        (⌜argsHaveTyps(gargs)(fst tpsig1)⌝ ∧ P2 x2 gargs)
+        forall (x2:dtfr A2) (gargs: genviron * list val),
+        (⌜argsHaveTyps (snd gargs) (fst tpsig1)⌝ ∧ P2 x2 gargs)
          ⊢ |={E2 x2}=> (∃ (x1:dtfr A1) (F:_), ⌜E1 x1 ⊆ E2 x2⌝ ∧
                            (F ∗ (P1 x1 gargs)) ∧
                                (⌜∀ ret, (F ∗ (Q1 x1 ret)) ⊢ Q2 x2 ret⌝))
