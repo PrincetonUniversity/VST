@@ -179,7 +179,7 @@ Proof.
   unfold MinimumLogic.CSHL_Defs.semax_body, CSHL_Defs.semax_body in H |- *.
   destruct id.
   destruct f0.
-  destruct H as [H' [H'' H]]; split3; auto. clear H' H''; intros.
+  destruct H as [H' H]; split; auto. intros.
   apply semax_sound.
   apply H.
 Qed.
@@ -229,7 +229,7 @@ Theorem semax_prog_rule :
        (Genv.find_symbol (globalenv prog) (prog_main prog) = Some b) *
        (exists m', semantics.initial_core (cl_core_sem (globalenv prog)) h
                        m q m' (Vptr b Ptrofs.zero) nil) *
-       (state_interp Mem.empty z ∗ funspec_auth ∅ ∗ has_ext z ⊢ |==> state_interp m z ∗ jsafeN OK_spec (globalenv prog) ⊤ z q ∧
+       (state_interp Mem.empty z ∗ env_auth (make_env (Genv.genv_symb (globalenv prog)), ∅) ∗ funspec_auth ∅ ∗ has_ext z ⊢ |==> state_interp m z ∗ jsafeN OK_spec (globalenv prog) ⊤ z q ∧
            (*no_locks ∧*) matchfunspecs (globalenv prog) G (*∗ funassert (nofunc_tycontext V G) (empty_environ (globalenv prog))*))
      } }%type.
 Proof.
