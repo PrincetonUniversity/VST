@@ -222,17 +222,16 @@ Qed.
 
 Lemma obox_left2': forall Delta i P Q,
   temp_guard Delta i ->
-  (□ local (tc_environ Delta) ∗ <affine> ⎡ allp_fun_id Delta ⎤ ∗ P ⊢ Q) ->
-   □ local (tc_environ Delta) ∗ <affine> ⎡ allp_fun_id Delta ⎤ ∗ obox Delta i P ⊢ obox Delta i Q.
+  (local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ P) ⊢ Q) ->
+  local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ obox Delta i P) ⊢ obox Delta i Q.
 Proof.
   intros ????? [H].
   split => ?; revert H; rewrite /local /lift1 /obox /subst /env_set; monPred.unseal; intros.
-  rewrite monPred_at_intuitionistically /=.
   iIntros "(%TC & Ha & H)".
   destruct (temp_types Delta !! i) eqn: Ht; last done.
   rewrite /monpred.monPred_defs.monPred_impl_def /=.
   iIntros (x rho -> ?); iApply H; iSplit; last iSplitR "H"; last by iApply "H".
-  -   rewrite monPred_at_intuitionistically. iPureIntro; eapply tc_environ_set; eauto.
+  - iPureIntro; eapply tc_environ_set; eauto.
   - rewrite !monPred_at_affinely //.
 Qed.
 
@@ -351,8 +350,8 @@ Qed.
 
 Lemma oboxopt_left2': forall Delta i P Q,
   temp_guard_opt Delta i ->
-  (□ local (tc_environ Delta) ∗ (<affine> ⎡ allp_fun_id Delta ⎤ ∗ P) ⊢ Q) ->  
-   □ local (tc_environ Delta) ∗ (<affine> ⎡ allp_fun_id Delta ⎤ ∗ oboxopt Delta i P) ⊢ oboxopt Delta i Q.
+  (local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ P) ⊢ Q) ->  
+  local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ oboxopt Delta i P) ⊢ oboxopt Delta i Q.
 Proof.
   intros.
   destruct i; [apply obox_left2'; auto |].
@@ -378,11 +377,11 @@ Import CSHL_Def.
 Axiom semax_conseq:
   forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {CS: compspecs} E (Delta: tycontext),
   forall P' (R': ret_assert) P c (R: ret_assert),
-    (□ local (tc_environ Delta) ∗ <affine> ⎡ allp_fun_id Delta ⎤ ∗ P ⊢ (|={E}=> P')) ->
-    (□ local (tc_environ Delta) ∗ <affine> ⎡ allp_fun_id Delta ⎤ ∗ RA_normal R' ⊢ (|={E}=> RA_normal R)) ->
-    (□ local (tc_environ Delta) ∗ <affine> ⎡ allp_fun_id Delta ⎤ ∗ RA_break R' ⊢ (|={E}=> RA_break R)) ->
-    (□ local (tc_environ Delta) ∗ <affine> ⎡ allp_fun_id Delta ⎤ ∗ RA_continue R' ⊢ (|={E}=> RA_continue R)) ->
-    (forall vl, □ local (tc_environ Delta) ∗ <affine> ⎡ allp_fun_id Delta ⎤ ∗ RA_return R' vl ⊢ (RA_return R vl)) ->
+    (local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ P) ⊢ (|={E}=> P')) ->
+    (local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ RA_normal R') ⊢ (|={E}=> RA_normal R)) ->
+    (local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ RA_break R') ⊢ (|={E}=> RA_break R)) ->
+    (local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ RA_continue R') ⊢ (|={E}=> RA_continue R)) ->
+    (forall vl, local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ RA_return R' vl) ⊢ (|={E}=> RA_return R vl)) ->
    semax E Delta P' c R' -> semax E Delta P c R.
 
 End CLIGHT_SEPARATION_HOARE_LOGIC_COMPLETE_CONSEQUENCE.
@@ -401,11 +400,11 @@ Context `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {CS: compspecs}.
 Lemma semax_pre_post_indexed_fupd:
   forall E (Delta: tycontext),
  forall P' (R': ret_assert) P c (R: ret_assert) ,
-    (□ local (tc_environ Delta) ∗ P ⊢ (|={E}=> P')) ->
-    (□ local (tc_environ Delta) ∗ RA_normal R' ⊢ (|={E}=> RA_normal R)) ->
-    (□ local (tc_environ Delta) ∗ RA_break R' ⊢ (|={E}=> RA_break R)) ->
-    (□ local (tc_environ Delta) ∗ RA_continue R' ⊢ (|={E}=> RA_continue R)) ->
-    (forall vl, □ local (tc_environ Delta) ∗ RA_return R' vl ⊢ (RA_return R vl)) ->
+    (local (tc_environ Delta) ∧ P ⊢ (|={E}=> P')) ->
+    (local (tc_environ Delta) ∧ RA_normal R' ⊢ (|={E}=> RA_normal R)) ->
+    (local (tc_environ Delta) ∧ RA_break R' ⊢ (|={E}=> RA_break R)) ->
+    (local (tc_environ Delta) ∧ RA_continue R' ⊢ (|={E}=> RA_continue R)) ->
+    (forall vl, local (tc_environ Delta) ∧ RA_return R' vl ⊢ (|={E}=> RA_return R vl)) ->
    semax E Delta P' c R' -> semax E Delta P c R.
 Proof.
   intros.
@@ -415,11 +414,11 @@ Qed.
 Lemma semax_pre_post_fupd:
   forall E (Delta: tycontext),
  forall P' (R': ret_assert) P c (R: ret_assert) ,
-    (□ local (tc_environ Delta) ∗ P ⊢ (|={E}=> P')) ->
-    (□ local (tc_environ Delta) ∗ RA_normal R' ⊢ (|={E}=> RA_normal R)) ->
-    (□ local (tc_environ Delta) ∗ RA_break R' ⊢ (|={E}=> RA_break R)) ->
-    (□ local (tc_environ Delta) ∗ RA_continue R' ⊢ (|={E}=> RA_continue R)) ->
-    (forall vl, □ local (tc_environ Delta) ∗ RA_return R' vl ⊢ (RA_return R vl)) ->
+    (local (tc_environ Delta) ∧ P ⊢ (|={E}=> P')) ->
+    (local (tc_environ Delta) ∧ RA_normal R' ⊢ (|={E}=> RA_normal R)) ->
+    (local (tc_environ Delta) ∧ RA_break R' ⊢ (|={E}=> RA_break R)) ->
+    (local (tc_environ Delta) ∧ RA_continue R' ⊢ (|={E}=> RA_continue R)) ->
+    (forall vl, local (tc_environ Delta) ∧ RA_return R' vl ⊢ (|={E}=> RA_return R vl)) ->
    semax E Delta P' c R' -> semax E Delta P c R.
 Proof.
   intros.
@@ -429,7 +428,7 @@ Qed.
 
 Lemma semax_pre_indexed_fupd:
  forall P' E Delta P c R,
-     (□ local (tc_environ Delta) ∗ P ⊢ (|={E}=> P')) ->
+     (local (tc_environ Delta) ∧ P ⊢ (|={E}=> P')) ->
      semax E Delta P' c R  -> semax E Delta P c R.
 Proof.
   intros; eapply semax_pre_post_indexed_fupd; eauto; try intros; by iIntros "(_ & $)".
@@ -437,18 +436,18 @@ Qed.
 
 Lemma semax_post_indexed_fupd:
  forall (R': ret_assert) E Delta (R: ret_assert) P c,
-   (□ local (tc_environ Delta) ∗ RA_normal R' ⊢ (|={E}=> RA_normal R)) ->
-   (□ local (tc_environ Delta) ∗ RA_break R' ⊢ (|={E}=> RA_break R)) ->
-   (□ local (tc_environ Delta) ∗ RA_continue R' ⊢ (|={E}=> RA_continue R)) ->
-   (forall vl, □ local (tc_environ Delta) ∗ RA_return R' vl ⊢ (RA_return R vl)) ->
-   semax E Delta P c R' -> semax E Delta P c R.
+   (local (tc_environ Delta) ∧ RA_normal R' ⊢ (|={E}=> RA_normal R)) ->
+   (local (tc_environ Delta) ∧ RA_break R' ⊢ (|={E}=> RA_break R)) ->
+   (local (tc_environ Delta) ∧ RA_continue R' ⊢ (|={E}=> RA_continue R)) ->
+   (forall vl, local (tc_environ Delta) ∧ RA_return R' vl ⊢ (|={E}=> RA_return R vl)) ->
+   semax E Delta P c R' ->  semax E Delta P c R.
 Proof.
   intros; eapply semax_pre_post_indexed_fupd; try eassumption.
   iIntros "(_ & $)". done.
 Qed.
 
 Lemma semax_post''_indexed_fupd: forall R' E Delta R P c,
-           (□ local (tc_environ Delta) ∗ R' ⊢ (|={E}=> RA_normal R)) ->
+           (local (tc_environ Delta) ∧ R' ⊢ (|={E}=> RA_normal R)) ->
       semax E Delta P c (normal_ret_assert R') ->
       semax E Delta P c R.
 Proof.
@@ -457,7 +456,7 @@ Qed.
 
 Lemma semax_pre_fupd:
  forall P' E Delta P c R,
-     (□ local (tc_environ Delta) ∗ P ⊢ (|={E}=> P')) ->
+     (local (tc_environ Delta) ∧ P ⊢ (|={E}=> P')) ->
      semax E Delta P' c R  -> semax E Delta P c R.
 Proof.
 intros; eapply semax_pre_post_fupd; eauto; intros; by iIntros "(_ & $)".
@@ -468,7 +467,7 @@ Lemma semax_post_fupd:
    (local (tc_environ Delta) ∧ RA_normal R' ⊢ (|={E}=> RA_normal R)) ->
    (local (tc_environ Delta) ∧ RA_break R' ⊢ (|={E}=> RA_break R)) ->
    (local (tc_environ Delta) ∧ RA_continue R' ⊢ (|={E}=> RA_continue R)) ->
-   (forall vl, local (tc_environ Delta) ∧ RA_return R' vl ⊢ (RA_return R vl)) ->
+   (forall vl, local (tc_environ Delta) ∧ RA_return R' vl ⊢ (|={E}=> RA_return R vl)) ->
    semax E Delta P c R' ->  semax E Delta P c R.
 Proof.
   intros; eapply semax_pre_post_fupd; try eassumption.
@@ -554,6 +553,7 @@ Lemma semax_pre_post : forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {CS:
    semax E Delta P' c R' -> semax E Delta P c R.
 Proof.
   intros; eapply semax_pre_post_fupd, H4; rewrite ?H ?H0 ?H1 ?H2; auto.
+  intros. rewrite H3. apply fupd_intro.
 Qed.
 
 End GenConseq.
@@ -741,7 +741,7 @@ Proof.
   + apply derives_fupd_refl.
   + apply derives_fupd_refl.
   + apply derives_fupd_refl.
-  + intros; rewrite bi.and_elim_r //.
+  + intros; apply derives_fupd_refl.
 Qed.
 
 End GenIExtrFacts.
@@ -1174,7 +1174,7 @@ Axiom semax_call_forward: forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {
           (▷ (F ∗ assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho))))))
          (Scall ret a bl)
          (normal_ret_assert
-            (∃ old:val, assert_of (substopt ret (`old) F) ∗ maybe_retval (assert_of (Q x)) retsig ret)).
+            (∃ old:val, assert_of (substopt ret (`old) F) ∗ maybe_retval (Q x) retsig ret)).
 
 End CLIGHT_SEPARATION_HOARE_LOGIC_CALL_FORWARD.
 
@@ -1195,7 +1195,7 @@ Axiom semax_call_backward: forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} 
              tc_fn_return Delta ret retsig⌝ ∧
           ((*▷*)((tc_expr Delta a) ∧ (tc_exprlist Delta argsig bl)))  ∧
          assert_of (`(func_ptr (mk_funspec  (argsig,retsig) cc A Ef P Q)) (eval_expr a)) ∗
-          ▷(assert_of (fun rho => (P x (ge_of rho, eval_exprlist argsig bl rho))) ∗ oboxopt Delta ret (maybe_retval (assert_of (Q x)) retsig ret -∗ R)))
+          ▷(assert_of (fun rho => (P x (ge_of rho, eval_exprlist argsig bl rho))) ∗ oboxopt Delta ret (maybe_retval (Q x) retsig ret -∗ R)))
          (Scall ret a bl)
          (normal_ret_assert R).
 
@@ -1237,7 +1237,7 @@ Theorem semax_call_backward: forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty
              tc_fn_return Delta ret retsig⌝ ∧
           ((*▷*)((tc_expr Delta a) ∧ (tc_exprlist Delta argsig bl)))  ∧
          assert_of (`(func_ptr (mk_funspec (argsig,retsig) cc A Ef P Q)) (eval_expr a)) ∗
-          ▷(assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho)) ∗ oboxopt Delta ret (maybe_retval (assert_of (Q x)) retsig ret -∗ R)))
+          ▷(assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho)) ∗ oboxopt Delta ret (maybe_retval (Q x) retsig ret -∗ R)))
          (Scall ret a bl)
          (normal_ret_assert R).
 Proof.
@@ -1333,7 +1333,7 @@ Theorem semax_call_forward: forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty}
           (▷ (F ∗ assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho))))))
          (Scall ret a bl)
          (normal_ret_assert
-            (∃ old:val, assert_of (substopt ret (`old) F) ∗ maybe_retval (assert_of (Q x)) retsig ret)).
+            (∃ old:val, assert_of (substopt ret (`old) F) ∗ maybe_retval (Q x) retsig ret)).
 Proof.
   intros.
   eapply semax_pre; [| apply semax_call_backward].

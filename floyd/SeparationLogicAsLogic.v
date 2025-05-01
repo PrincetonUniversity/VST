@@ -190,13 +190,13 @@ Inductive semax `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {CS: compspecs} (E
              tc_fn_return Delta ret retsig⌝ ∧
           (((tc_expr Delta a) ∧ (tc_exprlist Delta argsig bl)))  ∧
          assert_of (`(func_ptr (mk_funspec  (argsig,retsig) cc A Ef P Q)) (eval_expr a)) ∗
-          ▷(assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho)) ∗ oboxopt Delta ret (maybe_retval (assert_of (Q x)) retsig ret -∗ R)))
+          ▷(assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho)) ∗ oboxopt Delta ret (maybe_retval (Q x) retsig ret -∗ R)))
          (Scall ret a bl)
          (normal_ret_assert R)
 | semax_return: forall (R: ret_assert) ret,
       semax E Delta
-                ((tc_expropt Delta ret (ret_type Delta)) ∧
-                assert_of (`(RA_return R : option val -> environ -> mpred) (cast_expropt ret (ret_type Delta)) (@id environ)))
+                ((tc_expropt Delta ret (ret_type Delta) ∧
+                  assert_of (`(RA_return R : option val -> environ -> mpred) (cast_expropt ret (ret_type Delta)) (@id environ))))
                 (Sreturn ret)
                 R
 | semax_set_ptr_compare_load_cast_load_backward: forall (P: assert) id e,
@@ -268,20 +268,19 @@ Inductive semax `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {CS: compspecs} (E
     (local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ RA_normal R') ⊢ (|={E}=> RA_normal R)) ->
     (local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ RA_break R') ⊢ (|={E}=> RA_break R)) ->
     (local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ RA_continue R') ⊢ (|={E}=> RA_continue R)) ->
-    (forall vl, local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ RA_return R' vl) ⊢ (RA_return R vl)) ->
+    (forall vl, local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ RA_return R' vl) ⊢ (|={E}=> RA_return R vl)) ->
     semax E Delta P' c R' -> semax E Delta P c R
 | semax_mask_mono: forall E' P c R, E' ⊆ E -> semax E' Delta P c R -> semax E Delta P c R.
 
 Definition semax_body `{!VSTGS OK_ty Σ}
    (V: varspecs) (G: funspecs) {C: compspecs} (f: function) (spec: ident * funspec): Prop :=
 match spec with (_, mk_funspec fsig cc A E P Q) => 
-  fst fsig = map snd (fst (fn_funsig f)) /\ 
-  snd fsig = snd (fn_funsig f) /\
+  fsig = fn_typesig f ∧
 forall OK_spec x,
   semax(OK_spec := OK_spec) (E x) (func_tycontext f V G nil)
-      (Clight_seplog.close_precondition (map fst f.(fn_params)) (argsassert_of (P x)) ∗ stackframe_of f)
+      (close_precondition (map fst f.(fn_params)) (P x) ∗ stackframe_of f)
        f.(fn_body)
-      (frame_ret_assert (function_body_ret_assert (fn_return f) (assert_of (Q x))) (stackframe_of f))
+      (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) (stackframe_of f))
 end.
 
 Inductive semax_func `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} : forall (V: varspecs) (G: funspecs(Σ := Σ)) {C: compspecs} (ge: Genv.t Clight.fundef type) (fdecs: list (ident * Clight.fundef)) (G1: funspecs), Prop :=
@@ -309,8 +308,8 @@ Inductive semax_func `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} : forall (V: 
   ef_sig ef = mksignature (map argtype_of_type argsig) (rettype_of_type retsig) cc ->
   id_in_list id (map (@fst _ _) fs) = false ->
   (ef_inline ef = false \/ @withtype_empty Σ A) ->
-  (forall gx x (ret : option val),
-     (Q x (make_ext_rval gx (rettype_of_type retsig) ret)
+  (forall x (ret : option val),
+     (Q x (make_ext_rval (rettype_of_type retsig) ret)
         ∧ ⌜Builtins0.val_opt_has_rettype ret (rettype_of_type retsig)⌝
         ⊢ ⌜tc_option_val retsig ret⌝)) ->
   Genv.find_symbol ge id = Some b -> Genv.find_funct_ptr ge b = Some (External ef argsig retsig cc) ->
@@ -445,28 +444,45 @@ Qed.
 
 Lemma semax_return_inv: forall E Delta P ret R,
   semax E Delta P (Sreturn ret) R ->
-  local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ P) ⊢ |={E}=> ((tc_expropt Delta ret (ret_type Delta)) ∧ assert_of (`(RA_return R : option val -> environ -> mpred) (cast_expropt ret (ret_type Delta)) (@id environ))).
+  local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ P) ⊢
+  |={E}=> (tc_expropt Delta ret (ret_type Delta)) ∧
+           (|={E}=> (assert_of (`(RA_return R : option val -> environ -> mpred) (cast_expropt ret (ret_type Delta)) (@id environ)))).
 Proof.
   intros.
   remember (Sreturn ret) as c eqn:?H.
   induction H; try solve [inv H0].
-  + inv H0.
-    reduce2ENTAIL.
-    apply andp_ENTAIL; [apply ENTAIL_refl |].
-    reduce2derives.
-    auto.
-  + derives_rewrite -> H; clear H.
-    derives_rewrite -> (IHsemax H0); clear IHsemax.
-    reduceR.
-    apply andp_ENTAILL; [by iIntros "(_ & _ & $)"|].
+  
+  + reduce2ENTAIL. inv H0.
+    rewrite bi.and_elim_r.
+    apply bi.and_mono; first done.
+    rewrite -fupd_intro. done.
+  + 
+    iIntros "(#local & #fun_id & P)".
+    iMod (H with "[$]") as "P'".
+    iMod (IHsemax with "[$]") as "H". done.
+    iModIntro.
+    iSplit.
+    { iDestruct "H" as "[$ _]". }
+    iDestruct "H" as "[_ H]".
+    iMod "H".
+    iStopProof.
     unfold_lift.
-    split => rho; monPred.unseal.
-    forget (cast_expropt ret (ret_type Delta) rho) as vl.
+    match goal with 
+      |- ?x ∗ ?y ⊢ _ => assert (x ∗ y ⊢ local (tc_environ Delta) ∧ <affine>  allp_fun_id Delta ∗ y) as ->
+    end.
+    { iIntros "[#(? & $) $]". iSplit; done. }
+    split => rho. 
     revert rho.
-    destruct (H4 vl) as [H].
-    revert H; monPred.unseal; eauto.
+    intros.
+    rewrite !monpred.monPred_unseal. simpl. unfold_lift.
+    forget (cast_expropt ret (ret_type Delta) rho) as vl.
+    destruct (H4 vl) as [H4'].
+    revert H4'.
+    monPred.unseal.
+    intros. unfold_lift. simpl.
+    rewrite (H4' rho). done.
   + rewrite IHsemax //.
-    by apply fupd_mask_mono.
+    rewrite 2!(fupd_mask_mono _ _ _ H) //.
 Qed.
 
 Lemma semax_seq_inv: forall E Delta P R h t,
@@ -485,12 +501,9 @@ Proof.
     exists Q.
     split.
     - apply (AuxDefs.semax_conseq _ _ P' (overridePost Q R')); auto.
-      * clear.
-        destruct R, R'.
-        apply derives_full_refl.
-      * destruct R, R'; auto.
-      * destruct R, R'; auto.
-      * destruct R, R'; auto.
+      clear.
+      destruct R, R'.
+      apply derives_full_refl.
     - eapply semax_conseq, H6; auto.
       apply derives_full_refl.
   + destruct IHsemax as (? & ? & ?); first done.
@@ -515,18 +528,13 @@ Proof.
   + subst c.
     pose proof IHsemax eq_refl. clear IHsemax.
     eapply AuxDefs.semax_conseq; [.. | exact H0]; auto.
-    - unfold overridePost, tycontext.RA_normal.
-      destruct R' as [R'0 R'1 R'2 R'3] at 1; clear R'0 R'1 R'2 R'3.
-      destruct R as [R0 R1 R2 R3] at 1; clear R0 R1 R2 R3.
-      reduce2derives.
-      apply bi.exist_mono.
-      intros Q.
-      iIntros "(% & $)"; iPureIntro; split; last done.
-      eapply semax_conseq; [.. | apply H6]; auto.
-      apply derives_full_refl.
-    - destruct R, R'; auto.
-    - destruct R, R'; auto.
-    - destruct R, R'; auto.
+    unfold overridePost, tycontext.RA_normal.
+    reduce2derives.
+    apply bi.exist_mono.
+    intros Q.
+    iIntros "(% & $)"; iPureIntro; split; last done.
+    eapply semax_conseq; [.. | apply H6]; auto.
+    apply derives_full_refl.
   + eapply AuxDefs.semax_mask_mono; first done.
     eapply AuxDefs.semax_conseq, IHsemax; last done.
     - by iIntros "(_ & _ & $)".
@@ -656,7 +664,7 @@ Lemma semax_call_inv: forall E Delta ret a bl Pre Post,
              tc_fn_return Delta ret retsig⌝ ∧
           ((*▷*)((tc_expr Delta a) ∧ (tc_exprlist Delta argsig bl)))  ∧
          assert_of (`(func_ptr (mk_funspec (argsig,retsig) cc A Ef P Q)) (eval_expr a)) ∗
-          ▷(assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho)) ∗ oboxopt Delta ret (maybe_retval (assert_of (Q x)) retsig ret -∗ |={E}=> RA_normal Post))).
+          ▷(assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho)) ∗ oboxopt Delta ret (maybe_retval (Q x) retsig ret -∗ |={E}=> RA_normal Post))).
 Proof.
   intros.
   remember (Scall ret a bl) as c eqn:?H.
@@ -710,6 +718,11 @@ Lemma typecheck_expr_sound' : forall Delta e, local (typecheck_environ Delta) �
 Proof.
   intros; split => rho; monPred.unseal.
   iIntros "(% & ?)"; by iApply typecheck_expr_sound.
+Qed.
+
+Lemma subst_proper_entails: forall i v (P Q : assert), (P ⊢ Q) -> assert_of (subst i v P) ⊢ assert_of (subst i v Q).
+Proof.
+  intros; split => rho; rewrite /= /subst H //.
 Qed.
 
 Lemma semax_Sset_inv: forall E Delta P R id e,
@@ -805,7 +818,7 @@ Proof.
       destruct ((temp_types Delta) !! id) eqn:Hid; last by rewrite denote_tc_assert_False; iIntros "(? & ? & _ & [] & _)".
       rewrite !bi.and_assoc.
       eapply andp_subst_ENTAILL; [eauto | | reduceLL; apply ENTAIL_refl |].
-      * destruct (is_neutral_cast (implicit_deref (typeof e)) t) eqn:Ht; [|normalize; iIntros "(_ & _ & _ & [])"].
+      * destruct (is_neutral_cast (implicit_deref (typeof e)) t) eqn:Ht; [|normalize; iIntros "(_ & _ & [])"].
         split => rho; rewrite /local /lift1; monPred.unseal; unfold_lift.
         iIntros "(% & _ & H & _)".
         iPoseProof (typecheck_expr_sound with "H") as "%"; first done; iPureIntro.
@@ -860,10 +873,10 @@ Proof.
     iMod (IHsemax with "H") as "H"; first done.
     iMod "Hmask" as "_"; iIntros "!>".
     iDestruct "H" as "[[[H | H] | H] | H]"; [iLeft; iLeft; iLeft | iLeft; iLeft; iRight | iLeft; iRight | iRight].
-    - rewrite subst_extens // fupd_mask_mono //.
-    - iDestruct "H" as (??????) "H"; iExists _, _, _, _, _, _; rewrite subst_extens // fupd_mask_mono //.
-    - iDestruct "H" as (???) "H"; iExists _, _, _; rewrite subst_extens // fupd_mask_mono //.
-    - iDestruct "H" as (????) "H"; iExists _, _, _, _; rewrite subst_extens // fupd_mask_mono //.
+    - rewrite subst_proper_entails // fupd_mask_mono //.
+    - iDestruct "H" as (??????) "H"; iExists _, _, _, _, _, _; rewrite subst_proper_entails // fupd_mask_mono //.
+    - iDestruct "H" as (???) "H"; iExists _, _, _; rewrite subst_proper_entails // fupd_mask_mono //.
+    - iDestruct "H" as (????) "H"; iExists _, _, _, _; rewrite subst_proper_entails // fupd_mask_mono //.
 Qed.
 
 Lemma semax_Sbuiltin_inv: forall E Delta P R opt ext tl el,
@@ -1063,7 +1076,7 @@ Proof.
     - apply derives_full_refl.
     - apply derives_full_refl.
     - apply derives_full_refl.
-    - intros; iIntros "(_ & _ & $)".
+    - intros; iIntros "(_ & _ & $)". done.
     - eapply semax_post''; [.. | apply AuxDefs.semax_skip].
       apply ENTAIL_refl.
   + pose proof (fun x => semax_assign_inv _ _ _ _ _ _ (H x)).
@@ -1071,7 +1084,6 @@ Proof.
     apply bi.exist_elim in H0.
     rewrite -bi.and_exist_l -bi.sep_exist_l in H0.
     eapply semax_conseq; [exact H0 | intros; try apply derives_full_refl .. | clear H0 ].
-    { iIntros "(_ & _ & $)". }
     eapply semax_conseq; [apply derives_full_refl | .. | apply AuxDefs.semax_store_store_union_hack_backward].
     - reduceL. done.
     - reduceL. apply False_left.
@@ -1082,7 +1094,6 @@ Proof.
     apply bi.exist_elim in H0.
     rewrite -bi.and_exist_l -bi.sep_exist_l in H0.
     eapply semax_conseq; [exact H0 | intros; try apply derives_full_refl .. | clear H0 ].
-    { iIntros "(_ & _ & $)". }
     eapply semax_conseq; [apply derives_full_refl | .. | apply AuxDefs.semax_set_ptr_compare_load_cast_load_backward].
     - reduceL. done.
     - reduceL. apply False_left.
@@ -1093,7 +1104,6 @@ Proof.
     apply bi.exist_elim in H0.
     rewrite -bi.and_exist_l -bi.sep_exist_l in H0.
     eapply semax_conseq; [exact H0 | intros; try apply derives_full_refl .. | clear H0 ].
-    { iIntros "(_ & _ & $)". }
     eapply semax_conseq; [apply derives_full_refl | .. | apply AuxDefs.semax_call_backward].
     - reduceL. done.
     - reduceL. apply False_left.
@@ -1104,7 +1114,6 @@ Proof.
     rewrite bi.sep_exist_l bi.and_exist_l.
     apply bi.exist_elim; intros x; specialize (H0 x).
     auto.
-    { iIntros "(_ & _ & $)". }
   + apply AuxDefs.semax_seq with (∃ Q: assert, ⌜semax E Delta Q c2 R⌝ ∧ Q).
     - apply IHc1.
       intro x.
@@ -1121,7 +1130,6 @@ Proof.
       apply bi.exist_elim in H0.
       rewrite -bi.and_exist_l -bi.sep_exist_l in H0.
       exact H0.
-    - iIntros "(_ & _ & $)".
     - apply semax_pre with (∃ P': assert, ∃ H0: semax E Delta (P' ∧ local ((` (typed_true (typeof e))) (eval_expr e))) c1 R, P' ∧ local ((` (typed_true (typeof e))) (eval_expr e))).
       * rewrite bi.and_elim_r bi.and_exist_r; apply bi.exist_mono; intros.
         rewrite -assoc; iIntros "((% & %) & $)"; eauto.
@@ -1143,7 +1151,6 @@ Proof.
       apply bi.exist_mono; intros Q.
       apply bi.exist_mono; intros Q'.
       iIntros "((% & %) & $)"; eauto. }
-    { iIntros "(_ & _ & $)". }
     apply (AuxDefs.semax_loop _ _ _
       (∃ Q : assert, ∃ Q' : assert,
          ∃ H: semax E Delta Q c1 (loop1_ret_assert Q' R),
@@ -1183,20 +1190,19 @@ Proof.
     eapply semax_conseq; [| intros; try apply derives_full_refl .. |].
     - rewrite bi.sep_exist_l bi.and_exist_l; apply bi.exist_elim.
       intro x; apply H0.
-    - iIntros "(_ & _ & $)".
     - apply AuxDefs.semax_break.
   + pose proof (fun x => semax_continue_inv _ _ _ _ (H x)).
     eapply semax_conseq; [| intros; try apply derives_full_refl .. |].
     - rewrite bi.sep_exist_l bi.and_exist_l; apply bi.exist_elim.
       intro x; apply H0.
-    - iIntros "(_ & _ & $)".
     - apply AuxDefs.semax_continue.
-  + pose proof (fun x => semax_return_inv _ _ _ _ _ (H x)).
-    eapply (semax_conseq _ _ _ {| RA_normal := _; RA_break := _; RA_continue := _; RA_return := RA_return R |} ); [.. | apply AuxDefs.semax_return].
+ + pose proof (fun x => semax_return_inv _ _ _ _ _ (H x)).
+    eapply (semax_conseq _ _ _ {| RA_return := λ v, |={E}=> RA_return R v |} ); [.. | apply AuxDefs.semax_return].
     - rewrite bi.sep_exist_l bi.and_exist_l.
       apply bi.exist_elim; intros x.
-      derives_rewrite -> (H0 x).
-      apply derives_full_refl.
+      rewrite H0 /=.
+      do 2 f_equiv.
+      unfold_lift; split => rho; monPred.unseal; done.
     - apply derives_full_refl.
     - apply derives_full_refl.
     - apply derives_full_refl.
@@ -1205,7 +1211,6 @@ Proof.
     eapply semax_conseq; [| intros; try apply derives_full_refl .. |].
     - rewrite bi.sep_exist_l bi.and_exist_l; apply bi.exist_elim.
       intro x; apply H0.
-    - iIntros "(_ & _ & $)".
     - apply AuxDefs.semax_switch; [intros; simpl; solve_andp |].
       intros.
       specialize (IH (Int.unsigned n)).
@@ -1224,7 +1229,6 @@ Proof.
     rewrite bi.sep_exist_l bi.and_exist_l.
     apply bi.exist_elim; intros x; specialize (H0 x).
     auto.
-    { iIntros "(_ & _ & $)". }
 Qed.
 
 End Extr.
@@ -1390,8 +1394,8 @@ Proof. intros.
   if_tac in BI; [inv H | discriminate]. if_tac in BI; [| discriminate].
   apply Some_inj, mk_funspec_inj in BI as ([=] & ? & ? & ? & ? & ?); subst.
   clear - SB1 SB2.
-  destruct SB1 as [X [X1 SB1]]; destruct SB2 as [_ [X2 SB2]].
-  split3; [ apply X | trivial | simpl in X; intros ].
+  destruct SB1 as [X1 SB1]; destruct SB2 as [X2 SB2].
+  split; [done| intros ].
   destruct x as [[|] ?]; [ apply SB1 | apply SB2].
 Qed.
 
@@ -1401,20 +1405,18 @@ Definition semax_body_generalintersection {V G cs f iden I sig cc} {phi : I -> f
         (HI: inhabited I)
   (H: forall i, semax_body(C := cs) V G f (iden, phi i)):
   semax_body V G f (iden, @general_intersection _ _ I sig cc phi H1 H2).
-Proof. destruct HI. split3.
-  { specialize (H X). specialize (H1 X); subst. destruct (phi X). simpl. apply H. }
+Proof. destruct HI. split.
   { specialize (H X). specialize (H1 X); subst. destruct (phi X). simpl. apply H. }
   intros. destruct x as [i Hi].
   specialize (H i).
-  assert (fst sig = map snd (fst (fn_funsig f)) /\
-        snd sig = snd (fn_funsig f) /\
+  assert ( sig = fn_typesig f /\
         (forall (x : dtfr ((WithType_of_funspec (phi i)))),
          semax (mask_of_funspec (phi i) x) (func_tycontext f V G nil)
-           (close_precondition (map fst (fn_params f)) (argsassert_of ((Pre_of_funspec (phi i)) x)) ∗ stackframe_of f) 
-           (fn_body f) (frame_ret_assert (function_body_ret_assert (fn_return f) (assert_of ((Post_of_funspec (phi i)) x))) (stackframe_of f)))) as HH.
+           (close_precondition (map fst (fn_params f)) ((Pre_of_funspec (phi i)) x) ∗ stackframe_of f) 
+           (fn_body f) (frame_ret_assert (function_body_ret_assert (fn_return f) ((Post_of_funspec (phi i)) x)) (stackframe_of f)))) as HH.
   { intros. specialize (H1 i); specialize (H2 i). subst. unfold semax_body in H.
-    destruct (phi i); subst. destruct H as [? [? ?]]. split3; simpl; auto. }
-  clear H H1 H2. destruct HH as [HH1 [HH2 HH3]].
+    destruct (phi i); subst. destruct H as [? ?]. split; simpl; auto. }
+  clear H H1 H2. destruct HH as [HH2 HH3].
   apply (HH3 Hi).
 Qed.
 
@@ -1789,7 +1791,7 @@ Definition CALLpre (CS: compspecs) E Delta ret a bl R :=
      (tc_expr Delta a ∧ tc_exprlist Delta argsig bl) ∧
      assert_of ((` (func_ptr (mk_funspec (argsig, retsig) cc A Ef P Q))) (@eval_expr CS a)) ∧
      ▷  (assert_of (fun rho => P x (ge_of rho, @eval_exprlist CS argsig bl rho)) ∗
-                   (oboxopt Delta ret (maybe_retval (assert_of (Q x)) retsig ret -∗ R))).
+                   (oboxopt Delta ret (maybe_retval (Q x) retsig ret -∗ R))).
 
 (*A variant where (CSUB: cspecs_sub  CS CS') is replaced by (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) may be provable once tc_expr lemmas (and maybe eval_expr lemmas, sem_binop etc) have been modified to only take a composite_env rather than a compspecs*) 
 Lemma semax_cssub {OK_spec: ext_spec OK_ty} {CS: compspecs} {CS'} (CSUB: cspecs_sub  CS CS') E Delta P c R:
@@ -1861,6 +1863,7 @@ Proof.
   + eapply semax_pre, AuxDefs.semax_return.
     unfold local, lift1; normalize.
     apply bi.and_intro. rewrite bi.and_elim_l. destruct CSUB; apply tc_expropt_cenv_sub; trivial.
+    unfold_lift.
     apply (RA_return_cast_expropt_cspecs_sub CSUB); trivial.
   + eapply semax_pre, AuxDefs.semax_set_ptr_compare_load_cast_load_backward.
     split => rho; monPred.unseal. apply bi.pure_elim_l; intros TEDelta.
@@ -1877,7 +1880,9 @@ Proof.
           apply bi.exist_mono; intros e2.
           apply bi.exist_mono; intros t.
           apply bi.exist_mono; intros sh1.
-          apply bi.exist_mono; intros sh2. normalize. apply bi.later_mono.
+          apply bi.exist_mono; intros sh2.
+          apply bi.pure_elim_l; intros H. apply bi.and_intro; [by apply bi.pure_intro|].
+          apply bi.later_mono.
           iIntros "H"; iAssert (⌜@eval_expr CS e1 rho = @eval_expr CS' e1 rho⌝ ∧ ⌜@eval_expr CS e2 rho = @eval_expr CS' e2 rho⌝) as "(%He1 & %He2)".
           { rewrite assoc bi.and_elim_l. iApply (bi.and_mono with "H").
             apply (rvalue_cspecs_sub CSUB Delta); trivial.
@@ -1903,7 +1908,8 @@ Proof.
     { apply bi.exist_mono; intros sh.
       apply bi.exist_mono; intros e1.
       apply bi.exist_mono; intros t.
-      apply bi.exist_mono; intros v. normalize. apply bi.later_mono.
+      apply bi.exist_mono; intros v. 
+      apply bi.pure_elim_l. intro H. apply bi.and_intro; [by iIntros|]. apply bi.later_mono.
       iIntros "H"; iAssert ⌜@eval_lvalue CS e1 rho = @eval_lvalue CS' e1 rho⌝ as %He1.
       { setoid_rewrite lvalue_cspecs_sub; [| done..]. iDestruct "H" as "($ & _)". }
       iApply (bi.and_mono with "H"); first by apply @tc_lvalue_cspecs_sub.
@@ -1953,7 +1959,7 @@ Lemma semax_body_subsumption: forall {CS} V V' F F' f spec
     semax_body(C := CS) V' F' f spec.
 Proof.
   destruct spec. destruct f0. 
-  intros [? [? SF]] ?. split3; auto.
+  intros [? SF] ?. split; auto.
   intros.
   eapply semax_Delta_subsumption. apply TS.
   apply (SF _ x).
@@ -1965,7 +1971,7 @@ Lemma semax_body_cenv_sub {CS CS'} (CSUB: cspecs_sub CS CS') V G f spec
     semax_body V G (C := CS) f spec -> semax_body V G (C := CS') f spec.
 Proof.
   destruct spec. destruct f0.
-  intros [H' [H'' H]]; split3; auto.
+  intros [H' H]; split; auto.
   intros.  specialize (H _ x).
   rewrite <- (semax_prog.stackframe_of_cspecs_sub CSUB); [apply (semax_cssub CSUB); apply H | trivial].
 Qed. 
@@ -2011,7 +2017,7 @@ Proof.
 Qed.
 
 Lemma semax_frame:
-  forall {OK_spec: ext_spec OK_ty} {CS: compspecs} E Delta P s R F,
+  forall {OK_spec: ext_spec OK_ty} {CS: compspecs} E Delta P s R (F:assert),
    closed_wrt_modvars s F ->
   semax E Delta P s R ->
     semax E Delta (P ∗ F) s (frame_ret_assert R F).
@@ -2070,7 +2076,7 @@ Proof.
     apply bi.and_intro.
     - iIntros "(($ & _) & _)".
     - split => rho; destruct R; simpl; monPred.unseal; unfold_lift.
-      iIntros "((_ & $) & $)".
+      iIntros "((_ & ?) & $)". done.
   + eapply semax_pre_post, AuxDefs.semax_set_ptr_compare_load_cast_load_backward;
       try solve [simpl; intros; rewrite bi.and_elim_r //; iIntros "[]"].
     rewrite bi.and_elim_r.
@@ -2157,9 +2163,9 @@ Proof.
       apply sep_mono_full; [exact H3 |].
       reduce2derives.
       auto.
-    - intros; destruct R, R'.
-      apply sepcon_ENTAILL; auto.
-      iIntros "(_ & _ & $)".
+    - intros. simpl.
+      iIntros "(#? & #? & ? & $)".
+      iPoseProof (H4 vl with "[$]") as "$".
   + eapply AuxDefs.semax_mask_mono; intuition eauto.
 Qed.
 
@@ -2169,7 +2175,7 @@ Lemma semax_adapt_frame {OK_spec: ext_spec OK_ty} {CS: compspecs} E Delta c (P P
                          ⌜local (tc_environ Delta) ∧ <affine> allp_fun_id Delta ∗ RA_normal (frame_ret_assert Q' F) ⊢ |={E}=> RA_normal Q⌝ ∧
                          ⌜local (tc_environ Delta) ∧ <affine> allp_fun_id Delta ∗ RA_break (frame_ret_assert Q' F) ⊢ |={E}=> RA_break Q⌝ ∧
                          ⌜local (tc_environ Delta) ∧ <affine> allp_fun_id Delta ∗ RA_continue (frame_ret_assert Q' F) ⊢ |={E}=> RA_continue Q⌝ ∧
-                         ⌜forall vl, local (tc_environ Delta) ∧ <affine> allp_fun_id Delta ∗ RA_return (frame_ret_assert Q' F) vl ⊢ RA_return Q vl⌝))))
+                         ⌜forall vl, local (tc_environ Delta) ∧ <affine> allp_fun_id Delta ∗ RA_return (frame_ret_assert Q' F) vl ⊢ |={E}=> RA_return Q vl⌝))))
    (SEM: semax E Delta P' c Q'):
    semax E Delta P c Q.
 Proof.
@@ -2177,7 +2183,7 @@ Proof.
                          ⌜(local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ RA_normal (frame_ret_assert Q' F)) ⊢ |={E}=> (RA_normal Q))⌝ ∧
                          ⌜(local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ RA_break (frame_ret_assert Q' F)) ⊢ |={E}=> (RA_break Q))⌝ ∧
                          ⌜(local (tc_environ Delta) ∧ (<affine> allp_fun_id Delta ∗ RA_continue (frame_ret_assert Q' F)) ⊢ |={E}=> (RA_continue Q))⌝ ∧
-                         ⌜forall vl, ((local (tc_environ Delta)) ∧ (<affine> allp_fun_id Delta ∗ RA_return (frame_ret_assert Q' F) vl) ⊢ (RA_return Q vl))⌝)))
+                         ⌜forall vl, ((local (tc_environ Delta)) ∧ (<affine> allp_fun_id Delta ∗ RA_return (frame_ret_assert Q' F) vl) ⊢ |={E}=> (RA_return Q vl))⌝)))
     Q).
   + rewrite H.
     iIntros "(% & % & >(? & % & % & % & %))"; iExists F; iFrame; done.
@@ -2194,7 +2200,8 @@ Proof.
       2: { exact H2. }
       2: { exact H3. }
       rewrite bi.and_elim_r bi.affinely_elim_emp bi.emp_sep; apply fupd_intro. }
-    by iIntros "(? & >($ & % & % & % & %))".
+    rewrite bi.and_elim_r. apply fupd_mono.
+    by iIntros "($ & % & % & % & %)".
 Qed.
 
 Lemma semax_adapt: forall {OK_spec: ext_spec OK_ty} {CS: compspecs} E Delta c (P P': assert) (Q Q' : ret_assert)
@@ -2203,7 +2210,7 @@ Lemma semax_adapt: forall {OK_spec: ext_spec OK_ty} {CS: compspecs} E Delta c (P
                         ⌜RA_normal Q' ⊢ |={E}=> (RA_normal Q)⌝ ∧
                         ⌜RA_break Q' ⊢ |={E}=> (RA_break Q)⌝ ∧
                         ⌜RA_continue Q' ⊢ |={E}=> (RA_continue Q)⌝ ∧
-                        ⌜forall vl, RA_return Q' vl ⊢ (RA_return Q vl)⌝)))
+                        ⌜forall vl, RA_return Q' vl ⊢ |={E}=> (RA_return Q vl)⌝)))
    (SEM: semax E Delta P' c Q'),
    semax E Delta P c Q.
 Proof.
@@ -2239,28 +2246,28 @@ Proof.
 destruct phi as [sig cc A E P Q].
 destruct phi' as [sig' cc' A' E' P' Q'].
 destruct Sub as [(Tsigs & CC) Sub]. subst cc' sig'. simpl in Sub.
-destruct SB as [SB1 [SB2 SB3]].
-split3; trivial. intros.
+destruct SB as [SB2 SB3].
+split; trivial. intros.
 specialize (Sub x).
-apply semax_adapt
+eapply semax_adapt
  with
-  (Q':= frame_ret_assert (function_body_ret_assert (fn_return f) (assert_of (Q' x)))
+  (Q':= frame_ret_assert (function_body_ret_assert (fn_return f) (Q' x))
            (stackframe_of f))
   (P' :=
     ∃ vals:list val,
     ∃ x1 : dtfr A,
-    ∃ FR: _,
-    ⌜E x1 ⊆ E' x /\ forall rho' : environ,
-              ⌜tc_environ (xtype_tycontext (snd sig)) rho'⌝ ∧ (FR ∗ Q x1 rho') ⊢ (Q' x rho')⌝ ∧
+    ∃ FR: mpred,
+    ⌜E x1 ⊆ E' x /\ forall (rho' : environ) (ret: option val),
+              ⌜tc_environ (xtype_tycontext (snd sig)) rho'⌝ ∧ (FR ∗ Q x1 ret ) ⊢ (Q' x ret)⌝ ∧
       ((stackframe_of f ∗ ⎡FR⎤ ∗ assert_of (fun tau => P x1 (ge_of tau, vals))) ∧
-            local (fun tau => map (Map.get (te_of tau)) (map fst (fn_params f)) = map Some vals /\ tc_vals (map snd (fn_params f)) vals))).
+            local (fun tau => map (λ i : ident, (te_of tau !! i)%stdpp) (map fst (fn_params f)) = map Some vals /\ tc_vals (map snd (fn_params f)) vals))).
  - split => rho. monPred.unseal; rewrite /bind_ret monPred_at_affinely.
    iIntros "(%TC & #OM & (%vals & (%MAP & %VUNDEF) & HP') & M2)".
    specialize (Sub (ge_of rho, vals)). iMod (Sub with "[$HP']") as "Sub". {
      iPureIntro; split; trivial.
      simpl.
-     rewrite SB1. simpl in TC. destruct TC as [TC1 [TC2 TC3]].
-     unfold fn_funsig. simpl. clear - TC1 MAP LNR VUNDEF.
+     rewrite SB2. simpl in TC. destruct TC as [TC1 [TC2 TC3]].
+     unfold fn_typesig. simpl. clear - TC1 MAP LNR VUNDEF.
      specialize (@tc_temp_environ_elim (fn_params f) (fn_temps f) _ LNR TC1). simpl in TC1.  red in TC1. clear - MAP; intros TE.
      forget (fn_params f) as params. generalize dependent vals.
      induction params; simpl; intros.
@@ -2278,21 +2285,22 @@ apply semax_adapt
    iExists vals, x1, FR1.
    iSplit; last iSplit.
     + iPureIntro; split; first done; intros. rewrite -RetQ.
-      iIntros "(% & $)"; iPureIntro; split; last trivial.
+      iIntros "(% & $)".
+       (* iPureIntro; split; last trivial.
       simpl in H. clear - H. destruct H as [_ [Hve _]].
       simpl in *. red in Hve. destruct rho'; simpl in *.
       apply Map.ext; intros x. specialize (Hve x).
       destruct (Map.get ve x); simpl.
       * destruct p; simpl in *. destruct (Hve t) as [_ H]; clear Hve.
         exploit H. exists b; trivial. rewrite Maps.PTree.gempty //.
-      * reflexivity.
+      * reflexivity. *)
     + iFrame.
     + iPureIntro; split; trivial. destruct TC as [TC1 _]. simpl in TC1. red in TC1.
       clear - MAP VUNDEF TC1 LNR. forget (fn_params f) as params. forget (fn_temps f) as temps. forget (te_of rho) as tau.
-      clear f rho. generalize dependent vals. induction params; simpl; intros; destruct vals; inv MAP; trivial.
+      clear rho. generalize dependent vals. induction params; simpl; intros; destruct vals; inv MAP; trivial.
       inv VUNDEF. inv LNR. destruct a; simpl in *.
       assert (X: forall id ty, (make_tycontext_t params temps) !! id = Some ty ->
-                 exists v : val, Map.get tau id = Some v /\ tc_val' ty v).
+                 exists v : val, (tau !! id = Some v)%stdpp /\ tc_val' ty v).
       { intros. apply TC1. simpl. setoid_rewrite Maps.PTree.gso; trivial.
         apply make_context_t_get in H. intros ?; subst id. contradiction. }
       split; [ clear IHparams | apply (IHparams H6 X _ H1 H4)].
@@ -2304,12 +2312,12 @@ apply semax_adapt
    apply semax_extract_exists; intros x1.
    apply semax_extract_exists; intros FRM.
    apply semax_extract_prop; intros (HE & QPOST).
-   unfold fn_funsig in *. simpl in SB2; rewrite -> SB2 in *.
+    simpl in SB2; rewrite -> SB2 in *.
    apply (semax_frame (E x1) (func_tycontext f V G nil)
-      (close_precondition (map fst (fn_params f)) (argsassert_of (P x1)) ∗
+      (close_precondition (map fst (fn_params f)) (P x1) ∗
          stackframe_of f)
       (fn_body f)
-      (frame_ret_assert (function_body_ret_assert (fn_return f) (assert_of (Q x1))) (stackframe_of f))
+      (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x1)) (stackframe_of f))
       ⎡FRM⎤) in SB3.
     + eapply AuxDefs.semax_mask_mono; first done.
       eapply semax_pre_post_fupd.
@@ -2331,6 +2339,7 @@ apply semax_adapt
            rewrite /= -QPOST; iFrame; iPureIntro; split; last done.
            apply tc_environ_xtype.
     + do 2 red; intros; monPred.unseal; trivial.
+    Unshelve. all: done.
 Qed.
 
 End mpred.
@@ -2395,7 +2404,6 @@ Proof.
     iIntros ">(%P' & H) !>"; iExists P'.
     iDestruct "H" as "($ & H)"; rewrite -bi.later_and; iNext.
     iSplit; [iDestruct "H" as "(_ & $ & _)" | iSplit; [iDestruct "H" as "($ & _)" | iDestruct "H" as "(_ & _ & $)"]]. }
-  { iIntros "(_ & _ & $)". }
   apply semax_extract_exists; intros P'.
   apply semax_extract_later_prop; intros [Ht Hf].
   apply semax_seq_inv in Ht.
@@ -2447,7 +2455,6 @@ Proof.
         unfold loop1_ret_assert; destruct R.
         rewrite bi.and_elim_r //.
     - eapply semax_conseq; [exact H1 | intros; try apply derives_full_refl .. |].
-      { iIntros "(_ & _ & $)". }
       apply semax_extract_exists; intros Q'.
       apply semax_extract_exists; intros Q''.
       apply semax_extract_prop; intros [?H ?H].
@@ -2510,7 +2517,6 @@ Proof.
   + apply semax_seq_inv in H as (? & ? & (? & ? & ?)%semax_seq_inv).
     eapply AuxDefs.semax_seq; eauto.
     eapply AuxDefs.semax_seq; eauto.
-    destruct R; auto.
   + apply semax_seq_inv in H as (? & (Q & ? & ?)%semax_seq_inv & ?).
     eapply AuxDefs.semax_seq with Q; [destruct R; exact H |].
     eapply AuxDefs.semax_seq; eauto.
@@ -2536,7 +2542,7 @@ Proof.
     - destruct Q; auto.
     - destruct Q; apply derives_full_refl.
     - destruct Q; apply derives_full_refl.
-    - intros; destruct Q; iIntros "(_ & _ & $)".
+    - intros; destruct Q; iIntros "(_ & _ & $)". done.
 Qed.
 
 Theorem semax_skip_seq:
@@ -2556,7 +2562,6 @@ Proof.
     apply semax_skip_inv in H.
     eapply semax_conseq; [| intros; try apply derives_full_refl .. | exact H0].
     destruct Q; auto.
-    { iIntros "(_ & _ & $)". }
 Qed.
 
 Theorem semax_seq_Slabel:
@@ -2721,7 +2726,7 @@ Proof.
   iDestruct ("H" with "[%]") as "(% & -> & ?)"; first done.
   destruct TC as (? & Hve & ?).
   specialize (Hve id); rewrite H in Hve.
-  destruct (Map.get (ve_of rho) id) as [(?, ?)|]; last done.
+  destruct (ve_of rho !! id)%stdpp as [(?, ?)|] eqn:?. 2: { rewrite Heqo. done. } 
   edestruct Hve as [_ Hid]; spec Hid; eauto; done.
 Qed.
 
@@ -2792,10 +2797,10 @@ Proof.
     apply AuxDefs.semax_break.
   + inv H.
   + clear IHsemax1 IHsemax2.
-    replace (loop1_ret_assert Q' R) with (loop1_ret_assert Q' Post') in H3_
-      by (destruct Post', R; simpl; f_equal; auto).
-    replace (loop2_ret_assert Q R) with (loop2_ret_assert Q Post') in H3_0
-      by (destruct Post', R; simpl; f_equal; auto).
+    replace (loop1_ret_assert Q' R) with (loop1_ret_assert Q' Post') in H3_.
+    2:  { destruct Post', R. rewrite /loop1_ret_assert H0  H2 //. } 
+    replace (loop2_ret_assert Q R) with (loop2_ret_assert Q Post') in H3_0.
+    2:  { destruct Post', R. rewrite /loop2_ret_assert H0 H2 //. } 
     eapply AuxDefs.semax_loop; eauto.
   + apply AuxDefs.semax_switch; auto.
     intros n; specialize (H2 n).
@@ -2872,7 +2877,6 @@ destruct H1 as [R [? ?]].
 unfold Sfor, Swhile  in *.
 apply AuxDefs.semax_seq with R; auto.
 apply AuxDefs.semax_seq with Q; auto.
-rewrite overridePost_overridePost; auto.
 clear - H1 H H9.
 assert (nocontinue (Sifthenelse e2 Sskip Sbreak) = true) by reflexivity.
 forget (Sifthenelse e2 Sskip Sbreak) as s1.

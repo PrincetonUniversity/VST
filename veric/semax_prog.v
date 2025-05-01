@@ -1588,7 +1588,7 @@ Proof.
               (FR ∗ Q x1 ret) ⊢ (Q' x ret)⌝ ∧
       ((stackframe_of f ∗ ⎡FR⎤ ∗ assert_of (fun tau => P x1 (ge_of tau, vals))) ∧
             local (fun tau => map (λ i, lookup i (te_of tau)) (map fst (fn_params f)) = map Some vals /\ tc_vals (map snd (fn_params f)) vals))).
- - split => rho. unfold local; monPred.unseal; rewrite /bind_ret monPred_at_intuitionistically monPred_at_affinely /=.
+ - split => rho. unfold local; monPred.unseal; rewrite /bind_ret  monPred_at_affinely /=.
    iIntros "(%TC & #OM & (%vals & (%MAP & %VUNDEF) & HP') & M2)".
    specialize (Sub (ge_of rho, vals)). iMod (Sub with "[$HP']") as "Sub". {
      iPureIntro; split; trivial.
@@ -1637,12 +1637,12 @@ Proof.
     + eapply semax_pre_post_fupd.
       6: rewrite /semax -semax_mask_mono //; apply SB3.
       all: clear SB2; intros; simpl; try iIntros "(_ & ([] & ?) & _)".
-      * split => rho; unfold local; monPred.unseal; rewrite monPred_at_intuitionistically; iIntros "(%TC & (N1 & (? & N2)) & (%VALS & %TCVals)) !>"; iFrame.
+      * split => rho; unfold local; monPred.unseal; iIntros "(%TC & (N1 & (? & N2)) & (%VALS & %TCVals)) !>"; iFrame.
         iPureIntro; repeat (split; trivial).
         apply (tc_vals_Vundef TCVals).
       * split => rho; rewrite /bind_ret; monPred.unseal; destruct (fn_return f); try iIntros "(_ & ([] & _) & _)".
         rewrite /= -QPOST; iIntros "(? & (? & ?) & ?)"; iFrame; done.
-      * split => rho; rewrite /local /bind_ret; monPred.unseal; rewrite monPred_at_intuitionistically; iIntros "(% & (Q & $) & ?)".
+      * split => rho; rewrite /local /bind_ret; monPred.unseal; iIntros "(% & (Q & $) & ?)".
         destruct vl; simpl.
         -- rewrite -QPOST.
            iDestruct "Q" as "($ & $)"; iFrame; done.
