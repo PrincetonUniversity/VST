@@ -6,12 +6,53 @@ Require Import VST.floyd.base2.
 Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Import LiftNotation.
 
+Inductive localdef : Type :=
+ | temp: ident -> val -> localdef
+ | lvar: ident -> type -> val -> localdef   (* local variable *)
+ | gvars: globals -> localdef.              (* global variables *)
+
+Arguments temp i%_positive v.
+
+Definition lvar_denote (i: ident) (t: type) (v: val) rho :=
+     match (ve_of rho !! i)%stdpp with
+         | Some (b, ty') => t=ty' /\ v = Vptr b Ptrofs.zero
+         | None => False%type
+         end.
+
+Definition gvars_denote (gv: globals) rho :=
+   gv = (fun i => match (ge_of rho !! i)%stdpp with Some b => Vptr b Ptrofs.zero | None => Vundef end).
+
+Definition locald_denote (d: localdef) : environ -> Prop :=
+ match d with
+ | temp i v => `and (`(eq v) (eval_id i)) `(v <> Vundef)
+ | lvar i t v => lvar_denote i t v
+ | gvars gv => gvars_denote gv
+ end.
+
 Fixpoint fold_right_andp rho (l: list (environ -> Prop)) : Prop :=
  match l with
  | nil => True
  | b::nil => b rho
  | b::r => b rho /\ fold_right_andp rho r
  end.
+
+Section mpred.
+  Context `{!heapGS Σ}.
+
+  (* asserts used in the precondition *)
+  Definition argsEnviron_index : biIndex := {| bi_index_type := argsEnviron |}.
+  Definition argsassert  := monPred argsEnviron_index mpred.
+  
+  Definition argsassert' := argsEnviron -> mpred.
+  Program Definition argsassert_of (P : argsassert') : argsassert := {| monPred_at := P |}.
+  Global Coercion argsassert_of : argsassert' >-> argsassert.
+
+  Definition post_index : biIndex := {| bi_index_type := option val |}.
+  Definition postassert := monPred post_index mpred.
+  Definition postassert' := (option val) -> mpred.
+  Program Definition postassert_of (P : postassert') : postassert := {| monPred_at := P |}.
+  Global Coercion postassert_of : postassert' >-> postassert.
+End mpred.
 
 Declare Scope assert.  Delimit Scope assert with assert.
 Global Set Warnings "-overwriting-delimiting-key".
@@ -48,21 +89,24 @@ Notation " 'LOCAL' ()   z" := (LOCALx nil z%assert5)  (at level 9) : assert3.
 Notation " 'LOCAL' ( x ; .. ; y )   z" := (LOCALx (cons x%type .. (cons y%type nil) ..) z%assert5)
          (at level 9) : assert3.
 
+Definition RETURNx `{!heapGS Σ} (ret_v: option val) (Q: postassert) : postassert :=
+  postassert_of (fun v => ⌜v=ret_v⌝ ∧ Q ret_v).
 
-Notation " 'RETURN' () z" := (LOCALx nil z%assert5) (at level 9) : assert3.
-Notation " 'RETURN' ( ) z" := (LOCALx nil z%assert5) (at level 9) : assert3.
-Notation " 'RETURN' ( x ) z" := (LOCALx (temp ret_temp x :: nil) z%assert5) (at level 9) :assert3.
+Notation " 'RETURN' () z" := (RETURNx None z%assert5) (at level 9) : assert3.
+Notation " 'RETURN' ( ) z" := (RETURNx None z%assert5) (at level 9) : assert3.
+Notation " 'RETURN' ( x ) z" := (RETURNx (Some x) z%assert5) (at level 9) :assert3.
+
 
 Definition GLOBALSx `{!heapGS Σ} (gs : list globals) (X : argsassert): argsassert :=
- argsassert_of (fun (gvals : argsEnviron) =>
+  argsassert_of (fun (gvals : argsEnviron) =>
            LOCALx (map gvars gs)
-                  (argsassert2assert nil X)
-                  (Clight_seplog.mkEnv (fst gvals) nil nil)).
+                  ⎡X gvals⎤
+                  (mkEnv (fst gvals) nil nil)).
 Arguments GLOBALSx {_ _} gs _ : simpl never.
 Global Instance: Params (@GLOBALSx) 2 := {}.
 
 Definition PARAMSx `{!heapGS Σ} (vals:list val)(X : argsassert): argsassert :=
- argsassert_of (fun (gvals : argsEnviron) => ⌜snd gvals = vals⌝ ∧ X gvals).
+  argsassert_of (fun (gvals : argsEnviron) => ⌜snd gvals = vals⌝ ∧ X gvals).
 Arguments PARAMSx {Σ _} vals _ : simpl never.
 Global Instance: Params (@PARAMSx) 2 := {}.
 
@@ -96,7 +140,10 @@ Notation " 'SEP' ( ) " := (SEPx nil) (at level 8) : assert5.
 Notation " 'SEP' () " := (SEPx nil) (at level 8) : assert5.
 
 Notation " 'ENTAIL' d ',' P '⊢' Q " :=
-  (@bi_entails (monPredI environ_index (iPropI _)) (local (tc_environ d) ∧ P%assert) Q%assert) (at level 99, P at level 98, Q at level 98).
+  (@bi_entails (monPredI env_index (iPropI _)) (local (tc_environ d) ∧ P%assert) Q%assert) (at level 99, P at level 98, Q at level 98).
+
+Notation " 'RET_ENTAIL' d ',' P '⊢' Q " :=
+  (forall v, @bi_entails mpred (⌜tc_option_val (ret_type d) v⌝ ∧ (P v)%assert) (Q v)%assert) (at level 99, P at level 98, Q at level 98).
 
 Arguments semax {_ _ _ _ _} E Delta Pre%_assert cmd Post%_assert.
 
@@ -146,16 +193,15 @@ Qed.
 #[global] Instance PARAMSx_proper : Proper (eq ==> equiv ==> equiv) (PARAMSx).
 Proof.
   intros ?? -> ?? H.
-  rewrite /PARAMSx; constructor; intros; simpl.
-  rewrite H //.
+  rewrite /PARAMSx.
+  constructor => ? /=. rewrite H //.
 Qed.
 
 #[global] Instance GLOBALSx_proper : Proper (eq ==> equiv ==> equiv) (GLOBALSx).
 Proof.
   intros ?? -> ?? H.
-  rewrite /GLOBALSx /LOCALx; constructor; intros; simpl.
-  monPred.unseal.
-  rewrite H //.
+  rewrite /GLOBALSx /LOCALx.
+  constructor => ? /=. rewrite H //.
 Qed.
 
 #[global] Existing Instance list.list_dist.
@@ -550,7 +596,6 @@ Proof.
   intros.
   apply semax_post with (normal_ret_assert Q); auto; simpl; intros;
     rewrite bi.and_elim_r; simpl; normalize.
-  destruct R; simpl; auto.
 Qed.
 
 Lemma semax_seq':
@@ -720,6 +765,20 @@ Proof.
   normalize.
 Qed.
 
+Lemma PROP_RETURN_sep1 : forall P ret_v R1 R, PROPx P (RETURNx ret_v (SEPx (R1 :: R))) = (PROPx P (RETURNx ret_v (SEPx [R1])) ∗ SEPx R).
+Proof.
+  intros; rewrite /PROPx /RETURNx /SEPx /=.
+  apply assert_ext; intros; monPred.unseal; unfold lift1.
+  normalize.
+Qed.
+
+Lemma PROP_RETURN_sep2 : forall P ret_v R1 R, PROPx P (RETURNx ret_v (SEPx (R1 :: R))) = (⎡R1⎤ ∗ PROPx P (RETURNx ret_v (SEPx R))).
+Proof.
+  intros; rewrite /PROPx /RETURNx /SEPx /=.
+  apply assert_ext; intros; monPred.unseal; unfold lift1.
+  normalize.
+Qed.
+
 Lemma replace_SEP'':
  forall n R' Delta P Q Rs Post,
  ENTAIL Delta, PROPx P (LOCALx Q (SEPx (my_nth n Rs True ::  nil))) ⊢ ⎡R'⎤ ->
@@ -854,7 +913,7 @@ Lemma extract_exists_in_SEP:
 Proof.
   intros.
   rewrite /PROPx /LOCALx /SEPx; apply assert_ext; intros; monPred.unseal.
-  normalize.
+  autorewrite with norm. done.
 Qed.
 
 Lemma flatten_sepcon_in_SEP:
@@ -1188,15 +1247,15 @@ Proof.
 Qed.
 
 Lemma semax_frame'':
-  forall E Delta P1 P2 P3 s t Q1 Q2 Q3 F,
+  forall E Delta P1 P2 P3 s t Q1 ret_v Q3 F,
   semax E Delta
     (PROPx P1 (LOCALx P2 (SEPx P3))) s
       (frame_ret_assert
-        (function_body_ret_assert t (PROPx Q1 (LOCALx Q2 (SEPx Q3)))) emp) ->
+        (function_body_ret_assert t (PROPx Q1 (RETURNx ret_v (SEPx Q3)))) emp) ->
   semax E Delta
     (PROPx P1 (LOCALx P2 (SEPx (F :: P3)))) s
       (frame_ret_assert
-        (function_body_ret_assert t (PROPx Q1 (LOCALx Q2 (SEPx (F :: Q3))))) emp).
+        (function_body_ret_assert t (PROPx Q1 (RETURNx ret_v (SEPx (F :: Q3))))) emp).
 Proof.
   intros.
   eapply semax_proper, semax_frame, H; auto.
@@ -1204,14 +1263,14 @@ Proof.
   - split3; last split; simpl; intros; rewrite ?bi.sep_False ?bi.sep_emp // /=.
     + destruct t; [| rewrite bi.sep_False //..].
       split => rho; monPred.unseal.
-      rewrite PROP_LOCAL_SEP_cons comm; monPred.unseal; done.
+      rewrite PROP_RETURN_sep2 comm; monPred.unseal; done.
     + destruct v; simpl.
       * rewrite -bi.persistent_and_sep_assoc; f_equiv.
         split => rho; monPred.unseal.
-        rewrite PROP_LOCAL_SEP_cons comm; monPred.unseal; done.
+        rewrite PROP_RETURN_sep2 comm; monPred.unseal; done.
       * destruct t; [| rewrite bi.sep_False //..].
         split => rho; monPred.unseal.
-        rewrite PROP_LOCAL_SEP_cons comm; monPred.unseal; done.
+        rewrite PROP_RETURN_sep2 comm; monPred.unseal; done.
   - hnf; intros; monPred.unseal; done.
 Qed.
 
@@ -1229,54 +1288,38 @@ Definition ret_tycon (Delta: tycontext): tycontext :=
      (glob_specs Delta)
      (annotations Delta).
 
-Lemma tc_environ_Tvoid:
-  forall Delta rho, tc_environ Delta rho -> ret_type Delta = Tvoid ->
-   tc_environ (ret_tycon Delta) (globals_only rho).
+Lemma tc_option_val_None:
+  forall Delta ,
+    ret_type Delta = Tvoid ->
+    tc_option_val (ret_type (ret_tycon Delta)) None.
 Proof.
   intros.
-  unfold ret_tycon. rewrite H0. simpl is_void_type. cbv beta iota.
-  destruct H as [? [? ?]]; split3; auto.
-  unfold globals_only; simpl.
-  hnf; intros. setoid_rewrite Maps.PTree.gempty in H3; inv H3.
-  simpl.
-  clear - H1.
-  unfold ret_tycon, var_types.
-  hnf; intros. setoid_rewrite (Maps.PTree.gempty _ id).
-  split; intro. inv H. destruct H as [v ?].
-  unfold ve_of, globals_only, Map.get, Map.empty in H. inv H.
+  simpl. rewrite H. done.
 Qed.
 
-
-Lemma semax_post'': forall R' E Delta R P c t,
+Lemma semax_post'': forall (R':postassert) E Delta R P c t,
            t = ret_type Delta ->
-           ENTAIL ret_tycon Delta, R' ⊢ R ->
+           RET_ENTAIL ret_tycon Delta, R' ⊢ R ->
       semax E Delta P c (frame_ret_assert (function_body_ret_assert t R') emp) ->
       semax E Delta P c (frame_ret_assert (function_body_ret_assert t R) emp).
 Proof.
   intros. eapply semax_post, H1; simpl; intros; rewrite ?bi.sep_False ?bi.sep_emp ?bi.and_False // /=.
   + destruct t; [| rewrite bi.and_False //..].
     split => rho; monPred.unseal.
-    rewrite -H0; monPred.unseal. apply bi.and_mono; last done.
+    rewrite -H0. apply bi.and_mono; last done.
     apply bi.pure_mono; intros.
-    apply tc_environ_Tvoid; auto.
+    simpl. eapply tc_option_val_None; done.
   + destruct vl; simpl.
     * split => rho; monPred.unseal.
-      rewrite -H0; monPred.unseal.
+      rewrite -H0.
       iIntros "((% & % & %) & % & $)"; iPureIntro.
       split; first done; split; last done.
-      split3; simpl; auto.
-      simple_if_tac; intros ??; first done.
-      destruct (eq_dec id ret_temp); last by setoid_rewrite Maps.PTree.gso.
-      subst; setoid_rewrite Maps.PTree.gss; inversion 1; subst.
-      rewrite Map.gss; eexists; split; first done.
-      apply tc_val_tc_val'; done.
-      { split; first done.
-        intros (? & ?); done. }
+      simpl. rewrite -H. destruct t; done.
     * destruct t; [| rewrite bi.and_False //..].
       split => rho; monPred.unseal.
-      rewrite -H0; monPred.unseal. apply bi.and_mono; last done.
-      apply bi.pure_mono; intros.
-      apply tc_environ_Tvoid; auto.
+      rewrite -H0. apply bi.and_mono; last done.
+      apply bi.pure_mono; intros. simpl.
+      eapply tc_option_val_None; auto.
 Qed.
 
 Definition ret0_tycon (Delta: tycontext): tycontext :=
@@ -1331,55 +1374,56 @@ Qed.
 
 Lemma semax_post_ret1: forall P' R' E Delta P v R Pre c,
   ret_type Delta <> Tvoid ->
-  ENTAIL (ret1_tycon Delta),
-    PROPx P' (LOCALx (temp ret_temp v::nil) (SEPx R')) ⊢ PROPx P (LOCALx (temp ret_temp v::nil) (SEPx R)) ->
+  RET_ENTAIL (ret1_tycon Delta),
+    PROPx P' (RETURNx v (SEPx R')) ⊢ PROPx P (RETURNx v (SEPx R)) ->
   semax E Delta Pre c
     (frame_ret_assert (function_body_ret_assert (ret_type Delta)
-      (PROPx P' (LOCALx (temp ret_temp v::nil) (SEPx R')))) emp) ->
+      (PROPx P' (RETURNx v (SEPx R')))) emp) ->
   semax E Delta Pre c
     (frame_ret_assert (function_body_ret_assert (ret_type Delta)
-      (PROPx P (LOCALx (temp ret_temp v::nil) (SEPx R)))) emp).
+      (PROPx P (RETURNx v (SEPx R)))) emp).
 Proof.
   intros.
   eapply semax_post, H1; simpl; intros; rewrite ?bi.sep_emp; try solve [rewrite bi.and_elim_r //].
   - destruct (ret_type Delta); [| rewrite bi.and_elim_r //..].
     split => rho; monPred.unseal.
-    rewrite -H0; monPred.unseal; done.
+    rewrite -H0; done.
   - destruct vl; simpl.
     + split => rho; monPred.unseal.
-      rewrite -H0; monPred.unseal.
+      rewrite -H0.
       iIntros "(% & % & $)"; iPureIntro.
       split; first done; split; last done.
-      apply make_args1_tc_environ; auto.
+      simpl.
+      destruct ( ret_type Delta); done.
     + destruct (ret_type Delta); [done | rewrite bi.and_elim_r //..].
 Qed.
 
 Lemma semax_post_ret0: forall P' R' E Delta P R Pre c,
   ret_type Delta = Tvoid ->
-  ENTAIL (ret0_tycon Delta),
-    PROPx P' (LOCALx nil (SEPx R')) ⊢ PROPx P (LOCALx nil (SEPx R)) ->
+  RET_ENTAIL (ret0_tycon Delta),
+    PROPx P' (RETURNx None (SEPx R')) ⊢ PROPx P (RETURNx None (SEPx R)) ->
   semax E Delta Pre c
     (frame_ret_assert (function_body_ret_assert (ret_type Delta)
-      (PROPx P' (LOCALx nil (SEPx R')))) emp) ->
+      (PROPx P' (RETURNx None (SEPx R')))) emp) ->
   semax E Delta Pre c
     (frame_ret_assert (function_body_ret_assert (ret_type Delta)
-      (PROPx P (LOCALx nil (SEPx R)))) emp).
+      (PROPx P (RETURNx None (SEPx R)))) emp).
 Proof.
   intros.
   eapply semax_post, H1; simpl; intros; rewrite ?bi.sep_emp; try solve [rewrite bi.and_elim_r //].
-  - destruct (ret_type Delta); [| rewrite bi.and_elim_r //..].
+  - destruct (ret_type Delta) eqn:?; [| rewrite bi.and_elim_r //..].
     split => rho; monPred.unseal.
-    rewrite -H0; monPred.unseal.
+    rewrite -H0.
     apply bi.and_mono; last done.
     apply bi.pure_mono; intros.
-    apply make_args0_tc_environ; auto.
+    simpl. apply tc_option_val_None; done.
   - rewrite H; destruct vl; simpl.
     + iIntros "(_ & [] & _)".
     + split => rho; monPred.unseal.
-      rewrite -H0; monPred.unseal.
+      rewrite -H0.
       apply bi.and_mono; last done.
       apply bi.pure_mono; intros.
-      apply make_args0_tc_environ; auto.
+      simpl. apply tc_option_val_None; done.
 Qed.
 
 Inductive return_outer_gen: ret_assert -> ret_assert -> Prop :=
@@ -1416,21 +1460,22 @@ Proof.
   destruct P3; auto.
 Qed.
 
-Inductive return_inner_gen (S: list mpred): option val -> (assert) -> (assert) -> Prop :=
+(* TODO maybe we can combine return_inner_gen_canon_nil' and return_inner_gen_canon_Some'? *)
+Inductive return_inner_gen (S: list mpred): option val -> (postassert) -> (assert) -> Prop :=
 | return_inner_gen_main: forall ov_gen P u,
-    return_inner_gen S ov_gen (main_post P u) (PROPx nil (LOCALx nil (SEPx (True :: S))))
+    return_inner_gen S ov_gen (postassert_of (main_post P u)) (PROPx nil (LOCALx nil (SEPx (True :: S))))
 | return_inner_gen_canon_nil':
-    forall ov_gen P R,
-      return_inner_gen S ov_gen
-        (PROPx P (LOCALx nil (SEPx R)))
+    forall P R,
+      return_inner_gen S None
+        (PROPx P (RETURNx None (SEPx R)))
         (PROPx P (LOCALx nil (SEPx (R ++ S))))
 | return_inner_gen_canon_Some':
     forall P v R v_gen,
       return_inner_gen S (Some v_gen)
-        (PROPx P (LOCALx (temp ret_temp v :: nil) (SEPx R)))
+        (PROPx P (RETURNx (Some v) (SEPx R)))
         (PROPx (P ++ (v_gen = v) :: nil) (LOCALx nil (SEPx (R ++ S))))
 | return_inner_gen_EX':
-    forall ov_gen (A: Type) (post1 post2: A -> assert),
+    forall ov_gen (A: Type) (post1 : A -> postassert) (post2 : A -> assert),
       (forall a: A, return_inner_gen S ov_gen (post1 a) (post2 a)) ->
       return_inner_gen S ov_gen (∃ x, post1 x) (∃ x, post2 x).
 
@@ -1445,9 +1490,9 @@ Proof.
   auto.
 Qed.
 
-Lemma return_inner_gen_canon_nil S: forall ov_gen P R Res,
+Lemma return_inner_gen_canon_nil S: forall P R Res,
   PROPx P (LOCALx nil (SEPx (VST_floyd_app R S))) = Res ->
-  return_inner_gen S ov_gen (PROPx P (LOCALx nil (SEPx R))) Res.
+  return_inner_gen S None (PROPx P (RETURNx None (SEPx R))) Res.
 Proof.
   intros.
   subst Res.
@@ -1456,7 +1501,7 @@ Qed.
 
 Lemma return_inner_gen_canon_Some S: forall P v R v_gen Res,
   PROPx (VST_floyd_app P ((v_gen = v) :: nil)) (LOCALx nil (SEPx (VST_floyd_app R S))) = Res ->
-  return_inner_gen S (Some v_gen) (PROPx P (LOCALx (temp ret_temp v :: nil) (SEPx R))) Res.
+  return_inner_gen S (Some v_gen) (PROPx P (RETURNx (Some v) (SEPx R))) Res.
 Proof.
   intros.
   subst Res.
@@ -1465,7 +1510,7 @@ Qed.
 
 Lemma return_inner_gen_None_spec: forall S post1 post2,
   return_inner_gen S None post1 post2 ->
-  post2 ⊢ assert_of (fun rho => post1 (make_args nil nil rho)) ∗ SEPx S.
+  post2 ⊢ ⎡post1 None⎤ ∗ SEPx S.
 Proof.
   intros.
   remember None eqn:?H.
@@ -1475,7 +1520,8 @@ Proof.
     rewrite !bi.and_elim_r //.
   + rewrite /PROPx /LOCALx /SEPx fold_right_sepcon_app embed_sep.
     split => rho; monPred.unseal.
-    iIntros "($ & $ & $ & $)".
+    iIntros "($ & _ & $ & $)".
+    iPureIntro. done.
   + inversion H0.
   + iIntros "(%a & ?)".
     iDestruct (H0 with "[$]") as "(? & $)"; first done.
@@ -1485,7 +1531,7 @@ Qed.
 Lemma return_inner_gen_Some_spec: forall S v_gen post1 post2,
   v_gen <> Vundef ->
   return_inner_gen S (Some v_gen) post1 post2 ->
-  post2 ⊢ assert_of (fun rho => post1 (make_args (ret_temp :: nil) (v_gen :: nil) rho)) ∗ SEPx S.
+  post2 ⊢ ⎡post1 (Some v_gen)⎤ ∗ SEPx S.
 Proof.
   intros.
   remember (Some v_gen) eqn:?H.
@@ -1493,22 +1539,22 @@ Proof.
   + unfold main_post.
     split => rho; rewrite /PROPx /LOCALx /SEPx; monPred.unseal; simpl.
     rewrite !bi.and_elim_r //.
-  + rewrite /PROPx /LOCALx /SEPx fold_right_sepcon_app embed_sep.
+  + rewrite /PROPx /LOCALx /RETURNx /SEPx fold_right_sepcon_app embed_sep.
     split => rho; monPred.unseal.
-    iIntros "($ & $ & $ & $)".
+    iIntros "($ & _ & $ & $)".
+    iPureIntro. done.
   + erewrite PROPx_Permutation by apply Permutation_app_comm.
     rewrite gather_SEP PROP_LOCAL_sep1; apply bi.sep_mono; last done.
-    rewrite /PROPx /LOCALx /SEPx; split => rho; monPred.unseal.
+    rewrite /PROPx /LOCALx /RETURNx /SEPx; split => rho; monPred.unseal.
     rewrite fold_right_sepcon_eq.
-    iIntros "((% & $) & _ & $ & _)"; inv H1.
-    iPureIntro; unfold_lift.
-    rewrite eval_id_same //.
+    iIntros "((% & $) & _ & $ & $)"; inv H1.
+    iPureIntro; done.
   + iIntros "(% & H)".
     rewrite H0 //.
     iDestruct "H" as "(? & $)"; iStopProof; split => rho; monPred.unseal; eauto.
 Qed.
 
-Lemma semax_return_None: forall E Delta Ppre Qpre Rpre Post1 sf SEPsf post2 post3,
+Lemma semax_return_None: forall E Delta Ppre Qpre Rpre Post1 sf SEPsf (post2:postassert) (post3:assert),
   ret_type Delta = Tvoid ->
   return_outer_gen Post1 (frame_ret_assert (function_body_ret_assert (ret_type Delta) post2) sf) ->
   ENTAIL Delta, PROPx Ppre (LOCALx Qpre (SEPx SEPsf)) ⊢ sf ->
@@ -1536,7 +1582,7 @@ Qed.
 
 Local Arguments typecheck_expr : simpl never.
 
-Lemma semax_return_Some: forall E Delta Ppre Qpre Rpre Post1 sf SEPsf post2 post3 ret v_gen,
+Lemma semax_return_Some: forall E Delta Ppre Qpre Rpre Post1 sf SEPsf (post2:postassert) (post3:assert) ret v_gen,
   ENTAIL Delta, PROPx Ppre (LOCALx Qpre (SEPx Rpre)) ⊢ local (`(eq v_gen) (eval_expr (Ecast ret (ret_type Delta)))) ->
   ENTAIL Delta, PROPx Ppre (LOCALx Qpre (SEPx Rpre)) ⊢ tc_expr Delta (Ecast ret (ret_type Delta)) ->
   return_outer_gen Post1 (frame_ret_assert (function_body_ret_assert (ret_type Delta) post2) sf) ->
@@ -1692,7 +1738,7 @@ Lemma lvar_eval_lvar:
   forall i t v rho, locald_denote (lvar i t v) rho -> eval_lvar i t rho = v.
 Proof.
 unfold eval_lvar; intros. hnf in H.
-destruct (Map.get (ve_of rho) i) as [[? ?]|]; try contradiction.
+destruct (ve_of rho !! i)%stdpp as [[? ?]|]; try contradiction.
 destruct H; subst. rewrite eqb_type_refl; auto.
 Qed.
 
@@ -1701,7 +1747,7 @@ Lemma lvar_eval_var:
 Proof.
 intros.
 unfold eval_var. hnf in H.
-destruct (Map.get (ve_of rho) i) as [[? ?]|]; try contradiction.
+destruct (ve_of rho !! i)%stdpp as [[? ?]|]; try contradiction.
 destruct H; subst. rewrite eqb_type_refl; auto.
 Qed.
 
@@ -1720,7 +1766,7 @@ Lemma lvar_isptr:
   forall i t v rho, locald_denote (lvar i t v) rho -> isptr v.
 Proof.
 intros. hnf in H.
-destruct (Map.get (ve_of rho) i) as [[? ?]|]; try contradiction.
+destruct (ve_of rho !! i)%stdpp as [[? ?]|]; try contradiction.
 destruct H; subst; apply Coq.Init.Logic.I.
 Qed.
 
@@ -1770,20 +1816,22 @@ Proof.
   reflexivity.
 Qed.
 
-Lemma bind_ret_noret : forall P (R : list mpred), bind_ret None tvoid (PROPx P (LOCALx [] (SEPx R))) = PROPx P (LOCALx [] (SEPx R)).
+Lemma bind_ret_noret : forall P (R : list mpred), bind_ret None tvoid (PROPx P (RETURNx None (SEPx R))) = PROPx P (LOCALx [] (SEPx R)).
 Proof.
   intros.
   unfold bind_ret; simpl.
   apply assert_ext; intros.
-  unfold PROPx, LOCALx, SEPx; monPred.unseal; reflexivity.
+  unfold PROPx, LOCALx, RETURNx, SEPx; monPred.unseal.
+  repeat f_equiv.
+  apply prop_ext. done.
 Qed.
 
-Lemma bind_ret_exist : forall {A} (P : A -> assert), bind_ret(Σ := Σ) None tvoid (∃ x : A, P x) = ∃ x : A, bind_ret None tvoid (P x).
+Lemma bind_ret_exist : forall {A} (P : A -> postassert), bind_ret(Σ := Σ) None tvoid (∃ x : A, P x) = ∃ x : A, bind_ret None tvoid (P x).
 Proof.
   intros.
   unfold bind_ret; simpl.
   apply assert_ext; intros.
-  unfold PROPx, LOCALx, SEPx; monPred.unseal; reflexivity.
+  unfold PROPx, LOCALx, RETURNx, SEPx; monPred.unseal; reflexivity.
 Qed.
 
 End VST.

@@ -239,6 +239,7 @@ Proof.
   + destruct (Memory.Mem.weak_valid_pointer m b (Ptrofs.unsigned i)) eqn:?; simpl; split; congruence.
 Qed.
 
+(* TODO try getting rid of retval *)
 Definition retval : environ -> val := eval_id ret_temp.
 
 Lemma simpl_get_result1:

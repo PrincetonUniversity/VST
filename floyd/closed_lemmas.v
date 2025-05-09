@@ -221,14 +221,14 @@ Local Notation assert := (@assert Σ).
 *)
 
 Lemma closed_wrt_embed {Σ: gFunctors} : forall S (Q : iProp Σ), 
-   closed_wrt_vars S (⎡Q⎤:  monPred environ_index (ouPredI (iResUR Σ))).
+   closed_wrt_vars S (⎡Q⎤:  monPred env_index (ouPredI (iResUR Σ))).
 Proof.
 intros.
 intros ? ? ?.
 by monPred.unseal.
 Qed.
 Lemma closed_wrtl_embed {Σ: gFunctors} : forall S (Q : iProp Σ), 
-   closed_wrt_lvars S (⎡Q⎤:  monPred environ_index (ouPredI (iResUR Σ))).
+   closed_wrt_lvars S (⎡Q⎤:  monPred env_index (ouPredI (iResUR Σ))).
 Proof.
 intros.
 intros ? ? ?.
@@ -1761,7 +1761,7 @@ Qed.
 
 
 Lemma closed_wrt_SEPx: forall {Σ: gFunctors} S P,
-     closed_wrt_vars S (SEPx P : monPred environ_index (iPropI Σ)).
+     closed_wrt_vars S (SEPx P : monPred env_index (iPropI Σ)).
 Proof.
 intros.
 unfold SEPx.
@@ -1769,7 +1769,7 @@ apply closed_wrt_embed.
 Qed.
 
 Lemma closed_wrtl_SEPx: forall {Σ: gFunctors} S P,
-     closed_wrt_lvars S (SEPx P : monPred environ_index (iPropI Σ)).
+     closed_wrt_lvars S (SEPx P : monPred env_index (iPropI Σ)).
 Proof.
 intros.
 unfold SEPx.

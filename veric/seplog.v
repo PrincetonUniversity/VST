@@ -21,8 +21,8 @@ Section mpred.
 Context `{!heapGS Σ} `{!envGS Σ}.
 Local Notation mpred := (@mpred Σ).
 Local Notation funspec := (@funspec Σ).
-Local Notation assert := (@assert Σ).
-Local Notation argsassert := (@argsassert Σ).
+(* Local Notation assert := (@assert Σ).
+Local Notation argsassert := (@argsassert Σ). *)
 
 Inductive Annotation :=
   WeakAnnotation : (environ -> mpred) -> Annotation

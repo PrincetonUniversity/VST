@@ -81,6 +81,8 @@ Fixpoint ext_link_prog' (dl: list (ident * globdef fundef type)) (s: String.stri
  | nil => None
  end.
 
+Definition globals := ident -> val.
+
 Definition ext_link_prog (p: program) (s: String.string) : ident :=
   match ext_link_prog' (prog_defs p) s with Some id => id | None => 1%positive end.
 

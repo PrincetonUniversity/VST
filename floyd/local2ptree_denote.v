@@ -750,7 +750,7 @@ Proof.
   intros.
   eapply local2ptree_soundness in H.
   match goal with |- LOCALx _ ?B ⊣⊢ _ =>
-    assert (H0: B ⊣⊢ (@SEPx environ_index Σ (True::nil)))
+    assert (H0: B ⊣⊢ (@SEPx env_index Σ (True::nil)))
   end.
   {  unfold SEPx. simpl. rewrite bi.sep_emp embed_pure //. }
   rewrite H0.

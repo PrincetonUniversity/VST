@@ -571,7 +571,7 @@ Ltac entailer :=
         clear MORE_COMMANDS
       end;
  lazymatch goal with
- | |- @bi_entails (monPredI environ_index (iPropI _)) _ _ => clean_up_stackframe; go_lower
+ | |- @bi_entails (monPredI env_index (iPropI _)) _ _ => clean_up_stackframe; go_lower
  | |- ?P ⊢ _ =>
     lazymatch type of P with
     | ?T => tryif unify T mpred
@@ -598,7 +598,7 @@ Ltac entbang :=
  lazymatch goal with
  | |- local _ ∧ ?P ⊢ _ => clean_up_stackframe; go_lower;
           rewrite ?bi.True_and ?bi.and_True; try apply bi.True_intro
- | |- @bi_entails (monPredI environ_index (iPropI _)) _ _ =>
+ | |- @bi_entails (monPredI env_index (iPropI _)) _ _ =>
         fail "entailer! found an assert entailment that is missing its 'local' left-hand-side part (that is, Delta)"
  | |- ?P ⊢ _ =>
     lazymatch type of P with
