@@ -152,8 +152,17 @@ unfold FF; simpl.
 auto.
 Qed.
 
+Ltac simpl_fst_snd :=
+  match goal with |- context[@fst ident funspec ?A] =>
+     let j := eval hnf in A in 
+     match j with (?x,?y) => 
+      try change (fst A) with x;
+      try change (snd A) with y
+     end
+    end.
+
 Ltac SF_vacuous :=
- try change (fst (?a,?b)) with a; try change (snd (?a,?b)) with b;
+ try simpl_fst_snd;
  match goal with |- SF _ _ _ (vacuous_funspec _) => idtac end;
  match goal with H: @eq compspecs _ _ |- _ => rewrite <- H end;
 red; red; repeat simple apply conj;

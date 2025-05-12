@@ -192,10 +192,12 @@ Ltac inhabited_value T :=
  | _ => match goal with
             | x:T |- _ => x 
             | x := _ : T |- _ => x
-            | _ => let t := eval unfold T in T in
+            | _ =>  (* commented out, see issue #762
+                   let t := eval unfold T in T in
                    tryif constr_eq t T 
-                   then fail 3 "cannot prove that type" T "is inhabited, so cannot compute deadvars.  Fix this by asserting (X:"T") above the line"
-                   else inhabited_value t
+                   then*) fail 3 "cannot prove that type" T "is inhabited, so cannot compute deadvars.  Fix this by asserting (X:"T") above the line"
+                   (* commented out, see issue #762 
+                      else inhabited_value t *)
             end
  end.
 

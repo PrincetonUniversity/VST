@@ -4180,18 +4180,18 @@ Ltac function_types_compatible t1 t2 :=
 Ltac check_parameter_vals Delta al :=
  (* Work very carefully here to avoid simplifying or computing v,
     in case v contains something that will blow up *)
- match al with
+ lazymatch al with
  | temp ?i ?v :: ?al' =>
     let ti := constr:(PTree.get i (temp_types Delta)) in
     let ti := eval compute in ti in 
-    match ti with
+    lazymatch ti with
     | Some ?t =>
         let w := constr:(tc_val_dec t v) in
         let y := eval cbv beta iota delta [is_int_dec is_long_dec 
                          is_float_dec is_single_dec is_pointer_or_integer_dec
                          is_pointer_or_null_dec isptr_dec tc_val_dec] in w in
-        match y with
-          | right _ => fail 4 "Local variable" i "cannot hold the value" v "(wrong type)"
+        lazymatch y with
+          | right _ => fail "Local variable" i "cannot hold the value" v "(wrong type)"
           | left _ => idtac
 (*  optionally, give warning
           | _ => let W := fresh "Warning_could_not_prove_this_if_its_false_then_the_caller_wont_be_able_satisfy_the_function_precondition" in 
@@ -4199,7 +4199,7 @@ Ltac check_parameter_vals Delta al :=
 *)
           | _ => idtac (* no optional warning *)
         end
-    | None => fail 3 "Identifer" i "is not a local variable of this function"
+    | None => fail "Identifer" i "is not a local variable of this function"
     end;
     check_parameter_vals Delta al'
  | _ :: ?al' => check_parameter_vals Delta al'
