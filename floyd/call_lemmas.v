@@ -55,7 +55,7 @@ Lemma semax_call': forall Delta fs A E Pre Post x ret argsig retsig cc a bl P Q 
      ∗ ▷PROPx P (LOCALx Q (SEPx R))))
           (Scall ret a bl)
           (normal_ret_assert
-            (maybe_retval (assert_of (Post x)) retsig ret ∗
+            (maybe_retval (Post x ) retsig ret ∗
                PROPx P (LOCALx (removeopt_localdef ret Q) (SEPx R)))).
 Proof.
   intros.

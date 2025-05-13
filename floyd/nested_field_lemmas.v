@@ -1839,7 +1839,7 @@ Lemma lvar_size_compatible:
   size_compatible t v.
 Proof.
 intros. hnf in H.
-destruct (Map.get (ve_of rho) id) as [[? ?] | ]; try contradiction.
+destruct (ve_of rho !! id)%stdpp as [[? ?] | ]; try contradiction.
 destruct H; subst.
 red.
 rewrite Ptrofs.unsigned_zero. rewrite Z.add_0_l; auto.
@@ -1856,7 +1856,7 @@ Proof.
   intros.
   pose proof (lvar_size_compatible _ _ _ _ H).
   hnf in H.
-  destruct (Map.get (ve_of rho) id); try contradiction.
+  destruct (ve_of rho !! id)%stdpp; try contradiction.
   destruct p. destruct H. subst v t0.
   repeat split; auto.
   hnf.
