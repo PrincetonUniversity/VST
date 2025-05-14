@@ -602,8 +602,7 @@ intros.
 unfold semax_body in *.
 destruct s as [id fs].
 destruct fs.
-destruct H0 as [H0' [H0'' H0]]; split3; auto.
-clear H0'.
+destruct H0 as [H0'' H0]; split; auto.
 intros.
 specialize (H0 _ x).
 eapply semax_Delta_subsumption; [ | apply H0].

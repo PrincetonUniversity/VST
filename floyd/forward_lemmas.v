@@ -54,11 +54,9 @@ rewrite /vacuous_funspec /= /typesig_of_funsig /= typelist2list_arglist.
 * intros. unfold monPred_at. done.
 * eassumption.
 * assumption.
-* erewrite (@OfeMor_eq (leibnizO Impossible) (discrete_funO (fun _ : argsEnviron_index => ouPredO (iResUR Σ))) (λ _, monPred_at False)
-    (λ _, monPred_at False)) by done.
-  erewrite (@OfeMor_eq (leibnizO Impossible) (discrete_funO (fun _ : environ_index => ouPredO (iResUR Σ))) (λ _, monPred_at False)
-    (λ _, monPred_at False)) by done.
-  apply semax_external_FF.
+* pose proof (semax_external_FF ef (ConstType Impossible) (λne _, ⊤)) as Hvac.
+  simpl in Hvac. match goal with H : ?f |- ?g => assert (f = g) as <-; last done end.
+  repeat f_equal; apply proof_irr.
 Qed.
 
 Lemma semax_func_cons_int_vacuous
@@ -74,7 +72,7 @@ Lemma semax_func_cons_int_vacuous
   (CTvars: Forall (fun it : ident * type => complete_type cenv_cs (snd it) = true) (fn_vars ifunc))
   (LNR_PT: list_norepet (map fst (fn_params ifunc) ++ map fst (fn_temps ifunc)))
   (LNR_Vars: list_norepet (map fst (fn_vars ifunc)))
-  (VarSizes: @semax.var_sizes_ok cenv_cs (fn_vars ifunc))
+  (VarSizes: var_sizes_ok (fn_vars ifunc))
   (Sfunc: semax_func V G ge fs G'):
   semax_func V G ge ((id, Internal ifunc) :: fs)
     ((id, vacuous_funspec (Internal ifunc)) :: G').
@@ -84,8 +82,7 @@ eapply semax_func_cons; try eassumption.
   apply compute_list_norepet_i in LNR_PT. rewrite LNR_PT.
   apply compute_list_norepet_i in LNR_Vars. rewrite LNR_Vars. trivial.
 + destruct ifunc; simpl; trivial.
-+ red; simpl. split3.
-  - destruct ifunc; simpl; trivial.
++ red; simpl. split.
   - destruct ifunc; simpl; trivial.
   - intros ? Impos. inv Impos.
 Qed.
@@ -102,7 +99,7 @@ Lemma semax_prog_semax_func_cons_int_vacuous
   (CTvars: Forall (fun it : ident * type => complete_type cenv_cs (snd it) = true) (fn_vars ifunc))
   (LNR_PT: list_norepet (map fst (fn_params ifunc) ++ map fst (fn_temps ifunc)))
   (LNR_Vars: list_norepet (map fst (fn_vars ifunc)))
-  (VarSizes: @semax.var_sizes_ok cenv_cs (fn_vars ifunc))
+  (VarSizes: var_sizes_ok (fn_vars ifunc))
   (Sfunc: semax_prog.semax_func OK_spec V G ge fs G'):
   semax_prog.semax_func OK_spec V G ge ((id, Internal ifunc) :: fs)
     ((id, vacuous_funspec (Internal ifunc)) :: G').
@@ -394,10 +391,9 @@ eapply semax_pre_simple; [ | apply semax_break].
 destruct Post as [?P ?P ?P ?P]; simpl.
 split => rho; monPred.unseal; normalize.
 eapply derives_trans; [ | apply H1].
-rewrite (bi.and_comm (Q rho)).
 simpl.
 raise_rho.
-done.
+iIntros "$". done.
 *
 eapply semax_pre_simple; [ | apply H2].
 rewrite bi.and_elim_r.

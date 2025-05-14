@@ -73,7 +73,7 @@ End NoOracle.
 Notation "P |-- Q" := (P ⊢ Q)
   (at level 99, Q at level 200, right associativity, only parsing) : stdpp_scope.
 Notation " 'ENTAIL' d ',' P |-- Q " :=
-  (@bi_entails (monPredI environ_index (iPropI _)) (local (tc_environ d) ∧ P%assert) Q%assert) (at level 99, P at level 98, Q at level 98).
+  (@bi_entails (monPredI env_index (iPropI _)) (local (tc_environ d) ∧ P%assert) Q%assert) (at level 99, P at level 98, Q at level 98).
 Notation "'!!' φ" := (bi_pure φ%type%stdpp) (at level 15) : bi_scope.
 Notation "P && Q" := (P ∧ Q)%I (only parsing) : bi_scope.
 Notation "P || Q" := (P ∨ Q)%I (only parsing) : bi_scope.

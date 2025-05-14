@@ -241,6 +241,19 @@ Proof.
       intros ? (? & ?); rewrite cenv_sub_sizeof //.
 Qed.
 
+Lemma tc_eval_exprlist:
+  forall {CS'} Delta tys bl rho,
+    typecheck_environ Delta rho ->
+    tc_exprlist(CS := CS') Delta tys bl rho ⊢
+    ⌜tc_vals tys (eval_exprlist tys bl rho)⌝.
+Proof.
+induction tys; destruct bl; simpl in *; intros; auto.
+unfold tc_exprlist in *; simpl.
+unfold typecheck_expr; fold typecheck_expr.
+rewrite !denote_tc_assert_andp IHtys // tc_val_sem_cast //.
+unfold_lift; auto.
+Qed.
+
 Lemma tc_vals_length: forall tys vs, tc_vals tys vs -> length tys = length vs.
 Proof.
 induction tys; destruct vs; simpl; intros; auto; try contradiction.

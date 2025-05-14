@@ -432,8 +432,6 @@ Section heap.
 
 Context `{!heapGS Σ} `{!envGS Σ}.
 
-Definition argsassert := (genviron * list val) -> assert.
-
 (* funspecs on mpreds *)
 Definition funspec := funspec_ mpred mpred.
 Definition NDmk_funspec (sig : typesig) (cc : calling_convention) A (P : A -> (genviron * list val) -> mpred) (Q : A -> option val -> mpred) : funspec :=

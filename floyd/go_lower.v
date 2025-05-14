@@ -11,12 +11,12 @@ Import LiftNotation.
 Import -(notations) compcert.lib.Maps.
 
 Ltac unfold_for_go_lower :=
-  cbv delta [PROPx LAMBDAx PARAMSx GLOBALSx LOCALx SEPx argsassert2assert locald_denote
+  cbv delta [PROPx LAMBDAx PARAMSx GLOBALSx LOCALx RETURNx SEPx locald_denote
                        eval_exprlist eval_expr eval_lvalue cast_expropt
                        eval_binop eval_unop force_val1 force_val2
                       msubst_tc_expropt msubst_tc_expr msubst_tc_exprlist msubst_tc_lvalue msubst_tc_LR (* msubst_tc_LR_strong *) msubst_tc_efield msubst_simpl_tc_assert 
                       function_body_ret_assert frame_ret_assert
-                      make_args' bind_ret get_result1 retval
+                      make_args' bind_ret get_result1
                        classify_cast
                        (* force_val sem_cast_neutral ... NOT THESE TWO!  *)
                       expr2.denote_tc_assert (* tc_andp tc_iszero *)
@@ -96,7 +96,7 @@ revert H; monPred.unseal; intros H.
 apply bi.pure_elim_l; intros Hlvar.
 apply H; auto.
 unfold lvar_denote in Hlvar.
-destruct (Map.get (ve_of rho) i) as [(?, ?)|]; try contradiction.
+destruct (ve_of rho !! i)%stdpp as [(?, ?)|]; try contradiction.
 destruct Hlvar; unfold headptr; eauto.
 Qed.
 
@@ -245,7 +245,7 @@ Proof.
   + simpl.
     assert (headptr v); [| split; [| split]; auto; apply headptr_isptr; auto].
     unfold lvar_denote in H0.
-    destruct (Map.get (ve_of rho) i); [| inversion H0].
+    destruct (ve_of rho !! i)%stdpp; [| inversion H0].
     destruct p, H0; subst.
     hnf; eauto.
   + unfold localdef_tc.
@@ -450,7 +450,8 @@ Proof.
   rewrite assoc msubst_eval_lvalue_eq //.
   split => rho; monPred.unseal.
   normalize.
-  apply bi.pure_elim_r; intros ->; done.
+  unfold_lift in *.
+  rewrite -H1 //.
 Qed.
 
 Lemma go_lower_localdef_canon_eval_expr {cs: compspecs} : forall Delta Ppre Qpre Rpre e T1 T2 GV u v,
@@ -463,7 +464,8 @@ Proof.
   rewrite assoc msubst_eval_expr_eq //.
   split => rho; monPred.unseal.
   normalize.
-  apply bi.pure_elim_r; intros ->; done.
+  unfold_lift in *.
+  rewrite -H1 //.
 Qed.
 
 Inductive clean_LOCAL_right (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t (type * val)) (GV: option globals): assert -> mpred -> Prop :=
