@@ -90,7 +90,7 @@ Notation " 'LOCAL' ( x ; .. ; y )   z" := (LOCALx (cons x%type .. (cons y%type n
          (at level 9) : assert3.
 
 Definition RETURNx `{!heapGS Σ} (ret_v: option val) (Q: postassert) : postassert :=
-  postassert_of (fun v => ⌜v=ret_v⌝ ∧ Q ret_v).
+  postassert_of (fun v => ⌜v=ret_v ∧ ret_v ≠ Some Vundef⌝ ∧ Q ret_v).
 
 Notation " 'RETURN' () z" := (RETURNx None z%assert5) (at level 9) : assert3.
 Notation " 'RETURN' ( ) z" := (RETURNx None z%assert5) (at level 9) : assert3.
@@ -1548,7 +1548,7 @@ Proof.
     rewrite /PROPx /LOCALx /RETURNx /SEPx; split => rho; monPred.unseal.
     rewrite fold_right_sepcon_eq.
     iIntros "((% & $) & _ & $ & $)"; inv H1.
-    iPureIntro; done.
+    iPureIntro; split;[split|]; try done. injection. done.
   + iIntros "(% & H)".
     rewrite H0 //.
     iDestruct "H" as "(? & $)"; iStopProof; split => rho; monPred.unseal; eauto.
@@ -1823,7 +1823,7 @@ Proof.
   apply assert_ext; intros.
   unfold PROPx, LOCALx, RETURNx, SEPx; monPred.unseal.
   repeat f_equiv.
-  apply prop_ext. done.
+  { apply prop_ext. done. }
 Qed.
 
 Lemma bind_ret_exist : forall {A} (P : A -> postassert), bind_ret(Σ := Σ) None tvoid (∃ x : A, P x) = ∃ x : A, bind_ret None tvoid (P x).

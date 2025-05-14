@@ -145,8 +145,7 @@ go_lowerx.
 rewrite -sep_exist_r; cancel.
 unfold lvar_denote.
 normalize.
-unfold Map.get.
-destruct (ve_of rho id) as [[? ?] | ] eqn:?.
+destruct (ve_of rho !! id)%stdpp as [[? ?] | ] eqn:Hve_id; rewrite Hve_id.
 destruct (eqb_type t t0) eqn:?.
 apply eqb_type_true in Heqb0.
 subst t0.
@@ -182,13 +181,13 @@ assert (Ptrofs.unsigned Ptrofs.zero + sizeof t <= Ptrofs.modulus)
 unfold var_block.
 simpl @fst; simpl @snd.
 monPred.unseal.
-rewrite ->prop_true_andp
-  by (change (Ptrofs.max_unsigned) with (Ptrofs.modulus-1); lia).
+rewrite ->prop_true_andp.
+  2: { change (Ptrofs.max_unsigned) with (Ptrofs.modulus-1). unfold sizeof in H1. lia. }
 unfold_lift.
 rewrite (lvar_eval_lvar _ _ _ _ H4).
 rewrite memory_block_data_at_; auto.
 hnf in H5.
-destruct ( Map.get (ve_of rho) id); try contradiction.
+destruct (ve_of rho !! id)%stdpp eqn:Hve_id; rewrite Hve_id in H4; try contradiction.
 destruct p.
 destruct H4; subst.
 repeat split; auto.
@@ -276,7 +275,7 @@ Qed.
 #[export] Hint Rewrite tc_option_val'_eq : norm.
 
 Lemma emp_make_ext_rval `{heapGS Σ}:
-  forall ge t v, @bi_emp assert (make_ext_rval ge t v) = emp.
+  forall t v, @monPred_at post_index mpred bi_emp ((make_ext_rval t v): post_index) = emp.
 Proof. intros. monPred.unseal. reflexivity. Qed.
 #[export] Hint Rewrite @emp_make_ext_rval : norm2.
 
@@ -533,11 +532,9 @@ Proof.
 Qed.
 
 Lemma typecheck_return_value:
-  forall `{HH: heapGS Σ} (f: val -> Prop)  t (v: val) (gx: genviron) (ret: option val) P R,
+  forall `{HH: heapGS Σ} (f: val -> Prop)  t (v: val) (ret: option val) P R,
  f v -> 
- (PROPx P
- (LOCALx (temp ret_temp v::nil)
- (SEPx R))) (make_ext_rval gx t ret) ⊢ ⌜f (force_val ret)⌝.
+ (PROPx P (RETURNx (Some v) (SEPx R))) (make_ext_rval t ret) ⊢ ⌜f (force_val ret)⌝.
 Proof.
 intros.
  rewrite <- insert_local.
