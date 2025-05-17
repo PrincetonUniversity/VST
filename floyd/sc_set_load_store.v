@@ -1550,7 +1550,7 @@ Ltac SEP_field_at_unify' gfs :=
       unify vl vr;
       equal_pointers pl pr;
       constr_eq csl csr +
-      fail 12 "Two different compspecs present:" 
+      fail 14 "Two different compspecs present:" 
          csl "and" csr 
         ".  Try using change_compspecs, or use VSUs";
 
