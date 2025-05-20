@@ -536,20 +536,16 @@ Lemma typecheck_return_value:
  f v -> 
  (PROPx P (RETURNx (Some v) (SEPx R))) (make_ext_rval t ret) ⊢ ⌜f (force_val ret)⌝.
 Proof.
-intros.
- rewrite <- insert_local.
- rewrite monPred_at_and.
- apply bi.pure_elim_l; intro.
- hnf in H0. unfold_lift in H0.
- destruct H0.
+intros. 
+rewrite !monPred_at_and /= !monPred_at_pure.
+apply bi.pure_elim_l; intro.
+apply bi.pure_elim_l; intro.
 apply bi.pure_intro.
-unfold make_ext_rval in H0.
+destruct H1.
+unfold make_ext_rval in H1.
 destruct (xtype_eq t Xvoid).
-subst t.
-unfold eval_id in H0; simpl in H0. contradiction.
-destruct t; try contradiction;
-destruct ret; try (change (v = v0) in H0; subst v0; auto);
-change (v = Vundef) in H0; contradiction.
+- subst t. done.
+- destruct t; try contradiction; rewrite H1 //.
 Qed.
 
 Ltac semax_func_cons_ext :=
@@ -1137,7 +1133,7 @@ eapply (semax_call_id00_wow H);
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [ check_result_type 
  | fix_up_simplified_postcondition;
-    cbv beta iota zeta; rewrite ?assert_of_at; unfold_post;
+    cbv beta iota zeta; unfold_post;
     constructor; let rho := fresh "rho" in intro rho; cbn [monPred_at assert_of ofe_mor_car];
     repeat rewrite exp_uncurry;
     repeat rewrite monPred_at_exist;
@@ -3129,7 +3125,7 @@ Proof.
  intros.
  unfold_lift. unfold subst. extensionality. f_equal.
  unfold eval_id.
- rewrite Map.gso //.
+ rewrite lookup_insert_ne //.
 Qed.
 #[export] Hint Rewrite subst_temp_special using safe_auto_with_closed: subst.
 
@@ -3437,7 +3433,7 @@ Ltac forward0 :=  (* USE FOR DEBUGGING *)
                | unfold Post; clear Post ]
   end.
 
-Lemma bind_ret_derives `{!VSTGS OK_ty Σ} t P Q v: (P ⊢ Q) -> bind_ret(Σ:=Σ) v t P ⊢ bind_ret v t Q.
+Lemma bind_ret_derives `{!VSTGS OK_ty Σ} t (P Q:postassert) v: (P ⊢ Q) -> bind_ret(Σ:=Σ) v t P ⊢ bind_ret v t Q.
 Proof. intros. destruct v.
   - simpl; intros. raise_rho. apply bi.and_mono. done. rewrite H. done.
   - destruct t; try apply derives_refl. simpl; raise_rho. rewrite H. done. 
@@ -4356,7 +4352,7 @@ end.
 
 Lemma elim_close_precondition:
   forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {cs: compspecs} E al Delta P F c Q,
-   semax E Delta (argsassert2assert al P ∗ F) c Q ->
+   semax E Delta (argsassert_of al P ∗ F) c Q ->
    semax E Delta (close_precondition al P ∗ F) c Q.
 Proof.
 intros.
