@@ -43,10 +43,7 @@ match f1 with
         (⌜argsHaveTyps(snd gargs)(fst tpsig1)⌝ ∧ P2 x2 gargs)
          ⊢ |={E2 x2}=> (∃ x1:_, ∃ F:_,
                            ⌜E1 x1 ⊆ E2 x2⌝ ∧ (F ∗ (P1 x1 gargs)) ∧
-                               (⌜forall rho',
-                                           (⌜ve_of rho' = Map.empty (block * type)⌝ ∧
-                                                 (F ∗ (Q1 x1 rho')))
-                                         ⊢ (Q2 x2 rho')⌝))
+                               (⌜forall ret_v, F ∗ (Q1 x1 ret_v) ⊢ Q2 x2 ret_v⌝))
  | _ => False%type end
  | _ => False%type end.
 
@@ -129,7 +126,7 @@ Proof.
   iExists x2, emp; iFrame.
   iSplit; iPureIntro; first done.
   split; first done.
-  intros; iIntros "(_ & ? & $)".
+  intros; iIntros "(_ & $)".
 Qed.
 
 Lemma NDfunspec_sub_trans:
@@ -153,7 +150,7 @@ Proof.
   iExists _, (F ∗ F0); iFrame.
   iModIntro; iSplit; iPureIntro; first done.
   split; first done.
-  intros; iIntros "(% & (? & ?) & ?)".
+  intros; iIntros "((? & ?) & ?)".
   rewrite -Hpost; iFrame; iFrame "%".
   rewrite -Hpost1; iFrame; iFrame "%".
 Qed.
@@ -174,7 +171,7 @@ Lemma semax_call_subsume:
           (▷(F ∗ assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho))))))
          (Scall ret a bl)
          (normal_ret_assert
-          (∃ old:val, assert_of (substopt ret (`old) F) ∗ maybe_retval (assert_of (Q x)) retsig ret)).
+          (∃ old:val, assert_of (substopt ret (`old) F) ∗ maybe_retval (Q x) retsig ret)).
 Proof.
   intros.
   eapply semax_pre, semax_call; [|done..].
@@ -197,7 +194,7 @@ Lemma semax_call_subsume_si:
           (▷(F ∗ assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho))))))
          (Scall ret a bl)
          (normal_ret_assert
-          (∃ old:val, assert_of (substopt ret (`old) F) ∗ maybe_retval (assert_of (Q x)) retsig ret)).
+          (∃ old:val, assert_of (substopt ret (`old) F) ∗ maybe_retval (Q x) retsig ret)).
 Proof.
   intros.
   eapply semax_pre, semax_call; [|done..].
@@ -223,7 +220,7 @@ Lemma semax_call_NDsubsume :
           (▷(F ∗ assert_of (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho))))))
          (Scall ret a bl)
          (normal_ret_assert
-          (∃ old:val, assert_of (substopt ret (`old) F) ∗ maybe_retval (assert_of (Q x)) retsig ret)).
+          (∃ old:val, assert_of (substopt ret (`old) F) ∗ maybe_retval (Q x) retsig ret)).
 Proof.
   intros.
   pose proof (semax_call_subsume fs1 (ConstType A) (λne _, ⊤) (λne (a : leibnizO A), (P a) : _ -d> iProp Σ) (λne (a : leibnizO A), (Q a) : _ -d> iProp Σ) argsig retsig cc) as Hcall.

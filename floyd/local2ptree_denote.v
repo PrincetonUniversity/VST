@@ -612,7 +612,7 @@ apply assert_ext; intros; monPred.unseal; normalize.
 f_equal; apply prop_ext; split.
 - intros (? & ?).
   unfold lvar_denote in *.
-  destruct (Map.get (ve_of rho) i) as [[? ?] | ] eqn:H8; try contradiction.
+  destruct (ve_of rho !! i)%stdpp as [[? ?] | ] eqn:H8; try contradiction.
   destruct H, H0; subst; auto.
 - intros (-> & -> & ?); auto.
 Qed.
@@ -750,7 +750,7 @@ Proof.
   intros.
   eapply local2ptree_soundness in H.
   match goal with |- LOCALx _ ?B ⊣⊢ _ =>
-    assert (H0: B ⊣⊢ (@SEPx environ_index Σ (True::nil)))
+    assert (H0: B ⊣⊢ (@SEPx env_index Σ (True::nil)))
   end.
   {  unfold SEPx. simpl. rewrite bi.sep_emp embed_pure //. }
   rewrite H0.
@@ -821,7 +821,7 @@ destruct H2 as [H3 H2']; subst o.
 pose proof (local2ptree_soundness P Q R t t0 l _ Heqp0) as H3.
 pose proof LocalD_sound_gvars gv t t0 _ eq_refl as H2.
 forget (LocalD t t0 (Some gv)) as Q'.
-assert (forall rho, local(Σ:=Σ) (tc_environ Delta) rho ⊢ ⌜Map.get (ve_of rho) id = None⌝) as TC.
+assert (forall rho, local(Σ:=Σ) (tc_environ Delta) rho ⊢ ⌜ (ve_of rho !! id)%stdpp = None⌝) as TC.
 {  
   intro rho. simpl.
   unfold local, lift1.
@@ -830,10 +830,10 @@ assert (forall rho, local(Σ:=Σ) (tc_environ Delta) rho ⊢ ⌜Map.get (ve_of r
   destruct H4 as [_ [? _]].
   specialize (H4 id).
   rewrite H in H4.
-  destruct (Map.get (ve_of rho) id) as [[? ?] |]; auto.
+  destruct (ve_of rho !! id)%stdpp as [[? ?] |] eqn:?; auto.
   specialize (H4 t1).
   destruct H4 as [_ ?].
-  specialize (H4 (ex_intro _ b eq_refl)).
+  specialize (H4 (ex_intro _ b Heqo)).
   inv H4.
 }
 clear - H2 H2' H3 TC.
@@ -841,11 +841,11 @@ rewrite -insert_SEP.
 unfold func_ptr.
 split => rho; monPred.unseal.
 normalize.
-iIntros "(%H0 & H1 & H2)".  iSplit. 2: { done. }
+iIntros "(H1 & H2)".  iSplit. 2: { done. }
 rewrite H3.
 iPoseProof (in_local _ Delta (l ++ P) _ (SEPx R) H2 with "[H1]") as "H3".
-{ rewrite /PROPx /LOCALx. iSplit;  done. }
-iPoseProof (TC) as "%H4". apply H4 in H0.
+{  iSplit;  done. }
+iPoseProof (TC) as "%H4". apply H4 in H.
 subst p.
 unfold local, lift1; simpl.
 normalize.
@@ -853,7 +853,7 @@ unfold eval_var.
 iDestruct "H3" as "%H5".
 hnf in H5.
 subst gv.
-rewrite H0. done.
+rewrite H. done.
 Qed.
 
 End LOCAL2PTREE_DENOTE.

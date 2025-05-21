@@ -582,10 +582,10 @@ Proof.
            replace (binarithType A B C D E) with tc_TT by (destruct s; auto)
     end; rewrite tc_andp_TT1 tc_andp_TT2 denote_tc_assert_andp.
     apply bi.and_intro; last by rewrite /isCastResultType /=; destruct Archi.ptr64 eqn: Hp; try simple_if_tac; split => rho /=; unfold_lift; apply TT_right.
-    rewrite /tc_nobinover /if_expr_signed /= /denote_tc_initialized -EQ_inv2.
+    rewrite /tc_nobinover /if_expr_signed /=. rewrite /eval_id lookup_empty /=. rewrite /denote_tc_initialized -EQ_inv2 /=.
     split => rho; monPred.unseal; rewrite /lift1; unfold_lift.
     iIntros "(% & (%Hv & %) & _)".
-    destruct s; rewrite /= /denote_tc_nosignedover; unfold_lift; unfold eval_id in *; destruct (Map.get (te_of rho) _i) eqn: Hi; simpl in Hv; subst; try done; simpl;
+    destruct s; rewrite /= /denote_tc_nosignedover; unfold_lift; unfold eval_id in *; destruct (te_of rho !! _i)%stdpp eqn: Hi; simpl in Hv; subst; try done; simpl;
       iPureIntro; (split; [|eexists; done]); try done;
       simpl in IMM; destruct (typeof hi) as [| [| | |] [|] | [|] | | | | | |]; inv IMM;
       rewrite -> ?Int64.signed_repr by rep_lia;
@@ -595,7 +595,7 @@ Proof.
     rewrite /denote_tc_initialized -EQ_inv2.
     split => rho; monPred.unseal; rewrite /lift1; unfold_lift.
     iIntros "(% & (%Hv & %) & _)".
-    unfold eval_id in *; destruct (Map.get (te_of rho) _i) eqn: Hi; simpl in Hv; subst; try done; simpl.
+    unfold eval_id in *; destruct (te_of rho !! _i)%stdpp eqn: Hi; simpl in Hv; subst; try done; simpl.
     eauto.
   + match goal with
     | |- context [ binarithType ?A ?B ?C ?D ?E ] =>
@@ -605,7 +605,7 @@ Proof.
     rewrite /tc_nobinover /if_expr_signed /= /denote_tc_initialized -EQ_inv2.
     split => rho; monPred.unseal; rewrite /lift1; unfold_lift.
     iIntros "(% & (%Hv & %) & _)".
-    destruct s, s0; rewrite /= /denote_tc_nosignedover; unfold_lift; unfold eval_id in *; destruct (Map.get (te_of rho) _i) eqn: Hi; simpl in Hv; subst; try done; simpl;
+    destruct s, s0; rewrite /= /denote_tc_nosignedover /eval_id /= ?lookup_empty /=; unfold_lift; unfold eval_id in *; destruct (te_of rho !! _i)%stdpp eqn: Hi; simpl in Hv; subst; try done; simpl;
       iPureIntro; (split; [|eexists; done]); try done;
       simpl in IMM; destruct (typeof hi) as [| [| | |] [|] | [|] | | | | | |]; inv IMM;
       rewrite -> ?Int64.signed_repr by rep_lia;

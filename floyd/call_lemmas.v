@@ -22,13 +22,13 @@ Section mpred.
 
 Context `{!VSTGS OK_ty Σ} {OK_spec: ext_spec OK_ty} {CS: compspecs}.
 
-Definition maybe_retval (Q: assert) retty ret : assert :=
+Definition maybe_retval (Q: postassert) retty ret : assert :=
  match ret with
- | Some id => assert_of (fun rho => Q (get_result1 id rho))
+ | Some id => assert_of (fun rho => Q (Some (eval_id id rho)))
  | None =>
     match retty with
-    | Tvoid => assert_of (fun rho => Q (globals_only rho))
-    | _ => assert_of (fun rho => ∃ v: val, Q (make_args (ret_temp::nil) (v::nil) rho))
+    | Tvoid => assert_of (fun rho => Q None)
+    | _ => assert_of (fun rho => ∃ v: val, Q (Some v))
     end
  end.
 
@@ -55,7 +55,7 @@ Lemma semax_call': forall Delta fs A E Pre Post x ret argsig retsig cc a bl P Q 
      ∗ ▷PROPx P (LOCALx Q (SEPx R))))
           (Scall ret a bl)
           (normal_ret_assert
-            (maybe_retval (assert_of (Post x)) retsig ret ∗
+            (maybe_retval (postassert_of (Post x)) retsig ret ∗
                PROPx P (LOCALx (removeopt_localdef ret Q) (SEPx R)))).
 Proof.
   intros.
@@ -98,7 +98,7 @@ Lemma semax_call1: forall Delta fs A E Pre Post x id argsig retsig cc a bl P Q R
                   ▷PROPx P (LOCALx Q (SEPx R))))
           (Scall (Some id) a bl)
           (normal_ret_assert
-            (assert_of (fun rho => Post x (get_result1 id rho))
+            (assert_of (fun rho => Post x (Some (eval_id id rho)))
                ∗ PROPx P (LOCALx (remove_localdef_temp id Q) (SEPx R)))).
 Proof.
   intros.
@@ -119,8 +119,7 @@ Lemma semax_call0: forall Delta fs A E Pre Post x
                  ∗ ▷PROPx P (LOCALx Q (SEPx R))))
           (Scall None a bl)
           (normal_ret_assert
-            (ifvoid retty (assert_of (`(Post x: environ -> mpred) (make_args nil nil)))
-                                                        (∃ v:val, assert_of (`(Post x: environ -> mpred) (make_args (ret_temp::nil) (v::nil))))
+            (ifvoid retty ⎡Post x None⎤ (∃ v:val, ⎡Post x (Some v)⎤)
             ∗ PROPx P (LOCALx Q (SEPx R)))).
 Proof.
 intros.
@@ -178,8 +177,7 @@ Lemma semax_call_id0:
                          ∗ PROPx P (LOCALx Q (SEPx R)))))
     (Scall None (Evar id (Tfunction argsig retty cc)) bl)
     (normal_ret_assert
-       ((ifvoid retty (assert_of (`(Post x: environ -> mpred) (make_args nil nil)))
-                                                   (∃ v:val, assert_of (`(Post x: environ -> mpred) (make_args (ret_temp::nil) (v::nil)))))
+       (ifvoid retty ⎡Post x None⎤ (∃ v:val, ⎡Post x (Some v)⎤)
          ∗ PROPx P (LOCALx Q (SEPx R)))).
 Proof.
   intros.
@@ -213,7 +211,7 @@ Lemma semax_call_id1:
              (Evar id (Tfunction argsig retty cc))
              bl)
     (normal_ret_assert
-       ((assert_of (`(Post x: environ -> mpred) (get_result1 ret))
+       ((assert_of (fun rho => Post x (Some (eval_id ret rho)))
            ∗ PROPx P (LOCALx (remove_localdef_temp ret Q) (SEPx R))))).
 Proof.
   intros.
@@ -305,18 +303,18 @@ Proof.
      destruct (ident_eq i a).
      * subst a. rewrite PTree.gss in H0. inv H0.
        rewrite unfold_make_args_cons.
-       unfold eval_id.  simpl. rewrite Map.gss.
+       unfold eval_id.  simpl. rewrite lookup_insert.
        split; [reflexivity | inv H; auto].
      * rewrite -> PTree.gso in H0 by auto.
        apply IHfl in H0.
        rewrite unfold_make_args_cons.
-       unfold eval_id.  simpl. rewrite -> Map.gso by auto. apply H0.
+       unfold eval_id.  simpl. rewrite lookup_insert_ne //.
        inv H; auto.
 Qed.
 
  Lemma ve_of_make_args: forall i fl vl rho ,
      length fl = length vl ->
-     Map.get (ve_of (make_args fl vl rho)) i = None.
+     (ve_of (make_args fl vl rho) !! i)%stdpp = None.
 Proof.
  unfold Map.get, ve_of.
  induction fl; destruct vl; simpl; intros; try reflexivity.
@@ -325,7 +323,7 @@ Proof.
 Qed.
 
 Lemma ge_of_make_args: forall i fl vl rho,
-    Map.get (ge_of (make_args fl vl rho)) i = Map.get (ge_of rho) i.
+    (ge_of (make_args fl vl rho) !! i)%stdpp = (ge_of rho !! i)%stdpp.
 Proof.
  induction fl; destruct vl; simpl; auto.
 Qed.
@@ -793,11 +791,11 @@ Lemma local2ptree_aux_elim: forall Q rho
 (L: local2ptree_aux Q T1 T2 P X = (Qtemp, Qvar, PP, Some g))
 (HX: match X with
       Some gg => (` and) (gvars_denote gg) (` True%type)
-                 (mkEnviron (ge_of rho) (Map.empty (block * type)) (Map.empty val))
+                 (mkEnviron (ge_of rho) ∅ ∅)
     | None => True
      end),
 (` and) (gvars_denote g) (` True%type)
-  (mkEnviron (ge_of rho) (Map.empty (block * type)) (Map.empty val)).
+  (mkEnviron (ge_of rho) ∅ ∅).
 Proof.
 intros ? ? ?.
 induction Q; intros.
@@ -813,6 +811,13 @@ induction Q; intros.
     - apply IHQ in L; clear IHQ; trivial.
     - apply IHQ in L; clear IHQ; trivial.
       clear - H. unfold locald_denote in H. split. apply H. unfold_lift; trivial.
+Qed.
+
+Lemma eval_exprlist_length : forall lt le rho, length lt = length le -> length (eval_exprlist lt le rho) = length le.
+Proof.
+  induction lt; simpl; auto; intros.
+  destruct le; inv H; simpl.
+  rewrite IHlt //.
 Qed.
 
 Lemma semax_call_aux55:
@@ -969,7 +974,7 @@ Lemma semax_call_id00_wow:
              (Ppost: B -> list Prop)
              (Rpost: B -> list mpred)
    (RETrueY: retty = Tvoid)
-   (POST1: assert_of (Post witness) ⊣⊢ (∃ vret:B, PROPx (Ppost vret) (LOCALx nil (SEPx (Rpost vret)))))
+   (POST1: postassert_of (Post witness) ⊣⊢ (∃ vret:B, PROPx (Ppost vret) (RETURNx None (SEPx (Rpost vret)))))
    (POST2: Post2 ⊣⊢ ∃ vret:B, PROPx (P ++ Ppost vret) (LOCALx Q
              (SEPx (Rpost vret ++ Frame))))
    (PPRE: fold_right_and True Ppre),
@@ -1050,8 +1055,8 @@ Lemma semax_call_id1_wow:
     (B: Type) (Ppost: B -> list Prop) (F: B -> val) (Rpost: B -> list mpred)
    (TYret: typeof_temp Delta ret = Some retty)
    (OKretty: check_retty retty)
-   (POST1: assert_of (Post witness) ⊣⊢ ∃ vret:B, PROPx (Ppost vret)
-                              (LOCALx (temp ret_temp (F vret) :: nil)
+   (POST1: postassert_of (Post witness) ⊣⊢ ∃ vret:B, PROPx (Ppost vret)
+                              (RETURNx (Some (F vret))
                               (SEPx (Rpost vret))))
    (DELETE: remove_localdef_temp ret Q = Qnew)
    (H0: Post2 ⊣⊢ ∃ vret:B, PROPx (P++ Ppost vret) (LOCALx (temp ret (F vret) :: Qnew)
@@ -1093,12 +1098,16 @@ Proof.
     simpl in POST1.
     rewrite POST1; clear POST1.
     unfold ifvoid.
-    unfold PROPx, LOCALx, SEPx, local, lift1; unfold_lift. monPred.unseal.
+    unfold PROPx, RETURNx, SEPx, local, lift1; unfold_lift. monPred.unseal.
     unfold_lift. normalize.
     Exists x.
     rewrite fold_right_and_app_low.
     rewrite fold_right_sepcon_app.
+    assert (F x ≠ Vundef) by auto.
+    inv H5.
+    rewrite H9.
     normalize.
+    iIntros "($ & $)"; done.
 Qed.
 
 (*Lemma semax_call_id1_wow_nil:
@@ -1163,8 +1172,8 @@ Lemma semax_call_id1_x_wow:
    (OKretty': check_retty retty')
    (NEUTRAL: is_neutral_cast retty' retty = true)
    (NEret: ret <> ret')
-   (POST1: assert_of (Post witness) ⊣⊢ ∃ vret:B, PROPx (Ppost vret)
-                              (LOCALx (temp ret_temp (F vret) :: nil)
+   (POST1: postassert_of (Post witness) ⊣⊢ ∃ vret:B, PROPx (Ppost vret)
+                              (RETURNx (Some (F vret))
                               (SEPx (Rpost vret))))
    (DELETE: remove_localdef_temp ret Q = Qnew)
    (DELETE' : remove_localdef_temp ret' Q = Q)
@@ -1303,8 +1312,8 @@ Lemma semax_call_id1_y_wow:
    (OKretty': check_retty retty')
    (NEUTRAL: is_neutral_cast retty' retty = true)
    (NEret: ret <> ret')
-   (POST1: assert_of (Post witness) ⊣⊢ ∃ vret:B, PROPx (Ppost vret)
-                              (LOCALx (temp ret_temp (F vret) :: nil)
+   (POST1: postassert_of (Post witness) ⊣⊢ ∃ vret:B, PROPx (Ppost vret)
+                              (RETURNx (Some (F vret))
                               (SEPx (Rpost vret))))
    (DELETE: remove_localdef_temp ret Q = Qnew)
    (DELETE' : remove_localdef_temp ret' Q = Q)
@@ -1429,8 +1438,8 @@ Lemma semax_call_id01_wow:
              (Rpost: B -> list mpred)
    (_: check_retty retty)
          (* this hypothesis is not needed for soundness, just for selectivity *)
-   (POST1: assert_of (Post witness) ⊣⊢ ∃ vret:B, PROPx (Ppost vret)
-                              (LOCALx (temp ret_temp (F vret) :: nil)
+   (POST1: postassert_of (Post witness) ⊣⊢ ∃ vret:B, PROPx (Ppost vret)
+                              (RETURNx (Some (F vret))
                               (SEPx (Rpost vret))))
    (POST2: Post2 ⊣⊢ ∃ vret:B, PROPx (P++ Ppost vret) (LOCALx Q
              (SEPx (Rpost vret ++ Frame))))

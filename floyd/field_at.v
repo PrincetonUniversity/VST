@@ -1633,7 +1633,7 @@ Lemma eval_lvar_spec: forall id t rho,
 Proof.
   intros.
   unfold eval_lvar.
-  destruct (Map.get (ve_of rho) id); auto.
+  destruct (ve_of rho !! id)%stdpp; auto.
   destruct p.
   destruct (eqb_type _ _); auto.
 Qed.
@@ -1655,7 +1655,7 @@ Proof.
   unfold local, lift1; unfold_lift.
   pose proof eval_lvar_spec id t rho.
   destruct (eval_lvar id t rho); simpl in *; normalize.
-  { iSplit; iIntros "((_ & []) & _)". }
+  { iSplit. iIntros "((_ & []) & _)".  iIntros "(([] & _) & _)". }
   subst.
   apply bi.and_proper; last done.
   apply bi.pure_iff.

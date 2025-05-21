@@ -390,10 +390,10 @@ Ltac lift4 a e1 e2 e3 e4 rho :=
 
 Ltac abstract_env rho P :=
   match P with
-   | @bi_emp ?PROP => constr:(@bi_emp (monPred environ_index PROP) _ _)
+   | @bi_emp ?PROP => constr:(@bi_emp (monPred env_index PROP) _ _)
    | @bi_sep ?PROP ?e1 ?e2 =>
       let e1' := abstract_env rho e1 in let e2' := abstract_env rho e2
-       in constr:(@bi_sep (monPred environ_index PROP) _ _ e1' e2')
+       in constr:(@bi_sep (monPred env_index PROP) _ _ e1' e2')
    | ?a0 ?a1 ?a2 ?e1 ?e2 ?e3 ?e4 =>
       let e1' := abstract_env rho e1  in let e2' := abstract_env rho e2 in let e3' := abstract_env rho e3 in let e4' := abstract_env rho e4
       in lift3 (a0 a1 a2) e1' e2' e3' e4' rho

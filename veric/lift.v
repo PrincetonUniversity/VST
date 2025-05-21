@@ -63,6 +63,7 @@ Tactic Notation "unfold_lift" "in" "*" :=
   unfold liftx in *;
   repeat match goal with (* This unfolds instances of Tend *)
              | H: context [lift_uncurry_open (?F _)] |- _ => unfold F in H
+             | H: context [Tarrow _ (?F _)] |- _ => unfold F in H
              | |- context [Tarrow _ (?F _)] => unfold F
              end;
   cbv delta [Tarrow Tend lift_S lift_T lift_prod lift_last lifted lift_uncurry_open lift_curry lift] beta iota in *.

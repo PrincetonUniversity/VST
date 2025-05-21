@@ -22,22 +22,22 @@ Lemma closed_env_set:
      P (env_set rho i v) ≡ P rho.
 Proof.
  intros. hnf in H.
- destruct rho; apply H0.
+ destruct rho as [[? ?] ?]. apply H0.
  intros; simpl; destruct (ident_eq i i0). left; auto.
- right; rewrite Map.gso; auto.
+ right. apply lookup_insert_ne; done.
 Qed.
 
 Lemma subst_eval_id_eq:
  forall id v, subst id v (eval_id id) = v.
 Proof. unfold subst, eval_id; intros. extensionality rho.
-    unfold force_val, env_set; simpl. rewrite Map.gss; auto.
+    unfold force_val, env_set; simpl. rewrite lookup_insert //.
 Qed.
 
 Lemma subst_eval_id_neq:
   forall id v j, id<>j -> subst id v (eval_id j) = eval_id j.
 Proof.
     unfold subst, eval_id; intros. extensionality rho.
-    unfold force_val, env_set; simpl. rewrite Map.gso; auto.
+    unfold force_val, env_set; simpl. rewrite lookup_insert_ne //.
 Qed.
 
 Fixpoint subst_eval_expr  {cs: compspecs}  (j: ident) (v: environ -> val) (e: expr) : environ -> val :=
@@ -81,8 +81,8 @@ intros cs j v; clear subst_eval_expr_eq; induction e; intros; simpl; try auto.
  + unfold eqb_ident.
      unfold subst, eval_id, env_set, te_of. extensionality rho.
      pose proof (Pos.eqb_spec j i).
-     destruct H. subst. rewrite Map.gss. reflexivity.
-     rewrite Map.gso; auto.
+     destruct H. subst. rewrite lookup_insert. reflexivity.
+     rewrite lookup_insert_ne; auto.
   + 
      rewrite <- IHe; clear IHe.
      unfold_lift.
@@ -120,7 +120,7 @@ apply H.
 intros.
 destruct (eq_dec id i); auto.
 right.
-rewrite Map.gso; auto.
+rewrite lookup_insert_ne; auto.
 Qed.
 
 Lemma closed_wrt_map_subst:
@@ -221,14 +221,14 @@ Local Notation assert := (@assert Σ).
 *)
 
 Lemma closed_wrt_embed {Σ: gFunctors} : forall S (Q : iProp Σ), 
-   closed_wrt_vars S (⎡Q⎤:  monPred environ_index (ouPredI (iResUR Σ))).
+   closed_wrt_vars S (⎡Q⎤:  monPred env_index (ouPredI (iResUR Σ))).
 Proof.
 intros.
 intros ? ? ?.
 by monPred.unseal.
 Qed.
 Lemma closed_wrtl_embed {Σ: gFunctors} : forall S (Q : iProp Σ), 
-   closed_wrt_lvars S (⎡Q⎤:  monPred environ_index (ouPredI (iResUR Σ))).
+   closed_wrt_lvars S (⎡Q⎤:  monPred env_index (ouPredI (iResUR Σ))).
 Proof.
 intros.
 intros ? ? ?.
@@ -484,7 +484,7 @@ Lemma closed_wrt_lvar:
 Proof.
 intros.
 hnf; intros; simpl.
-destruct (Map.get (ve_of rho) id); auto.
+destruct (ve_of rho !! id)%stdpp; auto.
 Qed.
 
 Lemma closed_wrt_gvars:
@@ -514,12 +514,12 @@ Qed.
 
 Definition expr_closed_wrt_lvars (S: ident -> Prop) (e: expr) : Prop :=
   forall (cs: compspecs) rho ve',
-     (forall i, S i \/ Map.get (ve_of rho) i = Map.get ve' i) ->
+     (forall i, S i \/ (ve_of rho !! i)%stdpp = (ve' !! i)%stdpp) ->
      eval_expr e rho = eval_expr e (mkEnviron (ge_of rho) ve' (te_of rho)).
 
 Definition lvalue_closed_wrt_lvars (S: ident -> Prop) (e: expr) : Prop :=
   forall (cs: compspecs) rho ve',
-     (forall i, S i \/ Map.get (ve_of rho) i = Map.get ve' i) ->
+     (forall i, S i \/ (ve_of rho !! i)%stdpp = (ve' !! i)%stdpp) ->
      eval_lvalue e rho = eval_lvalue e (mkEnviron (ge_of rho) ve'  (te_of rho)).
 
 (*Lemma closed_wrt_cmp_ptr : forall {cs: compspecs} S e1 e2 c,
@@ -1761,7 +1761,7 @@ Qed.
 
 
 Lemma closed_wrt_SEPx: forall {Σ: gFunctors} S P,
-     closed_wrt_vars S (SEPx P : monPred environ_index (iPropI Σ)).
+     closed_wrt_vars S (SEPx P : monPred env_index (iPropI Σ)).
 Proof.
 intros.
 unfold SEPx.
@@ -1769,7 +1769,7 @@ apply closed_wrt_embed.
 Qed.
 
 Lemma closed_wrtl_SEPx: forall {Σ: gFunctors} S P,
-     closed_wrt_lvars S (SEPx P : monPred environ_index (iPropI Σ)).
+     closed_wrt_lvars S (SEPx P : monPred env_index (iPropI Σ)).
 Proof.
 intros.
 unfold SEPx.

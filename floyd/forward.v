@@ -145,8 +145,7 @@ go_lowerx.
 rewrite -sep_exist_r; cancel.
 unfold lvar_denote.
 normalize.
-unfold Map.get.
-destruct (ve_of rho id) as [[? ?] | ] eqn:?.
+destruct (ve_of rho !! id)%stdpp as [[? ?] | ] eqn:Hve_id; rewrite Hve_id.
 destruct (eqb_type t t0) eqn:?.
 apply eqb_type_true in Heqb0.
 subst t0.
@@ -182,13 +181,13 @@ assert (Ptrofs.unsigned Ptrofs.zero + sizeof t <= Ptrofs.modulus)
 unfold var_block.
 simpl @fst; simpl @snd.
 monPred.unseal.
-rewrite ->prop_true_andp
-  by (change (Ptrofs.max_unsigned) with (Ptrofs.modulus-1); lia).
+rewrite ->prop_true_andp.
+  2: { change (Ptrofs.max_unsigned) with (Ptrofs.modulus-1). unfold sizeof in H1. lia. }
 unfold_lift.
 rewrite (lvar_eval_lvar _ _ _ _ H4).
 rewrite memory_block_data_at_; auto.
 hnf in H5.
-destruct ( Map.get (ve_of rho) id); try contradiction.
+destruct (ve_of rho !! id)%stdpp eqn:Hve_id; rewrite Hve_id in H4; try contradiction.
 destruct p.
 destruct H4; subst.
 repeat split; auto.
@@ -276,7 +275,7 @@ Qed.
 #[export] Hint Rewrite tc_option_val'_eq : norm.
 
 Lemma emp_make_ext_rval `{heapGS Σ}:
-  forall ge t v, @bi_emp assert (make_ext_rval ge t v) = emp.
+  forall t v, @monPred_at post_index mpred bi_emp ((make_ext_rval t v): post_index) = emp.
 Proof. intros. monPred.unseal. reflexivity. Qed.
 #[export] Hint Rewrite @emp_make_ext_rval : norm2.
 
@@ -533,26 +532,20 @@ Proof.
 Qed.
 
 Lemma typecheck_return_value:
-  forall `{HH: heapGS Σ} (f: val -> Prop)  t (v: val) (gx: genviron) (ret: option val) P R,
+  forall `{HH: heapGS Σ} (f: val -> Prop)  t (v: val) (ret: option val) P R,
  f v -> 
- (PROPx P
- (LOCALx (temp ret_temp v::nil)
- (SEPx R))) (make_ext_rval gx t ret) ⊢ ⌜f (force_val ret)⌝.
+ (PROPx P (RETURNx (Some v) (SEPx R))) (make_ext_rval t ret) ⊢ ⌜f (force_val ret)⌝.
 Proof.
-intros.
- rewrite <- insert_local.
- rewrite monPred_at_and.
- apply bi.pure_elim_l; intro.
- hnf in H0. unfold_lift in H0.
- destruct H0.
+intros. 
+rewrite !monPred_at_and /= !monPred_at_pure.
+apply bi.pure_elim_l; intro.
+apply bi.pure_elim_l; intro.
 apply bi.pure_intro.
-unfold make_ext_rval in H0.
+destruct H1.
+unfold make_ext_rval in H1.
 destruct (xtype_eq t Xvoid).
-subst t.
-unfold eval_id in H0; simpl in H0. contradiction.
-destruct t; try contradiction;
-destruct ret; try (change (v = v0) in H0; subst v0; auto);
-change (v = Vundef) in H0; contradiction.
+- subst t. done.
+- destruct t; try contradiction; rewrite H1 //.
 Qed.
 
 Ltac semax_func_cons_ext :=
@@ -1140,7 +1133,7 @@ eapply (semax_call_id00_wow H);
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [ check_result_type 
  | fix_up_simplified_postcondition;
-    cbv beta iota zeta; rewrite ?assert_of_at; unfold_post;
+    cbv beta iota zeta; unfold_post;
     constructor; let rho := fresh "rho" in intro rho; cbn [monPred_at assert_of ofe_mor_car];
     repeat rewrite exp_uncurry;
     repeat rewrite monPred_at_exist;
@@ -3132,7 +3125,7 @@ Proof.
  intros.
  unfold_lift. unfold subst. extensionality. f_equal.
  unfold eval_id.
- rewrite Map.gso //.
+ rewrite lookup_insert_ne //.
 Qed.
 #[export] Hint Rewrite subst_temp_special using safe_auto_with_closed: subst.
 
@@ -3440,7 +3433,7 @@ Ltac forward0 :=  (* USE FOR DEBUGGING *)
                | unfold Post; clear Post ]
   end.
 
-Lemma bind_ret_derives `{!VSTGS OK_ty Σ} t P Q v: (P ⊢ Q) -> bind_ret(Σ:=Σ) v t P ⊢ bind_ret v t Q.
+Lemma bind_ret_derives `{!VSTGS OK_ty Σ} t (P Q:postassert) v: (P ⊢ Q) -> bind_ret(Σ:=Σ) v t P ⊢ bind_ret v t Q.
 Proof. intros. destruct v.
   - simpl; intros. raise_rho. apply bi.and_mono. done. rewrite H. done.
   - destruct t; try apply derives_refl. simpl; raise_rho. rewrite H. done. 
@@ -4359,7 +4352,7 @@ end.
 
 Lemma elim_close_precondition:
   forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {cs: compspecs} E al Delta P F c Q,
-   semax E Delta (argsassert2assert al P ∗ F) c Q ->
+   semax E Delta (argsassert_of al P ∗ F) c Q ->
    semax E Delta (close_precondition al P ∗ F) c Q.
 Proof.
 intros.
