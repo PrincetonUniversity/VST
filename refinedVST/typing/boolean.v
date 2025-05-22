@@ -1,9 +1,44 @@
 From VST.typing Require Export type.
-From VST.typing Require Import programs.
 From VST.typing Require Import type_options.
+From iris_ora.algebra Require Import frac_auth ext_order excl.
+From VST.veric Require Import lifting.
+From compcert.cfrontend Require Import Clight.
+From VST.lithium Require Export proof_state.
+From lithium Require Import hooks definitions.
+From VST.typing Require Export type.
+From VST.typing Require Import type_options.
+From VST.floyd Require Import globals_lemmas.
 
 (** A [Strict] boolean can only have value 0 (false) or 1 (true). A [Relaxed]
     boolean can have any value: 0 means false, anything else means true. *)
+
+(* TODO: will remove later once program.v built *)
+  Definition val_to_Z (v : val) (t : Ctypes.type) : option Z :=
+  match v, t with
+  | Vint i, Tint _ Signed _ => Some (Int.signed i)
+  | Vint i, Tint sz Unsigned _ => Some (Int.unsigned i)
+  | Vlong i, Tlong Signed _ => Some (Int64.signed i)
+  | Vlong i, Tlong Unsigned _ => Some (Int64.unsigned i)
+  | _, _ => None
+  end.
+
+  Definition typed_if {B : bi} (ot : Ctypes.type) (v : val) (P : B) (T1 T2 : B) : B :=
+    (P -∗ match ot with
+          | Tint _ _ _ | Tlong _ _ => ∃ z, <affine> ⌜val_to_Z v ot = Some z⌝ ∗ (if bool_decide (z ≠ 0) then T1 else T2)
+    | _ => ∃ b, <affine> ⌜sem_cast ot tbool v = Some b⌝ ∗ (if eq_dec b (Vint Int.zero) then T2 else T1) end).
+  Class TypedIf {B : bi} (ot : Ctypes.type) (v : val) (P : B) : Type :=
+    typed_if_proof T1 T2 : iProp_to_Prop (typed_if ot v P T1 T2).
+
+  Definition i2v n t :=
+    match t with
+    | Tint _ _ _ => Vint (Int.repr n)
+    | Tlong _ _ => Vlong (Int64.repr n)
+    | _ => Vundef
+    end.
+
+(* TODO: will remove later once program.v built *)
+  
+
 Inductive bool_strictness := StrictBool | RelaxedBool.
 
 Definition represents_boolean (stn: bool_strictness) (n: Z) (b: bool) : Prop :=
@@ -22,7 +57,16 @@ Definition is_bool_ot (ot : op_type) (it : int_type) (stn : bool_strictness) : P
   end.*)
 
 Section is_bool_ot.
-  Context `{!typeG OK_ty Σ}.
+  Context `{!typeG OK_ty Σ} `{cs :compspecs} (ge : genv).
+
+  (* TODO: will remove later once program.v built *)
+  Definition typed_val_binop op t1 v1 t2 v2 (T : val → type → assert) : assert :=
+    (∀ Φ, (∀ v (ty : type), ⎡v ◁ᵥ ty⎤ -∗ T v ty -∗ Φ v) -∗ wp_binop ge ⊤ op t1 v1 t2 v2 Φ).
+
+  Definition typed_bin_op (v1 : val) (P1 : assert) (v2 : val) (P2 : assert) (o : Cop.binary_operation) (t1 t2 : Ctypes.type) (T : val → type → assert) : assert :=
+    (P1 -∗ P2 -∗ typed_val_binop o t1 v1 t2 v2 T)%I.
+  
+  (* TODO: will remove later once program.v built *)
 
   Lemma represents_boolean_eq stn n b :
     represents_boolean stn n b → bool_decide (n ≠ 0) = b.
@@ -49,6 +93,7 @@ End is_bool_ot.
 
 Section generic_boolean.
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
+  Search val Z.
 
   Program Definition generic_boolean_type (stn: bool_strictness) (it: Ctypes.type) (b: bool) : type := {|
     ty_has_op_type ot mt := (*is_bool_ot ot it stn*) ot = it;
@@ -132,7 +177,7 @@ Section generic_boolean.
     destruct it, v; try discriminate; eauto.
   Qed.
   Definition type_if_generic_boolean_inst := [instance type_if_generic_boolean].
-  Global Existing Instance type_if_generic_boolean_inst.
+  (* Global Existing Instance type_if_generic_boolean_inst. *)
 
 (*  Lemma type_assert_generic_boolean v stn it (b : bool) s fn ls R Q :
     (<affine> ⌜b⌝ ∗ typed_stmt s fn ls R Q)
@@ -149,7 +194,35 @@ Section generic_boolean.
 End generic_boolean.
 
 Section boolean.
-  Context `{!typeG OK_ty Σ} {cs : compspecs}.
+  Context `{!typeG OK_ty Σ} `{cs :compspecs} (ge : genv).
+
+  (* TODO: will remove later once program.v built *)
+  Lemma val_of_bool_eq : forall b, Val.of_bool b = Vint (Int.repr (bool_to_Z b)).
+  Proof.
+    intros; rewrite /Val.of_bool /bool_to_Z.
+    simple_if_tac; auto.
+  Qed.
+
+  Definition int_eq v1 v2 :=
+    match v1, v2 with
+    | Vint i1, Vint i2 => Int.eq i1 i2
+    | Vlong i1, Vlong i2 => Int64.eq i1 i2
+    | _, _ => false
+    end.
+
+  Lemma signed_inj_64 : forall i1 i2, Int64.signed i1 = Int64.signed i2 -> i1 = i2.
+  Proof.
+    intros ?? H%(f_equal Int64.repr).
+    by rewrite !Int64.repr_signed in H.
+  Qed.
+
+  Lemma unsigned_inj_64 : forall i1 i2, Int64.unsigned i1 = Int64.unsigned i2 -> i1 = i2.
+  Proof.
+    intros ?? H%(f_equal Int64.repr).
+    by rewrite !Int64.repr_unsigned in H.
+  Qed.
+  (* TODO: will remove later once program.v built *)
+  
 
   Lemma type_relop_boolean b1 b2 op b it v1 v2
     (Hop : match op with
@@ -158,7 +231,7 @@ Section boolean.
            | _ => None
            end = Some b) T:
     T (i2v (bool_to_Z b) tint) (b @ boolean tint)
-    ⊢ typed_bin_op v1 ⎡v1 ◁ᵥ b1 @ boolean it⎤
+    ⊢ typed_bin_op ge v1 ⎡v1 ◁ᵥ b1 @ boolean it⎤
                  v2 ⎡v2 ◁ᵥ b2 @ boolean it⎤ op it it T.
   Proof.
     iIntros "HT (%n1&(%Hty1&%Hv1)&%Hb1) (%n2&(%Hty2&%Hv2)&%Hb2) %Φ HΦ".
@@ -198,10 +271,10 @@ Section boolean.
   Qed.
   Definition type_eq_boolean_inst b1 b2 :=
     [instance type_relop_boolean b1 b2 Cop.Oeq (eqb b1 b2)].
-  Global Existing Instance type_eq_boolean_inst.
+  (* Global Existing Instance type_eq_boolean_inst. *)
   Definition type_ne_boolean_inst b1 b2 :=
     [instance type_relop_boolean b1 b2 Cop.One (negb (eqb b1 b2))].
-  Global Existing Instance type_ne_boolean_inst.
+  (* Global Existing Instance type_ne_boolean_inst. *)
 
 (*  (* TODO: replace this with a typed_cas once it is refactored to take E as an argument. *)
   Lemma wp_cas_suc_boolean it ot b1 b2 bd l1 l2 vd Φ E:
@@ -269,15 +342,21 @@ Notation "'if' p " := (TraceIfBool p) (at level 100, only printing).
 Section builtin_boolean.
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
+  (* TODO: will remove later once program.v built *)
+  Definition typed_value (v : val) (T : type → assert) : assert :=
+    (∃ (ty: type), ⎡v ◁ᵥ ty⎤ ∗ T ty).
+  (* TODO: will remove later once program.v built *)
+
   Lemma type_val_builtin_boolean b T:
     (T (b @ builtin_boolean)) ⊢ typed_value (Val.of_bool b) T.
   Proof.
     iIntros "HT". iExists _. iFrame. iPureIntro. exists (if b then 1 else 0); destruct b; simpl; done.
   Qed.
   Definition type_val_builtin_boolean_inst := [instance type_val_builtin_boolean].
-  Global Existing Instance type_val_builtin_boolean_inst.
+  (* Global Existing Instance type_val_builtin_boolean_inst. *)
 
-(*  Lemma type_cast_boolean_builtin_boolean b it v T:
+  (*
+  Lemma type_cast_boolean_builtin_boolean b it v T:
     (∀ v, T v (b @ builtin_boolean))
     ⊢ typed_un_op v (v ◁ᵥ b @ boolean it)%I (CastOp BoolOp) (IntOp it) T.
   Proof.
