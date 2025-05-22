@@ -1,8 +1,16 @@
 From iris.algebra Require Import csum excl auth cmra_big_op.
 From iris.algebra Require Import big_op gset frac agree.
-From VST.typing Require Import programs.
+(* From VST.typing Require Import programs. *)
 From VST.typing Require Import type_options.
-From iris_ora.algebra Require Import frac_auth ext_order.
+From iris_ora.algebra Require Import frac_auth ext_order excl.
+From VST.veric Require Import lifting.
+From compcert.cfrontend Require Import Clight.
+From VST.lithium Require Export proof_state.
+From lithium Require Import hooks.
+From VST.typing Require Export type.
+From VST.typing Require Import type_options.
+From VST.floyd Require Import globals_lemmas.
+
 
 Definition lockN : namespace := nroot.@"lockN".
 Definition lock_id := gname.
@@ -23,10 +31,19 @@ Global Instance subG_lockG {Σ} : subG lockΣ Σ → lockG Σ.
 Proof. solve_inG. Qed.
 
 Section type.
-  Context `{!lockG Σ} `{!typeG Σ} {cs : compspecs} .
+  Context `{!lockG Σ} `{!typeG OK_ty Σ} {cs : compspecs} .
+
+  Check gset_disjUR_authR.
+  Check DfracOwn (Share share_top).
+  Check dfrac.dfrac.
+  Print gset_disjUR_authR.
+  Locate "●".
+  Print auth_auth .
+  Print GSet.
 
   Definition lock_token (γ : lock_id) (l : list string) : mpred :=
-    ∃ s : gset string, ⌜l ≡ₚ elements s⌝ ∧ own  γ (● (GSet s) : gset_disjUR_authR).
+    ∃ s : gset string, ⌜l ≡ₚ elements s⌝ ∧
+                         own (inG0 := lock_inG) γ (●{dfrac.DfracOwn 1} (GSet s) : gset_disjUR_authR).
 
   Global Instance lock_token_timeless γ l : Timeless (lock_token γ l).
   Proof. apply _. Qed.
@@ -44,7 +61,7 @@ Section type.
   Theorem alloc_lock_token :
     ⊢ |==> ∃ γ, lock_token γ [].
   Proof.
-    iMod (own_alloc (● (GSet ∅): gset_disjUR_authR)) as (γ) "Hγ"; first by apply auth_auth_valid.
+    iMod (own_alloc (●{dfrac.DfracOwn 1} (GSet ∅): gset_disjUR_authR)) as (γ) "Hγ"; first by apply auth_auth_valid.
     iModIntro. iExists γ, ∅. by iFrame.
   Qed.
 
@@ -63,7 +80,10 @@ Section type.
     iExists _. iApply inv_alloc. iIntros "!#". iLeft. iExists _. by iFrame.
   Qed.
   Next Obligation. iIntros (A γ n x ty ot mt v ?) "Hl". by iApply ty_aligned. Qed.
-  Next Obligation. iIntros (A γ n x ty ot mt v ?) "Hl". by iApply ty_deref. Qed.
+  Next Obligation.
+    iIntros (A γ n x ty ot mt v ?) "Hl". by iApply ty_size_eq. Qed.
+  Next Obligation.
+    iIntros (A γ n x ty ot mt v ?) "Hl". by iApply ty_deref. Qed.
   Next Obligation. iIntros (A γ n x ty ot mt l ? ?) "Hl". by iApply ty_ref. Qed.
 
   Lemma tylocked_simplify_hyp_place A γ n x (ty : A → type) l T:
@@ -138,7 +158,8 @@ Section type.
     iMod ("Hlocked" with "[//] Hl") as "[$ Hn]".
     iDestruct "Hlock" as (st Hst) "Htok".
     iExists (st ∖ {[n]}).
-    iMod (own_update γ (● GSet st ⋅ ◯ GSet {[n]} : gset_disjUR_authR) (● GSet (st ∖ {[n]}))
+    iMod (own_update γ (●{dfrac.DfracOwn 1} GSet st ⋅ ◯ GSet {[n]} : gset_disjUR_authR)
+            (●{dfrac.DfracOwn 1} GSet (st ∖ {[n]}))
            with "[Htok Hn]") as "H".
     - eapply auth_update_dealloc, gset_disj_dealloc_local_update.
     - rewrite own_op. iFrame.
@@ -148,6 +169,13 @@ Section type.
         by eapply Permutation.Permutation_cons_inv.
       + set_unfold => ??. subst. apply elem_of_elements. rewrite -Hst. set_solver.
    Qed.
+
+  (*TODOs: remove it later *)
+  Definition typed_annot_stmt {A} (a : A) (l : address) (P : iProp Σ) (T : iProp Σ) : iProp Σ :=
+    (P ={⊤}[∅]▷=∗ T).
+  Definition typed_annot_expr (n : nat) {A} (a : A) (v : val) (P : iProp Σ) (T : iProp Σ) : iProp Σ :=
+    (P ={⊤}[∅]▷=∗^n |={⊤}=> T).
+  (*TODOs: remove it later *)
 
   Lemma annot_unlock A l β γ n ty (x : A) T:
     (find_in_context (FindDirect (lock_token γ)) (λ s : list string, ⌜n∉s⌝ ∗ (∀ x',
@@ -163,7 +191,7 @@ Section type.
   Qed. 
   
   Definition annot_unlock_inst := [instance annot_unlock].
-  Global Existing Instance annot_unlock_inst.
+  (* Global Existing Instance annot_unlock_inst. *)
 
   Class WithLockId (ty : type) (γ : lock_id) := with_lock_id : True.
 
@@ -183,7 +211,7 @@ Section type.
     iApply ("IH" with "Htok [HT Hl] Hty"). by iApply "HT".
   Qed.
   Definition type_annot_lock_inst := [instance type_annot_lock].
-  Global Existing Instance type_annot_lock_inst.
+  (* Global Existing Instance type_annot_lock_inst. *)
 End type.
 
 (* TODO: Do something stronger, e.g. sealing? *)
