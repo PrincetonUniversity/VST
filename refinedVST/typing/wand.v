@@ -1,9 +1,16 @@
 From VST.typing Require Export type.
-From VST.typing Require Import programs.
 From VST.typing Require Import type_options.
+From iris_ora.algebra Require Import frac_auth ext_order excl.
+From VST.veric Require Import lifting.
+From compcert.cfrontend Require Import Clight.
+From VST.lithium Require Export proof_state.
+From lithium Require Import hooks.
+From VST.typing Require Export type.
+From VST.typing Require Import type_options.
+From VST.floyd Require Import globals_lemmas.
 
 Section wand.
-  Context `{!typeG Σ} {cs : compspecs}.
+  Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
   Context {A : Type}.
   Implicit Types (P : A → iProp Σ).
@@ -66,7 +73,7 @@ Notation "wand< P , ty >" := (wand P ty)
   (only printing, format "'wand<' P ,  ty '>'") : printing_sugar.
 
 Section wand_val.
-  Context `{!typeG Σ} {cs : compspecs}.
+  Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
   Context {A : Type}.
   Implicit Types (P : A → iProp Σ).
@@ -86,21 +93,30 @@ Section wand_val.
     iIntros (??????) "H". iDestruct "H" as (v) "(Hly1&Hly2&Hl&_)".
     iMod (heap_mapsto_own_state_share with "Hl") as "Hl". eauto with iFrame.
   Qed. 
-  Next Obligation. iIntros (??????->) "Hl". iDestruct "Hl" as (?) "[$ _]". Qed.
-  Next Obligation. iIntros (???????) "Hl".
-                   iDestruct "Hl" as (v) "(% & % & Hl1 & Hl2)".
-                   rewrite / heap_mapsto_own_state.
-                   iExists _. iFrame.
-                   simpl in H. rewrite H. by iFrame. Qed.
-  Next Obligation. iIntros (?????????) "Hl".
-                   iIntros "(% & H3)".
-                   rewrite /heap_mapsto_own_state.
-                   iExists _. iFrame.
-                   simpl in H.
-                   rewrite H. iFrame.
-                   iPureIntro.
-                   split; auto.
-                   subst. done. Qed.
+  Next Obligation.
+    iIntros (??????->) "Hl".
+    iDestruct "Hl" as (?) "(% & _)". done.
+  Qed.
+  Next Obligation.
+    iIntros (???????) "(% & Hl)".
+    rewrite /= in H; subst.
+  Admitted.
+  Next Obligation.
+    iIntros (???????) "Hl".
+    iDestruct "Hl" as (?) "(% & % & Hl & HP)".
+    iFrame.
+    iSplit; last first; try done.
+    rewrite /= in H; subst. done.
+  Qed.
+  Next Obligation.
+    iIntros (?????????) "Hl".
+    iIntros "(% & HP)".
+    rewrite /heap_mapsto_own_state.
+    iExists _. iFrame.
+    rewrite /= in H; subst.
+    do 2 (iSplit; try done).
+  Qed.
+    
 
   (*
   Global Instance wand_val_loc_in_bounds P ly β (ty : A → type):
