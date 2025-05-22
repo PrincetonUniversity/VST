@@ -1,7 +1,7 @@
 From iris.proofmode Require Import coq_tactics reduction spec_patterns.
 From iris.proofmode Require Export tactics.
 From compcert.common Require Import Values.
-From VST.veric Require Import mpred juicy_base Clight_base Clight_core mapsto_memory_block lifting_expr lifting.
+From VST.veric Require Import mpred juicy_base Clight_base Clight_core mapsto_memory_block env lifting_expr lifting.
 
 Notation envs_entails := (envs_entails(PROP := monpred.monPredI _ _)).
 
@@ -83,4 +83,35 @@ Proof.
   rewrite embed_later embed_absorbingly; apply bi.later_mono.
   eassert (envs_entails Δ' _) as He; last by rewrite envs_entails_unseal in He.
   by eapply tac_specialize_intuitionistic_helper_done.
+Qed.
+
+(* This might be more useful for tactics. *)
+Lemma tac_wp_load_temp `{!VSTGS OK_ty Σ} Δ Δ' ge E f i1 i2 x t t' b2 l q v (Q : val → assert) :
+  readable_share q →
+  v ≠ Vundef →
+  MaybeIntoLaterNEnvs 1 Δ Δ' →
+  envs_lookup i1 Δ = Some (false, temp x l) →
+  envs_lookup i2 Δ' = Some (b2, ⎡mapsto q t' l v⎤) →
+  envs_entails Δ (Q v) →
+  envs_entails Δ (wp_expr ge E f (Ederef (Etempvar x t) t') Q).
+Proof.
+  rewrite envs_entails_unseal=> ??? H1 H2 Hi.
+  trans (of_envs Δ ∧ ▷⌜∃ bl o, l = Vptr bl o⌝).
+  { apply bi.and_intro; first done.
+    rewrite into_laterN_env_sound /=; apply bi.later_mono.
+    rewrite envs_lookup_split //.
+    iIntros "(H & _)"; iStopProof.
+    rewrite bi.intuitionistically_if_elim mapsto_pure_facts embed_pure; apply bi.pure_mono.
+    intros (? & ?); destruct l; try done; eauto. }
+  iIntros "(? & >(% & % & ->))"; iStopProof.
+  rewrite -wp_expr_mapsto -wp_deref -wp_tempvar_local.
+  rewrite (envs_lookup_split _ _ _ _ H1) /=.
+  apply bi.sep_mono; first done; apply bi.wand_mono; first done.
+  iIntros "H"; iExists _, _; iSplit; first done.
+  iExists q, v; iSplit; first done.
+  iSplit; iStopProof; last done.
+  rewrite into_laterN_env_sound /= embed_later embed_absorbingly; apply bi.later_mono.
+  eassert (envs_entails Δ' _) as He; last by rewrite envs_entails_unseal in He.
+  eapply tac_specialize_intuitionistic_helper_done.
+  rewrite Ptrofs.repr_unsigned //.
 Qed.
