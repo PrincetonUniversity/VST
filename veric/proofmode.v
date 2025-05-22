@@ -34,7 +34,7 @@ Lemma wp_pure_step_later `{!VSTGS OK_ty Σ} OK_spec ge E f s1 s2 φ n Q :
   (bi_laterN(PROP := monpred.monPredI _ _) n (wp OK_spec ge E f s2 Q) ⊢ wp OK_spec ge E f s1 Q).
 Proof.
   intros Hexec ?; induction Hexec; [done | | done].
-  rewrite /= IHp /wp.
+  rewrite /= IHp /wp. (* simpl; rewrite IHp; unfold wp. *)
   iIntros "H" (???) "L Hk".
   rewrite /assert_safe /=.
   do 4 (iApply embed_forall; iIntros (?)).
@@ -58,24 +58,29 @@ Lemma tac_wp_pure `{!VSTGS OK_ty Σ} Δ Δ' OK_spec ge E f e1 e2 φ n Q :
   envs_entails Δ (wp OK_spec ge E f e1 Q).
 Proof.
   rewrite envs_entails_unseal=> ??? HΔ'. rewrite into_laterN_env_sound /=.
-  rewrite HΔ'. etrans; last by eapply wp_pure_step_later.
-  iIntros "Hwp !>"; iApply "Hwp".
+  rewrite HΔ' wp_pure_step_later //.
 Qed.
 
-(* Not sure how this will work, since we can't have pointer values as literals in
+(* Not sure whether this will work, but we can't have pointer values as literals in
    our program syntax. *)
-Lemma tac_wp_load `{!VSTGS OK_ty Σ} Δ Δ' ge E f i e b q t v (Q : val → assert) :
+Lemma tac_wp_load `{!VSTGS OK_ty Σ} Δ Δ' ge E f i e b q v (Q : val → assert) :
+  readable_share q →
+  v ≠ Vundef →
   MaybeIntoLaterNEnvs 1 Δ Δ' →
-  envs_entails Δ' (wp_lvalue ge E f e (λ '(bl, o),
-    <affine> ⌜envs_lookup i Δ' = Some (b, ⎡mapsto q t (Vptr bl (Ptrofs.repr o)) v⎤)⌝ ∗
+  envs_entails Δ (wp_lvalue ge E f e (λ '(bl, o),
+    ⌜envs_lookup i Δ' = Some (b, ⎡mapsto q (typeof e) (Vptr bl (Ptrofs.repr o)) v⎤)⌝ ∧ of_envs Δ ∧
     Q v))%I →
   envs_entails Δ (wp_expr ge E f e Q).
 Proof.
-  rewrite envs_entails_unseal=> ?? Hi.
-  rewrite -wp_bind. eapply wand_apply; first by apply wand_entails, wp_load.
-  rewrite into_laterN_env_sound -later_sep envs_lookup_split //; simpl.
-  apply later_mono.
-  destruct b; simpl.
-  * iIntros "[#$ He]". iIntros "_". iApply Hi. iApply "He". iFrame "#".
-  * by apply sep_mono_r, wand_mono.
+  rewrite envs_entails_unseal=> ??? Hi.
+  rewrite Hi -wp_expr_mapsto.
+  apply wp_lvalue_mono.
+  intros (?, ?); apply bi.pure_elim_l; intros H.
+  iIntros "? !>".
+  iExists q, v; iSplit; first done.
+  iApply bi.and_mono; [|done..].
+  rewrite into_laterN_env_sound /=.
+  rewrite embed_later embed_absorbingly; apply bi.later_mono.
+  eassert (envs_entails Δ' _) as He; last by rewrite envs_entails_unseal in He.
+  by eapply tac_specialize_intuitionistic_helper_done.
 Qed.
