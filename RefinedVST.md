@@ -21,13 +21,13 @@ sudo apt-get install libmpfr-dev # Implicit Cerberus dependency.
 opam repo add coq-released "https://coq.inria.fr/opam/released"
 opam repo add iris-dev "https://gitlab.mpi-sws.org/iris/opam.git"
 opam update
-opam pin add -n -y cerberus-lib "git+https://github.com/rems-project/cerberus.git#d992a90affb95b4246df5f9cd7b720a4094d0f3d"
+opam pin add -n -y cerberus-lib "git+https://github.com/rems-project/cerberus.git#6e3e8be7a3f75b1f1cb0704dca8ef3945be0e413"
 ```
 
 Then clone RefinedC to any directory:
 
 ```[bash]
-git clone https://github.com/UIC-verif-group/refinedC/tree/pin refinedc
+git clone https://github.com/UIC-verif-group/refinedC refinedc
 opam pin ./refinedc -y
 ```
 
