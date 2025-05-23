@@ -17,6 +17,11 @@ opam repo add iris-dev https://gitlab.mpi-sws.org/iris/opam.git
 opam pin add builddep/
 ```
 
+Download submodules:
+```
+git submodule update --init --recursive
+```
+
 At this point, we use [`Makefile`](./Makefile)
 ```(bash)
 make
