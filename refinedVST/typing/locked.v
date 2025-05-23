@@ -31,19 +31,10 @@ Global Instance subG_lockG {Σ} : subG lockΣ Σ → lockG Σ.
 Proof. solve_inG. Qed.
 
 Section type.
-  Context `{!lockG Σ} `{!typeG OK_ty Σ} {cs : compspecs} .
-
-  Check gset_disjUR_authR.
-  Check DfracOwn (Share share_top).
-  Check dfrac.dfrac.
-  Print gset_disjUR_authR.
-  Locate "●".
-  Print auth_auth .
-  Print GSet.
+  Context `{!lockG Σ} `{!typeG OK_ty Σ} {cs : compspecs}.
 
   Definition lock_token (γ : lock_id) (l : list string) : mpred :=
-    ∃ s : gset string, ⌜l ≡ₚ elements s⌝ ∧
-                         own (inG0 := lock_inG) γ (●{dfrac.DfracOwn 1} (GSet s) : gset_disjUR_authR).
+    ∃ s : gset string, ⌜l ≡ₚ elements s⌝ ∧ own (inG0 := lock_inG) γ (●{dfrac.DfracOwn 1} (GSet s) : gset_disjUR_authR).
 
   Global Instance lock_token_timeless γ l : Timeless (lock_token γ l).
   Proof. apply _. Qed.
