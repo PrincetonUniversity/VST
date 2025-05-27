@@ -154,14 +154,14 @@ Section optional.
   | TraceOptionalEq (P : Prop)
   | TraceOptionalNe (P : Prop).
 
-  Lemma type_eq_optional_refined v1 v2 ty optty ot1 ot2 `{!Optionable ty optty ot1 ot2} `{!Affine (v2 ◁ᵥ optty)} b (T : _ → _ → assert)
+  Lemma type_eq_optional_refined ge v1 v2 ty optty ot1 ot2 `{!Optionable ty optty ot1 ot2} `{!Affine (v2 ◁ᵥ optty)} b (T : _ → _ → assert)
     (* We'll throw away any ownership associated with v2 (e.g. through an ownership type), so it needs to be affine.
        We could require T to be absorbing instead. *)  :
     ⎡opt_pre ty v1 v2⎤ ∧
     case_if b
       (li_trace (TraceOptionalEq b) (⎡v1 ◁ᵥ ty⎤ -∗ T (i2v (bool_to_Z false) tint) (false @ boolean tint)))
       (li_trace (TraceOptionalEq (¬ b)) (⎡v1 ◁ᵥ optty⎤ -∗ T (i2v (bool_to_Z true) tint) (true @ boolean tint)))
-    ⊢ typed_bin_op v1 ⎡v1 ◁ᵥ b @ (optional ty optty)⎤ v2 ⎡v2 ◁ᵥ optty⎤ Oeq ot1 ot2 T.
+    ⊢ typed_bin_op ge v1 ⎡v1 ◁ᵥ b @ (optional ty optty)⎤ v2 ⎡v2 ◁ᵥ optty⎤ Oeq ot1 ot2 T.
   Proof.
     iIntros "HT Hv1 Hv2" (Φ) "HΦ".
     iDestruct "Hv1" as "[[% Hv1]|[% Hv1]]".
@@ -191,9 +191,9 @@ Section optional.
   Definition type_eq_optional_refined_inst := [instance type_eq_optional_refined].
   Global Existing Instance type_eq_optional_refined_inst.
 
-  Lemma type_eq_optional_neq v1 v2 ty optty ot1 ot2 `{!Optionable ty optty ot1 ot2} `{!Affine (v2 ◁ᵥ optty)} T :
+  Lemma type_eq_optional_neq ge v1 v2 ty optty ot1 ot2 `{!Optionable ty optty ot1 ot2} `{!Affine (v2 ◁ᵥ optty)} T :
     ⎡opt_pre ty v1 v2⎤ ∧ (∀ v, ⎡v1 ◁ᵥ ty⎤ -∗ T v (false @ boolean tint))
-    ⊢ typed_bin_op v1 ⎡v1 ◁ᵥ ty⎤ v2 ⎡v2 ◁ᵥ optty⎤ Oeq ot1 ot2 T.
+    ⊢ typed_bin_op ge v1 ⎡v1 ◁ᵥ ty⎤ v2 ⎡v2 ◁ᵥ optty⎤ Oeq ot1 ot2 T.
   Proof.
     iIntros "HT Hv1 Hv2". iIntros (Φ) "HΦ".
     iIntros "!>" (?) "Hctx !>".
@@ -210,12 +210,12 @@ Section optional.
   Definition type_eq_optional_neq_inst := [instance type_eq_optional_neq].
   Global Existing Instance type_eq_optional_neq_inst.
 
-  Lemma type_neq_optional v1 v2 ty optty ot1 ot2 `{!Optionable ty optty ot1 ot2} `{!Affine (v2 ◁ᵥ optty)} b T :
+  Lemma type_neq_optional ge v1 v2 ty optty ot1 ot2 `{!Optionable ty optty ot1 ot2} `{!Affine (v2 ◁ᵥ optty)} b T :
     ⎡opt_pre ty v1 v2⎤ ∧
     case_if b
       (li_trace (TraceOptionalNe b) (⎡v1 ◁ᵥ ty⎤ -∗ T (i2v (bool_to_Z true) tint) (true @ boolean tint)))
       (li_trace (TraceOptionalNe (¬ b)) (⎡v1 ◁ᵥ optty⎤ -∗ T (i2v (bool_to_Z false) tint) (false @ boolean tint)))
-    ⊢ typed_bin_op v1 ⎡v1 ◁ᵥ b @ (optional ty optty)⎤ v2 ⎡v2 ◁ᵥ optty⎤ Cop.One ot1 ot2 T.
+    ⊢ typed_bin_op ge v1 ⎡v1 ◁ᵥ b @ (optional ty optty)⎤ v2 ⎡v2 ◁ᵥ optty⎤ Cop.One ot1 ot2 T.
   Proof.
     unfold li_trace. iIntros "HT Hv1 Hv2" (Φ) "HΦ".
     iDestruct "Hv1" as "[[% Hv1]|[% Hv1]]".
@@ -383,13 +383,13 @@ Section optionalO.
   Inductive trace_optionalO :=
   | TraceOptionalO.
 
-  Lemma type_eq_optionalO A v1 v2 (ty : A → type) optty ot1 ot2 `{!∀ x, Optionable (ty x) optty ot1 ot2}
+  Lemma type_eq_optionalO ge A v1 v2 (ty : A → type) optty ot1 ot2 `{!∀ x, Optionable (ty x) optty ot1 ot2}
     `{!Affine (v2 ◁ᵥ optty)} b `{!Inhabited A} T :
     ⎡opt_pre (ty (default inhabitant b)) v1 v2⎤ ∧
     case_destruct b (λ b _,
       li_trace (TraceOptionalO, b) (∀ v, ⎡if b is Some x then v1 ◁ᵥ ty x else v1 ◁ᵥ optty⎤ -∗
          T v ((if b is Some x then false else true) @ boolean tint)))
-    ⊢ typed_bin_op v1 ⎡v1 ◁ᵥ b @ optionalO ty optty⎤ v2 ⎡v2 ◁ᵥ optty⎤ Oeq ot1 ot2 T.
+    ⊢ typed_bin_op ge v1 ⎡v1 ◁ᵥ b @ optionalO ty optty⎤ v2 ⎡v2 ◁ᵥ optty⎤ Oeq ot1 ot2 T.
   Proof.
     unfold li_trace. iIntros "HT Hv1 Hv2". iIntros (Φ) "HΦ".
     destruct b.
@@ -419,12 +419,12 @@ Section optionalO.
   Definition type_eq_optionalO_inst := [instance type_eq_optionalO].
   Global Existing Instance type_eq_optionalO_inst.
 
-  Lemma type_neq_optionalO A v1 v2 (ty : A → type) optty ot1 ot2 `{!∀ x, Optionable (ty x) optty ot1 ot2}
+  Lemma type_neq_optionalO ge A v1 v2 (ty : A → type) optty ot1 ot2 `{!∀ x, Optionable (ty x) optty ot1 ot2}
     `{!Affine (v2 ◁ᵥ optty)} b `{!Inhabited A} T :
     ⎡opt_pre (ty (default inhabitant b)) v1 v2⎤ ∧
     case_destruct b (λ b _,
       li_trace (TraceOptionalO, b) (∀ v, ⎡if b is Some x then v1 ◁ᵥ ty x else v1 ◁ᵥ optty⎤ -∗ T v ((if b is Some x then true else false) @ boolean tint)))
-    ⊢ typed_bin_op v1 ⎡v1 ◁ᵥ b @ optionalO ty optty⎤ v2 ⎡v2 ◁ᵥ optty⎤ Cop.One ot1 ot2 T.
+    ⊢ typed_bin_op ge v1 ⎡v1 ◁ᵥ b @ optionalO ty optty⎤ v2 ⎡v2 ◁ᵥ optty⎤ Cop.One ot1 ot2 T.
   Proof.
     unfold li_trace. iIntros "HT Hv1 Hv2". iIntros (Φ) "HΦ".
     destruct b.

@@ -180,9 +180,9 @@ Section int.
     iSplitR => //. iExists q, v. iFrame. iModIntro. eauto with iFrame.
   Qed.
 
-  Global Instance int_timeless l z it:
+  (* Global Instance int_timeless l z it:
     Timeless (l ◁ₗ z @ int it)%I.
-  Proof. Admitted.
+  Proof. Admitted. *)
 End int.
 (* Typeclasses Opaque int. *)
 Notation "int< it >" := (int it) (only printing, format "'int<' it '>'") : printing_sugar.
@@ -253,7 +253,7 @@ Section programs.
   (* TODO: instead of adding it_in_range to the context here, have a
   SimplifyPlace/Val instance for int which adds it to the context if
   it does not yet exist (using check_hyp_not_exists)?! *)
-  Lemma type_relop_int_int n1 n2 op b it v1 v2 T :
+  Lemma type_relop_int_int ge n1 n2 op b it v1 v2 T :
     match op with
     | Cop.Oeq => Some (bool_decide (n1 = n2))
     | Cop.One => Some (bool_decide (n1 ≠ n2))
@@ -264,7 +264,7 @@ Section programs.
     | _ => None
     end = Some b →
     (⌜n1 ∈ it⌝ -∗ ⌜n2 ∈ it⌝ -∗ T (i2v (bool_to_Z b) tint) (b @ boolean tint))
-    ⊢ typed_bin_op v1 ⎡v1 ◁ᵥ n1 @ int it⎤ v2 ⎡v2 ◁ᵥ n2 @ int it⎤ op it it T.
+    ⊢ typed_bin_op ge v1 ⎡v1 ◁ᵥ n1 @ int it⎤ v2 ⎡v2 ◁ᵥ n2 @ int it⎤ op it it T.
   Proof.
     iIntros "%Hop HT (% & %Hv1) (% & %Hv2) %Φ HΦ".
     iDestruct ("HT" with "[] []" ) as "HT".
@@ -383,26 +383,26 @@ Section programs.
       iSplit; [by destruct b | done].
   Qed.
 
-  Definition type_eq_int_int_inst n1 n2 :=
-    [instance type_relop_int_int n1 n2 Cop.Oeq (bool_decide (n1 = n2))].
+  Definition type_eq_int_int_inst ge n1 n2 :=
+    [instance type_relop_int_int ge n1 n2 Cop.Oeq (bool_decide (n1 = n2))].
   Global Existing Instance type_eq_int_int_inst.
-  Definition type_ne_int_int_inst n1 n2 :=
-    [instance type_relop_int_int n1 n2 Cop.One (bool_decide (n1 ≠ n2))].
+  Definition type_ne_int_int_inst ge n1 n2 :=
+    [instance type_relop_int_int ge n1 n2 Cop.One (bool_decide (n1 ≠ n2))].
   Global Existing Instance type_ne_int_int_inst.
-  Definition type_lt_int_int_inst n1 n2 :=
-    [instance type_relop_int_int n1 n2 Cop.Olt (bool_decide (n1 < n2))].
+  Definition type_lt_int_int_inst ge n1 n2 :=
+    [instance type_relop_int_int ge n1 n2 Cop.Olt (bool_decide (n1 < n2))].
   Global Existing Instance type_lt_int_int_inst.
-  Definition type_gt_int_int_inst n1 n2 :=
-    [instance type_relop_int_int n1 n2 Cop.Ogt (bool_decide (n1 > n2))].
+  Definition type_gt_int_int_inst ge n1 n2 :=
+    [instance type_relop_int_int ge n1 n2 Cop.Ogt (bool_decide (n1 > n2))].
   Global Existing Instance type_gt_int_int_inst.
-  Definition type_le_int_int_inst n1 n2 :=
-    [instance type_relop_int_int n1 n2 Cop.Ole (bool_decide (n1 ≤ n2))].
+  Definition type_le_int_int_inst ge n1 n2 :=
+    [instance type_relop_int_int ge n1 n2 Cop.Ole (bool_decide (n1 ≤ n2))].
   Global Existing Instance type_le_int_int_inst.
-  Definition type_ge_int_int_inst n1 n2 :=
-    [instance type_relop_int_int n1 n2 Cop.Oge (bool_decide (n1 >= n2))].
+  Definition type_ge_int_int_inst ge n1 n2 :=
+    [instance type_relop_int_int ge n1 n2 Cop.Oge (bool_decide (n1 >= n2))].
   Global Existing Instance type_ge_int_int_inst.
 
-  Lemma type_arithop_int_int n1 n2 n op it v1 v2
+  Lemma type_arithop_int_int ge n1 n2 n op it v1 v2
     (Hop : match op with
     | Oadd => Some (n1 + n2)
     | Osub => Some (n1 - n2)
@@ -417,7 +417,7 @@ Section programs.
     | _ => None
     end = Some n) T :
     (<affine> ⌜n1 ∈ it⌝ -∗ <affine> ⌜n2 ∈ it⌝ -∗ <affine> ⌜in_range n it ∧ int_arithop_sidecond it n1 n2 n op⌝ ∗ T (i2v n it) (n @ int it))
-    ⊢ typed_bin_op v1 ⎡v1 ◁ᵥ n1 @ int it⎤ v2 ⎡v2 ◁ᵥ n2 @ int it⎤ op it it T.
+    ⊢ typed_bin_op ge v1 ⎡v1 ◁ᵥ n1 @ int it⎤ v2 ⎡v2 ◁ᵥ n2 @ int it⎤ op it it T.
   Proof.
     iIntros "HT (% & %Hv1) (% & %Hv2) %Φ HΦ".
     iDestruct ("HT" with "[] []" ) as ((Hin & Hsc)) "HT".
@@ -663,37 +663,38 @@ Section programs.
     - iApply ("HΦ" with "[] HT").
       iPureIntro. split; [by apply in_range_i2v | by apply i2v_to_Z].
   Qed.
-  Definition type_add_int_int_inst n1 n2 := [instance type_arithop_int_int n1 n2 (n1 + n2) Oadd].
+  Definition type_add_int_int_inst ge n1 n2 := [instance type_arithop_int_int ge n1 n2 (n1 + n2) Oadd].
   Global Existing Instance type_add_int_int_inst.
-  Definition type_sub_int_int_inst n1 n2 := [instance type_arithop_int_int n1 n2 (n1 - n2) Osub].
+  Definition type_sub_int_int_inst ge n1 n2 := [instance type_arithop_int_int ge n1 n2 (n1 - n2) Osub].
   Global Existing Instance type_sub_int_int_inst.
-  Definition type_mul_int_int_inst n1 n2 := [instance type_arithop_int_int n1 n2 (n1 * n2) Omul].
+  Definition type_mul_int_int_inst ge n1 n2 := [instance type_arithop_int_int ge n1 n2 (n1 * n2) Omul].
   Global Existing Instance type_mul_int_int_inst.
-  Definition type_div_int_int_inst n1 n2 := [instance type_arithop_int_int n1 n2 (n1 `quot` n2) Odiv].
+  Definition type_div_int_int_inst ge n1 n2 := [instance type_arithop_int_int ge n1 n2 (n1 `quot` n2) Odiv].
   Global Existing Instance type_div_int_int_inst.
-  Definition type_mod_int_int_inst n1 n2 := [instance type_arithop_int_int n1 n2 (n1 `rem` n2) Omod].
+  Definition type_mod_int_int_inst ge n1 n2 := [instance type_arithop_int_int ge n1 n2 (n1 `rem` n2) Omod].
   Global Existing Instance type_mod_int_int_inst.
-  Definition type_and_int_int_inst n1 n2 := [instance type_arithop_int_int n1 n2 (Z.land n1 n2) Oand].
+  Definition type_and_int_int_inst ge n1 n2 := [instance type_arithop_int_int ge n1 n2 (Z.land n1 n2) Oand].
   Global Existing Instance type_and_int_int_inst.
-  Definition type_or_int_int_inst n1 n2 := [instance type_arithop_int_int n1 n2 (Z.lor n1 n2) Oor].
+  Definition type_or_int_int_inst ge n1 n2 := [instance type_arithop_int_int ge n1 n2 (Z.lor n1 n2) Oor].
   Global Existing Instance type_or_int_int_inst.
-  Definition type_xor_int_int_inst n1 n2 := [instance type_arithop_int_int n1 n2 (Z.lxor n1 n2) Oxor].
+  Definition type_xor_int_int_inst ge n1 n2 := [instance type_arithop_int_int ge n1 n2 (Z.lxor n1 n2) Oxor].
   Global Existing Instance type_xor_int_int_inst.
-  Definition type_shl_int_int_inst n1 n2 := [instance type_arithop_int_int n1 n2 (n1 ≪ n2) Oshl].
+  Definition type_shl_int_int_inst ge n1 n2 := [instance type_arithop_int_int ge n1 n2 (n1 ≪ n2) Oshl].
   Global Existing Instance type_shl_int_int_inst.
-  Definition type_shr_int_int_inst n1 n2 := [instance type_arithop_int_int n1 n2 (n1 ≫ n2) Oshr].
+  Definition type_shr_int_int_inst ge n1 n2 := [instance type_arithop_int_int ge n1 n2 (n1 ≫ n2) Oshr].
   Global Existing Instance type_shr_int_int_inst.
 
   Inductive trace_if_int :=
   | TraceIfInt (n : Z).
 
-  Lemma type_if_int it (n : Z) v T1 T2:
-    case_if (n ≠ 0)
+  Lemma type_if_int  F it (n : Z) v T1 T2:
+    F ∧ case_if (n ≠ 0)
       (li_trace (TraceIfInt n, true) T1)
       (li_trace (TraceIfInt n, false) T2)
-    ⊢ typed_if it v (v ◁ᵥ n @ int it) T1 T2.
+    ⊢ typed_if it v (v ◁ᵥ n @ int it) F T1 T2.
   Proof.
     iIntros "Hs (% & %Hb)".
+    iStopProof; f_equiv; iIntros "Hs".
     destruct it, v; try discriminate; iExists n; iSplit; auto;
       simpl; (case_bool_decide;
         [iDestruct "Hs" as "[Hs _]"; by iApply "Hs" | iDestruct "Hs" as "[_ Hs]"; iApply "Hs"; naive_solver]).
@@ -763,28 +764,28 @@ Section programs.
   Global Existing Instance type_neg_int_inst.
 
   (* up *)
-  Lemma wp_Ecast : forall E e Φ ct, wp_expr E e (λ v, ∃ v', ∀ m, <affine> ⌜Some v' = Cop.sem_cast v (typeof e) ct m⌝ ∗ Φ v')
-    ⊢ wp_expr E (Ecast e ct) Φ.
+  Lemma wp_Ecast : forall ge E f e Φ ct, wp_expr ge E f e (λ v, ∃ v', ∀ m, <affine> ⌜Some v' = Cop.sem_cast v (typeof e) ct m⌝ ∗ Φ v')
+    ⊢ wp_expr ge E f (Ecast e ct) Φ.
   Proof.
   intros.
   rewrite /wp_expr.
-  iIntros ">H !>" (?) "Hm".
-  iMod ("H" with "Hm") as "(%v & H1 & Hm & %v' & H)".
+  iIntros ">H !>" (??) "Hm He".
+  iMod ("H" with "Hm He") as "(%v & H1 & Hm & He & %v' & H)".
   iDestruct ("H" $! m) as "[%Hcast HΦ]".
   iExists _; iFrame; iModIntro.
-  iStopProof; split => rho; monPred.unseal.
-  rewrite !monPred_at_affinely /local /lift1 /=.
-  iIntros "%H1"; iPureIntro.
-  split; auto; intros; econstructor; eauto.
-  Qed.
+  iStopProof; do 6 f_equiv.
+  apply bi.pure_mono.
+  intros ??.
+  econstructor; auto.
+Qed.
 
 (* Ke: the equivalent to Caesium's CastOp is Clight's Ecast, so use typed_val_expr *)
-  Lemma type_Ecast_same_val e it2 T:
-    typed_val_expr e (λ v ty,
+  Lemma type_Ecast_same_val ge f e it2 T:
+    typed_val_expr ge f e (λ v ty,
       ∀ m (* Ke: for now only handle cases where m is irrelevant *),
         <affine>⌜Some v = Cop.sem_cast v (typeof e) it2 m⌝ ∗
         T v ty)
-    ⊢ typed_val_expr (Ecast e it2) T.
+    ⊢ typed_val_expr ge f (Ecast e it2) T.
   Proof.
     iIntros "typed %Φ HΦ".
     iApply wp_Ecast.
@@ -892,9 +893,9 @@ Section programs.
   Definition subsume_int_boolean_val_inst := [instance subsume_int_boolean_val].
   Global Existing Instance subsume_int_boolean_val_inst.
 
-  Lemma type_binop_boolean_int it1 it2 it3 it4 v1 b1 v2 n2 op T:
-    typed_bin_op v1 ⎡v1 ◁ᵥ (bool_to_Z b1) @ int it1⎤ v2 ⎡v2 ◁ᵥ n2 @ int it2⎤ op it3 it4 T
-    ⊢ typed_bin_op v1 ⎡v1 ◁ᵥ b1 @ boolean it1⎤ v2 ⎡v2 ◁ᵥ n2 @ int it2⎤ op it3 it4 T.
+  Lemma type_binop_boolean_int ge it1 it2 it3 it4 v1 b1 v2 n2 op T:
+    typed_bin_op ge v1 ⎡v1 ◁ᵥ (bool_to_Z b1) @ int it1⎤ v2 ⎡v2 ◁ᵥ n2 @ int it2⎤ op it3 it4 T
+    ⊢ typed_bin_op ge v1 ⎡v1 ◁ᵥ b1 @ boolean it1⎤ v2 ⎡v2 ◁ᵥ n2 @ int it2⎤ op it3 it4 T.
   Proof.
     iIntros "HT H1 H2". iApply ("HT" with "[H1] H2"). unfold boolean; simpl_type.
     iDestruct "H1" as "(%&(%&%H1)&%H2)". iPureIntro.
@@ -903,9 +904,9 @@ Section programs.
   Definition type_binop_boolean_int_inst := [instance type_binop_boolean_int].
   Global Existing Instance type_binop_boolean_int_inst.
 
-  Lemma type_binop_int_boolean it1 it2 it3 it4 v1 b1 v2 n2 op T:
-    typed_bin_op v1 ⎡v1 ◁ᵥ n2 @ int it2⎤ v2 ⎡v2 ◁ᵥ (bool_to_Z b1) @ int it1⎤ op it3 it4 T
-    ⊢ typed_bin_op v1 ⎡v1 ◁ᵥ n2 @ int it2⎤ v2 ⎡v2 ◁ᵥ b1 @ boolean it1⎤ op it3 it4 T.
+  Lemma type_binop_int_boolean ge it1 it2 it3 it4 v1 b1 v2 n2 op T:
+    typed_bin_op ge v1 ⎡v1 ◁ᵥ n2 @ int it2⎤ v2 ⎡v2 ◁ᵥ (bool_to_Z b1) @ int it1⎤ op it3 it4 T
+    ⊢ typed_bin_op ge v1 ⎡v1 ◁ᵥ n2 @ int it2⎤ v2 ⎡v2 ◁ᵥ b1 @ boolean it1⎤ op it3 it4 T.
   Proof.
     iIntros "HT H1 H2". iApply ("HT" with "H1 [H2]"). unfold boolean; simpl_type.
     iDestruct "H2" as "(%&(%&%H1)&%H2)". iPureIntro.
@@ -993,17 +994,17 @@ Section tests.
   Definition Econst_size_t z := if Archi.ptr64 then Econst_long (Int64.repr z) size_t else Econst_int (Int.repr z) size_t .
   Definition Vsize_t z := if Archi.ptr64 then Vlong (Int64.repr z) else Vint (Int.repr z).
 
-  Lemma type_const_size_t z T:
+  Lemma type_const_size_t ge f z T:
     typed_value (i2v z size_t) (T (i2v z size_t))
-    ⊢ typed_val_expr (Econst_size_t z) T.
+    ⊢ typed_val_expr ge f (Econst_size_t z) T.
   Proof.
     rewrite /Econst_size_t /size_t; simple_if_tac; [apply type_const_long | apply type_const_int].
   Qed.
 
-  Example type_eq n1 n3 T:
+  Example type_eq ge f n1 n3 T:
     n1 ∈ size_t →
     n3 ∈ size_t →
-    ⊢ typed_val_expr (Ebinop Oeq (Ebinop Oadd (Econst_size_t n1) (Econst_size_t 0) size_t) (Econst_size_t n3) tint) T.
+    ⊢ typed_val_expr ge f (Ebinop Oeq (Ebinop Oadd (Econst_size_t n1) (Econst_size_t 0) size_t) (Econst_size_t n3) tint) T.
   Proof.
     move => Hn1 Hn2.
     iApply type_bin_op.

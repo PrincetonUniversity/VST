@@ -924,6 +924,9 @@ Definition valid_pointer (p: val) : mpred :=
 Definition weak_valid_pointer (p: val) : mpred :=
  (valid_pointer' p 0) ∨ (valid_pointer' p (-1)).
 
+Global Instance weak_valid_pointer_absorbing p : Absorbing (weak_valid_pointer p).
+Proof.  apply _. Qed.
+
 Lemma func_at_valid_pointer {phi b z} (Hz: 0 <= z <= Ptrofs.max_unsigned):
       func_at phi (b,z) ⊢ valid_pointer (Vptr b (Ptrofs.repr z)).
 Proof. unfold func_at, valid_pointer, valid_pointer'.

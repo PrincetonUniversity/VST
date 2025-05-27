@@ -375,6 +375,9 @@ Qed.
 Definition valid_val v :=
   match v with Vptr _ _ => expr.weak_valid_pointer v | _ => True end.
 
+Global Instance valid_val_absorbing p : Absorbing (valid_val p).
+Proof. unfold valid_val. apply _. Qed.
+
 Definition valid_val0 m v : Prop :=
   match v with Vptr b o => Mem.weak_valid_pointer m b (Ptrofs.intval o) = true | _ => True end.
 

@@ -173,12 +173,12 @@ Section judgements.
   Class TypedAnnotStmt {A} (a : A) (l : address) (P : iProp Σ) : Type :=
     typed_annot_stmt_proof T : iProp_to_Prop (typed_annot_stmt a l P T).
 
-  Definition typed_if {B : bi} (ot : Ctypes.type) (v : val) (P : B) (T1 T2 : B) : B :=
-    (P -∗ match ot with
+  Definition typed_if {B : bi} (ot : Ctypes.type) (v : val) (P : B) (F : B) (T1 T2 : B) : B :=
+    (P -∗ (F ∧ match ot with
           | Tint _ _ _ | Tlong _ _ => ∃ z, <affine> ⌜val_to_Z v ot = Some z⌝ ∗ (if bool_decide (z ≠ 0) then T1 else T2)
-          | _ => ∃ b, <affine> ⌜sem_cast ot tbool v = Some b⌝ ∗ (if eq_dec b (Vint Int.zero) then T2 else T1) end).
-  Class TypedIf {B : bi} (ot : Ctypes.type) (v : val) (P : B) : Type :=
-    typed_if_proof T1 T2 : iProp_to_Prop (typed_if ot v P T1 T2).
+          | _ => ∃ b, <affine> ⌜bool_val ot v = Some b⌝ ∗ (if b then T1 else T2) end)).
+  Class TypedIf {B : bi} (ot : Ctypes.type) (v : val) (P : B) (F : B) : Type :=
+    typed_if_proof T1 T2 : iProp_to_Prop (typed_if ot v P F T1 T2).
 
   (*** statements *)
 (*  Definition typed_stmt_post_cond (fn : function) (ls : list address) (R : val → type → iProp Σ) (v : val) : iProp Σ :=
@@ -199,7 +199,7 @@ Section judgements.
   Lemma typed_stmt_mono s f R1 R2 : (∀ v t, R1 v t ⊢ R2 v t) →
     typed_stmt s f R1 ⊢ typed_stmt s f R2.
   Proof.
-    intros; apply wp_conseq; intros; simpl; rewrite ?H; auto.
+    intros. rewrite /typed_stmt. apply wp_conseq; intros; simpl; rewrite ?H; auto.
     iIntros "(% & ? & ?)"; rewrite H; eauto with iFrame.
   Qed.
 
@@ -237,20 +237,20 @@ Section judgements.
               rho = construct_rho (filter_genv ge) ve te ->
               Clight.eval_expr ge ve te m e v (*/\ typeof e = t /\ tc_val t v*)⌝.*)
 
-  Definition typed_val_expr (e : expr) (T : val → type → assert) : assert :=
-    (∀ Φ, (∀ v (ty : type), ⎡v ◁ᵥ ty⎤ -∗ T v ty -∗ Φ v) -∗ wp_expr ⊤ e Φ).
+  Definition typed_val_expr f (e : expr) (T : val → type → assert) : assert :=
+    (∀ Φ, (∀ v (ty : type), ⎡v ◁ᵥ ty⎤ -∗ T v ty -∗ Φ v) -∗ wp_expr ge ⊤ f e Φ).
   Global Arguments typed_val_expr _ _%_I.
 
   (* FIXME sounds like typed_addr_of, although typed_addr_of is for typing `&e`; are they the same?  *)
-  Definition typed_lvalue β e T : assert :=
+  Definition typed_lvalue f β e T : assert :=
     (∀ Φ:address->assert, 
       (∀ (l:address) (ty : type),
         ⎡l ◁ₗ{β} ty⎤ (* typed_write_end has this so maybe here needs it too? *) 
         -∗ T l β ty -∗ Φ l)
-      -∗ wp_lvalue ⊤ e Φ).
-  Global Arguments typed_lvalue _ _ _%_I.
-  Class TypedLvalue β (e : expr) : Type :=
-    typed_lvalue_proof T : iProp_to_Prop (typed_lvalue β e T).
+      -∗ wp_lvalue ge ⊤ f e Φ).
+  Global Arguments typed_lvalue _ _ _ _%_I.
+  Class TypedLvalue f β (e : expr) : Type :=
+    typed_lvalue_proof T : iProp_to_Prop (typed_lvalue f β e T).
 
   Definition typed_value (v : val) (T : type → assert) : assert :=
     (∃ (ty: type), ⎡v ◁ᵥ ty⎤ ∗ T ty).
@@ -258,7 +258,7 @@ Section judgements.
     typed_value_proof T : iProp_to_Prop (typed_value v T).
 
   Definition typed_val_binop op t1 v1 t2 v2 (T : val → type → assert) : assert :=
-    (∀ Φ, (∀ v (ty : type), ⎡v ◁ᵥ ty⎤ -∗ T v ty -∗ Φ v) -∗ wp_binop ⊤ op t1 v1 t2 v2 Φ).
+    (∀ Φ, (∀ v (ty : type), ⎡v ◁ᵥ ty⎤ -∗ T v ty -∗ Φ v) -∗ wp_binop ge ⊤ op t1 v1 t2 v2 Φ).
   Global Arguments typed_val_binop _ _ _ _ _ _%_I.
 
   Definition typed_bin_op (v1 : val) (P1 : assert) (v2 : val) (P2 : assert) (o : Cop.binary_operation) (t1 t2 : Ctypes.type) (T : val → type → assert) : assert :=
@@ -277,9 +277,9 @@ Section judgements.
   Class TypedUnOp (v : val) (P : assert) (o : Cop.unary_operation) (ot : Ctypes.type) : Type :=
     typed_un_op_proof T : iProp_to_Prop (typed_un_op v P o ot T).
 
-  Definition typed_exprs (el : list expr) (tl : list Ctypes.type) (T : list val → list type → assert) : assert :=
-    (∀ Φ, (∀ vl (tys : list type), ([∗ list] v;ty∈vl;tys, ⎡v ◁ᵥ ty⎤) -∗ T vl tys -∗ Φ vl) -∗ wp_exprs el tl Φ).
-  Global Arguments typed_exprs _ _ _%_I.
+  Definition typed_exprs f (el : list expr) (tl : list Ctypes.type) (T : list val → list type → assert) : assert :=
+    (∀ Φ, (∀ vl (tys : list type), ([∗ list] v;ty∈vl;tys, ⎡v ◁ᵥ ty⎤) -∗ T vl tys -∗ Φ vl) -∗ wp_exprs ge ⊤ f el tl Φ).
+  Global Arguments typed_exprs _ _ _ _%_I.
 
   (* can we rewrite this to take vals directly after all? We'd have to replace typed_stmt with sufficient
      conditions for a call to be safe. *)
@@ -323,7 +323,7 @@ Section judgements.
  (* Ke: for RefinedC mapsto, use ⎡VST.mapsto_memory_block.mapsto q ot l v⎤ 
         which is basically RefinedC.mapsto l v + l aligns according to ot + v fits in size of ot *)
 
-  Definition typed_write (atomic : bool) (e : expr) (ot : Ctypes.type) (v : val) (ty : type) (T : assert) : assert :=
+  Definition typed_write f (atomic : bool) (e : expr) (ot : Ctypes.type) (v : val) (ty : type) (T : assert) : assert :=
     let E := if atomic then ∅ else ⊤ in
     (∀ (Φ: address->assert),
         (∀ (l:address), (⎡v ◁ᵥ ty⎤ ={⊤, E}=∗
@@ -331,7 +331,7 @@ Section judgements.
                 (* Ke : maybe we need later afterall because write is only done a write statement after? *)
                 ▷(⎡ l ↦|ot| v ⎤ ={E, ⊤}=∗ T))
               -∗ Φ l) -∗
-       wp_lvalue ⊤ e Φ)%I.
+       wp_lvalue ge ⊤ f e Φ)%I.
 
   (** [typed_read atomic e ot memcast] typechecks a read with op_type
   ot of the expression [e]. [atomic] says whether the read is an
@@ -339,7 +339,7 @@ Section judgements.
   the read. The typing rule for [typed_read] typechecks [e] and then
   dispatches to [typed_read_end] *)
   (* FIXME cast need whole memory? *)
-Definition typed_read (atomic : bool) (e : expr) (ot : Ctypes.type) (memcast : bool) (m: mem) (T : val → type → assert) : assert :=
+Definition typed_read f (atomic : bool) (e : expr) (ot : Ctypes.type) (memcast : bool) (m: mem) (T : val → type → assert) : assert :=
     let E := if atomic then ∅ else ⊤ in
     (∀ (Φ: val->assert),
        (∀ (l:address), 
@@ -351,14 +351,14 @@ Definition typed_read (atomic : bool) (e : expr) (ot : Ctypes.type) (memcast : b
                           ⎡v' ◁ᵥ ty'⎤ ∗
                           T v' ty')) 
         -∗ Φ l) -∗
-     wp_expr ⊤ e Φ)%I.
+     wp_expr ge ⊤ f e Φ)%I.
 
   (** [typed_addr_of e] typechecks an address of operation on the expression [e].
   The typing rule for [typed_addr_of] typechecks [e] and then dispatches to [typed_addr_of_end]*)
-  Definition typed_addr_of (e : expr) (T : address → own_state → type → assert) : assert :=
+  Definition typed_addr_of f (e : expr) (T : address → own_state → type → assert) : assert :=
     ∀ (Φ: val->assert),
        (∀ (l : address) β ty, ⎡l ◁ₗ{β} ty⎤ -∗ T l β ty -∗ Φ l) -∗
-       wp_expr ⊤ e Φ.
+       wp_expr ge ⊤ f e Φ.
 
   (** [typed_read_end atomic E l β ty ot memcast] typechecks a read with op_type
   ot of the location [l] with type [l ◁ₗ{β} ty]. [atomic] says whether the read is an
@@ -539,10 +539,10 @@ Global Hint Mode Learnable + + : typeclass_instances.
 Global Hint Mode CopyAs + + + + + + + : typeclass_instances.
 Global Hint Mode SimpleSubsumePlace + + + + + ! - : typeclass_instances.
 Global Hint Mode SimpleSubsumeVal + + + + ! ! - : typeclass_instances.
-Global Hint Mode TypedIf + + + + : typeclass_instances.
+Global Hint Mode TypedIf + + + + + : typeclass_instances.
 (* Global Hint Mode TypedAssert + + + + + + : typeclass_instances. *)
 Global Hint Mode TypedValue + + + + + : typeclass_instances.
-Global Hint Mode TypedBinOp + + + + + + + + + + + : typeclass_instances.
+Global Hint Mode TypedBinOp + + + + + + + + + + + + : typeclass_instances.
 Global Hint Mode TypedUnOp + + + + + + + + : typeclass_instances.
 Global Hint Mode TypedCall + + + + + + + + + + : typeclass_instances.
 (*Global Hint Mode TypedCopyAllocId + + + + + + + : typeclass_instances. *)
@@ -560,7 +560,7 @@ Arguments learnable_data {_ _} _.
 (*Arguments learnalign_learn {_ _ _ _ _} _.*)
 
 Section proper.
-  Context `{!typeG OK_ty Σ} {cs : compspecs}.
+  Context `{!typeG OK_ty Σ} {cs : compspecs} (ge: genv).
 
   Lemma simplify_hyp_place_eq ty1 ty2 (Heq : ty1 ≡@{type} ty2) l β T:
     (l ◁ₗ{β} ty2 -∗ T) ⊢ simplify_hyp (l◁ₗ{β} ty1) T.
@@ -592,31 +592,33 @@ Section proper.
   Qed.*)
 
   (** wand lemmas *)
-  Lemma typed_val_expr_wand e T1 T2:
-    typed_val_expr e T1 -∗
+  Lemma typed_val_expr_wand f e T1 T2:
+    typed_val_expr ge f e T1 -∗
     (∀ v ty, T1 v ty -∗ T2 v ty) -∗
-    typed_val_expr e T2.
+    typed_val_expr ge f e T2.
   Proof.
     iIntros "He HT" (Φ) "HΦ".
     iApply "He". iIntros (v ty) "Hv Hty".
     iApply ("HΦ" with "Hv"). by iApply "HT".
   Qed.
 
-  Lemma typed_if_wand ot v (P : iProp Σ) T1 T2 T1' T2':
-    typed_if ot v P T1 T2 -∗
-    ((T1 -∗ T1') ∧ (T2 -∗ T2')) -∗
-    typed_if ot v P T1' T2'.
+  Lemma typed_if_wand ot v (P F : iProp Σ) T1 T2 T1' T2':
+    typed_if ot v P F T1 T2 -∗
+    <affine> ((T1 -∗ T1') ∧ (T2 -∗ T2')) -∗
+    typed_if ot v P F T1' T2'.
   Proof.
     iIntros "Hif HT Hv". iDestruct ("Hif" with "Hv") as "Hif".
-    destruct ot; iDestruct "Hif" as (b ?) "HC"; iExists b; (iSplit; first done); (case_bool_decide || if_tac;
+    iSplit; [iDestruct "Hif" as "[$ _]" | iDestruct "Hif" as "[_ Hif]"].
+    rewrite bi.affinely_elim.
+    destruct ot; iDestruct "Hif" as (b ?) "HC"; iExists b; (iSplit; first done); (simple_if_tac;
       (iDestruct "HT" as "[_ HT]"; by iApply "HT") || (iDestruct "HT" as "[HT _]"; by iApply "HT")).
   Qed.
 
   Lemma typed_bin_op_wand v1 P1 Q1 v2 P2 Q2 op ot1 ot2 T:
-    typed_bin_op v1 Q1 v2 Q2 op ot1 ot2 T -∗
+    typed_bin_op ge v1 Q1 v2 Q2 op ot1 ot2 T -∗
     (P1 -∗ Q1) -∗
     (P2 -∗ Q2) -∗
-    typed_bin_op v1 P1 v2 P2 op ot1 ot2 T.
+    typed_bin_op ge v1 P1 v2 P2 op ot1 ot2 T.
   Proof.
     iIntros "H Hw1 Hw2 H1 H2".
     iApply ("H" with "[Hw1 H1]"); [by iApply "Hw1"|by iApply "Hw2"].
@@ -630,10 +632,10 @@ Section proper.
     iIntros "H Hw HP". iApply "H". by iApply "Hw".
   Qed.
 
-  Lemma type_val_expr_mono_strong e T :
-    typed_val_expr e (λ v ty,
+  Lemma type_val_expr_mono_strong f e T :
+    typed_val_expr ge f e (λ v ty,
       ∃ ty', subsume ⎡v ◁ᵥ ty⎤ (λ _ : unit, ⎡v ◁ᵥ ty'⎤) (λ _, T v ty'))%I
-    -∗ typed_val_expr e T.
+    -∗ typed_val_expr ge f e T.
   Proof.
     iIntros "HT". iIntros (Φ) "HΦ".
     iApply "HT". iIntros (v ty) "Hv HT".
@@ -812,7 +814,7 @@ Global Typeclasses Opaque FindLoc FindVal FindValP FindValOrLoc FindLocInBounds 
 Ltac generate_i2p_instance_to_tc_hook arg c ::=
   lazymatch c with
   | typed_value ?x => constr:(TypedValue x)
-  | typed_bin_op ?x1 ?x2 ?x3 ?x4 ?x5 ?x6 ?x7 => constr:(TypedBinOp x1 x2 x3 x4 x5 x6 x7)
+  | typed_bin_op ?x1 ?x2 ?x3 ?x4 ?x5 ?x6 ?x7 ?x8 => constr:(TypedBinOp x1 x2 x3 x4 x5 x6 x7 x8)
   | typed_un_op ?x1 ?x2 ?x3 ?x4 => constr:(TypedUnOp x1 x2 x3 x4)
 (*  | typed_call ?x1 ?x2 ?x3 ?x4 => constr:(TypedCall x1 x2 x3 x4)
   | typed_copy_alloc_id ?x1 ?x2 ?x3 ?x4 ?x5 => constr:(TypedCopyAllocId x1 x2 x3 x4 x5)
@@ -823,7 +825,7 @@ Ltac generate_i2p_instance_to_tc_hook arg c ::=
 (*   | typed_cas ?x1 ?x2 ?x3 ?x4 ?x5 ?x6 ?x7 => constr:(TypedCas x1 x2 x3 x4 x5 x6 x7) *)
   | typed_annot_expr ?x1 ?x2 ?x3 ?x4 => constr:(TypedAnnotExpr x1 x2 x3 x4)
 (*   | typed_macro_expr ?x1 ?x2 => constr:(TypedMacroExpr x1 x2) *)
-  | typed_if ?x1 ?x2 ?x3 => constr:(TypedIf x1 x2 x3)
+  | typed_if ?x1 ?x2 ?x3 ?x4 => constr:(TypedIf x1 x2 x3 x4)
 (*   | typed_assert ?x1 ?x2 ?x3 => constr:(TypedAssert x1 x2 x3) *)
 (*   | typed_switch ?x1 ?x2 ?x3 => constr:(TypedSwitch x1 x2 x3) *)
   | typed_annot_stmt ?x1 ?x2 ?x3 => constr:(TypedAnnotStmt x1 x2 x3)
@@ -1114,9 +1116,9 @@ Section typing.
   (* This must be an Hint Extern because an instance would be a big slowdown. *)
   Definition subtype_var_inst := [instance @subtype_var].
 
-  Lemma typed_binop_simplify v1 P1 v2 P2 o1 o2 ot1 ot2 {SH1 : SimplifyHyp P1 o1} {SH2 : SimplifyHyp P2 o2} `{!TCOneIsSome o1 o2} op T:
-    let G1 := (SH1 (find_in_context (FindValP v1) (λ P, typed_bin_op v1 P v2 P2 op ot1 ot2 T))).(i2p_P) in
-    let G2 := (SH2 (find_in_context (FindValP v2) (λ P, typed_bin_op v1 P1 v2 P op ot1 ot2 T))).(i2p_P) in
+  Lemma typed_binop_simplify ge v1 P1 v2 P2 o1 o2 ot1 ot2 {SH1 : SimplifyHyp P1 o1} {SH2 : SimplifyHyp P2 o2} `{!TCOneIsSome o1 o2} op T:
+    let G1 := (SH1 (find_in_context (FindValP v1) (λ P, typed_bin_op ge v1 P v2 P2 op ot1 ot2 T))).(i2p_P) in
+    let G2 := (SH2 (find_in_context (FindValP v2) (λ P, typed_bin_op ge v1 P1 v2 P op ot1 ot2 T))).(i2p_P) in
     let G :=
        match o1, o2 with
      | Some n1, Some n2 => if (n2 ?= n1)%N is Lt then G2 else G1
@@ -1124,7 +1126,7 @@ Section typing.
      | _, _ => G2
        end in
     G
-    ⊢ typed_bin_op v1 P1 v2 P2 op ot1 ot2 T.
+    ⊢ typed_bin_op ge v1 P1 v2 P2 op ot1 ot2 T.
   Proof.
     iIntros "/= Hs Hv1 Hv2".
     destruct o1 as [n1|], o2 as [n2|] => //. 1: case_match.
@@ -1222,10 +1224,10 @@ Section typing.
   Definition typed_annot_expr_simplify_inst := [instance typed_annot_expr_simplify].
   Global Existing Instance typed_annot_expr_simplify_inst | 1000.
 
-  Lemma typed_if_simplify ot v (P : iProp Σ) n {SH : SimplifyHyp P (Some n)} T1 T2:
+  Lemma typed_if_simplify ot v (P F : iProp Σ) n {SH : SimplifyHyp P (Some n)} T1 T2:
     (SH (find_in_context (FindValP v) (λ Q,
-       typed_if ot v Q T1 T2))).(i2p_P)
-    ⊢ typed_if ot v P T1 T2.
+       typed_if ot v Q F T1 T2))).(i2p_P)
+    ⊢ typed_if ot v P F T1 T2.
   Proof.
     iIntros "Hs Hv". iDestruct (i2p_proof with "Hs Hv") as (Q) "[HQ HT]" => /=. simpl in *.
     iApply ("HT" with "HQ").
@@ -1284,9 +1286,9 @@ Section typing.
      similar to lithium.theories.typing.int, have one rule for each 
      concrete (t1, t2) in (Ecast t1 t2) *)
   Lemma type_assign Espec ge f e1 e2 (T: option val -> type -> assert):
-    typed_val_expr (Ecast e2 (typeof e1)) (λ v ty,
+    typed_val_expr ge f (Ecast e2 (typeof e1)) (λ v ty,
       <affine> ⌜v `has_layout_val` typeof e1⌝ ∗
-       typed_write false e1 (typeof e1) v ty (T None tytrue))
+       typed_write ge f false e1 (typeof e1) v ty (T None tytrue))
     ⊢ typed_stmt Espec ge (Sassign e1 e2) f T.
   Proof.
     unfold typed_stmt.
@@ -1309,34 +1311,36 @@ Section typing.
       iMod ("upd" with "[l↦]"); done.
   Qed.
 
-  Lemma type_set Espec ge f (id:ident) e (T: option val -> type -> assert):
-    typed_val_expr e (λ v ty, <affine> ⌜v ≠ Vundef⌝ ∗ <obj> (<affine> (local $ locald_denote $ temp id v) -∗ ⎡v ◁ᵥ ty⎤ -∗ T None tytrue))%I
+  (* sets any v' to v *)
+  Lemma type_set Espec ge f (id:ident) e v' (T: option val -> type -> assert):
+    typed_val_expr ge f e (λ v ty, <affine> ⌜v ≠ Vundef⌝ ∗ env.temp id v' ∗ 
+                            (⎡v ◁ᵥ ty⎤ -∗ env.temp id v -∗ T None tytrue))%I
       ⊢ typed_stmt Espec ge (Sset id e) f T.
   Proof.
     iIntros "He".
     iApply wp_set.
     iApply "He".
-    iIntros (??) "? [% ?]".
+    iIntros (??) "v_ty (% & $ & H)".
     rewrite /typed_stmt_post_cond /RA_normal.
-    iStopProof; split => rho; monPred.unseal.
-    rewrite /local /lift1 /subst.
-    iIntros "(? & HT)".
-    unfold_lift.
-    iApply "HT"; try done.
-    rewrite monPred_at_affinely.
-    iPureIntro.
-    split; auto.
-    symmetry; apply eval_id_same.
+    iModIntro.
+    iApply ("H" with "[$]").
   Qed.
 
   Lemma type_return_some Espec ge f e (T : option val → type -> assert):
-   typed_val_expr e (λ v, T (Some v))
-   ⊢ typed_stmt Espec ge (Sreturn $ Some e) f T.
+    cast_pointer_to_bool (typeof e) (fn_return f) = false ->
+    (typed_val_expr ge f e (λ v ty, ⌜tc_val (typeof e) v⌝ ∧ ⌜sem_cast (typeof e) (fn_return f) v = Some v⌝ ∧
+                                T (Some v) ty)
+    ⊢ typed_stmt Espec ge (Sreturn $ Some e) f T).
   Proof.
+    intros.
     unfold typed_stmt.
     iIntros "H".
-    iApply wp_return_Some. iApply "H".
+    iApply wp_return.
+    simpl.
+    iApply wp_cast; first done.
+    iApply "H". 
     iIntros; iFrame.
+    done.
   Qed.
 
   Lemma type_return_none Espec ge f (T : option val → type -> assert) ty:
@@ -1345,20 +1349,27 @@ Section typing.
   Proof.
     unfold typed_stmt.
     iIntros "H".
-    iApply wp_return_None. iExists ty; iFrame.
+    iApply wp_return.
+    simpl. iFrame.
   Qed.
 
   Lemma type_if Espec ge f e s1 s2 R:
-    typed_val_expr e (λ v ty, typed_if (typeof e) v ⎡v ◁ᵥ ty⎤
-          (typed_stmt Espec ge s1 f R) (typed_stmt Espec ge s2 f R))
+    typed_val_expr ge f e (λ v ty, typed_if (typeof e) v ⎡v ◁ᵥ ty⎤
+          (
+            (* ⌜∃ b, bool_val (typeof e) v = Some b⌝ ∧  *)
+          <affine> ⎡valid_val v⎤) (typed_stmt Espec ge s1 f R) (typed_stmt Espec ge s2 f R))
     ⊢ typed_stmt Espec ge (Sifthenelse e s1 s2) f R.
   Proof.
     iIntros "He".
     iApply wp_if.
     iApply "He". iIntros (v ty) "Hv Hs".
-    iDestruct ("Hs" with "Hv") as "Hs". destruct (typeof e) eqn: Ht; iDestruct "Hs" as (b Hv) "Hs"; try done.
+    iDestruct ("Hs" with "Hv") as "Hs".
+    (* rewrite -bi.and_assoc.
+    iDestruct "Hs" as "[%H Hs]".  *)
+    iSplit; [iDestruct "Hs" as "[$ _]"; done | iDestruct "Hs" as "[_ Hs]"].
+    destruct (typeof e) eqn: Ht; iDestruct "Hs" as (b Hv) "Hs"; try done; try (iFrame; done).
     - destruct v; try done.
-      iSplit; first done; iFrame.
+      iFrame.
       simpl in *.
       destruct (Int.eq i0 Int.zero) eqn: Heq.
       + apply Int.same_if_eq in Heq as ->.
@@ -1370,7 +1381,7 @@ Section typing.
         * apply (client_lemmas.unsigned_eq_eq _ Int.zero) in H0 as ->.
           rewrite Int.eq_true // in Heq.
     - destruct v; try done.
-      iSplit; first done; iFrame.
+      iFrame.
       simpl in *.
       destruct (Int64.eq i Int64.zero) eqn: Heq.
       + apply Int64.same_if_eq in Heq as ->.
@@ -1381,16 +1392,7 @@ Section typing.
           rewrite Int64.eq_true // in Heq.
         * apply (unsigned_inj_64 _ Int64.zero) in H0 as ->.
           rewrite Int64.eq_true // in Heq.
-    - rewrite /sem_cast /= in Hv.
-      destruct f0, v; try done; inv Hv; (iSplit; first done); iExists _; (iSplit; first done); simpl;
-        [destruct Float32.cmp | destruct Float.cmp]; done.
-    - rewrite /sem_cast /sem_cast_l2bool /sem_cast_i2bool /= in Hv; rewrite /bool_val /bool_val_p /=.
-      revert Hv; simple_if_tac; first done; destruct Archi.ptr64 eqn: ?; try done; intros.
-      destruct v; inv Hv; simpl; (iSplit; [try done | iExists _; iSplit; try done]).
-      + destruct (Int64.eq _ _); done.
-      + (* only valid pointers can be cast to true; should change typed_if *) admit.
-    - rewrite /sem_cast /sem_cast_l2bool /sem_cast_i2bool /= in Hv; rewrite /bool_val /bool_val_p /=.
-  Admitted.
+Qed.
 
 (*  Lemma type_switch Q it e m ss def fn ls R:
     typed_val_expr e (λ v ty, typed_switch v ty it m ss def fn ls R Q)
@@ -1487,45 +1489,45 @@ Section typing.
   Definition type_val_context_inst := [instance type_val_context].
   Global Existing Instance type_val_context_inst | 100.
 
-  Lemma type_const_int i t T:
+  Lemma type_const_int ge f i t T:
     typed_value (Vint i) (T (Vint i))
-    ⊢ typed_val_expr (Econst_int i t) T.
+    ⊢ typed_val_expr ge f (Econst_int i t) T.
   Proof.
     iIntros "HP" (Φ) "HΦ".
     iDestruct "HP" as (ty) "[Hv HT]".
     by iApply wp_const_int; iApply ("HΦ" with "[$]").
   Qed.
 
-  Lemma type_const_long i t T:
+  Lemma type_const_long ge f i t T:
     typed_value (Vlong i) (T (Vlong i))
-    ⊢ typed_val_expr (Econst_long i t) T.
+    ⊢ typed_val_expr ge f (Econst_long i t) T.
   Proof.
     iIntros "HP" (Φ) "HΦ".
     iDestruct "HP" as (ty) "[Hv HT]".
     by iApply wp_const_long; iApply ("HΦ" with "[$]").
   Qed.
 
-  Lemma type_const_float i t T:
+  Lemma type_const_float ge f i t T:
     typed_value (Vfloat i) (T (Vfloat i))
-    ⊢ typed_val_expr (Econst_float i t) T.
+    ⊢ typed_val_expr ge f (Econst_float i t) T.
   Proof.
     iIntros "HP" (Φ) "HΦ".
     iDestruct "HP" as (ty) "[Hv HT]".
     by iApply wp_const_float; iApply ("HΦ" with "[$]").
   Qed.
 
-  Lemma type_const_single i t T:
+  Lemma type_const_single ge f i t T:
     typed_value (Vsingle i) (T (Vsingle i))
-    ⊢ typed_val_expr (Econst_single i t) T.
+    ⊢ typed_val_expr ge f (Econst_single i t) T.
   Proof.
     iIntros "HP" (Φ) "HΦ".
     iDestruct "HP" as (ty) "[Hv HT]".
     by iApply wp_const_single; iApply ("HΦ" with "[$]").
   Qed.
 
-  Lemma type_bin_op o e1 e2 ot T:
-    typed_val_expr e1 (λ v1 ty1, typed_val_expr e2 (λ v2 ty2, typed_bin_op v1 ⎡v1 ◁ᵥ ty1⎤ v2 ⎡v2 ◁ᵥ ty2⎤ o (typeof e1) (typeof e2) T))
-    ⊢ typed_val_expr (Ebinop o e1 e2 ot) T.
+  Lemma type_bin_op ge f o e1 e2 ot T:
+    typed_val_expr ge f e1 (λ v1 ty1, typed_val_expr ge f e2 (λ v2 ty2, typed_bin_op ge v1 ⎡v1 ◁ᵥ ty1⎤ v2 ⎡v2 ◁ᵥ ty2⎤ o (typeof e1) (typeof e2) T))
+    ⊢ typed_val_expr ge f (Ebinop o e1 e2 ot) T.
   Proof.
     iIntros "He1" (Φ) "HΦ".
     iApply wp_binop_rule. iApply "He1". iIntros (v1 ty1) "Hv1 He2".
@@ -1533,9 +1535,9 @@ Section typing.
     by iApply ("Hop" with "Hv1 Hv2").
   Qed.
 
-  Lemma type_un_op o e ot T:
-    typed_val_expr e (λ v ty, typed_un_op v ⎡v ◁ᵥ ty⎤ o (typeof e) T)
-    ⊢ typed_val_expr (Eunop o e ot) T.
+  Lemma type_un_op ge f o e ot T:
+    typed_val_expr ge f e (λ v ty, typed_un_op v ⎡v ◁ᵥ ty⎤ o (typeof e) T)
+    ⊢ typed_val_expr ge f (Eunop o e ot) T.
   Proof.
     iIntros "He" (Φ) "HΦ".
     iApply wp_unop_rule. iApply "He". iIntros (v ty) "Hv Hop".
@@ -1543,59 +1545,29 @@ Section typing.
     by iApply ("Hop" with "Hv").
   Qed.
 
-  Lemma type_tempvar _x v c_ty T ty:
-    <affine> (local $ locald_denote $ temp _x v) ∗ ⎡ v ◁ᵥ ty ⎤ ∗ T v ty
-    ⊢ typed_val_expr (Etempvar _x c_ty) T.
+  Lemma type_tempvar ge f _x v c_ty T ty:
+     env.temp _x v ∗ (env.temp _x v -∗ ⎡ v ◁ᵥ ty ⎤ ∗ T v ty)
+    ⊢ typed_val_expr ge f (Etempvar _x c_ty) T.
   Proof.
-    iIntros "(? & ? & ?)" (Φ) "HΦ".
-    iApply wp_tempvar_local. iFrame.
-    by iApply ("HΦ" with "[$]").
-  Qed.
-
-  Lemma exploit_local (P:environ->Prop) (Q:Prop):
-    (forall rho, P rho->Q) ->
-    (⊢ local P) ->
-    Q.
-  Proof.
-    intros H1 H2.
-    assert (local P ⊢ ⌜Q⌝).
-    { go_lowerx. intros. iPureIntro. intros. apply (H1 _ H). }
-    rewrite H in H2.
-    eapply  ouPred.pure_soundness. 
-    destruct H2 as [H2].
-    pose proof environ_inhabited. inversion X as [x].
-    specialize (H2 x).
-    rewrite monPred_at_pure monPred_at_emp in H2.
-    done.
-  Qed.
-
-  Lemma tac_exploit_local (P:environ->Prop) (Q:Prop):
-    (forall rho, P rho->Q) ->
-    local P -∗ <absorb> ⌜Q⌝.
-  Proof.
-    intro H.
-    go_lowerx. iIntros "_" (??) "H".
-    rewrite monPred_at_absorbingly.
-    simpl.
-    iDestruct "H" as "%".
-    iPureIntro. eapply H. done.  
-  Qed.
-
-
-  Lemma type_var_local _x (lv:val) β ty c_ty (T: address -> own_state -> type -> assert) :
-    <affine> (local $ locald_denote $ lvar _x c_ty lv) ∗
-    (∃ l, <affine> ⌜Some l = val2address lv⌝ ∗
-    ⎡ l ◁ₗ{β} ty ⎤ ∗
-    T l β ty)
-    ⊢ typed_lvalue β (Evar _x c_ty) T.
-  Proof.
-    iIntros "(Hlvar & (%l & %Hl & Hl_own & HT))" (Φ) "HΦ".
-    iApply (wp_var_local _ _ _).
-    (* iPoseProof (tac_exploit_local with "Hlvar") as "%H";[apply lvar_isptr|]. *)
+    iIntros "(Hx & HT)" (Φ) "HΦ".
+    iApply wp_tempvar_local.
     iFrame.
-    destruct lv eqn:Heql; try done.
-    iExists _.
-    iSplit;[done|].
+    iIntros "Hx".
+    iDestruct ("HT" with "Hx") as "(Hv & HT)".
+    iApply ("HΦ" with "[$]"). done.
+  Qed.
+
+  Lemma type_var_local ge f _x b β ty c_ty (T: address -> own_state -> type -> assert) :
+    env.lvar _x c_ty b ∗
+    (env.lvar _x c_ty b -∗
+      ⎡ (b, 0) ◁ₗ{β} ty ⎤ ∗
+      T (b, 0) β ty)
+    ⊢ typed_lvalue ge f β (Evar _x c_ty) T.
+  Proof.
+    iIntros "(Hlvar & HT)" (Φ) "HΦ".
+    iApply (wp_var_local _ _ _).
+    iFrame.
+    iIntros "Hlvar"; iDestruct ("HT" with "Hlvar") as "[own_l HT]".
     iApply ("HΦ" with "[$]"). done.
   Qed.
 
@@ -1799,10 +1771,10 @@ Section typing.
 
   (* Ke: a simple version of type_write that treat typed_place as just typed_val_expr. 
          Not so sure about what's inside typed_val_expr outside of typed_write_end. *)
-  Lemma type_write_simple β1 (a : bool) ty T e v ot:
-    (typed_lvalue β1 e (λ l β2 ty1,
+  Lemma type_write_simple ge f β1 (a : bool) ty T e v ot:
+    (typed_lvalue ge f β1 e (λ l β2 ty1,
       typed_write_end a ⊤ ot v ty l β2 ty1 (λ ty3:type, ⎡l ◁ₗ{β1} ty3⎤ -∗ T)))%I
-    ⊢ typed_write a e ot v ty T.
+    ⊢ typed_write ge f a e ot v ty T.
   Proof.
     iIntros "typed_e".
     iIntros (Φ) "HΦ".
