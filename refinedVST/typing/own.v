@@ -163,13 +163,14 @@ Section own.
   Definition type_cast_ptr_ptr_inst := [instance type_cast_ptr_ptr].
   Global Existing Instance type_cast_ptr_ptr_inst. *)
 
-  Lemma type_if_ptr_own l β ty t T1 T2:
-    (l ◁ₗ{β} ty -∗ (*(loc_in_bounds l 0 ∗ True) ∧*) T1)
-    ⊢ typed_if (tptr t) l (l ◁ₗ{β} ty) T1 T2.
+  Lemma type_if_ptr_own (l:address) β ty t T1 T2:
+    (l ◁ₗ{β} ty -∗ (*(loc_in_bounds l 0 ∗ True) ∧*) valid_val l ∧ T1)
+    ⊢ typed_if (tptr t) l (l ◁ₗ{β} ty) (valid_val l) T1 T2.
   Proof.
     iIntros "HT1 Hl".
     iDestruct ("HT1" with "Hl") as "HT".
-    rewrite /adr2val /sem_cast /=.
+    iStopProof; f_equiv; iIntros "HT".
+    rewrite /adr2val /bool_val /=.
     rewrite andb_false_r /=.
     eauto.
   Qed.
@@ -241,7 +242,7 @@ Section own.
 
   (* TODO: Is it a good idea to have this general rule or would it be
   better to have more specialized rules? *)
-  Lemma type_relop_ptr_ptr (l1 l2 : address) op b β1 β2 ty1 ty2 t1 t2
+  Lemma type_relop_ptr_ptr ge (l1 l2 : address) op b β1 β2 ty1 ty2 t1 t2
     (Hop : match op with
            | Olt => Some (bool_decide (l1.2 < l2.2))
            | Ogt => Some (bool_decide (l1.2 > l2.2))
@@ -253,13 +254,13 @@ Section own.
       ⌜0 ≤ l1.2 ≤ Ptrofs.max_unsigned ∧ 0 ≤ l2.2 ≤ Ptrofs.max_unsigned⌝ ∧
       ⎡expr.weak_valid_pointer l1⎤ ∧ ⎡expr.weak_valid_pointer l2⎤ ∧
       T (i2v (bool_to_Z b) tint) (b @ boolean tint)))
-    ⊢ typed_bin_op l1 ⎡l1 ◁ₗ{β1} ty1⎤ l2 ⎡l2 ◁ₗ{β2} ty2⎤ op (tptr t1) (tptr t2) T.
+    ⊢ typed_bin_op ge l1 ⎡l1 ◁ₗ{β1} ty1⎤ l2 ⎡l2 ◁ₗ{β2} ty2⎤ op (tptr t1) (tptr t2) T.
   Proof.
     iIntros "HT Hl1 Hl2". iIntros (Φ) "HΦ". iDestruct ("HT" with "Hl1 Hl2") as (Heq (? & ?)) "HT".
     iIntros "!>" (?) "Hm !>".
-    iDestruct (binop_lemmas4.weak_valid_pointer_dry with "[$Hm HT]") as %H1.
+    iDestruct (valid_pointer.weak_valid_pointer_dry with "[$Hm HT]") as %H1.
     { iDestruct "HT" as "($ & _)". }
-    iDestruct (binop_lemmas4.weak_valid_pointer_dry with "[$Hm HT]") as %H2.
+    iDestruct (valid_pointer.weak_valid_pointer_dry with "[$Hm HT]") as %H2.
     { iDestruct "HT" as "(_ & $ & _)". }
     iFrame; iExists (i2v (bool_to_Z b) tint); iSplit.
     - iStopProof; split => rho; monPred.unseal.
@@ -279,17 +280,17 @@ Section own.
       iExists _; iSplit; iPureIntro; try done.
       by destruct b.
   Qed.
-  Definition type_lt_ptr_ptr_inst l1 l2 :=
-    [instance type_relop_ptr_ptr l1 l2 Olt (bool_decide (l1.2 < l2.2))].
+  Definition type_lt_ptr_ptr_inst ge l1 l2 :=
+    [instance type_relop_ptr_ptr ge l1 l2 Olt (bool_decide (l1.2 < l2.2))].
   Global Existing Instance type_lt_ptr_ptr_inst.
-  Definition type_gt_ptr_ptr_inst l1 l2 :=
-    [instance type_relop_ptr_ptr l1 l2 Ogt (bool_decide (l1.2 > l2.2))].
+  Definition type_gt_ptr_ptr_inst ge l1 l2 :=
+    [instance type_relop_ptr_ptr ge l1 l2 Ogt (bool_decide (l1.2 > l2.2))].
   Global Existing Instance type_gt_ptr_ptr_inst.
-  Definition type_le_ptr_ptr_inst l1 l2 :=
-    [instance type_relop_ptr_ptr l1 l2 Ole (bool_decide (l1.2 <= l2.2))].
+  Definition type_le_ptr_ptr_inst ge l1 l2 :=
+    [instance type_relop_ptr_ptr ge l1 l2 Ole (bool_decide (l1.2 <= l2.2))].
   Global Existing Instance type_le_ptr_ptr_inst.
-  Definition type_ge_ptr_ptr_inst l1 l2 :=
-    [instance type_relop_ptr_ptr l1 l2 Oge (bool_decide (l1.2 >= l2.2))].
+  Definition type_ge_ptr_ptr_inst ge l1 l2 :=
+    [instance type_relop_ptr_ptr ge l1 l2 Oge (bool_decide (l1.2 >= l2.2))].
   Global Existing Instance type_ge_ptr_ptr_inst.
 
 
@@ -321,6 +322,8 @@ Section own.
 
   Global Program Instance shr_copyable p ty : Copyable (p @ frac_ptr Shr ty).
   Next Obligation.
+    intros. rewrite /Affine /ty_own_val /=.
+    iIntros "[-> ?]".
   Admitted.
   Next Obligation.
     iIntros (p ty E ot l ? (t & ->)) "(%&#Hmt&#Hty)".
@@ -519,10 +522,10 @@ Section null.
         first [inv Heq; split; congruence | try if_tac in Heq; destruct (_ && _); inv Heq; simpl; split; congruence].
   Qed.
 
-  Lemma type_binop_null_null v1 v2 t1 t2 op T:
+  Lemma type_binop_null_null ge v1 v2 t1 t2 op T:
     (<affine> ⌜match op with | Cop.Oeq | Cop.One => True | _ => False end⌝ ∗ ∀ v,
           T v ((if op is Cop.Oeq then true else false) @ boolean tint))
-    ⊢ typed_bin_op v1 ⎡v1 ◁ᵥ null⎤ v2 ⎡v2 ◁ᵥ null⎤ op (tptr t1) (tptr t2) T.
+    ⊢ typed_bin_op ge v1 ⎡v1 ◁ᵥ null⎤ v2 ⎡v2 ◁ᵥ null⎤ op (tptr t1) (tptr t2) T.
   Proof.
     iIntros "[% HT]" (-> -> Φ) "HΦ".
     iIntros "!>" (?) "$ !>".
@@ -612,11 +615,13 @@ Section null.
   Global Existing Instance type_cast_null_ptr_inst. *)
 
   Lemma type_if_null v t T1 T2:
-    T2
-    ⊢ typed_if (tptr t) v (v ◁ᵥ null) T1 T2.
+    valid_val v ∧ T2
+    ⊢ typed_if (tptr t) v (v ◁ᵥ null) (valid_val v) T1 T2.
   Proof.
-    iIntros "HT2 -> /=". iExists (Vint Int.zero); iFrame; iPureIntro.
-    rewrite /sem_cast /= andb_false_r //.
+    iIntros "HT2 -> /=".
+    iStopProof; f_equiv; iIntros "HT2".
+    iExists false; iFrame; iPureIntro.
+    rewrite /bool_val /= andb_false_r //.
   Qed.
   Definition type_if_null_inst := [instance type_if_null].
   Global Existing Instance type_if_null_inst.
@@ -633,7 +638,7 @@ Section optionable.
     iIntros "Hpre H1 -> Hctx".
     destruct bty; [ iDestruct "H1" as (->) "Hty" | iDestruct "H1" as %-> ].
     - iDestruct ("Hpre" with "Hty") as "Hlib".
-      iDestruct (expr_lemmas4.valid_pointer_dry0 with "[$Hctx $Hlib]") as %Hvalid; iPureIntro.
+      iDestruct (valid_pointer.valid_pointer_dry0 with "[$Hctx $Hlib]") as %Hvalid; iPureIntro.
       destruct beq => /=; rewrite /Cop.sem_cmp /= /cmp_ptr /nullval /=; change Archi.ptr64 with true; rewrite /= Hvalid /= /Vtrue /Vfalse /Int.zero /Int.one; split; congruence.
     - rewrite eval_bin_op_ptr_cmp // /= ?Int.eq_true ?Int64.eq_true; destruct beq => //.
   Qed.
@@ -704,7 +709,7 @@ Section optionable.
 End optionable.
 
 Global Typeclasses Opaque ptr_type ptr.
-Global Typeclasses Opaque frac_ptr_type frac_ptr.
+Global Typeclasses Opaque  frac_ptr.
 Global Typeclasses Opaque null.
 
 Section optional_null.

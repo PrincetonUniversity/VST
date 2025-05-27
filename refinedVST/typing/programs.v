@@ -173,11 +173,10 @@ Section judgements.
   Class TypedAnnotStmt {A} (a : A) (l : address) (P : iProp Σ) : Type :=
     typed_annot_stmt_proof T : iProp_to_Prop (typed_annot_stmt a l P T).
 
-  (* F : common *)
   Definition typed_if {B : bi} (ot : Ctypes.type) (v : val) (P : B) (F : B) (T1 T2 : B) : B :=
     (P -∗ (F ∧ match ot with
           | Tint _ _ _ | Tlong _ _ => ∃ z, <affine> ⌜val_to_Z v ot = Some z⌝ ∗ (if bool_decide (z ≠ 0) then T1 else T2)
-          | _ => ∃ b, <affine> ⌜sem_cast ot tbool v = Some b⌝ ∗ (if eq_dec b (Vint Int.zero) then T2 else T1) end)).
+          | _ => ∃ b, <affine> ⌜bool_val ot v = Some b⌝ ∗ (if b then T1 else T2) end)).
   Class TypedIf {B : bi} (ot : Ctypes.type) (v : val) (P : B) (F : B) : Type :=
     typed_if_proof T1 T2 : iProp_to_Prop (typed_if ot v P F T1 T2).
 
@@ -611,7 +610,7 @@ Section proper.
     iIntros "Hif HT Hv". iDestruct ("Hif" with "Hv") as "Hif".
     iSplit; [iDestruct "Hif" as "[$ _]" | iDestruct "Hif" as "[_ Hif]"].
     rewrite bi.affinely_elim.
-    destruct ot; iDestruct "Hif" as (b ?) "HC"; iExists b; (iSplit; first done); (case_bool_decide || if_tac;
+    destruct ot; iDestruct "Hif" as (b ?) "HC"; iExists b; (iSplit; first done); (simple_if_tac;
       (iDestruct "HT" as "[_ HT]"; by iApply "HT") || (iDestruct "HT" as "[HT _]"; by iApply "HT")).
   Qed.
 
@@ -1312,8 +1311,9 @@ Section typing.
       iMod ("upd" with "[l↦]"); done.
   Qed.
 
-  Lemma type_set Espec ge f (id:ident) e (T: option val -> type -> assert):
-    typed_val_expr ge f e (λ v ty, <affine> ⌜v ≠ Vundef⌝ ∗ env.temp id v ∗
+  (* sets any v' to v *)
+  Lemma type_set Espec ge f (id:ident) e v' (T: option val -> type -> assert):
+    typed_val_expr ge f e (λ v ty, <affine> ⌜v ≠ Vundef⌝ ∗ env.temp id v' ∗ 
                             (⎡v ◁ᵥ ty⎤ -∗ env.temp id v -∗ T None tytrue))%I
       ⊢ typed_stmt Espec ge (Sset id e) f T.
   Proof.
@@ -1357,7 +1357,7 @@ Section typing.
     typed_val_expr ge f e (λ v ty, typed_if (typeof e) v ⎡v ◁ᵥ ty⎤
           (
             (* ⌜∃ b, bool_val (typeof e) v = Some b⌝ ∧  *)
-          ⎡valid_val v⎤) (typed_stmt Espec ge s1 f R) (typed_stmt Espec ge s2 f R))
+          <affine> ⎡valid_val v⎤) (typed_stmt Espec ge s1 f R) (typed_stmt Espec ge s2 f R))
     ⊢ typed_stmt Espec ge (Sifthenelse e s1 s2) f R.
   Proof.
     iIntros "He".
@@ -1367,7 +1367,7 @@ Section typing.
     (* rewrite -bi.and_assoc.
     iDestruct "Hs" as "[%H Hs]".  *)
     iSplit; [iDestruct "Hs" as "[$ _]"; done | iDestruct "Hs" as "[_ Hs]"].
-    destruct (typeof e) eqn: Ht; iDestruct "Hs" as (b Hv) "Hs"; try done.
+    destruct (typeof e) eqn: Ht; iDestruct "Hs" as (b Hv) "Hs"; try done; try (iFrame; done).
     - destruct v; try done.
       iFrame.
       simpl in *.
@@ -1392,19 +1392,7 @@ Section typing.
           rewrite Int64.eq_true // in Heq.
         * apply (unsigned_inj_64 _ Int64.zero) in H0 as ->.
           rewrite Int64.eq_true // in Heq.
-    - rewrite /sem_cast /= in Hv.
-      destruct f0, v; try done; inv Hv; iExists _; (iSplit; first done); simpl;
-        [destruct Float32.cmp | destruct Float.cmp]; done.
-    - rewrite /sem_cast /sem_cast_l2bool /sem_cast_i2bool /= in Hv; rewrite /bool_val /bool_val_p /=.
-      revert Hv; simple_if_tac; first done; destruct Archi.ptr64 eqn: ?; try done; intros.
-      destruct v; inv Hv; simpl; iExists _; iSplit; try done.
-      destruct (Int64.eq _ _); done.
-    - rewrite /sem_cast /sem_cast_l2bool /sem_cast_i2bool /= in Hv.
-      destruct Archi.ptr64; simpl;
-      admit.
-    - admit.
-      
-  Admitted.
+Qed.
 
 (*  Lemma type_switch Q it e m ss def fn ls R:
     typed_val_expr e (λ v ty, typed_switch v ty it m ss def fn ls R Q)
@@ -1539,7 +1527,7 @@ Section typing.
 
   Lemma type_bin_op ge f o e1 e2 ot T:
     typed_val_expr ge f e1 (λ v1 ty1, typed_val_expr ge f e2 (λ v2 ty2, typed_bin_op ge v1 ⎡v1 ◁ᵥ ty1⎤ v2 ⎡v2 ◁ᵥ ty2⎤ o (typeof e1) (typeof e2) T))
-    ⊢ typed_val_expr ge f(Ebinop o e1 e2 ot) T.
+    ⊢ typed_val_expr ge f (Ebinop o e1 e2 ot) T.
   Proof.
     iIntros "He1" (Φ) "HΦ".
     iApply wp_binop_rule. iApply "He1". iIntros (v1 ty1) "Hv1 He2".

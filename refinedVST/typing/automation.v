@@ -1,11 +1,10 @@
 (* refinedC/typing/automation.v *)
 From iris.proofmode Require Import coq_tactics reduction.
 From lithium Require Import hooks normalize.
-From VST.floyd Require Import forward.
 From VST.lithium Require Export all.
 From VST.typing Require Export type.
-From VST.typing.automation Require Export proof_state (* solvers simplification  loc_eq. *).
-From VST.typing Require Import programs function singleton own (* struct *) bytes int.
+From VST.typing.automation Require Export proof_state (* solvers simplification loc_eq. *).
+From VST.typing Require Import programs (* function *) singleton own (* struct *) bytes int.
 Set Default Proof Using "Type".
 Set Nested Proofs Allowed.
 (** * Defining extensions *)
@@ -54,8 +53,8 @@ Ltac liExtensible_to_i2p_hook P bind cont ::=
       many let-bindings seem to hurt performance. *)
       (* bind T ltac:(fun H => uconstr:(typed_value v H)); *)
       cont uconstr:(((_ : TypedValue _) _))
-  | typed_bin_op ?v1 ?ty1 ?v2 ?ty2 ?o ?ot1 ?ot2 ?T =>
-      cont uconstr:(((_ : TypedBinOp _ _ _ _ _ _ _) _))
+  | typed_bin_op ?ge ?v1 ?ty1 ?v2 ?ty2 ?o ?ot1 ?ot2 ?T =>
+      cont uconstr:(((_ : TypedBinOp _ _ _ _ _ _ _ _) _))
   | typed_un_op ?v ?ty ?o ?ot ?T =>
       cont uconstr:(((_ : TypedUnOp _ _ _ _) _))
   (*
@@ -66,8 +65,8 @@ Ltac liExtensible_to_i2p_hook P bind cont ::=
   | typed_place ?P ?l1 ?β1 ?ty1 ?T =>
       cont uconstr:(((_ : TypedPlace _ _ _ _) _))
   *)    
-  | typed_if ?ot ?v ?P ?T1 ?T2 =>
-      cont uconstr:(((_ : TypedIf _ _ _) _ _))
+  | typed_if ?ot ?v ?P ?F ?T1 ?T2 =>
+      cont uconstr:(((_ : TypedIf _ _ _ _) _ _))
   (*
   | typed_switch ?v ?ty ?it ?m ?ss ?def ?fn ?ls ?fr ?Q =>
       cont uconstr:(((_ : TypedSwitch _ _ _) _ _ _ _ _ _ _))
@@ -97,21 +96,21 @@ Ltac liExtensible_to_i2p_hook P bind cont ::=
 Ltac liToSyntax_hook ::=
   unfold pop_location_info(*, LocInfoE*);
   change (typed_value ?x1 ?x2) with (li.bind1 (typed_value x1 x2));
-  change (typed_bin_op ?x1 ?x2 ?x3 ?x4 ?x5 ?x6 ?x7) with (li.bind2 (typed_bin_op x1 x2 x3 x4 x5 x6 x7));
+  change (typed_bin_op ?x1 ?x2 ?x3 ?x4 ?x5 ?x6 ?x7 ?x8) with (li.bind2 (typed_bin_op x1 x2 x3 x4 x5 x6 x7 x8));
   change (typed_un_op ?x1 ?x2 ?x3 ?x4) with (li.bind2 (typed_un_op x1 x2 x3 x4));
   (* change (typed_call ?x1 ?x2 ?x3 ?x4) with (li.bind2 (typed_call x1 x2 x3 x4)); *)
   (* change (typed_copy_alloc_id ?x1 ?x2 ?x3 ?x4 ?x5) with (li.bind2 (typed_copy_alloc_id x1 x2 x3 x4 x5)); *)
   (* change (typed_place ?x1 ?x2 ?x3 ?x4) with (li.bind5 (typed_place x1 x2 x3 x4)); *)
-  change (typed_read ?x1 ?x2 ?x3 ?x4) with (li.bind2 (typed_read x1 x2 x3 x4));
-  change (typed_read_end ?x1 ?x2 ?x3 ?x4 ?x5 ?x6 ?x7) with (li.bind3 (typed_read_end x1 x2 x3 x4 x5 x6 x7));
-  change (typed_write ?x1 ?x2 ?x3 ?x4 ?x5) with (li.bind0 (typed_write x1 x2 x3 x4 x5));
+  change (typed_read ?x1 ?x2 ?x3 ?x4 ?x5 ?x6 ?x7) with (li.bind2 (typed_read x1 x2 x3 x4 x5 x6 x7));
+  change (typed_read_end ?x1 ?x2 ?x3 ?x4 ?x5 ?x6 ?x7 ?x8) with (li.bind3 (typed_read_end x1 x2 x3 x4 x5 x6 x7 x8));
+  change (typed_write ?x1 ?x2 ?x3 ?x4 ?x5 ?x6 ?x7) with (li.bind0 (typed_write x1 x2 x3 x4 x5 x6 x7));
   change (typed_write_end ?x1 ?x2 ?x3 ?x4 ?x5 ?x6 ?x7 ?x8) with (li.bind1 (typed_write_end x1 x2 x3 x4 x5 x6 x7 x8));
-  change (typed_addr_of ?x1) with (li.bind3 (typed_addr_of x1));
+  change (typed_addr_of ?x1 ?x2 ?x3) with (li.bind3 (typed_addr_of x1 x2 x3));
   change (typed_addr_of_end ?x1 ?x2 ?x3) with (li.bind3 (typed_addr_of_end x1 x2 x3));
   (* change (typed_cas ?x1 ?x2 ?x3 ?x4 ?x5 ?x6 ?x7) with (li.bind2 (typed_cas x1 x2 x3 x4 x5 x6 x7)); *)
   (* change (typed_annot_expr ?x1 ?x2 ?x3 ?x4) with (li.bind0 (typed_cas x1 x2 x3 x4)); *)
   (* change (typed_macro_expr ?x1 ?x2) with (li.bind2 (typed_macro_expr x1 x2)); *)
-  change (typed_val_expr ?x1) with (li.bind2 (typed_val_expr x1))
+  change (typed_val_expr ?x1 ?x2 ?x3) with (li.bind2 (typed_val_expr x1 x2 x3))
   (* no typed_if, typed_switch, typed_assert, typed_stmt, typed_annot_stmt *)
 .
 
@@ -141,14 +140,14 @@ Ltac liRIntroduceLetInGoal :=
   lazymatch goal with
   | |- @envs_entails ?prop ?Δ ?P =>
     lazymatch P with
-    | @typed_val_expr ?Σ ?tG ?cs ?e ?T =>
-      li_let_bind T (fun H => constr:(@envs_entails prop Δ (@typed_val_expr Σ tG cs e H)))
-    | @typed_write ?Σ ?tG ?cs ?b ?e ?ot ?v ?ty ?T =>
-      li_let_bind T (fun H => constr:(@envs_entails prop Δ (@typed_write Σ tG cs b e ot v ty H)))
+    | @typed_val_expr ?Σ ?tG ?cs ?ge ?f ?e ?T =>
+      li_let_bind T (fun H => constr:(@envs_entails prop Δ (@typed_val_expr Σ tG cs ge f e H)))
+    | @typed_write ?Σ ?tG ?cs ?ge ?f ?b ?e ?ot ?v ?ty ?T =>
+      li_let_bind T (fun H => constr:(@envs_entails prop Δ (@typed_write Σ tG cs ge f b e ot v ty H)))
     (* | @typed_place ?Σ ?tG ?P ?l1 ?β1 ?ty1 ?T =>
       li_let_bind T (fun H => constr:(@envs_entails prop Δ (@typed_place Σ tG P l1 β1 ty1 H))) *)
-    | @typed_bin_op ?Σ ?tG ?cs ?v1 ?P1 ?v2 ?P2 ?op ?ot1 ?ot2 ?T =>
-      li_let_bind T (fun H => constr:(@envs_entails prop Δ (@typed_bin_op Σ tG cs v1 P1 v2 P2 op ot1 ot2 H)))
+    | @typed_bin_op ?Σ ?tG ?cs ?ge ?v1 ?P1 ?v2 ?P2 ?op ?ot1 ?ot2 ?T =>
+      li_let_bind T (fun H => constr:(@envs_entails prop Δ (@typed_bin_op Σ tG cs ge v1 P1 v2 P2 op ot1 ot2 H)))
     end
   end.
 
@@ -173,7 +172,7 @@ Ltac liRStmt :=
       let s' := s in
       lazymatch s' with
       | Sassign _ _ => notypeclasses refine (tac_fast_apply (type_assign _ _ _ _ _ _) _)
-      | Sset _ _ => notypeclasses refine (tac_fast_apply (type_set _ _ _ _ _ _) _)
+      | Sset _ _ => notypeclasses refine (tac_fast_apply (type_set _ _ _ _ _ _ _) _)
       | Ssequence _ _ => notypeclasses refine (tac_fast_apply (type_seq _ _ _ _ _ _) _)
       | Sreturn $ Some _ => notypeclasses refine (tac_fast_apply (type_return_some _ _ _ _ _) _)
       | Sreturn None => notypeclasses refine (tac_fast_apply (type_return_none _ _ _ _ _) _)
@@ -216,29 +215,29 @@ Ltac liRExpr :=
     end
   end; *)
   lazymatch goal with
-  | |- envs_entails ?Δ (typed_val_expr ?e ?T) =>
+  | |- envs_entails ?Δ (typed_val_expr _ _ ?e ?T) =>
     lazymatch e with
-    | Ecast _ _ => notypeclasses refine (tac_fast_apply (type_Ecast_same_val _ _ _) _)
-    | Econst_int _ _ => notypeclasses refine (tac_fast_apply (type_const_int _ _ _) _)
-    | Ebinop _ _ _ _ => notypeclasses refine (tac_fast_apply (type_bin_op _ _ _ _ _) _)
-    | Etempvar _ _ => notypeclasses refine (tac_fast_apply (type_tempvar _ _ _ _ _) _)
+    | Ecast _ _ => notypeclasses refine (tac_fast_apply (type_Ecast_same_val _ _ _ _ _) _)
+    | Econst_int _ _ => notypeclasses refine (tac_fast_apply (type_const_int _ _ _ _ _) _)
+    | Ebinop _ _ _ _ => notypeclasses refine (tac_fast_apply (type_bin_op _ _ _ _ _ _ _) _)
+    | Etempvar _ _ => notypeclasses refine (tac_fast_apply (type_tempvar _ _ _ _ _ _ _) _)
     | _ => fail "do_expr: unknown expr" e
     end
-  | |- envs_entails ?Δ (typed_lvalue ?β ?e ?T) =>
+  | |- envs_entails ?Δ (typed_lvalue _ _ ?β ?e ?T) =>
     lazymatch e with
-    | Evar _ _ => notypeclasses refine (tac_fast_apply (type_var_local _ _ _ _ _ _) _)
+    | Evar _ _ => notypeclasses refine (tac_fast_apply (type_var_local _ _ _ _ _ _ _ _) _)
     | _ => fail "do_expr: unknown expr" e
     end
   end.
 
 Ltac liRJudgement :=
   lazymatch goal with
-    | |- envs_entails _ (typed_write _ _ _ _ _ _) => 
-      notypeclasses refine (tac_fast_apply (type_write_simple _ _ _ _ _ _ _) _)
-    | |- envs_entails _ (typed_read _ _ _ _ _) =>
+    | |- envs_entails _ (typed_write _ _ _ _ _ _ _ _) => 
+      notypeclasses refine (tac_fast_apply (type_write_simple _ _ _ _ _ _ _ _ _) _)
+    | |- envs_entails _ (typed_read _ _ _ _ _ _ _) =>
       fail "liRJudgement: type_read not implemented yet"
       (* notypeclasses refine (tac_fast_apply (type_read _ _ _ _ _ _ _) _); [ solve [refine _ ] |] *)
-    | |- envs_entails _ (typed_addr_of _ _) =>
+    | |- envs_entails _ (typed_addr_of _ _ _ _) =>
       fail "liRJudgement: type_addr_of not implemented yet"
       (* notypeclasses refine (tac_fast_apply (type_addr_of_place _ _ _ _) _); [solve [refine _] |] *)
   end.
@@ -310,7 +309,8 @@ in the number of blocks! *)
 (* TODO: don't use i... tactics here *)
 (* FIXME for now the intropattern is just x for the entire array of arguments. *)
 (* was start_function in refinedc; name conflict with the floyd tactic *)
-Tactic Notation "type_function" constr(fnname) "(" simple_intropattern(x) ")" :=
+(* FIXME uncomment this once function.v is working *)
+(* Tactic Notation "type_function" constr(fnname) "(" simple_intropattern(x) ")" :=
   intros;
   repeat iIntros "#?";
   rewrite /typed_function;
@@ -322,7 +322,7 @@ Tactic Notation "type_function" constr(fnname) "(" simple_intropattern(x) ")" :=
   iIntros "!#" (lsa lsb); inv_vec lsb; inv_vec lsa;
   iPureIntro;
   iIntros "(?&?&?&?)";
-  cbn.
+  cbn. *)
 
 Tactic Notation "prepare_parameters" "(" ident_list(i) ")" :=
   revert i; repeat liForall.
@@ -369,28 +369,29 @@ Ltac split_blocks Pfull Ps :=
 
 Section automation_tests.
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
-
-  Opaque local locald_denote.
-
-   Set Ltac Backtrace.
+  
+  Notation temp := env.temp.
+  Notation lvar := env.lvar.
 
   Goal forall Espec ge f (_x:ident) (x:val),
-  <affine> (local $ locald_denote $ temp _x x)
-  ⊢ typed_stmt Espec ge (Sset _x (Ebinop Oadd (Econst_int (Int.repr 41) tint) (Econst_int (Int.repr 1) tint) tint)) f
-                           (λ v t, <affine> local (locald_denote (temp _x (Vint (Int.repr 42))))
-                                   ∗ ⎡ Vint (Int.repr 42) ◁ᵥ 42 @ int tint ⎤).
+  temp _x x
+  ⊢ typed_stmt Espec ge (Sset _x (Ebinop Oadd (Econst_int (Int.repr 41) tint)
+                                              (Econst_int (Int.repr 1) tint) tint)) f
+                        (λ v t, temp _x (Vint (Int.repr 42))
+                                ∗ ⎡ Vint (Int.repr 42) ◁ᵥ 42 @ int tint ⎤).
   Proof.
     iIntros.
+    (* usually Info level 0 is able to see the tactic applied *)
     repeat liRStep.
     liShow; try done.
   Qed.
 
-  Goal forall Espec ge f (_x:ident) b o (l:address) ty,
+  Goal forall Espec ge f (_x:ident) b  (l:address) ty,
   TCDone (ty_has_op_type ty tint MCNone) ->
-  ⊢ <affine> (local $ locald_denote $ lvar _x tint $ Vptr b o) -∗
-    ⎡ ty_own ty Own (b, Ptrofs.signed o) ⎤ -∗
+  ⊢ lvar _x tint b -∗
+    ⎡ ty_own ty Own (b, Ptrofs.unsigned Ptrofs.zero) ⎤ -∗
     typed_stmt Espec ge (Sassign (Evar _x tint) (Econst_int (Int.repr 1) tint)) f
-               (λ v t, ⎡ (b, Ptrofs.signed o) ◁ₗ Int.signed (Int.repr 1) @ int tint ⎤ ∗ True).
+               (λ v t, ⎡ (b, Ptrofs.unsigned Ptrofs.zero) ◁ₗ Int.signed (Int.repr 1) @ int tint ⎤ ∗ True).
   Proof.
   iIntros.
   liRStep.
@@ -417,25 +418,19 @@ Section automation_tests.
   liRStep.
   liRStep.
   liRStep.
-  liRStep.
-
-  liRStep.
-  liRStep.
 Qed.
 End automation_tests.
 
 From VST.typing Require Import automation_test.
 
-Global Instance related_to_val_embed `{!typeG OK_ty Σ} {cs : compspecs} A v ty : RelatedTo (λ x : A, (⎡v ◁ᵥ ty x⎤:(monPredI environ_index (ouPredI (iResUR Σ)))))%I | 100
+Global Instance related_to_val_embed `{!typeG OK_ty Σ} {cs : compspecs} A v ty : RelatedTo (λ x : A, (⎡v ◁ᵥ ty x⎤))%I | 100
 := {| rt_fic := FindVal v |}.
-Global Instance related_to_val_embed2 `{!typeG OK_ty Σ} {cs : compspecs} A v ty : RelatedTo (λ x : A, (⎡v ◁ᵥ ty⎤:(monPredI environ_index (ouPredI (iResUR Σ)))))%I | 100
+Global Instance related_to_val_embed2 `{!typeG OK_ty Σ} {cs : compspecs} A v ty : RelatedTo (λ x : A, (⎡v ◁ᵥ ty⎤))%I | 100
 := {| rt_fic := FindVal v |}.
 
 Arguments find_in_context : simpl never.
 Arguments subsume : simpl never.
-Arguments FindVal  : simpl never.
-Arguments local : simpl never.
-Arguments locald_denote : simpl never.
+Arguments FindVal : simpl never.
 
 Lemma simple_subsume_val_to_subsume_embed `{!typeG OK_ty Σ} `{compspecs} (A:Type) (v : val) (ty1 : type) (ty2 : A → type) (P:A->mpred)
   `{!∀ (x:A), SimpleSubsumeVal ty1 (ty2 x) (P x)} (T: A-> assert) :
@@ -452,11 +447,11 @@ Qed.
 Definition simple_subsume_val_to_subsume_embed_inst `{!typeG OK_ty Σ} `{compspecs} := [instance simple_subsume_val_to_subsume_embed].
 Global Existing Instance simple_subsume_val_to_subsume_embed_inst.
 
-  Module f_test1.
+  Section f_test1.
     Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
     Definition spec_f_ret_expr :=
-      fn(∀ () : (); emp) → ∃ z : Z, (z @ ( int tint )); ⌜z = 3⌝.
+      fn(∀ () : (); emp)%type → ∃ z : Z, (z @ ( int tint )); ⌜z = 3⌝.
     Instance CompSpecs : compspecs. make_compspecs prog. Defined.
     Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
@@ -467,7 +462,7 @@ Global Existing Instance simple_subsume_val_to_subsume_embed_inst.
     Qed.
   End f_test1.
 
-  Module f_test2.
+  Section f_test2.
     Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
     Definition spec_f_temps :=
