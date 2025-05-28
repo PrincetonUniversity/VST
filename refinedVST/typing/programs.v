@@ -1358,9 +1358,7 @@ Section typing.
 
   Lemma type_if Espec ge f e s1 s2 R:
     typed_val_expr ge f e (λ v ty, typed_if (typeof e) v ⎡v ◁ᵥ ty⎤
-          (
-            (* ⌜∃ b, bool_val (typeof e) v = Some b⌝ ∧  *)
-          <affine> ⎡valid_val v⎤) (typed_stmt Espec ge s1 f R) (typed_stmt Espec ge s2 f R))
+          (⎡valid_val v⎤) (typed_stmt Espec ge s1 f R) (typed_stmt Espec ge s2 f R))
     ⊢ typed_stmt Espec ge (Sifthenelse e s1 s2) f R.
   Proof.
     iIntros "He".
