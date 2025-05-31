@@ -229,43 +229,67 @@ Proof.
 Qed.
 
 (* rules *)
+Lemma wp_const_int_fupd E f i t P:
+  (|={E}=> P (Vint i)) ⊢ wp_expr E f (Econst_int i t) P.
+Proof.
+  rewrite /wp_expr; apply fupd_mono.
+  iIntros "? %% ?? !>".
+  iFrame.
+  iIntros "!>" (??) "?"; iPureIntro; intros; constructor.
+Qed.
+
+Lemma wp_const_long_fupd E f i t P:
+  (|={E}=> P (Vlong i)) ⊢ wp_expr E f (Econst_long i t) P.
+Proof.
+  rewrite /wp_expr; apply fupd_mono.
+  iIntros "? %% ?? !>".
+  iFrame.
+  iIntros "!>" (??) "?"; iPureIntro; intros; constructor.
+Qed.
+
+Lemma wp_const_float_fupd E f i t P:
+  (|={E}=> P (Vfloat i)) ⊢ wp_expr E f (Econst_float i t) P.
+Proof.
+  rewrite /wp_expr; apply fupd_mono.
+  iIntros "? %% ?? !>".
+  iFrame.
+  iIntros "!>" (??) "?"; iPureIntro; intros; constructor.
+Qed.
+
+Lemma wp_const_single_fupd E f i t P:
+  (|={E}=> P (Vsingle i)) ⊢ wp_expr E f (Econst_single i t) P.
+Proof.
+  rewrite /wp_expr; apply fupd_mono.
+  iIntros "? %% ?? !>".
+  iFrame.
+  iIntros "!>" (??) "?"; iPureIntro; intros; constructor.
+Qed.
+
 Lemma wp_const_int E f i t P:
   P (Vint i) ⊢ wp_expr E f (Econst_int i t) P.
 Proof.
-  rewrite /wp_expr.
-  iIntros "? !> %% ?? !>".
-  iFrame.
-  iIntros "!>" (??) "?"; iPureIntro; intros; constructor.
+  rewrite -wp_const_int_fupd; apply fupd_intro.
 Qed.
 
 Lemma wp_const_long E f i t P:
   P (Vlong i)
   ⊢ wp_expr E f (Econst_long i t) P.
 Proof.
-  rewrite /wp_expr.
-  iIntros "? !> %% ?? !>".
-  iFrame.
-  iIntros "!>" (??) "?"; iPureIntro; intros; constructor.
+  rewrite -wp_const_long_fupd; apply fupd_intro.
 Qed.
 
 Lemma wp_const_float E f i t P:
   P (Vfloat i)
   ⊢ wp_expr E f (Econst_float i t) P.
 Proof.
-  rewrite /wp_expr.
-  iIntros "? !> %% ?? !>".
-  iFrame.
-  iIntros "!>" (??) "?"; iPureIntro; intros; constructor.
+  rewrite -wp_const_float_fupd; apply fupd_intro.
 Qed.
 
 Lemma wp_const_single E f i t P:
   P (Vsingle i)
   ⊢ wp_expr E f (Econst_single i t) P.
 Proof.
-  rewrite /wp_expr.
-  iIntros "? !> %% ?? !>".
-  iFrame.
-  iIntros "!>" (??) "?"; iPureIntro; intros; constructor.
+  rewrite -wp_const_single_fupd; apply fupd_intro.
 Qed.
 
 (* Caesium uses a small-step semantics for exprs, so the wp/typing for an operation can be broken up into

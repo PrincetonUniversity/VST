@@ -1,3 +1,4 @@
+(* adapted from iris_heap_lang/proofmode.v *)
 From iris.proofmode Require Import coq_tactics reduction spec_patterns.
 From iris.proofmode Require Export tactics.
 From compcert.common Require Import Values.
@@ -61,6 +62,93 @@ Proof.
   rewrite HΔ' wp_pure_step_later //.
 Qed.
 
+(* We'll probably need another wp_pure lemma for wp_expr. *)
+
+Lemma tac_wp_consti_nofupd `{!VSTGS OK_ty Σ} Δ ge E f Φ v t :
+  envs_entails Δ (Φ (Vint v)) → envs_entails Δ (wp_expr ge E f (Econst_int v t) Φ).
+Proof. rewrite envs_entails_unseal=> ->. by apply wp_const_int. Qed.
+Lemma tac_wp_constf_nofupd `{!VSTGS OK_ty Σ} Δ ge E f Φ v t :
+  envs_entails Δ (Φ (Vfloat v)) → envs_entails Δ (wp_expr ge E f (Econst_float v t) Φ).
+Proof. rewrite envs_entails_unseal=> ->. by apply wp_const_float. Qed.
+Lemma tac_wp_consts_nofupd `{!VSTGS OK_ty Σ} Δ ge E f Φ v t :
+  envs_entails Δ (Φ (Vsingle v)) → envs_entails Δ (wp_expr ge E f (Econst_single v t) Φ).
+Proof. rewrite envs_entails_unseal=> ->. by apply wp_const_single. Qed.
+Lemma tac_wp_constl_nofupd `{!VSTGS OK_ty Σ} Δ ge E f Φ v t :
+  envs_entails Δ (Φ (Vlong v)) → envs_entails Δ (wp_expr ge E f (Econst_long v t) Φ).
+Proof. rewrite envs_entails_unseal=> ->. by apply wp_const_long. Qed.
+
+Lemma tac_wp_consti `{!VSTGS OK_ty Σ} Δ ge E f Φ v t :
+  envs_entails Δ (|={E}=> Φ (Vint v)) → envs_entails Δ (wp_expr ge E f (Econst_int v t) Φ).
+Proof. rewrite envs_entails_unseal=> ->. by rewrite wp_const_int_fupd. Qed.
+Lemma tac_wp_constf `{!VSTGS OK_ty Σ} Δ ge E f Φ v t :
+  envs_entails Δ (|={E}=> Φ (Vfloat v)) → envs_entails Δ (wp_expr ge E f (Econst_float v t) Φ).
+Proof. rewrite envs_entails_unseal=> ->. by rewrite wp_const_float_fupd. Qed.
+Lemma tac_wp_consts `{!VSTGS OK_ty Σ} Δ ge E f Φ v t :
+  envs_entails Δ (|={E}=> Φ (Vsingle v)) → envs_entails Δ (wp_expr ge E f (Econst_single v t) Φ).
+Proof. rewrite envs_entails_unseal=> ->. by rewrite wp_const_single_fupd. Qed.
+Lemma tac_wp_constl `{!VSTGS OK_ty Σ} Δ ge E f Φ v t :
+  envs_entails Δ (|={E}=> Φ (Vlong v)) → envs_entails Δ (wp_expr ge E f (Econst_long v t) Φ).
+Proof. rewrite envs_entails_unseal=> ->. by rewrite wp_const_long_fupd. Qed.
+
+Ltac wp_value_head :=
+  lazymatch goal with
+  | |- envs_entails _ (wp_expr _ ?E _ (Econst_int _ _) (λ _, fupd ?E _ _)) =>
+      eapply tac_wp_consti_nofupd
+  | |- envs_entails _ (wp_expr _ ?E _ (Econst_float _ _) (λ _, fupd ?E _ _)) =>
+      eapply tac_wp_constf_nofupd
+  | |- envs_entails _ (wp_expr _ ?E _ (Econst_single _ _) (λ _, fupd ?E _ _)) =>
+      eapply tac_wp_consts_nofupd
+  | |- envs_entails _ (wp_expr _ ?E _ (Econst_long _ _) (λ _, fupd ?E _ _ _)) =>
+      eapply tac_wp_constl_nofupd
+  | |- envs_entails _ (wp_expr _ ?E _ (Econst_int _ _) (λ _, wp_expr _ ?E _ _ _)) =>
+      eapply tac_wp_consti_nofupd
+  | |- envs_entails _ (wp_expr _ ?E _ (Econst_float _ _) (λ _, wp_expr _ ?E _ _ _)) =>
+      eapply tac_wp_constf_nofupd
+  | |- envs_entails _ (wp_expr _ ?E _ (Econst_single _ _) (λ _, wp_expr _ ?E _ _ _)) =>
+      eapply tac_wp_consts_nofupd
+  | |- envs_entails _ (wp_expr _ ?E _ (Econst_long _ _) (λ _, wp_expr _ ?E _ _ _)) =>
+      eapply tac_wp_constl_nofupd
+  | |- envs_entails _ (wp _ ?E _ (Econst_int _ _) _) =>
+      eapply tac_wp_consti
+  | |- envs_entails _ (wp _ ?E _ (Econst_float _ _) _) =>
+      eapply tac_wp_constf
+  | |- envs_entails _ (wp _ ?E _ (Econst_single _ _) _) =>
+      eapply tac_wp_consts
+  | |- envs_entails _ (wp _ ?E _ (Econst_long _ _) _) =>
+      eapply tac_wp_constl
+  end.
+
+Ltac wp_finish :=
+  try wp_value_head;  (* in case we have reached a value, get rid of the WP *)
+  pm_prettify.        (* prettify ▷s caused by [MaybeIntoLaterNEnvs] and
+                         λs caused by wp_value *)
+
+Tactic Notation "wp_pure" open_constr(efoc) :=
+  iStartProof;
+  lazymatch goal with
+  | |- envs_entails _ (wp _ _ ?E _ ?e ?Q) =>
+    let e := eval simpl in e in
+    unify e efoc;
+      eapply (tac_wp_pure _ _ _ _ _ _ e);
+      [tc_solve                       (* PureExec *)
+      |try fast_done    (* The pure condition for PureExec --
+         handles trivial goals *)
+      |tc_solve                       (* IntoLaters *)
+      |wp_finish                      (* new goal *)
+      ]
+    || fail "wp_pure: cannot find" efoc "in" e "or" efoc "is not a redex"
+  | _ => fail "wp_pure: not a 'wp'"
+  end.
+Tactic Notation "wp_pure" :=
+  wp_pure _.
+
+Ltac wp_pures :=
+  iStartProof;
+  first [ (* The `;[]` makes sure that no side-condition magically spawns. *)
+          progress repeat (wp_pure _; [])
+        | wp_finish (* In case wp_pure never ran, make sure we do the usual cleanup. *)
+        ].
+
 (* Not sure whether this will work, but we can't have pointer values as literals in
    our program syntax. *)
 Lemma tac_wp_load `{!VSTGS OK_ty Σ} Δ Δ' ge E f i e b q v (Q : val → assert) :
@@ -115,3 +203,130 @@ Proof.
   eapply tac_specialize_intuitionistic_helper_done.
   rewrite Ptrofs.repr_unsigned //.
 Qed.
+
+(*Lemma tac_wp_store Δ Δ' s E i K l v v' Φ :
+  MaybeIntoLaterNEnvs 1 Δ Δ' →
+  envs_lookup i Δ' = Some (false, l ↦ v)%I →
+  match envs_simple_replace i false (Esnoc Enil i (l ↦ v')) Δ' with
+  | Some Δ'' => envs_entails Δ'' (WP fill K (Val $ LitV LitUnit) @ s; E {{ Φ }})
+  | None => False
+  end →
+  envs_entails Δ (WP fill K (Store (LitV l) (Val v')) @ s; E {{ Φ }}).
+Proof.
+  rewrite envs_entails_unseal=> ???.
+  destruct (envs_simple_replace _ _ _) as [Δ''|] eqn:HΔ''; [ | contradiction ].
+  rewrite -wp_bind. eapply wand_apply; first by eapply wand_entails, wp_store.
+  rewrite into_laterN_env_sound -later_sep envs_simple_replace_sound //; simpl.
+  rewrite right_id. by apply later_mono, sep_mono_r, wand_mono.
+Qed.*)
+
+(*Ltac wp_apply_core lem tac_suc tac_fail := first
+  [iPoseProofCore lem as false (fun H =>
+     lazymatch goal with
+     | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
+       reshape_expr e ltac:(fun K e' =>
+         wp_bind_core K; tac_suc H)
+     | |- envs_entails _ (twp ?s ?E ?e ?Q) =>
+       reshape_expr e ltac:(fun K e' =>
+         twp_bind_core K; tac_suc H)
+     | _ => fail 1 "wp_apply: not a 'wp'"
+     end)
+  |tac_fail ltac:(fun _ => wp_apply_core lem tac_suc tac_fail)
+  |let P := type of lem in
+   fail "wp_apply: cannot apply" lem ":" P ].
+
+Tactic Notation "wp_apply" open_constr(lem) :=
+  wp_apply_core lem ltac:(fun H => iApplyHyp H; try iNext; try wp_expr_simpl)
+                    ltac:(fun cont => fail).
+Tactic Notation "wp_smart_apply" open_constr(lem) :=
+  wp_apply_core lem ltac:(fun H => iApplyHyp H; try iNext; try wp_expr_simpl)
+                    ltac:(fun cont => wp_pure _; []; cont ()).
+
+Tactic Notation "wp_apply" open_constr(lem) "as" constr(pat) :=
+  wp_apply lem; last iIntros pat.
+Tactic Notation "wp_apply" open_constr(lem) "as" "(" simple_intropattern(x1) ")"
+    constr(pat) :=
+  wp_apply lem; last iIntros ( x1 ) pat.
+Tactic Notation "wp_apply" open_constr(lem) "as" "(" simple_intropattern(x1)
+    simple_intropattern(x2) ")" constr(pat) :=
+  wp_apply lem; last iIntros ( x1 x2 ) pat.
+Tactic Notation "wp_apply" open_constr(lem) "as" "(" simple_intropattern(x1)
+    simple_intropattern(x2) simple_intropattern(x3) ")" constr(pat) :=
+  wp_apply lem; last iIntros ( x1 x2 x3 ) pat.
+Tactic Notation "wp_apply" open_constr(lem) "as" "(" simple_intropattern(x1)
+    simple_intropattern(x2) simple_intropattern(x3) simple_intropattern(x4) ")"
+    constr(pat) :=
+  wp_apply lem; last iIntros ( x1 x2 x3 x4 ) pat.
+Tactic Notation "wp_apply" open_constr(lem) "as" "(" simple_intropattern(x1)
+    simple_intropattern(x2) simple_intropattern(x3) simple_intropattern(x4)
+    simple_intropattern(x5) ")" constr(pat) :=
+  wp_apply lem; last iIntros ( x1 x2 x3 x4 x5 ) pat.
+Tactic Notation "wp_apply" open_constr(lem) "as" "(" simple_intropattern(x1)
+    simple_intropattern(x2) simple_intropattern(x3) simple_intropattern(x4)
+    simple_intropattern(x5) simple_intropattern(x6) ")" constr(pat) :=
+  wp_apply lem; last iIntros ( x1 x2 x3 x4 x5 x6 ) pat.
+Tactic Notation "wp_apply" open_constr(lem) "as" "(" simple_intropattern(x1)
+    simple_intropattern(x2) simple_intropattern(x3) simple_intropattern(x4)
+    simple_intropattern(x5) simple_intropattern(x6) simple_intropattern(x7) ")"
+    constr(pat) :=
+  wp_apply lem; last iIntros ( x1 x2 x3 x4 x5 x6 x7 ) pat.
+Tactic Notation "wp_apply" open_constr(lem) "as" "(" simple_intropattern(x1)
+    simple_intropattern(x2) simple_intropattern(x3) simple_intropattern(x4)
+    simple_intropattern(x5) simple_intropattern(x6) simple_intropattern(x7)
+    simple_intropattern(x8) ")" constr(pat) :=
+  wp_apply lem; last iIntros ( x1 x2 x3 x4 x5 x6 x7 x8 ) pat.
+Tactic Notation "wp_apply" open_constr(lem) "as" "(" simple_intropattern(x1)
+    simple_intropattern(x2) simple_intropattern(x3) simple_intropattern(x4)
+    simple_intropattern(x5) simple_intropattern(x6) simple_intropattern(x7)
+    simple_intropattern(x8) simple_intropattern(x9) ")" constr(pat) :=
+  wp_apply lem; last iIntros ( x1 x2 x3 x4 x5 x6 x7 x8 x9 ) pat.
+Tactic Notation "wp_apply" open_constr(lem) "as" "(" simple_intropattern(x1)
+    simple_intropattern(x2) simple_intropattern(x3) simple_intropattern(x4)
+    simple_intropattern(x5) simple_intropattern(x6) simple_intropattern(x7)
+    simple_intropattern(x8) simple_intropattern(x9) simple_intropattern(x10) ")"
+    constr(pat) :=
+  wp_apply lem; last iIntros ( x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 ) pat.*)
+
+(*Tactic Notation "wp_load" :=
+  let solve_pointsto _ :=
+    let l := match goal with |- _ = Some (_, (?l ↦{_} _)%I) => l end in
+    iAssumptionCore || fail "wp_load: cannot find" l "↦ ?" in
+  wp_pures;
+  lazymatch goal with
+  | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
+    first
+      [reshape_expr e ltac:(fun K e' => eapply (tac_wp_load _ _ _ _ _ K))
+      |fail 1 "wp_load: cannot find 'Load' in" e];
+    [tc_solve
+    |solve_pointsto ()
+    |wp_finish]
+  | |- envs_entails _ (twp ?s ?E ?e ?Q) =>
+    first
+      [reshape_expr e ltac:(fun K e' => eapply (tac_twp_load _ _ _ _ K))
+      |fail 1 "wp_load: cannot find 'Load' in" e];
+    [solve_pointsto ()
+    |wp_finish]
+  | _ => fail "wp_load: not a 'wp'"
+  end.*)
+
+(*Tactic Notation "wp_store" :=
+  let solve_pointsto _ :=
+    let l := match goal with |- _ = Some (_, (?l ↦{_} _)%I) => l end in
+    iAssumptionCore || fail "wp_store: cannot find" l "↦ ?" in
+  wp_pures;
+  lazymatch goal with
+  | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
+    first
+      [reshape_expr e ltac:(fun K e' => eapply (tac_wp_store _ _ _ _ _ K))
+      |fail 1 "wp_store: cannot find 'Store' in" e];
+    [tc_solve
+    |solve_pointsto ()
+    |pm_reduce; first [wp_seq|wp_finish]]
+  | |- envs_entails _ (twp ?s ?E ?e ?Q) =>
+    first
+      [reshape_expr e ltac:(fun K e' => eapply (tac_twp_store _ _ _ _ K))
+      |fail 1 "wp_store: cannot find 'Store' in" e];
+    [solve_pointsto ()
+    |pm_reduce; first [wp_seq|wp_finish]]
+  | _ => fail "wp_store: not a 'wp'"
+  end.*)
