@@ -1,3 +1,4 @@
+Require Import RelationClasses.
 Require Import ZArith Znumtheory.
 Require Import Coq.Lists.List.
 Require Import Lia.
@@ -1030,8 +1031,8 @@ Section Sorted.
 Variable A : Type.
 Variable d : Inhabitant A.
 Variable le : A -> A -> Prop.
-Context {Hrefl : Relations_1.Reflexive A le}.
-Context {Htrans : Relations_1.Transitive le}.
+Context {Hrefl : Reflexive le}.
+Context {Htrans : Transitive le}.
 
 Definition sorted (l : list A) :=
   forall i j, 0 <= i <= j /\ j < Zlength l -> le (Znth i l) (Znth j l).
