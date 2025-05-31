@@ -3,11 +3,10 @@
  *
  *)
 
+Require Import Arith.
 Require Import VST.msl.base.
 Require Import VST.msl.ageable.
 Require Import VST.msl.predicates_hered.
-
-Import Arith.
 
 Local Open Scope pred.
 
