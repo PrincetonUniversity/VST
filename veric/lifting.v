@@ -514,7 +514,7 @@ Qed.
    the variable we're setting. On entering a function, we can initialize all
    its temps to Vundef. *)
 Lemma wp_set: forall E f i e R,
-  wp_expr ge E f e (λ v, ▷ ((∃ v0, temp i v0) ∗ (temp i v -∗ RA_normal R))) ⊢ wp E f (Sset i e) R.
+  wp_expr ge E f e (λ v, ▷ ((∃ v0, temp i v0) ∗ (temp i v ={E}=∗ RA_normal R))) ⊢ wp E f (Sset i e) R.
 Proof.
   intros; rewrite /wp.
   iIntros "H %%% ? Hk" (????) "Hr (%Henv & %Hstack) %Hty".
@@ -535,6 +535,8 @@ Proof.
   iDestruct (temp_e with "[$Hr $Ht]") as %Hi.
   iMod (temp_update with "[$Hr $Ht]") as "(? & ?)".
   iSpecialize ("H" with "[//] [$]").
+  iMod (fupd_mask_subseteq E) as "Hclose"; first done.
+  iMod "H"; iMod "Hclose" as "_"; iIntros "!>".
   iDestruct "Hk" as "[Hk _]".
   iApply safe_skip; last by iFrame; iApply "Hk".
   - done.

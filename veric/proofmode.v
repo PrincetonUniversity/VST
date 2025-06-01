@@ -124,11 +124,26 @@ Ltac wp_value_head :=
       eapply tac_wp_constl
   end.
 
+(* maybe seal *)
+Definition ob_check `{!VSTGS OK_ty Σ} (P Q : assert) := ▷ <absorb> P ∧ Q.
+
+Ltac ob_check_tac :=
+  lazymatch goal with
+  | |- envs_entails ?Δ (ob_check ?P _) =>
+      iSplit; [iNext; let i := fresh "i" in evar (i : ident.ident);
+        let b := fresh "b" in evar (b : bool);
+        let H := fresh "H" in assert (envs_lookup i Δ = Some (b, P)) as H;
+        [subst b i; iAssumptionCore || fail "cannot find" P |
+         clear H; clear b; lazymatch goal with i := ?s |- _ => clear i; iApply s end|]
+      |]
+  | _ => fail "no such ob"
+  end.
+
 Definition ob_replace `{!VSTGS OK_ty Σ} (P P' Q : assert) := ▷ (P ∗ (P' -∗ Q)).
 
 Ltac ob_replace_tac :=
   lazymatch goal with
-  | |- envs_entails ?Δ (ob_replace ?P ?P' ?Q) =>
+  | |- envs_entails ?Δ (ob_replace ?P _ _) =>
       iNext; let i := fresh "i" in evar (i : ident.ident);
         let H := fresh "H" in assert (envs_lookup i Δ = Some (false, P)) as H;
         [subst i; iAssumptionCore || fail "cannot find" P |
@@ -138,6 +153,7 @@ Ltac ob_replace_tac :=
 
 Ltac wp_finish :=
   try wp_value_head;  (* in case we have reached a value, get rid of the WP *)
+  try ob_check_tac;
   try ob_replace_tac;
   pm_prettify.        (* prettify ▷s caused by [MaybeIntoLaterNEnvs] and
                          λs caused by wp_value *)
@@ -170,31 +186,22 @@ Ltac wp_pures :=
 
 #[global] Opaque temp.
 
-(* Not sure whether this will work, but we can't have pointer values as literals in
-   our program syntax. *)
-Lemma tac_wp_load `{!VSTGS OK_ty Σ} Δ Δ' ge E f i e b q v (Q : val → assert) :
+Lemma tac_wp_load `{!VSTGS OK_ty Σ} Δ ge E f e q v (Q : val → assert) :
   readable_share q →
   v ≠ Vundef →
-  MaybeIntoLaterNEnvs 1 Δ Δ' →
   envs_entails Δ (wp_lvalue ge E f e (λ '(bl, o),
-    ⌜envs_lookup i Δ' = Some (b, ⎡mapsto q (typeof e) (Vptr bl (Ptrofs.repr o)) v⎤)⌝ ∧ of_envs Δ ∧
-    Q v))%I →
+    ob_check ⎡mapsto q (typeof e) (Vptr bl (Ptrofs.repr o)) v⎤ (Q v))) →
   envs_entails Δ (wp_expr ge E f e Q).
 Proof.
-  rewrite envs_entails_unseal=> ??? Hi.
+  rewrite envs_entails_unseal=> ?? Hi.
   rewrite Hi -wp_expr_mapsto.
   apply wp_lvalue_mono.
-  intros (?, ?); apply bi.pure_elim_l; intros H.
-  iIntros "? !>".
+  iIntros ((?, ?)) "H !>".
   iExists q, v; iSplit; first done.
-  iApply bi.and_mono; [|done..].
-  rewrite into_laterN_env_sound /=.
-  rewrite embed_later embed_absorbingly; apply bi.later_mono.
-  eassert (envs_entails Δ' _) as He; last by rewrite envs_entails_unseal in He.
-  by eapply tac_specialize_intuitionistic_helper_done.
+  rewrite embed_later embed_absorbingly //.
 Qed.
 
-(* This might be more useful for tactics. *)
+(*(* This might be more useful for tactics. *)
 Lemma tac_wp_load_temp `{!VSTGS OK_ty Σ} Δ Δ' ge E f i1 i2 x t t' b2 l q v (Q : val → assert) :
   readable_share q →
   v ≠ Vundef →
@@ -223,34 +230,25 @@ Proof.
   eassert (envs_entails Δ' _) as He; last by rewrite envs_entails_unseal in He.
   eapply tac_specialize_intuitionistic_helper_done.
   rewrite Ptrofs.repr_unsigned //.
-Qed.
+Qed.*)
 
-Lemma tac_wp_store `{!VSTGS OK_ty Σ} Δ Δ' OK_spec ge E f i e1 e2 q v Q :
+Lemma tac_wp_store `{!VSTGS OK_ty Σ} Δ OK_spec ge E f e1 e2 q v Q :
   writable0_share q →
-  MaybeIntoLaterNEnvs 1 Δ Δ' →
   envs_entails Δ (wp_expr ge E f (Ecast e2 (typeof e1)) (λ v2,
     ⌜Cop2.tc_val' (typeof e1) v2⌝ ∧ wp_lvalue ge E f e1 (λ '(b, o), let v1 := Vptr b (Ptrofs.repr o) in
-    ⌜envs_lookup i Δ' = Some (false, ⎡mapsto q (typeof e1) v1 v⎤)⌝ ∧ of_envs Δ ∧
-    match envs_simple_replace i false (Esnoc Enil i ⎡mapsto q (typeof e1) v1 v2⎤) Δ' with
-    | Some Δ'' => ⌜envs_entails Δ'' (RA_normal Q)⌝
-    | None => False
-    end))) →
+    ob_replace ⎡mapsto q (typeof e1) v1 v⎤ ⎡mapsto q (typeof e1) v1 v2⎤ (RA_normal Q)))) →
   envs_entails Δ (wp OK_spec ge E f (Sassign e1 e2) Q).
 Proof.
-  rewrite envs_entails_unseal=> ?? Hi.
+  rewrite envs_entails_unseal=> ? Hi.
   rewrite Hi -wp_store.
   apply wp_expr_mono.
   intros ?; rewrite -fupd_intro; f_equiv.
   apply wp_lvalue_mono.
-  intros (?, ?); apply bi.pure_elim_l; intros H.
-  destruct (envs_simple_replace _ _ _) as [Δ''|] eqn:HΔ''; [ | iIntros "(_ & [])" ].
-  apply bi.pure_elim_r; intros HQ.
-  iIntros "H !>".
+  iIntros ((?, ?)) "H !>".
   iExists q; iSplit; first done.
-  rewrite into_laterN_env_sound envs_simple_replace_sound //; simpl.
-  iNext; iDestruct "H" as "(Hold & H)"; iSplitL "Hold".
-  { by iApply mapsto_mapsto_. }
-  iIntros "Hnew !>"; iApply HQ; iApply "H"; iFrame.
+  iDestruct "H" as "(? & H)"; iSplitR "H".
+  { by rewrite mapsto_mapsto_. }
+  iIntros "!> ?"; by iApply "H".
 Qed.
 
 (* simpler version here too? or will wp_pures for expr make that unnecessary? *)
@@ -296,7 +294,7 @@ Proof.
   rewrite envs_entails_unseal=> Hi.
   rewrite Hi -wp_set.
   apply wp_expr_mono.
-  by iIntros (?) "($ & $)".
+  iIntros (?) "($ & H) !> !> ? !>"; by iApply "H".
 Qed.
 
 Ltac wp_apply_core lem tac_suc tac_fail := first
@@ -362,39 +360,30 @@ Tactic Notation "wp_apply" open_constr(lem) "as" "(" simple_intropattern(x1)
     constr(pat) :=
   wp_apply lem; last iIntros ( x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 ) pat.
 
-(*Tactic Notation "wp_load" :=
-  let solve_pointsto _ :=
-    let l := match goal with |- _ = Some (_, ⎡mapsto _ _ ?l _⎤) => l end in
-    iAssumptionCore || fail "wp_load: cannot find" l "↦ ?" in
+Tactic Notation "wp_load" :=
+  wp_pures;
+  lazymatch goal with
+  | |- envs_entails _ (wp_expr _ ?E _ ?e ?Q) =>
+    first
+      [eapply tac_wp_load
+      |fail 1 "wp_load: cannot find 'Load' in" e];
+    [auto
+    |try fast_done
+    |wp_finish]
+  | _ => fail "wp_load: not a 'wp'"
+  end.
+
+Tactic Notation "wp_store" :=
   wp_pures;
   lazymatch goal with
   | |- envs_entails _ (wp _ _ ?E _ ?e ?Q) =>
     first
-      [eapply tac_wp_load
-      |fail 1 "wp_load: cannot find 'Load' in" e];
-    [try fast_done
-    |try fast_done
-    |tc_solve
-    |solve_pointsto ()
-    |wp_finish]
-  | _ => fail "wp_load: not a 'wp'"
-  end.*)
-
-(*Tactic Notation "wp_store" :=
-  let solve_pointsto _ :=
-    let l := match goal with |- _ = Some (_, (?l ↦{_} _)%I) => l end in
-    iAssumptionCore || fail "wp_store: cannot find" l "↦ ?" in
-  wp_pures;
-  lazymatch goal with
-  | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
-    first
       [reshape_seq; eapply tac_wp_store
       |fail 1 "wp_store: cannot find 'Store' in" e];
-    [tc_solve
-    |solve_pointsto ()
-    |pm_reduce; first [wp_seq|wp_finish]]
+    [auto
+    |pm_reduce; wp_finish]
   | _ => fail "wp_store: not a 'wp'"
-  end.*)
+  end.
 
 Tactic Notation "wp_temp" :=
   let solve_temp _ :=
