@@ -89,7 +89,7 @@ Proof.
   iNext.
   rewrite /typecheck_tid_ptr_compare in TCid; destruct (temp_types Delta !! id) eqn: Hi; last done.
   iDestruct (curr_env_set_temp with "E") as "($ & E)"; [done..|].
-  iIntros "Hid"; iSpecialize ("E" with "Hid"); iFrame.
+  iIntros "Hid !>"; iSpecialize ("E" with "Hid"); iFrame.
   rewrite !bi.and_elim_r.
   assert (v = force_val2 (sem_cmp (op_to_cmp cmp) (typeof e1) (typeof e2)) (eval_expr(CS := CS) e1 rho) (eval_expr(CS := CS) e2 rho)) as Hv'.
   { rewrite /sem_cmp NE1 NE2 Hcase /= Hv //. }
@@ -132,7 +132,7 @@ Proof.
   rewrite /tc_temp_id /typecheck_temp_id /=.
   destruct (temp_types Delta !! id) eqn: Ht; last by iDestruct "Pre" as "(_ & % & _)".
   iDestruct (curr_env_set_temp with "E") as "($ & E)"; [done..|].
-  iIntros "Hid"; iSpecialize ("E" with "Hid"); iFrame.
+  iIntros "Hid !>"; iSpecialize ("E" with "Hid"); iFrame.
   iSplit.
   - iClear "#"; iStopProof; split => n; monPred.unseal.
     apply TC in Ht as (? & ? & ?).
@@ -201,7 +201,7 @@ Proof.
   iIntros "E % !>".
   rewrite /typeof_temp in H99; destruct (temp_types Delta !! id) as [t'|] eqn: Ht; inversion H99; subst t'; clear H99.
   iDestruct (curr_env_set_temp with "E") as "($ & E)"; [done..|].
-  iIntros "Hid"; iSpecialize ("E" with "Hid"); iFrame.
+  iIntros "Hid !>"; iSpecialize ("E" with "Hid"); iFrame.
   iSplit.
   - iClear "#"; iStopProof; split => n; monPred.unseal.
     apply TC in Ht as (? & ? & ?).
@@ -268,7 +268,7 @@ Proof.
   iNext.
   rewrite /typeof_temp in Hid0; destruct (temp_types Delta !! id) as [t'|] eqn: Ht; inversion Hid0; subst t'; clear Hid0.
   iDestruct (curr_env_set_temp with "E") as "($ & E)"; [done..|].
-  iIntros "Hid"; iSpecialize ("E" with "Hid"); iFrame.
+  iIntros "Hid !>"; iSpecialize ("E" with "Hid"); iFrame.
   simpl; iSplit.
   - iClear "#"; iStopProof; split => n; monPred.unseal.
     apply TC in Ht as (? & ? & ?).
@@ -350,7 +350,7 @@ Proof.
   iExists v; iSplit; first done; iNext.
   rewrite /typeof_temp in Hid0; destruct (temp_types Delta !! id) as [t'|] eqn: Ht; inversion Hid0; subst t'; clear Hid0.
   iDestruct (curr_env_set_temp with "E") as "($ & E)"; [done..|].
-  iIntros "Hid"; iSpecialize ("E" with "Hid"); iFrame.
+  iIntros "Hid !>"; iSpecialize ("E" with "Hid"); iFrame.
   simpl; iSplit.
   - iClear "#"; iStopProof; split => ?; monPred.unseal.
     apply TC in Ht as (? & ? & ?).

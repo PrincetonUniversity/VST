@@ -27,14 +27,7 @@ Tactic Notation "wp_expr_eval" tactic3(t) :=
 Ltac wp_expr_simpl := wp_expr_eval simpl.
 
 
-
-Inductive pure_step_n ge : nat -> Clight.statement -> Clight.statement -> Prop :=
-| pure_step_0 : forall s, pure_step_n ge O s s
-| pure_step_step : forall s1 s2 s3 n (Hstep : forall f k ve te m, step ge (State f s1 k ve te) m (State f s2 k ve te) m)
-    (Hsteps : pure_step_n ge n s2 s3), pure_step_n ge (S n) s1 s3.
-
-Definition PureExec ge φ (n : nat) s1 s2 : Prop := φ → pure_step_n ge n s1 s2.
-
+(* This works, but there are almost no Clight steps that meet the definition of PureExec.
 Lemma wp_pure_step_later `{!VSTGS OK_ty Σ} OK_spec ge E f s1 s2 φ n Q :
   PureExec ge φ n s1 s2 →
   φ →
@@ -68,7 +61,7 @@ Proof.
   rewrite HΔ' wp_pure_step_later //.
 Qed.
 
-(* We'll probably need another wp_pure lemma for wp_expr. *)
+(* We'll probably need another wp_pure lemma for wp_expr. *)*)
 
 Lemma tac_wp_consti_nofupd `{!VSTGS OK_ty Σ} Δ ge E f Φ v t :
   envs_entails Δ (Φ (Vint v)) → envs_entails Δ (wp_expr ge E f (Econst_int v t) Φ).
@@ -158,7 +151,17 @@ Ltac wp_finish :=
   pm_prettify.        (* prettify ▷s caused by [MaybeIntoLaterNEnvs] and
                          λs caused by wp_value *)
 
-Tactic Notation "wp_pure" open_constr(efoc) :=
+Tactic Notation "wp_if" :=
+  lazymatch goal with
+  | |- envs_entails _ (wp _ _ ?E _ ?e ?Q) =>
+    first
+      [reshape_seq; iApply wp_if
+      |fail 1 "wp_if: cannot find 'if' in" e];
+     wp_finish
+  | _ => fail "wp_if: not a 'wp'"
+  end.
+
+(*Tactic Notation "wp_pure" open_constr(efoc) :=
   iStartProof;
   lazymatch goal with
   | |- envs_entails _ (wp _ _ ?E _ ?e ?Q) =>
@@ -182,7 +185,9 @@ Ltac wp_pures :=
   first [ (* The `;[]` makes sure that no side-condition magically spawns. *)
           progress repeat (wp_pure _; [])
         | wp_finish (* In case wp_pure never ran, make sure we do the usual cleanup. *)
-        ].
+        ].*)
+
+
 
 #[global] Opaque temp.
 
@@ -311,9 +316,6 @@ Ltac wp_apply_core lem tac_suc tac_fail := first
 Tactic Notation "wp_apply" open_constr(lem) :=
   wp_apply_core lem ltac:(fun H => iApplyHyp H; try iNext; try wp_expr_simpl)
                     ltac:(fun cont => fail).
-Tactic Notation "wp_smart_apply" open_constr(lem) :=
-  wp_apply_core lem ltac:(fun H => iApplyHyp H; try iNext; try wp_expr_simpl)
-                    ltac:(fun cont => wp_pure _; []; cont ()).
 
 Tactic Notation "wp_apply" open_constr(lem) "as" constr(pat) :=
   wp_apply lem; last iIntros pat.
@@ -361,7 +363,6 @@ Tactic Notation "wp_apply" open_constr(lem) "as" "(" simple_intropattern(x1)
   wp_apply lem; last iIntros ( x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 ) pat.
 
 Tactic Notation "wp_load" :=
-  wp_pures;
   lazymatch goal with
   | |- envs_entails _ (wp_expr _ ?E _ ?e ?Q) =>
     first
@@ -374,7 +375,6 @@ Tactic Notation "wp_load" :=
   end.
 
 Tactic Notation "wp_store" :=
-  wp_pures;
   lazymatch goal with
   | |- envs_entails _ (wp _ _ ?E _ ?e ?Q) =>
     first
@@ -389,7 +389,6 @@ Tactic Notation "wp_temp" :=
   let solve_temp _ :=
     let i := match goal with |- _ = Some (_, temp ?i _) => i end in
     iAssumptionCore || fail "wp_store: cannot find temp" i in
-  wp_pures;
   lazymatch goal with
   | |- envs_entails _ (wp_expr _ ?E _ ?e ?Q) =>
     first
@@ -401,7 +400,6 @@ Tactic Notation "wp_temp" :=
   end.
 
 Tactic Notation "wp_set" :=
-  wp_pures;
   lazymatch goal with
   | |- envs_entails _ (wp _ _ ?E _ ?e ?Q) =>
     first
