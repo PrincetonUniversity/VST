@@ -4,10 +4,10 @@ Require Import VST.veric.res_predicates.
 Require Import VST.veric.tycontext.
 Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Import VST.veric.Clight_lemmas.
+Require Export VST.veric.lifting_expr.
 Require Export VST.veric.expr.
 Require Import VST.veric.mpred.
 Require Export VST.veric.env.
-Require Export VST.veric.lifting_expr.
 Import LiftNotation.
 
 Transparent intsize_eq.

@@ -15,7 +15,8 @@ Section mpred.
 
 Context `{!heapGS Σ} `{!envGS Σ} (ge : genv).
 (* We could provide only a composite_env here, which would theoretically allow
-   us to allocate new global variables during a proof, but Clight doesn't allow that. *)
+   us to allocate new global variables during a proof, but Clight doesn't allow that.
+   Might be worth it anyway for compositionality. *)
 
 Lemma make_tycontext_v_lookup : forall tys id t,
   make_tycontext_v tys !! id = Some t -> In (id, t) tys.
@@ -325,6 +326,500 @@ Proof.
   intros; econstructor; eauto.
 Qed.
 
+(* variant of Clight_Cop2, closer to Cop *)
+Definition sem_cast t1 t2 : val -> option val :=
+  match Cop.classify_cast t1 t2 with
+  | cast_case_pointer => fun v =>
+      match v with
+      | Vptr _ _ => Some v
+      | Vint _ => if Archi.ptr64 then None else Some v
+      | Vlong _ => if Archi.ptr64 then Some v else None
+      | _ => None
+      end
+  | Cop.cast_case_i2i sz2 si2 => sem_cast_i2i sz2 si2
+  | Cop.cast_case_f2f => sem_cast_f2f
+  | Cop.cast_case_s2s => sem_cast_s2s
+  | Cop.cast_case_s2f => sem_cast_s2f
+  | Cop.cast_case_f2s => sem_cast_f2s
+  | Cop.cast_case_i2f si1 => sem_cast_i2f si1
+  | Cop.cast_case_i2s si1 => sem_cast_i2s si1
+  | Cop.cast_case_f2i sz2 si2 => sem_cast_f2i sz2 si2
+  | Cop.cast_case_s2i sz2 si2 => sem_cast_s2i sz2 si2
+  | Cop.cast_case_i2bool => sem_cast_i2bool
+  | Cop.cast_case_l2bool => sem_cast_l2bool
+  | Cop.cast_case_f2bool => sem_cast_f2bool
+  | Cop.cast_case_s2bool => sem_cast_s2bool
+  | Cop.cast_case_l2l => sem_cast_l2l
+  | Cop.cast_case_i2l si => sem_cast_i2l si
+  | Cop.cast_case_l2i sz si => sem_cast_l2i sz si
+  | Cop.cast_case_l2f si1 => sem_cast_l2f si1
+  | Cop.cast_case_l2s si1 => sem_cast_l2s si1
+  | Cop.cast_case_f2l si2 => sem_cast_f2l si2
+  | Cop.cast_case_s2l si2 => sem_cast_s2l si2
+  | Cop.cast_case_struct id1 id2 => sem_cast_struct id1 id2
+  | Cop.cast_case_union id1 id2 => sem_cast_union id1 id2
+  | Cop.cast_case_void =>
+      fun v => Some v
+  | Cop.cast_case_default =>
+      fun v => None
+ end.
+
+Definition sem_binarith
+    (sem_int: signedness -> int -> int -> option val)
+    (sem_long: signedness -> int64 -> int64 -> option val)
+    (sem_float: float -> float -> option val)
+    (sem_single: float32 -> float32 -> option val)
+    t1 t2 v1 v2 : option val :=
+  let c := classify_binarith t1 t2 in
+  let t := binarith_type c in
+  match sem_cast t1 t v1 with
+  | None => None
+  | Some v1' =>
+  match sem_cast t2 t v2 with
+  | None => None
+  | Some v2' =>
+  match c with
+  | bin_case_i sg =>
+      match v1', v2' with
+      | Vint n1, Vint n2 => sem_int sg n1 n2
+      | _,  _ => None
+      end
+  | bin_case_f =>
+      match v1', v2' with
+      | Vfloat n1, Vfloat n2 => sem_float n1 n2
+      | _,  _ => None
+      end
+  | bin_case_s =>
+      match v1', v2' with
+      | Vsingle n1, Vsingle n2 => sem_single n1 n2
+      | _,  _ => None
+      end
+  | bin_case_l sg =>
+      match v1', v2' with
+      | Vlong n1, Vlong n2 => sem_long sg n1 n2
+      | _,  _ => None
+      end
+  | bin_default => None
+  end end end.
+
+Definition sem_add t1 t2 v1 v2 : option val :=
+  match classify_add t1 t2 with
+  | add_case_pi ty si =>             (**r pointer plus integer *)
+      Cop.sem_add_ptr_int ge ty si v1 v2
+  | add_case_pl ty =>                (**r pointer plus long *)
+      Cop.sem_add_ptr_long ge ty v1 v2
+  | add_case_ip si ty =>             (**r integer plus pointer *)
+      Cop.sem_add_ptr_int ge ty si v2 v1
+  | add_case_lp ty =>                (**r long plus pointer *)
+      Cop.sem_add_ptr_long ge ty v2 v1
+  | add_default =>
+      sem_binarith
+        (fun sg n1 n2 => Some(Vint(Int.add n1 n2)))
+        (fun sg n1 n2 => Some(Vlong(Int64.add n1 n2)))
+        (fun n1 n2 => Some(Vfloat(Float.add n1 n2)))
+        (fun n1 n2 => Some(Vsingle(Float32.add n1 n2)))
+        t1 t2 v1 v2
+  end.
+
+Definition sem_sub t1 t2 v1 v2 : option val :=
+  match classify_sub t1 t2 with
+  | sub_case_pi ty si =>            (**r pointer minus integer *)
+      match v1, v2 with
+      | Vptr b1 ofs1, Vint n2 =>
+          let n2 := ptrofs_of_int si n2 in
+          Some (Vptr b1 (Ptrofs.sub ofs1 (Ptrofs.mul (Ptrofs.repr (@Ctypes.sizeof ge ty)) n2)))
+      | Vint n1, Vint n2 =>
+          if Archi.ptr64 then None else Some (Vint (Int.sub n1 (Int.mul (Int.repr (@Ctypes.sizeof ge ty)) n2)))
+      | Vlong n1, Vint n2 =>
+          let n2 := cast_int_long si n2 in
+          if Archi.ptr64 then Some (Vlong (Int64.sub n1 (Int64.mul (Int64.repr (@Ctypes.sizeof ge ty)) n2))) else None
+      | _,  _ => None
+      end
+  | sub_case_pl ty =>            (**r pointer minus long *)
+      match v1, v2 with
+      | Vptr b1 ofs1, Vlong n2 =>
+          let n2 := Ptrofs.of_int64 n2 in
+          Some (Vptr b1 (Ptrofs.sub ofs1 (Ptrofs.mul (Ptrofs.repr (@Ctypes.sizeof ge ty)) n2)))
+      | Vint n1, Vlong n2 =>
+          let n2 := Int.repr (Int64.unsigned n2) in
+          if Archi.ptr64 then None else Some (Vint (Int.sub n1 (Int.mul (Int.repr (@Ctypes.sizeof ge ty)) n2)))
+      | Vlong n1, Vlong n2 =>
+          if Archi.ptr64 then Some (Vlong (Int64.sub n1 (Int64.mul (Int64.repr (@Ctypes.sizeof ge ty)) n2))) else None
+      | _,  _ => None
+      end
+  | sub_case_pp ty =>          (**r pointer minus pointer *)
+      match v1,v2 with
+      | Vptr b1 ofs1, Vptr b2 ofs2 =>
+          if eq_block b1 b2 then
+            let sz := @Ctypes.sizeof ge ty in
+            if zlt 0 sz && zle sz Ptrofs.max_signed
+            then Some (Vptrofs (Ptrofs.divs (Ptrofs.sub ofs1 ofs2) (Ptrofs.repr sz)))
+            else None
+          else None
+      | _, _ => None
+      end
+  | sub_default =>
+      sem_binarith
+        (fun sg n1 n2 => Some(Vint(Int.sub n1 n2)))
+        (fun sg n1 n2 => Some(Vlong(Int64.sub n1 n2)))
+        (fun n1 n2 => Some(Vfloat(Float.sub n1 n2)))
+        (fun n1 n2 => Some(Vsingle(Float32.sub n1 n2)))
+        t1 t2 v1 v2
+  end.
+
+Definition sem_mul (t1:type) (t2:type) (v1:val)  (v2: val)  : option val :=
+  sem_binarith
+    (fun sg n1 n2 => Some(Vint(Int.mul n1 n2)))
+    (fun sg n1 n2 => Some(Vlong(Int64.mul n1 n2)))
+    (fun n1 n2 => Some(Vfloat(Float.mul n1 n2)))
+    (fun n1 n2 => Some(Vsingle(Float32.mul n1 n2)))
+    t1 t2 v1 v2.
+
+Definition sem_div (t1:type) (t2:type) (v1:val)  (v2: val) : option val :=
+  sem_binarith
+    (fun sg n1 n2 =>
+      match sg with
+      | Signed =>
+          if Int.eq n2 Int.zero
+          || Int.eq n1 (Int.repr Int.min_signed) && Int.eq n2 Int.mone
+          then None else Some(Vint(Int.divs n1 n2))
+      | Unsigned =>
+          if Int.eq n2 Int.zero
+          then None else Some(Vint(Int.divu n1 n2))
+      end)
+    (fun sg n1 n2 =>
+      match sg with
+      | Signed =>
+          if Int64.eq n2 Int64.zero
+          || Int64.eq n1 (Int64.repr Int64.min_signed) && Int64.eq n2 Int64.mone
+          then None else Some(Vlong(Int64.divs n1 n2))
+      | Unsigned =>
+          if Int64.eq n2 Int64.zero
+          then None else Some(Vlong(Int64.divu n1 n2))
+      end)
+    (fun n1 n2 => Some(Vfloat(Float.div n1 n2)))
+    (fun n1 n2 => Some(Vsingle(Float32.div n1 n2)))
+    t1 t2 v1 v2.
+
+Definition sem_mod (t1:type) (t2:type) (v1:val)  (v2: val) : option val :=
+  sem_binarith
+    (fun sg n1 n2 =>
+      match sg with
+      | Signed =>
+          if Int.eq n2 Int.zero
+          || Int.eq n1 (Int.repr Int.min_signed) && Int.eq n2 Int.mone
+          then None else Some(Vint(Int.mods n1 n2))
+      | Unsigned =>
+          if Int.eq n2 Int.zero
+          then None else Some(Vint(Int.modu n1 n2))
+      end)
+    (fun sg n1 n2 =>
+      match sg with
+      | Signed =>
+          if Int64.eq n2 Int64.zero
+          || Int64.eq n1 (Int64.repr Int64.min_signed) && Int64.eq n2 Int64.mone
+          then None else Some(Vlong(Int64.mods n1 n2))
+      | Unsigned =>
+          if Int64.eq n2 Int64.zero
+          then None else Some(Vlong(Int64.modu n1 n2))
+      end)
+    (fun n1 n2 => None)
+    (fun n1 n2 => None)
+    t1 t2 v1 v2.
+
+Definition sem_and (t1:type) (t2:type) (v1:val) (v2: val) : option val :=
+  sem_binarith
+    (fun sg n1 n2 => Some(Vint(Int.and n1 n2)))
+    (fun sg n1 n2 => Some(Vlong(Int64.and n1 n2)))
+    (fun n1 n2 => None)
+    (fun n1 n2 => None)
+    t1 t2 v1 v2.
+
+Definition sem_or (t1:type) (t2:type) (v1:val)  (v2: val) : option val :=
+  sem_binarith
+    (fun sg n1 n2 => Some(Vint(Int.or n1 n2)))
+    (fun sg n1 n2 => Some(Vlong(Int64.or n1 n2)))
+    (fun n1 n2 => None)
+    (fun n1 n2 => None)
+    t1 t2 v1 v2.
+
+Definition sem_xor (t1:type) (t2:type) (v1:val)  (v2: val) : option val :=
+  sem_binarith
+    (fun sg n1 n2 => Some(Vint(Int.xor n1 n2)))
+    (fun sg n1 n2 => Some(Vlong(Int64.xor n1 n2)))
+    (fun n1 n2 => None)
+    (fun n1 n2 => None)
+    t1 t2 v1 v2.
+
+Definition sem_cmp_default c t1 t2 :=
+  sem_binarith
+        (fun sg n1 n2 =>
+            Some(bool2val(match sg with Signed => Int.cmp c n1 n2 | Unsigned => Int.cmpu c n1 n2 end)))
+        (fun sg n1 n2 =>
+            Some(bool2val(match sg with Signed => Int64.cmp c n1 n2 | Unsigned => Int64.cmpu c n1 n2 end)))
+        (fun n1 n2 =>
+            Some(bool2val(Float.cmp c n1 n2)))
+        (fun n1 n2 =>
+            Some(bool2val(Float32.cmp c n1 n2)))
+        t1 t2.
+
+
+Definition sem_cmp c t1 t2 : val -> val -> option val :=
+  match Cop.classify_cmp t1 t2 with
+  | Cop.cmp_case_pp => sem_cmp_pp c
+  | Cop.cmp_case_pi si => sem_cmp_pi si c
+  | Cop.cmp_case_ip si => sem_cmp_ip si c
+  | Cop.cmp_case_pl => sem_cmp_pl c
+  | Cop.cmp_case_lp => sem_cmp_lp c
+  | Cop.cmp_default => sem_cmp_default c t1 t2
+  end.
+
+Definition sem_binary_operation' (op: Cop.binary_operation)
+    (t1:type) (t2: type) : val -> val -> option val :=
+  match op with
+  | Cop.Oadd => sem_add t1 t2
+  | Cop.Osub => sem_sub t1 t2
+  | Cop.Omul => sem_mul t1 t2
+  | Cop.Omod => sem_mod t1 t2
+  | Cop.Odiv => sem_div t1 t2
+  | Cop.Oand => sem_and t1 t2
+  | Cop.Oor  => sem_or t1 t2
+  | Cop.Oxor  => sem_xor t1 t2
+  | Cop.Oshl => fun v1 v2 => Cop.sem_shl v1 t1 v2 t2
+  | Cop.Oshr  => fun v1 v2 => Cop.sem_shr v1 t1 v2 t2
+  | Cop.Oeq => sem_cmp Ceq t1 t2
+  | Cop.One => sem_cmp Cne t1 t2
+  | Cop.Olt => sem_cmp Clt t1 t2
+  | Cop.Ogt => sem_cmp Cgt t1 t2
+  | Cop.Ole => sem_cmp Cle t1 t2
+  | Cop.Oge => sem_cmp Cge t1 t2
+  end.
+
+Definition sc_cast v t1 t2 :=
+  match Cop.classify_cast t1 t2 with
+  | cast_case_i2bool =>
+      match v with
+      | Vptr b ofs =>
+          if Archi.ptr64 then True else weak_valid_pointer v
+      | _ => True
+      end
+  | cast_case_l2bool =>
+      match v with
+      | Vptr b ofs =>
+          if negb Archi.ptr64 then True else weak_valid_pointer v
+      | _ => True
+      end
+  | _ => True
+  end.
+
+Definition sc_binarith v1 t1 v2 t2 :=
+  let c := classify_binarith t1 t2 in
+  let t := binarith_type c in
+  sc_cast v1 t1 t ∧ sc_cast v2 t2 t.
+
+Definition sc_add v1 t1 v2 t2 :=
+  match classify_add t1 t2 with
+  | add_default => sc_binarith v1 t1 v2 t2
+  | _ => True
+  end.
+
+Definition sc_sub v1 t1 v2 t2 :=
+  match classify_sub t1 t2 with
+  | sub_default => sc_binarith v1 t1 v2 t2
+  | _ => True
+  end.
+
+Definition sc_cmplu_bool v1 v2 :=
+  match v1, v2 with
+  | Vlong n1, Vptr b2 ofs2 =>
+      if negb Archi.ptr64 then True else weak_valid_pointer v2
+  | Vptr b1 ofs1, Vptr b2 ofs2 =>
+      if negb Archi.ptr64 then True else if eq_block b1 b2 then
+        weak_valid_pointer v1 ∧ weak_valid_pointer v2
+      else valid_pointer v1 ∧ valid_pointer v2
+  | Vptr b1 ofs1, Vlong n2 =>
+      if negb Archi.ptr64 then True else weak_valid_pointer v1
+  | _, _ => True
+  end.
+
+Definition sc_cmpu_bool v1 v2 :=
+  match v1, v2 with
+  | Vint n1, Vptr b2 ofs2 =>
+      if Archi.ptr64 then True else weak_valid_pointer v2
+  | Vptr b1 ofs1, Vptr b2 ofs2 =>
+      if Archi.ptr64 then True else if eq_block b1 b2 then
+        weak_valid_pointer v1 ∧ weak_valid_pointer v2
+      else valid_pointer v1 ∧ valid_pointer v2
+  | Vptr b1 ofs1, Vint n2 =>
+      if negb Archi.ptr64 then True else weak_valid_pointer v1
+  | _, _ => True
+  end.
+
+Definition sc_cmp_ptr v1 v2 :=
+  if Archi.ptr64 then sc_cmplu_bool v1 v2 else sc_cmpu_bool v1 v2.
+
+Definition sc_cmp v1 t1 v2 t2 :=
+  match classify_cmp t1 t2 with
+  | cmp_case_pp => sc_cmp_ptr v1 v2
+  | cmp_case_pi si =>
+      match v2 with
+      | Vint n2 =>
+          let v2' := Vptrofs (ptrofs_of_int si n2) in
+          sc_cmp_ptr v1 v2'
+      | Vptr b ofs =>
+          if Archi.ptr64 then True else sc_cmp_ptr v1 v2
+      | _ => True
+      end
+  | cmp_case_ip si =>
+      match v1 with
+      | Vint n1 =>
+          let v1' := Vptrofs (ptrofs_of_int si n1) in
+          sc_cmp_ptr v1' v2
+      | Vptr b ofs =>
+          if Archi.ptr64 then True else sc_cmp_ptr v1 v2
+      | _ => True
+      end
+  | cmp_case_pl =>
+      match v2 with
+      | Vlong n2 =>
+          let v2' := Vptrofs (Ptrofs.of_int64 n2) in
+          sc_cmp_ptr v1 v2'
+      | Vptr b ofs =>
+          if Archi.ptr64 then sc_cmp_ptr v1 v2 else True
+      | _ => True
+      end
+  | cmp_case_lp =>
+      match v1 with
+      | Vlong n1 =>
+          let v1' := Vptrofs (Ptrofs.of_int64 n1) in
+          sc_cmp_ptr v1' v2
+      | Vptr b ofs =>
+          if Archi.ptr64 then sc_cmp_ptr v1 v2 else True
+      | _ => True
+      end
+  | cmp_default =>
+      sc_binarith v1 t1 v2 t2
+  end.
+
+Definition sc_binop op t1 t2 v1 v2 :=
+  match op with
+  | Oadd => sc_add v1 t1 v2 t2
+  | Osub => sc_sub v1 t1 v2 t2
+  | Omul | Omod | Odiv| Oand | Oor | Oxor => sc_binarith v1 t1 v2 t2
+  | Oshl => True
+  | Oshr  => True
+  | _ => sc_cmp v1 t1 v2 t2
+  end.
+
+Lemma sc_cast_sound : forall v t1 t2 m,
+  ⊢ sc_cast v t1 t2 -∗ mem_auth m -∗
+  ⌜Cop.sem_cast v t1 t2 m = sem_cast t1 t2 v⌝.
+Proof.
+  intros; iIntros "H Hm".
+  rewrite /sc_cast /Cop.sem_cast /sem_cast.
+  destruct (Cop.classify_cast t1 t2); try done.
+  destruct v; try done; simpl.
+  simple_if_tac; try done.
+  by rewrite /Mem.weak_valid_pointer; iDestruct (weak_valid_pointer_dry with "[$]") as %->.
+Qed.
+
+Lemma sc_binarith_sound : forall a b c d t1 t2 v1 v2 m,
+  ⊢ sc_binarith v1 t1 v2 t2 -∗ mem_auth m -∗
+  ⌜Cop.sem_binarith a b c d v1 t1 v2 t2 m = sem_binarith a b c d t1 t2 v1 v2⌝.
+Proof.
+  intros; iIntros "H Hm".
+  rewrite /sc_binarith /Cop.sem_binarith /sem_binarith.
+  iDestruct (sc_cast_sound with "[H] Hm") as %->; first by rewrite bi.and_elim_l.
+  iDestruct (sc_cast_sound with "[H] Hm") as %->; first by rewrite bi.and_elim_r.
+  done.
+Qed.
+
+Arguments valid_pointer : simpl never.
+
+Lemma sc_cmp_ptr_sound : forall c v1 v2 m,
+  ⊢ sc_cmp_ptr v1 v2 -∗ mem_auth m -∗
+  ⌜Cop.cmp_ptr m c v1 v2 = sem_cmp_pp c v1 v2⌝.
+Proof.
+  intros; iIntros "H Hm".
+  rewrite /sc_cmp_ptr /Cop.cmp_ptr /sem_cmp_pp.
+  simple_if_tac.
+  - rewrite /Val.cmplu_bool bool2val_eq.
+    destruct v1; try done; destruct v2; try done; simpl.
+    + simple_if_tac; try done.
+      by iDestruct (weak_valid_pointer_dry with "[$]") as %->.
+    + simple_if_tac; try done.
+      by iDestruct (weak_valid_pointer_dry with "[$]") as %->.
+    + simple_if_tac; try done.
+      if_tac.
+      * iDestruct (weak_valid_pointer_dry with "[H $Hm]") as %->; first by rewrite bi.and_elim_l.
+        iDestruct (weak_valid_pointer_dry with "[H $Hm]") as %->; first by rewrite bi.and_elim_r.
+        done.
+      * iDestruct (valid_pointer_dry0 with "[H $Hm]") as %->; first by rewrite bi.and_elim_l.
+        iDestruct (valid_pointer_dry0 with "[H $Hm]") as %->; first by rewrite bi.and_elim_r.
+        done.
+  - rewrite /Val.cmpu_bool bool2val_eq.
+    destruct v1; try done; destruct v2; try done; simpl.
+Qed.
+
+Lemma sc_cmp_sound : forall c t1 t2 v1 v2 m,
+  ⊢ sc_cmp v1 t1 v2 t2 -∗ mem_auth m -∗
+  ⌜Cop.sem_cmp c v1 t1 v2 t2 m = sem_cmp c t1 t2 v1 v2⌝.
+Proof.
+  intros; iIntros "H Hm".
+  rewrite /sc_cmp /Cop.sem_cmp /sem_cmp.
+  destruct (classify_cmp t1 t2).
+  - iApply (sc_cmp_ptr_sound with "H Hm").
+  - rewrite /sem_cmp_pi.
+    destruct v2; try simple_if_tac; try done; iApply (sc_cmp_ptr_sound with "H Hm").
+  - rewrite /sem_cmp_ip.
+    destruct v1; try simple_if_tac; try done; iApply (sc_cmp_ptr_sound with "H Hm").
+  - rewrite /sem_cmp_pl.
+    destruct v2; try simple_if_tac; try done; iApply (sc_cmp_ptr_sound with "H Hm").
+  - rewrite /sem_cmp_lp.
+    destruct v1; try simple_if_tac; try done; iApply (sc_cmp_ptr_sound with "H Hm").
+  - rewrite /sem_cmp_default bool2val_eq.
+    iApply (sc_binarith_sound with "H Hm").
+Qed.
+
+Lemma sc_binop_sound : forall op t1 t2 v1 v2 m,
+  ⊢ sc_binop op t1 t2 v1 v2 -∗ mem_auth m -∗
+  ⌜sem_binary_operation ge op v1 t1 v2 t2 m = sem_binary_operation' op t1 t2 v1 v2⌝.
+Proof.
+  intros; iIntros "H Hm".
+  rewrite /sc_binop /sem_binary_operation /sem_binary_operation'.
+  destruct op.
+  - rewrite /sc_add /Cop.sem_add /sem_add.
+    destruct (classify_add t1 t2); try done.
+    iApply (sc_binarith_sound with "H Hm").
+  - rewrite /sc_sub /Cop.sem_sub /sem_sub.
+    destruct (classify_sub t1 t2); try done.
+    iApply (sc_binarith_sound with "H Hm").
+  - iApply (sc_binarith_sound with "H Hm").
+  - iApply (sc_binarith_sound with "H Hm").
+  - iApply (sc_binarith_sound with "H Hm").
+  - iApply (sc_binarith_sound with "H Hm").
+  - iApply (sc_binarith_sound with "H Hm").
+  - iApply (sc_binarith_sound with "H Hm").
+  - done.
+  - done.
+  - iApply (sc_cmp_sound with "H Hm").
+  - iApply (sc_cmp_sound with "H Hm").
+  - iApply (sc_cmp_sound with "H Hm").
+  - iApply (sc_cmp_sound with "H Hm").
+  - iApply (sc_cmp_sound with "H Hm").
+  - iApply (sc_cmp_sound with "H Hm").
+Qed.
+
+Lemma wp_binop_sc : forall E op t1 v1 t2 v2 v P,
+  sem_binary_operation' op t1 t2 v1 v2 = Some v →
+  ⎡sc_binop op t1 t2 v1 v2⎤ ∧ P v ⊢ wp_binop E op t1 v1 t2 v2 P.
+Proof.
+  intros; rewrite /wp_binop.
+  iIntros "H !>" (?) "Hm !>".
+  iDestruct (sc_binop_sound with "[H] Hm") as %->; first by rewrite bi.and_elim_l.
+  rewrite bi.and_elim_r; eauto with iFrame.
+Qed.
+
 Definition blocks_match op v1 v2 :=
 match op with Cop.Olt | Cop.Ogt | Cop.Ole | Cop.Oge =>
   match v1, v2 with
@@ -460,7 +955,7 @@ end.
 
 Lemma sem_cast_e1:
  forall t t1 v1 v m,
-   sem_cast t t1 v = Some v1 ->
+   Clight_Cop2.sem_cast t t1 v = Some v1 ->
    cast_pointer_to_bool t t1 = false ->
    tc_val t v ->
    Cop.sem_cast v t t1 m = Some v1.
@@ -478,7 +973,7 @@ destruct (eqb_type t int_or_ptr_type) eqn:J;
   inv H.
   destruct v1; auto; inv H1.
 *
-unfold sem_cast, classify_cast in H.
+unfold Clight_Cop2.sem_cast, classify_cast in H.
 destruct t1; [auto | | | auto ..].
 +
 destruct i,s; auto; try solve [destruct v; inv H]; try solve [inv H0];
@@ -501,7 +996,7 @@ inv H.
 simpl.
 destruct v1; inv H1; auto.
 *
-unfold sem_cast in H.
+unfold Clight_Cop2.sem_cast in H.
 destruct t; try solve [inv H].
 {
   simpl in H.
@@ -543,7 +1038,7 @@ destruct v1; tauto.
 *
 revert H.
 clear - J J0 H0 H1.
-unfold Cop.sem_cast, sem_cast.
+unfold Cop.sem_cast, Clight_Cop2.sem_cast.
 unfold Cop.classify_cast, classify_cast, sem_cast_pointer, 
  sem_cast_l2bool, sem_cast_i2bool.
 rewrite ?(proj2 (eqb_type_false _ _) J);
@@ -560,7 +1055,7 @@ destruct t   as [ | [ | | | ] [ | ] | | [ | ] | | | | | ]; auto; try discriminat
 Qed.
 
 Lemma wp_cast : forall E f e ty P, cast_pointer_to_bool (typeof e) ty = false ->
-  wp_expr E f e (λ v, ⌜tc_val (typeof e) v⌝ ∧ ∃ v', ⌜sem_cast (typeof e) ty v = Some v'⌝ ∧ P v') ⊢ wp_expr E f (Ecast e ty) P.
+  wp_expr E f e (λ v, ⌜tc_val (typeof e) v⌝ ∧ ∃ v', ⌜Clight_Cop2.sem_cast (typeof e) ty v = Some v'⌝ ∧ P v') ⊢ wp_expr E f (Ecast e ty) P.
 Proof.
   intros; rewrite /wp_expr.
   do 8 f_equiv. iIntros "(% & ? & Hm & ? & % & %v' & %Hcast & P)".
@@ -568,6 +1063,19 @@ Proof.
   iStopProof; do 7 f_equiv.
   intros ??; econstructor; eauto.
   by apply sem_cast_e1.
+Qed.
+
+Lemma wp_cast_sc : forall E f e ty P,
+  wp_expr E f e (λ v, ⎡sc_cast v (typeof e) ty⎤ ∧ ∃ v', ⌜sem_cast (typeof e) ty v = Some v'⌝ ∧ P v') ⊢ wp_expr E f (Ecast e ty) P.
+Proof.
+  intros; rewrite /wp_expr.
+  do 8 f_equiv. iIntros "(% & ? & Hm & ? & H)".
+  iDestruct (sc_cast_sound with "[H] Hm") as %?; first by rewrite bi.and_elim_l.
+  iDestruct "H" as "(_ & % & %Hcast & P)".
+  iExists v'; iFrame.
+  iStopProof; do 7 f_equiv.
+  intros ??; econstructor; eauto.
+  by rewrite H.
 Qed.
 
 Lemma wp_tempvar_local : forall E f _x x c_ty P,

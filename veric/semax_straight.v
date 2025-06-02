@@ -12,10 +12,10 @@ Require Import VST.sepcomp.extspec.
 Require Import VST.sepcomp.step_lemmas.
 Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.tycontext.
+Require Import VST.veric.lifting_expr.
 Require Import VST.veric.expr2.
 Require Import VST.veric.expr_lemmas.
 Require Import VST.veric.expr_lemmas4.
-Require Import VST.veric.lifting_expr.
 Require Import VST.veric.semax.
 Require Import VST.veric.semax_lemmas.
 Require Import VST.veric.semax_conseq.

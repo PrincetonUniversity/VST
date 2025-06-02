@@ -1,7 +1,6 @@
 Require Export Coq.Sorting.Permutation.
 Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.veric.seplog.
-Require Export VST.veric.lifting_expr.
 Require Import VST.floyd.base2.
 Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Import LiftNotation.

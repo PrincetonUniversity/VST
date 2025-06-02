@@ -63,6 +63,42 @@ Qed.
 
 (* We'll probably need another wp_pure lemma for wp_expr. *)*)
 
+Definition ob_cond `{!VSTGS OK_ty Σ} {A B} P (Q : B → assert) := λ x : A, ∃ y, <affine> ⌜P x y⌝ ∗ Q y.
+
+Ltac ob_cond_tac :=
+  lazymatch goal with
+  | |- envs_entails ?Δ (ob_cond ?P _ _) =>
+      iExists _; iSplit; [iPureIntro; try done|]
+  | _ => fail "no such ob"
+  end.
+
+(* maybe seal *)
+Definition ob_check `{!VSTGS OK_ty Σ} (P Q : assert) := ▷ <absorb> P ∧ Q.
+
+Ltac ob_check_tac :=
+  lazymatch goal with
+  | |- envs_entails ?Δ (ob_check ?P _) =>
+      iSplit; [iNext; let i := fresh "i" in evar (i : ident.ident);
+        let b := fresh "b" in evar (b : bool);
+        let H := fresh "H" in assert (envs_lookup i Δ = Some (b, P)) as H;
+        [subst b i; iAssumptionCore || fail "cannot find" P |
+         clear H; clear b; lazymatch goal with i := ?s |- _ => clear i; iApply s end|]
+      |]
+  | _ => fail "no such ob"
+  end.
+
+Definition ob_replace `{!VSTGS OK_ty Σ} (P P' Q : assert) := ▷ (P ∗ (P' -∗ Q)).
+
+Ltac ob_replace_tac :=
+  lazymatch goal with
+  | |- envs_entails ?Δ (ob_replace ?P _ _) =>
+      iNext; let i := fresh "i" in evar (i : ident.ident);
+        let H := fresh "H" in assert (envs_lookup i Δ = Some (false, P)) as H;
+        [subst i; iAssumptionCore || fail "cannot find" P |
+         clear H; lazymatch goal with i := ?s |- _ => clear i; iFrame s; iIntros s end]
+  | _ => fail "no such ob"
+  end.
+
 Lemma tac_wp_consti_nofupd `{!VSTGS OK_ty Σ} Δ ge E f Φ v t :
   envs_entails Δ (Φ (Vint v)) → envs_entails Δ (wp_expr ge E f (Econst_int v t) Φ).
 Proof. rewrite envs_entails_unseal=> ->. by apply wp_const_int. Qed.
@@ -107,49 +143,63 @@ Ltac wp_value_head :=
       eapply tac_wp_consts_nofupd
   | |- envs_entails _ (wp_expr _ ?E _ (Econst_long _ _) (λ _, wp_expr _ ?E _ _ _)) =>
       eapply tac_wp_constl_nofupd
-  | |- envs_entails _ (wp _ ?E _ (Econst_int _ _) _) =>
+  | |- envs_entails _ (wp_expr _ ?E _ (Econst_int _ _) (ob_cond _ _)) =>
+      eapply tac_wp_consti_nofupd
+  | |- envs_entails _ (wp_expr _ ?E _ (Econst_float _ _) (ob_cond _ _)) =>
+      eapply tac_wp_constf_nofupd
+  | |- envs_entails _ (wp_expr _ ?E _ (Econst_single _ _) (ob_cond _ _)) =>
+      eapply tac_wp_consts_nofupd
+  | |- envs_entails _ (wp_expr _ ?E _ (Econst_long _ _) (ob_cond _ _)) =>
+      eapply tac_wp_constl_nofupd
+  | |- envs_entails _ (wp_expr _ ?E _ (Econst_int _ _) _) =>
       eapply tac_wp_consti
-  | |- envs_entails _ (wp _ ?E _ (Econst_float _ _) _) =>
+  | |- envs_entails _ (wp_expr _ ?E _ (Econst_float _ _) _) =>
       eapply tac_wp_constf
-  | |- envs_entails _ (wp _ ?E _ (Econst_single _ _) _) =>
+  | |- envs_entails _ (wp_expr _ ?E _ (Econst_single _ _) _) =>
       eapply tac_wp_consts
-  | |- envs_entails _ (wp _ ?E _ (Econst_long _ _) _) =>
+  | |- envs_entails _ (wp_expr _ ?E _ (Econst_long _ _) _) =>
       eapply tac_wp_constl
   end.
 
-(* maybe seal *)
-Definition ob_check `{!VSTGS OK_ty Σ} (P Q : assert) := ▷ <absorb> P ∧ Q.
-
-Ltac ob_check_tac :=
+Tactic Notation "wp_const" := wp_value_head.
+Tactic Notation "wp_binop" := iApply wp_binop_rule.
+Tactic Notation "wp_binop_post" :=
   lazymatch goal with
-  | |- envs_entails ?Δ (ob_check ?P _) =>
-      iSplit; [iNext; let i := fresh "i" in evar (i : ident.ident);
-        let b := fresh "b" in evar (b : bool);
-        let H := fresh "H" in assert (envs_lookup i Δ = Some (b, P)) as H;
-        [subst b i; iAssumptionCore || fail "cannot find" P |
-         clear H; clear b; lazymatch goal with i := ?s |- _ => clear i; iApply s end|]
-      |]
-  | _ => fail "no such ob"
-  end.
-
-Definition ob_replace `{!VSTGS OK_ty Σ} (P P' Q : assert) := ▷ (P ∗ (P' -∗ Q)).
-
-Ltac ob_replace_tac :=
-  lazymatch goal with
-  | |- envs_entails ?Δ (ob_replace ?P _ _) =>
-      iNext; let i := fresh "i" in evar (i : ident.ident);
-        let H := fresh "H" in assert (envs_lookup i Δ = Some (false, P)) as H;
-        [subst i; iAssumptionCore || fail "cannot find" P |
-         clear H; lazymatch goal with i := ?s |- _ => clear i; iFrame s; iIntros s end]
-  | _ => fail "no such ob"
+  | |- envs_entails ?Δ (wp_binop _ _ _ _ _ _ _ _) =>
+      iApply wp_binop_sc; [try fast_done | iSplit; [try done|]]
+  | _ => fail "no such wp_binop"
   end.
 
 Ltac wp_finish :=
   try wp_value_head;  (* in case we have reached a value, get rid of the WP *)
+  try ob_cond_tac;
   try ob_check_tac;
   try ob_replace_tac;
+  try wp_binop_post;
   pm_prettify.        (* prettify ▷s caused by [MaybeIntoLaterNEnvs] and
                          λs caused by wp_value *)
+
+Lemma tac_wp_cast `{!VSTGS OK_ty Σ} Δ ge E f e ty Q :
+  cast_pointer_to_bool (typeof e) ty = false →
+  envs_entails Δ (wp_expr ge E f e (ob_cond (λ v v', Cop2.tc_val (typeof e) v /\ Clight_Cop2.sem_cast (typeof e) ty v = Some v') Q)) →
+  envs_entails Δ (wp_expr ge E f (Ecast e ty) Q).
+Proof.
+  rewrite envs_entails_unseal=> ? Hi.
+  rewrite Hi -wp_cast; last done.
+  apply wp_expr_mono; intros.
+  by iIntros "(% & (% & %) & $)".
+Qed.
+
+Tactic Notation "wp_cast" :=
+  lazymatch goal with
+  | |- envs_entails _ (wp_expr _ ?E _ ?e ?Q) =>
+    first
+      [eapply tac_wp_cast
+      |fail 1 "wp_cast: cannot find 'Ecast' in" e];
+    [fast_done || fail 1 "wp_cast: pointer-to-bool cast"
+    |rewrite /typeof; wp_finish]
+  | _ => fail "wp_cast: not a 'wp'"
+  end.
 
 Tactic Notation "wp_if" :=
   lazymatch goal with
