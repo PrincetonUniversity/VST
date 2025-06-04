@@ -1,11 +1,28 @@
 Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
+Require Export VST.veric.SeparationLogic.
 Require Export VST.floyd.base.
-Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Export VST.floyd.typecheck_lemmas.
+Require Export VST.floyd.assert_lemmas.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Export VST.floyd.functional_base.
 Require Export VST.floyd.seplog_tactics.
 Require Export VST.floyd.const_only_eval.
 Require Export VST.floyd.computable_functions.
+Require VST.floyd.SeparationLogicAsLogicSoundness.
+Export SeparationLogicAsLogicSoundness.MainTheorem.
+Export SeparationLogicAsLogicSoundness.MainTheorem.CSHL_PracticalLogic.
+Export SeparationLogicAsLogicSoundness.MainTheorem.CSHL_PracticalLogic.CSHL_MinimumLogic.
+Export SeparationLogicAsLogicSoundness.MainTheorem.CSHL_PracticalLogic.CSHL_MinimumLogic.CSHL_Def.
+Export SeparationLogicAsLogicSoundness.MainTheorem.CSHL_PracticalLogic.CSHL_MinimumLogic.CSHL_Defs.
+
+Global Instance: Params (@semax) 7 := {}.
+
+Definition extract_exists_pre:
+  forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {CS: compspecs},
+  forall (A : Type) (P : A -> assert) c E (Delta: tycontext) (R: ret_assert),
+  (forall x, semax E Delta (P x) c R) ->
+   semax E Delta (∃ x:A, P x) c R
+  := @semax_extract_exists.
 
 Fixpoint delete_id {A: Type} i (al: list (ident*A)) : option (A * list (ident*A)) :=
  match al with

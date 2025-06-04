@@ -1,7 +1,7 @@
 Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
-Require Import VST.floyd.base2.
+Require Import VST.floyd.base.
 Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
-Require Import VST.floyd.client_lemmas.
+(*Require Import VST.veric.lifting.*)
 Require Import VST.floyd.type_induction.
 Require Import VST.floyd.nested_pred_lemmas.
 Require Import VST.floyd.nested_field_lemmas.
@@ -11,7 +11,7 @@ Require VST.floyd.aggregate_pred. Import VST.floyd.aggregate_pred.aggregate_pred
 Require Import VST.floyd.data_at_rec_lemmas.
 Require Import VST.floyd.jmeq_lemmas.
 Require Import VST.zlist.sublist.
-Require Import VST.floyd.local2ptree_typecheck.
+(*Require Import VST.floyd.local2ptree_typecheck.*)
 Import LiftNotation.
 
 Local Unset SsrRewrite.
@@ -24,7 +24,7 @@ Definition of nested_reptype_structlist, field_at, array_at, data_at, nested_sfi
 
 Section CENV.
 
-Context `{!VSTGS OK_ty Σ} {cs: compspecs}.
+Context `{!heapGS Σ} {cs: compspecs}.
 
 Lemma struct_Prop_cons2:
   forall it it' m (A: member -> Type)
@@ -357,6 +357,7 @@ Proof.
   intros until p. intro ZL; intros.
   unfold array_at, field_at.
   normalize.
+  apply pure_intro_l; first done.
   eapply array_pred_ext_derives.
   1: intro; lia.
   intros.
@@ -469,7 +470,7 @@ Qed.
 
 Ltac solve_ptr_derives :=
   repeat rewrite isptr_offset_val;
-  apply derives_refl.
+  apply entails_refl.
 
 Lemma field_at_isptr':
   forall sh t path v c, field_at sh t path v c ⊢ ⌜isptr c⌝.
@@ -808,7 +809,7 @@ Proof.
   intros. apply field_at_data_at.
 Qed.
 
-Lemma lifted_field_at_data_at: forall sh t gfs v p,
+(*Lemma lifted_field_at_data_at: forall sh t gfs v p,
   assert_of (`(field_at sh t gfs) v p) =
   assert_of (`(data_at sh (nested_field_type t gfs)) v (`(field_address t gfs) p)).
 Proof.
@@ -824,7 +825,7 @@ Proof.
   intros.
   apply assert_ext; intros; unfold_lift.
   apply field_at__data_at_.
-Qed.
+Qed.*)
 
 Lemma value_fits_JMeq:
   forall t t' v v',
@@ -1371,9 +1372,7 @@ Lemma field_at_valid_ptr0:
      field_at sh t path v p ⊢ valid_pointer p.
 Proof.
 intros.
-assert_PROP (field_compatible t path p).
-unfold field_at.
-normalize.
+rewrite field_at_compatible'; normalize.
 pattern p at 2; replace p with (field_address t path p).
 rewrite field_at_data_at.
 apply data_at_valid_ptr; auto.
@@ -1624,7 +1623,7 @@ unfold field_address.
 if_tac; intuition (auto; try solve [contradiction]).
 Qed.
 
-Lemma eval_lvar_spec: forall id t rho,
+(*Lemma eval_lvar_spec: forall id t rho,
   match eval_lvar id t rho with
   | Vundef => True
   | Vptr b ofs => ofs = Ptrofs.zero
@@ -1666,7 +1665,7 @@ Proof.
   assert (sizeof t <= Ptrofs.modulus) by lia.
   assert (sizeof t <= Ptrofs.max_unsigned) by (unfold Ptrofs.max_unsigned; lia).
   apply la_env_cs_sound in H1; tauto.
-Qed.
+Qed.*)
 
 Lemma valid_pointer_weak:
  forall a, valid_pointer a ⊢ weak_valid_pointer a.
@@ -1715,7 +1714,7 @@ End CENV.
 
 Local Set SsrRewrite. (* for rewrite bi._ to work *)
 Ltac field_at_conflict z fld :=
- apply (derives_trans _ False); [ | apply bi.False_elim];
+ trans False; [ | apply bi.False_elim];
  repeat rewrite bi.sep_assoc;
  unfold data_at_, data_at, field_at_;
  let x := fresh "x" in set (x := field_at _ _ fld _ z); pull_right x;
@@ -1737,7 +1736,7 @@ Ltac data_at_conflict_neq_aux1 A sh fld E x y :=
    | context [field_at_ sh _ fld y]  => idtac
    end;
    trans (⌜~ E⌝ ∧ A);
-   [apply bi.and_intro; [ | apply derives_refl];
+   [apply bi.and_intro; [ | apply entails_refl];
     let H := fresh in
     apply not_prop_right; intro H;
     (rewrite H || rewrite (ptr_eq_e _ _ H));
@@ -1829,7 +1828,7 @@ Qed.
 
 Section local_facts.
 
-Context `{!VSTGS OK_ty Σ}.
+Context `{!heapGS Σ}.
 
 Lemma data_array_at_local_facts {cs: compspecs}:
  forall t' n a sh (v: list (reptype t')) p,
@@ -1882,7 +1881,7 @@ rewrite field_at_local_facts;
   try match goal with |- context [repinject ?t ?v] =>
     change (repinject t v) with v
   end;
-  apply derives_refl
+  apply entails_refl
 end.
 
 Ltac data_at_valid_aux :=
@@ -1934,35 +1933,35 @@ Ltac data_at_valid_aux :=
 
 Section cancel.
 
-Context `{!VSTGS OK_ty Σ}.
+Context `{!heapGS Σ}.
 
 Lemma data_at_cancel:
   forall {cs: compspecs} sh t v p,
     data_at sh t v p ⊢ data_at sh t v p.
-Proof. intros. apply derives_refl. Qed.
+Proof. intros. apply entails_refl. Qed.
 Lemma field_at_cancel:
   forall {cs: compspecs} sh t gfs v p,
     field_at sh t gfs v p ⊢ field_at sh t gfs v p.
-Proof. intros. apply derives_refl. Qed.
+Proof. intros. apply entails_refl. Qed.
 
 Lemma data_at_field_at_cancel:
   forall {cs: compspecs} sh t v p,
     data_at sh t v p ⊢ field_at sh t nil v p.
-Proof. intros. apply derives_refl. Qed.
+Proof. intros. apply entails_refl. Qed.
 Lemma field_at_data_at_cancel:
   forall {cs: compspecs} sh t v p,
     field_at sh t nil v p ⊢ data_at sh t v p.
-Proof. intros. apply derives_refl. Qed.
+Proof. intros. apply entails_refl. Qed.
 
 Lemma field_at__data_at__cancel:
   forall {cs: compspecs} sh t p,
    field_at_ sh t nil p ⊢ data_at_ sh t p.
-Proof. intros. apply derives_refl. Qed.
+Proof. intros. apply entails_refl. Qed.
 
 Lemma data_at__field_at__cancel:
   forall {cs: compspecs} sh t p,
    data_at_ sh t p ⊢ field_at_ sh t nil p.
-Proof. intros. apply derives_refl. Qed.
+Proof. intros. apply entails_refl. Qed.
 
 End cancel.
 
@@ -2039,9 +2038,9 @@ match goal with
    clear H; subst D; simpl in E; subst E
 end.
 
-Definition field_at_mark `{!VSTGS OK_ty Σ} cs := field_at(cs := cs).
-Definition field_at_hide `{!VSTGS OK_ty Σ} cs  := field_at(cs := cs).
-Definition data_at_hide `{!VSTGS OK_ty Σ} cs  := data_at(cs := cs).
+Definition field_at_mark `{!heapGS Σ} cs := field_at(cs := cs).
+Definition field_at_hide `{!heapGS Σ} cs  := field_at(cs := cs).
+Definition data_at_hide `{!heapGS Σ} cs  := data_at(cs := cs).
 
 Ltac find_field_at N :=
  match N with
@@ -2066,7 +2065,7 @@ Global Opaque protect.
 
 Section lemmas.
 
-Context `{!VSTGS OK_ty Σ}.
+Context `{!heapGS Σ}.
 
 Lemma field_at_ptr_neq {cs: compspecs} :
    forall sh t fld p1 p2 v1 v2,
@@ -2345,12 +2344,12 @@ Lemma nonreadable_field_at_eq {cs: compspecs} :
 Proof.
 intros.
 rewrite !field_at_data_at.
-apply bi.equiv_entails_2; saturate_local.
-rewrite <- !nonreadable_memory_block_data_at; auto.
-apply H0; auto.
-destruct (readable_share_dec sh); try contradiction.
-rewrite <- !nonreadable_memory_block_data_at; auto.
-apply H0; auto.
+apply bi.equiv_entails_2; (eapply bi.pure_elim; first apply data_at_local_facts); intros (? & ?).
+- rewrite <- !nonreadable_memory_block_data_at; auto.
+  apply H0; auto.
+- destruct (readable_share_dec sh); try contradiction.
+  rewrite <- !nonreadable_memory_block_data_at; auto.
+  apply H0; auto.
 Qed.
 
 Lemma nonreadable_readable_memory_block_data_at_join
@@ -2361,10 +2360,13 @@ Lemma nonreadable_readable_memory_block_data_at_join
    memory_block ash (sizeof t) p ∗ data_at bsh t v p ⊣⊢ data_at psh t v p.
 Proof.
 intros.
-apply bi.equiv_entails_2; saturate_local.
+apply bi.equiv_entails_2.
+- eapply bi.pure_elim. rewrite sep_comm; apply sepcon_derives_prop, data_at_local_facts.
+intros (? & ?).
 rewrite @nonreadable_memory_block_data_at with (v:=v); auto.
 unfold data_at.
 erewrite field_at_share_join; eauto.
+- eapply bi.pure_elim; first apply data_at_local_facts; intros (? & ?).
 rewrite @nonreadable_memory_block_data_at with (v:=v); auto.
 unfold data_at.
 erewrite field_at_share_join; eauto.
@@ -2606,12 +2608,12 @@ Lemma array_at_data_at1 {cs : compspecs} : forall sh t gfs lo hi v p,
                (nested_field_offset t (ArraySubsc lo :: gfs)) p.
 Proof.
   intros. rewrite array_at_data_at by auto. unfold at_offset.
-  normalize.
+  normalize. rewrite prop_true_andp; done.
 Qed.
 
 Lemma data_at_ext_derives {cs : compspecs} sh t v v' p q: v=v' -> p=q -> data_at sh t v p ⊢ data_at sh t v' q.
 Proof. intros; subst.
-apply derives_refl.
+apply entails_refl.
 Qed.
 
 Lemma data_at_ext_eq {cs : compspecs} sh t v v' p q: v=v' -> p=q -> data_at sh t v p = data_at sh t v' q.
@@ -2662,22 +2664,22 @@ Ltac headptr_field_compatible :=
 (* BEGIN New experiments *)
 Section new_lemmas.
 
-Context `{!VSTGS OK_ty Σ}.
+Context `{!heapGS Σ}.
 
 Lemma data_at_data_at_cancel  {cs: compspecs}: forall sh t v v' p,
   v = v' ->
   data_at sh t v p ⊢ data_at sh t v' p.
-Proof. intros. subst. apply derives_refl. Qed.
+Proof. intros. subst. apply entails_refl. Qed.
 
 Lemma field_at_field_at_cancel  {cs: compspecs}: forall sh t gfs v v' p,
   v = v' ->
   field_at sh t gfs v p ⊢ field_at sh t gfs v' p.
-Proof. intros. subst. apply derives_refl. Qed.
+Proof. intros. subst. apply entails_refl. Qed.
 
 Lemma data_at__data_at {cs: compspecs}:
    forall sh t v p, v = default_val t -> data_at_ sh t p ⊢ data_at sh t v p.
 Proof.
-intros; subst; unfold data_at_; apply derives_refl.
+intros; subst; unfold data_at_; apply entails_refl.
 Qed.
 
 Lemma data_at__eq : forall {cs : compspecs} sh t p, data_at_ sh t p = data_at sh t (default_val t) p.
@@ -2762,9 +2764,9 @@ Lemma mapsto_value_cohere: forall sh1 sh2 t p v1 v2, readable_share sh1 ->
   mapsto sh1 t p v1 ∗ mapsto sh2 t p v2 ⊢ mapsto sh1 t p v1 ∗ mapsto sh2 t p v1.
 Proof.
   intros; unfold mapsto.
-  destruct (access_mode t); try simple apply derives_refl.
-  destruct (type_is_volatile t); try simple apply derives_refl.
-  destruct p; try simple apply derives_refl.
+  destruct (access_mode t); try simple apply entails_refl.
+  destruct (type_is_volatile t); try simple apply entails_refl.
+  destruct p; try simple apply entails_refl.
   rewrite if_true by done.
   destruct (eq_dec v1 Vundef).
   - subst; rewrite !prop_false_andp with (P := tc_val t Vundef), !bi.False_or, prop_true_andp; auto;
@@ -2772,13 +2774,13 @@ Proof.
     cancel.
     if_tac.
     + iIntros "[(% & ?) | (% & ?)]"; iRight; auto.
-    + Intros. iIntros "$"; iPureIntro; repeat split; auto. apply tc_val'_Vundef.
-  - rewrite !prop_false_andp with (P := v1 = Vundef), !bi.or_False; auto; Intros.
+    + normalize. iIntros "$"; iPureIntro; repeat split; auto. apply tc_val'_Vundef.
+  - rewrite !prop_false_andp with (P := v1 = Vundef), !bi.or_False; auto; normalize.
     apply bi.and_intro; [apply bi.pure_intro; auto|].
     if_tac.
     + iIntros "(H1 & H2)".
       iAssert (∃ v2' : val, res_predicates.address_mapsto m v2' _ _) with "[H2]" as (v2') "H2".
-      { iDestruct "H2" as "[(% & ?) | (_ & $)]"; auto. }
+      { iDestruct "H2" as "[(% & ?) | (% & _ & $)]"; auto. }
       iAssert ⌜v1 = v2'⌝ as %->. { iApply res_predicates.address_mapsto_value_cohere; iFrame. }
       iFrame; eauto.
     + apply bi.sep_mono; first done.
@@ -2802,7 +2804,7 @@ Lemma data_at_value_eq : forall {cs : compspecs} sh1 sh2 t v1 v2 p,
   is_pointer_or_null v1 -> is_pointer_or_null v2 ->
   data_at sh1 (tptr t) v1 p ∗ data_at sh2 (tptr t) v2 p ⊢ ⌜v1 = v2⌝.
 Proof.
-  intros; unfold data_at, field_at, at_offset; Intros.
+  intros; unfold data_at, field_at, at_offset; normalize.
   rewrite !by_value_data_at_rec_nonvolatile by auto.
   apply mapsto_value_eq; auto.
   { intros X; subst; contradiction. }
@@ -2846,19 +2848,19 @@ Qed.
 Lemma field_at__field_at {cs: compspecs} :
    forall sh t gfs v p, v = default_val (nested_field_type t gfs) -> field_at_ sh t gfs p ⊢ field_at sh t gfs v p.
 Proof.
-intros; subst; unfold field_at_; apply derives_refl.
+intros; subst; unfold field_at_; apply entails_refl.
 Qed.
 
 Lemma data_at__field_at {cs: compspecs}:
    forall sh t v p, v = default_val t -> data_at_ sh t p ⊢ field_at sh t nil v p.
 Proof.
-intros; subst; unfold data_at_; apply derives_refl.
+intros; subst; unfold data_at_; apply entails_refl.
 Qed.
 
 Lemma field_at__data_at {cs: compspecs} :
    forall sh t v p, v = default_val (nested_field_type t nil) -> field_at_ sh t nil p ⊢ data_at sh t v p.
 Proof.
-intros; subst; unfold field_at_; apply derives_refl.
+intros; subst; unfold field_at_; apply entails_refl.
 Qed.
 
 Lemma field_at_data_at_cancel': forall {cs : compspecs} sh t v p,
@@ -2897,7 +2899,7 @@ End new_lemmas.
 
 Section more_lemmas.
 
-Context `{!VSTGS OK_ty Σ}.
+Context `{!heapGS Σ}.
 
 Lemma data_at__Tarray:
   forall {CS: compspecs} sh t n a,

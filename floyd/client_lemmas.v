@@ -14,6 +14,48 @@ Section mpred.
 
 Context `{!heapGS Σ}.
 
+Lemma local_and_sep_assoc : forall (P : environ -> Prop) (Q R : assert), (local P ∧ (Q ∗ R)) = ((local P ∧ Q) ∗ R).
+Proof.
+  intros; apply assert_ext; intros; monPred.unseal.
+  rewrite sepcon_andp_prop' //.
+Qed.
+
+Lemma local_and_sep_assoc' : forall (P : assert) (Q : environ -> Prop) (R : assert), (P ∗ (local Q ∧ R)) = (local Q ∧ (P ∗ R)).
+Proof.
+  intros; rewrite sep_comm' -local_and_sep_assoc sep_comm' //.
+Qed.
+
+Lemma local_and_sep_assoc2 : forall (P : environ -> Prop) (Q R : assert), (local P ∧ (Q ∗ R)) = ((Q ∧ local P) ∗ R).
+Proof.
+  intros; rewrite (and_comm' Q); apply local_and_sep_assoc.
+Qed.
+
+Lemma local_and_sep_assoc2' : forall (P : assert) (Q : environ -> Prop) (R : assert), (P ∗ (R ∧ local Q)) = (local Q ∧ (P ∗ R)).
+Proof.
+  intros; rewrite (and_comm' R); apply local_and_sep_assoc'.
+Qed.
+
+Lemma pure_and_sep_assoc : forall (P : Prop) (Q R : assert), (⌜P⌝ ∧ (Q ∗ R)) = ((⌜P⌝ ∧ Q) ∗ R).
+Proof.
+  intros; apply assert_ext; intros; monPred.unseal.
+  rewrite sepcon_andp_prop' //.
+Qed.
+
+Lemma pure_and_sep_assoc' : forall (P : assert) (Q : Prop) (R : assert), (P ∗ (⌜Q⌝ ∧ R)) = (⌜Q⌝ ∧ (P ∗ R)).
+Proof.
+  intros; rewrite sep_comm' -pure_and_sep_assoc sep_comm' //.
+Qed.
+
+Lemma pure_and_sep_assoc2 : forall (P : Prop) (Q R : assert), (⌜P⌝ ∧ (Q ∗ R)) = ((Q ∧ ⌜P⌝) ∗ R).
+Proof.
+  intros; rewrite (and_comm' Q); apply pure_and_sep_assoc.
+Qed.
+
+Lemma pure_and_sep_assoc2' : forall (P : assert) (Q : Prop) (R : assert), (P ∗ (R ∧ ⌜Q⌝)) = (⌜Q⌝ ∧ (P ∗ R)).
+Proof.
+  intros; rewrite (and_comm' R); apply pure_and_sep_assoc'.
+Qed.
+
 Lemma SEP_entail:
  forall R' Delta P Q R,
    (fold_right_sepcon R ⊢ fold_right_sepcon R') ->
@@ -1881,10 +1923,6 @@ Ltac saturate_local :=
 Ltac prop_right_cautious :=
  try solve [simple apply bi.pure_intro; auto].
 
-Ltac subst_any :=
- repeat match goal with
-  | H: ?x = ?y |- _ => first [ subst x | subst y ]
- end.
 Ltac solve_mod_eq :=
   unfold Int.add, Int.mul;
   repeat rewrite Int.unsigned_repr_eq;

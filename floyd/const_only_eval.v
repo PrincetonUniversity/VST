@@ -1,9 +1,11 @@
 Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.floyd.base.
 Require Import VST.floyd.val_lemmas.
-Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Import VST.floyd.typecheck_lemmas.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Import compcert.cfrontend.Ctypes.
+
+Open Scope Z.
 
 Definition const_only_isUnOpResultType {CS: compspecs} op (typeof_a:type) valueof_a ty : bool :=
 match op with

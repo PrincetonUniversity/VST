@@ -1132,7 +1132,7 @@ Proof.
 Qed.
 
 Lemma wp_deref : forall E f e ty P,
-  wp_expr E f e (λ v, ∃ b o, ⌜v = Vptr b o⌝ ∧ P (b, Ptrofs.unsigned o)) ⊢ wp_lvalue E f (Ederef e ty) P.
+  wp_expr E f e (λ v, ∃ b o, <affine> ⌜v = Vptr b o⌝ ∗ P (b, Ptrofs.unsigned o)) ⊢ wp_lvalue E f (Ederef e ty) P.
 Proof.
   intros; rewrite /wp_lvalue /wp_expr.
   do 8 f_equiv.
@@ -1152,8 +1152,23 @@ Proof.
   rewrite Ptrofs.repr_unsigned; constructor; auto.
 Qed.
 
+Lemma wp_lvalue_field : forall E f e i t P,
+  wp_expr E f e (λ v, ∃ b o, <affine> ⌜v = Vptr b o⌝ ∗ ∃ co delta, <affine> ⌜match typeof e with
+  | Tstruct id _ => (genv_cenv ge !! id)%maps = Some co ∧ field_offset ge i (co_members co) = Errors.OK (delta, Full)
+  | Tunion id _ => (genv_cenv ge !! id)%maps = Some co ∧ union_field_offset ge i (co_members co) = Errors.OK (delta, Full)
+  | _ => False end⌝ ∗ P (b, Ptrofs.unsigned (Ptrofs.add o (Ptrofs.repr delta)))) ⊢ wp_lvalue E f (Efield e i t) P.
+Proof.
+  intros; rewrite /wp_lvalue /wp_expr.
+  do 8 f_equiv.
+  iIntros "(% & ? & $ & $ & % & % & -> & % & % & % & $)".
+  iStopProof; do 7 f_equiv.
+  intros ??; destruct (typeof e) eqn: Hty; try done; destruct H.
+  - eapply eval_Efield_struct; eauto.
+  - eapply eval_Efield_union; eauto.
+Qed.
+
 Lemma wp_expr_mapsto : forall E f e P,
-  wp_lvalue E f e (λ '(b, o), ∃ sh v, ⌜readable_share sh ∧ v ≠ Vundef⌝ ∧
+  wp_lvalue E f e (λ '(b, o), ∃ sh v, <affine> ⌜readable_share sh ∧ v ≠ Vundef⌝ ∗
     ⎡▷ <absorb> mapsto sh (typeof e) (Vptr b (Ptrofs.repr o)) v⎤ ∧ P v) ⊢
   wp_expr E f e P.
 Proof.

@@ -151,48 +151,6 @@ Qed.
 
 Context `{!heapGS Σ}.
 
-Lemma local_and_sep_assoc : forall (P : environ -> Prop) (Q R : assert), (local P ∧ (Q ∗ R)) = ((local P ∧ Q) ∗ R).
-Proof.
-  intros; apply assert_ext; intros; monPred.unseal.
-  rewrite sepcon_andp_prop' //.
-Qed.
-
-Lemma local_and_sep_assoc' : forall (P : assert) (Q : environ -> Prop) (R : assert), (P ∗ (local Q ∧ R)) = (local Q ∧ (P ∗ R)).
-Proof.
-  intros; rewrite sep_comm' -local_and_sep_assoc sep_comm' //.
-Qed.
-
-Lemma local_and_sep_assoc2 : forall (P : environ -> Prop) (Q R : assert), (local P ∧ (Q ∗ R)) = ((Q ∧ local P) ∗ R).
-Proof.
-  intros; rewrite (and_comm' Q); apply local_and_sep_assoc.
-Qed.
-
-Lemma local_and_sep_assoc2' : forall (P : assert) (Q : environ -> Prop) (R : assert), (P ∗ (R ∧ local Q)) = (local Q ∧ (P ∗ R)).
-Proof.
-  intros; rewrite (and_comm' R); apply local_and_sep_assoc'.
-Qed.
-
-Lemma pure_and_sep_assoc : forall (P : Prop) (Q R : assert), (⌜P⌝ ∧ (Q ∗ R)) = ((⌜P⌝ ∧ Q) ∗ R).
-Proof.
-  intros; apply assert_ext; intros; monPred.unseal.
-  rewrite sepcon_andp_prop' //.
-Qed.
-
-Lemma pure_and_sep_assoc' : forall (P : assert) (Q : Prop) (R : assert), (P ∗ (⌜Q⌝ ∧ R)) = (⌜Q⌝ ∧ (P ∗ R)).
-Proof.
-  intros; rewrite sep_comm' -pure_and_sep_assoc sep_comm' //.
-Qed.
-
-Lemma pure_and_sep_assoc2 : forall (P : Prop) (Q R : assert), (⌜P⌝ ∧ (Q ∗ R)) = ((Q ∧ ⌜P⌝) ∗ R).
-Proof.
-  intros; rewrite (and_comm' Q); apply pure_and_sep_assoc.
-Qed.
-
-Lemma pure_and_sep_assoc2' : forall (P : assert) (Q : Prop) (R : assert), (P ∗ (R ∧ ⌜Q⌝)) = (⌜Q⌝ ∧ (P ∗ R)).
-Proof.
-  intros; rewrite (and_comm' R); apply pure_and_sep_assoc'.
-Qed.
-
 Lemma sepcon_andp_prop2' : forall (P : Prop) Q R, ((Q ∧ ⌜P⌝) ∗ R) = (⌜P⌝ ∧ (Q ∗ R)).
 Proof.
   intros; rewrite (and_comm Q); apply sepcon_andp_prop'.
@@ -388,12 +346,12 @@ Ltac lift4 a e1 e2 e3 e4 rho :=
  | _ => constr:(lift4 a e1 e2 e3 e4)
  end.
 
-Ltac abstract_env rho P :=
+Ltac abstract_env I rho P :=
   match P with
-   | @bi_emp ?PROP => constr:(@bi_emp (monPred env_index PROP) _ _)
+   | @bi_emp ?PROP => constr:(@bi_emp (monPred I PROP) _ _)
    | @bi_sep ?PROP ?e1 ?e2 =>
       let e1' := abstract_env rho e1 in let e2' := abstract_env rho e2
-       in constr:(@bi_sep (monPred env_index PROP) _ _ e1' e2')
+       in constr:(@bi_sep (monPred I PROP) _ _ e1' e2')
    | ?a0 ?a1 ?a2 ?e1 ?e2 ?e3 ?e4 =>
       let e1' := abstract_env rho e1  in let e2' := abstract_env rho e2 in let e3' := abstract_env rho e3 in let e4' := abstract_env rho e4
       in lift3 (a0 a1 a2) e1' e2' e3' e4' rho
@@ -410,7 +368,7 @@ Ltac abstract_env rho P :=
       let e1' := abstract_env rho e1 in let e2' := abstract_env rho e2
       in lift2 a0 e1' e2' rho
    | ?a0 ?e1 => let e1' := abstract_env rho e1 in lift1 a0 e1' rho
-   | rho => constr: (lift1)
+   | rho => constr:(lift1)
    | ?a => constr:(lift0 a)
    end.
 
@@ -451,8 +409,8 @@ match goal with
     try (unfold F; apply cancel_frame0_low);
     try (unfold F; apply cancel_frame1_low)
 *)
-| |- ?P ⊢ fold_right _ _ ?F ?rho  =>
-     let P' := abstract_env rho P in
+| |- @bi_entails (monPredI ?I _) ?P (fold_right _ _ ?F ?rho) =>
+     let P' := abstract_env I rho P in
        change ( P' rho ⊢ fold_right bi_sep emp F rho);
    fixup_lifts; cbv beta;
     repeat rewrite -bi.sep_assoc;
@@ -1223,6 +1181,8 @@ Ltac sep_apply_aux1 H :=
    | _ => sep_apply_aux2 H
     end
  end.
+
+Definition globals := (ident -> val).
 
 Ltac sep_apply_aux0 H :=
  let B := head_of_type_of H in

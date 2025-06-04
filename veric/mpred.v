@@ -454,6 +454,19 @@ Fixpoint make_tycontext_s (G: funspecs) :=
  | (id,f)::r => Maps.PTree.set id f (make_tycontext_s r)
  end.
 
+Lemma entails_refl : forall (P : mpred), P ⊢ P.
+Proof. done. Qed.
+
+Lemma pure_intro_l : forall (P : Prop) (Q R : mpred), P -> (Q ⊢ R) -> Q ⊢ ⌜P⌝ ∧ R.
+Proof.
+  intros ???? ->; iIntros "$"; auto.
+Qed.
+
+Lemma pure_intro_r : forall (P : Prop) (Q R : mpred), P -> (Q ⊢ R) -> Q ⊢ R ∧ ⌜P⌝.
+Proof.
+  intros ???? ->; iIntros "$"; auto.
+Qed.
+
 End heap.
 
 Definition int_range (sz: intsize) (sgn: signedness) (i: int) :=

@@ -1,7 +1,6 @@
 Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
-Require Import VST.floyd.base2.
+Require Import VST.floyd.base.
 Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
-Require Import VST.floyd.client_lemmas.
 Require Import VST.floyd.fieldlist.
 Require Import VST.floyd.type_induction.
 Require Import VST.floyd.nested_pred_lemmas.
@@ -253,6 +252,13 @@ Qed.
 End align_compatible_rec_dec.
 
 End align_compatible_rec_dec.
+
+(* TODO: merge size_compatible and align_compatible *)
+Definition align_compatible {C: compspecs} t p :=
+  match p with
+  | Vptr b i_ofs => align_compatible_rec cenv_cs t (Ptrofs.unsigned i_ofs)
+  | _ => True%type
+  end.
 
 Lemma align_compatible_dec: forall {cs: compspecs} t p, {align_compatible t p} + {~ align_compatible t p}.
 Proof.

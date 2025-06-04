@@ -1,13 +1,12 @@
 From compcert Require Export Clightdefs.
-Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
-Require Export VST.veric.SeparationLogic.
-Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Export VST.msl.Extensionality.
 Require Export compcert.lib.Coqlib.
 Require Export VST.msl.Coqlib2 VST.veric.coqlib4 VST.floyd.coqlib3.
 Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.floyd.val_lemmas.
+Require Export VST.veric.SeparationLogic.
 Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
+Require Export VST.msl.Axioms.
 Import LiftNotation.
 
 Ltac _destruct_var_types i Heq_vt Heq_ve t b ::=
@@ -81,18 +80,6 @@ Ltac _destruct_glob_types i Heq_gt Heq_ge t b ::=
       idtac
   end;
   clear HH.
-
-(* no "semax" in this file, just assertions. *)
-Global Transparent Int.repr.
-Global Transparent Int64.repr.
-Global Transparent Ptrofs.repr.
-
-(* up? *)
-Lemma pure_and : forall {M} P Q, bi_pure(PROP := ouPredI M) (P /\ Q) = (⌜P⌝ ∧ ⌜Q⌝).
-Proof.
-  intros.
-  ouPred.unseal; apply IProp_eq; extensionality n x; apply prop_ext; tauto.
-Qed.
 
 (* up? *)
 Lemma monPred_eq : forall {I B} a1 a2 b1 b2, a1 = a2 -> @MonPred I B a1 b1 = MonPred a2 b2.

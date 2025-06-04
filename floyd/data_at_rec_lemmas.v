@@ -1,7 +1,6 @@
 Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
-Require Import VST.floyd.base2.
+Require Import VST.floyd.base.
 Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
-Require Import VST.floyd.client_lemmas.
 Require Import VST.floyd.type_induction.
 Require Import VST.floyd.nested_pred_lemmas.
 Require Import VST.floyd.mapsto_memory_block.
@@ -938,7 +937,7 @@ Proof.
     destruct H1.
     - rewrite !data_at_rec_eq.
       generalize (unfold_reptype v) (unfold_reptype (default_val (Tunion id a))); rewrite H1; intros.
-      apply derives_refl.
+      apply entails_refl.
     - rewrite data_at_rec_eq.
       rewrite memory_block_data_at_rec_default_val by auto.
       etrans.

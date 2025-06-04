@@ -63,9 +63,6 @@ Section mpred.
 
 Context `{!VSTGS OK_ty Σ}.
 
-(* Somehow, this fixes a universe collapse issue that will occur if fool is not defined.
-Definition fool := @map _ Type (fun it : ident * type => mpred).*)
-
 Fixpoint ext_link_prog' (dl: list (ident * globdef fundef type)) (s: String.string) : option ident :=
  match dl with
  | (id, Gfun (External EF_malloc _ _ _)) :: dl' =>
@@ -85,13 +82,6 @@ Definition globals := ident -> val.
 
 Definition ext_link_prog (p: program) (s: String.string) : ident :=
   match ext_link_prog' (prog_defs p) s with Some id => id | None => 1%positive end.
-
-(* TODO: merge size_compatible and align_compatible *)
-Definition align_compatible {C: compspecs} t p :=
-  match p with
-  | Vptr b i_ofs => align_compatible_rec cenv_cs t (Ptrofs.unsigned i_ofs)
-  | _ => True%type
-  end.
 
 (*We're exporting the step-indexed version so that semax_fun_id doesn't syntactically change*)
 Definition func_ptr (f: funspec) (v: val): mpred := seplog.func_ptr_si f v.

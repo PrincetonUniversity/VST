@@ -1,7 +1,6 @@
 Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
-Require Import VST.floyd.base2.
+Require Import VST.floyd.base.
 Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
-Require Import VST.floyd.client_lemmas.
 Require Import VST.floyd.fieldlist.
 Require Import VST.floyd.type_induction.
 Require Import VST.floyd.nested_pred_lemmas.
@@ -468,7 +467,7 @@ Proof.
   intros.
   unfold field_address. rewrite if_true by auto.
   destruct H as [? _].
-  normalize.
+  destruct c; done.
 Qed.
 
 Lemma field_address0_isptr:
@@ -477,7 +476,7 @@ Proof.
   intros.
   unfold field_address0. rewrite if_true by auto.
   destruct H as [? _].
-  normalize.
+  destruct c; done.
 Qed.
 
 Lemma field_address_clarify:
@@ -1832,7 +1831,7 @@ Proof.
     auto.
 Qed.
 
-Lemma lvar_size_compatible:
+(*Lemma lvar_size_compatible:
   forall  {cs: compspecs} id t v rho,
   locald_denote (lvar id t v) rho ->
   sizeof t < Ptrofs.modulus ->
@@ -1861,7 +1860,7 @@ Proof.
   repeat split; auto.
   hnf.
   apply la_env_cs_sound; auto.
-Qed.
+Qed.*)
 
 Lemma compute_in_members_e:
  forall i al, compute_in_members i al = true -> in_members i al.

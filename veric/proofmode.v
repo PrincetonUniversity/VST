@@ -458,3 +458,15 @@ Tactic Notation "wp_set" :=
     [pm_reduce; wp_finish]
   | _ => fail "wp_set: not a 'wp'"
   end.
+
+Tactic Notation "wp_return" :=
+  lazymatch goal with
+  | |- envs_entails _ (wp _ _ ?E _ (Sreturn (Some _)) ?Q) =>
+    iApply wp_return; rewrite /wp_expr_opt /option_map; wp_cast
+  | |- envs_entails _ (wp _ _ ?E _ (Sreturn None) ?Q) =>
+    iApply wp_return; wp_finish
+  | |- envs_entails _ (wp _ _ ?E _ ?e ?Q) =>
+    fail 1 "wp_set: cannot find 'Sreturn' in" e
+  | _ => fail "wp_return: not a 'wp'"
+  end.
+  

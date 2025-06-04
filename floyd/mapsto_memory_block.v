@@ -1,8 +1,11 @@
 Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.veric.valid_pointer.
-Require Import VST.floyd.base2.
+Require Import VST.floyd.base.
 Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
-Require Import VST.floyd.client_lemmas.
+Require Export VST.veric.log_normalize.
+Require Export VST.floyd.seplog_tactics.
+Require Export VST.veric.mapsto_memory_block.
+Require Export VST.floyd.align_compatible_dec.
 Require Import VST.floyd.nested_pred_lemmas.
 
 Import LiftNotation.
@@ -254,13 +257,13 @@ Proof.
 intros; auto.
 Qed.
 
-Lemma lifted_at_offset_eq: forall (P: val -> mpred) z v,
+(*Lemma lifted_at_offset_eq: forall (P: val -> mpred) z v,
   assert_of (`(at_offset P z) v) = assert_of (`P (`(offset_val z) v)).
 Proof.
   intros.
   apply assert_ext; intros; unfold_lift.
   apply at_offset_eq.
-Qed.
+Qed.*)
 
 Lemma at_offset_eq2: forall pos pos' P,
   forall p, at_offset P (pos + pos') p = at_offset P pos' (offset_val pos p).
@@ -322,7 +325,7 @@ Proof.
   + rewrite sep_comm //.
 Qed.
 
-Global Instance withspacer_proper: Proper (eq ==> eq ==> eq ==> pointwise_relation _ equiv ==> eq ==> equiv) withspacer.
+Global Instance withspacer_proper: Proper (eq ==> eq ==> eq ==> pointwise_relation _ base.equiv ==> eq ==> base.equiv) withspacer.
 Proof.
   intros ?? -> ?? -> ?? -> ?? H ?? ->.
   rewrite !withspacer_spacer H //.

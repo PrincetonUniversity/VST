@@ -128,6 +128,12 @@ Proof.
   apply prop_ext; tauto.
 Qed.
 
+Lemma pure_and : forall (P Q : Prop), bi_pure(PROP := ouPredI M) (P /\ Q) = (⌜P⌝ ∧ ⌜Q⌝).
+Proof.
+  intros.
+  ouPred.unseal; apply IProp_eq; extensionality n x; apply prop_ext; tauto.
+Qed.
+
 Lemma exp_comm : forall {B C} (P: B -> C -> ouPred M),
   (∃ x : B, ∃ y : C, P x y) = ∃ y : C, ∃ x : B, P x y.
 Proof.

@@ -107,19 +107,6 @@ Section CENV_SUB.
     apply denote_tc_assert_cenv_sub; auto.
   Qed.
 
-Lemma entails_refl : forall (P : mpred), P ⊢ P.
-Proof. done. Qed.
-
-Lemma pure_intro_l : forall (P : Prop) (Q R : mpred), P -> (Q ⊢ R) -> Q ⊢ ⌜P⌝ ∧ R.
-Proof.
-  intros ???? ->; iIntros "$"; auto.
-Qed.
-
-Lemma pure_intro_r : forall (P : Prop) (Q R : mpred), P -> (Q ⊢ R) -> Q ⊢ R ∧ ⌜P⌝.
-Proof.
-  intros ???? ->; iIntros "$"; auto.
-Qed.
-
 Ltac tc_expr_cenv_sub_tac := 
 repeat
 match goal with

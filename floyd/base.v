@@ -1,26 +1,31 @@
 From compcert Require Export Clightdefs.
 Require Export VST.veric.base.
 Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
-Require Export VST.veric.SeparationLogic.
 Require Export VST.msl.Extensionality.
 Require Export compcert.lib.Coqlib.
 Require Export VST.msl.Coqlib2 VST.veric.coqlib4 VST.floyd.coqlib3.
+Require Export VST.veric.align_mem.
 Require Export VST.veric.juicy_extspec.
+Require Export VST.veric.res_predicates.
+Require Export VST.veric.composite_compute.
+Require Export VST.veric.change_compspecs.
+Require Export VST.veric.valid_pointer.
 Require Export VST.floyd.jmeq_lemmas.
 Require Export VST.floyd.find_nth_tactic.
 Require Export VST.floyd.val_lemmas.
-Require Export VST.floyd.assert_lemmas.
+(* Require Export VST.floyd.assert_lemmas. *)
 Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Export compcert.cfrontend.Ctypes.
 Require Export VST.veric.expr.
-Require VST.floyd.SeparationLogicAsLogicSoundness.
-Export SeparationLogicAsLogicSoundness.MainTheorem.
-Export SeparationLogicAsLogicSoundness.MainTheorem.CSHL_PracticalLogic.
-Export SeparationLogicAsLogicSoundness.MainTheorem.CSHL_PracticalLogic.CSHL_MinimumLogic.
-Export SeparationLogicAsLogicSoundness.MainTheorem.CSHL_PracticalLogic.CSHL_MinimumLogic.CSHL_Def.
-Export SeparationLogicAsLogicSoundness.MainTheorem.CSHL_PracticalLogic.CSHL_MinimumLogic.CSHL_Defs.
 
-Global Instance: Params (@semax) 7 := {}.
+Global Transparent Int.repr.
+Global Transparent Int64.repr.
+Global Transparent Ptrofs.repr.
+
+Ltac subst_any :=
+ repeat match goal with
+  | H: ?x = ?y |- _ => first [ subst x | subst y ]
+ end.
 
 Create HintDb gather_prop discriminated.
 Create HintDb gather_prop_core discriminated.
@@ -36,13 +41,6 @@ Lemma sizeof_pos: forall {cs: compspecs} (t: type), sizeof t >= 0.
 Proof. intros. apply Ctypes.sizeof_pos. Qed.
 Lemma alignof_pos: forall {cs: compspecs} (t: type), alignof t > 0.
 Proof. intros. apply Ctypes.alignof_pos. Qed.
-
-Definition extract_exists_pre:
-  forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {CS: compspecs},
-  forall (A : Type) (P : A -> assert) c E (Delta: tycontext) (R: ret_assert),
-  (forall x, semax E Delta (P x) c R) ->
-   semax E Delta (∃ x:A, P x) c R
-  := @semax_extract_exists.
 
 Arguments alignof_two_p {env} t.
 
