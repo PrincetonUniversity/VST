@@ -1141,7 +1141,7 @@ Proof.
   intros ??; subst; econstructor; eauto.
 Qed.
 
-Lemma wp_expr_byref : forall E f e P, access_mode (typeof e) = By_reference →
+Lemma wp_expr_ptr : forall E f e P, match access_mode (typeof e) with By_reference | By_copy => True | _ => False end →
   wp_lvalue E f e (λ '(b, o), P (Vptr b (Ptrofs.repr o))) ⊢ wp_expr E f e P.
 Proof.
   intros; rewrite /wp_lvalue /wp_expr.
@@ -1149,7 +1149,9 @@ Proof.
   iIntros "(% & % & ? & $)".
   iStopProof; do 7 f_equiv.
   intros ??; econstructor; eauto.
-  rewrite Ptrofs.repr_unsigned; constructor; auto.
+  rewrite Ptrofs.repr_unsigned; destruct (access_mode (typeof e)) eqn: Hmode; try done.
+  - by apply deref_loc_reference.
+  - by apply deref_loc_copy.
 Qed.
 
 Lemma wp_lvalue_field : forall E f e i t P,

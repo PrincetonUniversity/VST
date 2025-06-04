@@ -2,7 +2,9 @@
 From iris.proofmode Require Import coq_tactics reduction spec_patterns.
 From iris.proofmode Require Export tactics.
 From compcert.common Require Import Values.
+Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 From VST.veric Require Import mpred juicy_base Clight_base Clight_core mapsto_memory_block env tycontext lifting_expr lifting.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 
 Ltac reshape_seq :=
   lazymatch goal with
@@ -63,33 +65,33 @@ Qed.
 
 (* We'll probably need another wp_pure lemma for wp_expr. *)*)
 
-Definition ob_cond `{!VSTGS OK_ty Σ} {A B} P (Q : B → assert) := λ x : A, ∃ y, <affine> ⌜P x y⌝ ∗ Q y.
+Definition ob_cond `{!VSTGS OK_ty Σ} {A B} P (Q : A → B → assert) := λ x : A, ∃ y, <affine> ⌜P x y⌝ ∗ Q x y.
 
 Ltac ob_cond_tac :=
   lazymatch goal with
   | |- envs_entails ?Δ (ob_cond ?P _ _) =>
-      iExists _; iSplit; [iPureIntro; try done|]
+      iExists _; iSplit; [iPureIntro; try done | cbv match]
   | _ => fail "no such ob"
   end.
 
 (* maybe seal *)
-Definition ob_check `{!VSTGS OK_ty Σ} (P Q : assert) := ▷ <absorb> P ∧ Q.
+Definition ob_check `{!VSTGS OK_ty Σ} (R : Prop) (P Q : assert) := <affine> ⌜R⌝ ∗ ▷ <absorb> P ∧ Q.
 
-Ltac ob_check_tac :=
+Ltac ob_check_tac := rewrite /= ?Ptrofs.repr_unsigned;
   lazymatch goal with
-  | |- envs_entails ?Δ (ob_check ?P _) =>
-      iSplit; [iNext; let i := fresh "i" in evar (i : ident.ident);
+  | |- envs_entails ?Δ (ob_check _ ?P _) =>
+      iSplit; [iPureIntro; try done | iSplit; [iNext; let i := fresh "i" in evar (i : ident.ident);
         let b := fresh "b" in evar (b : bool);
         let H := fresh "H" in assert (envs_lookup i Δ = Some (b, P)) as H;
         [subst b i; iAssumptionCore || fail "cannot find" P |
-         clear H; clear b; lazymatch goal with i := ?s |- _ => clear i; iApply s end|]
-      |]
+         clear H; clear b; lazymatch goal with i := ?s |- _ => clear i; iApply s end]
+      |]]
   | _ => fail "no such ob"
   end.
 
 Definition ob_replace `{!VSTGS OK_ty Σ} (P P' Q : assert) := ▷ (P ∗ (P' -∗ Q)).
 
-Ltac ob_replace_tac :=
+Ltac ob_replace_tac := rewrite /= ?Ptrofs.repr_unsigned;
   lazymatch goal with
   | |- envs_entails ?Δ (ob_replace ?P _ _) =>
       iNext; let i := fresh "i" in evar (i : ident.ident);
@@ -163,25 +165,66 @@ Ltac wp_value_head :=
 
 Tactic Notation "wp_const" := wp_value_head.
 Tactic Notation "wp_binop" := iApply wp_binop_rule.
+
+Ltac wp_finish0 :=
+  try wp_value_head;  (* in case we have reached a value, get rid of the WP *)
+  repeat ob_cond_tac;
+  try ob_check_tac;
+  try ob_replace_tac;
+  pm_prettify.        (* prettify ▷s caused by [MaybeIntoLaterNEnvs] and
+                         λs caused by wp_value *)
+
 Tactic Notation "wp_binop_post" :=
   lazymatch goal with
   | |- envs_entails ?Δ (wp_binop _ _ _ _ _ _ _ _) =>
-      iApply wp_binop_sc; [try fast_done | iSplit; [try done|]]
+      iApply wp_binop_sc; [try fast_done | iSplit; [try done | wp_finish0]]
   | _ => fail "no such wp_binop"
   end.
 
 Ltac wp_finish :=
   try wp_value_head;  (* in case we have reached a value, get rid of the WP *)
-  try ob_cond_tac;
+  repeat ob_cond_tac;
   try ob_check_tac;
   try ob_replace_tac;
   try wp_binop_post;
   pm_prettify.        (* prettify ▷s caused by [MaybeIntoLaterNEnvs] and
                          λs caused by wp_value *)
 
+Lemma tac_wp_deref `{!VSTGS OK_ty Σ} Δ ge E f e ty Q :
+  envs_entails Δ (wp_expr ge E f e (ob_cond (λ v l, match v with Vptr b o => l = (b, Ptrofs.unsigned o) | _ => False%type end) (λ _, Q))) →
+  envs_entails Δ (wp_lvalue ge E f (Ederef e ty) Q).
+Proof.
+  rewrite envs_entails_unseal=> Hi.
+  rewrite Hi -wp_deref.
+  apply wp_expr_mono; intros.
+  iIntros "(%x & H) !>"; iDestruct "H" as "(%H & ?)".
+  destruct v; try contradiction; subst; by iFrame.
+Qed.
+
+Lemma tac_wp_field `{!VSTGS OK_ty Σ} Δ ge E f e i ty Q :
+  envs_entails Δ (wp_expr ge E f e (ob_cond (λ v l, match v with Vptr b o =>
+    match typeof e with
+    | Tstruct id _ => match (genv_cenv ge !! id)%maps with Some co => match field_offset ge i (co_members co) with Errors.OK (delta, Full) =>
+        l = (b, Ptrofs.unsigned (Ptrofs.add o (Ptrofs.repr delta))) | _ => False%type end | _ => False%type end
+    | Tunion id _ => match (genv_cenv ge !! id)%maps with Some co => match union_field_offset ge i (co_members co) with Errors.OK (delta, Full) =>
+        l = (b, Ptrofs.unsigned (Ptrofs.add o (Ptrofs.repr delta))) | _ => False%type end | _ => False%type end
+    | _ => False%type
+    end | _ => False%type end) (λ _, Q))) →
+  envs_entails Δ (wp_lvalue ge E f (Efield e i ty) Q).
+Proof.
+  rewrite envs_entails_unseal=> Hi.
+  rewrite Hi -wp_lvalue_field.
+  apply wp_expr_mono; intros.
+  iIntros "(%x & H) !>"; iDestruct "H" as "(%H & ?)".
+  destruct v; try contradiction; iExists _, _; iSplit; first done.
+  destruct (typeof e); try contradiction; destruct (genv_cenv ge !! i1)%maps; try contradiction.
+  - destruct (field_offset (genv_cenv ge) i (co_members c)) as [(?, [])|] eqn: Hoff; try contradiction; subst; eauto with iFrame.
+  - destruct (union_field_offset (genv_cenv ge) i (co_members c)) as [(?, [])|] eqn: Hoff; try contradiction; subst; eauto with iFrame.
+Qed.
+
 Lemma tac_wp_cast `{!VSTGS OK_ty Σ} Δ ge E f e ty Q :
   cast_pointer_to_bool (typeof e) ty = false →
-  envs_entails Δ (wp_expr ge E f e (ob_cond (λ v v', Cop2.tc_val (typeof e) v /\ Clight_Cop2.sem_cast (typeof e) ty v = Some v') Q)) →
+  envs_entails Δ (wp_expr ge E f e (ob_cond (λ v v', Cop2.tc_val (typeof e) v /\ Clight_Cop2.sem_cast (typeof e) ty v = Some v') (λ _, Q))) →
   envs_entails Δ (wp_expr ge E f (Ecast e ty) Q).
 Proof.
   rewrite envs_entails_unseal=> ? Hi.
@@ -189,6 +232,26 @@ Proof.
   apply wp_expr_mono; intros.
   by iIntros "(% & (% & %) & $)".
 Qed.
+
+Tactic Notation "wp_deref" :=
+  lazymatch goal with
+  | |- envs_entails _ (wp_lvalue _ ?E _ ?e ?Q) =>
+    first
+      [eapply tac_wp_deref
+      |fail 1 "wp_deref: cannot find 'Ederef' in" e];
+    wp_finish
+  | _ => fail "wp_deref: not a 'wp'"
+  end.
+
+Tactic Notation "wp_field" :=
+  lazymatch goal with
+  | |- envs_entails _ (wp_lvalue _ ?E _ ?e ?Q) =>
+    first
+      [eapply tac_wp_field
+      |fail 1 "wp_field: cannot find 'Efield' in" e];
+    try (iApply wp_expr_ptr; first by auto); wp_finish
+  | _ => fail "wp_field: not a 'wp'"
+  end.
 
 Tactic Notation "wp_cast" :=
   lazymatch goal with
@@ -201,11 +264,23 @@ Tactic Notation "wp_cast" :=
   | _ => fail "wp_cast: not a 'wp'"
   end.
 
+Lemma tac_wp_if `{!VSTGS OK_ty Σ} Δ OK_spec ge E f e s1 s2 Q :
+  envs_entails Δ (wp_expr ge E f e (ob_cond (λ v b, Cop2.bool_val (typeof e) v = Some b)
+    (λ v b, ▷ (⎡valid_val v⎤ ∧ if b then wp OK_spec ge E f s1 Q else wp OK_spec ge E f s2 Q)))) →
+  envs_entails Δ (wp OK_spec ge E f (Sifthenelse e s1 s2) Q).
+Proof.
+  rewrite envs_entails_unseal=> Hi.
+  rewrite Hi -wp_if.
+  apply wp_expr_mono; intros.
+  iIntros "(%x & H) !> !>"; iDestruct "H" as "(%H & ?)".
+  iSplit; first (by rewrite bi.and_elim_l); rewrite bi.and_elim_r; by iFrame.
+Qed.
+
 Tactic Notation "wp_if" :=
   lazymatch goal with
   | |- envs_entails _ (wp _ _ ?E _ ?e ?Q) =>
     first
-      [reshape_seq; iApply wp_if
+      [reshape_seq; eapply tac_wp_if
       |fail 1 "wp_if: cannot find 'if' in" e];
      wp_finish
   | _ => fail "wp_if: not a 'wp'"
@@ -243,15 +318,14 @@ Ltac wp_pures :=
 
 Lemma tac_wp_load `{!VSTGS OK_ty Σ} Δ ge E f e q v (Q : val → assert) :
   readable_share q →
-  v ≠ Vundef →
   envs_entails Δ (wp_lvalue ge E f e (λ '(bl, o),
-    ob_check ⎡mapsto q (typeof e) (Vptr bl (Ptrofs.repr o)) v⎤ (Q v))) →
+    ob_check (v ≠ Vundef) ⎡mapsto q (typeof e) (Vptr bl (Ptrofs.repr o)) v⎤ (Q v))) →
   envs_entails Δ (wp_expr ge E f e Q).
 Proof.
-  rewrite envs_entails_unseal=> ?? Hi.
+  rewrite envs_entails_unseal=> ? Hi.
   rewrite Hi -wp_expr_mapsto.
   apply wp_lvalue_mono.
-  iIntros ((?, ?)) "H !>".
+  iIntros ((?, ?)) "(% & H) !>".
   iExists q, v; iSplit; first done.
   rewrite embed_later embed_absorbingly //.
 Qed.
@@ -412,6 +486,36 @@ Tactic Notation "wp_apply" open_constr(lem) "as" "(" simple_intropattern(x1)
     constr(pat) :=
   wp_apply lem; last iIntros ( x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 ) pat.
 
+Tactic Notation "wp_skip" :=
+  lazymatch goal with
+  | |- envs_entails _ (wp _ _ ?E _ ?e ?Q) =>
+    first
+      [reshape_seq; iApply wp_skip
+      |fail 1 "wp_skip: cannot find 'Sskip' in" e];
+    [pm_reduce; wp_finish]
+  | _ => fail "wp_skip: not a 'wp'"
+  end.
+
+Tactic Notation "wp_loop" :=
+  lazymatch goal with
+  | |- envs_entails _ (wp _ _ ?E _ ?e ?Q) =>
+    first
+      [reshape_seq; iApply wp_loop
+      |fail 1 "wp_loop: cannot find 'Sloop' in" e];
+    [iNext; pm_reduce; wp_finish]
+  | _ => fail "wp_loop: not a 'wp'"
+  end.
+
+Tactic Notation "wp_break" :=
+  lazymatch goal with
+  | |- envs_entails _ (wp _ _ ?E _ ?e ?Q) =>
+    first
+      [reshape_seq; iApply wp_break
+      |fail 1 "wp_break: cannot find 'Sbreak' in" e];
+    [pm_reduce; wp_finish]
+  | _ => fail "wp_break: not a 'wp'"
+  end.
+
 Tactic Notation "wp_load" :=
   lazymatch goal with
   | |- envs_entails _ (wp_expr _ ?E _ ?e ?Q) =>
@@ -419,7 +523,6 @@ Tactic Notation "wp_load" :=
       [eapply tac_wp_load
       |fail 1 "wp_load: cannot find 'Load' in" e];
     [auto
-    |try fast_done
     |wp_finish]
   | _ => fail "wp_load: not a 'wp'"
   end.
@@ -431,7 +534,7 @@ Tactic Notation "wp_store" :=
       [reshape_seq; eapply tac_wp_store
       |fail 1 "wp_store: cannot find 'Store' in" e];
     [auto
-    |pm_reduce; wp_finish]
+    |wp_cast]
   | _ => fail "wp_store: not a 'wp'"
   end.
 

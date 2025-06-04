@@ -1,5 +1,4 @@
 Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
-Require Import VST.veric.lifting_expr.
 Require Import VST.floyd.base.
 Require Import VST.floyd.val_lemmas.
 Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
