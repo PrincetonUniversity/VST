@@ -62,7 +62,7 @@ Qed.
 Lemma semax_func_cons_int_vacuous
   `{!VSTGS OK_ty Σ} {OK_spec: ext_spec OK_ty}
   (V : varspecs) (G : funspecs) 
-    (cs : compspecs) (ge : Genv.t (fundef function) type)
+    (cs : compspecs) (ge : Genv.t Clight.fundef type)
     (fs : list (ident * Clight.fundef)) (id : ident) ifunc
     (b : block) G'
   (ID: id_in_list id (map fst fs) = false)
@@ -90,7 +90,7 @@ Qed.
 Lemma semax_prog_semax_func_cons_int_vacuous
   `{!VSTGS OK_ty Σ} {OK_spec: ext_spec OK_ty}
   (V : varspecs) (G : funspecs) 
-    (cs : compspecs) (ge : Genv.t (fundef function) type)
+    (cs : compspecs) (ge : Genv.t Clight.fundef type)
     (fs : list (ident * Clight.fundef)) (id : ident) ifunc
     (b : block) G'
   (ID: id_in_list id (map fst fs) = false)

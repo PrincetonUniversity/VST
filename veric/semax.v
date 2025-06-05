@@ -9,6 +9,7 @@ Require Import VST.sepcomp.extspec.
 Require Import VST.sepcomp.step_lemmas.
 Require Import VST.veric.juicy_safety.
 Require Import VST.veric.external_state.
+Require Import VST.veric.Clight_assert_lemmas.
 Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.tycontext.
@@ -16,7 +17,6 @@ Require Import VST.veric.expr2.
 Require Import VST.veric.expr_lemmas.
 Require Export VST.veric.lifting.
 Require Export VST.veric.env_pred.
-Require Import VST.veric.Clight_assert_lemmas.
 
 Import Ctypes Clight_core.
 
@@ -375,7 +375,7 @@ Proof.
   iIntros "H"; iDestruct "H" as (b f Hv) "H".
   iExists b, f; iSplit.
   - iPureIntro; intuition.
-    + eapply Forall_impl, H0. simpl; intros.
+    + eapply List.Forall_impl, H0. simpl; intros.
       apply (complete_type_cenv_sub CSUB); auto.
     + rewrite /var_sizes_ok !Forall_forall in H0 H4 |- *; intros.
       rewrite (cenv_sub_sizeof CSUB); eauto.
@@ -429,7 +429,7 @@ Qed.
 
 End believe_monotonicity.
 
-(* Lemma semax__mono {CS} E Delta Delta'
+ Lemma semax__mono {CS} E Delta Delta'
   (SUB: tycontext_sub Delta Delta') sem P c R:
   @semax_ sem {| sa_cs := CS; sa_E := E; sa_Delta := Delta; sa_P := P; sa_c := c; sa_R := R |} ⊢
   @semax_ sem {| sa_cs := CS; sa_E := E; sa_Delta := Delta'; sa_P := P; sa_c := c; sa_R := R |}.
@@ -438,7 +438,7 @@ Proof.
   iIntros "H" (??? (? & ? & ?)).
   iApply "H"; iPureIntro; split; auto.
   eapply tycontext_sub_trans; eauto.
-Qed. *)
+Qed.
 
 Lemma semax_mono {CS} E Delta Delta' P Q
   (SUB: tycontext_sub Delta Delta') c:

@@ -1381,7 +1381,7 @@ Proof.
     destruct (Mem.alloc m 0 (@Ctypes.sizeof (genv_cenv ge) ty)) as (m', b) eqn: Halloc.
     inv COMPLETE; inv Hsize; inv H.
     iMod (alloc_block with "Hm") as "(Hm & block)"; first done.
-    { pose proof @sizeof_pos (genv_cenv ge) ty; unfold sizeof, Ptrofs.max_unsigned in *; simpl in *; lia. }
+    { pose proof @Ctypes.sizeof_pos (genv_cenv ge) ty; unfold sizeof, Ptrofs.max_unsigned in *; simpl in *; lia. }
     unshelve iMod (IHvars _ _ (Maps.PTree.set id (b,ty) ve0) with "Hm") as (??? (? & Hve & Hsub & ?)) "(Hm & ?)"; try done.
     { intros i; destruct (eq_dec i id); first by subst.
       rewrite PTree.gso //; intros; apply Hout; simpl; auto. }
@@ -1423,11 +1423,11 @@ Proof.
     rewrite memory_block'_eq.
     2: rewrite Ptrofs.unsigned_zero; lia.
     2:{ rewrite Z2Nat.id; try lia.
-        pose proof (@sizeof_pos (genv_cenv ge) t); lia. }
+        pose proof (@Ctypes.sizeof_pos (genv_cenv ge) t); lia. }
     unfold memory_block'_alt.
     rewrite -> if_true by apply readable_share_top.
     rewrite Z2Nat.id.
-    2: { pose proof (@sizeof_pos (genv_cenv ge) t); lia. }
+    2: { pose proof (@Ctypes.sizeof_pos (genv_cenv ge) t); lia. }
     rewrite /= Z.sub_0_r Ptrofs.unsigned_zero; iFrame "H".
     rewrite -Hrem; iApply IHlv; try done.
     apply map_eq; intros k; rewrite make_env_spec; destruct (eq_dec k i).

@@ -1,8 +1,8 @@
 Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Export VST.veric.SeparationLogic.
 Require Export VST.floyd.base.
-Require Export VST.floyd.typecheck_lemmas.
 Require Export VST.floyd.assert_lemmas.
+Require Export VST.floyd.typecheck_lemmas.
 Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Export VST.floyd.functional_base.
 Require Export VST.floyd.seplog_tactics.

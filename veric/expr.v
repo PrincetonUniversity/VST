@@ -16,6 +16,11 @@ Import Ctypes.
 Definition sizeof {cs: compspecs} t := @Ctypes.sizeof (@cenv_cs cs) t.
 Definition alignof {cs: compspecs} t := @Ctypes.alignof (@cenv_cs cs) t.
 
+Lemma sizeof_pos: forall {cs: compspecs} (t: type), sizeof t >= 0.
+Proof. intros. apply Ctypes.sizeof_pos. Qed.
+Lemma alignof_pos: forall {cs: compspecs} (t: type), alignof t > 0.
+Proof. intros. apply Ctypes.alignof_pos. Qed.
+
 (** Functions for evaluating expressions in environments,
 these return vundef if something goes wrong, meaning they always return some value **)
 

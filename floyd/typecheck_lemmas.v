@@ -1,7 +1,7 @@
 Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.floyd.base.
-Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Export VST.veric.SeparationLogic.
+Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 
 Notation denote_tc_assert A := (assert_of (denote_tc_assert A)).
 

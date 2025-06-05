@@ -992,7 +992,7 @@ Proof.
     change (sizeof ?A) with (expr.sizeof A) in *.
     rewrite (Z.mod_small ofs) in * by lia.
     rewrite (Z.mod_small (ofs + nested_field_offset t gfs)) in H
-        by (pose proof base.sizeof_pos (nested_field_type t gfs); lia).
+        by (pose proof sizeof_pos (nested_field_type t gfs); lia).
     apply data_at_rec_data_at_rec_; try tauto.
     unfold expr.sizeof in *.
     lia.
@@ -1032,7 +1032,7 @@ Proof.
     spec H1; [tauto |].
     change (sizeof ?A) with (expr.sizeof A) in *.
     rewrite (Z.mod_small ofs) in * by lia.
-    rewrite (Z.mod_small (ofs + nested_field_offset t gfs)) in H by (pose proof base.sizeof_pos (nested_field_type t gfs); lia).
+    rewrite (Z.mod_small (ofs + nested_field_offset t gfs)) in H by (pose proof sizeof_pos (nested_field_type t gfs); lia).
     rewrite memory_block_data_at_rec_default_val; first done; try tauto; unfold expr.sizeof in *; try lia.
   + unfold field_at_, field_at.
     rewrite memory_block_isptr.

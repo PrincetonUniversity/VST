@@ -37,11 +37,6 @@ Ltac gather_prop :=
 Arguments sizeof {cs} !t / .
 Arguments alignof {cs} !t / .
 
-Lemma sizeof_pos: forall {cs: compspecs} (t: type), sizeof t >= 0.
-Proof. intros. apply Ctypes.sizeof_pos. Qed.
-Lemma alignof_pos: forall {cs: compspecs} (t: type), alignof t > 0.
-Proof. intros. apply Ctypes.alignof_pos. Qed.
-
 Arguments alignof_two_p {env} t.
 
 Lemma co_alignof_pos: forall co, (co_alignof co > 0)%Z.

@@ -7,7 +7,6 @@ Require Import VST.floyd.nested_field_lemmas.
 Require Import VST.floyd.fieldlist.
 Import LiftNotation.
 Import -(notations) compcert.lib.Maps.
-(* Local Open Scope logic. *)
 
 Inductive efield : Type :=
   | eArraySubsc: forall i: expr, efield
@@ -161,7 +160,7 @@ Proof.
   unfold tc_efield.
   simpl typecheck_efield.
   rewrite denote_tc_assert_andp.
-  constructor; intros; monPred.unseal. (* FIXME is this necessary? *)
+  monPred.unseal.
   reflexivity.
 Qed.
 

@@ -5,7 +5,6 @@ Require Export compcert.lib.Integers.
 Require Export compcert.lib.Floats.
 Require Export compcert.common.AST.
 Require Export compcert.common.Values.
-Require Export compcert.cfrontend.Ctypes.
 Require Export compcert.cfrontend.Clight.
 Require Export VST.sepcomp.Address.
 Require Export VST.sepcomp.extspec.

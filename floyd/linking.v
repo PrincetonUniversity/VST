@@ -34,8 +34,8 @@ End CompOrder.
 Module SortComp := Mergesort.Sort(CompOrder).
 
 Module GlobdefOrder <: Orders.TotalLeBool.
-  Definition t := (ident * globdef (fundef function) type)%type.
-  Definition leb := fun x y : (ident * globdef (fundef function) type)=> Pos.leb (fst x) (fst y).
+  Definition t := (ident * globdef fundef type)%type.
+  Definition leb := fun x y : (ident * globdef fundef type)=> Pos.leb (fst x) (fst y).
   Theorem leb_total : forall a1 a2, leb a1 a2 = true \/ leb a2 a1 = true.
   Proof.  intros. unfold leb. 
     pose proof (Pos.leb_spec (fst a1) (fst a2)).
@@ -71,7 +71,7 @@ destruct (list_eq_dec (prod_eq_dec ident_eq type_eq) tempsF tempsG); [ subst | r
 destruct (semax_lemmas.eq_dec_statement bodyF bodyG); [ subst; left; trivial | right; congruence].
 Defined.
 
-Definition merge_globdef (g1 g2: globdef (fundef function) type) :=
+Definition merge_globdef (g1 g2: globdef fundef type) :=
  match g1, g2 with
  | Gfun (External _ _ _ _), Gfun (External _ _ _ _) => 
      Errors.OK g1  (* SHOULD CHECK g1=g2 *)
@@ -98,7 +98,7 @@ Definition merge_globdef (g1 g2: globdef (fundef function) type) :=
  end.
 
 Function merge_global_definitions'
-    (d1 d2: list (ident * globdef (fundef function) type))
+    (d1 d2: list (ident * globdef fundef type))
     (fuel: nat) :=
  match fuel with
  | O => Errors.Error [Errors.MSG "out of fuel"]
@@ -127,7 +127,7 @@ Function merge_global_definitions'
  end end.
 
 Definition merge_global_definitions
-    (d1 d2: list (ident * globdef (fundef function) type)) :=
+    (d1 d2: list (ident * globdef fundef type)) :=
  merge_global_definitions' d1 d2 (length d1 + length d2).
 
 Fixpoint merge_prog_types' (e1 e2: list composite_definition)
@@ -241,7 +241,7 @@ Module NEW_LINK_PROGS.
 *)
 Definition carefully_link_progs (prog1 prog2 : Clight.program) 
   (MAIN: prog_main prog1 = prog_main prog2)
-  (d12: list (ident * globdef (fundef function) type))
+  (d12: list (ident * globdef fundef type))
   (Hd12: merge_global_definitions 
                (SortGlobdef.sort (prog_defs prog1)) (SortGlobdef.sort (prog_defs prog2)) = Errors.OK d12)
   (t12: list composite_definition) 
