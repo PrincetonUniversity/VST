@@ -2,7 +2,6 @@ Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-k
 Require Import VST.floyd.base2.
 Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Import VST.floyd.client_lemmas.
-(* Require Import VST.floyd.closed_lemmas. *)
 Import Cop.
 Import LiftNotation.
 Import -(notations) compcert.lib.Maps.

@@ -1,7 +1,6 @@
 Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.floyd.base.
 Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
-(*Require Import VST.veric.lifting.*)
 Require Import VST.floyd.type_induction.
 Require Import VST.floyd.nested_pred_lemmas.
 Require Import VST.floyd.nested_field_lemmas.
@@ -11,7 +10,6 @@ Require VST.floyd.aggregate_pred. Import VST.floyd.aggregate_pred.aggregate_pred
 Require Import VST.floyd.data_at_rec_lemmas.
 Require Import VST.floyd.jmeq_lemmas.
 Require Import VST.zlist.sublist.
-(*Require Import VST.floyd.local2ptree_typecheck.*)
 Import LiftNotation.
 
 Local Unset SsrRewrite.
@@ -1622,50 +1620,6 @@ intros.
 unfold field_address.
 if_tac; intuition (auto; try solve [contradiction]).
 Qed.
-
-(*Lemma eval_lvar_spec: forall id t rho,
-  match eval_lvar id t rho with
-  | Vundef => True
-  | Vptr b ofs => ofs = Ptrofs.zero
-  | _ => False
-  end.
-Proof.
-  intros.
-  unfold eval_lvar.
-  destruct (ve_of rho !! id)%stdpp; auto.
-  destruct p.
-  destruct (eqb_type _ _); auto.
-Qed.
-
-Lemma var_block_data_at_:
-  forall  sh id t,
-  complete_legal_cosu_type t = true ->
-  Z.ltb (sizeof t) Ptrofs.modulus = true ->
-  is_aligned cenv_cs ha_env_cs la_env_cs t 0 = true ->
-  readable_share sh ->
-  var_block sh (id, t) ⊣⊢ assert_of (`(data_at_ sh t) (eval_lvar id t)).
-Proof.
-  intros; split => rho.
-  unfold var_block; monPred.unseal.
-  unfold_lift; simpl.
-  apply Zlt_is_lt_bool in H0.
-  rewrite data_at__memory_block; try auto.
-  rewrite memory_block_isptr.
-  unfold local, lift1; unfold_lift.
-  pose proof eval_lvar_spec id t rho.
-  destruct (eval_lvar id t rho); simpl in *; normalize.
-  { iSplit. iIntros "((_ & []) & _)".  iIntros "(([] & _) & _)". }
-  subst.
-  apply bi.and_proper; last done.
-  apply bi.pure_iff.
-  unfold field_compatible.
-  unfold isptr, legal_nested_field, size_compatible, align_compatible.
-  change (Ptrofs.unsigned Ptrofs.zero) with 0.
-  rewrite Z.add_0_l.
-  assert (sizeof t <= Ptrofs.modulus) by lia.
-  assert (sizeof t <= Ptrofs.max_unsigned) by (unfold Ptrofs.max_unsigned; lia).
-  apply la_env_cs_sound in H1; tauto.
-Qed.*)
 
 Lemma valid_pointer_weak:
  forall a, valid_pointer a ⊢ weak_valid_pointer a.

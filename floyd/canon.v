@@ -51,6 +51,13 @@ Section mpred.
   Definition postassert' := (option val) -> mpred.
   Program Definition postassert_of (P : postassert') : postassert := {| monPred_at := P |}.
   Global Coercion postassert_of : postassert' >-> postassert.
+
+  Lemma assert_of_at : forall (P : assert), assert_of (monPred_at P) ⊣⊢ P.
+  Proof. done. Qed.
+
+  Lemma argsassert_of_at : forall (P : argsassert), argsassert_of (monPred_at P) ⊣⊢ P.
+  Proof. done. Qed.
+
 End mpred.
 
 Declare Scope assert.  Delimit Scope assert with assert.

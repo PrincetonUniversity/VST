@@ -1111,7 +1111,7 @@ unfold globvars2pred,  PROPx, LOCALx, SEPx.
 split => rho; monPred.unseal.
 unfold_lift; rewrite /lift1.
 normalize.
-rewrite and_True True_and bi.sep_comm //.
+rewrite bi.sep_comm; do 2 f_equiv; tauto.
 Qed.
 
 

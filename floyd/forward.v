@@ -119,6 +119,49 @@ Qed.
 #[export] Hint Resolve field_address_eq_offset' : prove_it_now.
 #[export] Hint Rewrite <- @pure_and @pure_and': norm1.
 
+Lemma eval_lvar_spec: forall id t rho,
+  match eval_lvar id t rho with
+  | Vundef => True
+  | Vptr b ofs => ofs = Ptrofs.zero
+  | _ => False
+  end.
+Proof.
+  intros.
+  unfold eval_lvar.
+  destruct (ve_of rho !! id)%stdpp; auto.
+  destruct p.
+  destruct (eqb_type _ _); auto.
+Qed.
+
+Lemma var_block_data_at_:
+  forall `{!VSTGS OK_ty Σ} {CS: compspecs} sh id t,
+  complete_legal_cosu_type t = true ->
+  Z.ltb (sizeof t) Ptrofs.modulus = true ->
+  is_aligned cenv_cs ha_env_cs la_env_cs t 0 = true ->
+  readable_share sh ->
+  var_block sh (id, t) ⊣⊢ assert_of (`(data_at_ sh t) (eval_lvar id t)).
+Proof.
+  intros; split => rho.
+  unfold var_block; monPred.unseal.
+  unfold_lift; simpl.
+  apply Zlt_is_lt_bool in H0.
+  rewrite data_at__memory_block; try auto.
+  rewrite memory_block_isptr.
+  unfold local, lift1; unfold_lift.
+  pose proof eval_lvar_spec id t rho.
+  destruct (eval_lvar id t rho); simpl in *; normalize.
+  { iSplit; iIntros "((_ & []) & _)". }
+  subst.
+  apply bi.and_proper; last done.
+  apply bi.pure_iff.
+  unfold field_compatible.
+  unfold isptr, legal_nested_field, size_compatible, align_compatible.
+  change (Ptrofs.unsigned Ptrofs.zero) with 0.
+  rewrite Z.add_0_l.
+  assert (sizeof t <= Ptrofs.modulus) by lia.
+  assert (sizeof t <= Ptrofs.max_unsigned) by (unfold Ptrofs.max_unsigned; lia).
+  apply la_env_cs_sound in H1; tauto.
+Qed.
 
 Lemma var_block_lvar2:
  forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {CS: compspecs} id t E Delta P Q R Vs c Post,
@@ -4350,9 +4393,12 @@ match x with
 | DE_nothing ?e => fail 99 "The expression " e " contains a dereference of an expression with a 'By_nothing' access mode, which is quite unexpected"
 end.
 
+Definition argsassert2assert `{heapGS Σ} (ids: list ident) (M:argsassert):assert :=
+  assert_of (fun rho => M (ge_of rho, map (fun i => eval_id i rho) ids)).
+
 Lemma elim_close_precondition:
   forall `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {cs: compspecs} E al Delta P F c Q,
-   semax E Delta (argsassert_of al P ∗ F) c Q ->
+   semax E Delta (argsassert2assert al P ∗ F) c Q ->
    semax E Delta (close_precondition al P ∗ F) c Q.
 Proof.
 intros.
@@ -4427,7 +4473,7 @@ apply (bi.exist_intro' _ _ vals). unfold GLOBALSx, PARAMSx. simpl.
   unfold PROPx, LOCALx, SEPx. simpl. normalize.
   apply bi.and_intro.
   { apply bi.pure_intro.
-    assert (AUX: map (Map.get (te_of rho)) ids = map Some vals /\
+    assert (AUX: map (fun i => lookup i (te_of rho)) ids = map Some vals /\
             Forall (fun v : val => v <> Vundef) vals).
     { generalize dependent Q. generalize dependent vals.
       induction ids; simpl; intros.
@@ -4437,7 +4483,7 @@ apply (bi.exist_intro' _ _ vals). unfold GLOBALSx, PARAMSx. simpl.
         remember (id_in_list a ids) as b; symmetry in Heqb; destruct b. discriminate. destruct H3.
         destruct (IHids H4 _ _ Heqt) as [X1 X2]; simpl; trivial.
         red in H. unfold eval_id, liftx, lift in H. simpl in H. destruct H.
-        unfold force_val in H. destruct (Map.get (te_of rho) a); [subst | congruence].
+        unfold force_val in H. destruct (te_of rho !! a)%stdpp; [subst | congruence].
         rewrite X1. split; auto. }
      clear - H1 AUX; intuition. }
   raise_rho. super_unfold_lift. normalize.
