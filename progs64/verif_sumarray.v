@@ -24,7 +24,7 @@ Definition sumarray_spec :=
           PARAMS (a; Vint (Int.repr size))
           SEP   (data_at sh (tarray tuint size) (map Vint (map Int.repr contents)) a)
   POST [ tuint ]
-        PROP () LOCAL(temp ret_temp  (Vint (Int.repr (sum_Z contents))))
+        PROP () RETURN (Vint (Int.repr (sum_Z contents)))
            SEP (data_at sh (tarray tuint size) (map Vint (map Int.repr contents)) a).
 
 (* Note: It would also be reasonable to let [contents] have type [list int].
@@ -38,7 +38,7 @@ Definition main_spec :=
   PRE  [] main_pre prog tt gv
   POST [ tint ]
      PROP()
-     LOCAL (temp ret_temp (Vint (Int.repr (1+2+3+4)))) 
+     RETURN (Vint (Int.repr (1+2+3+4)))
      SEP(TT).
 
 (* Note: It would also be reasonable to let [contents] have type [list int].

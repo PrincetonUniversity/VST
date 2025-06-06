@@ -60,7 +60,7 @@ Definition free_atomic_ptr_spec :=
     SEP (∃ v : val, atomic_ptr_at Ews v p)
   POST[ tvoid ]
     PROP ()
-    LOCAL ()
+    RETURN ()
     SEP ().
 
 Definition free_atomic_int_spec :=
@@ -71,7 +71,7 @@ Definition free_atomic_int_spec :=
     SEP (∃ v : val, atomic_int_at Ews v p)
   POST[ tvoid ]
     PROP ()
-    LOCAL ()
+    RETURN ()
     SEP ().
 
 Definition AL_type := ProdType (ProdType (ProdType (ConstType val)
@@ -112,7 +112,7 @@ Program Definition atomic_store_spec := TYPE AS_type
       (atomic_int_at sh v p -∗ |={Ei,Eo}=> Q))
   POST [ tvoid ]
    PROP ()
-   LOCAL ()
+   RETURN ()
    SEP (Q).
 Next Obligation.
 Proof.
@@ -139,7 +139,7 @@ Program Definition atomic_CAS_spec := TYPE ACAS_type
   POST [ tint ]
    ∃ v' : val,
    PROP ()
-   LOCAL (temp ret_temp (vint (if eq_dec v' c then 1 else 0)))
+   RETURN (vint (if eq_dec v' c then 1 else 0))
    SEP (data_at shc tint v' pc; Q v').
 Next Obligation.
 Proof.
@@ -166,7 +166,7 @@ Program Definition atomic_exchange_spec := TYPE AEX_type
   POST [ tint ]
    ∃ v' : int,
    PROP ()
-   LOCAL (temp ret_temp (Vint v'))
+   RETURN (Vint v')
    SEP (Q (Vint v')).
 Next Obligation.
 Proof.
@@ -193,7 +193,7 @@ Program Definition atomic_load_int_spec := TYPE ALI_type
   POST [ tint ]
    ∃ v : Z,
    PROP (repable_signed v)
-   LOCAL (temp ret_temp (vint v))
+   RETURN (vint v)
    SEP (Q v).
 Next Obligation.
 Proof.
@@ -245,7 +245,7 @@ Program Definition atomic_store_int_spec := TYPE ASI_type
       (atomic_int_at sh (vint v) p -∗ |={Ei,Eo}=> Q))
   POST [ tvoid ]
    PROP ()
-   LOCAL ()
+   RETURN ()
    SEP (Q).
 Next Obligation.
 Proof.
@@ -288,7 +288,7 @@ Program Definition atomic_CAS_int_spec := TYPE ACASI_type
   POST [ tint ]
    ∃ v' : Z,
    PROP (repable_signed v')
-   LOCAL (temp ret_temp (vint (if eq_dec v' c then 1 else 0)))
+   RETURN (vint (if eq_dec v' c then 1 else 0))
    SEP (data_at shc tint (vint v') pc; Q v').
 Next Obligation.
 Proof.
@@ -353,7 +353,7 @@ Program Definition atomic_exchange_int_spec := TYPE AEXI_type
   POST [ tint ]
    ∃ v' : Z,
    PROP (repable_signed v')
-   LOCAL (temp ret_temp (vint v'))
+   RETURN (vint v')
    SEP (Q v').
 Next Obligation.
 Proof.
@@ -410,7 +410,7 @@ Program Definition atomic_load_ptr_spec := TYPE ALI_ptr_type
   POST [ tptr Tvoid ]
    ∃ v : val,
    PROP ()
-   LOCAL (temp ret_temp v)
+   RETURN (v)
    SEP (Q v).
 Next Obligation.
 Proof.
@@ -434,7 +434,7 @@ Program Definition atomic_store_ptr_spec := TYPE ASI_ptr_type
       (atomic_ptr_at sh v p -∗ |={Ei,Eo}=> Q))
   POST [ tvoid ]
    PROP ()
-   LOCAL ()
+   RETURN ()
    SEP (Q).
 Next Obligation.
 Proof.
@@ -461,7 +461,7 @@ Program Definition atomic_CAS_ptr_spec := TYPE ACASI_ptr_type
   POST [ tint ]
    ∃ v' : val,
    PROP ()
-   LOCAL (temp ret_temp (vint (if eq_dec v' c then 1 else 0)))
+   RETURN (vint (if eq_dec v' c then 1 else 0))
    SEP (data_at shc (tptr Tvoid) c pc; Q v').
 Next Obligation.
 Proof.
@@ -488,7 +488,7 @@ Program Definition atomic_exchange_ptr_spec := TYPE AEXI_ptr_type
   POST [ tint ]
    ∃ v' : val,
    PROP ()
-   LOCAL (temp ret_temp v')
+   RETURN (v')
    SEP (Q v').
 Next Obligation.
 Proof.

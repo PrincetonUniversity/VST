@@ -198,9 +198,9 @@ Definition believe_internal_ {CS}
      ⌜cenv_sub (@cenv_cs CS) (@cenv_cs CS')⌝ →
       (∀ x : dtfr A,
         ▷ semax (SemaxArg CS' (E x) (func_tycontext' f Delta')
-                         ((bind_args (f.(fn_params)) (P x) ∗ stackframe_of(cs := CS') f))
+                         ((bind_args (f.(fn_params)) (argsassert_of (P x)) ∗ stackframe_of(cs := CS') f))
                           (f.(fn_body))
-           (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x))
+           (frame_ret_assert (function_body_ret_assert (fn_return f) (postassert_of (Q x)))
               (stackframe_of(cs := CS') f))))).
 
 Definition believepred {CS} (semax:semaxArg -> mpred.assert)
@@ -280,9 +280,9 @@ Definition believe_internal {CS}
      ⌜cenv_sub (@cenv_cs CS) (@cenv_cs CS')⌝ →
       (∀ x : dtfr A,
         ▷ @semax' CS' (E x) (func_tycontext' f Delta')
-                         ((bind_args (f.(fn_params)) (P x) ∗ stackframe_of(cs := CS') f))
+                         ((bind_args (f.(fn_params)) (argsassert_of (P x)) ∗ stackframe_of(cs := CS') f))
                           (f.(fn_body))
-           (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x))
+           (frame_ret_assert (function_body_ret_assert (fn_return f) (postassert_of (Q x)))
               (stackframe_of(cs := CS') f)))).
 
 Definition believe {CS}

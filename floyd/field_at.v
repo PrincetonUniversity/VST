@@ -1668,7 +1668,7 @@ End CENV.
 
 Local Set SsrRewrite. (* for rewrite bi._ to work *)
 Ltac field_at_conflict z fld :=
- trans False; [ | apply bi.False_elim];
+ trans (False : mpred); [ | apply bi.False_elim];
  repeat rewrite bi.sep_assoc;
  unfold data_at_, data_at, field_at_;
  let x := fresh "x" in set (x := field_at _ _ fld _ z); pull_right x;

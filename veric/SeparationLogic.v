@@ -227,9 +227,9 @@ match spec with (_, mk_funspec fsig cc A E P Q) =>
   fsig =  (fn_typesig f) ∧
 forall OK_spec (x:dtfr A),
   Def.semax(OK_spec := OK_spec) (E x) (func_tycontext f V G nil)
-      (close_precondition (map fst f.(fn_params)) (P x) ∗ stackframe_of f)
+      (close_precondition (map fst f.(fn_params)) (argsassert_of (P x)) ∗ stackframe_of f)
        f.(fn_body)
-      (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) (stackframe_of f))
+      (frame_ret_assert (function_body_ret_assert (fn_return f) (postassert_of (Q x))) (stackframe_of f))
 end.
 
 Definition semax_prog `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} {C: compspecs}

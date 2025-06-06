@@ -35,31 +35,6 @@ Fixpoint fold_right_andp rho (l: list (environ -> Prop)) : Prop :=
  | b::r => b rho /\ fold_right_andp rho r
  end.
 
-Section mpred.
-  Context `{!heapGS Σ}.
-
-  (* asserts used in the precondition *)
-  Definition argsEnviron_index : biIndex := {| bi_index_type := argsEnviron |}.
-  Definition argsassert  := monPred argsEnviron_index mpred.
-  
-  Definition argsassert' := argsEnviron -> mpred.
-  Program Definition argsassert_of (P : argsassert') : argsassert := {| monPred_at := P |}.
-  Global Coercion argsassert_of : argsassert' >-> argsassert.
-
-  Definition post_index : biIndex := {| bi_index_type := option val |}.
-  Definition postassert := monPred post_index mpred.
-  Definition postassert' := (option val) -> mpred.
-  Program Definition postassert_of (P : postassert') : postassert := {| monPred_at := P |}.
-  Global Coercion postassert_of : postassert' >-> postassert.
-
-  Lemma assert_of_at : forall (P : assert), assert_of (monPred_at P) ⊣⊢ P.
-  Proof. done. Qed.
-
-  Lemma argsassert_of_at : forall (P : argsassert), argsassert_of (monPred_at P) ⊣⊢ P.
-  Proof. done. Qed.
-
-End mpred.
-
 Declare Scope assert.  Delimit Scope assert with assert.
 Global Set Warnings "-overwriting-delimiting-key".
 Delimit Scope assert with argsassert.
@@ -1303,7 +1278,7 @@ Proof.
   simpl. rewrite H. done.
 Qed.
 
-Lemma semax_post'': forall (R':postassert) E Delta R P c t,
+Lemma semax_post'': forall (R':postassert) E Delta (R:postassert) P c t,
            t = ret_type Delta ->
            RET_ENTAIL ret_tycon Delta, R' ⊢ R ->
       semax E Delta P c (frame_ret_assert (function_body_ret_assert t R') emp) ->
@@ -1380,8 +1355,7 @@ Qed.
 
 Lemma semax_post_ret1: forall P' R' E Delta P v R Pre c,
   ret_type Delta <> Tvoid ->
-  RET_ENTAIL (ret1_tycon Delta),
-    PROPx P' (RETURNx v (SEPx R')) ⊢ PROPx P (RETURNx v (SEPx R)) ->
+  ENTAIL empty_tycontext, PROPx P' (LOCALx [] (SEPx R')) ⊢ PROPx P (LOCALx [] (SEPx R)) ->
   semax E Delta Pre c
     (frame_ret_assert (function_body_ret_assert (ret_type Delta)
       (PROPx P' (RETURNx v (SEPx R')))) emp) ->
@@ -1390,24 +1364,34 @@ Lemma semax_post_ret1: forall P' R' E Delta P v R Pre c,
       (PROPx P (RETURNx v (SEPx R)))) emp).
 Proof.
   intros.
+  assert (RET_ENTAIL (ret1_tycon Delta), PROPx P' (RETURNx v (SEPx R')) ⊢
+    PROPx P (RETURNx v (SEPx R))) as H0'.
+  { intros; unfold PROPx, LOCALx, RETURNx, SEPx in *.
+    apply monPred_in_entails with (i := any_environ) in H0; revert H0; monPred.unseal.
+    iIntros (H0) "(% & % & $ & HR)".
+    iDestruct (H0 with "[$HR]") as "($ & _ & $)"; auto.
+    iPureIntro; split3; auto; split3; simpl; hnf.
+    - intros ??; rewrite PTree.gempty //.
+    - split; rewrite PTree.gempty lookup_empty //.
+      by intros (? & ?).
+    - intros ??; rewrite PTree.gempty //. }
   eapply semax_post, H1; simpl; intros; rewrite ?bi.sep_emp; try solve [rewrite bi.and_elim_r //].
   - destruct (ret_type Delta); [| rewrite bi.and_elim_r //..].
     split => rho; monPred.unseal.
-    rewrite -H0; done.
+    rewrite -H0'; done.
   - destruct vl; simpl.
     + split => rho; monPred.unseal.
-      rewrite -H0.
+      rewrite -H0'.
       iIntros "(% & % & $)"; iPureIntro.
       split; first done; split; last done.
       simpl.
-      destruct ( ret_type Delta); done.
+      destruct (ret_type Delta); done.
     + destruct (ret_type Delta); [done | rewrite bi.and_elim_r //..].
 Qed.
 
 Lemma semax_post_ret0: forall P' R' E Delta P R Pre c,
   ret_type Delta = Tvoid ->
-  RET_ENTAIL (ret0_tycon Delta),
-    PROPx P' (RETURNx None (SEPx R')) ⊢ PROPx P (RETURNx None (SEPx R)) ->
+  ENTAIL empty_tycontext, PROPx P' (LOCALx [] (SEPx R')) ⊢ PROPx P (LOCALx [] (SEPx R)) ->
   semax E Delta Pre c
     (frame_ret_assert (function_body_ret_assert (ret_type Delta)
       (PROPx P' (RETURNx None (SEPx R')))) emp) ->
@@ -1416,17 +1400,28 @@ Lemma semax_post_ret0: forall P' R' E Delta P R Pre c,
       (PROPx P (RETURNx None (SEPx R)))) emp).
 Proof.
   intros.
+  assert (RET_ENTAIL (ret0_tycon Delta), PROPx P' (RETURNx None (SEPx R')) ⊢
+    PROPx P (RETURNx None (SEPx R))) as H0'.
+  { intros; unfold PROPx, LOCALx, RETURNx, SEPx in *.
+    apply monPred_in_entails with (i := any_environ) in H0; revert H0; monPred.unseal.
+    iIntros (H0) "(% & % & $ & HR)".
+    iDestruct (H0 with "[$HR]") as "($ & _ & $)"; auto.
+    iPureIntro; split3; auto; split3; simpl; hnf.
+    - intros ??; rewrite PTree.gempty //.
+    - split; rewrite PTree.gempty lookup_empty //.
+      by intros (? & ?).
+    - intros ??; rewrite PTree.gempty //. }
   eapply semax_post, H1; simpl; intros; rewrite ?bi.sep_emp; try solve [rewrite bi.and_elim_r //].
   - destruct (ret_type Delta) eqn:?; [| rewrite bi.and_elim_r //..].
     split => rho; monPred.unseal.
-    rewrite -H0.
+    rewrite -H0'.
     apply bi.and_mono; last done.
     apply bi.pure_mono; intros.
     simpl. apply tc_option_val_None; done.
   - rewrite H; destruct vl; simpl.
     + iIntros "(_ & [] & _)".
     + split => rho; monPred.unseal.
-      rewrite -H0.
+      rewrite -H0'.
       apply bi.and_mono; last done.
       apply bi.pure_mono; intros.
       simpl. apply tc_option_val_None; done.
@@ -1469,7 +1464,7 @@ Qed.
 (* TODO maybe we can combine return_inner_gen_canon_nil' and return_inner_gen_canon_Some'? *)
 Inductive return_inner_gen (S: list mpred): option val -> (postassert) -> (assert) -> Prop :=
 | return_inner_gen_main: forall ov_gen P u,
-    return_inner_gen S ov_gen (postassert_of (main_post P u)) (PROPx nil (LOCALx nil (SEPx (True :: S))))
+    return_inner_gen S ov_gen (main_post P u) (PROPx nil (LOCALx nil (SEPx (True :: S))))
 | return_inner_gen_canon_nil':
     forall P R,
       return_inner_gen S None
@@ -2188,5 +2183,7 @@ Ltac simpl_ret_assert ::=
       for_ret_assert loop_nocontinue_ret_assert];
   try (match goal with
       | |- context[bind_ret None tvoid ?P] =>
-        assert (bind_ret None tvoid P = P) as -> by (repeat (rewrite bind_ret_exist; f_equal; extensionality); apply bind_ret_noret)
+        let P' := fresh "P'" in evar (P' : assert);
+        assert (bind_ret None tvoid P = P') as -> by (unfold P'; repeat (rewrite bind_ret_exist; apply f_equal; extensionality); apply bind_ret_noret);
+        subst P'
       end).

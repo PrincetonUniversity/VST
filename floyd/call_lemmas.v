@@ -1533,9 +1533,9 @@ Definition eq_no_post (x v: val) : Prop := x=v.
   can treat this one specially *)
 
 Lemma no_post_exists:
- forall v P Q R,
-   PROPx(Σ := Σ) P (LOCALx (temp ret_temp v :: Q) (SEPx R)) ⊣⊢
-   ∃ x:val, PROPx (eq_no_post x v :: P) (LOCALx (temp ret_temp x :: Q) (SEPx R)).
+ forall v P R,
+   PROPx(Σ := Σ) P (RETURNx (Some v) (SEPx R)) ⊣⊢
+   ∃ x:val, PROPx (eq_no_post x v :: P) (RETURNx (Some x) (SEPx R)).
 Proof.
   intros. unfold eq_no_post.
   apply bi.equiv_entails_2.
@@ -1546,12 +1546,13 @@ Proof.
     rewrite /PROPx /=.
     split => rho; monPred.unseal.
     normalize.
+    apply bi.and_intro; auto.
 Qed.
 
 Lemma no_post_exists0:
  forall P Q R,
-   PROPx(Σ := Σ) P (LOCALx Q (SEPx R)) ⊣⊢
-   ∃ x:unit, PROPx ((fun _ => P) x) (LOCALx Q (SEPx ((fun _ => R) x))).
+   PROPx(Σ := Σ) P (RETURNx Q (SEPx R)) ⊣⊢
+   ∃ x:unit, PROPx ((fun _ => P) x) (RETURNx Q (SEPx ((fun _ => R) x))).
 Proof.
   intros.
   apply bi.equiv_entails_2.
@@ -1559,15 +1560,13 @@ Proof.
   - apply bi.exist_elim; intros; done.
 Qed.
 
-Import ListNotations.
-
-Lemma void_ret : ifvoid tvoid (assert_of(Σ := Σ) (` (monPred_at (PROP ( )  LOCAL ()  SEP ())) (make_args [] [])))
+(*Lemma void_ret : ifvoid tvoid (assert_of(Σ := Σ) (` (monPred_at (PROP ( )  LOCAL ()  SEP ())) (make_args [] [])))
   (∃ v : val, assert_of (` (monPred_at (PROP ( )  LOCAL ()  SEP ())) (make_args [ret_temp] [v]))) ⊣⊢ emp.
 Proof.
   split => rho; unfold_lift; simpl.
   rewrite /PROPx /LOCALx /SEPx /=; monPred.unseal.
   iSplit; auto.
-Qed.
+Qed.*)
 
 End mpred.
 

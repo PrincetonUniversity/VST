@@ -278,9 +278,9 @@ match spec with (_, mk_funspec fsig cc A E P Q) =>
   fsig = fn_typesig f ∧
 forall OK_spec x,
   semax(OK_spec := OK_spec) (E x) (func_tycontext f V G nil)
-      (close_precondition (map fst f.(fn_params)) (P x) ∗ stackframe_of f)
+      (close_precondition (map fst f.(fn_params)) (argsassert_of (P x)) ∗ stackframe_of f)
        f.(fn_body)
-      (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) (stackframe_of f))
+      (frame_ret_assert (function_body_ret_assert (fn_return f) (postassert_of (Q x))) (stackframe_of f))
 end.
 
 Inductive semax_func `{!VSTGS OK_ty Σ} {OK_spec : ext_spec OK_ty} : forall (V: varspecs) (G: funspecs(Σ := Σ)) {C: compspecs} (ge: Genv.t Clight.fundef type) (fdecs: list (ident * Clight.fundef)) (G1: funspecs), Prop :=
@@ -1412,8 +1412,8 @@ Proof. destruct HI. split.
   assert ( sig = fn_typesig f /\
         (forall (x : dtfr ((WithType_of_funspec (phi i)))),
          semax (mask_of_funspec (phi i) x) (func_tycontext f V G nil)
-           (close_precondition (map fst (fn_params f)) ((Pre_of_funspec (phi i)) x) ∗ stackframe_of f) 
-           (fn_body f) (frame_ret_assert (function_body_ret_assert (fn_return f) ((Post_of_funspec (phi i)) x)) (stackframe_of f)))) as HH.
+           (close_precondition (map fst (fn_params f)) (argsassert_of (Pre_of_funspec (phi i) x)) ∗ stackframe_of f) 
+           (fn_body f) (frame_ret_assert (function_body_ret_assert (fn_return f) (postassert_of (Post_of_funspec (phi i) x))) (stackframe_of f)))) as HH.
   { intros. specialize (H1 i); specialize (H2 i). subst. unfold semax_body in H.
     destruct (phi i); subst. destruct H as [? ?]. split; simpl; auto. }
   clear H H1 H2. destruct HH as [HH2 HH3].
@@ -2251,14 +2251,14 @@ split; trivial. intros.
 specialize (Sub x).
 eapply semax_adapt
  with
-  (Q':= frame_ret_assert (function_body_ret_assert (fn_return f) (Q' x))
+  (Q':= frame_ret_assert (function_body_ret_assert (fn_return f) (postassert_of (Q' x)))
            (stackframe_of f))
   (P' :=
     ∃ vals:list val,
     ∃ x1 : dtfr A,
     ∃ FR: mpred,
     ⌜E x1 ⊆ E' x /\ forall (rho' : environ) (ret: option val),
-              ⌜tc_environ (xtype_tycontext (snd sig)) rho'⌝ ∧ (FR ∗ Q x1 ret ) ⊢ (Q' x ret)⌝ ∧
+              ⌜tc_environ (xtype_tycontext (snd sig)) rho'⌝ ∧ (FR ∗ Q x1 ret) ⊢ (Q' x ret)⌝ ∧
       ((stackframe_of f ∗ ⎡FR⎤ ∗ assert_of (fun tau => P x1 (ge_of tau, vals))) ∧
             local (fun tau => map (λ i : ident, (te_of tau !! i)%stdpp) (map fst (fn_params f)) = map Some vals /\ tc_vals (map snd (fn_params f)) vals))).
  - split => rho. monPred.unseal; rewrite /bind_ret monPred_at_affinely.
@@ -2314,10 +2314,10 @@ eapply semax_adapt
    apply semax_extract_prop; intros (HE & QPOST).
     simpl in SB2; rewrite -> SB2 in *.
    apply (semax_frame (E x1) (func_tycontext f V G nil)
-      (close_precondition (map fst (fn_params f)) (P x1) ∗
+      (close_precondition (map fst (fn_params f)) (argsassert_of (P x1)) ∗
          stackframe_of f)
       (fn_body f)
-      (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x1)) (stackframe_of f))
+      (frame_ret_assert (function_body_ret_assert (fn_return f) (postassert_of (Q x1))) (stackframe_of f))
       ⎡FRM⎤) in SB3.
     + eapply AuxDefs.semax_mask_mono; first done.
       eapply semax_pre_post_fupd.

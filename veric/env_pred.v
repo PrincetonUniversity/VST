@@ -10,15 +10,40 @@ Require Import VST.veric.Clight_seplog.
 
 (* VeriC's assertions are functions environ -> mpred. *)
 
-Definition env_index : biIndex := {| bi_index_type := environ; bi_index_rel := eq |}.
-
-Definition assert `{!heapGS Σ} := monPred env_index (iPropI Σ).
-
-Program Definition assert_of `{!heapGS Σ} (P : environ -> mpred) : assert := {| monPred_at := P |}.
-
 Section assert.
 
 Context `{!heapGS Σ}.
+
+  Definition env_index : biIndex := {| bi_index_type := environ; bi_index_rel := eq |}.
+  Definition assert `{!heapGS Σ} := monPred env_index (iPropI Σ).
+
+  Program Definition assert_of `{!heapGS Σ} (P : environ -> mpred) : assert := {| monPred_at := P |}.
+
+  (* asserts used in the precondition *)
+  Definition argsEnviron_index : biIndex := {| bi_index_type := argsEnviron |}.
+  Definition argsassert  := monPred argsEnviron_index mpred.
+  
+  Definition argsassert' := argsEnviron -> mpred.
+  Program Definition argsassert_of (P : argsassert') : argsassert := {| monPred_at := P |}.
+  Global Coercion argsassert_of : argsassert' >-> argsassert.
+
+  Definition post_index : biIndex := {| bi_index_type := option val |}.
+  Definition postassert := monPred post_index mpred.
+  Definition postassert' := (option val) -> mpred.
+  Program Definition postassert_of (P : postassert') : postassert := {| monPred_at := P |}.
+  Global Coercion postassert_of : postassert' >-> postassert.
+
+  Lemma assert_of_at : forall (P : assert), assert_of (monPred_at P) ⊣⊢ P.
+  Proof. done. Qed.
+
+  Lemma argsassert_of_at : forall (P : argsassert), argsassert_of (monPred_at P) ⊣⊢ P.
+  Proof. done. Qed.
+
+  Lemma postassert_of_at : forall (P : postassert), postassert_of (monPred_at P) ⊣⊢ P.
+  Proof. done. Qed.
+
+  Definition NDmk_funspec (sig : typesig) (cc : calling_convention) A (P : A -> argsassert) (Q : A -> postassert) : funspec :=
+    mk_funspec sig cc (ConstType A) (λne a, ⊤) (λne (a : leibnizO A), (P a) : _ -d> mpred) (λne (a : leibnizO A), (Q a) : _ -d> mpred).
 
 Lemma subst_derives:
   forall a v (P Q : assert), (P ⊢ Q) -> assert_of (subst a v P) ⊢ assert_of (subst a v Q).
@@ -46,19 +71,19 @@ Definition tc_formals (formals: list (ident * type)) : environ -> Prop :=
      fun rho => tc_vals (map (@snd _ _) formals) (map (fun xt => (eval_id (fst xt) rho)) formals).
 
 Definition close_precondition (bodyparams: list ident) 
-    (P: (genviron * list val) -> mpred) : assert :=
+    (P: argsassert) : assert :=
  assert_of (fun rho => ∃ vals,
    ⌜map (λ i, lookup i (te_of rho)) bodyparams = map Some vals /\
       Forall (fun v : val => v <> Vundef) vals⌝ ∧
    P (ge_of rho, vals)).
 
-Global Instance close_precondition_proper p : Proper (pointwise_relation _ base.equiv ==> base.equiv) (close_precondition p).
+Global Instance close_precondition_proper p : Proper (base.equiv ==> base.equiv) (close_precondition p).
 Proof.
   intros ?? H.
   split => rho; solve_proper.
 Qed.
 
-Definition bind_args (bodyparams: list (ident * type)) (P: (genviron * list val) -> mpred) : assert :=
+Definition bind_args (bodyparams: list (ident * type)) (P: argsassert) : assert :=
   local (tc_formals bodyparams)
      ∧ close_precondition (map fst bodyparams) P.
 
@@ -205,23 +230,23 @@ Proof.
 intros; reflexivity.
 Qed.
 
-Definition bind_ret (vl: option val) (t: type) (Q: option val -> mpred) : assert :=
+Definition bind_ret (vl: option val) (t: type) (Q: postassert) : assert :=
      match vl, t with
      | None, Tvoid => ⎡Q None⎤
      | Some v, _ => ⌜tc_val t v⌝ ∧ ⎡Q (Some v)⎤
      | _, _ => False
      end.
 
-Definition function_body_ret_assert (ret: type) (Q: option val -> mpred) : ret_assert :=
+Definition function_body_ret_assert (ret: type) (Q: postassert) : ret_assert :=
  {| RA_normal := bind_ret None ret Q;
     RA_break := False;
     RA_continue := False;
     RA_return := fun vl => bind_ret vl ret Q |}.
 
-Global Instance bind_ret_proper vl t : Proper (pointwise_relation _ base.equiv ==> base.equiv) (bind_ret vl t).
+Global Instance bind_ret_proper vl t : Proper (base.equiv ==> base.equiv) (bind_ret vl t).
 Proof. solve_proper. Qed.
 
-Global Instance function_body_ret_assert_proper ret : Proper (pointwise_relation _ base.equiv ==> base.equiv) (function_body_ret_assert ret).
+Global Instance function_body_ret_assert_proper ret : Proper (base.equiv ==> base.equiv) (function_body_ret_assert ret).
 Proof.
   intros ???; split3; last split; simpl; try done.
   - destruct ret; try done.

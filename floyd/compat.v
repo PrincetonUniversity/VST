@@ -20,7 +20,7 @@ Module NoOracle.
 (* Concrete instance of the Iris typeclasses for no ghost state or external calls *)
 Definition default_pre : VSTGpreS unit (VSTΣ unit) := subG_VSTGpreS _.
 
-#[export] Program Instance VST_default : VSTGS unit (VSTΣ unit) := Build_VSTGS _ _ _ _.
+#[export] Program Instance VST_default : VSTGS unit (VSTΣ unit) := Build_VSTGS _ _ _ _ _.
 Next Obligation.
 Proof.
   split.
@@ -40,6 +40,11 @@ Next Obligation.
 Proof.
   split; try apply _.
   exact 8%positive.
+Defined.
+Next Obligation.
+Proof.
+  split; try apply _.
+  exact 9%positive.
 Defined.
 
 Opaque VST_default.

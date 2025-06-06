@@ -482,23 +482,23 @@ Proof.
 Qed.
 
 Lemma function_body_ret_assert_EK_return:
-  forall t (P:option val -> mpred) vl, RA_return (function_body_ret_assert t P) vl = bind_ret vl t P.
+  forall t (P:postassert) vl, RA_return (function_body_ret_assert t P) vl = bind_ret vl t P.
 Proof. reflexivity. Qed.
 
 Lemma bind_ret0_unfold:
-  forall (Q:option val -> mpred), bind_ret None tvoid Q = ⎡ Q (@None val) ⎤.
+  forall (Q:postassert), bind_ret None tvoid Q = ⎡ Q (@None val) ⎤.
 Proof.
   intros; rewrite /bind_ret; apply assert_ext; intros; monPred.unseal; done.
 Qed.
 
 Lemma bind_ret1_unfold:
-  forall v t (Q:option val -> mpred), bind_ret (Some v) t Q = (⌜tc_val t v⌝ ∧ ⎡ Q (@Some val v) ⎤).
+  forall v t (Q:postassert), bind_ret (Some v) t Q = (⌜tc_val t v⌝ ∧ ⎡ Q (@Some val v) ⎤).
 Proof.
   intros; rewrite /bind_ret; apply assert_ext; intros; monPred.unseal; done.
 Qed.
 
 Lemma bind_ret1_unfold':
-  forall v t (Q:option val -> mpred) rho,
+  forall v t (Q:postassert) rho,
   bind_ret (Some v) t Q rho = (⌜tc_val t v⌝ ∧ Q (@Some val v)).
 Proof.
  intros. rewrite /bind_ret; monPred.unseal. reflexivity.

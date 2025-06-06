@@ -103,13 +103,6 @@ Proof.
 intros. unfold object_mpred. Exists instance mtable; auto.
 Qed.
 
-
-Lemma bind_ret0_unfold:
-  forall Q, bind_ret None tvoid Q ⊣⊢ (assert_of (fun rho => Q (globals_only rho))).
-Proof.
-  rewrite /bind_ret; split => rho; monPred.unseal; done.
-Qed.
-
 Lemma body_foo_reset: semax_body Vprog Gprog f_foo_reset foo_reset_spec.
 Proof.
 unfold foo_reset_spec, foo_invariant, reset_spec.

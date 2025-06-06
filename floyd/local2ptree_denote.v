@@ -419,7 +419,7 @@ intros. apply assert_ext; intros; monPred.unseal. done.
 Qed.
 
 Lemma local_assert:
-forall `{heapGS Σ} (P Q : assert),
+forall {I} {B} (P Q : monPred I B),
   P ⊣⊢ Q <-> forall rho, (P rho ⊣⊢ Q rho).
 Proof.
   intros. split; intros HPQ; intros.

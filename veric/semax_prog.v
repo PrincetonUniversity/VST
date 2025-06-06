@@ -68,9 +68,9 @@ match spec with (_, mk_funspec fsig cc A E P Q) =>
   fsig =  (fn_typesig f) ∧
 forall OK_spec (x:dtfr A),
   semax OK_spec (E x) (func_tycontext f V G nil)
-      (close_precondition (map fst f.(fn_params)) (P x) ∗ stackframe_of f)
+      (close_precondition (map fst f.(fn_params)) (argsassert_of (P x)) ∗ stackframe_of f)
        f.(fn_body)
-      (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) (stackframe_of f))
+      (frame_ret_assert (function_body_ret_assert (fn_return f) (postassert_of (Q x))) (stackframe_of f))
 end.
 
 Definition genv_contains (ge: Genv.t Clight.fundef type) (fdecs : list (ident * Clight.fundef)) : Prop :=
@@ -121,9 +121,9 @@ Definition ge2globals (ge : genviron) i :=
   | None => Vundef
   end.
 
-Definition main_pre (prog: program) (ora: OK_ty) (gv: ident->val) : (genviron * list val) -> mpred :=
-fun gvals => <affine> ⌜gv = ge2globals (fst gvals) /\ snd gvals=nil⌝ ∗
-       globvars2pred gv (prog_vars prog) ∗ has_ext ora.
+Definition main_pre (prog: program) (ora: OK_ty) (gv: ident->val) : argsassert :=
+argsassert_of (fun gvals => <affine> ⌜gv = ge2globals (fst gvals) /\ snd gvals=nil⌝ ∗
+       globvars2pred gv (prog_vars prog) ∗ has_ext ora).
 
 Lemma main_pre_vals_nil {prog ora gv g vals}:
       main_pre prog ora gv (g, vals) ⊢ ⌜vals=nil⌝.
@@ -133,11 +133,11 @@ Qed.
 
 Definition Tint32s := Tint I32 Signed noattr.
 
-Definition main_post (prog: program) : (ident->val) -> option val -> mpred :=
-(fun _ _ => True).
+Definition main_post (prog: program) : (ident->val) -> postassert :=
+  fun _ => True.
 
 Definition main_spec_ext' (prog: program) (ora: OK_ty)
-(post: (ident->val) -> option val -> mpred): funspec :=
+(post: (ident->val) -> postassert): funspec :=
 NDmk_funspec (nil, tint) cc_default (ident->val) (main_pre prog ora) post.
 
 Definition main_spec_ext (prog: program) (ora: OK_ty): funspec :=
@@ -1531,8 +1531,8 @@ Proof. destruct HI. split.
   assert (sig = (fn_typesig f) ∧
         (forall OK_spec (x : dtfr ((WithType_of_funspec (phi i)))),
          semax OK_spec (mask_of_funspec (phi i) x) (func_tycontext f V G nil)
-           (close_precondition (map fst (fn_params f)) ((Pre_of_funspec (phi i)) x) ∗ stackframe_of f) 
-           (fn_body f) (frame_ret_assert (function_body_ret_assert (fn_return f) ((Post_of_funspec (phi i)) x)) (stackframe_of f)))) as HH.
+           (close_precondition (map fst (fn_params f)) (argsassert_of (Pre_of_funspec (phi i) x)) ∗ stackframe_of f) 
+           (fn_body f) (frame_ret_assert (function_body_ret_assert (fn_return f) (postassert_of (Post_of_funspec (phi i) x))) (stackframe_of f)))) as HH.
   { intros. specialize (H1 i); specialize (H2 i). subst. unfold semax_body in H.
     destruct (phi i); subst. destruct H as [? ?]. split; auto. }
   clear H H1 H2. destruct HH as [HH1 HH2].
@@ -1578,7 +1578,7 @@ Proof.
  specialize (Sub x).
  eapply @semax_adapt
  with
-  (Q':= frame_ret_assert (function_body_ret_assert (fn_return f) (Q' x))
+  (Q':= frame_ret_assert (function_body_ret_assert (fn_return f) (postassert_of (Q' x)))
            (stackframe_of f))
   (P' :=
     ∃ vals:list val,
@@ -1629,10 +1629,10 @@ Proof.
    apply extract_exists_pre; intros FRM.
    apply semax_extract_prop; intros (HE & QPOST).
    apply (semax_frame(OK_spec := OK_spec0) (E x1) (func_tycontext f V G nil)
-      (close_precondition (map fst (fn_params f)) (P x1) ∗
+      (close_precondition (map fst (fn_params f)) (argsassert_of (P x1)) ∗
          stackframe_of f)
       (fn_body f)
-      (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x1)) (stackframe_of f))
+      (frame_ret_assert (function_body_ret_assert (fn_return f) (postassert_of (Q x1))) (stackframe_of f))
       FRM) in SB2.
     + eapply semax_pre_post_fupd.
       6: rewrite /semax -semax_mask_mono //; apply SB3.

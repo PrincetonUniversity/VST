@@ -172,7 +172,7 @@ Definition semaxfunc_ExternalInfo Espec (ge : Genv.t Clight.fundef type) (id : i
   ef_sig ef = mksignature (map argtype_of_type argsig) (rettype_of_type retsig) cc /\
   (ef_inline ef = false \/ withtype_empty(Σ := Σ) A) /\
   (forall (gx : genviron) x (ret : option val),
-   Q x (make_ext_rval gx (rettype_of_type retsig) ret) ∧ ⌜Builtins0.val_opt_has_rettype ret (rettype_of_type retsig)⌝ ⊢ ⌜tc_option_val retsig ret⌝) /\
+   Q x (make_ext_rval (rettype_of_type retsig) ret) ∧ ⌜Builtins0.val_opt_has_rettype ret (rettype_of_type retsig)⌝ ⊢ ⌜tc_option_val retsig ret⌝) /\
   (⊢semax_external(OK_spec := Espec) ef A E P Q) /\
   genv_find_func ge id (External ef argsig retsig cc)
   end.
@@ -403,20 +403,20 @@ Definition SF {Espec cs V ge} G (i:ident) (fd:Clight.fundef) (phi:funspec) :=
   | External ef argsig retsig cc => semaxfunc_ExternalInfo Espec ge i ef argsig retsig cc phi
   end.
 
-Definition isGvar (x: ident * globdef (fundef function) type) := 
+Definition isGvar (x: ident * globdef (Ctypes.fundef function) type) := 
            match (snd x) with Gvar v => true | _ => false end.
 
 Definition Vardefs (p: QP.program Clight.function) := 
      filter isGvar (PTree.elements (QP.prog_defs p)).
 
-Definition globs2pred (gv: globals) (x: ident * globdef (fundef function) type) : mpred :=
+Definition globs2pred (gv: globals) (x: ident * globdef (Ctypes.fundef function) type) : mpred :=
   match x with (i, d) => match d with
                            Gfun _ => emp
                          | Gvar v => ⌜headptr (gv i)⌝ ∧ globvar2pred gv (i,v)
                          end
   end.
 
-Definition InitGPred (V:list (ident * globdef (fundef function) type)) (gv: globals) :mpred := 
+Definition InitGPred (V:list (ident * globdef (Ctypes.fundef function) type)) (gv: globals) :mpred := 
    fold_right bi_sep emp (map (globs2pred gv) V).
 
 Definition globals_ok (gv: globals) := forall i, headptr (gv i) \/ gv i = Vundef.
@@ -1351,8 +1351,8 @@ Proof. intros. specialize (FM i).
 + (*II*) inv FM. 
   destruct phi1 as [[? ?] ? ? ? ? ?].
   destruct phi2 as [[? ?] ? ? ? ? ?].
-  destruct SF1 as [? [? [? [? [[? [? _]] _]]]]].
-  destruct SF2 as [? [? [? [? [[? [? _]] _]]]]].
+  destruct SF1 as [? [? [? [? [[[=] _] _]]]]].
+  destruct SF2 as [? [? [? [? [[[=] _] _]]]]].
   simpl in *.
   subst.
   destruct (function_eq f f0) eqn:?H; inv H2.
@@ -2547,9 +2547,9 @@ Let cs := compspecs_of_QPcomposite_env (@QP.prog_comp_env function p)
         (@list_norepet ident
            (@map (ident * QP.builtin) ident (@fst ident QP.builtin)
               (@QP.prog_builtins function p) ++
-            @map (positive * globdef (fundef function) type) positive
-              (@fst positive (globdef (fundef function) type))
-              (@PTree.elements (globdef (fundef function) type)
+            @map (positive * globdef (Ctypes.fundef function) type) positive
+              (@fst positive (globdef (Ctypes.fundef function) type))
+              (@PTree.elements (globdef (Ctypes.fundef function) type)
                  (@QP.prog_defs function p))))
         (QPcompspecs_OK (@QP.prog_comp_env function p)) OKp).
 
@@ -2559,10 +2559,10 @@ Let cs1 :=
                  (@map (ident * QP.builtin) ident
                     (@fst ident QP.builtin)
                     (@QP.prog_builtins function p1) ++
-                  @map (positive * globdef (fundef function) type)
+                  @map (positive * globdef (Ctypes.fundef function) type)
                     positive
-                    (@fst positive (globdef (fundef function) type))
-                    (@PTree.elements (globdef (fundef function) type)
+                    (@fst positive (globdef (Ctypes.fundef function) type))
+                    (@PTree.elements (globdef (Ctypes.fundef function) type)
                        (@QP.prog_defs function p1))))
               (QPcompspecs_OK (@QP.prog_comp_env function p1))
               (@Comp_prog_OK Espec V1 E1 Imports1 p1 Exports1 GP1 G1 c1))).
@@ -2573,10 +2573,10 @@ Let cs2 := (compspecs_of_QPcomposite_env (@QP.prog_comp_env function p2)
                  (@map (ident * QP.builtin) ident
                     (@fst ident QP.builtin)
                     (@QP.prog_builtins function p2) ++
-                  @map (positive * globdef (fundef function) type)
+                  @map (positive * globdef (Ctypes.fundef function) type)
                     positive
-                    (@fst positive (globdef (fundef function) type))
-                    (@PTree.elements (globdef (fundef function) type)
+                    (@fst positive (globdef (Ctypes.fundef function) type))
+                    (@PTree.elements (globdef (Ctypes.fundef function) type)
                        (@QP.prog_defs function p2))))
               (QPcompspecs_OK (@QP.prog_comp_env function p2))
               (@Comp_prog_OK Espec V2 E2 Imports2 p2 Exports2 GP2 G2 c2))).
@@ -2604,7 +2604,7 @@ Proof.
 Qed.
 
 Local Lemma G_justified:
-  forall (i : positive) (phi : funspec) (fd : fundef function),
+  forall (i : positive) (phi : funspec) (fd : Ctypes.fundef function),
     (QP.prog_defs p) !! i = Some (Gfun fd) ->
      find_id i G = Some phi ->
       @SF Espec cs V (QPglobalenv p) (JoinedImports ++ G) i fd phi.

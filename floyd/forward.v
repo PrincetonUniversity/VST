@@ -297,14 +297,13 @@ Ltac process_stackframe_of :=
      unfold stackframe_of in sf; simpl map in sf; subst sf
   end;
  repeat
-   lazymatch goal with |- semax _ _ (_ ∗ fold_right bi_sep emp (var_block _ (?i,_) :: _)) _ _ =>
+   lazymatch goal with |- semax _ _ (_ ∗ [∗ list] _∈(?i,_)::_, var_block _ _) _ _ =>
      simple apply var_block_lvar2;
        [ reflexivity | reflexivity | reflexivity | reflexivity | let n := fresh "v" i in intros n ]
    end;
   repeat (simple apply postcondition_var_block;
    [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity |  ]);
- change (fold_right bi_sep emp (@nil assert)) with
-   (@bi_emp assert);
+ change ([∗ list] _∈[], _) with (@bi_emp assert);
  rewrite ?bi.emp_sep ?bi.sep_emp.
 
 Definition tc_option_val' (t: type) : option val -> Prop :=
@@ -994,9 +993,9 @@ Proof.
 intros; subst; auto.
 Qed.
 
-Lemma PROP_LOCAL_SEP_ext' :
+Lemma PROP_RETURN_SEP_ext' :
   forall `{heapGS Σ} P P' Q Q' R R', P=P' -> Q=Q' -> R=R' -> 
-     PROPx P (LOCALx Q (SEPx R)) ⊣⊢ PROPx P' (LOCALx Q' (SEPx R')).
+     PROPx P (RETURNx Q (SEPx R)) ⊣⊢ PROPx P' (RETURNx Q' (SEPx R')).
 Proof.
 intros; subst; auto.
 Qed.
@@ -1024,12 +1023,12 @@ Ltac fix_up_simplified_postcondition :=
 Ltac match_postcondition := 
 fix_up_simplified_postcondition;
 cbv beta iota zeta; unfold_post;
-constructor; let rho := fresh "rho" in intro rho; cbn [monPred_at assert_of ofe_mor_car];
+constructor; let rho := fresh "rho" in intro rho; cbn [monPred_at postassert_of assert_of ofe_mor_car];
    repeat rewrite exp_uncurry;
    try rewrite no_post_exists; repeat rewrite monPred_at_exist;
 tryif apply bi.exist_proper
  then (intros ?vret;
-          generalize rho; rewrite -local_assert; apply PROP_LOCAL_SEP_ext';
+          generalize rho; rewrite -local_assert; apply PROP_RETURN_SEP_ext';
           [reflexivity | | reflexivity];
           (reflexivity || fail "The funspec of the function has a POSTcondition
 that is ill-formed.  The LOCALS part of the postcondition
@@ -1174,17 +1173,17 @@ let H := fresh in intro H;
 eapply (semax_call_id00_wow H);
  clear H;
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
- [ check_result_type 
+ [ check_result_type
  | fix_up_simplified_postcondition;
     cbv beta iota zeta; unfold_post;
-    constructor; let rho := fresh "rho" in intro rho; cbn [monPred_at assert_of ofe_mor_car];
+    constructor; let rho := fresh "rho" in intro rho; cbn [monPred_at postassert_of assert_of ofe_mor_car];
     repeat rewrite exp_uncurry;
     repeat rewrite monPred_at_exist;
 
     first [ apply bi.exist_proper | try rewrite no_post_exists0 monPred_at_exist; apply bi.exist_proper];
 
     intros ?vret; generalize rho; rewrite -local_assert;
-    apply PROP_LOCAL_SEP_ext'; [reflexivity | | reflexivity];
+    apply PROP_RETURN_SEP_ext'; [reflexivity | | reflexivity];
     (reflexivity || fail "The funspec of the function has a POSTcondition
 that is ill-formed.  The LOCALS part of the postcondition
 should be empty, but it is not")
@@ -3491,7 +3490,7 @@ Ltac solve_return_inner_gen :=
   | |- return_inner_gen _ ?v ?P _ =>
     match P with
     | bi_exist _ =>
-      simple apply return_inner_gen_EX;
+      (*simple*) apply return_inner_gen_EX;
       let a := fresh "a" in
       intro a;
       eexists;
@@ -3499,18 +3498,18 @@ Ltac solve_return_inner_gen :=
       [ solve_return_inner_gen
       | build_func_abs_right
       ]
-    | PROPx _ (LOCALx _ (SEPx _)) =>
+    | PROPx _ (RETURNx _ (SEPx _)) =>
       match v with
-      | Some _ => first [ simple apply return_inner_gen_canon_Some;
+      | Some _ => first [ (*simple*) apply return_inner_gen_canon_Some;
                           unfold VST_floyd_app; reflexivity
-                        | simple apply return_inner_gen_canon_nil;
+                        | (*simple*) apply return_inner_gen_canon_nil;
                           unfold VST_floyd_app; reflexivity
                         | fail 1000 "the LOCAL clauses of this POSTCONDITION should only contain ret_temp. Other variables appears there now."]
-      | None   => first [ simple apply return_inner_gen_canon_nil;
+      | None   => first [ (*simple*) apply return_inner_gen_canon_nil;
                           unfold VST_floyd_app; reflexivity
                         | fail 1000 "the LOCAL clauses of this POSTCONDITION should not contain any variable."]
       end
-    | _ => first [ simple apply return_inner_gen_main
+    | _ => first [ (*simple*) apply return_inner_gen_main
                  | fail 1000 "the POSTCONDITION should be in an existential canonical form."
                              "One possible cause of this is some 'simpl in *' command which destroys the existential form in POSTCONDITION."]
     end
@@ -3525,13 +3524,12 @@ Inductive fn_data_at `{!VSTGS OK_ty Σ} {cs: compspecs} (Delta: tycontext) (T2: 
 Lemma canonicalize_stackframe: forall `{!VSTGS OK_ty Σ} {cs: compspecs} Delta P Q R T1 T2 GV fn,
   local2ptree Q = (T1, T2, nil, GV) ->
   Forall2 (fn_data_at Delta T2) fn R ->
-  local (tc_environ Delta) ∧ PROPx P (LOCALx Q (SEPx R)) ⊢ fold_right bi_sep emp (map (var_block Tsh) fn).
+  local (tc_environ Delta) ∧ PROPx P (LOCALx Q (SEPx R)) ⊢ [∗ list] i∈fn, var_block Tsh i.
 Proof.
   intros.
-  induction H0.
+  induction H0; simpl.
   + go_lowerx.
-  + change (ENTAIL Delta, PROPx P (LOCALx Q (SEPx (y :: l'))) ⊢ (var_block Tsh x ∗ fold_right bi_sep emp (map (var_block Tsh) l))).
-    eapply derives_trans; [| apply bi.sep_mono; [apply derives_refl | exact IHForall2]]; clear IHForall2.
+  + rewrite -IHForall2.
     apply (local2ptree_soundness P Q (y :: l')) in H; simpl app in H.
     inv H0.
     rewrite !andb_true_iff in H2; destruct H2 as [[? ?] ?].
@@ -3599,17 +3597,16 @@ Lemma fold_another_var_block:
   T2 !! i = Some (t,p) ->
   ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) 
       ⊢ (PROPx P' (LOCALx Q' (SEPx (data_at_ Tsh t p :: R')))
-             ∗ fold_right bi_sep emp (map (var_block Tsh) vbs)) ->
-  ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) 
-    ⊢ (PROPx P' (LOCALx Q' (SEPx R')) 
-           ∗ fold_right bi_sep emp (map (var_block Tsh) ((i,t)::vbs))).
+             ∗ [∗ list] i∈vbs, var_block Tsh i) ->
+  ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
+    ⊢ (PROPx P' (LOCALx Q' (SEPx R'))
+           ∗ [∗ list] i∈(i,t)::vbs, var_block Tsh i).
 Proof.
 intros until p.
 intros H H1 H2 H3 H4 H5 H0.
 set (r1 := data_at_ Tsh t p) in *.
-change (ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) ⊢ 
-    (PROPx P' (LOCALx Q' (SEPx R')) ∗ (var_block Tsh (i,t) ∗ fold_right bi_sep emp (map (var_block Tsh) vbs)))).
-forget  (fold_right bi_sep emp (map (var_block Tsh) vbs)) as VBS.
+simpl.
+set (VBS := big_opL _ _ _) in *; clearbody VBS.
 assert  ((PROPx P' (LOCALx Q' (SEPx (r1 :: R'))) ∗ VBS) ⊣⊢
          ((PROPx P' (LOCALx Q' (SEPx R'))) ∗ ((assert_of (` r1 )) ∗ VBS))).
 {
@@ -3633,7 +3630,7 @@ forget (PROPx P' (LOCALx Q' (SEPx R'))) as PQR'.
 clear H0.
 simpl app.
 inv H1.
-assert (  msubst_extract_local Delta T1 T2 GV (lvar i t p)).
+assert (msubst_extract_local Delta T1 T2 GV (lvar i t p)).
 hnf.
 rewrite H5. rewrite eqb_type_refl. auto.
 apply localdef_local_facts_inv with (P:=nil)(R := [True]) in H0.
@@ -3655,7 +3652,7 @@ Qed.
 Lemma no_more_var_blocks:
  forall `{!VSTGS OK_ty Σ} {cs: compspecs} Delta PQR PQR',
   ENTAIL Delta, PQR ⊢ PQR' ->
-  ENTAIL Delta, PQR ⊢ (PQR' ∗ fold_right bi_sep emp (map (var_block Tsh) [])).
+  ENTAIL Delta, PQR ⊢ (PQR' ∗ [∗ list] i∈[], var_block Tsh i).
 Proof.
 intros.
 unfold map.
@@ -4467,10 +4464,10 @@ Lemma compute_close_precondition_entails1:
   PROPx P (LOCALx ((map gvars gv)++Q) (SEPx R))
   ⊢ close_precondition(Σ:=Σ) ids (PROPx P (LAMBDAx gv vals (SEPx R))).
 Proof.
-intros. rewrite <- insert_locals. raise_rho. unfold close_precondition; super_unfold_lift; normalize. 
+intros. rewrite <- insert_locals. raise_rho. unfold close_precondition; super_unfold_lift; normalize.
 apply (bi.exist_intro' _ _ vals). unfold GLOBALSx, PARAMSx. simpl.
   unfold argsassert2assert.
-  unfold PROPx, LOCALx, SEPx. simpl. normalize.
+  unfold PROPx, LOCALx, SEPx. monPred.unseal. normalize.
   apply bi.and_intro.
   { apply bi.pure_intro.
     assert (AUX: map (fun i => lookup i (te_of rho)) ids = map Some vals /\
@@ -4502,10 +4499,10 @@ Lemma compute_close_precondition_entails2:
   close_precondition ids (PROPx P (LAMBDAx gv vals (SEPx R)))
   ⊢  (PROPx(Σ:=Σ) P (LOCALx ((map gvars gv)++Q) (SEPx R))).
 Proof.
-intros. rewrite <- insert_locals. 
+intros. rewrite <- insert_locals.
   unfold close_precondition; split => rho; monPred.unseal; normalize. raise_rho. super_unfold_lift.
  unfold GLOBALSx, PARAMSx, argsassert2assert, PROPx, LOCALx, SEPx.
-  normalize. 
+  normalize.
   apply bi.and_intro; [|by done].
   rewrite bi.pure_and; apply bi.and_intro.
   { apply bi.pure_intro.
@@ -4577,14 +4574,14 @@ Ltac start_function1 :=
 (* let DependedTypeList := fresh "DependedTypeList" in*)
  match goal with
  | |- semax_body _ _ _ (pair _ (mk_funspec _ _ _ _ ?Pre _)) =>
-   split3; [check_parameter_types' | check_return_type | ];
+   split; [apply f_equal_prod; [check_parameter_types' | check_return_type] | ];
    match Pre with
    | (monPred_at (convertPre _ _ (fun i => _))) =>  intros Espec (*DependedTypeList*) i
    | (λne x, monPred_at match _ with (a,b) => _ end) => intros Espec (*DependedTypeList*) [a b]
    | (λne i, _) => intros Espec (*DependedTypeList*) i (* this seems to be named "a" no matter what *)
    end
  | |- semax_body _ _ _ (pair _ (NDmk_funspec _ _ _ ?Pre _)) =>
-   split3; [check_parameter_types' | check_return_type | ];
+   split; [apply f_equal_prod; [check_parameter_types' | check_return_type] | ];
    match Pre with
    | (convertPre _ _ (fun i => _)) =>  intros Espec (*DependedTypeList*) i
    | (fun x => match _ with (a,b) => _ end) => intros Espec (*DependedTypeList*) [a b]
@@ -4597,7 +4594,7 @@ Ltac start_function1 :=
  cbv [ofe_mor_car];
 (* clear DependedTypeList; *)
  rewrite_old_main_pre;
- rewrite ?argsassert_of_at ?assert_of_at;
+ rewrite ?argsassert_of_at ?assert_of_at ?postassert_of_at;
  repeat match goal with
  | |- semax _ _ (match ?p with (a,b) => _ end ∗ _) _ _ =>
              destruct p as [a b]
@@ -4619,7 +4616,7 @@ Ltac start_function1 :=
    so maybe not worth it ...
   repeat match goal with H: reptype _ |- _ => progress hnf in H; simpl in H; idtac "reduced a reptype" end;
 *)
- rewrite ?argsassert_of_at ?assert_of_at;
+ rewrite ?argsassert_of_at ?postassert_of_at ?assert_of_at;
  try start_func_convert_precondition.
 
 Ltac expand_main_pre := expand_main_pre_old.

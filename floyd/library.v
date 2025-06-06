@@ -172,18 +172,12 @@ Lemma semax_func_cons_malloc_aux:
       if eq_dec p nullval
       then emp
       else malloc_token Ews t p ∗ data_at_ Ews t p))%assert
-  (make_ext_rval gx (rettype_of_type (tptr tvoid)) ret) ⊢ ⌜is_pointer_or_null (force_val ret)⌝.
+  (make_ext_rval (rettype_of_type (tptr tvoid)) ret) ⊢ ⌜is_pointer_or_null (force_val ret)⌝.
 Proof.
  intros.
- monPred.unseal. Intros p.
- rewrite <- insert_local.
- monPred.unseal.
- apply bi.pure_elim_l; intros (? & ?).
- super_unfold_lift.
- destruct ret; try contradiction.
- unfold eval_id in H. Transparent peq. simpl in H. Opaque peq. subst p.
- if_tac. rewrite H; entailer!.
- renormalize. monPred.unseal. entailer!.
+ rewrite /PROPx /RETURNx /SEPx.
+ monPred.unseal. Intros p; subst.
+ if_tac; entailer!.
 Qed.
 
 End semax.
