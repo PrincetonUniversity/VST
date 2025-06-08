@@ -48,7 +48,7 @@ Class lock_impl := { t_lock : type; lock_handle : Type; ptr_of : lock_handle -> 
      SEP (lock_inv 1 h R; P; <affine> (P ∗ lock_inv 1 h R ∗ R -∗ False))
    POST[ tvoid ]
      PROP ()
-     LOCAL ()
+     RETURN ()
      SEP (P).
   Next Obligation.
   Proof.
@@ -70,7 +70,7 @@ Class lock_impl := { t_lock : type; lock_handle : Type; ptr_of : lock_handle -> 
      SEP (<affine> (R ∗ R -∗ False); lock_inv 1 h R; R)
    POST[ tvoid ]
      PROP ()
-     LOCAL ()
+     RETURN ()
      SEP (R).
   Next Obligation.
   Proof.
@@ -108,7 +108,7 @@ Class lock_impl := { t_lock : type; lock_handle : Type; ptr_of : lock_handle -> 
        SEP (lock_inv sh h R)
     POST [ tvoid ]
        PROP ()
-       LOCAL ()
+       RETURN ()
        SEP (lock_inv sh h R; R).
   Next Obligation.
   Proof.
@@ -130,7 +130,7 @@ Class lock_impl := { t_lock : type; lock_handle : Type; ptr_of : lock_handle -> 
        SEP (<affine> (R ∗ R -∗ False); ▷ lock_inv sh h R; P; lock_inv sh h R ∗ P -∗ Q ∗ R)
     POST [ tvoid ]
        PROP ()
-       LOCAL ()
+       RETURN ()
        SEP (Q).
   Next Obligation.
   Proof.
@@ -152,7 +152,7 @@ Class lock_impl := { t_lock : type; lock_handle : Type; ptr_of : lock_handle -> 
        SEP (<affine> (R ∗ R -∗ False); lock_inv sh h R; R)
     POST [ tvoid ]
        PROP ()
-       LOCAL ()
+       RETURN ()
        SEP (lock_inv sh h R).
   Next Obligation.
   Proof.

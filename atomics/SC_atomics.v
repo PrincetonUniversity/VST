@@ -222,14 +222,12 @@ Proof.
     iExists sh, (vint v); iFrame.
     rewrite Int.signed_repr; auto.
   - iPureIntro.
-    iIntros (?) "(_ & _ & H)".
-    unfold PROPx, LOCALx, SEPx; simpl.
-    iDestruct "H" as (r) "(_ & % & Q & _)".
-    destruct H, r; try done.
-    iExists (Int.signed i); iSplit; auto.
+    iIntros (?) "(_ & % & _ & (-> & _) & H & _)".
+    destruct v; try done.
+    iExists (Int.signed i); iSplit; simpl.
     { iPureIntro; split; auto.
       apply Int.signed_range. }
-    iSplit; [iSplit|]; auto.
+    iFrame.
     rewrite Int.repr_signed; auto.
 Qed.
 
@@ -324,18 +322,15 @@ Proof.
     iDestruct "H" as "[% _]".
     destruct H as [Hc _].
     iPureIntro.
-    iIntros (?) "(_ & _ & H)".
-    iDestruct "H" as (r) "(_ & % & ? & Q & _)".
-    destruct H, r; try done.
-    iExists (Int.signed i); iSplit; auto.
-    { iPureIntro; split; auto.
-      apply Int.signed_range. }
-    iSplit; [iSplit; auto|].
-    { if_tac; if_tac in H; auto; subst.
-      + rewrite Int.repr_signed in H2; contradiction.
-      + apply Vint_inj in H2; subst.
-        rewrite -> Int.signed_repr in H1 by auto; contradiction. }
-    rewrite Int.repr_signed; iFrame.
+    iIntros (?) "(_ & % & _ & (-> & _) & H & ? & _)".
+    destruct v'; try done.
+    iExists (Int.signed i); rewrite Int.repr_signed; iFrame.
+    iPureIntro; split3; auto.
+    { split; auto; apply Int.signed_range. }
+    { if_tac; if_tac; auto; subst.
+      + apply Vint_inj in H as ->.
+        rewrite -> Int.signed_repr in H0 by auto; contradiction.
+      + rewrite Int.repr_signed in H; contradiction. }
 Qed.
 
 Definition AEXI_type := ProdType (ProdType (ProdType (ConstType (val * Z))
@@ -382,16 +377,13 @@ Proof.
     rewrite -> Int.signed_repr; auto.
   - unfold PROPx, LOCALx, SEPx; simpl.
     iPureIntro.
-    iIntros (?) "(_ & _ & H)".
-    iDestruct "H" as (r) "(_ & % & Q & _)".
-    destruct H; try done.
+    iIntros (?) "(_ & % & _ & (-> & _) & H & _)".
     monPred.unseal.
-    iExists (Int.signed r); iSplit; auto.
+    iExists (Int.signed v'); iSplit; auto.
     { iPureIntro; split; auto.
       apply Int.signed_range. }
-    iSplit; [iSplit; auto|].
-    { rewrite Int.repr_signed; auto. }
-    iFrame.
+    iFrame; iPureIntro.
+    rewrite Int.repr_signed; auto.
 Qed.
 
 (* specs for pointer operations *)

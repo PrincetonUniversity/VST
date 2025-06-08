@@ -171,10 +171,10 @@ Lemma var_block_lvar2:
    is_aligned cenv_cs ha_env_cs la_env_cs t 0 = true ->
   (forall v,
    semax E Delta ((PROPx P (LOCALx (lvar id t v :: Q) (SEPx (data_at_ Tsh t v :: R))))
-                      ∗ fold_right bi_sep emp Vs)
+                      ∗ [∗ list] idt∈Vs, var_block Share.top idt)
                c Post) ->
  semax E Delta ((PROPx P (LOCALx Q (SEPx R)))
-                      ∗ fold_right bi_sep emp (var_block Tsh (id,t) :: Vs))
+                      ∗ [∗ list] idt∈(id,t)::Vs, var_block Share.top idt)
                c Post.
 Proof.
 intros.
@@ -182,9 +182,10 @@ assert (Int.unsigned Int.zero + sizeof t <= Ptrofs.modulus)
  by (rewrite Int.unsigned_zero; lia).
 eapply semax_pre.
 instantiate (1 := ∃ v:val, (PROPx P (LOCALx (lvar id t v :: Q) (SEPx (data_at_ Tsh t v :: R))))
-                      ∗ fold_right bi_sep emp Vs).
+                      ∗ [∗ list] idt∈Vs, var_block Share.top idt).
 unfold var_block, eval_lvar; simpl.
 go_lowerx.
+rewrite monPred_at_exist; repeat setoid_rewrite monPred_at_sep; setoid_rewrite monPred_at_big_sepL; monPred.unseal.
 rewrite -sep_exist_r; cancel.
 unfold lvar_denote.
 normalize.
@@ -245,15 +246,15 @@ Lemma postcondition_var_block:
        sizeof t < Ptrofs.modulus ->
        is_aligned cenv_cs ha_env_cs la_env_cs t 0 = true ->
    semax E Delta Pre c (frame_ret_assert S1
-     (S2 ∗  (∃  v : val, local (locald_denote (lvar i t v)) ∧ (assert_of `(data_at_ Tsh t v)))
-      ∗ fold_right bi_sep emp vbs)) ->
+     (S2 ∗ (∃ v : val, local (locald_denote (lvar i t v)) ∧ (assert_of `(data_at_ Tsh t v)))
+      ∗ [∗ list] idt∈vbs, var_block Share.top idt)) ->
   semax E Delta Pre c (frame_ret_assert S1
-     (S2 ∗ fold_right bi_sep emp (var_block Tsh (i,t) :: vbs))).
+     (S2 ∗ [∗ list] idt∈(i,t)::vbs, var_block Share.top idt)).
 Proof.
 intros.
 destruct S1 as [?R ?R ?R ?R];
 eapply semax_post; try apply H3; clear H3;
- intros; simpl_ret_assert; go_lowerx.
+ intros; simpl_ret_assert; go_lowerx; rewrite !monPred_at_sep !monPred_at_big_sepL; monPred.unseal.
 *
 apply bi.sep_mono; auto.
 rewrite !bi.sep_assoc.
@@ -294,7 +295,7 @@ Proof. rewrite bi.sep_comm bi.emp_sep_2 //. Qed.
 Ltac process_stackframe_of :=
  lazymatch goal with |- semax _ _ (_ ∗ stackframe_of ?F) _ _ =>
    let sf := fresh "sf" in set (sf:= stackframe_of F) at 1;
-     unfold stackframe_of in sf; simpl map in sf; subst sf
+     unfold stackframe_of in sf; simpl fn_vars in sf; subst sf
   end;
  repeat
    lazymatch goal with |- semax _ _ (_ ∗ [∗ list] _∈(?i,_)::_, var_block _ _) _ _ =>

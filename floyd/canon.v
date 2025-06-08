@@ -72,6 +72,8 @@ Notation " 'LOCAL' ( x ; .. ; y )   z" := (LOCALx (cons x%type .. (cons y%type n
 
 Definition RETURNx `{!heapGS Σ} (ret_v: option val) (Q: postassert) : postassert :=
   postassert_of (fun v => ⌜v=ret_v ∧ ret_v ≠ Some Vundef⌝ ∧ Q ret_v).
+Arguments RETURNx {Σ _} ret_v _ : simpl never.
+Global Instance: Params (@RETURNx) 2 := {}.
 
 Notation " 'RETURN' () z" := (RETURNx None z%assert5) (at level 9) : assert3.
 Notation " 'RETURN' ( ) z" := (RETURNx None z%assert5) (at level 9) : assert3.
@@ -185,6 +187,13 @@ Proof.
   constructor => ? /=. rewrite H //.
 Qed.
 
+#[global] Instance RETURNx_proper : Proper (eq ==> equiv ==> equiv) (RETURNx).
+Proof.
+  intros ?? -> ?? H.
+  rewrite /RETURNx.
+  constructor => ? /=. rewrite H //.
+Qed.
+
 #[global] Existing Instance list.list_dist.
 
 #[global] Instance PROPx_ne {A} : NonExpansive2 (@PROPx A Σ).
@@ -216,6 +225,13 @@ Proof.
   intros ????; subst.
   rewrite /GLOBALSx /LOCALx; constructor; intros; simpl.
   monPred.unseal.
+  rewrite H //.
+Qed.
+
+#[global] Instance RETURNx_ne n : Proper (eq ==> dist n ==> dist n) (RETURNx).
+Proof.
+  intros ????; subst.
+  rewrite /RETURNx; constructor; intros; simpl.
   rewrite H //.
 Qed.
 
