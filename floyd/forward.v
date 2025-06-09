@@ -1176,7 +1176,7 @@ eapply (semax_call_id00_wow H);
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [ check_result_type
  | fix_up_simplified_postcondition;
-    cbv beta iota zeta; unfold_post;
+    cbv beta iota zeta; rewrite ?postassert_of_at; unfold_post;
     constructor; let rho := fresh "rho" in intro rho; cbn [monPred_at postassert_of assert_of ofe_mor_car];
     repeat rewrite exp_uncurry;
     repeat rewrite monPred_at_exist;

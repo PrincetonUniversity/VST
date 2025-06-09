@@ -270,13 +270,9 @@ Lemma prog_correct:
 Proof.
 prove_semax_prog.
 semax_func_cons_ext.
-{ simpl.
-  destruct x; simpl.
-  monPred.unseal.
-  Intros h.
-  unfold PROPx, LOCALx, SEPx, local, lift1; simpl; unfold liftx; simpl; unfold lift.
-  monPred.unseal; Intros.
-  destruct ret; unfold eval_id in H0; simpl in H0; subst; simpl; [|contradiction].
+{ destruct x; simpl.
+  rewrite /PROPx /RETURNx /SEPx; monPred.unseal.
+  Intros h; subst.
   saturate_local; auto. }
 semax_func_cons_ext.
 semax_func_cons_ext.
