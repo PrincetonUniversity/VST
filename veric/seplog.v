@@ -21,8 +21,6 @@ Section mpred.
 Context `{!heapGS Σ} `{!envGS Σ}.
 Local Notation mpred := (@mpred Σ).
 Local Notation funspec := (@funspec Σ).
-(* Local Notation assert := (@assert Σ).
-Local Notation argsassert := (@argsassert Σ). *)
 
 Inductive Annotation :=
   WeakAnnotation : (environ -> mpred) -> Annotation
@@ -104,7 +102,7 @@ forall (id : ident) ty, tc !! id = Some ty <-> exists v, lookup id ve = Some (v,
 Definition typecheck_glob_environ
 (ge: genviron) (tc: Maps.PTree.t type) :=
 forall (id : ident) t, tc !! id = Some t ->
-(exists b, lookup id ge = Some b).
+(exists b, Map.get ge id = Some b).
 
 Definition typecheck_environ (Delta: tycontext) (rho : environ) :=
 typecheck_temp_environ (te_of rho) (temp_types Delta) /\

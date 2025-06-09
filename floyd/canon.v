@@ -19,7 +19,7 @@ Definition lvar_denote (i: ident) (t: type) (v: val) rho :=
          end.
 
 Definition gvars_denote (gv: globals) rho :=
-   gv = (fun i => match (ge_of rho !! i)%stdpp with Some b => Vptr b Ptrofs.zero | None => Vundef end).
+   gv = (fun i => match Map.get (ge_of rho) i with Some b => Vptr b Ptrofs.zero | None => Vundef end).
 
 Definition locald_denote (d: localdef) : environ -> Prop :=
  match d with

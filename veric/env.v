@@ -5,7 +5,7 @@ Require Import VST.veric.mpred.
 Require Import VST.veric.res_predicates.
 Require Import VST.veric.seplog.
 
-Definition env_state := (genviron * gmap nat (venviron * tenviron))%type.
+Definition env_state := (gmap ident block * gmap nat (venviron * tenviron))%type.
 
 Section env.
 
@@ -28,9 +28,11 @@ Proof.
   - apply ucmra_unit_core_id.
 Qed.
 
+Definition gmap_to_fun `{Countable A} {B} (g : gmap A B) := fun i => (g !! i)%stdpp.
+
 Definition env_to_environ (ρ : env_state) n : environ :=
-  match (snd ρ !! n)%stdpp with Some (ve, te) => (fst ρ, ve, te)
-  | None => (fst ρ, base.empty, base.empty) end.
+  match (snd ρ !! n)%stdpp with Some (ve, te) => (gmap_to_fun (fst ρ), ve, te)
+  | None => (gmap_to_fun (fst ρ), base.empty, base.empty) end.
 
 Global Instance gmap_total `{Countable K} A : CmraTotal (iris.algebra.gmap.gmapR K A).
 Proof. rewrite /CmraTotal /pcore /cmra_pcore /= /gmap.gmap_pcore_instance //. Qed.
@@ -249,7 +251,7 @@ Qed.
 
 Definition alloc_vars ve te n (ρ : env_state) := (fst ρ, <[n := (ve, te)]>(snd ρ)).
 
-Lemma env_to_environ_alloc : forall ve te n ρ, env_to_environ (alloc_vars ve te n ρ) n = (ρ.1, ve, te).
+Lemma env_to_environ_alloc : forall ve te n ρ, env_to_environ (alloc_vars ve te n ρ) n = (gmap_to_fun ρ.1, ve, te).
 Proof.
   intros; rewrite /env_to_environ /alloc_vars lookup_insert //.
 Qed.

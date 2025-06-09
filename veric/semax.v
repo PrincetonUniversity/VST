@@ -52,7 +52,7 @@ Definition semax_external
    ▷ ∀ F (ts: list typ),
    ∀ args: list val,
    ■ (⌜Val.has_type_list args (map proj_xtype (sig_args (ef_sig ef)))⌝ ∧
-     (P x (make_env (Genv.genv_symb gx), args) ∗ F) ={E x}=∗
+     (P x (Genv.find_symbol gx, args) ∗ F) ={E x}=∗
    ∀ m z, state_interp m z -∗ ∃ x': ext_spec_type OK_spec ef,
     ⌜ext_spec_pre OK_spec ef x' (genv_symb_injective gx) ts args z m⌝ ∧
      (*□*) ∀ tret: xtype, ∀ ret: option val, ∀ m': mem, ∀ z': OK_ty,

@@ -323,7 +323,7 @@ Proof.
 Qed.
 
 Lemma ge_of_make_args: forall i fl vl rho,
-    (ge_of (make_args fl vl rho) !! i)%stdpp = (ge_of rho !! i)%stdpp.
+    Map.get (ge_of (make_args fl vl rho)) i = Map.get (ge_of rho) i.
 Proof.
  induction fl; destruct vl; simpl; auto.
 Qed.

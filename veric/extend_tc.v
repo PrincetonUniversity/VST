@@ -393,8 +393,9 @@ Proof. solve_proper. Qed.
    small-footprint approach to the environment, while tc_expr and eval_expr freely
    call on the full environment rho. So to do this, we need to first fix the entire
    environment. *)
-Definition curr_env (ge : genv) f (rho : environ) : mpred.assert := <affine> ⌜(stack_size f = O -> te_of rho = ∅) ∧ ∀ i, ge_of rho !! i = Genv.find_symbol ge i⌝ ∗
-  ⎡own(inG0 := envGS_inG) env_name (lib.gmap_view.gmap_view_auth dfrac.DfracDiscarded (to_agree <$> ge_of rho), ε)⎤ ∗
+Definition curr_env (ge : genv) f (rho : environ) : mpred.assert :=
+  <affine> ⌜(stack_size f = O -> te_of rho = ∅) ∧ ∀ i, Map.get (ge_of rho) i = Genv.find_symbol ge i⌝ ∗
+  ⎡own(inG0 := envGS_inG) env_name (lib.gmap_view.gmap_view_auth dfrac.DfracDiscarded (to_agree <$> make_env (Genv.genv_symb ge)), ε)⎤ ∗
   assert_of' (λ n, stack_frag n (stack_frac f) 1%Qp (ve_of rho) (te_of rho)).
 
 Lemma curr_env_e : forall ρ ge0 f rho, ⊢ ⎡env_auth ρ⎤ -∗ curr_env ge0 f rho -∗
@@ -416,7 +417,7 @@ Proof.
   destruct Hmatch as (? & ? & ?).
   split.
   - extensionality i.
-    rewrite H ge_of_env Hge //.
+    rewrite H ge_of_env Hge /Map.get /gmap_to_fun make_env_spec //.
   - split3; rewrite ?Hve ?Hte; done.
 Qed.
 
@@ -424,7 +425,8 @@ Lemma curr_env_gvar_e : forall ge f rho i b, curr_env ge f rho ∗ ⎡gvar i b�
 Proof.
   intros; rewrite /gvar /curr_env.
   iIntros "(((_ & %H) & H1 & _) & H2)"; iDestruct (own_valid_2 with "H1 H2") as %((? & _ & _ & Hid & _ & Hincl)%gmap_view.gmap_view_both_dfrac_valid_discrete_total & _).
-  rewrite lookup_fmap in Hid; specialize (H i); destruct (lookup _ _); inv Hid.
+  rewrite lookup_fmap in Hid; specialize (H i); destruct (lookup _ _) eqn: Hi; inv Hid.
+  rewrite make_env_spec in Hi.
   by apply to_agree_included_L in Hincl as ->.
 Qed.
 

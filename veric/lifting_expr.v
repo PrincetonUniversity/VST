@@ -98,7 +98,7 @@ Proof.
 Qed.
 
 Definition env_matches (rho : environ) (ge : genv) (ve : env) (te : temp_env) :=
-  (forall i, Genv.find_symbol ge i = lookup i (ge_of rho)) /\
+  (forall i, Genv.find_symbol ge i = Map.get (ge_of rho) i) /\
   (forall i, ve !! i = lookup i (ve_of rho)) /\
   (forall i, te !! i = lookup i (te_of rho)).
 
@@ -1105,7 +1105,7 @@ Proof.
   by constructor.
 Qed.
 
-Lemma ge_of_env : forall ρ n, ge_of (env_to_environ ρ n) = ρ.1.
+Lemma ge_of_env : forall ρ n, ge_of (env_to_environ ρ n) = gmap_to_fun ρ.1.
 Proof.
   intros; rewrite /env_to_environ.
   destruct (ρ.2 !! n)%stdpp as [(?, ?)|]; done.
@@ -1123,7 +1123,7 @@ Proof.
   change 0 with (Ptrofs.unsigned Ptrofs.zero).
   iExists _, _; iFrame. rewrite monPred_at_affinely; iPureIntro; simpl.
   intros ??? <- (Hge & ? & ?) Hmatch.
-  rewrite ge_of_env in Hge; rewrite -Hge in Hx.
+  rewrite ge_of_env /Map.get /gmap_to_fun in Hge; rewrite -Hge in Hx.
   apply eval_Evar_global; auto.
   rewrite /match_venv in Hmatch.
   specialize (Hmatch _x); rewrite make_env_spec in Hmatch.

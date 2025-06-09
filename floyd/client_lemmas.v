@@ -451,7 +451,7 @@ apply bi.pure_mono; simpl; intros.
 unfold eval_var in *.
 destruct (ve_of rho !! i)%stdpp as [[? ?] |].
 destruct (eqb_type t t0); try discriminate; reflexivity.
-destruct (ge_of rho !! i)%stdpp.
+destruct (Map.get (ge_of rho) i).
 reflexivity.
 inv H0.
 Qed.

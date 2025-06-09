@@ -23,12 +23,12 @@ Definition funassert Delta (ge : genv) :=
 Definition allp_fun_id (Delta : tycontext) : assert := assert_of (λ rho,
  ∀ id : ident, ∀ fs : funspec,
   ⌜Maps.PTree.get id (glob_specs Delta) = Some fs⌝ →
-  (∃ b : block, ⌜ge_of rho !! id = Some b⌝ ∧ func_ptr_si fs (Vptr b Ptrofs.zero))).
+  (∃ b : block, ⌜Map.get (ge_of rho) id = Some b⌝ ∧ func_ptr_si fs (Vptr b Ptrofs.zero))).
 
 Definition allp_fun_id_sigcc (Delta : tycontext) : assert := assert_of (λ rho,
   ∀ id : ident, ∀ fs : funspec,
   ⌜Maps.PTree.get id (glob_specs Delta) = Some fs⌝ →
-  (∃ b : block, ⌜ge_of rho !! id = Some b⌝ ∧
+  (∃ b : block, ⌜Map.get (ge_of rho) id = Some b⌝ ∧
     match fs with
     mk_funspec sig cc _ _ _ _ => sigcc_at sig cc (b, 0)
     end)).
@@ -94,14 +94,14 @@ Proof.
   iApply funspec_sub_si_trans; eauto.
 Qed.
 
-Lemma funassert_allp_fun_id Delta (ge : genv) rho: ge_of rho = make_env (Genv.genv_symb ge) ->
+Lemma funassert_allp_fun_id Delta (ge : genv) rho: ge_of rho = Genv.find_symbol ge ->
   funassert Delta ge ⊢ <affine> allp_fun_id Delta rho ∗ funassert Delta ge.
 Proof.
   intros; iIntros "H"; iSplit; last done.
   iDestruct "H" as "[H _]".
   iIntros "!> !>" (???).
   iDestruct ("H" with "[//]") as (??) "H".
-  iExists b; iSplit; first by rewrite H make_env_spec.
+  iExists b; iSplit; first by rewrite H.
   iExists b; iSplit; first auto.
   iExists fs; iFrame.
   iPoseProof (funspec_sub_si_refl) as "?"; auto.
@@ -109,7 +109,7 @@ Qed.
 
 Lemma funassert_allp_fun_id_sub: forall Delta Delta' (ge : genv) rho,
   tycontext_sub Delta Delta' ->
-  ge_of rho = make_env (Genv.genv_symb ge) ->
+  ge_of rho = Genv.find_symbol ge ->
   funassert Delta' ge ⊢ <affine> allp_fun_id Delta rho ∗ funassert Delta' ge.
 Proof.
   intros. rewrite {1}funassert_allp_fun_id //.
@@ -117,7 +117,7 @@ Proof.
   apply bi.affinely_mono, allp_fun_id_sub; trivial.
 Qed.
 
-Lemma funassert_allp_fun_id_sigcc Delta (ge : genv) rho: ge_of rho = make_env (Genv.genv_symb ge) ->
+Lemma funassert_allp_fun_id_sigcc Delta (ge : genv) rho: ge_of rho = Genv.find_symbol ge ->
   funassert Delta ge ⊢ <affine> allp_fun_id_sigcc Delta rho ∗ funassert Delta ge.
 Proof.
   intros. rewrite {1}(funassert_allp_fun_id ⊤) //.
@@ -127,7 +127,7 @@ Qed.
 
 Lemma funassert_allp_fun_id_sigcc_sub: forall Delta Delta' (ge : genv) rho,
   tycontext_sub Delta Delta' ->
-  ge_of rho = make_env (Genv.genv_symb ge) ->
+  ge_of rho = Genv.find_symbol ge ->
   funassert Delta' ge ⊢ <affine> allp_fun_id_sigcc Delta rho ∗ funassert Delta' ge.
 Proof.
   intros. rewrite {1}funassert_allp_fun_id_sigcc //.

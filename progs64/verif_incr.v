@@ -37,7 +37,7 @@ Definition incr_spec :=
          SEP   (field_at sh1 t_counter [StructField _lock] (ptr_of h) (gv _c); lock_inv sh h (cptr_lock_inv g1 g2 (gv _c)); ghost_frag (if left then g1 else g2) n)
   POST [ tvoid ]
          PROP ()
-         LOCAL ()
+         RETURN ()
          SEP (field_at sh1 t_counter [StructField _lock] (ptr_of h) (gv _c); lock_inv sh h (cptr_lock_inv g1 g2 (gv _c)); ghost_frag (if left then g1 else g2) (n+1)%nat).
 
 Definition read_spec :=

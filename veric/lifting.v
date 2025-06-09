@@ -2108,7 +2108,7 @@ Proof.
       assert (((λ x, (DfracDiscarded, to_agree x)) <$> ge) !! i ≡ Some x) as Hi.
       { rewrite -(gmap.big_opM_singletons (_ <$> _)) big_opM_fmap H //. }
       rewrite lookup_fmap in Hi.
-      destruct x, (ge !! i) eqn: Hgei; rewrite Hgei in Hi; inv Hi.
+      destruct x, (ge !! i) eqn: Hgei; inv Hi.
       destruct H2 as ([=] & Hc); simpl in *; subst.
       eexists _, DfracDiscarded.
       rewrite lookup_fmap Hgei; split; first done; split; first done.
@@ -2208,7 +2208,7 @@ Lemma init_stack_matches : forall ge ve te, stack_matches' ge (init_stack ge ve 
 Proof.
   split3; simpl.
   - rewrite /init_stack /env_to_environ lookup_insert /=.
-    split3; simpl; intros; rewrite make_env_spec //.
+    split3; simpl; intros; rewrite /Map.get /gmap_to_fun make_env_spec //.
   - done.
   - intros; rewrite lookup_insert_ne //; lia.
 Qed.

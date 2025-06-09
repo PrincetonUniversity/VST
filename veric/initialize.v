@@ -76,7 +76,7 @@ Definition readonly2share (rdonly: bool) : share :=
   if rdonly then Ers else Ews.
 
 Definition globals_of_env (rho: environ) (i: ident) : val := 
-  match lookup i (ge_of rho) with Some b => Vptr b Ptrofs.zero | None => Vundef end.
+  match Map.get (ge_of rho) i with Some b => Vptr b Ptrofs.zero | None => Vundef end.
 
 Definition globvar2pred (gv: ident->val) (idv: ident * globvar type) : mpred :=
    if (gvar_volatile (snd idv))
@@ -1019,7 +1019,7 @@ destruct l. inv H. right; auto.
 Qed.
 
 Definition prog_var_block (rho: environ) (il: list ident) (b: block) : Prop :=
-  Exists (fun id => match lookup id (ge_of rho) with Some b' => b'=b | _ => False%type end) il.
+  Exists (fun id => match Map.get (ge_of rho) id with Some b' => b'=b | _ => False%type end) il.
 
 Lemma match_fdecs_in:
   forall i vl G,
@@ -1326,7 +1326,7 @@ Proof.
 Qed.
 
 Definition globals_of_genv (g : genviron) (i : ident) :=
-  match lookup i g with
+  match Map.get g i with
 | Some b => Vptr b Ptrofs.zero
 | None => Vundef
 end.

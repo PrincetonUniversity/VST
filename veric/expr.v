@@ -78,7 +78,7 @@ Definition eval_var (id:ident) (ty: type) (rho: environ) : val :=
                                                     then Vptr b Ptrofs.zero
                                                     else Vundef
                          | None =>
-                            match lookup id (ge_of rho) with
+                            match Map.get (ge_of rho) id with
                             | Some b => Vptr b Ptrofs.zero
                             | None => Vundef
                             end
@@ -1126,7 +1126,7 @@ Qed.
 Lemma WARNING___________you_should_use_tactic___destruct_glob_types___instead:
   forall (ge : genviron) (gt : Maps.PTree.t type), typecheck_glob_environ ge gt -> forall i : ident,
      match gt !! i with
-     | Some t => exists b, lookup i ge = Some b
+     | Some t => exists b, Map.get ge i = Some b
      | None => True
      end.
 Proof.

@@ -168,7 +168,7 @@ Definition zero_of_type (t: type) : val :=
 
 
 Definition eval_sgvar (id: ident) (ty: type) (rho: environ) :=
- match (ge_of rho !! id)%stdpp with
+ match Map.get (ge_of rho) id with
 | Some b => Vptr b Ptrofs.zero
 | None => Vundef
 end.
@@ -550,7 +550,7 @@ Lemma offset_zero_globals_of_env: forall rho i,
 Proof.
 intros.
 unfold globals_of_env.
-destruct (ge_of rho !! i)%stdpp; simpl; auto.
+destruct (Map.get (ge_of rho) i); simpl; auto.
 Qed.
 
 Lemma unpack_globvar_array  {cs: compspecs}:
@@ -605,8 +605,7 @@ Proof.
  unfold Ptrofs.max_unsigned in H6.
  pose proof init_data_list_size_pos (gvar_init gv).
  simpl in H8.
- unfold globals_of_env in H9. destruct (ge_of rho !! i)%stdpp eqn:?H; inv H9;
- rewrite H12 in H14; inv H14.
+ unfold globals_of_env in H9. destruct (Map.get (ge_of rho) i) eqn:?H; inv H9.
  rewrite Ptrofs.unsigned_zero.
  change (match sz with
          | I16 => 2
@@ -820,8 +819,7 @@ Proof.
  unfold Ptrofs.max_unsigned in H6.
  pose proof init_data_list_size_pos (gvar_init gv).
  simpl in H8.
- unfold globals_of_env in H9. destruct  (ge_of rho !! i)%stdpp eqn:?H; inv H9;
- rewrite H12 in H14; inv H14.
+ unfold globals_of_env in H9. destruct (Map.get (ge_of rho) i) eqn:?H; inv H9.
  rewrite Ptrofs.unsigned_zero.
  split; try lia.
  rewrite Z.add_0_l.
@@ -1418,13 +1416,13 @@ assert (field_compatible0 (Tarray (Tpointer t' noattr) n noattr) (ArraySubsc 0::
   split. red. apply align_compatible_rec_Tarray. intros.
      eapply align_compatible_rec_by_value. reflexivity.
      simpl.
-  rewrite H8 in H10; unfold globals_of_env in H10. destruct  (ge_of rho !! i)%stdpp; inv H10.
+  rewrite H8 in H10; unfold globals_of_env in H10. destruct (Map.get (ge_of rho) i); inv H10.
   normalize. apply Z.divide_mul_l. unfold Mptr.  destruct Archi.ptr64; exists 1; simpl; auto.
   simpl. split; auto. lia.
 }
 assert (Halign: (align_chunk Mptr | Ptrofs.unsigned i0)). {
   rewrite H8 in H10;
- clear - H10. unfold globals_of_env in H10. destruct  (ge_of rho !! i)%stdpp; inv H10.
+ clear - H10. unfold globals_of_env in H10. destruct (Map.get (ge_of rho) i); inv H10.
  apply Z.divide_0_r.
 }
 forget (gz i) as p.

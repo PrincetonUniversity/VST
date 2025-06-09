@@ -298,7 +298,7 @@ Qed.*)
 Definition globals_auth ge := own(inG0 := envGS_inG) env_name (lib.gmap_view.gmap_view_auth dfrac.DfracDiscarded (to_agree <$> ge), ε).
 
 Lemma curr_env_ge : forall ge f rho, curr_env ge f rho ⊢ curr_env ge f rho ∗
-   <affine> ⌜∀ i : ident, ge_of rho !! i = Genv.find_symbol ge i⌝ ∗ ⎡globals_auth (ge_of rho)⎤.
+   <affine> ⌜∀ i : ident, Map.get (ge_of rho) i = Genv.find_symbol ge i⌝ ∗ ⎡globals_auth (make_env (Genv.genv_symb ge))⎤.
 Proof.
   intros; iIntros "((% & %) & #$ & $)"; auto.
 Qed.
@@ -505,7 +505,7 @@ Lemma stackframe_of'_curr_env : forall {CS : compspecs} (ge : genv) f lv n
   list_norepet (map fst (fn_params f) ++ map fst (fn_temps f)) ->
   globals_auth (make_env (Genv.genv_symb ge)) ∗
   stack_retainer f n ∗ stackframe_of' ge f lv n ⊢ ∃ lb, <affine> ⌜length lb = length (fn_vars f)⌝ ∗
-  let rho := (make_env (Genv.genv_symb ge), list_to_map (zip (map fst (fn_vars f)) (zip lb (map snd (fn_vars f)))),
+  let rho := (Genv.find_symbol ge, list_to_map (zip (map fst (fn_vars f)) (zip lb (map snd (fn_vars f)))),
     list_to_map (zip (map fst (fn_params f) ++ map fst (fn_temps f)) lv)) in curr_env ge f rho n ∗ stackframe_of f rho.
 Proof.
   intros; trans (globals_auth (make_env (Genv.genv_symb ge)) ∗ ∃ lb, stackframe_of1 ge f lb lv n).
@@ -528,7 +528,7 @@ Proof.
     { rewrite -norepet_NoDup fst_zip //. by rewrite Heq1. }
     iSplitL "stack".
     + iSplit.
-      { iPureIntro; split; last by intros; rewrite make_env_spec.
+      { iPureIntro; split; last by intros.
         unfold stack_size.
         destruct (fn_params f); simpl; last lia.
         destruct (fn_temps f); simpl; last lia; done. }

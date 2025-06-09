@@ -115,14 +115,8 @@ Proof.
   eapply (semax_func_cenv_sub _ _ CSUB); eassumption.
 Qed.
 
-Definition ge2globals (ge : genviron) i :=
-  match lookup i ge with
-  | Some b => Vptr b Ptrofs.zero
-  | None => Vundef
-  end.
-
 Definition main_pre (prog: program) (ora: OK_ty) (gv: ident->val) : argsassert :=
-argsassert_of (fun gvals => <affine> ⌜gv = ge2globals (fst gvals) /\ snd gvals=nil⌝ ∗
+argsassert_of (fun gvals => <affine> ⌜gv = globals_of_genv (fst gvals) /\ snd gvals=nil⌝ ∗
        globvars2pred gv (prog_vars prog) ∗ has_ext ora).
 
 Lemma main_pre_vals_nil {prog ora gv g vals}:
@@ -133,7 +127,7 @@ Qed.
 
 Definition Tint32s := Tint I32 Signed noattr.
 
-Definition main_post (prog: program) : (ident->val) -> postassert :=
+Definition main_post (prog: program) : (ident->val) -> @postassert Σ :=
   fun _ => True.
 
 Definition main_spec_ext' (prog: program) (ora: OK_ty)
@@ -696,7 +690,7 @@ exists f; eauto.
 right; eauto.
 Qed.
 
-Definition filter_genv (ge : genv) := make_env (Genv.genv_symb ge).
+Definition filter_genv (ge : genv) := Genv.find_symbol ge.
 
 Lemma tc_ge_denote_initial:
 forall vs G (prog: program),
@@ -727,7 +721,7 @@ clear - H2. induction l; simpl; auto.
 destruct a. destruct g; simpl in *. destruct H2; auto. right; auto.
 apply IHl; auto.
 destruct (find_funct_ptr_exists prog id fd) as [b [? ?]]; auto.
-exists b; rewrite make_env_spec //.
+exists b; done.
 *
 unfold filter_genv.
 destruct (match_globvars_in' _ _ _ _ H0 H2) as [g [? ?]].
@@ -735,7 +729,7 @@ apply in_prog_vars_in_prog_defs in H3.
 pose proof (prog_defmap_norepet _ _ _ H H3).
 destruct (proj1 (Genv.find_def_symbol _ _ _) H5)
 as [b [? ?]].
-exists b; rewrite make_env_spec //.
+exists b; done.
 Qed.
 
 Lemma in_map_sig {A B} (E:forall b b' : B, {b=b'}+{b<>b'} ) y (f : A -> B) l : In y (map f l) -> {x : A | f x = y /\ In x l }.
@@ -893,7 +887,7 @@ Lemma semax_prog_entry_point {CS: compspecs} V G prog b id_fun params args A
     m q m' (Vptr b Ptrofs.zero) args) /\
 
   forall (a: dtfr A),
-    <absorb> P a (make_env (Genv.genv_symb (globalenv prog)), args) ∗ funassert (nofunc_tycontext V G) (globalenv prog) ∗ env_auth (make_env (Genv.genv_symb (globalenv prog)), ∅) ⊢
+    <absorb> P a (filter_genv (globalenv prog), args) ∗ funassert (nofunc_tycontext V G) (globalenv prog) ∗ env_auth (make_env (Genv.genv_symb (globalenv prog)), ∅) ⊢
     jsafeN OK_spec (globalenv prog) (E a) z q }.
 Proof.
 intro retty.
@@ -942,9 +936,9 @@ assert  (TC5: typecheck_glob_environ (filter_genv psi) (glob_types Delta)). {
      apply compute_list_norepet_e; auto.
 }
 
-assert (⊢ ▷ (<absorb> P a (make_env (Genv.genv_symb psi), args) ∗ funassert Delta psi ∗ env_auth (make_env (Genv.genv_symb (globalenv prog)), ∅) -∗
+assert (⊢ ▷ (<absorb> P a (filter_genv psi, args) ∗ funassert Delta psi ∗ env_auth (make_env (Genv.genv_symb (globalenv prog)), ∅) -∗
   jsafeN OK_spec psi (E a) z (Clight_core.Callstate f args Kstop))) as Hsafe; last by apply bi.wand_entails, ouPred.later_soundness.
-assert (⊢ ▷ ((globals_auth (make_env (Genv.genv_symb psi)) ∗ <absorb> P a (make_env (Genv.genv_symb psi), args) ∗ funassert Delta psi) -∗
+assert (⊢ ▷ ((globals_auth (make_env (Genv.genv_symb psi)) ∗ <absorb> P a (filter_genv psi, args) ∗ funassert Delta psi) -∗
   <absorb> initial_call_assert OK_spec (globalenv prog) (E a) f args (Clight_seplog.normal_ret_assert ⎡(∃ v, Q a v) ∗ funassert Delta psi⎤) O)) as Hpre.
 2: { rewrite /bi_emp_valid Hpre; f_equiv.
      iIntros "H (P & F & E)"; iDestruct (env_auth_globals with "E") as "(E & G)".
@@ -1033,12 +1027,6 @@ iDestruct ("Prog_OK" with "[//] [%]") as "[BE | BI]".
     * destruct (fn_return _); simpl; [by iFrame | done..].
 Qed.
 
-Lemma ge2globals_eq : forall (psi : genv), ge2globals (make_env (Genv.genv_symb psi)) = genviron2globals psi.
-Proof.
-  intros; extensionality.
-  rewrite /ge2globals /genviron2globals make_env_spec //.
-Qed.
-
 Lemma semax_prog_rule {CS: compspecs} :
   forall V G prog m h z,
      postcondition_allows_exit tint ->
@@ -1110,7 +1098,7 @@ Proof.
   iApply (Hsafe (genviron2globals (globalenv prog))).
   iCombine "Hcore Hmatch" as "Hcore"; rewrite (initial_core_funassert) //; iFrame.
   iIntros "!>".
-  iSplit; first by rewrite ge2globals_eq.
+  iSplit; first done.
   by iApply global_initializers.
 Qed.
 

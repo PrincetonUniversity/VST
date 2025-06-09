@@ -650,7 +650,7 @@ Lemma globvar_eval_var:
      (var_types Delta) !! id = None ->
      (glob_types Delta) !! id = Some  t ->
      exists b,  eval_var id t rho = Vptr b Ptrofs.zero
-            /\ ((ge_of rho) !! id)%stdpp = Some b.
+            /\  Map.get (ge_of rho) id = Some b.
 Proof.
 intros.
 unfold eval_var; simpl.

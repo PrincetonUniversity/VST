@@ -27,7 +27,7 @@ Lemma juicy_dry_spec : forall `{!VSTGS OK_ty Σ} ext_link fs es
   (Hspecs : forall s f, In (ext_link s, f) fs -> match f with mk_funspec ts cc E A P Q =>
      let e := EF_external s (typesig2signature ts cc) in
      forall w p tys args m z, exists x,
-       state_interp m z ∗ P w (make_env (proj1_sig p), args) ⊢ ⌜ext_spec_pre es e x p tys args z m⌝ ∧
+       state_interp m z ∗ P w (filter_genv (symb2genv p), args) ⊢ ⌜ext_spec_pre es e x p tys args z m⌝ ∧
          ∀ ty ret z' m', ⌜ext_spec_post es e x p ty ret z' m'⌝ → |==>
            state_interp m' z' ∗ Q w (make_ext_rval ty ret)
    end)

@@ -21,14 +21,15 @@ Context `{!heapGS Σ}.
 
   (* asserts used in the precondition *)
   Definition argsEnviron_index : biIndex := {| bi_index_type := argsEnviron |}.
-  Definition argsassert  := monPred argsEnviron_index mpred.
+  Definition argsassert  := monPred argsEnviron_index (iPropI Σ).
   
   Definition argsassert' := argsEnviron -> mpred.
   Program Definition argsassert_of (P : argsassert') : argsassert := {| monPred_at := P |}.
   Global Coercion argsassert_of : argsassert' >-> argsassert.
 
   Definition post_index : biIndex := {| bi_index_type := option val |}.
-  Definition postassert := monPred post_index mpred.
+  Definition postassert := monPred post_index (iPropI Σ).
+
   Definition postassert' := (option val) -> mpred.
   Program Definition postassert_of (P : postassert') : postassert := {| monPred_at := P |}.
   Global Coercion postassert_of : postassert' >-> postassert.

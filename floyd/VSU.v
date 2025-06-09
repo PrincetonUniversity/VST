@@ -238,7 +238,7 @@ end.
 Notation funspec := (@funspec Σ).
 Notation funspecs := (@funspecs Σ).
 
-Definition isSomeGfunExternal {F V} (d: option(globdef (fundef F) V)) : bool :=
+Definition isSomeGfunExternal {F V} (d: option(globdef (Ctypes.fundef F) V)) : bool :=
  match d with Some(Gfun(External _ _ _ _)) => true | _ => false end.
 Definition Comp_Externs_OK (E: funspecs) (p: QP.program Clight.function) :=
   Forall (fun i => (isSomeGfunExternal ((QP.prog_defs p) !! i)) = true) (map fst E).
@@ -264,7 +264,7 @@ Definition compute_missing_Comp_Externs (E: funspecs) (p: QP.program Clight.func
  filter (fun i => negb(isSomeGfunExternal ((QP.prog_defs p)!!i))) (map fst E).
 
 Lemma forallb_isSomeGfunExternal_e:
-  forall {F} (defs: PTree.t (globdef (fundef F) type)) (ids: list ident),
+  forall {F} (defs: PTree.t (globdef (Ctypes.fundef F) type)) (ids: list ident),
    forallb (fun i => isSomeGfunExternal (defs !! i)) ids = true ->
   forall i : ident,
   In i ids ->
@@ -962,7 +962,7 @@ apply (Build_Component _ _ _ _ _ _ _ _ (Comp_prog_OK c)); try apply c; auto.
     apply list_norepet_append; trivial.
     + rewrite map_app. apply (list_norepet_append_commut). rewrite <- map_app; trivial.
     + eapply list_disjoint_mono; eauto.
-      intros. rewrite map_app. rewrite map_app in H6.  apply in_or_app. apply in_app_or in H6. apply or_comm; trivial. }
+      intros. rewrite map_app. rewrite map_app in H6.  apply in_or_app. apply in_app_or in H6. apply Logic.or_comm; trivial. }
   eapply SF_ctx_subsumption.
   - eapply (Comp_G_justified c); eassumption.
   - apply (Comp_ctx_LNR c). 
@@ -1043,7 +1043,7 @@ Definition VSU_of_Component {Espec E Imports p Exports GP G}
 
 Lemma global_is_headptr g i: isptr (globals_of_env g i) -> headptr (globals_of_env g i).
 Proof. unfold globals_of_env, headptr; simpl.
-  destruct (Map.get (ge_of g) i); simpl; intros; [ exists b; trivial | contradiction].
+  destruct (ge_of g !! i)%stdpp; simpl; intros; [ exists b; trivial | contradiction].
 Qed.
 
 Lemma align_compatible_tint_tuint {cs b}: @align_compatible cs tint (Vptr b Ptrofs.zero) =
@@ -1203,7 +1203,7 @@ Qed.
 
 Definition main_pre (prog: QP.program function) (ora: OK_ty) : globals -> argsassert :=
  (fun gv => argsassert_of (fun rho =>
-  ⌜gv = initialize.genviron2globals (fst rho) /\ snd rho = []⌝ ∧
+  ⌜gv = ge2globals (fst rho) /\ snd rho = []⌝ ∧
    (globvars2pred gv (QPprog_vars prog) ∗ has_ext ora))).
 
 Definition main_pre_old (prog : QP.program function) (ora : OK_ty)
@@ -1229,14 +1229,14 @@ simpl. unfold_lift.
 normalize.
 clear H2 H3.
 rewrite prop_true_andp.
-2:{ split; auto. hnf. reflexivity. }
+2:{ split3; auto. hnf. reflexivity. }
 apply bi.sep_mono; auto.
 apply bi.sep_mono; auto.
 eapply derives_trans; [ | apply H]; clear H.
 2:{
 clear. intro i.
-unfold initialize.genviron2globals.
-destruct (Map.get (ge_of rho) i); auto.
+unfold ge2globals.
+destruct (ge_of rho !! i)%stdpp; auto.
 left; eexists; eauto.
 }
 unfold Vardefs, InitGPred.
@@ -1256,7 +1256,7 @@ simpl in *.
 specialize (H p).
 destruct ((glob_types Delta) !! p); inv H3.
 specialize (H _ (eq_refl _)) as [b ?].
-unfold initialize.genviron2globals.
+unfold ge2globals.
 rewrite H.
 exists b; auto.
 Qed.
@@ -1300,8 +1300,8 @@ rewrite !emp_sep in H0.
 pose (rho :=
  mkEnviron
   (fun i => match gv i with Vptr b _ => Some b | _ => None end)
-  (Map.empty (block * type))
-  (Map.empty val)).
+  (empty)
+  (empty).
 generalize (monPred_in_entails _ _ H0 rho); monPred.unseal; intros <-.
 clear R H0; subst Delta.
 unfold local, lift1.
@@ -1406,7 +1406,7 @@ Lemma globals_ok_genviron2globals:
   forall g,  globals_ok (initialize.genviron2globals g).
 Proof.
 intros. intro i; simpl. unfold initialize.genviron2globals.
-destruct (Map.get g i); auto.
+destruct (Genv.find_symbol g); auto.
 left; eexists; eauto.
 Qed.
 

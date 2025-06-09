@@ -125,7 +125,8 @@ Qed.
 (** Environment Definitions **)
 Section FUNSPEC.
 
-Definition genviron := gmap ident block.
+(* because of VST's GLOBALS mechanism, it's inconvenient for this to be a finite map *)
+Definition genviron := (*gmap ident block*) Map.t block.
 
 Definition venviron := gmap ident (block * type).
 
@@ -144,7 +145,7 @@ Definition te_of (rho: environ) : tenviron :=
 
 Definition mkEnviron a b c : environ := (a, b, c).
 
-Definition any_environ : environ := (empty, empty, empty).
+Definition any_environ : environ := (Map.empty _, empty, empty).
 
 Definition argsEnviron:Type := genviron * (list val).
 

@@ -4483,11 +4483,8 @@ apply (bi.exist_intro' _ _ vals). unfold GLOBALSx, PARAMSx. simpl.
         red in H. unfold eval_id, liftx, lift in H. simpl in H. destruct H.
         unfold force_val in H. destruct (te_of rho !! a)%stdpp; [subst | congruence].
         rewrite X1. split; auto. }
-     clear - H1 AUX; intuition. }
-  raise_rho. super_unfold_lift. normalize.
-  apply bi.and_intro.
-  { apply bi.pure_intro. split; auto.
-    unfold Clight_seplog.mkEnv; simpl. unfold seplog.globals_only; simpl.
+     clear - H1 H2 AUX; intuition.
+     unfold Clight_seplog.mkEnv; simpl. unfold seplog.globals_only; simpl.
     induction gv; simpl in *. trivial. destruct H1.
     split; auto. }
   done.

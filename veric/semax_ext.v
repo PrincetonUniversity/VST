@@ -96,7 +96,7 @@ Qed.
 
 Definition funspec2pre' (A : TypeTree) (P: dtfr (ArgsTT A)) (x : (nat * iResUR Σ * ofe_car (dtfr A))%type) (ge_s: injective_PTree block) sig args z m :=
   let '(n, phi, x') := x in ✓{n} phi /\ Val.has_type_list args sig /\
-    ouPred_holds (state_interp m z ∗ P x' (make_env (proj1_sig ge_s), args)) n phi.
+    ouPred_holds (state_interp m z ∗ P x' (Genv.find_symbol (symb2genv ge_s), args)) n phi.
 
 Definition funspec2pre (ext_link: Strings.String.string -> ident) (A : TypeTree)
   (P: dtfr (ArgsTT A))
@@ -225,7 +225,7 @@ Lemma add_funspecs_prepost (ext_link: Strings.String.string -> ident)
   funspecs_norepeat fs ->
   In (ext_link id, (mk_funspec sig cc A E P Q)) fs ->
   forall md z, ⌜Val.has_type_list args (map proj_xtype (sig_args (ef_sig ef)))⌝ ∧
-        state_interp md z ∗ P x (make_env (proj1_sig ge_s), args) ⊢
+        state_interp md z ∗ P x (Genv.find_symbol (symb2genv ge_s), args) ⊢
   ∃ x' : ext_spec_type (add_funspecs_rec ext_link Espec fs) ef,
     ⌜ext_spec_pre (add_funspecs_rec ext_link Espec fs) ef x' ge_s tys args z md⌝ ∧
     (∀ (tret : xtype) (ret : option val) (m' : Memory.mem) z',
@@ -275,7 +275,7 @@ Lemma add_funspecs_prepost_void  (ext_link: Strings.String.string -> ident)
   funspecs_norepeat fs ->
   In (ext_link id, (mk_funspec (sig, tvoid) cc A E P Q)) fs ->
   forall md z, ⌜Val.has_type_list args (map proj_xtype (sig_args (ef_sig ef)))⌝ ∧
-        state_interp md z ∗ P x (make_env (proj1_sig ge_s), args) ⊢
+        state_interp md z ∗ P x (Genv.find_symbol (symb2genv ge_s), args) ⊢
   ∃ x' : ext_spec_type (add_funspecs_rec ext_link Espec fs) ef,
     ⌜ext_spec_pre (add_funspecs_rec ext_link Espec fs) ef x' ge_s tys args z md⌝ ∧
     (∀ (tret : xtype) (ret : option val) (m' : Memory.mem) z',

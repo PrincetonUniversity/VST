@@ -75,12 +75,11 @@ Proof.
     apply H1.
 Qed.
 
-Lemma curr_env_ge_eq : forall ge f rho, curr_env ge f rho ⊢ ⌜ge_of rho = make_env (Genv.genv_symb ge)⌝.
+Lemma curr_env_ge_eq : forall ge f rho, curr_env ge f rho ⊢ ⌜ge_of rho = Genv.find_symbol ge⌝.
 Proof.
   intros.
   iIntros "E"; iDestruct "E" as ((_ & Hge)) "E"; iPureIntro.
-  apply map_eq; intros.
-  by rewrite make_env_spec.
+  extensionality; unfold Map.get in Hge; auto.
 Qed.
 
 Lemma funassert_allp_fun_id_sub' : forall Delta Delta' ge f rho,
