@@ -1043,7 +1043,7 @@ Definition VSU_of_Component {Espec E Imports p Exports GP G}
 
 Lemma global_is_headptr g i: isptr (globals_of_env g i) -> headptr (globals_of_env g i).
 Proof. unfold globals_of_env, headptr; simpl.
-  destruct (ge_of g !! i)%stdpp; simpl; intros; [ exists b; trivial | contradiction].
+  destruct (Map.get (ge_of g) i); simpl; intros; [ exists b; trivial | contradiction].
 Qed.
 
 Lemma align_compatible_tint_tuint {cs b}: @align_compatible cs tint (Vptr b Ptrofs.zero) =
@@ -1203,12 +1203,12 @@ Qed.
 
 Definition main_pre (prog: QP.program function) (ora: OK_ty) : globals -> argsassert :=
  (fun gv => argsassert_of (fun rho =>
-  ⌜gv = ge2globals (fst rho) /\ snd rho = []⌝ ∧
+  <affine> ⌜gv = globals_of_genv (fst rho) /\ snd rho = []⌝ ∗
    (globvars2pred gv (QPprog_vars prog) ∗ has_ext ora))).
 
 Definition main_pre_old (prog : QP.program function) (ora : OK_ty)
   (gv : globals) (rho : environ) :=
- ⌜gv = globals_of_env rho⌝ ∧
+ <affine> ⌜gv = globals_of_env rho⌝ ∗
    (globvars2pred gv (QPprog_vars prog) ∗ has_ext ora).
 
 Lemma main_pre_InitGpred:
@@ -1226,6 +1226,7 @@ unfold main_pre, PROPx, LOCALx, SEPx, local, lift1.
 split => rho; monPred.unseal.
 unfold close_precondition.
 simpl. unfold_lift.
+setoid_rewrite <- bi.persistent_and_affinely_sep_l; [|apply _..].
 normalize.
 clear H2 H3.
 rewrite prop_true_andp.
@@ -1235,8 +1236,8 @@ apply bi.sep_mono; auto.
 eapply derives_trans; [ | apply H]; clear H.
 2:{
 clear. intro i.
-unfold ge2globals.
-destruct (ge_of rho !! i)%stdpp; auto.
+unfold globals_of_genv.
+destruct (Map.get (ge_of rho) i); auto.
 left; eexists; eauto.
 }
 unfold Vardefs, InitGPred.
@@ -1256,7 +1257,7 @@ simpl in *.
 specialize (H p).
 destruct ((glob_types Delta) !! p); inv H3.
 specialize (H _ (eq_refl _)) as [b ?].
-unfold ge2globals.
+unfold globals_of_genv.
 rewrite H.
 exists b; auto.
 Qed.
@@ -1301,7 +1302,7 @@ pose (rho :=
  mkEnviron
   (fun i => match gv i with Vptr b _ => Some b | _ => None end)
   (empty)
-  (empty).
+  (empty)).
 generalize (monPred_in_entails _ _ H0 rho); monPred.unseal; intros <-.
 clear R H0; subst Delta.
 unfold local, lift1.
@@ -1744,7 +1745,7 @@ Qed.
 Definition not_builtin' ix := @not_builtin function (fst ix, Gfun (snd ix)).
 
 Definition just_the_right_funspec (G: funspecs)
-  (ix: ident * fundef Clight.function) : ident * funspec :=
+  (ix: ident * Ctypes.fundef Clight.function) : ident * funspec :=
  (fst ix, match find_id (fst ix) G with
          | Some fs => fs
          | None => vacuous_funspec (snd ix)
@@ -1761,7 +1762,7 @@ Definition QPall_initializers_aligned (p: QP.program Clight.function) : bool :=
   (QPprog_vars p).
 
 Definition QPmain_spec_ext' (prog: QP.program function) (ora: OK_ty)
-(post: (ident->val) -> assert): funspec :=
+(post: (ident->val) -> postassert): funspec :=
 NDmk_funspec (nil, tint) cc_default (ident->val) (main_pre prog ora) post.
 
 Definition wholeprog_of_QPprog (p: QP.program function) 
@@ -2740,10 +2741,12 @@ Proof.
    unfold QPprog_vars.
    replace  (prog_vars'
      (map of_builtin (QP.prog_builtins p) ++ PTree.elements (QP.prog_defs p)))
-    with  (prog_vars'(PTree.elements (QP.prog_defs p)))
+    with  (prog_vars' (PTree.elements (QP.prog_defs p)))
        by (clear; induction (QP.prog_builtins p) as [|[i ?]]; try destruct b; simpl; auto).
    extensionality gv; f_equal; extensionality rho.
-   normalize. f_equal. f_equal. f_equal. f_equal.
+   normalize.
+   replace (QPprog_vars' (PTree.elements (QP.prog_defs p))) with
+     (prog_vars' (PTree.elements (QP.prog_defs p))); first done.
   clear.
   induction (PTree.elements (QP.prog_defs p)) as [|[i?]]; auto.
   simpl.

@@ -171,7 +171,7 @@ Definition semaxfunc_ExternalInfo Espec (ge : Genv.t Clight.fundef type) (id : i
   argsig' = argsig /\
   ef_sig ef = mksignature (map argtype_of_type argsig) (rettype_of_type retsig) cc /\
   (ef_inline ef = false \/ withtype_empty(Σ := Σ) A) /\
-  (forall (gx : genviron) x (ret : option val),
+  (forall x (ret : option val),
    Q x (make_ext_rval (rettype_of_type retsig) ret) ∧ ⌜Builtins0.val_opt_has_rettype ret (rettype_of_type retsig)⌝ ⊢ ⌜tc_option_val retsig ret⌝) /\
   (⊢semax_external(OK_spec := Espec) ef A E P Q) /\
   genv_find_func ge id (External ef argsig retsig cc)
@@ -290,8 +290,8 @@ Proof.
   + intros. unfold binary_intersection in BI. rewrite 2 if_true in BI by trivial.
     apply Some_inj, mk_funspec_inj in BI as (_ & _ & ? & ? & <- & <-); subst; simpl in *.
     destruct x as [b BB]. destruct b; simpl.
-      * apply (ENT1 gx BB).
-      * apply (ENT2 gx BB).
+      * apply (ENT1 BB).
+      * apply (ENT2 BB).
   + split; trivial.
     eapply semax_external_binaryintersection. apply EXT1. apply EXT2.
       apply BI.
