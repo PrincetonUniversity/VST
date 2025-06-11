@@ -55,12 +55,11 @@ Section array.
     s2 = Zlength v_tl ->
     s = s1 + s2 ->
     l_1 = (l.1, l.2 + s1 * @expr.sizeof cs cty) ->
-    l ↦[Own]|tarray cty s| v ⊣⊢
-    l ↦[Own]|tarray cty s1| v_hd ∗
-    l_1 ↦[Own]|tarray cty s2| v_tl.
+    l ↦|tarray cty s| v ⊣⊢
+    l ↦|tarray cty s1| v_hd ∗
+    l_1 ↦|tarray cty s2| v_tl.
   Proof.
     intros Hv ? Hs1 Hs2 Hs Hl.
-    unfold_mapsto.
     apply (pure_equiv _  _ (value_fits (tarray cty s) (v_hd++v_tl))).
     { rewrite Hv.
       apply data_at_rec_value_fits. }
@@ -72,7 +71,7 @@ Section array.
       all: try done; try rep_lia.
     }
     intros [v_fits _].
-    rewrite data_at_rec_eq /=.
+    rewrite /mapsto data_at_rec_eq /=.
     rewrite (split_array_pred _ s1); try rep_lia.
     2: { rewrite Hv v_fits; lia. }
     
@@ -90,8 +89,6 @@ Section array.
     f_equiv.
     rewrite [in X in _ ⊣⊢ X ]/data_at_rec /unfold_reptype /= .
     apply seplog_tactics.eq_equiv.
-    (* rewrite Hv.
-    assert (0 < s) as Hs' by rep_lia. *)
     rewrite !Z.max_r; [|rep_lia..].
     erewrite (array_pred_shift_addr s1 s 0 s2 s1 ); try lia; try done.
     intros i i' _ Hi.
@@ -103,7 +100,7 @@ Section array.
       do 2 f_equal. lia.
   Qed.
 
-  Lemma array_split_ext l l_1 (s s1 s2:Z) cty :
+  Lemma mapsto_layout_array_split l l_1 (s s1 s2:Z) cty :
     1 <= s1 ->
     0 <= s2 ->
     s = s1 + s2 ->
@@ -118,6 +115,7 @@ Section array.
       iPoseProof (data_at_rec_value_fits with "↦") as "%v_fits".
       destruct v_fits as [v_fits _].
       rewrite /unfold_reptype Z.max_r /= in v_fits; [|rep_lia].
+      rewrite /heap_mapsto_own_state.
       rewrite (array_split _ _ _ _ _ _ _ (sublist 0 s1 v) (sublist s1 (s1+s2) v)) //.
       2: { rewrite sublist_rejoin; try rep_lia.
            - rewrite sublist_same //.
@@ -135,7 +133,7 @@ Section array.
       destruct v_fits2 as [v_fits2 _].
       rewrite /unfold_reptype !Z.max_r /= in v_fits1 v_fits2; [|rep_lia..].
       iExists (v1 ++ v2).
-      rewrite (array_split _ _ _ _ _ _ (v1++v2) v1 v2); try done; try rep_lia.
+      rewrite /heap_mapsto_own_state (array_split _ _ _ _ _ _ (v1++v2) v1 v2); try done; try rep_lia.
       iFrame.
     Qed.
 
@@ -145,8 +143,9 @@ Section array.
     ty_own β l := (
       <affine> ⌜l `has_layout_loc` (tarray cty (length tys))⌝ ∗
       ([∗ list] i ↦ ty ∈ tys,
-        (l.1, l.2 + nested_field_offset (tarray cty (length tys)) [ArraySubsc i])%Z ◁ₗ{β} ty) ∗
-      l ↦[ β ]| tarray cty (length tys) |
+        (l.1, l.2 + nested_field_offset (tarray cty (length tys)) [ArraySubsc i])%Z ◁ₗ{β} ty) 
+          (* ∗
+      l ↦[ β ]| tarray cty (length tys) | *)
       )%I
     ;
     ty_own_val rep_v :=
@@ -155,14 +154,12 @@ Section array.
         [∗ list] v';ty ∈ rep_v;tys, (v' ◁ᵥ ty))%I;
   |}.
   Next Obligation.
-    iIntros (cty tys l E He) "($&Ha&%v&Hb)".
-    iSplitL "Ha".
-    - iApply big_sepL_fupd. iApply (big_sepL_impl with "Ha").
-      iIntros "!#" (???) "a".
-      by iApply ty_share.
-    - rewrite /heap_mapsto_own_state_type /heap_mapsto_own_state.
-      iExists v.
-      iApply inv_alloc. by iFrame.
+    iIntros (cty tys l E He) "($&Ha)".
+    (* iSplitL "Ha". *)
+    iApply big_sepL_fupd. iApply (big_sepL_impl with "Ha").
+    iIntros "!#" (???) "a".
+    by iApply ty_share.
+   
   Qed.
   Next Obligation. by iIntros (cty tys mt l ?) "[% _]". Qed.
   Next Obligation. by iIntros (cty tys mt v ?) "(?&_)". Qed.
@@ -170,53 +167,12 @@ Section array.
     move => cty tys mt l _. iIntros "[%l_has_layout_loc H]".
     iInduction (tys) as [|ty tys] "IH" forall (l l_has_layout_loc); csimpl.
     { iExists []. iSplitR => //. iSplitR => //. }
-    iDestruct "H" as "((tys_hd & tys_tl) & ↦)".
+    iDestruct "H" as "(tys_hd & tys_tl)".
     pose l_1:address := (l.1, l.2 + @expr.sizeof cs cty)%Z.
-    rewrite /heap_mapsto_own_state_type /heap_mapsto_own_state /mapsto.
-    iDestruct "↦" as (v) "↦".
-    iPoseProof (data_at_rec_value_fits with "↦") as "%v_fits".
-    destruct v_fits as [v_fits _].
-    destruct v eqn:Heqv; first done.
-    assert (0 `max` length tys = length tys) as Hlength_tys by lia.
-    
-    iAssert (
-             l ↦[Own]|(tarray cty 1)| ∗
-             l_1 ↦[Own]|(tarray cty ((length tys)))| )%I with "[↦]" as "[↦hd ↦tl]".
-    {
-      
-      rewrite -Heqv /= in v_fits.
-      rewrite data_at_rec_eq /=.
-      rewrite (split_array_pred _ 1).
-      2: { lia. }
-      2: { rewrite -Heqv //. }
-      iDestruct "↦" as "[↦hd ↦tl]".
-      iSplitL "↦hd".
-      { iFrame. }
-      rewrite -Heqv /l_1 /=.
-      iExists _.
-      rewrite /heap_mapsto_own_state_type /heap_mapsto_own_state /mapsto.
-      rewrite data_at_rec_eq /unfold_reptype /=.
-      assert (expr.sizeof cty = 1 * expr.sizeof cty) as -> by lia.
 
-      erewrite (array_pred_shift_addr 1 (1 + length tys)); try lia.
-      2: {
-        intros i i' _ Hi.
-        assert (i'=i-1) as -> by lia.
-        rewrite !mapsto_memory_block.at_offset_eq.
-        f_equal.
-        - f_equal. lia.
-        - rewrite /offset_val /= !ptrofs_add_repr.
-          do 2 f_equal. lia.
-      }
-      iClear "#".
-      iStopProof. f_equiv.
-      - lia.
-      - done. 
-    }
-
-    iDestruct ("IH" $! l_1 with "[] [tys_tl ↦tl]") as "(%v_rep_tl & ↦tl & % & tys_tl)"; iClear "IH".
+    iDestruct ("IH" $! l_1 with "[] [tys_tl]") as "(%v_rep & ↦hd & % & tys_tl)"; iClear "IH".
     {
-      clear -l_has_layout_loc Hlength_tys.
+      clear -l_has_layout_loc.
       (* TODO this should be in rep_lia? *)
       pose proof (sizeof_pos cty) as Hcty_size_pos.
       iPureIntro.
@@ -226,7 +182,7 @@ Section array.
       simpl in H1.
       split3; try done.
       split3; try done.
-      - rewrite /= Hlength_tys.
+      - rewrite /=.
         rewrite -ptrofs_add_repr /expr.sizeof.
         destruct (Ptrofs.unsigned_add_either (Ptrofs.repr l.2) 
                                              (Ptrofs.repr (sizeof cty))) as [-> | ->].
@@ -248,31 +204,36 @@ Section array.
           contradiction.
     }
     {
-      iClear "#".
       iFrame.
       iApply (big_sepL_impl with "tys_tl").
       iIntros "!>" (i ty_i Hty_i) "?".
       rewrite /nested_field_offset /=.
       iStopProof. do 2 f_equiv. lia.
     }
-     v.
 
+    iDestruct (ty_deref with "tys_hd") as (v_hd) "[↦tl Hty]".
+    { admit. }
+    iExists (v_hd::v_rep).
+    iPoseProof (data_at_rec_value_fits with "↦hd") as "%v_hd_fits".
+    destruct v_hd_fits as [v_hd_fits _]; rewrite /unfold_reptype  Z.max_r /= in v_hd_fits; [|lia].
+    iAssert (l ↦|tarray cty (S (length tys))|([v_hd] ++ v_rep)) with "[↦hd ↦tl]" as "↦".
+    {
+      rewrite (array_split l l_1 _ 1 (length tys) _ _ [v_hd] v_rep); try done; try rep_lia.
+      - iFrame. rewrite /mapsto /nested_field_offset /=.
+        rewrite /data_at_rec /unfold_reptype /array_pred /floyd.aggregate_pred.array_pred /Znth /Zlength
+                /mapsto_memory_block.at_offset /= bi.sep_emp.
+        iSplit;[iPureIntro; done|].
+        iStopProof; f_equiv.
+        rewrite /adr2val /=.
+        f_equiv.
+        rewrite Z.mul_0_r Z.add_0_l Z.add_0_r.
+        rewrite ptrofs_add_repr_0_r //.
+      - rewrite Z.mul_1_l //.
+    }
+    iPoseProof (data_at_rec_value_fits with "↦") as "%v_fits".
+    rewrite /has_layout_val. iFrame. done.
+  Admitted.
 
-    { rewrite /nested_field_offset /l_1 /=. iStopProof. do 5 f_equiv. lia. }
-    iExists ()
-      
-    intros (?&?)%Forall_cons. csimpl.
-    rewrite offset_loc_0. iDestruct "Htys" as "[Hty Htys]".
-    iDestruct (loc_in_bounds_split_mul_S with "Hb") as "[Hb1 Hb2]".
-    iDestruct (ty_deref with "Hty") as (v') "[Hl Hty]"; [done|].
-    iDestruct (ty_size_eq with "Hty") as %Hszv; [done|].
-    setoid_rewrite offset_loc_S.
-    iDestruct ("IH" $! (l offset{ly}ₗ 1) with "[//] [Hb2] Htys") as (vs') "(Hl' & Hsz & Htys)".
-    { by rewrite /offset_loc Z.mul_1_r. }
-    iDestruct "Hsz" as %Hsz. iExists (v' ++ vs').
-    rewrite /has_layout_val heap_mapsto_app Hszv offset_loc_1 take_app_length' // drop_app_length' // length_app Hszv Hsz.
-    iFrame. iPureIntro. rewrite /ly_size/= -/(ly_size _). lia.
-  Qed.
   Next Obligation.
     move => ly tys ot mt l v [-> [? [? ]]]. iIntros (Hlys Hl) "Hl".
     iDestruct 1 as (Hv) "Htys". iSplit => //.
