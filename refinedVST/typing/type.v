@@ -325,7 +325,7 @@ Notation "l ↦| cty '|' '-'" := (mapsto_layout l Tsh cty)
 
 (* In Caesium, all values are lists of bytes in memory, and structured data is just an
    assertion on top of that. What do we want the values that appear in our types to be? *)
-Record type `{!typeG OK_ty Σ} {cs : compspecs} {cty: Ctypes.type} := {
+Record type `{!typeG OK_ty Σ} {cs : compspecs}  := {
   (** [ty_has_op_type ot mt] describes in which cases [l ◁ₗ ty] can be
       turned into [∃ v. l ↦ v ∗ v ◁ᵥ ty]. The op_type [ot] gives the
       requested layout for the location and [mt] describes how the
@@ -336,29 +336,29 @@ Record type `{!typeG OK_ty Σ} {cs : compspecs} {cty: Ctypes.type} := {
   (* TODO: add
    ty_has_op_type ot mt → ty_has_op_type (UntypedOp (ot_layout ot)) mt
    This property is never used explicitly, but relied on by some typing rules *)
-  ty_has_op_type : memcast_compat_type → Prop;
+  ty_has_op_type : Ctypes.type -> memcast_compat_type → Prop;
   (** [ty_own β l ty], also [l ◁ₗ{β} ty], states that the location [l]
   has type [ty]. [β] determines whether the location is fully owned
   [Own] or shared [Shr] (shared is mainly used for global variables). *)
   ty_own : own_state → address → iProp Σ;
   (** [ty_own v ty], also [v ◁ᵥ ty], states that the value [v] has type [ty]. *)
-  ty_own_val : (reptype_lemmas.reptype cty) → iProp Σ;
+  ty_own_val cty : (reptype_lemmas.reptype cty) → iProp Σ;
   (** [ty_share] states that full ownership can always be turned into shared ownership. *)
   ty_share l E : ↑shrN ⊆ E → ty_own Own l ={E}=∗ ty_own Shr l;
   (** [ty_shr_pers] states that shared ownership is persistent. *)
   ty_shr_pers l : Persistent (ty_own Shr l);
   (** [ty_aligned] states that from [l ◁ₗ{β} ty] follows that [l] is
   aligned according to [ty_has_op_type]. *)
-  ty_aligned mt l : ty_has_op_type mt → ty_own Own l -∗ <absorb> ⌜l `has_layout_loc` cty ⌝;
+  ty_aligned cty mt l : ty_has_op_type cty mt → ty_own Own l -∗ <absorb> ⌜l `has_layout_loc` cty ⌝;
   (** [ty_size_eq] states that from [v ◁ᵥ ty] follows that [v] has a
   size according to [ty_has_op_type]. *)
-  ty_size_eq mt v_rep : ty_has_op_type mt → ty_own_val v_rep -∗ <absorb> ⌜v_rep `has_layout_val` cty ⌝;
+  ty_size_eq cty mt v_rep : ty_has_op_type cty mt → ty_own_val cty v_rep -∗ <absorb> ⌜v_rep `has_layout_val` cty ⌝;
   (** [ty_deref] states that [l ◁ₗ ty] can be turned into [v ◁ᵥ ty] and a points-to
   according to [ty_has_op_type]. *)
-  ty_deref mt l : ty_has_op_type mt → ty_own Own l -∗ ∃ v_rep, mapsto l Tsh cty v_rep ∗ ty_own_val v_rep;
+  ty_deref cty mt l : ty_has_op_type cty mt → ty_own Own l -∗ ∃ v_rep:(reptype_lemmas.reptype cty), mapsto l Tsh cty v_rep ∗ ty_own_val cty v_rep;
   (** [ty_ref] states that [v ◁ₗ ty] and a points-to for a suitable location [l ◁ₗ ty]
   according to [ty_has_op_type]. *)
-  ty_ref mt (l : address) v_rep : ty_has_op_type mt → <affine> ⌜l `has_layout_loc` cty⌝ -∗ mapsto l Tsh cty v_rep -∗ ty_own_val v_rep -∗ ty_own Own l;
+  ty_ref cty mt (l : address) v_rep : ty_has_op_type cty mt → <affine> ⌜l `has_layout_loc` cty⌝ -∗ mapsto l Tsh cty v_rep -∗ ty_own_val cty v_rep -∗ ty_own Own l;
   (** [ty_memcast_compat] describes how a value of type [ty] is
   transformed by memcast. [MCNone] means there is no information about
   the new value, [MCCopy] means the value can change, but it still has
@@ -375,8 +375,8 @@ Record type `{!typeG OK_ty Σ} {cs : compspecs} {cty: Ctypes.type} := {
     end;*)
 }.
 Arguments ty_own : simpl never.
-Arguments ty_has_op_type {_ _ _ _ _} _ _.
-Arguments ty_own_val {_ _ _ _ _ } _ _ : simpl never.
+Arguments ty_has_op_type {_ _ _ _} _ _.
+Arguments ty_own_val {_ _ _ _ } t cty v : simpl never.
 Global Existing Instance ty_shr_pers.
 
 (*Section memcast.
@@ -443,14 +443,14 @@ Global Existing Instance ty_shr_pers.
   Qed.
 End memcast.*)
 
-Class Copyable `{!typeG OK_ty Σ} {cs : compspecs} {cty:Ctypes.type} (ty : type(cty:=cty)) := {
-  copy_own_persistent v : Persistent (ty.(ty_own_val) v);
-  copy_own_affine v : Affine (ty.(ty_own_val) v);
-  copy_shr_acc E l :
+Class Copyable `{!typeG OK_ty Σ} {cs : compspecs} (ty : type) := {
+  copy_own_persistent cty v : Persistent (ty.(ty_own_val) cty v);
+  copy_own_affine cty v : Affine (ty.(ty_own_val) cty v);
+  copy_shr_acc cty E l :
     mtE ⊆ E → 
     ty.(ty_own) Shr l ={E}=∗ <affine> ⌜l `has_layout_loc` cty⌝ ∗
        (* TODO: the closing conjuct does not make much sense with True *)
-       ∃ q' vl, l ↦{q'}|cty| vl ∗ ▷ ty.(ty_own_val) vl ∗ (▷l ↦{q'}|cty| vl ={E}=∗ True)
+       ∃ q' vl, l ↦{q'}|cty| vl ∗ ▷ ty.(ty_own_val) cty vl ∗ (▷l ↦{q'}|cty| vl ={E}=∗ True)
 }.
 Global Existing Instance copy_own_persistent.
 Global Existing Instance copy_own_affine.
@@ -517,48 +517,50 @@ Global Typeclasses Opaque type_alive.*)
 
 Notation "l ◁ₗ{ β } ty" := (ty_own ty β l) (at level 15, format "l  ◁ₗ{ β }  ty") : bi_scope.
 Notation "l ◁ₗ ty" := (ty_own ty Own l) (at level 15) : bi_scope.
-Notation "v ◁ᵥ ty" := (ty_own_val ty v) (at level 15) : bi_scope.
+Notation "v ◁ᵥ| cty | ty" := (ty_own_val ty cty v) (at level 15) : bi_scope.
 
 Declare Scope printing_sugar.
 Notation "'frac' { β } l ∶ ty" := (ty_own ty β l) (at level 100, only printing) : printing_sugar.
 Notation "'own' l ∶ ty" := (ty_own ty Own l) (at level 100, only printing) : printing_sugar.
 Notation "'shr' l ∶ ty" := (ty_own ty Shr l) (at level 100, only printing) : printing_sugar.
-Notation "v ∶ ty" := (ty_own_val ty v) (at level 200, only printing) : printing_sugar.
+Notation "v ∶| cty | ty" := (ty_own_val ty cty v) (at level 200, only printing) : printing_sugar.
 
 (*** tytrue *)
 Section true.
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
   (** tytrue is a dummy type that all values and locations have. *)
-  Program Definition tytrue {cty:Ctypes.type}: type(cty:=cty) := {|
+  Program Definition tytrue : type := {|
     ty_own _ _ := True%I;
-    ty_has_op_type _ := False%type;
-    ty_own_val _:= emp;
+    ty_has_op_type _ _:= False%type;
+    ty_own_val _ _:= emp%I;
   |}.
   Solve Obligations with try done.
   Next Obligation. intros. iIntros "?". done. Qed.
 End true.
-Global Instance inhabited_type `{!typeG OK_ty Σ} {cs : compspecs} {cty : Ctypes.type} : Inhabited type := populate $ tytrue(cty:=cty). (* tytrue is not opaque because we don't have typing rules for it. *)
+Global Instance inhabited_type `{!typeG OK_ty Σ} {cs : compspecs} : Inhabited type := populate tytrue. (* tytrue is not opaque because we don't have typing rules for it. *)
 (* Global Typeclasses Opaque tytrue. *)
 
 (*** refinement types *)
-Record rtype `{!typeG OK_ty Σ} {cs : compspecs} {cty:Ctypes.type} (A : Type) := RType {
-  rty : A → type(cty:=cty);
+Record rtype `{!typeG OK_ty Σ} {cs : compspecs} (A : Type) := RType {
+  rty : A → type;
 }.
-Arguments RType {_ _ _ _ _ _} _.
-Arguments rty {_ _ _ _ _ _} _.
+Arguments RType {_ _ _ _ _ } _.
+Arguments rty {_ _ _ _ _} _.
 Add Printing Constructor rtype.
 
 Bind Scope bi_scope with type.
 Bind Scope bi_scope with rtype.
 
-Definition with_refinement `{!typeG OK_ty Σ} {cs : compspecs} {cty:Ctypes.type} {A} `(r : rtype(cty:=cty) A) (x : A) : type := r.(rty) x.
+Definition with_refinement `{!typeG OK_ty Σ} {cs : compspecs} {A} `(r : rtype A) (x : A) : type := r.(rty) x.
 Notation "x @ r" := (with_refinement r x) (at level 14) : bi_scope.
 
 Import EqNotations.
-Program Definition ty_of_rty `{!typeG OK_ty Σ} {cs : compspecs} {cty:Ctypes.type} {A} (r : rtype A) : type(cty:=cty) := {|
+
+
+Program Definition ty_of_rty `{!typeG OK_ty Σ} {cs : compspecs} {A} (r : rtype A) : type := {|
   ty_own q l := (∃ x, (x @ r).(ty_own) q l)%I;
-  ty_has_op_type mt := forall x, (x @ r).(ty_has_op_type) mt;
-  ty_own_val v := (∃ x, (x @ r).(ty_own_val) v)%I;
+  ty_has_op_type cty mt := forall x, (x @ r).(ty_has_op_type) cty mt;
+  ty_own_val cty v := (∃ x, (x @ r).(ty_own_val) cty v)%I;
 |}.
 Next Obligation. iDestruct 1 as (?) "H". iExists _. by iMod (ty_share with "H") as "$". Qed.
 Next Obligation.
@@ -604,7 +606,7 @@ Coercion ty_of_rty : rtype >-> type.
 Section rmovable.
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
-  Global Program Instance copyable_ty_of_rty {cty:Ctypes.type} A r `{!∀ x : A, Copyable(cty:=cty) (x @ r)} : Copyable r.
+  Global Program Instance copyable_ty_of_rty A r `{!∀ x : A, Copyable (x @ r)} : Copyable r.
   Next Obligation.
     iIntros (cty A r ? E l ?). iDestruct 1 as (x) "Hl".
     iMod (copy_shr_acc with "Hl") as (? q' vl) "(?&?&?)" => //.
@@ -618,21 +620,21 @@ Global Hint Extern 1 (AssumeInj (=) (=) (with_refinement _)) => exact: I : typec
 
 (*** Monotonicity *)
 Section mono.
-  Context `{!typeG OK_ty Σ} {cs : compspecs} {cty:Ctypes.type}.
+  Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
-  Inductive type_le' (ty1 ty2 : type(cty:=cty)) : Prop :=
+  Inductive type_le' (ty1 ty2 : type) : Prop :=
     Type_le :
       (* We omit [ty_has_op_type] on purpose as it is not preserved by fixpoints. *)
       (∀ β l, ty1.(ty_own) β l ⊢ ty2.(ty_own) β l) →
-      (∀ v, ty1.(ty_own_val) v ⊢ ty2.(ty_own_val) v) →
+      (∀ cty v, ty1.(ty_own_val) cty v ⊢ ty2.(ty_own_val) cty v) →
       type_le' ty1 ty2.
   Global Instance type_le : SqSubsetEq type := type_le'.
 
-  Inductive type_equiv' (ty1 ty2 : type(cty:=cty)) : Prop :=
+  Inductive type_equiv' (ty1 ty2 : type) : Prop :=
     Type_equiv :
       (* We omit [ty_has_op_type] on purpose as it is not preserved by fixpoints. *)
       (∀ β l, ty1.(ty_own) β l ≡ ty2.(ty_own) β l) →
-      (∀ v, ty1.(ty_own_val) v ≡ ty2.(ty_own_val) v) →
+      (∀ cty v, ty1.(ty_own_val) cty v ≡ ty2.(ty_own_val) cty v) →
       type_equiv' ty1 ty2.
   Global Instance type_equiv : Equiv type := type_equiv'.
 
@@ -685,7 +687,7 @@ Section mono.
     ty_own ty1 β l ⊢ ty_own ty2 β l.
   Proof. by move => [-> ?]. Qed.
 
-  Global Instance ty_own_val_le : Proper ((⊑) ==> eq ==> (⊢)) ty_own_val.
+  (* Global Instance ty_own_val_le : Proper ((⊑) ==> eq ==> (⊢)) ty_own_val.
   Proof. intros ?? EQ ??->. apply EQ. Qed.
   Global Instance ty_own_val_proper : Proper ((≡) ==> eq ==> (≡)) ty_own_val.
   Proof. intros ?? EQ ??->. apply EQ. Qed.
@@ -707,10 +709,10 @@ Section mono.
     move => Heq. constructor => /=.
     - move => ??. rewrite /ty_own/=. f_equiv => ?. apply Heq.
     - move => ?. rewrite /ty_own_val/=. f_equiv => ?. apply Heq.
-  Qed.
+  Qed.*)
 End mono.
 
-Notation TypeMono T := (Proper (pointwise_relation _ (⊑) ==> pointwise_relation _ (⊑)) T).
+(* Notation TypeMono T := (Proper (pointwise_relation _ (⊑) ==> pointwise_relation _ (⊑)) T).  *)
 
 Global Typeclasses Opaque ty_own ty_own_val ty_of_rty with_refinement.
 
@@ -732,8 +734,8 @@ Ltac unfold_type_equiv :=
   | |- Forall2 _ (_ <$> _) (_ <$> _) => apply list_fmap_Forall2_proper
   | |- (?a @ ?ty1)%I ⊑ (?b @ ?ty2)%I => change (rty ty1 a ⊑ rty ty2 b); simpl
   | |- (?a @ ?ty1)%I ≡ (?b @ ?ty2)%I => change (rty ty1 a ≡ rty ty2 b); simpl
-  | |- ty_of_rty _ ⊑ ty_of_rty _ => simple refine (ty_of_rty_le _ _ _ _) => ? /=
-  | |- ty_of_rty _ ≡ ty_of_rty _ => simple refine (ty_of_rty_proper _ _ _ _) => ? /=
+  (* | |- ty_of_rty _ ⊑ ty_of_rty _ => simple refine (ty_of_rty_le _ _ _ _) => ? /= *)
+  (* | |- ty_of_rty _ ≡ ty_of_rty _ => simple refine (ty_of_rty_proper _ _ _ _) => ? /= *)
   | |- {| ty_own := _ |} ⊑ {| ty_own := _ |} =>
       constructor => *; simpl_type
   | |- {| ty_own := _ |} ≡ {| ty_own := _ |} =>
@@ -784,6 +786,6 @@ Ltac solve_type_proper :=
 Section tests.
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
-  Example binding {cty:Ctypes.type} l (r : Z → rtype(cty:=cty) N) v x T : True -∗ l ◁ₗ x @ r v ∗ T. Abort.
+  Example binding {cty:Ctypes.type} l (r : Z → rtype N) v x T : True -∗ l ◁ₗ x @ r v ∗ T. Abort.
 
 End tests.

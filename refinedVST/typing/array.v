@@ -224,19 +224,28 @@ Section array.
         rewrite Z.mul_0_r ptrofs_add_repr_0_r //.
   Qed.
 
+  Lemma mapsto_jmeq (cty1 cty2:Ctypes.type) v1 v2 l :
+      cty1 = cty2 ->
+      JMeq.JMeq v1 v2 ->
+      l ↦|cty1|v1 ⊢ l ↦|cty2|v2.
+  Proof.
+    intros -> ->. done.
+  Qed.
+
   (* maybe something like array_pred? *)
-  Program Definition array (cty:Ctypes.type) (tys : list type) : type(cty:=tarray cty (length tys)) := {|
-    ty_has_op_type mt := Forall (λ ty, ty.(ty_has_op_type) MCNone) tys;
+  Program Definition array (cty:Ctypes.type) (tys : list type) : type := {|
+    ty_has_op_type cty_arr mt := (cty_arr = tarray cty (length tys) ∧ Forall (λ ty, ty.(ty_has_op_type) cty MCNone) tys)%type;
     ty_own β l := (
       <affine> ⌜l `has_layout_loc` (tarray cty (length tys))⌝ ∗
       ([∗ list] i ↦ ty ∈ tys,
         (l.1, l.2 + nested_field_offset (tarray cty (length tys)) [ArraySubsc i])%Z ◁ₗ{β} ty)
       )%I
     ;
-    ty_own_val rep_v :=
+    ty_own_val cty_arr v_rep :=
       (
-        <affine> ⌜rep_v `has_layout_val` (tarray cty (length tys))⌝ ∗
-        [∗ list] v';ty ∈ rep_v;tys, (v' ◁ᵥ ty))%I;
+        ∃ v_rep', <affine> ⌜JMeq.JMeq v_rep v_rep'⌝ ∗
+        <affine> ⌜v_rep `has_layout_val` cty_arr⌝ ∗
+        [∗ list] v';ty ∈ v_rep';tys, (v' ◁ᵥ|cty| ty))%I;
   |}.
   Next Obligation.
     iIntros (cty tys l E He) "($&Ha)".
@@ -245,17 +254,17 @@ Section array.
     by iApply ty_share.
    
   Qed.
-  Next Obligation. by iIntros (cty tys mt l ?) "[% _]". Qed.
-  Next Obligation. by iIntros (cty tys mt v ?) "(?&_)". Qed.
+  Next Obligation. by iIntros (cty tys cty_arr mt v [-> ?]) "(? & _)". Qed.
+  Next Obligation. by iIntros (cty tys cty_arr mt v [-> ?]) "(% & -> & ? & _)". Qed.
   Next Obligation.
-    move => cty tys mt l Hop_type. iIntros "[%l_has_layout_loc H]".
+    move => cty tys cty_arr mt l [-> Hop_type]. iIntros "[%l_has_layout_loc H]".
     iInduction (tys) as [|ty tys] "IH" forall (Hop_type l l_has_layout_loc); csimpl.
-    { iExists []. iSplitR => //. iSplitR => //. }
+    { iExists []. iSplitR => //. iExists _. iSplitR => //. iSplitR => //. }
     iDestruct "H" as "(tys_hd & tys_tl)".
     pose l_1:address := (l.1, l.2 + @expr.sizeof cs cty)%Z.
     rewrite Forall_cons in Hop_type. destruct Hop_type as [Hop_type_hd Hop_type_tl].
     iSpecialize ("IH" with "[]"); [done|].
-    iDestruct ("IH" $! l_1 with "[] [tys_tl]") as "(%v_rep & ↦tl & % & tys_tl)"; iClear "IH".
+    iDestruct ("IH" $! l_1 with "[] [tys_tl]") as "(%v_rep & ↦tl & % & % & % & tys_tl)"; iClear "IH".
     {
       clear -l_has_layout_loc.
       
@@ -288,13 +297,18 @@ Section array.
       - rewrite Z.mul_1_l //.
     }
     iPoseProof (data_at_rec_value_fits with "↦") as "%v_fits".
-    rewrite /has_layout_val. iFrame. done.
+    rewrite /has_layout_val.
+    iFrame.
+    iExists _. do 2 iSplit =>//. iFrame. rewrite H. done.
   Qed.
 
   Next Obligation.
-    move => cty tys mt l v Hop_type. iIntros (Hl) "↦ [%Hv tys]".
+    move => cty tys cty_arr mt l v_rep [Hcty_eq Hop_type].
+    revert v_rep. rewrite Hcty_eq => v_rep.
+    iIntros (Hl) "↦ [% (<- & %Hv & tys)]".
+    rename v_rep into v. clear v_rep'.
     iSplit => //.
-    iInduction (tys) as [|ty tys] "IH" forall (l v Hop_type Hv Hl); csimpl in *.
+    iInduction (tys) as [|ty tys] "IH" forall (cty_arr Hcty_eq l v Hop_type Hv Hl); csimpl in *.
     { rewrite /mapsto /data_at_rec /array_pred / floyd.aggregate_pred.array_pred /=.
       iDestruct (big_sepL2_nil_inv_r with "tys") as "->". done. }
     rewrite Forall_cons in Hop_type.
@@ -310,7 +324,8 @@ Section array.
     iDestruct "↦" as "[↦hd ↦tl]".
     iDestruct "tys" as "[tys_hd tys_tl]".
     iPoseProof (data_at_rec_value_fits with "↦tl") as "%v_tl_fits".
-    iDestruct ("IH" $! l_1 v_tl with "[//] [//] [//] ↦tl tys_tl") as "ty_own_tl"; iClear "IH".
+    iDestruct ("IH" $! _ _ l_1 v_tl with "[//] [//] [//] ↦tl tys_tl") as "ty_own_tl"; iClear "IH".
+    Unshelve. 3: done.
     rewrite singleton_array_eq.
     apply has_layout_loc_array_hd in Hl; [|lia].
     iDestruct (ty_ref with "[] ↦hd tys_hd") as "ty_own_hd"; try done.
@@ -325,7 +340,7 @@ Section array.
       iStopProof. do 2 f_equiv. lia.
   Qed.
 
-  Global Instance array_le : Proper ((=) ==> Forall2 (⊑) ==> (⊑)) array.
+  (* Global Instance array_le : Proper ((=) ==> Forall2 (⊑) ==> (⊑)) array.
   Proof.
     move => ? sl -> tys1 tys2 Htys. constructor.
     - move => β l; rewrite/ty_own/=.
@@ -341,9 +356,9 @@ Section array.
   Proof. move => ??-> ?? Heq. apply type_le_equiv_list; [by apply array_le|done]. Qed.
 
   Global Instance array_loc_in_bounds ly β tys : LocInBounds (array ly tys) β (ly_size ly * length tys).
-  Proof. constructor. iIntros (?) "(?&$&?)". Qed.
+  Proof. constructor. iIntros (?) "(?&$&?)". Qed. *)
 
-  Lemma array_get_type (i : nat) ly tys ty l β:
+  Lemma array_get_type (i : nat) cty tys ty l β:
     tys !! i = Some ty →
     l ◁ₗ{β} array ly tys -∗ (l offset{ly}ₗ i) ◁ₗ{β} ty ∗ l ◁ₗ{β} array ly (<[ i := place (l offset{ly}ₗ i)]>tys).
   Proof.
