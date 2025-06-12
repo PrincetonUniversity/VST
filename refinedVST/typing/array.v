@@ -137,15 +137,102 @@ Section array.
       iFrame.
     Qed.
 
+  (* TODO maybe field_compatible_cons_Tarray? *)
+  Lemma has_layout_loc_array_tl l l_1 cty (s:nat) :
+    l_1 = (l.1, l.2 + @expr.sizeof cs cty)%Z →
+    l `has_layout_loc` tarray cty (S s) →
+    l_1 `has_layout_loc` tarray cty s.
+  Proof.
+    intros Hl_1 l_has_layout_loc.
+    pose proof (sizeof_pos cty) as Hcty_size_pos.
+    
+    rewrite /has_layout_loc /field_compatible in l_has_layout_loc.
+    destruct l_has_layout_loc as (? & ? & ? & ? & ?).
+    rewrite /has_layout_loc /field_compatible Hl_1.
+    destruct (adr2val l) eqn:?; try done.
+    simpl in H1. rewrite /adr2val in Heqv. inv Heqv.
+    split3; try done.
+    split3; try done.
+    - rewrite /= Z.max_r; [|lia].
+      rewrite -ptrofs_add_repr /expr.sizeof.
+      destruct (Ptrofs.unsigned_add_either (Ptrofs.repr l.2) 
+                                            (Ptrofs.repr (sizeof cty))) as [-> | ->].
+      + rewrite [Ptrofs.unsigned (Ptrofs.repr (sizeof cty))]Ptrofs.unsigned_repr; rep_lia.
+      + rep_lia.
+    - rewrite /SeparationLogic.align_compatible /=.
+      rewrite -ptrofs_add_repr /expr.sizeof.
+      rewrite /SeparationLogic.align_compatible /= in H2.
+      pose proof (align_mem.align_compatible_rec_Tarray_inv _ _ _ _ _ H2).
+      rewrite Ptrofs.unsigned_add_carry.
+      rewrite /Ptrofs.add_carry.
+      if_tac.
+      + rewrite Ptrofs.unsigned_zero /= Z.mul_0_l Z.sub_0_r.
+        rewrite [Ptrofs.unsigned (Ptrofs.repr (sizeof cty))]Ptrofs.unsigned_repr; last rep_lia.
+        constructor. intros. rewrite -Z.add_assoc Zred_factor2. apply H4. lia.
+      + rewrite [Ptrofs.unsigned (Ptrofs.repr (sizeof cty))]Ptrofs.unsigned_repr in H5; last rep_lia.
+        rewrite Ptrofs.unsigned_zero Z.add_0_r in H5.
+        assert ( Ptrofs.unsigned (Ptrofs.repr l.2) + sizeof cty < Ptrofs.modulus) by rep_lia.
+        contradiction.
+  Qed.
+
+  Lemma has_layout_loc_array_hd l l_1 cty (s:nat) :
+    l_1 = (l.1, l.2 + @expr.sizeof cs cty)%Z →
+    l_1 `has_layout_loc` tarray cty s →
+    l `has_layout_loc` tarray cty 1.
+  Proof.
+    intros Hl_1 l_has_layout_loc.
+    pose proof (sizeof_pos cty) as Hcty_size_pos.
+    
+    rewrite /has_layout_loc /field_compatible Hl_1 in l_has_layout_loc.
+    destruct l_has_layout_loc as (? & ? & ? & ? & ?).
+    rewrite /has_layout_loc /field_compatible.
+    destruct (adr2val l) eqn:?; try done.
+    simpl in H1. rewrite /adr2val in Heqv. inv Heqv.
+    (* rewrite /= Z.max_r in H1; [|lia]. *)
+    split3; try done.
+    split3; try done.
+    - rewrite /= Z.max_r in H1; [|lia].
+      rewrite -ptrofs_add_repr /expr.sizeof in H1.
+      rewrite /valid_pointer.size_compatible /expr.sizeof /= Z.mul_1_r.
+      admit.
+    - rewrite /SeparationLogic.align_compatible /= in H2.
+      rewrite -ptrofs_add_repr /expr.sizeof in H2.
+      rewrite /SeparationLogic.align_compatible /=.
+      pose proof (align_mem.align_compatible_rec_Tarray_inv _ _ _ _ _ H2).
+      rewrite Ptrofs.unsigned_add_carry /Ptrofs.add_carry in H4.
+      admit.
+  Admitted.
+
+
+  Lemma singleton_array_eq l cty v:
+    l ↦|tarray cty 1|[v] ⊣⊢ l↦|cty| v.
+  Proof. 
+    rewrite /mapsto /nested_field_offset /=.
+    rewrite /data_at_rec /unfold_reptype /array_pred /floyd.aggregate_pred.array_pred /Znth /Zlength
+            /mapsto_memory_block.at_offset /= bi.sep_emp.
+    iSplit.
+      - iDestruct 1 as "[_ ↦]".
+        iStopProof.
+        f_equiv.
+        rewrite /adr2val /=.
+        f_equiv.
+        rewrite Z.mul_0_r ptrofs_add_repr_0_r //.
+      - iIntros "?".
+        iSplit; [done|].
+        iStopProof.
+        f_equiv.
+        rewrite /adr2val /=.
+        f_equiv.
+        rewrite Z.mul_0_r ptrofs_add_repr_0_r //.
+  Qed.
+
   (* maybe something like array_pred? *)
   Program Definition array (cty:Ctypes.type) (tys : list type) : type(cty:=tarray cty (length tys)) := {|
     ty_has_op_type mt := Forall (λ ty, ty.(ty_has_op_type) MCNone) tys;
     ty_own β l := (
       <affine> ⌜l `has_layout_loc` (tarray cty (length tys))⌝ ∗
       ([∗ list] i ↦ ty ∈ tys,
-        (l.1, l.2 + nested_field_offset (tarray cty (length tys)) [ArraySubsc i])%Z ◁ₗ{β} ty) 
-          (* ∗
-      l ↦[ β ]| tarray cty (length tys) | *)
+        (l.1, l.2 + nested_field_offset (tarray cty (length tys)) [ArraySubsc i])%Z ◁ₗ{β} ty)
       )%I
     ;
     ty_own_val rep_v :=
@@ -155,7 +242,6 @@ Section array.
   |}.
   Next Obligation.
     iIntros (cty tys l E He) "($&Ha)".
-    (* iSplitL "Ha". *)
     iApply big_sepL_fupd. iApply (big_sepL_impl with "Ha").
     iIntros "!#" (???) "a".
     by iApply ty_share.
@@ -171,38 +257,12 @@ Section array.
     pose l_1:address := (l.1, l.2 + @expr.sizeof cs cty)%Z.
     rewrite Forall_cons in Hop_type. destruct Hop_type as [Hop_type_hd Hop_type_tl].
     iSpecialize ("IH" with "[]"); [done|].
-    iDestruct ("IH" $! l_1 with "[] [tys_tl]") as "(%v_rep & ↦hd & % & tys_tl)"; iClear "IH".
+    iDestruct ("IH" $! l_1 with "[] [tys_tl]") as "(%v_rep & ↦tl & % & tys_tl)"; iClear "IH".
     {
       clear -l_has_layout_loc.
-      (* TODO this should be in rep_lia? *)
-      pose proof (sizeof_pos cty) as Hcty_size_pos.
-      iPureIntro.
-      rewrite /has_layout_loc /field_compatible in l_has_layout_loc.
-      destruct l_has_layout_loc as (? & ? & ? & ? & ?).
-      rewrite /has_layout_loc /field_compatible /l_1.
-      simpl in H1.
-      split3; try done.
-      split3; try done.
-      - rewrite /=.
-        rewrite -ptrofs_add_repr /expr.sizeof.
-        destruct (Ptrofs.unsigned_add_either (Ptrofs.repr l.2) 
-                                             (Ptrofs.repr (sizeof cty))) as [-> | ->].
-        + rewrite [Ptrofs.unsigned (Ptrofs.repr (sizeof cty))]Ptrofs.unsigned_repr; rep_lia.
-        + rep_lia.
-      - rewrite /SeparationLogic.align_compatible /=.
-        rewrite -ptrofs_add_repr /expr.sizeof.
-        rewrite /SeparationLogic.align_compatible /= in H2.
-        pose proof (align_mem.align_compatible_rec_Tarray_inv _ _ _ _ _ H2).
-        rewrite Ptrofs.unsigned_add_carry.
-        rewrite /Ptrofs.add_carry.
-        if_tac.
-        + rewrite Ptrofs.unsigned_zero /= Z.mul_0_l Z.sub_0_r.
-          rewrite [Ptrofs.unsigned (Ptrofs.repr (sizeof cty))]Ptrofs.unsigned_repr; last rep_lia.
-          constructor. intros. rewrite -Z.add_assoc Zred_factor2. apply H4. lia.
-        + rewrite [Ptrofs.unsigned (Ptrofs.repr (sizeof cty))]Ptrofs.unsigned_repr in H5; last rep_lia.
-          rewrite Ptrofs.unsigned_zero Z.add_0_r in H5.
-          assert ( Ptrofs.unsigned (Ptrofs.repr l.2) + sizeof cty < Ptrofs.modulus) by rep_lia.
-          contradiction.
+      
+      rewrite /= in l_has_layout_loc.
+      apply (has_layout_loc_array_tl _ l_1) in l_has_layout_loc; done.
     }
     {
       iFrame.
@@ -212,23 +272,21 @@ Section array.
       iStopProof. do 2 f_equiv. lia.
     }
 
-    iDestruct (ty_deref with "tys_hd") as (v_hd) "[↦tl Hty]".
+    iDestruct (ty_deref with "tys_hd") as (v_hd) "[↦hd Hty]".
     { done. }
     iExists (v_hd::v_rep).
-    iPoseProof (data_at_rec_value_fits with "↦hd") as "%v_hd_fits".
-    destruct v_hd_fits as [v_hd_fits _]; rewrite /unfold_reptype  Z.max_r /= in v_hd_fits; [|lia].
+    iPoseProof (data_at_rec_value_fits with "↦tl") as "%v_tl_fits".
+    destruct v_tl_fits as [v_tl_fits _]; rewrite /unfold_reptype Z.max_r /= in v_tl_fits; [|lia].
     iAssert (l ↦|tarray cty (S (length tys))|([v_hd] ++ v_rep)) with "[↦hd ↦tl]" as "↦".
     {
       rewrite (array_split l l_1 _ 1 (length tys) _ _ [v_hd] v_rep); try done; try rep_lia.
-      - iFrame. rewrite /mapsto /nested_field_offset /=.
-        rewrite /data_at_rec /unfold_reptype /array_pred /floyd.aggregate_pred.array_pred /Znth /Zlength
-                /mapsto_memory_block.at_offset /= bi.sep_emp.
-        iSplit;[iPureIntro; done|].
-        iStopProof; f_equiv.
+      - iFrame.
+        rewrite singleton_array_eq.
+        iStopProof.
+        rewrite /mapsto /nested_field_offset /=. f_equiv.
         rewrite /adr2val /=.
         f_equiv.
-        rewrite Z.mul_0_r Z.add_0_l Z.add_0_r.
-        rewrite ptrofs_add_repr_0_r //.
+        rewrite Z.mul_0_r Z.add_0_l Z.add_0_r //.
       - rewrite Z.mul_1_l //.
     }
     iPoseProof (data_at_rec_value_fits with "↦") as "%v_fits".
@@ -236,24 +294,38 @@ Section array.
   Qed.
 
   Next Obligation.
-    move => ly tys ot mt l v [-> [? [? ]]]. iIntros (Hlys Hl) "Hl".
-    iDestruct 1 as (Hv) "Htys". iSplit => //.
-    iInduction (tys) as [|ty tys] "IH" forall (l v Hlys Hv Hl); csimpl in *.
-    { rewrite Nat.mul_0_r right_id. by iApply heap_mapsto_loc_in_bounds_0. }
-    move: Hlys. intros [? ?]%Forall_cons. iDestruct "Htys" as "[Hty Htys]".
-    rewrite -{1}(take_drop (ly_size ly) v).
-    rewrite offset_loc_0 heap_mapsto_app length_take_le ?Hv; last by repeat unfold ly_size => /=; lia.
-    iDestruct "Hl" as "[Hl Hl']".
-    iDestruct (heap_mapsto_loc_in_bounds with "Hl") as "#Hb1".
-    iDestruct (ty_ref with "[] Hl Hty") as "$" => //.
-    setoid_rewrite offset_loc_S. rewrite offset_loc_1.
-    iDestruct ("IH" with "[//] [] [] Hl' Htys") as "[#Hb2 $]".
-    { iPureIntro. rewrite /has_layout_val length_drop Hv. by repeat unfold ly_size => /=; lia. }
-    { iPureIntro. by apply has_layout_loc_ly_mult_offset. }
-    iApply loc_in_bounds_split_mul_S. rewrite length_take min_l; first by eauto.
-    rewrite Hv. repeat unfold ly_size => /=; lia.
-  Qed.
-  Next Obligation. iIntros (??????[?[-> ?]]) "?". done. Qed.
+    move => cty tys mt l v Hop_type. iIntros (Hl) "↦ [%Hv tys]".
+    iSplit => //.
+    iInduction (tys) as [|ty tys] "IH" forall (l v Hop_type Hv Hl); csimpl in *.
+    { rewrite /mapsto /data_at_rec /array_pred / floyd.aggregate_pred.array_pred /=.
+      iDestruct (big_sepL2_nil_inv_r with "tys") as "->". done. }
+    rewrite Forall_cons in Hop_type.
+    destruct Hop_type as [Hop_type_hd Hop_type_tl].
+    pose l_1:address := (l.1, l.2 + @expr.sizeof cs cty)%Z.
+    apply (has_layout_loc_array_tl _ l_1) in Hl;[|done].
+    destruct v as [|v_hd v_tl]; [done|].
+    rewrite /has_layout_val /= in Hv.
+    destruct Hv as [Hv _].
+    rewrite /unfold_reptype /= Zlength_cons Zpos_P_of_succ_nat /Z.succ Z.add_cancel_r in Hv.
+    rewrite (array_split l l_1 _ 1 (length tys) _ _ [v_hd] v_tl); try done; try rep_lia.
+    2: { rewrite Z.mul_1_l //. }
+    iDestruct "↦" as "[↦hd ↦tl]".
+    iDestruct "tys" as "[tys_hd tys_tl]".
+    iPoseProof (data_at_rec_value_fits with "↦tl") as "%v_tl_fits".
+    iDestruct ("IH" $! l_1 v_tl with "[//] [//] [//] ↦tl tys_tl") as "ty_own_tl"; iClear "IH".
+    rewrite singleton_array_eq.
+    assert (l `has_layout_loc` cty) by admit.
+    iDestruct (ty_ref with "[] ↦hd tys_hd") as "ty_own_hd"; try done.
+    iSplitL "ty_own_hd".
+    - iStopProof. f_equiv.
+      destruct l; simpl; f_equiv.
+      rewrite /nested_field_offset /nested_field_rec /=.
+      lia.
+    - iApply (big_sepL_impl with "ty_own_tl").
+      iIntros "!>" (i ty_i Hty_i) "?".
+      rewrite /nested_field_offset /=.
+      iStopProof. do 2 f_equiv. lia.
+  Admitted.
 
   Global Instance array_le : Proper ((=) ==> Forall2 (⊑) ==> (⊑)) array.
   Proof.
