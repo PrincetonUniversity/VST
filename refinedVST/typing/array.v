@@ -139,7 +139,7 @@ Section array.
 
   (* maybe something like array_pred? *)
   Program Definition array (cty:Ctypes.type) (tys : list type) : type(cty:=tarray cty (length tys)) := {|
-    ty_has_op_type mt := False%type ;
+    ty_has_op_type mt := Forall (λ ty, ty.(ty_has_op_type) MCNone) tys;
     ty_own β l := (
       <affine> ⌜l `has_layout_loc` (tarray cty (length tys))⌝ ∗
       ([∗ list] i ↦ ty ∈ tys,
@@ -164,12 +164,13 @@ Section array.
   Next Obligation. by iIntros (cty tys mt l ?) "[% _]". Qed.
   Next Obligation. by iIntros (cty tys mt v ?) "(?&_)". Qed.
   Next Obligation.
-    move => cty tys mt l _. iIntros "[%l_has_layout_loc H]".
-    iInduction (tys) as [|ty tys] "IH" forall (l l_has_layout_loc); csimpl.
+    move => cty tys mt l Hop_type. iIntros "[%l_has_layout_loc H]".
+    iInduction (tys) as [|ty tys] "IH" forall (Hop_type l l_has_layout_loc); csimpl.
     { iExists []. iSplitR => //. iSplitR => //. }
     iDestruct "H" as "(tys_hd & tys_tl)".
     pose l_1:address := (l.1, l.2 + @expr.sizeof cs cty)%Z.
-
+    rewrite Forall_cons in Hop_type. destruct Hop_type as [Hop_type_hd Hop_type_tl].
+    iSpecialize ("IH" with "[]"); [done|].
     iDestruct ("IH" $! l_1 with "[] [tys_tl]") as "(%v_rep & ↦hd & % & tys_tl)"; iClear "IH".
     {
       clear -l_has_layout_loc.
@@ -212,7 +213,7 @@ Section array.
     }
 
     iDestruct (ty_deref with "tys_hd") as (v_hd) "[↦tl Hty]".
-    { admit. }
+    { done. }
     iExists (v_hd::v_rep).
     iPoseProof (data_at_rec_value_fits with "↦hd") as "%v_hd_fits".
     destruct v_hd_fits as [v_hd_fits _]; rewrite /unfold_reptype  Z.max_r /= in v_hd_fits; [|lia].
@@ -232,7 +233,7 @@ Section array.
     }
     iPoseProof (data_at_rec_value_fits with "↦") as "%v_fits".
     rewrite /has_layout_val. iFrame. done.
-  Admitted.
+  Qed.
 
   Next Obligation.
     move => ly tys ot mt l v [-> [? [? ]]]. iIntros (Hlys Hl) "Hl".
