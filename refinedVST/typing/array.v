@@ -238,7 +238,7 @@ Section array.
     ty_own β l := (
       <affine> ⌜l `has_layout_loc` (tarray cty (length tys))⌝ ∗
       ([∗ list] i ↦ ty ∈ tys,
-        (l.1, l.2 + nested_field_offset (tarray cty (length tys)) [ArraySubsc i])%Z ◁ₗ{β} ty)
+        (l.1, l.2 + nested_field_offset (tarray cty (length tys)) [ArraySubsc i]) ◁ₗ{β} ty)
       )%I
     ;
     ty_own_val cty_arr v_rep :=
@@ -340,27 +340,55 @@ Section array.
       iStopProof. do 2 f_equiv. lia.
   Qed.
 
-  (* Global Instance array_le : Proper ((=) ==> Forall2 (⊑) ==> (⊑)) array.
+  Global Instance array_le : Proper ((=) ==> Forall2 (⊑) ==> (⊑)) array.
   Proof.
     move => ? sl -> tys1 tys2 Htys. constructor.
     - move => β l; rewrite/ty_own/=.
-      f_equiv. f_equiv; first by rewrite ->Htys.
-      elim: Htys l => // ???????? /=. f_equiv; [solve_proper|].
-      by setoid_rewrite offset_loc_S.
-    - move => v; rewrite/ty_own_val/=.
-      f_equiv. { f_equiv; first by rewrite ->Htys. }
-      elim: Htys v => // ???? Hty Htys IH v /=. f_equiv. { solve_proper. }
-      apply: IH.
+       f_equiv; first by rewrite ->Htys.
+      elim: Htys l => // ?????? IH l' /=. f_equiv.
+      + f_equiv; done. 
+      + rewrite /nested_field_offset /=  in IH.
+        rewrite /nested_field_offset /=.
+        
+        rewrite big_sepL_proper /=.
+        2: { intros.
+        assert (l'.2 + (0 + expr.sizeof sl * S k) =
+                (l'.2 + expr.sizeof sl) + (0 + expr.sizeof sl * k))%Z as -> by lia.
+        apply seplog_tactics.eq_equiv. done.
+        }
+
+        rewrite [X in _ ⊢ X]big_sepL_proper /=.
+        2: { intros.
+        assert (l'.2 + (0 + expr.sizeof sl * S k) =
+                (l'.2 + expr.sizeof sl) + (0 + expr.sizeof sl * k))%Z as -> by lia.
+        apply seplog_tactics.eq_equiv. done.
+        }
+        simpl.
+        apply (IH (l'.1, l'.2 + expr.sizeof sl)).
+    - move => cty v; rewrite/ty_own_val/=.
+      f_equiv. f_equiv. f_equiv. f_equiv.
+      elim: Htys a => // ???? Hty Htys IH v_rep /=.
+      destruct v_rep.
+      + done.
+      + rewrite !big_sepL2_cons. 
+        f_equiv.
+        ++ solve_proper.
+        ++ apply IH.  
   Qed.
   Global Instance array_proper : Proper ((=) ==> Forall2 (≡) ==> (≡)) array.
   Proof. move => ??-> ?? Heq. apply type_le_equiv_list; [by apply array_le|done]. Qed.
 
-  Global Instance array_loc_in_bounds ly β tys : LocInBounds (array ly tys) β (ly_size ly * length tys).
+  (* Global Instance array_loc_in_bounds ly β tys : LocInBounds (array ly tys) β (ly_size ly * length tys).
   Proof. constructor. iIntros (?) "(?&$&?)". Qed. *)
 
+  Notation "l 'offset{' cty '}ₗ' path" := 
+    (l.1, l.2 + nested_field_offset cty path) 
+    (at level 50, format "l  'offset{' cty '}ₗ'  path", left associativity) : loc_scope.
+
+  (* array has type `tarray cty (length tys)` *)
   Lemma array_get_type (i : nat) cty tys ty l β:
     tys !! i = Some ty →
-    l ◁ₗ{β} array ly tys -∗ (l offset{ly}ₗ i) ◁ₗ{β} ty ∗ l ◁ₗ{β} array ly (<[ i := place (l offset{ly}ₗ i)]>tys).
+    l ◁ₗ{β} array cty tys -∗ (l offset{tarray cty (length tys)}ₗ [ArraySubsc i]) ◁ₗ{β} ty ∗ l ◁ₗ{β} array cty (<[ i := place (l offset{ly}ₗ i)]>tys).
   Proof.
     rewrite !/(ty_own (array _ _))/=. iIntros (Hi) "($&Hb&Ha)".
     iInduction (i) as [|i] "IH" forall (l tys Hi);

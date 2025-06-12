@@ -114,24 +114,10 @@ We will need an additional parameter
 
  *)
 
+(* NOTE should fix the one in field_at.v *)
 Instance data_at_rec_timeless {Σ : gFunctors} {heapGS0 : heapGS Σ} {cs : compspecs} q cty v l:
     Timeless (data_at_rec q cty v l).
 Proof.
-  intros.
-  induction cty eqn:Heq_cty; simpl; try apply _.
-  all: try (
-    rewrite /data_at_rec /=;
-    match goal with
-    | |- context [if (type_is_volatile ?x) then _ else _] =>
-      destruct (type_is_volatile x); try apply _ end).
-  all: try (  
-    match goal with
-    | |- context [memory_block _ (match ?y with | _ => _ end) _ ] =>
-      destruct y 
-    | _ => idtac end;
-    apply memory_block_timeless; lia).
-  - rewrite /data_at_rec /=.
-    induction z. (* better induction principle? *)
 Admitted.
 
 Definition adr2val (l : address) := Vptr l.1 (Ptrofs.repr l.2).
@@ -517,7 +503,9 @@ Global Typeclasses Opaque type_alive.*)
 
 Notation "l ◁ₗ{ β } ty" := (ty_own ty β l) (at level 15, format "l  ◁ₗ{ β }  ty") : bi_scope.
 Notation "l ◁ₗ ty" := (ty_own ty Own l) (at level 15) : bi_scope.
-Notation "v ◁ᵥ| cty | ty" := (ty_own_val ty cty v) (at level 15) : bi_scope.
+Definition ty_own_val_at `{!typeG OK_ty Σ} {cs : compspecs} (cty : Ctypes.type) :=
+  λ ty v, ty.(ty_own_val) cty v.
+Notation "v ◁ᵥ| cty | ty" := (ty_own_val_at cty ty v) (at level 15) : bi_scope.
 
 Declare Scope printing_sugar.
 Notation "'frac' { β } l ∶ ty" := (ty_own ty β l) (at level 100, only printing) : printing_sugar.
@@ -687,9 +675,9 @@ Section mono.
     ty_own ty1 β l ⊢ ty_own ty2 β l.
   Proof. by move => [-> ?]. Qed.
 
-  (* Global Instance ty_own_val_le : Proper ((⊑) ==> eq ==> (⊢)) ty_own_val.
+  Global Instance ty_own_val_le cty: Proper ((⊑)  ==> eq ==> (⊢)) (ty_own_val_at cty).
   Proof. intros ?? EQ ??->. apply EQ. Qed.
-  Global Instance ty_own_val_proper : Proper ((≡) ==> eq ==> (≡)) ty_own_val.
+  Global Instance ty_own_val_proper cty: Proper ((≡) ==> eq ==> (≡)) (ty_own_val_at cty).
   Proof. intros ?? EQ ??->. apply EQ. Qed.
 
   Lemma ty_of_rty_le A rty1 rty2 :
@@ -699,7 +687,7 @@ Section mono.
     destruct rty1, rty2; simpl in *. rewrite /with_refinement/=.
     move => Hle. constructor => /=.
     - move => ??. rewrite /ty_own/=. f_equiv => ?. apply Hle.
-    - move => ?. rewrite /ty_own_val/=. f_equiv => ?. apply Hle.
+    - move => ?. rewrite /ty_own_val/= =>?. f_equiv => ?. apply Hle.
   Qed.
   Lemma ty_of_rty_proper A rty1 rty2 :
     (∀ x : A, (x @ rty1)%I ≡ (x @ rty2)%I) →
@@ -708,8 +696,8 @@ Section mono.
     destruct rty1, rty2; simpl in *. rewrite /with_refinement/=.
     move => Heq. constructor => /=.
     - move => ??. rewrite /ty_own/=. f_equiv => ?. apply Heq.
-    - move => ?. rewrite /ty_own_val/=. f_equiv => ?. apply Heq.
-  Qed.*)
+    - move => ?. rewrite /ty_own_val/= => ?. f_equiv => ?. apply Heq.
+  Qed.
 End mono.
 
 (* Notation TypeMono T := (Proper (pointwise_relation _ (⊑) ==> pointwise_relation _ (⊑)) T).  *)
@@ -786,6 +774,6 @@ Ltac solve_type_proper :=
 Section tests.
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
-  Example binding {cty:Ctypes.type} l (r : Z → rtype N) v x T : True -∗ l ◁ₗ x @ r v ∗ T. Abort.
+  Example binding l (r : Z → rtype N) v x T : True -∗ l ◁ₗ x @ r v ∗ T. Abort.
 
 End tests.
