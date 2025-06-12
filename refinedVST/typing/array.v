@@ -137,7 +137,7 @@ Section array.
       iFrame.
     Qed.
 
-  (* TODO maybe field_compatible_cons_Tarray? *)
+  (* maybe using field_compatible_cons_Tarray/field_compatible_shrink makes proof simpler? *)
   Lemma has_layout_loc_array_tl l l_1 cty (s:nat) :
     l_1 = (l.1, l.2 + @expr.sizeof cs cty)%Z →
     l `has_layout_loc` tarray cty (S s) →
@@ -175,34 +175,32 @@ Section array.
         contradiction.
   Qed.
 
-  Lemma has_layout_loc_array_hd l l_1 cty (s:nat) :
-    l_1 = (l.1, l.2 + @expr.sizeof cs cty)%Z →
-    l_1 `has_layout_loc` tarray cty s →
-    l `has_layout_loc` tarray cty 1.
+  Lemma has_layout_loc_array_hd l cty s :
+    1 <= s →
+    l `has_layout_loc` tarray cty s →
+    l `has_layout_loc` cty.
   Proof.
-    intros Hl_1 l_has_layout_loc.
+    intros Hs l_has_layout_loc.
     pose proof (sizeof_pos cty) as Hcty_size_pos.
     
-    rewrite /has_layout_loc /field_compatible Hl_1 in l_has_layout_loc.
+    rewrite /has_layout_loc /field_compatible in l_has_layout_loc.
     destruct l_has_layout_loc as (? & ? & ? & ? & ?).
     rewrite /has_layout_loc /field_compatible.
     destruct (adr2val l) eqn:?; try done.
-    simpl in H1. rewrite /adr2val in Heqv. inv Heqv.
-    (* rewrite /= Z.max_r in H1; [|lia]. *)
+    rewrite /= Z.max_r in H1; try lia. rewrite /adr2val in Heqv. inv Heqv.
     split3; try done.
     split3; try done.
-    - rewrite /= Z.max_r in H1; [|lia].
-      rewrite -ptrofs_add_repr /expr.sizeof in H1.
-      rewrite /valid_pointer.size_compatible /expr.sizeof /= Z.mul_1_r.
-      admit.
-    - rewrite /SeparationLogic.align_compatible /= in H2.
-      rewrite -ptrofs_add_repr /expr.sizeof in H2.
-      rewrite /SeparationLogic.align_compatible /=.
-      pose proof (align_mem.align_compatible_rec_Tarray_inv _ _ _ _ _ H2).
-      rewrite Ptrofs.unsigned_add_carry /Ptrofs.add_carry in H4.
-      admit.
-  Admitted.
-
+    - rewrite /= /expr.sizeof.
+      assert (Ptrofs.unsigned (Ptrofs.repr l.2) + sizeof cty <=
+              Ptrofs.unsigned (Ptrofs.repr l.2) + sizeof cty * s); try rep_lia.
+      apply Zplus_le_compat_l.
+      destruct (decide (sizeof cty = 0)); try rep_lia.
+      apply Z.le_mul_diag_r; lia.
+    - rewrite /SeparationLogic.align_compatible /=.
+      rewrite /SeparationLogic.align_compatible /= in H2.
+      pose proof (align_mem.align_compatible_rec_Tarray_inv _ _ _ _ _ H2 0).      
+      rewrite Z.mul_0_r Z.add_0_r in H4. apply H4. lia.
+  Qed.
 
   Lemma singleton_array_eq l cty v:
     l ↦|tarray cty 1|[v] ⊣⊢ l↦|cty| v.
@@ -302,7 +300,7 @@ Section array.
     rewrite Forall_cons in Hop_type.
     destruct Hop_type as [Hop_type_hd Hop_type_tl].
     pose l_1:address := (l.1, l.2 + @expr.sizeof cs cty)%Z.
-    apply (has_layout_loc_array_tl _ l_1) in Hl;[|done].
+    apply (has_layout_loc_array_tl _ l_1) in Hl as Hl_tl;[|done].
     destruct v as [|v_hd v_tl]; [done|].
     rewrite /has_layout_val /= in Hv.
     destruct Hv as [Hv _].
@@ -314,7 +312,7 @@ Section array.
     iPoseProof (data_at_rec_value_fits with "↦tl") as "%v_tl_fits".
     iDestruct ("IH" $! l_1 v_tl with "[//] [//] [//] ↦tl tys_tl") as "ty_own_tl"; iClear "IH".
     rewrite singleton_array_eq.
-    assert (l `has_layout_loc` cty) by admit.
+    apply has_layout_loc_array_hd in Hl; [|lia].
     iDestruct (ty_ref with "[] ↦hd tys_hd") as "ty_own_hd"; try done.
     iSplitL "ty_own_hd".
     - iStopProof. f_equiv.
@@ -325,7 +323,7 @@ Section array.
       iIntros "!>" (i ty_i Hty_i) "?".
       rewrite /nested_field_offset /=.
       iStopProof. do 2 f_equiv. lia.
-  Admitted.
+  Qed.
 
   Global Instance array_le : Proper ((=) ==> Forall2 (⊑) ==> (⊑)) array.
   Proof.
