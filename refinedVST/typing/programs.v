@@ -149,8 +149,8 @@ Section judgements.
   (* TODO: add infrastructure like SimpleSubsumePlaceR to
   SimpleSubsumeVal. Not sure if it would work because of the movable
   instance. *)
-  Class SimpleSubsumeVal (ty1 ty2 : type) (P : iProp Σ) : Prop :=
-    simple_subsume_val v: P ⊢ v ◁ᵥ ty1 -∗ v ◁ᵥ ty2.
+  Class SimpleSubsumeVal cty (ty1 ty2 : type) (P : iProp Σ) : Prop :=
+    simple_subsume_val v: P ⊢ v ◁ᵥ|cty| ty1 -∗ v ◁ᵥ|cty| ty2.
 
   (* This is similar to simplify hyp place (Some 0), but targeted at
   Copy and applying all simplifications at once instead of step by
@@ -191,7 +191,8 @@ Section judgements.
     {| RA_normal := R None tytrue;
        RA_break := False;
        RA_continue := False;
-       RA_return ret := let v := force_val ret in ∃ ty, ⎡v ◁ᵥ ty⎤ ∗ R (Some v) ty |}.
+       RA_return ret := let v := force_val ret in 
+                        ∃ cty ty, ⎡(valinject cty v) ◁ᵥ|cty| ty⎤ ∗ R (Some v) ty |}.
   Definition typed_stmt s f (R : option val → type → assert) : assert :=
     wp OK_spec ge ⊤ f s (typed_stmt_post_cond R)%I.
   Global Arguments typed_stmt _ _ _%_I.
@@ -200,7 +201,7 @@ Section judgements.
     typed_stmt s f R1 ⊢ typed_stmt s f R2.
   Proof.
     intros. rewrite /typed_stmt. apply wp_conseq; intros; simpl; rewrite ?H; auto.
-    iIntros "(% & ? & ?)"; rewrite H; eauto with iFrame.
+    iIntros "(% & % & ? & ?)"; rewrite H; eauto with iFrame.
   Qed.
 
 (*  Definition typed_block (P : iProp Σ) (b : label) (fn : function) (ls : list address) (R : val → type → iProp Σ) (Q : gmap label stmt) : iProp Σ :=
@@ -237,8 +238,8 @@ Section judgements.
               rho = construct_rho (filter_genv ge) ve te ->
               Clight.eval_expr ge ve te m e v (*/\ typeof e = t /\ tc_val t v*)⌝.*)
 
-  Definition typed_val_expr f (e : expr) (T : val → type → assert) : assert :=
-    (∀ Φ, (∀ v (ty : type), ⎡v ◁ᵥ ty⎤ -∗ T v ty -∗ Φ v) -∗ wp_expr ge ⊤ f e Φ).
+  Definition typed_val_expr f (e : expr) (T : Ctypes.type → val → type → assert) : assert :=
+    (∀ Φ, (∀ cty v (ty : type), ⎡(valinject cty v) ◁ᵥ|cty| ty⎤ -∗ T cty v ty -∗ Φ v) -∗ wp_expr ge ⊤ f e Φ).
   Global Arguments typed_val_expr _ _%_I.
 
   (* FIXME sounds like typed_addr_of, although typed_addr_of is for typing `&e`; are they the same?  *)
@@ -253,12 +254,12 @@ Section judgements.
     typed_lvalue_proof T : iProp_to_Prop (typed_lvalue f β e T).
 
   Definition typed_value (v : val) (T : type → assert) : assert :=
-    (∃ (ty: type), ⎡v ◁ᵥ ty⎤ ∗ T ty).
+    (∃ cty (ty: type), ⎡(valinject cty v) ◁ᵥ|cty| ty⎤ ∗ T ty).
   Class TypedValue (v : val) : Type :=
     typed_value_proof T : iProp_to_Prop (typed_value v T).
 
   Definition typed_val_binop op t1 v1 t2 v2 (T : val → type → assert) : assert :=
-    (∀ Φ, (∀ v (ty : type), ⎡v ◁ᵥ ty⎤ -∗ T v ty -∗ Φ v) -∗ wp_binop ge ⊤ op t1 v1 t2 v2 Φ).
+    (∀ Φ, (∀ cty v (ty : type), ⎡(valinject cty v) ◁ᵥ|cty| ty⎤  -∗ T v ty -∗ Φ v) -∗ wp_binop ge ⊤ op t1 v1 t2 v2 Φ).
   Global Arguments typed_val_binop _ _ _ _ _ _%_I.
 
   Definition typed_bin_op (v1 : val) (P1 : assert) (v2 : val) (P2 : assert) (o : Cop.binary_operation) (t1 t2 : Ctypes.type) (T : val → type → assert) : assert :=
@@ -268,7 +269,7 @@ Section judgements.
     typed_bin_op_proof T : iProp_to_Prop (typed_bin_op v1 P1 v2 P2 o ot1 ot2 T).
 
   Definition typed_val_unop op t v (T : val → type → assert) : assert :=
-    (∀ Φ, (∀ v (ty : type), ⎡v ◁ᵥ ty⎤ -∗ T v ty -∗ Φ v) -∗ wp_unop ⊤ op t v Φ).
+    (∀ Φ, (∀ v (ty : type), ∃ cty, ⎡(valinject cty v) ◁ᵥ|cty| ty⎤ -∗ T v ty -∗ Φ v) -∗ wp_unop ⊤ op t v Φ).
   Global Arguments typed_val_unop _ _ _ _%_I.
 
   Definition typed_un_op (v : val) (P : assert) (o : Cop.unary_operation) (ot : Ctypes.type) (T : val → type → assert) : assert :=
@@ -277,8 +278,9 @@ Section judgements.
   Class TypedUnOp (v : val) (P : assert) (o : Cop.unary_operation) (ot : Ctypes.type) : Type :=
     typed_un_op_proof T : iProp_to_Prop (typed_un_op v P o ot T).
 
+  (* FIXME this probably does not work; maybe providing a list of cty?  *)
   Definition typed_exprs f (el : list expr) (tl : list Ctypes.type) (T : list val → list type → assert) : assert :=
-    (∀ Φ, (∀ vl (tys : list type), ([∗ list] v;ty∈vl;tys, ⎡v ◁ᵥ ty⎤) -∗ T vl tys -∗ Φ vl) -∗ wp_exprs ge ⊤ f el tl Φ).
+    (∀ Φ, (∀ vl (tys : list type), ([∗ list] v;ty∈vl;tys, ∃ cty, ⎡(valinject cty v) ◁ᵥ|cty| ty⎤) -∗ T vl tys -∗ Φ vl) -∗ wp_exprs ge ⊤ f el tl Φ).
   Global Arguments typed_exprs _ _ _ _%_I.
 
   (* can we rewrite this to take vals directly after all? We'd have to replace typed_stmt with sufficient
@@ -319,17 +321,16 @@ Section judgements.
   ot of value [v] of type [ty] to the expression [e]. [atomic] says
   whether the write is an atomic write. The typing rule for [typed_write]
   typechecks [e] and then dispatches to [typed_write_end]. *)
- (* Ke: probably for SAssign. TODO add a rule for Sset? *)
- (* Ke: for RefinedC mapsto, use ⎡VST.mapsto_memory_block.mapsto q ot l v⎤ 
-        which is basically RefinedC.mapsto l v + l aligns according to ot + v fits in size of ot *)
+ (* Ke: maybe v should be `reptype ot`? *)
 
   Definition typed_write f (atomic : bool) (e : expr) (ot : Ctypes.type) (v : val) (ty : type) (T : assert) : assert :=
     let E := if atomic then ∅ else ⊤ in
     (∀ (Φ: address->assert),
-        (∀ (l:address), (⎡v ◁ᵥ ty⎤ ={⊤, E}=∗
-                <affine> ⌜v `has_layout_val` ot⌝ ∗ ⎡ l ↦|ot| - ⎤ ∗
+        (∀ (l:address), (⎡(valinject ot v) ◁ᵥ|ot| ty⎤ ={⊤, E}=∗
+                <affine> ⌜(valinject ot v) `has_layout_val` ot⌝ ∗
+                 ⎡ l ↦|ot| - ⎤ ∗
                 (* Ke : maybe we need later afterall because write is only done a write statement after? *)
-                ▷(⎡ l ↦|ot| v ⎤ ={E, ⊤}=∗ T))
+                ▷(⎡ l ↦|ot| (valinject ot v) ⎤ ={E, ⊤}=∗ T))
               -∗ Φ l) -∗
        wp_lvalue ge ⊤ f e Φ)%I.
 
@@ -343,12 +344,12 @@ Definition typed_read f (atomic : bool) (e : expr) (ot : Ctypes.type) (memcast :
     let E := if atomic then ∅ else ⊤ in
     (∀ (Φ: val->assert),
        (∀ (l:address), 
-          (|={⊤, E}=> ∃ v q (ty : type), ⌜l `has_layout_loc` ot⌝ ∗ ⌜v `has_layout_val` ot⌝ ∗
-                        ⎡ l ↦{q} |ot| v ⎤ ∗ ▷ ⎡v ◁ᵥ ty⎤ ∗ 
-                        ▷ (∀ st, ⎡ l ↦{q} |ot| v ⎤ -∗ ⎡v ◁ᵥ ty⎤ ={E, ⊤}=∗ 
+          (|={⊤, E}=> ∃ v q (ty : type), ⌜l `has_layout_loc` ot⌝ ∗ ⌜(valinject ot v) `has_layout_val` ot⌝ ∗
+                        ⎡ l ↦{q}|ot| (valinject ot v) ⎤ ∗ ▷ ⎡(valinject ot v) ◁ᵥ|ot| ty⎤ ∗ 
+                        ▷ (∀ st, ⎡ l ↦{q}|ot| (valinject ot v) ⎤ -∗ ⎡(valinject ot v) ◁ᵥ|ot| ty⎤ ={E, ⊤}=∗ 
                         ∃ (ty' : type) v', 
                           ⌜Some v'=if memcast then Cop.sem_cast v ot st m else Some v⌝ ∧
-                          ⎡v' ◁ᵥ ty'⎤ ∗
+                          ⎡(valinject (if memcast then st else ot) v') ◁ᵥ|(if memcast then st else ot)| ty'⎤ ∗
                           T v' ty')) 
         -∗ Φ l) -∗
      wp_expr ge ⊤ f e Φ)%I.
@@ -367,11 +368,12 @@ Definition typed_read f (atomic : bool) (e : expr) (ot : Ctypes.type) (memcast :
   Definition typed_read_end (atomic : bool) (E : coPset) (l : address) (β : own_state) (ty : type) (ot : Ctypes.type) (memcast : bool) (m:mem) (T : val → type → type → assert) : assert :=
     (let E' := if atomic then ∅ else E in
     ⎡l◁ₗ{β}ty⎤ ={E, E'}=∗ ∃ q v (ty2 : type),
-    ⌜l `has_layout_loc` ot⌝ ∗ ⌜v `has_layout_val` ot⌝ ∗
-    ⎡l↦{q}|ot|v⎤ ∗ ▷ ⎡v ◁ᵥ ty2⎤ ∗
-         ▷ (∀ st, ⎡l↦{q}|ot|v⎤ -∗ ⎡v ◁ᵥ ty2⎤ ={E', E}=∗
+    ⌜l `has_layout_loc` ot⌝ ∗ ⌜(valinject ot v) `has_layout_val` ot⌝ ∗
+    ⎡l↦{q}|ot| valinject ot v⎤ ∗ ▷ ⎡(valinject ot v) ◁ᵥ|ot| ty2⎤ ∗
+         ▷ (∀ st, ⎡l↦{q}|ot| (valinject ot v)⎤ -∗ ⎡(valinject ot v) ◁ᵥ|ot| ty2⎤ ={E', E}=∗
             ∃ ty' (ty3 : type) (v':val), ⌜Some v'=if memcast then Cop.sem_cast v ot st m else Some v⌝ ∧
-              ⎡v' ◁ᵥ ty3⎤ ∗ ⎡l◁ₗ{β} ty'⎤ ∗ T v' ty' ty3))%I.
+              ⎡(valinject (if memcast then st else ot) v') ◁ᵥ|(if memcast then st else ot)| ty3⎤ ∗
+              ⎡l◁ₗ{β} ty'⎤ ∗ T v' ty' ty3))%I.
 
   Class TypedReadEnd (atomic : bool) (E : coPset) (l : address) (β : own_state) (ty : type) (ot : Ctypes.type) (m:mem) (memcast : bool) : Type :=
     typed_read_end_proof T : iProp_to_Prop (typed_read_end atomic E l β ty ot memcast m T).
@@ -382,10 +384,10 @@ Definition typed_read f (atomic : bool) (e : expr) (ot : Ctypes.type) (memcast :
   Definition typed_write_end (atomic : bool) (E : coPset) (ot : Ctypes.type) (v1 : val) (ty1 : type) (l2 : address) (β2 : own_state) (ty2 : type) (T : type → assert) : assert :=
     let E' := if atomic then ∅ else E in
     (⎡l2 ◁ₗ{β2} ty2⎤ -∗ 
-    (⎡v1 ◁ᵥ ty1⎤ ={E, E'}=∗
-       <affine> ⌜v1 `has_layout_val` ot⌝ ∗
+    (⎡(valinject ot v1) ◁ᵥ|ot| ty1⎤ ={E, E'}=∗
+       <affine> ⌜(valinject ot v1) `has_layout_val` ot⌝ ∗
       ⎡ l2↦|ot| - ⎤ ∗ 
-      ▷ (⎡ l2 ↦|ot| v1 ⎤ ={E', E}=∗ ∃ ty3, ⎡l2 ◁ₗ{β2} ty3⎤ ∗ T ty3)))%I.
+      ▷ (⎡ l2 ↦|ot| (valinject ot v1) ⎤ ={E', E}=∗ ∃ ty3, ⎡l2 ◁ₗ{β2} ty3⎤ ∗ T ty3)))%I.
   Class TypedWriteEnd (atomic : bool) (E : coPset) (ot : Ctypes.type) (v1 : val) (ty1 : type) (l2 : address) (β2 : own_state) (ty2 : type) : Type :=
     typed_write_end_proof T : iProp_to_Prop (typed_write_end atomic E ot v1 ty1 l2 β2 ty2 T).
 
@@ -538,7 +540,7 @@ Global Hint Mode Learnable + + : typeclass_instances.
 (*Global Hint Mode LearnAlignment + + + + - : typeclass_instances.*)
 Global Hint Mode CopyAs + + + + + + + : typeclass_instances.
 Global Hint Mode SimpleSubsumePlace + + + + + ! - : typeclass_instances.
-Global Hint Mode SimpleSubsumeVal + + + + ! ! - : typeclass_instances.
+Global Hint Mode SimpleSubsumeVal + + + + + ! ! - : typeclass_instances.
 Global Hint Mode TypedIf + + + + + : typeclass_instances.
 (* Global Hint Mode TypedAssert + + + + + + : typeclass_instances. *)
 Global Hint Mode TypedValue + + + + + : typeclass_instances.
@@ -570,12 +572,17 @@ Section proper.
     l ◁ₗ{β} ty2 ∗ T ⊢ simplify_goal (l◁ₗ{β} ty1) T.
   Proof. rewrite Heq. iIntros "$". Qed.
 
-  Lemma simplify_hyp_val_eq ty1 ty2 (Heq : ty1 ≡@{type} ty2) v T:
-    (v ◁ᵥ ty2 -∗ T) ⊢ simplify_hyp (v ◁ᵥ ty1) T.
+  (* Global Instance ty_own_val_le cty: Proper ((⊑)  ==> eq ==> (⊢)) (ty_own_val_at cty).
+  Proof. intros ?? EQ ??->. apply EQ. Qed.
+  Global Instance ty_own_val_proper cty: Proper ((≡) ==> eq ==> (≡)) (ty_own_val_at cty).
+  Proof. intros ?? EQ ??->. apply EQ. Qed. *)
+
+  Lemma simplify_hyp_val_eq cty ty1 ty2 (Heq : ty1 ≡@{type} ty2) v T:
+    (v ◁ᵥ|cty| ty2 -∗ T) ⊢ simplify_hyp (v ◁ᵥ|cty| ty1) T.
   Proof. iIntros "HT ?". rewrite Heq. by iApply "HT". Qed.
 
-  Lemma simplify_goal_val_eq ty1 ty2 (Heq : ty1 ≡@{type} ty2) v T:
-    v ◁ᵥ ty2 ∗ T ⊢ simplify_goal (v ◁ᵥ ty1) T.
+  Lemma simplify_goal_val_eq cty ty1 ty2 (Heq : ty1 ≡@{type} ty2) v T:
+    v ◁ᵥ|cty| ty2 ∗ T ⊢ simplify_goal (v ◁ᵥ|cty| ty1) T.
   Proof. rewrite Heq. iIntros "$". Qed.
 
 (*  Lemma typed_place_subsume' P l ty1 β T :
@@ -594,11 +601,11 @@ Section proper.
   (** wand lemmas *)
   Lemma typed_val_expr_wand f e T1 T2:
     typed_val_expr ge f e T1 -∗
-    (∀ v ty, T1 v ty -∗ T2 v ty) -∗
+    (∀ cty v ty, T1 cty v ty -∗ T2 cty v ty) -∗
     typed_val_expr ge f e T2.
   Proof.
     iIntros "He HT" (Φ) "HΦ".
-    iApply "He". iIntros (v ty) "Hv Hty".
+    iApply "He". iIntros (cty v ty) "Hv Hty".
     iApply ("HΦ" with "Hv"). by iApply "HT".
   Qed.
 
@@ -633,12 +640,12 @@ Section proper.
   Qed.
 
   Lemma type_val_expr_mono_strong f e T :
-    typed_val_expr ge f e (λ v ty,
-      ∃ ty', subsume ⎡v ◁ᵥ ty⎤ (λ _ : unit, ⎡v ◁ᵥ ty'⎤) (λ _, T v ty'))%I
+    typed_val_expr ge f e (λ cty v ty,
+      ∃ ty', subsume ⎡(valinject cty v) ◁ᵥ|cty| ty⎤ (λ _ : unit, ⎡(valinject cty v) ◁ᵥ|cty| ty'⎤) (λ _, T cty v ty'))%I
     -∗ typed_val_expr ge f e T.
   Proof.
     iIntros "HT". iIntros (Φ) "HΦ".
-    iApply "HT". iIntros (v ty) "Hv HT".
+    iApply "HT". iIntros (cty v ty) "Hv HT".
     iDestruct "HT" as (ty') "HT".
     iPoseProof ("HT" with "Hv") as (?) "[Hv HT']".
     iApply ("HΦ" with "Hv HT'").
@@ -798,8 +805,8 @@ Global Typeclasses Opaque typed_write_end.*)
 
 Definition FindLoc `{!typeG OK_ty Σ} {cs : compspecs} (l : address) :=
   {| fic_A := own_state * type; fic_Prop '(β, ty):= (l ◁ₗ{β} ty)%I; |}.
-Definition FindVal `{!typeG OK_ty Σ} {cs : compspecs} (v : val) : @find_in_context_info assert :=
-  {| fic_A := type; fic_Prop ty := ⎡v ◁ᵥ ty⎤%I; |}.
+Definition FindVal `{!typeG OK_ty Σ} {cs : compspecs} cty (v : val) : @find_in_context_info assert :=
+  {| fic_A := type; fic_Prop ty := ⎡(valinject cty v) ◁ᵥ|cty| ty⎤%I; |}.
 Definition FindValP {B : bi} (v : val) :=
   {| fic_A := B; fic_Prop P := P; |}.
 Definition FindValOrLoc {Σ} (v : val) (l : address) :=
@@ -844,18 +851,18 @@ Section typing.
     [instance find_in_context_type_loc_id with FICSyntactic].
   Global Existing Instance find_in_context_type_loc_id_inst | 1.
 
-  Lemma find_in_context_type_val_id v T:
-    (∃ ty, ⎡v ◁ᵥ ty⎤ ∗ T ty)
-    ⊢ find_in_context (FindVal v) T.
+  Lemma find_in_context_type_val_id cty v T:
+    (∃ ty, ⎡(valinject cty v) ◁ᵥ|cty| ty⎤ ∗ T ty)
+    ⊢ find_in_context (FindVal cty v) T.
   Proof. iDestruct 1 as (ty) "[Hl HT]". iExists _ => /=. iFrame. Qed.
   Definition find_in_context_type_val_id_inst :=
     [instance find_in_context_type_val_id with FICSyntactic].
   Global Existing Instance find_in_context_type_val_id_inst | 1.
 
-  Lemma find_in_context_type_val_P_id v T:
-    (∃ ty, v ◁ᵥ ty ∗ T (v ◁ᵥ ty))
+  Lemma find_in_context_type_val_P_id cty v T:
+    (∃ ty, (valinject cty v) ◁ᵥ|cty| ty ∗ T ((valinject cty v) ◁ᵥ|cty| ty))
     ⊢ find_in_context (FindValP v) T.
-  Proof. iDestruct 1 as (ty) "[Hl HT]". iExists (ty_own_val ty _) => /=. iFrame. Qed.
+  Proof. iDestruct 1 as (ty) "[Hl HT]". iExists (ty_own_val ty _ _) => /=. iFrame. Qed.
   Definition find_in_context_type_val_P_id_inst :=
     [instance find_in_context_type_val_P_id with FICSyntactic].
   Global Existing Instance find_in_context_type_val_P_id_inst | 1.
@@ -868,10 +875,10 @@ Section typing.
     [instance find_in_context_type_val_P_loc_id with FICSyntactic].
   Global Existing Instance find_in_context_type_val_P_loc_id_inst | 10.
 
-  Lemma find_in_context_type_val_or_loc_P_id_val (v : val) (l : address) T:
-    (∃ ty, v ◁ᵥ ty ∗ T (v ◁ᵥ ty))
+  Lemma find_in_context_type_val_or_loc_P_id_val cty (v : val) (l : address) T:
+    (∃ ty, (valinject cty v) ◁ᵥ|cty| ty ∗ T ((valinject cty v) ◁ᵥ|cty| ty))
     ⊢ find_in_context (FindValOrLoc v l) T.
-  Proof. iDestruct 1 as (ty) "[Hl HT]". iExists (ty_own_val ty _) => /=. iFrame. Qed.
+  Proof. iDestruct 1 as (ty) "[Hl HT]". iExists (ty_own_val ty _ _) => /=. iFrame. Qed.
   Definition find_in_context_type_val_or_loc_P_id_val_inst :=
     [instance find_in_context_type_val_or_loc_P_id_val with FICSyntactic].
   Global Existing Instance find_in_context_type_val_or_loc_P_id_val_inst | 1.
@@ -926,7 +933,7 @@ Section typing.
 
   Global Instance related_to_loc A l β ty : RelatedTo (λ x : A, l ◁ₗ{β x} ty x)%I | 100
     := {| rt_fic := FindLoc l |}.
-  Global Instance related_to_val A v ty : RelatedTo (λ x : A, v ◁ᵥ ty x)%I | 100
+  Global Instance related_to_val A cty v ty : RelatedTo (λ x : A, (valinject cty v) ◁ᵥ|cty| ty x)%I | 100
     := {| rt_fic := FindValP v |}.
 (*  Global Instance related_to_loc_in_bounds A l n : RelatedTo (λ x : A, loc_in_bounds l (n x)) | 100
     := {| rt_fic := FindLocInBounds l |}.
@@ -1029,8 +1036,8 @@ Section typing.
   Definition simplify_place_refine_l_inst := [instance simplify_place_refine_l with 0%N].
   Global Existing Instance simplify_place_refine_l_inst.
 
-  Lemma simplify_val_refine_l A (ty : rtype A) v T:
-    (∀ x, v ◁ᵥ (x @ ty) -∗ T) ⊢ simplify_hyp (v ◁ᵥ ty) T.
+  Lemma simplify_val_refine_l A (ty : rtype A) cty v T:
+    (∀ x, (valinject cty v) ◁ᵥ|cty| (x @ ty) -∗ T) ⊢ simplify_hyp ((valinject cty v) ◁ᵥ|cty| ty) T.
   Proof.
     iIntros "HT Hl". unfold ty_of_rty; simpl_type. iDestruct "Hl" as (x) "Hv". by iApply "HT".
   Qed.
@@ -1045,8 +1052,8 @@ Section typing.
   Definition simplify_goal_place_refine_r_inst := [instance simplify_goal_place_refine_r with 10%N].
   Global Existing Instance simplify_goal_place_refine_r_inst.
 
-  Lemma simplify_goal_val_refine_r A (ty : rtype A) v T :
-    (∃ x, v ◁ᵥ (x @ ty) ∗ T) ⊢ simplify_goal (v ◁ᵥ ty) T.
+  Lemma simplify_goal_val_refine_r A (ty : rtype A) cty v T :
+    (∃ x, (valinject cty v) ◁ᵥ|cty| (x @ ty) ∗ T) ⊢ simplify_goal ((valinject cty v) ◁ᵥ|cty| ty) T.
   Proof. iDestruct 1 as (x) "[? $]". by iExists _. Qed.
   Definition simplify_goal_val_refine_r_inst := [instance simplify_goal_val_refine_r with 10%N].
   Global Existing Instance simplify_goal_val_refine_r_inst.
@@ -1061,13 +1068,13 @@ Section typing.
 
   Global Instance simple_subsume_place_id ty : SimpleSubsumePlace ty ty emp | 1.
   Proof. iIntros (??) "_ $". Qed.
-  Global Instance simple_subsume_val_id ty : SimpleSubsumeVal ty ty emp | 1.
+  Global Instance simple_subsume_val_id cty ty : SimpleSubsumeVal cty ty ty emp | 1.
   Proof. iIntros (?) "_ $". Qed.
   Global Instance simple_subsume_place_refinement_id A ty (x1 x2 : A) :
     SimpleSubsumePlace (x1 @ ty) (x2 @ ty) (<affine> ⌜x1 = x2⌝) | 100.
   Proof. iIntros (?? ->) "$". Qed.
-  Global Instance simple_subsume_val_refinement_id A ty (x1 x2 : A) :
-    SimpleSubsumeVal (x1 @ ty) (x2 @ ty) (<affine> ⌜x1 = x2⌝) | 100.
+  Global Instance simple_subsume_val_refinement_id A cty ty (x1 x2 : A) :
+    SimpleSubsumeVal cty (x1 @ ty) (x2 @ ty) (<affine> ⌜x1 = x2⌝) | 100.
   Proof. iIntros (? ->) "$". Qed.
 
   Global Instance simple_subsume_place_rty_to_ty_l A (ty1 : rtype A) P `{!∀ x, SimpleSubsumePlace (x @ ty1) ty2 P} :
@@ -1087,8 +1094,8 @@ Section typing.
   Definition simple_subsume_place_to_subsume_inst := [instance simple_subsume_place_to_subsume].
   Global Existing Instance simple_subsume_place_to_subsume_inst.
 
-  Lemma simple_subsume_val_to_subsume A v ty1 ty2 P `{!∀ x, SimpleSubsumeVal ty1 (ty2 x) (P x)} T:
-    (∃ x, P x ∗ T x) ⊢ subsume (v ◁ᵥ ty1) (λ x : A, v ◁ᵥ ty2 x) T.
+  Lemma simple_subsume_val_to_subsume A cty v ty1 ty2 P `{!∀ x, SimpleSubsumeVal cty ty1 (ty2 x) (P x)} T:
+    (∃ x, P x ∗ T x) ⊢ subsume ((valinject cty v) ◁ᵥ|cty| ty1) (λ x : A, (valinject cty v) ◁ᵥ|cty| ty2 x) T.
   Proof. iIntros "[% [HP ?]] Hv". iExists _. iFrame. iApply (@simple_subsume_val with "HP Hv"). Qed.
   Definition simple_subsume_val_to_subsume_inst := [instance simple_subsume_val_to_subsume].
   Global Existing Instance simple_subsume_val_to_subsume_inst.
@@ -1286,15 +1293,19 @@ Section typing.
      similar to lithium.theories.typing.int, have one rule for each 
      concrete (t1, t2) in (Ecast t1 t2) *)
   Lemma type_assign Espec ge f e1 e2 (T: option val -> type -> assert):
-    typed_val_expr ge f (Ecast e2 (typeof e1)) (λ v ty,
-      <affine> ⌜v `has_layout_val` typeof e1⌝ ∗
-       typed_write ge f false e1 (typeof e1) v ty (T None tytrue))
+    type_is_by_value (typeof e1) = true ->
+    type_is_volatile (typeof e1) = false ->
+    typed_val_expr ge f (Ecast e2 (typeof e1)) (λ cty v ty,
+      <affine> ⌜cty = typeof e1⌝ ∗
+      <affine> ⌜tc_val' cty v⌝ ∗
+       typed_write ge f false e1 cty v ty (T None tytrue))
     ⊢ typed_stmt Espec ge (Sassign e1 e2) f T.
   Proof.
+    intros.
     unfold typed_stmt.
     rewrite -wp_store.
     iIntros "H". iApply "H".
-    iIntros (v ty) "H [% ty_write]".
+    iIntros (cty v ty) "H (-> & % & ty_write)".
     iSplit; [done|].
     iApply wp_lvalue_mono.
     { intros; apply derives_refl. }
@@ -1303,13 +1314,18 @@ Section typing.
     iMod ("upd" with "H") as "(%Hot & Hl & upd)"; iModIntro.
     iExists Tsh.
     iSplit; [auto|].
+    rewrite mapsto_layout_iff_mapsto_and_layout.
+    iDestruct "Hl" as (v_rep) "[%Hl ↦]".
     iSplitR "upd".
-    - rewrite /mapsto_layout /mapsto.
-      iDestruct "Hl" as (???) "Hl".
-      rewrite mapsto_mapsto_ //.
+    - rewrite /mapsto /mapsto_ /adr2val /=.
+      rewrite by_value_data_at_rec_nonvolatile //.
+      admit.
     - iIntros "!> l↦".
-      iMod ("upd" with "[l↦]"); done.
-  Qed.
+      iMod ("upd" with "[l↦]"); try done.
+      rewrite /mapsto /mapsto_ /adr2val /=.
+      rewrite by_value_data_at_rec_nonvolatile //.
+      rewrite repinject_valinject //.
+  Admitted.
 
   (* sets any v' to v *)
   Lemma type_set Espec ge f (id:ident) e v' (T: option val -> type -> assert):
