@@ -383,44 +383,69 @@ Section array.
 
   Notation "l 'offset{' cty '}ₗ' path" := 
     (l.1, l.2 + nested_field_offset cty path) 
-    (at level 50, format "l  'offset{' cty '}ₗ'  path", left associativity) : loc_scope.
+    (at level 50, format "l  'offset{' cty '}ₗ'  path", left associativity).
+  
+  Notation "l 'arr_ofs{' cty ',' size '}ₗ' n" := 
+    (l offset{ (tarray cty size) }ₗ SUB n) 
+    (at level 50, format "l  'arr_ofs{' cty ','  size '}ₗ' n", left associativity).
+
+  Lemma offset_sub_S : ∀ (l : address) cty s (n : nat),
+         l arr_ofs{cty, s}ₗ S n = l arr_ofs{cty, s}ₗ 1 arr_ofs{cty, s}ₗ n.
+  Proof. intros.
+    rewrite /nested_field_offset /=.
+    f_equal.
+    lia.
+  Qed.
+
+  (* TODO delete this when programs.v works *)
+  Program Definition place (l : address) : type := {|
+    ty_own β l' := (<affine> ⌜l = l'⌝)%I;
+    ty_has_op_type _ _ := False%type;
+    ty_own_val _ _ := emp;
+  |}.
+  Solve Obligations with try done.
+  Next Obligation. by iIntros (????) "$". Qed.
 
   (* array has type `tarray cty (length tys)` *)
   Lemma array_get_type (i : nat) cty tys ty l β:
     tys !! i = Some ty →
-    l ◁ₗ{β} array cty tys -∗ (l offset{tarray cty (length tys)}ₗ [ArraySubsc i]) ◁ₗ{β} ty ∗ l ◁ₗ{β} array cty (<[ i := place (l offset{ly}ₗ i)]>tys).
+    l ◁ₗ{β} array cty tys -∗
+      (l arr_ofs{cty, length tys}ₗ i) ◁ₗ{β} ty ∗
+       l ◁ₗ{β} array cty (<[ i := place (l arr_ofs{cty, length tys}ₗ i)]>tys).
   Proof.
-    rewrite !/(ty_own (array _ _))/=. iIntros (Hi) "($&Hb&Ha)".
+    rewrite !/(ty_own (array _ _)) /= !length_insert.
+    iIntros (Hi) "($&Ha)".
     iInduction (i) as [|i] "IH" forall (l tys Hi);
     destruct tys as [|ty' tys] => //; simpl in *; simplify_eq;
     iDestruct "Ha" as "[$ Ha]".
-    { unfold place; by iFrame. }
-    rewrite offset_loc_S. setoid_rewrite offset_loc_S.
-    iDestruct (loc_in_bounds_split_mul_S with "Hb") as "[Hb1 Hb2]".
-    rewrite /offset_loc Z.mul_1_r.
-    iDestruct ("IH" with "[//] [Hb2] Ha") as "[$[Hb2 $]]" => //.
-    iApply loc_in_bounds_split_mul_S. iFrame.
+    { rewrite /place /=; iFrame. rewrite /ty_own //. }
+    rewrite !offset_sub_S. setoid_rewrite offset_sub_S.
+    iDestruct ("IH" with "[//] Ha") as "[Hb2 $]" => //.
   Qed.
 
-  Lemma array_put_type (i : nat) ly tys ty l β:
-    (l offset{ly}ₗ i) ◁ₗ{β} ty -∗ l ◁ₗ{β} array ly tys -∗ l ◁ₗ{β} array ly (<[ i := ty ]>tys).
+  Lemma array_put_type (i : nat) cty tys ty l β:
+    (l arr_ofs{cty, length tys}ₗ i) ◁ₗ{β} ty -∗ l ◁ₗ{β} array cty tys -∗ 
+      l ◁ₗ{β} array cty (<[ i := ty ]>tys) ∗
+    (* NOTE refinedc simply throws away the following term, but VST is linear and have to keep this *)
+      ∃ ty', <affine> ⌜(i < length tys)%nat -> Some ty' = tys !! i⌝ ∗ (l arr_ofs{cty, length tys}ₗ i) ◁ₗ{β} ty'.
   Proof.
-    rewrite !/(ty_own (array _ _))/=. iIntros "Hl ($&Hb&Ha)".
-    destruct (decide (i < length tys)%nat) as [Hlt |]; last first.
-    { rewrite list_insert_ge => //; last by lia. iFrame. }
+    intros.
+    rewrite !/(ty_own (array _ _))/= !length_insert. iIntros "Hl ($&Ha)".
+    destruct (decide (i < length tys)%nat) as [Hlt |].
+    2:{ rewrite list_insert_ge => //; last by lia. by iFrame. }
     iInduction (i) as [|i] "IH" forall (l tys Hlt);
-    destruct tys as [|ty' tys] => //; simpl in *; simplify_eq; eauto.
-    - iFrame. by iDestruct "Ha" as "[_ $]".
-    - rewrite offset_loc_S. setoid_rewrite offset_loc_S.
+    destruct tys as [|ty' tys] => //; simpl in *; try lia.
+    - iFrame. iDestruct "Ha" as "[? $]". by iFrame.
+    - rewrite offset_sub_S.
+      setoid_rewrite offset_sub_S.
       iDestruct "Ha" as "[$ Ha]".
-      iDestruct (loc_in_bounds_split_mul_S with "Hb") as "[Hb1 Hb2]".
-      rewrite /offset_loc Z.mul_1_r.
-      iDestruct ("IH" with "[] Hl [Hb2] Ha") as "[Hb2 $]" => //.
+      iDestruct ("IH" with "[] [Hl] Ha") as "[Hb2 ?]" => //; iClear "IH".
       { iPureIntro. lia. }
-      iApply loc_in_bounds_split_mul_S. iFrame.
+      setoid_rewrite <-Nat.succ_lt_mono.
+      iFrame.
   Qed.
 
-  Global Instance array_alloc_alive ly tys β P `{!TCExists (λ ty, AllocAlive ty β P) tys} :
+  (* Global Instance array_alloc_alive ly tys β P `{!TCExists (λ ty, AllocAlive ty β P) tys} :
     AllocAlive (array ly tys) β P.
   Proof.
     revert select (TCExists _ _).
@@ -440,9 +465,9 @@ Section array.
     iExists _. iFrame.
   Qed.
   Definition subsume_array_alloc_alive_inst := [instance subsume_array_alloc_alive].
-  Global Existing Instance subsume_array_alloc_alive_inst | 10.
+  Global Existing Instance subsume_array_alloc_alive_inst | 10. *)
   (*** array_ptr *)
-  Program Definition array_ptr (ly : layout) (base : loc) (idx : Z) (len : nat) : type := {|
+  (* Program Definition array_ptr (ly : layout) (base : loc) (idx : Z) (len : nat) : type := {|
     ty_own β l := (
       ⌜l = base offset{ly}ₗ idx⌝ ∗
       ⌜l `has_layout_loc` ly⌝ ∗
@@ -460,10 +485,10 @@ Section array.
     constructor. iIntros (?) "(->&%&%&Hl)".
     iApply (loc_in_bounds_offset with "Hl") => /=; unfold addr in *; [done|lia|].
     rewrite /mk_array_layout{3}/ly_size/=. nia.
-  Qed.
+  Qed. *)
   (*** typing rules *)
 
-  Lemma array_replicate_uninit_equiv l β ly n:
+  (* Lemma array_replicate_uninit_equiv l β ly n:
     layout_wf ly →
     l ◁ₗ{β} array ly (replicate n (uninit ly)) ⊣⊢ l ◁ₗ{β} uninit (mk_array_layout ly n).
   Proof.
@@ -503,9 +528,9 @@ Section array.
         have ->: (k * n = k * S n - k)%nat by lia. done.
       + iSplitL "Hl"; last done. iExists _. iFrame. iPureIntro. rewrite Forall_forall. split_and! => //.
         rewrite /has_layout_val length_take_le ?Hv; repeat unfold ly_size => /=; lia.
-  Qed.
+  Qed. *)
 
-  Lemma simplify_hyp_uninit_array ly l β n T:
+  (* Lemma simplify_hyp_uninit_array ly l β n T:
     ⌜layout_wf ly⌝ ∗ (l ◁ₗ{β} array ly (replicate n (uninit ly)) -∗ T)
     ⊢ simplify_hyp (l ◁ₗ{β} uninit (mk_array_layout ly n)) T.
   Proof. iIntros "[% HT] Hl". iApply "HT". rewrite array_replicate_uninit_equiv // {1}/ly_size/=. Qed.
@@ -537,20 +562,35 @@ Section array.
     iExists _. iFrame. by rewrite Heq array_replicate_uninit_equiv.
   Qed.
   Definition subsume_array_uninit_inst := [instance subsume_array_uninit].
-  Global Existing Instance subsume_array_uninit_inst.
-
-  Lemma subsume_array A ly1 ly2 tys1 tys2 l β T:
-    (⌜ly1 = ly2⌝ ∗ ∀ id,
-       subsume (sep_list id type [] tys1 (λ i ty, (l offset{ly1}ₗ i) ◁ₗ{β} ty))
-         (λ x, sep_list id type [] (tys2 x) (λ i ty, (l offset{ly1}ₗ i) ◁ₗ{β} ty)) T)
-    ⊢ subsume (l ◁ₗ{β} array ly1 tys1) (λ x : A, l ◁ₗ{β} array ly2 (tys2 x)) T.
+  Global Existing Instance subsume_array_uninit_inst. *)
+  
+  Global Instance mpred_positive : BiPositive mpred.
   Proof.
-    unfold sep_list. iIntros "[-> H] ($&Hb&H1)".
-    iDestruct ("H" $! {|sep_list_len := length tys1|} with "[$H1]") as (?) "[[%Heq ?] ?]"; [done|].
+    constructor. intros.
+    ouPred.unseal.
+  Admitted.
+
+  
+  Lemma subsume_array A cty_arr tys1 tys2 l β T:
+    (∀ id,
+       subsume (sep_list id type [] tys1 (λ i ty, (l arr_ofs{cty_arr, (length tys1)}ₗ i) ◁ₗ{β} ty))
+         (λ x, sep_list id type [] (tys2 x) (λ i ty, (l arr_ofs{cty_arr, (length tys1)}ₗ i) ◁ₗ{β} ty)) T)
+    ⊢ subsume (<affine> l ◁ₗ{β} array cty_arr tys1) (λ x : A, <affine> l ◁ₗ{β} array cty_arr (tys2 x)) T.
+  Proof.
+    unfold sep_list. iIntros "H H1".
+    iDestruct ("H" $! {|sep_list_len := length tys1|} with "[H1]") as (?) "[[%Heq ?] ?]".
+    { rewrite {1}/ty_own /=. iDestruct "H1" as "[% H1]".
+      iSplit; [done|].
+      admit. (* probably BiPositive implies pushing affine in to Hl *)
+    }
     simpl in *. rewrite -Heq. iExists _. iFrame.
-  Qed.
-  Definition subsume_array_inst := [instance subsume_array].
-  Global Existing Instance subsume_array_inst.
+    rewrite /ty_own /=.
+    rewrite -bi_positive.
+  Admitted.
+
+  (* TODO uncomment this when programs.v is done *)
+  (* Definition subsume_array_inst := [instance subsume_array].
+  Global Existing Instance subsume_array_inst. *)
 
   Lemma type_place_array l β ly1 it v tyv tys ly2 K T:
     (v ◁ᵥ tyv -∗ ∃ i, ⌜ly1 = ly2⌝ ∗ v ◁ᵥ i @ int it ∗ ⌜0 ≤ i⌝ ∗ ⌜i < length tys⌝ ∗
