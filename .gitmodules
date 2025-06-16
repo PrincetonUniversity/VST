@@ -10,6 +10,3 @@
 [submodule "fcf"]
 	path = fcf
 	url = https://github.com/adampetcher/fcf.git
-[submodule "ora"]
-	path = ora
-	url = https://github.com/mansky1/ora
