@@ -2,7 +2,7 @@ From VST.typing Require Export type.
 From VST.typing Require Import programs optional.
 From VST.typing Require Import type_options.
 
-Class OwnConstraint `{!typeG Σ} {cs : compspecs} (P : own_state → mpred) : Prop := {
+Class OwnConstraint `{!typeG OK_ty Σ} {cs : compspecs} (P : own_state → mpred) : Prop := {
   own_constraint_persistent : Persistent (P Shr);
   own_constraint_share E : ↑shrN ⊆ E → P Own ={E}=∗ P Shr;
 }.
@@ -10,7 +10,7 @@ Class OwnConstraint `{!typeG Σ} {cs : compspecs} (P : own_state → mpred) : Pr
 Global Existing Instance own_constraint_persistent.
 
 Section own_constrained.
-  Context `{!typeG Σ} {cs : compspecs}.
+  Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
   Program Definition own_constrained (P : own_state → mpred) `{!OwnConstraint P} (ty : type) : type := {|
     ty_has_op_type ot mt := ty.(ty_has_op_type) ot mt;
@@ -19,10 +19,12 @@ Section own_constrained.
   |}.
   Next Obligation. iIntros (??????) "(H1 & H2)".
                    iMod (ty_share with "[$H1]") as "$" => //.
-                   by iApply own_constraint_share.
-  Qed.
+                   by iApply own_constraint_share. Qed.
   Next Obligation. iIntros (???????) "[? _]". by iApply ty_aligned. Qed.
-  Next Obligation. iIntros (???????) "(H & H1)". iFrame "H1". iApply (ty_deref with "[H]"); done. Qed.
+  Next Obligation. iIntros (???????) "(H & H1)".
+                   iApply (ty_size_eq with "[$]"); try done. Qed.
+  Next Obligation. iIntros (???????) "(H & H1)". iFrame.
+                   iApply (ty_deref with "[H]"); done. Qed.
   Next Obligation. iIntros (?????????) "Hl [? $]". by iApply (ty_ref with "[//] [Hl]"). Qed.
   
   Global Instance own_constrained_rty_le P `{!OwnConstraint P} : Proper ((⊑) ==> (⊑)) (own_constrained P).
@@ -112,7 +114,7 @@ Global Typeclasses Opaque own_constrained tyown_constraint.
 Arguments tyown_constraint : simpl never.
 
 Section constrained.
-  Context `{!typeG Σ} {cs : compspecs}.
+  Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
   Definition persistent_own_constraint (P : mpred) (β : own_state) : mpred := □ P.
 
@@ -145,7 +147,7 @@ Notation "constrained< ty , P >" := (constrained ty P)
   (only printing, format "'constrained<' ty ,  P '>'") : printing_sugar.
 
 Section nonshr_constrained.
-  Context `{!typeG Σ} {cs : compspecs}.
+  Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
   Definition nonshr_constraint (P : iProp Σ) (β : own_state) : iProp Σ :=
     match β with | Own => P | Shr => True end.
