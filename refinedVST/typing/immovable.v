@@ -3,7 +3,7 @@ From VST.typing Require Import programs.
 From VST.typing Require Import type_options.
 
 Section immovable.
-  Context `{!typeG Σ} {cs: compspecs}.
+  Context `{!typeG Ok_ty Σ} {cs: compspecs}.
 
   Program Definition immovable (ty : address → type) : type := {|
     ty_own q l := (ty l).(ty_own) q l;
