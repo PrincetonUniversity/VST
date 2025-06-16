@@ -234,7 +234,7 @@ Definition get_reent_spec :=
     SEP (reent_struct p)
   POST [ tptr (Tstruct reent noattr) ]
     PROP ()
-    LOCAL (temp ret_temp p)
+    RETURN (p)
     SEP (reent_struct p).
 
 Definition fprintf_spec_parametrized FILEid (fmtz: list Z) :=
@@ -258,7 +258,7 @@ Definition fprintf_spec_parametrized FILEid (fmtz: list Z) :=
       match x with (outp,sh,fmt,fmtp,stuff,(out,k)) =>
        ∃ n:int,
         PROPx nil 
-        (LOCALx (temp ret_temp (Vint n)::nil)
+        (RETURNx (Some (Vint n))
          (SEPx (cstring sh fmt fmtp :: file_at out outp :: ITREE k :: SEP_of_format fl stuff)))
        end).
 
@@ -282,7 +282,7 @@ Definition printf_spec_parametrized (fmtz: list Z) :=
       match x with (outp,sh,fmt,fmtp,stuff,k) =>
        ∃ n:int,
         PROPx nil 
-        (LOCALx (temp ret_temp (Vint n)::nil)
+        (RETURNx (Some (Vint n))
          (SEPx (cstring sh fmt fmtp :: ITREE k :: SEP_of_format fl stuff)))
        end).
 
@@ -294,7 +294,7 @@ Definition fprintf_placeholder_spec FILEid : funspec :=
      {|cc_vararg:=Some 2; cc_unproto:=false; cc_structret:=false|}
      unit
      (fun x : unit =>  PROP (False) PARAMS () GLOBALS () SEP ())%argsassert
-     (fun x : unit =>  PROP () LOCAL () SEP ()).
+     (fun x : unit =>  PROP () RETURN () SEP ()).
 
 Definition printf_placeholder_spec : funspec :=
   NDmk_funspec 
@@ -303,7 +303,7 @@ Definition printf_placeholder_spec : funspec :=
      {|cc_vararg:=Some 1; cc_unproto:=false; cc_structret:=false|}
      unit
      (fun x : unit =>  PROP (False) PARAMS () GLOBALS () SEP ())%argsassert
-     (fun x : unit =>  PROP () LOCAL () SEP ()).
+     (fun x : unit =>  PROP () RETURN () SEP ()).
 
 Axiom fprintf_spec_sub:
   forall FILEid fmtz, 
@@ -441,7 +441,7 @@ lazymatch goal with
        forward_fprintf' gv Pre id (printf_spec_sub(CS := cs)) nullval w w'
 end.
 
-Fixpoint make_printf_specs' `{!VSTGS (@IO_itree E) Σ} {FS : FileStruct} (defs: list (ident * globdef (fundef function) type)) : list (ident*funspec) :=
+Fixpoint make_printf_specs' `{!VSTGS (@IO_itree E) Σ} {FS : FileStruct} (defs: list (ident * globdef fundef type)) : list (ident*funspec) :=
  match defs with
  | (i, Gfun (External (EF_external "fprintf" _) 
                        (cons (Tpointer (Tstruct id _) _) _) _ _)) :: defs' => 

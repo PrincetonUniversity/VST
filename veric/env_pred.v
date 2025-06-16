@@ -271,3 +271,7 @@ Proof.
 Qed.
 
 End assert.
+
+Global Instance: Params (@assert_of) 2 := {}.
+Global Instance: Params (@argsassert_of) 2 := {}.
+Global Instance: Params (@postassert_of) 2 := {}.

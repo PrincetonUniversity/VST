@@ -203,7 +203,7 @@ Program Definition atomic_exchange_spec :=
   POST [ tint ]
    ∃ t : nat, ∃ v' : val,
    PROP (tc_val tint v'; newer h t)
-   LOCAL (temp ret_temp v')
+   RETURN (v')
    SEP (AE_loc lsh tgt g i R (<[t := Excl (AE v' v)]>h); Q (<[t := Excl (AE v' v)]>h) v').
 Next Obligation.
 Proof.
@@ -225,7 +225,7 @@ Proof.
   iSplit; first done.
   iSplit.
   - repeat (iSplit; first done).
-    rewrite /SEPx /= /LOCALx /argsassert2assert /=; monPred.unseal.
+    rewrite /SEPx /= /RETURNx /argsassert2assert /=; monPred.unseal.
     repeat (iSplit; first done).
     iDestruct "H" as "(_ & (% & #I & hist) & P & spec & _)".
     iSplit; last done.
@@ -253,7 +253,7 @@ Proof.
     iPureIntro; split; auto.
     apply hist_incl_lt; done.
   - iPureIntro; intros.
-    iIntros "(% & _ & % & _ & ? & H & _)"; simpl.
+    iIntros "(_ & % & _ & (-> & _) & H & _)"; simpl.
     iDestruct "H" as (t ?) "(? & ?)".
     iExists t, (Vint v'); iSplit.
     { simpl; iPureIntro; tauto. }

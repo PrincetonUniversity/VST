@@ -1,8 +1,8 @@
+Require Import VST.veric.log_normalize.
 Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.veric.valid_pointer.
 Require Import VST.floyd.base.
 Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
-Require Export VST.veric.log_normalize.
 Require Export VST.floyd.seplog_tactics.
 Require Export VST.veric.mapsto_memory_block.
 Require Export VST.floyd.align_compatible_dec.

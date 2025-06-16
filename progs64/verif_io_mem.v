@@ -68,7 +68,7 @@ Definition print_intr_spec :=
     SEP (data_at sh (tarray tuchar (Zlength contents)) contents buf)
   POST [ tint ]
     PROP ()
-    LOCAL (temp ret_temp (Vint (Int.repr (Zlength (intr i)))))
+    RETURN (Vint (Int.repr (Zlength (intr i))))
     SEP (data_at sh (tarray tuchar (Zlength contents)) (replace_list 0 contents (map Vubyte (intr i))) buf).
 
 Definition print_int_spec :=
@@ -81,7 +81,7 @@ Definition print_int_spec :=
     SEP (mem_mgr gv; ITREE (write_list stdout (chars_of_Z i ++ [Byte.repr newline]) ;; tr))
   POST [ tvoid ]
     PROP ()
-    LOCAL ()
+    RETURN ()
     SEP (mem_mgr gv; ITREE tr).
 
 Definition for_loop {file_id} i z (body : Z -> itree (@IO_event file_id) bool) :=
@@ -107,7 +107,7 @@ Definition main_spec :=
  DECLARE _main
   WITH gv : globals
   PRE  [] main_pre prog main_itree gv
-  POST [ tint ] PROP () LOCAL () SEP (mem_mgr gv; ITREE (Ret tt : @IO_itree (@IO_event nat))).
+  POST [ tint ] PROP () RETURN (Vint Int.zero) SEP (mem_mgr gv; ITREE (Ret tt : @IO_itree (@IO_event nat))).
 
 Definition Gprog : funspecs := ltac:(with_library prog [putchars_spec; getchars_spec;
   print_intr_spec; print_int_spec; main_spec]).

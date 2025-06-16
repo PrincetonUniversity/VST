@@ -16,6 +16,7 @@ Require Export VST.veric.tycontext.
 Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Export VST.veric.change_compspecs.
 Require Export VST.veric.mpred.
+Require Export VST.veric.env_pred.
 Require Export VST.veric.expr.
 Require Export VST.veric.expr2.
 Require Export VST.veric.expr_lemmas.

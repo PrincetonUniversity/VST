@@ -1,8 +1,9 @@
 Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.floyd.base.
 Require Import VST.floyd.val_lemmas.
-Require Import VST.floyd.typecheck_lemmas.
+Require Import VST.veric.SeparationLogic.
 Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
+Require Import VST.floyd.typecheck_lemmas.
 Require Import compcert.cfrontend.Ctypes.
 
 Open Scope Z.

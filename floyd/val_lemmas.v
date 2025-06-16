@@ -10,6 +10,7 @@ Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key"
 Require Export VST.veric.mpred.
 Require Export VST.veric.seplog.
 Require Export VST.floyd.functional_base.
+Import expr.
 Import LiftNotation.
 
 Transparent intsize_eq.

@@ -26,7 +26,7 @@ Definition getchar_blocking_spec :=
   POST [ tint ]
    ∃ i : byte,
     PROP ()
-    LOCAL (temp ret_temp (Vubyte i))
+    RETURN (Vubyte i)
     SEP (ITREE (k i)).
 
 Definition putchar_blocking_spec :=
@@ -39,7 +39,7 @@ Definition putchar_blocking_spec :=
     SEP (ITREE (r <- write stdout c ;; k))
   POST [ tint ]
     PROP ()
-    LOCAL (temp ret_temp (Vubyte c))
+    RETURN (Vubyte c)
     SEP (ITREE k).
 
 Lemma div_10_dec : forall n, 0 < n ->
@@ -91,7 +91,7 @@ Definition print_intr_spec :=
     SEP (ITREE (write_list stdout (intr i) ;; tr))
   POST [ tvoid ]
     PROP ()
-    LOCAL ()
+    RETURN ()
     SEP (ITREE tr).
 
 Definition print_int_spec :=
@@ -104,7 +104,7 @@ Definition print_int_spec :=
     SEP (ITREE (write_list stdout (chars_of_Z i) ;; tr))
   POST [ tvoid ]
     PROP ()
-    LOCAL ()
+    RETURN ()
     SEP (ITREE tr).
 
 Definition read_sum n d : IO_itree :=

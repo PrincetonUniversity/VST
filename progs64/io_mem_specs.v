@@ -38,7 +38,7 @@ Definition putchars_spec {CS : compspecs} :=
            data_at sh (tarray tuchar len) (map Vubyte msg ++ rest) buf)
   POST [ tint ]
     PROP ()
-    LOCAL (temp ret_temp (Vint (Int.repr (Zlength msg))))
+    RETURN (Vint (Int.repr (Zlength msg)))
     SEP (ITREE k;
            data_at sh (tarray tuchar len) (map Vubyte msg ++ rest) buf).
 
@@ -51,7 +51,7 @@ Definition getchars_spec {CS : compspecs} :=
   POST [ tint ]
    ∃ msg : list byte,
     PROP ()
-    LOCAL (temp ret_temp (Vint (Int.repr len)))
+    RETURN (Vint (Int.repr len))
     SEP (ITREE (k msg); data_at sh (tarray tuchar len) (map Vubyte msg) buf).
 
 (* Build the external specification. *)

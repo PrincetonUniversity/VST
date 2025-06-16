@@ -69,7 +69,7 @@ Definition surely_malloc_spec :=
        SEP (mem_mgr gv)
     POST [ tptr tvoid ] ∃ p:_,
        PROP ()
-       LOCAL (temp ret_temp p)
+       RETURN (p)
        SEP (mem_mgr gv; malloc_token Ews t p ∗ data_at_ Ews t p).
 
 Definition memset_spec :=
@@ -81,7 +81,7 @@ Definition memset_spec :=
    SEP (data_at_ sh t p)
   POST [ tptr tvoid ]
    PROP ()
-   LOCAL (temp ret_temp p)
+   RETURN (p)
    SEP (data_at sh (tarray tint n) (repeat (vint c) (Z.to_nat n)) p).
 
 Definition N := 3.
@@ -176,7 +176,7 @@ Definition initialize_channels_spec :=
    ∃ comms : list val, ∃ bufs : list val, ∃ reads : list val, ∃ lasts : list val,
      ∃ g : list gname, ∃ g0 : list gname, ∃ g1 : list gname, ∃ g2 : list gname,
    PROP ((*Forall isptr comms;*) Zlength g = N; Zlength g0 = N; Zlength g1 = N; Zlength g2 = N)
-   LOCAL ()
+   RETURN ()
    SEP (data_at Ews (tarray (tptr t_atom_int) N) comms (gv _comm);
         data_at Ews (tarray (tptr tbuffer) B) bufs (gv _bufs);
         data_at Ews (tarray (tptr tint) N) reads (gv _reading);
@@ -207,7 +207,7 @@ Definition initialize_reader_spec :=
         data_at_ Ews tint (Znth r reads); data_at_ Ews tint (Znth r lasts))
   POST [ tvoid ]
    PROP ()
-   LOCAL ()
+   RETURN ()
    SEP (data_at sh (tarray (tptr tint) N) reads (gv _reading); data_at sh (tarray (tptr tint) N) lasts (gv _last_read);
         data_at Ews tint Empty (Znth r reads); data_at Ews tint (vint 1) (Znth r lasts)).
 
@@ -236,7 +236,7 @@ Definition start_read_spec :=
    ∃ b : Z, ∃ t : nat, ∃ v0 : val, ∃ v : Z,
    PROP (0 <= b < B; if eq_dec v0 Empty then b = b0 else v0 = vint b;
          latest_read (<[t := Excl (AE v0 Empty)]>h) (vint b))
-   LOCAL (temp ret_temp (vint b))
+   RETURN (vint b)
    SEP (data_at sh1 (tarray (tptr tint) N) reads (gv _reading); data_at sh1 (tarray (tptr tint) N) lasts (gv _last_read);
         data_at sh1 (tarray (tptr t_atom_int) N) comms (gv _comm);
         data_at Ews tint (vint b) (Znth r reads); data_at Ews tint (vint b) (Znth r lasts);
@@ -255,7 +255,7 @@ Definition finish_read_spec :=
    SEP (data_at sh (tarray (tptr tint) N) reads (gv _reading); data_at_ Ews tint (Znth r reads))
   POST [ tvoid ]
    PROP ()
-   LOCAL ()
+   RETURN ()
    SEP (data_at sh (tarray (tptr tint) N) reads (gv _reading); data_at Ews tint Empty (Znth r reads)).
 
 Definition initialize_writer_spec :=
@@ -268,7 +268,7 @@ Definition initialize_writer_spec :=
         data_at_ Ews (tarray tint N) (gv _last_taken))
   POST [ tvoid ]
    PROP ()
-   LOCAL ()
+   RETURN ()
    SEP (data_at Ews tint Empty (gv _writing); data_at Ews tint (vint 0) (gv _last_given);
         data_at Ews (tarray tint N) (repeat (vint 1) (Z.to_nat N)) (gv _last_taken)).
 
@@ -283,7 +283,7 @@ Definition start_write_spec :=
   POST [ tint ]
    ∃ b : Z,
    PROP (0 <= b < B; b <> b0; ~In b lasts)
-   LOCAL (temp ret_temp (vint b))
+   RETURN (vint b)
    SEP (data_at Ews tint (vint b) (gv _writing); data_at Ews tint (vint b0) (gv _last_given);
         data_at Ews (tarray tint N) (map (fun x => vint x) lasts) (gv _last_taken)).
 (* And b is not in use by any reader. This follows from the property on lasts. *)
@@ -322,7 +322,7 @@ Definition finish_write_spec :=
    PROP (Forall (fun x => 0 <= x < B) lasts';
          Forall2 (fun h1 h2 => exists t v, h2 = <[t := Excl (AE v (vint b))]>h1) h h';
          ~In b lasts')
-   LOCAL ()
+   RETURN ()
    SEP (data_at Ews tint Empty (gv _writing); data_at Ews tint (vint b) (gv _last_given);
         data_at Ews (tarray tint N) (map (fun x => vint x) lasts') (gv _last_taken);
         data_at sh1 (tarray (tptr t_atom_int) N) comms (gv _comm);

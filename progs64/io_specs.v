@@ -28,7 +28,7 @@ Definition putchar_spec :=
   POST [ tint ]
    ∃ i : int,
     PROP (Int.signed i = -1 \/ Int.signed i = Byte.unsigned c)
-    LOCAL (temp ret_temp (Vint i))
+    RETURN (Vint i)
     SEP (ITREE (if eq_dec (Int.signed i) (-1) then (write stdout c ;; k)%itree else k)).
 
 Definition getchar_spec :=
@@ -40,7 +40,7 @@ Definition getchar_spec :=
   POST [ tint ]
    ∃ i : int,
     PROP (-1 <= Int.signed i <= Byte.max_unsigned)
-    LOCAL (temp ret_temp (Vint i))
+    RETURN (Vint i)
     SEP (ITREE (if eq_dec (Int.signed i) (-1) then (r <- read stdin ;; k r)%itree else k (Byte.repr (Int.signed i)))).
 
 (* Build the external specification. *)

@@ -3503,12 +3503,12 @@ Ltac solve_return_inner_gen :=
       match v with
       | Some _ => first [ (*simple*) apply return_inner_gen_canon_Some;
                           unfold VST_floyd_app; reflexivity
-                        | (*simple*) apply return_inner_gen_canon_nil;
-                          unfold VST_floyd_app; reflexivity
-                        | fail 1000 "the LOCAL clauses of this POSTCONDITION should only contain ret_temp. Other variables appears there now."]
+(*                        | (*simple*) apply return_inner_gen_canon_nil;
+                          unfold VST_floyd_app; reflexivity *)
+                        | fail 1000 "this function's spec does not include a return value."]
       | None   => first [ (*simple*) apply return_inner_gen_canon_nil;
                           unfold VST_floyd_app; reflexivity
-                        | fail 1000 "the LOCAL clauses of this POSTCONDITION should not contain any variable."]
+                        | fail 1000 "this function's spec requires a return value."]
       end
     | _ => first [ (*simple*) apply return_inner_gen_main
                  | fail 1000 "the POSTCONDITION should be in an existential canonical form."
