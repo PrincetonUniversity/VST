@@ -1317,15 +1317,15 @@ Section typing.
     rewrite mapsto_layout_iff_mapsto_and_layout.
     iDestruct "Hl" as (v_rep) "[%Hl ↦]".
     iSplitR "upd".
-    - rewrite /mapsto /mapsto_ /adr2val /=.
+    - rewrite /mapsto 
+      -mapsto_mapsto_ /adr2val /=.
       rewrite by_value_data_at_rec_nonvolatile //.
-      admit.
     - iIntros "!> l↦".
       iMod ("upd" with "[l↦]"); try done.
       rewrite /mapsto /mapsto_ /adr2val /=.
       rewrite by_value_data_at_rec_nonvolatile //.
       rewrite repinject_valinject //.
-  Admitted.
+  Qed.
 
   (* sets any v' to v *)
   Lemma type_set Espec ge f (id:ident) e v' (T: option val -> type -> assert):
