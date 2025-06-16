@@ -1,14 +1,11 @@
 From iris.algebra Require Import csum excl auth cmra_big_op.
 From iris.algebra Require Import big_op gset frac agree.
-(* From VST.typing Require Import programs. *)
+From VST.typing Require Import programs.
 From VST.typing Require Import type_options.
 From iris_ora.algebra Require Import frac_auth ext_order excl.
 From VST.veric Require Import lifting.
 From compcert.cfrontend Require Import Clight.
-From VST.lithium Require Export proof_state.
 From lithium Require Import hooks.
-From VST.typing Require Export type.
-From VST.typing Require Import type_options.
 From VST.floyd Require Import globals_lemmas.
 
 
@@ -160,13 +157,6 @@ Section type.
         by eapply Permutation.Permutation_cons_inv.
       + set_unfold => ??. subst. apply elem_of_elements. rewrite -Hst. set_solver.
    Qed.
-
-  (*TODOs: remove it later *)
-  Definition typed_annot_stmt {A} (a : A) (l : address) (P : iProp Σ) (T : iProp Σ) : iProp Σ :=
-    (P ={⊤}[∅]▷=∗ T).
-  Definition typed_annot_expr (n : nat) {A} (a : A) (v : val) (P : iProp Σ) (T : iProp Σ) : iProp Σ :=
-    (P ={⊤}[∅]▷=∗^n |={⊤}=> T).
-  (*TODOs: remove it later *)
 
   Lemma annot_unlock A l β γ n ty (x : A) T:
     (find_in_context (FindDirect (lock_token γ)) (λ s : list string, ⌜n∉s⌝ ∗ (∀ x',

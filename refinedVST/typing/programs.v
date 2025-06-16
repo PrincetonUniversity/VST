@@ -1323,12 +1323,13 @@ Section typing.
     iIntros (??) "v_ty (% & $ & H)".
     rewrite /typed_stmt_post_cond /RA_normal.
     iModIntro.
-    iApply ("H" with "[$]").
+    iIntros "?".
+    iApply ("H" with "[$]"); try done.
   Qed.
 
   Lemma type_return_some Espec ge f e (T : option val → type -> assert):
     cast_pointer_to_bool (typeof e) (fn_return f) = false ->
-    (typed_val_expr ge f e (λ v ty, ⌜tc_val (typeof e) v⌝ ∧ ⌜sem_cast (typeof e) (fn_return f) v = Some v⌝ ∧
+    (typed_val_expr ge f e (λ v ty, ⌜tc_val (typeof e) v⌝ ∧ ⌜Clight_Cop2.sem_cast (typeof e) (fn_return f) v = Some v⌝ ∧
                                 T (Some v) ty)
     ⊢ typed_stmt Espec ge (Sreturn $ Some e) f T).
   Proof.
@@ -1339,8 +1340,10 @@ Section typing.
     simpl.
     iApply wp_cast; first done.
     iApply "H". 
-    iIntros; iFrame.
-    done.
+    iIntros (v ty) "H1 (H2 & (%H3 & H4))".
+    iFrame.
+    iPureIntro.
+    split; auto.
   Qed.
 
   Lemma type_return_none Espec ge f (T : option val → type -> assert) ty:
