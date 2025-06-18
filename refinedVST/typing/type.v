@@ -505,9 +505,11 @@ Global Typeclasses Opaque type_alive.*)
 
 Notation "l ◁ₗ{ β } ty" := (ty_own ty β l) (at level 15, format "l  ◁ₗ{ β }  ty") : bi_scope.
 Notation "l ◁ₗ ty" := (ty_own ty Own l) (at level 15) : bi_scope.
+(* for defining Proper instances of ty_own_val *)
 Definition ty_own_val_at `{!typeG OK_ty Σ} {cs : compspecs} (cty : Ctypes.type) :=
   λ ty v, ty.(ty_own_val) cty v.
 Notation "v ◁ᵥ| cty | ty" := (ty_own_val_at cty ty v) (at level 15) : bi_scope.
+Notation "v ◁ᵥₐₗ| cty | ty" := ((valinject cty v) ◁ᵥ|cty| ty) (at level 15) : bi_scope.
 
 Declare Scope printing_sugar.
 Notation "'frac' { β } l ∶ ty" := (ty_own ty β l) (at level 100, only printing) : printing_sugar.
