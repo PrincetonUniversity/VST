@@ -6,15 +6,20 @@ Section value.
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
 
   Program Definition value (ot : Ctypes.type) (v : val) : type := {|
-    ty_has_op_type ot' mt := ot' = ot;
-    ty_own β l := (<affine> ⌜field_compatible ot [] l⌝ ∗ <affine> ⌜tc_val' ot v⌝ ∗ (*⌜mem_cast_id v ot⌝ ∗*) l ↦_ot[β] v)%I;
-    ty_own_val v' := (<affine> ⌜tc_val' ot v⌝ ∗ <affine> ⌜v' = v⌝)%I;
+    ty_has_op_type ot' mt := (ot' = ot ∧ type_is_by_value ot = true)%type;
+    ty_own β l := (<affine>⌜l `has_layout_loc` ot⌝ ∗ <affine>⌜(valinject ot v) `has_layout_val` ot⌝ ∗ l ↦[ β ]|ot| (valinject ot v))%I;
+    ty_own_val cty v' := (<affine> ⌜cty = ot⌝ ∗ <affine> ⌜(valinject ot v) `has_layout_val` ot⌝ ∗
+                          <affine> ⌜JMeq.JMeq v' (valinject ot v)⌝)%I;
   |}.
   Next Obligation. iIntros (?????) "[$ [$ ?]]". by iApply heap_mapsto_own_state_share. Qed.
-  Next Obligation. iIntros (ot v ot' mt l ->) "[%?]". done. Qed.
-  Next Obligation. iIntros (ot v ot' mt l ->) "[% ->]". done. Qed.
-  Next Obligation. iIntros (ot v ot' mt l ->) "(%&%&?)". eauto with iFrame. Qed.
-  Next Obligation. iIntros (ot v ot' mt l v' -> ?) "Hl [? ->]". by iFrame. Qed.
+  Next Obligation. iIntros (ot v ot' mt l [-> ?]) "[% [% ?]]". done. Qed.
+  Next Obligation. intros ot v ot' mt l [? ?]. revert l. rewrite H; clear H ot'.
+                   iIntros (l) "[% [% %]]". apply JMeq.JMeq_eq in H2. rewrite H2 //. Qed.
+  Next Obligation. intros ot v ot' mt l [? ?]. revert l. rewrite H; clear H ot'.
+                   iIntros (l) "[% [% ?]]". eauto with iFrame. Qed.
+  Next Obligation. iIntros. destruct H as [-> ?]. destruct H1 as [? [? ?]].
+                   apply JMeq.JMeq_eq in H3. rewrite H3.
+                   by iFrame. Qed.
 (*  Next Obligation. iIntros (ot v v' ot' mt st ?). apply: mem_cast_compat_id. iPureIntro.
     move => [?[? ->]]. by destruct ot' => //; simplify_eq/=.
   Qed.*)
