@@ -434,9 +434,9 @@ End memcast.*)
 Class Copyable `{!typeG OK_ty Σ} {cs : compspecs} (ty : type) := {
   copy_own_persistent cty v : Persistent (ty.(ty_own_val) cty v);
   copy_own_affine cty v : Affine (ty.(ty_own_val) cty v);
-  copy_shr_acc cty E l :
-    mtE ⊆ E → 
-    ty.(ty_own) Shr l ={E}=∗ <affine> ⌜l `has_layout_loc` cty⌝ ∗
+  copy_shr_acc E l :
+    mtE ⊆ E →
+    ty.(ty_own) Shr l ={E}=∗ ∃ cty, <affine> ⌜l `has_layout_loc` cty⌝ ∗
        (* TODO: the closing conjuct does not make much sense with True *)
        ∃ q' vl, l ↦{q'}|cty| vl ∗ ▷ ty.(ty_own_val) cty vl ∗ (▷l ↦{q'}|cty| vl ={E}=∗ True)
 }.
@@ -600,8 +600,9 @@ Section rmovable.
 
   Global Program Instance copyable_ty_of_rty A r `{!∀ x : A, Copyable (x @ r)} : Copyable r.
   Next Obligation.
-    iIntros (cty A r ? E l ?). iDestruct 1 as (x) "Hl".
-    iMod (copy_shr_acc with "Hl") as (? q' vl) "(?&?&?)" => //.
+    iIntros (A r ? E l ?). iDestruct 1 as (x) "Hl".
+    iMod (copy_shr_acc with "Hl") as (? q' vl) "(%&?&?&?)" => //.
+    iExists _.
     iSplitR => //. iExists _, _. iFrame. auto.
   Qed.
 End rmovable.
