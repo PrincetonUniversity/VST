@@ -7,18 +7,20 @@ Section value.
 
   Program Definition value (ot : Ctypes.type) (v : val) : type := {|
     ty_has_op_type ot' mt := (ot' = ot ∧ type_is_by_value ot = true)%type;
-    ty_own β l := (<affine>⌜l `has_layout_loc` ot⌝ ∗ <affine>⌜(valinject ot v) `has_layout_val` ot⌝ ∗ l ↦[ β ]|ot| (valinject ot v))%I;
-    ty_own_val cty v' := (<affine> ⌜cty = ot⌝ ∗ <affine> ⌜(valinject ot v) `has_layout_val` ot⌝ ∗
-                          <affine> ⌜JMeq.JMeq v' (valinject ot v)⌝)%I;
+    ty_own β l := (<affine>⌜l `has_layout_loc` ot⌝ ∗
+                   <affine>⌜(valinject ot v) `has_layout_val` ot⌝ ∗
+                   l ↦[β]|ot| (valinject ot v))%I;
+    ty_own_val cty v' := (<affine> ⌜cty = ot⌝ ∗
+                          <affine> ⌜v' = valinject cty v⌝ ∗
+                          <affine> ⌜v' `has_layout_val` cty⌝)%I;
   |}.
   Next Obligation. iIntros (?????) "[$ [$ ?]]". by iApply heap_mapsto_own_state_share. Qed.
   Next Obligation. iIntros (ot v ot' mt l [-> ?]) "[% [% ?]]". done. Qed.
-  Next Obligation. intros ot v ot' mt l [? ?]. revert l. rewrite H; clear H ot'.
-                   iIntros (l) "[% [% %]]". apply JMeq.JMeq_eq in H2. rewrite H2 //. Qed.
-  Next Obligation. intros ot v ot' mt l [? ?]. revert l. rewrite H; clear H ot'.
-                   iIntros (l) "[% [% ?]]". eauto with iFrame. Qed.
-  Next Obligation. iIntros. destruct H as [-> ?]. destruct H1 as [? [? ?]].
-                   apply JMeq.JMeq_eq in H3. rewrite H3.
+  Next Obligation. intros ot v ot' mt l [-> ?].
+                   iIntros "[% [% ?]]". done. Qed.
+  Next Obligation. intros ot v ot' mt l [-> ?].
+                   iIntros "[% [% ?]]". eauto with iFrame. Qed.
+  Next Obligation. iIntros (ot v ot' mt l ? [-> ?]) "% Hl (% & -> & %)".
                    by iFrame. Qed.
 (*  Next Obligation. iIntros (ot v v' ot' mt st ?). apply: mem_cast_compat_id. iPureIntro.
     move => [?[? ->]]. by destruct ot' => //; simplify_eq/=.
@@ -27,8 +29,7 @@ Section value.
   Lemma value_simplify v ot p T:
     (<affine> ⌜valinject ot v = valinject ot p⌝ -∗ <affine>⌜(valinject ot v) `has_layout_val` ot⌝ -∗ T)
     ⊢ simplify_hyp (v ◁ᵥₐₗ|ot| value ot p) T.
-  Proof. iIntros "HT [% [% %]]". apply JMeq.JMeq_eq in H1.
-    rewrite H1. by iApply "HT". Qed.
+  Proof. iIntros "HT [% [% %]]". by iApply "HT". Qed.
   Definition value_simplify_inst := [instance value_simplify with 0%N].
   Global Existing Instance value_simplify_inst.
 
