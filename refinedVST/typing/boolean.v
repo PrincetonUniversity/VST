@@ -69,6 +69,7 @@ Section generic_boolean.
   Proof.
     destruct v, t; done.
   Qed.
+  Hint Resolve val_to_Z_by_value : core.
 
   Program Definition generic_boolean_type (stn: bool_strictness) (it: Ctypes.type) (b: bool) : type := {|
     ty_has_op_type cty mt := cty = it%type;
@@ -95,12 +96,10 @@ Section generic_boolean.
   Next Obligation.
     iIntros (??????->) "(%&%&%&%&%&%&?)".
     iFrame. iSplit => //. iExists _; iSplit => //.
-    iSplit => //. iPureIntro. rewrite repinject_valinject //.
-    by eapply val_to_Z_by_value.
+    iSplit => //. iPureIntro. rewrite repinject_valinject //. eauto.
   Qed.
   Next Obligation.
     iIntros (?????? v -> ?) "Hl (%&%n&%&%&%)". iExists (repinject it v), n; rewrite valinject_repinject; eauto with iFrame.
-    by eapply val_to_Z_by_value.
   Qed.
 (*  Next Obligation.
     iIntros (????????). apply: mem_cast_compat_bool; [naive_solver|]. iPureIntro. naive_solver.
@@ -340,3 +339,5 @@ Section builtin_boolean.
 
 End builtin_boolean.
 Global Typeclasses Opaque generic_boolean_type generic_boolean.
+
+Global Hint Resolve val_to_Z_by_value : core.

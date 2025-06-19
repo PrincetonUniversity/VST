@@ -258,6 +258,7 @@ Section judgements.
   Class TypedValue (cty : Ctypes.type) (v : val) : Type :=
     typed_value_proof T : iProp_to_Prop (typed_value cty v T).
 
+  (* `op (v1:t) (v2:t)` evaluates to (v:cty) *)
   Definition typed_val_binop op t1 v1 t2 v2 cty (T : val → type → assert) : assert :=
     (∀ Φ, (∀ v (ty : type), ⎡v ◁ᵥₐₗ|cty| ty⎤  -∗ T v ty -∗ Φ v) -∗ wp_binop ge ⊤ op t1 v1 t2 v2 Φ).
   Global Arguments typed_val_binop _ _ _ _ _ _ _%_I.
@@ -268,15 +269,16 @@ Section judgements.
   Class TypedBinOp (v1 : val) (P1 : assert) (v2 : val) (P2 : assert) (o : Cop.binary_operation) (ot1 ot2 ot: Ctypes.type) : Type :=
     typed_bin_op_proof T : iProp_to_Prop (typed_bin_op v1 P1 v2 P2 o ot1 ot2 ot T).
 
-  Definition typed_val_unop op t v (T : val → type → assert) : assert :=
-    (∀ Φ, (∀ v (ty : type), ∃ cty, ⎡v ◁ᵥₐₗ|cty| ty⎤ -∗ T v ty -∗ Φ v) -∗ wp_unop ⊤ op t v Φ).
+  (* `op (v1:t)` evaluates to (v:cty) *)
+  Definition typed_val_unop op t cty v1 (T : val → type → assert) : assert :=
+    (∀ Φ, (∀ v (ty : type), ⎡v ◁ᵥₐₗ|cty| ty⎤ -∗ T v ty -∗ Φ v) -∗ wp_unop ⊤ op t v1 Φ).
   Global Arguments typed_val_unop _ _ _ _%_I.
 
-  Definition typed_un_op (v : val) (P : assert) (o : Cop.unary_operation) (ot : Ctypes.type) (T : val → type → assert) : assert :=
-    (P -∗ typed_val_unop o ot v T)%I.
+  Definition typed_un_op (v : val) (P : assert) (o : Cop.unary_operation) (t cty : Ctypes.type) (T : val → type → assert) : assert :=
+    (P -∗ typed_val_unop o t cty v T)%I.
 
-  Class TypedUnOp (v : val) (P : assert) (o : Cop.unary_operation) (ot : Ctypes.type) : Type :=
-    typed_un_op_proof T : iProp_to_Prop (typed_un_op v P o ot T).
+  Class TypedUnOp (v : val) (P : assert) (o : Cop.unary_operation) (t cty : Ctypes.type) : Type :=
+    typed_un_op_proof T : iProp_to_Prop (typed_un_op v P o t cty T).
 
   (* FIXME this probably does not work; maybe providing a list of cty?  *)
   Definition typed_exprs f (el : list expr) (tl : list Ctypes.type) (T : list val → list type → assert) : assert :=
@@ -545,7 +547,7 @@ Global Hint Mode TypedIf + + + + + : typeclass_instances.
 (* Global Hint Mode TypedAssert + + + + + + : typeclass_instances. *)
 Global Hint Mode TypedValue + + + + + + : typeclass_instances.
 Global Hint Mode TypedBinOp + + + + + + + + + + + + + : typeclass_instances.
-Global Hint Mode TypedUnOp + + + + + + + + : typeclass_instances.
+Global Hint Mode TypedUnOp + + + + + + + + + : typeclass_instances.
 Global Hint Mode TypedCall + + + + + + + + + + : typeclass_instances.
 (*Global Hint Mode TypedCopyAllocId + + + + + + + : typeclass_instances. *)
 Global Hint Mode TypedReadEnd + + + + + + + + + + + + : typeclass_instances.
@@ -631,10 +633,10 @@ Section proper.
     iApply ("H" with "[Hw1 H1]"); [by iApply "Hw1"|by iApply "Hw2"].
   Qed.
 
-  Lemma typed_un_op_wand v P Q op ot T:
-    typed_un_op v Q op ot T -∗
+  Lemma typed_un_op_wand v P Q op t cty T:
+    typed_un_op v Q op t cty T -∗
     (P -∗ Q) -∗
-    typed_un_op v P op ot T.
+    typed_un_op v P op t cty T.
   Proof.
     iIntros "H Hw HP". iApply "H". by iApply "Hw".
   Qed.
@@ -822,7 +824,7 @@ Ltac generate_i2p_instance_to_tc_hook arg c ::=
   lazymatch c with
   | typed_value ?cty ?x => constr:(TypedValue cty x)
   | typed_bin_op ?x1 ?x2 ?x3 ?x4 ?x5 ?x6 ?x7 ?x8 ?x9 => constr:(TypedBinOp x1 x2 x3 x4 x5 x6 x7 x8 x9)
-  | typed_un_op ?x1 ?x2 ?x3 ?x4 => constr:(TypedUnOp x1 x2 x3 x4)
+  | typed_un_op ?x1 ?x2 ?x3 ?x4 ?x5 => constr:(TypedUnOp x1 x2 x3 x4 x5)
 (*  | typed_call ?x1 ?x2 ?x3 ?x4 => constr:(TypedCall x1 x2 x3 x4)
   | typed_copy_alloc_id ?x1 ?x2 ?x3 ?x4 ?x5 => constr:(TypedCopyAllocId x1 x2 x3 x4 x5)
   | typed_place ?x1 ?x2 ?x3 ?x4 => constr:(TypedPlace x1 x2 x3 x4)
@@ -1155,9 +1157,9 @@ Section typing.
   Definition typed_binop_comma_inst := [instance typed_binop_comma].
   Global Existing Instance typed_binop_comma_inst. *)
 
-  Lemma typed_unop_simplify v P n ot {SH : SimplifyHyp P (Some n)} op T:
-    (SH (find_in_context (FindValP v) (λ P, typed_un_op v P op ot T))).(i2p_P)
-    ⊢ typed_un_op v P op ot T.
+  Lemma typed_unop_simplify v P n t cty {SH : SimplifyHyp P (Some n)} op T:
+    (SH (find_in_context (FindValP v) (λ P, typed_un_op v P op t cty T))).(i2p_P)
+    ⊢ typed_un_op v P op t cty T.
   Proof.
     iIntros "Hs Hv". iDestruct (i2p_proof with "Hs Hv") as (P') "[Hv Hsub]". simpl in *. by iApply ("Hsub" with "[$]").
   Qed.
@@ -1557,14 +1559,12 @@ Qed.
   Qed.
 
   Lemma type_un_op ge f o e ot T:
-    typed_val_expr ge f e (λ v ty, typed_un_op v ⎡v ◁ᵥₐₗ|typeof e| ty⎤ o (typeof e) T)
+    typed_val_expr ge f e (λ v ty, typed_un_op v ⎡v ◁ᵥₐₗ|typeof e| ty⎤ o (typeof e) ot T)
     ⊢ typed_val_expr ge f (Eunop o e ot) T.
   Proof.
     iIntros "He" (Φ) "HΦ".
     iApply wp_unop_rule. iApply "He". iIntros (v ty) "Hv Hop".
-    rewrite /typed_un_op /typed_val_unop.
-    iApply ("Hop" with "Hv").
-    rewrite /typeof //. iIntros; iExists _; iApply "HΦ".
+    by iApply ("Hop" with "Hv").
   Qed.
 
   Lemma type_tempvar ge f _x v cty T ty:
