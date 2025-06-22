@@ -179,29 +179,19 @@ Section int.
     destruct v, it; done.
   Qed.
 
-  Lemma has_layout_val_tc_val' it v:
-    type_is_volatile it = false ->
-    type_is_by_value it = true ->
-    (valinject it v) `has_layout_val` it ->
-    tc_val' it v.
-  Proof.
-    intros H0 H1 H2.
-    rewrite /has_layout_val field_at.value_fits_by_value /tc_val' // repinject_valinject // in H2.
-  Qed.
-
   Lemma has_layout_val_tc_val it v:
     v ≠ Vundef ->
-    type_is_volatile it = false ->
     type_is_by_value it = true ->
     (valinject it v) `has_layout_val` it ->
     tc_val it v.
   Proof.
     intros.
-    eapply has_layout_val_tc_val' in H2; eauto.
+    eapply has_layout_val_tc_val' in H1; eauto.
+    rewrite /tc_val' repinject_valinject // in H1. by apply H1.
   Qed.
 
   Lemma ty_own_int_in_range l β n it :
-    type_is_volatile it = false -> l ◁ₗ{β} n @ int it -∗ ⌜n ∈ it⌝.
+    l ◁ₗ{β} n @ int it -∗ ⌜n ∈ it⌝.
   Proof.
     intros.
     iIntros "Hl". destruct β.
@@ -281,6 +271,7 @@ Section programs.
     split3; [done | | by apply i2v_to_Z].
     rewrite /has_layout_val field_at.value_fits_by_value //.
     rewrite repinject_valinject //.
+    split; try done.
     intros ?. by apply in_range_i2v.
   Qed.
   Definition type_val_int_inst := [instance type_val_int].
@@ -322,7 +313,6 @@ Section programs.
   SimplifyPlace/Val instance for int which adds it to the context if
   it does not yet exist (using check_hyp_not_exists)?! *)
   Lemma type_relop_int_int ge n1 n2 op b it v1 v2 T :
-    type_is_volatile it = false →
     match op with
     | Cop.Oeq => Some (bool_decide (n1 = n2))
     | Cop.One => Some (bool_decide (n1 ≠ n2))
@@ -335,7 +325,8 @@ Section programs.
     (⌜n1 ∈ it⌝ -∗ ⌜n2 ∈ it⌝ -∗ T (i2v (bool_to_Z b) tint) (b @ boolean tint))
     ⊢ typed_bin_op ge v1 ⎡v1 ◁ᵥₐₗ|it| n1 @ int it⎤ v2 ⎡v2 ◁ᵥₐₗ|it| n2 @ int it⎤ op it it tint T.
   Proof.
-    iIntros (Hit) "%Hop HT (%H1 & [%H %Hv1]) (%H2 & [%H0 %Hv2]) %Φ HΦ".
+    iIntros "%Hop HT (%H1 & [%H %Hv1]) (%H2 & [%H0 %Hv2]) %Φ HΦ".
+    apply has_layout_val_volatile_false in H as Hit.
     apply val_to_Z_by_value in Hv1 as Hit2.
     rewrite !repinject_valinject // in Hv1, Hv2.
     eapply has_layout_val_tc_val in H; eauto.
@@ -479,7 +470,11 @@ Section programs.
     [instance type_relop_int_int ge n1 n2 Cop.Oge (bool_decide (n1 >= n2))].
   Global Existing Instance type_ge_int_int_inst.
 
-  Lemma type_arithop_int_int ge n1 n2 n op it v1 v2
+  Class CtypeNotVolatile (cty : Ctypes.type) := {
+    prf : type_is_volatile cty = false;
+  }.
+
+  Lemma type_arithop_int_int ge n1 n2 n op it v1 v2 v1_rep v2_rep
     (Hop : match op with
     | Oadd => Some (n1 + n2)
     | Osub => Some (n1 - n2)
@@ -493,11 +488,13 @@ Section programs.
     | Oshr => Some (n1 ≫ n2)
     | _ => None
     end = Some n) T :
-    type_is_volatile it = false →
+    TCEq v1_rep (valinject it v1) →
+    TCEq v2_rep (valinject it v2) →
     (<affine> ⌜n1 ∈ it⌝ -∗ <affine> ⌜n2 ∈ it⌝ -∗ <affine> ⌜in_range n it ∧ int_arithop_sidecond it n1 n2 n op⌝ ∗ T (i2v n it) (n @ int it))
-    ⊢ typed_bin_op ge v1 ⎡v1 ◁ᵥₐₗ|it| n1 @ int it⎤ v2 ⎡v2 ◁ᵥₐₗ|it| n2 @ int it⎤ op it it it T.
+    ⊢ typed_bin_op ge v1 ⎡v1_rep ◁ᵥ|it| n1 @ int it⎤ v2 ⎡v2_rep ◁ᵥ|it| n2 @ int it⎤ op it it it T.
   Proof.
-    iIntros (Hit) "HT (H1 & [%Hv_layout1 %Hv1]) (H & [%Hv_layout2 %Hv2]) %Φ HΦ".
+    iIntros (-> ->) "HT (H1 & [%Hv_layout1 %Hv1]) (H & [%Hv_layout2 %Hv2]) %Φ HΦ".
+    apply has_layout_val_volatile_false in Hv_layout1 as Hit.
     apply val_to_Z_by_value in Hv1 as Hit2.
     rewrite !repinject_valinject // in Hv1, Hv2.
     eapply has_layout_val_tc_val in Hv_layout1 as H; eauto.
@@ -747,6 +744,7 @@ Section programs.
       rewrite repinject_valinject //.
       split3; [done| | by apply i2v_to_Z].
       rewrite /has_layout_val field_at.value_fits_by_value // repinject_valinject //.
+      split; [|done].
       intros ?.
       by apply in_range_i2v.
   Qed.
@@ -821,11 +819,11 @@ Section programs.
   Global Existing Instance type_switch_int_inst. *)
 
   Lemma type_neg_int n it v T:
-    type_is_volatile it = false →
     (⌜n ∈ it⌝ -∗ <affine> ⌜is_signed it⌝ ∗ <affine> ⌜n ≠ min_int it⌝ ∗ T (i2v (-n) it) ((-n) @ int it))
     ⊢ typed_un_op v ⎡v ◁ᵥₐₗ|it| n @ int it⎤%I Oneg it it T.
   Proof.
-    iIntros (Hit) "HT (%_ & [%H %Hv]) %Φ HΦ".
+    iIntros "HT (%_ & [%H %Hv]) %Φ HΦ".
+    apply has_layout_val_volatile_false in H as Hit.
     apply val_to_Z_by_value in Hv as Hit2.
     rewrite repinject_valinject // in Hv.
     eapply has_layout_val_tc_val in H as Htc; eauto.
@@ -855,6 +853,7 @@ Section programs.
       rewrite repinject_valinject //.
       split3; [done| | by apply i2v_to_Z].
       rewrite /has_layout_val field_at.value_fits_by_value // repinject_valinject //.
+      split; [|done].
       intros ?.
       by apply in_range_i2v.
   Qed.
@@ -1042,6 +1041,12 @@ Qed.
 
 End programs.
 Global Typeclasses Opaque int_inner_type int.
+
+Example CtypeNotVolatile_int_test_fail : CtypeNotVolatile (tint).
+Proof. Fail solve [refine _]. Abort.
+Hint Extern 0 (CtypeNotVolatile _) => done : typeclass_instances.
+Example CtypeNotVolatile_int_test : CtypeNotVolatile (tint).
+Proof. solve [refine _]. Qed.
 
 Notation "'if' p ≠ 0 " := (TraceIfInt p) (at level 100, only printing).
 (* Notation "'case' n " := (TraceSwitchIntCase n) (at level 100, only printing).

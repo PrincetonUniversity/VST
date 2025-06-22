@@ -144,11 +144,37 @@ Section CompatRefinedC.
   (* refinedC only checks if `v` fits in the size of cty *)
   (* this is implied by the current mapsto(i.e. data_at_rec_value_fits) *)
   Definition has_layout_val (cty:Ctypes.type) (v:reptype cty) : Prop :=
-    value_fits cty v.
+    value_fits cty v ∧ type_is_volatile cty = false.
 
   Arguments has_layout_val : simpl never.
 
   Global Typeclasses Opaque has_layout_val.
+
+  Lemma has_layout_val_volatile_false cty v :
+    has_layout_val cty v → type_is_volatile cty = false.
+  Proof. move => [? ?] //. Qed.
+
+  Lemma has_layout_val_value_fits cty v :
+    has_layout_val cty v → value_fits cty v.
+  Proof. move => [? ?] //. Qed.
+
+  Lemma has_layout_val_tc_val' cty v_rep :
+    type_is_by_value cty = true →
+    has_layout_val cty v_rep → 
+    tc_val' cty (repinject cty v_rep).
+  Proof.
+    move => ? [? ?].
+    rewrite -field_at.value_fits_by_value //.
+  Qed.
+
+  Lemma has_layout_val_tc_val'2 cty v :
+    type_is_by_value cty = true →
+    has_layout_val cty (valinject cty v) → 
+    tc_val' cty v.
+  Proof.
+    move => ? [H ?].
+    rewrite field_at.value_fits_by_value // repinject_valinject // in H.
+  Qed.
 
   Definition has_layout_loc (l:address) (cty:Ctypes.type) : Prop :=
     field_compatible cty [] (adr2val l).
@@ -536,7 +562,7 @@ Global Instance inhabited_type `{!typeG OK_ty Σ} {cs : compspecs} : Inhabited t
 Record rtype `{!typeG OK_ty Σ} {cs : compspecs} (A : Type) := RType {
   rty : A → type;
 }.
-Arguments RType {_ _ _ _ _ } _.
+Arguments RType {_ _ _ _ _} _.
 Arguments rty {_ _ _ _ _} _.
 Add Printing Constructor rtype.
 
@@ -545,6 +571,7 @@ Bind Scope bi_scope with rtype.
 
 Definition with_refinement `{!typeG OK_ty Σ} {cs : compspecs} {A} `(r : rtype A) (x : A) : type := r.(rty) x.
 Notation "x @ r" := (with_refinement r x) (at level 14) : bi_scope.
+Arguments with_refinement : simpl never.
 
 Import EqNotations.
 
