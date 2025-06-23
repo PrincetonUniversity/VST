@@ -153,6 +153,22 @@ Ltac wp_value_head :=
       eapply tac_wp_consts_nofupd
   | |- envs_entails _ (wp_expr _ ?E _ (Econst_long _ _) (ob_cond _ _)) =>
       eapply tac_wp_constl_nofupd
+  | |- envs_entails _ (wp_expr _ ?E _ (Econst_int _ _) (λ _, ob_replace _ _ _)) =>
+      eapply tac_wp_consti_nofupd
+  | |- envs_entails _ (wp_expr _ ?E _ (Econst_float _ _) (λ _, ob_replace _ _ _)) =>
+      eapply tac_wp_constf_nofupd
+  | |- envs_entails _ (wp_expr _ ?E _ (Econst_single _ _) (λ _, ob_replace _ _ _)) =>
+      eapply tac_wp_consts_nofupd
+  | |- envs_entails _ (wp_expr _ ?E _ (Econst_long _ _) (λ _, ob_replace _ _ _)) =>
+      eapply tac_wp_constl_nofupd
+  | |- envs_entails _ (wp_expr _ ?E _ (Econst_int _ _) (λ _, wp_binop _ _ _ _ _ _ _ _)) =>
+      eapply tac_wp_consti_nofupd
+  | |- envs_entails _ (wp_expr _ ?E _ (Econst_float _ _) (λ _, wp_binop _ _ _ _ _ _ _ _)) =>
+      eapply tac_wp_constf_nofupd
+  | |- envs_entails _ (wp_expr _ ?E _ (Econst_single _ _) (λ _, wp_binop _ _ _ _ _ _ _ _)) =>
+      eapply tac_wp_consts_nofupd
+  | |- envs_entails _ (wp_expr _ ?E _ (Econst_long _ _) (λ _, wp_binop _ _ _ _ _ _ _ _)) =>
+      eapply tac_wp_constl_nofupd
   | |- envs_entails _ (wp_expr _ ?E _ (Econst_int _ _) _) =>
       eapply tac_wp_consti
   | |- envs_entails _ (wp_expr _ ?E _ (Econst_float _ _) _) =>
@@ -241,6 +257,16 @@ Tactic Notation "wp_deref" :=
       |fail 1 "wp_deref: cannot find 'Ederef' in" e];
     wp_finish
   | _ => fail "wp_deref: not a 'wp'"
+  end.
+
+Tactic Notation "wp_addrof" :=
+  lazymatch goal with
+  | |- envs_entails _ (wp_expr _ ?E _ ?e ?Q) =>
+    first
+      [iApply wp_addrof
+      |fail 1 "wp_addrof: cannot find 'Eaddrof' in" e];
+    wp_finish
+  | _ => fail "wp_addrof: not a 'wp'"
   end.
 
 Tactic Notation "wp_field" :=
@@ -363,16 +389,17 @@ Qed.*)
 
 Lemma tac_wp_store `{!VSTGS OK_ty Σ} Δ OK_spec ge E f e1 e2 q v Q :
   writable0_share q →
-  envs_entails Δ (wp_expr ge E f (Ecast e2 (typeof e1)) (λ v2,
-    ⌜Cop2.tc_val' (typeof e1) v2⌝ ∧ wp_lvalue ge E f e1 (λ '(b, o), let v1 := Vptr b (Ptrofs.repr o) in
-    ob_replace ⎡mapsto q (typeof e1) v1 v⎤ ⎡mapsto q (typeof e1) v1 v2⎤ (RA_normal Q)))) →
+  envs_entails Δ (wp_expr ge E f (Ecast e2 (typeof e1)) (ob_cond(B := unit) (λ v2 u, u = tt /\ Cop2.tc_val' (typeof e1) v2) (λ v2 _,
+    wp_lvalue ge E f e1 (λ '(b, o), let v1 := Vptr b (Ptrofs.repr o) in
+    ob_replace ⎡mapsto q (typeof e1) v1 v⎤ ⎡mapsto q (typeof e1) v1 v2⎤ (RA_normal Q))))) →
   envs_entails Δ (wp OK_spec ge E f (Sassign e1 e2) Q).
 Proof.
   rewrite envs_entails_unseal=> ? Hi.
   rewrite Hi -wp_store.
   apply wp_expr_mono.
-  intros ?; rewrite -fupd_intro; f_equiv.
-  apply wp_lvalue_mono.
+  intros ?; rewrite -fupd_intro /ob_cond.
+  iIntros "(% & (_ & %) & H)"; iSplit; first done.
+  iApply (wp_lvalue_mono with "H").
   iIntros ((?, ?)) "H !>".
   iExists q; iSplit; first done.
   iDestruct "H" as "(? & H)"; iSplitR "H".
@@ -426,11 +453,22 @@ Proof.
   iIntros (?) "($ & H) !> !> ? !>"; by iApply "H".
 Qed.
 
+Lemma tac_wp_var `{!VSTGS OK_ty Σ} Δ ge E f i x b t Q :
+  envs_lookup i Δ = Some (false, lvar x t b) →
+  envs_entails Δ (Q (b, 0)) →
+  envs_entails Δ (wp_lvalue ge E f (Evar x t) Q).
+Proof.
+  rewrite envs_entails_unseal=> ? Hi.
+  rewrite -wp_var_local.
+  rewrite envs_lookup_split //; simpl.
+  by rewrite Hi.
+Qed.
+
 Ltac wp_apply_core lem tac_suc tac_fail := first
   [iPoseProofCore lem as false (fun H =>
      lazymatch goal with
      | |- envs_entails _ (wp _ _ _ _ _ _) =>
-            tac_suc H
+            reshape_seq; tac_suc H
      | _ => fail 1 "wp_apply: not a 'wp'"
      end)
   |tac_fail ltac:(fun _ => wp_apply_core lem tac_suc tac_fail)
@@ -560,6 +598,20 @@ Tactic Notation "wp_set" :=
       |fail 1 "wp_set: cannot find 'Sset' in" e];
     [pm_reduce; wp_finish]
   | _ => fail "wp_set: not a 'wp'"
+  end.
+
+Tactic Notation "wp_var" :=
+  let solve_lvar _ :=
+    let i := match goal with |- _ = Some (_, lvar ?i _ _) => i end in
+    iAssumptionCore || fail "wp_store: cannot find lvar" i in
+  lazymatch goal with
+  | |- envs_entails _ (wp_lvalue _ ?E _ ?e ?Q) =>
+    first
+      [eapply tac_wp_var
+      |fail 1 "wp_var: cannot find 'Evar' in" e];
+    [solve_lvar ()
+    |pm_reduce; wp_finish]
+  | _ => fail "wp_var: not a 'wp'"
   end.
 
 Tactic Notation "wp_return" :=

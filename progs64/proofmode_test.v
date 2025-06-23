@@ -101,7 +101,7 @@ Proof.
   rewrite data_at_rec_lemmas.data_at_rec_eq /=.
   rewrite /fieldlist.field_offset_next /= /withspacer /at_offset /=.
   rewrite functional_base.isptr_offset_val_zero; last by destruct Hcompat.
-  rewrite data_at_rec_lemmas.data_at_rec_eq /= -sep_assoc //.
+  rewrite data_at_rec_lemmas.data_at_rec_eq /= -log_normalize.sep_assoc //.
 Qed.
 
 Theorem append_spec Espec lx ly : fun_triple Espec cenv_cs (λ args, ∃ x y, <affine> ⌜args = [x; y]⌝ ∗ listrep Ews lx x ∗ listrep Ews ly y)
@@ -151,8 +151,7 @@ Proof.
       wp_break; simpl.
       iDestruct (listrep_isptr with "Hy") as %Hy.
       wp_store; wp_temp.
-      iSplit.
-      { iPureIntro; intros ?; simpl; done. }
+      { split; first done; intros ?; simpl; done. }
       iDestruct "Ht1" as "(Ht1 & ? & ?)".
       destruct t; try (destruct Ht; contradiction).
       wp_field. wp_deref. wp_temp.
@@ -185,3 +184,88 @@ Proof.
 Qed.
 
 End append.
+
+Require Import VST.progs64.test.
+
+Section test.
+
+Context `{VSTGS OK_ty Σ}.
+
+#[local] Instance test_CompSpecs : compspecs. make_compspecs prog. Defined.
+
+Hypothesis malloc_spec : forall Espec ge E f x v t, ∀ Φ,
+  temp x v -∗
+  (∀ p, temp x p -∗ ⎡mapsto_ Ews t p⎤ -∗ tycontext.RA_normal Φ) -∗
+  wp Espec ge E f (Scall (Some x) (Evar _malloc (Tfunction [tulong] (tptr tvoid) cc_default)) [Esizeof t tulong]) Φ.
+
+Theorem test_spec Espec : fun_triple Espec cenv_cs (λ args, <affine> ⌜args = []⌝)
+  f_main (λ r, ⌜r = Some (Vint (Int.repr 10))⌝).
+Proof.
+  iIntros (??) "-> S"; rewrite /stackframe_of' /=.
+  set (cenv := _ : composite_env).
+  iDestruct "S" as "((Hp & _) & Hx & Hq & Ht1 & _)".
+  iDestruct "Hp" as "(% & % & Hp & Hdata)"; simpl.
+  iAssert ⎡mapsto_ Tsh (tptr tint) (Vptr b Ptrofs.zero)⎤ with "[Hdata]" as "Hdata".
+  { rewrite -memory_block_mapsto_ //. admit. }
+  replace Tsh with Ews by admit.
+  wp_set.
+  wp_apply (malloc_spec with "Ht1").
+  iIntros (p1) "Ht1 Hp1"; simpl.
+  iDestruct (mapsto__local_facts with "Hp1") as %Hp1.
+  destruct p1; try contradiction.
+  wp_store; wp_temp.
+  wp_field; wp_var.
+  wp_store; wp_temp.
+  wp_deref. wp_load; wp_field; wp_var.
+  { done. }
+  ob_cond_tac.
+  ob_replace_tac.
+  wp_set; wp_addrof; wp_var.
+  iAssert (∃ n : nat, temp _x (Vint (Int.repr (Z.of_nat n))) ∗
+    ⎡mapsto Ews tint (Vptr b0 i) (Vint (Int.repr (10 - Z.of_nat n)))⎤) with "[Hx Hp1]" as (n) "(Hx & Hp1)".
+  { iExists 5%nat; iFrame. }
+  iApply wp_seq.
+  iLöb as "IH" forall (n).
+  wp_loop; wp_skip; simpl.
+  wp_store; wp_binop.
+  wp_load; wp_deref.
+  wp_load; wp_field; wp_deref; wp_temp.
+  { done. }
+  wp_finish.
+  { done. }
+  wp_finish.
+  wp_deref.
+  wp_load; wp_field. (* get rid of wp_load? *)
+  wp_deref; wp_temp.
+  { done. }
+  wp_finish.
+  wp_set; wp_binop; wp_temp.
+  rewrite coqlib3.sub_repr !reptype_lemmas.ptrofs_add_repr_0_r.
+  wp_if; wp_binop; wp_temp.
+  iNext; iSplit; first done.
+  simpl.
+  destruct (Int.eq _ _) eqn: Heq; simpl.
+  - wp_skip; simpl.
+    wp_skip; simpl.
+    replace (Z.of_nat n - 1) with (Z.of_nat (n - 1)) by admit.
+    iApply ("IH" with "[$] [$] [$] [$] [$]").
+    rewrite coqlib3.add_repr.
+    replace (10 - Z.of_nat n + 1) with (10 - Z.of_nat (n - 1)) by admit.
+    done.
+  - wp_break; simpl.
+    wp_return; wp_load; wp_deref.
+    wp_load; wp_field; wp_var.
+    { done. }
+    wp_finish.
+    { done. }
+    wp_finish.
+    iSplitR "Hp Hdata Hx Hq Ht1"; last (iExists [_; _; _]; simpl; iFrame).
+    rewrite /= /bind_ret /=.
+    iPureIntro.
+    rewrite coqlib3.add_repr.
+    admit. (* math *)
+    { iSplit; first done.
+      admit. }
+Qed.
+
+End test.

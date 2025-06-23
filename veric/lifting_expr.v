@@ -1141,6 +1141,17 @@ Proof.
   intros ??; subst; econstructor; eauto.
 Qed.
 
+Lemma wp_addrof : forall E f e t P,
+  wp_lvalue E f e (λ '(b, o), P (Vptr b (Ptrofs.repr o))) ⊢ wp_expr E f (Eaddrof e t) P.
+Proof.
+  intros; rewrite /wp_lvalue /wp_expr.
+  do 8 f_equiv.
+  iIntros "(% & % & ? & $)".
+  iStopProof; do 7 f_equiv.
+  intros ??; econstructor; eauto.
+  rewrite Ptrofs.repr_unsigned; auto.
+Qed.
+
 Lemma wp_expr_ptr : forall E f e P, match access_mode (typeof e) with By_reference | By_copy => True | _ => False end →
   wp_lvalue E f e (λ '(b, o), P (Vptr b (Ptrofs.repr o))) ⊢ wp_expr E f e P.
 Proof.
