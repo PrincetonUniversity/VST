@@ -200,9 +200,9 @@ Section CompatRefinedC.
     ptrofs_add_repr_0_r.
     iIntros. iSplit.
     - iIntros "[%v H]". iExists v.
-    rewrite bi.persistent_and_affinely_sep_l //. 
+    rewrite bi.persistent_and_affinely_sep_l //.
     - iIntros "[%v H]". iExists v.
-    rewrite bi.persistent_and_affinely_sep_l //. 
+    rewrite bi.persistent_and_affinely_sep_l //.
   Qed.
 End CompatRefinedC.
 
@@ -227,10 +227,12 @@ Notation "l ↦[ β ]| cty | v" := (heap_mapsto_own_state cty l β v)
   (at level 20, cty at level 0, β at level 50, format "l ↦[ β ]| cty | v") : bi_scope.
 Definition heap_mapsto_own_state_type `{!typeG OK_ty Σ} {cs : compspecs} (cty : type) (l : address) (β : own_state) : iProp Σ :=
   (∃ v, l ↦[ β ]| cty | v).
-Notation "l ↦[ β ]| cty |- " := (heap_mapsto_own_state_type cty l β)
+Notation "l ↦_[ β ]| cty | " := (heap_mapsto_own_state_type cty l β)
   (at level 20, β at level 50) : bi_scope.
-Notation "l ↦[ β ]| cty | - " := (heap_mapsto_own_state_type cty l β)
-  (at level 20, β at level 50) : bi_scope.
+
+Example test_notation `{!typeG OK_ty Σ} {cs : compspecs} l β t v : 
+   l ↦[β]|t| v ∗ l ↦_[β]|t| ⊢ l ↦_[β]|t| ∗ l↦[β]|t| v.
+Abort.
 
 Section own_state.
   Context `{!typeG OK_ty Σ} {cs : compspecs}.
@@ -293,7 +295,7 @@ Section own_state.
   Proof. by apply heap_mapsto_own_state_from_mt. Qed.
 
   Lemma heap_mapsto_own_state_exist_share t l E:
-    l ↦[Own]|t|- ={E}=∗ l ↦[Shr]|t|-.
+    l ↦_[Own]|t| ={E}=∗ l ↦_[Shr]|t|.
   Proof.
     iDestruct 1 as (v) "Hl". iMod (heap_mapsto_own_state_share with "Hl").
     iExists _. by iFrame.
@@ -332,10 +334,10 @@ Notation "l ↦{ sh '}' '|' cty '|' v" := (mapsto l sh cty v)
   (at level 20, sh at level 50, format "l ↦{ sh '}' '|' cty '|' v") : bi_scope.
 Notation "l ↦| cty | v" := (mapsto l Tsh cty v)
   (at level 20, format "l  ↦| cty | v") : bi_scope.
-Notation "l ↦{ sh '}' '|' cty '|' -" := (mapsto_layout l sh cty)
+Notation "l ↦_{ sh '}' '|' cty '|' " := (mapsto_layout l sh cty)
   (at level 20, sh at level 50) : bi_scope.
-Notation "l ↦| cty '|' '-'" := (mapsto_layout l Tsh cty)
-  (at level 20, format "l ↦| cty '|' '-'") : bi_scope.
+Notation "l ↦_| cty '|' " := (mapsto_layout l Tsh cty)
+  (at level 20, format "l ↦_| cty '|' ") : bi_scope.
 
 (* In Caesium, all values are lists of bytes in memory, and structured data is just an
    assertion on top of that. What do we want the values that appear in our types to be? *)
@@ -732,7 +734,7 @@ Section mono.
   Qed.
 End mono.
 
-(* Notation TypeMono T := (Proper (pointwise_relation _ (⊑) ==> pointwise_relation _ (⊑)) T).  *)
+Notation TypeMono T := (Proper (pointwise_relation _ (⊑) ==> pointwise_relation _ (⊑)) T).
 
 Global Typeclasses Opaque ty_own ty_own_val ty_of_rty with_refinement.
 
@@ -754,8 +756,8 @@ Ltac unfold_type_equiv :=
   | |- Forall2 _ (_ <$> _) (_ <$> _) => apply list_fmap_Forall2_proper
   | |- (?a @ ?ty1)%I ⊑ (?b @ ?ty2)%I => change (rty ty1 a ⊑ rty ty2 b); simpl
   | |- (?a @ ?ty1)%I ≡ (?b @ ?ty2)%I => change (rty ty1 a ≡ rty ty2 b); simpl
-  (* | |- ty_of_rty _ ⊑ ty_of_rty _ => simple refine (ty_of_rty_le _ _ _ _) => ? /= *)
-  (* | |- ty_of_rty _ ≡ ty_of_rty _ => simple refine (ty_of_rty_proper _ _ _ _) => ? /= *)
+  | |- ty_of_rty _ ⊑ ty_of_rty _ => simple refine (ty_of_rty_le _ _ _ _) => ? /=
+  | |- ty_of_rty _ ≡ ty_of_rty _ => simple refine (ty_of_rty_proper _ _ _ _) => ? /=
   | |- {| ty_own := _ |} ⊑ {| ty_own := _ |} =>
       constructor => *; simpl_type
   | |- {| ty_own := _ |} ≡ {| ty_own := _ |} =>

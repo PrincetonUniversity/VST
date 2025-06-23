@@ -330,7 +330,7 @@ Section judgements.
     (∀ (Φ: address->assert),
         (∀ (l:address), (⎡v ◁ᵥₐₗ|ot| ty⎤ ={⊤, E}=∗
                 <affine> ⌜(valinject ot v) `has_layout_val` ot⌝ ∗
-                 ⎡ l ↦|ot| - ⎤ ∗
+                 ⎡ l ↦_|ot| ⎤ ∗
                 (* Ke : maybe we need later afterall because write is only done a write statement after? *)
                 ▷(⎡ l ↦|ot| (valinject ot v) ⎤ ={E, ⊤}=∗ T))
               -∗ Φ l) -∗
@@ -388,7 +388,7 @@ Definition typed_read f (atomic : bool) (e : expr) (ot : Ctypes.type) (memcast :
     (⎡l2 ◁ₗ{β2} ty2⎤ -∗ 
     (⎡v1 ◁ᵥₐₗ|ot| ty1⎤ ={E, E'}=∗
        <affine> ⌜(valinject ot v1) `has_layout_val` ot⌝ ∗
-      ⎡ l2↦|ot| - ⎤ ∗ 
+      ⎡ l2↦_|ot| ⎤ ∗ 
       ▷ (⎡ l2 ↦|ot| (valinject ot v1) ⎤ ={E', E}=∗ ∃ ty3, ⎡l2 ◁ₗ{β2} ty3⎤ ∗ T ty3)))%I.
   Class TypedWriteEnd (atomic : bool) (E : coPset) (ot : Ctypes.type) (v1 : val) (ty1 : type) (l2 : address) (β2 : own_state) (ty2 : type) : Type :=
     typed_write_end_proof T : iProp_to_Prop (typed_write_end atomic E ot v1 ty1 l2 β2 ty2 T).

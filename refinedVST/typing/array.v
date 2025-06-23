@@ -105,9 +105,9 @@ Section array.
     0 <= s2 ->
     s = s1 + s2 ->
     l_1 = (l.1, l.2 + s1 * @expr.sizeof cs cty) ->
-    l ↦[Own]|tarray cty s| ⊣⊢
-    l ↦[Own]|tarray cty s1| ∗
-    l_1 ↦[Own]|tarray cty s2|.
+    l ↦_[Own]|tarray cty s| ⊣⊢
+    l ↦_[Own]|tarray cty s1| ∗
+    l_1 ↦_[Own]|tarray cty s2|.
   Proof.
     intros ?? -> Hl.
     iSplit.
@@ -316,8 +316,9 @@ Section array.
     pose l_1:address := (l.1, l.2 + @expr.sizeof cs cty)%Z.
     apply (has_layout_loc_array_tl _ l_1) in Hl as Hl_tl;[|done].
     destruct v as [|v_hd v_tl]; [done|].
-    rewrite /has_layout_val /= in Hv.
-    destruct Hv as [Hv _].
+    destruct Hv as [Hv ?].
+    rewrite value_fits_eq /= in Hv.
+    destruct Hv as [Hv ?].
     rewrite /unfold_reptype /= Zlength_cons Zpos_P_of_succ_nat /Z.succ Z.add_cancel_r in Hv.
     rewrite (array_split l l_1 _ 1 (length tys) _ _ [v_hd] v_tl); try done; try rep_lia.
     2: { rewrite Z.mul_1_l //. }
@@ -564,14 +565,8 @@ Section array.
   Definition subsume_array_uninit_inst := [instance subsume_array_uninit].
   Global Existing Instance subsume_array_uninit_inst. *)
   
-  Global Instance mpred_positive : BiPositive mpred.
-  Proof.
-    constructor. intros.
-    ouPred.unseal.
-  Admitted.
-
   
-  Lemma subsume_array A cty_arr tys1 tys2 l β T:
+  (* Lemma subsume_array A cty_arr tys1 tys2 l β T:
     (∀ id,
        subsume (sep_list id type [] tys1 (λ i ty, (l arr_ofs{cty_arr, (length tys1)}ₗ i) ◁ₗ{β} ty))
          (λ x, sep_list id type [] (tys2 x) (λ i ty, (l arr_ofs{cty_arr, (length tys1)}ₗ i) ◁ₗ{β} ty)) T)
@@ -586,13 +581,13 @@ Section array.
     simpl in *. rewrite -Heq. iExists _. iFrame.
     rewrite /ty_own /=.
     rewrite -bi_positive.
-  Admitted.
+  Admitted. *)
 
   (* TODO uncomment this when programs.v is done *)
   (* Definition subsume_array_inst := [instance subsume_array].
   Global Existing Instance subsume_array_inst. *)
 
-  Lemma type_place_array l β ly1 it v tyv tys ly2 K T:
+  (* Lemma type_place_array l β ly1 it v tyv tys ly2 K T:
     (v ◁ᵥ tyv -∗ ∃ i, ⌜ly1 = ly2⌝ ∗ v ◁ᵥ i @ int it ∗ ⌜0 ≤ i⌝ ∗ ⌜i < length tys⌝ ∗
      ∀ ty, ⌜tys !! Z.to_nat i = Some ty⌝ -∗
       typed_place K (l offset{ly2}ₗ i) β ty (λ l2 β2 ty2 typ,
@@ -614,7 +609,7 @@ Section array.
     iSplitR => //. iSplitR; first by rewrite length_insert. by iApply "Hc".
   Qed.
   Definition type_place_array_inst := [instance type_place_array].
-  Global Existing Instance type_place_array_inst.
+  Global Existing Instance type_place_array_inst. *)
 
   Lemma type_bin_op_offset_array l β ly it v tys i T:
     (* TODO: Should we make layout_wf ly part of array such that we don't need to require it here? *)
